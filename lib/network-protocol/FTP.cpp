@@ -33,11 +33,11 @@ NetworkProtocolFTP::~NetworkProtocolFTP()
     ftp = nullptr;
 }
 
-netProtoErr_t NetworkProtocolFTP::open_file_handle()
+netProtoErr_t NetworkProtocolFTP::open_file_handle(netProtoOpenMode_t omode)
 {
     netProtoErr_t res;
 
-    switch (aux1_open)
+    switch (omode)
     {
     case NETPROTO_OPEN_READ:
         stor = false;
@@ -237,54 +237,4 @@ AtariSIODirection NetworkProtocolFTP::special_inquiry(fujiCommandID_t cmd)
     }
 
     return ret;
-}
-
-netProtoErr_t NetworkProtocolFTP::special_00(cmdFrame_t *cmdFrame)
-{
-    return NETPROTO_ERR_NONE;
-}
-
-netProtoErr_t NetworkProtocolFTP::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
-{
-    return NETPROTO_ERR_NONE;
-}
-
-netProtoErr_t NetworkProtocolFTP::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
-{
-    return NETPROTO_ERR_NONE;
-}
-
-netProtoErr_t NetworkProtocolFTP::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
-{
-    return NETPROTO_ERR_NONE;
-}
-
-netProtoErr_t NetworkProtocolFTP::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
-{
-    return NETPROTO_ERR_NONE;
-}
-
-netProtoErr_t NetworkProtocolFTP::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
-{
-    return NETPROTO_ERR_NONE;
-}
-
-netProtoErr_t NetworkProtocolFTP::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
-{
-    return NETPROTO_ERR_NONE;
-}
-
-netProtoErr_t NetworkProtocolFTP::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
-{
-    return NETPROTO_ERR_NONE;
-}
-
-netProtoErr_t NetworkProtocolFTP::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
-{
-    return NETPROTO_ERR_NONE;
-}
-
-netProtoErr_t NetworkProtocolFTP::stat()
-{
-    return NETPROTO_ERR_NONE;
 }

@@ -17,16 +17,15 @@ enum AtariSIODirection {
 };
 
 enum netProtoTranslation_t {
-    NETPROTO_TRANS_NONE     = 0,
-    NETPROTO_TRANS_CR       = 1,
-    NETPROTO_TRANS_LF       = 2,
-    NETPROTO_TRANS_CRLF     = 3,
-    NETPROTO_TRANS_PETSCII  = 4,
-};
+    NETPROTO_TRANS_NONE    = 0,
+    NETPROTO_TRANS_CR      = 1,
+    NETPROTO_TRANS_LF      = 2,
+    NETPROTO_TRANS_CRLF    = 3,
+    NETPROTO_TRANS_PETSCII = 4,
 
-enum {
-    NETPROTO_A2_FLAG  = 0x80,
-    NETPROTO_A2_80COL = 0x81,
+    // FIXME - these aren't translation modes
+    NETPROTO_A2_FLAG       = 0x80,
+    NETPROTO_A2_80COL      = 0x81,
 };
 
 enum netProtoOpenMode_t {
@@ -51,6 +50,7 @@ class NetworkProtocol
 {
 public:
     std::string name = "UNKNOWN";
+    bool opened_write = false;
     /**
      * Was the last command a write?
      */
@@ -149,10 +149,11 @@ public:
     /**
      * @brief Open connection to the protocol using URL
      * @param urlParser The URL object passed in to open.
-     * @param cmdFrame The command frame to extract aux1/aux2/etc.
+     * @param mode The open mode to use
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame);
+    virtual netProtoErr_t open(PeoplesUrlParser *urlParser, netProtoOpenMode_t omode,
+                               netProtoTranslation_t translate);
 
     /**
      * @brief Close connection to the protocol.
@@ -171,7 +172,7 @@ public:
      * @param len The # of bytes to transmit, len should not be larger than buffer.
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t write(unsigned short len);
+    virtual netProtoErr_t write(unsigned short len) { return NETPROTO_ERR_NONE; }
 
     /**
      * @brief Return protocol status information in provided NetworkStatus object.
@@ -189,10 +190,9 @@ public:
 
     /**
      * @brief execute a command that returns no payload
-     * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t special_00(cmdFrame_t *cmdFrame) { return NETPROTO_ERR_NONE; };
+    virtual netProtoErr_t special_00(fujiCommandID_t cmd, uint8_t httpChanMode) { return NETPROTO_ERR_NONE; }
 
     /**
      * @brief execute a command that returns a payload to the atari.
@@ -200,21 +200,20 @@ public:
      * @param len Length of data to request from protocol. Should not be larger than buffer.
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) { return NETPROTO_ERR_NONE; };
+    virtual netProtoErr_t special_40(uint8_t *sp_buf, unsigned short len, fujiCommandID_t cmd) { return NETPROTO_ERR_NONE; }
 
     /**
      * @brief execute a command that sends a payload to fujinet (most common, XIO)
      * @param sp_buf, a pointer to the special buffer, usually a EOL terminated devicespec.
      * @param len length of the special buffer, typically SPECIAL_BUFFER_SIZE
      */
-    virtual netProtoErr_t special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) { return NETPROTO_ERR_NONE; };
+    virtual netProtoErr_t special_80(uint8_t *sp_buf, unsigned short len, fujiCommandID_t cmd) { return NETPROTO_ERR_NONE; }
 
     /**
      * @brief perform an idempotent command with DSTATS 0x80, that does not require open channel.
      * @param url The URL object.
-     * @param cmdFrame command frame.
      */
-    virtual netProtoErr_t perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) { return NETPROTO_ERR_NONE; };
+    virtual netProtoErr_t perform_idempotent_80(PeoplesUrlParser *url, fujiCommandID_t cmd) { return NETPROTO_ERR_NONE; }
 
     /**
      * @brief return an _atari_ error (>199) based on errno. into error for status reporting.
@@ -224,9 +223,9 @@ public:
     /**
      * @brief change the values passed to open for platforms that need to do it after the open (looking at you IEC)
      */
-    virtual void set_open_params(uint8_t p1, uint8_t p2);
+    virtual void set_open_params(netProtoTranslation_t mode, uint8_t p1, uint8_t p2);
 
-    virtual off_t seek(off_t offset, int whence);
+    virtual off_t seek(off_t offset, int whence) { return -1; }
 
     virtual size_t available() { return receiveBuffer->size(); }
 
@@ -241,16 +240,6 @@ public:
     std::string *password;
 
 protected:
-
-    /**
-     * AUX1 value from open
-     */
-    netProtoOpenMode_t aux1_open = NETPROTO_OPEN_INVALID;
-
-    /**
-     * AUX2 value from open
-     */
-    unsigned char aux2_open = 0;
 
     /**
      * Perform end of line translation on receive buffer.

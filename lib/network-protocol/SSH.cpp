@@ -33,9 +33,11 @@ NetworkProtocolSSH::~NetworkProtocolSSH()
 #endif
 }
 
-netProtoErr_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
+                                       netProtoOpenMode_t omode,
+                                       netProtoTranslation_t translate)
 {
-    NetworkProtocol::open(urlParser, cmdFrame);
+    NetworkProtocol::open(urlParser, omode, translate);
     int ret;
 
     if (!urlParser->user.empty()) {
@@ -246,26 +248,6 @@ netProtoErr_t NetworkProtocolSSH::status(NetworkStatus *status)
     status->connected = isEOF ? 1 : 0;
     status->error = isEOF ? 1 : NETWORK_ERROR_END_OF_FILE;
     NetworkProtocol::status(status);
-    return NETPROTO_ERR_NONE;
-}
-
-AtariSIODirection NetworkProtocolSSH::special_inquiry(fujiCommandID_t cmd)
-{
-    return SIO_DIRECTION_INVALID; // selected command not implemented.
-}
-
-netProtoErr_t NetworkProtocolSSH::special_00(cmdFrame_t *cmdFrame)
-{
-    return NETPROTO_ERR_NONE;
-}
-
-netProtoErr_t NetworkProtocolSSH::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
-{
-    return NETPROTO_ERR_NONE;
-}
-
-netProtoErr_t NetworkProtocolSSH::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
-{
     return NETPROTO_ERR_NONE;
 }
 

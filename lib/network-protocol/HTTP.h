@@ -61,17 +61,16 @@ public:
 
     /**
      * @brief execute a command that returns no payload
-     * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    netProtoErr_t special_00(cmdFrame_t *cmdFrame) override;
+    netProtoErr_t special_00(fujiCommandID_t cmd, uint8_t httpChanMode) override;
 
 protected:
     /**
      * @brief open a file handle to fd
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    netProtoErr_t open_file_handle() override;
+    netProtoErr_t open_file_handle(netProtoOpenMode_t omode) override;
 
     /**
      * @brief Open directory handle
@@ -147,34 +146,30 @@ protected:
     /**
      * @brief Rename file specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file/dest to rename
-     * @param cmdFrame the command frame
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    netProtoErr_t rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    netProtoErr_t rename(PeoplesUrlParser *url) override;
 
     /**
      * @brief Delete file specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
-     * @param cmdFrame the command frame
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    netProtoErr_t del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    netProtoErr_t del(PeoplesUrlParser *url) override;
 
     /**
      * @brief Make directory specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
-     * @param cmdFrame the command frame
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    netProtoErr_t mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    netProtoErr_t mkdir(PeoplesUrlParser *url) override;
 
     /**
      * @brief Remove directory specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
-     * @param cmdFrame the command frame
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    netProtoErr_t rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    netProtoErr_t rmdir(PeoplesUrlParser *url) override;
 
 private:
     netProtoOpenMode_t _httpStreamMode;
@@ -265,9 +260,8 @@ private:
 
     /**
      * @brief Set Channel mode (DATA, HEADERS, etc.)
-     * @param cmdFrame the passed in command frame.
      */
-    netProtoErr_t special_set_channel_mode(cmdFrame_t *cmdFrame);
+    netProtoErr_t special_set_channel_mode(netProtoHTTPChannelMode_t newMode);
 
     /**
      * @brief header mode - retrieve requested headers previously collected.

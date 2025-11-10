@@ -98,24 +98,20 @@ NetworkProtocol::~NetworkProtocol()
  * @param urlParser The URL object passed in to open.
  * @param cmdFrame The command frame to extract aux1/aux2/etc.
  */
-netProtoErr_t NetworkProtocol::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocol::open(PeoplesUrlParser *urlParser, netProtoOpenMode_t omode,
+                                    netProtoTranslation_t translate)
 {
     // Set translation mode, Bits 0-1 of aux2
-    translation_mode = (netProtoTranslation_t) (cmdFrame->aux2 & 0x7F); // we now have more xlation modes.
-
-    // Persist aux1/aux2 values for later.
-    aux1_open = (netProtoOpenMode_t) cmdFrame->aux1;
-    aux2_open = cmdFrame->aux2;
+    translation_mode = translate;
+    opened_write = omode == NETPROTO_OPEN_WRITE;
 
     opened_url = urlParser;
 
     return NETPROTO_ERR_NONE;
 }
 
-void NetworkProtocol::set_open_params(uint8_t p1, uint8_t p2)
+void NetworkProtocol::set_open_params(netProtoTranslation_t mode, uint8_t p1, uint8_t p2)
 {
-    aux1_open = (netProtoOpenMode_t) p1;
-    aux2_open = p2;
     translation_mode = (netProtoTranslation_t) (p2 & 0x7F);
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("Changed open params to aux1_open = %d, aux2_open = %d. Set translation_mode to %d\r\n", p1, p2, translation_mode);
@@ -153,16 +149,6 @@ netProtoErr_t NetworkProtocol::read(unsigned short len)
 #endif
     translate_receive_buffer();
     error = 1;
-    return NETPROTO_ERR_NONE;
-}
-
-/**
- * @brief Write len bytes from tx_buf to protocol.
- * @param len The # of bytes to transmit, len should not be larger than buffer.
- * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
- */
-netProtoErr_t NetworkProtocol::write(unsigned short len)
-{
     return NETPROTO_ERR_NONE;
 }
 
@@ -338,9 +324,4 @@ void NetworkProtocol::errno_to_error()
         error = NETWORK_ERROR_GENERAL;
         break;
     }
-}
-
-off_t NetworkProtocol::seek(off_t offset, int whence)
-{
-    return -1;
 }

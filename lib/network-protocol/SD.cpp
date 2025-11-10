@@ -31,7 +31,7 @@ NetworkProtocolSD::~NetworkProtocolSD()
     Debug_printf("NetworkProtocolSD::dtor\r\n");
 }
 
-netProtoErr_t NetworkProtocolSD::open_file_handle()
+netProtoErr_t NetworkProtocolSD::open_file_handle(netProtoOpenMode_t omode)
 {
     const char *mode = FILE_READ;
 
@@ -39,7 +39,7 @@ netProtoErr_t NetworkProtocolSD::open_file_handle()
     if (check_fs()) return NETPROTO_ERR_UNSPECIFIED;
 
     // Map aux1 to mode
-    switch (aux1_open)
+    switch (omode)
     {
     case NETPROTO_OPEN_READ:
         mode = FILE_READ;
@@ -162,10 +162,10 @@ netProtoErr_t NetworkProtocolSD::read_file_handle(uint8_t *buf, unsigned short l
 
 netProtoErr_t NetworkProtocolSD::read_dir_entry(char *buf, unsigned short len)
 {
-fsdir_entry_t *entry;
+    fsdir_entry_t *entry;
     error = NETWORK_ERROR_SUCCESS;
 
-entry = fnSDFAT.dir_read();
+    entry = fnSDFAT.dir_read();
     if (entry != nullptr)
     {
         strlcpy(buf, entry->filename, len);
@@ -234,29 +234,14 @@ AtariSIODirection NetworkProtocolSD::special_inquiry(fujiCommandID_t cmd)
     return ret;
 }
 
-netProtoErr_t NetworkProtocolSD::special_00(cmdFrame_t *cmdFrame)
-{
-    return NETPROTO_ERR_NONE;
-}
-
-netProtoErr_t NetworkProtocolSD::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
-{
-    return NETPROTO_ERR_NONE;
-}
-
-netProtoErr_t NetworkProtocolSD::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
-{
-    return NETPROTO_ERR_NONE;
-}
-
-netProtoErr_t NetworkProtocolSD::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolSD::rename(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
     // return error if SD is not mounted
     if (check_fs()) return NETPROTO_ERR_UNSPECIFIED;
 
-    if (NetworkProtocolFS::rename(url, cmdFrame) == true)
+    if (NetworkProtocolFS::rename(url) == true)
         return NETPROTO_ERR_UNSPECIFIED;
 
     bool success = fnSDFAT.rename(filename.c_str(), destFilename.c_str());
@@ -269,7 +254,7 @@ netProtoErr_t NetworkProtocolSD::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFr
     return NETWORK_ERROR_SUCCESS != error ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
 }
 
-netProtoErr_t NetworkProtocolSD::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolSD::del(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
@@ -286,7 +271,7 @@ netProtoErr_t NetworkProtocolSD::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame
     return NETWORK_ERROR_SUCCESS != error ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
 }
 
-netProtoErr_t NetworkProtocolSD::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolSD::mkdir(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
@@ -303,7 +288,7 @@ netProtoErr_t NetworkProtocolSD::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFra
     return NETWORK_ERROR_SUCCESS != error ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
 }
 
-netProtoErr_t NetworkProtocolSD::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolSD::rmdir(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
@@ -340,7 +325,7 @@ netProtoErr_t NetworkProtocolSD::stat()
     return fileSize < 0 ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
 }
 
-netProtoErr_t NetworkProtocolSD::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolSD::lock(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
@@ -353,7 +338,7 @@ netProtoErr_t NetworkProtocolSD::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFram
     return NETPROTO_ERR_UNSPECIFIED;
 }
 
-netProtoErr_t NetworkProtocolSD::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolSD::unlock(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 

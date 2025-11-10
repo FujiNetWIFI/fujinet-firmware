@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "bus.h"
+#include "fujiCommandID.h"
 
 #include "Protocol.h"
 #include "peoples_url_parser.h"

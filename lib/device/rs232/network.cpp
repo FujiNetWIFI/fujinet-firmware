@@ -138,7 +138,8 @@ void rs232Network::rs232_open()
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), &cmdFrame) == true)
+    if (protocol->open(urlParser.get(), (netProtoOpenMode_t) cmdFrame.aux1,
+                       (netProtoTranslation_t) cmdFrame.aux2) == true)
     {
         status.error = protocol->error;
         Debug_printf("Protocol unable to make connection. Error: %d\n", status.error);
@@ -414,9 +415,6 @@ bool rs232Network::rs232_status_channel_json(NetworkStatus *ns)
 {
     ns->connected = json_bytes_remaining > 0;
     ns->error = json_bytes_remaining > 0 ? 1 : 136;
-#ifdef OBSOLETE
-    ns->rxBytesWaiting = json_bytes_remaining;
-#endif /* OBSOLETE */
     return false; // for now
 }
 
@@ -735,7 +733,7 @@ void rs232Network::rs232_special_00()
         rs232_set_channel_mode();
         break;
     default:
-        if (protocol->special_00(&cmdFrame) == false)
+        if (protocol->special_00((fujiCommandID_t) cmdFrame.comnd, cmdFrame.aux2) == false)
             rs232_complete();
         else
             rs232_error();
@@ -760,7 +758,7 @@ void rs232Network::rs232_special_40()
 
     bus_to_computer((uint8_t *)receiveBuffer->data(),
                     SPECIAL_BUFFER_SIZE,
-                    protocol->special_40((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, &cmdFrame));
+                    protocol->special_40((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, (fujiCommandID_t) cmdFrame.comnd));
 }
 
 /**
@@ -807,7 +805,7 @@ void rs232Network::rs232_special_80()
     Debug_printf("rs232Network::rs232_special_80() - %s\n", spData);
 
     // Do protocol action and return
-    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
+    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, (fujiCommandID_t) cmdFrame.comnd) == false)
         rs232_complete();
     else
         rs232_error();
@@ -1162,7 +1160,7 @@ void rs232Network::rs232_do_idempotent_command_80()
         return;
     }
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) == true)
+    if (protocol->perform_idempotent_80(urlParser.get(), (fujiCommandID_t) cmdFrame.comnd) == true)
     {
         Debug_printf("perform_idempotent_80 failed\n");
         rs232_error();

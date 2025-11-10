@@ -56,7 +56,6 @@ public:
     int newRxLen;
 
     char ttype[32]="dumb";
-
 };
 
 #endif /* NETWORKPROTOCOL_TELNET */

@@ -31,73 +31,58 @@ public:
 
     /**
      * @brief execute a command that returns no payload
-     * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    netProtoErr_t special_00(cmdFrame_t *cmdFrame) override;
-
-    /**
-     * @brief execute a command that returns a payload to the atari.
-     * @param sp_buf a pointer to the special buffer
-     * @param len Length of data to request from protocol. Should not be larger than buffer.
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
-     */
-    netProtoErr_t special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) override;
+    netProtoErr_t special_00(fujiCommandID_t cmd, uint8_t httpChanMode) override { return NetworkProtocolFS::special_00(cmd, httpChanMode); }
 
     /**
      * @brief execute a command that sends a payload to fujinet (most common, XIO)
      * @param sp_buf, a pointer to the special buffer, usually a EOL terminated devicespec.
      * @param len length of the special buffer, typically SPECIAL_BUFFER_SIZE
      */
-    netProtoErr_t special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) override;
+    netProtoErr_t special_80(uint8_t *sp_buf, unsigned short len, fujiCommandID_t cmd) override { return NETPROTO_ERR_NONE; }
 
     /**
      * @brief Rename file specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file/dest to rename
-     * @param cmdFrame the command frame
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    netProtoErr_t rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    netProtoErr_t rename(PeoplesUrlParser *url) override;
 
     /**
      * @brief Delete file specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
-     * @param cmdFrame the command frame
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    netProtoErr_t del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    netProtoErr_t del(PeoplesUrlParser *url) override;
 
     /**
      * @brief Make directory specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
-     * @param cmdFrame the command frame
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    netProtoErr_t mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    netProtoErr_t mkdir(PeoplesUrlParser *url) override;
 
     /**
      * @brief Remove directory specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
-     * @param cmdFrame the command frame
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    netProtoErr_t rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    netProtoErr_t rmdir(PeoplesUrlParser *url) override;
 
     /**
      * @brief lock file specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
-     * @param cmdFrame the command frame
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    netProtoErr_t lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    netProtoErr_t lock(PeoplesUrlParser *url) override;
 
     /**
      * @brief unlock file specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
-     * @param cmdFrame the command frame
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    netProtoErr_t unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    netProtoErr_t unlock(PeoplesUrlParser *url) override;
 
     off_t seek(off_t offset, int whence) override;
 
@@ -127,7 +112,7 @@ protected:
      * @brief Open file handle, set fd
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    netProtoErr_t open_file_handle() override;
+    netProtoErr_t open_file_handle(netProtoOpenMode_t omode) override;
 
     /**
      * @brief Open directory handle
