@@ -24,6 +24,11 @@
 
 #define HostOS 0x07 // FUJINET
 
+#ifdef BUILD_COCO
+// This file says "apple2" right in the name so CoCo should follow apple2 convention, right?
+#define MAX_A2DISK_DEVICES MAX_DWDISK_DEVICES
+#endif
+
 // using namespace std;
 
 #ifdef ESP_PLATFORM // OS
@@ -624,7 +629,7 @@ uint8_t bdos_readDeviceSlots(uint16_t addr)
         disk_slot diskSlots[MAX_DISK_DEVICES];
 
         // Load the data from our current device array
-        for (int i = 0; i < MAX_DISK_DEVICES; i++)
+        for (int i = 0; i < MAX_A2DISK_DEVICES; i++)
         {
                 diskSlots[i].mode = theFuji->get_disk(i)->access_mode;
                 diskSlots[i].hostSlot = theFuji->get_disk(i)->host_slot;

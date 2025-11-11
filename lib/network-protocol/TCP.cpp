@@ -110,7 +110,7 @@ netProtoErr_t NetworkProtocolTCP::close()
 /**
  * @brief Read len bytes into rx_buf, If protocol times out, the buffer should be null padded to length.
  * @param len number of bytes to read.
- * @return error flag. FALSE if successful, TRUE if error.
+ * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
  */
 netProtoErr_t NetworkProtocolTCP::read(unsigned short len)
 {
@@ -198,7 +198,7 @@ netProtoErr_t NetworkProtocolTCP::write(unsigned short len)
 /**
  * @brief Return protocol status information in provided NetworkStatus object.
  * @param status a pointer to a NetworkStatus object to receive status information
- * @return error flag. FALSE if successful, TRUE if error.
+ * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
  */
 netProtoErr_t NetworkProtocolTCP::status(NetworkStatus *status)
 {
@@ -235,25 +235,27 @@ void NetworkProtocolTCP::status_server(NetworkStatus *status)
  * @param cmd The Command (0x00-0xFF) for which DSTATS is requested.
  * @return a 0x00 = No payload, 0x40 = Payload to Atari, 0x80 = Payload to FujiNet, 0xFF = Command not supported.
  */
-uint8_t NetworkProtocolTCP::special_inquiry(uint8_t cmd)
+AtariSIODirection NetworkProtocolTCP::special_inquiry(fujiCommandID_t cmd)
 {
     Debug_printf("NetworkProtocolTCP::special_inquiry(%02x)\r\n", cmd);
 
     switch (cmd)
     {
-    case 'A':
-        return 0x00;
-    case 'c':
-        return 0x00;
+    case FUJICMD_CONTROL:
+        return SIO_DIRECTION_NONE;
+    case FUJICMD_CLOSE_CLIENT:
+        return SIO_DIRECTION_NONE;
+    default:
+        break;
     }
 
-    return 0xFF;
+    return SIO_DIRECTION_INVALID;
 }
 
 /**
  * @brief execute a command that returns no payload
  * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
- * @return error flag. TRUE on error, FALSE on success.
+ * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
  */
 netProtoErr_t NetworkProtocolTCP::special_00(cmdFrame_t *cmdFrame)
 {
@@ -261,10 +263,10 @@ netProtoErr_t NetworkProtocolTCP::special_00(cmdFrame_t *cmdFrame)
 
     switch (cmdFrame->comnd)
     {
-    case 'A':
+    case FUJICMD_CONTROL:
         return special_accept_connection();
         break;
-    case 'c':
+    case FUJICMD_CLOSE_CLIENT:
         Debug_printf("CLOSING CLIENT CONNECTION!!!\n");
         return special_close_client_connection();
         break;
@@ -276,7 +278,7 @@ netProtoErr_t NetworkProtocolTCP::special_00(cmdFrame_t *cmdFrame)
  * @brief execute a command that returns a payload to the atari.
  * @param sp_buf a pointer to the special buffer
  * @param len Length of data to request from protocol. Should not be larger than buffer.
- * @return error flag. TRUE on error, FALSE on success.
+ * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
  */
 netProtoErr_t NetworkProtocolTCP::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
@@ -296,7 +298,7 @@ netProtoErr_t NetworkProtocolTCP::special_80(uint8_t *sp_buf, unsigned short len
 /**
  * Open a server (listening) connection.
  * @param port bind to port #
- * @return error flag. TRUE on error. FALSE on success.
+ * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
  */
 netProtoErr_t NetworkProtocolTCP::open_server(unsigned short port)
 {
@@ -319,7 +321,7 @@ netProtoErr_t NetworkProtocolTCP::open_server(unsigned short port)
  * Open a client connection to host and port.
  * @param hostname The hostname to connect to.
  * @param port the port number to connect to.
- * @return error flag. TRUE on erorr. FALSE on success.
+ * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
  */
 netProtoErr_t NetworkProtocolTCP::open_client(std::string hostname, unsigned short port)
 {

@@ -27,7 +27,7 @@ public:
 
     static bool create(FILE *f, uint32_t numBlock);
 
-    void get_block_buffer(uint8_t **p_buffer, uint16_t *p_blk_size);
+    void get_block_buffer(uint8_t **p_buffer, uint16_t *p_blk_size) override;
 };
 
 

@@ -51,16 +51,16 @@ netProtoErr_t NetworkProtocolSMB::open_file_handle()
 
     switch (aux1_open)
     {
-    case PROTOCOL_OPEN_READ:
+    case NETPROTO_OPEN_READ:
         flags = O_RDONLY;
         break;
-    case PROTOCOL_OPEN_WRITE:
+    case NETPROTO_OPEN_WRITE:
         flags = O_WRONLY | O_CREAT;
         break;
-    case PROTOCOL_OPEN_APPEND:
+    case NETPROTO_OPEN_APPEND:
         flags = O_APPEND | O_CREAT;
         break;
-    case PROTOCOL_OPEN_READWRITE:
+    case NETPROTO_OPEN_READWRITE:
         flags = O_RDWR;
         break;
     default:
@@ -234,9 +234,9 @@ netProtoErr_t NetworkProtocolSMB::write_file_handle(uint8_t *buf, unsigned short
     return NETPROTO_ERR_NONE;
 }
 
-uint8_t NetworkProtocolSMB::special_inquiry(uint8_t cmd)
+AtariSIODirection NetworkProtocolSMB::special_inquiry(fujiCommandID_t cmd)
 {
-    return 0xff;
+    return SIO_DIRECTION_INVALID;
 }
 
 netProtoErr_t NetworkProtocolSMB::special_00(cmdFrame_t *cmdFrame)

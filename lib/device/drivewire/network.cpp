@@ -716,7 +716,7 @@ void drivewireNetwork::set_password()
  */
 void drivewireNetwork::special()
 {
-    do_inquiry(cmdFrame.comnd);
+    do_inquiry((fujiCommandID_t) cmdFrame.comnd);
 
     switch (inq_dstats)
     {
@@ -744,13 +744,13 @@ void drivewireNetwork::special_inquiry()
 {
     Debug_printf("drivewireNetwork::special_inquiry(%02x)\n", cmdFrame.aux1);
 
-    do_inquiry(cmdFrame.aux1);
+    do_inquiry((fujiCommandID_t) cmdFrame.aux1);
 
     // Finally, return the completed inq_dstats value back to CoCo
     SYSTEM_BUS.write(&inq_dstats, sizeof(inq_dstats));
 }
 
-void drivewireNetwork::do_inquiry(unsigned char inq_cmd)
+void drivewireNetwork::do_inquiry(fujiCommandID_t inq_cmd)
 {
     // Reset inq_dstats
     inq_dstats = 0xff;

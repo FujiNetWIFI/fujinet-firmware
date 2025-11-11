@@ -1,21 +1,45 @@
 #ifndef NETWORKPROTOCOL_H
 #define NETWORKPROTOCOL_H
 
-#include <string>
-
+#include "fujiCommandID.h"
 #include "bus.h"
 #include "networkStatus.h"
 #include "peoples_url_parser.h"
 
+#include <string>
+
+// FIXME - this has something to do with Atari SIO and doesn't belong here
+enum AtariSIODirection {
+    SIO_DIRECTION_NONE    = 0x00,
+    SIO_DIRECTION_READ    = 0x40,
+    SIO_DIRECTION_WRITE   = 0x80,
+    SIO_DIRECTION_INVALID = 0xFF,
+};
+
+enum netProtoTranslation_t {
+    NETPROTO_TRANS_NONE     = 0,
+    NETPROTO_TRANS_CR       = 1,
+    NETPROTO_TRANS_LF       = 2,
+    NETPROTO_TRANS_CRLF     = 3,
+    NETPROTO_TRANS_PETSCII  = 4,
+};
+
 enum {
-    PROTOCOL_OPEN_READ          = 4,
-    PROTOCOL_OPEN_HTTP_DELETE   = 5,
-    PROTOCOL_OPEN_DIRECTORY     = 6,
-    PROTOCOL_OPEN_WRITE         = 8,
-    PROTOCOL_OPEN_APPEND        = 9,
-    PROTOCOL_OPEN_READWRITE     = 12,
-    PROTOCOL_OPEN_HTTP_POST     = 13,
-    PROTOCOL_OPEN_HTTP_PUT      = 14,
+    NETPROTO_A2_FLAG  = 0x80,
+    NETPROTO_A2_80COL = 0x81,
+};
+
+enum netProtoOpenMode_t {
+    NETPROTO_OPEN_READ          = 4,
+    NETPROTO_OPEN_HTTP_DELETE   = 5,
+    NETPROTO_OPEN_DIRECTORY     = 6,
+    NETPROTO_OPEN_DIRECTORY_ALT = 7,
+    NETPROTO_OPEN_WRITE         = 8,
+    NETPROTO_OPEN_APPEND        = 9,
+    NETPROTO_OPEN_READWRITE     = 12,
+    NETPROTO_OPEN_HTTP_POST     = 13,
+    NETPROTO_OPEN_HTTP_PUT      = 14,
+    NETPROTO_OPEN_INVALID       = -1,
 };
 
 enum netProtoErr_t {
@@ -83,7 +107,7 @@ public:
     /**
      * Translation mode: 0=NONE, 1=CR, 2=LF, 3=CR/LF
      */
-    unsigned char translation_mode = 0;
+    netProtoTranslation_t translation_mode = NETPROTO_TRANS_NONE;
 
     /**
      * Is this being called from inside an interrupt?
@@ -126,6 +150,7 @@ public:
      * @brief Open connection to the protocol using URL
      * @param urlParser The URL object passed in to open.
      * @param cmdFrame The command frame to extract aux1/aux2/etc.
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     virtual netProtoErr_t open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame);
 
@@ -144,14 +169,14 @@ public:
     /**
      * @brief Write len bytes from tx_buf to protocol.
      * @param len The # of bytes to transmit, len should not be larger than buffer.
-     * @return error flag. TRUE on error, FALSE on success.
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     virtual netProtoErr_t write(unsigned short len);
 
     /**
      * @brief Return protocol status information in provided NetworkStatus object.
      * @param status a pointer to a NetworkStatus object to receive status information
-     * @return error flag. FALSE if successful, TRUE if error.
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     virtual netProtoErr_t status(NetworkStatus *status);
 
@@ -160,12 +185,12 @@ public:
      * @param cmd The Command (0x00-0xFF) for which DSTATS is requested.
      * @return a 0x00 = No payload, 0x40 = Payload to Atari, 0x80 = Payload to FujiNet, 0xFF = Command not supported.
      */
-    virtual uint8_t special_inquiry(uint8_t cmd) { return 0xFF; };
+    virtual AtariSIODirection special_inquiry(fujiCommandID_t cmd) { return SIO_DIRECTION_INVALID; }
 
     /**
      * @brief execute a command that returns no payload
      * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
-     * @return error flag. TRUE on error, FALSE on success.
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     virtual netProtoErr_t special_00(cmdFrame_t *cmdFrame) { return NETPROTO_ERR_NONE; };
 
@@ -173,7 +198,7 @@ public:
      * @brief execute a command that returns a payload to the atari.
      * @param sp_buf a pointer to the special buffer
      * @param len Length of data to request from protocol. Should not be larger than buffer.
-     * @return error flag. TRUE on error, FALSE on success.
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     virtual netProtoErr_t special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) { return NETPROTO_ERR_NONE; };
 

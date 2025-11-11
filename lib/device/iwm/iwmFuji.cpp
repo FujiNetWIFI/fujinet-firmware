@@ -1101,7 +1101,7 @@ void iwmFuji::iwm_stat_read_device_slots()
         int returnsize;
 
         // Load the data from our current device array
-        for (int i = 0; i < MAX_DISK_DEVICES; i++)
+        for (int i = 0; i < MAX_A2DISK_DEVICES; i++)
         {
                 diskSlots[i].mode = _fnDisks[i].access_mode;
                 diskSlots[i].hostSlot = _fnDisks[i].host_slot;
@@ -1199,7 +1199,7 @@ void iwmFuji::_populate_config_from_slots()
                 }
         }
 
-        for (int i = 0; i < MAX_DISK_DEVICES; i++)
+        for (int i = 0; i < MAX_A2DISK_DEVICES; i++)
         {
                 if (_fnDisks[i].host_slot >= MAX_HOSTS || _fnDisks[i].filename[0] == '\0')
                         Config.clear_mount(i);

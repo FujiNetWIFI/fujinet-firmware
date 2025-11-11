@@ -41,16 +41,16 @@ netProtoErr_t NetworkProtocolSD::open_file_handle()
     // Map aux1 to mode
     switch (aux1_open)
     {
-    case PROTOCOL_OPEN_READ:
+    case NETPROTO_OPEN_READ:
         mode = FILE_READ;
         break;
-    case PROTOCOL_OPEN_WRITE:
+    case NETPROTO_OPEN_WRITE:
         mode = FILE_WRITE;
         break;
-    case PROTOCOL_OPEN_APPEND:
+    case NETPROTO_OPEN_APPEND:
         mode = FILE_APPEND;
         break;
-    case PROTOCOL_OPEN_READWRITE:
+    case NETPROTO_OPEN_READWRITE:
         mode = FILE_READ_WRITE;
         break;
     }
@@ -211,17 +211,17 @@ netProtoErr_t NetworkProtocolSD::write_file_handle(uint8_t *buf, unsigned short 
 }
 
 
-uint8_t NetworkProtocolSD::special_inquiry(uint8_t cmd)
+AtariSIODirection NetworkProtocolSD::special_inquiry(fujiCommandID_t cmd)
 {
-    uint8_t ret;
+    AtariSIODirection ret;
 
     switch (cmd)
     {
-    case 0x20:      // RENAME
-    case 0x21:      // DELETE
-    case 0x2A:      // MKDIR
-    case 0x2B:      // RMDIR
-        ret = 0x80; // Atari to peripheral.
+    case FUJICMD_RENAME:
+    case FUJICMD_DELETE:
+    case FUJICMD_MKDIR:
+    case FUJICMD_RMDIR:
+        ret = SIO_DIRECTION_WRITE; // Atari to peripheral.
         break;
     default:
         return NetworkProtocolFS::special_inquiry(cmd);

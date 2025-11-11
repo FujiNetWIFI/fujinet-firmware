@@ -100,7 +100,7 @@ NetworkProtocolTELNET::~NetworkProtocolTELNET()
 /**
  * @brief Read len bytes into rx_buf, If protocol times out, the buffer should be null padded to length.
  * @param len number of bytes to read.
- * @return error flag. FALSE if successful, TRUE if error.
+ * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
  */
 netProtoErr_t NetworkProtocolTELNET::read(unsigned short len)
 {

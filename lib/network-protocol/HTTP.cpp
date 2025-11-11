@@ -56,15 +56,15 @@ NetworkProtocolHTTP::~NetworkProtocolHTTP()
         delete(client);
 }
 
-uint8_t NetworkProtocolHTTP::special_inquiry(uint8_t cmd)
+AtariSIODirection NetworkProtocolHTTP::special_inquiry(fujiCommandID_t cmd)
 {
 
     switch (cmd)
     {
-    case 'M':
-        return (aux1_open > 8 ? 0x00 : 0xFF);
+    case FUJICMD_UNLISTEN:
+        return (aux1_open > 8 ? SIO_DIRECTION_NONE : SIO_DIRECTION_INVALID);
     default:
-        return 0xFF;
+        return SIO_DIRECTION_INVALID;
     }
 }
 
@@ -72,7 +72,7 @@ netProtoErr_t NetworkProtocolHTTP::special_00(cmdFrame_t *cmdFrame)
 {
     switch (cmdFrame->comnd)
     {
-    case 'M':
+    case FUJICMD_UNLISTEN:
         return special_set_channel_mode(cmdFrame);
     default:
         return NETPROTO_ERR_UNSPECIFIED;
@@ -92,21 +92,21 @@ netProtoErr_t NetworkProtocolHTTP::special_set_channel_mode(cmdFrame_t *cmdFrame
 
     switch (cmdFrame->aux2)
     {
-    case 0:
+    case HTTP_CHANMODE_BODY:
         httpChannelMode = DATA;
         fileSize = bodySize;
         break;
-    case 1:
+    case HTTP_CHANMODE_COLLECT_HEADERS:
         httpChannelMode = COLLECT_HEADERS;
         break;
-    case 2:
+    case HTTP_CHANMODE_GET_HEADERS:
         returned_header_cursor = 0;
         httpChannelMode = GET_HEADERS;
         break;
-    case 3:
+    case HTTP_CHANMODE_SET_HEADERS:
         httpChannelMode = SET_HEADERS;
         break;
-    case 4:
+    case HTTP_CHANMODE_SET_POST_DATA:
         httpChannelMode = SEND_POST_DATA;
         break;
     default:
@@ -126,19 +126,19 @@ netProtoErr_t NetworkProtocolHTTP::open_file_handle()
 
     switch (aux1_open)
     {
-    case PROTOCOL_OPEN_READ:        // GET with no headers, filename resolve
-    case PROTOCOL_OPEN_READWRITE:   // GET with ability to set headers, no filename resolve.
+    case NETPROTO_OPEN_READ:        // GET with no headers, filename resolve
+    case NETPROTO_OPEN_READWRITE:   // GET with ability to set headers, no filename resolve.
         httpOpenMode = GET;
         break;
-    case PROTOCOL_OPEN_WRITE:       // WRITE, filename resolve, ignored if not found.
+    case NETPROTO_OPEN_WRITE:       // WRITE, filename resolve, ignored if not found.
         httpOpenMode = PUT;
         break;
-    case PROTOCOL_OPEN_HTTP_DELETE: // DELETE with no headers
-    case PROTOCOL_OPEN_APPEND:      // DELETE with ability to set headers
+    case NETPROTO_OPEN_HTTP_DELETE: // DELETE with no headers
+    case NETPROTO_OPEN_APPEND:      // DELETE with ability to set headers
         httpOpenMode = DELETE;
         break;
-    case PROTOCOL_OPEN_HTTP_POST:   // POST can set headers, also no filename resolve
-    case PROTOCOL_OPEN_HTTP_PUT:    // PUT with ability to set headers, no filename resolve
+    case NETPROTO_OPEN_HTTP_POST:   // POST can set headers, also no filename resolve
+    case NETPROTO_OPEN_HTTP_PUT:    // PUT with ability to set headers, no filename resolve
         httpOpenMode = POST;
         break;
     default:

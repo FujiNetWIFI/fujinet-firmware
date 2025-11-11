@@ -35,19 +35,19 @@ netProtoErr_t NetworkProtocolTNFS::open_file_handle()
     // Map aux1 to mode and perms for tnfs_open()
     switch (aux1_open)
     {
-    case PROTOCOL_OPEN_READ:
+    case NETPROTO_OPEN_READ:
         mode = TNFS_OPENMODE_READ;
         perms = 0;
         break;
-    case PROTOCOL_OPEN_WRITE:
+    case NETPROTO_OPEN_WRITE:
         mode = TNFS_OPENMODE_WRITE_CREATE | TNFS_OPENMODE_WRITE_TRUNCATE | TNFS_OPENMODE_WRITE;
         perms = 0x1FF;
         break;
-    case PROTOCOL_OPEN_APPEND:
+    case NETPROTO_OPEN_APPEND:
         mode = TNFS_OPENMODE_WRITE_CREATE | TNFS_OPENMODE_WRITE | TNFS_OPENMODE_WRITE_APPEND; // 0x10B
         perms = 0x1FF;
         break;
-    case PROTOCOL_OPEN_READWRITE:
+    case NETPROTO_OPEN_READWRITE:
         mode = TNFS_OPENMODE_WRITE_CREATE | TNFS_OPENMODE_READWRITE;
         perms = 0x1FF;
         break;
@@ -217,17 +217,17 @@ netProtoErr_t NetworkProtocolTNFS::write_file_handle(uint8_t *buf, unsigned shor
     return tnfs_error != TNFS_RESULT_SUCCESS ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
 }
 
-uint8_t NetworkProtocolTNFS::special_inquiry(uint8_t cmd)
+AtariSIODirection NetworkProtocolTNFS::special_inquiry(fujiCommandID_t cmd)
 {
-    uint8_t ret;
+    AtariSIODirection ret;
 
     switch (cmd)
     {
-    case 0x20:      // RENAME
-    case 0x21:      // DELETE
-    case 0x2A:      // MKDIR
-    case 0x2B:      // RMDIR
-        ret = 0x80; // Atari to peripheral.
+    case FUJICMD_RENAME:
+    case FUJICMD_DELETE:
+    case FUJICMD_MKDIR:
+    case FUJICMD_RMDIR:
+        ret = SIO_DIRECTION_WRITE; // Atari to peripheral.
         break;
     default:
         return NetworkProtocolFS::special_inquiry(cmd);

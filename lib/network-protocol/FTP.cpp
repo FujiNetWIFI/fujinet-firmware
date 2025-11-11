@@ -39,14 +39,14 @@ netProtoErr_t NetworkProtocolFTP::open_file_handle()
 
     switch (aux1_open)
     {
-    case PROTOCOL_OPEN_READ:
+    case NETPROTO_OPEN_READ:
         stor = false;
         break;
-    case PROTOCOL_OPEN_WRITE:
+    case NETPROTO_OPEN_WRITE:
         stor = true;
         break;
-    case PROTOCOL_OPEN_APPEND:
-    case PROTOCOL_OPEN_READWRITE:
+    case NETPROTO_OPEN_APPEND:
+    case NETPROTO_OPEN_READWRITE:
         error = NETWORK_ERROR_NOT_IMPLEMENTED;
         return NETPROTO_ERR_UNSPECIFIED;
         break;
@@ -219,17 +219,17 @@ netProtoErr_t NetworkProtocolFTP::status_file(NetworkStatus *status)
     return NETPROTO_ERR_NONE;
 }
 
-uint8_t NetworkProtocolFTP::special_inquiry(uint8_t cmd)
+AtariSIODirection NetworkProtocolFTP::special_inquiry(fujiCommandID_t cmd)
 {
-    uint8_t ret;
+    AtariSIODirection ret;
 
     switch (cmd)
     {
-    case 0x20:      // RENAME
-    case 0x21:      // DELETE
-    case 0x2A:      // MKDIR
-    case 0x2B:      // RMDIR
-        ret = 0x80; // Atari to peripheral.
+    case FUJICMD_RENAME:
+    case FUJICMD_DELETE:
+    case FUJICMD_MKDIR:
+    case FUJICMD_RMDIR:
+        ret = SIO_DIRECTION_WRITE; // Atari to peripheral.
         break;
     default:
         return NetworkProtocolFS::special_inquiry(cmd);

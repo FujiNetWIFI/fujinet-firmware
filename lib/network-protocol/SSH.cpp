@@ -250,9 +250,9 @@ netProtoErr_t NetworkProtocolSSH::status(NetworkStatus *status)
     return NETPROTO_ERR_NONE;
 }
 
-uint8_t NetworkProtocolSSH::special_inquiry(uint8_t cmd)
+AtariSIODirection NetworkProtocolSSH::special_inquiry(fujiCommandID_t cmd)
 {
-    return 0xFF; // selected command not implemented.
+    return SIO_DIRECTION_INVALID; // selected command not implemented.
 }
 
 netProtoErr_t NetworkProtocolSSH::special_00(cmdFrame_t *cmdFrame)
