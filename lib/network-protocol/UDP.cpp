@@ -189,21 +189,23 @@ netProtoErr_t NetworkProtocolUDP::status(NetworkStatus *status)
     return NETPROTO_ERR_NONE;
 }
 
-uint8_t NetworkProtocolUDP::special_inquiry(uint8_t cmd)
+AtariSIODirection NetworkProtocolUDP::special_inquiry(fujiCommandID_t cmd)
 {
     Debug_printf("NetworkProtocolUDP::special_inquiry(%02x)\r\n", cmd);
 
     switch (cmd)
     {
-    case 'D':           // set destination
-        return 0x80;
+    case FUJICMD_SET_DESTINATION:
+        return SIO_DIRECTION_WRITE;
 #ifndef ESP_PLATFORM
-    case 'r':           // get remote
-        return 0x40;
+    case FUJICMD_GET_REMOTE:
+        return SIO_DIRECTION_READ;
 #endif
+    default:
+        break;
     }
 
-    return 0xFF;
+    return SIO_DIRECTION_INVALID;
 }
 
 netProtoErr_t NetworkProtocolUDP::special_00(cmdFrame_t *cmdFrame)
@@ -218,7 +220,7 @@ netProtoErr_t NetworkProtocolUDP::special_40(uint8_t *sp_buf, unsigned short len
 #else
     switch (cmdFrame->comnd)
     {
-    case 'r':
+    case FUJICMD_GET_REMOTE:
         return get_remote(sp_buf, len);
     default:
         return NETPROTO_ERR_UNSPECIFIED;
@@ -230,7 +232,7 @@ netProtoErr_t NetworkProtocolUDP::special_80(uint8_t *sp_buf, unsigned short len
 {
     switch (cmdFrame->comnd)
     {
-    case 'D':
+    case FUJICMD_SET_DESTINATION:
         return set_destination(sp_buf, len);
     default:
         return NETPROTO_ERR_UNSPECIFIED;

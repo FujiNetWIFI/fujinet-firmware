@@ -90,6 +90,10 @@ enum fujiCommandID_t {
   FUJICMD_GETTZTIME                  = 0x9A,
   FUJICMD_SETTZ                      = 0x99,
   FUJICMD_GETTIME                    = 0x93,
+  FUJICMD_JSON_QUERY                 = 0x81,
+  FUJICMD_JSON_PARSE                 = 0x80,
+  FUJICMD_GET_REMOTE                 = 0x72, // r
+  FUJICMD_CLOSE_CLIENT               = 0x63, // c
   FUJICMD_TIMER                      = 0x5A, // Z
   FUJICMD_STREAM                     = 0x58, // X
   FUJICMD_WRITE                      = 0x57, // W
@@ -106,6 +110,8 @@ enum fujiCommandID_t {
   FUJICMD_PERCOM_READ                = 0x4E, // N
   FUJICMD_UNLISTEN                   = 0x4D, // M
   FUJICMD_LISTEN                     = 0x4C, // L
+  FUJICMD_GET_ERROR                  = 0x45, // E
+  FUJICMD_SET_DESTINATION            = 0x44, // D
   FUJICMD_SET_DUMP                   = 0x44, // D
   FUJICMD_CLOSE                      = 0x43, // C
   FUJICMD_CONFIGURE                  = 0x42, // B

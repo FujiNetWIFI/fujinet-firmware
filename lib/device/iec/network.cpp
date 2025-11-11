@@ -71,7 +71,7 @@ void iecNetwork::iec_open()
 
     // Check if the payload is RAW (i.e. from fujinet-lib) by the presence of "01" as the first uint8_t, which can't happen for BASIC.
     // If it is, then the next 2 bytes are the aux1/aux2 values (mode and trans), and the rest is the actual URL.
-    // This is an efficiency so we don't have to send a 2nd command to tell it what the parameters should have been. 
+    // This is an efficiency so we don't have to send a 2nd command to tell it what the parameters should have been.
     // BASIC will still need to use "openparams" command, as the OPEN line doesn't have capacity for the parameters (can't use a "," as that's a valid URL character)
     if (payload[0] == 0x01) {
         channel_aux1 = payload[1];
@@ -80,7 +80,7 @@ void iecNetwork::iec_open()
         // capture the trans mode as though "settrans" had been invoked
         channel_data.translationMode = channel_aux2;
         // translationMode[commanddata.channel] = channel_aux2;
-        
+
         // remove the marker bytes so the payload can continue as with BASIC setup
         if (payload.length() > 3)
             payload = payload.substr(3);
@@ -102,7 +102,7 @@ void iecNetwork::iec_open()
     channel_data.urlParser = std::move(PeoplesUrlParser::parseURL(channel_data.deviceSpec));
 
     // Convert scheme to uppercase
-    std::transform(channel_data.urlParser->scheme.begin(), channel_data.urlParser->scheme.end(), channel_data.urlParser->scheme.begin(), 
+    std::transform(channel_data.urlParser->scheme.begin(), channel_data.urlParser->scheme.end(), channel_data.urlParser->scheme.begin(),
                    [](unsigned char c) { return std::toupper(c); });
 
     // Instantiate protocol based on the scheme
@@ -385,7 +385,7 @@ void iecNetwork::parse_bite()
 
         count++;
     } while ( end < channel_data.receiveBuffer.size() );
- 
+
     //bites += "\"";
     //Debug_printv("[%s]", bites.c_str());
     channel_data.receiveBuffer = mstr::toPETSCII2(bites);
@@ -510,13 +510,13 @@ void iecNetwork::iec_command()
                 return;
             }
 
-            uint8_t m = channel_data.protocol->special_inquiry(pt[0][0]);
+            AtariSIODirection m = channel_data.protocol->special_inquiry((fujiCommandID_t) pt[0][0]);
             Debug_printv("pt[0][0]=[%2X] pt[1]=[%d] size[%d] m[%d]", pt[0][0], channel, pt.size(), m);
-            if (m == 0x00)
+            if (m == SIO_DIRECTION_NONE)
                 perform_special_00();
-            else if (m == 0x40)
+            else if (m == SIO_DIRECTION_READ)
                 perform_special_40();
-            else if (m == 0x80)
+            else if (m == SIO_DIRECTION_WRITE)
                 perform_special_80();
         }
     }
@@ -970,7 +970,7 @@ void iecNetwork::set_open_params()
         iecStatus.msg = "invalid # of parameters";
         return;
     }
-    
+
     int channel = atoi(pt[1].c_str());
     int mode = atoi(pt[2].c_str());
     int trans = atoi(pt[3].c_str());
@@ -1017,14 +1017,14 @@ bool iecNetwork::transmit(NetworkData &channel_data)
       Debug_printf("iec_reopen_channel_listen() - Not connected");
       return false;
     }
-  
+
   // force incoming data from HOST to fixed ascii
   // Debug_printv("[1] DATA: >%s< [%s]", channel_data.transmitBuffer.c_str(), mstr::toHex(channel_data.transmitBuffer).c_str());
   clean_transform_petscii_to_ascii(channel_data.transmitBuffer);
   // Debug_printv("[2] DATA: >%s< [%s]", channel_data.transmitBuffer.c_str(), mstr::toHex(channel_data.transmitBuffer).c_str());
-  
+
   Debug_printf("Received %u bytes. Transmitting.", channel_data.transmitBuffer.length());
-  
+
   channel_data.protocol->write(channel_data.transmitBuffer.length());
   channel_data.transmitBuffer.clear();
   channel_data.transmitBuffer.shrink_to_fit();
@@ -1035,19 +1035,19 @@ bool iecNetwork::transmit(NetworkData &channel_data)
 bool iecNetwork::receive(NetworkData &channel_data, uint16_t rxBytes)
 {
   NetworkStatus ns;
-  
-  if (!channel_data.protocol) 
+
+  if (!channel_data.protocol)
     {
       //Debug_printv("No protocol set");
       return false;
     }
-  
+
   if (file_not_found)
     {
       Debug_printv("file not found");
       return false;
     }
-  
+
   // Get status
   channel_data.protocol->status(&ns);
   if( ns.rxBytesWaiting>0 )
@@ -1122,7 +1122,7 @@ uint8_t iecNetwork::getStatusData(char *buffer, uint8_t bufferSize)
     {
       if( is_binary_status )
         {
-          if (!active_status_channel) 
+          if (!active_status_channel)
             Debug_printf("No active status channel\r\n");
 
           if( !network_data_map[active_status_channel].protocol )
@@ -1135,17 +1135,17 @@ uint8_t iecNetwork::getStatusData(char *buffer, uint8_t bufferSize)
           Debug_printf("msg: %s\r\n", iecStatus.msg.c_str());
           util_petscii_to_ascii_str(iecStatus.msg); // are the util pescii/asccii functions reversed?
           Debug_printf("msgPETSCII: %s\r\n", iecStatus.msg.c_str());
-          snprintf(buffer, bufferSize, "%d,%s,%02d,%02d\r\n", 
+          snprintf(buffer, bufferSize, "%d,%s,%02d,%02d\r\n",
                    iecStatus.error, iecStatus.msg.c_str(), iecStatus.channel, iecStatus.connected);
 
           Debug_printf("Sending status: %s\r\n", buffer);
-          
+
           // reset status
           iecStatus.error = 0;
           iecStatus.channel = 0;
           iecStatus.connected = 0;
           iecStatus.msg = "ok";
-          
+
           return strlen(buffer);
         }
     }

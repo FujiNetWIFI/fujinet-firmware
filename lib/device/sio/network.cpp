@@ -694,7 +694,7 @@ void sioNetwork::sio_set_password()
  */
 void sioNetwork::sio_special()
 {
-    do_inquiry(cmdFrame.comnd);
+    do_inquiry((fujiCommandID_t) cmdFrame.comnd);
 
     switch (inq_dstats)
     {
@@ -731,13 +731,13 @@ void sioNetwork::sio_special_inquiry()
     Debug_printf("sioNetwork::sio_special_inquiry(%02x)\n", cmdFrame.aux1);
 #endif
 
-    do_inquiry(cmdFrame.aux1);
+    do_inquiry((fujiCommandID_t) cmdFrame.aux1);
 
     // Finally, return the completed inq_dstats value back to Atari
     bus_to_computer(&inq_dstats, sizeof(inq_dstats), false); // never errors.
 }
 
-void sioNetwork::do_inquiry(unsigned char inq_cmd)
+void sioNetwork::do_inquiry(fujiCommandID_t inq_cmd)
 {
     // Reset inq_dstats
     inq_dstats = 0xff;

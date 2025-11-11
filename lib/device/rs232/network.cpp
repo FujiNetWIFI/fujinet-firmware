@@ -606,7 +606,7 @@ void rs232Network::rs232_set_password()
  */
 void rs232Network::rs232_special()
 {
-    do_inquiry(cmdFrame.comnd);
+    do_inquiry((fujiCommandID_t) cmdFrame.comnd);
 
     switch (inq_dstats)
     {
@@ -641,23 +641,23 @@ void rs232Network::rs232_special_inquiry()
 
     Debug_printf("rs232Network::rs232_special_inquiry(%02x)\n", cmdFrame.aux1);
 
-    do_inquiry(cmdFrame.aux1);
+    do_inquiry((fujiCommandID_t) cmdFrame.aux1);
 
     // Finally, return the completed inq_dstats value back to Atari
-    bus_to_computer(&inq_dstats, sizeof(inq_dstats), false); // never errors.
+    bus_to_computer((uint8_t *) &inq_dstats, sizeof(inq_dstats), false); // never errors.
 }
 
-void rs232Network::do_inquiry(unsigned char inq_cmd)
+void rs232Network::do_inquiry(fujiCommandID_t inq_cmd)
 {
     // Reset inq_dstats
-    inq_dstats = 0xff;
+    inq_dstats = SIO_DIRECTION_INVALID;
 
     // Ask protocol for dstats, otherwise get it locally.
     if (protocol != nullptr)
         inq_dstats = protocol->special_inquiry(inq_cmd);
 
     // If we didn't get one from protocol, or unsupported, see if supported globally.
-    if (inq_dstats == 0xFF)
+    if (inq_dstats == SIO_DIRECTION_INVALID)
     {
         switch (inq_cmd)
         {
@@ -670,30 +670,30 @@ void rs232Network::do_inquiry(unsigned char inq_cmd)
         case FUJICMD_CHDIR:
         case FUJICMD_USERNAME:
         case FUJICMD_PASSWORD:
-            inq_dstats = 0x80;
+            inq_dstats = SIO_DIRECTION_WRITE;
             break;
         case FUJICMD_JSON:
-            inq_dstats = 0x00;
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
         case FUJICMD_GETCWD:
-            inq_dstats = 0x40;
+            inq_dstats = SIO_DIRECTION_READ;
             break;
         case FUJICMD_TIMER: // Set interrupt rate
-            inq_dstats = 0x00;
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
         case FUJICMD_TRANSLATION: // Set Translation
-            inq_dstats = 0x00;
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
         case FUJICMD_PARSE: // JSON Parse
             if (channelMode == JSON)
-                inq_dstats = 0x00;
+                inq_dstats = SIO_DIRECTION_NONE;
             break;
         case FUJICMD_QUERY: // JSON Query
             if (channelMode == JSON)
-                inq_dstats = 0x80;
+                inq_dstats = SIO_DIRECTION_WRITE;
             break;
         default:
-            inq_dstats = 0xFF; // not supported
+            inq_dstats = SIO_DIRECTION_INVALID; // not supported
             break;
         }
     }

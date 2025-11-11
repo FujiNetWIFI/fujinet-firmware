@@ -27,12 +27,12 @@ public:
      * @param cmd The Command (0x00-0xFF) for which DSTATS is requested.
      * @return a 0x00 = No payload, 0x40 = Payload to Atari, 0x80 = Payload to FujiNet, 0xFF = Command not supported.
      */
-    uint8_t special_inquiry(uint8_t cmd) override;
+    AtariSIODirection special_inquiry(fujiCommandID_t cmd) override;
 
     /**
      * @brief execute a command that returns no payload
      * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
-     * @return error flag. TRUE on error, FALSE on success.
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     netProtoErr_t special_00(cmdFrame_t *cmdFrame) override;
 
@@ -40,7 +40,7 @@ public:
      * @brief execute a command that returns a payload to the atari.
      * @param sp_buf a pointer to the special buffer
      * @param len Length of data to request from protocol. Should not be larger than buffer.
-     * @return error flag. TRUE on error, FALSE on success.
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     netProtoErr_t special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) override;
 
@@ -55,7 +55,7 @@ public:
      * @brief Rename file specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file/dest to rename
      * @param cmdFrame the command frame
-     * @return TRUE on error, FALSE on success
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     netProtoErr_t rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
 
@@ -63,7 +63,7 @@ public:
      * @brief Delete file specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
      * @param cmdFrame the command frame
-     * @return TRUE on error, FALSE on success
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     netProtoErr_t del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
 
@@ -71,7 +71,7 @@ public:
      * @brief Make directory specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
      * @param cmdFrame the command frame
-     * @return TRUE on error, FALSE on success
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     netProtoErr_t mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
 
@@ -79,7 +79,7 @@ public:
      * @brief Remove directory specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
      * @param cmdFrame the command frame
-     * @return TRUE on error, FALSE on success
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     netProtoErr_t rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
 
@@ -87,7 +87,7 @@ public:
      * @brief lock file specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
      * @param cmdFrame the command frame
-     * @return TRUE on error, FALSE on success
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     netProtoErr_t lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
 
@@ -95,7 +95,7 @@ public:
      * @brief unlock file specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
      * @param cmdFrame the command frame
-     * @return TRUE on error, FALSE on success
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     netProtoErr_t unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
 
@@ -125,26 +125,26 @@ protected:
 
     /**
      * @brief Open file handle, set fd
-     * @return FALSE if successful, TRUE on error.
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     netProtoErr_t open_file_handle() override;
 
     /**
      * @brief Open directory handle
-     * @return FALSE if successful, TRUE on error.
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     netProtoErr_t open_dir_handle() override;
 
     /**
      * @brief Do TNFS mount
      * @param url The URL to mount
-     * @return false on no error, true on error.
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     netProtoErr_t mount(PeoplesUrlParser *url) override;
 
     /**
      * @brief Unmount TNFS server specified in mountInfo.
-     * @return  false on no error, true on error.
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     netProtoErr_t umount() override;
 
@@ -157,7 +157,7 @@ protected:
      * @brief Read from file handle
      * @param buf target buffer
      * @param len the number of bytes requested
-     * @return FALSE if success, TRUE if error
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     netProtoErr_t read_file_handle(uint8_t *buf, unsigned short len) override;
 
@@ -172,19 +172,19 @@ protected:
      * @brief for len requested, break up into number of required
      *        tnfs_write() blocks.
      * @param len Requested # of bytes.
-     * @return TRUE on error, FALSE on success.
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     netProtoErr_t write_file_handle(uint8_t *buf, unsigned short len) override;
 
     /**
      * @brief close file handle
-     * @return FALSE if successful, TRUE on error.
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     netProtoErr_t close_file_handle() override;
 
     /**
      * @brief Close directory handle
-     * @return FALSE if successful, TRUE on error.
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     netProtoErr_t close_dir_handle() override;
 

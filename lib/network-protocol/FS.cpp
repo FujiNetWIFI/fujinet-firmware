@@ -108,10 +108,10 @@ netProtoErr_t NetworkProtocolFS::open_dir()
         if (entryBuffer.at(0) == '.' || entryBuffer.at(0) == '/')
             continue;
 
-        if (aux2_open & 0x80)
+        if (aux2_open & NETPROTO_A2_FLAG)
         {
             // Long entry
-            if (aux2_open == 0x81) // Apple2 80 col format.
+            if (aux2_open == NETPROTO_A2_80COL) // Apple2 80 col format.
                 dirBuffer += util_long_entry_apple2_80col((char *)entryBuffer.data(), fileSize, is_directory) + lineEnding;
             else
                 dirBuffer += util_long_entry((char *)entryBuffer.data(), fileSize, is_directory) + lineEnding;
@@ -329,14 +329,14 @@ netProtoErr_t NetworkProtocolFS::status_dir(NetworkStatus *status)
     return NETPROTO_ERR_NONE;
 }
 
-uint8_t NetworkProtocolFS::special_inquiry(uint8_t cmd)
+AtariSIODirection NetworkProtocolFS::special_inquiry(fujiCommandID_t cmd)
 {
-    uint8_t ret;
+    AtariSIODirection ret;
 
     switch (cmd)
     {
     default:
-        ret = 0xFF; // Not implemented.
+        ret = SIO_DIRECTION_INVALID; // Not implemented.
     }
 
     return ret;

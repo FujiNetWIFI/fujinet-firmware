@@ -33,21 +33,23 @@ netProtoErr_t NetworkProtocolTest::open(PeoplesUrlParser *urlParser, cmdFrame_t 
 
     switch (translation_mode)
     {
-    case 0:
+    case NETPROTO_TRANS_NONE:
         Debug_printf("Atari Translation\r\n");
         test_data += "\x9b";
         break;
-    case 1:
+    case NETPROTO_TRANS_CR:
         Debug_printf("CR Translation\r\n");
         test_data += "\x0d";
         break;
-    case 2:
+    case NETPROTO_TRANS_LF:
         Debug_printf("LF Translation\r\n");
         test_data += "\x0a";
         break;
-    case 3:
+    case NETPROTO_TRANS_CRLF:
         Debug_printf("CRLF Translation\r\n");
         test_data += "\x0d\x0a";
+        break;
+    default:
         break;
     }
 
@@ -106,9 +108,9 @@ netProtoErr_t NetworkProtocolTest::status(NetworkStatus *status)
     return NETPROTO_ERR_NONE;
 }
 
-uint8_t NetworkProtocolTest::special_inquiry(uint8_t cmd)
+AtariSIODirection NetworkProtocolTest::special_inquiry(fujiCommandID_t cmd)
 {
-    return 0xFF; // selected command not implemented.
+    return SIO_DIRECTION_INVALID; // selected command not implemented.
 }
 
 netProtoErr_t NetworkProtocolTest::special_00(cmdFrame_t *cmdFrame)
