@@ -610,15 +610,15 @@ void rs232Network::rs232_special()
 
     switch (inq_dstats)
     {
-    case DIRECTION_NONE:  // No payload
+    case SIO_DIRECTION_NONE:  // No payload
         rs232_ack();
         rs232_special_00();
         break;
-    case DIRECTION_READ:  // Payload to Atari
+    case SIO_DIRECTION_READ:  // Payload to Atari
         rs232_ack();
         rs232_special_40();
         break;
-    case DIRECTION_WRITE: // Payload to Peripheral
+    case SIO_DIRECTION_WRITE: // Payload to Peripheral
         rs232_ack();
         rs232_special_80();
         break;

@@ -243,7 +243,7 @@ protected:
     /**
      * AUX1 value from open
      */
-    unsigned char aux1_open = 0;
+    netProtoOpenMode_t aux1_open = NETPROTO_OPEN_INVALID;
 
     /**
      * AUX2 value from open

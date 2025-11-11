@@ -104,7 +104,7 @@ netProtoErr_t NetworkProtocol::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmd
     translation_mode = (netProtoTranslation_t) (cmdFrame->aux2 & 0x7F); // we now have more xlation modes.
 
     // Persist aux1/aux2 values for later.
-    aux1_open = cmdFrame->aux1;
+    aux1_open = (netProtoOpenMode_t) cmdFrame->aux1;
     aux2_open = cmdFrame->aux2;
 
     opened_url = urlParser;
@@ -114,7 +114,7 @@ netProtoErr_t NetworkProtocol::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmd
 
 void NetworkProtocol::set_open_params(uint8_t p1, uint8_t p2)
 {
-    aux1_open = p1;
+    aux1_open = (netProtoOpenMode_t) p1;
     aux2_open = p2;
     translation_mode = (netProtoTranslation_t) (p2 & 0x7F);
 #ifdef VERBOSE_PROTOCOL

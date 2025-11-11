@@ -50,6 +50,8 @@ netProtoErr_t NetworkProtocolFTP::open_file_handle()
         error = NETWORK_ERROR_NOT_IMPLEMENTED;
         return NETPROTO_ERR_UNSPECIFIED;
         break;
+    default:
+        break;
     }
 
     res = ftp->open_file(opened_url->path, stor);

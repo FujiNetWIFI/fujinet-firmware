@@ -17,10 +17,6 @@
 #define DELAY_T4 800
 #define DELAY_T5 800
 
-#define DIRECTION_NONE    0x00
-#define DIRECTION_READ    0x40
-#define DIRECTION_WRITE   0x80
-
 typedef struct
 {
     uint8_t device;

@@ -53,6 +53,8 @@ netProtoErr_t NetworkProtocolSD::open_file_handle()
     case NETPROTO_OPEN_READWRITE:
         mode = FILE_READ_WRITE;
         break;
+    default:
+        break;
     }
 
     // Do the open.

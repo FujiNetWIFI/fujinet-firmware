@@ -51,6 +51,8 @@ netProtoErr_t NetworkProtocolTNFS::open_file_handle()
         mode = TNFS_OPENMODE_WRITE_CREATE | TNFS_OPENMODE_READWRITE;
         perms = 0x1FF;
         break;
+    default:
+        break;
     }
 
     // Do the open.
