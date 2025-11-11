@@ -120,7 +120,7 @@ void rs232Printer::print_from_cpm(uint8_t c)
 }
 
 // Status
-void rs232Printer::rs232_status()
+void rs232Printer::rs232_status(FujiStatusReq reqType)
 {
     /*
   STATUS frame per the 400/800 OS ROM Manual
@@ -279,7 +279,7 @@ rs232Printer::printer_type rs232Printer::match_modelname(const std::string &mode
 }
 
 // Process command
-void rs232Printer::rs232_process(cmdFrame_t *cmd_ptr)
+void rs232Printer::rs232_process(FujiBusPacket &packet)
 {
     if (!Config.get_printer_enabled())
     {
@@ -287,13 +287,12 @@ void rs232Printer::rs232_process(cmdFrame_t *cmd_ptr)
     }
     else
     {
-        cmdFrame = *cmd_ptr;
-        switch (cmdFrame.comnd)
+        switch (packet.command())
         {
         case RS232_PRINTERCMD_PUT: // Needed by A822 for graphics mode printing
         case RS232_PRINTERCMD_WRITE:
-            _lastaux1 = cmd_ptr->aux1;
-            _lastaux2 = cmd_ptr->aux2;
+            _lastaux1 = packet.param(0);
+            _lastaux2 = packet.param(1);
             _last_ms = fnSystem.millis();
             rs232_ack();
             rs232_write(_lastaux1, _lastaux2);
@@ -301,7 +300,7 @@ void rs232Printer::rs232_process(cmdFrame_t *cmd_ptr)
         case RS232_PRINTERCMD_STATUS:
             _last_ms = fnSystem.millis();
             rs232_ack();
-            rs232_status();
+            rs232_status(static_cast<FujiStatusReq>(packet.param(0)));
             break;
         default:
             rs232_nak();

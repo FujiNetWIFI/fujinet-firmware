@@ -17,11 +17,11 @@ rs232Disk::rs232Disk()
 }
 
 // Read disk data and send to computer
-void rs232Disk::rs232_read()
+void rs232Disk::rs232_read(uint32_t sector)
 {
-        Debug_printf("disk READ %lu\n", cmdFrame.aux);
+    Debug_printf("disk READ %lu\n", sector);
 
-        if (_disk == nullptr)
+    if (_disk == nullptr)
     {
         rs232_error();
         return;
@@ -29,21 +29,20 @@ void rs232Disk::rs232_read()
 
     uint32_t readcount;
 
-    bool err = _disk->read(cmdFrame.aux, &readcount);
+    bool err = _disk->read(sector, &readcount);
 
     // Send result to Atari
     bus_to_computer(_disk->_disk_sectorbuff, readcount, err);
 }
 
 // Write disk data from computer
-void rs232Disk::rs232_write(bool verify)
+void rs232Disk::rs232_write(uint32_t sector, bool verify)
 {
     //Debug_print("disk WRITE\n");
 
     if (_disk != nullptr)
     {
-        uint16_t sectorNum = cmdFrame.aux;
-        uint16_t sectorSize = _disk->sector_size(sectorNum);
+        uint16_t sectorSize = _disk->sector_size(sector);
 
         memset(_disk->_disk_sectorbuff, 0, DISK_SECTORBUF_SIZE);
 
@@ -51,7 +50,7 @@ void rs232Disk::rs232_write(bool verify)
 
         if (ck == rs232_checksum(_disk->_disk_sectorbuff, sectorSize))
         {
-            if (_disk->write(sectorNum, verify) == false)
+            if (_disk->write(sector, verify) == false)
             {
                 rs232_complete();
                 return;
@@ -63,7 +62,7 @@ void rs232Disk::rs232_write(bool verify)
 }
 
 // Status
-void rs232Disk::rs232_status()
+void rs232Disk::rs232_status(FujiStatusReq reqType)
 {
     Debug_print("disk STATUS\n");
 
@@ -237,25 +236,24 @@ bool rs232Disk::write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
 }
 
 // Process command
-void rs232Disk::rs232_process(cmdFrame_t *cmd_ptr)
+void rs232Disk::rs232_process(FujiBusPacket &packet)
 {
     Debug_print("disk rs232_process()\n");
 
-    cmdFrame = *cmd_ptr;
-    switch (cmdFrame.comnd)
+    switch (packet.command())
     {
     case FUJICMD_READ:
         rs232_ack();
-        rs232_read();
+        rs232_read(packet.param(0));
         return;
     case FUJICMD_PUT:
         rs232_ack();
-        rs232_write(false);
+        rs232_write(packet.param(0), false);
         return;
     case FUJICMD_STATUS:
     case FUJICMD_WRITE:
         rs232_ack();
-        rs232_write(true);
+        rs232_write(packet.param(0), true);
         return;
     case FUJICMD_FORMAT:
     case FUJICMD_FORMAT_MEDIUM:
@@ -270,6 +268,8 @@ void rs232Disk::rs232_process(cmdFrame_t *cmd_ptr)
         rs232_ack();
         rs232_write_percom_block();
         return;
+    default:
+        break;
     }
 
     rs232_nak();

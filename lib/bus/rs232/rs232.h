@@ -2,7 +2,7 @@
 #define RS232_H
 
 #include "UARTChannel.h"
-#include "fujiDeviceID.h"
+#include "FujiBusPacket.h"
 
 #ifdef ESP_PLATFORM
 #include <freertos/FreeRTOS.h>
@@ -17,6 +17,17 @@
 #define DELAY_T4 800
 #define DELAY_T5 800
 
+enum FujiStatusReq {
+    STATUS_NETWORK_CONNERR = 0,
+    STATUS_NETWORK_IP      = 1,
+    STATUS_NETWORK_NETMASK = 2,
+    STATUS_NETWORK_GATEWAY = 3,
+    STATUS_NETWORK_DNS     = 4,
+
+    STATUS_MOUNT_TIME      = 1,
+};
+
+#ifdef OBSOLETE
 typedef struct
 {
     uint8_t device;
@@ -36,6 +47,7 @@ typedef struct
     };
     uint8_t cksum;
 } __attribute__((packed)) cmdFrame_t;
+#endif /* OBSOLETE */
 
 // helper functions
 uint8_t rs232_checksum(uint8_t *buf, unsigned short len);
@@ -57,7 +69,9 @@ protected:
 
     fujiDeviceID_t _devnum;
 
+#ifdef OBSOLETE
     cmdFrame_t cmdFrame;
+#endif /* OBSOLETE */
     bool listen_to_type3_polls = false;
 
     /**
@@ -106,6 +120,7 @@ protected:
      */
     void rs232_error();
 
+#ifdef OBSOLETE
     /**
      * @brief Return the aux bytes in cmdFrame as a single 16-bit or
      * 32-bit value, commonly used, for example to retrieve a sector
@@ -116,18 +131,19 @@ protected:
     uint16_t rs232_get_aux16_lo();
     uint16_t rs232_get_aux16_hi();
     uint32_t rs232_get_aux32();
+#endif /* OBSOLETE */
 
     /**
      * @brief All RS232 commands by convention should return a status command, using bus_to_computer() to return
      * four bytes of status information to be put into DVSTAT ($02EA)
      */
-    virtual void rs232_status() = 0;
+    virtual void rs232_status(FujiStatusReq reqType) = 0;
 
     /**
      * @brief All RS232 devices repeatedly call this routine to fan out to other methods for each command.
      * This is typcially implemented as a switch() statement.
      */
-    virtual void rs232_process(cmdFrame_t *cmd_ptr) = 0;
+    virtual void rs232_process(FujiBusPacket &packet) = 0;
 
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};
@@ -139,11 +155,13 @@ public:
      */
     fujiDeviceID_t id() { return _devnum; };
 
+#ifdef OBSOLETE
     /**
      * @brief Command 0x3F '?' intended to return a single byte to the atari via bus_to_computer(), which
      * signifies the high speed RS232 divisor chosen by the user in their #FujiNet configuration.
      */
     virtual void rs232_high_speed();
+#endif /* OBSOLETE */
 
     /**
      * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?
@@ -238,17 +256,19 @@ public:
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
 
+    void sendReplyPacket(fujiDeviceID_t source, bool ack, void *data, size_t length);
+
     // Everybody thinks "oh I know how a serial port works, I'll just
     // access it directly and bypass the bus!" ಠ_ಠ
-    size_t read(void *buffer, size_t length) { return _port.read(buffer, length); }
-    size_t read() { return _port.read(); }
-    size_t write(const void *buffer, size_t length) { return _port.write(buffer, length); }
-    size_t write(int n) { return _port.write(n); }
-    size_t available() { return _port.available(); }
-    void flushOutput() { _port.flushOutput(); }
-    size_t print(int n, int base = 10) { return _port.print(n, base); }
-    size_t print(const char *str) { return _port.print(str); }
-    size_t print(const std::string &str) { return _port.print(str); }
+    size_t read(void *buffer, size_t length);
+    size_t read();
+    size_t write(const void *buffer, size_t length);
+    size_t write(int n);
+    size_t available();
+    void flushOutput();
+    size_t print(int n, int base = 10);
+    size_t print(const char *str);
+    size_t print(const std::string &str);
 };
 
 extern systemBus SYSTEM_BUS;

@@ -10,8 +10,8 @@ private:
     void _rs232_set_tz();
 
 public:
-    void rs232_process(cmdFrame_t *cmd_ptr) override;
-    virtual void rs232_status() override {};
+    void rs232_process(FujiBusPacket &packet) override;
+    void rs232_status(FujiStatusReq reqType) override {}
 };
 
 #endif // APETIME_H

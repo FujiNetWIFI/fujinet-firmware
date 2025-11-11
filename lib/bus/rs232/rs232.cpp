@@ -1,6 +1,7 @@
 #ifdef BUILD_RS232
 
 #include "rs232.h"
+#include "FujiBusPacket.h"
 
 #include "../../include/debug.h"
 
@@ -25,6 +26,7 @@
 
 // Helper functions outside the class defintions
 
+#ifdef OBSOLETE
 uint16_t virtualDevice::rs232_get_aux16_lo()
 {
     return le16toh(cmdFrame.aux12);
@@ -39,6 +41,7 @@ uint32_t virtualDevice::rs232_get_aux32()
 {
     return le32toh(cmdFrame.aux);
 }
+#endif /* OBSOLETE */
 
 // Calculate 8-bit checksum
 uint8_t rs232_checksum(uint8_t *buf, unsigned short len)
@@ -57,6 +60,7 @@ uint8_t rs232_checksum(uint8_t *buf, unsigned short len)
    len = length of buffer
    err = along with data, send ERROR status to Atari rather than COMPLETE
 */
+#ifdef OBSOLETE
 void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
 {
     // Write data frame to computer
@@ -79,6 +83,13 @@ void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
 
     SYSTEM_BUS.flushOutput();
 }
+#else /* ! OBSOLETE */
+void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
+{
+    SYSTEM_BUS.sendReplyPacket(_devnum, !err, buf, len);
+    return;
+}
+#endif /* OBSOLETE */
 
 /*
    RS232 READ from ATARI by DEVICE
@@ -131,10 +142,12 @@ void virtualDevice::rs232_nak()
 // RS232 ACK
 void virtualDevice::rs232_ack()
 {
+#ifdef OBSOLETE
     SYSTEM_BUS.write('A');
     fnSystem.delay_microseconds(DELAY_T5); //?
     SYSTEM_BUS.flushOutput();
     Debug_println("ACK!");
+#endif /* OBSOLETE */
 }
 
 // RS232 COMPLETE
@@ -148,11 +161,13 @@ void virtualDevice::rs232_complete()
 // RS232 ERROR
 void virtualDevice::rs232_error()
 {
+    abort();
     fnSystem.delay_microseconds(DELAY_T5);
     SYSTEM_BUS.write('E');
     Debug_println("ERROR!");
 }
 
+#ifdef OBSOLETE
 // RS232 HIGH SPEED REQUEST
 void virtualDevice::rs232_high_speed()
 {
@@ -160,6 +175,7 @@ void virtualDevice::rs232_high_speed()
     uint8_t hsd = SYSTEM_BUS.getHighSpeedIndex();
     bus_to_computer((uint8_t *)&hsd, 1, false);
 }
+#endif /* OBSOLETE */
 
 // Read and process a command frame from RS232
 void systemBus::_rs232_process_cmd()
@@ -173,60 +189,57 @@ void systemBus::_rs232_process_cmd()
     }
 
     // Read CMD frame
-    cmdFrame_t tempFrame;
-    memset(&tempFrame, 0, sizeof(tempFrame));
-
-    if (_port.read((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
+    std::string packet;
+    int val, count;
+    for (count = 0; count < 2; )
     {
-        Debug_println("Timeout waiting for data after CMD pin asserted");
+        val = _port.read();
+        if (val < 0)
+            break;
+        packet.push_back(val);
+        if (val == SLIP_END)
+            count++;
+    }
+
+    auto tempFrame = FujiBusPacket::fromSerialized(packet);
+    if (!tempFrame)
+    {
+        Debug_printv("packet fail");
         return;
     }
+
     // Turn on the RS232 indicator LED
     fnLedManager.set(eLed::LED_BUS, true);
 
-    Debug_printf("\nCF: %02x %02x %02x %02x %02x %02x %02x\n",
-                 tempFrame.device, tempFrame.comnd,
-                 tempFrame.aux1, tempFrame.aux2, tempFrame.aux3, tempFrame.aux4,
-                 tempFrame.cksum);
-#if 0 && !defined(FUJINET_OVER_USB)
-    // Wait for CMD line to raise again
-    while (dsrState())
-        vTaskDelay(1);
-#endif /* FUJINET_OVER_USB */
+    Debug_printf("\nCF: dev:%02x cmd:%02x dlen:%d\n",
+                 tempFrame->device(), tempFrame->command(),
+                 tempFrame->data() ? tempFrame->data()->size() : -1);
 
-    uint8_t ck = rs232_checksum((uint8_t *)&tempFrame, sizeof(tempFrame) - sizeof(tempFrame.cksum)); // Calculate Checksum
-    if (ck == tempFrame.cksum)
+    if (tempFrame->device() == FUJI_DEVICEID_DISK && _fujiDev != nullptr
+        && _fujiDev->boot_config)
     {
-        if (tempFrame.device == FUJI_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
-        {
-            _activeDev = &_fujiDev->bootdisk;
+        _activeDev = &_fujiDev->bootdisk;
 
-            Debug_println("FujiNet CONFIG boot");
-            // handle command
-            _activeDev->rs232_process(&tempFrame);
-        }
-        else
-        {
-            {
-                // find device, ack and pass control
-                // or go back to WAIT
-                for (auto devicep : _daisyChain)
-                {
-                    if (tempFrame.device == devicep->_devnum)
-                    {
-                        _activeDev = devicep;
-                        // handle command
-                        _activeDev->rs232_process(&tempFrame);
-                    }
-                }
-            }
-        }
-    } // valid checksum
+        Debug_println("FujiNet CONFIG boot");
+        // handle command
+        _activeDev->rs232_process(*tempFrame);
+    }
     else
     {
-        Debug_printf("CHECKSUM_ERROR: Calc checksum: %02x\n",ck);
-        // Switch to/from hispeed RS232 if we get enough failed frame checksums
+        // find device, ack and pass control
+        // or go back to WAIT
+        for (auto devicep : _daisyChain)
+        {
+            if (tempFrame->device() == devicep->_devnum)
+            {
+                _activeDev = devicep;
+                // handle command
+                _activeDev->rs232_process(*tempFrame);
+                break;
+            }
+        }
     }
+
     fnLedManager.set(eLed::LED_BUS, false);
 }
 
@@ -250,32 +263,23 @@ void systemBus::service()
         return; // break!
     }
 
-#if 0 && !defined(FUJINET_OVER_USB)
-    // Go process a command frame if the RS232 CMD line is asserted
-    if (_port.dsrState())
-    {
-        _rs232_process_cmd();
-    }
-#else /* FUJINET_OVER_USB */
-    // Go process a command frame if the RS232 CMD line is asserted
     if (_port.available())
     {
         _rs232_process_cmd();
     }
-#endif /* FUJINET_OVER_USB */
     // Go check if the modem needs to read data if it's active
     else if (_modemDev != nullptr && _modemDev->modemActive && Config.get_modem_enabled())
     {
         _modemDev->rs232_handle_modem();
     }
-#if 0
+#ifdef OBSOLETE
     else
     // Neither CMD nor active modem, so throw out any stray input data
     {
         //Debug_println("RS232 Srvc Flush");
-        _port.discardInput();
+        _port->discardInput();
     }
-#endif
+#endif /* OBSOLETE */
 
     // Handle interrupts from network protocols
     for (int i = 0; i < 8; i++)
@@ -412,6 +416,7 @@ void systemBus::shutdown()
     Debug_printf("All devices shut down.\n");
 }
 
+#ifdef OBSOLETE
 void systemBus::toggleBaudrate()
 {
     int baudrate = _rs232Baud == RS232_BAUDRATE ? _rs232BaudHigh : RS232_BAUDRATE;
@@ -421,8 +426,9 @@ void systemBus::toggleBaudrate()
 
     // Debug_printf("Toggling baudrate from %d to %d\n", _rs232Baud, baudrate);
     _rs232Baud = baudrate;
-    _port.setBaudrate(_rs232Baud);
+    _serial.setBaudrate(_rs232Baud);
 }
+#endif /* OBSOLETE */
 
 int systemBus::getBaudrate()
 {
@@ -442,6 +448,7 @@ void systemBus::setBaudrate(int baud)
     _port.setBaudrate(baud);
 }
 
+#ifdef OBSOLETE
 // Set HRS232 index. Sets high speed RS232 baud and also returns that value.
 int systemBus::setHighSpeedIndex(int hrs232_index)
 {
@@ -465,4 +472,70 @@ void systemBus::setUDPHost(const char *hostname, int port)
 void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 {
 }
+#endif /* OBSOLETE */
+
+void systemBus::sendReplyPacket(fujiDeviceID_t source, bool ack, void *data, size_t length)
+{
+    FujiBusPacket packet(source, ack ? FUJICMD_ACK : FUJICMD_NAK,
+                         ack ? std::string(static_cast<const char*>(data), length) : nullptr);
+    std::string encoded = packet.serialize();
+    _port.write(encoded.data(), encoded.size());
+    return;
+}
+
+/* Convert direct bus access into bus packets? */
+size_t systemBus::read(void *buffer, size_t length)
+{
+    abort();
+    return _port.read(buffer, length);
+}
+
+size_t systemBus::read()
+{
+    abort();
+    return _port.read();
+}
+
+size_t systemBus::write(const void *buffer, size_t length)
+{
+    abort();
+    return _port.write(buffer, length);
+}
+
+size_t systemBus::write(int n)
+{
+    abort();
+    return _port.write(n);
+}
+
+size_t systemBus::available()
+{
+    abort();
+    return _port.available();
+}
+
+void systemBus::flushOutput()
+{
+    abort();
+    _port.flushOutput();
+}
+
+size_t systemBus::print(int n, int base)
+{
+    abort();
+    return _port.print(n, base);
+}
+
+size_t systemBus::print(const char *str)
+{
+    abort();
+    return _port.print(str);
+}
+
+size_t systemBus::print(const std::string &str)
+{
+    abort();
+    return _port.print(str);
+}
+
 #endif /* BUILD_RS232 */

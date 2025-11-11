@@ -15,9 +15,8 @@ typedef unsigned int    uint32;
 class rs232CPM : public virtualDevice
 {
 private:
-
-    void rs232_status() override;
-    void rs232_process(cmdFrame_t *cmd_ptr) override;
+    void rs232_status(FujiStatusReq reqType) override;
+    void rs232_process(FujiBusPacket &packet) override;
 
 public:
     bool cpmActive = false;
