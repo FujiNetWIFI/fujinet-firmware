@@ -47,13 +47,13 @@ jobs:
             runner: ubuntu-24.04
             target: ubuntu-24.04-amd64
             default-shell: bash
-          - name: macOS 13
-            target: macos-13
-            runner: macos-13
+          - name: macOS 15 intel
+            target: macos-15-intel
+            runner: macos-15-intel
             default-shell: bash
-          - name: macOS 14
-            target: macos-14
-            runner: macos-14
+          - name: macOS 15 arm
+            target: macos-15-arm64
+            runner: macos-15
             default-shell: bash
           - name: Windows
             target: windows-x64
