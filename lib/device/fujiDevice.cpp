@@ -32,7 +32,9 @@
 #include "compat_string.h"
 
 #include "fuji_endian.h"
+#ifndef ESP_PLATFORM // why ESP does not like it? it throws a linker error undefined reference to 'basename'
 #include <libgen.h>
+#endif /* ESP_PLATFORM */
 
 #ifdef UNUSED
 #define ADDITIONAL_DETAILS_BYTES 10

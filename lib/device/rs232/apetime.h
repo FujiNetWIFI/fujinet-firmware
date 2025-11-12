@@ -6,8 +6,10 @@
 class rs232ApeTime : public virtualDevice
 {
 private:
+    std::string ape_timezone;
+
     void _rs232_get_time(bool use_timezone);
-    void _rs232_set_tz();
+    void _rs232_set_tz(std::string newTZ);
 
 public:
     void rs232_process(FujiBusPacket &packet) override;

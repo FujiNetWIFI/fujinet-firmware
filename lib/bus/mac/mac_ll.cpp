@@ -111,6 +111,7 @@ void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t 
     *item_num = wanted_num;
 }
 
+#ifdef NOT_IWM_LL_SUBCLASSS
 /*
  * Initialize the RMT Tx channel
  */

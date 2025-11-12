@@ -676,7 +676,7 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
         {
             uint8_t mode = qp.query_parsed["mode"] == "2" ?
                 DISK_ACCESS_MODE_WRITE : DISK_ACCESS_MODE_READ;
-            if (!theFuji->fujicore_disk_image_mount_success(ds, mode))
+            if (!theFuji->fujicore_mount_disk_image_success(ds, mode))
             {
                 fnHTTPD.addToErrMsg("<li>Could not mount disk: " + qp.query_parsed["filename"] + "</li>");
             }

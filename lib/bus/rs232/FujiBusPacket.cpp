@@ -1,6 +1,7 @@
 #include "FujiBusPacket.h"
 
 #include "../../include/debug.h"
+#include "utils.h"
 
 typedef struct {
     uint8_t device;   /* Destination Device */
@@ -16,14 +17,6 @@ typedef struct {
 
 static uint8_t fieldSizeTable[] = {0, 1, 1, 1, 1, 2, 2, 4};
 static uint8_t numFieldsTable[] = {0, 1, 2, 3, 4, 1, 2, 1};
-
-FujiBusPacket::FujiBusPacket(const std::string &slipEncoded)
-{
-    if (!parse(slipEncoded))
-        throw std::invalid_argument("Invalid FujiBusPacket data");
-
-    return;
-}
 
 std::string FujiBusPacket::decodeSLIP(const std::string &input)
 {
@@ -203,10 +196,8 @@ std::string FujiBusPacket::serialize()
 
 std::unique_ptr<FujiBusPacket> FujiBusPacket::fromSerialized(const std::string &input)
 {
-    try {
-        return std::make_unique<FujiBusPacket>(input);
-    }
-    catch (const std::invalid_argument&) {
+    auto packet = std::make_unique<FujiBusPacket>();
+    if (!packet->parse(input))
         return nullptr;
-    }
+    return packet;
 }

@@ -31,7 +31,7 @@ private:
     uint8_t calcChecksum(const std::string &buf);
 
 public:
-    FujiBusPacket(const std::string &slipEncoded);
+    FujiBusPacket() = default;
     FujiBusPacket(fujiDeviceID_t dev, fujiCommandID_t cmd, const std::string &dbuf) :
         _device(dev), _command(cmd), _data(dbuf) {}
 

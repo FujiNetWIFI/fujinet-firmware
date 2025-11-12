@@ -8,8 +8,6 @@
 
 #include "../../include/debug.h"
 
-char * ape_timezone = NULL;
-
 void rs232ApeTime::_rs232_get_time(bool use_timezone)
 {
     char old_tz[64];
@@ -24,16 +22,16 @@ void rs232ApeTime::_rs232_get_time(bool use_timezone)
 
     time_t tt = time(nullptr);
 
-    if (ape_timezone != NULL && use_timezone) {
+    if (ape_timezone.size() && use_timezone) {
         Debug_printf("Using time zone %s\n", ape_timezone);
         strncpy(old_tz, getenv("TZ"), sizeof(old_tz));
-        setenv("TZ", ape_timezone, 1);
+        setenv("TZ", ape_timezone.c_str(), 1);
         tzset();
     }
 
     struct tm * now = localtime(&tt);
 
-    if (ape_timezone != NULL && use_timezone) {
+    if (ape_timezone.size() && use_timezone) {
         setenv("TZ", old_tz, 1);
         tzset();
     }
@@ -53,35 +51,16 @@ void rs232ApeTime::_rs232_get_time(bool use_timezone)
     bus_to_computer(rs232_reply, sizeof(rs232_reply), false);
 }
 
-void rs232ApeTime::_rs232_set_tz()
+void rs232ApeTime::_rs232_set_tz(std::string newTZ)
 {
-    int bufsz;
-
-    Debug_println("APETIME set TZ request");
-
-    if (ape_timezone != NULL) {
-      free(ape_timezone);
+    if (newTZ.size())
+    {
+        ape_timezone = newTZ;
+        Debug_printf("TZ set to <%s>\n", ape_timezone.c_str());
     }
-
-#ifdef OBSOLETE
-    bufsz = rs232_get_aux16_lo();
-#endif /* OBSOLETE */
-    if (bufsz > 0) {
-      ape_timezone = (char *) malloc((bufsz + 1) * sizeof(char));
-
-      uint8_t ck = bus_to_peripheral((uint8_t *) ape_timezone, bufsz);
-      if (rs232_checksum((uint8_t *) ape_timezone, bufsz) != ck) {
-        rs232_error();
-      } else {
-        ape_timezone[bufsz] = '\0';
-
-        rs232_complete();
-
-        Debug_printf("TZ set to <%s>\n", ape_timezone);
-      }
-    } else {
+    else
       Debug_printf("TZ unset\n");
-    }
+    return;
 }
 
 void rs232ApeTime::rs232_process(FujiBusPacket &packet)
@@ -94,7 +73,7 @@ void rs232ApeTime::rs232_process(FujiBusPacket &packet)
         break;
     case FUJICMD_SETTZ:
         rs232_ack();
-        _rs232_set_tz();
+        _rs232_set_tz(packet.data().value_or(""));
         break;
     case FUJICMD_GETTZTIME:
         rs232_ack();
