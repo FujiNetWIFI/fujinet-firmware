@@ -380,14 +380,4 @@ void TTYChannel::setCTS(bool state)
     return;
 }
 
-bool TTYChannel::getRI()
-{
-    int status;
-
-    if (ioctl(_fd, TIOCMGET, &status) == -1)
-        return false;
-
-    return !!(status & TIOCM_RI);
-}
-
 #endif /* ITS_A_UNIX_SYSTEM_I_KNOW_THIS */
