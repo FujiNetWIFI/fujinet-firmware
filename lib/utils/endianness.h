@@ -1,5 +1,5 @@
 #ifndef USE_ENDIAN_H
-#warning Use endian.h
+//#warning Use endian.h
 // Retruns a uint16 value given two bytes in high-low order
 #define UINT16_FROM_HILOBYTES(high, low) ((uint16_t)high << 8 | low)
 

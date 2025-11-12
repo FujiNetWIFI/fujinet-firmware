@@ -284,6 +284,8 @@ netProtoErr_t NetworkProtocolTCP::special_00(fujiCommandID_t cmd, uint8_t httpCh
         Debug_printf("CLOSING CLIENT CONNECTION!!!\n");
         return special_close_client_connection();
         break;
+    default:
+        break;
     }
     return NETPROTO_ERR_UNSPECIFIED; // error
 }

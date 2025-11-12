@@ -491,7 +491,7 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 void systemBus::sendReplyPacket(fujiDeviceID_t source, bool ack, void *data, size_t length)
 {
     FujiBusPacket packet(source, ack ? FUJICMD_ACK : FUJICMD_NAK,
-                         ack ? std::string(static_cast<const char*>(data), length) : nullptr);
+                         ack ? std::string(static_cast<const char*>(data), length) : "");
     std::string encoded = packet.serialize();
     _port->write(encoded.data(), encoded.size());
     return;
