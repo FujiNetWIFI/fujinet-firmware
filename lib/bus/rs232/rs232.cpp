@@ -153,9 +153,13 @@ void virtualDevice::rs232_ack()
 // RS232 COMPLETE
 void virtualDevice::rs232_complete()
 {
+#ifdef OBSOLETE
     fnSystem.delay_microseconds(DELAY_T5);
     SYSTEM_BUS.write('C');
     Debug_println("COMPLETE!");
+#else
+    SYSTEM_BUS.sendReplyPacket(_devnum, true, nullptr, 0);
+#endif /* OBSOLETE */
 }
 
 // RS232 ERROR

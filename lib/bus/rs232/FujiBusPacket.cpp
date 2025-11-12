@@ -108,12 +108,16 @@ bool FujiBusPacket::parse(const std::string &input)
     unsigned int idx, jdx;
     uint32_t val, bt;
 
+    Debug_printv("Incoming:\n%s\n", util_hexdump(input.data(), input.size()).c_str());
+
     if (input.size() < sizeof(fujibus_header) + 2)
         return false;
     if (((uint8_t) input[0]) != SLIP_END || ((uint8_t) input.back()) != SLIP_END)
         return false;
 
     decoded = decodeSLIP(input);
+    Debug_printv("Decoded:\n%s\n", util_hexdump(decoded.data(), decoded.size()).c_str());
+
     if (decoded.size() < sizeof(fujibus_header))
         return false;
     hdr = (fujibus_header *) &decoded[0];
@@ -139,7 +143,7 @@ bool FujiBusPacket::parse(const std::string &input)
         {
             for (val = jdx = 0; jdx < _fieldSize; jdx++)
             {
-                bt = decoded[offset + idx * _fieldSize + jdx];
+                bt = (uint8_t) decoded[offset + idx * _fieldSize + jdx];
                 val |= bt << (8 * jdx);
             }
             _params.push_back(val);
