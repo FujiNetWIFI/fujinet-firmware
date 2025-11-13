@@ -246,7 +246,10 @@ void rs232Network::rs232_read(uint16_t length)
 
     // And send off to the computer
     bus_to_computer((uint8_t *)receiveBuffer->data(), length, err);
-    receiveBuffer->clear();
+
+    // Remove from receive buffer and shrink.
+    receiveBuffer->erase(0, length);
+    receiveBuffer->shrink_to_fit();
 }
 
 /**
@@ -870,7 +873,12 @@ void rs232Network::rs232_process(FujiBusPacket &packet)
         rs232_write(packet.param(0));
         break;
     case FUJICMD_STATUS:
-        rs232_status(static_cast<FujiStatusReq>(packet.param(0)));
+        {
+            FujiStatusReq reqType = STATUS_NETWORK_CONNERR;
+            if (packet.paramCount() >= 2)
+                reqType = (FujiStatusReq) packet.param(1);
+            rs232_status(reqType);
+        }
         break;
     case FUJICMD_PARSE:
         rs232_ack();

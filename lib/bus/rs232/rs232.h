@@ -199,6 +199,12 @@ struct rs232_message_t
 class systemBus
 {
 private:
+    // FIXME - DO NOT DO CACHE THE LAST PACKET RECEIVED. This is a
+    // terrible hack to allow devices to continue directly read/write
+    // the bus instead of upgrading them to work with packets.
+    FujiBusPacket *_lastPacketReceived;
+    size_t _lastReadPosition;
+
     std::forward_list<virtualDevice *> _daisyChain;
 
     int _command_frame_counter = 0;

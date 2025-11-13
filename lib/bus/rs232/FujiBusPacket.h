@@ -42,6 +42,7 @@ public:
     fujiDeviceID_t device() { return _device; }
     fujiCommandID_t command() { return _command; }
     unsigned int param(unsigned int index) { return _params[index]; }
+    unsigned int paramCount() { return _params.size(); }
     std::optional<std::string> data() const { return _data; }
 };
 

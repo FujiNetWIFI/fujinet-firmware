@@ -97,6 +97,7 @@ void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
    len = length
    Returns checksum
 */
+#ifdef OBSOLETE
 uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 {
     // Retrieve data frame from computer
@@ -130,13 +131,27 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 
     return ck_rcv;
 }
+#else
+uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
+{
+    // FIXME - This is a terrible hack to allow devices to continue
+    // directly read/write the bus instead of upgrading them to work
+    // with packets.
+    size_t rlen = SYSTEM_BUS.read(buf, len);
+    return rs232_checksum(buf, rlen);
+}
+#endif /* OBSOLETE */
 
 // RS232 NAK
 void virtualDevice::rs232_nak()
 {
+#ifdef OBSOLETE
     SYSTEM_BUS.write('N');
     SYSTEM_BUS.flushOutput();
     Debug_println("NAK!");
+#else
+    rs232_error();
+#endif /* OBSOLETE */
 }
 
 // RS232 ACK
@@ -165,10 +180,13 @@ void virtualDevice::rs232_complete()
 // RS232 ERROR
 void virtualDevice::rs232_error()
 {
-    abort();
+#ifdef OBSOLETE
     fnSystem.delay_microseconds(DELAY_T5);
     SYSTEM_BUS.write('E');
     Debug_println("ERROR!");
+#else
+    SYSTEM_BUS.sendReplyPacket(_devnum, false, nullptr, 0);
+#endif /* OBSOLETE */
 }
 
 #ifdef OBSOLETE
@@ -218,6 +236,12 @@ void systemBus::_rs232_process_cmd()
     Debug_printf("\nCF: dev:%02x cmd:%02x dlen:%d\n",
                  tempFrame->device(), tempFrame->command(),
                  tempFrame->data() ? tempFrame->data()->size() : -1);
+
+    // FIXME - This is a terrible hack to allow devices to continue
+    // directly read/write the bus instead of upgrading them to work
+    // with packets.
+    _lastPacketReceived = tempFrame.get();
+    _lastReadPosition = 0;
 
     if (tempFrame->device() == FUJI_DEVICEID_DISK && _fujiDev != nullptr
         && _fujiDev->boot_config)
@@ -500,8 +524,20 @@ void systemBus::sendReplyPacket(fujiDeviceID_t source, bool ack, void *data, siz
 /* Convert direct bus access into bus packets? */
 size_t systemBus::read(void *buffer, size_t length)
 {
-    abort();
-    return _port->read(buffer, length);
+    // FIXME - This is a terrible hack to allow devices to continue
+    // directly read/write the bus instead of upgrading them to work
+    // with packets.
+    // Assuming 'data()' returns the optional:
+    auto optional_data = _lastPacketReceived->data();
+
+    if (!optional_data.has_value())
+        return 0;
+
+    size_t avail = optional_data.value().size() - _lastReadPosition;
+    avail = std::min(avail, (size_t) length);
+    memcpy(buffer, optional_data.value().data() + _lastReadPosition, avail);
+    _lastReadPosition += avail;
+    return avail;
 }
 
 size_t systemBus::read()
