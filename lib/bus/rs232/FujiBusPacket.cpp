@@ -114,6 +114,9 @@ bool FujiBusPacket::parse(const std::string &input)
     if (decoded.size() < sizeof(fujibus_header))
         return false;
     hdr = (fujibus_header *) &decoded[0];
+    Debug_printv("Header: dev:%02x cmd:%02x len:%d chk:%02x fld:%02x",
+                 hdr->device, hdr->command, hdr->length, hdr->checksum, hdr->fields);
+
     if (hdr->length != decoded.size())
         return false;
 
@@ -131,7 +134,8 @@ bool FujiBusPacket::parse(const std::string &input)
     fieldCount = numFieldsTable[hdr->fields & FUJI_FIELD_COUNT_MASK];
     if (fieldCount)
     {
-        _fieldSize = fieldSizeTable[fieldCount];
+        _fieldSize = fieldSizeTable[hdr->fields & FUJI_FIELD_COUNT_MASK];
+
         for (idx = 0; idx < fieldCount; idx++)
         {
             for (val = jdx = 0; jdx < _fieldSize; jdx++)
@@ -161,6 +165,7 @@ std::string FujiBusPacket::serialize()
     hdr.command = _command;
     hdr.length = sizeof(hdr);
     hdr.checksum = 0;
+    hdr.fields = 0;
 
     std::string output(sizeof(hdr), '\0');
 

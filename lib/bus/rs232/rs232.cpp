@@ -145,9 +145,13 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 // RS232 NAK
 void virtualDevice::rs232_nak()
 {
+#ifdef OBSOLETE
     SYSTEM_BUS.write('N');
     SYSTEM_BUS.flushOutput();
     Debug_println("NAK!");
+#else
+    rs232_error();
+#endif /* OBSOLETE */
 }
 
 // RS232 ACK
@@ -176,10 +180,13 @@ void virtualDevice::rs232_complete()
 // RS232 ERROR
 void virtualDevice::rs232_error()
 {
-    abort();
+#ifdef OBSOLETE
     fnSystem.delay_microseconds(DELAY_T5);
     SYSTEM_BUS.write('E');
     Debug_println("ERROR!");
+#else
+    SYSTEM_BUS.sendReplyPacket(_devnum, false, nullptr, 0);
+#endif /* OBSOLETE */
 }
 
 #ifdef OBSOLETE
