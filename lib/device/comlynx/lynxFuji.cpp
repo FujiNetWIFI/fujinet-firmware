@@ -144,7 +144,7 @@ void lynxFuji::comlynx_net_scan_result()
     if (n < _countScannedSSIDs)
         fnWiFi.get_scan_result(n, detail.ssid, &detail.rssi);
 
-    Debug_printf("SSID: %s - RSSI: %u\n", detail.ssid, detail.rssi);
+    Debug_printf("SSID: %s - RSSI: %d\n", detail.ssid, detail.rssi);
 
     memset(response, 0, sizeof(response));
     memcpy(response, &detail, sizeof(detail));
