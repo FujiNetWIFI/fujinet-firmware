@@ -57,13 +57,6 @@ using namespace std;
 #define STR_EOL "\x9b"
 #endif
 
-
-#define TRANSLATION_MODE_NONE 0
-#define TRANSLATION_MODE_CR 1
-#define TRANSLATION_MODE_LF 2
-#define TRANSLATION_MODE_CRLF 3
-#define TRANSLATION_MODE_PETSCII 4
-
 /**
  * ctor - Initialize network protocol object.
  * @param rx_buf pointer to receive buffer
@@ -105,10 +98,10 @@ NetworkProtocol::~NetworkProtocol()
  * @param urlParser The URL object passed in to open.
  * @param cmdFrame The command frame to extract aux1/aux2/etc.
  */
-bool NetworkProtocol::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocol::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     // Set translation mode, Bits 0-1 of aux2
-    translation_mode = cmdFrame->aux2 & 0x7F; // we now have more xlation modes.
+    translation_mode = (netProtoTranslation_t) (cmdFrame->aux2 & 0x7F); // we now have more xlation modes.
 
     // Persist aux1/aux2 values for later.
     aux1_open = cmdFrame->aux1;
@@ -116,14 +109,14 @@ bool NetworkProtocol::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
 
     opened_url = urlParser;
 
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
 void NetworkProtocol::set_open_params(uint8_t p1, uint8_t p2)
 {
     aux1_open = p1;
     aux2_open = p2;
-    translation_mode = p2 & 0x7F;
+    translation_mode = (netProtoTranslation_t) (p2 & 0x7F);
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("Changed open params to aux1_open = %d, aux2_open = %d. Set translation_mode to %d\r\n", p1, p2, translation_mode);
 #endif
@@ -132,7 +125,7 @@ void NetworkProtocol::set_open_params(uint8_t p1, uint8_t p2)
 /**
  * @brief Close connection to the protocol.
  */
-bool NetworkProtocol::close()
+netProtoErr_t NetworkProtocol::close()
 {
     if (!transmitBuffer->empty())
         write(transmitBuffer->length());
@@ -143,53 +136,53 @@ bool NetworkProtocol::close()
     receiveBuffer->shrink_to_fit();
     transmitBuffer->shrink_to_fit();
     specialBuffer->shrink_to_fit();
-    
+
     error = 1;
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
 /**
  * @brief Read len bytes into receiveBuffer, If protocol times out, the buffer should be null padded to length.
  * @param len Number of bytes to read.
- * @return error flag. FALSE if successful, TRUE if error.
+ * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
  */
-bool NetworkProtocol::read(unsigned short len)
+netProtoErr_t NetworkProtocol::read(unsigned short len)
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocol::read(%u)\r\n", len);
 #endif
     translate_receive_buffer();
     error = 1;
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
 /**
  * @brief Write len bytes from tx_buf to protocol.
  * @param len The # of bytes to transmit, len should not be larger than buffer.
- * @return error flag. FALSE if successful, TRUE if error.
+ * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
  */
-bool NetworkProtocol::write(unsigned short len)
+netProtoErr_t NetworkProtocol::write(unsigned short len)
 {
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
 /**
  * @brief Return protocol status information in provided NetworkStatus object.
  * @param status a pointer to a NetworkStatus object to receive status information
  * @param rx_buf a pointer to the receive buffer (to call read())
- * @return error flag. FALSE if successful, TRUE if error.
+ * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
  */
-bool NetworkProtocol::status(NetworkStatus *status)
+netProtoErr_t NetworkProtocol::status(NetworkStatus *status)
 {
-    if (fromInterrupt)   
-        return false;
- 
+    if (fromInterrupt)
+        return NETPROTO_ERR_NONE;
+
     if (!is_write && receiveBuffer->length() == 0 && status->rxBytesWaiting > 0)
         read(status->rxBytesWaiting);
 
     status->rxBytesWaiting = receiveBuffer->length();
 
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
 /**
@@ -210,31 +203,33 @@ void NetworkProtocol::translate_receive_buffer()
     replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_BELL, ATASCII_BUZZER);
     replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_BACKSPACE, ATASCII_DEL);
     replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_TAB, ATASCII_TAB);
-    #endif   
+    #endif
 
     switch (translation_mode)
     {
-    case TRANSLATION_MODE_CR:
+    case NETPROTO_TRANS_CR:
         replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_CR, EOL);
         break;
-    case TRANSLATION_MODE_LF:
+    case NETPROTO_TRANS_LF:
         replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_LF, EOL);
         break;
-    case TRANSLATION_MODE_CRLF:
+    case NETPROTO_TRANS_CRLF:
     #ifndef BUILD_APPLE
         // With Apple2, we would be translating CR to CR; a waste of CPU
         replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_CR, EOL);
     #endif
         break;
-    case TRANSLATION_MODE_PETSCII:
+    case NETPROTO_TRANS_PETSCII:
 #ifdef VERBOSE_PROTOCOL
         Debug_printf("!!! PETSCII !!!\r\n");
 #endif
         *receiveBuffer = mstr::toUTF8(*receiveBuffer);
         break;
+    default:
+        break;
     }
 
-    if (translation_mode == TRANSLATION_MODE_CRLF)
+    if (translation_mode == NETPROTO_TRANS_CRLF)
         receiveBuffer->erase(std::remove(receiveBuffer->begin(), receiveBuffer->end(), '\n'), receiveBuffer->end());
 }
 
@@ -258,17 +253,19 @@ unsigned short NetworkProtocol::translate_transmit_buffer()
 
     switch (translation_mode)
     {
-    case TRANSLATION_MODE_CR:
+    case NETPROTO_TRANS_CR:
         util_replaceAll(*transmitBuffer, STR_EOL, STR_ASCII_CR);
         break;
-    case TRANSLATION_MODE_LF:
+    case NETPROTO_TRANS_LF:
         util_replaceAll(*transmitBuffer, STR_EOL, STR_ASCII_LF);
         break;
-    case TRANSLATION_MODE_CRLF:
+    case NETPROTO_TRANS_CRLF:
         util_replaceAll(*transmitBuffer, STR_EOL, STR_ASCII_CRLF);
         break;
-    case TRANSLATION_MODE_PETSCII:
+    case NETPROTO_TRANS_PETSCII:
         *transmitBuffer = mstr::toUTF8(*transmitBuffer);
+        break;
+    default:
         break;
     }
 

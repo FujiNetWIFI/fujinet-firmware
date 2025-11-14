@@ -111,7 +111,7 @@ void lynxDisk::comlynx_control_clr()
 void lynxDisk::comlynx_control_receive()
 {
     Debug_println("comlynx_control_receive() - Disk block read started\n");
-    
+
     if (_media == nullptr)
         return;
 
@@ -146,7 +146,7 @@ void lynxDisk::comlynx_control_send_block_num()
     {
         _media->format(NULL);
     }
-    
+
     comlynx_response_ack();
 
     Debug_printf("BLOCK: %lu\n", blockNum);
@@ -158,13 +158,13 @@ void lynxDisk::comlynx_control_send_block_data()
         return;
 
     comlynx_recv_buffer(_media->_media_blockbuff, MEDIA_BLOCK_SIZE);
-    
+
     // Get packet checksum
     if (!comlynx_recv_ck()) {
         comlynx_response_nack();
         return;
     }
-       
+
     comlynx_response_ack();
     Debug_printf("Block Data Write\n");
 
@@ -191,7 +191,7 @@ void lynxDisk::comlynx_response_status()
         status_response[4] = 0x40 | STATUS_NO_MEDIA;
     else
         status_response[4] = 0x40 | _media->_media_controller_status;
-    
+
     virtualDevice::comlynx_response_status();
 }
 

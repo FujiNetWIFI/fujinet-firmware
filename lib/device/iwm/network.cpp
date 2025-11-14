@@ -167,7 +167,7 @@ void iwmNetwork::close()
     current_network_data.receiveBuffer.clear();
     current_network_data.transmitBuffer.clear();
     current_network_data.specialBuffer.clear();
-    
+
 
     // technically not required as removing the item from the map will also remove the value
     if (current_network_data.protocol) current_network_data.protocol.reset();
@@ -359,7 +359,7 @@ void iwmNetwork::iwmnet_special_inquiry()
 {
 }
 
-void iwmNetwork::do_inquiry(unsigned char inq_cmd)
+void iwmNetwork::do_inquiry(fujiCommandID_t inq_cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
     // Reset inq_dstats
@@ -515,7 +515,7 @@ void iwmNetwork::status()
 
     if (s.rxBytesWaiting > 512)
         s.rxBytesWaiting = 512;
-    
+
     data_buffer[0] = s.rxBytesWaiting & 0xFF;
     data_buffer[1] = s.rxBytesWaiting >> 8;
     data_buffer[2] = s.connected;
@@ -770,7 +770,7 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
 {
     uint8_t err_result = SP_ERR_NOERROR;
 
-    uint8_t control_code = get_status_code(cmd);
+    fujiCommandID_t control_code = (fujiCommandID_t) get_status_code(cmd);
 
     // fujinet-lib (with unit-id support) sends the count of bytes for a control as 4 to cater for the network unit.
     // Older code sends 3 as the count, so we can detect if the network unit byte is there or not.
@@ -792,43 +792,43 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
 
     // Debug_printv("cmd (looking for network_unit in byte 6, i.e. hex[5]):\r\n%s\r\n", mstr::toHex(cmd.decoded, 9).c_str());
 
-    if (control_code != 'O' && current_network_data.json == nullptr) {
+    if (control_code != FUJICMD_OPEN && current_network_data.json == nullptr) {
         Debug_printv("control should not be called on a non-open channel - FN was probably reset");
     }
 
     switch (control_code)
     {
-    case ' ':
+    case FUJICMD_RENAME:
         rename();
         break;
-    case '!':
+    case FUJICMD_DELETE:
         del();
         break;
-    case '*':
+    case FUJICMD_MKDIR:
         mkdir();
         break;
-    case ',':
+    case FUJICMD_CHDIR:
         set_prefix();
         break;
-    case '0':
+    case FUJICMD_GETCWD:
         get_prefix();
         break;
-    case 'O':
+    case FUJICMD_OPEN:
         open();
         break;
-    case 'C':
+    case FUJICMD_CLOSE:
         close();
         break;
-    case 'W':
+    case FUJICMD_WRITE:
         net_write();
         break;
-    case 0xFC:
+    case FUJICMD_JSON:
         channel_mode();
         break;
-    case 0xFD: // login
+    case FUJICMD_USERNAME: // login
         set_login();
         break;
-    case 0xFE: // password
+    case FUJICMD_PASSWORD: // password
         set_password();
         break;
     default:
@@ -856,11 +856,13 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
             } else {
                 switch (control_code)
                 {
-                case 'P':
+                case FUJICMD_PARSE:
                     json_parse();
                     break;
-                case 'Q':
+                case FUJICMD_QUERY:
                     json_query(cmd);
+                    break;
+                default:
                     break;
                 }
             }

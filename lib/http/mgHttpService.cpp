@@ -14,7 +14,7 @@
 #include "fsFlash.h"
 #include "modem.h"
 #include "printer.h"
-#include "fuji.h"
+#include "fujiDevice.h"
 
 #include "mongoose.h"
 #include "httpService.h"
@@ -402,7 +402,7 @@ int fnHttpService::get_handler_swap(mg_connection *c, mg_http_message *hm)
 {
     // rotate disk images
     Debug_printf("Disk swap from webui\n");
-    theFuji.image_rotate();
+    theFuji->image_rotate();
     return redirect_or_result(c, hm, 0);
 }
 
@@ -415,9 +415,9 @@ int fnHttpService::get_handler_mount(mg_connection *c, mg_http_message *hm)
         // Mount all the things
         Debug_printf("Mount all from webui\n");
 #ifdef BUILD_ATARI
-        theFuji.mount_all(false);
+        theFuji->mount_all(false);
 #else
-        theFuji.mount_all();
+        theFuji->mount_all();
 #endif
     }
     return redirect_or_result(c, hm, 0);
@@ -439,40 +439,40 @@ int fnHttpService::get_handler_eject(mg_connection *c, mg_http_message *hm)
     else
     {
 #ifdef BUILD_APPLE
-        if(theFuji.get_disks(ds)->disk_dev.device_active) //set disk switched only if device was previosly mounted.
-            theFuji.get_disks(ds)->disk_dev.switched = true;
+        if(theFuji->get_disk(ds)->disk_dev.device_active) //set disk switched only if device was previosly mounted.
+            theFuji->get_disk(ds)->disk_dev.switched = true;
 #endif
-        theFuji.get_disks(ds)->disk_dev.unmount();
+        theFuji->get_disk(ds)->disk_dev.unmount();
 #ifdef BUILD_ATARI
-        if (theFuji.get_disks(ds)->disk_type == MEDIATYPE_CAS || theFuji.get_disks(ds)->disk_type == MEDIATYPE_WAV)
+        if (theFuji->get_disk(ds)->disk_type == MEDIATYPE_CAS || theFuji->get_disk(ds)->disk_type == MEDIATYPE_WAV)
         {
-            theFuji.cassette()->umount_cassette_file();
-            theFuji.cassette()->sio_disable_cassette();
+            theFuji->cassette()->umount_cassette_file();
+            theFuji->cassette()->sio_disable_cassette();
         }
 #endif
-        theFuji.get_disks(ds)->reset();
+        theFuji->get_disk(ds)->reset();
         Config.clear_mount(ds);
         Config.save();
-        theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
-        theFuji.get_disks(ds)->disk_dev.device_active = false;
+        theFuji->_populate_slots_from_config(); // otherwise they don't show up in config.
+        theFuji->get_disk(ds)->disk_dev.device_active = false;
 
         // Finally, scan all device slots, if all empty, and config enabled, enable the config device.
         if (Config.get_general_config_enabled())
         {
-            if ((theFuji.get_disks(0)->host_slot == 0xFF) &&
-                (theFuji.get_disks(1)->host_slot == 0xFF) &&
-                (theFuji.get_disks(2)->host_slot == 0xFF) &&
-                (theFuji.get_disks(3)->host_slot == 0xFF) &&
-                (theFuji.get_disks(4)->host_slot == 0xFF) &&
-                (theFuji.get_disks(5)->host_slot == 0xFF) &&
-                (theFuji.get_disks(6)->host_slot == 0xFF) &&
-                (theFuji.get_disks(7)->host_slot == 0xFF))
+            if ((theFuji->get_disk(0)->host_slot == 0xFF) &&
+                (theFuji->get_disk(1)->host_slot == 0xFF) &&
+                (theFuji->get_disk(2)->host_slot == 0xFF) &&
+                (theFuji->get_disk(3)->host_slot == 0xFF) &&
+                (theFuji->get_disk(4)->host_slot == 0xFF) &&
+                (theFuji->get_disk(5)->host_slot == 0xFF) &&
+                (theFuji->get_disk(6)->host_slot == 0xFF) &&
+                (theFuji->get_disk(7)->host_slot == 0xFF))
             {
-                theFuji.boot_config = true;
+                theFuji->boot_config = true;
 #ifdef BUILD_ATARI
-                theFuji.status_wait_count = 5;
+                theFuji->status_wait_count = 5;
 #endif
-                theFuji.device_active = true;
+                theFuji->device_active = true;
             }
         }
     }
@@ -491,7 +491,7 @@ int fnHttpService::get_handler_hosts(mg_connection *c, mg_http_message *hm)
 {
     std::string response = "";
     for (int hs = 0; hs < 8; hs++) {
-        response += std::string(theFuji.get_hosts(hs)->get_hostname()) + "\n";
+        response += std::string(theFuji->get_host(hs)->get_hostname()) + "\n";
     }
     mg_http_reply(c, 200, "", "%s", response.c_str());
     return 0;
@@ -504,11 +504,11 @@ int fnHttpService::post_handler_hosts(mg_connection *c, mg_http_message *hm)
     char hostname[256] = "";
     mg_http_get_var(&hm->query, "hostname", hostname, sizeof(hostname));
 
-    theFuji.set_slot_hostname(atoi(hostslot), hostname);
+    theFuji->set_slot_hostname(atoi(hostslot), hostname);
 
     std::string response = "";
     for (int hs = 0; hs < 8; hs++) {
-        response += std::string(theFuji.get_hosts(hs)->get_hostname()) + "\n";
+        response += std::string(theFuji->get_host(hs)->get_hostname()) + "\n";
     }
     mg_http_reply(c, 200, "", "%s", response.c_str());
     return 0;

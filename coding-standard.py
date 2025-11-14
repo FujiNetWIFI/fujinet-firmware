@@ -46,6 +46,11 @@ class FormatError(Enum):
   IllegalTabs = auto()
   CodingStandardViolation = auto()
 
+class TabsOk(Enum):
+  Nope = auto()      # Calling it "None" seems confusing
+  Leading = auto()
+  AllTabs = auto()
+
 ErrorStrings = {
   FormatError.TrailingWhitespace: "Trailing whitespace",
   FormatError.IllegalTabs: "Tab characters",
@@ -65,6 +70,8 @@ def build_argparser():
   group = parser.add_mutually_exclusive_group()
   group.add_argument("--fix", action="store_true", help="rewrite improperly formatted files")
   group.add_argument("--show", action="store_true", help="print reformatted file on stdout")
+  group.add_argument("-l", "--list", action="store_true",
+                     help="only print filenames of improperly formatted files")
   return parser
 
 class ClangFormatter:
@@ -140,9 +147,11 @@ class TextFile:
     if contents is None:
       raise ValueError("Contents not provided")
 
-    self.allowLeadingTab = False
+    self.allowTabs = TabsOk.Nope
     if self.isMakefile:
-      self.allowLeadingTab = True
+      self.allowTabs = TabsOk.Leading
+    elif self.isAssembly:
+      self.allowTabs = TabsOk.AllTabs
 
     return
 
@@ -153,7 +162,7 @@ class TextFile:
     """
     prefix = ""
     suffix = line
-    if self.allowLeadingTab:
+    if self.allowTabs == TabsOk.Leading:
       if line and line[0] == '\t':
         prefix = line[:1]
         suffix = line[1:]
@@ -177,7 +186,7 @@ class TextFile:
     lines = []
     for line in self.contents:
       line = line.rstrip()
-      if "\t" in line:
+      if self.allowTabs != TabsOk.AllTabs and "\t" in line:
         prefix, suffix = self.splitLeadingTab(line)
         while "\t" in suffix:
           column = suffix.index("\t")
@@ -243,9 +252,6 @@ class TextFile:
       else:
         formatted = self.fixupWhitespace()
 
-    elif self.isMakefile:
-      formatted = self.fixupWhitespace()
-
     else:
       formatted = self.fixupWhitespace()
 
@@ -268,7 +274,7 @@ class TextFile:
       trailingStart = len(line.rstrip())
       line = line[:trailingStart]
       prefix, suffix = self.splitLeadingTab(line)
-      if "\t" in suffix:
+      if self.allowTabs != TabsOk.AllTabs and "\t" in suffix:
         errors.add(FormatError.IllegalTabs)
         break
 
@@ -308,13 +314,20 @@ class TextFile:
 
   @property
   def isClang(self):
-    return self.path.suffix in ClangFormatter.TYPES
+    #return self.path.suffix in ClangFormatter.TYPES
+    return False
 
   @property
   def isMakefile(self):
     for pattern in MAKEFILE_TYPES:
       if re.match(pattern, str(self.path)):
         return True
+    return False
+
+  @property
+  def isAssembly(self):
+    if self.path.suffix in [".asm", ".s"]:
+      return True
     return False
 
   @property
@@ -444,6 +457,7 @@ def main():
 
   doFix = False
   doShow = False
+  doList = False
 
   script_mode = os.path.basename(sys.argv[0])
   if script_mode == "pre-commit":
@@ -455,6 +469,7 @@ def main():
   else:
     doFix = args.fix
     doShow = args.show
+    doList = args.list
     to_check = args.file
 
   if doShow and len(to_check) > 1:
@@ -470,7 +485,9 @@ def main():
 
     if TextFile.pathIsText(path):
       tfile = TextFile(path, repo.getContents(path))
-      if doShow:
+      if doList:
+        print(tfile.path)
+      elif doShow:
         tfile.show()
       elif doFix:
         tfile.update()

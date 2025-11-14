@@ -7,7 +7,7 @@
 
 #include "../../include/debug.h"
 
-#include "fuji.h"
+#include "fujiDevice.h"
 #include "utils.h"
 
 #define SIO_DISKCMD_FORMAT 0x21
@@ -27,9 +27,6 @@
 
 #define SIO_DISKCMD_PERCOM_READ 0x4E
 #define SIO_DISKCMD_PERCOM_WRITE 0x4F
-
-// External ref to fuji object.
-extern sioFuji theFuji;
 
 sioDisk::sioDisk()
 {
@@ -240,7 +237,7 @@ mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize, m
     case MEDIATYPE_CAS:
     case MEDIATYPE_WAV:
         // open the cassette file
-        theFuji.cassette()->mount_cassette_file(f, disksize);
+        theFuji->cassette()->mount_cassette_file(f, disksize);
         return disk_type;
         // TODO left off here for tape cassette
         break;
@@ -320,7 +317,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         return;
 
     if ((device_active == false && cmdFrame.device != FUJI_DEVICEID_DISK) || // not active and not D1
-        (device_active == false && theFuji.boot_config == false)) // not active and not config boot
+        (device_active == false && theFuji->boot_config == false)) // not active and not config boot
         return;
 
     Debug_printf("disk sio_process(), baud: %d\n", SYSTEM_BUS.getBaudrate());
@@ -393,9 +390,9 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_DISKCMD_HSIO_STATUS:
         if (is_config_device == true)
         {
-            if (theFuji.boot_config == true)
+            if (theFuji->boot_config == true)
             {
-                if (status_wait_count > 0 && theFuji.status_wait_enabled)
+                if (status_wait_count > 0 && theFuji->status_wait_enabled)
                 {
                     Debug_print("ignoring status command\n");
                     status_wait_count--;

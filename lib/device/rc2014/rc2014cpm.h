@@ -15,10 +15,10 @@ private:
     void rc2014_process(uint32_t commanddata, uint8_t checksum) override;
 
 public:
-    bool cpmActive = false; 
+    bool cpmActive = false;
     void init_cpm(int baud);
     void rc2014_handle_cpm();
-    
+
 };
 
 #endif /* RC2014CPM_H */

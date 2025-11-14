@@ -79,7 +79,7 @@ void rs232ApeTime::_rs232_set_tz()
 
         rs232_complete();
 
-        Debug_printf("TZ set to <%s>\n", ape_timezone); 
+        Debug_printf("TZ set to <%s>\n", ape_timezone);
       }
     } else {
       Debug_printf("TZ unset\n");

@@ -48,7 +48,7 @@ void lynxUDPStream::comlynx_disable_redeye()
 {
     redeye_mode = false;
     redeye_logon = true;
-    
+
 #ifdef DEBUG
     Debug_println("UDPSTREAM redeye mode DISABLED");
 #endif
@@ -70,7 +70,7 @@ void lynxUDPStream::comlynx_handle_udpstream()
             if (packetSize < 3) {               // check that we have a packet at least 3 bytes
                 good_packet = false;
             #ifdef DEBUG
-                Debug_println("UDPStream Redeye IN - bad packet size < 3"); 
+                Debug_println("UDPStream Redeye IN - bad packet size < 3");
             #endif
             }
             else {
@@ -111,7 +111,7 @@ void lynxUDPStream::comlynx_handle_udpstream()
                 buf_stream[buf_stream_index] = (char)SYSTEM_BUS.read();
                 if (redeye_mode && (buf_stream_index == 0)) {           // Check first byte
                   if ((buf_stream[0] < 1) || (buf_stream[0] > 6))       // discard bad size byte (must be between 1 and 6)
-                    continue;  
+                    continue;
                 }
 
                 if (buf_stream_index < UDPSTREAM_BUFFER_SIZE - 1)
@@ -134,7 +134,7 @@ void lynxUDPStream::comlynx_handle_udpstream()
             if (buf_stream_index < 3) {     // packets have to be at least three bytes
                 #ifdef DEBUG
                     Debug_println("UDPStream Redeye OUT - bad packet size < 3");
-                    util_dump_bytes(buf_stream, buf_stream_index); 
+                    util_dump_bytes(buf_stream, buf_stream_index);
                 #endif
                 return;                     // bail out
             }
@@ -197,14 +197,14 @@ void lynxUDPStream::comlynx_handle_udpstream()
 
  /* Calculate the checksum of incoming from the lynx redeye packets
     Return true if ok, false if not
-  
+
     typical message:
     05 00 00 01 FF FF F8
 
     Checksum is calculated on size, plus message bytes.
  */
  bool lynxUDPStream::comlynx_redeye_checksum(uint8_t *buf)
- {  
+ {
     uint16_t ck;
     uint8_t i;
     uint8_t size;
@@ -212,16 +212,16 @@ void lynxUDPStream::comlynx_handle_udpstream()
 
     size = buf[0];                          // get message size
     if ((size == 0) || (size > 6)) {        // check packets are in range
-        //Debug_printf("checksum size %d %d\n", size, buf[0]); 
+        //Debug_printf("checksum size %d %d\n", size, buf[0]);
         return false;
     }
 
     // checksum caculation is 255 - size - message bytes
     ck = 255;
     for (i=0; i < size+1; i++) {
-        ck -= buf[i];    
+        ck -= buf[i];
     }
-  
+
     if ((ck & 0xFF) == buf[size+1])
         return true;
     else
@@ -231,11 +231,11 @@ void lynxUDPStream::comlynx_handle_udpstream()
 
 
  /* Recalculate the checksum of the lynx redeye packet.
-  
+
     Checksum is calculated on size, plus message bytes.
  */
  void lynxUDPStream::redeye_recalculate_checksum()
- {  
+ {
     uint16_t ck;
     uint8_t i;
     uint8_t size;
@@ -246,9 +246,9 @@ void lynxUDPStream::comlynx_handle_udpstream()
     // checksum caculation is 255 - size - message bytes
     ck = 255;
     for (i=0; i < size+1; i++) {
-        ck -= buf_stream[i];    
+        ck -= buf_stream[i];
     }
-  
+
     // set new checksum on packet
     buf_stream[size+1] = (ck & 0xFF);
     return;
@@ -256,18 +256,18 @@ void lynxUDPStream::comlynx_handle_udpstream()
 
 
 /* redeye_remap_game_id
- * 
+ *
  * Remap certain game IDs (based on GUI setting) so that we
  * have a unique game id for each game.
- * 
- * 0xFFFF	0xE001	Relief Pitcher
- * 0xFFFF	0xE002	Pit Fighter
- * 0xFFFF	0xE003	Double Dragon
- * 0xFFFF	0xE004	European Soccer
- * 0xFFFF	0xE005	Lynx Casino
- * 0xFFFF	0xE006	Super Off-Road
- * 
- * redeye_game = (buf_stream[4]+(buf_stream[5]<<8)); 
+ *
+ * 0xFFFF       0xE001  Relief Pitcher
+ * 0xFFFF       0xE002  Pit Fighter
+ * 0xFFFF       0xE003  Double Dragon
+ * 0xFFFF       0xE004  European Soccer
+ * 0xFFFF       0xE005  Lynx Casino
+ * 0xFFFF       0xE006  Super Off-Road
+ *
+ * redeye_game = (buf_stream[4]+(buf_stream[5]<<8));
  */
 void lynxUDPStream::redeye_remap_game_id()
 {
@@ -281,7 +281,7 @@ void lynxUDPStream::redeye_remap_game_id()
 
   // Set new game ID
   buf_stream[4] = new_game_id & 0xFF;
-  buf_stream[5] = (new_game_id >> 8) & 0xFF; 
+  buf_stream[5] = (new_game_id >> 8) & 0xFF;
   return;
 }
 

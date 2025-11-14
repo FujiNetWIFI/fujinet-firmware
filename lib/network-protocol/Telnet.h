@@ -24,16 +24,16 @@ public:
     /**
      * @brief Read len bytes into rx_buf, If protocol times out, the buffer should be null padded to length.
      * @param len Number of bytes to read.
-     * @return error flag. FALSE if successful, TRUE if error.
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    virtual bool read(unsigned short len);
+    netProtoErr_t read(unsigned short len) override;
 
     /**
      * @brief Write len bytes from tx_buf to protocol.
      * @param len The # of bytes to transmit, len should not be larger than buffer.
-     * @return error flag. FALSE if successful, TRUE if error.
+     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    virtual bool write(unsigned short len);
+    netProtoErr_t write(unsigned short len) override;
 
     /**
      * Get Receive Buffer
@@ -56,7 +56,7 @@ public:
     int newRxLen;
 
     char ttype[32]="dumb";
-    
+
 };
 
 #endif /* NETWORKPROTOCOL_TELNET */

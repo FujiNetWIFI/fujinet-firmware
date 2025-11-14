@@ -1,6 +1,6 @@
 /**
  * NetworkProtocolTCP
- * 
+ *
  * TCP Protocol Adapter Implementation
  */
 
@@ -51,9 +51,9 @@ NetworkProtocolTCP::~NetworkProtocolTCP()
  * @param urlParser The URL object passed in to open.
  * @param cmdFrame The command frame to extract aux1/aux2/etc.
  */
-bool NetworkProtocolTCP::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolTCP::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
-    bool ret = true; // assume error until proven ok
+    netProtoErr_t ret = NETPROTO_ERR_UNSPECIFIED; // assume error until proven ok
 
     Debug_printf("NetworkProtocolTCP::open(%s:%s)\r\n", urlParser->host.c_str(), urlParser->port.c_str());
 
@@ -65,7 +65,7 @@ bool NetworkProtocolTCP::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
         else
         {
             Debug_printf("Empty socket enabled.\r\n");
-            ret = false; // No error.
+            ret = NETPROTO_ERR_NONE; // No error.
         }
     }
     else
@@ -86,7 +86,7 @@ bool NetworkProtocolTCP::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
 /**
  * @brief Close connection to the protocol.
  */
-bool NetworkProtocolTCP::close()
+netProtoErr_t NetworkProtocolTCP::close()
 {
     Debug_printf("NetworkProtocolTCP::close()\r\n");
 
@@ -104,15 +104,15 @@ bool NetworkProtocolTCP::close()
         server->stop();
     }
 
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
 /**
  * @brief Read len bytes into rx_buf, If protocol times out, the buffer should be null padded to length.
  * @param len number of bytes to read.
- * @return error flag. FALSE if successful, TRUE if error.
+ * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
  */
-bool NetworkProtocolTCP::read(unsigned short len)
+netProtoErr_t NetworkProtocolTCP::read(unsigned short len)
 {
     unsigned short actual_len = 0;
     std::vector<uint8_t> newData = std::vector<uint8_t>(len);
@@ -125,7 +125,7 @@ bool NetworkProtocolTCP::read(unsigned short len)
         if (!client.connected())
         {
             error = NETWORK_ERROR_NOT_CONNECTED;
-            return true; // error
+            return NETPROTO_ERR_UNSPECIFIED; // error
         }
 
         // Do the read from client socket.
@@ -135,18 +135,18 @@ bool NetworkProtocolTCP::read(unsigned short len)
         if (errno == ECONNRESET)
         {
             error = NETWORK_ERROR_CONNECTION_RESET;
-            return true;
+            return NETPROTO_ERR_UNSPECIFIED;
         }
         else if (actual_len != len) // Read was short and timed out.
         {
             Debug_printf("Short receive. We got %u bytes, returning %u bytes and ERROR\r\n", actual_len, len);
             error = NETWORK_ERROR_SOCKET_TIMEOUT;
-            return true;
+            return NETPROTO_ERR_UNSPECIFIED;
         }
 
         // Add new data to buffer.
         receiveBuffer->insert(receiveBuffer->end(), newData.begin(), newData.end());
-    }    
+    }
     error = 1;
     return NetworkProtocol::read(len);
 }
@@ -156,7 +156,7 @@ bool NetworkProtocolTCP::read(unsigned short len)
  * @param len The # of bytes to transmit, len should not be larger than buffer.
  * @return Number of bytes written.
  */
-bool NetworkProtocolTCP::write(unsigned short len)
+netProtoErr_t NetworkProtocolTCP::write(unsigned short len)
 {
     int actual_len = 0;
 
@@ -166,7 +166,7 @@ bool NetworkProtocolTCP::write(unsigned short len)
     if (!client.connected())
     {
         error = NETWORK_ERROR_NOT_CONNECTED;
-        return len; // error
+        return NETPROTO_ERR_UNSPECIFIED; // error
     }
 
     // Call base class to do translation.
@@ -179,28 +179,28 @@ bool NetworkProtocolTCP::write(unsigned short len)
     if (errno == ECONNRESET)
     {
         error = NETWORK_ERROR_CONNECTION_RESET;
-        return len;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
     else if (actual_len != len) // write was short.
     {
         Debug_printf("Short send. We sent %u bytes, but asked to send %u bytes.\r\n", actual_len, len);
         error = NETWORK_ERROR_SOCKET_TIMEOUT;
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
     // Return success
     error = 1;
     transmitBuffer->erase(0, len);
 
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
 /**
  * @brief Return protocol status information in provided NetworkStatus object.
  * @param status a pointer to a NetworkStatus object to receive status information
- * @return error flag. FALSE if successful, TRUE if error.
+ * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
  */
-bool NetworkProtocolTCP::status(NetworkStatus *status)
+netProtoErr_t NetworkProtocolTCP::status(NetworkStatus *status)
 {
     if (connectionIsServer == true)
         status_server(status);
@@ -209,7 +209,7 @@ bool NetworkProtocolTCP::status(NetworkStatus *status)
 
     NetworkProtocol::status(status);
 
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
 void NetworkProtocolTCP::status_client(NetworkStatus *status)
@@ -235,52 +235,54 @@ void NetworkProtocolTCP::status_server(NetworkStatus *status)
  * @param cmd The Command (0x00-0xFF) for which DSTATS is requested.
  * @return a 0x00 = No payload, 0x40 = Payload to Atari, 0x80 = Payload to FujiNet, 0xFF = Command not supported.
  */
-uint8_t NetworkProtocolTCP::special_inquiry(uint8_t cmd)
+AtariSIODirection NetworkProtocolTCP::special_inquiry(fujiCommandID_t cmd)
 {
     Debug_printf("NetworkProtocolTCP::special_inquiry(%02x)\r\n", cmd);
 
     switch (cmd)
     {
-    case 'A':
-        return 0x00;
-    case 'c':
-        return 0x00;
+    case FUJICMD_CONTROL:
+        return SIO_DIRECTION_NONE;
+    case FUJICMD_CLOSE_CLIENT:
+        return SIO_DIRECTION_NONE;
+    default:
+        break;
     }
 
-    return 0xFF;
+    return SIO_DIRECTION_INVALID;
 }
 
 /**
  * @brief execute a command that returns no payload
  * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
- * @return error flag. TRUE on error, FALSE on success.
+ * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
  */
-bool NetworkProtocolTCP::special_00(cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolTCP::special_00(cmdFrame_t *cmdFrame)
 {
     Debug_printf("NetworkProtocolTCP::special_00(%c)\n",cmdFrame->comnd);
 
     switch (cmdFrame->comnd)
     {
-    case 'A':
+    case FUJICMD_CONTROL:
         return special_accept_connection();
         break;
-    case 'c':
+    case FUJICMD_CLOSE_CLIENT:
         Debug_printf("CLOSING CLIENT CONNECTION!!!\n");
         return special_close_client_connection();
         break;
     }
-    return true; // error
+    return NETPROTO_ERR_UNSPECIFIED; // error
 }
 
 /**
  * @brief execute a command that returns a payload to the atari.
  * @param sp_buf a pointer to the special buffer
  * @param len Length of data to request from protocol. Should not be larger than buffer.
- * @return error flag. TRUE on error, FALSE on success.
+ * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
  */
-bool NetworkProtocolTCP::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolTCP::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
 /**
@@ -288,17 +290,17 @@ bool NetworkProtocolTCP::special_40(uint8_t *sp_buf, unsigned short len, cmdFram
  * @param sp_buf, a pointer to the special buffer, usually a EOL terminated devicespec.
  * @param len length of the special buffer, typically SPECIAL_BUFFER_SIZE
  */
-bool NetworkProtocolTCP::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolTCP::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
 /**
  * Open a server (listening) connection.
  * @param port bind to port #
- * @return error flag. TRUE on error. FALSE on success.
+ * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
  */
-bool NetworkProtocolTCP::open_server(unsigned short port)
+netProtoErr_t NetworkProtocolTCP::open_server(unsigned short port)
 {
     Debug_printf("Binding to port %d\r\n", port);
 
@@ -309,19 +311,19 @@ bool NetworkProtocolTCP::open_server(unsigned short port)
     {
         Debug_printf("errno = %u\r\n", errno);
         errno_to_error();
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
 /**
  * Open a client connection to host and port.
  * @param hostname The hostname to connect to.
  * @param port the port number to connect to.
- * @return error flag. TRUE on erorr. FALSE on success.
+ * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
  */
-bool NetworkProtocolTCP::open_client(std::string hostname, unsigned short port)
+netProtoErr_t NetworkProtocolTCP::open_client(std::string hostname, unsigned short port)
 {
     int res = 0;
 
@@ -338,22 +340,22 @@ bool NetworkProtocolTCP::open_client(std::string hostname, unsigned short port)
     if (res == 0)
     {
         errno_to_error();
-        return true; // Error.
+        return NETPROTO_ERR_UNSPECIFIED; // Error.
     }
     else
-        return false; // We're connected.
+        return NETPROTO_ERR_NONE; // We're connected.
 }
 
 /**
  * Special: Accept a server connection, transfer to client socket.
  */
-bool NetworkProtocolTCP::special_accept_connection()
+netProtoErr_t NetworkProtocolTCP::special_accept_connection()
 {
     if (server == nullptr)
     {
         Debug_printf("Attempted accept connection on NULL server socket. Aborting.\r\n");
         error = NETWORK_ERROR_SERVER_NOT_RUNNING;
-        return true; // Error
+        return NETPROTO_ERR_UNSPECIFIED; // Error
     }
 
     if (server->hasClient())
@@ -370,25 +372,25 @@ bool NetworkProtocolTCP::special_accept_connection()
             remotePort = client.remotePort();
             remoteIPString = compat_inet_ntoa(remoteIP);
             Debug_printf("Accepted connection from %s:%u\r\n", remoteIPString, remotePort);
-            return false;
+            return NETPROTO_ERR_NONE;
         }
         else
         {
             error = NETWORK_ERROR_CONNECTION_RESET;
             Debug_printf("Client immediately disconnected.\r\n");
-            return true;
+            return NETPROTO_ERR_UNSPECIFIED;
         }
     }
 
     // Otherwise, we are calling accept on a connection that isn't available.
     error = NETWORK_ERROR_NO_CONNECTION_WAITING;
-    return true;
+    return NETPROTO_ERR_UNSPECIFIED;
 }
 
 /**
  * Special: Accept a server connection, transfer to client socket.
  */
-bool NetworkProtocolTCP::special_close_client_connection()
+netProtoErr_t NetworkProtocolTCP::special_close_client_connection()
 {
     in_addr_t remoteIP;
     unsigned char remotePort;
@@ -398,14 +400,14 @@ bool NetworkProtocolTCP::special_close_client_connection()
     {
         Debug_printf("Attempted close client connection on NULL server socket. Aborting.\r\n");
         error = NETWORK_ERROR_SERVER_NOT_RUNNING;
-        return false;
+        return NETPROTO_ERR_NONE;
     }
 
     if (!client.connected())
     {
         Debug_printf("Attempted close client with no client connected.\r\n");
         error = NETWORK_ERROR_NOT_CONNECTED;
-        return false;
+        return NETPROTO_ERR_NONE;
     }
 
     remoteIP = client.remoteIP();
@@ -421,5 +423,5 @@ bool NetworkProtocolTCP::special_close_client_connection()
 
     client.stop();
 
-    return false;
+    return NETPROTO_ERR_UNSPECIFIED;
 }

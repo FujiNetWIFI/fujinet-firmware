@@ -238,7 +238,6 @@ set(SOURCES src/main.cpp
     lib/network-protocol/SMB.h lib/network-protocol/SMB.cpp
     lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp
     lib/network-protocol/SD.h lib/network-protocol/SD.cpp
-    lib/fuji/fujiCmd.h
     lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
     lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
     lib/bus/bus.h
@@ -247,7 +246,7 @@ set(SOURCES src/main.cpp
     lib/device/printer.h
     lib/device/modem.h
     lib/device/cassette.h
-    lib/device/fuji.h
+    lib/device/fujiDevice.h
     lib/device/network.h
     lib/device/udpstream.h
     lib/device/siocpm.h
@@ -276,7 +275,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     lib/device/sio/printer.h lib/device/sio/printer.cpp
     lib/device/sio/printerlist.h lib/device/sio/printerlist.cpp
     lib/device/sio/cassette.h lib/device/sio/cassette.cpp
-    lib/device/sio/fuji.h lib/device/sio/fuji.cpp
+    lib/device/sio/sioFuji.h lib/device/sio/sioFuji.cpp
     lib/device/sio/network.h lib/device/sio/network.cpp
     lib/device/sio/udpstream.h lib/device/sio/udpstream.cpp
     lib/device/sio/voice.h lib/device/sio/voice.cpp
@@ -336,7 +335,7 @@ if(FUJINET_TARGET STREQUAL "APPLE")
     lib/device/iwm/printer.h lib/device/iwm/printer.cpp
     lib/device/iwm/printerlist.h lib/device/iwm/printerlist.cpp
     lib/device/iwm/modem.h lib/device/iwm/modem.cpp
-    lib/device/iwm/fuji.h lib/device/iwm/fuji.cpp
+    lib/device/iwm/iwmFuji.h lib/device/iwm/iwmFuji.cpp
     lib/device/iwm/network.h lib/device/iwm/network.cpp
     lib/device/iwm/clock.h lib/device/iwm/clock.cpp
     lib/device/iwm/cpm.h lib/device/iwm/cpm.cpp
@@ -368,7 +367,7 @@ if(FUJINET_TARGET STREQUAL "COCO")
     lib/media/drivewire/mediaTypeMRM.h lib/media/drivewire/mediaTypeMRM.cpp
     lib/media/drivewire/mediaTypeVDK.h lib/media/drivewire/mediaTypeVDK.cpp
 
-    lib/device/drivewire/fuji.h lib/device/drivewire/fuji.cpp
+    lib/device/drivewire/drivewireFuji.h lib/device/drivewire/drivewireFuji.cpp
     lib/device/drivewire/network.h lib/device/drivewire/network.cpp
     lib/device/drivewire/dload.h lib/device/drivewire/dload.cpp
     lib/device/drivewire/disk.h lib/device/drivewire/disk.cpp

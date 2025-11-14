@@ -4,7 +4,7 @@
 #include "disk2.h"
 
 #include "fnSystem.h"
-#include "fuji.h"
+#include "fujiDevice.h"
 #ifdef ESP_PLATFORM
 #include "fnHardwareTimer.h"
 #endif
@@ -155,9 +155,9 @@ void IRAM_ATTR iwmDisk2::change_track(int indicator)
   }
   else
     diskii_xface.copy_track(
-        nullptr, 
-        BLANK_TRACK_LEN, 
-        BLANK_TRACK_LEN * 8, 
+        nullptr,
+        BLANK_TRACK_LEN,
+        BLANK_TRACK_LEN * 8,
         NS_PER_BIT_TIME * ((MediaTypeWOZ *)_disk)->optimal_bit_timing);
 #endif // !SLIP
   // Since the empty track has no data, and therefore no length, using a fake length of 51,200 bits (6400 bytes) works very well.

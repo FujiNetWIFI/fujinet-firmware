@@ -13,7 +13,7 @@
 #include "../Helpers/PWDHelpers.h"
 #include "../ute/ute.h"
 
-#include "../device/fuji.h"
+#include "fujiDevice.h"
 #include "display.h"
 #include "meatloaf.h"
 #include "string_utils.h"
@@ -354,7 +354,7 @@ int mount(int argc, char **argv)
     int did = atoi(argv[1]);
     fprintf(stdout, "Mounted %d -> %s\r\n", did, argv[2]);
 
-    theFuji.mount_all();
+    theFuji->mount_all();
 
     return EXIT_SUCCESS;
 }

@@ -20,7 +20,7 @@ NetworkProtocolTest::~NetworkProtocolTest()
     test_data.clear();
 }
 
-bool NetworkProtocolTest::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolTest::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     NetworkProtocol::open(urlParser, cmdFrame);
 
@@ -33,33 +33,35 @@ bool NetworkProtocolTest::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame
 
     switch (translation_mode)
     {
-    case 0:
+    case NETPROTO_TRANS_NONE:
         Debug_printf("Atari Translation\r\n");
         test_data += "\x9b";
         break;
-    case 1:
+    case NETPROTO_TRANS_CR:
         Debug_printf("CR Translation\r\n");
         test_data += "\x0d";
         break;
-    case 2:
+    case NETPROTO_TRANS_LF:
         Debug_printf("LF Translation\r\n");
         test_data += "\x0a";
         break;
-    case 3:
+    case NETPROTO_TRANS_CRLF:
         Debug_printf("CRLF Translation\r\n");
         test_data += "\x0d\x0a";
         break;
+    default:
+        break;
     }
 
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
-bool NetworkProtocolTest::close()
+netProtoErr_t NetworkProtocolTest::close()
 {
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
-bool NetworkProtocolTest::read(unsigned short len)
+netProtoErr_t NetworkProtocolTest::read(unsigned short len)
 {
     if (receiveBuffer->length() == 0)
         *receiveBuffer += test_data.substr(0, len);
@@ -74,9 +76,9 @@ bool NetworkProtocolTest::read(unsigned short len)
     return NetworkProtocol::read(len);
 }
 
-bool NetworkProtocolTest::write(unsigned short len)
+netProtoErr_t NetworkProtocolTest::write(unsigned short len)
 {
-    bool err = false;
+    netProtoErr_t err = NETPROTO_ERR_NONE;
 
     Debug_printf("NetworkProtocolTest::write(%u) - Before translate_transmit_buffer()", len);
     for (int i = 0; i < len; i++)
@@ -95,7 +97,7 @@ bool NetworkProtocolTest::write(unsigned short len)
     return err;
 }
 
-bool NetworkProtocolTest::status(NetworkStatus *status)
+netProtoErr_t NetworkProtocolTest::status(NetworkStatus *status)
 {
     status->rxBytesWaiting = test_data.length();
     status->connected = 1;
@@ -103,25 +105,25 @@ bool NetworkProtocolTest::status(NetworkStatus *status)
 
     NetworkProtocol::status(status);
 
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
-uint8_t NetworkProtocolTest::special_inquiry(uint8_t cmd)
+AtariSIODirection NetworkProtocolTest::special_inquiry(fujiCommandID_t cmd)
 {
-    return 0xFF; // selected command not implemented.
+    return SIO_DIRECTION_INVALID; // selected command not implemented.
 }
 
-bool NetworkProtocolTest::special_00(cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolTest::special_00(cmdFrame_t *cmdFrame)
 {
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
-bool NetworkProtocolTest::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolTest::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
-bool NetworkProtocolTest::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolTest::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
-    return false;
+    return NETPROTO_ERR_NONE;
 }

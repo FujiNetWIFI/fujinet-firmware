@@ -1207,7 +1207,7 @@ void lynxModem::sio_handle_modem()
             Debug_println("Going back to command mode");
 
             at_cmd_println("OK");
-    
+
             cmdMode = true;
 
             plusCount = 0;

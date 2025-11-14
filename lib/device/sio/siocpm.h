@@ -20,10 +20,10 @@ private:
     void sio_process(uint32_t commanddata, uint8_t checksum) override;
 
 public:
-    bool cpmActive = false; 
+    bool cpmActive = false;
     void init_cpm(int baud);
     void sio_handle_cpm();
-    
+
 };
 
 #endif /* SIOCPM_H */

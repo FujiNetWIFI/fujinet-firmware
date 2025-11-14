@@ -125,7 +125,7 @@ public:
      * @brief parse incoming data
      */
     void json_parse();
-    
+
     /**
      * @brief JSON Query
      * @param s size of query

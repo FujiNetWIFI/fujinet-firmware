@@ -6,11 +6,8 @@
 
 #include "../../include/debug.h"
 
-#include "fuji.h"
+#include "fujiDevice.h"
 #include "utils.h"
-
-// External ref to fuji object.
-extern drivewireFuji theFuji;
 
 drivewireDisk::drivewireDisk()
 {
@@ -49,7 +46,7 @@ mediatype_t drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disks
         break;
     case MEDIATYPE_VDK:
         _media = new MediaTypeVDK();
-        break;    
+        break;
     default:
         device_active = false;
         break;
@@ -63,9 +60,9 @@ mediatype_t drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disks
         device_active = true;
     }
 
-    return mt; 
+    return mt;
 }
-    
+
 void drivewireDisk::unmount()
 {
 }

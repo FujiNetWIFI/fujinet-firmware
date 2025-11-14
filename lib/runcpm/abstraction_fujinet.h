@@ -22,7 +22,7 @@
 #include "fnTcpServer.h"
 #include "fnTcpClient.h"
 
-#include "fuji.h"
+#include "fujiDevice.h"
 
 #define HostOS 0x07 // FUJINET
 
@@ -555,7 +555,7 @@ void _clrscr(void)
 
 uint8_t bdos_networkConfig(uint16_t addr)
 {
-        // Response to SIO_FUJICMD_GET_ADAPTERCONFIG
+        // Response to FUJICMD_GET_ADAPTERCONFIG
         struct
         {
                 char ssid[32];
@@ -601,7 +601,7 @@ uint8_t bdos_readHostSlots(uint16_t addr)
         memset(hostSlots, 0, sizeof(hostSlots));
 
         for (int i = 0; i < 8; i++)
-                strlcpy(hostSlots[i], theFuji.get_hosts(i)->get_hostname(), 32);
+                strlcpy(hostSlots[i], theFuji->get_host(i)->get_hostname(), 32);
 
         memset(&RAM[addr], 0, sizeof(hostSlots));
         memcpy(&RAM[addr], &hostSlots, sizeof(hostSlots));
@@ -621,9 +621,9 @@ uint8_t bdos_readDeviceSlots(uint16_t addr)
         // Load the data from our current device array
         for (int i = 0; i < MAX_DISK_DEVICES; i++)
         {
-                diskSlots[i].mode = theFuji.get_disks(i)->access_mode;
-                diskSlots[i].hostSlot = theFuji.get_disks(i)->host_slot;
-                strlcpy(diskSlots[i].filename, theFuji.get_disks(i)->filename, MAX_DISPLAY_FILENAME_LEN);
+                diskSlots[i].mode = theFuji->get_disk(i)->access_mode;
+                diskSlots[i].hostSlot = theFuji->get_disk(i)->host_slot;
+                strlcpy(diskSlots[i].filename, theFuji->get_disk(i)->filename, MAX_DISPLAY_FILENAME_LEN);
         }
 
         // Transfer to Z80 RAM.

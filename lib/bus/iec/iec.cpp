@@ -1,7 +1,7 @@
 #ifdef BUILD_IEC
 
 #include "iec.h"
-#include "../../device/iec/fuji.h"
+#include "fujiDevice.h"
 
 #include <cstring>
 #include <memory>
@@ -14,8 +14,8 @@
 #include "../../include/pinmap.h"
 #include "../../hardware/led.h"
 
-#define MAIN_STACKSIZE	 32768
-#define MAIN_PRIORITY	 17
+#define MAIN_STACKSIZE   32768
+#define MAIN_PRIORITY    17
 #define MAIN_CPUAFFINITY 1
 
 systemBus::systemBus() : IECBusHandler(PIN_IEC_ATN, PIN_IEC_CLK_OUT, PIN_IEC_DATA_OUT,
@@ -96,11 +96,11 @@ void systemBus::setup()
 void systemBus::service()
 {
   task();
-  
+
   bool error = false, active = false;
   for(int i = 0; i < MAX_DISK_DEVICES; i++)
     {
-      iecDrive *d = &(theFuji.get_disks(i)->disk_dev);
+      iecDrive *d = &(theFuji->get_disk(i)->disk_dev);
       error  |= d->hasError();
       active |= d->getNumOpenChannels()>0;
     }

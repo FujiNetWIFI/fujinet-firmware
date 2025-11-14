@@ -155,7 +155,7 @@ void drivewireNetwork::open()
     }
 
     deviceSpec = std::string(tmp);
-    
+
     channelMode = PROTOCOL;
 
     // Delete timer if already extant.
@@ -278,7 +278,7 @@ void drivewireNetwork::close()
 #ifdef ESP_PLATFORM
     Debug_printv("After protocol delete %lu\n",esp_get_free_internal_heap_size());
 #endif
-    
+
     //SYSTEM_BUS.write(ns.error);
 }
 
@@ -328,7 +328,7 @@ void drivewireNetwork::read()
 
     // And set response buffer.
     response += *receiveBuffer;
- 
+
     // Remove from receive buffer and shrink.
     receiveBuffer->erase(0, num_bytes);
     receiveBuffer->shrink_to_fit();
@@ -594,7 +594,7 @@ void drivewireNetwork::set_prefix()
     {
         prefix.clear();
     }
-    else 
+    else
     {
         // For the remaining cases, append trailing slash if not found
         if (prefix[prefix.size()-1] != '/')
@@ -682,8 +682,8 @@ void drivewireNetwork::set_login()
         return;
     }
 
-    login = std::string(tmp,256);    
-    
+    login = std::string(tmp,256);
+
     Debug_printf("drivewireNetwork::set_login(%s)\n",login.c_str());
 }
 
@@ -716,7 +716,7 @@ void drivewireNetwork::set_password()
  */
 void drivewireNetwork::special()
 {
-    do_inquiry(cmdFrame.comnd);
+    do_inquiry((fujiCommandID_t) cmdFrame.comnd);
 
     switch (inq_dstats)
     {
@@ -744,13 +744,13 @@ void drivewireNetwork::special_inquiry()
 {
     Debug_printf("drivewireNetwork::special_inquiry(%02x)\n", cmdFrame.aux1);
 
-    do_inquiry(cmdFrame.aux1);
+    do_inquiry((fujiCommandID_t) cmdFrame.aux1);
 
     // Finally, return the completed inq_dstats value back to CoCo
     SYSTEM_BUS.write(&inq_dstats, sizeof(inq_dstats));
 }
 
-void drivewireNetwork::do_inquiry(unsigned char inq_cmd)
+void drivewireNetwork::do_inquiry(fujiCommandID_t inq_cmd)
 {
     // Reset inq_dstats
     inq_dstats = 0xff;
@@ -1112,7 +1112,7 @@ void drivewireNetwork::parse_and_instantiate_protocol()
         Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
         ns.error = NETWORK_ERROR_GENERAL;
         return;
-    }  
+    }
 }
 
 /**
@@ -1268,7 +1268,7 @@ void drivewireNetwork::json_query()
 
     for (int i=0;i<in_string.length();i++)
         Debug_printf("%02X ",(unsigned char)in_string[i]);
-    
+
     Debug_printf("\n");
 
     Debug_printf("Query set to >%s<\r\n", in_string.c_str());
@@ -1307,7 +1307,7 @@ void drivewireNetwork::process()
     cmdFrame.aux2 = (uint8_t)SYSTEM_BUS.read();
 
     Debug_printf("comnd: '%c' %u,%u,%u\n",cmdFrame.comnd,cmdFrame.comnd,cmdFrame.aux1,cmdFrame.aux2);
-    
+
     switch (cmdFrame.comnd)
     {
     case 0x00: // Ready?

@@ -74,7 +74,7 @@ public:
         "HTML printer",
         "HTML ATASCII printer"
     };
-    
+
 
     rs232Printer(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
     ~rs232Printer();

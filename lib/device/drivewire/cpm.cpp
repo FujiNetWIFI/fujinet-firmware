@@ -8,7 +8,7 @@
 
 #include "fnSystem.h"
 #include "fnWiFi.h"
-#include "fuji.h"
+#include "fujiDevice.h"
 #include "fnFS.h"
 #include "fnFsSD.h"
 
@@ -75,7 +75,7 @@ void drivewireCPM::send_response()
 
     // Clear the response
     response.clear();
-    response.shrink_to_fit();    
+    response.shrink_to_fit();
 }
 
 void drivewireCPM::boot()

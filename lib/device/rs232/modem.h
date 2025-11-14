@@ -177,9 +177,6 @@ private:
     long answerTimer;
     bool answered=false;
 
-    void rs232_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
-    void rs232_poll_1();                           // $3F, '?', Type 1 Poll
-    void rs232_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2); // $40, '@', Type 3 Poll
     void rs232_control();                          // $41, 'A', Control
     void rs232_config();                           // $42, 'B', Configure
     void rs232_set_dump();                         // $$4, 'D', Dump
@@ -191,7 +188,7 @@ private:
     void rs232_write();                            // $57, 'W', Write
     void rs232_stream();                           // $58, 'X', Concurrent/Stream
     void rs232_process(cmdFrame_t *cmd_ptr) override;
-    
+
     void crx_toggle(bool toggle);                // CRX active/inactive?
 
     void modemCommand(); // Execute modem AT command

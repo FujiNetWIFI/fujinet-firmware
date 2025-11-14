@@ -44,7 +44,7 @@ rs232Printer::~rs232Printer()
 // write for W commands
 void rs232Printer::rs232_write(uint8_t aux1, uint8_t aux2)
 {
-    /* 
+    /*
   How many bytes the Atari will be sending us:
   Auxiliary Byte 1 values per 400/800 OS Manual
   Normal   0x4E 'N'  40 chars
@@ -53,7 +53,7 @@ void rs232Printer::rs232_write(uint8_t aux1, uint8_t aux2)
 
   Double   0x44 'D'  20 chars (XL OS Source)
 
-  Atari 822 in graphics mode (RS232 command 'P') 
+  Atari 822 in graphics mode (RS232 command 'P')
            0x50 'L'  40 bytes
   as inferred from screen print program in operators manual
 
@@ -146,7 +146,7 @@ void rs232Printer::rs232_status()
   The DATA WRITE Timeout equals the maximum time to print a
   line of data assuming worst case controller produced Timeout
   delay. This Timeout is associated with printer timeout
-  discussed earlier. 
+  discussed earlier.
 */
     uint8_t status[4];
 

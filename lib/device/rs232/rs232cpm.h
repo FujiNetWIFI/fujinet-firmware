@@ -20,10 +20,10 @@ private:
     void rs232_process(cmdFrame_t *cmd_ptr) override;
 
 public:
-    bool cpmActive = false; 
+    bool cpmActive = false;
     void init_cpm(int baud);
     void rs232_handle_cpm();
-    
+
 };
 
 #endif /* RS232CPM_H */

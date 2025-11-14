@@ -14,6 +14,7 @@ private:
 public:
     FileSystemSPIFFS();
     bool start();
+    bool stop();
     
     fsType type() override { return FSTYPE_SPIFFS; };
     const char * typestring() override { return type_to_string(FSTYPE_SPIFFS); };
