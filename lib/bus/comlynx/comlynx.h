@@ -5,6 +5,7 @@
  * Comlynx Routines
  */
 
+#include "UARTChannel.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
@@ -248,6 +249,7 @@ private:
     lynxFuji *_fujiDev = nullptr;
     lynxPrinter *_printerDev = nullptr;
 
+    UARTChannel _port;
 
     void _comlynx_process_cmd();
     void _comlynx_process_queue();
@@ -272,15 +274,15 @@ public:
     //int64_t comlynx_idle_time = 1000;
 
     int numDevices();
-    void addDevice(virtualDevice *pDevice, FujiDeviceID device_id);
+    void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id);
     void remDevice(virtualDevice *pDevice);
-    void remDevice(FujiDeviceID device_id);
-    bool deviceExists(FujiDeviceID device_id);
-    void enableDevice(FujiDeviceID device_id);
-    void disableDevice(FujiDeviceID device_id);
-    virtualDevice *deviceById(FujiDeviceID device_id);
-    void changeDeviceId(virtualDevice *pDevice, FujiDeviceID device_id);
-    bool deviceEnabled(FujiDeviceID device_id);
+    void remDevice(fujiDeviceID_t device_id);
+    bool deviceExists(fujiDeviceID_t device_id);
+    void enableDevice(fujiDeviceID_t device_id);
+    void disableDevice(fujiDeviceID_t device_id);
+    virtualDevice *deviceById(fujiDeviceID_t device_id);
+    void changeDeviceId(virtualDevice *pDevice, fujiDeviceID_t device_id);
+    bool deviceEnabled(fujiDeviceID_t device_id);
     QueueHandle_t qComlynxMessages = nullptr;
     void setUDPHost(const char *newhost, int port);             // Set new host/ip & port for UDP Stream
 
@@ -289,9 +291,20 @@ public:
 
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
+
+    // Everybody thinks "oh I know how a serial port works, I'll just
+    // access it directly and bypass the bus!" ಠ_ಠ
+    size_t read(void *buffer, size_t length) { return _port.read(buffer, length); }
+    size_t read() { return _port.read(); }
+    size_t write(const void *buffer, size_t length) { return _port.write(buffer, length); }
+    size_t write(int n) { return _port.write(n); }
+    size_t available() { return _port.available(); }
+    void flush() { _port.flushOutput(); }
+    size_t print(int n, int base = 10) { return _port.print(n, base); }
+    size_t print(const char *str) { return _port.print(str); }
+    size_t print(const std::string &str) { return _port.print(str); }
 };
 
 extern systemBus SYSTEM_BUS;
-//extern systemBus ComLynx;
 
 #endif /* COMLYNX_H */
