@@ -87,9 +87,9 @@ void virtualDevice::comlynx_send(uint8_t b)
         SYSTEM_BUS.wait_for_idle();
     
     // Write the byte
-    fnUartBUS.write(b);
-    fnUartBUS.flush();
-    fnUartBUS.read();
+    SYSTEM_BUS.write(b);
+    SYSTEM_BUS.flush();
+    SYSTEM_BUS.read();
 }
 
 void virtualDevice::comlynx_send_buffer(uint8_t *buf, unsigned short len)
@@ -105,8 +105,8 @@ void virtualDevice::comlynx_send_buffer(uint8_t *buf, unsigned short len)
     if (SYSTEM_BUS._udpDev->udpstreamActive)
         SYSTEM_BUS.wait_for_idle();
     
-    fnUartBUS.write(buf, len);
-    fnUartBUS.readBytes(buf, len);
+    SYSTEM_BUS.write(buf, len);
+    SYSTEM_BUS.read(buf, len);
 }
 
 bool virtualDevice::comlynx_recv_ck()
@@ -114,11 +114,11 @@ bool virtualDevice::comlynx_recv_ck()
     uint8_t recv_ck, ck;
 
 
-    while (fnUartBUS.available() <= 0)
+    while (SYSTEM_BUS.available() <= 0)
         fnSystem.yield();
     
     // get checksum
-    recv_ck = fnUartBUS.read();
+    recv_ck = SYSTEM_BUS.read();
 
     ck = comlynx_checksum(recvbuffer, recvbuffer_len);
 
@@ -138,10 +138,10 @@ uint8_t virtualDevice::comlynx_recv()
 {
     uint8_t b;
 
-    while (fnUartBUS.available() <= 0)
+    while (SYSTEM_BUS.available() <= 0)
         fnSystem.yield();
 
-    b = fnUartBUS.read();
+    b = SYSTEM_BUS.read();
 
     // Add to receive buffer
     recvbuffer[recvbuffer_len] = b;
@@ -159,7 +159,7 @@ bool virtualDevice::comlynx_recv_timeout(uint8_t *b, uint64_t dur)
     start = current = esp_timer_get_time();
     elapsed = 0;
 
-    while (fnUartBUS.available() <= 0)
+    while (SYSTEM_BUS.available() <= 0)
     {
         current = esp_timer_get_time();
         elapsed = current - start;
@@ -167,9 +167,9 @@ bool virtualDevice::comlynx_recv_timeout(uint8_t *b, uint64_t dur)
             break;
     }
 
-    if (fnUartBUS.available() > 0)
+    if (SYSTEM_BUS.available() > 0)
     {
-        *b = (uint8_t)fnUartBUS.read();
+        *b = (uint8_t)SYSTEM_BUS.read();
         timeout = false;
     } // else
       //   Debug_printf("duration: %llu\n", elapsed);
@@ -202,7 +202,7 @@ unsigned short virtualDevice::comlynx_recv_buffer(uint8_t *buf, unsigned short l
 {
     unsigned short b;
 
-    b = fnUartBUS.readBytes(buf, len);
+    b = SYSTEM_BUS.read(buf, len);
     
     // Add to receive buffer
     memcpy(&recvbuffer[recvbuffer_len], buf, len);
@@ -257,7 +257,7 @@ bool systemBus::wait_for_idle()
         dur = current - start;
 
         // Did we get any data in the FIFO while waiting?
-        if (fnUartBUS.available() > 0)
+        if (SYSTEM_BUS.available() > 0)
             return false;
 
     } while (dur < IDLE_TIME);
@@ -270,7 +270,7 @@ bool systemBus::wait_for_idle()
 
 void virtualDevice::comlynx_process(uint8_t b)
 {
-    fnUartDebug.printf("comlynx_process() not implemented yet for this device. Cmd received: %02x\n", b);
+    fnDebugConsole.printf("comlynx_process() not implemented yet for this device. Cmd received: %02x\n", b);
 }
 
 void virtualDevice::comlynx_control_status()
@@ -316,28 +316,27 @@ void virtualDevice::comlynx_idle()
 
 void systemBus::_comlynx_process_cmd()
 {
-    uint8_t b;
+    uint8_t d, b;
 
-    b = fnUartBUS.read();
-    //start_time = esp_timer_get_time();
+    b = SYSTEM_BUS.read();
+    d = b & 0x0F;
 
-    uint8_t d = b & 0x0F;
-
-    #ifdef DEBUG
-    if ((b & 0xF0) == (MN_ACK<<4))
-        Debug_println("Lynx sent ACK");
-    else { 
-        Debug_println("---");
-        Debug_printf("comlynx_process_cmd: dev:%X cmd:%X\n", d, (b & 0xF0)>>4);
-    }
-    #endif
-
+    
     // Find device ID and pass control to it
     if (_daisyChain.count(d) < 1)
     {
     }
     else if (_daisyChain[d]->device_active == true)
     {
+    #ifdef DEBUG
+        if ((b & 0xF0) == (MN_ACK<<4))
+            Debug_println("Lynx sent ACK");
+        else { 
+                Debug_println("---");
+            Debug_printf("comlynx_process_cmd: dev:%X cmd:%X\n", d, (b & 0xF0)>>4);
+        }
+    #endif        
+        
         // turn on Comlynx Indicator LED
         fnLedManager.set(eLed::LED_BUS, true);
         _daisyChain[d]->comlynx_process(b);
@@ -345,8 +344,8 @@ void systemBus::_comlynx_process_cmd()
         fnLedManager.set(eLed::LED_BUS, false);
     }
 
-    //wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
-    fnUartBUS.flush_input();
+    //SYSTEM_BUS.flush_input();
+    SYSTEM_BUS.flush();
 }
 
 void systemBus::_comlynx_process_queue()
@@ -359,7 +358,7 @@ void systemBus::service()
     if (_udpDev != nullptr && _udpDev->udpstreamActive)
         _udpDev->comlynx_handle_udpstream();
     // Process anything waiting
-    else if (fnUartBUS.available() > 0)
+    else if (SYSTEM_BUS.available() > 0)
         _comlynx_process_cmd();
 }
 
@@ -380,7 +379,11 @@ void systemBus::setup()
     _udpDev = new lynxUDPStream();
 
     // Set up UART
-    fnUartBUS.begin(COMLYNX_BAUDRATE);
+    _port.begin(ChannelConfig()
+                .deviceID(FN_UART_BUS)
+                .baud(COMLYNX_BAUDRATE)
+                .parity(UART_PARITY_ODD)                
+                );
 }
 
 void systemBus::shutdown()
