@@ -616,18 +616,8 @@ void lynxNetwork::json_query(unsigned short s)
     }
 
     json.setReadQuery(inp_string, cmdFrame.aux2);
-    
-    /*json_bytes_remaining = json->json_bytes_remaining;
-
-    std::vector<uint8_t> tmp(json_bytes_remaining);
-    json->readValue(tmp.data(), json_bytes_remaining);
-
-    // don't copy past first nul char in tmp
-    auto null_pos = std::find(tmp.begin(), tmp.end(), 0);
-    *receiveBuffer += std::string(tmp.begin(), null_pos);*/
-
+       
     Debug_printf("lynxNetwork::json_query(%s)\n", inp_string.c_str());
-
 }
 
 void lynxNetwork::json_parse()
@@ -897,13 +887,12 @@ void lynxNetwork::comlynx_control_receive_channel_json()
     if (jsonRecvd == false)
     {
         response_len = json.readValueLen();
-        json.readValue(response,response_len);
-        jsonRecvd=true;
+        json.readValue(response, response_len);
+        jsonRecvd = true;
         comlynx_response_ack();
     }
     else
     {
-        //ComLynx.start_time = esp_timer_get_time();
         if (response_len > 0)
             comlynx_response_ack();
         else

@@ -7,7 +7,6 @@
 
 #include "fnSystem.h"
 #include "fnConfig.h"
-#include "fnUART.h"
 #include "fnWiFi.h"
 
 #include "utils.h"
@@ -41,7 +40,7 @@ static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *us
     switch (ev->type)
     {
     case TELNET_EV_DATA:
-        if (ev->data.size && fnUartBUS.write((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
+        if (ev->data.size && SYSTEM_BUS.write((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
             Debug_printf("_telnet_event_handler(%d) - Could not write complete buffer to SIO.\n", ev->type);
         break;
     case TELNET_EV_SEND:
@@ -128,8 +127,8 @@ void lynxModem::at_connect_resultCode(int modemBaud)
         resultCode = 1;
         break;
     }
-    fnUartBUS.print(resultCode);
-    fnUartBUS.write(ASCII_CR);
+    SYSTEM_BUS.print(resultCode);
+    SYSTEM_BUS.write(ASCII_CR);
 }
 
 /**
@@ -138,9 +137,9 @@ void lynxModem::at_connect_resultCode(int modemBaud)
  */
 void lynxModem::at_cmd_resultCode(int resultCode)
 {
-    fnUartBUS.print(resultCode);
-    fnUartBUS.write(ASCII_CR);
-    fnUartBUS.write(ASCII_LF);
+    SYSTEM_BUS.print(resultCode);
+    SYSTEM_BUS.write(ASCII_CR);
+    SYSTEM_BUS.write(ASCII_LF);
 }
 
 /**
@@ -153,14 +152,14 @@ void lynxModem::at_cmd_println()
 
     if (cmdAtascii == true)
     {
-        fnUartBUS.write(ATASCII_EOL);
+        SYSTEM_BUS.write(ATASCII_EOL);
     }
     else
     {
-        fnUartBUS.write(ASCII_CR);
-        fnUartBUS.write(ASCII_LF);
+        SYSTEM_BUS.write(ASCII_CR);
+        SYSTEM_BUS.write(ASCII_LF);
     }
-    fnUartBUS.flush();
+    SYSTEM_BUS.flush();
 }
 
 void lynxModem::at_cmd_println(const char *s, bool addEol)
@@ -168,20 +167,20 @@ void lynxModem::at_cmd_println(const char *s, bool addEol)
     if (cmdOutput == false)
         return;
 
-    fnUartBUS.print(s);
+    SYSTEM_BUS.print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            fnUartBUS.write(ATASCII_EOL);
+            SYSTEM_BUS.write(ATASCII_EOL);
         }
         else
         {
-            fnUartBUS.write(ASCII_CR);
-            fnUartBUS.write(ASCII_LF);
+            SYSTEM_BUS.write(ASCII_CR);
+            SYSTEM_BUS.write(ASCII_LF);
         }
     }
-    fnUartBUS.flush();
+    SYSTEM_BUS.flush();
 }
 
 void lynxModem::at_cmd_println(int i, bool addEol)
@@ -189,20 +188,20 @@ void lynxModem::at_cmd_println(int i, bool addEol)
     if (cmdOutput == false)
         return;
 
-    fnUartBUS.print(i);
+    SYSTEM_BUS.print(i);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            fnUartBUS.write(ATASCII_EOL);
+            SYSTEM_BUS.write(ATASCII_EOL);
         }
         else
         {
-            fnUartBUS.write(ASCII_CR);
-            fnUartBUS.write(ASCII_LF);
+            SYSTEM_BUS.write(ASCII_CR);
+            SYSTEM_BUS.write(ASCII_LF);
         }
     }
-    fnUartBUS.flush();
+    SYSTEM_BUS.flush();
 }
 
 void lynxModem::at_cmd_println(std::string s, bool addEol)
@@ -210,20 +209,20 @@ void lynxModem::at_cmd_println(std::string s, bool addEol)
     if (cmdOutput == false)
         return;
 
-    fnUartBUS.print(s);
+    SYSTEM_BUS.print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            fnUartBUS.write(ATASCII_EOL);
+            SYSTEM_BUS.write(ATASCII_EOL);
         }
         else
         {
-            fnUartBUS.write(ASCII_CR);
-            fnUartBUS.write(ASCII_LF);
+            SYSTEM_BUS.write(ASCII_CR);
+            SYSTEM_BUS.write(ASCII_LF);
         }
     }
-    fnUartBUS.flush();
+    SYSTEM_BUS.flush();
 }
 
 void lynxModem::at_handle_wificonnect()
@@ -489,7 +488,7 @@ void lynxModem::at_handle_answer()
         CRX = true;
 
         cmdMode = false;
-        fnUartBUS.flush();
+        SYSTEM_BUS.flush();
         answerHack = false;
     }
 }
@@ -1030,11 +1029,11 @@ void lynxModem::sio_handle_modem()
 
         // In command mode - don't exchange with TCP but gather characters to a string
         //if (SIO_UART.available() /*|| blockWritePending == true */ )
-        if (fnUartBUS.available() > 0)
+        if (SYSTEM_BUS.available() > 0)
         {
             // get char from Atari SIO
             //char chr = SIO_UART.read();
-            char chr = fnUartBUS.read();
+            char chr = SYSTEM_BUS.read();
 
             // Return, enter, new line, carriage return.. anything goes to end the command
             if ((chr == ASCII_LF) || (chr == ASCII_CR) || (chr == ATASCII_EOL))
@@ -1059,9 +1058,9 @@ void lynxModem::sio_handle_modem()
                     // Clear with a space
                     if (commandEcho == true)
                     {
-                        fnUartBUS.write(ASCII_BACKSPACE);
-                        fnUartBUS.write(' ');
-                        fnUartBUS.write(ASCII_BACKSPACE);
+                        SYSTEM_BUS.write(ASCII_BACKSPACE);
+                        SYSTEM_BUS.write(' ');
+                        SYSTEM_BUS.write(ASCII_BACKSPACE);
                     }
                 }
             }
@@ -1074,7 +1073,7 @@ void lynxModem::sio_handle_modem()
                 {
                     cmd.erase(len - 1);
                     if (commandEcho == true)
-                        fnUartBUS.write(ATASCII_BACKSPACE);
+                        SYSTEM_BUS.write(ATASCII_BACKSPACE);
                 }
             }
             // Take into account arrow key movement and clear screen
@@ -1082,7 +1081,7 @@ void lynxModem::sio_handle_modem()
                      ((chr >= ATASCII_CURSOR_UP) && (chr <= ATASCII_CURSOR_RIGHT)))
             {
                 if (commandEcho == true)
-                    fnUartBUS.write(chr);
+                    SYSTEM_BUS.write(chr);
             }
             else
             {
@@ -1092,7 +1091,7 @@ void lynxModem::sio_handle_modem()
                     cmd += chr;
                 }
                 if (commandEcho == true)
-                    fnUartBUS.write(chr);
+                    SYSTEM_BUS.write(chr);
             }
         }
     }
@@ -1124,7 +1123,7 @@ void lynxModem::sio_handle_modem()
         }
 
         //int sioBytesAvail = SIO_UART.available();
-        int sioBytesAvail = std::min(0, fnUartBUS.available());
+        int sioBytesAvail = std::min((size_t) 0, SYSTEM_BUS.available());
 
         // send from Atari to Fujinet
         if (sioBytesAvail && tcpClient.connected())
@@ -1139,7 +1138,7 @@ void lynxModem::sio_handle_modem()
 
             // Read from serial, the amount available up to
             // maximum size of the buffer
-            int sioBytesRead = fnUartBUS.readBytes(&txBuf[0], //SIO_UART.readBytes(&txBuf[0],
+            int sioBytesRead = SYSTEM_BUS.read(&txBuf[0], //SIO_UART.read(&txBuf[0],
                                                    (sioBytesAvail > TX_BUF_SIZE) ? TX_BUF_SIZE : sioBytesAvail);
 
             // Disconnect if going to AT mode with "+++" sequence
@@ -1189,8 +1188,8 @@ void lynxModem::sio_handle_modem()
             }
             else
             {
-                fnUartBUS.write(buf, bytesRead);
-                fnUartBUS.flush();
+                SYSTEM_BUS.write(buf, bytesRead);
+                SYSTEM_BUS.flush();
             }
 
             // And dump to sniffer, if enabled.

@@ -87,28 +87,28 @@ void lynxUDPStream::comlynx_handle_udpstream()
         if (good_packet) {
             // Send to Lynx UART
             _comlynx_bus->wait_for_idle();
-            fnUartBUS.write(buf_net, packetSize);
+            SYSTEM_BUS.write(buf_net, packetSize);
         #ifdef DEBUG_UDPSTREAM
             Debug_print("UDP-IN: ");
             util_dump_bytes(buf_net, packetSize);
         #endif
-            fnUartBUS.readBytes(buf_net, packetSize); // Trash what we just sent over serial
+            SYSTEM_BUS.read(buf_net, packetSize); // Trash what we just sent over serial
         }
     }
 
     // Read the data until there's a pause in the incoming stream
 
-    fnUartBUS.flush();
+    SYSTEM_BUS.flush();
 
     buf_stream_index = 0;
-    if (fnUartBUS.available() > 0)
+    if (SYSTEM_BUS.available() > 0)
     {
         while (true)
         {
-            if (fnUartBUS.available() > 0)
+            if (SYSTEM_BUS.available() > 0)
             {
                 // Collect bytes read in our buffer
-                buf_stream[buf_stream_index] = (char)fnUartBUS.read();
+                buf_stream[buf_stream_index] = (char)SYSTEM_BUS.read();
                 if (redeye_mode && (buf_stream_index == 0)) {           // Check first byte
                   if ((buf_stream[0] < 1) || (buf_stream[0] > 6))       // discard bad size byte (must be between 1 and 6)
                     continue;  
@@ -120,7 +120,7 @@ void lynxUDPStream::comlynx_handle_udpstream()
             else
             {
                 fnSystem.delay_microseconds(UDPSTREAM_PACKET_TIMEOUT);
-                if (fnUartBUS.available() <= 0)
+                if (SYSTEM_BUS.available() <= 0)
                     break;
             }
         }
