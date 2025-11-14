@@ -8,15 +8,17 @@ typedef struct {
     uint8_t command;  /* Command */
     uint16_t length;  /* Total length of packet including header */
     uint8_t checksum; /* Checksum of entire packet */
-    uint8_t fields;   /* Describes the fields that follow */
+    uint8_t descr;   /* Describes the fields that follow */
 } fujibus_header;
 
-#define FUJI_FIELD_COUNT_MASK    0x07
-#define FUJI_FIELD_16_OR_32_MASK 0x40
-#define FUJI_FIELD_32_MASK       0x20
+#define FUJI_DESCR_COUNT_MASK    0x07
+#define FUJI_DESCR_32_MASK       0x02
+#define FUJI_DESCR_16_OR_32_MASK 0x04
+#define FUJI_DESCR_ADDTL_MASK    0x80
 
 static uint8_t fieldSizeTable[] = {0, 1, 1, 1, 1, 2, 2, 4};
 static uint8_t numFieldsTable[] = {0, 1, 2, 3, 4, 1, 2, 1};
+
 
 std::string FujiBusPacket::decodeSLIP(const std::string &input)
 {
@@ -95,11 +97,6 @@ bool FujiBusPacket::parse(const std::string &input)
 {
     std::string decoded;
     fujibus_header *hdr;
-    uint8_t ck1, ck2;
-    unsigned int offset;
-    unsigned int fieldCount;
-    unsigned int idx, jdx;
-    uint32_t val, bt;
 
     Debug_printv("Incoming:\n%s\n", util_hexdump(input.data(), input.size()).c_str());
 
@@ -115,42 +112,64 @@ bool FujiBusPacket::parse(const std::string &input)
         return false;
     hdr = (fujibus_header *) &decoded[0];
     Debug_printv("Header: dev:%02x cmd:%02x len:%d chk:%02x fld:%02x",
-                 hdr->device, hdr->command, hdr->length, hdr->checksum, hdr->fields);
+                 hdr->device, hdr->command, hdr->length, hdr->checksum, hdr->descr);
 
     if (hdr->length != decoded.size())
         return false;
 
-    // Need to zero out checksum in order to calculate
-    ck1 = hdr->checksum;
-    hdr->checksum = 0;
-    ck2 = calcChecksum(decoded);
-    if (ck1 != ck2)
-        return false;
+    {
+        uint8_t ck1, ck2;
+
+        // Need to zero out checksum in order to calculate
+        ck1 = hdr->checksum;
+        hdr->checksum = 0;
+        ck2 = calcChecksum(decoded);
+        if (ck1 != ck2)
+            return false;
+    }
 
     _device = static_cast<fujiDeviceID_t>(hdr->device);
     _command = static_cast<fujiCommandID_t>(hdr->command);
 
-    offset = sizeof(*hdr);
-    fieldCount = numFieldsTable[hdr->fields & FUJI_FIELD_COUNT_MASK];
-    if (fieldCount)
     {
-        _fieldSize = fieldSizeTable[hdr->fields & FUJI_FIELD_COUNT_MASK];
+        unsigned val, offset;
+        std::vector<uint8_t> descr;
 
-        for (idx = 0; idx < fieldCount; idx++)
+        offset = sizeof(*hdr) - 1;
+        do {
+            val = decoded[offset++];
+            descr.push_back(val & FUJI_DESCR_COUNT_MASK);
+        } while (val & FUJI_DESCR_ADDTL_MASK);
+
+        for (const auto &fieldDesc : descr)
         {
-            for (val = jdx = 0; jdx < _fieldSize; jdx++)
+            unsigned fieldSize, fieldCount;
+            unsigned idx, jdx;
+
+            fieldCount = numFieldsTable[fieldDesc];
+            if (fieldCount)
             {
-                bt = (uint8_t) decoded[offset + idx * _fieldSize + jdx];
-                val |= bt << (8 * jdx);
+                fieldSize = fieldSizeTable[fieldDesc];
+
+                for (idx = 0; idx < fieldCount; idx++)
+                {
+                    uint32_t val, bt;
+
+                    for (val = jdx = 0; jdx < fieldSize; jdx++)
+                    {
+                        bt = (uint8_t) decoded[offset + idx * fieldSize + jdx];
+                        val |= bt << (8 * jdx);
+                    }
+                    _params.emplace_back(val, fieldSize);
+                }
+
+                offset += idx * fieldSize;
             }
-            _params.push_back(val);
         }
 
-        offset += idx * _fieldSize;
+        if (offset < decoded.size())
+            _data = decoded.substr(offset);
     }
-
-    if (offset < decoded.size())
-        _data = decoded.substr(offset);
 
     return true;
 }
@@ -158,33 +177,51 @@ bool FujiBusPacket::parse(const std::string &input)
 std::string FujiBusPacket::serialize()
 {
     fujibus_header hdr, *hptr;
-    unsigned int idx, jdx;
-    uint32_t val;
 
     hdr.device = _device;
     hdr.command = _command;
     hdr.length = sizeof(hdr);
     hdr.checksum = 0;
-    hdr.fields = 0;
+    hdr.descr = 0;
 
     std::string output(sizeof(hdr), '\0');
 
     if (_params.size())
     {
-        hdr.fields = _params.size() - 1;
-        if (_fieldSize > 1)
-        {
-            hdr.fields |= FUJI_FIELD_16_OR_32_MASK;
-            if (_fieldSize == 4)
-                hdr.fields |= FUJI_FIELD_32_MASK;
-            hdr.fields++;
-        }
+        std::vector<uint8_t> descr;
+        unsigned fieldSize = 0;
+        unsigned idx, jdx, kdx, val;
+        PacketParam *param;
+
 
         for (idx = 0; idx < _params.size(); idx++)
         {
-            for (jdx = 0, val = _params[idx]; jdx < _fieldSize; jdx++, val >>= 8)
-                output.push_back(val & 0xFF);
+            for (jdx = idx; jdx < _params.size(); jdx++)
+            {
+                param = &_params[jdx];
+                if (fieldSize && fieldSize != param->size)
+                    break;
+                fieldSize = param->size;
+
+                for (kdx = val = 0; kdx < fieldSize; kdx++, val >>= 8)
+                    output.push_back(val & 0xFF);
+            }
+
+            uint8_t fieldDescr = jdx - idx - 1;
+            if (fieldSize > 1)
+            {
+                fieldDescr |= FUJI_DESCR_16_OR_32_MASK;
+                if (fieldSize == 4)
+                    fieldDescr |= FUJI_DESCR_32_MASK;
+                fieldDescr++;
+            }
+
+            descr.push_back(fieldDescr);
         }
+
+        hdr.descr = descr[0];
+        descr.erase(descr.begin());
+        output.insert(0, (char *) descr.data(), descr.size());
     }
 
     if (_data)
@@ -195,7 +232,7 @@ std::string FujiBusPacket::serialize()
     *hptr = hdr;
     hptr->checksum = calcChecksum(output);
     Debug_printv("Packet header: dev:%02x cmd:%02x len:%d chk:%02x fld:%02x",
-                 hptr->device, hptr->command, hptr->length, hptr->checksum, hptr->fields);
+                 hptr->device, hptr->command, hptr->length, hptr->checksum, hptr->descr);
     return encodeSLIP(output);
 }
 
