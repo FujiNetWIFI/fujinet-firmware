@@ -191,6 +191,9 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
     if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
         disk_type = MediaType::discover_mediatype(filename);
 
+    if (disksize == 16384)
+        return mountROM(f, filename, disksize, disk_type);
+
     // Now mount based on MediaType
     switch (disk_type)
     {
@@ -202,6 +205,33 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
         _disk = new MediaTypeImg();
         return _disk->mount(f, disksize);
     }
+}
+
+mediatype_t rs232Disk::mountROM(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+{
+    size_t offset, rlen, sectorNum;
+    MediaTypeImg romImage;
+
+
+    romImage.mount(f, disksize);
+
+    // "open" RAM in bank
+    if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_PICO, FUJICMD_OPEN, 0))
+        return -1;
+
+    for (offset = sectorNum = 0; offset < disksize; offset += rlen, sectorNum++)
+    {
+        if (romImage.read(sectorNum, &rlen) != 0)
+            break;
+        if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_PICO, FUJICMD_WRITE,
+                                    romImage._disk_sectorbuff, rlen))
+            break;
+    }
+
+    // "closing" RAM will make the bank active
+    SYSTEM_BUS.sendCommand(FUJI_DEVICEID_PICO, FUJICMD_CLOSE);
+
+    return disk_type;
 }
 
 // Destructor

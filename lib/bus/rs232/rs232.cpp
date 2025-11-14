@@ -210,20 +210,7 @@ void systemBus::_rs232_process_cmd()
         _serial.setBaudrate(_rs232Baud);
     }
 
-    // Read CMD frame
-    std::string packet;
-    int val, count;
-    for (count = 0; count < 2; )
-    {
-        val = _port->read();
-        if (val < 0)
-            break;
-        packet.push_back(val);
-        if (val == SLIP_END)
-            count++;
-    }
-
-    auto tempFrame = FujiBusPacket::fromSerialized(packet);
+    tempFrame = readBusPacket();
     if (!tempFrame)
     {
         Debug_printv("packet fail");
@@ -489,13 +476,54 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 }
 #endif /* OBSOLETE */
 
+std::unique_ptr<FujiBusPacket> systemBus::readBusPacket()
+{
+    std::string packet;
+    int val, count;
+
+    for (count = 0; count < 2; )
+    {
+        val = _port->read();
+        if (val < 0)
+            break;
+        packet.push_back(val);
+        if (val == SLIP_END)
+            count++;
+    }
+
+    return FujiBusPacket::fromSerialized(packet);
+}
+
+void systemBus::writeBusPacket(FujiBusPacket &packet)
+{
+    std::string encoded = packet.serialize();
+    _port->write(encoded.data(), encoded.size());
+    return;
+}
+
 void systemBus::sendReplyPacket(fujiDeviceID_t source, bool ack, void *data, size_t length)
 {
     FujiBusPacket packet(source, ack ? FUJICMD_ACK : FUJICMD_NAK,
                          ack ? std::string(static_cast<const char*>(data), length) : "");
-    std::string encoded = packet.serialize();
-    _port->write(encoded.data(), encoded.size());
+    writeBusPacket(packet);
     return;
+}
+
+std::unique_ptr<FujiBusPacket> systemBus::sendCommand(fujiDeviceID_t device,
+                                                      fujiCommandID_t command, uint8_t param1)
+{
+    FujiBusPacket packet(source, command, param1);
+    writeBusPacket(packet);
+    return readBusPacket();
+}
+
+std::unique_ptr<FujiBusPacket> systemBus::sendCommand(fujiDeviceID_t device,
+                                                      fujiCommandID_t command, void *data,
+                                                      size_t length)
+{
+    FujiBusPacket packet(source, command, std::string(static_cast<const char*>(data), length));
+    writeBusPacket(packet);
+    return readBusPacket();
 }
 
 /* Convert direct bus access into bus packets? */

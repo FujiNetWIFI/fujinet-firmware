@@ -261,7 +261,13 @@ public:
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
 
+    std::unique_ptr<FujiBusPacket> readBusPacket();
+    void writeBusPacket(FujiBusPacket &packet);
     void sendReplyPacket(fujiDeviceID_t source, bool ack, void *data, size_t length);
+    std::unique_ptr<FujiBusPacket> sendCommand(fujiDeviceID_t device, fujiCommandID_t command,
+                                               uint8_t param1);
+    std::unique_ptr<FujiBusPacket> sendCommand(fujiDeviceID_t device, fujiCommandID_t command,
+                                               void *data, size_t datalen);
 
     // Everybody thinks "oh I know how a serial port works, I'll just
     // access it directly and bypass the bus!" ಠ_ಠ
