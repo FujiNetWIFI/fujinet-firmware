@@ -81,11 +81,11 @@ uint8_t comlynx_checksum(uint8_t *buf, unsigned short len)
 void virtualDevice::comlynx_send(uint8_t b)
 {
     Debug_printf("comlynx_send_buffer: %X\n", b);
-    
+
     // Wait for idle only when in UDPStream mode
     if (SYSTEM_BUS._udpDev->udpstreamActive)
         SYSTEM_BUS.wait_for_idle();
-    
+
     // Write the byte
     SYSTEM_BUS.write(b);
     SYSTEM_BUS.flush();
@@ -94,7 +94,7 @@ void virtualDevice::comlynx_send(uint8_t b)
 
 void virtualDevice::comlynx_send_buffer(uint8_t *buf, unsigned short len)
 {
-    
+
     //buf[len] = '\0';
     //Debug_printf("comlynx_send_buffer: %d %s\n", len, buf);   // causes out of bounds write in disk routines
 
@@ -104,7 +104,7 @@ void virtualDevice::comlynx_send_buffer(uint8_t *buf, unsigned short len)
     // Wait for idle only when in UDPStream mode
     if (SYSTEM_BUS._udpDev->udpstreamActive)
         SYSTEM_BUS.wait_for_idle();
-    
+
     SYSTEM_BUS.write(buf, len);
     SYSTEM_BUS.read(buf, len);
 }
@@ -116,7 +116,7 @@ bool virtualDevice::comlynx_recv_ck()
 
     while (SYSTEM_BUS.available() <= 0)
         fnSystem.yield();
-    
+
     // get checksum
     recv_ck = SYSTEM_BUS.read();
 
@@ -203,7 +203,7 @@ unsigned short virtualDevice::comlynx_recv_buffer(uint8_t *buf, unsigned short l
     unsigned short b;
 
     b = SYSTEM_BUS.read(buf, len);
-    
+
     // Add to receive buffer
     memcpy(&recvbuffer[recvbuffer_len], buf, len);
     recvbuffer_len += len;
@@ -321,7 +321,7 @@ void systemBus::_comlynx_process_cmd()
     b = SYSTEM_BUS.read();
     d = b & 0x0F;
 
-    
+
     // Find device ID and pass control to it
     if (_daisyChain.count(d) < 1)
     {
@@ -331,12 +331,12 @@ void systemBus::_comlynx_process_cmd()
     #ifdef DEBUG
         if ((b & 0xF0) == (MN_ACK<<4))
             Debug_println("Lynx sent ACK");
-        else { 
+        else {
                 Debug_println("---");
             Debug_printf("comlynx_process_cmd: dev:%X cmd:%X\n", d, (b & 0xF0)>>4);
         }
-    #endif        
-        
+    #endif
+
         // turn on Comlynx Indicator LED
         fnLedManager.set(eLed::LED_BUS, true);
         _daisyChain[d]->comlynx_process(b);
@@ -382,7 +382,7 @@ void systemBus::setup()
     _port.begin(ChannelConfig()
                 .deviceID(FN_UART_BUS)
                 .baud(COMLYNX_BAUDRATE)
-                .parity(UART_PARITY_ODD)                
+                .parity(UART_PARITY_ODD)
                 );
 }
 
@@ -396,7 +396,7 @@ void systemBus::shutdown()
     Debug_printf("All devices shut down.\n");
 }
 
-void systemBus::addDevice(virtualDevice *pDevice, uint8_t device_id)
+void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
 {
     Debug_printf("Adding device: %02X\n", device_id);
     pDevice->_devnum = device_id;
@@ -404,21 +404,23 @@ void systemBus::addDevice(virtualDevice *pDevice, uint8_t device_id)
 
     switch (device_id)
     {
-    case 0x02:
+    case FUJI_DEVICEID_PRINTER:
         _printerDev = (lynxPrinter *)pDevice;
         break;
-    case 0x0f:
+    case FUJI_DEVICEID_FUJINET:
         _fujiDev = (lynxFuji *)pDevice;
+        break;
+    default:
         break;
     }
 }
 
-bool systemBus::deviceExists(uint8_t device_id)
+bool systemBus::deviceExists(fujiDeviceID_t device_id)
 {
     return _daisyChain.find(device_id) != _daisyChain.end();
 }
 
-bool systemBus::deviceEnabled(uint8_t device_id)
+bool systemBus::deviceEnabled(fujiDeviceID_t device_id)
 {
     if (deviceExists(device_id))
         return _daisyChain[device_id]->device_active;
@@ -430,7 +432,7 @@ void systemBus::remDevice(virtualDevice *pDevice)
 {
 }
 
-void systemBus::remDevice(uint8_t device_id)
+void systemBus::remDevice(fujiDeviceID_t device_id)
 {
     if (deviceExists(device_id))
     {
@@ -443,7 +445,7 @@ int systemBus::numDevices()
     return _daisyChain.size();
 }
 
-void systemBus::changeDeviceId(virtualDevice *p, uint8_t device_id)
+void systemBus::changeDeviceId(virtualDevice *p, fujiDeviceID_t device_id)
 {
     for (auto devicep : _daisyChain)
     {
@@ -452,7 +454,7 @@ void systemBus::changeDeviceId(virtualDevice *p, uint8_t device_id)
     }
 }
 
-virtualDevice *systemBus::deviceById(uint8_t device_id)
+virtualDevice *systemBus::deviceById(fujiDeviceID_t device_id)
 {
     for (auto devicep : _daisyChain)
     {
@@ -468,7 +470,7 @@ void systemBus::reset()
         devicep.second->reset();
 }
 
-void systemBus::enableDevice(uint8_t device_id)
+void systemBus::enableDevice(fujiDeviceID_t device_id)
 {
     Debug_printf("Enabling Comlynx Device %d\n", device_id);
 
@@ -476,7 +478,7 @@ void systemBus::enableDevice(uint8_t device_id)
         _daisyChain[device_id]->device_active = true;
 }
 
-void systemBus::disableDevice(uint8_t device_id)
+void systemBus::disableDevice(fujiDeviceID_t device_id)
 {
     Debug_printf("Disabling Comlynx Device %d\n", device_id);
 
@@ -545,7 +547,7 @@ void systemBus::setRedeyeMode(bool enable)
 void systemBus::setRedeyeGameRemap(uint32_t remap)
 {
     Debug_printf("setRedeyeGameRemap, %d\n", remap);
-    
+
     // handle pure updstream games
     if ((remap >> 8) == 0xE1) {
         _udpDev->redeye_mode = false;           // turn off redeye
@@ -555,7 +557,7 @@ void systemBus::setRedeyeGameRemap(uint32_t remap)
 
     // handle redeye game that need remapping
     if (remap != 0xFFFF) {
-        _udpDev->remap_game_id = true;              
+        _udpDev->remap_game_id = true;
         _udpDev->new_game_id = remap;
     }
     else {
@@ -569,7 +571,7 @@ void systemBus::setRedeyeGameRemap(uint32_t remap)
 {
    Debug_printf("setComlynxIdleTime, %d\n", idle_time);
 
-   SYSTEM_BUS.comlynx_idle_time = idle_time; 
+   SYSTEM_BUS.comlynx_idle_time = idle_time;
 }*/
 
 #endif /* BUILD_LYNX */
