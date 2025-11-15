@@ -209,22 +209,22 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
 
 mediatype_t rs232Disk::mountROM(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
-    size_t offset, rlen, sectorNum;
+    uint32_t offset, rlen, sectorNum;
     MediaTypeImg romImage;
 
 
     romImage.mount(f, disksize);
 
     // "open" RAM in bank
-    if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_PICO, FUJICMD_OPEN, 0))
-        return -1;
+    if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_PICO, FUJICMD_OPEN, (uint16_t) 0))
+        return (mediatype_t) -1;
 
     for (offset = sectorNum = 0; offset < disksize; offset += rlen, sectorNum++)
     {
         if (romImage.read(sectorNum, &rlen) != 0)
             break;
         if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_PICO, FUJICMD_WRITE,
-                                    romImage._disk_sectorbuff, rlen))
+                                    std::string((char *) romImage._disk_sectorbuff, rlen)))
             break;
     }
 

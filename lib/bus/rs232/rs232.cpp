@@ -210,7 +210,7 @@ void systemBus::_rs232_process_cmd()
         _serial.setBaudrate(_rs232Baud);
     }
 
-    tempFrame = readBusPacket();
+    auto tempFrame = readBusPacket();
     if (!tempFrame)
     {
         Debug_printv("packet fail");
@@ -507,23 +507,6 @@ void systemBus::sendReplyPacket(fujiDeviceID_t source, bool ack, void *data, siz
                          ack ? std::string(static_cast<const char*>(data), length) : "");
     writeBusPacket(packet);
     return;
-}
-
-std::unique_ptr<FujiBusPacket> systemBus::sendCommand(fujiDeviceID_t device,
-                                                      fujiCommandID_t command, uint8_t param1)
-{
-    FujiBusPacket packet(source, command, param1);
-    writeBusPacket(packet);
-    return readBusPacket();
-}
-
-std::unique_ptr<FujiBusPacket> systemBus::sendCommand(fujiDeviceID_t device,
-                                                      fujiCommandID_t command, void *data,
-                                                      size_t length)
-{
-    FujiBusPacket packet(source, command, std::string(static_cast<const char*>(data), length));
-    writeBusPacket(packet);
-    return readBusPacket();
 }
 
 /* Convert direct bus access into bus packets? */

@@ -31,6 +31,7 @@ public:
 
     rs232Disk();
     mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+    mediatype_t mountROM(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type);
     void unmount();
     bool write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors);
 

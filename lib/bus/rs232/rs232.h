@@ -264,10 +264,24 @@ public:
     std::unique_ptr<FujiBusPacket> readBusPacket();
     void writeBusPacket(FujiBusPacket &packet);
     void sendReplyPacket(fujiDeviceID_t source, bool ack, void *data, size_t length);
-    std::unique_ptr<FujiBusPacket> sendCommand(fujiDeviceID_t device, fujiCommandID_t command,
-                                               uint8_t param1);
-    std::unique_ptr<FujiBusPacket> sendCommand(fujiDeviceID_t device, fujiCommandID_t command,
-                                               void *data, size_t datalen);
+    template<typename... Args>
+    std::unique_ptr<FujiBusPacket> sendCommand(fujiDeviceID_t device,
+                                               fujiCommandID_t command,
+                                               Args&&... args)
+    {
+        FujiBusPacket packet(device, command, std::forward<Args>(args)...);
+        writeBusPacket(packet);
+        return readBusPacket();
+    }
+
+    // Convenience wrapper: raw buffer
+    std::unique_ptr<FujiBusPacket> sendCommand(fujiDeviceID_t device,
+                                               fujiCommandID_t command,
+                                               void *buf, size_t len)
+    {
+        std::string data(reinterpret_cast<const char*>(buf), static_cast<size_t>(len));
+        return sendCommand(device, command, std::move(data));
+    }
 
     // Everybody thinks "oh I know how a serial port works, I'll just
     // access it directly and bypass the bus!" ಠ_ಠ
