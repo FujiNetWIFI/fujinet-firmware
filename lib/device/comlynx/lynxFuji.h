@@ -9,6 +9,7 @@
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
+#include "fujiDevice.h"
 
 class lynxFuji : public virtualDevice
 {
