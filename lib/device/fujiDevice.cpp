@@ -162,7 +162,7 @@ void fujiDevice::populate_config_from_slots()
 }
 
 // Mount all - returns true on success and false on error
-bool fujiDevice::fujicmd_mount_all_success()
+bool fujiDevice::fujicore_mount_all_success()
 {
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
 
@@ -180,14 +180,12 @@ bool fujiDevice::fujicmd_mount_all_success()
 
             if (host.mount() == false)
             {
-                transaction_error();
                 return false;
             }
 
             Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n", disk.filename, disk.host_slot, flag, i + 1);
             if (!fujicore_mount_disk_image_success(i, disk.access_mode))
             {
-                transaction_error();
                 return false;
             }
         }
@@ -197,6 +195,17 @@ bool fujiDevice::fujicmd_mount_all_success()
     {
         // No disks in a slot, disable config
         boot_config = false;
+    }
+
+    return true;
+}
+
+// Mount all - returns true on success and false on error
+bool fujiDevice::fujicmd_mount_all_success()
+{
+    if (!fujicore_mount_all_success()) {
+        transaction_error();
+        return false;
     }
 
     transaction_complete();
