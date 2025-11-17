@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <memory>
+#include <cassert>
 
 enum {
     SLIP_END     = 0xC0,
@@ -28,8 +29,7 @@ struct PacketParam {
                       "Param can only be uint8_t, uint16_t, or uint32_t");
     }
     PacketParam(uint32_t v, uint8_t s) : value(v), size(s) {
-        if (s != 1 && s != 2 && s != 4)
-            throw std::invalid_argument("Param size must be 1, 2, or 4");
+        assert(s == 1 || s == 2 || s == 4);
     }
 };
 
@@ -41,9 +41,9 @@ private:
     std::vector<PacketParam> _params;
     std::optional<std::string> _data = std::nullopt;
 
-    std::string decodeSLIP(const std::string &input);
-    std::string encodeSLIP(const std::string &input);
-    bool parse(const std::string &input);
+    std::string decodeSLIP(std::string_view input);
+    std::string encodeSLIP(std::string_view input);
+    bool parse(std::string_view input);
     uint8_t calcChecksum(const std::string &buf);
 
     void processArg(uint8_t v)  { _params.emplace_back(v); }
@@ -62,7 +62,7 @@ public:
         (processArg(std::forward<Args>(args)), ...);  // fold expression
     }
 
-    static std::unique_ptr<FujiBusPacket> fromSerialized(const std::string &input);
+    static std::unique_ptr<FujiBusPacket> fromSerialized(std::string_view input);
 
     std::string serialize();
 
