@@ -1,8 +1,5 @@
 #include "FujiBusPacket.h"
 
-#include "../../include/debug.h"
-#include "utils.h"
-
 typedef struct {
     uint8_t device;   /* Destination Device */
     uint8_t command;  /* Command */
@@ -98,8 +95,6 @@ bool FujiBusPacket::parse(std::string_view input)
     fujibus_header *hdr;
     std::string_view slipEncoded = input;
 
-    Debug_printv("Incoming:\n%s\n", util_hexdump(input.data(), input.size()).c_str());
-
     size_t slipMarker = input.find(SLIP_END);
     if (slipMarker != std::string::npos)
         slipEncoded = std::string_view(input).substr(slipMarker);
@@ -110,13 +105,10 @@ bool FujiBusPacket::parse(std::string_view input)
         return false;
 
     decoded = decodeSLIP(slipEncoded);
-    Debug_printv("Decoded:\n%s\n", util_hexdump(decoded.data(), decoded.size()).c_str());
 
     if (decoded.size() < sizeof(fujibus_header))
         return false;
     hdr = (fujibus_header *) &decoded[0];
-    Debug_printv("Header: dev:%02x cmd:%02x len:%d chk:%02x fld:%02x",
-                 hdr->device, hdr->command, hdr->length, hdr->checksum, hdr->descr);
 
     if (hdr->length != decoded.size())
         return false;
@@ -235,11 +227,7 @@ std::string FujiBusPacket::serialize()
     hptr = (fujibus_header *) output.data();
     *hptr = hdr;
     hptr->checksum = calcChecksum(output);
-    Debug_printv("Packet header: dev:%02x cmd:%02x len:%d chk:%02x fld:%02x",
-                 hptr->device, hptr->command, hptr->length, hptr->checksum, hptr->descr);
-    Debug_printv("\n%s\n", util_hexdump(output.data(), output.size()).c_str());
     auto encoded = encodeSLIP(output);
-    Debug_printv("Encoded:\n%s\n", util_hexdump(encoded.data(), encoded.size()).c_str());
     return encoded;
 }
 
