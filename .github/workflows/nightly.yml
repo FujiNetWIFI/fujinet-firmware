@@ -89,6 +89,9 @@ jobs:
     - name: Standardize Firmware Name
       run: mv ./firmware/fujinet*.zip ./firmware/fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.VERSION }}-nightly.zip
 
+    - name: Create "version.txt" file
+      run: echo "${{ steps.version.outputs.VERSION }}.${{ matrix.target-platform }}" > ./version.txt
+
     - name: Create Release 
       id: create-release
       uses: softprops/action-gh-release@v2.2.2 
