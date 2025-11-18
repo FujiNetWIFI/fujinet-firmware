@@ -6,6 +6,7 @@
  */
 
 #include "UARTChannel.h"
+#include "fujiDeviceID.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
@@ -30,13 +31,6 @@
 #define NM_CANCEL 0x0A // response.control (cancel)
 #define NM_SEND 0x0B   // response.data (send)
 #define NM_NACK 0x0C   // response.control (nack)
-
-#define COMLYNX_DEVICE_ID_KEYBOARD 0x01
-#define COMLYNX_DEVICE_ID_PRINTER  0x02
-#define COMLYNX_DEVICEID_DISK      0x04
-#define COMLYNX_DEVICE_TAPE        0x08
-#define COMLYNX_DEVICE_NETWORK     0x0E
-#define COMLYNX_DEVICE_FUJINET     0x0F
 
 #define COMLYNX_RESET_DEBOUNCE_PERIOD 100 // in ms
 
@@ -161,7 +155,7 @@ protected:
     /**
      * @brief Device Number: 0-15
      */
-    uint8_t _devnum;
+    fujiDeviceID_t _devnum;
 
     virtual void shutdown() {}
 
@@ -233,7 +227,7 @@ public:
      * @brief return the device number (0-15) of this device
      * @return the device # (0-15) of this device
      */
-    uint8_t id() { return _devnum; }
+    fujiDeviceID_t id() { return _devnum; }
 
 
 };
