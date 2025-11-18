@@ -79,6 +79,13 @@ jobs:
     - name: Show platformio.ini
       run: cat "$GITHUB_WORKSPACE"/platformio-generated.ini
 
+    - name: Get Old Version
+      id: version
+      run: echo "VERSION=$(grep '#define FN_VERSION_FULL' /home/runner/work/fujinet-firmware/fujinet-firmware/include/version.h | sed 's/^.*"\(.*\)".*$/\1/')" >> $GITHUB_OUTPUT
+
+    - name: Create "version.txt" file
+      run: echo "${{ steps.version.outputs.VERSION }}.${{ matrix.target-platform }}" > ./version.txt
+
     - name: Build release
       run: cd "$GITHUB_WORKSPACE" && /usr/bin/bash ./build.sh -z -l "$GITHUB_WORKSPACE"/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i "$GITHUB_WORKSPACE"/platformio-generated.ini
 
