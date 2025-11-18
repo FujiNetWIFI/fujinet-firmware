@@ -656,11 +656,11 @@ void lynxFuji::image_rotate()
         count--;
 
         // Save the device ID of the disk in the last slot
-        int last_id = _fnDisks[count].disk_dev.id();
+        fujiDeviceID_t last_id = _fnDisks[count].disk_dev.id();
 
         for (int n = count; n > 0; n--)
         {
-            int swap = _fnDisks[n - 1].disk_dev.id();
+            fujiDeviceID_t swap = _fnDisks[n - 1].disk_dev.id();
             Debug_printf("setting slot %d to ID %hx\n", n, swap);
             SYSTEM_BUS.changeDeviceId(&_fnDisks[n].disk_dev, swap);
         }
@@ -1273,7 +1273,7 @@ void lynxFuji::insert_boot_device(uint8_t d)
 
 void lynxFuji::comlynx_enable_device()
 {
-    unsigned char d = comlynx_recv();
+    fujiDeviceID_t d = (fujiDeviceID_t) comlynx_recv();
     Debug_printf("FUJI ENABLE DEVICE %02x\n",d);
 
     // Get packet checksum
@@ -1284,21 +1284,23 @@ void lynxFuji::comlynx_enable_device()
 
     switch(d)
     {
-        case 0x02:
-            Config.store_printer_enabled(true);
-            break;
-        case 0x04:
-            Config.store_device_slot_enable_1(true);
-            break;
-        case 0x05:
-            Config.store_device_slot_enable_2(true);
-            break;
-        case 0x06:
-            Config.store_device_slot_enable_3(true);
-            break;
-        case 0x07:
-            Config.store_device_slot_enable_4(true);
-            break;
+    case FUJI_DEVICEID_PRINTER:
+        Config.store_printer_enabled(true);
+        break;
+    case FUJI_DEVICEID_DISK:
+        Config.store_device_slot_enable_1(true);
+        break;
+    case FUJI_DEVICEID_DISK2:
+        Config.store_device_slot_enable_2(true);
+        break;
+    case FUJI_DEVICEID_DISK3:
+        Config.store_device_slot_enable_3(true);
+        break;
+    case FUJI_DEVICEID_DISK4:
+        Config.store_device_slot_enable_4(true);
+        break;
+    default:
+        break;
     }
 
     Config.save();
@@ -1308,7 +1310,7 @@ void lynxFuji::comlynx_enable_device()
 
 void lynxFuji::comlynx_disable_device()
 {
-    unsigned char d = comlynx_recv();
+    fujiDeviceID_t d = (fujiDeviceID_t) comlynx_recv();
     Debug_printf("FUJI DISABLE DEVICE %02x\n",d);
 
     // Get packet checksum
@@ -1319,21 +1321,23 @@ void lynxFuji::comlynx_disable_device()
 
     switch(d)
     {
-        case 0x02:
-            Config.store_printer_enabled(false);
-            break;
-        case 0x04:
-            Config.store_device_slot_enable_1(false);
-            break;
-        case 0x05:
-            Config.store_device_slot_enable_2(false);
-            break;
-        case 0x06:
-            Config.store_device_slot_enable_3(false);
-            break;
-        case 0x07:
-            Config.store_device_slot_enable_4(false);
-            break;
+    case FUJI_DEVICEID_PRINTER:
+        Config.store_printer_enabled(false);
+        break;
+    case FUJI_DEVICEID_DISK:
+        Config.store_device_slot_enable_1(false);
+        break;
+    case FUJI_DEVICEID_DISK2:
+        Config.store_device_slot_enable_2(false);
+        break;
+    case FUJI_DEVICEID_DISK3:
+        Config.store_device_slot_enable_3(false);
+        break;
+    case FUJI_DEVICEID_DISK4:
+        Config.store_device_slot_enable_4(false);
+        break;
+    default:
+        break;
     }
 
     Config.save();
@@ -1351,10 +1355,10 @@ void lynxFuji::setup()
 
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = false;
-    SYSTEM_BUS.addDevice(&_fnDisks[0].disk_dev, 4);
-    SYSTEM_BUS.addDevice(theFuji, 0x0F);   // Fuji becomes the gateway device.
+    SYSTEM_BUS.addDevice(&_fnDisks[0].disk_dev, FUJI_DEVICEID_DISK);
+    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET);   // Fuji becomes the gateway device.
     theNetwork = new lynxNetwork();
-    SYSTEM_BUS.addDevice(theNetwork, 0x09); // temporary.
+    SYSTEM_BUS.addDevice(theNetwork, FUJI_DEVICEID_NETWORK_TEMP); // temporary.
 }
 
 void lynxFuji::comlynx_random_number()
@@ -1408,7 +1412,7 @@ void lynxFuji::comlynx_get_time()
 
 void lynxFuji::comlynx_device_enable_status()
 {
-    uint8_t d = comlynx_recv();
+    fujiDeviceID_t d = (fujiDeviceID_t) comlynx_recv();
 
     // Get packet checksum
     if (!comlynx_recv_ck()) {

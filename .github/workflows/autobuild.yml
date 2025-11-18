@@ -30,6 +30,7 @@ jobs:
           - COCO
           - IEC-LOLIN-D32
           - IEC-NUGGET
+          - LYNX
           - RS232
 
     steps:

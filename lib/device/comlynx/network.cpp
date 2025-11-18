@@ -646,7 +646,7 @@ void lynxNetwork::comlynx_special_inquiry()
 void lynxNetwork::do_inquiry(fujiCommandID_t inq_cmd)
 {
     // Reset inq_dstats
-    inq_dstats = 0xff;
+    inq_dstats = SIO_DIRECTION_INVALID;
 
     cmdFrame.comnd = inq_cmd;
 
@@ -659,34 +659,34 @@ void lynxNetwork::do_inquiry(fujiCommandID_t inq_cmd)
     {
         switch (inq_cmd)
         {
-        case 0x20:
-        case 0x21:
-        case 0x23:
-        case 0x24:
-        case 0x2A:
-        case 0x2B:
-        case 0x2C:
-        case 0xFD:
-        case 0xFE:
-            inq_dstats = 0x80;
+        case FUJICMD_RENAME:
+        case FUJICMD_DELETE:
+        case FUJICMD_LOCK:
+        case FUJICMD_UNLOCK:
+        case FUJICMD_MKDIR:
+        case FUJICMD_RMDIR:
+        case FUJICMD_CHDIR:
+        case FUJICMD_USERNAME:
+        case FUJICMD_PASSWORD:
+            inq_dstats = SIO_DIRECTION_WRITE;
             break;
-        case 0x30:
-            inq_dstats = 0x40;
+        case FUJICMD_GETCWD:
+            inq_dstats = SIO_DIRECTION_READ;
             break;
-        case 'Z': // Set interrupt rate
-            inq_dstats = 0x00;
+        case FUJICMD_TIMER: // Set interrupt rate
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 'T': // Set Translation
-            inq_dstats = 0x00;
+        case FUJICMD_TRANSLATION: // Set Translation
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 0x80: // JSON Parse
-            inq_dstats = 0x00;
+        case FUJICMD_JSON_PARSE: // JSON Parse
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 0x81: // JSON Query
-            inq_dstats = 0x80;
+        case FUJICMD_JSON_QUERY: // JSON Query
+            inq_dstats = SIO_DIRECTION_WRITE;
             break;
         default:
-            inq_dstats = 0xFF; // not supported
+            inq_dstats = SIO_DIRECTION_INVALID; // not supported
             break;
         }
     }
@@ -782,57 +782,57 @@ void lynxNetwork::comlynx_control_ack()
 void lynxNetwork::comlynx_control_send()
 {
     uint16_t s = comlynx_recv_length(); // receive length
-    uint8_t c = comlynx_recv();         // receive command
+    fujiCommandID_t c = (fujiCommandID_t) comlynx_recv();         // receive command
 
     s--; // Because we've popped the command off the stack
 
     switch (c)
     {
-    case ' ':
+    case FUJICMD_RENAME:
         rename(s);
         break;
-    case '!':
+    case FUJICMD_DELETE:
         del(s);
         break;
-    case '*':
+    case FUJICMD_MKDIR:
         mkdir(s);
         break;
-    case ',':
+    case FUJICMD_CHDIR:
         set_prefix(s);
         break;
-    case '0':
+    case FUJICMD_GETCWD:
         get_prefix();
         break;
-    case 'O':
+    case FUJICMD_OPEN:
         open(s);
         break;
-    case 'C':
+    case FUJICMD_CLOSE:
         close();
         break;
-    case 'S':
+    case FUJICMD_STATUS:
         status();
         break;
-    case 'W':
+    case FUJICMD_WRITE:
         write(s);
         break;
-    case 0xFC:
+    case FUJICMD_GET_SCAN_RESULT:
         channel_mode();
         break;
-    case 0xFD: // login
+    case FUJICMD_USERNAME: // login
         set_login(s);
         break;
-    case 0xFE: // password
+    case FUJICMD_PASSWORD: // password
         set_password(s);
         break;
     default:
         switch (channelMode)
         {
         case PROTOCOL:
-            if (inq_dstats == 0x00)
+            if (inq_dstats == SIO_DIRECTION_NONE)
                 comlynx_special_00(s);
-            else if (inq_dstats == 0x40)
+            else if (inq_dstats == SIO_DIRECTION_READ)
                 comlynx_special_40(s);
-            else if (inq_dstats == 0x80)
+            else if (inq_dstats == SIO_DIRECTION_WRITE)
                 comlynx_special_80(s);
             else
                 Debug_printf("comlynx_control_send() - Unknown Command: %02x\n", c);
@@ -840,11 +840,13 @@ void lynxNetwork::comlynx_control_send()
         case JSON:
             switch (c)
             {
-            case 'P':
+            case FUJICMD_PUT:
                 json_parse();
                 break;
-            case 'Q':
+            case FUJICMD_QUERY:
                 json_query(s);
+                break;
+            default:
                 break;
             }
             break;
