@@ -478,7 +478,7 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 
 std::unique_ptr<FujiBusPacket> systemBus::readBusPacket()
 {
-    std::string packet;
+    ByteBuffer packet;
     int val, count;
 
     for (count = 0; count < 2; )
@@ -497,7 +497,7 @@ std::unique_ptr<FujiBusPacket> systemBus::readBusPacket()
 
 void systemBus::writeBusPacket(FujiBusPacket &packet)
 {
-    std::string encoded = packet.serialize();
+    ByteBuffer encoded = packet.serialize();
     _port->write(encoded.data(), encoded.size());
     return;
 }

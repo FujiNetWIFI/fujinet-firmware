@@ -107,6 +107,12 @@ public:
     const std::optional<ByteBuffer>& data() const {
         return _data;
     }
+
+    std::optional<std::string> data_as_string() const
+    {
+        if (!_data) return std::nullopt;
+        return std::string(_data->begin(), _data->end());
+    }
 };
 
 #endif /* FUJIBUSPACKET_H */
