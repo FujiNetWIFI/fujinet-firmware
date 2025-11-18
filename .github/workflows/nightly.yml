@@ -83,6 +83,9 @@ jobs:
       id: nightly-date
       run: sed -i 's/#define FN_VERSION_DATE "[^"]*"/#define FN_VERSION_DATE "${{ steps.commit-date.outputs.COMMIT_DATE }}"/' /home/runner/work/fujinet-firmware/fujinet-firmware/include/version.h
 
+    - name: Create "version.txt" file
+      run: echo "${{ steps.version.outputs.VERSION }}.${{ matrix.target-platform }}" > ./version.txt
+
     - name: Build release
       run: cd /home/runner/work/fujinet-firmware/fujinet-firmware && /usr/bin/bash ./build.sh -z -l /home/runner/work/fujinet-firmware/fujinet-firmware/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i /home/runner/work/fujinet-firmware/fujinet-firmware/platformio-generated.ini
 
