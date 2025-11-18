@@ -209,6 +209,7 @@ public:
                                               uint8_t mode, std::string filename);
     std::optional<std::string> fujicore_get_device_filename(uint8_t slot);
     bool fujicore_mount_disk_image_success(uint8_t deviceSlot, uint8_t access_mode);
+    bool fujicore_mount_all_success();
 
     // Should be protected but directly accessed by sio.cpp
     bool status_wait_enabled = true;

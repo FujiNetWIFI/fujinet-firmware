@@ -210,20 +210,7 @@ void systemBus::_rs232_process_cmd()
         _serial.setBaudrate(_rs232Baud);
     }
 
-    // Read CMD frame
-    std::string packet;
-    int val, count;
-    for (count = 0; count < 2; )
-    {
-        val = _port->read();
-        if (val < 0)
-            break;
-        packet.push_back(val);
-        if (val == SLIP_END)
-            count++;
-    }
-
-    auto tempFrame = FujiBusPacket::fromSerialized(packet);
+    auto tempFrame = readBusPacket();
     if (!tempFrame)
     {
         Debug_printv("packet fail");
@@ -489,12 +476,37 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 }
 #endif /* OBSOLETE */
 
+std::unique_ptr<FujiBusPacket> systemBus::readBusPacket()
+{
+    std::string packet;
+    int val, count;
+
+    for (count = 0; count < 2; )
+    {
+        val = _port->read();
+        if (val < 0)
+            break;
+        packet.push_back(val);
+        if (val == SLIP_END)
+            count++;
+    }
+
+    Debug_printv("Received:\n%s\n", util_hexdump(packet.data(), packet.size()).c_str());
+    return FujiBusPacket::fromSerialized(packet);
+}
+
+void systemBus::writeBusPacket(FujiBusPacket &packet)
+{
+    std::string encoded = packet.serialize();
+    _port->write(encoded.data(), encoded.size());
+    return;
+}
+
 void systemBus::sendReplyPacket(fujiDeviceID_t source, bool ack, void *data, size_t length)
 {
     FujiBusPacket packet(source, ack ? FUJICMD_ACK : FUJICMD_NAK,
                          ack ? std::string(static_cast<const char*>(data), length) : "");
-    std::string encoded = packet.serialize();
-    _port->write(encoded.data(), encoded.size());
+    writeBusPacket(packet);
     return;
 }
 

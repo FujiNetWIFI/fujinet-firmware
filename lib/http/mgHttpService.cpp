@@ -415,9 +415,9 @@ int fnHttpService::get_handler_mount(mg_connection *c, mg_http_message *hm)
         // Mount all the things
         Debug_printf("Mount all from webui\n");
 #ifdef BUILD_ATARI
-        theFuji->fujicmd_mount_all_success(false);
+        theFuji->fujicore_mount_all_success(false);
 #else
-        theFuji->fujicmd_mount_all_success();
+        theFuji->fujicore_mount_all_success();
 #endif
     }
     return redirect_or_result(c, hm, 0);
