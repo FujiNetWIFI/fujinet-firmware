@@ -491,6 +491,7 @@ std::unique_ptr<FujiBusPacket> systemBus::readBusPacket()
             count++;
     }
 
+    Debug_printv("Received:\n%s\n", util_hexdump(packet.data(), packet.size()).c_str());
     return FujiBusPacket::fromSerialized(packet);
 }
 

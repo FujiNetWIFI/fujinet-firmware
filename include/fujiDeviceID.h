@@ -22,7 +22,7 @@ enum fujiDeviceID_t {
   FUJI_DEVICEID_NETWORK      = 0x71,
   FUJI_DEVICEID_NETWORK_LAST = 0x78,
   FUJI_DEVICEID_MIDI         = 0x99,
-  FUJI_DEVICEID_PICO         = 0xFF,
+  FUJI_DEVICEID_DBC          = 0xFF,
 };
 
 #endif /* FUJI_DEVICES_H */

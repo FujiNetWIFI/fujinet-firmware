@@ -217,7 +217,7 @@ mediatype_t rs232Disk::mountROM(fnFile *f, const char *filename, uint32_t disksi
 
     Debug_printv("Attempting to send ROM contents to pico");
     // "open" RAM in bank
-    if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_PICO, FUJICMD_OPEN, (uint16_t) 0)) {
+    if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, FUJICMD_OPEN, (uint16_t) 0)) {
         Debug_printv("Failed to open pico");
         return (mediatype_t) -1;
     }
@@ -226,7 +226,7 @@ mediatype_t rs232Disk::mountROM(fnFile *f, const char *filename, uint32_t disksi
     {
         if (romImage.read(sectorNum, &rlen) != 0)
             break;
-        if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_PICO, FUJICMD_WRITE,
+        if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, FUJICMD_WRITE,
                                     std::string((char *) romImage._disk_sectorbuff, rlen))) {
             Debug_printv("Failed to send block");
             break;
@@ -234,7 +234,7 @@ mediatype_t rs232Disk::mountROM(fnFile *f, const char *filename, uint32_t disksi
     }
 
     // "closing" RAM will make the bank active
-    SYSTEM_BUS.sendCommand(FUJI_DEVICEID_PICO, FUJICMD_CLOSE);
+    SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, FUJICMD_CLOSE);
 
     return disk_type;
 }
