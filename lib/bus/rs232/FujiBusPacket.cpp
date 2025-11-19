@@ -3,6 +3,7 @@
 #include <cstring>   // std::memcpy
 #include <cstddef>   // offsetof
 #include <algorithm> // std::find
+#include <new>
 
 #include <iostream>
 static void dbg_descr(const std::vector<uint8_t>& d)
@@ -165,7 +166,10 @@ ByteBuffer FujiBusPacket::encodeSLIP(const ByteBuffer& input) const
     ByteBuffer output;
     output.reserve(input.size() * 2 + 2);  // worst case, double size + 2 ENDs
 
-    output.push_back(SLIP_END);
+    // Avoids a compiler warning with GCC 15, which did not like the initial push_back of SLIP_END on a size 0 buffer (even though reserve has it with enough space).
+    output.resize(1);
+    output[0] = SLIP_END;
+
     for (std::uint8_t val : input)
     {
         if (val == SLIP_END || val == SLIP_ESCAPE)
@@ -185,6 +189,7 @@ ByteBuffer FujiBusPacket::encodeSLIP(const ByteBuffer& input) const
 
     return output;
 }
+
 
 // ------------------ Checksum ------------------
 
@@ -379,20 +384,23 @@ ByteBuffer FujiBusPacket::serialize() const
         output.insert(output.end(), _data->begin(), _data->end());
     }
 
-    // now we know the full length
-    hdr.length = static_cast<std::uint16_t>(output.size());
+    // Now we know the full length of the packet
+    std::uint16_t totalLen = static_cast<std::uint16_t>(output.size());
 
-    // write header with checksum=0 first
-    std::memcpy(output.data(), &hdr, sizeof(hdr));
+    // Construct the header in-place at the start of the buffer
+    auto* hptr = new (output.data()) fujibus_header{};  // placement-new header
 
-    // compute checksum over whole packet with checksum byte zeroed
-    output[offsetof(fujibus_header, checksum)] = 0;
-    hdr.checksum = calcChecksum(output);
+    hptr->device   = static_cast<std::uint8_t>(_device);
+    hptr->command  = static_cast<std::uint8_t>(_command);
+    hptr->length   = totalLen;
+    hptr->checksum = 0;
+    hptr->descr    = descrBytes.empty() ? 0 : descrBytes[0];
 
-    // write header again with correct checksum
-    std::memcpy(output.data(), &hdr, sizeof(hdr));
+    // Compute checksum with checksum field zeroed
+    std::uint8_t checksum = calcChecksum(output);
+    hptr->checksum = checksum;
 
-    // finally, SLIP-encode
+    // Finally SLIP-encode the whole packet
     return encodeSLIP(output);
 }
 
