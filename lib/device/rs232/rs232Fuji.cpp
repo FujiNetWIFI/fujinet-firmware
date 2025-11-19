@@ -227,7 +227,7 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
     case FUJICMD_OPEN_DIRECTORY:
         rs232_ack();
 #warning "FIXME - if data is missing then NAK"
-        fujicmd_open_directory_success(packet.param(0), packet.data_as_string().value_or(""));
+        fujicmd_open_directory_success(packet.param(0), packet.dataAsString().value_or(""));
         break;
     case FUJICMD_READ_DIR_ENTRY:
         rs232_ack();
@@ -322,7 +322,7 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
         rs232_ack();
 #warning "FIXME - if data is missing then NAK"
         fujicmd_copy_file_success(packet.param(0), packet.param(1),
-                                  packet.data_as_string().value_or(""));
+                                  packet.dataAsString().value_or(""));
         break;
     case FUJICMD_MOUNT_ALL:
         rs232_ack();

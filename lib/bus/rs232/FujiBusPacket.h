@@ -108,7 +108,7 @@ public:
         return _data;
     }
 
-    std::optional<std::string> data_as_string() const
+    std::optional<std::string> dataAsString() const
     {
         if (!_data) return std::nullopt;
         return std::string(_data->begin(), _data->end());

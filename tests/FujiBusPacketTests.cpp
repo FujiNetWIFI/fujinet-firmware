@@ -146,7 +146,7 @@ TEST_CASE("roundtrip with textual payload via std::string")
     CHECK(parsed->paramCount() == 1);
     CHECK(parsed->param(0)     == 0x1234);
 
-    auto tz_opt = parsed->data_as_string();
+    auto tz_opt = parsed->dataAsString();
     REQUIRE(tz_opt.has_value());
     CHECK(tz_opt.value() == tz);
 }
