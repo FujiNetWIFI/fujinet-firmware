@@ -38,4 +38,7 @@ else()
     message(STATUS "Running CMake to build FujiNet-PC (Linux, macOS, Windows), target ${FUJINET_TARGET}")
     include(fujinet_pc.cmake)
 
+    # Add tests for fujinet-pc version
+    enable_testing()
+    add_subdirectory(tests)
 endif()
