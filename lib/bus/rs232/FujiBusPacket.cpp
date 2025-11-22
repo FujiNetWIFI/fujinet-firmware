@@ -13,7 +13,6 @@ static void dbg_descr(const std::vector<uint8_t>& d)
     std::cerr << std::dec << "\n";
 }
 
-
 // On-wire header layout (must stay exactly this size/layout)
 struct fujibus_header {
     std::uint8_t device;   /* Destination Device */
@@ -26,23 +25,23 @@ struct fujibus_header {
 static_assert(sizeof(fujibus_header) == 6, "fujibus_header must be 6 bytes");
 static_assert(offsetof(fujibus_header, checksum) == 4, "checksum offset mismatch");
 
-#define FUJI_DESCR_COUNT_MASK    0x07
-#define FUJI_DESCR_32_MASK       0x02
-#define FUJI_DESCR_16_OR_32_MASK 0x04
-#define FUJI_DESCR_ADDTL_MASK    0x80
+#define FUJI_DESCR_COUNT_MASK  0x07
+#define FUJI_DESCR_EXCEEDS_U8  0x04
+#define FUJI_DESCR_EXCEEDS_U16 0x02
+#define FUJI_DESCR_ADDTL_MASK  0x80
+#define MAX_BYTES_PER_DESCR 4
 
 static std::uint8_t fieldSizeTable[] = {0, 1, 1, 1, 1, 2, 2, 4};
 static std::uint8_t numFieldsTable[]  = {0, 1, 2, 3, 4, 1, 2, 1};
 
 namespace {
-
     // write `size` bytes of `value` (1,2,4) in little-endian
     inline void write_le(ByteBuffer& buf, std::uint32_t value, std::size_t size)
     {
         for (std::size_t i = 0; i < size; ++i)
             buf.push_back(static_cast<std::uint8_t>((value >> (8 * i)) & 0xFF));
     }
-    
+
     // read `size` bytes in little-endian from `buf[offset..offset+size)`
     inline std::uint32_t read_le(const ByteBuffer& buf, std::size_t offset, std::size_t size)
     {
@@ -51,73 +50,7 @@ namespace {
             v |= static_cast<std::uint32_t>(buf[offset + i]) << (8 * i);
         return v;
     }
-    
-    // helper to build descriptor value from field size + count, per FEP-004
-    // table: 0..7 -> (count,size) combos :contentReference[oaicite:1]{index=1}
-    //
-    // 1: 1x u8
-    // 2: 2x u8
-    // 3: 3x u8
-    // 4: 4x u8
-    // 5: 1x u16
-    // 6: 2x u16
-    // 7: 1x u32
-    inline std::uint8_t make_field_desc(unsigned fieldSize, unsigned fieldCount)
-    {
-        switch (fieldSize)
-        {
-            case 1:
-                // 1..4 fields of uint8_t
-                assert(fieldCount >= 1 && fieldCount <= 4);
-                return static_cast<std::uint8_t>(fieldCount);
-            case 2:
-                // 1 or 2 fields of uint16_t
-                assert(fieldCount == 1 || fieldCount == 2);
-                return static_cast<std::uint8_t>(fieldCount == 1 ? 5 : 6);
-            case 4:
-                // only 1 uint32_t allowed (per current table)
-                assert(fieldCount == 1);
-                return 7;
-            default:
-                assert(false && "Invalid field size for descriptor");
-                return 0;
-        }
-    }
-
-    // Look up descriptor index (0..7) for given field size & count,
-    // based on the spec tables fieldSizeTable/numFieldsTable.
-    inline std::uint8_t lookup_field_desc(unsigned fieldSize, unsigned fieldCount)
-    {
-        for (int i = 0; i < 8; ++i)
-        {
-            if (fieldSizeTable[i] == fieldSize &&
-                numFieldsTable[i] == fieldCount)
-            {
-                return static_cast<std::uint8_t>(i);
-            }
-        }
-        assert(false && "No descriptor entry for given size/count");
-        return 0;
-    }
-
-    // max how many fields we can encode in one descriptor, by element size
-    inline unsigned max_fields_for_size(unsigned fieldSize)
-    {
-        switch (fieldSize)
-        {
-            case 1: return 4;
-            case 2: return 2;
-            case 4: return 1;
-            default:
-                assert(false && "Invalid field size");
-                return 0;
-        }
-    }
-    
-    } // namespace
-    
-
-// ------------------ SLIP helpers ------------------
+} // namespace
 
 ByteBuffer FujiBusPacket::decodeSLIP(const ByteBuffer& input) const
 {
@@ -190,9 +123,6 @@ ByteBuffer FujiBusPacket::encodeSLIP(const ByteBuffer& input) const
     return output;
 }
 
-
-// ------------------ Checksum ------------------
-
 std::uint8_t FujiBusPacket::calcChecksum(const ByteBuffer& buf) const
 {
     std::uint16_t chk = 0;
@@ -205,8 +135,6 @@ std::uint8_t FujiBusPacket::calcChecksum(const ByteBuffer& buf) const
 
     return static_cast<std::uint8_t>(chk);
 }
-
-// ------------------ Parsing ------------------
 
 bool FujiBusPacket::parse(const ByteBuffer& input)
 {
@@ -230,44 +158,43 @@ bool FujiBusPacket::parse(const ByteBuffer& input)
         return false;
 
     // Extract header from the front of decoded
-    fujibus_header hdr{};
-    std::memcpy(&hdr, decoded.data(), sizeof(hdr));
+    fujibus_header *hdr;
+    hdr = (fujibus_header *) &decoded[0];
 
-    if (hdr.length != decoded.size())
+    if (hdr->length != decoded.size())
         return false;
 
     // Verify checksum:
     // - ck1 is the transmitted checksum
     // - ck2 is computed with the checksum byte zeroed
-    const std::uint8_t ck1 = hdr.checksum;
+    const std::uint8_t ck1 = hdr->checksum;
 
-    ByteBuffer tmp = decoded;
-    tmp[offsetof(fujibus_header, checksum)] = 0;
-    const std::uint8_t ck2 = calcChecksum(tmp);
+    hdr->checksum = 0;
+    const std::uint8_t ck2 = calcChecksum(decoded);
 
     if (ck1 != ck2)
         return false;
 
-    _device  = static_cast<fujiDeviceID_t>(hdr.device);
-    _command = static_cast<fujiCommandID_t>(hdr.command);
+    _device  = static_cast<fujiDeviceID_t>(hdr->device);
+    _command = static_cast<fujiCommandID_t>(hdr->command);
 
     // ---- Descriptors & params ----
 
     std::size_t offset = sizeof(fujibus_header);
-    std::vector<std::uint8_t> descrBytes;
+    ByteBuffer descrBytes;
 
     // First descriptor is in the header
-    std::uint8_t d = hdr.descr;
-    descrBytes.push_back(d);
+    std::uint8_t dsc = hdr->descr;
+    descrBytes.push_back(dsc);
 
     // Additional descriptors follow the header whenever bit 7 is set
-    while (d & FUJI_DESCR_ADDTL_MASK)
+    while (dsc & FUJI_DESCR_ADDTL_MASK)
     {
         if (offset >= decoded.size())
             return false; // malformed
 
-        d = decoded[offset++];
-        descrBytes.push_back(d);
+        dsc = decoded[offset++];
+        descrBytes.push_back(dsc);
     }
 
     // Now decode each descriptor into fields
@@ -280,13 +207,13 @@ bool FujiBusPacket::parse(const ByteBuffer& input)
 
         unsigned fieldSize  = fieldSizeTable[fieldDesc];
 
-        for (unsigned i = 0; i < fieldCount; ++i)
+        for (unsigned idx = 0; idx < fieldCount; ++idx)
         {
             if (offset + fieldSize > decoded.size())
                 return false;
 
-            std::uint32_t v = read_le(decoded, offset, fieldSize);
-            _params.emplace_back(v, static_cast<std::uint8_t>(fieldSize));
+            std::uint32_t val = read_le(decoded, offset, fieldSize);
+            _params.emplace_back(val, static_cast<std::uint8_t>(fieldSize));
             offset += fieldSize;
         }
     }
@@ -301,113 +228,68 @@ bool FujiBusPacket::parse(const ByteBuffer& input)
     return true;
 }
 
-// ------------------ Serialization ------------------
-
 ByteBuffer FujiBusPacket::serialize() const
 {
-    fujibus_header hdr{};
-    hdr.device   = static_cast<std::uint8_t>(_device);
-    hdr.command  = static_cast<std::uint8_t>(_command);
-    hdr.length   = 0;      // fill later
+    fujibus_header hdr, *hptr;
+
+    hdr.device = _device;
+    hdr.command = _command;
+    hdr.length = sizeof(hdr);
     hdr.checksum = 0;
-    hdr.descr    = 0;
+    hdr.descr = 0;
 
-    // We'll build:
-    // [header][extra descr bytes][fields][payload]
-
-    std::vector<std::uint8_t> descrBytes;
-    ByteBuffer fieldsBuf;
+    ByteBuffer output(sizeof(hdr), '\0');
 
     if (!_params.empty())
     {
-        std::size_t i = 0;
-        while (i < _params.size())
+        ByteBuffer descr;
+        unsigned fieldSize, bytesWritten;
+        unsigned idx, count, val, lenParams;
+        const PacketParam *param;
+
+
+        for (idx = 0, lenParams = _params.size(); idx < lenParams; idx += count)
         {
-            uint8_t size  = _params[i].size;
-            unsigned maxN = max_fields_for_size(size);
-
-            // how many contiguous same-size params can we pack into this descriptor?
-            unsigned count = 1;
-            while (i + count < _params.size() &&
-                   _params[i + count].size == size &&
-                   count < maxN)
+            for (count = fieldSize = bytesWritten = 0; count + idx < lenParams; count++)
             {
-                ++count;
+                param = &_params[count + idx];
+                if ((fieldSize && fieldSize != param->size) || bytesWritten == MAX_BYTES_PER_DESCR)
+                    break;
+                fieldSize = param->size;
+
+                write_le(output, param->value, param->size);
+                bytesWritten += param->size;
             }
 
-            // descriptor index (0..7) from tables
-            std::uint8_t descIndex = lookup_field_desc(size, count);
-            descrBytes.push_back(descIndex);
-
-            // write those params into fieldsBuf in little-endian
-            for (unsigned k = 0; k < count; ++k)
+            uint8_t fieldDescr = count;
+            if (fieldSize > 1)
             {
-                const PacketParam& p = _params[i + k];
-                write_le(fieldsBuf, p.value, size);
+                fieldDescr += FUJI_DESCR_EXCEEDS_U8;
+                if (fieldSize > 2)
+                    fieldDescr += FUJI_DESCR_EXCEEDS_U16;
             }
 
-            i += count;
+            descr.push_back(fieldDescr | FUJI_DESCR_ADDTL_MASK);
         }
 
-        // set "additional descriptor" flag (bit 7) on all but the last
-        for (std::size_t idx = 0; idx + 1 < descrBytes.size(); ++idx)
-            descrBytes[idx] |= FUJI_DESCR_ADDTL_MASK;
+        descr.back() -= FUJI_DESCR_ADDTL_MASK;
+        hdr.descr = descr[0];
+        descr.erase(descr.begin());
+        output.insert(output.begin() + sizeof(hdr), descr.begin(), descr.end());
     }
 
-    // First descriptor lives in hdr.descr
-    if (!descrBytes.empty())
-    {
-        hdr.descr = descrBytes[0];
-    }
-
-    ByteBuffer output;
-    output.reserve(sizeof(hdr) + descrBytes.size() + fieldsBuf.size() +
-                   (_data ? _data->size() : 0));
-
-    // placeholder for header
-    output.resize(sizeof(hdr));
-
-    // any additional descriptor bytes (after header)
-    if (descrBytes.size() > 1)
-    {
-        output.insert(output.end(),
-                      descrBytes.begin() + 1,
-                      descrBytes.end());
-    }
-
-    // fields
-    output.insert(output.end(), fieldsBuf.begin(), fieldsBuf.end());
-
-    // payload (if any)
-    if (_data && !_data->empty())
-    {
+    if (_data)
         output.insert(output.end(), _data->begin(), _data->end());
-    }
 
-    // Now we know the full length of the packet
-    std::uint16_t totalLen = static_cast<std::uint16_t>(output.size());
-
-    // Construct the header in-place at the start of the buffer
-    auto* hptr = new (output.data()) fujibus_header{};  // placement-new header
-
-    hptr->device   = static_cast<std::uint8_t>(_device);
-    hptr->command  = static_cast<std::uint8_t>(_command);
-    hptr->length   = totalLen;
-    hptr->checksum = 0;
-    hptr->descr    = descrBytes.empty() ? 0 : descrBytes[0];
-
-    // Compute checksum with checksum field zeroed
-    std::uint8_t checksum = calcChecksum(output);
-    hptr->checksum = checksum;
-
-    // Finally SLIP-encode the whole packet
-    return encodeSLIP(output);
+    hdr.length = output.size();
+    hptr = (fujibus_header *) output.data();
+    *hptr = hdr;
+    hptr->checksum = calcChecksum(output);
+    auto encoded = encodeSLIP(output);
+    return encoded;
 }
 
-
-
 // ------------------ Factory ------------------
-
 std::unique_ptr<FujiBusPacket> FujiBusPacket::fromSerialized(const ByteBuffer& input)
 {
     auto packet = std::make_unique<FujiBusPacket>();
