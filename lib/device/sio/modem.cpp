@@ -12,6 +12,7 @@
 #include "led.h"
 
 #include "utils.h"
+#include "endianness.h"
 
 #define RECVBUFSIZE 1024
 

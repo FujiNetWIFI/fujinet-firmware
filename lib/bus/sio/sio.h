@@ -51,22 +51,26 @@ FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
 #define SERIAL_TIMEOUT 300
 
-union cmdFrame_t
+typedef struct
 {
-    struct
+    union
     {
-        uint8_t device;
-        uint8_t comnd;
-        uint8_t aux1;
-        uint8_t aux2;
-        uint8_t cksum;
-    };
-    struct
-    {
+        struct
+        {
+            uint8_t device;
+            uint8_t comnd;
+            union {
+                struct {
+                    uint8_t aux1;
+                    uint8_t aux2;
+                };
+                uint16_t aux12;
+            };
+        };
         uint32_t commanddata;
-        uint8_t checksum;
-    } __attribute__((packed));
-};
+    };
+    uint8_t checksum;
+} __attribute__((packed)) cmdFrame_t;
 
 // helper functions
 uint8_t sio_checksum(uint8_t *buf, unsigned short len);

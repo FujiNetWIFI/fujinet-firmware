@@ -7,7 +7,7 @@
 #include "../../include/debug.h"
 
 #include "utils.h"
-
+#include "endianness.h"
 
 #define DENSITY_FM 0
 #define DENSITY_MFM 4

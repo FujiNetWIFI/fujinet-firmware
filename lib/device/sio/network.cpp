@@ -15,8 +15,10 @@
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
 
+#include "fujiDevice.h"
 #include "fnSystem.h"
 #include "utils.h"
+#include "fuji_endian.h"
 
 #include "status_error_codes.h"
 #include "TCP.h"
@@ -182,7 +184,7 @@ void sioNetwork::sio_open()
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), &cmdFrame) == true)
+    if (protocol->open(urlParser.get(), (netProtoOpenMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) == true)
     {
         status.error = protocol->error;
         Debug_printf("Protocol unable to make connection. Error: %d\n", status.error);
@@ -491,7 +493,6 @@ bool sioNetwork::sio_status_channel_json(NetworkStatus *ns)
 {
     ns->connected = json_bytes_remaining > 0;
     ns->error = json_bytes_remaining > 0 ? 1 : 136;
-    ns->rxBytesWaiting = json_bytes_remaining;
     return false; // for now
 }
 
@@ -500,7 +501,7 @@ bool sioNetwork::sio_status_channel_json(NetworkStatus *ns)
  */
 void sioNetwork::sio_status_channel()
 {
-    uint8_t serialized_status[4] = {0, 0, 0, 0};
+    NDeviceStatus nstatus;
     bool err = false;
 
 #ifdef VERBOSE_PROTOCOL
@@ -526,16 +527,18 @@ void sioNetwork::sio_status_channel()
     protocol->forceStatus = false;
 
     // Serialize status into status bytes
-    serialized_status[0] = status.rxBytesWaiting & 0xFF;
-    serialized_status[1] = status.rxBytesWaiting >> 8;
-    serialized_status[2] = status.connected;
-    serialized_status[3] = status.error;
+    size_t avail = protocol->available();
+    avail = avail > 65535 ? 65535 : avail;
+    nstatus.avail = htole16(avail);
+    nstatus.conn = status.connected;
+    nstatus.err = status.error;
 
     // leaving this one to print
-    Debug_printf("sio_status_channel() - BW: %u C: %u E: %u\n", status.rxBytesWaiting, status.connected, status.error);
+    Debug_printf("rs232_status_channel() - BW: %u C: %u E: %u\n",
+                 nstatus.avail, nstatus.conn, nstatus.err);
 
     // and send to computer
-    bus_to_computer(serialized_status, sizeof(serialized_status), err);
+    bus_to_computer((uint8_t *) &nstatus, sizeof(nstatus), err);
 }
 
 /**
@@ -812,24 +815,24 @@ void sioNetwork::sio_special_00()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case 'P':
+    case FUJICMD_PARSE:
         if (channelMode == JSON)
             sio_parse_json();
         break;
-    case 'T':
+    case FUJICMD_TRANSLATION:
         sio_set_translation();
         break;
-    case 'Z':
+    case FUJICMD_TIMER:
         sio_set_timer_rate();
         break;
-    case 0xFB: // JSON parameter wrangling
+    case FUJICMD_SET_SSID: // JSON parameter wrangling
         sio_set_json_parameters();
         break;
-    case 0xFC: // SET CHANNEL MODE
+    case FUJICMD_GET_SCAN_RESULT: // SET CHANNEL MODE
         sio_set_channel_mode();
         break;
     default:
-        if (protocol->special_00(&cmdFrame) == false)
+        if (protocol->special_00((fujiCommandID_t) cmdFrame.comnd, cmdFrame.aux2) == false)
             sio_complete();
         else
             sio_error();
@@ -854,7 +857,7 @@ void sioNetwork::sio_special_40()
 
     bus_to_computer((uint8_t *)receiveBuffer->data(),
                     SPECIAL_BUFFER_SIZE,
-                    protocol->special_40((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, &cmdFrame));
+                    protocol->special_40((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, (fujiCommandID_t) cmdFrame.comnd));
 }
 
 /**
@@ -903,7 +906,7 @@ void sioNetwork::sio_special_80()
 #endif
 
     // Do protocol action and return
-    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
+    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, (fujiCommandID_t) cmdFrame.comnd) == false)
         sio_complete();
     else
         sio_error();
@@ -973,7 +976,7 @@ void sioNetwork::sio_poll_interrupt()
         protocol->status(&status);
         protocol->fromInterrupt = false;
 
-        if (status.rxBytesWaiting > 0 || status.connected == 0)
+        if (protocol->available() > 0 || status.connected == 0)
             sio_assert_interrupt();
 #ifndef ESP_PLATFORM
         else
@@ -1315,7 +1318,7 @@ void sioNetwork::sio_do_idempotent_command_80()
         return;
     }
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) == true)
+    if (protocol->perform_idempotent_80(urlParser.get(), (fujiCommandID_t) cmdFrame.comnd) == true)
     {
         Debug_printf("perform_idempotent_80 failed\n");
         sio_error();

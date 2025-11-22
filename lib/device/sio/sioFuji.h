@@ -3,11 +3,13 @@
 
 #include "fujiDevice.h"
 #include "cassette.h"
+#include "../../qrcode/qrmanager.h"
 
 class sioFuji : public fujiDevice
 {
 private:
     sioCassette _cassetteDev;
+    QRManager _qrManager = QRManager();
 
 protected:
     void transaction_complete() override { sio_complete(); }
@@ -18,9 +20,11 @@ protected:
             return false;
         return true;
     }
-    void transaction_put(void *data, size_t len, bool err) override {
+    void transaction_put(const void *data, size_t len, bool err) override {
         bus_to_computer((uint8_t *) data, len, err);
     }
+
+    size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen) override;
 
     void sio_net_set_ssid();           // 0xFB
     void sio_read_directory_block();   // 0xF6
@@ -64,5 +68,7 @@ public:
     void debug_tape();
     sioCassette *cassette() { return &_cassetteDev; };
 };
+
+extern sioFuji platformFuji;
 
 #endif // SIOFUJI_H

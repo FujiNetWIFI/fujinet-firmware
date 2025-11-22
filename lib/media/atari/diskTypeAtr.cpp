@@ -13,6 +13,7 @@
 #include "fnSystem.h"
 
 #include "utils.h"
+#include "endianness.h"
 
 #define ATR_MAGIC_HEADER 0x0296 // Sum of 'NICKATARI'
 

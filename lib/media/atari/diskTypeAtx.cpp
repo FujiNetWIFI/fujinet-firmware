@@ -22,7 +22,7 @@
 #include "fnSystem.h"
 
 #include "utils.h"
-
+#include "endianness.h"
 
 #define ATX_MAGIC_HEADER 0x41543858 // "AT8X"
 #define ATX_DEFAULT_NUMTRACKS 40
@@ -39,7 +39,7 @@
 */
 /*
  Frequency with which to update the angular position counter.
- Counter is updated every 
+ Counter is updated every
  US_ANGULAR_UNIT_TIME * ANGULAR_POSITION_UPDATE_FREQ microseconds.
  ANGULAR_POSITION_UPDATE_FREQ must be at least '8' (updates every
  8*8 = 64 microseconds) because the ESP timer fucntion won't allow
@@ -523,7 +523,7 @@ bool MediaTypeATX::_load_atx_chunk_sector_data(chunk_header_t &chunk_hdr, AtxTra
     // Skip if there's nothing to do
     if (data_size == 0)
         return true;
-    
+
     // Attempt to the sector data
 #ifdef ESP_PLATFORM
     track.data = (uint8_t *)heap_caps_malloc(data_size * sizeof(uint8_t), MALLOC_CAP_DEFAULT);
@@ -846,7 +846,7 @@ bool MediaTypeATX::_load_atx_data(atx_header_t &atx_hdr)
     return true;
 }
 
-/* 
+/*
  Mount ATX disk
  Header layout details from:
  http://a8preservation.com/#/guides/atx
@@ -921,7 +921,7 @@ mediatype_t MediaTypeATX::mount(fnFile *f, uint32_t disksize)
 #ifdef ESP_PLATFORM
     Debug_printv("Heap free: %lu",esp_get_free_internal_heap_size());
 #endif
-    
+
     return _disktype = MEDIATYPE_ATX;
 }
 
