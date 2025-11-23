@@ -48,7 +48,7 @@ public:
     /**
      * Check to see if PROCEED needs to be asserted.
      */
-    void poll_interrupt();
+    bool poll_interrupt();
 
     /**
      * @brief Ready?

@@ -186,4 +186,6 @@ public:
     drivewireFuji();
 };
 
+extern drivewireFuji platformFuji;
+
 #endif // DRIVEWIREFUJI_H
