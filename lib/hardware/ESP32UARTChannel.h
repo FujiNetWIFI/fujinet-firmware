@@ -42,12 +42,36 @@ struct ChannelConfig
     uint32_t read_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
     uint32_t discard_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
     RS232ControlPins pins = {
+#ifdef PIN_RS232_RTS
         .rts = PIN_RS232_RTS,
+#else /* ! PIN_RS232_RTS */
+        .rts = -1,
+#endif /* PIN_RS232_RTS */
+#ifdef PIN_RS232_CTS
         .cts = PIN_RS232_CTS,
+#else /* ! PIN_RS232_CTS */
+        .cts = -1,
+#endif /* PIN_RS232_CTS */
+#ifdef PIN_RS232_DTR
         .dtr = PIN_RS232_DTR,
+#else /* ! PIN_RS232_DTR */
+        .dtr = -1,
+#endif /* PIN_RS232_DTR */
+#ifdef PIN_RS232_DSR
         .dsr = PIN_RS232_DSR,
+#else /* ! PIN_RS232_DSR */
+        .dsr = -1,
+#endif /* PIN_RS232_DSR */
+#ifdef PIN_RS232_DCD
         .dcd = PIN_RS232_DCD,
+#else /* ! PIN_RS232_DCD */
+        .dcd = -1,
+#endif /* PIN_RS232_DCD */
+#ifdef PIN_RS232_RI
         .ri = PIN_RS232_RI,
+#else /* ! PIN_RS232_RI */
+        .ri = -1,
+#endif /* PIN_RS232_RI */
     };
 
     ChannelConfig& baud(int baud) {
