@@ -782,6 +782,7 @@ void systemBus::setup()
 
     if (Config.get_boip_enabled())
     {
+        _becker.setHost(Config.get_boip_host(), Config.get_boip_port());
         _becker.begin(Config.get_boip_host(), _drivewireBaud);
         _port = &_becker;
     }
