@@ -171,7 +171,7 @@ void mgHttpClient::load_system_certs_windows() {
             concatenatedPEM.append(pemData.begin(), pemData.end());
         }
 
-        ca.buf = concatenatedPEM.c_str();
+        ca.buf = concatenatedPEM.data();
         ca.len = concatenatedPEM.length();
     }
     else {
