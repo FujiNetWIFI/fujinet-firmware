@@ -196,15 +196,15 @@ void mgHttpClient::load_system_certs_unix() {
     if (tempCa.len == 0) {
         Debug_printf("WARNING: could not find system certificate file, falling back to local file.\n");
         // If the initial load fails, try the fallback file
-        if (tempCa.ptr != NULL) {
-            free((void*)tempCa.ptr); // Free the memory if it was allocated
+        if (tempCa.buf != NULL) {
+            free((void*)tempCa.buf); // Free the memory if it was allocated
         }
         tempCa = mg_file_read(&mg_fs_posix, "data/ca.pem");
     }
 
-    if (tempCa.ptr != NULL) {
+    if (tempCa.buf != NULL) {
         // Process the certificate data
-        std::string certData(tempCa.ptr, tempCa.len);
+        std::string certData(tempCa.buf, tempCa.len);
         std::istringstream certStream(certData);
         std::string line;
         bool inCertBlock = false;
@@ -223,11 +223,11 @@ void mgHttpClient::load_system_certs_unix() {
         }
 
         // Free the memory allocated by mg_file_read
-        free((void*)tempCa.ptr);
+        free((void*)tempCa.buf);
     }
 
     // Update 'ca' to point to the processed certificates stored in 'certDataStorage'
-    ca.ptr = certDataStorage.c_str();
+    ca.buf = certDataStorage.data();
     ca.len = certDataStorage.length();
 
     Debug_printf("System certificates loaded, count: %d\n", cert_count);
@@ -247,7 +247,7 @@ bool mgHttpClient::begin(std::string url)
 
     _post_data = nullptr;
     _post_datalen = 0;
-    
+
     _handle.reset(new mg_mgr());
     if (_handle == nullptr)
         return false;
@@ -297,7 +297,7 @@ int mgHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
             _buffer_str.erase(0, bytes_to_copy);
             bytes_copied += bytes_to_copy;
         }
-        else 
+        else
         {
             // If we have no data, try to get some
             if (!_transaction_done)
@@ -335,7 +335,7 @@ void mgHttpClient::close()
 
 const char* mgHttpClient::method_to_string(HttpMethod method)
 {
-    switch (method) 
+    switch (method)
     {
         case HTTP_GET: return "GET";
         case HTTP_PUT: return "PUT";
@@ -364,8 +364,8 @@ void mgHttpClient::handle_connect(struct mg_connection *c)
     {
         // struct mg_str key_data = mg_file_read(&mg_fs_posix, "tls/private-key.pem");
         struct mg_tls_opts opts = {};
-#ifdef SKIP_SERVER_CERT_VERIFY                
-        opts.ca.ptr = nullptr; // disable certificate checking 
+#ifdef SKIP_SERVER_CERT_VERIFY
+        opts.ca.ptr = nullptr; // disable certificate checking
 #else
         // certificates are loaded on initialization of the client in cross platform way.
         opts.ca = ca;
@@ -386,8 +386,8 @@ void mgHttpClient::handle_connect(struct mg_connection *c)
     {
         struct mg_str u = mg_url_user(url);
         struct mg_str p = mg_url_pass(url);
-        _username = std::string(u.ptr, u.len);
-        _password = std::string(p.ptr, p.len);
+        _username = std::string(u.buf, u.len);
+        _password = std::string(p.buf, p.len);
     }
 
     // Send request
@@ -408,7 +408,7 @@ void mgHttpClient::handle_connect(struct mg_connection *c)
             mg_printf(c, "%s %s HTTP/1.1\r\n"
                             "Host: %.*s\r\n"
                             "Connection: close\r\n",
-                            method_str, mg_url_uri(url), (int)host.len, host.ptr);
+                            method_str, mg_url_uri(url), (int)host.len, host.buf);
 
             // send auth header
             if (!_username.empty())
@@ -465,7 +465,7 @@ void mgHttpClient::handle_read(struct mg_connection *c)
         // Waiting for all headers to arrive
         struct mg_http_message hm;
         int hdrs_len = mg_http_parse((char *) c->recv.buf, c->recv.len, &hm);
-        if (hdrs_len < 0) 
+        if (hdrs_len < 0)
         {
             Debug_println("mgHttpClient: Bad response");
             c->is_draining = 1;
@@ -479,7 +479,7 @@ void mgHttpClient::handle_read(struct mg_connection *c)
             Debug_println("  need more data");
         }
 #endif
-        if (hdrs_len > 0) 
+        if (hdrs_len > 0)
         {
             // We received all headers
             process_response_headers(c, hm, hdrs_len);
@@ -501,18 +501,18 @@ void mgHttpClient::process_response_headers(struct mg_connection *c, struct mg_h
     _content_length = (int)hm.body.len;
     struct mg_str *te;
 
-    if ((te = mg_http_get_header(&hm, "Transfer-Encoding")) != nullptr) 
+    if ((te = mg_http_get_header(&hm, "Transfer-Encoding")) != nullptr)
     {
-        if (mg_vcasecmp(te, "chunked") == 0) 
+        if (mg_casecmp(te->buf, "chunked") == 0)
         {
             _is_chunked = true;
         }
-        else 
+        else
         {
             Debug_println("mgHttpClient: Invalid Transfer-Encoding");
         }
     }
-    else 
+    else
     {
         if (_status_code >= 200 && _status_code != 204 && _status_code != 304 && mg_http_get_header(&hm, "Content-length") == nullptr)
         {
@@ -533,13 +533,13 @@ void mgHttpClient::process_response_headers(struct mg_connection *c, struct mg_h
     {
         struct mg_str *loc = mg_http_get_header(&hm, "Location");
         if (loc != nullptr)
-            _location = std::string(loc->ptr, loc->len);
+            _location = std::string(loc->buf, loc->len);
     }
     // Store response headers client is interested in, if any
     else if (_stored_headers.size() > 0)
     {
         size_t max_headers = sizeof(hm.headers) / sizeof(hm.headers[0]);
-        for (int i = 0; i < max_headers && hm.headers[i].name.len > 0; i++) 
+        for (int i = 0; i < max_headers && hm.headers[i].name.len > 0; i++)
         {
             set_header_value(&hm.headers[i].name, &hm.headers[i].value);
         }
@@ -558,14 +558,14 @@ void mgHttpClient::process_response_headers(struct mg_connection *c, struct mg_h
 }
 
 // from mongoose.c
-static bool is_hex_digit(int c) 
+static bool is_hex_digit(int c)
 {
     return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
            (c >= 'A' && c <= 'F');
 }
 
 // from mongoose.c
-static int skip_chunk(const char *buf, int len, int *pl, int *dl) 
+static int skip_chunk(const char *buf, int len, int *pl, int *dl)
 {
     int i = 0, n = 0;
     if (len < 3) return 0;
@@ -573,14 +573,14 @@ static int skip_chunk(const char *buf, int len, int *pl, int *dl)
     if (i == 0) return -1;                     // Error, no length specified
     if (i > (int) sizeof(int) * 2) return -1;  // Chunk length is too big
     if (len < i + 1 || buf[i] != '\r' || buf[i + 1] != '\n') return -1;  // Error
-    n = (int) mg_unhexn(buf, (size_t) i);  // Decode chunk length
+    n = (int) strtoul(buf, NULL, 16);  // Decode chunk length
     if (n < 0) return -1;                  // Error
     if (n > len - i - 4) return 0;         // Chunk not yet fully buffered
     if (buf[i + n + 2] != '\r' || buf[i + n + 3] != '\n') return -1;  // Error
     *pl = i + 2, *dl = n;
     return i + 2 + n + 2;
 }
-  
+
 void mgHttpClient::process_body_data(struct mg_connection *c, char *data, int len)
 {
 #ifdef VERBOSE_HTTP
@@ -614,7 +614,7 @@ void mgHttpClient::process_body_data(struct mg_connection *c, char *data, int le
             }
             _processed = true; // stop polling, data is available in _buffer_str
         }
-        if (cl < 0) 
+        if (cl < 0)
         {
             Debug_println("mgHttpClient: Invalid chunk");
             c->is_draining = 1;
@@ -666,7 +666,7 @@ void report_unhandled(int ev)
 
 /*
  Typical event order:
- 
+
  HTTP_EVENT_HANDLER_ON_CONNECTED
  HTTP_EVENT_HEADERS_SENT
  HTTP_EVENT_ON_HEADER - once for each header received with header_key and header_value set
@@ -681,7 +681,7 @@ void mgHttpClient::_httpevent_handler(struct mg_connection *c, int ev, void *ev_
     // // Our user_data should be a pointer to our mgHttpClient object
     mgHttpClient *client = (mgHttpClient *)c->fn_data;
     bool progress = true;
-    
+
     switch (ev)
     {
     case MG_EV_CONNECT:
@@ -698,17 +698,17 @@ void mgHttpClient::_httpevent_handler(struct mg_connection *c, int ev, void *ev_
 #endif
         client->_transaction_done = true;
         break;
-    
+
     case MG_EV_ERROR:
         Debug_printf("mgHttpClient: Error - %s\n", (const char*)ev_data);
         client->_transaction_done = true;
         client->_status_code = 901; // Fake HTTP status code to indicate connection error
         break;
-    
+
     case MG_EV_POLL:
         progress = false;
         break;
-    
+
     default:
         report_unhandled(ev);
         break;
@@ -772,7 +772,7 @@ void mgHttpClient::_perform_connect()
         _status_code = 900; // Fake HTTP status code to indicate general error
         return;
     }
-    
+
     mg_connect(_handle.get(), _url.c_str(), _httpevent_handler, this);  // Create client connection
 }
 
@@ -792,7 +792,7 @@ void mgHttpClient::_perform_fetch()
     while (true)
     {
         mg_mgr_poll(_handle.get(), 50);
-        
+
         if (_processed || _transaction_done)
             break; // header and/or body data processed, or transaction done
 
@@ -802,7 +802,7 @@ void mgHttpClient::_perform_fetch()
             _progressed = false;
             ms_update = fnSystem.millis();
         }
-        else if ((fnSystem.millis() - ms_update) > HTTP_CLIENT_TIMEOUT) 
+        else if ((fnSystem.millis() - ms_update) > HTTP_CLIENT_TIMEOUT)
         {
             // No progress, timeout
             Debug_printf("Timed-out waiting for HTTP data\n");
@@ -895,7 +895,7 @@ int mgHttpClient::PROPFIND(webdav_depth depth, const char *properties_xml)
     set_header("Depth", pDepth);
 
     // Set the content of the body
-    if (properties_xml != nullptr) 
+    if (properties_xml != nullptr)
         set_post_data(properties_xml, strlen(properties_xml));
 
     return _perform();
@@ -1112,11 +1112,11 @@ void mgHttpClient::create_empty_stored_headers(const std::vector<std::string>& h
 // Sets the header's value in the map if found (case insensitive)
 void mgHttpClient::set_header_value(const struct mg_str *name, const struct mg_str *value)
 {
-    std::string hkey = util_tolower(std::string(name->ptr, name->len));
+    std::string hkey = util_tolower(std::string(name->buf, name->len));
     header_map_t::iterator it = _stored_headers.find(hkey);
     if (it != _stored_headers.end())
     {
-        std::string hval(std::string(value->ptr, value->len));
+        std::string hval(std::string(value->buf, value->len));
         it->second = hval;
     }
 }
