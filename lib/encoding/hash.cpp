@@ -3,6 +3,9 @@
 
 #include "hash.h"
 #include <mbedtls/version.h>
+#if MBEDTLS_VERSION_MAJOR >= 4
+#include <psa/crypto.h>
+#endif /* MBEDTLS_VERSION_MAJOR >= 4 */
 
 Hash hasher;
 
@@ -104,105 +107,75 @@ std::string Hash::output_hex() const {
 }
 
 void Hash::compute_sha1() {
+    hash_output.resize(20);
+
+#if MBEDTLS_VERSION_MAJOR >= 4
+    psa_hash_operation_t ctx = PSA_HASH_OPERATION_INIT;
+    psa_status_t status = psa_crypto_init();
+    size_t hash_length;
+    if (status == PSA_SUCCESS) status = psa_hash_setup(&ctx, PSA_ALG_SHA_1);
+    if (status == PSA_SUCCESS) status = psa_hash_update(&ctx, accumulated_data.data(), accumulated_data.size());
+    if (status == PSA_SUCCESS) status = psa_hash_finish(&ctx, hash_output.data(), hash_output.size(), &hash_length);
+    psa_hash_abort(&ctx);
+    if (status != PSA_SUCCESS) { /* Handle error */ return; }
+
+#else
     mbedtls_sha1_context ctx;
     mbedtls_sha1_init(&ctx);
-    
-    hash_output.resize(20);
-    
-#if MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
     int err = 0;
-
-    // Use newer API that returns status code
-    if ((err = mbedtls_sha1_starts_ret(&ctx)) != 0) {
-        mbedtls_sha1_free(&ctx);
-        return; // Handle error appropriately
-    }
-    
-    if ((err = mbedtls_sha1_update_ret(&ctx, accumulated_data.data(), accumulated_data.size())) != 0) {
-        mbedtls_sha1_free(&ctx);
-        return; // Handle error appropriately
-    }
-    
-    if ((err = mbedtls_sha1_finish_ret(&ctx, hash_output.data())) != 0) {
-        mbedtls_sha1_free(&ctx);
-        return; // Handle error appropriately
-    }
-#else
-    // Use legacy API
-    mbedtls_sha1_starts(&ctx);
-    mbedtls_sha1_update(&ctx, accumulated_data.data(), accumulated_data.size());
-    mbedtls_sha1_finish(&ctx, hash_output.data());
-#endif
-    
+    if ((err = mbedtls_sha1_starts_ret(&ctx)) != 0) { mbedtls_sha1_free(&ctx); return; }
+    if ((err = mbedtls_sha1_update_ret(&ctx, accumulated_data.data(), accumulated_data.size())) != 0) { mbedtls_sha1_free(&ctx); return; }
+    if ((err = mbedtls_sha1_finish_ret(&ctx, hash_output.data())) != 0) { mbedtls_sha1_free(&ctx); return; }
     mbedtls_sha1_free(&ctx);
+#endif
 }
 
 void Hash::compute_sha256() {
+    hash_output.resize(32);
+
+#if MBEDTLS_VERSION_MAJOR >= 4
+    psa_hash_operation_t ctx = PSA_HASH_OPERATION_INIT;
+    psa_status_t status = psa_crypto_init();
+    size_t hash_length;
+    if (status == PSA_SUCCESS) status = psa_hash_setup(&ctx, PSA_ALG_SHA_256);
+    if (status == PSA_SUCCESS) status = psa_hash_update(&ctx, accumulated_data.data(), accumulated_data.size());
+    if (status == PSA_SUCCESS) status = psa_hash_finish(&ctx, hash_output.data(), hash_output.size(), &hash_length);
+    psa_hash_abort(&ctx);
+    if (status != PSA_SUCCESS) { /* Handle error */ return; }
+
+#else
     mbedtls_sha256_context ctx;
     mbedtls_sha256_init(&ctx);
-    
-    hash_output.resize(32);
-    
-#if MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
     int err = 0;
-
-    // Use newer API that returns status code
-    if ((err = mbedtls_sha256_starts_ret(&ctx, 0)) != 0) {
-        mbedtls_sha256_free(&ctx);
-        return; // Handle error appropriately
-    }
-    
-    if ((err = mbedtls_sha256_update_ret(&ctx, accumulated_data.data(), accumulated_data.size())) != 0) {
-        mbedtls_sha256_free(&ctx);
-        return; // Handle error appropriately
-    }
-    
-    if ((err = mbedtls_sha256_finish_ret(&ctx, hash_output.data())) != 0) {
-        mbedtls_sha256_free(&ctx);
-        return; // Handle error appropriately
-    }
-#else
-    // Use legacy API
-    mbedtls_sha256_starts(&ctx, 0);
-    mbedtls_sha256_update(&ctx, accumulated_data.data(), accumulated_data.size());
-    mbedtls_sha256_finish(&ctx, hash_output.data());
-#endif
-    
+    if ((err = mbedtls_sha256_starts_ret(&ctx, 0)) != 0) { mbedtls_sha256_free(&ctx); return; }
+    if ((err = mbedtls_sha256_update_ret(&ctx, accumulated_data.data(), accumulated_data.size())) != 0) { mbedtls_sha256_free(&ctx); return; }
+    if ((err = mbedtls_sha256_finish_ret(&ctx, hash_output.data())) != 0) { mbedtls_sha256_free(&ctx); return; }
     mbedtls_sha256_free(&ctx);
+#endif
 }
 
 void Hash::compute_sha512() {
+    hash_output.resize(64);
+
+#if MBEDTLS_VERSION_MAJOR >= 4
+    psa_hash_operation_t ctx = PSA_HASH_OPERATION_INIT;
+    psa_status_t status = psa_crypto_init();
+    size_t hash_length;
+    if (status == PSA_SUCCESS) status = psa_hash_setup(&ctx, PSA_ALG_SHA_512);
+    if (status == PSA_SUCCESS) status = psa_hash_update(&ctx, accumulated_data.data(), accumulated_data.size());
+    if (status == PSA_SUCCESS) status = psa_hash_finish(&ctx, hash_output.data(), hash_output.size(), &hash_length);
+    psa_hash_abort(&ctx);
+    if (status != PSA_SUCCESS) { /* Handle error */ return; }
+
+#else
     mbedtls_sha512_context ctx;
     mbedtls_sha512_init(&ctx);
-    
-    hash_output.resize(64);
-    
-#if MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
     int err = 0;
-
-    // Use newer API that returns status code
-    if ((err = mbedtls_sha512_starts_ret(&ctx, 0)) != 0) {
-        mbedtls_sha512_free(&ctx);
-        return; // Handle error appropriately
-    }
-    
-    if ((err = mbedtls_sha512_update_ret(&ctx, accumulated_data.data(), accumulated_data.size())) != 0) {
-        mbedtls_sha512_free(&ctx);
-        return; // Handle error appropriately
-    }
-    
-    if ((err = mbedtls_sha512_finish_ret(&ctx, hash_output.data())) != 0) {
-        mbedtls_sha512_free(&ctx);
-        return; // Handle error appropriately
-    }
-#else
-    // Use legacy API
-    mbedtls_sha512_starts(&ctx, 0);
-    mbedtls_sha512_update(&ctx, accumulated_data.data(), accumulated_data.size());
-    mbedtls_sha512_finish(&ctx, hash_output.data());
-#endif
-    
+    if ((err = mbedtls_sha512_starts_ret(&ctx, 0)) != 0) { mbedtls_sha512_free(&ctx); return; }
+    if ((err = mbedtls_sha512_update_ret(&ctx, accumulated_data.data(), accumulated_data.size())) != 0) { mbedtls_sha512_free(&ctx); return; }
+    if ((err = mbedtls_sha512_finish_ret(&ctx, hash_output.data())) != 0) { mbedtls_sha512_free(&ctx); return; }
     mbedtls_sha512_free(&ctx);
+#endif
 }
 
 std::string Hash::bytes_to_hex(const std::vector<uint8_t>& bytes) const {

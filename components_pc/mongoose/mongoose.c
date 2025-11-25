@@ -14935,7 +14935,7 @@ void mg_tls_ctx_free(struct mg_mgr *mgr) {
 
 #if MG_TLS == MG_TLS_MBED
 
-#if defined(MBEDTLS_VERSION_NUMBER) && MBEDTLS_VERSION_NUMBER >= 0x03000000
+#if defined(MBEDTLS_VERSION_NUMBER) && MBEDTLS_VERSION_MAJOR >= 3 && MBEDTLS_VERSION_MAJOR < 4
 #define MG_MBEDTLS_RNG_GET , mg_mbed_rng, NULL
 #else
 #define MG_MBEDTLS_RNG_GET
@@ -15068,7 +15068,9 @@ void mg_tls_init(struct mg_connection *c, const struct mg_tls_opts *opts) {
     mg_error(c, "tls defaults %#x", -mg_tls_err(c, rc));
     goto fail;
   }
+#if MBEDTLS_VERSION_MAJOR < 4
   mbedtls_ssl_conf_rng(&tls->conf, mg_mbed_rng, c);
+#endif /* MBEDTLS_VERSION_MAJOR < 4 */
 
   if (opts->ca.len == 0 || mg_strcmp(opts->ca, mg_str("*")) == 0) {
     // NOTE: MBEDTLS_SSL_VERIFY_NONE is not supported for TLS1.3 on client side
@@ -15165,7 +15167,7 @@ void mg_tls_ctx_init(struct mg_mgr *mgr) {
   if (ctx == NULL) {
     MG_ERROR(("TLS context init OOM"));
   } else {
-#ifdef MBEDTLS_SSL_SESSION_TICKETS
+#if defined(MBEDTLS_SSL_SESSION_TICKETS) && MBEDTLS_VERSION_MAJOR < 4
     int rc;
     mbedtls_ssl_ticket_init(&ctx->tickets);
     if ((rc = mbedtls_ssl_ticket_setup(&ctx->tickets, mg_mbed_rng, NULL,
