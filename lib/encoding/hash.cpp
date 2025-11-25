@@ -107,9 +107,6 @@ std::string Hash::output_hex() const {
 }
 
 void Hash::compute_sha1() {
-    mbedtls_sha1_context ctx;
-    mbedtls_sha1_init(&ctx);
-
     hash_output.resize(20);
 
 #if MBEDTLS_VERSION_MAJOR >= 4
@@ -121,7 +118,11 @@ void Hash::compute_sha1() {
     if (status == PSA_SUCCESS) status = psa_hash_finish(&ctx, hash_output.data(), hash_output.size(), &hash_length);
     psa_hash_abort(&ctx);
     if (status != PSA_SUCCESS) { /* Handle error */ return; }
-#elif MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
+#else /* MBEDTLS_VERSION_MAJOR < 4 */
+    mbedtls_sha1_context ctx;
+    mbedtls_sha1_init(&ctx);
+
+#if MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
     int err = 0;
 
     // Use newer API that returns status code
@@ -147,12 +148,10 @@ void Hash::compute_sha1() {
 #endif
 
     mbedtls_sha1_free(&ctx);
+#endif /* MBEDTLS_VERSION_MAJOR >= 4 */
 }
 
 void Hash::compute_sha256() {
-    mbedtls_sha256_context ctx;
-    mbedtls_sha256_init(&ctx);
-
     hash_output.resize(32);
 
 #if MBEDTLS_VERSION_MAJOR >= 4
@@ -164,7 +163,11 @@ void Hash::compute_sha256() {
     if (status == PSA_SUCCESS) status = psa_hash_finish(&ctx, hash_output.data(), hash_output.size(), &hash_length);
     psa_hash_abort(&ctx);
     if (status != PSA_SUCCESS) { /* Handle error */ return; }
-#elif MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
+#else /* MBEDTLS_VERSION_MAJOR < 4 */
+    mbedtls_sha256_context ctx;
+    mbedtls_sha256_init(&ctx);
+
+#if MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
     int err = 0;
 
     // Use newer API that returns status code
@@ -190,12 +193,10 @@ void Hash::compute_sha256() {
 #endif
 
     mbedtls_sha256_free(&ctx);
+#endif /* MBEDTLS_VERSION_MAJOR >= 4 */
 }
 
 void Hash::compute_sha512() {
-    mbedtls_sha512_context ctx;
-    mbedtls_sha512_init(&ctx);
-
     hash_output.resize(64);
 
 #if MBEDTLS_VERSION_MAJOR >= 4
@@ -207,7 +208,11 @@ void Hash::compute_sha512() {
     if (status == PSA_SUCCESS) status = psa_hash_finish(&ctx, hash_output.data(), hash_output.size(), &hash_length);
     psa_hash_abort(&ctx);
     if (status != PSA_SUCCESS) { /* Handle error */ return; }
-#elif MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
+#else /* MBEDTLS_VERSION_MAJOR < 4 */
+    mbedtls_sha512_context ctx;
+    mbedtls_sha512_init(&ctx);
+
+#if MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
     int err = 0;
 
     // Use newer API that returns status code
@@ -233,6 +238,7 @@ void Hash::compute_sha512() {
 #endif
 
     mbedtls_sha512_free(&ctx);
+#endif /* MBEDTLS_VERSION_MAJOR >= 4 */
 }
 
 std::string Hash::bytes_to_hex(const std::vector<uint8_t>& bytes) const {
