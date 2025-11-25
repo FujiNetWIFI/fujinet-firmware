@@ -18,17 +18,7 @@
 
 #include "status_error_codes.h"
 #include "Protocol.h"
-#ifdef UNUSED
-#include "TCP.h"
-#include "UDP.h"
-#include "Test.h"
-#include "Telnet.h"
-#include "TNFS.h"
-#include "FTP.h"
-#include "HTTP.h"
-#include "SSH.h"
-#include "SMB.h"
-#endif /* UNUSED */
+#include "fujiDevice.h"
 #include "IOChannel.h" // for GET_TIMESTAMP()
 
 using namespace std;
@@ -144,7 +134,7 @@ void drivewireNetwork::open()
     protocol->setLineEnding("\x0D");
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), &cmdFrame) == true)
+    if (protocol->open(urlParser.get(), (netProtoOpenMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) == true)
     {
         ns.error = protocol->error;
         Debug_printf("Protocol unable to make connection. Error: %d\n", ns.error);
@@ -769,7 +759,7 @@ void drivewireNetwork::special_00()
         set_channel_mode();
         break;
     default:
-        protocol->special_00(&cmdFrame);
+        protocol->special_00((fujiCommandID_t) cmdFrame.comnd, cmdFrame.aux2);
     }
 
 }
@@ -845,7 +835,7 @@ void drivewireNetwork::special_80()
     }
 
     // Do protocol action and return
-    protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame);
+    protocol->special_80(spData, SPECIAL_BUFFER_SIZE, (fujiCommandID_t) cmdFrame.comnd);
 
     protocol->status(&ns);
 }
@@ -1131,7 +1121,7 @@ void drivewireNetwork::do_idempotent_command_80()
         return;
     }
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) == true)
+    if (protocol->perform_idempotent_80(urlParser.get(), (fujiCommandID_t) cmdFrame.comnd) == true)
     {
         Debug_printf("perform_idempotent_80 failed\n");
         // error();

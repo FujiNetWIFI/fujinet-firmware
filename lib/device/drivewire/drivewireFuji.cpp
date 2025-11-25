@@ -7,6 +7,7 @@
 #include "base64.h"
 #include "utils.h"
 #include "compat_string.h"
+#include "endianness.h"
 #include <endian.h>
 
 #ifdef UNUSED
@@ -2142,10 +2143,10 @@ void drivewireFuji::process()
         fujicmd_read_host_slots();
         break;
     case FUJICMD_READ_DEVICE_SLOTS:
-        fujicmd_read_device_slots(MAX_DW_DISK_DEVICES);
+        fujicmd_read_device_slots(MAX_DWDISK_DEVICES);
         break;
     case FUJICMD_WRITE_DEVICE_SLOTS:
-        fujicmd_write_device_slots(MAX_DW_DISK_DEVICES);
+        fujicmd_write_device_slots(MAX_DWDISK_DEVICES);
         break;
     case FUJICMD_WRITE_HOST_SLOTS:
         fujicmd_write_host_slots();
@@ -2164,7 +2165,7 @@ void drivewireFuji::process()
             uint8_t hostSlot = SYSTEM_BUS.read();
             char dirpath[256];
             transaction_get(dirpath, sizeof(dirpath));
-            fujicmd_open_directory_success(hostSlot, dirpath, sizeof(dirpath));
+            fujicmd_open_directory_success(hostSlot, std::string(dirpath, sizeof(dirpath)));
         }
         break;
     case FUJICMD_CLOSE_DIRECTORY:

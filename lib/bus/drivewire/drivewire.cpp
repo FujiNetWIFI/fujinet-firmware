@@ -3,6 +3,7 @@
 #include <queue>
 
 #include "drivewire.h"
+#include "drivewire/drivewireFuji.h"
 
 #include "../../include/debug.h"
 
@@ -183,7 +184,7 @@ void systemBus::op_readex()
     Debug_printf("OP_READ: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
 
         if (theFuji->boot_config && drive_num == 0)
-            d = theFuji->bootdisk();
+            d = &theFuji->bootdisk;
         else
             d = &theFuji->get_disk(drive_num)->disk_dev;
 
@@ -333,7 +334,7 @@ void systemBus::op_write()
 
 void systemBus::op_fuji()
 {
-    theFuji->process();
+    platformFuji.process();
 }
 
 void systemBus::op_cpm()
@@ -676,7 +677,8 @@ void systemBus::service()
                 break;
             }
         }
-        _port->setDSR(!hasUpdate);
+        if (!isBoIP())
+            _serial.setDSR(!hasUpdate);
     }
 
     if (_port->available())
@@ -780,6 +782,7 @@ void systemBus::setup()
 
     if (Config.get_boip_enabled())
     {
+        _becker.setHost(Config.get_boip_host(), Config.get_boip_port());
         _becker.begin(Config.get_boip_host(), _drivewireBaud);
         _port = &_becker;
     }
