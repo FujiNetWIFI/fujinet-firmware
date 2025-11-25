@@ -26,7 +26,7 @@ The code sample below achieves these tasks:
 @code
 int shell_session(ssh_session session)
 {
-  ssh_channel channel;
+  ssh_channel channel = NULL;
   int rc;
 
   channel = ssh_channel_new(session);
@@ -65,8 +65,17 @@ to as a "pty", for "pseudo-teletype". The remote processes won't see the
 difference with a real text-oriented terminal.
 
 If needed, you request the pty with the function ssh_channel_request_pty().
-Then you define its dimensions (number of rows and columns)
-with ssh_channel_change_pty_size().
+If you want define its dimensions (number of rows and columns),
+call ssh_channel_request_pty_size() instead. It's also possible to change
+the dimensions after creating the pty with ssh_channel_change_pty_size().
+
+These two functions configure the pty using the same terminal modes that
+stdin has. If stdin isn't a TTY, they use default modes that configure
+the pty with in canonical mode and e.g. preserving CR and LF characters.
+If you want to change the terminal modes used by the pty (e.g. to change
+CRLF handling), use ssh_channel_request_pty_size_modes(). This function
+accepts an additional "modes" buffer that is expected to contain encoded
+terminal modes according to RFC 4254 section 8.
 
 Be your session interactive or not, the next step is to request a
 shell with ssh_channel_request_shell().

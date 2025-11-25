@@ -11,7 +11,11 @@
 
 // TODO: Replace MD5 with some simple non-crypto hash function producing 128+ bit hash ...
 #include <mbedtls/version.h>
+#if MBEDTLS_VERSION_MAJOR >= 4
+#include <psa/crypto.h>
+#else /* MBEDTLS_VERSION_MAJOR < 4 */
 #include <mbedtls/md5.h>
+#endif /* MBEDTLS_VERSION_MAJOR >= 4 */
 
 #include "../../include/debug.h"
 
@@ -36,17 +40,17 @@
 
 static const std::string BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
-static std::string encode_base32(const std::string& data) 
+static std::string encode_base32(const std::string& data)
 {
     std::string binary_string;
-    for (char c : data) 
+    for (char c : data)
     {
         binary_string += std::bitset<8>(c).to_string();
     }
     int padding = binary_string.length() % 5;
     if (padding != 0) binary_string.append(5 - padding, '0');
     std::string encoded;
-    for (size_t i = 0; i < binary_string.length(); i += 5) 
+    for (size_t i = 0; i < binary_string.length(); i += 5)
     {
         encoded += BASE32_ALPHABET[std::stoi(binary_string.substr(i, 5), nullptr, 2)];
     }
@@ -62,7 +66,31 @@ static std::string encode_host_path(const char *host, const char *path)
     unsigned char md5_result[16];
     std::string result;
     // host part
-#if MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
+#if MBEDTLS_VERSION_MAJOR >= 4
+    // Code for Mbed TLS 4.0 and newer using PSA Crypto API
+    psa_status_t status;
+    size_t hash_length;
+    unsigned char psa_md5_output[16]; // MD5 is always 16 bytes
+
+    // Initialize PSA Crypto library (safe to call multiple times)
+    psa_crypto_init();
+
+    status = psa_hash_compute(
+        PSA_ALG_MD5,
+        (const unsigned char *)host,
+        strlen(host),
+        psa_md5_output,
+        sizeof(psa_md5_output),
+        &hash_length
+    );
+
+    if (status != PSA_SUCCESS || hash_length != 16) {
+        Debug_printf("psa_hash_compute (host) failed with status %d or length %zu\n", status, hash_length);
+        // Handle error as appropriate for your application
+    }
+    memcpy(md5_result, psa_md5_output, 16);
+
+#elif MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
     int err = mbedtls_md5_ret((const unsigned char *)host, strlen(host), md5_result);
     if (err != 0) {
         Debug_printf("mbedtls_md5_ret failed with error code %d\n", err);
@@ -72,7 +100,26 @@ static std::string encode_host_path(const char *host, const char *path)
 #endif
     result = encode_base32(std::string((char *)md5_result, 5)) + '-';
     // path part
-#if MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
+#if MBEDTLS_VERSION_MAJOR >= 4
+    // Code for Mbed TLS 4.0 and newer using PSA Crypto API
+    // (psa_crypto_init() is already called)
+
+    status = psa_hash_compute(
+        PSA_ALG_MD5,
+        (const unsigned char *)path,
+        strlen(path),
+        psa_md5_output,
+        sizeof(psa_md5_output),
+        &hash_length
+    );
+
+    if (status != PSA_SUCCESS || hash_length != 16) {
+        Debug_printf("psa_hash_compute (path) failed with status %d or length %zu\n", status, hash_length);
+        // Handle error as appropriate for your application
+    }
+    memcpy(md5_result, psa_md5_output, 16);
+
+#elif MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
     err = mbedtls_md5_ret((const unsigned char *)path, strlen(path), md5_result);
     if (err != 0) {
         Debug_printf("mbedtls_md5_ret failed with error code %d\n", err);
@@ -103,7 +150,7 @@ FileHandler *FileCache::open(const char *host, const char *path, const char *mod
 #ifdef ESP_PLATFORM
     gettimeofday(&now, nullptr);
 #else
-	compat_gettimeofday(&now, nullptr);
+        compat_gettimeofday(&now, nullptr);
 #endif
     if (now.tv_sec - fnSDFAT.mtime(cache_path.c_str()) < CACHE_FILE_MAX_AGE)
     {

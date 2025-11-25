@@ -26,9 +26,9 @@ program.
 #define BUF_SIZE 16384
 #endif
 
-static char **sources;
+static char **sources = NULL;
 static int nsources;
-static char *destination;
+static char *destination = NULL;
 static int verbosity = 0;
 
 struct location {
@@ -114,9 +114,10 @@ static void location_free(struct location *loc)
     }
 }
 
-static struct location *parse_location(char *loc) {
-    struct location *location;
-    char *ptr;
+static struct location *parse_location(char *loc)
+{
+    struct location *location = NULL;
+    char *ptr = NULL;
 
     location = malloc(sizeof(struct location));
     if (location == NULL) {
@@ -229,11 +230,11 @@ static int open_location(struct location *loc, int flag) {
             return -1;
         }
         return 0;
-    } else {
+    } else if (loc->path != NULL) {
         loc->file = fopen(loc->path, flag == READ ? "r":"w");
         if (!loc->file) {
             if (errno == EISDIR) {
-                if (loc->path != NULL && chdir(loc->path)) {
+                if (chdir(loc->path)) {
                     fprintf(stderr,
                             "Error changing directory to %s: %s\n",
                             loc->path, strerror(errno));

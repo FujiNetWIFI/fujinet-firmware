@@ -27,6 +27,7 @@ int main(int argc, char **argv)
     const char *banner = NULL;
     ssh_session session = NULL;
     const char *hostkeys = NULL;
+    const char *kex = NULL;
     int rc = 1;
 
     bool process_config = false;
@@ -60,9 +61,16 @@ int main(int argc, char **argv)
         goto out;
     }
 
-    /* Enable all supported algorithms (including DSA) */
+    /* Enable all supported algorithms */
     hostkeys = ssh_kex_get_supported_method(SSH_HOSTKEYS);
     rc = ssh_options_set(session, SSH_OPTIONS_HOSTKEYS, hostkeys);
+    if (rc < 0) {
+        goto out;
+    }
+
+    /* Enable all supported kex algorithms */
+    kex = ssh_kex_get_supported_method(SSH_KEX);
+    rc = ssh_options_set(session, SSH_OPTIONS_KEY_EXCHANGE, kex);
     if (rc < 0) {
         goto out;
     }

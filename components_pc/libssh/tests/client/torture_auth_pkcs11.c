@@ -39,9 +39,8 @@
 #define LIBSSH_ECDSA_256_TESTKEY  "id_pkcs11_ecdsa_256"
 #define LIBSSH_ECDSA_384_TESTKEY  "id_pkcs11_ecdsa_384"
 #define LIBSSH_ECDSA_521_TESTKEY  "id_pkcs11_ecdsa_521"
-#define SOFTHSM_CONF "softhsm.conf"
 
-const char template[] = "temp_dir_XXXXXX";
+const char template[] = "/tmp/temp_dir_XXXXXX";
 
 struct pki_st {
     char *temp_dir;
@@ -104,12 +103,12 @@ static int session_teardown(void **state)
 
     return 0;
 }
-static int setup_session(void **state)
+
+static int setup_pkcs11(void **state)
 {
     struct torture_state *s = *state;
     struct pki_st *test_state = NULL;
     int rc;
-    char conf_path[1024] = {0};
     char keys_dir[1024] = {0};
     char *temp_dir;
 
@@ -118,7 +117,7 @@ static int setup_session(void **state)
 
     s->private_data = test_state;
 
-    test_state->orig_dir = strdup(torture_get_current_working_dir());
+    test_state->orig_dir = torture_get_current_working_dir();
     assert_non_null(test_state->orig_dir);
 
     temp_dir = torture_make_temp_dir(template);
@@ -127,15 +126,12 @@ static int setup_session(void **state)
     rc = torture_change_dir(temp_dir);
     assert_int_equal(rc, 0);
 
-    test_state->temp_dir = strdup(torture_get_current_working_dir());
+    test_state->temp_dir = torture_get_current_working_dir();
     assert_non_null(test_state->temp_dir);
 
     snprintf(keys_dir, sizeof(keys_dir), "%s/tests/keys/pkcs11/", SOURCEDIR);
 
     test_state->keys_dir = strdup(keys_dir);
-
-    snprintf(conf_path, sizeof(conf_path), "%s/softhsm.conf", test_state->temp_dir);
-    setenv("SOFTHSM2_CONF", conf_path, 1);
 
     setup_tokens(state, LIBSSH_RSA_TESTKEY, "rsa");
     setup_tokens(state, LIBSSH_ECDSA_256_TESTKEY, "ecdsa256");
@@ -149,7 +145,7 @@ static int sshd_setup(void **state)
 {
 
     torture_setup_sshd_server(state, true);
-    setup_session(state);
+    setup_pkcs11(state);
 
     return 0;
 }
@@ -160,18 +156,20 @@ static int sshd_teardown(void **state) {
     struct pki_st *test_state = s->private_data;
     int rc;
 
-    unsetenv("SOFTHSM2_CONF");
+    if (test_state != NULL) {
+        torture_cleanup_tokens(test_state->temp_dir);
 
-    rc = torture_change_dir(test_state->orig_dir);
-    assert_int_equal(rc, 0);
+        rc = torture_change_dir(test_state->orig_dir);
+        assert_int_equal(rc, 0);
 
-    rc = torture_rmdirs(test_state->temp_dir);
-    assert_int_equal(rc, 0);
+        rc = torture_rmdirs(test_state->temp_dir);
+        assert_int_equal(rc, 0);
 
-    SAFE_FREE(test_state->temp_dir);
-    SAFE_FREE(test_state->orig_dir);
-    SAFE_FREE(test_state->keys_dir);
-    SAFE_FREE(test_state);
+        SAFE_FREE(test_state->temp_dir);
+        SAFE_FREE(test_state->orig_dir);
+        SAFE_FREE(test_state->keys_dir);
+        SAFE_FREE(test_state);
+    }
 
     torture_teardown_sshd_server(state);
 
@@ -182,13 +180,10 @@ static void torture_auth_autopubkey(void **state, const char *obj_name, const ch
     struct torture_state *s = *state;
     ssh_session session = s->ssh.session;
     int rc;
-    int verbosity = 4;
     char priv_uri[1042];
+
     /* Authenticate as charlie with bob his pubkey */
     rc = ssh_options_set(session, SSH_OPTIONS_USER, TORTURE_SSH_USER_CHARLIE);
-    assert_int_equal(rc, SSH_OK);
-
-    rc = ssh_options_set(session, SSH_OPTIONS_LOG_VERBOSITY, &verbosity);
     assert_int_equal(rc, SSH_OK);
 
     snprintf(priv_uri, sizeof(priv_uri), "pkcs11:token=%s;object=%s;type=private?pin-value=%s",
@@ -245,9 +240,14 @@ int torture_run_tests(void) {
                                         session_teardown),
     };
 
-    ssh_session session = ssh_new();
-    int verbosity = SSH_LOG_FUNCTIONS;
-    ssh_options_set(session, SSH_OPTIONS_LOG_VERBOSITY, &verbosity);
+    /* Do not use system openssl.cnf for the pkcs11 uri tests.
+     * It can load a pkcs11 provider too early before we will set up environment
+     * variables that are needed for the pkcs11 provider to access correct
+     * tokens, causing unexpected failures.
+     * Make sure this comes before ssh_init(), which initializes OpenSSL!
+     */
+    setenv("OPENSSL_CONF", "/dev/null", 1);
+
     ssh_init();
     torture_filter_tests(tests);
     rc = cmocka_run_group_tests(tests, sshd_setup, sshd_teardown);

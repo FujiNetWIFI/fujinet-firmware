@@ -100,7 +100,7 @@ used to retrieve google's home page from the remote SSH server.
 @code
 int direct_forwarding(ssh_session session)
 {
-  ssh_channel forwarding_channel;
+  ssh_channel forwarding_channel = NULL;
   int rc = SSH_ERROR;
   char *http_get = "GET / HTTP/1.1\nHost: www.google.com\n\n";
   int nbytes, nwritten;
@@ -161,7 +161,7 @@ local libssh application, which handles them:
 int web_server(ssh_session session)
 {
   int rc;
-  ssh_channel channel;
+  ssh_channel channel = NULL;
   char buffer[256];
   int nbytes, nwritten;
   int port = 0;

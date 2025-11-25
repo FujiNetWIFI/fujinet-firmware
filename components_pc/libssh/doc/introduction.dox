@@ -14,8 +14,8 @@ libssh is a Free Software / Open Source project. The libssh library
 is distributed under LGPL license. The libssh project has nothing to do with
 "libssh2", which is a completely different and independent project.
 
-libssh can run on top of either libgcrypt or libcrypto,
-two general-purpose cryptographic libraries.
+libssh can run on top of either libcrypto, mbedtls or libgcrypt (deprecated)
+general-purpose cryptographic libraries.
 
 This tutorial concentrates for its main part on the "client" side of libssh.
 To learn how to accept incoming SSH connections (how to write a SSH server),
@@ -43,6 +43,10 @@ Table of contents:
 @subpage libssh_tutor_forwarding
 
 @subpage libssh_tutor_threads
+
+@subpage libssh_tutor_pkcs11
+
+@subpage libssh_tutor_sftp_aio
 
 @subpage libssh_tutor_todo
 

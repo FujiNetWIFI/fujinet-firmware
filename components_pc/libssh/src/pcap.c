@@ -57,13 +57,13 @@
  * Just for information.
  */
 struct pcap_hdr_s {
-	uint32_t magic_number;   /* magic number */
-	uint16_t version_major;  /* major version number */
-	uint16_t version_minor;  /* minor version number */
-	int32_t   thiszone;       /* GMT to local correction */
-	uint32_t sigfigs;        /* accuracy of timestamps */
-	uint32_t snaplen;        /* max length of captured packets, in octets */
-	uint32_t network;        /* data link type */
+        uint32_t magic_number;   /* magic number */
+        uint16_t version_major;  /* major version number */
+        uint16_t version_minor;  /* minor version number */
+        int32_t  thiszone;       /* GMT to local correction */
+        uint32_t sigfigs;        /* accuracy of timestamps */
+        uint32_t snaplen;        /* max length of captured packets, in octets */
+        uint32_t network;        /* data link type */
 };
 
 #define PCAP_MAGIC 0xa1b2c3d4
@@ -84,10 +84,10 @@ struct pcap_hdr_s {
  * Just for information.
  */
 struct pcaprec_hdr_s {
-	uint32_t ts_sec;         /* timestamp seconds */
-	uint32_t ts_usec;        /* timestamp microseconds */
-	uint32_t incl_len;       /* number of octets of packet saved in file */
-	uint32_t orig_len;       /* actual length of packet */
+        uint32_t ts_sec;         /* timestamp seconds */
+        uint32_t ts_usec;        /* timestamp microseconds */
+        uint32_t incl_len;       /* number of octets of packet saved in file */
+        uint32_t orig_len;       /* actual length of packet */
 };
 
 /** @private
@@ -96,18 +96,18 @@ struct pcaprec_hdr_s {
  * a single pcap file.
  */
 struct ssh_pcap_context_struct {
-	ssh_session session;
-	ssh_pcap_file file;
-	int connected;
-	/* All of this information is useful to generate
-	 * the dummy IP and TCP packets
-	 */
-	uint32_t ipsource;
-	uint32_t ipdest;
-	uint16_t portsource;
-	uint16_t portdest;
-	uint32_t outsequence;
-	uint32_t insequence;
+        ssh_session session;
+        ssh_pcap_file file;
+        int connected;
+        /* All of this information is useful to generate
+         * the dummy IP and TCP packets
+         */
+        uint32_t ipsource;
+        uint32_t ipdest;
+        uint16_t portsource;
+        uint16_t portdest;
+        uint32_t outsequence;
+        uint32_t insequence;
 };
 
 /** @private
@@ -115,17 +115,18 @@ struct ssh_pcap_context_struct {
  * contain several streams.
  */
 struct ssh_pcap_file_struct {
-	FILE *output;
-	uint16_t ipsequence;
+        FILE *output;
+        uint16_t ipsequence;
 };
 
 /**
  * @brief create a new ssh_pcap_file object
  */
-ssh_pcap_file ssh_pcap_file_new(void) {
-    struct ssh_pcap_file_struct *pcap;
+ssh_pcap_file ssh_pcap_file_new(void)
+{
+    struct ssh_pcap_file_struct *pcap = NULL;
 
-    pcap = (struct ssh_pcap_file_struct *) malloc(sizeof(struct ssh_pcap_file_struct));
+    pcap = malloc(sizeof(struct ssh_pcap_file_struct));
     if (pcap == NULL) {
         return NULL;
     }
@@ -137,162 +138,182 @@ ssh_pcap_file ssh_pcap_file_new(void) {
 /** @internal
  * @brief writes a packet on file
  */
-static int ssh_pcap_file_write(ssh_pcap_file pcap, ssh_buffer packet){
-	int err;
-	uint32_t len;
-	if(pcap == NULL || pcap->output==NULL)
-		return SSH_ERROR;
-	len=ssh_buffer_get_len(packet);
-	err=fwrite(ssh_buffer_get(packet),len,1,pcap->output);
-	if(err<0)
-		return SSH_ERROR;
-	else
-		return SSH_OK;
+static int ssh_pcap_file_write(ssh_pcap_file pcap, ssh_buffer packet)
+{
+    int err;
+    uint32_t len;
+    if (pcap == NULL || pcap->output == NULL) {
+        return SSH_ERROR;
+    }
+    len = ssh_buffer_get_len(packet);
+    err = fwrite(ssh_buffer_get(packet), len, 1, pcap->output);
+    if (err < 0) {
+        return SSH_ERROR;
+    } else {
+        return SSH_OK;
+    }
 }
 
 /** @internal
  * @brief prepends a packet with the pcap header and writes packet
  * on file
  */
-int ssh_pcap_file_write_packet(ssh_pcap_file pcap, ssh_buffer packet, uint32_t original_len){
-	ssh_buffer header=ssh_buffer_new();
-	struct timeval now;
-	int err;
-	if(header == NULL)
-		return SSH_ERROR;
-	gettimeofday(&now,NULL);
+int ssh_pcap_file_write_packet(ssh_pcap_file pcap, ssh_buffer packet, uint32_t original_len)
+{
+    ssh_buffer header = ssh_buffer_new();
+    struct timeval now;
+    int err;
+
+    if (header == NULL) {
+        return SSH_ERROR;
+    }
+
+    gettimeofday(&now, NULL);
     err = ssh_buffer_allocate_size(header,
                                    sizeof(uint32_t) * 4 +
                                    ssh_buffer_get_len(packet));
     if (err < 0) {
         goto error;
     }
-    err = ssh_buffer_add_u32(header,htonl(now.tv_sec));
+    err = ssh_buffer_add_u32(header, htonl(now.tv_sec));
     if (err < 0) {
         goto error;
     }
-    err = ssh_buffer_add_u32(header,htonl(now.tv_usec));
+    err = ssh_buffer_add_u32(header, htonl(now.tv_usec));
     if (err < 0) {
         goto error;
     }
-    err = ssh_buffer_add_u32(header,htonl(ssh_buffer_get_len(packet)));
+    err = ssh_buffer_add_u32(header, htonl(ssh_buffer_get_len(packet)));
     if (err < 0) {
         goto error;
     }
-    err = ssh_buffer_add_u32(header,htonl(original_len));
+    err = ssh_buffer_add_u32(header, htonl(original_len));
     if (err < 0) {
         goto error;
     }
-    err = ssh_buffer_add_buffer(header,packet);
+    err = ssh_buffer_add_buffer(header, packet);
     if (err < 0) {
         goto error;
     }
-	err=ssh_pcap_file_write(pcap,header);
+    err = ssh_pcap_file_write(pcap, header);
 error:
-	SSH_BUFFER_FREE(header);
-	return err;
+    SSH_BUFFER_FREE(header);
+    return err;
 }
 
 /**
  * @brief opens a new pcap file and creates header
  */
-int ssh_pcap_file_open(ssh_pcap_file pcap, const char *filename){
-	ssh_buffer header;
-	int err;
-	if(pcap == NULL)
-		return SSH_ERROR;
-	if(pcap->output){
-		fclose(pcap->output);
-		pcap->output=NULL;
-	}
-	pcap->output=fopen(filename,"wb");
-	if(pcap->output==NULL)
-		return SSH_ERROR;
-	header=ssh_buffer_new();
-	if(header==NULL)
-		return SSH_ERROR;
+int ssh_pcap_file_open(ssh_pcap_file pcap, const char *filename)
+{
+    ssh_buffer header = NULL;
+    int err;
+
+    if (pcap == NULL) {
+        return SSH_ERROR;
+    }
+    if (pcap->output) {
+        fclose(pcap->output);
+        pcap->output = NULL;
+    }
+    pcap->output = fopen(filename, "wb");
+    if (pcap->output == NULL) {
+        return SSH_ERROR;
+    }
+    header = ssh_buffer_new();
+    if (header == NULL) {
+        return SSH_ERROR;
+    }
     err = ssh_buffer_allocate_size(header,
                                    sizeof(uint32_t) * 5 +
                                    sizeof(uint16_t) * 2);
     if (err < 0) {
         goto error;
     }
-    err = ssh_buffer_add_u32(header,htonl(PCAP_MAGIC));
+    err = ssh_buffer_add_u32(header, htonl(PCAP_MAGIC));
     if (err < 0) {
         goto error;
     }
-    err = ssh_buffer_add_u16(header,htons(PCAP_VERSION_MAJOR));
+    err = ssh_buffer_add_u16(header, htons(PCAP_VERSION_MAJOR));
     if (err < 0) {
         goto error;
     }
-    err = ssh_buffer_add_u16(header,htons(PCAP_VERSION_MINOR));
+    err = ssh_buffer_add_u16(header, htons(PCAP_VERSION_MINOR));
     if (err < 0) {
         goto error;
     }
-	/* currently hardcode GMT to 0 */
-    err = ssh_buffer_add_u32(header,htonl(0));
+    /* currently hardcode GMT to 0 */
+    err = ssh_buffer_add_u32(header, htonl(0));
     if (err < 0) {
         goto error;
     }
-	/* accuracy */
-    err = ssh_buffer_add_u32(header,htonl(0));
+    /* accuracy */
+    err = ssh_buffer_add_u32(header, htonl(0));
     if (err < 0) {
         goto error;
     }
-	/* size of the biggest packet */
-    err = ssh_buffer_add_u32(header,htonl(MAX_PACKET_LEN));
+    /* size of the biggest packet */
+    err = ssh_buffer_add_u32(header, htonl(MAX_PACKET_LEN));
     if (err < 0) {
         goto error;
     }
-	/* we will write sort-of IP */
-    err = ssh_buffer_add_u32(header,htonl(DLT_RAW));
+    /* we will write sort-of IP */
+    err = ssh_buffer_add_u32(header, htonl(DLT_RAW));
     if (err < 0) {
         goto error;
     }
-	err=ssh_pcap_file_write(pcap,header);
+    err = ssh_pcap_file_write(pcap,header);
 error:
-	SSH_BUFFER_FREE(header);
-	return err;
+    SSH_BUFFER_FREE(header);
+    return err;
 }
 
-int ssh_pcap_file_close(ssh_pcap_file pcap){
-	int err;
-	if(pcap ==NULL || pcap->output==NULL)
-		return SSH_ERROR;
-	err=fclose(pcap->output);
-	pcap->output=NULL;
-	if(err != 0)
-		return SSH_ERROR;
-	else
-		return SSH_OK;
+int ssh_pcap_file_close(ssh_pcap_file pcap)
+{
+    int err;
+
+    if (pcap == NULL || pcap->output == NULL) {
+        return SSH_ERROR;
+    }
+    err = fclose(pcap->output);
+    pcap->output = NULL;
+    if (err != 0) {
+        return SSH_ERROR;
+    } else {
+        return SSH_OK;
+    }
 }
 
-void ssh_pcap_file_free(ssh_pcap_file pcap){
-	ssh_pcap_file_close(pcap);
-	SAFE_FREE(pcap);
+void ssh_pcap_file_free(ssh_pcap_file pcap)
+{
+    ssh_pcap_file_close(pcap);
+    SAFE_FREE(pcap);
 }
 
 
 /** @internal
  * @brief allocates a new ssh_pcap_context object
  */
-ssh_pcap_context ssh_pcap_context_new(ssh_session session){
-	ssh_pcap_context ctx = (struct ssh_pcap_context_struct *) malloc(sizeof(struct ssh_pcap_context_struct));
-	if(ctx==NULL){
-		ssh_set_error_oom(session);
-		return NULL;
-	}
-	ZERO_STRUCTP(ctx);
-	ctx->session=session;
-	return ctx;
+ssh_pcap_context ssh_pcap_context_new(ssh_session session)
+{
+    ssh_pcap_context ctx = (struct ssh_pcap_context_struct *)malloc(sizeof(struct ssh_pcap_context_struct));
+    if (ctx == NULL) {
+        ssh_set_error_oom(session);
+        return NULL;
+    }
+    ZERO_STRUCTP(ctx);
+    ctx->session = session;
+    return ctx;
 }
 
-void ssh_pcap_context_free(ssh_pcap_context ctx){
-	SAFE_FREE(ctx);
+void ssh_pcap_context_free(ssh_pcap_context ctx)
+{
+    SAFE_FREE(ctx);
 }
 
-void ssh_pcap_context_set_file(ssh_pcap_context ctx, ssh_pcap_file pcap){
-	ctx->file=pcap;
+void ssh_pcap_context_set_file(ssh_pcap_context ctx, ssh_pcap_file pcap)
+{
+    ctx->file = pcap;
 }
 
 /** @internal
@@ -379,7 +400,7 @@ static int ssh_pcap_context_connect(ssh_pcap_context ctx)
  */
 int ssh_pcap_context_write(ssh_pcap_context ctx,
                            enum ssh_pcap_direction direction,
-		           void *data,
+                           void *data,
                            uint32_t len,
                            uint32_t origlen)
 {
@@ -413,7 +434,7 @@ int ssh_pcap_context_write(ssh_pcap_context ctx,
                          0);         /* checksum */
 
     ctx->file->ipsequence++;
-    if (rc != SSH_OK){
+    if (rc != SSH_OK) {
         goto error;
     }
     if (direction == SSH_PCAP_DIR_OUT) {
@@ -506,17 +527,19 @@ error:
  * sessions.
  * @returns SSH_ERROR in case of error, SSH_OK otherwise.
  */
-int ssh_set_pcap_file(ssh_session session, ssh_pcap_file pcap){
-	ssh_pcap_context ctx=ssh_pcap_context_new(session);
-	if(ctx==NULL){
-		ssh_set_error_oom(session);
-		return SSH_ERROR;
-	}
-	ctx->file=pcap;
-	if(session->pcap_ctx)
-		ssh_pcap_context_free(session->pcap_ctx);
-	session->pcap_ctx=ctx;
-	return SSH_OK;
+int ssh_set_pcap_file(ssh_session session, ssh_pcap_file pcap)
+{
+    ssh_pcap_context ctx = ssh_pcap_context_new(session);
+    if (ctx == NULL) {
+        ssh_set_error_oom(session);
+        return SSH_ERROR;
+    }
+    ctx->file = pcap;
+    if (session->pcap_ctx) {
+        ssh_pcap_context_free(session->pcap_ctx);
+    }
+    session->pcap_ctx = ctx;
+    return SSH_OK;
 }
 /** @} */
 
@@ -527,28 +550,36 @@ int ssh_set_pcap_file(ssh_session session, ssh_pcap_file pcap){
 #include "libssh/libssh.h"
 #include "libssh/priv.h"
 
-int ssh_pcap_file_close(ssh_pcap_file pcap){
-	(void) pcap;
-	return SSH_ERROR;
+int ssh_pcap_file_close(ssh_pcap_file pcap)
+{
+    (void)pcap;
+
+    return SSH_ERROR;
 }
 
-void ssh_pcap_file_free(ssh_pcap_file pcap){
-	(void) pcap;
+void ssh_pcap_file_free(ssh_pcap_file pcap)
+{
+    (void)pcap;
 }
 
-ssh_pcap_file ssh_pcap_file_new(void){
-	return NULL;
+ssh_pcap_file ssh_pcap_file_new(void)
+{
+    return NULL;
 }
-int ssh_pcap_file_open(ssh_pcap_file pcap, const char *filename){
-	(void) pcap;
-	(void) filename;
-	return SSH_ERROR;
+int ssh_pcap_file_open(ssh_pcap_file pcap, const char *filename)
+{
+    (void)pcap;
+    (void)filename;
+
+    return SSH_ERROR;
 }
 
-int ssh_set_pcap_file(ssh_session session, ssh_pcap_file pcapfile){
-	(void) pcapfile;
-	ssh_set_error(session,SSH_REQUEST_DENIED,"Pcap support not compiled in");
-	return SSH_ERROR;
+int ssh_set_pcap_file(ssh_session session, ssh_pcap_file pcapfile)
+{
+    (void)pcapfile;
+
+    ssh_set_error(session, SSH_REQUEST_DENIED, "Pcap support not compiled in");
+    return SSH_ERROR;
 }
 
 #endif

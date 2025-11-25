@@ -8,6 +8,7 @@
 
 #include <setjmp.h> // for cmocka
 #include <stdarg.h> // for cmocka
+#include <stdint.h> // for cmocka
 #include <unistd.h> // for cmocka
 #include <cmocka.h>
 
@@ -40,17 +41,6 @@ void setup_ed25519_key(void) {
     assert_int_equal(rc, 0);
 }
 
-#ifdef HAVE_DSA
-void setup_dsa_key(void) {
-    int rc = 0;
-    if (access(LIBSSH_DSA_TESTKEY, F_OK) != 0) {
-        rc = system_checked(OPENSSH_KEYGEN " -t dsa -q -N \"\" -f "
-                            LIBSSH_DSA_TESTKEY);
-    }
-    assert_int_equal(rc, 0);
-}
-#endif
-
 void setup_ecdsa_keys(void) {
     int rc = 0;
 
@@ -78,12 +68,6 @@ void cleanup_rsa_key(void) {
 void cleanup_ed25519_key(void) {
     cleanup_key(LIBSSH_ED25519_TESTKEY);
 }
-
-#ifdef HAVE_DSA
-void cleanup_dsa_key(void) {
-    cleanup_key(LIBSSH_DSA_TESTKEY);
-}
-#endif
 
 void cleanup_ecdsa_keys(void) {
     cleanup_key(LIBSSH_ECDSA_256_TESTKEY);
@@ -156,19 +140,6 @@ void setup_openssh_client_keys(void) {
     assert_int_equal(rc, 0);
 
     if (!ssh_fips_mode()) {
-#ifdef HAVE_DSA
-        if (access(OPENSSH_DSA_TESTKEY, F_OK) != 0) {
-            rc = system_checked(OPENSSH_KEYGEN " -t dsa -q -N \"\" -f "
-                    OPENSSH_DSA_TESTKEY);
-        }
-        assert_int_equal(rc, 0);
-
-        if (access(OPENSSH_DSA_TESTKEY "-cert.pub", F_OK) != 0) {
-            rc = system_checked(OPENSSH_KEYGEN " -I ident -s " OPENSSH_CA_TESTKEY
-                    " " OPENSSH_DSA_TESTKEY ".pub 2>/dev/null");
-        }
-        assert_int_equal(rc, 0);
-#endif
 
         if (access(OPENSSH_ED25519_TESTKEY, F_OK) != 0) {
             rc = system_checked(OPENSSH_KEYGEN " -t ed25519 -q -N \"\" -f "
@@ -193,9 +164,6 @@ void cleanup_openssh_client_keys(void) {
     cleanup_key(OPENSSH_ECDSA521_TESTKEY);
     if (!ssh_fips_mode()) {
         cleanup_key(OPENSSH_ED25519_TESTKEY);
-#ifdef HAVE_DSA
-        cleanup_key(OPENSSH_DSA_TESTKEY);
-#endif
     }
 }
 

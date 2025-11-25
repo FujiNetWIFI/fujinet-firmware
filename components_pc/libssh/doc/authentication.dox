@@ -105,7 +105,7 @@ Here is a small example of password authentication:
 @code
 int authenticate_password(ssh_session session)
 {
-  char *password;
+  char *password = NULL;
   int rc;
 
   password = getpass("Enter your password: ");
@@ -218,7 +218,7 @@ int authenticate_kbdint(ssh_session session)
   rc = ssh_userauth_kbdint(session, NULL, NULL);
   while (rc == SSH_AUTH_INFO)
   {
-    const char *name, *instruction;
+    const char *name = NULL, *instruction = NULL;
     int nprompts, iprompt;
 
     name = ssh_userauth_kbdint_getname(session);
@@ -231,7 +231,7 @@ int authenticate_kbdint(ssh_session session)
       printf("%s\n", instruction);
     for (iprompt = 0; iprompt < nprompts; iprompt++)
     {
-      const char *prompt;
+      const char *prompt = NULL;
       char echo;
 
       prompt = ssh_userauth_kbdint_getprompt(session, iprompt, &echo);
@@ -251,7 +251,7 @@ int authenticate_kbdint(ssh_session session)
       }
       else
       {
-        char *ptr;
+        char *ptr = NULL;
 
         ptr = getpass(prompt);
         if (ssh_userauth_kbdint_setanswer(session, iprompt, ptr) < 0)
@@ -354,7 +354,7 @@ The following example shows how to retrieve and dispose the issue banner:
 int display_banner(ssh_session session)
 {
   int rc;
-  char *banner;
+  char *banner = NULL;
 
 /*
  *** Does not work without calling ssh_userauth_none() first ***

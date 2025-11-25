@@ -49,7 +49,7 @@ static unsigned char p_group1_value[] = {
         0xEE, 0x38, 0x6B, 0xFB, 0x5A, 0x89, 0x9F, 0xA5, 0xAE, 0x9F, 0x24, 0x11,
         0x7C, 0x4B, 0x1F, 0xE6, 0x49, 0x28, 0x66, 0x51, 0xEC, 0xE6, 0x53, 0x81,
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-#define P_GROUP1_LEN 128	/* Size in bytes of the p number */
+#define P_GROUP1_LEN 128        /* Size in bytes of the p number */
 
 static unsigned char p_group14_value[] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xC9, 0x0F, 0xDA, 0xA2,
@@ -228,7 +228,7 @@ static int dh_crypto_initialized;
  */
 int ssh_dh_init(void)
 {
-    unsigned long g_int = 2 ;	/* G is defined as 2 by the ssh2 standards */
+    unsigned long g_int = 2 ;   /* G is defined as 2 by the ssh2 standards */
     int rc;
     if (dh_crypto_initialized) {
         return SSH_OK;
@@ -398,16 +398,10 @@ SSH_PACKET_CALLBACK(ssh_packet_client_dh_reply){
   }
 
   /* Send the MSG_NEWKEYS */
-  if (ssh_buffer_add_u8(session->out_buffer, SSH2_MSG_NEWKEYS) < 0) {
-    goto error;
-  }
-
-  rc=ssh_packet_send(session);
+  rc = ssh_packet_send_newkeys(session);
   if (rc == SSH_ERROR) {
     goto error;
   }
-
-  SSH_LOG(SSH_LOG_PROTOCOL, "SSH_MSG_NEWKEYS sent");
   session->dh_handshake_state = DH_STATE_NEWKEYS_SENT;
   return SSH_PACKET_USED;
 error:
@@ -551,15 +545,12 @@ int ssh_server_dh_process_init(ssh_session session, ssh_buffer packet)
     }
     SSH_LOG(SSH_LOG_DEBUG, "Sent KEX_DH_[GEX]_REPLY");
 
-    if (ssh_buffer_add_u8(session->out_buffer, SSH2_MSG_NEWKEYS) < 0) {
-        ssh_buffer_reinit(session->out_buffer);
-        goto error;
-    }
     session->dh_handshake_state=DH_STATE_NEWKEYS_SENT;
-    if (ssh_packet_send(session) == SSH_ERROR) {
+    /* Send the MSG_NEWKEYS */
+    rc = ssh_packet_send_newkeys(session);
+    if (rc == SSH_ERROR) {
         goto error;
     }
-    SSH_LOG(SSH_LOG_PACKET, "SSH_MSG_NEWKEYS sent");
 
     return SSH_OK;
 error:

@@ -22,7 +22,7 @@ a SSH session that uses this channel:
 @code
 int show_remote_files(ssh_session session)
 {
-  ssh_channel channel;
+  ssh_channel channel = NULL;
   int rc;
 
   channel = ssh_channel_new(session);

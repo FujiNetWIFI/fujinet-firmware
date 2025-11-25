@@ -31,16 +31,16 @@ extern "C" {
  * outgoing (client) channel request
  */
 enum ssh_channel_request_state_e {
-	/** No request has been made */
-	SSH_CHANNEL_REQ_STATE_NONE = 0,
-	/** A request has been made and answer is pending */
-	SSH_CHANNEL_REQ_STATE_PENDING,
-	/** A request has been replied and accepted */
-	SSH_CHANNEL_REQ_STATE_ACCEPTED,
-	/** A request has been replied and refused */
-	SSH_CHANNEL_REQ_STATE_DENIED,
-	/** A request has been replied and an error happened */
-	SSH_CHANNEL_REQ_STATE_ERROR
+        /** No request has been made */
+        SSH_CHANNEL_REQ_STATE_NONE = 0,
+        /** A request has been made and answer is pending */
+        SSH_CHANNEL_REQ_STATE_PENDING,
+        /** A request has been replied and accepted */
+        SSH_CHANNEL_REQ_STATE_ACCEPTED,
+        /** A request has been replied and refused */
+        SSH_CHANNEL_REQ_STATE_DENIED,
+        /** A request has been replied and an error happened */
+        SSH_CHANNEL_REQ_STATE_ERROR
 };
 
 enum ssh_channel_state_e {
@@ -80,7 +80,12 @@ struct ssh_channel_struct {
     ssh_buffer stdout_buffer;
     ssh_buffer stderr_buffer;
     void *userarg;
-    int exit_status;
+    struct {
+        bool status;
+        uint32_t code;
+        char *signal;
+        bool core_dumped;
+    } exit;
     enum ssh_channel_request_state_e request_state;
     struct ssh_list *callbacks; /* list of ssh_channel_callbacks */
 

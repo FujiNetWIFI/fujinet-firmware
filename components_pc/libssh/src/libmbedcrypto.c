@@ -51,80 +51,6 @@ void ssh_reseed(void)
     mbedtls_ctr_drbg_reseed(&ssh_mbedtls_ctr_drbg, NULL, 0);
 }
 
-static mbedtls_md_type_t nid_to_md_algo(int nid)
-{
-    switch (nid) {
-        case NID_mbedtls_nistp256:
-            return MBEDTLS_MD_SHA256;
-        case NID_mbedtls_nistp384:
-            return MBEDTLS_MD_SHA384;
-        case NID_mbedtls_nistp521:
-            return MBEDTLS_MD_SHA512;
-    }
-    return MBEDTLS_MD_NONE;
-}
-
-void evp(int nid, unsigned char *digest, size_t len,
-        unsigned char *hash, unsigned int *hlen)
-{
-    mbedtls_md_type_t algo = nid_to_md_algo(nid);
-    const mbedtls_md_info_t *md_info =
-        mbedtls_md_info_from_type(algo);
-
-
-    if (md_info != NULL) {
-        *hlen = mbedtls_md_get_size(md_info);
-        mbedtls_md(md_info, digest, len, hash);
-    }
-}
-
-EVPCTX evp_init(int nid)
-{
-    EVPCTX ctx = NULL;
-    int rc;
-    mbedtls_md_type_t algo = nid_to_md_algo(nid);
-    const mbedtls_md_info_t *md_info =
-        mbedtls_md_info_from_type(algo);
-
-    if (md_info == NULL) {
-        return NULL;
-    }
-
-    ctx = malloc(sizeof(mbedtls_md_context_t));
-    if (ctx == NULL) {
-        return NULL;
-    }
-
-    mbedtls_md_init(ctx);
-
-    rc = mbedtls_md_setup(ctx, md_info, 0);
-    if (rc != 0) {
-        SAFE_FREE(ctx);
-        return NULL;
-    }
-
-    rc = mbedtls_md_starts(ctx);
-    if (rc != 0) {
-        SAFE_FREE(ctx);
-        return NULL;
-    }
-
-    return ctx;
-}
-
-void evp_update(EVPCTX ctx, const void *data, size_t len)
-{
-    mbedtls_md_update(ctx, data, len);
-}
-
-void evp_final(EVPCTX ctx, unsigned char *md, unsigned int *mdlen)
-{
-    *mdlen = mbedtls_md_get_size(ctx->MBEDTLS_PRIVATE(md_info));
-    mbedtls_md_finish(ctx, md);
-    mbedtls_md_free(ctx);
-    SAFE_FREE(ctx);
-}
-
 int ssh_kdf(struct ssh_crypto_struct *crypto,
             unsigned char *key, size_t key_len,
             uint8_t key_type, unsigned char *output,
@@ -207,7 +133,7 @@ cipher_init(struct ssh_cipher_struct *cipher,
             void *IV)
 {
     const mbedtls_cipher_info_t *cipher_info = NULL;
-    mbedtls_cipher_context_t *ctx;
+    mbedtls_cipher_context_t *ctx = NULL;
     size_t key_bitlen = 0;
     size_t iv_size = 0;
     int rc;
@@ -217,7 +143,7 @@ cipher_init(struct ssh_cipher_struct *cipher,
     } else if (operation == MBEDTLS_DECRYPT) {
         ctx = &cipher->decrypt_ctx;
     } else {
-        SSH_LOG(SSH_LOG_WARNING, "unknown operation");
+        SSH_LOG(SSH_LOG_TRACE, "unknown operation");
         return 1;
     }
 
@@ -226,21 +152,21 @@ cipher_init(struct ssh_cipher_struct *cipher,
 
     rc = mbedtls_cipher_setup(ctx, cipher_info);
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_setup failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_cipher_setup failed");
         goto error;
     }
 
     key_bitlen = mbedtls_cipher_info_get_key_bitlen(cipher_info);
     rc = mbedtls_cipher_setkey(ctx, key, key_bitlen, operation);
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_setkey failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_cipher_setkey failed");
         goto error;
     }
 
     iv_size = mbedtls_cipher_info_get_iv_size(cipher_info);
     rc = mbedtls_cipher_set_iv(ctx, IV, iv_size);
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_set_iv failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_cipher_set_iv failed");
         goto error;
     }
 
@@ -259,13 +185,13 @@ cipher_set_encrypt_key(struct ssh_cipher_struct *cipher,
 
     rc = cipher_init(cipher, MBEDTLS_ENCRYPT, key, IV);
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "cipher_init failed");
+        SSH_LOG(SSH_LOG_TRACE, "cipher_init failed");
         goto error;
     }
 
     rc = mbedtls_cipher_reset(&cipher->encrypt_ctx);
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_reset failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_cipher_reset failed");
         goto error;
     }
 
@@ -283,23 +209,23 @@ cipher_set_encrypt_key_cbc(struct ssh_cipher_struct *cipher,
 
     rc = cipher_init(cipher, MBEDTLS_ENCRYPT, key, IV);
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "cipher_init failed");
+        SSH_LOG(SSH_LOG_TRACE, "cipher_init failed");
         goto error;
     }
 
-    /* libssh only encypts and decrypts packets that are multiples of a block
+    /* libssh only encrypts and decrypts packets that are multiples of a block
      * size, and no padding is used */
     rc = mbedtls_cipher_set_padding_mode(&cipher->encrypt_ctx,
             MBEDTLS_PADDING_NONE);
 
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_set_padding_mode failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_cipher_set_padding_mode failed");
         goto error;
     }
 
     rc = mbedtls_cipher_reset(&cipher->encrypt_ctx);
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_reset failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_cipher_reset failed");
         goto error;
     }
 
@@ -327,7 +253,7 @@ cipher_set_key_gcm(struct ssh_cipher_struct *cipher,
                             key, key_bitlen);
 
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_gcm_setkey failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_gcm_setkey failed");
         goto error;
     }
 
@@ -350,13 +276,13 @@ cipher_set_decrypt_key(struct ssh_cipher_struct *cipher,
 
     rc = cipher_init(cipher, MBEDTLS_DECRYPT, key, IV);
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "cipher_init failed");
+        SSH_LOG(SSH_LOG_TRACE, "cipher_init failed");
         goto error;
     }
 
     mbedtls_cipher_reset(&cipher->decrypt_ctx);
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_reset failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_cipher_reset failed");
         goto error;
     }
 
@@ -375,20 +301,20 @@ cipher_set_decrypt_key_cbc(struct ssh_cipher_struct *cipher,
 
     rc = cipher_init(cipher, MBEDTLS_DECRYPT, key, IV);
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "cipher_init failed");
+        SSH_LOG(SSH_LOG_TRACE, "cipher_init failed");
         goto error;
     }
 
     rc = mbedtls_cipher_set_padding_mode(&cipher->decrypt_ctx,
             MBEDTLS_PADDING_NONE);
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_set_padding_mode failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_cipher_set_padding_mode failed");
         goto error;
     }
 
     mbedtls_cipher_reset(&cipher->decrypt_ctx);
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_reset failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_cipher_reset failed");
         goto error;
     }
 
@@ -408,7 +334,7 @@ static void cipher_encrypt(struct ssh_cipher_struct *cipher,
     int rc = 0;
     rc = mbedtls_cipher_update(&cipher->encrypt_ctx, in, len, out, &outlen);
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_update failed during encryption");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_cipher_update failed during encryption");
         return;
     }
 
@@ -424,12 +350,12 @@ static void cipher_encrypt(struct ssh_cipher_struct *cipher,
     total_len += outlen;
 
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_finish failed during encryption");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_cipher_finish failed during encryption");
         return;
     }
 
     if (total_len != len) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_update: output size %zu for %zu",
+        SSH_LOG(SSH_LOG_DEBUG, "mbedtls_cipher_update: output size %zu for %zu",
                 outlen, len);
         return;
     }
@@ -443,12 +369,12 @@ static void cipher_encrypt_cbc(struct ssh_cipher_struct *cipher, void *in, void 
     int rc = 0;
     rc = mbedtls_cipher_update(&cipher->encrypt_ctx, in, len, out, &outlen);
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_update failed during encryption");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_cipher_update failed during encryption");
         return;
     }
 
     if (outlen != len) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_update: output size %zu for %zu",
+        SSH_LOG(SSH_LOG_DEBUG, "mbedtls_cipher_update: output size %zu for %zu",
                 outlen, len);
         return;
     }
@@ -466,7 +392,7 @@ static void cipher_decrypt(struct ssh_cipher_struct *cipher,
 
     rc = mbedtls_cipher_update(&cipher->decrypt_ctx, in, len, out, &outlen);
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_update failed during decryption");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_cipher_update failed during decryption");
         return;
     }
 
@@ -480,14 +406,14 @@ static void cipher_decrypt(struct ssh_cipher_struct *cipher,
             outlen, &outlen);
 
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_reset failed during decryption");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_cipher_reset failed during decryption");
         return;
     }
 
     total_len += outlen;
 
     if (total_len != len) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_update: output size %zu for %zu",
+        SSH_LOG(SSH_LOG_DEBUG, "mbedtls_cipher_update: output size %zu for %zu",
                 outlen, len);
         return;
     }
@@ -501,7 +427,7 @@ static void cipher_decrypt_cbc(struct ssh_cipher_struct *cipher, void *in, void 
     int rc = 0;
     rc = mbedtls_cipher_update(&cipher->decrypt_ctx, in, len, out, &outlen);
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_update failed during decryption");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_cipher_update failed during decryption");
         return;
     }
 
@@ -520,19 +446,19 @@ static void cipher_decrypt_cbc(struct ssh_cipher_struct *cipher, void *in, void 
     }
 
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_finish failed during decryption");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_cipher_finish failed during decryption");
         return;
     }
 
     rc = mbedtls_cipher_reset(&cipher->decrypt_ctx);
 
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_reset failed during decryption");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_cipher_reset failed during decryption");
         return;
     }
 
     if (outlen != len) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_update: output size %zu for %zu",
+        SSH_LOG(SSH_LOG_DEBUG, "mbedtls_cipher_update: output size %zu for %zu",
                 outlen, len);
         return;
     }
@@ -586,7 +512,7 @@ cipher_encrypt_gcm(struct ssh_cipher_struct *cipher,
                                    authlen,
                                    tag); /* tag */
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_gcm_crypt_and_tag failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_gcm_crypt_and_tag failed");
         return;
     }
 
@@ -620,7 +546,7 @@ cipher_decrypt_gcm(struct ssh_cipher_struct *cipher,
                                   (const uint8_t *)complete_packet + aadlen, /* input */
                                   (unsigned char *)out); /* output */
     if (rc != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_gcm_auth_decrypt failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_gcm_auth_decrypt failed");
         return SSH_ERROR;
     }
 
@@ -694,14 +620,14 @@ chacha20_poly1305_set_key(struct ssh_cipher_struct *cipher,
     /* K2 uses the first half of the key */
     rv = mbedtls_chacha20_setkey(&ctx->main_ctx, u8key);
     if (rv != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_chacha20_setkey(main_ctx) failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_chacha20_setkey(main_ctx) failed");
         goto out;
     }
 
     /* K1 uses the second half of the key */
     rv = mbedtls_chacha20_setkey(&ctx->header_ctx, u8key + CHACHA20_KEYLEN);
     if (rv != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_chacha20_setkey(header_ctx) failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_chacha20_setkey(header_ctx) failed");
         goto out;
     }
 
@@ -734,13 +660,13 @@ chacha20_poly1305_set_iv(struct ssh_cipher_struct *cipher,
 
     ret = mbedtls_chacha20_starts(&ctx->header_ctx, seqbuf, 0);
     if (ret != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_chacha20_starts(header_ctx) failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_chacha20_starts(header_ctx) failed");
         return SSH_ERROR;
     }
 
     ret = mbedtls_chacha20_starts(&ctx->main_ctx, seqbuf, 0);
     if (ret != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_chacha20_starts(main_ctx) failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_chacha20_starts(main_ctx) failed");
         return SSH_ERROR;
     }
 
@@ -769,7 +695,7 @@ chacha20_poly1305_packet_setup(struct ssh_cipher_struct *cipher,
     rv = mbedtls_chacha20_update(&ctx->main_ctx, sizeof(zero_block),
                                  zero_block, poly_key);
     if (rv != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_chacha20_update failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_chacha20_update failed");
         goto out;
     }
 #ifdef DEBUG_CRYPTO
@@ -779,7 +705,7 @@ chacha20_poly1305_packet_setup(struct ssh_cipher_struct *cipher,
     /* Set the Poly1305 key */
     rv = mbedtls_poly1305_starts(&ctx->poly_ctx, poly_key);
     if (rv != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_poly1305_starts failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_poly1305_starts failed");
         goto out;
     }
 
@@ -815,7 +741,7 @@ chacha20_poly1305_aead_decrypt_length(struct ssh_cipher_struct *cipher,
 
     rv = mbedtls_chacha20_update(&ctx->header_ctx, sizeof(uint32_t), in, out);
     if (rv != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_chacha20_update failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_chacha20_update failed");
         return SSH_ERROR;
     }
 
@@ -843,7 +769,7 @@ chacha20_poly1305_aead_decrypt(struct ssh_cipher_struct *cipher,
     /* Prepare the Poly1305 key */
     rv = chacha20_poly1305_packet_setup(cipher, seq, 0);
     if (rv != SSH_OK) {
-        SSH_LOG(SSH_LOG_WARNING, "Failed to setup packet");
+        SSH_LOG(SSH_LOG_TRACE, "Failed to setup packet");
         goto out;
     }
 
@@ -855,13 +781,13 @@ chacha20_poly1305_aead_decrypt(struct ssh_cipher_struct *cipher,
     rv = mbedtls_poly1305_update(&ctx->poly_ctx, complete_packet,
                                  encrypted_size + sizeof(uint32_t));
     if (rv != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_poly1305_update failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_poly1305_update failed");
         goto out;
     }
 
     rv = mbedtls_poly1305_finish(&ctx->poly_ctx, tag);
     if (rv != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_poly1305_finish failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_poly1305_finish failed");
         goto out;
     }
 
@@ -882,7 +808,7 @@ chacha20_poly1305_aead_decrypt(struct ssh_cipher_struct *cipher,
                                  (uint8_t *)complete_packet + sizeof(uint32_t),
                                  out);
     if (rv != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_chacha20_update failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_chacha20_update failed");
         goto out;
     }
 
@@ -906,7 +832,7 @@ chacha20_poly1305_aead_encrypt(struct ssh_cipher_struct *cipher,
     /* Prepare the Poly1305 key */
     ret = chacha20_poly1305_packet_setup(cipher, seq, 1);
     if (ret != SSH_OK) {
-        SSH_LOG(SSH_LOG_WARNING, "Failed to setup packet");
+        SSH_LOG(SSH_LOG_TRACE, "Failed to setup packet");
         return;
     }
 
@@ -919,7 +845,7 @@ chacha20_poly1305_aead_encrypt(struct ssh_cipher_struct *cipher,
                                   (unsigned char *)&in_packet->length,
                                   (unsigned char *)&out_packet->length);
     if (ret != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_chacha20_update failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_chacha20_update failed");
         return;
     }
 #ifdef DEBUG_CRYPTO
@@ -932,19 +858,19 @@ chacha20_poly1305_aead_encrypt(struct ssh_cipher_struct *cipher,
     ret = mbedtls_chacha20_update(&ctx->main_ctx, len - sizeof(uint32_t),
                                   in_packet->payload, out_packet->payload);
     if (ret != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_chacha20_update failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_chacha20_update failed");
         return;
     }
 
     /* step 4, compute the MAC */
     ret = mbedtls_poly1305_update(&ctx->poly_ctx, (const unsigned char *)out_packet, len);
     if (ret != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_poly1305_update failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_poly1305_update failed");
         return;
     }
     ret = mbedtls_poly1305_finish(&ctx->poly_ctx, tag);
     if (ret != 0) {
-        SSH_LOG(SSH_LOG_WARNING, "mbedtls_poly1305_finish failed");
+        SSH_LOG(SSH_LOG_TRACE, "mbedtls_poly1305_finish failed");
         return;
     }
 }
@@ -972,7 +898,7 @@ none_crypt(UNUSED_PARAM(struct ssh_cipher_struct *cipher),
 #endif /* WITH_INSECURE_NONE */
 
 static struct ssh_cipher_struct ssh_ciphertab[] = {
-#ifdef WITH_BLOWFISH_CIPHER
+#ifdef HAVE_BLOWFISH
     {
         .name = "blowfish-cbc",
         .blocksize = 8,
@@ -984,7 +910,7 @@ static struct ssh_cipher_struct ssh_ciphertab[] = {
         .decrypt = cipher_decrypt_cbc,
         .cleanup = cipher_cleanup
     },
-#endif /* WITH_BLOWFISH_CIPHER */
+#endif /* HAVE_BLOWFISH */
     {
         .name = "aes128-ctr",
         .blocksize = 16,

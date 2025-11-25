@@ -39,7 +39,7 @@
 #include "libssh/pki.h"
 #include "libssh/bignum.h"
 
-#if defined(HAVE_LIBCRYPTO) && defined(HAVE_OPENSSL_X25519)
+#ifdef HAVE_LIBCRYPTO
 #include <openssl/err.h>
 #endif
 
@@ -59,7 +59,7 @@ static struct ssh_packet_callbacks_struct ssh_curve25519_client_callbacks = {
 static int ssh_curve25519_init(ssh_session session)
 {
     int rc;
-#if defined(HAVE_LIBCRYPTO) && defined(HAVE_OPENSSL_X25519)
+#ifdef HAVE_LIBCRYPTO
     EVP_PKEY_CTX *pctx = NULL;
     EVP_PKEY *pkey = NULL;
     size_t pubkey_len = CURVE25519_PUBKEY_SIZE;
@@ -136,7 +136,7 @@ static int ssh_curve25519_init(ssh_session session)
         crypto_scalarmult_base(session->next_crypto->curve25519_client_pubkey,
                                session->next_crypto->curve25519_privkey);
     }
-#endif /* defined(HAVE_LIBCRYPTO) && defined(HAVE_OPENSSL_X25519) */
+#endif /* HAVE_LIBCRYPTO */
 
     return SSH_OK;
 }
@@ -181,7 +181,7 @@ static int ssh_curve25519_build_k(ssh_session session)
 {
     ssh_curve25519_pubkey k;
 
-#if defined(HAVE_LIBCRYPTO) && defined(HAVE_OPENSSL_X25519)
+#ifdef HAVE_LIBCRYPTO
     EVP_PKEY_CTX *pctx = NULL;
     EVP_PKEY *pkey = NULL, *pubkey = NULL;
     size_t shared_key_len = sizeof(k);
@@ -260,7 +260,7 @@ out:
         crypto_scalarmult(k, session->next_crypto->curve25519_privkey,
                           session->next_crypto->curve25519_server_pubkey);
     }
-#endif /* defined(HAVE_LIBCRYPTO) && defined(HAVE_OPENSSL_X25519) */
+#endif /* HAVE_LIBCRYPTO */
 
     bignum_bin2bn(k, CURVE25519_PUBKEY_SIZE, &session->next_crypto->shared_secret);
     if (session->next_crypto->shared_secret == NULL) {
@@ -309,14 +309,14 @@ static SSH_PACKET_CALLBACK(ssh_packet_client_curve25519_reply){
 
   q_s_string = ssh_buffer_get_ssh_string(packet);
   if (q_s_string == NULL) {
-	  ssh_set_error(session,SSH_FATAL, "No Q_S ECC point in packet");
-	  goto error;
+          ssh_set_error(session,SSH_FATAL, "No Q_S ECC point in packet");
+          goto error;
   }
   if (ssh_string_len(q_s_string) != CURVE25519_PUBKEY_SIZE){
-	  ssh_set_error(session, SSH_FATAL, "Incorrect size for server Curve25519 public key: %d",
-			  (int)ssh_string_len(q_s_string));
-	  SSH_STRING_FREE(q_s_string);
-	  goto error;
+          ssh_set_error(session, SSH_FATAL, "Incorrect size for server Curve25519 public key: %d",
+                          (int)ssh_string_len(q_s_string));
+          SSH_STRING_FREE(q_s_string);
+          goto error;
   }
   memcpy(session->next_crypto->curve25519_server_pubkey, ssh_string_data(q_s_string), CURVE25519_PUBKEY_SIZE);
   SSH_STRING_FREE(q_s_string);
@@ -335,16 +335,10 @@ static SSH_PACKET_CALLBACK(ssh_packet_client_curve25519_reply){
   }
 
   /* Send the MSG_NEWKEYS */
-  if (ssh_buffer_add_u8(session->out_buffer, SSH2_MSG_NEWKEYS) < 0) {
-    goto error;
-  }
-
-  rc=ssh_packet_send(session);
+  rc = ssh_packet_send_newkeys(session);
   if (rc == SSH_ERROR) {
     goto error;
   }
-
-  SSH_LOG(SSH_LOG_PROTOCOL, "SSH_MSG_NEWKEYS sent");
   session->dh_handshake_state = DH_STATE_NEWKEYS_SENT;
 
   return SSH_PACKET_USED;
@@ -386,7 +380,7 @@ static SSH_PACKET_CALLBACK(ssh_packet_server_curve25519_init){
     ssh_string q_s_string = NULL;
     ssh_string server_pubkey_blob = NULL;
 
-    /* SSH host keys (rsa,dsa,ecdsa) */
+    /* SSH host keys (rsa, ed25519 and ecdsa) */
     ssh_key privkey = NULL;
     enum ssh_digest_e digest = SSH_DIGEST_AUTO;
     ssh_string sig_blob = NULL;
@@ -496,24 +490,19 @@ static SSH_PACKET_CALLBACK(ssh_packet_server_curve25519_init){
         goto error;
     }
 
-    SSH_LOG(SSH_LOG_PROTOCOL, "SSH_MSG_KEX_ECDH_REPLY sent");
+    SSH_LOG(SSH_LOG_DEBUG, "SSH_MSG_KEX_ECDH_REPLY sent");
     rc = ssh_packet_send(session);
     if (rc == SSH_ERROR) {
         return SSH_ERROR;
     }
 
-    /* Send the MSG_NEWKEYS */
-    rc = ssh_buffer_add_u8(session->out_buffer, SSH2_MSG_NEWKEYS);
-    if (rc < 0) {
-        goto error;
-    }
-
     session->dh_handshake_state = DH_STATE_NEWKEYS_SENT;
-    rc = ssh_packet_send(session);
+
+    /* Send the MSG_NEWKEYS */
+    rc = ssh_packet_send_newkeys(session);
     if (rc == SSH_ERROR) {
         goto error;
     }
-    SSH_LOG(SSH_LOG_PROTOCOL, "SSH_MSG_NEWKEYS sent");
 
     return SSH_PACKET_USED;
 error:

@@ -62,6 +62,10 @@ enum ssh_config_opcode_e {
     SOC_PUBKEYACCEPTEDKEYTYPES,
     SOC_REKEYLIMIT,
     SOC_IDENTITYAGENT,
+    SOC_IDENTITIESONLY,
+    SOC_CONTROLMASTER,
+    SOC_CONTROLPATH,
+    SOC_CERTIFICATE,
 
     SOC_MAX /* Keep this one last in the list */
 };

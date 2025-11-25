@@ -69,7 +69,9 @@ static void torture_options_set_proxycommand(void **state)
     char command[255] = {0};
     struct stat sb;
     int rc;
+#ifdef WITH_EXEC
     socket_t fd;
+#endif
 
     rc = stat(NCAT_EXECUTABLE, &sb);
     if (rc != 0 || (sb.st_mode & S_IXOTH) == 0) {
@@ -88,11 +90,15 @@ static void torture_options_set_proxycommand(void **state)
     rc = ssh_options_set(session, SSH_OPTIONS_PROXYCOMMAND, command);
     assert_int_equal(rc, 0);
     rc = ssh_connect(session);
+#ifdef WITH_EXEC
     assert_ssh_return_code(session, rc);
     fd = ssh_get_fd(session);
-    assert_true(fd != SSH_INVALID_SOCKET);
+    assert_int_not_equal(fd, SSH_INVALID_SOCKET);
     rc = fcntl(fd, F_GETFL);
     assert_int_equal(rc & O_RDWR, O_RDWR);
+#else
+    assert_int_equal(rc, SSH_ERROR);
+#endif /* WITH_EXEC */
 }
 
 #else /* NCAT_EXECUTABLE */
@@ -124,7 +130,9 @@ static void torture_options_set_proxycommand_ssh(void **state)
     const char *address = torture_server_address(AF_INET);
     char command[255] = {0};
     int rc;
+#ifdef WITH_EXEC
     socket_t fd;
+#endif
 
     rc = snprintf(command, sizeof(command),
                   "ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -W [%%h]:%%p alice@%s",
@@ -134,11 +142,15 @@ static void torture_options_set_proxycommand_ssh(void **state)
     rc = ssh_options_set(session, SSH_OPTIONS_PROXYCOMMAND, command);
     assert_int_equal(rc, 0);
     rc = ssh_connect(session);
+#ifdef WITH_EXEC
     assert_ssh_return_code(session, rc);
     fd = ssh_get_fd(session);
-    assert_true(fd != SSH_INVALID_SOCKET);
+    assert_int_not_equal(fd, SSH_INVALID_SOCKET);
     rc = fcntl(fd, F_GETFL);
     assert_int_equal(rc & O_RDWR, O_RDWR);
+#else
+    assert_int_equal(rc, SSH_ERROR);
+#endif /* WITH_EXEC */
 }
 
 static void torture_options_set_proxycommand_ssh_stderr(void **state)
@@ -148,7 +160,9 @@ static void torture_options_set_proxycommand_ssh_stderr(void **state)
     const char *address = torture_server_address(AF_INET);
     char command[255] = {0};
     int rc;
+#ifdef WITH_EXEC
     socket_t fd;
+#endif
 
     /* The -vvv switches produce the desired output on the standard error */
     rc = snprintf(command, sizeof(command),
@@ -159,11 +173,65 @@ static void torture_options_set_proxycommand_ssh_stderr(void **state)
     rc = ssh_options_set(session, SSH_OPTIONS_PROXYCOMMAND, command);
     assert_int_equal(rc, 0);
     rc = ssh_connect(session);
+#ifdef WITH_EXEC
     assert_ssh_return_code(session, rc);
     fd = ssh_get_fd(session);
-    assert_true(fd != SSH_INVALID_SOCKET);
+    assert_int_not_equal(fd, SSH_INVALID_SOCKET);
     rc = fcntl(fd, F_GETFL);
     assert_int_equal(rc & O_RDWR, O_RDWR);
+#else
+    assert_int_equal(rc, SSH_ERROR);
+#endif /* WITH_EXEC */
+}
+
+static void torture_options_proxycommand_injection(void **state)
+{
+    struct torture_state *s = *state;
+    struct passwd *pwd = NULL;
+    const char *malicious_host = "`echo foo > mfile`";
+    const char *command = "nc %h %p";
+    char *current_dir = NULL;
+    char *malicious_file_path = NULL;
+    int mfp_len;
+    int verbosity = torture_libssh_verbosity();
+    struct stat sb;
+    int rc;
+
+    pwd = getpwnam("bob");
+    assert_non_null(pwd);
+
+    rc = setuid(pwd->pw_uid);
+    assert_return_code(rc, errno);
+
+    s->ssh.session = ssh_new();
+    assert_non_null(s->ssh.session);
+
+    ssh_options_set(s->ssh.session, SSH_OPTIONS_LOG_VERBOSITY, &verbosity);
+    // if we would be checking the rc, this should fail
+    ssh_options_set(s->ssh.session, SSH_OPTIONS_HOST, malicious_host);
+
+    ssh_options_set(s->ssh.session, SSH_OPTIONS_USER, TORTURE_SSH_USER_ALICE);
+
+    rc = ssh_options_set(s->ssh.session, SSH_OPTIONS_PROXYCOMMAND, command);
+    assert_int_equal(rc, 0);
+    rc = ssh_connect(s->ssh.session);
+    assert_ssh_return_code_equal(s->ssh.session, rc, SSH_ERROR);
+
+    current_dir = torture_get_current_working_dir();
+    assert_non_null(current_dir);
+    mfp_len = strlen(current_dir) + 6;
+    malicious_file_path = malloc(mfp_len);
+    assert_non_null(malicious_file_path);
+    rc = snprintf(malicious_file_path, mfp_len,
+                  "%s/mfile", current_dir);
+    assert_int_equal(rc, mfp_len);
+    free(current_dir);
+    rc = stat(malicious_file_path, &sb);
+    assert_int_not_equal(rc, 0);
+
+    // cleanup
+    remove(malicious_file_path);
+    free(malicious_file_path);
 }
 
 int torture_run_tests(void) {
@@ -180,6 +248,9 @@ int torture_run_tests(void) {
                                         session_teardown),
         cmocka_unit_test_setup_teardown(torture_options_set_proxycommand_ssh_stderr,
                                         session_setup,
+                                        session_teardown),
+        cmocka_unit_test_setup_teardown(torture_options_proxycommand_injection,
+                                        NULL,
                                         session_teardown),
     };
 

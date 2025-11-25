@@ -35,8 +35,8 @@ clients must be made or how a client should react.
 static int authenticated=0;
 static int tries = 0;
 static int error = 0;
-static ssh_channel chan=NULL;
-static char *username;
+static ssh_channel chan = NULL;
+static char *username = NULL;
 static ssh_gssapi_creds client_creds = NULL;
 
 static int auth_password(ssh_session session, const char *user,
@@ -143,19 +143,11 @@ static struct argp_option options[] = {
         .group = 0
     },
     {
-        .name  = "dsakey",
-        .key   = 'd',
-        .arg   = "FILE",
-        .flags = 0,
-        .doc   = "Set the dsa key.",
-        .group = 0
-    },
-    {
         .name  = "rsakey",
         .key   = 'r',
         .arg   = "FILE",
         .flags = 0,
-        .doc   = "Set the rsa key.",
+        .doc   = "Set the rsa host key (deprecated alias to 'k').",
         .group = 0
     },
     {
@@ -180,14 +172,10 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state) {
         case 'p':
             ssh_bind_options_set(sshbind, SSH_BIND_OPTIONS_BINDPORT_STR, arg);
             break;
-        case 'd':
-            ssh_bind_options_set(sshbind, SSH_BIND_OPTIONS_DSAKEY, arg);
-            break;
+        case 'r':
+            /* deprecated */
         case 'k':
             ssh_bind_options_set(sshbind, SSH_BIND_OPTIONS_HOSTKEY, arg);
-            break;
-        case 'r':
-            ssh_bind_options_set(sshbind, SSH_BIND_OPTIONS_RSAKEY, arg);
             break;
         case 'v':
             ssh_bind_options_set(sshbind, SSH_BIND_OPTIONS_LOG_VERBOSITY_STR, "3");
@@ -216,11 +204,12 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state) {
 static struct argp argp = {options, parse_opt, args_doc, doc, NULL, NULL, NULL};
 #endif /* HAVE_ARGP_H */
 
-int main(int argc, char **argv){
-    ssh_session session;
-    ssh_bind sshbind;
-    ssh_event mainloop;
-    ssh_session client_session;
+int main(int argc, char **argv)
+{
+    ssh_session session = NULL;
+    ssh_bind sshbind = NULL;
+    ssh_event mainloop = NULL;
+    ssh_session client_session = NULL;
 
     struct ssh_server_callbacks_struct cb = {
         .userdata = NULL,
@@ -231,13 +220,13 @@ int main(int argc, char **argv){
 
     char buf[BUF_SIZE];
     char host[128]="";
-    char *ptr;
+    char *ptr = NULL;
     int i,r, rc;
 
     sshbind=ssh_bind_new();
     session=ssh_new();
 
-    ssh_bind_options_set(sshbind, SSH_BIND_OPTIONS_RSAKEY, "sshd_rsa");
+    ssh_bind_options_set(sshbind, SSH_BIND_OPTIONS_HOSTKEY, "sshd_rsa");
 
 #ifdef HAVE_ARGP_H
     /*
@@ -348,4 +337,3 @@ int main(int argc, char **argv){
     ssh_finalize();
     return 0;
 }
-

@@ -1,6 +1,122 @@
 CHANGELOG
 =========
 
+version 0.11.3 (released 2025-09-09)
+ * Security:
+   * CVE-2025-8114: Fix NULL pointer dereference after allocation failure
+   * CVE-2025-8277: Fix memory leak of ephemeral key pair during repeated wrong KEX
+   * Potential UAF when send() fails during key exchange
+ * Fix possible timeout during KEX if client sends authentication too early (#311)
+ * Cleanup OpenSSL PKCS#11 provider when loaded
+ * Zeroize buffers containing private key blobs during export
+
+version 0.11.2 (released 2025-06-24)
+ * Security:
+   * CVE-2025-4877 - Write beyond bounds in binary to base64 conversion
+   * CVE-2025-4878 - Use of uninitialized variable in privatekey_from_file()
+   * CVE-2025-5318 - Likely read beyond bounds in sftp server handle management
+   * CVE-2025-5351 - Double free in functions exporting keys
+   * CVE-2025-5372 - ssh_kdf() returns a success code on certain failures
+   * CVE-2025-5449 - Likely read beyond bounds in sftp server message decoding
+   * CVE-2025-5987 - Invalid return code for chacha20 poly1305 with OpenSSL
+ * Compatibility
+   * Fixed compatibility with CPM.cmake
+   * Compatibility with OpenSSH 10.0
+   * Tests compatibility with new Dropbear releases
+   * Removed p11-kit remoting from the pkcs11 testsuite
+ * Bugfixes
+   * Implement missing packet filter for DH GEX
+   * Properly process the SSH2_MSG_DEBUG message
+   * Allow escaping quotes in quoted arguments to ssh configuration
+   * Do not fail with unknown match keywords in ssh configuration
+   * Process packets before selecting signature algorithm during authentication
+   * Do not fail hard when the SFTP status message is not sent by noncompliant
+     servers
+
+version 0.11.1 (released 2024-08-30)
+ * Fixed default TTY modes that are set when stdin is not connected to tty (#270)
+ * Fixed zlib cleanup procedure, which could crash on i386
+ * Various test fixes improving their stability
+ * Fixed cygwin build
+
+version 0.11.0 (released 2024-07-31)
+  * Deprecations and Removals:
+    * Dropped support for DSA
+    * Deprecated Blowfish cipher (will be removed in next release)
+    * Deprecated SSH_BIND_OPTIONS_{RSA,ECDSA}KEY in favor of generic HOSTKEY
+    * Removed the usage of deprecated OpenSSL APIs (Note: Minimum supported
+      OpenSSL version is 1.1.1)
+    * Disabled preauth compression (zlib) by default
+    * Support for pkcs#11 engines are deprecated, pkcs11-provider is used instead
+    * Deprecation of old async SFTP API
+    * libgcrypt cryptographic backend is deprecated
+    * Deprecation of knownhosts hashing
+  * SFTP Improvements:
+    * Added support for async SFTP IO
+    * Added support for sftp_limits() and applied capping to SFTP read/write
+      operations accordingly
+    * Added sftp_home_directory() API support for sftp extension "home-directory"
+    * Added sftp_lsetstat() API for lsetstat extensions
+    * Added sftp_expand_path() to canonicalize path using expand-path@openssh.com
+      extension
+    * Implemented stat and realpath in sftpserver
+    * Added sftp_readlink() API to support hardlink@openssh.com
+    * New extensible callback based SFTP server
+    * Introduced the posix-rename@openssh.com extension
+  * New functions and features:
+    * Added support for PKCS #11 provider for OpenSSL 3.0
+    * Added testing for GSSAPI Authentication
+    * Implemented proxy jump using libssh
+    * Recategorized loglevels to show fatal errors and alignment with OpenSSH
+      log levels
+    * Added ssh_channel_request_pty_size_modes() API to set terminal modes for
+      PTYs
+    * Added function to check username syntax
+    * Added support to check all keys in authorized_keys instead of one in
+      example server implementation
+    * Handled hostkey similar to OpenSSH
+    * Added ssh_session_socket_close() API in order to not close socket passed
+      through options on error conditions
+    * Added option SSH_BIND_OPTIONS_IMPORT_KEY_STR to read user-supplied key
+      string in ssh_bind_options_set()
+    * Improved log handling around ssh_set_callbacks
+    * Added ssh_set_error_invalid in ssh_options_set()
+    * Prevented signature blob to start with 1 bit in libgcrypt
+    * Added support to unbreak key comparison of Ed25519 keys imported from PEM
+      or OpenSSH container
+    * Added support to calculate missing CRT parameters when building RSA key
+    * Added ssh_pki_export_privkey_base64_format() and
+      ssh_pki_export_privkey_file_format() to support exporting keys in different
+      formats (PEM, OpenSSH)
+    * Added support to compare certificates and handle automatic certificate
+      authentication
+    * Added support to make compile-commands generation conditional
+    * Built fuzzers for normal testing
+    * Avoided passing other events to callbacks when called recursively
+    * Added control master and path options
+    * Refactored channel_rcv_data, check for errors and report more useful errors
+    * Added support to connect to other host addresses than just the first one
+    * Terminated the server properly when the MaxAuthTries is reached
+    * Added support for no-more-sessions@openssh.com request in both client and
+      server
+    * Added callback to support forwarded-tcpip requests
+    * Bumped minimal CMake version to 3.12
+    * Added support for MBedTLS 3.6.x
+    * Added support for +,-,^ modifiers in front of algorithm lists in options
+    * Added callbacks for channel open response, and channel request response
+    * Replaced chroot() from chroot_wrapper internal library with chroot()
+      from priv_wrapper package
+    * Added a placeholder for non-expanded identities
+    * Improved handling of channel transfer window sizes
+
+version 0.10.6 (released 2023-12-18)
+ * Fix CVE-2023-6004: Command injection using proxycommand
+ * Fix CVE-2023-48795: Potential downgrade attack using strict kex
+ * Fix CVE-2023-6918: Missing checks for return values of MD functions
+ * Fix ssh_send_issue_banner() for CMD(PowerShell)
+ * Avoid passing other events to callbacks when poll is called recursively (#202)
+ * Allow @ in usernames when parsing from URI composes
+
 version 0.10.5 (released 2023-05-04)
  * Fix CVE-2023-1667: a NULL dereference during rekeying with algorithm guessing
  * Fix CVE-2023-2283: a possible authorization bypass in
@@ -68,9 +184,6 @@ version 0.10.0 (released 2022-08-26)
   * Deprecated old pubkey, privatekey API
   * Avoided some needless large stack buffers to minimize memory footprint
   * Removed support for OpenSSL < 1.0.1
-  * Fixed parsing username@host in login name
-  * Free global init mutex in the destructor on Windows
-  * Fixed PEM parsing in mbedtls to support both legacy and new PKCS8 formats
 
 version 0.9.6 (released 2021-08-26)
   * CVE-2021-3634: Fix possible heap-buffer overflow when rekeying with

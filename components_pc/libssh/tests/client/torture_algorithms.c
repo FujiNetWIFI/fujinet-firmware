@@ -496,7 +496,7 @@ static void torture_algorithms_3des_cbc_hmac_sha2_512_etm(void **state) {
     test_algorithm(s->ssh.session, NULL/*kex*/, "3des-cbc", "hmac-sha2-512-etm@openssh.com");
 }
 
-#if defined(WITH_BLOWFISH_CIPHER) && defined(OPENSSH_BLOWFISH_CBC)
+#if defined(HAVE_BLOWFISH) && defined(OPENSSH_BLOWFISH_CBC)
 static void torture_algorithms_blowfish_cbc_hmac_sha1(void **state) {
     struct torture_state *s = *state;
 
@@ -556,7 +556,7 @@ static void torture_algorithms_blowfish_cbc_hmac_sha2_512_etm(void **state) {
 
     test_algorithm(s->ssh.session, NULL/*kex*/, "blowfish-cbc", "hmac-sha2-512-etm@openssh.com");
 }
-#endif /* WITH_BLOWFISH_CIPHER */
+#endif /* HAVE_BLOWFISH && defined(OPENSSH_BLOWFISH_CBC) */
 
 #ifdef OPENSSH_CHACHA20_POLY1305_OPENSSH_COM
 static void torture_algorithms_chacha20_poly1305(void **state)
@@ -921,7 +921,7 @@ int torture_run_tests(void) {
         cmocka_unit_test_setup_teardown(torture_algorithms_3des_cbc_hmac_sha2_512_etm,
                                         session_setup,
                                         session_teardown),
-#if defined(WITH_BLOWFISH_CIPHER) && defined(OPENSSH_BLOWFISH_CBC)
+#if defined(HAVE_BLOWFISH) && defined(OPENSSH_BLOWFISH_CBC)
         cmocka_unit_test_setup_teardown(torture_algorithms_blowfish_cbc_hmac_sha1,
                                         session_setup,
                                         session_teardown),
@@ -940,7 +940,7 @@ int torture_run_tests(void) {
         cmocka_unit_test_setup_teardown(torture_algorithms_blowfish_cbc_hmac_sha2_512_etm,
                                         session_setup,
                                         session_teardown),
-#endif /* WITH_BLOWFISH_CIPHER */
+#endif /* HAVE_BLOWFISH_CIPHER && defined(OPENSSH_BLOWFISH_CBC) */
 #ifdef OPENSSH_CHACHA20_POLY1305_OPENSSH_COM
         cmocka_unit_test_setup_teardown(torture_algorithms_chacha20_poly1305,
                                         session_setup,

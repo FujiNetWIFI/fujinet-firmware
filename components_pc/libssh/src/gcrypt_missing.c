@@ -47,7 +47,7 @@ int ssh_gcry_dec2bn(bignum *bn, const char *data) {
 
 char *ssh_gcry_bn2dec(bignum bn) {
   bignum bndup, num, ten;
-  char *ret;
+  char *ret = NULL;
   int count, count2;
   int size, rsize;
   char decnum;
@@ -55,7 +55,7 @@ char *ssh_gcry_bn2dec(bignum bn) {
   size = gcry_mpi_get_nbits(bn) * 3;
   rsize = size / 10 + size / 1000 + 2;
 
-  ret = malloc(rsize + 1);
+  ret = gcry_malloc(rsize + 1);
   if (ret == NULL) {
     return NULL;
   }

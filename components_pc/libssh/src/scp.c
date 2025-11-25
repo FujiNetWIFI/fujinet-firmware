@@ -66,7 +66,7 @@ ssh_scp ssh_scp_new(ssh_session session, int mode, const char *location)
 {
     ssh_scp scp = NULL;
 
-    if (session == NULL) {
+    if (session == NULL || location == NULL) {
         goto error;
     }
 
@@ -107,11 +107,7 @@ ssh_scp ssh_scp_new(ssh_session session, int mode, const char *location)
     return scp;
 
 error:
-    /* Using deprecated function within deprecated API is acceptable */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     ssh_scp_free(scp);
-#pragma GCC diagnostic pop
     return NULL;
 }
 
@@ -150,7 +146,7 @@ int ssh_scp_init(ssh_scp scp)
         return SSH_ERROR;
     }
 
-    SSH_LOG(SSH_LOG_PROTOCOL, "Initializing scp session %s %son location '%s'",
+    SSH_LOG(SSH_LOG_DEBUG, "Initializing scp session %s %son location '%s'",
             scp->mode == SSH_SCP_WRITE?"write":"read",
             scp->recursive ? "recursive " : "",
             scp->location);
@@ -270,7 +266,7 @@ int ssh_scp_close(ssh_scp scp)
          */
         while (!ssh_channel_is_eof(scp->channel)) {
             rc = ssh_channel_read(scp->channel, buffer, sizeof(buffer), 0);
-            if (rc == SSH_ERROR || rc == 0) {
+            if (rc == SSH_ERROR || rc == SSH_AGAIN || rc == 0) {
                 break;
             }
         }
@@ -304,11 +300,7 @@ void ssh_scp_free(ssh_scp scp)
     }
 
     if (scp->state != SSH_SCP_NEW) {
-        /* Using deprecated function within deprecated API is acceptable */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
         ssh_scp_close(scp);
-#pragma GCC diagnostic pop
     }
 
     if (scp->channel) {
@@ -384,7 +376,7 @@ int ssh_scp_push_directory(ssh_scp scp, const char *dirname, int mode)
         goto error;
     }
 
-    SSH_LOG(SSH_LOG_PROTOCOL,
+    SSH_LOG(SSH_LOG_DEBUG,
             "SCP pushing directory %s with permissions '%s'",
             vis_encoded, perms);
 
@@ -525,7 +517,7 @@ int ssh_scp_push_file64(ssh_scp scp, const char *filename, uint64_t size,
         goto error;
     }
 
-    SSH_LOG(SSH_LOG_PROTOCOL,
+    SSH_LOG(SSH_LOG_DEBUG,
             "SCP pushing file %s, size %" PRIu64 " with permissions '%s'",
             vis_encoded, size, perms);
 
@@ -582,12 +574,7 @@ error:
  */
 int ssh_scp_push_file(ssh_scp scp, const char *filename, size_t size, int mode)
 {
-    /* Using deprecated function within deprecated API is acceptable */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-    int ret = ssh_scp_push_file64(scp, filename, (uint64_t) size, mode);
-#pragma GCC diagnostic pop
-    return ret;
+    return ssh_scp_push_file64(scp, filename, (uint64_t) size, mode);
 }
 
 /**
@@ -616,6 +603,12 @@ int ssh_scp_response(ssh_scp scp, char **response)
 
     rc = ssh_channel_read(scp->channel, &code, 1, 0);
     if (rc == SSH_ERROR) {
+        scp->state = SSH_SCP_ERROR;
+        return SSH_ERROR;
+    }
+    if (rc == SSH_AGAIN) {
+        ssh_set_error(scp->session, SSH_FATAL, "SCP: ssh_channel_read timeout");
+        scp->state = SSH_SCP_ERROR;
         return SSH_ERROR;
     }
 
@@ -773,6 +766,14 @@ int ssh_scp_read_string(ssh_scp scp, char *buffer, size_t len)
             break;
         }
 
+        if (err == SSH_AGAIN) {
+            ssh_set_error(scp->session,
+                          SSH_FATAL,
+                          "SCP: ssh_channel_read timeout");
+            err = SSH_ERROR;
+            break;
+        }
+
         read++;
         if (buffer[read - 1] == '\n') {
             break;
@@ -838,7 +839,7 @@ int ssh_scp_pull_request(ssh_scp scp)
         *p = '\0';
     }
 
-    SSH_LOG(SSH_LOG_PROTOCOL, "Received SCP request: '%s'", buffer);
+    SSH_LOG(SSH_LOG_DEBUG, "Received SCP request: '%s'", buffer);
     switch(buffer[0]) {
     case 'C':
         /* File */
@@ -1019,11 +1020,7 @@ int ssh_scp_read(ssh_scp scp, void *buffer, size_t size)
     if (scp->state == SSH_SCP_READ_REQUESTED &&
         scp->request_type == SSH_SCP_REQUEST_NEWFILE)
     {
-        /* Using deprecated function within deprecated API is acceptable */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
         rc = ssh_scp_accept_request(scp);
-#pragma GCC diagnostic pop
         if (rc == SSH_ERROR) {
             return rc;
         }
@@ -1044,12 +1041,16 @@ int ssh_scp_read(ssh_scp scp, void *buffer, size_t size)
     }
 
     rc = ssh_channel_read(scp->channel, buffer, size, 0);
-    if (rc != SSH_ERROR) {
-        scp->processed += rc;
-    } else {
+    if (rc == SSH_ERROR) {
         scp->state = SSH_SCP_ERROR;
         return SSH_ERROR;
     }
+    if (rc == SSH_AGAIN) {
+        ssh_set_error(scp->session, SSH_FATAL, "SCP: ssh_channel_read timeout");
+        scp->state = SSH_SCP_ERROR;
+        return SSH_ERROR;
+    }
+    scp->processed += rc;
 
     /* Check if we arrived at end of file */
     if (scp->processed == scp->filelen) {

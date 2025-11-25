@@ -31,6 +31,7 @@
 #include "libssh/priv.h"
 #include "libssh/session.h"
 #include "libssh/crypto.h"
+#include "libssh/token.h"
 
 #include <errno.h>
 #include <sys/types.h>
@@ -96,6 +97,7 @@ static int session_teardown(void **state)
     struct torture_state *s = *state;
 
     ssh_free(s->ssh.session);
+    s->ssh.session = NULL;
 
     return 0;
 }
@@ -148,6 +150,33 @@ static void torture_rekey_default(void **state)
     ssh_disconnect(s->ssh.session);
 }
 
+static void sanity_check_session_size(void **state, uint64_t rekey_limit)
+{
+    struct torture_state *s = *state;
+    struct ssh_crypto_struct *c = NULL;
+
+    c = s->ssh.session->current_crypto;
+    assert_non_null(c);
+    assert_int_equal(c->in_cipher->max_blocks,
+                     rekey_limit / c->in_cipher->blocksize);
+    assert_int_equal(c->out_cipher->max_blocks,
+                     rekey_limit / c->out_cipher->blocksize);
+    /* when strict kex is used, the newkeys reset the sequence number */
+    if ((s->ssh.session->flags & SSH_SESSION_FLAG_KEX_STRICT) != 0) {
+        assert_int_equal(c->out_cipher->packets, s->ssh.session->send_seq);
+        assert_int_equal(c->in_cipher->packets, s->ssh.session->recv_seq);
+    } else {
+        /* Otherwise we have less encrypted packets than transferred
+         * (first are not encrypted) */
+        assert_true(c->out_cipher->packets < s->ssh.session->send_seq);
+        assert_true(c->in_cipher->packets < s->ssh.session->recv_seq);
+    }
+}
+static void sanity_check_session(void **state)
+{
+    sanity_check_session_size(state, bytes);
+}
+
 /* We lower the rekey limits manually and check that the rekey
  * really happens when sending data
  */
@@ -166,16 +195,10 @@ static void torture_rekey_send(void **state)
     rc = ssh_connect(s->ssh.session);
     assert_ssh_return_code(s->ssh.session, rc);
 
-    /* The blocks limit is set correctly */
-    c = s->ssh.session->current_crypto;
-    assert_int_equal(c->in_cipher->max_blocks,
-                     bytes / c->in_cipher->blocksize);
-    assert_int_equal(c->out_cipher->max_blocks,
-                     bytes / c->out_cipher->blocksize);
-    /* We should have less encrypted packets than transferred (first are not encrypted) */
-    assert_true(c->out_cipher->packets < s->ssh.session->send_seq);
-    assert_true(c->in_cipher->packets < s->ssh.session->recv_seq);
+    sanity_check_session(state);
     /* Copy the initial secret hash = session_id so we know we changed keys later */
+    c = s->ssh.session->current_crypto;
+    assert_non_null(c);
     secret_hash = malloc(c->digest_len);
     assert_non_null(secret_hash);
     memcpy(secret_hash, c->secret_hash, c->digest_len);
@@ -258,7 +281,7 @@ static int session_setup_sftp_client(void **state)
 /* To trigger rekey by receiving data, the easiest thing is probably to
  * use sftp
  */
-static void torture_rekey_recv(void **state)
+static void torture_rekey_recv_size(void **state, uint64_t rekey_limit)
 {
     struct torture_state *s = *state;
     struct ssh_crypto_struct *c = NULL;
@@ -273,15 +296,10 @@ static void torture_rekey_recv(void **state)
     mode_t mask;
     int rc;
 
-    /* The blocks limit is set correctly */
+    sanity_check_session_size(state, rekey_limit);
+    /* Copy the initial secret hash = session_id so we know we changed keys later */
     c = s->ssh.session->current_crypto;
     assert_non_null(c);
-    assert_int_equal(c->in_cipher->max_blocks, bytes / c->in_cipher->blocksize);
-    assert_int_equal(c->out_cipher->max_blocks, bytes / c->out_cipher->blocksize);
-    /* We should have less encrypted packets than transferred (first are not encrypted) */
-    assert_true(c->out_cipher->packets < s->ssh.session->send_seq);
-    assert_true(c->in_cipher->packets < s->ssh.session->recv_seq);
-    /* Copy the initial secret hash = session_id so we know we changed keys later */
     secret_hash = malloc(c->digest_len);
     assert_non_null(secret_hash);
     memcpy(secret_hash, c->secret_hash, c->digest_len);
@@ -312,14 +330,21 @@ static void torture_rekey_recv(void **state)
 
     /* The rekey limit was restored in the new crypto to the same value */
     c = s->ssh.session->current_crypto;
-    assert_int_equal(c->in_cipher->max_blocks, bytes / c->in_cipher->blocksize);
-    assert_int_equal(c->out_cipher->max_blocks, bytes / c->out_cipher->blocksize);
+    assert_int_equal(c->in_cipher->max_blocks,
+                     rekey_limit / c->in_cipher->blocksize);
+    assert_int_equal(c->out_cipher->max_blocks,
+                     rekey_limit / c->out_cipher->blocksize);
     /* Check that the secret hash is different than initially */
     assert_memory_not_equal(secret_hash, c->secret_hash, c->digest_len);
     free(secret_hash);
 
     torture_sftp_close(s->ssh.tsftp);
     ssh_disconnect(s->ssh.session);
+}
+
+static void torture_rekey_recv(void **state)
+{
+    torture_rekey_recv_size(state, bytes);
 }
 #endif /* WITH_SFTP */
 
@@ -468,15 +493,10 @@ static void torture_rekey_different_kex(void **state)
     assert_ssh_return_code(s->ssh.session, rc);
 
     /* The blocks limit is set correctly */
-    c = s->ssh.session->current_crypto;
-    assert_int_equal(c->in_cipher->max_blocks,
-                     bytes / c->in_cipher->blocksize);
-    assert_int_equal(c->out_cipher->max_blocks,
-                     bytes / c->out_cipher->blocksize);
-    /* We should have less encrypted packets than transferred (first are not encrypted) */
-    assert_true(c->out_cipher->packets < s->ssh.session->send_seq);
-    assert_true(c->in_cipher->packets < s->ssh.session->recv_seq);
+    sanity_check_session(state);
     /* Copy the initial secret hash = session_id so we know we changed keys later */
+    c = s->ssh.session->current_crypto;
+    assert_non_null(c);
     secret_hash = malloc(c->digest_len);
     assert_non_null(secret_hash);
     memcpy(secret_hash, c->secret_hash, c->digest_len);
@@ -505,7 +525,7 @@ static void torture_rekey_different_kex(void **state)
     memset(data, 'A', 128);
     for (i = 0; i < KEX_RETRY; i++) {
         ssh_send_ignore(s->ssh.session, data);
-        ssh_handle_packets(s->ssh.session, 100);
+        ssh_handle_packets(s->ssh.session, 1000);
 
         c = s->ssh.session->current_crypto;
         /* SHA256 len */
@@ -583,7 +603,7 @@ static void torture_rekey_server_different_kex(void **state)
     memset(data, 'A', 128);
     for (i = 0; i < KEX_RETRY; i++) {
         ssh_send_ignore(s->ssh.session, data);
-        ssh_handle_packets(s->ssh.session, 100);
+        ssh_handle_packets(s->ssh.session, 1000);
 
         c = s->ssh.session->current_crypto;
         /* SHA256 len */
@@ -829,6 +849,81 @@ static void torture_rekey_guess_wrong_recv(void **state)
 
     torture_rekey_recv(state);
 }
+
+static void torture_rekey_guess_all_combinations(void **state)
+{
+    struct torture_state *s = *state;
+    char sshd_config[256] = "";
+    char client_kex[256] = "";
+    const char *supported = NULL;
+    struct ssh_tokens_st *s_tok = NULL;
+    uint64_t rekey_limit = 0;
+    int rc, i, j;
+
+    /* The rekey limit is 1/2 of the transferred file size so we will likely get
+     * 2 rekeys per test, which still runs for acceptable time */
+    rekey_limit = atoll(SSH_EXECUTABLE_SIZE);
+    rekey_limit /= 2;
+
+    if (ssh_fips_mode()) {
+        supported = ssh_kex_get_fips_methods(SSH_KEX);
+    } else {
+        supported = ssh_kex_get_supported_method(SSH_KEX);
+    }
+    assert_non_null(supported);
+
+    s_tok = ssh_tokenize(supported, ',');
+    assert_non_null(s_tok);
+    for (i = 0; s_tok->tokens[i]; i++) {
+        /* Skip algorithms not supported by the OpenSSH server */
+        if (strstr(OPENSSH_KEX, s_tok->tokens[i]) == NULL) {
+            SSH_LOG(SSH_LOG_INFO, "Server: %s [skipping]", s_tok->tokens[i]);
+            continue;
+        }
+        SSH_LOG(SSH_LOG_INFO, "Server: %s", s_tok->tokens[i]);
+        snprintf(sshd_config,
+                 sizeof(sshd_config),
+                 "KexAlgorithms %s",
+                 s_tok->tokens[i]);
+        /* This sets an only supported kex algorithm that we do not have as
+         * a first option in the client */
+        torture_update_sshd_config(state, sshd_config);
+
+        for (j = 0; s_tok->tokens[j]; j++) {
+            if (i == j) {
+                continue;
+            }
+
+            session_setup(state);
+            /* Make the client send the first_kex_packet_follows flag during key
+             * exchange as well as during the rekey */
+            s->ssh.session->send_first_kex_follows = true;
+
+            rc = ssh_options_set(s->ssh.session,
+                                 SSH_OPTIONS_REKEY_DATA,
+                                 &rekey_limit);
+            assert_ssh_return_code(s->ssh.session, rc);
+
+            /* Client kex preference will have the second of the pair and the
+             * server one as a second to negotiate on the second attempt */
+            snprintf(client_kex,
+                     sizeof(client_kex),
+                     "%s,%s",
+                     s_tok->tokens[j],
+                     s_tok->tokens[i]);
+            SSH_LOG(SSH_LOG_INFO, "Client: %s", client_kex);
+            rc = ssh_options_set(s->ssh.session,
+                                 SSH_OPTIONS_KEY_EXCHANGE,
+                                 client_kex);
+            assert_ssh_return_code(s->ssh.session, rc);
+            session_setup_sftp(state);
+            torture_rekey_recv_size(state, rekey_limit);
+            session_teardown(state);
+        }
+    }
+
+    ssh_tokens_free(s_tok);
+}
 #endif /* WITH_SFTP */
 
 int torture_run_tests(void) {
@@ -898,6 +993,7 @@ int torture_run_tests(void) {
         cmocka_unit_test_setup_teardown(torture_rekey_guess_wrong_recv,
                                         session_setup,
                                         session_teardown),
+        cmocka_unit_test(torture_rekey_guess_all_combinations),
 #endif /* WITH_SFTP */
     };
 

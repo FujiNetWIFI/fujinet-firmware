@@ -21,9 +21,11 @@
  * MA 02111-1307, USA.
  */
 
+
 #include "config.h"
 #include "test_server.h"
 #include "default_cb.h"
+#include "testserver_common.h"
 
 #include <libssh/callbacks.h>
 #include <libssh/server.h>
@@ -193,7 +195,6 @@ int auth_gssapi_mic_cb(ssh_session session,
         printf("Received some gssapi credentials\n");
     } else {
         printf("Not received any forwardable creds\n");
-        goto denied;
     }
 
     printf("Authenticated\n");
@@ -203,8 +204,6 @@ int auth_gssapi_mic_cb(ssh_session session,
 
     return SSH_AUTH_SUCCESS;
 
-denied:
-    sdata->auth_attempts++;
 null_userdata:
     return SSH_AUTH_DENIED;
 }
@@ -451,9 +450,11 @@ static int exec_pty(const char *mode,
     case 0:
         close(cdata->pty_master);
         if (login_tty(cdata->pty_slave) != 0) {
+            finalize_openssl();
             exit(1);
         }
         execl("/bin/sh", "sh", mode, command, NULL);
+        finalize_openssl();
         exit(0);
     default:
         close(cdata->pty_slave);
@@ -503,6 +504,7 @@ static int exec_nopty(const char *command, struct channel_data_st *cdata)
             close(err[1]);
             /* exec the requested command. */
             execl("/bin/sh", "sh", "-c", command, NULL);
+            finalize_openssl();
             exit(0);
     }
 
@@ -886,7 +888,6 @@ void default_handle_session_cb(ssh_event event,
     }
 
     sdata.server_state = (void *)state;
-    cdata.server_state = (void *)state;
 
 #ifdef WITH_PCAP
     set_pcap(&sdata, session, state->pcap_file);
@@ -902,7 +903,7 @@ void default_handle_session_cb(ssh_event event,
 
     if (ssh_handle_key_exchange(session) != SSH_OK) {
         fprintf(stderr, "%s\n", ssh_get_error(session));
-        return;
+        goto end;
     }
 
     /* Set the supported authentication methods */
@@ -911,7 +912,8 @@ void default_handle_session_cb(ssh_event event,
     } else {
         ssh_set_auth_methods(session,
                 SSH_AUTH_METHOD_PASSWORD |
-                SSH_AUTH_METHOD_PUBLICKEY);
+                SSH_AUTH_METHOD_PUBLICKEY|
+                SSH_AUTH_METHOD_GSSAPI_MIC);
     }
 
     ssh_event_add_session(event, session);
@@ -921,12 +923,12 @@ void default_handle_session_cb(ssh_event event,
         /* If the user has used up all attempts, or if he hasn't been able to
          * authenticate in 10 seconds (n * 100ms), disconnect. */
         if (sdata.auth_attempts >= state->max_tries || n >= 100) {
-            return;
+            goto end;
         }
 
         if (ssh_event_dopoll(event, 100) == SSH_ERROR) {
             fprintf(stderr, "do_poll error: %s\n", ssh_get_error(session));
-            return;
+            goto end;
         }
         n++;
     }

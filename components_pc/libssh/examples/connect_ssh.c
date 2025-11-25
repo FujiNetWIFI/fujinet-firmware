@@ -22,7 +22,7 @@ clients must be made or how a client should react.
 #include <stdio.h>
 
 ssh_session connect_ssh(const char *host, const char *user,int verbosity){
-  ssh_session session;
+  ssh_session session = NULL;
   int auth=0;
 
   session=ssh_new();
