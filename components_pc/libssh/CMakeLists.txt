@@ -126,9 +126,9 @@ install(
     COMPONENT
         devel)
 
-if (WITH_EXAMPLES)
-    add_subdirectory(examples)
-endif (WITH_EXAMPLES)
+# if (WITH_EXAMPLES)
+#     add_subdirectory(examples)
+# endif (WITH_EXAMPLES)
 
 if (UNIT_TESTING)
     include(AddCMockaTest)
