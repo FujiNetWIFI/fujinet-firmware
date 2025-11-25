@@ -11,7 +11,7 @@
 #include "fnSystem.h"
 
 #include "utils.h"
-
+#include "endianness.h"
 
 #define BOOTLOADER "/picoboot.bin"
 
@@ -164,7 +164,7 @@ bool MediaTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
     {
         Debug_print("faking DOS 2 directory\r\n");
         _fake_directory_entry();
-        _disk_last_sector = INVALID_SECTOR_VALUE; // Reset this so we're forced to seek        
+        _disk_last_sector = INVALID_SECTOR_VALUE; // Reset this so we're forced to seek
         return false;
     }
 

@@ -225,8 +225,9 @@ int fnHttpServiceBrowser::browse_listdir(mg_connection *c, mg_http_message *hm, 
                 Config.save();
 
 #ifdef BUILD_ATARI // OS
+#warning "Why does only Atari need to unmount a disk?"
                 // umount current image, if any - close image file, reset drive slot
-                theFuji->sio_disk_image_umount(false, drive_slot);
+                theFuji->fujicore_unmount_disk_image_success(drive_slot);
 #endif
 
                 // update drive slot
@@ -236,11 +237,12 @@ int fnHttpServiceBrowser::browse_listdir(mg_connection *c, mg_http_message *hm, 
                 strlcpy(fnDisk.filename, path, sizeof(fnDisk.filename));
 
 #ifdef BUILD_ATARI // OS
+#warning "Why does only Atari need to mount the host and disk?"
                 // mount host (file system)
-                if (theFuji->sio_mount_host(false, slot) == 0)
+                if (theFuji->fujicore_mount_host_success(slot))
                 {
                     // mount disk image
-                    theFuji->sio_disk_image_mount(false, drive_slot);
+                    theFuji->fujicore_mount_disk_image_success(drive_slot, 0);
                 }
 #endif
             }
@@ -250,11 +252,12 @@ int fnHttpServiceBrowser::browse_listdir(mg_connection *c, mg_http_message *hm, 
             if (drive_slot >=0 && drive_slot < MAX_DISK_DEVICES)
             {
 #ifdef BUILD_ATARI // OS
+#warning "Why does only Atari need to mount the host and disk?"
                 // mount host (file system)
-                if (theFuji->sio_mount_host(false, theFuji->get_disk(drive_slot)->host_slot) == 0)
+                if (theFuji->fujicore_mount_host_success(slot))
                 {
                     // mount disk image
-                    theFuji->sio_disk_image_mount(false, drive_slot);
+                    theFuji->fujicore_mount_disk_image_success(drive_slot, 0);
                 }
 #endif
             }
@@ -267,7 +270,8 @@ int fnHttpServiceBrowser::browse_listdir(mg_connection *c, mg_http_message *hm, 
                 Config.clear_mount(drive_slot);
                 Config.save();
 #ifdef BUILD_ATARI // OS
-                theFuji->sio_disk_image_umount(false, drive_slot);
+#warning "Why does only Atari need to unmount a disk?"
+                theFuji->fujicore_unmount_disk_image_success(drive_slot);
 #endif
                 // Finally, scan all device slots, if all empty, and config enabled, enable the config device.
                 if (Config.get_general_config_enabled())

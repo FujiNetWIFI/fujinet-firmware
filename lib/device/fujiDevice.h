@@ -11,6 +11,11 @@
 #include <string>
 #include <optional>
 
+#ifdef BUILD_ATARI
+#define SYSTEM_BUS_IS_UDP 1
+#define SYSTEM_BUS_IS_SERIAL 1
+#endif /* BUILD_ATARI */
+
 #define MAX_HOSTS MAX_HOST_SLOTS
 #define MAX_DISK_DEVICES MAX_MOUNT_SLOTS
 #define MAX_NETWORK_DEVICES 8
@@ -209,6 +214,8 @@ public:
                                               uint8_t mode, std::string filename);
     std::optional<std::string> fujicore_get_device_filename(uint8_t slot);
     bool fujicore_mount_disk_image_success(uint8_t deviceSlot, uint8_t access_mode);
+    bool fujicore_unmount_disk_image_success(uint8_t deviceSlot);
+    bool fujicore_mount_host_success(unsigned hostSlot);
     bool fujicore_mount_all_success();
 
     // Should be protected but directly accessed by sio.cpp

@@ -4,7 +4,7 @@
 
 #include "../../include/debug.h"
 
-#include "fujiDevice.h"
+#include "sio/sioFuji.h"
 #include "udpstream.h"
 #include "modem.h"
 #include "siocpm.h"
@@ -220,7 +220,7 @@ void systemBus::_sio_process_cmd()
 
     Debug_print("\n");
     Debug_printf("CF: %02x %02x %02x %02x %02x\n",
-                 tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
+                 tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.checksum);
 
     // Wait for CMD line to raise again
 #ifdef ESP_PLATFORM
@@ -877,8 +877,10 @@ bool systemBus::commandAsserted()
         return rs232->getDTR();
     case fnConfig::SERIAL_COMMAND_CTS:
         return rs232->getRTS();
+#if 0
     case fnConfig::SERIAL_COMMAND_RI:
         return rs232->getRI();
+#endif
     default:
         break;
     }

@@ -351,24 +351,29 @@ void fujiDevice::fujicmd_net_get_ssid()
 }
 
 // Mount Server
-bool fujiDevice::fujicmd_mount_host_success(unsigned hostSlot)
+bool fujiDevice::fujicore_mount_host_success(unsigned hostSlot)
 {
     Debug_println("Fuji cmd: MOUNT HOST");
 
     // Make sure we weren't given a bad hostSlot
     if (!validate_host_slot(hostSlot, "mount_hosts"))
-    {
-        transaction_error();
         return false;
-    }
 
     if (!hostMounted[hostSlot] && !_fnHosts[hostSlot].mount())
+        return false;
+
+    hostMounted[hostSlot] = true;
+    return true;
+}
+
+bool fujiDevice::fujicmd_mount_host_success(unsigned hostSlot)
+{
+    if (!fujicore_mount_host_success(hostSlot))
     {
         transaction_error();
         return false;
     }
 
-    hostMounted[hostSlot] = true;
     transaction_complete();
     return true;
 }
@@ -950,7 +955,7 @@ bool fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot,
     return true;
 }
 
-bool fujiDevice::fujicmd_unmount_disk_image_success(uint8_t deviceSlot)
+bool fujiDevice::fujicore_unmount_disk_image_success(uint8_t deviceSlot)
 {
     DEVICE_TYPE *disk_dev;
 
@@ -958,16 +963,24 @@ bool fujiDevice::fujicmd_unmount_disk_image_success(uint8_t deviceSlot)
 
     // FIXME - handle tape?
     if (deviceSlot >= MAX_DISK_DEVICES)
-    {
-        transaction_error();
         return false;
-    }
 
     disk_dev = get_disk_dev(deviceSlot);
     if (disk_dev->device_active)
         disk_dev->switched = true;
     disk_dev->unmount();
     _fnDisks[deviceSlot].reset();
+
+    return true;
+}
+
+bool fujiDevice::fujicmd_unmount_disk_image_success(uint8_t deviceSlot)
+{
+    if (!fujicore_unmount_disk_image_success(deviceSlot))
+    {
+        transaction_error();
+        return false;
+    }
 
     transaction_complete();
     return true;

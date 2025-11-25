@@ -462,7 +462,8 @@ void fnTcpClient::updateFIFO()
 // Return number of bytes available for reading
 size_t fnTcpClient::available()
 {
-    updateFIFO();
+    if (_rxBuffer.empty())
+        updateFIFO();
     return _rxBuffer.size();
 }
 

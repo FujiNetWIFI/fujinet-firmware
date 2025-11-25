@@ -5,6 +5,8 @@
 #include "utils.h"
 #include "base64.h"
 #include "../../qrcode/qrmanager.h"
+#include "compat_string.h"
+#include "fuji_endian.h"
 
 #define IMAGE_EXTENSION ".atr"
 
@@ -139,7 +141,7 @@ void sioFuji::sio_net_set_ssid()
     if (!transaction_get(&cfg, sizeof(cfg)))
         transaction_error();
     else
-        fujicmd_net_set_ssid(cfg.ssid, cfg.password, cmdFrame.aux1);
+        fujicmd_net_set_ssid_success(cfg.ssid, cfg.password, cmdFrame.aux1);
 }
 
 // Set SIO baudrate
@@ -186,14 +188,11 @@ void sioFuji::sio_set_baudrate()
     // send complete with current baudrate
     transaction_complete();
 
-#ifdef ESP_PLATFORM
-    SYSTEM_BUS.uart->flush();
-    SYSTEM_BUS.uart->set_baudrate(br);
-#else
-    fnSioCom.flush();
+    SYSTEM_BUS.flushOutput();
+#ifndef ESP_PLATFORM
     fnSystem.delay_microseconds(2000);
-    fnSioCom.set_baudrate(br);
 #endif
+    SYSTEM_BUS.setBaudrate(br);
 }
 
 // DEBUG TAPE
@@ -224,7 +223,7 @@ void sioFuji::debug_tape()
     }
 }
 
-#ifndef ESP_PLATFORM
+#if 0 //ndef ESP_PLATFORM
 int sioFuji::_on_ok(bool siomode)
 {
     if (siomode) transaction_complete();
@@ -338,11 +337,9 @@ void sioFuji::sio_set_hsio_index()
 void sioFuji::setup()
 {
     // set up Fuji device
-    _bus = sysbus;
-
     populate_slots_from_config();
 
-    insert_boot_device(Config.get_general_boot_mode(), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN);
+    insert_boot_device(Config.get_general_boot_mode(), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
@@ -378,48 +375,42 @@ void sioFuji::sio_qrcode_input()
 
     std::vector<unsigned char> p(len);
     transaction_get(p.data(), len);
-    qrManager.in_buf += std::string((const char *)p.data(), len);
+    _qrManager.data += std::string((const char *)p.data(), len);
     transaction_complete();
 }
 
 void sioFuji::sio_qrcode_encode()
 {
-    size_t out_len = 0;
-
-    qrManager.output_mode = 0;
     uint16_t aux = sio_get_aux();
-    qrManager.version = aux & 0b01111111;
-    qrManager.ecc_mode = (aux >> 8) & 0b00000011;
+    uint8_t version = aux & 0b01111111;
+    uint8_t ecc_mode = ((aux >> 8) & 0b00000011);
     bool shorten = (aux >> 12) & 0b00000001;
 
     Debug_printf("FUJI: QRCODE ENCODE\n");
-    Debug_printf("QR Version: %d, ECC: %d, Shorten: %s\n", qrManager.version, qrManager.ecc_mode, shorten ? "Y" : "N");
+    Debug_printf("QR Version: %d, ECC: %d, Shorten: %s\n", version, ecc_mode, shorten ? "Y" : "N");
 
-    std::string url = qrManager.in_buf;
+    std::string url = _qrManager.data;
 
     if (shorten) {
         url = fnHTTPD.shorten_url(url);
     }
 
-    std::vector<uint8_t> p = QRManager::encode(
-        url.c_str(),
-        url.size(),
-        qrManager.version,
-        qrManager.ecc_mode,
-        &out_len
-    );
+    _qrManager.version(version);
+    _qrManager.ecc((qr_ecc_t)ecc_mode);
+    _qrManager.output_mode = QR_OUTPUT_MODE_ATASCII;
+    _qrManager.encode();
 
-    qrManager.in_buf.clear();
+    _qrManager.data.clear();
 
-    if (!out_len)
+    if (!_qrManager.code.size())
     {
         Debug_printf("QR code encoding failed\n");
-        transaction_error();
+        sio_error();
         return;
     }
 
-    Debug_printf("Resulting QR code is: %u modules\n", out_len);
-    transaction_complete();
+    Debug_printf("Resulting QR code is: %u modules\n", _qrManager.code.size());
+    sio_complete();
 }
 
 void sioFuji::sio_qrcode_length()
@@ -428,23 +419,15 @@ void sioFuji::sio_qrcode_length()
     uint8_t output_mode = sio_get_aux();
     Debug_printf("Output mode: %i\n", output_mode);
 
-    size_t len = qrManager.out_buf.size();
+    size_t len = _qrManager.size();
 
     // A bit gross to have a side effect from length command, but not enough aux bytes
     // to specify version, ecc, *and* output mode for the encode command. Also can't
     // just wait for output command, because output mode determines buffer length,
-    if (len && (output_mode != qrManager.output_mode)) {
-        if (output_mode == QR_OUTPUT_MODE_BINARY) {
-            qrManager.to_binary();
-        }
-        else if (output_mode == QR_OUTPUT_MODE_ATASCII) {
-            qrManager.to_atascii();
-        }
-        else if (output_mode == QR_OUTPUT_MODE_BITMAP) {
-            qrManager.to_bitmap();
-        }
-        qrManager.output_mode = output_mode;
-        len = qrManager.out_buf.size();
+    if (len && (output_mode != _qrManager.output_mode)) {
+        _qrManager.output_mode = (ouput_mode_t)output_mode;
+        _qrManager.encode();
+        len = _qrManager.code.size();
     }
 
     uint8_t response[4] = {
@@ -457,12 +440,12 @@ void sioFuji::sio_qrcode_length()
     if (!len)
     {
         Debug_printf("QR code buffer is 0 bytes, sending error.\n");
-        transaction_put(response, sizeof(response), true);
+        bus_to_computer(response, sizeof(response), true);
     }
 
     Debug_printf("QR code buffer length: %u bytes\n", len);
 
-    transaction_put(response, sizeof(response), false);
+    bus_to_computer(response, sizeof(response), false);
 }
 
 void sioFuji::sio_qrcode_output()
@@ -476,9 +459,9 @@ void sioFuji::sio_qrcode_output()
         Debug_printf("Refusing to send a zero byte buffer. Aborting\n");
         return;
     }
-    else if (len > qrManager.out_buf.size())
+    else if (len > _qrManager.size())
     {
-        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n", len, qrManager.out_buf.size());
+        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n", len, _qrManager.code.size());
         return;
     }
     else
@@ -486,13 +469,11 @@ void sioFuji::sio_qrcode_output()
         Debug_printf("Requested %u bytes\n", len);
     }
 
-    transaction_put(&qrManager.out_buf[0], len, false);
+    bus_to_computer(&_qrManager.code[0], len, false);
 
-    qrManager.out_buf.erase(qrManager.out_buf.begin(), qrManager.out_buf.begin()+len);
-    qrManager.out_buf.shrink_to_fit();
-
+    _qrManager.code.clear();
+    _qrManager.code.shrink_to_fit();
 }
-
 
 void sioFuji::sio_base64_encode_input()
 {
@@ -751,7 +732,7 @@ void sioFuji::sio_copy_file()
         return;
     }
 
-    fujicmd_copy_file(cmdFrame.aux1, cmdFrame.aux2, csBuf);
+    fujicmd_copy_file_success(cmdFrame.aux1, cmdFrame.aux2, csBuf);
 }
 
 void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
@@ -759,7 +740,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.commanddata = commanddata;
     cmdFrame.checksum = checksum;
 
-    Debug_printf("sioFuji::fujicmd_process() called, baud: %d\n", SIO.getBaudrate());
+    Debug_printf("sioFuji::fujicmd_process() called, baud: %d\n", SYSTEM_BUS.getBaudrate());
 
     switch (cmdFrame.comnd)
     {
@@ -801,15 +782,25 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         break;
     case FUJICMD_MOUNT_HOST:
         sio_ack();
-        fujicmd_mount_host(cmdFrame.aux1);
+        fujicmd_mount_host_success(cmdFrame.aux1);
         break;
     case FUJICMD_MOUNT_IMAGE:
         sio_ack();
-        fujicmd_disk_image_mount(cmdFrame.aux1, cmdFrame.aux2);
+        fujicmd_mount_disk_image_success(cmdFrame.aux1, cmdFrame.aux2);
         break;
     case FUJICMD_OPEN_DIRECTORY:
         sio_late_ack();
-        fujicmd_open_directory();
+        {
+            char dirpath[256];
+
+            if (!transaction_get(dirpath, sizeof(dirpath))) {
+                transaction_error();
+                return;
+            }
+
+            fujicmd_open_directory_success(cmdFrame.aux1,
+                                           std::string(dirpath, sizeof(dirpath)));
+        }
         break;
     case FUJICMD_READ_DIR_ENTRY:
         sio_ack();
@@ -853,7 +844,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         break;
     case FUJICMD_UNMOUNT_IMAGE:
         sio_ack();
-        fujicmd_disk_image_umount(cmdFrame.aux1);
+        fujicmd_unmount_disk_image_success(cmdFrame.aux1);
         break;
     case FUJICMD_GET_ADAPTERCONFIG:
         sio_ack();
@@ -869,11 +860,11 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         break;
     case FUJICMD_UNMOUNT_HOST:
         sio_ack();
-        fujicmd_unmount_host(cmdFrame.aux1);
+        fujicmd_unmount_host_success(cmdFrame.aux1);
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
         sio_late_ack();
-        fujicmd_set_device_filename(cmdFrame.aux1, cmdFrame.aux2 >> 4, cmdFrame.aux2 & 0x0F);
+        fujicmd_set_device_filename_success(cmdFrame.aux1, cmdFrame.aux2 >> 4, cmdFrame.aux2 & 0x0F);
         break;
     case FUJICMD_SET_HOST_PREFIX:
         sio_late_ack();
@@ -917,11 +908,11 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         break;
     case FUJICMD_MOUNT_ALL:
         sio_ack();
-        fujicmd_mount_all();
+        fujicmd_mount_all_success();
         break;
     case FUJICMD_SET_BOOT_MODE:
         sio_ack();
-        fujicmd_set_boot_mode(cmdFrame.aux1, IMAGE_EXTENSION, MEDIATYPE_UNKNOWN);
+        fujicmd_set_boot_mode(cmdFrame.aux1, IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
         break;
     case FUJICMD_ENABLE_UDPSTREAM:
         sio_late_ack();
@@ -1006,6 +997,50 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     default:
         sio_nak();
     }
+}
+
+#define ADDITIONAL_DETAILS_BYTES 13
+size_t sioFuji::setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
+{
+    // File modified date-time
+    struct tm *modtime = localtime(&f->modified_time);
+    modtime->tm_mon++;
+    modtime->tm_year -= 70;
+
+    dest[0] = modtime->tm_year;
+    dest[1] = modtime->tm_mon;
+    dest[2] = modtime->tm_mday;
+    dest[3] = modtime->tm_hour;
+    dest[4] = modtime->tm_min;
+    dest[5] = modtime->tm_sec;
+
+    // File size LITTLE ENDIAN for Atari
+    uint32_t fsize = f->size;
+    dest[6] = fsize & 0xFF;          // Least significant byte
+    dest[7] = (fsize >> 8) & 0xFF;
+    dest[8] = (fsize >> 16) & 0xFF;
+    dest[9] = (fsize >> 24) & 0xFF;  // Most significant byte
+
+    // File flags
+#define FF_DIR 0x01
+#define FF_TRUNC 0x02
+
+    dest[10] = f->isDir ? FF_DIR : 0;
+
+    maxlen -= ADDITIONAL_DETAILS_BYTES; // Adjust the max return value with the number of additional bytes we're copying
+    if (f->isDir)                       // Also subtract a byte for a terminating slash on directories
+        maxlen--;
+    if (strlen(f->filename) >= maxlen)
+        dest[11] |= FF_TRUNC;
+
+    // File type
+    dest[12] = MediaType::discover_mediatype(f->filename);
+
+    Debug_printf("Addtl: ");
+    for (int i = 0; i < ADDITIONAL_DETAILS_BYTES; i++)
+        Debug_printf("%02x ", dest[i]);
+    Debug_printf("\n");
+    return sizeof(dest);
 }
 
 #endif /* BUILD_ATARI */
