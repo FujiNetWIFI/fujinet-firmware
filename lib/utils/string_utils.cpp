@@ -24,7 +24,11 @@
 #include <sstream>
 #include <iomanip>
 #include <mbedtls/version.h>
+#if MBEDTLS_VERSION_MAJOR >= 4
+#include <psa/crypto.h>
+#else /* MBEDTLS_VERSION_MAJOR < 4 */
 #include <mbedtls/sha1.h>
+#endif /* MBEDTLS_VERSION_MAJOR >= 4 */
 #include <mbedtls/base64.h>
 
 //#include "../../include/petscii.h"
@@ -43,8 +47,8 @@ void copyString(const std::string& input, char *dst, size_t dst_size)
     dst[dst_size - 1] = '\0';
 }
 
-constexpr unsigned int hash(const char *s, int off = 0) {                        
-    return !s[off] ? 5381 : (hash(s, off+1)*33) ^ s[off];                           
+constexpr unsigned int hash(const char *s, int off = 0) {
+    return !s[off] ? 5381 : (hash(s, off+1)*33) ^ s[off];
 }
 
 namespace mstr {
@@ -63,7 +67,7 @@ namespace mstr {
         // CR
         s.erase(
             std::find_if(s.rbegin(), s.rend(), [](int ch) { return (ch != 0x0D); }).base(), s.end());
-        
+
         // SPACE
         s.erase(
             std::find_if(s.rbegin(), s.rend(), [](int ch) { return !std::isspace(ch); }).base(), s.end());
@@ -109,7 +113,7 @@ namespace mstr {
             if (contains(s, it->c_str()))
                 return true;
         }
-        
+
         return false;
     }
 
@@ -218,7 +222,7 @@ namespace mstr {
             return ( (s1.size() == strlen(s2) ) &&
                 std::equal(s1.begin(), s1.end(), s2, &compare_char_insensitive) );
     }
-    
+
     bool contains(std::string &s1, const char *s2, bool case_sensitive)
     {
         std::string sn = s2;
@@ -342,7 +346,7 @@ namespace mstr {
 
     bool isHex(std::string &s)
     {
-        return std::all_of(s.begin(), s.end(), 
+        return std::all_of(s.begin(), s.end(),
                         [](unsigned char c) { return ::isxdigit(c); });
     }
 
@@ -353,7 +357,7 @@ namespace mstr {
                     [](unsigned char c) { return (c == 0xa0) ? 0x20: c; });
     }
 
-    bool isText(std::string &s) 
+    bool isText(std::string &s)
     {
         // extensions
         if(equals(s, (char*)"txt", false))
@@ -380,7 +384,7 @@ namespace mstr {
 
     bool isNumeric(std::string &s)
     {
-        return std::all_of(s.begin(), s.end(), 
+        return std::all_of(s.begin(), s.end(),
                         [](unsigned char c) { return ::isdigit(c); });
     }
 
@@ -390,7 +394,7 @@ namespace mstr {
         return isNumeric(s2);
     }
 
-    void replaceAll(std::string &s, const std::string &search, const std::string &replace) 
+    void replaceAll(std::string &s, const std::string &search, const std::string &replace)
     {
         const size_t size = search.size();
         bool size_match = ( size == replace.size() );
@@ -443,9 +447,9 @@ namespace mstr {
             //Debug_printv("start >= end");
             return std::string();
         }
-            
 
-        for(auto i = (*start); i<(*end); i++) 
+
+        for(auto i = (*start); i<(*end); i++)
         {
             //Debug_printv("b %d res [%s]", i, res.c_str());
             res+=(*i);
@@ -513,9 +517,9 @@ namespace mstr {
             {
                 s[ii++] = ' ';
                 i++;
-            } 
-            else if ((s[i] == '%') && 
-                    isxdigit(s[i + 1]) && 
+            }
+            else if ((s[i] == '%') &&
+                    isxdigit(s[i + 1]) &&
                     isxdigit(s[i + 2]) &&
                     (i + 2 < size))
             {
@@ -556,7 +560,40 @@ namespace mstr {
     {
         unsigned char hash[21] = { 0x00 };
 
-#if MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
+#if MBEDTLS_VERSION_MAJOR >= 4
+    psa_status_t status = psa_crypto_init();
+    if (status != PSA_SUCCESS)
+    {
+        Debug_printf("psa_crypto_init failed with status %d\n", status);
+        return "";
+    }
+
+    size_t hash_length;
+    std::vector<uint8_t> psa_hash_output(PSA_HASH_LENGTH(PSA_ALG_SHA_1));
+
+    status = psa_hash_compute(
+        PSA_ALG_SHA_1,
+        (const unsigned char *)s.c_str(),
+        s.length(),
+        psa_hash_output.data(),
+        psa_hash_output.size(),
+        &hash_length
+    );
+
+    if (status != PSA_SUCCESS)
+    {
+        Debug_printf("psa_hash_compute failed with status %d\n", status);
+        return "";
+    }
+
+    if (hash_length != 20)
+    {
+        Debug_printf("Unexpected hash length %zu\n", hash_length);
+        return "";
+    }
+
+    memcpy(hash, psa_hash_output.data(), 20);
+#elif MBEDTLS_VERSION_NUMBER >= 0x02070000 // Covers 2.7.0 up to 3.x
         // Use the newer mbedtls API
         int ret = mbedtls_sha1_ret((const unsigned char *)s.c_str(), s.length(), hash);
         if (ret != 0) {
@@ -571,11 +608,6 @@ namespace mstr {
             return "";
         }
 #endif
-        // These lines were commented in the original code
-        // unsigned char output[64];
-        // size_t outlen;
-        // mbedtls_base64_encode(output, 64, &outlen, hash, 20);
-        
         std::string o(reinterpret_cast< char const* >(hash));
         return toHex(o);
     }
@@ -605,7 +637,7 @@ namespace mstr {
 
         //Debug_printv("bytes[%llu]", size);
         do
-        {          
+        {
             n = size / std::pow(1024, ++i);
             //Debug_printv("i[%d] n[%llu]", i, n);
         }
@@ -616,7 +648,7 @@ namespace mstr {
     }
 
 
-    void cd( std::string &path, std::string newDir) 
+    void cd( std::string &path, std::string newDir)
     {
         //Debug_printv("cd requested: [%s]", newDir.c_str());
 
@@ -694,7 +726,7 @@ namespace mstr {
     }
 
 
-    std::string parent(std::string path, std::string plus) 
+    std::string parent(std::string path, std::string plus)
     {
         //Debug_printv("url[%s] path[%s]", url.c_str(), path.c_str());
 
@@ -716,7 +748,7 @@ namespace mstr {
         }
     }
 
-    std::string localParent(std::string path, std::string plus) 
+    std::string localParent(std::string path, std::string plus)
     {
         //Debug_printv("url[%s] path[%s]", url.c_str(), path.c_str());
         // drop last dir
