@@ -10,11 +10,13 @@
 #include <signal.h>
 
 #include <libssh/libssh.h>
+#include <libssh/bind.h>
 #include "torture.h"
 #include "torture_key.h"
 
 #define TEST_SERVER_PORT 2222
 
+#if 0
 struct test_state {
     const char *hostkey;
     char *hostkey_path;
@@ -107,7 +109,7 @@ static void test_ssh_accept_interrupt(void **state)
     struct test_state *ts = (struct test_state *)*state;
     int rc;
     pthread_t client_pthread, interrupt_pthread;
-    ssh_bind sshbind;
+    ssh_bind sshbind = NULL;
     ssh_session server;
 
     /* Create server */
@@ -145,14 +147,47 @@ static void test_ssh_accept_interrupt(void **state)
     rc = pthread_join(client_pthread, NULL);
     assert_int_equal(rc, 0);
 }
+#endif
+
+
+static void test_default_hostkey_paths(void **state)
+{
+    int rc;
+    ssh_bind sshbind = NULL;
+
+    /* state not used */
+    (void)state;
+
+    /* Create server */
+    rc = ssh_init();
+    assert_int_equal(rc, 0);
+
+    sshbind = ssh_bind_new();
+    assert_non_null(sshbind);
+
+    /* This will fail because we don't have permission to import keys unless we run as root
+     * TODO: Implement some filesystem wrapper, that would allow this check to pass by
+     * reading the keys from some accessible test location */
+    ssh_bind_listen(sshbind);
+
+    assert_string_equal(sshbind->rsakey, "/etc/ssh/ssh_host_rsa_key");
+    assert_string_equal(sshbind->ecdsakey, "/etc/ssh/ssh_host_ecdsa_key");
+    assert_string_equal(sshbind->ed25519key, "/etc/ssh/ssh_host_ed25519_key");
+
+    /* Cleanup */
+    ssh_bind_free(sshbind);
+    ssh_finalize();
+}
 
 int torture_run_tests(void)
 {
     int rc;
     const struct CMUnitTest tests[] = {
+        cmocka_unit_test(test_default_hostkey_paths),
+        /* Not working correctly the signals are not testable under cmocka
         cmocka_unit_test_setup_teardown(test_ssh_accept_interrupt,
                                         setup,
-                                        teardown)
+                                        teardown) */
     };
 
     rc = cmocka_run_group_tests(tests, NULL, NULL);

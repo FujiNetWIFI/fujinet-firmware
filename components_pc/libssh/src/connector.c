@@ -34,19 +34,7 @@
 #define CHUNKSIZE 4096
 #endif
 
-#ifdef _WIN32
-# ifdef HAVE_IO_H
-#  include <io.h>
-#  undef open
-#  define open _open
-#  undef close
-#  define close _close
-#  undef read
-#  define read _read
-#  undef unlink
-#  define unlink _unlink
-# endif /* HAVE_IO_H */
-#else
+#ifndef _WIN32
 # include <sys/types.h>
 # include <sys/socket.h>
 #endif
@@ -303,9 +291,11 @@ static void ssh_connector_fd_in_cb(ssh_connector connector)
                  * Loop around write in case the write blocks even for CHUNKSIZE
                  * bytes
                  */
-                while (total != r) {
-                    w = ssh_connector_fd_write(connector, buffer + total, r - total);
-                    if (w < 0){
+                while (total < r) {
+                    w = ssh_connector_fd_write(connector,
+                                               buffer + total,
+                                               r - total);
+                    if (w < 0) {
                         ssh_connector_except(connector, connector->out_fd);
                         return;
                     }
@@ -637,8 +627,9 @@ error:
     return rc;
 }
 
-int ssh_connector_remove_event(ssh_connector connector) {
-    ssh_session session;
+int ssh_connector_remove_event(ssh_connector connector)
+{
+    ssh_session session = NULL;
 
     if (connector->in_poll != NULL) {
         ssh_event_remove_poll(connector->event, connector->in_poll);

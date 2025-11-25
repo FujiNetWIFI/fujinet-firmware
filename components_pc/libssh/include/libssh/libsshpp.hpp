@@ -498,8 +498,22 @@ public:
     return_throwable;
   }
 
-  int getExitStatus(){
-    return ssh_channel_get_exit_status(channel);
+  /*
+   * @deprecated Please use getExitState()
+   */
+  int getExitStatus() {
+        uint32_t exit_status = (uint32_t)-1;
+        ssh_channel_get_exit_state(channel, &exit_status, NULL, NULL);
+        return exit_status;
+  }
+  void_throwable getExitState(uint32_t & pexit_code,
+                              char **pexit_signal,
+                              int & pcore_dumped) {
+      ssh_throw(ssh_channel_get_exit_state(channel,
+                                           &pexit_code,
+                                           pexit_signal,
+                                           &pcore_dumped));
+      return_throwable;
   }
   Session &getSession(){
     return *session;
@@ -587,9 +601,12 @@ public:
     ssh_throw(err);
     return_throwable;
   }
-  void_throwable requestPty(const char *term=NULL, int cols=0, int rows=0){
+  void_throwable requestPty(const char *term=NULL, int cols=0, int rows=0,
+      const unsigned char* modes=NULL, size_t modes_len=0){
     int err;
-    if(term != NULL && cols != 0 && rows != 0)
+    if(term != NULL && cols != 0 && rows != 0 && modes != NULL)
+      err=ssh_channel_request_pty_size_modes(channel,term,cols,rows,modes,modes_len);
+    else if(term != NULL && cols != 0 && rows != 0)
       err=ssh_channel_request_pty_size(channel,term,cols,rows);
     else
       err=ssh_channel_request_pty(channel);

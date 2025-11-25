@@ -61,7 +61,7 @@ static int hash_hostname(const char *name,
                          size_t *hash_size)
 {
     int rc;
-    HMACCTX mac_ctx;
+    HMACCTX mac_ctx = NULL;
 
     mac_ctx = hmac_init(salt, salt_size, SSH_HMAC_SHA1);
     if (mac_ctx == NULL) {
@@ -81,8 +81,8 @@ static int hash_hostname(const char *name,
 
 static int match_hashed_hostname(const char *host, const char *hashed_host)
 {
-    char *hashed;
-    char *b64_hash;
+    char *hashed = NULL;
+    char *b64_hash = NULL;
     ssh_buffer salt = NULL;
     ssh_buffer hash = NULL;
     unsigned char hashed_buf[256] = {0};
@@ -229,13 +229,13 @@ static int ssh_known_hosts_read_entries(const char *match,
     char line[MAX_LINE_SIZE];
     size_t lineno = 0;
     size_t len = 0;
-    FILE *fp;
+    FILE *fp = NULL;
     int rc;
 
     fp = fopen(filename, "r");
     if (fp == NULL) {
         char err_msg[SSH_ERRNO_MSG_MAX] = {0};
-        SSH_LOG(SSH_LOG_WARN, "Failed to open the known_hosts file '%s': %s",
+        SSH_LOG(SSH_LOG_TRACE, "Failed to open the known_hosts file '%s': %s",
                 filename, ssh_strerror(errno, err_msg, SSH_ERRNO_MSG_MAX));
         /* The missing file is not an error here */
         return SSH_OK;
@@ -288,7 +288,7 @@ static int ssh_known_hosts_read_entries(const char *match,
         for (it = ssh_list_get_iterator(*entries);
              it != NULL;
              it = it->next) {
-            struct ssh_knownhosts_entry *entry2;
+            struct ssh_knownhosts_entry *entry2 = NULL;
             int cmp;
             entry2 = ssh_iterator_value(struct ssh_knownhosts_entry *, it);
             cmp = ssh_known_hosts_entries_compare(entry, entry2);
@@ -312,8 +312,8 @@ error:
 
 static char *ssh_session_get_host_port(ssh_session session)
 {
-    char *host_port;
-    char *host;
+    char *host_port = NULL;
+    char *host = NULL;
 
     if (session->opts.host == NULL) {
         ssh_set_error(session,
@@ -482,13 +482,6 @@ static const char *ssh_known_host_sigs_from_hostkey_type(enum ssh_keytypes_e typ
         return "ssh-ed25519";
     case SSH_KEYTYPE_SK_ED25519:
         return "sk-ssh-ed25519@openssh.com";
-#ifdef HAVE_DSA
-    case SSH_KEYTYPE_DSS:
-        return "ssh-dss";
-#else
-        SSH_LOG(SSH_LOG_WARN, "DSS keys are not supported by this build");
-        break;
-#endif
 #ifdef HAVE_ECC
     case SSH_KEYTYPE_ECDSA_P256:
         return "ecdsa-sha2-nistp256";
@@ -507,7 +500,7 @@ static const char *ssh_known_host_sigs_from_hostkey_type(enum ssh_keytypes_e typ
 #endif
     case SSH_KEYTYPE_UNKNOWN:
     default:
-        SSH_LOG(SSH_LOG_WARN,
+        SSH_LOG(SSH_LOG_TRACE,
                 "The given type %d is not a base private key type "
                 "or is unsupported",
                 type);
@@ -537,7 +530,7 @@ char *ssh_known_hosts_get_algorithms_names(ssh_session session)
     char *host_port = NULL;
     size_t count;
     bool needcomma = false;
-    char *names;
+    char *names = NULL;
 
     int rc;
 
@@ -645,7 +638,7 @@ int ssh_known_hosts_parse_line(const char *hostname,
 {
     struct ssh_knownhosts_entry *e = NULL;
     char *known_host = NULL;
-    char *p;
+    char *p = NULL;
     char *save_tok = NULL;
     enum ssh_keytypes_e key_type;
     int match = 0;
@@ -753,7 +746,7 @@ int ssh_known_hosts_parse_line(const char *hostname,
 
     key_type = ssh_key_type_from_name(p);
     if (key_type == SSH_KEYTYPE_UNKNOWN) {
-        SSH_LOG(SSH_LOG_WARN, "key type '%s' unknown!", p);
+        SSH_LOG(SSH_LOG_TRACE, "key type '%s' unknown!", p);
         rc = SSH_ERROR;
         goto out;
     }
@@ -769,7 +762,7 @@ int ssh_known_hosts_parse_line(const char *hostname,
                                       key_type,
                                       &e->publickey);
     if (rc != SSH_OK) {
-        SSH_LOG(SSH_LOG_WARN,
+        SSH_LOG(SSH_LOG_TRACE,
                 "Failed to parse %s key for entry: %s!",
                 ssh_key_type_to_char(key_type),
                 e->unparsed);
@@ -840,7 +833,7 @@ enum ssh_known_hosts_e ssh_session_has_known_hosts_entry(ssh_session session)
     if (session->opts.knownhosts != NULL) {
         known_hosts_found = ssh_file_readaccess_ok(session->opts.knownhosts);
         if (!known_hosts_found) {
-            SSH_LOG(SSH_LOG_WARN, "Cannot access file %s",
+            SSH_LOG(SSH_LOG_TRACE, "Cannot access file %s",
                     session->opts.knownhosts);
         }
     }
@@ -849,7 +842,7 @@ enum ssh_known_hosts_e ssh_session_has_known_hosts_entry(ssh_session session)
         global_known_hosts_found =
                 ssh_file_readaccess_ok(session->opts.global_knownhosts);
         if (!global_known_hosts_found) {
-            SSH_LOG(SSH_LOG_WARN, "Cannot access file %s",
+            SSH_LOG(SSH_LOG_TRACE, "Cannot access file %s",
                     session->opts.global_knownhosts);
         }
     }

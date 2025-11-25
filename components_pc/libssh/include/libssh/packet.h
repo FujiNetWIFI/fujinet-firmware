@@ -27,9 +27,9 @@ struct ssh_socket_struct;
 
 /* this structure should go someday */
 typedef struct packet_struct {
-	int valid;
-	uint32_t len;
-	uint8_t type;
+        int valid;
+        uint32_t len;
+        uint8_t type;
 } PACKET;
 
 /** different state of packet reading. */
@@ -58,6 +58,7 @@ extern "C" {
 SSH_PACKET_CALLBACK(ssh_packet_unimplemented);
 SSH_PACKET_CALLBACK(ssh_packet_disconnect_callback);
 SSH_PACKET_CALLBACK(ssh_packet_ignore_callback);
+SSH_PACKET_CALLBACK(ssh_packet_debug_callback);
 SSH_PACKET_CALLBACK(ssh_packet_dh_reply);
 SSH_PACKET_CALLBACK(ssh_packet_newkeys);
 SSH_PACKET_CALLBACK(ssh_packet_service_accept);
@@ -67,6 +68,7 @@ SSH_PACKET_CALLBACK(ssh_packet_ext_info);
 SSH_PACKET_CALLBACK(ssh_packet_kexdh_init);
 #endif
 
+int ssh_packet_send_newkeys(ssh_session session);
 int ssh_packet_send_unimplemented(ssh_session session, uint32_t seqnum);
 int ssh_packet_parse_type(ssh_session session);
 //int packet_flush(ssh_session session, int enforce_blocking);

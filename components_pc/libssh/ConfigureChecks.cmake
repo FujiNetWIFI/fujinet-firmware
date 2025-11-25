@@ -44,6 +44,8 @@ int main(void){ return 0; }
 endif(CMAKE_COMPILER_IS_GNUCC AND NOT MINGW AND NOT OS2)
 
 # HEADER FILES
+check_function_exists(argp_parse HAVE_ARGP_PARSE)
+
 set(CMAKE_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES} ${ARGP_INCLUDE_DIR})
 check_include_file(argp.h HAVE_ARGP_H)
 unset(CMAKE_REQUIRED_INCLUDES)
@@ -62,6 +64,7 @@ check_include_file(arpa/inet.h HAVE_ARPA_INET_H)
 check_include_file(byteswap.h HAVE_BYTESWAP_H)
 check_include_file(glob.h HAVE_GLOB_H)
 check_include_file(valgrind/valgrind.h HAVE_VALGRIND_VALGRIND_H)
+check_include_file(ifaddrs.h HAVE_IFADDRS_H)
 
 if (WIN32)
   check_include_file(io.h HAVE_IO_H)
@@ -75,77 +78,31 @@ endif (WIN32)
 
 if (OPENSSL_FOUND)
     set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
+    set(CMAKE_REQUIRED_LIBRARIES OpenSSL::Crypto)
+
     check_include_file(openssl/des.h HAVE_OPENSSL_DES_H)
     if (NOT HAVE_OPENSSL_DES_H)
         message(FATAL_ERROR "Could not detect openssl/des.h")
     endif()
 
-    set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
     check_include_file(openssl/aes.h HAVE_OPENSSL_AES_H)
     if (NOT HAVE_OPENSSL_AES_H)
         message(FATAL_ERROR "Could not detect openssl/aes.h")
     endif()
 
     if (WITH_BLOWFISH_CIPHER)
-        set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
-        check_include_file(openssl/blowfish.h HAVE_OPENSSL_BLOWFISH_H)
+        check_include_file(openssl/blowfish.h HAVE_BLOWFISH)
     endif()
 
-    set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
     check_include_file(openssl/ecdh.h HAVE_OPENSSL_ECDH_H)
-
-    set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
     check_include_file(openssl/ec.h HAVE_OPENSSL_EC_H)
-
-    set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
     check_include_file(openssl/ecdsa.h HAVE_OPENSSL_ECDSA_H)
 
-    set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
-    set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_CRYPTO_LIBRARIES})
     check_function_exists(EVP_KDF_CTX_new_id HAVE_OPENSSL_EVP_KDF_CTX_NEW_ID)
-
-    set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
-    set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_CRYPTO_LIBRARIES})
     check_function_exists(EVP_KDF_CTX_new HAVE_OPENSSL_EVP_KDF_CTX_NEW)
-
-    set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
-    set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_CRYPTO_LIBRARIES})
     check_function_exists(FIPS_mode HAVE_OPENSSL_FIPS_MODE)
-
-    set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
-    set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_CRYPTO_LIBRARIES})
     check_function_exists(RAND_priv_bytes HAVE_OPENSSL_RAND_PRIV_BYTES)
-
-    set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
-    set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_CRYPTO_LIBRARIES})
-    check_function_exists(EVP_DigestSign HAVE_OPENSSL_EVP_DIGESTSIGN)
-
-    set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
-    set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_CRYPTO_LIBRARIES})
-    check_function_exists(EVP_DigestVerify HAVE_OPENSSL_EVP_DIGESTVERIFY)
-
-    check_function_exists(OPENSSL_ia32cap_loc HAVE_OPENSSL_IA32CAP_LOC)
-
-    set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
-    set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_CRYPTO_LIBRARIES})
-    check_symbol_exists(EVP_PKEY_ED25519 "openssl/evp.h" FOUND_OPENSSL_ED25519)
-
-    set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
-    set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_CRYPTO_LIBRARIES})
     check_function_exists(EVP_chacha20 HAVE_OPENSSL_EVP_CHACHA20)
-
-    set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
-    set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_CRYPTO_LIBRARIES})
-    check_symbol_exists(EVP_PKEY_POLY1305 "openssl/evp.h" HAVE_OPENSSL_EVP_POLY1305)
-
-    if (HAVE_OPENSSL_EVP_DIGESTSIGN AND HAVE_OPENSSL_EVP_DIGESTVERIFY AND
-        FOUND_OPENSSL_ED25519)
-        set(HAVE_OPENSSL_ED25519 1)
-    endif()
-
-    set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
-    set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_CRYPTO_LIBRARIES})
-    check_symbol_exists(EVP_PKEY_X25519 "openssl/evp.h" HAVE_OPENSSL_X25519)
 
     unset(CMAKE_REQUIRED_INCLUDES)
     unset(CMAKE_REQUIRED_LIBRARIES)
@@ -169,12 +126,6 @@ if (NOT WITH_GCRYPT AND NOT WITH_MBEDTLS)
     endif (HAVE_OPENSSL_EVP_KDF_CTX_NEW_ID OR HAVE_OPENSSL_EVP_KDF_CTX_NEW)
 
 endif ()
-
-if (WITH_DSA)
-    if (NOT WITH_MBEDTLS)
-        set(HAVE_DSA 1)
-    endif (NOT WITH_MBEDTLS)
-endif()
 
 # FUNCTIONS
 
@@ -285,6 +236,10 @@ if (MBEDTLS_FOUND)
     set(CMAKE_REQUIRED_INCLUDES "${MBEDTLS_INCLUDE_DIR}/mbedtls")
     check_include_file(chacha20.h HAVE_MBEDTLS_CHACHA20_H)
     check_include_file(poly1305.h HAVE_MBEDTLS_POLY1305_H)
+    if (WITH_BLOWFISH_CIPHER)
+        check_include_file(blowfish.h HAVE_BLOWFISH)
+    endif()
+
     unset(CMAKE_REQUIRED_INCLUDES)
 
 endif (MBEDTLS_FOUND)
@@ -489,22 +444,22 @@ if (WITH_PKCS11_URI)
     if (WITH_GCRYPT)
         message(FATAL_ERROR "PKCS #11 is not supported for gcrypt.")
         set(WITH_PKCS11_URI 0)
-    endif()
-    if (WITH_MBEDTLS)
+    elseif (WITH_MBEDTLS)
         message(FATAL_ERROR "PKCS #11 is not supported for mbedcrypto")
         set(WITH_PKCS11_URI 0)
-    endif()
-    if (HAVE_OPENSSL AND NOT OPENSSL_VERSION VERSION_GREATER_EQUAL "1.1.1")
-        message(FATAL_ERROR "PKCS #11 requires at least OpenSSL 1.1.1")
-        set(WITH_PKCS11_URI 0)
-    endif()
-endif()
-
-if (WITH_MBEDTLS)
-    if (WITH_DSA)
-        message(FATAL_ERROR "DSA is not supported with mbedTLS crypto")
-        set(HAVE_DSA 0)
-    endif()
+    elseif (OPENSSL_FOUND AND OPENSSL_VERSION VERSION_GREATER_EQUAL "3.0.0")
+        find_library(PKCS11_PROVIDER
+            NAMES
+                pkcs11.so
+            PATH_SUFFIXES
+                ossl-modules
+        )
+        if (NOT PKCS11_PROVIDER)
+            set(WITH_PKCS11_PROVIDER 0)
+            message(WARNING "Could not find pkcs11 provider! Falling back to engines")
+            message(WARNING "The support for engines is deprecated in OpenSSL and will be removed from libssh in the future releases.")
+        endif (NOT PKCS11_PROVIDER)
+    endif ()
 endif()
 
 # ENDIAN

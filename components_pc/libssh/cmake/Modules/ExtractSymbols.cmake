@@ -50,15 +50,28 @@ file(READ ${HEADERS_LIST_FILE} HEADERS_LIST)
 
 set(symbols)
 foreach(header ${HEADERS_LIST})
+    file(READ ${header} header_content)
 
     # Filter only lines containing the FILTER_PATTERN
-    file(STRINGS ${header} contain_filter
-      REGEX "^.*${FILTER_PATTERN}.*[(]"
+    # separated from the function name with one optional newline
+    string(REGEX MATCHALL
+      "${FILTER_PATTERN}[^(\n]*\n?[^(\n]*[(]"
+      contain_filter
+      "${header_content}"
+    )
+
+    # Remove the optional newline now
+    string(REGEX REPLACE
+      "(.+)\n?(.*)"
+      "\\1\\2"
+      oneline
+      "${contain_filter}"
     )
 
     # Remove function-like macros
-    foreach(line ${contain_filter})
-        if (NOT ${line} MATCHES ".*#[ ]*define")
+    # and anything with two underscores that sounds suspicious
+    foreach(line ${oneline})
+        if (NOT ${line} MATCHES ".*(#[ ]*define|__)")
             list(APPEND not_macro ${line})
         endif()
     endforeach()

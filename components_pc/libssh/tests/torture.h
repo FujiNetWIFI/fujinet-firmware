@@ -46,6 +46,7 @@
 #endif /* assert_return_code */
 
 #define TORTURE_SSH_SERVER "127.0.0.10"
+#define TORTURE_SSH_SERVER_IP6 "fd00::5357:5f0a"
 #define TORTURE_SSH_USER_BOB "bob"
 #define TORTURE_SSH_USER_BOB_PASSWORD "secret"
 
@@ -66,7 +67,9 @@ struct torture_sftp {
 
 struct torture_state {
     char *socket_dir;
+    char *gss_dir;
     char *pcap_file;
+    char *log_file;
     char *srv_pidfile;
     char *srv_config;
     bool srv_pam;
@@ -120,6 +123,8 @@ void _torture_filter_tests(struct CMUnitTest *tests, size_t ntests);
 const char *torture_server_address(int domain);
 int torture_server_port(void);
 
+int torture_wait_for_daemon(unsigned int seconds);
+
 #ifdef SSHD_EXECUTABLE
 void torture_setup_socket_dir(void **state);
 void torture_setup_sshd_server(void **state, bool pam);
@@ -135,6 +140,7 @@ void torture_setup_tokens(const char *temp_dir,
                           const char *filename,
                           const char object_name[],
                           const char *load_public);
+void torture_cleanup_tokens(const char *temp_dir);
 #endif /* WITH_PKCS11_URI */
 
 void torture_reset_config(ssh_session session);
@@ -142,6 +148,15 @@ void torture_reset_config(ssh_session session);
 void torture_setup_create_libssh_config(void **state);
 
 void torture_setup_libssh_server(void **state, const char *server_path);
+
+#ifdef WITH_GSSAPI
+void torture_setup_kdc_server(void **state,
+                              const char *kadmin_script,
+                              const char *kinit_script);
+void torture_teardown_kdc_server(void **state);
+void torture_set_kdc_env_str(const char *gss_dir, char *env, size_t size);
+void torture_set_env_from_str(const char *env);
+#endif /* WITH_GSSAPI */
 
 #if defined(HAVE_WEAK_ATTRIBUTE) && defined(TORTURE_SHARED)
 __attribute__((weak)) int torture_run_tests(void);
@@ -152,10 +167,17 @@ __attribute__((weak)) int torture_run_tests(void);
 int torture_run_tests(void);
 #endif
 
+void torture_free_state(struct torture_state *s);
+
 char *torture_make_temp_dir(const char *template);
 char *torture_create_temp_file(const char *template);
 
 char *torture_get_current_working_dir(void);
 int torture_change_dir(char *path);
+
+void torture_setenv(char const* variable, char const* value);
+void torture_unsetenv(char const* variable);
+
+void torture_finalize(void);
 
 #endif /* _TORTURE_H */

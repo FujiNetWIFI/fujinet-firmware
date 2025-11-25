@@ -265,6 +265,68 @@ static void torture_append_without_duplicate(UNUSED_PARAM(void **state))
     }
 }
 
+static void torture_remove_all_matching (UNUSED_PARAM(void** state)) {
+    char *p;
+
+    p = ssh_remove_all_matching(NULL, NULL);
+    assert_null(p);
+
+    p = ssh_remove_all_matching("don't remove", NULL);
+    assert_non_null(p);
+    assert_string_equal(p, "don't remove");
+    free(p);
+
+    p = ssh_remove_all_matching("a,b,c", "b");
+    assert_non_null(p);
+    assert_string_equal(p, "a,c");
+    free(p);
+
+    p = ssh_remove_all_matching("a,b,c", "a,b");
+    assert_non_null(p);
+    assert_string_equal(p, "c");
+    free(p);
+
+    p = ssh_remove_all_matching("a,b,c", "d");
+    assert_non_null(p);
+    assert_string_equal(p, "a,b,c");
+    free(p);
+
+    p = ssh_remove_all_matching("a,b,c", "a,b,c");
+    assert_null(p);
+}
+
+static void torture_prefix_without_duplicates (UNUSED_PARAM(void** state)) {
+    char *p;
+
+    p = ssh_prefix_without_duplicates(NULL, NULL);
+    assert_null(p);
+
+    p = ssh_prefix_without_duplicates("a,b,c", NULL);
+    assert_non_null(p);
+    assert_string_equal(p, "a,b,c");
+    free(p);
+
+    p = ssh_prefix_without_duplicates("a,b,c", "a");
+    assert_non_null(p);
+    assert_string_equal(p, "a,b,c");
+    free(p);
+
+    p = ssh_prefix_without_duplicates("a,b,c", "b");
+    assert_non_null(p);
+    assert_string_equal(p, "b,a,c");
+    free(p);
+
+    p = ssh_prefix_without_duplicates("a,b,c", "x");
+    assert_non_null(p);
+    assert_string_equal(p, "x,a,b,c");
+    free(p);
+
+    p = ssh_prefix_without_duplicates("a,b,c", "c,x");
+    assert_non_null(p);
+    assert_string_equal(p, "c,x,a,b");
+    free(p);
+}
+
 
 int torture_run_tests(void)
 {
@@ -275,6 +337,8 @@ int torture_run_tests(void)
         cmocka_unit_test(torture_find_all_matching),
         cmocka_unit_test(torture_remove_duplicate),
         cmocka_unit_test(torture_append_without_duplicate),
+        cmocka_unit_test(torture_remove_all_matching),
+        cmocka_unit_test(torture_prefix_without_duplicates),
     };
 
     ssh_init();

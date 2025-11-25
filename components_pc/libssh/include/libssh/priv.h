@@ -47,6 +47,10 @@
 # endif
 #endif /* !defined(HAVE_STRTOULL) */
 
+#ifdef HAVE_TERMIOS_H
+#include <termios.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -162,6 +166,20 @@ int ssh_gettimeofday(struct timeval *__p, void *__t);
 
 #define _XCLOSESOCKET closesocket
 
+# ifdef HAVE_IO_H
+#  include <io.h>
+#  undef open
+#  define open _open
+#  undef close
+#  define close _close
+#  undef read
+#  define read _read
+#  undef write
+#  define write _write
+#  undef unlink
+#  define unlink _unlink
+# endif /* HAVE_IO_H */
+
 #else /* _WIN32 */
 
 #include <unistd.h>
@@ -256,6 +274,10 @@ void ssh_log_common(struct ssh_common_struct *common,
                     const char *function,
                     const char *format, ...) PRINTF_ATTRIBUTE(4, 5);
 
+void _ssh_remove_legacy_log_cb(void);
+
+/* log.c */
+void _ssh_reset_log_cb(void);
 
 /* ERROR HANDLING */
 
@@ -290,10 +312,11 @@ int ssh_auth_reply_success(ssh_session session, int partial);
 /* client.c */
 
 int ssh_send_banner(ssh_session session, int is_server);
+void ssh_session_socket_close(ssh_session session);
 
 /* connect.c */
 socket_t ssh_connect_host_nonblocking(ssh_session session, const char *host,
-		const char *bind_addr, int port);
+                const char *bind_addr, int port);
 
 /* in base64.c */
 ssh_buffer base64_to_bin(const char *source);
@@ -307,6 +330,12 @@ int decompress_buffer(ssh_session session,ssh_buffer buf, size_t maxlen);
 int match_pattern_list(const char *string, const char *pattern,
     size_t len, int dolower);
 int match_hostname(const char *host, const char *pattern, unsigned int len);
+#ifndef _WIN32
+int match_cidr_address_list(const char *address,
+                            const char *addrlist,
+                            int sa_family);
+#endif
+int match_group(const char *group, const char *object);
 
 /* connector.c */
 int ssh_connector_set_event(ssh_connector connector, ssh_event event);
@@ -355,6 +384,7 @@ void explicit_bzero(void *s, size_t n);
  */
 #define discard_const_p(type, ptr) ((type *)discard_const(ptr))
 
+#ifndef __VA_NARG__
 /**
  * Get the argument count of variadic arguments
  */
@@ -386,6 +416,7 @@ void explicit_bzero(void *s, size_t n);
         29, 28, 27, 26, 25, 24, 23, 22, 21, 20, \
         19, 18, 17, 16, 15, 14, 13, 12, 11, 10, \
          9,  8,  7,  6,  5,  4,  3,  2,  1,  0
+#endif
 
 #define CLOSE_SOCKET(s) do { if ((s) != SSH_INVALID_SOCKET) { _XCLOSESOCKET(s); (s) = SSH_INVALID_SOCKET;} } while(0)
 
@@ -437,6 +468,10 @@ bool is_ssh_initialized(void);
 
 #define SSH_ERRNO_MSG_MAX   1024
 char *ssh_strerror(int err_num, char *buf, size_t buflen);
+
+/** 55 defined options (5 bytes each) + terminator */
+#define SSH_TTY_MODES_MAX_BUFSIZE   (55 * 5 + 1)
+int encode_current_tty_opts(unsigned char *buf, size_t buflen);
 
 #ifdef __cplusplus
 }

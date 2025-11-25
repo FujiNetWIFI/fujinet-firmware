@@ -45,7 +45,6 @@ struct arguments_st {
     char *port;
 
     char *ecdsa_key;
-    char *dsa_key;
     char *ed25519_key;
     char *rsa_key;
     char *host_key;
@@ -60,6 +59,7 @@ struct arguments_st {
     char *password;
 
     char *config_file;
+    char *log_file;
     bool with_global_config;
     char *pid_file;
 };
@@ -74,7 +74,6 @@ static void free_arguments(struct arguments_st *arguments)
     SAFE_FREE(arguments->port);
 
     SAFE_FREE(arguments->ecdsa_key);
-    SAFE_FREE(arguments->dsa_key);
     SAFE_FREE(arguments->ed25519_key);
     SAFE_FREE(arguments->rsa_key);
     SAFE_FREE(arguments->host_key);
@@ -86,6 +85,7 @@ static void free_arguments(struct arguments_st *arguments)
     SAFE_FREE(arguments->username);
     SAFE_FREE(arguments->password);
     SAFE_FREE(arguments->config_file);
+    SAFE_FREE(arguments->log_file);
     SAFE_FREE(arguments->pid_file);
 
 end:
@@ -153,8 +153,6 @@ static void print_server_state(struct server_state_st *state)
         printf("=================================================\n");
         printf("ecdsa_key = %s\n",
                 state->ecdsa_key? state->ecdsa_key: "NULL");
-        printf("dsa_key = %s\n",
-                state->dsa_key? state->dsa_key: "NULL");
         printf("ed25519_key = %s\n",
                 state->ed25519_key? state->ed25519_key: "NULL");
         printf("rsa_key = %s\n",
@@ -178,6 +176,7 @@ static void print_server_state(struct server_state_st *state)
                 state->parse_global_config? "TRUE": "FALSE");
         printf("config_file = %s\n",
                 state->config_file? state->config_file: "NULL");
+        printf("log_file = %s\n", state->log_file ? state->log_file : "NULL");
         printf("=================================================\n");
     }
 }
@@ -216,13 +215,6 @@ static int init_server_state(struct server_state_st *state,
         arguments->ecdsa_key = NULL;
     } else {
         state->ecdsa_key = NULL;
-    }
-
-    if (arguments->dsa_key) {
-        state->dsa_key = arguments->dsa_key;
-        arguments->dsa_key = NULL;
-    } else {
-        state->dsa_key = NULL;
     }
 
     if (arguments->ed25519_key) {
@@ -280,7 +272,8 @@ static int init_server_state(struct server_state_st *state,
         state->auth_methods = atoi(arguments->auth_methods);
     } else {
         state->auth_methods = SSH_AUTH_METHOD_PASSWORD |
-                              SSH_AUTH_METHOD_PUBLICKEY;
+                              SSH_AUTH_METHOD_PUBLICKEY |
+                              SSH_AUTH_METHOD_GSSAPI_MIC;
     }
 
     state->with_pcap = arguments->with_pcap;
@@ -306,6 +299,11 @@ static int init_server_state(struct server_state_st *state,
     if (arguments->config_file) {
         state->config_file = arguments->config_file;
         arguments->config_file = NULL;
+    }
+
+    if (arguments->log_file) {
+        state->log_file = arguments->log_file;
+        arguments->log_file = NULL;
     }
 
     /* TODO make configurable */
@@ -361,14 +359,6 @@ static struct argp_option options[] = {
         .arg   = "FILE",
         .flags = 0,
         .doc   = "Set the ECDSA key.",
-        .group = 0
-    },
-    {
-        .name  = "dsakey",
-        .key   = 'd',
-        .arg   = "FILE",
-        .flags = 0,
-        .doc   = "Set the DSA key.",
         .group = 0
     },
     {
@@ -459,6 +449,14 @@ static struct argp_option options[] = {
         .doc   = "Use this server configuration file.",
         .group = 0
     },
+    {
+        .name  = "log_file",
+        .key   = 'l',
+        .arg   = "LOG_FILE",
+        .flags = 0,
+        .doc   = "Output log to this file.",
+        .group = 0
+    },
     { .name = NULL }
 };
 
@@ -481,14 +479,6 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state)
     case 'c':
         arguments->ecdsa_key = strdup(arg);
         if (arguments->ecdsa_key == NULL) {
-            fprintf(stderr, "Out of memory\n");
-            rc = ENOMEM;
-            goto end;
-        }
-        break;
-    case 'd':
-        arguments->dsa_key = strdup(arg);
-        if (arguments->dsa_key == NULL) {
             fprintf(stderr, "Out of memory\n");
             rc = ENOMEM;
             goto end;
@@ -580,6 +570,14 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state)
             goto end;
         }
         break;
+    case 'l':
+        arguments->log_file = strdup(arg);
+        if (arguments->log_file == NULL) {
+            fprintf(stderr, "Out of memory\n");
+            rc = ENOMEM;
+            goto end;
+        }
+        break;
     case ARGP_KEY_ARG:
         if (state->arg_num >= 1) {
             /* Too many arguments. */
@@ -623,9 +621,12 @@ int main(UNUSED_PARAM(int argc), UNUSED_PARAM(char **argv))
         .address = NULL,
         .with_global_config = true,
     };
-    struct server_state_st state = {
-        .address = NULL,
-    };
+    struct server_state_st *state = calloc(1, sizeof(struct server_state_st));
+
+    if (state == NULL) {
+        printf("Failed to allocate memory\n");
+        return -1;
+    }
 
 #ifdef HAVE_ARGP_H
     argp_parse (&argp, argc, argv, 0, 0, &arguments);
@@ -635,6 +636,8 @@ int main(UNUSED_PARAM(int argc), UNUSED_PARAM(char **argv))
         pid_file = fopen(arguments.pid_file, "w");
         if (pid_file == NULL) {
             rc = -1;
+            free_server_state(state);
+            SAFE_FREE(state);
             goto free_arguments;
         }
         pid = getpid();
@@ -643,22 +646,19 @@ int main(UNUSED_PARAM(int argc), UNUSED_PARAM(char **argv))
     }
 
     /* Initialize the state using default or given parameters */
-    rc = init_server_state(&state, &arguments);
+    rc = init_server_state(state, &arguments);
     if (rc != 0) {
+        free_server_state(state);
+        SAFE_FREE(state);
         goto free_arguments;
     }
 
     /* Free the arguments used to initialize the state before fork */
     free_arguments(&arguments);
 
-    /* Run the server */
-    rc = run_server(&state);
-    if (rc != 0) {
-        goto free_state;
-    }
+    /* Run the server: Frees the state in all processes */
+    rc = run_server(state);
 
-free_state:
-    free_server_state(&state);
 free_arguments:
     free_arguments(&arguments);
     return rc;

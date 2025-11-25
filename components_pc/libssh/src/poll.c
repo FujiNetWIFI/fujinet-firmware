@@ -40,7 +40,7 @@
 
 
 #ifndef SSH_POLL_CTX_CHUNK
-#define SSH_POLL_CTX_CHUNK			5
+#define SSH_POLL_CTX_CHUNK                      5
 #endif
 
 /**
@@ -422,7 +422,7 @@ void ssh_poll_set_events(ssh_poll_handle p, short events)
 {
     p->events = events;
     if (p->ctx != NULL) {
-        if (p->lock_cnt == 0) {
+        if (!ssh_poll_is_locked(p)) {
             p->ctx->pollfds[p->x.idx].events = events;
         } else if (!(p->ctx->pollfds[p->x.idx].events & POLLOUT)) {
             /* if locked, allow only setting POLLOUT to prevent recursive
@@ -560,8 +560,8 @@ void ssh_poll_ctx_free(ssh_poll_ctx ctx)
 
 static int ssh_poll_ctx_resize(ssh_poll_ctx ctx, size_t new_size)
 {
-  ssh_poll_handle *pollptrs;
-  ssh_pollfd_t *pollfds;
+  ssh_poll_handle *pollptrs = NULL;
+  ssh_pollfd_t *pollfds = NULL;
 
   pollptrs = realloc(ctx->pollptrs, sizeof(ssh_poll_handle) * new_size);
   if (pollptrs == NULL) {
@@ -670,6 +670,20 @@ void ssh_poll_ctx_remove(ssh_poll_ctx ctx, ssh_poll_handle p)
 }
 
 /**
+ * @brief  Returns if a poll object is locked.
+ *
+ * @param  p            Pointer to an already allocated poll object.
+ * @returns true if the poll object is locked; false otherwise.
+ */
+bool ssh_poll_is_locked(ssh_poll_handle p)
+{
+    if (p == NULL) {
+        return false;
+    }
+    return p->lock_cnt > 0;
+}
+
+/**
  * @brief  Poll all the sockets associated through a poll object with a
  *         poll context. If any of the events are set after the poll, the
  *         call back function of the socket will be called.
@@ -698,13 +712,13 @@ int ssh_poll_ctx_dopoll(ssh_poll_ctx ctx, int timeout)
         return SSH_ERROR;
     }
 
-    /* Ignore any pollin events on locked sockets as that means we are called
+    /* Allow only POLLOUT events on locked sockets as that means we are called
      * recursively and we only want process the POLLOUT events here to flush
      * output buffer */
     for (i = 0; i < ctx->polls_used; i++) {
-        /* The lock prevents invoking POLLIN events: drop them now */
-        if (ctx->pollptrs[i]->lock_cnt > 0) {
-            ctx->pollfds[i].events &= ~POLLIN;
+        /* The lock allows only POLLOUT events: drop the rest */
+        if (ssh_poll_is_locked(ctx->pollptrs[i])) {
+            ctx->pollfds[i].events &= POLLOUT;
         }
     }
     ssh_timestamp_init(&ts);
@@ -722,14 +736,21 @@ int ssh_poll_ctx_dopoll(ssh_poll_ctx ctx, int timeout)
 
     used = ctx->polls_used;
     for (i = 0; i < used && rc > 0; ) {
-        if (ctx->pollfds[i].revents == 0) {
+        revents = ctx->pollfds[i].revents;
+        /* Do not pass any other events except for POLLOUT to callback when
+         * called recursively more than 2 times. On s390x the poll will be
+         * spammed with POLLHUP events causing infinite recursion when the user
+         * callback issues some write/flush/poll calls. */
+        if (ctx->pollptrs[i]->lock_cnt > 2) {
+            revents &= POLLOUT;
+        }
+        if (revents == 0) {
             i++;
         } else {
             int ret;
 
             p = ctx->pollptrs[i];
             fd = ctx->pollfds[i].fd;
-            revents = ctx->pollfds[i].revents;
             /* avoid having any event caught during callback */
             ctx->pollfds[i].events = 0;
             p->lock_cnt++;
@@ -855,7 +876,7 @@ ssh_event_add_fd(ssh_event event, socket_t fd, short events,
                  ssh_event_callback cb, void *userdata)
 {
     ssh_poll_handle p;
-    struct ssh_event_fd_wrapper *pw;
+    struct ssh_event_fd_wrapper *pw = NULL;
 
     if(event == NULL || event->ctx == NULL || cb == NULL
                                            || fd == SSH_INVALID_SOCKET) {
@@ -925,7 +946,7 @@ int ssh_event_add_session(ssh_event event, ssh_session session)
 {
     ssh_poll_handle p;
 #ifdef WITH_SERVER
-    struct ssh_iterator *iterator;
+    struct ssh_iterator *iterator = NULL;
 #endif
 
     if(event == NULL || event->ctx == NULL || session == NULL) {
@@ -1033,8 +1054,8 @@ int ssh_event_remove_fd(ssh_event event, socket_t fd)
         if(fd == event->ctx->pollfds[i].fd) {
             ssh_poll_handle p = event->ctx->pollptrs[i];
             if (p->session != NULL){
-            	/* we cannot free that handle, it's owned by its session */
-            	continue;
+                /* we cannot free that handle, it's owned by its session */
+                continue;
             }
             if (p->cb == ssh_event_fd_wrapper_callback) {
                 struct ssh_event_fd_wrapper *pw = p->cb_data;
@@ -1072,7 +1093,7 @@ int ssh_event_remove_session(ssh_event event, ssh_session session)
     register size_t i, used;
     int rc = SSH_ERROR;
 #ifdef WITH_SERVER
-    struct ssh_iterator *iterator;
+    struct ssh_iterator *iterator = NULL;
 #endif
 
     if (event == NULL || event->ctx == NULL || session == NULL) {

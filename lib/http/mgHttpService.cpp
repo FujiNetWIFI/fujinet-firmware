@@ -359,7 +359,7 @@ int fnHttpService::post_handler_config(struct mg_connection *c, struct mg_http_m
 
     _fnwserr err = fnwserr_noerrr;
 
-    if (fnHttpServiceConfigurator::process_config_post(hm->body.ptr, hm->body.len) < 0)
+    if (fnHttpServiceConfigurator::process_config_post(hm->body.buf, hm->body.len) < 0)
     {
         return_http_error(c, fnwserr_post_fail);
         return -1; //ESP_FAIL;
@@ -379,9 +379,9 @@ int fnHttpService::get_handler_browse(mg_connection *c, mg_http_message *hm)
     int pathlen = hm->uri.len - prefixlen -1;
 
     Debug_println("Browse request handler");
-    if (pathlen >= 0 && strncmp(hm->uri.ptr, prefix, hm->uri.len))
+    if (pathlen >= 0 && strncmp(hm->uri.buf, prefix, hm->uri.len))
     {
-        const char *s = hm->uri.ptr + prefixlen;
+        const char *s = hm->uri.buf + prefixlen;
         // /browse/host/{1..8}[/path/on/host...]
         if (*s >= '1' && *s <= '8' && (pathlen == 0 || s[1] == '/'))
         {
@@ -526,7 +526,7 @@ std::string fnHttpService::shorten_url(std::string url)
 int fnHttpService::get_handler_shorturl(mg_connection *c, mg_http_message *hm)
 {
     // Strip the /url/ from the path
-    std::string id_str = std::string(hm->uri.ptr).substr(5, hm->uri.len-5);
+    std::string id_str = std::string(hm->uri.buf).substr(5, hm->uri.len-5);
     Debug_printf("Short URL handler: %s\n", id_str.c_str());
 
     if (!std::all_of(id_str.begin(), id_str.end(), ::isdigit)) {
@@ -553,23 +553,23 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
     if (ev == MG_EV_HTTP_MSG)
     {
         struct mg_http_message *hm = (struct mg_http_message *) ev_data;
-        if (mg_http_match_uri(hm, "/test"))
+        if (mg_match(hm->uri, mg_str("/test"), NULL))
         {
             // test handler
             mg_http_reply(c, 200, "", "{\"result\": %d}\n", 1);  // Serve REST
         }
-        else if (mg_http_match_uri(hm, "/"))
+        else if (mg_match(hm->uri, mg_str("/"), NULL))
         {
             // index handler
             send_file(c, "index.html");
         }
-        else if (mg_http_match_uri(hm, "/file"))
+        else if (mg_match(hm->uri, mg_str("/file"), NULL))
         {
             // file handler
             char fname[60];
-            if (hm->query.ptr != NULL && hm->query.len > 0 && hm->query.len < sizeof(fname))
+            if (hm->query.buf != NULL && hm->query.len > 0 && hm->query.len < sizeof(fname))
             {
-                strncpy(fname, hm->query.ptr, hm->query.len);
+                strncpy(fname, hm->query.buf, hm->query.len);
                 fname[hm->query.len] = '\0';
                 send_file(c, fname);
             }
@@ -578,10 +578,10 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
                 mg_http_reply(c, 400, "", "Bad file request\n");
             }
         }
-        else if (mg_http_match_uri(hm, "/config"))
+        else if (mg_match(hm->uri, mg_str("/config"), NULL))
         {
             // config POST handler
-            if (mg_vcasecmp(&hm->method, "POST") == 0)
+            if (mg_casecmp(hm->method.buf, "POST") == 0)
             {
                 post_handler_config(c, hm);
             }
@@ -590,32 +590,32 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
                 mg_http_reply(c, 400, "", "Bad config request\n");
             }
         }
-        else if (mg_http_match_uri(hm, "/print"))
+        else if (mg_match(hm->uri, mg_str("/print"), NULL))
         {
             // print handler
             get_handler_print(c);
         }
-        else if (mg_http_match_uri(hm, "/browse/#"))
+        else if (mg_match(hm->uri, mg_str("/browse/#"), NULL))
         {
             // browse handler
             get_handler_browse(c, hm);
         }
-        else if (mg_http_match_uri(hm, "/swap"))
+        else if (mg_match(hm->uri, mg_str("/swap"), NULL))
         {
             // browse handler
             get_handler_swap(c, hm);
         }
-        else if (mg_http_match_uri(hm, "/mount"))
+        else if (mg_match(hm->uri, mg_str("/mount"), NULL))
         {
             // browse handler
             get_handler_mount(c, hm);
         }
-        else if (mg_http_match_uri(hm, "/unmount"))
+        else if (mg_match(hm->uri, mg_str("/unmount"), NULL))
         {
             // eject handler
             get_handler_eject(c, hm);
         }
-        else if (mg_http_match_uri(hm, "/restart"))
+        else if (mg_match(hm->uri, mg_str("/restart"), NULL))
         {
             // get "exit" query variable
             char exit[10] = "";
@@ -633,13 +633,13 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
                 fnSystem.reboot(500, true); // deferred exit with code 75 -> should be started again
             }
         }
-        else if (mg_http_match_uri(hm, "/hosts")) {
-            if (mg_vcasecmp(&hm->method, "POST") == 0)
+        else if (mg_match(hm->uri, mg_str("/hosts"), NULL)) {
+            if (mg_casecmp(hm->method.buf, "POST") == 0)
                 post_handler_hosts(c, hm);
             else
                 get_handler_hosts(c, hm);
         }
-        else if (mg_http_match_uri(hm, "/url/*"))
+        else if (mg_match(hm->uri, mg_str("/url/*"), NULL))
         {
             get_handler_shorturl(c, hm);
         }

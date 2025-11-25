@@ -32,7 +32,6 @@ typedef gcry_md_hd_t SHA384CTX;
 typedef gcry_md_hd_t SHA512CTX;
 typedef gcry_md_hd_t MD5CTX;
 typedef gcry_md_hd_t HMACCTX;
-typedef gcry_md_hd_t EVPCTX;
 #define SHA_DIGEST_LENGTH 20
 #define SHA_DIGEST_LEN SHA_DIGEST_LENGTH
 #define MD5_DIGEST_LEN 16
@@ -48,6 +47,8 @@ typedef gcry_md_hd_t EVPCTX;
 #endif
 
 #define EVP_DIGEST_LEN EVP_MAX_MD_SIZE
+
+#define ssh_crypto_free(x) gcry_free(x)
 
 typedef gcry_mpi_t bignum;
 typedef const struct gcry_mpi *const_bignum;

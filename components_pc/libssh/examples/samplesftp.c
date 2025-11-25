@@ -33,16 +33,13 @@ clients must be made or how a client should react.
 #define BUF_SIZE 65536
 #endif
 
-static int verbosity;
-static char *destination;
-
 static void do_sftp(ssh_session session) {
     sftp_session sftp = sftp_new(session);
     sftp_dir dir;
     sftp_attributes file;
     sftp_statvfs_t sftpstatvfs;
     struct statvfs sysstatvfs;
-    sftp_file fichier;
+    sftp_file source;
     sftp_file to;
     int len = 1;
     unsigned int i;
@@ -189,8 +186,8 @@ static void do_sftp(ssh_session session) {
     /* the small buffer size was intended to stress the library. of course, you
      * can use a buffer till 20kbytes without problem */
 
-    fichier = sftp_open(sftp, "/usr/bin/ssh", O_RDONLY, 0);
-    if (!fichier) {
+    source = sftp_open(sftp, "/usr/bin/ssh", O_RDONLY, 0);
+    if (!source) {
         fprintf(stderr, "Error opening /usr/bin/ssh: %s\n",
                 ssh_get_error(session));
         goto end;
@@ -201,16 +198,16 @@ static void do_sftp(ssh_session session) {
     if (!to) {
         fprintf(stderr, "Error opening ssh-copy for writing: %s\n",
                 ssh_get_error(session));
-        sftp_close(fichier);
+        sftp_close(source);
         goto end;
     }
 
-    while ((len = sftp_read(fichier, data, 4096)) > 0) {
+    while ((len = sftp_read(source, data, 4096)) > 0) {
         if (sftp_write(to, data, len) != len) {
             fprintf(stderr, "Error writing %d bytes: %s\n",
                     len, ssh_get_error(session));
             sftp_close(to);
-            sftp_close(fichier);
+            sftp_close(source);
             goto end;
         }
     }
@@ -220,10 +217,10 @@ static void do_sftp(ssh_session session) {
         fprintf(stderr, "Error reading file: %s\n", ssh_get_error(session));
     }
 
-    sftp_close(fichier);
+    sftp_close(source);
     sftp_close(to);
-    printf("fichiers ferm\n");
-    to = sftp_open(sftp, "/tmp/grosfichier", O_WRONLY|O_CREAT, 0644);
+    printf("file closed\n");
+    to = sftp_open(sftp, "/tmp/large_file", O_WRONLY|O_CREAT, 0644);
 
     for (i = 0; i < 1000; ++i) {
         len = sftp_write(to, data, sizeof(data));
@@ -244,50 +241,63 @@ static void usage(const char *argv0) {
     fprintf(stderr, "Usage : %s [-v] remotehost\n"
             "sample sftp test client - libssh-%s\n"
             "Options :\n"
+            "  -l user : log in as user\n"
+            "  -p port : connect to port\n"
             "  -v : increase log verbosity\n",
             argv0,
             ssh_version(0));
     exit(0);
 }
 
-static int opts(int argc, char **argv) {
-    int i;
+int main(int argc, char **argv)
+{
+    ssh_session session = NULL;
+    char *destination = NULL;
+    int auth = 0;
+    int state;
 
-    while ((i = getopt(argc, argv, "v")) != -1) {
-        switch(i) {
-        case 'v':
-            verbosity++;
-            break;
-        default:
-            fprintf(stderr, "unknown option %c\n", optopt);
-            usage(argv[0]);
-            return -1;
-        }
-    }
+    ssh_init();
+    session = ssh_new();
 
-    destination = argv[optind];
-    if (destination == NULL) {
+    if (ssh_options_getopt(session, &argc, argv)) {
+        fprintf(stderr,
+                "Error parsing command line: %s\n",
+                ssh_get_error(session));
+        ssh_free(session);
+        ssh_finalize();
         usage(argv[0]);
+        return EXIT_FAILURE;
+    }
+    if (argc < 1) {
+        usage(argv[0]);
+        return EXIT_FAILURE;
+    }
+    destination = argv[1];
+
+    if (ssh_options_set(session, SSH_OPTIONS_HOST, destination) < 0) {
         return -1;
     }
-    return 0;
-}
-
-int main(int argc, char **argv) {
-    ssh_session session;
-
-    if (opts(argc, argv) < 0) {
-        return EXIT_FAILURE;
+    if (ssh_connect(session)) {
+        fprintf(stderr, "Connection failed : %s\n", ssh_get_error(session));
+        return -1;
     }
 
-    session = connect_ssh(destination, NULL, verbosity);
-    if (session == NULL) {
-        return EXIT_FAILURE;
+    state = verify_knownhost(session);
+    if (state != 0) {
+        return -1;
+    }
+
+    auth = authenticate_console(session);
+    if (auth != SSH_AUTH_SUCCESS) {
+        return -1;
     }
 
     do_sftp(session);
     ssh_disconnect(session);
     ssh_free(session);
+
+    ssh_finalize();
+
     return 0;
 }
 

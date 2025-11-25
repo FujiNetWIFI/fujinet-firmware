@@ -54,6 +54,8 @@ static int libssh_server_setup(void **state)
     struct test_server_st *tss = NULL;
     struct torture_state *s = NULL;
 
+    char log_file[1024];
+
     assert_non_null(state);
 
     tss = (struct test_server_st*)calloc(1, sizeof(struct test_server_st));
@@ -61,6 +63,13 @@ static int libssh_server_setup(void **state)
 
     torture_setup_socket_dir((void **)&s);
     torture_setup_create_libssh_config((void **)&s);
+
+    snprintf(log_file,
+             sizeof(log_file),
+             "%s/sshd/log",
+             s->socket_dir);
+
+    s->log_file = strdup(log_file);
 
     /* The second argument is the relative path to the "server" directory binary
      */
@@ -370,6 +379,59 @@ static void torture_server_unknown_global_request(void **state)
     ssh_channel_close(channel);
 }
 
+static void torture_server_no_more_sessions(void **state)
+{
+    struct test_server_st *tss = *state;
+    struct torture_state *s = NULL;
+    ssh_session session = NULL;
+    ssh_channel channels[2];
+    int rc;
+
+    assert_non_null(tss);
+
+    s = tss->state;
+    assert_non_null(s);
+
+    session = s->ssh.session;
+    assert_non_null(session);
+
+    rc = ssh_options_set(session, SSH_OPTIONS_USER, SSHD_DEFAULT_USER);
+    assert_int_equal(rc, SSH_OK);
+
+    rc = ssh_connect(session);
+    assert_int_equal(rc, SSH_OK);
+
+    /* Using the default password for the server */
+    rc = ssh_userauth_password(session, NULL, SSHD_DEFAULT_PASSWORD);
+    assert_int_equal(rc, SSH_AUTH_SUCCESS);
+
+    /* Open a channel session */
+    channels[0] = ssh_channel_new(session);
+    assert_non_null(channels[0]);
+
+    rc = ssh_channel_open_session(channels[0]);
+    assert_ssh_return_code(session, rc);
+
+    /* Send no-more-sessions@openssh.com global request */
+    rc = ssh_request_no_more_sessions(session);
+    assert_ssh_return_code(session, rc);
+
+    /* Try to open an extra session and expect failure */
+    channels[1] = ssh_channel_new(session);
+    assert_non_null(channels[1]);
+
+    rc = ssh_channel_open_session(channels[1]);
+    assert_int_equal(rc, SSH_ERROR);
+
+    /* Free the unused channel */
+    ssh_channel_close(channels[1]);
+    ssh_channel_free(channels[1]);
+
+    /* Close and free open channel */
+    ssh_channel_close(channels[0]);
+    ssh_channel_free(channels[0]);
+}
+
 static void torture_server_set_disconnect_message(void **state)
 {
     struct test_server_st *tss = *state;
@@ -446,6 +508,9 @@ int torture_run_tests(void) {
                                         session_setup,
                                         session_teardown),
         cmocka_unit_test_setup_teardown(torture_server_unknown_global_request,
+                                        session_setup,
+                                        session_teardown),
+        cmocka_unit_test_setup_teardown(torture_server_no_more_sessions,
                                         session_setup,
                                         session_teardown),
         cmocka_unit_test_setup_teardown(torture_server_set_disconnect_message,

@@ -92,13 +92,13 @@ SSH_DEPRECATED LIBSSH_API int channel_select(ssh_channel *readchans, ssh_channel
 SSH_DEPRECATED LIBSSH_API void channel_set_blocking(ssh_channel channel, int blocking);
 SSH_DEPRECATED LIBSSH_API int channel_write(ssh_channel channel, const void *data, uint32_t len);
 
-SSH_DEPRECATED LIBSSH_API void privatekey_free(ssh_private_key prv);
-SSH_DEPRECATED LIBSSH_API ssh_private_key privatekey_from_file(ssh_session session, const char *filename,
+/*SSH_DEPRECATED*/ LIBSSH_API void privatekey_free(ssh_private_key prv);
+/*SSH_DEPRECATED*/ LIBSSH_API ssh_private_key privatekey_from_file(ssh_session session, const char *filename,
     int type, const char *passphrase);
 SSH_DEPRECATED LIBSSH_API void publickey_free(ssh_public_key key);
 SSH_DEPRECATED LIBSSH_API int ssh_publickey_to_file(ssh_session session, const char *file,
     ssh_string pubkey, int type);
-SSH_DEPRECATED LIBSSH_API ssh_string publickey_from_file(ssh_session session, const char *filename,
+/*SSH_DEPRECATED*/ LIBSSH_API ssh_string publickey_from_file(ssh_session session, const char *filename,
     int *type);
 SSH_DEPRECATED LIBSSH_API ssh_public_key publickey_from_privatekey(ssh_private_key prv);
 SSH_DEPRECATED LIBSSH_API ssh_string publickey_to_string(ssh_public_key key);

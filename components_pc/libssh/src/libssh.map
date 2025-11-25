@@ -459,3 +459,25 @@ LIBSSH_4_9_0    # Released
         ssh_vlog;
 } LIBSSH_4_8_1;
 
+LIBSSH_4_10_0    # Released
+{
+    global:
+        sftp_aio_begin_read;
+        sftp_aio_begin_write;
+        sftp_aio_free;
+        sftp_aio_wait_read;
+        sftp_aio_wait_write;
+        sftp_channel_default_data_callback;
+        sftp_channel_default_subsystem_request;
+        sftp_expand_path;
+        sftp_hardlink;
+        sftp_home_directory;
+        sftp_limits;
+        sftp_limits_free;
+        sftp_lsetstat;
+        ssh_channel_get_exit_state;
+        ssh_channel_request_pty_size_modes;
+        ssh_pki_export_privkey_base64_format;
+        ssh_pki_export_privkey_file_format;
+        ssh_request_no_more_sessions;
+} LIBSSH_4_9_0;

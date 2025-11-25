@@ -139,7 +139,7 @@ Unlike its equivalent in the SCP subsystem, this function does NOT change the
 current directory to the newly created subdirectory.
 
 
-@subsection sftp_write Copying a file to the remote computer
+@subsection sftp_write Writing to a file on the remote computer
 
 You handle the contents of a remote file just like you would do with a
 local file: you open the file in a given mode, move the file pointer in it,
@@ -203,16 +203,14 @@ int sftp_helloworld(ssh_session session, sftp_session sftp)
 
 @subsection sftp_read Reading a file from the remote computer
 
-The nice thing with reading a file over the network through SFTP is that it
-can be done both in a synchronous way or an asynchronous way. If you read the file
-asynchronously, your program can do something else while it waits for the
-results to come.
-
-Synchronous read is done with sftp_read().
+A synchronous read from a remote file is done using sftp_read(). This
+section describes how to download a remote file using sftp_read(). The
+next section will discuss more about synchronous/asynchronous read/write
+operations using libssh sftp API.
 
 Files are normally transferred in chunks. A good chunk size is 16 KB. The following
 example transfers the remote file "/etc/profile" in 16 KB chunks. For each chunk we
-request, sftp_read blocks till the data has been received:
+request, sftp_read() blocks till the data has been received:
 
 @code
 // Good chunk size
@@ -273,87 +271,39 @@ int sftp_read_sync(ssh_session session, sftp_session sftp)
 }
 @endcode
 
-Asynchronous read is done in two steps, first sftp_async_read_begin(), which
-returns a "request handle", and then sftp_async_read(), which uses that request handle.
-If the file has been opened in nonblocking mode, then sftp_async_read()
-might return SSH_AGAIN, which means that the request hasn't completed yet
-and that the function should be called again later on. Otherwise,
-sftp_async_read() waits for the data to come. To open a file in nonblocking mode,
-call sftp_file_set_nonblocking() right after you opened it. Default is blocking mode.
+@subsection sftp_aio Performing an asynchronous read/write on a file on the remote computer
 
-The example below reads a very big file in asynchronous, nonblocking, mode. Each
-time the data is not ready yet, a counter is incremented.
+sftp_read() performs a "synchronous" read operation on a remote file.
+This means that sftp_read() will first request the server to read some
+data from the remote file and then would wait until the server response
+containing data to read (or an error) arrives at the client side.
 
-@code
-// Good chunk size
-#define MAX_XFER_BUF_SIZE 16384
+sftp_write() performs a "synchronous" write operation on a remote file.
+This means that sftp_write() will first request the server to write some
+data to the remote file and then would wait until the server response
+containing information about the status of the write operation arrives at the
+client side.
 
-int sftp_read_async(ssh_session session, sftp_session sftp)
-{
-  int access_type;
-  sftp_file file;
-  char buffer[MAX_XFER_BUF_SIZE];
-  int async_request;
-  int nbytes;
-  long counter;
-  int rc;
+If your client program wants to do something other than waiting for the
+response after requesting a read/write, the synchronous sftp_read() and
+sftp_write() can't be used. In such a case the "asynchronous" sftp aio API
+should be used.
 
-  access_type = O_RDONLY;
-  file = sftp_open(sftp, "some_very_big_file",
-                   access_type, 0);
-  if (file == NULL) {
-    fprintf(stderr, "Can't open file for reading: %s\n",
-                     ssh_get_error(session));
-    return SSH_ERROR;
-  }
-  sftp_file_set_nonblocking(file);
+Please go through @ref libssh_tutor_sftp_aio for a detailed description
+of the sftp aio API.
 
-  async_request = sftp_async_read_begin(file, sizeof(buffer));
-  counter = 0L;
-  usleep(10000);
-  if (async_request >= 0) {
-    nbytes = sftp_async_read(file, buffer, sizeof(buffer),
-                             async_request);
-  } else {
-      nbytes = -1;
-  }
+The sftp aio API provides two categories of functions :
+  - sftp_aio_begin_*() : For requesting a read/write from the server.
+  - sftp_aio_wait_*() : For waiting for the response of a previously
+    issued read/write request from the server.
 
-  while (nbytes > 0 || nbytes == SSH_AGAIN) {
-    if (nbytes > 0) {
-      write(1, buffer, nbytes);
-      async_request = sftp_async_read_begin(file, sizeof(buffer));
-    } else {
-        counter++;
-    }
-    usleep(10000);
+Hence, the client program can call sftp_aio_begin_*() to request a read/write
+and then can perform any number of operations (other than waiting) before
+calling sftp_aio_wait_*() for waiting for the response of the previously
+issued request.
 
-    if (async_request >= 0) {
-      nbytes = sftp_async_read(file, buffer, sizeof(buffer),
-                               async_request);
-    } else {
-        nbytes = -1;
-    }
-  }
-
-  if (nbytes < 0) {
-    fprintf(stderr, "Error while reading file: %s\n",
-            ssh_get_error(session));
-    sftp_close(file);
-    return SSH_ERROR;
-  }
-
-  printf("The counter has reached value: %ld\n", counter);
-
-  rc = sftp_close(file);
-  if (rc != SSH_OK) {
-    fprintf(stderr, "Can't close the read file: %s\n",
-            ssh_get_error(session));
-    return rc;
-  }
-
-  return SSH_OK;
-}
-@endcode
+We call read/write operations performed in the manner described above as
+"asynchronous" read/write operations on a remote file.
 
 @subsection sftp_ls Listing the contents of a directory
 

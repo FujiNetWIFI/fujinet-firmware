@@ -6,7 +6,7 @@
 #define LIMIT 0x100000000UL
 
 int main(void) {
-  ssh_session session;
+  ssh_session session = NULL;
   ssh_channel channel;
   char buffer[1024*1024];
   int rc;
@@ -47,7 +47,7 @@ int main(void) {
     if(total > LIMIT)
       break;
   }
-    
+
   if (rc < 0) {
     printf("error : %s\n",ssh_get_error(session));
     ssh_channel_close(channel);

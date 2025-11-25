@@ -38,6 +38,7 @@ struct arguments_st {
     unsigned long bits;
     char *file;
     char *passphrase;
+    char *format;
     int action_list;
 };
 
@@ -52,7 +53,6 @@ static struct argp_option options[] = {
                  "Accepted values are: "
                  "1024, 2048, 3072 (default), 4096, and 8192 for TYPE=\"rsa\"; "
                  "256 (default), 384, and 521 for TYPE=\"ecdsa\"; "
-                 "1024 (default) and 2048 for TYPE=\"dsa\"; "
                  "can be omitted for TYPE=\"ed25519\" "
                  "(it will be ignored if provided).\n",
         .group = 0
@@ -86,7 +86,7 @@ static struct argp_option options[] = {
         .flags = 0,
         .doc   = "The type of the key to be generated. "
                  "Accepted values are: "
-                 "\"rsa\", \"ecdsa\", \"ed25519\", and \"dsa\".\n",
+                 "\"rsa\", \"ecdsa\", and \"ed25519\".\n",
         .group = 0
     },
     {
@@ -95,6 +95,16 @@ static struct argp_option options[] = {
         .arg   = NULL,
         .flags = 0,
         .doc   = "List the Fingerprint of the given key\n",
+        .group = 0
+    },
+    {
+        .name  = "format",
+        .key   = 'm',
+        .arg   = "FORMAT",
+        .flags = 0,
+        .doc   = "Write the file in specific format. The supported values are "
+                "'PEM'and 'OpenSSH' file format. By default Ed25519 "
+                "keys are exported in OpenSSH format and others in PEM.\n",
         .group = 0
     },
     {
@@ -153,9 +163,6 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state)
             if (!strcmp(arg, "rsa")) {
                 arguments->type = SSH_KEYTYPE_RSA;
             }
-            else if (!strcmp(arg, "dsa")) {
-                arguments->type = SSH_KEYTYPE_DSS;
-            }
             else if (!strcmp(arg, "ecdsa")) {
                 arguments->type = SSH_KEYTYPE_ECDSA;
             }
@@ -171,6 +178,9 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state)
             break;
         case 'l':
             arguments->action_list = 1;
+            break;
+        case 'm':
+            arguments->format = strdup(arg);
             break;
         case ARGP_KEY_ARG:
             if (state->arg_num > 0) {
@@ -254,29 +264,6 @@ static int validate_args(struct arguments_st *args)
         }
 
         break;
-    case SSH_KEYTYPE_DSS:
-        switch (args->bits) {
-        case 0:
-            /* If not provided, use default value */
-            args->bits = 1024;
-            break;
-        case 1024:
-        case 2048:
-            break;
-        default:
-            fprintf(stderr, "Error: Invalid bits parameter provided\n");
-            rc = EINVAL;
-            break;
-        }
-        if (args->file == NULL) {
-            args->file = strdup("id_dsa");
-            if (args->file == NULL) {
-                rc = ENOMEM;
-                break;
-            }
-        }
-
-        break;
     case SSH_KEYTYPE_ED25519:
         /* Ignore value and overwrite with a zero */
         args->bits = 0;
@@ -323,6 +310,7 @@ list_fingerprint(char *file)
     rc = ssh_get_publickey_hash(key, SSH_PUBLICKEY_HASH_SHA256, &hash, &hlen);
     if (rc != SSH_OK) {
         fprintf(stderr, "Failed to get key fingerprint\n");
+        ssh_key_free(key);
         return;
     }
     ssh_print_hash(SSH_PUBLICKEY_HASH_SHA256, hash, hlen);
@@ -409,8 +397,36 @@ int main(int argc, char *argv[])
     }
 
     /* Write the private key */
-    rc = ssh_pki_export_privkey_file(key, arguments.passphrase, NULL, NULL,
-                                     arguments.file);
+    if (arguments.format != NULL) {
+        if (strcasecmp(arguments.format, "PEM") == 0) {
+            rc = ssh_pki_export_privkey_file_format(key,
+                                                    arguments.passphrase,
+                                                    NULL,
+                                                    NULL,
+                                                    arguments.file,
+                                                    SSH_FILE_FORMAT_PEM);
+        } else if (strcasecmp(arguments.format, "OpenSSH") == 0) {
+            rc = ssh_pki_export_privkey_file_format(key,
+                                                    arguments.passphrase,
+                                                    NULL,
+                                                    NULL,
+                                                    arguments.file,
+                                                    SSH_FILE_FORMAT_OPENSSH);
+        } else {
+            rc = ssh_pki_export_privkey_file_format(key,
+                                                    arguments.passphrase,
+                                                    NULL,
+                                                    NULL,
+                                                    arguments.file,
+                                                    SSH_FILE_FORMAT_DEFAULT);
+        }
+    } else {
+        rc = ssh_pki_export_privkey_file(key,
+                                         arguments.passphrase,
+                                         NULL,
+                                         NULL,
+                                         arguments.file);
+    }
     if (rc != SSH_OK) {
         fprintf(stderr, "Error: Failed to write private key file");
         goto end;

@@ -237,6 +237,11 @@ int ssh_dh_init_common(struct ssh_crypto_struct *crypto)
     struct dh_ctx *ctx = NULL;
     int rc;
 
+    /* Cleanup any previously allocated dh_ctx */
+    if (crypto->dh_ctx != NULL) {
+        ssh_dh_cleanup(crypto);
+    }
+
     ctx = calloc(1, sizeof(*ctx));
     if (ctx == NULL) {
         return SSH_ERROR;

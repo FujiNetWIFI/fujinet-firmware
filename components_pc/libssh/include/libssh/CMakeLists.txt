@@ -20,6 +20,13 @@ if (WITH_SERVER)
     ${libssh_HDRS}
     server.h
   )
+
+  if (WITH_SFTP)
+    set(libssh_HDRS
+        ${libssh_HDRS}
+        sftpserver.h
+    )
+  endif (WITH_SFTP)
 endif (WITH_SERVER)
 
 install(
