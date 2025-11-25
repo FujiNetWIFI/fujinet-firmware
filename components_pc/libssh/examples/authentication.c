@@ -30,8 +30,8 @@ int authenticate_kbdint(ssh_session session, const char *password)
 
     err = ssh_userauth_kbdint(session, NULL, NULL);
     while (err == SSH_AUTH_INFO) {
-        const char *instruction;
-        const char *name;
+        const char *instruction = NULL;
+        const char *name = NULL;
         char buffer[128];
         int i, n;
 
@@ -48,8 +48,8 @@ int authenticate_kbdint(ssh_session session, const char *password)
         }
 
         for (i = 0; i < n; i++) {
-            const char *answer;
-            const char *prompt;
+            const char *answer = NULL;
+            const char *prompt = NULL;
             char echo;
 
             prompt = ssh_userauth_kbdint_getprompt(session, i, &echo);
@@ -58,7 +58,7 @@ int authenticate_kbdint(ssh_session session, const char *password)
             }
 
             if (echo) {
-                char *p;
+                char *p = NULL;
 
                 printf("%s", prompt);
 
@@ -143,7 +143,7 @@ int authenticate_console(ssh_session session)
     int rc;
     int method;
     char password[128] = {0};
-    char *banner;
+    char *banner = NULL;
 
     // Try to authenticate
     rc = ssh_userauth_none(session, NULL);

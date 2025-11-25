@@ -27,14 +27,14 @@ int main(void)
     rv = ssh_pki_generate(SSH_KEYTYPE_ED25519, 0, &key);
     if (rv != SSH_OK) {
         fprintf(stderr, "Failed to generate private key");
-	return -1;
+        return -1;
     }
 
-    /* Write it to a file testkey in the current dirrectory */
+    /* Write it to a file testkey in the current directory */
     rv = ssh_pki_export_privkey_file(key, NULL, NULL, NULL, "testkey");
     if (rv != SSH_OK) {
         fprintf(stderr, "Failed to write private key file");
-	return -1;
+        return -1;
     }
 
     return 0;

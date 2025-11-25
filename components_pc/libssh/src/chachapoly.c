@@ -42,7 +42,7 @@ static int chacha20_set_encrypt_key(struct ssh_cipher_struct *cipher,
                                     void *key,
                                     void *IV)
 {
-    struct chacha20_poly1305_keysched *sched;
+    struct chacha20_poly1305_keysched *sched = NULL;
     uint8_t *u8key = key;
     (void)IV;
 

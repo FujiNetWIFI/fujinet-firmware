@@ -30,11 +30,11 @@ uint8_t eK[24] =
 uint8_t dK[24] =
     "\xf8\xdd\xc3\xea\x5a\x59\x98\xb9\x86\xaa\x77\x29\x67\x51\x46"
     "\x21\x73\xc2\x6a\x6b\xed\xf2\x49\x98";
-uint8_t eMAC[32] =
+uint8_t encrypt_MAC[32] =
     "\x0f\xbd\x1f\xe9\x2a\xaa\x84\xdc\xb5\xfc\xfb\x68\x2c\xa5\xe0"
     "\xba\xf2\x6f\xe5\x80\xee\x8f\x5c\x5b\x30\x55\x25\xb3\x7b\x21"
     "\xdc\xe5";
-uint8_t dMAC[32] =
+uint8_t decrypt_MAC[32] =
     "\xa3\x52\x6e\x72\xa8\x8b\xde\xc5\x68\x66\x89\xae\x0a\xd2\x83"
     "\x23\x21\x4b\x3f\x04\x2e\x7f\x86\x04\x0f\xa8\x04\x3c\x62\xad"
     "\x74\x91";
@@ -73,6 +73,7 @@ static void torture_session_keys(UNUSED_PARAM(void **state))
     assert_int_equal(rc, 0);
 
     test_crypto.shared_secret = ssh_make_string_bn(k_string);
+    SSH_STRING_FREE(k_string);
 
     rc = ssh_generate_session_keys(&session);
     assert_int_equal(rc, 0);
@@ -81,10 +82,16 @@ static void torture_session_keys(UNUSED_PARAM(void **state))
     assert_memory_equal(test_crypto.decryptIV, dIV, 32);
     assert_memory_equal(test_crypto.encryptkey, eK, 24);
     assert_memory_equal(test_crypto.decryptkey, dK, 24);
-    assert_memory_equal(test_crypto.encryptMAC, eMAC, 32);
-    assert_memory_equal(test_crypto.decryptMAC, dMAC, 32);
+    assert_memory_equal(test_crypto.encryptMAC, encrypt_MAC, 32);
+    assert_memory_equal(test_crypto.decryptMAC, decrypt_MAC, 32);
 
-    SSH_STRING_FREE(k_string);
+    bignum_safe_free(test_crypto.shared_secret);
+    SAFE_FREE(test_crypto.encryptIV);
+    SAFE_FREE(test_crypto.decryptIV);
+    SAFE_FREE(test_crypto.encryptkey);
+    SAFE_FREE(test_crypto.decryptkey);
+    SAFE_FREE(test_crypto.encryptMAC);
+    SAFE_FREE(test_crypto.decryptMAC);
 }
 
 int torture_run_tests(void) {

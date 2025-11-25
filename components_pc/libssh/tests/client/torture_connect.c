@@ -120,6 +120,29 @@ static void torture_connect_nonblocking(void **state) {
     assert_ssh_return_code(session, rc);
 }
 
+static void torture_connect_ipv6(void **state) {
+    struct torture_state *s = *state;
+    ssh_session session = s->ssh.session;
+    int rc;
+
+    rc = ssh_options_set(session, SSH_OPTIONS_HOST, "testing");
+    assert_ssh_return_code(session, rc);
+    /* set non-blocking mode */
+    ssh_set_blocking(session, 0);
+
+    do {
+        rc = ssh_connect(session);
+    } while (rc == SSH_AGAIN);
+
+    assert_ssh_return_code(session, rc);
+
+    /* should work for blocking mode too */
+    ssh_disconnect(session);
+    ssh_set_blocking(session, 1);
+    rc = ssh_connect(session);
+    assert_ssh_return_code(session, rc);
+}
+
 #if 0 /* This does not work with socket_wrapper */
 static void torture_connect_timeout(void **state) {
     struct torture_state *s = *state;
@@ -235,17 +258,90 @@ static void torture_connect_uninitialized(UNUSED_PARAM(void **state))
     ssh_free(session);
 }
 
+static void
+internal_log(ssh_session session,
+             int priority,
+             const char *message,
+             void *userdata)
+{
+    (void)session;
+    (void)priority;
+    (void)message;
+    (void)userdata;
+
+    return;
+}
+
+static void
+torture_legacy_callback(void **state)
+{
+    struct ssh_callbacks_struct cb[2] = {0};
+    int rc, verbosity = SSH_LOG_WARNING;
+    ssh_session session = NULL;
+
+    /* unused. */
+    (void)state;
+
+    /*
+     *  Legacy code in 'ssh_set_callbacks' used to
+     *  create the conditions for a use-after-free
+     *  issue, in multi-session programs, by failing
+     *  to update a pointer with the new session.
+     *
+     *  To verify it won't happen again, this test
+     *  creates two consecutive sessions and frees
+     *  them; if any fault occurs then the pointer
+     *  remained at the previous session, failing
+     *  to be updated.
+     */
+    for (int i = 0; i < 2; i++) {
+        session = ssh_new();
+        assert_non_null(session);
+
+        rc = ssh_options_set(session, SSH_OPTIONS_HOST, TORTURE_SSH_SERVER);
+        assert_ssh_return_code(session, rc);
+
+        rc = ssh_options_set(session, SSH_OPTIONS_LOG_VERBOSITY, &verbosity);
+        assert_ssh_return_code(session, rc);
+
+        cb[i].log_function = internal_log;
+
+        ssh_callbacks_init(&cb[i]);
+        ssh_set_callbacks(session, &cb[i]);
+
+        rc = ssh_connect(session);
+        assert_ssh_return_code(session, rc);
+        ssh_disconnect(session);
+
+        ssh_free(session);
+    }
+}
+
 int torture_run_tests(void) {
     int rc;
     struct CMUnitTest tests[] = {
-        cmocka_unit_test_setup_teardown(torture_connect_peer_discon_msg, session_setup, session_teardown),
-        cmocka_unit_test_setup_teardown(torture_connect_nonblocking, session_setup, session_teardown),
-        cmocka_unit_test_setup_teardown(torture_connect_double, session_setup, session_teardown),
-        cmocka_unit_test_setup_teardown(torture_connect_failure, session_setup, session_teardown),
+        cmocka_unit_test_setup_teardown(torture_connect_peer_discon_msg,
+                                        session_setup,
+                                        session_teardown),
+        cmocka_unit_test_setup_teardown(torture_connect_nonblocking,
+                                        session_setup,
+                                        session_teardown),
+        cmocka_unit_test_setup_teardown(torture_connect_ipv6,
+                                        session_setup,
+                                        session_teardown),
+        cmocka_unit_test_setup_teardown(torture_connect_double,
+                                        session_setup,
+                                        session_teardown),
+        cmocka_unit_test_setup_teardown(torture_connect_failure,
+                                        session_setup,
+                                        session_teardown),
 #if 0
         cmocka_unit_test_setup_teardown(torture_connect_timeout, session_setup, session_teardown),
 #endif
-        cmocka_unit_test_setup_teardown(torture_connect_socket, session_setup, session_teardown),
+        cmocka_unit_test_setup_teardown(torture_connect_socket,
+                                        session_setup,
+                                        session_teardown),
+        cmocka_unit_test(torture_legacy_callback),
         cmocka_unit_test(torture_connect_uninitialized),
     };
 

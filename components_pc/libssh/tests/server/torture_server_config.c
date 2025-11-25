@@ -51,9 +51,6 @@ struct test_server_st {
     char ecdsa_521_hostkey[1024];
     char ecdsa_384_hostkey[1024];
     char ecdsa_256_hostkey[1024];
-#ifdef HAVE_DSA
-    char dsa_hostkey[1024];
-#endif /* HAVE_DSA */
 };
 
 static int setup_files(void **state)
@@ -117,14 +114,6 @@ static int setup_files(void **state)
         torture_write_file(tss->ed25519_hostkey,
                            torture_get_openssh_testkey(SSH_KEYTYPE_ED25519, 0));
 
-#ifdef HAVE_DSA
-        snprintf(tss->dsa_hostkey,
-                 sizeof(tss->dsa_hostkey),
-                 "%s/sshd/ssh_host_dsa_key",
-                 s->socket_dir);
-        torture_write_file(tss->dsa_hostkey,
-                           torture_get_testkey(SSH_KEYTYPE_DSS, 0));
-#endif /* HAVE_DSA */
     }
 
     tss->state = s;
@@ -372,10 +361,6 @@ static size_t setup_hostkey_files(struct test_server_st *tss)
     if (!ssh_fips_mode()) {
         hostkey_files[4] = tss->ed25519_hostkey;
         num_hostkey_files++;
-#ifdef HAVE_DSA
-        hostkey_files[5] = tss->dsa_hostkey;
-        num_hostkey_files++;
-#endif
     }
 #endif /* TEST_ALL_CRYPTO_COMBINATIONS */
 
@@ -670,18 +655,6 @@ static void torture_server_config_hostkey_algorithms(void **state)
     rc = try_config_content(state, config_content, false);
     assert_int_equal(rc, 0);
 
-#ifdef HAVE_DSA
-    if (!ssh_fips_mode()) {
-        /* ssh-dss */
-        snprintf(config_content,
-                sizeof(config_content),
-                "HostKey %s\nHostkeyAlgorithms %s\n",
-                tss->dsa_hostkey, "ssh-dss");
-
-        rc = try_config_content(state, config_content, false);
-        assert_int_equal(rc, 0);
-    }
-#endif
 }
 
 static void torture_server_config_unknown(void **state)

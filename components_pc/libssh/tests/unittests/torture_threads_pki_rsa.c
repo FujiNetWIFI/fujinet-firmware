@@ -133,10 +133,9 @@ static int teardown(void **state) {
     return 0;
 }
 
-static int disable_secmem(void **state)
+static void
+disable_secmem(void)
 {
-    (void) state; /*unused*/
-
 #if defined(HAVE_LIBGCRYPT)
     /* gcrypt currently is configured to use only 4kB of locked secmem
      * (see ssh_crypto_init() in src/libcrypt.c)
@@ -145,23 +144,10 @@ static int disable_secmem(void **state)
      * To avoid the expected warning, disable the secure memory.
      * */
 
-    gcry_control (GCRYCTL_SUSPEND_SECMEM_WARN);
+    gcry_control(GCRYCTL_SUSPEND_SECMEM_WARN);
     gcry_control(GCRYCTL_DISABLE_SECMEM);
+    gcry_control(GCRYCTL_INITIALIZATION_FINISHED, 0);
 #endif
-
-    return 0;
-}
-
-static int enable_secmem(void **state)
-{
-    (void) state; /*unused*/
-
-#if defined(HAVE_LIBGCRYPT)
-    /* Re-enable secmem */
-    gcry_control(GCRYCTL_INIT_SECMEM, 4096);
-    gcry_control(GCRYCTL_RESUME_SECMEM_WARN);
-#endif
-    return 0;
 }
 
 static void *thread_pki_rsa_import_pubkey_file(void *threadid)
@@ -756,18 +742,21 @@ int torture_run_tests(void)
         cmocka_unit_test_setup_teardown(torture_pki_rsa_import_pubkey_file,
                                         setup_rsa_key,
                                         teardown),
-        cmocka_unit_test_setup_teardown(torture_pki_rsa_import_privkey_base64_NULL_key,
-                                        setup_rsa_key,
-                                        teardown),
-        cmocka_unit_test_setup_teardown(torture_pki_rsa_import_privkey_base64_NULL_str,
-                                        setup_rsa_key,
-                                        teardown),
+        cmocka_unit_test_setup_teardown(
+            torture_pki_rsa_import_privkey_base64_NULL_key,
+            setup_rsa_key,
+            teardown),
+        cmocka_unit_test_setup_teardown(
+            torture_pki_rsa_import_privkey_base64_NULL_str,
+            setup_rsa_key,
+            teardown),
         cmocka_unit_test_setup_teardown(torture_pki_rsa_import_privkey_base64,
                                         setup_rsa_key,
                                         teardown),
-        cmocka_unit_test_setup_teardown(torture_pki_rsa_publickey_from_privatekey,
-                                        setup_rsa_key,
-                                        teardown),
+        cmocka_unit_test_setup_teardown(
+            torture_pki_rsa_publickey_from_privatekey,
+            setup_rsa_key,
+            teardown),
         cmocka_unit_test(torture_pki_rsa_import_privkey_base64_passphrase),
         cmocka_unit_test_setup_teardown(torture_pki_rsa_copy_cert_to_privkey,
                                         setup_rsa_key,
@@ -781,12 +770,8 @@ int torture_run_tests(void)
         cmocka_unit_test_setup_teardown(torture_pki_rsa_duplicate_key,
                                         setup_rsa_key,
                                         teardown),
-        cmocka_unit_test_setup_teardown(torture_pki_rsa_generate_key,
-                                        disable_secmem,
-                                        enable_secmem),
-        cmocka_unit_test_setup_teardown(torture_mixed,
-                                        setup_rsa_key,
-                                        teardown),
+        cmocka_unit_test(torture_pki_rsa_generate_key),
+        cmocka_unit_test_setup_teardown(torture_mixed, setup_rsa_key, teardown),
     };
 
     /*
@@ -801,6 +786,7 @@ int torture_run_tests(void)
      * If the library is statically linked, ssh_init() is not called
      * automatically
      */
+    disable_secmem();
     ssh_init();
     torture_filter_tests(tests);
     rc = cmocka_run_group_tests(tests, NULL, NULL);

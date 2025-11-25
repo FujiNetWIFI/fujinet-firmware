@@ -333,6 +333,7 @@ static void torture_packet_aes256_gcm(void **state)
     }
 }
 
+#ifdef WITH_ZLIB
 static void torture_packet_compress_zlib(void **state)
 {
     int i;
@@ -350,6 +351,7 @@ static void torture_packet_compress_zlib_openssh(void **state)
         torture_packet("aes256-ctr", "hmac-sha1", "zlib@openssh.com", i);
     }
 }
+#endif /* WITH_ZLIB */
 
 int torture_run_tests(void) {
     int rc;
@@ -371,8 +373,10 @@ int torture_run_tests(void) {
         cmocka_unit_test(torture_packet_chacha20),
         cmocka_unit_test(torture_packet_aes128_gcm),
         cmocka_unit_test(torture_packet_aes256_gcm),
+#ifdef WITH_ZLIB
         cmocka_unit_test(torture_packet_compress_zlib),
         cmocka_unit_test(torture_packet_compress_zlib_openssh),
+#endif /* WITH_ZLIB */
 #ifdef WITH_INSECURE_NONE
         cmocka_unit_test(torture_packet_none_sha1),
         cmocka_unit_test(torture_packet_aes128_ctr_none),

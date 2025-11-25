@@ -96,11 +96,7 @@ static void cleanup_pcap(struct session_data_st *sdata)
         return;
     }
 
-    /* Do not free the pcap data context here since its ownership was
-     * transferred to the session object, which will take care of its cleanup.
-     * Moreover it is still in use so we can very simply crash by freeing
-     * it here.
-     */
+    ssh_pcap_file_free(sdata->pcap);
     sdata->pcap = NULL;
 }
 #endif
@@ -514,6 +510,14 @@ end:
     return;
 }
 
+static void free_test_server_state(void **state)
+{
+    struct test_server_st *tss = *state;
+
+    torture_free_state(tss->state);
+    SAFE_FREE(tss);
+}
+
 static int setup_kbdint_server(void **state)
 {
     struct torture_state *s;
@@ -523,6 +527,7 @@ static int setup_kbdint_server(void **state)
     char rsa_hostkey[1024] = {0};
 
     char sshd_path[1024];
+    char log_file[1024];
 
     int rc;
 
@@ -550,6 +555,11 @@ static int setup_kbdint_server(void **state)
     rc = mkdir(sshd_path, 0755);
     assert_return_code(rc, errno);
 
+    snprintf(log_file,
+             sizeof(log_file),
+             "%s/sshd/log",
+             s->socket_dir);
+
     snprintf(rsa_hostkey,
              sizeof(rsa_hostkey),
              "%s/sshd/ssh_host_rsa_key",
@@ -569,7 +579,9 @@ static int setup_kbdint_server(void **state)
     ss->host_key = strdup(rsa_hostkey);
     assert_non_null(rsa_hostkey);
 
+    /* not to mix up the client and server messages */
     ss->verbosity = torture_libssh_verbosity();
+    ss->log_file = strdup(log_file);
 
 #ifdef WITH_PCAP
     ss->with_pcap = 1;
@@ -580,12 +592,15 @@ static int setup_kbdint_server(void **state)
     ss->max_tries = 3;
     ss->error = 0;
 
+    tss->state = s;
+    tss->ss = ss;
+
     /* Set the session handling function */
     ss->handle_session = handle_kbdint_session_cb;
     assert_non_null(ss->handle_session);
 
     /* Start the server */
-    pid = fork_run_server(ss);
+    pid = fork_run_server(ss, free_test_server_state, &tss);
     if (pid < 0) {
         fail();
     }
@@ -597,11 +612,8 @@ static int setup_kbdint_server(void **state)
     setenv("SOCKET_WRAPPER_DEFAULT_IFACE", "21", 1);
     unsetenv("PAM_WRAPPER");
 
-    /* Wait 200ms */
-    usleep(200 * 1000);
-
-    tss->state = s;
-    tss->ss = ss;
+    rc = torture_wait_for_daemon(15);
+    assert_int_equal(rc, 0);
 
     *state = tss;
 

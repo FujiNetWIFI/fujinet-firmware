@@ -20,7 +20,7 @@ the interesting functions as you go.
 The libssh library provides:
 
  - <strong>Key Exchange Methods</strong>: <i>curve25519-sha256, curve25519-sha256@libssh.org, ecdh-sha2-nistp256, ecdh-sha2-nistp384, ecdh-sha2-nistp521</i>, diffie-hellman-group1-sha1, diffie-hellman-group14-sha1
- - <strong>Public Key Algorithms</strong>: ssh-ed25519, ecdsa-sha2-nistp256, ecdsa-sha2-nistp384, ecdsa-sha2-nistp521, ssh-rsa, rsa-sha2-512, rsa-sha2-256,ssh-dss
+ - <strong>Public Key Algorithms</strong>: ssh-ed25519, ecdsa-sha2-nistp256, ecdsa-sha2-nistp384, ecdsa-sha2-nistp521, ssh-rsa, rsa-sha2-512, rsa-sha2-256
  - <strong>Ciphers</strong>: <i>aes256-ctr, aes192-ctr, aes128-ctr</i>, aes256-cbc (rijndael-cbc@lysator.liu.se), aes192-cbc, aes128-cbc, 3des-cbc, blowfish-cbc
  - <strong>Compression Schemes</strong>: zlib, <i>zlib@openssh.com</i>, none
  - <strong>MAC hashes</strong>: hmac-sha1, hmac-sha2-256, hmac-sha2-512, hmac-md5
@@ -33,7 +33,7 @@ The libssh library provides:
  - <strong>Thread-safe</strong>: Just don't share sessions
  - <strong>Non-blocking</strong>: it can be used both blocking and non-blocking
  - <strong>Your sockets</strong>: the app hands over the socket, or uses libssh sockets
- - <b>OpenSSL</b> or <b>gcrypt</b>: builds with either
+ - <b>OpenSSL</b>, <b>MBedTLS</b> or <b>gcrypt</b> (deprecated): builds with either
 
 @section main-additional-features Additional Features
 
@@ -213,15 +213,15 @@ It was later modified and expanded by the following RFCs.
     Use of RSA Keys with SHA-256 and SHA-512 in the Secure Shell (SSH) Protocol
  - <a href="https://tools.ietf.org/html/rfc8709" target="_blank">RFC 8709</a>,
     Ed25519 and Ed448 Public Key Algorithms for the Secure Shell (SSH) Protocol
+ - <a href="https://tools.ietf.org/html/rfc8709" target="_blank">RFC 8731</a>,
+    Secure Shell (SSH) Key Exchange Method Using Curve25519 and Curve448
+ - <a href="https://tools.ietf.org/html/rfc9142" target="_blank">RFC 9142</a>,
+    Key Exchange (KEX) Method Updates and Recommendations for Secure Shell (SSH)
 
 There are also drafts that are being currently developed and followed.
 
- - <a href="https://tools.ietf.org/html/draft-ietf-curdle-ssh-kex-sha2-10" target="_blank">draft-ietf-curdle-ssh-kex-sha2-10</a>
-    Key Exchange (KEX) Method Updates and Recommendations for Secure Shell (SSH)
- - <a href="https://tools.ietf.org/html/draft-miller-ssh-agent-03" target="_blank">draft-miller-ssh-agent-03</a>
+ - <a href="https://tools.ietf.org/html/draft-miller-ssh-agent-03" target="_blank">draft-miller-ssh-agent-08</a>
     SSH Agent Protocol
- - <a href="https://tools.ietf.org/html/draft-ietf-curdle-ssh-curves-12" target="_blank">draft-ietf-curdle-ssh-curves-12</a>
-    Secure Shell (SSH) Key Exchange Method using Curve25519 and Curve448
 
 Interesting cryptography documents:
 

@@ -1,8 +1,7 @@
 project(unittests C)
 
-include_directories(${OPENSSL_INCLUDE_DIR})
-
 set(LIBSSH_UNIT_TESTS
+    torture_bignum
     torture_buffer
     torture_bytearray
     torture_callbacks
@@ -45,11 +44,19 @@ if (UNIX AND NOT WIN32)
         torture_keyfiles
         torture_pki
         torture_pki_rsa
+        torture_pki_dsa
         torture_pki_ed25519
         # requires /dev/null
         torture_channel
     )
-
+    if (HAVE_IFADDRS_H)
+        set(LIBSSH_UNIT_TESTS
+            ${LIBSSH_UNIT_TESTS}
+            # requires some non-standard API from netdb.h, in.h
+            # and arpa/inet.h for handling IP addresses
+            torture_config_match_localnetwork
+        )
+    endif (HAVE_IFADDRS_H)
     if (WITH_SERVER)
         set(LIBSSH_UNIT_TESTS
             ${LIBSSH_UNIT_TESTS}
@@ -62,20 +69,13 @@ if (UNIX AND NOT WIN32)
         endif()
     endif()
 
-
-    if (HAVE_DSA)
-        set(LIBSSH_UNIT_TESTS
-            ${LIBSSH_UNIT_TESTS}
-            torture_pki_dsa
-        )
-    endif()
-
     if (WITH_PKCS11_URI)
         set(LIBSSH_UNIT_TESTS
             ${LIBSSH_UNIT_TESTS}
             torture_pki_rsa_uri
             torture_pki_ecdsa_uri
         )
+        list(APPEND TORTURE_UNIT_ENVIRONMENT PKCS11_PROVIDER_DEBUG=file:/tmp/p11prov-debug.log)
     endif()
 
     if (HAVE_ECC)
@@ -91,13 +91,10 @@ if (UNIX AND NOT WIN32)
         torture_threads_pki_rsa
     )
     if (WITH_SERVER)
-        # Not working correctly
-        # add_cmocka_test(torture_server_x11 torture_server_x11.c ${TEST_TARGET_LIBRARIES})
-        # the signals are not testable under cmocka
-        # set(LIBSSH_THREAD_UNIT_TESTS
-        #     ${LIBSSH_THREAD_UNIT_TESTS}
-        #     torture_unit_server
-        # )
+        set(LIBSSH_THREAD_UNIT_TESTS
+            ${LIBSSH_THREAD_UNIT_TESTS}
+            torture_unit_server
+        )
     endif (WITH_SERVER)
 endif (UNIX AND NOT WIN32)
 

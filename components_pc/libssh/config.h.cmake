@@ -58,14 +58,14 @@
 /* Define to 1 if you have the <stdint.h> header file. */
 #cmakedefine HAVE_STDINT_H 1
 
+/* Define to 1 if you have the <ifaddrs.h> header file. */
+#cmakedefine HAVE_IFADDRS_H 1
+
 /* Define to 1 if you have the <openssl/aes.h> header file. */
 #cmakedefine HAVE_OPENSSL_AES_H 1
 
 /* Define to 1 if you have the <wspiapi.h> header file. */
 #cmakedefine HAVE_WSPIAPI_H 1
-
-/* Define to 1 if you have the <openssl/blowfish.h> header file. */
-#cmakedefine HAVE_OPENSSL_BLOWFISH_H 1
 
 /* Define to 1 if you have the <openssl/des.h> header file. */
 #cmakedefine HAVE_OPENSSL_DES_H 1
@@ -91,20 +91,8 @@
 /* Define to 1 if you have elliptic curve cryptography */
 #cmakedefine HAVE_ECC 1
 
-/* Define to 1 if you have DSA */
-#cmakedefine HAVE_DSA 1
-
-/* Define to 1 if you have gl_flags as a glob_t sturct member */
+/* Define to 1 if you have gl_flags as a glob_t struct member */
 #cmakedefine HAVE_GLOB_GL_FLAGS_MEMBER 1
-
-/* Define to 1 if you have OpenSSL with Ed25519 support */
-#cmakedefine HAVE_OPENSSL_ED25519 1
-
-/* Define to 1 if you have OpenSSL with X25519 support */
-#cmakedefine HAVE_OPENSSL_X25519 1
-
-/* Define to 1 if you have OpenSSL with Poly1305 support */
-#cmakedefine HAVE_OPENSSL_EVP_POLY1305 1
 
 /* Define to 1 if you have gcrypt with ChaCha20/Poly1305 support */
 #cmakedefine HAVE_GCRYPT_CHACHA_POLY 1
@@ -119,15 +107,6 @@
 
 /* Define to 1 if you have the `FIPS_mode' function. */
 #cmakedefine HAVE_OPENSSL_FIPS_MODE 1
-
-/* Define to 1 if you have the `EVP_DigestSign' function. */
-#cmakedefine HAVE_OPENSSL_EVP_DIGESTSIGN 1
-
-/* Define to 1 if you have the `EVP_DigestVerify' function. */
-#cmakedefine HAVE_OPENSSL_EVP_DIGESTVERIFY 1
-
-/* Define to 1 if you have the `OPENSSL_ia32cap_loc' function. */
-#cmakedefine HAVE_OPENSSL_IA32CAP_LOC 1
 
 /* Define to 1 if you have the `snprintf' function. */
 #cmakedefine HAVE_SNPRINTF 1
@@ -201,6 +180,9 @@
 /* Define to 1 if you have the `cmocka_set_test_filter' function. */
 #cmakedefine HAVE_CMOCKA_SET_TEST_FILTER 1
 
+/* Define to 1 if we have support for blowfish */
+#cmakedefine HAVE_BLOWFISH 1
+
 /*************************** LIBRARIES ***************************/
 
 /* Define to 1 if you have the `crypto' library (-lcrypto). */
@@ -252,8 +234,13 @@
 /* Define to 1 if you want to enable DH group exchange algorithms */
 #cmakedefine WITH_GEX 1
 
-/* Define to 1 if you want to enable none cipher and MAC */
+/* Define to 1 if you want to enable insecure none cipher and MAC */
 #cmakedefine WITH_INSECURE_NONE 1
+
+/* Define to 1 if you want to allow libssh to execute arbitrary commands from
+ * configuration files or options (match exec, proxy commands and OpenSSH-based
+ * proxy-jumps). */
+#cmakedefine WITH_EXEC 1
 
 /* Define to 1 if you want to enable blowfish cipher support */
 #cmakedefine WITH_BLOWFISH_CIPHER 1
@@ -275,6 +262,9 @@
 
 /* Define to 1 if you want to enable PKCS #11 URI support */
 #cmakedefine WITH_PKCS11_URI 1
+
+/* Define to 1 if we want to build a support for PKCS #11 provider. */
+#cmakedefine WITH_PKCS11_PROVIDER 1
 
 /*************************** ENDIAN *****************************/
 

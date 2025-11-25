@@ -116,5 +116,10 @@ function(ADD_CMOCKA_TEST _TARGET_NAME)
     add_test(${_TARGET_NAME}
         ${TARGET_SYSTEM_EMULATOR} ${_TARGET_NAME}
     )
+    if (WITH_COVERAGE)
+        ENABLE_LANGUAGE(CXX)
+        include(CodeCoverage)
+        append_coverage_compiler_flags_to_target(${_TARGET_NAME})
+    endif (WITH_COVERAGE)
 
 endfunction (ADD_CMOCKA_TEST)

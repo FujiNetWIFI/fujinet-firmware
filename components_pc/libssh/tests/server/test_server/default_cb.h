@@ -24,6 +24,7 @@
 #include "config.h"
 
 #include <libssh/libssh.h>
+#include <libssh/sftp.h>
 #include <libssh/callbacks.h>
 
 #define SSHD_DEFAULT_USER "libssh"
@@ -70,6 +71,7 @@ struct channel_data_st {
     void *server_state;
     /* This pointer is useful to set data for custom callbacks */
     void *extra_data;
+    sftp_session sftp;
 };
 
 /* A userdata struct for session. */

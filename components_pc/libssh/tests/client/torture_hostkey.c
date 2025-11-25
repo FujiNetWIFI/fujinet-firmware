@@ -127,30 +127,6 @@ static void torture_hostkey_ed25519(void **state) {
     assert_ssh_return_code(session, rc);
 }
 
-#ifdef HAVE_DSA
-static void torture_hostkey_dss(void **state) {
-    struct torture_state *s = *state;
-    ssh_session session = s->ssh.session;
-    char rsa[] = "ssh-dss";
-
-    int rc;
-
-    if (ssh_fips_mode()) {
-        skip();
-    }
-
-    rc = ssh_options_set(session, SSH_OPTIONS_HOSTKEYS, &rsa);
-    assert_ssh_return_code(session, rc);
-
-    rc = ssh_connect(session);
-    assert_ssh_return_code(session, rc);
-    ssh_disconnect(session);
-
-    rc = ssh_connect(session);
-    assert_ssh_return_code(session, rc);
-}
-#endif /* HAVE_DSA */
-
 #ifdef HAVE_ECC
 static void torture_hostkey_ecdsa(void **state) {
     struct torture_state *s = *state;
@@ -219,10 +195,6 @@ int torture_run_tests(void) {
                                         session_teardown),
 #ifdef HAVE_ECC
         cmocka_unit_test_setup_teardown(torture_hostkey_ecdsa, session_setup,
-                                        session_teardown),
-#endif
-#ifdef HAVE_DSA
-        cmocka_unit_test_setup_teardown(torture_hostkey_dss, session_setup,
                                         session_teardown),
 #endif
         /* the client is able to handle SHA2 extension (if negotiated) */

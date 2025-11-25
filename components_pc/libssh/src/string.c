@@ -106,7 +106,7 @@ int ssh_string_fill(struct ssh_string_struct *s, const void *data, size_t len) {
  * @note The null byte is not copied nor counted in the output string.
  */
 struct ssh_string_struct *ssh_string_from_char(const char *what) {
-  struct ssh_string_struct *ptr;
+  struct ssh_string_struct *ptr = NULL;
   size_t len;
 
   if(what == NULL) {
@@ -180,7 +180,7 @@ const char *ssh_string_get_char(struct ssh_string_struct *s)
  */
 char *ssh_string_to_char(struct ssh_string_struct *s) {
   size_t len;
-  char *new;
+  char *new = NULL;
 
   if (s == NULL) {
       return NULL;
@@ -219,7 +219,7 @@ void ssh_string_free_char(char *s) {
  * @return              Newly allocated copy of the string, NULL on error.
  */
 struct ssh_string_struct *ssh_string_copy(struct ssh_string_struct *s) {
-  struct ssh_string_struct *new;
+  struct ssh_string_struct *new = NULL;
   size_t len;
 
   if (s == NULL) {

@@ -36,7 +36,6 @@ struct server_state_st {
     int  port;
 
     char *ecdsa_key;
-    char *dsa_key;
     char *ed25519_key;
     char *rsa_key;
     char *host_key;
@@ -52,6 +51,8 @@ struct server_state_st {
 
     char *config_file;
     bool parse_global_config;
+
+    char *log_file;
 
     /* State */
     int  max_tries;
@@ -73,4 +74,7 @@ void free_server_state(struct server_state_st *state);
 int run_server(struct server_state_st *state);
 
 /*TODO: Add documentation */
-pid_t fork_run_server(struct server_state_st *state);
+pid_t
+fork_run_server(struct server_state_st *state,
+                void (*free_state) (void **userdata),
+                void *userdata);

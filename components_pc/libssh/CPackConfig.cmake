@@ -10,7 +10,7 @@ set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
 
 # SOURCE GENERATOR
 set(CPACK_SOURCE_GENERATOR "TXZ")
-set(CPACK_SOURCE_IGNORE_FILES "~$;[.]swp$;/[.]git;/[.]clangd/;/[.]cache/;.gitignore;/build*;/obj*;tags;cscope.*;compile_commands.json;.*\.patch")
+set(CPACK_SOURCE_IGNORE_FILES "~$;[.]swp$;/[.]bare/;/[.]git/;/[.]git;/[.]clangd/;/[.]cache/;.gitignore;/build*;/obj*;tags;cscope.*;compile_commands.json;.*\.patch")
 set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}")
 
 ### NSIS INSTALLER

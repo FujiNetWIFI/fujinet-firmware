@@ -49,6 +49,9 @@ static char *get_python_eater(unsigned long bytes){
   char *ptr;
   char buf[12];
 
+  if (eater == NULL) {
+    return NULL;
+  }
   memcpy(eater,python_eater,sizeof(python_eater));
   ptr=strstr(eater,"XXXXXXXXXX");
   if(!ptr){
@@ -116,7 +119,10 @@ int benchmarks_raw_up (ssh_session session, struct argument_s *args,
   unsigned long total=0;
 
   bytes = args->datasize * 1024 * 1024;
-  script =get_python_eater(bytes);
+  script = get_python_eater(bytes);
+  if (script == NULL) {
+    return -1;
+  }
   err=upload_script(session,"/tmp/eater.py",script);
   free(script);
   if(err<0)
@@ -129,8 +135,13 @@ int benchmarks_raw_up (ssh_session session, struct argument_s *args,
   snprintf(cmd,sizeof(cmd),"%s /tmp/eater.py", PYTHON_PATH);
   if(ssh_channel_request_exec(channel,cmd)==SSH_ERROR)
     goto error;
-  if((err=ssh_channel_read(channel,buffer,sizeof(buffer)-1,0))==SSH_ERROR)
-    goto error;
+  err = ssh_channel_read(channel, buffer, sizeof(buffer) - 1, 0);
+  if (err == SSH_ERROR)
+      goto error;
+  if (err == SSH_AGAIN) {
+      fprintf(stderr, "ssh_channel_read timeout");
+      goto error;
+  }
   buffer[err]=0;
   if(!strstr(buffer,"go")){
     fprintf(stderr,"parse error : %s\n",buffer);
@@ -154,9 +165,13 @@ int benchmarks_raw_up (ssh_session session, struct argument_s *args,
 
   if(args->verbose>0)
     fprintf(stdout,"Finished upload, now waiting the ack\n");
-
-  if((err=ssh_channel_read(channel,buffer,5,0))==SSH_ERROR)
+  err = ssh_channel_read(channel, buffer, 5, 0);
+  if (err == SSH_ERROR)
       goto error;
+  if (err == SSH_AGAIN) {
+      fprintf(stderr, "ssh_channel_read timeout");
+      goto error;
+  }
   buffer[err]=0;
   if(!strstr(buffer,"done")){
     fprintf(stderr,"parse error : %s\n",buffer);
@@ -205,6 +220,9 @@ static char *get_python_giver(unsigned long bytes){
   char *ptr;
   char buf[12];
 
+  if (giver == NULL) {
+    return NULL;
+  }
   memcpy(giver,python_giver,sizeof(python_giver));
   ptr=strstr(giver,"XXXXXXXXXX");
   if(!ptr){
@@ -236,7 +254,10 @@ int benchmarks_raw_down (ssh_session session, struct argument_s *args,
   unsigned long total=0;
 
   bytes = args->datasize * 1024 * 1024;
-  script =get_python_giver(bytes);
+  script = get_python_giver(bytes);
+  if (script == NULL) {
+    return -1;
+  }
   err=upload_script(session,"/tmp/giver.py",script);
   free(script);
   if(err<0)
@@ -260,8 +281,12 @@ int benchmarks_raw_down (ssh_session session, struct argument_s *args,
     if(toread > args->chunksize)
       toread = args->chunksize;
     r=ssh_channel_read(channel,buffer,toread,0);
-    if(r == SSH_ERROR)
-      goto error;
+    if (r == SSH_ERROR)
+        goto error;
+    if (r == SSH_AGAIN) {
+        fprintf(stderr, "ssh_channel_read timeout");
+        goto error;
+    }
     total += r;
   }
 

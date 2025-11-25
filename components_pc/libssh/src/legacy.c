@@ -48,7 +48,7 @@ int ssh_auth_list(ssh_session session) {
 int ssh_userauth_offer_pubkey(ssh_session session, const char *username,
     int type, ssh_string publickey)
 {
-    ssh_key key;
+    ssh_key key = NULL;
     int rc;
 
     (void) type; /* unused */
@@ -70,7 +70,7 @@ int ssh_userauth_pubkey(ssh_session session,
                         ssh_string publickey,
                         ssh_private_key privatekey)
 {
-    ssh_key key;
+    ssh_key key = NULL;
     int rc;
 
     (void) publickey; /* unused */
@@ -83,20 +83,22 @@ int ssh_userauth_pubkey(ssh_session session,
     key->type = privatekey->type;
     key->type_c = ssh_key_type_to_char(key->type);
     key->flags = SSH_KEY_FLAG_PRIVATE|SSH_KEY_FLAG_PUBLIC;
-#if !defined(HAVE_LIBCRYPTO) || OPENSSL_VERSION_NUMBER < 0x30000000L
-    key->dsa = privatekey->dsa_priv;
-    key->rsa = privatekey->rsa_priv;
-#else
+#if defined(HAVE_LIBMBEDCRYPTO)
+    key->pk = privatekey->rsa_priv;
+#elif defined(HAVE_LIBCRYPTO)
     key->key = privatekey->key_priv;
-#endif /* OPENSSL_VERSION_NUMBER */
+#else
+    key->rsa = privatekey->rsa_priv;
+#endif /* HAVE_LIBCRYPTO */
 
     rc = ssh_userauth_publickey(session, username, key);
-#if !defined(HAVE_LIBCRYPTO) || OPENSSL_VERSION_NUMBER < 0x30000000L
-    key->dsa = NULL;
-    key->rsa = NULL;
-#else
+#if defined(HAVE_LIBMBEDCRYPTO)
+    key->pk = NULL;
+#elif defined(HAVE_LIBCRYPTO)
     key->key = NULL;
-#endif /* OPENSSL_VERSION_NUMBER */
+#else
+    key->rsa = NULL;
+#endif /* HAVE_LIBCRYPTO */
     ssh_key_free(key);
 
     return rc;
@@ -111,8 +113,9 @@ int ssh_userauth_privatekey_file(ssh_session session,
                                  const char *filename,
                                  const char *passphrase) {
   char *pubkeyfile = NULL;
-  ssh_key pubkey = NULL;
-  ssh_key privkey = NULL;
+  ssh_string pubkey = NULL;
+  ssh_private_key privkey = NULL;
+  int type = 0;
   int rc = SSH_AUTH_ERROR;
   size_t klen = strlen(filename) + 4 + 1;
 
@@ -124,35 +127,25 @@ int ssh_userauth_privatekey_file(ssh_session session,
   }
   snprintf(pubkeyfile, klen, "%s.pub", filename);
 
-  /* Use modern ssh_pki_import_pubkey_file instead of deprecated publickey_from_file */
-  rc = ssh_pki_import_pubkey_file(pubkeyfile, &pubkey);
-  if (rc != SSH_OK || pubkey == NULL) {
+  pubkey = publickey_from_file(session, pubkeyfile, &type);
+  if (pubkey == NULL) {
     SSH_LOG(SSH_LOG_RARE, "Public key file %s not found. Trying to generate it.", pubkeyfile);
-    /* Try to load the private key and auto-detect its type */
-    rc = ssh_pki_import_privkey_file(filename, passphrase, NULL, NULL, &privkey);
+    /* auto-detect the key type with type=0 */
+    privkey = privatekey_from_file(session, filename, 0, passphrase);
   } else {
     SSH_LOG(SSH_LOG_RARE, "Public key file %s loaded.", pubkeyfile);
-    /* Load private key with type info we now have from public key */
-    rc = ssh_pki_import_privkey_file(filename, passphrase, NULL, NULL, &privkey);
+    privkey = privatekey_from_file(session, filename, type, passphrase);
   }
-  
-  if (rc != SSH_OK || privkey == NULL) {
-    if (pubkey != NULL) {
-      ssh_key_free(pubkey);
-    }
+  if (privkey == NULL) {
     goto error;
   }
-  
-  /* ssh_userauth_publickey is the modern version that takes ssh_key types */
-  rc = ssh_userauth_publickey(session, username, privkey);
-  ssh_key_free(privkey);
-  if (pubkey != NULL) {
-    ssh_key_free(pubkey);
-  }
+  /* ssh_userauth_pubkey is responsible for taking care of null-pubkey */
+  rc = ssh_userauth_pubkey(session, username, pubkey, privkey);
+  privatekey_free(privkey);
 
 error:
   SAFE_FREE(pubkeyfile);
-  /* pubkey is already freed above using ssh_key_free */
+  ssh_string_free(pubkey);
 
   return rc;
 }
@@ -300,17 +293,7 @@ int channel_send_eof(ssh_channel channel){
 
 int channel_select(ssh_channel *readchans, ssh_channel *writechans, ssh_channel *exceptchans, struct
     timeval * timeout){
-  /* 
-   * Using modern ssh_select instead of deprecated ssh_channel_select
-   * ssh_select has a different parameter ordering:
-   * ssh_select(channels, outchannels, maxfd, readfds, timeout)
-   * where readfds is fd_set* not ssh_channel*
-   * exceptchans is not used in this API, so pass NULL
-   */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  return ssh_select(readchans, writechans, -1, NULL, timeout);
-#pragma GCC diagnostic pop
+  return ssh_channel_select(readchans, writechans, exceptchans, timeout);
 }
 
 void channel_set_blocking(ssh_channel channel, int blocking){
@@ -377,26 +360,11 @@ void publickey_free(ssh_public_key key) {
   }
 
   switch(key->type) {
-    case SSH_KEYTYPE_DSS:
-#ifdef HAVE_LIBGCRYPT
-      gcry_sexp_release(key->dsa_pub);
-#elif defined HAVE_LIBCRYPTO
-#if OPENSSL_VERSION_NUMBER < 0x30000000L
-      DSA_free(key->dsa_pub);
-#else
-      EVP_PKEY_free(key->key_pub);
-#endif /* OPENSSL_VERSION_NUMBER */
-#endif /* HAVE_LIBGCRYPT */
-      break;
     case SSH_KEYTYPE_RSA:
 #ifdef HAVE_LIBGCRYPT
       gcry_sexp_release(key->rsa_pub);
 #elif defined HAVE_LIBCRYPTO
-#if OPENSSL_VERSION_NUMBER < 0x30000000L
-      RSA_free(key->rsa_pub);
-#else
       EVP_PKEY_free(key->key_pub);
-#endif /* OPENSSL_VERSION_NUMBER */
 #elif defined HAVE_LIBMBEDCRYPTO
       mbedtls_pk_free(key->rsa_pub);
       SAFE_FREE(key->rsa_pub);
@@ -408,10 +376,11 @@ void publickey_free(ssh_public_key key) {
   SAFE_FREE(key);
 }
 
-ssh_public_key publickey_from_privatekey(ssh_private_key prv) {
-    struct ssh_public_key_struct *p;
-    ssh_key privkey;
-    ssh_key pubkey;
+ssh_public_key publickey_from_privatekey(ssh_private_key prv)
+{
+    struct ssh_public_key_struct *p = NULL;
+    ssh_key privkey = NULL;
+    ssh_key pubkey = NULL;
     int rc;
 
     privkey = ssh_key_new();
@@ -422,20 +391,22 @@ ssh_public_key publickey_from_privatekey(ssh_private_key prv) {
     privkey->type = prv->type;
     privkey->type_c = ssh_key_type_to_char(privkey->type);
     privkey->flags = SSH_KEY_FLAG_PRIVATE | SSH_KEY_FLAG_PUBLIC;
-#if !defined(HAVE_LIBCRYPTO) || OPENSSL_VERSION_NUMBER < 0x30000000L
-    privkey->dsa = prv->dsa_priv;
-    privkey->rsa = prv->rsa_priv;
-#else
+#if defined(HAVE_LIBMBEDCRYPTO)
+    privkey->pk = prv->rsa_priv;
+#elif defined(HAVE_LIBCRYPTO)
     privkey->key = prv->key_priv;
-#endif /* OPENSSL_VERSION_NUMBER */
+#else
+    privkey->rsa = prv->rsa_priv;
+#endif /* HAVE_LIBCRYPTO */
 
     rc = ssh_pki_export_privkey_to_pubkey(privkey, &pubkey);
-#if !defined(HAVE_LIBCRYPTO) || OPENSSL_VERSION_NUMBER < 0x30000000L
-    privkey->dsa = NULL;
-    privkey->rsa = NULL;
-#else
+#if defined(HAVE_LIBMBEDCRYPTO)
+    privkey->pk = NULL;
+#elif defined(HAVE_LIBCRYPTO)
     privkey->key = NULL;
-#endif /* OPENSSL_VERSION_NUMBER */
+#else
+    privkey->rsa = NULL;
+#endif /* HAVE_LIBCRYPTO */
     ssh_key_free(privkey);
     if (rc < 0) {
         return NULL;
@@ -453,8 +424,8 @@ ssh_private_key privatekey_from_file(ssh_session session,
                                      const char *passphrase) {
     ssh_auth_callback auth_fn = NULL;
     void *auth_data = NULL;
-    ssh_private_key privkey;
-    ssh_key key;
+    ssh_private_key privkey = NULL;
+    ssh_key key = NULL;
     int rc;
 
     (void) type; /* unused */
@@ -470,7 +441,7 @@ ssh_private_key privatekey_from_file(ssh_session session,
                                      auth_fn,
                                      auth_data,
                                      &key);
-    if (rc == SSH_ERROR) {
+    if (rc != SSH_OK) {
         return NULL;
     }
 
@@ -481,17 +452,16 @@ ssh_private_key privatekey_from_file(ssh_session session,
     }
 
     privkey->type = key->type;
-#if !defined(HAVE_LIBCRYPTO) || OPENSSL_VERSION_NUMBER < 0x30000000L
-    privkey->dsa_priv = key->dsa;
-    privkey->rsa_priv = key->rsa;
-
-    key->dsa = NULL;
-    key->rsa = NULL;
-#else
+#if defined(HAVE_LIBMBEDCRYPTO)
+    privkey->rsa_priv = key->pk;
+    key->pk = NULL;
+#elif defined(HAVE_LIBCRYPTO)
     privkey->key_priv = key->key;
-
     key->key = NULL;
-#endif /* OPENSSL_VERSION_NUMBER */
+#else
+    privkey->rsa_priv = key->rsa;
+    key->rsa = NULL;
+#endif /* HAVE_LIBCRYPTO */
 
     ssh_key_free(key);
 
@@ -510,15 +480,9 @@ void privatekey_free(ssh_private_key prv) {
   }
 
 #ifdef HAVE_LIBGCRYPT
-  gcry_sexp_release(prv->dsa_priv);
   gcry_sexp_release(prv->rsa_priv);
 #elif defined HAVE_LIBCRYPTO
-#if OPENSSL_VERSION_NUMBER < 0x30000000L
-  DSA_free(prv->dsa_priv);
-  RSA_free(prv->rsa_priv);
-#else
   EVP_PKEY_free(prv->key_priv);
-#endif /* OPENSSL_VERSION_NUMBER */
 #elif defined HAVE_LIBMBEDCRYPTO
   mbedtls_pk_free(prv->rsa_priv);
   SAFE_FREE(prv->rsa_priv);
@@ -529,7 +493,7 @@ void privatekey_free(ssh_private_key prv) {
 
 ssh_string publickey_from_file(ssh_session session, const char *filename,
     int *type) {
-    ssh_key key;
+    ssh_key key = NULL;
     ssh_string key_str = NULL;
     int rc;
 
@@ -562,9 +526,10 @@ int ssh_type_from_name(const char *name) {
     return ssh_key_type_from_name(name);
 }
 
-ssh_public_key publickey_from_string(ssh_session session, ssh_string pubkey_s) {
-    struct ssh_public_key_struct *pubkey;
-    ssh_key key;
+ssh_public_key publickey_from_string(ssh_session session, ssh_string pubkey_s)
+{
+    struct ssh_public_key_struct *pubkey = NULL;
+    ssh_key key = NULL;
     int rc;
 
     (void) session; /* unused */
@@ -583,24 +548,26 @@ ssh_public_key publickey_from_string(ssh_session session, ssh_string pubkey_s) {
     pubkey->type = key->type;
     pubkey->type_c = key->type_c;
 
-#if !defined(HAVE_LIBCRYPTO) || OPENSSL_VERSION_NUMBER < 0x30000000L
-    pubkey->dsa_pub = key->dsa;
-    key->dsa = NULL;
-    pubkey->rsa_pub = key->rsa;
-    key->rsa = NULL;
-#else
+#if defined(HAVE_LIBMBEDCRYPTO)
+    pubkey->rsa_pub = key->pk;
+    key->pk = NULL;
+#elif defined(HAVE_LIBCRYPTO)
     pubkey->key_pub = key->key;
     key->key = NULL;
-#endif /* OPENSSL_VERSION_NUMBER */
+#else
+    pubkey->rsa_pub = key->rsa;
+    key->rsa = NULL;
+#endif /* HAVE_LIBCRYPTO */
 
     ssh_key_free(key);
 
     return pubkey;
 }
 
-ssh_string publickey_to_string(ssh_public_key pubkey) {
-    ssh_key key;
-    ssh_string key_blob;
+ssh_string publickey_to_string(ssh_public_key pubkey)
+{
+    ssh_key key = NULL;
+    ssh_string key_blob = NULL;
     int rc;
 
     if (pubkey == NULL) {
@@ -615,24 +582,26 @@ ssh_string publickey_to_string(ssh_public_key pubkey) {
     key->type = pubkey->type;
     key->type_c = pubkey->type_c;
 
-#if !defined(HAVE_LIBCRYPTO) || OPENSSL_VERSION_NUMBER < 0x30000000L
-    key->dsa = pubkey->dsa_pub;
-    key->rsa = pubkey->rsa_pub;
-#else
+#if defined(HAVE_LIBMBEDCRYPTO)
+    key->pk = pubkey->rsa_pub;
+#elif defined(HAVE_LIBCRYPTO)
     key->key = pubkey->key_pub;
-#endif /* OPENSSL_VERSION_NUMBER */
+#else
+    key->rsa = pubkey->rsa_pub;
+#endif /* HAVE_LIBCRYPTO */
 
     rc = ssh_pki_export_pubkey_blob(key, &key_blob);
     if (rc < 0) {
         key_blob = NULL;
     }
 
-#if !defined(HAVE_LIBCRYPTO) || OPENSSL_VERSION_NUMBER < 0x30000000L
-    key->dsa = NULL;
-    key->rsa = NULL;
-#else
+#if defined(HAVE_LIBMBEDCRYPTO)
+    key->pk = NULL;
+#elif defined(HAVE_LIBCRYPTO)
     key->key = NULL;
-#endif /* OPENSSL_VERSION_NUMBER */
+#else
+    key->rsa = NULL;
+#endif /* HAVE_LIBCRYPTO */
     ssh_key_free(key);
 
     return key_blob;
@@ -643,11 +612,11 @@ int ssh_publickey_to_file(ssh_session session,
                           ssh_string pubkey,
                           int type)
 {
-    FILE *fp;
-    char *user;
+    FILE *fp = NULL;
+    char *user = NULL;
     char buffer[1024];
     char host[256];
-    unsigned char *pubkey_64;
+    unsigned char *pubkey_64 = NULL;
     size_t len;
     int rc;
     if(session==NULL)
@@ -714,11 +683,10 @@ int ssh_try_publickey_from_file(ssh_session session,
                                 const char *keyfile,
                                 ssh_string *publickey,
                                 int *type) {
-    char *pubkey_file;
+    char *pubkey_file = NULL;
     size_t len;
-    ssh_key pubkey_key = NULL;
     ssh_string pubkey_string = NULL;
-    int rc;
+    int pubkey_type;
 
     if (session == NULL || keyfile == NULL || publickey == NULL || type == NULL) {
         return -1;
@@ -758,9 +726,8 @@ int ssh_try_publickey_from_file(ssh_session session,
      * We are sure both the private and public key file is readable. We return
      * the public as a string, and the private filename as an argument
      */
-    /* Using modern ssh_pki_import_pubkey_file instead of deprecated publickey_from_file */
-    rc = ssh_pki_import_pubkey_file(pubkey_file, &pubkey_key);
-    if (rc != SSH_OK || pubkey_key == NULL) {
+    pubkey_string = publickey_from_file(session, pubkey_file, &pubkey_type);
+    if (pubkey_string == NULL) {
         SSH_LOG(SSH_LOG_PACKET,
                 "Wasn't able to open public key file %s: %s",
                 pubkey_file,
@@ -769,25 +736,10 @@ int ssh_try_publickey_from_file(ssh_session session,
         return -1;
     }
 
-    /* Convert the ssh_key to ssh_string for backwards compatibility */
-    rc = ssh_pki_export_pubkey_blob(pubkey_key, &pubkey_string);
-    
-    /* Store the key type before freeing the key */
-    *type = ssh_key_type(pubkey_key);
-    
-    ssh_key_free(pubkey_key);
-    
-    if (rc != SSH_OK || pubkey_string == NULL) {
-        SSH_LOG(SSH_LOG_PACKET,
-                "Wasn't able to convert public key: %s",
-                ssh_get_error(session));
-        SAFE_FREE(pubkey_file);
-        return -1;
-    }
-
     SAFE_FREE(pubkey_file);
 
     *publickey = pubkey_string;
+    *type = pubkey_type;
 
     return 0;
 }
@@ -829,9 +781,9 @@ int channel_write_stderr(ssh_channel channel, const void *data, uint32_t len) {
  * @brief Interface previously exported by error.
  */
 ssh_message ssh_message_retrieve(ssh_session session, uint32_t packettype){
-	(void) packettype;
-	ssh_set_error(session, SSH_FATAL, "ssh_message_retrieve: obsolete libssh call");
-	return NULL;
+        (void) packettype;
+        ssh_set_error(session, SSH_FATAL, "ssh_message_retrieve: obsolete libssh call");
+        return NULL;
 }
 
 #endif /* WITH_SERVER */

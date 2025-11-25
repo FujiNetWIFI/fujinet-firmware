@@ -101,8 +101,15 @@ int ssh_client_ecdh_init(ssh_session session)
         goto out;
     }
 
+    /* Free any previously allocated privkey */
+    if (session->next_crypto->ecdh_privkey != NULL) {
+        gcry_sexp_release(session->next_crypto->ecdh_privkey);
+        session->next_crypto->ecdh_privkey = NULL;
+    }
     session->next_crypto->ecdh_privkey = key;
     key = NULL;
+
+    SSH_STRING_FREE(session->next_crypto->ecdh_client_pubkey);
     session->next_crypto->ecdh_client_pubkey = client_pubkey;
     client_pubkey = NULL;
 
@@ -132,9 +139,9 @@ int ecdh_build_k(ssh_session session)
 #else
     size_t k_len = 0;
     enum ssh_key_exchange_e kex_type = session->next_crypto->kex_type;
-    ssh_string s;
+    ssh_string s = NULL;
 #endif
-    ssh_string pubkey_raw;
+    ssh_string pubkey_raw = NULL;
     gcry_sexp_t pubkey = NULL;
     ssh_string privkey = NULL;
     int rc = SSH_ERROR;
@@ -267,12 +274,12 @@ int ecdh_build_k(ssh_session session)
 SSH_PACKET_CALLBACK(ssh_packet_server_ecdh_init){
     gpg_error_t err;
     /* ECDH keys */
-    ssh_string q_c_string;
-    ssh_string q_s_string;
+    ssh_string q_c_string = NULL;
+    ssh_string q_s_string = NULL;
     gcry_sexp_t param = NULL;
     gcry_sexp_t key = NULL;
-    /* SSH host keys (rsa,dsa,ecdsa) */
-    ssh_key privkey;
+    /* SSH host keys (rsa, ed25519 and ecdsa) */
+    ssh_key privkey = NULL;
     enum ssh_digest_e digest = SSH_DIGEST_AUTO;
     ssh_string sig_blob = NULL;
     ssh_string pubkey_blob = NULL;
@@ -366,22 +373,18 @@ SSH_PACKET_CALLBACK(ssh_packet_server_ecdh_init){
         goto out;
     }
 
-    SSH_LOG(SSH_LOG_PROTOCOL, "SSH_MSG_KEXDH_REPLY sent");
+    SSH_LOG(SSH_LOG_DEBUG, "SSH_MSG_KEXDH_REPLY sent");
     rc = ssh_packet_send(session);
-    if (rc != SSH_OK) {
-        goto out;
-    }
-
-
-    /* Send the MSG_NEWKEYS */
-    rc = ssh_buffer_add_u8(session->out_buffer, SSH2_MSG_NEWKEYS);
     if (rc != SSH_OK) {
         goto out;
     }
 
     session->dh_handshake_state = DH_STATE_NEWKEYS_SENT;
-    rc = ssh_packet_send(session);
-    SSH_LOG(SSH_LOG_PROTOCOL, "SSH_MSG_NEWKEYS sent");
+    /* Send the MSG_NEWKEYS */
+    rc = ssh_packet_send_newkeys(session);
+    if (rc == SSH_ERROR) {
+        goto out;
+    }
 
  out:
     gcry_sexp_release(param);

@@ -220,13 +220,12 @@
 
 # Search for python which is required
 if (ABIMap_FIND_REQURIED)
-    find_package(PythonInterp REQUIRED)
+    find_package(Python REQUIRED)
 else()
-    find_package(PythonInterp)
+    find_package(Python)
 endif()
 
-
-if (PYTHONINTERP_FOUND)
+if (TARGET Python::Interpreter)
     # Search for abimap tool used to generate the map files
     find_program(ABIMAP_EXECUTABLE NAMES abimap DOC "path to the abimap executable")
     mark_as_advanced(ABIMAP_EXECUTABLE)

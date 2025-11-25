@@ -43,7 +43,7 @@ find_path(MBEDTLS_INCLUDE_DIR
 
 find_library(MBEDTLS_SSL_LIBRARY
         NAMES
-            libmbedtls.a
+            mbedtls
         HINTS
             ${_MBEDTLS_ROOT_HINTS_AND_PATHS}
         PATH_SUFFIXES
@@ -53,7 +53,7 @@ find_library(MBEDTLS_SSL_LIBRARY
 
 find_library(MBEDTLS_CRYPTO_LIBRARY
         NAMES
-            libmbedcrypto.a
+            mbedcrypto
         HINTS
             ${_MBEDTLS_ROOT_HINTS_AND_PATHS}
         PATH_SUFFIXES
@@ -62,7 +62,7 @@ find_library(MBEDTLS_CRYPTO_LIBRARY
 
 find_library(MBEDTLS_X509_LIBRARY
         NAMES
-            libmbedx509.a
+            mbedx509
         HINTS
             ${_MBEDTLS_ROOT_HINTS_AND_PATHS}
         PATH_SUFFIXES
@@ -73,6 +73,14 @@ set(MBEDTLS_LIBRARIES ${MBEDTLS_SSL_LIBRARY} ${MBEDTLS_CRYPTO_LIBRARY}
         ${MBEDTLS_X509_LIBRARY})
 
 if (MBEDTLS_INCLUDE_DIR AND EXISTS "${MBEDTLS_INCLUDE_DIR}/mbedtls/version.h")
+    # mbedtls 2.8
+    file(STRINGS "${MBEDTLS_INCLUDE_DIR}/mbedtls/version.h" _mbedtls_version_str REGEX
+            "^#[\t ]*define[\t ]+MBEDTLS_VERSION_STRING[\t ]+\"[0-9]+.[0-9]+.[0-9]+\"")
+
+    string(REGEX REPLACE "^.*MBEDTLS_VERSION_STRING.*([0-9]+.[0-9]+.[0-9]+).*"
+            "\\1" MBEDTLS_VERSION "${_mbedtls_version_str}")
+elseif (MBEDTLS_INCLUDE_DIR AND EXISTS "${MBEDTLS_INCLUDE_DIR}/mbedtls/build_info.h")
+    # mbedtls 3.6
     file(STRINGS "${MBEDTLS_INCLUDE_DIR}/mbedtls/version.h" _mbedtls_version_str REGEX
             "^#[\t ]*define[\t ]+MBEDTLS_VERSION_STRING[\t ]+\"[0-9]+.[0-9]+.[0-9]+\"")
 
@@ -94,7 +102,7 @@ if (MBEDTLS_VERSION)
     )
 else (MBEDTLS_VERSION)
     find_package_handle_standard_args(MbedTLS
-        "Could NOT find mbedTLS, try to set the path to mbedLS root folder in
+        "Could NOT find mbedTLS, try to set the path to mbedTLS root folder in
         the system variable MBEDTLS_ROOT_DIR"
         MBEDTLS_INCLUDE_DIR
         MBEDTLS_LIBRARIES)
@@ -102,3 +110,32 @@ endif (MBEDTLS_VERSION)
 
 # show the MBEDTLS_INCLUDE_DIRS and MBEDTLS_LIBRARIES variables only in the advanced view
 mark_as_advanced(MBEDTLS_INCLUDE_DIR MBEDTLS_LIBRARIES)
+
+if(MBEDTLS_FOUND)
+  if(NOT TARGET MbedTLS::mbedcrypto)
+      add_library(MbedTLS::mbedcrypto UNKNOWN IMPORTED)
+      set_target_properties(MbedTLS::mbedcrypto PROPERTIES
+                            INTERFACE_INCLUDE_DIRECTORIES "${MBEDTLS_INCLUDE_DIR}"
+                            INTERFACE_LINK_LIBRARIES MbedTLS::mbedcrypto
+                            IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+                            IMPORTED_LOCATION "${MBEDTLS_CRYPTO_LIBRARY}")
+  endif()
+
+  if(NOT TARGET MbedTLS::mbedx509)
+      add_library(MbedTLS::mbedx509 UNKNOWN IMPORTED)
+      set_target_properties(MbedTLS::mbedx509 PROPERTIES
+                            INTERFACE_INCLUDE_DIRECTORIES "${MBEDTLS_INCLUDE_DIR}"
+                            INTERFACE_LINK_LIBRARIES MbedTLS::mbedx509
+                            IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+                            IMPORTED_LOCATION "${MBEDTLS_X509_LIBRARY}")
+  endif()
+
+  if(NOT TARGET MbedTLS::mbedtls)
+      add_library(MbedTLS::mbedtls UNKNOWN IMPORTED)
+      set_target_properties(MbedTLS::mbedtls PROPERTIES
+                            INTERFACE_INCLUDE_DIRECTORIES "${MBEDTLS_INCLUDE_DIR}"
+                            INTERFACE_LINK_LIBRARIES MbedTLS::mbedtls
+                            IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+                            IMPORTED_LOCATION "${MBEDTLS_LIBRARY}")
+  endif()
+endif()

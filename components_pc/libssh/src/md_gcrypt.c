@@ -36,24 +36,40 @@ sha1_init(void)
     return ctx;
 }
 
-void
+int
 sha1_update(SHACTX c, const void *data, size_t len)
 {
     gcry_md_write(c, data, len);
+    return SSH_OK;
 }
 
 void
-sha1_final(unsigned char *md, SHACTX c)
+sha1_ctx_free(SHACTX c)
 {
-    gcry_md_final(c);
-    memcpy(md, gcry_md_read(c, 0), SHA_DIGEST_LEN);
     gcry_md_close(c);
 }
 
-void
+int
+sha1_final(unsigned char *md, SHACTX c)
+{
+    unsigned char *tmp = NULL;
+
+    gcry_md_final(c);
+    tmp = gcry_md_read(c, 0);
+    if (tmp == NULL) {
+        gcry_md_close(c);
+        return SSH_ERROR;
+    }
+    memcpy(md, tmp, SHA_DIGEST_LEN);
+    gcry_md_close(c);
+    return SSH_OK;
+}
+
+int
 sha1(const unsigned char *digest, size_t len, unsigned char *hash)
 {
     gcry_md_hash_buffer(GCRY_MD_SHA1, hash, digest, len);
+    return SSH_OK;
 }
 
 SHA256CTX
@@ -66,23 +82,39 @@ sha256_init(void)
 }
 
 void
-sha256_update(SHACTX c, const void *data, size_t len)
+sha256_ctx_free(SHA256CTX c)
 {
-    gcry_md_write(c, data, len);
-}
-
-void
-sha256_final(unsigned char *md, SHACTX c)
-{
-    gcry_md_final(c);
-    memcpy(md, gcry_md_read(c, 0), SHA256_DIGEST_LEN);
     gcry_md_close(c);
 }
 
-void
+int
+sha256_update(SHACTX c, const void *data, size_t len)
+{
+    gcry_md_write(c, data, len);
+    return SSH_OK;
+}
+
+int
+sha256_final(unsigned char *md, SHACTX c)
+{
+    unsigned char *tmp = NULL;
+
+    gcry_md_final(c);
+    tmp = gcry_md_read(c, 0);
+    if (tmp == NULL) {
+        gcry_md_close(c);
+        return SSH_ERROR;
+    }
+    memcpy(md, tmp, SHA256_DIGEST_LEN);
+    gcry_md_close(c);
+    return SSH_OK;
+}
+
+int
 sha256(const unsigned char *digest, size_t len, unsigned char *hash)
 {
     gcry_md_hash_buffer(GCRY_MD_SHA256, hash, digest, len);
+    return SSH_OK;
 }
 
 SHA384CTX
@@ -95,23 +127,39 @@ sha384_init(void)
 }
 
 void
-sha384_update(SHACTX c, const void *data, size_t len)
+sha384_ctx_free(SHA384CTX c)
 {
-    gcry_md_write(c, data, len);
-}
-
-void
-sha384_final(unsigned char *md, SHACTX c)
-{
-    gcry_md_final(c);
-    memcpy(md, gcry_md_read(c, 0), SHA384_DIGEST_LEN);
     gcry_md_close(c);
 }
 
-void
+int
+sha384_update(SHACTX c, const void *data, size_t len)
+{
+    gcry_md_write(c, data, len);
+    return SSH_OK;
+}
+
+int
+sha384_final(unsigned char *md, SHACTX c)
+{
+    unsigned char *tmp = NULL;
+
+    gcry_md_final(c);
+    tmp = gcry_md_read(c, 0);
+    if (tmp == NULL) {
+        gcry_md_close(c);
+        return SSH_ERROR;
+    }
+    memcpy(md, tmp, SHA384_DIGEST_LEN);
+    gcry_md_close(c);
+    return SSH_OK;
+}
+
+int
 sha384(const unsigned char *digest, size_t len, unsigned char *hash)
 {
     gcry_md_hash_buffer(GCRY_MD_SHA384, hash, digest, len);
+    return SSH_OK;
 }
 
 SHA512CTX
@@ -124,23 +172,39 @@ sha512_init(void)
 }
 
 void
-sha512_update(SHACTX c, const void *data, size_t len)
+sha512_ctx_free(SHA512CTX c)
 {
-    gcry_md_write(c, data, len);
-}
-
-void
-sha512_final(unsigned char *md, SHACTX c)
-{
-    gcry_md_final(c);
-    memcpy(md, gcry_md_read(c, 0), SHA512_DIGEST_LEN);
     gcry_md_close(c);
 }
 
-void
+int
+sha512_update(SHACTX c, const void *data, size_t len)
+{
+    gcry_md_write(c, data, len);
+    return SSH_OK;
+}
+
+int
+sha512_final(unsigned char *md, SHACTX c)
+{
+    unsigned char *tmp = NULL;
+
+    gcry_md_final(c);
+    tmp = gcry_md_read(c, 0);
+    if (tmp == NULL) {
+        gcry_md_close(c);
+        return SSH_ERROR;
+    }
+    memcpy(md, tmp, SHA512_DIGEST_LEN);
+    gcry_md_close(c);
+    return SSH_OK;
+}
+
+int
 sha512(const unsigned char *digest, size_t len, unsigned char *hash)
 {
     gcry_md_hash_buffer(GCRY_MD_SHA512, hash, digest, len);
+    return SSH_OK;
 }
 
 MD5CTX
@@ -153,15 +217,30 @@ md5_init(void)
 }
 
 void
+md5_ctx_free(MD5CTX c)
+{
+    gcry_md_close(c);
+}
+
+int
 md5_update(MD5CTX c, const void *data, size_t len)
 {
     gcry_md_write(c, data, len);
+    return SSH_OK;
 }
 
-void
+int
 md5_final(unsigned char *md, MD5CTX c)
 {
+    unsigned char *tmp = NULL;
+
     gcry_md_final(c);
-    memcpy(md, gcry_md_read(c, 0), MD5_DIGEST_LEN);
+    tmp = gcry_md_read(c, 0);
+    if (tmp == NULL) {
+        gcry_md_close(c);
+        return SSH_ERROR;
+    }
+    memcpy(md, tmp, MD5_DIGEST_LEN);
     gcry_md_close(c);
+    return SSH_OK;
 }

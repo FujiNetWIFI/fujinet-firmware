@@ -22,6 +22,7 @@
  */
 
 #include "test_server.h"
+#include "testserver_common.h"
 
 #include <libssh/priv.h>
 #include <libssh/libssh.h>
@@ -40,13 +41,12 @@
 void free_server_state(struct server_state_st *state)
 {
     if (state == NULL) {
-        goto end;
+        return;
     }
 
     SAFE_FREE(state->address);
 
     SAFE_FREE(state->ecdsa_key);
-    SAFE_FREE(state->dsa_key);
     SAFE_FREE(state->ed25519_key);
     SAFE_FREE(state->rsa_key);
     SAFE_FREE(state->host_key);
@@ -56,15 +56,24 @@ void free_server_state(struct server_state_st *state)
     SAFE_FREE(state->expected_username);
     SAFE_FREE(state->expected_password);
     SAFE_FREE(state->config_file);
-
-end:
-    return;
+    SAFE_FREE(state->log_file);
+    SAFE_FREE(state->server_cb);
+    SAFE_FREE(state->channel_cb);
 }
 
 /* SIGCHLD handler for cleaning up dead children. */
 static void sigchld_handler(int signo) {
     (void) signo;
     while (waitpid(-1, NULL, WNOHANG) > 0);
+}
+
+bool done = false;
+
+static void sigterm_handler(int signo)
+{
+    (void) signo;
+    fprintf(stderr, "Received SIGTERM. Gracefully exiting ...\n");
+    done = true;
 }
 
 int run_server(struct server_state_st *state)
@@ -77,12 +86,12 @@ int run_server(struct server_state_st *state)
         .sa_flags = 0
     };
 
-    int rc;
+    int rc = SSH_ERROR;
 
     /* Check provided state */
     if (state == NULL) {
         fprintf(stderr, "Invalid state\n");
-        return SSH_ERROR;
+        goto out;
     }
 
     /* Set up SIGCHLD handler. */
@@ -92,23 +101,59 @@ int run_server(struct server_state_st *state)
 
     if (sigaction(SIGCHLD, &sa, NULL) != 0) {
         fprintf(stderr, "Failed to register SIGCHLD handler\n");
-        return SSH_ERROR;
+        goto out;
+    }
+
+    /* Set up SIGTERM handler. */
+    sa.sa_handler = sigterm_handler;
+    sa.sa_flags = 0;
+
+    if (sigaction(SIGTERM, &sa, NULL) != 0) {
+        fprintf(stderr, "Failed to register SIGTERM handler\n");
+        goto out;
+    }
+
+    /* Redirect all the output and errors to the file to avoid mixing up with
+     * the output from the client */
+    if (state->log_file != NULL) {
+        int fd;
+        FILE *f = fopen(state->log_file, "a");
+        if (f == NULL) {
+            fprintf(stderr, "Failed to open the log file: %s\n", strerror(errno));
+            goto out;
+        }
+        fd = dup2(fileno(f), STDERR_FILENO);
+        if (fd == -1) {
+            fprintf(stderr, "dup2 of log file to stderr failed: %s\n",
+                    strerror(errno));
+            fclose(f);
+            goto out;
+        }
+        fd = dup2(fileno(f), STDOUT_FILENO);
+        if (fd == -1) {
+            fprintf(stderr, "dup2 of log file to stdout failed: %s\n",
+                    strerror(errno));
+            fclose(f);
+            goto out;
+        }
+        fclose(f);
     }
 
     if (state->address == NULL) {
         fprintf(stderr, "Missing bind address\n");
-        return SSH_ERROR;
+        goto out;
     }
 
-    if (state->address == NULL) {
-        fprintf(stderr, "Missing bind address\n");
-        return SSH_ERROR;
+    if (state->host_key == NULL && state->rsa_key == NULL &&
+        state->ecdsa_key == NULL && state->ed25519_key) {
+        fprintf(stderr, "Missing host key\n");
+        goto out;
     }
 
     sshbind = ssh_bind_new();
     if (sshbind == NULL) {
         fprintf(stderr, "Out of memory\n");
-        return SSH_ERROR;
+        goto out;
     }
 
     if (state->verbosity) {
@@ -119,7 +164,7 @@ int run_server(struct server_state_st *state)
             fprintf(stderr,
                     "Error setting verbosity level: %s\n",
                     ssh_get_error(sshbind));
-            goto free_sshbind;
+            goto out;
         }
     }
 
@@ -128,14 +173,14 @@ int run_server(struct server_state_st *state)
                                   SSH_BIND_OPTIONS_PROCESS_CONFIG,
                                   &(state->parse_global_config));
         if (rc != 0) {
-            goto free_sshbind;
+            goto out;
         }
     }
 
     if (state->config_file) {
         rc = ssh_bind_options_parse_config(sshbind, state->config_file);
         if (rc != 0) {
-            goto free_sshbind;
+            goto out;
         }
     }
 
@@ -146,7 +191,7 @@ int run_server(struct server_state_st *state)
         fprintf(stderr,
                 "Error setting bind address: %s\n",
                 ssh_get_error(sshbind));
-        goto free_sshbind;
+        goto out;
     }
 
     rc = ssh_bind_options_set(sshbind,
@@ -156,42 +201,30 @@ int run_server(struct server_state_st *state)
         fprintf(stderr,
                 "Error setting bind port: %s\n",
                 ssh_get_error(sshbind));
-        goto free_sshbind;
-    }
-
-    if (state->dsa_key != NULL) {
-        rc = ssh_bind_options_set(sshbind,
-                                  SSH_BIND_OPTIONS_DSAKEY,
-                                  state->dsa_key);
-        if (rc != 0) {
-            fprintf(stderr,
-                    "Error setting DSA key: %s\n",
-                    ssh_get_error(sshbind));
-            goto free_sshbind;
-        }
+        goto out;
     }
 
     if (state->rsa_key != NULL) {
         rc = ssh_bind_options_set(sshbind,
-                                  SSH_BIND_OPTIONS_RSAKEY,
+                                  SSH_BIND_OPTIONS_HOSTKEY,
                                   state->rsa_key);
         if (rc != 0) {
             fprintf(stderr,
                     "Error setting RSA key: %s\n",
                     ssh_get_error(sshbind));
-            goto free_sshbind;
+            goto out;
         }
     }
 
     if (state->ecdsa_key != NULL) {
         rc = ssh_bind_options_set(sshbind,
-                                  SSH_BIND_OPTIONS_ECDSAKEY,
+                                  SSH_BIND_OPTIONS_HOSTKEY,
                                   state->ecdsa_key);
         if (rc != 0) {
             fprintf(stderr,
                     "Error setting ECDSA key: %s\n",
                     ssh_get_error(sshbind));
-            goto free_sshbind;
+            goto out;
         }
     }
 
@@ -203,7 +236,7 @@ int run_server(struct server_state_st *state)
             fprintf(stderr,
                     "Error setting hostkey: %s\n",
                     ssh_get_error(sshbind));
-            goto free_sshbind;
+            goto out;
         }
     }
 
@@ -212,17 +245,17 @@ int run_server(struct server_state_st *state)
         fprintf(stderr,
                 "Error listening to socket: %s\n",
                 ssh_get_error(sshbind));
-        goto free_sshbind;
+        goto out;
     }
 
-    printf("Started libssh test server on port %d\n", state->port);
+    printf("%d: Started libssh test server on port %d\n", getpid(), state->port);
 
-    for (;;) {
+    while (done == false) {
         session = ssh_new();
         if (session == NULL) {
             fprintf(stderr, "Out of memory\n");
             rc = SSH_ERROR;
-            goto free_sshbind;
+            goto out;
         }
 
         /* Blocks until there is a new incoming connection. */
@@ -235,6 +268,9 @@ int run_server(struct server_state_st *state)
                 /* Remove the SIGCHLD handler inherited from parent. */
                 sa.sa_handler = SIG_DFL;
                 sigaction(SIGCHLD, &sa, NULL);
+                /* Remove the SIGTERM handler inherited from parent. */
+                sa.sa_handler = SIG_DFL;
+                sigaction(SIGTERM, &sa, NULL);
                 /* Remove socket binding, which allows us to restart the
                  * parent process, without terminating existing sessions. */
                 ssh_bind_free(sshbind);
@@ -252,11 +288,13 @@ int run_server(struct server_state_st *state)
                 ssh_free(session);
 
                 free_server_state(state);
-
+                SAFE_FREE(state);
+                finalize_openssl();
                 exit(0);
             case -1:
                 fprintf(stderr, "Failed to fork\n");
             }
+            fprintf(stderr, "Forked process PID %d\n", pid);
         } else {
             fprintf(stderr,
                     "Error accepting a connection: %s\n",
@@ -271,12 +309,17 @@ int run_server(struct server_state_st *state)
 
     rc = 0;
 
-free_sshbind:
+out:
+    free_server_state(state);
+    SAFE_FREE(state);
     ssh_bind_free(sshbind);
     return rc;
 }
 
-pid_t fork_run_server(struct server_state_st *state)
+pid_t
+fork_run_server(struct server_state_st *state,
+                void (*free_test_state) (void **userdata),
+                void *userdata)
 {
     pid_t pid;
     int rc;
@@ -306,17 +349,16 @@ pid_t fork_run_server(struct server_state_st *state)
     pid = fork();
     switch(pid) {
     case 0:
+        /* no longer needed */
+        free_test_state(userdata);
         /* Remove the SIGCHLD handler inherited from parent. */
         sa.sa_handler = SIG_DFL;
         sigaction(SIGCHLD, &sa, NULL);
 
         /* The child process starts a server which will listen for connections */
         rc = run_server(state);
-        if (rc != 0) {
-            exit(rc);
-        }
-
-        exit(0);
+        finalize_openssl();
+        exit(rc);
     case -1:
         strerror_r(errno, err_str, 1024);
         fprintf(stderr, "Failed to fork: %s\n",
@@ -324,6 +366,7 @@ pid_t fork_run_server(struct server_state_st *state)
         return -1;
     default:
         /* Return the child pid  */
+        fprintf(stderr, "Forked process PID %d\n", pid);
         return pid;
     }
 }

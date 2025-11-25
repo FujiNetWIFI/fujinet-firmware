@@ -62,7 +62,7 @@ int pki_ed25519_sign(const ssh_key privkey,
                      size_t hlen)
 {
     int rc;
-    uint8_t *buffer;
+    uint8_t *buffer = NULL;
     uint64_t dlen = 0;
 
     buffer = malloc(hlen + ED25519_SIG_LEN);
@@ -104,8 +104,8 @@ int pki_ed25519_verify(const ssh_key pubkey,
                        size_t hlen)
 {
     uint64_t mlen = 0;
-    uint8_t *buffer;
-    uint8_t *buffer2;
+    uint8_t *buffer = NULL;
+    uint8_t *buffer2 = NULL;
     int rc;
 
     if (pubkey == NULL || sig == NULL ||
