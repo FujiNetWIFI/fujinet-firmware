@@ -52,11 +52,11 @@
 
 static ssh_packet_callback default_packet_handlers[]= {
   ssh_packet_disconnect_callback,          // SSH2_MSG_DISCONNECT                 1
-  ssh_packet_ignore_callback,              // SSH2_MSG_IGNORE	                    2
+  ssh_packet_ignore_callback,              // SSH2_MSG_IGNORE                     2
   ssh_packet_unimplemented,                // SSH2_MSG_UNIMPLEMENTED              3
-  ssh_packet_ignore_callback,              // SSH2_MSG_DEBUG	                    4
+  ssh_packet_debug_callback,               // SSH2_MSG_DEBUG                      4
 #if WITH_SERVER
-  ssh_packet_service_request,              // SSH2_MSG_SERVICE_REQUEST	          5
+  ssh_packet_service_request,              // SSH2_MSG_SERVICE_REQUEST            5
 #else
   NULL,
 #endif
@@ -64,7 +64,7 @@ static ssh_packet_callback default_packet_handlers[]= {
   ssh_packet_ext_info,                     // SSH2_MSG_EXT_INFO                   7
   NULL, NULL, NULL, NULL, NULL, NULL,
   NULL, NULL, NULL, NULL, NULL, NULL,      //                                     8-19
-  ssh_packet_kexinit,                      // SSH2_MSG_KEXINIT	                  20
+  ssh_packet_kexinit,                      // SSH2_MSG_KEXINIT                    20
   ssh_packet_newkeys,                      // SSH2_MSG_NEWKEYS                    21
   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   NULL,                                    //                                     22-29
@@ -79,7 +79,7 @@ static ssh_packet_callback default_packet_handlers[]= {
   NULL,                                    // SSH2_MSG_KEX_DH_GEX_INIT            32
   NULL,                                    // SSH2_MSG_KEX_DH_GEX_REPLY           33
   NULL,                                    // SSH2_MSG_KEX_DH_GEX_REQUEST         34
-  NULL, NULL, NULL, NULL, NULL, NULL,	NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL,   NULL,
   NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   NULL,                                    //                                     35-49
 #if WITH_SERVER
@@ -93,7 +93,7 @@ static ssh_packet_callback default_packet_handlers[]= {
   NULL,NULL,NULL,NULL,NULL,NULL,           //                                     54-59
   ssh_packet_userauth_pk_ok,               // SSH2_MSG_USERAUTH_PK_OK             60
                                            // SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ  60
-                                           // SSH2_MSG_USERAUTH_INFO_REQUEST	  60
+                                           // SSH2_MSG_USERAUTH_INFO_REQUEST      60
                                            // SSH2_MSG_USERAUTH_GSSAPI_RESPONSE   60
   ssh_packet_userauth_info_response,       // SSH2_MSG_USERAUTH_INFO_RESPONSE     61
                                            // SSH2_MSG_USERAUTH_GSSAPI_TOKEN      61
@@ -123,7 +123,7 @@ static ssh_packet_callback default_packet_handlers[]= {
   channel_rcv_change_window,               // SSH2_MSG_CHANNEL_WINDOW_ADJUST      93
   channel_rcv_data,                        // SSH2_MSG_CHANNEL_DATA               94
   channel_rcv_data,                        // SSH2_MSG_CHANNEL_EXTENDED_DATA      95
-  channel_rcv_eof,                         // SSH2_MSG_CHANNEL_EOF	              96
+  channel_rcv_eof,                         // SSH2_MSG_CHANNEL_EOF                    96
   channel_rcv_close,                       // SSH2_MSG_CHANNEL_CLOSE              97
   channel_rcv_request,                     // SSH2_MSG_CHANNEL_REQUEST            98
   ssh_packet_channel_success,              // SSH2_MSG_CHANNEL_SUCCESS            99
@@ -294,6 +294,7 @@ static enum ssh_packet_filter_result_e ssh_packet_incoming_filter(ssh_session se
          *   or session_state == SSH_SESSION_STATE_INITIAL_KEX
          * - dh_handshake_state == DH_STATE_INIT
          *   or dh_handshake_state == DH_STATE_INIT_SENT (re-exchange)
+         *   or dh_handshake_state == DH_STATE_REQUEST_SENT (dh-gex)
          *   or dh_handshake_state == DH_STATE_FINISHED (re-exchange)
          *
          * Transitions:
@@ -313,6 +314,7 @@ static enum ssh_packet_filter_result_e ssh_packet_incoming_filter(ssh_session se
 
         if ((session->dh_handshake_state != DH_STATE_INIT) &&
             (session->dh_handshake_state != DH_STATE_INIT_SENT) &&
+            (session->dh_handshake_state != DH_STATE_REQUEST_SENT) &&
             (session->dh_handshake_state != DH_STATE_FINISHED))
         {
             rc = SSH_PACKET_DENIED;
@@ -366,7 +368,7 @@ static enum ssh_packet_filter_result_e ssh_packet_incoming_filter(ssh_session se
          * - session->dh_handshake_state = DH_STATE_NEWKEYS_SENT
          * */
 
-        if (!session->server) {
+        if (session->client) {
             rc = SSH_PACKET_DENIED;
             break;
         }
@@ -389,6 +391,8 @@ static enum ssh_packet_filter_result_e ssh_packet_incoming_filter(ssh_session se
       // SSH2_MSG_ECMQV_REPLY:                        // 31
       // SSH2_MSG_KEX_DH_GEX_GROUP:                   // 31
 
+        /* Client only */
+
         /*
          * States required:
          * - session_state == SSH_SESSION_STATE_DH
@@ -398,6 +402,11 @@ static enum ssh_packet_filter_result_e ssh_packet_incoming_filter(ssh_session se
          * Transitions:
          * - session->dh_handshake_state = DH_STATE_NEWKEYS_SENT
          * */
+
+        if (session->server) {
+            rc = SSH_PACKET_DENIED;
+            break;
+        }
 
         if (session->session_state != SSH_SESSION_STATE_DH) {
             rc = SSH_PACKET_DENIED;
@@ -413,15 +422,98 @@ static enum ssh_packet_filter_result_e ssh_packet_incoming_filter(ssh_session se
         rc = SSH_PACKET_ALLOWED;
         break;
     case SSH2_MSG_KEX_DH_GEX_INIT:                    // 32
-        /* TODO Not filtered */
+        /* Server only */
+
+        /*
+         * States required:
+         * - session_state == SSH_SESSION_STATE_DH
+         * - dh_handshake_state == DH_STATE_GROUP_SENT
+         *
+         * Transitions:
+         * - session->dh_handshake_state = DH_STATE_GROUP_SENT
+         * then calls ssh_packet_server_dhgex_init which triggers:
+         * - session->dh_handshake_state = DH_STATE_NEWKEYS_SENT
+         * */
+
+        if (session->client) {
+            rc = SSH_PACKET_DENIED;
+            break;
+        }
+
+        if (session->session_state != SSH_SESSION_STATE_DH) {
+            rc = SSH_PACKET_DENIED;
+            break;
+        }
+
+        /* Only allowed if dh_handshake_state is in initial state */
+        if (session->dh_handshake_state != DH_STATE_GROUP_SENT) {
+            rc = SSH_PACKET_DENIED;
+            break;
+        }
+
         rc = SSH_PACKET_ALLOWED;
         break;
     case SSH2_MSG_KEX_DH_GEX_REPLY:                   // 33
-        /* TODO Not filtered */
+
+        /* Client only */
+
+        /*
+         * States required:
+         * - session_state == SSH_SESSION_STATE_DH
+         * - dh_handshake_state == DH_STATE_INIT_SENT
+         *
+         * Transitions:
+         * - session->dh_handshake_state = DH_STATE_NEWKEYS_SENT
+         * */
+
+        if (session->server) {
+            rc = SSH_PACKET_DENIED;
+            break;
+        }
+
+        if (session->session_state != SSH_SESSION_STATE_DH) {
+            rc = SSH_PACKET_DENIED;
+            break;
+        }
+
+        if (session->dh_handshake_state != DH_STATE_INIT_SENT) {
+            rc = SSH_PACKET_DENIED;
+            break;
+        }
+
         rc = SSH_PACKET_ALLOWED;
         break;
     case SSH2_MSG_KEX_DH_GEX_REQUEST:                 // 34
-        /* TODO Not filtered */
+
+        /* Server only */
+
+        /*
+         * States required:
+         * - session_state == SSH_SESSION_STATE_DH
+         * - dh_handshake_state == DH_STATE_INIT
+         *
+         * Transitions:
+         * - session->dh_handshake_state = DH_STATE_INIT_SENT
+         * then calls ssh_packet_server_dhgex_request which triggers:
+         * - session->dh_handshake_state = DH_STATE_GROUP_SENT
+         * */
+
+        if (session->client) {
+            rc = SSH_PACKET_DENIED;
+            break;
+        }
+
+        if (session->session_state != SSH_SESSION_STATE_DH) {
+            rc = SSH_PACKET_DENIED;
+            break;
+        }
+
+        /* Only allowed if dh_handshake_state is in initial state */
+        if (session->dh_handshake_state != DH_STATE_INIT) {
+            rc = SSH_PACKET_DENIED;
+            break;
+        }
+
         rc = SSH_PACKET_ALLOWED;
         break;
     case SSH2_MSG_USERAUTH_REQUEST:                   // 50
@@ -1170,7 +1262,7 @@ ssh_packet_socket_callback(const void *data, size_t receivedlen, void *user)
             if (packet_len > MAX_PACKET_LEN) {
                 ssh_set_error(session,
                               SSH_FATAL,
-                              "read_packet(): Packet len too high(%u %.4x)",
+                              "read_packet(): Packet len too high(%" PRIu32 " %.4" PRIx32 ")",
                               packet_len, packet_len);
                 goto error;
             }
@@ -1196,9 +1288,9 @@ ssh_packet_socket_callback(const void *data, size_t receivedlen, void *user)
                     /* give up, not enough data in buffer */
                     SSH_LOG(SSH_LOG_PACKET,
                             "packet: partial packet (read len) "
-                            "[len=%d, receivedlen=%d, to_be_read=%ld]",
+                            "[len=%" PRIu32 ", receivedlen=%zu, to_be_read=%ld]",
                             packet_len,
-                            (int)receivedlen,
+                            receivedlen,
                             to_be_read);
                     return 0;
                 }
@@ -1295,7 +1387,7 @@ ssh_packet_socket_callback(const void *data, size_t receivedlen, void *user)
             if (padding > ssh_buffer_get_len(session->in_buffer)) {
                 ssh_set_error(session,
                               SSH_FATAL,
-                              "Invalid padding: %d (%d left)",
+                              "Invalid padding: %d (%" PRIu32 " left)",
                               padding,
                               ssh_buffer_get_len(session->in_buffer));
                 goto error;
@@ -1303,7 +1395,6 @@ ssh_packet_socket_callback(const void *data, size_t receivedlen, void *user)
             ssh_buffer_pass_bytes_end(session->in_buffer, padding);
             compsize = ssh_buffer_get_len(session->in_buffer);
 
-#ifdef WITH_ZLIB
             if (crypto && crypto->do_compress_in &&
                 ssh_buffer_get_len(session->in_buffer) > 0) {
                 rc = decompress_buffer(session, session->in_buffer,
@@ -1312,8 +1403,20 @@ ssh_packet_socket_callback(const void *data, size_t receivedlen, void *user)
                     goto error;
                 }
             }
-#endif /* WITH_ZLIB */
             payloadsize = ssh_buffer_get_len(session->in_buffer);
+            if (session->recv_seq == UINT32_MAX) {
+                /* Overflowing sequence numbers is always fishy */
+                if (crypto == NULL) {
+                    /* don't allow sequence number overflow when unencrypted */
+                    ssh_set_error(session,
+                                  SSH_FATAL,
+                                  "Incoming sequence number overflow");
+                    goto error;
+                } else {
+                    SSH_LOG(SSH_LOG_WARNING,
+                            "Incoming sequence number overflow");
+                }
+            }
             session->recv_seq++;
             if (crypto != NULL) {
                 struct ssh_cipher_struct *cipher = NULL;
@@ -1338,7 +1441,19 @@ ssh_packet_socket_callback(const void *data, size_t receivedlen, void *user)
                     "comp=%" PRIu32 ",payload=%" PRIu32 "]",
                     session->in_packet.type, packet_len, padding, compsize,
                     payloadsize);
+            if (crypto == NULL) {
+                /* In strict kex, only a few packets are allowed. Taint the session
+                 * if we received packets that are normally allowed but to be
+                 * refused if we are in strict kex when KEX is over.
+                 */
+                uint8_t type = session->in_packet.type;
 
+                if (type != SSH2_MSG_KEXINIT && type != SSH2_MSG_NEWKEYS &&
+                    (type < SSH2_MSG_KEXDH_INIT ||
+                     type > SSH2_MSG_KEX_DH_GEX_REQUEST)) {
+                    session->flags |= SSH_SESSION_FLAG_KEX_TAINTED;
+                }
+            }
             /* Check if the packet is expected */
             filter_result = ssh_packet_incoming_filter(session);
 
@@ -1354,6 +1469,9 @@ ssh_packet_socket_callback(const void *data, size_t receivedlen, void *user)
                               session->in_packet.type);
                 goto error;
             case SSH_PACKET_UNKNOWN:
+                if (crypto == NULL) {
+                    session->flags |= SSH_SESSION_FLAG_KEX_TAINTED;
+                }
                 ssh_packet_send_unimplemented(session, session->recv_seq - 1);
                 break;
             }
@@ -1402,8 +1520,8 @@ error:
 static void ssh_packet_socket_controlflow_callback(int code, void *userdata)
 {
     ssh_session session = userdata;
-    struct ssh_iterator *it;
-    ssh_channel channel;
+    struct ssh_iterator *it = NULL;
+    ssh_channel channel = NULL;
 
     if (code == SSH_SOCKET_FLOW_WRITEWONTBLOCK) {
         SSH_LOG(SSH_LOG_TRACE, "sending channel_write_wontblock callback");
@@ -1529,7 +1647,33 @@ void ssh_packet_process(ssh_session session, uint8_t type)
             SSH_LOG(SSH_LOG_RARE, "Failed to send unimplemented: %s",
                     ssh_get_error(session));
         }
+        if (session->current_crypto == NULL) {
+            session->flags |= SSH_SESSION_FLAG_KEX_TAINTED;
+        }
     }
+}
+
+/** @internal
+ * @brief sends a SSH_MSG_NEWKEYS when enabling the new negotiated ciphers
+ * @param session the SSH session
+ * @return SSH_ERROR on error, else SSH_OK
+ */
+int ssh_packet_send_newkeys(ssh_session session)
+{
+    int rc;
+
+    /* Send the MSG_NEWKEYS */
+    rc = ssh_buffer_add_u8(session->out_buffer, SSH2_MSG_NEWKEYS);
+    if (rc < 0) {
+        return rc;
+    }
+
+    rc = ssh_packet_send(session);
+    if (rc == SSH_ERROR) {
+        return rc;
+    }
+    SSH_LOG(SSH_LOG_DEBUG, "SSH_MSG_NEWKEYS sent");
+    return rc;
 }
 
 /** @internal
@@ -1567,12 +1711,12 @@ SSH_PACKET_CALLBACK(ssh_packet_unimplemented){
 
     rc = ssh_buffer_unpack(packet, "d", &seq);
     if (rc != SSH_OK) {
-        SSH_LOG(SSH_LOG_WARNING,
+        SSH_LOG(SSH_LOG_TRACE,
                 "Could not unpack SSH_MSG_UNIMPLEMENTED packet");
     }
 
     SSH_LOG(SSH_LOG_RARE,
-            "Received SSH_MSG_UNIMPLEMENTED (sequence number %d)",seq);
+            "Received SSH_MSG_UNIMPLEMENTED (sequence number %" PRIu32 ")",seq);
 
     return SSH_PACKET_USED;
 }
@@ -1650,7 +1794,6 @@ static int packet_send2(ssh_session session)
         lenfield_blocksize = 0;
     }
 
-#ifdef WITH_ZLIB
     if (crypto != NULL && crypto->do_compress_out &&
         ssh_buffer_get_len(session->out_buffer) > 0) {
         rc = compress_buffer(session,session->out_buffer);
@@ -1659,7 +1802,6 @@ static int packet_send2(ssh_session session)
         }
         currentlen = ssh_buffer_get_len(session->out_buffer);
     }
-#endif /* WITH_ZLIB */
     compsize = currentlen;
     /* compressed payload + packet len (4) + padding_size len (1) */
     /* totallen - lenfield_blocksize - etm_packet_offset must be equal to 0 (mod blocksize) */
@@ -1738,8 +1880,8 @@ static int packet_send2(ssh_session session)
     }
 
     SSH_LOG(SSH_LOG_PACKET,
-            "packet: wrote [type=%u, len=%u, padding_size=%hhd, comp=%u, "
-            "payload=%u]",
+            "packet: wrote [type=%u, len=%" PRIu32 ", padding_size=%hhd, comp=%" PRIu32 ", "
+            "payload=%" PRIu32 "]",
             type,
             finallen,
             padding_size,
@@ -1840,8 +1982,12 @@ int ssh_packet_send(ssh_session session)
 
     /* We finished the key exchange so we can try to send our queue now */
     if (rc == SSH_OK && type == SSH2_MSG_NEWKEYS) {
-        struct ssh_iterator *it;
+        struct ssh_iterator *it = NULL;
 
+        if (session->flags & SSH_SESSION_FLAG_KEX_STRICT) {
+            /* reset packet sequence number when running in strict kex mode */
+            session->send_seq = 0;
+        }
         for (it = ssh_list_get_iterator(session->out_queue);
              it != NULL;
              it = ssh_list_get_iterator(session->out_queue)) {
@@ -1893,7 +2039,7 @@ ssh_init_rekey_state(struct ssh_session_struct *session,
                                  session->opts.rekey_data / cipher->blocksize);
     }
 
-    SSH_LOG(SSH_LOG_PROTOCOL,
+    SSH_LOG(SSH_LOG_DEBUG,
             "Set rekey after %" PRIu64 " blocks",
             cipher->max_blocks);
 }
@@ -1921,7 +2067,7 @@ ssh_packet_set_newkeys(ssh_session session,
     session->next_crypto->used |= direction;
     if (session->current_crypto != NULL) {
         if (session->current_crypto->used & direction) {
-            SSH_LOG(SSH_LOG_WARNING, "This direction isn't used anymore.");
+            SSH_LOG(SSH_LOG_TRACE, "This direction isn't used anymore.");
         }
         /* Mark the current requested direction unused */
         session->current_crypto->used &= ~direction;
@@ -1995,7 +2141,7 @@ ssh_packet_set_newkeys(ssh_session session,
     ssh_init_rekey_state(session, in_cipher);
     if (session->opts.rekey_time != 0) {
         ssh_timestamp_init(&session->last_rekey_time);
-        SSH_LOG(SSH_LOG_PROTOCOL, "Set rekey after %" PRIu32 " seconds",
+        SSH_LOG(SSH_LOG_DEBUG, "Set rekey after %" PRIu32 " seconds",
                 session->opts.rekey_time/1000);
     }
 

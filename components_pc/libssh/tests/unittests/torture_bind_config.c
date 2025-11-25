@@ -54,9 +54,6 @@ extern LIBSSH_THREAD int ssh_log_level;
 #define MACS "hmac-sha1,hmac-sha2-256,hmac-sha2-512,hmac-sha1-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com"
 #define MACS2 "hmac-sha1"
 
-#ifdef HAVE_DSA
-#define LIBSSH_DSA_TESTKEY        "libssh_testkey.id_dsa"
-#endif
 #define LIBSSH_RSA_TESTKEY        "libssh_testkey.id_rsa"
 #define LIBSSH_ED25519_TESTKEY    "libssh_testkey.id_ed25519"
 #ifdef HAVE_ECC
@@ -236,10 +233,6 @@ static int setup_config_files(void **state)
 #ifdef HAVE_ECC
     torture_write_file(LIBSSH_ECDSA_521_TESTKEY,
                        torture_get_openssh_testkey(SSH_KEYTYPE_ECDSA_P521, 0));
-#endif
-#ifdef HAVE_DSA
-    torture_write_file(LIBSSH_DSA_TESTKEY,
-                       torture_get_openssh_testkey(SSH_KEYTYPE_DSS, 0));
 #endif
 
     torture_write_file(LIBSSH_TEST_BIND_CONFIG_LISTENADDRESS,

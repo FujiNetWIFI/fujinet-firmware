@@ -263,16 +263,10 @@ static int pkd_exec_hello(int fd, struct pkd_daemon_args *args)
         goto outclose;
     }
 
-    if (type == PKD_RSA) {
-        opts = SSH_BIND_OPTIONS_RSAKEY;
-    } else if (type == PKD_ED25519) {
+    if (type == PKD_RSA ||
+        type == PKD_ED25519 ||
+        type == PKD_ECDSA) {
         opts = SSH_BIND_OPTIONS_HOSTKEY;
-#ifdef HAVE_DSA
-    } else if (type == PKD_DSA) {
-        opts = SSH_BIND_OPTIONS_DSAKEY;
-#endif
-    } else if (type == PKD_ECDSA) {
-        opts = SSH_BIND_OPTIONS_ECDSAKEY;
     } else {
         pkderr("unknown hostkey type: %d\n", type);
         rc = -1;
@@ -589,7 +583,8 @@ void pkd_stop(struct pkd_result *out) {
     close(pkd_state.server_fd);
 
     rc = pthread_kill(ctx.tid, SIGUSR1);
-    assert_int_equal(rc, 0);
+    assert_int_not_equal(rc, EINVAL);
+    assert_int_not_equal(rc, ENOTSUP);
 
     rc = pthread_join(ctx.tid, NULL);
     assert_int_equal(rc, 0);

@@ -9,50 +9,20 @@ set(LIBSSH_LINK_LIBRARIES
   ${LIBSSH_REQUIRED_LIBRARIES}
 )
 
-if (OPENSSL_CRYPTO_LIBRARIES)
-  set(LIBSSH_PRIVATE_INCLUDE_DIRS
-    ${LIBSSH_PRIVATE_INCLUDE_DIRS}
-    ${OPENSSL_INCLUDE_DIR}
-  )
+if (TARGET OpenSSL::Crypto)
+  list(APPEND LIBSSH_LINK_LIBRARIES OpenSSL::Crypto)
+endif ()
 
-  set(LIBSSH_LINK_LIBRARIES
-    ${LIBSSH_LINK_LIBRARIES}
-    ${OPENSSL_CRYPTO_LIBRARIES}
-  )
-endif (OPENSSL_CRYPTO_LIBRARIES)
+if (TARGET MbedTLS::mbedcrypto)
+  list(APPEND LIBSSH_LINK_LIBRARIES MbedTLS::mbedcrypto)
+endif ()
 
-if (MBEDTLS_CRYPTO_LIBRARY)
-    set(LIBSSH_PRIVATE_INCLUDE_DIRS
-      ${LIBSSH_PRIVATE_INCLUDE_DIRS}
-      ${MBEDTLS_INCLUDE_DIR}
-    )
-  set(LIBSSH_LINK_LIBRARIES
-    ${LIBSSH_LINK_LIBRARIES}
-    ${MBEDTLS_CRYPTO_LIBRARY}
-  )
-endif (MBEDTLS_CRYPTO_LIBRARY)
-
-if (GCRYPT_LIBRARIES)
-  set(LIBSSH_PRIVATE_INCLUDE_DIRS
-    ${LIBSSH_PRIVATE_INCLUDE_DIRS}
-    ${GCRYPT_INCLUDE_DIR}
-  )
-
-  set(LIBSSH_LINK_LIBRARIES
-    ${LIBSSH_LINK_LIBRARIES}
-    ${GCRYPT_LIBRARIES})
-endif()
+if (TARGET libgcrypt::libgcrypt)
+  list(APPEND LIBSSH_LINK_LIBRARIES ${GCRYPT_LIBRARIES})
+endif ()
 
 if (WITH_ZLIB)
-  set(LIBSSH_PRIVATE_INCLUDE_DIRS
-    ${LIBSSH_PRIVATE_INCLUDE_DIRS}
-    ${ZLIB_INCLUDE_DIR}
-  )
-
-  set(LIBSSH_LINK_LIBRARIES
-    ${LIBSSH_LINK_LIBRARIES}
-    ${ZLIB_LIBRARY}
-  )
+  list(APPEND LIBSSH_LINK_LIBRARIES ZLIB::ZLIB)
 endif (WITH_ZLIB)
 
 if (WITH_GSSAPI AND GSSAPI_FOUND)
@@ -86,11 +56,12 @@ if (MINGW AND Threads_FOUND)
   )
 endif()
 
-# This needs to be last for mingw to build
+# The ws2_32 needs to be last for mingw to build
 # https://gitlab.com/libssh/libssh-mirror/-/issues/84
 if (WIN32)
   set(LIBSSH_LINK_LIBRARIES
     ${LIBSSH_LINK_LIBRARIES}
+    iphlpapi
     ws2_32
   )
 endif (WIN32)
@@ -120,6 +91,7 @@ set(libssh_SRCS
   ecdh.c
   error.c
   getpass.c
+  gzip.c
   init.c
   kdf.c
   kex.c
@@ -143,6 +115,7 @@ set(libssh_SRCS
   socket.c
   string.c
   threads.c
+  ttyopts.c
   wrapper.c
   external/bcrypt_pbkdf.c
   external/blowfish.c
@@ -238,33 +211,22 @@ else (WITH_GCRYPT)
         libcrypto.c
         dh_crypto.c
        )
-    if (NOT HAVE_OPENSSL_ED25519)
-        set(libssh_SRCS
-            ${libssh_SRCS}
-            pki_ed25519.c
-            external/ed25519.c
-            external/fe25519.c
-            external/ge25519.c
-            external/sc25519.c
-           )
-    endif (NOT HAVE_OPENSSL_ED25519)
-    if (NOT (HAVE_OPENSSL_EVP_CHACHA20 AND HAVE_OPENSSL_EVP_POLY1305))
+    if (NOT HAVE_OPENSSL_EVP_CHACHA20)
         set(libssh_SRCS
             ${libssh_SRCS}
             external/chacha.c
             external/poly1305.c
             chachapoly.c
         )
-    endif (NOT (HAVE_OPENSSL_EVP_CHACHA20 AND HAVE_OPENSSL_EVP_POLY1305))
-    if(OPENSSL_VERSION VERSION_LESS "1.1.0")
-        set(libssh_SRCS ${libssh_SRCS} libcrypto-compat.c)
-    endif()
+    endif (NOT HAVE_OPENSSL_EVP_CHACHA20)
 endif (WITH_GCRYPT)
 
 if (WITH_SFTP)
   set(libssh_SRCS
     ${libssh_SRCS}
     sftp.c
+    sftp_common.c
+    sftp_aio.c
   )
 
   if (WITH_SERVER)
@@ -291,13 +253,6 @@ if (WITH_GEX)
   )
 endif (WITH_GEX)
 
-if (WITH_ZLIB)
-  set(libssh_SRCS
-    ${libssh_SRCS}
-    gzip.c
-  )
-endif(WITH_ZLIB)
-
 if (WITH_GSSAPI AND GSSAPI_FOUND)
   set(libssh_SRCS
     ${libssh_SRCS}
@@ -306,7 +261,7 @@ if (WITH_GSSAPI AND GSSAPI_FOUND)
 endif (WITH_GSSAPI AND GSSAPI_FOUND)
 
 if (NOT WITH_NACL)
-    if (NOT HAVE_LIBCRYPTO OR NOT HAVE_OPENSSL_ED25519)
+    if (NOT HAVE_LIBCRYPTO)
         set(libssh_SRCS
             ${libssh_SRCS}
             external/curve25519_ref.c
@@ -357,6 +312,7 @@ endif ()
 target_include_directories(ssh
                            PUBLIC
                                $<BUILD_INTERFACE:${libssh_SOURCE_DIR}/include>
+                               $<BUILD_INTERFACE:${libssh_BINARY_DIR}/include>
                                $<INSTALL_INTERFACE:include>
                            PRIVATE ${LIBSSH_PRIVATE_INCLUDE_DIRS})
 
@@ -380,6 +336,8 @@ endif (WITH_SYMBOL_VERSIONING AND HAVE_LD_VERSION_SCRIPT)
 
 set_target_properties(ssh
     PROPERTIES
+      C_STANDARD
+        99
       VERSION
         ${LIBRARY_VERSION}
       SOVERSION
@@ -396,6 +354,10 @@ if (MINGW)
     target_link_libraries(ssh PRIVATE "-Wl,--enable-stdcall-fixup")
     target_compile_definitions(ssh PRIVATE "_POSIX_SOURCE")
 endif ()
+if (WITH_COVERAGE)
+    include(CodeCoverage)
+    append_coverage_compiler_flags_to_target(ssh)
+endif (WITH_COVERAGE)
 
 
 install(TARGETS ssh
@@ -420,6 +382,7 @@ if (BUILD_STATIC_LIB)
   target_include_directories(ssh-static
                              PUBLIC
                                  $<BUILD_INTERFACE:${libssh_SOURCE_DIR}/include>
+                                 $<BUILD_INTERFACE:${libssh_BINARY_DIR}/include>
                                  $<INSTALL_INTERFACE:include>
                              PRIVATE ${LIBSSH_PRIVATE_INCLUDE_DIRS})
   target_link_libraries(ssh-static
@@ -447,6 +410,9 @@ if (BUILD_STATIC_LIB)
   if (WIN32)
     target_compile_definitions(ssh-static PUBLIC "LIBSSH_STATIC")
   endif (WIN32)
+    if (WITH_COVERAGE)
+        append_coverage_compiler_flags_to_target(ssh-static)
+    endif (WITH_COVERAGE)
 endif (BUILD_STATIC_LIB)
 
 message(STATUS "Threads_FOUND=${Threads_FOUND}")

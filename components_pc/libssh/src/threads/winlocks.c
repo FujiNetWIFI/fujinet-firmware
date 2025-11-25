@@ -82,7 +82,7 @@ static struct ssh_threads_callbacks_struct ssh_threads_winlock =
 
 void ssh_mutex_lock(SSH_MUTEX *mutex)
 {
-    void *rc;
+    void *rc = NULL;
 
     CRITICAL_SECTION *mutex_tmp = NULL;
 

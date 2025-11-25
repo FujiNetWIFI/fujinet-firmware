@@ -10,6 +10,8 @@ but they are suitable for debugging.
 
 ## Background
 
+### Turn off encryption
+
 Fuzzing ssh protocol is complicated by the way that all the communication
 between client and server is encrypted and authenticated using keys based
 on random data, making it impossible to fuzz the actual underlying protocol
@@ -17,6 +19,17 @@ as every change in the encrypted data causes integrity errors. For that reason,
 libssh needs to implement "none" cipher and MAC as described in RFC 4253
 and these need to be used during fuzzing to be able to accomplish
 reproducibility and for fuzzers to be able to progress behind key exchange.
+This is enabled with the `WITH_INSECURE_NONE` CMake option.
+
+### Do not allow filesystem modification
+
+The OpenSSH configuration files are quite rich and expects users to know what
+they do when they write their configuration files. The fuzzer driver is not an
+average user so it is very happy to try whatever commands come to its "mind",
+including `rm -rf /` and libssh would be very happy to run it by default. This
+might remove some parts of the system that are mandatory for fuzzing.
+To avoid executing dangerous commands like this, the `WITH_EXEC=OFF` CMake
+option prevents invoking any external command through `exec()` syscall.
 
 ## Corpus creation
 
@@ -31,7 +44,7 @@ to use none cipher for the key exchange to be plausible.
 
  * Compile libssh with support for none cipher and pcap:
 
-    cmake -DWITH_INSECURE_NONE=ON -DWITH_PCAP=ON ../
+    cmake -DWITH_INSECURE_NONE=ON -DWITH_EXEC=OFF -DWITH_PCAP=ON ../
 
  * Create a configuration file enabling none cipher and mac:
 

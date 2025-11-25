@@ -145,7 +145,6 @@ close_fp:
     return rc;
 }
 
-#ifndef HAVE_DSA
 static int setup_knownhosts_file_unsupported_type(void **state)
 {
     char *tmp_file = NULL;
@@ -175,7 +174,6 @@ close_fp:
 
     return rc;
 }
-#endif
 
 static int teardown_knownhosts_file(void **state)
 {
@@ -429,7 +427,6 @@ static void torture_knownhosts_get_algorithms_names(void **state)
     ssh_free(session);
 }
 
-#ifndef HAVE_DSA
 /* Do not remove this test if we completely remove DSA support! */
 static void torture_knownhosts_get_algorithms_names_unsupported(void **state)
 {
@@ -452,7 +449,6 @@ static void torture_knownhosts_get_algorithms_names_unsupported(void **state)
 
     ssh_free(session);
 }
-#endif
 
 static void torture_knownhosts_algorithms_wanted(void **state)
 {
@@ -722,11 +718,9 @@ int torture_run_tests(void) {
         cmocka_unit_test_setup_teardown(torture_knownhosts_get_algorithms_names,
                                         setup_knownhosts_file,
                                         teardown_knownhosts_file),
-#ifndef HAVE_DSA
         cmocka_unit_test_setup_teardown(torture_knownhosts_get_algorithms_names_unsupported,
                                         setup_knownhosts_file_unsupported_type,
                                         teardown_knownhosts_file),
-#endif
         cmocka_unit_test_setup_teardown(torture_knownhosts_algorithms_wanted,
                                         setup_knownhosts_file,
                                         teardown_knownhosts_file),

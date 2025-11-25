@@ -157,6 +157,7 @@ void ssh_poll_ctx_free(ssh_poll_ctx ctx);
 int ssh_poll_ctx_add(ssh_poll_ctx ctx, ssh_poll_handle p);
 int ssh_poll_ctx_add_socket (ssh_poll_ctx ctx, struct ssh_socket_struct *s);
 void ssh_poll_ctx_remove(ssh_poll_ctx ctx, ssh_poll_handle p);
+bool ssh_poll_is_locked(ssh_poll_handle p);
 int ssh_poll_ctx_dopoll(ssh_poll_ctx ctx, int timeout);
 ssh_poll_ctx ssh_poll_get_default_ctx(ssh_session session);
 int ssh_event_add_poll(ssh_event event, ssh_poll_handle p);

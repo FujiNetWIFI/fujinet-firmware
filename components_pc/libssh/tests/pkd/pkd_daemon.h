@@ -12,9 +12,6 @@
 
 enum pkd_hostkey_type_e {
     PKD_RSA,
-#ifdef HAVE_DSA
-    PKD_DSA,
-#endif
     PKD_ED25519,
     PKD_ECDSA
 };
@@ -30,6 +27,8 @@ struct pkd_daemon_args {
 
     uint64_t rekey_data_limit;
 
+    int original_dir_fd;
+
     struct {
         int list;
 
@@ -42,8 +41,14 @@ struct pkd_daemon_args {
         unsigned int iterations;
 
         struct {
+            const char *argv_mkdtemp_str;
             char *mkdtemp_str;
         } socket_wrapper;
+
+        struct {
+            const char *argv_mkdtemp_str;
+            char *mkdtemp_str;
+        } temp_dir;
     } opts;
 };
 

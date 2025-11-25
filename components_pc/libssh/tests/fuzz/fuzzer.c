@@ -1,8 +1,14 @@
 /* Simpler gnu89 version of StandaloneFuzzTargetMain.c from LLVM */
 
+#include "config.h"
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#if defined(HAVE_LIBCRYPTO) || defined(WITH_GSSAPI)
+/* for OPENSSL_cleanup() of GSSAPI's OpenSSL context */
+#include <openssl/crypto.h>
+#endif
 
 int LLVMFuzzerTestOneInput (const unsigned char *data, size_t size);
 __attribute__((weak)) int LLVMFuzzerInitialize(int *argc, char ***argv);
@@ -35,5 +41,9 @@ main (int argc, char **argv)
 
     free (buf);
     printf ("Done!\n");
+
+#if defined(HAVE_LIBCRYPTO) || defined(WITH_GSSAPI)
+    OPENSSL_cleanup();
+#endif
     return 0;
 }

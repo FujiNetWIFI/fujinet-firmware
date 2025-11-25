@@ -262,7 +262,7 @@ int ssh_packet_hmac_verify(ssh_session session,
 {
     struct ssh_crypto_struct *crypto = NULL;
     unsigned char hmacbuf[DIGEST_MAX_LEN] = {0};
-    HMACCTX ctx;
+    HMACCTX ctx = NULL;
     size_t hmaclen = DIGEST_MAX_LEN;
     uint32_t seq;
     int cmp;

@@ -1,4 +1,4 @@
-/* $OpenBSD: blf.h,v 1.7 2007/03/14 17:59:41 grunk Exp $ */
+/* $OpenBSD: blf.h,v 1.8 2021/11/29 01:04:45 djm Exp $ */
 /*
  * Blowfish - a fast block cipher designed by Bruce Schneier
  *
@@ -13,10 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by Niels Provos.
- * 4. The name of the author may not be used to endorse or promote products
+ * 3. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
@@ -45,9 +42,9 @@
  * of the key affect all cipherbits.
  */
 
-#define BLF_N	16			/* Number of Subkeys */
-#define BLF_MAXKEYLEN ((BLF_N-2)*4)	/* 448 bits */
-#define BLF_MAXUTILIZED ((BLF_N+2)*4)	/* 576 bits */
+#define BLF_N   16                      /* Number of Subkeys */
+#define BLF_MAXKEYLEN ((BLF_N-2)*4)     /* 448 bits */
+#define BLF_MAXUTILIZED ((BLF_N+2)*4)   /* 576 bits */
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,14 +52,14 @@ extern "C" {
 
 /* Blowfish context */
 typedef struct BlowfishContext {
-	uint32_t S[4][256];	/* S-Boxes */
-	uint32_t P[BLF_N + 2];	/* Subkeys */
+        uint32_t S[4][256];     /* S-Boxes */
+        uint32_t P[BLF_N + 2];  /* Subkeys */
 } ssh_blf_ctx;
 
 /* Raw access to customized Blowfish
- *	blf_key is just:
- *	Blowfish_initstate( state )
- *	Blowfish_expand0state( state, key, keylen )
+ *      blf_key is just:
+ *      Blowfish_initstate( state )
+ *      Blowfish_expand0state( state, key, keylen )
  */
 
 void Blowfish_encipher(ssh_blf_ctx *, uint32_t *, uint32_t *);

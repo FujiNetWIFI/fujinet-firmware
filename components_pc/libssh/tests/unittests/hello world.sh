@@ -1,1 +1,2 @@
-/bin/echo -n $1 2>&1
+#!/bin/sh
+printf '%s' "$1" 2>&1

@@ -10,32 +10,20 @@
 #include "config.h"
 
 /* Server keys. */
-#ifdef HAVE_DSA
-#define LIBSSH_DSA_TESTKEY        "libssh_testkey.id_dsa"
-#endif
 #define LIBSSH_RSA_TESTKEY        "libssh_testkey.id_rsa"
 #define LIBSSH_ED25519_TESTKEY    "libssh_testkey.id_ed25519"
 #define LIBSSH_ECDSA_256_TESTKEY  "libssh_testkey.id_ecdsa256"
 #define LIBSSH_ECDSA_384_TESTKEY  "libssh_testkey.id_ecdsa384"
 #define LIBSSH_ECDSA_521_TESTKEY  "libssh_testkey.id_ecdsa521"
 
-#ifdef HAVE_DSA
-void setup_dsa_key(void);
-#endif
 void setup_rsa_key(void);
 void setup_ed25519_key(void);
 void setup_ecdsa_keys(void);
-#ifdef HAVE_DSA
-void cleanup_dsa_key(void);
-#endif
 void cleanup_rsa_key(void);
 void cleanup_ed25519_key(void);
 void cleanup_ecdsa_keys(void);
 
 /* Client keys. */
-#ifdef HAVE_DSA
-#define OPENSSH_DSA_TESTKEY       "openssh_testkey.id_dsa"
-#endif
 #define OPENSSH_RSA_TESTKEY       "openssh_testkey.id_rsa"
 #define OPENSSH_ECDSA256_TESTKEY  "openssh_testkey.id_ecdsa256"
 #define OPENSSH_ECDSA384_TESTKEY  "openssh_testkey.id_ecdsa384"

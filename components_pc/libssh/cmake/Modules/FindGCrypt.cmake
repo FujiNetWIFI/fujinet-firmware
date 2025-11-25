@@ -39,6 +39,15 @@ find_path(GCRYPT_INCLUDE_DIR
         include
 )
 
+find_path(GCRYPT_ERROR_INCLUDE_DIR
+    NAMES
+        gpg-error.h
+    HINTS
+        ${_GCRYPT_ROOT_HINTS_AND_PATHS}
+    PATH_SUFFIXES
+        include
+)
+
 find_library(GCRYPT_LIBRARY
     NAMES
         gcrypt
@@ -56,8 +65,10 @@ find_library(GCRYPT_ERROR_LIBRARY
         libgpg-error6-0
     HINTS
         ${_GCRYPT_ROOT_HINTS_AND_PATHS}
+    PATH_SUFFIXES
+        lib
 )
-set(GCRYPT_LIBRARIES ${GCRYPT_LIBRARY}  ${GCRYPT_ERROR_LIBRARY})
+set(GCRYPT_LIBRARIES ${GCRYPT_ERROR_LIBRARY} ${GCRYPT_LIBRARY})
 
 if (GCRYPT_INCLUDE_DIR)
     file(STRINGS "${GCRYPT_INCLUDE_DIR}/gcrypt.h" _gcrypt_version_str REGEX "^#define GCRYPT_VERSION \"[0-9]+\\.[0-9]+\\.[0-9]")
@@ -83,5 +94,25 @@ else (GCRYPT_VERSION)
         GCRYPT_LIBRARIES)
 endif (GCRYPT_VERSION)
 
-# show the GCRYPT_INCLUDE_DIRS and GCRYPT_LIBRARIES variables only in the advanced view
-mark_as_advanced(GCRYPT_INCLUDE_DIR GCRYPT_LIBRARIES)
+# show the GCRYPT_INCLUDE_DIRS, GCRYPT_LIBRARIES and GCRYPT_ERROR_INCLUDE_DIR variables only in the advanced view
+mark_as_advanced(GCRYPT_INCLUDE_DIR GCRYPT_ERROR_INCLUDE_DIR GCRYPT_LIBRARIES)
+
+if(GCRYPT_FOUND)
+  if(NOT TARGET libgcrypt::libgcrypt)
+      add_library(libgcrypt::libgcrypt UNKNOWN IMPORTED)
+      set_target_properties(libgcrypt::libgcrypt PROPERTIES
+                            INTERFACE_INCLUDE_DIRECTORIES "${GCRYPT_INCLUDE_DIR}"
+                            INTERFACE_LINK_LIBRARIES libgcrypt::libgcrypt
+                            IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+                            IMPORTED_LOCATION "${GCRYPT_LIBRARY}")
+  endif()
+
+  if(NOT TARGET libgpg-error::libgpg-error)
+      add_library(libgpg-error::libgpg-error UNKNOWN IMPORTED)
+      set_target_properties(libgpg-error::libgpg-error PROPERTIES
+                            INTERFACE_INCLUDE_DIRECTORIES "${GCRYPT_ERROR_INCLUDE_DIR}"
+                            INTERFACE_LINK_LIBRARIES libgpg-error::libgpg-error
+                            IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+                            IMPORTED_LOCATION "${GCRYPT_ERROR_LIBRARY}")
+  endif()
+endif()

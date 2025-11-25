@@ -15,7 +15,7 @@ clients must be made or how a client should react.
 
 /*
  Example:
-  ./sshd_direct-tcpip -v -p 2022 -d serverkey.dsa -r serverkey.rsa 127.0.0.1
+  ./sshd_direct-tcpip -v -p 2022 -r serverkey.rsa 127.0.0.1
 */
 
 #include "config.h"
@@ -94,6 +94,9 @@ cleanup_push(struct cleanup_node_struct** head_ref,
 {
     // Allocate memory for node
     struct cleanup_node_struct *new_node = malloc(sizeof *new_node);
+    if (new_node == NULL) {
+        return;
+    }
 
     if (*head_ref != NULL) {
         new_node->next = *head_ref;
@@ -358,7 +361,7 @@ my_fd_data_function(UNUSED_PARAM(socket_t fd),
 {
     struct event_fd_data_struct *event_fd_data = (struct event_fd_data_struct *)userdata;
     ssh_channel channel = event_fd_data->channel;
-    ssh_session session;
+    ssh_session session = NULL;
     int len, i, wr;
     char buf[BUF_SIZE];
     int blocking;
@@ -452,8 +455,8 @@ open_tcp_socket(ssh_message msg)
 {
     struct sockaddr_in sin;
     int forwardsock = -1;
-    struct hostent *host;
-    const char *dest_hostname;
+    struct hostent *host = NULL;
+    const char *dest_hostname = NULL;
     int dest_port;
 
     forwardsock = socket(AF_INET, SOCK_STREAM, 0);
@@ -496,8 +499,8 @@ message_callback(UNUSED_PARAM(ssh_session session),
                  UNUSED_PARAM(void *userdata))
 {
     ssh_channel channel;
-    int socket_fd, *pFd;
-    struct ssh_channel_callbacks_struct *cb_chan;
+    int socket_fd, *pFd = NULL;
+    struct ssh_channel_callbacks_struct *cb_chan = NULL;
     struct event_fd_data_struct *event_fd_data;
 
     _ssh_log(SSH_LOG_PACKET, "=== message_callback", "Message type: %d",
@@ -523,7 +526,7 @@ message_callback(UNUSED_PARAM(ssh_session session),
                 }
 
                 pFd = malloc(sizeof *pFd);
-                cb_chan = malloc(sizeof *cb_chan);
+                cb_chan = calloc(1, sizeof *cb_chan);
                 event_fd_data = malloc(sizeof *event_fd_data);
                 if (pFd == NULL || cb_chan == NULL || event_fd_data == NULL) {
                     SAFE_FREE(pFd);
@@ -587,19 +590,11 @@ static struct argp_option options[] = {
         .group = 0
     },
     {
-        .name  = "dsakey",
-        .key   = 'd',
-        .arg   = "FILE",
-        .flags = 0,
-        .doc   = "Set the dsa key.",
-        .group = 0
-    },
-    {
         .name  = "rsakey",
         .key   = 'r',
         .arg   = "FILE",
         .flags = 0,
-        .doc   = "Set the rsa key.",
+        .doc   = "Set the rsa key (deprecated alias for 'k').",
         .group = 0
     },
     {
@@ -626,14 +621,9 @@ parse_opt (int key, char *arg, struct argp_state *state)
         case 'p':
             ssh_bind_options_set(sshbind, SSH_BIND_OPTIONS_BINDPORT_STR, arg);
             break;
-        case 'd':
-            ssh_bind_options_set(sshbind, SSH_BIND_OPTIONS_DSAKEY, arg);
-            break;
+        case 'r':
         case 'k':
             ssh_bind_options_set(sshbind, SSH_BIND_OPTIONS_HOSTKEY, arg);
-            break;
-        case 'r':
-            ssh_bind_options_set(sshbind, SSH_BIND_OPTIONS_RSAKEY, arg);
             break;
         case 'v':
             ssh_bind_options_set(sshbind, SSH_BIND_OPTIONS_LOG_VERBOSITY_STR, "1");
@@ -665,8 +655,8 @@ static struct argp argp = {options, parse_opt, args_doc, doc, NULL, NULL, NULL};
 int
 main(int argc, char **argv)
 {
-    ssh_session session;
-    ssh_bind sshbind;
+    ssh_session session = NULL;
+    ssh_bind sshbind = NULL;
     struct ssh_server_callbacks_struct cb = {
         .userdata = NULL,
         .auth_password_function = auth_password,
@@ -685,8 +675,7 @@ main(int argc, char **argv)
     session = ssh_new();
     mainloop = ssh_event_new();
 
-    ssh_bind_options_set(sshbind, SSH_BIND_OPTIONS_DSAKEY, KEYS_FOLDER "ssh_host_dsa_key");
-    ssh_bind_options_set(sshbind, SSH_BIND_OPTIONS_RSAKEY, KEYS_FOLDER "ssh_host_rsa_key");
+    ssh_bind_options_set(sshbind, SSH_BIND_OPTIONS_HOSTKEY, KEYS_FOLDER "ssh_host_rsa_key");
 
 #ifdef HAVE_ARGP_H
     /*

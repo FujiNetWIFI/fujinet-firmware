@@ -46,22 +46,17 @@
 #include "libssh/bignum.h"
 #include "libssh/token.h"
 
-#ifdef WITH_BLOWFISH_CIPHER
-# if defined(HAVE_OPENSSL_BLOWFISH_H) || defined(HAVE_LIBGCRYPT) || defined(HAVE_LIBMBEDCRYPTO)
-#  define BLOWFISH "blowfish-cbc,"
-# else
-#  define BLOWFISH ""
-# endif
+#ifdef HAVE_BLOWFISH
+# define BLOWFISH ",blowfish-cbc"
 #else
 # define BLOWFISH ""
 #endif
 
 #ifdef HAVE_LIBGCRYPT
 # define AES "aes256-gcm@openssh.com,aes128-gcm@openssh.com," \
-             "aes256-ctr,aes192-ctr,aes128-ctr,"
-# define AES_CBC "aes256-cbc,aes192-cbc,aes128-cbc,"
-# define DES "3des-cbc"
-# define DES_SUPPORTED "3des-cbc"
+             "aes256-ctr,aes192-ctr,aes128-ctr"
+# define AES_CBC ",aes256-cbc,aes192-cbc,aes128-cbc"
+# define DES_SUPPORTED ",3des-cbc"
 
 #elif defined(HAVE_LIBMBEDCRYPTO)
 # ifdef MBEDTLS_GCM_C
@@ -69,23 +64,21 @@
 # else
 #  define GCM ""
 # endif /* MBEDTLS_GCM_C */
-# define AES GCM "aes256-ctr,aes192-ctr,aes128-ctr,"
-# define AES_CBC "aes256-cbc,aes192-cbc,aes128-cbc,"
-# define DES "3des-cbc"
-# define DES_SUPPORTED "3des-cbc"
+# define AES GCM "aes256-ctr,aes192-ctr,aes128-ctr"
+# define AES_CBC ",aes256-cbc,aes192-cbc,aes128-cbc"
+# define DES_SUPPORTED ",3des-cbc"
 
 #elif defined(HAVE_LIBCRYPTO)
 # ifdef HAVE_OPENSSL_AES_H
 #  define GCM "aes256-gcm@openssh.com,aes128-gcm@openssh.com,"
-#  define AES GCM "aes256-ctr,aes192-ctr,aes128-ctr,"
-#  define AES_CBC "aes256-cbc,aes192-cbc,aes128-cbc,"
+#  define AES GCM "aes256-ctr,aes192-ctr,aes128-ctr"
+#  define AES_CBC ",aes256-cbc,aes192-cbc,aes128-cbc"
 # else /* HAVE_OPENSSL_AES_H */
 #  define AES ""
 #  define AES_CBC ""
 # endif /* HAVE_OPENSSL_AES_H */
 
-# define DES "3des-cbc"
-# define DES_SUPPORTED "3des-cbc"
+# define DES_SUPPORTED ",3des-cbc"
 #endif /* HAVE_LIBCRYPTO */
 
 #ifdef WITH_ZLIB
@@ -121,14 +114,6 @@
 #define EC_PUBLIC_KEY_ALGORITHMS ""
 #endif /* HAVE_ECC */
 
-#ifdef HAVE_DSA
-#define DSA_HOSTKEYS ",ssh-dss"
-#define DSA_PUBLIC_KEY_ALGORITHMS ",ssh-dss-cert-v01@openssh.com"
-#else
-#define DSA_HOSTKEYS ""
-#define DSA_PUBLIC_KEY_ALGORITHMS ""
-#endif /* HAVE_DSA */
-
 #ifdef WITH_INSECURE_NONE
 #define NONE ",none"
 #else
@@ -141,8 +126,7 @@
                  EC_SK_HOSTKEYS \
                  "rsa-sha2-512," \
                  "rsa-sha2-256," \
-                 "ssh-rsa" \
-                 DSA_HOSTKEYS
+                 "ssh-rsa"
 #define DEFAULT_HOSTKEYS "ssh-ed25519," \
                          EC_HOSTKEYS \
                          "sk-ssh-ed25519@openssh.com," \
@@ -155,8 +139,7 @@
                               EC_PUBLIC_KEY_ALGORITHMS \
                               "rsa-sha2-512-cert-v01@openssh.com," \
                               "rsa-sha2-256-cert-v01@openssh.com," \
-                              "ssh-rsa-cert-v01@openssh.com" \
-                              DSA_PUBLIC_KEY_ALGORITHMS "," \
+                              "ssh-rsa-cert-v01@openssh.com," \
                               HOSTKEYS
 #define DEFAULT_PUBLIC_KEY_ALGORITHMS "ssh-ed25519-cert-v01@openssh.com," \
                                       EC_PUBLIC_KEY_ALGORITHMS \
@@ -188,6 +171,9 @@
 
 /* RFC 8308 */
 #define KEX_EXTENSION_CLIENT "ext-info-c"
+/* Strict kex mitigation against CVE-2023-48795 */
+#define KEX_STRICT_CLIENT "kex-strict-c-v00@openssh.com"
+#define KEX_STRICT_SERVER "kex-strict-s-v00@openssh.com"
 
 /* Allowed algorithms in FIPS mode */
 #define FIPS_ALLOWED_CIPHERS "aes256-gcm@openssh.com,"\
@@ -327,7 +313,7 @@ static int cmp_first_kex_algo(const char *client_str,
     size_t client_kex_len;
     size_t server_kex_len;
 
-    char *colon;
+    char *colon = NULL;
 
     int is_wrong = 1;
 
@@ -365,7 +351,6 @@ SSH_PACKET_CALLBACK(ssh_packet_kexinit)
     int server_kex = session->server;
     ssh_string str = NULL;
     char *strings[SSH_KEX_METHODS] = {0};
-    char *rsa_sig_ext = NULL;
     int rc = SSH_ERROR;
     size_t len;
 
@@ -418,7 +403,7 @@ SSH_PACKET_CALLBACK(ssh_packet_kexinit)
         if (ok == SSH_ERROR) {
             goto error;
         }
-#endif
+#endif /* WITH_SERVER */
     } else {
         len = ssh_buffer_get_data(packet, crypto->server_kex.cookie, 16);
         if (len != 16) {
@@ -464,9 +449,11 @@ SSH_PACKET_CALLBACK(ssh_packet_kexinit)
 
     /* copy the peer kex info into an array of strings */
     if (server_kex) {
+#ifdef WITH_SERVER
         for (i = 0; i < SSH_KEX_METHODS; i++) {
             crypto->client_kex.methods[i] = strings[i];
         }
+#endif /* WITH_SERVER */
     } else { /* client */
         for (i = 0; i < SSH_KEX_METHODS; i++) {
             crypto->server_kex.methods[i] = strings[i];
@@ -483,6 +470,7 @@ SSH_PACKET_CALLBACK(ssh_packet_kexinit)
      * that its value is included when computing the session ID (see
      * 'make_sessionid').
      */
+
     rc = ssh_buffer_get_u8(packet, &first_kex_packet_follows);
     if (rc != 1) {
         goto error;
@@ -516,13 +504,34 @@ SSH_PACKET_CALLBACK(ssh_packet_kexinit)
                     session->first_kex_follows_guess_wrong ? "wrong" : "right");
     }
 
+    /*
+     * handle the "strict KEX" feature. If supported by peer, then set up the
+     * flag and verify packet sequence numbers.
+     */
+    if (server_kex) {
+        ok = match_group(crypto->client_kex.methods[SSH_KEX],
+                         KEX_STRICT_CLIENT);
+        if (ok) {
+            SSH_LOG(SSH_LOG_DEBUG, "Client supports strict kex, enabling.");
+            session->flags |= SSH_SESSION_FLAG_KEX_STRICT;
+        }
+    } else {
+        /* client kex */
+        ok = match_group(crypto->server_kex.methods[SSH_KEX],
+                         KEX_STRICT_SERVER);
+        if (ok) {
+            SSH_LOG(SSH_LOG_DEBUG, "Server supports strict kex, enabling.");
+            session->flags |= SSH_SESSION_FLAG_KEX_STRICT;
+        }
+    }
+#ifdef WITH_SERVER
     if (server_kex) {
         /*
          * If client sent a ext-info-c message in the kex list, it supports
          * RFC 8308 extension negotiation.
          */
-        ok = ssh_match_group(crypto->client_kex.methods[SSH_KEX],
-                             KEX_EXTENSION_CLIENT);
+        ok = match_group(crypto->client_kex.methods[SSH_KEX],
+                         KEX_EXTENSION_CLIENT);
         if (ok) {
             const char *hostkeys = NULL, *wanted_hostkeys = NULL;
 
@@ -536,7 +545,7 @@ SSH_PACKET_CALLBACK(ssh_packet_kexinit)
              */
             hostkeys = crypto->client_kex.methods[SSH_HOSTKEYS];
             wanted_hostkeys = session->opts.wanted_methods[SSH_HOSTKEYS];
-            ok = ssh_match_group(hostkeys, "rsa-sha2-512");
+            ok = match_group(hostkeys, "rsa-sha2-512");
             if (ok) {
                 /* Check if rsa-sha2-512 is allowed by config */
                 if (wanted_hostkeys != NULL) {
@@ -548,7 +557,7 @@ SSH_PACKET_CALLBACK(ssh_packet_kexinit)
                     SAFE_FREE(is_allowed);
                 }
             }
-            ok = ssh_match_group(hostkeys, "rsa-sha2-256");
+            ok = match_group(hostkeys, "rsa-sha2-256");
             if (ok) {
                 /* Check if rsa-sha2-256 is allowed by config */
                 if (wanted_hostkeys != NULL) {
@@ -567,6 +576,7 @@ SSH_PACKET_CALLBACK(ssh_packet_kexinit)
              */
             if ((session->extensions & SSH_EXT_SIG_RSA_SHA256) &&
                 (session->extensions & SSH_EXT_SIG_RSA_SHA512)) {
+                char *rsa_sig_ext = NULL;
                 session->extensions &= ~(SSH_EXT_SIG_RSA_SHA256 | SSH_EXT_SIG_RSA_SHA512);
                 rsa_sig_ext = ssh_find_matching("rsa-sha2-512,rsa-sha2-256",
                                                 hostkeys);
@@ -589,6 +599,7 @@ SSH_PACKET_CALLBACK(ssh_packet_kexinit)
                     session->extensions & SSH_EXT_SIG_RSA_SHA512 ? " SHA512" : "");
         }
     }
+#endif /* WITH_SERVER */
 
     /* Note, that his overwrites authenticated state in case of rekeying */
     session->session_state = SSH_SESSION_STATE_KEXINIT_RECEIVED;
@@ -605,7 +616,9 @@ error:
     SSH_STRING_FREE(str);
     for (i = 0; i < SSH_KEX_METHODS; i++) {
         if (server_kex) {
+#ifdef WITH_SERVER
             session->next_crypto->client_kex.methods[i] = NULL;
+#endif /* WITH_SERVER */
         } else { /* client */
             session->next_crypto->server_kex.methods[i] = NULL;
         }
@@ -663,7 +676,7 @@ char *ssh_client_select_hostkeys(ssh_session session)
     /* This removes the certificate types, unsupported for now */
     wanted_without_certs = ssh_find_all_matching(HOSTKEYS, wanted);
     if (wanted_without_certs == NULL) {
-        SSH_LOG(SSH_LOG_WARNING,
+        SSH_LOG(SSH_LOG_TRACE,
                 "List of allowed host key algorithms is empty or contains only "
                 "unsupported algorithms");
         return NULL;
@@ -716,7 +729,7 @@ char *ssh_client_select_hostkeys(ssh_session session)
         fips_hostkeys = ssh_keep_fips_algos(SSH_HOSTKEYS, new_hostkeys);
         SAFE_FREE(new_hostkeys);
         if (fips_hostkeys == NULL) {
-            SSH_LOG(SSH_LOG_WARNING,
+            SSH_LOG(SSH_LOG_TRACE,
                     "None of the wanted host keys or keys in known_hosts files "
                     "is allowed in FIPS mode.");
             return NULL;
@@ -738,12 +751,9 @@ char *ssh_client_select_hostkeys(ssh_session session)
 int ssh_set_client_kex(ssh_session session)
 {
     struct ssh_kex_struct *client = &session->next_crypto->client_kex;
-    const char *wanted;
-    char *kex = NULL;
-    char *kex_tmp = NULL;
+    const char *wanted = NULL;
     int ok;
     int i;
-    size_t kex_len, len;
 
     /* Skip if already set, for example for the rekey or when we do the guessing
      * it could have been already used to make some protocol decisions. */
@@ -792,23 +802,52 @@ int ssh_set_client_kex(ssh_session session)
         return SSH_OK;
     }
 
-    /* Here we append  ext-info-c  to the list of kex algorithms */
-    kex = client->methods[SSH_KEX];
+    ok = ssh_kex_append_extensions(session, client);
+    if (ok != SSH_OK){
+        return ok;
+    }
+
+    return SSH_OK;
+}
+
+int ssh_kex_append_extensions(ssh_session session, struct ssh_kex_struct *pkex)
+{
+    char *kex = NULL;
+    char *kex_tmp = NULL;
+    size_t kex_len, len;
+
+    /* Here we append ext-info-c and kex-strict-c-v00@openssh.com for client
+     * and kex-strict-s-v00@openssh.com for server to the list of kex algorithms
+     */
+    kex = pkex->methods[SSH_KEX];
     len = strlen(kex);
-    if (len + strlen(KEX_EXTENSION_CLIENT) + 2 < len) {
+    if (session->server) {
+        /* Comma, nul byte */
+        kex_len = len + 1 + strlen(KEX_STRICT_SERVER) + 1;
+    } else {
+        /* Comma, comma, nul byte */
+        kex_len = len + 1 + strlen(KEX_EXTENSION_CLIENT) + 1 +
+                  strlen(KEX_STRICT_CLIENT) + 1;
+    }
+    if (kex_len >= MAX_PACKET_LEN) {
         /* Overflow */
         return SSH_ERROR;
     }
-    kex_len = len + strlen(KEX_EXTENSION_CLIENT) + 2; /* comma, NULL */
     kex_tmp = realloc(kex, kex_len);
     if (kex_tmp == NULL) {
-        free(kex);
         ssh_set_error_oom(session);
         return SSH_ERROR;
     }
-    snprintf(kex_tmp + len, kex_len - len, ",%s", KEX_EXTENSION_CLIENT);
-    client->methods[SSH_KEX] = kex_tmp;
-
+    if (session->server){
+        snprintf(kex_tmp + len, kex_len - len, ",%s", KEX_STRICT_SERVER);
+    } else {
+        snprintf(kex_tmp + len,
+                 kex_len - len,
+                 ",%s,%s",
+                 KEX_EXTENSION_CLIENT,
+                 KEX_STRICT_CLIENT);
+    }
+    pkex->methods[SSH_KEX] = kex_tmp;
     return SSH_OK;
 }
 
@@ -911,11 +950,19 @@ int ssh_kex_select_methods (ssh_session session)
     enum ssh_key_exchange_e kex_type;
     int i;
 
-    /* Here we should drop the  ext-info-c  from the list so we avoid matching.
+    /* Here we should drop the extensions from the list so we avoid matching.
      * it. We added it to the end, so we can just truncate the string here */
-    ext_start = strstr(client->methods[SSH_KEX], ","KEX_EXTENSION_CLIENT);
-    if (ext_start != NULL) {
-        ext_start[0] = '\0';
+    if (session->client) {
+        ext_start = strstr(client->methods[SSH_KEX], "," KEX_EXTENSION_CLIENT);
+        if (ext_start != NULL) {
+            ext_start[0] = '\0';
+        }
+    }
+    if (session->server) {
+        ext_start = strstr(server->methods[SSH_KEX], "," KEX_STRICT_SERVER);
+        if (ext_start != NULL) {
+            ext_start[0] = '\0';
+        }
     }
 
     for (i = 0; i < SSH_KEX_METHODS; i++) {
@@ -953,7 +1000,7 @@ int ssh_kex_select_methods (ssh_session session)
     }
     crypto->kex_type = kex_type;
 
-    SSH_LOG(SSH_LOG_INFO, "Negotiated %s,%s,%s,%s,%s,%s,%s,%s,%s,%s",
+    SSH_LOG(SSH_LOG_DEBUG, "Negotiated %s,%s,%s,%s,%s,%s,%s,%s,%s,%s",
             session->next_crypto->kex_methods[SSH_KEX],
             session->next_crypto->kex_methods[SSH_HOSTKEYS],
             session->next_crypto->kex_methods[SSH_CRYPT_C_S],
@@ -995,7 +1042,7 @@ int ssh_send_kex(ssh_session session)
     rc = ssh_buffer_pack(session->out_buffer,
                          "bP",
                          SSH2_MSG_KEXINIT,
-                         16,
+                         (size_t)16,
                          kex->cookie); /* cookie */
     if (rc != SSH_OK)
         goto error;
@@ -1051,7 +1098,7 @@ int ssh_send_kex(ssh_session session)
 
     /* If we indicated that we are sending the guessed key exchange packet,
      * do it now. The packet is simple, but we need to do some preparations */
-    if (first_kex_packet_follows) {
+    if (first_kex_packet_follows == 1) {
         char *list = kex->methods[SSH_KEX];
         char *colon = strchr(list, ',');
         size_t kex_name_len = colon ? (size_t)(colon - list) : strlen(list);
@@ -1165,6 +1212,111 @@ char *ssh_keep_fips_algos(enum ssh_kex_types_e algo, const char *list)
     return ssh_find_all_matching(fips_methods[algo], list);
 }
 
+/**
+ * @internal
+ *
+ * @brief Return a newly allocated string containing the default
+ * algorithms plus the algorithms specified in list. If the system
+ * runs in fips mode, this will add only fips approved algorithms.
+ * Empty list will cause error.
+ *
+ * @param[in] algo  The type of the methods to filter
+ * @param[in] list  The list to be appended
+ *
+ * @return A newly allocated list containing the default algorithms and the
+ * algorithms in list at the end; NULL in case of error.
+ */
+char *ssh_add_to_default_algos(enum ssh_kex_types_e algo, const char *list)
+{
+    char *tmp = NULL, *ret = NULL;
+
+    if (algo > SSH_LANG_S_C || list == NULL || list[0] == '\0') {
+        return NULL;
+    }
+
+    if (ssh_fips_mode()) {
+        tmp = ssh_append_without_duplicates(fips_methods[algo], list);
+        ret = ssh_find_all_matching(fips_methods[algo], tmp);
+    } else {
+        tmp = ssh_append_without_duplicates(default_methods[algo], list);
+        ret = ssh_find_all_matching(supported_methods[algo], tmp);
+    }
+
+    free(tmp);
+    return ret;
+}
+
+/**
+ * @internal
+ *
+ * @brief Return a newly allocated string containing the default
+ * algorithms excluding the algorithms specified in list. If the system
+ * runs in fips mode, this will remove from the fips_methods list.
+ *
+ * @param[in] algo  The type of the methods to filter
+ * @param[in] list  The list to be exclude
+ *
+ * @return A newly allocated list containing the default algorithms without the
+ * algorithms in list; NULL in case of error.
+ */
+char *ssh_remove_from_default_algos(enum ssh_kex_types_e algo, const char *list)
+{
+    if (algo > SSH_LANG_S_C) {
+        return NULL;
+    }
+
+    if (list == NULL || list[0] == '\0') {
+        if (ssh_fips_mode()) {
+            return strdup(fips_methods[algo]);
+        } else {
+            return strdup(default_methods[algo]);
+        }
+    }
+
+    if (ssh_fips_mode()) {
+        return ssh_remove_all_matching(fips_methods[algo], list);
+    } else {
+        return ssh_remove_all_matching(default_methods[algo], list);
+    }
+}
+
+/**
+ * @internal
+ *
+ * @brief Return a newly allocated string containing the default
+ * algorithms with prioritized algorithms specified in list. If the
+ * algorithms are present in the default list they get prioritized, if not
+ * they are added to the front of the default list. If the system
+ * runs in fips mode, this will work with the fips_methods list.
+ * Empty list will cause error.
+ *
+ * @param[in] algo  The type of the methods to filter
+ * @param[in] list  The list to be pushed to priority
+ *
+ * @return A newly allocated list containing the default algorithms prioritized
+ * with the algorithms in list at the beginning of the list; NULL in case
+ * of error.
+ */
+char *ssh_prefix_default_algos(enum ssh_kex_types_e algo, const char *list)
+{
+    char *ret = NULL, *tmp = NULL;
+
+    if (algo > SSH_LANG_S_C || list == NULL || list[0] == '\0') {
+        return NULL;
+    }
+
+    if (ssh_fips_mode()) {
+        tmp = ssh_prefix_without_duplicates(fips_methods[algo], list);
+        ret = ssh_find_all_matching(fips_methods[algo], tmp);
+    } else {
+        tmp = ssh_prefix_without_duplicates(default_methods[algo], list);
+        ret = ssh_find_all_matching(supported_methods[algo], tmp);
+    }
+
+    free(tmp);
+    return ret;
+}
+
 int ssh_make_sessionid(ssh_session session)
 {
     ssh_string num = NULL;
@@ -1215,10 +1367,10 @@ int ssh_make_sessionid(ssh_session session)
     rc = ssh_buffer_pack(buf,
                          "dPdPS",
                          ssh_buffer_get_len(client_hash),
-                         ssh_buffer_get_len(client_hash),
+                         (size_t)ssh_buffer_get_len(client_hash),
                          ssh_buffer_get(client_hash),
                          ssh_buffer_get_len(server_hash),
-                         ssh_buffer_get_len(server_hash),
+                         (size_t)ssh_buffer_get_len(server_hash),
                          ssh_buffer_get(server_hash),
                          server_pubkey_blob);
     SSH_STRING_FREE(server_pubkey_blob);
@@ -1296,7 +1448,7 @@ int ssh_make_sessionid(ssh_session session)
     case SSH_KEX_ECDH_SHA2_NISTP521:
         if (session->next_crypto->ecdh_client_pubkey == NULL ||
             session->next_crypto->ecdh_server_pubkey == NULL) {
-            SSH_LOG(SSH_LOG_WARNING, "ECDH parameted missing");
+            SSH_LOG(SSH_LOG_TRACE, "ECDH parameter missing");
             goto error;
         }
         rc = ssh_buffer_pack(buf,
@@ -1314,9 +1466,11 @@ int ssh_make_sessionid(ssh_session session)
         rc = ssh_buffer_pack(buf,
                              "dPdP",
                              CURVE25519_PUBKEY_SIZE,
-                             (size_t)CURVE25519_PUBKEY_SIZE, session->next_crypto->curve25519_client_pubkey,
+                             (size_t)CURVE25519_PUBKEY_SIZE,
+                             session->next_crypto->curve25519_client_pubkey,
                              CURVE25519_PUBKEY_SIZE,
-                             (size_t)CURVE25519_PUBKEY_SIZE, session->next_crypto->curve25519_server_pubkey);
+                             (size_t)CURVE25519_PUBKEY_SIZE,
+                             session->next_crypto->curve25519_server_pubkey);
 
         if (rc != SSH_OK) {
             goto error;
@@ -1333,6 +1487,8 @@ int ssh_make_sessionid(ssh_session session)
     ssh_log_hexdump("hash buffer", ssh_buffer_get(buf), ssh_buffer_get_len(buf));
 #endif
 
+    /* Set rc for the following switch statement in case we goto error. */
+    rc = SSH_ERROR;
     switch (session->next_crypto->kex_type) {
     case SSH_KEX_DH_GROUP1_SHA1:
     case SSH_KEX_DH_GROUP14_SHA1:
@@ -1392,6 +1548,7 @@ int ssh_make_sessionid(ssh_session session)
                session->next_crypto->secret_hash);
         break;
     }
+
     /* During the first kex, secret hash and session ID are equal. However, after
      * a key re-exchange, a new secret hash is calculated. This hash will not replace
      * but complement existing session id.
@@ -1400,12 +1557,13 @@ int ssh_make_sessionid(ssh_session session)
         session->next_crypto->session_id = malloc(session->next_crypto->digest_len);
         if (session->next_crypto->session_id == NULL) {
             ssh_set_error_oom(session);
+            rc = SSH_ERROR;
             goto error;
         }
         memcpy(session->next_crypto->session_id, session->next_crypto->secret_hash,
                 session->next_crypto->digest_len);
-	/* Initial length is the same as secret hash */
-	session->next_crypto->session_id_len = session->next_crypto->digest_len;
+        /* Initial length is the same as secret hash */
+        session->next_crypto->session_id_len = session->next_crypto->digest_len;
     }
 #ifdef DEBUG_CRYPTO
     SSH_LOG(SSH_LOG_DEBUG, "Session hash: \n");

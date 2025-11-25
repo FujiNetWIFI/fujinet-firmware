@@ -123,13 +123,6 @@
    Memcheck:Cond
    fun:SHA1_*
 }
-
-{
-   openssl_CRYPTO_leak
-   Memcheck:Leak
-   fun:*alloc
-   fun:CRYPTO_*
-}
 {
    openssl_CRYPTO_leak
    Memcheck:Cond
@@ -146,4 +139,174 @@
    fun:FIPS_module_mode_set
    fun:FIPS_mode_set
    fun:OPENSSL_init_library
+}
+# Cmocka
+{
+   This looks like leak from cmocka when the forked server is not properly terminated
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   ...
+   fun:_cmocka_run_group_tests
+   fun:torture_run_tests
+   fun:main
+}
+
+## libgcrypt
+{
+   Reachable allocations from libgcrypt
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:gcry_check_version
+   fun:ssh_crypto_init
+   fun:_ssh_init
+   fun:libssh_constructor
+   ...
+}
+{
+   randomize in libgcrypt keeps some memory around
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:ssh_get_random
+   ...
+}
+{
+   EC key operation allocs some reachable memory
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:gcry_pk_sign
+   ...
+}
+{
+   EC key operation allocs some reachable memory
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:gcry_pk_verify
+   ...
+}
+{
+   EC key generation allocs some reachable memory
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:gcry_pk_genkey
+   ...
+}
+# NSS
+{
+   Reachable memory from getaddrinfo
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:malloc
+   fun:strdup
+   fun:_dl_load_cache_lookup
+   fun:_dl_map_object
+   fun:dl_open_worker_begin
+   fun:_dl_catch_exception
+   fun:dl_open_worker
+   fun:_dl_catch_exception
+   fun:_dl_open
+   fun:do_dlopen
+   fun:_dl_catch_exception
+   fun:_dl_catch_error
+   fun:dlerror_run
+   fun:__libc_dlopen_mode
+   fun:module_load
+   fun:__nss_module_get_function
+   fun:getaddrinfo
+   ...
+   fun:krb5_sname_to_principal
+   ...
+   fun:gss_init_sec_context
+   fun:ssh_packet_userauth_gssapi_response
+   fun:ssh_packet_process
+   fun:ssh_packet_socket_callback
+   fun:ssh_socket_pollcallback
+   fun:ssh_poll_ctx_dopoll
+   fun:ssh_handle_packets
+   fun:ssh_handle_packets_termination
+   fun:ssh_userauth_get_response
+   fun:ssh_userauth_gssapi
+   fun:torture_gssapi_auth_server_identity
+   ...
+   fun:_cmocka_run_group_tests
+   fun:torture_run_tests
+   fun:main
+}
+
+{
+   Reachable memory from getaddrinfo
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:__nss_module_get_function
+   ...
+   fun:getaddrinfo
+   ...
+   fun:krb5_sname_to_principal
+   ...
+   fun:gss_init_sec_context
+   fun:ssh_packet_userauth_gssapi_response
+   fun:ssh_packet_process
+   fun:ssh_packet_socket_callback
+   fun:ssh_socket_pollcallback
+   fun:ssh_poll_ctx_dopoll
+   fun:ssh_handle_packets
+   fun:ssh_handle_packets_termination
+   fun:ssh_userauth_get_response
+   fun:ssh_userauth_gssapi
+   fun:torture_gssapi_auth_server_identity
+   ...
+   fun:_cmocka_run_group_tests
+   fun:torture_run_tests
+   fun:main
+}
+## libkrb5
+# krb5_mcc_generate_new allocates a hashtab on a static global variable
+# It doesn't get freed.
+{
+   Reachable memory from libkrb5
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:k5_hashtab_create
+   ...
+   fun:krb5_mcc_generate_new*
+}
+{
+   Error string from acquire creds in krb5
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:krb5_gss_save_error_string
+   fun:UnknownInlinedFun
+   fun:acquire_cred_context.isra.0
+   fun:acquire_cred_from.isra.0
+   fun:gss_add_cred_from
+   fun:gss_acquire_cred_from
+   ...
+   fun:gss_acquire_cred
+}
+{
+   error string from gss init sec context
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:krb5_gss_save_error_string
+   fun:UnknownInlinedFun
+   fun:krb5_gss_init_sec_context_ext
+   fun:krb5_gss_init_sec_context
+   fun:gss_init_sec_context
 }

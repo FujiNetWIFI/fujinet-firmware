@@ -3,9 +3,10 @@
 #define LIBSSH_STATIC
 
 #include "torture.h"
-#include <libssh/priv.h>
+#include <errno.h>
 #include <libssh/callbacks.h>
 #include <libssh/misc.h>
+#include <libssh/priv.h>
 
 static int myauthcallback (const char *prompt, char *buf, size_t len,
     int echo, int verify, void *userdata) {
@@ -249,11 +250,15 @@ static void torture_callbacks_iterate(void **state){
 int torture_run_tests(void) {
     int rc;
     struct CMUnitTest tests[] = {
-        cmocka_unit_test_setup_teardown(torture_callbacks_size, setup, teardown),
-        cmocka_unit_test_setup_teardown(torture_callbacks_exists, setup, teardown),
+        cmocka_unit_test_setup_teardown(torture_callbacks_size,
+                                        setup,
+                                        teardown),
+        cmocka_unit_test_setup_teardown(torture_callbacks_exists,
+                                        setup,
+                                        teardown),
         cmocka_unit_test(torture_log_callback),
         cmocka_unit_test(torture_callbacks_execute_list),
-        cmocka_unit_test(torture_callbacks_iterate)
+        cmocka_unit_test(torture_callbacks_iterate),
     };
 
     ssh_init();

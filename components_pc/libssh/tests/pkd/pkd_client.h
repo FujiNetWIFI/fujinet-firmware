@@ -61,7 +61,7 @@
 
 /* Dropbear */
 
-#define DROPBEAR_BINARY "dbclient"
+#define DROPBEAR_BINARY DROPBEAR_EXECUTABLE
 #define DROPBEAR_KEYGEN "dropbearkey"
 
 #define DROPBEAR_CMD_START \

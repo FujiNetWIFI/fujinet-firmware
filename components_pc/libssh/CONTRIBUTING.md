@@ -478,6 +478,45 @@ Macros like `STATUS_NOT_OK_RETURN` that change control flow (return/goto/etc)
 from within the macro are considered bad, because they look like function calls
 that never change control flow. Please do not introduce them.
 
+### Switch/case indentation
+
+The `case` should not be indented to avoid wasting too much horizontal space.
+When the case block contains local variables that need to be wrapped in braces,
+they should not be indented again either.
+
+Good example:
+
+    switch (x) {
+    case 0:
+        do_stuff();
+        break;
+    case 1: {
+        int y;
+        do_stuff();
+        break;
+    }
+    default:
+        do_other_stuff();
+        break;
+    }
+
+Bad example:
+
+    switch (x) {
+        case 0:
+            do_stuff();
+            break;
+        case 1:
+            {
+                int y;
+                do_stuff();
+                break;
+            }
+        default:
+            do_other_stuff();
+            break;
+    }
+
 
 Have fun and happy libssh hacking!
 

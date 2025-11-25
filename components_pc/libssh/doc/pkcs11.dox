@@ -9,17 +9,34 @@ objects stored on the tokens can be uniquely identified is called PKCS #11 URI
 (Uniform Resource Identifier) and is defined in RFC 7512
 (https://tools.ietf.org/html/rfc7512).
 
-Pre-requisites:
+# Pre-requisites (OpenSSL < 3.0):
 
-OpenSSL defines an abstract layer called the "engine" to achieve cryptographic
-acceleration. The engine_pkcs11 module acts like an interface between the PKCS #11
-modules and the OpenSSL engine.
+OpenSSL 1.x defines an abstract layer called the "engine" to achieve
+cryptographic acceleration. The engine_pkcs11 module acts like an interface
+between the PKCS #11 modules and the OpenSSL application.
 
 To build and use libssh with PKCS #11 support:
 1. Enable the cmake option: $ cmake -DWITH_PKCS11_URI=ON
 2. Build with OpenSSL.
 3. Install and configure engine_pkcs11 (https://github.com/OpenSC/libp11).
 4. Plug in a working smart card or configure softhsm (https://www.opendnssec.org/softhsm).
+
+@warning The support for Engines was deprecated in OpenSSL 3.0 so this approach
+is deprecated in libssh 0.11.x.
+
+# Pre-requisites (OpenSSL 3.0.8+)
+
+The OpenSSL 3.0 is deprecating usage of low-level engines in favor of high-level
+"providers" to provide alternative implementation of cryptographic operations
+or acceleration.
+
+To build and use libssh with PKCS #11 support using OpenSSL providers:
+1. Install and configure pkcs11 provider (https://github.com/latchset/pkcs11-provider).
+2. Enable the cmake options: $ cmake -DWITH_PKCS11_URI=ON -DWITH_PKCS11_PROVIDER=ON
+3. Build with OpenSSL.
+4. Plug in a working smart card or configure softhsm (https://www.opendnssec.org/softhsm).
+
+# New API functions
 
 The functions  ssh_pki_import_pubkey_file() and ssh_pki_import_privkey_file() that
 import the public and private keys from files respectively are now modified to support
@@ -31,7 +48,7 @@ corresponding to the PKCS #11 URI are loaded from the PKCS #11 device.
 If you wish to authenticate using public keys on your own, follow the steps mentioned under
 "Authentication with public keys" in Chapter 2 - A deeper insight into authentication.
 
-The function pki_uri_import() is used to populate the public/private ssh_key from the 
+The function pki_uri_import() is used to populate the public/private ssh_key from the
 engine with PKCS #11 URIs as the look up.
 
 Here is a minimalistic example of public key authentication using PKCS #11 URIs:
@@ -63,5 +80,7 @@ int authenticate_pkcs11_URI(ssh_session session)
 We recommend the users to provide a specific PKCS #11 URI so that it matches only a single slot in the engine.
 If the engine discovers multiple slots that could potentially contain the private keys referenced
 by the provided PKCS #11 URI, the engine will not try to authenticate.
+
+For testing, the SoftHSM PKCS#11 library is used.
 
 */

@@ -5,6 +5,7 @@
 TESTDIR=$1
 PRIVKEY=$2
 OBJNAME=$3
+TOKENLABEL=$3 # yeah. The same as object label
 LOADPUBLIC=$4
 LIBSOFTHSM_PATH=$5
 shift 5
@@ -15,24 +16,27 @@ echo "TESTDIR: $TESTDIR"
 echo "PRIVKEY: $PRIVKEY"
 echo "PUBKEY: $PUBKEY"
 echo "OBJNAME: $OBJNAME"
+echo "TOKENLABEL: $TOKENLABEL"
 echo "LOADPUBLIC: $LOADPUBLIC"
 
-# Create temporary directory for tokens
-install -d -m 0755 "$TESTDIR/db"
+if [ ! -d "$TESTDIR/db" ]; then
+    # Create temporary directory for tokens
+    install -d -m 0755 "$TESTDIR/db"
 
-# Create SoftHSM configuration file
-cat >"$TESTDIR/softhsm.conf" <<EOF
+    # Create SoftHSM configuration file
+    cat >"$TESTDIR/softhsm.conf" <<EOF
 directories.tokendir = $TESTDIR/db
 objectstore.backend = file
 log.level = DEBUG
 EOF
 
+    cat "$TESTDIR/softhsm.conf"
+fi
+
 export SOFTHSM2_CONF=$TESTDIR/softhsm.conf
 
-cat "$TESTDIR/softhsm.conf"
-
-#init
-cmd="softhsm2-util --init-token --label $OBJNAME --free --pin 1234 --so-pin 1234"
+#init -- each object will have its own token
+cmd="softhsm2-util --init-token --label $TOKENLABEL --free --pin 1234 --so-pin 1234"
 eval echo "$cmd"
 out=$(eval "$cmd")
 ret=$?
@@ -43,7 +47,7 @@ if [ $ret -ne 0 ]; then
 fi
 
 #load private key
-cmd="p11tool --provider $LIBSOFTHSM_PATH --write --load-privkey $PRIVKEY --label $OBJNAME --login --set-pin=1234 \"pkcs11:token=$OBJNAME\""
+cmd="p11tool --provider $LIBSOFTHSM_PATH --write --load-privkey $PRIVKEY --label $OBJNAME --login --set-pin=1234 \"pkcs11:token=$TOKENLABEL\""
 eval echo "$cmd"
 out=$(eval "$cmd")
 ret=$?
@@ -59,7 +63,7 @@ ls -l "$TESTDIR"
 
 if [ "$LOADPUBLIC" -ne 0 ]; then
 #load public key
-    cmd="p11tool --provider $LIBSOFTHSM_PATH --write --load-pubkey $PUBKEY --label $OBJNAME --login --set-pin=1234 \"pkcs11:token=$OBJNAME\""
+    cmd="p11tool --provider $LIBSOFTHSM_PATH --write --load-pubkey $PUBKEY --label $OBJNAME --login --set-pin=1234 \"pkcs11:token=$TOKENLABEL\""
     eval echo "$cmd"
     out=$(eval "$cmd")
     ret=$?
@@ -70,7 +74,7 @@ if [ "$LOADPUBLIC" -ne 0 ]; then
     fi
 fi
 
-cmd="p11tool --list-all --login \"pkcs11:token=$OBJNAME\" --set-pin=1234"
+cmd="p11tool --list-all --login \"pkcs11:token=$TOKENLABEL\" --set-pin=1234"
 eval echo "$cmd"
 out=$(eval "$cmd")
 ret=$?
@@ -80,5 +84,7 @@ if [ $ret -ne 0 ]; then
     exit 1
 fi
 echo "$out"
+
+pkcs11-tool -M --login --pin=1234 --module="$LIBSOFTHSM_PATH" --token-label="$TOKENLABEL"
 
 exit 0

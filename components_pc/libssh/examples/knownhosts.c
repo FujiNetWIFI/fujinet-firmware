@@ -38,7 +38,7 @@ int verify_knownhost(ssh_session session)
     char buf[10];
     unsigned char *hash = NULL;
     size_t hlen;
-    ssh_key srv_pubkey;
+    ssh_key srv_pubkey = NULL;
     int rc;
 
     rc = ssh_get_server_publickey(session, &srv_pubkey);
