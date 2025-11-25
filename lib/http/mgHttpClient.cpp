@@ -171,7 +171,7 @@ void mgHttpClient::load_system_certs_windows() {
             concatenatedPEM.append(pemData.begin(), pemData.end());
         }
 
-        ca.ptr = concatenatedPEM.c_str();
+        ca.buf = concatenatedPEM.c_str();
         ca.len = concatenatedPEM.length();
     }
     else {
@@ -365,7 +365,7 @@ void mgHttpClient::handle_connect(struct mg_connection *c)
         // struct mg_str key_data = mg_file_read(&mg_fs_posix, "tls/private-key.pem");
         struct mg_tls_opts opts = {};
 #ifdef SKIP_SERVER_CERT_VERIFY
-        opts.ca.ptr = nullptr; // disable certificate checking
+        opts.ca.buf = nullptr; // disable certificate checking
 #else
         // certificates are loaded on initialization of the client in cross platform way.
         opts.ca = ca;
