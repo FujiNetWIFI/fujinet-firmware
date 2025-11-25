@@ -593,7 +593,7 @@ namespace mstr {
     }
 
     memcpy(hash, psa_hash_output.data(), 20);
-#elif MBEDTLS_VERSION_NUMBER >= 0x02070000 // Covers 2.7.0 up to 3.x
+#elif MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
         // Use the newer mbedtls API
         int ret = mbedtls_sha1_ret((const unsigned char *)s.c_str(), s.length(), hash);
         if (ret != 0) {

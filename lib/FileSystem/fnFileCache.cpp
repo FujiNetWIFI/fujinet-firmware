@@ -90,7 +90,7 @@ static std::string encode_host_path(const char *host, const char *path)
     }
     memcpy(md5_result, psa_md5_output, 16);
 
-#elif MBEDTLS_VERSION_NUMBER >= 0x02070000 // Covers 2.7.0 up to 3.x
+#elif MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
     int err = mbedtls_md5_ret((const unsigned char *)host, strlen(host), md5_result);
     if (err != 0) {
         Debug_printf("mbedtls_md5_ret failed with error code %d\n", err);
@@ -119,7 +119,7 @@ static std::string encode_host_path(const char *host, const char *path)
     }
     memcpy(md5_result, psa_md5_output, 16);
 
-#elif MBEDTLS_VERSION_NUMBER >= 0x02070000
+#elif MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
     err = mbedtls_md5_ret((const unsigned char *)path, strlen(path), md5_result);
     if (err != 0) {
         Debug_printf("mbedtls_md5_ret failed with error code %d\n", err);
