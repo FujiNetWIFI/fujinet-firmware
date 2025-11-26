@@ -7,6 +7,10 @@
 
 #include "../../include/debug.h"
 
+#ifdef _WIN32
+#define setenv(name, value, overwrite) _putenv_s(name, value)
+#define unsetenv(name) _putenv_s(name, "")
+#endif /* _WIN32 */
 
 #define RS232_APETIMECMD_GETTIME 0x93
 #define RS232_APETIMECMD_SETTZ 0x99

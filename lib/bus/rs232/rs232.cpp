@@ -14,7 +14,7 @@
 #include "fnDNS.h"
 #include "led.h"
 #include "utils.h"
-#include <endian.h>
+#include "fuji_endian.h"
 
 #ifdef ESP_PLATFORM
 #define SERIAL_DEVICE FN_UART_BUS
