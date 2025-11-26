@@ -23,6 +23,7 @@ typedef enum {
 } qr_ecc_t;
 
 typedef enum {
+    QR_OUTPUT_MODE_INVALID,
     QR_OUTPUT_MODE_ANSI,
     QR_OUTPUT_MODE_BINARY,
     QR_OUTPUT_MODE_BITMAP,

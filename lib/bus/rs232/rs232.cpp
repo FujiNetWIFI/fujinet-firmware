@@ -386,12 +386,12 @@ int systemBus::numDevices()
     __END_IGNORE_UNUSEDVARS
 }
 
-void systemBus::changeDeviceId(virtualDevice *p, fujiDeviceID_t device_id)
+void systemBus::changeDeviceId(virtualDevice *p, int device_id)
 {
     for (auto devicep : _daisyChain)
     {
         if (devicep == p)
-            devicep->_devnum = device_id;
+            devicep->_devnum = (fujiDeviceID_t) device_id;
     }
 }
 

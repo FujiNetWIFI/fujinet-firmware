@@ -11,6 +11,8 @@
 #include "iwm/cpm.h"
 #include "iwm/clock.h"
 
+#include "../../qrcode/qrmanager.h"
+
 #define MAX_SPDISK_DEVICES 4
 #define MAX_DISK2_DEVICES 2 // for now until we add 3.5" disks
 #define MAX_A2DISK_DEVICES (MAX_SPDISK_DEVICES + MAX_DISK2_DEVICES)
@@ -51,6 +53,7 @@ private:
     std::unordered_map<uint8_t, IWMStatusHandlers> status_handlers;
 
     bool hash_is_hex_output = false;
+    QRManager _qrManager = QRManager();
 
 protected:
     void transaction_complete() override {}
@@ -133,6 +136,8 @@ public:
     void fujicmd_close_directory() override;
     void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl) override;
 };
+
+extern iwmFuji platformFuji;
 
 #endif // IWMFUJI_H
 #endif /* BUILD_APPLE */
