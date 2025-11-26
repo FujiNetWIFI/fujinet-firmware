@@ -12,6 +12,10 @@
 
 #define IMAGE_EXTENSION ".img"
 
+#ifndef ESP_PLATFORM // why ESP does not like it? it throws a linker error undefined reference to 'basename'
+#include <libgen.h>
+#endif /* ESP_PLATFORM */
+
 rs232Fuji platformFuji;
 fujiDevice *theFuji = &platformFuji;
 rs232Network rs232NetDevs[MAX_NETWORK_DEVICES];

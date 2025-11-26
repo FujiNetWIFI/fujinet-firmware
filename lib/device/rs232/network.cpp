@@ -27,7 +27,6 @@
 #include "HTTP.h"
 #include "SSH.h"
 #include "SMB.h"
-#include "fuji_endian.h"
 
 #include "ProtocolParser.h"
 
