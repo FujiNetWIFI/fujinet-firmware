@@ -251,14 +251,14 @@ void rs232Modem::rs232_config()
        4,5: Word size (00=5,01=6,10=7,11=8)
        3-0: Baud rate:
     */
-#define BAUD_300 0x8
-#define BAUD_600 0x9
-#define BAUD_1200 0xA
-#define BAUD_1800 0xB
-#define BAUD_2400 0xC
-#define BAUD_4800 0xD
-#define BAUD_9600 0xE
-#define BAUD_19200 0xF
+#define SIO_BAUD_300 0x8
+#define SIO_BAUD_600 0x9
+#define SIO_BAUD_1200 0xA
+#define SIO_BAUD_1800 0xB
+#define SIO_BAUD_2400 0xC
+#define SIO_BAUD_4800 0xD
+#define SIO_BAUD_9600 0xE
+#define SIO_BAUD_19200 0xF
     /*
        AUX2:
        7-3: NA
@@ -274,7 +274,7 @@ void rs232Modem::rs232_config()
     //uint8_t wordSize = 0x30 & cmdFrame.aux1; // Get word size
     //uint8_t stopBit = (1 << 7) & cmdFrame.aux1; // Get stop bits
 #else
-    uint8_t newBaud = BAUD_9600;
+    uint8_t newBaud = SIO_BAUD_9600;
 #endif /* OBSOLETE */
 
     // Do not reset MODEM baud rate if locked.
@@ -283,28 +283,28 @@ void rs232Modem::rs232_config()
 
     switch (newBaud)
     {
-    case BAUD_300:
+    case SIO_BAUD_300:
         modemBaud = 300;
         break;
-    case BAUD_600:
+    case SIO_BAUD_600:
         modemBaud = 600;
         break;
-    case BAUD_1200:
+    case SIO_BAUD_1200:
         modemBaud = 1200;
         break;
-    case BAUD_1800:
+    case SIO_BAUD_1800:
         modemBaud = 1800;
         break;
-    case BAUD_2400:
+    case SIO_BAUD_2400:
         modemBaud = 2400;
         break;
-    case BAUD_4800:
+    case SIO_BAUD_4800:
         modemBaud = 4800;
         break;
-    case BAUD_9600:
+    case SIO_BAUD_9600:
         modemBaud = 9600;
         break;
-    case BAUD_19200:
+    case SIO_BAUD_19200:
         modemBaud = 19200;
         break;
     default:
