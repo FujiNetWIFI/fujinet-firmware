@@ -195,6 +195,8 @@ struct iwm_device_info_block_t
   uint8_t firmware_rev;
 };
 
+typedef uint8_t SPUnitNum;
+
 //#ifdef DEBUG
   void print_packet(uint8_t *data, int bytes);
   void print_packet(uint8_t* data);
@@ -209,7 +211,7 @@ protected:
   iwm_smartport_type_t device_type;
   iwm_fujinet_type_t internal_type;
   iwm_device_info_block_t dib;   // device information block
-  uint8_t _devnum; // assigned by Apple II during INIT
+  SPUnitNum _devnum; // assigned by Apple II during INIT
   bool _initialized;
 
   uint8_t status_wait_count = 5;
@@ -265,9 +267,9 @@ public:
    * @brief get the IWM device Number (1-255)
    * @return The device number registered for this device
    */
-  void set_id(uint8_t dn) { _devnum=dn; };
-  int id() { return _devnum; };
-  //void assign_id(uint8_t n) { _devnum = n; };
+  void set_id(SPUnitNum dn) { _devnum=dn; };
+  SPUnitNum id() { return _devnum; };
+  //void assign_id(SPUnitNUm n) { _devnum = n; };
 
   void assign_name(std::string name) {dib.device_name = name;}
 };
@@ -341,11 +343,11 @@ public:
   int numDevices();
   void addDevice(virtualDevice *pDevice, iwm_fujinet_type_t deviceType); // todo: probably get called by handle_init()
   void remDevice(virtualDevice *pDevice);
-  virtualDevice *deviceById(int device_id);
+  virtualDevice *deviceById(SPUnitNum device_id);
   virtualDevice *firstDev() {return _daisyChain.front();}
   uint8_t* devBuffer() {return (uint8_t *)virtualDevice::data_buffer;}
-  void enableDevice(uint8_t device_id);
-  void disableDevice(uint8_t device_id);
+  void enableDevice(SPUnitNum device_id);
+  void disableDevice(SPUnitNum device_id);
   void changeDeviceId(virtualDevice *p, int device_id);
   iwmPrinter *getPrinter() { return _printerdev; }
   bool shuttingDown = false;                                  // TRUE if we are in shutdown process

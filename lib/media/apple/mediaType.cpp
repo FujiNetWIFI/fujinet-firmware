@@ -2,6 +2,7 @@
 
 #include "mediaType.h"
 #include "utils.h"
+#include "endianness.h"
 
 #include <cstdint>
 #include <cstring>
@@ -73,7 +74,7 @@ mediatype_t MediaType::discover_dsk_mediatype(fnFile *f, uint32_t disksize)
     uint8_t hdr[header_size];
 
     // a ProDOS Volume Directory Header is always in block 2,
-    // if the file is in ProDOS order, it will be at offset 1024 
+    // if the file is in ProDOS order, it will be at offset 1024
     if (fnio::fseek(f, 1024, SEEK_SET) != 0)
         return default_mt;
 
@@ -85,7 +86,7 @@ mediatype_t MediaType::discover_dsk_mediatype(fnFile *f, uint32_t disksize)
     uint16_t total_blocks = UINT16_FROM_HILOBYTES(hdr[0x2A], hdr[0x29]);
 
     if (prevPointer == 0 && storage_type == 0xF && total_blocks == (disksize / 512)) {
-        // looks like a valid volume header, assume file is in ProDOS order 
+        // looks like a valid volume header, assume file is in ProDOS order
         return MEDIATYPE_PO;
     }
 

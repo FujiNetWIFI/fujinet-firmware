@@ -267,7 +267,7 @@ public:
     void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id);
     void remDevice(virtualDevice *pDevice);
     virtualDevice *deviceById(fujiDeviceID_t device_id);
-    void changeDeviceId(virtualDevice *pDevice, fujiDeviceID_t device_id);
+    void changeDeviceId(virtualDevice *pDevice, int device_id);
 
     int getBaudrate();                                          // Gets current SIO baud rate setting
     void setBaudrate(int baud);                                 // Sets SIO to specific baud rate

@@ -238,13 +238,13 @@ void fujiDevice::fujicmd_image_rotate()
         count--;
 
         // Save the device ID of the disk in the last slot
-        fujiDeviceID_t last_id = get_disk_dev(count)->id();
+        int last_id = get_disk_dev(count)->id();
 
         for (int n = count; n > 0; n--)
         {
-            fujiDeviceID_t swap = get_disk_dev(n - 1)->id();
+            int swap = get_disk_dev(n - 1)->id();
             Debug_printf("setting slot %d to ID %hx\n", n, swap);
-            SYSTEM_BUS.changeDeviceId(get_disk_dev(n), swap); // to do!
+            SYSTEM_BUS.changeDeviceId(get_disk_dev(n), swap);
         }
 
         // The first slot gets the device ID of the last slot

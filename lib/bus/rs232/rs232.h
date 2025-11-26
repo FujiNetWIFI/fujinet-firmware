@@ -239,7 +239,7 @@ public:
     void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id);
     void remDevice(virtualDevice *pDevice);
     virtualDevice *deviceById(fujiDeviceID_t device_id);
-    void changeDeviceId(virtualDevice *pDevice, fujiDeviceID_t device_id);
+    void changeDeviceId(virtualDevice *pDevice, int device_id);
 
     int getBaudrate();                                          // Gets current RS232 baud rate setting
     void setBaudrate(int baud);                                 // Sets RS232 to specific baud rate

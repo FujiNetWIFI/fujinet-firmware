@@ -134,7 +134,7 @@ void iwmNetwork::open()
     }
 
     // Attempt protocol open
-    if (current_network_data.protocol->open(current_network_data.urlParser.get(), &cmdFrame))
+    if (current_network_data.protocol->open(current_network_data.urlParser.get(), (netProtoOpenMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) == true)
     {
         Debug_printf("Protocol unable to make connection. Error: %d\n", err);
         current_network_data.protocol.reset();
@@ -277,7 +277,7 @@ void iwmNetwork::del()
 
     cmdFrame.comnd = '!';
 
-    if (current_network_data.protocol->perform_idempotent_80(current_network_data.urlParser.get(), &cmdFrame))
+    if (current_network_data.protocol->perform_idempotent_80(current_network_data.urlParser.get(), (fujiCommandID_t) cmdFrame.comnd))
     {
         err = SP_ERR_IOERROR;
         return;
@@ -294,7 +294,7 @@ void iwmNetwork::rename()
 
     cmdFrame.comnd = ' ';
 
-    if (current_network_data.protocol->perform_idempotent_80(current_network_data.urlParser.get(), &cmdFrame))
+    if (current_network_data.protocol->perform_idempotent_80(current_network_data.urlParser.get(), (fujiCommandID_t) cmdFrame.comnd))
     {
         err = SP_ERR_IOERROR;
         return;
@@ -311,7 +311,7 @@ void iwmNetwork::mkdir()
 
     cmdFrame.comnd = '*';
 
-    if (current_network_data.protocol->perform_idempotent_80(current_network_data.urlParser.get(), &cmdFrame))
+    if (current_network_data.protocol->perform_idempotent_80(current_network_data.urlParser.get(), (fujiCommandID_t) cmdFrame.comnd))
     {
         err = SP_ERR_IOERROR;
         return;
@@ -423,7 +423,7 @@ void iwmNetwork::special_00()
     cmdFrame.aux1 = data_buffer[0];
     cmdFrame.aux2 = data_buffer[1];
 
-    current_network_data.protocol->special_00(&cmdFrame);
+    current_network_data.protocol->special_00((fujiCommandID_t) cmdFrame.comnd, cmdFrame.aux2);
 }
 
 /**
@@ -438,7 +438,7 @@ void iwmNetwork::special_40()
     cmdFrame.aux1 = data_buffer[0];
     cmdFrame.aux2 = data_buffer[1];
 
-    if (!current_network_data.protocol->special_40(data_buffer, 256, &cmdFrame))
+    if (!current_network_data.protocol->special_40(data_buffer, 256, (fujiCommandID_t) cmdFrame.comnd))
     {
         data_len = 256;
         //send_data_packet(data_len);
@@ -466,7 +466,7 @@ void iwmNetwork::special_80()
     Debug_printf("iwmNetwork::iwmnet_special_80() - %s\n", &data_buffer[2]);
 
     // Do protocol action and return
-    if (!current_network_data.protocol->special_80(&data_buffer[2], SPECIAL_BUFFER_SIZE, &cmdFrame))
+    if (!current_network_data.protocol->special_80(&data_buffer[2], SPECIAL_BUFFER_SIZE, (fujiCommandID_t) cmdFrame.comnd))
     {
         // GOOD - LOL
     }
@@ -526,7 +526,7 @@ void iwmNetwork::status()
 
 void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
 {
-    fujiCommandID_t status_code = get_status_code(cmd);
+    int status_code = get_status_code(cmd);
 
     // fujinet-lib (with unit-id support) sends the count of bytes for a status as 4 to cater for the network unit.
     // Older code sends 3 as the count, so we can detect if the network unit byte is there or not.
@@ -555,13 +555,13 @@ void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
         send_status_dib_reply_packet();
         return;
         break;
-    case '0':
+    case FUJICMD_GETCWD:
         get_prefix();
         break;
-    case 'R':
+    case FUJICMD_READ:
         net_read();
         break;
-    case 'S':
+    case FUJICMD_STATUS:
         status();
         break;
     }
