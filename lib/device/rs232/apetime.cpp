@@ -8,6 +8,11 @@
 
 #include "../../include/debug.h"
 
+#ifdef _WIN32
+#define setenv(name, value, overwrite) _putenv_s(name, value)
+#define unsetenv(name) _putenv_s(name, "")
+#endif /* _WIN32 */
+
 void rs232ApeTime::_rs232_get_time(bool use_timezone)
 {
     char old_tz[64];
@@ -23,7 +28,7 @@ void rs232ApeTime::_rs232_get_time(bool use_timezone)
     time_t tt = time(nullptr);
 
     if (ape_timezone.size() && use_timezone) {
-        Debug_printf("Using time zone %s\n", ape_timezone);
+        Debug_printf("Using time zone %s\n", ape_timezone.c_str());
         strncpy(old_tz, getenv("TZ"), sizeof(old_tz));
         setenv("TZ", ape_timezone.c_str(), 1);
         tzset();
