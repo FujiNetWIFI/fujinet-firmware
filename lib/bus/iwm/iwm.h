@@ -348,7 +348,7 @@ public:
   uint8_t* devBuffer() {return (uint8_t *)virtualDevice::data_buffer;}
   void enableDevice(SPUnitNum device_id);
   void disableDevice(SPUnitNum device_id);
-  void changeDeviceId(virtualDevice *p, SPUnitNum device_id);
+  void changeDeviceId(virtualDevice *p, int device_id);
   iwmPrinter *getPrinter() { return _printerdev; }
   bool shuttingDown = false;                                  // TRUE if we are in shutdown process
   bool getShuttingDown() { return shuttingDown; };
