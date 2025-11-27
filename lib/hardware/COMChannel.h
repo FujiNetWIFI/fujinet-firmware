@@ -57,7 +57,7 @@ public:
     void setDSR(bool state) override; // modem DSR output → actually drives RS-232 DTR pin
     bool getRTS() override;           // modem RTS input  → actually reads RS-232 CTS pin
     void setCTS(bool state) override; // modem CTS output → actually drives RS-232 RTS pin
-    bool getRI() override;            // Ring Indicator is only an input on DTE :-/
+    bool getRI();                     // Ring Indicator is only an input on DTE :-/
 
 #ifdef UNUSED
     void setPort(std::string device);
