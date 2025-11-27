@@ -33,8 +33,6 @@
  */
 lynxNetwork::lynxNetwork()
 {
-    //status_response[1] = 0x00;
-    //status_response[2] = 0x04; // 1024 bytes
 
     status_response[1] = SERIAL_PACKET_SIZE % 256;
     status_response[2] = SERIAL_PACKET_SIZE / 256;
@@ -98,8 +96,6 @@ void lynxNetwork::open(unsigned short s)
         comlynx_response_nack();
         return;
     }
-
-    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     channelMode = PROTOCOL;
@@ -128,7 +124,7 @@ void lynxNetwork::open(unsigned short s)
     // Reset status buffer
     statusByte.byte = 0x00;
 
-    Debug_printf("open()\n");
+    Debug_printf("lynxNetwork::open()\n");
 
     // Parse and instantiate protocol
     d = string((char *)response, s);
@@ -235,8 +231,6 @@ void lynxNetwork::write(uint16_t num_bytes)
         comlynx_response_nack();
         return;
     }
-
-    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     *transmitBuffer += string((char *)response, num_bytes);
@@ -280,8 +274,6 @@ void lynxNetwork::status()
         comlynx_response_nack();
         return;
     }
-
-    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     switch (channelMode)
@@ -408,8 +400,6 @@ void lynxNetwork::set_login(uint16_t s)
         comlynx_response_nack();
         return;
     }
-
-    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     login = string((char *)loginspec, s);
@@ -431,8 +421,6 @@ void lynxNetwork::set_password(uint16_t s)
         comlynx_response_nack();
         return;
     }
-
-    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     password = string((char *)passwordspec, s);
@@ -450,8 +438,6 @@ void lynxNetwork::del(uint16_t s)
         comlynx_response_nack();
         return;
     }
-
-    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     d = string((char *)response, s);
@@ -509,8 +495,6 @@ void lynxNetwork::mkdir(uint16_t s)
         comlynx_response_nack();
         return;
     }
-
-    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     d = string((char *)response, s);
@@ -548,14 +532,11 @@ void lynxNetwork::channel_mode()
         comlynx_response_ack();
         break;
     default:
-        //ComLynx.start_time = esp_timer_get_time();
         comlynx_response_nack();
         break;
     }
 
     Debug_printf("lynxNetwork::channel_mode(%u)\n", m);
-    //ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
 }
 
 void lynxNetwork::json_query(unsigned short s)
@@ -627,9 +608,9 @@ void lynxNetwork::json_parse()
         comlynx_response_nack();
         return;
     }
-
-    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
+    
+    Debug_println("lynxNetwork::json_parse");
     json.parse();
 }
 
@@ -890,6 +871,9 @@ void lynxNetwork::comlynx_control_receive_channel_json()
     {
         response_len = json.readValueLen();
         json.readValue(response, response_len);
+
+        Debug_printf("lynxNetwork:receive_channel_json, len:%d %s\n",response_len, response);
+
         jsonRecvd = true;
         comlynx_response_ack();
     }
