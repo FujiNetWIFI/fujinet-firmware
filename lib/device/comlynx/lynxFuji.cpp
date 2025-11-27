@@ -1479,7 +1479,7 @@ void lynxFuji::setup()
     SYSTEM_BUS.addDevice(&_fnDisks[0].disk_dev, FUJI_DEVICEID_DISK);
     SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET);   // Fuji becomes the gateway device.
     theNetwork = new lynxNetwork();
-    SYSTEM_BUS.addDevice(theNetwork, FUJI_DEVICEID_NETWORK_TEMP); // temporary.
+    SYSTEM_BUS.addDevice(theNetwork, FUJI_DEVICEID_NETWORK);
 }
 
 void lynxFuji::comlynx_random_number()
