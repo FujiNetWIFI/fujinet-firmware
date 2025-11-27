@@ -110,11 +110,11 @@ netProtoErr_t NetworkProtocol::open(PeoplesUrlParser *urlParser, netProtoOpenMod
     return NETPROTO_ERR_NONE;
 }
 
-void NetworkProtocol::set_open_params(netProtoTranslation_t mode, uint8_t p1, uint8_t p2)
+void NetworkProtocol::set_open_params(netProtoTranslation_t mode)
 {
-    translation_mode = (netProtoTranslation_t) (p2 & 0x7F);
+    translation_mode = mode;
 #ifdef VERBOSE_PROTOCOL
-    Debug_printf("Changed open params to aux1_open = %d, aux2_open = %d. Set translation_mode to %d\r\n", p1, p2, translation_mode);
+    Debug_printf("Set translation_mode to %d\r\n", translation_mode);
 #endif
 }
 

@@ -1225,7 +1225,7 @@ void iecDrive::execute(const char *cmd, uint8_t cmdLen)
             if ( command[1] == 'D') // Make Directory
             {
               Debug_printv( "make directory");
-              string path = mstr::toUTF8(command.substr(colon_position + 1));
+              std::string path = mstr::toUTF8(command.substr(colon_position + 1));
               MFile *f = m_cwd->cd( path );
               if( f!=nullptr )
                 {
@@ -1250,7 +1250,7 @@ void iecDrive::execute(const char *cmd, uint8_t cmdLen)
             if ( command[1] == 'D') // Remove Directory
             {
               Debug_printv( "remove directory");
-              string path = mstr::toUTF8(command.substr(colon_position + 1));
+              std::string path = mstr::toUTF8(command.substr(colon_position + 1));
               MFile *f = m_cwd->cd( path );
               if( f!=nullptr )
                 {
