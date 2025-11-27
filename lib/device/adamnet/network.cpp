@@ -5,6 +5,7 @@
  */
 
 #include "network.h"
+#include "../network.h"
 
 #include <cstring>
 #include <algorithm>
@@ -160,7 +161,7 @@ void adamNetwork::open(unsigned short s)
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), &cmdFrame) == true)
+    if (protocol->open(urlParser.get(), (netProtoOpenMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) == true)
     {
         statusByte.bits.client_error = true;
         Debug_printf("Protocol unable to make connection. Error: %d\n", err);
@@ -291,36 +292,37 @@ bool adamNetwork::adamnet_write_channel(unsigned short num_bytes)
  */
 void adamNetwork::status()
 {
-    NetworkStatus s;
+    NetworkStatus ns;
+    NDeviceStatus *status = (NDeviceStatus *) response;
     adamnet_recv(); // CK
     SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     if (protocol == nullptr)
     {
-        response[0] = 0;
-        response[1] = 0;
-        response[2] = 0;
-        response[3] = 165; // invalid spec.
-        response_len = 4;
+        status->avail = 0;
+        status->conn = 0;
+        status->err = 165; // invalid spec.
+        response_len = sizeof(*status);
         return;
     }
 
     switch (channelMode)
     {
     case PROTOCOL:
-        err = protocol->status(&s);
+        err = protocol->status(&ns);
         break;
     case JSON:
         // err = json.status(&status);
         break;
     }
 
-    response[0] = s.rxBytesWaiting & 0xFF;
-    response[1] = s.rxBytesWaiting >> 8;
-    response[2] = s.connected;
-    response[3] = s.error;
-    response_len = 4;
+    size_t avail = protocol->available();
+    avail = avail > 65535 ? 65535 : avail;
+    status->avail = avail;
+    status->conn = ns.connected;
+    status->err = ns.error;
+    response_len = sizeof(*status);
     receiveMode = STATUS;
 }
 
@@ -457,7 +459,7 @@ void adamNetwork::del(uint16_t s)
 
     cmdFrame.comnd = '!';
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), (fujiCommandID_t) cmdFrame.comnd) == true)
     {
         statusByte.bits.client_error = true;
         return;
@@ -483,7 +485,7 @@ void adamNetwork::rename(uint16_t s)
 
     cmdFrame.comnd = ' ';
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), (fujiCommandID_t) cmdFrame.comnd) == true)
     {
         statusByte.bits.client_error = true;
         return;
@@ -509,7 +511,7 @@ void adamNetwork::mkdir(uint16_t s)
 
     cmdFrame.comnd = '*';
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), (fujiCommandID_t) cmdFrame.comnd) == true)
     {
         statusByte.bits.client_error = true;
         return;
@@ -649,7 +651,7 @@ void adamNetwork::adamnet_special_00(unsigned short s)
     SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    protocol->special_00(&cmdFrame);
+    protocol->special_00((fujiCommandID_t) cmdFrame.comnd, cmdFrame.aux2);
     inq_dstats = 0xff;
 
     response_len = 0;
@@ -669,7 +671,7 @@ void adamNetwork::adamnet_special_40(unsigned short s)
 
     adamnet_recv(); // CK
 
-    if (protocol->special_40(response, 1024, &cmdFrame) == false)
+    if (protocol->special_40(response, 1024, (fujiCommandID_t) cmdFrame.comnd) == false)
         adamnet_response_ack();
     else
         adamnet_response_nack();
@@ -702,7 +704,7 @@ void adamNetwork::adamnet_special_80(unsigned short s)
     adamnet_recv(); // CK
 
     // Do protocol action and return
-    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
+    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, (fujiCommandID_t) cmdFrame.comnd) == false)
         adamnet_response_ack();
     else
         adamnet_response_nack();
@@ -720,7 +722,7 @@ void adamNetwork::adamnet_response_status()
         protocol->status(&s);
 
     statusByte.bits.client_connected = s.connected == true;
-    statusByte.bits.client_data_available = s.rxBytesWaiting > 0;
+    statusByte.bits.client_data_available = protocol->available() > 0;
     statusByte.bits.client_error = s.error > 1;
 
     status_response[1] = 2; // max packet size 1026 bytes, maybe larger?
@@ -866,8 +868,9 @@ inline void adamNetwork::adamnet_control_receive_channel_protocol()
 
     // Get status
     protocol->status(&ns);
+    size_t avail = protocol->available();
 
-    if (!ns.rxBytesWaiting)
+    if (!avail)
     {
         SYSTEM_BUS.start_time = esp_timer_get_time();
         adamnet_response_nack(true);
@@ -880,8 +883,8 @@ inline void adamNetwork::adamnet_control_receive_channel_protocol()
     }
 
     // Truncate bytes waiting to response size
-    ns.rxBytesWaiting = (ns.rxBytesWaiting > 1024) ? 1024 : ns.rxBytesWaiting;
-    response_len = ns.rxBytesWaiting;
+    avail = avail > 1024 ? 1024 : avail;
+    response_len = avail;
 
     if (protocol->read(response_len)) // protocol adapter returned error
     {
