@@ -1,6 +1,8 @@
 #ifndef LYNXFUJI_H
 #define LYNXFUJI_H
 
+#include "fujiDevice.h"
+
 #include <cstdint>
 
 #include "network.h"
@@ -11,9 +13,10 @@
 #include "fujiDisk.h"
 #include "fujiDevice.h"
 
-class lynxFuji : public virtualDevice
+class lynxFuji : public fujiDevice
 {
 private:
+#ifdef OBSOLETE
     bool isReady = false;
     bool alreadyRunning = false; // Replace isReady and scanStarted with THIS.
     bool scanStarted = false;
@@ -36,8 +39,27 @@ private:
     uint8_t _countScannedSSIDs = 0;
 
     appkey _current_appkey;
+#endif /* OBSOLETE */
 
 protected:
+    void transaction_complete() override {
+        comlynx_response_ack();
+    }
+    void transaction_error() override {
+        comlynx_response_nack();
+    }
+    bool transaction_get(void *data, size_t len) override {
+        unsigned short rlen = comlynx_recv_buffer((uint8_t *) data, len);
+        return rlen == len;
+    }
+    void transaction_put(const void *data, size_t len, bool err=false) override {
+        memcpy(response, data, len);
+        response_len = len;
+    }
+
+    size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen) override;
+
+#ifdef OBSOLETE
     void comlynx_reset_fujinet();          // 0xFF
     void comlynx_net_get_ssid();           // 0xFE
     void comlynx_net_scan_networks();      // 0xFD
@@ -56,7 +78,9 @@ protected:
     void comlynx_enable_udpstream(uint16_t s);       // 0xF0
     void comlynx_disk_image_umount();      // 0xE9
     void comlynx_get_adapter_config();     // 0xE8
+#endif /* OBSOLETE */
     void comlynx_new_disk();               // 0xE7
+#ifdef OBSOLETE
     void comlynx_unmount_host();           // 0xE6
     void comlynx_get_directory_position(); // 0xE5
     void comlynx_set_directory_position(); // 0xE4
@@ -65,21 +89,27 @@ protected:
     void comlynx_set_host_prefix();        // 0xE1
     void comlynx_get_host_prefix();        // 0xE0
     void comlynx_set_comlynx_external_clock(); // 0xDF
+#endif /* OBSOLETE */
     void comlynx_write_app_key();          // 0xDE
+#ifdef OBSOLETE
     void comlynx_read_app_key();           // 0xDD
     void comlynx_open_app_key();           // 0xDC
     void comlynx_close_app_key();          // 0xDB
     void comlynx_get_device_filename();    // 0xDA
+#endif /* OBSOLETE */
     void comlynx_set_boot_config();        // 0xD9
+#ifdef OBSOLETE
     void comlynx_copy_file();              // 0xD8
     void comlynx_set_boot_mode();          // 0xD6
+#endif /* OBSOLETE */
     void comlynx_enable_device();          // 0xD5
     void comlynx_disable_device();         // 0xD4
     void comlynx_random_number();          // 0xD3
     void comlynx_get_time();               // 0xD2
     void comlynx_device_enable_status();   // 0xD1
+#ifdef OBSOLETE
     void comlynx_get_copy_status();        // 0xD0
-
+#endif /* OBSOLETE */
 
     void comlynx_hello(); // test
 
@@ -94,6 +124,7 @@ protected:
     void shutdown() override;
 
 public:
+#ifdef OBSOLETE
     bool boot_config = true;
 
     bool status_wait_enabled = true;
@@ -105,9 +136,11 @@ public:
     void debug_tape();
 
     void insert_boot_device(uint8_t d);
+#endif /* OBSOLETE */
 
-    void setup();
+    void setup() override;
 
+#ifdef OBSOLETE
     void image_rotate();
     int get_disk_id(int drive_slot);
     std::string get_host_prefix(int host_slot);
@@ -120,9 +153,11 @@ public:
     void _populate_config_from_slots();
 
     void mount_all();              // 0xD7
+#endif /* OBSOLETE */
 
     lynxFuji();
 
+#ifdef OBSOLETE
     std::string copySpec;
     unsigned char sourceSlot;
     unsigned char destSlot;
@@ -132,9 +167,12 @@ public:
     FILE *destFile;
     char *dataBuf;
     TaskHandle_t copy_task_handle;
+#endif /* OBSOLETE */
 };
 
+#ifdef OBSOLETE
 extern lynxFuji *theFuji;
 extern lynxSerial *theSerial;
+#endif /* OBSOLETE */
 
 #endif // LYNXFUJI_H

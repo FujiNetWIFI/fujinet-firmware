@@ -20,7 +20,9 @@
 
 #define IMAGE_EXTENSION ".ddp"
 
+#ifdef OBSOLETE
 #define ADDITIONAL_DETAILS_BYTES 12
+#endif /* OBSOLETE */
 
 #define COPY_SIZE 532
 
@@ -1714,8 +1716,8 @@ void adamFuji::adamnet_control_send()
         break;
     case FUJICMD_COPY_FILE:
         {
-            uint8_t source = SYSTEM_BUS.read();
-            uint8_t dest = SYSTEM_BUS.read();
+            uint8_t source = adamnet_recv();
+            uint8_t dest = adamnet_recv();
             char dirpath[256];
             transaction_get(dirpath, sizeof(dirpath));
             fujicmd_copy_file_success(source, dest, dirpath);

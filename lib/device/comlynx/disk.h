@@ -3,6 +3,7 @@
 
 #include "bus.h"
 #include "media.h"
+#include "fujiHost.h"
 
 #define STATUS_OK        0
 #define STATUS_BAD_BLOCK 1
@@ -39,6 +40,9 @@ public:
     mediatype_t mediatype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_mediatype; };
 
     ~lynxDisk();
+
+    // Unused, for compatibility with fujiDevice.cpp
+    fujiHost *host = nullptr;
 };
 
 #endif /* LYNX_DISK_H */

@@ -5,6 +5,7 @@
  */
 
 #include "network.h"
+#include "../network.h"
 
 #include <cstring>
 #include <algorithm>
@@ -140,7 +141,7 @@ void lynxNetwork::open(unsigned short s)
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), &cmdFrame) == true)
+    if (protocol->open(urlParser.get(), (netProtoOpenMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) == true)
     {
         statusByte.bits.client_error = true;
         Debug_printf("Protocol unable to make connection. Error: %d\n", err);
@@ -273,38 +274,37 @@ bool lynxNetwork::comlynx_write_channel(unsigned short num_bytes)
  */
 void lynxNetwork::status()
 {
-    NetworkStatus s;
+    NetworkStatus ns;
+    NDeviceStatus *status = (NDeviceStatus *) response;
+    comlynx_recv(); // CK
+    SYSTEM_BUS.start_time = esp_timer_get_time();
+    comlynx_response_ack();
 
-    // Get packet checksum
-    if (!comlynx_recv_ck()) {
-        comlynx_response_nack();
+    if (protocol == nullptr)
+    {
+        status->avail = 0;
+        status->conn = 0;
+        status->err = 165; // invalid spec.
+        response_len = sizeof(*status);
         return;
     }
-
-    //ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
 
     switch (channelMode)
     {
     case PROTOCOL:
-        if (protocol == nullptr) {
-            Debug_printf("ERROR: Calling status on a null protocol.\r\n");
-            err = true;
-            s.error = true;
-        } else {
-            err = protocol->status(&s);
-        }
+        err = protocol->status(&ns);
         break;
     case JSON:
         // err = json.status(&status);
         break;
     }
 
-    response[0] = s.rxBytesWaiting & 0xFF;
-    response[1] = s.rxBytesWaiting >> 8;
-    response[2] = s.connected;
-    response[3] = s.error;
-    response_len = 4;
+    size_t avail = protocol->available();
+    avail = avail > 65535 ? 65535 : avail;
+    status->avail = avail;
+    status->conn = ns.connected;
+    status->err = ns.error;
+    response_len = sizeof(*status);
     receiveMode = STATUS;
 }
 
@@ -444,14 +444,9 @@ void lynxNetwork::del(uint16_t s)
 
     memset(response, 0, sizeof(response));
     comlynx_recv_buffer(response, s);
+    comlynx_recv(); // CK
 
-    // Get packet checksum
-    if (!comlynx_recv_ck()) {
-        comlynx_response_nack();
-        return;
-    }
-
-    //ComLynx.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     d = string((char *)response, s);
@@ -462,11 +457,14 @@ void lynxNetwork::del(uint16_t s)
 
     cmdFrame.comnd = '!';
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), (fujiCommandID_t) cmdFrame.comnd) == true)
     {
         statusByte.bits.client_error = true;
         return;
     }
+
+    memset(response, 0, sizeof(response));
+    response_len = 0;
 }
 
 void lynxNetwork::rename(uint16_t s)
@@ -475,14 +473,9 @@ void lynxNetwork::rename(uint16_t s)
 
     memset(response, 0, sizeof(response));
     comlynx_recv_buffer(response, s);
+    comlynx_recv(); // CK
 
-    // Get packet checksum
-    if (!comlynx_recv_ck()) {
-        comlynx_response_nack();
-        return;
-    }
-
-    //ComLynx.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     d = string((char *)response, s);
@@ -490,11 +483,14 @@ void lynxNetwork::rename(uint16_t s)
 
     cmdFrame.comnd = ' ';
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), (fujiCommandID_t) cmdFrame.comnd) == true)
     {
         statusByte.bits.client_error = true;
         return;
     }
+
+    memset(response, 0, sizeof(response));
+    response_len = 0;
 }
 
 void lynxNetwork::mkdir(uint16_t s)
@@ -503,14 +499,9 @@ void lynxNetwork::mkdir(uint16_t s)
 
     memset(response, 0, sizeof(response));
     comlynx_recv_buffer(response, s);
+    comlynx_recv(); // CK
 
-    // Get packet checksum
-    if (!comlynx_recv_ck()) {
-        comlynx_response_nack();
-        return;
-    }
-
-    //ComLynx.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     d = string((char *)response, s);
@@ -518,11 +509,14 @@ void lynxNetwork::mkdir(uint16_t s)
 
     cmdFrame.comnd = '*';
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), (fujiCommandID_t) cmdFrame.comnd) == true)
     {
         statusByte.bits.client_error = true;
         return;
     }
+
+    memset(response, 0, sizeof(response));
+    response_len = 0;
 }
 
 void lynxNetwork::channel_mode()
@@ -704,12 +698,16 @@ void lynxNetwork::comlynx_special_00(unsigned short s)
     cmdFrame.aux1 = comlynx_recv();
     cmdFrame.aux2 = comlynx_recv();
 
-    //ComLynx.start_time = esp_timer_get_time();
+    comlynx_recv(); // CK
 
-    if (protocol->special_00(&cmdFrame) == false)
-        comlynx_response_ack();
-    else
-        comlynx_response_nack();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
+    comlynx_response_ack();
+
+    protocol->special_00((fujiCommandID_t) cmdFrame.comnd, cmdFrame.aux2);
+    inq_dstats = SIO_DIRECTION_INVALID;
+
+    response_len = 0;
+    memset(response, 0, sizeof(response));
 }
 
 /**
@@ -723,10 +721,17 @@ void lynxNetwork::comlynx_special_40(unsigned short s)
     cmdFrame.aux1 = comlynx_recv();
     cmdFrame.aux2 = comlynx_recv();
 
-    if (protocol->special_40(response, 1024, &cmdFrame) == false)
+    comlynx_recv(); // CK
+
+    if (protocol->special_40(response, 1024, (fujiCommandID_t) cmdFrame.comnd) == false)
         comlynx_response_ack();
     else
         comlynx_response_nack();
+
+    inq_dstats = SIO_DIRECTION_INVALID;
+
+    response_len = 0;
+    memset(response, 0, sizeof(response));
 }
 
 /**
@@ -746,13 +751,19 @@ void lynxNetwork::comlynx_special_80(unsigned short s)
     cmdFrame.aux2 = comlynx_recv();
     comlynx_recv_buffer(spData, s);
 
-    Debug_printf("lynxNetwork::comlynx_special_80() - %s\n", spData);
+    Debug_printf("adamNetwork::comlynx_special_80() - %s\n", spData);
+
+    comlynx_recv(); // CK
 
     // Do protocol action and return
-    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
+    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, (fujiCommandID_t) cmdFrame.comnd) == false)
         comlynx_response_ack();
     else
         comlynx_response_nack();
+    inq_dstats = SIO_DIRECTION_INVALID;
+
+    memset(response, 0, sizeof(response));
+    response_len = 0;
 }
 
 void lynxNetwork::comlynx_response_status()
@@ -763,16 +774,18 @@ void lynxNetwork::comlynx_response_status()
         protocol->status(&s);
 
     statusByte.bits.client_connected = s.connected == true;
-    statusByte.bits.client_data_available = s.rxBytesWaiting > 0;
+    statusByte.bits.client_data_available = protocol->available() > 0;
     statusByte.bits.client_error = s.error > 1;
 
-    //status_response[1] = 2; // max packet size 1026 bytes, maybe larger?
-    //status_response[2] = 4;
-    status_response[1] = (SERIAL_PACKET_SIZE % 256) + 2;        // why +2? -SJ
-    status_response[2] = SERIAL_PACKET_SIZE / 256;
+    status_response[1] = 2; // max packet size 1026 bytes, maybe larger?
+    status_response[2] = 4;
+
     status_response[4] = statusByte.byte;
 
-    virtualDevice::comlynx_response_status();
+    int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
+
+    if (t < 300)
+        virtualDevice::comlynx_response_status();
 }
 
 void lynxNetwork::comlynx_control_ack()
@@ -907,28 +920,34 @@ void lynxNetwork::comlynx_control_receive_channel_protocol()
     NetworkStatus ns;
 
     if ((protocol == nullptr) || (receiveBuffer == nullptr))
+    {
         return; // Punch out.
+    }
 
     // Get status
     protocol->status(&ns);
-    Debug_printf("!!! rxBytesWaiting: %d\n",ns.rxBytesWaiting);
-    if (ns.rxBytesWaiting > 0)
-        comlynx_response_ack();
+    size_t avail = protocol->available();
+
+    if (!avail)
+    {
+        SYSTEM_BUS.start_time = esp_timer_get_time();
+        return;
+    }
     else
     {
-        comlynx_response_nack();
-        return;
+        SYSTEM_BUS.start_time = esp_timer_get_time();
+        comlynx_response_ack();
     }
 
     // Truncate bytes waiting to response size
-    //ns.rxBytesWaiting = (ns.rxBytesWaiting > 1024) ? 1024 : ns.rxBytesWaiting;
-    ns.rxBytesWaiting = (ns.rxBytesWaiting > SERIAL_PACKET_SIZE) ? SERIAL_PACKET_SIZE: ns.rxBytesWaiting;
-    response_len = ns.rxBytesWaiting;
+    avail = avail > 1024 ? 1024 : avail;
+    response_len = avail;
 
     if (protocol->read(response_len)) // protocol adapter returned error
     {
         statusByte.bits.client_error = true;
         err = protocol->error;
+        comlynx_response_nack();
         return;
     }
     else // everything ok
