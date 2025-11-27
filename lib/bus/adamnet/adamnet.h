@@ -86,6 +86,9 @@ class virtualDevice
 protected:
     friend systemBus; // We exist on the AdamNet Bus, and need its methods.
 
+    // Unused, for compatibility with fujiDevice.cpp
+    uint8_t status_wait_count = 5;
+
     /**
      * @brief Send Byte to AdamNet
      * @param b Byte to send via AdamNet
@@ -216,6 +219,9 @@ protected:
     uint16_t response_len;
 
 public:
+    // Unused, for compatibility with fujiDevice.cpp
+    bool readonly = false;  //write protected
+    bool switched = false; //indicate disk switched condition
 
     /**
      * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?

@@ -72,6 +72,9 @@ class virtualDevice
 protected:
     friend systemBus; // We exist on the Comlynx Bus, and need its methods.
 
+    // Unused, for compatibility with fujiDevice.cpp
+    uint8_t status_wait_count = 5;
+
     /**
      * @brief Send Byte to Comlynx
      * @param b Byte to send via Comlynx
@@ -212,6 +215,9 @@ protected:
     uint16_t recvbuffer_len = 0;
 
 public:
+    // Unused, for compatibility with fujiDevice.cpp
+    bool readonly = false;  //write protected
+    bool switched = false; //indicate disk switched condition
 
     /**
      * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?
@@ -275,7 +281,7 @@ public:
     void enableDevice(fujiDeviceID_t device_id);
     void disableDevice(fujiDeviceID_t device_id);
     virtualDevice *deviceById(fujiDeviceID_t device_id);
-    void changeDeviceId(virtualDevice *pDevice, fujiDeviceID_t device_id);
+    void changeDeviceId(virtualDevice *pDevice, int device_id);
     bool deviceEnabled(fujiDeviceID_t device_id);
     QueueHandle_t qComlynxMessages = nullptr;
     void setUDPHost(const char *newhost, int port);             // Set new host/ip & port for UDP Stream

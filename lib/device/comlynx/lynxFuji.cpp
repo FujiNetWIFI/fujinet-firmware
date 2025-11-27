@@ -16,12 +16,16 @@
 #include "utils.h"
 #include "string_utils.h"
 
+#define IMAGE_EXTENSION ".ddp"
+
+#ifdef OBSOLETE
 #define ADDITIONAL_DETAILS_BYTES 12
+#endif /* OBSOLETE */
 
 #define COPY_SIZE 532
 
 lynxFuji platformFuji;
-lynxFuji *theFuji = &platformFuji;        // global fuji device object
+fujiDevice *theFuji = &platformFuji;        // global fuji device object
 lynxNetwork *theNetwork; // global network device object (temporary)
 lynxPrinter *thePrinter; // global printer
 lynxSerial *theSerial;   // global serial
@@ -83,6 +87,7 @@ void lynxFuji::comlynx_control_status()
     comlynx_send_buffer(r, 6);
 }
 
+#ifdef OBSOLETE
 // Reset FujiNet
 void lynxFuji::comlynx_reset_fujinet()
 {
@@ -97,7 +102,9 @@ void lynxFuji::comlynx_reset_fujinet()
     comlynx_response_ack();
     fnSystem.reboot();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Scan for networks
 void lynxFuji::comlynx_net_scan_networks()
 {
@@ -118,7 +125,9 @@ void lynxFuji::comlynx_net_scan_networks()
 
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Return scanned network entry
 void lynxFuji::comlynx_net_scan_result()
 {
@@ -152,7 +161,9 @@ void lynxFuji::comlynx_net_scan_result()
 
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 //  Get SSID
 void lynxFuji::comlynx_net_get_ssid()
 {
@@ -192,7 +203,9 @@ void lynxFuji::comlynx_net_get_ssid()
 
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Set SSID
 void lynxFuji::comlynx_net_set_ssid(uint16_t s)
 {
@@ -234,7 +247,9 @@ void lynxFuji::comlynx_net_set_ssid(uint16_t s)
 
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Get WiFi Status
 void lynxFuji::comlynx_net_get_wifi_status()
 {
@@ -253,7 +268,9 @@ void lynxFuji::comlynx_net_get_wifi_status()
 
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Mount Server
 void lynxFuji::comlynx_mount_host()
 {
@@ -275,7 +292,9 @@ void lynxFuji::comlynx_mount_host()
 
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Mount Server
 void lynxFuji::comlynx_unmount_host()
 {
@@ -297,7 +316,9 @@ void lynxFuji::comlynx_unmount_host()
 
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Disk Image Mount
 void lynxFuji::comlynx_disk_image_mount()
 {
@@ -340,6 +361,7 @@ void lynxFuji::comlynx_disk_image_mount()
 
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
 void lynxFuji::comlynx_set_boot_config()
@@ -368,6 +390,7 @@ void lynxFuji::comlynx_set_boot_config()
     comlynx_response_ack(); */
 }
 
+#ifdef OBSOLETE
 // Do SIO copy
 void lynxFuji::comlynx_copy_file()
 {
@@ -443,7 +466,9 @@ void lynxFuji::comlynx_copy_file()
 
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Mount all
 void lynxFuji::mount_all()
 {
@@ -509,7 +534,9 @@ void lynxFuji::mount_all()
     // Go ahead and respond ok
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Set boot mode
 void lynxFuji::comlynx_set_boot_mode()
 {
@@ -530,7 +557,9 @@ void lynxFuji::comlynx_set_boot_mode()
     comlynx_response_ack();
     */
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 char *_generate_appkey_filename(appkey *info)
 {
     static char filenamebuf[30];
@@ -538,6 +567,7 @@ char *_generate_appkey_filename(appkey *info)
     snprintf(filenamebuf, sizeof(filenamebuf), "/FujiNet/%04hx%02hhx%02hhx.key", info->creator, info->app, info->key);
     return filenamebuf;
 }
+#endif /* OBSOLETE */
 
 /*
  Write an "app key" to SD (ONLY!) storage.
@@ -576,6 +606,7 @@ void lynxFuji::comlynx_write_app_key()
     comlynx_response_ack();
 }
 
+#ifdef OBSOLETE
 /*
  Read an "app key" from SD (ONLY!) storage
 */
@@ -612,12 +643,16 @@ void lynxFuji::comlynx_read_app_key()
 
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // DEBUG TAPE
 void lynxFuji::debug_tape()
 {
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Disk Image Unmount
 void lynxFuji::comlynx_disk_image_umount()
 {
@@ -634,7 +669,9 @@ void lynxFuji::comlynx_disk_image_umount()
 
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Disk Image Rotate
 /*
   We rotate disks my changing their disk device ID's. That prevents
@@ -669,6 +706,7 @@ void lynxFuji::image_rotate()
         SYSTEM_BUS.changeDeviceId(&_fnDisks[0].disk_dev, last_id);
     }
 }
+#endif /* OBSOLETE */
 
 // This gets called when we're about to shutdown/reboot
 void lynxFuji::shutdown()
@@ -679,6 +717,7 @@ void lynxFuji::shutdown()
 
 char dirpath[256];
 
+#ifdef OBSOLETE
 void lynxFuji::comlynx_open_directory(uint16_t s)
 {
     Debug_println("Fuji cmd: OPEN DIRECTORY");
@@ -732,7 +771,9 @@ void lynxFuji::comlynx_open_directory(uint16_t s)
 
     response_len = 1;
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
 {
     // File modified date-time
@@ -774,7 +815,56 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
         Debug_printf("%02x ", dest[i]);
     Debug_printf("\n");
 }
+#else
+// For some reason the directory entry structure that is sent back
+// isn't standardized across platforms.
+typedef struct {
+    uint8_t year, month, day, hour, minute, second;
+    uint32_t file_size;
+    uint8_t flags, truncated, file_type;
+}  __attribute__((packed)) DirEntAttrib;
 
+size_t lynxFuji::setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
+{
+    int idx;
+    DirEntAttrib *attrib = (DirEntAttrib *) dest;
+
+
+    // File modified date-time
+    struct tm *modtime = localtime(&f->modified_time);
+    attrib->year = modtime->tm_year - 100;
+    attrib->month = modtime->tm_mon + 1;
+    attrib->day = modtime->tm_mday;
+    attrib->hour = modtime->tm_hour;
+    attrib->minute = modtime->tm_min;
+    attrib->second = modtime->tm_sec;
+
+    attrib->file_size = f->size;
+
+    // File flags
+#define FF_DIR 0x01
+#define FF_TRUNC 0x02
+
+    attrib->flags = f->isDir ? FF_DIR : 0;
+
+    maxlen -= sizeof(*attrib); // Adjust the max return value with the number of additional
+                              // bytes we're copying
+    if (f->isDir)             // Also subtract a byte for a terminating slash on directories
+        maxlen--;
+    attrib->truncated = strlen(f->filename) >= maxlen ? FF_TRUNC : 0;
+
+    // File type
+    attrib->file_type = MediaType::discover_mediatype(f->filename);
+
+    Debug_printf("Addtl: ");
+    for (int i = 0; i < sizeof(*attrib); i++)
+        Debug_printf("%02x ", dest[i]);
+    Debug_printf("\n");
+    return sizeof(*attrib);
+}
+#endif /* OBSOLETE */
+
+#ifdef OBSOLETE
 void lynxFuji::comlynx_read_directory_entry()
 {
     Debug_printf("READ DIR ENTRY\n");
@@ -871,7 +961,9 @@ void lynxFuji::comlynx_read_directory_entry()
         comlynx_response_ack();
     }
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 void lynxFuji::comlynx_get_directory_position()
 {
     Debug_println("Fuji cmd: GET DIRECTORY POSITION");
@@ -889,7 +981,9 @@ void lynxFuji::comlynx_get_directory_position()
 
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 void lynxFuji::comlynx_set_directory_position()
 {
     uint16_t pos = 0;
@@ -908,7 +1002,9 @@ void lynxFuji::comlynx_set_directory_position()
     comlynx_response_ack();
     Debug_printf("pos is now %u", pos);
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 void lynxFuji::comlynx_close_directory()
 {
     Debug_println("Fuji cmd: CLOSE DIRECTORY");
@@ -926,7 +1022,9 @@ void lynxFuji::comlynx_close_directory()
     response_len = 1;
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Get network adapter configuration
 void lynxFuji::comlynx_get_adapter_config()
 {
@@ -965,6 +1063,7 @@ void lynxFuji::comlynx_get_adapter_config()
 
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
 //  Make new disk and shove into device slot
 void lynxFuji::comlynx_new_disk()
@@ -1007,6 +1106,7 @@ void lynxFuji::comlynx_new_disk()
     comlynx_response_ack();
 }
 
+#ifdef OBSOLETE
 // Send host slot data to computer
 void lynxFuji::comlynx_read_host_slots()
 {
@@ -1029,7 +1129,9 @@ void lynxFuji::comlynx_read_host_slots()
 
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Read and save host slot data from computer
 void lynxFuji::comlynx_write_host_slots()
 {
@@ -1054,17 +1156,23 @@ void lynxFuji::comlynx_write_host_slots()
 
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Store host path prefix
 void lynxFuji::comlynx_set_host_prefix()
 {
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Retrieve host path prefix
 void lynxFuji::comlynx_get_host_prefix()
 {
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Send device slot data to computer
 void lynxFuji::comlynx_read_device_slots()
 {
@@ -1103,7 +1211,9 @@ void lynxFuji::comlynx_read_device_slots()
 
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Read and save disk slot data from computer
 void lynxFuji::comlynx_write_device_slots()
 {
@@ -1137,7 +1247,9 @@ void lynxFuji::comlynx_write_device_slots()
 
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Temporary(?) function while we move from old config storage to new
 void lynxFuji::_populate_slots_from_config()
 {
@@ -1168,7 +1280,9 @@ void lynxFuji::_populate_slots_from_config()
         }
     }
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Temporary(?) function while we move from old config storage to new
 void lynxFuji::_populate_config_from_slots()
 {
@@ -1197,9 +1311,11 @@ void lynxFuji::_populate_config_from_slots()
                                _fnDisks[i].access_mode == DISK_ACCESS_MODE_WRITE ? fnConfig::mount_modes::MOUNTMODE_WRITE : fnConfig::mount_modes::MOUNTMODE_READ);
     }
 }
+#endif /* OBSOLETE */
 
 char f[MAX_FILENAME_LEN];
 
+#ifdef OBSOLETE
 // Write a 256 byte filename to the device slot
 void lynxFuji::comlynx_set_device_filename(uint16_t s)
 {
@@ -1224,7 +1340,9 @@ void lynxFuji::comlynx_set_device_filename(uint16_t s)
 
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Get a 256 byte filename from device slot
 void lynxFuji::comlynx_get_device_filename()
 {
@@ -1241,7 +1359,9 @@ void lynxFuji::comlynx_get_device_filename()
 
     comlynx_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Mounts the desired boot disk number
 void lynxFuji::insert_boot_device(uint8_t d)
 {
@@ -1270,6 +1390,7 @@ void lynxFuji::insert_boot_device(uint8_t d)
     _fnDisks[0].disk_dev.device_active = true;
     */
 }
+#endif /* OBSOLETE */
 
 void lynxFuji::comlynx_enable_device()
 {
@@ -1348,7 +1469,7 @@ void lynxFuji::comlynx_disable_device()
 // Initializes base settings and adds our devices to the SIO bus
 void lynxFuji::setup()
 {
-    _populate_slots_from_config();
+    populate_slots_from_config();
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = false;
@@ -1429,12 +1550,15 @@ void lynxFuji::comlynx_device_enable_status()
     response[0]=SYSTEM_BUS.deviceEnabled(d);
 }
 
+#ifdef OBSOLETE
 lynxDisk *lynxFuji::bootdisk()
 {
     return _bootDisk;
 }
+#endif /* OBSOLETE */
 
 
+#ifdef OBSOLETE
 fujiHost *lynxFuji::set_slot_hostname(int host_slot, char *hostname)
 {
 
@@ -1443,6 +1567,7 @@ fujiHost *lynxFuji::set_slot_hostname(int host_slot, char *hostname)
 
     return &_fnHosts[host_slot];
 }
+#endif /* OBSOLETE */
 
 
 void lynxFuji::comlynx_hello()
@@ -1464,6 +1589,7 @@ void lynxFuji::comlynx_hello()
 
 }
 
+#ifdef OBSOLETE
 // Set UDP Stream HOST & PORT and start it
 void lynxFuji::comlynx_enable_udpstream(uint16_t s)
 {
@@ -1501,6 +1627,7 @@ void lynxFuji::comlynx_enable_udpstream(uint16_t s)
     // Start the UDP Stream
     SYSTEM_BUS.setUDPHost(host, port);
 }
+#endif /* OBSOLETE */
 
 void lynxFuji::comlynx_control_send()
 {
@@ -1513,73 +1640,101 @@ void lynxFuji::comlynx_control_send()
     switch (c)
     {
     case FUJICMD_RESET:
-        comlynx_reset_fujinet();
+        fujicmd_reset();
         break;
     case FUJICMD_GET_SSID:
-        comlynx_net_get_ssid();
+        fujicmd_net_get_ssid();
         break;
     case FUJICMD_SCAN_NETWORKS:
-        comlynx_net_scan_networks();
+        fujicmd_net_scan_networks();
         break;
     case FUJICMD_GET_SCAN_RESULT:
-        comlynx_net_scan_result();
+        fujicmd_net_scan_result(comlynx_recv());
         break;
     case FUJICMD_SET_SSID:
-        comlynx_net_set_ssid(s);
+        {
+            SSIDConfig cfg;
+            comlynx_recv_buffer((uint8_t *)&cfg, s);
+            fujicmd_net_set_ssid_success(cfg.ssid, cfg.password, false);
+        }
         break;
     case FUJICMD_GET_WIFISTATUS:
-        comlynx_net_get_wifi_status();
+        fujicmd_net_get_wifi_status();
         break;
     case FUJICMD_MOUNT_HOST:
-        comlynx_mount_host();
+        fujicmd_mount_host_success(comlynx_recv());
         break;
     case FUJICMD_UNMOUNT_HOST:
-        comlynx_unmount_host();
+        fujicmd_unmount_host_success(comlynx_recv());
         break;
     case FUJICMD_MOUNT_IMAGE:
-        comlynx_disk_image_mount();
+        {
+            uint8_t slot = comlynx_recv();
+            uint8_t mode = comlynx_recv();
+            fujicmd_mount_disk_image_success(slot, mode);
+        }
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        comlynx_open_directory(s);
+        {
+            uint8_t hostSlot = comlynx_recv();
+            char dirpath[256];
+            transaction_get(dirpath, s - 2);
+            fujicmd_open_directory_success(hostSlot, std::string(dirpath, s - 2));
+        }
         break;
     case FUJICMD_READ_DIR_ENTRY:
-        comlynx_read_directory_entry();
+        {
+            uint8_t maxlen = comlynx_recv();
+            uint8_t addtl = comlynx_recv();
+            fujicmd_read_directory_entry(maxlen, addtl);
+        }
         break;
     case FUJICMD_CLOSE_DIRECTORY:
-        comlynx_close_directory();
+        fujicmd_close_directory();
         break;
     case FUJICMD_READ_HOST_SLOTS:
-        comlynx_read_host_slots();
+        fujicmd_read_host_slots();
         break;
     case FUJICMD_WRITE_HOST_SLOTS:
-        comlynx_write_host_slots();
+        fujicmd_write_host_slots();
         break;
     case FUJICMD_READ_DEVICE_SLOTS:
-        comlynx_read_device_slots();
+        fujicmd_read_device_slots(MAX_DISK_DEVICES);
         break;
     case FUJICMD_WRITE_DEVICE_SLOTS:
-        comlynx_write_device_slots();
+        fujicmd_write_device_slots(MAX_DISK_DEVICES);
         break;
     case FUJICMD_UNMOUNT_IMAGE:
-        comlynx_disk_image_umount();
+        fujicmd_unmount_disk_image_success(comlynx_recv());
         break;
     case FUJICMD_GET_ADAPTERCONFIG:
-        comlynx_get_adapter_config();
+        fujicmd_get_adapter_config();
         break;
     case FUJICMD_NEW_DISK:
         comlynx_new_disk();
         break;
     case FUJICMD_GET_DIRECTORY_POSITION:
-        comlynx_get_directory_position();
+        fujicmd_get_directory_position();
         break;
     case FUJICMD_SET_DIRECTORY_POSITION:
-        comlynx_set_directory_position();
+        {
+            uint16_t pos = 0;
+            comlynx_recv_buffer((uint8_t *)&pos, sizeof(uint16_t));
+            fujicmd_set_directory_position(pos);
+        }
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
-        comlynx_set_device_filename(s);
+        {
+            uint8_t deviceSlot = comlynx_recv();
+            char filename[256];
+            transaction_get(filename, s - 2);
+            fujicore_set_device_filename_success(deviceSlot, _fnDisks[deviceSlot].host_slot,
+                                                 _fnDisks[deviceSlot].access_mode,
+                                                 std::string(filename, s - 2));
+        }
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
-        comlynx_get_device_filename();
+        fujicmd_get_device_filename(comlynx_recv());
         break;
     case FUJICMD_CONFIG_BOOT:
         comlynx_set_boot_config();
@@ -1591,16 +1746,16 @@ void lynxFuji::comlynx_control_send()
         comlynx_disable_device();
         break;
     case FUJICMD_MOUNT_ALL:
-        mount_all();
+        fujicmd_mount_all_success();
         break;
     case FUJICMD_SET_BOOT_MODE:
-        comlynx_set_boot_mode();
+        fujicmd_set_boot_mode(comlynx_recv(), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
         break;
     case FUJICMD_WRITE_APPKEY:
         comlynx_write_app_key();
         break;
     case FUJICMD_READ_APPKEY:
-        comlynx_read_app_key();
+        fujicmd_read_app_key();
         break;
     case FUJICMD_RANDOM_NUMBER:
         comlynx_random_number();
@@ -1612,10 +1767,16 @@ void lynxFuji::comlynx_control_send()
         comlynx_device_enable_status();
         break;
     case FUJICMD_COPY_FILE:
-        comlynx_copy_file();
+        {
+            uint8_t source = comlynx_recv();
+            uint8_t dest = comlynx_recv();
+            char dirpath[256];
+            transaction_get(dirpath, sizeof(dirpath));
+            fujicmd_copy_file_success(source, dest, dirpath);
+        }
         break;
     case FUJICMD_ENABLE_UDPSTREAM:
-        comlynx_enable_udpstream(s);
+        fujicmd_enable_udpstream(s);
         break;
     case 0x01:
         comlynx_hello();
@@ -1667,14 +1828,18 @@ void lynxFuji::comlynx_process(uint8_t b)
     }
 }
 
+#ifdef OBSOLETE
 int lynxFuji::get_disk_id(int drive_slot)
 {
     return _fnDisks[drive_slot].disk_dev.id();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 std::string lynxFuji::get_host_prefix(int host_slot)
 {
     return _fnHosts[host_slot].get_prefix();
 }
+#endif /* OBSOLETE */
 
 #endif /* BUILD_LYNX */

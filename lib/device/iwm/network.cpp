@@ -5,7 +5,7 @@
  */
 
 #include "network.h"
-#include "fujiDevice.h"
+#include "../network.h"
 
 #include <cstring>
 #include <ctype.h>

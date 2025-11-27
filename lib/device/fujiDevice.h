@@ -11,8 +11,11 @@
 #include <string>
 #include <optional>
 
-#ifdef BUILD_ATARI
+#if defined(BUILD_ATARI) || defined(BUILD_LYNX)
 #define SYSTEM_BUS_IS_UDP 1
+#endif /* BUILD_ATARI || BUILD_LYNX */
+
+#ifdef BUILD_ATARI
 #define SYSTEM_BUS_IS_SERIAL 1
 #endif /* BUILD_ATARI */
 
@@ -68,11 +71,6 @@ typedef struct
     char ssid[MAX_SSID_LEN + 1];
     char password[MAX_WIFI_PASS_LEN];
 } SSIDConfig;
-
-typedef struct {
-    uint16_t avail;
-    uint8_t conn, err;
-} NDeviceStatus;
 
 enum appkey_mode : int8_t
 {

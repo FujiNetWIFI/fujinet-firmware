@@ -3,8 +3,6 @@
 
 #include "fujiDevice.h"
 
-#include "fujiDevice.h"
-
 #include <cstdint>
 
 #include "network.h"
@@ -14,10 +12,11 @@
 #include "fujiHost.h"
 #include "fujiDisk.h"
 
-class adamFuji : public virtualDevice
+class adamFuji : public fujiDevice
 {
 private:
     bool new_disk_completed = false;
+#ifdef OBSOLETE
     bool isReady = false;
     bool alreadyRunning = false; // Replace isReady and scanStarted with THIS.
     bool scanStarted = false;
@@ -34,15 +33,32 @@ private:
 
     int _current_open_directory_slot = -1;
 
-    adamDisk *_bootDisk = nullptr; // special disk drive just for configuration
-
     uint8_t bootMode = 0; // Boot mode 0 = CONFIG, 1 = MINI-BOOT
 
     uint8_t _countScannedSSIDs = 0;
 
     appkey _current_appkey;
+#endif /* OBSOLETE */
 
 protected:
+    void transaction_complete() override {
+        adamnet_response_ack();
+    }
+    void transaction_error() override {
+        adamnet_response_nack();
+    }
+    bool transaction_get(void *data, size_t len) override {
+        unsigned short rlen = adamnet_recv_buffer((uint8_t *) data, len);
+        return rlen == len;
+    }
+    void transaction_put(const void *data, size_t len, bool err=false) override {
+        memcpy(response, data, len);
+        response_len = len;
+    }
+
+    size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen) override;
+
+#ifdef OBSOLETE
     void adamnet_reset_fujinet();          // 0xFF
     void adamnet_net_get_ssid();           // 0xFE
     void adamnet_net_scan_networks();      // 0xFD
@@ -60,7 +76,9 @@ protected:
     void adamnet_write_device_slots();     // 0xF1
     void adamnet_disk_image_umount();      // 0xE9
     void adamnet_get_adapter_config();     // 0xE8
+#endif /* OBSOLETE */
     void adamnet_new_disk();               // 0xE7
+#ifdef OBSOLETE
     void adamnet_unmount_host();           // 0xE6
     void adamnet_get_directory_position(); // 0xE5
     void adamnet_set_directory_position(); // 0xE4
@@ -69,20 +87,27 @@ protected:
     void adamnet_set_host_prefix();        // 0xE1
     void adamnet_get_host_prefix();        // 0xE0
     void adamnet_set_adamnet_external_clock(); // 0xDF
+#endif /* OBSOLETE */
     void adamnet_write_app_key();          // 0xDE
+#ifdef OBSOLETE
     void adamnet_read_app_key();           // 0xDD
     void adamnet_open_app_key();           // 0xDC
     void adamnet_close_app_key();          // 0xDB
     void adamnet_get_device_filename();    // 0xDA
+#endif /* OBSOLETE */
     void adamnet_set_boot_config();        // 0xD9
+#ifdef OBSOLETE
     void adamnet_copy_file();              // 0xD8
     void adamnet_set_boot_mode();          // 0xD6
+#endif /* OBSOLETE */
     void adamnet_enable_device();          // 0xD5
     void adamnet_disable_device();         // 0xD4
     void adamnet_random_number();          // 0xD3
     void adamnet_get_time();               // 0xD2
     void adamnet_device_enable_status();   // 0xD1
+#ifdef OBSOLETE
     void adamnet_get_copy_status();        // 0xD0
+#endif /* OBSOLETE */
 
     void adamnet_test_command();
 
@@ -99,7 +124,11 @@ public:
 
     bool status_wait_enabled = true;
 
+    adamDisk *bootDisk = nullptr; // special disk drive just for configuration
+
+#ifdef OBSOLETE
     adamDisk *bootdisk();
+#endif /* OBSOLETE */
 
     adamNetwork *network();
 
@@ -107,8 +136,9 @@ public:
 
     void insert_boot_device(uint8_t d);
 
-    void setup();
+    void setup() override;
 
+#ifdef OBSOLETE
     void image_rotate();
     int get_disk_id(int drive_slot);
     std::string get_host_prefix(int host_slot);
@@ -121,9 +151,11 @@ public:
     void _populate_config_from_slots();
 
     void mount_all();
+#endif /* OBSOLETE */
 
     adamFuji();
 
+#ifdef OBSOLETE
     std::string copySpec;
     unsigned char sourceSlot = 0;
     unsigned char destSlot = 0;
@@ -133,9 +165,11 @@ public:
     FILE *destFile = nullptr;
     char *dataBuf = nullptr;
     TaskHandle_t copy_task_handle;
+#endif /* OBSOLETE */
 };
 
-extern adamFuji *theFuji;
+#ifdef OBSOLETE
 extern adamSerial *theSerial;
+#endif /* OBSOLETE */
 
 #endif // ADAMFUJI_H

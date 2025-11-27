@@ -8,6 +8,7 @@
 #include <cstdint>
 
 #include "network.h"
+#include "../network.h"
 #include "../../include/cbm_defines.h"
 
 #include "../../include/debug.h"
@@ -130,7 +131,7 @@ void iecNetwork::iec_open()
 
     Debug_printv("Protocol %s opened.", channel_data.urlParser->scheme.c_str());
 
-    if (channel_data.protocol->open(channel_data.urlParser.get(), &cmdFrame)) {
+    if (channel_data.protocol->open(channel_data.urlParser.get(), (netProtoOpenMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2)) {
         Debug_printv("Protocol unable to make connection.");
         channel_data.protocol.reset(); // Clean up the protocol
 
@@ -540,7 +541,7 @@ void iecNetwork::perform_special_00()
 
     auto& channel_data = network_data_map[channel];
 
-    if (channel_data.protocol->special_00(&cmdFrame))
+    if (channel_data.protocol->special_00((fujiCommandID_t) cmdFrame.comnd, cmdFrame.aux2))
     {
         NetworkStatus ns;
         char reply[80];
@@ -605,7 +606,7 @@ void iecNetwork::perform_special_40()
         return;
     }
 
-    if (channel_data.protocol->special_40((uint8_t *)&sp_buf, sizeof(sp_buf), &cmdFrame))
+    if (channel_data.protocol->special_40((uint8_t *)&sp_buf, sizeof(sp_buf), (fujiCommandID_t) cmdFrame.comnd))
     {
         channel_data.protocol->status(&ns);
         iecStatus.error = ns.error;
@@ -687,7 +688,7 @@ void iecNetwork::perform_special_80()
     cmdFrame.comnd = pt[0][0];
     sp_buf += pt[4];
 
-    if (channel_data.protocol->special_80((uint8_t *)sp_buf.c_str(), sp_buf.length(), &cmdFrame))
+    if (channel_data.protocol->special_80((uint8_t *)sp_buf.c_str(), sp_buf.length(), (fujiCommandID_t) cmdFrame.comnd))
     {
         channel_data.protocol->status(&ns);
         iecStatus.error = ns.error;
@@ -954,7 +955,7 @@ void iecNetwork::fsop(unsigned char comnd)
     auto& channel_data = network_data_map[channel];
 
     if (channel_data.protocol)
-        channel_data.protocol->perform_idempotent_80(channel_data.urlParser.get(), &cmdFrame);
+        channel_data.protocol->perform_idempotent_80(channel_data.urlParser.get(), (fujiCommandID_t) cmdFrame.comnd);
 
     iec_close();
 }
@@ -973,11 +974,11 @@ void iecNetwork::set_open_params()
 
     int channel = atoi(pt[1].c_str());
     int mode = atoi(pt[2].c_str());
-    int trans = atoi(pt[3].c_str());
+    netProtoTranslation_t trans = (netProtoTranslation_t) (atoi(pt[3].c_str()) & 0x7F);
 
     auto& channel_data = network_data_map[channel];
 
-    channel_data.protocol->set_open_params(mode, trans);
+    channel_data.protocol->set_open_params(trans);
 
     iecStatus.error = 0;
     iecStatus.msg = "ok";
@@ -1050,10 +1051,11 @@ bool iecNetwork::receive(NetworkData &channel_data, uint16_t rxBytes)
 
   // Get status
   channel_data.protocol->status(&ns);
-  if( ns.rxBytesWaiting>0 )
+  size_t avail = channel_data.protocol->available();
+  if( avail > 0 )
     {
-      uint16_t blockSize = std::min(ns.rxBytesWaiting, rxBytes);
-      Debug_printf("bytes waiting: %u / blockSize: %u / connected: %u / error: %u ", ns.rxBytesWaiting, blockSize, ns.connected, ns.error);
+      uint16_t blockSize = std::min(avail, (size_t) rxBytes);
+      Debug_printf("bytes waiting: %u / blockSize: %u / connected: %u / error: %u ", avail, blockSize, ns.connected, ns.error);
       if( channel_data.protocol->read(blockSize) )
         {
           // protocol adapter returned error
@@ -1160,17 +1162,19 @@ uint8_t iecNetwork::getStatusData(char *buffer, uint8_t bufferSize)
         channel_data.json->status(&ns);
       }
 
-      if (is_binary_status) {
-        buffer[0] = ns.rxBytesWaiting & 0xFF;        // Low uint8_t of ns.rxBytesWaiting
-        buffer[1] = (ns.rxBytesWaiting >> 8) & 0xFF; // High uint8_t of ns.rxBytesWaiting
+      size_t avail = channel_data.protocol->available();
+      avail = avail > 65535 ? 65535 : avail;
 
-        buffer[2] = ns.connected;
-        buffer[3] = ns.error;
+      if (is_binary_status) {
+        NDeviceStatus *status = (NDeviceStatus *) buffer;
+        status->avail = avail;
+        status->conn = ns.connected;
+        status->err = ns.error;
 
         Debug_printf("Sending binary status for active channel #%d: %s\r\n", active_status_channel, mstr::toHex((uint8_t *) buffer, 4).c_str());
         return 4;
       } else {
-        snprintf(buffer, bufferSize, "%u,%u,%u", ns.rxBytesWaiting, ns.connected, ns.error);
+        snprintf(buffer, bufferSize, "%u,%u,%u", avail, ns.connected, ns.error);
         Debug_printf("Sending status for active channel #%d: %s\r\n", active_status_channel, buffer);
         return strlen(buffer);
       }
@@ -1213,7 +1217,7 @@ void iecNetwork::task()
           if( protocol && protocol->interruptEnable )
             {
               protocol->status(&ns);
-              if( ns.rxBytesWaiting > 0 /*|| ns.connected == 0*/ )
+              if( protocol->available() > 0 /*|| ns.connected == 0*/ )
                 {
                   sendSRQ();
                   nextSRQ = fnSystem.millis() + 10;

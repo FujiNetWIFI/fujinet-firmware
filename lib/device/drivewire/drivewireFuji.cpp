@@ -8,7 +8,7 @@
 #include "utils.h"
 #include "compat_string.h"
 #include "endianness.h"
-#include <endian.h>
+#include "fuji_endian.h"
 
 #ifdef UNUSED
 #ifdef ESP_PLATFORM

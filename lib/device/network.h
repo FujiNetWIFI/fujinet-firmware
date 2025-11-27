@@ -1,6 +1,13 @@
 #ifndef DEVICE_NETWORK_H
 #define DEVICE_NETWORK_H
 
+#include <stdint.h>
+
+typedef struct {
+    uint16_t avail;
+    uint8_t conn, err;
+} NDeviceStatus;
+
 #ifdef BUILD_ATARI
 # include "sio/network.h"
 #endif

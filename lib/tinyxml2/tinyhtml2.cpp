@@ -52,7 +52,7 @@ char* strtrim(char* str) {
 
     int len = strlen(str);
     int loff = 0, roff = len-1;
-    
+
     /* Left offset */
     while (loff<len && str[loff]==' ') loff++;
     loff = MIN(loff, roff);
@@ -96,7 +96,7 @@ bool HTMLResult::Append( HTMLElement* element ) {
         elements = (HTMLElement** )realloc(elements, capacity*2*sizeof(HTMLElement* ));
         if (elements) capacity = capacity*2;
     }
-    
+
     elements[count++] = element;
     return true;
 }
@@ -153,7 +153,7 @@ HTMLResult* FindByTag( HTMLElement* htmlElement, const char* name,  bool deep ) 
 
     int arrayCount = 0;
     int arrayCapacity = 0;
-    tinyxml2::XMLElement** array = (tinyxml2::XMLElement** )calloc(sizeof(tinyxml2::XMLElement* ), MIN_CAPACITY);
+    tinyxml2::XMLElement** array = (tinyxml2::XMLElement** )calloc(MIN_CAPACITY, sizeof(tinyxml2::XMLElement* ));
     if (array) arrayCapacity = MIN_CAPACITY;
     int i = 0;
 
@@ -192,7 +192,7 @@ HTMLResult* FindByAttribute( HTMLElement* htmlElement, const char* name, const c
 
     int arrayCount = 0;
     int arrayCapacity = 0;
-    tinyxml2::XMLElement** array = (tinyxml2::XMLElement** )calloc(sizeof(tinyxml2::XMLElement* ), MIN_CAPACITY);
+    tinyxml2::XMLElement** array = (tinyxml2::XMLElement** )calloc(MIN_CAPACITY, sizeof(tinyxml2::XMLElement* ));
     if (array) arrayCapacity = MIN_CAPACITY;
     int i = 0;
 
@@ -286,17 +286,17 @@ HTMLDocument::HTMLDocument() {
 
 bool HTMLDocument::ParseFile( const char * file ) {
     tinyxml2::XMLDocument* doc = (tinyxml2::XMLDocument* )internal;
-    return doc ? doc->LoadFile(file):false;
+    return doc ? !!doc->LoadFile(file):false;
 }
 
 bool HTMLDocument::ParseData( const char * data ) {
-    if (data){ 
+    if (data){
         tinyxml2::XMLDocument* doc = (tinyxml2::XMLDocument* )internal;
         doc->Parse(data);
         if (doc->Error()) return false;
         return true;
     }
-    
+
     return false;
 }
 

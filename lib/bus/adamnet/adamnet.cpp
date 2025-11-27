@@ -299,7 +299,7 @@ void systemBus::_adamnet_process_queue()
         {
         case ADAMNETMSG_DISKSWAP:
             if (_fujiDev != nullptr)
-                _fujiDev->image_rotate();
+                _fujiDev->fujicmd_image_rotate();
             break;
         }
     }

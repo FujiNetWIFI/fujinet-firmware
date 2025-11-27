@@ -5,6 +5,7 @@
  */
 
 #include "network.h"
+#include "../network.h"
 #include "fuji_endian.h"
 
 #include <cstring>
@@ -18,7 +19,6 @@
 
 #include "status_error_codes.h"
 #include "Protocol.h"
-#include "fujiDevice.h"
 #include "IOChannel.h" // for GET_TIMESTAMP()
 
 using namespace std;

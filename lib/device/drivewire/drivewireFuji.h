@@ -79,7 +79,7 @@ protected:
             transaction_error();
     }
 
-    size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen);
+    size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen) override;
 
 #ifdef NOT_SUBCLASS
     void reset_fujinet();          // 0xFF

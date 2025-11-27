@@ -6,7 +6,6 @@ on:
     branches:
       - "**"
       - "!release"
-      - "!fujiversal"
     tags:
       - "!**"
   pull_request:
@@ -14,7 +13,6 @@ on:
     branches:
       - "**"
       - "!release"
-      - "!fujiversal"
 
 jobs:
   tagged-release:
