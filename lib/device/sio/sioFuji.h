@@ -37,11 +37,10 @@ protected:
         return true;
     }
     void transaction_put(const void *data, size_t len, bool err) override {
-        if (!_transaction_did_ack) {
+        if (!_transaction_did_ack)
             sio_ack();
-            _transaction_did_ack = true;
-        }
         bus_to_computer((uint8_t *) data, len, err);
+        _transaction_did_ack = false;
     }
 
     size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen) override;
