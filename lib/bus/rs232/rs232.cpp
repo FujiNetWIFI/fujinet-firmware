@@ -224,7 +224,7 @@ void systemBus::_rs232_process_cmd()
                  tempFrame->device(), tempFrame->command(),
                  tempFrame->data() ? tempFrame->data()->size() : -1);
 
-    // FIXME - This is a terrible hack to allow devices to continue
+    // FIXME - This is a terrible hack to allow devices to continue to
     // directly read/write the bus instead of upgrading them to work
     // with packets.
     _lastPacketReceived = tempFrame.get();
@@ -513,9 +513,10 @@ void systemBus::sendReplyPacket(fujiDeviceID_t source, bool ack, void *data, siz
 /* Convert direct bus access into bus packets? */
 size_t systemBus::read(void *buffer, size_t length)
 {
-    // FIXME - This is a terrible hack to allow devices to continue
+    // FIXME - This is a terrible hack to allow devices to continue to
     // directly read/write the bus instead of upgrading them to work
     // with packets.
+
     // Assuming 'data()' returns the optional:
     auto optional_data = _lastPacketReceived->data();
 

@@ -405,12 +405,12 @@ void sioFuji::sio_qrcode_encode()
     if (!_qrManager.code.size())
     {
         Debug_printf("QR code encoding failed\n");
-        sio_error();
+        transaction_error();
         return;
     }
 
     Debug_printf("Resulting QR code is: %u modules\n", _qrManager.code.size());
-    sio_complete();
+    transaction_complete();
 }
 
 void sioFuji::sio_qrcode_length()
@@ -745,51 +745,39 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     switch (cmdFrame.comnd)
     {
     case FUJICMD_HSIO_INDEX:
-        sio_ack();
         sio_high_speed();
         break;
     case FUJICMD_SET_HSIO_INDEX:
-        sio_ack();
         sio_set_hsio_index();
         break;
     case FUJICMD_STATUS:
-        sio_ack();
         sio_status();
         break;
     case FUJICMD_RESET:
-        sio_ack();
         fujicmd_reset();
         break;
     case FUJICMD_SCAN_NETWORKS:
-        sio_ack();
         fujicmd_net_scan_networks();
         break;
     case FUJICMD_GET_SCAN_RESULT:
-        sio_ack();
         fujicmd_net_scan_result(cmdFrame.aux1);
         break;
     case FUJICMD_SET_SSID:
-        sio_late_ack();
         sio_net_set_ssid();
         break;
     case FUJICMD_GET_SSID:
-        sio_ack();
         fujicmd_net_get_ssid();
         break;
     case FUJICMD_GET_WIFISTATUS:
-        sio_ack();
         fujicmd_net_get_wifi_status();
         break;
     case FUJICMD_MOUNT_HOST:
-        sio_ack();
         fujicmd_mount_host_success(cmdFrame.aux1);
         break;
     case FUJICMD_MOUNT_IMAGE:
-        sio_ack();
         fujicmd_mount_disk_image_success(cmdFrame.aux1, cmdFrame.aux2);
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        sio_late_ack();
         {
             char dirpath[256];
 
@@ -803,199 +791,151 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         }
         break;
     case FUJICMD_READ_DIR_ENTRY:
-        sio_ack();
         fujicmd_read_directory_entry(cmdFrame.aux1, cmdFrame.aux2);
         break;
     case FUJICMD_CLOSE_DIRECTORY:
-        sio_ack();
         fujicmd_close_directory();
         break;
     case FUJICMD_GET_DIRECTORY_POSITION:
-        sio_ack();
         fujicmd_get_directory_position();
         break;
     case FUJICMD_SET_DIRECTORY_POSITION:
-        sio_ack();
         fujicmd_set_directory_position(le16toh(cmdFrame.aux12));
         break;
     case FUJICMD_READ_HOST_SLOTS:
-        sio_ack();
         fujicmd_read_host_slots();
         break;
     case FUJICMD_WRITE_HOST_SLOTS:
-        sio_late_ack();
         fujicmd_write_host_slots();
         break;
     case FUJICMD_READ_DEVICE_SLOTS:
-        sio_ack();
         fujicmd_read_device_slots(MAX_DISK_DEVICES);
         break;
     case FUJICMD_WRITE_DEVICE_SLOTS:
-        sio_late_ack();
         fujicmd_write_device_slots(MAX_DISK_DEVICES);
         break;
     case FUJICMD_GET_WIFI_ENABLED:
-        sio_ack();
         fujicmd_net_get_wifi_enabled();
         break;
     case FUJICMD_SET_BAUDRATE:
-        sio_ack();
         sio_set_baudrate();
         break;
     case FUJICMD_UNMOUNT_IMAGE:
-        sio_ack();
         fujicmd_unmount_disk_image_success(cmdFrame.aux1);
         break;
     case FUJICMD_GET_ADAPTERCONFIG:
-        sio_ack();
         fujicmd_get_adapter_config();
         break;
     case FUJICMD_GET_ADAPTERCONFIG_EXTENDED:
-        sio_ack();
         fujicmd_get_adapter_config_extended();
         break;
     case FUJICMD_NEW_DISK:
-        sio_late_ack();
         sio_new_disk();
         break;
     case FUJICMD_UNMOUNT_HOST:
-        sio_ack();
         fujicmd_unmount_host_success(cmdFrame.aux1);
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
-        sio_late_ack();
         fujicmd_set_device_filename_success(cmdFrame.aux1, cmdFrame.aux2 >> 4, cmdFrame.aux2 & 0x0F);
         break;
     case FUJICMD_SET_HOST_PREFIX:
-        sio_late_ack();
         fujicmd_set_host_prefix(cmdFrame.aux1);
         break;
     case FUJICMD_GET_HOST_PREFIX:
-        sio_ack();
         fujicmd_get_host_prefix(cmdFrame.aux1);
         break;
     case FUJICMD_SET_SIO_EXTERNAL_CLOCK:
-        sio_ack();
         fujicmd_set_sio_external_clock(le16toh(cmdFrame.aux12));
         break;
     case FUJICMD_WRITE_APPKEY:
-        sio_late_ack();
         fujicmd_write_app_key(le16toh(cmdFrame.aux12));
         break;
     case FUJICMD_READ_APPKEY:
-        sio_ack();
         fujicmd_read_app_key();
         break;
     case FUJICMD_OPEN_APPKEY:
-        sio_late_ack();
         fujicmd_open_app_key();
         break;
     case FUJICMD_CLOSE_APPKEY:
-        sio_ack();
         fujicmd_close_app_key();
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
-        sio_ack();
         fujicmd_get_device_filename(cmdFrame.aux1);
         break;
     case FUJICMD_CONFIG_BOOT:
-        sio_ack();
         fujicmd_set_boot_config(cmdFrame.aux1);
         break;
     case FUJICMD_COPY_FILE:
-        sio_late_ack();
         sio_copy_file();
         break;
     case FUJICMD_MOUNT_ALL:
-        sio_ack();
         fujicmd_mount_all_success();
         break;
     case FUJICMD_SET_BOOT_MODE:
-        sio_ack();
         fujicmd_set_boot_mode(cmdFrame.aux1, IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
         break;
     case FUJICMD_ENABLE_UDPSTREAM:
-        sio_late_ack();
         fujicmd_enable_udpstream(le16toh(cmdFrame.aux12));
         break;
     case FUJICMD_QRCODE_INPUT:
-        sio_ack();
         sio_qrcode_input();
         break;
     case FUJICMD_QRCODE_ENCODE:
-        sio_ack();
         sio_qrcode_encode();
         break;
     case FUJICMD_QRCODE_LENGTH:
-        sio_ack();
         sio_qrcode_length();
         break;
     case FUJICMD_QRCODE_OUTPUT:
-        sio_ack();
         sio_qrcode_output();
         break;
     case FUJICMD_BASE64_ENCODE_INPUT:
-        sio_late_ack();
         sio_base64_encode_input();
         break;
     case FUJICMD_BASE64_ENCODE_COMPUTE:
-        sio_ack();
         sio_base64_encode_compute();
         break;
     case FUJICMD_BASE64_ENCODE_LENGTH:
-        sio_ack();
         sio_base64_encode_length();
         break;
     case FUJICMD_BASE64_ENCODE_OUTPUT:
-        sio_ack();
         sio_base64_encode_output();
         break;
     case FUJICMD_BASE64_DECODE_INPUT:
-        sio_late_ack();
         sio_base64_decode_input();
         break;
     case FUJICMD_BASE64_DECODE_COMPUTE:
-        sio_ack();
         sio_base64_decode_compute();
         break;
     case FUJICMD_BASE64_DECODE_LENGTH:
-        sio_ack();
         sio_base64_decode_length();
         break;
     case FUJICMD_BASE64_DECODE_OUTPUT:
-        sio_ack();
         sio_base64_decode_output();
         break;
     case FUJICMD_HASH_INPUT:
-        sio_late_ack();
         sio_hash_input();
         break;
     case FUJICMD_HASH_COMPUTE:
-        sio_ack();
         sio_hash_compute(true);
         break;
     case FUJICMD_HASH_COMPUTE_NO_CLEAR:
-        sio_ack();
         sio_hash_compute(false);
         break;
     case FUJICMD_HASH_LENGTH:
-        sio_ack();
         sio_hash_length();
         break;
     case FUJICMD_HASH_OUTPUT:
-        sio_ack();
         sio_hash_output();
         break;
     case FUJICMD_HASH_CLEAR:
-        sio_ack();
         sio_hash_clear();
         break;
     case FUJICMD_RANDOM_NUMBER:
-        sio_ack();
         sio_random_number();
         break;
     default:
-        sio_nak();
+        transaction_error();
     }
 }
 

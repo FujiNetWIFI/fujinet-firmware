@@ -12,16 +12,35 @@ private:
     QRManager _qrManager = QRManager();
 
 protected:
-    void transaction_complete() override { sio_complete(); }
-    void transaction_error() override { sio_error(); }
+    bool _transaction_did_ack = false;
+    void transaction_complete() override {
+        if (!_transaction_did_ack)
+            sio_ack();
+        sio_complete();
+        _transaction_did_ack = false;
+    }
+    void transaction_error() override {
+        if (!_transaction_did_ack)
+            sio_nak();
+        else
+            sio_error();
+        _transaction_did_ack = false;
+    }
     bool transaction_get(void *data, size_t len) {
+        if (!_transaction_did_ack) {
+            sio_late_ack();
+            _transaction_did_ack = true;
+        }
         uint8_t ck = bus_to_peripheral((uint8_t *) data, len);
         if (sio_checksum((uint8_t *) data, len) != ck)
             return false;
         return true;
     }
     void transaction_put(const void *data, size_t len, bool err) override {
+        if (!_transaction_did_ack)
+            sio_ack();
         bus_to_computer((uint8_t *) data, len, err);
+        _transaction_did_ack = false;
     }
 
     size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen) override;
