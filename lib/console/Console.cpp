@@ -22,6 +22,8 @@
 #include "../../include/debug.h"
 #include "string_utils.h"
 
+#include <driver/uart_vfs.h>
+
 using namespace ESP32Console::Commands;
 
 namespace ESP32Console
@@ -136,9 +138,9 @@ namespace ESP32Console
         setvbuf(stdin, NULL, _IONBF, 0);
 
         /* Minicom, screen, idf_monitor send CR when ENTER key is pressed */
-        esp_vfs_dev_uart_port_set_rx_line_endings(channel, ESP_LINE_ENDINGS_CR);
+        uart_vfs_dev_port_set_rx_line_endings(channel, ESP_LINE_ENDINGS_CR);
         /* Move the caret to the beginning of the next line on '\n' */
-        esp_vfs_dev_uart_port_set_tx_line_endings(channel, ESP_LINE_ENDINGS_CRLF);
+        uart_vfs_dev_port_set_tx_line_endings(channel, ESP_LINE_ENDINGS_CRLF);
 
         /* Enable non-blocking mode on stdin and stdout */
         fcntl(fileno(stdout), F_SETFL, 0);
@@ -155,7 +157,7 @@ namespace ESP32Console
             .stop_bits = UART_STOP_BITS_1,
             .source_clk = UART_SCLK_DEFAULT,
         };
-    
+
 
         ESP_ERROR_CHECK(uart_param_config((uart_port_t)channel, &uart_config));
 
@@ -171,7 +173,7 @@ namespace ESP32Console
         ESP_ERROR_CHECK(uart_driver_install((uart_port_t)channel, 256, 0, 0, NULL, 0));
 
         /* Tell VFS to use UART driver */
-        esp_vfs_dev_uart_use_driver((uart_port_t)channel);
+        uart_vfs_dev_use_driver((uart_port_t)channel);
 
         esp_console_config_t console_config = {
             .max_cmdline_length = max_cmdline_len_,
@@ -260,7 +262,7 @@ namespace ESP32Console
 
             // /* Add the command to the history */
             // linenoiseHistoryAdd(line);
-            
+
             // /* Save command history to filesystem */
             // if (console.history_save_path_)
             // {
