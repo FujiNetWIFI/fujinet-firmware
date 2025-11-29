@@ -117,8 +117,8 @@ void print_packet_wave(uint8_t *data, int bytes)
 
 //------------------------------------------------------------------------------
 
-uint8_t iwmDevice::data_buffer[MAX_DATA_LEN] = {0};
-int iwmDevice::data_len = 0;
+uint8_t virtualDevice::data_buffer[MAX_DATA_LEN] = {0};
+int virtualDevice::data_len = 0;
 
 void systemBus::iwm_ack_deassert()
 {
@@ -242,17 +242,17 @@ void systemBus::setup(void)
 // to 4 partions, i.e. devices, so we need to specify when we are doing the last
 // init reply.
 //*****************************************************************************
-void iwmDevice::send_init_reply_packet(uint8_t source, uint8_t status)
+void virtualDevice::send_init_reply_packet(uint8_t source, uint8_t status)
 {
   SYSTEM_BUS.iwm_send_packet(source, iwm_packet_type_t::status, status, nullptr, 0);
 }
 
-void iwmDevice::send_reply_packet(uint8_t status)
+void virtualDevice::send_reply_packet(uint8_t status)
 {
   SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, status, nullptr, 0);
 }
 
-void iwmDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
+void virtualDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
 {
   //Handle possible data packet to avoid crash extended and non-extended
   switch(cmd.command)
@@ -288,7 +288,7 @@ void iwmDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
   }
 }
 
-void iwmDevice::iwm_return_device_offline(iwm_decoded_cmd_t cmd)
+void virtualDevice::iwm_return_device_offline(iwm_decoded_cmd_t cmd)
 {
   //Handle possible data packet to avoid crash extended and non-extended
   switch(cmd.command)
@@ -322,18 +322,18 @@ void iwmDevice::iwm_return_device_offline(iwm_decoded_cmd_t cmd)
   }
 }
 
-void iwmDevice::iwm_return_ioerror()
+void virtualDevice::iwm_return_ioerror()
 {
   // Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
   send_reply_packet(SP_ERR_IOERROR);
 }
 
-void iwmDevice::iwm_return_noerror()
+void virtualDevice::iwm_return_noerror()
 {
   send_reply_packet(SP_ERR_NOERROR);
 }
 
-void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
+void virtualDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 {
   uint8_t status_code = cmd.params[2];
 
@@ -356,7 +356,7 @@ void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 // data[..16 bytes ]      = name padded with spaces to 16 bytes
 // data[..2 bytes]        = device type
 // data[..2 byte]         = device version
-std::vector<uint8_t> iwmDevice::create_dib_reply_packet(const std::string& device_name, uint8_t status, const std::vector<uint8_t>& block_size, const std::array<uint8_t, 2>& type, const std::array<uint8_t, 2>& version)
+std::vector<uint8_t> virtualDevice::create_dib_reply_packet(const std::string& device_name, uint8_t status, const std::vector<uint8_t>& block_size, const std::array<uint8_t, 2>& type, const std::array<uint8_t, 2>& version)
 {
     std::vector<uint8_t> data;
     data.push_back(status);
@@ -743,7 +743,7 @@ iwm_enable_state_t IRAM_ATTR systemBus::iwm_motor_state()
 void systemBus::handle_init()
 {
   uint8_t status = 0;
-  iwmDevice *pDevice = nullptr;
+  virtualDevice *pDevice = nullptr;
 
   fnLedManager.set(LED_BUS, true);
 
@@ -777,7 +777,7 @@ void systemBus::handle_init()
 }
 
 // Add device to SIO bus
-void systemBus::addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType)
+void systemBus::addDevice(virtualDevice *pDevice, iwm_fujinet_type_t deviceType)
 {
   // SmartPort interface assigns device numbers to the devices in the daisy chain one at a time
   // as opposed to using standard or fixed device ID's like Atari SIO. Therefore, an emulated
@@ -843,7 +843,7 @@ void systemBus::addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType)
 
 // Removes device from the SIO bus.
 // Note that the destructor is called on the device!
-void systemBus::remDevice(iwmDevice *p)
+void systemBus::remDevice(virtualDevice *p)
 {
   _daisyChain.remove(p);
 }
@@ -859,7 +859,7 @@ int systemBus::numDevices()
   __END_IGNORE_UNUSEDVARS
 }
 
-void systemBus::changeDeviceId(iwmDevice *p, int device_id)
+void systemBus::changeDeviceId(virtualDevice *p, int device_id)
 {
   for (auto devicep : _daisyChain)
   {
@@ -868,7 +868,7 @@ void systemBus::changeDeviceId(iwmDevice *p, int device_id)
   }
 }
 
-iwmDevice *systemBus::deviceById(int device_id)
+virtualDevice *systemBus::deviceById(int device_id)
 {
   for (auto devicep : _daisyChain)
   {
@@ -880,13 +880,13 @@ iwmDevice *systemBus::deviceById(int device_id)
 
 void systemBus::enableDevice(uint8_t device_id)
 {
-  iwmDevice *p = deviceById(device_id);
+  virtualDevice *p = deviceById(device_id);
   p->device_active = true;
 }
 
 void systemBus::disableDevice(uint8_t device_id)
 {
-  iwmDevice *p = deviceById(device_id);
+  virtualDevice *p = deviceById(device_id);
   p->device_active = false;
 }
 

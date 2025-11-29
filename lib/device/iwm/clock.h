@@ -4,7 +4,7 @@
 #include "bus.h"
 #include "../../clock/Clock.h"
 
-class iwmClock : public iwmDevice
+class iwmClock : public virtualDevice
 {
 private:
     void set_tz();

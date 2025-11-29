@@ -199,7 +199,7 @@ struct iwm_device_info_block_t
   void print_packet(uint8_t* data);
 //#endif
 
-class iwmDevice
+class virtualDevice
 {
 friend systemBus; // put here for prototype, not sure if will need to keep it
 
@@ -274,7 +274,7 @@ class systemBus
 private:
 
 
-  iwmDevice *_activeDev = nullptr;
+  virtualDevice *_activeDev = nullptr;
 
   iwmFuji *_fujiDev = nullptr;
   iwmModem *_modemDev = nullptr;
@@ -319,7 +319,7 @@ private:
   int new_track = -1;
 
 public:
-  std::forward_list<iwmDevice *> _daisyChain;
+  std::forward_list<virtualDevice *> _daisyChain;
 
   cmdPacket_t command_packet;
   bool iwm_decode_data_packet(uint8_t *a, int &n);
@@ -336,14 +336,14 @@ public:
   void shutdown();
 
   int numDevices();
-  void addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType); // todo: probably get called by handle_init()
-  void remDevice(iwmDevice *pDevice);
-  iwmDevice *deviceById(int device_id);
-  iwmDevice *firstDev() {return _daisyChain.front();}
-  uint8_t* devBuffer() {return (uint8_t *)iwmDevice::data_buffer;}
+  void addDevice(virtualDevice *pDevice, iwm_fujinet_type_t deviceType); // todo: probably get called by handle_init()
+  void remDevice(virtualDevice *pDevice);
+  virtualDevice *deviceById(int device_id);
+  virtualDevice *firstDev() {return _daisyChain.front();}
+  uint8_t* devBuffer() {return (uint8_t *)virtualDevice::data_buffer;}
   void enableDevice(uint8_t device_id);
   void disableDevice(uint8_t device_id);
-  void changeDeviceId(iwmDevice *p, int device_id);
+  void changeDeviceId(virtualDevice *p, int device_id);
   iwmPrinter *getPrinter() { return _printerdev; }
   bool shuttingDown = false;                                  // TRUE if we are in shutdown process
   bool getShuttingDown() { return shuttingDown; };
