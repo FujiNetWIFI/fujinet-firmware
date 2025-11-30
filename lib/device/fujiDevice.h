@@ -113,6 +113,7 @@ protected:
 
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
 
+    virtual void transaction_continue(bool expectMoreData) = 0;
     virtual void transaction_complete() = 0;
     virtual void transaction_error() = 0;
     virtual bool transaction_get(void *data, size_t len) = 0;
@@ -159,7 +160,7 @@ public:
     bool fujicmd_mount_disk_image_success(uint8_t deviceSlot, uint8_t access_mode);
     bool fujicmd_unmount_disk_image_success(uint8_t deviceSlot);
     void fujicmd_image_rotate();
-    bool fujicmd_open_directory_success(uint8_t hostSlot, const std::string &dirpath);
+    bool fujicmd_open_directory_success(uint8_t hostSlot);
     virtual void fujicmd_close_directory();
     virtual void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl);
     void fujicmd_get_directory_position();
@@ -195,7 +196,7 @@ public:
     // ============ Implementations by fujicmd_ methods ============
     // These are safe to call directly if the bus abstraction
     // (transaction_) doesn't suit the platform.
-    void fujicore_open_app_key(uint16_t creator, uint8_t app, uint8_t key,
+    bool fujicore_open_app_key(uint16_t creator, uint8_t app, uint8_t key,
                                appkey_mode mode, uint8_t reserved);
     SSIDInfo fujicore_net_scan_result(uint8_t index, bool *err=nullptr);
     SSIDConfig fujicore_net_get_ssid();

@@ -138,6 +138,7 @@ sioFuji::sioFuji()
 void sioFuji::sio_net_set_ssid()
 {
     SSIDConfig cfg;
+    transaction_continue(true);
     if (!transaction_get(&cfg, sizeof(cfg)))
         transaction_error();
     else
@@ -223,23 +224,10 @@ void sioFuji::debug_tape()
     }
 }
 
-#if 0 //ndef ESP_PLATFORM
-int sioFuji::_on_ok(bool siomode)
-{
-    if (siomode) transaction_complete();
-    return 0;
-}
-
-int sioFuji::_on_error(bool siomode, int rc)
-{
-    if (siomode) transaction_error();
-    return rc;
-}
-#endif
-
 //  Make new disk and shove into device slot
 void sioFuji::sio_new_disk()
 {
+    transaction_continue(true);
     Debug_println("Fuji cmd: NEW DISK");
 
     struct
@@ -362,6 +350,8 @@ void sioFuji::setup()
 
 void sioFuji::sio_qrcode_input()
 {
+    transaction_continue(true);
+
     uint16_t len = sio_get_aux();
 
     Debug_printf("FUJI: QRCODE INPUT (len: %d)\n", len);
@@ -477,6 +467,8 @@ void sioFuji::sio_qrcode_output()
 
 void sioFuji::sio_base64_encode_input()
 {
+    transaction_continue(true);
+
     uint16_t len = sio_get_aux();
 
     Debug_printf("FUJI: BASE64 ENCODE INPUT\n");
@@ -575,6 +567,8 @@ void sioFuji::sio_random_number()
 
 void sioFuji::sio_base64_decode_input()
 {
+    transaction_continue(true);
+
     uint16_t len = sio_get_aux();
 
     Debug_printf("FUJI: BASE64 DECODE INPUT\n");
@@ -669,6 +663,8 @@ void sioFuji::sio_base64_decode_output()
 
 void sioFuji::sio_hash_input()
 {
+    transaction_continue(true);
+
     Debug_printf("FUJI: HASH INPUT\n");
     uint16_t len = sio_get_aux();
     if (!len)
@@ -726,6 +722,7 @@ void sioFuji::sio_copy_file()
 {
     char csBuf[256];
 
+    transaction_continue(true);
     if (!transaction_get(csBuf, sizeof(csBuf)))
     {
         transaction_error();
@@ -778,17 +775,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         fujicmd_mount_disk_image_success(cmdFrame.aux1, cmdFrame.aux2);
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        {
-            char dirpath[256];
-
-            if (!transaction_get(dirpath, sizeof(dirpath))) {
-                transaction_error();
-                return;
-            }
-
-            fujicmd_open_directory_success(cmdFrame.aux1,
-                                           std::string(dirpath, sizeof(dirpath)));
-        }
+        fujicmd_open_directory_success(cmdFrame.aux1);
         break;
     case FUJICMD_READ_DIR_ENTRY:
         fujicmd_read_directory_entry(cmdFrame.aux1, cmdFrame.aux2);

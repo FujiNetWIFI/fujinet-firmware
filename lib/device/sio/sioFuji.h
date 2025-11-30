@@ -5,6 +5,8 @@
 #include "cassette.h"
 #include "../../qrcode/qrmanager.h"
 
+#include <cassert>
+
 class sioFuji : public fujiDevice
 {
 private:
@@ -12,35 +14,42 @@ private:
     QRManager _qrManager = QRManager();
 
 protected:
-    bool _transaction_did_ack = false;
-    void transaction_complete() override {
-        if (!_transaction_did_ack)
+    AtariSIODirection _transaction_direction = SIO_DIRECTION_INVALID;
+    void transaction_continue(bool expectMoreData) override {
+        assert(_transaction_direction == SIO_DIRECTION_INVALID);
+        // For some reason NetSIO needs a hint that this is a WRITE transaction
+        if (expectMoreData) {
+            sio_late_ack();
+            _transaction_direction = SIO_DIRECTION_WRITE;
+        }
+        else {
             sio_ack();
+            _transaction_direction = SIO_DIRECTION_READ; // FIXME - do we care about NONE?
+        }
+    }
+    void transaction_complete() override {
+        assert(_transaction_direction != SIO_DIRECTION_INVALID);
         sio_complete();
-        _transaction_did_ack = false;
+        _transaction_direction = SIO_DIRECTION_INVALID;
     }
     void transaction_error() override {
-        if (!_transaction_did_ack)
-            sio_nak();
-        else
+        if (_transaction_direction == SIO_DIRECTION_INVALID)
             sio_error();
-        _transaction_did_ack = false;
+        else
+            sio_nak();
+        _transaction_direction = SIO_DIRECTION_INVALID;
     }
-    bool transaction_get(void *data, size_t len) {
-        if (!_transaction_did_ack) {
-            sio_late_ack();
-            _transaction_did_ack = true;
-        }
+    bool transaction_get(void *data, size_t len) override {
+        assert(_transaction_direction == SIO_DIRECTION_WRITE);
         uint8_t ck = bus_to_peripheral((uint8_t *) data, len);
         if (sio_checksum((uint8_t *) data, len) != ck)
             return false;
         return true;
     }
     void transaction_put(const void *data, size_t len, bool err) override {
-        if (!_transaction_did_ack)
-            sio_ack();
+        assert(_transaction_direction == SIO_DIRECTION_READ);
         bus_to_computer((uint8_t *) data, len, err);
-        _transaction_did_ack = false;
+        _transaction_direction = SIO_DIRECTION_INVALID;
     }
 
     size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen) override;
