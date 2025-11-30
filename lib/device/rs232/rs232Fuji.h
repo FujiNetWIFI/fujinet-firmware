@@ -9,6 +9,7 @@ class rs232Fuji : public fujiDevice
 private:
 
 protected:
+    void transaction_continue(bool expectMoreData) override {}
     void transaction_complete() override { rs232_complete(); }
     void transaction_error() override { rs232_error(); }
     bool transaction_get(void *data, size_t len) override {

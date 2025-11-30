@@ -569,6 +569,25 @@ void fujiDevice::insert_boot_device(uint8_t image_id, std::string extension,
     disk_dev->is_config_device = true;
 }
 
+bool fujiDevice::fujicore_open_directory_success(uint8_t hostSlot, const std::string &dirpath)
+{
+    // See if there's a search pattern after the directory path
+    const std::string *finalpath = &dirpath;
+    std::string noslash;
+    std::optional<std::string> pattern;
+    int pathlen = finalpath->find('\0');
+    if (pathlen < finalpath->size() - 3) // Allow for two NULLs and a 1-char pattern
+        pattern = finalpath->substr(pathlen + 1);
+
+    // Remove trailing slash
+    if (pathlen > 1 && (*finalpath)[pathlen - 1] == '/') {
+        noslash = finalpath->substr(0, pathlen - 1);
+        finalpath = &noslash;
+    }
+
+    return fujicore_open_directory_success(hostSlot, *finalpath, pattern);
+}
+
 bool fujiDevice::fujicore_open_directory_success(uint8_t hostSlot, const std::string &dirpath,
                                                  const std::optional<std::string> &pattern)
 {
@@ -617,21 +636,7 @@ bool fujiDevice::fujicmd_open_directory_success(uint8_t hostSlot)
         _current_open_directory_slot = -1;
     }
 
-    // See if there's a search pattern after the directory path
-    const std::string *finalpath = &dirpath;
-    std::string noslash;
-    std::optional<std::string> pattern;
-    int pathlen = finalpath->find('\0');
-    if (pathlen < finalpath->size() - 3) // Allow for two NULLs and a 1-char pattern
-        pattern = finalpath->substr(pathlen + 1);
-
-    // Remove trailing slash
-    if (pathlen > 1 && (*finalpath)[pathlen - 1] == '/') {
-        noslash = finalpath->substr(0, pathlen - 1);
-        finalpath = &noslash;
-    }
-
-    if (!fujicore_open_directory_success(hostSlot, *finalpath, pattern))
+    if (!fujicore_open_directory_success(hostSlot, dirpath))
     {
         transaction_error();
         return false;
