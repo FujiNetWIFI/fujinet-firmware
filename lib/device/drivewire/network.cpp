@@ -5,21 +5,11 @@
  */
 
 #include "network.h"
+#include "../network.h"
+#include "fuji_endian.h"
 
 #include <cstring>
 #include <algorithm>
-
-#ifdef __APPLE__
-#include <libkern/OSByteOrder.h>
-#define htobe16(x) OSSwapHostToBigInt16(x)
-#else
-#if defined(_WIN16) || defined(_WIN32) || defined(_WIN64) || defined(__WINDOWS__)
-#include <winsock2.h>
-#define htobe16(x) htons(x)
-#else
-#include <endian.h>
-#endif // windows
-#endif /* __APPLE__ */
 
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
@@ -28,15 +18,7 @@
 #include "utils.h"
 
 #include "status_error_codes.h"
-#include "TCP.h"
-#include "UDP.h"
-#include "Test.h"
-#include "Telnet.h"
-#include "TNFS.h"
-#include "FTP.h"
-#include "HTTP.h"
-#include "SSH.h"
-#include "SMB.h"
+#include "Protocol.h"
 
 using namespace std;
 
@@ -139,7 +121,7 @@ void drivewireNetwork::ready()
  */
 void drivewireNetwork::open()
 {
-    Debug_printf("drivewireNetwork::sio_open(%02x,%02x)\n",cmdFrame.aux1,cmdFrame.aux2);
+    Debug_printf("drivewireNetwork::open(%02x,%02x)\n",cmdFrame.aux1,cmdFrame.aux2);
 
     char tmp[256];
 
@@ -242,7 +224,7 @@ void drivewireNetwork::open()
  */
 void drivewireNetwork::close()
 {
-    Debug_printf("drivewireNetwork::sio_close()\n");
+    Debug_printf("drivewireNetwork::close()\n");
 
     ns.reset();
 
@@ -400,7 +382,7 @@ void drivewireNetwork::write()
         return;
     }
 
-    Debug_printf("sioNetwork::drivewire_write( %u bytes)\n", num_bytes);
+    Debug_printf("drivewireNetwork::drivewire_write( %u bytes)\n", num_bytes);
 
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
@@ -509,7 +491,6 @@ bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
 {
     ns->connected = json_bytes_remaining > 0;
     ns->error = json_bytes_remaining > 0 ? 1 : 136;
-    ns->rxBytesWaiting = json_bytes_remaining;
     return false; // for now
 }
 
@@ -539,8 +520,7 @@ void drivewireNetwork::status_channel()
     // clear forced flag (first status after open)
     protocol->forceStatus = false;
 
-    // Serialize status into status bytes (rxBytesWaiting sent big endian!)
-    size_t avail = ns.rxBytesWaiting;
+    size_t avail = protocol->available();
     avail = avail > 65535 ? 65535 : avail;
     status.avail = htobe16(avail);
     status.conn = ns.connected;
@@ -587,7 +567,7 @@ void drivewireNetwork::set_prefix()
 
     prefixSpec_str = string((const char *)tmp);
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
-    Debug_printf("sioNetwork::sio_set_prefix(%s)\n", prefixSpec_str.c_str());
+    Debug_printf("drivewireNetwork::set_prefix(%s)\n", prefixSpec_str.c_str());
 
     // If "NCD Nn:" then prefix is cleared completely
     if (prefixSpec_str.empty())
@@ -921,56 +901,12 @@ void drivewireNetwork::special_80()
  */
 bool drivewireNetwork::instantiate_protocol()
 {
-    if (urlParser == nullptr)
+    if (!protocolParser)
     {
-        Debug_printf("drivewireNetwork::open_protocol() - urlParser is NULL. Aborting.\n");
-        return false; // error.
+        protocolParser = new ProtocolParser();
     }
 
-    // Convert to uppercase
-    transform(urlParser->scheme.begin(), urlParser->scheme.end(), urlParser->scheme.begin(), ::toupper);
-
-    if (urlParser->scheme == "TCP")
-    {
-        protocol = new NetworkProtocolTCP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "UDP")
-    {
-        protocol = new NetworkProtocolUDP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "TEST")
-    {
-        protocol = new NetworkProtocolTest(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "TELNET")
-    {
-        protocol = new NetworkProtocolTELNET(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "TNFS")
-    {
-        protocol = new NetworkProtocolTNFS(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "FTP")
-    {
-        protocol = new NetworkProtocolFTP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "HTTP" || urlParser->scheme == "HTTPS")
-    {
-        protocol = new NetworkProtocolHTTP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "SSH")
-    {
-        protocol = new NetworkProtocolSSH(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "SMB")
-    {
-        protocol = new NetworkProtocolSMB(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else
-    {
-        Debug_printf("Invalid protocol: %s\n", urlParser->scheme.c_str());
-        return false; // invalid protocol.
-    }
+    protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
     {
@@ -1030,7 +966,7 @@ void drivewireNetwork::poll_interrupt()
         protocol->status(&ns);
         protocol->fromInterrupt = false;
 
-        if (ns.rxBytesWaiting > 0 || ns.connected == 0)
+        if (protocol->available() > 0 || ns.connected == 0)
             assert_interrupt();
 #ifndef ESP_PLATFORM
 else

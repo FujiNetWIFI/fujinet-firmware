@@ -99,7 +99,6 @@ netProtoErr_t NetworkProtocolTest::write(unsigned short len)
 
 netProtoErr_t NetworkProtocolTest::status(NetworkStatus *status)
 {
-    status->rxBytesWaiting = test_data.length();
     status->connected = 1;
     status->error = error;
 
