@@ -216,9 +216,6 @@ netProtoErr_t NetworkProtocolTCP::status(NetworkStatus *status)
 
 void NetworkProtocolTCP::status_client(NetworkStatus *status)
 {
-#if 0
-    status->rxBytesWaiting = (client.available() > 65535) ? 65535 : client.available();
-#endif
     status->connected = client.connected();
     status->error = client.connected() ? error : 136;
 }

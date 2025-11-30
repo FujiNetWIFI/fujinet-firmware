@@ -5,12 +5,14 @@
  */
 
 #include "network.h"
+#include "../network.h"
 
 #include <cstring>
 #include <string>
 #include <algorithm>
 #include <vector>
 #include <memory>
+#include <sstream>
 
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
@@ -21,17 +23,6 @@
 #include "fuji_endian.h"
 
 #include "status_error_codes.h"
-#include "TCP.h"
-#include "UDP.h"
-#include "Test.h"
-#include "Telnet.h"
-#include "TNFS.h"
-#include "FTP.h"
-#include "HTTP.h"
-#include "SSH.h"
-#include "SMB.h"
-
-#include "ProtocolParser.h"
 
 using namespace std;
 

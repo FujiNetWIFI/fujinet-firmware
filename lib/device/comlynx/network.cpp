@@ -15,19 +15,9 @@
 #include "utils.h"
 
 #include "status_error_codes.h"
-#include "TCP.h"
-#include "UDP.h"
-#include "Test.h"
-#include "Telnet.h"
-#include "TNFS.h"
-#include "FTP.h"
-#include "HTTP.h"
-#include "SSH.h"
-#include "SMB.h"
-
 #include "ProtocolParser.h"
 
-// using namespace std;
+using namespace std;
 
 /**
  * Constructor
@@ -297,8 +287,8 @@ void lynxNetwork::status()
     size_t avail = protocol->available();
     avail = avail > 65535 ? 65535 : avail;
     status->avail = avail;
-    status->conn = ns.connected;
-    status->err = ns.error;
+    status->conn = s.connected;
+    status->err = s.error;
     response_len = sizeof(*status);
     receiveMode = STATUS;
 }
@@ -435,7 +425,6 @@ void lynxNetwork::del(uint16_t s)
 
     memset(response, 0, sizeof(response));
     comlynx_recv_buffer(response, s);
-    comlynx_recv(); // CK
 
     // Get packet checksum
     if (!comlynx_recv_ck()) {
@@ -613,6 +602,8 @@ void lynxNetwork::json_parse()
         return;
     }
     comlynx_response_ack();
+
+    Debug_println("lynxNetwork::json_parse");
     json.parse();
 }
 
@@ -897,13 +888,12 @@ void lynxNetwork::comlynx_control_receive_channel_protocol()
 
     if (!avail)
     {
-        SYSTEM_BUS.start_time = esp_timer_get_time();
+        comlynx_response_nack();
         return;
     }
     else
     {
-        comlynx_response_nack();
-        return;
+        comlynx_response_ack();
     }
 
     // Truncate bytes waiting to response size
