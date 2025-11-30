@@ -135,6 +135,7 @@ protected:
      */
     void status_client(NetworkStatus* status);
 
+    virtual size_t available() override;
 };
 
 #endif /* NETWORKPROTOCOL_TCP */

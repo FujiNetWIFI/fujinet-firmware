@@ -8,6 +8,7 @@
 #include <cstdint>
 
 #include "network.h"
+#include "../network.h"
 #include "../../include/cbm_defines.h"
 
 #include "../../include/debug.h"
@@ -17,16 +18,6 @@
 
 #include "status_error_codes.h"
 #include "NetworkProtocolFactory.h"
-#include "TCP.h"
-#include "UDP.h"
-#include "Test.h"
-#include "Telnet.h"
-#include "TNFS.h"
-#include "FTP.h"
-#include "HTTP.h"
-#include "SSH.h"
-#include "SMB.h"
-
 
 iecNetwork::iecNetwork(uint8_t devnr) : IECFileDevice(devnr)
 {
@@ -1050,10 +1041,11 @@ bool iecNetwork::receive(NetworkData &channel_data, uint16_t rxBytes)
 
   // Get status
   channel_data.protocol->status(&ns);
-  if( ns.rxBytesWaiting>0 )
+  size_t avail = channel_data.protocol->available();
+  if( avail > 0 )
     {
-      uint16_t blockSize = std::min(ns.rxBytesWaiting, rxBytes);
-      Debug_printf("bytes waiting: %u / blockSize: %u / connected: %u / error: %u ", ns.rxBytesWaiting, blockSize, ns.connected, ns.error);
+      uint16_t blockSize = std::min(avail, (size_t) rxBytes);
+      Debug_printf("bytes waiting: %u / blockSize: %u / connected: %u / error: %u ", avail, blockSize, ns.connected, ns.error);
       if( channel_data.protocol->read(blockSize) )
         {
           // protocol adapter returned error
@@ -1160,17 +1152,19 @@ uint8_t iecNetwork::getStatusData(char *buffer, uint8_t bufferSize)
         channel_data.json->status(&ns);
       }
 
-      if (is_binary_status) {
-        buffer[0] = ns.rxBytesWaiting & 0xFF;        // Low uint8_t of ns.rxBytesWaiting
-        buffer[1] = (ns.rxBytesWaiting >> 8) & 0xFF; // High uint8_t of ns.rxBytesWaiting
+      size_t avail = channel_data.protocol->available();
+      avail = avail > 65535 ? 65535 : avail;
 
-        buffer[2] = ns.connected;
-        buffer[3] = ns.error;
+      if (is_binary_status) {
+        NDeviceStatus *status = (NDeviceStatus *) buffer;
+        status->avail = avail;
+        status->conn = ns.connected;
+        status->err = ns.error;
 
         Debug_printf("Sending binary status for active channel #%d: %s\r\n", active_status_channel, mstr::toHex((uint8_t *) buffer, 4).c_str());
         return 4;
       } else {
-        snprintf(buffer, bufferSize, "%u,%u,%u", ns.rxBytesWaiting, ns.connected, ns.error);
+        snprintf(buffer, bufferSize, "%u,%u,%u", avail, ns.connected, ns.error);
         Debug_printf("Sending status for active channel #%d: %s\r\n", active_status_channel, buffer);
         return strlen(buffer);
       }
@@ -1213,7 +1207,7 @@ void iecNetwork::task()
           if( protocol && protocol->interruptEnable )
             {
               protocol->status(&ns);
-              if( ns.rxBytesWaiting > 0 /*|| ns.connected == 0*/ )
+              if( protocol->available() > 0 /*|| ns.connected == 0*/ )
                 {
                   sendSRQ();
                   nextSRQ = fnSystem.millis() + 10;

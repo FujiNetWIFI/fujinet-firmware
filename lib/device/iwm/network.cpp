@@ -5,6 +5,7 @@
  */
 
 #include "network.h"
+#include "../network.h"
 
 #include <cstring>
 #include <ctype.h>
@@ -18,20 +19,8 @@
 
 #include "status_error_codes.h"
 #include "NetworkProtocolFactory.h"
-#include "network_data.h"
-#include "TCP.h"
-#include "UDP.h"
-#include "Test.h"
-#include "Telnet.h"
-#include "TNFS.h"
-#include "FTP.h"
-#include "HTTP.h"
-#include "SSH.h"
-#include "SMB.h"
 
-#include "ProtocolParser.h"
-
-// using namespace std;
+using namespace std;
 
 /**
  * Constructor
@@ -494,6 +483,7 @@ void iwmNetwork::status()
 {
     auto& current_network_data = network_data_map[current_network_unit];
     NetworkStatus s;
+    NDeviceStatus *status;
 
     switch (current_network_data.channelMode)
     {
@@ -511,16 +501,15 @@ void iwmNetwork::status()
         break;
     }
 
-    Debug_printf("Bytes Waiting: 0x%02x, Connected: %u, Error: %u\n", s.rxBytesWaiting, s.connected, s.error);
+    size_t avail = current_network_data.protocol->available();
+    Debug_printf("Bytes Waiting: 0x%02x, Connected: %u, Error: %u\n", avail, s.connected, s.error);
 
-    if (s.rxBytesWaiting > 512)
-        s.rxBytesWaiting = 512;
-
-    data_buffer[0] = s.rxBytesWaiting & 0xFF;
-    data_buffer[1] = s.rxBytesWaiting >> 8;
-    data_buffer[2] = s.connected;
-    data_buffer[3] = s.error;
-    data_len = 4;
+    avail = std::min((size_t) 512, avail);
+    status = (NDeviceStatus *) data_buffer;
+    status->avail = avail;
+    status->conn = s.connected;
+    status->err = s.error;
+    data_len = sizeof(*status);
 }
 
 void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
@@ -554,13 +543,13 @@ void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
         send_status_dib_reply_packet();
         return;
         break;
-    case '0':
+    case FUJICMD_GETCWD:
         get_prefix();
         break;
-    case 'R':
+    case FUJICMD_READ:
         net_read();
         break;
-    case 'S':
+    case FUJICMD_STATUS:
         status();
         break;
     }
@@ -622,30 +611,21 @@ bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t c
 bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 {
     NetworkStatus ns;
+    size_t avail;
     auto& current_network_data = network_data_map[current_network_unit];
 
     if (!current_network_data.protocol)
         return true; // Punch out.
 
+#ifdef UNUSED
     // Get status
     current_network_data.protocol->status(&ns);
+    avail = ns.rxBytesWaiting;
+#else
+    avail = current_network_data.protocol->available();
+#endif /* UNUSED */
 
-    if (ns.rxBytesWaiting == 0) // if no bytes, we just return with no data
-    {
-        data_len = 0;
-    }
-    else if (num_bytes < ns.rxBytesWaiting && num_bytes <= 512)
-    {
-        data_len = num_bytes;
-    }
-    else if (num_bytes > 512)
-    {
-        data_len = 512;
-    }
-    else
-    {
-        data_len = ns.rxBytesWaiting;
-    }
+    data_len = std::min((size_t) num_bytes, std::min((size_t) 512, avail));
 
     //Debug_printf("\r\nAvailable bytes %04x\n", data_len);
 

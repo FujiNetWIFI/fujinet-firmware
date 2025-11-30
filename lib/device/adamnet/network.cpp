@@ -5,6 +5,7 @@
  */
 
 #include "network.h"
+#include "../network.h"
 
 #include <cstring>
 #include <algorithm>
@@ -14,19 +15,9 @@
 #include "utils.h"
 
 #include "status_error_codes.h"
-#include "TCP.h"
-#include "UDP.h"
-#include "Test.h"
-#include "Telnet.h"
-#include "TNFS.h"
-#include "FTP.h"
-#include "HTTP.h"
-#include "SSH.h"
-#include "SMB.h"
-
 #include "ProtocolParser.h"
 
-// using namespace std;
+using namespace std;
 
 /**
  * Constructor
@@ -291,36 +282,37 @@ bool adamNetwork::adamnet_write_channel(unsigned short num_bytes)
  */
 void adamNetwork::status()
 {
-    NetworkStatus s;
+    NetworkStatus ns;
+    NDeviceStatus *status = (NDeviceStatus *) response;
     adamnet_recv(); // CK
     SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     if (protocol == nullptr)
     {
-        response[0] = 0;
-        response[1] = 0;
-        response[2] = 0;
-        response[3] = 165; // invalid spec.
-        response_len = 4;
+        status->avail = 0;
+        status->conn = 0;
+        status->err = 165; // invalid spec.
+        response_len = sizeof(*status);
         return;
     }
 
     switch (channelMode)
     {
     case PROTOCOL:
-        err = protocol->status(&s);
+        err = protocol->status(&ns);
         break;
     case JSON:
         // err = json.status(&status);
         break;
     }
 
-    response[0] = s.rxBytesWaiting & 0xFF;
-    response[1] = s.rxBytesWaiting >> 8;
-    response[2] = s.connected;
-    response[3] = s.error;
-    response_len = 4;
+    size_t avail = protocol->available();
+    avail = avail > 65535 ? 65535 : avail;
+    status->avail = avail;
+    status->conn = ns.connected;
+    status->err = ns.error;
+    response_len = sizeof(*status);
     receiveMode = STATUS;
 }
 
@@ -720,7 +712,7 @@ void adamNetwork::adamnet_response_status()
         protocol->status(&s);
 
     statusByte.bits.client_connected = s.connected == true;
-    statusByte.bits.client_data_available = s.rxBytesWaiting > 0;
+    statusByte.bits.client_data_available = protocol->available() > 0;
     statusByte.bits.client_error = s.error > 1;
 
     status_response[1] = 2; // max packet size 1026 bytes, maybe larger?
@@ -866,8 +858,9 @@ inline void adamNetwork::adamnet_control_receive_channel_protocol()
 
     // Get status
     protocol->status(&ns);
+    size_t avail = protocol->available();
 
-    if (!ns.rxBytesWaiting)
+    if (!avail)
     {
         SYSTEM_BUS.start_time = esp_timer_get_time();
         adamnet_response_nack(true);
@@ -880,8 +873,8 @@ inline void adamNetwork::adamnet_control_receive_channel_protocol()
     }
 
     // Truncate bytes waiting to response size
-    ns.rxBytesWaiting = (ns.rxBytesWaiting > 1024) ? 1024 : ns.rxBytesWaiting;
-    response_len = ns.rxBytesWaiting;
+    avail = avail > 1024 ? 1024 : avail;
+    response_len = avail;
 
     if (protocol->read(response_len)) // protocol adapter returned error
     {

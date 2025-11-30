@@ -433,7 +433,6 @@ netProtoErr_t NetworkProtocolHTTP::status_file(NetworkStatus *status)
     //     Debug_printf("Channel mode is %u\r\n", httpChannelMode);
 
     if (client == nullptr) {
-        status->rxBytesWaiting = 0;
         status->connected = 0;
         status->error = NETWORK_ERROR_GENERAL;
         return NETPROTO_ERR_UNSPECIFIED;
@@ -451,7 +450,6 @@ netProtoErr_t NetworkProtocolHTTP::status_file(NetworkStatus *status)
             http_transaction();
         }
         auto available = client->available();
-        status->rxBytesWaiting = available > 65535 ? 65535 : available;
         status->connected = client->is_transaction_done() ? 0 : 1;
 
         if (available == 0 && client->is_transaction_done() && error == NETWORK_ERROR_SUCCESS)
@@ -464,14 +462,12 @@ netProtoErr_t NetworkProtocolHTTP::status_file(NetworkStatus *status)
     case SET_HEADERS:
     case COLLECT_HEADERS:
     case SEND_POST_DATA:
-        status->rxBytesWaiting = status->connected = 0;
         status->error = NETWORK_ERROR_SUCCESS;
         // Debug_printf("NetworkProtocolHTTP::status_file SH/CH/SPD, s.rxBW: %d, s.conn: %d, s.err: %d\r\n", status->rxBytesWaiting, status->connected, status->error);
         return NETPROTO_ERR_NONE;
     case GET_HEADERS:
         if (resultCode == 0)
             http_transaction();
-        status->rxBytesWaiting = (returned_header_cursor < collect_headers.size() ? returned_headers[returned_header_cursor].size() : 0);
         status->connected = 0; // so that we always ask in this mode.
         status->error = returned_header_cursor == collect_headers.size() && error == NETWORK_ERROR_SUCCESS ? NETWORK_ERROR_END_OF_FILE : error;
         // Debug_printf("NetworkProtocolHTTP::status_file GH, s.rxBW: %d, s.conn: %d, s.err: %d\r\n", status->rxBytesWaiting, status->connected, status->error);

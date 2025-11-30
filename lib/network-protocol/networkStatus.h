@@ -17,11 +17,6 @@ public:
     }
 
     /**
-     * Number of bytes waiting in RX buffer (0-65535)
-     */
-    uint16_t rxBytesWaiting;
-
-    /**
      * Not used
      */
     uint8_t connected;
@@ -36,14 +31,8 @@ public:
      */
     void reset()
     {
-        rxBytesWaiting=0;
         connected=0;
         error=0;
-    }
-
-    int checksum()
-    {
-        return rxBytesWaiting+connected+error;
     }
 };
 

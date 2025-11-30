@@ -5,6 +5,7 @@
  */
 
 #include "network.h"
+#include "../network.h"
 
 #include <cstring>
 #include <algorithm>
@@ -14,19 +15,9 @@
 #include "utils.h"
 
 #include "status_error_codes.h"
-#include "TCP.h"
-#include "UDP.h"
-#include "Test.h"
-#include "Telnet.h"
-#include "TNFS.h"
-#include "FTP.h"
-#include "HTTP.h"
-#include "SSH.h"
-#include "SMB.h"
-
 #include "ProtocolParser.h"
 
-// using namespace std;
+using namespace std;
 
 /**
  * Constructor
@@ -268,6 +259,7 @@ bool lynxNetwork::comlynx_write_channel(unsigned short num_bytes)
 void lynxNetwork::status()
 {
     NetworkStatus s;
+    NDeviceStatus *status = (NDeviceStatus *) response;
 
     // Get packet checksum
     if (!comlynx_recv_ck()) {
@@ -292,11 +284,12 @@ void lynxNetwork::status()
         break;
     }
 
-    response[0] = s.rxBytesWaiting & 0xFF;
-    response[1] = s.rxBytesWaiting >> 8;
-    response[2] = s.connected;
-    response[3] = s.error;
-    response_len = 4;
+    size_t avail = protocol->available();
+    avail = avail > 65535 ? 65535 : avail;
+    status->avail = avail;
+    status->conn = s.connected;
+    status->err = s.error;
+    response_len = sizeof(*status);
     receiveMode = STATUS;
 }
 
@@ -609,7 +602,7 @@ void lynxNetwork::json_parse()
         return;
     }
     comlynx_response_ack();
-    
+
     Debug_println("lynxNetwork::json_parse");
     json.parse();
 }
@@ -744,7 +737,7 @@ void lynxNetwork::comlynx_response_status()
         protocol->status(&s);
 
     statusByte.bits.client_connected = s.connected == true;
-    statusByte.bits.client_data_available = s.rxBytesWaiting > 0;
+    statusByte.bits.client_data_available = protocol->available() > 0;
     statusByte.bits.client_error = s.error > 1;
 
     //status_response[1] = 2; // max packet size 1026 bytes, maybe larger?
@@ -895,19 +888,21 @@ void lynxNetwork::comlynx_control_receive_channel_protocol()
 
     // Get status
     protocol->status(&ns);
-    Debug_printf("!!! rxBytesWaiting: %d\n",ns.rxBytesWaiting);
-    if (ns.rxBytesWaiting > 0)
-        comlynx_response_ack();
-    else
+    size_t avail = protocol->available();
+
+    if (!avail)
     {
         comlynx_response_nack();
         return;
     }
+    else
+    {
+        comlynx_response_ack();
+    }
 
     // Truncate bytes waiting to response size
-    //ns.rxBytesWaiting = (ns.rxBytesWaiting > 1024) ? 1024 : ns.rxBytesWaiting;
-    ns.rxBytesWaiting = (ns.rxBytesWaiting > SERIAL_PACKET_SIZE) ? SERIAL_PACKET_SIZE: ns.rxBytesWaiting;
-    response_len = ns.rxBytesWaiting;
+    avail = avail > 1024 ? 1024 : avail;
+    response_len = avail;
 
     if (protocol->read(response_len)) // protocol adapter returned error
     {
