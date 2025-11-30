@@ -2161,7 +2161,7 @@ void drivewireFuji::process()
         fujicmd_mount_host_success(SYSTEM_BUS.read());
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        fujicmd_open_directory_success(hostSlot);
+        fujicmd_open_directory_success(SYSTEM_BUS.read());
         break;
     case FUJICMD_CLOSE_DIRECTORY:
         fujicmd_close_directory();

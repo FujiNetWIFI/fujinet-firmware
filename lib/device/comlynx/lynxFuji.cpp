@@ -1675,7 +1675,7 @@ void lynxFuji::comlynx_control_send()
         }
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        fujicmd_open_directory_success(hostSlot);
+        fujicmd_open_directory_success(comlynx_recv());
         break;
     case FUJICMD_READ_DIR_ENTRY:
         {
