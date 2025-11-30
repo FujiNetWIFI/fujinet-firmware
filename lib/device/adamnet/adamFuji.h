@@ -41,6 +41,7 @@ private:
 #endif /* OBSOLETE */
 
 protected:
+    void transaction_continue(bool expectMoreData) override {}
     void transaction_complete() override {
         adamnet_response_ack();
     }

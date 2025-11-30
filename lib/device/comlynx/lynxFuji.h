@@ -42,6 +42,7 @@ private:
 #endif /* OBSOLETE */
 
 protected:
+    void transaction_continue(bool expectMoreData) override {}
     void transaction_complete() override {
         comlynx_response_ack();
     }

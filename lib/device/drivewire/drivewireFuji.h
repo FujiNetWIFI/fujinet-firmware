@@ -61,6 +61,7 @@ private:
 #endif /* NOT_SUBCLASS */
 
 protected:
+    void transaction_continue(bool expectMoreData) override {}
     void transaction_complete() override {
         _errorCode = 1;
         _response.clear();

@@ -1623,12 +1623,7 @@ void adamFuji::adamnet_control_send()
         }
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        {
-            uint8_t hostSlot = adamnet_recv();
-            char dirpath[256];
-            transaction_get(dirpath, s - 2);
-            fujicmd_open_directory_success(hostSlot, std::string(dirpath, s - 2));
-        }
+        fujicmd_open_directory_success(adamnet_recv());
         break;
     case FUJICMD_READ_DIR_ENTRY:
         {
