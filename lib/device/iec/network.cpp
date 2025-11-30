@@ -18,16 +18,6 @@
 
 #include "status_error_codes.h"
 #include "NetworkProtocolFactory.h"
-#include "TCP.h"
-#include "UDP.h"
-#include "Test.h"
-#include "Telnet.h"
-#include "TNFS.h"
-#include "FTP.h"
-#include "HTTP.h"
-#include "SSH.h"
-#include "SMB.h"
-
 
 iecNetwork::iecNetwork(uint8_t devnr) : IECFileDevice(devnr)
 {
