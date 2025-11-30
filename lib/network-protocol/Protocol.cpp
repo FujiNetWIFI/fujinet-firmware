@@ -344,3 +344,8 @@ off_t NetworkProtocol::seek(off_t offset, int whence)
 {
     return -1;
 }
+
+size_t NetworkProtocol::available()
+{
+    return receiveBuffer->size();
+}
