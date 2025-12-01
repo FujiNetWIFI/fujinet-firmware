@@ -483,6 +483,7 @@ void iwmNetwork::status()
 {
     auto& current_network_data = network_data_map[current_network_unit];
     NetworkStatus s;
+    size_t avail = 0;
     NDeviceStatus *status;
 
     switch (current_network_data.channelMode)
@@ -494,14 +495,15 @@ void iwmNetwork::status()
             s.error = NETWORK_ERROR_INVALID_COMMAND;
         } else {
             err = current_network_data.protocol->status(&s);
+            avail = current_network_data.protocol->available();
         }
         break;
     case NetworkData::JSON:
         err = (current_network_data.json->status(&s) == false) ? 0 : NETWORK_ERROR_GENERAL;
+        avail = current_network_data.json->available();
         break;
     }
 
-    size_t avail = current_network_data.protocol->available();
     Debug_printf("Bytes Waiting: 0x%02x, Connected: %u, Error: %u\n", avail, s.connected, s.error);
 
     avail = std::min((size_t) 512, avail);
@@ -568,16 +570,15 @@ void iwmNetwork::net_read()
 bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
-    Debug_printf("read_channel_json - num_bytes: %02x, json_bytes_remaining: %02x\n", num_bytes, current_network_data.json->json_bytes_remaining);
-    if (current_network_data.json->json_bytes_remaining == 0) // if no bytes, we just return with no data
+    Debug_printf("read_channel_json - num_bytes: %02x, json_bytes_remaining: %02x\n", num_bytes, current_network_data.json->available());
+    if (current_network_data.json->available() == 0) // if no bytes, we just return with no data
     {
         data_len = 0;
     }
-    else if (num_bytes > current_network_data.json->json_bytes_remaining)
+    else if (num_bytes > current_network_data.json->available())
     {
         data_len = current_network_data.json->readValueLen();
         current_network_data.json->readValue(data_buffer, data_len);
-        current_network_data.json->json_bytes_remaining -= data_len;
 
         // Debug_printf("read_channel_json(1) - data_len: %02x, json_bytes_remaining: %02x\n", data_len, current_network_data.json->json_bytes_remaining);
         // int print_len = data_len;
@@ -590,8 +591,6 @@ bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t c
     }
     else
     {
-        current_network_data.json->json_bytes_remaining -= num_bytes;
-
         current_network_data.json->readValue(data_buffer, num_bytes);
         data_len = current_network_data.json->readValueLen();
 
