@@ -1144,15 +1144,17 @@ uint8_t iecNetwork::getStatusData(char *buffer, uint8_t bufferSize)
   else
     {
       NetworkStatus ns;
+      size_t avail;
       auto& channel_data = network_data_map[active_status_channel];
 
       if (channel_data.channelMode == NetworkData::PROTOCOL) {
         channel_data.protocol->status(&ns);
+        avail = channel_data.protocol->available();
       } else {
         channel_data.json->status(&ns);
+        avail = channel_data.json->available();
       }
 
-      size_t avail = channel_data.protocol->available();
       avail = avail > 65535 ? 65535 : avail;
 
       if (is_binary_status) {
