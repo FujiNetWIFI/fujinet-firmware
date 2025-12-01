@@ -319,7 +319,7 @@ bool FNJSON::parse()
     _parseBuffer.clear();
     _protocol->status(&ns);
 #ifdef VERBOSE_PROTOCOL
-    Debug_printf("json parse, initial status: ns.rxBW: %d, ns.conn: %d, ns.err: %d\r\n", ns.rxBytesWaiting, ns.connected, ns.error);
+    Debug_printf("json parse, initial status: ns.rxBW: %d, ns.conn: %d, ns.err: %d\r\n", _protocol->available(), ns.connected, ns.error);
 #endif
 #ifdef ESP_PLATFORM
     while (ns.connected)
