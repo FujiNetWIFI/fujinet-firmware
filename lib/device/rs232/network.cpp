@@ -423,6 +423,7 @@ bool rs232Network::rs232_status_channel_json(NetworkStatus *ns)
 void rs232Network::rs232_status_channel()
 {
     NDeviceStatus nstatus;
+    size_t avail = 0;
     bool err = false;
 
     Debug_printf("rs232Network::rs232_status_channel(%u)\n", channelMode);
@@ -436,15 +437,16 @@ void rs232Network::rs232_status_channel()
             status.error = true;
         } else {
             err = protocol->status(&status);
+            avail = protocol->available();
         }
         break;
     case JSON:
         rs232_status_channel_json(&status);
+        avail = json_bytes_remaining;
         break;
     }
 
     // Serialize status into status bytes
-    size_t avail = protocol->available();
     avail = avail > 65535 ? 65535 : avail;
     nstatus.avail = htole16(avail);
     nstatus.conn = status.connected;

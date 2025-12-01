@@ -282,6 +282,7 @@ private:
     /**
      * Bytes sent of current JSON query object.
      */
+    // FIXME - don't cache this, ask the fnJSON parser!
     unsigned short json_bytes_remaining = 0;
 
     /**

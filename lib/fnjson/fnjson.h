@@ -1,6 +1,6 @@
 /**
  * JSON Parser wrapper for #FujiNet
- * 
+ *
  * Thom Cherryhomes
  *   <thom.cherryhomes@gmail.com>
  */
@@ -25,14 +25,14 @@ public:
     void setReadQuery(const std::string &queryString, uint8_t queryParam);
     cJSON *resolveQuery();
     bool status(NetworkStatus *status);
-    
+
     bool parse();
     int readValueLen();
     bool readValue(uint8_t *buf, unsigned short len);
     std::string processString(std::string in);
-    int json_bytes_remaining = 0;
     void setQueryParam(uint8_t qp);
-    
+    size_t available() { return _json_bytes_remaining; }
+
 private:
     cJSON *_json = nullptr;
     cJSON *_item = nullptr;
@@ -42,6 +42,7 @@ private:
     std::string lineEnding;
     std::string getValue(cJSON *item);
     std::string _parseBuffer;
+    int _json_bytes_remaining = 0;
 };
 
 #endif /* JSON_H */
