@@ -88,6 +88,8 @@ public:
      */
     netProtoErr_t special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) override;
 
+    size_t available() override { return test_data.length(); }
+
 private:
     /**
      * String to hold test data

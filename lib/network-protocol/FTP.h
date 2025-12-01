@@ -106,6 +106,8 @@ public:
      */
     netProtoErr_t unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
 
+    size_t available() override { return 0; }
+
 protected:
     /**
      * Is rename implemented?
