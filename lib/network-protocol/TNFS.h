@@ -86,6 +86,8 @@ public:
 
     off_t seek(off_t offset, int whence) override;
 
+    size_t available() override { return 0; }
+
 protected:
 
     /**
