@@ -99,6 +99,8 @@ public:
      */
     netProtoErr_t unlock(PeoplesUrlParser *url) override { return NETPROTO_ERR_NONE; }
 
+    size_t available() override { return 0; }
+
 protected:
     /**
      * Is rename implemented?

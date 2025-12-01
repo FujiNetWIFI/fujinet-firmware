@@ -229,7 +229,7 @@ public:
 
     virtual size_t available() { return receiveBuffer->size(); }
 
-    virtual size_t available() { return receiveBuffer->size(); }
+    virtual size_t available() = 0;
 
     /**
      * Pointer to current login;

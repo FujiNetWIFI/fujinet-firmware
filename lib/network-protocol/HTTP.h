@@ -318,6 +318,8 @@ private:
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
     netProtoErr_t parseDir(char *buf, unsigned short len);
+
+    size_t available() override { return client->available(); }
 };
 
 #endif /* NETWORKPROTOCOLHTTP_H */
