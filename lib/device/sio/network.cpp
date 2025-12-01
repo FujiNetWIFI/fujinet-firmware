@@ -493,6 +493,7 @@ bool sioNetwork::sio_status_channel_json(NetworkStatus *ns)
 void sioNetwork::sio_status_channel()
 {
     NDeviceStatus nstatus;
+    size_t avail = 0;
     bool err = false;
 
 #ifdef VERBOSE_PROTOCOL
@@ -508,17 +509,18 @@ void sioNetwork::sio_status_channel()
             status.error = true;
         } else {
             err = protocol->status(&status);
+            avail = protocol->available();
         }
         break;
     case JSON:
         sio_status_channel_json(&status);
+        avail = json_bytes_remaining;
         break;
     }
     // clear forced flag (first status after open)
     protocol->forceStatus = false;
 
     // Serialize status into status bytes
-    size_t avail = protocol->available();
     avail = avail > 65535 ? 65535 : avail;
     nstatus.avail = htole16(avail);
     nstatus.conn = status.connected;
@@ -1212,7 +1214,7 @@ void sioNetwork::sio_set_json_query()
     }
 
     json->setReadQuery(inp_string, cmdFrame.aux2);
-    json_bytes_remaining = json->json_bytes_remaining;
+    json_bytes_remaining = json->available();
 
     std::vector<uint8_t> tmp(json_bytes_remaining);
     json->readValue(tmp.data(), json_bytes_remaining);
