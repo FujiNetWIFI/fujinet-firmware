@@ -80,7 +80,7 @@ void FNJSON::setReadQuery(const std::string &queryString, uint8_t queryParam)
     _queryString = queryString;
     _queryParam = queryParam;
     _item = resolveQuery();
-    json_bytes_remaining = readValueLen();
+    _json_bytes_remaining = readValueLen();
 }
 
 /**
@@ -281,6 +281,7 @@ bool FNJSON::readValue(uint8_t *rx_buf, unsigned short len)
         return true; // error
 
     memcpy(rx_buf, getValue(_item).data(), len);
+    _json_bytes_remaining -= len;
 
     return false; // no error.
 }
@@ -318,7 +319,7 @@ bool FNJSON::parse()
     _parseBuffer.clear();
     _protocol->status(&ns);
 #ifdef VERBOSE_PROTOCOL
-    Debug_printf("json parse, initial status: ns.rxBW: %d, ns.conn: %d, ns.err: %d\r\n", ns.rxBytesWaiting, ns.connected, ns.error);
+    Debug_printf("json parse, initial status: ns.rxBW: %d, ns.conn: %d, ns.err: %d\r\n", _protocol->available(), ns.connected, ns.error);
 #endif
 #ifdef ESP_PLATFORM
     while (ns.connected)
@@ -362,9 +363,6 @@ bool FNJSON::status(NetworkStatus *s)
 {
     // Debug_printf("FNJSON::status(%u) %s\r\n", json_bytes_remaining, getValue(_item).c_str());
     s->connected = true;
-#if 0
-    s->rxBytesWaiting = json_bytes_remaining;
-#endif
-    s->error = json_bytes_remaining == 0 ? 136 : 0;
+    s->error = _json_bytes_remaining == 0 ? 136 : 0;
     return false;
 }

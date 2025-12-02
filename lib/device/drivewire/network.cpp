@@ -447,6 +447,7 @@ bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
 void drivewireNetwork::status_channel()
 {
     NDeviceStatus status;
+    size_t avail = 0;
 
 #ifdef TOO_MUCH_DEBUG
     Debug_printf("drivewireNetwork::status_channel(%u)\n", channelMode);
@@ -460,14 +461,15 @@ void drivewireNetwork::status_channel()
             ns.error = true;
         } else {
             protocol->status(&ns);
+            avail = protocol->available();
         }
         break;
     case JSON:
         status_channel_json(&ns);
+        avail = json_bytes_remaining;
         break;
     }
 
-    size_t avail = protocol->available();
     avail = avail > 65535 ? 65535 : avail;
     status.avail = htobe16(avail);
     status.conn = ns.connected;
@@ -1091,7 +1093,7 @@ void drivewireNetwork::json_query()
 
     // Query param is only used in ATARI at the moment, and 256 is too large for the type.
     json->setReadQuery(in_string, 0);
-    json_bytes_remaining = json->json_bytes_remaining;
+    json_bytes_remaining = json->available();
 
     std::vector<uint8_t> tmp(json_bytes_remaining);
     json->readValue(tmp.data(), json_bytes_remaining);

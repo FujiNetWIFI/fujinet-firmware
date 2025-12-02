@@ -58,7 +58,6 @@ netProtoErr_t NetworkProtocolTest::open(PeoplesUrlParser *urlParser,
     return NETPROTO_ERR_NONE;
 }
 
-
 netProtoErr_t NetworkProtocolTest::read(unsigned short len)
 {
     if (receiveBuffer->length() == 0)
@@ -97,9 +96,6 @@ netProtoErr_t NetworkProtocolTest::write(unsigned short len)
 
 netProtoErr_t NetworkProtocolTest::status(NetworkStatus *status)
 {
-#if 0
-    status->rxBytesWaiting = test_data.length();
-#endif
     status->connected = 1;
     status->error = error;
 

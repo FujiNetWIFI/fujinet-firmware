@@ -88,6 +88,8 @@ public:
      */
     netProtoErr_t special_80(uint8_t *sp_buf, unsigned short len, fujiCommandID_t cmd) override { return NETPROTO_ERR_NONE; }
 
+    size_t available() override { return test_data.length(); }
+
 private:
     /**
      * String to hold test data
