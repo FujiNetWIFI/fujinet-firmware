@@ -321,16 +321,6 @@ void TTYChannel::setBaudrate(uint32_t baud)
     _baud = baud;
 }
 
-#ifdef UNUSED
-// FIXME - why does this function exist? Shouldn't the caller use begin()?
-void TTYChannel::setPort(std::string device)
-{
-    Debug_printv("%s", device.c_str());
-    _device = device;
-    return;
-}
-#endif /* UNUSED */
-
 std::string TTYChannel::getPort()
 {
     return _device;
@@ -388,6 +378,16 @@ void TTYChannel::setCTS(bool state)
         status |= TIOCM_RTS;
     ioctl(_fd, TIOCMSET, &status);
     return;
+}
+
+bool TTYChannel::getDCD()
+{
+    int status;
+
+    if (ioctl(_fd, TIOCMGET, &status) == -1)
+        return false;
+
+    return !!(status & TIOCM_CD);
 }
 
 bool TTYChannel::getRI()

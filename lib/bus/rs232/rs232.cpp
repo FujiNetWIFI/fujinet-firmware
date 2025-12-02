@@ -295,29 +295,6 @@ void systemBus::setup()
 #ifndef FUJINET_OVER_USB
     _port.begin(ChannelConfig().baud(Config.get_rs232_baud()).deviceID(SERIAL_DEVICE));
 
-#ifdef ESP_PLATFORM
-    // // INT PIN
-    // fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
-    // fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
-    // PROC PIN
-    fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT, SystemManager::pull_updown_t::PULL_UP);
-    fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
-    // INVALID PIN
-    //fnSystem.set_pin_mode(PIN_RS232_INVALID, PINMODE_INPUT | PINMODE_PULLDOWN); // There's no PULLUP/PULLDOWN on pins 34-39
-    fnSystem.set_pin_mode(PIN_RS232_INVALID, gpio_mode_t::GPIO_MODE_INPUT);
-    // CMD PIN
-    //fnSystem.set_pin_mode(PIN_RS232_DTR, PINMODE_INPUT | PINMODE_PULLUP); // There's no PULLUP/PULLDOWN on pins 34-39
-    fnSystem.set_pin_mode(PIN_RS232_DTR, gpio_mode_t::GPIO_MODE_INPUT);
-    // CKI PIN
-    //fnSystem.set_pin_mode(PIN_CKI, PINMODE_OUTPUT);
-    // CKO PIN
-
-    fnSystem.set_pin_mode(PIN_RS232_CTS, gpio_mode_t::GPIO_MODE_OUTPUT);
-    fnSystem.digital_write(PIN_RS232_CTS,DIGI_LOW);
-
-    fnSystem.set_pin_mode(PIN_RS232_DSR,gpio_mode_t::GPIO_MODE_OUTPUT);
-    fnSystem.digital_write(PIN_RS232_DSR,DIGI_LOW);
-#endif /* ESP_PLATFORM */
 #else /* FUJINET_OVER_USB */
     _port.begin();
 #endif /* FUJINET_OVER_USB */

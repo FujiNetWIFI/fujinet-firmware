@@ -6,6 +6,7 @@
 
 #ifdef ESP_PLATFORM
 
+#include "pinmap.h"
 #include <driver/uart.h>
 #include <hal/uart_types.h>
 
@@ -15,6 +16,11 @@
 #else
 #  define FN_UART_BUS   UART_NUM_2
 #endif
+
+struct RS232ControlPins
+{
+    int rx, tx, rts, cts, dtr, dsr, dcd, ri;
+};
 
 struct ChannelConfig
 {
@@ -35,6 +41,38 @@ struct ChannelConfig
     uart_port_t device;
     uint32_t read_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
     uint32_t discard_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
+    RS232ControlPins pins = {
+#ifdef PIN_RS232_RTS
+        .rts = PIN_RS232_RTS,
+#else /* ! PIN_RS232_RTS */
+        .rts = -1,
+#endif /* PIN_RS232_RTS */
+#ifdef PIN_RS232_CTS
+        .cts = PIN_RS232_CTS,
+#else /* ! PIN_RS232_CTS */
+        .cts = -1,
+#endif /* PIN_RS232_CTS */
+#ifdef PIN_RS232_DTR
+        .dtr = PIN_RS232_DTR,
+#else /* ! PIN_RS232_DTR */
+        .dtr = -1,
+#endif /* PIN_RS232_DTR */
+#ifdef PIN_RS232_DSR
+        .dsr = PIN_RS232_DSR,
+#else /* ! PIN_RS232_DSR */
+        .dsr = -1,
+#endif /* PIN_RS232_DSR */
+#ifdef PIN_RS232_DCD
+        .dcd = PIN_RS232_DCD,
+#else /* ! PIN_RS232_DCD */
+        .dcd = -1,
+#endif /* PIN_RS232_DCD */
+#ifdef PIN_RS232_RI
+        .ri = PIN_RS232_RI,
+#else /* ! PIN_RS232_RI */
+        .ri = -1,
+#endif /* PIN_RS232_RI */
+    };
 
     ChannelConfig& baud(int baud) {
         uart_config.baud_rate = baud; return *this;
@@ -63,6 +101,24 @@ struct ChannelConfig
     ChannelConfig& discardTimeout(uint32_t millis) {
         discard_timeout_ms = millis; return *this;
     }
+    ChannelConfig& rtsPin(int num) {
+        pins.rts = num; return *this;
+    }
+    ChannelConfig& ctsPin(int num) {
+        pins.cts = num; return *this;
+    }
+    ChannelConfig& dtrPin(int num) {
+        pins.dtr = num; return *this;
+    }
+    ChannelConfig& dsrPin(int num) {
+        pins.dsr = num; return *this;
+    }
+    ChannelConfig& dcdPin(int num) {
+        pins.dcd = num; return *this;
+    }
+    ChannelConfig& ri(int num) {
+        pins.ri = num; return *this;
+    }
 };
 
 class ESP32UARTChannel : public IOChannel, public RS232ChannelProtocol
@@ -70,8 +126,12 @@ class ESP32UARTChannel : public IOChannel, public RS232ChannelProtocol
 private:
     uart_port_t _uart_num;
     QueueHandle_t _uart_q;
+    RS232ControlPins controlPins;
 
 protected:
+    bool getPin(int pin);
+    void setPin(int pin, bool state);
+
     void updateFIFO() override;
     size_t dataOut(const void *buffer, size_t length) override;
 
@@ -86,11 +146,15 @@ public:
 
     // FujiNet acts as modem (DCE), computer serial ports are DTE.
     // API names follow the modem (DCE) view, but the actual RS-232 pin differs.
-    bool getDTR() override;              // modem DTR input  → actually reads RS-232 DSR pin
-    void setDSR(bool state) override;    // modem DSR output → actually drives RS-232 DTR pin
-    bool getRTS() override;              // modem RTS input  → actually reads RS-232 CTS pin
-    void setCTS(bool state) override;    // modem CTS output → actually drives RS-232 RTS pin
-    bool getRI() override { return 0; }; // Ring Indicator is only an input on DTE
+    bool getDTR() override;               // modem DTR input  → reads RS-232 DTR pin
+    void setDSR(bool state) override;     // modem DSR output → drives RS-232 DSR pin
+    bool getRTS() override;               // modem RTS input  → reads RS-232 RTS pin
+    void setCTS(bool state) override;     // modem CTS output → drives RS-232 CTS pin
+    void setDCD(bool state) override;     // modem DCD output → drives RS-232 DCD pin
+    void setRI(bool state) override;      // modem RI output  → drives RS-232 RI pin
+
+    bool getDCD() override { return 0; }; // DCD is not an input on DCE
+    bool getRI() override { return 0; };  // RI is not an input on DCE
 };
 
 extern ESP32UARTChannel fnDebugConsole;
