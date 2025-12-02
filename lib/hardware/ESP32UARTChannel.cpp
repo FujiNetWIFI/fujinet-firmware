@@ -58,6 +58,38 @@ void ESP32UARTChannel::begin(const ChannelConfig& conf)
     // Install UART driver using an event queue here
     uart_driver_install(_uart_num, uart_buffer_size, 0, uart_queue_size, &_uart_q,
                         intr_alloc_flags);
+
+    controlPins = conf.pins;
+
+    if (controlPins.rts >= 0)
+        fnSystem.set_pin_mode(controlPins.rts, gpio_mode_t::GPIO_MODE_INPUT);
+    if (controlPins.cts >= 0)
+    {
+        fnSystem.set_pin_mode(controlPins.cts, gpio_mode_t::GPIO_MODE_OUTPUT);
+        fnSystem.digital_write(controlPins.cts, DIGI_LOW);
+    }
+
+    if (controlPins.dtr >= 0)
+        fnSystem.set_pin_mode(controlPins.dtr, gpio_mode_t::GPIO_MODE_INPUT);
+    if (controlPins.dsr >= 0)
+    {
+        fnSystem.set_pin_mode(controlPins.dsr, gpio_mode_t::GPIO_MODE_OUTPUT);
+        fnSystem.digital_write(controlPins.dsr, DIGI_LOW);
+    }
+
+    if (controlPins.dcd >= 0)
+    {
+        fnSystem.set_pin_mode(controlPins.dcd, gpio_mode_t::GPIO_MODE_OUTPUT);
+        fnSystem.digital_write(controlPins.dcd, DIGI_HIGH);
+    }
+
+    if (controlPins.ri >= 0)
+    {
+        fnSystem.set_pin_mode(controlPins.ri, gpio_mode_t::GPIO_MODE_OUTPUT);
+        fnSystem.digital_write(controlPins.ri, DIGI_HIGH);
+    }
+
+    return;
 }
 
 void ESP32UARTChannel::end()
@@ -117,36 +149,46 @@ size_t ESP32UARTChannel::dataOut(const void *buffer, size_t size)
     return uart_write_bytes(_uart_num, (const char *)buffer, size);
 }
 
+bool ESP32UARTChannel::getPin(int pin)
+{
+    if (pin < 0)
+        return 0;
+    return fnSystem.digital_read(pin) == DIGI_LOW;
+}
+
+void ESP32UARTChannel::setPin(int pin, bool state)
+{
+    if (pin >= 0)
+        fnSystem.digital_write(pin, !state);
+    return;
+}
+
 bool ESP32UARTChannel::getDTR()
 {
-#if defined(FUJINET_OVER_USB) || !defined(PIN_RS232_DTR)
-    return 0;
-#else /* FUJINET_OVER_USB */
-    return fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW;
-#endif /* FUJINET_OVER_USB */
+    return getPin(controlPins.dtr);
 }
 
 void ESP32UARTChannel::setDSR(bool state)
 {
-#if !defined(FUJINET_OVER_USB) && defined(PIN_RS232_DSR)
-    fnSystem.digital_write(PIN_RS232_DSR, !state);
-#endif
-    return;
+    setPin(controlPins.dsr, state);
 }
 
 bool ESP32UARTChannel::getRTS()
 {
-#if defined(FUJINET_OVER_USB) || !defined(PIN_RS232_RTS)
-    return 0;
-#else /* FUJINET_OVER_USB */
-    return fnSystem.digital_read(PIN_RS232_RTS) == DIGI_LOW;
-#endif /* FUJINET_OVER_USB */
+    return getPin(controlPins.rts);
 }
 
 void ESP32UARTChannel::setCTS(bool state)
 {
-#if !defined(FUJINET_OVER_USB) && defined(PIN_RS232_CTS)
-    fnSystem.digital_write(PIN_RS232_CTS, !state);
-#endif
-    return;
+    setPin(controlPins.cts, state);
+}
+
+void ESP32UARTChannel::setDCD(bool state)
+{
+    setPin(controlPins.dcd, state);
+}
+
+void ESP32UARTChannel::setRI(bool state)
+{
+    setPin(controlPins.ri, state);
 }

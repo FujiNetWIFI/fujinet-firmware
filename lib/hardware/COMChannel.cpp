@@ -273,6 +273,15 @@ void COMChannel::setCTS(bool state)
     return;
 }
 
+bool COMChannel::getDCD()
+{
+    DWORD status;
+
+    if (!GetCommModemStatus(_fd, &status))
+        return false;
+    return !!(status & MS_RLSD_ON);
+}
+
 bool COMChannel::getRI()
 {
     DWORD status;
