@@ -145,12 +145,16 @@ public:
     void setBaudrate(uint32_t baud) override;
 
     // FujiNet acts as modem (DCE), computer serial ports are DTE.
-    bool getDTR() override;           // modem DTR input  → actually reads RS-232 DSR pin
-    void setDSR(bool state) override; // modem DSR output → actually drives RS-232 DTR pin
-    bool getRTS() override;           // modem RTS input  → actually reads RS-232 CTS pin
-    void setCTS(bool state) override; // modem CTS output → actually drives RS-232 RTS pin
-    void setDCD(bool state) override; // modem DCD output → drives RS-232 DCD pin
-    void setRI(bool state) override;  // modem RI output → drives RS-232 RI pin
+    // API names follow the modem (DCE) view, but the actual RS-232 pin differs.
+    bool getDTR() override;               // modem DTR input  → reads RS-232 DTR pin
+    void setDSR(bool state) override;     // modem DSR output → drives RS-232 DSR pin
+    bool getRTS() override;               // modem RTS input  → reads RS-232 RTS pin
+    void setCTS(bool state) override;     // modem CTS output → drives RS-232 CTS pin
+    void setDCD(bool state) override;     // modem DCD output → drives RS-232 DCD pin
+    void setRI(bool state) override;      // modem RI output  → drives RS-232 RI pin
+
+    bool getDCD() override { return 0; }; // DCD is not an input on DCE
+    bool getRI() override { return 0; };  // RI is not an input on DCE
 };
 
 extern ESP32UARTChannel fnDebugConsole;

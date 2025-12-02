@@ -12,7 +12,9 @@ public:
     virtual bool getRTS() = 0;
     virtual void setCTS(bool state) = 0;
     virtual void setDCD(bool state) = 0;
+    virtual bool getDCD() = 0;
     virtual void setRI(bool state) = 0;
+    virtual bool getRI() = 0;
 };
 
 #endif /* RS232CHANNELPROTOCOL_H */

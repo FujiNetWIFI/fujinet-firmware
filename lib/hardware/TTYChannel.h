@@ -56,10 +56,11 @@ public:
     void setDSR(bool state) override; // modem DSR output → actually drives RS-232 DTR pin
     bool getRTS() override;           // modem RTS input  → actually reads RS-232 CTS pin
     void setCTS(bool state) override; // modem CTS output → actually drives RS-232 RTS pin
+    bool getDCD() override;           // DTE DCD input
+    bool getRI() override;            // DTE RI input
 
-    // These cannot be implemented on a DTE port
-    void setDCD(bool state) override { return; }
-    void setRI(bool state) override { return; }
+    void setDCD(bool state) override { return; } // DCD is not an output on DTE
+    void setRI(bool state) override { return; }  // RI is not an output on DTE
 
     void setPort(std::string device);
     std::string getPort();
