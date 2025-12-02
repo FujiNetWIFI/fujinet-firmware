@@ -325,6 +325,7 @@ void NetworkProtocol::errno_to_error()
         break;
     }
 }
+
 size_t NetworkProtocol::available()
 {
     return receiveBuffer->size();

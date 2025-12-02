@@ -678,7 +678,7 @@ void lynxNetwork::comlynx_special_00(unsigned short s)
     cmdFrame.aux1 = comlynx_recv();
     cmdFrame.aux2 = comlynx_recv();
 
-    if (protocol->special_00(&cmdFrame) == false)
+    if (protocol->special_00((fujiCommandID_t) cmdFrame.comnd, cmdFrame.aux2) == NETPROTO_ERR_NONE)
         comlynx_response_ack();
     else
         comlynx_response_nack();
