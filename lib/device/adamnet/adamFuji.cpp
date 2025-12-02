@@ -18,10 +18,11 @@
 #include "utils.h"
 #include "string_utils.h"
 
+#define IMAGE_EXTENSION ".ddp"
 #define COPY_SIZE 532
 
 adamFuji platformFuji;
-adamFuji *theFuji = &platformFuji;         // global fuji device object
+fujiDevice *theFuji = &platformFuji;         // global fuji device object
 adamNetwork *theNetwork;  // global network device object (temporary)
 adamNetwork *theNetwork2; // another network device
 adamPrinter *thePrinter;  // global printer
@@ -84,6 +85,9 @@ void adamFuji::adamnet_control_status()
     adamnet_send_buffer(r, 6);
 }
 
+vvvvvvvvvvvvvvvvvvvv
+#ifdef OBSOLETE
+^^^^^^^^^^^^^^^^^^^^
 // Reset FujiNet
 void adamFuji::adamnet_reset_fujinet()
 {
@@ -92,7 +96,9 @@ void adamFuji::adamnet_reset_fujinet()
     adamnet_response_ack();
     fnSystem.reboot();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Scan for networks
 void adamFuji::adamnet_net_scan_networks()
 {
@@ -117,7 +123,9 @@ void adamFuji::adamnet_net_scan_networks()
     SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Return scanned network entry
 void adamFuji::adamnet_net_scan_result()
 {
@@ -149,7 +157,9 @@ void adamFuji::adamnet_net_scan_result()
     SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 //  Get SSID
 void adamFuji::adamnet_net_get_ssid()
 {
@@ -186,7 +196,9 @@ void adamFuji::adamnet_net_get_ssid()
     SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Set SSID
 void adamFuji::adamnet_net_set_ssid(uint16_t s)
 {
@@ -229,6 +241,9 @@ void adamFuji::adamnet_net_set_ssid(uint16_t s)
         }
     }
 }
+#endif /* OBSOLETE */
+
+#ifdef OBSOLETE
 // Get WiFi Status
 void adamFuji::adamnet_net_get_wifi_status()
 {
@@ -242,7 +257,9 @@ void adamFuji::adamnet_net_get_wifi_status()
     SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Mount Server
 void adamFuji::adamnet_mount_host()
 {
@@ -261,7 +278,9 @@ void adamFuji::adamnet_mount_host()
     SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 void adamFuji::adamnet_unmount_host()
 {
     Debug_println("Fuji cmd: UNMOUNT HOST");
@@ -279,7 +298,9 @@ void adamFuji::adamnet_unmount_host()
     SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Disk Image Mount
 void adamFuji::adamnet_disk_image_mount()
 {
@@ -319,6 +340,7 @@ void adamFuji::adamnet_disk_image_mount()
     disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
     disk.disk_dev.device_active = true;
 }
+#endif /* OBSOLETE */
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
 void adamFuji::adamnet_set_boot_config()
@@ -340,6 +362,7 @@ void adamFuji::adamnet_set_boot_config()
     }
 }
 
+#ifdef OBSOLETE
 // Do SIO copy
 void adamFuji::adamnet_copy_file()
 {
@@ -411,7 +434,9 @@ void adamFuji::adamnet_copy_file()
 
     Debug_printf("COPY DONE\n");
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Set boot mode
 void adamFuji::adamnet_set_boot_mode()
 {
@@ -423,7 +448,9 @@ void adamFuji::adamnet_set_boot_mode()
 
     adamnet_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 char *_generate_appkey_filename(appkey *info)
 {
     static char filenamebuf[30];
@@ -431,6 +458,7 @@ char *_generate_appkey_filename(appkey *info)
     snprintf(filenamebuf, sizeof(filenamebuf), "/FujiNet/%04hx%02hhx%02hhx.key", info->creator, info->app, info->key);
     return filenamebuf;
 }
+#endif /* OBSOLETE */
 
 /*
  Write an "app key" to SD (ONLY!) storage.
@@ -466,6 +494,7 @@ void adamFuji::adamnet_write_app_key()
     fclose(fp);
 }
 
+#ifdef OBSOLETE
 /*
  Read an "app key" from SD (ONLY!) storage
 */
@@ -498,12 +527,14 @@ void adamFuji::adamnet_read_app_key()
     response_len = fread(response, sizeof(char), 64, fp);
     fclose(fp);
 }
+#endif /* OBSOLETE */
 
 // DEBUG TAPE
 void adamFuji::debug_tape()
 {
 }
 
+#ifdef OBSOLETE
 // Disk Image Unmount
 void adamFuji::adamnet_disk_image_umount()
 {
@@ -516,7 +547,9 @@ void adamFuji::adamnet_disk_image_umount()
     _fnDisks[ds].disk_dev.unmount();
     _fnDisks[ds].reset();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Disk Image Rotate
 /*
   We rotate disks my changing their disk device ID's. That prevents
@@ -618,6 +651,7 @@ void adamFuji::image_rotate()
         Debug_printf("%u: %s\n",n,_fnDisks[n].filename);
     }
 }
+#endif /* OBSOLETE */
 
 // This gets called when we're about to shutdown/reboot
 void adamFuji::shutdown()
@@ -628,6 +662,7 @@ void adamFuji::shutdown()
 
 char dirpath[256];
 
+#ifdef OBSOLETE
 void adamFuji::adamnet_open_directory(uint16_t s)
 {
     Debug_println("Fuji cmd: OPEN DIRECTORY");
@@ -675,8 +710,10 @@ void adamFuji::adamnet_open_directory(uint16_t s)
 
     response_len = 1;
 }
+#endif /* OBSOLETE */
 
-size_t _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
+#ifdef OBSOLETE
+void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
 {
     return set_additional_direntry_details(f, dest, maxlen, 100, SIZE_32_LE,
                                            HAS_DIR_ENTRY_FLAGS_SEPARATE, HAS_DIR_ENTRY_TYPE);
@@ -778,7 +815,9 @@ void adamFuji::adamnet_read_directory_entry()
         adamnet_response_ack();
     }
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 void adamFuji::adamnet_get_directory_position()
 {
     Debug_println("Fuji cmd: GET DIRECTORY POSITION");
@@ -793,7 +832,9 @@ void adamFuji::adamnet_get_directory_position()
     SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 void adamFuji::adamnet_set_directory_position()
 {
     Debug_println("Fuji cmd: SET DIRECTORY POSITION");
@@ -812,7 +853,9 @@ void adamFuji::adamnet_set_directory_position()
 
     _fnHosts[_current_open_directory_slot].dir_seek(pos);
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 void adamFuji::adamnet_close_directory()
 {
     Debug_println("Fuji cmd: CLOSE DIRECTORY");
@@ -828,7 +871,9 @@ void adamFuji::adamnet_close_directory()
     _current_open_directory_slot = -1;
     response_len = 1;
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Get network adapter configuration
 void adamFuji::adamnet_get_adapter_config()
 {
@@ -864,6 +909,7 @@ void adamFuji::adamnet_get_adapter_config()
     memcpy(response, &cfg, sizeof(cfg));
     response_len = sizeof(cfg);
 }
+#endif /* OBSOLETE */
 
 //  Make new disk and shove into device slot
 void adamFuji::adamnet_new_disk()
@@ -905,6 +951,7 @@ void adamFuji::adamnet_new_disk()
     new_disk_completed = true;
 }
 
+#ifdef OBSOLETE
 // Send host slot data to computer
 void adamFuji::adamnet_read_host_slots()
 {
@@ -924,7 +971,9 @@ void adamFuji::adamnet_read_host_slots()
     SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Read and save host slot data from computer
 void adamFuji::adamnet_write_host_slots()
 {
@@ -946,17 +995,23 @@ void adamFuji::adamnet_write_host_slots()
     _populate_config_from_slots();
     Config.save();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Store host path prefix
 void adamFuji::adamnet_set_host_prefix()
 {
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Retrieve host path prefix
 void adamFuji::adamnet_get_host_prefix()
 {
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Public method to update host in specific slot
 fujiHost *adamFuji::set_slot_hostname(int host_slot, char *hostname)
 {
@@ -964,7 +1019,9 @@ fujiHost *adamFuji::set_slot_hostname(int host_slot, char *hostname)
     _populate_config_from_slots();
     return &_fnHosts[host_slot];
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Send device slot data to computer
 void adamFuji::adamnet_read_device_slots()
 {
@@ -1000,7 +1057,9 @@ void adamFuji::adamnet_read_device_slots()
     memcpy(response, &diskSlots, returnsize);
     response_len = returnsize;
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Read and save disk slot data from computer
 void adamFuji::adamnet_write_device_slots()
 {
@@ -1028,7 +1087,9 @@ void adamFuji::adamnet_write_device_slots()
     _populate_config_from_slots();
     Config.save();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Temporary(?) function while we move from old config storage to new
 void adamFuji::_populate_slots_from_config()
 {
@@ -1059,7 +1120,9 @@ void adamFuji::_populate_slots_from_config()
         }
     }
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Temporary(?) function while we move from old config storage to new
 void adamFuji::_populate_config_from_slots()
 {
@@ -1088,9 +1151,11 @@ void adamFuji::_populate_config_from_slots()
                                _fnDisks[i].access_mode == DISK_ACCESS_MODE_WRITE ? fnConfig::mount_modes::MOUNTMODE_WRITE : fnConfig::mount_modes::MOUNTMODE_READ);
     }
 }
+#endif /* OBSOLETE */
 
 char f[MAX_FILENAME_LEN];
 
+#ifdef OBSOLETE
 // Write a 256 byte filename to the device slot
 void adamFuji::adamnet_set_device_filename(uint16_t s)
 {
@@ -1112,7 +1177,9 @@ void adamFuji::adamnet_set_device_filename(uint16_t s)
     memcpy(_fnDisks[ds].filename, f, MAX_FILENAME_LEN);
     _populate_config_from_slots();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Get a 256 byte filename from device slot
 void adamFuji::adamnet_get_device_filename()
 {
@@ -1126,6 +1193,7 @@ void adamFuji::adamnet_get_device_filename()
     memcpy(response, _fnDisks[ds].filename, 256);
     response_len = 256;
 }
+#endif /* OBSOLETE */
 
 // Mounts the desired boot disk number
 void adamFuji::insert_boot_device(uint8_t d)
@@ -1225,7 +1293,7 @@ void adamFuji::adamnet_disable_device()
 void adamFuji::setup()
 {
     // set up Fuji device
-    _populate_slots_from_config();
+    populate_slots_from_config();
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
@@ -1272,6 +1340,7 @@ void adamFuji::setup()
     SYSTEM_BUS.addDevice(theFuji, 0x0F);    // Fuji becomes the gateway device.
 }
 
+#ifdef OBSOLETE
 // Mount all
 void adamFuji::mount_all()
 {
@@ -1344,6 +1413,7 @@ void adamFuji::mount_all()
         boot_config = false;
     }
 }
+#endif /* OBSOLETE */
 
 void adamFuji::adamnet_random_number()
 {
@@ -1413,10 +1483,12 @@ void adamFuji::adamnet_device_enable_status()
     response[0] = SYSTEM_BUS.deviceEnabled(d);
 }
 
+#ifdef OBSOLETE
 adamDisk *adamFuji::bootdisk()
 {
     return _bootDisk;
 }
+#endif /* OBSOLETE */
 
 void adamFuji::adamnet_control_send()
 {
@@ -1426,73 +1498,96 @@ void adamFuji::adamnet_control_send()
     switch (c)
     {
     case FUJICMD_RESET:
-        adamnet_reset_fujinet();
+        fujicmd_reset();
         break;
     case FUJICMD_GET_SSID:
-        adamnet_net_get_ssid();
+        fujicmd_net_get_ssid();
         break;
     case FUJICMD_SCAN_NETWORKS:
-        adamnet_net_scan_networks();
+        fujicmd_net_scan_networks();
         break;
     case FUJICMD_GET_SCAN_RESULT:
-        adamnet_net_scan_result();
+        fujicmd_net_scan_result(adamnet_recv());
         break;
     case FUJICMD_SET_SSID:
-        adamnet_net_set_ssid(s);
+        {
+            SSIDConfig cfg;
+            adamnet_recv_buffer((uint8_t *)&cfg, s);
+            fujicmd_net_set_ssid_success(cfg.ssid, cfg.password, false);
+        }
         break;
     case FUJICMD_GET_WIFISTATUS:
-        adamnet_net_get_wifi_status();
+        fujicmd_net_get_wifi_status();
         break;
     case FUJICMD_MOUNT_HOST:
-        adamnet_mount_host();
+        fujicmd_mount_host_success(adamnet_recv());
         break;
     case FUJICMD_UNMOUNT_HOST:
-        adamnet_unmount_host();
+        fujicmd_unmount_host_success(adamnet_recv());
         break;
     case FUJICMD_MOUNT_IMAGE:
-        adamnet_disk_image_mount();
+        {
+            uint8_t slot = adamnet_recv();
+            uint8_t mode = adamnet_recv();
+            fujicmd_mount_disk_image_success(slot, mode);
+        }
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        adamnet_open_directory(s);
+        fujicmd_open_directory_success(adamnet_recv());
         break;
     case FUJICMD_READ_DIR_ENTRY:
-        adamnet_read_directory_entry();
+        {
+            uint8_t maxlen = adamnet_recv();
+            uint8_t addtl = adamnet_recv();
+            fujicmd_read_directory_entry(maxlen, addtl);
+        }
         break;
     case FUJICMD_CLOSE_DIRECTORY:
-        adamnet_close_directory();
+        fujicmd_close_directory();
         break;
     case FUJICMD_READ_HOST_SLOTS:
-        adamnet_read_host_slots();
+        fujicmd_read_host_slots();
         break;
     case FUJICMD_WRITE_HOST_SLOTS:
-        adamnet_write_host_slots();
+        fujicmd_write_host_slots();
         break;
     case FUJICMD_READ_DEVICE_SLOTS:
-        adamnet_read_device_slots();
+        fujicmd_read_device_slots(MAX_DISK_DEVICES);
         break;
     case FUJICMD_WRITE_DEVICE_SLOTS:
-        adamnet_write_device_slots();
+        fujicmd_write_device_slots(MAX_DISK_DEVICES);
         break;
     case FUJICMD_UNMOUNT_IMAGE:
-        adamnet_disk_image_umount();
+        fujicmd_unmount_disk_image_success(adamnet_recv());
         break;
     case FUJICMD_GET_ADAPTERCONFIG:
-        adamnet_get_adapter_config();
+        fujicmd_get_adapter_config();
         break;
     case FUJICMD_NEW_DISK:
         adamnet_new_disk();
         break;
     case FUJICMD_GET_DIRECTORY_POSITION:
-        adamnet_get_directory_position();
+        fujicmd_get_directory_position();
         break;
     case FUJICMD_SET_DIRECTORY_POSITION:
-        adamnet_set_directory_position();
+        {
+            uint16_t pos = 0;
+            adamnet_recv_buffer((uint8_t *)&pos, sizeof(uint16_t));
+            fujicmd_set_directory_position(pos);
+        }
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
-        adamnet_set_device_filename(s);
+        {
+            uint8_t deviceSlot = adamnet_recv();
+            char filename[256];
+            transaction_get(filename, s - 2);
+            fujicore_set_device_filename_success(deviceSlot, _fnDisks[deviceSlot].host_slot,
+                                                 _fnDisks[deviceSlot].access_mode,
+                                                 std::string(filename, s - 2));
+        }
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
-        adamnet_get_device_filename();
+        fujicmd_get_device_filename(adamnet_recv());
         break;
     case FUJICMD_CONFIG_BOOT:
         adamnet_set_boot_config();
@@ -1504,16 +1599,16 @@ void adamFuji::adamnet_control_send()
         adamnet_disable_device();
         break;
     case FUJICMD_MOUNT_ALL:
-        mount_all();
+        fujicmd_mount_all_success();
         break;
     case FUJICMD_SET_BOOT_MODE:
-        adamnet_set_boot_mode();
+        fujicmd_set_boot_mode(adamnet_recv(), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
         break;
     case FUJICMD_WRITE_APPKEY:
         adamnet_write_app_key();
         break;
     case FUJICMD_READ_APPKEY:
-        adamnet_read_app_key();
+        fujicmd_read_app_key();
         break;
     case FUJICMD_RANDOM_NUMBER:
         adamnet_random_number();
@@ -1525,7 +1620,13 @@ void adamFuji::adamnet_control_send()
         adamnet_device_enable_status();
         break;
     case FUJICMD_COPY_FILE:
-        adamnet_copy_file();
+        {
+            uint8_t source = adamnet_recv();
+            uint8_t dest = adamnet_recv();
+            char dirpath[256];
+            transaction_get(dirpath, sizeof(dirpath));
+            fujicmd_copy_file_success(source, dest, dirpath);
+        }
         break;
     }
 }
@@ -1565,14 +1666,18 @@ void adamFuji::adamnet_process(uint8_t b)
     }
 }
 
+#ifdef OBSOLETE
 int adamFuji::get_disk_id(int drive_slot)
 {
     return _fnDisks[drive_slot].disk_dev.id();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 std::string adamFuji::get_host_prefix(int host_slot)
 {
     return _fnHosts[host_slot].get_prefix();
 }
+#endif /* OBSOLETE */
 
 #endif /* BUILD_ADAM */

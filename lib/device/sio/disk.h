@@ -1,7 +1,6 @@
 #ifndef DISK_H
 #define DISK_H
 
-#include <fujiHost.h>
 #include "bus.h"
 #include "media.h"
 

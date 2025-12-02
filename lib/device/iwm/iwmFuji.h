@@ -1,28 +1,16 @@
 #ifdef BUILD_APPLE
-#ifndef FUJI_H
-#define FUJI_H
-
+#ifndef IWMFUJI_H
+#define IWMFUJI_H
 #include "fujiDevice.h"
 
-#include <cstdint>
 #include <functional>
 #include <map>
-#include <memory>
-#include <string>
 
-#include "../../include/debug.h"
-#include "bus.h"
 #include "iwm/disk2.h"
 #include "iwm/network.h"
-#include "iwm/printer.h"
 #include "iwm/cpm.h"
 #include "iwm/clock.h"
-#include "iwm/modem.h"
 
-#include "../fuji/fujiHost.h"
-#include "../fuji/fujiDisk.h"
-
-#include "hash.h"
 #include "../../qrcode/qrmanager.h"
 
 #define MAX_SPDISK_DEVICES 4
@@ -33,114 +21,63 @@ using IWMCmdHandlers = std::function<void(iwm_decoded_cmd_t)>;
 using IWMControlHandlers = std::function<void()>;
 using IWMStatusHandlers = std::function<void()>;
 
-class iwmFuji : public virtualDevice
+class iwmFuji : public fujiDevice
 {
 private:
-    bool isReady = false;
-    bool alreadyRunning = false; // Replace isReady and scanStarted with THIS.
-    bool scanStarted = false;
-    bool hostMounted[MAX_HOSTS];
-    bool setSSIDStarted = false;
-
-    //uint8_t response[1024]; // use packet_buffer instead
-    //uint16_t response_len;
-
-    // Response to FUJICMD_GET_SCAN_RESULT
+    // Response to SIO_FUJICMD_GET_SCAN_RESULT
     struct
     {
         char ssid[MAX_SSID_LEN + 1];
         uint8_t rssi;
     } detail;
 
-    fujiHost _fnHosts[MAX_HOSTS];
-
-    fujiDisk _fnDisks[MAX_A2DISK_DEVICES];
 #ifndef DEV_RELAY_SLIP
     iwmDisk2 _fnDisk2s[MAX_DISK2_DEVICES];
 #endif
-
     iwmNetwork *theNetwork;
 
     iwmCPM *theCPM;
 
     iwmClock *theClock;
 
-    int _current_open_directory_slot = -1;
-
-    iwmDisk *_bootDisk; // special disk drive just for configuration
-
-    uint8_t bootMode = 0; // Boot mode 0 = CONFIG, 1 = MINI-BOOT
-
-    uint8_t _countScannedSSIDs = 0;
-
     char _appkeyfilename[30]; // Temp storage for appkey filename, populated by open and read by read/write
-
-    uint8_t ctrl_stat_buffer[767]; // what is proper length
-    size_t ctrl_stat_len = 0; // max payload length is 767
-
-    char dirpath[256];
+    // map appkey open modes to key sizes. The open will set the appkey_size to correct value for subsequent reads to ensure the returned block is the correct size
+    int appkey_size = 64;
+    std::map<int, int> mode_to_keysize = {
+        {0, 64},
+        {2, 256}
+    };
 
     std::unordered_map<uint8_t, IWMCmdHandlers> command_handlers;
     std::unordered_map<uint8_t, IWMControlHandlers> control_handlers;
     std::unordered_map<uint8_t, IWMStatusHandlers> status_handlers;
 
-    Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
     bool hash_is_hex_output = false;
-
     QRManager _qrManager = QRManager();
 
 protected:
+    void transaction_continue(bool expectMoreData) override {}
+    void transaction_complete() override {}
+    void transaction_error() override {}
+    bool transaction_get(void *data, size_t len) override {
+        if (len > sizeof(data_buffer))
+            return false;
+        memcpy((uint8_t *) data, data_buffer, len);
+        return true;
+    }
+    void transaction_put(const void *data, size_t len, bool err) override {
+        // Move into response.
+        memcpy(data_buffer, data, len);
+        data_len = len;
+    }
+
+    size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen) override;
+
     void iwm_dummy_command();                     // control 0xAA
     void iwm_hello_world();                       // status 0xAA
-    void iwm_ctrl_reset_fujinet();                // control 0xFF
-    void iwm_stat_net_get_ssid();                 // status 0xFE
-    void iwm_stat_net_scan_networks();            // status 0xFD
-    void iwm_ctrl_net_scan_result();              // control 0xFC
     void iwm_stat_net_scan_result();              // status 0xFC
-    void iwm_ctrl_net_set_ssid();                 // control 0xFB
-    void iwm_stat_net_get_wifi_status();          // status 0xFA
-    void iwm_ctrl_mount_host();                   // 0xF9
-    uint8_t iwm_ctrl_disk_image_mount();          // 0xF8
-    uint8_t iwm_ctrl_open_directory();            // 0xF7
-    void iwm_ctrl_read_directory_entry();         // 0xF6
-    void iwm_stat_read_directory_entry();         // 0xF6
-
-    void iwm_ctrl_close_directory();              // 0xF5
-    void iwm_stat_read_host_slots();              // 0xF4
-    void iwm_ctrl_write_host_slots();             // 0xF3
-    void iwm_stat_read_device_slots();            // 0xF2
-    void iwm_ctrl_write_device_slots();           // 0xF1
     void iwm_stat_get_wifi_enabled();             // 0xEA
-    void iwm_ctrl_disk_image_umount();            // 0xE9
-    void iwm_stat_get_adapter_config();           // 0xE8
-    void iwm_stat_get_adapter_config_extended();  // 0xC4 (additional cmd data)
     void iwm_ctrl_new_disk();                     // 0xE7
-    void iwm_ctrl_unmount_host();                 // 0xE6
-
-    void iwm_stat_get_directory_position();       // 0xE5
-    void iwm_ctrl_set_directory_position();       // 0xE4
-/*
-    void adamnet_set_hadamnet_index();            // 0xE3
-*/
-    uint8_t iwm_ctrl_set_device_filename();       // 0xE2
-
-    void iwm_ctrl_set_host_prefix();              // 0xE1
-    void iwm_stat_get_host_prefix();              // 0xE0
-/*
-    void adamnet_set_adamnet_external_clock();    // 0xDF
-*/
-    void iwm_ctrl_write_app_key();                // 0xDE
-    void iwm_ctrl_read_app_key();                 // 0xDD - control
-    void iwm_stat_read_app_key();                 // 0xDD - status
-    void iwm_ctrl_open_app_key();                 // 0xDC
-
-/*  void adamnet_close_app_key();                 // 0xDB
-*/
-    void iwm_stat_get_device_filename(uint8_t s); // 0xDA, 0xA0 thru 0xA7
-
-    void iwm_ctrl_set_boot_config();              // 0xD9
-    void iwm_ctrl_copy_file();                    // 0xD8
-    void iwm_ctrl_set_boot_mode();                // 0xD6
     void iwm_ctrl_enable_device();                // 0xD5
     void iwm_ctrl_disable_device();               // 0xD4
     void send_stat_get_enable();                  // 0xD1
@@ -155,13 +92,10 @@ protected:
 
     void iwm_ctrl_qrcode_input();                 // 0xBC
     void iwm_ctrl_qrcode_encode();                // 0xBD
-    void iwm_stat_qrcode_length();                // OxBE
+    void iwm_stat_qrcode_length();                // 0xBE
     void iwm_ctrl_qrcode_output();                // 0xBF
     void iwm_stat_qrcode_output();                // 0xBF
 
-    void iwm_stat_fuji_status();                  // 0x53
-
-    void shutdown() override;
     void process(iwm_decoded_cmd_t cmd) override;
 
     void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
@@ -172,43 +106,18 @@ protected:
 
     void send_status_reply_packet() override;
     void send_status_dib_reply_packet() override;
-
-    void send_extended_status_reply_packet() override{};
-    void send_extended_status_dib_reply_packet() override{};
-
-    // map appkey open modes to key sizes. The open will set the appkey_size to correct value for subsequent reads to ensure the returned block is the correct size
-    int appkey_size = 64;
-    std::map<int, int> mode_to_keysize = {
-        {0, 64},
-        {2, 256}
-    };
+    void send_extended_status_reply_packet() override {};
+    void send_extended_status_dib_reply_packet() override {};
 
 public:
-    bool boot_config = true;
-
-    bool status_wait_enabled = true;
-
     uint8_t err_result = SP_ERR_NOERROR;
     bool status_completed = false;
     uint8_t status_code;
 
-    iwmDisk *bootdisk();
+    iwmFuji();
+    void setup() override;
 
-    void debug_tape();
-
-    void insert_boot_device(uint8_t d);
-
-    void setup();
-
-    void image_rotate();
-    int get_disk_id(int drive_slot);
-    void handle_ctl_eject(uint8_t spid);
-    std::string get_host_prefix(int host_slot);
-
-    fujiHost *get_host(int i) { return &_fnHosts[i]; }
-    fujiDisk *get_disk(int i) { return &_fnDisks[i]; }
-    fujiHost *set_slot_hostname(int host_slot, char *hostname);
-    DEVICE_TYPE *get_disk_dev(int i) {
+    DEVICE_TYPE *get_disk_dev(int i) override {
 #ifndef DEV_RELAY_SLIP
       return i < MAX_SPDISK_DEVICES
         ? (DEVICE_TYPE *) &_fnDisks[i].disk_dev
@@ -218,20 +127,18 @@ public:
 #endif
     }
 
-    void _populate_slots_from_config();
-    void _populate_config_from_slots();
-
-    bool mount_all();              // 0xD7
-
+    // Being used by iwm/disk.cpp
+    void handle_ctl_eject(uint8_t spid);
     void FujiStatus(iwm_decoded_cmd_t cmd) { iwm_status(cmd); }
     void FujiControl(iwm_decoded_cmd_t cmd) { iwm_ctrl(cmd); }
 
-    iwmFuji();
-
-    // virtual void startup_hack() override { Debug_printf("\n Fuji startup hack"); }
+    // ============ Wrapped Fuji commands ============
+    void fujicmd_reset() override;
+    void fujicmd_close_directory() override;
+    void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl) override;
 };
 
-extern iwmFuji *theFuji;
+extern iwmFuji platformFuji;
 
-#endif // FUJI_H
+#endif // IWMFUJI_H
 #endif /* BUILD_APPLE */
