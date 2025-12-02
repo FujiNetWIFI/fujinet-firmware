@@ -17,7 +17,6 @@
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
 
-#include "fujiDevice.h"
 #include "fnSystem.h"
 #include "utils.h"
 #include "fuji_endian.h"

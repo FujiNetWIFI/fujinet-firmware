@@ -61,7 +61,7 @@ protected:
     void sio_set_hsio_index();         // 0xE3
     void sio_copy_file();              // 0xD8
 
-    // FIXME - move to fujiDevice extension
+    // FIXME - move to fujiDevice mixin
     void sio_random_number();          // 0xD3
     void sio_base64_encode_input();    // 0xD0
     void sio_base64_encode_compute();  // 0xCF
@@ -72,14 +72,14 @@ protected:
     void sio_base64_decode_length();   // 0xCA
     void sio_base64_decode_output();   // 0xC9
 
-    // FIXME - move to fujiDevice extension
+    // FIXME - move to fujiDevice mixin
     void sio_hash_input();             // 0xC8
     void sio_hash_compute(bool clear_data); // 0xC7, 0xC3
     void sio_hash_length();            // 0xC6
     void sio_hash_output();            // 0xC5
     void sio_hash_clear();             // 0xC2
 
-    // FIXME - move to fujiDevice extension
+    // FIXME - move to fujiDevice mixin
     void sio_qrcode_input();           // 0xBC
     void sio_qrcode_encode();          // 0xBD
     void sio_qrcode_length();          // OxBE

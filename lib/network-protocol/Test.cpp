@@ -58,7 +58,6 @@ netProtoErr_t NetworkProtocolTest::open(PeoplesUrlParser *urlParser,
     return NETPROTO_ERR_NONE;
 }
 
-
 netProtoErr_t NetworkProtocolTest::read(unsigned short len)
 {
     if (receiveBuffer->length() == 0)
