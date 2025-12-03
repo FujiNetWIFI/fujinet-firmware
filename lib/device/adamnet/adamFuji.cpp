@@ -71,7 +71,7 @@ bool _validate_device_slot(uint8_t slot, const char *dmsg)
 }
 
 // Constructor
-adamFuji::adamFuji()
+adamFuji::adamFuji() : fujiDevice(MAX_DISK_DEVICES)
 {
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
@@ -151,13 +151,52 @@ void adamFuji::shutdown()
         _fnDisks[i].disk_dev.unmount();
 }
 
-#ifdef OBSOLETE
-size_t _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
+size_t adamFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
+                                                 uint8_t maxlen)
 {
-    return set_additional_direntry_details(f, dest, maxlen, 100, SIZE_32_LE,
-                                           HAS_DIR_ENTRY_FLAGS_SEPARATE, HAS_DIR_ENTRY_TYPE);
+    return _set_additional_direntry_details(f, dest, maxlen, 100, SIZE_32_LE,
+                                            HAS_DIR_ENTRY_FLAGS_SEPARATE, HAS_DIR_ENTRY_TYPE);
 }
-#endif /* OBSOLETE */
+
+//  Make new disk and shove into device slot
+void adamFuji::adamnet_new_disk()
+{
+    uint8_t hs = adamnet_recv();
+    uint8_t ds = adamnet_recv();
+    uint32_t numBlocks;
+    uint8_t *c = (uint8_t *)&numBlocks;
+    uint8_t p[256];
+
+    adamnet_recv_buffer(c, sizeof(uint32_t));
+    adamnet_recv_buffer(p, 256);
+
+    adamnet_recv(); // CK
+
+    fujiDisk &disk = _fnDisks[ds];
+    fujiHost &host = _fnHosts[hs];
+
+    if (new_disk_completed)
+    {
+        new_disk_completed = false;
+        SYSTEM_BUS.start_time = esp_timer_get_time();
+        adamnet_response_ack();
+        return;
+    }
+
+    disk.host_slot = hs;
+    disk.access_mode = DISK_ACCESS_MODE_WRITE;
+    strlcpy(disk.filename, (const char *)p, 256);
+
+    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
+
+    Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, numBlocks);
+
+    disk.disk_dev.write_blank(disk.fileh, numBlocks);
+
+    fclose(disk.fileh);
+
+    new_disk_completed = true;
+}
 
 // Mounts the desired boot disk number
 void adamFuji::insert_boot_device(uint8_t d)
@@ -434,10 +473,10 @@ void adamFuji::adamnet_control_send()
         fujicmd_write_host_slots();
         break;
     case FUJICMD_READ_DEVICE_SLOTS:
-        fujicmd_read_device_slots(MAX_DISK_DEVICES);
+        fujicmd_read_device_slots();
         break;
     case FUJICMD_WRITE_DEVICE_SLOTS:
-        fujicmd_write_device_slots(MAX_DISK_DEVICES);
+        fujicmd_write_device_slots();
         break;
     case FUJICMD_UNMOUNT_IMAGE:
         fujicmd_unmount_disk_image_success(adamnet_recv());

@@ -34,7 +34,8 @@ protected:
         response_len = len;
     }
 
-    size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen) override;
+    size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
+                                           uint8_t maxlen) override;
 
     void adamnet_new_disk();               // 0xE7
     void adamnet_write_app_key();          // 0xDE
