@@ -62,13 +62,11 @@ mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, me
     case MEDIATYPE_DDP:
         device_active = true;
         _media = new MediaTypeDDP();
-        _media->_media_host = host;
         strcpy(_media->_disk_filename, filename);
         mt = _media->mount(f, disksize);
         break;
     case MEDIATYPE_DSK:
         _media = new MediaTypeDSK();
-        _media->_media_host = host;
         strcpy(_media->_disk_filename,filename);
         mt = _media->mount(f, disksize);
         device_active = true;

@@ -241,34 +241,21 @@ mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize, m
         return disk_type;
         // TODO left off here for tape cassette
         break;
-    case MEDIATYPE_XEX:
-        device_active = true;
-        _disk = new MediaTypeXEX();
-        if (host != nullptr)
-        {
-            _disk->_disk_host = host;
-            strcpy(_disk->_disk_filename, filename);
-        }
-        return _disk->mount(f, disksize);
-    case MEDIATYPE_ATX:
-        device_active = true;
-        _disk = new MediaTypeATX();
-        if (host != nullptr)
-        {
-            _disk->_disk_host = host;
-            strcpy(_disk->_disk_filename, filename);
-        }
-        return _disk->mount(f, disksize);
-    case MEDIATYPE_ATR:
-    case MEDIATYPE_UNKNOWN:
     default:
-        device_active = true;
-        _disk = new MediaTypeATR();
-        if (host != nullptr)
+        switch (disk_type)
         {
-            _disk->_disk_host = host;
-            strcpy(_disk->_disk_filename, filename);
+        case MEDIATYPE_XEX:
+            _disk = new MediaTypeXEX();
+            break;
+        case MEDIATYPE_ATX:
+            _disk = new MediaTypeATX();
+            break;
+        default:
+            _disk = new MediaTypeATR();
+            break;
         }
+        device_active = true;
+        strcpy(_disk->_disk_filename, filename);
         return _disk->mount(f, disksize);
     }
 }

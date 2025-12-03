@@ -10,6 +10,7 @@ class rs232Disk : public virtualDevice
 {
 private:
     MediaType *_disk = nullptr;
+    time_t _mount_time = 0;
 
     void rs232_read();
     void rs232_write(bool verify);
@@ -23,14 +24,13 @@ private:
     void dump_percom_block();
 
 public:
-    time_t mount_time = 0;
-
     rs232Disk();
     mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
     bool write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors);
 
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_disktype; };
+    time_t mount_time() { return _mount_time; }
 
     ~rs232Disk();
 };

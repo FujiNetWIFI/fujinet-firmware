@@ -30,7 +30,7 @@
 rs232Disk::rs232Disk()
 {
     device_active = false;
-    mount_time = 0;
+    _mount_time = 0;
 }
 
 // Read disk data and send to computer
@@ -216,7 +216,7 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
     case MEDIATYPE_UNKNOWN:
     default:
         device_active = true;
-        mount_time = time(NULL);
+        _mount_time = time(NULL);
         _disk = new MediaTypeImg();
         return _disk->mount(f, disksize);
     }
@@ -241,7 +241,7 @@ void rs232Disk::unmount()
     {
         _disk->unmount();
         device_active = false;
-        mount_time = 0;
+        _mount_time = 0;
     }
 }
 

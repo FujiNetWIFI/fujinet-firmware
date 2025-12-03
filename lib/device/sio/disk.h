@@ -23,7 +23,6 @@ private:
 
 public:
     sioDisk();
-    fujiHost *host;
     mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
     bool write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors);
