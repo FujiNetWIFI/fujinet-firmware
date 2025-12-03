@@ -15,7 +15,7 @@
 iwmFuji platformFuji;
 fujiDevice *theFuji = &platformFuji; // Global fuji object.
 
-iwmFuji::iwmFuji()
+iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES)
 {
         Debug_printf("Announcing the iwmFuji::iwmFuji()!!!\n");
         for (int i = 0; i < MAX_HOSTS; i++)
@@ -593,12 +593,11 @@ void iwmFuji::fujicmd_close_directory()
     fnSystem.delay(100); // add delay because bad traces
 }
 
-#ifdef OBSOLETE
-size_t _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
+size_t iwmFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
+                                                uint8_t maxlen)
 {
-    return set_additional_direntry_details(f, dest, maxlen, 100, SIZE_32_LE,
+    return _set_additional_direntry_details(f, dest, maxlen, 100, SIZE_32_LE,
                                            HAS_DIR_ENTRY_FLAGS_SEPARATE, HAS_DIR_ENTRY_TYPE);
 }
-#endif /* OBSOLETE */
 
 #endif /* BUILD_APPLE */

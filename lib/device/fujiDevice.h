@@ -207,8 +207,8 @@ public:
                                mediatype_t disk_type, DEVICE_TYPE *disk_dev);
     void fujicmd_set_host_prefix(uint8_t hostSlot, const char *prefix=nullptr);
     bool fujicmd_unmount_host_success(uint8_t hostSlot);
-    void fujicmd_read_device_slots(uint8_t numDevices);
-    void fujicmd_write_device_slots(uint8_t numDevices);
+    void fujicmd_read_device_slots();
+    void fujicmd_write_device_slots();
     void fujicmd_status();
     void fujicmd_set_sio_external_clock(uint16_t speed);
 #ifdef SYSTEM_BUS_IS_UDP

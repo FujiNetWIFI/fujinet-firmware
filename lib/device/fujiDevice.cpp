@@ -458,7 +458,11 @@ bool fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot, uint8_t a
 
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
     boot_config = false;
+#ifdef FIXME
     status_wait_count = 0;
+#else
+#warning "FIXME - what is status_wait_count for and why don't all virtual devices have it?"
+#endif /* FIXME */
 
     // We need the file size for loading XEX files and for CASSETTE, so get that too
     disk.disk_size = host.file_size(disk.fileh);
@@ -1426,7 +1430,7 @@ bool fujiDevice::fujicmd_unmount_host_success(uint8_t hostSlot)
 }
 
 // Send device slot data to computer
-void fujiDevice::fujicmd_read_device_slots(uint8_t numDevices)
+void fujiDevice::fujicmd_read_device_slots()
 {
     transaction_continue(false);
     Debug_println("Fuji cmd: READ DEVICE SLOTS");
@@ -1435,7 +1439,7 @@ void fujiDevice::fujicmd_read_device_slots(uint8_t numDevices)
     disk_slot diskSlots[MAX_DISK_DEVICES] {};
 
     // Load the data from our current device array
-    for (int i = 0; i < numDevices; i++)
+    for (int i = 0; i < totalDiskDevices; i++)
     {
         diskSlots[i].mode = _fnDisks[i].access_mode;
         diskSlots[i].hostSlot = _fnDisks[i].host_slot;
@@ -1460,25 +1464,25 @@ void fujiDevice::fujicmd_read_device_slots(uint8_t numDevices)
             diskSlots[i].mode |= DISK_ACCESS_MODE_MOUNTED;
     }
 
-    transaction_put(&diskSlots, sizeof(disk_slot) * numDevices);
+    transaction_put(&diskSlots, sizeof(disk_slot) * totalDiskDevices);
 }
 
 // Read and save disk slot data from computer
-void fujiDevice::fujicmd_write_device_slots(uint8_t numDevices)
+void fujiDevice::fujicmd_write_device_slots()
 {
     transaction_continue(true);
     Debug_println("Fuji cmd: WRITE DEVICE SLOTS");
 
     disk_slot diskSlots[MAX_DISK_DEVICES];
 
-    if (!transaction_get(&diskSlots, sizeof(disk_slot) * numDevices))
+    if (!transaction_get(&diskSlots, sizeof(disk_slot) * totalDiskDevices))
     {
         transaction_error();
         return;
     }
 
     // Load the data into our current device array
-    for (int i = 0; i < numDevices; i++)
+    for (int i = 0; i < totalDiskDevices; i++)
         _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
 
     // Save the data to disk

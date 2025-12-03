@@ -71,7 +71,8 @@ protected:
         data_len = len;
     }
 
-    size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen) override;
+    size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
+                                           uint8_t maxlen) override;
 
     void iwm_dummy_command();                     // control 0xAA
     void iwm_hello_world();                       // status 0xAA

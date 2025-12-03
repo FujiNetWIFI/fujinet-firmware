@@ -252,11 +252,11 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         break;
     case FUJICMD_READ_DEVICE_SLOTS:
         rs232_ack();
-        fujicmd_read_device_slots(MAX_DISK_DEVICES);
+        fujicmd_read_device_slots();
         break;
     case FUJICMD_WRITE_DEVICE_SLOTS:
         rs232_ack();
-        fujicmd_write_device_slots(MAX_DISK_DEVICES);
+        fujicmd_write_device_slots();
         break;
     case FUJICMD_GET_WIFI_ENABLED:
         rs232_ack();
