@@ -130,7 +130,7 @@ void say_swap_label()
 }
 
 // Constructor
-drivewireFuji::drivewireFuji()
+drivewireFuji::drivewireFuji() : fujiDevice(MAX_DWDISK_DEVICES)
 {
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
@@ -933,13 +933,12 @@ void drivewireFuji::open_directory()
 }
 #endif /* NOT_SUBCLASS */
 
-#ifdef NOT_SUBCLASS
-size_t _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
+size_t drivewireFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
+                                                      uint8_t maxlen)
 {
-    return set_additional_direntry_details(f, dest, maxlen, 100, SIZE_32_BE,
-                                           HAS_DIR_ENTRY_FLAGS_SEPARATE, HAS_DIR_ENTRY_TYPE);
+    return _set_additional_direntry_details(f, dest, maxlen, 100, SIZE_32_BE,
+                                            HAS_DIR_ENTRY_FLAGS_SEPARATE, HAS_DIR_ENTRY_TYPE);
 }
-#endif /* NOT_SUBCLASS */
 
 #ifdef NOT_SUBCLASS
 char current_entry[256];
@@ -2055,10 +2054,10 @@ void drivewireFuji::process()
         fujicmd_read_host_slots();
         break;
     case FUJICMD_READ_DEVICE_SLOTS:
-        fujicmd_read_device_slots(MAX_DWDISK_DEVICES);
+        fujicmd_read_device_slots();
         break;
     case FUJICMD_WRITE_DEVICE_SLOTS:
-        fujicmd_write_device_slots(MAX_DWDISK_DEVICES);
+        fujicmd_write_device_slots();
         break;
     case FUJICMD_WRITE_HOST_SLOTS:
         fujicmd_write_host_slots();
