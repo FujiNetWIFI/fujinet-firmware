@@ -4,6 +4,9 @@
 
 #include "printer.h"
 #include "fujiDevice.h"
+#ifdef BUILD_ATARI
+#include "sio/sioFuji.h"
+#endif /* BUILD_ATARI */
 
 #include "fnSystem.h"
 #include "fnConfig.h"
@@ -283,7 +286,7 @@ void fnHttpServiceConfigurator::config_cassette_play(std::string play_record)
     // find cassette via thefuji object?
     Debug_printf("New play/record button value: %s\n", play_record.c_str());
     bool isRecord = util_string_value_is_true(play_record);
-    theFuji->cassette()->set_buttons(isRecord);
+    platformFuji.cassette()->set_buttons(isRecord);
     Config.store_cassette_buttons(isRecord);
 
     Config.save();
@@ -294,7 +297,7 @@ void fnHttpServiceConfigurator::config_cassette_resistor(std::string resistor)
 {
 #ifdef BUILD_ATARI
     bool isPullDown = util_string_value_is_true(resistor);
-    theFuji->cassette()->set_pulldown(isPullDown);
+    platformFuji.cassette()->set_pulldown(isPullDown);
     Config.store_cassette_pulldown(isPullDown);
 
     Config.save();
@@ -543,35 +546,6 @@ void fnHttpServiceConfigurator::config_serial(std::string port, std::string baud
     if (update_serial)
     {
         Config.save();
-
-#ifdef UNUSED
-#if defined(BUILD_ATARI)
-        if (fnSioCom.get_sio_mode() == SioCom::sio_mode::SERIAL)
-        {
-            fnSioCom.end();
-        }
-
-        fnSioCom.set_serial_port(Config.get_serial_port().c_str(), Config.get_serial_command(), Config.get_serial_proceed());
-
-        if (fnSioCom.get_sio_mode() == SioCom::sio_mode::SERIAL)
-        {
-            fnSioCom.begin();
-        }
-
-#elif defined(BUILD_COCO)
-        if (fnDwCom.get_drivewire_mode() == DwCom::dw_mode::SERIAL)
-        {
-            fnDwCom.end();
-        }
-
-        fnDwCom.set_serial_port(Config.get_serial_port().c_str());
-
-        if (fnDwCom.get_drivewire_mode() == DwCom::dw_mode::SERIAL)
-        {
-            fnDwCom.begin(Config.get_serial_baud());
-        }
-#endif
-#endif /* UNUSED */
     }
 }
 #elif defined(BUILD_RS232)

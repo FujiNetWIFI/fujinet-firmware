@@ -52,7 +52,8 @@ protected:
         _transaction_direction = SIO_DIRECTION_INVALID;
     }
 
-    size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen) override;
+    size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
+                                           uint8_t maxlen) override;
 
     void sio_net_set_ssid();           // 0xFB
     void sio_read_directory_block();   // 0xF6

@@ -7,7 +7,7 @@
 
 #include "../../include/debug.h"
 
-#include "fujiDevice.h"
+#include "sioFuji.h"
 #include "utils.h"
 
 #define SIO_DISKCMD_FORMAT 0x21
@@ -237,7 +237,7 @@ mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize, m
     case MEDIATYPE_CAS:
     case MEDIATYPE_WAV:
         // open the cassette file
-        theFuji->cassette()->mount_cassette_file(f, disksize);
+        platformFuji.cassette()->mount_cassette_file(f, disksize);
         return disk_type;
         // TODO left off here for tape cassette
         break;

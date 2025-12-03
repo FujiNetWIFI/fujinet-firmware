@@ -4,7 +4,7 @@
 
 #include "../../include/debug.h"
 
-#include "fujiDevice.h"
+#include "sio/sioFuji.h"
 #include "udpstream.h"
 #include "modem.h"
 #include "siocpm.h"
@@ -220,7 +220,7 @@ void systemBus::_sio_process_cmd()
 
     Debug_print("\n");
     Debug_printf("CF: %02x %02x %02x %02x %02x\n",
-                 tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
+                 tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.checksum);
 
     // Wait for CMD line to raise again
 #ifdef ESP_PLATFORM
@@ -256,7 +256,7 @@ void systemBus::_sio_process_cmd()
 #endif
         if (tempFrame.device == FUJI_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
         {
-            _activeDev = _fujiDev->bootdisk();
+            _activeDev = &_fujiDev->bootdisk;
             if (_activeDev->status_wait_count > 0 && tempFrame.comnd == 'R' && _fujiDev->status_wait_enabled)
             {
                 Debug_printf("Disabling CONFIG boot.\n");
@@ -512,20 +512,10 @@ void systemBus::setup()
         _commandPin = PIN_CMD;
 #else /* ! ESP_PLATFORM */
         _commandPin = Config.get_serial_command();
-#ifdef UNUSED
-        _proceedPin = Config.get_serial_proceed();
-#endif /* UNUSED */
 #endif /* ESP_PLATFORM */
 
         _port = &_serial;
     }
-
-#ifdef UNUSED
-#ifndef ESP_PLATFORM
-    _port->setInterrupt(false);
-    _port->setProceed(false);
-#endif /* ESP_PLATFORM */
-#endif /* UNUSED */
 
     // Set the initial HSIO index
     // First see if Config has read a value
@@ -593,12 +583,12 @@ int systemBus::numDevices()
     __END_IGNORE_UNUSEDVARS
 }
 
-void systemBus::changeDeviceId(virtualDevice *p, fujiDeviceID_t device_id)
+void systemBus::changeDeviceId(virtualDevice *p, int device_id)
 {
     for (auto devicep : _daisyChain)
     {
         if (devicep == p)
-            devicep->_devnum = device_id;
+            devicep->_devnum = (fujiDeviceID_t) device_id;
     }
 }
 

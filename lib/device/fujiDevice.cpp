@@ -447,10 +447,6 @@ bool fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot, uint8_t a
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\r\n",
                  disk.filename, disk.host_slot, mode, deviceSlot + 1);
 
-#ifdef OBSOLETE
-    disk.disk_dev.host = &host;
-#endif /* OBSOLETE */
-
     disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), mode);
 
     if (disk.fileh == nullptr)

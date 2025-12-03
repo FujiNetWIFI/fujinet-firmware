@@ -103,7 +103,7 @@ void say_swap_label()
 }
 
 // Constructor
-sioFuji::sioFuji()
+sioFuji::sioFuji() : fujiDevice(MAX_DISK_DEVICES)
 {
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
@@ -196,6 +196,7 @@ void sioFuji::sio_set_baudrate()
     SYSTEM_BUS.setBaudrate(br);
 }
 
+#ifdef OBSOLETE
 // Mount Server
 #ifdef ESP_PLATFORM // TODO merge
 void sioFuji::sio_mount_host()
@@ -235,7 +236,9 @@ int sioFuji::sio_mount_host(bool siomode, int slot)
         return _on_ok(siomode);
 }
 #endif
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Disk Image Mount
 #ifdef ESP_PLATFORM  // TODO merge
 void sioFuji::sio_disk_image_mount()
@@ -353,13 +356,16 @@ int sioFuji::sio_disk_image_mount(bool siomode, int slot)
     return _on_ok(siomode);
 }
 #endif
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
 void sioFuji::sio_set_boot_config()
 {
     boot_config = cmdFrame.aux1;
     sio_complete();
 }
+#endif /* OBSOLETE */
 
 // Do SIO copy
 void sioFuji::sio_copy_file()
@@ -507,6 +513,7 @@ void sioFuji::sio_copy_file()
     free(dataBuf);
 }
 
+#ifdef OBSOLETE
 // Mount all
 #ifdef ESP_PLATFORM
 void sioFuji::mount_all()
@@ -578,7 +585,9 @@ int sioFuji::mount_all(bool siomode)
     return _on_ok(siomode);
 #endif
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 // Set boot mode
 void sioFuji::sio_set_boot_mode()
 {
@@ -586,7 +595,9 @@ void sioFuji::sio_set_boot_mode()
     boot_config = true;
     sio_complete();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 char *_generate_appkey_filename(appkey *info)
 {
     static char filenamebuf[30];
@@ -594,7 +605,9 @@ char *_generate_appkey_filename(appkey *info)
     snprintf(filenamebuf, sizeof(filenamebuf), "/FujiNet/%04hx%02hhx%02hhx.key", info->creator, info->app, info->key);
     return filenamebuf;
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 /*
  Opens an "app key".  This just sets the needed app key parameters (creator, app, key, mode)
  for the subsequent expected read/write command. We could've added this information as part
@@ -639,7 +652,9 @@ void sioFuji::sio_open_app_key()
 
     sio_complete();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 /*
   The app key close operation is a placeholder in case we want to provide more robust file
   read/write operations. Currently, the file is closed immediately after the read or write operation.
@@ -651,7 +666,9 @@ void sioFuji::sio_close_app_key()
     _current_appkey.mode = APPKEYMODE_INVALID;
     sio_complete();
 }
+#endif /* OBSOLETE */
 
+#ifdef OBSOLETE
 /*
  Write an "app key" to SD (ONLY!) storage.
 */
@@ -719,6 +736,7 @@ void sioFuji::sio_write_app_key()
 
     sio_complete();
 }
+#endif /* OBSOLETE */
 
 size_t read_file_into_vector(FILE* fIn, std::vector<uint8_t>& response_data, size_t size) {
     response_data.resize(size + 2);
@@ -730,6 +748,7 @@ size_t read_file_into_vector(FILE* fIn, std::vector<uint8_t>& response_data, siz
     return bytes_read;
 }
 
+#ifdef OBSOLETE
 /*
  Read an "app key" from SD (ONLY!) storage
 */
@@ -776,6 +795,7 @@ void sioFuji::sio_read_app_key()
 
     bus_to_computer(response_data.data(), response_data.size(), false);
 }
+#endif /* OBSOLETE */
 
 // DEBUG TAPE
 void sioFuji::debug_tape()
@@ -803,6 +823,13 @@ void sioFuji::debug_tape()
         Debug_println("::debug_tape DISABLE");
         _cassetteDev.sio_disable_cassette();
     }
+}
+
+size_t sioFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
+                                                uint8_t maxlen)
+{
+    return _set_additional_direntry_details(f, dest, maxlen, 70, SIZE_32_LE,
+                                            HAS_DIR_ENTRY_FLAGS_SEPARATE, HAS_DIR_ENTRY_TYPE);
 }
 
 //  Make new disk and shove into device slot
@@ -1299,6 +1326,7 @@ void sioFuji::sio_hash_clear()
     transaction_complete();
 }
 
+#ifdef OBSOLETE
 void sioFuji::sio_copy_file()
 {
     char csBuf[256];
@@ -1312,6 +1340,7 @@ void sioFuji::sio_copy_file()
 
     fujicmd_copy_file_success(cmdFrame.aux1, cmdFrame.aux2, csBuf);
 }
+#endif /* OBSOLETE */
 
 void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
 {
@@ -1377,10 +1406,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         fujicmd_write_host_slots();
         break;
     case FUJICMD_READ_DEVICE_SLOTS:
-        fujicmd_read_device_slots(MAX_DISK_DEVICES);
+        fujicmd_read_device_slots();
         break;
     case FUJICMD_WRITE_DEVICE_SLOTS:
-        fujicmd_write_device_slots(MAX_DISK_DEVICES);
+        fujicmd_write_device_slots();
         break;
     case FUJICMD_GET_WIFI_ENABLED:
         fujicmd_net_get_wifi_enabled();
@@ -1506,13 +1535,5 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         transaction_error();
     }
 }
-
-#ifdef OBSOLETE
-size_t _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
-{
-    return set_additional_direntry_details(f, dest, maxlen, 70, SIZE_32_LE,
-                                           HAS_DIR_ENTRY_FLAGS_SEPARATE, HAS_DIR_ENTRY_TYPE);
-}
-#endif /* OBSOLETE */
 
 #endif /* BUILD_ATARI */

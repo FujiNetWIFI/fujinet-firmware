@@ -59,5 +59,5 @@ public:
     // virtual void startup_hack();
 };
 
-#endif
+#endif /* DISK_H */
 #endif /* BUILD_APPLE */
