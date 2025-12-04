@@ -30,7 +30,6 @@ private:
 
 public:
     adamDisk();
-    fujiHost *host = nullptr;
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
     bool write_blank(FILE *f, uint32_t numBlocks);

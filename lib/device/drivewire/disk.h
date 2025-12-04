@@ -1,7 +1,6 @@
 #ifndef DISK_H
 #define DISK_H
 
-#include <fujiHost.h>
 #include "bus.h"
 #include "media.h"
 
@@ -13,8 +12,6 @@ private:
 public:
     drivewireDisk();
     ~drivewireDisk();
-
-    fujiHost *host = nullptr;
 
     mediatype_t disktype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_mediatype; };
     mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);

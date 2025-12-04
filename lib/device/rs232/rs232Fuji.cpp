@@ -101,7 +101,7 @@ void rs232Fuji::rs232_status()
 
 
         for (idx = 0; idx < MAX_DISK_DEVICES; idx++)
-            mount_status[idx] = _fnDisks[idx].disk_dev.mount_time;
+            mount_status[idx] = _fnDisks[idx].disk_dev.mount_time();
 
         bus_to_computer((uint8_t *) mount_status, sizeof(mount_status), false);
     }

@@ -307,8 +307,6 @@ void adamFuji::adamnet_disk_image_mount()
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                  disk.filename, disk.host_slot, flag, deviceSlot + 1);
 
-    disk.disk_dev.host = &host;
-
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled

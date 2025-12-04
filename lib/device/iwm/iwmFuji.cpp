@@ -379,7 +379,6 @@ uint8_t iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
 
         Debug_printf("\r\nSelecting '%s' from host #%u as %s on D%u:\n", disk.filename, disk.host_slot, flag, deviceSlot + 1);
 
-        disk_dev->host = &host;
         disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
         if (disk.fileh == nullptr)
@@ -1031,8 +1030,7 @@ void iwmFuji::iwm_ctrl_new_disk()
         Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, numBlocks);
 
         DEVICE_TYPE *disk_dev = get_disk_dev(ds);
-        disk_dev->blank_header_type = t;
-        disk_dev->write_blank(disk.fileh, numBlocks);
+        disk_dev->write_blank(disk.fileh, numBlocks, t);
 
         fnio::fclose(disk.fileh);
 

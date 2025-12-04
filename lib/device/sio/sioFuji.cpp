@@ -448,9 +448,6 @@ void sioFuji::sio_disk_image_mount()
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                  disk.filename, disk.host_slot, flag, deviceSlot + 1);
 
-    // TODO: Refactor along with mount disk image.
-    disk.disk_dev.host = &host;
-
     disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
     if (disk.fileh == nullptr)
@@ -507,9 +504,6 @@ int sioFuji::sio_disk_image_mount(bool siomode, int slot)
 
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                  disk.filename, disk.host_slot, flag, deviceSlot + 1);
-
-    // TODO: Refactor along with mount disk image.
-    disk.disk_dev.host = &host;
 
     disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
@@ -738,10 +732,6 @@ int sioFuji::mount_all(bool siomode)
 
             // We need the file size for loading XEX files and for CASSETTE, so get that too
             disk.disk_size = host.file_size(disk.fileh);
-
-            // Set the host slot for high score mode
-            // TODO: Refactor along with mount disk image.
-            disk.disk_dev.host = &host;
 
             // And now mount it
             disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);

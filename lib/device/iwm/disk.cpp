@@ -486,7 +486,6 @@ mediatype_t iwmDisk::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_t
     }
 
   if (disk_type != MEDIATYPE_UNKNOWN) {
-    _disk->_media_host = host;
     _disk->_mediatype = disk_type;
     disk_type = _disk->mount(f, disksize);
   }
@@ -518,17 +517,11 @@ void iwmDisk::unmount()
     }
 }
 
-bool iwmDisk::write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
-{
-
-  return false;
-}
-
 /**
  * Used for writing ProDOS images which exist in multiples of
  * 512 byte blocks.
  */
-bool iwmDisk::write_blank(fnFile *f, uint16_t numBlocks)
+bool iwmDisk::write_blank(fnFile *f, uint16_t numBlocks, uint8_t blank_header_type)
 {
   unsigned char buf[512];
 
@@ -562,7 +555,6 @@ bool iwmDisk::write_blank(fnFile *f, uint16_t numBlocks)
 
     fclose(sf);
     Debug_printf("Creation of new DOS 3.3 disk successful.\n");
-    blank_header_type=0; // Set to unadorned.
     return false;
   }
 
@@ -601,7 +593,6 @@ bool iwmDisk::write_blank(fnFile *f, uint16_t numBlocks)
   fnio::fseek(f,offset,SEEK_SET);
   fnio::fwrite(&buf,sizeof(unsigned char),sizeof(buf),f);
 
-  blank_header_type = 0; // Reset to unadorned.
   return false;
 }
 
