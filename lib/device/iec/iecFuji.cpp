@@ -27,10 +27,6 @@
 #include "utils.h"
 #include "status_error_codes.h"
 
-#define ADDITIONAL_DETAILS_BYTES 10
-#define FF_DIR 0x01
-#define FF_TRUNC 0x02
-
 iecFuji platformFuji;
 iecFuji *theFuji = &platformFuji; // global fuji device object
 // iecNetwork sioNetDevs[MAX_NETWORK_DEVICES];
@@ -2467,44 +2463,10 @@ bool iecFuji::open_directory(uint8_t hs, std::string dirpath, std::string patter
     }
 }
 
-
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
 {
-    // File modified date-time
-    struct tm *modtime = localtime(&f->modified_time);
-
-    // std::string fTime = mstr::toHex((const uint8_t *) &(f->modified_time), sizeof(time_t));
-    // std::string mTime = mstr::toHex((const uint8_t *) modtime, sizeof(struct tm));
-
-    // Debug_printf("file: '%s'\r\nfTim: [%s]\r\n mT1: [%s]\r\n", f->filename, fTime.c_str(), mTime.c_str());
-
-    dest[0] = modtime->tm_year;          // +1900 = year
-    dest[1] = modtime->tm_mon + 1;       // month is 0 indexed
-    dest[2] = modtime->tm_mday;          // day of month is 1 indexed
-    dest[3] = modtime->tm_hour;          // the local hour with TZ offset of device applied
-    dest[4] = modtime->tm_min;
-    dest[5] = modtime->tm_sec;
-
-    // File size
-    uint16_t fsize = f->size;
-    dest[6] = LOBYTE_FROM_UINT16(fsize);
-    dest[7] = HIBYTE_FROM_UINT16(fsize);
-
-    dest[8] = f->isDir ? FF_DIR : 0;
-
-    maxlen -= 10; // Adjust the max return value with the number of additional bytes we're copying
-    if (f->isDir) // Also subtract a byte for a terminating slash on directories
-        maxlen--;
-    if (strlen(f->filename) >= maxlen)
-        dest[8] |= FF_TRUNC;
-
-    // File type
-    dest[9] = MediaType::discover_mediatype(f->filename);
-
-    // what was generated... and altered :(
-    // std::string dData = mstr::toHex((const uint8_t *) dest, 10);
-    // mTime = mstr::toHex((const uint8_t *) modtime, sizeof(struct tm));
-    // Debug_printf(" mT2: [%s]\r\ndata: [%s]\r\n", mTime.c_str(), dData.c_str());
+    set_additional_direntry_details(f, dest, maxlen, 0, SIZE_16_LE,
+                                    HAS_DIR_ENTRY_FLAGS_COMBINED, HAS_DIR_ENTRY_TYPE);
 }
 
 std::string iecFuji::process_directory_entry(uint8_t maxlen, uint8_t addtlopts) {

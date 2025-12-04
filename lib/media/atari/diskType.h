@@ -32,7 +32,7 @@
 #define DISK_DRIVE_STATUS_DOUBLE_SIDED 0x40
 #define DISK_DRIVE_STATUS_ENHANCED_DENSITY 0x80
 
-enum mediatype_t 
+enum mediatype_t
 {
     MEDIATYPE_UNKNOWN = 0,
     MEDIATYPE_ATR,
@@ -53,7 +53,7 @@ protected:
     bool _disk_readonly = true;
     uint16_t _high_score_sector = 0; /* High score sector to allow write. 1-65535 */
     uint8_t _high_score_num_sectors = 0;
-    
+
 public:
     struct
     {
@@ -95,10 +95,10 @@ public:
 
     // Always returns 128 for the first 3 sectors, otherwise _sectorSize
     virtual uint16_t sector_size(uint16_t sectornum);
-    
+
     virtual void status(uint8_t statusbuff[4]) = 0;
 
-    static mediatype_t discover_disktype(const char *filename);
+    static mediatype_t discover_mediatype(const char *filename);
 
     void dump_percom_block();
     void derive_percom_block(uint16_t numSectors);

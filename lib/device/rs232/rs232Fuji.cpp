@@ -835,39 +835,10 @@ void rs232Fuji::rs232_open_directory()
         rs232_error();
 }
 
-void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
+size_t _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
 {
-    // File modified date-time
-    struct tm *modtime = localtime(&f->modified_time);
-    modtime->tm_mon++;
-    modtime->tm_year -= 70;
-
-    dest[0] = modtime->tm_year;
-    dest[1] = modtime->tm_mon;
-    dest[2] = modtime->tm_mday;
-    dest[3] = modtime->tm_hour;
-    dest[4] = modtime->tm_min;
-    dest[5] = modtime->tm_sec;
-
-    // File size
-    uint16_t fsize = f->size;
-    dest[6] = LOBYTE_FROM_UINT16(fsize);
-    dest[7] = HIBYTE_FROM_UINT16(fsize);
-
-    // File flags
-#define FF_DIR 0x01
-#define FF_TRUNC 0x02
-
-    dest[8] = f->isDir ? FF_DIR : 0;
-
-    maxlen -= 10; // Adjust the max return value with the number of additional bytes we're copying
-    if (f->isDir) // Also subtract a byte for a terminating slash on directories
-        maxlen--;
-    if (strlen(f->filename) >= maxlen)
-        dest[8] |= FF_TRUNC;
-
-    // File type
-    dest[9] = MediaType::discover_disktype(f->filename);
+    return set_additional_direntry_details(f, dest, maxlen, 70, SIZE_16_LE,
+                                           HAS_DIR_ENTRY_FLAGS_COMBINED, HAS_DIR_ENTRY_TYPE);
 }
 
 void rs232Fuji::rs232_read_directory_entry()
@@ -900,14 +871,13 @@ void rs232Fuji::rs232_read_directory_entry()
         int bufsize = sizeof(current_entry);
         char *filenamedest = current_entry;
 
-#define ADDITIONAL_DETAILS_BYTES 10
         // If 0x80 is set on AUX2, send back additional information
         if (cmdFrame.aux2 & 0x80)
         {
-            _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
+            size_t len = _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
             // Adjust remaining size of buffer and file path destination
-            bufsize = sizeof(current_entry) - ADDITIONAL_DETAILS_BYTES;
-            filenamedest = current_entry + ADDITIONAL_DETAILS_BYTES;
+            bufsize = sizeof(current_entry) - len;
+            filenamedest = current_entry + len;
         }
         else
         {
