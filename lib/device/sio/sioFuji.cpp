@@ -37,10 +37,6 @@
 #include "hash.h"
 #include "../../qrcode/qrmanager.h"
 
-#define ADDITIONAL_DETAILS_BYTES 13
-#define FF_DIR 0x01
-#define FF_TRUNC 0x02
-
 sioFuji platformFuji;
 sioFuji *theFuji = &platformFuji; // global fuji device object
 
@@ -1147,46 +1143,10 @@ void sioFuji::sio_open_directory()
         sio_error();
 }
 
-void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
+size_t _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
 {
-    // File modified date-time
-    struct tm *modtime = localtime(&f->modified_time);
-    modtime->tm_mon++;
-    modtime->tm_year -= 70;
-
-    dest[0] = modtime->tm_year;
-    dest[1] = modtime->tm_mon;
-    dest[2] = modtime->tm_mday;
-    dest[3] = modtime->tm_hour;
-    dest[4] = modtime->tm_min;
-    dest[5] = modtime->tm_sec;
-
-    // File size LITTLE ENDIAN for Atari
-    uint32_t fsize = f->size;
-    dest[6] = fsize & 0xFF;          // Least significant byte
-    dest[7] = (fsize >> 8) & 0xFF;
-    dest[8] = (fsize >> 16) & 0xFF;
-    dest[9] = (fsize >> 24) & 0xFF;  // Most significant byte
-
-    // File flags
-#define FF_DIR 0x01
-#define FF_TRUNC 0x02
-
-    dest[10] = f->isDir ? FF_DIR : 0;
-
-    maxlen -= ADDITIONAL_DETAILS_BYTES; // Adjust the max return value with the number of additional bytes we're copying
-    if (f->isDir)                       // Also subtract a byte for a terminating slash on directories
-        maxlen--;
-    if (strlen(f->filename) >= maxlen)
-        dest[11] |= FF_TRUNC;
-
-    // File type
-    dest[12] = MediaType::discover_disktype(f->filename);
-
-    Debug_printf("Addtl: ");
-    for (int i = 0; i < ADDITIONAL_DETAILS_BYTES; i++)
-        Debug_printf("%02x ", dest[i]);
-    Debug_printf("\n");
+    return set_additional_direntry_details(f, dest, maxlen, 70, SIZE_32_LE,
+                                           HAS_DIR_ENTRY_FLAGS_SEPARATE, HAS_DIR_ENTRY_TYPE);
 }
 
 /*
@@ -1387,10 +1347,10 @@ void sioFuji::sio_read_directory_entry()
         // If 0x80 is set on AUX2, send back additional information
         if (cmdFrame.aux2 & 0x80)
         {
-            _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
+            size_t len = _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
             // Adjust remaining size of buffer and file path destination
-            bufsize = maxlen - ADDITIONAL_DETAILS_BYTES;
-            filenamedest = current_entry + ADDITIONAL_DETAILS_BYTES;
+            bufsize = maxlen - len;
+            filenamedest = current_entry + len;
         }
         else
         {

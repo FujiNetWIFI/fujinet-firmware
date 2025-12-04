@@ -1,6 +1,7 @@
 #ifndef DEVICE_FUJI_H
 #define DEVICE_FUJI_H
 
+#include "fnFS.h"
 #include <stdint.h>
 
 #define MAX_HOSTS 8
@@ -58,6 +59,33 @@ typedef struct
     char sMacAddress[18];
     char sBssid[18];
 } __attribute__((packed)) AdapterConfigExtended;
+
+// For some reason the directory entry structure that is sent back
+// isn't standardized across platforms.
+
+enum DET_size_endian_t {
+    SIZE_NONE,
+    SIZE_16_LE,
+    SIZE_16_BE,
+    SIZE_32_LE,
+    SIZE_32_BE,
+};
+
+enum DET_dir_flags_t {
+    HAS_DIR_ENTRY_FLAGS_SEPARATE,
+    HAS_DIR_ENTRY_FLAGS_COMBINED,
+};
+
+enum DET_has_type_t {
+    HAS_DIR_ENTRY_TYPE,
+    NO_DIR_ENTRY_TYPE,
+};
+
+// This function will become a method of the fujiDevice class
+extern size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen,
+                                              int year_offset, DET_size_endian_t size_endian,
+                                              DET_dir_flags_t dir_flags,
+                                              DET_has_type_t has_type);
 
 #ifdef BUILD_ATARI
 # include "sio/sioFuji.h"
