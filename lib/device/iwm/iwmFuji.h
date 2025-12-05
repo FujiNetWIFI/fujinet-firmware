@@ -118,11 +118,11 @@ public:
     iwmFuji();
     void setup() override;
 
-    DEVICE_TYPE *get_disk_dev(int i) override {
+    DISK_DEVICE *get_disk_dev(int i) override {
 #ifndef DEV_RELAY_SLIP
       return i < MAX_SPDISK_DEVICES
-        ? (DEVICE_TYPE *) &_fnDisks[i].disk_dev
-        : (DEVICE_TYPE *) &_fnDisk2s[i - MAX_SPDISK_DEVICES];
+        ? (DISK_DEVICE *) &_fnDisks[i].disk_dev
+        : (DISK_DEVICE *) &_fnDisk2s[i - MAX_SPDISK_DEVICES];
 #else
       return &_fnDisks[i].disk_dev;
 #endif

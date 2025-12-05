@@ -155,7 +155,7 @@ protected:
 
 public:
     bool boot_config = true;
-    DEVICE_TYPE bootdisk; // special disk drive just for configuration
+    DISK_DEVICE bootdisk; // special disk drive just for configuration
 
     fujiDevice(unsigned int numDisk);
     virtual void setup() = 0;
@@ -165,7 +165,7 @@ public:
     std::string get_host_prefix(int host_slot) { return _fnHosts[host_slot].get_prefix(); }
 
     fujiDisk *get_disk(int i) { return &_fnDisks[i]; }
-    virtual DEVICE_TYPE *get_disk_dev(int i) { return &_fnDisks[i].disk_dev; }
+    virtual DISK_DEVICE *get_disk_dev(int i) { return &_fnDisks[i].disk_dev; }
     int get_disk_id(int drive_slot) { return _fnDisks[drive_slot].disk_dev.id(); }
 
     void populate_slots_from_config();
@@ -205,7 +205,7 @@ public:
     void fujicmd_write_host_slots();
     void fujicmd_set_boot_config(bool enable);
     void fujicmd_set_boot_mode(uint8_t bootMode, std::string extension,
-                               mediatype_t disk_type, DEVICE_TYPE *disk_dev);
+                               mediatype_t disk_type, DISK_DEVICE *disk_dev);
     void fujicmd_set_host_prefix(uint8_t hostSlot, const char *prefix=nullptr);
     bool fujicmd_unmount_host_success(uint8_t hostSlot);
     void fujicmd_read_device_slots();
@@ -250,7 +250,7 @@ public:
 
     // Should be protected but being called by drivewire.cpp
     void insert_boot_device(uint8_t image_id, std::string extension,
-                            mediatype_t disk_type, DEVICE_TYPE *disk_dev);
+                            mediatype_t disk_type, DISK_DEVICE *disk_dev);
 };
 
 extern fujiDevice *theFuji;

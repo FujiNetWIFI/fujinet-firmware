@@ -264,7 +264,7 @@ void iwmFuji::iwm_ctrl_new_disk()
 
         Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, numBlocks);
 
-        DEVICE_TYPE *disk_dev = get_disk_dev(ds);
+        DISK_DEVICE *disk_dev = get_disk_dev(ds);
         disk_dev->write_blank(disk.fileh, numBlocks, t);
 
         fnio::fclose(disk.fileh);
@@ -322,7 +322,7 @@ void iwmFuji::setup()
 
         for (int i = MAX_SPDISK_DEVICES - 1; i >= 0; i--)
         {
-                DEVICE_TYPE *disk_dev = get_disk_dev(i);
+                DISK_DEVICE *disk_dev = get_disk_dev(i);
                 disk_dev->set_disk_number('0' + i);
                 SYSTEM_BUS.addDevice(disk_dev, iwm_fujinet_type_t::BlockDisk);
         }

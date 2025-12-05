@@ -443,7 +443,7 @@ bool fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot,
     // A couple of reference variables to make things much easier to read...
     fujiDisk &disk = _fnDisks[deviceSlot];
     fujiHost &host = _fnHosts[disk.host_slot];
-    DEVICE_TYPE *disk_dev = get_disk_dev(deviceSlot);
+    DISK_DEVICE *disk_dev = get_disk_dev(deviceSlot);
 
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\r\n",
                  disk.filename, disk.host_slot, mode, deviceSlot + 1);
@@ -481,7 +481,7 @@ bool fujiDevice::fujicmd_mount_disk_image_success(uint8_t deviceSlot,
 
 // Mounts the desired boot disk number
 void fujiDevice::insert_boot_device(uint8_t image_id, std::string extension,
-                                    mediatype_t disk_type, DEVICE_TYPE *disk_dev)
+                                    mediatype_t disk_type, DISK_DEVICE *disk_dev)
 {
     std::string boot_img;
     fnFile *fBoot = nullptr;
@@ -1017,7 +1017,7 @@ bool fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot,
 
 bool fujiDevice::fujicore_unmount_disk_image_success(uint8_t deviceSlot)
 {
-    DEVICE_TYPE *disk_dev;
+    DISK_DEVICE *disk_dev;
 
     Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\n", deviceSlot);
 
@@ -1313,7 +1313,7 @@ void fujiDevice::fujicmd_set_boot_config(bool enable)
 
 // Set boot mode
 void fujiDevice::fujicmd_set_boot_mode(uint8_t bootMode, std::string extension,
-                                       mediatype_t disk_type, DEVICE_TYPE *disk_dev)
+                                       mediatype_t disk_type, DISK_DEVICE *disk_dev)
 {
     transaction_continue(false);
     insert_boot_device(bootMode, extension, disk_type, disk_dev);
@@ -1436,7 +1436,7 @@ void fujiDevice::fujicmd_read_device_slots()
             free(filename);
         }
 
-        DEVICE_TYPE *disk_dev = get_disk_dev(i);
+        DISK_DEVICE *disk_dev = get_disk_dev(i);
         if (disk_dev->device_active && !disk_dev->is_config_device)
             diskSlots[i].mode |= DISK_ACCESS_MODE_MOUNTED;
     }
