@@ -342,7 +342,7 @@ void systemBus::_sio_process_queue()
         {
         case SIOMSG_DISKSWAP:
             if (_fujiDev != nullptr)
-                _fujiDev->image_rotate();
+                _fujiDev->fujicmd_image_rotate();
             break;
         case SIOMSG_DEBUG_TAPE:
             if (_fujiDev != nullptr)
