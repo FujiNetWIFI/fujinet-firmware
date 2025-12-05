@@ -433,7 +433,7 @@ iwmDisk::iwmDisk()
 }
 
 mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
-                           disk_access_flags_t access_mode, mediatype_t disk_type);
+                           disk_access_flags_t access_mode, mediatype_t disk_type)
 {
   Debug_printf("disk MOUNT %s\n", filename);
 
@@ -468,7 +468,7 @@ mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
     if (access_mode == DISK_ACCESS_MODE_WRITE)
     {
         Debug_printv("Setting disk to read/write");
-        disk_dev->readonly = false;
+        readonly = false;
     }
 
   return disk_type;
@@ -512,11 +512,13 @@ mediatype_t iwmDisk::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_t
 
 void iwmDisk::unmount()
 {
-      if (_disk != nullptr)
+    if (_disk != nullptr)
     {
         _disk->unmount();
         delete _disk;
         _disk = nullptr;
+        if (device_active)
+            switched = true;
         device_active = false;
         is_config_device = false;
         readonly = true;

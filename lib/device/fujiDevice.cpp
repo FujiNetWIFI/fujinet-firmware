@@ -1026,12 +1026,6 @@ bool fujiDevice::fujicore_unmount_disk_image_success(uint8_t deviceSlot)
         return false;
 
     disk_dev = get_disk_dev(deviceSlot);
-#ifdef FIXME
-    if (disk_dev->device_active)
-        disk_dev->switched = true;
-#else
-#warning "FIXME - why is switched not part of all disk classes?"
-#endif /* FIXME */
     disk_dev->unmount();
     _fnDisks[deviceSlot].reset();
 

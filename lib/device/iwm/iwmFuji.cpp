@@ -63,7 +63,7 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES)
         { FUJICMD_OPEN_APPKEY, [this]()                { this->fujicmd_open_app_key(); }},             // 0xDC
         { FUJICMD_READ_DIR_ENTRY, [this]()             { this->fujicmd_read_directory_entry(data_buffer[0], data_buffer[1]); }},     // 0xF6
         { FUJICMD_SET_BOOT_MODE, [this]()              { this->fujicmd_set_boot_mode(data_buffer[0], IMAGE_EXTENSION, MEDIATYPE_PO, get_disk_dev(0)); }},            // 0xD6
-        { FUJICMD_SET_DEVICE_FULLPATH, [this]()        { this->fujicmd_set_device_filename_success(data_buffer[0], data_buffer[1], data_buffer[2]); }},      // 0xE2
+        { FUJICMD_SET_DEVICE_FULLPATH, [this]()        { this->fujicmd_set_device_filename_success(data_buffer[0], data_buffer[1], (disk_access_flags_t) data_buffer[2]); }},      // 0xE2
         { FUJICMD_SET_DIRECTORY_POSITION, [this]()     { this->fujicmd_set_directory_position(le16toh(*((uint16_t *) &data_buffer))); }},   // 0xE4
         { FUJICMD_SET_HOST_PREFIX, [this]()            { this->fujicmd_set_host_prefix(data_buffer[0], (const char *) &data_buffer[1]); }},          // 0xE1
         { FUJICMD_SET_SSID, [this]()                   { this->fujicmd_net_set_ssid_success((const char *) data_buffer, (const char *) &data_buffer[MAX_SSID_LEN + 1], false); }},             // 0xFB
@@ -88,7 +88,7 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES)
         { FUJICMD_MOUNT_ALL, [&]()                     {
              err_result = fujicmd_mount_all_success() ? SP_ERR_NOERROR : SP_ERR_IOERROR;
          }},          // 0xD7
-        { FUJICMD_MOUNT_IMAGE, [&]()                   { err_result = fujicmd_mount_disk_image_success(data_buffer[0], data_buffer[1]) ? SP_ERR_NOERROR : SP_ERR_NODRIVE; }},  // 0xF8
+        { FUJICMD_MOUNT_IMAGE, [&]()                   { err_result = fujicmd_mount_disk_image_success(data_buffer[0], (disk_access_flags_t) data_buffer[1]) ? SP_ERR_NOERROR : SP_ERR_NODRIVE; }},  // 0xF8
         { FUJICMD_OPEN_DIRECTORY, [&]()                { err_result = fujicore_open_directory_success(data_buffer[0], std::string((char *) &data_buffer[1], sizeof(data_buffer) - 1)) ? SP_ERR_NOERROR : SP_ERR_IOERROR; }}     // 0xF7
     };
 
@@ -307,9 +307,6 @@ void iwmFuji::setup()
 
         // Disable booting from CONFIG if our settings say to turn it off
         boot_config = false; // to do - understand?
-
-        // Disable status_wait if our settings say to turn it off
-        status_wait_enabled = false; // to do - understand?
 
         // add ourselves as a device
         SYSTEM_BUS.addDevice(this, iwm_fujinet_type_t::FujiNet);
