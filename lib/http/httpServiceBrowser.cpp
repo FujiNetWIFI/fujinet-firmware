@@ -224,39 +224,11 @@ int fnHttpServiceBrowser::browse_listdir(mg_connection *c, mg_http_message *hm, 
                 Config.store_mount(drive_slot, slot, path, mount_mode);
                 Config.save();
 
-#ifdef BUILD_ATARI // OS
-                // umount current image, if any - close image file, reset drive slot
-                theFuji->sio_disk_image_umount(false, drive_slot);
-#endif
-
                 // update drive slot
                 fujiDisk &fnDisk = *theFuji->get_disk(drive_slot);
                 fnDisk.host_slot = slot;
                 fnDisk.access_mode = (mount_mode == fnConfig::MOUNTMODE_WRITE) ? DISK_ACCESS_MODE_WRITE : DISK_ACCESS_MODE_READ;
                 strlcpy(fnDisk.filename, path, sizeof(fnDisk.filename));
-
-#ifdef BUILD_ATARI // OS
-                // mount host (file system)
-                if (theFuji->sio_mount_host(false, slot) == 0)
-                {
-                    // mount disk image
-                    theFuji->sio_disk_image_mount(false, drive_slot);
-                }
-#endif
-            }
-        }
-        else if (strcmp(action, "mount") == 0)
-        {
-            if (drive_slot >=0 && drive_slot < MAX_DISK_DEVICES)
-            {
-#ifdef BUILD_ATARI // OS
-                // mount host (file system)
-                if (theFuji->sio_mount_host(false, theFuji->get_disk(drive_slot)->host_slot) == 0)
-                {
-                    // mount disk image
-                    theFuji->sio_disk_image_mount(false, drive_slot);
-                }
-#endif
             }
         }
         else if (strcmp(action, "eject") == 0)
@@ -266,9 +238,6 @@ int fnHttpServiceBrowser::browse_listdir(mg_connection *c, mg_http_message *hm, 
             {
                 Config.clear_mount(drive_slot);
                 Config.save();
-#ifdef BUILD_ATARI // OS
-                theFuji->sio_disk_image_umount(false, drive_slot);
-#endif
                 // Finally, scan all device slots, if all empty, and config enabled, enable the config device.
                 if (Config.get_general_config_enabled())
                 {
