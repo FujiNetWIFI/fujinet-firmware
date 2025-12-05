@@ -153,16 +153,6 @@ void lynxFuji::shutdown()
         _fnDisks[i].disk_dev.unmount();
 }
 
-char dirpath[256];
-
-#ifdef OBSOLETE
-size_t _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
-{
-    return set_additional_direntry_details(f, dest, maxlen, 100, SIZE_32_LE,
-                                           HAS_DIR_ENTRY_FLAGS_SEPARATE, HAS_DIR_ENTRY_TYPE);
-}
-#endif /* OBSOLETE */
-
 //  Make new disk and shove into device slot
 void lynxFuji::comlynx_new_disk()
 {
