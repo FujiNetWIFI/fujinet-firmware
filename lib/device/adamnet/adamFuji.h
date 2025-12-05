@@ -36,6 +36,7 @@ protected:
 
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
+    std::optional<std::string> lobbyDiskURL() { return std::nullopt; }
 
     void adamnet_new_disk();               // 0xE7
     void adamnet_write_app_key();          // 0xDE

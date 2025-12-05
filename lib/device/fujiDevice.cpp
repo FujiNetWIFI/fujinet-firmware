@@ -30,8 +30,9 @@
 #include "utils.h"
 #include "directoryPageGroup.h"
 #include "compat_string.h"
-
 #include "fuji_endian.h"
+#include "peoples_url_parser.h"
+
 #ifndef ESP_PLATFORM // why ESP does not like it? it throws a linker error undefined reference to 'basename'
 #include <libgen.h>
 #endif /* ESP_PLATFORM */
@@ -499,11 +500,18 @@ void fujiDevice::insert_boot_device(uint8_t image_id, std::string extension,
         break;
     case 2:
         Debug_printf("Mounting lobby server\n");
-        if (fnTNFS.start("tnfs.fujinet.online"))
         {
-            Debug_printf("opening lobby.\n");
-            boot_img = "/APPLE2/_lobby" + extension;
-            fBoot = fnTNFS.fnfile_open(boot_img.c_str());
+            auto lobbyDisk = lobbyDiskURL();
+            if (lobbyDisk)
+            {
+                auto parsed = PeoplesUrlParser::parseURL(*lobbyDisk);
+                if (fnTNFS.start(parsed->host.c_str()))
+                {
+                    Debug_printf("opening lobby.\n");
+                    boot_img = parsed->path;
+                    fBoot = fnTNFS.fnfile_open(boot_img.c_str());
+                }
+            }
         }
         break;
     default:

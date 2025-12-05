@@ -143,11 +143,11 @@ protected:
 
     virtual size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                                    uint8_t maxlen) = 0;
-
     size_t _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen,
                                             int year_offset, DET_size_endian_t size_endian,
                                             DET_dir_flags_t dir_flags,
                                             DET_has_type_t has_type);
+    virtual std::optional<std::string> lobbyDiskURL() = 0;
 
     // ============ Validation of inputs ============
     bool validate_host_slot(uint8_t slot, const char *dmsg=nullptr);
