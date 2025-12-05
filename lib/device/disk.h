@@ -8,24 +8,23 @@ enum disk_access_flags_t {
     DISK_ACCESS_MODE_MOUNTED = 0x40,
 };
 
+// MSYS2: DEVICE_TYPE is defined in winioctl.h
+#ifdef DEVICE_TYPE
+#undef DEVICE_TYPE
+#endif /* DEVICE_TYPE */
+
 #ifdef BUILD_ATARI
 #include "sio/disk.h"
-// MSYS2: DEVICE_TYPE is defined in winioctl.h
-#undef DEVICE_TYPE
 #define DEVICE_TYPE sioDisk
 #endif
 
 #ifdef BUILD_RS232
 #include "rs232/disk.h"
-// MSYS2: DEVICE_TYPE is defined in winioctl.h
-#undef DEVICE_TYPE
 #define DEVICE_TYPE rs232Disk
 #endif
 
 #ifdef BUILD_APPLE
 #include "iwm/disk.h"
-// MSYS2: DEVICE_TYPE is defined in winioctl.h
-#undef DEVICE_TYPE
 #define DEVICE_TYPE iwmDisk
 #endif
 
@@ -76,8 +75,6 @@ enum disk_access_flags_t {
 
 #ifdef BUILD_COCO
 #include "drivewire/disk.h"
-// MSYS2: DEVICE_TYPE is defined in winioctl.h
-#undef DEVICE_TYPE
 #define DEVICE_TYPE drivewireDisk
 #endif
 
