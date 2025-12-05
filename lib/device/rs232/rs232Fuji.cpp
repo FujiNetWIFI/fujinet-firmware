@@ -80,6 +80,7 @@ void rs232Fuji::rs232_status()
 void rs232Fuji::rs232_net_set_ssid(bool save) // was aux1
 {
     SSIDConfig cfg;
+    transaction_continue(false);
     if (!transaction_get((uint8_t *)&cfg, sizeof(cfg)))
         transaction_error();
     else
@@ -91,6 +92,7 @@ void rs232Fuji::rs232_copy_file()
 {
     char csBuf[256];
 
+    transaction_continue(true);
     if (!transaction_get(csBuf, sizeof(csBuf)))
     {
         transaction_error();
@@ -103,6 +105,7 @@ void rs232Fuji::rs232_copy_file()
 //  Make new disk and shove into device slot
 void rs232Fuji::rs232_new_disk()
 {
+    transaction_continue(true);
     Debug_println("Fuji cmd: NEW DISK");
 
     struct
@@ -168,6 +171,7 @@ void rs232Fuji::rs232_test()
 {
     uint8_t buf[512];
 
+    transaction_continue(false);
     Debug_printf("rs232_test()\n");
     memset(buf, 'A', 512);
     transaction_put(buf, 512, false);
@@ -187,152 +191,116 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
     switch (cmdFrame.comnd)
     {
     case FUJICMD_STATUS:
-        rs232_ack();
         rs232_status();
         break;
     case FUJICMD_RESET:
-        rs232_ack();
         fujicmd_reset();
         break;
     case FUJICMD_SCAN_NETWORKS:
-        rs232_ack();
         fujicmd_net_scan_networks();
         break;
     case FUJICMD_GET_SCAN_RESULT:
-        rs232_ack();
         fujicmd_net_scan_result(cmdFrame.aux1);
         break;
     case FUJICMD_SET_SSID:
-        rs232_ack();
         rs232_net_set_ssid(cmdFrame.aux1);
         break;
     case FUJICMD_GET_SSID:
-        rs232_ack();
         fujicmd_net_get_ssid();
         break;
     case FUJICMD_GET_WIFISTATUS:
-        rs232_ack();
         fujicmd_net_get_wifi_status();
         break;
     case FUJICMD_MOUNT_HOST:
-        rs232_ack();
         fujicmd_mount_host_success(cmdFrame.aux1);
         break;
     case FUJICMD_MOUNT_IMAGE:
-        rs232_ack();
         fujicmd_mount_disk_image_success(cmdFrame.aux1, cmdFrame.aux2);
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        rs232_ack();
         fujicmd_open_directory_success(cmdFrame.aux1);
         break;
     case FUJICMD_READ_DIR_ENTRY:
-        rs232_ack();
         fujicmd_read_directory_entry(cmdFrame.aux1, cmdFrame.aux2);
         break;
     case FUJICMD_CLOSE_DIRECTORY:
-        rs232_ack();
         fujicmd_close_directory();
         break;
     case FUJICMD_GET_DIRECTORY_POSITION:
-        rs232_ack();
         fujicmd_get_directory_position();
         break;
     case FUJICMD_SET_DIRECTORY_POSITION:
-        rs232_ack();
         fujicmd_set_directory_position(cmdFrame.aux1);
         break;
     case FUJICMD_READ_HOST_SLOTS:
-        rs232_ack();
         fujicmd_read_host_slots();
         break;
     case FUJICMD_WRITE_HOST_SLOTS:
-        rs232_ack();
         fujicmd_write_host_slots();
         break;
     case FUJICMD_READ_DEVICE_SLOTS:
-        rs232_ack();
         fujicmd_read_device_slots();
         break;
     case FUJICMD_WRITE_DEVICE_SLOTS:
-        rs232_ack();
         fujicmd_write_device_slots();
         break;
     case FUJICMD_GET_WIFI_ENABLED:
-        rs232_ack();
         fujicmd_net_get_wifi_enabled();
         break;
     case FUJICMD_UNMOUNT_IMAGE:
-        rs232_ack();
         fujicmd_unmount_disk_image_success(cmdFrame.aux1);
         break;
     case FUJICMD_GET_ADAPTERCONFIG:
-        rs232_ack();
         fujicmd_get_adapter_config();
         break;
     case FUJICMD_GET_ADAPTERCONFIG_EXTENDED:
-        rs232_ack();
         fujicmd_get_adapter_config_extended();
         break;
     case FUJICMD_NEW_DISK:
-        rs232_ack();
         rs232_new_disk();
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
-        rs232_ack();
         fujicmd_set_device_filename_success(cmdFrame.aux1, cmdFrame.aux2, cmdFrame.aux3);
         break;
     case FUJICMD_SET_HOST_PREFIX:
-        rs232_ack();
         fujicmd_set_host_prefix(cmdFrame.aux1);
         break;
     case FUJICMD_GET_HOST_PREFIX:
-        rs232_ack();
         fujicmd_get_host_prefix(cmdFrame.aux1);
         break;
     case FUJICMD_WRITE_APPKEY:
-        rs232_ack();
         fujicmd_write_app_key(cmdFrame.aux1);
         break;
     case FUJICMD_READ_APPKEY:
-        rs232_ack();
         fujicmd_read_app_key();
         break;
     case FUJICMD_OPEN_APPKEY:
-        rs232_ack();
         fujicmd_open_app_key();
         break;
     case FUJICMD_CLOSE_APPKEY:
-        rs232_ack();
         fujicmd_close_app_key();
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
-        rs232_ack();
         fujicmd_get_device_filename(cmdFrame.aux1);
         break;
     case FUJICMD_CONFIG_BOOT:
-        rs232_ack();
         fujicmd_set_boot_config(cmdFrame.aux1);
         break;
     case FUJICMD_COPY_FILE:
-        rs232_ack();
         rs232_copy_file();
         break;
     case FUJICMD_MOUNT_ALL:
-        rs232_ack();
         fujicmd_mount_all_success();
         break;
     case FUJICMD_SET_BOOT_MODE:
-        rs232_ack();
         fujicmd_set_boot_mode(cmdFrame.aux1, IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
         break;
     case FUJICMD_DEVICE_READY:
         Debug_printf("FUJICMD DEVICE TEST\n");
-        rs232_ack();
         rs232_test();
         break;
     default:
-        rs232_nak();
+        transaction_error();
     }
 }
 
