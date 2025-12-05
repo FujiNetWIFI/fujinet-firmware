@@ -68,7 +68,7 @@ bool _validate_device_slot(uint8_t slot, const char *dmsg)
 }
 
 // Constructor
-lynxFuji::lynxFuji()
+lynxFuji::lynxFuji() : fujiDevice(MAX_DISK_DEVICES)
 {
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
@@ -151,6 +151,13 @@ void lynxFuji::shutdown()
 {
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
         _fnDisks[i].disk_dev.unmount();
+}
+
+size_t lynxFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
+                                                 uint8_t maxlen)
+{
+    return _set_additional_direntry_details(f, dest, maxlen, 100, SIZE_32_LE,
+                                            HAS_DIR_ENTRY_FLAGS_SEPARATE, HAS_DIR_ENTRY_TYPE);
 }
 
 //  Make new disk and shove into device slot
@@ -276,8 +283,6 @@ void lynxFuji::setup()
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = false;
 
-    // Disable status_wait if our settings say to turn it off
-    status_wait_enabled = false;
     SYSTEM_BUS.addDevice(&_fnDisks[0].disk_dev, FUJI_DEVICEID_DISK);
     SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET);   // Fuji becomes the gateway device.
     theNetwork = new lynxNetwork();
@@ -413,7 +418,7 @@ void lynxFuji::comlynx_control_send()
         {
             uint8_t slot = comlynx_recv();
             uint8_t mode = comlynx_recv();
-            fujicmd_mount_disk_image_success(slot, mode);
+            fujicmd_mount_disk_image_success(slot, (disk_access_flags_t) mode);
         }
         break;
     case FUJICMD_OPEN_DIRECTORY:
@@ -436,10 +441,10 @@ void lynxFuji::comlynx_control_send()
         fujicmd_write_host_slots();
         break;
     case FUJICMD_READ_DEVICE_SLOTS:
-        fujicmd_read_device_slots(MAX_DISK_DEVICES);
+        fujicmd_read_device_slots();
         break;
     case FUJICMD_WRITE_DEVICE_SLOTS:
-        fujicmd_write_device_slots(MAX_DISK_DEVICES);
+        fujicmd_write_device_slots();
         break;
     case FUJICMD_UNMOUNT_IMAGE:
         fujicmd_unmount_disk_image_success(comlynx_recv());

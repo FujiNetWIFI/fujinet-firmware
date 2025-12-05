@@ -677,7 +677,7 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 
         if (theFuji->get_host(hs)->mount() == true)
         {
-            uint8_t mode = qp.query_parsed["mode"] == "2" ?
+            disk_access_flags_t mode = qp.query_parsed["mode"] == "2" ?
                 DISK_ACCESS_MODE_WRITE : DISK_ACCESS_MODE_READ;
             if (!theFuji->fujicore_mount_disk_image_success(ds, mode))
             {

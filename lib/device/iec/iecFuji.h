@@ -26,7 +26,8 @@ protected:
     bool transaction_get(void *data, size_t len) override {return false;}
     void transaction_put(const void *data, size_t len, bool err) override {}
 
-    size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen) override;
+    size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
+                                           uint8_t maxlen) override;
 
     AdapterConfig cfg;
 

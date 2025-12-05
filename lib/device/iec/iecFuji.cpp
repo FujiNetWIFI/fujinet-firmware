@@ -87,7 +87,7 @@ static std::string dataToHexString(uint8_t *data, size_t len)
 
 
 // Constructor
-iecFuji::iecFuji() : fujiDevice()
+iecFuji::iecFuji() : fujiDevice(MAX_DISK_DEVICES)
 {
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
@@ -972,7 +972,7 @@ void iecFuji::mount_disk_image_basic()
     uint8_t ds = atoi(pt[1].c_str());
     uint8_t mode = atoi(pt[2].c_str());
 
-    if (!fujicmd_mount_disk_image_success(ds, mode))
+    if (!fujicmd_mount_disk_image_success(ds, (disk_access_flags_t) mode))
     {
         set_fuji_iec_status(DEVICE_ERROR, response);
         return;
@@ -983,7 +983,7 @@ void iecFuji::mount_disk_image_basic()
 void iecFuji::mount_disk_image_raw()
 {
     populate_slots_from_config();
-    if (!fujicmd_mount_disk_image_success(payload[0], payload[1]))
+    if (!fujicmd_mount_disk_image_success(payload[0], (disk_access_flags_t) payload[1]))
     {
         set_fuji_iec_status(DEVICE_ERROR, "Failed to mount disk image");
     }
@@ -1691,10 +1691,10 @@ void iecFuji::write_device_slots_basic()
     std::string filename = pt[3];
     unsigned char m = atoi(pt[4].c_str());
 
-    _fnDisks[ds].reset(filename.c_str(),hs,m);
+    _fnDisks[ds].reset(filename.c_str(),hs,(disk_access_flags_t)m);
     strncpy(_fnDisks[ds].filename,filename.c_str(),256);
 
-    fujicmd_write_device_slots(MAX_DISK_DEVICES);
+    fujicmd_write_device_slots();
     set_fuji_iec_status(0, "ok");
 }
 
@@ -1715,9 +1715,9 @@ void iecFuji::write_device_slots_raw()
 
     // Load the data into our current device array
     for (int i = 0; i < MAX_DISK_DEVICES; i++) {
-        _fnDisks[i].reset(diskSlots.diskSlots[i].filename, diskSlots.diskSlots[i].hostSlot, diskSlots.diskSlots[i].mode);
+        _fnDisks[i].reset(diskSlots.diskSlots[i].filename, diskSlots.diskSlots[i].hostSlot, (disk_access_flags_t) diskSlots.diskSlots[i].mode);
     }
-    fujicmd_write_device_slots(MAX_DISK_DEVICES);
+    fujicmd_write_device_slots();
     set_fuji_iec_status(0, "");
 }
 
@@ -1756,7 +1756,7 @@ void iecFuji::set_device_filename_basic()
 
     Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\r\n", slot, host, mode, filename.c_str());
 
-    fujicore_set_device_filename_success(slot, host, mode, filename);
+    fujicore_set_device_filename_success(slot, host, (disk_access_flags_t) mode, filename);
     response = "ok";
     set_fuji_iec_status(0, response);
 }
@@ -1787,7 +1787,7 @@ void iecFuji::set_device_filename_raw()
 
     Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\r\n", slot, host, mode, filename.c_str());
 
-    fujicore_set_device_filename_success(slot, host, mode, filename);
+    fujicore_set_device_filename_success(slot, host, (disk_access_flags_t) mode, filename);
     set_fuji_iec_status(0, "");
 }
 
@@ -1858,10 +1858,11 @@ std::vector<std::string> iecFuji::tokenize_basic_command(std::string command)
 
 }
 
-void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
+size_t iecFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
+                                                uint8_t maxlen)
 {
-    set_additional_direntry_details(f, dest, maxlen, 0, SIZE_16_LE,
-                                    HAS_DIR_ENTRY_FLAGS_COMBINED, HAS_DIR_ENTRY_TYPE);
+    return _set_additional_direntry_details(f, dest, maxlen, 0, SIZE_16_LE,
+                                            HAS_DIR_ENTRY_FLAGS_COMBINED, HAS_DIR_ENTRY_TYPE);
 }
 
 void iecFuji::hash_input_raw()

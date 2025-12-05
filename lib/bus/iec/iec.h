@@ -48,6 +48,7 @@ union cmdFrame_t
     } __attribute__((packed));
 };
 
+class iecDrive;
 
 /**
  * @class systemBus
@@ -78,6 +79,9 @@ public:
      * @return value of shuttingDown
      */
     bool getShuttingDown() { return shuttingDown; }
+
+    // needed for fujiDevice compatibility
+    void changeDeviceId(iecDrive *pDevice, int device_id);
 
  private:
     /**

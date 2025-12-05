@@ -36,9 +36,6 @@ void rs232Fuji::setup()
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
 
-    // Disable status_wait if our settings say to turn it off
-    status_wait_enabled = Config.get_general_status_wait_enabled();
-
     // Add our devices to the RS232 bus
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
         SYSTEM_BUS.addDevice(&_fnDisks[i].disk_dev,
@@ -215,7 +212,7 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         fujicmd_mount_host_success(cmdFrame.aux1);
         break;
     case FUJICMD_MOUNT_IMAGE:
-        fujicmd_mount_disk_image_success(cmdFrame.aux1, cmdFrame.aux2);
+        fujicmd_mount_disk_image_success(cmdFrame.aux1, (disk_access_flags_t) cmdFrame.aux2);
         break;
     case FUJICMD_OPEN_DIRECTORY:
         fujicmd_open_directory_success(cmdFrame.aux1);
@@ -260,7 +257,8 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         rs232_new_disk();
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
-        fujicmd_set_device_filename_success(cmdFrame.aux1, cmdFrame.aux2, cmdFrame.aux3);
+        fujicmd_set_device_filename_success(cmdFrame.aux1, cmdFrame.aux2,
+                                            (disk_access_flags_t) cmdFrame.aux3);
         break;
     case FUJICMD_SET_HOST_PREFIX:
         fujicmd_set_host_prefix(cmdFrame.aux1);

@@ -418,8 +418,10 @@ void drivewireFuji::setup()
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
 
+#ifdef OBSOLETE
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = Config.get_general_status_wait_enabled();
+#endif /* OBSOLETE */
 }
 
 void drivewireFuji::send_error()
@@ -536,7 +538,7 @@ void drivewireFuji::process()
             uint8_t slot = SYSTEM_BUS.read();
             uint8_t host = SYSTEM_BUS.read();
             uint8_t mode = SYSTEM_BUS.read();
-            fujicmd_set_device_filename_success(slot, host, mode);
+            fujicmd_set_device_filename_success(slot, host, (disk_access_flags_t) mode);
         }
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
@@ -546,7 +548,7 @@ void drivewireFuji::process()
         {
             uint8_t slot = SYSTEM_BUS.read();
             uint8_t mode = SYSTEM_BUS.read();
-            fujicmd_mount_disk_image_success(slot, mode);
+            fujicmd_mount_disk_image_success(slot, (disk_access_flags_t) mode);
         }
         break;
     case FUJICMD_UNMOUNT_HOST:

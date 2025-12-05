@@ -209,12 +209,12 @@ void adamFuji::insert_boot_device(uint8_t d)
     {
     case 0:
         fBoot = fsFlash.file_open(config_atr);
-        _fnDisks[0].disk_dev.mount(fBoot, config_atr, 262144, MEDIATYPE_DDP);
+        _fnDisks[0].disk_dev.mount(fBoot, config_atr, 262144, DISK_ACCESS_MODE_READ, MEDIATYPE_DDP);
         break;
     case 1:
 
         fBoot = fsFlash.file_open(mount_all_atr);
-        _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 262144, MEDIATYPE_DDP);
+        _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 262144, DISK_ACCESS_MODE_READ, MEDIATYPE_DDP);
         break;
     }
 
@@ -321,13 +321,13 @@ void adamFuji::setup()
         if (Config.get_general_boot_mode() == 0)
         {
             FILE *f = fsFlash.file_open("/autorun.ddp");
-            _fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, MEDIATYPE_DDP);
+            _fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, DISK_ACCESS_MODE_READ, MEDIATYPE_DDP);
             _fnDisks[0].disk_dev.is_config_device = true;
         }
         else
         {
             FILE *f = fsFlash.file_open("/mount-and-boot.ddp");
-            _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.ddp", 262144, MEDIATYPE_DDP);
+            _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.ddp", 262144, DISK_ACCESS_MODE_READ, MEDIATYPE_DDP);
         }
     }
     else
@@ -450,7 +450,7 @@ void adamFuji::adamnet_control_send()
         {
             uint8_t slot = adamnet_recv();
             uint8_t mode = adamnet_recv();
-            fujicmd_mount_disk_image_success(slot, mode);
+            fujicmd_mount_disk_image_success(slot, (disk_access_flags_t) mode);
         }
         break;
     case FUJICMD_OPEN_DIRECTORY:
