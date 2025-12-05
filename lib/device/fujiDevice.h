@@ -185,7 +185,7 @@ public:
     void fujicmd_net_get_ssid();
     bool fujicmd_net_set_ssid_success(const char *ssid, const char *password, bool save);
     void fujicmd_net_get_wifi_enabled();
-    bool fujicmd_mount_disk_image_success(uint8_t deviceSlot, uint8_t access_mode);
+    bool fujicmd_mount_disk_image_success(uint8_t deviceSlot, disk_access_flags_t access_mode);
     bool fujicmd_unmount_disk_image_success(uint8_t deviceSlot);
     void fujicmd_image_rotate();
     bool fujicmd_open_directory_success(uint8_t hostSlot);
@@ -197,7 +197,8 @@ public:
     void fujicmd_get_adapter_config();
     void fujicmd_get_adapter_config_extended();
     void fujicmd_get_device_filename(uint8_t slot);
-    bool fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t host, uint8_t mode);
+    bool fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
+                                             disk_access_flags_t mode);
     void fujicmd_get_host_prefix(uint8_t hostSlot);
     void fujicmd_net_get_wifi_status();
     void fujicmd_read_host_slots();
@@ -239,15 +240,13 @@ public:
     uint16_t fujicore_get_directory_position();
     AdapterConfigExtended fujicore_get_adapter_config_extended();
     bool fujicore_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
-                                              uint8_t mode, std::string filename);
+                                              disk_access_flags_t mode, std::string filename);
     std::optional<std::string> fujicore_get_device_filename(uint8_t slot);
-    bool fujicore_mount_disk_image_success(uint8_t deviceSlot, uint8_t access_mode);
+    virtual bool fujicore_mount_disk_image_success(uint8_t deviceSlot,
+                                                   disk_access_flags_t access_mode);
     bool fujicore_unmount_disk_image_success(uint8_t deviceSlot);
     bool fujicore_mount_host_success(unsigned hostSlot);
     bool fujicore_mount_all_success();
-
-    // Should be protected but directly accessed by sio.cpp
-    bool status_wait_enabled = true;
 
     // Should be protected but being called by drivewire.cpp
     void insert_boot_device(uint8_t image_id, std::string extension,

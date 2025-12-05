@@ -257,6 +257,11 @@ void systemBus::_sio_process_cmd()
         if (tempFrame.device == FUJI_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
         {
             _activeDev = &_fujiDev->bootdisk;
+
+            // Boot-priority logic: if enabled, ignore the first few
+            // SIO status calls (of the 26 Atari sends) so a real D1:
+            // can take over. Once status_waint_count expires, respond
+            // normally; if disabled, respond immediately.
             if (_activeDev->status_wait_count > 0 && tempFrame.comnd == 'R' && _fujiDev->status_wait_enabled)
             {
                 Debug_printf("Disabling CONFIG boot.\n");

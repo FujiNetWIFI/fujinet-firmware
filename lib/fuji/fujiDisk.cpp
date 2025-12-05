@@ -12,7 +12,7 @@ void fujiDisk::reset()
 #endif
 }
 
-void fujiDisk::reset(const char *fname, uint8_t hostslot, uint8_t mode)
+void fujiDisk::reset(const char *fname, uint8_t hostslot, disk_access_flags_t mode)
 {
 #ifdef DEVICE_TYPE
     fileh = nullptr;

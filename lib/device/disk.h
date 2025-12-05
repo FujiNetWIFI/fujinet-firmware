@@ -1,6 +1,13 @@
 #ifndef DEVICE_DISK_H
 #define DEVICE_DISK_H
 
+enum disk_access_flags_t {
+    DISK_ACCESS_MODE_INVALID = 0x00,
+    DISK_ACCESS_MODE_READ    = 0x01,
+    DISK_ACCESS_MODE_WRITE   = 0x02,
+    DISK_ACCESS_MODE_MOUNTED = 0x40,
+};
+
 #ifdef BUILD_ATARI
 #include "sio/disk.h"
 // MSYS2: DEVICE_TYPE is defined in winioctl.h

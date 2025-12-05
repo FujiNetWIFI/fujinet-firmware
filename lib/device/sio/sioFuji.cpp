@@ -921,7 +921,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         fujicmd_mount_host_success(cmdFrame.aux1);
         break;
     case FUJICMD_MOUNT_IMAGE:
-        fujicmd_mount_disk_image_success(cmdFrame.aux1, cmdFrame.aux2);
+        fujicmd_mount_disk_image_success(cmdFrame.aux1, (disk_access_flags_t) cmdFrame.aux2);
         break;
     case FUJICMD_OPEN_DIRECTORY:
         fujicmd_open_directory_success(cmdFrame.aux1);
@@ -972,7 +972,8 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         fujicmd_unmount_host_success(cmdFrame.aux1);
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
-        fujicmd_set_device_filename_success(cmdFrame.aux1, cmdFrame.aux2 >> 4, cmdFrame.aux2 & 0x0F);
+        fujicmd_set_device_filename_success(cmdFrame.aux1, cmdFrame.aux2 >> 4,
+                                            (disk_access_flags_t) (cmdFrame.aux2 & 0x0F));
         break;
     case FUJICMD_SET_HOST_PREFIX:
         fujicmd_set_host_prefix(cmdFrame.aux1);
@@ -1073,6 +1074,15 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     default:
         transaction_error();
     }
+}
+
+bool sioFuji::fujicore_mount_disk_image_success(uint8_t deviceSlot,
+                                                disk_access_flags_t access_mode)
+{
+    if (!fujiDevice::fujicore_mount_disk_image_success(deviceSlot, access_mode))
+        return false;
+    status_wait_count = 0;
+    return true;
 }
 
 #endif /* BUILD_ATARI */

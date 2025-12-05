@@ -242,7 +242,7 @@ int fnHttpServiceBrowser::browse_listdir(mg_connection *c, mg_http_message *hm, 
                 if (theFuji->fujicore_mount_host_success(slot))
                 {
                     // mount disk image
-                    theFuji->fujicore_mount_disk_image_success(drive_slot, 0);
+                    theFuji->fujicore_mount_disk_image_success(drive_slot, DISK_ACCESS_MODE_INVALID);
                 }
 #endif
             }
@@ -257,7 +257,7 @@ int fnHttpServiceBrowser::browse_listdir(mg_connection *c, mg_http_message *hm, 
                 if (theFuji->fujicore_mount_host_success(slot))
                 {
                     // mount disk image
-                    theFuji->fujicore_mount_disk_image_success(drive_slot, 0);
+                    theFuji->fujicore_mount_disk_image_success(drive_slot, DISK_ACCESS_MODE_INVALID);
                 }
 #endif
             }

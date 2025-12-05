@@ -96,6 +96,14 @@ public:
     // Used by sio.cpp
     void debug_tape();
     sioCassette *cassette() { return &_cassetteDev; };
+
+    // If enabled, honor SIO boot-priority: delay our status reply so
+    // a real D1: can boot first.
+    bool status_wait_enabled = true;
+
+    // ============ Wrapped Fuji commands ============
+    bool fujicore_mount_disk_image_success(uint8_t deviceSlot,
+                                           disk_access_flags_t access_mode) override;
 };
 
 extern sioFuji platformFuji;

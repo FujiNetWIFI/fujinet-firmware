@@ -425,7 +425,8 @@ void fujiDevice::fujicmd_net_get_wifi_enabled()
 }
 
 // Disk Image Mount
-bool fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot, uint8_t access_mode)
+bool fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot,
+                                                   disk_access_flags_t access_mode)
 {
     // TODO: Implement FETCH?
     char mode[4] = {'r', 'b', 0, 0};
@@ -454,31 +455,16 @@ bool fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot, uint8_t a
 
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
     boot_config = false;
-#ifdef FIXME
-    status_wait_count = 0;
-#else
-#warning "FIXME - what is status_wait_count for and why don't all virtual devices have it?"
-#endif /* FIXME */
 
     // We need the file size for loading XEX files and for CASSETTE, so get that too
     disk.disk_size = host.file_size(disk.fileh);
-
-    // FIXME - access_mode should be an argument to mount()
-    disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size);
-#ifdef FIXME
-    if (access_mode == DISK_ACCESS_MODE_WRITE)
-    {
-        Debug_printv("Setting disk to read/write");
-        disk_dev->readonly = false;
-    }
-#else
-#warning "FIXME - readonly needs to be a mount() argument"
-#endif /* FIXME */
+    disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size, access_mode);
 
     return true;
 }
 
-bool fujiDevice::fujicmd_mount_disk_image_success(uint8_t deviceSlot, uint8_t access_mode)
+bool fujiDevice::fujicmd_mount_disk_image_success(uint8_t deviceSlot,
+                                                  disk_access_flags_t access_mode)
 {
     transaction_continue(false);
     Debug_println("Fuji cmd: MOUNT IMAGE");
@@ -532,7 +518,7 @@ void fujiDevice::insert_boot_device(uint8_t image_id, std::string extension,
     }
 
     image_size = fsFlash.filesize(fBoot);
-    disk_dev->mount(fBoot, boot_img.c_str(), image_size, disk_type);
+    disk_dev->mount(fBoot, boot_img.c_str(), image_size, DISK_ACCESS_MODE_READ, disk_type);
     disk_dev->is_config_device = true;
 }
 
@@ -1165,7 +1151,8 @@ void fujiDevice::fujicmd_get_device_filename(uint8_t slot)
 
 // Write a 256 byte filename to the device slot
 bool fujiDevice::fujicore_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
-                                                      uint8_t mode, std::string filename)
+                                                      disk_access_flags_t mode,
+                                                      std::string filename)
 {
     // Handle DISK slots
     if (deviceSlot >= totalDiskDevices)
@@ -1191,7 +1178,7 @@ bool fujiDevice::fujicore_set_device_filename_success(uint8_t deviceSlot, uint8_
 }
 
 bool fujiDevice::fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
-                                                     uint8_t mode)
+                                                     disk_access_flags_t mode)
 {
     char tmp[MAX_FILENAME_LEN];
 
@@ -1479,7 +1466,8 @@ void fujiDevice::fujicmd_write_device_slots()
 
     // Load the data into our current device array
     for (int i = 0; i < totalDiskDevices; i++)
-        _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
+        _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot,
+                          (disk_access_flags_t) diskSlots[i].mode);
 
     // Save the data to disk
     populate_config_from_slots();

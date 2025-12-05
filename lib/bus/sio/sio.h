@@ -200,7 +200,9 @@ public:
     bool device_active = true;
 
     /**
-     * @brief status wait counter
+     * @brief Honor SIO boot-priority: ignore first 5 status calls (of
+     *        26) so a real D1: drive can take over; overridable via
+     *        UI flag.
      */
     uint8_t status_wait_count = 5;
 };
