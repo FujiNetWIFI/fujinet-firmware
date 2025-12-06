@@ -37,6 +37,7 @@ struct ChannelConfig
             .backup_before_sleep = 0,
         }
     };
+    uart_intr_config_t *uart_intr_config = NULL;
     bool isInverted = false;
     uart_port_t device;
     uint32_t read_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
@@ -74,6 +75,11 @@ struct ChannelConfig
 #endif /* PIN_RS232_RI */
     };
 
+    ChannelConfig& set_uart_intr_config(uart_intr_config_t *_uart_intr_config)
+    {
+        uart_intr_config = _uart_intr_config;
+        return *this;
+    }
     ChannelConfig& baud(int baud) {
         uart_config.baud_rate = baud; return *this;
     }

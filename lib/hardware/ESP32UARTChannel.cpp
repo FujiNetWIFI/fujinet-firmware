@@ -50,6 +50,9 @@ void ESP32UARTChannel::begin(const ChannelConfig& conf)
     if (conf.isInverted)
         uart_set_line_inverse(_uart_num, UART_SIGNAL_TXD_INV | UART_SIGNAL_RXD_INV);
 
+    if (conf.uart_intr_config)
+        uart_intr_config(_uart_num,conf.uart_intr_config);
+
     // Arduino default buffer size is 256
     int uart_buffer_size = UART_HW_FIFO_LEN(uart_num) * 2;
     int uart_queue_size = 10;
