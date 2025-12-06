@@ -11,6 +11,7 @@
 #include "led.h"
 #include <cstring>
 #include "adamFuji.h"
+#include <soc/uart_reg.h>
 
 #define IDLE_TIME 180 // Idle tolerance in microseconds
 
@@ -331,8 +332,19 @@ void systemBus::setup()
     // Add the card detect handler
     gpio_isr_handler_add((gpio_num_t)PIN_ADAMNET_RESET, adamnet_reset_isr_handler, (void *)PIN_CARD_DETECT_FIX);
 
+    uart_intr_config_t uic;
+
+    // AdamNet needs much tighter timing.
+    uic.intr_enable_mask = UART_RXFIFO_FULL_INT_ENA_M | UART_RXFIFO_TOUT_INT_ENA_M | UART_FRM_ERR_INT_ENA_M | UART_RXFIFO_OVF_INT_ENA_M | UART_BRK_DET_INT_ENA_M | UART_PARITY_ERR_INT_ENA_M;
+    uic.rxfifo_full_thresh = 1;
+    uic.rx_timeout_thresh = 10;
+    uic.txfifo_empty_intr_thresh = 2;
+
     // Set up UART
     _port.begin(ChannelConfig()
+                .deviceID(FN_UART_BUS)
+                .inverted(true)
+                .set_uart_intr_config(&uic)
                 .baud(ADAMNET_BAUDRATE)
                 );
 }
