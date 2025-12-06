@@ -851,7 +851,8 @@ void iwm_diskii_ll::set_output_to_low()
 // ========================== DISK II below ======== SP above ==============================
 // =========================================================================================
 
-// https://docs.espressif.com/projects/esp-idf/en/v3.3.5/api-reference/peripherals/rmt.html
+// https://docs.espressif.com/projects/esp-idf/en/v5.4.3/esp32/api-reference/peripherals/rmt.html
+
 #define RMT_USEC (APB_CLK_FREQ / MHZ)
 
 // enable/disable capturing write signal from Disk II
