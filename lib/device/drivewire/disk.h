@@ -1,6 +1,7 @@
 #ifndef DISK_H
 #define DISK_H
 
+#include "../disk.h"
 #include "bus.h"
 #include "media.h"
 
@@ -14,7 +15,9 @@ public:
     ~drivewireDisk();
 
     mediatype_t disktype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_mediatype; };
-    mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+    mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize,
+                      disk_access_flags_t access_mode,
+                      mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
 
     bool write_blank(fnFile *f, uint8_t numDisks);

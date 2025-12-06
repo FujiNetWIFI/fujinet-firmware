@@ -2,6 +2,7 @@
 #ifndef DISK_H
 #define DISK_H
 
+#include "../disk.h"
 #include "bus.h"
 #include "../media/media.h"
 
@@ -46,7 +47,9 @@ protected:
 
 public:
     iwmDisk();
-    mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+    mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize,
+                      disk_access_flags_t access_mode,
+                      mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     virtual mediatype_t mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_type);
     void unmount();
     bool write_blank(fnFile *f, uint16_t numBlocks, uint8_t blank_header_type);
@@ -59,5 +62,5 @@ public:
     // virtual void startup_hack();
 };
 
-#endif
+#endif /* DISK_H */
 #endif /* BUILD_APPLE */

@@ -3,6 +3,7 @@
 
 #include <ctime>
 
+#include "../disk.h"
 #include "bus.h"
 #include "media.h"
 
@@ -25,7 +26,9 @@ private:
 
 public:
     rs232Disk();
-    mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+    mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize,
+                      disk_access_flags_t access_mode,
+                      mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
     bool write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors);
 

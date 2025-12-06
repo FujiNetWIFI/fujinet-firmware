@@ -1,6 +1,9 @@
 #ifdef BUILD_MAC
-#ifndef FUJI_H
-#define FUJI_H
+#ifndef MACFUJI_H
+#define MACFUJI_H
+
+#include "fujiDevice.h"
+
 #include <cstdint>
 
 #include "../../include/debug.h"
@@ -179,8 +182,8 @@ extern macFuji *theFuji;
 #endif // BUILD_MAC
 
 #if 0
-#ifndef FUJI_H
-#define FUJI_H
+#ifndef MACFUJI_H
+#define MACFUJI_H
 #include <cstdint>
 
 #include "../../include/debug.h"
@@ -195,5 +198,5 @@ extern macFuji *theFuji;
 
 
 
-#endif // FUJI_H
+#endif // MACFUJI_H
 #endif /* BUILD_APPLE */

@@ -205,9 +205,6 @@ void sioCassette::sio_enable_cassette()
     if (cassetteMode == cassette_mode_t::record && tape_offset == 0)
     {
         open_cassette_file(&fnSDFAT); // hardcode SD card?
-#ifdef UNUSED
-        SYSTEM_BUS.end();
-#endif /* UNUSED */
 #ifdef ESP_PLATFORM
         fnSystem.set_pin_mode(UART2_RX, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_ANYEDGE);
 
@@ -268,9 +265,6 @@ void sioCassette::sio_disable_cassette()
         {
             close_cassette_file();
             //TODO: gpio_isr_handler_remove((gpio_num_t)UART2_RX);
-#ifdef UNUSED
-            SYSTEM_BUS.begin(SIO_STANDARD_BAUDRATE);
-#endif /* UNUSED */
         }
         Debug_println("Cassette Mode disabled");
     }

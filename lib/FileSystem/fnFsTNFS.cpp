@@ -44,7 +44,7 @@ FileSystemTNFS::~FileSystemTNFS()
 bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpath, const char * userid, const char * password)
 {
     if (_started)
-        return false;
+        return true;
 
     if(host == nullptr)
         return false;

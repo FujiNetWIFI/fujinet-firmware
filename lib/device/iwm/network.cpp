@@ -616,14 +616,7 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
     if (!current_network_data.protocol)
         return true; // Punch out.
 
-#ifdef UNUSED
-    // Get status
-    current_network_data.protocol->status(&ns);
-    avail = ns.rxBytesWaiting;
-#else
     avail = current_network_data.protocol->available();
-#endif /* UNUSED */
-
     data_len = std::min((size_t) num_bytes, std::min((size_t) 512, avail));
 
     //Debug_printf("\r\nAvailable bytes %04x\n", data_len);

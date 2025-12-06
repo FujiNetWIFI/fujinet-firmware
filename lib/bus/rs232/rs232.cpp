@@ -4,7 +4,8 @@
 
 #include "../../include/debug.h"
 
-#include "fujiDevice.h"
+#include "rs232/rs232Fuji.h"
+#include "rs232/network.h"
 #include "udpstream.h"
 #include "modem.h"
 #include "siocpm.h"
@@ -51,7 +52,7 @@ uint8_t rs232_checksum(uint8_t *buf, unsigned short len)
 }
 
 /*
-   RS232 WRITE to ATARI from DEVICE
+   RS232 WRITE to COMPUTER from DEVICE
    buf = buffer to send to Atari
    len = length of buffer
    err = along with data, send ERROR status to Atari rather than COMPLETE
@@ -61,10 +62,8 @@ void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
     // Write data frame to computer
     Debug_printf("->RS232 write %hu bytes\n", len);
 #ifdef VERBOSE_RS232
-    Debug_printf("SEND <%u> BYTES\n\t", len);
-    for (int i = 0; i < len; i++)
-        Debug_printf("%02x ", buf[i]);
-    Debug_print("\n");
+    Debug_printf("SEND <%u> BYTES\n", len);
+    Debug_printf("\n%s\n", util_hexdump(buf, len).c_str());
 #endif
 
     // Write ERROR or COMPLETE status
@@ -104,10 +103,8 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
     uint8_t ck_tst = rs232_checksum(buf, len);
 
 #ifdef VERBOSE_RS232
-    Debug_printf("RECV <%u> BYTES, checksum: %hu\n\t", l, ck_rcv);
-    for (int i = 0; i < len; i++)
-        Debug_printf("%02x ", buf[i]);
-    Debug_print("\n");
+    Debug_printf("RECV <%u> BYTES, checksum: %hu\n", l, ck_rcv);
+    Debug_printf("\n%s\n", util_hexdump(buf, len).c_str());
 #endif
 
     fnSystem.delay_microseconds(DELAY_T4);
@@ -202,7 +199,7 @@ void systemBus::_rs232_process_cmd()
     {
         if (tempFrame.device == FUJI_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
         {
-            _activeDev = _fujiDev->bootdisk();
+            _activeDev = &_fujiDev->bootdisk;
 
             Debug_println("FujiNet CONFIG boot");
             // handle command
@@ -253,29 +250,14 @@ void systemBus::service()
         return; // break!
     }
 
-#if 0 && !defined(FUJINET_OVER_USB)
-    // Go process a command frame if the RS232 CMD line is asserted
-    if (_port.dsrState())
-    {
-        _rs232_process_cmd();
-    }
-#else /* FUJINET_OVER_USB */
-    // Go process a command frame if the RS232 CMD line is asserted
     if (_port.available())
     {
         _rs232_process_cmd();
     }
-#endif /* FUJINET_OVER_USB */
     // Go check if the modem needs to read data if it's active
     else if (_modemDev != nullptr && _modemDev->modemActive && Config.get_modem_enabled())
     {
         _modemDev->rs232_handle_modem();
-    }
-    else
-    // Neither CMD nor active modem, so throw out any stray input data
-    {
-        //Debug_println("RS232 Srvc Flush");
-        _port.discardInput();
     }
 
     // Handle interrupts from network protocols
@@ -354,12 +336,12 @@ int systemBus::numDevices()
     __END_IGNORE_UNUSEDVARS
 }
 
-void systemBus::changeDeviceId(virtualDevice *p, fujiDeviceID_t device_id)
+void systemBus::changeDeviceId(virtualDevice *p, int device_id)
 {
     for (auto devicep : _daisyChain)
     {
         if (devicep == p)
-            devicep->_devnum = device_id;
+            devicep->_devnum = (fujiDeviceID_t) device_id;
     }
 }
 

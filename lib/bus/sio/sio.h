@@ -51,22 +51,26 @@ FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
 #define SERIAL_TIMEOUT 300
 
-union cmdFrame_t
+typedef struct
 {
-    struct
+    union
     {
-        uint8_t device;
-        uint8_t comnd;
-        uint8_t aux1;
-        uint8_t aux2;
-        uint8_t cksum;
-    };
-    struct
-    {
+        struct
+        {
+            uint8_t device;
+            uint8_t comnd;
+            union {
+                struct {
+                    uint8_t aux1;
+                    uint8_t aux2;
+                };
+                uint16_t aux12;
+            };
+        };
         uint32_t commanddata;
-        uint8_t checksum;
-    } __attribute__((packed));
-};
+    };
+    uint8_t checksum;
+} __attribute__((packed)) cmdFrame_t;
 
 // helper functions
 uint8_t sio_checksum(uint8_t *buf, unsigned short len);
@@ -196,7 +200,9 @@ public:
     bool device_active = true;
 
     /**
-     * @brief status wait counter
+     * @brief Honor SIO boot-priority: ignore first 5 status calls (of
+     *        26) so a real D1: drive can take over; overridable via
+     *        UI flag.
      */
     uint8_t status_wait_count = 5;
 };
@@ -261,7 +267,7 @@ public:
     void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id);
     void remDevice(virtualDevice *pDevice);
     virtualDevice *deviceById(fujiDeviceID_t device_id);
-    void changeDeviceId(virtualDevice *pDevice, fujiDeviceID_t device_id);
+    void changeDeviceId(virtualDevice *pDevice, int device_id);
 
     int getBaudrate();                                          // Gets current SIO baud rate setting
     void setBaudrate(int baud);                                 // Sets SIO to specific baud rate
@@ -306,10 +312,6 @@ public:
 
 #ifndef ESP_PLATFORM
     // specific to NetSioPort
-#ifdef UNUSED
-    void set_netsio_host(const char *host, int port) { _netsio.set_netsio_host(host, port); }
-    const char* get_netsio_host(int &port) { return _netsio.get_netsio_host(port); }
-#endif /* UNUSED */
     void netsio_empty_sync() { _netsio.sendEmptySync(); }
     void netsio_late_sync(uint8_t c) { _netsio.setSyncAckByte(c); }
     void netsio_write_size(int write_size) { _netsio.setWriteSize(write_size); }
@@ -317,16 +319,6 @@ public:
     void set_command_processed(bool processed);
     void sio_empty_ack();                                       // for NetSIO, notify hub we are not interested to handle the command
 
-#ifdef UNUSED
-
-    // get/set SIO mode
-    SioCom::sio_mode get_sio_mode() { return _netsio.get_sio_mode(); }
-    void set_sio_mode(SioCom::sio_mode mode) { _netsio.set_sio_mode(mode); }
-    void reset_sio_port(SioCom::sio_mode mode) { _netsio.reset_sio_port(mode); }
-
-    bool poll(int ms) { return _netsio.poll(ms); }
-    bool command_asserted() { return _netsio.commandAsserted(); }
-#endif /* UNUSED */
     void set_proceed(bool level) { _netsio.setProceed(level); }
     void bus_idle(uint16_t ms) { _netsio.busIdle(ms); }
 #endif /* ESP_PLATFORM */

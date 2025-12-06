@@ -20,6 +20,7 @@
 
 #include "meat_media.h"
 
+using namespace std;
 
 // Buffering data when reading/writing streams because during regular (non-fastloader)
 // tranmissions, the read/write functions are called for each single byte at a time and
@@ -1490,7 +1491,8 @@ void iecDrive::set_cwd(std::string path)
    If the disk_type value passed is not MEDIATYPE_UNKNOWN then that's used instead.
    Return value is MEDIATYPE_UNKNOWN in case of failure.
 */
-mediatype_t iecDrive::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+mediatype_t iecDrive::mount(FILE *f, const char *filename, uint32_t disksize,
+                            disk_access_flags_t access_mode, mediatype_t disk_type)
 {
   Debug_printv("filename[%s], disksize[%lu] disktype[%d]", filename, disksize, disk_type);
   std::string url = this->m_host->get_basepath();

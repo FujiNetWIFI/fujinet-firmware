@@ -445,12 +445,12 @@ int systemBus::numDevices()
     return _daisyChain.size();
 }
 
-void systemBus::changeDeviceId(virtualDevice *p, fujiDeviceID_t device_id)
+void systemBus::changeDeviceId(virtualDevice *p, int device_id)
 {
     for (auto devicep : _daisyChain)
     {
         if (devicep.second == p)
-            devicep.second->_devnum = device_id;
+            devicep.second->_devnum = (fujiDeviceID_t) device_id;
     }
 }
 
