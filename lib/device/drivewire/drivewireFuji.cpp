@@ -10,6 +10,9 @@
 #include "endianness.h"
 #include "fuji_endian.h"
 
+#define IMAGE_EXTENSION ".dsk"
+#define LOBBY_URL       "tnfs://tnfs.fujinet.online/COCO/lobby.dsk"
+
 drivewireFuji platformFuji;
 fujiDevice *theFuji = &platformFuji; // Global fuji object.
 
@@ -67,7 +70,7 @@ void say_swap_label()
 }
 
 // Constructor
-drivewireFuji::drivewireFuji() : fujiDevice(MAX_DWDISK_DEVICES)
+drivewireFuji::drivewireFuji() : fujiDevice(MAX_DWDISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
 {
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
@@ -413,7 +416,7 @@ void drivewireFuji::setup()
 
     populate_slots_from_config();
 
-    insert_boot_device(Config.get_general_boot_mode(), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
+    insert_boot_device(Config.get_general_boot_mode(), MEDIATYPE_UNKNOWN, &bootdisk);
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
@@ -629,7 +632,7 @@ void drivewireFuji::process()
         hash_clear();
         break;
     case FUJICMD_SET_BOOT_MODE:
-        fujicmd_set_boot_mode(SYSTEM_BUS.read(), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
+        fujicmd_set_boot_mode(SYSTEM_BUS.read(), MEDIATYPE_UNKNOWN, &bootdisk);
         break;
     case FUJICMD_MOUNT_ALL:
         fujicmd_mount_all_success();

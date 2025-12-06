@@ -24,6 +24,9 @@ rs232Fuji platformFuji;
 fujiDevice *theFuji = &platformFuji;
 rs232Network rs232NetDevs[MAX_NETWORK_DEVICES];
 
+rs232Fuji::rs232Fuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, std::nullopt)
+{}
+
 // Initializes base settings and adds our devices to the RS232 bus
 void rs232Fuji::setup()
 {
@@ -31,7 +34,7 @@ void rs232Fuji::setup()
 
     populate_slots_from_config();
 
-    insert_boot_device(Config.get_general_boot_mode(), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
+    insert_boot_device(Config.get_general_boot_mode(), MEDIATYPE_UNKNOWN, &bootdisk);
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
@@ -291,7 +294,7 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         fujicmd_mount_all_success();
         break;
     case FUJICMD_SET_BOOT_MODE:
-        fujicmd_set_boot_mode(cmdFrame.aux1, IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
+        fujicmd_set_boot_mode(cmdFrame.aux1, MEDIATYPE_UNKNOWN, &bootdisk);
         break;
     case FUJICMD_DEVICE_READY:
         Debug_printf("FUJICMD DEVICE TEST\n");

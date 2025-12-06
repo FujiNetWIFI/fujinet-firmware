@@ -7,8 +7,6 @@
 
 #define MAX_DWDISK_DEVICES 4
 
-#define IMAGE_EXTENSION ".dsk"
-
 class drivewireFuji : public fujiDevice
 {
 private:
@@ -42,9 +40,6 @@ protected:
 
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
-    std::optional<std::string> lobbyDiskURL() {
-        return "tnfs://tnfs.fujinet.online/COCO/lobby.dsk";
-    }
 
     void new_disk();               // 0xE7
     void random();                 // 0xD3

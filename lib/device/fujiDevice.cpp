@@ -46,7 +46,9 @@ enum DET_file_flags_t {
 #define DIR_BLOCK_SIZE 256
 
 // Constructor
-fujiDevice::fujiDevice(unsigned int numDisk) : totalDiskDevices(numDisk)
+fujiDevice::fujiDevice(unsigned int numDisk, std::string extension,
+                       std::optional<std::string> lobbyURL)
+    : _totalDiskDevices(numDisk), _diskImageExtension(extension), _lobbyDiskURL(lobbyURL)
 {
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
@@ -72,7 +74,7 @@ void fujiDevice::populate_slots_from_config()
             _fnHosts[i].set_hostname(Config.get_host_name(i).c_str());
     }
 
-    for (int i = 0; i < totalDiskDevices; i++)
+    for (int i = 0; i < _totalDiskDevices; i++)
     {
         _fnDisks[i].reset();
 
@@ -114,7 +116,7 @@ void fujiDevice::populate_config_from_slots()
         }
     }
 
-    for (int i = 0; i < totalDiskDevices; i++)
+    for (int i = 0; i < _totalDiskDevices; i++)
     {
         if (_fnDisks[i].host_slot >= MAX_HOSTS || _fnDisks[i].filename[0] == '\0')
             Config.clear_mount(i);
@@ -131,7 +133,7 @@ bool fujiDevice::fujicore_mount_all_success()
 {
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
 
-    for (int i = 0; i < totalDiskDevices; i++)
+    for (int i = 0; i < _totalDiskDevices; i++)
     {
         fujiDisk &disk = _fnDisks[i];
         fujiHost &host = _fnHosts[disk.host_slot];
@@ -181,7 +183,7 @@ bool fujiDevice::fujicmd_mount_all_success()
 // This gets called when we're about to shutdown/reboot
 void fujiDevice::shutdown()
 {
-    for (int i = 0; i < totalDiskDevices; i++)
+    for (int i = 0; i < _totalDiskDevices; i++)
         _fnDisks[i].disk_dev.unmount();
 }
 
@@ -196,7 +198,7 @@ void fujiDevice::fujicmd_image_rotate()
 
     int count = 0;
     // Find the first empty slot
-    while (_fnDisks[count].fileh != nullptr && count < totalDiskDevices)
+    while (_fnDisks[count].fileh != nullptr && count < _totalDiskDevices)
         count++;
 
     if (count > 1)
@@ -256,7 +258,7 @@ bool fujiDevice::validate_host_slot(uint8_t slot, const char *dmsg)
 
 bool fujiDevice::validate_device_slot(uint8_t slot, const char *dmsg)
 {
-    if (slot < totalDiskDevices)
+    if (slot < _totalDiskDevices)
         return true;
 
     if (dmsg == NULL)
@@ -481,8 +483,8 @@ bool fujiDevice::fujicmd_mount_disk_image_success(uint8_t deviceSlot,
 }
 
 // Mounts the desired boot disk number
-void fujiDevice::insert_boot_device(uint8_t image_id, std::string extension,
-                                    mediatype_t disk_type, DISK_DEVICE *disk_dev)
+void fujiDevice::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
+                                    DISK_DEVICE *disk_dev)
 {
     std::string boot_img;
     fnFile *fBoot = nullptr;
@@ -491,26 +493,28 @@ void fujiDevice::insert_boot_device(uint8_t image_id, std::string extension,
     switch (image_id)
     {
     case 0:
-        boot_img = "/autorun" + extension;
+        boot_img = "/autorun" + _diskImageExtension;
         fBoot = fsFlash.fnfile_open(boot_img.c_str());
         break;
     case 1:
-        boot_img = "/mount-and-boot" + extension;
+        boot_img = "/mount-and-boot" + _diskImageExtension;
         fBoot = fsFlash.fnfile_open(boot_img.c_str());
         break;
     case 2:
         Debug_printf("Mounting lobby server\n");
         {
-            auto lobbyDisk = lobbyDiskURL();
-            if (lobbyDisk)
+            if (_lobbyDiskURL)
             {
-                auto parsed = PeoplesUrlParser::parseURL(*lobbyDisk);
-                if (fnTNFS.start(parsed->host.c_str()))
+                auto parsed = PeoplesUrlParser::parseURL(*_lobbyDiskURL);
+                Debug_printf("Starting TNFS connection\n");
+                if (!fnTNFS.start(parsed->host.c_str()))
                 {
-                    Debug_printf("opening lobby.\n");
-                    boot_img = parsed->path;
-                    fBoot = fnTNFS.fnfile_open(boot_img.c_str());
+                    Debug_printf("TNFS failed to start.\n");
+                    fBoot = NULL;
+                    return;
                 }
+                boot_img = parsed->path;
+                fBoot = fnTNFS.fnfile_open(boot_img.c_str());
             }
         }
         break;
@@ -955,8 +959,8 @@ bool fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot,
         return false;
     }
 
-    if (sourceSlot < 1 || sourceSlot > totalDiskDevices
-        || destSlot < 1 || destSlot > totalDiskDevices)
+    if (sourceSlot < 1 || sourceSlot > _totalDiskDevices
+        || destSlot < 1 || destSlot > _totalDiskDevices)
     {
         transaction_error();
         return false;
@@ -1030,7 +1034,7 @@ bool fujiDevice::fujicore_unmount_disk_image_success(uint8_t deviceSlot)
     Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\n", deviceSlot);
 
     // FIXME - handle tape?
-    if (deviceSlot >= totalDiskDevices)
+    if (deviceSlot >= _totalDiskDevices)
         return false;
 
     disk_dev = get_disk_dev(deviceSlot);
@@ -1130,7 +1134,7 @@ void fujiDevice::fujicmd_get_adapter_config_extended()
 // Get a 256 byte filename from device slot
 std::optional<std::string> fujiDevice::fujicore_get_device_filename(uint8_t slot)
 {
-    if (slot < totalDiskDevices)
+    if (slot < _totalDiskDevices)
         return std::string(_fnDisks[slot].filename);
 
     return std::nullopt;
@@ -1157,7 +1161,7 @@ bool fujiDevice::fujicore_set_device_filename_success(uint8_t deviceSlot, uint8_
                                                       std::string filename)
 {
     // Handle DISK slots
-    if (deviceSlot >= totalDiskDevices)
+    if (deviceSlot >= _totalDiskDevices)
     {
         Debug_println("BAD DEVICE SLOT");
         return false;
@@ -1320,11 +1324,11 @@ void fujiDevice::fujicmd_set_boot_config(bool enable)
 }
 
 // Set boot mode
-void fujiDevice::fujicmd_set_boot_mode(uint8_t bootMode, std::string extension,
-                                       mediatype_t disk_type, DISK_DEVICE *disk_dev)
+void fujiDevice::fujicmd_set_boot_mode(uint8_t bootMode, mediatype_t disk_type,
+                                       DISK_DEVICE *disk_dev)
 {
     transaction_continue(false);
-    insert_boot_device(bootMode, extension, disk_type, disk_dev);
+    insert_boot_device(bootMode, disk_type, disk_dev);
     boot_config = true;
     transaction_complete();
 }
@@ -1393,7 +1397,7 @@ bool fujiDevice::fujicmd_unmount_host_success(uint8_t hostSlot)
     }
 
     // Unmount any disks associated with host slot
-    for (int i = 0; i < totalDiskDevices; i++)
+    for (int i = 0; i < _totalDiskDevices; i++)
     {
         if (_fnDisks[i].host_slot == hostSlot)
         {
@@ -1424,7 +1428,7 @@ void fujiDevice::fujicmd_read_device_slots()
     disk_slot diskSlots[MAX_DISK_DEVICES] {};
 
     // Load the data from our current device array
-    for (int i = 0; i < totalDiskDevices; i++)
+    for (int i = 0; i < _totalDiskDevices; i++)
     {
         diskSlots[i].mode = _fnDisks[i].access_mode;
         diskSlots[i].hostSlot = _fnDisks[i].host_slot;
@@ -1449,7 +1453,7 @@ void fujiDevice::fujicmd_read_device_slots()
             diskSlots[i].mode |= DISK_ACCESS_MODE_MOUNTED;
     }
 
-    transaction_put(&diskSlots, sizeof(disk_slot) * totalDiskDevices);
+    transaction_put(&diskSlots, sizeof(disk_slot) * _totalDiskDevices);
 }
 
 // Read and save disk slot data from computer
@@ -1460,14 +1464,14 @@ void fujiDevice::fujicmd_write_device_slots()
 
     disk_slot diskSlots[MAX_DISK_DEVICES];
 
-    if (!transaction_get(&diskSlots, sizeof(disk_slot) * totalDiskDevices))
+    if (!transaction_get(&diskSlots, sizeof(disk_slot) * _totalDiskDevices))
     {
         transaction_error();
         return;
     }
 
     // Load the data into our current device array
-    for (int i = 0; i < totalDiskDevices; i++)
+    for (int i = 0; i < _totalDiskDevices; i++)
         _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot,
                           (disk_access_flags_t) diskSlots[i].mode);
 

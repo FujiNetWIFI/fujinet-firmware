@@ -11,11 +11,12 @@
 
 #define DIR_MAX_LEN 40
 #define IMAGE_EXTENSION ".po"
+#define LOBBY_URL       "tnfs://tnfs.fujinet.online/APPLE2/_lobby.po"
 
 iwmFuji platformFuji;
 fujiDevice *theFuji = &platformFuji; // Global fuji object.
 
-iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES)
+iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
 {
         Debug_printf("Announcing the iwmFuji::iwmFuji()!!!\n");
         for (int i = 0; i < MAX_HOSTS; i++)
@@ -62,7 +63,7 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES)
         { FUJICMD_NEW_DISK, [this]()                   { this->iwm_ctrl_new_disk(); }},                 // 0xE7
         { FUJICMD_OPEN_APPKEY, [this]()                { this->fujicmd_open_app_key(); }},             // 0xDC
         { FUJICMD_READ_DIR_ENTRY, [this]()             { this->fujicmd_read_directory_entry(data_buffer[0], data_buffer[1]); }},     // 0xF6
-        { FUJICMD_SET_BOOT_MODE, [this]()              { this->fujicmd_set_boot_mode(data_buffer[0], IMAGE_EXTENSION, MEDIATYPE_PO, get_disk_dev(0)); }},            // 0xD6
+        { FUJICMD_SET_BOOT_MODE, [this]()              { this->fujicmd_set_boot_mode(data_buffer[0], MEDIATYPE_PO, get_disk_dev(0)); }},            // 0xD6
         { FUJICMD_SET_DEVICE_FULLPATH, [this]()        { this->fujicmd_set_device_filename_success(data_buffer[0], data_buffer[1], (disk_access_flags_t) data_buffer[2]); }},      // 0xE2
         { FUJICMD_SET_DIRECTORY_POSITION, [this]()     { this->fujicmd_set_directory_position(le16toh(*((uint16_t *) &data_buffer))); }},   // 0xE4
         { FUJICMD_SET_HOST_PREFIX, [this]()            { this->fujicmd_set_host_prefix(data_buffer[0], (const char *) &data_buffer[1]); }},          // 0xE1
@@ -328,9 +329,7 @@ void iwmFuji::setup()
         }
 
         Debug_printf("\nConfig General Boot Mode: %u\n", Config.get_general_boot_mode());
-        insert_boot_device(Config.get_general_boot_mode(), IMAGE_EXTENSION,
-                           MEDIATYPE_PO, get_disk_dev(0));
-
+        insert_boot_device(Config.get_general_boot_mode(), MEDIATYPE_PO, get_disk_dev(0));
 }
 
 void iwmFuji::send_status_reply_packet()
@@ -436,7 +435,7 @@ void iwmFuji::process(iwm_decoded_cmd_t cmd)
 void iwmFuji::handle_ctl_eject(uint8_t spid)
 {
         int ds = 255;
-        for (int i = 0; i < totalDiskDevices; i++)
+        for (int i = 0; i < _totalDiskDevices; i++)
         {
                 if (theFuji->get_disk_dev(i)->id() == spid)
                 {

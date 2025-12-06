@@ -44,7 +44,6 @@ protected:
 
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
-    std::optional<std::string> lobbyDiskURL() { return std::nullopt; }
 
     void rs232_net_set_ssid(bool save);    // 0xFB
     void rs232_new_disk();                 // 0xE7
@@ -52,7 +51,7 @@ protected:
     void rs232_test();                     // 0x00
 
 public:
-    rs232Fuji() : fujiDevice(MAX_DISK_DEVICES) {}
+    rs232Fuji();
     void setup() override;
     void rs232_status() override;
     void rs232_process(cmdFrame_t *cmd_ptr) override;

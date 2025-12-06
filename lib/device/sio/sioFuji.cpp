@@ -9,6 +9,7 @@
 #include "fuji_endian.h"
 
 #define IMAGE_EXTENSION ".atr"
+#define LOBBY_URL       "tnfs://tnfs.fujinet.online/ATARI/_lobby.xex"
 
 sioFuji platformFuji;
 fujiDevice *theFuji = &platformFuji; // Global fuji object.
@@ -103,7 +104,7 @@ void say_swap_label()
 }
 
 // Constructor
-sioFuji::sioFuji() : fujiDevice(MAX_DISK_DEVICES)
+sioFuji::sioFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
 {
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
@@ -490,7 +491,7 @@ void sioFuji::setup()
     // set up Fuji device
     populate_slots_from_config();
 
-    insert_boot_device(Config.get_general_boot_mode(), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
+    insert_boot_device(Config.get_general_boot_mode(), MEDIATYPE_UNKNOWN, &bootdisk);
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
@@ -1009,7 +1010,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         fujicmd_mount_all_success();
         break;
     case FUJICMD_SET_BOOT_MODE:
-        fujicmd_set_boot_mode(cmdFrame.aux1, IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
+        fujicmd_set_boot_mode(cmdFrame.aux1, MEDIATYPE_UNKNOWN, &bootdisk);
         break;
     case FUJICMD_ENABLE_UDPSTREAM:
         fujicmd_enable_udpstream(le16toh(cmdFrame.aux12));

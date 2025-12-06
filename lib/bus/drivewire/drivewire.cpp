@@ -115,7 +115,7 @@ void systemBus::op_reset()
 
     // When a reset transaction occurs, set the mounted disk image to the CONFIG disk image.
     platformFuji.boot_config = true;
-    platformFuji.insert_boot_device(Config.get_general_boot_mode(), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &platformFuji.bootdisk);
+    platformFuji.insert_boot_device(Config.get_general_boot_mode(), MEDIATYPE_UNKNOWN, &platformFuji.bootdisk);
     if (pNamedObjFp != NULL)
     {
         fclose(pNamedObjFp);

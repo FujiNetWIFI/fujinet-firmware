@@ -127,7 +127,9 @@ private:
 protected:
     fujiHost _fnHosts[MAX_HOSTS];
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
-    const unsigned int totalDiskDevices;
+    const unsigned int _totalDiskDevices;
+    const std::string _diskImageExtension;
+    const std::optional<std::string> _lobbyDiskURL;
 
     appkey _current_appkey;
     int _current_open_directory_slot = -1;
@@ -147,7 +149,6 @@ protected:
                                             int year_offset, DET_size_endian_t size_endian,
                                             DET_dir_flags_t dir_flags,
                                             DET_has_type_t has_type);
-    virtual std::optional<std::string> lobbyDiskURL() = 0;
 
     // ============ Validation of inputs ============
     bool validate_host_slot(uint8_t slot, const char *dmsg=nullptr);
@@ -157,7 +158,8 @@ public:
     bool boot_config = true;
     DISK_DEVICE bootdisk; // special disk drive just for configuration
 
-    fujiDevice(unsigned int numDisk);
+    fujiDevice(unsigned int numDisk, std::string extension,
+               std::optional<std::string> lobbyURL);
     virtual void setup() = 0;
     void shutdown() override;
 
@@ -204,8 +206,7 @@ public:
     void fujicmd_read_host_slots();
     void fujicmd_write_host_slots();
     void fujicmd_set_boot_config(bool enable);
-    void fujicmd_set_boot_mode(uint8_t bootMode, std::string extension,
-                               mediatype_t disk_type, DISK_DEVICE *disk_dev);
+    void fujicmd_set_boot_mode(uint8_t bootMode, mediatype_t disk_type, DISK_DEVICE *disk_dev);
     void fujicmd_set_host_prefix(uint8_t hostSlot, const char *prefix=nullptr);
     bool fujicmd_unmount_host_success(uint8_t hostSlot);
     void fujicmd_read_device_slots();
@@ -249,8 +250,7 @@ public:
     bool fujicore_mount_all_success();
 
     // Should be protected but being called by drivewire.cpp
-    void insert_boot_device(uint8_t image_id, std::string extension,
-                            mediatype_t disk_type, DISK_DEVICE *disk_dev);
+    void insert_boot_device(uint8_t image_id, mediatype_t disk_type, DISK_DEVICE *disk_dev);
 };
 
 extern fujiDevice *theFuji;

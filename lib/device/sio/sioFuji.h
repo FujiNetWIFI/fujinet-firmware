@@ -54,9 +54,6 @@ protected:
 
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
-    std::optional<std::string> lobbyDiskURL() {
-        return "tnfs://tnfs.fujinet.online/ATARI/_lobby.xex";
-    }
 
     void sio_net_set_ssid();           // 0xFB
     void sio_read_directory_block();   // 0xF6

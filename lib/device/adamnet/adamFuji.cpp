@@ -71,7 +71,7 @@ bool _validate_device_slot(uint8_t slot, const char *dmsg)
 }
 
 // Constructor
-adamFuji::adamFuji() : fujiDevice(MAX_DISK_DEVICES)
+adamFuji::adamFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, std::nullopt)
 {
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
@@ -523,7 +523,7 @@ void adamFuji::adamnet_control_send()
         fujicmd_mount_all_success();
         break;
     case FUJICMD_SET_BOOT_MODE:
-        fujicmd_set_boot_mode(adamnet_recv(), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
+        fujicmd_set_boot_mode(adamnet_recv(), MEDIATYPE_UNKNOWN, &bootdisk);
         break;
     case FUJICMD_WRITE_APPKEY:
         adamnet_write_app_key();

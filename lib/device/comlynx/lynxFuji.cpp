@@ -68,7 +68,7 @@ bool _validate_device_slot(uint8_t slot, const char *dmsg)
 }
 
 // Constructor
-lynxFuji::lynxFuji() : fujiDevice(MAX_DISK_DEVICES)
+lynxFuji::lynxFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, std::nullopt)
 {
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
@@ -491,7 +491,7 @@ void lynxFuji::comlynx_control_send()
         fujicmd_mount_all_success();
         break;
     case FUJICMD_SET_BOOT_MODE:
-        fujicmd_set_boot_mode(comlynx_recv(), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
+        fujicmd_set_boot_mode(comlynx_recv(), MEDIATYPE_UNKNOWN, &bootdisk);
         break;
     case FUJICMD_WRITE_APPKEY:
         comlynx_write_app_key();

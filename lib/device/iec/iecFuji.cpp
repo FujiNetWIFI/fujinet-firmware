@@ -87,7 +87,7 @@ static std::string dataToHexString(uint8_t *data, size_t len)
 
 
 // Constructor
-iecFuji::iecFuji() : fujiDevice(MAX_DISK_DEVICES)
+iecFuji::iecFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, std::nullopt)
 {
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
@@ -1023,7 +1023,7 @@ void iecFuji::set_boot_mode_basic()
         return;
     }
 
-    fujicmd_set_boot_mode(atoi(pt[1].c_str()), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
+    fujicmd_set_boot_mode(atoi(pt[1].c_str()), MEDIATYPE_UNKNOWN, &bootdisk);
 
     response = "ok";
     set_fuji_iec_status(0, response);
@@ -1031,7 +1031,7 @@ void iecFuji::set_boot_mode_basic()
 
 void iecFuji::set_boot_mode_raw()
 {
-    fujicmd_set_boot_mode(payload[0], IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
+    fujicmd_set_boot_mode(payload[0], MEDIATYPE_UNKNOWN, &bootdisk);
     set_fuji_iec_status(0, "");
 }
 

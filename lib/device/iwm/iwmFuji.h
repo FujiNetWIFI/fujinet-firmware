@@ -73,9 +73,6 @@ protected:
 
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
-    std::optional<std::string> lobbyDiskURL() {
-        return "tnfs://tnfs.fujinet.online/APPLE2/_lobby.po";
-    }
 
     void iwm_dummy_command();                     // control 0xAA
     void iwm_hello_world();                       // status 0xAA
