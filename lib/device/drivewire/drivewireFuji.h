@@ -74,6 +74,10 @@ public:
     void setup() override;
     void process();
     drivewireFuji();
+
+    // ============ Wrapped Fuji commands ============
+    std::optional<std::vector<uint8_t>> fujicore_read_app_key() override;
+
 };
 
 extern drivewireFuji platformFuji;

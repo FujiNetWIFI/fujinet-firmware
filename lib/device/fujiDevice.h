@@ -233,7 +233,7 @@ public:
     uint8_t fujicore_net_get_wifi_status();
     uint8_t fujicore_net_get_wifi_enabled();
     int fujicore_write_app_key(std::vector<uint8_t>&& value, int *err=nullptr);
-    std::optional<std::vector<uint8_t>> fujicore_read_app_key();
+    virtual std::optional<std::vector<uint8_t>> fujicore_read_app_key();
     bool fujicore_open_directory_success(uint8_t hostSlot, const std::string &dirpath);
     bool fujicore_open_directory_success(uint8_t hostSlot, const std::string &dirpath,
                                          const std::optional<std::string> &pattern);

@@ -657,4 +657,19 @@ void drivewireFuji::process()
     }
 }
 
+std::optional<std::vector<uint8_t>> drivewireFuji::fujicore_read_app_key()
+{
+    auto result = fujiDevice::fujicore_read_app_key();
+
+    if (result)
+    {
+        uint16_t len = htobe16(result->size());
+        result->resize(MAX_APPKEY_LEN, 0);
+        const uint8_t *len_bytes = reinterpret_cast<const uint8_t*>(&len);
+        result->insert(result->begin(), len_bytes, len_bytes + sizeof(len));
+    }
+
+    return result;
+}
+
 #endif /* BUILD_COCO */
