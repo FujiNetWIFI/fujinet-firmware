@@ -76,7 +76,6 @@ protected:
 
     void iwm_dummy_command();                     // control 0xAA
     void iwm_hello_world();                       // status 0xAA
-    void iwm_stat_net_scan_result();              // status 0xFC
     void iwm_stat_get_wifi_enabled();             // 0xEA
     void iwm_ctrl_new_disk();                     // 0xE7
     void iwm_ctrl_enable_device();                // 0xD5

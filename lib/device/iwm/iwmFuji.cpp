@@ -116,7 +116,7 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
         { FUJICMD_GET_DEVICE8_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA7
         { FUJICMD_GET_DIRECTORY_POSITION, [this]()     { this->fujicmd_get_directory_position(); }},           // 0xE5
         { FUJICMD_GET_HOST_PREFIX, [this]()            { }},                  // 0xE0
-        { FUJICMD_GET_SCAN_RESULT, [this]()            { this->iwm_stat_net_scan_result(); }},                  // 0xFC
+        { FUJICMD_GET_SCAN_RESULT, [this]()            { }},                  // 0xFC
         { FUJICMD_GET_SSID, [this]()                   { this->fujicmd_net_get_ssid(); }},                     // 0xFE
         { FUJICMD_GET_WIFI_ENABLED, [this]()           { this->iwm_stat_get_wifi_enabled(); }},                 // 0xEA
         { FUJICMD_GET_WIFISTATUS, [this]()             { this->fujicmd_net_get_wifi_status(); }},              // 0xFA
@@ -187,15 +187,6 @@ void iwmFuji::iwm_hello_world()
         memcpy(data_buffer, "HELLO WORLD", 11);
         data_len = 11;
 }
-
-void iwmFuji::iwm_stat_net_scan_result() // SP STATUS command
-{
-        Debug_printf("SSID: %s - RSSI: %u\n", detail.ssid, detail.rssi);
-
-        memset(data_buffer, 0, sizeof(data_buffer));
-        memcpy(data_buffer, &detail, sizeof(detail));
-        data_len = sizeof(detail);
-} // 0xFC
 
 //==============================================================================================================================
 
