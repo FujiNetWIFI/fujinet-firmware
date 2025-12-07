@@ -478,7 +478,7 @@ bool iwmFuji::mount_all()
 {
         bool nodisks = true; // Check at the end if no disks are in a slot and disable config
 
-        for (int i = 0; i < MAX_DISK_DEVICES; i++)
+        for (int i = 0; i < MAX_A2DISK_DEVICES; i++)
         {
                 fujiDisk &disk = _fnDisks[i];
                 fujiHost &host = _fnHosts[disk.host_slot];
@@ -679,7 +679,7 @@ void iwmFuji::image_rotate()
 // This gets called when we're about to shutdown/reboot
 void iwmFuji::shutdown()
 {
-        for (int i = 0; i < MAX_DISK_DEVICES; i++)
+        for (int i = 0; i < MAX_A2DISK_DEVICES; i++)
                 get_disk_dev(i)->unmount();
 }
 
@@ -1055,7 +1055,7 @@ void iwmFuji::iwm_stat_read_device_slots()
                 uint8_t mode;
                 char filename[MAX_DISPLAY_FILENAME_LEN];
         };
-        disk_slot diskSlots[MAX_DISK_DEVICES];
+        disk_slot diskSlots[MAX_A2DISK_DEVICES];
 
         memset(&diskSlots, 0, sizeof(diskSlots));
 
@@ -1073,7 +1073,7 @@ void iwmFuji::iwm_stat_read_device_slots()
                     diskSlots[i].mode |= DISK_ACCESS_MODE_MOUNTED;
         }
 
-        returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
+        returnsize = sizeof(disk_slot) * MAX_A2DISK_DEVICES;
 
         memcpy(data_buffer, &diskSlots, returnsize);
         data_len = returnsize;
@@ -1098,13 +1098,13 @@ void iwmFuji::iwm_ctrl_write_device_slots()
                 uint8_t hostSlot;
                 uint8_t mode;
                 char filename[MAX_DISPLAY_FILENAME_LEN];
-        } diskSlots[MAX_DISK_DEVICES];
+        } diskSlots[MAX_A2DISK_DEVICES];
 
         // adamnet_recv_buffer((uint8_t *)&diskSlots, sizeof(diskSlots));
         memcpy((uint8_t *)&diskSlots, data_buffer, sizeof(diskSlots));
 
         // Load the data into our current device array
-        for (int i = 0; i < MAX_DISK_DEVICES; i++)
+        for (int i = 0; i < MAX_A2DISK_DEVICES; i++)
                 _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
 
         // Save the data to disk
@@ -1123,7 +1123,7 @@ void iwmFuji::_populate_slots_from_config()
                         _fnHosts[i].set_hostname(Config.get_host_name(i).c_str());
         }
 
-        for (int i = 0; i < MAX_DISK_DEVICES; i++)
+        for (int i = 0; i < MAX_A2DISK_DEVICES; i++)
         {
                 _fnDisks[i].reset();
 
@@ -1188,7 +1188,7 @@ uint8_t iwmFuji::iwm_ctrl_set_device_filename()
         memcpy((uint8_t *)&f, &data_buffer[idx], s);
         Debug_printf("\nfilename: %s", f);
 
-        if (deviceSlot < MAX_DISK_DEVICES) {
+        if (deviceSlot < MAX_A2DISK_DEVICES) {
                 memcpy(_fnDisks[deviceSlot].filename, f, MAX_FILENAME_LEN);
 
         // If the filename is empty, mark this as an invalid host, so that mounting will ignore it too
@@ -1441,7 +1441,7 @@ void iwmFuji::process(iwm_decoded_cmd_t cmd)
 void iwmFuji::handle_ctl_eject(uint8_t spid)
 {
         int ds = 255;
-        for (int i = 0; i < MAX_DISK_DEVICES; i++)
+        for (int i = 0; i < MAX_A2DISK_DEVICES; i++)
         {
                 if (theFuji->get_disk_dev(i)->id() == spid)
                 {
