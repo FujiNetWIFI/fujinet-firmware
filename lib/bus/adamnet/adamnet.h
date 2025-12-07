@@ -247,7 +247,7 @@ private:
     adamFuji *_fujiDev = nullptr;
     adamPrinter *_printerDev = nullptr;
 
-    UARTManager _port;
+    UARTManager _port = UARTManager(FN_UART_BUS);
 
     void _adamnet_process_cmd();
     void _adamnet_process_queue();
