@@ -709,11 +709,12 @@ void adamNetwork::adamnet_response_status()
     NetworkStatus s;
 
     if (protocol != nullptr)
+    {
         protocol->status(&s);
-
-    statusByte.bits.client_connected = s.connected == true;
-    statusByte.bits.client_data_available = protocol->available() > 0;
-    statusByte.bits.client_error = s.error > 1;
+        statusByte.bits.client_connected = s.connected == true;
+        statusByte.bits.client_data_available = protocol->available() > 0;
+        statusByte.bits.client_error = s.error > 1;
+    }
 
     status_response[1] = 2; // max packet size 1026 bytes, maybe larger?
     status_response[2] = 4;
