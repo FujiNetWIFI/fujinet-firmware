@@ -348,14 +348,19 @@ bool fujiDevice::fujicmd_mount_host_success(unsigned hostSlot)
     return true;
 }
 
+void fujiDevice::fujicore_net_scan_networks()
+{
+    _countScannedSSIDs = fnWiFi.scan_networks();
+    return;
+}
+
 void fujiDevice::fujicmd_net_scan_networks()
 {
     uint8_t ret;
 
     transaction_continue(false);
     Debug_println("Fuji cmd: SCAN NETWORKS");
-
-    _countScannedSSIDs = fnWiFi.scan_networks();
+    fujicore_net_scan_networks();
     ret = _countScannedSSIDs;
     transaction_put(&ret, sizeof(ret));
     return;

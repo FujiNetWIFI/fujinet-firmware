@@ -1086,4 +1086,18 @@ bool sioFuji::fujicore_mount_disk_image_success(uint8_t deviceSlot,
     return true;
 }
 
+// Atari expects this field as a 32-bit little-endian value.
+// fujiDevice::fujicmd_net_scan_networks only writes a single byte, so
+// we override it here to pad/encode the same computed value as LE32.
+void sioFuji::fujicmd_net_scan_networks()
+{
+    transaction_continue(false);
+    Debug_println("Fuji cmd: SCAN NETWORKS");
+
+    char ret[4] = {0};
+    fujicore_net_scan_networks();
+    ret[0] = _countScannedSSIDs;
+    transaction_put((uint8_t *)ret, 4, false);
+}
+
 #endif /* BUILD_ATARI */

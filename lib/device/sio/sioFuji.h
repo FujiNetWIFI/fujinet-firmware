@@ -104,6 +104,7 @@ public:
     // ============ Wrapped Fuji commands ============
     bool fujicore_mount_disk_image_success(uint8_t deviceSlot,
                                            disk_access_flags_t access_mode) override;
+    void fujicmd_net_scan_networks() override;
 };
 
 extern sioFuji platformFuji;

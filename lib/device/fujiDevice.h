@@ -182,7 +182,7 @@ public:
     virtual bool fujicmd_mount_all_success();
     virtual void fujicmd_reset();
     bool fujicmd_mount_host_success(unsigned hostSlot);
-    void fujicmd_net_scan_networks();
+    virtual void fujicmd_net_scan_networks();
     void fujicmd_net_scan_result(uint8_t index);
     void fujicmd_net_get_ssid();
     bool fujicmd_net_set_ssid_success(const char *ssid, const char *password, bool save);
@@ -248,6 +248,7 @@ public:
     bool fujicore_unmount_disk_image_success(uint8_t deviceSlot);
     bool fujicore_mount_host_success(unsigned hostSlot);
     bool fujicore_mount_all_success();
+    void fujicore_net_scan_networks();
 
     // Should be protected but being called by drivewire.cpp
     void insert_boot_device(uint8_t image_id, mediatype_t disk_type, DISK_DEVICE *disk_dev);
