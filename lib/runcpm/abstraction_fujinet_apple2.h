@@ -626,7 +626,7 @@ uint8_t bdos_readDeviceSlots(uint16_t addr)
                 uint8_t mode;
                 char filename[MAX_DISPLAY_FILENAME_LEN];
         };
-        disk_slot diskSlots[MAX_DISK_DEVICES];
+        disk_slot diskSlots[MAX_A2DISK_DEVICES];
 
         // Load the data from our current device array
         for (int i = 0; i < MAX_A2DISK_DEVICES; i++)
