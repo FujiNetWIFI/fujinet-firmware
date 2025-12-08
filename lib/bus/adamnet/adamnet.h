@@ -5,7 +5,7 @@
  * AdamNet Routines
  */
 
-#include "UARTChannel.h"
+#include "fnUART.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
@@ -247,7 +247,7 @@ private:
     adamFuji *_fujiDev = nullptr;
     adamPrinter *_printerDev = nullptr;
 
-    UARTChannel _port;
+    UARTManager _port = UARTManager(FN_UART_BUS);
 
     void _adamnet_process_cmd();
     void _adamnet_process_queue();
