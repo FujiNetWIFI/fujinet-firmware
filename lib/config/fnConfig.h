@@ -142,17 +142,18 @@ public:
     std::string get_general_SD_path() { return _general.SD_dir_path; };
     void store_general_SD_path(const char *dir_path);
 
-
     // SERIAL PORT
-    std::string get_serial_port() { return _serial.port; };
-    int get_serial_baud() { return _serial.baud; };
     serial_command_pin get_serial_command() { return _serial.command; };
     serial_proceed_pin get_serial_proceed() { return _serial.proceed; };
-    void store_serial_port(const char *port);
-    void store_serial_baud(int baud);
     void store_serial_command(serial_command_pin command_pin);
     void store_serial_proceed(serial_proceed_pin proceed_pin);
-#endif
+#endif /* ! ESP_PLATFORM */
+#if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
+    std::string get_serial_port() { return _serial.port; };
+    int get_serial_baud() { return _serial.baud; };
+    void store_serial_port(const char *port);
+    void store_serial_baud(int baud);
+#endif /* BUILD_RS232 || ! ESP_PLATFORM */
 
     // WIFI
     bool have_wifi_info() { return _wifi.ssid.empty() == false; };
@@ -273,12 +274,6 @@ public:
     void store_boip_host(const char *host);
     void store_boip_port(int port);
 
-#ifdef BUILD_RS232
-    // RS232
-    int get_rs232_baud() { return _rs232.baud; }
-    void store_rs232_baud(int baud);
-#endif
-
 #ifndef ESP_PLATFORM
     // BUS over Serial
     bool get_bos_enabled() { return _bos.bos_enabled; } // unused
@@ -326,11 +321,12 @@ private:
     void _read_section_cpm(std::stringstream &ss);
     void _read_section_device_enable(std::stringstream &ss);
     void _read_section_boip(std::stringstream &ss);
-#ifndef ESP_PLATFORM
+#if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
     void _read_section_serial(std::stringstream &ss);
+#endif /* BUILD_RS232 || ! ESP_PLATFORM */
+#ifndef ESP_PLATFORM
     void _read_section_bos(std::stringstream &ss);
-#endif
-    void _read_section_rs232(std::stringstream &ss);
+#endif /* ! ESP_PLATFORM */
 
     enum section_match
     {
@@ -349,13 +345,12 @@ private:
         SECTION_CPM,
         SECTION_DEVICE_ENABLE,
         SECTION_BOIP,
-#ifndef ESP_PLATFORM
+#if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
         SECTION_SERIAL,
+#endif /* BUILD_RS232 || ! ESP_PLATFORM */
+#ifndef ESP_PLATFORM
         SECTION_BOS,
-#endif
-#ifdef BUILD_RS232
-        SECTION_RS232,
-#endif
+#endif /* ! ESP_PLATFORM */
         SECTION_UNKNOWN
     };
     section_match _find_section_in_line(std::string &line, int &index);
@@ -482,15 +477,19 @@ private:
         int port = CONFIG_DEFAULT_BOIP_PORT;
     };
 
-#ifndef ESP_PLATFORM
+#if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
     struct serial_info
     {
         std::string port;
         int baud = 57600; // Used by CoCo, ignored by Atari
+#ifndef ESP_PLATFORM
         serial_command_pin command = SERIAL_COMMAND_DSR; // Used by Atari, ignored by CoCo
         serial_proceed_pin proceed = SERIAL_PROCEED_DTR; // Used by Atari, ignored by CoCo
+#endif /* ESP_PLATFORM */
     };
+#endif /* BUILD_RS232 || ! ESP_PLATFORM */
 
+#ifndef ESP_PLATFORM
     // "bus" over serial
     struct bos_info
     {
@@ -502,14 +501,7 @@ private:
         int stop_bits = 1;
         int flowcontrol = 0; // SP_FLOWCONTROL_NONE
     };
-#endif
-
-#ifdef BUILD_RS232
-    struct rs232_info
-    {
-        int baud = 115200;
-    };
-#endif
+#endif /* ! ESP_PLATFORM */
 
     struct modem_info
     {
@@ -564,16 +556,15 @@ private:
     modem_info _modem;
     cassette_info _cassette;
     boip_info _boip;
-#ifndef ESP_PLATFORM
+#if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
     serial_info _serial;
+#endif /* BUILD_RS232 || ! ESP_PLATFORM */
+#ifndef ESP_PLATFORM
     bos_info _bos;
-#endif
+#endif /* ! ESP_PLATFORM */
     cpm_info _cpm;
     device_enable_info _denable;
     phbook_info _phonebook_slots[MAX_PB_SLOTS];
-#ifdef BUILD_RS232
-    rs232_info _rs232;
-#endif
 };
 
 extern fnConfig Config;

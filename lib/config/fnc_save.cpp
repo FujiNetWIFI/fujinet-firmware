@@ -178,11 +178,6 @@ void fnConfig::save()
         ss << "port=" << LINETERM;
     }
 
-#ifdef BUILD_RS232
-    ss << LINETERM << "[RS232]" << LINETERM;
-    ss << "baud=" << _rs232.baud << LINETERM;
-#endif
-
 #ifndef ESP_PLATFORM
     // SERIAL
     ss << LINETERM << "[Serial]" << LINETERM;
@@ -244,11 +239,11 @@ void fnConfig::save()
     (void)z; // Get around unused var
     Debug_printf("fnConfig::save wrote %u bytes\r\n", (unsigned)z);
     fclose(fout);
-    
+
     _dirty = false;
 
 #ifdef ESP_PLATFORM
-    // Copy to SD if possible, only when wrote FLASH first 
+    // Copy to SD if possible, only when wrote FLASH first
     if (fnSDFAT.running() && fnConfig::get_general_fnconfig_spifs() == true)
     {
         Debug_println("Attempting config copy to SD");

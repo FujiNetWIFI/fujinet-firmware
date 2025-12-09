@@ -68,39 +68,6 @@ void fnConfig::_read_section_boip(std::stringstream &ss)
     }
 }
 
-#ifdef BUILD_RS232
-void fnConfig::_read_section_rs232(std::stringstream &ss)
-{
-    std::string line;
-
-    while (_read_line(ss,line,'[') >= 0)
-    {
-        std::string name;
-        std::string value;
-        if (_split_name_value(line,name,value))
-        {
-            if (strcasecmp(name.c_str(),"baud") == 0)
-            {
-                int baud = atoi(value.c_str());
-                if (baud<=0 || baud>= INT_MAX)
-                {
-                    baud = CONFIG_DEFAULT_RS232_BAUD;
-                }
-                    _rs232.baud = baud;
-            }
-        }
-    }
-}
-
-void fnConfig::store_rs232_baud(int _baud) {
-    if (_baud == _rs232.baud)
-        return;
-
-    _rs232.baud = _baud;
-    _dirty = true;
-}
-#endif
-
 #ifndef ESP_PLATFORM
 
 // FujiNet-PC specific settings
@@ -115,7 +82,9 @@ void fnConfig::store_serial_port(const char *port)
     _serial.port = port;
     _dirty = true;
 }
+#endif /* ESP_PLATFORM */
 
+#if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
 void fnConfig::store_serial_baud(int baud)
 {
     if (_serial.baud == baud)
@@ -124,7 +93,9 @@ void fnConfig::store_serial_baud(int baud)
     _serial.baud = baud;
     _dirty = true;
 }
+#endif /* BUILD_RS232 || ! ESP_PLATFORM */
 
+#ifndef ESP_PLATFORM
 // ATARI specific - maps PC UART signal to SIO Command signal
 void fnConfig::store_serial_command(serial_command_pin command_pin)
 {
@@ -200,8 +171,9 @@ void fnConfig::store_bos_flowcontrol(int flowcontrol) {
     _bos.flowcontrol = flowcontrol;
     _dirty = true;
 }
+#endif /* ! ESP_PLATFORM */
 
-
+#if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
 void fnConfig::_read_section_serial(std::stringstream &ss)
 {
     std::string line;
@@ -220,6 +192,7 @@ void fnConfig::_read_section_serial(std::stringstream &ss)
             {
                 _serial.baud = atoi(value.c_str());
             }
+#ifndef ESP_PLATFORM
             else if (strcasecmp(name.c_str(), "command") == 0)
             {
                 _serial.command = serial_command_from_string(value.c_str());
@@ -228,10 +201,13 @@ void fnConfig::_read_section_serial(std::stringstream &ss)
             {
                 _serial.proceed = serial_proceed_from_string(value.c_str());
             }
+#endif /* ESP_PLATFORM */
         }
     }
 }
+#endif /* BUILD_RS232 || ! ESP_PLATFORM */
 
+#ifndef ESP_PLATFORM
 void fnConfig::_read_section_bos(std::stringstream &ss)
 {
     std::string line;

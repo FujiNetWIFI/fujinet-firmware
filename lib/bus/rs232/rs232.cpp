@@ -205,7 +205,7 @@ void systemBus::service()
 // Setup RS232 bus
 void systemBus::setup()
 {
-    Debug_printf("RS232 SETUP: Baud rate: %u\n",Config.get_rs232_baud());
+    Debug_printf("RS232 SETUP: Baud rate: %u\n",Config.get_serial_baud());
 
     // Set up UART
 #ifndef FUJINET_OVER_USB
@@ -213,12 +213,12 @@ void systemBus::setup()
     {
         Debug_printf("RS232 SETUP: BOIP host: %s\n", Config.get_boip_host().c_str());
         _becker.setHost(Config.get_boip_host(), Config.get_boip_port());
-        _becker.begin(Config.get_boip_host(), Config.get_rs232_baud());
+        _becker.begin(Config.get_boip_host(), Config.get_serial_baud());
         _port = &_becker;
     }
     else {
         _serial.begin(ChannelConfig()
-                    .baud(Config.get_rs232_baud())
+                    .baud(Config.get_serial_baud())
                     .readTimeout(200)
                     .deviceID(SERIAL_DEVICE))
             ;

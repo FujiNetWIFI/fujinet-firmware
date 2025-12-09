@@ -62,7 +62,7 @@ Original behavior: read from FLASH first and only read from SD if nothing found 
         }
         else
         {
-            _dirty = true; // We have a new (blank) config, so we treat it as needing to be saved            
+            _dirty = true; // We have a new (blank) config, so we treat it as needing to be saved
             return; // No local copy and no copy on SD - ABORT
         }
     }
@@ -92,7 +92,7 @@ New behavior: copy from SD first if available, then read FLASH.
  #else
 // !ESP_PLATFORM
     Debug_printf("fnConfig::load \"%s\"\n", _general.config_file_path.c_str());
-        
+
     struct stat st;
     if (stat(_general.config_file_path.c_str(), &st) < 0)
     {
@@ -187,20 +187,17 @@ New behavior: copy from SD first if available, then read FLASH.
         case SECTION_BOIP:
             _read_section_boip(ss);
             break;
-#ifndef ESP_PLATFORM
+#if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
         case SECTION_SERIAL:
             _read_section_serial(ss);
             break;
+#endif /* BUILD_RS232 || ! ESP_PLATFORM */
+#ifndef ESP_PLATFORM
         // Bus Over Serial, for APPLE SmartPort over Serial via USB/Serial
         case SECTION_BOS:
             _read_section_bos(ss);
             break;
-#endif
-#ifdef BUILD_RS232
-        case SECTION_RS232:
-            _read_section_rs232(ss);
-            break;
-#endif
+#endif /* ! ESP_PLATFORM */
         case SECTION_UNKNOWN:
             break;
         }
@@ -252,7 +249,7 @@ New behavior: copy from SD first if available, then read FLASH.
             if (0 == fnSystem.copy_file(&fnSDFAT, CONFIG_FILENAME, &fsFlash, CONFIG_FILENAME))
             {
                     Debug_println("Failed to copy config from SD");
-            } 
+            }
         }
     }
 #endif // ESP_PLATFORM

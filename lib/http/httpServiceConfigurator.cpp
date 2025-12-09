@@ -555,7 +555,7 @@ void fnHttpServiceConfigurator::config_serial(std::string port, std::string baud
         if (!baud.empty())
         {
             //Debug_printf("Set RS232 baud: %s\n", atoi(baud.c_str()));
-            Config.store_rs232_baud(atoi(baud.c_str()));
+            Config.store_serial_baud(atoi(baud.c_str()));
             Config.save();
         }
     }
