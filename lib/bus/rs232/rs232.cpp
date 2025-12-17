@@ -277,12 +277,14 @@ void systemBus::service()
     {
         _modemDev->rs232_handle_modem();
     }
+    #if 0
     else
     // Neither CMD nor active modem, so throw out any stray input data
     {
         //Debug_println("RS232 Srvc Flush");
         fnUartBUS.flush_input();
     }
+    #endif // 0
 
     // Handle interrupts from network protocols
     for (int i = 0; i < 8; i++)
