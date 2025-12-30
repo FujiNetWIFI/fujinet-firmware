@@ -20,9 +20,13 @@ private:
 protected:
     void transaction_continue(bool expectMoreData) override {}
     void transaction_complete() override {
+        adamnet_recv(); // Discard CK
+        SYSTEM_BUS.start_time = esp_timer_get_time();
         adamnet_response_ack();
     }
     void transaction_error() override {
+        adamnet_recv(); // Discard CK
+        SYSTEM_BUS.start_time = esp_timer_get_time();
         adamnet_response_nack();
     }
     bool transaction_get(void *data, size_t len) override {
@@ -32,6 +36,10 @@ protected:
     void transaction_put(const void *data, size_t len, bool err=false) override {
         memcpy(response, data, len);
         response_len = len;
+        if (!err)
+            transaction_complete();
+        else
+            transaction_error();
     }
 
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
