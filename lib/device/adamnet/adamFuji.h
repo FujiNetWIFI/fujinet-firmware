@@ -80,6 +80,10 @@ public:
     void setup() override;
 
     adamFuji();
+
+    // ============ Wrapped Fuji commands ============
+    void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl) override;
+
 };
 
 #endif // ADAMFUJI_H

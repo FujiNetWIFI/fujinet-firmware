@@ -33,43 +33,6 @@ using namespace std;
 // sioDisk sioDiskDevs[MAX_HOSTS];
 // sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
 
-bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
-bool _validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
-
-bool _validate_host_slot(uint8_t slot, const char *dmsg)
-{
-    if (slot < MAX_HOSTS)
-        return true;
-
-    if (dmsg == NULL)
-    {
-        Debug_printf("!! Invalid host slot %hu\n", slot);
-    }
-    else
-    {
-        Debug_printf("!! Invalid host slot %hu @ %s\n", slot, dmsg);
-    }
-
-    return false;
-}
-
-bool _validate_device_slot(uint8_t slot, const char *dmsg)
-{
-    if (slot < MAX_DISK_DEVICES)
-        return true;
-
-    if (dmsg == NULL)
-    {
-        Debug_printf("!! Invalid device slot %hu\n", slot);
-    }
-    else
-    {
-        Debug_printf("!! Invalid device slot %hu @ %s\n", slot, dmsg);
-    }
-
-    return false;
-}
-
 // Constructor
 adamFuji::adamFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, std::nullopt)
 {
@@ -585,6 +548,77 @@ void adamFuji::adamnet_process(uint8_t b)
         adamnet_control_ready();
         break;
     }
+}
+
+void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
+{
+    if (response[0])
+    {
+        // Adam is bonkers and if it already got any data we are going
+        // to ignore its request and tell it complete instead
+        Debug_printv("No soup for you!");
+        transaction_complete();
+        return;
+    }
+
+    transaction_continue(false);
+    Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu) (addtl=%02x)\n", maxlen, addtl);
+
+    auto current_entry = fujicore_read_directory_entry(maxlen, addtl);
+    if (!current_entry)
+    {
+        transaction_error();
+        return;
+    }
+
+    std::string &dirpath = *current_entry;
+
+    // Hack-o-rama to add file type character to beginning of path.
+    if (maxlen == 31)
+    {
+        dirpath.resize(dirpath.size() + 2);
+        memmove(&dirpath[2], &dirpath[0], dirpath.size() - 2);
+        dirpath[0] = dirpath[1] = 0x20;
+
+        // Check if it's a directory first
+        if (dirpath.back() == '/')
+        {
+            dirpath[0] = 0x83;
+            dirpath[1] = 0x84;
+        }
+        else
+        {
+            size_t dot_pos = dirpath.rfind('.');
+            if (dot_pos != std::string::npos)
+            {
+                std::string ext = dirpath.substr(dot_pos + 1);
+                // Convert to uppercase for comparison
+                std::transform(ext.begin(), ext.end(), ext.begin(), ::toupper);
+
+                if (ext == "DDP")
+                {
+                    dirpath[0] = 0x85;
+                    dirpath[1] = 0x86;
+                }
+                else if (ext == "DSK")
+                {
+                    dirpath[0] = 0x87;
+                    dirpath[1] = 0x88;
+                }
+                else if (ext == "ROM")
+                {
+                    dirpath[0] = 0x89;
+                    dirpath[1] = 0x8a;
+                }
+            }
+        }
+    }
+
+    if (current_entry->size() < maxlen)
+        current_entry->resize(maxlen, '\0');
+
+    Debug_printf("%s\n", util_hexdump(current_entry->data(), maxlen).c_str());
+    transaction_put(current_entry->data(), maxlen, false);
 }
 
 #endif /* BUILD_ADAM */
