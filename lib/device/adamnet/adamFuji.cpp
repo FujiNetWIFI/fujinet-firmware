@@ -57,14 +57,14 @@ void adamFuji::adamnet_set_boot_config()
     SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    Debug_printf("Boot config is now %d", boot_config);
+    Debug_printf("Boot config is now %d\n", boot_config);
 
     if (_fnDisks[0].disk_dev.is_config_device)
     {
         _fnDisks[0].disk_dev.unmount();
         _fnDisks[0].disk_dev.is_config_device = false;
         _fnDisks[0].reset();
-        Debug_printf("Boot config unmounted slot 0");
+        Debug_printf("Boot config unmounted slot 0\n");
     }
 }
 
@@ -619,6 +619,16 @@ void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
 
     Debug_printf("%s\n", util_hexdump(current_entry->data(), maxlen).c_str());
     transaction_put(current_entry->data(), maxlen, false);
+}
+
+bool adamFuji::fujicmd_mount_disk_image_success(uint8_t deviceSlot,
+                                                disk_access_flags_t access_mode)
+{
+    Debug_println("Fuji cmd: MOUNT IMAGE");
+
+    // Adam needs ACK before we even determine if the disk can be mounted
+    transaction_complete();
+    return fujicore_mount_disk_image_success(deviceSlot, access_mode);
 }
 
 #endif /* BUILD_ADAM */

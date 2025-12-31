@@ -187,7 +187,7 @@ public:
     void fujicmd_net_get_ssid();
     bool fujicmd_net_set_ssid_success(const char *ssid, const char *password, bool save);
     void fujicmd_net_get_wifi_enabled();
-    bool fujicmd_mount_disk_image_success(uint8_t deviceSlot, disk_access_flags_t access_mode);
+    virtual bool fujicmd_mount_disk_image_success(uint8_t deviceSlot, disk_access_flags_t access_mode);
     bool fujicmd_unmount_disk_image_success(uint8_t deviceSlot);
     void fujicmd_image_rotate();
     bool fujicmd_open_directory_success(uint8_t hostSlot);

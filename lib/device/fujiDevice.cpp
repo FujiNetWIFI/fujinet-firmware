@@ -451,7 +451,6 @@ bool fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot,
     // A couple of reference variables to make things much easier to read...
     fujiDisk &disk = _fnDisks[deviceSlot];
     fujiHost &host = _fnHosts[disk.host_slot];
-    DISK_DEVICE *disk_dev = get_disk_dev(deviceSlot);
 
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\r\n",
                  disk.filename, disk.host_slot, mode, deviceSlot + 1);
@@ -466,7 +465,9 @@ bool fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot,
 
     // We need the file size for loading XEX files and for CASSETTE, so get that too
     disk.disk_size = host.file_size(disk.fileh);
+    DISK_DEVICE *disk_dev = get_disk_dev(deviceSlot);
     disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size, access_mode);
+    disk_dev->is_config_device = false;
 
     return true;
 }

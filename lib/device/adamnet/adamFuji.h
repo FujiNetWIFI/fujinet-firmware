@@ -83,7 +83,7 @@ public:
 
     // ============ Wrapped Fuji commands ============
     void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl) override;
-
+    bool fujicmd_mount_disk_image_success(uint8_t deviceSlot, disk_access_flags_t access_mode);
 };
 
 #endif // ADAMFUJI_H
