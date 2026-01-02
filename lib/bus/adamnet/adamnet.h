@@ -5,7 +5,7 @@
  * AdamNet Routines
  */
 
-#include "fnUART.h"
+#include "UARTChannel.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
@@ -106,13 +106,6 @@ protected:
      * @return byte received
      */
     uint8_t adamnet_recv();
-
-    /**
-     * @brief Receive byte from AdamNet with a timeout period
-     * @param dur timeout period in milliseconds
-     * @return true = timeout, false = b contains byte received
-     */
-    bool adamnet_recv_timeout(uint8_t *b, uint64_t dur);
 
     /**
      * @brief convenience function to recieve length
@@ -247,7 +240,7 @@ private:
     adamFuji *_fujiDev = nullptr;
     adamPrinter *_printerDev = nullptr;
 
-    UARTManager _port = UARTManager(FN_UART_BUS);
+    UARTChannel _port;
 
     void _adamnet_process_cmd();
     void _adamnet_process_queue();

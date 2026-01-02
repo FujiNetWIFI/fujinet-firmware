@@ -13,8 +13,8 @@ struct ChannelConfig
 {
     std::string device;
     int baud_rate;
-    uint32_t read_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
-    uint32_t discard_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
+    double read_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
+    double discard_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
 
     ChannelConfig& baud(int baud) {
         baud_rate = baud; return *this;
@@ -22,10 +22,10 @@ struct ChannelConfig
     ChannelConfig& deviceID(std::string path) {
         device = path; return *this;
     }
-    ChannelConfig& readTimeout(uint32_t millis) {
+    ChannelConfig& readTimeout(double millis) {
         read_timeout_ms = millis; return *this;
     }
-    ChannelConfig& discardTimeout(uint32_t millis) {
+    ChannelConfig& discardTimeout(double millis) {
         discard_timeout_ms = millis; return *this;
     }
 };

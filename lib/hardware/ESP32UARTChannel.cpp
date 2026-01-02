@@ -14,9 +14,7 @@ ESP32UARTChannel fnDebugConsole;
 void ESP32UARTChannel::begin(const ChannelConfig& conf)
 {
     if (_uart_q)
-    {
         end();
-    }
 
     _uart_num = conf.device;
     read_timeout_ms = conf.read_timeout_ms;
@@ -89,6 +87,9 @@ void ESP32UARTChannel::begin(const ChannelConfig& conf)
         fnSystem.digital_write(controlPins.ri, DIGI_HIGH);
     }
 
+    if (conf.rx_threshold)
+        setRXThreshold(conf.rx_threshold);
+
     return;
 }
 
@@ -100,6 +101,7 @@ void ESP32UARTChannel::end()
     _uart_q = NULL;
 }
 
+#ifdef CONFIG_IDF_TARGET_ESP32S3
 void ESP32UARTChannel::updateFIFO()
 {
     uart_event_t event;
@@ -119,6 +121,23 @@ void ESP32UARTChannel::updateFIFO()
 
     return;
 }
+#else /* ! CONFIG_IDF_TARGET_ESP32S3 */
+void ESP32UARTChannel::updateFIFO()
+{
+    size_t avail;
+    if (ESP_FAIL == uart_get_buffered_data_len(_uart_num, &avail))
+        return;
+
+    size_t old_len = _fifo.size();
+    _fifo.resize(old_len + avail);
+    int result = uart_read_bytes(_uart_num, &_fifo[old_len], avail, 0);
+    if (result < 0)
+        result = 0;
+    _fifo.resize(old_len + result);
+
+    return;
+}
+#endif /* CONFIG_IDF_TARGET_ESP32S3 */
 
 void ESP32UARTChannel::flushOutput()
 {
@@ -191,4 +210,18 @@ void ESP32UARTChannel::setDCD(bool state)
 void ESP32UARTChannel::setRI(bool state)
 {
     setPin(controlPins.ri, state);
+}
+
+void ESP32UARTChannel::setRXThreshold(uint8_t thresh)
+{
+    uint32_t conf1 = READ_PERI_REG(UART_CONF1_REG(_uart_num));
+    conf1 &= ~(UART_RXFIFO_FULL_THRHD_V << UART_RXFIFO_FULL_THRHD_S);
+    conf1 |= (thresh & UART_RXFIFO_FULL_THRHD_V) << UART_RXFIFO_FULL_THRHD_S;
+    WRITE_PERI_REG(UART_CONF1_REG(_uart_num), conf1);
+}
+
+uint8_t ESP32UARTChannel::getRXThreshold()
+{
+    uint32_t conf1 = READ_PERI_REG(UART_CONF1_REG(_uart_num));
+    return (conf1 >> UART_RXFIFO_FULL_THRHD_S) & UART_RXFIFO_FULL_THRHD_V;
 }

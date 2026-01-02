@@ -13,9 +13,6 @@
 class adamQueryDevice : public virtualDevice
 {
 protected:
-protected:
-    // SIO THINGS
-    
     virtual void adamnet_control_status() override;
     virtual void adamnet_control_receive();
     virtual void adamnet_control_clr();
@@ -25,12 +22,8 @@ protected:
     void shutdown() override;
 
 public:
-
-    bool virtualDeviceExists(uint8_t device);
-
     adamQueryDevice();
     ~adamQueryDevice();
-
 };
 
 #endif /* ADAM_QUERY_H */
