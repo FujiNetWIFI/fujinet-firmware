@@ -422,13 +422,6 @@ int fnTcpClient::peek()
 
 void fnTcpClient::updateFIFO()
 {
-    // check if socket is still connected
-    if (!connected())
-    {
-        // connection was closed or it has an error
-        return;
-    }
-
 #if defined(_WIN32)
     unsigned long count;
     int res = ioctlsocket(fd(), FIONREAD, &count);
@@ -462,7 +455,8 @@ void fnTcpClient::updateFIFO()
 // Return number of bytes available for reading
 size_t fnTcpClient::available()
 {
-    updateFIFO();
+    if (_rxBuffer.empty())
+        updateFIFO();
     return _rxBuffer.size();
 }
 
