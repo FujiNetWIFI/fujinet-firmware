@@ -496,3 +496,27 @@ netProtoErr_t NetworkProtocolFS::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFr
 {
     return NETPROTO_ERR_NONE;
 }
+
+size_t NetworkProtocolFS::available()
+{
+    size_t avail;
+
+
+    switch (openMode)
+    {
+    case FILE:
+        if (aux1_open == 8)
+            return 0;
+        avail = std::min<size_t>(fileSize + receiveBuffer->length(), WAITING_CAP);
+        break;
+    case DIR:
+        avail = receiveBuffer->length();
+        if (!avail)
+            avail = dirBuffer.length();
+        break;
+    default:
+        avail = 0;
+    }
+
+    return avail;
+}
