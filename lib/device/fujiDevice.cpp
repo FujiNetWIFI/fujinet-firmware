@@ -392,12 +392,9 @@ void fujiDevice::fujicmd_net_scan_result(uint8_t index)
 }
 
 // Set SSID
-bool fujiDevice::fujicmd_net_set_ssid_success(const char *ssid, const char *password,
+bool fujiDevice::fujicore_net_set_ssid_success(const char *ssid, const char *password,
                                               bool save)
 {
-    transaction_continue(false);
-    Debug_println("Fuji cmd: SET SSID");
-
     Config.save();
 
     Debug_printf("Connecting to net: %s password: %s\n", ssid, password);
@@ -412,6 +409,21 @@ bool fujiDevice::fujicmd_net_set_ssid_success(const char *ssid, const char *pass
         Config.store_wifi_ssid(ssid, strlen(ssid) + 1);
         Config.store_wifi_passphrase(password, strlen(password) + 1);
         Config.save();
+    }
+
+    return true;
+}
+
+// Set SSID
+bool fujiDevice::fujicmd_net_set_ssid_success(const char *ssid, const char *password,
+                                              bool save)
+{
+    transaction_continue(false);
+    Debug_println("Fuji cmd: SET SSID");
+
+    if (!fujicore_net_set_ssid_success(ssid, password, save)) {
+        transaction_error();
+        return false;
     }
 
     transaction_complete();

@@ -140,10 +140,13 @@ void sioFuji::sio_net_set_ssid()
 {
     SSIDConfig cfg;
     transaction_continue(true);
-    if (!transaction_get(&cfg, sizeof(cfg)))
+    if (!transaction_get(&cfg, sizeof(cfg))) {
         transaction_error();
-    else
-        fujicmd_net_set_ssid_success(cfg.ssid, cfg.password, cmdFrame.aux1);
+        return;
+    }
+    
+    fujicore_net_set_ssid_success(cfg.ssid, cfg.password, cmdFrame.aux1);
+    transaction_complete();
 }
 
 // Set SIO baudrate
