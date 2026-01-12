@@ -136,6 +136,9 @@ void IRAM_ATTR iwmDisk2::change_track(int indicator)
     return;
 
   // should only copy track data over if it's changed
+  assert(_disk != NULL);
+  assert(old_pos >= 0 && old_pos < MAX_TRACKS);
+  assert(track_pos >= 0 && track_pos < MAX_TRACKS);
   if ((((MediaTypeWOZ *)_disk)->trackmap(old_pos) == ((MediaTypeWOZ *)_disk)->trackmap(track_pos)) && indicator)
     return;
 
