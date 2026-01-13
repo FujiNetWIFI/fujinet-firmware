@@ -2132,6 +2132,10 @@ void sioFuji::setup()
     SYSTEM_BUS.addDevice(&_cassetteDev, FUJI_DEVICEID_CASSETTE);
     cassette()->set_buttons(Config.get_cassette_buttons());
     cassette()->set_pulldown(Config.get_cassette_pulldown());
+
+#ifndef ESP_PLATFORM // required for FN-PC, causes RAM overflow on ESP32
+    SYSTEM_BUS.addDevice(&_udpDev, FUJI_DEVICEID_MIDI);
+#endif
 }
 
 sioDisk *sioFuji::bootdisk()

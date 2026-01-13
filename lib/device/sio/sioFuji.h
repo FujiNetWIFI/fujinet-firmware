@@ -19,7 +19,9 @@
 #include "disk.h"
 #include "network.h"
 #include "cassette.h"
-
+#ifndef ESP_PLATFORM // required for FN-PC, causes RAM overflow on ESP32
+#include "udpstream.h"
+#endif
 #include "fujiHost.h"
 #include "fujiDisk.h"
 
@@ -34,7 +36,9 @@ private:
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
 
     sioCassette _cassetteDev;
-
+#ifndef ESP_PLATFORM // required for FN-PC, causes RAM overflow on ESP32
+    sioUDPStream _udpDev;
+#endif
     int _current_open_directory_slot = -1;
 
     sioDisk _bootDisk; // special disk drive just for configuration
@@ -154,6 +158,10 @@ public:
     sioNetwork *network();
 
     sioCassette *cassette() { return &_cassetteDev; };
+#ifndef ESP_PLATFORM // required for FN-PC, causes RAM overflow on ESP32
+    sioUDPStream *udpStream() { return &_udpDev; };
+#endif
+
     void debug_tape();
 
     void insert_boot_device(uint8_t d);
