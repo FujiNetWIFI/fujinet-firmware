@@ -434,8 +434,8 @@ void iwmFuji::iwm_ctrl_copy_file()
         unsigned char sourceSlot;
         unsigned char destSlot;
 
-        sourceSlot = data_buffer[0];
-        destSlot = data_buffer[1];
+        sourceSlot = data_buffer[0] - 1;
+        destSlot = data_buffer[1] - 1;
         copySpec = std::string((char *)&data_buffer[2]);
         Debug_printf("copySpec: %s\n", copySpec.c_str());
 
@@ -457,9 +457,12 @@ void iwmFuji::iwm_ctrl_copy_file()
 
         // Open files...
         sourceFile = _fnHosts[sourceSlot].fnfile_open(sourcePath.c_str(), (char *)sourcePath.c_str(), sourcePath.size() + 1, "rb");
+        assert(sourceFile);
         destFile = _fnHosts[destSlot].fnfile_open(destPath.c_str(), (char *)destPath.c_str(), destPath.size() + 1, "wb");
+        assert(destFile);
 
         dataBuf = (char *)malloc(532);
+        assert(dataBuf);
         size_t count = 0;
         do
         {
