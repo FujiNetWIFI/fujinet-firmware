@@ -19,3 +19,4 @@ components:
   pclink: true
 tweaks:
   # webui tweaks, if any
+  config_ng: true

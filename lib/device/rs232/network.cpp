@@ -1105,7 +1105,6 @@ void rs232Network::rs232_parse_json()
 void rs232Network::rs232_set_json_query()
 {
     uint8_t in[256];
-    const char *inp = NULL;
     uint8_t *tmp;
 
     memset(in, 0, sizeof(in));
@@ -1119,16 +1118,14 @@ void rs232Network::rs232_set_json_query()
             in[i] = 0x00;
     }
 
-    inp = strrchr((const char *)in, ':');
-    inp++;
     Debug_printv("Q: %s\n",in);
-    json.setReadQuery(string(inp),cmdFrame.aux2);
+    json.setReadQuery(string((char *) in),0);
     json_bytes_remaining = json.readValueLen();
     tmp = (uint8_t *)malloc(json.readValueLen());
     json.readValue(tmp,json_bytes_remaining);
     *receiveBuffer += string((const char *)tmp,json_bytes_remaining);
     free(tmp);
-    Debug_printf("Query set to %s\n",inp);
+    Debug_printf("Query set to %s\n",in);
     rs232_complete();
 }
 

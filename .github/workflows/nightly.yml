@@ -69,7 +69,10 @@ jobs:
 
     - name: Get Old Version
       id: version
-      run: echo "VERSION=$(grep '#define FN_VERSION_FULL' /home/runner/work/fujinet-firmware/fujinet-firmware/include/version.h | sed 's/^.*"\(.*\)".*$/\1/')" >> $GITHUB_OUTPUT
+      run: |
+        YEAR=$(date +%Y)
+        DAY=$(date +%j)
+        echo "VERSION=n${YEAR}.${DAY}-${{ steps.short-sha.outputs.sha }}" >> $GITHUB_OUTPUT
 
     - name: Get Commit Date
       id: commit-date
@@ -77,7 +80,7 @@ jobs:
 
     - name: Set Nightly Version in Firmware
       id: nightly-version
-      run: sed -i "s/\"${{ steps.version.outputs.VERSION }}\"/\"${{ steps.version.outputs.VERSION }}.${{ steps.short-sha.outputs.sha }}\"/" /home/runner/work/fujinet-firmware/fujinet-firmware/include/version.h
+      run: sed -i 's/#define FN_VERSION_FULL "[^"]*"/#define FN_VERSION_FULL "${{ steps.version.outputs.VERSION }}"/' /home/runner/work/fujinet-firmware/fujinet-firmware/include/version.h
 
     - name: Set Version Date in Firmware
       id: nightly-date
@@ -92,10 +95,10 @@ jobs:
     - name: Standardize Firmware Name
       run: mv ./firmware/fujinet*.zip ./firmware/fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.VERSION }}-nightly.zip
 
-    - name: Create Release 
+    - name: Create Release
       id: create-release
-      uses: softprops/action-gh-release@v2.2.2 
-      with: 
+      uses: softprops/action-gh-release@v2.2.2
+      with:
 #        body_path: ${{ github.workspace }}/.github/nightly-release.txt
         body: |
           Nightly builds of the following firmwares:
@@ -113,8 +116,8 @@ jobs:
 
           Current commit: [${{ steps.short-sha.outputs.sha }}](${{ github.server_url }}/${{ github.repository }}/commits/${{ github.sha }})
         name: Nightly Builds
-        prerelease: true 
-        files: ${{ github.workspace }}/firmware/fujinet-*-nightly.zip 
-        tag_name: nightly 
-        generate_release_notes: true 
+        prerelease: true
+        files: ${{ github.workspace }}/firmware/fujinet-*-nightly.zip
+        tag_name: nightly
+        generate_release_notes: true
         make_latest: false
