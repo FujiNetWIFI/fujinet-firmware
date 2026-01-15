@@ -52,6 +52,7 @@ protected:
     void rs232_net_get_wifi_enabled();   // 0xEA
     void rs232_disk_image_umount();      // 0xE9
     void rs232_get_adapter_config();     // 0xE8
+    void rs232_get_adapter_config_extended(); // 0xC4
     void rs232_new_disk();               // 0xE7
     void rs232_unmount_host();           // 0xE6
     void rs232_get_directory_position(); // 0xE5
