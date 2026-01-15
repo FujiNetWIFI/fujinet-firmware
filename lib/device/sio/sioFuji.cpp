@@ -144,7 +144,7 @@ void sioFuji::sio_net_set_ssid()
         transaction_error();
         return;
     }
-    
+
     fujicore_net_set_ssid_success(cfg.ssid, cfg.password, cmdFrame.aux1);
     transaction_complete();
 }
@@ -514,9 +514,11 @@ void sioFuji::setup()
     cassette()->set_buttons(Config.get_cassette_buttons());
     cassette()->set_pulldown(Config.get_cassette_pulldown());
 
+#ifdef UNUSED
 #ifndef ESP_PLATFORM // required for FN-PC, causes RAM overflow on ESP32
     SYSTEM_BUS.addDevice(&_udpDev, FUJI_DEVICEID_MIDI);
 #endif
+#endif /* UNUSED */
 }
 
 void sioFuji::sio_qrcode_input()
