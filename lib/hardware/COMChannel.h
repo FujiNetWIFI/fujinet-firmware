@@ -62,11 +62,6 @@ public:
 
     void setDCD(bool state) override { return; } // DCD is not an output on DTE
     void setRI(bool state) override { return; }  // RI is not an output on DTE
-
-#ifdef UNUSED
-    void setPort(std::string device);
-    std::string getPort();
-#endif /* UNUSED */
 };
 
 #endif /* HELLO_IM_A_PC */

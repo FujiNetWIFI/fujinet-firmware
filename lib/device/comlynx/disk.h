@@ -1,6 +1,7 @@
 #ifndef LYNX_DISK_H
 #define LYNX_DISK_H
 
+#include "../disk.h"
 #include "bus.h"
 #include "media.h"
 
@@ -31,7 +32,9 @@ private:
 
 public:
     lynxDisk();
-    mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+    mediatype_t mount(FILE *f, const char *filename, uint32_t disksize,
+                      disk_access_flags_t access_mode,
+                      mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
     bool write_blank(FILE *f, uint32_t numBlocks);
     virtual void reset() override;

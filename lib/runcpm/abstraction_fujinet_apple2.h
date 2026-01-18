@@ -20,12 +20,13 @@
 #include "fnTcpServer.h"
 #include "fnTcpClient.h"
 
-#include "fujiDevice.h"
+#include "iwm/iwmFuji.h"
 
 #define HostOS 0x07 // FUJINET
 
 #ifdef BUILD_COCO
 // This file says "apple2" right in the name so CoCo should follow apple2 convention, right?
+#include "drivewire/drivewireFuji.h"
 #define MAX_A2DISK_DEVICES MAX_DWDISK_DEVICES
 #endif
 

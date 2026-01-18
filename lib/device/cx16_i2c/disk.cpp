@@ -76,7 +76,8 @@ void cx16Disk::sio_format()
    then we assume it's MEDIATYPE_ATR.
    Return value is MEDIATYPE_UNKNOWN in case of failure.
 */
-mediatype_t cx16Disk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+mediatype_t cx16Disk::mount(FILE *f, const char *filename, uint32_t disksize,
+                            disk_access_flags_t access_mode, mediatype_t disk_type)
 {
     return MEDIATYPE_UNKNOWN;
 }

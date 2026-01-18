@@ -3,14 +3,15 @@
 #include <queue>
 
 #include "drivewire.h"
+#include "drivewire/drivewireFuji.h"
 
 #include "../../include/debug.h"
 
-#include "fujiDevice.h"
 #include "udpstream.h"
 #include "modem.h"
 #include "cassette.h"
 #include "printer.h"
+#include "network.h"
 #include "drivewire/dload.h"
 #include "../../lib/device/drivewire/cpm.h"
 
@@ -113,8 +114,8 @@ void systemBus::op_reset()
     Debug_printv("op_reset()");
 
     // When a reset transaction occurs, set the mounted disk image to the CONFIG disk image.
-    theFuji->boot_config = true;
-    theFuji->insert_boot_device(Config.get_general_boot_mode());
+    platformFuji.boot_config = true;
+    platformFuji.insert_boot_device(Config.get_general_boot_mode(), MEDIATYPE_UNKNOWN, &platformFuji.bootdisk);
     if (pNamedObjFp != NULL)
     {
         fclose(pNamedObjFp);
@@ -183,7 +184,7 @@ void systemBus::op_readex()
     Debug_printf("OP_READ: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
 
         if (theFuji->boot_config && drive_num == 0)
-            d = theFuji->bootdisk();
+            d = &theFuji->bootdisk;
         else
             d = &theFuji->get_disk(drive_num)->disk_dev;
 
@@ -270,7 +271,6 @@ void systemBus::op_readex()
     _port->flushOutput();
 }
 
-
 void systemBus::op_write()
 {
     drivewireDisk *d = nullptr;
@@ -334,7 +334,7 @@ void systemBus::op_write()
 
 void systemBus::op_fuji()
 {
-    theFuji->process();
+    platformFuji.process();
 }
 
 void systemBus::op_cpm()
@@ -775,6 +775,7 @@ void systemBus::setup()
 
     if (Config.get_boip_enabled())
     {
+        _becker.setHost(Config.get_boip_host(), Config.get_boip_port());
         _becker.begin(Config.get_boip_host(), _drivewireBaud);
         _port = &_becker;
     }

@@ -7,7 +7,7 @@
 
 #include "../../include/debug.h"
 
-#include "fujiDevice.h"
+#include "sioFuji.h"
 #include "utils.h"
 
 #define SIO_DISKCMD_FORMAT 0x21
@@ -214,7 +214,8 @@ void sioDisk::sio_write_percom_block()
    then we assume it's MEDIATYPE_ATR.
    Return value is MEDIATYPE_UNKNOWN in case of failure.
 */
-mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
+                           disk_access_flags_t access_mode, mediatype_t disk_type)
 {
     // TAPE or CASSETTE: use this function to send file info to cassette device
     //  MediaType::discover_mediatype(filename) can detect CAS and WAV files
@@ -237,7 +238,7 @@ mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize, m
     case MEDIATYPE_CAS:
     case MEDIATYPE_WAV:
         // open the cassette file
-        theFuji->cassette()->mount_cassette_file(f, disksize);
+        platformFuji.cassette()->mount_cassette_file(f, disksize);
         return disk_type;
         // TODO left off here for tape cassette
         break;
@@ -379,7 +380,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         {
             if (theFuji->boot_config == true)
             {
-                if (status_wait_count > 0 && theFuji->status_wait_enabled)
+                if (status_wait_count > 0 && platformFuji.status_wait_enabled)
                 {
                     Debug_print("ignoring status command\n");
                     status_wait_count--;

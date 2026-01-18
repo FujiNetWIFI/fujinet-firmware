@@ -10,7 +10,7 @@
 // #include "fnFsSD.h"
 #include "fsFlash.h"
 #include "led.h"
-#include "fujiDevice.h"
+#include "iwm/iwmFuji.h"
 
 // #define LOCAL_TNFS
 
@@ -228,7 +228,7 @@ void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)
     Debug_printf("Handling Eject command\r\n");
     unmount();
     switched = false; //force switched = false when ejected from host.
-    theFuji->handle_ctl_eject(_devnum);
+    platformFuji.handle_ctl_eject(_devnum);
     break;
   default:
     err_result = SP_ERR_BADCTL;
@@ -250,7 +250,7 @@ void iwmDisk::process(iwm_decoded_cmd_t cmd)
     if (disk_num == '0' && status_code > 0x05) {
       // THIS IS AN OLD HACK FOR CALLING STATUS ON THE FUJI DEVICE INSTEAD OF ADDING THE_FUJI AS A DEVICE.
       Debug_printf("\r\nUsing DISK_0 for FUJI device\r\n");
-      theFuji->FujiStatus(cmd);
+      platformFuji.FujiStatus(cmd);
     }
     else {
       iwm_status(cmd);
@@ -273,7 +273,7 @@ void iwmDisk::process(iwm_decoded_cmd_t cmd)
     if (disk_num == '0' && status_code > 0x0A) {
       // THIS IS AN OLD HACK FOR CALLING CONTROL ON THE FUJI DEVICE INSTEAD OF ADDING THE_FUJI AS A DEVICE.
       Debug_printf("\r\nUsing DISK_0 for FUJI device\r\n");
-      theFuji->FujiControl(cmd);
+      platformFuji.FujiControl(cmd);
     }
     else {
       iwm_ctrl(cmd);
@@ -432,7 +432,8 @@ iwmDisk::iwmDisk()
   // init();
 }
 
-mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
+                           disk_access_flags_t access_mode, mediatype_t disk_type)
 {
   Debug_printf("disk MOUNT %s\n", filename);
 
@@ -463,6 +464,12 @@ mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize, m
   }
   else if (_disk && strlen(_disk->_disk_filename))
       strcpy(_disk->_disk_filename, filename);
+
+    if (access_mode == DISK_ACCESS_MODE_WRITE)
+    {
+        Debug_printv("Setting disk to read/write");
+        readonly = false;
+    }
 
   return disk_type;
 }
@@ -505,11 +512,13 @@ mediatype_t iwmDisk::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_t
 
 void iwmDisk::unmount()
 {
-      if (_disk != nullptr)
+    if (_disk != nullptr)
     {
         _disk->unmount();
         delete _disk;
         _disk = nullptr;
+        if (device_active)
+            switched = true;
         device_active = false;
         is_config_device = false;
         readonly = true;

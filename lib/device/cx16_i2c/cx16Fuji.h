@@ -1,5 +1,7 @@
-#ifndef FUJI_H
-#define FUJI_H
+#ifndef CX16FUJI_H
+#define CX16FUJI_H
+
+#include "fujiDevice.h"
 
 #include <cstdint>
 #include <cstring>
@@ -99,4 +101,4 @@ public:
 
 extern cx16Fuji *theFuji;
 
-#endif /* FUJI_H */
+#endif /* CX16FUJI_H */

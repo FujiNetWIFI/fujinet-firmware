@@ -15,6 +15,9 @@
 #include "modem.h"
 #include "printer.h"
 #include "fujiDevice.h"
+#ifdef BUILD_ATARI
+#include "sio/sioFuji.h"
+#endif /* BUILD_ATARI */
 
 #include "mongoose.h"
 #include "httpService.h"
@@ -402,7 +405,7 @@ int fnHttpService::get_handler_swap(mg_connection *c, mg_http_message *hm)
 {
     // rotate disk images
     Debug_printf("Disk swap from webui\n");
-    theFuji->image_rotate();
+    theFuji->fujicmd_image_rotate();
     return redirect_or_result(c, hm, 0);
 }
 
@@ -414,11 +417,7 @@ int fnHttpService::get_handler_mount(mg_connection *c, mg_http_message *hm)
     {
         // Mount all the things
         Debug_printf("Mount all from webui\n");
-#ifdef BUILD_ATARI
-        theFuji->mount_all(false);
-#else
-        theFuji->mount_all();
-#endif
+        theFuji->fujicore_mount_all_success();
     }
     return redirect_or_result(c, hm, 0);
 }
@@ -446,14 +445,14 @@ int fnHttpService::get_handler_eject(mg_connection *c, mg_http_message *hm)
 #ifdef BUILD_ATARI
         if (theFuji->get_disk(ds)->disk_type == MEDIATYPE_CAS || theFuji->get_disk(ds)->disk_type == MEDIATYPE_WAV)
         {
-            theFuji->cassette()->umount_cassette_file();
-            theFuji->cassette()->sio_disable_cassette();
+            platformFuji.cassette()->umount_cassette_file();
+            platformFuji.cassette()->sio_disable_cassette();
         }
 #endif
         theFuji->get_disk(ds)->reset();
         Config.clear_mount(ds);
         Config.save();
-        theFuji->_populate_slots_from_config(); // otherwise they don't show up in config.
+        theFuji->populate_slots_from_config(); // otherwise they don't show up in config.
         theFuji->get_disk(ds)->disk_dev.device_active = false;
 
         // Finally, scan all device slots, if all empty, and config enabled, enable the config device.
