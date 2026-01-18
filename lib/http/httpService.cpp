@@ -677,11 +677,24 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 
         if (theFuji->get_host(hs)->mount() == true)
         {
+            fujiDisk *disk = theFuji->get_disk(ds);
             disk_access_flags_t mode = qp.query_parsed["mode"] == "2" ?
                 DISK_ACCESS_MODE_WRITE : DISK_ACCESS_MODE_READ;
+            disk->host_slot = hs;
+            strcpy(disk->filename,qp.query_parsed["filename"].c_str());
+
             if (!theFuji->fujicore_mount_disk_image_success(ds, mode))
             {
                 fnHTTPD.addToErrMsg("<li>Could not mount disk: " + qp.query_parsed["filename"] + "</li>");
+            }
+            else
+            {
+                Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(),
+                                   mode == DISK_ACCESS_MODE_WRITE ?
+                                   fnConfig::mount_modes::MOUNTMODE_WRITE :
+                                   fnConfig::mount_modes::MOUNTMODE_READ);
+                Config.save();
+                theFuji->populate_slots_from_config(); // otherwise they don't show up in config.
             }
         }
         else

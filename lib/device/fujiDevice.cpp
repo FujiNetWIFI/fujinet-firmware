@@ -461,7 +461,7 @@ bool fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot,
         return false;
 
     // A couple of reference variables to make things much easier to read...
-    fujiDisk &disk = _fnDisks[deviceSlot];
+    fujiDisk &disk = *get_disk(deviceSlot);
     fujiHost &host = _fnHosts[disk.host_slot];
 
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\r\n",
