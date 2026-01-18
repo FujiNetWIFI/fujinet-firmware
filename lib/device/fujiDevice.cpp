@@ -441,7 +441,7 @@ void fujiDevice::fujicmd_net_get_wifi_enabled()
     transaction_continue(false);
     uint8_t e = fujicore_net_get_wifi_enabled();
     Debug_printf("Fuji cmd: GET WIFI ENABLED: %d\n", e);
-    transaction_put(&e, sizeof(e), false);
+    transaction_put(&e, sizeof(e));
 }
 
 // Disk Image Mount
@@ -796,7 +796,7 @@ void fujiDevice::fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_s
     // Debug_printf("  Last group: %s\n", (page_groups.back().is_last_group ? "Yes" : "No"));
     // Debug_printf("Full response block:\n%s\n", util_hexdump(response.data(), response.size()).c_str());
 
-    transaction_put(response.data(), response.size(), false);
+    transaction_put(response.data(), response.size());
 }
 
 std::optional<std::string> fujiDevice::fujicore_read_directory_entry(size_t maxlen,
@@ -871,7 +871,7 @@ void fujiDevice::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
         current_entry->resize(maxlen, '\0');
 
     Debug_printf("%s\n", util_hexdump(current_entry->data(), maxlen).c_str());
-    transaction_put(current_entry->data(), maxlen, false);
+    transaction_put(current_entry->data(), maxlen);
 }
 
 size_t fujiDevice::_set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
@@ -1076,29 +1076,15 @@ bool fujiDevice::fujicmd_unmount_disk_image_success(uint8_t deviceSlot)
 
 void fujiDevice::fujicmd_get_adapter_config()
 {
-    AdapterConfig cfg {};
-
     transaction_continue(false);
-    Debug_println("Fuji cmd: GET ADAPTER CONFIG");
+    // also return string versions of the data to save the host some computing
+    Debug_printf("Fuji cmd: GET ADAPTER CONFIG\r\n");
 
-    strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
+    // AdapterConfigExtended contains AdapterConfig so just get Extended
+    AdapterConfigExtended cfg = fujicore_get_adapter_config_extended();
 
-    if (!fnWiFi.connected())
-    {
-        strlcpy(cfg.ssid, "NOT CONNECTED", sizeof(cfg.ssid));
-    }
-    else
-    {
-        strlcpy(cfg.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(cfg.hostname));
-        strlcpy(cfg.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(cfg.ssid));
-        fnWiFi.get_current_bssid(cfg.bssid);
-        fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
-        fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
-    }
-
-    fnWiFi.get_mac(cfg.macAddress);
-
-    transaction_put(&cfg, sizeof(cfg));
+    // Only write out the AdapterConfig part
+    transaction_put(&cfg, sizeof(AdapterConfig));
 }
 
 AdapterConfigExtended fujiDevice::fujicore_get_adapter_config_extended()
@@ -1145,7 +1131,7 @@ void fujiDevice::fujicmd_get_adapter_config_extended()
     Debug_printf("Fuji cmd: GET ADAPTER CONFIG EXTENDED\r\n");
 
     AdapterConfigExtended cfg = fujicore_get_adapter_config_extended();
-    transaction_put(&cfg, sizeof(cfg), false);
+    transaction_put(&cfg, sizeof(cfg));
 }
 
 // Get a 256 byte filename from device slot
@@ -1256,7 +1242,7 @@ void fujiDevice::fujicmd_get_directory_position()
         return;
     }
     // Return the value we read
-    transaction_put(&pos, sizeof(pos), false);
+    transaction_put(&pos, sizeof(pos));
 }
 
 // Retrieve host path prefix
@@ -1505,7 +1491,7 @@ void fujiDevice::fujicmd_status()
 
     char ret[4] = {0};
 
-    transaction_put(ret, sizeof(ret), false);
+    transaction_put(ret, sizeof(ret));
     return;
 }
 
@@ -1721,7 +1707,7 @@ void fujiDevice::fujicmd_read_app_key()
     else
         response_data = std::vector<uint8_t>(MAX_APPKEY_LEN + 2, 0);
 
-    transaction_put(response_data.data(), response_data.size(), false);
+    transaction_put(response_data.data(), response_data.size());
 }
 
 #ifdef SYSTEM_BUS_IS_SERIAL
