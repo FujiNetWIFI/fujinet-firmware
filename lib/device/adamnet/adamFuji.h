@@ -18,17 +18,14 @@ private:
     bool new_disk_completed = false;
 
 protected:
-    void transaction_continue(bool expectMoreData) override {}
-    void transaction_complete() override {
+    void transaction_continue(bool expectMoreData) override {
+        // Adam needs ACK ASAP and never sends error, so discard checksum and ACK here
         adamnet_recv(); // Discard CK
         SYSTEM_BUS.start_time = esp_timer_get_time();
         adamnet_response_ack();
     }
-    void transaction_error() override {
-        adamnet_recv(); // Discard CK
-        SYSTEM_BUS.start_time = esp_timer_get_time();
-        adamnet_response_nack();
-    }
+    void transaction_complete() override {}
+    void transaction_error() override {}
     bool transaction_get(void *data, size_t len) override {
         unsigned short rlen = adamnet_recv_buffer((uint8_t *) data, len);
         return rlen == len;
@@ -36,10 +33,6 @@ protected:
     void transaction_put(const void *data, size_t len, bool err=false) override {
         memcpy(response, data, len);
         response_len = len;
-        if (!err)
-            transaction_complete();
-        else
-            transaction_error();
     }
 
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
@@ -83,7 +76,11 @@ public:
 
     // ============ Wrapped Fuji commands ============
     void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl) override;
-    bool fujicmd_mount_disk_image_success(uint8_t deviceSlot, disk_access_flags_t access_mode);
+#if 0
+    bool fujicmd_mount_disk_image_success(uint8_t deviceSlot, disk_access_flags_t access_mode) override;
+    void fujicmd_get_adapter_config() override;
+    void fujicmd_get_adapter_config_extended() override;
+#endif
 };
 
 #endif // ADAMFUJI_H

@@ -196,8 +196,8 @@ public:
     void fujicmd_get_directory_position();
     void fujicmd_set_directory_position(uint16_t pos);
     bool fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot, std::string copySpec);
-    void fujicmd_get_adapter_config();
-    void fujicmd_get_adapter_config_extended();
+    virtual void fujicmd_get_adapter_config();
+    virtual void fujicmd_get_adapter_config_extended();
     void fujicmd_get_device_filename(uint8_t slot);
     bool fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
                                              disk_access_flags_t mode);

@@ -377,7 +377,7 @@ void adamFuji::adamnet_device_enable_status()
 void adamFuji::adamnet_control_send()
 {
     uint16_t s = adamnet_recv_length();
-    uint8_t c = adamnet_recv();
+    fujiCommandID_t c = (fujiCommandID_t) adamnet_recv();
 
     switch (c)
     {
@@ -447,6 +447,9 @@ void adamFuji::adamnet_control_send()
     case FUJICMD_GET_ADAPTERCONFIG:
         fujicmd_get_adapter_config();
         break;
+    case FUJICMD_GET_ADAPTERCONFIG_EXTENDED:
+        fujicmd_get_adapter_config_extended();
+        break;
     case FUJICMD_NEW_DISK:
         adamnet_new_disk();
         break;
@@ -511,6 +514,9 @@ void adamFuji::adamnet_control_send()
             transaction_get(dirpath, sizeof(dirpath));
             fujicmd_copy_file_success(source, dest, dirpath);
         }
+        break;
+    default:
+        Debug_printv("Unknown command: %02x\n", c);
         break;
     }
 }
@@ -618,9 +624,10 @@ void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
         current_entry->resize(maxlen, '\0');
 
     Debug_printf("%s\n", util_hexdump(current_entry->data(), maxlen).c_str());
-    transaction_put(current_entry->data(), maxlen, false);
+    transaction_put(current_entry->data(), maxlen);
 }
 
+#if 0
 bool adamFuji::fujicmd_mount_disk_image_success(uint8_t deviceSlot,
                                                 disk_access_flags_t access_mode)
 {
@@ -630,5 +637,35 @@ bool adamFuji::fujicmd_mount_disk_image_success(uint8_t deviceSlot,
     transaction_complete();
     return fujicore_mount_disk_image_success(deviceSlot, access_mode);
 }
+
+void adamFuji::fujicmd_get_adapter_config()
+{
+    // Adam needs ACK ASAP
+    transaction_complete();
+
+    // also return string versions of the data to save the host some computing
+    Debug_printf("Fuji cmd: GET ADAPTER CONFIG\r\n");
+
+    // AdapterConfigExtended contains AdapterConfig so just get Extended
+    AdapterConfigExtended cfg = fujicore_get_adapter_config_extended();
+
+    // Only write out the AdapterConfig part
+    response_len = sizeof(AdapterConfig);
+    memcpy(response, &cfg, response_len);
+}
+
+void adamFuji::fujicmd_get_adapter_config_extended()
+{
+    // Adam needs ACK ASAP
+    transaction_complete();
+
+    // also return string versions of the data to save the host some computing
+    Debug_printf("Fuji cmd: GET ADAPTER CONFIG EXTENDED\r\n");
+
+    AdapterConfigExtended cfg = fujicore_get_adapter_config_extended();
+    response_len = sizeof(cfg);
+    memcpy(response, &cfg, response_len);
+}
+#endif
 
 #endif /* BUILD_ADAM */
