@@ -495,7 +495,7 @@ void sioNetwork::sio_status_channel()
     size_t avail = 0;
     bool err = false;
 
-#ifdef VERBOSE_PROTOCOL
+#if 1 //def VERBOSE_PROTOCOL
     Debug_printf("sioNetwork::sio_status_channel(mode: %u)\n", channelMode);
 #endif
 
@@ -526,7 +526,7 @@ void sioNetwork::sio_status_channel()
     nstatus.err = status.error;
 
     // leaving this one to print
-    Debug_printf("rs232_status_channel() - BW: %u C: %u E: %u\n",
+    Debug_printf("sio_status_channel() - BW: %u C: %u E: %u\n",
                  nstatus.avail, nstatus.conn, nstatus.err);
 
     // and send to computer

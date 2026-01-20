@@ -822,3 +822,32 @@ netProtoErr_t NetworkProtocolHTTP::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdF
 {
     return del(url, cmdFrame);
 }
+
+size_t NetworkProtocolHTTP::available()
+{
+    size_t avail = 0;
+
+    if (client == nullptr)
+        return 0;
+
+    switch (httpChannelMode)
+    {
+    case DATA:
+        avail = client->available();
+        break;
+    case SET_HEADERS:
+    case COLLECT_HEADERS:
+    case SEND_POST_DATA:
+        break;
+    case GET_HEADERS:
+        if (resultCode == 0)
+            http_transaction();
+        if (returned_header_cursor < collect_headers.size())
+            avail = returned_headers[returned_header_cursor].size();
+    default:
+        Debug_printf("ERROR: Unknown httpChannelMode: %d\r\n", httpChannelMode);
+        break;
+    }
+
+    return avail;
+}
