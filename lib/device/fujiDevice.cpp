@@ -1621,7 +1621,7 @@ int fujiDevice::fujicore_write_app_key(std::vector<uint8_t>&& value, int *err)
     return count;
 }
 
-void fujiDevice::fujicmd_write_app_key(uint16_t keylen)
+void fujiDevice::fujicmd_write_app_key(uint16_t keylen, uint16_t readlen)
 {
     transaction_continue(true);
     Debug_printf("Fuji cmd: WRITE APPKEY (keylen = %hu)\n", keylen);
@@ -1629,7 +1629,9 @@ void fujiDevice::fujicmd_write_app_key(uint16_t keylen)
     // Data for  FUJICMD_WRITE_APPKEY
     uint8_t value[MAX_APPKEY_LEN];
 
-    if (!transaction_get(value, keylen))
+    if (!readlen)
+        readlen = keylen;
+    if (!transaction_get(value, readlen))
     {
         transaction_error();
         return;

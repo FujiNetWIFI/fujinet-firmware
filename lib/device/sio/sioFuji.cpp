@@ -995,7 +995,8 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         fujicmd_set_sio_external_clock(le16toh(cmdFrame.aux12));
         break;
     case FUJICMD_WRITE_APPKEY:
-        fujicmd_write_app_key(le16toh(cmdFrame.aux12));
+        fujicmd_write_app_key(le16toh(cmdFrame.aux12),
+                              get_value_or_default(mode_to_keysize, _current_appkey.mode, 64));
         break;
     case FUJICMD_READ_APPKEY:
         fujicmd_read_app_key();
@@ -1107,6 +1108,21 @@ void sioFuji::fujicmd_net_scan_networks()
     fujicore_net_scan_networks();
     ret[0] = _countScannedSSIDs;
     transaction_put((uint8_t *)ret, 4, false);
+}
+
+std::optional<std::vector<uint8_t>> sioFuji::fujicore_read_app_key()
+{
+    auto result = fujiDevice::fujicore_read_app_key();
+
+    if (result)
+    {
+        uint16_t len = htole16(result->size());
+        result->resize(MAX_APPKEY_LEN, 0);
+        const uint8_t *len_bytes = reinterpret_cast<const uint8_t*>(&len);
+        result->insert(result->begin(), len_bytes, len_bytes + sizeof(len));
+    }
+
+    return result;
 }
 
 #endif /* BUILD_ATARI */

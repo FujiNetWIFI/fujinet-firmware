@@ -10,6 +10,7 @@
 
 #include <string>
 #include <optional>
+#include <map>
 
 #if defined(BUILD_ATARI) || defined(BUILD_LYNX)
 #define SYSTEM_BUS_IS_UDP 1
@@ -131,6 +132,11 @@ protected:
     const std::string _diskImageExtension;
     const std::optional<std::string> _lobbyDiskURL;
 
+    std::map<int, int> mode_to_keysize = {
+        {0, 64},
+        {2, 256}
+    };
+
     appkey _current_appkey;
     int _current_open_directory_slot = -1;
     uint8_t _countScannedSSIDs = 0;
@@ -220,7 +226,7 @@ public:
     // Move appkey stuff to its own file?
     void fujicmd_open_app_key();
     void fujicmd_close_app_key();
-    void fujicmd_write_app_key(uint16_t keylen);
+    void fujicmd_write_app_key(uint16_t keylen, uint16_t readlen=0);
     void fujicmd_read_app_key();
 
     // ============ Implementations by fujicmd_ methods ============
