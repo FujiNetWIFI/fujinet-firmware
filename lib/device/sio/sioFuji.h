@@ -104,6 +104,7 @@ public:
     // ============ Wrapped Fuji commands ============
     bool fujicore_mount_disk_image_success(uint8_t deviceSlot,
                                            disk_access_flags_t access_mode) override;
+    std::optional<std::vector<uint8_t>> fujicore_read_app_key() override;
     void fujicmd_net_scan_networks() override;
 };
 
