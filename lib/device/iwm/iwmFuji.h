@@ -136,6 +136,8 @@ public:
     void fujicmd_reset() override;
     void fujicmd_close_directory() override;
     void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl) override;
+    bool fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
+                                             disk_access_flags_t mode) override;
 };
 
 extern iwmFuji platformFuji;
