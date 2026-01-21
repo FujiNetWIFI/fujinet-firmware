@@ -199,8 +199,8 @@ public:
     virtual void fujicmd_get_adapter_config();
     virtual void fujicmd_get_adapter_config_extended();
     void fujicmd_get_device_filename(uint8_t slot);
-    bool fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
-                                             disk_access_flags_t mode);
+    virtual bool fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
+                                                     disk_access_flags_t mode);
     void fujicmd_get_host_prefix(uint8_t hostSlot);
     void fujicmd_net_get_wifi_status();
     void fujicmd_read_host_slots();

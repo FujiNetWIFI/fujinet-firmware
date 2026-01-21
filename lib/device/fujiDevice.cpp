@@ -1192,14 +1192,14 @@ bool fujiDevice::fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t
     char tmp[MAX_FILENAME_LEN];
 
     transaction_continue(true);
-    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n",
-                 deviceSlot, host, mode, tmp);
-
     if (!transaction_get(tmp, sizeof(tmp)))
     {
         transaction_error();
         return false;
     }
+
+    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n",
+                 deviceSlot, host, mode, tmp);
 
     if (!fujicore_set_device_filename_success(deviceSlot, host, mode,
                                               std::string(tmp, strnlen(tmp, sizeof(tmp)))))
