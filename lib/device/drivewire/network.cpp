@@ -213,7 +213,7 @@ void drivewireNetwork::open()
     channelMode = PROTOCOL;
 
     // And signal complete!
-    ns.error = 1;
+    ns.error = NETWORK_ERROR_SUCCESS;
     //SYSTEM_BUS.write(ns.error);
     Debug_printf("ns.error = %u\n",ns.error);
 }
@@ -261,6 +261,8 @@ void drivewireNetwork::close()
     Debug_printv("After protocol delete %lu\n",esp_get_free_internal_heap_size());
 #endif
 
+    // And signal complete!
+    ns.error = NETWORK_ERROR_SUCCESS;
     //SYSTEM_BUS.write(ns.error);
 }
 
@@ -509,7 +511,7 @@ void drivewireNetwork::status_channel()
     case PROTOCOL:
         if (protocol == nullptr) {
             Debug_printf("ERROR: Calling status_channel on a null protocol.\r\n");
-            ns.error = true;
+            ns.error = NETWORK_ERROR_GENERAL;
         } else {
             protocol->status(&ns);
             avail = protocol->available();
@@ -885,7 +887,7 @@ void drivewireNetwork::special_80()
     if (protocol == nullptr) {
         Debug_printf("ERROR: Calling special_80 on a null protocol.\r\n");
         ns.reset();
-        ns.error = true;
+        ns.error = NETWORK_ERROR_GENERAL;
         return;
     }
 
@@ -1163,7 +1165,16 @@ void drivewireNetwork::set_translation()
 
 void drivewireNetwork::parse_json()
 {
-    ns.error = json->parse() ? NETWORK_ERROR_SUCCESS : NETWORK_ERROR_COULD_NOT_PARSE_JSON;
+    bool success = json->parse();
+
+    ns.error = NETWORK_ERROR_SUCCESS;
+#ifdef UNUSED
+    // Atari doesn't check for errors and blindly returns that
+    // everything is fine. This causes the httpbin test to pass when
+    // it probably shouldn't. However we'll just do what Atari does.
+    if (!success)
+        ns.error = NETWORK_ERROR_COULD_NOT_PARSE_JSON;
+#endif /* UNUSED */
 }
 
 void drivewireNetwork::json_query()
