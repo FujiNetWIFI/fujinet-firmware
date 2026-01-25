@@ -107,10 +107,20 @@ netProtoErr_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
         openURL[2] = 'b';
     }
 
-#if 0
-    if (aux1_open == 6) // temporary
-        openURL = openURL.substr(0, openURL.find_last_of("/"));
-#endif
+    if (aux1_open == NETPROTO_OPEN_DIRECTORY)
+    {
+        // When doing a directory listing the Atari DIR command sends
+        // the directory path followed by `/<glob>` (usually "*.*")
+        // which needs to be removed.
+        std::size_t pos = openURL.find_last_of("/");
+        if (pos < std::string::npos)
+        {
+            std::string lastComponent = openURL.substr(pos + 1);
+            if (lastComponent.find('*') != std::string::npos ||
+                lastComponent.find('?') != std::string::npos)
+                openURL = openURL.substr(0, pos);
+        }
+    }
 
     Debug_printf("NetworkProtocolSMB::mount() - openURL: %s\r\n", openURL.c_str());
     smb_url = smb2_parse_url(smb, openURL.c_str());
