@@ -39,6 +39,7 @@ public:
     void rs232_process(FujiBusPacket &packet) override;
 
     // ============ Wrapped Fuji commands ============
+    std::optional<std::vector<uint8_t>> fujicore_read_app_key() override;
 };
 
 #endif /* RS232FUJI_H */
