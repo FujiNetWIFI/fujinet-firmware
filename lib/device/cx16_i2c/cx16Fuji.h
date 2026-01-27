@@ -43,7 +43,7 @@ protected:
     void write_host_slots();       // 0xF3
     void read_device_slots();      // 0xF2
     void write_device_slots();     // 0xF1
-    void enable_udpstream();       // 0xF0
+    void enable_netstream();       // 0xF0
     void net_get_wifi_enabled();   // 0xEA
     void disk_image_umount();      // 0xE9
     void get_adapter_config();     // 0xE8

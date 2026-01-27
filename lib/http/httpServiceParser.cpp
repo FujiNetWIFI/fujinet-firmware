@@ -49,7 +49,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_CURRENTTIME,
         FN_TIMEZONE,
         FN_ROTATION_SOUNDS,
-        FN_UDPSTREAM_HOST,
+        FN_NETSTREAM_HOST,
+        FN_NETSTREAM_MODE,
+        FN_NETSTREAM_REGISTER,
         FN_HEAPSIZE,
         FN_SYSSDK,
         FN_SYSCPUREV,
@@ -181,7 +183,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_CURRENTTIME",
         "FN_TIMEZONE",
         "FN_ROTATION_SOUNDS",
-        "FN_UDPSTREAM_HOST",
+        "FN_NETSTREAM_HOST",
+        "FN_NETSTREAM_MODE",
+        "FN_NETSTREAM_REGISTER",
         "FN_HEAPSIZE",
         "FN_SYSSDK",
         "FN_SYSCPUREV",
@@ -386,11 +390,17 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_ROTATION_SOUNDS:
         resultstream << Config.get_general_rotation_sounds();
         break;
-    case FN_UDPSTREAM_HOST:
-        if (Config.get_network_udpstream_port() > 0)
-            resultstream << Config.get_network_udpstream_host() << ":" << Config.get_network_udpstream_port();
+    case FN_NETSTREAM_HOST:
+        if (Config.get_network_netstream_port() > 0)
+            resultstream << Config.get_network_netstream_host() << ":" << Config.get_network_netstream_port();
         else
-            resultstream << Config.get_network_udpstream_host();
+            resultstream << Config.get_network_netstream_host();
+        break;
+    case FN_NETSTREAM_MODE:
+        resultstream << (Config.get_network_netstream_mode() == 0 ? "udp" : "tcp");
+        break;
+    case FN_NETSTREAM_REGISTER:
+        resultstream << (Config.get_network_netstream_register() ? "1" : "0");
         break;
     case FN_HEAPSIZE:
         resultstream << fnSystem.get_free_heap_size();

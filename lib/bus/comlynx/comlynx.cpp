@@ -4,10 +4,11 @@
  * Comlynx Functions
  */
 #include "comlynx.h"
-#include "udpstream.h"
+#include "netstream.h"
 
 #include "../../include/debug.h"
 
+#include "fnConfig.h"
 #include "fnSystem.h"
 #include "fnDNS.h"
 #include "led.h"
@@ -254,9 +255,9 @@ void systemBus::_comlynx_process_queue()
 
 void systemBus::service()
 {
-    // Handle UDP Stream if active
-    if (_udpDev != nullptr && _udpDev->udpstreamActive)
-        _udpDev->comlynx_handle_udpstream();
+    // Handle NetStream if active
+    if (_streamDev != nullptr && _streamDev->netstreamActive)
+        _streamDev->comlynx_handle_netstream();
     // Process anything waiting
     else if (SYSTEM_BUS.available() > 0)
         _comlynx_process_cmd();
@@ -266,8 +267,8 @@ void systemBus::setup()
 {
     Debug_println("COMLYNX SETUP");
 
-    // Set up UDP device
-    _udpDev = new lynxUDPStream();
+    // Set up NetStream device
+    _streamDev = new lynxNetStream();
 
     // Set up UART
     _port.begin(ChannelConfig()
@@ -360,52 +361,44 @@ void systemBus::disableDevice(fujiDeviceID_t device_id)
 {
 }
 
-void systemBus::setUDPHost(const char *hostname, int port)
+void systemBus::setStreamHost(const char *hostname, int port)
 {
     // Turn off if hostname is STOP
     if (hostname != nullptr && !strcmp(hostname, "STOP"))
     {
-        if (_udpDev->udpstreamActive)
-            _udpDev->comlynx_disable_udpstream();
+        if (_streamDev != nullptr && _streamDev->netstreamActive)
+            _streamDev->comlynx_disable_netstream();
 
         return;
     }
 
+    if (_streamDev == nullptr)
+        return;
+
     if (hostname != nullptr && hostname[0] != '\0')
     {
         // Try to resolve the hostname and store that so we don't have to keep looking it up
-        _udpDev->udpstream_host_ip = get_ip4_addr_by_name(hostname);
-        //_udpDev->udpstream_host_ip = IPADDR_NONE;
+        _streamDev->netstream_host_ip = get_ip4_addr_by_name(hostname);
+        //_streamDev->netstream_host_ip = IPADDR_NONE;
 
-        if (_udpDev->udpstream_host_ip == IPADDR_NONE)
+        if (_streamDev->netstream_host_ip == IPADDR_NONE)
         {
             Debug_printf("Failed to resolve hostname \"%s\"\n", hostname);
         }
     }
     else
     {
-        _udpDev->udpstream_host_ip = IPADDR_NONE;
+        _streamDev->netstream_host_ip = IPADDR_NONE;
     }
 
     if (port > 0 && port <= 65535)
     {
-        _udpDev->udpstream_port = port;
+        _streamDev->netstream_port = port;
     }
     else
     {
-        _udpDev->udpstream_port = 5004;
-        Debug_printf("UDPStream port not provided or invalid (%d), setting to 5004\n", port);
-    }
-
-    // Restart UDP Stream mode if needed
-    if (_udpDev->udpstreamActive) {
-        _udpDev->comlynx_disable_udpstream();
-        _udpDev->comlynx_disable_redeye();
-    }
-    if (_udpDev->udpstream_host_ip != IPADDR_NONE) {
-        _udpDev->comlynx_enable_udpstream();
-        if (_udpDev->redeye_mode)
-            _udpDev->comlynx_enable_redeye();
+        _streamDev->netstream_port = 5004;
+        Debug_printf("NetStream port not provided or invalid (%d), setting to 5004\n", port);
     }
 }
 
@@ -473,26 +466,15 @@ void virtualDevice::transaction_put(const void *data, size_t len, bool err)
 {
     uint8_t b;
 
-    // set response buffer
-    memcpy(response, data, len);
-    response_len = len;
+    _streamDev->netstreamMode = (Config.get_network_netstream_mode() == 0)
+        ? lynxNetStream::NetStreamMode::UDP
+        : lynxNetStream::NetStreamMode::TCP;
 
-    // send all data back to Lynx
-    uint8_t ck = comlynx_checksum(response, response_len);
-    comlynx_send_length(response_len);
-    comlynx_send_buffer(response, response_len);
-    comlynx_send(ck);
-
-    // get ACK or NACK from Lynx, we're ignoring currently
-    uint8_t r = comlynx_recv();
-    #ifdef DEBUG
-        if (r == FUJICMD_ACK)
-            Debug_println("transaction_put - Lynx ACKed");
-        else
-            Debug_println("transaction put - Lynx NAKed");
-    #endif
-
-    return;
+    // Restart NetStream mode if needed
+    if (_streamDev->netstreamActive)
+        _streamDev->comlynx_disable_netstream();
+    if (_streamDev->netstream_host_ip != IPADDR_NONE)
+        _streamDev->comlynx_enable_netstream();
 }
 
 #endif /* BUILD_LYNX */

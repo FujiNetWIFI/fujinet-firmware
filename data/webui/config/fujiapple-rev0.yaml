@@ -11,7 +11,7 @@ components:
   modem_settings: experimental
   hsio_settings: false
   timezone: true
-  udp_stream: true
+  net_stream: false
   program_recorder: false
   disk_swap: false
   boot_settings: experimental

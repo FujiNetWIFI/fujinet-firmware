@@ -1341,7 +1341,7 @@ void cx16Fuji::insert_boot_device(uint8_t d)
 }
 
 // Set UDP Stream HOST & PORT and start it
-void cx16Fuji::enable_udpstream()
+void cx16Fuji::enable_netstream()
 {
 }
 

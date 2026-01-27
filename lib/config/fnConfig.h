@@ -111,9 +111,10 @@ public:
     int get_general_hsioindex() { return _general.hsio_index; };
     std::string get_general_timezone() { return _general.timezone; };
     bool get_general_rotation_sounds() { return _general.rotation_sounds; };
-    std::string get_network_udpstream_host() { return _network.udpstream_host; };
-    int get_network_udpstream_port() { return _network.udpstream_port; };
-    bool get_network_udpstream_servermode() { return _network.udpstream_servermode; };
+    std::string get_network_netstream_host() { return _network.netstream_host; };
+    int get_network_netstream_port() { return _network.netstream_port; };
+    bool get_network_netstream_register() { return _network.netstream_register; };
+    int get_network_netstream_mode() { return _network.netstream_mode; };
     bool get_general_config_enabled() { return _general.config_enabled; };
     void store_general_devicename(const char *devicename);
     void store_general_hsioindex(int hsio_index);
@@ -126,9 +127,10 @@ public:
     void store_config_filename(const std::string &filename);
     bool get_general_boot_mode() { return _general.boot_mode; }
     void store_general_boot_mode(uint8_t boot_mode);
-    void store_udpstream_host(const char host_ip[64]);
-    void store_udpstream_port(int port);
-    void store_udpstream_servermode(bool mode);
+    void store_netstream_host(const char host_ip[64]);
+    void store_netstream_port(int port);
+    void store_netstream_register(bool enable);
+    void store_netstream_mode(int mode);
     bool get_general_fnconfig_spifs() { return _general.fnconfig_spifs; };
     void store_general_fnconfig_spifs(bool fnconfig_spifs);
     bool get_general_status_wait_enabled() { return _general.status_wait_enabled; }
@@ -440,9 +442,10 @@ private:
     struct network_info
     {
         char sntpserver [40];
-        char udpstream_host [64];
-        int udpstream_port;
-        bool udpstream_servermode;
+        char netstream_host [64];
+        int netstream_port;
+        bool netstream_register = true;
+        int netstream_mode = 1;
     };
 
     struct general_info

@@ -122,7 +122,7 @@ class drivewireModem;          // declare here so can reference it, but define i
 class drivewireFuji;        // declare here so can reference it, but define in fuji.h
 class systemBus;      // declare early so can be friend
 class drivewireNetwork;     // declare here so can reference it, but define in network.h
-class drivewireUDPStream;   // declare here so can reference it, but define in udpstream.h
+class drivewireNetStream;   // declare here so can reference it, but define in netstream.h
 class drivewireCassette;    // Cassette forward-declaration.
 class drivewireCPM;         // CPM device.
 class drivewirePrinter;     // Printer device
@@ -181,7 +181,7 @@ private:
     drivewireModem *_modemDev = nullptr;
     drivewireFuji *_fujiDev = nullptr;
     //drivewireNetwork *_netDev[8] = {nullptr};
-    drivewireUDPStream *_udpDev = nullptr;
+    drivewireNetStream *_streamDev = nullptr;
     drivewireCassette *_cassetteDev = nullptr;
     drivewireCPM *_cpmDev = nullptr;
     drivewirePrinter *_printerdev = nullptr;

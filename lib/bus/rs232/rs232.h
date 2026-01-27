@@ -38,7 +38,7 @@ class rs232Modem;    // declare here so can reference it, but define in modem.h
 class rs232Fuji;     // declare here so can reference it, but define in fuji.h
 class systemBus;      // declare early so can be friend
 class rs232Network;  // declare here so can reference it, but define in network.h
-class rs232UDPStream; // declare here so can reference it, but define in udpstream.h
+class rs232NetStream; // declare here so can reference it, but define in netstream.h
 class rs232Cassette; // Cassette forward-declaration.
 class rs232CPM;      // CPM device.
 class rs232Printer;  // Printer device
@@ -130,7 +130,7 @@ private:
     rs232Modem *_modemDev = nullptr;
     rs232Fuji *_fujiDev = nullptr;
     rs232Network *_netDev[8] = {nullptr};
-    rs232UDPStream *_udpDev = nullptr;
+    rs232NetStream *_streamDev = nullptr;
     rs232CPM *_cpmDev = nullptr;
     rs232Printer *_printerdev = nullptr;
 
@@ -166,7 +166,7 @@ public:
     int getHighSpeedIndex();                                    // Gets current HRS232 index
     int getHighSpeedBaud();                                     // Gets current HRS232 baud
 
-    void setUDPHost(const char *newhost, int port);             // Set new host/ip & port for UDP Stream
+    void setStreamHost(const char *newhost, int port);             // Set new host/ip & port for NetStream
     void setUltraHigh(bool _enable, int _ultraHighBaud = 0);    // enable ultrahigh/set baud rate
     bool getUltraHighEnabled() { return useUltraHigh; }
     int getUltraHighBaudRate() { return _rs232BaudUltraHigh; }

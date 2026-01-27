@@ -762,11 +762,11 @@
 				</form>
 			</div>
 			{% endif %}
-			{% if components.udp_stream %}
-			<div class="module" {% if components.udp_stream == "experimental" %}data-experimental{% endif %}>
+			{% if components.net_stream %}
+			<div class="module" {% if components.net_stream == "experimental" %}data-experimental{% endif %}>
 				<div class="settings">
 					<div class="settings-header">
-						UDP<span class="logowob"></span>Stream
+						NET<span class="logowob"></span>Stream
 					</div>
 					<div class="settings-left">
 						<div class="svgicon">
@@ -785,52 +785,56 @@
 						</div>
 					</div>
 					<div class="settings-content settings-45-55">
-						<form action="/config" method="post" id="udp-server">
+						<form action="/config" method="post" id="netstream-server">
 							<div class="set">
 								<div class="settings-label">
-									<label for="udpstream_servermode">
-										Server or Ring Network?
+									<label for="select_netstream_mode">Transport</label>
+								</div>
+								<div class="settings-value select">
+									<select name="netstream_mode" id="select_netstream_mode">
+										<option value="udp">UDP</option>
+										<option value="tcp">TCP</option>
+									</select>
+								</div>
+							</div>
+							<div class="set">
+								<div class="settings-label">
+									<label for="netstream_register">Send REGISTER?
 										<div class="tooltip">&#9432;
 											<span class="tooltiptext small-text">
-												In server mode, each Fujinet connects
-												to the server which forwards packets
-												in a ring. In Ring Net mode, each
-												Fujinet must connect to another and
-												the last one connects to the first
-												forming a virtual ring network.
+												If enabled, this will send the text
+												"REGISTER" after connection established
+												which can be used with a server to
+												identify a FujiNet has connected.
 											</span>
 										</div>
 									</label>
 								</div>
 								<div class="settings-value">
 									<div class="radio-container">
-										<input checked="" id="udpstream_servermode_yes" name="udpstream_servermode" type="radio" value="1">
-										<label for="udpstream_servermode_yes" class="r-yes-no">Server</label>
-										<input checked="" id="udpstream_servermode_no" name="udpstream_servermode" type="radio" value="0">
-										<label for="udpstream_servermode_no" class="r-yes-no">Ring</label>
+										<input checked="" id="netstream-register-yes" name="netstream_register" type="radio" value="1">
+										<label for="netstream-register-yes" class="r-yes-no">Yes</label>
+										<input checked="" id="netstream-register-no" name="netstream_register" type="radio" value="0">
+										<label for="netstream-register-no" class="r-yes-no">No</label>
 									</div>
 								</div>
 							</div>
 							<div class="set">
-							<div class="settings-label">
-								<label for="udpstream_host">UDPStream: (Hostname or IP:Port)</label>
+								<div class="settings-label">
+									<label for="netstream_host">NetStream: (Hostname or IP:Port)</label>
+								</div>
+								<div class="settings-value">
+									<input type="text" name="netstream_host" id="netstream_host" value="<%FN_NETSTREAM_HOST%>">
+								</div>
 							</div>
-							<div class="settings-value">
-								<input type="text" name="udpstream_host" id="udpstream_host" value="<%FN_UDPSTREAM_HOST%>">
+							<div class="set">
+								<div class="settings-label">Press to start stream</div>
+								<div class="settings-value">
+									<button onclick="submitForm('netstream-server');">Save</button>
+								</div>
 							</div>
-						</div>
 						</form>
 
-						<form action="/config" method="post">
-						<div class="set">
-							<div class="settings-label">
-								<label for="udpstream_host">Press to turn off</label>
-							</div>
-							<div class="settings-value">
-								<button type="submit" name="udpstream_host" id="udpstream_host" value="STOP">Stop</button>
-							</div>
-						</div>
-						</form>
 						<hr>
 						<div class="settings-text">
 							<div>
@@ -839,11 +843,22 @@
 								MIDIMaze example: <strong>192.168.0.1</strong> or <strong>192.168.0.1:5004</strong>
 							</div>
 						</div>
+						<script>
+							var current_netstream_mode = "<%FN_NETSTREAM_MODE%>";
+							var current_netstream_register = "<%FN_NETSTREAM_REGISTER%>";
+						</script>
 					</div>
 					<div class="settings-footer">
-						<div class="save-button">
-							<button onclick="submitForm('udp-server');">Save</button>
+						<form action="/config" method="post">
+						<div class="set">
+							<div class="settings-label">
+								<label for="netstream_host">Press to turn off</label>
+							</div>
+							<div class="settings-value">
+								<button type="submit" name="netstream_host" id="netstream_host" value="STOP">Stop</button>
+							</div>
 						</div>
+						</form>
 					</div>
 				</div>
 			</div>

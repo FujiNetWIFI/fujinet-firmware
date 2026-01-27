@@ -251,7 +251,7 @@ void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
     }
     else if (device_id == FUJI_DEVICEID_MIDI)
     {
-        _udpDev = (rs232UDPStream *)pDevice;
+        _streamDev = (rs232NetStream *)pDevice;
     }
     else if (device_id == FUJI_DEVICEID_CPM)
     {

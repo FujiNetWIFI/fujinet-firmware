@@ -66,7 +66,7 @@ class modem;          // declare here so can reference it, but define in modem.h
 class sioFuji;        // declare here so can reference it, but define in fuji.h
 class systemBus;      // declare early so can be friend
 class sioNetwork;     // declare here so can reference it, but define in network.h
-class sioUDPStream;   // declare here so can reference it, but define in udpstream.h
+class sioNetStream;   // declare here so can reference it, but define in netstream.h
 class sioCassette;    // Cassette forward-declaration.
 class sioCPM;         // CPM device.
 class sioPrinter;     // Printer device
@@ -220,7 +220,7 @@ private:
     modem *_modemDev = nullptr;
     sioFuji *_fujiDev = nullptr;
     sioNetwork *_netDev[8] = {nullptr};
-    sioUDPStream *_udpDev = nullptr;
+    sioNetStream *_streamDev = nullptr;
     sioCassette *_cassetteDev = nullptr;
     sioCPM *_cpmDev = nullptr;
     sioPrinter *_printerdev = nullptr;
@@ -265,7 +265,9 @@ public:
     int getHighSpeedIndex();                                    // Gets current HSIO index
     int getHighSpeedBaud();                                     // Gets current HSIO baud
 
-    void setUDPHost(const char *newhost, int port);             // Set new host/ip & port for UDP Stream
+    void setStreamHost(const char *newhost, int port);             // Set new host/ip & port for NetStream
+    void setStreamHostWithOptions(const char *newhost, int port, int mode,
+                                  bool register_enabled);
     void setUltraHigh(bool _enable, int _ultraHighBaud = 0);    // enable ultrahigh/set baud rate
     bool getUltraHighEnabled() { return useUltraHigh; }
     int getUltraHighBaudRate() { return _sioBaudUltraHigh; }

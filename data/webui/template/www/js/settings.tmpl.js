@@ -151,6 +151,11 @@ setInputValue(current_modem_sniffer_enabled == 1, "modem-sniffer-yes", "modem-sn
 selectListValue("select_hsioindex", current_hsioindex);
 {% endif %}
 
+{% if components.net_stream %}
+selectListValue("select_netstream_mode", current_netstream_mode);
+setInputValue(current_netstream_register == 1, "netstream-register-yes", "netstream-register-no");
+{% endif %}
+
 {% if components.program_recorder %}
 setInputValue(current_cassette_enabled == 1, "pr-virt-yes", "pr-virt-no");
 {% if not tweaks.fujinet_pc %}
