@@ -386,6 +386,9 @@ void systemBus::service()
             if (getBaudrate() != MIDI_BAUDRATE)
             {
                 // ensure MIDI baud for NetStream since a cmd frame could change it
+#ifdef DEBUG_NETSTREAM
+                Debug_println("NETSTREAM: MOTOR assert, switch baud");
+#endif
                 setBaudrate(MIDI_BAUDRATE);
             }
             _streamDev->sio_handle_netstream();
