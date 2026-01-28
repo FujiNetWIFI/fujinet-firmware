@@ -94,8 +94,6 @@ public:
 
     size_t available() override { return 0; }
 
-    size_t available() override { return 0; }
-
 protected:
 
     /**

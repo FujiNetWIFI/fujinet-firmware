@@ -99,8 +99,6 @@ public:
      */
     netProtoErr_t unlock(PeoplesUrlParser *url) override { return NETPROTO_ERR_NONE; }
 
-    size_t available() override { return 0; }
-
     size_t available() override;
 
 protected:

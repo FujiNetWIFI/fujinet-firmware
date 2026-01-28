@@ -238,3 +238,20 @@ AtariSIODirection NetworkProtocolFTP::special_inquiry(fujiCommandID_t cmd)
 
     return ret;
 }
+
+size_t NetworkProtocolFTP::available()
+{
+    size_t avail = 0;
+
+
+    switch (openMode)
+    {
+    case FILE:
+        avail = ftp->data_available();
+        break;
+    default:
+        break;
+    }
+
+    return avail;
+}

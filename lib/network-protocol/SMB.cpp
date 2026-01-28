@@ -107,7 +107,7 @@ netProtoErr_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
         openURL[2] = 'b';
     }
 
-    if (aux1_open == NETPROTO_OPEN_DIRECTORY)
+    if (openMode == OpenMode::DIR)
     {
         // When doing a directory listing the Atari DIR command sends
         // the directory path followed by `/<glob>` (usually "*.*")

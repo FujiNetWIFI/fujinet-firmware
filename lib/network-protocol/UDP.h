@@ -86,8 +86,6 @@ public:
 
     size_t available() override { return udp.available(); }
 
-    size_t available() override { return udp.available(); }
-
 protected:
 
     /**

@@ -51,7 +51,7 @@ public:
      * @param mode The open mode to use
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    netProtoErr_t open(PeoplesUrlParser *urlParser, netProtoOpenMode_t omode,
+    netProtoErr_t open(PeoplesUrlParser *urlParser, netProtoOpenMode_t accessMode,
                        netProtoTranslation_t translate) override;
 
     /**
@@ -176,13 +176,13 @@ protected:
      * @brief Open a file via path.
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t open_file(netProtoOpenMode_t omode);
+    virtual netProtoErr_t open_file(netProtoOpenMode_t accessMode);
 
     /**
      * @brief open a file handle to fd
      * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t open_file_handle(netProtoOpenMode_t omode) = 0;
+    virtual netProtoErr_t open_file_handle(netProtoOpenMode_t accessMode) = 0;
 
     /**
      * @brief Open a Directory via path

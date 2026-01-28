@@ -47,10 +47,10 @@ protected:
 
     void rs232_net_set_ssid(bool save);    // 0xFB
     void rs232_new_disk();                 // 0xE7
-    void rs232_copy_file();                // 0xD8
     void rs232_test();                     // 0x00
 
 public:
+    rs232Fuji();
     void setup() override;
     void rs232_status(FujiStatusReq reqType) override;
     void rs232_process(FujiBusPacket &packet) override;

@@ -90,8 +90,6 @@ public:
 
     size_t available() override { return test_data.length(); }
 
-    size_t available() override { return test_data.length(); }
-
 private:
     /**
      * String to hold test data
