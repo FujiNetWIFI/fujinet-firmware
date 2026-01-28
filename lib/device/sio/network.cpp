@@ -526,7 +526,7 @@ void sioNetwork::sio_status_channel()
     nstatus.err = status.error;
 
     // leaving this one to print
-    Debug_printf("rs232_status_channel() - BW: %u C: %u E: %u\n",
+    Debug_printf("sio_status_channel() - BW: %u C: %u E: %u\n",
                  nstatus.avail, nstatus.conn, nstatus.err);
 
     // and send to computer

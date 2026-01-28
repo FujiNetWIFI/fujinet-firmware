@@ -1,7 +1,6 @@
 #ifndef DISK_H
 #define DISK_H
 
-#include <fujiHost.h>
 #include "bus.h"
 #include "media.h"
 
@@ -18,8 +17,9 @@ private:
 
 public:
     cx16Disk();
-    fujiHost *host = nullptr;
-    mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+    mediatype_t mount(FILE *f, const char *filename, uint32_t disksize,
+                      disk_access_flags_t access_mode,
+                      mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
 

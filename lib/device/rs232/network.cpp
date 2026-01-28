@@ -7,6 +7,7 @@
 #include "network.h"
 #include "../network.h"
 #include "fuji_endian.h"
+#include "fujiCommandID.h"
 
 #include <cstring>
 #include <algorithm>
@@ -104,15 +105,7 @@ void rs232Network::rs232_open(netProtoOpenMode_t omode, netProtoTranslation_t tr
     timer_stop();
 #endif /* ESP_PLATFORM */
 
-#ifdef OBSOLETE
-    // persist aux1/aux2 values
-    open_aux1 = cmdFrame.aux1;
-    open_aux2 = cmdFrame.aux2;
-    open_aux2 |= trans_aux2;
-    cmdFrame.aux2 |= trans_aux2;
-#else
     trans_mode = translate;
-#endif /* OBSOLETE */
 
     // Shut down protocol if we are sending another open before we close.
     if (protocol != nullptr)
@@ -245,10 +238,7 @@ void rs232Network::rs232_read(uint16_t length)
 
     // And send off to the computer
     bus_to_computer((uint8_t *)receiveBuffer->data(), length, err);
-
-    // Remove from receive buffer and shrink.
     receiveBuffer->erase(0, length);
-    receiveBuffer->shrink_to_fit();
 }
 
 /**
@@ -618,21 +608,21 @@ void rs232Network::rs232_set_password()
  * process the special command. Otherwise, the command is handled locally. In either case, either rs232_complete()
  * or rs232_error() is called.
  */
-void rs232Network::rs232_special(unsigned int command)
+void rs232Network::rs232_special(fujiCommandID_t command)
 {
     do_inquiry(command);
 
     switch (inq_dstats)
     {
-    case SIO_DIRECTION_NONE:  // No payload
+    case DIRECTION_NONE:  // No payload
         rs232_ack();
         rs232_special_00();
         break;
-    case SIO_DIRECTION_READ:  // Payload to Atari
+    case DIRECTION_READ:  // Payload to Atari
         rs232_ack();
         rs232_special_40();
         break;
-    case SIO_DIRECTION_WRITE: // Payload to Peripheral
+    case DIRECTION_WRITE: // Payload to Peripheral
         rs232_ack();
         rs232_special_80();
         break;
@@ -1127,7 +1117,6 @@ void rs232Network::rs232_parse_json()
 void rs232Network::rs232_set_json_query(netProtoTranslation_t mode)
 {
     uint8_t in[256];
-    const char *inp = NULL;
     uint8_t *tmp;
 
     memset(in, 0, sizeof(in));
@@ -1141,16 +1130,14 @@ void rs232Network::rs232_set_json_query(netProtoTranslation_t mode)
             in[i] = 0x00;
     }
 
-    inp = strrchr((const char *)in, ':');
-    inp++;
     Debug_printv("Q: %s\n",in);
-    json.setReadQuery(string(inp), mode);
+    json.setReadQuery(string((char *) in),0);
     json_bytes_remaining = json.readValueLen();
     tmp = (uint8_t *)malloc(json.readValueLen());
     json.readValue(tmp,json_bytes_remaining);
     *receiveBuffer += string((const char *)tmp,json_bytes_remaining);
     free(tmp);
-    Debug_printf("Query set to %s\n",inp);
+    Debug_printf("Query set to %s\n",in);
     rs232_complete();
 }
 

@@ -546,35 +546,6 @@ void fnHttpServiceConfigurator::config_serial(std::string port, std::string baud
     if (update_serial)
     {
         Config.save();
-
-#ifdef UNUSED
-#if defined(BUILD_ATARI)
-        if (fnSioCom.get_sio_mode() == SioCom::sio_mode::SERIAL)
-        {
-            fnSioCom.end();
-        }
-
-        fnSioCom.set_serial_port(Config.get_serial_port().c_str(), Config.get_serial_command(), Config.get_serial_proceed());
-
-        if (fnSioCom.get_sio_mode() == SioCom::sio_mode::SERIAL)
-        {
-            fnSioCom.begin();
-        }
-
-#elif defined(BUILD_COCO)
-        if (fnDwCom.get_drivewire_mode() == DwCom::dw_mode::SERIAL)
-        {
-            fnDwCom.end();
-        }
-
-        fnDwCom.set_serial_port(Config.get_serial_port().c_str());
-
-        if (fnDwCom.get_drivewire_mode() == DwCom::dw_mode::SERIAL)
-        {
-            fnDwCom.begin(Config.get_serial_baud());
-        }
-#endif
-#endif /* UNUSED */
     }
 }
 #elif defined(BUILD_RS232)

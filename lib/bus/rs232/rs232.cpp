@@ -6,10 +6,10 @@
 #include "../../include/debug.h"
 
 #include "rs232/rs232Fuji.h"
+#include "rs232/network.h"
 #include "udpstream.h"
 #include "modem.h"
 #include "siocpm.h"
-#include "network.h"
 
 #include "fnSystem.h"
 #include "fnConfig.h"
@@ -287,14 +287,6 @@ void systemBus::service()
     {
         _modemDev->rs232_handle_modem();
     }
-#ifdef OBSOLETE
-    else
-    // Neither CMD nor active modem, so throw out any stray input data
-    {
-        //Debug_println("RS232 Srvc Flush");
-        _port->discardInput();
-    }
-#endif /* OBSOLETE */
 
     // Handle interrupts from network protocols
     for (int i = 0; i < 8; i++)

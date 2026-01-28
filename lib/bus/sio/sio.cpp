@@ -257,6 +257,11 @@ void systemBus::_sio_process_cmd()
         if (tempFrame.device == FUJI_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
         {
             _activeDev = &_fujiDev->bootdisk;
+
+            // Boot-priority logic: if enabled, ignore the first few
+            // SIO status calls (of the 26 Atari sends) so a real D1:
+            // can take over. Once status_waint_count expires, respond
+            // normally; if disabled, respond immediately.
             if (_activeDev->status_wait_count > 0 && tempFrame.comnd == 'R' && _fujiDev->status_wait_enabled)
             {
                 Debug_printf("Disabling CONFIG boot.\n");
@@ -504,7 +509,7 @@ void systemBus::setup()
                       .deviceID(SIO_UART_DEVICE)
 #ifdef ESP_PLATFORM
                       .readTimeout(pdTICKS_TO_MS(200))
-                      .discardTimeout(0)
+                      .discardTimeout(0.01)
 #endif /* ESP_PLATFORM */
                       );
 
@@ -512,20 +517,10 @@ void systemBus::setup()
         _commandPin = PIN_CMD;
 #else /* ! ESP_PLATFORM */
         _commandPin = Config.get_serial_command();
-#ifdef UNUSED
-        _proceedPin = Config.get_serial_proceed();
-#endif /* UNUSED */
 #endif /* ESP_PLATFORM */
 
         _port = &_serial;
     }
-
-#ifdef UNUSED
-#ifndef ESP_PLATFORM
-    _port->setInterrupt(false);
-    _port->setProceed(false);
-#endif /* ESP_PLATFORM */
-#endif /* UNUSED */
 
     // Set the initial HSIO index
     // First see if Config has read a value
@@ -877,10 +872,8 @@ bool systemBus::commandAsserted()
         return rs232->getDTR();
     case fnConfig::SERIAL_COMMAND_CTS:
         return rs232->getRTS();
-#if 0
     case fnConfig::SERIAL_COMMAND_RI:
         return rs232->getRI();
-#endif
     default:
         break;
     }

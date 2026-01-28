@@ -12,7 +12,6 @@
 
 #include <string>
 
-#define ADDITIONAL_DETAILS_BYTES 12
 #define DIR_MAX_LEN 40
 
 macFuji platformFuji;

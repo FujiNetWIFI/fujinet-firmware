@@ -153,9 +153,6 @@ protected:
     cmdFrame_t cmdFrame;
     bool listen_to_type3_polls = false;
 
-    // Unused, for compatibility with fujiDevice.cpp
-    uint8_t status_wait_count = 5;
-
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};
 
@@ -171,10 +168,6 @@ public:
     bool device_active = true;
 
     fujiDeviceID_t id() { return _devnum; };
-
-    // Unused, for compatibility with fujiDevice.cpp
-    bool readonly = false;  //write protected
-    bool switched = false; //indicate disk switched condition
 };
 
 enum drivewire_message : uint16_t
@@ -350,7 +343,6 @@ public:
 #endif
 
     /* BoIP things */
-    bool isBoIP() { return _port == &_becker; }
     void setHost(const char *host, int port) { _becker.setHost(host, port); }
     void selectSerialPort(bool useSerial) {
         if (useSerial)
@@ -360,9 +352,7 @@ public:
     }
 
     // For compatibility with fujiDevice.cpp
-    void changeDeviceId(void *pDevice, int device_id);
-    void setUDPHost(const char *newhost, int port);
-    void setUltraHigh(bool _enable, int _ultraHighBaud = 0);
+    void changeDeviceId(void *pDevice, int device_id) {};
 };
 
 extern systemBus SYSTEM_BUS;

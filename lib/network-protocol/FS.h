@@ -115,6 +115,8 @@ public:
      */
     netProtoErr_t perform_idempotent_80(PeoplesUrlParser *url, fujiCommandID_t cmd) override;
 
+    size_t available() override;
+
 protected:
     /**
      * Open mode typedef

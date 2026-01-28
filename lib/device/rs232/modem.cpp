@@ -1,6 +1,7 @@
 #ifdef BUILD_RS232
 
 #include "modem.h"
+#include "fujiCommandID.h"
 
 #include "../../../include/debug.h"
 #include "../../../include/atascii.h"

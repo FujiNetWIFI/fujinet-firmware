@@ -7,6 +7,9 @@
 #include "../../include/debug.h"
 #include "led.h"
 
+#include <driver/rmt_tx.h>
+#include <driver/rmt_encoder.h>
+
 #define MHZ (1000*1000)
 
 void mac_ll::setup_gpio()
@@ -34,37 +37,96 @@ void mac_ll::setup_gpio()
 // ===== MAC Microfloppy Control Interface (MCI) below ================ DCD above ==========
 // =========================================================================================
 
-// https://docs.espressif.com/projects/esp-idf/en/v3.3.5/api-reference/peripherals/rmt.html
-#ifdef NOT_IWM_LL_SUBCLASSS
-#define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
-#define RMT_USEC (APB_CLK_FREQ / MHZ)
-#endif /* NOT_IWM_LL_SUBCLASS */
+// https://docs.espressif.com/projects/esp-idf/en/v5.4.3/esp32/api-reference/peripherals/rmt.html
 
-void mac_floppy_ll::start()
+#define RMT_USEC (APB_CLK_FREQ / MHZ)
+
+void mac_floppy_ll::start() // TO UPDATE TO REV 5
 {
-  // floppy_ll.set_output_to_rmt();
-  // floppy_ll.enable_output();
-#ifdef NOT_IWM_LL_SUBCLASSS
-  ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer[0], track_numbits[0], track_bit_period));
-#endif /* NOT_IWM_LL_SUBCLASS */
-  fnLedManager.set(LED_BUS, true);
-  Debug_printf("\nstart floppy");
+    if (!rmt_started)
+    {
+        rmt_tx_channel_config_t tx_chan_config;
+
+        tx_chan_config.gpio_num = (gpio_num_t)
+            SP_WRDATA; /*!< GPIO number used by RMT TX channel. Set to -1 if unused */
+        tx_chan_config.clk_src =
+            RMT_CLK_SRC_APB; /*!< Clock source of RMT TX channel, channels in the same group
+                                must use the same clock source */
+        tx_chan_config.resolution_hz = APB_CLK_FREQ; /*!< Channel clock resolution, in Hz */
+        tx_chan_config.mem_block_symbols = 64 * 8;   // MAYBE CHANGE TO 1
+        /*!< Size of memory block, in number of `rmt_symbol_word_t`, must be an even.
+      In the DMA mode, this field controls the DMA buffer size, it can be set to a large
+      value; In the normal mode, this field controls the number of RMT memory block that will
+      be used by the channel. */
+        tx_chan_config.trans_queue_depth = 4;
+        /*!< Depth of internal transfer queue, increase this value can support more
+                  transfers pending in the background */
+        tx_chan_config.intr_priority = 0; /*!< RMT interrupt priority,
+                                     if set to 0, the driver will try to allocate an interrupt
+                                     with a relative low priority (1,2,3) */
+        tx_chan_config.flags.invert_out =
+            false; /*!< Whether to invert the RMT channel signal before output to GPIO pad */
+        tx_chan_config.flags.with_dma =
+            false; /*!< If set, the driver will allocate an RMT channel with DMA capability */
+        tx_chan_config.flags.io_loop_back = false; /*!< The signal output from the GPIO will be
+                                                      fed to the input path as well */
+        tx_chan_config.flags.io_od_mode = false; /*!< Configure the GPIO as open-drain mode */
+        tx_chan_config.flags.allow_pd =
+            false; /*!< If set, driver allows the power domain to be powered off when system
+            enters sleep mode. This can save power, but at the expense of more RAM being
+            consumed to save register context. */
+
+        ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_chan_config, &RMT_TX_CHANNEL));
+
+        rmt_transmit_config_t tx_config = {
+            .loop_count = 0, //-1,
+            .flags =
+                {
+                    .eot_level = 0, /*!< Set the output level for the "End Of Transmission" */
+                    .queue_nonblocking =
+                        false, /*!< If set, when the transaction queue is full, driver will not
+                                  block the thread but return directly */
+                },
+        };
+
+        ESP_ERROR_CHECK(rmt_enable(RMT_TX_CHANNEL));
+        ESP_ERROR_CHECK(
+            rmt_transmit(RMT_TX_CHANNEL, tx_encoder, 
+              track_buffer, track_numbits[0], &tx_config)); // I DON'T KNOW IF THIS WORKS
+        rmt_started = true;
+
+    }; // if not started yet
+
+    fnLedManager.set(LED_BUS, true);
+    Debug_printf("\nstart floppy");
 }
 
-void mac_floppy_ll::stop()
+void mac_floppy_ll::stop() // TO UPDATE TO REV 5
 {
-#ifdef NOT_IWM_LL_SUBCLASSS
-  fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
-#endif /* NOT_IWM_LL_SUBCLASS */
+  if (rmt_started) {
+    ESP_ERROR_CHECK(rmt_disable(RMT_TX_CHANNEL));
+    ESP_ERROR_CHECK(rmt_del_channel(RMT_TX_CHANNEL));
+    rmt_started = false;
+  }
   // floppy_ll.disable_output();
   fnLedManager.set(LED_BUS, false);
   Debug_printf("\nstop floppy");
 }
 
-//Convert track data to rmt format data.
-void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t src_size,
-                         size_t wanted_num, size_t* translated_size, size_t* item_num, int bit_period)
+size_t IRAM_ATTR encode_rmt_bitstream_forwarder(const void *src, size_t src_size,
+                                      size_t symbols_written, size_t symbols_free,
+                                      rmt_symbol_word_t *dest, bool *done, void *arg)
 {
+  mac_floppy_ll *mci = (mac_floppy_ll *) arg;
+  return mci->encode_rmt_bitstream(src, src_size, symbols_written, symbols_free, dest, done);
+}
+
+//Convert track data to rmt format data. // TO UPDATE TO REV 5
+size_t IRAM_ATTR mac_floppy_ll::encode_rmt_bitstream(const void *src, size_t src_size,
+                                      size_t symbols_written, size_t symbols_free,
+                                      rmt_symbol_word_t *dest, bool *done)
+{
+    // legacy RMT notes:
     // *src is equal to *track_buffer
     // src_size is equal to numbits
     // translated_size is not used
@@ -72,52 +134,41 @@ void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t 
 
     if (src == NULL || dest == NULL)
     {
-      *translated_size = 0;
-      *item_num = 0;
-      return;
+       return 0;
     }
 
-    // TODO: allow adjustment of bit timing per WOZ optimal bit timing
+    // TODO: allow adjustment of bit timing per MOOF optimal bit timing
     //
     uint32_t bit_ticks = RMT_USEC; // ticks per microsecond (1000 ns)
-    bit_ticks *= bit_period; // now units are ticks * ns /us
+    bit_ticks *= track_bit_period; // now units are ticks * ns /us
     bit_ticks /= 1000; // now units are ticks
 
-    const rmt_item32_t bit0 = {{{ (3 * bit_ticks) / 4, 0, bit_ticks / 4, 0 }}}; //Logical 0
-    const rmt_item32_t bit1 = {{{ (3 * bit_ticks) / 4, 0, bit_ticks / 4, 1 }}}; //Logical 1
+#define BIT_TICK_34 ((uint16_t)((3 * bit_ticks) / 4))
+#define BIT_TICK_14 ((uint16_t)(bit_ticks / 4))
+
+    const rmt_symbol_word_t bits[] = {
+        {{BIT_TICK_34, 0, BIT_TICK_14, 0}},
+        {{BIT_TICK_34, 0, BIT_TICK_14, 1}},
+    };
     static uint8_t window = 0;
     uint8_t outbit = 0;
     size_t num = 0;
-    rmt_item32_t* pdest = dest;
-    while (num < wanted_num)
+
+  for (num = 0; num < symbols_free; num++, dest++)
     {
-       // hold over from DISK][ bit stream generation
-       // move this to nextbit()
-       // MC34780 behavior for random bit insertion
-       // https://applesaucefdc.com/woz/reference2/
-      // window <<= 1;
-      // window |= (uint8_t)floppy_ll.nextbit();
-      // window &= 0x0f;
-      // // outbit = (window != 0) ? window & 0x02 : floppy_ll.fakebit();
-      // outbit = (window != 0) ? window & 0x02 : 0; // turn off random bits
-      // pdest->val = (outbit != 0) ? bit1.val : bit0.val;
-
-      pdest->val = floppy_ll.nextbit() ? bit1.val : bit0.val;
-
-      num++;
-      pdest++;
+      outbit = floppy_ll.nextbit();
+      dest->val = bits[!!outbit].val;
     }
-    *translated_size = wanted_num;
-    *item_num = wanted_num;
+    *done = false;
+    return num;
 }
 
-#ifdef NOT_IWM_LL_SUBCLASSS
+
 /*
  * Initialize the RMT Tx channel
  */
-void mac_floppy_ll::setup_rmt()
+void mac_floppy_ll::setup_rmt() // TO UPDATE TO REV 5
 {
-#define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
   track_buffer[0] = (uint8_t *)heap_caps_malloc(TRACK_LEN, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   if (track_buffer[0] == NULL)
     Debug_println("could not allocate track buffer 0");
@@ -125,25 +176,33 @@ void mac_floppy_ll::setup_rmt()
   if (track_buffer[1] == NULL)
     Debug_println("could not allocate track buffer 1");
 
-  config.rmt_mode = rmt_mode_t::RMT_MODE_TX;
-  config.channel = RMT_TX_CHANNEL;
+  rmt_simple_encoder_config_t tx_encoder_config = {
+    .callback = encode_rmt_bitstream_forwarder,
+    .arg = (void *) this,
+    .min_chunk_size = 0,
+  };
 
- config.gpio_num = (gpio_num_t)SP_WRDATA;
+  ESP_ERROR_CHECK(rmt_new_simple_encoder(&tx_encoder_config, &tx_encoder));
 
-  config.mem_block_num = 1;
-  config.tx_config.loop_en = false;
-  config.tx_config.carrier_en = false;
-  config.tx_config.idle_output_en = true;
-  config.tx_config.idle_level = rmt_idle_level_t::RMT_IDLE_LEVEL_LOW;
-  config.clk_div = 1; // use full 80 MHz resolution of APB clock
+  //---
 
-  ESP_ERROR_CHECK(fnRMT.rmt_config(&config));
-  ESP_ERROR_CHECK(fnRMT.rmt_driver_install(config.channel, 0, ESP_INTR_FLAG_IRAM));
-  ESP_ERROR_CHECK(fnRMT.rmt_translator_init(config.channel, encode_rmt_bitstream));
+
+// #ifdef RMTTEST
+//   config.gpio_num = (gpio_num_t)SP_EXTRA;
+// #else
+//   if(fnSystem.hasbuffer())
+//     config.gpio_num = (gpio_num_t)SP_RDDATA;
+//   else
+//     config.gpio_num = (gpio_num_t)PIN_SD_HOST_MOSI;
+// #endif
+
+
+  // ESP_ERROR_CHECK(fnRMT.rmt_config(&config));
+  // ESP_ERROR_CHECK(fnRMT.rmt_driver_install(config.channel, 0, ESP_INTR_FLAG_IRAM));
+  // ESP_ERROR_CHECK(fnRMT.rmt_translator_init(config.channel, encode_rmt_bitstream));
 }
-#endif /* NOT_IWM_LL_SUBCLASS */
 
-bool IRAM_ATTR mac_floppy_ll::nextbit()
+bool IRAM_ATTR mac_floppy_ll::nextbit() // TO UPDATE TO REV 5
 {
 
   bool outbit[2];
@@ -168,7 +227,7 @@ bool IRAM_ATTR mac_floppy_ll::nextbit()
   return outbit[(int)side];
 }
 
-bool IRAM_ATTR mac_floppy_ll::fakebit()
+bool IRAM_ATTR mac_floppy_ll::fakebit() // TO UPDATE TO REV 5
 {
   // just a straight copy from Apple Disk II emulator. Have no idea if this
   // behavior is close enough to the MCI floppy or not.
@@ -198,7 +257,7 @@ bool IRAM_ATTR mac_floppy_ll::fakebit()
   return (MC3470[MC3470_byte_ctr] & (0x01 << MC3470_bit_ctr)) != 0;
 }
 
-// todo: copy both top and bottom tracks on 800k disk
+// todo: copy both top and bottom tracks on 800k disk // TO UPDATE TO REV 5
 void IRAM_ATTR mac_floppy_ll::copy_track(uint8_t *track, int side, size_t tracklen, size_t trackbits, int bitperiod)
 {
   if (track_buffer[side] == nullptr)

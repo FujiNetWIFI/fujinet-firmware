@@ -3,16 +3,15 @@
 
 #include <ctime>
 
+#include "../disk.h"
 #include "bus.h"
 #include "media.h"
-
-// For compatibility with other disks that declare host variable
-#include "../../fuji/fujiHost.h"
 
 class rs232Disk : public virtualDevice
 {
 private:
     MediaType *_disk = nullptr;
+    time_t _mount_time = 0;
 
     void rs232_read(uint32_t sector);
     void rs232_write(uint32_t sector, bool verify);
@@ -26,16 +25,17 @@ private:
     void dump_percom_block();
 
 public:
-    time_t mount_time = 0;
-    fujiHost *host = nullptr;
-
     rs232Disk();
-    mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
-    mediatype_t mountROM(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type);
+    mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize,
+                      disk_access_flags_t access_mode,
+                      mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+    mediatype_t mountROM(fnFile *f, const char *filename, uint32_t disksize,
+                         mediatype_t disk_type);
     void unmount();
     bool write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors);
 
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_disktype; };
+    time_t mount_time() { return _mount_time; }
 
     ~rs232Disk();
 };

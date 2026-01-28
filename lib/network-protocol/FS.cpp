@@ -5,12 +5,14 @@
  */
 
 #include "FS.h"
+#include "fujiCommandID.h"
 
 #include <stdlib.h>
 #include <string.h>
 
 #include "../../include/debug.h"
 
+#include "status_error_codes.h"
 #include "utils.h"
 
 #include <cstring>

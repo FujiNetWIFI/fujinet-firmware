@@ -1,6 +1,7 @@
 #ifndef DRIVE_H
 #define DRIVE_H
 
+#include "../disk.h"
 #include "../fuji/fujiHost.h"
 
 #include <string>
@@ -222,7 +223,9 @@ class iecDrive : public IECFileDevice
   iecDrive(uint8_t devnum = 0xFF);
   ~iecDrive();
 
-  mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+  mediatype_t mount(FILE *f, const char *filename, uint32_t disksize,
+                    disk_access_flags_t access_mode,
+                    mediatype_t disk_type = MEDIATYPE_UNKNOWN);
   void unmount();
 
   int     id() { return m_devnr; };
@@ -239,9 +242,6 @@ class iecDrive : public IECFileDevice
   //virtual bool isActive() { return device_active; }
 
   // needed for fujiDevice compatibility
-  bool switched = false; //indicate disk switched condition
-  bool readonly = true;  //write protected
-  fujiHost *host = nullptr;
   bool is_config_device = false;
 
  private:

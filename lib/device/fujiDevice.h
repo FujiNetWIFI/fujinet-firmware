@@ -10,6 +10,7 @@
 
 #include <string>
 #include <optional>
+#include <map>
 
 #if defined(BUILD_ATARI) || defined(BUILD_LYNX)
 #define SYSTEM_BUS_IS_UDP 1
@@ -96,6 +97,27 @@ struct disk_slot
     char filename[MAX_DISPLAY_FILENAME_LEN];
 };
 
+// For some reason the directory entry structure that is sent back
+// isn't standardized across platforms.
+
+enum DET_size_endian_t {
+    SIZE_NONE,
+    SIZE_16_LE,
+    SIZE_16_BE,
+    SIZE_32_LE,
+    SIZE_32_BE,
+};
+
+enum DET_dir_flags_t {
+    HAS_DIR_ENTRY_FLAGS_SEPARATE,
+    HAS_DIR_ENTRY_FLAGS_COMBINED,
+};
+
+enum DET_has_type_t {
+    HAS_DIR_ENTRY_TYPE,
+    NO_DIR_ENTRY_TYPE,
+};
+
 class fujiDevice : public virtualDevice
 {
 private:
@@ -106,6 +128,14 @@ private:
 protected:
     fujiHost _fnHosts[MAX_HOSTS];
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
+    const unsigned int _totalDiskDevices;
+    const std::string _diskImageExtension;
+    const std::optional<std::string> _lobbyDiskURL;
+
+    std::map<int, int> mode_to_keysize = {
+        {0, 64},
+        {2, 256}
+    };
 
     appkey _current_appkey;
     int _current_open_directory_slot = -1;
@@ -119,7 +149,12 @@ protected:
     virtual bool transaction_get(void *data, size_t len) = 0;
     virtual void transaction_put(const void *data, size_t len, bool err=false) = 0;
 
-    virtual size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen) = 0;
+    virtual size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
+                                                   uint8_t maxlen) = 0;
+    size_t _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen,
+                                            int year_offset, DET_size_endian_t size_endian,
+                                            DET_dir_flags_t dir_flags,
+                                            DET_has_type_t has_type);
 
     // ============ Validation of inputs ============
     bool validate_host_slot(uint8_t slot, const char *dmsg=nullptr);
@@ -127,9 +162,10 @@ protected:
 
 public:
     bool boot_config = true;
-    DEVICE_TYPE bootdisk; // special disk drive just for configuration
+    DISK_DEVICE bootdisk; // special disk drive just for configuration
 
-    fujiDevice();
+    fujiDevice(unsigned int numDisk, std::string extension,
+               std::optional<std::string> lobbyURL);
     virtual void setup() = 0;
     void shutdown() override;
 
@@ -137,7 +173,7 @@ public:
     std::string get_host_prefix(int host_slot) { return _fnHosts[host_slot].get_prefix(); }
 
     fujiDisk *get_disk(int i) { return &_fnDisks[i]; }
-    virtual DEVICE_TYPE *get_disk_dev(int i) { return &_fnDisks[i].disk_dev; }
+    virtual DISK_DEVICE *get_disk_dev(int i) { return &_fnDisks[i].disk_dev; }
     int get_disk_id(int drive_slot) { return _fnDisks[drive_slot].disk_dev.id(); }
 
     void populate_slots_from_config();
@@ -152,12 +188,12 @@ public:
     virtual bool fujicmd_mount_all_success();
     virtual void fujicmd_reset();
     bool fujicmd_mount_host_success(unsigned hostSlot);
-    void fujicmd_net_scan_networks();
+    virtual void fujicmd_net_scan_networks();
     void fujicmd_net_scan_result(uint8_t index);
     void fujicmd_net_get_ssid();
     bool fujicmd_net_set_ssid_success(const char *ssid, const char *password, bool save);
     void fujicmd_net_get_wifi_enabled();
-    bool fujicmd_mount_disk_image_success(uint8_t deviceSlot, uint8_t access_mode);
+    virtual bool fujicmd_mount_disk_image_success(uint8_t deviceSlot, disk_access_flags_t access_mode);
     bool fujicmd_unmount_disk_image_success(uint8_t deviceSlot);
     void fujicmd_image_rotate();
     bool fujicmd_open_directory_success(uint8_t hostSlot);
@@ -166,21 +202,21 @@ public:
     void fujicmd_get_directory_position();
     void fujicmd_set_directory_position(uint16_t pos);
     bool fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot, std::string copySpec);
-    void fujicmd_get_adapter_config();
-    void fujicmd_get_adapter_config_extended();
+    virtual void fujicmd_get_adapter_config();
+    virtual void fujicmd_get_adapter_config_extended();
     void fujicmd_get_device_filename(uint8_t slot);
-    bool fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t host, uint8_t mode);
+    virtual bool fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
+                                                     disk_access_flags_t mode);
     void fujicmd_get_host_prefix(uint8_t hostSlot);
     void fujicmd_net_get_wifi_status();
     void fujicmd_read_host_slots();
     void fujicmd_write_host_slots();
     void fujicmd_set_boot_config(bool enable);
-    void fujicmd_set_boot_mode(uint8_t bootMode, std::string extension,
-                               mediatype_t disk_type, DEVICE_TYPE *disk_dev);
+    void fujicmd_set_boot_mode(uint8_t bootMode, mediatype_t disk_type, DISK_DEVICE *disk_dev);
     void fujicmd_set_host_prefix(uint8_t hostSlot, const char *prefix=nullptr);
     bool fujicmd_unmount_host_success(uint8_t hostSlot);
-    void fujicmd_read_device_slots(uint8_t numDevices);
-    void fujicmd_write_device_slots(uint8_t numDevices);
+    void fujicmd_read_device_slots();
+    void fujicmd_write_device_slots();
     void fujicmd_status();
     void fujicmd_set_sio_external_clock(uint16_t speed);
 #ifdef SYSTEM_BUS_IS_UDP
@@ -190,7 +226,7 @@ public:
     // Move appkey stuff to its own file?
     void fujicmd_open_app_key();
     void fujicmd_close_app_key();
-    void fujicmd_write_app_key(uint16_t keylen);
+    void fujicmd_write_app_key(uint16_t keylen, uint16_t readlen=0);
     void fujicmd_read_app_key();
 
     // ============ Implementations by fujicmd_ methods ============
@@ -211,19 +247,18 @@ public:
     uint16_t fujicore_get_directory_position();
     AdapterConfigExtended fujicore_get_adapter_config_extended();
     bool fujicore_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
-                                              uint8_t mode, std::string filename);
+                                              disk_access_flags_t mode, std::string filename);
     std::optional<std::string> fujicore_get_device_filename(uint8_t slot);
-    bool fujicore_mount_disk_image_success(uint8_t deviceSlot, uint8_t access_mode);
+    virtual bool fujicore_mount_disk_image_success(uint8_t deviceSlot,
+                                                   disk_access_flags_t access_mode);
     bool fujicore_unmount_disk_image_success(uint8_t deviceSlot);
     bool fujicore_mount_host_success(unsigned hostSlot);
     bool fujicore_mount_all_success();
-
-    // Should be protected but directly accessed by sio.cpp
-    bool status_wait_enabled = true;
+    void fujicore_net_scan_networks();
+    bool fujicore_net_set_ssid_success(const char *ssid, const char *password, bool save);
 
     // Should be protected but being called by drivewire.cpp
-    void insert_boot_device(uint8_t image_id, std::string extension,
-                            mediatype_t disk_type, DEVICE_TYPE *disk_dev);
+    void insert_boot_device(uint8_t image_id, mediatype_t disk_type, DISK_DEVICE *disk_dev);
 };
 
 extern fujiDevice *theFuji;

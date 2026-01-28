@@ -13,8 +13,16 @@ void sioUDPStream::sio_enable_udpstream()
     if (udpstream_port == MIDI_PORT)
     {
 #ifdef ESP_PLATFORM
+        // Setup PWM timer for CLOCK IN
+        ledc_timer_config_t ledc_timer = {};
+        ledc_timer.clk_cfg = LEDC_AUTO_CLK;
+        ledc_timer.speed_mode = LEDC_ESP32XX_HIGH_SPEED;
+        ledc_timer.duty_resolution = LEDC_TIMER_RESOLUTION;
+        ledc_timer.timer_num = LEDC_TIMER_1;
+        ledc_timer.freq_hz = MIDI_BAUDRATE;
+
         // Setup PWM channel for CLOCK IN
-        ledc_channel_config_t ledc_channel_sio_ckin;
+        ledc_channel_config_t ledc_channel_sio_ckin = {};
         ledc_channel_sio_ckin.gpio_num = PIN_CKI;
         ledc_channel_sio_ckin.speed_mode = LEDC_ESP32XX_HIGH_SPEED;
         ledc_channel_sio_ckin.channel = LEDC_CHANNEL_1;
@@ -22,14 +30,6 @@ void sioUDPStream::sio_enable_udpstream()
         ledc_channel_sio_ckin.timer_sel = LEDC_TIMER_1;
         ledc_channel_sio_ckin.duty = 1;
         ledc_channel_sio_ckin.hpoint = 0;
-
-        // Setup PWM timer for CLOCK IN
-        ledc_timer_config_t ledc_timer;
-        ledc_timer.clk_cfg = LEDC_AUTO_CLK;
-        ledc_timer.speed_mode = LEDC_ESP32XX_HIGH_SPEED;
-        ledc_timer.duty_resolution = LEDC_TIMER_RESOLUTION;
-        ledc_timer.timer_num = LEDC_TIMER_1;
-        ledc_timer.freq_hz = MIDI_BAUDRATE;
 
         // Enable PWM on CLOCK IN
         ledc_channel_config(&ledc_channel_sio_ckin);

@@ -35,7 +35,8 @@ void s100spiDisk::reset()
     }
 }
 
-mediatype_t s100spiDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+mediatype_t s100spiDisk::mount(FILE *f, const char *filename, uint32_t disksize,
+                               disk_access_flags_t access_mode, mediatype_t disk_type)
 {
     mediatype_t mt = MEDIATYPE_UNKNOWN;
 
@@ -129,7 +130,7 @@ void s100spiDisk::s100spi_control_send_block_num()
     }
 
     s100Bus.start_time=esp_timer_get_time();
-    
+
     s100spi_response_ack();
 
     Debug_printf("BLOCK: %lu\n", blockNum);
@@ -177,7 +178,7 @@ void s100spiDisk::s100spi_response_status()
         status_response[4] = 0x40 | STATUS_NO_MEDIA;
     else
         status_response[4] = 0x40 | _media->_media_controller_status;
-    
+
     virtualDevice::s100spi_response_status();
 }
 

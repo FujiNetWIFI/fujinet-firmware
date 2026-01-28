@@ -868,7 +868,7 @@ void systemBus::changeDeviceId(virtualDevice *p, int device_id)
   }
 }
 
-virtualDevice *systemBus::deviceById(SPUnitNum device_id)
+virtualDevice *systemBus::deviceById(int device_id)
 {
   for (auto devicep : _daisyChain)
   {

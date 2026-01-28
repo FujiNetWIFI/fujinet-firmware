@@ -321,12 +321,7 @@ bool FNJSON::parse()
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("json parse, initial status: ns.rxBW: %d, ns.conn: %d, ns.err: %d\r\n", _protocol->available(), ns.connected, ns.error);
 #endif
-#ifdef ESP_PLATFORM
-    while (ns.connected)
-#else
-    // fujinet-pc closes before the data has been fully read, we need to ensure the data in the buffer is used
     while (ns.connected || _protocol->available() > 0)
-#endif
     {
         // don't try reading 0 bytes when there's no content.
         if (_protocol->available() > 0)

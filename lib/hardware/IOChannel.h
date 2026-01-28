@@ -37,8 +37,8 @@ private:
 
 protected:
     std::string _fifo;
-    uint32_t read_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
-    uint32_t discard_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
+    double read_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
+    double discard_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
 
     // Handled by IOChannel, not implemented by subclass
     size_t dataIn(void *buffer, size_t length);

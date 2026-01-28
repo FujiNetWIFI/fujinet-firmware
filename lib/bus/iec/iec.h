@@ -48,7 +48,6 @@ union cmdFrame_t
     } __attribute__((packed));
 };
 
-// needed for fujiDevice compatibility
 class iecDrive;
 
 /**
@@ -83,8 +82,6 @@ public:
 
     // needed for fujiDevice compatibility
     void changeDeviceId(iecDrive *pDevice, int device_id);
-    void setUDPHost(const char *newhost, int port);
-    void setUltraHigh(bool _enable, int _ultraHighBaud = 0);
 
  private:
     /**

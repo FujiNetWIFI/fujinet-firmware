@@ -13,7 +13,7 @@
 rs232Disk::rs232Disk()
 {
     device_active = false;
-    mount_time = 0;
+    _mount_time = 0;
 }
 
 // Read disk data and send to computer
@@ -174,7 +174,8 @@ void rs232Disk::rs232_write_percom_block()
    then we assume it's MEDIATYPE_ATR.
    Return value is MEDIATYPE_UNKNOWN in case of failure.
 */
-mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
+                             disk_access_flags_t access_mode, mediatype_t disk_type)
 {
     // TAPE or CASSETTE: use this function to send file info to cassette device
     //  MediaType::discover_mediatype(filename) can detect CAS and WAV files
@@ -201,7 +202,7 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
     case MEDIATYPE_UNKNOWN:
     default:
         device_active = true;
-        mount_time = time(NULL);
+        _mount_time = time(NULL);
         _disk = new MediaTypeImg();
         return _disk->mount(f, disksize);
     }
@@ -258,7 +259,7 @@ void rs232Disk::unmount()
     {
         _disk->unmount();
         device_active = false;
-        mount_time = 0;
+        _mount_time = 0;
     }
 }
 

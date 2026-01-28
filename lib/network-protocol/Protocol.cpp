@@ -330,3 +330,8 @@ size_t NetworkProtocol::available()
 {
     return receiveBuffer->size();
 }
+
+size_t NetworkProtocol::available()
+{
+    return receiveBuffer->size();
+}

@@ -432,7 +432,8 @@ iwmDisk::iwmDisk()
   // init();
 }
 
-mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
+                           disk_access_flags_t access_mode, mediatype_t disk_type)
 {
   Debug_printf("disk MOUNT %s\n", filename);
 
@@ -464,6 +465,12 @@ mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize, m
   else if (_disk && strlen(_disk->_disk_filename))
       strcpy(_disk->_disk_filename, filename);
 
+    if (access_mode == DISK_ACCESS_MODE_WRITE)
+    {
+        Debug_printv("Setting disk to read/write");
+        readonly = false;
+    }
+
   return disk_type;
 }
 
@@ -486,7 +493,6 @@ mediatype_t iwmDisk::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_t
     }
 
   if (disk_type != MEDIATYPE_UNKNOWN) {
-    _disk->_media_host = host;
     _disk->_mediatype = disk_type;
     disk_type = _disk->mount(f, disksize);
   }
@@ -506,11 +512,13 @@ mediatype_t iwmDisk::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_t
 
 void iwmDisk::unmount()
 {
-      if (_disk != nullptr)
+    if (_disk != nullptr)
     {
         _disk->unmount();
         delete _disk;
         _disk = nullptr;
+        if (device_active)
+            switched = true;
         device_active = false;
         is_config_device = false;
         readonly = true;
@@ -518,17 +526,11 @@ void iwmDisk::unmount()
     }
 }
 
-bool iwmDisk::write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
-{
-
-  return false;
-}
-
 /**
  * Used for writing ProDOS images which exist in multiples of
  * 512 byte blocks.
  */
-bool iwmDisk::write_blank(fnFile *f, uint16_t numBlocks)
+bool iwmDisk::write_blank(fnFile *f, uint16_t numBlocks, uint8_t blank_header_type)
 {
   unsigned char buf[512];
 
@@ -562,7 +564,6 @@ bool iwmDisk::write_blank(fnFile *f, uint16_t numBlocks)
 
     fclose(sf);
     Debug_printf("Creation of new DOS 3.3 disk successful.\n");
-    blank_header_type=0; // Set to unadorned.
     return false;
   }
 
@@ -601,7 +602,6 @@ bool iwmDisk::write_blank(fnFile *f, uint16_t numBlocks)
   fnio::fseek(f,offset,SEEK_SET);
   fnio::fwrite(&buf,sizeof(unsigned char),sizeof(buf),f);
 
-  blank_header_type = 0; // Reset to unadorned.
   return false;
 }
 

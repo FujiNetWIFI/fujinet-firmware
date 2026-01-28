@@ -638,7 +638,7 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
 // #endif
 #ifdef BUILD_ATARI // temporary
             if (Config.get_general_config_enabled() == false)
-                theFuji->fujicmd_mount_all_success();
+                theFuji->fujicore_mount_all_success();
 #endif /* BUILD_ATARI */
             mdns_init();
             mdns_hostname_set(Config.get_general_devicename().c_str());

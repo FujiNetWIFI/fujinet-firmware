@@ -677,11 +677,24 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 
         if (theFuji->get_host(hs)->mount() == true)
         {
-            uint8_t mode = qp.query_parsed["mode"] == "2" ?
+            fujiDisk *disk = theFuji->get_disk(ds);
+            disk_access_flags_t mode = qp.query_parsed["mode"] == "2" ?
                 DISK_ACCESS_MODE_WRITE : DISK_ACCESS_MODE_READ;
+            disk->host_slot = hs;
+            strcpy(disk->filename,qp.query_parsed["filename"].c_str());
+
             if (!theFuji->fujicore_mount_disk_image_success(ds, mode))
             {
                 fnHTTPD.addToErrMsg("<li>Could not mount disk: " + qp.query_parsed["filename"] + "</li>");
+            }
+            else
+            {
+                Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(),
+                                   mode == DISK_ACCESS_MODE_WRITE ?
+                                   fnConfig::mount_modes::MOUNTMODE_WRITE :
+                                   fnConfig::mount_modes::MOUNTMODE_READ);
+                Config.save();
+                theFuji->populate_slots_from_config(); // otherwise they don't show up in config.
             }
         }
         else
@@ -726,11 +739,11 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
         fnHTTPD.addToErrMsg("<li>deviceslot should be between 0 and 7</li>");
     }
 #ifdef BUILD_APPLE
-    DEVICE_TYPE *disk_dev = theFuji->get_disk_dev(ds);
+    DISK_DEVICE *disk_dev = theFuji->get_disk_dev(ds);
     if(disk_dev->device_active) //set disk switched only if device was previosly mounted.
         disk_dev->switched = true;
 #else
-    DEVICE_TYPE *disk_dev = &theFuji->get_disk(ds)->disk_dev;
+    DISK_DEVICE *disk_dev = &theFuji->get_disk(ds)->disk_dev;
 #endif
     disk_dev->unmount();
 #ifdef BUILD_ATARI

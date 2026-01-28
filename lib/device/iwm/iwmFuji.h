@@ -71,11 +71,11 @@ protected:
         data_len = len;
     }
 
-    size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen) override;
+    size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
+                                           uint8_t maxlen) override;
 
     void iwm_dummy_command();                     // control 0xAA
     void iwm_hello_world();                       // status 0xAA
-    void iwm_stat_net_scan_result();              // status 0xFC
     void iwm_stat_get_wifi_enabled();             // 0xEA
     void iwm_ctrl_new_disk();                     // 0xE7
     void iwm_ctrl_enable_device();                // 0xD5
@@ -117,11 +117,11 @@ public:
     iwmFuji();
     void setup() override;
 
-    DEVICE_TYPE *get_disk_dev(int i) override {
+    DISK_DEVICE *get_disk_dev(int i) override {
 #ifndef DEV_RELAY_SLIP
       return i < MAX_SPDISK_DEVICES
-        ? (DEVICE_TYPE *) &_fnDisks[i].disk_dev
-        : (DEVICE_TYPE *) &_fnDisk2s[i - MAX_SPDISK_DEVICES];
+        ? (DISK_DEVICE *) &_fnDisks[i].disk_dev
+        : (DISK_DEVICE *) &_fnDisk2s[i - MAX_SPDISK_DEVICES];
 #else
       return &_fnDisks[i].disk_dev;
 #endif
@@ -136,6 +136,8 @@ public:
     void fujicmd_reset() override;
     void fujicmd_close_directory() override;
     void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl) override;
+    bool fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
+                                             disk_access_flags_t mode) override;
 };
 
 extern iwmFuji platformFuji;

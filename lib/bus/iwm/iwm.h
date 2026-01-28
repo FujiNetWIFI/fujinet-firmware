@@ -20,7 +20,6 @@
 #include <vector>
 
 #include "fnFS.h"
-#include "fujiCommandID.h"
 
 enum {
   SP_CMD_STATUS         = 0x00,
@@ -195,8 +194,6 @@ struct iwm_device_info_block_t
   uint8_t firmware_rev;
 };
 
-typedef uint8_t SPUnitNum;
-
 //#ifdef DEBUG
   void print_packet(uint8_t *data, int bytes);
   void print_packet(uint8_t* data);
@@ -211,10 +208,8 @@ protected:
   iwm_smartport_type_t device_type;
   iwm_fujinet_type_t internal_type;
   iwm_device_info_block_t dib;   // device information block
-  SPUnitNum _devnum; // assigned by Apple II during INIT
+  uint8_t _devnum; // assigned by Apple II during INIT
   bool _initialized;
-
-  uint8_t status_wait_count = 5;
 
    // void send_data_packet(); //encode smartport 512 byte data packet
   // void encode_data_packet(uint16_t num = 512); //encode smartport "num" byte data packet
@@ -242,7 +237,7 @@ protected:
   virtual void iwm_read(iwm_decoded_cmd_t cmd) {};
   virtual void iwm_write(iwm_decoded_cmd_t cmd) {};
 
-  fujiCommandID_t get_status_code(iwm_decoded_cmd_t cmd) {return (fujiCommandID_t) cmd.params[2];}
+  uint8_t get_status_code(iwm_decoded_cmd_t cmd) {return cmd.params[2];}
   uint16_t get_numbytes(iwm_decoded_cmd_t cmd) { return cmd.params[2] + (cmd.params[3] << 8); };
   uint32_t get_address(iwm_decoded_cmd_t cmd) { return cmd.params[4] + (cmd.params[5] << 8) + (cmd.params[6] << 16); }
 
@@ -267,9 +262,9 @@ public:
    * @brief get the IWM device Number (1-255)
    * @return The device number registered for this device
    */
-  void set_id(SPUnitNum dn) { _devnum=dn; };
-  SPUnitNum id() { return _devnum; };
-  //void assign_id(SPUnitNUm n) { _devnum = n; };
+  void set_id(uint8_t dn) { _devnum=dn; };
+  int id() { return _devnum; };
+  //void assign_id(uint8_t n) { _devnum = n; };
 
   void assign_name(std::string name) {dib.device_name = name;}
 };
@@ -343,20 +338,17 @@ public:
   int numDevices();
   void addDevice(virtualDevice *pDevice, iwm_fujinet_type_t deviceType); // todo: probably get called by handle_init()
   void remDevice(virtualDevice *pDevice);
-  virtualDevice *deviceById(SPUnitNum device_id);
+  virtualDevice *deviceById(int device_id);
   virtualDevice *firstDev() {return _daisyChain.front();}
   uint8_t* devBuffer() {return (uint8_t *)virtualDevice::data_buffer;}
-  void enableDevice(SPUnitNum device_id);
-  void disableDevice(SPUnitNum device_id);
+  void enableDevice(uint8_t device_id);
+  void disableDevice(uint8_t device_id);
   void changeDeviceId(virtualDevice *p, int device_id);
   iwmPrinter *getPrinter() { return _printerdev; }
   bool shuttingDown = false;                                  // TRUE if we are in shutdown process
   bool getShuttingDown() { return shuttingDown; };
   bool en35Host = false; // TRUE if we are connected to a host that supports the /EN35 signal
 
-  // For compatibility with other platforms, used by fujiDevice.cpp
-  void setUDPHost(const char *newhost, int port);
-  void setUltraHigh(bool _enable, int _ultraHighBaud = 0);
 };
 
 extern systemBus SYSTEM_BUS;
