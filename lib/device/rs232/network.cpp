@@ -861,8 +861,13 @@ void rs232Network::rs232_process(FujiBusPacket &packet)
     switch (packet.command())
     {
     case FUJICMD_OPEN:
-        rs232_open((netProtoOpenMode_t) packet.param(0),
-                   (netProtoTranslation_t) packet.param(1));
+        if (packet.paramCount() < 2) {
+            Debug_printv("Insufficient open paramaters: %d", packet.paramCount());
+            rs232_nak();
+        }
+        else
+            rs232_open((netProtoOpenMode_t) packet.param(0),
+                       (netProtoTranslation_t) packet.param(1));
         break;
     case FUJICMD_CLOSE:
         rs232_close();

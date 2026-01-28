@@ -303,7 +303,7 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
         break;
     case FUJICMD_WRITE_APPKEY:
         rs232_ack();
-        fujicmd_write_app_key(packet.param(0));
+        fujicmd_write_app_key(packet.data()->size());
         break;
     case FUJICMD_READ_APPKEY:
         rs232_ack();
@@ -409,6 +409,21 @@ size_t rs232Fuji::setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t ma
         Debug_printf("%02x ", dest[i]);
     Debug_printf("\n");
     return sizeof(*attrib);
+}
+
+std::optional<std::vector<uint8_t>> rs232Fuji::fujicore_read_app_key()
+{
+    auto result = fujiDevice::fujicore_read_app_key();
+
+    if (result)
+    {
+        uint16_t len = htole16(result->size());
+        result->resize(result->size() + sizeof(len), 0);
+        const uint8_t *len_bytes = reinterpret_cast<const uint8_t*>(&len);
+        result->insert(result->begin(), len_bytes, len_bytes + sizeof(len));
+    }
+
+    return result;
 }
 
 #endif /* BUILD_RS232 */
