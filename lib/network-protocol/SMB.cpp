@@ -95,6 +95,15 @@ netProtoErr_t NetworkProtocolSMB::open_dir_handle()
     return NETPROTO_ERR_NONE;
 }
 
+std::string lowercase_if_no_lowercase(std::string s)
+{
+    if (!std::any_of(s.begin(), s.end(),
+                     [](unsigned char c) { return std::islower(c); }))
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+    return s;
+}
+
 netProtoErr_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
 {
     std::string openURL = url->url;
@@ -133,12 +142,31 @@ netProtoErr_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
 
     smb2_set_security_mode(smb, SMB2_NEGOTIATE_SIGNING_ENABLED);
 
-    if (login != nullptr)
+    if (smb_url->user || login != nullptr)
     {
-        smb2_set_user(smb, login->c_str());
-        smb2_set_password(smb, password->c_str());
+        std::string user, pass;
 
-        if ((smb_error = smb2_connect_share(smb, smb_url->server, smb_url->share, login->c_str())) != 0)
+        if (smb_url->user)
+        {
+            std::string_view up(smb_url->user);
+            auto pos = up.find(':');
+            user.assign(up.substr(0, pos));
+            if (pos != std::string_view::npos)
+                pass.assign(up.substr(pos + 1));
+
+            user = lowercase_if_no_lowercase(user);
+            pass = lowercase_if_no_lowercase(pass);
+        }
+        else
+        {
+            user = *login;
+            pass = *password;
+        }
+
+        smb2_set_user(smb, user.c_str());
+        smb2_set_password(smb, pass.c_str());
+
+        if ((smb_error = smb2_connect_share(smb, smb_url->server, smb_url->share, user.c_str())) != 0)
         {
             Debug_printf("aNetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\r\n", openURL.c_str(), smb2_get_error(smb));
             fserror_to_error();
