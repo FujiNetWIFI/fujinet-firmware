@@ -52,6 +52,7 @@ void rs232Fuji::setup()
 // Status
 void rs232Fuji::rs232_status()
 {
+    transaction_continue(false);
     Debug_println("Fuji cmd: STATUS");
 
     if (cmdFrame.aux == STATUS_MOUNT_TIME)
@@ -64,14 +65,14 @@ void rs232Fuji::rs232_status()
         for (idx = 0; idx < MAX_DISK_DEVICES; idx++)
             mount_status[idx] = _fnDisks[idx].disk_dev.mount_time();
 
-        bus_to_computer((uint8_t *) mount_status, sizeof(mount_status), false);
+        transaction_put((uint8_t *) mount_status, sizeof(mount_status), false);
     }
     else
     {
         char ret[4] = {0};
 
         Debug_printf("Status for what? %08lx\n", cmdFrame.aux);
-        bus_to_computer((uint8_t *)ret, sizeof(ret), false);
+        transaction_put((uint8_t *)ret, sizeof(ret), false);
     }
     return;
 }
