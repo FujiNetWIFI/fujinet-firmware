@@ -608,32 +608,31 @@ void rs232Network::rs232_set_password()
  * process the special command. Otherwise, the command is handled locally. In either case, either rs232_complete()
  * or rs232_error() is called.
  */
-void rs232Network::rs232_special(fujiCommandID_t command)
+void rs232Network::rs232_special(fujiCommandID_t command, netProtoTranslation_t tMode,
+                                 FujiChannelMode chanMode, netProtoOpenMode_t omode)
 {
     do_inquiry(command);
 
     switch (inq_dstats)
     {
-    case DIRECTION_NONE:  // No payload
+    case SIO_DIRECTION_NONE:  // No payload
         rs232_ack();
-        rs232_special_00();
+        rs232_special_00(command, tMode, chanMode);
         break;
-    case DIRECTION_READ:  // Payload to Atari
+    case SIO_DIRECTION_READ:  // Payload to Atari
         rs232_ack();
-        rs232_special_40();
+        rs232_special_40(command);
         break;
-    case DIRECTION_WRITE: // Payload to Peripheral
+    case SIO_DIRECTION_WRITE: // Payload to Peripheral
         rs232_ack();
-        rs232_special_80();
+        rs232_special_80(command, tMode, omode);
         break;
     default:
         rs232_nak();
         break;
     }
 }
-#endif /* OBSOLETE */
 
-#ifdef OBSOLETE
 /**
  * @brief Do an inquiry to determine whether a protoocol supports a particular command.
  * The protocol will either return $00 - No Payload, $40 - Atari Read, $80 - Atari Write,
@@ -652,7 +651,6 @@ void rs232Network::rs232_special_inquiry()
     // Finally, return the completed inq_dstats value back to Atari
     bus_to_computer((uint8_t *) &inq_dstats, sizeof(inq_dstats), false); // never errors.
 }
-#endif /* OBSOLETE */
 
 void rs232Network::do_inquiry(fujiCommandID_t inq_cmd)
 {
@@ -708,32 +706,34 @@ void rs232Network::do_inquiry(fujiCommandID_t inq_cmd)
     Debug_printf("inq_dstats = %u\n", inq_dstats);
 }
 
-#ifdef OBSOLETE
 /**
  * @brief called to handle special protocol interactions when DSTATS=$00, meaning there is no payload.
  * Essentially, call the protocol action
  * and based on the return, signal rs232_complete() or error().
  */
-void rs232Network::rs232_special_00()
+void rs232Network::rs232_special_00(fujiCommandID_t command, netProtoTranslation_t tMode,
+                                    FujiChannelMode chanMode)
 {
     // Handle commands that exist outside of an open channel.
-    switch (cmdFrame.comnd)
+    switch (command)
     {
     case FUJICMD_PARSE:
         if (channelMode == JSON)
             rs232_parse_json();
         break;
     case FUJICMD_TRANSLATION:
-        rs232_set_translation();
+        rs232_set_translation(tMode);
         break;
+#ifdef OBSOLETE
     case FUJICMD_TIMER:
         rs232_set_timer_rate();
         break;
+#endif /* OBSOLETE */
     case FUJICMD_JSON: // SET CHANNEL MODE
-        rs232_set_channel_mode();
+        rs232_set_channel_mode(chanMode);
         break;
     default:
-        if (protocol->special_00((fujiCommandID_t) cmdFrame.comnd, cmdFrame.aux2) == false)
+        if (protocol->special_00(command, chanMode) == false)
             rs232_complete();
         else
             rs232_error();
@@ -746,10 +746,10 @@ void rs232Network::rs232_special_00()
  * buffer (containing the devicespec) and based on the return, use bus_to_computer() to transfer the
  * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
  */
-void rs232Network::rs232_special_40()
+void rs232Network::rs232_special_40(fujiCommandID_t command)
 {
     // Handle commands that exist outside of an open channel.
-    switch (cmdFrame.comnd)
+    switch (command)
     {
     case FUJICMD_GETCWD:
         rs232_get_prefix();
@@ -758,7 +758,7 @@ void rs232Network::rs232_special_40()
 
     bus_to_computer((uint8_t *)receiveBuffer->data(),
                     SPECIAL_BUFFER_SIZE,
-                    protocol->special_40((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, (fujiCommandID_t) cmdFrame.comnd));
+                    protocol->special_40((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, (fujiCommandID_t) command));
 }
 
 /**
@@ -767,12 +767,13 @@ void rs232Network::rs232_special_40()
  * buffer (containing the devicespec) and based on the return, use bus_to_peripheral() to transfer the
  * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
  */
-void rs232Network::rs232_special_80()
+void rs232Network::rs232_special_80(fujiCommandID_t command, netProtoTranslation_t tMode,
+                                    netProtoOpenMode_t omode)
 {
     uint8_t spData[SPECIAL_BUFFER_SIZE];
 
     // Handle commands that exist outside of an open channel.
-    switch (cmdFrame.comnd)
+    switch (command)
     {
     case FUJICMD_RENAME:
     case FUJICMD_DELETE:
@@ -780,14 +781,14 @@ void rs232Network::rs232_special_80()
     case FUJICMD_UNLOCK:
     case FUJICMD_MKDIR:
     case FUJICMD_RMDIR:
-        rs232_do_idempotent_command_80();
+        rs232_do_idempotent_command_80(command, omode);
         return;
     case FUJICMD_CHDIR:
         rs232_set_prefix();
         return;
     case FUJICMD_QUERY:
         if (channelMode == JSON)
-            rs232_set_json_query();
+            rs232_set_json_query(tMode);
         return;
     case FUJICMD_USERNAME:
         rs232_set_login();
@@ -805,7 +806,7 @@ void rs232Network::rs232_special_80()
     Debug_printf("rs232Network::rs232_special_80() - %s\n", spData);
 
     // Do protocol action and return
-    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, (fujiCommandID_t) cmdFrame.comnd) == false)
+    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, command) == false)
         rs232_complete();
     else
         rs232_error();
@@ -841,6 +842,7 @@ void rs232Network::rs232_tell()
     return;
 }
 
+#ifdef OBSOLETE
 /**
  * Process incoming RS232 command for device 0x7X
  * @param comanddata incoming 4 bytes containing command and aux bytes
@@ -900,12 +902,110 @@ void rs232Network::rs232_process(FujiBusPacket &packet)
         rs232_tell();
         break;
     default:
-#ifdef OBSOLETE
-        rs232_special();
-#endif /* OBSOLETE */
+        rs232_special(packet.command(),
+                      (netProtoTranslation_t) packet.param(0),
+                      (FujiChannelMode) packet.param(1),
+                      (netProtoOpenMode_t) packet.param(2));
         break;
     }
 }
+#else /* ! OBSOLETE */
+void rs232Network::rs232_process(FujiBusPacket &packet)
+{
+    switch (packet.command())
+    {
+    // Channel-based I/O
+    case FUJICMD_OPEN:
+        if (packet.paramCount() < 2) {
+            Debug_printv("Insufficient open paramaters: %d", packet.paramCount());
+            rs232_nak();
+        }
+        else
+            rs232_open((netProtoOpenMode_t) packet.param(0),
+                       (netProtoTranslation_t) packet.param(1));
+        break;
+    case FUJICMD_CLOSE:
+        rs232_close();
+        break;
+    case FUJICMD_READ:
+        rs232_read(packet.param(0));
+        break;
+    case FUJICMD_WRITE:
+        rs232_write(packet.param(0));
+        break;
+    case FUJICMD_STATUS:
+        {
+            FujiStatusReq reqType = STATUS_NETWORK_CONNERR;
+            if (packet.paramCount() >= 2)
+                reqType = (FujiStatusReq) packet.param(1);
+            rs232_status(reqType);
+        }
+        break;
+    case FUJICMD_SEEK:
+        rs232_seek(packet.param(0));
+        break;
+    case FUJICMD_TELL:
+        rs232_tell();
+        break;
+
+    // Filesystem operations
+    case FUJICMD_RENAME:
+    case FUJICMD_DELETE:
+    case FUJICMD_MKDIR:
+    case FUJICMD_RMDIR:
+    case FUJICMD_LOCK:
+    case FUJICMD_UNLOCK:
+        rs232_filesystem_operation(packet.command(), (netProtoOpenMode_t) packet.param(0));
+        break;
+    case FUJICMD_CHDIR:
+        rs232_set_prefix();
+        break;
+    case FUJICMD_GETCWD:
+        rs232_get_prefix();
+        break;
+
+    // Configuration
+    case FUJICMD_PARSE:
+        rs232_parse_json();
+        break;
+    case FUJICMD_QUERY:
+        rs232_set_json_query();
+        break;
+    case FUJICMD_JSON:
+        rs232_set_channel_mode(static_cast<FujiChannelMode>(packet.param(0)));
+        break;
+    case FUJICMD_TRANSLATION:
+        rs232_set_translation((netProtoTranslation_t) packet.param(1));
+        break;
+#ifdef OBSOLETE
+    case FUJICMD_TIMER:
+        rs232_set_timer_rate(packet.param(0));
+        break;
+#endif /* OBSOLETE */
+    case FUJICMD_USERNAME:
+        rs232_set_login();
+        break;
+    case FUJICMD_PASSWORD:
+        rs232_set_password();
+        break;
+
+    // Protocol capability query
+    case FUJICMD_SPECIAL_QUERY:
+        assert(0);
+        break;
+
+    case FUJICMD_CONTROL:
+        rs232_accept();
+        break;
+
+    default:
+        Debug_printf("Unknown command: %02x\n", packet.command());
+        assert(0);
+        rs232_nak();
+        break;
+    }
+}
+#endif /* OBSOLETE */
 
 /**
  * Check to see if PROCEED needs to be asserted, and assert if needed.
@@ -1114,7 +1214,7 @@ void rs232Network::rs232_parse_json()
     rs232_complete();
 }
 
-void rs232Network::rs232_set_json_query(netProtoTranslation_t mode)
+void rs232Network::rs232_set_json_query()
 {
     uint8_t in[256];
     uint8_t *tmp;
@@ -1158,11 +1258,16 @@ void rs232Network::rs232_set_timer_rate(int newRate)
 }
 
 #ifdef OBSOLETE
-void rs232Network::rs232_do_idempotent_command_80()
+void rs232Network::rs232_do_idempotent_command_80(fujiCommandID_t command,
+                                                  netProtoOpenMode_t omode)
+#else
+void rs232Network::rs232_filesystem_operation(fujiCommandID_t command,
+                                              netProtoOpenMode_t omode)
+#endif /* OBSOLETE */
 {
     rs232_ack();
 
-    parse_and_instantiate_protocol();
+    parse_and_instantiate_protocol(omode);
 
     if (protocol == nullptr)
     {
@@ -1171,7 +1276,7 @@ void rs232Network::rs232_do_idempotent_command_80()
         return;
     }
 
-    if (protocol->perform_idempotent_80(urlParser.get(), (fujiCommandID_t) cmdFrame.comnd) == true)
+    if (protocol->perform_idempotent_80(urlParser.get(), command) == true)
     {
         Debug_printf("perform_idempotent_80 failed\n");
         rs232_error();
@@ -1179,6 +1284,13 @@ void rs232Network::rs232_do_idempotent_command_80()
     else
         rs232_complete();
 }
-#endif /* OBSOLETE */
+
+void rs232Network::rs232_accept()
+{
+    if (protocol->special_00(FUJICMD_CONTROL, 0) != NETPROTO_ERR_NONE)
+        rs232_error();
+    else
+        rs232_complete();
+}
 
 #endif /* BUILD_RS232 */

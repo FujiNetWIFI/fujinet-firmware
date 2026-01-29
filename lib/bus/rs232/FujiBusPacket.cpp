@@ -297,3 +297,39 @@ std::unique_ptr<FujiBusPacket> FujiBusPacket::fromSerialized(const ByteBuffer& i
         return nullptr;
     return packet;
 }
+
+#ifndef FUJIBUS_TESTING
+#include "debug.h"
+#define MAGIC_ENUM_RANGE_MIN -128
+#define MAGIC_ENUM_RANGE_MAX 256
+#include "magic_enum.hpp"
+
+template <typename E>
+std::string enum_or_hex(E value) {
+    auto label = magic_enum::enum_name(value);
+    if (!label.empty()) return std::string(label);
+
+    char buf[16];
+    std::snprintf(buf, sizeof buf, "0x%02X", static_cast<unsigned>(value));
+    return buf;
+}
+
+void FujiBusPacket::debugPrint()
+{
+    auto dev_str = enum_or_hex(_device);
+    auto cmd_str = enum_or_hex(_command);
+
+    Debug_printf("Device: %s\n", dev_str.c_str());
+    Debug_printf("Command: %s\n", cmd_str.c_str());
+    Debug_printf("Param count: %d\n", _params.size());
+    if (_params.size())
+    {
+        for (PacketParam parm : _params)
+            Debug_printf("  U%d: 0x%0*x %u", parm.size * 8,
+                         parm.size * 2, parm.value, parm.value);
+        Debug_printf("\n");
+    }
+
+    return;
+}
+#endif /* ! FUJIBUS_TESTING */

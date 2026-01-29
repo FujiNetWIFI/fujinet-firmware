@@ -38,7 +38,7 @@
 #endif // PINMAP_RS232_S3
 
     #define HEAP_CHECK(x) Debug_printf("HEAP CHECK %s " x "\r\n", heap_caps_check_integrity_all(true) ? "PASSED":"FAILED")
-#else
+#else // ! ESP_PLATFORM
     // Use util_debug_printf() helper function
     #include <utils.h>
 

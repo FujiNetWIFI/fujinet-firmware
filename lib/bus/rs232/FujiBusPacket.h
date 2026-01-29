@@ -113,6 +113,8 @@ public:
         if (!_data) return std::nullopt;
         return std::string(_data->begin(), _data->end());
     }
+
+    void debugPrint();
 };
 
 #endif /* FUJIBUSPACKET_H */

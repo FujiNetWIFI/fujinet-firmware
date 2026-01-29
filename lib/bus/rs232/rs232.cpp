@@ -217,6 +217,8 @@ void systemBus::_rs232_process_cmd()
         return;
     }
 
+    tempFrame->debugPrint();
+
     // Turn on the RS232 indicator LED
     fnLedManager.set(eLed::LED_BUS, true);
 
@@ -306,6 +308,7 @@ void systemBus::setup()
     if (Config.get_boip_enabled())
     {
         Debug_printf("RS232 SETUP: BOIP host: %s\n", Config.get_boip_host().c_str());
+        _becker.setHost(Config.get_boip_host(), Config.get_boip_port());
         _becker.begin(Config.get_boip_host(), Config.get_rs232_baud());
         _port = &_becker;
     }
@@ -483,7 +486,8 @@ std::unique_ptr<FujiBusPacket> systemBus::readBusPacket()
             count++;
     }
 
-    Debug_printv("Received:\n%s\n", util_hexdump(packet.data(), packet.size()).c_str());
+    Debug_printv("Received %d:\n%s", packet.size(),
+                 util_hexdump(packet.data(), packet.size()).c_str());
     return FujiBusPacket::fromSerialized(packet);
 }
 
@@ -491,6 +495,8 @@ void systemBus::writeBusPacket(FujiBusPacket &packet)
 {
     ByteBuffer encoded = packet.serialize();
     _port->write(encoded.data(), encoded.size());
+    Debug_printv("Sent %d:\n%s", encoded.size(),
+                 util_hexdump(encoded.data(), encoded.size()).c_str());
     return;
 }
 

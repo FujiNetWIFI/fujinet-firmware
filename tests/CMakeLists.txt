@@ -15,3 +15,7 @@ target_link_libraries(fujibuspacket_tests PRIVATE
 )
 
 add_test(NAME fujibuspacket_tests COMMAND fujibuspacket_tests)
+
+target_compile_definitions(fujibuspacket_tests PRIVATE
+  FUJIBUS_TESTING
+)
