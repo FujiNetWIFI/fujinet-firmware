@@ -31,6 +31,8 @@
 
 #include "ProtocolParser.h"
 
+#define DEFAULT_LINE_ENDING "\n"
+
 using namespace std;
 
 #ifdef ESP_PLATFORM
@@ -60,7 +62,7 @@ rs232Network::rs232Network()
     transmitBuffer->clear();
     specialBuffer->clear();
 
-    json.setLineEnding("\r\n"); // use ATASCII EOL for JSON records
+    json.setLineEnding(DEFAULT_LINE_ENDING);
 }
 
 /**
@@ -138,7 +140,7 @@ void rs232Network::rs232_open()
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
+    if (protocol->open(urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != PROTOCOL_ERROR::NONE)
     {
         status.error = protocol->error;
         Debug_printf("Protocol unable to make connection. Error: %d\n", (int) status.error);
@@ -163,8 +165,8 @@ void rs232Network::rs232_open()
 
     // TODO: Finally, go ahead and let the parsers know
     json.setProtocol(protocol);
-    json.setLineEnding("\r\n");
-    protocol->setLineEnding("\r\n");
+    json.setLineEnding(DEFAULT_LINE_ENDING);
+    protocol->setLineEnding(DEFAULT_LINE_ENDING);
     channelMode = PROTOCOL;
 
     // And signal complete!
@@ -467,7 +469,7 @@ void rs232Network::rs232_get_prefix()
     uint8_t prefixSpec[256];
     string prefixSpec_str;
 
-    memset(prefixSpec, 0, sizeof(prefixSpec));
+    rs232_ack();
     memcpy(prefixSpec, prefix.data(), prefix.size());
 
     prefixSpec[prefix.size()] = 0x9B; // add EOL.
@@ -483,8 +485,7 @@ void rs232Network::rs232_set_prefix()
     uint8_t prefixSpec[256];
     string prefixSpec_str;
 
-    memset(prefixSpec, 0, sizeof(prefixSpec));
-
+    rs232_ack();
     bus_to_peripheral(prefixSpec, sizeof(prefixSpec)); // TODO test checksum
     util_devicespec_fix_9b(prefixSpec, sizeof(prefixSpec));
 
@@ -584,7 +585,7 @@ void rs232Network::rs232_set_login()
 {
     uint8_t loginSpec[256];
 
-    memset(loginSpec, 0, sizeof(loginSpec));
+    rs232_ack();
     bus_to_peripheral(loginSpec, sizeof(loginSpec));
     util_devicespec_fix_9b(loginSpec, sizeof(loginSpec));
 
@@ -599,7 +600,7 @@ void rs232Network::rs232_set_password()
 {
     uint8_t passwordSpec[256];
 
-    memset(passwordSpec, 0, sizeof(passwordSpec));
+    rs232_ack();
     bus_to_peripheral(passwordSpec, sizeof(passwordSpec));
     util_devicespec_fix_9b(passwordSpec, sizeof(passwordSpec));
 
@@ -607,215 +608,101 @@ void rs232Network::rs232_set_password()
     rs232_complete();
 }
 
-/**
- * RS232 Special, called as a default for any other RS232 command not processed by the other rs232_ functions.
- * First, the protocol is asked whether it wants to process the command, and if so, the protocol will
- * process the special command. Otherwise, the command is handled locally. In either case, either rs232_complete()
- * or rs232_error() is called.
- */
-void rs232Network::rs232_special()
+void rs232Network::process_tcp()
 {
-    do_inquiry((fujiCommandID_t) cmdFrame.comnd);
-
-    switch (inq_dstats)
+    // Make sure this is really a TCP protocol instance
+    NetworkProtocolTCP *tcp = dynamic_cast<NetworkProtocolTCP *>(protocol);
+    if (!tcp)
     {
-    case SIO_DIRECTION_NONE:  // No payload
+        rs232_nak();
+        return;
+    }
+
+    protocolError_t err;
+    switch (cmdFrame.comnd)
+    {
+    case NETCMD_CONTROL:
         rs232_ack();
-        rs232_special_00();
+        err = tcp->accept_connection();
         break;
-    case SIO_DIRECTION_READ:  // Payload to Atari
+    case NETCMD_CLOSE_CLIENT:
         rs232_ack();
-        rs232_special_40();
-        break;
-    case SIO_DIRECTION_WRITE: // Payload to Peripheral
-        rs232_ack();
-        rs232_special_80();
+        err = tcp->close_client_connection();
         break;
     default:
         rs232_nak();
-        break;
-    }
-}
-
-/**
- * @brief Do an inquiry to determine whether a protoocol supports a particular command.
- * The protocol will either return $00 - No Payload, $40 - Atari Read, $80 - Atari Write,
- * or $FF - Command not supported, which should then be used as a DSTATS value by the
- * Atari when making the N: RS232 call.
- */
-void rs232Network::rs232_special_inquiry()
-{
-    // Acknowledge
-    rs232_ack();
-
-    Debug_printf("rs232Network::rs232_special_inquiry(%02x)\n", cmdFrame.aux1);
-
-    do_inquiry((fujiCommandID_t) cmdFrame.aux1);
-
-    // Finally, return the completed inq_dstats value back to Atari
-    bus_to_computer((uint8_t *) &inq_dstats, sizeof(inq_dstats), false); // never errors.
-}
-
-void rs232Network::do_inquiry(fujiCommandID_t inq_cmd)
-{
-    // Reset inq_dstats
-    inq_dstats = SIO_DIRECTION_INVALID;
-
-    // Ask protocol for dstats, otherwise get it locally.
-    if (protocol != nullptr)
-        inq_dstats = protocol->special_inquiry(inq_cmd);
-
-    // If we didn't get one from protocol, or unsupported, see if supported globally.
-    if (inq_dstats == SIO_DIRECTION_INVALID)
-    {
-        switch (inq_cmd)
-        {
-        case NETCMD_RENAME:
-        case NETCMD_DELETE:
-        case NETCMD_LOCK:
-        case NETCMD_UNLOCK:
-        case NETCMD_MKDIR:
-        case NETCMD_RMDIR:
-        case NETCMD_CHDIR:
-        case NETCMD_USERNAME:
-        case NETCMD_PASSWORD:
-            inq_dstats = SIO_DIRECTION_WRITE;
-            break;
-        case NETCMD_CHANNEL_MODE:
-            inq_dstats = SIO_DIRECTION_NONE;
-            break;
-        case NETCMD_GETCWD:
-            inq_dstats = SIO_DIRECTION_READ;
-            break;
-        case NETCMD_SET_INT_RATE: // Set interrupt rate
-            inq_dstats = SIO_DIRECTION_NONE;
-            break;
-        case NETCMD_TRANSLATION: // Set Translation
-            inq_dstats = SIO_DIRECTION_NONE;
-            break;
-        case NETCMD_PARSE: // JSON Parse
-            if (channelMode == JSON)
-                inq_dstats = SIO_DIRECTION_NONE;
-            break;
-        case NETCMD_QUERY: // JSON Query
-            if (channelMode == JSON)
-                inq_dstats = SIO_DIRECTION_WRITE;
-            break;
-        default:
-            inq_dstats = SIO_DIRECTION_INVALID; // not supported
-            break;
-        }
+        return;
     }
 
-    Debug_printf("inq_dstats = %u\n", inq_dstats);
-}
-
-/**
- * @brief called to handle special protocol interactions when DSTATS=$00, meaning there is no payload.
- * Essentially, call the protocol action
- * and based on the return, signal rs232_complete() or error().
- */
-void rs232Network::rs232_special_00()
-{
-    // Handle commands that exist outside of an open channel.
-    switch (cmdFrame.comnd)
-    {
-    case NETCMD_PARSE:
-        if (channelMode == JSON)
-            rs232_parse_json();
-        break;
-    case NETCMD_TRANSLATION:
-        rs232_set_translation();
-        break;
-    case NETCMD_SET_INT_RATE:
-        rs232_set_timer_rate();
-        break;
-    case NETCMD_CHANNEL_MODE:
-        rs232_set_channel_mode();
-        break;
-    default:
-        if (protocol->special_00(&cmdFrame) == PROTOCOL_ERROR::NONE)
-            rs232_complete();
-        else
-            rs232_error();
-    }
-}
-
-/**
- * @brief called to handle protocol interactions when DSTATS=$40, meaning the payload is to go from
- * the peripheral back to the ATARI. Essentially, call the protocol action with the accrued special
- * buffer (containing the devicespec) and based on the return, use bus_to_computer() to transfer the
- * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
- */
-void rs232Network::rs232_special_40()
-{
-    // Handle commands that exist outside of an open channel.
-    switch (cmdFrame.comnd)
-    {
-    case NETCMD_GETCWD:
-        rs232_get_prefix();
-        return;
-    default:
-        break;
-    }
-
-    protocolError_t err = protocol->special_40((uint8_t *)receiveBuffer->data(),
-                                               SPECIAL_BUFFER_SIZE, &cmdFrame);
-    bus_to_computer((uint8_t *)receiveBuffer->data(),
-                    SPECIAL_BUFFER_SIZE,
-                    err != PROTOCOL_ERROR::NONE);
-}
-
-/**
- * @brief called to handle protocol interactions when DSTATS=$80, meaning the payload is to go from
- * the ATARI to the pheripheral. Essentially, call the protocol action with the accrued special
- * buffer (containing the devicespec) and based on the return, use bus_to_peripheral() to transfer the
- * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
- */
-void rs232Network::rs232_special_80()
-{
-    uint8_t spData[SPECIAL_BUFFER_SIZE];
-
-    // Handle commands that exist outside of an open channel.
-    switch (cmdFrame.comnd)
-    {
-    case NETCMD_RENAME:
-    case NETCMD_DELETE:
-    case NETCMD_LOCK:
-    case NETCMD_UNLOCK:
-    case NETCMD_MKDIR:
-    case NETCMD_RMDIR:
-        rs232_do_idempotent_command_80();
-        return;
-    case NETCMD_CHDIR:
-        rs232_set_prefix();
-        return;
-    case NETCMD_QUERY:
-        if (channelMode == JSON)
-            rs232_set_json_query();
-        return;
-    case NETCMD_USERNAME:
-        rs232_set_login();
-        return;
-    case NETCMD_PASSWORD:
-        rs232_set_password();
-        return;
-    default:
-        break;
-    }
-
-    memset(spData, 0, SPECIAL_BUFFER_SIZE);
-
-    // Get special (devicespec) from computer
-    bus_to_peripheral(spData, SPECIAL_BUFFER_SIZE);
-
-    Debug_printf("rs232Network::rs232_special_80() - %s\n", spData);
-
-    // Do protocol action and return
-    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == PROTOCOL_ERROR::NONE)
-        rs232_complete();
-    else
+    if (err != PROTOCOL_ERROR::NONE)
         rs232_error();
+    else
+        rs232_complete();
+}
+
+void rs232Network::process_http()
+{
+    // Make sure this is really an HTTP protocol instance
+    NetworkProtocolHTTP *http = dynamic_cast<NetworkProtocolHTTP *>(protocol);
+    if (!http)
+    {
+        rs232_nak();
+        return;
+    }
+
+    protocolError_t err;
+    switch (cmdFrame.comnd)
+    {
+    case NETCMD_UNLISTEN:
+        rs232_ack();
+        err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmdFrame.aux2);
+        break;
+    default:
+        rs232_nak();
+        return;
+    }
+
+    if (err != PROTOCOL_ERROR::NONE)
+        rs232_error();
+    else
+        rs232_complete();
+}
+
+void rs232Network::process_udp()
+{
+    // Make sure this is really a UDP protocol instance
+    NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(protocol);
+    if (!udp)
+    {
+        rs232_nak();
+        return;
+    }
+
+    protocolError_t err;
+    switch (cmdFrame.comnd)
+    {
+#ifndef ESP_PLATFORM
+    case NETCMD_GET_REMOTE:
+        rs232_ack();
+        err = udp->get_remote(receiveBuffer->data(), SPECIAL_BUFFER_SIZE);
+        bus_to_computer((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, err != PROTOCOL_ERROR::NONE);
+        break;
+#endif /* ESP_PLATFORM */
+    case NETCMD_SET_DESTINATION:
+        {
+            uint8_t spData[SPECIAL_BUFFER_SIZE];
+            bus_to_peripheral(spData, sizeof(spData));
+            err = udp->set_destination(spData, sizeof(spData));
+            if (err != PROTOCOL_ERROR::NONE)
+                rs232_error();
+            else
+                rs232_complete();
+        }
+        break;
+    default:
+        rs232_nak();
+        return;
+    }
 }
 
 void rs232Network::rs232_seek()
@@ -887,17 +774,56 @@ void rs232Network::rs232_process(cmdFrame_t *cmd_ptr)
         rs232_ack();
         rs232_set_channel_mode();
         break;
-    case NETCMD_SPECIAL_INQUIRY:
-        rs232_special_inquiry();
-        break;
     case NETCMD_SEEK:
         rs232_seek();
         break;
     case NETCMD_TELL:
         rs232_tell();
         break;
+    case NETCMD_TRANSLATION:
+        rs232_set_translation();
+        break;
+    case NETCMD_SET_INT_RATE:
+        rs232_set_timer_rate();
+        break;
+    case NETCMD_GETCWD:
+        rs232_get_prefix();
+        break;
+    case NETCMD_CHDIR:
+        rs232_set_prefix();
+        break;
+    case NETCMD_USERNAME:
+        rs232_set_login();
+        break;
+    case NETCMD_PASSWORD:
+        rs232_set_password();
+        break;
+
+    case NETCMD_CONTROL:
+    case NETCMD_CLOSE_CLIENT:
+        process_tcp();
+        break;
+
+    case NETCMD_UNLISTEN:
+        process_http();
+        break;
+
+    case NETCMD_GET_REMOTE:
+    case NETCMD_SET_DESTINATION:
+        process_udp();
+        break;
+
+    case NETCMD_RENAME:
+    case NETCMD_DELETE:
+    case NETCMD_LOCK:
+    case NETCMD_UNLOCK:
+    case NETCMD_MKDIR:
+    case NETCMD_RMDIR:
+        process_fs();
+        break;
+
     default:
-        rs232_special();
+        rs232_nak();
         break;
     }
 }
@@ -1151,24 +1077,47 @@ void rs232Network::rs232_set_timer_rate()
     rs232_complete();
 }
 
-void rs232Network::rs232_do_idempotent_command_80()
+void rs232Network::process_fs()
 {
-    rs232_ack();
-
     parse_and_instantiate_protocol();
 
-    if (protocol == nullptr)
+    // Make sure this is really a FS protocol instance
+    NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol);
+    if (!fs)
     {
-        Debug_printf("Protocol = NULL\n");
-        rs232_error();
+        rs232_nak();
         return;
     }
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) == PROTOCOL_ERROR::NONE)
+    protocolError_t err;
+    auto url = urlParser.get();
+    switch (cmdFrame.comnd)
     {
-        Debug_printf("perform_idempotent_80 failed\n");
-        rs232_error();
+    case NETCMD_RENAME:
+        err = fs->rename(url);
+        break;
+    case NETCMD_DELETE:
+        err = fs->del(url);
+        break;
+    case NETCMD_LOCK:
+        err = fs->lock(url);
+        break;
+    case NETCMD_UNLOCK:
+        err = fs->unlock(url);
+        break;
+    case NETCMD_MKDIR:
+        err = fs->mkdir(url);
+        break;
+    case NETCMD_RMDIR:
+        err = fs->rmdir(url);
+        break;
+    default:
+        rs232_nak();
+        return;
     }
+
+    if (err != PROTOCOL_ERROR::NONE)
+        rs232_error();
     else
         rs232_complete();
 }

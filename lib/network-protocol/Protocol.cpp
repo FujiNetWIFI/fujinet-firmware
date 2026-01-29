@@ -96,12 +96,12 @@ NetworkProtocol::~NetworkProtocol()
 /**
  * @brief Open connection to the protocol using URL
  * @param urlParser The URL object passed in to open.
- * @param cmdFrame The command frame to extract aux1/aux2/etc.
  */
-protocolError_t NetworkProtocol::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocol::open(PeoplesUrlParser *urlParser, fileAccessMode_t access,
+                                      netProtoTranslation_t translate)
 {
     // Set translation mode, Bits 0-1 of aux2
-    translation_mode = (netProtoTranslation_t) (cmdFrame->aux2 & 0x7F); // we now have more xlation modes.
+    translation_mode = translate;
 
     opened_url = urlParser;
 
@@ -143,16 +143,6 @@ protocolError_t NetworkProtocol::read(unsigned short len)
 }
 
 /**
- * @brief Write len bytes from tx_buf to protocol.
- * @param len The # of bytes to transmit, len should not be larger than buffer.
- * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
- */
-protocolError_t NetworkProtocol::write(unsigned short len)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-/**
  * @brief Return protocol status information in provided NetworkStatus object.
  * @param status a pointer to a NetworkStatus object to receive status information
  * @param rx_buf a pointer to the receive buffer (to call read())
@@ -163,7 +153,7 @@ protocolError_t NetworkProtocol::status(NetworkStatus *status)
     if (fromInterrupt)
         return PROTOCOL_ERROR::NONE;
 
-    if (!is_write && receiveBuffer->length() == 0 && available() > 0)
+    if (!was_write && receiveBuffer->length() == 0 && available() > 0)
         read(available());
 
     return PROTOCOL_ERROR::NONE;
@@ -324,11 +314,6 @@ void NetworkProtocol::errno_to_error()
         error = NDEV_STATUS::GENERAL;
         break;
     }
-}
-
-off_t NetworkProtocol::seek(off_t offset, int whence)
-{
-    return -1;
 }
 
 size_t NetworkProtocol::available()

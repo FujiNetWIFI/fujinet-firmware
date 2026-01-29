@@ -51,6 +51,13 @@ FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
 #define SERIAL_TIMEOUT 300
 
+enum AtariSIODirection {
+    SIO_DIRECTION_NONE    = 0x00,
+    SIO_DIRECTION_READ    = 0x40,
+    SIO_DIRECTION_WRITE   = 0x80,
+    SIO_DIRECTION_INVALID = 0xFF,
+};
+
 // helper functions
 uint8_t sio_checksum(uint8_t *buf, unsigned short len);
 

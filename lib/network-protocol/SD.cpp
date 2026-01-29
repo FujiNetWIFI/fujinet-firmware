@@ -163,10 +163,10 @@ protocolError_t NetworkProtocolSD::read_file_handle(uint8_t *buf, unsigned short
 
 protocolError_t NetworkProtocolSD::read_dir_entry(char *buf, unsigned short len)
 {
-fsdir_entry_t *entry;
+    fsdir_entry_t *entry;
     error = NDEV_STATUS::SUCCESS;
 
-entry = fnSDFAT.dir_read();
+    entry = fnSDFAT.dir_read();
     if (entry != nullptr)
     {
         strlcpy(buf, entry->filename, len);
@@ -213,51 +213,14 @@ protocolError_t NetworkProtocolSD::write_file_handle(uint8_t *buf, unsigned shor
     return NDEV_STATUS::SUCCESS != error ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
-
-AtariSIODirection NetworkProtocolSD::special_inquiry(fujiCommandID_t cmd)
-{
-    AtariSIODirection ret;
-
-    switch (cmd)
-    {
-    case NETCMD_RENAME:
-    case NETCMD_DELETE:
-    case NETCMD_MKDIR:
-    case NETCMD_RMDIR:
-        ret = SIO_DIRECTION_WRITE; // Atari to peripheral.
-        break;
-    default:
-        return NetworkProtocolFS::special_inquiry(cmd);
-    }
-
-    Debug_printf("NetworkProtocolSD:::special_inquiry(%u) - 0x%02x\r\n", cmd, ret);
-
-    return ret;
-}
-
-protocolError_t NetworkProtocolSD::special_00(cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolSD::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolSD::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolSD::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSD::rename(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
     // return error if SD is not mounted
     if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
 
-    if (NetworkProtocolFS::rename(url, cmdFrame) != PROTOCOL_ERROR::NONE)
+    if (NetworkProtocolFS::rename(url) != PROTOCOL_ERROR::NONE)
         return PROTOCOL_ERROR::UNSPECIFIED;
 
     bool success = fnSDFAT.rename(filename.c_str(), destFilename.c_str());
@@ -270,7 +233,7 @@ protocolError_t NetworkProtocolSD::rename(PeoplesUrlParser *url, cmdFrame_t *cmd
     return NDEV_STATUS::SUCCESS != error ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSD::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSD::del(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
@@ -287,7 +250,7 @@ protocolError_t NetworkProtocolSD::del(PeoplesUrlParser *url, cmdFrame_t *cmdFra
     return NDEV_STATUS::SUCCESS != error ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSD::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSD::mkdir(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
@@ -304,7 +267,7 @@ protocolError_t NetworkProtocolSD::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdF
     return NDEV_STATUS::SUCCESS != error ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSD::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSD::rmdir(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
@@ -341,7 +304,7 @@ protocolError_t NetworkProtocolSD::stat()
     return fileSize < 0 ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSD::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSD::lock(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
@@ -354,7 +317,7 @@ protocolError_t NetworkProtocolSD::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFr
     return PROTOCOL_ERROR::UNSPECIFIED;
 }
 
-protocolError_t NetworkProtocolSD::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSD::unlock(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 

@@ -30,7 +30,9 @@ NetworkProtocolUDP::~NetworkProtocolUDP()
     Debug_printf("NetworkProtocolUDP::dtor\r\n");
 }
 
-protocolError_t NetworkProtocolUDP::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolUDP::open(PeoplesUrlParser *urlParser,
+                                         fileAccessMode_t access,
+                                         netProtoTranslation_t translate)
 {
     Debug_printf("NetworkProtocolUDP::open(%s:%s)\r\n", urlParser->host.c_str(), urlParser->port.c_str());
 
@@ -78,7 +80,7 @@ protocolError_t NetworkProtocolUDP::open(PeoplesUrlParser *urlParser, cmdFrame_t
     }
 
     // call base class
-    NetworkProtocol::open(urlParser, cmdFrame);
+    NetworkProtocol::open(urlParser, access, translate);
 
     return PROTOCOL_ERROR::NONE; // all good.
 }
@@ -184,57 +186,6 @@ protocolError_t NetworkProtocolUDP::status(NetworkStatus *status)
     return PROTOCOL_ERROR::NONE;
 }
 
-AtariSIODirection NetworkProtocolUDP::special_inquiry(fujiCommandID_t cmd)
-{
-    Debug_printf("NetworkProtocolUDP::special_inquiry(%02x)\r\n", cmd);
-
-    switch (cmd)
-    {
-    case NETCMD_SET_DESTINATION:
-        return SIO_DIRECTION_WRITE;
-#ifndef ESP_PLATFORM
-    case NETCMD_GET_REMOTE:
-        return SIO_DIRECTION_READ;
-#endif
-    default:
-        break;
-    }
-
-    return SIO_DIRECTION_INVALID;
-}
-
-protocolError_t NetworkProtocolUDP::special_00(cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::UNSPECIFIED; // none implemented.
-}
-
-protocolError_t NetworkProtocolUDP::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
-{
-#ifdef ESP_PLATFORM
-    return PROTOCOL_ERROR::UNSPECIFIED; // none implemented.
-#else
-    switch (cmdFrame->comnd)
-    {
-    case NETCMD_GET_REMOTE:
-        return get_remote(sp_buf, len);
-    default:
-        return PROTOCOL_ERROR::UNSPECIFIED;
-    }
-#endif
-}
-
-protocolError_t NetworkProtocolUDP::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
-{
-    switch (cmdFrame->comnd)
-    {
-    case NETCMD_SET_DESTINATION:
-        return set_destination(sp_buf, len);
-    default:
-        return PROTOCOL_ERROR::UNSPECIFIED;
-    }
-    return PROTOCOL_ERROR::UNSPECIFIED;
-}
-
 protocolError_t NetworkProtocolUDP::set_destination(uint8_t *sp_buf, unsigned short len)
 {
 #ifdef ESP_PLATFORM // TODO review & merge
@@ -269,7 +220,7 @@ protocolError_t NetworkProtocolUDP::set_destination(uint8_t *sp_buf, unsigned sh
 }
 
 #ifndef ESP_PLATFORM
-protocolError_t NetworkProtocolUDP::get_remote(uint8_t *sp_buf, unsigned short len)
+protocolError_t NetworkProtocolUDP::get_remote(void *sp_buf, unsigned short len)
 {
     char port_part[8];
 

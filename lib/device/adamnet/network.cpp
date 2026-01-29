@@ -17,6 +17,10 @@
 
 #include "status_error_codes.h"
 #include "ProtocolParser.h"
+#include "TCP.h"
+#include "UDP.h"
+#include "HTTP.h"
+#include "FS.h"
 
 using namespace std;
 
@@ -151,10 +155,10 @@ void adamNetwork::open(unsigned short s)
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
+    if (protocol->open(urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != PROTOCOL_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
-        Debug_printf("Protocol unable to make connection. Error: %d\n", err);
+        Debug_printf("Protocol unable to make connection.\n");
         delete protocol;
         protocol = nullptr;
         if (protocolParser != nullptr)
@@ -171,6 +175,7 @@ void adamNetwork::open(unsigned short s)
     // Clear response
     memset(response, 0, sizeof(response));
     response_len = 0;
+    Debug_printf("::open() complete err=%d\n", statusByte.bits.client_error);
 }
 
 /**
@@ -250,7 +255,7 @@ void adamNetwork::write(uint16_t num_bytes)
     adamnet_response_ack();
 
     *transmitBuffer += string((char *)response, num_bytes);
-    err = adamnet_write_channel(num_bytes) == PROTOCOL_ERROR::NONE ? NDEV_STATUS::SUCCESS : NDEV_STATUS::GENERAL;
+    adamnet_write_channel(num_bytes);
 }
 
 /**
@@ -300,7 +305,7 @@ void adamNetwork::status()
     switch (channelMode)
     {
     case PROTOCOL:
-        err = protocol->status(&ns) == PROTOCOL_ERROR::NONE ? NDEV_STATUS::SUCCESS : NDEV_STATUS::GENERAL;
+        protocol->status(&ns);
         break;
     case JSON:
         // err = json.status(&status);
@@ -430,87 +435,6 @@ void adamNetwork::set_password(uint16_t s)
     password = string((char *)passwordspec, s);
 }
 
-void adamNetwork::del(uint16_t s)
-{
-    string d;
-
-    memset(response, 0, sizeof(response));
-    adamnet_recv_buffer(response, s);
-    adamnet_recv(); // CK
-
-    SYSTEM_BUS.start_time = esp_timer_get_time();
-    adamnet_response_ack();
-
-    d = string((char *)response, s);
-    parse_and_instantiate_protocol(d);
-
-    if (protocol == nullptr)
-        return;
-
-    cmdFrame.comnd = NETCMD_DELETE;
-
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
-    {
-        statusByte.bits.client_error = true;
-        return;
-    }
-
-    memset(response, 0, sizeof(response));
-    response_len = 0;
-}
-
-void adamNetwork::rename(uint16_t s)
-{
-    string d;
-
-    memset(response, 0, sizeof(response));
-    adamnet_recv_buffer(response, s);
-    adamnet_recv(); // CK
-
-    SYSTEM_BUS.start_time = esp_timer_get_time();
-    adamnet_response_ack();
-
-    d = string((char *)response, s);
-    parse_and_instantiate_protocol(d);
-
-    cmdFrame.comnd = NETCMD_RENAME;
-
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
-    {
-        statusByte.bits.client_error = true;
-        return;
-    }
-
-    memset(response, 0, sizeof(response));
-    response_len = 0;
-}
-
-void adamNetwork::mkdir(uint16_t s)
-{
-    string d;
-
-    memset(response, 0, sizeof(response));
-    adamnet_recv_buffer(response, s);
-    adamnet_recv(); // CK
-
-    SYSTEM_BUS.start_time = esp_timer_get_time();
-    adamnet_response_ack();
-
-    d = string((char *)response, s);
-    parse_and_instantiate_protocol(d);
-
-    cmdFrame.comnd = NETCMD_MKDIR;
-
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
-    {
-        statusByte.bits.client_error = true;
-        return;
-    }
-
-    memset(response, 0, sizeof(response));
-    response_len = 0;
-}
-
 void adamNetwork::channel_mode()
 {
     unsigned char m = adamnet_recv();
@@ -565,145 +489,6 @@ void adamNetwork::json_parse()
     response_len = 0;
 }
 
-/**
- * @brief Do an inquiry to determine whether a protoocol supports a particular command.
- * The protocol will either return $00 - No Payload, $40 - Atari Read, $80 - Atari Write,
- * or $FF - Command not supported, which should then be used as a DSTATS value by the
- * Atari when making the N: ADAM call.
- */
-void adamNetwork::adamnet_special_inquiry()
-{
-}
-
-void adamNetwork::do_inquiry(fujiCommandID_t inq_cmd)
-{
-    // Reset inq_dstats
-    inq_dstats = SIO_DIRECTION_INVALID;
-
-    cmdFrame.comnd = inq_cmd;
-
-    // Ask protocol for dstats, otherwise get it locally.
-    if (protocol != nullptr)
-        inq_dstats = protocol->special_inquiry(inq_cmd);
-
-    // If we didn't get one from protocol, or unsupported, see if supported globally.
-    if (inq_dstats == SIO_DIRECTION_INVALID)
-    {
-        switch (inq_cmd)
-        {
-        case NETCMD_RENAME:
-        case NETCMD_DELETE:
-        case NETCMD_LOCK:
-        case NETCMD_UNLOCK:
-        case NETCMD_MKDIR:
-        case NETCMD_RMDIR:
-        case NETCMD_CHDIR:
-        case NETCMD_USERNAME:
-        case NETCMD_PASSWORD:
-            inq_dstats = SIO_DIRECTION_WRITE;
-            break;
-        case NETCMD_GETCWD:
-            inq_dstats = SIO_DIRECTION_READ;
-            break;
-        case NETCMD_SET_INT_RATE: // Set interrupt rate
-            inq_dstats = SIO_DIRECTION_NONE;
-            break;
-        case NETCMD_TRANSLATION:
-            inq_dstats = SIO_DIRECTION_NONE;
-            break;
-        case NETCMD_PARSE_ALT:
-            inq_dstats = SIO_DIRECTION_NONE;
-            break;
-        case NETCMD_QUERY_ALT:
-            inq_dstats = SIO_DIRECTION_WRITE;
-            break;
-        default:
-            inq_dstats = SIO_DIRECTION_INVALID; // not supported
-            break;
-        }
-    }
-
-    Debug_printf("inq_dstats = %u\n", inq_dstats);
-}
-
-/**
- * @brief called to handle special protocol interactions when DSTATS=$00, meaning there is no payload.
- * Essentially, call the protocol action
- * and based on the return, signal adamnet_complete() or error().
- */
-void adamNetwork::adamnet_special_00(unsigned short s)
-{
-    cmdFrame.aux1 = adamnet_recv();
-    cmdFrame.aux2 = adamnet_recv();
-
-    adamnet_recv(); // CK
-
-    SYSTEM_BUS.start_time = esp_timer_get_time();
-    adamnet_response_ack();
-
-    protocol->special_00(&cmdFrame);
-    inq_dstats = SIO_DIRECTION_INVALID;
-
-    response_len = 0;
-    memset(response, 0, sizeof(response));
-}
-
-/**
- * @brief called to handle protocol interactions when DSTATS=$40, meaning the payload is to go from
- * the peripheral back to the ATARI. Essentially, call the protocol action with the accrued special
- * buffer (containing the devicespec) and based on the return, use bus_to_computer() to transfer the
- * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
- */
-void adamNetwork::adamnet_special_40(unsigned short s)
-{
-    cmdFrame.aux1 = adamnet_recv();
-    cmdFrame.aux2 = adamnet_recv();
-
-    adamnet_recv(); // CK
-
-    if (protocol->special_40(response, 1024, &cmdFrame) == PROTOCOL_ERROR::NONE)
-        adamnet_response_ack();
-    else
-        adamnet_response_nack();
-
-    inq_dstats = SIO_DIRECTION_INVALID;
-
-    response_len = 0;
-    memset(response, 0, sizeof(response));
-}
-
-/**
- * @brief called to handle protocol interactions when DSTATS=$80, meaning the payload is to go from
- * the ATARI to the pheripheral. Essentially, call the protocol action with the accrued special
- * buffer (containing the devicespec) and based on the return, use bus_to_peripheral() to transfer the
- * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
- */
-void adamNetwork::adamnet_special_80(unsigned short s)
-{
-    uint8_t spData[SPECIAL_BUFFER_SIZE];
-
-    memset(spData, 0, SPECIAL_BUFFER_SIZE);
-
-    // Get special (devicespec) from computer
-    cmdFrame.aux1 = adamnet_recv();
-    cmdFrame.aux2 = adamnet_recv();
-    adamnet_recv_buffer(spData, s);
-
-    Debug_printf("adamNetwork::adamnet_special_80() - %s\n", spData);
-
-    adamnet_recv(); // CK
-
-    // Do protocol action and return
-    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == PROTOCOL_ERROR::NONE)
-        adamnet_response_ack();
-    else
-        adamnet_response_nack();
-    inq_dstats = SIO_DIRECTION_INVALID;
-
-    memset(response, 0, sizeof(response));
-    response_len = 0;
-}
-
 void adamNetwork::adamnet_response_status()
 {
     NetworkStatus s;
@@ -731,24 +516,15 @@ void adamNetwork::adamnet_control_ack()
 
 void adamNetwork::adamnet_control_send()
 {
-    uint16_t s = adamnet_recv_length(); // receive length
-    fujiCommandID_t c = (fujiCommandID_t) adamnet_recv();         // receive command
+    uint16_t pkt_len = adamnet_recv_length(); // receive length
+    fujiCommandID_t cmd = (fujiCommandID_t) adamnet_recv();         // receive command
 
-    s--; // Because we've popped the command off the stack
+    pkt_len--; // Because we've popped the command off the stack
 
-    switch (c)
+    switch (cmd)
     {
-    case NETCMD_RENAME:
-        rename(s);
-        break;
-    case NETCMD_DELETE:
-        del(s);
-        break;
-    case NETCMD_MKDIR:
-        mkdir(s);
-        break;
     case NETCMD_CHDIR:
-        set_prefix(s);
+        set_prefix(pkt_len);
         break;
     case NETCMD_GETCWD:
         get_prefix();
@@ -757,7 +533,7 @@ void adamNetwork::adamnet_control_send()
         get_error();
         break;
     case NETCMD_OPEN:
-        open(s);
+        open(pkt_len);
         break;
     case NETCMD_CLOSE:
         close();
@@ -766,50 +542,51 @@ void adamNetwork::adamnet_control_send()
         status();
         break;
     case NETCMD_WRITE:
-        write(s);
+        write(pkt_len);
         break;
     case NETCMD_CHANNEL_MODE:
         channel_mode();
         break;
     case NETCMD_USERNAME: // login
-        set_login(s);
+        set_login(pkt_len);
         break;
     case NETCMD_PASSWORD: // password
-        set_password(s);
+        set_password(pkt_len);
         break;
-    default:
-        Debug_printf("fall through to default\n");
-        switch (channelMode)
-        {
-        case PROTOCOL:
-            do_inquiry(c); // set inq_dstats
 
-            if (inq_dstats == SIO_DIRECTION_NONE)
-                adamnet_special_00(s);
-            else if (inq_dstats == SIO_DIRECTION_READ)
-                adamnet_special_40(s);
-            else if (inq_dstats == SIO_DIRECTION_WRITE)
-                adamnet_special_80(s);
-            else
-                Debug_printf("adamnet_control_send() - Unknown Command: %02x\n", c);
-            break;
-        case JSON:
-            switch (c)
-            {
-            case NETCMD_PARSE:
-                json_parse();
-                break;
-            case NETCMD_QUERY:
-                json_query(s);
-                break;
-            default:
-                break;
-            }
-            break;
-        default:
-            Debug_printf("Unknown channel mode\n");
-            break;
-        }
+    case NETCMD_PARSE:
+        json_parse();
+        break;
+    case NETCMD_QUERY:
+        json_query(cmd);
+        break;
+
+    case NETCMD_RENAME:
+    case NETCMD_DELETE:
+    case NETCMD_LOCK:
+    case NETCMD_UNLOCK:
+    case NETCMD_MKDIR:
+    case NETCMD_RMDIR:
+        process_fs(cmd, pkt_len);
+        break;
+
+    case NETCMD_CONTROL:
+    case NETCMD_CLOSE_CLIENT:
+        process_tcp(cmd);
+        break;
+
+    case NETCMD_UNLISTEN:
+        process_http(cmd);
+        break;
+
+    case NETCMD_GET_REMOTE:
+    case NETCMD_SET_DESTINATION:
+        process_udp(cmd);
+        break;
+
+    default:
+        statusByte.bits.client_error = true;
+        break;
     }
 }
 
@@ -878,7 +655,6 @@ inline void adamNetwork::adamnet_control_receive_channel_protocol()
     if (protocol->read(response_len) != PROTOCOL_ERROR::NONE) // protocol adapter returned error
     {
         statusByte.bits.client_error = true;
-        err = protocol->error;
         adamnet_response_nack();
         return;
     }
@@ -1018,7 +794,6 @@ void adamNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Invalid devicespec: %s\n", deviceSpec.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NDEV_STATUS::INVALID_DEVICESPEC;
         return;
     }
 
@@ -1030,7 +805,6 @@ void adamNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Could not open protocol.\n");
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NDEV_STATUS::GENERAL;
         return;
     }
 }
@@ -1053,6 +827,163 @@ void adamNetwork::adamnet_set_timer_rate()
     //     timer_start();
 
     // adamnet_complete();
+}
+
+void adamNetwork::process_fs(fujiCommandID_t cmd, unsigned pkt_len)
+{
+    adamnet_recv_buffer(response, pkt_len);
+    adamnet_recv(); // CK
+
+    SYSTEM_BUS.start_time = esp_timer_get_time();
+    adamnet_response_ack();
+
+    auto data = string((char *)response, pkt_len);
+    parse_and_instantiate_protocol(data);
+
+    // Make sure this is really a FS protocol instance
+    NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol);
+    if (!fs)
+    {
+        statusByte.bits.client_error = true;
+        return;
+    }
+
+    protocolError_t cmd_err;
+    auto url = urlParser.get();
+    switch (cmd)
+    {
+    case NETCMD_RENAME:
+        cmd_err = fs->rename(url);
+        break;
+    case NETCMD_DELETE:
+        cmd_err = fs->del(url);
+        break;
+    case NETCMD_LOCK:
+        cmd_err = fs->lock(url);
+        break;
+    case NETCMD_UNLOCK:
+        cmd_err = fs->unlock(url);
+        break;
+    case NETCMD_MKDIR:
+        cmd_err = fs->mkdir(url);
+        break;
+    case NETCMD_RMDIR:
+        cmd_err = fs->rmdir(url);
+        break;
+    default:
+        cmd_err = PROTOCOL_ERROR::UNSPECIFIED;
+        break;
+    }
+
+    if (cmd_err != PROTOCOL_ERROR::NONE)
+        statusByte.bits.client_error = true;
+}
+
+void adamNetwork::process_tcp(fujiCommandID_t cmd)
+{
+    statusByte.byte = 0x00;
+
+    // Make sure this is really a TCP protocol instance
+    NetworkProtocolTCP *tcp = dynamic_cast<NetworkProtocolTCP *>(protocol);
+    if (!tcp)
+    {
+        statusByte.bits.client_error = true;
+        return;
+    }
+
+    protocolError_t cmd_err;
+    switch (cmd)
+    {
+    case NETCMD_CONTROL:
+        cmd_err = PROTOCOL_ERROR::NONE;
+
+        // Because we're not handling Adam bus very well, sometimes it
+        // retries and we've already accepted which will return an
+        // error. Don't do accept if client is already connected.
+        {
+            NetworkStatus status;
+            tcp->status(&status);
+            if (!status.connected)
+            {
+                cmd_err = tcp->accept_connection();
+                Debug_printf("ACCEPT %x CHANMODE %d ERR: %d\n", _devnum, channelMode, cmd_err);
+            }
+        }
+        break;
+    case NETCMD_CLOSE_CLIENT:
+        cmd_err = tcp->close_client_connection();
+        break;
+    default:
+        cmd_err = PROTOCOL_ERROR::UNSPECIFIED;
+        break;
+    }
+
+    if (cmd_err != PROTOCOL_ERROR::NONE)
+        statusByte.bits.client_error = true;
+}
+
+void adamNetwork::process_http(fujiCommandID_t cmd)
+{
+    statusByte.byte = 0x00;
+
+    // Make sure this is really a HTTP protocol instance
+    NetworkProtocolHTTP *http = dynamic_cast<NetworkProtocolHTTP *>(protocol);
+    if (!http)
+    {
+        statusByte.bits.client_error = true;
+        return;
+    }
+
+    protocolError_t cmd_err;
+    switch (cmd)
+    {
+    case NETCMD_UNLISTEN:
+        cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmdFrame.aux2);
+        break;
+    default:
+        cmd_err = PROTOCOL_ERROR::UNSPECIFIED;
+        return;
+    }
+
+    if (cmd_err != PROTOCOL_ERROR::NONE)
+        statusByte.bits.client_error = true;
+}
+
+void adamNetwork::process_udp(fujiCommandID_t cmd)
+{
+    statusByte.byte = 0x00;
+
+    // Make sure this is really a UDP protocol instance
+    NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(protocol);
+    if (!udp)
+    {
+        statusByte.bits.client_error = true;
+        return;
+    }
+
+    protocolError_t cmd_err;
+    switch (cmd)
+    {
+#ifndef ESP_PLATFORM
+    case NETCMD_GET_REMOTE:
+        receiveBuffer->resize(SPECIAL_BUFFER_SIZE);
+        cmd_err = udp->get_remote(receiveBuffer->data(), receiveBuffer->size());
+        response += *receiveBuffer;
+        break;
+#endif /* ESP_PLATFORM */
+    case NETCMD_SET_DESTINATION:
+        {
+            uint8_t spData[SPECIAL_BUFFER_SIZE];
+            size_t bytes_read = SYSTEM_BUS.read(spData, sizeof(spData));
+            cmd_err = udp->set_destination(spData, bytes_read);
+            if (cmd_err != PROTOCOL_ERROR::NONE)
+                statusByte.bits.client_error = true;
+        }
+        break;
+    default:
+        statusByte.bits.client_error = true;
+        break;
+    }
 }
 
 #endif /* BUILD_ADAM */
