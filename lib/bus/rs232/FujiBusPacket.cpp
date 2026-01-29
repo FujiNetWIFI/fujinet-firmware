@@ -325,7 +325,7 @@ void FujiBusPacket::debugPrint()
     if (_params.size())
     {
         for (PacketParam parm : _params)
-            Debug_printf("  U%d: 0x%0*x %u", parm.size * 8,
+            Debug_printf("  U%d: 0x%0*lx %lu", parm.size * 8,
                          parm.size * 2, parm.value, parm.value);
         Debug_printf("\n");
     }
