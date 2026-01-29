@@ -343,6 +343,7 @@ public:
 #endif
 
     /* BoIP things */
+    bool isBoIP() { return _port == &_becker; }
     void setHost(const char *host, int port) { _becker.setHost(host, port); }
     void selectSerialPort(bool useSerial) {
         if (useSerial)
