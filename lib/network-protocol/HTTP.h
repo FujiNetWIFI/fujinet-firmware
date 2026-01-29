@@ -319,7 +319,7 @@ private:
      */
     netProtoErr_t parseDir(char *buf, unsigned short len);
 
-    size_t available() override { return client->available(); }
+    size_t available() override;
 };
 
 #endif /* NETWORKPROTOCOLHTTP_H */

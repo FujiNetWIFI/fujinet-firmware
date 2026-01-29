@@ -39,8 +39,9 @@ struct ChannelConfig
     };
     bool isInverted = false;
     uart_port_t device;
-    uint32_t read_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
-    uint32_t discard_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
+    double read_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
+    double discard_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
+    unsigned rx_threshold = 0;
     RS232ControlPins pins = {
 #ifdef PIN_RS232_RTS
         .rts = PIN_RS232_RTS,
@@ -95,11 +96,14 @@ struct ChannelConfig
     ChannelConfig& deviceID(uart_port_t num) {
         device = num; return *this;
     }
-    ChannelConfig& readTimeout(uint32_t millis) {
+    ChannelConfig& readTimeout(double millis) {
         read_timeout_ms = millis; return *this;
     }
-    ChannelConfig& discardTimeout(uint32_t millis) {
+    ChannelConfig& discardTimeout(double millis) {
         discard_timeout_ms = millis; return *this;
+    }
+    ChannelConfig& rxThreshold(unsigned limit) {
+        rx_threshold = limit; return *this;
     }
     ChannelConfig& rtsPin(int num) {
         pins.rts = num; return *this;
@@ -155,6 +159,9 @@ public:
 
     bool getDCD() override { return 0; }; // DCD is not an input on DCE
     bool getRI() override { return 0; };  // RI is not an input on DCE
+
+    void setRXThreshold(uint8_t thresh);
+    uint8_t getRXThreshold();
 };
 
 extern ESP32UARTChannel fnDebugConsole;

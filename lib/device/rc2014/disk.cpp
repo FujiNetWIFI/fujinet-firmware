@@ -123,7 +123,7 @@ void rc2014Disk::status()
               810 drive: $E0 = 224 vertical blanks (4 mins NTSC)
             XF551 drive: $FE = 254 veritcal blanks (4.5 mins NTSC)
 
-        #3 - Unused ($00)    
+        #3 - Unused ($00)
     */
     // TODO: Why $DF for second byte?
     // TODO: Set bit 4 of drive status and bit 6 of FDC status on read-only disk
@@ -170,7 +170,8 @@ void rc2014Disk::format()
     rc2014_send_complete();
 }
 
-mediatype_t rc2014Disk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+mediatype_t rc2014Disk::mount(FILE *f, const char *filename, uint32_t disksize,
+                              disk_access_flags_t access_mode, mediatype_t disk_type)
 {
     mediatype_t mt = MEDIATYPE_UNKNOWN;
 

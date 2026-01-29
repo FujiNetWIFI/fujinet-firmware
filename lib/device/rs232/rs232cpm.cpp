@@ -58,8 +58,9 @@ void rs232CPM::rs232_handle_cpm()
 
 void rs232CPM::init_cpm(int baud)
 {
-#warning "Why is CP/M mucking with the bus?"
+#ifdef OBSOLETE
     SYSTEM_BUS.setBaudrate(baud);
+#endif /* OBSOLETE */
     Status = Debug = 0;
     Break = Step = -1;
     RAM = (uint8_t *)malloc(MEMSIZE);

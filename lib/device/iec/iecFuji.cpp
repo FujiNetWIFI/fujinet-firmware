@@ -27,12 +27,6 @@
 #include "utils.h"
 #include "status_error_codes.h"
 
-#ifdef NOT_SUBCLASS
-#define ADDITIONAL_DETAILS_BYTES 10
-#define FF_DIR 0x01
-#define FF_TRUNC 0x02
-#endif /* NOT_SUBCLASS */
-
 #define IMAGE_EXTENSION ".d64"
 
 iecFuji platformFuji;
@@ -93,7 +87,7 @@ static std::string dataToHexString(uint8_t *data, size_t len)
 
 
 // Constructor
-iecFuji::iecFuji() : fujiDevice()
+iecFuji::iecFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, std::nullopt)
 {
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
@@ -721,13 +715,6 @@ void iecFuji::get_status_basic()
     set_fuji_iec_status(0, response);
 }
 
-#ifdef NOT_SUBCLASS
-void iecFuji::reset_device()
-{
-    fnSystem.reboot();
-}
-#endif /* NOT_SUBCLASS */
-
 void iecFuji::net_scan_networks_basic()
 {
     fujicmd_net_scan_networks();
@@ -886,13 +873,6 @@ void iecFuji::net_get_wifi_enabled_raw()
     set_fuji_iec_status(0, "");
 }
 
-#ifdef NOT_SUBCLASS
-uint8_t iecFuji::net_get_wifi_enabled()
-{
-    return Config.get_wifi_enabled() ? 1 : 0;
-}
-#endif /* NOT_SUBCLASS */
-
 void iecFuji::unmount_host_basic()
 {
     if (pt.size() < 2)
@@ -935,13 +915,6 @@ void iecFuji::unmount_host_raw()
 
     set_fuji_iec_status(0, "");
 }
-
-#ifdef NOT_SUBCLASS
-bool iecFuji::unmount_host(uint8_t hs)
-{
-    return _fnHosts[hs].umount();
-}
-#endif /* NOT_SUBCLASS */
 
 void iecFuji::mount_host_raw()
 {
@@ -999,7 +972,7 @@ void iecFuji::mount_disk_image_basic()
     uint8_t ds = atoi(pt[1].c_str());
     uint8_t mode = atoi(pt[2].c_str());
 
-    if (!fujicmd_mount_disk_image_success(ds, mode))
+    if (!fujicmd_mount_disk_image_success(ds, (disk_access_flags_t) mode))
     {
         set_fuji_iec_status(DEVICE_ERROR, response);
         return;
@@ -1010,7 +983,7 @@ void iecFuji::mount_disk_image_basic()
 void iecFuji::mount_disk_image_raw()
 {
     populate_slots_from_config();
-    if (!fujicmd_mount_disk_image_success(payload[0], payload[1]))
+    if (!fujicmd_mount_disk_image_success(payload[0], (disk_access_flags_t) payload[1]))
     {
         set_fuji_iec_status(DEVICE_ERROR, "Failed to mount disk image");
     }
@@ -1039,88 +1012,6 @@ void iecFuji::set_boot_config_raw()
     set_fuji_iec_status(0, "");
 }
 
-#ifdef NOT_SUBCLASS
-void iecFuji::set_boot_config(bool should_boot_config)
-{
-    boot_config = should_boot_config;
-}
-
-// Do SIO copy
-void iecFuji::copy_file()
-{
-    // TODO IMPLEMENT
-}
-
-// TODO: refactor this into BASIC/RAW, for now, leaving it with the response value and using "is_raw_command"
-void iecFuji::mount_all()
-{
-    // Check at the end if no disks are in a slot and disable config
-    bool nodisks = true;
-
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
-    {
-        fujiDisk &disk = _fnDisks[i];
-        fujiHost &host = _fnHosts[disk.host_slot];
-        char flag[3] = {'r', 0, 0};
-
-        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
-            flag[1] = '+';
-
-        if (disk.host_slot != INVALID_HOST_SLOT && strlen(disk.filename) > 0)
-        {
-            nodisks = false; // We have a disk in a slot
-
-            if (!host.mount())
-            {
-                std::string slotno = std::to_string(i);
-                response = "error: unable to mount slot " + slotno + "\r\n";
-                set_fuji_iec_status(DEVICE_ERROR, response);
-                return;
-            }
-
-            Debug_printf("Selecting '%s' from host #%u as %s on D%u:\r\n",
-                         disk.filename, disk.host_slot, flag, i + 1);
-
-            disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
-
-            if (disk.fileh == nullptr)
-            {
-                std::string slotno = std::to_string(i);
-                response = "error: invalid file handle for slot " + slotno + "\r\n";
-                set_fuji_iec_status(DEVICE_ERROR, response);
-                return;
-            }
-
-            // We've gotten this far, so make sure our bootable CONFIG disk is disabled
-            boot_config = false;
-
-            // We need the file size for loading XEX files and for CASSETTE, so get that too
-            disk.disk_size = host.file_size(disk.fileh);
-
-            // Set the host slot for high score mode
-            // TODO: Refactor along with mount disk image.
-            disk.disk_dev.m_host = &host;
-
-            // And now mount it
-            disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-        }
-    }
-
-    if (nodisks)
-    {
-        // No disks in a slot, disable config
-        boot_config = false;
-    }
-
-    response = "ok";
-    if (is_raw_command) {
-        set_fuji_iec_status(0, "");
-    } else {
-        set_fuji_iec_status(0, response);
-    }
-}
-#endif /* NOT_SUBCLASS */
-
 // Set boot mode
 void iecFuji::set_boot_mode_basic()
 {
@@ -1132,7 +1023,7 @@ void iecFuji::set_boot_mode_basic()
         return;
     }
 
-    fujicmd_set_boot_mode(atoi(pt[1].c_str()), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
+    fujicmd_set_boot_mode(atoi(pt[1].c_str()), MEDIATYPE_UNKNOWN, &bootdisk);
 
     response = "ok";
     set_fuji_iec_status(0, response);
@@ -1140,25 +1031,9 @@ void iecFuji::set_boot_mode_basic()
 
 void iecFuji::set_boot_mode_raw()
 {
-    fujicmd_set_boot_mode(payload[0], IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
+    fujicmd_set_boot_mode(payload[0], MEDIATYPE_UNKNOWN, &bootdisk);
     set_fuji_iec_status(0, "");
 }
-
-#ifdef NOT_SUBCLASS
-void iecFuji::set_boot_mode(uint8_t boot_device, bool should_boot_config)
-{
-    insert_boot_device(boot_device);
-    boot_config = should_boot_config;
-}
-
-char *_generate_appkey_filename(appkey *info)
-{
-    static char filenamebuf[30];
-
-    snprintf(filenamebuf, sizeof(filenamebuf), "/FujiNet/%04hx%02hhx%02hhx.key", info->creator, info->app, info->key);
-    return filenamebuf;
-}
-#endif /* NOT_SUBCLASS */
 
 /*
  Opens an "app key".  This just sets the needed app key parameters (creator, app, key, mode)
@@ -1232,22 +1107,6 @@ void iecFuji::open_app_key_raw()
     set_fuji_iec_status(0, "");
 }
 
-#ifdef NOT_SUBCLASS
-void iecFuji::open_app_key(uint16_t creator, uint8_t app, uint8_t key, appkey_mode mode, uint8_t reserved)
-{
-    _current_appkey.creator = creator;
-    _current_appkey.app = app;
-    _current_appkey.key = key;
-    _current_appkey.mode = mode;
-    _current_appkey.reserved = reserved;
-
-    Debug_printf("App key creator = 0x%04hx, app = 0x%02hhx, key = 0x%02hhx, mode = %hhu, filename = \"%s\"\r\n",
-                 _current_appkey.creator, _current_appkey.app, _current_appkey.key, _current_appkey.mode,
-                 _generate_appkey_filename(&_current_appkey));
-
-}
-#endif /* NOT_SUBCLASS */
-
 void iecFuji::close_app_key_basic()
 {
     fujicmd_close_app_key();
@@ -1260,19 +1119,6 @@ void iecFuji::close_app_key_raw()
     fujicmd_close_app_key();
     set_fuji_iec_status(0, "");
 }
-
-#ifdef NOT_SUBCLASS
-/*
-  The app key close operation is a placeholder in case we want to provide more robust file
-  read/write operations. Currently, the file is closed immediately after the read or write operation.
-*/
-void iecFuji::close_app_key()
-{
-    Debug_print("Fuji cmd: CLOSE APPKEY\r\n");
-    _current_appkey.creator = 0;
-    _current_appkey.mode = APPKEYMODE_INVALID;
-}
-#endif /* NOT_SUBCLASS */
 
 bool iecFuji::check_appkey_creator(bool check_is_write)
 {
@@ -1371,32 +1217,6 @@ void iecFuji::write_app_key_raw()
     set_fuji_iec_status(0, "");
 }
 
-#ifdef NOT_SUBCLASS
-int iecFuji::write_app_key(std::vector<uint8_t>&& value)
-{
-    char *filename = _generate_appkey_filename(&_current_appkey);
-
-    // Reset the app key data so we require calling APPKEY OPEN before another attempt
-    _current_appkey.creator = 0;
-    _current_appkey.mode = APPKEYMODE_INVALID;
-
-    Debug_printf("Writing appkey to \"%s\"\r\n", filename);
-
-    // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
-    fnSDFAT.create_path("/FujiNet");
-
-    FILE *fOut = fnSDFAT.file_open(filename, FILE_WRITE);
-    if (fOut == nullptr)
-    {
-        Debug_printf("Failed to open/create output file: errno=%d\r\n", errno);
-        return -1;
-    }
-    size_t count = fwrite(value.data(), 1, value.size(), fOut);
-    fclose(fOut);
-    return count;
-}
-#endif /* NOT_SUBCLASS */
-
 /*
  Read an "app key" from SD (ONLY!) storage
 */
@@ -1441,29 +1261,6 @@ void iecFuji::read_app_key_raw()
     set_fuji_iec_status(0, "");
 }
 
-#ifdef NOT_SUBCLASS
-int iecFuji::read_app_key(char *filename, std::vector<uint8_t>& file_data)
-{
-    FILE *fIn = fnSDFAT.file_open(filename, "r");
-    if (fIn == nullptr)
-    {
-        std::ostringstream oss;
-        oss << "Failed to open input file: errno=" << errno;
-        response = oss.str();
-        set_fuji_iec_status(DEVICE_ERROR, response);
-        return -1;
-    }
-
-    file_data.resize(appkey_size);
-    size_t count = fread(file_data.data(), 1, file_data.size(), fIn);
-    file_data.resize(count);
-    Debug_printf("Read %u bytes from input file\r\n", (unsigned)count);
-    fclose(fIn);
-
-    return count;
-}
-#endif /* NOT_SUBCLASS */
-
 void iecFuji::unmount_disk_image_basic()
 {
     uint8_t deviceSlot = atoi(pt[1].c_str());
@@ -1485,33 +1282,6 @@ void iecFuji::unmount_disk_image_raw()
         set_fuji_iec_status(0, "");
     }
 }
-
-#ifdef NOT_SUBCLASS
-bool iecFuji::unmount_disk_image(uint8_t deviceSlot)
-{
-    Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\r\n", deviceSlot);
-
-    bool is_success = false;
-    if (deviceSlot < MAX_DISK_DEVICES)
-    {
-        _fnDisks[deviceSlot].disk_dev.unmount();
-        //_fnDisks[deviceSlot].disk_dev.device_active = false;
-        _fnDisks[deviceSlot].reset();
-        is_success = true;
-    }
-    return is_success;
-}
-
-// Disk Image Rotate
-/*
-  We rotate disks my changing their disk device ID's. That prevents
-  us from having to unmount and re-mount devices.
-*/
-void iecFuji::image_rotate()
-{
-    // TODO IMPLEMENT
-}
-#endif /* NOT_SUBCLASS */
 
 std::pair<std::string, std::string> split_at_delim(const std::string& input, char delim) {
     // Find the position of the first occurrence of delim in the string
@@ -1663,13 +1433,6 @@ void iecFuji::get_directory_position_raw()
     set_fuji_iec_status(0, "");
 }
 
-#ifdef NOT_SUBCLASS
-uint16_t iecFuji::get_directory_position()
-{
-    return _fnHosts[_current_open_directory_slot].dir_tell();
-}
-#endif /* NOT_SUBCLASS */
-
 void iecFuji::set_directory_position_basic()
 {
     Debug_println("Fuji cmd: SET DIRECTORY POSITION");
@@ -1723,13 +1486,6 @@ void iecFuji::set_directory_position_raw()
     set_fuji_iec_status(0, "");
 }
 
-#ifdef NOT_SUBCLASS
-bool iecFuji::set_directory_position(uint16_t pos)
-{
-    return _fnHosts[_current_open_directory_slot].dir_seek(pos);
-}
-#endif /* NOT_SUBCLASS */
-
 void iecFuji::close_directory_basic()
 {
     fujicmd_close_directory();
@@ -1742,18 +1498,6 @@ void iecFuji::close_directory_raw()
     fujicmd_close_directory();
     set_fuji_iec_status(0, "");
 }
-
-#ifdef NOT_SUBCLASS
-void iecFuji::close_directory()
-{
-    Debug_println("Fuji cmd: CLOSE DIRECTORY");
-
-    if (_current_open_directory_slot != -1)
-        _fnHosts[_current_open_directory_slot].dir_close();
-
-    _current_open_directory_slot = -1;
-}
-#endif /* NOT_SUBCLASS */
 
 void iecFuji::get_adapter_config_basic()
 {
@@ -1775,69 +1519,6 @@ void iecFuji::get_adapter_config_extended_raw()
     responseV.assign(reinterpret_cast<const uint8_t*>(&cfg), reinterpret_cast<const uint8_t*>(&cfg) + sizeof(AdapterConfigExtended));
     set_fuji_iec_status(0, "");
 }
-
-#ifdef NOT_SUBCLASS
-void iecFuji::get_adapter_config()
-{
-    // This reads the current configuration from the adapter into memory.
-    memset(&cfg, 0, sizeof(cfg));
-
-    strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
-
-    if (!fnWiFi.connected())
-    {
-        strlcpy(cfg.ssid, "NOT CONNECTED", sizeof(cfg.ssid));
-        strlcpy(cfg.hostname, "NOT CONNECTED", sizeof(cfg.hostname));
-    }
-    else
-    {
-        strlcpy(cfg.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(cfg.hostname));
-        strlcpy(cfg.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(cfg.ssid));
-        fnWiFi.get_current_bssid(cfg.bssid);
-        fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
-        fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
-    }
-
-    fnWiFi.get_mac(cfg.macAddress);
-}
-#endif /* NOT_SUBCLASS */
-
-#ifdef NOT_SUBCLASS
-AdapterConfigExtended iecFuji::get_adapter_config_extended()
-{
-    // This reads the current configuration from the adapter into memory.
-    AdapterConfigExtended cfg;
-    memset(&cfg, 0, sizeof(cfg));
-
-    strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
-
-    if (!fnWiFi.connected())
-    {
-        strlcpy(cfg.ssid, "NOT CONNECTED", sizeof(cfg.ssid));
-        strlcpy(cfg.hostname, "NOT CONNECTED", sizeof(cfg.hostname));
-    }
-    else
-    {
-        strlcpy(cfg.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(cfg.hostname));
-        strlcpy(cfg.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(cfg.ssid));
-        fnWiFi.get_current_bssid(cfg.bssid);
-        fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
-        fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
-    }
-
-    fnWiFi.get_mac(cfg.macAddress);
-
-    // convert fields to strings
-    strlcpy(cfg.sLocalIP, fnSystem.Net.get_ip4_address_str().c_str(), 16);
-    strlcpy(cfg.sGateway, fnSystem.Net.get_ip4_gateway_str().c_str(), 16);
-    strlcpy(cfg.sDnsIP,   fnSystem.Net.get_ip4_dns_str().c_str(),     16);
-    strlcpy(cfg.sNetmask, fnSystem.Net.get_ip4_mask_str().c_str(),    16);
-
-    sprintf(cfg.sMacAddress, "%02X:%02X:%02X:%02X:%02X:%02X", cfg.macAddress[0], cfg.macAddress[1], cfg.macAddress[2], cfg.macAddress[3], cfg.macAddress[4], cfg.macAddress[5]);
-    sprintf(cfg.sBssid,      "%02X:%02X:%02X:%02X:%02X:%02X", cfg.bssid[0], cfg.bssid[1], cfg.bssid[2], cfg.bssid[3], cfg.bssid[4], cfg.bssid[5]);
-    return cfg;
-}
-#endif /* NOT_SUBCLASS */
 
 //  Make new disk and shove into device slot
 void iecFuji::new_disk()
@@ -1931,30 +1612,6 @@ void iecFuji::write_host_slots_raw()
     set_fuji_iec_status(0, "");
 }
 
-#ifdef NOT_SUBCLASS
-void iecFuji::set_host_prefix()
-{
-    // TODO IMPLEMENT
-}
-#endif /* NOT_SUBCLASS */
-
-#ifdef NOT_SUBCLASS
-void iecFuji::get_host_prefix()
-{
-    // TODO IMPLEMENT
-}
-#endif /* NOT_SUBCLASS */
-
-#ifdef NOT_SUBCLASS
-// Public method to update host in specific slot
-fujiHost *iecFuji::set_slot_hostname(int host_slot, char *hostname)
-{
-    _fnHosts[host_slot].set_hostname(hostname);
-    populate_config_from_slots();
-    return &_fnHosts[host_slot];
-}
-#endif /* NOT_SUBCLASS */
-
 void iecFuji::read_device_slots_basic()
 {
     Debug_println("Fuji cmd: READ DEVICE SLOT");
@@ -2034,10 +1691,10 @@ void iecFuji::write_device_slots_basic()
     std::string filename = pt[3];
     unsigned char m = atoi(pt[4].c_str());
 
-    _fnDisks[ds].reset(filename.c_str(),hs,m);
+    _fnDisks[ds].reset(filename.c_str(),hs,(disk_access_flags_t)m);
     strncpy(_fnDisks[ds].filename,filename.c_str(),256);
 
-    fujicmd_write_device_slots(MAX_DISK_DEVICES);
+    fujicmd_write_device_slots();
     set_fuji_iec_status(0, "ok");
 }
 
@@ -2058,87 +1715,11 @@ void iecFuji::write_device_slots_raw()
 
     // Load the data into our current device array
     for (int i = 0; i < MAX_DISK_DEVICES; i++) {
-        _fnDisks[i].reset(diskSlots.diskSlots[i].filename, diskSlots.diskSlots[i].hostSlot, diskSlots.diskSlots[i].mode);
+        _fnDisks[i].reset(diskSlots.diskSlots[i].filename, diskSlots.diskSlots[i].hostSlot, (disk_access_flags_t) diskSlots.diskSlots[i].mode);
     }
-    fujicmd_write_device_slots(MAX_DISK_DEVICES);
+    fujicmd_write_device_slots();
     set_fuji_iec_status(0, "");
 }
-
-#ifdef NOT_SUBCLASS
-void iecFuji::write_device_slots()
-{
-    // it is assumed the data has been parsed at this point
-    populate_config_from_slots();
-    Config.save();
-}
-#endif /* NOT_SUBCLASS */
-
-#ifdef NOT_SUBCLASS
-// Temporary(?) function while we move from old config storage to new
-void iecFuji::populate_slots_from_config()
-{
-    // Debug_printf("populate_slots_from_config()\r\n");
-    for (int i = 0; i < MAX_HOSTS; i++)
-    {
-        if (Config.get_host_type(i) == fnConfig::host_types::HOSTTYPE_INVALID)
-            _fnHosts[i].set_hostname("");
-        else
-            _fnHosts[i].set_hostname(Config.get_host_name(i).c_str());
-    }
-
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
-    {
-        _fnDisks[i].reset();
-
-        if (Config.get_mount_host_slot(i) != HOST_SLOT_INVALID)
-        {
-            if (Config.get_mount_host_slot(i) >= 0 && Config.get_mount_host_slot(i) <= MAX_HOSTS)
-            {
-                strlcpy(_fnDisks[i].filename, Config.get_mount_path(i).c_str(), sizeof(fujiDisk::filename));
-                _fnDisks[i].host_slot = Config.get_mount_host_slot(i);
-                if (Config.get_mount_mode(i) == fnConfig::mount_modes::MOUNTMODE_WRITE)
-                    _fnDisks[i].access_mode = DISK_ACCESS_MODE_WRITE;
-                else
-                    _fnDisks[i].access_mode = DISK_ACCESS_MODE_READ;
-            }
-        }
-    }
-}
-#endif /* NOT_SUBCLASS */
-
-#ifdef NOT_SUBCLASS
-// Temporary(?) function while we move from old config storage to new
-void iecFuji::populate_config_from_slots()
-{
-    for (int i = 0; i < MAX_HOSTS; i++)
-    {
-        fujiHostType htype = _fnHosts[i].get_type();
-        const char *hname = _fnHosts[i].get_hostname();
-
-        if (hname[0] == '\0')
-        {
-            Config.clear_host(i);
-        }
-        else
-        {
-            Config.store_host(
-                i,
-                hname,
-                htype == HOSTTYPE_TNFS ? fnConfig::host_types::HOSTTYPE_TNFS : fnConfig::host_types::HOSTTYPE_SD
-            );
-        }
-    }
-
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
-    {
-        if (_fnDisks[i].host_slot >= MAX_HOSTS || _fnDisks[i].filename[0] == '\0')
-            Config.clear_mount(i);
-        else
-            Config.store_mount(i, _fnDisks[i].host_slot, _fnDisks[i].filename,
-                               _fnDisks[i].access_mode == DISK_ACCESS_MODE_WRITE ? fnConfig::mount_modes::MOUNTMODE_WRITE : fnConfig::mount_modes::MOUNTMODE_READ);
-    }
-}
-#endif /* NOT_SUBCLASS */
 
 void iecFuji::set_device_filename_basic()
 {
@@ -2175,7 +1756,7 @@ void iecFuji::set_device_filename_basic()
 
     Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\r\n", slot, host, mode, filename.c_str());
 
-    fujicore_set_device_filename_success(slot, host, mode, filename);
+    fujicore_set_device_filename_success(slot, host, (disk_access_flags_t) mode, filename);
     response = "ok";
     set_fuji_iec_status(0, response);
 }
@@ -2206,28 +1787,9 @@ void iecFuji::set_device_filename_raw()
 
     Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\r\n", slot, host, mode, filename.c_str());
 
-    fujicore_set_device_filename_success(slot, host, mode, filename);
+    fujicore_set_device_filename_success(slot, host, (disk_access_flags_t) mode, filename);
     set_fuji_iec_status(0, "");
 }
-
-#ifdef NOT_SUBCLASS
-void iecFuji::set_device_filename(uint8_t slot, uint8_t host, uint8_t mode, std::string filename)
-{
-    std::strncpy(_fnDisks[slot].filename, filename.c_str(), sizeof(_fnDisks[slot].filename) - 1);
-    _fnDisks[slot].filename[sizeof(_fnDisks[slot].filename) - 1] = '\0';
-
-    // If the filename is empty, mark this as an invalid host, so that mounting will ignore it too
-    if (filename.size() == 0) {
-        _fnDisks[slot].host_slot = INVALID_HOST_SLOT;
-    } else {
-        _fnDisks[slot].host_slot = host;
-    }
-    _fnDisks[slot].access_mode = mode;
-    populate_config_from_slots();
-
-    Config.save();
-}
-#endif /* NOT_SUBCLASS */
 
 void iecFuji::get_device_filename_basic()
 {
@@ -2276,46 +1838,6 @@ void iecFuji::get_device_filename_raw()
     set_fuji_iec_status(0, "");
 }
 
-#ifdef NOT_SUBCLASS
-std::string iecFuji::get_device_filename(uint8_t ds)
-{
-    char *fp = &_fnDisks[ds].filename[0];
-    if (*fp == 0) {
-        return std::string();
-    }
-    return std::string(_fnDisks[ds].filename);
-}
-#endif /* NOT_SUBCLASS */
-
-#ifdef NOT_SUBCLASS
-// Mounts the desired boot disk number
-void iecFuji::insert_boot_device(uint8_t d)
-{
-    // TODO IMPLEMENT
-}
-#endif /* NOT_SUBCLASS */
-
-#ifdef NOT_SUBCLASS
-iecDrive *iecFuji::bootdisk()
-{
-    return &_bootDisk;
-}
-#endif /* NOT_SUBCLASS */
-
-#ifdef NOT_SUBCLASS
-int iecFuji::get_disk_id(int drive_slot)
-{
-    return _fnDisks[drive_slot].disk_dev.id();
-}
-#endif /* NOT_SUBCLASS */
-
-#ifdef NOT_SUBCLASS
-std::string iecFuji::get_host_prefix(int host_slot)
-{
-    return _fnHosts[host_slot].get_prefix();
-}
-#endif /* NOT_SUBCLASS */
-
 /* @brief Tokenizes the payload command and parameters.
  Example: "COMMAND:Param1,Param2" will return a vector of [0]="COMMAND", [1]="Param1",[2]="Param2"
  Also supports "COMMAND,Param1,Param2"
@@ -2336,290 +1858,12 @@ std::vector<std::string> iecFuji::tokenize_basic_command(std::string command)
 
 }
 
-
-#ifdef NOT_SUBCLASS
-void iecFuji::net_set_ssid(bool store, SSIDConfig& net_config)
+size_t iecFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
+                                                uint8_t maxlen)
 {
-    Debug_println("Fuji cmd: SET SSID");
-    std::string msg;
-
-    int test_result = fnWiFi.test_connect(net_config.ssid, net_config.password);
-    if (test_result != 0)
-    {
-        Debug_println("Could not connect to target SSID. Aborting save.");
-        msg = "ssid not set";
-    }
-    else {
-        // Only save these if we're asked to, otherwise assume it was a test for connectivity
-        if (store) {
-            fnWiFi.store_wifi(net_config.ssid, net_config.password);
-        }
-        msg = "ssid set";
-    }
-
-    Debug_println("Restarting WiFiManager");
-    fnWiFi.start();
-
-    // give it a few seconds to restart the WiFi before we return to the client, who may immediately start checking status if this is CONFIG
-    // and get errors if we're not up yet.
-    fnSystem.delay(4000);
-
-    set_fuji_iec_status(
-        // this was using NETWORK_ERROR_SUCCESS (1) for a success, but in iec_status, 0 is success, anything else is an error
-        // I don't think we should use network codes for FUJI device success status, same goes for the ERROR really...
-        test_result == 0 ? 0 : NETWORK_ERROR_NOT_CONNECTED,
-        msg
-    );
+    return _set_additional_direntry_details(f, dest, maxlen, 0, SIZE_16_LE,
+                                            HAS_DIR_ENTRY_FLAGS_COMBINED, HAS_DIR_ENTRY_TYPE);
 }
-#endif /* NOT_SUBCLASS */
-
-#ifdef NOT_SUBCLASS
-void iecFuji::net_scan_networks()
-{
-    _countScannedSSIDs = fnWiFi.scan_networks();
-    // this causes the wifi to disconnect and reconnect, so we have a race condition on the results being passed back.
-    // what does any good programmer do for a race condition? PLASTER IT WITH A PAUSE
-    Debug_printf("Scan performed. Pausing for WiFi to reestablish\r\n");
-    fnSystem.delay(5000);
-}
-#endif /* NOT_SUBCLASS */
-
-#ifdef NOT_SUBCLASS
-SSIDInfo iecFuji::net_scan_result(int scan_num)
-{
-    SSIDInfo result;
-    memset(&result.ssid[0], 0, sizeof(SSIDInfo));
-    fnWiFi.get_scan_result(scan_num, result.ssid, &result.rssi);
-    Debug_printf("SSID: %s RSSI: %u\r\n", result.ssid, result.rssi);
-    return result;
-}
-
-SSIDConfig iecFuji::net_get_ssid()
-{
-    SSIDConfig net_config;
-    memset(&net_config, 0, sizeof(net_config));
-
-    std::string s = Config.get_wifi_ssid();
-    memcpy(net_config.ssid, s.c_str(), s.length() > sizeof(net_config.ssid) ? sizeof(net_config.ssid) : s.length());
-
-    s = Config.get_wifi_passphrase();
-    memcpy(net_config.password, s.c_str(), s.length() > sizeof(net_config.password) ? sizeof(net_config.password) : s.length());
-
-    return net_config;
-}
-
-uint8_t iecFuji::net_get_wifi_status()
-{
-    return fnWiFi.connected() ? 3 : 6;
-}
-#endif /* NOT_SUBCLASS */
-
-#ifdef NOT_SUBCLASS
-bool iecFuji::mount_host(int hs)
-{
-    populate_slots_from_config();
-    return _fnHosts[hs].mount();
-}
-#endif /* NOT_SUBCLASS */
-
-#ifdef NOT_SUBCLASS
-bool iecFuji::mount_disk_image(uint8_t ds, uint8_t mode)
-{
-    char flag[3] = {'r', 0, 0};
-
-    if (mode == DISK_ACCESS_MODE_WRITE)
-        flag[1] = '+';
-
-    if (!_validate_device_slot(ds))
-    {
-        response = "invalid device slot.";
-        return false;
-    }
-
-    // A couple of reference variables to make things much easier to read...
-    fujiDisk &disk = _fnDisks[ds];
-    fujiHost &host = _fnHosts[disk.host_slot];
-
-    Debug_printf("Selecting '%s' from host #%u as %s on D%u:\r\n",
-                 disk.filename, disk.host_slot, flag, ds + 1);
-
-    // TODO: Refactor along with mount disk image.
-    disk.disk_dev.m_host = &host;
-
-    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
-
-    if (disk.fileh == nullptr)
-    {
-        response = "no file handle";
-        return false;
-    }
-
-    // We've gotten this far, so make sure our bootable CONFIG disk is disabled
-    boot_config = false;
-
-    // We need the file size for loading XEX files and for CASSETTE, so get that too
-    disk.disk_size = host.file_size(disk.fileh);
-
-    // And now mount it
-    disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-    response = "mounted";
-    return true;
-}
-#endif /* NOT_SUBCLASS */
-
-#ifdef NOT_SUBCLASS
-bool iecFuji::open_directory(uint8_t hs, std::string dirpath, std::string pattern)
-{
-    if (!_validate_host_slot(hs))
-    {
-        response = "invalid host slot #";
-        return false;
-    }
-
-    // If we already have a directory open, close it first
-    if (_current_open_directory_slot != -1)
-    {
-        Debug_print("Directory was already open - closing it first\r\n");
-        _fnHosts[_current_open_directory_slot].dir_close();
-        _current_open_directory_slot = -1;
-    }
-
-    Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\r\n", dirpath.c_str(), pattern.c_str());
-
-    if (_fnHosts[hs].dir_open(dirpath.data(), pattern.empty() ? nullptr : pattern.c_str(), 0))
-    {
-        _current_open_directory_slot = hs;
-        response = "ok";
-        return true;
-    }
-    else
-    {
-        response = "unable to open directory";
-        return false;
-    }
-}
-#endif /* NOT_SUBCLASS */
-
-#ifdef NOT_SUBCLASS
-void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
-{
-    // File modified date-time
-    struct tm *modtime = localtime(&f->modified_time);
-
-    // std::string fTime = mstr::toHex((const uint8_t *) &(f->modified_time), sizeof(time_t));
-    // std::string mTime = mstr::toHex((const uint8_t *) modtime, sizeof(struct tm));
-
-    // Debug_printf("file: '%s'\r\nfTim: [%s]\r\n mT1: [%s]\r\n", f->filename, fTime.c_str(), mTime.c_str());
-
-    dest[0] = modtime->tm_year;          // +1900 = year
-    dest[1] = modtime->tm_mon + 1;       // month is 0 indexed
-    dest[2] = modtime->tm_mday;          // day of month is 1 indexed
-    dest[3] = modtime->tm_hour;          // the local hour with TZ offset of device applied
-    dest[4] = modtime->tm_min;
-    dest[5] = modtime->tm_sec;
-
-    // File size
-    uint16_t fsize = f->size;
-    dest[6] = LOBYTE_FROM_UINT16(fsize);
-    dest[7] = HIBYTE_FROM_UINT16(fsize);
-
-    dest[8] = f->isDir ? FF_DIR : 0;
-
-    maxlen -= 10; // Adjust the max return value with the number of additional bytes we're copying
-    if (f->isDir) // Also subtract a byte for a terminating slash on directories
-        maxlen--;
-    if (strlen(f->filename) >= maxlen)
-        dest[8] |= FF_TRUNC;
-
-    // File type
-    dest[9] = MediaType::discover_mediatype(f->filename);
-
-    // what was generated... and altered :(
-    // std::string dData = mstr::toHex((const uint8_t *) dest, 10);
-    // mTime = mstr::toHex((const uint8_t *) modtime, sizeof(struct tm));
-    // Debug_printf(" mT2: [%s]\r\ndata: [%s]\r\n", mTime.c_str(), dData.c_str());
-}
-#else
-// For some reason the directory entry structure that is sent back
-// isn't standardized across platforms.
-typedef struct {
-    uint8_t year, month, day, hour, minute, second;
-    uint16_t file_size;
-    uint8_t flags, truncated, file_type;
-}  __attribute__((packed)) DirEntAttrib;
-
-size_t iecFuji::setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
-{
-    int idx;
-    DirEntAttrib *attrib = (DirEntAttrib *) dest;
-
-
-    // File modified date-time
-    struct tm *modtime = localtime(&f->modified_time);
-    attrib->year = modtime->tm_year - 100;
-    attrib->month = modtime->tm_mon + 1;
-    attrib->day = modtime->tm_mday;
-    attrib->hour = modtime->tm_hour;
-    attrib->minute = modtime->tm_min;
-    attrib->second = modtime->tm_sec;
-
-    attrib->file_size = f->size <= 65535 ? f->size : 65535;
-
-    // File flags
-#define FF_DIR 0x01
-#define FF_TRUNC 0x02
-
-    attrib->flags = f->isDir ? FF_DIR : 0;
-
-    maxlen -= sizeof(*attrib); // Adjust the max return value with the number of additional
-                              // bytes we're copying
-    if (f->isDir)             // Also subtract a byte for a terminating slash on directories
-        maxlen--;
-    attrib->truncated = strlen(f->filename) >= maxlen ? FF_TRUNC : 0;
-
-    // File type
-    attrib->file_type = MediaType::discover_mediatype(f->filename);
-
-    // Debug_printf("Addtl: ");
-    // for (int i = 0; i < sizeof(*attrib); i++)
-    //     Debug_printf("%02x ", dest[i]);
-    // Debug_printf("\n");
-    return sizeof(*attrib);
-}
-#endif /* NOT_SUBCLASS */
-
-#ifdef NOT_SUBCLASS
-std::string iecFuji::process_directory_entry(uint8_t maxlen, uint8_t addtlopts) {
-    fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
-    if (f == nullptr) {
-        Debug_println("Reached end of of directory");
-        return std::string(2, char(0x7F));
-    }
-
-    Debug_printf("::read_direntry \"%s\"\r\n", f->filename);
-
-    std::string entry;
-    if (addtlopts & 0x80) {
-        uint8_t extra[10];
-        _set_additional_direntry_details(f, extra, maxlen);
-        entry.append(reinterpret_cast<char*>(extra), sizeof(extra));
-    }
-
-    size_t maxFilenameSize = maxlen - entry.size() - (f->isDir ? 1 : 0); // Reserve space for '/' if directory
-    std::string ellipsizedFilename = util_ellipsize_string(f->filename, maxFilenameSize);
-
-    entry += ellipsizedFilename;
-    if (f->isDir) entry += '/';
-
-    return entry;
-}
-#endif /* NOT_SUBCLASS */
-
-#ifdef NOT_SUBCLASS
-std::string iecFuji::read_directory_entry(uint8_t maxlen, uint8_t addtlopts) {
-    return process_directory_entry(maxlen, addtlopts);
-}
-#endif /* NOT_SUBCLASS */
 
 void iecFuji::hash_input_raw()
 {
@@ -2694,6 +1938,5 @@ void iecFuji::hash_clear()
     Debug_printf("FUJI: HASH CLEAR\r\n");
     hasher.clear();
 }
-
 
 #endif /* BUILD_IEC */

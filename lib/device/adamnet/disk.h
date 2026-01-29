@@ -1,6 +1,7 @@
 #ifndef ADAM_DISK_H
 #define ADAM_DISK_H
 
+#include "../disk.h"
 #include "bus.h"
 #include "media.h"
 
@@ -30,8 +31,9 @@ private:
 
 public:
     adamDisk();
-    fujiHost *host = nullptr;
-    mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+    mediatype_t mount(FILE *f, const char *filename, uint32_t disksize,
+                      disk_access_flags_t access_mode,
+                      mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
     bool write_blank(FILE *f, uint32_t numBlocks);
     virtual void reset() override;

@@ -581,7 +581,7 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
         else if (mg_match(hm->uri, mg_str("/config"), NULL))
         {
             // config POST handler
-            if (mg_casecmp(hm->method.buf, "POST") == 0)
+            if (hm->method.len == 4 && strncasecmp(hm->method.buf, "POST", 4) == 0)
             {
                 post_handler_config(c, hm);
             }

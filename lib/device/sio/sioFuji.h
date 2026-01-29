@@ -52,7 +52,8 @@ protected:
         _transaction_direction = SIO_DIRECTION_INVALID;
     }
 
-    size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen) override;
+    size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
+                                           uint8_t maxlen) override;
 
     void sio_net_set_ssid();           // 0xFB
     void sio_read_directory_block();   // 0xF6
@@ -95,6 +96,16 @@ public:
     // Used by sio.cpp
     void debug_tape();
     sioCassette *cassette() { return &_cassetteDev; };
+
+    // If enabled, honor SIO boot-priority: delay our status reply so
+    // a real D1: can boot first.
+    bool status_wait_enabled = true;
+
+    // ============ Wrapped Fuji commands ============
+    bool fujicore_mount_disk_image_success(uint8_t deviceSlot,
+                                           disk_access_flags_t access_mode) override;
+    std::optional<std::vector<uint8_t>> fujicore_read_app_key() override;
+    void fujicmd_net_scan_networks() override;
 };
 
 extern sioFuji platformFuji;

@@ -19,7 +19,8 @@ drivewireDisk::~drivewireDisk()
 {
 }
 
-mediatype_t drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+mediatype_t drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
+                                 disk_access_flags_t access_mode, mediatype_t disk_type)
 {
     mediatype_t mt = MEDIATYPE_UNKNOWN;
 
@@ -54,7 +55,6 @@ mediatype_t drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disks
 
     if (_media)
     {
-        _media->_media_host = host;
         strcpy(_media->_disk_filename,filename);
         mt = _media->mount(f, disksize);
         device_active = true;

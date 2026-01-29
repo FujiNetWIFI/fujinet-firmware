@@ -202,7 +202,9 @@ public:
     bool readonly = true;  //write protected
 
     /**
-     * @brief status wait counter
+     * @brief Honor SIO boot-priority: ignore first 5 status calls (of
+     *        26) so a real D1: drive can take over; overridable via
+     *        UI flag.
      */
     uint8_t status_wait_count = 5;
 };
@@ -312,10 +314,6 @@ public:
 
 #ifndef ESP_PLATFORM
     // specific to NetSioPort
-#ifdef UNUSED
-    void set_netsio_host(const char *host, int port) { _netsio.set_netsio_host(host, port); }
-    const char* get_netsio_host(int &port) { return _netsio.get_netsio_host(port); }
-#endif /* UNUSED */
     void netsio_empty_sync() { _netsio.sendEmptySync(); }
     void netsio_late_sync(uint8_t c) { _netsio.setSyncAckByte(c); }
     void netsio_write_size(int write_size) { _netsio.setWriteSize(write_size); }
@@ -323,16 +321,6 @@ public:
     void set_command_processed(bool processed);
     void sio_empty_ack();                                       // for NetSIO, notify hub we are not interested to handle the command
 
-#ifdef UNUSED
-
-    // get/set SIO mode
-    SioCom::sio_mode get_sio_mode() { return _netsio.get_sio_mode(); }
-    void set_sio_mode(SioCom::sio_mode mode) { _netsio.set_sio_mode(mode); }
-    void reset_sio_port(SioCom::sio_mode mode) { _netsio.reset_sio_port(mode); }
-
-    bool poll(int ms) { return _netsio.poll(ms); }
-    bool command_asserted() { return _netsio.commandAsserted(); }
-#endif /* UNUSED */
     void set_proceed(bool level) { _netsio.setProceed(level); }
     void bus_idle(uint16_t ms) { _netsio.busIdle(ms); }
 #endif /* ESP_PLATFORM */

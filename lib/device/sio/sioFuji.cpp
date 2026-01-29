@@ -9,6 +9,7 @@
 #include "fuji_endian.h"
 
 #define IMAGE_EXTENSION ".atr"
+#define LOBBY_URL       "tnfs://tnfs.fujinet.online/ATARI/_lobby.xex"
 
 sioFuji platformFuji;
 fujiDevice *theFuji = &platformFuji; // Global fuji object.
@@ -103,7 +104,7 @@ void say_swap_label()
 }
 
 // Constructor
-sioFuji::sioFuji()
+sioFuji::sioFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
 {
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
@@ -139,10 +140,13 @@ void sioFuji::sio_net_set_ssid()
 {
     SSIDConfig cfg;
     transaction_continue(true);
-    if (!transaction_get(&cfg, sizeof(cfg)))
+    if (!transaction_get(&cfg, sizeof(cfg))) {
         transaction_error();
-    else
-        fujicmd_net_set_ssid_success(cfg.ssid, cfg.password, cmdFrame.aux1);
+        return;
+    }
+
+    fujicore_net_set_ssid_success(cfg.ssid, cfg.password, cmdFrame.aux1);
+    transaction_complete();
 }
 
 // Set SIO baudrate
@@ -222,6 +226,13 @@ void sioFuji::debug_tape()
         Debug_println("::debug_tape DISABLE");
         _cassetteDev.sio_disable_cassette();
     }
+}
+
+size_t sioFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
+                                                uint8_t maxlen)
+{
+    return _set_additional_direntry_details(f, dest, maxlen, 70, SIZE_32_LE,
+                                            HAS_DIR_ENTRY_FLAGS_SEPARATE, HAS_DIR_ENTRY_TYPE);
 }
 
 //  Make new disk and shove into device slot
@@ -327,7 +338,7 @@ void sioFuji::setup()
     // set up Fuji device
     populate_slots_from_config();
 
-    insert_boot_device(Config.get_general_boot_mode(), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
+    insert_boot_device(Config.get_general_boot_mode(), MEDIATYPE_UNKNOWN, &bootdisk);
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
@@ -772,7 +783,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         fujicmd_mount_host_success(cmdFrame.aux1);
         break;
     case FUJICMD_MOUNT_IMAGE:
-        fujicmd_mount_disk_image_success(cmdFrame.aux1, cmdFrame.aux2);
+        fujicmd_mount_disk_image_success(cmdFrame.aux1, (disk_access_flags_t) cmdFrame.aux2);
         break;
     case FUJICMD_OPEN_DIRECTORY:
         fujicmd_open_directory_success(cmdFrame.aux1);
@@ -796,10 +807,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         fujicmd_write_host_slots();
         break;
     case FUJICMD_READ_DEVICE_SLOTS:
-        fujicmd_read_device_slots(MAX_DISK_DEVICES);
+        fujicmd_read_device_slots();
         break;
     case FUJICMD_WRITE_DEVICE_SLOTS:
-        fujicmd_write_device_slots(MAX_DISK_DEVICES);
+        fujicmd_write_device_slots();
         break;
     case FUJICMD_GET_WIFI_ENABLED:
         fujicmd_net_get_wifi_enabled();
@@ -823,7 +834,8 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         fujicmd_unmount_host_success(cmdFrame.aux1);
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
-        fujicmd_set_device_filename_success(cmdFrame.aux1, cmdFrame.aux2 >> 4, cmdFrame.aux2 & 0x0F);
+        fujicmd_set_device_filename_success(cmdFrame.aux1, cmdFrame.aux2 >> 4,
+                                            (disk_access_flags_t) (cmdFrame.aux2 & 0x0F));
         break;
     case FUJICMD_SET_HOST_PREFIX:
         fujicmd_set_host_prefix(cmdFrame.aux1);
@@ -835,7 +847,8 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         fujicmd_set_sio_external_clock(le16toh(cmdFrame.aux12));
         break;
     case FUJICMD_WRITE_APPKEY:
-        fujicmd_write_app_key(le16toh(cmdFrame.aux12));
+        fujicmd_write_app_key(le16toh(cmdFrame.aux12),
+                              get_value_or_default(mode_to_keysize, _current_appkey.mode, 64));
         break;
     case FUJICMD_READ_APPKEY:
         fujicmd_read_app_key();
@@ -859,7 +872,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         fujicmd_mount_all_success();
         break;
     case FUJICMD_SET_BOOT_MODE:
-        fujicmd_set_boot_mode(cmdFrame.aux1, IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
+        fujicmd_set_boot_mode(cmdFrame.aux1, MEDIATYPE_UNKNOWN, &bootdisk);
         break;
     case FUJICMD_ENABLE_UDPSTREAM:
         fujicmd_enable_udpstream(le16toh(cmdFrame.aux12));
@@ -926,48 +939,42 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     }
 }
 
-#define ADDITIONAL_DETAILS_BYTES 13
-size_t sioFuji::setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
+bool sioFuji::fujicore_mount_disk_image_success(uint8_t deviceSlot,
+                                                disk_access_flags_t access_mode)
 {
-    // File modified date-time
-    struct tm *modtime = localtime(&f->modified_time);
-    modtime->tm_mon++;
-    modtime->tm_year -= 70;
+    if (!fujiDevice::fujicore_mount_disk_image_success(deviceSlot, access_mode))
+        return false;
+    status_wait_count = 0;
+    return true;
+}
 
-    dest[0] = modtime->tm_year;
-    dest[1] = modtime->tm_mon;
-    dest[2] = modtime->tm_mday;
-    dest[3] = modtime->tm_hour;
-    dest[4] = modtime->tm_min;
-    dest[5] = modtime->tm_sec;
+// Atari expects this field as a 32-bit little-endian value.
+// fujiDevice::fujicmd_net_scan_networks only writes a single byte, so
+// we override it here to pad/encode the same computed value as LE32.
+void sioFuji::fujicmd_net_scan_networks()
+{
+    transaction_continue(false);
+    Debug_println("Fuji cmd: SCAN NETWORKS");
 
-    // File size LITTLE ENDIAN for Atari
-    uint32_t fsize = f->size;
-    dest[6] = fsize & 0xFF;          // Least significant byte
-    dest[7] = (fsize >> 8) & 0xFF;
-    dest[8] = (fsize >> 16) & 0xFF;
-    dest[9] = (fsize >> 24) & 0xFF;  // Most significant byte
+    char ret[4] = {0};
+    fujicore_net_scan_networks();
+    ret[0] = _countScannedSSIDs;
+    transaction_put((uint8_t *)ret, 4, false);
+}
 
-    // File flags
-#define FF_DIR 0x01
-#define FF_TRUNC 0x02
+std::optional<std::vector<uint8_t>> sioFuji::fujicore_read_app_key()
+{
+    auto result = fujiDevice::fujicore_read_app_key();
 
-    dest[10] = f->isDir ? FF_DIR : 0;
+    if (result)
+    {
+        uint16_t len = htole16(result->size());
+        result->resize(MAX_APPKEY_LEN, 0);
+        const uint8_t *len_bytes = reinterpret_cast<const uint8_t*>(&len);
+        result->insert(result->begin(), len_bytes, len_bytes + sizeof(len));
+    }
 
-    maxlen -= ADDITIONAL_DETAILS_BYTES; // Adjust the max return value with the number of additional bytes we're copying
-    if (f->isDir)                       // Also subtract a byte for a terminating slash on directories
-        maxlen--;
-    if (strlen(f->filename) >= maxlen)
-        dest[11] |= FF_TRUNC;
-
-    // File type
-    dest[12] = MediaType::discover_mediatype(f->filename);
-
-    Debug_printf("Addtl: ");
-    for (int i = 0; i < ADDITIONAL_DETAILS_BYTES; i++)
-        Debug_printf("%02x ", dest[i]);
-    Debug_printf("\n");
-    return sizeof(dest);
+    return result;
 }
 
 #endif /* BUILD_ATARI */

@@ -100,32 +100,6 @@ uint8_t virtualDevice::adamnet_recv()
     return b;
 }
 
-bool virtualDevice::adamnet_recv_timeout(uint8_t *b, uint64_t dur)
-{
-    uint64_t start, current, elapsed;
-    bool timeout = true;
-
-    start = current = esp_timer_get_time();
-    elapsed = 0;
-
-    while (SYSTEM_BUS.available() <= 0)
-    {
-        current = esp_timer_get_time();
-        elapsed = current - start;
-        if (elapsed > dur)
-            break;
-    }
-
-    if (SYSTEM_BUS.available() > 0)
-    {
-        *b = (uint8_t)SYSTEM_BUS.read();
-        timeout = false;
-    } // else
-      //   Debug_printf("duration: %llu\n", elapsed);
-
-    return timeout;
-}
-
 uint16_t virtualDevice::adamnet_recv_length()
 {
     unsigned short s = 0;
@@ -197,25 +171,7 @@ void virtualDevice::adamnet_control_ready()
 
 void systemBus::wait_for_idle()
 {
-    bool isIdle = false;
-    int64_t start, current, dur;
-
-    do
-    {
-        // Wait for serial line to quiet down.
-        while (_port.available() > 0)
-            _port.read();
-
-        start = current = esp_timer_get_time();
-
-        while ((_port.available() <= 0) && (isIdle == false))
-        {
-            current = esp_timer_get_time();
-            dur = current - start;
-            if (dur > IDLE_TIME)
-                isIdle = true;
-        }
-    } while (isIdle == false);
+    _port.discardInput();
     fnSystem.yield();
 }
 
@@ -333,7 +289,12 @@ void systemBus::setup()
 
     // Set up UART
     _port.begin(ChannelConfig()
+                .deviceID(FN_UART_BUS)
                 .baud(ADAMNET_BAUDRATE)
+                .inverted(true)
+                .readTimeout(0.180)
+                .discardTimeout(0.180)
+                .rxThreshold(1)
                 );
 }
 

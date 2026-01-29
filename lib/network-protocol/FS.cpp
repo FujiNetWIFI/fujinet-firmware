@@ -5,12 +5,14 @@
  */
 
 #include "FS.h"
+#include "fujiCommandID.h"
 
 #include <stdlib.h>
 #include <string.h>
 
 #include "../../include/debug.h"
 
+#include "status_error_codes.h"
 #include "utils.h"
 
 #include <cstring>
@@ -30,11 +32,12 @@ NetworkProtocolFS::~NetworkProtocolFS()
 {
 }
 
-netProtoErr_t NetworkProtocolFS::open(PeoplesUrlParser *urlParser, netProtoOpenMode_t omode,
+netProtoErr_t NetworkProtocolFS::open(PeoplesUrlParser *urlParser,
+                                      netProtoOpenMode_t accessMode,
                                       netProtoTranslation_t translate)
 {
     // Call base class.
-    NetworkProtocol::open(urlParser, omode, translate);
+    NetworkProtocol::open(urlParser, accessMode, translate);
     fileSize = 0;
 
     update_dir_filename(opened_url);
@@ -42,36 +45,36 @@ netProtoErr_t NetworkProtocolFS::open(PeoplesUrlParser *urlParser, netProtoOpenM
     if (mount(urlParser) == true)
         return NETPROTO_ERR_UNSPECIFIED;
 
-    if (omode == NETPROTO_OPEN_DIRECTORY || omode == NETPROTO_OPEN_DIRECTORY_ALT)
+    if (accessMode == NETPROTO_OPEN_DIRECTORY || accessMode == NETPROTO_OPEN_DIRECTORY_ALT)
     {
         return open_dir(translate);
     }
 
-    return open_file(omode);
+    return open_file(accessMode);
 }
 
-netProtoErr_t NetworkProtocolFS::open_file(netProtoOpenMode_t omode)
+netProtoErr_t NetworkProtocolFS::open_file(netProtoOpenMode_t accessMode)
 {
     update_dir_filename(opened_url);
 
-    if (omode == NETPROTO_OPEN_READ || omode == NETPROTO_OPEN_WRITE)
+    if (accessMode == NETPROTO_OPEN_READ || accessMode == NETPROTO_OPEN_WRITE)
         resolve();
     else
         stat();
 
     update_dir_filename(opened_url);
 
-    openMode = FILE;
+    openMode = OpenMode::FILE;
 
     if (opened_url->path.empty())
         return NETPROTO_ERR_UNSPECIFIED;
 
-    return open_file_handle(omode);
+    return open_file_handle(accessMode);
 }
 
 netProtoErr_t NetworkProtocolFS::open_dir(netProtoTranslation_t a2mode)
 {
-    openMode = DIR;
+    openMode = OpenMode::DIR;
 #ifndef BUILD_ATARI
     this->setLineEnding("\r\n");
 #endif /* BUILD_RS232 */
@@ -155,10 +158,10 @@ netProtoErr_t NetworkProtocolFS::close()
 
     switch (openMode)
     {
-    case FILE:
+    case OpenMode::FILE:
         file_closed = close_file();
         break;
-    case DIR:
+    case OpenMode::DIR:
         file_closed = close_dir();
         break;
     default:
@@ -192,10 +195,10 @@ netProtoErr_t NetworkProtocolFS::read(unsigned short len)
 
     switch (openMode)
     {
-    case FILE:
+    case OpenMode::FILE:
         ret =  read_file(len);
         break;
-    case DIR:
+    case OpenMode::DIR:
         ret = read_dir(len);
         break;
     default:
@@ -271,10 +274,10 @@ netProtoErr_t NetworkProtocolFS::status(NetworkStatus *status)
 {
     switch (openMode)
     {
-    case FILE:
+    case OpenMode::FILE:
         return status_file(status);
         break;
-    case DIR:
+    case OpenMode::DIR:
         return status_dir(status);
         break;
     default:
@@ -423,4 +426,30 @@ netProtoErr_t NetworkProtocolFS::rename(PeoplesUrlParser *url)
 #endif
 
     return NETPROTO_ERR_NONE;
+}
+
+size_t NetworkProtocolFS::available()
+{
+    size_t avail;
+
+
+    switch (openMode)
+    {
+    case OpenMode::FILE:
+#if 0
+        if (aux1_open == NETPROTO_OPEN_WRITE)
+            return 0;
+#endif
+        avail = std::min<size_t>(fileSize + receiveBuffer->length(), WAITING_CAP);
+        break;
+    case OpenMode::DIR:
+        avail = receiveBuffer->length();
+        if (!avail)
+            avail = dirBuffer.length();
+        break;
+    default:
+        avail = 0;
+    }
+
+    return avail;
 }

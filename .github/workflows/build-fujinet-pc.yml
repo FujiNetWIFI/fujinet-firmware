@@ -1,9 +1,20 @@
 name: Build FujiNet-PC
 
 on:
-  # push:
-  #   branches:
-  #     - "**"
+  push:
+    # Do not build tags. Do not build release branch
+    branches:
+      - "**"
+      - "!release"
+    tags:
+      - "!**"
+
+  pull_request:
+    # Do not build release branch
+    branches:
+      - "**"
+      - "!release"
+
   workflow_dispatch:
     inputs:
       # buildType:
@@ -19,12 +30,6 @@ on:
         description: 'Prepare GitHub Release Draft'
         type: boolean
         default: false
-
-  pull_request:
-    # Do not build release branch
-    branches:
-      - "**"
-      - "!release"
 
   schedule:
     - cron: '12 3 * * *'

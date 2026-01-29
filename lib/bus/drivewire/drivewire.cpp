@@ -116,7 +116,12 @@ void systemBus::op_reset()
 
     // When a reset transaction occurs, set the mounted disk image to the CONFIG disk image.
     platformFuji.boot_config = true;
-    platformFuji.insert_boot_device(Config.get_general_boot_mode(), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &platformFuji.bootdisk);
+    platformFuji.insert_boot_device(Config.get_general_boot_mode(), MEDIATYPE_UNKNOWN, &platformFuji.bootdisk);
+    if (pNamedObjFp != NULL)
+    {
+        fclose(pNamedObjFp);
+        pNamedObjFp = NULL;
+    }
 }
 
 void systemBus::op_readex()
@@ -862,18 +867,4 @@ void systemBus::setBaudrate(int baud)
     //_modemDev->get_uart()->set_baudrate(baud); // TODO COME BACK HERE.
 }
 
-void systemBus::changeDeviceId(void *pDevice, int device_id)
-{
-    return;
-}
-
-void systemBus::setUDPHost(const char *newhost, int port)
-{
-    return;
-}
-
-void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
-{
-    return;
-}
 #endif               /* BUILD_COCO */
