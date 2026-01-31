@@ -970,7 +970,13 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         fujicmd_unmount_disk_image_success(cmdFrame.aux1);
         break;
     case FUJICMD_GET_ADAPTERCONFIG:
-        fujicmd_get_adapter_config();
+        // THIS IS STILL NEEDED FOR BACKWARDS COMPATIBILITY WITH
+        // FUJINET-LIB THAT SENDS 0xE8 FOR ADAPTER_CONFIG_EXTENDED
+        // WITH 0x01 IN THE AUX1 BYTE
+        if (cmdFrame.aux1 == 1)
+            fujicmd_get_adapter_config_extended();
+        else
+            fujicmd_get_adapter_config();
         break;
     case FUJICMD_GET_ADAPTERCONFIG_EXTENDED:
         fujicmd_get_adapter_config_extended();
