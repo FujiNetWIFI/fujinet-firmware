@@ -1189,6 +1189,9 @@ void sioNetwork::sio_set_json_query()
 
     memset(in, 0, sizeof(in));
 
+    // Clear receive buffer to prevent accumulation from previous queries
+    receiveBuffer->clear();
+
     bus_to_peripheral(in, sizeof(in)); // TODO test checksum
 
     // strip away line endings from input spec.
