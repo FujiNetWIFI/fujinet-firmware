@@ -1718,6 +1718,8 @@ void fujiDevice::fujicmd_generate_guid()
     uint8_t uuid[16];
     char uuid_str[37];
 
+    transaction_continue(false);
+    
     // Fill buffer with random bytes
     esp_fill_random(uuid, sizeof(uuid));
 
