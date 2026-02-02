@@ -652,6 +652,9 @@ void drivewireFuji::process()
             fujicmd_copy_file_success(source, dest, dirpath);
         }
         break;
+    case FUJICMD_GENERATE_GUID:
+        fujicmd_generate_guid();
+        break;
     default:
         break;
     }

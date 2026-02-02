@@ -1088,6 +1088,9 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case FUJICMD_RANDOM_NUMBER:
         sio_random_number();
         break;
+    case FUJICMD_GENERATE_GUID:
+        fujicmd_generate_guid();
+        break;
     default:
         transaction_error();
     }

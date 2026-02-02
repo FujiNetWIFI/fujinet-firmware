@@ -32,6 +32,7 @@
 #include "compat_string.h"
 #include "fuji_endian.h"
 #include "peoples_url_parser.h"
+#include "esp_random.h"
 
 #ifndef ESP_PLATFORM // why ESP does not like it? it throws a linker error undefined reference to 'basename'
 #include <libgen.h>
@@ -1710,6 +1711,31 @@ void fujiDevice::fujicmd_read_app_key()
         response_data = std::vector<uint8_t>(MAX_APPKEY_LEN + 2, 0);
 
     transaction_put(response_data.data(), response_data.size());
+}
+
+void fujiDevice::fujicmd_generate_guid()
+{
+    uint8_t uuid[16];
+    char uuid_str[37];
+
+    // Fill buffer with random bytes
+    esp_fill_random(uuid, sizeof(uuid));
+
+    // Set version to 4 (random) and variant to 1 (RFC4122)
+    uuid[6] = (uuid[6] & 0x0F) | 0x40;
+    uuid[8] = (uuid[8] & 0x3F) | 0x80;
+
+    // Format into string: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    sprintf(uuid_str, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+            uuid[0], uuid[1], uuid[2], uuid[3],
+            uuid[4], uuid[5],
+            uuid[6], uuid[7],
+            uuid[8], uuid[9],
+            uuid[10], uuid[11], uuid[12], uuid[13], uuid[14], uuid[15]);
+
+    Debug_printf("Fuji cmd: GENERATE GUID (%s)\n", uuid_str);
+
+    transaction_put(uuid_str, sizeof(uuid_str));
 }
 
 #ifdef SYSTEM_BUS_IS_SERIAL
