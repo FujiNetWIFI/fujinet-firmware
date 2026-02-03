@@ -855,6 +855,7 @@ void sioFuji::sio_hash_input()
 
 void sioFuji::sio_hash_compute(bool clear_data)
 {
+    transaction_continue(false);
     Debug_printf("FUJI: HASH COMPUTE\n");
     algorithm = Hash::to_algorithm(sio_get_aux());
     hasher.compute(algorithm, clear_data);
@@ -863,6 +864,7 @@ void sioFuji::sio_hash_compute(bool clear_data)
 
 void sioFuji::sio_hash_length()
 {
+    transaction_continue(false);
     Debug_printf("FUJI: HASH LENGTH\n");
     uint16_t is_hex = sio_get_aux() == 1;
     uint8_t r = hasher.hash_length(algorithm, is_hex);
@@ -871,6 +873,7 @@ void sioFuji::sio_hash_length()
 
 void sioFuji::sio_hash_output()
 {
+    transaction_continue(false);
     Debug_printf("FUJI: HASH OUTPUT\n");
     uint16_t is_hex = sio_get_aux() == 1;
 
@@ -886,6 +889,7 @@ void sioFuji::sio_hash_output()
 
 void sioFuji::sio_hash_clear()
 {
+    transaction_continue(false);
     Debug_printf("FUJI: HASH CLEAR\n");
     hasher.clear();
     transaction_complete();
