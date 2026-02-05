@@ -68,6 +68,12 @@ public:
     NetStreamMode netstreamMode = NetStreamMode::TCP;
     in_addr_t netstream_host_ip = IPADDR_NONE;
     int netstream_port;
+    bool netstream_video_pal = false;
+    bool netstream_tx_clock_external = false;
+    bool netstream_rx_clock_external = false;
+    bool netstream_has_audf3 = false;
+    uint8_t netstream_audf3 = 0;
+    int netstream_baud = SIO_STANDARD_BAUDRATE;
 
     void sio_enable_netstream();  // setup netstream
     void sio_disable_netstream(); // stop netstream

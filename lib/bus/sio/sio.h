@@ -266,8 +266,15 @@ public:
     int getHighSpeedBaud();                                     // Gets current HSIO baud
 
     void setStreamHost(const char *newhost, int port);             // Set new host/ip & port for NetStream
-    void setStreamHostWithOptions(const char *newhost, int port, int mode,
-                                  bool register_enabled);
+    void setStreamHostWithOptions(const char *newhost,
+                                  int port,
+                                  int mode,
+                                  bool register_enabled,
+                                  uint8_t audf3 = 0,
+                                  bool video_pal = false,
+                                  bool tx_clock_external = false,
+                                  bool rx_clock_external = false,
+                                  bool has_audf3 = false);
     void setUltraHigh(bool _enable, int _ultraHighBaud = 0);    // enable ultrahigh/set baud rate
     bool getUltraHighEnabled() { return useUltraHigh; }
     int getUltraHighBaudRate() { return _sioBaudUltraHigh; }

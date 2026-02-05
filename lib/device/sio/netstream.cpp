@@ -26,6 +26,72 @@ static uint64_t netstream_time_us()
 #endif
 }
 
+struct NetstreamAudf3Baud
+{
+    uint8_t audf3;
+    int baud;
+};
+
+static const NetstreamAudf3Baud kNetstreamAudf3Ntsc[] = {
+    {159, 300},   {204, 600},   {162, 750},   {226, 1201},  {109, 2405},
+    {179, 4811},  {86, 9622},   {39, 19454},  {21, 31960},  {16, 38908},
+    {15, 40677},  {14, 42614},  {13, 44744},  {12, 47099},  {11, 49716},
+    {10, 52640},  {9, 55930},   {8, 59659},   {7, 63621},   {6, 68453},
+    {5, 74281},   {4, 81444},   {3, 90493},   {2, 102273},  {1, 118250},
+    {0, 127841},
+};
+
+static const NetstreamAudf3Baud kNetstreamAudf3Pal[] = {
+    {132, 300},   {190, 600},   {151, 750},   {219, 1201},  {106, 2403},
+    {177, 4819},  {85, 9638},   {39, 19276},  {21, 31668},  {16, 38553},
+    {15, 40305},  {14, 42224},  {13, 44336},  {12, 46669},  {11, 49262},
+    {10, 52159},  {9, 55420},   {8, 59114},   {7, 63042},   {6, 67829},
+    {5, 73604},   {4, 80702},   {3, 89669},   {2, 101341},  {1, 117171},
+    {0, 126673},
+};
+
+static int netstream_baud_from_audf3(uint8_t audf3, bool is_pal)
+{
+    const NetstreamAudf3Baud *table = is_pal ? kNetstreamAudf3Pal : kNetstreamAudf3Ntsc;
+    size_t count = is_pal ? (sizeof(kNetstreamAudf3Pal) / sizeof(kNetstreamAudf3Pal[0]))
+                          : (sizeof(kNetstreamAudf3Ntsc) / sizeof(kNetstreamAudf3Ntsc[0]));
+    for (size_t i = 0; i < count; i++)
+    {
+        if (table[i].audf3 == audf3)
+            return table[i].baud;
+    }
+    return 0;
+}
+
+#ifdef ESP_PLATFORM
+static void netstream_enable_clock_pwm(int baud)
+{
+    if (baud <= 0)
+        return;
+
+    ledc_timer_config_t ledc_timer = {};
+    ledc_timer.clk_cfg = LEDC_AUTO_CLK;
+    ledc_timer.speed_mode = LEDC_ESP32XX_HIGH_SPEED;
+    ledc_timer.duty_resolution = LEDC_TIMER_RESOLUTION;
+    ledc_timer.timer_num = LEDC_TIMER_1;
+    ledc_timer.freq_hz = baud;
+
+    ledc_channel_config_t ledc_channel_sio_ckin = {};
+    ledc_channel_sio_ckin.gpio_num = PIN_CKI;
+    ledc_channel_sio_ckin.speed_mode = LEDC_ESP32XX_HIGH_SPEED;
+    ledc_channel_sio_ckin.channel = LEDC_CHANNEL_1;
+    ledc_channel_sio_ckin.intr_type = LEDC_INTR_DISABLE;
+    ledc_channel_sio_ckin.timer_sel = LEDC_TIMER_1;
+    ledc_channel_sio_ckin.duty = 1;
+    ledc_channel_sio_ckin.hpoint = 0;
+
+    ledc_channel_config(&ledc_channel_sio_ckin);
+    ledc_timer_config(&ledc_timer);
+    ledc_set_duty(LEDC_ESP32XX_HIGH_SPEED, LEDC_CHANNEL_1, 1);
+    ledc_update_duty(LEDC_ESP32XX_HIGH_SPEED, LEDC_CHANNEL_1);
+}
+#endif
+
 bool sioNetStream::ensure_netstream_ready()
 {
     if (netstreamMode == NetStreamMode::UDP)
@@ -71,6 +137,8 @@ void sioNetStream::pace_to_atari(uint32_t min_gap_us)
 
 void sioNetStream::sio_enable_netstream()
 {
+    int baud = 0;
+
     // Disable cassette so it doesn't interfere with SIO Motor Control toggle
     if (SIO.getCassette() != nullptr)
     {
@@ -83,37 +151,28 @@ void sioNetStream::sio_enable_netstream()
         cassette_was_active = false;
     }
 
-    if (netstream_port == MIDI_PORT)
-    {
-#ifdef ESP_PLATFORM
-        // Setup PWM timer for CLOCK IN
-        ledc_timer_config_t ledc_timer = {};
-        ledc_timer.clk_cfg = LEDC_AUTO_CLK;
-        ledc_timer.speed_mode = LEDC_ESP32XX_HIGH_SPEED;
-        ledc_timer.duty_resolution = LEDC_TIMER_RESOLUTION;
-        ledc_timer.timer_num = LEDC_TIMER_1;
-        ledc_timer.freq_hz = MIDI_BAUDRATE;
+    if (netstream_has_audf3)
+        baud = netstream_baud_from_audf3(netstream_audf3, netstream_video_pal);
+    if (baud <= 0 && netstream_port == MIDI_PORT)
+        baud = MIDI_BAUDRATE;
+    if (baud <= 0)
+        baud = SIO_STANDARD_BAUDRATE;
 
-        // Setup PWM channel for CLOCK IN
-        ledc_channel_config_t ledc_channel_sio_ckin = {};
-        ledc_channel_sio_ckin.gpio_num = PIN_CKI;
-        ledc_channel_sio_ckin.speed_mode = LEDC_ESP32XX_HIGH_SPEED;
-        ledc_channel_sio_ckin.channel = LEDC_CHANNEL_1;
-        ledc_channel_sio_ckin.intr_type = LEDC_INTR_DISABLE;
-        ledc_channel_sio_ckin.timer_sel = LEDC_TIMER_1;
-        ledc_channel_sio_ckin.duty = 1;
-        ledc_channel_sio_ckin.hpoint = 0;
+    netstream_baud = baud;
+    // Don't set baud until MOTOR asserted
+    //FN_BUS_LINK.set_baudrate(netstream_baud);
 
-        // Enable PWM on CLOCK IN
-        ledc_channel_config(&ledc_channel_sio_ckin);
-        ledc_timer_config(&ledc_timer);
-        ledc_set_duty(LEDC_ESP32XX_HIGH_SPEED, LEDC_CHANNEL_1, 1);
-        ledc_update_duty(LEDC_ESP32XX_HIGH_SPEED, LEDC_CHANNEL_1);
+#ifdef DEBUG_NETSTREAM
+    Debug_printf("NETSTREAM baud: %d (AUDF3=%u %s)\n",
+                 netstream_baud,
+                 netstream_audf3,
+                 netstream_video_pal ? "PAL" : "NTSC");
 #endif
 
-        // Change baud rate
-        FN_BUS_LINK.set_baudrate(MIDI_BAUDRATE);
-    }
+#ifdef ESP_PLATFORM
+    if (netstream_tx_clock_external || netstream_rx_clock_external)
+        netstream_enable_clock_pwm(netstream_baud);
+#endif
 
     if (netstreamMode == NetStreamMode::UDP)
     {

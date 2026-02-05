@@ -383,13 +383,14 @@ void systemBus::service()
         }
         else
         {
-            if (getBaudrate() != MIDI_BAUDRATE)
+            const int netstream_baud = _streamDev->netstream_baud;
+            if (getBaudrate() != netstream_baud)
             {
-                // ensure MIDI baud for NetStream since a cmd frame could change it
+                // Ensure NetStream baud
 #ifdef DEBUG_NETSTREAM
                 Debug_println("NETSTREAM: MOTOR assert, switch baud");
 #endif
-                setBaudrate(MIDI_BAUDRATE);
+                setBaudrate(netstream_baud);
             }
             _streamDev->sio_handle_netstream();
             return; // break!
@@ -795,9 +796,15 @@ void systemBus::setStreamHost(const char *hostname, int port)
         Config.get_network_netstream_register());
 }
 
-void systemBus::setStreamHostWithOptions(const char *hostname, int port,
+void systemBus::setStreamHostWithOptions(const char *hostname,
+                                         int port,
                                          int mode,
-                                         bool register_enabled)
+                                         bool register_enabled,
+                                         uint8_t audf3,
+                                         bool video_pal,
+                                         bool tx_clock_external,
+                                         bool rx_clock_external,
+                                         bool has_audf3)
 {
     if (_streamDev == nullptr)
     {
@@ -844,6 +851,11 @@ void systemBus::setStreamHostWithOptions(const char *hostname, int port,
         ? sioNetStream::NetStreamMode::UDP
         : sioNetStream::NetStreamMode::TCP;
     _streamDev->netstreamRegisterEnabled = register_enabled;
+    _streamDev->netstream_video_pal = video_pal;
+    _streamDev->netstream_tx_clock_external = tx_clock_external;
+    _streamDev->netstream_rx_clock_external = rx_clock_external;
+    _streamDev->netstream_audf3 = audf3;
+    _streamDev->netstream_has_audf3 = has_audf3;
 
     // Restart NetStream mode if needed
     if (_streamDev->netstreamActive)
