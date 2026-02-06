@@ -301,6 +301,9 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         Debug_printf("FUJICMD DEVICE TEST\n");
         rs232_test();
         break;
+    case FUJICMD_GENERATE_GUID:
+        fujicmd_generate_guid();
+        break;
     default:
         transaction_error();
     }

@@ -129,6 +129,7 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
         { FUJICMD_QRCODE_OUTPUT, [this]()              { this->iwm_stat_qrcode_output(); }},                    // 0xBE
         { FUJICMD_STATUS, [this]()                     { this->fujicmd_status(); }},                      // 0x53
         { FUJICMD_GET_HEAP, [this]()                   { this->iwm_stat_get_heap(); }},                         // 0xC1
+        { FUJICMD_GENERATE_GUID, [this]()              { this->fujicmd_generate_guid(); }},                     // 0xBB
     };
 
 }

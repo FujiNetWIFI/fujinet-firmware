@@ -229,6 +229,8 @@ public:
     void fujicmd_write_app_key(uint16_t keylen, uint16_t readlen=0);
     void fujicmd_read_app_key();
 
+    void fujicmd_generate_guid();
+
     // ============ Implementations by fujicmd_ methods ============
     // These are safe to call directly if the bus abstraction
     // (transaction_) doesn't suit the platform.
