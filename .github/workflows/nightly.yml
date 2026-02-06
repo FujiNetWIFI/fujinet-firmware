@@ -101,7 +101,7 @@ jobs:
       with:
 #        body_path: ${{ github.workspace }}/.github/nightly-release.txt
         body: |
-          Nightly builds of the following firmwares:
+          Nightly builds of the following firmware:
 
           - `fujinet-ADAM-*` - Coleco Adam
           - `fujinet-APPLE-*` - Apple 2
@@ -121,3 +121,4 @@ jobs:
         tag_name: nightly
         generate_release_notes: true
         make_latest: false
+        overwrite: true
