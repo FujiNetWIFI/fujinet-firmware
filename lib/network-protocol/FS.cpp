@@ -285,11 +285,7 @@ netProtoErr_t NetworkProtocolFS::status(NetworkStatus *status)
     }
 }
 
-#ifdef BUILD_ATARI
 #define WAITING_CAP 65534
-#else
-#define WAITING_CAP 65534
-#endif
 
 netProtoErr_t NetworkProtocolFS::status_file(NetworkStatus *status)
 {
