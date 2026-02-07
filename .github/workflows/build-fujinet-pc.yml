@@ -30,7 +30,12 @@ on:
         description: 'Prepare GitHub Release Draft'
         type: boolean
         default: false
-
+      ref:
+        description: 'Optional: Tag, branch or commit SHA'
+        required: false
+        default: 'master'
+        type: string
+  
   schedule:
     - cron: '12 3 * * *'
 
@@ -128,9 +133,12 @@ jobs:
 
     - name: '🧰 Checkout'
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        ref: ${{ github.event.inputs.ref != '' && github.event.inputs.ref || github.ref }}
 
-    - name: Fetch tags
-      run: git fetch --prune --unshallow --tags
+    # - name: Fetch tags
+    #   run: git fetch --prune --unshallow --tags
 
     - name: 'Install Python'
       # if: ${{ !startsWith(matrix.os.target, 'windows') }}
