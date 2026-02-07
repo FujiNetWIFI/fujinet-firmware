@@ -120,6 +120,7 @@ jobs:
       run: |
         brew update
         brew install mbedtls@3
+        brew link --force --overwrite mbedtls@3
 
     - name: '[Ubuntu] Install MbedTLS'
       if: ${{ startsWith(matrix.os.target, 'ubuntu') }}
