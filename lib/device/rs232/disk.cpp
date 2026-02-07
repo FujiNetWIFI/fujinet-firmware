@@ -192,7 +192,9 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
     if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
         disk_type = MediaType::discover_mediatype(filename);
 
-    if (disksize == 16384)
+    // TODO: Stupid hack to treat ROM-sized files as ROMs and not disks. Should be
+    // replaced with proper ROM-handling logic
+    if (disksize == 8192 || disksize == 16384 || disksize == 32768)
         return mountROM(f, filename, disksize, disk_type);
 
     // Now mount based on MediaType
