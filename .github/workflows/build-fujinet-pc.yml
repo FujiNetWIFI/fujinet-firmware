@@ -31,7 +31,7 @@ on:
         type: boolean
         default: false
       ref:
-        description: 'Optional: Tag, branch or commit SHA'
+        description: 'Tag, branch or commit SHA'
         required: false
         default: 'master'
         type: string
@@ -118,7 +118,7 @@ jobs:
       if: ${{ startsWith(matrix.os.target, 'macos') }}
       run: |
         brew update
-        brew install mbedtls
+        brew install mbedtls@3
 
     - name: '[Ubuntu] Install MbedTLS'
       if: ${{ startsWith(matrix.os.target, 'ubuntu') }}
