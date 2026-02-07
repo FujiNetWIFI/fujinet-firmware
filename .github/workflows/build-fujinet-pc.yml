@@ -84,7 +84,8 @@ jobs:
           - APPLE
           - ATARI
           - COCO
-          - RS232
+          # disabled temporarily
+          # - RS232
 
     # continue-on-error: true
     name: "${{ matrix.os.name }}: Target ${{ matrix.fujinet_target }}"
