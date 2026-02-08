@@ -25,10 +25,10 @@ using namespace std;
 lynxNetwork::lynxNetwork()
 {
 
-    status_response[1] = SERIAL_PACKET_SIZE % 256;
-    status_response[2] = SERIAL_PACKET_SIZE / 256;
+    //status_response[1] = SERIAL_PACKET_SIZE % 256;
+    //status_response[2] = SERIAL_PACKET_SIZE / 256;
 
-    status_response[3] = 0x00; // Character device
+    //status_response[3] = 0x00; // Character device
 
     receiveBuffer = new string();
     transmitBuffer = new string();
@@ -729,7 +729,7 @@ void lynxNetwork::comlynx_special_80(unsigned short s)
         comlynx_response_nack();
 }
 
-void lynxNetwork::comlynx_response_status()
+/*void lynxNetwork::comlynx_response_status()
 {
     NetworkStatus s;
 
@@ -747,12 +747,13 @@ void lynxNetwork::comlynx_response_status()
     status_response[4] = statusByte.byte;
 
     virtualDevice::comlynx_response_status();
-}
+}*/
 
-void lynxNetwork::comlynx_control_ack()
+/*void lynxNetwork::comlynx_control_ack()
 {
-}
+}*/
 
+/*
 void lynxNetwork::comlynx_control_send()
 {
     uint16_t s = comlynx_recv_length(); // receive length
@@ -831,7 +832,9 @@ void lynxNetwork::comlynx_control_send()
         do_inquiry(c);
     }
 }
+*/
 
+/*
 void lynxNetwork::comlynx_control_clr()
 {
     comlynx_response_send();
@@ -839,6 +842,7 @@ void lynxNetwork::comlynx_control_clr()
     if (channelMode == JSON)
         jsonRecvd = false;
 }
+*/
 
 void lynxNetwork::comlynx_control_receive_channel()
 {
@@ -962,9 +966,9 @@ void lynxNetwork::comlynx_response_send()
  * @param comanddata incoming 4 bytes containing command and aux bytes
  * @param checksum 8 bit checksum
  */
-void lynxNetwork::comlynx_process(uint8_t b)
+void lynxNetwork::comlynx_process()
 {
-    unsigned char c = b >> 4; // Seperate out command from node ID
+    /*unsigned char c = b >> 4; // Seperate out command from node ID
 
     switch (c)
     {
@@ -986,7 +990,7 @@ void lynxNetwork::comlynx_process(uint8_t b)
     case MN_READY:
         comlynx_control_ready();
         break;
-    }
+    }*/
 }
 
 /** PRIVATE METHODS ************************************************************/

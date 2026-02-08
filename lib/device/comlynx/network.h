@@ -85,15 +85,15 @@ public:
      */
     virtual void status();
 
-    virtual void comlynx_control_ack();
-    virtual void comlynx_control_clr();
-    virtual void comlynx_control_receive();
+    //virtual void comlynx_control_ack();
+    //virtual void comlynx_control_clr();
+    //virtual void comlynx_control_receive();
     virtual void comlynx_control_receive_channel();
     virtual void comlynx_control_receive_channel_json();
     virtual void comlynx_control_receive_channel_protocol();
-    virtual void comlynx_control_send();
+    //virtual void comlynx_control_send();
 
-    virtual void comlynx_response_status() override;
+    //virtual void comlynx_response_status() override;
     virtual void comlynx_response_send();
 
     /**
@@ -141,7 +141,7 @@ public:
      * Process incoming LYNX command for device 0x7X
      * @param b The incoming command byte
      */
-    virtual void comlynx_process(uint8_t b) override;
+    virtual void comlynx_process() override;
 
     virtual void del(uint16_t s);
     virtual void rename(uint16_t s);

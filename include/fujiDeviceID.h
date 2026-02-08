@@ -1,7 +1,7 @@
 #ifndef FUJI_DEVICES_H
 #define FUJI_DEVICES_H
 
-#if defined(BUILD_ADAM) || defined(BUILD_LYNX)
+#if defined(BUILD_ADAM)
 enum fujiDeviceID_t {
   FUJI_DEVICEID_FUJINET      = 0x0F,
 
@@ -38,6 +38,6 @@ enum fujiDeviceID_t {
   FUJI_DEVICEID_NETWORK_LAST = 0x78,
   FUJI_DEVICEID_MIDI         = 0x99,
 };
-#endif /* BUILD_ADAM || BUILD_LYNX */
+#endif /* BUILD_ADAM */
 
 #endif /* FUJI_DEVICES_H */

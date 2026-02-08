@@ -5,12 +5,13 @@
 #include "bus.h"
 #include "media.h"
 
+/*
 #define STATUS_OK        0
 #define STATUS_BAD_BLOCK 1
 #define STATUS_NO_BLOCK  2
 #define STATUS_NO_MEDIA  3
 #define STATUS_NO_DRIVE  4
-
+*/
 
 class lynxDisk : public virtualDevice
 {
@@ -20,15 +21,17 @@ private:
 
     unsigned long blockNum=INVALID_SECTOR_VALUE;
 
-    void comlynx_control_clr();
-    void comlynx_control_receive();
-    void comlynx_control_send();
-    void comlynx_control_send_block_num();
-    void comlynx_control_send_block_data();
-    virtual void comlynx_response_status() override;
-    void comlynx_response_send();
+    //void comlynx_control_clr();
+    //void comlynx_control_receive();
+    //void comlynx_control_send();
+    //void comlynx_control_send_block_num();
+    //void comlynx_control_send_block_data();
+    //virtual void comlynx_response_status() override;
+    //void comlynx_response_send();
 
-    void comlynx_process(uint8_t b) override;
+    void comlynx_process() override;
+    void read_block(uint32_t block);
+    void write_block(uint32_t block, uint8_t *data);
 
 public:
     lynxDisk();

@@ -94,10 +94,6 @@ void virtualDevice::comlynx_send(uint8_t b)
 
 void virtualDevice::comlynx_send_buffer(uint8_t *buf, unsigned short len)
 {
-
-    //buf[len] = '\0';
-    //Debug_printf("comlynx_send_buffer: %d %s\n", len, buf);   // causes out of bounds write in disk routines
-
     //Debug_printf("comlynx_send_buffer: len:%d %0X %0X %0X %0X %0X %0X\n", len, buf[0], buf[1], buf[2], buf[3], buf[4], buf[len-1]);
     Debug_printf("comlynx_send_buffer: len:%d\n", len);
 
@@ -179,17 +175,17 @@ bool virtualDevice::comlynx_recv_timeout(uint8_t *b, uint64_t dur)
 
 uint16_t virtualDevice::comlynx_recv_length()
 {
-    unsigned short s = 0;
-    s = comlynx_recv() << 8;
-    s |= comlynx_recv();
+    unsigned short l = 0;
+    l = comlynx_recv() << 8;
+    l |= comlynx_recv();
 
-    if (s > 1024)
-        s = 1024;
+    if (l > 1024)
+        l = 1024;
 
     // Reset recv buffer, but maybe we want checksum over the length too? -SJ
     recvbuffer_len = 0;
 
-    return s;
+    return l;
 }
 
 void virtualDevice::comlynx_send_length(uint16_t l)
@@ -205,8 +201,9 @@ unsigned short virtualDevice::comlynx_recv_buffer(uint8_t *buf, unsigned short l
     b = SYSTEM_BUS.read(buf, len);
 
     // Add to receive buffer
-    memcpy(&recvbuffer[recvbuffer_len], buf, len);
-    recvbuffer_len += len;
+    //memcpy(&recvbuffer[recvbuffer_len], buf, len);
+    recvbuffer_len = len;               // length of payload
+    recvbuf_pos = &recvbuffer[0];       // pointer into payload
 
     return(b);
 }
@@ -227,18 +224,20 @@ void virtualDevice::reset()
 
 void virtualDevice::comlynx_response_ack()
 {
-    comlynx_send(0x90 | _devnum);
+    //comlynx_send(0x90 | _devnum);
+    comlynx_send(FUJICMD_ACK);
 }
 
 void virtualDevice::comlynx_response_nack()
 {
-    comlynx_send(0xC0 | _devnum);
+    //comlynx_send(0xC0 | _devnum);
+    comlynx_send(FUJICMD_NAK);
 }
 
-void virtualDevice::comlynx_control_ready()
+/*void virtualDevice::comlynx_control_ready()
 {
     comlynx_response_ack();
-}
+}*/
 
 bool systemBus::wait_for_idle()
 {
@@ -268,12 +267,12 @@ bool systemBus::wait_for_idle()
     //fnSystem.yield();         // not sure if we need to do this, from old function - SJ
 }
 
-void virtualDevice::comlynx_process(uint8_t b)
+void virtualDevice::comlynx_process()
 {
-    fnDebugConsole.printf("comlynx_process() not implemented yet for this device. Cmd received: %02x\n", b);
+    fnDebugConsole.printf("comlynx_process() not implemented yet for this device.\n");
 }
 
-void virtualDevice::comlynx_control_status()
+/*void virtualDevice::comlynx_control_status()
 {
     //SYSTEM_BUS.start_time = esp_timer_get_time();
     comlynx_response_status();
@@ -308,7 +307,7 @@ void virtualDevice::comlynx_idle()
 {
     // Not implemented in base class
 }
-
+*/
 // void virtualDevice::comlynx_status()
 //{
 //     fnUartDebug.printf("comlynx_status() not implemented yet for this device.\n");
@@ -316,11 +315,9 @@ void virtualDevice::comlynx_idle()
 
 void systemBus::_comlynx_process_cmd()
 {
-    uint8_t d, b;
+    uint8_t d;
 
-    b = SYSTEM_BUS.read();
-    d = b & 0x0F;
-
+    d = SYSTEM_BUS.read();
 
     // Find device ID and pass control to it
     if (_daisyChain.count(d) < 1)
@@ -328,23 +325,27 @@ void systemBus::_comlynx_process_cmd()
     }
     else if (_daisyChain[d]->device_active == true)
     {
-    #ifdef DEBUG
+    /*#ifdef DEBUG
         if ((b & 0xF0) == (MN_ACK<<4))
             Debug_println("Lynx sent ACK");
         else {
                 Debug_println("---");
             Debug_printf("comlynx_process_cmd: dev:%X cmd:%X\n", d, (b & 0xF0)>>4);
         }
+    #endif*/
+
+    #ifdef DEBUG
+        Debug_println("---");
+        Debug_printf("comlynx_process_cmd - dev:%Xn", d);
     #endif
 
         // turn on Comlynx Indicator LED
         fnLedManager.set(eLed::LED_BUS, true);
-        _daisyChain[d]->comlynx_process(b);
+        _daisyChain[d]->comlynx_process();
         // turn off Comlynx Indicator LED
         fnLedManager.set(eLed::LED_BUS, false);
     }
 
-    //SYSTEM_BUS.flush_input();
     SYSTEM_BUS.flush();
 }
 
@@ -566,12 +567,5 @@ void systemBus::setRedeyeGameRemap(uint32_t remap)
     }
 }
 
-
-/*void systemBus::setComlynxIdleTime(uint64_t idle_time)
-{
-   Debug_printf("setComlynxIdleTime, %d\n", idle_time);
-
-   SYSTEM_BUS.comlynx_idle_time = idle_time;
-}*/
 
 #endif /* BUILD_LYNX */
