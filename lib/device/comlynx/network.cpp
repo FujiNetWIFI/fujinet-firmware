@@ -923,6 +923,7 @@ void lynxNetwork::comlynx_control_receive_channel_protocol()
     }
 }
 
+/*
 void lynxNetwork::comlynx_control_receive()
 {
      // Data is waiting, go ahead and send it off.
@@ -941,6 +942,7 @@ void lynxNetwork::comlynx_control_receive()
         break;
     }
 }
+*/
 
 void lynxNetwork::comlynx_response_send()
 {
