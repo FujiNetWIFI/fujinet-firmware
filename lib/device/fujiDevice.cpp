@@ -1647,6 +1647,50 @@ void fujiDevice::fujicmd_read_app_key()
     transaction_put(response_data.data(), response_data.size());
 }
 
+void fujiDevice::fujicmd_generate_guid()
+{
+    char uuid_str[37];
+    char hex[] = "0123456789abcdef";
+    int i;  
+
+    transaction_continue(false);
+
+    Debug_printf("Fuji cmd: GENERATE GUID\n");
+
+    for (i = 0; i < 36; i++)
+    {
+        switch (i)
+        {
+        case 8:
+        case 13:
+        case 18:
+        case 23:
+            uuid_str[i] = '-';
+            break;
+
+        case 14:
+            /* UUID version 4 */
+            uuid_str[i] = '4';
+            break;
+
+        case 19:
+            /* UUID variant: 8, 9, a, or b */
+            uuid_str[i] = hex[(rand() & 0x3) | 0x8];
+            break;
+
+        default:
+            uuid_str[i] = hex[rand() & 0xF];
+            break;
+        }
+    }
+
+    uuid_str[36] = '\0';
+
+    Debug_printf("GUID: %s\n", uuid_str);
+
+    transaction_put(uuid_str, sizeof(uuid_str));
+}
+
 #ifdef SYSTEM_BUS_IS_SERIAL
 // Set an external clock rate in kHz defined by speed in steps of 2kHz.
 void fujiDevice::fujicmd_set_sio_external_clock(uint16_t speed)

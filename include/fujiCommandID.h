@@ -77,6 +77,7 @@ enum fujiCommandID_t {
   FUJICMD_QRCODE_LENGTH              = 0xBE,
   FUJICMD_QRCODE_ENCODE              = 0xBD,
   FUJICMD_QRCODE_INPUT               = 0xBC,
+  FUJICMD_GENERATE_GUID              = 0xBB,
   FUJICMD_GET_DEVICE8_FULLPATH       = 0xA7,
   FUJICMD_GET_DEVICE7_FULLPATH       = 0xA6,
   FUJICMD_GET_DEVICE6_FULLPATH       = 0xA5,

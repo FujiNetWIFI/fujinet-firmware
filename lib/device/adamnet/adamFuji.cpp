@@ -538,6 +538,9 @@ void adamFuji::adamnet_control_send()
             fujicmd_copy_file_success(source, dest, dirpath);
         }
         break;
+    case FUJICMD_GENERATE_GUID:
+        fujicmd_generate_guid();
+        break;
     default:
         Debug_printv("Unknown command: %02x\n", c);
         break;

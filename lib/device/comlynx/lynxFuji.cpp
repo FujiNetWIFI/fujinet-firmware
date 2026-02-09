@@ -543,6 +543,9 @@ void lynxFuji::comlynx_control_send()
     case FUJICMD_ENABLE_UDPSTREAM:
         fujicmd_enable_udpstream(s);
         break;
+    case FUJICMD_GENERATE_GUID:
+        fujicmd_generate_guid();
+        break;
     case 0x01:
         comlynx_hello();
         break;
