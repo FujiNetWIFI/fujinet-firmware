@@ -5,9 +5,32 @@ on:
     - cron: '0 4 * * *'
   workflow_dispatch:
 
+env:
+  KEEP_NIGHTLIES: 3
+
 jobs:
+  cleanup-nightly:
+    name: "Clean up old nightly assets"
+    if: ${{ vars.RUN_NIGHTLY == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Delete old nightly assets (keep last ${{ env.KEEP_NIGHTLIES }})
+        continue-on-error: true
+        run: |
+          KEEP=${{ env.KEEP_NIGHTLIES }}
+          SKIP=$((KEEP + 1))
+          gh release view nightly --json assets --jq '.assets[].name' | \
+            sort -r | \
+            tail -n +${SKIP} | \
+            xargs -r -I {} gh release delete-asset nightly {} --yes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   nightly-release:
     name: "PlatformIO CI"
+    needs: cleanup-nightly
     if: ${{ vars.RUN_NIGHTLY == 'true' }}
     runs-on: "ubuntu-latest"
     strategy:
@@ -121,4 +144,3 @@ jobs:
         tag_name: nightly
         generate_release_notes: true
         make_latest: false
-        overwrite: true
