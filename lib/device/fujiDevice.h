@@ -223,7 +223,7 @@ public:
 #endif /* SYSTEM_BUS_IS_UDP */
 
     // Move appkey stuff to its own file?
-    void fujicmd_open_app_key();
+    virtual void fujicmd_open_app_key();
     void fujicmd_close_app_key();
     void fujicmd_write_app_key(uint16_t keylen, uint16_t readlen=0);
     void fujicmd_read_app_key();

@@ -1449,6 +1449,13 @@ char *_generate_appkey_filename(appkey *info)
 bool fujiDevice::fujicore_open_app_key(uint16_t creator, uint8_t app, uint8_t key,
                                        appkey_mode mode, uint8_t reserved)
 {
+    // We're only supporting writing to SD, so return an error if there's no SD mounted
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - returning error");
+        return false;
+    }
+
     // Basic check for valid data
     if (creator == 0 || mode == APPKEYMODE_INVALID)
     {
@@ -1479,14 +1486,6 @@ void fujiDevice::fujicmd_open_app_key()
     // The data expected for this command
     if (!transaction_get(&key, sizeof(key)))
     {
-        transaction_error();
-        return;
-    }
-
-    // We're only supporting writing to SD, so return an error if there's no SD mounted
-    if (fnSDFAT.running() == false)
-    {
-        Debug_println("No SD mounted - returning error");
         transaction_error();
         return;
     }
