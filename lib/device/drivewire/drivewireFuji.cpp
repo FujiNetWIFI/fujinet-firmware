@@ -697,4 +697,29 @@ std::optional<std::vector<uint8_t>> drivewireFuji::fujicore_read_app_key()
     return result;
 }
 
+void drivewireFuji::fujicmd_open_app_key()
+{
+    // fujinet-lib for coco sends appkey creator with backwards
+    // endianness, we'll fix it here
+
+    transaction_continue(true);
+    Debug_print("Fuji cmd: OPEN APPKEY\n");
+
+    appkey key;
+
+    // The data expected for this command
+    if (!transaction_get(&key, sizeof(key)))
+    {
+        transaction_error();
+        return;
+    }
+
+    if (!fujicore_open_app_key(be16toh(key.creator), key.app, key.key, key.mode, key.reserved))
+    {
+        transaction_error();
+        return;
+    }
+    transaction_complete();
+}    
+
 #endif /* BUILD_COCO */

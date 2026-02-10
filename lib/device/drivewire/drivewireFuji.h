@@ -77,6 +77,7 @@ public:
 
     // ============ Wrapped Fuji commands ============
     std::optional<std::vector<uint8_t>> fujicore_read_app_key() override;
+    void fujicmd_open_app_key() override;
 
 };
 
