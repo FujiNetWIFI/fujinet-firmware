@@ -86,6 +86,9 @@ bool lynxFuji::transaction_get(void *data, size_t len)
 
 void lynxFuji::transaction_put(const void *data, size_t len, bool err)
 {
+    uint8_t b;
+
+    // set response buffer
     memcpy(response, data, len);
     response_len = len;
 
@@ -96,9 +99,16 @@ void lynxFuji::transaction_put(const void *data, size_t len, bool err)
     comlynx_send(ck);
 
     // get ACK or NACK from Lynx, we're ignoring currently
+    //uint8_t t = comlynx_recv_timeout(&b, 8000);
     uint8_t r = comlynx_recv();
     #ifdef DEBUG
-        Debug_printf("transaction_put - Lynx sent: %02X", r);
+        //if (!t)
+            if (r == FUJICMD_ACK)
+                Debug_println("transaction_put - Lynx ACKed");
+            else
+                Debug_println("transaction put - Lynx NAKed");
+        //else
+        //    Debug_println("transaction_put - timed out waiting for ACK/NAK from Lynx");
     #endif
 
     return;
@@ -194,80 +204,6 @@ void lynxFuji::comlynx_new_disk()
     transaction_complete();
 }
 
-/*void lynxFuji::comlynx_enable_device()
-{
-    fujiDeviceID_t d = (fujiDeviceID_t) comlynx_recv();
-    Debug_printf("FUJI ENABLE DEVICE %02x\n",d);
-
-    // Get packet checksum
-    if (!comlynx_recv_ck()) {
-        comlynx_response_nack();
-        return;
-    }
-
-    switch(d)
-    {
-    case FUJI_DEVICEID_PRINTER:
-        Config.store_printer_enabled(true);
-        break;
-    case FUJI_DEVICEID_DISK:
-        Config.store_device_slot_enable_1(true);
-        break;
-    case FUJI_DEVICEID_DISK2:
-        Config.store_device_slot_enable_2(true);
-        break;
-    case FUJI_DEVICEID_DISK3:
-        Config.store_device_slot_enable_3(true);
-        break;
-    case FUJI_DEVICEID_DISK4:
-        Config.store_device_slot_enable_4(true);
-        break;
-    default:
-        break;
-    }
-
-    Config.save();
-    SYSTEM_BUS.enableDevice(d);
-    comlynx_response_ack();
-}*/
-
-/*void lynxFuji::comlynx_disable_device()
-{
-   fujiDeviceID_t d = (fujiDeviceID_t) comlynx_recv();
-    Debug_printf("FUJI DISABLE DEVICE %02x\n",d);
-
-    // Get packet checksum
-    if (!comlynx_recv_ck()) {
-        comlynx_response_nack();
-        return;
-    }
-
-    switch(d)
-    {
-    case FUJI_DEVICEID_PRINTER:
-        Config.store_printer_enabled(false);
-        break;
-    case FUJI_DEVICEID_DISK:
-        Config.store_device_slot_enable_1(false);
-        break;
-    case FUJI_DEVICEID_DISK2:
-        Config.store_device_slot_enable_2(false);
-        break;
-    case FUJI_DEVICEID_DISK3:
-        Config.store_device_slot_enable_3(false);
-        break;
-    case FUJI_DEVICEID_DISK4:
-        Config.store_device_slot_enable_4(false);
-        break;
-    default:
-        break;
-    }
-
-    Config.save();
-    SYSTEM_BUS.disableDevice(d);
-    comlynx_response_ack();
-}*/
-
 // Initializes base settings and adds our devices to the SIO bus
 void lynxFuji::setup()
 {
@@ -323,16 +259,6 @@ void lynxFuji::fujicmd_get_time()
     Debug_printf("comlynx_get_time - Sending %02X %02X %02X %02X %02X %02X\n",now->tm_mday, now->tm_mon, now->tm_year, now->tm_hour, now->tm_min, now->tm_sec);
 }
 
-/*void lynxFuji::comlynx_device_enable_status()
-{
-    fujiDeviceID_t d;
-    uint8_t r;
-
-    transaction_get(&d, sizeof(d));
-    r = SYSTEM_BUS.deviceEnabled(d);
-    transaction_put(&r, sizeof(r));
-}*/
-
 void lynxFuji::comlynx_process()
 {
     unsigned char c;
@@ -343,13 +269,17 @@ void lynxFuji::comlynx_process()
     
     // Get the entire payload from Lynx
     uint16_t len = comlynx_recv_length();
+    Debug_printf("lynxFuji::comlynx_process - len: %ld, ", len);
+
     comlynx_recv_buffer(recvbuffer, len);
     if (comlynx_recv_ck()) {
-        comlynx_response_nack();        // bad checksum
-        return;
+        Debug_printf("checksum good\n");
+        comlynx_response_ack();        // good checksum
     }
     else {
-        comlynx_response_ack();         // good checksum
+        Debug_printf(" checksum bad\n");
+        comlynx_response_nack();       // good checksum
+        return;
     }
 
     // get command

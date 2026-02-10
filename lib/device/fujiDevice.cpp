@@ -362,6 +362,7 @@ void fujiDevice::fujicmd_net_scan_networks()
     Debug_println("Fuji cmd: SCAN NETWORKS");
     fujicore_net_scan_networks();
     ret = _countScannedSSIDs;
+    sleep(2);
     transaction_put(&ret, sizeof(ret));
     return;
 }

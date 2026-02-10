@@ -383,6 +383,8 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
     if (temporary_disconnect == true)
         esp_wifi_connect();
 
+    while(_connected == false);
+
     return final_count;
 }
 

@@ -80,7 +80,7 @@ uint8_t comlynx_checksum(uint8_t *buf, unsigned short len)
 
 void virtualDevice::comlynx_send(uint8_t b)
 {
-    Debug_printf("comlynx_send_buffer: %X\n", b);
+    Debug_printf("comlynx_send_buffer - %X\n", b);
 
     // Wait for idle only when in UDPStream mode
     if (SYSTEM_BUS._udpDev->udpstreamActive)
@@ -94,8 +94,7 @@ void virtualDevice::comlynx_send(uint8_t b)
 
 void virtualDevice::comlynx_send_buffer(uint8_t *buf, unsigned short len)
 {
-    //Debug_printf("comlynx_send_buffer: len:%d %0X %0X %0X %0X %0X %0X\n", len, buf[0], buf[1], buf[2], buf[3], buf[4], buf[len-1]);
-    Debug_printf("comlynx_send_buffer: len:%d\n", len);
+    Debug_printf("comlynx_send_buffer - len:%d\n", len);
 
     // Wait for idle only when in UDPStream mode
     if (SYSTEM_BUS._udpDev->udpstreamActive)
@@ -122,7 +121,7 @@ bool virtualDevice::comlynx_recv_ck()
     //Debug_printf("comlynx_recv_ck, recv:%02X calc:%02X\n", recv_ck, ck);
 
     // reset receive buffer
-    recvbuffer_len = 0;
+    //recvbuffer_len = 0;
 
     if (recv_ck == ck)
         return true;
@@ -182,7 +181,7 @@ uint16_t virtualDevice::comlynx_recv_length()
     if (l > 1024)
         l = 1024;
 
-    // Reset recv buffer, but maybe we want checksum over the length too? -SJ
+    // Reset recv buffer
     recvbuffer_len = 0;
 
     return l;
@@ -201,20 +200,11 @@ unsigned short virtualDevice::comlynx_recv_buffer(uint8_t *buf, unsigned short l
     b = SYSTEM_BUS.read(buf, len);
 
     // Add to receive buffer
-    //memcpy(&recvbuffer[recvbuffer_len], buf, len);
-    recvbuffer_len = len;               // length of payload
+    memcpy(&recvbuffer[recvbuffer_len], buf, len);
+    recvbuffer_len += len;               // length of payload
     recvbuf_pos = &recvbuffer[0];       // pointer into payload
 
     return(b);
-}
-
-uint32_t virtualDevice::comlynx_recv_blockno()
-{
-    unsigned char x[4] = {0x00, 0x00, 0x00, 0x00};
-
-    comlynx_recv_buffer(x, 4);
-
-    return x[3] << 24 | x[2] << 16 | x[1] << 8 | x[0];
 }
 
 void virtualDevice::reset()
@@ -224,20 +214,13 @@ void virtualDevice::reset()
 
 void virtualDevice::comlynx_response_ack()
 {
-    //comlynx_send(0x90 | _devnum);
     comlynx_send(FUJICMD_ACK);
 }
 
 void virtualDevice::comlynx_response_nack()
 {
-    //comlynx_send(0xC0 | _devnum);
     comlynx_send(FUJICMD_NAK);
 }
-
-/*void virtualDevice::comlynx_control_ready()
-{
-    comlynx_response_ack();
-}*/
 
 bool systemBus::wait_for_idle()
 {
@@ -272,47 +255,6 @@ void virtualDevice::comlynx_process()
     fnDebugConsole.printf("comlynx_process() not implemented yet for this device.\n");
 }
 
-/*void virtualDevice::comlynx_control_status()
-{
-    //SYSTEM_BUS.start_time = esp_timer_get_time();
-    comlynx_response_status();
-}
-
-void virtualDevice::comlynx_response_status()
-{
-    status_response[0] |= _devnum;
-
-    status_response[5] = comlynx_checksum(&status_response[1], 4);
-    comlynx_send_buffer(status_response, sizeof(status_response));
-}
-
-void virtualDevice::comlynx_control_clr()
-{
-    if (response_len == 0)
-    {
-        comlynx_response_nack();
-    }
-    else
-    {
-        comlynx_send(0xB0 | _devnum);
-        comlynx_send_length(response_len);
-        comlynx_send_buffer(response, response_len);
-        comlynx_send(comlynx_checksum(response, response_len));
-        memset(response, 0, sizeof(response));
-        response_len = 0;
-    }
-}
-
-void virtualDevice::comlynx_idle()
-{
-    // Not implemented in base class
-}
-*/
-// void virtualDevice::comlynx_status()
-//{
-//     fnUartDebug.printf("comlynx_status() not implemented yet for this device.\n");
-// }
-
 void systemBus::_comlynx_process_cmd()
 {
     uint8_t d;
@@ -325,18 +267,9 @@ void systemBus::_comlynx_process_cmd()
     }
     else if (_daisyChain[d]->device_active == true)
     {
-    /*#ifdef DEBUG
-        if ((b & 0xF0) == (MN_ACK<<4))
-            Debug_println("Lynx sent ACK");
-        else {
-                Debug_println("---");
-            Debug_printf("comlynx_process_cmd: dev:%X cmd:%X\n", d, (b & 0xF0)>>4);
-        }
-    #endif*/
-
-    #ifdef DEBUG
+     #ifdef DEBUG
         Debug_println("---");
-        Debug_printf("comlynx_process_cmd - dev:%Xn", d);
+        Debug_printf("comlynx_process_cmd - dev:%X\n", d);
     #endif
 
         // turn on Comlynx Indicator LED
