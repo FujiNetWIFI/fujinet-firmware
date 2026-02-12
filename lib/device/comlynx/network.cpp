@@ -439,7 +439,7 @@ void lynxNetwork::del(uint16_t s)
     if (protocol == nullptr)
         return;
 
-    cmdFrame.comnd = '!';
+    cmdFrame.comnd = NETCMD_DELETE;
 
     if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
     {
@@ -467,7 +467,7 @@ void lynxNetwork::rename(uint16_t s)
     d = string((char *)response, s);
     parse_and_instantiate_protocol(d);
 
-    cmdFrame.comnd = ' ';
+    cmdFrame.comnd = NETCMD_RENAME;
 
     if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
     {
@@ -493,7 +493,7 @@ void lynxNetwork::mkdir(uint16_t s)
     d = string((char *)response, s);
     parse_and_instantiate_protocol(d);
 
-    cmdFrame.comnd = '*';
+    cmdFrame.comnd = NETCMD_MKDIR;
 
     if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
     {
@@ -629,34 +629,34 @@ void lynxNetwork::do_inquiry(fujiCommandID_t inq_cmd)
         inq_dstats = protocol->special_inquiry(inq_cmd);
 
     // If we didn't get one from protocol, or unsupported, see if supported globally.
-    if (inq_dstats == 0xFF)
+    if (inq_dstats == SIO_DIRECTION_INVALID)
     {
         switch (inq_cmd)
         {
-        case FUJICMD_RENAME:
-        case FUJICMD_DELETE:
-        case FUJICMD_LOCK:
-        case FUJICMD_UNLOCK:
-        case FUJICMD_MKDIR:
-        case FUJICMD_RMDIR:
-        case FUJICMD_CHDIR:
-        case FUJICMD_USERNAME:
-        case FUJICMD_PASSWORD:
+        case NETCMD_RENAME:
+        case NETCMD_DELETE:
+        case NETCMD_LOCK:
+        case NETCMD_UNLOCK:
+        case NETCMD_MKDIR:
+        case NETCMD_RMDIR:
+        case NETCMD_CHDIR:
+        case NETCMD_USERNAME:
+        case NETCMD_PASSWORD:
             inq_dstats = SIO_DIRECTION_WRITE;
             break;
-        case FUJICMD_GETCWD:
+        case NETCMD_GETCWD:
             inq_dstats = SIO_DIRECTION_READ;
             break;
-        case FUJICMD_TIMER: // Set interrupt rate
+        case NETCMD_SET_INT_RATE: // Set interrupt rate
             inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_TRANSLATION: // Set Translation
+        case NETCMD_TRANSLATION: // Set Translation
             inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_JSON_PARSE: // JSON Parse
+        case NETCMD_PARSE_ALT: // JSON Parse
             inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_JSON_QUERY: // JSON Query
+        case NETCMD_QUERY_ALT: // JSON Query
             inq_dstats = SIO_DIRECTION_WRITE;
             break;
         default:
@@ -762,40 +762,40 @@ void lynxNetwork::comlynx_control_send()
 
     switch (c)
     {
-    case FUJICMD_RENAME:
+    case NETCMD_RENAME:
         rename(s);
         break;
-    case FUJICMD_DELETE:
+    case NETCMD_DELETE:
         del(s);
         break;
-    case FUJICMD_MKDIR:
+    case NETCMD_MKDIR:
         mkdir(s);
         break;
-    case FUJICMD_CHDIR:
+    case NETCMD_CHDIR:
         set_prefix(s);
         break;
-    case FUJICMD_GETCWD:
+    case NETCMD_GETCWD:
         get_prefix();
         break;
-    case FUJICMD_OPEN:
+    case NETCMD_OPEN:
         open(s);
         break;
-    case FUJICMD_CLOSE:
+    case NETCMD_CLOSE:
         close();
         break;
-    case FUJICMD_STATUS:
+    case NETCMD_STATUS:
         status();
         break;
-    case FUJICMD_WRITE:
+    case NETCMD_WRITE:
         write(s);
         break;
-    case FUJICMD_GET_SCAN_RESULT:
+    case NETCMD_CHANNEL_MODE:
         channel_mode();
         break;
-    case FUJICMD_USERNAME: // login
+    case NETCMD_USERNAME: // login
         set_login(s);
         break;
-    case FUJICMD_PASSWORD: // password
+    case NETCMD_PASSWORD: // password
         set_password(s);
         break;
     default:
@@ -814,10 +814,10 @@ void lynxNetwork::comlynx_control_send()
         case JSON:
             switch (c)
             {
-            case FUJICMD_PUT:
+            case NETCMD_PARSE:
                 json_parse();
                 break;
-            case FUJICMD_QUERY:
+            case NETCMD_QUERY:
                 json_query(s);
                 break;
             default:

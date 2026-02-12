@@ -2,6 +2,7 @@
 #ifndef IWM_H
 #define IWM_H
 
+#include "cmdFrame.h"
 #include "../../include/debug.h"
 
 // for ESP IWM-SLIP build, DEV_RELAY_SLIP should be defined in platformio.ini
@@ -125,24 +126,6 @@ class iwmDisk;     // disk device cause I need to use "iwmDisk smort" for protot
 class iwmCPM;      // CPM Virtual Device
 class iwmClock;    // Real Time Clock Device
 class systemBus;      // forward declare bus so can be friend
-
-// Sorry, this  is the protocol adapter's fault. -Thom
-union cmdFrame_t
-{
-    struct
-    {
-        uint8_t device;
-        uint8_t comnd;
-        uint8_t aux1;
-        uint8_t aux2;
-        uint8_t cksum;
-    };
-    struct
-    {
-        uint32_t commanddata;
-        uint8_t checksum;
-    } __attribute__((packed));
-};
 
 #define BLOCK_DATA_LEN      512
 #define MAX_DATA_LEN        767

@@ -2,6 +2,7 @@
 #ifndef MAC_H
 #define MAC_H
 
+#include "cmdFrame.h"
 #include "bus.h"
 #include <cstdint>
 #include <forward_list>
@@ -15,24 +16,6 @@ class systemBus;     // forward declare for macDevice
 class macFuji;    // declare here so can reference it, but define in fuji.h
 
 typedef char mac_cmd_t;
-
-// Sorry, this  is the protocol adapter's fault. -Thom
-union cmdFrame_t
-{
-  struct
-  {
-    uint8_t device;
-    uint8_t comnd;
-    uint8_t aux1;
-    uint8_t aux2;
-    uint8_t cksum;
-  };
-  struct
-  {
-    uint32_t commanddata;
-    uint8_t checksum;
-  } __attribute__((packed));
-};
 
 enum class mac_fujinet_type_t
 {
@@ -53,7 +36,7 @@ class macDevice
   friend systemBus;
 
 protected:
-  char _devnum;             
+  char _devnum;
   bool _initialized;
 
 public:

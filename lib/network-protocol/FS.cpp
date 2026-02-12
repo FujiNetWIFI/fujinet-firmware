@@ -423,17 +423,17 @@ netProtoErr_t NetworkProtocolFS::perform_idempotent_80(PeoplesUrlParser *url, cm
 #endif
     switch (cmdFrame->comnd)
     {
-    case FUJICMD_RENAME:
+    case NETCMD_RENAME:
         return rename(url, cmdFrame);
-    case FUJICMD_DELETE:
+    case NETCMD_DELETE:
         return del(url, cmdFrame);
-    case FUJICMD_LOCK:
+    case NETCMD_LOCK:
         return lock(url, cmdFrame);
-    case FUJICMD_UNLOCK:
+    case NETCMD_UNLOCK:
         return unlock(url, cmdFrame);
-    case FUJICMD_MKDIR:
+    case NETCMD_MKDIR:
         return mkdir(url, cmdFrame);
-    case FUJICMD_RMDIR:
+    case NETCMD_RMDIR:
         return rmdir(url, cmdFrame);
     default:
 #ifdef VERBOSE_PROTOCOL

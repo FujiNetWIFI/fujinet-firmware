@@ -5,6 +5,7 @@
  * AdamNet Routines
  */
 
+#include "cmdFrame.h"
 #include "UARTChannel.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
@@ -48,23 +49,6 @@ struct adamnet_message_t
 #define ADAMNET_DEVICE_FUJINET     0x0F
 
 #define ADAMNET_RESET_DEBOUNCE_PERIOD 100 // in ms
-
-union cmdFrame_t
-{
-    struct
-    {
-        uint8_t device;
-        uint8_t comnd;
-        uint8_t aux1;
-        uint8_t aux2;
-        uint8_t cksum;
-    };
-    struct
-    {
-        uint32_t commanddata;
-        uint8_t checksum;
-    } __attribute__((packed));
-};
 
 class systemBus;
 class adamFuji;     // declare here so can reference it, but define in fuji.h

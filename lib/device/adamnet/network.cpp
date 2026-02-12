@@ -447,7 +447,7 @@ void adamNetwork::del(uint16_t s)
     if (protocol == nullptr)
         return;
 
-    cmdFrame.comnd = '!';
+    cmdFrame.comnd = NETCMD_DELETE;
 
     if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
     {
@@ -473,7 +473,7 @@ void adamNetwork::rename(uint16_t s)
     d = string((char *)response, s);
     parse_and_instantiate_protocol(d);
 
-    cmdFrame.comnd = ' ';
+    cmdFrame.comnd = NETCMD_RENAME;
 
     if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
     {
@@ -499,7 +499,7 @@ void adamNetwork::mkdir(uint16_t s)
     d = string((char *)response, s);
     parse_and_instantiate_protocol(d);
 
-    cmdFrame.comnd = '*';
+    cmdFrame.comnd = NETCMD_MKDIR;
 
     if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
     {
@@ -578,7 +578,7 @@ void adamNetwork::adamnet_special_inquiry()
 void adamNetwork::do_inquiry(fujiCommandID_t inq_cmd)
 {
     // Reset inq_dstats
-    inq_dstats = 0xff;
+    inq_dstats = SIO_DIRECTION_INVALID;
 
     cmdFrame.comnd = inq_cmd;
 
@@ -587,38 +587,38 @@ void adamNetwork::do_inquiry(fujiCommandID_t inq_cmd)
         inq_dstats = protocol->special_inquiry(inq_cmd);
 
     // If we didn't get one from protocol, or unsupported, see if supported globally.
-    if (inq_dstats == 0xFF)
+    if (inq_dstats == SIO_DIRECTION_INVALID)
     {
         switch (inq_cmd)
         {
-        case FUJICMD_RENAME:
-        case FUJICMD_DELETE:
-        case FUJICMD_LOCK:
-        case FUJICMD_UNLOCK:
-        case FUJICMD_MKDIR:
-        case FUJICMD_RMDIR:
-        case FUJICMD_CHDIR:
-        case FUJICMD_SCAN_NETWORKS:
-        case FUJICMD_GET_SSID:
-            inq_dstats = 0x80;
+        case NETCMD_RENAME:
+        case NETCMD_DELETE:
+        case NETCMD_LOCK:
+        case NETCMD_UNLOCK:
+        case NETCMD_MKDIR:
+        case NETCMD_RMDIR:
+        case NETCMD_CHDIR:
+        case NETCMD_USERNAME:
+        case NETCMD_PASSWORD:
+            inq_dstats = SIO_DIRECTION_WRITE;
             break;
-        case FUJICMD_GETCWD:
-            inq_dstats = 0x40;
+        case NETCMD_GETCWD:
+            inq_dstats = SIO_DIRECTION_READ;
             break;
-        case FUJICMD_TIMER: // Set interrupt rate
-            inq_dstats = 0x00;
+        case NETCMD_SET_INT_RATE: // Set interrupt rate
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_TRANSLATION:
-            inq_dstats = 0x00;
+        case NETCMD_TRANSLATION:
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_JSON_PARSE:
-            inq_dstats = 0x00;
+        case NETCMD_PARSE_ALT:
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_JSON_QUERY:
-            inq_dstats = 0x80;
+        case NETCMD_QUERY_ALT:
+            inq_dstats = SIO_DIRECTION_WRITE;
             break;
         default:
-            inq_dstats = 0xFF; // not supported
+            inq_dstats = SIO_DIRECTION_INVALID; // not supported
             break;
         }
     }
@@ -642,7 +642,7 @@ void adamNetwork::adamnet_special_00(unsigned short s)
     adamnet_response_ack();
 
     protocol->special_00(&cmdFrame);
-    inq_dstats = 0xff;
+    inq_dstats = SIO_DIRECTION_INVALID;
 
     response_len = 0;
     memset(response, 0, sizeof(response));
@@ -666,7 +666,7 @@ void adamNetwork::adamnet_special_40(unsigned short s)
     else
         adamnet_response_nack();
 
-    inq_dstats = 0xff;
+    inq_dstats = SIO_DIRECTION_INVALID;
 
     response_len = 0;
     memset(response, 0, sizeof(response));
@@ -698,7 +698,7 @@ void adamNetwork::adamnet_special_80(unsigned short s)
         adamnet_response_ack();
     else
         adamnet_response_nack();
-    inq_dstats = 0xff;
+    inq_dstats = SIO_DIRECTION_INVALID;
 
     memset(response, 0, sizeof(response));
     response_len = 0;
@@ -740,43 +740,43 @@ void adamNetwork::adamnet_control_send()
 
     switch (c)
     {
-    case FUJICMD_RENAME:
+    case NETCMD_RENAME:
         rename(s);
         break;
-    case FUJICMD_DELETE:
+    case NETCMD_DELETE:
         del(s);
         break;
-    case FUJICMD_MKDIR:
+    case NETCMD_MKDIR:
         mkdir(s);
         break;
-    case FUJICMD_CHDIR:
+    case NETCMD_CHDIR:
         set_prefix(s);
         break;
-    case FUJICMD_GETCWD:
+    case NETCMD_GETCWD:
         get_prefix();
         break;
-    case FUJICMD_GET_ERROR:
+    case NETCMD_GET_ERROR:
         get_error();
         break;
-    case FUJICMD_OPEN:
+    case NETCMD_OPEN:
         open(s);
         break;
-    case FUJICMD_CLOSE:
+    case NETCMD_CLOSE:
         close();
         break;
-    case FUJICMD_STATUS:
+    case NETCMD_STATUS:
         status();
         break;
-    case FUJICMD_WRITE:
+    case NETCMD_WRITE:
         write(s);
         break;
-    case FUJICMD_JSON:
+    case NETCMD_CHANNEL_MODE:
         channel_mode();
         break;
-    case FUJICMD_USERNAME: // login
+    case NETCMD_USERNAME: // login
         set_login(s);
         break;
-    case FUJICMD_PASSWORD: // password
+    case NETCMD_PASSWORD: // password
         set_password(s);
         break;
     default:
@@ -786,11 +786,11 @@ void adamNetwork::adamnet_control_send()
         case PROTOCOL:
             do_inquiry(c); // set inq_dstats
 
-            if (inq_dstats == 0x00)
+            if (inq_dstats == SIO_DIRECTION_NONE)
                 adamnet_special_00(s);
-            else if (inq_dstats == 0x40)
+            else if (inq_dstats == SIO_DIRECTION_READ)
                 adamnet_special_40(s);
-            else if (inq_dstats == 0x80)
+            else if (inq_dstats == SIO_DIRECTION_WRITE)
                 adamnet_special_80(s);
             else
                 Debug_printf("adamnet_control_send() - Unknown Command: %02x\n", c);
@@ -798,10 +798,10 @@ void adamNetwork::adamnet_control_send()
         case JSON:
             switch (c)
             {
-            case FUJICMD_PARSE:
+            case NETCMD_PARSE:
                 json_parse();
                 break;
-            case FUJICMD_QUERY:
+            case NETCMD_QUERY:
                 json_query(s);
                 break;
             default:

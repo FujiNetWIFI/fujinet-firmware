@@ -1,9 +1,9 @@
 #ifndef SIO_H
 #define SIO_H
 
+#include "cmdFrame.h"
 #include "UARTChannel.h"
 #include "NetSIO.h"
-#include "fujiDeviceID.h"
 #include <forward_list>
 
 #define DELAY_T4 850
@@ -50,27 +50,6 @@ FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
 #define SERIAL_TIMEOUT 300
-
-typedef struct
-{
-    union
-    {
-        struct
-        {
-            uint8_t device;
-            uint8_t comnd;
-            union {
-                struct {
-                    uint8_t aux1;
-                    uint8_t aux2;
-                };
-                uint16_t aux12;
-            };
-        };
-        uint32_t commanddata;
-    };
-    uint8_t checksum;
-} __attribute__((packed)) cmdFrame_t;
 
 // helper functions
 uint8_t sio_checksum(uint8_t *buf, unsigned short len);

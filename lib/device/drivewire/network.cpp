@@ -704,13 +704,13 @@ void drivewireNetwork::special()
 
     switch (inq_dstats)
     {
-    case 0x00: // No payload
+    case SIO_DIRECTION_NONE: // No payload
         special_00();
         break;
-    case 0x40: // Payload to Atari
+    case SIO_DIRECTION_READ: // Payload to Atari
         special_40();
         break;
-    case 0x80: // Payload to Peripheral
+    case SIO_DIRECTION_WRITE: // Payload to Peripheral
         special_80();
         break;
     default:
@@ -737,7 +737,7 @@ void drivewireNetwork::special_inquiry()
 void drivewireNetwork::do_inquiry(fujiCommandID_t inq_cmd)
 {
     // Reset inq_dstats
-    inq_dstats = 0xff;
+    inq_dstats = SIO_DIRECTION_INVALID;
 
     // Ask protocol for dstats, otherwise get it locally.
     if (protocol != nullptr)
@@ -747,47 +747,47 @@ void drivewireNetwork::do_inquiry(fujiCommandID_t inq_cmd)
     }
 
     // If we didn't get one from protocol, or unsupported, see if supported globally.
-    if (inq_dstats == 0xFF)
+    if (inq_dstats == SIO_DIRECTION_INVALID)
     {
         switch (inq_cmd)
         {
-        case 0x20: // ' ' rename
-        case 0x21: // '!' delete
-        case 0x23: // '#' lock
-        case 0x24: // '$' unlock
-        case 0x2A: // '*' mkdir
-        case 0x2B: // '+' rmdir
-        case 0x2C: // ',' chdir/get prefix
-        case 0xFD: //     login
-        case 0xFE: //     password
-            inq_dstats = 0x80;
+        case NETCMD_RENAME:
+        case NETCMD_DELETE:
+        case NETCMD_LOCK:
+        case NETCMD_UNLOCK:
+        case NETCMD_MKDIR:
+        case NETCMD_RMDIR:
+        case NETCMD_CHDIR:
+        case NETCMD_USERNAME:
+        case NETCMD_PASSWORD:
+            inq_dstats = SIO_DIRECTION_WRITE;
             break;
-        case 0xFC: //     channel mode
-            inq_dstats = 0x00;
+        case NETCMD_CHANNEL_MODE:
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 0xFB: // String Processing mode, only in JSON mode
+        case NETCMD_SET_PARAMETERS:
             if (channelMode == JSON)
-                inq_dstats = 0x00;
+                inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 0x30: // '0' set prefix
-            inq_dstats = 0x40;
+        case NETCMD_GETCWD:
+            inq_dstats = SIO_DIRECTION_READ;
             break;
-        case 'Z': // Set interrupt rate
-            inq_dstats = 0x00;
+        case NETCMD_SET_INT_RATE:
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 'T': // Set Translation
-            inq_dstats = 0x00;
+        case NETCMD_TRANSLATION:
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 'P': // JSON Parse
+        case NETCMD_PARSE:
             if (channelMode == JSON)
-                inq_dstats = 0x00;
+                inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 'Q': // JSON Query
+        case NETCMD_QUERY:
             if (channelMode == JSON)
-                inq_dstats = 0x80;
+                inq_dstats = SIO_DIRECTION_WRITE;
             break;
         default:
-            inq_dstats = 0xFF; // not supported
+            inq_dstats = SIO_DIRECTION_INVALID; // not supported
             break;
         }
     }
@@ -805,14 +805,14 @@ void drivewireNetwork::special_00()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case 'P':
+    case NETCMD_PARSE:
         if (channelMode == JSON)
             parse_json();
         break;
-    case 'T':
+    case NETCMD_TRANSLATION:
         set_translation();
         break;
-    case 0xFC: // SET CHANNEL MODE
+    case NETCMD_CHANNEL_MODE:
         set_channel_mode();
         break;
     default:
@@ -832,9 +832,11 @@ void drivewireNetwork::special_40()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case 0x30:
+    case NETCMD_GETCWD:
         get_prefix();
         return;
+    default:
+        break;
     }
 
     // not sure what to do here, FIXME.
@@ -853,27 +855,29 @@ void drivewireNetwork::special_80()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case 0x20: // RENAME  ' '
-    case 0x21: // DELETE  '!'
-    case 0x23: // LOCK    '#'
-    case 0x24: // UNLOCK  '$'
-    case 0x2A: // MKDIR   '*'
-    case 0x2B: // RMDIR   '+'
+    case NETCMD_RENAME:
+    case NETCMD_DELETE:
+    case NETCMD_LOCK:
+    case NETCMD_UNLOCK:
+    case NETCMD_MKDIR:
+    case NETCMD_RMDIR:
         do_idempotent_command_80();
         return;
-    case 0x2C: // CHDIR   ','
+    case NETCMD_CHDIR:
         set_prefix();
         return;
-    case 'Q':
+    case NETCMD_QUERY:
         if (channelMode == JSON)
             json_query();
         return;
-    case 0xFD: // LOGIN
+    case NETCMD_USERNAME:
         set_login();
         return;
-    case 0xFE: // PASSWORD
+    case NETCMD_PASSWORD:
         set_password();
         return;
+    default:
+        break;
     }
 
     memset(spData, 0, SPECIAL_BUFFER_SIZE);
@@ -1251,7 +1255,7 @@ void drivewireNetwork::do_idempotent_command_80()
 void drivewireNetwork::process()
 {
     // Read the three command and aux bytes
-    cmdFrame.comnd = (uint8_t)SYSTEM_BUS.read();
+    cmdFrame.comnd = (fujiCommandID_t)SYSTEM_BUS.read();
     cmdFrame.aux1 = (uint8_t)SYSTEM_BUS.read();
     cmdFrame.aux2 = (uint8_t)SYSTEM_BUS.read();
 
@@ -1259,31 +1263,31 @@ void drivewireNetwork::process()
 
     switch (cmdFrame.comnd)
     {
-    case 0x00: // Ready?
+    case NETCMD_DEVICE_READY:
         ready(); // Yes.
         break;
-    case 0x01: // Send Response
+    case NETCMD_SEND_RESPONSE:
         send_response();
         break;
-    case 0x02: // Send error
+    case NETCMD_SEND_ERROR:
         send_error();
         break;
-    case 'O':
+    case NETCMD_OPEN:
         open();
         break;
-    case 'C':
+    case NETCMD_CLOSE:
         close();
         break;
-    case 'R':
+    case NETCMD_READ:
         read();
         break;
-    case 'W':
+    case NETCMD_WRITE:
         write();
         break;
-    case 'S':
+    case NETCMD_STATUS:
         status();
         break;
-    case 0xFF:
+    case NETCMD_SPECIAL_INQUIRY:
         special_inquiry();
         break;
     default:

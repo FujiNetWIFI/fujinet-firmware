@@ -61,7 +61,7 @@ AtariSIODirection NetworkProtocolHTTP::special_inquiry(fujiCommandID_t cmd)
 
     switch (cmd)
     {
-    case FUJICMD_UNLISTEN:
+    case NETCMD_UNLISTEN:
         return (aux1_open > 8 ? SIO_DIRECTION_NONE : SIO_DIRECTION_INVALID);
     default:
         return SIO_DIRECTION_INVALID;
@@ -72,7 +72,7 @@ netProtoErr_t NetworkProtocolHTTP::special_00(cmdFrame_t *cmdFrame)
 {
     switch (cmdFrame->comnd)
     {
-    case FUJICMD_UNLISTEN:
+    case NETCMD_UNLISTEN:
         return special_set_channel_mode(cmdFrame);
     default:
         return NETPROTO_ERR_UNSPECIFIED;

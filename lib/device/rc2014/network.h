@@ -180,7 +180,7 @@ private:
     /**
      * Error number, if status.bits.client_error is set.
      */
-    uint8_t err = 0; 
+    uint8_t err = 0;
 
     /**
      * ESP timer handle for the Interrupt rate limiting timer
@@ -216,7 +216,7 @@ private:
     /**
      * Return value for DSTATS inquiry
      */
-    uint8_t inq_dstats = 0xFF;
+    AtariSIODirection inq_dstats = SIO_DIRECTION_INVALID;
 
     /**
      * The login to use for a protocol action

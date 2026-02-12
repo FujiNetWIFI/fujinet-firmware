@@ -619,15 +619,15 @@ void rs232Network::rs232_special()
 
     switch (inq_dstats)
     {
-    case DIRECTION_NONE:  // No payload
+    case SIO_DIRECTION_NONE:  // No payload
         rs232_ack();
         rs232_special_00();
         break;
-    case DIRECTION_READ:  // Payload to Atari
+    case SIO_DIRECTION_READ:  // Payload to Atari
         rs232_ack();
         rs232_special_40();
         break;
-    case DIRECTION_WRITE: // Payload to Peripheral
+    case SIO_DIRECTION_WRITE: // Payload to Peripheral
         rs232_ack();
         rs232_special_80();
         break;
@@ -670,34 +670,34 @@ void rs232Network::do_inquiry(fujiCommandID_t inq_cmd)
     {
         switch (inq_cmd)
         {
-        case FUJICMD_RENAME:
-        case FUJICMD_DELETE:
-        case FUJICMD_LOCK:
-        case FUJICMD_UNLOCK:
-        case FUJICMD_MKDIR:
-        case FUJICMD_RMDIR:
-        case FUJICMD_CHDIR:
-        case FUJICMD_USERNAME:
-        case FUJICMD_PASSWORD:
+        case NETCMD_RENAME:
+        case NETCMD_DELETE:
+        case NETCMD_LOCK:
+        case NETCMD_UNLOCK:
+        case NETCMD_MKDIR:
+        case NETCMD_RMDIR:
+        case NETCMD_CHDIR:
+        case NETCMD_USERNAME:
+        case NETCMD_PASSWORD:
             inq_dstats = SIO_DIRECTION_WRITE;
             break;
-        case FUJICMD_JSON:
+        case NETCMD_CHANNEL_MODE:
             inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_GETCWD:
+        case NETCMD_GETCWD:
             inq_dstats = SIO_DIRECTION_READ;
             break;
-        case FUJICMD_TIMER: // Set interrupt rate
+        case NETCMD_SET_INT_RATE: // Set interrupt rate
             inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_TRANSLATION: // Set Translation
+        case NETCMD_TRANSLATION: // Set Translation
             inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_PARSE: // JSON Parse
+        case NETCMD_PARSE: // JSON Parse
             if (channelMode == JSON)
                 inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_QUERY: // JSON Query
+        case NETCMD_QUERY: // JSON Query
             if (channelMode == JSON)
                 inq_dstats = SIO_DIRECTION_WRITE;
             break;
@@ -720,17 +720,17 @@ void rs232Network::rs232_special_00()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case FUJICMD_PARSE:
+    case NETCMD_PARSE:
         if (channelMode == JSON)
             rs232_parse_json();
         break;
-    case FUJICMD_TRANSLATION:
+    case NETCMD_TRANSLATION:
         rs232_set_translation();
         break;
-    case FUJICMD_TIMER:
+    case NETCMD_SET_INT_RATE:
         rs232_set_timer_rate();
         break;
-    case FUJICMD_JSON: // SET CHANNEL MODE
+    case NETCMD_CHANNEL_MODE:
         rs232_set_channel_mode();
         break;
     default:
@@ -752,9 +752,11 @@ void rs232Network::rs232_special_40()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case FUJICMD_GETCWD:
+    case NETCMD_GETCWD:
         rs232_get_prefix();
         return;
+    default:
+        break;
     }
 
     bus_to_computer((uint8_t *)receiveBuffer->data(),
@@ -775,27 +777,29 @@ void rs232Network::rs232_special_80()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case FUJICMD_RENAME:
-    case FUJICMD_DELETE:
-    case FUJICMD_LOCK:
-    case FUJICMD_UNLOCK:
-    case FUJICMD_MKDIR:
-    case FUJICMD_RMDIR:
+    case NETCMD_RENAME:
+    case NETCMD_DELETE:
+    case NETCMD_LOCK:
+    case NETCMD_UNLOCK:
+    case NETCMD_MKDIR:
+    case NETCMD_RMDIR:
         rs232_do_idempotent_command_80();
         return;
-    case FUJICMD_CHDIR:
+    case NETCMD_CHDIR:
         rs232_set_prefix();
         return;
-    case FUJICMD_QUERY:
+    case NETCMD_QUERY:
         if (channelMode == JSON)
             rs232_set_json_query();
         return;
-    case FUJICMD_USERNAME:
+    case NETCMD_USERNAME:
         rs232_set_login();
         return;
-    case FUJICMD_PASSWORD:
+    case NETCMD_PASSWORD:
         rs232_set_password();
         return;
+    default:
+        break;
     }
 
     memset(spData, 0, SPECIAL_BUFFER_SIZE);
@@ -854,40 +858,40 @@ void rs232Network::rs232_process(cmdFrame_t *cmd_ptr)
     cmdFrame = *cmd_ptr;
     switch (cmdFrame.comnd)
     {
-    case FUJICMD_OPEN:
+    case NETCMD_OPEN:
         rs232_open();
         break;
-    case FUJICMD_CLOSE:
+    case NETCMD_CLOSE:
         rs232_close();
         break;
-    case FUJICMD_READ:
+    case NETCMD_READ:
         rs232_read();
         break;
-    case FUJICMD_WRITE:
+    case NETCMD_WRITE:
         rs232_write();
         break;
-    case FUJICMD_STATUS:
+    case NETCMD_STATUS:
         rs232_status();
         break;
-    case FUJICMD_PARSE:
+    case NETCMD_PARSE:
         rs232_ack();
         rs232_parse_json();
         break;
-    case FUJICMD_QUERY:
+    case NETCMD_QUERY:
         rs232_ack();
         rs232_set_json_query();
         break;
-    case FUJICMD_JSON:
+    case NETCMD_CHANNEL_MODE:
         rs232_ack();
         rs232_set_channel_mode();
         break;
-    case FUJICMD_SPECIAL_QUERY:
+    case NETCMD_SPECIAL_INQUIRY:
         rs232_special_inquiry();
         break;
-    case FUJICMD_SEEK:
+    case NETCMD_SEEK:
         rs232_seek();
         break;
-    case FUJICMD_TELL:
+    case NETCMD_TELL:
         rs232_tell();
         break;
     default:
