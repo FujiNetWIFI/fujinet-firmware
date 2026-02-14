@@ -1,16 +1,6 @@
 /* TCP Client using Mongoose for TLS*/
 #include "fnTcpsConnection.h"
-#include "fnDNS.h"
 #include "../../include/debug.h"
-#include <cstdlib>
-#include <ctype.h>
-#include <iostream>
-#include <map>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sstream>
-#include <string>
-#include <vector>
 #include "mongoose.h"
 #include <cstring>
 

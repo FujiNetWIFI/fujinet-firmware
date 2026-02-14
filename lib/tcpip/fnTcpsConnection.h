@@ -3,7 +3,6 @@
 #ifndef _FN_TCPSCONNECTION_H_
 #define _FN_TCPSCONNECTION_H_
 
-#include "fnTcpsConnection.h"
 #include "mongoose.h"
 #include <memory>
 #include <string>
