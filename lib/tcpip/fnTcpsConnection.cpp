@@ -22,7 +22,7 @@ int fnTcpsConnection::setTimeout(uint32_t seconds)
     return 0;
 }
 
-uint8_t fnTcpsConnection::connected()
+bool fnTcpsConnection::connected()
 {
     if ((!_is_client && !_is_server) ||
         (_outbound_conn == nullptr && _inbound_conn == nullptr))
@@ -56,6 +56,8 @@ uint8_t fnTcpsConnection::connected()
             return false;
         }
     }
+
+    return false;
 }
 
 // Returns the number of bytes waiting to be read.
@@ -74,6 +76,7 @@ size_t fnTcpsConnection::available()
             mg_mgr_poll(_mgr, 100);
         return _outbound_conn->recv.len;
     }
+    return 0;
 }
 
 // read data
@@ -203,6 +206,7 @@ size_t fnTcpsConnection::write(const uint8_t *buf, size_t size)
             return _bytes_written;
         }
     }
+    return 0;
 }
 
 // Send std::string of data
@@ -238,7 +242,7 @@ in_addr_t fnTcpsConnection::remoteIP() const
     }
     else
     {
-        return (uint32_t)_outbound_conn->rem.ip;
+        return (in_addr_t)*_outbound_conn->rem.ip;
     }
 }
 
@@ -352,10 +356,6 @@ int fnTcpsConnection::accept_connection()
         return 1;
     }
 
-    // `_awaiting_tls_handshake` will be set to false by event handler when
-    // MG_EV_TLS_HS event is received.
-    _awaiting_tls_handshake == true;
-
     // Setup timeout
     uint64_t start_time = mg_millis();
     uint64_t timeout = (_timeout < 0) ? 30000 : _timeout; // Default 30s timeout
@@ -364,18 +364,17 @@ int fnTcpsConnection::accept_connection()
     // Call `mg_mgr_poll` until we have an established inbound connection with
     // TLS, or until the timeout expires.
     while ((_inbound_conn == nullptr || _inbound_conn->is_tls_hs == 1 ||
-            _inbound_conn->is_accepted == 0 || _inbound_conn->is_tls == 0 ||
-            _awaiting_tls_handshake == true) &&
+            _inbound_conn->is_accepted == 0 || _inbound_conn->is_tls == 0) &&
            (mg_millis() - start_time) < timeout)
     {
         mg_mgr_poll(_mgr, 1000);
     }
     _is_polling = false;
 
-    if (_inbound_conn->is_tls == 1 && !_awaiting_tls_handshake)
+    if (_inbound_conn->is_tls == 1 && _inbound_conn->is_accepted == 1)
         return 0;
-    else
-        Debug_printf("fnTcpsConnection: timed out waiting for incoming connection\r\n");
+
+    Debug_printf("fnTcpsConnection: timed out waiting for incoming connection\r\n");
     return 1;
 }
 
