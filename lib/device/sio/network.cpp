@@ -1213,16 +1213,18 @@ void sioNetwork::sio_set_json_query()
     }
 
     json->setReadQuery(inp_string, cmdFrame.aux2);
-    json_bytes_remaining = json->available();
+    int query_bytes = json->available();
+    json_bytes_remaining += query_bytes;
 
-    std::vector<uint8_t> tmp(json_bytes_remaining);
-    json->readValue(tmp.data(), json_bytes_remaining);
+    std::vector<uint8_t> tmp(query_bytes);
+    json->readValue(tmp.data(), query_bytes);
 
     // don't copy past first nul char in tmp
     auto null_pos = std::find(tmp.begin(), tmp.end(), 0);
     *receiveBuffer += std::string(tmp.begin(), null_pos);
 
-    Debug_printf("Query set to >%s<\r\n", inp_string.c_str());
+    Debug_printf("Query set to >%s< (buf_size=%d, json_remaining=%d)\r\n",
+                 inp_string.c_str(), (int)receiveBuffer->size(), json_bytes_remaining);
     sio_complete();
 }
 
