@@ -1,8 +1,10 @@
 #ifndef FUJI_DEVICES_H
 #define FUJI_DEVICES_H
 
+#include <stdint.h>
+
 #if defined(BUILD_ADAM) || defined(BUILD_LYNX)
-enum fujiDeviceID_t {
+enum fujiDeviceID_t : uint8_t {
   FUJI_DEVICEID_FUJINET      = 0x0F,
 
   FUJI_DEVICEID_KEYBOARD     = 0x01,
@@ -16,7 +18,7 @@ enum fujiDeviceID_t {
   FUJI_DEVICEID_NETWORK      = 0x0E,
 };
 #else
-enum fujiDeviceID_t {
+enum fujiDeviceID_t : uint8_t {
   FUJI_DEVICEID_FUJINET      = 0x70,
 
   FUJI_DEVICEID_DISK         = 0x31,

@@ -693,15 +693,15 @@ void sioNetwork::sio_special()
 
     switch (inq_dstats)
     {
-    case 0x00: // No payload
+    case SIO_DIRECTION_NONE: // No payload
         sio_ack();
         sio_special_00();
         break;
-    case 0x40: // Payload to Atari
+    case SIO_DIRECTION_READ: // Payload to Atari
         sio_ack();
         sio_special_40();
         break;
-    case 0x80: // Payload to Peripheral
+    case SIO_DIRECTION_WRITE: // Payload to Peripheral
         sio_late_ack();
         sio_special_80();
         break;
@@ -729,13 +729,13 @@ void sioNetwork::sio_special_inquiry()
     do_inquiry((fujiCommandID_t) cmdFrame.aux1);
 
     // Finally, return the completed inq_dstats value back to Atari
-    bus_to_computer(&inq_dstats, sizeof(inq_dstats), false); // never errors.
+    bus_to_computer((uint8_t *) &inq_dstats, sizeof(inq_dstats), false); // never errors.
 }
 
 void sioNetwork::do_inquiry(fujiCommandID_t inq_cmd)
 {
     // Reset inq_dstats
-    inq_dstats = 0xff;
+    inq_dstats = SIO_DIRECTION_INVALID;
 
     // Ask protocol for dstats, otherwise get it locally.
     if (protocol != nullptr)
@@ -747,47 +747,47 @@ void sioNetwork::do_inquiry(fujiCommandID_t inq_cmd)
     }
 
     // If we didn't get one from protocol, or unsupported, see if supported globally.
-    if (inq_dstats == 0xFF)
+    if (inq_dstats == SIO_DIRECTION_INVALID)
     {
         switch (inq_cmd)
         {
-        case 0x20: // ' ' rename
-        case 0x21: // '!' delete
-        case 0x23: // '#' lock
-        case 0x24: // '$' unlock
-        case 0x2A: // '*' mkdir
-        case 0x2B: // '+' rmdir
-        case 0x2C: // ',' chdir/get prefix
-        case 0xFD: //     login
-        case 0xFE: //     password
-            inq_dstats = 0x80;
+        case NETCMD_RENAME:
+        case NETCMD_DELETE:
+        case NETCMD_LOCK:
+        case NETCMD_UNLOCK:
+        case NETCMD_MKDIR:
+        case NETCMD_RMDIR:
+        case NETCMD_CHDIR:
+        case NETCMD_USERNAME:
+        case NETCMD_PASSWORD:
+            inq_dstats = SIO_DIRECTION_WRITE;
             break;
-        case 0xFC: //     channel mode
-            inq_dstats = 0x00;
+        case NETCMD_CHANNEL_MODE:
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 0xFB: // String Processing mode, only in JSON mode
+        case NETCMD_SET_PARAMETERS:
             if (channelMode == JSON)
-                inq_dstats = 0x00;
+                inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 0x30: // '0' set prefix
-            inq_dstats = 0x40;
+        case NETCMD_GETCWD:
+            inq_dstats = SIO_DIRECTION_READ;
             break;
-        case 'Z': // Set interrupt rate
-            inq_dstats = 0x00;
+        case NETCMD_SET_INT_RATE:
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 'T': // Set Translation
-            inq_dstats = 0x00;
+        case NETCMD_TRANSLATION:
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 'P': // JSON Parse
+        case NETCMD_PARSE:
             if (channelMode == JSON)
-                inq_dstats = 0x00;
+                inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 'Q': // JSON Query
+        case NETCMD_QUERY:
             if (channelMode == JSON)
-                inq_dstats = 0x80;
+                inq_dstats = SIO_DIRECTION_WRITE;
             break;
         default:
-            inq_dstats = 0xFF; // not supported
+            inq_dstats = SIO_DIRECTION_INVALID; // not supported
             break;
         }
     }
@@ -807,20 +807,20 @@ void sioNetwork::sio_special_00()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case FUJICMD_PARSE:
+    case NETCMD_PARSE:
         if (channelMode == JSON)
             sio_parse_json();
         break;
-    case FUJICMD_TRANSLATION:
+    case NETCMD_TRANSLATION:
         sio_set_translation();
         break;
-    case FUJICMD_TIMER:
+    case NETCMD_SET_INT_RATE:
         sio_set_timer_rate();
         break;
-    case FUJICMD_SET_SSID: // JSON parameter wrangling
+    case NETCMD_SET_PARAMETERS: // JSON parameter wrangling
         sio_set_json_parameters();
         break;
-    case FUJICMD_GET_SCAN_RESULT: // SET CHANNEL MODE
+    case NETCMD_CHANNEL_MODE:
         sio_set_channel_mode();
         break;
     default:
@@ -842,9 +842,11 @@ void sioNetwork::sio_special_40()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case 0x30:
+    case NETCMD_GETCWD:
         sio_get_prefix();
         return;
+    default:
+        break;
     }
 
     bus_to_computer((uint8_t *)receiveBuffer->data(),
@@ -865,27 +867,29 @@ void sioNetwork::sio_special_80()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case 0x20: // RENAME  ' '
-    case 0x21: // DELETE  '!'
-    case 0x23: // LOCK    '#'
-    case 0x24: // UNLOCK  '$'
-    case 0x2A: // MKDIR   '*'
-    case 0x2B: // RMDIR   '+'
+    case NETCMD_RENAME:
+    case NETCMD_DELETE:
+    case NETCMD_LOCK:
+    case NETCMD_UNLOCK:
+    case NETCMD_MKDIR:
+    case NETCMD_RMDIR:
         sio_do_idempotent_command_80();
         return;
-    case 0x2C: // CHDIR   ','
+    case NETCMD_CHDIR:
         sio_set_prefix();
         return;
-    case 'Q':
+    case NETCMD_QUERY:
         if (channelMode == JSON)
             sio_set_json_query();
         return;
-    case 0xFD: // LOGIN
+    case NETCMD_USERNAME:
         sio_set_login();
         return;
-    case 0xFE: // PASSWORD
+    case NETCMD_PASSWORD:
         sio_set_password();
         return;
+    default:
+        break;
     }
 
     memset(spData, 0, SPECIAL_BUFFER_SIZE);
@@ -919,26 +923,26 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
 
     switch (cmdFrame.comnd)
     {
-    case 0x3F:
+    case NETCMD_HSIO_INDEX:
         sio_ack();
         sio_high_speed();
         break;
-    case 'O':
+    case NETCMD_OPEN:
         sio_open();
         break;
-    case 'C':
+    case NETCMD_CLOSE:
         sio_close();
         break;
-    case 'R':
+    case NETCMD_READ:
         sio_read();
         break;
-    case 'W':
+    case NETCMD_WRITE:
         sio_write();
         break;
-    case 'S':
+    case NETCMD_STATUS:
         sio_status();
         break;
-    case 0xFF:
+    case NETCMD_SPECIAL_INQUIRY:
         sio_special_inquiry();
         break;
     default:

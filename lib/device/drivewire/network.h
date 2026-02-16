@@ -233,7 +233,7 @@ private:
     /**
      * Return value for DSTATS inquiry
      */
-    uint8_t inq_dstats=0xFF;
+    AtariSIODirection inq_dstats = SIO_DIRECTION_INVALID;
 
     /**
      * The login to use for a protocol action

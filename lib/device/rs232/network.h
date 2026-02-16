@@ -214,7 +214,7 @@ private:
     /**
      * Return value for DSTATS inquiry
      */
-    AtariSIODirection inq_dstats=SIO_DIRECTION_INVALID;
+    AtariSIODirection inq_dstats = SIO_DIRECTION_INVALID;
 
     /**
      * The login to use for a protocol action

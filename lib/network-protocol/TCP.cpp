@@ -241,9 +241,9 @@ AtariSIODirection NetworkProtocolTCP::special_inquiry(fujiCommandID_t cmd)
 
     switch (cmd)
     {
-    case FUJICMD_CONTROL:
+    case NETCMD_CONTROL:
         return SIO_DIRECTION_NONE;
-    case FUJICMD_CLOSE_CLIENT:
+    case NETCMD_CLOSE_CLIENT:
         return SIO_DIRECTION_NONE;
     default:
         break;
@@ -263,12 +263,12 @@ netProtoErr_t NetworkProtocolTCP::special_00(cmdFrame_t *cmdFrame)
 
     switch (cmdFrame->comnd)
     {
-    case FUJICMD_CONTROL:
+    case NETCMD_CONTROL:
         return special_accept_connection();
-        break;
-    case FUJICMD_CLOSE_CLIENT:
+    case NETCMD_CLOSE_CLIENT:
         Debug_printf("CLOSING CLIENT CONNECTION!!!\n");
         return special_close_client_connection();
+    default:
         break;
     }
     return NETPROTO_ERR_UNSPECIFIED; // error

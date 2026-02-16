@@ -5,6 +5,7 @@
  * rc2014 Routines
  */
 
+#include "cmdFrame.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <deque>
@@ -21,24 +22,6 @@
 
 constexpr int RC2014_TX_BUFFER_SIZE = 1024;
 constexpr int RC2014_RX_BUFFER_SIZE = 1024;
-
-union cmdFrame_t
-{
-    struct
-    {
-        uint8_t device;
-        uint8_t comnd;
-        uint8_t aux1;
-        uint8_t aux2;
-        uint8_t cksum;
-    };
-    struct
-    {
-        uint32_t commanddata;
-        uint8_t checksum;
-    } __attribute__((packed));
-};
-
 
 // buffer with inbuilt checksum
 // -- instantiate with desired buffer size + 1 for checksum

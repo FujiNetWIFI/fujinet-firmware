@@ -471,17 +471,17 @@ void iecNetwork::iec_command()
     else if (pt[0] == "login")
         set_login_password();
     else if (pt[0] == "rename" || pt[0] == "ren")
-        fsop(0x20);
+        fsop(NETCMD_RENAME);
     else if (pt[0] == "delete" || pt[0] == "del" || pt[0] == "rm")
-        fsop(0x21);
+        fsop(NETCMD_DELETE);
     else if (pt[0] == "lock")
-        fsop(0x23);
+        fsop(NETCMD_LOCK);
     else if (pt[0] == "unlock")
-        fsop(0x24);
+        fsop(NETCMD_UNLOCK);
     else if (pt[0] == "mkdir")
-        fsop(0x2A);
+        fsop(NETCMD_MKDIR);
     else if (pt[0] == "rmdir")
-        fsop(0x2B);
+        fsop(NETCMD_RMDIR);
     else // Protocol command processing here.
     {
         if (pt.size() > 1)
@@ -518,7 +518,7 @@ void iecNetwork::perform_special_00()
     int channel = 0;
 
     if (pt.size() > 0)
-        cmdFrame.comnd = pt[0][0];
+        cmdFrame.comnd = (fujiCommandID_t) pt[0][0];
 
     if (pt.size() > 1)
         channel = atoi(pt[1].c_str());
@@ -565,7 +565,7 @@ void iecNetwork::perform_special_40()
     channel = atoi(pt[1].c_str());
     auto& channel_data = network_data_map[channel];
 
-    cmdFrame.comnd = pt[0][0];
+    cmdFrame.comnd = (fujiCommandID_t) pt[0][0];
 
     if (pt.size() < 3)
     {
@@ -675,7 +675,7 @@ void iecNetwork::perform_special_80()
         iecStatus.msg = "parameter missing";
     }
 
-    cmdFrame.comnd = pt[0][0];
+    cmdFrame.comnd = (fujiCommandID_t) pt[0][0];
     sp_buf += pt[4];
 
     if (channel_data.protocol->special_80((uint8_t *)sp_buf.c_str(), sp_buf.length(), &cmdFrame))
@@ -921,7 +921,7 @@ void iecNetwork::set_device_id()
     iecStatus.channel = commanddata.channel;
 }
 
-void iecNetwork::fsop(unsigned char comnd)
+void iecNetwork::fsop(fujiCommandID_t comnd)
 {
     Debug_printf("fsop(%u)", comnd);
 

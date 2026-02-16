@@ -87,7 +87,7 @@ void rc2014Network::open()
     rc2014_recv_buffer(response, 256);
 
     Debug_printf("rc2014Network::open url %s\n", response);
-    
+
     rc2014_send_ack();
 
     channelMode = PROTOCOL;
@@ -319,7 +319,7 @@ void rc2014Network::status()
     Debug_printf("rc2014Network::status()\n");
 
     NetworkStatus s;
-    
+
     rc2014_send_ack();
 
     switch (channelMode)
@@ -350,7 +350,7 @@ void rc2014Network::status()
 
     rc2014_send_buffer(response, response_len);
     rc2014_flush();
-    
+
     rc2014_send_complete();
 
 }
@@ -564,36 +564,36 @@ void rc2014Network::rc2014_process(uint32_t commanddata, uint8_t checksum)
 
     switch (cmdFrame.comnd)
     {
-    case 'O':
+    case NETCMD_OPEN:
         open();
         break;
-    case 'C':
+    case NETCMD_CLOSE:
         close();
         break;
-    case 'R':
+    case NETCMD_READ:
         read();
         break;
-    case 'W':
+    case NETCMD_WRITE:
         write();
         break;
-    case 'P':
+    case NETCMD_PARSE:
         if (channelMode == JSON)
             rc2014_parse_json();
         break;
-    case 'Q':
+    case NETCMD_QUERY:
         if (channelMode == JSON)
             rc2014_set_json_query();
         break;
-    case 'S':
+    case NETCMD_STATUS:
         status();
         break;
-    case 0xFC:
+    case NETCMD_CHANNEL_MODE:
         rc2014_set_channel_mode();
         break;
-    case 0xFD:
+    case NETCMD_USERNAME:
         set_login();
         break;
-    case 0xFE:
+    case NETCMD_PASSWORD:
         set_password();
         break;
     default:
@@ -646,7 +646,7 @@ bool rc2014Network::instantiate_protocol()
     {
         protocolParser = new ProtocolParser();
     }
-    
+
     protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)

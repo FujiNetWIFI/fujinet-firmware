@@ -224,10 +224,10 @@ AtariSIODirection NetworkProtocolFTP::special_inquiry(fujiCommandID_t cmd)
 
     switch (cmd)
     {
-    case FUJICMD_RENAME:
-    case FUJICMD_DELETE:
-    case FUJICMD_MKDIR:
-    case FUJICMD_RMDIR:
+    case NETCMD_RENAME:
+    case NETCMD_DELETE:
+    case NETCMD_MKDIR:
+    case NETCMD_RMDIR:
         ret = SIO_DIRECTION_WRITE; // Atari to peripheral.
         break;
     default:

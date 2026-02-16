@@ -263,7 +263,7 @@ void iwmNetwork::del()
     if (!current_network_data.protocol)
         return;
 
-    cmdFrame.comnd = '!';
+    cmdFrame.comnd = NETCMD_DELETE;
 
     if (current_network_data.protocol->perform_idempotent_80(current_network_data.urlParser.get(), &cmdFrame))
     {
@@ -280,7 +280,7 @@ void iwmNetwork::rename()
     d = string((char *)data_buffer, 256);
     parse_and_instantiate_protocol(d);
 
-    cmdFrame.comnd = ' ';
+    cmdFrame.comnd = NETCMD_RENAME;
 
     if (current_network_data.protocol->perform_idempotent_80(current_network_data.urlParser.get(), &cmdFrame))
     {
@@ -297,7 +297,7 @@ void iwmNetwork::mkdir()
     d = string((char *)data_buffer, 256);
     parse_and_instantiate_protocol(d);
 
-    cmdFrame.comnd = '*';
+    cmdFrame.comnd = NETCMD_MKDIR;
 
     if (current_network_data.protocol->perform_idempotent_80(current_network_data.urlParser.get(), &cmdFrame))
     {
@@ -352,7 +352,7 @@ void iwmNetwork::do_inquiry(fujiCommandID_t inq_cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
     // Reset inq_dstats
-    inq_dstats = 0xff;
+    inq_dstats = SIO_DIRECTION_INVALID;
 
     cmdFrame.comnd = inq_cmd;
 
@@ -361,38 +361,38 @@ void iwmNetwork::do_inquiry(fujiCommandID_t inq_cmd)
         inq_dstats = current_network_data.protocol->special_inquiry(inq_cmd);
 
     // If we didn't get one from protocol, or unsupported, see if supported globally.
-    if (inq_dstats == 0xFF)
+    if (inq_dstats == SIO_DIRECTION_INVALID)
     {
         switch (inq_cmd)
         {
-        case 0x20:
-        case 0x21:
-        case 0x23:
-        case 0x24:
-        case 0x2A:
-        case 0x2B:
-        case 0x2C:
-        case 0xFD:
-        case 0xFE:
-            inq_dstats = 0x80;
+        case NETCMD_RENAME:
+        case NETCMD_DELETE:
+        case NETCMD_LOCK:
+        case NETCMD_UNLOCK:
+        case NETCMD_MKDIR:
+        case NETCMD_RMDIR:
+        case NETCMD_CHDIR:
+        case NETCMD_USERNAME:
+        case NETCMD_PASSWORD:
+            inq_dstats = SIO_DIRECTION_WRITE;
             break;
-        case 0x30:
-            inq_dstats = 0x40;
+        case NETCMD_GETCWD:
+            inq_dstats = SIO_DIRECTION_READ;
             break;
-        case 'Z': // Set interrupt rate
-            inq_dstats = 0x00;
+        case NETCMD_SET_INT_RATE: // Set interrupt rate
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 'T': // Set Translation
-            inq_dstats = 0x00;
+        case NETCMD_TRANSLATION:
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 0x80: // JSON Parse
-            inq_dstats = 0x00;
+        case NETCMD_PARSE_ALT:
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 0x81: // JSON Query
-            inq_dstats = 0x80;
+        case NETCMD_QUERY_ALT:
+            inq_dstats = SIO_DIRECTION_WRITE;
             break;
         default:
-            inq_dstats = 0xFF; // not supported
+            inq_dstats = SIO_DIRECTION_INVALID; // not supported
             break;
         }
     }
@@ -545,13 +545,13 @@ void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
         send_status_dib_reply_packet();
         return;
         break;
-    case FUJICMD_GETCWD:
+    case NETCMD_GETCWD:
         get_prefix();
         break;
-    case FUJICMD_READ:
+    case NETCMD_READ:
         net_read();
         break;
-    case FUJICMD_STATUS:
+    case NETCMD_STATUS:
         status();
         break;
     }
@@ -764,43 +764,43 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
 
     // Debug_printv("cmd (looking for network_unit in byte 6, i.e. hex[5]):\r\n%s\r\n", mstr::toHex(cmd.decoded, 9).c_str());
 
-    if (control_code != FUJICMD_OPEN && current_network_data.json == nullptr) {
+    if (control_code != NETCMD_OPEN && current_network_data.json == nullptr) {
         Debug_printv("control should not be called on a non-open channel - FN was probably reset");
     }
 
     switch (control_code)
     {
-    case FUJICMD_RENAME:
+    case NETCMD_RENAME:
         rename();
         break;
-    case FUJICMD_DELETE:
+    case NETCMD_DELETE:
         del();
         break;
-    case FUJICMD_MKDIR:
+    case NETCMD_MKDIR:
         mkdir();
         break;
-    case FUJICMD_CHDIR:
+    case NETCMD_CHDIR:
         set_prefix();
         break;
-    case FUJICMD_GETCWD:
+    case NETCMD_GETCWD:
         get_prefix();
         break;
-    case FUJICMD_OPEN:
+    case NETCMD_OPEN:
         open();
         break;
-    case FUJICMD_CLOSE:
+    case NETCMD_CLOSE:
         close();
         break;
-    case FUJICMD_WRITE:
+    case NETCMD_WRITE:
         net_write();
         break;
-    case FUJICMD_JSON:
+    case NETCMD_CHANNEL_MODE:
         channel_mode();
         break;
-    case FUJICMD_USERNAME: // login
+    case NETCMD_USERNAME: // login
         set_login();
         break;
-    case FUJICMD_PASSWORD: // password
+    case NETCMD_PASSWORD: // password
         set_password();
         break;
     default:
@@ -808,11 +808,11 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
         {
         case NetworkData::PROTOCOL:
             do_inquiry(control_code);
-            if (inq_dstats == 0x00)
+            if (inq_dstats == SIO_DIRECTION_NONE)
                 special_00();
-            else if (inq_dstats == 0x40) // MOVE THIS TO STATUS!
+            else if (inq_dstats == SIO_DIRECTION_READ) // MOVE THIS TO STATUS!
                 special_40();
-            else if (inq_dstats == 0x80)
+            else if (inq_dstats == SIO_DIRECTION_WRITE)
                 special_80();
             else
                 Debug_printf("iwmnet_control_send() - Unknown Command: %02x\n", control_code);
@@ -828,10 +828,10 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
             } else {
                 switch (control_code)
                 {
-                case FUJICMD_PARSE:
+                case NETCMD_PARSE:
                     json_parse();
                     break;
-                case FUJICMD_QUERY:
+                case NETCMD_QUERY:
                     json_query(cmd);
                     break;
                 default:

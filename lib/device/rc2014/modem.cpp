@@ -80,7 +80,7 @@ static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *us
 {
     rc2014Modem *modem = (rc2014Modem *)user_data; // somehow it thinks this is unused?
 
-    modem->telnet_event_handler(telnet, ev);    
+    modem->telnet_event_handler(telnet, ev);
 }
 
 
@@ -1232,7 +1232,7 @@ void rc2014Modem::rc2014_handle_stream()
             Debug_println("Going back to command mode");
 
             at_cmd_println("OK");
-    
+
             cmdMode = true;
 
             plusCount = 0;
@@ -1306,13 +1306,13 @@ void rc2014Modem::rc2014_process(uint32_t commanddata, uint8_t checksum)
 
     switch (cmdFrame.comnd)
     {
-    case 'R':
+    case MODEMCMD_READ:
         read();
         break;
-    case 'W':
+    case MODEMCMD_WRITE:
         write();
         break;
-    case 'S':
+    case MODEMCMD_STATUS:
         status();
         break;
     default:
