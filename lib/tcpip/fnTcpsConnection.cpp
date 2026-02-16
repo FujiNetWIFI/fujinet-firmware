@@ -34,7 +34,6 @@ bool fnTcpsConnection::connected()
     {
         if (_outbound_conn == nullptr)
             return false;
-        // todo: i don't like this
         else if (_outbound_conn->is_connecting == 0 && _outbound_conn->is_client == 1 &&
                  _awaiting_tls_handshake == false)
         {
@@ -85,7 +84,7 @@ int fnTcpsConnection::read(uint8_t *buf, size_t size)
     if ((!_is_client && !_is_server) or
         (_outbound_conn == nullptr && _inbound_conn == nullptr))
     {
-        Debug_printf("Tried to read without a connection\r\n");
+        Debug_printf("fnTcpsConnection: Tried to read without a connection\r\n");
         return -1;
     }
 
@@ -114,7 +113,6 @@ int fnTcpsConnection::read(uint8_t *buf, size_t size)
 }
 
 // Read one byte of data. Return read byte or negative value for error
-// TODO: verify this
 int fnTcpsConnection::read()
 {
     uint8_t data = 0;
@@ -327,7 +325,7 @@ int fnTcpsConnection::connect(const char *host, uint16_t port, int32_t timeout)
     }
     else
     {
-        // reset the `_awaiting_tls_handshake` flag and return 0
+        // Connection probably timed out, reset the `_awaiting_tls_handshake` flag and return 0
         _awaiting_tls_handshake = false;
         return 0;
     }
@@ -349,7 +347,7 @@ int fnTcpsConnection::accept_connection()
 {
     Debug_printf("fnTcpsConnection: accepting inbound connection\r\n");
 
-    if (!_is_server or _listener_conn->is_listening == 0)
+    if (!_is_server or _listener_conn == nullptr or _listener_conn->is_listening == 0)
     {
         Debug_printf(
             "fnTcpsConnection: Tried to accept an inbound connection while not listening\r\n");
@@ -374,7 +372,8 @@ int fnTcpsConnection::accept_connection()
     if (_inbound_conn->is_tls == 1 && _inbound_conn->is_accepted == 1)
         return 0;
 
-    Debug_printf("fnTcpsConnection: timed out waiting for incoming connection\r\n");
+    Debug_printf("fnTcpsConnection: timed out waiting for incoming connection or connection "
+                 "failed\r\n");
     return 1;
 }
 
@@ -462,7 +461,9 @@ bool fnTcpsConnection::hasClient()
         // to see if a client is trying to connect.
         if (!_is_polling)
             mg_mgr_poll(_mgr, 100);
-        return false;
+
+        if (_inbound_conn == nullptr) // even after polling
+            return false;
     }
 
     if (_is_server and _inbound_conn->is_accepted)
@@ -476,7 +477,11 @@ bool fnTcpsConnection::hasClient()
         // to see if a client is trying to connect.
         if (!_is_polling)
             mg_mgr_poll(_mgr, 100);
-        return false;
+
+        if (_inbound_conn->is_accepted) // after polling
+            return true;
+        else
+            return false;
     }
 }
 

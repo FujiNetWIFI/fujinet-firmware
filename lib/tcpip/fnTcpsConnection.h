@@ -75,7 +75,7 @@ private:
     bool _awaiting_tls_handshake = false;
     // If true indicates `mg_mgr_poll` is being called periodically
     bool _is_polling = false;
-    int _timeout = 10000; // default timeout in ms
+    int _timeout = 30000; // default timeout in ms
     int _bytes_written = 0;
     bool _writing_data = false;
     bool _write_error = false;
