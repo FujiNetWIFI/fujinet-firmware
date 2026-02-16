@@ -103,7 +103,7 @@ set(BUILD_DATA_DIR ${CMAKE_CURRENT_BINARY_DIR}/data)
 
 # -DDBUG2 to enable monitor messages for a release build
 # -DSKIP_SERVER_CERT_VERIFY does not work with MbedTLS
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${FUJINET_BUILD_PLATFORM} -DDEV_RELAY_SLIP -DFLASH_SPIFFS -DDBUG2")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${FUJINET_BUILD_PLATFORM} -DDEV_RELAY_SLIP -DFLASH_SPIFFS -DDBUG2 -DDEBUG_NETSTREAM")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVERBOSE_HTTP -D__PC_BUILD_DEBUG__")
 
 # mongoose.c some compile options: -DMG_ENABLE_LINES=1 -DMG_ENABLE_DIRECTORY_LISTING=1 -DMG_ENABLE_SSI=1
@@ -264,7 +264,7 @@ set(SOURCES src/main.cpp
     lib/device/cassette.h
     lib/device/fujiDevice.h lib/device/fujiDevice.cpp
     lib/device/network.h
-    lib/device/udpstream.h
+    lib/device/netstream.h
     lib/device/siocpm.h
     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
     lib/media/media.h
@@ -293,7 +293,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     lib/device/sio/cassette.h lib/device/sio/cassette.cpp
     lib/device/sio/sioFuji.h lib/device/sio/sioFuji.cpp
     lib/device/sio/network.h lib/device/sio/network.cpp
-    lib/device/sio/udpstream.h lib/device/sio/udpstream.cpp
+    lib/device/sio/netstream.h lib/device/sio/netstream.cpp
     lib/device/sio/voice.h lib/device/sio/voice.cpp
     lib/device/sio/clock.h lib/device/sio/clock.cpp
     lib/device/sio/siocpm.h lib/device/sio/siocpm.cpp
