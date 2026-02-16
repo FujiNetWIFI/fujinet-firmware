@@ -16,6 +16,7 @@
 #include "SSH.h"
 #include "SMB.h"
 #include "TCP.h"
+#include "TCPS.h"
 #include "Telnet.h"
 #include "Test.h"
 #include "TNFS.h"
@@ -33,6 +34,7 @@ public:
 			{"SSH",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolSSH>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
 			{"SMB",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolSMB>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
 			{"TCP",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolTCP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
+			{"TCPS",   [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolTCPS>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
 			{"TELNET", [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolTELNET>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
 			{"TEST",   [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolTest>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
 			{"TNFS",   [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolTNFS>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
