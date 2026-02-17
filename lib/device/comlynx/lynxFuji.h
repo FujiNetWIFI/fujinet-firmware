@@ -16,13 +16,9 @@
 class lynxFuji : public fujiDevice
 {
 protected:
-    void transaction_continue(bool expectMoreData) override {}
-    void transaction_complete() override {
-        comlynx_response_ack();
-    }
-    void transaction_error() override {
-        comlynx_response_nack();
-    }
+    void transaction_continue(bool expectMoreData) override {};
+    void transaction_complete() override;
+    void transaction_error() override;
     bool transaction_get(void *data, size_t len) override;
     void transaction_put(const void *data, size_t len, bool err=false);
 

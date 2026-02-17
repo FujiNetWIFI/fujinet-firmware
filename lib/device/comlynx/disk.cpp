@@ -10,6 +10,7 @@
 #include "media.h"
 #include "utils.h"
 
+
 lynxDisk::lynxDisk()
 {
     device_active = false;
@@ -30,6 +31,61 @@ lynxDisk::~lynxDisk()
         delete _media;
         _media = nullptr;
     }
+}
+
+
+void lynxDisk::transaction_complete()
+{
+    Debug_println("transaction_complete - sent ACK");
+    comlynx_response_ack();
+}
+
+void lynxDisk::transaction_error()
+{
+    Debug_println("transaction_error - send NAK");
+    comlynx_response_nack();
+    
+    // throw away any waiting bytes
+    while (SYSTEM_BUS.available() > 0)
+        SYSTEM_BUS.read();
+}
+    
+bool lynxDisk::transaction_get(void *data, size_t len) 
+{
+    size_t remaining = recvbuffer_len - (recvbuf_pos - recvbuffer);
+    size_t to_copy = (len > remaining) ? remaining : len;
+
+    memcpy(data, recvbuf_pos, to_copy);
+    recvbuf_pos += to_copy;
+
+    return len;
+}
+
+
+void lynxDisk::transaction_put(const void *data, size_t len, bool err)
+{
+    uint8_t b;
+
+    // set response buffer
+    memcpy(response, data, len);
+    response_len = len;
+
+    // send all data back to Lynx
+    uint8_t ck = comlynx_checksum(response, response_len);
+    comlynx_send_length(response_len);
+    comlynx_send_buffer(response, response_len);
+    comlynx_send(ck);
+
+    // get ACK or NACK from Lynx, we're ignoring currently
+    uint8_t r = comlynx_recv();
+    #ifdef DEBUG
+            if (r == FUJICMD_ACK)
+                Debug_println("transaction_put - Lynx ACKed");
+            else
+                Debug_println("transaction put - Lynx NAKed");
+    #endif
+
+    return;
 }
 
 void lynxDisk::reset()
@@ -199,8 +255,8 @@ bool lynxDisk::write_blank(FILE *fileh, uint32_t numBlocks)
 void lynxDisk::read_block(uint32_t block)
 {
     if (_media == nullptr) {
-        //transaction_error();
-        comlynx_response_nack();
+        transaction_error();
+        //comlynx_response_nack();
         return;
     }
 
@@ -209,8 +265,8 @@ void lynxDisk::read_block(uint32_t block)
     // Read the block
     Debug_printf("lynxdisk::read_block - block: %lu\n", block);
     if (!_media->read(block, nullptr))
-        //transaction_error();
-        comlynx_response_nack();
+        transaction_error();
+        //comlynx_response_nack();
 
     // Send block to Lynx
     uint8_t c = comlynx_checksum(_media->_media_blockbuff, MEDIA_BLOCK_SIZE);
@@ -220,9 +276,9 @@ void lynxDisk::read_block(uint32_t block)
     b[1] = MEDIA_BLOCK_SIZE / 256;          // block length
     b[2] = MEDIA_BLOCK_SIZE % 256;
     b[MEDIA_BLOCK_SIZE+3] = c;
-    //transaction_put(&b, sizeof(b));
-    comlynx_send_buffer(b, sizeof(b));
-    comlynx_recv();     // get ACK or NAK
+    transaction_put(&b, sizeof(b));
+    //comlynx_send_buffer(b, sizeof(b));
+    //comlynx_recv();     // get ACK or NAK
 
     Debug_println("comlynx_send_buffer - disk block sent to Lynx");
 }
@@ -230,8 +286,8 @@ void lynxDisk::read_block(uint32_t block)
 void lynxDisk::write_block(uint32_t block, uint8_t *data)
 {
     if (_media == nullptr) {
-        //transaction_error();
-        comlynx_response_nack();
+        transaction_error();
+        //comlynx_response_nack();
         return;
     }
 
@@ -242,8 +298,8 @@ void lynxDisk::write_block(uint32_t block, uint8_t *data)
 
     blockNum = 0xFFFFFFFF;
     _media->_media_last_block = 0xFFFFFFFE;
-    //transaction_complete();
-    comlynx_response_ack();
+    transaction_complete();
+    //comlynx_response_ack();
 }
 
 void lynxDisk::comlynx_process()
@@ -253,7 +309,7 @@ void lynxDisk::comlynx_process()
 
 
     // Reset the recvbuffer
-    recvbuffer_len = 0;         // happens in recv_length, but may remove from there -SJ
+    //recvbuffer_len = 0;         // happens in recv_length, but may remove from there -SJ
     
     // Get the entire payload from Lynx
     uint16_t len = comlynx_recv_length();
@@ -267,21 +323,22 @@ void lynxDisk::comlynx_process()
     }
 
     // get command
-    c = *recvbuf_pos;
-    recvbuf_pos++;
+    //c = *recvbuf_pos;
+    //recvbuf_pos++;
+    transaction_get(&c, sizeof(c));
 
     switch (c)
     {
     case FUJICMD_READ:
-        //transaction_get(&block, sizeof(block));
-        memcpy(&block, recvbuf_pos, sizeof(block));
-        recvbuf_pos += sizeof(block);  
+        transaction_get(&block, sizeof(block));
+        //memcpy(&block, recvbuf_pos, sizeof(block));
+        //recvbuf_pos += sizeof(block);  
         read_block(block);
         break;
     case FUJICMD_WRITE:
-        //transaction_get(&block, sizeof(block));
-        memcpy(&block, recvbuf_pos, sizeof(block));
-        recvbuf_pos += sizeof(block);
+        transaction_get(&block, sizeof(block));
+        //memcpy(&block, recvbuf_pos, sizeof(block));
+        //recvbuf_pos += sizeof(block);
         write_block(block, recvbuf_pos);
         break;
     }

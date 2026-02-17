@@ -80,7 +80,7 @@ uint8_t comlynx_checksum(uint8_t *buf, unsigned short len)
 
 void virtualDevice::comlynx_send(uint8_t b)
 {
-    Debug_printf("comlynx_send_buffer - %X\n", b);
+    //Debug_printf("comlynx_send_buffer - %X\n", b);
 
     // Wait for idle only when in UDPStream mode
     if (SYSTEM_BUS._udpDev->udpstreamActive)
@@ -88,7 +88,6 @@ void virtualDevice::comlynx_send(uint8_t b)
 
     // Write the byte
     SYSTEM_BUS.write(b);
-    SYSTEM_BUS.flush();
     SYSTEM_BUS.read();
 }
 
@@ -116,12 +115,6 @@ bool virtualDevice::comlynx_recv_ck()
     recv_ck = SYSTEM_BUS.read();
 
     ck = comlynx_checksum(recvbuffer, recvbuffer_len);
-
-    // debugging checksum values
-    //Debug_printf("comlynx_recv_ck, recv:%02X calc:%02X\n", recv_ck, ck);
-
-    // reset receive buffer
-    //recvbuffer_len = 0;
 
     if (recv_ck == ck)
         return true;
@@ -183,6 +176,7 @@ uint16_t virtualDevice::comlynx_recv_length()
 
     // Reset recv buffer
     recvbuffer_len = 0;
+    recvbuf_pos = &recvbuffer[0];
 
     return l;
 }
@@ -191,6 +185,10 @@ void virtualDevice::comlynx_send_length(uint16_t l)
 {
     comlynx_send(l >> 8);
     comlynx_send(l & 0xFF);
+
+    #ifdef DEBUG
+        Debug_printf("comlynx_send_length - len: %ld\n", l);
+    #endif
 }
 
 unsigned short virtualDevice::comlynx_recv_buffer(uint8_t *buf, unsigned short len)
@@ -200,8 +198,8 @@ unsigned short virtualDevice::comlynx_recv_buffer(uint8_t *buf, unsigned short l
     b = SYSTEM_BUS.read(buf, len);
 
     // Add to receive buffer
-    memcpy(&recvbuffer[recvbuffer_len], buf, len);
-    recvbuffer_len += len;               // length of payload
+    memcpy(recvbuffer, buf, len);
+    recvbuffer_len = len;               // length of payload
     recvbuf_pos = &recvbuffer[0];       // pointer into payload
 
     return(b);

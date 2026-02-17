@@ -21,6 +21,12 @@ private:
 
     unsigned long blockNum=INVALID_SECTOR_VALUE;
 
+    //void transaction_continue(bool expectMoreData) override {};
+    void transaction_complete();
+    void transaction_error();
+    bool transaction_get(void *data, size_t len);
+    void transaction_put(const void *data, size_t len, bool err=false);
+
     //void comlynx_control_clr();
     //void comlynx_control_receive();
     //void comlynx_control_send();
