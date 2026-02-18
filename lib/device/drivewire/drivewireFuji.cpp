@@ -113,43 +113,6 @@ void drivewireFuji::shutdown()
         _fnDisks[i].disk_dev.unmount();
 }
 
-// Get network adapter configuration - extended
-void drivewireFuji::get_adapter_config_extended()
-{
-    // also return string versions of the data to save the host some computing
-    Debug_printf("Fuji cmd: GET ADAPTER CONFIG EXTENDED\r\n");
-    AdapterConfigExtended cfg;
-    memset(&cfg, 0, sizeof(cfg));       // ensures all strings are null terminated
-
-    strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
-
-    if (!fnWiFi.connected())
-    {
-        strlcpy(cfg.ssid, "NOT CONNECTED", sizeof(cfg.ssid));
-    }
-    else
-    {
-        strlcpy(cfg.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(cfg.hostname));
-        strlcpy(cfg.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(cfg.ssid));
-        fnWiFi.get_current_bssid(cfg.bssid);
-        fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
-        fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
-    }
-
-    fnWiFi.get_mac(cfg.macAddress);
-
-    // convert fields to strings
-    strlcpy(cfg.sLocalIP, fnSystem.Net.get_ip4_address_str().c_str(), 16);
-    strlcpy(cfg.sGateway, fnSystem.Net.get_ip4_gateway_str().c_str(), 16);
-    strlcpy(cfg.sDnsIP,   fnSystem.Net.get_ip4_dns_str().c_str(),     16);
-    strlcpy(cfg.sNetmask, fnSystem.Net.get_ip4_mask_str().c_str(),    16);
-
-    sprintf(cfg.sMacAddress, "%02X:%02X:%02X:%02X:%02X:%02X", cfg.macAddress[0], cfg.macAddress[1], cfg.macAddress[2], cfg.macAddress[3], cfg.macAddress[4], cfg.macAddress[5]);
-    sprintf(cfg.sBssid,      "%02X:%02X:%02X:%02X:%02X:%02X", cfg.bssid[0], cfg.bssid[1], cfg.bssid[2], cfg.bssid[3], cfg.bssid[4], cfg.bssid[5]);
-
-    transaction_put(&cfg, sizeof(cfg));
-}
-
 //  Make new disk and shove into device slot
 void drivewireFuji::new_disk()
 {
@@ -494,7 +457,7 @@ void drivewireFuji::process()
         fujicmd_get_adapter_config();
         break;
     case FUJICMD_GET_ADAPTERCONFIG_EXTENDED:
-        get_adapter_config_extended();
+        fujicmd_get_adapter_config_extended();
         break;
     case FUJICMD_GET_SCAN_RESULT:
         fujicmd_net_scan_result(SYSTEM_BUS.read());
@@ -720,6 +683,6 @@ void drivewireFuji::fujicmd_open_app_key()
         return;
     }
     transaction_complete();
-}    
+}
 
 #endif /* BUILD_COCO */
