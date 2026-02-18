@@ -99,14 +99,17 @@ cJSON *FNJSON::resolveQuery()
  */
 std::string FNJSON::processString(std::string in)
 {
-    while (in.find("<") != std::string::npos)
+    if (_queryParam & JSON_DELETE_SGML_TAGS)
     {
-        auto startpos = in.find("<");
-        auto endpos = in.find(">") + 1;
-
-        if (endpos != std::string::npos)
+        while (in.find("<") != std::string::npos)
         {
-            in.erase(startpos, endpos - startpos);
+            auto startpos = in.find("<");
+            auto endpos = in.find(">");
+
+            if (endpos != std::string::npos)
+            {
+                in.erase(startpos, (endpos + 1) - startpos);
+            }
         }
     }
 
@@ -128,13 +131,13 @@ std::string FNJSON::processString(std::string in)
     //   Bit 1=1 - convert to ATASCII international charset (need to be switched on ATARI, i.e via POKE 756,204)
 
     // SIO AUX2 Bit 1 set?
-    if ((_queryParam & 1) != 0)
+    if (_queryParam & JSON_REMAP_CHARS)
     {
         // yes, map special characters
         Debug_printf("S: [Mapping->ATARI]\r\n");
 
         // SIO AUX2 Bit 2 set?
-        if ((_queryParam & 2) != 0)
+        if (_queryParam & JSON_REMAP_ATASCII_INTERNATIONAL)
         {
             Debug_printf("Applying international charset mapping\r\n");
             // yes, mapping to international charset
