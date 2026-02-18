@@ -13,6 +13,7 @@
 #include "../../include/debug.h"
 
 #include "utils.h"
+#include "fuji_endian.h"
 
 #include "status_error_codes.h"
 #include "ProtocolParser.h"
@@ -24,9 +25,8 @@ using namespace std;
  */
 adamNetwork::adamNetwork()
 {
-    status_response[1] = 0x00;
-    status_response[2] = 0x04; // 1024 bytes
-    status_response[3] = 0x00; // Character device
+    status_response.length = htole16(1024);
+    status_response.devtype = ADAMNET_DEVTYPE_CHAR;
 
     receiveBuffer = new string();
     transmitBuffer = new string();
@@ -258,21 +258,21 @@ void adamNetwork::write(uint16_t num_bytes)
  * @param num_bytes Number of bytes to write.
  * @return TRUE on error, FALSE on success. Used to emit adamnet_error or adamnet_complete().
  */
-bool adamNetwork::adamnet_write_channel(unsigned short num_bytes)
+netProtoErr_t adamNetwork::adamnet_write_channel(unsigned short num_bytes)
 {
-    bool err = false;
+    netProtoErr_t err_net = NETPROTO_ERR_NONE;
 
     switch (channelMode)
     {
     case PROTOCOL:
-        err = protocol->write(num_bytes);
+        err_net = protocol->write(num_bytes);
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
-        err = true;
+        err_net = NETPROTO_ERR_UNSPECIFIED;
         break;
     }
-    return err;
+    return err_net;
 }
 
 /**
@@ -292,7 +292,7 @@ void adamNetwork::status()
     {
         status->avail = 0;
         status->conn = 0;
-        status->err = 165; // invalid spec.
+        status->err = NETWORK_ERROR_INVALID_DEVICESPEC;
         response_len = sizeof(*status);
         return;
     }
@@ -716,10 +716,8 @@ void adamNetwork::adamnet_response_status()
         statusByte.bits.client_error = s.error > 1;
     }
 
-    status_response[1] = 2; // max packet size 1026 bytes, maybe larger?
-    status_response[2] = 4;
-
-    status_response[4] = statusByte.byte;
+    status_response.length = htole16(1026); // max packet size 1026 bytes, maybe larger?
+    status_response.status = statusByte.byte;
 
     int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
 
