@@ -57,6 +57,7 @@ class systemBus;
 class lynxFuji;     // declare here so can reference it, but define in fuji.h
 class lynxPrinter;
 class lynxUDPStream; // declare here so can reference it, but define in udpstream.h
+class lynxNetwork;
 
 /**
  * @brief Calculate checksum for Comlynx packets. Uses a simple 8-bit XOR of each successive byte.

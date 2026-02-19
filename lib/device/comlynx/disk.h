@@ -27,17 +27,9 @@ private:
     bool transaction_get(void *data, size_t len);
     void transaction_put(const void *data, size_t len, bool err=false);
 
-    //void comlynx_control_clr();
-    //void comlynx_control_receive();
-    //void comlynx_control_send();
-    //void comlynx_control_send_block_num();
-    //void comlynx_control_send_block_data();
-    //virtual void comlynx_response_status() override;
-    //void comlynx_response_send();
-
     void comlynx_process() override;
     void read_block(uint32_t block);
-    void write_block(uint32_t block, uint8_t *data);
+    void write_block(uint32_t block);
 
 public:
     lynxDisk();

@@ -399,11 +399,12 @@ void lynxFuji::comlynx_process()
         {
             uint8_t deviceSlot;
             transaction_get(&deviceSlot, sizeof(deviceSlot));
-            char filename[256];
-            transaction_get(filename, len - 2);
-            fujicore_set_device_filename_success(deviceSlot, _fnDisks[deviceSlot].host_slot,
-                                                 _fnDisks[deviceSlot].access_mode,
-                                                 std::string(filename, sizeof(filename)));
+            //char filename[256];
+            //transaction_get(filename, len - 2);
+            //fujicore_set_device_filename_success(deviceSlot, _fnDisks[deviceSlot].host_slot,
+            //                                     _fnDisks[deviceSlot].access_mode,
+            //                                     std::string(filename, sizeof(filename)));
+            fujicmd_set_device_filename_success(deviceSlot, _fnDisks[deviceSlot].host_slot, _fnDisks[deviceSlot].access_mode);
         }
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:

@@ -420,6 +420,12 @@ private:
      * @param db pointer to devicespecbuf 256 chars
      */
     void parse_and_instantiate_protocol(std::string d);
+
+    //void transaction_continue(bool expectMoreData) override {};
+    void transaction_complete();
+    void transaction_error();
+    bool transaction_get(void *data, size_t len);
+    void transaction_put(const void *data, size_t len, bool err=false);
 };
 
 #endif /* NETWORK_H */
