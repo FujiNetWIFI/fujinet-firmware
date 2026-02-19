@@ -290,10 +290,10 @@ void adamFuji::setup()
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = false;
 
-    SYSTEM_BUS.addDevice(&_fnDisks[0].disk_dev, ADAMNET_DEVICEID_DISK);
-    SYSTEM_BUS.addDevice(&_fnDisks[1].disk_dev, ADAMNET_DEVICEID_DISK + 1);
-    SYSTEM_BUS.addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK + 2);
-    SYSTEM_BUS.addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK + 3);
+    SYSTEM_BUS.addDevice(&_fnDisks[0].disk_dev, FUJI_DEVICEID_DISK);
+    SYSTEM_BUS.addDevice(&_fnDisks[1].disk_dev, FUJI_DEVICEID_DISK + 1);
+    SYSTEM_BUS.addDevice(&_fnDisks[2].disk_dev, FUJI_DEVICEID_DISK + 2);
+    SYSTEM_BUS.addDevice(&_fnDisks[3].disk_dev, FUJI_DEVICEID_DISK + 3);
 
     // Read and enable devices
     _fnDisks[0].disk_dev.device_active = Config.get_device_slot_enable_1();
@@ -324,9 +324,9 @@ void adamFuji::setup()
     theNetwork = new adamNetwork();
     theNetwork2 = new adamNetwork();
     theSerial = new adamSerial();
-    SYSTEM_BUS.addDevice(theNetwork, 0x09);  // temporary.
-    SYSTEM_BUS.addDevice(theNetwork2, 0x0A); // temporary
-    SYSTEM_BUS.addDevice(theFuji, 0x0F);    // Fuji becomes the gateway device.
+    SYSTEM_BUS.addDevice(theNetwork, FUJI_DEVICEID_NETWORK);  // temporary.
+    SYSTEM_BUS.addDevice(theNetwork2, FUJI_DEVICEID_NETWORK + 1); // temporary
+    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET);    // Fuji becomes the gateway device.
 }
 
 void adamFuji::adamnet_random_number()
