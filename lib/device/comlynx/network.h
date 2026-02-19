@@ -94,12 +94,12 @@ public:
     //virtual void comlynx_control_send();
 
     //virtual void comlynx_response_status() override;
-    virtual void comlynx_response_send();
+    //virtual void comlynx_response_send();
 
     /**
      * @brief Called to set prefix
      */
-    virtual void set_prefix(unsigned short s);
+    virtual void set_prefix(unsigned short len);
 
     /**
      * @brief Called to get prefix
@@ -109,12 +109,12 @@ public:
     /**
      * @brief called to set login
      */
-    virtual void set_login(uint16_t s);
+    virtual void set_login(uint16_t len);
 
     /**
      * @brief called to set password
      */
-    virtual void set_password(uint16_t s);
+    virtual void set_password(uint16_t len);
 
     /**
      * @brief set channel mode
@@ -130,7 +130,7 @@ public:
      * @brief JSON Query
      * @param s size of query
      */
-    void json_query(unsigned short s);
+    void json_query(unsigned short len);
 
     /**
      * Check to see if PROCEED needs to be asserted.
@@ -143,9 +143,9 @@ public:
      */
     virtual void comlynx_process() override;
 
-    virtual void del(uint16_t s);
-    virtual void rename(uint16_t s);
-    virtual void mkdir(uint16_t s);
+    virtual void del(uint16_t len);
+    virtual void rename(uint16_t len);
+    virtual void mkdir(uint16_t len);
 
 
 private:
