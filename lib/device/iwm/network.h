@@ -196,9 +196,9 @@ private:
     // ProtocolParser *protocolParser = nullptr;
 
     /**
-     * Error number when there's an ... error!
+     * SP_ERR number when there's an ... error!
      */
-    uint8_t err = 0;
+    uint8_t err = SP_ERR_NOERROR;
 
     /**
      * ESP timer handle for the Interrupt rate limiting timer

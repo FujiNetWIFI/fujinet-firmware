@@ -218,7 +218,7 @@ private:
     /**
      * Error number, if status.bits.client_error is set.
      */
-    uint8_t err = 0;
+    nDevStatus_t err = NDEV_STATUS::SUCCESS;
 
     /**
      * ESP timer handle for the Interrupt rate limiting timer
@@ -341,16 +341,16 @@ private:
     /**
      * Perform the correct read based on value of channelMode
      * @param num_bytes Number of bytes to read.
-     * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
+     * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
      */
-    bool read_channel(unsigned short num_bytes);
+    protocolError_t read_channel(unsigned short num_bytes);
 
     /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
-     * @return TRUE on error, FALSE on success. Used to emit comlynx_error or comlynx_complete().
+     * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit comlynx_error or comlynx_complete().
      */
-    bool comlynx_write_channel(unsigned short num_bytes);
+    protocolError_t comlynx_write_channel(unsigned short num_bytes);
 
     /**
      * @brief perform local status commands, if protocol is not bound, based on cmdFrame

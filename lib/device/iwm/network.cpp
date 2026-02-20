@@ -122,7 +122,7 @@ void iwmNetwork::open()
     }
 
     // Attempt protocol open
-    if (current_network_data.protocol->open(current_network_data.urlParser.get(), &cmdFrame))
+    if (current_network_data.protocol->open(current_network_data.urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         Debug_printf("Protocol unable to make connection. Error: %d\n", err);
         current_network_data.protocol.reset();
@@ -265,7 +265,7 @@ void iwmNetwork::del()
 
     cmdFrame.comnd = NETCMD_DELETE;
 
-    if (current_network_data.protocol->perform_idempotent_80(current_network_data.urlParser.get(), &cmdFrame))
+    if (current_network_data.protocol->perform_idempotent_80(current_network_data.urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         err = SP_ERR_IOERROR;
         return;
@@ -282,7 +282,7 @@ void iwmNetwork::rename()
 
     cmdFrame.comnd = NETCMD_RENAME;
 
-    if (current_network_data.protocol->perform_idempotent_80(current_network_data.urlParser.get(), &cmdFrame))
+    if (current_network_data.protocol->perform_idempotent_80(current_network_data.urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         err = SP_ERR_IOERROR;
         return;
@@ -299,7 +299,7 @@ void iwmNetwork::mkdir()
 
     cmdFrame.comnd = NETCMD_MKDIR;
 
-    if (current_network_data.protocol->perform_idempotent_80(current_network_data.urlParser.get(), &cmdFrame))
+    if (current_network_data.protocol->perform_idempotent_80(current_network_data.urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         err = SP_ERR_IOERROR;
         return;
@@ -426,7 +426,7 @@ void iwmNetwork::special_40()
     cmdFrame.aux1 = data_buffer[0];
     cmdFrame.aux2 = data_buffer[1];
 
-    if (!current_network_data.protocol->special_40(data_buffer, 256, &cmdFrame))
+    if (current_network_data.protocol->special_40(data_buffer, 256, &cmdFrame) == PROTOCOL_ERROR::NONE)
     {
         data_len = 256;
         //send_data_packet(data_len);
@@ -454,7 +454,7 @@ void iwmNetwork::special_80()
     Debug_printf("iwmNetwork::iwmnet_special_80() - %s\n", &data_buffer[2]);
 
     // Do protocol action and return
-    if (!current_network_data.protocol->special_80(&data_buffer[2], SPECIAL_BUFFER_SIZE, &cmdFrame))
+    if (current_network_data.protocol->special_80(&data_buffer[2], SPECIAL_BUFFER_SIZE, &cmdFrame) == PROTOCOL_ERROR::NONE)
     {
         // GOOD - LOL
     }
@@ -491,15 +491,16 @@ void iwmNetwork::status()
     case NetworkData::PROTOCOL:
         if (!current_network_data.protocol) {
             Debug_printf("ERROR: Calling status on a null protocol.\r\n");
-            err = NETWORK_ERROR_INVALID_COMMAND;
-            s.error = NETWORK_ERROR_INVALID_COMMAND;
+            err = SP_ERR_BADCMD;
+            s.error = NDEV_STATUS::INVALID_COMMAND;
         } else {
-            err = current_network_data.protocol->status(&s);
+            err = current_network_data.protocol->status(&s) == PROTOCOL_ERROR::NONE
+                ? SP_ERR_NOERROR : SP_ERR_BADCMD;
             avail = current_network_data.protocol->available();
         }
         break;
     case NetworkData::JSON:
-        err = (current_network_data.json->status(&s) == false) ? 0 : NETWORK_ERROR_GENERAL;
+        err = (current_network_data.json->status(&s) == false) ? SP_ERR_NOERROR : SP_ERR_IOERROR;
         avail = current_network_data.json->available();
         break;
     }
@@ -621,9 +622,9 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 
     //Debug_printf("\r\nAvailable bytes %04x\n", data_len);
 
-    if (current_network_data.protocol->read(data_len)) // protocol adapter returned error
+    if (current_network_data.protocol->read(data_len) != PROTOCOL_ERROR::NONE) // protocol adapter returned error
     {
-        err = current_network_data.protocol->error;
+        err = current_network_data.protocol->error == NDEV_STATUS::SUCCESS ? SP_ERR_NOERROR : SP_ERR_BADCMD;
         return true;
     }
     else // everything ok
@@ -939,7 +940,7 @@ void iwmNetwork::parse_and_instantiate_protocol(string d)
     if (!current_network_data.urlParser->isValidUrl())
     {
         Debug_printf("Invalid devicespec: %s\n", current_network_data.deviceSpec.c_str());
-        err = NETWORK_ERROR_INVALID_DEVICESPEC;
+        err = SP_ERR_BADCTLPARM;
         return;
     }
 
@@ -951,7 +952,7 @@ void iwmNetwork::parse_and_instantiate_protocol(string d)
     if (!instantiate_protocol())
     {
         Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", current_network_data.deviceSpec.c_str(), current_network_data.urlParser->mRawUrl.c_str());
-        err = NETWORK_ERROR_GENERAL;
+        err = SP_ERR_BADCMD;
         return;
     }
 }

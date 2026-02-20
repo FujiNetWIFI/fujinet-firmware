@@ -157,7 +157,7 @@ void drivewireFuji::new_disk()
 
     bool ok = disk.disk_dev.write_blank(disk.fileh, newDisk.numDisks);
 
-    if (ok == NETWORK_ERROR_SUCCESS)
+    if (ok)
         transaction_complete();
     else
         transaction_error();

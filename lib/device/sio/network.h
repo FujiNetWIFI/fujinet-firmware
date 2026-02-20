@@ -257,7 +257,7 @@ private:
      * saved NetworkStatus items
      */
     unsigned char reservedSave = 0;
-    unsigned char errorSave = 1;
+    nDevStatus_t errorSave = NDEV_STATUS::SUCCESS;
 
     /**
      * The fnJSON parser wrapper object
@@ -316,22 +316,22 @@ private:
     /**
      * Perform the correct read based on value of channelMode
      * @param num_bytes Number of bytes to read.
-     * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
+     * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
      */
-    bool sio_read_channel(unsigned short num_bytes);
+    protocolError_t sio_read_channel(unsigned short num_bytes);
 
     /**
      * @brief Perform read of the current JSON channel
      * @param num_bytes Number of bytes to read
      */
-    bool sio_read_channel_json(unsigned short num_bytes);
+    protocolError_t sio_read_channel_json(unsigned short num_bytes);
 
     /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
-     * @return TRUE on error, FALSE on success. Used to emit sio_error or sio_complete().
+     * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit sio_error or sio_complete().
      */
-    bool sio_write_channel(unsigned short num_bytes);
+    protocolError_t sio_write_channel(unsigned short num_bytes);
 
     /**
      * @brief perform local status commands, if protocol is not bound, based on cmdFrame

@@ -861,7 +861,7 @@ void s100spiNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Invalid devicespec: >%s<\n", deviceSpec.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NETWORK_ERROR_INVALID_DEVICESPEC;
+        err = DEVICE_STATUS_INVALID_DEVICESPEC;
         return;
     }
 
@@ -875,7 +875,7 @@ void s100spiNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NETWORK_ERROR_GENERAL;
+        err = DEVICE_STATUS_GENERAL;
         return;
     }
 }

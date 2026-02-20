@@ -79,12 +79,12 @@ void adamNetwork::get_error()
 
     if (protocol == nullptr)
     {
-        response[0] = NETWORK_ERROR_NOT_CONNECTED;
+        response[0] = (uint8_t) NDEV_STATUS::NOT_CONNECTED;
     }
     else
     {
         protocol->status(&ns);
-        response[0] = ns.error;
+        response[0] = (uint8_t) ns.error;
     }
 }
 /**
@@ -151,7 +151,7 @@ void adamNetwork::open(unsigned short s)
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), &cmdFrame) == true)
+    if (protocol->open(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
         Debug_printf("Protocol unable to make connection. Error: %d\n", err);
@@ -214,11 +214,11 @@ void adamNetwork::close()
 /**
  * Perform the channel read based on the channelMode
  * @param num_bytes - number of bytes to read from channel.
- * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
+ * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
  */
-bool adamNetwork::read_channel(unsigned short num_bytes)
+protocolError_t adamNetwork::read_channel(unsigned short num_bytes)
 {
-    bool _err = false;
+    protocolError_t _err = PROTOCOL_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -227,7 +227,7 @@ bool adamNetwork::read_channel(unsigned short num_bytes)
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
-        _err = true;
+        _err = PROTOCOL_ERROR::UNSPECIFIED;
         break;
     }
     return _err;
@@ -250,17 +250,17 @@ void adamNetwork::write(uint16_t num_bytes)
     adamnet_response_ack();
 
     *transmitBuffer += string((char *)response, num_bytes);
-    err = adamnet_write_channel(num_bytes);
+    err = adamnet_write_channel(num_bytes) == PROTOCOL_ERROR::NONE ? NDEV_STATUS::SUCCESS : NDEV_STATUS::GENERAL;
 }
 
 /**
  * Perform the correct write based on value of channelMode
  * @param num_bytes Number of bytes to write.
- * @return TRUE on error, FALSE on success. Used to emit adamnet_error or adamnet_complete().
+ * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit adamnet_error or adamnet_complete().
  */
-netProtoErr_t adamNetwork::adamnet_write_channel(unsigned short num_bytes)
+protocolError_t adamNetwork::adamnet_write_channel(unsigned short num_bytes)
 {
-    netProtoErr_t err_net = NETPROTO_ERR_NONE;
+    protocolError_t err_net = PROTOCOL_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -269,7 +269,7 @@ netProtoErr_t adamNetwork::adamnet_write_channel(unsigned short num_bytes)
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
-        err_net = NETPROTO_ERR_UNSPECIFIED;
+        err_net = PROTOCOL_ERROR::UNSPECIFIED;
         break;
     }
     return err_net;
@@ -292,7 +292,7 @@ void adamNetwork::status()
     {
         status->avail = 0;
         status->conn = 0;
-        status->err = NETWORK_ERROR_INVALID_DEVICESPEC;
+        status->err = NDEV_STATUS::INVALID_DEVICESPEC;
         response_len = sizeof(*status);
         return;
     }
@@ -300,7 +300,7 @@ void adamNetwork::status()
     switch (channelMode)
     {
     case PROTOCOL:
-        err = protocol->status(&ns);
+        err = protocol->status(&ns) == PROTOCOL_ERROR::NONE ? NDEV_STATUS::SUCCESS : NDEV_STATUS::GENERAL;
         break;
     case JSON:
         // err = json.status(&status);
@@ -449,7 +449,7 @@ void adamNetwork::del(uint16_t s)
 
     cmdFrame.comnd = NETCMD_DELETE;
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
         return;
@@ -475,7 +475,7 @@ void adamNetwork::rename(uint16_t s)
 
     cmdFrame.comnd = NETCMD_RENAME;
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
         return;
@@ -501,7 +501,7 @@ void adamNetwork::mkdir(uint16_t s)
 
     cmdFrame.comnd = NETCMD_MKDIR;
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
         return;
@@ -661,7 +661,7 @@ void adamNetwork::adamnet_special_40(unsigned short s)
 
     adamnet_recv(); // CK
 
-    if (protocol->special_40(response, 1024, &cmdFrame) == false)
+    if (protocol->special_40(response, 1024, &cmdFrame) == PROTOCOL_ERROR::NONE)
         adamnet_response_ack();
     else
         adamnet_response_nack();
@@ -694,7 +694,7 @@ void adamNetwork::adamnet_special_80(unsigned short s)
     adamnet_recv(); // CK
 
     // Do protocol action and return
-    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
+    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == PROTOCOL_ERROR::NONE)
         adamnet_response_ack();
     else
         adamnet_response_nack();
@@ -713,7 +713,7 @@ void adamNetwork::adamnet_response_status()
         protocol->status(&s);
         statusByte.bits.client_connected = s.connected == true;
         statusByte.bits.client_data_available = protocol->available() > 0;
-        statusByte.bits.client_error = s.error > 1;
+        statusByte.bits.client_error = s.error != NDEV_STATUS::SUCCESS;
     }
 
     status_response.length = htole16(1026); // max packet size 1026 bytes, maybe larger?
@@ -875,7 +875,7 @@ inline void adamNetwork::adamnet_control_receive_channel_protocol()
     avail = avail > 1024 ? 1024 : avail;
     response_len = avail;
 
-    if (protocol->read(response_len)) // protocol adapter returned error
+    if (protocol->read(response_len) != PROTOCOL_ERROR::NONE) // protocol adapter returned error
     {
         statusByte.bits.client_error = true;
         err = protocol->error;
@@ -1018,7 +1018,7 @@ void adamNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Invalid devicespec: %s\n", deviceSpec.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NETWORK_ERROR_INVALID_DEVICESPEC;
+        err = NDEV_STATUS::INVALID_DEVICESPEC;
         return;
     }
 
@@ -1030,7 +1030,7 @@ void adamNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Could not open protocol.\n");
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NETWORK_ERROR_GENERAL;
+        err = NDEV_STATUS::GENERAL;
         return;
     }
 }

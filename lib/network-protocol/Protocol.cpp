@@ -73,7 +73,7 @@ NetworkProtocol::NetworkProtocol(std::string *rx_buf,
     receiveBuffer = rx_buf;
     transmitBuffer = tx_buf;
     specialBuffer = sp_buf;
-    error = 1;
+    error = NDEV_STATUS::SUCCESS;
     login = password = nullptr;
 }
 
@@ -98,7 +98,7 @@ NetworkProtocol::~NetworkProtocol()
  * @param urlParser The URL object passed in to open.
  * @param cmdFrame The command frame to extract aux1/aux2/etc.
  */
-netProtoErr_t NetworkProtocol::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocol::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     // Set translation mode, Bits 0-1 of aux2
     translation_mode = (netProtoTranslation_t) (cmdFrame->aux2 & 0x7F); // we now have more xlation modes.
@@ -109,7 +109,7 @@ netProtoErr_t NetworkProtocol::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmd
 
     opened_url = urlParser;
 
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
 void NetworkProtocol::set_open_params(uint8_t p1, uint8_t p2)
@@ -125,7 +125,7 @@ void NetworkProtocol::set_open_params(uint8_t p1, uint8_t p2)
 /**
  * @brief Close connection to the protocol.
  */
-netProtoErr_t NetworkProtocol::close()
+protocolError_t NetworkProtocol::close()
 {
     if (!transmitBuffer->empty())
         write(transmitBuffer->length());
@@ -137,50 +137,50 @@ netProtoErr_t NetworkProtocol::close()
     transmitBuffer->shrink_to_fit();
     specialBuffer->shrink_to_fit();
 
-    error = 1;
-    return NETPROTO_ERR_NONE;
+    error = NDEV_STATUS::SUCCESS;
+    return PROTOCOL_ERROR::NONE;
 }
 
 /**
  * @brief Read len bytes into receiveBuffer, If protocol times out, the buffer should be null padded to length.
  * @param len Number of bytes to read.
- * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+ * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
  */
-netProtoErr_t NetworkProtocol::read(unsigned short len)
+protocolError_t NetworkProtocol::read(unsigned short len)
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocol::read(%u)\r\n", len);
 #endif
     translate_receive_buffer();
-    error = 1;
-    return NETPROTO_ERR_NONE;
+    error = NDEV_STATUS::SUCCESS;
+    return PROTOCOL_ERROR::NONE;
 }
 
 /**
  * @brief Write len bytes from tx_buf to protocol.
  * @param len The # of bytes to transmit, len should not be larger than buffer.
- * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+ * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
  */
-netProtoErr_t NetworkProtocol::write(unsigned short len)
+protocolError_t NetworkProtocol::write(unsigned short len)
 {
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
 /**
  * @brief Return protocol status information in provided NetworkStatus object.
  * @param status a pointer to a NetworkStatus object to receive status information
  * @param rx_buf a pointer to the receive buffer (to call read())
- * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+ * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
  */
-netProtoErr_t NetworkProtocol::status(NetworkStatus *status)
+protocolError_t NetworkProtocol::status(NetworkStatus *status)
 {
     if (fromInterrupt)
-        return NETPROTO_ERR_NONE;
+        return PROTOCOL_ERROR::NONE;
 
     if (!is_write && receiveBuffer->length() == 0 && available() > 0)
         read(available());
 
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
 /**
@@ -280,62 +280,62 @@ void NetworkProtocol::errno_to_error()
     {
 #if defined(_WIN32)
     case WSAEWOULDBLOCK:
-        error = 1; // This is okay.
+        error = NDEV_STATUS::SUCCESS; // This is okay.
         compat_setsockerr(0); // Short circuit and say it's okay.
     case WSAEADDRINUSE:
-        error = NETWORK_ERROR_ADDRESS_IN_USE;
+        error = NDEV_STATUS::ADDRESS_IN_USE;
         break;
     case WSAEINPROGRESS:
     case WSAEALREADY:
-        error = NETWORK_ERROR_CONNECTION_ALREADY_IN_PROGRESS;
+        error = NDEV_STATUS::CONNECTION_ALREADY_IN_PROGRESS;
         break;
     case WSAECONNRESET:
-        error = NETWORK_ERROR_CONNECTION_RESET;
+        error = NDEV_STATUS::CONNECTION_RESET;
         break;
     case WSAECONNREFUSED:
-        error = NETWORK_ERROR_CONNECTION_REFUSED;
+        error = NDEV_STATUS::CONNECTION_REFUSED;
         break;
     case WSAENETUNREACH:
-        error = NETWORK_ERROR_NETWORK_UNREACHABLE;
+        error = NDEV_STATUS::NETWORK_UNREACHABLE;
         break;
     case WSAETIMEDOUT:
-        error = NETWORK_ERROR_SOCKET_TIMEOUT;
+        error = NDEV_STATUS::SOCKET_TIMEOUT;
         break;
     case WSAENETDOWN:
-        error = NETWORK_ERROR_NETWORK_DOWN;
+        error = NDEV_STATUS::NETWORK_DOWN;
         break;
 #else
     case EAGAIN:
-        error = 1; // This is okay.
+        error = NDEV_STATUS::SUCCESS; // This is okay.
         compat_setsockerr(0); // Short circuit and say it's okay.
         break;
     case EADDRINUSE:
-        error = NETWORK_ERROR_ADDRESS_IN_USE;
+        error = NDEV_STATUS::ADDRESS_IN_USE;
         break;
     case EINPROGRESS:
-        error = NETWORK_ERROR_CONNECTION_ALREADY_IN_PROGRESS;
+        error = NDEV_STATUS::CONNECTION_ALREADY_IN_PROGRESS;
         break;
     case ECONNRESET:
-        error = NETWORK_ERROR_CONNECTION_RESET;
+        error = NDEV_STATUS::CONNECTION_RESET;
         break;
     case ECONNREFUSED:
-        error = NETWORK_ERROR_CONNECTION_REFUSED;
+        error = NDEV_STATUS::CONNECTION_REFUSED;
         break;
     case ENETUNREACH:
-        error = NETWORK_ERROR_NETWORK_UNREACHABLE;
+        error = NDEV_STATUS::NETWORK_UNREACHABLE;
         break;
     case ETIMEDOUT:
-        error = NETWORK_ERROR_SOCKET_TIMEOUT;
+        error = NDEV_STATUS::SOCKET_TIMEOUT;
         break;
     case ENETDOWN:
-        error = NETWORK_ERROR_NETWORK_DOWN;
+        error = NDEV_STATUS::NETWORK_DOWN;
         break;
 #endif
     default:
 #ifdef VERBOSE_PROTOCOL
         Debug_printf("errno_to_error() - Uncaught errno = %u, returning 144.\r\n", err);
 #endif
-        error = NETWORK_ERROR_GENERAL;
+        error = NDEV_STATUS::GENERAL;
         break;
     }
 }

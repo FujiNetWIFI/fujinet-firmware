@@ -211,7 +211,7 @@ private:
      */
     struct _iecStatus
     {
-        int8_t error;
+        nDevStatus_t error;
         uint8_t cmd;
         std::string msg;
         bool connected;
