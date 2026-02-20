@@ -7,6 +7,21 @@
 
 #include "Protocol.h"
 
+typedef enum class ACCESS_MODE {
+    READ          = 0b0100,
+    DIRECTORY     = 0b0110,
+    DIRECTORY_ALT = 0b0111,
+    WRITE         = 0b1000,
+    APPEND        = 0b1001,
+    READWRITE     = 0b1100,
+    INVALID       = -1,
+} fileAccessMode_t;
+
+typedef enum class APPLE2_FLAG {
+    IS_A2    = 0x80,
+    IS_80COL = 0x81,
+} apple2Flag_t;
+
 class NetworkProtocolFS : public NetworkProtocol
 {
 public:
@@ -119,18 +134,23 @@ public:
 
 protected:
     /**
+     * stream mode flag from open
+     */
+    fileAccessMode_t streamMode = ACCESS_MODE::INVALID;
+
+    /**
      * Open mode typedef
      */
-    typedef enum _openMode
+    typedef enum _streamType
     {
         FILE,
         DIR
-    } OpenMode;
+    } streamType_t;
 
     /**
      * Open mode
      */
-    OpenMode openMode = OpenMode::FILE;
+    streamType_t streamType = streamType_t::FILE;
 
     /**
      * Directory of currently open file
@@ -171,6 +191,8 @@ protected:
      * Is open file locked?
      */
     bool is_locked = false;
+
+    apple2Flag_t a2flags;
 
     /**
      * @brief Open a file via path.
@@ -362,6 +384,10 @@ protected:
      */
     virtual protocolError_t unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
+    /**
+     * @brief change the values passed to open for platforms that need to do it after the open (looking a you IEC)
+     */
+    void set_open_params(uint8_t p1, uint8_t p2) override;
 };
 
 #endif /* NETWORKPROTOCOL_FS */

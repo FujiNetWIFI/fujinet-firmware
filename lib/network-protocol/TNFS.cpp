@@ -33,23 +33,26 @@ NetworkProtocolTNFS::~NetworkProtocolTNFS()
 protocolError_t NetworkProtocolTNFS::open_file_handle()
 {
     // Map aux1 to mode and perms for tnfs_open()
-    switch (aux1_open)
+    switch (streamMode)
     {
-    case NETPROTO_OPEN_READ:
+    case ACCESS_MODE::READ:
         mode = TNFS_OPENMODE_READ;
         perms = 0;
         break;
-    case NETPROTO_OPEN_WRITE:
+    case ACCESS_MODE::WRITE:
         mode = TNFS_OPENMODE_WRITE_CREATE | TNFS_OPENMODE_WRITE_TRUNCATE | TNFS_OPENMODE_WRITE;
         perms = 0x1FF;
         break;
-    case NETPROTO_OPEN_APPEND:
+    case ACCESS_MODE::APPEND:
         mode = TNFS_OPENMODE_WRITE_CREATE | TNFS_OPENMODE_WRITE | TNFS_OPENMODE_WRITE_APPEND; // 0x10B
         perms = 0x1FF;
         break;
-    case NETPROTO_OPEN_READWRITE:
+    case ACCESS_MODE::READWRITE:
         mode = TNFS_OPENMODE_WRITE_CREATE | TNFS_OPENMODE_READWRITE;
         perms = 0x1FF;
+        break;
+    default:
+        abort();
         break;
     }
 
