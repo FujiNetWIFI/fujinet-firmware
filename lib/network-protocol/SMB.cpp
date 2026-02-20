@@ -50,22 +50,22 @@ protocolError_t NetworkProtocolSMB::open_file_handle()
     // Determine flags
     int flags = 0;
 
-    switch (aux1_open)
+    switch (streamMode)
     {
-    case NETPROTO_OPEN_READ:
+    case ACCESS_MODE::READ:
         flags = O_RDONLY;
         break;
-    case NETPROTO_OPEN_WRITE:
+    case ACCESS_MODE::WRITE:
         flags = O_WRONLY | O_CREAT;
         break;
-    case NETPROTO_OPEN_APPEND:
+    case ACCESS_MODE::APPEND:
         flags = O_APPEND | O_CREAT;
         break;
-    case NETPROTO_OPEN_READWRITE:
+    case ACCESS_MODE::READWRITE:
         flags = O_RDWR;
         break;
     default:
-        Debug_printf("NetworkProtocolSMB::open_file_handle() - Uncaught aux1 %d", aux1_open);
+        Debug_printf("NetworkProtocolSMB::open_file_handle() - Uncaught aux1 %d", (int) streamMode);
     }
 
     fh = smb2_open(smb, smb_url->path, flags);
@@ -117,7 +117,7 @@ protocolError_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
         openURL[2] = 'b';
     }
 
-    if (aux1_open == NETPROTO_OPEN_DIRECTORY)
+    if (streamMode == ACCESS_MODE::DIRECTORY)
     {
         // When doing a directory listing the Atari DIR command sends
         // the directory path followed by `/<glob>` (usually "*.*")

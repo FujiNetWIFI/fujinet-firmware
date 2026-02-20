@@ -39,19 +39,22 @@ protocolError_t NetworkProtocolSD::open_file_handle()
     if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
 
     // Map aux1 to mode
-    switch (aux1_open)
+    switch (streamMode)
     {
-    case NETPROTO_OPEN_READ:
+    case ACCESS_MODE::READ:
         mode = FILE_READ;
         break;
-    case NETPROTO_OPEN_WRITE:
+    case ACCESS_MODE::WRITE:
         mode = FILE_WRITE;
         break;
-    case NETPROTO_OPEN_APPEND:
+    case ACCESS_MODE::APPEND:
         mode = FILE_APPEND;
         break;
-    case NETPROTO_OPEN_READWRITE:
+    case ACCESS_MODE::READWRITE:
         mode = FILE_READ_WRITE;
+        break;
+    default:
+        abort();
         break;
     }
 
