@@ -33,7 +33,7 @@ NetworkProtocolSSH::~NetworkProtocolSSH()
 #endif
 }
 
-netProtoErr_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     NetworkProtocol::open(urlParser, cmdFrame);
     int ret;
@@ -48,8 +48,8 @@ netProtoErr_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser, cmdFrame_t *
 
     if (!login || !password || (login->empty() && password->empty()))
     {
-        error = NETWORK_ERROR_INVALID_USERNAME_OR_PASSWORD;
-        return NETPROTO_ERR_UNSPECIFIED;
+        error = NDEV_STATUS::INVALID_USERNAME_OR_PASSWORD;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     // Port 22 by default.
@@ -61,8 +61,8 @@ netProtoErr_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser, cmdFrame_t *
     if ((ret = ssh_init()) != 0)
     {
         Debug_printf("NetworkProtocolSSH::open() - ssh_init not successful. Value returned: %d\r\n", ret);
-        error = NETWORK_ERROR_GENERAL;
-        return NETPROTO_ERR_UNSPECIFIED;
+        error = NDEV_STATUS::GENERAL;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     Debug_printf("NetworkProtocolSSH::open() - Opening session.\r\n");
@@ -70,8 +70,8 @@ netProtoErr_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser, cmdFrame_t *
     if (session == NULL)
     {
         Debug_printf("Could not create session. aborting.\r\n");
-        error = NETWORK_ERROR_NOT_CONNECTED;
-        return NETPROTO_ERR_UNSPECIFIED;
+        error = NDEV_STATUS::NOT_CONNECTED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     int verbosity = SSH_LOG_PROTOCOL;
@@ -87,19 +87,19 @@ netProtoErr_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser, cmdFrame_t *
     ret = ssh_connect(session);
     if (ret != SSH_OK)
     {
-        error = NETWORK_ERROR_NOT_CONNECTED;
+        error = NDEV_STATUS::NOT_CONNECTED;
         const char *message = ssh_get_error(session);
         Debug_printf("NetworkProtocolSSH::open() - Could not connect, error: %s.\r\n", message);
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     ssh_key srv_pubkey = NULL;
     ret = ssh_get_server_publickey(session, &srv_pubkey);
     if (ret < 0) {
-        error = NETWORK_ERROR_GENERAL;
+        error = NDEV_STATUS::GENERAL;
         const char *message = ssh_get_error(session);
         Debug_printf("NetworkProtocolSSH::open() - Could not get server ssh public key, error: %s.\r\n", message);
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     size_t hlen;
@@ -108,10 +108,10 @@ netProtoErr_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser, cmdFrame_t *
                                 &fingerprint,
                                 &hlen);
     if (ret == -1) {
-        error = NETWORK_ERROR_GENERAL;
+        error = NDEV_STATUS::GENERAL;
         const char *message = ssh_get_error(session);
         Debug_printf("NetworkProtocolSSH::open() - Could not get server ssh public key hash, error: %s.\r\n", message);
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     // TODO: We really should be first checking this is a known server to stop MITM attacks etc. before continuing
@@ -133,10 +133,10 @@ netProtoErr_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser, cmdFrame_t *
     ret = ssh_userauth_none(session, NULL);
     // TODO: Are we in blocking mode? If we are not, then we will have to deal with SSH_AUTH_AGAIN
     if (ret == SSH_AUTH_ERROR) {
-        error = NETWORK_ERROR_GENERAL;
+        error = NDEV_STATUS::GENERAL;
         const char *message = ssh_get_error(session);
         Debug_printf("NetworkProtocolSSH::open() - Could not issue 'none' userauth method to server, error: %s.\r\n", message);
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     ret = ssh_userauth_list(session, NULL);
@@ -157,16 +157,16 @@ netProtoErr_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser, cmdFrame_t *
 
     if (!allowsPassword) {
         // May as well stop here, as our only ability (password) isn't allowed
-        error = NETWORK_ERROR_GENERAL;
+        error = NDEV_STATUS::GENERAL;
         Debug_printf("NetworkProtocolSSH::open() - Could not login to server as it does not allow password auth.\r\n");
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     ret = ssh_userauth_password(session, NULL, password->c_str());
     // SSH_AUTH_AGAIN may need to be handled here too, if we're in non-blocking mode.
 
     if (ret != SSH_AUTH_SUCCESS) {
-        error = NETWORK_ERROR_ACCESS_DENIED;
+        error = NDEV_STATUS::ACCESS_DENIED;
         const char *message = ssh_get_error(session);
         Debug_printf("NetworkProtocolSSH::open() - Unable to authorise with given password, error: %s.\r\n", message);
         ssh_disconnect(session);
@@ -175,34 +175,34 @@ netProtoErr_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser, cmdFrame_t *
 
     channel = ssh_channel_new(session);
     if (channel == NULL) {
-        error = NETWORK_ERROR_GENERAL;
+        error = NDEV_STATUS::GENERAL;
         const char *message = ssh_get_error(session);
         Debug_printf("NetworkProtocolSSH::open() - Could not open new channel, error: %s.\r\n", message);
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
     ret = ssh_channel_open_session(channel);
     if (ret != SSH_OK) {
-        error = NETWORK_ERROR_GENERAL;
+        error = NDEV_STATUS::GENERAL;
         const char *message = ssh_get_error(session);
         Debug_printf("NetworkProtocolSSH::open() - Could not open session, error: %s.\r\n", message);
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
 
     ret = ssh_channel_request_pty_size(channel, "vanilla", 80, 24);
     if (ret != SSH_OK)
     {
-        error = NETWORK_ERROR_GENERAL;
+        error = NDEV_STATUS::GENERAL;
         Debug_printf("Could not request pty\r\n");
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     ret = ssh_channel_request_shell(channel);
     if (ret != SSH_OK)
     {
-        error = NETWORK_ERROR_GENERAL;
+        error = NDEV_STATUS::GENERAL;
         Debug_printf("Could not open shell on channel\r\n");
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     ssh_channel_set_blocking(channel, 0);
@@ -210,43 +210,43 @@ netProtoErr_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser, cmdFrame_t *
     // At this point, we should be able to talk to the shell.
     Debug_printf("Shell opened.\r\n");
 
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSSH::close()
+protocolError_t NetworkProtocolSSH::close()
 {
     ssh_disconnect(session);
     ssh_free(session);
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSSH::read(unsigned short len)
+protocolError_t NetworkProtocolSSH::read(unsigned short len)
 {
     // Ironically, All of the read is handled in available().
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSSH::write(unsigned short len)
+protocolError_t NetworkProtocolSSH::write(unsigned short len)
 {
-    netProtoErr_t err = NETPROTO_ERR_NONE;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
     len = translate_transmit_buffer();
     ssh_channel_write(channel, transmitBuffer->data(), len);
 
     // Return success - WTF?
-    error = NETPROTO_ERR_UNSPECIFIED;
+    error = NDEV_STATUS::SUCCESS;
     transmitBuffer->erase(0, len);
 
     return err;
 }
 
-netProtoErr_t NetworkProtocolSSH::status(NetworkStatus *status)
+protocolError_t NetworkProtocolSSH::status(NetworkStatus *status)
 {
     bool isEOF = ssh_channel_is_eof(channel) == 0;
     status->connected = isEOF ? 1 : 0;
-    status->error = isEOF ? 1 : NETWORK_ERROR_END_OF_FILE;
+    status->error = isEOF ? NDEV_STATUS::SUCCESS : NDEV_STATUS::END_OF_FILE;
     NetworkProtocol::status(status);
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
 AtariSIODirection NetworkProtocolSSH::special_inquiry(fujiCommandID_t cmd)
@@ -254,19 +254,19 @@ AtariSIODirection NetworkProtocolSSH::special_inquiry(fujiCommandID_t cmd)
     return SIO_DIRECTION_INVALID; // selected command not implemented.
 }
 
-netProtoErr_t NetworkProtocolSSH::special_00(cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSSH::special_00(cmdFrame_t *cmdFrame)
 {
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSSH::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSSH::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSSH::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSSH::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
 size_t NetworkProtocolSSH::available()

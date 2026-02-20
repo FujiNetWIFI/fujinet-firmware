@@ -242,7 +242,7 @@ void H89Network::read()
     // // Check for rx buffer. If NULL, then tell caller we could not allocate buffers.
     // if (receiveBuffer == nullptr)
     // {
-    //     network_status.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
+    //     network_status.error = DEVICE_STATUS_COULD_NOT_ALLOCATE_BUFFERS;
     //     H89_send_error();
     //     return;
     // }
@@ -250,7 +250,7 @@ void H89Network::read()
     // // If protocol isn't connected, then return not connected.
     // if (protocol == nullptr)
     // {
-    //     network_status.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
+    //     network_status.error = DEVICE_STATUS_COULD_NOT_ALLOCATE_BUFFERS;
     //     H89_send_error();
     //     return;
     // }
@@ -646,7 +646,7 @@ void H89Network::parse_and_instantiate_protocol(string d)
         Debug_printf("Invalid devicespec: >%s<\n", deviceSpec.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NETWORK_ERROR_INVALID_DEVICESPEC;
+        err = DEVICE_STATUS_INVALID_DEVICESPEC;
         return;
     }
 
@@ -660,7 +660,7 @@ void H89Network::parse_and_instantiate_protocol(string d)
         Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NETWORK_ERROR_GENERAL;
+        err = DEVICE_STATUS_GENERAL;
         return;
     }
 }

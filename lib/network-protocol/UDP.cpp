@@ -30,7 +30,7 @@ NetworkProtocolUDP::~NetworkProtocolUDP()
     Debug_printf("NetworkProtocolUDP::dtor\r\n");
 }
 
-netProtoErr_t NetworkProtocolUDP::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolUDP::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     Debug_printf("NetworkProtocolUDP::open(%s:%s)\r\n", urlParser->host.c_str(), urlParser->port.c_str());
 
@@ -47,7 +47,7 @@ netProtoErr_t NetworkProtocolUDP::open(PeoplesUrlParser *urlParser, cmdFrame_t *
     if (urlParser->port.empty())
     {
         Debug_printf("Port is empty, aborting.\r\n");
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
     else
     {
@@ -66,7 +66,7 @@ netProtoErr_t NetworkProtocolUDP::open(PeoplesUrlParser *urlParser, cmdFrame_t *
     if (udp.begin(bind_port) == false)
     {
         errno_to_error();
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
     else
     {
@@ -80,10 +80,10 @@ netProtoErr_t NetworkProtocolUDP::open(PeoplesUrlParser *urlParser, cmdFrame_t *
     // call base class
     NetworkProtocol::open(urlParser, cmdFrame);
 
-    return NETPROTO_ERR_NONE; // all good.
+    return PROTOCOL_ERROR::NONE; // all good.
 }
 
-netProtoErr_t NetworkProtocolUDP::close()
+protocolError_t NetworkProtocolUDP::close()
 {
     // Call base class.
     NetworkProtocol::close();
@@ -91,10 +91,10 @@ netProtoErr_t NetworkProtocolUDP::close()
     // unbind.
     udp.stop();
 
-    return NETPROTO_ERR_NONE; // all good.
+    return PROTOCOL_ERROR::NONE; // all good.
 }
 
-netProtoErr_t NetworkProtocolUDP::read(unsigned short len)
+protocolError_t NetworkProtocolUDP::read(unsigned short len)
 {
     std::vector<uint8_t> newData = std::vector<uint8_t>(len);
 
@@ -105,7 +105,7 @@ netProtoErr_t NetworkProtocolUDP::read(unsigned short len)
         if (udp.available() == 0)
         {
             errno_to_error();
-            return NETPROTO_ERR_UNSPECIFIED;
+            return PROTOCOL_ERROR::UNSPECIFIED;
         }
 
         // Do the read.
@@ -117,12 +117,12 @@ netProtoErr_t NetworkProtocolUDP::read(unsigned short len)
 
     // Return success
     Debug_printf("errno = %u\r\n", errno);
-    error = 1;
+    error = NDEV_STATUS::SUCCESS;
 
     return NetworkProtocol::read(len);
 }
 
-netProtoErr_t NetworkProtocolUDP::write(unsigned short len)
+protocolError_t NetworkProtocolUDP::write(unsigned short len)
 {
     // Call base class to do translation.
     len = translate_transmit_buffer();
@@ -132,15 +132,15 @@ netProtoErr_t NetworkProtocolUDP::write(unsigned short len)
     // Check for client connection
     if (dest.empty())
     {
-        error = NETWORK_ERROR_NOT_CONNECTED;
-        return NETPROTO_ERR_UNSPECIFIED; // error
+        error = NDEV_STATUS::NOT_CONNECTED;
+        return PROTOCOL_ERROR::UNSPECIFIED; // error
     }
 
     // Do the write to client socket.
     if (udp.beginPacket(dest.c_str(), port) == false)
     {
         errno_to_error();
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     udp.write((uint8_t *)transmitBuffer->data(), len);
@@ -148,17 +148,17 @@ netProtoErr_t NetworkProtocolUDP::write(unsigned short len)
     if (udp.endPacket() == false)
     {
         errno_to_error();
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     // Return success
-    error = 1;
+    error = NDEV_STATUS::SUCCESS;
     transmitBuffer->erase(0, len);
 
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolUDP::status(NetworkStatus *status)
+protocolError_t NetworkProtocolUDP::status(NetworkStatus *status)
 {
     if (receiveBuffer->length() == 0)
     {
@@ -181,7 +181,7 @@ netProtoErr_t NetworkProtocolUDP::status(NetworkStatus *status)
 
     NetworkProtocol::status(status);
 
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
 AtariSIODirection NetworkProtocolUDP::special_inquiry(fujiCommandID_t cmd)
@@ -203,39 +203,39 @@ AtariSIODirection NetworkProtocolUDP::special_inquiry(fujiCommandID_t cmd)
     return SIO_DIRECTION_INVALID;
 }
 
-netProtoErr_t NetworkProtocolUDP::special_00(cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolUDP::special_00(cmdFrame_t *cmdFrame)
 {
-    return NETPROTO_ERR_UNSPECIFIED; // none implemented.
+    return PROTOCOL_ERROR::UNSPECIFIED; // none implemented.
 }
 
-netProtoErr_t NetworkProtocolUDP::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolUDP::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
 #ifdef ESP_PLATFORM
-    return NETPROTO_ERR_UNSPECIFIED; // none implemented.
+    return PROTOCOL_ERROR::UNSPECIFIED; // none implemented.
 #else
     switch (cmdFrame->comnd)
     {
     case NETCMD_GET_REMOTE:
         return get_remote(sp_buf, len);
     default:
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 #endif
 }
 
-netProtoErr_t NetworkProtocolUDP::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolUDP::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
     switch (cmdFrame->comnd)
     {
     case NETCMD_SET_DESTINATION:
         return set_destination(sp_buf, len);
     default:
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
-    return NETPROTO_ERR_UNSPECIFIED;
+    return PROTOCOL_ERROR::UNSPECIFIED;
 }
 
-netProtoErr_t NetworkProtocolUDP::set_destination(uint8_t *sp_buf, unsigned short len)
+protocolError_t NetworkProtocolUDP::set_destination(uint8_t *sp_buf, unsigned short len)
 {
 #ifdef ESP_PLATFORM // TODO review & merge
     std::string path((const char *)sp_buf, len);
@@ -248,10 +248,10 @@ netProtoErr_t NetworkProtocolUDP::set_destination(uint8_t *sp_buf, unsigned shor
     int port_colon = path.find_last_of(":");
 
     if (device_colon == std::string::npos)
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
 
     if (port_colon == device_colon)
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
 
 #ifdef ESP_PLATFORM // TODO review & merge
     std::string new_dest_str = path.substr(device_colon + 1, port_colon - 2);
@@ -265,11 +265,11 @@ netProtoErr_t NetworkProtocolUDP::set_destination(uint8_t *sp_buf, unsigned shor
     port = atoi(new_port_str.c_str());
     dest = new_dest_str;
 
-    return NETPROTO_ERR_NONE; // no error.
+    return PROTOCOL_ERROR::NONE; // no error.
 }
 
 #ifndef ESP_PLATFORM
-netProtoErr_t NetworkProtocolUDP::get_remote(uint8_t *sp_buf, unsigned short len)
+protocolError_t NetworkProtocolUDP::get_remote(uint8_t *sp_buf, unsigned short len)
 {
     char port_part[8];
 
@@ -278,7 +278,7 @@ netProtoErr_t NetworkProtocolUDP::get_remote(uint8_t *sp_buf, unsigned short len
     strlcat((char *)sp_buf, port_part, len);
     Debug_printf("UDP remote is %s\n", sp_buf);
 
-    return NETPROTO_ERR_NONE; // no error.
+    return PROTOCOL_ERROR::NONE; // no error.
 }
 #endif
 

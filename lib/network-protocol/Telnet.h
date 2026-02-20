@@ -24,16 +24,16 @@ public:
     /**
      * @brief Read len bytes into rx_buf, If protocol times out, the buffer should be null padded to length.
      * @param len Number of bytes to read.
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    netProtoErr_t read(unsigned short len) override;
+    protocolError_t read(unsigned short len) override;
 
     /**
      * @brief Write len bytes from tx_buf to protocol.
      * @param len The # of bytes to transmit, len should not be larger than buffer.
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    netProtoErr_t write(unsigned short len) override;
+    protocolError_t write(unsigned short len) override;
 
     /**
      * Get Receive Buffer

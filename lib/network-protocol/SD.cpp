@@ -31,12 +31,12 @@ NetworkProtocolSD::~NetworkProtocolSD()
     Debug_printf("NetworkProtocolSD::dtor\r\n");
 }
 
-netProtoErr_t NetworkProtocolSD::open_file_handle()
+protocolError_t NetworkProtocolSD::open_file_handle()
 {
     const char *mode = FILE_READ;
 
     // return error if SD is not mounted
-    if (check_fs()) return NETPROTO_ERR_UNSPECIFIED;
+    if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
 
     // Map aux1 to mode
     switch (aux1_open)
@@ -62,56 +62,56 @@ netProtoErr_t NetworkProtocolSD::open_file_handle()
     if (fh == nullptr)
         errno_to_error();
     else
-        error = NETWORK_ERROR_SUCCESS;
+        error = NDEV_STATUS::SUCCESS;
 
     Debug_printf("NetworkProtocolSD::open_file_handle(file: \"%s\" mode: \"%s\") error: %d\r\n",
-        opened_url->path.c_str(), mode, error);
+                 opened_url->path.c_str(), mode, (int) error);
 
-    return nullptr == fh ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
+    return nullptr == fh ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSD::open_dir_handle()
+protocolError_t NetworkProtocolSD::open_dir_handle()
 {
     // return error if SD is not mounted
-    if (check_fs()) return NETPROTO_ERR_UNSPECIFIED;
+    if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
 
     fnSDFAT.dir_close();
     bool success = fnSDFAT.dir_open(dir.c_str(), filename.c_str(), 0);
     if (!success)
         errno_to_error();
     else
-        error = NETWORK_ERROR_SUCCESS;
+        error = NDEV_STATUS::SUCCESS;
 
-    Debug_printf("NetworkProtocolSD::open_dir_handle(%s) error: %d\r\n", opened_url->path.c_str(), error);
-    return success ? NETPROTO_ERR_NONE : NETPROTO_ERR_UNSPECIFIED;
+    Debug_printf("NetworkProtocolSD::open_dir_handle(%s) error: %d\r\n", opened_url->path.c_str(), (int) error);
+    return success ? PROTOCOL_ERROR::NONE : PROTOCOL_ERROR::UNSPECIFIED;
 }
 
-netProtoErr_t NetworkProtocolSD::mount(PeoplesUrlParser *url)
+protocolError_t NetworkProtocolSD::mount(PeoplesUrlParser *url)
 {
-    error = NETWORK_ERROR_SUCCESS;
+    error = NDEV_STATUS::SUCCESS;
     return check_fs();
 }
 
-netProtoErr_t NetworkProtocolSD::check_fs()
+protocolError_t NetworkProtocolSD::check_fs()
 {
     if (!fnSDFAT.running())
     {
-        error = NETWORK_ERROR_CONNECTION_REFUSED;
-        return NETPROTO_ERR_UNSPECIFIED; // error
+        error = NDEV_STATUS::CONNECTION_REFUSED;
+        return PROTOCOL_ERROR::UNSPECIFIED; // error
     }
-    return NETPROTO_ERR_NONE; // no error
+    return PROTOCOL_ERROR::NONE; // no error
 }
 
-netProtoErr_t NetworkProtocolSD::umount()
+protocolError_t NetworkProtocolSD::umount()
 {
-    error = NETWORK_ERROR_SUCCESS;
-    return NETPROTO_ERR_NONE; // no error
+    error = NDEV_STATUS::SUCCESS;
+    return PROTOCOL_ERROR::NONE; // no error
 }
 
 void NetworkProtocolSD::fserror_to_error()
 {
     // we keep file system error in NetworkProtocol::error variable, nothing to do here
-    Debug_printf("NetworkProtocolSD::fserror_to_error: %d\r\n", error);
+    Debug_printf("NetworkProtocolSD::fserror_to_error: %d\r\n", (int) error);
 }
 
 void NetworkProtocolSD::errno_to_error()
@@ -119,49 +119,49 @@ void NetworkProtocolSD::errno_to_error()
     switch(errno)
     {
     case ENOENT:
-        error = NETWORK_ERROR_FILE_NOT_FOUND;
+        error = NDEV_STATUS::FILE_NOT_FOUND;
         break;
     case EEXIST:
-        error = NETWORK_ERROR_FILE_EXISTS;
+        error = NDEV_STATUS::FILE_EXISTS;
         break;
     case EACCES:
-        error = NETWORK_ERROR_ACCESS_DENIED;
+        error = NDEV_STATUS::ACCESS_DENIED;
         break;
     case ENOSPC:
-        error = NETWORK_ERROR_NO_SPACE_ON_DEVICE;
+        error = NDEV_STATUS::NO_SPACE_ON_DEVICE;
         break;
     case ENOBUFS:
     case ENOMEM:
-        error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
+        error = NDEV_STATUS::COULD_NOT_ALLOCATE_BUFFERS;
         break;
     default:
         Debug_printf("NetworkProtocolSD uncaught error: %u\r\n", errno);
-        error = NETWORK_ERROR_GENERAL;
+        error = NDEV_STATUS::GENERAL;
         break;
     }
-    Debug_printf("NetworkProtocolSD::errno_to_error() %d -> %d\r\n", errno, error);
+    Debug_printf("NetworkProtocolSD::errno_to_error() %d -> %d\r\n", errno, (int) error);
 }
 
-netProtoErr_t NetworkProtocolSD::read_file_handle(uint8_t *buf, unsigned short len)
+protocolError_t NetworkProtocolSD::read_file_handle(uint8_t *buf, unsigned short len)
 {
-    error = NETWORK_ERROR_SUCCESS;
+    error = NDEV_STATUS::SUCCESS;
 
     if (::fread(buf, 1, len, fh) != len)
     {
         if (feof(fh))
-            error = NETWORK_ERROR_END_OF_FILE;
+            error = NDEV_STATUS::END_OF_FILE;
         else
             errno_to_error(); // fread may not set errno!
     }
-    Debug_printf("NetworkProtocolSD::read_file_handle(len: %u) error: %d\r\n", len, error);
+    Debug_printf("NetworkProtocolSD::read_file_handle(len: %u) error: %d\r\n", len, (int) error);
 
-    return NETWORK_ERROR_SUCCESS != error ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
+    return NDEV_STATUS::SUCCESS != error ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSD::read_dir_entry(char *buf, unsigned short len)
+protocolError_t NetworkProtocolSD::read_dir_entry(char *buf, unsigned short len)
 {
 fsdir_entry_t *entry;
-    error = NETWORK_ERROR_SUCCESS;
+    error = NDEV_STATUS::SUCCESS;
 
 entry = fnSDFAT.dir_read();
     if (entry != nullptr)
@@ -172,14 +172,14 @@ entry = fnSDFAT.dir_read();
     }
     else
     {
-        error = NETWORK_ERROR_END_OF_FILE;
+        error = NDEV_STATUS::END_OF_FILE;
     }
-    Debug_printf("NetworkProtocolSD::read_dir_entry(len: %u) error: %d\r\n", len, error);
+    Debug_printf("NetworkProtocolSD::read_dir_entry(len: %u) error: %d\r\n", len, (int) error);
 
-    return NETWORK_ERROR_SUCCESS != error ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
+    return NDEV_STATUS::SUCCESS != error ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSD::close_file_handle()
+protocolError_t NetworkProtocolSD::close_file_handle()
 {
     Debug_printf("NetworkProtocolSD:::close_file_handle()\r\n");
     if (fh != nullptr)
@@ -187,27 +187,27 @@ netProtoErr_t NetworkProtocolSD::close_file_handle()
         ::fclose(fh);
         fh = nullptr;
     }
-    error = NETWORK_ERROR_SUCCESS;
-    return NETPROTO_ERR_NONE;
+    error = NDEV_STATUS::SUCCESS;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSD::close_dir_handle()
+protocolError_t NetworkProtocolSD::close_dir_handle()
 {
     Debug_printf("NetworkProtocolSD:::close_dir_handle()\r\n");
     fnSDFAT.dir_close();
-    error = NETWORK_ERROR_SUCCESS;
-    return NETPROTO_ERR_NONE;
+    error = NDEV_STATUS::SUCCESS;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSD::write_file_handle(uint8_t *buf, unsigned short len)
+protocolError_t NetworkProtocolSD::write_file_handle(uint8_t *buf, unsigned short len)
 {
-    error = NETWORK_ERROR_SUCCESS;
+    error = NDEV_STATUS::SUCCESS;
 
     if (::fwrite(buf, 1, len, fh) != len)
         errno_to_error(); // fwrite may not set errno!
-    Debug_printf("NetworkProtocolSD::write_file_handle(len: %u) error: %d\r\n", len, error);
+    Debug_printf("NetworkProtocolSD::write_file_handle(len: %u) error: %d\r\n", len, (int) error);
 
-    return NETWORK_ERROR_SUCCESS != error ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
+    return NDEV_STATUS::SUCCESS != error ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
 
@@ -232,96 +232,96 @@ AtariSIODirection NetworkProtocolSD::special_inquiry(fujiCommandID_t cmd)
     return ret;
 }
 
-netProtoErr_t NetworkProtocolSD::special_00(cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSD::special_00(cmdFrame_t *cmdFrame)
 {
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSD::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSD::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSD::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSD::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSD::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSD::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     interruptEnable = false; // no need for network interrupts
 
     // return error if SD is not mounted
-    if (check_fs()) return NETPROTO_ERR_UNSPECIFIED;
+    if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
 
-    if (NetworkProtocolFS::rename(url, cmdFrame) == true)
-        return NETPROTO_ERR_UNSPECIFIED;
+    if (NetworkProtocolFS::rename(url, cmdFrame) != PROTOCOL_ERROR::NONE)
+        return PROTOCOL_ERROR::UNSPECIFIED;
 
     bool success = fnSDFAT.rename(filename.c_str(), destFilename.c_str());
     if (!success)
         errno_to_error();
     else
-        error = NETWORK_ERROR_SUCCESS;
-    Debug_printf("NetworkProtocolSD::rename(%s -> %s) error: %d\r\n", filename.c_str(), destFilename.c_str(), error);
+        error = NDEV_STATUS::SUCCESS;
+    Debug_printf("NetworkProtocolSD::rename(%s -> %s) error: %d\r\n", filename.c_str(), destFilename.c_str(), (int) error);
 
-    return NETWORK_ERROR_SUCCESS != error ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
+    return NDEV_STATUS::SUCCESS != error ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSD::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSD::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     interruptEnable = false; // no need for network interrupts
 
     // return error if SD is not mounted
-    if (check_fs()) return NETPROTO_ERR_UNSPECIFIED;
+    if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
 
     bool success = fnSDFAT.remove(url->path.c_str());
     if (!success)
         errno_to_error();
     else
-        error = NETWORK_ERROR_SUCCESS;
-    Debug_printf("NetworkProtocolSD::del(%s) error: %d\r\n", url->path.c_str(), error);
+        error = NDEV_STATUS::SUCCESS;
+    Debug_printf("NetworkProtocolSD::del(%s) error: %d\r\n", url->path.c_str(), (int) error);
 
-    return NETWORK_ERROR_SUCCESS != error ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
+    return NDEV_STATUS::SUCCESS != error ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSD::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSD::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     interruptEnable = false; // no need for network interrupts
 
     // return error if SD is not mounted
-    if (check_fs()) return NETPROTO_ERR_UNSPECIFIED;
+    if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
 
     bool success = fnSDFAT.mkdir(url->path.c_str());
     if (!success)
         errno_to_error();
     else
-        error = NETWORK_ERROR_SUCCESS;
-    Debug_printf("NetworkProtocolSD::mkdir(%s) error: %d\r\n", url->path.c_str(), error);
+        error = NDEV_STATUS::SUCCESS;
+    Debug_printf("NetworkProtocolSD::mkdir(%s) error: %d\r\n", url->path.c_str(), (int) error);
 
-    return NETWORK_ERROR_SUCCESS != error ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
+    return NDEV_STATUS::SUCCESS != error ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSD::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSD::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     interruptEnable = false; // no need for network interrupts
 
     // return error if SD is not mounted
-    if (check_fs()) return NETPROTO_ERR_UNSPECIFIED;
+    if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
 
     bool success = fnSDFAT.rmdir(url->path.c_str());
     if (!success)
         errno_to_error();
     else
-        error = NETWORK_ERROR_SUCCESS;
-    Debug_printf("NetworkProtocolSD::rmdir(%s) error: %d\r\n", url->path.c_str(), error);
+        error = NDEV_STATUS::SUCCESS;
+    Debug_printf("NetworkProtocolSD::rmdir(%s) error: %d\r\n", url->path.c_str(), (int) error);
 
-    return NETWORK_ERROR_SUCCESS != error ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
+    return NDEV_STATUS::SUCCESS != error ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSD::stat()
+protocolError_t NetworkProtocolSD::stat()
 {
     // return error if SD is not mounted
-    if (check_fs()) return NETPROTO_ERR_UNSPECIFIED;
+    if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
 
     if (fh != nullptr)
         fileSize = FileSystem::filesize(fh);
@@ -331,37 +331,37 @@ netProtoErr_t NetworkProtocolSD::stat()
     if (fileSize < 0)
         errno_to_error();
     else
-        error = NETWORK_ERROR_SUCCESS;
+        error = NDEV_STATUS::SUCCESS;
 
     Debug_printf("NetworkProtocolSD::stat(%s) fileSize: %d\r\n", opened_url->path.c_str(), fileSize);
 
-    return fileSize < 0 ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
+    return fileSize < 0 ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSD::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSD::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     interruptEnable = false; // no need for network interrupts
 
     Debug_printf("NetworkProtocolSD::lock(%s) - not implemented\r\n", url->path.c_str());
 
     // return error if SD is not mounted
-    if (check_fs()) return NETPROTO_ERR_UNSPECIFIED;
+    if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
 
-    error = NETWORK_ERROR_NOT_IMPLEMENTED;
-    return NETPROTO_ERR_UNSPECIFIED;
+    error = NDEV_STATUS::NOT_IMPLEMENTED;
+    return PROTOCOL_ERROR::UNSPECIFIED;
 }
 
-netProtoErr_t NetworkProtocolSD::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSD::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     interruptEnable = false; // no need for network interrupts
 
     Debug_printf("NetworkProtocolSD::unlock(%s) - not implemented\r\n", url->path.c_str());
 
     // return error if SD is not mounted
-    if (check_fs()) return NETPROTO_ERR_UNSPECIFIED;
+    if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
 
-    error = NETWORK_ERROR_NOT_IMPLEMENTED;
-    return NETPROTO_ERR_UNSPECIFIED;
+    error = NDEV_STATUS::NOT_IMPLEMENTED;
+    return PROTOCOL_ERROR::UNSPECIFIED;
 }
 
 off_t NetworkProtocolSD::seek(off_t offset, int whence)

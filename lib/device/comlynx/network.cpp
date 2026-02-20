@@ -127,7 +127,7 @@ void lynxNetwork::open(unsigned short s)
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), &cmdFrame) == true)
+    if (protocol->open(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
         Debug_printf("Protocol unable to make connection. Error: %d\n", err);
@@ -186,11 +186,11 @@ void lynxNetwork::close()
 /**
  * Perform the channel read based on the channelMode
  * @param num_bytes - number of bytes to read from channel.
- * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
+ * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
  */
-bool lynxNetwork::read_channel(unsigned short num_bytes)
+protocolError_t lynxNetwork::read_channel(unsigned short num_bytes)
 {
-    bool _err = false;
+    protocolError_t _err = PROTOCOL_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -199,7 +199,7 @@ bool lynxNetwork::read_channel(unsigned short num_bytes)
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
-        _err = true;
+        _err = PROTOCOL_ERROR::UNSPECIFIED;
         break;
     }
     return _err;
@@ -225,18 +225,18 @@ void lynxNetwork::write(uint16_t num_bytes)
     comlynx_response_ack();
 
     *transmitBuffer += string((char *)response, num_bytes);
-    err = comlynx_write_channel(num_bytes);
+    err = comlynx_write_channel(num_bytes) == PROTOCOL_ERROR::NONE ? NDEV_STATUS::SUCCESS : NDEV_STATUS::GENERAL;
 }
 
 
 /**
  * Perform the correct write based on value of channelMode
  * @param num_bytes Number of bytes to write.
- * @return TRUE on error, FALSE on success. Used to emit comlynx_error or comlynx_complete().
+ * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit comlynx_error or comlynx_complete().
  */
-bool lynxNetwork::comlynx_write_channel(unsigned short num_bytes)
+protocolError_t lynxNetwork::comlynx_write_channel(unsigned short num_bytes)
 {
-    bool err = false;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -245,7 +245,7 @@ bool lynxNetwork::comlynx_write_channel(unsigned short num_bytes)
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
-        err = true;
+        err = PROTOCOL_ERROR::UNSPECIFIED;
         break;
     }
     return err;
@@ -273,10 +273,9 @@ void lynxNetwork::status()
     case PROTOCOL:
         if (protocol == nullptr) {
             Debug_printf("ERROR: Calling status on a null protocol.\r\n");
-            err = true;
-            s.error = true;
+            err = s.error = NDEV_STATUS::NOT_CONNECTED;
         } else {
-            err = protocol->status(&s);
+            err = protocol->status(&s) == PROTOCOL_ERROR::NONE ? NDEV_STATUS::SUCCESS : NDEV_STATUS::GENERAL;
         }
         break;
     case JSON:
@@ -441,7 +440,7 @@ void lynxNetwork::del(uint16_t s)
 
     cmdFrame.comnd = NETCMD_DELETE;
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
         return;
@@ -469,7 +468,7 @@ void lynxNetwork::rename(uint16_t s)
 
     cmdFrame.comnd = NETCMD_RENAME;
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
         return;
@@ -495,7 +494,7 @@ void lynxNetwork::mkdir(uint16_t s)
 
     cmdFrame.comnd = NETCMD_MKDIR;
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
         return;
@@ -680,7 +679,7 @@ void lynxNetwork::comlynx_special_00(unsigned short s)
 
     //ComLynx.start_time = esp_timer_get_time();
 
-    if (protocol->special_00(&cmdFrame) == false)
+    if (protocol->special_00(&cmdFrame) == PROTOCOL_ERROR::NONE)
         comlynx_response_ack();
     else
         comlynx_response_nack();
@@ -697,7 +696,7 @@ void lynxNetwork::comlynx_special_40(unsigned short s)
     cmdFrame.aux1 = comlynx_recv();
     cmdFrame.aux2 = comlynx_recv();
 
-    if (protocol->special_40(response, 1024, &cmdFrame) == false)
+    if (protocol->special_40(response, 1024, &cmdFrame) == PROTOCOL_ERROR::NONE)
         comlynx_response_ack();
     else
         comlynx_response_nack();
@@ -723,7 +722,7 @@ void lynxNetwork::comlynx_special_80(unsigned short s)
     Debug_printf("lynxNetwork::comlynx_special_80() - %s\n", spData);
 
     // Do protocol action and return
-    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
+    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == PROTOCOL_ERROR::NONE)
         comlynx_response_ack();
     else
         comlynx_response_nack();
@@ -738,7 +737,7 @@ void lynxNetwork::comlynx_response_status()
 
     statusByte.bits.client_connected = s.connected == true;
     statusByte.bits.client_data_available = protocol->available() > 0;
-    statusByte.bits.client_error = s.error > 1;
+    statusByte.bits.client_error = s.error != NDEV_STATUS::SUCCESS;
 
     //status_response[1] = 2; // max packet size 1026 bytes, maybe larger?
     //status_response[2] = 4;
@@ -904,7 +903,7 @@ void lynxNetwork::comlynx_control_receive_channel_protocol()
     avail = avail > 1024 ? 1024 : avail;
     response_len = avail;
 
-    if (protocol->read(response_len)) // protocol adapter returned error
+    if (protocol->read(response_len) != PROTOCOL_ERROR::NONE) // protocol adapter returned error
     {
         statusByte.bits.client_error = true;
         err = protocol->error;
@@ -1044,7 +1043,7 @@ void lynxNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Invalid devicespec: >%s<\n", deviceSpec.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NETWORK_ERROR_INVALID_DEVICESPEC;
+        err = NDEV_STATUS::INVALID_DEVICESPEC;
         return;
     }
 #ifdef VERBOSE_PROTOCOL
@@ -1056,7 +1055,7 @@ void lynxNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NETWORK_ERROR_GENERAL;
+        err = NDEV_STATUS::GENERAL;
         return;
     }
 }

@@ -185,7 +185,7 @@ void drivewireNetwork::open()
     protocol->setLineEnding("\x0D");
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), &cmdFrame) == true)
+    if (protocol->open(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         ns.error = protocol->error;
         Debug_printf("Protocol unable to make connection. Error: %d\n", ns.error);
@@ -213,7 +213,7 @@ void drivewireNetwork::open()
     channelMode = PROTOCOL;
 
     // And signal complete!
-    ns.error = NETWORK_ERROR_SUCCESS;
+    ns.error = NDEV_STATUS::SUCCESS;
     //SYSTEM_BUS.write(ns.error);
     Debug_printf("ns.error = %u\n",ns.error);
 }
@@ -262,7 +262,7 @@ void drivewireNetwork::close()
 #endif
 
     // And signal complete!
-    ns.error = NETWORK_ERROR_SUCCESS;
+    ns.error = NDEV_STATUS::SUCCESS;
     //SYSTEM_BUS.write(ns.error);
 }
 
@@ -290,7 +290,7 @@ void drivewireNetwork::read()
     // Check for rx buffer. If NULL, then tell caller we could not allocate buffers.
     if (receiveBuffer == nullptr)
     {
-        ns.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
+        ns.error = NDEV_STATUS::COULD_NOT_ALLOCATE_BUFFERS;
         return;
     }
 
@@ -303,7 +303,7 @@ void drivewireNetwork::read()
             protocolParser = nullptr;
         }
 
-        ns.error = NETWORK_ERROR_NOT_CONNECTED;
+        ns.error = NDEV_STATUS::NOT_CONNECTED;
         return;
     }
 
@@ -322,24 +322,24 @@ void drivewireNetwork::read()
  * @brief Perform read of the current JSON channel
  * @param num_bytes Number of bytes to read
  */
-bool drivewireNetwork::read_channel_json(unsigned short num_bytes)
+protocolError_t drivewireNetwork::read_channel_json(unsigned short num_bytes)
 {
     if (num_bytes > json_bytes_remaining)
         json_bytes_remaining = 0;
     else
         json_bytes_remaining -= num_bytes;
 
-    return false;
+    return PROTOCOL_ERROR::NONE;
 }
 
 /**
  * Perform the channel read based on the channelMode
  * @param num_bytes - number of bytes to read from channel.
- * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
+ * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
  */
-bool drivewireNetwork::read_channel(unsigned short num_bytes)
+protocolError_t drivewireNetwork::read_channel(unsigned short num_bytes)
 {
-    bool err = false;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -394,7 +394,7 @@ void drivewireNetwork::write()
             delete protocolParser;
             protocolParser = nullptr;
         }
-        ns.error = NETWORK_ERROR_NOT_CONNECTED;
+        ns.error = NDEV_STATUS::NOT_CONNECTED;
         return;
     }
 
@@ -411,11 +411,11 @@ void drivewireNetwork::write()
 /**
  * Perform the correct write based on value of channelMode
  * @param num_bytes Number of bytes to write.
- * @return TRUE on error, FALSE on success. Used to emit drivewire_error or drivewire_complete().
+ * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit drivewire_error or drivewire_complete().
  */
-bool drivewireNetwork::write_channel(unsigned short num_bytes)
+protocolError_t drivewireNetwork::write_channel(unsigned short num_bytes)
 {
-    bool err = false;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -424,7 +424,7 @@ bool drivewireNetwork::write_channel(unsigned short num_bytes)
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
-        err = true;
+        err = PROTOCOL_ERROR::UNSPECIFIED;
         break;
     }
     return err;
@@ -492,7 +492,7 @@ void drivewireNetwork::status_local()
 bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
 {
     ns->connected = json_bytes_remaining > 0;
-    ns->error = json_bytes_remaining > 0 ? 1 : 136;
+    ns->error = json_bytes_remaining > 0 ? NDEV_STATUS::SUCCESS : NDEV_STATUS::END_OF_FILE;
     return false; // for now
 }
 
@@ -511,7 +511,7 @@ void drivewireNetwork::status_channel()
     case PROTOCOL:
         if (protocol == nullptr) {
             Debug_printf("ERROR: Calling status_channel on a null protocol.\r\n");
-            ns.error = NETWORK_ERROR_GENERAL;
+            ns.error = NDEV_STATUS::GENERAL;
         } else {
             protocol->status(&ns);
             avail = protocol->available();
@@ -891,7 +891,7 @@ void drivewireNetwork::special_80()
     if (protocol == nullptr) {
         Debug_printf("ERROR: Calling special_80 on a null protocol.\r\n");
         ns.reset();
-        ns.error = NETWORK_ERROR_GENERAL;
+        ns.error = NDEV_STATUS::GENERAL;
         return;
     }
 
@@ -991,7 +991,7 @@ else
 void drivewireNetwork::send_error()
 {
     Debug_printf("drivewireNetwork::send_error(%u)\n",ns.error);
-    SYSTEM_BUS.write(ns.error);
+    SYSTEM_BUS.write((uint8_t) ns.error);
 }
 
 void drivewireNetwork::send_response()
@@ -1042,7 +1042,7 @@ void drivewireNetwork::parse_and_instantiate_protocol()
     if (!urlParser->isValidUrl())
     {
         Debug_printf("Invalid devicespec: >%s<\n", deviceSpec.c_str());
-        ns.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        ns.error = NDEV_STATUS::INVALID_DEVICESPEC;
         return;
     }
 
@@ -1054,7 +1054,7 @@ void drivewireNetwork::parse_and_instantiate_protocol()
     if (!instantiate_protocol())
     {
         Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
-        ns.error = NETWORK_ERROR_GENERAL;
+        ns.error = NDEV_STATUS::GENERAL;
         return;
     }
 }
@@ -1171,13 +1171,13 @@ void drivewireNetwork::parse_json()
 {
     bool success = json->parse();
 
-    ns.error = NETWORK_ERROR_SUCCESS;
+    ns.error = NDEV_STATUS::SUCCESS;
 #ifdef UNUSED
     // Atari doesn't check for errors and blindly returns that
     // everything is fine. This causes the httpbin test to pass when
     // it probably shouldn't. However we'll just do what Atari does.
     if (!success)
-        ns.error = NETWORK_ERROR_COULD_NOT_PARSE_JSON;
+        ns.error = NDEV_STATUS::COULD_NOT_PARSE_JSON;
 #endif /* UNUSED */
 }
 
@@ -1243,7 +1243,7 @@ void drivewireNetwork::do_idempotent_command_80()
         return;
     }
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) == true)
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         Debug_printf("perform_idempotent_80 failed\n");
         // sio_error();
