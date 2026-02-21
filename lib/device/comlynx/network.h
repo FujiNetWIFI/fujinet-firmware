@@ -85,17 +85,11 @@ public:
      */
     virtual void status();
 
-    //virtual void comlynx_control_ack();
-    //virtual void comlynx_control_clr();
-    //virtual void comlynx_control_receive();
-    virtual void comlynx_control_receive_channel();
-    virtual void comlynx_control_receive_channel_json();
-    virtual void comlynx_control_receive_channel_protocol();
-    //virtual void comlynx_control_send();
-
-    //virtual void comlynx_response_status() override;
-    //virtual void comlynx_response_send();
-
+    virtual void read();
+    virtual void read_channel();
+    virtual void read_channel_json();
+    virtual void read_channel_protocol();
+  
     /**
      * @brief Called to set prefix
      */
@@ -119,7 +113,7 @@ public:
     /**
      * @brief set channel mode
      */
-    void channel_mode();
+    void set_channel_mode();
 
     /**
      * @brief parse incoming data
@@ -135,7 +129,7 @@ public:
     /**
      * Check to see if PROCEED needs to be asserted.
      */
-    void comlynx_poll_interrupt();
+    //void comlynx_poll_interrupt();
 
     /**
      * Process incoming LYNX command for device 0x7X
@@ -350,7 +344,7 @@ private:
      * @param num_bytes Number of bytes to write.
      * @return TRUE on error, FALSE on success. Used to emit comlynx_error or comlynx_complete().
      */
-    bool comlynx_write_channel(unsigned short num_bytes);
+    bool write_channel(unsigned short num_bytes);
 
     /**
      * @brief perform local status commands, if protocol is not bound, based on cmdFrame

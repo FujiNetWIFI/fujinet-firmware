@@ -144,15 +144,7 @@ void lynxNetwork::close()
 {
     Debug_printf("lynxNetwork::close()\n");
 
-    // Get packet checksum
-    if (!comlynx_recv_ck()) {
-        comlynx_response_nack();
-        return;
-    }
-
-    comlynx_response_ack();
-
-    statusByte.byte = 0x00;
+     statusByte.byte = 0x00;
 
     if (protocolParser != nullptr)
     {
@@ -163,6 +155,7 @@ void lynxNetwork::close()
     // If no protocol enabled, we just signal complete, and return.
     if (protocol == nullptr)
     {
+        transaction_complete();
         return;
     }
 
@@ -172,6 +165,8 @@ void lynxNetwork::close()
     // Delete the protocol object
     delete protocol;
     protocol = nullptr;
+    
+    transaction_complete();
 }
 
 /**
@@ -179,22 +174,33 @@ void lynxNetwork::close()
  * @param num_bytes - number of bytes to read from channel.
  * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
  */
-bool lynxNetwork::read_channel(unsigned short num_bytes)
+/*bool lynxNetwork::read_channel()
 {
     bool _err = false;
 
     switch (channelMode)
     {
     case PROTOCOL:
-        _err = protocol->read(num_bytes);
+        read_channel_protocol();
         break;
     case JSON:
-        Debug_printf("JSON Not Handled.\n");
+        response_len = json.available();
+        response_len = response_len % SERIAL_PACKET_SIZE;
+        json.readValue(response, response_len);
+
         _err = true;
         break;
+    default:
+        Debug_println("lynxNetwork::read_channel - unknown channelMode");
+        transaction_error();
+        return _err;
     }
+
+    Debug_printf("lynxNetwork:receive_channel_json, len:%d %s\n",response_len, response);
+    transaction_put(response, response_len);
+
     return _err;
-}
+}*/
 
 /**
  * LYNX Write command
@@ -206,18 +212,20 @@ void lynxNetwork::write(uint16_t num_bytes)
     Debug_printf("lynxNetwork::write\n");
     memset(response, 0, sizeof(response));
 
-    comlynx_recv_buffer(response, num_bytes);
-
-    // Get packet checksum
-    if (!comlynx_recv_ck()) {
-        comlynx_response_nack();
-        return;
-    }
-    comlynx_response_ack();
+    transaction_get(response, num_bytes);
 
     *transmitBuffer += string((char *)response, num_bytes);
-    err = comlynx_write_channel(num_bytes);
+    err = write_channel(num_bytes);
+    // transaction_complete handled in write_channel
 }
+
+
+void lynxNetwork::read()
+{
+    Debug_printf("lynxNetwork::read\n");
+    read_channel();
+}
+
 
 
 /**
@@ -225,7 +233,7 @@ void lynxNetwork::write(uint16_t num_bytes)
  * @param num_bytes Number of bytes to write.
  * @return TRUE on error, FALSE on success. Used to emit comlynx_error or comlynx_complete().
  */
-bool lynxNetwork::comlynx_write_channel(unsigned short num_bytes)
+bool lynxNetwork::write_channel(unsigned short num_bytes)
 {
     bool err = false;
 
@@ -235,10 +243,12 @@ bool lynxNetwork::comlynx_write_channel(unsigned short num_bytes)
         err = protocol->write(num_bytes);
         break;
     case JSON:
-        Debug_printf("JSON Not Handled.\n");
+        Debug_println("lynxNetwork::write_channel - JSON not handled");
         err = true;
         break;
     }
+
+    transaction_complete();
     return err;
 }
 
@@ -250,15 +260,19 @@ bool lynxNetwork::comlynx_write_channel(unsigned short num_bytes)
 void lynxNetwork::status()
 {
     NetworkStatus s;
-    NDeviceStatus *status = (NDeviceStatus *) response;
+    //NDeviceStatus *status = (NDeviceStatus *) response;
+    NDeviceStatus status;
 
     switch (channelMode)
     {
     case PROTOCOL:
         if (protocol == nullptr) {
-            Debug_printf("ERROR: Calling status on a null protocol.\r\n");
+            Debug_println("lynxNetwork::status - ERROR: Calling status on a null protocol");
             err = true;
             s.error = true;
+            
+            transaction_error();
+            return;
         } else {
             err = protocol->status(&s);
         }
@@ -270,13 +284,14 @@ void lynxNetwork::status()
 
     size_t avail = protocol->available();
     avail = avail > 65535 ? 65535 : avail;
-    status->avail = avail;
-    status->conn = s.connected;
-    status->err = s.error;
-    response_len = sizeof(*status);
-    receiveMode = STATUS;
+    status.avail = avail;
+    status.conn = s.connected;
+    status.err = s.error;
+    
+    //response_len = sizeof(*status);     // need this? -SJ
+    receiveMode = STATUS;               // need this? -SJ
 
-    transaction_put(response, response_len);
+    transaction_put(&status, sizeof(status));
 }
 
 /**
@@ -448,7 +463,7 @@ void lynxNetwork::mkdir(uint16_t len)
     transaction_complete();
 }
 
-void lynxNetwork::channel_mode()
+void lynxNetwork::set_channel_mode()
 {
     unsigned char m;
 
@@ -474,7 +489,9 @@ void lynxNetwork::channel_mode()
 void lynxNetwork::json_query(unsigned short len)
 {
     uint8_t in[256];
+    NetworkStatus ns;
 
+    // get the query
     memset(in, 0, sizeof(in));
     transaction_get(in, len);
 
@@ -500,9 +517,8 @@ void lynxNetwork::json_query(unsigned short len)
     }
 
     json.setReadQuery(inp_string, cmdFrame.aux2);
-
     Debug_printf("lynxNetwork::json_query - (%s)\n", inp_string.c_str());
-    transaction_put(response, response_len);
+    read_channel();
 }
 
 void lynxNetwork::json_parse()
@@ -522,7 +538,7 @@ void lynxNetwork::comlynx_special_inquiry()
 {
 }
 
-void lynxNetwork::do_inquiry(fujiCommandID_t inq_cmd)
+/*void lynxNetwork::do_inquiry(fujiCommandID_t inq_cmd)
 {
     // Reset inq_dstats
     inq_dstats = SIO_DIRECTION_INVALID;
@@ -571,12 +587,13 @@ void lynxNetwork::do_inquiry(fujiCommandID_t inq_cmd)
     }
 
     Debug_printf("inq_dstats = %u\n", inq_dstats);
-}
+}*/
 
 /**
  * @brief called to handle special protocol interactions when DSTATS=$00, meaning there is no payload.
  * Essentially, call the protocol action
  * and based on the return, signal comlynx_complete() or error().
+ * 
  */
 void lynxNetwork::comlynx_special_00(unsigned short len)
 {
@@ -601,8 +618,7 @@ void lynxNetwork::comlynx_special_40(unsigned short len)
     transaction_get(&cmdFrame.aux2, sizeof(cmdFrame.aux2));
 
     if (protocol->special_40(response, 1024, &cmdFrame) == false)
-        //transaction_put(response, response_len);
-        comlynx_control_receive_channel();
+        read_channel();
     else
         transaction_error();
 }
@@ -628,69 +644,61 @@ void lynxNetwork::comlynx_special_80(unsigned short len)
 
     // Do protocol action and return
     if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
-        //transaction_put(response, response_len);
-        comlynx_control_receive_channel();
+        read_channel();
     else
         transaction_error();
 }
 
-/*
-void lynxNetwork::comlynx_control_clr()
-{
-    comlynx_response_send();
 
-    if (channelMode == JSON)
-        jsonRecvd = false;
-}
-*/
-
-void lynxNetwork::comlynx_control_receive_channel()
+void lynxNetwork::read_channel()
 {
     switch (channelMode)
     {
     case JSON:
-        comlynx_control_receive_channel_json();
+        read_channel_json();
         break;
     case PROTOCOL:
-        comlynx_control_receive_channel_protocol();
+        read_channel_protocol();
         break;
     }
 }
 
-void lynxNetwork::comlynx_control_receive_channel_json()
+void lynxNetwork::read_channel_json()
 {
-    NetworkStatus ns;
+    //NetworkStatus ns;
 
-    if ((protocol == nullptr) || (receiveBuffer == nullptr))
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
         return; // Punch out.
+    }
 
-    if (jsonRecvd == false)
-    {
-        response_len = json.readValueLen();
+    //if (jsonRecvd == false)
+    //{
+        response_len = json.available();
+        response_len = response_len % SERIAL_PACKET_SIZE;
         json.readValue(response, response_len);
 
-        Debug_printf("lynxNetwork:receive_channel_json, len:%d %s\n",response_len, response);
-
-        jsonRecvd = true;
-        //comlynx_response_ack();
-        //transaction_complete();
+        Debug_printf("lynxNetwork:read_channel_json, len:%d %s\n",response_len, response);
+        //jsonRecvd = true;
         transaction_put(response, response_len);
-    }
-    else
-    {
-        if (response_len > 0)
-            transaction_complete();
-        else
-            transaction_error();
-    }
+    //}
+    //else
+    //{
+    //    if (response_len > 0)
+    //        transaction_complete();
+    //    else
+    //        transaction_error();
+    //}
 }
 
-void lynxNetwork::comlynx_control_receive_channel_protocol()
+void lynxNetwork::read_channel_protocol()
 {
     NetworkStatus ns;
 
-    if ((protocol == nullptr) || (receiveBuffer == nullptr))
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
         return; // Punch out.
+    }
 
     // Get status
     protocol->status(&ns);
@@ -698,16 +706,12 @@ void lynxNetwork::comlynx_control_receive_channel_protocol()
 
     if (!avail)
     {
-        comlynx_response_nack();
+        transaction_error();
         return;
     }
-    /*else
-    {
-        comlynx_response_ack();
-    }*/
 
     // Truncate bytes waiting to response size
-    avail = avail > 1024 ? 1024 : avail;
+    avail = avail % SERIAL_PACKET_SIZE;
     response_len = avail;
 
     if (protocol->read(response_len)) // protocol adapter returned error
@@ -726,48 +730,6 @@ void lynxNetwork::comlynx_control_receive_channel_protocol()
         transaction_put(response, response_len);
     }
 }
-
-/*
-void lynxNetwork::comlynx_control_receive()
-{
-     // Data is waiting, go ahead and send it off.
-    if (response_len > 0)
-    {
-        comlynx_response_ack();
-        return;
-    }
-
-    switch (receiveMode)
-    {
-    case CHANNEL:
-        comlynx_control_receive_channel();
-        break;
-    case STATUS:
-        break;
-    }
-}
-*/
-
-/*void lynxNetwork::comlynx_response_send()
-{
-    //uint8_t c = comlynx_checksum(response, response_len);
-
-    //comlynx_send(0xB0 | _devnum);
-    //comlynx_send((NM_SEND << 4) | _devnum);
-    //comlynx_send_length(response_len);
-    //comlynx_send_buffer(response, response_len);
-    //comlynx_send(c);
-
-    transaction_put(response, response_len);
-
-    // print response we're sending
-    response[response_len] = '\0';
-    Debug_printf("lynxNetwork::comlynx_response_send: %s\n",response);
-
-    // clear response for next time
-    memset(response, 0, response_len);
-    response_len = 0;
-}*/
 
 /**
  * Process incoming LYNX command
@@ -829,11 +791,20 @@ void lynxNetwork::comlynx_process()
     case FUJICMD_STATUS:
         status();
         break;
+    case FUJICMD_READ:
+        read();
+        break;
     case FUJICMD_WRITE:
         write(len);
         break;
     case FUJICMD_JSON:
-        channel_mode();
+        set_channel_mode();
+        break;
+    case FUJICMD_JSON_PARSE:
+        json_parse();
+        break;
+    case FUJICMD_JSON_QUERY:
+        json_query(len);
         break;
     case FUJICMD_USERNAME: // login
         set_login(len);
@@ -842,7 +813,7 @@ void lynxNetwork::comlynx_process()
         set_password(len);
         break;
     default:
-        switch (channelMode)
+        /*switch (channelMode)
         {
         case PROTOCOL:
             if (inq_dstats == SIO_DIRECTION_NONE)
@@ -867,11 +838,11 @@ void lynxNetwork::comlynx_process()
                 break;
             }
             break;
-        default:
-            Debug_println("lynxNetwork::comlynx_process - unknown channel mode");
+        default:*/
+            Debug_println("lynxNetwork::comlynx_process - unknown command");
             break;
-        }
-        do_inquiry(c);
+        //}
+        //do_inquiry(c);   // need this at all? -SJ
     }
 }
 
@@ -947,13 +918,13 @@ void lynxNetwork::parse_and_instantiate_protocol(string d)
     }
 }
 
-void lynxNetwork::comlynx_set_translation()
+/*void lynxNetwork::comlynx_set_translation()
 {
-}
+}*/
 
-void lynxNetwork::comlynx_set_timer_rate()
+/*void lynxNetwork::comlynx_set_timer_rate()
 {
-}
+}*/
 
 void lynxNetwork::transaction_complete()
 {
