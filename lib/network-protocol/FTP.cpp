@@ -298,7 +298,13 @@ size_t NetworkProtocolFTP::available()
     case streamType_t::FILE:
         avail = ftp->data_available();
         break;
+    case DIR:
+        avail = receiveBuffer->length();
+        if (!avail)
+            avail = dirBuffer.length();
+        break;
     default:
+        abort();
         break;
     }
 
