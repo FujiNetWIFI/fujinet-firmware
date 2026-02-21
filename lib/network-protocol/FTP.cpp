@@ -37,18 +37,19 @@ protocolError_t NetworkProtocolFTP::open_file_handle()
 {
     protocolError_t res;
 
-    switch (aux1_open)
+    switch (streamMode)
     {
-    case NETPROTO_OPEN_READ:
+    case ACCESS_MODE::READ:
         stor = false;
         break;
-    case NETPROTO_OPEN_WRITE:
+    case ACCESS_MODE::WRITE:
         stor = true;
         break;
-    case NETPROTO_OPEN_APPEND:
-    case NETPROTO_OPEN_READWRITE:
+    case ACCESS_MODE::APPEND:
+    case ACCESS_MODE::READWRITE:
         error = NDEV_STATUS::NOT_IMPLEMENTED;
         return PROTOCOL_ERROR::UNSPECIFIED;
+    default:
         break;
     }
 
@@ -292,9 +293,9 @@ size_t NetworkProtocolFTP::available()
     size_t avail = 0;
 
 
-    switch (openMode)
+    switch (streamType)
     {
-    case FILE:
+    case streamType_t::FILE:
         avail = ftp->data_available();
         break;
     default:
