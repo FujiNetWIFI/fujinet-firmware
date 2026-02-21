@@ -224,7 +224,7 @@ uint8_t iecFuji::read()
 {
   // we should never get here if responsePtr>=responseV.size() because
   // then canRead would have returned 0, but better safe than sorry
-  return responsePtr < responseV.size() ? responseV[responsePtr++] : 0;
+  return responsePtr <= responseV.size() ? responseV[responsePtr++] : 0;
 }
 
 
@@ -475,6 +475,11 @@ void iecFuji::process_basic_commands()
         enable_device_basic();
     else if (payload.find("disable") != std::string::npos)
         disable_device_basic();
+    else if (payload.find("guid") != std::string::npos)
+    {
+        fujicmd_generate_guid();
+        response = mstr::toPETSCII2(response);
+    }
     else if (payload.find("bptiming") != std::string::npos)
     {
         if ( pt.size() < 3 )
@@ -508,6 +513,7 @@ bool iecFuji::is_supported(uint8_t cmd)
     case FUJICMD_HASH_INPUT:
     case FUJICMD_HASH_LENGTH:
     case FUJICMD_HASH_OUTPUT:
+    case FUJICMD_GENERATE_GUID:
     case FUJICMD_MOUNT_ALL:
     case FUJICMD_MOUNT_HOST:
     case FUJICMD_MOUNT_IMAGE:
@@ -683,6 +689,10 @@ void iecFuji::process_immediate_raw_cmds()
         break;
     case FUJICMD_HASH_CLEAR:
         hash_clear();
+        break;
+    case FUJICMD_GENERATE_GUID:
+        fujicmd_generate_guid();
+        response = mstr::toPETSCII2(response);
         break;
     default:
         // not an immediate command, so exit without changing current_fuji_cmd, as we need to be sent data
