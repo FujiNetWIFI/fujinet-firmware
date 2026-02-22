@@ -21,6 +21,10 @@ private:
     fnFTP *_ftp;
 
     // directory cache
+    std::string _username;
+    std::string _password;
+
+    // directory cache
     char _last_dir[MAX_PATHLEN];
     DirCache _dircache;
 
@@ -45,9 +49,9 @@ public:
     bool rename(const char *pathFrom, const char *pathTo) override;
 
     bool is_dir(const char *path) override;
-    bool mkdir(const char* path) override { return true; };
-    bool rmdir(const char* path) override { return true; };
-    bool dir_exists(const char* path) override { return true; };
+    bool mkdir(const char* path) override;
+    bool rmdir(const char* path) override;
+    bool dir_exists(const char* path) override;
 
     bool dir_open(const char *path, const char *pattern, uint16_t diropts) override;
     fsdir_entry *dir_read() override;
@@ -55,6 +59,12 @@ public:
     uint16_t dir_tell() override;
     bool dir_seek(uint16_t pos) override;
 
+    bool keep_alive();
+
+private:
+    bool ensure_connected();  // Check connection and reconnect if needed
+
+public:
 #ifndef FNIO_IS_STDIO
     FileHandler *cache_file(const char *path, const char *mode);
 #endif
