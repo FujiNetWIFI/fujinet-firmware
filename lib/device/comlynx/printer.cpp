@@ -90,12 +90,14 @@ lynxPrinter::printer_type lynxPrinter::match_modelname(std::string model_name)
     return (printer_type)i;
 }
 
+/*
 void lynxPrinter::comlynx_control_status()
 {
     uint8_t c[6] = {0x82, 0x10, 0x00, 0x00, 0x00, 0x10};
 
     comlynx_send_buffer(c, sizeof(c));
 }
+*/
 
 void lynxPrinter::perform_print()
 {
@@ -103,6 +105,7 @@ void lynxPrinter::perform_print()
     _pptr->process(pi.len,0,0);
 }
 
+/*
 void lynxPrinter::comlynx_control_send()
 {
     memset(&pi,0,sizeof(pi));
@@ -117,7 +120,9 @@ void lynxPrinter::comlynx_control_send()
 
     _last_ms = fnSystem.millis();
 }
+*/
 
+/*
 void lynxPrinter::comlynx_control_ready()
 {
     SYSTEM_BUS.start_time = esp_timer_get_time();
@@ -127,10 +132,11 @@ void lynxPrinter::comlynx_control_ready()
     else
         comlynx_response_ack();
 }
+*/
 
-void lynxPrinter::comlynx_process(uint8_t b)
+void lynxPrinter::comlynx_process()
 {
-    unsigned char c = b >> 4;
+    /*unsigned char c = b >> 4;
 
     switch (c)
     {
@@ -143,7 +149,7 @@ void lynxPrinter::comlynx_process(uint8_t b)
     case MN_READY:
         comlynx_control_ready();
         break;
-    }
+    }*/
 }
 
 void lynxPrinter::shutdown()

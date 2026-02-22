@@ -286,7 +286,7 @@ void lynxUDPStream::redeye_remap_game_id()
 }
 
 
-void lynxUDPStream::comlynx_process(uint8_t b)
+void lynxUDPStream::comlynx_process()
 {
     // Nothing to do here
     return;

@@ -25,10 +25,10 @@ class lynxSerial : public virtualDevice
     virtual ~lynxSerial();
 
     /**
-     * Process incoming SIO command for device 0x7X
+     * Process incoming SIO command for device 0x5X
      * @param b first byte of packet
      */
-    virtual void comlynx_process(uint8_t b);
+    virtual void comlynx_process();
 
     void command_connect(uint16_t s);
     void command_send(uint16_t s);
