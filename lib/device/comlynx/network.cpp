@@ -103,7 +103,7 @@ void lynxNetwork::open(unsigned short len)
     // Reset status buffer
     statusByte.byte = 0x00;
 
-    Debug_printf("lynxNetwork::open()\n");
+    Debug_printf("lynxNetwork::open - aux1: %02X aux2: %02X %s\n", open_aux1, open_aux2, response);
 
     // Parse and instantiate protocol
     d = string((char *)response, len);
@@ -142,7 +142,7 @@ void lynxNetwork::open(unsigned short len)
  */
 void lynxNetwork::close()
 {
-    Debug_printf("lynxNetwork::close()\n");
+    Debug_printf("lynxNetwork::close\n");
 
      statusByte.byte = 0x00;
 
@@ -468,6 +468,8 @@ void lynxNetwork::set_channel_mode()
     unsigned char m;
 
     transaction_get(&m, sizeof(m));
+    Debug_printf("lynxNetwork::channel_mode - mode: %02X\n", m);
+
     switch (m)
     {
     case 0:
@@ -482,13 +484,11 @@ void lynxNetwork::set_channel_mode()
         transaction_error();
         break;
     }
-
-    Debug_printf("lynxNetwork::channel_mode - mode:%u\n", m);
 }
 
 void lynxNetwork::json_query(unsigned short len)
 {
-    uint8_t in[256];
+ /*   uint8_t in[256];
     NetworkStatus ns;
 
     // get the query
@@ -519,6 +519,50 @@ void lynxNetwork::json_query(unsigned short len)
     json.setReadQuery(inp_string, cmdFrame.aux2);
     Debug_printf("lynxNetwork::json_query - (%s)\n", inp_string.c_str());
     read_channel();
+    */
+
+    uint8_t in[256];
+
+    // get the query
+    memset(in, 0, sizeof(in));
+    transaction_get(in, len);
+
+    // strip away line endings from input spec.
+    for (int i = 0; i < 256; i++)
+    {
+        if (in[i] == 0x0A || in[i] == 0x0D || in[i] == 0x9b)
+            in[i] = 0x00;
+    }
+
+    std::string in_string(reinterpret_cast<char*>(in));
+    size_t last_colon_pos = in_string.rfind(':');
+
+    std::string inp_string;
+    if (last_colon_pos != std::string::npos) {
+        // Skip the device spec. There was a debug message here,
+        // but it was removed, because there are cases where
+        // removing the devicespec isn't possible, e.g. accessing
+        // via CIO (as an XIO). -thom
+        inp_string = in_string.substr(last_colon_pos + 1);
+    } else {
+        inp_string = in_string;
+    }
+
+    json.setReadQuery(inp_string, cmdFrame.aux2);
+    uint16_t json_bytes_remaining = json.available();
+
+    Debug_printf("lynxNetwork::json_query - query: %s\n", inp_string.c_str());
+    Debug_printf("lynxNetwork::json_query - json->available: %d\n", json_bytes_remaining);
+
+    std::vector<uint8_t> tmp(json_bytes_remaining);
+    json.readValue(tmp.data(), json_bytes_remaining);
+
+    // don't copy past first nul char in tmp
+    auto null_pos = std::find(tmp.begin(), tmp.end(), 0);
+    *receiveBuffer += std::string(tmp.begin(), null_pos);
+
+    Debug_printf("lynxNetwork::json_query - reponse: %s\n", tmp.data());
+    transaction_put(tmp.data(), tmp.size());
 }
 
 void lynxNetwork::json_parse()
@@ -757,14 +801,10 @@ void lynxNetwork::comlynx_process()
     }
 
     // get command
-    transaction_get(&c, sizeof(c));
+    transaction_get(&c, 1);
     Debug_printf("lynxNetwork::comlynx_process - command: %02X\n", c);
     len--;      // we received command already
     
-   //uint16_t s = comlynx_recv_length(); // receive length
-   //fujiCommandID_t c = (fujiCommandID_t) comlynx_recv();         // receive command
-    //s--; // Because we've popped the command off the stack
-
     switch (c)
     {
     case FUJICMD_RENAME:
