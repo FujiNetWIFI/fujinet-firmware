@@ -116,7 +116,7 @@ void lynxNetwork::open(unsigned short len)
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), &cmdFrame) == true)
+    if (protocol->open(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
         Debug_printf("Protocol unable to make connection. Error: %d\n", err);
@@ -172,11 +172,11 @@ void lynxNetwork::close()
 /**
  * Perform the channel read based on the channelMode
  * @param num_bytes - number of bytes to read from channel.
- * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
+ * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
  */
-/*bool lynxNetwork::read_channel()
+protocolError_t lynxNetwork::read_channel(unsigned short num_bytes)
 {
-    bool _err = false;
+    protocolError_t _err = PROTOCOL_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -188,19 +188,19 @@ void lynxNetwork::close()
         response_len = response_len % SERIAL_PACKET_SIZE;
         json.readValue(response, response_len);
 
-        _err = true;
+        _err = PROTOCOL_ERROR::NONE;
         break;
     default:
         Debug_println("lynxNetwork::read_channel - unknown channelMode");
         transaction_error();
-        return _err;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     Debug_printf("lynxNetwork:receive_channel_json, len:%d %s\n",response_len, response);
     transaction_put(response, response_len);
 
     return _err;
-}*/
+}
 
 /**
  * LYNX Write command
@@ -215,8 +215,7 @@ void lynxNetwork::write(uint16_t num_bytes)
     transaction_get(response, num_bytes);
 
     *transmitBuffer += string((char *)response, num_bytes);
-    err = write_channel(num_bytes);
-    // transaction_complete handled in write_channel
+    err = write_channel(num_bytes) == PROTOCOL_ERROR::NONE ? NDEV_STATUS::SUCCESS : NDEV_STATUS::GENERAL;
 }
 
 
@@ -231,11 +230,11 @@ void lynxNetwork::read()
 /**
  * Perform the correct write based on value of channelMode
  * @param num_bytes Number of bytes to write.
- * @return TRUE on error, FALSE on success. Used to emit comlynx_error or comlynx_complete().
+ * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit comlynx_error or comlynx_complete().
  */
-bool lynxNetwork::write_channel(unsigned short num_bytes)
+protocolError_t lynxNetwork::write_channel(unsigned short num_bytes)
 {
-    bool err = false;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -243,8 +242,8 @@ bool lynxNetwork::write_channel(unsigned short num_bytes)
         err = protocol->write(num_bytes);
         break;
     case JSON:
-        Debug_println("lynxNetwork::write_channel - JSON not handled");
-        err = true;
+        Debug_printf("JSON Not Handled.\n");
+        err = PROTOCOL_ERROR::UNSPECIFIED;
         break;
     }
 
@@ -267,14 +266,11 @@ void lynxNetwork::status()
     {
     case PROTOCOL:
         if (protocol == nullptr) {
-            Debug_println("lynxNetwork::status - ERROR: Calling status on a null protocol");
-            err = true;
-            s.error = true;
-            
+            Debug_printf("ERROR: Calling status on a null protocol.\r\n");
+            err = s.error = NDEV_STATUS::NOT_CONNECTED;
             transaction_error();
-            return;
         } else {
-            err = protocol->status(&s);
+            err = protocol->status(&s) == PROTOCOL_ERROR::NONE ? NDEV_STATUS::SUCCESS : NDEV_STATUS::GENERAL;
         }
         break;
     case JSON:
@@ -407,9 +403,9 @@ void lynxNetwork::del(uint16_t len)
         return;
     }
 
-    cmdFrame.comnd = '!';
+    cmdFrame.comnd = NETCMD_DELETE;
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
         transaction_error();
@@ -430,9 +426,9 @@ void lynxNetwork::rename(uint16_t len)
     d = string((char *)response, len);
     parse_and_instantiate_protocol(d);
 
-    cmdFrame.comnd = ' ';
+    cmdFrame.comnd = NETCMD_RENAME;
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
         transaction_error();
@@ -452,9 +448,9 @@ void lynxNetwork::mkdir(uint16_t len)
     d = string((char *)response, len);
     parse_and_instantiate_protocol(d);
 
-    cmdFrame.comnd = '*';
+    cmdFrame.comnd = NETCMD_MKDIR;
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
         transaction_error();
@@ -594,34 +590,34 @@ void lynxNetwork::comlynx_special_inquiry()
         inq_dstats = protocol->special_inquiry(inq_cmd);
 
     // If we didn't get one from protocol, or unsupported, see if supported globally.
-    if (inq_dstats == 0xFF)
+    if (inq_dstats == SIO_DIRECTION_INVALID)
     {
         switch (inq_cmd)
         {
-        case FUJICMD_RENAME:
-        case FUJICMD_DELETE:
-        case FUJICMD_LOCK:
-        case FUJICMD_UNLOCK:
-        case FUJICMD_MKDIR:
-        case FUJICMD_RMDIR:
-        case FUJICMD_CHDIR:
-        case FUJICMD_USERNAME:
-        case FUJICMD_PASSWORD:
+        case NETCMD_RENAME:
+        case NETCMD_DELETE:
+        case NETCMD_LOCK:
+        case NETCMD_UNLOCK:
+        case NETCMD_MKDIR:
+        case NETCMD_RMDIR:
+        case NETCMD_CHDIR:
+        case NETCMD_USERNAME:
+        case NETCMD_PASSWORD:
             inq_dstats = SIO_DIRECTION_WRITE;
             break;
-        case FUJICMD_GETCWD:
+        case NETCMD_GETCWD:
             inq_dstats = SIO_DIRECTION_READ;
             break;
-        case FUJICMD_TIMER: // Set interrupt rate
+        case NETCMD_SET_INT_RATE: // Set interrupt rate
             inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_TRANSLATION: // Set Translation
+        case NETCMD_TRANSLATION: // Set Translation
             inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_JSON_PARSE: // JSON Parse
+        case NETCMD_PARSE_ALT: // JSON Parse
             inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_JSON_QUERY: // JSON Query
+        case NETCMD_QUERY_ALT: // JSON Query
             inq_dstats = SIO_DIRECTION_WRITE;
             break;
         default:
@@ -644,7 +640,7 @@ void lynxNetwork::comlynx_special_00(unsigned short len)
     transaction_get(&cmdFrame.aux1, sizeof(cmdFrame.aux1));
     transaction_get(&cmdFrame.aux2, sizeof(cmdFrame.aux2));
 
-    if (protocol->special_00(&cmdFrame) == false)
+    if (protocol->special_00(&cmdFrame) == PROTOCOL_ERROR::NONE)
         transaction_complete();
     else
         transaction_error();
@@ -661,8 +657,8 @@ void lynxNetwork::comlynx_special_40(unsigned short len)
     transaction_get(&cmdFrame.aux1, sizeof(cmdFrame.aux1));
     transaction_get(&cmdFrame.aux2, sizeof(cmdFrame.aux2));
 
-    if (protocol->special_40(response, 1024, &cmdFrame) == false)
-        read_channel();
+    if (protocol->special_40(response, 1024, &cmdFrame) == PROTOCOL_ERROR::NONE)
+        transaction_complete();
     else
         transaction_error();
 }
@@ -687,7 +683,7 @@ void lynxNetwork::comlynx_special_80(unsigned short len)
     Debug_printf("lynxNetwork::comlynx_special_80() - %s\n", spData);
 
     // Do protocol action and return
-    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
+    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == PROTOCOL_ERROR::NONE)
         read_channel();
     else
         transaction_error();
@@ -758,7 +754,7 @@ void lynxNetwork::read_channel_protocol()
     avail = avail % SERIAL_PACKET_SIZE;
     response_len = avail;
 
-    if (protocol->read(response_len)) // protocol adapter returned error
+    if (protocol->read(response_len) != PROTOCOL_ERROR::NONE) // protocol adapter returned error
     {
         statusByte.bits.client_error = true;
         err = protocol->error;
@@ -807,49 +803,51 @@ void lynxNetwork::comlynx_process()
     
     switch (c)
     {
-    case FUJICMD_RENAME:
+    case NETCMD_RENAME:
         rename(len);
         break;
-    case FUJICMD_DELETE:
+    case NETCMD_DELETE:
         del(len);
         break;
-    case FUJICMD_MKDIR:
+    case NETCMD_MKDIR:
         mkdir(len);
         break;
-    case FUJICMD_CHDIR:
+    case NETCMD_CHDIR:
         set_prefix(len);
         break;
-    case FUJICMD_GETCWD:
+    case NETCMD_GETCWD:
         get_prefix();
         break;
-    case FUJICMD_OPEN:
+    case NETCMD_OPEN:
         open(len);
         break;
-    case FUJICMD_CLOSE:
+    case NETCMD_CLOSE:
         close();
         break;
-    case FUJICMD_STATUS:
+    case NETCMD_STATUS:
         status();
         break;
-    case FUJICMD_READ:
+    case NETCMD_READ:
         read();
         break;
-    case FUJICMD_WRITE:
+    case NETCMD_WRITE:
         write(len);
         break;
-    case FUJICMD_JSON:
+    case NETCMD_CHANNEL_MODE:
         set_channel_mode();
         break;
-    case FUJICMD_JSON_PARSE:
+    case NETCMD_PARSE:
+    case NETCMD_PARSE_ALT:
         json_parse();
         break;
-    case FUJICMD_JSON_QUERY:
+    case NETCMD_QUERY:
+    case NETCMD_QUERY_ALT:
         json_query(len);
         break;
-    case FUJICMD_USERNAME: // login
+    case NETCMD_USERNAME: // login
         set_login(len);
         break;
-    case FUJICMD_PASSWORD: // password
+    case NETCMD_PASSWORD: // password
         set_password(len);
         break;
     default:
@@ -868,10 +866,10 @@ void lynxNetwork::comlynx_process()
         case JSON:
             switch (c)
             {
-            case FUJICMD_PUT:
+            case NETCMD_PUT:
                 json_parse();
                 break;
-            case FUJICMD_QUERY:
+            case NETCMD_QUERY:
                 json_query(len);
                 break;
             default:
@@ -941,7 +939,7 @@ void lynxNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Invalid devicespec: >%s<\n", deviceSpec.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NETWORK_ERROR_INVALID_DEVICESPEC;
+        err = NDEV_STATUS::INVALID_DEVICESPEC;
         return;
     }
 #ifdef VERBOSE_PROTOCOL
@@ -953,7 +951,7 @@ void lynxNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NETWORK_ERROR_GENERAL;
+        err = NDEV_STATUS::GENERAL;
         return;
     }
 }

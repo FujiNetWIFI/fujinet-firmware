@@ -5,6 +5,7 @@
  * Comlynx Routines
  */
 
+#include "cmdFrame.h"
 #include "UARTChannel.h"
 #include "fujiDeviceID.h"
 #include "fujiCommandID.h"
@@ -35,23 +36,6 @@
 
 
 #define COMLYNX_RESET_DEBOUNCE_PERIOD 100 // in ms
-
-union cmdFrame_t
-{
-    struct
-    {
-        uint8_t device;
-        uint8_t comnd;
-        uint8_t aux1;
-        uint8_t aux2;
-        uint8_t cksum;
-    };
-    struct
-    {
-        uint32_t commanddata;
-        uint8_t checksum;
-    } __attribute__((packed));
-};
 
 class systemBus;
 class lynxFuji;     // declare here so can reference it, but define in fuji.h

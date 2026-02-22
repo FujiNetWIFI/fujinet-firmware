@@ -1,6 +1,7 @@
 #ifndef RS232_H
 #define RS232_H
 
+#include "cmdFrame.h"
 #include "UARTChannel.h"
 #include "fujiDeviceID.h"
 
@@ -16,30 +17,6 @@
 
 #define DELAY_T4 800
 #define DELAY_T5 800
-
-#define DIRECTION_NONE    0x00
-#define DIRECTION_READ    0x40
-#define DIRECTION_WRITE   0x80
-
-typedef struct
-{
-    uint8_t device;
-    uint8_t comnd;
-    union {
-        struct {
-            uint8_t aux1;
-            uint8_t aux2;
-            uint8_t aux3;
-            uint8_t aux4;
-        };
-        struct {
-            uint16_t aux12;
-            uint16_t aux34;
-        };
-        uint32_t aux;
-    };
-    uint8_t cksum;
-} __attribute__((packed)) cmdFrame_t;
 
 // helper functions
 uint8_t rs232_checksum(uint8_t *buf, unsigned short len);

@@ -138,10 +138,10 @@ void rs232Network::rs232_open()
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), &cmdFrame) == true)
+    if (protocol->open(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         status.error = protocol->error;
-        Debug_printf("Protocol unable to make connection. Error: %d\n", status.error);
+        Debug_printf("Protocol unable to make connection. Error: %d\n", (int) status.error);
         delete protocol;
         protocol = nullptr;
         if (protocolParser != nullptr)
@@ -196,7 +196,7 @@ void rs232Network::rs232_close()
     }
 
     // Ask the protocol to close
-    if (protocol->close())
+    if (protocol->close() != PROTOCOL_ERROR::NONE)
         rs232_error();
     else
         rs232_complete();
@@ -216,7 +216,7 @@ void rs232Network::rs232_close()
 void rs232Network::rs232_read()
 {
     unsigned short num_bytes = rs232_get_aux16_lo();
-    bool err = false;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
     Debug_printf("rs232Network::rs232_read( %d bytes)\n", num_bytes);
 
@@ -225,7 +225,7 @@ void rs232Network::rs232_read()
     // Check for rx buffer. If NULL, then tell caller we could not allocate buffers.
     if (receiveBuffer == nullptr)
     {
-        status.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
+        status.error = NDEV_STATUS::COULD_NOT_ALLOCATE_BUFFERS;
         rs232_error();
         return;
     }
@@ -233,7 +233,7 @@ void rs232Network::rs232_read()
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
     {
-        status.error = NETWORK_ERROR_NOT_CONNECTED;
+        status.error = NDEV_STATUS::NOT_CONNECTED;
         rs232_error();
         return;
     }
@@ -242,7 +242,7 @@ void rs232Network::rs232_read()
     err = rs232_read_channel(num_bytes);
 
     // And send off to the computer
-    bus_to_computer((uint8_t *)receiveBuffer->data(), num_bytes, err);
+    bus_to_computer((uint8_t *)receiveBuffer->data(), num_bytes, err != PROTOCOL_ERROR::NONE);
     receiveBuffer->erase(0, num_bytes);
 }
 
@@ -250,14 +250,14 @@ void rs232Network::rs232_read()
  * @brief Perform read of the current JSON channel
  * @param num_bytes Number of bytes to read
  */
-bool rs232Network::rs232_read_channel_json(unsigned short num_bytes)
+protocolError_t rs232Network::rs232_read_channel_json(unsigned short num_bytes)
 {
     if (num_bytes > json_bytes_remaining)
         json_bytes_remaining=0;
     else
         json_bytes_remaining-=num_bytes;
 
-    return false;
+    return PROTOCOL_ERROR::NONE;
 }
 
 /**
@@ -265,9 +265,9 @@ bool rs232Network::rs232_read_channel_json(unsigned short num_bytes)
  * @param num_bytes - number of bytes to read from channel.
  * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
  */
-bool rs232Network::rs232_read_channel(unsigned short num_bytes)
+protocolError_t rs232Network::rs232_read_channel(unsigned short num_bytes)
 {
-    bool err = false;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -290,7 +290,7 @@ void rs232Network::rs232_write()
 {
     unsigned short num_bytes = rs232_get_aux16_lo();
     uint8_t *newData;
-    bool err = false;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
     newData = (uint8_t *)malloc(num_bytes);
     Debug_printf("rs232Network::rs232_write( %d bytes)\n", num_bytes);
@@ -307,7 +307,7 @@ void rs232Network::rs232_write()
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
     {
-        status.error = NETWORK_ERROR_NOT_CONNECTED;
+        status.error = NDEV_STATUS::NOT_CONNECTED;
         rs232_error();
         free(newData);
         return;
@@ -322,7 +322,7 @@ void rs232Network::rs232_write()
     err = rs232_write_channel(num_bytes);
 
     // Acknowledge to Atari of channel outcome.
-    if (err == false)
+    if (err == PROTOCOL_ERROR::NONE)
     {
         rs232_complete();
     }
@@ -335,9 +335,9 @@ void rs232Network::rs232_write()
  * @param num_bytes Number of bytes to write.
  * @return TRUE on error, FALSE on success. Used to emit rs232_error or rs232_complete().
  */
-bool rs232Network::rs232_write_channel(unsigned short num_bytes)
+protocolError_t rs232Network::rs232_write_channel(unsigned short num_bytes)
 {
-    bool err = false;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -346,7 +346,7 @@ bool rs232Network::rs232_write_channel(unsigned short num_bytes)
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
-        err = true;
+        err = PROTOCOL_ERROR::UNSPECIFIED;
         break;
     }
     return err;
@@ -405,7 +405,7 @@ void rs232Network::rs232_status_local()
         break;
     default:
         default_status[2] = status.connected;
-        default_status[3] = status.error;
+        default_status[3] = (uint8_t) status.error;
         bus_to_computer(default_status, 4, false);
     }
 }
@@ -413,7 +413,7 @@ void rs232Network::rs232_status_local()
 bool rs232Network::rs232_status_channel_json(NetworkStatus *ns)
 {
     ns->connected = json_bytes_remaining > 0;
-    ns->error = json_bytes_remaining > 0 ? 1 : 136;
+    ns->error = json_bytes_remaining > 0 ? NDEV_STATUS::SUCCESS : NDEV_STATUS::END_OF_FILE;
     return false; // for now
 }
 
@@ -424,7 +424,7 @@ void rs232Network::rs232_status_channel()
 {
     NDeviceStatus nstatus;
     size_t avail = 0;
-    bool err = false;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
     Debug_printf("rs232Network::rs232_status_channel(%u)\n", channelMode);
 
@@ -433,8 +433,8 @@ void rs232Network::rs232_status_channel()
     case PROTOCOL:
         if (protocol == nullptr) {
             Debug_printf("ERROR: Calling rs232_status_channel on a null protocol.\r\n");
-            err = true;
-            status.error = true;
+            err = PROTOCOL_ERROR::UNSPECIFIED;
+            status.error = NDEV_STATUS::NOT_CONNECTED;
         } else {
             err = protocol->status(&status);
             avail = protocol->available();
@@ -453,10 +453,10 @@ void rs232Network::rs232_status_channel()
     nstatus.err = status.error;
 
     Debug_printf("rs232_status_channel() - BW: %u C: %u E: %u\n",
-                 nstatus.avail, nstatus.conn, nstatus.err);
+                 nstatus.avail, nstatus.conn, (uint8_t) nstatus.err);
 
     // and send to computer
-    bus_to_computer((uint8_t *) &nstatus, sizeof(nstatus), err);
+    bus_to_computer((uint8_t *) &nstatus, sizeof(nstatus), err != PROTOCOL_ERROR::NONE);
 }
 
 /**
@@ -619,15 +619,15 @@ void rs232Network::rs232_special()
 
     switch (inq_dstats)
     {
-    case DIRECTION_NONE:  // No payload
+    case SIO_DIRECTION_NONE:  // No payload
         rs232_ack();
         rs232_special_00();
         break;
-    case DIRECTION_READ:  // Payload to Atari
+    case SIO_DIRECTION_READ:  // Payload to Atari
         rs232_ack();
         rs232_special_40();
         break;
-    case DIRECTION_WRITE: // Payload to Peripheral
+    case SIO_DIRECTION_WRITE: // Payload to Peripheral
         rs232_ack();
         rs232_special_80();
         break;
@@ -670,34 +670,34 @@ void rs232Network::do_inquiry(fujiCommandID_t inq_cmd)
     {
         switch (inq_cmd)
         {
-        case FUJICMD_RENAME:
-        case FUJICMD_DELETE:
-        case FUJICMD_LOCK:
-        case FUJICMD_UNLOCK:
-        case FUJICMD_MKDIR:
-        case FUJICMD_RMDIR:
-        case FUJICMD_CHDIR:
-        case FUJICMD_USERNAME:
-        case FUJICMD_PASSWORD:
+        case NETCMD_RENAME:
+        case NETCMD_DELETE:
+        case NETCMD_LOCK:
+        case NETCMD_UNLOCK:
+        case NETCMD_MKDIR:
+        case NETCMD_RMDIR:
+        case NETCMD_CHDIR:
+        case NETCMD_USERNAME:
+        case NETCMD_PASSWORD:
             inq_dstats = SIO_DIRECTION_WRITE;
             break;
-        case FUJICMD_JSON:
+        case NETCMD_CHANNEL_MODE:
             inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_GETCWD:
+        case NETCMD_GETCWD:
             inq_dstats = SIO_DIRECTION_READ;
             break;
-        case FUJICMD_TIMER: // Set interrupt rate
+        case NETCMD_SET_INT_RATE: // Set interrupt rate
             inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_TRANSLATION: // Set Translation
+        case NETCMD_TRANSLATION: // Set Translation
             inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_PARSE: // JSON Parse
+        case NETCMD_PARSE: // JSON Parse
             if (channelMode == JSON)
                 inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_QUERY: // JSON Query
+        case NETCMD_QUERY: // JSON Query
             if (channelMode == JSON)
                 inq_dstats = SIO_DIRECTION_WRITE;
             break;
@@ -720,21 +720,21 @@ void rs232Network::rs232_special_00()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case FUJICMD_PARSE:
+    case NETCMD_PARSE:
         if (channelMode == JSON)
             rs232_parse_json();
         break;
-    case FUJICMD_TRANSLATION:
+    case NETCMD_TRANSLATION:
         rs232_set_translation();
         break;
-    case FUJICMD_TIMER:
+    case NETCMD_SET_INT_RATE:
         rs232_set_timer_rate();
         break;
-    case FUJICMD_JSON: // SET CHANNEL MODE
+    case NETCMD_CHANNEL_MODE:
         rs232_set_channel_mode();
         break;
     default:
-        if (protocol->special_00(&cmdFrame) == false)
+        if (protocol->special_00(&cmdFrame) == PROTOCOL_ERROR::NONE)
             rs232_complete();
         else
             rs232_error();
@@ -752,14 +752,18 @@ void rs232Network::rs232_special_40()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case FUJICMD_GETCWD:
+    case NETCMD_GETCWD:
         rs232_get_prefix();
         return;
+    default:
+        break;
     }
 
+    protocolError_t err = protocol->special_40((uint8_t *)receiveBuffer->data(),
+                                               SPECIAL_BUFFER_SIZE, &cmdFrame);
     bus_to_computer((uint8_t *)receiveBuffer->data(),
                     SPECIAL_BUFFER_SIZE,
-                    protocol->special_40((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, &cmdFrame));
+                    err != PROTOCOL_ERROR::NONE);
 }
 
 /**
@@ -775,27 +779,29 @@ void rs232Network::rs232_special_80()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case FUJICMD_RENAME:
-    case FUJICMD_DELETE:
-    case FUJICMD_LOCK:
-    case FUJICMD_UNLOCK:
-    case FUJICMD_MKDIR:
-    case FUJICMD_RMDIR:
+    case NETCMD_RENAME:
+    case NETCMD_DELETE:
+    case NETCMD_LOCK:
+    case NETCMD_UNLOCK:
+    case NETCMD_MKDIR:
+    case NETCMD_RMDIR:
         rs232_do_idempotent_command_80();
         return;
-    case FUJICMD_CHDIR:
+    case NETCMD_CHDIR:
         rs232_set_prefix();
         return;
-    case FUJICMD_QUERY:
+    case NETCMD_QUERY:
         if (channelMode == JSON)
             rs232_set_json_query();
         return;
-    case FUJICMD_USERNAME:
+    case NETCMD_USERNAME:
         rs232_set_login();
         return;
-    case FUJICMD_PASSWORD:
+    case NETCMD_PASSWORD:
         rs232_set_password();
         return;
+    default:
+        break;
     }
 
     memset(spData, 0, SPECIAL_BUFFER_SIZE);
@@ -806,7 +812,7 @@ void rs232Network::rs232_special_80()
     Debug_printf("rs232Network::rs232_special_80() - %s\n", spData);
 
     // Do protocol action and return
-    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
+    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == PROTOCOL_ERROR::NONE)
         rs232_complete();
     else
         rs232_error();
@@ -831,7 +837,7 @@ void rs232Network::rs232_tell()
 
     offset = protocol->seek(0, SEEK_CUR);
     if (offset == -1) {
-        status.error = NETWORK_ERROR_SERVER_GENERAL;
+        status.error = NDEV_STATUS::SERVER_GENERAL;
         rs232_error();
         return;
     }
@@ -854,40 +860,40 @@ void rs232Network::rs232_process(cmdFrame_t *cmd_ptr)
     cmdFrame = *cmd_ptr;
     switch (cmdFrame.comnd)
     {
-    case FUJICMD_OPEN:
+    case NETCMD_OPEN:
         rs232_open();
         break;
-    case FUJICMD_CLOSE:
+    case NETCMD_CLOSE:
         rs232_close();
         break;
-    case FUJICMD_READ:
+    case NETCMD_READ:
         rs232_read();
         break;
-    case FUJICMD_WRITE:
+    case NETCMD_WRITE:
         rs232_write();
         break;
-    case FUJICMD_STATUS:
+    case NETCMD_STATUS:
         rs232_status();
         break;
-    case FUJICMD_PARSE:
+    case NETCMD_PARSE:
         rs232_ack();
         rs232_parse_json();
         break;
-    case FUJICMD_QUERY:
+    case NETCMD_QUERY:
         rs232_ack();
         rs232_set_json_query();
         break;
-    case FUJICMD_JSON:
+    case NETCMD_CHANNEL_MODE:
         rs232_ack();
         rs232_set_channel_mode();
         break;
-    case FUJICMD_SPECIAL_QUERY:
+    case NETCMD_SPECIAL_INQUIRY:
         rs232_special_inquiry();
         break;
-    case FUJICMD_SEEK:
+    case NETCMD_SEEK:
         rs232_seek();
         break;
-    case FUJICMD_TELL:
+    case NETCMD_TELL:
         rs232_tell();
         break;
     default:
@@ -989,7 +995,7 @@ void rs232Network::parse_and_instantiate_protocol()
     if (!urlParser->isValidUrl())
     {
         Debug_printf("Invalid devicespec: >%s<\n", deviceSpec.c_str());
-        status.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        status.error = NDEV_STATUS::INVALID_DEVICESPEC;
         rs232_error();
         return;
     }
@@ -1002,7 +1008,7 @@ void rs232Network::parse_and_instantiate_protocol()
     if (!instantiate_protocol())
     {
         Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
-        status.error = NETWORK_ERROR_GENERAL;
+        status.error = NDEV_STATUS::GENERAL;
         rs232_error();
         return;
     }
@@ -1158,7 +1164,7 @@ void rs232Network::rs232_do_idempotent_command_80()
         return;
     }
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) == true)
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) == PROTOCOL_ERROR::NONE)
     {
         Debug_printf("perform_idempotent_80 failed\n");
         rs232_error();

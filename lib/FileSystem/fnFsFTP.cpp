@@ -33,7 +33,7 @@ FileSystemFTP::~FileSystemFTP()
 
 bool FileSystemFTP::start(const char *url, const char *user, const char *password)
 {
-    bool res;
+    protocolError_t res;
 
     if (_started)
         return false;
@@ -65,11 +65,11 @@ bool FileSystemFTP::start(const char *url, const char *user, const char *passwor
         _url->port.empty() ? 21 : atoi(_url->port.c_str())
     );
 
-	if (res)
+    if (res != PROTOCOL_ERROR::NONE)
     {
         Debug_printf("FileSystemFTP::start() - FTP login failed: %s\n", _url->host.c_str());
         return false;
-	}
+        }
 
     Debug_printf("FTP logged in: %s\n", _url->host.c_str());
 
@@ -123,7 +123,7 @@ FileHandler *FileSystemFTP::cache_file(const char *path, const char *mode)
 
     // Open FTP file
     Debug_println("Initiating file RETR");
-    if (_ftp->open_file(path, false))
+    if (_ftp->open_file(path, false) != PROTOCOL_ERROR::NONE)
     {
         Debug_println("FileSystemFTP::cache_file - RETR failed");
         return nullptr;
@@ -147,7 +147,7 @@ FileHandler *FileSystemFTP::cache_file(const char *path, const char *mode)
     while ( !cancel )
     {
         available = _ftp->data_available();
-        if (!_ftp->data_connected()) // done
+        if (_ftp->data_connected() == PROTOCOL_ERROR::NONE) // done
             break;
 
         if (available == 0)
@@ -168,7 +168,7 @@ FileHandler *FileSystemFTP::cache_file(const char *path, const char *mode)
             {
                 // Read FTP data
                 int to_read = available > sizeof(buf) ? sizeof(buf) : available;
-                if (_ftp->read_file(buf, to_read))
+                if (_ftp->read_file(buf, to_read) != PROTOCOL_ERROR::NONE)
                 {
                     Debug_println("FileSystemFTP::cache_file - FTP read failed");
                     cancel = true;
@@ -242,10 +242,10 @@ bool FileSystemFTP::dir_open(const char  *path, const char *pattern, uint16_t di
         _last_dir[0] = '\0';
 
         // List FTP directory
-        bool res;
+        protocolError_t res;
         res = _ftp->open_directory(path, "");
 
-        if (res)
+        if (res != PROTOCOL_ERROR::NONE)
         {
             Debug_printf("Failed to open directory\n");
             return false;
@@ -262,7 +262,7 @@ bool FileSystemFTP::dir_open(const char  *path, const char *pattern, uint16_t di
 
         // get first directory entry
         res = _ftp->read_directory(filename, filesz, is_dir);
-        while(res == false)
+        while(res == PROTOCOL_ERROR::NONE)
         {
             // skip hidden
             if (filename[0] == '.')

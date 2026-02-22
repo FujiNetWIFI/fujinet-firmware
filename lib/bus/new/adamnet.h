@@ -5,6 +5,7 @@
  * AdamNet Routines
  */
 
+#include "cmdFrame.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
@@ -37,23 +38,6 @@
 #define ADAMNET_DEVICE_FUJINET     0x0F
 
 #define ADAMNET_RESET_DEBOUNCE_PERIOD 100 // in ms
-
-union cmdFrame_t
-{
-    struct
-    {
-        uint8_t device;
-        uint8_t comnd;
-        uint8_t aux1;
-        uint8_t aux2;
-        uint8_t cksum;
-    };
-    struct
-    {
-        uint32_t commanddata;
-        uint8_t checksum;
-    } __attribute__((packed));
-};
 
 class systemBus;
 class adamFuji;     // declare here so can reference it, but define in fuji.h
@@ -166,7 +150,7 @@ protected:
      * @brief Do any tasks that can only be done when the bus is quiet
      */
     virtual void adamnet_idle();
-    
+
     /**
      * @brief send current status of device
      */
@@ -176,7 +160,7 @@ protected:
      * @brief send status response
      */
     virtual void adamnet_response_status();
-    
+
     /**
      * @brief command frame, used by network protocol, ultimately
      */
@@ -205,7 +189,7 @@ public:
      */
     uint8_t id() { return _devnum; }
 
-    
+
 };
 
 /**

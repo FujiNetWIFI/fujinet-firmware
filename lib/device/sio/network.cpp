@@ -174,7 +174,7 @@ void sioNetwork::sio_open()
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), &cmdFrame) == true)
+    if (protocol->open(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         status.error = protocol->error;
         Debug_printf("Protocol unable to make connection. Error: %d\n", status.error);
@@ -235,7 +235,7 @@ void sioNetwork::sio_close()
     }
 
     // Ask the protocol to close
-    if (protocol->close())
+    if (protocol->close() != PROTOCOL_ERROR::NONE)
         sio_error();
     else
         sio_complete();
@@ -266,7 +266,7 @@ void sioNetwork::sio_close()
 void sioNetwork::sio_read()
 {
     unsigned short num_bytes = sio_get_aux();
-    bool err = false;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("sioNetwork::sio_read(%d bytes)\n", num_bytes);
@@ -277,7 +277,7 @@ void sioNetwork::sio_read()
     // Check for rx buffer. If NULL, then tell caller we could not allocate buffers.
     if (receiveBuffer == nullptr)
     {
-        status.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
+        status.error = NDEV_STATUS::COULD_NOT_ALLOCATE_BUFFERS;
         sio_error();
         return;
     }
@@ -291,7 +291,7 @@ void sioNetwork::sio_read()
             protocolParser = nullptr;
         }
 
-        status.error = NETWORK_ERROR_NOT_CONNECTED;
+        status.error = NDEV_STATUS::NOT_CONNECTED;
         sio_error();
         return;
     }
@@ -300,7 +300,7 @@ void sioNetwork::sio_read()
     err = sio_read_channel(num_bytes);
 
     // And send off to the computer
-    bus_to_computer((uint8_t *)receiveBuffer->data(), num_bytes, err);
+    bus_to_computer((uint8_t *)receiveBuffer->data(), num_bytes, err != PROTOCOL_ERROR::NONE);
     receiveBuffer->erase(0, num_bytes);
     receiveBuffer->shrink_to_fit();
 }
@@ -309,24 +309,24 @@ void sioNetwork::sio_read()
  * @brief Perform read of the current JSON channel
  * @param num_bytes Number of bytes to read
  */
-bool sioNetwork::sio_read_channel_json(unsigned short num_bytes)
+protocolError_t sioNetwork::sio_read_channel_json(unsigned short num_bytes)
 {
     if (num_bytes > json_bytes_remaining)
         json_bytes_remaining=0;
     else
         json_bytes_remaining-=num_bytes;
 
-    return false;
+    return PROTOCOL_ERROR::NONE;
 }
 
 /**
  * Perform the channel read based on the channelMode
  * @param num_bytes - number of bytes to read from channel.
- * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
+ * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
  */
-bool sioNetwork::sio_read_channel(unsigned short num_bytes)
+protocolError_t sioNetwork::sio_read_channel(unsigned short num_bytes)
 {
-    bool err = false;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -348,7 +348,7 @@ bool sioNetwork::sio_read_channel(unsigned short num_bytes)
 void sioNetwork::sio_write()
 {
     unsigned short num_bytes = sio_get_aux();
-    bool err = false;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("sioNetwork::sio_write(%d bytes)\n", num_bytes);
@@ -364,7 +364,7 @@ void sioNetwork::sio_write()
             delete protocolParser;
             protocolParser = nullptr;
         }
-        status.error = NETWORK_ERROR_NOT_CONNECTED;
+        status.error = NDEV_STATUS::NOT_CONNECTED;
         sio_error();
         return;
     }
@@ -379,7 +379,7 @@ void sioNetwork::sio_write()
     err = sio_write_channel(num_bytes);
 
     // Acknowledge to Atari of channel outcome.
-    if (err == false)
+    if (err == PROTOCOL_ERROR::NONE)
     {
         sio_complete();
     }
@@ -392,11 +392,11 @@ void sioNetwork::sio_write()
 /**
  * Perform the correct write based on value of channelMode
  * @param num_bytes Number of bytes to write.
- * @return TRUE on error, FALSE on success. Used to emit sio_error or sio_complete().
+ * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit sio_error or sio_complete().
  */
-bool sioNetwork::sio_write_channel(unsigned short num_bytes)
+protocolError_t sioNetwork::sio_write_channel(unsigned short num_bytes)
 {
-    bool err = false;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -405,7 +405,7 @@ bool sioNetwork::sio_write_channel(unsigned short num_bytes)
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
-        err = true;
+        err = PROTOCOL_ERROR::UNSPECIFIED;
         break;
     }
     return err;
@@ -437,7 +437,7 @@ void sioNetwork::sio_status_local()
     uint8_t ipNetmask[4];
     uint8_t ipGateway[4];
     uint8_t ipDNS[4];
-    uint8_t default_status[4] = {0, 0, 0, 0};
+    NDeviceStatus default_status {};
 
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("sioNetwork::sio_status_local(%u)\n", cmdFrame.aux2);
@@ -473,16 +473,16 @@ void sioNetwork::sio_status_local()
         bus_to_computer(ipDNS, 4, false);
         break;
     default:
-        default_status[2] = status.connected;
-        default_status[3] = status.error;
-        bus_to_computer(default_status, 4, false);
+        default_status.conn = status.connected;
+        default_status.err = status.error;
+        bus_to_computer((uint8_t *) &default_status, sizeof(default_status), false);
     }
 }
 
 bool sioNetwork::sio_status_channel_json(NetworkStatus *ns)
 {
     ns->connected = json_bytes_remaining > 0;
-    ns->error = json_bytes_remaining > 0 ? 1 : 136;
+    ns->error = json_bytes_remaining > 0 ? NDEV_STATUS::SUCCESS : NDEV_STATUS::END_OF_FILE;
     return false; // for now
 }
 
@@ -493,7 +493,7 @@ void sioNetwork::sio_status_channel()
 {
     NDeviceStatus nstatus;
     size_t avail = 0;
-    bool err = false;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
 #if 1 //def VERBOSE_PROTOCOL
     Debug_printf("sioNetwork::sio_status_channel(mode: %u)\n", channelMode);
@@ -504,8 +504,8 @@ void sioNetwork::sio_status_channel()
     case PROTOCOL:
         if (protocol == nullptr) {
             Debug_printf("ERROR: Calling status on a null protocol.\r\n");
-            err = true;
-            status.error = true;
+            err = PROTOCOL_ERROR::UNSPECIFIED;
+            status.error = NDEV_STATUS::NOT_CONNECTED;
         } else {
             err = protocol->status(&status);
             avail = protocol->available();
@@ -530,7 +530,7 @@ void sioNetwork::sio_status_channel()
                  nstatus.avail, nstatus.conn, nstatus.err);
 
     // and send to computer
-    bus_to_computer((uint8_t *) &nstatus, sizeof(nstatus), err);
+    bus_to_computer((uint8_t *) &nstatus, sizeof(nstatus), err != PROTOCOL_ERROR::NONE);
 }
 
 /**
@@ -693,15 +693,15 @@ void sioNetwork::sio_special()
 
     switch (inq_dstats)
     {
-    case 0x00: // No payload
+    case SIO_DIRECTION_NONE: // No payload
         sio_ack();
         sio_special_00();
         break;
-    case 0x40: // Payload to Atari
+    case SIO_DIRECTION_READ: // Payload to Atari
         sio_ack();
         sio_special_40();
         break;
-    case 0x80: // Payload to Peripheral
+    case SIO_DIRECTION_WRITE: // Payload to Peripheral
         sio_late_ack();
         sio_special_80();
         break;
@@ -729,13 +729,13 @@ void sioNetwork::sio_special_inquiry()
     do_inquiry((fujiCommandID_t) cmdFrame.aux1);
 
     // Finally, return the completed inq_dstats value back to Atari
-    bus_to_computer(&inq_dstats, sizeof(inq_dstats), false); // never errors.
+    bus_to_computer((uint8_t *) &inq_dstats, sizeof(inq_dstats), false); // never errors.
 }
 
 void sioNetwork::do_inquiry(fujiCommandID_t inq_cmd)
 {
     // Reset inq_dstats
-    inq_dstats = 0xff;
+    inq_dstats = SIO_DIRECTION_INVALID;
 
     // Ask protocol for dstats, otherwise get it locally.
     if (protocol != nullptr)
@@ -747,47 +747,47 @@ void sioNetwork::do_inquiry(fujiCommandID_t inq_cmd)
     }
 
     // If we didn't get one from protocol, or unsupported, see if supported globally.
-    if (inq_dstats == 0xFF)
+    if (inq_dstats == SIO_DIRECTION_INVALID)
     {
         switch (inq_cmd)
         {
-        case 0x20: // ' ' rename
-        case 0x21: // '!' delete
-        case 0x23: // '#' lock
-        case 0x24: // '$' unlock
-        case 0x2A: // '*' mkdir
-        case 0x2B: // '+' rmdir
-        case 0x2C: // ',' chdir/get prefix
-        case 0xFD: //     login
-        case 0xFE: //     password
-            inq_dstats = 0x80;
+        case NETCMD_RENAME:
+        case NETCMD_DELETE:
+        case NETCMD_LOCK:
+        case NETCMD_UNLOCK:
+        case NETCMD_MKDIR:
+        case NETCMD_RMDIR:
+        case NETCMD_CHDIR:
+        case NETCMD_USERNAME:
+        case NETCMD_PASSWORD:
+            inq_dstats = SIO_DIRECTION_WRITE;
             break;
-        case 0xFC: //     channel mode
-            inq_dstats = 0x00;
+        case NETCMD_CHANNEL_MODE:
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 0xFB: // String Processing mode, only in JSON mode
+        case NETCMD_SET_PARAMETERS:
             if (channelMode == JSON)
-                inq_dstats = 0x00;
+                inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 0x30: // '0' set prefix
-            inq_dstats = 0x40;
+        case NETCMD_GETCWD:
+            inq_dstats = SIO_DIRECTION_READ;
             break;
-        case 'Z': // Set interrupt rate
-            inq_dstats = 0x00;
+        case NETCMD_SET_INT_RATE:
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 'T': // Set Translation
-            inq_dstats = 0x00;
+        case NETCMD_TRANSLATION:
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 'P': // JSON Parse
+        case NETCMD_PARSE:
             if (channelMode == JSON)
-                inq_dstats = 0x00;
+                inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 'Q': // JSON Query
+        case NETCMD_QUERY:
             if (channelMode == JSON)
-                inq_dstats = 0x80;
+                inq_dstats = SIO_DIRECTION_WRITE;
             break;
         default:
-            inq_dstats = 0xFF; // not supported
+            inq_dstats = SIO_DIRECTION_INVALID; // not supported
             break;
         }
     }
@@ -807,24 +807,24 @@ void sioNetwork::sio_special_00()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case FUJICMD_PARSE:
+    case NETCMD_PARSE:
         if (channelMode == JSON)
             sio_parse_json();
         break;
-    case FUJICMD_TRANSLATION:
+    case NETCMD_TRANSLATION:
         sio_set_translation();
         break;
-    case FUJICMD_TIMER:
+    case NETCMD_SET_INT_RATE:
         sio_set_timer_rate();
         break;
-    case FUJICMD_SET_SSID: // JSON parameter wrangling
+    case NETCMD_SET_PARAMETERS: // JSON parameter wrangling
         sio_set_json_parameters();
         break;
-    case FUJICMD_GET_SCAN_RESULT: // SET CHANNEL MODE
+    case NETCMD_CHANNEL_MODE:
         sio_set_channel_mode();
         break;
     default:
-        if (protocol->special_00(&cmdFrame) == false)
+        if (protocol->special_00(&cmdFrame) == PROTOCOL_ERROR::NONE)
             sio_complete();
         else
             sio_error();
@@ -842,14 +842,18 @@ void sioNetwork::sio_special_40()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case 0x30:
+    case NETCMD_GETCWD:
         sio_get_prefix();
         return;
+    default:
+        break;
     }
 
+    protocolError_t err = protocol->special_40((uint8_t *)receiveBuffer->data(),
+                                               SPECIAL_BUFFER_SIZE, &cmdFrame);
     bus_to_computer((uint8_t *)receiveBuffer->data(),
                     SPECIAL_BUFFER_SIZE,
-                    protocol->special_40((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, &cmdFrame));
+                    err != PROTOCOL_ERROR::NONE);
 }
 
 /**
@@ -865,27 +869,29 @@ void sioNetwork::sio_special_80()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case 0x20: // RENAME  ' '
-    case 0x21: // DELETE  '!'
-    case 0x23: // LOCK    '#'
-    case 0x24: // UNLOCK  '$'
-    case 0x2A: // MKDIR   '*'
-    case 0x2B: // RMDIR   '+'
+    case NETCMD_RENAME:
+    case NETCMD_DELETE:
+    case NETCMD_LOCK:
+    case NETCMD_UNLOCK:
+    case NETCMD_MKDIR:
+    case NETCMD_RMDIR:
         sio_do_idempotent_command_80();
         return;
-    case 0x2C: // CHDIR   ','
+    case NETCMD_CHDIR:
         sio_set_prefix();
         return;
-    case 'Q':
+    case NETCMD_QUERY:
         if (channelMode == JSON)
             sio_set_json_query();
         return;
-    case 0xFD: // LOGIN
+    case NETCMD_USERNAME:
         sio_set_login();
         return;
-    case 0xFE: // PASSWORD
+    case NETCMD_PASSWORD:
         sio_set_password();
         return;
+    default:
+        break;
     }
 
     memset(spData, 0, SPECIAL_BUFFER_SIZE);
@@ -898,7 +904,7 @@ void sioNetwork::sio_special_80()
 #endif
 
     // Do protocol action and return
-    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
+    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == PROTOCOL_ERROR::NONE)
         sio_complete();
     else
         sio_error();
@@ -919,26 +925,26 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
 
     switch (cmdFrame.comnd)
     {
-    case 0x3F:
+    case NETCMD_HSIO_INDEX:
         sio_ack();
         sio_high_speed();
         break;
-    case 'O':
+    case NETCMD_OPEN:
         sio_open();
         break;
-    case 'C':
+    case NETCMD_CLOSE:
         sio_close();
         break;
-    case 'R':
+    case NETCMD_READ:
         sio_read();
         break;
-    case 'W':
+    case NETCMD_WRITE:
         sio_write();
         break;
-    case 'S':
+    case NETCMD_STATUS:
         sio_status();
         break;
-    case 0xFF:
+    case NETCMD_SPECIAL_INQUIRY:
         sio_special_inquiry();
         break;
     default:
@@ -1041,7 +1047,7 @@ void sioNetwork::parse_and_instantiate_protocol()
     if (!urlParser->isValidUrl())
     {
         Debug_printf("Invalid devicespec: >%s<\n", deviceSpec.c_str());
-        status.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        status.error = NDEV_STATUS::INVALID_DEVICESPEC;
         sio_error();
         return;
     }
@@ -1054,7 +1060,7 @@ void sioNetwork::parse_and_instantiate_protocol()
     if (!instantiate_protocol())
     {
         Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
-        status.error = NETWORK_ERROR_GENERAL;
+        status.error = NDEV_STATUS::GENERAL;
         sio_error();
         return;
     }
@@ -1213,16 +1219,18 @@ void sioNetwork::sio_set_json_query()
     }
 
     json->setReadQuery(inp_string, cmdFrame.aux2);
-    json_bytes_remaining = json->available();
+    int query_bytes = json->available();
+    json_bytes_remaining += query_bytes;
 
-    std::vector<uint8_t> tmp(json_bytes_remaining);
-    json->readValue(tmp.data(), json_bytes_remaining);
+    std::vector<uint8_t> tmp(query_bytes);
+    json->readValue(tmp.data(), query_bytes);
 
     // don't copy past first nul char in tmp
     auto null_pos = std::find(tmp.begin(), tmp.end(), 0);
     *receiveBuffer += std::string(tmp.begin(), null_pos);
 
-    Debug_printf("Query set to >%s<\r\n", inp_string.c_str());
+    Debug_printf("Query set to >%s< (buf_size=%d, json_remaining=%d)\r\n",
+                 inp_string.c_str(), (int)receiveBuffer->size(), json_bytes_remaining);
     sio_complete();
 }
 
@@ -1310,7 +1318,7 @@ void sioNetwork::sio_do_idempotent_command_80()
         return;
     }
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) == true)
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         Debug_printf("perform_idempotent_80 failed\n");
         sio_error();

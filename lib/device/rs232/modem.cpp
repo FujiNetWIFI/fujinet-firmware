@@ -1615,39 +1615,39 @@ void rs232Modem::rs232_process(cmdFrame_t *cmd_ptr)
         cmdFrame = *cmd_ptr;
         switch (cmdFrame.comnd)
         {
-        case FUJICMD_CONTROL:
+        case MODEMCMD_CONTROL:
             rs232_ack();
             rs232_control();
             break;
-        case FUJICMD_CONFIGURE:
+        case MODEMCMD_CONFIGURE:
             rs232_ack();
             rs232_config();
             break;
-        case FUJICMD_SET_DUMP:
+        case MODEMCMD_SET_DUMP:
             rs232_ack();
             rs232_set_dump();
             break;
-        case FUJICMD_LISTEN:
+        case MODEMCMD_LISTEN:
             rs232_listen();
             break;
-        case FUJICMD_UNLISTEN:
+        case MODEMCMD_UNLISTEN:
             rs232_unlisten();
             break;
-        case FUJICMD_BAUDRATELOCK:
+        case MODEMCMD_BAUDRATELOCK:
             rs232_baudlock();
             break;
-        case FUJICMD_AUTOANSWER:
+        case MODEMCMD_AUTOANSWER:
             rs232_autoanswer();
             break;
-        case FUJICMD_STATUS:
+        case MODEMCMD_STATUS:
             rs232_ack();
             rs232_status();
             break;
-        case FUJICMD_WRITE:
+        case MODEMCMD_WRITE:
             rs232_ack();
             rs232_write();
             break;
-        case FUJICMD_STREAM:
+        case MODEMCMD_STREAM:
             rs232_ack();
             rs232_stream();
             break;

@@ -15,21 +15,6 @@
 
 #define RECVBUFSIZE 1024
 
-#define SIO_MODEMCMD_LOAD_RELOCATOR 0x21
-#define SIO_MODEMCMD_LOAD_HANDLER 0x26
-#define SIO_MODEMCMD_TYPE1_POLL 0x3F
-#define SIO_MODEMCMD_TYPE3_POLL 0x40
-#define SIO_MODEMCMD_CONTROL 0x41
-#define SIO_MODEMCMD_CONFIGURE 0x42
-#define SIO_MODEMCMD_SET_DUMP 0x44
-#define SIO_MODEMCMD_LISTEN 0x4C
-#define SIO_MODEMCMD_UNLISTEN 0x4D
-#define SIO_MODEMCMD_BAUDRATELOCK 0x4E
-#define SIO_MODEMCMD_AUTOANSWER 0x4F
-#define SIO_MODEMCMD_STATUS 0x53
-#define SIO_MODEMCMD_WRITE 0x57
-#define SIO_MODEMCMD_STREAM 0x58
-
 #define FIRMWARE_850RELOCATOR "/850relocator.bin"
 #define FIRMWARE_850HANDLER "/850handler.bin"
 
@@ -246,14 +231,14 @@ void modem::sio_send_firmware(uint8_t loadcommand)
     const char *firmware;
     int firmware_size = 0;
 
-    if (loadcommand == SIO_MODEMCMD_LOAD_RELOCATOR)
+    if (loadcommand == MODEMCMD_LOAD_RELOCATOR)
     {
         firmware = FIRMWARE_850RELOCATOR;
         firmware_size = fnSystem.load_firmware(firmware, NULL);
     }
     else
     {
-        if (loadcommand == SIO_MODEMCMD_LOAD_HANDLER)
+        if (loadcommand == MODEMCMD_LOAD_HANDLER)
         {
             firmware = FIRMWARE_850HANDLER;
             firmware_size = fnSystem.load_firmware(firmware, NULL);
@@ -283,7 +268,7 @@ void modem::sio_send_firmware(uint8_t loadcommand)
     // Send it
 
     Debug_printf("Modem sending %d bytes of %s code\n", codesize,
-                 loadcommand == SIO_MODEMCMD_LOAD_RELOCATOR ? "relocator" : "handler");
+                 loadcommand == MODEMCMD_LOAD_RELOCATOR ? "relocator" : "handler");
 
     bus_to_computer(code, codesize, false);
 
@@ -1900,17 +1885,17 @@ void modem::sio_process(uint32_t commanddata, uint8_t checksum)
 
         switch (cmdFrame.comnd)
         {
-        case SIO_MODEMCMD_LOAD_RELOCATOR:
+        case MODEMCMD_LOAD_RELOCATOR:
             Debug_printf("MODEM $21 RELOCATOR #%d\n", ++count_ReqRelocator);
             sio_send_firmware(cmdFrame.comnd);
             break;
 
-        case SIO_MODEMCMD_LOAD_HANDLER:
+        case MODEMCMD_LOAD_HANDLER:
             Debug_printf("MODEM $26 HANDLER DL #%d\n", ++count_ReqHandler);
             sio_send_firmware(cmdFrame.comnd);
             break;
 
-        case SIO_MODEMCMD_TYPE1_POLL:
+        case MODEMCMD_TYPE1_POLL:
             Debug_printf("MODEM TYPE 1 POLL #%d\n", ++count_PollType1);
             // The 850 is only supposed to respond to this if AUX1 = 1 or on the 26th poll attempt
             if (cmdFrame.aux1 == 1 || count_PollType1 == 16)
@@ -1920,43 +1905,43 @@ void modem::sio_process(uint32_t commanddata, uint8_t checksum)
             }
             break;
 
-        case SIO_MODEMCMD_TYPE3_POLL:
+        case MODEMCMD_TYPE3_POLL:
             sio_poll_3(cmdFrame.device, cmdFrame.aux1, cmdFrame.aux2);
             break;
 
-        case SIO_MODEMCMD_CONTROL:
+        case MODEMCMD_CONTROL:
             sio_ack();
             sio_control();
             break;
-        case SIO_MODEMCMD_CONFIGURE:
+        case MODEMCMD_CONFIGURE:
             sio_ack();
             sio_config();
             break;
-        case SIO_MODEMCMD_SET_DUMP:
+        case MODEMCMD_SET_DUMP:
             sio_ack();
             sio_set_dump();
             break;
-        case SIO_MODEMCMD_LISTEN:
+        case MODEMCMD_LISTEN:
             sio_listen();
             break;
-        case SIO_MODEMCMD_UNLISTEN:
+        case MODEMCMD_UNLISTEN:
             sio_unlisten();
             break;
-        case SIO_MODEMCMD_BAUDRATELOCK:
+        case MODEMCMD_BAUDRATELOCK:
             sio_baudlock();
             break;
-        case SIO_MODEMCMD_AUTOANSWER:
+        case MODEMCMD_AUTOANSWER:
             sio_autoanswer();
             break;
-        case SIO_MODEMCMD_STATUS:
+        case MODEMCMD_STATUS:
             sio_ack();
             sio_status();
             break;
-        case SIO_MODEMCMD_WRITE:
+        case MODEMCMD_WRITE:
             sio_late_ack();
             sio_write();
             break;
-        case SIO_MODEMCMD_STREAM:
+        case MODEMCMD_STREAM:
             sio_ack();
             sio_stream();
             break;

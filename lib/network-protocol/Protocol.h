@@ -42,10 +42,10 @@ enum netProtoOpenMode_t {
     NETPROTO_OPEN_INVALID       = -1,
 };
 
-enum netProtoErr_t {
-    NETPROTO_ERR_NONE = 0,
-    NETPROTO_ERR_UNSPECIFIED = 1,
-};
+typedef enum class PROTOCOL_ERROR {
+    NONE = 0,
+    UNSPECIFIED = 1,
+} protocolError_t;
 
 class NetworkProtocol
 {
@@ -102,7 +102,7 @@ public:
     /**
      * @brief Error code to return in status
      */
-    unsigned char error = 0;
+    nDevStatus_t error = NDEV_STATUS::SUCCESS;
 
     /**
      * Translation mode: 0=NONE, 1=CR, 2=LF, 3=CR/LF
@@ -150,35 +150,35 @@ public:
      * @brief Open connection to the protocol using URL
      * @param urlParser The URL object passed in to open.
      * @param cmdFrame The command frame to extract aux1/aux2/etc.
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    virtual netProtoErr_t open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame);
+    virtual protocolError_t open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame);
 
     /**
      * @brief Close connection to the protocol.
      */
-    virtual netProtoErr_t close();
+    virtual protocolError_t close();
 
     /**
      * @brief Read len bytes into receiveBuffer, If protocol times out, the buffer should be null padded to length.
      * @param len Number of bytes to read.
      * @return translation successful.
      */
-    virtual netProtoErr_t read(unsigned short len);
+    virtual protocolError_t read(unsigned short len);
 
     /**
      * @brief Write len bytes from tx_buf to protocol.
      * @param len The # of bytes to transmit, len should not be larger than buffer.
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    virtual netProtoErr_t write(unsigned short len);
+    virtual protocolError_t write(unsigned short len);
 
     /**
      * @brief Return protocol status information in provided NetworkStatus object.
      * @param status a pointer to a NetworkStatus object to receive status information
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    virtual netProtoErr_t status(NetworkStatus *status);
+    virtual protocolError_t status(NetworkStatus *status);
 
     /**
      * @brief Return a DSTATS byte for a requested COMMAND byte.
@@ -190,31 +190,31 @@ public:
     /**
      * @brief execute a command that returns no payload
      * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    virtual netProtoErr_t special_00(cmdFrame_t *cmdFrame) { return NETPROTO_ERR_NONE; };
+    virtual protocolError_t special_00(cmdFrame_t *cmdFrame) { return PROTOCOL_ERROR::NONE; };
 
     /**
      * @brief execute a command that returns a payload to the atari.
      * @param sp_buf a pointer to the special buffer
      * @param len Length of data to request from protocol. Should not be larger than buffer.
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    virtual netProtoErr_t special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) { return NETPROTO_ERR_NONE; };
+    virtual protocolError_t special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) { return PROTOCOL_ERROR::NONE; };
 
     /**
      * @brief execute a command that sends a payload to fujinet (most common, XIO)
      * @param sp_buf, a pointer to the special buffer, usually a EOL terminated devicespec.
      * @param len length of the special buffer, typically SPECIAL_BUFFER_SIZE
      */
-    virtual netProtoErr_t special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) { return NETPROTO_ERR_NONE; };
+    virtual protocolError_t special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) { return PROTOCOL_ERROR::NONE; };
 
     /**
      * @brief perform an idempotent command with DSTATS 0x80, that does not require open channel.
      * @param url The URL object.
      * @param cmdFrame command frame.
      */
-    virtual netProtoErr_t perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) { return NETPROTO_ERR_NONE; };
+    virtual protocolError_t perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) { return PROTOCOL_ERROR::NONE; };
 
     /**
      * @brief return an _atari_ error (>199) based on errno. into error for status reporting.

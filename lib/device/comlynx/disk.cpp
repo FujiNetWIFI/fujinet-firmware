@@ -218,11 +218,11 @@ void lynxDisk::comlynx_process()
 
     switch (c)
     {
-    case FUJICMD_READ:
+    case DISKCMD_READ:
         transaction_get(&block, sizeof(block));
         read_block(block);
         break;
-    case FUJICMD_WRITE:
+    case DISKCMD_WRITE:
         transaction_get(&block, sizeof(block));
         write_block(block);
         break;

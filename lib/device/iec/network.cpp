@@ -35,7 +35,7 @@ void iecNetwork::init()
   iecStatus.channel = CHANNEL_COMMAND;
   iecStatus.connected = 0;
   iecStatus.msg = "fujinet network device";
-  iecStatus.error = NETWORK_ERROR_SUCCESS;
+  iecStatus.error = NDEV_STATUS::SUCCESS;
 
   commanddata.init();
   active_status_channel = 0;
@@ -103,7 +103,7 @@ void iecNetwork::iec_open()
     if (!channel_data.protocol) {
         Debug_printf("Invalid protocol: %s", channel_data.urlParser->scheme.c_str());
 
-        iecStatus.error = NETWORK_ERROR_FILE_NOT_FOUND;
+        iecStatus.error = NDEV_STATUS::FILE_NOT_FOUND;
         iecStatus.msg = "file not found";
         iecStatus.connected = 0;
         iecStatus.channel = commanddata.channel;
@@ -121,11 +121,11 @@ void iecNetwork::iec_open()
 
     Debug_printv("Protocol %s opened.", channel_data.urlParser->scheme.c_str());
 
-    if (channel_data.protocol->open(channel_data.urlParser.get(), &cmdFrame)) {
+    if (channel_data.protocol->open(channel_data.urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE) {
         Debug_printv("Protocol unable to make connection.");
         channel_data.protocol.reset(); // Clean up the protocol
 
-        iecStatus.error = NETWORK_ERROR_FILE_NOT_FOUND;
+        iecStatus.error = NDEV_STATUS::FILE_NOT_FOUND;
         iecStatus.msg = "file not found";
         iecStatus.connected = 0;
         iecStatus.channel = commanddata.channel;
@@ -151,7 +151,7 @@ void iecNetwork::iec_close()
     /*
     // setting this status wipes out any other error status set previously
     iecStatus.channel = commanddata.channel;
-    iecStatus.error = NETWORK_ERROR_SUCCESS;
+    iecStatus.error = NDEV_STATUS::SUCCESS;
     iecStatus.connected = 0;
     iecStatus.msg = "closed";
     */
@@ -178,7 +178,7 @@ void iecNetwork::set_login_password()
 
     if (pt.size() == 1)
     {
-        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
         iecStatus.msg = "usage login,chan,username,password";
         iecStatus.connected = 0;
         iecStatus.channel = commanddata.channel;
@@ -197,7 +197,7 @@ void iecNetwork::set_login_password()
 
         snprintf(reply, 40, "login cleared for channel %u", channel);
 
-        iecStatus.error = NETWORK_ERROR_SUCCESS;
+        iecStatus.error = NDEV_STATUS::SUCCESS;
         iecStatus.msg = string(reply);
         iecStatus.connected = 0;
         iecStatus.channel = channel;
@@ -214,7 +214,7 @@ void iecNetwork::set_login_password()
 
         snprintf(reply, 40, "login set for channel %u", channel);
 
-        iecStatus.error = NETWORK_ERROR_SUCCESS;
+        iecStatus.error = NDEV_STATUS::SUCCESS;
         iecStatus.msg = string(reply);
         iecStatus.connected = 0;
         iecStatus.channel = channel;
@@ -229,7 +229,7 @@ void iecNetwork::parse_json()
     if (pt.size() < 2)
     {
         Debug_printf("parse_json - no channel specified");
-        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
         iecStatus.msg = "no channel specified";
         iecStatus.channel = 0;
         iecStatus.connected = 0;
@@ -244,7 +244,7 @@ void iecNetwork::parse_json()
     if (!channel_data.json->parse())
     {
         Debug_printf("could not parse json");
-        iecStatus.error = NETWORK_ERROR_GENERAL;
+        iecStatus.error = NDEV_STATUS::GENERAL;
         iecStatus.channel = channel;
         iecStatus.connected = ns.connected;
         iecStatus.msg = "could not parse json";
@@ -252,7 +252,7 @@ void iecNetwork::parse_json()
     else
     {
         Debug_printf("json parsed");
-        iecStatus.error = NETWORK_ERROR_SUCCESS;
+        iecStatus.error = NDEV_STATUS::SUCCESS;
         iecStatus.channel = channel;
         iecStatus.connected = ns.connected;
         iecStatus.msg = "json parsed";
@@ -269,7 +269,7 @@ void iecNetwork::query_json()
 
     if (pt.size() < 2)
     {
-        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
         iecStatus.msg = "invalid # of parameters";
         iecStatus.channel = 0;
         iecStatus.connected = 0;
@@ -288,7 +288,7 @@ void iecNetwork::query_json()
 
     if (!channel_data.json->readValueLen())
     {
-        iecStatus.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
+        iecStatus.error = NDEV_STATUS::COULD_NOT_ALLOCATE_BUFFERS;
         iecStatus.channel = channel;
         iecStatus.connected = 0;
         iecStatus.msg = "query not found";
@@ -301,7 +301,7 @@ void iecNetwork::query_json()
     channel_data.receiveBuffer += std::string(buffer.begin(), buffer.end());
 
     snprintf(reply, 80, "query set to %s", s.c_str());
-    iecStatus.error = NETWORK_ERROR_SUCCESS;
+    iecStatus.error = NDEV_STATUS::SUCCESS;
     iecStatus.channel = channel;
     iecStatus.connected = true;
     iecStatus.msg = string(reply);
@@ -317,7 +317,7 @@ void iecNetwork::parse_bite()
     if (pt.size() < 2)
     {
         Debug_printf("parse_bite - no channel specified");
-        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
         iecStatus.msg = "no channel specified";
         iecStatus.channel = 0;
         iecStatus.connected = 0;
@@ -387,7 +387,7 @@ void iecNetwork::set_translation_mode()
     if (pt.size() < 2)
     {
         Debug_printf("no channel");
-        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
         iecStatus.channel = commanddata.channel;
         iecStatus.connected = 0;
         iecStatus.msg = "no channel specified";
@@ -396,7 +396,7 @@ void iecNetwork::set_translation_mode()
     else if (pt.size() < 3)
     {
         Debug_printf("no mode");
-        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
         iecStatus.channel = commanddata.channel;
         iecStatus.connected = 0;
         iecStatus.msg = "no mode specified";
@@ -409,7 +409,7 @@ void iecNetwork::set_translation_mode()
 
     if (!channel_data.protocol)
     {
-        iecStatus.error = NETWORK_ERROR_NOT_CONNECTED;
+        iecStatus.error = NDEV_STATUS::NOT_CONNECTED;
         iecStatus.connected = 0;
     }
 
@@ -471,17 +471,17 @@ void iecNetwork::iec_command()
     else if (pt[0] == "login")
         set_login_password();
     else if (pt[0] == "rename" || pt[0] == "ren")
-        fsop(0x20);
+        fsop(NETCMD_RENAME);
     else if (pt[0] == "delete" || pt[0] == "del" || pt[0] == "rm")
-        fsop(0x21);
+        fsop(NETCMD_DELETE);
     else if (pt[0] == "lock")
-        fsop(0x23);
+        fsop(NETCMD_LOCK);
     else if (pt[0] == "unlock")
-        fsop(0x24);
+        fsop(NETCMD_UNLOCK);
     else if (pt[0] == "mkdir")
-        fsop(0x2A);
+        fsop(NETCMD_MKDIR);
     else if (pt[0] == "rmdir")
-        fsop(0x2B);
+        fsop(NETCMD_RMDIR);
     else // Protocol command processing here.
     {
         if (pt.size() > 1)
@@ -518,7 +518,7 @@ void iecNetwork::perform_special_00()
     int channel = 0;
 
     if (pt.size() > 0)
-        cmdFrame.comnd = pt[0][0];
+        cmdFrame.comnd = (fujiCommandID_t) pt[0][0];
 
     if (pt.size() > 1)
         channel = atoi(pt[1].c_str());
@@ -531,14 +531,14 @@ void iecNetwork::perform_special_00()
 
     auto& channel_data = network_data_map[channel];
 
-    if (channel_data.protocol->special_00(&cmdFrame))
+    if (channel_data.protocol->special_00(&cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         NetworkStatus ns;
         char reply[80];
         string s;
 
         channel_data.protocol->status(&ns);
-        snprintf(reply, 80, "protocol error #%u", ns.error);
+        snprintf(reply, 80, "protocol error #%u", (uint8_t) ns.error);
         iecStatus.error = ns.error;
         iecStatus.channel = commanddata.channel; // shouldn't this be "channel"
         iecStatus.connected = ns.connected;
@@ -555,7 +555,7 @@ void iecNetwork::perform_special_40()
 
     if (pt.size() < 2)
     {
-        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
         iecStatus.channel = 15;
         iecStatus.connected = 0;
         iecStatus.msg = "no channel #";
@@ -565,11 +565,11 @@ void iecNetwork::perform_special_40()
     channel = atoi(pt[1].c_str());
     auto& channel_data = network_data_map[channel];
 
-    cmdFrame.comnd = pt[0][0];
+    cmdFrame.comnd = (fujiCommandID_t) pt[0][0];
 
     if (pt.size() < 3)
     {
-        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
         iecStatus.channel = channel;
         iecStatus.connected = 0;
         iecStatus.msg = "no aux1";
@@ -579,7 +579,7 @@ void iecNetwork::perform_special_40()
 
     if (pt.size() < 4)
     {
-        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
         iecStatus.channel = channel;
         iecStatus.connected = 0;
         iecStatus.msg = "no aux2";
@@ -589,14 +589,14 @@ void iecNetwork::perform_special_40()
 
     if (!channel_data.protocol)
     {
-        iecStatus.error = NETWORK_ERROR_NOT_CONNECTED;
+        iecStatus.error = NDEV_STATUS::NOT_CONNECTED;
         iecStatus.channel = 15;
         iecStatus.connected = 0;
         iecStatus.msg = "no active protocol";
         return;
     }
 
-    if (channel_data.protocol->special_40((uint8_t *)&sp_buf, sizeof(sp_buf), &cmdFrame))
+    if (channel_data.protocol->special_40((uint8_t *)&sp_buf, sizeof(sp_buf), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         channel_data.protocol->status(&ns);
         iecStatus.error = ns.error;
@@ -625,7 +625,7 @@ void iecNetwork::perform_special_80()
 
     if (pt.size() < 2)
     {
-        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
         iecStatus.channel = 15;
         iecStatus.connected = 0;
         iecStatus.msg = "no channel #";
@@ -637,7 +637,7 @@ void iecNetwork::perform_special_80()
 
     if (pt.size() < 3)
     {
-        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
         iecStatus.channel = 15;
         iecStatus.connected = 0;
         iecStatus.msg = "no aux1";
@@ -648,7 +648,7 @@ void iecNetwork::perform_special_80()
 
     if (pt.size() < 4)
     {
-        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
         iecStatus.channel = 15;
         iecStatus.connected = 0;
         iecStatus.msg = "no aux2";
@@ -667,7 +667,7 @@ void iecNetwork::perform_special_80()
         }
         else
         {
-            iecStatus.error = NETWORK_ERROR_NOT_CONNECTED;
+            iecStatus.error = NDEV_STATUS::NOT_CONNECTED;
             iecStatus.connected = 0;
         }
 
@@ -675,10 +675,10 @@ void iecNetwork::perform_special_80()
         iecStatus.msg = "parameter missing";
     }
 
-    cmdFrame.comnd = pt[0][0];
+    cmdFrame.comnd = (fujiCommandID_t) pt[0][0];
     sp_buf += pt[4];
 
-    if (channel_data.protocol->special_80((uint8_t *)sp_buf.c_str(), sp_buf.length(), &cmdFrame))
+    if (channel_data.protocol->special_80((uint8_t *)sp_buf.c_str(), sp_buf.length(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         channel_data.protocol->status(&ns);
         iecStatus.error = ns.error;
@@ -743,7 +743,7 @@ void iecNetwork::get_prefix()
 
     if (pt.size() < 2)
     {
-        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
         iecStatus.connected = 0;
         iecStatus.channel = channel;
         iecStatus.msg = "need channel #";
@@ -753,7 +753,7 @@ void iecNetwork::get_prefix()
     channel = atoi(pt[1].c_str());
     auto& channel_data = network_data_map[channel];
 
-    iecStatus.error = NETWORK_ERROR_SUCCESS;
+    iecStatus.error = NDEV_STATUS::SUCCESS;
     iecStatus.msg = channel_data.prefix;
     iecStatus.connected = 0;
     iecStatus.channel = channel;
@@ -765,7 +765,7 @@ void iecNetwork::set_status(bool is_binary)
     if (pt.size() < 2)
     {
         Debug_printf("Channel # Required\r\n");
-        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
         iecStatus.msg = "channel # required.\r\n";
         iecStatus.connected = 0;
         iecStatus.channel = 15;
@@ -775,7 +775,7 @@ void iecNetwork::set_status(bool is_binary)
     active_status_channel = atoi(pt[1].c_str());
     Debug_printf("Active status channel now: %u\r\n", active_status_channel);
 
-    iecStatus.error = NETWORK_ERROR_SUCCESS;
+    iecStatus.error = NDEV_STATUS::SUCCESS;
     iecStatus.msg = "Active status channel set.";
     iecStatus.channel = active_status_channel;
 }
@@ -793,7 +793,7 @@ void iecNetwork::set_prefix()
     if (pt.size() < 2)
     {
         Debug_printf("Channel # required");
-        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
         iecStatus.msg = "channel # required";
         iecStatus.connected = 0;
         iecStatus.channel = channel;
@@ -807,7 +807,7 @@ void iecNetwork::set_prefix()
 
         channel_data.prefix.clear();
         channel_data.prefix.shrink_to_fit();
-        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
         iecStatus.msg = "prefix cleared";
         iecStatus.connected = 0;
         iecStatus.channel = channel;
@@ -893,7 +893,7 @@ void iecNetwork::set_prefix()
 
     channel_data.prefix = util_get_canonical_path(channel_data.prefix);
 
-    iecStatus.error = NETWORK_ERROR_SUCCESS;
+    iecStatus.error = NDEV_STATUS::SUCCESS;
     iecStatus.msg = channel_data.prefix;
     iecStatus.connected = 0;
     iecStatus.channel = channel;
@@ -905,7 +905,7 @@ void iecNetwork::set_device_id()
 {
     if (pt.size() < 2)
     {
-        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
         iecStatus.channel = commanddata.channel;
         iecStatus.connected = 0;
         iecStatus.msg = "device id required";
@@ -915,19 +915,19 @@ void iecNetwork::set_device_id()
     int new_id = atoi(pt[1].c_str());
     setDeviceNumber(new_id);
 
-    iecStatus.error = 0;
+    iecStatus.error = NDEV_STATUS::SUCCESS;
     iecStatus.msg = "ok";
     iecStatus.connected = 0;
     iecStatus.channel = commanddata.channel;
 }
 
-void iecNetwork::fsop(unsigned char comnd)
+void iecNetwork::fsop(fujiCommandID_t comnd)
 {
     Debug_printf("fsop(%u)", comnd);
 
     if (pt.size() < 2)
     {
-        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
         iecStatus.channel = commanddata.channel;
         iecStatus.connected = 0;
         iecStatus.msg = "invalid # of parameters";
@@ -955,7 +955,7 @@ void iecNetwork::set_open_params()
     // openparams,<channel>,<mode>,<trans>
     if (pt.size() < 3)
     {
-        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
         iecStatus.channel = commanddata.channel;
         iecStatus.connected = 0;
         iecStatus.msg = "invalid # of parameters";
@@ -970,7 +970,7 @@ void iecNetwork::set_open_params()
 
     channel_data.protocol->set_open_params(mode, trans);
 
-    iecStatus.error = 0;
+    iecStatus.error = NDEV_STATUS::SUCCESS;
     iecStatus.msg = "ok";
     iecStatus.connected = 0;
     iecStatus.channel = channel;
@@ -1046,10 +1046,10 @@ bool iecNetwork::receive(NetworkData &channel_data, uint16_t rxBytes)
     {
       uint16_t blockSize = std::min(avail, (size_t) rxBytes);
       Debug_printf("bytes waiting: %u / blockSize: %u / connected: %u / error: %u ", avail, blockSize, ns.connected, ns.error);
-      if( channel_data.protocol->read(blockSize) )
+      if( channel_data.protocol->read(blockSize) != PROTOCOL_ERROR::NONE )
         {
           // protocol adapter returned error
-          iecStatus.error = NETWORK_ERROR_GENERAL;
+          iecStatus.error = NDEV_STATUS::GENERAL;
           iecStatus.msg = "read error";
           iecStatus.connected = ns.connected;
           iecStatus.channel = commanddata.channel;
@@ -1128,12 +1128,12 @@ uint8_t iecNetwork::getStatusData(char *buffer, uint8_t bufferSize)
           util_petscii_to_ascii_str(iecStatus.msg); // are the util pescii/asccii functions reversed?
           Debug_printf("msgPETSCII: %s\r\n", iecStatus.msg.c_str());
           snprintf(buffer, bufferSize, "%d,%s,%02d,%02d\r\n",
-                   iecStatus.error, iecStatus.msg.c_str(), iecStatus.channel, iecStatus.connected);
+                   (int) iecStatus.error, iecStatus.msg.c_str(), iecStatus.channel, iecStatus.connected);
 
           Debug_printf("Sending status: %s\r\n", buffer);
 
           // reset status
-          iecStatus.error = 0;
+          iecStatus.error = NDEV_STATUS::SUCCESS;
           iecStatus.channel = 0;
           iecStatus.connected = 0;
           iecStatus.msg = "ok";
@@ -1166,7 +1166,7 @@ uint8_t iecNetwork::getStatusData(char *buffer, uint8_t bufferSize)
         Debug_printf("Sending binary status for active channel #%d: %s\r\n", active_status_channel, mstr::toHex((uint8_t *) buffer, 4).c_str());
         return 4;
       } else {
-        snprintf(buffer, bufferSize, "%u,%u,%u", avail, ns.connected, ns.error);
+          snprintf(buffer, bufferSize, "%u,%u,%u", avail, ns.connected, (uint8_t) ns.error);
         Debug_printf("Sending status for active channel #%d: %s\r\n", active_status_channel, buffer);
         return strlen(buffer);
       }

@@ -43,13 +43,13 @@ public:
      * @param port port to login (default 21)
      * @return TRUE on error, FALSE on success
      */
-    netProtoErr_t login(const string &_username, const string &_password, const string &_hostname, unsigned short _port = 21);
+    protocolError_t login(const string &_username, const string &_password, const string &_hostname, unsigned short _port = 21);
 
     /**
      * Log out of FTP server, closes control connection.
      * @return TRUE on error, FALSE on success.
      */
-    netProtoErr_t logout();
+    protocolError_t logout();
 
     /**
      * Open file on FTP server
@@ -57,7 +57,7 @@ public:
      * @param stor TRUE means STOR, otherwise RETR
      * @return TRUE if error, FALSE if successful.
      */
-    netProtoErr_t open_file(string path, bool stor);
+    protocolError_t open_file(string path, bool stor);
 
     /**
      * Open directory on FTP server, grab it, and return back.
@@ -65,7 +65,7 @@ public:
      * @param pattern pattern to retrieve.
      * @return TRUE if error, FALSE if successful.
      */
-    netProtoErr_t open_directory(string path, string pattern);
+    protocolError_t open_directory(string path, string pattern);
 
     /**
      * Read and return one parsed line of directory
@@ -73,7 +73,7 @@ public:
      * @param filesize pointer to output filesize
      * @return TRUE if error, FALSE if successful
      */
-    netProtoErr_t read_directory(string& name, long& filesize, bool &is_dir);
+    protocolError_t read_directory(string& name, long& filesize, bool &is_dir);
 
     /**
      * Read file from data socket into buffer.
@@ -81,7 +81,7 @@ public:
      * @param len length of target buffer
      * @return TRUE if error, FALSE if successful.
      */
-    netProtoErr_t read_file(uint8_t* buf, unsigned short len);
+    protocolError_t read_file(uint8_t* buf, unsigned short len);
 
     /**
      * Write file from buffer into data socket.
@@ -89,12 +89,12 @@ public:
      * @param len length of source buffer
      * @return TRUE if error, FALSE if successful.
      */
-    netProtoErr_t write_file(uint8_t* buf, unsigned short len);
+    protocolError_t write_file(uint8_t* buf, unsigned short len);
 
     /**
      * @brief close data and/or control sockets.
      */
-    netProtoErr_t close();
+    protocolError_t close();
 
     /**
      * @brief parsed out response code from controlResponse
@@ -112,14 +112,14 @@ public:
      * @brief return if data connected
      * @return TRUE if connected, FALSE if disconnected
      */
-    netProtoErr_t data_connected();
+    protocolError_t data_connected();
 
 
     /**
      * Recovery FTP connection.
      * @return TRUE on error, FALSE on success
      */
-    netProtoErr_t reconnect();
+    protocolError_t reconnect();
 
 protected:
 private:
@@ -181,7 +181,7 @@ private:
      * read and parse control response
      * @return true on error, false on success.
      */
-    netProtoErr_t parse_response();
+    protocolError_t parse_response();
 
     /**
      * read single line of control response
@@ -194,7 +194,7 @@ private:
      * Port is set and returned in data_port variable.
      * @return TRUE if error, FALSE if successful.
      */
-    netProtoErr_t get_data_port();
+    protocolError_t get_data_port();
 
     /**
      * @brief Is response a positive preliminary reply?

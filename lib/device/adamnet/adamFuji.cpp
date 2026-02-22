@@ -17,6 +17,7 @@
 
 #include "utils.h"
 #include "string_utils.h"
+#include "fuji_endian.h"
 
 #define IMAGE_EXTENSION ".ddp"
 #define COPY_SIZE 532
@@ -117,8 +118,30 @@ void adamFuji::shutdown()
 size_t adamFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                                  uint8_t maxlen)
 {
-    return _set_additional_direntry_details(f, dest, maxlen, 100, SIZE_32_LE,
-                                            HAS_DIR_ENTRY_FLAGS_SEPARATE, HAS_DIR_ENTRY_TYPE);
+    struct {
+        dirEntryTimestamp modified;
+        uint32_t size;
+        uint8_t is_dir;
+        uint8_t is_trunc;
+        uint8_t mediatype;
+    } __attribute__((packed)) custom_details;
+    dirEntryDetails details;
+
+    details = _additional_direntry_details(f);
+    custom_details.modified = details.modified;
+    custom_details.modified.year -= 100;
+    custom_details.size = htole32(details.size);
+    custom_details.is_dir = details.flags & DET_FF_DIR;
+    custom_details.mediatype = details.mediatype;
+
+    maxlen -= sizeof(custom_details);
+    // Subtract a byte for a terminating slash on directories
+    if (custom_details.is_dir)
+        maxlen--;
+
+    custom_details.is_trunc = strlen(f->filename) >= maxlen ? DET_FF_TRUNC : 0;
+    memcpy(dest, &custom_details, sizeof(custom_details));
+    return sizeof(custom_details);
 }
 
 //  Make new disk and shove into device slot
@@ -267,10 +290,10 @@ void adamFuji::setup()
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = false;
 
-    SYSTEM_BUS.addDevice(&_fnDisks[0].disk_dev, ADAMNET_DEVICEID_DISK);
-    SYSTEM_BUS.addDevice(&_fnDisks[1].disk_dev, ADAMNET_DEVICEID_DISK + 1);
-    SYSTEM_BUS.addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK + 2);
-    SYSTEM_BUS.addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK + 3);
+    SYSTEM_BUS.addDevice(&_fnDisks[0].disk_dev, FUJI_DEVICEID_DISK);
+    SYSTEM_BUS.addDevice(&_fnDisks[1].disk_dev, FUJI_DEVICEID_DISK + 1);
+    SYSTEM_BUS.addDevice(&_fnDisks[2].disk_dev, FUJI_DEVICEID_DISK + 2);
+    SYSTEM_BUS.addDevice(&_fnDisks[3].disk_dev, FUJI_DEVICEID_DISK + 3);
 
     // Read and enable devices
     _fnDisks[0].disk_dev.device_active = Config.get_device_slot_enable_1();
@@ -301,9 +324,9 @@ void adamFuji::setup()
     theNetwork = new adamNetwork();
     theNetwork2 = new adamNetwork();
     theSerial = new adamSerial();
-    SYSTEM_BUS.addDevice(theNetwork, 0x09);  // temporary.
-    SYSTEM_BUS.addDevice(theNetwork2, 0x0A); // temporary
-    SYSTEM_BUS.addDevice(theFuji, 0x0F);    // Fuji becomes the gateway device.
+    SYSTEM_BUS.addDevice(theNetwork, FUJI_DEVICEID_NETWORK);  // temporary.
+    SYSTEM_BUS.addDevice(theNetwork2, FUJI_DEVICEID_NETWORK + 1); // temporary
+    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET);    // Fuji becomes the gateway device.
 }
 
 void adamFuji::adamnet_random_number()
@@ -514,6 +537,9 @@ void adamFuji::adamnet_control_send()
             transaction_get(dirpath, sizeof(dirpath));
             fujicmd_copy_file_success(source, dest, dirpath);
         }
+        break;
+    case FUJICMD_GENERATE_GUID:
+        fujicmd_generate_guid();
         break;
     default:
         Debug_printv("Unknown command: %02x\n", c);

@@ -13,6 +13,7 @@
 #include "../../include/debug.h"
 
 #include "utils.h"
+#include "fuji_endian.h"
 
 #include "status_error_codes.h"
 #include "ProtocolParser.h"
@@ -24,9 +25,8 @@ using namespace std;
  */
 adamNetwork::adamNetwork()
 {
-    status_response[1] = 0x00;
-    status_response[2] = 0x04; // 1024 bytes
-    status_response[3] = 0x00; // Character device
+    status_response.length = htole16(1024);
+    status_response.devtype = ADAMNET_DEVTYPE_CHAR;
 
     receiveBuffer = new string();
     transmitBuffer = new string();
@@ -79,12 +79,12 @@ void adamNetwork::get_error()
 
     if (protocol == nullptr)
     {
-        response[0] = NETWORK_ERROR_NOT_CONNECTED;
+        response[0] = (uint8_t) NDEV_STATUS::NOT_CONNECTED;
     }
     else
     {
         protocol->status(&ns);
-        response[0] = ns.error;
+        response[0] = (uint8_t) ns.error;
     }
 }
 /**
@@ -151,7 +151,7 @@ void adamNetwork::open(unsigned short s)
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), &cmdFrame) == true)
+    if (protocol->open(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
         Debug_printf("Protocol unable to make connection. Error: %d\n", err);
@@ -214,11 +214,11 @@ void adamNetwork::close()
 /**
  * Perform the channel read based on the channelMode
  * @param num_bytes - number of bytes to read from channel.
- * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
+ * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
  */
-bool adamNetwork::read_channel(unsigned short num_bytes)
+protocolError_t adamNetwork::read_channel(unsigned short num_bytes)
 {
-    bool _err = false;
+    protocolError_t _err = PROTOCOL_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -227,7 +227,7 @@ bool adamNetwork::read_channel(unsigned short num_bytes)
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
-        _err = true;
+        _err = PROTOCOL_ERROR::UNSPECIFIED;
         break;
     }
     return _err;
@@ -250,29 +250,29 @@ void adamNetwork::write(uint16_t num_bytes)
     adamnet_response_ack();
 
     *transmitBuffer += string((char *)response, num_bytes);
-    err = adamnet_write_channel(num_bytes);
+    err = adamnet_write_channel(num_bytes) == PROTOCOL_ERROR::NONE ? NDEV_STATUS::SUCCESS : NDEV_STATUS::GENERAL;
 }
 
 /**
  * Perform the correct write based on value of channelMode
  * @param num_bytes Number of bytes to write.
- * @return TRUE on error, FALSE on success. Used to emit adamnet_error or adamnet_complete().
+ * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit adamnet_error or adamnet_complete().
  */
-bool adamNetwork::adamnet_write_channel(unsigned short num_bytes)
+protocolError_t adamNetwork::adamnet_write_channel(unsigned short num_bytes)
 {
-    bool err = false;
+    protocolError_t err_net = PROTOCOL_ERROR::NONE;
 
     switch (channelMode)
     {
     case PROTOCOL:
-        err = protocol->write(num_bytes);
+        err_net = protocol->write(num_bytes);
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
-        err = true;
+        err_net = PROTOCOL_ERROR::UNSPECIFIED;
         break;
     }
-    return err;
+    return err_net;
 }
 
 /**
@@ -292,7 +292,7 @@ void adamNetwork::status()
     {
         status->avail = 0;
         status->conn = 0;
-        status->err = 165; // invalid spec.
+        status->err = NDEV_STATUS::INVALID_DEVICESPEC;
         response_len = sizeof(*status);
         return;
     }
@@ -300,7 +300,7 @@ void adamNetwork::status()
     switch (channelMode)
     {
     case PROTOCOL:
-        err = protocol->status(&ns);
+        err = protocol->status(&ns) == PROTOCOL_ERROR::NONE ? NDEV_STATUS::SUCCESS : NDEV_STATUS::GENERAL;
         break;
     case JSON:
         // err = json.status(&status);
@@ -447,9 +447,9 @@ void adamNetwork::del(uint16_t s)
     if (protocol == nullptr)
         return;
 
-    cmdFrame.comnd = '!';
+    cmdFrame.comnd = NETCMD_DELETE;
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
         return;
@@ -473,9 +473,9 @@ void adamNetwork::rename(uint16_t s)
     d = string((char *)response, s);
     parse_and_instantiate_protocol(d);
 
-    cmdFrame.comnd = ' ';
+    cmdFrame.comnd = NETCMD_RENAME;
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
         return;
@@ -499,9 +499,9 @@ void adamNetwork::mkdir(uint16_t s)
     d = string((char *)response, s);
     parse_and_instantiate_protocol(d);
 
-    cmdFrame.comnd = '*';
+    cmdFrame.comnd = NETCMD_MKDIR;
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
         return;
@@ -578,7 +578,7 @@ void adamNetwork::adamnet_special_inquiry()
 void adamNetwork::do_inquiry(fujiCommandID_t inq_cmd)
 {
     // Reset inq_dstats
-    inq_dstats = 0xff;
+    inq_dstats = SIO_DIRECTION_INVALID;
 
     cmdFrame.comnd = inq_cmd;
 
@@ -587,38 +587,38 @@ void adamNetwork::do_inquiry(fujiCommandID_t inq_cmd)
         inq_dstats = protocol->special_inquiry(inq_cmd);
 
     // If we didn't get one from protocol, or unsupported, see if supported globally.
-    if (inq_dstats == 0xFF)
+    if (inq_dstats == SIO_DIRECTION_INVALID)
     {
         switch (inq_cmd)
         {
-        case FUJICMD_RENAME:
-        case FUJICMD_DELETE:
-        case FUJICMD_LOCK:
-        case FUJICMD_UNLOCK:
-        case FUJICMD_MKDIR:
-        case FUJICMD_RMDIR:
-        case FUJICMD_CHDIR:
-        case FUJICMD_SCAN_NETWORKS:
-        case FUJICMD_GET_SSID:
-            inq_dstats = 0x80;
+        case NETCMD_RENAME:
+        case NETCMD_DELETE:
+        case NETCMD_LOCK:
+        case NETCMD_UNLOCK:
+        case NETCMD_MKDIR:
+        case NETCMD_RMDIR:
+        case NETCMD_CHDIR:
+        case NETCMD_USERNAME:
+        case NETCMD_PASSWORD:
+            inq_dstats = SIO_DIRECTION_WRITE;
             break;
-        case FUJICMD_GETCWD:
-            inq_dstats = 0x40;
+        case NETCMD_GETCWD:
+            inq_dstats = SIO_DIRECTION_READ;
             break;
-        case FUJICMD_TIMER: // Set interrupt rate
-            inq_dstats = 0x00;
+        case NETCMD_SET_INT_RATE: // Set interrupt rate
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_TRANSLATION:
-            inq_dstats = 0x00;
+        case NETCMD_TRANSLATION:
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_JSON_PARSE:
-            inq_dstats = 0x00;
+        case NETCMD_PARSE_ALT:
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case FUJICMD_JSON_QUERY:
-            inq_dstats = 0x80;
+        case NETCMD_QUERY_ALT:
+            inq_dstats = SIO_DIRECTION_WRITE;
             break;
         default:
-            inq_dstats = 0xFF; // not supported
+            inq_dstats = SIO_DIRECTION_INVALID; // not supported
             break;
         }
     }
@@ -642,7 +642,7 @@ void adamNetwork::adamnet_special_00(unsigned short s)
     adamnet_response_ack();
 
     protocol->special_00(&cmdFrame);
-    inq_dstats = 0xff;
+    inq_dstats = SIO_DIRECTION_INVALID;
 
     response_len = 0;
     memset(response, 0, sizeof(response));
@@ -661,12 +661,12 @@ void adamNetwork::adamnet_special_40(unsigned short s)
 
     adamnet_recv(); // CK
 
-    if (protocol->special_40(response, 1024, &cmdFrame) == false)
+    if (protocol->special_40(response, 1024, &cmdFrame) == PROTOCOL_ERROR::NONE)
         adamnet_response_ack();
     else
         adamnet_response_nack();
 
-    inq_dstats = 0xff;
+    inq_dstats = SIO_DIRECTION_INVALID;
 
     response_len = 0;
     memset(response, 0, sizeof(response));
@@ -694,11 +694,11 @@ void adamNetwork::adamnet_special_80(unsigned short s)
     adamnet_recv(); // CK
 
     // Do protocol action and return
-    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
+    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == PROTOCOL_ERROR::NONE)
         adamnet_response_ack();
     else
         adamnet_response_nack();
-    inq_dstats = 0xff;
+    inq_dstats = SIO_DIRECTION_INVALID;
 
     memset(response, 0, sizeof(response));
     response_len = 0;
@@ -713,13 +713,11 @@ void adamNetwork::adamnet_response_status()
         protocol->status(&s);
         statusByte.bits.client_connected = s.connected == true;
         statusByte.bits.client_data_available = protocol->available() > 0;
-        statusByte.bits.client_error = s.error > 1;
+        statusByte.bits.client_error = s.error != NDEV_STATUS::SUCCESS;
     }
 
-    status_response[1] = 2; // max packet size 1026 bytes, maybe larger?
-    status_response[2] = 4;
-
-    status_response[4] = statusByte.byte;
+    status_response.length = htole16(1026); // max packet size 1026 bytes, maybe larger?
+    status_response.status = statusByte.byte;
 
     int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
 
@@ -740,43 +738,43 @@ void adamNetwork::adamnet_control_send()
 
     switch (c)
     {
-    case FUJICMD_RENAME:
+    case NETCMD_RENAME:
         rename(s);
         break;
-    case FUJICMD_DELETE:
+    case NETCMD_DELETE:
         del(s);
         break;
-    case FUJICMD_MKDIR:
+    case NETCMD_MKDIR:
         mkdir(s);
         break;
-    case FUJICMD_CHDIR:
+    case NETCMD_CHDIR:
         set_prefix(s);
         break;
-    case FUJICMD_GETCWD:
+    case NETCMD_GETCWD:
         get_prefix();
         break;
-    case FUJICMD_GET_ERROR:
+    case NETCMD_GET_ERROR:
         get_error();
         break;
-    case FUJICMD_OPEN:
+    case NETCMD_OPEN:
         open(s);
         break;
-    case FUJICMD_CLOSE:
+    case NETCMD_CLOSE:
         close();
         break;
-    case FUJICMD_STATUS:
+    case NETCMD_STATUS:
         status();
         break;
-    case FUJICMD_WRITE:
+    case NETCMD_WRITE:
         write(s);
         break;
-    case FUJICMD_JSON:
+    case NETCMD_CHANNEL_MODE:
         channel_mode();
         break;
-    case FUJICMD_USERNAME: // login
+    case NETCMD_USERNAME: // login
         set_login(s);
         break;
-    case FUJICMD_PASSWORD: // password
+    case NETCMD_PASSWORD: // password
         set_password(s);
         break;
     default:
@@ -786,11 +784,11 @@ void adamNetwork::adamnet_control_send()
         case PROTOCOL:
             do_inquiry(c); // set inq_dstats
 
-            if (inq_dstats == 0x00)
+            if (inq_dstats == SIO_DIRECTION_NONE)
                 adamnet_special_00(s);
-            else if (inq_dstats == 0x40)
+            else if (inq_dstats == SIO_DIRECTION_READ)
                 adamnet_special_40(s);
-            else if (inq_dstats == 0x80)
+            else if (inq_dstats == SIO_DIRECTION_WRITE)
                 adamnet_special_80(s);
             else
                 Debug_printf("adamnet_control_send() - Unknown Command: %02x\n", c);
@@ -798,10 +796,10 @@ void adamNetwork::adamnet_control_send()
         case JSON:
             switch (c)
             {
-            case FUJICMD_PARSE:
+            case NETCMD_PARSE:
                 json_parse();
                 break;
-            case FUJICMD_QUERY:
+            case NETCMD_QUERY:
                 json_query(s);
                 break;
             default:
@@ -877,7 +875,7 @@ inline void adamNetwork::adamnet_control_receive_channel_protocol()
     avail = avail > 1024 ? 1024 : avail;
     response_len = avail;
 
-    if (protocol->read(response_len)) // protocol adapter returned error
+    if (protocol->read(response_len) != PROTOCOL_ERROR::NONE) // protocol adapter returned error
     {
         statusByte.bits.client_error = true;
         err = protocol->error;
@@ -1020,7 +1018,7 @@ void adamNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Invalid devicespec: %s\n", deviceSpec.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NETWORK_ERROR_INVALID_DEVICESPEC;
+        err = NDEV_STATUS::INVALID_DEVICESPEC;
         return;
     }
 
@@ -1032,7 +1030,7 @@ void adamNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Could not open protocol.\n");
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NETWORK_ERROR_GENERAL;
+        err = NDEV_STATUS::GENERAL;
         return;
     }
 }

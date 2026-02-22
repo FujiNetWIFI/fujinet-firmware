@@ -387,8 +387,30 @@ void sioFuji::debug_tape()
 size_t sioFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                                 uint8_t maxlen)
 {
-    return _set_additional_direntry_details(f, dest, maxlen, 70, SIZE_32_LE,
-                                            HAS_DIR_ENTRY_FLAGS_SEPARATE, HAS_DIR_ENTRY_TYPE);
+    struct {
+        dirEntryTimestamp modified;
+        uint32_t size;
+        uint8_t is_dir;
+        uint8_t is_trunc;
+        uint8_t mediatype;
+    } __attribute__((packed)) custom_details;
+    dirEntryDetails details;
+
+    details = _additional_direntry_details(f);
+    custom_details.modified = details.modified;
+    custom_details.modified.year -= 70;
+    custom_details.size = htole32(details.size);
+    custom_details.is_dir = details.flags & DET_FF_DIR;
+    custom_details.mediatype = details.mediatype;
+
+    maxlen -= sizeof(custom_details);
+    // Subtract a byte for a terminating slash on directories
+    if (custom_details.is_dir)
+        maxlen--;
+
+    custom_details.is_trunc = strlen(f->filename) >= maxlen ? DET_FF_TRUNC : 0;
+    memcpy(dest, &custom_details, sizeof(custom_details));
+    return sizeof(custom_details);
 }
 
 //  Make new disk and shove into device slot
@@ -1091,6 +1113,9 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         break;
     case FUJICMD_RANDOM_NUMBER:
         sio_random_number();
+        break;
+    case FUJICMD_GENERATE_GUID:
+        fujicmd_generate_guid();
         break;
     default:
         transaction_error();

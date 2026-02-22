@@ -5,6 +5,7 @@
  * AdamNet Routines
  */
 
+#include "cmdFrame.h"
 #include "UARTChannel.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
@@ -40,31 +41,20 @@ struct adamnet_message_t
 #define NM_SEND 0x0B   // response.data (send)
 #define NM_NACK 0x0C   // response.control (nack)
 
-#define ADAMNET_DEVICE_ID_KEYBOARD 0x01
-#define ADAMNET_DEVICE_ID_PRINTER  0x02
-#define ADAMNET_DEVICEID_DISK      0x04
-#define ADAMNET_DEVICE_TAPE        0x08
-#define ADAMNET_DEVICE_NETWORK     0x0E
-#define ADAMNET_DEVICE_FUJINET     0x0F
-
 #define ADAMNET_RESET_DEBOUNCE_PERIOD 100 // in ms
 
-union cmdFrame_t
+#define ADAMNET_DEVTYPE_BLOCK 0x01
+#define ADAMNET_DEVTYPE_CHAR 0x00
+
+struct AdamNetPacket
 {
-    struct
-    {
-        uint8_t device;
-        uint8_t comnd;
-        uint8_t aux1;
-        uint8_t aux2;
-        uint8_t cksum;
-    };
-    struct
-    {
-        uint32_t commanddata;
-        uint8_t checksum;
-    } __attribute__((packed));
-};
+    uint8_t cmd_dev;
+    uint16_t length;
+    uint8_t devtype;
+    uint8_t status;
+    uint8_t checksum;
+} __attribute__((packed));
+static_assert(sizeof(AdamNetPacket) == 6, "AdamNetPacket must be 6 bytes");
 
 class systemBus;
 class adamFuji;     // declare here so can reference it, but define in fuji.h
@@ -196,7 +186,7 @@ protected:
     /**
      * The response sent in adamnet_response_status()
      */
-    uint8_t status_response[6] = {0x80,0x00,0x00,0x01,0x00,0x00};
+    AdamNetPacket status_response;
 
     /**
      * Response buffer

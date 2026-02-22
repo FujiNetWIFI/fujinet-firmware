@@ -185,7 +185,7 @@ void drivewireNetwork::open()
     protocol->setLineEnding("\x0D");
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), &cmdFrame) == true)
+    if (protocol->open(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         ns.error = protocol->error;
         Debug_printf("Protocol unable to make connection. Error: %d\n", ns.error);
@@ -213,7 +213,7 @@ void drivewireNetwork::open()
     channelMode = PROTOCOL;
 
     // And signal complete!
-    ns.error = NETWORK_ERROR_SUCCESS;
+    ns.error = NDEV_STATUS::SUCCESS;
     //SYSTEM_BUS.write(ns.error);
     Debug_printf("ns.error = %u\n",ns.error);
 }
@@ -262,7 +262,7 @@ void drivewireNetwork::close()
 #endif
 
     // And signal complete!
-    ns.error = NETWORK_ERROR_SUCCESS;
+    ns.error = NDEV_STATUS::SUCCESS;
     //SYSTEM_BUS.write(ns.error);
 }
 
@@ -290,7 +290,7 @@ void drivewireNetwork::read()
     // Check for rx buffer. If NULL, then tell caller we could not allocate buffers.
     if (receiveBuffer == nullptr)
     {
-        ns.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
+        ns.error = NDEV_STATUS::COULD_NOT_ALLOCATE_BUFFERS;
         return;
     }
 
@@ -303,7 +303,7 @@ void drivewireNetwork::read()
             protocolParser = nullptr;
         }
 
-        ns.error = NETWORK_ERROR_NOT_CONNECTED;
+        ns.error = NDEV_STATUS::NOT_CONNECTED;
         return;
     }
 
@@ -322,24 +322,24 @@ void drivewireNetwork::read()
  * @brief Perform read of the current JSON channel
  * @param num_bytes Number of bytes to read
  */
-bool drivewireNetwork::read_channel_json(unsigned short num_bytes)
+protocolError_t drivewireNetwork::read_channel_json(unsigned short num_bytes)
 {
     if (num_bytes > json_bytes_remaining)
         json_bytes_remaining = 0;
     else
         json_bytes_remaining -= num_bytes;
 
-    return false;
+    return PROTOCOL_ERROR::NONE;
 }
 
 /**
  * Perform the channel read based on the channelMode
  * @param num_bytes - number of bytes to read from channel.
- * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
+ * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
  */
-bool drivewireNetwork::read_channel(unsigned short num_bytes)
+protocolError_t drivewireNetwork::read_channel(unsigned short num_bytes)
 {
-    bool err = false;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -394,7 +394,7 @@ void drivewireNetwork::write()
             delete protocolParser;
             protocolParser = nullptr;
         }
-        ns.error = NETWORK_ERROR_NOT_CONNECTED;
+        ns.error = NDEV_STATUS::NOT_CONNECTED;
         return;
     }
 
@@ -411,11 +411,11 @@ void drivewireNetwork::write()
 /**
  * Perform the correct write based on value of channelMode
  * @param num_bytes Number of bytes to write.
- * @return TRUE on error, FALSE on success. Used to emit drivewire_error or drivewire_complete().
+ * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit drivewire_error or drivewire_complete().
  */
-bool drivewireNetwork::write_channel(unsigned short num_bytes)
+protocolError_t drivewireNetwork::write_channel(unsigned short num_bytes)
 {
-    bool err = false;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -424,7 +424,7 @@ bool drivewireNetwork::write_channel(unsigned short num_bytes)
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
-        err = true;
+        err = PROTOCOL_ERROR::UNSPECIFIED;
         break;
     }
     return err;
@@ -492,7 +492,7 @@ void drivewireNetwork::status_local()
 bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
 {
     ns->connected = json_bytes_remaining > 0;
-    ns->error = json_bytes_remaining > 0 ? 1 : 136;
+    ns->error = json_bytes_remaining > 0 ? NDEV_STATUS::SUCCESS : NDEV_STATUS::END_OF_FILE;
     return false; // for now
 }
 
@@ -511,7 +511,7 @@ void drivewireNetwork::status_channel()
     case PROTOCOL:
         if (protocol == nullptr) {
             Debug_printf("ERROR: Calling status_channel on a null protocol.\r\n");
-            ns.error = NETWORK_ERROR_GENERAL;
+            ns.error = NDEV_STATUS::GENERAL;
         } else {
             protocol->status(&ns);
             avail = protocol->available();
@@ -704,13 +704,13 @@ void drivewireNetwork::special()
 
     switch (inq_dstats)
     {
-    case 0x00: // No payload
+    case SIO_DIRECTION_NONE: // No payload
         special_00();
         break;
-    case 0x40: // Payload to Atari
+    case SIO_DIRECTION_READ: // Payload to Atari
         special_40();
         break;
-    case 0x80: // Payload to Peripheral
+    case SIO_DIRECTION_WRITE: // Payload to Peripheral
         special_80();
         break;
     default:
@@ -737,7 +737,7 @@ void drivewireNetwork::special_inquiry()
 void drivewireNetwork::do_inquiry(fujiCommandID_t inq_cmd)
 {
     // Reset inq_dstats
-    inq_dstats = 0xff;
+    inq_dstats = SIO_DIRECTION_INVALID;
 
     // Ask protocol for dstats, otherwise get it locally.
     if (protocol != nullptr)
@@ -747,47 +747,47 @@ void drivewireNetwork::do_inquiry(fujiCommandID_t inq_cmd)
     }
 
     // If we didn't get one from protocol, or unsupported, see if supported globally.
-    if (inq_dstats == 0xFF)
+    if (inq_dstats == SIO_DIRECTION_INVALID)
     {
         switch (inq_cmd)
         {
-        case 0x20: // ' ' rename
-        case 0x21: // '!' delete
-        case 0x23: // '#' lock
-        case 0x24: // '$' unlock
-        case 0x2A: // '*' mkdir
-        case 0x2B: // '+' rmdir
-        case 0x2C: // ',' chdir/get prefix
-        case 0xFD: //     login
-        case 0xFE: //     password
-            inq_dstats = 0x80;
+        case NETCMD_RENAME:
+        case NETCMD_DELETE:
+        case NETCMD_LOCK:
+        case NETCMD_UNLOCK:
+        case NETCMD_MKDIR:
+        case NETCMD_RMDIR:
+        case NETCMD_CHDIR:
+        case NETCMD_USERNAME:
+        case NETCMD_PASSWORD:
+            inq_dstats = SIO_DIRECTION_WRITE;
             break;
-        case 0xFC: //     channel mode
-            inq_dstats = 0x00;
+        case NETCMD_CHANNEL_MODE:
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 0xFB: // String Processing mode, only in JSON mode
+        case NETCMD_SET_PARAMETERS:
             if (channelMode == JSON)
-                inq_dstats = 0x00;
+                inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 0x30: // '0' set prefix
-            inq_dstats = 0x40;
+        case NETCMD_GETCWD:
+            inq_dstats = SIO_DIRECTION_READ;
             break;
-        case 'Z': // Set interrupt rate
-            inq_dstats = 0x00;
+        case NETCMD_SET_INT_RATE:
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 'T': // Set Translation
-            inq_dstats = 0x00;
+        case NETCMD_TRANSLATION:
+            inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 'P': // JSON Parse
+        case NETCMD_PARSE:
             if (channelMode == JSON)
-                inq_dstats = 0x00;
+                inq_dstats = SIO_DIRECTION_NONE;
             break;
-        case 'Q': // JSON Query
+        case NETCMD_QUERY:
             if (channelMode == JSON)
-                inq_dstats = 0x80;
+                inq_dstats = SIO_DIRECTION_WRITE;
             break;
         default:
-            inq_dstats = 0xFF; // not supported
+            inq_dstats = SIO_DIRECTION_INVALID; // not supported
             break;
         }
     }
@@ -805,14 +805,14 @@ void drivewireNetwork::special_00()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case 'P':
+    case NETCMD_PARSE:
         if (channelMode == JSON)
             parse_json();
         break;
-    case 'T':
+    case NETCMD_TRANSLATION:
         set_translation();
         break;
-    case 0xFC: // SET CHANNEL MODE
+    case NETCMD_CHANNEL_MODE:
         set_channel_mode();
         break;
     default:
@@ -832,9 +832,11 @@ void drivewireNetwork::special_40()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case 0x30:
+    case NETCMD_GETCWD:
         get_prefix();
         return;
+    default:
+        break;
     }
 
     // not sure what to do here, FIXME.
@@ -853,27 +855,29 @@ void drivewireNetwork::special_80()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case 0x20: // RENAME  ' '
-    case 0x21: // DELETE  '!'
-    case 0x23: // LOCK    '#'
-    case 0x24: // UNLOCK  '$'
-    case 0x2A: // MKDIR   '*'
-    case 0x2B: // RMDIR   '+'
+    case NETCMD_RENAME:
+    case NETCMD_DELETE:
+    case NETCMD_LOCK:
+    case NETCMD_UNLOCK:
+    case NETCMD_MKDIR:
+    case NETCMD_RMDIR:
         do_idempotent_command_80();
         return;
-    case 0x2C: // CHDIR   ','
+    case NETCMD_CHDIR:
         set_prefix();
         return;
-    case 'Q':
+    case NETCMD_QUERY:
         if (channelMode == JSON)
             json_query();
         return;
-    case 0xFD: // LOGIN
+    case NETCMD_USERNAME:
         set_login();
         return;
-    case 0xFE: // PASSWORD
+    case NETCMD_PASSWORD:
         set_password();
         return;
+    default:
+        break;
     }
 
     memset(spData, 0, SPECIAL_BUFFER_SIZE);
@@ -887,7 +891,7 @@ void drivewireNetwork::special_80()
     if (protocol == nullptr) {
         Debug_printf("ERROR: Calling special_80 on a null protocol.\r\n");
         ns.reset();
-        ns.error = NETWORK_ERROR_GENERAL;
+        ns.error = NDEV_STATUS::GENERAL;
         return;
     }
 
@@ -987,7 +991,7 @@ else
 void drivewireNetwork::send_error()
 {
     Debug_printf("drivewireNetwork::send_error(%u)\n",ns.error);
-    SYSTEM_BUS.write(ns.error);
+    SYSTEM_BUS.write((uint8_t) ns.error);
 }
 
 void drivewireNetwork::send_response()
@@ -1038,7 +1042,7 @@ void drivewireNetwork::parse_and_instantiate_protocol()
     if (!urlParser->isValidUrl())
     {
         Debug_printf("Invalid devicespec: >%s<\n", deviceSpec.c_str());
-        ns.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        ns.error = NDEV_STATUS::INVALID_DEVICESPEC;
         return;
     }
 
@@ -1050,7 +1054,7 @@ void drivewireNetwork::parse_and_instantiate_protocol()
     if (!instantiate_protocol())
     {
         Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
-        ns.error = NETWORK_ERROR_GENERAL;
+        ns.error = NDEV_STATUS::GENERAL;
         return;
     }
 }
@@ -1167,13 +1171,13 @@ void drivewireNetwork::parse_json()
 {
     bool success = json->parse();
 
-    ns.error = NETWORK_ERROR_SUCCESS;
+    ns.error = NDEV_STATUS::SUCCESS;
 #ifdef UNUSED
     // Atari doesn't check for errors and blindly returns that
     // everything is fine. This causes the httpbin test to pass when
     // it probably shouldn't. However we'll just do what Atari does.
     if (!success)
-        ns.error = NETWORK_ERROR_COULD_NOT_PARSE_JSON;
+        ns.error = NDEV_STATUS::COULD_NOT_PARSE_JSON;
 #endif /* UNUSED */
 }
 
@@ -1239,7 +1243,7 @@ void drivewireNetwork::do_idempotent_command_80()
         return;
     }
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) == true)
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
     {
         Debug_printf("perform_idempotent_80 failed\n");
         // sio_error();
@@ -1251,7 +1255,7 @@ void drivewireNetwork::do_idempotent_command_80()
 void drivewireNetwork::process()
 {
     // Read the three command and aux bytes
-    cmdFrame.comnd = (uint8_t)SYSTEM_BUS.read();
+    cmdFrame.comnd = (fujiCommandID_t)SYSTEM_BUS.read();
     cmdFrame.aux1 = (uint8_t)SYSTEM_BUS.read();
     cmdFrame.aux2 = (uint8_t)SYSTEM_BUS.read();
 
@@ -1259,31 +1263,31 @@ void drivewireNetwork::process()
 
     switch (cmdFrame.comnd)
     {
-    case 0x00: // Ready?
+    case NETCMD_DEVICE_READY:
         ready(); // Yes.
         break;
-    case 0x01: // Send Response
+    case NETCMD_SEND_RESPONSE:
         send_response();
         break;
-    case 0x02: // Send error
+    case NETCMD_SEND_ERROR:
         send_error();
         break;
-    case 'O':
+    case NETCMD_OPEN:
         open();
         break;
-    case 'C':
+    case NETCMD_CLOSE:
         close();
         break;
-    case 'R':
+    case NETCMD_READ:
         read();
         break;
-    case 'W':
+    case NETCMD_WRITE:
         write();
         break;
-    case 'S':
+    case NETCMD_STATUS:
         status();
         break;
-    case 0xFF:
+    case NETCMD_SPECIAL_INQUIRY:
         special_inquiry();
         break;
     default:

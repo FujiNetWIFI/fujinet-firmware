@@ -48,36 +48,36 @@ public:
      * @brief Open a URL
      * @param url pointer to PeoplesUrlParser pointing to file to open.
      * @param cmdFrame pointer to command frame for aux1/aux2/etc values.
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    netProtoErr_t open(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    protocolError_t open(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
 
     /**
      * @brief Close the open URL
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    netProtoErr_t close() override;
+    protocolError_t close() override;
 
     /**
      * @brief Read len bytes from the open URL.
      * @param len Length in bytes.
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    netProtoErr_t read(unsigned short len) override;
+    protocolError_t read(unsigned short len) override;
 
     /**
      * @brief Write len bytes to the open URL.
      * @param len Length in bytes.
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    netProtoErr_t write(unsigned short len) override;
+    protocolError_t write(unsigned short len) override;
 
     /**
      * @brief Return protocol status information in provided NetworkStatus object.
      * @param status a pointer to a NetworkStatus object to receive status information
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    netProtoErr_t status(NetworkStatus *status) override;
+    protocolError_t status(NetworkStatus *status) override;
 
     /**
      * @brief Return a DSTATS byte for a requested COMMAND byte.
@@ -89,31 +89,31 @@ public:
     /**
      * @brief execute a command that returns no payload
      * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    netProtoErr_t special_00(cmdFrame_t *cmdFrame) override;
+    protocolError_t special_00(cmdFrame_t *cmdFrame) override;
 
     /**
      * @brief execute a command that returns a payload to the atari.
      * @param sp_buf a pointer to the special buffer
      * @param len Length of data to request from protocol. Should not be larger than buffer.
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    netProtoErr_t special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) override;
+    protocolError_t special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) override;
 
     /**
      * @brief execute a command that sends a payload to fujinet (most common, XIO)
      * @param sp_buf, a pointer to the special buffer, usually a EOL terminated devicespec.
      * @param len length of the special buffer, typically SPECIAL_BUFFER_SIZE
      */
-    netProtoErr_t special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) override;
+    protocolError_t special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) override;
 
     /**
      * @brief perform an idempotent command with DSTATS 0x80, that does not require open channel.
      * @param url The URL object.
      * @param cmdFrame command frame.
      */
-    netProtoErr_t perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    protocolError_t perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
 
     size_t available() override;
 
@@ -174,40 +174,40 @@ protected:
 
     /**
      * @brief Open a file via path.
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t open_file();
+    virtual protocolError_t open_file();
 
     /**
      * @brief open a file handle to fd
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t open_file_handle() = 0;
+    virtual protocolError_t open_file_handle() = 0;
 
     /**
      * @brief Open a Directory via path
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t open_dir();
+    virtual protocolError_t open_dir();
 
     /**
      * @brief Open directory handle
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t open_dir_handle() = 0;
+    virtual protocolError_t open_dir_handle() = 0;
 
     /**
      * @brief Do mount
      * @param url the url to mount
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t mount(PeoplesUrlParser *url) = 0;
+    virtual protocolError_t mount(PeoplesUrlParser *url) = 0;
 
     /**
      * @brief Unmount TNFS server specified in mountInfo.
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t umount() = 0;
+    virtual protocolError_t umount() = 0;
 
     /**
      * @brief Translate filesystem error codes to Atari error codes. Sets error in Protocol.
@@ -230,137 +230,137 @@ protected:
     /**
      * @brief Read from file
      * @param len the number of bytes requested
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t read_file(unsigned short len);
+    virtual protocolError_t read_file(unsigned short len);
 
     /**
      * @brief Read from file handle
      * @param buf destination buffer
      * @param len the number of bytes requested
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t read_file_handle(uint8_t *buf, unsigned short len) = 0;
+    virtual protocolError_t read_file_handle(uint8_t *buf, unsigned short len) = 0;
 
     /**
      * @brief Read from directory
      * @param len the number of bytes requested
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t read_dir(unsigned short len);
+    virtual protocolError_t read_dir(unsigned short len);
 
     /**
      * @brief read next directory entry.
      * @param buf the target buffer
      * @param len length of target buffer
      */
-    virtual netProtoErr_t read_dir_entry(char *buf, unsigned short len) = 0;
+    virtual protocolError_t read_dir_entry(char *buf, unsigned short len) = 0;
 
     /**
      * @brief return status from file (e.g. # of bytes remaining.)
      * @param Pointer to NetworkStatus object to inject new data.
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t status_file(NetworkStatus *status);
+    virtual protocolError_t status_file(NetworkStatus *status);
 
     /**
      * @brief return status from directory (e.g. # of bytes remaining.)
      * @param Pointer to NetworkStatus object to inject new data.
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t status_dir(NetworkStatus *status);
+    virtual protocolError_t status_dir(NetworkStatus *status);
 
     /**
      * @brief close file.
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t close_file();
+    virtual protocolError_t close_file();
 
     /**
      * @brief close file handle
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t close_file_handle() = 0;
+    virtual protocolError_t close_file_handle() = 0;
 
     /**
      * @brief close directory.
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t close_dir();
+    virtual protocolError_t close_dir();
 
     /**
      * @brief Close directory handle
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t close_dir_handle() = 0;
+    virtual protocolError_t close_dir_handle() = 0;
 
     /**
      * @brief Write to file
      * @param len the number of bytes requested
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t write_file(unsigned short len);
+    virtual protocolError_t write_file(unsigned short len);
 
     /**
      * @brief for len requested, break up into number of required
      *        tnfs_write() blocks.
      * @param len Requested # of bytes.
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t write_file_handle(uint8_t *buf, unsigned short len) = 0;
+    virtual protocolError_t write_file_handle(uint8_t *buf, unsigned short len) = 0;
 
     /**
      * @brief get status of file, filling in filesize. mount() must have already been called.
      */
-    virtual netProtoErr_t stat() = 0;
+    virtual protocolError_t stat() = 0;
 
     /**
      * @brief Rename file specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file/dest to rename
      * @param cmdFrame the command frame
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual protocolError_t rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
     /**
      * @brief Delete file specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
      * @param cmdFrame the command frame
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual protocolError_t del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
     /**
      * @brief Make directory specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
      * @param cmdFrame the command frame
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual protocolError_t mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
     /**
      * @brief Remove directory specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
      * @param cmdFrame the command frame
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual protocolError_t rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
     /**
      * @brief lock file specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
      * @param cmdFrame the command frame
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual protocolError_t lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
     /**
      * @brief unlock file specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
      * @param cmdFrame the command frame
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
      */
-    virtual netProtoErr_t unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual protocolError_t unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
 };
 

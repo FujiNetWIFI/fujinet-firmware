@@ -6,6 +6,7 @@
 
 #ifdef ESP_PLATFORM
 #ifndef CONFIG_IDF_TARGET_ESP32S3
+#define CONFIG_DAC_SUPPRESS_DEPRECATE_WARN 1
 #include <driver/dac.h>
 #endif
 #endif

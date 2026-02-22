@@ -233,7 +233,7 @@ private:
     /**
      * Return value for DSTATS inquiry
      */
-    uint8_t inq_dstats=0xFF;
+    AtariSIODirection inq_dstats = SIO_DIRECTION_INVALID;
 
     /**
      * The login to use for a protocol action
@@ -272,7 +272,7 @@ private:
      * saved NetworkStatus items
      */
     unsigned char reservedSave = 0;
-    unsigned char errorSave = 1;
+    nDevStatus_t errorSave = NDEV_STATUS::SUCCESS;
 
     /**
      * The fnJSON parser wrapper object
@@ -342,22 +342,22 @@ private:
     /**
      * Perform the correct read based on value of channelMode
      * @param num_bytes Number of bytes to read.
-     * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
+     * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
      */
-    bool read_channel(unsigned short num_bytes);
+    protocolError_t read_channel(unsigned short num_bytes);
 
     /**
      * @brief Perform read of the current JSON channel
      * @param num_bytes Number of bytes to read
      */
-    bool read_channel_json(unsigned short num_bytes);
+    protocolError_t read_channel_json(unsigned short num_bytes);
 
     /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
-     * @return TRUE on error, FALSE on success. Used to emit drivewire_error or drivewire_complete().
+     * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit drivewire_error or drivewire_complete().
      */
-    bool write_channel(unsigned short num_bytes);
+    protocolError_t write_channel(unsigned short num_bytes);
 
     /**
      * @brief perform local status commands, if protocol is not bound, based on cmdFrame

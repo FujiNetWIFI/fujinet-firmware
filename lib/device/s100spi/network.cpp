@@ -82,12 +82,12 @@ void s100spiNetwork::open(unsigned short s)
     string d;
 
     s--; s--;
-    
+
     memset(response,0,sizeof(response));
     s100spi_recv_buffer(response, s);
     s100spi_recv(); // checksum
 
-    
+
     s100spi_response_ack();
 
     channelMode = PROTOCOL;
@@ -152,7 +152,7 @@ void s100spiNetwork::close()
 
     s100spi_recv(); // CK
 
-    
+
     s100spi_response_ack();
 
     statusByte.byte = 0x00;
@@ -210,7 +210,7 @@ void s100spiNetwork::write(uint16_t num_bytes)
     s100spi_recv_buffer(response, num_bytes);
     s100spi_recv(); // CK
 
-    
+
     s100spi_response_ack();
 
     *transmitBuffer += string((char *)response, num_bytes);
@@ -248,7 +248,7 @@ void s100spiNetwork::status()
 {
     NetworkStatus s;
     s100spi_recv(); // CK
-    
+
     s100spi_response_ack();
 
     switch (channelMode)
@@ -282,7 +282,7 @@ void s100spiNetwork::get_prefix()
 {
     s100spi_recv(); // CK
 
-    
+
     s100spi_response_ack();
 
     Debug_printf("s100spiNetwork::s100spi_getprefix(%s)\n", prefix.c_str());
@@ -303,7 +303,7 @@ void s100spiNetwork::set_prefix(unsigned short s)
     s100spi_recv_buffer(prefixSpec, s);
     s100spi_recv(); // CK
 
-    
+
     s100spi_response_ack();
 
     prefixSpec_str = string((const char *)prefixSpec);
@@ -362,7 +362,7 @@ void s100spiNetwork::set_login(uint16_t s)
     s100spi_recv_buffer(loginspec, s);
     s100spi_recv(); // ck
 
-    
+
     s100spi_response_ack();
 
     login = string((char *)loginspec, s);
@@ -380,7 +380,7 @@ void s100spiNetwork::set_password(uint16_t s)
     s100spi_recv_buffer(passwordspec, s);
     s100spi_recv(); // ck
 
-    
+
     s100spi_response_ack();
 
     password = string((char *)passwordspec, s);
@@ -394,7 +394,7 @@ void s100spiNetwork::del(uint16_t s)
     s100spi_recv_buffer(response, s);
     s100spi_recv(); // CK
 
-        
+
     s100spi_response_ack();
 
     d=string((char *)response,s);
@@ -420,7 +420,7 @@ void s100spiNetwork::rename(uint16_t s)
     s100spi_recv_buffer(response, s);
     s100spi_recv(); // CK
 
-    
+
     s100spi_response_ack();
 
     d=string((char *)response,s);
@@ -443,7 +443,7 @@ void s100spiNetwork::mkdir(uint16_t s)
     s100spi_recv_buffer(response,s);
     s100spi_recv(); // CK
 
-    
+
     s100spi_response_ack();
 
     d=string((char *)response,s);
@@ -470,15 +470,15 @@ void s100spiNetwork::s100spiNetwork_special()
 
     // switch (inq_dstats)
     // {
-    // case 0x00: // No payload
+    // case SIO_DIRECTION_NONE: // No payload
     //     s100spi_ack();
     //     s100spi_special_00();
     //     break;
-    // case 0x40: // Payload to Atari
+    // case SIO_DIRECTION_READ: // Payload to Atari
     //     s100spi_ack();
     //     s100spi_special_40();
     //     break;
-    // case 0x80: // Payload to Peripheral
+    // case SIO_DIRECTION_WRITE: // Payload to Peripheral
     //     s100spi_ack();
     //     s100spi_special_80();
     //     break;
@@ -510,45 +510,45 @@ void s100spiNetwork::s100spiNetwork_special_inquiry()
 void s100spiNetwork::do_inquiry(unsigned char inq_cmd)
 {
     // // Reset inq_dstats
-    // inq_dstats = 0xff;
+    // inq_dstats = SIO_DIRECTION_INVALID;
 
     // // Ask protocol for dstats, otherwise get it locally.
     // if (protocol != nullptr)
     //     inq_dstats = protocol->special_inquiry(inq_cmd);
 
     // // If we didn't get one from protocol, or unsupported, see if supported globally.
-    // if (inq_dstats == 0xFF)
+    // if (inq_dstats == SIO_DIRECTION_INVALID)
     // {
     //     switch (inq_cmd)
     //     {
-    //     case 0x20:
-    //     case 0x21:
-    //     case 0x23:
-    //     case 0x24:
-    //     case 0x2A:
-    //     case 0x2B:
-    //     case 0x2C:
-    //     case 0xFD:
-    //     case 0xFE:
-    //         inq_dstats = 0x80;
+    //     case NETCMD__RENAME:
+    //     case NETCMD__FORMAT:
+    //     case NETCMD__LOCK:
+    //     case NETCMD__UNLOCK:
+    //     case NETCMD__MKDIR:
+    //     case NETCMD__RMDIR:
+    //     case NETCMD__CHDIR:
+    //     case NETCMD__USERNAME:
+    //     case NETCMD__PASSWORD:
+    //         inq_dstats = SIO_DIRECTION_WRITE;
     //         break;
-    //     case 0x30:
-    //         inq_dstats = 0x40;
+    //     case NETCMD_GETCWD:
+    //         inq_dstats = SIO_DIRECTION_READ;
     //         break;
-    //     case 'Z': // Set interrupt rate
-    //         inq_dstats = 0x00;
+    //     case NETCMD_SET_INT_RATE:
+    //         inq_dstats = SIO_DIRECTION_NONE;
     //         break;
-    //     case 'T': // Set Translation
-    //         inq_dstats = 0x00;
+    //     case NETCMD__TRANSLATION:
+    //         inq_dstats = SIO_DIRECTION_NONE;
     //         break;
-    //     case 0x80: // JSON Parse
-    //         inq_dstats = 0x00;
+    //     case NETCMD__JSON_PARSE:
+    //         inq_dstats = SIO_DIRECTION_NONE;
     //         break;
-    //     case 0x81: // JSON Query
-    //         inq_dstats = 0x80;
+    //     case NETCMD__JSON_QUERY:
+    //         inq_dstats = SIO_DIRECTION_WRITE;
     //         break;
     //     default:
-    //         inq_dstats = 0xFF; // not supported
+    //         inq_dstats = SIO_DIRECTION_INVALID; // not supported
     //         break;
     //     }
     // }
@@ -669,7 +669,7 @@ void s100spiNetwork::s100spi_control_ack()
 void s100spiNetwork::s100spi_control_send()
 {
     uint16_t s = s100spi_recv_length(); // receive length
-    uint8_t c = s100spi_recv();        // receive command
+    fujiCommandID_t c = s100spi_recv();        // receive command
 
     s--; // Because we've popped the command off the stack
 
@@ -761,7 +761,7 @@ void s100spiNetwork::s100spi_control_receive_channel()
 
 void s100spiNetwork::s100spi_control_receive()
 {
-    
+
 
     if (response_len > 0) // There is response data, go ahead and ack.
     {
@@ -818,7 +818,7 @@ bool s100spiNetwork::instantiate_protocol()
     {
         protocolParser = new ProtocolParser();
     }
-    
+
     protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
@@ -861,7 +861,7 @@ void s100spiNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Invalid devicespec: >%s<\n", deviceSpec.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NETWORK_ERROR_INVALID_DEVICESPEC;
+        err = DEVICE_STATUS_INVALID_DEVICESPEC;
         return;
     }
 
@@ -875,7 +875,7 @@ void s100spiNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NETWORK_ERROR_GENERAL;
+        err = DEVICE_STATUS_GENERAL;
         return;
     }
 }

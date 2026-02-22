@@ -55,19 +55,19 @@ public:
     /**
      * @brief called to return the extended error number from a protocol adapter
      */
-    virtual void get_error();
+    void get_error();
 
     /**
      * Called for ADAM Command 'O' to open a connection to a network protocol, allocate all buffers,
      * and start the receive PROCEED interrupt.
      */
-    virtual void open(unsigned short s);
+    void open(unsigned short s);
 
     /**
      * Called for ADAM Command 'C' to close a connection to a network protocol, de-allocate all buffers,
      * and stop the receive PROCEED interrupt.
      */
-    virtual void close();
+    void close();
 
 
     /**
@@ -75,7 +75,7 @@ public:
      * Write # of bytes specified by aux1/aux2 from tx_buffer out to ADAM. If protocol is unable to return requested
      * number of bytes, return ERROR.
      */
-    virtual void write(uint16_t num_bytes);
+    void write(uint16_t num_bytes);
 
     /**
      * ADAM Special, called as a default for any other ADAM command not processed by the other adamnet_ functions.
@@ -83,37 +83,37 @@ public:
      * process the special command. Otherwise, the command is handled locally. In either case, either adamnet_complete()
      * or adamnet_error() is called.
      */
-    virtual void status();
+    void status();
 
-    virtual void adamnet_control_ack();
-    virtual void adamnet_control_clr();
-    virtual void adamnet_control_receive();
-    virtual void adamnet_control_receive_channel_json();
-    virtual void adamnet_control_receive_channel_protocol();
-    virtual void adamnet_control_send();
+    void adamnet_control_ack();
+    void adamnet_control_clr();
+    void adamnet_control_receive();
+    void adamnet_control_receive_channel_json();
+    void adamnet_control_receive_channel_protocol();
+    void adamnet_control_send();
 
-    virtual void adamnet_response_status() override;
-    virtual void adamnet_response_send();
+    void adamnet_response_status() override;
+    void adamnet_response_send();
 
     /**
      * @brief Called to set prefix
      */
-    virtual void set_prefix(unsigned short s);
+    void set_prefix(unsigned short s);
 
     /**
      * @brief Called to get prefix
      */
-    virtual void get_prefix();
+    void get_prefix();
 
     /**
      * @brief called to set login
      */
-    virtual void set_login(uint16_t s);
+    void set_login(uint16_t s);
 
     /**
      * @brief called to set password
      */
-    virtual void set_password(uint16_t s);
+    void set_password(uint16_t s);
 
     /**
      * @brief set channel mode
@@ -140,11 +140,11 @@ public:
      * Process incoming ADAM command for device 0x7X
      * @param b The incoming command byte
      */
-    virtual void adamnet_process(uint8_t b) override;
+    void adamnet_process(uint8_t b) override;
 
-    virtual void del(uint16_t s);
-    virtual void rename(uint16_t s);
-    virtual void mkdir(uint16_t s);
+    void del(uint16_t s);
+    void rename(uint16_t s);
+    void mkdir(uint16_t s);
 
 
 private:
@@ -217,7 +217,7 @@ private:
     /**
      * Error number, if status.bits.client_error is set.
      */
-    uint8_t err;
+    nDevStatus_t err;
 
     /**
      * ESP timer handle for the Interrupt rate limiting timer
@@ -253,7 +253,7 @@ private:
     /**
      * Return value for DSTATS inquiry
      */
-    uint8_t inq_dstats = 0xFF;
+    AtariSIODirection inq_dstats = SIO_DIRECTION_INVALID;
 
     /**
      * The login to use for a protocol action
@@ -340,16 +340,16 @@ private:
     /**
      * Perform the correct read based on value of channelMode
      * @param num_bytes Number of bytes to read.
-     * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
+     * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
      */
-    bool read_channel(unsigned short num_bytes);
+    protocolError_t read_channel(unsigned short num_bytes);
 
     /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
-     * @return TRUE on error, FALSE on success. Used to emit adamnet_error or adamnet_complete().
+     * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit adamnet_error or adamnet_complete().
      */
-    bool adamnet_write_channel(unsigned short num_bytes);
+    protocolError_t adamnet_write_channel(unsigned short num_bytes);
 
     /**
      * @brief perform local status commands, if protocol is not bound, based on cmdFrame
