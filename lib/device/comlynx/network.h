@@ -85,21 +85,15 @@ public:
      */
     virtual void status();
 
-    virtual void comlynx_control_ack();
-    virtual void comlynx_control_clr();
-    virtual void comlynx_control_receive();
-    virtual void comlynx_control_receive_channel();
-    virtual void comlynx_control_receive_channel_json();
-    virtual void comlynx_control_receive_channel_protocol();
-    virtual void comlynx_control_send();
-
-    virtual void comlynx_response_status() override;
-    virtual void comlynx_response_send();
-
+    virtual void read();
+    virtual void read_channel();
+    virtual void read_channel_json();
+    virtual void read_channel_protocol();
+  
     /**
      * @brief Called to set prefix
      */
-    virtual void set_prefix(unsigned short s);
+    virtual void set_prefix(unsigned short len);
 
     /**
      * @brief Called to get prefix
@@ -109,17 +103,17 @@ public:
     /**
      * @brief called to set login
      */
-    virtual void set_login(uint16_t s);
+    virtual void set_login(uint16_t len);
 
     /**
      * @brief called to set password
      */
-    virtual void set_password(uint16_t s);
+    virtual void set_password(uint16_t len);
 
     /**
      * @brief set channel mode
      */
-    void channel_mode();
+    void set_channel_mode();
 
     /**
      * @brief parse incoming data
@@ -130,22 +124,22 @@ public:
      * @brief JSON Query
      * @param s size of query
      */
-    void json_query(unsigned short s);
+    void json_query(unsigned short len);
 
     /**
      * Check to see if PROCEED needs to be asserted.
      */
-    void comlynx_poll_interrupt();
+    //void comlynx_poll_interrupt();
 
     /**
      * Process incoming LYNX command for device 0x7X
      * @param b The incoming command byte
      */
-    virtual void comlynx_process(uint8_t b) override;
+    virtual void comlynx_process() override;
 
-    virtual void del(uint16_t s);
-    virtual void rename(uint16_t s);
-    virtual void mkdir(uint16_t s);
+    virtual void del(uint16_t len);
+    virtual void rename(uint16_t len);
+    virtual void mkdir(uint16_t len);
 
 
 private:
@@ -350,7 +344,7 @@ private:
      * @param num_bytes Number of bytes to write.
      * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit comlynx_error or comlynx_complete().
      */
-    protocolError_t comlynx_write_channel(unsigned short num_bytes);
+    protocolError_t write_channel(unsigned short num_bytes);
 
     /**
      * @brief perform local status commands, if protocol is not bound, based on cmdFrame
@@ -420,6 +414,12 @@ private:
      * @param db pointer to devicespecbuf 256 chars
      */
     void parse_and_instantiate_protocol(std::string d);
+
+    //void transaction_continue(bool expectMoreData) override {};
+    void transaction_complete();
+    void transaction_error();
+    bool transaction_get(void *data, size_t len);
+    void transaction_put(const void *data, size_t len, bool err=false);
 };
 
 #endif /* NETWORK_H */

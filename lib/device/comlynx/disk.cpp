@@ -10,16 +10,11 @@
 #include "media.h"
 #include "utils.h"
 
+
 lynxDisk::lynxDisk()
 {
     device_active = false;
     blockNum = 0;
-    //status_response[1] = 0x00;
-    //status_response[2] = 0x01; // 256 bytes
-
-    status_response[1] = MEDIA_BLOCK_SIZE % 256;
-    status_response[2] = MEDIA_BLOCK_SIZE / 256;
-    status_response[3] = 0x01; // Block device
 }
 
 // Destructor
@@ -30,6 +25,61 @@ lynxDisk::~lynxDisk()
         delete _media;
         _media = nullptr;
     }
+}
+
+
+void lynxDisk::transaction_complete()
+{
+    Debug_println("transaction_complete - sent ACK");
+    comlynx_response_ack();
+}
+
+void lynxDisk::transaction_error()
+{
+    Debug_println("transaction_error - send NAK");
+    comlynx_response_nack();
+    
+    // throw away any waiting bytes
+    while (SYSTEM_BUS.available() > 0)
+        SYSTEM_BUS.read();
+}
+    
+bool lynxDisk::transaction_get(void *data, size_t len) 
+{
+    size_t remaining = recvbuffer_len - (recvbuf_pos - recvbuffer);
+    size_t to_copy = (len > remaining) ? remaining : len;
+
+    memcpy(data, recvbuf_pos, to_copy);
+    recvbuf_pos += to_copy;
+
+    return len;
+}
+
+
+void lynxDisk::transaction_put(const void *data, size_t len, bool err)
+{
+    uint8_t b;
+
+    // set response buffer
+    memcpy(response, data, len);
+    response_len = len;
+
+    // send all data back to Lynx
+    uint8_t ck = comlynx_checksum(response, response_len);
+    comlynx_send_length(response_len);
+    comlynx_send_buffer(response, response_len);
+    comlynx_send(ck);
+
+    // get ACK or NACK from Lynx, we're ignoring currently
+    uint8_t r = comlynx_recv();
+    #ifdef DEBUG
+            if (r == FUJICMD_ACK)
+                Debug_println("transaction_put - Lynx ACKed");
+            else
+                Debug_println("transaction put - Lynx NAKed");
+    #endif
+
+    return;
 }
 
 void lynxDisk::reset()
@@ -91,161 +141,93 @@ bool lynxDisk::write_blank(FILE *fileh, uint32_t numBlocks)
 {
     uint8_t buf[MEDIA_BLOCK_SIZE];
 
+    // clear the temporary buffer
     memset(buf, 0x00, MEDIA_BLOCK_SIZE);
 
     for (uint32_t b = 0; b < numBlocks; b++)
     {
-        fwrite(buf, 1, MEDIA_BLOCK_SIZE, fileh);                // I don't understand why we do this four times? -SJ
-        fwrite(buf, 1, MEDIA_BLOCK_SIZE, fileh);
-        fwrite(buf, 1, MEDIA_BLOCK_SIZE, fileh);
         fwrite(buf, 1, MEDIA_BLOCK_SIZE, fileh);
     }
 
     return false;
 }
 
-void lynxDisk::comlynx_control_clr()
+void lynxDisk::read_block(uint32_t block)
 {
-    comlynx_response_send();
+    if (_media == nullptr) {
+        Debug_println("lynxdisk::read_block - _media is null");
+        transaction_error();
+        return;
+    }
+
+    blockNum = block;       // save the block (caching?)
+
+    // Read the block
+    Debug_printf("lynxdisk::read_block - block: %lu\n", block);
+    if (_media->read(block, nullptr)) {         // returns TRUE if error occurred
+        Debug_println("lynxdisk::read_block - media->read returned false");
+        transaction_error();
+    }
+
+    transaction_put(_media->_media_blockbuff, MEDIA_BLOCK_SIZE);
 }
 
-void lynxDisk::comlynx_control_receive()
+void lynxDisk::write_block(uint32_t block)
 {
-    Debug_println("comlynx_control_receive() - Disk block read started\n");
-
-    if (_media == nullptr)
-        return;
-
-    if (_media->read(blockNum, nullptr))
-        comlynx_response_nack();
-    else
-        comlynx_response_ack();
-}
-
-void lynxDisk::comlynx_control_send_block_num()
-{
-    uint8_t x[5];       // 32-bit block num, plus 1 byte reserved
-
-    Debug_printf("comlynx_control_send_block_num\n");
-    for (uint16_t i = 0; i < 5; i++)
-        x[i] = comlynx_recv();
-
-    // Get packet checksum
-    if (!comlynx_recv_ck()) {
-        comlynx_response_nack();
+    if (_media == nullptr) {
+        transaction_error();
         return;
     }
 
-    blockNum = x[3] << 24 | x[2] << 16 | x[1] << 8 | x[0];
+    transaction_get(_media->_media_blockbuff, MEDIA_BLOCK_SIZE);
+    //memcpy(_media->_media_blockbuff, data, MEDIA_BLOCK_SIZE);
+    _media->write(block, false);
 
-    if (_media->num_blocks() < 0x10000UL) // Smaller than 64MB?
-    {
-        blockNum &= 0xFFFF; // Mask off upper bits
-    }
-
-    if (blockNum == 0xFACE)
-    {
-        _media->format(NULL);
-    }
-
-    comlynx_response_ack();
-
-    Debug_printf("BLOCK: %lu\n", blockNum);
-}
-
-void lynxDisk::comlynx_control_send_block_data()
-{
-    if (_media == nullptr)
-        return;
-
-    comlynx_recv_buffer(_media->_media_blockbuff, MEDIA_BLOCK_SIZE);
-
-    // Get packet checksum
-    if (!comlynx_recv_ck()) {
-        comlynx_response_nack();
-        return;
-    }
-
-    comlynx_response_ack();
-    Debug_printf("Block Data Write\n");
-
-    _media->write(blockNum, false);
+    Debug_printf("lynxdisk::write_block - block:%ld written\n", block);
 
     blockNum = 0xFFFFFFFF;
     _media->_media_last_block = 0xFFFFFFFE;
+    
+    transaction_complete();
 }
 
-void lynxDisk::comlynx_control_send()
+void lynxDisk::comlynx_process()
 {
-    uint16_t s = comlynx_recv_length();
+    unsigned char c;
+    int32_t block;
 
-    Debug_printf("disk_control_send, S is %u\n",s);
-    if (s == 5)
-        comlynx_control_send_block_num();
-    else if (s == MEDIA_BLOCK_SIZE)
-        comlynx_control_send_block_data();
-}
+ 
+     // Get the entire payload from Lynx
+    uint16_t len = comlynx_recv_length();
+    Debug_printf("lynxDisk::comlynx_process - len: %ld, ", len);
 
-void lynxDisk::comlynx_response_status()
-{
-    if (_media == nullptr)
-        status_response[4] = 0x40 | STATUS_NO_MEDIA;
-    else
-        status_response[4] = 0x40 | _media->_media_controller_status;
-
-    virtualDevice::comlynx_response_status();
-}
-
-void lynxDisk::comlynx_response_send()
-{
-    if (_media == nullptr)
+    comlynx_recv_buffer(recvbuffer, len);
+    if (comlynx_recv_ck()) {
+        Debug_printf("checksum good\n");
+        comlynx_response_ack();        // good checksum
+    }
+    else {
+        Debug_printf(" checksum bad\n");
+        comlynx_response_nack();       // good checksum
         return;
+    }
 
-    uint8_t c = comlynx_checksum(_media->_media_blockbuff, MEDIA_BLOCK_SIZE);
-    uint8_t b[MEDIA_BLOCK_SIZE+4];
-
-    memcpy(&b[3], _media->_media_blockbuff, MEDIA_BLOCK_SIZE);
-
-    b[0] = 0xB0 | _devnum;
-    b[1] = MEDIA_BLOCK_SIZE / 256;          // block length
-    b[2] = MEDIA_BLOCK_SIZE % 256;
-    b[MEDIA_BLOCK_SIZE+3] = c;
-    comlynx_send_buffer(b, sizeof(b));
-
-    Debug_println("comlynx_send_buffer - disk block sent to Lynx");
-
-    // get ACK or NACK from lynx (but don't care, they can request again if needed)
-    recvbuffer_len = 0;         // reset recvbuffer to grab ACK/NACK from Lynx
-    c = comlynx_recv();
-    Debug_printf("comlynx_disk_send NAK/ACK: %02X\n", c);
-}
-
-void lynxDisk::comlynx_process(uint8_t b)
-{
-    unsigned char c = b >> 4;
+    // get command
+    transaction_get(&c, sizeof(c));
+    Debug_printf("lynxDisk::comlynx_process - command: %02X\n", c);
 
     switch (c)
     {
-    case MN_RESET:
-        reset();
+    case DISKCMD_READ:
+        transaction_get(&block, sizeof(block));
+        read_block(block);
         break;
-    case MN_STATUS:
-        comlynx_control_status();
-        break;
-    case MN_CLR:
-        comlynx_control_clr();
-        break;
-    case MN_RECEIVE:
-        comlynx_control_receive();
-        break;
-    case MN_SEND:
-        comlynx_control_send();
-        break;
-    case MN_READY:
-        comlynx_control_ready();
+    case DISKCMD_WRITE:
+        transaction_get(&block, sizeof(block));
+        write_block(block);
         break;
     }
-
 }
+
 
 #endif /* BUILD_LYNX */

@@ -334,6 +334,7 @@ bool fujiDevice::fujicmd_mount_host_success(unsigned hostSlot)
     transaction_continue(false);
     if (!fujicore_mount_host_success(hostSlot))
     {
+        Debug_println("fujicore_mount_host_success returned false");
         transaction_error();
         return false;
     }
