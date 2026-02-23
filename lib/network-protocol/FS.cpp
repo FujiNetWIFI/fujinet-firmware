@@ -37,34 +37,33 @@ protocolError_t NetworkProtocolFS::open(PeoplesUrlParser *url, cmdFrame_t *cmdFr
     // Call base class.
     NetworkProtocol::open(url, cmdFrame);
     fileSize = 0;
+    streamMode = (fileAccessMode_t) cmdFrame->aux1;
+    a2flags = (apple2Flag_t) cmdFrame->aux2;
 
     update_dir_filename(opened_url);
 
     if (mount(url) != PROTOCOL_ERROR::NONE)
         return PROTOCOL_ERROR::UNSPECIFIED;
 
-    if (cmdFrame->aux1 == NETPROTO_OPEN_DIRECTORY || cmdFrame->aux1 == NETPROTO_OPEN_DIRECTORY_ALT)
-    {
+    fileAccessMode_t mode = (fileAccessMode_t) cmdFrame->aux1;
+    if (mode == ACCESS_MODE::DIRECTORY || mode == ACCESS_MODE::DIRECTORY_ALT)
         return open_dir();
-    }
-    else
-    {
-        return open_file();
-    }
+
+    return open_file();
 }
 
 protocolError_t NetworkProtocolFS::open_file()
 {
     update_dir_filename(opened_url);
 
-    if (aux1_open == NETPROTO_OPEN_READ || aux1_open == NETPROTO_OPEN_WRITE)
+    if (streamMode == ACCESS_MODE::READ || streamMode == ACCESS_MODE::WRITE)
         resolve();
     else
         stat();
 
     update_dir_filename(opened_url);
 
-    openMode = FILE;
+    streamType = streamType_t::FILE;
 
     if (opened_url->path.empty())
         return PROTOCOL_ERROR::UNSPECIFIED;
@@ -74,7 +73,7 @@ protocolError_t NetworkProtocolFS::open_file()
 
 protocolError_t NetworkProtocolFS::open_dir()
 {
-    openMode = DIR;
+    streamType = streamType_t::DIR;
 #ifndef BUILD_ATARI
     this->setLineEnding("\r\n");
 #endif /* BUILD_RS232 */
@@ -108,10 +107,10 @@ protocolError_t NetworkProtocolFS::open_dir()
         if (entryBuffer.at(0) == '.' || entryBuffer.at(0) == '/')
             continue;
 
-        if (aux2_open & NETPROTO_A2_FLAG)
+        if (a2flags >= APPLE2_FLAG::IS_A2)
         {
             // Long entry
-            if (aux2_open == NETPROTO_A2_80COL) // Apple2 80 col format.
+            if (a2flags == APPLE2_FLAG::IS_80COL) // Apple2 80 col format.
                 dirBuffer += util_long_entry_apple2_80col((char *)entryBuffer.data(), fileSize, is_directory) + lineEnding;
             else
                 dirBuffer += util_long_entry((char *)entryBuffer.data(), fileSize, is_directory) + lineEnding;
@@ -150,13 +149,23 @@ void NetworkProtocolFS::update_dir_filename(PeoplesUrlParser *url)
         filename = "*";
 }
 
+void NetworkProtocolFS::set_open_params(uint8_t p1, uint8_t p2)
+{
+    streamMode = (fileAccessMode_t) p1;
+    a2flags = (apple2Flag_t) p2;
+    translation_mode = (netProtoTranslation_t) (p2 & 0x7F);
+#ifdef VERBOSE_PROTOCOL
+    Debug_printf("Changed open params to streamMode = %d, aux2_open = %d. Set translation_mode to %d\r\n", p1, p2, translation_mode);
+#endif
+}
+
 protocolError_t NetworkProtocolFS::close()
 {
     protocolError_t err;
     // call base class.
     NetworkProtocol::close();
 
-    switch (openMode)
+    switch (streamType)
     {
     case FILE:
         err = close_file();
@@ -193,12 +202,12 @@ protocolError_t NetworkProtocolFS::read(unsigned short len)
 
     is_write = false;
 
-    switch (openMode)
+    switch (streamType)
     {
-    case FILE:
+    case streamType_t::FILE:
         ret =  read_file(len);
         break;
-    case DIR:
+    case streamType_t::DIR:
         ret = read_dir(len);
         break;
     default:
@@ -272,12 +281,12 @@ protocolError_t NetworkProtocolFS::write_file(unsigned short len)
 
 protocolError_t NetworkProtocolFS::status(NetworkStatus *status)
 {
-    switch (openMode)
+    switch (streamType)
     {
-    case FILE:
+    case streamType_t::FILE:
         return status_file(status);
         break;
-    case DIR:
+    case streamType_t::DIR:
         return status_dir(status);
         break;
     default:
@@ -291,7 +300,7 @@ protocolError_t NetworkProtocolFS::status_file(NetworkStatus *status)
 {
     unsigned int remaining;
 
-    if (aux1_open == 8) {
+    if (streamMode == ACCESS_MODE::WRITE) {
         remaining = fileSize;
     }
     else {
@@ -411,7 +420,7 @@ void NetworkProtocolFS::resolve()
 #endif
 
     // Clear file size, if resolved to write and not append.
-    if (aux1_open == 8)
+    if (streamMode == ACCESS_MODE::WRITE)
         fileSize = 0;
 
 }
@@ -498,14 +507,14 @@ size_t NetworkProtocolFS::available()
     size_t avail;
 
 
-    switch (openMode)
+    switch (streamType)
     {
-    case FILE:
-        if (aux1_open == 8)
+    case streamType_t::FILE:
+        if (streamMode == ACCESS_MODE::WRITE)
             return 0;
         avail = std::min<size_t>(fileSize + receiveBuffer->length(), WAITING_CAP);
         break;
-    case DIR:
+    case streamType_t::DIR:
         avail = receiveBuffer->length();
         if (!avail)
             avail = dirBuffer.length();

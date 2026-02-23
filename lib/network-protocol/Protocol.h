@@ -24,24 +24,6 @@ enum netProtoTranslation_t {
     NETPROTO_TRANS_PETSCII  = 4,
 };
 
-enum {
-    NETPROTO_A2_FLAG  = 0x80,
-    NETPROTO_A2_80COL = 0x81,
-};
-
-enum netProtoOpenMode_t {
-    NETPROTO_OPEN_READ          = 4,
-    NETPROTO_OPEN_HTTP_DELETE   = 5,
-    NETPROTO_OPEN_DIRECTORY     = 6,
-    NETPROTO_OPEN_DIRECTORY_ALT = 7,
-    NETPROTO_OPEN_WRITE         = 8,
-    NETPROTO_OPEN_APPEND        = 9,
-    NETPROTO_OPEN_READWRITE     = 12,
-    NETPROTO_OPEN_HTTP_POST     = 13,
-    NETPROTO_OPEN_HTTP_PUT      = 14,
-    NETPROTO_OPEN_INVALID       = -1,
-};
-
 typedef enum class PROTOCOL_ERROR {
     NONE = 0,
     UNSPECIFIED = 1,
@@ -222,9 +204,10 @@ public:
     virtual void errno_to_error();
 
     /**
-     * @brief change the values passed to open for platforms that need to do it after the open (looking at you IEC)
+     * @brief change the values passed to open for platforms that need to do it after the open (looking a you IEC)
      */
-    virtual void set_open_params(uint8_t p1, uint8_t p2);
+    // FIXME - only used by FS class hierarchy, doesn't belong here
+    virtual void set_open_params(uint8_t p1, uint8_t p2) { abort(); };
 
     virtual off_t seek(off_t offset, int whence);
 
@@ -241,16 +224,6 @@ public:
     std::string *password;
 
 protected:
-
-    /**
-     * AUX1 value from open
-     */
-    unsigned char aux1_open = 0;
-
-    /**
-     * AUX2 value from open
-     */
-    unsigned char aux2_open = 0;
 
     /**
      * Perform end of line translation on receive buffer.

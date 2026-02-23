@@ -27,13 +27,15 @@ enum netProtoHTTPChannelMode_t {
     HTTP_CHANMODE_SET_POST_DATA   = 4,
 };
 
-#define OPEN_MODE_HTTP_GET      (0x04)
-#define OPEN_MODE_HTTP_PUT      (0x08)
-#define OPEN_MODE_HTTP_GET_H    (0x0C)
-#define OPEN_MODE_HTTP_POST     (0x0D)
-#define OPEN_MODE_HTTP_PUT_H    (0x0E)
-#define OPEN_MODE_HTTP_DELETE   (0x05)
-#define OPEN_MODE_HTTP_DELETE_H (0x09)
+typedef enum class HTTP_METHOD {
+    GET      = 4,
+    DELETE   = 5,
+    PUT      = 8,
+    DELETE_H = 9,
+    GET_H    = 12,
+    POST     = 13,
+    PUT_H    = 14,
+}  httpMethod_t;
 
 class NetworkProtocolHTTP : public NetworkProtocolFS
 {
@@ -177,20 +179,10 @@ protected:
     protocolError_t rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
 
 private:
-    netProtoOpenMode_t _httpStreamMode;
-
     /**
-     * The HTTP Open Mode, ultimately used in http_transaction()
+     * The HTTP method, ultimately used in http_transaction()
      */
-    typedef enum _httpOpenMode
-    {
-        GET,
-        POST,
-        PUT,
-        DELETE
-    } HTTPOpenMode;
-
-    HTTPOpenMode httpOpenMode = HTTPOpenMode::GET;
+    httpMethod_t httpMethod = HTTP_METHOD::GET;
 
     /**
      * The HTTP channel mode, used to distinguish between headers and data

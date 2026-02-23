@@ -58,11 +58,10 @@ NetworkProtocolHTTP::~NetworkProtocolHTTP()
 
 AtariSIODirection NetworkProtocolHTTP::special_inquiry(fujiCommandID_t cmd)
 {
-
     switch (cmd)
     {
     case NETCMD_UNLISTEN:
-        return (aux1_open > 8 ? SIO_DIRECTION_NONE : SIO_DIRECTION_INVALID);
+        return (streamMode > ACCESS_MODE::WRITE ? SIO_DIRECTION_NONE : SIO_DIRECTION_INVALID);
     default:
         return SIO_DIRECTION_INVALID;
     }
@@ -120,26 +119,32 @@ protocolError_t NetworkProtocolHTTP::special_set_channel_mode(cmdFrame_t *cmdFra
 protocolError_t NetworkProtocolHTTP::open_file_handle()
 {
 #ifdef VERBOSE_PROTOCOL
-    Debug_printv("NetworkProtocolHTTP::open_file_handle() aux1[%d]\r\n", aux1_open);
+    Debug_printv("NetworkProtocolHTTP::open_file_handle() aux1[%d]\r\n", (int) streamMode);
 #endif
     error = NDEV_STATUS::SUCCESS;
 
-    switch (aux1_open)
+    // Somehow streamMode got abused into dual citizenship of also
+    // representing the HTTP method. Cast it to httpMethod then
+    // normalize it.
+
+    httpMethod = (httpMethod_t) streamMode;
+
+    switch (httpMethod)
     {
-    case NETPROTO_OPEN_READ:        // GET with no headers, filename resolve
-    case NETPROTO_OPEN_READWRITE:   // GET with ability to set headers, no filename resolve.
-        httpOpenMode = GET;
+    case HTTP_METHOD::GET:      // GET with no headers, filename resolve
+    case HTTP_METHOD::GET_H:    // GET with ability to set headers, no filename resolve.
+        httpMethod = HTTP_METHOD::GET;
         break;
-    case NETPROTO_OPEN_WRITE:       // WRITE, filename resolve, ignored if not found.
-        httpOpenMode = PUT;
+    case HTTP_METHOD::PUT:      // WRITE, filename resolve, ignored if not found.
+        httpMethod = HTTP_METHOD::PUT;
         break;
-    case NETPROTO_OPEN_HTTP_DELETE: // DELETE with no headers
-    case NETPROTO_OPEN_APPEND:      // DELETE with ability to set headers
-        httpOpenMode = DELETE;
+    case HTTP_METHOD::DELETE:   // DELETE with no headers
+    case HTTP_METHOD::DELETE_H: // DELETE with ability to set headers
+        httpMethod = HTTP_METHOD::DELETE;
         break;
-    case NETPROTO_OPEN_HTTP_POST:   // POST can set headers, also no filename resolve
-    case NETPROTO_OPEN_HTTP_PUT:    // PUT with ability to set headers, no filename resolve
-        httpOpenMode = POST;
+    case HTTP_METHOD::POST:     // POST can set headers, also no filename resolve
+    case HTTP_METHOD::PUT_H:    // PUT with ability to set headers, no filename resolve
+        httpMethod = HTTP_METHOD::POST;
         break;
     default:
         error = NDEV_STATUS::NOT_IMPLEMENTED;
@@ -181,7 +186,7 @@ protocolError_t NetworkProtocolHTTP::open_dir_handle()
     // If Method not allowed, try GET.
     if (resultCode == 405 || resultCode == 408)
     {
-        httpOpenMode = GET;
+        httpMethod = HTTP_METHOD::GET;
         http_transaction();
         return PROTOCOL_ERROR::NONE;
     }
@@ -316,13 +321,13 @@ protocolError_t NetworkProtocolHTTP::mount(PeoplesUrlParser *url)
 
     // fileSize = 65535;
 
-    if (aux1_open == 6)
+    if (streamMode == ACCESS_MODE::DIRECTORY)
     {
         util_replaceAll(url->path, "*.*", "");
         url->rebuildUrl();
     }
 
-    if (aux1_open == 4 || aux1_open == 8)
+    if (streamMode == ACCESS_MODE::READ || streamMode == ACCESS_MODE::WRITE)
     {
         // We are opening a file, URL encode the path.
         std::string encoded = mstr::urlEncode(url->path);
@@ -558,7 +563,7 @@ protocolError_t NetworkProtocolHTTP::close_file_handle()
 
     if (client != nullptr)
     {
-        if (httpOpenMode == PUT || aux1_open == OPEN_MODE_HTTP_PUT_H)
+        if (httpMethod == HTTP_METHOD::PUT)
             http_transaction();
         client->close();
         fserror_to_error();
@@ -602,7 +607,7 @@ protocolError_t NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned sh
 
 protocolError_t NetworkProtocolHTTP::write_file_handle_get_header(uint8_t *buf, unsigned short len)
 {
-    if (httpOpenMode != GET)
+    if (httpMethod != HTTP_METHOD::GET)
     {
         error = NDEV_STATUS::NOT_IMPLEMENTED;
         return PROTOCOL_ERROR::UNSPECIFIED;
@@ -663,7 +668,7 @@ protocolError_t NetworkProtocolHTTP::write_file_handle_set_header(uint8_t *buf, 
 
 protocolError_t NetworkProtocolHTTP::write_file_handle_send_post_data(uint8_t *buf, unsigned short len)
 {
-    if (httpOpenMode != POST)
+    if (httpMethod != HTTP_METHOD::POST)
     {
         error = NDEV_STATUS::INVALID_COMMAND;
         return PROTOCOL_ERROR::UNSPECIFIED;
@@ -675,7 +680,7 @@ protocolError_t NetworkProtocolHTTP::write_file_handle_send_post_data(uint8_t *b
 
 protocolError_t NetworkProtocolHTTP::write_file_handle_data(uint8_t *buf, unsigned short len)
 {
-    if (httpOpenMode == PUT || aux1_open == OPEN_MODE_HTTP_PUT_H)
+    if (httpMethod == HTTP_METHOD::PUT)
     {
         postData += std::string((char *)buf, len);
         return PROTOCOL_ERROR::NONE; // come back here later.
@@ -694,7 +699,7 @@ protocolError_t NetworkProtocolHTTP::stat()
     Debug_printf("NetworkProtocolHTTP::stat(%s)\r\n", opened_url->url.c_str());
 #endif
 
-    if (aux1_open != 4) // only for READ FILE
+    if (streamMode != ACCESS_MODE::READ) // only for READ FILE
         return PROTOCOL_ERROR::NONE;   // We don't care.
 
     // Since we know client is active, we need to destroy it.
@@ -727,32 +732,32 @@ protocolError_t NetworkProtocolHTTP::stat()
 
 void NetworkProtocolHTTP::http_transaction()
 {
-    if ((aux1_open != 4) && (aux1_open != 8) && !collect_headers.empty())
+    if ((streamMode != ACCESS_MODE::READ) && (streamMode != ACCESS_MODE::WRITE) && !collect_headers.empty())
     {
         client->create_empty_stored_headers(collect_headers);
     }
 
-    switch (httpOpenMode)
+    switch (httpMethod)
     {
-    case GET:
+    case HTTP_METHOD::GET:
         resultCode = client->GET();
         break;
-    case POST:
-        if (aux1_open == OPEN_MODE_HTTP_PUT_H)
-            resultCode = client->PUT(postData.c_str(), postData.size());
-        else
-            resultCode = client->POST(postData.c_str(), postData.size());
+    case HTTP_METHOD::POST:
+        resultCode = client->POST(postData.c_str(), postData.size());
         break;
-    case PUT:
+    case HTTP_METHOD::PUT:
         resultCode = client->PUT(postData.c_str(), postData.size());
         break;
-    case DELETE:
+    case HTTP_METHOD::DELETE:
         resultCode = client->DELETE();
+        break;
+    default:
+        abort();
         break;
     }
 
     // the appropriate headers to be collected should have now been done, so let's put their values into returned_headers
-    if ((aux1_open != 4) && (aux1_open != 8) && (!collect_headers.empty()))
+    if ((streamMode != ACCESS_MODE::READ) && (streamMode != ACCESS_MODE::WRITE) && (!collect_headers.empty()))
     {
 #ifdef VERBOSE_PROTOCOL
         Debug_printf("setting returned_headers (count =%u)\r\n", client->get_header_count());
@@ -844,6 +849,7 @@ size_t NetworkProtocolHTTP::available()
             http_transaction();
         if (returned_header_cursor < collect_headers.size())
             avail = returned_headers[returned_header_cursor].size();
+        break;
     default:
         Debug_printf("ERROR: Unknown httpChannelMode: %d\r\n", httpChannelMode);
         break;
