@@ -9,6 +9,7 @@
 #include "../../include/debug.h"
 
 #include "fnSystem.h"
+#include "Protocol.h"
 
 /*
 ftpparse(&fp,buf,len) tries to parse one line of LIST output.
@@ -924,8 +925,7 @@ protocolError_t fnFTP::open_directory(string path, string pattern)
 
     data->stop();
 
-    if (tmout_counter == 0 ||
-        (got_response == false && parse_response() != PROTOCOL_ERROR::NONE))
+    if (tmout_counter == 0 || (got_response == false && parse_response() != PROTOCOL_ERROR::NONE))
     {
         Debug_printf("fnFTP::open_directory(%s%s) Timed out waiting for 226 response.\r\n", path.c_str(), pattern.c_str());
         return PROTOCOL_ERROR::UNSPECIFIED;
@@ -942,27 +942,44 @@ protocolError_t fnFTP::read_directory(string &name, long &filesize, bool &is_dir
     getline(dirBuffer, line);
 
     if (line.empty())
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return PROTOCOL_ERROR::NONE; // no more entries
 
     //Debug_printf("fnFTP::read_directory - %s\r\n",line.c_str());
     line = line.substr(0, line.size() - 1);
     ftpparse(&parse, (char *)line.c_str(), line.length());
     name = string(parse.name ? parse.name : "???");
+    
+    // Strip symlink target from name (e.g., "transfer -> crossplatform/transfer/" becomes "transfer")
+    size_t arrow_pos = name.find(" -> ");
+    if (arrow_pos != string::npos)
+    {
+        name = name.substr(0, arrow_pos);
+    }
+    
     filesize = parse.size;
     is_dir = (parse.flagtrycwd == 1);
-    Debug_printf("Name: \"%s\" size: %lu\r\n", name.c_str(), filesize);
+    //Debug_printf("Name: \"%s\" size: %lu is_dir: %d\r\n", name.c_str(), filesize, is_dir);
     return dirBuffer.eof() ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
-protocolError_t fnFTP::read_file(uint8_t *buf, unsigned short len)
+protocolError_t fnFTP::read_file(uint8_t *buf, unsigned short len, unsigned long range_begin, unsigned long range_end)
 {
-    //Debug_printf("fnFTP::read_file(%p, %u)\r\n", buf, len);
+    // Debug_printv("fnFTP::read_file(%p, %u, %lu, %lu)", buf, len, range_begin, range_end);
+    
+    // If range parameters are provided and different from current, send RANG command
+    if ((range_begin > 0 || range_end > 0) && (range_begin != _range_begin || range_end != _range_end))
+    {
+        RANG(range_begin, range_end);
+        _range_begin = range_begin;
+        _range_end = range_end;
+    }
+    
     if (!data->connected() && data->available() == 0)
     {
         Debug_printf("fnFTP::read_file(%p,%u) - data socket not connected, aborting.\r\n", buf, len);
         return PROTOCOL_ERROR::UNSPECIFIED;
     }
-    return len != data->read(buf, len) ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return (len != data->read(buf, len)) ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
 protocolError_t fnFTP::write_file(uint8_t *buf, unsigned short len)
@@ -974,7 +991,7 @@ protocolError_t fnFTP::write_file(uint8_t *buf, unsigned short len)
         return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
-    return len != data->write(buf, len) ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return (len != data->write(buf, len)) ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
 protocolError_t fnFTP::close()
@@ -1017,7 +1034,13 @@ protocolError_t fnFTP::data_connected()
         ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
+bool fnFTP::control_connected()
+{
+    return control != nullptr && control->connected();
+}
+
 /** FTP UTILITY FUNCTIONS **********************************************************************/
+
 
 protocolError_t fnFTP::parse_response()
 {
@@ -1062,6 +1085,9 @@ protocolError_t fnFTP::parse_response()
     controlResponse = string((char *)respBuf, num_read);
     _statusCode = atoi(controlResponse.substr(0, 3).c_str());
     Debug_printf("fnFTP::parse_response() - %d, \"%s\"\r\n", _statusCode, controlResponse.c_str());
+
+    if (_statusCode >= 400)
+        return PROTOCOL_ERROR::UNSPECIFIED;
 
     return PROTOCOL_ERROR::NONE; // ok
 }
@@ -1232,4 +1258,198 @@ void fnFTP::STOR(string path)
 {
     Debug_printf("fnFTP::STOR(%s)\r\n",path.c_str());
     control->write("STOR " + path + "\r\n");
+}
+
+void fnFTP::RANG(unsigned long start, unsigned long end)
+{
+    Debug_printf("fnFTP::RANG(%lu,%lu)\r\n", start, end);
+    control->write("RANG " + std::to_string(start) + "-" + std::to_string(end) + "\r\n");
+    if (parse_response() != PROTOCOL_ERROR::NONE)
+    {
+        Debug_printf("fnFTP::RANG - error response from server\r\n");
+    }
+}
+
+protocolError_t fnFTP::keep_alive()
+{
+    if (!control->connected())
+    {
+        Debug_printf("fnFTP::keep_alive() attempted while not logged in. Aborting.\r\n");
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
+
+    NOOP();
+    if (parse_response() != PROTOCOL_ERROR::NONE)
+    {
+        Debug_printf("fnFTP::keep_alive - timeout\r\n");
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
+
+    if (is_positive_completion_reply())
+    {
+        Debug_printf("fnFTP::keep_alive - successful\r\n");
+        return PROTOCOL_ERROR::NONE;
+    }
+    else
+    {
+        Debug_printf("fnFTP::keep_alive - error: %s\r\n", controlResponse.c_str());
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
+}
+
+void fnFTP::NOOP()
+{
+    Debug_printf("fnFTP::NOOP\r\n");
+    control->write("NOOP\r\n");
+}
+
+protocolError_t fnFTP::delete_file(string path)
+{
+    if (!control->connected())
+    {
+        Debug_printf("fnFTP::delete_file(%s) attempted while not logged in. Aborting.\r\n", path.c_str());
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
+
+    DELE(path);
+    if (parse_response() != PROTOCOL_ERROR::NONE)
+    {
+        Debug_printf("fnFTP::delete_file - timeout\r\n");
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
+
+    if (is_positive_completion_reply())
+    {
+        Debug_printf("fnFTP::delete_file - file deleted\r\n");
+        return PROTOCOL_ERROR::NONE;
+    }
+    else
+    {
+        Debug_printf("fnFTP::delete_file - error: %s\r\n", controlResponse.c_str());
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
+}
+
+protocolError_t fnFTP::rename_file(string pathFrom, string pathTo)
+{
+    if (!control->connected())
+    {
+        Debug_printf("fnFTP::rename_file(%s -> %s) attempted while not logged in. Aborting.\r\n", pathFrom.c_str(), pathTo.c_str());
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
+
+    RNFR(pathFrom);
+    if (parse_response() != PROTOCOL_ERROR::NONE)
+    {
+        Debug_printf("fnFTP::rename_file - timeout on RNFR\r\n");
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
+
+    if (!is_positive_intermediate_reply())
+    {
+        Debug_printf("fnFTP::rename_file - RNFR error: %s\r\n", controlResponse.c_str());
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
+
+    RNTO(pathTo);
+    if (parse_response() != PROTOCOL_ERROR::NONE)
+    {
+        Debug_printf("fnFTP::rename_file - timeout on RNTO\r\n");
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
+
+    if (is_positive_completion_reply())
+    {
+        Debug_printf("fnFTP::rename_file - file renamed\r\n");
+        return PROTOCOL_ERROR::NONE;
+    }
+    else
+    {
+        Debug_printf("fnFTP::rename_file - RNTO error: %s\r\n", controlResponse.c_str());
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
+}
+
+protocolError_t fnFTP::make_directory(string path)
+{
+    if (!control->connected())
+    {
+        Debug_printf("fnFTP::make_directory(%s) attempted while not logged in. Aborting.\r\n", path.c_str());
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
+
+    MKD(path);
+    if (parse_response() != PROTOCOL_ERROR::NONE)
+    {
+        Debug_printf("fnFTP::make_directory - timeout\r\n");
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
+
+    if (is_positive_completion_reply())
+    {
+        Debug_printf("fnFTP::make_directory - directory created\r\n");
+        return PROTOCOL_ERROR::NONE;
+    }
+    else
+    {
+        Debug_printf("fnFTP::make_directory - error: %s\r\n", controlResponse.c_str());
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
+}
+
+protocolError_t fnFTP::remove_directory(string path)
+{
+    if (!control->connected())
+    {
+        Debug_printf("fnFTP::remove_directory(%s) attempted while not logged in. Aborting.\r\n", path.c_str());
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
+
+    RMD(path);
+    if (parse_response() != PROTOCOL_ERROR::NONE)
+    {
+        Debug_printf("fnFTP::remove_directory - timeout\r\n");
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
+
+    if (is_positive_completion_reply())
+    {
+        Debug_printf("fnFTP::remove_directory - directory removed\r\n");
+        return PROTOCOL_ERROR::NONE;
+    }
+    else
+    {
+        Debug_printf("fnFTP::remove_directory - error: %s\r\n", controlResponse.c_str());
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
+}
+
+void fnFTP::DELE(string path)
+{
+    Debug_printf("fnFTP::DELE(%s)\r\n", path.c_str());
+    control->write("DELE " + path + "\r\n");
+}
+
+void fnFTP::RNFR(string pathFrom)
+{
+    Debug_printf("fnFTP::RNFR(%s)\r\n", pathFrom.c_str());
+    control->write("RNFR " + pathFrom + "\r\n");
+}
+
+void fnFTP::RNTO(string pathTo)
+{
+    Debug_printf("fnFTP::RNTO(%s)\r\n", pathTo.c_str());
+    control->write("RNTO " + pathTo + "\r\n");
+}
+
+void fnFTP::MKD(string path)
+{
+    Debug_printf("fnFTP::MKD(%s)\r\n", path.c_str());
+    control->write("MKD " + path + "\r\n");
+}
+
+void fnFTP::RMD(string path)
+{
+    Debug_printf("fnFTP::RMD(%s)\r\n", path.c_str());
+    control->write("RMD " + path + "\r\n");
 }
