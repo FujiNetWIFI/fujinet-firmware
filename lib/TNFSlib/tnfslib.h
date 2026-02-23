@@ -29,6 +29,8 @@
 
 #define TNFS_CMD_SIZE 0x30
 #define TNFS_CMD_FREE 0x31
+#define TNFS_CMD_SIZE_BYTES 0x32
+#define TNFS_CMD_FREE_BYTES 0x33
 
 // https://pubs.opengroup.org/onlinepubs/9699919799/functions/fopen.html
 #define TNFS_OPENMODE_READ 0x0001             // Open read only
@@ -154,6 +156,8 @@ struct tnfsStat
 // Returns a uint32 value from a pointer to four bytes in little-ending order
 #define TNFS_UINT32_FROM_LOHI_BYTEPTR(bytep) ((uint32_t)(*(bytep + 3)) << 24 | (uint32_t)(*(bytep + 2)) << 16 | (uint32_t)(*(bytep + 1)) << 8 | (*(bytep + 0)))
 
+#define TNFS_UINT64_FROM_LOHI_BYTEPTR(bytep) ((uint64_t)(*(bytep + 7)) << 56 | (uint64_t)(*(bytep + 6)) << 48 | (uint64_t)(*(bytep + 5)) << 40 | (uint64_t)(*(bytep + 4)) << 32 | (uint64_t)(*(bytep + 3)) << 24 | (uint64_t)(*(bytep + 2)) << 16 | (uint64_t)(*(bytep + 1)) << 8 | (*(bytep + 0)))
+
 // Takes UINT32 value and pushes it into 4 consecutive bytes in little-endian order
 #define TNFS_UINT32_TO_LOHI_BYTEPTR(value, bytep) \
     {                                             \
@@ -188,6 +192,8 @@ int tnfs_mkdir(tnfsMountInfo *m_info, const char *directory);
 
 int tnfs_size(tnfsMountInfo *m_info, uint32_t *size);
 int tnfs_free(tnfsMountInfo *m_info, uint32_t *size);
+int tnfs_size_bytes(tnfsMountInfo *m_info, uint64_t *size);
+int tnfs_free_bytes(tnfsMountInfo *m_info, uint64_t *size);
 
 int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, uint16_t create_perms, int16_t *file_handle);
 int tnfs_read(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen);

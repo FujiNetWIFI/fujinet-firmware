@@ -729,8 +729,10 @@ int tnfs_opendirx(tnfsMountInfo *m_info, const char *directory, uint8_t sortopts
     int pathlen = _tnfs_adjust_with_full_path(m_info,
         (char *)(packet.payload + pathoffset), directory, sizeof(packet.payload) - pathoffset);
 
+#ifdef VERBOSE_TNFS
     Debug_printf("TNFS open directory: sortopts=0x%02x diropts=0x%02x maxresults=0x%04x pattern=\"%s\" path=\"%s\"\r\n",
-     sortopts, diropts, maxresults, (char *)(packet.payload + OFFSET_OPENDIRX_PATTERN), (char *)(packet.payload + pathoffset));
+      sortopts, diropts, maxresults, (char *)(packet.payload + OFFSET_OPENDIRX_PATTERN), (char *)(packet.payload + pathoffset));
+#endif
 
     if (_tnfs_transaction(m_info, packet, pathoffset + pathlen + 1))
     {
@@ -755,7 +757,7 @@ void _readdirx_fill_response(tnfsDirCacheEntry *pCached, tnfsStat *filestat, cha
 
     strlcpy(dir_entry, pCached->entryname, dir_entry_len);
 
-#ifdef DEBUG
+#ifdef VERBOSE_TNFS
     {
         char t_m[80];
         char t_c[80];
@@ -787,7 +789,9 @@ int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, in
     tnfsDirCacheEntry *pCached = m_info->next_dircache_entry();
     if(pCached != nullptr)
     {
+#ifdef VERBOSE_TNFS
         Debug_print("tnfs_readdirx responding from cached entry\r\n");
+#endif
         _readdirx_fill_response(pCached, filestat, dir_entry, dir_entry_len);
         return 0;
     }
@@ -795,7 +799,9 @@ int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, in
     // If the cache was empty and the EOF flag was set, just respond with an EOF error
     if(m_info->get_dircache_eof() == true)
     {
+#ifdef VERBOSE_TNFS
         Debug_print("tnfs_readdirx returning EOF based on cached value\r\n");
+#endif
         return TNFS_RESULT_END_OF_FILE;
     }
 
@@ -826,7 +832,9 @@ int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, in
             if(response_status & TNFS_READDIRX_STATUS_EOF)
                 m_info->set_dircache_eof();
 
+#ifdef VERBOSE_TNFS
             Debug_printf("tnfs_readdirx resp_count=%hu, dirpos=%hu, status=%hu\r\n", response_count, dirpos, response_status);
+#endif
 
             // Fill our directory cache using the returned values
             int current_offset = 5;
@@ -862,7 +870,9 @@ int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, in
             }
 
             int loaded = m_info->count_dircache();
+#ifdef VERBOSE_TNFS
             Debug_printf("tnfs_readdirx cached %d entries\r\n", loaded);
+#endif
             // Now that we've cached our entries, return the first one
             if(loaded > 0)
                 _readdirx_fill_response(m_info->next_dircache_entry(), filestat, dir_entry, dir_entry_len);
@@ -1017,7 +1027,7 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
 
     int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload, filepath, sizeof(packet.payload));
 
-    // Debug_printf("TNFS stat: \"%s\"\r\n", (char *)packet.payload);
+    //Debug_printf("TNFS stat: \"%s\"\r\n", (char *)packet.payload);
 
 #define OFFSET_STAT_FILEMODE 1
 #define OFFSET_STAT_UID 3
@@ -1045,11 +1055,10 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
             filestat->m_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_MTIME);
             filestat->c_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_CTIME);
 
-            /*
-            Debug_printf("\ttnfs_stat: mode: %ho, uid: %hu, gid: %hu, dir: %d, size: %u, atime: 0x%04x, mtime: 0x%04x, ctime: 0x%04x\r\n",
-                filemode, uid, gid,
-                filestat->isDir ? 1 : 0, filestat->filesize, filestat->a_time, filestat->m_time, filestat->c_time );
-            */
+            // Debug_printf("\ttnfs_stat: mode: %ho, uid: %hu, gid: %hu, dir: %d, size: %u, atime: 0x%04x, mtime: 0x%04x, ctime: 0x%04x\r\n",
+            //     filestat->mode, uid, gid,
+            //     filestat->isDir ? 1 : 0, filestat->filesize, filestat->a_time, filestat->m_time, filestat->c_time );
+
         }
         __END_IGNORE_UNUSEDVARS
         return packet.payload[0];
@@ -1143,8 +1152,8 @@ int tnfs_size(tnfsMountInfo *m_info, uint32_t *size)
         return -1;
 
     tnfsPacket packet;
-    packet.command = TNFS_CMD_SIZE;
 
+    packet.command = TNFS_CMD_SIZE;
     if (_tnfs_transaction(m_info, packet, 0))
     {
         if (packet.payload[0] == 0)
@@ -1153,6 +1162,27 @@ int tnfs_size(tnfsMountInfo *m_info, uint32_t *size)
         }
         return packet.payload[0];
     }
+
+    return -1;
+}
+
+int tnfs_size_bytes(tnfsMountInfo *m_info, uint64_t *size)
+{
+    if (m_info == nullptr || size == nullptr)
+        return -1;
+
+    tnfsPacket packet;
+
+    packet.command = TNFS_CMD_SIZE_BYTES;
+    if (_tnfs_transaction(m_info, packet, 0))
+    {
+        if (packet.payload[0] == 0)
+        {
+            *size = TNFS_UINT64_FROM_LOHI_BYTEPTR(packet.payload + 1);
+        }
+        return packet.payload[0];
+    }
+
     return -1;
 }
 
@@ -1167,8 +1197,8 @@ int tnfs_free(tnfsMountInfo *m_info, uint32_t *size)
         return -1;
 
     tnfsPacket packet;
-    packet.command = TNFS_CMD_FREE;
 
+    packet.command = TNFS_CMD_FREE;
     if (_tnfs_transaction(m_info, packet, 0))
     {
         if (packet.payload[0] == 0)
@@ -1177,6 +1207,27 @@ int tnfs_free(tnfsMountInfo *m_info, uint32_t *size)
         }
         return packet.payload[0];
     }
+
+    return -1;
+}
+
+int tnfs_free_bytes(tnfsMountInfo *m_info, uint64_t *size)
+{
+    if (m_info == nullptr || size == nullptr)
+        return -1;
+
+    tnfsPacket packet;
+
+    packet.command = TNFS_CMD_FREE_BYTES;
+    if (_tnfs_transaction(m_info, packet, 0))
+    {
+        if (packet.payload[0] == 0)
+        {
+            *size = TNFS_UINT64_FROM_LOHI_BYTEPTR(packet.payload + 1);
+        }
+        return packet.payload[0];
+    }
+
     return -1;
 }
 
@@ -1286,7 +1337,10 @@ bool _tnfs_tcp_send(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_siz
         if (m_info->host_ip != IPADDR_NONE)
             success = tcp->connect(m_info->host_ip, m_info->port, TNFS_TIMEOUT);
         else
+        {
             success = tcp->connect(m_info->hostname, m_info->port, TNFS_TIMEOUT);
+            m_info->host_ip = tcp->remoteIP();
+        }
         if (!success)
         {
             Debug_println("Can't connect to the TCP server");
@@ -1311,7 +1365,10 @@ bool _tnfs_udp_do_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint1
     if (m_info->host_ip != IPADDR_NONE)
         sent = udp->beginPacket(m_info->host_ip, m_info->port);
     else
+    {
         sent = udp->beginPacket(m_info->hostname, m_info->port);
+        m_info->host_ip = udp->remoteIP();
+    }
 
     if (sent)
     {
@@ -1598,6 +1655,15 @@ int _tnfs_adjust_with_full_path(tnfsMountInfo *m_info, char *buffer, const char 
 
     // Use the cwd to bulid the full path
     strlcpy(buffer, m_info->current_working_directory, bufflen);
+
+    // Figure out whether or not we need to add a slash
+    if (source[0] == '/') {
+        // Ensure it fits in the buffer
+        if ((int)strlen(source) >= bufflen)
+            return -1;
+        strlcpy(buffer, source, bufflen);
+        return strlen(buffer);
+    }
 
     // Figure out whether or not we need to add a slash
     int ll;
