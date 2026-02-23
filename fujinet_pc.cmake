@@ -139,7 +139,8 @@ set(INCLUDE_DIRS include
     components_pc/miniaudio
     components_pc/cJSON
     components_pc/libsmb2/include
-    components_pc/libssh/include ${CMAKE_CURRENT_BINARY_DIR}/components_pc/libssh/include
+    components_pc/libssh/include 
+    components_pc/libnfs/include
 )
 
 set(SOURCES src/main.cpp
@@ -181,12 +182,14 @@ set(SOURCES src/main.cpp
     lib/FileSystem/fnFsSD.h lib/FileSystem/fnFsSD.cpp
     lib/FileSystem/fnFsTNFS.h lib/FileSystem/fnFsTNFS.cpp
     lib/FileSystem/fnFsSMB.h lib/FileSystem/fnFsSMB.cpp
+    lib/FileSystem/fnFsNFS.h lib/FileSystem/fnFsNFS.cpp
     lib/FileSystem/fnFsFTP.h lib/FileSystem/fnFsFTP.cpp
     lib/FileSystem/fnFsHTTP.h lib/FileSystem/fnFsHTTP.cpp
     lib/FileSystem/fnFile.h lib/FileSystem/fnFile.cpp
     lib/FileSystem/fnFileLocal.h lib/FileSystem/fnFileLocal.cpp
     lib/FileSystem/fnFileTNFS.h lib/FileSystem/fnFileTNFS.cpp
     lib/FileSystem/fnFileSMB.h lib/FileSystem/fnFileSMB.cpp
+    lib/FileSystem/fnFileNFS.h lib/FileSystem/fnFileNFS.cpp
     lib/FileSystem/fnFileMem.h lib/FileSystem/fnFileMem.cpp
     lib/FileSystem/fnio.h lib/FileSystem/fnio.cpp
     lib/tcpip/fnDNS.h lib/tcpip/fnDNS.cpp
@@ -241,6 +244,7 @@ set(SOURCES src/main.cpp
     lib/network-protocol/TNFS.h lib/network-protocol/TNFS.cpp
     lib/network-protocol/HTTP.h lib/network-protocol/HTTP.cpp
     lib/network-protocol/SMB.h lib/network-protocol/SMB.cpp
+    lib/network-protocol/NFS.h lib/network-protocol/NFS.cpp
     lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp
     lib/network-protocol/SD.h lib/network-protocol/SD.cpp
     lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
@@ -497,7 +501,11 @@ add_subdirectory(components_pc/libsmb2)
 # - Regular elease
 add_subdirectory(components_pc/libssh)
 
-target_link_libraries(fujinet pthread expat cjson cjson_utils smb2 ssh)
+# libnfs
+# https://github.com/sahlberg/libnfs
+add_subdirectory(components_pc/libnfs)
+
+target_link_libraries(fujinet pthread expat cjson cjson_utils smb2 ssh nfs)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     target_link_libraries(fujinet ws2_32 bcrypt)

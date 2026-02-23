@@ -7,6 +7,7 @@
 #include "NFS.h"
 
 #include <fcntl.h>
+#include <sys/stat.h>
 
 #include <cstring>
 
