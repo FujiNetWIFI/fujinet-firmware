@@ -3,6 +3,8 @@
 
 #include "../../include/pinmap.h"
 
+#include "fnSystem.h"
+
 enum eLed
 {
     LED_WIFI = 0,
@@ -22,7 +24,7 @@ public:
 
 private:
     bool mLedState[eLed::LED_COUNT] = { 0 };
-    int mLedPin[eLed::LED_COUNT];
+    gpio_num_t mLedPin[eLed::LED_COUNT];
 };
 
 extern LedManager fnLedManager;

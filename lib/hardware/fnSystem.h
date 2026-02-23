@@ -104,11 +104,11 @@ public:
 #define DIGI_HIGH 0x01
 
 #ifdef ESP_PLATFORM
-    void set_pin_mode(uint8_t pin, gpio_mode_t mode, pull_updown_t pull_mode = PULL_NONE, gpio_int_type_t intr_type = GPIO_INTR_DISABLE);
+    void set_pin_mode(gpio_num_t pin, gpio_mode_t mode, pull_updown_t pull_mode = PULL_NONE, gpio_int_type_t intr_type = GPIO_INTR_DISABLE);
 #endif
 
-    int digital_read(uint8_t pin);
-    void digital_write(uint8_t pin, uint8_t val);
+    int digital_read(gpio_num_t pin);
+    void digital_write(gpio_num_t pin, uint8_t val);
 
 #ifdef ESP_PLATFORM
     void reboot();

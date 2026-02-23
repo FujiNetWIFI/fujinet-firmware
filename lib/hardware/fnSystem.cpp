@@ -14,6 +14,7 @@
 //# include <driver/dac.h>
 #endif
 #include <esp_idf_version.h>
+#include <esp_app_desc.h>
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
 #include <esp_chip_info.h>
 #include <hal/gpio_ll.h>
@@ -60,6 +61,7 @@
 #include "fnFsSD.h"
 #include "fnWiFi.h"
 #include "fnLedStrip.h"
+#include "NetworkProtocolFactory.h"
 
 #ifdef BUILD_APPLE
 #define BUS_CLASS IWM
@@ -143,14 +145,19 @@ static void card_detect_intr_task(void *arg)
 
 static void setup_card_detect(gpio_num_t pin)
 {
+    if (PIN_CARD_DETECT != GPIO_NUM_NC) {
     // Create a queue to handle card detect event from ISR
-    card_detect_evt_queue = xQueueCreate(10, sizeof(gpio_num_t));
+        card_detect_evt_queue = xQueueCreate(10, sizeof(gpio_num_t));
     // Start card detect task
-    xTaskCreate(card_detect_intr_task, "card_detect_intr_task", 2048, (void *)pin, 10, NULL);
+        xTaskCreate(card_detect_intr_task, "card_detect_intr_task", 2048, (void *)pin, 10, NULL);
     // Enable interrupt for card detection
-    fnSystem.set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_ANYEDGE);
+        fnSystem.set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_ANYEDGE);
     // Add the card detect handler
-    gpio_isr_handler_add(pin, card_detect_isr_handler, (void *)pin);
+        gpio_isr_handler_add(pin, card_detect_isr_handler, (void *)pin);
+    } else
+    {
+        Debug_println("SD Card detect pin is N/C, so not seting up an ISR to check it.\r\n");
+    }
 }
 // ESP_PLATFORM
 #else
@@ -196,8 +203,11 @@ uint32_t SystemManager::get_cpu_frequency()
 
 #ifdef ESP_PLATFORM
 // Set pin mode
-void SystemManager::set_pin_mode(uint8_t pin, gpio_mode_t mode, pull_updown_t pull_mode, gpio_int_type_t intr_type)
+void SystemManager::set_pin_mode(gpio_num_t pin, gpio_mode_t mode, pull_updown_t pull_mode, gpio_int_type_t intr_type)
 {
+    if (pin == GPIO_NUM_NC)
+        return;
+
     gpio_config_t io_conf;
 
     // Set interrupt (disabled unless specified)
@@ -227,8 +237,11 @@ void SystemManager::set_pin_mode(uint8_t pin, gpio_mode_t mode, pull_updown_t pu
 
 // from esp32-hal-misc.
 // Set DIGI_LOW or DIGI_HIGH
-void IRAM_ATTR SystemManager::digital_write(uint8_t pin, uint8_t val)
+void IRAM_ATTR SystemManager::digital_write(gpio_num_t pin, uint8_t val)
 {
+    if (pin == GPIO_NUM_NC)
+        return;
+
 #ifdef ESP_PLATFORM
     if (val)
     {
@@ -259,7 +272,7 @@ void IRAM_ATTR SystemManager::digital_write(uint8_t pin, uint8_t val)
 
 // from esp32-hal-misc.
 // Returns DIGI_LOW or DIGI_HIGH
-int IRAM_ATTR SystemManager::digital_read(uint8_t pin)
+int IRAM_ATTR SystemManager::digital_read(gpio_num_t pin)
 {
 #ifdef ESP_PLATFORM
     if (pin < 32)
@@ -598,6 +611,8 @@ const char *SystemManager::get_target_platform_str()
 const char *SystemManager::get_fujinet_version(bool shortVersionOnly)
 {
 #ifdef ESP_PLATFORM
+    const esp_app_desc_t *app_info = esp_app_get_description();
+    Debug_printv("version[%s] date[%s]", app_info->version, app_info->date);
     if (shortVersionOnly)
         return FN_VERSION_FULL;
     else
@@ -798,7 +813,7 @@ FILE *SystemManager::make_tempfile(char *result_filename)
 // Copy file from source filesystem/filename to destination filesystem/name using optional buffer_hint for buffer size
 size_t SystemManager::copy_file(FileSystem *source_fs, const char *source_filename, FileSystem *dest_fs, const char *dest_filename, size_t buffer_hint)
 {
-    Debug_printf("copy_file \"%s\" -> \"%s\"\r\n", source_filename, dest_filename);
+    Debug_printf("copy_file \"%s%s\" -> \"%s%s\"\r\n", source_fs->basepath(), source_filename, dest_fs->basepath(), dest_filename);
 
     FILE *fin = source_fs->file_open(source_filename);
     if (fin == nullptr)
@@ -842,7 +857,7 @@ size_t SystemManager::copy_file(FileSystem *source_fs, const char *source_filena
 
 // From esp32-hal-dac.c
 /*
-void IRAM_ATTR SystemManager::dac_write(uint8_t pin, uint8_t value)
+void IRAM_ATTR SystemManager::dac_write(gpio_num_t pin, uint8_t value)
 {
     if(pin != DAC_CHANNEL_1_GPIO_NUM && pin != DAC_CHANNEL_2_GPIO_NUM)
         return; // Not a DAC pin
@@ -1093,13 +1108,13 @@ void SystemManager::check_hardware_ver()
     {
         // v1.6.1 fixed/changed card detect pin
         _hardware_version = 4;
-        setup_card_detect((gpio_num_t)PIN_CARD_DETECT_FIX);
+        setup_card_detect(PIN_CARD_DETECT_FIX);
     }
     else if (upcheck == downcheck)
     {
         // v1.6
         _hardware_version = 3;
-        setup_card_detect((gpio_num_t)PIN_CARD_DETECT);
+        setup_card_detect(PIN_CARD_DETECT);
     }
     else if (fnSystem.digital_read(PIN_BUTTON_C) == DIGI_HIGH)
     {
@@ -1119,7 +1134,7 @@ void SystemManager::check_hardware_ver()
     */  
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
-    setup_card_detect((gpio_num_t)PIN_CARD_DETECT);
+    setup_card_detect(PIN_CARD_DETECT);
 #elif defined(BUILD_APPLE)
     /*  Apple II
         Check all the madness :zany_face:
@@ -1247,14 +1262,14 @@ void SystemManager::check_hardware_ver()
     a2no3state = true;
     Debug_printf("FujiApple NO3STATE force enabled\r\n");
 #   endif
-    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
+    setup_card_detect(PIN_CARD_DETECT); // enable SD card detect
 #elif defined(BUILD_MAC)
 /*  Mac 68k
     Only Rev0
 */
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
-    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
+    setup_card_detect(PIN_CARD_DETECT); // enable SD card detect
 #elif defined(BUILD_IEC)
     /*  Commodore
     */
@@ -1271,7 +1286,7 @@ void SystemManager::check_hardware_ver()
     /* No Safe Reset */
     _hardware_version = 3;
 #   endif
-    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
+    setup_card_detect(PIN_CARD_DETECT); // enable SD card detect
 #elif defined(BUILD_LYNX)
     /* Atari Lynx
     */
@@ -1281,18 +1296,18 @@ void SystemManager::check_hardware_ver()
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
 #   endif
-    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
+    setup_card_detect(PIN_CARD_DETECT); // enable SD card detect
 #elif defined(BUILD_RS232)
     /* RS232
     */
 #if CONFIG_IDF_TARGET_ESP32S3
     _hardware_version = 2;
     safe_reset_gpio = PIN_BUTTON_C;
-    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
+    setup_card_detect(PIN_CARD_DETECT); // enable SD card detect
 #else
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
-    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
+    setup_card_detect(PIN_CARD_DETECT); // enable SD card detect
 #endif
 #elif defined(BUILD_RC2014)
     /* RC2014
@@ -1304,7 +1319,7 @@ void SystemManager::check_hardware_ver()
     */
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
-    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
+    setup_card_detect(PIN_CARD_DETECT); // enable SD card detect
 #endif /* BUILD_COCO */
 
 #else

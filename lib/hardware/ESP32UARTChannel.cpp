@@ -168,14 +168,14 @@ size_t ESP32UARTChannel::dataOut(const void *buffer, size_t size)
     return uart_write_bytes(_uart_num, (const char *)buffer, size);
 }
 
-bool ESP32UARTChannel::getPin(int pin)
+bool ESP32UARTChannel::getPin(gpio_num_t pin)
 {
     if (pin < 0)
         return 0;
     return fnSystem.digital_read(pin) == DIGI_LOW;
 }
 
-void ESP32UARTChannel::setPin(int pin, bool state)
+void ESP32UARTChannel::setPin(gpio_num_t pin, bool state)
 {
     if (pin >= 0)
         fnSystem.digital_write(pin, !state);

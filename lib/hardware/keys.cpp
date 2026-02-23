@@ -1,10 +1,6 @@
 
 #include "keys.h"
 
-#if CONFIG_IDF_TARGET_ESP32S3 != y
-#include <esp32/himem.h>
-#endif
-
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
 
@@ -12,14 +8,13 @@
 #include "fnConfig.h"
 #include "fnWiFi.h"
 #include "fnBluetooth.h"
-#include "fujiDevice.h"
 
 #include "led.h"
 
 // Global KeyManager object
 KeyManager fnKeyManager;
 
-static int mButtonPin[eKey::KEY_COUNT] = {PIN_BUTTON_A, PIN_BUTTON_B, PIN_BUTTON_C};
+static gpio_num_t mButtonPin[eKey::KEY_COUNT] = {PIN_BUTTON_A, PIN_BUTTON_B, PIN_BUTTON_C};
 
 void KeyManager::setup()
 {
@@ -98,7 +93,8 @@ void KeyManager::setup()
     // Start a new task to check the status of the buttons
     #define KEYS_STACKSIZE 4096
     #define KEYS_PRIORITY 1
-    xTaskCreate(_keystate_task, "fnKeys", KEYS_STACKSIZE, this, KEYS_PRIORITY, nullptr);
+    //xTaskCreate(_keystate_task, "fnKeys", KEYS_STACKSIZE, this, KEYS_PRIORITY, nullptr);
+    xTaskCreatePinnedToCore(_keystate_task, "fnKeys", KEYS_STACKSIZE, this, KEYS_PRIORITY, nullptr, 0);
 }
 
 

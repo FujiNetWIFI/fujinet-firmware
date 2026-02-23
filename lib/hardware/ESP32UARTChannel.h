@@ -19,7 +19,7 @@
 
 struct RS232ControlPins
 {
-    int rx, tx, rts, cts, dtr, dsr, dcd, ri;
+    gpio_num_t rx, tx, rts, cts, dtr, dsr, dcd, ri;
 };
 
 struct ChannelConfig
@@ -46,32 +46,32 @@ struct ChannelConfig
 #ifdef PIN_RS232_RTS
         .rts = PIN_RS232_RTS,
 #else /* ! PIN_RS232_RTS */
-        .rts = -1,
+        .rts = GPIO_NUM_NC,
 #endif /* PIN_RS232_RTS */
 #ifdef PIN_RS232_CTS
         .cts = PIN_RS232_CTS,
 #else /* ! PIN_RS232_CTS */
-        .cts = -1,
+        .cts = GPIO_NUM_NC,
 #endif /* PIN_RS232_CTS */
 #ifdef PIN_RS232_DTR
         .dtr = PIN_RS232_DTR,
 #else /* ! PIN_RS232_DTR */
-        .dtr = -1,
+        .dtr = GPIO_NUM_NC,
 #endif /* PIN_RS232_DTR */
 #ifdef PIN_RS232_DSR
         .dsr = PIN_RS232_DSR,
 #else /* ! PIN_RS232_DSR */
-        .dsr = -1,
+        .dsr = GPIO_NUM_NC,
 #endif /* PIN_RS232_DSR */
 #ifdef PIN_RS232_DCD
         .dcd = PIN_RS232_DCD,
 #else /* ! PIN_RS232_DCD */
-        .dcd = -1,
+        .dcd = GPIO_NUM_NC,
 #endif /* PIN_RS232_DCD */
 #ifdef PIN_RS232_RI
         .ri = PIN_RS232_RI,
 #else /* ! PIN_RS232_RI */
-        .ri = -1,
+        .ri = GPIO_NUM_NC,
 #endif /* PIN_RS232_RI */
     };
 
@@ -105,22 +105,22 @@ struct ChannelConfig
     ChannelConfig& rxThreshold(unsigned limit) {
         rx_threshold = limit; return *this;
     }
-    ChannelConfig& rtsPin(int num) {
+    ChannelConfig& rtsPin(gpio_num_t num) {
         pins.rts = num; return *this;
     }
-    ChannelConfig& ctsPin(int num) {
+    ChannelConfig& ctsPin(gpio_num_t num) {
         pins.cts = num; return *this;
     }
-    ChannelConfig& dtrPin(int num) {
+    ChannelConfig& dtrPin(gpio_num_t num) {
         pins.dtr = num; return *this;
     }
-    ChannelConfig& dsrPin(int num) {
+    ChannelConfig& dsrPin(gpio_num_t num) {
         pins.dsr = num; return *this;
     }
-    ChannelConfig& dcdPin(int num) {
+    ChannelConfig& dcdPin(gpio_num_t num) {
         pins.dcd = num; return *this;
     }
-    ChannelConfig& ri(int num) {
+    ChannelConfig& ri(gpio_num_t num) {
         pins.ri = num; return *this;
     }
 };
@@ -133,8 +133,8 @@ private:
     RS232ControlPins controlPins;
 
 protected:
-    bool getPin(int pin);
-    void setPin(int pin, bool state);
+    bool getPin(gpio_num_t pin);
+    void setPin(gpio_num_t pin, bool state);
 
     void updateFIFO() override;
     size_t dataOut(const void *buffer, size_t length) override;
