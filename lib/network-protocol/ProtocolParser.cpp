@@ -11,6 +11,7 @@
 #include "HTTP.h"
 #include "SSH.h"
 #include "SMB.h"
+#include "NFS.h"
 #include "SD.h"
 
 #include "../utils/string_utils.h"
@@ -54,6 +55,9 @@ NetworkProtocol* ProtocolParser::createProtocol(std::string scheme, std::string 
             break;
         case "SMB"_sh:
             protocol = new NetworkProtocolSMB(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "NFS"_sh:
+            protocol = new NetworkProtocolNFS(receiveBuffer, transmitBuffer, specialBuffer);
             break;
         case "SD"_sh:
             protocol = new NetworkProtocolSD(receiveBuffer, transmitBuffer, specialBuffer);

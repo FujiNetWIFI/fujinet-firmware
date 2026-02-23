@@ -12,6 +12,7 @@ enum fujiHostType
     HOSTTYPE_LOCAL,
     HOSTTYPE_TNFS,
     HOSTTYPE_SMB,
+    HOSTTYPE_NFS,
     HOSTTYPE_FTP,
     HOSTTYPE_HTTP,
 };
@@ -31,6 +32,7 @@ private:
     int mount_local();
     int mount_tnfs();
     int mount_smb();
+    int mount_nfs();
     int mount_ftp();
     int mount_http();
 
