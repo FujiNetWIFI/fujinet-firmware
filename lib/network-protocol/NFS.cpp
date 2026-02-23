@@ -63,7 +63,7 @@ protocolError_t NetworkProtocolNFS::open_file_handle()
         flags = O_RDWR;
         break;
     default:
-        Debug_printf("NetworkProtocolNFS::open_file_handle() - Uncaught aux1 %d", streamMode);
+        Debug_printf("NetworkProtocolNFS::open_file_handle() - Uncaught aux1 %d", (int) streamMode);
     }
 
     if (nfs_open(nfs, nfs_url->path, flags, &fh) != 0)
