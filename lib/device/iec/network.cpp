@@ -121,7 +121,7 @@ void iecNetwork::iec_open()
 
     Debug_printv("Protocol %s opened.", channel_data.urlParser->scheme.c_str());
 
-    if (channel_data.protocol->open(channel_data.urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE) {
+    if (channel_data.protocol->open(channel_data.urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != PROTOCOL_ERROR::NONE) {
         Debug_printv("Protocol unable to make connection.");
         channel_data.protocol.reset(); // Clean up the protocol
 
@@ -482,218 +482,6 @@ void iecNetwork::iec_command()
         fsop(NETCMD_MKDIR);
     else if (pt[0] == "rmdir")
         fsop(NETCMD_RMDIR);
-    else // Protocol command processing here.
-    {
-        if (pt.size() > 1)
-        {
-            uint8_t channel = atoi(pt[1].c_str());
-
-            // This assumption is safe, because no special commands should ever
-            // be done on channel 0 (or 1 for that matter.) -tschak
-            if (!channel)
-                return;
-
-            auto& channel_data = network_data_map[channel];
-
-            if (!channel_data.protocol)
-            {
-                Debug_printv("ERROR: trying to perform command on channel without a protocol. channel = %d, payload = >%s<", channel, payload.c_str());
-                return;
-            }
-
-            AtariSIODirection m = channel_data.protocol->special_inquiry((fujiCommandID_t) pt[0][0]);
-            Debug_printv("pt[0][0]=[%2X] pt[1]=[%d] size[%d] m[%d]", pt[0][0], channel, pt.size(), m);
-            if (m == SIO_DIRECTION_NONE)
-                perform_special_00();
-            else if (m == SIO_DIRECTION_READ)
-                perform_special_40();
-            else if (m == SIO_DIRECTION_WRITE)
-                perform_special_80();
-        }
-    }
-}
-
-void iecNetwork::perform_special_00()
-{
-    int channel = 0;
-
-    if (pt.size() > 0)
-        cmdFrame.comnd = (fujiCommandID_t) pt[0][0];
-
-    if (pt.size() > 1)
-        channel = atoi(pt[1].c_str());
-
-    if (pt.size() > 2)
-        cmdFrame.aux1 = atoi(pt[2].c_str());
-
-    if (pt.size() > 3)
-        cmdFrame.aux2 = atoi(pt[3].c_str());
-
-    auto& channel_data = network_data_map[channel];
-
-    if (channel_data.protocol->special_00(&cmdFrame) != PROTOCOL_ERROR::NONE)
-    {
-        NetworkStatus ns;
-        char reply[80];
-        string s;
-
-        channel_data.protocol->status(&ns);
-        snprintf(reply, 80, "protocol error #%u", (uint8_t) ns.error);
-        iecStatus.error = ns.error;
-        iecStatus.channel = commanddata.channel; // shouldn't this be "channel"
-        iecStatus.connected = ns.connected;
-        s = string(reply);
-        iecStatus.msg = s; // mstr::toPETSCII2(s);
-    }
-}
-
-void iecNetwork::perform_special_40()
-{
-    char sp_buf[256];
-    int channel = 0;
-    NetworkStatus ns;
-
-    if (pt.size() < 2)
-    {
-        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
-        iecStatus.channel = 15;
-        iecStatus.connected = 0;
-        iecStatus.msg = "no channel #";
-        return;
-    }
-
-    channel = atoi(pt[1].c_str());
-    auto& channel_data = network_data_map[channel];
-
-    cmdFrame.comnd = (fujiCommandID_t) pt[0][0];
-
-    if (pt.size() < 3)
-    {
-        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
-        iecStatus.channel = channel;
-        iecStatus.connected = 0;
-        iecStatus.msg = "no aux1";
-    }
-
-    cmdFrame.aux1 = atoi(pt[2].c_str());
-
-    if (pt.size() < 4)
-    {
-        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
-        iecStatus.channel = channel;
-        iecStatus.connected = 0;
-        iecStatus.msg = "no aux2";
-    }
-
-    cmdFrame.aux2 = atoi(pt[3].c_str());
-
-    if (!channel_data.protocol)
-    {
-        iecStatus.error = NDEV_STATUS::NOT_CONNECTED;
-        iecStatus.channel = 15;
-        iecStatus.connected = 0;
-        iecStatus.msg = "no active protocol";
-        return;
-    }
-
-    if (channel_data.protocol->special_40((uint8_t *)&sp_buf, sizeof(sp_buf), &cmdFrame) != PROTOCOL_ERROR::NONE)
-    {
-        channel_data.protocol->status(&ns);
-        iecStatus.error = ns.error;
-        iecStatus.connected = ns.connected;
-        iecStatus.channel = channel;
-        iecStatus.msg = "protocol read error";
-        return;
-    }
-    else
-    {
-        channel_data.protocol->status(&ns);
-        iecStatus.error = ns.error;
-        iecStatus.channel = channel;
-        iecStatus.connected = ns.connected;
-        iecStatus.msg = string(sp_buf);
-    }
-}
-
-void iecNetwork::perform_special_80()
-{
-    string sp_buf = "N:";
-    int channel = 0;
-    NetworkStatus ns;
-
-    Debug_printf("perform_special_80()\r\n");
-
-    if (pt.size() < 2)
-    {
-        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
-        iecStatus.channel = 15;
-        iecStatus.connected = 0;
-        iecStatus.msg = "no channel #";
-        return;
-    }
-
-    channel = atoi(pt[1].c_str());
-    auto& channel_data = network_data_map[channel];
-
-    if (pt.size() < 3)
-    {
-        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
-        iecStatus.channel = 15;
-        iecStatus.connected = 0;
-        iecStatus.msg = "no aux1";
-        return;
-    }
-
-    cmdFrame.aux1 = atoi(pt[2].c_str());
-
-    if (pt.size() < 4)
-    {
-        iecStatus.error = NDEV_STATUS::INVALID_DEVICESPEC;
-        iecStatus.channel = 15;
-        iecStatus.connected = 0;
-        iecStatus.msg = "no aux2";
-        return;
-    }
-
-    cmdFrame.aux2 = atoi(pt[3].c_str());
-
-    if (pt.size() < 5)
-    {
-        if (channel_data.protocol)
-        {
-            channel_data.protocol->status(&ns);
-            iecStatus.error = ns.error;
-            iecStatus.connected = ns.connected;
-        }
-        else
-        {
-            iecStatus.error = NDEV_STATUS::NOT_CONNECTED;
-            iecStatus.connected = 0;
-        }
-
-        iecStatus.channel = channel;
-        iecStatus.msg = "parameter missing";
-    }
-
-    cmdFrame.comnd = (fujiCommandID_t) pt[0][0];
-    sp_buf += pt[4];
-
-    if (channel_data.protocol->special_80((uint8_t *)sp_buf.c_str(), sp_buf.length(), &cmdFrame) != PROTOCOL_ERROR::NONE)
-    {
-        channel_data.protocol->status(&ns);
-        iecStatus.error = ns.error;
-        iecStatus.channel = channel;
-        iecStatus.connected = ns.connected;
-        iecStatus.msg = "error";
-    }
-    else
-    {
-        channel_data.protocol->status(&ns);
-        iecStatus.error = ns.error;
-        iecStatus.channel = channel;
-        iecStatus.connected = ns.connected;
-        iecStatus.msg = "ok";
-    }
 }
 
 void iecNetwork::set_channel_mode()
@@ -939,13 +727,54 @@ void iecNetwork::fsop(fujiCommandID_t comnd)
 
     iec_open();
 
-    cmdFrame.comnd = comnd;
-
     int channel = commanddata.channel;
     auto& channel_data = network_data_map[channel];
 
-    if (channel_data.protocol)
-        channel_data.protocol->perform_idempotent_80(channel_data.urlParser.get(), &cmdFrame);
+    // Make sure this is really a FS protocol instance
+    NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(channel_data.protocol.get());
+    if (!fs)
+    {
+        iecStatus.error = NDEV_STATUS::NOT_IMPLEMENTED;
+        iecStatus.channel = commanddata.channel;
+        iecStatus.connected = 0;
+        iecStatus.msg = "not supported by protocol";
+        return;
+    }
+
+    protocolError_t err;
+    auto url = channel_data.urlParser.get();
+    switch (cmdFrame.comnd)
+    {
+    case NETCMD_RENAME:
+        err = fs->rename(url);
+        break;
+    case NETCMD_DELETE:
+        err = fs->del(url);
+        break;
+    case NETCMD_LOCK:
+        err = fs->lock(url);
+        break;
+    case NETCMD_UNLOCK:
+        err = fs->unlock(url);
+        break;
+    case NETCMD_MKDIR:
+        err = fs->mkdir(url);
+        break;
+    case NETCMD_RMDIR:
+        err = fs->rmdir(url);
+        break;
+    default:
+        err = PROTOCOL_ERROR::UNSPECIFIED;
+        return;
+    }
+
+    if (err != PROTOCOL_ERROR::NONE)
+    {
+        iecStatus.error = NDEV_STATUS::GENERAL;
+        iecStatus.channel = commanddata.channel;
+        iecStatus.connected = 0;
+        iecStatus.msg = "network error";
+    }
 
     iec_close();
 }
@@ -963,8 +792,8 @@ void iecNetwork::set_open_params()
     }
 
     int channel = atoi(pt[1].c_str());
-    int mode = atoi(pt[2].c_str());
-    int trans = atoi(pt[3].c_str());
+    fileAccessMode_t mode = (fileAccessMode_t) atoi(pt[2].c_str());
+    netProtoTranslation_t trans = (netProtoTranslation_t) atoi(pt[3].c_str());
 
     auto& channel_data = network_data_map[channel];
 

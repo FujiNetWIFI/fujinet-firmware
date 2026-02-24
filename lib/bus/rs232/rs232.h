@@ -3,7 +3,6 @@
 
 #include "cmdFrame.h"
 #include "UARTChannel.h"
-#include "fujiDeviceID.h"
 
 #ifdef ESP_PLATFORM
 #include <freertos/FreeRTOS.h>

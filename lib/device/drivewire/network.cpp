@@ -19,6 +19,10 @@
 
 #include "status_error_codes.h"
 #include "Protocol.h"
+#include "TCP.h"
+#include "UDP.h"
+#include "HTTP.h"
+#include "FS.h"
 
 using namespace std;
 
@@ -185,7 +189,7 @@ void drivewireNetwork::open()
     protocol->setLineEnding("\x0D");
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
+    if (protocol->open(urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != PROTOCOL_ERROR::NONE)
     {
         ns.error = protocol->error;
         Debug_printf("Protocol unable to make connection. Error: %d\n", ns.error);
@@ -692,215 +696,6 @@ void drivewireNetwork::set_password()
     Debug_printf("drivewireNetwork::set_password(%s)\n", password.c_str());
 }
 
-/**
- * DRIVEWIRE Special, called as a default for any other DRIVEWIRE command not processed by the other drivewire_ functions.
- * First, the protocol is asked whether it wants to process the command, and if so, the protocol will
- * process the special command. Otherwise, the command is handled locally. In either case, either drivewire_complete()
- * or drivewire_error() is called.
- */
-void drivewireNetwork::special()
-{
-    do_inquiry((fujiCommandID_t) cmdFrame.comnd);
-
-    switch (inq_dstats)
-    {
-    case SIO_DIRECTION_NONE: // No payload
-        special_00();
-        break;
-    case SIO_DIRECTION_READ: // Payload to Atari
-        special_40();
-        break;
-    case SIO_DIRECTION_WRITE: // Payload to Peripheral
-        special_80();
-        break;
-    default:
-        break;
-    }
-}
-
-/**
- * @brief Do an inquiry to determine whether a protoocol supports a particular command.
- * The protocol will either return $00 - No Payload, $40 - Atari Read, $80 - Atari Write,
- * or $FF - Command not supported, which should then be used as a DSTATS value by the
- * Atari when making the N: DRIVEWIRE call.
- */
-void drivewireNetwork::special_inquiry()
-{
-    Debug_printf("drivewireNetwork::special_inquiry(%02x)\n", cmdFrame.aux1);
-
-    do_inquiry((fujiCommandID_t) cmdFrame.aux1);
-
-    // Finally, return the completed inq_dstats value back to CoCo
-    SYSTEM_BUS.write(&inq_dstats, sizeof(inq_dstats));
-}
-
-void drivewireNetwork::do_inquiry(fujiCommandID_t inq_cmd)
-{
-    // Reset inq_dstats
-    inq_dstats = SIO_DIRECTION_INVALID;
-
-    // Ask protocol for dstats, otherwise get it locally.
-    if (protocol != nullptr)
-    {
-        inq_dstats = protocol->special_inquiry(inq_cmd);
-        Debug_printf("protocol special_inquiry returned %d\r\n", inq_dstats);
-    }
-
-    // If we didn't get one from protocol, or unsupported, see if supported globally.
-    if (inq_dstats == SIO_DIRECTION_INVALID)
-    {
-        switch (inq_cmd)
-        {
-        case NETCMD_RENAME:
-        case NETCMD_DELETE:
-        case NETCMD_LOCK:
-        case NETCMD_UNLOCK:
-        case NETCMD_MKDIR:
-        case NETCMD_RMDIR:
-        case NETCMD_CHDIR:
-        case NETCMD_USERNAME:
-        case NETCMD_PASSWORD:
-            inq_dstats = SIO_DIRECTION_WRITE;
-            break;
-        case NETCMD_CHANNEL_MODE:
-            inq_dstats = SIO_DIRECTION_NONE;
-            break;
-        case NETCMD_SET_PARAMETERS:
-            if (channelMode == JSON)
-                inq_dstats = SIO_DIRECTION_NONE;
-            break;
-        case NETCMD_GETCWD:
-            inq_dstats = SIO_DIRECTION_READ;
-            break;
-        case NETCMD_SET_INT_RATE:
-            inq_dstats = SIO_DIRECTION_NONE;
-            break;
-        case NETCMD_TRANSLATION:
-            inq_dstats = SIO_DIRECTION_NONE;
-            break;
-        case NETCMD_PARSE:
-            if (channelMode == JSON)
-                inq_dstats = SIO_DIRECTION_NONE;
-            break;
-        case NETCMD_QUERY:
-            if (channelMode == JSON)
-                inq_dstats = SIO_DIRECTION_WRITE;
-            break;
-        default:
-            inq_dstats = SIO_DIRECTION_INVALID; // not supported
-            break;
-        }
-    }
-
-    Debug_printf("inq_dstats = %u\n", inq_dstats);
-}
-
-/**
- * @brief called to handle special protocol interactions when DSTATS=$00, meaning there is no payload.
- * Essentially, call the protocol action
- * and based on the return, signal drivewire_complete() or error().
- */
-void drivewireNetwork::special_00()
-{
-    // Handle commands that exist outside of an open channel.
-    switch (cmdFrame.comnd)
-    {
-    case NETCMD_PARSE:
-        if (channelMode == JSON)
-            parse_json();
-        break;
-    case NETCMD_TRANSLATION:
-        set_translation();
-        break;
-    case NETCMD_CHANNEL_MODE:
-        set_channel_mode();
-        break;
-    default:
-        protocol->special_00(&cmdFrame);
-    }
-
-}
-
-/**
- * @brief called to handle protocol interactions when DSTATS=$40, meaning the payload is to go from
- * the peripheral back to the ATARI. Essentially, call the protocol action with the accrued special
- * buffer (containing the devicespec) and based on the return, use bus_to_computer() to transfer the
- * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
- */
-void drivewireNetwork::special_40()
-{
-    // Handle commands that exist outside of an open channel.
-    switch (cmdFrame.comnd)
-    {
-    case NETCMD_GETCWD:
-        get_prefix();
-        return;
-    default:
-        break;
-    }
-
-    // not sure what to do here, FIXME.
-}
-
-/**
- * @brief called to handle protocol interactions when DSTATS=$80, meaning the payload is to go from
- * the ATARI to the pheripheral. Essentially, call the protocol action with the accrued special
- * buffer (containing the devicespec) and based on the return, use bus_to_peripheral() to transfer the
- * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
- */
-void drivewireNetwork::special_80()
-{
-    uint8_t spData[SPECIAL_BUFFER_SIZE];
-
-    // Handle commands that exist outside of an open channel.
-    switch (cmdFrame.comnd)
-    {
-    case NETCMD_RENAME:
-    case NETCMD_DELETE:
-    case NETCMD_LOCK:
-    case NETCMD_UNLOCK:
-    case NETCMD_MKDIR:
-    case NETCMD_RMDIR:
-        do_idempotent_command_80();
-        return;
-    case NETCMD_CHDIR:
-        set_prefix();
-        return;
-    case NETCMD_QUERY:
-        if (channelMode == JSON)
-            json_query();
-        return;
-    case NETCMD_USERNAME:
-        set_login();
-        return;
-    case NETCMD_PASSWORD:
-        set_password();
-        return;
-    default:
-        break;
-    }
-
-    memset(spData, 0, SPECIAL_BUFFER_SIZE);
-
-    // Get special (devicespec) from computer
-
-    SYSTEM_BUS.read(spData,256);
-
-    Debug_printf("drivewireNetwork::special_80() - %s\n", spData);
-
-    if (protocol == nullptr) {
-        Debug_printf("ERROR: Calling special_80 on a null protocol.\r\n");
-        ns.reset();
-        ns.error = NDEV_STATUS::GENERAL;
-        return;
-    }
-
-    // Do protocol action and return
-    protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame);
-
-    protocol->status(&ns);
-}
-
 /** PRIVATE METHODS ************************************************************/
 
 /**
@@ -1196,7 +991,7 @@ void drivewireNetwork::json_query()
         return;
     }
 
-    in_string = std::string(tmpq,256);
+    in_string = std::string(tmpq);
 
     // strip away line endings from input spec.
     for (int i = 0; i < in_string.size(); i++)
@@ -1204,7 +999,8 @@ void drivewireNetwork::json_query()
         unsigned char currentChar = static_cast<unsigned char>(in_string[i]);
         if (currentChar == 0x0A || currentChar == 0x0D || currentChar == 0x9b)
         {
-            in_string[i] = '\0';
+            in_string.resize(i);
+            break;
         }
     }
 
@@ -1219,37 +1015,14 @@ void drivewireNetwork::json_query()
     auto null_pos = std::find(tmp.begin(), tmp.end(), 0);
     *receiveBuffer += std::string(tmp.begin(), null_pos);
 
+#if 0
     for (int i=0;i<in_string.length();i++)
         Debug_printf("%02X ",(unsigned char)in_string[i]);
 
     Debug_printf("\n");
+#endif
 
     Debug_printf("Query set to >%s<\r\n", in_string.c_str());
-}
-
-void drivewireNetwork::do_idempotent_command_80()
-{
-    Debug_printf("sioNetwork::sio_do_idempotent_command_80()\r\n");
-// #ifdef ESP_PLATFORM // apc: isn't it already ACK'ed?
-//     sio_ack();
-// #endif
-
-    parse_and_instantiate_protocol();
-
-    if (protocol == nullptr)
-    {
-        Debug_printf("Protocol = NULL\n");
-        //sio_error();
-        return;
-    }
-
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
-    {
-        Debug_printf("perform_idempotent_80 failed\n");
-        // sio_error();
-    }
-    // else
-    //     sio_complete();
 }
 
 void drivewireNetwork::process()
@@ -1287,11 +1060,208 @@ void drivewireNetwork::process()
     case NETCMD_STATUS:
         status();
         break;
-    case NETCMD_SPECIAL_INQUIRY:
-        special_inquiry();
+
+    case NETCMD_PARSE:
+        parse_json();
+        break;
+    case NETCMD_TRANSLATION:
+        set_translation();
+        break;
+    case NETCMD_CHANNEL_MODE:
+        set_channel_mode();
+        break;
+
+    case NETCMD_GETCWD:
+        get_prefix();
+        break;
+
+    case NETCMD_CHDIR:
+        set_prefix();
+        return;
+    case NETCMD_QUERY:
+        json_query();
+        return;
+    case NETCMD_USERNAME:
+        set_login();
+        return;
+    case NETCMD_PASSWORD:
+        set_password();
+        return;
+
+    case NETCMD_RENAME:
+    case NETCMD_DELETE:
+    case NETCMD_LOCK:
+    case NETCMD_UNLOCK:
+    case NETCMD_MKDIR:
+    case NETCMD_RMDIR:
+        process_fs();
+        break;
+
+    case NETCMD_CONTROL:
+    case NETCMD_CLOSE_CLIENT:
+        process_tcp();
+        break;
+
+    case NETCMD_UNLISTEN:
+        process_http();
+        break;
+
+    case NETCMD_GET_REMOTE:
+    case NETCMD_SET_DESTINATION:
+        process_udp();
+        break;
+
+    default:
+        ns.reset();
+        ns.error = NDEV_STATUS::GENERAL;
+        break;
+    }
+}
+
+void drivewireNetwork::process_fs()
+{
+    parse_and_instantiate_protocol();
+
+    // Make sure this is really a FS protocol instance
+    NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol);
+    if (!fs)
+    {
+        ns.reset();
+        ns.error = NDEV_STATUS::GENERAL;
+        return;
+    }
+
+    protocolError_t err;
+    auto url = urlParser.get();
+    switch (cmdFrame.comnd)
+    {
+    case NETCMD_RENAME:
+        err = fs->rename(url);
+        break;
+    case NETCMD_DELETE:
+        err = fs->del(url);
+        break;
+    case NETCMD_LOCK:
+        err = fs->lock(url);
+        break;
+    case NETCMD_UNLOCK:
+        err = fs->unlock(url);
+        break;
+    case NETCMD_MKDIR:
+        err = fs->mkdir(url);
+        break;
+    case NETCMD_RMDIR:
+        err = fs->rmdir(url);
         break;
     default:
-        special();
+        err = PROTOCOL_ERROR::UNSPECIFIED;
+        break;
+    }
+
+    if (err != PROTOCOL_ERROR::NONE)
+    {
+        ns.reset();
+        ns.error = NDEV_STATUS::GENERAL;
+    }
+}
+
+void drivewireNetwork::process_tcp()
+{
+    // Make sure this is really a TCP protocol instance
+    NetworkProtocolTCP *tcp = dynamic_cast<NetworkProtocolTCP *>(protocol);
+    if (!tcp)
+    {
+        ns.reset();
+        ns.error = NDEV_STATUS::GENERAL;
+        return;
+    }
+
+    protocolError_t err;
+    switch (cmdFrame.comnd)
+    {
+    case NETCMD_CONTROL:
+        err = tcp->accept_connection();
+        break;
+    case NETCMD_CLOSE_CLIENT:
+        err = tcp->close_client_connection();
+        break;
+    default:
+        err = PROTOCOL_ERROR::UNSPECIFIED;
+        break;
+    }
+
+    if (err != PROTOCOL_ERROR::NONE)
+    {
+        ns.reset();
+        ns.error = NDEV_STATUS::GENERAL;
+    }
+}
+
+void drivewireNetwork::process_http()
+{
+    // Make sure this is really an HTTP protocol instance
+    NetworkProtocolHTTP *http = dynamic_cast<NetworkProtocolHTTP *>(protocol);
+    if (!http)
+    {
+        ns.reset();
+        ns.error = NDEV_STATUS::GENERAL;
+        return;
+    }
+
+    protocolError_t err;
+    switch (cmdFrame.comnd)
+    {
+    case NETCMD_UNLISTEN:
+        err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmdFrame.aux2);
+        break;
+    default:
+        err = PROTOCOL_ERROR::UNSPECIFIED;
+        return;
+    }
+
+    if (err != PROTOCOL_ERROR::NONE)
+    {
+        ns.reset();
+        ns.error = NDEV_STATUS::GENERAL;
+    }
+}
+
+void drivewireNetwork::process_udp()
+{
+    // Make sure this is really a UDP protocol instance
+    NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(protocol);
+    if (!udp)
+    {
+        ns.reset();
+        ns.error = NDEV_STATUS::GENERAL;
+        return;
+    }
+
+    protocolError_t err;
+    switch (cmdFrame.comnd)
+    {
+#ifndef ESP_PLATFORM
+    case NETCMD_GET_REMOTE:
+        receiveBuffer->resize(SPECIAL_BUFFER_SIZE);
+        err = udp->get_remote(receiveBuffer->data(), receiveBuffer->size());
+        response += *receiveBuffer;
+        break;
+#endif /* ESP_PLATFORM */
+    case NETCMD_SET_DESTINATION:
+        {
+            uint8_t spData[SPECIAL_BUFFER_SIZE];
+            size_t bytes_read = SYSTEM_BUS.read(spData, sizeof(spData));
+            err = udp->set_destination(spData, bytes_read);
+            if (err != PROTOCOL_ERROR::NONE)
+            {
+                ns.reset();
+                ns.error = NDEV_STATUS::GENERAL;
+            }
+        }
+        break;
+    default:
+        ns.reset();
+        ns.error = NDEV_STATUS::GENERAL;
         break;
     }
 }

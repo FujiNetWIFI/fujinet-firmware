@@ -61,13 +61,13 @@ public:
      * Called for LYNX Command 'O' to open a connection to a network protocol, allocate all buffers,
      * and start the receive PROCEED interrupt.
      */
-    virtual void open(unsigned short s);
+    void open(unsigned short s);
 
     /**
      * Called for LYNX Command 'C' to close a connection to a network protocol, de-allocate all buffers,
      * and stop the receive PROCEED interrupt.
      */
-    virtual void close();
+    void close();
 
 
     /**
@@ -75,7 +75,7 @@ public:
      * Write # of bytes specified by aux1/aux2 from tx_buffer out to LYNX. If protocol is unable to return requested
      * number of bytes, return ERROR.
      */
-    virtual void write(uint16_t num_bytes);
+    void write(uint16_t num_bytes);
 
     /**
      * LYNX Special, called as a default for any other LYNX command not processed by the other comlynx_ functions.
@@ -83,32 +83,32 @@ public:
      * process the special command. Otherwise, the command is handled locally. In either case, either comlynx_complete()
      * or comlynx_error() is called.
      */
-    virtual void status();
+    void status();
 
-    virtual void read();
-    virtual void read_channel();
-    virtual void read_channel_json();
-    virtual void read_channel_protocol();
-  
+    void read();
+    void read_channel();
+    void read_channel_json();
+    void read_channel_protocol();
+
     /**
      * @brief Called to set prefix
      */
-    virtual void set_prefix(unsigned short len);
+    void set_prefix(unsigned short len);
 
     /**
      * @brief Called to get prefix
      */
-    virtual void get_prefix();
+    void get_prefix();
 
     /**
      * @brief called to set login
      */
-    virtual void set_login(uint16_t len);
+    void set_login(uint16_t len);
 
     /**
      * @brief called to set password
      */
-    virtual void set_password(uint16_t len);
+    void set_password(uint16_t len);
 
     /**
      * @brief set channel mode
@@ -135,12 +135,11 @@ public:
      * Process incoming LYNX command for device 0x7X
      * @param b The incoming command byte
      */
-    virtual void comlynx_process() override;
-
-    virtual void del(uint16_t len);
-    virtual void rename(uint16_t len);
-    virtual void mkdir(uint16_t len);
-
+    void comlynx_process() override;
+    void process_fs(fujiCommandID_t cmd, unsigned pkt_len);
+    void process_tcp(fujiCommandID_t cmd);
+    void process_http(fujiCommandID_t cmd);
+    void process_udp(fujiCommandID_t cmd);
 
 private:
     /**
@@ -244,11 +243,6 @@ private:
      * 0 = No Translation, 1 = CR<->EOL (Macintosh), 2 = LF<->EOL (UNIX), 3 = CR/LF<->EOL (PC/Windows)
      */
     uint8_t trans_aux2 = 0;
-
-    /**
-     * Return value for DSTATS inquiry
-     */
-    AtariSIODirection inq_dstats = SIO_DIRECTION_INVALID;
 
     /**
      * The login to use for a protocol action
@@ -358,46 +352,9 @@ private:
     void comlynx_status_channel();
 
     /**
-     * @brief Do an inquiry to determine whether a protoocol supports a particular command.
-     * The protocol will either return $00 - No Payload, $40 - Atari Read, $80 - Atari Write,
-     * or $FF - Command not supported, which should then be used as a DSTATS value by the
-     * Atari when making the N: LYNX call.
-     */
-    void comlynx_special_inquiry();
-
-    /**
-     * @brief called to handle special protocol interactions when DSTATS=$00, meaning there is no payload.
-     * Essentially, call the protocol action
-     * and based on the return, signal comlynx_complete() or error().
-     */
-    void comlynx_special_00(unsigned short s);
-
-    /**
-     * @brief called to handle protocol interactions when DSTATS=$40, meaning the payload is to go from
-     * the peripheral back to the ATARI. Essentially, call the protocol action with the accrued special
-     * buffer (containing the devicespec) and based on the return, use bus_to_computer() to transfer the
-     * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
-     */
-    void comlynx_special_40(unsigned short s);
-
-    /**
-     * @brief called to handle protocol interactions when DSTATS=$80, meaning the payload is to go from
-     * the ATARI to the pheripheral. Essentially, call the protocol action with the accrued special
-     * buffer (containing the devicespec) and based on the return, use bus_to_peripheral() to transfer the
-     * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
-     */
-    void comlynx_special_80(unsigned short s);
-
-    /**
      * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
      */
     void comlynx_assert_interrupt();
-
-    /**
-     * @brief Perform the inquiry, handle both local and protocol commands.
-     * @param inq_cmd the command to check against.
-     */
-    void do_inquiry(fujiCommandID_t inq_cmd);
 
     /**
      * @brief set translation specified by aux1 to aux2_translation mode.

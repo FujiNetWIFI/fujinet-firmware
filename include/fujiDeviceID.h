@@ -14,8 +14,8 @@ enum fujiDeviceID_t : uint8_t {
   FUJI_DEVICEID_DISK3        = 0x06,
   FUJI_DEVICEID_DISK4        = 0x07,
   FUJI_DEVICEID_TAPE         = 0x08,
-  FUJI_DEVICEID_NETWORK_TEMP = 0x09,
-  FUJI_DEVICEID_NETWORK      = 0x0E,
+  FUJI_DEVICEID_NETWORK      = 0x09,
+  FUJI_DEVICEID_NETWORK_LAST = 0x0E,
 };
 #else
 enum fujiDeviceID_t : uint8_t {

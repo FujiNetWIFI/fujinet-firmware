@@ -22,41 +22,12 @@ public:
     virtual ~NetworkProtocolNFS();
 
     /**
-     * @brief Return a DSTATS byte for a requested COMMAND byte.
-     * @param cmd The Command (0x00-0xFF) for which DSTATS is requested.
-     * @return a 0x00 = No payload, 0x40 = Payload to Atari, 0x80 = Payload to FujiNet, 0xFF = Command not supported.
-     */
-    AtariSIODirection special_inquiry(fujiCommandID_t cmd) override;
-
-    /**
-     * @brief execute a command that returns no payload
-     * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
-     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
-     */
-    protocolError_t special_00(cmdFrame_t *cmdFrame) override;
-
-    /**
-     * @brief execute a command that returns a payload to the atari.
-     * @param sp_buf a pointer to the special buffer
-     * @param len Length of data to request from protocol. Should not be larger than buffer.
-     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
-     */
-    protocolError_t special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) override;
-
-    /**
-     * @brief execute a command that sends a payload to fujinet (most common, XIO)
-     * @param sp_buf, a pointer to the special buffer, usually a EOL terminated devicespec.
-     * @param len length of the special buffer, typically SPECIAL_BUFFER_SIZE
-     */
-    protocolError_t special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) override;
-
-    /**
      * @brief Rename file specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file/dest to rename
      * @param cmdFrame the command frame
      * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    protocolError_t rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    protocolError_t rename(PeoplesUrlParser *url) override;
 
     /**
      * @brief Delete file specified by incoming devicespec.
@@ -64,7 +35,7 @@ public:
      * @param cmdFrame the command frame
      * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    protocolError_t del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    protocolError_t del(PeoplesUrlParser *url) override;
 
     /**
      * @brief Make directory specified by incoming devicespec.
@@ -72,7 +43,7 @@ public:
      * @param cmdFrame the command frame
      * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    protocolError_t mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    protocolError_t mkdir(PeoplesUrlParser *url) override;
 
     /**
      * @brief Remove directory specified by incoming devicespec.
@@ -80,7 +51,7 @@ public:
      * @param cmdFrame the command frame
      * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    protocolError_t rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    protocolError_t rmdir(PeoplesUrlParser *url) override;
 
     /**
      * @brief lock file specified by incoming devicespec.
@@ -88,7 +59,7 @@ public:
      * @param cmdFrame the command frame
      * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    protocolError_t lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    protocolError_t lock(PeoplesUrlParser *url) override;
 
     /**
      * @brief unlock file specified by incoming devicespec.
@@ -96,7 +67,7 @@ public:
      * @param cmdFrame the command frame
      * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    protocolError_t unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    protocolError_t unlock(PeoplesUrlParser *url) override;
 
     off_t seek(off_t offset, int whence) override;
 
