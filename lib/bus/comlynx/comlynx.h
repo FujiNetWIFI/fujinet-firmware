@@ -5,10 +5,8 @@
  * Comlynx Routines
  */
 
-vvvvvvvvvvvvvvvvvvvv
 #include "cmdFrame.h"
 #include "UARTChannel.h"
-^^^^^^^^^^^^^^^^^^^^
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
