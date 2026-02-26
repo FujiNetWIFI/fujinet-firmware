@@ -1617,39 +1617,39 @@ void rs232Modem::rs232_process(FujiBusPacket &packet)
 
         switch (packet.command())
         {
-        case FUJICMD_CONTROL:
+        case MODEMCMD_CONTROL:
             rs232_ack();
             rs232_control();
             break;
-        case FUJICMD_CONFIGURE:
+        case MODEMCMD_CONFIGURE:
             rs232_ack();
             rs232_config();
             break;
-        case FUJICMD_SET_DUMP:
+        case MODEMCMD_SET_DUMP:
             rs232_ack();
             rs232_set_dump(packet.param(0));
             break;
-        case FUJICMD_LISTEN:
+        case MODEMCMD_LISTEN:
             rs232_listen(packet.param(0));
             break;
-        case FUJICMD_UNLISTEN:
+        case MODEMCMD_UNLISTEN:
             rs232_unlisten();
             break;
-        case FUJICMD_BAUDRATELOCK:
+        case MODEMCMD_BAUDRATELOCK:
             rs232_baudlock(packet.param(0), packet.param(1));
             break;
-        case FUJICMD_AUTOANSWER:
+        case MODEMCMD_AUTOANSWER:
             rs232_autoanswer(packet.param(0));
             break;
-        case FUJICMD_STATUS:
+        case MODEMCMD_STATUS:
             rs232_ack();
             rs232_status(static_cast<FujiStatusReq>(packet.param(0)));
             break;
-        case FUJICMD_WRITE:
+        case MODEMCMD_WRITE:
             rs232_ack();
             rs232_write(packet.param(0));
             break;
-        case FUJICMD_STREAM:
+        case MODEMCMD_STREAM:
             rs232_ack();
             rs232_stream();
             break;

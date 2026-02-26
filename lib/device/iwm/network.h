@@ -100,6 +100,10 @@ public:
     virtual void status();
 
     void process(iwm_decoded_cmd_t cmd) override;
+    void process_fs(fujiCommandID_t control_code);
+    void process_tcp(fujiCommandID_t control_code);
+    void process_http(fujiCommandID_t control_code);
+    void process_udp(fujiCommandID_t control_code);
 
     void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
     void iwm_open(iwm_decoded_cmd_t cmd) override;
@@ -149,10 +153,6 @@ public:
      */
     void json_query(iwm_decoded_cmd_t cmd);
 
-    virtual void del();
-    virtual void rename();
-    virtual void mkdir();
-
     std::unordered_map<uint8_t, NetworkData> network_data_map;
     uint8_t current_network_unit = 1;
 
@@ -194,9 +194,9 @@ private:
     // ProtocolParser *protocolParser = nullptr;
 
     /**
-     * Error number when there's an ... error!
+     * SP_ERR number when there's an ... error!
      */
-    uint8_t err = 0;
+    uint8_t err = SP_ERR_NOERROR;
 
     /**
      * ESP timer handle for the Interrupt rate limiting timer
@@ -230,11 +230,6 @@ private:
      * 0 = No Translation, 1 = CR<->EOL (Macintosh), 2 = LF<->EOL (UNIX), 3 = CR/LF<->EOL (PC/Windows)
      */
     uint8_t trans_aux2 = 0;
-
-    /**
-     * Return value for DSTATS inquiry
-     */
-    uint8_t inq_dstats = 0xFF;
 
     /**
      * The login to use for a protocol action
@@ -351,46 +346,9 @@ private:
     void iwmnet_status_channel();
 
     /**
-     * @brief Do an inquiry to determine whether a protoocol supports a particular command.
-     * The protocol will either return $00 - No Payload, $40 - Atari Read, $80 - Atari Write,
-     * or $FF - Command not supported, which should then be used as a DSTATS value by the
-     * Atari when making the N: iwm call.
-     */
-    void iwmnet_special_inquiry();
-
-    /**
-     * @brief called to handle special protocol interactions when DSTATS=$00, meaning there is no payload.
-     * Essentially, call the protocol action
-     * and based on the return, signal iwmnet_complete() or error().
-     */
-    void special_00();
-
-    /**
-     * @brief called to handle protocol interactions when DSTATS=$40, meaning the payload is to go from
-     * the peripheral back to the ATARI. Essentially, call the protocol action with the accrued special
-     * buffer (containing the devicespec) and based on the return, use bus_to_computer() to transfer the
-     * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
-     */
-    void special_40();
-
-    /**
-     * @brief called to handle protocol interactions when DSTATS=$80, meaning the payload is to go from
-     * the ATARI to the pheripheral. Essentially, call the protocol action with the accrued special
-     * buffer (containing the devicespec) and based on the return, use bus_to_peripheral() to transfer the
-     * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
-     */
-    void special_80();
-
-    /**
      * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
      */
     void iwmnet_assert_interrupt();
-
-    /**
-     * @brief Perform the inquiry, handle both local and protocol commands.
-     * @param inq_cmd the command to check against.
-     */
-    void do_inquiry(fujiCommandID_t inq_cmd);
 
     /**
      * @brief set translation specified by aux1 to aux2_translation mode.

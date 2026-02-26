@@ -72,15 +72,15 @@ void rs232ApeTime::rs232_process(FujiBusPacket &packet)
 {
     switch (packet.command())
     {
-    case FUJICMD_GETTIME:
+    case APETIMECMD_GETTIME:
         rs232_ack();
         _rs232_get_time(false);
         break;
-    case FUJICMD_SETTZ:
+    case APETIMECMD_SETTZ:
         rs232_ack();
         _rs232_set_tz(packet.dataAsString().value_or(""));
         break;
-    case FUJICMD_GETTZTIME:
+    case APETIMECMD_GETTZTIME:
         rs232_ack();
         _rs232_get_time(true);
         break;

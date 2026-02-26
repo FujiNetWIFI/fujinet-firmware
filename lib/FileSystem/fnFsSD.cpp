@@ -422,7 +422,9 @@ long FileSystemSDFAT::filesize(const char *path)
     struct stat st;
     int i = stat(fpath, &st);
     long res = (0 == i) ? st.st_size : -1;
+#ifdef DEBUG
     Debug_printf("FileSystemSDFAT::filesize returned %ld on \"%s\" (\"%s\")\r\n", res, path, fpath);
+#endif
     free(fpath);
     return res;
 }

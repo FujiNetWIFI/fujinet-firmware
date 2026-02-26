@@ -98,24 +98,26 @@ struct disk_slot
 };
 
 // For some reason the directory entry structure that is sent back
-// isn't standardized across platforms.
+// isn't standardized across platforms. We'll define a common struct
+// here with all the fields and the individual platforms can define
+// their own customized versions.
 
-enum DET_size_endian_t {
-    SIZE_NONE,
-    SIZE_16_LE,
-    SIZE_16_BE,
-    SIZE_32_LE,
-    SIZE_32_BE,
+struct dirEntryTimestamp {
+    uint8_t year, month, day;
+    uint8_t hour, minute, second;
+} __attribute__((packed));
+
+struct dirEntryDetails {
+    dirEntryTimestamp modified;
+    uint32_t size;
+    uint8_t flags;
+    uint8_t mediatype;
 };
 
-enum DET_dir_flags_t {
-    HAS_DIR_ENTRY_FLAGS_SEPARATE,
-    HAS_DIR_ENTRY_FLAGS_COMBINED,
-};
-
-enum DET_has_type_t {
-    HAS_DIR_ENTRY_TYPE,
-    NO_DIR_ENTRY_TYPE,
+// File flags
+enum DET_file_flags_t {
+    DET_FF_DIR   = 0x01,
+    DET_FF_TRUNC = 0x02,
 };
 
 class fujiDevice : public virtualDevice
@@ -151,10 +153,7 @@ protected:
 
     virtual size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                                    uint8_t maxlen) = 0;
-    size_t _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen,
-                                            int year_offset, DET_size_endian_t size_endian,
-                                            DET_dir_flags_t dir_flags,
-                                            DET_has_type_t has_type);
+    dirEntryDetails _additional_direntry_details(fsdir_entry_t *f);
 
     // ============ Validation of inputs ============
     bool validate_host_slot(uint8_t slot, const char *dmsg=nullptr);
@@ -224,10 +223,12 @@ public:
 #endif /* SYSTEM_BUS_IS_UDP */
 
     // Move appkey stuff to its own file?
-    void fujicmd_open_app_key();
+    virtual void fujicmd_open_app_key();
     void fujicmd_close_app_key();
     void fujicmd_write_app_key(uint16_t keylen, uint16_t readlen=0);
     void fujicmd_read_app_key();
+
+    void fujicmd_generate_guid();
 
     // ============ Implementations by fujicmd_ methods ============
     // These are safe to call directly if the bus abstraction

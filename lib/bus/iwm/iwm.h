@@ -2,6 +2,7 @@
 #ifndef IWM_H
 #define IWM_H
 
+#include "cmdFrame.h"
 #include "../../include/debug.h"
 
 // for ESP IWM-SLIP build, DEV_RELAY_SLIP should be defined in platformio.ini
@@ -21,7 +22,7 @@
 
 #include "fnFS.h"
 
-enum {
+enum spCommandID_t {
   SP_CMD_STATUS         = 0x00,
   SP_CMD_READBLOCK      = 0x01,
   SP_CMD_WRITEBLOCK     = 0x02,
@@ -44,21 +45,23 @@ enum {
   SP_ECMD_WRITE         = 0x49,
 };
 
-// see page 81-82 in Apple IIc ROM reference and Table 7-5 in IIgs firmware ref
-#define SP_ERR_NOERROR 0x00    // no error
-#define SP_ERR_BADCMD 0x01     // invalid command
-#define SP_ERR_BUSERR 0x06     // communications error
-#define SP_ERR_BADCTL 0x21     // invalid status or control code
-#define SP_ERR_BADCTLPARM 0x22 // invalid parameter list
-#define SP_ERR_IOERROR 0x27    // i/o error on device side
-#define SP_ERR_NODRIVE 0x28    // no device connected
-#define SP_ERR_NOWRITE 0x2b    // disk write protected
-#define SP_ERR_BADBLOCK 0x2d   // invalid block number
-#define SP_ERR_DISKSW 0x2e     // media has been swapped - extended calls only
-#define SP_ERR_OFFLINE 0x2f    // device offline or no disk in drive
-// $30-$3F are for device specific errors
-#define SP_ERR_BADWIFI 0x30    // error connecting to new SSID - todo: implement usage
+enum spError_t {
+    // see page 81-82 in Apple IIc ROM reference and Table 7-5 in IIgs firmware ref
+    SP_ERR_NOERROR    = 0x00, // no error
+    SP_ERR_BADCMD     = 0x01, // invalid command
+    SP_ERR_BUSERR     = 0x06, // communications error
+    SP_ERR_BADCTL     = 0x21, // invalid status or control code
+    SP_ERR_BADCTLPARM = 0x22, // invalid parameter list
+    SP_ERR_IOERROR    = 0x27, // i/o error on device side
+    SP_ERR_NODRIVE    = 0x28, // no device connected
+    SP_ERR_NOWRITE    = 0x2b, // disk write protected
+    SP_ERR_BADBLOCK   = 0x2d, // invalid block number
+    SP_ERR_DISKSW     = 0x2e, // media has been swapped - extended calls only
+    SP_ERR_OFFLINE    = 0x2f, // device offline or no disk in drive
 
+    // $30-$3F are for device specific errors
+    SP_ERR_BADWIFI    = 0x30, // error connecting to new SSID - todo: implement usage
+};
 
 #define STATCODE_BLOCK_DEVICE 0x01 << 7   // block device = 1, char device = 0
 #define STATCODE_WRITE_ALLOWED 0x01 << 6
@@ -125,24 +128,6 @@ class iwmDisk;     // disk device cause I need to use "iwmDisk smort" for protot
 class iwmCPM;      // CPM Virtual Device
 class iwmClock;    // Real Time Clock Device
 class systemBus;      // forward declare bus so can be friend
-
-// Sorry, this  is the protocol adapter's fault. -Thom
-union cmdFrame_t
-{
-    struct
-    {
-        uint8_t device;
-        uint8_t comnd;
-        uint8_t aux1;
-        uint8_t aux2;
-        uint8_t cksum;
-    };
-    struct
-    {
-        uint32_t commanddata;
-        uint8_t checksum;
-    } __attribute__((packed));
-};
 
 #define BLOCK_DATA_LEN      512
 #define MAX_DATA_LEN        767

@@ -28,28 +28,6 @@ enum FujiStatusReq {
     STATUS_MOUNT_TIME      = 1,
 };
 
-#ifdef OBSOLETE
-typedef struct
-{
-    uint8_t device;
-    uint8_t comnd;
-    union {
-        struct {
-            uint8_t aux1;
-            uint8_t aux2;
-            uint8_t aux3;
-            uint8_t aux4;
-        };
-        struct {
-            uint16_t aux12;
-            uint16_t aux34;
-        };
-        uint32_t aux;
-    };
-    uint8_t cksum;
-} __attribute__((packed)) cmdFrame_t;
-#endif /* OBSOLETE */
-
 // helper functions
 uint8_t rs232_checksum(uint8_t *buf, unsigned short len);
 
@@ -70,9 +48,6 @@ protected:
 
     fujiDeviceID_t _devnum;
 
-#ifdef OBSOLETE
-    cmdFrame_t cmdFrame;
-#endif /* OBSOLETE */
     bool listen_to_type3_polls = false;
 
     /**
@@ -173,8 +148,6 @@ public:
      * @brief is device active (turned on?)
      */
     bool device_active = true;
-    bool switched = false; //indicate disk switched condition
-    bool readonly = false;  //write protected
 
     /**
      * @brief status wait counter

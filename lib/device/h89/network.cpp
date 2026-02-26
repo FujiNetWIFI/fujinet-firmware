@@ -83,7 +83,7 @@ void H89Network::open()
     // H89_recv_buffer(response, 256);
 
     // Debug_printf("H89Network::open url %s\n", response);
-    
+
     // H89_send_ack();
 
     // channelMode = PROTOCOL;
@@ -242,7 +242,7 @@ void H89Network::read()
     // // Check for rx buffer. If NULL, then tell caller we could not allocate buffers.
     // if (receiveBuffer == nullptr)
     // {
-    //     network_status.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
+    //     network_status.error = DEVICE_STATUS_COULD_NOT_ALLOCATE_BUFFERS;
     //     H89_send_error();
     //     return;
     // }
@@ -250,7 +250,7 @@ void H89Network::read()
     // // If protocol isn't connected, then return not connected.
     // if (protocol == nullptr)
     // {
-    //     network_status.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
+    //     network_status.error = DEVICE_STATUS_COULD_NOT_ALLOCATE_BUFFERS;
     //     H89_send_error();
     //     return;
     // }
@@ -307,7 +307,7 @@ void H89Network::status()
     // Debug_printf("H89Network::status()\n");
 
     // NetworkStatus s;
-    
+
     // H89_send_ack();
 
     // switch (channelMode)
@@ -338,7 +338,7 @@ void H89Network::status()
 
     // H89_send_buffer(response, response_len);
     // H89_flush();
-    
+
     // H89_send_complete();
 
 }
@@ -553,36 +553,36 @@ void H89Network::process(uint32_t commanddata, uint8_t checksum)
 
     switch (cmdFrame.comnd)
     {
-    case 'O':
+    case NETCMD_OPEN:
         open();
         break;
-    case 'C':
+    case NETCMD_CLOSE:
         close();
         break;
-    case 'R':
+    case NETCMD_READ:
         read();
         break;
-    case 'W':
+    case NETCMD_WRITE:
         write();
         break;
-    case 'P':
+    case NETCMD_PARSE:
         if (channelMode == JSON)
             H89_parse_json();
         break;
-    case 'Q':
+    case NETCMD_QUERY:
         if (channelMode == JSON)
             H89_set_json_query();
         break;
-    case 'S':
+    case NETCMD_STATUS:
         status();
         break;
-    case 0xFC:
+    case NETCMD_CHANNEL_MODE:
         H89_set_channel_mode();
         break;
-    case 0xFD:
+    case NETCMD_USERNAME:
         set_login();
         break;
-    case 0xFE:
+    case NETCMD_PASSWORD:
         set_password();
         break;
     default:
@@ -603,7 +603,7 @@ bool H89Network::instantiate_protocol()
     {
         protocolParser = new ProtocolParser();
     }
-    
+
     protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
@@ -646,7 +646,7 @@ void H89Network::parse_and_instantiate_protocol(string d)
         Debug_printf("Invalid devicespec: >%s<\n", deviceSpec.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NETWORK_ERROR_INVALID_DEVICESPEC;
+        err = DEVICE_STATUS_INVALID_DEVICESPEC;
         return;
     }
 
@@ -660,7 +660,7 @@ void H89Network::parse_and_instantiate_protocol(string d)
         Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NETWORK_ERROR_GENERAL;
+        err = DEVICE_STATUS_GENERAL;
         return;
     }
 }

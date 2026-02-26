@@ -82,7 +82,7 @@
 #endif
 
 #ifdef BUILD_LYNX
-# include "comlynx/keyboard.h"
+//# include "comlynx/keyboard.h"
 # include "comlynx/modem.h"
 # include "comlynx/printer.h"
 # include "comlynx/printerlist.h"
@@ -91,7 +91,7 @@
 
 //# define NO_VIRTUAL_KEYBOARD
     lynxModem *sioR;
-    lynxKeyboard *sioK;
+    //lynxKeyboard *sioK;
     lynxUDPStream *udpDev;
     bool exists = false;
 #endif

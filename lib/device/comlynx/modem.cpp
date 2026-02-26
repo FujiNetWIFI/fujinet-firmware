@@ -95,10 +95,10 @@ lynxModem::~lynxModem()
     }
 }
 
-void lynxModem::comlynx_control_status()
+/*void lynxModem::comlynx_control_status()
 {
 
-}
+}*/
 
 void lynxModem::at_connect_resultCode(int modemBaud)
 {
@@ -1263,7 +1263,7 @@ void lynxModem::shutdown()
 /*
   Process command
 */
-void lynxModem::comlynx_process(uint8_t b)
+void lynxModem::comlynx_process()
 {
 
 }

@@ -9,6 +9,7 @@
 #include <fcntl.h>
 
 #include <cstring>
+#include <algorithm>
 
 #include "../../include/debug.h"
 
@@ -20,6 +21,7 @@
 #include "utils.h"
 
 #include <vector>
+#include <algorithm>
 
 NetworkProtocolSMB::NetworkProtocolSMB(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)
@@ -38,33 +40,33 @@ NetworkProtocolSMB::~NetworkProtocolSMB()
     smb2_destroy_context(smb);
 }
 
-netProtoErr_t NetworkProtocolSMB::open_file_handle(netProtoOpenMode_t omode)
+protocolError_t NetworkProtocolSMB::open_file_handle()
 {
     if (smb == nullptr)
     {
         Debug_printf("NetworkProtocolSMB::open_file_handle() - no smb context. aborting.\r\n");
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     // Determine flags
     int flags = 0;
 
-    switch (omode)
+    switch (streamMode)
     {
-    case NETPROTO_OPEN_READ:
+    case ACCESS_MODE::READ:
         flags = O_RDONLY;
         break;
-    case NETPROTO_OPEN_WRITE:
+    case ACCESS_MODE::WRITE:
         flags = O_WRONLY | O_CREAT;
         break;
-    case NETPROTO_OPEN_APPEND:
+    case ACCESS_MODE::APPEND:
         flags = O_APPEND | O_CREAT;
         break;
-    case NETPROTO_OPEN_READWRITE:
+    case ACCESS_MODE::READWRITE:
         flags = O_RDWR;
         break;
     default:
-        Debug_printf("NetworkProtocolSMB::open_file_handle() - Uncaught omode %d", omode);
+        Debug_printf("NetworkProtocolSMB::open_file_handle() - Uncaught aux1 %d", (int) streamMode);
     }
 
     fh = smb2_open(smb, smb_url->path, flags);
@@ -73,29 +75,38 @@ netProtoErr_t NetworkProtocolSMB::open_file_handle(netProtoOpenMode_t omode)
     {
         Debug_printf("NetworkProtocolSMB::open_file_handle() - SMB Error %s\r\n", smb2_get_error(smb));
         fserror_to_error();
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     offset = 0;
 
     Debug_printf("DO WE FUCKING GET HERE?!\r\n");
 
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSMB::open_dir_handle()
+protocolError_t NetworkProtocolSMB::open_dir_handle()
 {
     if ((smb_dir = smb2_opendir(smb, smb_url->path)) == nullptr)
     {
         Debug_printf("NetworkProtocolSMB::open_dir_handle() - ERROR: %s\r\n", smb2_get_error(smb));
         fserror_to_error();
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
+std::string lowercase_if_no_lowercase(std::string s)
+{
+    if (!std::any_of(s.begin(), s.end(),
+                     [](unsigned char c) { return std::islower(c); }))
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+    return s;
+}
+
+protocolError_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
 {
     std::string openURL = url->url;
 
@@ -107,7 +118,7 @@ netProtoErr_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
         openURL[2] = 'b';
     }
 
-    if (openMode == OpenMode::DIR)
+    if (streamMode == ACCESS_MODE::DIRECTORY)
     {
         // When doing a directory listing the Atari DIR command sends
         // the directory path followed by `/<glob>` (usually "*.*")
@@ -128,21 +139,40 @@ netProtoErr_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
     {
         Debug_printf("aNetworkProtocolSMB::mount(%s) - failed to parse URL, SMB2 error: %s\n", openURL.c_str(), smb2_get_error(smb));
         fserror_to_error();
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     smb2_set_security_mode(smb, SMB2_NEGOTIATE_SIGNING_ENABLED);
 
-    if (login != nullptr)
+    if (smb_url->user || login != nullptr)
     {
-        smb2_set_user(smb, login->c_str());
-        smb2_set_password(smb, password->c_str());
+        std::string user, pass;
 
-        if ((smb_error = smb2_connect_share(smb, smb_url->server, smb_url->share, login->c_str())) != 0)
+        if (smb_url->user)
+        {
+            std::string_view up(smb_url->user);
+            auto pos = up.find(':');
+            user.assign(up.substr(0, pos));
+            if (pos != std::string_view::npos)
+                pass.assign(up.substr(pos + 1));
+
+            user = lowercase_if_no_lowercase(user);
+            pass = lowercase_if_no_lowercase(pass);
+        }
+        else
+        {
+            user = *login;
+            pass = *password;
+        }
+
+        smb2_set_user(smb, user.c_str());
+        smb2_set_password(smb, pass.c_str());
+
+        if ((smb_error = smb2_connect_share(smb, smb_url->server, smb_url->share, user.c_str())) != 0)
         {
             Debug_printf("aNetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\r\n", openURL.c_str(), smb2_get_error(smb));
             fserror_to_error();
-            return NETPROTO_ERR_UNSPECIFIED;
+            return PROTOCOL_ERROR::UNSPECIFIED;
         }
     }
     else // no u/p
@@ -151,25 +181,25 @@ netProtoErr_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
         {
             Debug_printf("aNetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\r\n", openURL.c_str(), smb2_get_error(smb));
             fserror_to_error();
-            return NETPROTO_ERR_UNSPECIFIED;
+            return PROTOCOL_ERROR::UNSPECIFIED;
         }
     }
 
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSMB::umount()
+protocolError_t NetworkProtocolSMB::umount()
 {
     if (smb == nullptr)
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
 
     smb2_disconnect_share(smb);
 
     if (smb_url == nullptr)
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
 
     smb2_destroy_url(smb_url);
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
 void NetworkProtocolSMB::fserror_to_error()
@@ -177,34 +207,34 @@ void NetworkProtocolSMB::fserror_to_error()
     switch (smb_error)
     {
     default:
-        error = NETWORK_ERROR_GENERAL;
+        error = NDEV_STATUS::GENERAL;
         break;
     }
 }
 
-netProtoErr_t NetworkProtocolSMB::read_file_handle(uint8_t *buf, unsigned short len)
+protocolError_t NetworkProtocolSMB::read_file_handle(uint8_t *buf, unsigned short len)
 {
     int actual_len;
 
     if ((actual_len = smb2_pread(smb, fh, buf, len, offset)) != len)
     {
         fserror_to_error();
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     offset += actual_len;
 
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSMB::read_dir_entry(char *buf, unsigned short len)
+protocolError_t NetworkProtocolSMB::read_dir_entry(char *buf, unsigned short len)
 {
     ent = smb2_readdir(smb, smb_dir);
 
     if (ent == nullptr)
     {
-        error = NETWORK_ERROR_END_OF_FILE;
-        return NETPROTO_ERR_UNSPECIFIED;
+        error = NDEV_STATUS::END_OF_FILE;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     // Set filename to buffer
@@ -214,37 +244,37 @@ netProtoErr_t NetworkProtocolSMB::read_dir_entry(char *buf, unsigned short len)
     fileSize = ent->st.smb2_size;
     is_directory = ent->st.smb2_type == SMB2_TYPE_DIRECTORY;
 
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSMB::close_file_handle()
+protocolError_t NetworkProtocolSMB::close_file_handle()
 {
     smb2_close(smb, fh);
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSMB::close_dir_handle()
+protocolError_t NetworkProtocolSMB::close_dir_handle()
 {
     smb2_closedir(smb, smb_dir);
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSMB::write_file_handle(uint8_t *buf, unsigned short len)
+protocolError_t NetworkProtocolSMB::write_file_handle(uint8_t *buf, unsigned short len)
 {
     int actual_len;
 
     if ((actual_len = smb2_pwrite(smb, fh, buf, len, offset)) != len)
     {
         fserror_to_error();
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     offset += actual_len;
 
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSMB::mkdir(PeoplesUrlParser *url)
+protocolError_t NetworkProtocolSMB::mkdir(PeoplesUrlParser *url)
 {
     mount(url);
 
@@ -256,10 +286,10 @@ netProtoErr_t NetworkProtocolSMB::mkdir(PeoplesUrlParser *url)
 
     umount();
 
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSMB::rmdir(PeoplesUrlParser *url)
+protocolError_t NetworkProtocolSMB::rmdir(PeoplesUrlParser *url)
 {
     mount(url);
 
@@ -271,17 +301,17 @@ netProtoErr_t NetworkProtocolSMB::rmdir(PeoplesUrlParser *url)
 
     umount();
 
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolSMB::stat()
+protocolError_t NetworkProtocolSMB::stat()
 {
     struct smb2_stat_64 st;
 
     int ret = smb2_stat(smb, smb_url->path, &st);
 
     fileSize = st.smb2_size;
-    return ret != 0 ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
+    return ret != 0 ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
 off_t NetworkProtocolSMB::seek(off_t position, int whence)

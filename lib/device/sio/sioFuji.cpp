@@ -231,8 +231,30 @@ void sioFuji::debug_tape()
 size_t sioFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                                 uint8_t maxlen)
 {
-    return _set_additional_direntry_details(f, dest, maxlen, 70, SIZE_32_LE,
-                                            HAS_DIR_ENTRY_FLAGS_SEPARATE, HAS_DIR_ENTRY_TYPE);
+    struct {
+        dirEntryTimestamp modified;
+        uint32_t size;
+        uint8_t is_dir;
+        uint8_t is_trunc;
+        uint8_t mediatype;
+    } __attribute__((packed)) custom_details;
+    dirEntryDetails details;
+
+    details = _additional_direntry_details(f);
+    custom_details.modified = details.modified;
+    custom_details.modified.year -= 70;
+    custom_details.size = htole32(details.size);
+    custom_details.is_dir = details.flags & DET_FF_DIR;
+    custom_details.mediatype = details.mediatype;
+
+    maxlen -= sizeof(custom_details);
+    // Subtract a byte for a terminating slash on directories
+    if (custom_details.is_dir)
+        maxlen--;
+
+    custom_details.is_trunc = strlen(f->filename) >= maxlen ? DET_FF_TRUNC : 0;
+    memcpy(dest, &custom_details, sizeof(custom_details));
+    return sizeof(custom_details);
 }
 
 //  Make new disk and shove into device slot
@@ -693,6 +715,7 @@ void sioFuji::sio_hash_input()
 
 void sioFuji::sio_hash_compute(bool clear_data)
 {
+    transaction_continue(false);
     Debug_printf("FUJI: HASH COMPUTE\n");
     algorithm = Hash::to_algorithm(sio_get_aux());
     hasher.compute(algorithm, clear_data);
@@ -701,6 +724,7 @@ void sioFuji::sio_hash_compute(bool clear_data)
 
 void sioFuji::sio_hash_length()
 {
+    transaction_continue(false);
     Debug_printf("FUJI: HASH LENGTH\n");
     uint16_t is_hex = sio_get_aux() == 1;
     uint8_t r = hasher.hash_length(algorithm, is_hex);
@@ -709,6 +733,7 @@ void sioFuji::sio_hash_length()
 
 void sioFuji::sio_hash_output()
 {
+    transaction_continue(false);
     Debug_printf("FUJI: HASH OUTPUT\n");
     uint16_t is_hex = sio_get_aux() == 1;
 
@@ -724,6 +749,7 @@ void sioFuji::sio_hash_output()
 
 void sioFuji::sio_hash_clear()
 {
+    transaction_continue(false);
     Debug_printf("FUJI: HASH CLEAR\n");
     hasher.clear();
     transaction_complete();
@@ -822,7 +848,13 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         fujicmd_unmount_disk_image_success(cmdFrame.aux1);
         break;
     case FUJICMD_GET_ADAPTERCONFIG:
-        fujicmd_get_adapter_config();
+        // THIS IS STILL NEEDED FOR BACKWARDS COMPATIBILITY WITH
+        // FUJINET-LIB THAT SENDS 0xE8 FOR ADAPTER_CONFIG_EXTENDED
+        // WITH 0x01 IN THE AUX1 BYTE
+        if (cmdFrame.aux1 == 1)
+            fujicmd_get_adapter_config_extended();
+        else
+            fujicmd_get_adapter_config();
         break;
     case FUJICMD_GET_ADAPTERCONFIG_EXTENDED:
         fujicmd_get_adapter_config_extended();
@@ -933,6 +965,9 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         break;
     case FUJICMD_RANDOM_NUMBER:
         sio_random_number();
+        break;
+    case FUJICMD_GENERATE_GUID:
+        fujicmd_generate_guid();
         break;
     default:
         transaction_error();

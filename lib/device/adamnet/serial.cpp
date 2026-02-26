@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include "../../include/debug.h"
+#include "fuji_endian.h"
 
 #define SERIAL_BUF_SIZE 16
 
@@ -12,9 +13,8 @@ adamSerial::adamSerial()
 {
     Debug_printf("Serial Start\n");
     response_len = 0;
-    status_response[1] = 0x10;
-    status_response[2] = 0x00;
-    status_response[3] = 0x00; // character device
+    status_response.length = htole16(SERIAL_BUF_SIZE);
+    status_response.devtype = ADAMNET_DEVTYPE_CHAR;
     serial_out_queue = xQueueCreate(16, sizeof(SendData));
 }
 
@@ -29,7 +29,7 @@ void adamSerial::command_recv()
 
 void adamSerial::adamnet_response_status()
 {
-    status_response[4] = 1;
+    status_response.status = 1;
     virtualDevice::adamnet_response_status();
 }
 
