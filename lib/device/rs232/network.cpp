@@ -422,7 +422,7 @@ void rs232Network::rs232_status_channel()
     size_t avail = 0;
     protocolError_t err = PROTOCOL_ERROR::NONE;
 
-    Debug_printf("rs232Network::rs232_status_channel(%u)\n", channelMode);
+    Debug_printf("rs232Network::rs232_status_channel(%u)\n", (unsigned) channelMode);
 
     switch (channelMode)
     {
