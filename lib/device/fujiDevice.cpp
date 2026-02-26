@@ -319,11 +319,15 @@ bool fujiDevice::fujicore_mount_host_success(unsigned hostSlot)
     Debug_println("Fuji cmd: MOUNT HOST");
 
     // Make sure we weren't given a bad hostSlot
-    if (!validate_host_slot(hostSlot, "mount_hosts"))
+    if (!validate_host_slot(hostSlot, "mount_hosts")) {
+        Debug_println("fujicore_mount_host: BAD SLOT");
         return false;
+    }
 
-    if (!hostMounted[hostSlot] && !_fnHosts[hostSlot].mount())
+    if (!hostMounted[hostSlot] && !_fnHosts[hostSlot].mount()) {
+        Debug_println("fujicore_mount_host: not host mounted and not _fnHosts[hostSlot].mount");
         return false;
+    }
 
     hostMounted[hostSlot] = true;
     return true;
@@ -1326,7 +1330,7 @@ void fujiDevice::fujicmd_set_host_prefix(uint8_t hostSlot, const char *prefix)
 bool fujiDevice::fujicmd_unmount_host_success(uint8_t hostSlot)
 {
     transaction_continue(false);
-    Debug_printf("\r\nFuji cmd: MOUNT HOST no. %d", hostSlot);
+    Debug_printf("\r\nFuji cmd: UNMOUNT HOST no. %d\n", hostSlot);
 
     if (!validate_host_slot(hostSlot, "sio_tnfs_mount_hosts")
         || (hostMounted[hostSlot] == false))
@@ -1353,6 +1357,7 @@ bool fujiDevice::fujicmd_unmount_host_success(uint8_t hostSlot)
         return false;
     }
 
+    hostMounted[hostSlot] = false;
     transaction_complete();
     return true;
 }
