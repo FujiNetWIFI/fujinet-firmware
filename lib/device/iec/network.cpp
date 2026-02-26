@@ -83,7 +83,7 @@ void iecNetwork::iec_open()
         channel_data.deviceSpec += payload;
     }
 
-    channel_data.channelMode = NetworkData::PROTOCOL;
+    channel_data.channelMode = CHANNEL_MODE::PROTOCOL;
 
     cmdFrame.aux1 = (channelId == CHANNEL_LOAD) ? 4 : (channelId == CHANNEL_SAVE) ? 8 : channel_aux1;
     cmdFrame.aux2 = (channelId == CHANNEL_LOAD || channelId == CHANNEL_SAVE) ? 0 : channel_aux2;
@@ -513,9 +513,9 @@ void iecNetwork::set_channel_mode()
         string newMode = pt[2];
 
         if (newMode == "json")
-            channel_data.channelMode = NetworkData::JSON;
+            channel_data.channelMode = CHANNEL_MODE::JSON;
         else if (newMode == "protocol")
-            channel_data.channelMode = NetworkData::PROTOCOL;
+            channel_data.channelMode = CHANNEL_MODE::PROTOCOL;
 
         Debug_printf("Channel mode set to %s %u", newMode.c_str(), channel_data.channelMode);
         iecStatus.error = ns.error;
@@ -976,7 +976,7 @@ uint8_t iecNetwork::getStatusData(char *buffer, uint8_t bufferSize)
       size_t avail;
       auto& channel_data = network_data_map[active_status_channel];
 
-      if (channel_data.channelMode == NetworkData::PROTOCOL) {
+      if (channel_data.channelMode == CHANNEL_MODE::PROTOCOL) {
         channel_data.protocol->status(&ns);
         avail = channel_data.protocol->available();
       } else {
