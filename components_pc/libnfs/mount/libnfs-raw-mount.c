@@ -38,8 +38,10 @@ either expressed or implied, of the FreeBSD Project.
 uint32_t
 zdr_fhandle3 (ZDR *zdrs, fhandle3 *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_bytes (zdrs, (char **)&objp->fhandle3_val, (u_int *) &objp->fhandle3_len, FHSIZE3))
 		 return FALSE;
@@ -49,8 +51,10 @@ zdr_fhandle3 (ZDR *zdrs, fhandle3 *objp)
 uint32_t
 zdr_dirpath (ZDR *zdrs, dirpath *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_string (zdrs, objp, MNTPATHLEN))
 		 return FALSE;
@@ -60,8 +64,10 @@ zdr_dirpath (ZDR *zdrs, dirpath *objp)
 uint32_t
 zdr_name (ZDR *zdrs, name *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_string (zdrs, objp, MNTNAMLEN))
 		 return FALSE;
@@ -71,8 +77,10 @@ zdr_name (ZDR *zdrs, name *objp)
 uint32_t
 zdr_mountstat3 (ZDR *zdrs, mountstat3 *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_enum (zdrs, (enum_t *) objp))
 		 return FALSE;
@@ -82,8 +90,10 @@ zdr_mountstat3 (ZDR *zdrs, mountstat3 *objp)
 uint32_t
 zdr_mountlist (ZDR *zdrs, mountlist *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_pointer (zdrs, (char **)objp, sizeof (struct mountbody), (zdrproc_t) zdr_mountbody))
 		 return FALSE;
@@ -93,8 +103,10 @@ zdr_mountlist (ZDR *zdrs, mountlist *objp)
 uint32_t
 zdr_mountbody (ZDR *zdrs, mountbody *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_name (zdrs, &objp->ml_hostname))
 		 return FALSE;
@@ -108,8 +120,10 @@ zdr_mountbody (ZDR *zdrs, mountbody *objp)
 uint32_t
 zdr_groups (ZDR *zdrs, groups *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_pointer (zdrs, (char **)objp, sizeof (struct groupnode), (zdrproc_t) zdr_groupnode))
 		 return FALSE;
@@ -119,8 +133,10 @@ zdr_groups (ZDR *zdrs, groups *objp)
 uint32_t
 zdr_groupnode (ZDR *zdrs, groupnode *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_name (zdrs, &objp->gr_name))
 		 return FALSE;
@@ -132,8 +148,10 @@ zdr_groupnode (ZDR *zdrs, groupnode *objp)
 uint32_t
 zdr_exports (ZDR *zdrs, exports *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_pointer (zdrs, (char **)objp, sizeof (struct exportnode), (zdrproc_t) zdr_exportnode))
 		 return FALSE;
@@ -143,8 +161,10 @@ zdr_exports (ZDR *zdrs, exports *objp)
 uint32_t
 zdr_exportnode (ZDR *zdrs, exportnode *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_dirpath (zdrs, &objp->ex_dir))
 		 return FALSE;
@@ -158,8 +178,10 @@ zdr_exportnode (ZDR *zdrs, exportnode *objp)
 uint32_t
 zdr_mountres3_ok (ZDR *zdrs, mountres3_ok *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_fhandle3 (zdrs, &objp->fhandle))
 		 return FALSE;
@@ -172,8 +194,10 @@ zdr_mountres3_ok (ZDR *zdrs, mountres3_ok *objp)
 uint32_t
 zdr_mountres3 (ZDR *zdrs, mountres3 *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_mountstat3 (zdrs, &objp->fhs_status))
 		 return FALSE;
@@ -191,8 +215,10 @@ zdr_mountres3 (ZDR *zdrs, mountres3 *objp)
 uint32_t
 zdr_mountstat1 (ZDR *zdrs, mountstat1 *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_enum (zdrs, (enum_t *) objp))
 		 return FALSE;
@@ -202,8 +228,10 @@ zdr_mountstat1 (ZDR *zdrs, mountstat1 *objp)
 uint32_t
 zdr_fhandle1 (ZDR *zdrs, fhandle1 objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_opaque (zdrs, objp, FHSIZE))
 		 return FALSE;
@@ -213,8 +241,10 @@ zdr_fhandle1 (ZDR *zdrs, fhandle1 objp)
 uint32_t
 zdr_mountres1_ok (ZDR *zdrs, mountres1_ok *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_fhandle1 (zdrs, objp->fhandle))
 		 return FALSE;
@@ -224,8 +254,10 @@ zdr_mountres1_ok (ZDR *zdrs, mountres1_ok *objp)
 uint32_t
 zdr_mountres1 (ZDR *zdrs, mountres1 *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_mountstat1 (zdrs, &objp->fhs_status))
 		 return FALSE;
@@ -243,8 +275,10 @@ zdr_mountres1 (ZDR *zdrs, mountres1 *objp)
 uint32_t
 zdr_MOUNT1MNTargs (ZDR *zdrs, MOUNT1MNTargs *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_dirpath (zdrs, objp))
 		 return FALSE;
@@ -254,8 +288,10 @@ zdr_MOUNT1MNTargs (ZDR *zdrs, MOUNT1MNTargs *objp)
 uint32_t
 zdr_MOUNT1MNTres (ZDR *zdrs, MOUNT1MNTres *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_mountres1 (zdrs, objp))
 		 return FALSE;
@@ -265,8 +301,10 @@ zdr_MOUNT1MNTres (ZDR *zdrs, MOUNT1MNTres *objp)
 uint32_t
 zdr_MOUNT1DUMPres (ZDR *zdrs, MOUNT1DUMPres *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_mountbody (zdrs, objp))
 		 return FALSE;
@@ -276,8 +314,10 @@ zdr_MOUNT1DUMPres (ZDR *zdrs, MOUNT1DUMPres *objp)
 uint32_t
 zdr_MOUNT1DUMPres_ptr (ZDR *zdrs, MOUNT1DUMPres_ptr *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_mountlist (zdrs, objp))
 		 return FALSE;
@@ -287,8 +327,10 @@ zdr_MOUNT1DUMPres_ptr (ZDR *zdrs, MOUNT1DUMPres_ptr *objp)
 uint32_t
 zdr_MOUNT1UMNTargs (ZDR *zdrs, MOUNT1UMNTargs *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_dirpath (zdrs, objp))
 		 return FALSE;
@@ -298,8 +340,10 @@ zdr_MOUNT1UMNTargs (ZDR *zdrs, MOUNT1UMNTargs *objp)
 uint32_t
 zdr_MOUNT1EXPORTres (ZDR *zdrs, MOUNT1EXPORTres *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_exportnode (zdrs, objp))
 		 return FALSE;
@@ -309,8 +353,10 @@ zdr_MOUNT1EXPORTres (ZDR *zdrs, MOUNT1EXPORTres *objp)
 uint32_t
 zdr_MOUNT1EXPORTres_ptr (ZDR *zdrs, MOUNT1EXPORTres_ptr *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_pointer (zdrs, (char **)objp, sizeof (exportnode), (zdrproc_t) zdr_exportnode))
 		 return FALSE;
@@ -320,8 +366,10 @@ zdr_MOUNT1EXPORTres_ptr (ZDR *zdrs, MOUNT1EXPORTres_ptr *objp)
 uint32_t
 zdr_MOUNT3MNTargs (ZDR *zdrs, MOUNT3MNTargs *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_dirpath (zdrs, objp))
 		 return FALSE;
@@ -331,8 +379,10 @@ zdr_MOUNT3MNTargs (ZDR *zdrs, MOUNT3MNTargs *objp)
 uint32_t
 zdr_MOUNT3MNTres (ZDR *zdrs, MOUNT3MNTres *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_mountres3 (zdrs, objp))
 		 return FALSE;
@@ -342,8 +392,10 @@ zdr_MOUNT3MNTres (ZDR *zdrs, MOUNT3MNTres *objp)
 uint32_t
 zdr_MOUNT3DUMPres (ZDR *zdrs, MOUNT3DUMPres *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_mountbody (zdrs, objp))
 		 return FALSE;
@@ -353,8 +405,10 @@ zdr_MOUNT3DUMPres (ZDR *zdrs, MOUNT3DUMPres *objp)
 uint32_t
 zdr_MOUNT3DUMPres_ptr (ZDR *zdrs, MOUNT3DUMPres_ptr *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_mountlist (zdrs, objp))
 		 return FALSE;
@@ -364,8 +418,10 @@ zdr_MOUNT3DUMPres_ptr (ZDR *zdrs, MOUNT3DUMPres_ptr *objp)
 uint32_t
 zdr_MOUNT3UMNTargs (ZDR *zdrs, MOUNT3UMNTargs *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_dirpath (zdrs, objp))
 		 return FALSE;
@@ -375,8 +431,10 @@ zdr_MOUNT3UMNTargs (ZDR *zdrs, MOUNT3UMNTargs *objp)
 uint32_t
 zdr_MOUNT3EXPORTres (ZDR *zdrs, MOUNT3EXPORTres *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_exportnode (zdrs, objp))
 		 return FALSE;
@@ -386,8 +444,10 @@ zdr_MOUNT3EXPORTres (ZDR *zdrs, MOUNT3EXPORTres *objp)
 uint32_t
 zdr_MOUNT3EXPORTres_ptr (ZDR *zdrs, MOUNT3EXPORTres_ptr *objp)
 {
+#ifdef UNUSED
 	register int32_t *buf;
 	buf = NULL;
+#endif /* UNUSED */
 
 	 if (!zdr_pointer (zdrs, (char **)objp, sizeof (exportnode), (zdrproc_t) zdr_exportnode))
 		 return FALSE;

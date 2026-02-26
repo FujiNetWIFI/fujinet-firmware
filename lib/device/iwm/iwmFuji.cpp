@@ -299,7 +299,7 @@ void iwmFuji::setup()
         populate_slots_from_config();
 
         // Disable booting from CONFIG if our settings say to turn it off
-        boot_config = false; // to do - understand?
+        boot_config = Config.get_general_config_enabled();
 
         // add ourselves as a device
         SYSTEM_BUS.addDevice(this, iwm_fujinet_type_t::FujiNet);
@@ -320,8 +320,16 @@ void iwmFuji::setup()
                 SYSTEM_BUS.addDevice(disk_dev, iwm_fujinet_type_t::BlockDisk);
         }
 
-        Debug_printf("\nConfig General Boot Mode: %u\n", Config.get_general_boot_mode());
-        insert_boot_device(Config.get_general_boot_mode(), MEDIATYPE_PO, get_disk_dev(0));
+        if (boot_config)
+        {
+            Debug_printf("\nConfig General Boot Mode: %u\n", Config.get_general_boot_mode());
+            insert_boot_device(Config.get_general_boot_mode(), MEDIATYPE_PO, get_disk_dev(0));
+        }
+        else if (!Config.get_config_filename().empty())
+        {
+            Debug_printf("\nInsert Alternate Config Disk: %s\n", Config.get_config_filename().c_str());
+            insert_boot_device(Config.get_config_filename(), MEDIATYPE_PO, get_disk_dev(0));
+        }
 }
 
 void iwmFuji::send_status_reply_packet()

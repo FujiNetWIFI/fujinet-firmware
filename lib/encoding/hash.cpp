@@ -8,6 +8,20 @@
 #include <mbedtls/sha256.h>
 #include <mbedtls/sha512.h>
 
+#include "mbedtls/version.h"
+
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000 || MBEDTLS_VERSION_NUMBER < 0x02070000
+#define COMPAT_MBEDTLS_MD5 mbedtls_md5
+#define COMPAT_MBEDTLS_SHA1 mbedtls_sha1
+#define COMPAT_MBEDTLS_SHA256 mbedtls_sha256
+#define COMPAT_MBEDTLS_SHA512 mbedtls_sha512
+#else
+#define COMPAT_MBEDTLS_MD5 mbedtls_md5_ret
+#define COMPAT_MBEDTLS_SHA1 mbedtls_sha1_ret
+#define COMPAT_MBEDTLS_SHA256 mbedtls_sha256_ret
+#define COMPAT_MBEDTLS_SHA512 mbedtls_sha512_ret
+#endif
+
 // TODO: Add support for other algorithms and hardware acceleration
 
 Hash hasher;
@@ -138,15 +152,7 @@ void Hash::compute_md5() {
     }
 
     hash_output.resize(16);
-    mbedtls_md5((const unsigned char *)accumulated_data.data(), accumulated_data.size(), hash_output.data());
-
-    // mbedtls_md5_context ctx;
-    // mbedtls_md5_init(&ctx);
-    // mbedtls_md5_starts(&ctx);
-    // mbedtls_md5_update(&ctx, accumulated_data.data(), accumulated_data.size());
-    // hash_output.resize(16);
-    // mbedtls_md5_finish(&ctx, hash_output.data());
-    // mbedtls_md5_free(&ctx);
+    COMPAT_MBEDTLS_MD5((const unsigned char *)accumulated_data.data(), accumulated_data.size(), hash_output.data());
 }
 
 void Hash::compute_sha1() {
@@ -157,15 +163,7 @@ void Hash::compute_sha1() {
     }
 
     hash_output.resize(20);
-    mbedtls_sha1((const unsigned char *)accumulated_data.data(), accumulated_data.size(), hash_output.data());
-
-    // mbedtls_sha1_context ctx;
-    // mbedtls_sha1_init(&ctx);
-    // mbedtls_sha1_starts(&ctx);
-    // mbedtls_sha1_update(&ctx, accumulated_data.data(), accumulated_data.size());
-    // hash_output.resize(20);
-    // mbedtls_sha1_finish(&ctx, hash_output.data());
-    // mbedtls_sha1_free(&ctx);
+    COMPAT_MBEDTLS_SHA1((const unsigned char *)accumulated_data.data(), accumulated_data.size(), hash_output.data());
 }
 
 void Hash::compute_sha256(int is224) {
@@ -182,15 +180,7 @@ void Hash::compute_sha256(int is224) {
         hash_output.resize(28);
     else
         hash_output.resize(32);
-    mbedtls_sha256((const unsigned char *)accumulated_data.data(), accumulated_data.size(), hash_output.data(), is224);
-
-    // mbedtls_sha256_context ctx;
-    // mbedtls_sha256_init(&ctx);
-    // mbedtls_sha256_starts(&ctx, 0);
-    // mbedtls_sha256_update(&ctx, accumulated_data.data(), accumulated_data.size());
-    // hash_output.resize(32);
-    // mbedtls_sha256_finish(&ctx, hash_output.data());
-    // mbedtls_sha256_free(&ctx);
+    COMPAT_MBEDTLS_SHA256((const unsigned char *)accumulated_data.data(), accumulated_data.size(), hash_output.data(), is224);
 }
 
 void Hash::compute_sha512(int is384) {
@@ -207,15 +197,7 @@ void Hash::compute_sha512(int is384) {
         hash_output.resize(48);
     else
         hash_output.resize(64);
-    mbedtls_sha512((const unsigned char *)accumulated_data.data(), accumulated_data.size(), hash_output.data(), is384);
-
-    // mbedtls_sha512_context ctx;
-    // mbedtls_sha512_init(&ctx);
-    // mbedtls_sha512_starts(&ctx, 0);
-    // mbedtls_sha512_update(&ctx, accumulated_data.data(), accumulated_data.size());
-    // hash_output.resize(64);
-    // mbedtls_sha512_finish(&ctx, hash_output.data());
-    // mbedtls_sha512_free(&ctx);
+    COMPAT_MBEDTLS_SHA512((const unsigned char *)accumulated_data.data(), accumulated_data.size(), hash_output.data(), is384);
 }
 
 void Hash::compute_md(mbedtls_md_type_t md_type, uint8_t size) {
@@ -223,20 +205,11 @@ void Hash::compute_md(mbedtls_md_type_t md_type, uint8_t size) {
 
     hash_output.resize(size);
     mbedtls_md_hmac(
-        mbedtls_md_info_from_type(md_type), 
-        (const unsigned char *)key.data(), key.size(), 
-        (const unsigned char *)accumulated_data.data(), accumulated_data.size(), 
+        mbedtls_md_info_from_type(md_type),
+        (const unsigned char *)key.data(), key.size(),
+        (const unsigned char *)accumulated_data.data(), accumulated_data.size(),
         hash_output.data()
     );
-
-    // mbedtls_md_context_t ctx;
-    // mbedtls_md_init(&ctx);
-    // mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(md_type), 1);
-    // mbedtls_md_hmac_starts(&ctx, (const unsigned char*)key.data(), key.size());
-    // mbedtls_md_hmac_update(&ctx, accumulated_data.data(), accumulated_data.size());
-    // hash_output.resize(size);
-    // mbedtls_md_hmac_finish(&ctx, hash_output.data());
-    // mbedtls_md_free(&ctx);
 }
 
 std::string Hash::bytes_to_hex(const std::vector<uint8_t>& bytes) const {
