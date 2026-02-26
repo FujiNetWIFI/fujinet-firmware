@@ -11,6 +11,7 @@
 #include "peoples_url_parser.h"
 #include "networkStatus.h"
 #include "status_error_codes.h"
+#include "network_data.h"
 #include "fnjson.h"
 
 #include "ProtocolParser.h"
@@ -26,11 +27,6 @@
 #define INPUT_BUFFER_SIZE 65535
 #define OUTPUT_BUFFER_SIZE 65535
 #define SPECIAL_BUFFER_SIZE 256
-
-enum FujiChannelMode {
-    NETWORK_PROTOCOL = 0,
-    NETWORK_JSON     = 1,
-};
 
 class rs232Network : public virtualDevice
 {
@@ -63,7 +59,7 @@ public:
      * Called for RS232 Command 'O' to open a connection to a network protocol, allocate all buffers,
      * and start the receive PROCEED interrupt.
      */
-    void rs232_open(netProtoOpenMode_t omode, netProtoTranslation_t translate);
+    void rs232_open(fileAccessMode_t access, netProtoTranslation_t translate);
 
     /**
      * Called for RS232 Command 'C' to close a connection to a network protocol, de-allocate all buffers,
@@ -97,7 +93,7 @@ public:
     /**
      * @brief set channel mode, JSON or PROTOCOL
      */
-    void rs232_set_channel_mode(FujiChannelMode chanMode);
+    void rs232_set_channel_mode(channelMode_t chanMode);
 
     /**
      * @brief Called to set prefix
@@ -130,6 +126,10 @@ public:
      * @param checksum 8 bit checksum
      */
     void rs232_process(FujiBusPacket &packet) override;
+    void process_tcp(FujiBusPacket &packet);
+    void process_http(FujiBusPacket &packet);
+    void process_udp(FujiBusPacket &packet);
+    void process_fs(FujiBusPacket &packet);
 
     void rs232_seek(uint32_t offset);
     void rs232_tell();
@@ -209,11 +209,6 @@ private:
     netProtoTranslation_t trans_mode = NETPROTO_TRANS_NONE;
 
     /**
-     * Return value for DSTATS inquiry
-     */
-    AtariSIODirection inq_dstats=SIO_DIRECTION_INVALID;
-
-    /**
      * The login to use for a protocol action
      */
     std::string login;
@@ -236,17 +231,13 @@ private:
      * @enum PROTOCOL Send to protocol
      * @enum JSON Send to JSON parser.
      */
-    enum _channel_mode
-        {
-            PROTOCOL,
-            JSON
-        } channelMode;
+    channelMode_t channelMode;
 
     /**
      * saved NetworkStatus items
      */
     unsigned char reservedSave = 0;
-    unsigned char errorSave = 1;
+    nDevStatus_t errorSave = NDEV_STATUS::SUCCESS;
 
     /**
      * The fnJSON parser wrapper object
@@ -267,7 +258,7 @@ private:
     /**
      * Create the deviceSpec and fix it for parsing
      */
-    void create_devicespec(netProtoOpenMode_t omode);
+    void create_devicespec(fileAccessMode_t access);
 
     /**
      * Create a urlParser from deviceSpec
@@ -301,22 +292,22 @@ private:
     /**
      * Perform the correct read based on value of channelMode
      * @param num_bytes Number of bytes to read.
-     * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
+     * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
      */
-    bool rs232_read_channel(uint16_t num_bytes);
+    protocolError_t rs232_read_channel(uint16_t num_bytes);
 
     /**
      * @brief Perform read of the current JSON channel
      * @param num_bytes Number of bytes to read
      */
-    bool rs232_read_channel_json(uint16_t num_bytes);
+    protocolError_t rs232_read_channel_json(uint16_t num_bytes);
 
     /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
-     * @return TRUE on error, FALSE on success. Used to emit rs232_error or rs232_complete().
+     * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit rs232_error or rs232_complete().
      */
-    bool rs232_write_channel(uint16_t num_bytes);
+    protocolError_t rs232_write_channel(uint16_t num_bytes);
 
     /**
      * @brief perform local status commands, if protocol is not bound, based on cmdFrame
@@ -332,7 +323,7 @@ private:
     /**
      * @brief get JSON status (# of bytes in receive channel)
      */
-    bool rs232_status_channel_json(NetworkStatus *ns);
+    protocolError_t rs232_status_channel_json(NetworkStatus *ns);
 
     /**
      * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
@@ -362,65 +353,7 @@ private:
     /**
      * @brief parse URL and instantiate protocol
      */
-    void parse_and_instantiate_protocol(netProtoOpenMode_t omode);
-
-#ifdef OBSOLETE
-    /**
-     * RS232 Special, called as a default for any other RS232 command not processed by the other rs232_ functions.
-     * First, the protocol is asked whether it wants to process the command, and if so, the protocol will
-     * process the special command. Otherwise, the command is handled locally. In either case, either rs232_complete()
-     * or rs232_error() is called.
-     */
-    void rs232_special(fujiCommandID_t command, netProtoTranslation_t tMode,
-                       FujiChannelMode chanMode, netProtoOpenMode_t omode);
-
-    /**
-     * @brief Do an inquiry to determine whether a protoocol supports a particular command.
-     * The protocol will either return $00 - No Payload, $40 - Atari Read, $80 - Atari Write,
-     * or $FF - Command not supported, which should then be used as a DSTATS value by the
-     * Atari when making the N: RS232 call.
-     */
-    void rs232_special_inquiry();
-
-    /**
-     * @brief called to handle special protocol interactions when DSTATS=$00, meaning there is no payload.
-     * Essentially, call the protocol action
-     * and based on the return, signal rs232_complete() or error().
-     */
-    void rs232_special_00(fujiCommandID_t command, netProtoTranslation_t tMode,
-                          FujiChannelMode chanMode);
-
-    /**
-     * @brief called to handle protocol interactions when DSTATS=$40, meaning the payload is to go from
-     * the peripheral back to the ATARI. Essentially, call the protocol action with the accrued special
-     * buffer (containing the devicespec) and based on the return, use bus_to_computer() to transfer the
-     * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
-     */
-    void rs232_special_40(fujiCommandID_t command);
-
-    /**
-     * @brief called to handle protocol interactions when DSTATS=$80, meaning the payload is to go from
-     * the ATARI to the pheripheral. Essentially, call the protocol action with the accrued special
-     * buffer (containing the devicespec) and based on the return, use bus_to_peripheral() to transfer the
-     * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
-     */
-    void rs232_special_80(fujiCommandID_t command, netProtoTranslation_t tMode,
-                          netProtoOpenMode_t omode);
-
-    /**
-     * @brief perform ->FujiNet commands on protocols that do not use an explicit OPEN channel.
-     */
-    void rs232_do_idempotent_command_80(fujiCommandID_t command, netProtoOpenMode_t omode);
-
-    /**
-     * @brief Perform the inquiry, handle both local and protocol commands.
-     * @param inq_cmd the command to check against.
-     */
-    void do_inquiry(fujiCommandID_t inq_cmd);
-#else /* ! OBSOLETE */
-    void rs232_filesystem_operation(fujiCommandID_t command, netProtoOpenMode_t omode);
-    void rs232_accept();
-#endif /* OBSOLETE */
+    void parse_and_instantiate_protocol(fileAccessMode_t access);
 
 };
 

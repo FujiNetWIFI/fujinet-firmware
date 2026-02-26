@@ -5,8 +5,10 @@
  * Comlynx Routines
  */
 
+vvvvvvvvvvvvvvvvvvvv
+#include "cmdFrame.h"
 #include "UARTChannel.h"
-#include "fujiDeviceID.h"
+^^^^^^^^^^^^^^^^^^^^
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
@@ -34,27 +36,11 @@
 
 #define COMLYNX_RESET_DEBOUNCE_PERIOD 100 // in ms
 
-union cmdFrame_t
-{
-    struct
-    {
-        uint8_t device;
-        uint8_t comnd;
-        uint8_t aux1;
-        uint8_t aux2;
-        uint8_t cksum;
-    };
-    struct
-    {
-        uint32_t commanddata;
-        uint8_t checksum;
-    } __attribute__((packed));
-};
-
 class systemBus;
 class lynxFuji;     // declare here so can reference it, but define in fuji.h
 class lynxPrinter;
 class lynxUDPStream; // declare here so can reference it, but define in udpstream.h
+class lynxNetwork;
 
 /**
  * @brief Calculate checksum for Comlynx packets. Uses a simple 8-bit XOR of each successive byte.
@@ -71,9 +57,6 @@ class virtualDevice
 {
 protected:
     friend systemBus; // We exist on the Comlynx Bus, and need its methods.
-
-    // Unused, for compatibility with fujiDevice.cpp
-    uint8_t status_wait_count = 5;
 
     /**
      * @brief Send Byte to Comlynx
@@ -153,7 +136,7 @@ protected:
     /**
      * @brief acknowledge if device is ready, but not if cmd took too long.
      */
-    virtual void comlynx_control_ready();
+    //virtual void comlynx_control_ready();
 
     /**
      * @brief Device Number: 0-15
@@ -166,27 +149,27 @@ protected:
      * @brief process the next packet with the active device.
      * @param b first byte of packet.
      */
-    virtual void comlynx_process(uint8_t b);
+    virtual void comlynx_process();
 
     /**
      * @brief Do any tasks that can only be done when the bus is quiet
      */
-    virtual void comlynx_idle();
+    //virtual void comlynx_idle();
 
     /**
      * @brief send current status of device
      */
-    virtual void comlynx_control_status();
+    //virtual void comlynx_control_status();
 
     /**
      * @brief lynx says clear to send!
      */
-    virtual void comlynx_control_clr();
+    //virtual void comlynx_control_clr();
 
     /**
      * @brief send status response
      */
-    virtual void comlynx_response_status();
+    //virtual void comlynx_response_status();
 
     /**
      * @brief command frame, used by network protocol, ultimately
@@ -196,28 +179,22 @@ protected:
     /**
      * The response sent in comlynx_response_status()
      */
-    uint8_t status_response[6] = {0x80,0x00,0x00,0x01,0x00,0x00};
+    //uint8_t status_response[6] = {0x80,0x00,0x00,0x01,0x00,0x00};
 
     /**
-     * Response buffer
+     * Response buffer and length
      */
     uint8_t response[1024];
-
-    /**
-     * Response length
-     */
     uint16_t response_len;
 
     /**
-     * Receive buffer and length
+     * Receive buffer, length and point into recvbuffer
      */
     uint8_t recvbuffer[1024];
     uint16_t recvbuffer_len = 0;
+    uint8_t *recvbuf_pos;
 
 public:
-    // Unused, for compatibility with fujiDevice.cpp
-    bool readonly = false;  //write protected
-    bool switched = false; //indicate disk switched condition
 
     /**
      * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?
@@ -271,7 +248,6 @@ public:
      * stopwatch
      */
     int64_t start_time;
-    //int64_t comlynx_idle_time = 1000;
 
     int numDevices();
     void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id);

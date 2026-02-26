@@ -9,14 +9,14 @@
 
 #include "media.h"
 #include "utils.h"
+#include "fuji_endian.h"
 
 adamDisk::adamDisk()
 {
     device_active = false;
     blockNum = 0;
-    status_response[1] = 0x00;
-    status_response[2] = 0x04; // 1024 bytes
-    status_response[3] = 0x01; // Block device
+    status_response.length = htole16(1024);
+    status_response.devtype = ADAMNET_DEVTYPE_BLOCK;
 }
 
 // Destructor
@@ -189,9 +189,9 @@ void adamDisk::adamnet_control_send()
 void adamDisk::adamnet_response_status()
 {
     if (_media == nullptr)
-        status_response[4] = 0x40 | STATUS_NO_MEDIA;
+        status_response.status = 0x40 | STATUS_NO_MEDIA;
     else
-        status_response[4] = 0x40 | _media->_media_controller_status;
+        status_response.status = 0x40 | _media->_media_controller_status;
 
     int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
 

@@ -1,6 +1,7 @@
 #ifndef CX16_I2C_H
 #define CX16_I2C_H
 
+#include "cmdFrame.h"
 #include <cstdint>
 #include <forward_list>
 #include <freertos/FreeRTOS.h>
@@ -47,26 +48,6 @@
  * 5. Check COMPLETE/ERROR
  * 6. If payload expected, read Payload Data for as many expected bytes.
  */
-
-/**
- * @brief The command frame
- */
-union cmdFrame_t
-{
-    struct
-    {
-        uint8_t device;
-        uint8_t comnd;
-        uint8_t aux1;
-        uint8_t aux2;
-        uint8_t cksum;
-    };
-    struct
-    {
-        uint32_t commanddata;
-        uint8_t checksum;
-    } __attribute__((packed));
-};
 
 /**
  * @brief calculate a simple 8-bit wrap-around checksum.

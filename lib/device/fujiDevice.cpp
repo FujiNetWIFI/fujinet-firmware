@@ -30,19 +30,12 @@
 #include "utils.h"
 #include "directoryPageGroup.h"
 #include "compat_string.h"
-
 #include "fuji_endian.h"
 #include "peoples_url_parser.h"
 
 #ifndef ESP_PLATFORM // why ESP does not like it? it throws a linker error undefined reference to 'basename'
 #include <libgen.h>
 #endif /* ESP_PLATFORM */
-
-// File flags
-enum DET_file_flags_t {
-    DET_FF_DIR   = 0x01,
-    DET_FF_TRUNC = 0x02,
-};
 
 #define DIR_BLOCK_SIZE 256
 
@@ -341,6 +334,7 @@ bool fujiDevice::fujicmd_mount_host_success(unsigned hostSlot)
     transaction_continue(false);
     if (!fujicore_mount_host_success(hostSlot))
     {
+        Debug_println("fujicore_mount_host_success returned false");
         transaction_error();
         return false;
     }
@@ -875,87 +869,28 @@ void fujiDevice::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
     transaction_put(current_entry->data(), maxlen);
 }
 
-size_t fujiDevice::_set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
-                                                    uint8_t maxlen, int year_offset,
-                                                    DET_size_endian_t size_endian,
-                                                    DET_dir_flags_t dir_flags,
-                                                    DET_has_type_t has_type)
+dirEntryDetails fujiDevice::_additional_direntry_details(fsdir_entry_t *f)
 {
-    unsigned int idx = 0;
+    dirEntryDetails details;
 
     // File modified date-time
     struct tm *modtime = localtime(&f->modified_time);
 
-    dest[idx++] = modtime->tm_year - year_offset;
-    dest[idx++] = modtime->tm_mon + 1;
-    dest[idx++] = modtime->tm_mday;
-    dest[idx++] = modtime->tm_hour;
-    dest[idx++] = modtime->tm_min;
-    dest[idx++] = modtime->tm_sec;
+    details.modified.year = modtime->tm_year;
+    details.modified.month = modtime->tm_mon + 1;
+    details.modified.day = modtime->tm_mday;
+    details.modified.hour = modtime->tm_hour;
+    details.modified.minute = modtime->tm_min;
+    details.modified.second = modtime->tm_sec;
+    details.size = f->size;
 
-    switch (size_endian)
-    {
-    case SIZE_16_LE:
-        {
-            uint16_t fsize = htole16(f->size);
-            memcpy(&dest[idx], &fsize, sizeof(fsize));
-            idx += sizeof(fsize);
-        }
-        break;
-    case SIZE_16_BE:
-        {
-            uint16_t fsize = htobe16(f->size);
-            memcpy(&dest[idx], &fsize, sizeof(fsize));
-            idx += sizeof(fsize);
-        }
-        break;
-    case SIZE_32_LE:
-        {
-            uint32_t fsize = htole32(f->size);
-            memcpy(&dest[idx], &fsize, sizeof(fsize));
-            idx += sizeof(fsize);
-        }
-        break;
-    case SIZE_32_BE:
-        {
-            uint32_t fsize = htobe32(f->size);
-            memcpy(&dest[idx], &fsize, sizeof(fsize));
-            idx += sizeof(fsize);
-        }
-        break;
-    default:
-        break;
-    }
-
-    dest[idx++] = f->isDir ? DET_FF_DIR : 0;
-
-    // Remember where truncate field is, will fill in after we know how many bytes we need
-    unsigned int trunc_field_idx = idx;
-    if (dir_flags == HAS_DIR_ENTRY_FLAGS_COMBINED)
-        trunc_field_idx--;
-    else
-        dest[idx++] = 0;
-
-    // File type
-    if (has_type == HAS_DIR_ENTRY_TYPE)
-        dest[idx++] = MediaType::discover_mediatype(f->filename);
-
-    // Adjust the truncated flag using total bytes of dir entry
-    maxlen -= idx;
-
-    // Also subtract a byte for a terminating slash on directories
+    details.flags = 0;
     if (f->isDir)
-        maxlen--;
+        details.flags |= DET_FF_DIR;
 
-    // Now that we know actual maxlen we can set the truncated flag
-    if (strlen(f->filename) >= maxlen)
-        dest[trunc_field_idx] |= DET_FF_TRUNC;
+    details.mediatype = MediaType::discover_mediatype(f->filename);
 
-    Debug_printf("Addtl: ");
-    for (int i = 0; i < idx; i++)
-        Debug_printf("%02x ", dest[i]);
-    Debug_printf("\n");
-    return idx;
+    return details;
 }
 
 bool fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot,
@@ -1515,6 +1450,13 @@ char *_generate_appkey_filename(appkey *info)
 bool fujiDevice::fujicore_open_app_key(uint16_t creator, uint8_t app, uint8_t key,
                                        appkey_mode mode, uint8_t reserved)
 {
+    // We're only supporting writing to SD, so return an error if there's no SD mounted
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - returning error");
+        return false;
+    }
+
     // Basic check for valid data
     if (creator == 0 || mode == APPKEYMODE_INVALID)
     {
@@ -1545,14 +1487,6 @@ void fujiDevice::fujicmd_open_app_key()
     // The data expected for this command
     if (!transaction_get(&key, sizeof(key)))
     {
-        transaction_error();
-        return;
-    }
-
-    // We're only supporting writing to SD, so return an error if there's no SD mounted
-    if (fnSDFAT.running() == false)
-    {
-        Debug_println("No SD mounted - returning error");
         transaction_error();
         return;
     }
@@ -1711,6 +1645,50 @@ void fujiDevice::fujicmd_read_app_key()
         response_data = std::vector<uint8_t>(MAX_APPKEY_LEN + 2, 0);
 
     transaction_put(response_data.data(), response_data.size());
+}
+
+void fujiDevice::fujicmd_generate_guid()
+{
+    char uuid_str[37];
+    char hex[] = "0123456789abcdef";
+    int i;  
+
+    transaction_continue(false);
+
+    Debug_printf("Fuji cmd: GENERATE GUID\n");
+
+    for (i = 0; i < 36; i++)
+    {
+        switch (i)
+        {
+        case 8:
+        case 13:
+        case 18:
+        case 23:
+            uuid_str[i] = '-';
+            break;
+
+        case 14:
+            /* UUID version 4 */
+            uuid_str[i] = '4';
+            break;
+
+        case 19:
+            /* UUID variant: 8, 9, a, or b */
+            uuid_str[i] = hex[(rand() & 0x3) | 0x8];
+            break;
+
+        default:
+            uuid_str[i] = hex[rand() & 0xF];
+            break;
+        }
+    }
+
+    uuid_str[36] = '\0';
+
+    Debug_printf("GUID: %s\n", uuid_str);
+
+    transaction_put(uuid_str, sizeof(uuid_str));
 }
 
 #ifdef SYSTEM_BUS_IS_SERIAL

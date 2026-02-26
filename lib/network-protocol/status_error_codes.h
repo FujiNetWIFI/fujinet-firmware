@@ -5,154 +5,39 @@
 #ifndef STATUS_ERROR_CODES_H
 #define STATUS_ERROR_CODES_H
 
-/**
- * Success
- */
-#define NETWORK_ERROR_SUCCESS 1
+#include <stdint.h>
 
-/**
- * IOCB Write Only
- */
-#define NETWORK_ERROR_WRITE_ONLY 131
-
-/**
- * IOCB Invalid Command
- */
-#define NETWORK_ERROR_INVALID_COMMAND 132
-
-/**
- * IOCB Read Only
- */
-#define NETWORK_ERROR_READ_ONLY 135
-
-/**
- * End of file
- */
-#define NETWORK_ERROR_END_OF_FILE 136
-
-/**
- * General timeout
- */
-#define NETWORK_ERROR_GENERAL_TIMEOUT 138
-
-/**
- * A fatal error
- */
-#define NETWORK_ERROR_GENERAL 144
-
-/**
- * Command not implemented
- */
-#define NETWORK_ERROR_NOT_IMPLEMENTED 146
-
-/**
- * File exists (directory)
- */
-#define NETWORK_ERROR_FILE_EXISTS 151
-
-/**
- * No space left on device
- */
-#define NETWORK_ERROR_NO_SPACE_ON_DEVICE 162
-
-/**
- * An invalid devicespec was given
- */
-#define NETWORK_ERROR_INVALID_DEVICESPEC 165
-
-/**
- * Access denied
- */
-#define NETWORK_ERROR_ACCESS_DENIED 167
-
-/**
- * Network error, file not found
- */
-#define NETWORK_ERROR_FILE_NOT_FOUND 170
-
-/**
- * A connection was either refused or not possible
- */
-#define NETWORK_ERROR_CONNECTION_REFUSED 200
-
-/**
- * Network unreachable
- */
-#define NETWORK_ERROR_NETWORK_UNREACHABLE 201
-
-/**
- * Network Socket Timeout
- */
-#define NETWORK_ERROR_SOCKET_TIMEOUT 202
-
-/**
- * Network Down
- */
-#define NETWORK_ERROR_NETWORK_DOWN 203
-
-/**
- * Connection was reset
- */
-#define NETWORK_ERROR_CONNECTION_RESET 204
-
-/**
- * Connection already in progress
- */
-#define NETWORK_ERROR_CONNECTION_ALREADY_IN_PROGRESS 205
-
-/**
- * Address in use
- */
-#define NETWORK_ERROR_ADDRESS_IN_USE 206
-
-/**
- * Not connected.
- */
-#define NETWORK_ERROR_NOT_CONNECTED 207
-
-/**
- * Server not running (server returned NULL)
- */
-#define NETWORK_ERROR_SERVER_NOT_RUNNING 208
-
-/**
- * No connection waiting
- */
-#define NETWORK_ERROR_NO_CONNECTION_WAITING 209
-
-/**
- * Service not available
- */
-#define NETWORK_ERROR_SERVICE_NOT_AVAILABLE 210
-
-/**
- * Connection aborted
- */
-#define NETWORK_ERROR_CONNECTION_ABORTED 211
-
-/**
- * Invalid username or password.
- */
-#define NETWORK_ERROR_INVALID_USERNAME_OR_PASSWORD 212
-
-/**
- * Could not parse JSON
- */
-#define NETWORK_ERROR_COULD_NOT_PARSE_JSON 213
-
-/**
- * General client error
- */
-#define NETWORK_ERROR_CLIENT_GENERAL 214
-
-/**
- * General Server error
- */
-#define NETWORK_ERROR_SERVER_GENERAL 215
-
-/**
- * Could not allocate buffers
- */
-#define NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS 255
+typedef enum class NDEV_STATUS : uint8_t {
+    SUCCESS                        = 1,   //  Success
+    WRITE_ONLY                     = 131, //  IOCB Write Only
+    INVALID_COMMAND                = 132, //  IOCB Invalid Command
+    READ_ONLY                      = 135, //  IOCB Read Only
+    END_OF_FILE                    = 136, //  End of file
+    GENERAL_TIMEOUT                = 138, //  General timeout
+    GENERAL                        = 144, //  A fatal error
+    NOT_IMPLEMENTED                = 146, //  Command not implemented
+    FILE_EXISTS                    = 151, //  File exists (directory)
+    NO_SPACE_ON_DEVICE             = 162, //  No space left on device
+    INVALID_DEVICESPEC             = 165, //  An invalid devicespec was given
+    ACCESS_DENIED                  = 167, //  Access denied
+    FILE_NOT_FOUND                 = 170, //  Network error, file not found
+    CONNECTION_REFUSED             = 200, //  A connection was either refused or not possible
+    NETWORK_UNREACHABLE            = 201, //  Network unreachable
+    SOCKET_TIMEOUT                 = 202, //  Network Socket Timeout
+    NETWORK_DOWN                   = 203, //  Network Down
+    CONNECTION_RESET               = 204, //  Connection was reset
+    CONNECTION_ALREADY_IN_PROGRESS = 205, //  Connection already in progress
+    ADDRESS_IN_USE                 = 206, //  Address in use
+    NOT_CONNECTED                  = 207, //  Not connected.
+    SERVER_NOT_RUNNING             = 208, //  Server not running (server returned NULL)
+    NO_CONNECTION_WAITING          = 209, //  No connection waiting
+    SERVICE_NOT_AVAILABLE          = 210, //  Service not available
+    CONNECTION_ABORTED             = 211, //  Connection aborted
+    INVALID_USERNAME_OR_PASSWORD   = 212, //  Invalid username or password.
+    COULD_NOT_PARSE_JSON           = 213, //  Could not parse JSON
+    CLIENT_GENERAL                 = 214, //  General client error
+    SERVER_GENERAL                 = 215, //  General Server error
+    COULD_NOT_ALLOCATE_BUFFERS     = 255, //  Could not allocate buffers
+} nDevStatus_t;
 
 #endif /* STATUS_ERROR_CODES */

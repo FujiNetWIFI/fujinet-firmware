@@ -5,6 +5,7 @@
  * rc2014 Routines
  */
 
+#include "cmdFrame.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
@@ -13,23 +14,6 @@
 #define RC2014SIO_BAUDRATE 115200
 
 #define rc2014_RESET_DEBOUNCE_PERIOD 100 // in ms
-
-union cmdFrame_t
-{
-    struct
-    {
-        uint8_t device;
-        uint8_t comnd;
-        uint8_t aux1;
-        uint8_t aux2;
-        uint8_t cksum;
-    };
-    struct
-    {
-        uint32_t commanddata;
-        uint8_t checksum;
-    } __attribute__((packed));
-};
 
 class systemBus;
 class rc2014Fuji;     // declare here so can reference it, but define in fuji.h

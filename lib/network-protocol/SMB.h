@@ -24,34 +24,32 @@ public:
     /**
      * @brief Make directory specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_YEPPERS on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    netProtoErr_t mkdir(PeoplesUrlParser *url) override;
+    protocolError_t mkdir(PeoplesUrlParser *url) override;
 
     /**
      * @brief Remove directory specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_YEPPERS on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    netProtoErr_t rmdir(PeoplesUrlParser *url) override;
+    protocolError_t rmdir(PeoplesUrlParser *url) override;
 
     /**
      * @brief lock file specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_YEPPERS on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    netProtoErr_t lock(PeoplesUrlParser *url) override { return NETPROTO_ERR_NONE; }
+    protocolError_t lock(PeoplesUrlParser *url) override { return PROTOCOL_ERROR::NONE; }
 
     /**
      * @brief unlock file specified by incoming devicespec.
      * @param url pointer to PeoplesUrlParser pointing to file to delete
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_YEPPERS on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    netProtoErr_t unlock(PeoplesUrlParser *url) override { return NETPROTO_ERR_NONE; }
+    protocolError_t unlock(PeoplesUrlParser *url) override { return PROTOCOL_ERROR::NONE; }
 
     off_t seek(off_t offset, int whence) override;
-
-    size_t available() override { return 0; }
 
 protected:
 
@@ -77,28 +75,28 @@ protected:
 
     /**
      * @brief Open file handle, set fd
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    netProtoErr_t open_file_handle(netProtoOpenMode_t omode) override;
+    protocolError_t open_file_handle() override;
 
     /**
      * @brief Open directory handle
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    netProtoErr_t open_dir_handle() override;
+    protocolError_t open_dir_handle() override;
 
     /**
      * @brief Do SMB mount
      * @param url The URL to mount
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    netProtoErr_t mount(PeoplesUrlParser *url) override;
+    protocolError_t mount(PeoplesUrlParser *url) override;
 
     /**
      * @brief Unmount SMB server specified in mountInfo.
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    netProtoErr_t umount() override;
+    protocolError_t umount() override;
 
     /**
      * @brief Translate filesystem error codes to Atari error codes. Sets error in Protocol.
@@ -109,36 +107,36 @@ protected:
      * @brief Read from file handle
      * @param buf target buffer
      * @param len the number of bytes requested
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    netProtoErr_t read_file_handle(uint8_t *buf, unsigned short len) override;
+    protocolError_t read_file_handle(uint8_t *buf, unsigned short len) override;
 
     /**
      * @brief read next directory entry.
      * @param buf the target buffer
      * @param len length of target buffer
      */
-    netProtoErr_t read_dir_entry(char *buf, unsigned short len) override;
+    protocolError_t read_dir_entry(char *buf, unsigned short len) override;
 
     /**
      * @brief for len requested, break up into number of required
      *        SMB_write() blocks.
      * @param len Requested # of bytes.
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    netProtoErr_t write_file_handle(uint8_t *buf, unsigned short len) override;
+    protocolError_t write_file_handle(uint8_t *buf, unsigned short len) override;
 
     /**
      * @brief close file handle
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    netProtoErr_t close_file_handle() override;
+    protocolError_t close_file_handle() override;
 
     /**
      * @brief Close directory handle
-     * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    netProtoErr_t close_dir_handle() override;
+    protocolError_t close_dir_handle() override;
 
 private:
     /**
@@ -179,7 +177,7 @@ private:
     /**
      * @brief get status of file, filling in filesize. mount() must have already been called.
      */
-    netProtoErr_t stat() override;
+    protocolError_t stat() override;
 };
 
 #endif /* NETWORKPROTOCOLSMB_H */

@@ -44,6 +44,10 @@ public:
      * @brief process network device command
      */
     void process();
+    void process_fs();
+    void process_tcp();
+    void process_http();
+    void process_udp();
 
     /**
      * Check to see if PROCEED needs to be asserted.
@@ -90,13 +94,6 @@ public:
      * number of bytes, return ERROR.
      */
     virtual void write();
-
-    /**
-     * DRIVEWIRE Status Command. First try to populate NetworkStatus object from protocol. If protocol not instantiated,
-     * or Protocol does not want to fill status buffer (e.g. due to unknown aux1/aux2 values), then try to deal
-     * with them locally. Then serialize resulting NetworkStatus object to DRIVEWIRE.
-     */
-    virtual void special();
 
     /**
      * DRIVEWIRE Special, called as a default for any other DRIVEWIRE command not processed by the other drivewire_ functions.
@@ -205,11 +202,6 @@ private:
     uint8_t trans_aux2 = 0;
 
     /**
-     * Return value for DSTATS inquiry
-     */
-    uint8_t inq_dstats=0xFF;
-
-    /**
      * The login to use for a protocol action
      */
     std::string login;
@@ -237,7 +229,7 @@ private:
      * saved NetworkStatus items
      */
     unsigned char reservedSave = 0;
-    unsigned char errorSave = 1;
+    nDevStatus_t errorSave = NDEV_STATUS::SUCCESS;
 
     /**
      * The fnJSON parser wrapper object
@@ -304,22 +296,22 @@ private:
     /**
      * Perform the correct read based on value of channelMode
      * @param num_bytes Number of bytes to read.
-     * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
+     * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
      */
-    bool read_channel(unsigned short num_bytes);
+    protocolError_t read_channel(unsigned short num_bytes);
 
     /**
      * @brief Perform read of the current JSON channel
      * @param num_bytes Number of bytes to read
      */
-    bool read_channel_json(unsigned short num_bytes);
+    protocolError_t read_channel_json(unsigned short num_bytes);
 
     /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
-     * @return TRUE on error, FALSE on success. Used to emit drivewire_error or drivewire_complete().
+     * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit drivewire_error or drivewire_complete().
      */
-    bool write_channel(unsigned short num_bytes);
+    protocolError_t write_channel(unsigned short num_bytes);
 
     /**
      * @brief perform local status commands, if protocol is not bound, based on cmdFrame
@@ -338,43 +330,6 @@ private:
     bool status_channel_json(NetworkStatus *ns);
 
     /**
-     * @brief Do an inquiry to determine whether a protoocol supports a particular command.
-     * The protocol will either return $00 - No Payload, $40 - Atari Read, $80 - Atari Write,
-     * or $FF - Command not supported, which should then be used as a DSTATS value by the
-     * Atari when making the N: DRIVEWIRE call.
-     */
-    void special_inquiry();
-
-    /**
-     * @brief called to handle special protocol interactions when DSTATS=$00, meaning there is no payload.
-     * Essentially, call the protocol action
-     * and based on the return, signal drivewire_complete() or error().
-     */
-    void special_00();
-
-    /**
-     * @brief called to handle protocol interactions when DSTATS=$40, meaning the payload is to go from
-     * the peripheral back to the ATARI. Essentially, call the protocol action with the accrued special
-     * buffer (containing the devicespec) and based on the return, use bus_to_computer() to transfer the
-     * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
-     */
-    void special_40();
-
-    /**
-     * @brief called to handle protocol interactions when DSTATS=$80, meaning the payload is to go from
-     * the ATARI to the pheripheral. Essentially, call the protocol action with the accrued special
-     * buffer (containing the devicespec) and based on the return, use bus_to_peripheral() to transfer the
-     * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
-     */
-    void special_80();
-
-    /**
-     * @brief Perform the inquiry, handle both local and protocol commands.
-     * @param inq_cmd the command to check against.
-     */
-    void do_inquiry(fujiCommandID_t inq_cmd);
-
-    /**
      * @brief set translation specified by aux1 to aux2_translation mode.
      */
     void set_translation();
@@ -388,11 +343,6 @@ private:
      * @brief Set JSON query std::string. (must be in JSON channelMode)
      */
     void json_query();
-
-    /**
-     * @brief perform ->FujiNet commands on protocols that do not use an explicit OPEN channel.
-     */
-    void do_idempotent_command_80();
 
     /**
      * @brief parse URL and instantiate protocol

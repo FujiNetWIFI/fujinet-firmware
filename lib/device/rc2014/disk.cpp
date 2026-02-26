@@ -10,14 +10,6 @@
 #include "media.h"
 #include "utils.h"
 
-#define RC2014_DISKCMD_FORMAT 0x21
-#define RC2014_DISKCMD_FORMAT_MEDIUM 0x22
-#define RC2014_DISKCMD_PUT 0x50
-#define RC2014_DISKCMD_READ 0x52
-#define RC2014_DISKCMD_STATUS 0x53
-#define RC2014_DISKCMD_WRITE 0x57
-#define RC2014_DISKCMD_SIZE 0x5A   // 0x5A = 'Z'
-
 rc2014Disk::rc2014Disk()
 {
 }
@@ -251,23 +243,23 @@ void rc2014Disk::rc2014_process(uint32_t commanddata, uint8_t checksum)
         return;
 
     switch (cmdFrame.comnd) {
-    case RC2014_DISKCMD_READ:
+    case DISKCMD_READ:
         read();
         return;
-    case RC2014_DISKCMD_PUT:
+    case DISKCMD_PUT:
         write(false);
         return;
-    case RC2014_DISKCMD_STATUS:
+    case DISKCMD_STATUS:
         status();
         return;
-    case RC2014_DISKCMD_WRITE:
+    case DISKCMD_WRITE:
         write(true);
         return;
-    case RC2014_DISKCMD_FORMAT:
-    case RC2014_DISKCMD_FORMAT_MEDIUM:
+    case DISKCMD_FORMAT:
+    case DISKCMD_FORMAT_MEDIUM:
         format();
         return;
-    case RC2014_DISKCMD_SIZE:
+    case DISKCMD_SIZE:
         get_size();
         return;
     default:

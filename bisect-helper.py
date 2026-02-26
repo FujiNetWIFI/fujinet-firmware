@@ -14,7 +14,7 @@ SKIP = 125
 BANNER_WIDTH = 40
 
 BUILD = "./build.sh"
-FNCONFIG = os.path.join(os.getcwd(), "fnconfig.ini")
+FNCONFIG = "fnconfig.ini"
 
 def build_argparser():
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -23,6 +23,7 @@ def build_argparser():
   parser.add_argument("--skip-fs", action="store_true", help="don't flash the filesystem")
   parser.add_argument("--compile-only", action="store_true", help="don't run, just compile")
   parser.add_argument("--platform", default="COCO", help="LWM platform to build")
+  parser.add_argument("--fnconfig", default=FNCONFIG, help="fnconfig.ini to use")
 
   group = parser.add_mutually_exclusive_group()
   group.add_argument("--build-err-skip", dest="build_err", action="store_const",
@@ -182,7 +183,7 @@ def main():
       cmd = [BUILD, "-m"]
       cmd_dir = None
     else:
-      cmd = ["./fujinet", "-c", FNCONFIG]
+      cmd = ["./fujinet", "-c", os.path.abspath(args.fnconfig)]
       cmd_dir = "build/dist"
     wait_for_quit(cmd, cmd_dir)
     print()
