@@ -533,7 +533,7 @@ void fn_service_loop(void *param)
 
     // if we dont have config enabled, and no alternate config disk selected, then just mount what we have
     // in here so we are after all of the setup and wifi has been started
-    if (!theFuji->boot_config && Config.get_config_filename().empty())
+    if (!Config.get_general_config_enabled() && Config.get_config_filename().empty())
         theFuji->fujicmd_mount_all_success();
 
     // Main service loop
