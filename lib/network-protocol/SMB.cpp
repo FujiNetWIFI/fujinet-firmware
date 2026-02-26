@@ -9,6 +9,7 @@
 #include <fcntl.h>
 
 #include <cstring>
+#include <algorithm>
 
 #include "../../include/debug.h"
 
@@ -50,22 +51,22 @@ protocolError_t NetworkProtocolSMB::open_file_handle()
     // Determine flags
     int flags = 0;
 
-    switch (aux1_open)
+    switch (streamMode)
     {
-    case NETPROTO_OPEN_READ:
+    case ACCESS_MODE::READ:
         flags = O_RDONLY;
         break;
-    case NETPROTO_OPEN_WRITE:
+    case ACCESS_MODE::WRITE:
         flags = O_WRONLY | O_CREAT;
         break;
-    case NETPROTO_OPEN_APPEND:
+    case ACCESS_MODE::APPEND:
         flags = O_APPEND | O_CREAT;
         break;
-    case NETPROTO_OPEN_READWRITE:
+    case ACCESS_MODE::READWRITE:
         flags = O_RDWR;
         break;
     default:
-        Debug_printf("NetworkProtocolSMB::open_file_handle() - Uncaught aux1 %d", aux1_open);
+        Debug_printf("NetworkProtocolSMB::open_file_handle() - Uncaught aux1 %d", (int) streamMode);
     }
 
     fh = smb2_open(smb, smb_url->path, flags);
@@ -117,7 +118,7 @@ protocolError_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
         openURL[2] = 'b';
     }
 
-    if (aux1_open == NETPROTO_OPEN_DIRECTORY)
+    if (streamMode == ACCESS_MODE::DIRECTORY)
     {
         // When doing a directory listing the Atari DIR command sends
         // the directory path followed by `/<glob>` (usually "*.*")
@@ -273,37 +274,7 @@ protocolError_t NetworkProtocolSMB::write_file_handle(uint8_t *buf, unsigned sho
     return PROTOCOL_ERROR::NONE;
 }
 
-AtariSIODirection NetworkProtocolSMB::special_inquiry(fujiCommandID_t cmd)
-{
-    return SIO_DIRECTION_INVALID;
-}
-
-protocolError_t NetworkProtocolSMB::special_00(cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolSMB::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolSMB::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolSMB::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolSMB::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolSMB::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSMB::mkdir(PeoplesUrlParser *url)
 {
     mount(url);
 
@@ -318,7 +289,7 @@ protocolError_t NetworkProtocolSMB::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmd
     return PROTOCOL_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSMB::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolSMB::rmdir(PeoplesUrlParser *url)
 {
     mount(url);
 
@@ -341,16 +312,6 @@ protocolError_t NetworkProtocolSMB::stat()
 
     fileSize = st.smb2_size;
     return ret != 0 ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolSMB::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolSMB::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
 }
 
 off_t NetworkProtocolSMB::seek(off_t position, int whence)

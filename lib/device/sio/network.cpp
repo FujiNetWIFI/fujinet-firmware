@@ -23,6 +23,11 @@
 
 #include "status_error_codes.h"
 
+#include "TCP.h"
+#include "UDP.h"
+#include "HTTP.h"
+#include "FS.h"
+
 using namespace std;
 
 //
@@ -174,7 +179,7 @@ void sioNetwork::sio_open()
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
+    if (protocol->open(urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != PROTOCOL_ERROR::NONE)
     {
         status.error = protocol->error;
         Debug_printf("Protocol unable to make connection. Error: %d\n", status.error);
@@ -682,235 +687,6 @@ void sioNetwork::sio_set_password()
 }
 
 /**
- * SIO Special, called as a default for any other SIO command not processed by the other sio_ functions.
- * First, the protocol is asked whether it wants to process the command, and if so, the protocol will
- * process the special command. Otherwise, the command is handled locally. In either case, either sio_complete()
- * or sio_error() is called.
- */
-void sioNetwork::sio_special()
-{
-    do_inquiry((fujiCommandID_t) cmdFrame.comnd);
-
-    switch (inq_dstats)
-    {
-    case SIO_DIRECTION_NONE: // No payload
-        sio_ack();
-        sio_special_00();
-        break;
-    case SIO_DIRECTION_READ: // Payload to Atari
-        sio_ack();
-        sio_special_40();
-        break;
-    case SIO_DIRECTION_WRITE: // Payload to Peripheral
-        sio_late_ack();
-        sio_special_80();
-        break;
-    default:
-        sio_nak();
-        break;
-    }
-}
-
-/**
- * @brief Do an inquiry to determine whether a protoocol supports a particular command.
- * The protocol will either return $00 - No Payload, $40 - Atari Read, $80 - Atari Write,
- * or $FF - Command not supported, which should then be used as a DSTATS value by the
- * Atari when making the N: SIO call.
- */
-void sioNetwork::sio_special_inquiry()
-{
-    // Acknowledge
-    sio_ack();
-
-#ifdef VERBOSE_PROTOCOL
-    Debug_printf("sioNetwork::sio_special_inquiry(%02x)\n", cmdFrame.aux1);
-#endif
-
-    do_inquiry((fujiCommandID_t) cmdFrame.aux1);
-
-    // Finally, return the completed inq_dstats value back to Atari
-    bus_to_computer((uint8_t *) &inq_dstats, sizeof(inq_dstats), false); // never errors.
-}
-
-void sioNetwork::do_inquiry(fujiCommandID_t inq_cmd)
-{
-    // Reset inq_dstats
-    inq_dstats = SIO_DIRECTION_INVALID;
-
-    // Ask protocol for dstats, otherwise get it locally.
-    if (protocol != nullptr)
-    {
-        inq_dstats = protocol->special_inquiry(inq_cmd);
-#ifdef VERBOSE_PROTOCOL
-        Debug_printf("protocol special_inquiry returned %d\r\n", inq_dstats);
-#endif
-    }
-
-    // If we didn't get one from protocol, or unsupported, see if supported globally.
-    if (inq_dstats == SIO_DIRECTION_INVALID)
-    {
-        switch (inq_cmd)
-        {
-        case NETCMD_RENAME:
-        case NETCMD_DELETE:
-        case NETCMD_LOCK:
-        case NETCMD_UNLOCK:
-        case NETCMD_MKDIR:
-        case NETCMD_RMDIR:
-        case NETCMD_CHDIR:
-        case NETCMD_USERNAME:
-        case NETCMD_PASSWORD:
-            inq_dstats = SIO_DIRECTION_WRITE;
-            break;
-        case NETCMD_CHANNEL_MODE:
-            inq_dstats = SIO_DIRECTION_NONE;
-            break;
-        case NETCMD_SET_PARAMETERS:
-            if (channelMode == JSON)
-                inq_dstats = SIO_DIRECTION_NONE;
-            break;
-        case NETCMD_GETCWD:
-            inq_dstats = SIO_DIRECTION_READ;
-            break;
-        case NETCMD_SET_INT_RATE:
-            inq_dstats = SIO_DIRECTION_NONE;
-            break;
-        case NETCMD_TRANSLATION:
-            inq_dstats = SIO_DIRECTION_NONE;
-            break;
-        case NETCMD_PARSE:
-            if (channelMode == JSON)
-                inq_dstats = SIO_DIRECTION_NONE;
-            break;
-        case NETCMD_QUERY:
-            if (channelMode == JSON)
-                inq_dstats = SIO_DIRECTION_WRITE;
-            break;
-        default:
-            inq_dstats = SIO_DIRECTION_INVALID; // not supported
-            break;
-        }
-    }
-
-#ifdef VERBOSE_PROTOCOL
-    Debug_printf("inq_dstats = %u\n", inq_dstats);
-#endif
-}
-
-/**
- * @brief called to handle special protocol interactions when DSTATS=$00, meaning there is no payload.
- * Essentially, call the protocol action
- * and based on the return, signal sio_complete() or error().
- */
-void sioNetwork::sio_special_00()
-{
-    // Handle commands that exist outside of an open channel.
-    switch (cmdFrame.comnd)
-    {
-    case NETCMD_PARSE:
-        if (channelMode == JSON)
-            sio_parse_json();
-        break;
-    case NETCMD_TRANSLATION:
-        sio_set_translation();
-        break;
-    case NETCMD_SET_INT_RATE:
-        sio_set_timer_rate();
-        break;
-    case NETCMD_SET_PARAMETERS: // JSON parameter wrangling
-        sio_set_json_parameters();
-        break;
-    case NETCMD_CHANNEL_MODE:
-        sio_set_channel_mode();
-        break;
-    default:
-        if (protocol->special_00(&cmdFrame) == PROTOCOL_ERROR::NONE)
-            sio_complete();
-        else
-            sio_error();
-    }
-}
-
-/**
- * @brief called to handle protocol interactions when DSTATS=$40, meaning the payload is to go from
- * the peripheral back to the ATARI. Essentially, call the protocol action with the accrued special
- * buffer (containing the devicespec) and based on the return, use bus_to_computer() to transfer the
- * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
- */
-void sioNetwork::sio_special_40()
-{
-    // Handle commands that exist outside of an open channel.
-    switch (cmdFrame.comnd)
-    {
-    case NETCMD_GETCWD:
-        sio_get_prefix();
-        return;
-    default:
-        break;
-    }
-
-    protocolError_t err = protocol->special_40((uint8_t *)receiveBuffer->data(),
-                                               SPECIAL_BUFFER_SIZE, &cmdFrame);
-    bus_to_computer((uint8_t *)receiveBuffer->data(),
-                    SPECIAL_BUFFER_SIZE,
-                    err != PROTOCOL_ERROR::NONE);
-}
-
-/**
- * @brief called to handle protocol interactions when DSTATS=$80, meaning the payload is to go from
- * the ATARI to the pheripheral. Essentially, call the protocol action with the accrued special
- * buffer (containing the devicespec) and based on the return, use bus_to_peripheral() to transfer the
- * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
- */
-void sioNetwork::sio_special_80()
-{
-    uint8_t spData[SPECIAL_BUFFER_SIZE];
-
-    // Handle commands that exist outside of an open channel.
-    switch (cmdFrame.comnd)
-    {
-    case NETCMD_RENAME:
-    case NETCMD_DELETE:
-    case NETCMD_LOCK:
-    case NETCMD_UNLOCK:
-    case NETCMD_MKDIR:
-    case NETCMD_RMDIR:
-        sio_do_idempotent_command_80();
-        return;
-    case NETCMD_CHDIR:
-        sio_set_prefix();
-        return;
-    case NETCMD_QUERY:
-        if (channelMode == JSON)
-            sio_set_json_query();
-        return;
-    case NETCMD_USERNAME:
-        sio_set_login();
-        return;
-    case NETCMD_PASSWORD:
-        sio_set_password();
-        return;
-    default:
-        break;
-    }
-
-    memset(spData, 0, SPECIAL_BUFFER_SIZE);
-
-    // Get special (devicespec) from computer
-    bus_to_peripheral(spData, SPECIAL_BUFFER_SIZE); // TODO test checksum
-
-#ifdef VERBOSE_PROTOCOL
-    Debug_printf("sioNetwork::sio_special_80() - %s\n", spData);
-#endif
-
-    // Do protocol action and return
-    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == PROTOCOL_ERROR::NONE)
-        sio_complete();
-    else
-        sio_error();
-}
-
-/**
  * Process incoming SIO command for device 0x7X
  * @param comanddata incoming 4 bytes containing command and aux bytes
  * @param checksum 8 bit checksum
@@ -944,11 +720,75 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
     case NETCMD_STATUS:
         sio_status();
         break;
-    case NETCMD_SPECIAL_INQUIRY:
-        sio_special_inquiry();
+
+    case NETCMD_PARSE:
+        sio_ack();
+        sio_parse_json();
         break;
+    case NETCMD_TRANSLATION:
+        sio_ack();
+        sio_set_translation();
+        break;
+    case NETCMD_SET_INT_RATE:
+        sio_ack();
+        sio_set_timer_rate();
+        break;
+    case NETCMD_SET_PARAMETERS: // JSON parameter wrangling
+        sio_ack();
+        sio_set_json_parameters();
+        break;
+    case NETCMD_CHANNEL_MODE:
+        sio_ack();
+        sio_set_channel_mode();
+        break;
+
+    case NETCMD_GETCWD:
+        sio_ack();
+        sio_get_prefix();
+        break;
+
+    case NETCMD_CHDIR:
+        sio_ack();
+        sio_set_prefix();
+        return;
+    case NETCMD_QUERY:
+        sio_ack();
+        sio_set_json_query();
+        return;
+    case NETCMD_USERNAME:
+        sio_ack();
+        sio_set_login();
+        return;
+    case NETCMD_PASSWORD:
+        sio_ack();
+        sio_set_password();
+        return;
+
+    case NETCMD_RENAME:
+    case NETCMD_DELETE:
+    case NETCMD_LOCK:
+    case NETCMD_UNLOCK:
+    case NETCMD_MKDIR:
+    case NETCMD_RMDIR:
+        process_fs();
+        break;
+
+    case NETCMD_CONTROL:
+    case NETCMD_CLOSE_CLIENT:
+        process_tcp();
+        break;
+
+    case NETCMD_UNLISTEN:
+        process_http();
+        break;
+
+    case NETCMD_GET_REMOTE:
+    case NETCMD_SET_DESTINATION:
+        process_udp();
+        break;
+
     default:
-        sio_special();
+        sio_nak();
         break;
     }
 }
@@ -1281,50 +1121,146 @@ void sioNetwork::sio_set_timer_rate()
     sio_complete();
 }
 
-void sioNetwork::sio_do_idempotent_command_80()
+void sioNetwork::process_fs()
 {
-    Debug_printf("sioNetwork::sio_do_idempotent_command_80()\r\n");
-    // sio_ack() - was already called from sio_special()
-
-    // Shut down protocol left from previous command, if any
-    if (protocol != nullptr)
-    {
-        protocol->close();
-        delete protocol;
-        protocol = nullptr;
-    }
-
-    if (protocolParser != nullptr)
-    {
-        delete protocolParser;
-        protocolParser = nullptr;
-    }
-
-    // Reset status buffer
-    status.reset();
-
-    // Parse and instantiate protocol
     parse_and_instantiate_protocol();
 
-    if (protocol == nullptr)
+    // Make sure this is really a FS protocol instance
+    NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol);
+    if (!fs)
     {
-        Debug_printf("Protocol = NULL\n");
-        if (protocolParser != nullptr)
-        {
-            delete protocolParser;
-            protocolParser = nullptr;
-        }
-        // sio_error() - was already called from parse_and_instantiate_protocol()
+        sio_nak();
         return;
     }
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) != PROTOCOL_ERROR::NONE)
+    protocolError_t err;
+    auto url = urlParser.get();
+    switch (cmdFrame.comnd)
     {
-        Debug_printf("perform_idempotent_80 failed\n");
-        sio_error();
+    case NETCMD_RENAME:
+        err = fs->rename(url);
+        break;
+    case NETCMD_DELETE:
+        err = fs->del(url);
+        break;
+    case NETCMD_LOCK:
+        err = fs->lock(url);
+        break;
+    case NETCMD_UNLOCK:
+        err = fs->unlock(url);
+        break;
+    case NETCMD_MKDIR:
+        err = fs->mkdir(url);
+        break;
+    case NETCMD_RMDIR:
+        err = fs->rmdir(url);
+        break;
+    default:
+        sio_nak();
+        return;
     }
+
+    if (err != PROTOCOL_ERROR::NONE)
+        sio_error();
     else
         sio_complete();
+}
+
+void sioNetwork::process_tcp()
+{
+    // Make sure this is really a TCP protocol instance
+    NetworkProtocolTCP *tcp = dynamic_cast<NetworkProtocolTCP *>(protocol);
+    if (!tcp)
+    {
+        sio_nak();
+        return;
+    }
+
+    protocolError_t err;
+    switch (cmdFrame.comnd)
+    {
+    case NETCMD_CONTROL:
+        sio_ack();
+        err = tcp->accept_connection();
+        break;
+    case NETCMD_CLOSE_CLIENT:
+        sio_ack();
+        err = tcp->close_client_connection();
+        break;
+    default:
+        sio_nak();
+        return;
+    }
+
+    if (err != PROTOCOL_ERROR::NONE)
+        sio_error();
+    else
+        sio_complete();
+}
+
+void sioNetwork::process_http()
+{
+    // Make sure this is really an HTTP protocol instance
+    NetworkProtocolHTTP *http = dynamic_cast<NetworkProtocolHTTP *>(protocol);
+    if (!http)
+    {
+        sio_nak();
+        return;
+    }
+
+    protocolError_t err;
+    switch (cmdFrame.comnd)
+    {
+    case NETCMD_UNLISTEN:
+        sio_ack();
+        err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmdFrame.aux2);
+        break;
+    default:
+        sio_nak();
+        return;
+    }
+
+    if (err != PROTOCOL_ERROR::NONE)
+        sio_error();
+    else
+        sio_complete();
+}
+
+void sioNetwork::process_udp()
+{
+    // Make sure this is really a UDP protocol instance
+    NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(protocol);
+    if (!udp)
+    {
+        sio_nak();
+        return;
+    }
+
+    protocolError_t err;
+    switch (cmdFrame.comnd)
+    {
+#ifndef ESP_PLATFORM
+    case NETCMD_GET_REMOTE:
+        sio_ack();
+        err = udp->get_remote(receiveBuffer->data(), SPECIAL_BUFFER_SIZE);
+        bus_to_computer((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, err != PROTOCOL_ERROR::NONE);
+        break;
+#endif /* ESP_PLATFORM */
+    case NETCMD_SET_DESTINATION:
+        {
+            uint8_t spData[SPECIAL_BUFFER_SIZE];
+            bus_to_peripheral(spData, sizeof(spData));
+            err = udp->set_destination(spData, sizeof(spData));
+            if (err != PROTOCOL_ERROR::NONE)
+                sio_error();
+            else
+                sio_complete();
+        }
+        break;
+    default:
+        sio_nak();
+        return;
+    }
 }
 
 #endif /* BUILD_ATARI */

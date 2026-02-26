@@ -96,30 +96,16 @@ NetworkProtocol::~NetworkProtocol()
 /**
  * @brief Open connection to the protocol using URL
  * @param urlParser The URL object passed in to open.
- * @param cmdFrame The command frame to extract aux1/aux2/etc.
  */
-protocolError_t NetworkProtocol::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocol::open(PeoplesUrlParser *urlParser, fileAccessMode_t access,
+                                      netProtoTranslation_t translate)
 {
     // Set translation mode, Bits 0-1 of aux2
-    translation_mode = (netProtoTranslation_t) (cmdFrame->aux2 & 0x7F); // we now have more xlation modes.
-
-    // Persist aux1/aux2 values for later.
-    aux1_open = cmdFrame->aux1;
-    aux2_open = cmdFrame->aux2;
+    translation_mode = translate;
 
     opened_url = urlParser;
 
     return PROTOCOL_ERROR::NONE;
-}
-
-void NetworkProtocol::set_open_params(uint8_t p1, uint8_t p2)
-{
-    aux1_open = p1;
-    aux2_open = p2;
-    translation_mode = (netProtoTranslation_t) (p2 & 0x7F);
-#ifdef VERBOSE_PROTOCOL
-    Debug_printf("Changed open params to aux1_open = %d, aux2_open = %d. Set translation_mode to %d\r\n", p1, p2, translation_mode);
-#endif
 }
 
 /**
@@ -157,16 +143,6 @@ protocolError_t NetworkProtocol::read(unsigned short len)
 }
 
 /**
- * @brief Write len bytes from tx_buf to protocol.
- * @param len The # of bytes to transmit, len should not be larger than buffer.
- * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
- */
-protocolError_t NetworkProtocol::write(unsigned short len)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-/**
  * @brief Return protocol status information in provided NetworkStatus object.
  * @param status a pointer to a NetworkStatus object to receive status information
  * @param rx_buf a pointer to the receive buffer (to call read())
@@ -177,7 +153,7 @@ protocolError_t NetworkProtocol::status(NetworkStatus *status)
     if (fromInterrupt)
         return PROTOCOL_ERROR::NONE;
 
-    if (!is_write && receiveBuffer->length() == 0 && available() > 0)
+    if (!was_write && receiveBuffer->length() == 0 && available() > 0)
         read(available());
 
     return PROTOCOL_ERROR::NONE;
@@ -338,11 +314,6 @@ void NetworkProtocol::errno_to_error()
         error = NDEV_STATUS::GENERAL;
         break;
     }
-}
-
-off_t NetworkProtocol::seek(off_t offset, int whence)
-{
-    return -1;
 }
 
 size_t NetworkProtocol::available()

@@ -20,9 +20,11 @@ NetworkProtocolTest::~NetworkProtocolTest()
     test_data.clear();
 }
 
-protocolError_t NetworkProtocolTest::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolTest::open(PeoplesUrlParser *urlParser,
+                                          fileAccessMode_t access,
+                                          netProtoTranslation_t translate)
 {
-    NetworkProtocol::open(urlParser, cmdFrame);
+    NetworkProtocol::open(urlParser, access, translate);
 
     Debug_printf("scheme: %s\r\n", urlParser->scheme.c_str());
     Debug_printf("path: %s\r\n", urlParser->path.c_str());
@@ -53,11 +55,6 @@ protocolError_t NetworkProtocolTest::open(PeoplesUrlParser *urlParser, cmdFrame_
         break;
     }
 
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolTest::close()
-{
     return PROTOCOL_ERROR::NONE;
 }
 
@@ -104,25 +101,5 @@ protocolError_t NetworkProtocolTest::status(NetworkStatus *status)
 
     NetworkProtocol::status(status);
 
-    return PROTOCOL_ERROR::NONE;
-}
-
-AtariSIODirection NetworkProtocolTest::special_inquiry(fujiCommandID_t cmd)
-{
-    return SIO_DIRECTION_INVALID; // selected command not implemented.
-}
-
-protocolError_t NetworkProtocolTest::special_00(cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolTest::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolTest::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
-{
     return PROTOCOL_ERROR::NONE;
 }

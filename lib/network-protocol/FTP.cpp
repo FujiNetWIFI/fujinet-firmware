@@ -37,18 +37,19 @@ protocolError_t NetworkProtocolFTP::open_file_handle()
 {
     protocolError_t res;
 
-    switch (aux1_open)
+    switch (streamMode)
     {
-    case NETPROTO_OPEN_READ:
+    case ACCESS_MODE::READ:
         stor = false;
         break;
-    case NETPROTO_OPEN_WRITE:
+    case ACCESS_MODE::WRITE:
         stor = true;
         break;
-    case NETPROTO_OPEN_APPEND:
-    case NETPROTO_OPEN_READWRITE:
+    case ACCESS_MODE::APPEND:
+    case ACCESS_MODE::READWRITE:
         error = NDEV_STATUS::NOT_IMPLEMENTED;
         return PROTOCOL_ERROR::UNSPECIFIED;
+    default:
         break;
     }
 
@@ -218,86 +219,23 @@ protocolError_t NetworkProtocolFTP::status_file(NetworkStatus *status)
     return PROTOCOL_ERROR::NONE;
 }
 
-AtariSIODirection NetworkProtocolFTP::special_inquiry(fujiCommandID_t cmd)
-{
-    AtariSIODirection ret;
-
-    switch (cmd)
-    {
-    case NETCMD_RENAME:
-    case NETCMD_DELETE:
-    case NETCMD_MKDIR:
-    case NETCMD_RMDIR:
-        ret = SIO_DIRECTION_WRITE; // Atari to peripheral.
-        break;
-    default:
-        return NetworkProtocolFS::special_inquiry(cmd);
-    }
-
-    return ret;
-}
-
-protocolError_t NetworkProtocolFTP::special_00(cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolFTP::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolFTP::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolFTP::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolFTP::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolFTP::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolFTP::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolFTP::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolFTP::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-protocolError_t NetworkProtocolFTP::stat()
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
 size_t NetworkProtocolFTP::available()
 {
     size_t avail = 0;
 
 
-    switch (openMode)
+    switch (streamType)
     {
-    case FILE:
+    case streamType_t::FILE:
         avail = ftp->data_available();
         break;
+    case DIR:
+        avail = receiveBuffer->length();
+        if (!avail)
+            avail = dirBuffer.length();
+        break;
     default:
+        abort();
         break;
     }
 

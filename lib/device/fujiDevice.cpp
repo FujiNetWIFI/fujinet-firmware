@@ -534,7 +534,7 @@ void fujiDevice::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
                 fBoot = fnTNFS.fnfile_open(boot_img.c_str());
             }
         }
-        break;
+        break;     
     default:
         Debug_printf("Invalid boot mode: %d\n", image_id);
         return;
@@ -543,6 +543,26 @@ void fujiDevice::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
     if (fBoot == nullptr)
     {
         Debug_printf("Failed to open boot disk image: %s\n", boot_img.c_str());
+        return;
+    }
+
+    image_size = fsFlash.filesize(fBoot);
+    disk_dev->mount(fBoot, boot_img.c_str(), image_size, DISK_ACCESS_MODE_READ, disk_type);
+    disk_dev->is_config_device = true;
+}
+
+// Mounts the alternate config disk in desired boot disk number
+void fujiDevice::insert_boot_device(std::string boot_img, mediatype_t disk_type,
+                                    DISK_DEVICE *disk_dev)
+{
+    fnFile *fBoot = nullptr;
+    size_t image_size;
+
+    fBoot = fnSDFAT.fnfile_open(boot_img.c_str());
+
+    if (fBoot == nullptr)
+    {
+        Debug_printf("Failed to open alternate config boot disk image: %s\n", boot_img.c_str());
         return;
     }
 

@@ -79,9 +79,11 @@ public:
      * Read file from data socket into buffer.
      * @param buf target buffer
      * @param len length of target buffer
+     * @param range_begin optional start byte position for partial file read (0 = no range)
+     * @param range_end optional end byte position for partial file read (0 = no range)
      * @return TRUE if error, FALSE if successful.
      */
-    protocolError_t read_file(uint8_t* buf, unsigned short len);
+    protocolError_t read_file(uint8_t* buf, unsigned short len, unsigned long range_begin = 0, unsigned long range_end = 0);
 
     /**
      * Write file from buffer into data socket.
@@ -114,6 +116,11 @@ public:
      */
     protocolError_t data_connected();
 
+    /**
+     * @brief return if control connection is active
+     * @return TRUE if connected, FALSE if disconnected
+     */
+    bool control_connected();
 
     /**
      * Recovery FTP connection.
@@ -130,7 +137,7 @@ private:
 
     /* do STOR - file opened for write */
     bool _stor = false;
-
+    
     /* if to check control channel too while dealing with data channel */
     bool _expect_control_response = false;
 
@@ -171,7 +178,7 @@ private:
      * Directory buffer stream
      */
     std::stringstream dirBuffer;
-
+    
     /**
      * The data port returned by EPSV
      */
@@ -317,6 +324,97 @@ private:
      */
     void STOR(string path);
 
+    /**
+     * @brief send RANG command to server for partial file transfer (RFC 3659)
+     * @param start start byte position
+     * @param end end byte position
+     */
+    void RANG(unsigned long start, unsigned long end);
+
+    /**
+     * @brief ask server to get size of file at path
+     * @param path path to file
+     */
+    void SIZE(string path);
+
+    /**
+     * @brief send NOOP command to server
+     */
+    void NOOP();
+
+public:
+    /**
+     * Delete file on FTP server
+     * @param path path to file to delete.
+     * @return TRUE if error, FALSE if successful.
+     */
+    protocolError_t delete_file(string path);
+
+    /**
+     * Rename file on FTP server
+     * @param pathFrom original file path
+     * @param pathTo new file path
+     * @return TRUE if error, FALSE if successful.
+     */
+    protocolError_t rename_file(string pathFrom, string pathTo);
+
+    /**
+     * Create directory on FTP server
+     * @param path path of directory to create.
+     * @return TRUE if error, FALSE if successful.
+     */
+    protocolError_t make_directory(string path);
+
+    /**
+     * Remove directory on FTP server
+     * @param path path of directory to remove.
+     * @return TRUE if error, FALSE if successful.
+     */
+    protocolError_t remove_directory(string path);
+
+    /**
+     * Send NOOP command as lightweight keep-alive
+     * @return TRUE on success, FALSE on error.
+     */
+    protocolError_t keep_alive();
+
+protected:
+    /**
+     * @brief send DEL (or DELE) command to server to delete file
+     * @param path path of file to delete.
+     */
+    void DELE(string path);
+
+    /**
+     * @brief send RNFR/RNTO commands to server to rename file
+     * @param pathFrom original path
+     * @param pathTo new path
+     */
+    void RNFR(string pathFrom);
+    void RNTO(string pathTo);
+
+    /**
+     * @brief send MKD command to server to make directory
+     * @param path path of directory to create.
+     */
+    void MKD(string path);
+
+    /**
+     * @brief send RMD command to server to remove directory
+     * @param path path of directory to remove.
+     */
+    void RMD(string path);
+
+private:
+    /**
+     * Range start position for partial file transfer
+     */
+    unsigned long _range_begin = 0;
+
+    /**
+     * Range end position for partial file transfer
+     */
+    unsigned long _range_end = 0;
 };
 
 #endif /* FNFTP_H */

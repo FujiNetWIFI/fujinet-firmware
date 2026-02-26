@@ -8,13 +8,16 @@
 
 #include <string>
 
-// FIXME - this has something to do with Atari SIO and doesn't belong here
-enum AtariSIODirection {
-    SIO_DIRECTION_NONE    = 0x00,
-    SIO_DIRECTION_READ    = 0x40,
-    SIO_DIRECTION_WRITE   = 0x80,
-    SIO_DIRECTION_INVALID = 0xFF,
-};
+// FIXME - only used by FS classes and doesn't belong here
+typedef enum class ACCESS_MODE {
+    READ          = 0b0100,
+    DIRECTORY     = 0b0110,
+    DIRECTORY_ALT = 0b0111,
+    WRITE         = 0b1000,
+    APPEND        = 0b1001,
+    READWRITE     = 0b1100,
+    INVALID       = -1,
+} fileAccessMode_t;
 
 enum netProtoTranslation_t {
     NETPROTO_TRANS_NONE     = 0,
@@ -22,24 +25,6 @@ enum netProtoTranslation_t {
     NETPROTO_TRANS_LF       = 2,
     NETPROTO_TRANS_CRLF     = 3,
     NETPROTO_TRANS_PETSCII  = 4,
-};
-
-enum {
-    NETPROTO_A2_FLAG  = 0x80,
-    NETPROTO_A2_80COL = 0x81,
-};
-
-enum netProtoOpenMode_t {
-    NETPROTO_OPEN_READ          = 4,
-    NETPROTO_OPEN_HTTP_DELETE   = 5,
-    NETPROTO_OPEN_DIRECTORY     = 6,
-    NETPROTO_OPEN_DIRECTORY_ALT = 7,
-    NETPROTO_OPEN_WRITE         = 8,
-    NETPROTO_OPEN_APPEND        = 9,
-    NETPROTO_OPEN_READWRITE     = 12,
-    NETPROTO_OPEN_HTTP_POST     = 13,
-    NETPROTO_OPEN_HTTP_PUT      = 14,
-    NETPROTO_OPEN_INVALID       = -1,
 };
 
 typedef enum class PROTOCOL_ERROR {
@@ -54,7 +39,7 @@ public:
     /**
      * Was the last command a write?
      */
-    bool is_write = false;
+    bool was_write = false;
 
     /**
      * Pointer to the receive buffer
@@ -149,10 +134,10 @@ public:
     /**
      * @brief Open connection to the protocol using URL
      * @param urlParser The URL object passed in to open.
-     * @param cmdFrame The command frame to extract aux1/aux2/etc.
      * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    virtual protocolError_t open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame);
+    virtual protocolError_t open(PeoplesUrlParser *urlParser, fileAccessMode_t access,
+                                 netProtoTranslation_t translate);
 
     /**
      * @brief Close connection to the protocol.
@@ -171,7 +156,7 @@ public:
      * @param len The # of bytes to transmit, len should not be larger than buffer.
      * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    virtual protocolError_t write(unsigned short len);
+    virtual protocolError_t write(unsigned short len) { return PROTOCOL_ERROR::NONE; }
 
     /**
      * @brief Return protocol status information in provided NetworkStatus object.
@@ -181,42 +166,6 @@ public:
     virtual protocolError_t status(NetworkStatus *status);
 
     /**
-     * @brief Return a DSTATS byte for a requested COMMAND byte.
-     * @param cmd The Command (0x00-0xFF) for which DSTATS is requested.
-     * @return a 0x00 = No payload, 0x40 = Payload to Atari, 0x80 = Payload to FujiNet, 0xFF = Command not supported.
-     */
-    virtual AtariSIODirection special_inquiry(fujiCommandID_t cmd) { return SIO_DIRECTION_INVALID; }
-
-    /**
-     * @brief execute a command that returns no payload
-     * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
-     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
-     */
-    virtual protocolError_t special_00(cmdFrame_t *cmdFrame) { return PROTOCOL_ERROR::NONE; };
-
-    /**
-     * @brief execute a command that returns a payload to the atari.
-     * @param sp_buf a pointer to the special buffer
-     * @param len Length of data to request from protocol. Should not be larger than buffer.
-     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
-     */
-    virtual protocolError_t special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) { return PROTOCOL_ERROR::NONE; };
-
-    /**
-     * @brief execute a command that sends a payload to fujinet (most common, XIO)
-     * @param sp_buf, a pointer to the special buffer, usually a EOL terminated devicespec.
-     * @param len length of the special buffer, typically SPECIAL_BUFFER_SIZE
-     */
-    virtual protocolError_t special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) { return PROTOCOL_ERROR::NONE; };
-
-    /**
-     * @brief perform an idempotent command with DSTATS 0x80, that does not require open channel.
-     * @param url The URL object.
-     * @param cmdFrame command frame.
-     */
-    virtual protocolError_t perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) { return PROTOCOL_ERROR::NONE; };
-
-    /**
      * @brief return an _atari_ error (>199) based on errno. into error for status reporting.
      */
     virtual void errno_to_error();
@@ -224,9 +173,10 @@ public:
     /**
      * @brief change the values passed to open for platforms that need to do it after the open (looking at you IEC)
      */
-    virtual void set_open_params(uint8_t p1, uint8_t p2);
+    // FIXME - only used by FS class hierarchy, doesn't belong here
+    virtual void set_open_params(fileAccessMode_t access, netProtoTranslation_t translate) { abort(); };
 
-    virtual off_t seek(off_t offset, int whence);
+    virtual off_t seek(off_t offset, int whence) { return -1; }
 
     virtual size_t available() = 0;
 
@@ -241,16 +191,6 @@ public:
     std::string *password;
 
 protected:
-
-    /**
-     * AUX1 value from open
-     */
-    unsigned char aux1_open = 0;
-
-    /**
-     * AUX2 value from open
-     */
-    unsigned char aux2_open = 0;
 
     /**
      * Perform end of line translation on receive buffer.

@@ -26,10 +26,10 @@ public:
     /**
      * @brief Open connection to the protocol using URL
      * @param urlParser The URL object passed in to open.
-     * @param cmdFrame The command frame to extract aux1/aux2/etc.
-     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
-    protocolError_t open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame) override;
+    protocolError_t open(PeoplesUrlParser *urlParser, fileAccessMode_t access,
+                         netProtoTranslation_t translate) override;
 
     /**
      * @brief Close connection to the protocol.
@@ -39,52 +39,33 @@ public:
     /**
      * @brief Read len bytes into rx_buf, If protocol times out, the buffer should be null padded to length.
      * @param len Number of bytes to read.
-     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
     protocolError_t read(unsigned short len) override;
 
     /**
      * @brief Write len bytes from tx_buf to protocol.
      * @param len The # of bytes to transmit, len should not be larger than buffer.
-     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
     protocolError_t write(unsigned short len) override;
 
     /**
      * @brief Return protocol status information in provided NetworkStatus object.
      * @param status a pointer to a NetworkStatus object to receive status information
-     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
     protocolError_t status(NetworkStatus *status) override;
 
     /**
-     * @brief Return a DSTATS byte for a requested COMMAND byte.
-     * @param cmd The Command (0x00-0xFF) for which DSTATS is requested.
-     * @return a 0x00 = No payload, 0x40 = Payload to Atari, 0x80 = Payload to FujiNet, 0xFF = Command not supported.
+     * Accept a server connection, transfer to client socket.
      */
-    AtariSIODirection special_inquiry(fujiCommandID_t cmd) override;
+    protocolError_t accept_connection();
 
     /**
-     * @brief execute a command that returns no payload
-     * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
-     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
+     * Close client connection.
      */
-    protocolError_t special_00(cmdFrame_t *cmdFrame) override;
-
-    /**
-     * @brief execute a command that returns a payload to the atari.
-     * @param sp_buf a pointer to the special buffer
-     * @param len Length of data to request from protocol. Should not be larger than buffer.
-     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
-     */
-    protocolError_t special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) override;
-
-    /**
-     * @brief execute a command that sends a payload to fujinet (most common, XIO)
-     * @param sp_buf, a pointer to the special buffer, usually a EOL terminated devicespec.
-     * @param len length of the special buffer, typically SPECIAL_BUFFER_SIZE
-     */
-    protocolError_t special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) override;
+    protocolError_t close_client_connection();
 
 protected:
     /**
@@ -101,7 +82,7 @@ protected:
     /**
      * Open a server (listening) connection.
      * @param port bind to port #
-     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
     protocolError_t open_server(unsigned short port);
 
@@ -109,19 +90,9 @@ protected:
      * Open a client connection to host and port.
      * @param hostname The hostname to connect to.
      * @param port the port number to connect to.
-     * @return PROTOCOL_ERROR_NONE on success, PROTOCOL_ERROR_UNSPECIFIED on error
+     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
      */
     protocolError_t open_client(std::string hostname, unsigned short port);
-
-    /**
-     * Special: Accept a server connection, transfer to client socket.
-     */
-    protocolError_t special_accept_connection();
-
-    /**
-     * Special: Close client connection.
-     */
-    protocolError_t special_close_client_connection();
 
     /**
      * Return status of client connection
@@ -135,7 +106,7 @@ protected:
      */
     void status_client(NetworkStatus* status);
 
-    virtual size_t available() override;
+    size_t available() override;
 };
 
 #endif /* NETWORKPROTOCOL_TCP */

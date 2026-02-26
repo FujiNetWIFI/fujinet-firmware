@@ -49,9 +49,10 @@ NetworkProtocolTCP::~NetworkProtocolTCP()
 /**
  * @brief Open connection to the protocol using URL
  * @param urlParser The URL object passed in to open.
- * @param cmdFrame The command frame to extract aux1/aux2/etc.
  */
-protocolError_t NetworkProtocolTCP::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
+protocolError_t NetworkProtocolTCP::open(PeoplesUrlParser *urlParser,
+                                         fileAccessMode_t access,
+                                         netProtoTranslation_t translate)
 {
     protocolError_t ret = PROTOCOL_ERROR::UNSPECIFIED; // assume error until proven ok
 
@@ -78,7 +79,7 @@ protocolError_t NetworkProtocolTCP::open(PeoplesUrlParser *urlParser, cmdFrame_t
     }
 
     // call base class
-    NetworkProtocol::open(urlParser, cmdFrame);
+    NetworkProtocol::open(urlParser, access, translate);
 
     return ret;
 }
@@ -219,6 +220,7 @@ void NetworkProtocolTCP::status_server(NetworkStatus *status)
     {
         status->connected = server->hasClient();
         status->error = error;
+        Debug_printf("TCP::status_server C:%d E:%d\n", status->connected, (int) status->error);
     }
 }
 
@@ -228,71 +230,6 @@ size_t NetworkProtocolTCP::available()
     if (!avail)
         avail = client.available();
     return avail;
-}
-
-/**
- * @brief Return a DSTATS byte for a requested COMMAND byte.
- * @param cmd The Command (0x00-0xFF) for which DSTATS is requested.
- * @return a 0x00 = No payload, 0x40 = Payload to Atari, 0x80 = Payload to FujiNet, 0xFF = Command not supported.
- */
-AtariSIODirection NetworkProtocolTCP::special_inquiry(fujiCommandID_t cmd)
-{
-    Debug_printf("NetworkProtocolTCP::special_inquiry(%02x)\r\n", cmd);
-
-    switch (cmd)
-    {
-    case NETCMD_CONTROL:
-        return SIO_DIRECTION_NONE;
-    case NETCMD_CLOSE_CLIENT:
-        return SIO_DIRECTION_NONE;
-    default:
-        break;
-    }
-
-    return SIO_DIRECTION_INVALID;
-}
-
-/**
- * @brief execute a command that returns no payload
- * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
- * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
- */
-protocolError_t NetworkProtocolTCP::special_00(cmdFrame_t *cmdFrame)
-{
-    Debug_printf("NetworkProtocolTCP::special_00(%c)\n",cmdFrame->comnd);
-
-    switch (cmdFrame->comnd)
-    {
-    case NETCMD_CONTROL:
-        return special_accept_connection();
-    case NETCMD_CLOSE_CLIENT:
-        Debug_printf("CLOSING CLIENT CONNECTION!!!\n");
-        return special_close_client_connection();
-    default:
-        break;
-    }
-    return PROTOCOL_ERROR::UNSPECIFIED; // error
-}
-
-/**
- * @brief execute a command that returns a payload to the atari.
- * @param sp_buf a pointer to the special buffer
- * @param len Length of data to request from protocol. Should not be larger than buffer.
- * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
- */
-protocolError_t NetworkProtocolTCP::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
-}
-
-/**
- * @brief execute a command that sends a payload to fujinet (most common, XIO)
- * @param sp_buf, a pointer to the special buffer, usually a EOL terminated devicespec.
- * @param len length of the special buffer, typically SPECIAL_BUFFER_SIZE
- */
-protocolError_t NetworkProtocolTCP::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
-{
-    return PROTOCOL_ERROR::NONE;
 }
 
 /**
@@ -347,9 +284,9 @@ protocolError_t NetworkProtocolTCP::open_client(std::string hostname, unsigned s
 }
 
 /**
- * Special: Accept a server connection, transfer to client socket.
+ * Accept a server connection, transfer to client socket.
  */
-protocolError_t NetworkProtocolTCP::special_accept_connection()
+protocolError_t NetworkProtocolTCP::accept_connection()
 {
     if (server == nullptr)
     {
@@ -388,9 +325,9 @@ protocolError_t NetworkProtocolTCP::special_accept_connection()
 }
 
 /**
- * Special: Accept a server connection, transfer to client socket.
+ * Close client connection.
  */
-protocolError_t NetworkProtocolTCP::special_close_client_connection()
+protocolError_t NetworkProtocolTCP::close_client_connection()
 {
     in_addr_t remoteIP;
     unsigned char remotePort;

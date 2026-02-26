@@ -6,6 +6,7 @@
 #include "fnFsSD.h"
 #include "fnFsTNFS.h"
 #include "fnFsSMB.h"
+#include "fnFsNFS.h"
 #include "fnFsFTP.h"
 #include "fnFsHTTP.h"
 #include "fnTaskManager.h"
@@ -535,6 +536,14 @@ int fnHttpServiceBrowser::process_browse_get(mg_connection *c, mg_http_message *
         fs = new FileSystemSMB;
         host_type = HOSTTYPE_SMB;
     }
+    else if (strncasecmp("nfs://", hostname, 6) == 0)
+    {
+        hostname[0] = 'n';
+        hostname[1] = 'f';
+        hostname[2] = 's';
+        fs = new FileSystemNFS;
+        host_type = HOSTTYPE_NFS;
+    }
     else if (strncasecmp("ftp://", hostname, 6) == 0)
     {
         fs = new FileSystemFTP;
@@ -566,6 +575,9 @@ int fnHttpServiceBrowser::process_browse_get(mg_connection *c, mg_http_message *
         break;
     case HOSTTYPE_SMB:
         started = ((FileSystemSMB *)fs)->start(hostname);
+        break;
+    case HOSTTYPE_NFS:
+        started = ((FileSystemNFS *)fs)->start(hostname);
         break;
     case HOSTTYPE_FTP:
         started = ((FileSystemFTP *)fs)->start(hostname);
