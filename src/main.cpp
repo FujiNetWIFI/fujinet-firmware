@@ -531,6 +531,11 @@ void fn_service_loop(void *param)
         fnWiFi.connect();
     }
 
+    // if we dont have config enabled, and no alternate config disk selected, then just mount what we have
+    // in here so we are after all of the setup and wifi has been started
+    if (!theFuji->boot_config && Config.get_config_filename().empty())
+        theFuji->fujicmd_mount_all_success();
+
     // Main service loop
 #ifdef ESP_PLATFORM
     // We don't have any delays in this loop, so IDLE threads will be starved
