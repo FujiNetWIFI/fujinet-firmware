@@ -7,7 +7,6 @@
 
 #include "../../include/debug.h"
 
-#include "drivewire/drivewireFuji.h"
 #include "udpstream.h"
 #include "modem.h"
 #include "cassette.h"
@@ -142,12 +141,8 @@ void systemBus::op_readex()
 
     Debug_printf("OP_READ: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
 
-    if (platformFuji.boot_config && drive_num == 0)
-        d = &platformFuji.bootdisk;
-    else
-        d = &platformFuji.get_disk(drive_num)->disk_dev;
-
-    if (!d)
+    // named object support for dragon
+    if (strlen((const char*)szNamedMount))
     {
         Debug_printf("op_readex: boot from named object %s\r\n", szNamedMount);
         Debug_printf("OP_READEX: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);

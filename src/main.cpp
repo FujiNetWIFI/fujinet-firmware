@@ -388,24 +388,24 @@ void main_setup(int argc, char *argv[])
     adamPrinter::printer_type printer = Config.get_printer_type(0);
     adamPrinter *ptr = new adamPrinter(ptrfs, printer);
     fnPrinters.set_entry(0, ptr, printer, 0);
-    SYSTEM_BUS.addDevice(ptr, ADAMNET_DEVICE_ID_PRINTER);
+    SYSTEM_BUS.addDevice(ptr, FUJI_DEVICEID_PRINTER);
 
     if (Config.get_printer_enabled())
-        SYSTEM_BUS.enableDevice(ADAMNET_DEVICE_ID_PRINTER);
+        SYSTEM_BUS.enableDevice(FUJI_DEVICEID_PRINTER);
     else
-        SYSTEM_BUS.disableDevice(ADAMNET_DEVICE_ID_PRINTER);
+        SYSTEM_BUS.disableDevice(FUJI_DEVICEID_PRINTER);
 
 #ifdef VIRTUAL_ADAM_DEVICES
     Debug_printf("Physical Device Scanning...\r\n");
     sioQ = new adamQueryDevice();
 
 #ifndef NO_VIRTUAL_KEYBOARD
-    exists = sioQ->adamDeviceExists(ADAMNET_DEVICE_ID_KEYBOARD);
+    exists = sioQ->adamDeviceExists(FUJI_DEVICEID_KEYBOARD);
     if (!exists)
     {
         Debug_printf("Adding virtual keyboard\r\n");
         sioK = new adamKeyboard();
-        SYSTEM_BUS.addDevice(sioK, ADAMNET_DEVICE_ID_KEYBOARD);
+        SYSTEM_BUS.addDevice(sioK, FUJI_DEVICEID_KEYBOARD);
     }
     else
         Debug_printf("Physical keyboard found\r\n");
@@ -530,6 +530,11 @@ void fn_service_loop(void *param)
         // Go ahead and try reconnecting to WiFi
         fnWiFi.connect();
     }
+
+    // if we dont have config enabled, and no alternate config disk selected, then just mount what we have
+    // in here so we are after all of the setup and wifi has been started
+    if (!Config.get_general_config_enabled() && Config.get_config_filename().empty())
+        theFuji->fujicmd_mount_all_success();
 
     // Main service loop
 #ifdef ESP_PLATFORM

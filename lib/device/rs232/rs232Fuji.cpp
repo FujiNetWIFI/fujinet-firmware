@@ -53,7 +53,6 @@ void rs232Fuji::setup()
 void rs232Fuji::rs232_status(FujiStatusReq reqType)
 {
     transaction_continue(false);
-
     Debug_println("Fuji cmd: STATUS");
 
     if (reqType == STATUS_MOUNT_TIME)
@@ -65,7 +64,7 @@ void rs232Fuji::rs232_status(FujiStatusReq reqType)
         for (idx = 0; idx < MAX_DISK_DEVICES; idx++)
             mount_status[idx] = _fnDisks[idx].disk_dev.mount_time();
 
-        transaction_put((uint8_t *)mount_status, sizeof(mount_status), false);
+        transaction_put((uint8_t *) mount_status, sizeof(mount_status), false);
     }
     else
     {
@@ -165,8 +164,30 @@ void rs232Fuji::rs232_test()
 
 size_t rs232Fuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
 {
-    return _set_additional_direntry_details(f, dest, maxlen, 70, SIZE_16_LE,
-                                            HAS_DIR_ENTRY_FLAGS_COMBINED, HAS_DIR_ENTRY_TYPE);
+    struct {
+        dirEntryTimestamp modified;
+        uint16_t size;
+        uint8_t flags;
+        uint8_t mediatype;
+    } __attribute__((packed)) custom_details;
+    dirEntryDetails details;
+
+    details = _additional_direntry_details(f);
+    custom_details.modified = details.modified;
+    custom_details.modified.year -= 70;
+    custom_details.size = htole16(details.size);
+    custom_details.flags = details.flags;
+    custom_details.mediatype = details.mediatype;
+
+    maxlen -= sizeof(custom_details);
+    // Subtract a byte for a terminating slash on directories
+    if (custom_details.flags & DET_FF_DIR)
+        maxlen--;
+
+    if (strlen(f->filename) >= maxlen)
+        custom_details.flags |= DET_FF_TRUNC;
+    memcpy(dest, &custom_details, sizeof(custom_details));
+    return sizeof(custom_details);
 }
 
 void rs232Fuji::rs232_process(FujiBusPacket &packet)
@@ -273,7 +294,6 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
         fujicmd_set_boot_config(packet.param(0));
         break;
     case FUJICMD_COPY_FILE:
-#warning "FIXME - if data is missing then NAK"
         fujicmd_copy_file_success(packet.param(0), packet.param(1),
                                   packet.dataAsString().value_or(""));
         break;
@@ -286,6 +306,9 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
     case FUJICMD_DEVICE_READY:
         Debug_printf("FUJICMD DEVICE TEST\n");
         rs232_test();
+        break;
+    case FUJICMD_GENERATE_GUID:
+        fujicmd_generate_guid();
         break;
     default:
         transaction_error();

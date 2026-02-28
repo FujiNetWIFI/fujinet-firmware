@@ -25,7 +25,7 @@ private:
 
     uint8_t buf_stream_index=0;
 
-    void comlynx_process(uint8_t b) override;
+    void comlynx_process() override;
     bool comlynx_redeye_checksum(uint8_t *buf);         // check the redeye checksum
     void redeye_recalculate_checksum();                 // recalculate redeye packet checksum (for remapped game_id)
     void redeye_remap_game_id();                        // remap game_id to provide a unique game_id

@@ -20,11 +20,11 @@ NetworkProtocolTest::~NetworkProtocolTest()
     test_data.clear();
 }
 
-netProtoErr_t NetworkProtocolTest::open(PeoplesUrlParser *urlParser,
-                                        netProtoOpenMode_t omode,
-                                        netProtoTranslation_t translate)
+protocolError_t NetworkProtocolTest::open(PeoplesUrlParser *urlParser,
+                                          fileAccessMode_t access,
+                                          netProtoTranslation_t translate)
 {
-    NetworkProtocol::open(urlParser, omode, translate);
+    NetworkProtocol::open(urlParser, access, translate);
 
     Debug_printf("scheme: %s\r\n", urlParser->scheme.c_str());
     Debug_printf("path: %s\r\n", urlParser->path.c_str());
@@ -55,15 +55,15 @@ netProtoErr_t NetworkProtocolTest::open(PeoplesUrlParser *urlParser,
         break;
     }
 
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolTest::read(unsigned short len)
+protocolError_t NetworkProtocolTest::read(unsigned short len)
 {
     if (receiveBuffer->length() == 0)
         *receiveBuffer += test_data.substr(0, len);
 
-    error = 1;
+    error = NDEV_STATUS::SUCCESS;
 
     Debug_printf("NetworkProtocolTest::read(%u)\r\n", len);
     for (int i = 0; i < receiveBuffer->length(); i++)
@@ -73,9 +73,9 @@ netProtoErr_t NetworkProtocolTest::read(unsigned short len)
     return NetworkProtocol::read(len);
 }
 
-netProtoErr_t NetworkProtocolTest::write(unsigned short len)
+protocolError_t NetworkProtocolTest::write(unsigned short len)
 {
-    netProtoErr_t err = NETPROTO_ERR_NONE;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
     Debug_printf("NetworkProtocolTest::write(%u) - Before translate_transmit_buffer()", len);
     for (int i = 0; i < len; i++)
@@ -94,12 +94,12 @@ netProtoErr_t NetworkProtocolTest::write(unsigned short len)
     return err;
 }
 
-netProtoErr_t NetworkProtocolTest::status(NetworkStatus *status)
+protocolError_t NetworkProtocolTest::status(NetworkStatus *status)
 {
     status->connected = 1;
     status->error = error;
 
     NetworkProtocol::status(status);
 
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }

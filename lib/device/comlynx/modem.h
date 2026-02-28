@@ -182,8 +182,8 @@ private:
     long answerTimer;
     bool answered=false;
 
-    void comlynx_control_status() override;
-    void comlynx_process(uint8_t b) override;
+    //void comlynx_control_status() override;
+    void comlynx_process() override;
 
     void crx_toggle(bool toggle);                // CRX active/inactive?
 

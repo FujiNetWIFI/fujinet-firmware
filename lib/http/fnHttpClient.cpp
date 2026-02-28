@@ -483,7 +483,7 @@ int fnHttpClient::_perform()
         break;
     case ESP_ERR_HTTP_CONNECT:
         // Unable to establish connection, use fake HTTP status code 901
-        // it will be translated to NETWORK_ERROR_NOT_CONNECTED (207) in NetworkProtocolHTTP::fserror_to_error()
+        // it will be translated to DEVICE_STATUS_NOT_CONNECTED (207) in NetworkProtocolHTTP::fserror_to_error()
         status = 901;
         break;
     default:
@@ -492,7 +492,7 @@ int fnHttpClient::_perform()
         Debug_printf("esp_http_client_get_status_code = %u\r\n", status);
 #endif
         // Other error, use fake HTTP status code 900
-        // it will be translated to NETWORK_ERROR_GENERAL (144) in NetworkProtocolHTTP::fserror_to_error()
+        // it will be translated to DEVICE_STATUS_GENERAL (144) in NetworkProtocolHTTP::fserror_to_error()
         if (status < 0)
             status = 900;
     }

@@ -502,7 +502,7 @@ uint8_t fnTcpClient::connected()
         }
         else if (res == 0)
         {
-            Debug_printf("fnTcpClient disconnected\r\n");
+            Debug_printf("fnTcpClient disconnected because no bytes to read\r\n");
             _connected = false;
         }
         else

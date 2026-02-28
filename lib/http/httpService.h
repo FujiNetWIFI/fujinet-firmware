@@ -154,6 +154,9 @@ public:
 #else
 // !ESP_PLATFORM
     static int get_handler_print(struct mg_connection *c);
+    static int get_handler_printer_status(struct mg_connection *c);
+    static int post_handler_printer_clear(struct mg_connection *c);
+    static int get_handler_printer_events(struct mg_connection *c);
     // static esp_err_t get_handler_modem_sniffer(httpd_req_t *req);
     static int get_handler_swap(struct mg_connection *c, struct mg_http_message *hm);
     static int get_handler_mount(struct mg_connection *c, struct mg_http_message *hm);
@@ -165,6 +168,17 @@ public:
 
     static int get_handler_browse(mg_connection *c, mg_http_message *hm);
     static int get_handler_shorturl(mg_connection *c, mg_http_message *hm);
+
+    static std::vector<struct mg_connection*> m_sseClients;
+    static size_t m_lastOutputSize;
+    static uint64_t m_lastPrinterCheckTime;
+    static uint64_t m_lastSizeChangeTime;
+    static uint64_t m_lastClearTime;
+    static bool m_eventEmittedForCurrentJob;
+
+    static void add_sse_client(struct mg_connection* c);
+    static void remove_sse_client(struct mg_connection* c);
+    static void broadcast_printer_event(const char* data);
 
     void service();
 // !ESP_PLATFORM

@@ -1,12 +1,14 @@
 #ifndef DEVICE_NETWORK_H
 #define DEVICE_NETWORK_H
 
-#include <stdint.h>
+#include "status_error_codes.h"
 
 typedef struct {
     uint16_t avail;
-    uint8_t conn, err;
+    uint8_t conn;
+    nDevStatus_t err;
 } NDeviceStatus;
+static_assert(sizeof(NDeviceStatus) == 4, "NDeviceStatus must be 4 bytes");
 
 #ifdef BUILD_ATARI
 # include "sio/network.h"

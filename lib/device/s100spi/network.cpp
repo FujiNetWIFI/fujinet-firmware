@@ -470,15 +470,15 @@ void s100spiNetwork::s100spiNetwork_special()
 
     // switch (inq_dstats)
     // {
-    // case 0x00: // No payload
+    // case SIO_DIRECTION_NONE: // No payload
     //     s100spi_ack();
     //     s100spi_special_00();
     //     break;
-    // case 0x40: // Payload to Atari
+    // case SIO_DIRECTION_READ: // Payload to Atari
     //     s100spi_ack();
     //     s100spi_special_40();
     //     break;
-    // case 0x80: // Payload to Peripheral
+    // case SIO_DIRECTION_WRITE: // Payload to Peripheral
     //     s100spi_ack();
     //     s100spi_special_80();
     //     break;
@@ -510,45 +510,45 @@ void s100spiNetwork::s100spiNetwork_special_inquiry()
 void s100spiNetwork::do_inquiry(fujiCommandID_t inq_cmd)
 {
     // // Reset inq_dstats
-    // inq_dstats = 0xff;
+    // inq_dstats = SIO_DIRECTION_INVALID;
 
     // // Ask protocol for dstats, otherwise get it locally.
     // if (protocol != nullptr)
     //     inq_dstats = protocol->special_inquiry(inq_cmd);
 
     // // If we didn't get one from protocol, or unsupported, see if supported globally.
-    // if (inq_dstats == 0xFF)
+    // if (inq_dstats == SIO_DIRECTION_INVALID)
     // {
     //     switch (inq_cmd)
     //     {
-    //     case 0x20:
-    //     case 0x21:
-    //     case 0x23:
-    //     case 0x24:
-    //     case 0x2A:
-    //     case 0x2B:
-    //     case 0x2C:
-    //     case 0xFD:
-    //     case 0xFE:
-    //         inq_dstats = 0x80;
+    //     case NETCMD__RENAME:
+    //     case NETCMD__FORMAT:
+    //     case NETCMD__LOCK:
+    //     case NETCMD__UNLOCK:
+    //     case NETCMD__MKDIR:
+    //     case NETCMD__RMDIR:
+    //     case NETCMD__CHDIR:
+    //     case NETCMD__USERNAME:
+    //     case NETCMD__PASSWORD:
+    //         inq_dstats = SIO_DIRECTION_WRITE;
     //         break;
-    //     case 0x30:
-    //         inq_dstats = 0x40;
+    //     case NETCMD_GETCWD:
+    //         inq_dstats = SIO_DIRECTION_READ;
     //         break;
-    //     case 'Z': // Set interrupt rate
-    //         inq_dstats = 0x00;
+    //     case NETCMD_SET_INT_RATE:
+    //         inq_dstats = SIO_DIRECTION_NONE;
     //         break;
-    //     case 'T': // Set Translation
-    //         inq_dstats = 0x00;
+    //     case NETCMD__TRANSLATION:
+    //         inq_dstats = SIO_DIRECTION_NONE;
     //         break;
-    //     case 0x80: // JSON Parse
-    //         inq_dstats = 0x00;
+    //     case NETCMD__JSON_PARSE:
+    //         inq_dstats = SIO_DIRECTION_NONE;
     //         break;
-    //     case 0x81: // JSON Query
-    //         inq_dstats = 0x80;
+    //     case NETCMD__JSON_QUERY:
+    //         inq_dstats = SIO_DIRECTION_WRITE;
     //         break;
     //     default:
-    //         inq_dstats = 0xFF; // not supported
+    //         inq_dstats = SIO_DIRECTION_INVALID; // not supported
     //         break;
     //     }
     // }
@@ -669,7 +669,7 @@ void s100spiNetwork::s100spi_control_ack()
 void s100spiNetwork::s100spi_control_send()
 {
     uint16_t s = s100spi_recv_length(); // receive length
-    uint8_t c = s100spi_recv();        // receive command
+    fujiCommandID_t c = s100spi_recv();        // receive command
 
     s--; // Because we've popped the command off the stack
 
@@ -861,7 +861,7 @@ void s100spiNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Invalid devicespec: >%s<\n", deviceSpec.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NETWORK_ERROR_INVALID_DEVICESPEC;
+        err = DEVICE_STATUS_INVALID_DEVICESPEC;
         return;
     }
 
@@ -875,7 +875,7 @@ void s100spiNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = NETWORK_ERROR_GENERAL;
+        err = DEVICE_STATUS_GENERAL;
         return;
     }
 }

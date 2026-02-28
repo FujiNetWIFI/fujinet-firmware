@@ -26,6 +26,7 @@
 #include "clock.h"
 #include "utils.h"
 #include "status_error_codes.h"
+#include "fuji_endian.h"
 
 #define IMAGE_EXTENSION ".d64"
 
@@ -223,7 +224,7 @@ uint8_t iecFuji::read()
 {
   // we should never get here if responsePtr>=responseV.size() because
   // then canRead would have returned 0, but better safe than sorry
-  return responsePtr < responseV.size() ? responseV[responsePtr++] : 0;
+  return responsePtr <= responseV.size() ? responseV[responsePtr++] : 0;
 }
 
 
@@ -474,6 +475,11 @@ void iecFuji::process_basic_commands()
         enable_device_basic();
     else if (payload.find("disable") != std::string::npos)
         disable_device_basic();
+    else if (payload.find("guid") != std::string::npos)
+    {
+        fujicmd_generate_guid();
+        response = mstr::toPETSCII2(response);
+    }
     else if (payload.find("bptiming") != std::string::npos)
     {
         if ( pt.size() < 3 )
@@ -507,6 +513,7 @@ bool iecFuji::is_supported(uint8_t cmd)
     case FUJICMD_HASH_INPUT:
     case FUJICMD_HASH_LENGTH:
     case FUJICMD_HASH_OUTPUT:
+    case FUJICMD_GENERATE_GUID:
     case FUJICMD_MOUNT_ALL:
     case FUJICMD_MOUNT_HOST:
     case FUJICMD_MOUNT_IMAGE:
@@ -682,6 +689,10 @@ void iecFuji::process_immediate_raw_cmds()
         break;
     case FUJICMD_HASH_CLEAR:
         hash_clear();
+        break;
+    case FUJICMD_GENERATE_GUID:
+        fujicmd_generate_guid();
+        response = mstr::toPETSCII2(response);
         break;
     default:
         // not an immediate command, so exit without changing current_fuji_cmd, as we need to be sent data
@@ -1861,8 +1872,29 @@ std::vector<std::string> iecFuji::tokenize_basic_command(std::string command)
 size_t iecFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                                 uint8_t maxlen)
 {
-    return _set_additional_direntry_details(f, dest, maxlen, 0, SIZE_16_LE,
-                                            HAS_DIR_ENTRY_FLAGS_COMBINED, HAS_DIR_ENTRY_TYPE);
+    struct {
+        dirEntryTimestamp modified;
+        uint16_t size;
+        uint8_t flags;
+        uint8_t mediatype;
+    } __attribute__((packed)) custom_details;
+    dirEntryDetails details;
+
+    details = _additional_direntry_details(f);
+    custom_details.modified = details.modified;
+    custom_details.size = htole16(details.size);
+    custom_details.flags = details.flags;
+    custom_details.mediatype = details.mediatype;
+
+    maxlen -= sizeof(custom_details);
+    // Subtract a byte for a terminating slash on directories
+    if (custom_details.flags & DET_FF_DIR)
+        maxlen--;
+
+    if (strlen(f->filename) >= maxlen)
+        custom_details.flags |= DET_FF_TRUNC;
+    memcpy(dest, &custom_details, sizeof(custom_details));
+    return sizeof(custom_details);
 }
 
 void iecFuji::hash_input_raw()

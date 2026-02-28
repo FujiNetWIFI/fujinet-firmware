@@ -33,23 +33,22 @@ NetworkProtocolFTP::~NetworkProtocolFTP()
     ftp = nullptr;
 }
 
-netProtoErr_t NetworkProtocolFTP::open_file_handle(netProtoOpenMode_t omode)
+protocolError_t NetworkProtocolFTP::open_file_handle()
 {
-    netProtoErr_t res;
+    protocolError_t res;
 
-    switch (omode)
+    switch (streamMode)
     {
-    case NETPROTO_OPEN_READ:
+    case ACCESS_MODE::READ:
         stor = false;
         break;
-    case NETPROTO_OPEN_WRITE:
+    case ACCESS_MODE::WRITE:
         stor = true;
         break;
-    case NETPROTO_OPEN_APPEND:
-    case NETPROTO_OPEN_READWRITE:
-        error = NETWORK_ERROR_NOT_IMPLEMENTED;
-        return NETPROTO_ERR_UNSPECIFIED;
-        break;
+    case ACCESS_MODE::APPEND:
+    case ACCESS_MODE::READWRITE:
+        error = NDEV_STATUS::NOT_IMPLEMENTED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     default:
         break;
     }
@@ -59,18 +58,18 @@ netProtoErr_t NetworkProtocolFTP::open_file_handle(netProtoOpenMode_t omode)
     return res;
 }
 
-netProtoErr_t NetworkProtocolFTP::open_dir_handle()
+protocolError_t NetworkProtocolFTP::open_dir_handle()
 {
-    netProtoErr_t res;
+    protocolError_t res;
 
     res = ftp->open_directory(dir, filename);
     fserror_to_error();
     return res;
 }
 
-netProtoErr_t NetworkProtocolFTP::mount(PeoplesUrlParser *url)
+protocolError_t NetworkProtocolFTP::mount(PeoplesUrlParser *url)
 {
-    netProtoErr_t res;
+    protocolError_t res;
 
     // Path isn't used
     res = ftp->login("anonymous", "fujinet@fujinet.online", url->host);
@@ -78,7 +77,7 @@ netProtoErr_t NetworkProtocolFTP::mount(PeoplesUrlParser *url)
     return res;
 }
 
-netProtoErr_t NetworkProtocolFTP::umount()
+protocolError_t NetworkProtocolFTP::umount()
 {
     return ftp->logout();
 }
@@ -114,28 +113,28 @@ void NetworkProtocolFTP::fserror_to_error()
     case 331:
     case 332:
     case 350:
-        error = NETWORK_ERROR_SUCCESS;
+        error = NDEV_STATUS::SUCCESS;
         break;
     case 226:
-        error = NETWORK_ERROR_END_OF_FILE;
+        error = NDEV_STATUS::END_OF_FILE;
         break;
     case 421:
-        error = NETWORK_ERROR_SERVICE_NOT_AVAILABLE;
+        error = NDEV_STATUS::SERVICE_NOT_AVAILABLE;
         break;
     case 400:
     case 425:
-        error = NETWORK_ERROR_GENERAL;
+        error = NDEV_STATUS::GENERAL;
         break;
     case 430:
-        error = NETWORK_ERROR_INVALID_USERNAME_OR_PASSWORD;
+        error = NDEV_STATUS::INVALID_USERNAME_OR_PASSWORD;
         break;
     case 434:
-        error = NETWORK_ERROR_GENERAL;
+        error = NDEV_STATUS::GENERAL;
         break;
     case 450:
     case 451:
     case 452:
-        error = NETWORK_ERROR_ACCESS_DENIED;
+        error = NDEV_STATUS::ACCESS_DENIED;
         break;
     case 500:
     case 501:
@@ -148,35 +147,35 @@ void NetworkProtocolFTP::fserror_to_error()
     case 551:
     case 552:
     case 553:
-        error = NETWORK_ERROR_GENERAL;
+        error = NDEV_STATUS::GENERAL;
         break;
     case 550:
-        error = NETWORK_ERROR_FILE_NOT_FOUND;
+        error = NDEV_STATUS::FILE_NOT_FOUND;
         break;
     default:
-        error = NETWORK_ERROR_GENERAL;
+        error = NDEV_STATUS::GENERAL;
         break;
     }
 }
 
-netProtoErr_t NetworkProtocolFTP::read_file_handle(uint8_t *buf, unsigned short len)
+protocolError_t NetworkProtocolFTP::read_file_handle(uint8_t *buf, unsigned short len)
 {
-    netProtoErr_t res;
+    protocolError_t res;
 
     res = ftp->read_file(buf, len);
     fserror_to_error();
     return res;
 }
 
-netProtoErr_t NetworkProtocolFTP::read_dir_entry(char *buf, unsigned short len)
+protocolError_t NetworkProtocolFTP::read_dir_entry(char *buf, unsigned short len)
 {
-    netProtoErr_t res;
+    protocolError_t res;
     std::string filename;
     long filesz;
     bool is_dir;
 
     res = ftp->read_directory(filename, filesz, is_dir);
-    if (res == false)
+    if (res == PROTOCOL_ERROR::NONE)
     {
         strncpy(buf, filename.c_str(), len);
         fileSize = filesz;
@@ -187,56 +186,37 @@ netProtoErr_t NetworkProtocolFTP::read_dir_entry(char *buf, unsigned short len)
     return res;
 }
 
-netProtoErr_t NetworkProtocolFTP::close_file_handle()
+protocolError_t NetworkProtocolFTP::close_file_handle()
 {
-    netProtoErr_t res;
+    protocolError_t res;
 
     res = ftp->close();
     fserror_to_error();
     return res;
 }
 
-netProtoErr_t NetworkProtocolFTP::close_dir_handle()
+protocolError_t NetworkProtocolFTP::close_dir_handle()
 {
-    netProtoErr_t res;
+    protocolError_t res;
 
     res = ftp->close();
     fserror_to_error();
     return res;
 }
 
-netProtoErr_t NetworkProtocolFTP::write_file_handle(uint8_t *buf, unsigned short len)
+protocolError_t NetworkProtocolFTP::write_file_handle(uint8_t *buf, unsigned short len)
 {
     return ftp->write_file(buf, len);
 }
 
-netProtoErr_t NetworkProtocolFTP::status_file(NetworkStatus *status)
+protocolError_t NetworkProtocolFTP::status_file(NetworkStatus *status)
 {
-    status->connected = ftp->data_connected();
+    status->connected = ftp->data_connected() != PROTOCOL_ERROR::NONE;
     fserror_to_error();
     status->error = error;
 
     NetworkProtocol::status(status);
-    return NETPROTO_ERR_NONE;
-}
-
-AtariSIODirection NetworkProtocolFTP::special_inquiry(fujiCommandID_t cmd)
-{
-    AtariSIODirection ret;
-
-    switch (cmd)
-    {
-    case FUJICMD_RENAME:
-    case FUJICMD_DELETE:
-    case FUJICMD_MKDIR:
-    case FUJICMD_RMDIR:
-        ret = SIO_DIRECTION_WRITE; // Atari to peripheral.
-        break;
-    default:
-        return NetworkProtocolFS::special_inquiry(cmd);
-    }
-
-    return ret;
+    return PROTOCOL_ERROR::NONE;
 }
 
 size_t NetworkProtocolFTP::available()
@@ -244,12 +224,18 @@ size_t NetworkProtocolFTP::available()
     size_t avail = 0;
 
 
-    switch (openMode)
+    switch (streamType)
     {
-    case FILE:
+    case streamType_t::FILE:
         avail = ftp->data_available();
         break;
+    case DIR:
+        avail = receiveBuffer->length();
+        if (!avail)
+            avail = dirBuffer.length();
+        break;
     default:
+        abort();
         break;
     }
 

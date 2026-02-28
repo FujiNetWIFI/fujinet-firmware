@@ -1,6 +1,7 @@
 #ifndef IEC_H
 #define IEC_H
 
+#include "cmdFrame.h"
 #include <cstdint>
 #include <forward_list>
 #include <freertos/FreeRTOS.h>
@@ -27,26 +28,6 @@
 #define BUS_DEVICEID_DISK 8
 #define BUS_DEVICEID_NETWORK 16
 
-
-/**
- * @brief The command frame
- */
-union cmdFrame_t
-{
-    struct
-    {
-        uint8_t device;
-        uint8_t comnd;
-        uint8_t aux1;
-        uint8_t aux2;
-        uint8_t cksum;
-    };
-    struct
-    {
-        uint32_t commanddata;
-        uint8_t checksum;
-    } __attribute__((packed));
-};
 
 class iecDrive;
 

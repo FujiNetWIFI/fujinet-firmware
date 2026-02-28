@@ -5,6 +5,7 @@
 #ifndef NETWORKSTATUS_H
 #define NETWORKSTATUS_H
 
+#include "status_error_codes.h"
 #include <cstdint>
 
 
@@ -24,7 +25,7 @@ public:
     /**
      * Error code to return to CIO or SIO caller. (1-255)
      */
-    uint8_t error;
+    nDevStatus_t error;
 
     /**
      * Reset status
@@ -32,7 +33,7 @@ public:
     void reset()
     {
         connected=0;
-        error=0;
+        error=NDEV_STATUS::SUCCESS;
     }
 };
 

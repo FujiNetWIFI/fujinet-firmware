@@ -12,10 +12,6 @@
 #include "fnConfig.h"
 #include "utils.h"
 
-#define SIO_APETIMECMD_GETTIME 0x93
-#define SIO_APETIMECMD_SETTZ 0x99
-#define SIO_APETIMECMD_GETTZTIME 0x9A
-
 std::optional<std::string> sioClock::read_tz_from_host()
 {
     Debug_println("sioClock read_tz_from_host");
@@ -68,14 +64,14 @@ void sioClock::sio_process(uint32_t commanddata, uint8_t checksum)
     ////////////////////////////////////////////////////////////////////////////////////
     // TIME FUNCTIONS
     ////////////////////////////////////////////////////////////////////////////////////
-    case SIO_APETIMECMD_GETTZTIME:      // legacy was only required for APOD, which is being updated, but anyone out there still running it on new firmware, will still work
-    case SIO_APETIMECMD_GETTIME: {
+    case APETIMECMD_GETTZTIME:      // legacy was only required for APOD, which is being updated, but anyone out there still running it on new firmware, will still work
+    case APETIMECMD_GETTIME: {
         // all commands for time now use the aux1 param to decide if the caller wanted the system tz (aux1 != 1), or the alternate tz (aux1 = 1)
-        // this makes SIO_APETIMECMD_GETTIME and SIO_APETIMECMD_GETTZTIME behave the same so we can deprecate the latter, using aux values rather than separate commands
+        // this makes APETIMECMD_GETTIME and APETIMECMD_GETTZTIME behave the same so we can deprecate the latter, using aux values rather than separate commands
         // Note: APETIME.COM uses 0x93 with aux1=A0, aux2=EE, so we will always get the FN timezone in response, but fujinet-lib can use the alternate timezone functionality
         sio_ack();
-        // for backwards compatibility, if we're sent SIO_APETIMECMD_GETTZTIME we always use the ALT timezone if set
-        if (cmdFrame.comnd == SIO_APETIMECMD_GETTZTIME) use_alternate_tz = true;
+        // for backwards compatibility, if we're sent APETIMECMD_GETTZTIME we always use the ALT timezone if set
+        if (cmdFrame.comnd == APETIMECMD_GETTZTIME) use_alternate_tz = true;
 
         auto apeTime = Clock::get_current_time_apetime(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
         bus_to_computer(apeTime.data(), apeTime.size(), false);
@@ -121,24 +117,24 @@ void sioClock::sio_process(uint32_t commanddata, uint8_t checksum)
     ////////////////////////////////////////////////////////////////////////////////////
 
     // for backwards compatibility with APOD, we use the 0x99 for this command
-    case SIO_APETIMECMD_SETTZ: {
+    case APETIMECMD_SETTZ: {
         sio_late_ack();
         set_alternate_tz();
         break;
     }
     // can't use "T" as that's taken by getter
-    case 't': {
+    case APETIMECMD_SETTZ_ALT: {
         sio_late_ack();
         set_fn_tz();
         break;
     }
-    case 'G': {
+    case APETIMECMD_GET_GENERAL: {
         // Get current system timezone
         sio_ack();
         bus_to_computer((uint8_t *) Config.get_general_timezone().c_str(), Config.get_general_timezone().size() + 1, false); // +1 for null terminator
         break;
     }
-    case 'L': {
+    case APETIMECMD_GETTZ_LEN: {
         // Get length of system TZ
         sio_ack();
         uint8_t len = Config.get_general_timezone().size() + 1;

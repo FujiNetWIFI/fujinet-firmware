@@ -188,10 +188,10 @@ void virtualDevice::adamnet_control_status()
 
 void virtualDevice::adamnet_response_status()
 {
-    status_response[0] |= _devnum;
+    status_response.cmd_dev = (NM_STATUS << 4) | _devnum;
 
-    status_response[5] = adamnet_checksum(&status_response[1], 4);
-    adamnet_send_buffer(status_response, sizeof(status_response));
+    status_response.checksum = adamnet_checksum((uint8_t *) &status_response.length, 4);
+    adamnet_send_buffer((uint8_t *) &status_response, sizeof(status_response));
 }
 
 void virtualDevice::adamnet_control_clr()

@@ -75,7 +75,7 @@ void rs232CPM::rs232_process(FujiBusPacket &packet)
 {
     switch (packet.command())
     {
-    case FUJICMD_CPM_INIT:
+    case CPMCMD_INIT:
         rs232_ack();
         fnSystem.delay(10);
         rs232_complete();

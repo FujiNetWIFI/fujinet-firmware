@@ -17,13 +17,9 @@
 
 #include "utils.h"
 #include "string_utils.h"
+#include "fuji_endian.h"
 
 #define IMAGE_EXTENSION ".ddp"
-
-#ifdef OBSOLETE
-#define ADDITIONAL_DETAILS_BYTES 12
-#endif /* OBSOLETE */
-
 #define COPY_SIZE 532
 
 adamFuji platformFuji;
@@ -122,8 +118,30 @@ void adamFuji::shutdown()
 size_t adamFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                                  uint8_t maxlen)
 {
-    return _set_additional_direntry_details(f, dest, maxlen, 100, SIZE_32_LE,
-                                            HAS_DIR_ENTRY_FLAGS_SEPARATE, HAS_DIR_ENTRY_TYPE);
+    struct {
+        dirEntryTimestamp modified;
+        uint32_t size;
+        uint8_t is_dir;
+        uint8_t is_trunc;
+        uint8_t mediatype;
+    } __attribute__((packed)) custom_details;
+    dirEntryDetails details;
+
+    details = _additional_direntry_details(f);
+    custom_details.modified = details.modified;
+    custom_details.modified.year -= 100;
+    custom_details.size = htole32(details.size);
+    custom_details.is_dir = details.flags & DET_FF_DIR;
+    custom_details.mediatype = details.mediatype;
+
+    maxlen -= sizeof(custom_details);
+    // Subtract a byte for a terminating slash on directories
+    if (custom_details.is_dir)
+        maxlen--;
+
+    custom_details.is_trunc = strlen(f->filename) >= maxlen ? DET_FF_TRUNC : 0;
+    memcpy(dest, &custom_details, sizeof(custom_details));
+    return sizeof(custom_details);
 }
 
 //  Make new disk and shove into device slot
@@ -272,10 +290,10 @@ void adamFuji::setup()
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = false;
 
-    SYSTEM_BUS.addDevice(&_fnDisks[0].disk_dev, ADAMNET_DEVICEID_DISK);
-    SYSTEM_BUS.addDevice(&_fnDisks[1].disk_dev, ADAMNET_DEVICEID_DISK + 1);
-    SYSTEM_BUS.addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK + 2);
-    SYSTEM_BUS.addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK + 3);
+    SYSTEM_BUS.addDevice(&_fnDisks[0].disk_dev, FUJI_DEVICEID_DISK);
+    SYSTEM_BUS.addDevice(&_fnDisks[1].disk_dev, FUJI_DEVICEID_DISK + 1);
+    SYSTEM_BUS.addDevice(&_fnDisks[2].disk_dev, FUJI_DEVICEID_DISK + 2);
+    SYSTEM_BUS.addDevice(&_fnDisks[3].disk_dev, FUJI_DEVICEID_DISK + 3);
 
     // Read and enable devices
     _fnDisks[0].disk_dev.device_active = Config.get_device_slot_enable_1();
@@ -306,9 +324,9 @@ void adamFuji::setup()
     theNetwork = new adamNetwork();
     theNetwork2 = new adamNetwork();
     theSerial = new adamSerial();
-    SYSTEM_BUS.addDevice(theNetwork, 0x09);  // temporary.
-    SYSTEM_BUS.addDevice(theNetwork2, 0x0A); // temporary
-    SYSTEM_BUS.addDevice(theFuji, 0x0F);    // Fuji becomes the gateway device.
+    SYSTEM_BUS.addDevice(theNetwork, FUJI_DEVICEID_NETWORK);  // temporary.
+    SYSTEM_BUS.addDevice(theNetwork2, FUJI_DEVICEID_NETWORK + 1); // temporary
+    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET);    // Fuji becomes the gateway device.
 }
 
 void adamFuji::adamnet_random_number()
@@ -520,6 +538,9 @@ void adamFuji::adamnet_control_send()
             fujicmd_copy_file_success(source, dest, dirpath);
         }
         break;
+    case FUJICMD_GENERATE_GUID:
+        fujicmd_generate_guid();
+        break;
     default:
         Debug_printv("Unknown command: %02x\n", c);
         break;
@@ -631,5 +652,46 @@ void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
     Debug_printf("%s\n", util_hexdump(current_entry->data(), maxlen).c_str());
     transaction_put(current_entry->data(), maxlen);
 }
+
+#if 0
+bool adamFuji::fujicmd_mount_disk_image_success(uint8_t deviceSlot,
+                                                disk_access_flags_t access_mode)
+{
+    Debug_println("Fuji cmd: MOUNT IMAGE");
+
+    // Adam needs ACK before we even determine if the disk can be mounted
+    transaction_complete();
+    return fujicore_mount_disk_image_success(deviceSlot, access_mode);
+}
+
+void adamFuji::fujicmd_get_adapter_config()
+{
+    // Adam needs ACK ASAP
+    transaction_complete();
+
+    // also return string versions of the data to save the host some computing
+    Debug_printf("Fuji cmd: GET ADAPTER CONFIG\r\n");
+
+    // AdapterConfigExtended contains AdapterConfig so just get Extended
+    AdapterConfigExtended cfg = fujicore_get_adapter_config_extended();
+
+    // Only write out the AdapterConfig part
+    response_len = sizeof(AdapterConfig);
+    memcpy(response, &cfg, response_len);
+}
+
+void adamFuji::fujicmd_get_adapter_config_extended()
+{
+    // Adam needs ACK ASAP
+    transaction_complete();
+
+    // also return string versions of the data to save the host some computing
+    Debug_printf("Fuji cmd: GET ADAPTER CONFIG EXTENDED\r\n");
+
+    AdapterConfigExtended cfg = fujicore_get_adapter_config_extended();
+    response_len = sizeof(cfg);
+    memcpy(response, &cfg, response_len);
+}
+#endif
 
 #endif /* BUILD_ADAM */

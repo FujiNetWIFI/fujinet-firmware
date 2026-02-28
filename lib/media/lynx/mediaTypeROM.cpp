@@ -93,7 +93,7 @@ mediatype_t MediaTypeROM::mount(FILE *f, uint32_t disksize)
 // Returns FALSE on error
 bool MediaTypeROM::create(FILE *f, uint32_t numBlocks)
 {
-    Debug_print("ROM CREATE\r\n");
+    Debug_print("FILE CREATE\r\n");
 
     return true;
 }

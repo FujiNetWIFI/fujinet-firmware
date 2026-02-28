@@ -40,15 +40,15 @@ void iwmClock::send_status_reply_packet()
 
 void iwmClock::send_status_dib_reply_packet()
 {
-	Debug_printf("CLOCK: Sending DIB reply\r\n");
-	std::vector<uint8_t> data = create_dib_reply_packet(
-		"FN_CLOCK",                                                     // name
-		STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE,                 // status
-		{ 0, 0, 0 },                                                    // block size
-		{ SP_TYPE_BYTE_FUJINET_CLOCK, SP_SUBTYPE_BYTE_FUJINET_CLOCK },  // type, subtype
-		{ 0x00, 0x01 }                                                  // version.
-	);
-	SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+        Debug_printf("CLOCK: Sending DIB reply\r\n");
+        std::vector<uint8_t> data = create_dib_reply_packet(
+                "FN_CLOCK",                                                     // name
+                STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE,                 // status
+                { 0, 0, 0 },                                                    // block size
+                { SP_TYPE_BYTE_FUJINET_CLOCK, SP_SUBTYPE_BYTE_FUJINET_CLOCK },  // type, subtype
+                { 0x00, 0x01 }                                                  // version.
+        );
+        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
 }
 
 void iwmClock::set_tz()
@@ -80,10 +80,10 @@ void iwmClock::iwm_ctrl(iwm_decoded_cmd_t cmd)
 
     switch (control_code)
     {
-        case 'T':
+        case APETIMECMD_SETTZ_ALT2:
             set_tz();
             break;
-        case 't':
+        case APETIMECMD_SETTZ_ALT:
             set_alternate_tz();
             break;
         default:
@@ -115,27 +115,27 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
         break;
 
     // Uppercase = use FN tz, otherwise use alt tz
-    case 'T':
-    case 't': {
-        use_alternate_tz = status_code == 't';
+    case APETIMECMD_SETTZ_ALT2:
+    case APETIMECMD_SETTZ_ALT: {
+        use_alternate_tz = status_code == APETIMECMD_SETTZ_ALT;
         // Date and time, easy to be used by general programs
         auto simpleTime = Clock::get_current_time_simple(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
         std::copy(simpleTime.begin(), simpleTime.end(), data_buffer);
         data_len = simpleTime.size();
         break;
     }
-    case 'P':
-    case 'p': {
-        use_alternate_tz = status_code == 'p';
+    case APETIMECMD_GET_PRODOS:
+    case APETIMECMD_GET_PRODOS_ALT: {
+        use_alternate_tz = status_code == APETIMECMD_GET_PRODOS_ALT;
         // Date and time, to be used by a ProDOS driver
         auto prodosTime = Clock::get_current_time_prodos(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
         std::copy(prodosTime.begin(), prodosTime.end(), data_buffer);
         data_len = prodosTime.size();
         break;
     }
-    case 'S':
-    case 's': {
-        use_alternate_tz = status_code == 's';
+    case APETIMECMD_GET_SOS:
+    case APETIMECMD_GET_SOS_ALT: {
+        use_alternate_tz = status_code == APETIMECMD_GET_SOS_ALT;
         // Date and time, ASCII string in Apple /// SOS format: YYYYMMDD0HHMMSS000
         std::string sosTime = Clock::get_current_time_sos(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
         std::copy(sosTime.begin(), sosTime.end(), data_buffer);
@@ -143,9 +143,9 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
         data_len = sosTime.size() + 1;              // and ensure the size reflects the null terminator
         break;
     }
-    case 'I':
-    case 'i': {
-        use_alternate_tz = status_code == 'i';
+    case APETIMECMD_GET_ISO_LOCAL:
+    case APETIMECMD_GET_ISO_LOCAL_ALT: {
+        use_alternate_tz = status_code == APETIMECMD_GET_ISO_LOCAL_ALT;
         // Date and time, ASCII string in ISO format
         std::string utcTime = Clock::get_current_time_iso(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
         std::copy(utcTime.begin(), utcTime.end(), data_buffer);
@@ -153,9 +153,9 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
         data_len = utcTime.size() + 1;              // and ensure the size reflects the null terminator
         break;
     }
-    case 'Z':
-    case 'z': {
-        use_alternate_tz = status_code == 'z';
+    case APETIMECMD_GET_ISO_UTC:
+    case APETIMECMD_GET_ISO_UTC_ALT: {
+        use_alternate_tz = status_code == APETIMECMD_GET_ISO_UTC_ALT;
         // utc (zulu)
         std::string isoTime = Clock::get_current_time_iso("UTC+0");
         std::copy(isoTime.begin(), isoTime.end(), data_buffer);
@@ -163,16 +163,16 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
         data_len = isoTime.size() + 1;              // and ensure the size reflects the null terminator
         break;
     }
-    case 'A':
-    case 'a': {
-        use_alternate_tz = status_code == 'a';
+    case APETIMECMD_GET_ATARI:
+    case APETIMECMD_GET_ATARI_ALT: {
+        use_alternate_tz = status_code == APETIMECMD_GET_ATARI_ALT;
         // Apetime (Atari, but why not eh?) with TZ
         auto apeTime = Clock::get_current_time_apetime(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
         std::copy(apeTime.begin(), apeTime.end(), data_buffer);
         data_len = apeTime.size();
         break;
     }
-    case 'G': {
+    case APETIMECMD_GET_GENERAL: {
         // Get current system timezone
         std::string curr = Config.get_general_timezone();
         std::copy(curr.begin(), curr.end(), data_buffer);

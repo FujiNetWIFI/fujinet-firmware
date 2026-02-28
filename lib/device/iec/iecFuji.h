@@ -24,7 +24,10 @@ protected:
     void transaction_complete() override {}
     void transaction_error() override {}
     bool transaction_get(void *data, size_t len) override {return false;}
-    void transaction_put(const void *data, size_t len, bool err) override {}
+    void transaction_put(const void *data, size_t len, bool err) override {
+        response.clear();
+        response.append(reinterpret_cast<const char*>(data), len);
+    }
 
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;

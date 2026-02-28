@@ -66,7 +66,7 @@ public:
 };
 
 class iecNetwork : public IECFileDevice
-{    
+{
 public:
 
     /**
@@ -161,7 +161,7 @@ private:
      * @brief ask protocol to perform idempotent filesystem operation
      * @param comnd the command to pass in cmdFrame
      */
-    void fsop(unsigned char comnd);
+    void fsop(fujiCommandID_t comnd);
 
     /**
      * @brief called to open a connection to a protocol
@@ -172,26 +172,11 @@ private:
      * @brief called to close a connection.
      */
     void iec_close();
-    
+
     /**
      * @brief called to process command either at open or listen
      */
     void iec_command();
-
-    /**
-     * @brief called to ask protocol to perform an operation with no payload
-     */
-    void perform_special_00();
-
-    /**
-     * @brief called to ask protocol to perform an operation with payload to computer (status)
-     */
-    void perform_special_40();
-
-    /**
-     * @brief called to ask protocol to perform an operation with no payload
-     */
-    void perform_special_80();
 
     /**
      * @brief changes the open mode for the channel (e.g. to DELETE)
@@ -211,7 +196,7 @@ private:
      */
     struct _iecStatus
     {
-        int8_t error;
+        nDevStatus_t error;
         uint8_t cmd;
         std::string msg;
         bool connected;

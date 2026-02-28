@@ -509,8 +509,8 @@ void systemBus::setup()
                       .deviceID(SIO_UART_DEVICE)
 #ifdef ESP_PLATFORM
                       .readTimeout(pdTICKS_TO_MS(200))
-                      .discardTimeout(0.01)
 #endif /* ESP_PLATFORM */
+                      .discardTimeout(0.01)
                       );
 
 #ifdef ESP_PLATFORM

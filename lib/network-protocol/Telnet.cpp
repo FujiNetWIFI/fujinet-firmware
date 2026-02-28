@@ -100,9 +100,9 @@ NetworkProtocolTELNET::~NetworkProtocolTELNET()
 /**
  * @brief Read len bytes into rx_buf, If protocol times out, the buffer should be null padded to length.
  * @param len number of bytes to read.
- * @return NETPROTO_ERR_NONE on success, NETPROTO_ERR_UNSPECIFIED on error
+ * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
  */
-netProtoErr_t NetworkProtocolTELNET::read(unsigned short len)
+protocolError_t NetworkProtocolTELNET::read(unsigned short len)
 {
     std::vector<uint8_t> newData = std::vector<uint8_t>(len);
 
@@ -113,8 +113,8 @@ netProtoErr_t NetworkProtocolTELNET::read(unsigned short len)
         // Check for client connection
         if (!client.connected())
         {
-            error = NETWORK_ERROR_NOT_CONNECTED;
-            return NETPROTO_ERR_UNSPECIFIED; // error
+            error = NDEV_STATUS::NOT_CONNECTED;
+            return PROTOCOL_ERROR::UNSPECIFIED; // error
         }
 
         // Do the read from client socket.
@@ -125,13 +125,13 @@ netProtoErr_t NetworkProtocolTELNET::read(unsigned short len)
         // bail if the connection is reset.
         if (errno == ECONNRESET)
         {
-            error = NETWORK_ERROR_CONNECTION_RESET;
-            return NETPROTO_ERR_UNSPECIFIED;
+            error = NDEV_STATUS::CONNECTION_RESET;
+            return PROTOCOL_ERROR::UNSPECIFIED;
         }
     }
 
     // Return success
-    error = 1;
+    error = NDEV_STATUS::SUCCESS;
 
     Debug_printf("NetworkProtocolTELNET::read(%d) - %s\r\n", newRxLen, receiveBuffer->c_str());
 
@@ -143,15 +143,15 @@ netProtoErr_t NetworkProtocolTELNET::read(unsigned short len)
  * @param len The # of bytes to transmit, len should not be larger than buffer.
  * @return Number of bytes written.
  */
-netProtoErr_t NetworkProtocolTELNET::write(unsigned short len)
+protocolError_t NetworkProtocolTELNET::write(unsigned short len)
 {
     Debug_printf("NetworkProtocolTELNET::write(%u)\r\n", len);
 
     // Check for client connection
     if (!client.connected())
     {
-        error = NETWORK_ERROR_NOT_CONNECTED;
-        return NETPROTO_ERR_UNSPECIFIED; // error
+        error = NDEV_STATUS::NOT_CONNECTED;
+        return PROTOCOL_ERROR::UNSPECIFIED; // error
     }
 
     // Call base class to do translation.
@@ -163,14 +163,14 @@ netProtoErr_t NetworkProtocolTELNET::write(unsigned short len)
     // bail if the connection is reset.
     if (errno == ECONNRESET)
     {
-        error = NETWORK_ERROR_CONNECTION_RESET;
-        return NETPROTO_ERR_UNSPECIFIED;
+        error = NDEV_STATUS::CONNECTION_RESET;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     // Return success
-    error = 1;
+    error = NDEV_STATUS::SUCCESS;
 
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
 void NetworkProtocolTELNET::flush(const char *buf, unsigned short size)

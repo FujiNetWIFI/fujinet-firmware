@@ -33,6 +33,14 @@ using namespace std;
 // Global HTTPD
 fnHttpService fnHTTPD;
 
+// SSE connection tracking
+std::vector<struct mg_connection*> fnHttpService::m_sseClients;
+size_t fnHttpService::m_lastOutputSize = 0;
+uint64_t fnHttpService::m_lastPrinterCheckTime = 0;
+uint64_t fnHttpService::m_lastSizeChangeTime = 0;
+uint64_t fnHttpService::m_lastClearTime = 0;
+bool fnHttpService::m_eventEmittedForCurrentJob = false;
+
 /* Send some meaningful(?) error message to client
 */
 void fnHttpService::return_http_error(struct mg_connection *c, _fnwserr errnum)
@@ -352,6 +360,131 @@ int fnHttpService::get_handler_print(struct mg_connection *c)
     return 0; //ESP_OK;
 }
 
+int fnHttpService::get_handler_printer_status(struct mg_connection *c)
+{
+    PRINTER_CLASS *printer = (PRINTER_CLASS *)fnPrinters.get_ptr(0);
+    if (printer == nullptr)
+    {
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n",
+            "{\"enabled\":false}\n");
+        return 0;
+    }
+
+    printer_emu *emu = printer->getPrinterPtr();
+    if (emu == nullptr)
+    {
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n",
+            "{\"enabled\":false}\n");
+        return 0;
+    }
+
+    uint64_t now = fnSystem.millis();
+    bool ready = (now - printer->lastPrintTime() >= PRINTER_BUSY_TIME);
+    size_t sz = emu->getOutputSize();
+
+    const char *ct;
+    switch (emu->getPaperType())
+    {
+    case RAW:
+    case TRIM:
+    case ASCII:
+        ct = "text/plain";
+        break;
+    case PDF:
+        ct = "application/pdf";
+        break;
+    case SVG:
+        ct = "image/svg+xml";
+        break;
+    case PNG:
+        ct = "image/png";
+        break;
+    case HTML:
+    case HTML_ATASCII:
+        ct = "text/html";
+        break;
+    default:
+        ct = "application/octet-stream";
+    }
+
+    mg_http_reply(c, 200, "Content-Type: application/json\r\n",
+        "{\"enabled\":true,\"model\":\"%s\",\"ready\":%s,\"has_output\":%s,"
+        "\"output_size\":%lu,\"content_type\":\"%s\",\"last_print_time\":%llu}\n",
+        emu->modelname(),
+        ready ? "true" : "false",
+        sz > 0 ? "true" : "false",
+        (unsigned long)sz,
+        ct,
+        (unsigned long long)printer->lastPrintTime()
+    );
+
+    return 0;
+}
+
+int fnHttpService::post_handler_printer_clear(struct mg_connection *c)
+{
+    PRINTER_CLASS *printer = (PRINTER_CLASS *)fnPrinters.get_ptr(0);
+    printer_emu *emu = printer->getPrinterPtr();
+
+    emu->closeOutput();
+    printer->reset_printer();
+
+    // Try to remove the file (may fail on some filesystems)
+    int remove_result = fsFlash.remove("/paper");
+    Debug_printf("Attempting to remove /paper, result: %d\n", remove_result);
+
+    mg_http_reply(c, 200, "Content-Type: application/json\r\n",
+        "{\"status\":\"success\"}\n");
+
+    // Grace period - don't reset tracking; handles failed file deletion
+    m_lastClearTime = fnSystem.millis();
+
+    broadcast_printer_event("{\"event\":\"printer_cleared\"}");
+
+    return 0;
+}
+
+void fnHttpService::add_sse_client(struct mg_connection* c)
+{
+    m_sseClients.push_back(c);
+    Debug_printf("SSE client connected, total clients: %d\n", m_sseClients.size());
+}
+
+void fnHttpService::remove_sse_client(struct mg_connection* c)
+{
+    m_sseClients.erase(std::remove(m_sseClients.begin(), m_sseClients.end(), c), m_sseClients.end());
+    Debug_printf("SSE client disconnected, remaining clients: %d\n", m_sseClients.size());
+}
+
+void fnHttpService::broadcast_printer_event(const char* data)
+{
+    if (m_sseClients.empty())
+        return;
+
+    Debug_printf("Broadcasting printer event to %d clients: %s\n", m_sseClients.size(), data);
+
+    for (auto c : m_sseClients)
+    {
+        mg_printf(c, "data: %s\r\n\r\n", data);
+    }
+}
+
+int fnHttpService::get_handler_printer_events(struct mg_connection *c)
+{
+    mg_printf(c, "HTTP/1.1 200 OK\r\n"
+                 "Content-Type: text/event-stream\r\n"
+                 "Cache-Control: no-cache\r\n"
+                 "Connection: keep-alive\r\n"
+                 "Access-Control-Allow-Origin: *\r\n"
+                 "\r\n");
+
+    add_sse_client(c);
+
+    Debug_println("SSE /printer/events connection established");
+
+    return 0;
+}
+
 int fnHttpService::post_handler_config(struct mg_connection *c, struct mg_http_message *hm)
 {
 
@@ -595,6 +728,21 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
             // print handler
             get_handler_print(c);
         }
+        else if (mg_match(hm->uri, mg_str("/printer/status"), NULL))
+        {
+            get_handler_printer_status(c);
+        }
+        else if (mg_match(hm->uri, mg_str("/printer/clear"), NULL))
+        {
+            if (mg_casecmp(hm->method.buf, "POST") == 0)
+                post_handler_printer_clear(c);
+            else
+                mg_http_reply(c, 405, "", "Method Not Allowed\n");
+        }
+        else if (mg_match(hm->uri, mg_str("/printer/events"), NULL))
+        {
+            get_handler_printer_events(c);
+        }
         else if (mg_match(hm->uri, mg_str("/browse/#"), NULL))
         {
             // browse handler
@@ -650,6 +798,10 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
             mg_http_serve_dir(c, (mg_http_message*)ev_data, &opts);
         }
         c->is_resp = 0;
+    }
+    else if (ev == MG_EV_CLOSE)
+    {
+        remove_sse_client(c);
     }
 }
 
@@ -722,7 +874,63 @@ void fnHttpService::stop()
 void fnHttpService::service()
 {
     if (state.hServer != nullptr)
+    {
         mg_mgr_poll(state.hServer, 0);
+
+        if (!m_sseClients.empty())
+        {
+            uint64_t now = fnSystem.millis();
+
+            // Only check printer status every 100ms to avoid hammering filesystem
+            if (now - m_lastPrinterCheckTime >= 100)
+            {
+                m_lastPrinterCheckTime = now;
+
+                PRINTER_CLASS *printer = (PRINTER_CLASS *)fnPrinters.get_ptr(0);
+                if (printer)
+                {
+                    printer_emu *emu = printer->getPrinterPtr();
+                    if (!emu) {
+                        return;  // Printer emulator not initialized
+                    }
+
+                    bool ready = (now - printer->lastPrintTime() >= PRINTER_BUSY_TIME);
+                    size_t sz = emu->getOutputSize();
+
+                    // Post-clear grace period
+                    if (m_lastClearTime > 0 && (now - m_lastClearTime) < 1000)
+                        return;
+                    else if (m_lastClearTime > 0)
+                        m_lastClearTime = 0;
+
+                    if (sz != m_lastOutputSize)
+                    {
+                        if (sz < m_lastOutputSize)
+                            m_eventEmittedForCurrentJob = false;
+                        m_lastOutputSize = sz;
+                        m_lastSizeChangeTime = now;
+                    }
+                    else if (m_lastSizeChangeTime == 0 && sz > 0)
+                    {
+                        m_lastSizeChangeTime = now;
+                    }
+
+                    // Emit when ready, has output, stable for 300ms, not yet emitted
+                    if (ready && sz > 0 &&
+                        !m_eventEmittedForCurrentJob &&
+                        (now - m_lastSizeChangeTime >= 300))
+                    {
+                        m_eventEmittedForCurrentJob = true;
+                        char event[128];
+                        snprintf(event, sizeof(event),
+                            "{\"event\":\"printer_ready\",\"size\":%lu}",
+                            (unsigned long)sz);
+                        broadcast_printer_event(event);
+                    }
+                }
+            }
+        }
+    }
 }
 
 #endif // !ESP_PLATFORM

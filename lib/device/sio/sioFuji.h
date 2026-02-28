@@ -91,7 +91,7 @@ protected:
 
 public:
     sioFuji();
-    void setup();
+    void setup() override;
 
     // Used by sio.cpp
     void debug_tape();

@@ -8,6 +8,7 @@
 #include "fnFsSD.h"
 #include "fnFsTNFS.h"
 #include "fnFsSMB.h"
+#include "fnFsNFS.h"
 #include "fnFsFTP.h"
 #include "fnFsHTTP.h"
 
@@ -46,6 +47,7 @@ void fujiHost::set_type(fujiHostType type)
     case HOSTTYPE_LOCAL:
     case HOSTTYPE_TNFS:
     case HOSTTYPE_SMB:
+    case HOSTTYPE_NFS:
     case HOSTTYPE_FTP:
     case HOSTTYPE_HTTP:
         cleanup();
@@ -109,6 +111,7 @@ uint16_t fujiHost::dir_tell()
     case HOSTTYPE_LOCAL:
     case HOSTTYPE_TNFS:
     case HOSTTYPE_SMB:
+    case HOSTTYPE_NFS:
     case HOSTTYPE_FTP:
     case HOSTTYPE_HTTP:
         result = _fs->dir_tell();
@@ -131,6 +134,7 @@ bool fujiHost::dir_seek(uint16_t pos)
     case HOSTTYPE_LOCAL:
     case HOSTTYPE_TNFS:
     case HOSTTYPE_SMB:
+    case HOSTTYPE_NFS:
     case HOSTTYPE_FTP:
     case HOSTTYPE_HTTP:
         result = _fs->dir_seek(pos);
@@ -163,6 +167,7 @@ bool fujiHost::dir_open(const char *path, const char *pattern, uint16_t options)
     case HOSTTYPE_LOCAL:
     case HOSTTYPE_TNFS:
     case HOSTTYPE_SMB:
+    case HOSTTYPE_NFS:
     case HOSTTYPE_FTP:
     case HOSTTYPE_HTTP:
         result = _fs->dir_open(realpath, pattern, options);
@@ -182,6 +187,7 @@ fsdir_entry_t *fujiHost::dir_nextfile()
     case HOSTTYPE_LOCAL:
     case HOSTTYPE_TNFS:
     case HOSTTYPE_SMB:
+    case HOSTTYPE_NFS:
     case HOSTTYPE_FTP:
     case HOSTTYPE_HTTP:
         return _fs->dir_read();
@@ -413,6 +419,47 @@ int fujiHost::mount_smb()
     return -1;
 }
 
+int fujiHost::mount_nfs()
+{
+    Debug_printf("::mount_nfs {%d:%d} \"%s\"\n", slotid, _type, _hostname);
+
+    // Don't do anything if that's already what's set
+    if (_type == HOSTTYPE_NFS)
+    {
+        if (_fs != nullptr && _fs->running())
+        {
+            Debug_printf("::mount_nfs Currently connected to share \"%s\"\n", _hostname);
+            return 0;
+        }
+    }
+    else
+        set_type(HOSTTYPE_NFS); // Only start fresh if not HOSTTYPE_NFS
+
+    _fs = new FileSystemNFS;
+
+    if (_fs == nullptr)
+    {
+        Debug_println("Couldn't create a new FileSystemNFS in fujiHost::mount_nfs!");
+    }
+    else
+    {
+        Debug_printf("Starting FileSystemNFS(\"%s\")\n", _hostname);
+        // ensure URL starts with lowercase 'nfs'
+        char url[MAX_HOSTNAME_LEN];
+        strcpy(url, _hostname);
+        url[0] = 'n';
+        url[1] = 'f';
+        url[2] = 's';
+
+        if (((FileSystemNFS *)_fs)->start(url))
+        {
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
 int fujiHost::mount_ftp()
 {
     Debug_printf("::mount_ftp {%d:%d} \"%s\"\n", slotid, _type, _hostname);
@@ -519,6 +566,9 @@ bool fujiHost::mount()
 
     if (0 == strncasecmp("smb://", _hostname, 6))
         return 0 == mount_smb();
+
+    if (0 == strncasecmp("nfs://", _hostname, 6))
+        return 0 == mount_nfs();
 
     if (0 == strncasecmp("ftp://", _hostname, 6))
         return 0 == mount_ftp();

@@ -55,7 +55,6 @@ protected:
     void hash_compute(bool clear_data); // 0xC7, 0xC3
     void hash_length();            // 0xC6
     void hash_output();            // 0xC5
-    void get_adapter_config_extended(); // 0xC4
     void hash_clear();             // 0xC2
 
     void send_error();             // 0x02
@@ -77,6 +76,7 @@ public:
 
     // ============ Wrapped Fuji commands ============
     std::optional<std::vector<uint8_t>> fujicore_read_app_key() override;
+    void fujicmd_open_app_key() override;
 
 };
 

@@ -56,31 +56,9 @@ NetworkProtocolHTTP::~NetworkProtocolHTTP()
         delete(client);
 }
 
-AtariSIODirection NetworkProtocolHTTP::special_inquiry(fujiCommandID_t cmd)
+protocolError_t NetworkProtocolHTTP::set_channel_mode(netProtoHTTPChannelMode_t newMode)
 {
-    switch (cmd)
-    {
-    case FUJICMD_UNLISTEN:
-        return (_httpStreamMode > NETPROTO_OPEN_WRITE ? SIO_DIRECTION_NONE : SIO_DIRECTION_INVALID);
-    default:
-        return SIO_DIRECTION_INVALID;
-    }
-}
-
-netProtoErr_t NetworkProtocolHTTP::special_00(fujiCommandID_t cmd, uint8_t httpChanMode)
-{
-    switch (cmd)
-    {
-    case FUJICMD_UNLISTEN:
-        return special_set_channel_mode((netProtoHTTPChannelMode_t) httpChanMode);
-    default:
-        return NETPROTO_ERR_UNSPECIFIED;
-    }
-}
-
-netProtoErr_t NetworkProtocolHTTP::special_set_channel_mode(netProtoHTTPChannelMode_t newMode)
-{
-    netProtoErr_t err = NETPROTO_ERR_NONE;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::special_set_channel_mode(%u)\r\n", httpChannelMode);
@@ -109,54 +87,59 @@ netProtoErr_t NetworkProtocolHTTP::special_set_channel_mode(netProtoHTTPChannelM
         httpChannelMode = SEND_POST_DATA;
         break;
     default:
-        error = NETWORK_ERROR_INVALID_COMMAND;
-        err = NETPROTO_ERR_UNSPECIFIED;
+        error = NDEV_STATUS::INVALID_COMMAND;
+        err = PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     return err;
 }
 
-netProtoErr_t NetworkProtocolHTTP::open_file_handle(netProtoOpenMode_t omode)
+protocolError_t NetworkProtocolHTTP::open_file_handle()
 {
 #ifdef VERBOSE_PROTOCOL
-    Debug_printv("NetworkProtocolHTTP::open_file_handle() omode[%d]\r\n", omode);
+    Debug_printv("NetworkProtocolHTTP::open_file_handle() aux1[%d]\r\n", (int) streamMode);
 #endif
-    error = NETWORK_ERROR_SUCCESS;
-    _httpStreamMode = omode;
+    error = NDEV_STATUS::SUCCESS;
 
-    switch (omode)
+    // Somehow streamMode got abused into dual citizenship of also
+    // representing the HTTP method. Cast it to httpMethod then
+    // normalize it.
+
+    httpMethod = (httpMethod_t) streamMode;
+
+    switch (httpMethod)
     {
-    case NETPROTO_OPEN_READ:        // GET with no headers, filename resolve
-    case NETPROTO_OPEN_READWRITE:   // GET with ability to set headers, no filename resolve.
-        httpOpenMode = GET;
+    case HTTP_METHOD::GET:      // GET with no headers, filename resolve
+    case HTTP_METHOD::GET_H:    // GET with ability to set headers, no filename resolve.
+        httpMethod = HTTP_METHOD::GET;
         break;
-    case NETPROTO_OPEN_WRITE:       // WRITE, filename resolve, ignored if not found.
-        httpOpenMode = PUT;
+    case HTTP_METHOD::PUT:      // WRITE, filename resolve, ignored if not found.
+        httpMethod = HTTP_METHOD::PUT;
         break;
-    case NETPROTO_OPEN_HTTP_DELETE: // DELETE with no headers
-    case NETPROTO_OPEN_APPEND:      // DELETE with ability to set headers
-        httpOpenMode = DELETE;
+    case HTTP_METHOD::DELETE:   // DELETE with no headers
+    case HTTP_METHOD::DELETE_H: // DELETE with ability to set headers
+        httpMethod = HTTP_METHOD::DELETE;
         break;
-    case NETPROTO_OPEN_HTTP_POST:   // POST can set headers, also no filename resolve
-    case NETPROTO_OPEN_HTTP_PUT:    // PUT with ability to set headers, no filename resolve
-        httpOpenMode = POST;
+    case HTTP_METHOD::POST:     // POST can set headers, also no filename resolve
+    case HTTP_METHOD::PUT_H:    // PUT with ability to set headers, no filename resolve
+        httpMethod = HTTP_METHOD::POST;
         break;
     default:
-        error = NETWORK_ERROR_NOT_IMPLEMENTED;
-        return NETPROTO_ERR_UNSPECIFIED;
+        error = NDEV_STATUS::NOT_IMPLEMENTED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     // This is set IF we came back through here via resolve().
     if (resultCode > 399)
     {
         fserror_to_error();
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolHTTP::open_dir_handle()
+protocolError_t NetworkProtocolHTTP::open_dir_handle()
 {
     int len, actual_len;
 
@@ -181,9 +164,9 @@ netProtoErr_t NetworkProtocolHTTP::open_dir_handle()
     // If Method not allowed, try GET.
     if (resultCode == 405 || resultCode == 408)
     {
-        httpOpenMode = GET;
+        httpMethod = HTTP_METHOD::GET;
         http_transaction();
-        return NETPROTO_ERR_NONE;
+        return PROTOCOL_ERROR::NONE;
     }
 
     if (resultCode > 399)
@@ -192,7 +175,7 @@ netProtoErr_t NetworkProtocolHTTP::open_dir_handle()
         Debug_printf("Could not do PROPFIND. Result code %u\r\n", resultCode);
 #endif
         fserror_to_error();
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     // Setup XML WebDAV parser
@@ -201,8 +184,8 @@ netProtoErr_t NetworkProtocolHTTP::open_dir_handle()
 #ifdef VERBOSE_PROTOCOL
         Debug_printf("Failed to setup parser.\r\n");
 #endif
-        error = NETWORK_ERROR_GENERAL;
-        return NETPROTO_ERR_UNSPECIFIED;
+        error = NDEV_STATUS::GENERAL;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     std::vector<uint8_t> buf;
@@ -228,7 +211,7 @@ netProtoErr_t NetworkProtocolHTTP::open_dir_handle()
 #ifdef VERBOSE_PROTOCOL
                 Debug_printf("Expected %d bytes, actually got %d bytes.\r\n", len, actual_len);
 #endif
-                error = NETWORK_ERROR_GENERAL;
+                error = NDEV_STATUS::GENERAL;
                 break;
             }
             buf[len] = '\0'; // make buffer C string compatible for Debug_printf()
@@ -239,7 +222,7 @@ netProtoErr_t NetworkProtocolHTTP::open_dir_handle()
 #ifdef VERBOSE_PROTOCOL
                 Debug_printf("Could not parse buffer, returning 144\r\n");
 #endif
-                error = NETWORK_ERROR_GENERAL;
+                error = NDEV_STATUS::GENERAL;
                 break;
             }
         }
@@ -257,18 +240,18 @@ netProtoErr_t NetworkProtocolHTTP::open_dir_handle()
 #ifdef VERBOSE_PROTOCOL
             Debug_println("ERROR: negative length returned from client->available()\r\n");
 #endif
-            error = NETWORK_ERROR_GENERAL;
+            error = NDEV_STATUS::GENERAL;
             break;
         }
     }
 
-    if (error != NETWORK_ERROR_SUCCESS)
+    if (error != NDEV_STATUS::SUCCESS)
     {
 #ifdef VERBOSE_PROTOCOL
-        Debug_printf("NetworkProtocolHTTP::open_dir_handle() - error %u\r\n", error);
+        Debug_printf("NetworkProtocolHTTP::open_dir_handle() - error %u\r\n", (uint8_t) error);
 #endif
         webDAV.end_parser(true); // release parser resources + clear collected entries
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     // finish parsing (not sure if this is necessary)
@@ -288,10 +271,10 @@ netProtoErr_t NetworkProtocolHTTP::open_dir_handle()
     }
 
     // Directory parsed, ready to be returned by read_dir_entry()
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolHTTP::mount(PeoplesUrlParser *url)
+protocolError_t NetworkProtocolHTTP::mount(PeoplesUrlParser *url)
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::mount(%s)\r\n", url->url.c_str());
@@ -316,13 +299,13 @@ netProtoErr_t NetworkProtocolHTTP::mount(PeoplesUrlParser *url)
 
     // fileSize = 65535;
 
-    if (_httpStreamMode == NETPROTO_OPEN_DIRECTORY)
+    if (streamMode == ACCESS_MODE::DIRECTORY)
     {
         util_replaceAll(url->path, "*.*", "");
         url->rebuildUrl();
     }
 
-    if (_httpStreamMode == NETPROTO_OPEN_READ || _httpStreamMode == NETPROTO_OPEN_WRITE)
+    if (streamMode == ACCESS_MODE::READ || streamMode == ACCESS_MODE::WRITE)
     {
         // We are opening a file, URL encode the path.
         std::string encoded = mstr::urlEncode(url->path);
@@ -330,22 +313,22 @@ netProtoErr_t NetworkProtocolHTTP::mount(PeoplesUrlParser *url)
         url->rebuildUrl();
     }
 
-    return client->begin(url->url) ? NETPROTO_ERR_NONE : NETPROTO_ERR_UNSPECIFIED;
+    return client->begin(url->url) ? PROTOCOL_ERROR::NONE : PROTOCOL_ERROR::UNSPECIFIED;
 }
 
-netProtoErr_t NetworkProtocolHTTP::umount()
+protocolError_t NetworkProtocolHTTP::umount()
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::umount()\r\n");
 #endif
 
     if (client == nullptr)
-        return NETPROTO_ERR_NONE;
+        return PROTOCOL_ERROR::NONE;
 
     delete client;
     client = nullptr;
 
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
 void NetworkProtocolHTTP::fserror_to_error()
@@ -353,7 +336,7 @@ void NetworkProtocolHTTP::fserror_to_error()
     switch (resultCode)
     {
     case 901: // Fake HTTP status code indicating connection error
-        error = NETWORK_ERROR_NOT_CONNECTED;
+        error = NDEV_STATUS::NOT_CONNECTED;
         break;
     case 200:
     case 201:
@@ -365,27 +348,27 @@ void NetworkProtocolHTTP::fserror_to_error()
     case 207:
     case 208:
     case 226:
-        error = NETWORK_ERROR_SUCCESS;
+        error = NDEV_STATUS::SUCCESS;
         break;
     case 401: // Unauthorized
     case 402:
     case 403: // Forbidden
     case 407:
-        error = NETWORK_ERROR_INVALID_USERNAME_OR_PASSWORD;
+        error = NDEV_STATUS::INVALID_USERNAME_OR_PASSWORD;
         break;
     case 404:
     case 410:
-        error = NETWORK_ERROR_FILE_NOT_FOUND;
+        error = NDEV_STATUS::FILE_NOT_FOUND;
         break;
     case 405:
-        error = NETWORK_ERROR_NOT_IMPLEMENTED;
+        error = NDEV_STATUS::NOT_IMPLEMENTED;
         break;
     case 408:
-        error = NETWORK_ERROR_GENERAL_TIMEOUT;
+        error = NDEV_STATUS::GENERAL_TIMEOUT;
         break;
     case 423:
     case 451:
-        error = NETWORK_ERROR_ACCESS_DENIED;
+        error = NDEV_STATUS::ACCESS_DENIED;
         break;
     case 400: // Bad request
     case 406: // not acceptible
@@ -406,7 +389,7 @@ void NetworkProtocolHTTP::fserror_to_error()
     case 428:
     case 429:
     case 431:
-        error = NETWORK_ERROR_CLIENT_GENERAL;
+        error = NDEV_STATUS::CLIENT_GENERAL;
         break;
     case 500:
     case 501:
@@ -419,30 +402,30 @@ void NetworkProtocolHTTP::fserror_to_error()
     case 508:
     case 510:
     case 511:
-        error = NETWORK_ERROR_SERVER_GENERAL;
+        error = NDEV_STATUS::SERVER_GENERAL;
         break;
     default:
-        error = NETWORK_ERROR_GENERAL;
+        error = NDEV_STATUS::GENERAL;
         break;
     }
 }
 
-netProtoErr_t NetworkProtocolHTTP::status_file(NetworkStatus *status)
+protocolError_t NetworkProtocolHTTP::status_file(NetworkStatus *status)
 {
     // if (fromInterrupt == false)
     //     Debug_printf("Channel mode is %u\r\n", httpChannelMode);
 
     if (client == nullptr) {
         status->connected = 0;
-        status->error = NETWORK_ERROR_GENERAL;
-        return NETPROTO_ERR_UNSPECIFIED;
+        status->error = NDEV_STATUS::GENERAL;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     switch (httpChannelMode)
     {
     case DATA:
     {
-        if (!fromInterrupt && resultCode == 0 && _httpStreamMode != OPEN_MODE_HTTP_PUT_H)
+        if (!fromInterrupt && resultCode == 0)
         {
 #ifdef VERBOSE_PROTOCOL
             Debug_printf("calling http_transaction\r\n");
@@ -452,33 +435,33 @@ netProtoErr_t NetworkProtocolHTTP::status_file(NetworkStatus *status)
         auto available = client->available();
         status->connected = client->is_transaction_done() ? 0 : 1;
 
-        if (available == 0 && client->is_transaction_done() && error == NETWORK_ERROR_SUCCESS)
-            status->error = NETWORK_ERROR_END_OF_FILE;
+        if (available == 0 && client->is_transaction_done() && error == NDEV_STATUS::SUCCESS)
+            status->error = NDEV_STATUS::END_OF_FILE;
         else
             status->error = error;
         // Debug_printf("NetworkProtocolHTTP::status_file DATA, available: %d, s.rxBW: %d, s.conn: %d, s.err: %d\r\n", available, status->rxBytesWaiting, status->connected, status->error);
-        return NETPROTO_ERR_NONE;
+        return PROTOCOL_ERROR::NONE;
     }
     case SET_HEADERS:
     case COLLECT_HEADERS:
     case SEND_POST_DATA:
-        status->error = NETWORK_ERROR_SUCCESS;
+        status->error = NDEV_STATUS::SUCCESS;
         // Debug_printf("NetworkProtocolHTTP::status_file SH/CH/SPD, s.rxBW: %d, s.conn: %d, s.err: %d\r\n", status->rxBytesWaiting, status->connected, status->error);
-        return NETPROTO_ERR_NONE;
+        return PROTOCOL_ERROR::NONE;
     case GET_HEADERS:
         if (resultCode == 0)
             http_transaction();
         status->connected = 0; // so that we always ask in this mode.
-        status->error = returned_header_cursor == collect_headers.size() && error == NETWORK_ERROR_SUCCESS ? NETWORK_ERROR_END_OF_FILE : error;
+        status->error = returned_header_cursor == collect_headers.size() && error == NDEV_STATUS::SUCCESS ? NDEV_STATUS::END_OF_FILE : error;
         // Debug_printf("NetworkProtocolHTTP::status_file GH, s.rxBW: %d, s.conn: %d, s.err: %d\r\n", status->rxBytesWaiting, status->connected, status->error);
-        return NETPROTO_ERR_NONE;
+        return PROTOCOL_ERROR::NONE;
     default:
         Debug_printf("ERROR: Unknown httpChannelMode: %d\r\n", httpChannelMode);
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 }
 
-netProtoErr_t NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short len)
+protocolError_t NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short len)
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::read_file_handle(%p,%u)\r\n", buf, len);
@@ -490,23 +473,23 @@ netProtoErr_t NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short
     case COLLECT_HEADERS:
     case SET_HEADERS:
     case SEND_POST_DATA:
-        error = NETWORK_ERROR_WRITE_ONLY;
-        return NETPROTO_ERR_UNSPECIFIED;
+        error = NDEV_STATUS::WRITE_ONLY;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     case GET_HEADERS:
         return read_file_handle_header(buf, len);
     default:
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 }
 
-netProtoErr_t NetworkProtocolHTTP::read_file_handle_header(uint8_t *buf, unsigned short len)
+protocolError_t NetworkProtocolHTTP::read_file_handle_header(uint8_t *buf, unsigned short len)
 {
     memcpy(buf, returned_headers[returned_header_cursor++].data(), len);
     return returned_header_cursor > returned_headers.size()
-        ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
+        ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolHTTP::read_file_handle_data(uint8_t *buf, unsigned short len)
+protocolError_t NetworkProtocolHTTP::read_file_handle_data(uint8_t *buf, unsigned short len)
 {
     int actual_len;
 
@@ -519,12 +502,12 @@ netProtoErr_t NetworkProtocolHTTP::read_file_handle_data(uint8_t *buf, unsigned 
 
     actual_len = client->read(buf, len);
 
-    return len != actual_len ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
+    return len != actual_len ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
+protocolError_t NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
 {
-    netProtoErr_t err = NETPROTO_ERR_NONE;
+    protocolError_t err = PROTOCOL_ERROR::NONE;
 
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::read_dir_entry(%p,%u)\r\n", buf, len);
@@ -543,14 +526,14 @@ netProtoErr_t NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
     else
     {
         // EOF
-        error = NETWORK_ERROR_END_OF_FILE;
-        err = NETPROTO_ERR_UNSPECIFIED;
+        error = NDEV_STATUS::END_OF_FILE;
+        err = PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     return err;
 }
 
-netProtoErr_t NetworkProtocolHTTP::close_file_handle()
+protocolError_t NetworkProtocolHTTP::close_file_handle()
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::close_file_Handle()\r\n");
@@ -558,25 +541,25 @@ netProtoErr_t NetworkProtocolHTTP::close_file_handle()
 
     if (client != nullptr)
     {
-        if (httpOpenMode == PUT || _httpStreamMode == OPEN_MODE_HTTP_PUT_H)
+        if (httpMethod == HTTP_METHOD::PUT)
             http_transaction();
         client->close();
         fserror_to_error();
     }
 
-    return (error == 1 ? NETPROTO_ERR_NONE : NETPROTO_ERR_UNSPECIFIED);
+    return (error == NDEV_STATUS::SUCCESS ? PROTOCOL_ERROR::NONE : PROTOCOL_ERROR::UNSPECIFIED);
 }
 
-netProtoErr_t NetworkProtocolHTTP::close_dir_handle()
+protocolError_t NetworkProtocolHTTP::close_dir_handle()
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::close_dir_handle()\r\n");
 #endif
     webDAV.clear(); // release directory entries
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned short len)
+protocolError_t NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned short len)
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::write_file_handle(%p,%u)\r\n", buf, len);
@@ -593,19 +576,19 @@ netProtoErr_t NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned shor
     case SEND_POST_DATA:
         return write_file_handle_send_post_data(buf, len);
     case GET_HEADERS:
-        error = NETWORK_ERROR_READ_ONLY;
-        return NETPROTO_ERR_UNSPECIFIED;
+        error = NDEV_STATUS::READ_ONLY;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     default:
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 }
 
-netProtoErr_t NetworkProtocolHTTP::write_file_handle_get_header(uint8_t *buf, unsigned short len)
+protocolError_t NetworkProtocolHTTP::write_file_handle_get_header(uint8_t *buf, unsigned short len)
 {
-    if (httpOpenMode != GET)
+    if (httpMethod != HTTP_METHOD::GET)
     {
-        error = NETWORK_ERROR_NOT_IMPLEMENTED;
-        return NETPROTO_ERR_UNSPECIFIED;
+        error = NDEV_STATUS::NOT_IMPLEMENTED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     if (len > 0) {
@@ -622,10 +605,10 @@ netProtoErr_t NetworkProtocolHTTP::write_file_handle_get_header(uint8_t *buf, un
 
     // Add result to header vector.
     collect_headers.push_back(std::move(requestedHeader)); // Use std::move to avoid copying the string
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolHTTP::write_file_handle_set_header(uint8_t *buf, unsigned short len)
+protocolError_t NetworkProtocolHTTP::write_file_handle_set_header(uint8_t *buf, unsigned short len)
 {
     std::string incomingHeader = std::string((char *)buf, len);
     size_t pos = incomingHeader.find('\x9b');
@@ -638,7 +621,7 @@ netProtoErr_t NetworkProtocolHTTP::write_file_handle_set_header(uint8_t *buf, un
     pos = incomingHeader.find(":");
 
     if (pos == std::string::npos)
-        return NETPROTO_ERR_UNSPECIFIED;
+        return PROTOCOL_ERROR::UNSPECIFIED;
 
 #ifdef ESP_PLATFORM
 #ifdef VERBOSE_PROTOCOL
@@ -658,44 +641,44 @@ netProtoErr_t NetworkProtocolHTTP::write_file_handle_set_header(uint8_t *buf, un
 
     client->set_header(key.c_str(), val.c_str());
 #endif
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolHTTP::write_file_handle_send_post_data(uint8_t *buf, unsigned short len)
+protocolError_t NetworkProtocolHTTP::write_file_handle_send_post_data(uint8_t *buf, unsigned short len)
 {
-    if (httpOpenMode != POST)
+    if (httpMethod != HTTP_METHOD::POST)
     {
-        error = NETWORK_ERROR_INVALID_COMMAND;
-        return NETPROTO_ERR_UNSPECIFIED;
+        error = NDEV_STATUS::INVALID_COMMAND;
+        return PROTOCOL_ERROR::UNSPECIFIED;
     }
 
     postData += std::string((char *)buf, len);
-    return NETPROTO_ERR_NONE;
+    return PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolHTTP::write_file_handle_data(uint8_t *buf, unsigned short len)
+protocolError_t NetworkProtocolHTTP::write_file_handle_data(uint8_t *buf, unsigned short len)
 {
-    if (httpOpenMode == PUT || _httpStreamMode == OPEN_MODE_HTTP_PUT_H)
+    if (httpMethod == HTTP_METHOD::PUT)
     {
         postData += std::string((char *)buf, len);
-        return NETPROTO_ERR_NONE; // come back here later.
+        return PROTOCOL_ERROR::NONE; // come back here later.
     }
 
-    error = NETWORK_ERROR_INVALID_COMMAND;
-    return NETPROTO_ERR_UNSPECIFIED;
+    error = NDEV_STATUS::INVALID_COMMAND;
+    return PROTOCOL_ERROR::UNSPECIFIED;
 }
 
-netProtoErr_t NetworkProtocolHTTP::stat()
+protocolError_t NetworkProtocolHTTP::stat()
 {
-    netProtoErr_t ret = NETPROTO_ERR_NONE;
+    protocolError_t ret = PROTOCOL_ERROR::NONE;
     return ret; // short circuit it for now.
 
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::stat(%s)\r\n", opened_url->url.c_str());
 #endif
 
-    if (_httpStreamMode != NETPROTO_OPEN_READ) // only for READ FILE
-        return NETPROTO_ERR_NONE;   // We don't care.
+    if (streamMode != ACCESS_MODE::READ) // only for READ FILE
+        return PROTOCOL_ERROR::NONE;   // We don't care.
 
     // Since we know client is active, we need to destroy it.
     delete client;
@@ -707,7 +690,7 @@ netProtoErr_t NetworkProtocolHTTP::stat()
     fserror_to_error();
 
     if ((resultCode == 0) || (resultCode > 399))
-        ret = NETPROTO_ERR_UNSPECIFIED;
+        ret = PROTOCOL_ERROR::UNSPECIFIED;
     else
     {
         // We got valid data, set filesize, then close and dispose of client.
@@ -718,7 +701,7 @@ netProtoErr_t NetworkProtocolHTTP::stat()
 
         // Recreate it for the rest of resolve()
         client = new HTTP_CLIENT_CLASS();
-        ret = client->begin(opened_url->url) ? NETPROTO_ERR_NONE : NETPROTO_ERR_UNSPECIFIED;
+        ret = client->begin(opened_url->url) ? PROTOCOL_ERROR::NONE : PROTOCOL_ERROR::UNSPECIFIED;
         resultCode = 0; // so GET will actually happen.
     }
 
@@ -727,32 +710,32 @@ netProtoErr_t NetworkProtocolHTTP::stat()
 
 void NetworkProtocolHTTP::http_transaction()
 {
-    if ((_httpStreamMode != NETPROTO_OPEN_READ) && (_httpStreamMode != NETPROTO_OPEN_WRITE) && !collect_headers.empty())
+    if ((streamMode != ACCESS_MODE::READ) && (streamMode != ACCESS_MODE::WRITE) && !collect_headers.empty())
     {
         client->create_empty_stored_headers(collect_headers);
     }
 
-    switch (httpOpenMode)
+    switch (httpMethod)
     {
-    case GET:
+    case HTTP_METHOD::GET:
         resultCode = client->GET();
         break;
-    case POST:
-        if (_httpStreamMode == OPEN_MODE_HTTP_PUT_H)
-            resultCode = client->PUT(postData.c_str(), postData.size());
-        else
-            resultCode = client->POST(postData.c_str(), postData.size());
+    case HTTP_METHOD::POST:
+        resultCode = client->POST(postData.c_str(), postData.size());
         break;
-    case PUT:
+    case HTTP_METHOD::PUT:
         resultCode = client->PUT(postData.c_str(), postData.size());
         break;
-    case DELETE:
+    case HTTP_METHOD::DELETE:
         resultCode = client->DELETE();
+        break;
+    default:
+        abort();
         break;
     }
 
     // the appropriate headers to be collected should have now been done, so let's put their values into returned_headers
-    if ((_httpStreamMode != NETPROTO_OPEN_READ) && (_httpStreamMode != NETPROTO_OPEN_WRITE) && (!collect_headers.empty()))
+    if ((streamMode != ACCESS_MODE::READ) && (streamMode != ACCESS_MODE::WRITE) && (!collect_headers.empty()))
     {
 #ifdef VERBOSE_PROTOCOL
         Debug_printf("setting returned_headers (count =%u)\r\n", client->get_header_count());
@@ -771,10 +754,10 @@ void NetworkProtocolHTTP::http_transaction()
 #endif
 }
 
-netProtoErr_t NetworkProtocolHTTP::rename(PeoplesUrlParser *url)
+protocolError_t NetworkProtocolHTTP::rename(PeoplesUrlParser *url)
 {
-    if (NetworkProtocolFS::rename(url) == true)
-        return NETPROTO_ERR_UNSPECIFIED;
+    if (NetworkProtocolFS::rename(url) != PROTOCOL_ERROR::NONE)
+        return PROTOCOL_ERROR::UNSPECIFIED;
 
     url->path = url->path.substr(0, url->path.find(","));
 
@@ -785,10 +768,10 @@ netProtoErr_t NetworkProtocolHTTP::rename(PeoplesUrlParser *url)
 
     umount();
 
-    return resultCode > 399 ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
+    return resultCode > 399 ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolHTTP::del(PeoplesUrlParser *url)
+protocolError_t NetworkProtocolHTTP::del(PeoplesUrlParser *url)
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::del(%s,%s)", url->host.c_str(), url->path.c_str());
@@ -800,10 +783,10 @@ netProtoErr_t NetworkProtocolHTTP::del(PeoplesUrlParser *url)
 
     umount();
 
-    return resultCode > 399 ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
+    return resultCode > 399 ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolHTTP::mkdir(PeoplesUrlParser *url)
+protocolError_t NetworkProtocolHTTP::mkdir(PeoplesUrlParser *url)
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::mkdir(%s,%s)", url->host.c_str(), url->path.c_str());
@@ -815,10 +798,10 @@ netProtoErr_t NetworkProtocolHTTP::mkdir(PeoplesUrlParser *url)
 
     umount();
 
-    return resultCode > 399 ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
+    return resultCode > 399 ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
 }
 
-netProtoErr_t NetworkProtocolHTTP::rmdir(PeoplesUrlParser *url)
+protocolError_t NetworkProtocolHTTP::rmdir(PeoplesUrlParser *url)
 {
     return del(url);
 }
@@ -844,6 +827,7 @@ size_t NetworkProtocolHTTP::available()
             http_transaction();
         if (returned_header_cursor < collect_headers.size())
             avail = returned_headers[returned_header_cursor].size();
+        break;
     default:
         Debug_printf("ERROR: Unknown httpChannelMode: %d\r\n", httpChannelMode);
         break;

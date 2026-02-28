@@ -220,7 +220,7 @@ mediatype_t rs232Disk::mountROM(fnFile *f, const char *filename, uint32_t disksi
 
     Debug_printv("Attempting to send ROM contents to pico");
     // "open" RAM in bank
-    if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, FUJICMD_OPEN, (uint16_t) 0)) {
+    if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_OPEN, (uint16_t) 0)) {
         Debug_printv("Failed to open pico");
         return (mediatype_t) -1;
     }
@@ -229,7 +229,7 @@ mediatype_t rs232Disk::mountROM(fnFile *f, const char *filename, uint32_t disksi
     {
         if (romImage.read(sectorNum, &rlen) != 0)
             break;
-        if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, FUJICMD_WRITE,
+        if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_WRITE,
                                     std::string((char *) romImage._disk_sectorbuff, rlen))) {
             Debug_printv("Failed to send block");
             break;
@@ -237,7 +237,7 @@ mediatype_t rs232Disk::mountROM(fnFile *f, const char *filename, uint32_t disksi
     }
 
     // "closing" RAM will make the bank active
-    SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, FUJICMD_CLOSE);
+    SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_CLOSE);
 
     return disk_type;
 }
@@ -280,29 +280,29 @@ void rs232Disk::rs232_process(FujiBusPacket &packet)
 
     switch (packet.command())
     {
-    case FUJICMD_READ:
+    case DISKCMD_READ:
         rs232_ack();
         rs232_read(packet.param(0));
         return;
-    case FUJICMD_PUT:
+    case DISKCMD_PUT:
         rs232_ack();
         rs232_write(packet.param(0), false);
         return;
-    case FUJICMD_STATUS:
-    case FUJICMD_WRITE:
+    case DISKCMD_STATUS:
+    case DISKCMD_WRITE:
         rs232_ack();
         rs232_write(packet.param(0), true);
         return;
-    case FUJICMD_FORMAT:
-    case FUJICMD_FORMAT_MEDIUM:
+    case DISKCMD_FORMAT:
+    case DISKCMD_FORMAT_MEDIUM:
         rs232_ack();
         rs232_format();
         return;
-    case FUJICMD_PERCOM_READ:
+    case DISKCMD_PERCOM_READ:
         rs232_ack();
         rs232_read_percom_block();
         return;
-    case FUJICMD_PERCOM_WRITE:
+    case DISKCMD_PERCOM_WRITE:
         rs232_ack();
         rs232_write_percom_block();
         return;

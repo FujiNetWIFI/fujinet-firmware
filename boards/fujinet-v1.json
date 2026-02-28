@@ -32,7 +32,7 @@
   "name": "#FujiNet v1",
   "upload": {
     "flash_size": "16MB",
-    "maximum_ram_size": 4521984,
+    "maximum_ram_size": 327680,
     "maximum_size": 16777216,
     "protocols": [
       "esptool",

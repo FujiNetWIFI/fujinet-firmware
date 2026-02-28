@@ -14,6 +14,12 @@
 
 #include "../network-protocol/Protocol.h"
 
+enum JSONQueryFlags_t {
+    JSON_REMAP_CHARS = 0x01,
+    JSON_REMAP_ATASCII_INTERNATIONAL = 0x02,
+    JSON_DELETE_SGML_TAGS = 0x04,
+};
+
 class FNJSON
 {
 public:
