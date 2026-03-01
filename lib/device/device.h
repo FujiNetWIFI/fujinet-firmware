@@ -82,13 +82,13 @@
 #endif
 
 #ifdef BUILD_LYNX
-# include "comlynx/modem.h"
+//# include "comlynx/modem.h"
 # include "comlynx/printer.h"
 # include "comlynx/printerlist.h"
 # include "comlynx/lynxFuji.h"
 # include "comlynx/udpstream.h"
 
-lynxModem *sioR;
+//lynxModem *sioR;
 lynxUDPStream *udpDev;
 #endif
 
