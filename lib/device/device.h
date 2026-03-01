@@ -82,18 +82,14 @@
 #endif
 
 #ifdef BUILD_LYNX
-//# include "comlynx/keyboard.h"
 # include "comlynx/modem.h"
 # include "comlynx/printer.h"
 # include "comlynx/printerlist.h"
 # include "comlynx/lynxFuji.h"
 # include "comlynx/udpstream.h"
 
-//# define NO_VIRTUAL_KEYBOARD
-    lynxModem *sioR;
-    //lynxKeyboard *sioK;
-    lynxUDPStream *udpDev;
-    bool exists = false;
+lynxModem *sioR;
+lynxUDPStream *udpDev;
 #endif
 
 #ifdef BUILD_APPLE

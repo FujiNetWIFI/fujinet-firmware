@@ -677,6 +677,8 @@ void lynxNetwork::comlynx_process()
 
     default:
         statusByte.bits.client_error = true;
+        Debug_printf("lynxnetwork::comlynx_process - unknown command: %02X", cmd);
+        transaction_error();
         break;
     }
 }
@@ -763,12 +765,7 @@ void lynxNetwork::parse_and_instantiate_protocol(string d)
 
 void lynxNetwork::process_fs(fujiCommandID_t cmd, unsigned pkt_len)
 {
-    comlynx_recv_buffer(response, pkt_len);
-    comlynx_recv(); // CK
-
-    SYSTEM_BUS.start_time = esp_timer_get_time();
-    comlynx_response_ack();
-
+    transaction_get(response, pkt_len);
     statusByte.byte = 0x00;
 
     parse_and_instantiate_protocol(string((char *)response, pkt_len));
@@ -778,6 +775,7 @@ void lynxNetwork::process_fs(fujiCommandID_t cmd, unsigned pkt_len)
     if (!fs)
     {
         statusByte.bits.client_error = true;
+        transaction_error();
         return;
     }
 
@@ -808,8 +806,12 @@ void lynxNetwork::process_fs(fujiCommandID_t cmd, unsigned pkt_len)
         break;
     }
 
-    if (cmd_err != PROTOCOL_ERROR::NONE)
+    if (cmd_err != PROTOCOL_ERROR::NONE) {
+        transaction_error();
         statusByte.bits.client_error = true;
+    }
+    else
+        transaction_complete();
 }
 
 void lynxNetwork::process_tcp(fujiCommandID_t cmd)
@@ -821,6 +823,7 @@ void lynxNetwork::process_tcp(fujiCommandID_t cmd)
     if (!tcp)
     {
         statusByte.bits.client_error = true;
+        transaction_error();
         return;
     }
 
@@ -833,6 +836,7 @@ void lynxNetwork::process_tcp(fujiCommandID_t cmd)
         // Because we're not handling Adam bus very well, sometimes it
         // retries and we've already accepted which will return an
         // error. Don't do accept if client is already connected.
+        // LYNX NOT LIKE ADAM BUS ANY LONGER -SJ
         {
             NetworkStatus status;
             tcp->status(&status);
@@ -851,8 +855,12 @@ void lynxNetwork::process_tcp(fujiCommandID_t cmd)
         break;
     }
 
-    if (cmd_err != PROTOCOL_ERROR::NONE)
+    if (cmd_err != PROTOCOL_ERROR::NONE) {
         statusByte.bits.client_error = true;
+        transaction_error();
+    }
+    else
+        transaction_complete();
 }
 
 void lynxNetwork::process_http(fujiCommandID_t cmd)
@@ -864,6 +872,7 @@ void lynxNetwork::process_http(fujiCommandID_t cmd)
     if (!http)
     {
         statusByte.bits.client_error = true;
+        transaction_error();
         return;
     }
 
@@ -878,8 +887,12 @@ void lynxNetwork::process_http(fujiCommandID_t cmd)
         return;
     }
 
-    if (cmd_err != PROTOCOL_ERROR::NONE)
+    if (cmd_err != PROTOCOL_ERROR::NONE) {
         statusByte.bits.client_error = true;
+        transaction_error();
+    }
+    else
+        transaction_complete();
 }
 
 void lynxNetwork::process_udp(fujiCommandID_t cmd)
@@ -891,6 +904,7 @@ void lynxNetwork::process_udp(fujiCommandID_t cmd)
     if (!udp)
     {
         statusByte.bits.client_error = true;
+        transaction_error();
         return;
     }
 
@@ -914,9 +928,15 @@ void lynxNetwork::process_udp(fujiCommandID_t cmd)
         }
         break;
     default:
+        cmd_err = PROTOCOL_ERROR::UNSPECIFIED;
         statusByte.bits.client_error = true;
         break;
     }
+
+    if (cmd_err != PROTOCOL_ERROR::NONE)
+        transaction_error();
+    else
+        transaction_complete();
 }
 
 void lynxNetwork::transaction_complete()
