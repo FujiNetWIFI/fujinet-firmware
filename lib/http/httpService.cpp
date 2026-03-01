@@ -27,6 +27,10 @@
 #include "sio/sioFuji.h"
 #endif /* BUILD_ATARI */
 
+#ifdef BUILD_LYNX
+#define NO_MODEM_DEVICE         // doesn't have a modem device
+#endif
+
 using namespace std;
 
 // Global HTTPD
@@ -570,6 +574,8 @@ esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
     Debug_printf("Modem Sniffer output request handler\n");
 #endif
 
+#ifndef NO_MODEM_DEVICE
+
     fnHTTPD.clearErrMsg();
 
     ModemSniffer *modemSniffer = sioR->get_modem_sniffer();
@@ -622,7 +628,10 @@ esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
     Debug_printf("Sniffer dump completed.\n");
 #endif
 
+#endif      // NO_MODEM_DEVICE
+
     return ESP_OK;
+
 }
 
 esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
