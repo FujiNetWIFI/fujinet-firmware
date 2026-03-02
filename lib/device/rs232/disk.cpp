@@ -1,6 +1,7 @@
 #ifdef BUILD_RS232
 
 #include "disk.h"
+#include "fujiCommandID.h"
 
 #include <cstring>
 
@@ -16,53 +17,52 @@ rs232Disk::rs232Disk()
 }
 
 // Read disk data and send to computer
-void rs232Disk::rs232_read()
+void rs232Disk::rs232_read(uint32_t sector)
 {
-        Debug_printf("disk READ %lu\n", cmdFrame.aux);
+    transaction_continue(TRWG::NO_GET);
 
-        if (_disk == nullptr)
+    Debug_printf("disk READ %lu\n", sector);
+
+    if (_disk == nullptr)
     {
-        rs232_error();
+        transaction_error();
         return;
     }
 
     uint32_t readcount;
 
-    bool err = _disk->read(cmdFrame.aux, &readcount);
+    bool err = _disk->read(sector, &readcount);
 
     // Send result to Atari
-    bus_to_computer(_disk->_disk_sectorbuff, readcount, err);
+    transaction_put(_disk->_disk_sectorbuff, readcount, err);
 }
 
 // Write disk data from computer
-void rs232Disk::rs232_write(bool verify)
+void rs232Disk::rs232_write(uint32_t sector, bool verify)
 {
     //Debug_print("disk WRITE\n");
 
     if (_disk != nullptr)
     {
-        uint16_t sectorNum = cmdFrame.aux;
-        uint16_t sectorSize = _disk->sector_size(sectorNum);
+        uint16_t sectorSize = _disk->sector_size(sector);
 
         memset(_disk->_disk_sectorbuff, 0, DISK_SECTORBUF_SIZE);
 
-        uint8_t ck = bus_to_peripheral(_disk->_disk_sectorbuff, sectorSize);
-
-        if (ck == rs232_checksum(_disk->_disk_sectorbuff, sectorSize))
+        if (transaction_get(_disk->_disk_sectorbuff, sectorSize))
         {
-            if (_disk->write(sectorNum, verify) == false)
+            if (_disk->write(sector, verify) == false)
             {
-                rs232_complete();
+                transaction_complete();
                 return;
             }
         }
     }
 
-    rs232_error();
+    transaction_error();
 }
 
 // Status
-void rs232Disk::rs232_status()
+void rs232Disk::rs232_status(FujiStatusReq reqType)
 {
     Debug_print("disk STATUS\n");
 
@@ -111,17 +111,18 @@ void rs232Disk::rs232_status()
 
     Debug_printf("response: 0x%02x, 0x%02x, 0x%02x\n", _status[0], _status[1], _status[2]);
 
-    bus_to_computer(_status, sizeof(_status), false);
+    transaction_put(_status, sizeof(_status), false);
 }
 
 // Disk format
 void rs232Disk::rs232_format()
 {
+    transaction_continue(TRWG::NO_GET);
     Debug_print("disk FORMAT\n");
 
     if (_disk == nullptr)
     {
-        rs232_error();
+        transaction_error();
         return;
     }
 
@@ -129,42 +130,44 @@ void rs232Disk::rs232_format()
     bool err = _disk->format(&responsesize);
 
     // Send to computer
-    bus_to_computer(_disk->_disk_sectorbuff, responsesize, err);
+    transaction_put(_disk->_disk_sectorbuff, responsesize, err);
 }
 
 // Read percom block
 void rs232Disk::rs232_read_percom_block()
 {
+    transaction_continue(TRWG::NO_GET);
     Debug_print("disk READ PERCOM BLOCK\n");
 
     if (_disk == nullptr)
     {
-        rs232_error();
+        transaction_error();
         return;
     }
 
 #ifdef VERBOSE_DISK
     _disk->dump_percom_block();
 #endif
-    bus_to_computer((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock), false);
+    transaction_put((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock), false);
 }
 
 // Write percom block
 void rs232Disk::rs232_write_percom_block()
 {
+    transaction_continue(TRWG::WILL_GET);
     Debug_print("disk WRITE PERCOM BLOCK\n");
 
     if (_disk == nullptr)
     {
-        rs232_error();
+        transaction_error();
         return;
     }
 
-    bus_to_peripheral((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock));
+    transaction_get((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock));
 #ifdef VERBOSE_DISK
     _disk->dump_percom_block();
 #endif
-    rs232_complete();
+    transaction_complete();
 }
 
 /* Mount Disk
@@ -192,6 +195,11 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
     if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
         disk_type = MediaType::discover_mediatype(filename);
 
+    // TODO: Stupid hack to treat ROM-sized files as ROMs and not disks. Should be
+    // replaced with proper ROM-handling logic
+    if (disksize == 8192 || disksize == 16384 || disksize == 32768)
+        return mountROM(f, filename, disksize, disk_type);
+
     // Now mount based on MediaType
     switch (disk_type)
     {
@@ -203,6 +211,38 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
         _disk = new MediaTypeImg();
         return _disk->mount(f, disksize);
     }
+}
+
+mediatype_t rs232Disk::mountROM(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+{
+    uint32_t offset, rlen, sectorNum;
+    MediaTypeImg romImage;
+
+
+    romImage.mount(f, disksize);
+
+    Debug_printv("Attempting to send ROM contents to pico");
+    // "open" RAM in bank
+    if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_OPEN, (uint16_t) 0)) {
+        Debug_printv("Failed to open pico");
+        return (mediatype_t) -1;
+    }
+
+    for (offset = sectorNum = 0; offset < disksize; offset += rlen, sectorNum++)
+    {
+        if (romImage.read(sectorNum, &rlen) != 0)
+            break;
+        if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_WRITE,
+                                    std::string((char *) romImage._disk_sectorbuff, rlen))) {
+            Debug_printv("Failed to send block");
+            break;
+        }
+    }
+
+    // "closing" RAM will make the bank active
+    SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_CLOSE);
+
+    return disk_type;
 }
 
 // Destructor
@@ -237,51 +277,37 @@ bool rs232Disk::write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
 }
 
 // Process command
-void rs232Disk::rs232_process(cmdFrame_t *cmd_ptr)
+void rs232Disk::rs232_process(FujiBusPacket &packet)
 {
-    // if (_disk == nullptr || _disk->_disktype == MEDIATYPE_UNKNOWN)
-    //     return;
-
-    // if (device_active == false &&
-    //    (cmdFrame.comnd != DISKCMD_STATUS && cmdFrame.comnd != DISKCMD_HRS232_INDEX))
-    //    return;
-
     Debug_print("disk rs232_process()\n");
 
-    cmdFrame = *cmd_ptr;
-    switch (cmdFrame.comnd)
+    switch (packet.command())
     {
     case DISKCMD_READ:
-        rs232_ack();
-        rs232_read();
+        rs232_read(packet.param(0));
         return;
     case DISKCMD_PUT:
-        rs232_ack();
-        rs232_write(false);
+        rs232_write(packet.param(0), false);
         return;
     case DISKCMD_STATUS:
     case DISKCMD_WRITE:
-        rs232_ack();
-        rs232_write(true);
+        rs232_write(packet.param(0), true);
         return;
     case DISKCMD_FORMAT:
     case DISKCMD_FORMAT_MEDIUM:
-        rs232_ack();
         rs232_format();
         return;
     case DISKCMD_PERCOM_READ:
-        rs232_ack();
         rs232_read_percom_block();
         return;
     case DISKCMD_PERCOM_WRITE:
-        rs232_ack();
         rs232_write_percom_block();
         return;
     default:
         break;
     }
 
-    rs232_nak();
+    transaction_error();
 }
 
 #endif /* BUILD_RS232 */

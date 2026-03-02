@@ -174,6 +174,8 @@ enum fujiCommandID_t : uint8_t {
     APETIMECMD_GET_ISO_LOCAL           = 0x49, // I
     APETIMECMD_GET_GENERAL             = 0x47, // G
     APETIMECMD_GET_ATARI               = 0x41, // A
+
+    CPMCMD_INIT                        = 0x47, // G
 };
 
 #endif /* FUJI_COMMANDS_H */

@@ -139,7 +139,7 @@ set(INCLUDE_DIRS include
     components_pc/miniaudio
     components_pc/cJSON
     components_pc/libsmb2/include
-    components_pc/libssh/include 
+    components_pc/libssh/include
     components_pc/libnfs/include
 )
 
@@ -390,6 +390,8 @@ if(FUJINET_TARGET STREQUAL "RS232")
     list(APPEND SOURCES
 
     lib/bus/rs232/rs232.h lib/bus/rs232/rs232.cpp
+    lib/bus/rs232/FujiBusPacket.h lib/bus/rs232/FujiBusPacket.cpp
+    lib/bus/drivewire/BeckerSocket.h lib/bus/drivewire/BeckerSocket.cpp
 
     lib/media/rs232/diskType.h lib/media/rs232/diskType.cpp
     lib/media/rs232/diskTypeImg.h lib/media/rs232/diskTypeImg.cpp
