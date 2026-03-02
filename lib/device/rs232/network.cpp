@@ -98,7 +98,7 @@ void rs232Network::rs232_open(fileAccessMode_t access, netProtoTranslation_t tra
 {
     Debug_println("rs232Network::rs232_open()\n");
 
-    transaction_continue(TRWG::WILL_GET);
+    transaction_continue(TRANS_STATE::WILL_GET);
 
     channelMode = CHANNEL_MODE::PROTOCOL;
 
@@ -177,7 +177,7 @@ void rs232Network::rs232_close()
 {
     Debug_printf("rs232Network::rs232_close()\n");
 
-    transaction_continue(TRWG::NO_GET);
+    transaction_continue(TRANS_STATE::NO_GET);
 
     status.reset();
 
@@ -217,7 +217,7 @@ void rs232Network::rs232_read(uint16_t length)
 
     Debug_printf("rs232Network::rs232_read( %d bytes)\n", length);
 
-    transaction_continue(TRWG::NO_GET);
+    transaction_continue(TRANS_STATE::NO_GET);
 
     // Check for rx buffer. If NULL, then tell caller we could not allocate buffers.
     if (receiveBuffer == nullptr)
@@ -298,7 +298,7 @@ void rs232Network::rs232_write(uint16_t length)
         return;
     }
 
-    transaction_continue(TRWG::WILL_GET);
+    transaction_continue(TRANS_STATE::WILL_GET);
 
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
@@ -356,7 +356,7 @@ protocolError_t rs232Network::rs232_write_channel(uint16_t num_bytes)
 void rs232Network::rs232_status(FujiStatusReq reqType) // was aux2
 {
     // Acknowledge
-    transaction_continue(TRWG::NO_GET);
+    transaction_continue(TRANS_STATE::NO_GET);
 
     if (protocol == nullptr)
         rs232_status_local(reqType);
@@ -463,7 +463,7 @@ void rs232Network::rs232_get_prefix()
     uint8_t prefixSpec[256];
     string prefixSpec_str;
 
-    transaction_continue(TRWG::NO_GET);
+    transaction_continue(TRANS_STATE::NO_GET);
     memcpy(prefixSpec, prefix.data(), prefix.size());
 
     prefixSpec[prefix.size()] = 0x9B; // add EOL.
@@ -479,7 +479,7 @@ void rs232Network::rs232_set_prefix()
     uint8_t prefixSpec[256];
     string prefixSpec_str;
 
-    transaction_continue(TRWG::NO_GET);
+    transaction_continue(TRANS_STATE::NO_GET);
     transaction_get(prefixSpec, sizeof(prefixSpec)); // TODO test checksum
     util_devicespec_fix_9b(prefixSpec, sizeof(prefixSpec));
 
@@ -576,7 +576,7 @@ void rs232Network::rs232_set_login()
 {
     uint8_t loginSpec[256];
 
-    transaction_continue(TRWG::NO_GET);
+    transaction_continue(TRANS_STATE::NO_GET);
     transaction_get(loginSpec, sizeof(loginSpec));
     util_devicespec_fix_9b(loginSpec, sizeof(loginSpec));
 
@@ -591,7 +591,7 @@ void rs232Network::rs232_set_password()
 {
     uint8_t passwordSpec[256];
 
-    transaction_continue(TRWG::NO_GET);
+    transaction_continue(TRANS_STATE::NO_GET);
     transaction_get(passwordSpec, sizeof(passwordSpec));
     util_devicespec_fix_9b(passwordSpec, sizeof(passwordSpec));
 
@@ -613,11 +613,11 @@ void rs232Network::process_tcp(FujiBusPacket &packet)
     switch (packet.command())
     {
     case NETCMD_CONTROL:
-        transaction_continue(TRWG::NO_GET);
+        transaction_continue(TRANS_STATE::NO_GET);
         err = tcp->accept_connection();
         break;
     case NETCMD_CLOSE_CLIENT:
-        transaction_continue(TRWG::NO_GET);
+        transaction_continue(TRANS_STATE::NO_GET);
         err = tcp->close_client_connection();
         break;
     default:
@@ -645,7 +645,7 @@ void rs232Network::process_http(FujiBusPacket &packet)
     switch (packet.command())
     {
     case NETCMD_UNLISTEN:
-        transaction_continue(TRWG::NO_GET);
+        transaction_continue(TRANS_STATE::NO_GET);
         err = http->set_channel_mode((netProtoHTTPChannelMode_t) packet.param(1));
         break;
     default:
@@ -674,7 +674,7 @@ void rs232Network::process_udp(FujiBusPacket &packet)
     {
 #ifndef ESP_PLATFORM
     case NETCMD_GET_REMOTE:
-        transaction_continue(TRWG::NO_GET);
+        transaction_continue(TRANS_STATE::NO_GET);
         err = udp->get_remote(receiveBuffer->data(), SPECIAL_BUFFER_SIZE);
         transaction_put((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, err != PROTOCOL_ERROR::NONE);
         break;
@@ -698,7 +698,7 @@ void rs232Network::process_udp(FujiBusPacket &packet)
 
 void rs232Network::rs232_seek(uint32_t offset)
 {
-    transaction_continue(TRWG::NO_GET);
+    transaction_continue(TRANS_STATE::NO_GET);
     protocol->seek(offset, SEEK_SET);
     transaction_complete();
     return;
@@ -711,7 +711,7 @@ void rs232Network::rs232_tell()
 
 
     // Acknowledge
-    transaction_continue(TRWG::NO_GET);
+    transaction_continue(TRANS_STATE::NO_GET);
 
     offset = protocol->seek(0, SEEK_CUR);
     if (offset == -1) {
@@ -762,14 +762,14 @@ void rs232Network::rs232_process(FujiBusPacket &packet)
         }
         break;
     case NETCMD_PARSE:
-        transaction_continue(TRWG::NO_GET);
+        transaction_continue(TRANS_STATE::NO_GET);
         rs232_parse_json();
         break;
     case NETCMD_QUERY:
         rs232_set_json_query();
         break;
     case NETCMD_CHANNEL_MODE:
-        transaction_continue(TRWG::NO_GET);
+        transaction_continue(TRANS_STATE::NO_GET);
         rs232_set_channel_mode((channelMode_t) packet.param(1));
         break;
     case NETCMD_SEEK:
@@ -1035,7 +1035,7 @@ void rs232Network::rs232_set_json_query()
     uint8_t in[256];
     uint8_t *tmp;
 
-    transaction_continue(TRWG::WILL_GET);
+    transaction_continue(TRANS_STATE::WILL_GET);
     transaction_get(in, sizeof(in));
 
     // strip away line endings from input spec.

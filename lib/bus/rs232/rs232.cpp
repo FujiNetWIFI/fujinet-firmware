@@ -39,32 +39,27 @@ uint8_t rs232_checksum(uint8_t *buf, unsigned short len)
 
 void virtualDevice::transaction_continue(transState_t expectMoreData)
 {
-    assert(!_transaction_did_ack);
+    assert(_transaction_state == TRANS_STATE::INVALID);
     _transaction_state = expectMoreData;
-    _transaction_did_ack = true;
 }
 
 void virtualDevice::transaction_complete()
 {
-    assert(_transaction_did_ack);
-    assert(_transaction_state == TRWG::NO_GET || _transaction_state == TRWG::DID_GET);
+    assert(_transaction_state == TRANS_STATE::NO_GET || _transaction_state == TRANS_STATE::DID_GET);
     SYSTEM_BUS.sendReplyPacket(_devnum, true, nullptr, 0);
-    _transaction_state = TRWG::INVALID;
-    _transaction_did_ack = false;
+    _transaction_state = TRANS_STATE::INVALID;
 }
 
 void virtualDevice::transaction_error()
 {
     SYSTEM_BUS.sendReplyPacket(_devnum, false, nullptr, 0);
-    _transaction_state = TRWG::INVALID;
-    _transaction_did_ack = false;
+    _transaction_state = TRANS_STATE::INVALID;
 }
 
 bool virtualDevice::transaction_get(void *data, size_t len)
 {
-    assert(_transaction_did_ack);
-    assert(_transaction_state == TRWG::WILL_GET);
-    _transaction_state = TRWG::DID_GET;
+    assert(_transaction_state == TRANS_STATE::WILL_GET);
+    _transaction_state = TRANS_STATE::DID_GET;
 
     // FIXME - This is a terrible hack to allow devices to continue to
     // use the pattern of fetching data on their own instead of
@@ -84,10 +79,9 @@ bool virtualDevice::transaction_get(void *data, size_t len)
 
 void virtualDevice::transaction_put(const void *data, size_t len, bool err)
 {
-    assert(_transaction_did_ack && _transaction_state == TRWG::NO_GET);
+    assert(_transaction_state == TRANS_STATE::NO_GET);
     SYSTEM_BUS.sendReplyPacket(_devnum, !err, data, len);
-    _transaction_state = TRWG::INVALID;
-    _transaction_did_ack = false;
+    _transaction_state = TRANS_STATE::INVALID;
 }
 
 // Read and process a command frame from RS232

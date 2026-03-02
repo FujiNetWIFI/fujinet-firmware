@@ -51,8 +51,7 @@ protected:
 
     bool listen_to_type3_polls = false;
 
-    bool _transaction_did_ack = false;
-    transState_t _transaction_state = TRWG::INVALID;
+    transState_t _transaction_state = TRANS_STATE::INVALID;
     virtual void transaction_continue(transState_t expectMoreData);
     virtual void transaction_complete();
     virtual void transaction_error();

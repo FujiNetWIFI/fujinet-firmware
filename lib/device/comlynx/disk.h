@@ -21,7 +21,7 @@ private:
 
     unsigned long blockNum=INVALID_SECTOR_VALUE;
 
-    //void transaction_continue(bool expectMoreData) override {};
+    //void transaction_continue(transState_t expectMoreData) override {};
     void transaction_complete();
     void transaction_error();
     bool transaction_get(void *data, size_t len);

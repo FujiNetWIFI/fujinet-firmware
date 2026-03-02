@@ -75,7 +75,7 @@ void rs232CPM::rs232_process(FujiBusPacket &packet)
     switch (packet.command())
     {
     case CPMCMD_INIT:
-        transaction_continue(TRWG::NO_GET);
+        transaction_continue(TRANS_STATE::NO_GET);
         fnSystem.delay(10);
         transaction_complete();
         fnSystem.delay(5000);

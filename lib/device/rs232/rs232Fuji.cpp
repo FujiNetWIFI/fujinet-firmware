@@ -52,7 +52,7 @@ void rs232Fuji::setup()
 // Status
 void rs232Fuji::rs232_status(FujiStatusReq reqType)
 {
-    transaction_continue(TRWG::NO_GET);
+    transaction_continue(TRANS_STATE::NO_GET);
     Debug_println("Fuji cmd: STATUS");
 
     if (reqType == STATUS_MOUNT_TIME)
@@ -80,7 +80,7 @@ void rs232Fuji::rs232_status(FujiStatusReq reqType)
 void rs232Fuji::rs232_net_set_ssid(bool save) // was aux1
 {
     SSIDConfig cfg;
-    transaction_continue(TRWG::NO_GET);
+    transaction_continue(TRANS_STATE::NO_GET);
     if (!transaction_get((uint8_t *)&cfg, sizeof(cfg)))
         transaction_error();
     else
@@ -90,7 +90,7 @@ void rs232Fuji::rs232_net_set_ssid(bool save) // was aux1
 //  Make new disk and shove into device slot
 void rs232Fuji::rs232_new_disk()
 {
-    transaction_continue(TRWG::WILL_GET);
+    transaction_continue(TRANS_STATE::WILL_GET);
     Debug_println("Fuji cmd: NEW DISK");
 
     struct
@@ -156,7 +156,7 @@ void rs232Fuji::rs232_test()
 {
     uint8_t buf[512];
 
-    transaction_continue(TRWG::NO_GET);
+    transaction_continue(TRANS_STATE::NO_GET);
     Debug_printf("rs232_test()\n");
     memset(buf, 'A', 512);
     transaction_put(buf, 512, false);

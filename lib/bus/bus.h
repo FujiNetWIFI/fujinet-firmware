@@ -1,7 +1,7 @@
 #ifndef BUS_H
 #define BUS_H
 
-typedef enum class TRWG {
+typedef enum class TRANS_STATE {
     INVALID,
     NO_GET,
     WILL_GET,

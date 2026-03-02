@@ -19,7 +19,7 @@ rs232Disk::rs232Disk()
 // Read disk data and send to computer
 void rs232Disk::rs232_read(uint32_t sector)
 {
-    transaction_continue(TRWG::NO_GET);
+    transaction_continue(TRANS_STATE::NO_GET);
 
     Debug_printf("disk READ %lu\n", sector);
 
@@ -117,7 +117,7 @@ void rs232Disk::rs232_status(FujiStatusReq reqType)
 // Disk format
 void rs232Disk::rs232_format()
 {
-    transaction_continue(TRWG::NO_GET);
+    transaction_continue(TRANS_STATE::NO_GET);
     Debug_print("disk FORMAT\n");
 
     if (_disk == nullptr)
@@ -136,7 +136,7 @@ void rs232Disk::rs232_format()
 // Read percom block
 void rs232Disk::rs232_read_percom_block()
 {
-    transaction_continue(TRWG::NO_GET);
+    transaction_continue(TRANS_STATE::NO_GET);
     Debug_print("disk READ PERCOM BLOCK\n");
 
     if (_disk == nullptr)
@@ -154,7 +154,7 @@ void rs232Disk::rs232_read_percom_block()
 // Write percom block
 void rs232Disk::rs232_write_percom_block()
 {
-    transaction_continue(TRWG::WILL_GET);
+    transaction_continue(TRANS_STATE::WILL_GET);
     Debug_print("disk WRITE PERCOM BLOCK\n");
 
     if (_disk == nullptr)

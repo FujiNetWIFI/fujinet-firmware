@@ -17,7 +17,7 @@ void rs232ApeTime::_rs232_get_time(bool use_timezone)
 {
     char old_tz[64];
 
-    transaction_continue(TRWG::NO_GET);
+    transaction_continue(TRANS_STATE::NO_GET);
 
     if (use_timezone) {
       Debug_println("APETIME time query (timezone)");
@@ -60,7 +60,7 @@ void rs232ApeTime::_rs232_get_time(bool use_timezone)
 
 void rs232ApeTime::_rs232_set_tz(std::string newTZ)
 {
-    transaction_continue(TRWG::NO_GET);
+    transaction_continue(TRANS_STATE::NO_GET);
 
     if (newTZ.size())
     {

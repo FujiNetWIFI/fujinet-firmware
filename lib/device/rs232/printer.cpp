@@ -292,12 +292,12 @@ void rs232Printer::rs232_process(FujiBusPacket &packet)
             _lastaux1 = packet.param(0);
             _lastaux2 = packet.param(1);
             _last_ms = fnSystem.millis();
-            transaction_continue(TRWG::NO_GET);
+            transaction_continue(TRANS_STATE::NO_GET);
             rs232_write(_lastaux1, _lastaux2);
             break;
         case RS232_PRINTERCMD_STATUS:
             _last_ms = fnSystem.millis();
-            transaction_continue(TRWG::NO_GET);
+            transaction_continue(TRANS_STATE::NO_GET);
             rs232_status(static_cast<FujiStatusReq>(packet.param(0)));
             break;
         default:
