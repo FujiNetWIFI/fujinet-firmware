@@ -479,7 +479,7 @@ void rs232Network::rs232_set_prefix()
     uint8_t prefixSpec[256];
     string prefixSpec_str;
 
-    transaction_continue(TRANS_STATE::NO_GET);
+    transaction_continue(TRANS_STATE::WILL_GET);
     transaction_get(prefixSpec, sizeof(prefixSpec)); // TODO test checksum
     util_devicespec_fix_9b(prefixSpec, sizeof(prefixSpec));
 
@@ -576,7 +576,7 @@ void rs232Network::rs232_set_login()
 {
     uint8_t loginSpec[256];
 
-    transaction_continue(TRANS_STATE::NO_GET);
+    transaction_continue(TRANS_STATE::WILL_GET);
     transaction_get(loginSpec, sizeof(loginSpec));
     util_devicespec_fix_9b(loginSpec, sizeof(loginSpec));
 
@@ -591,7 +591,7 @@ void rs232Network::rs232_set_password()
 {
     uint8_t passwordSpec[256];
 
-    transaction_continue(TRANS_STATE::NO_GET);
+    transaction_continue(TRANS_STATE::WILL_GET);
     transaction_get(passwordSpec, sizeof(passwordSpec));
     util_devicespec_fix_9b(passwordSpec, sizeof(passwordSpec));
 
@@ -682,6 +682,7 @@ void rs232Network::process_udp(FujiBusPacket &packet)
     case NETCMD_SET_DESTINATION:
         {
             uint8_t spData[SPECIAL_BUFFER_SIZE];
+            transaction_continue(TRANS_STATE::WILL_GET);
             transaction_get(spData, sizeof(spData));
             err = udp->set_destination(spData, sizeof(spData));
             if (err != PROTOCOL_ERROR::NONE)
