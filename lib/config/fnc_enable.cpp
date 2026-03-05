@@ -1,6 +1,23 @@
 #include "fnConfig.h"
 #include <cstring>
 
+void fnConfig::store_device_slot_enable(uint8_t slot, bool enabled)
+{
+    //Debug_printv("slot[%d] enabled[%d]", slot, enabled);
+    switch (slot)
+    {
+        case (1): _denable.device_1_enabled = enabled; break;
+        case (2): _denable.device_2_enabled = enabled; break;
+        case (3): _denable.device_3_enabled = enabled; break;
+        case (4): _denable.device_4_enabled = enabled; break;
+        case (5): _denable.device_5_enabled = enabled; break;
+        case (6): _denable.device_6_enabled = enabled; break;
+        case (7): _denable.device_7_enabled = enabled; break;
+        case (8): _denable.device_8_enabled = enabled; break;
+    }
+    _dirty = true;
+}
+
 void fnConfig::store_device_slot_enable_1(bool enable)
 {
     if (_denable.device_1_enabled != enable)
