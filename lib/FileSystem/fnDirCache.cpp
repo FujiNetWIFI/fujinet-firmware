@@ -86,6 +86,12 @@ void DirCache::apply_filter(const char *pattern, uint16_t diropts)
     }
 
     // Choose the appropriate sorting function
+    _current = 0;
+
+    if (diropts & DIR_OPTION_UNSORTED)
+        return;
+
+    // Choose the appropriate sorting function
     sort_fn_t sortfn;
     if (diropts & DIR_OPTION_FILEDATE)
     {
@@ -98,8 +104,6 @@ void DirCache::apply_filter(const char *pattern, uint16_t diropts)
 
     // Sort directory entries
     std::sort(_entries_filtered.begin(), _entries_filtered.end(), sortfn);
-    // rewind read cursor
-    _current = 0;
 }
 
 fsdir_entry *DirCache::read()
