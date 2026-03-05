@@ -44,8 +44,10 @@ enum fsType
     FSTYPE_COUNT
 };
 
-#define DIR_OPTION_DESCENDING 0x0001 // Sort descending, not ascending
-#define DIR_OPTION_FILEDATE 0x0002 // Sort by date, not name
+#define DIR_OPTION_UNSORTED     0x0001 // Don't sort
+#define DIR_OPTION_DESCENDING   0x0002 // Sort descending, not ascending
+#define DIR_OPTION_FILEDATE     0x0003 // Sort by date, not name
+
 
 struct fsdir_entry
 {
