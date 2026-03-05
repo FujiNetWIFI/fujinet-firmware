@@ -826,36 +826,78 @@ void iecFuji::net_set_ssid_basic(bool store)
     fujicmd_net_set_ssid_success(net_config.ssid, net_config.password, store);
 }
 
-void iecFuji::enable_device_basic()
+void iecFuji::enable_device_basic(std::string ids)
 {
+    if(ids.empty()) {
     // Strip off the ENABLE: part of the command
-    pt[0] = pt[0].substr(7, std::string::npos);
+        pt[0] = pt[0].substr(7, std::string::npos);
+    } else {
+        pt = util_tokenize(ids, ',');
+    }
 
     // Enable devices
     for (int i = 0; i < pt.size(); i++) {
         uint8_t device = atoi(pt[i].c_str());
-        auto d = SYSTEM_BUS.findDevice(device, true);
-        if (d) {
-            d->setActive(true);
-            Debug_printv("Enable Device #%d [%d]", device, d->isActive());
+        if (device == 0) {
+            // special case for device 0, we want to enable all drives if that is the case
+            for (int dnum = 1; dnum <= MAX_DISK_DEVICES; dnum++) {
+                auto d = SYSTEM_BUS.m_devices[dnum];
+                if (d) {
+                    d->setActive(true);
+                    Config.store_device_slot_enable(dnum, true);
+                    Debug_printv("Enable Device #%d [%d]", (dnum + 7), d->isActive());
+                }
+            }
+            break;
+        }
+        else
+        {
+            auto d = SYSTEM_BUS.findDevice(device, true);
+            if (d) {
+                d->setActive(true);
+                Config.store_device_slot_enable((device - 7), true);
+                Debug_printv("Enable Device #%d [%d]", device, d->isActive());
+            }
         }
     }
+    Config.save();
 }
 
-void iecFuji::disable_device_basic()
+void iecFuji::disable_device_basic(std::string ids)
 {
+    if(ids.empty()) {
     // Strip off the DISABLE: part of the command
-    pt[0] = pt[0].substr(8, std::string::npos);
+        pt[0] = pt[0].substr(8, std::string::npos);
+    } else {
+        pt = util_tokenize(ids, ',');
+    }
 
     // Disable devices
     for (int i = 0; i < pt.size(); i++) {
         uint8_t device = atoi(pt[i].c_str());
-        auto d = SYSTEM_BUS.findDevice(device, true);
-        if (d) {
-            d->setActive(false);
-            Debug_printv("Disable Device #%d [%d]", device, d->isActive());
+        if (device == 0) {
+            // special case for device 0, we want to disable all drives if that is the case
+            for (int dnum = 1; dnum <= MAX_DISK_DEVICES; dnum++) {
+                auto d = SYSTEM_BUS.m_devices[dnum];
+                if (d) {
+                    d->setActive(false);
+                    Config.store_device_slot_enable(dnum, false);
+                    Debug_printv("Disable Device #%d [%d]", (dnum + 7), d->isActive());
+                }
+            }
+            break;
+        }
+        else
+        {
+            auto d = SYSTEM_BUS.findDevice(device, true);
+            if (d) {
+                d->setActive(false);
+                Config.store_device_slot_enable((device - 7), false);
+                Debug_printv("Disable Device #%d [%d]", device, d->isActive());
+            }
         }
     }
+    Config.save();
 }
 
 void iecFuji::net_set_ssid_raw(bool store)
