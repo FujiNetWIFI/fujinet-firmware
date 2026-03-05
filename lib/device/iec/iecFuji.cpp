@@ -480,6 +480,10 @@ void iecFuji::process_basic_commands()
         fujicmd_generate_guid();
         response = mstr::toPETSCII2(response);
     }
+    else if (payload.find("copy") != std::string::npos)
+        copy_file_basic();
+    else if (payload.find("update") != std::string::npos)
+        update_firmware();
     else if (payload.find("bptiming") != std::string::npos)
     {
         if ( pt.size() < 3 )
@@ -535,6 +539,8 @@ bool iecFuji::is_supported(uint8_t cmd)
     case FUJICMD_WRITE_APPKEY:
     case FUJICMD_WRITE_DEVICE_SLOTS:
     case FUJICMD_WRITE_HOST_SLOTS:
+    case FUJICMD_COPY_FILE:
+    case FUJICMD_UPDATE_FIRMWARE:
         result = true;
         break;
     }
@@ -693,6 +699,9 @@ void iecFuji::process_immediate_raw_cmds()
     case FUJICMD_GENERATE_GUID:
         fujicmd_generate_guid();
         response = mstr::toPETSCII2(response);
+        break;
+    case FUJICMD_UPDATE_FIRMWARE:
+        update_firmware();
         break;
     default:
         // not an immediate command, so exit without changing current_fuji_cmd, as we need to be sent data
@@ -1970,5 +1979,102 @@ void iecFuji::hash_clear()
     Debug_printf("FUJI: HASH CLEAR\r\n");
     hasher.clear();
 }
+
+void iecFuji::copy_file_basic()
+{
+    if (pt.size() != 2)
+    {
+        Debug_printv("error: bad args");
+        response = "BAD COPY ARGS";
+        return;
+    }
+
+    // Strip off the COPY: part of the command
+    pt[0] = pt[0].substr(5, std::string::npos);
+    if (mstr::isNumeric(pt[0])) {
+        // Find SSID by CRC8 Number
+        pt[0] = fnWiFi.get_network_name_by_crc8(std::stoi(pt[0]));
+    }
+
+    copy_file(pt[0], pt[1]);
+}
+
+void iecFuji::copy_file_raw()
+{
+    copy_file(pt[0], pt[1]);
+}
+
+void iecFuji::copy_file(std::string source, std::string destination)
+{
+    std::unique_ptr<MFile> in_file(MFSOwner::File(source));
+    std::unique_ptr<MFile> out_file(MFSOwner::File(destination));
+
+    // If destination is a directory then save with source filename
+    if ( out_file->isDirectory() )
+    {
+        destination += "/" + in_file->name;
+        out_file.reset(MFSOwner::File(destination));
+    }
+
+    // Create streams and copy file
+    {
+        auto in_stream = in_file->getSourceStream(std::ios_base::in);
+        if (in_stream == nullptr)
+        {
+            Serial.printf("2 Error: Can't open source!\r\n");
+            set_fuji_iec_status(62, "can't open source stream");
+            return;
+        }
+
+        auto out_stream = out_file->getSourceStream(std::ios_base::out);
+        if (out_stream == nullptr)
+        {
+            Serial.printf("2 Error: Can't open destination!\r\n");
+            set_fuji_iec_status(62, "can't open destination stream");
+            return;
+        }
+
+        Debug_printv("size[%lu] name[%s] url[%s] destination[%s]", in_file->size, in_file->name.c_str(), in_stream->url.c_str(), destination.c_str());
+
+        // Receive File
+        int count = 0;
+        uint8_t bytes[255];
+        while (true)
+        {
+            int bytes_read = in_stream->read(bytes, 255);
+            if (bytes_read < 1)
+            {
+                if (in_stream->available())
+                    Serial.printf("\nError reading '%s'\r", in_file->name.c_str());
+                break;
+            }
+
+            int bytes_written = out_stream->write(bytes, bytes_read);
+            if (bytes_written != bytes_read)
+            {
+                Serial.printf("\nError writing '%s'\r", out_file->name.c_str());
+                break;
+            }
+
+            // Show percentage complete in stdout
+            uint8_t percent = (in_stream->position() * 100) / in_stream->size();
+#ifdef ENABLE_DISPLAY
+            LEDS.progress = percent;
+#endif
+            Serial.printf("Downloading '%s' %d%% [%lu]\r", in_file->name.c_str(), percent, in_stream->position());
+            count++;
+        }
+        Serial.printf("\n");
+    }
+
+    set_fuji_iec_status(0, "");
+}
+
+void iecFuji::update_firmware()
+{
+    fnSystem.update_firmware();
+    set_fuji_iec_status(0, "");
+}
+
 
 #endif /* BUILD_IEC */
