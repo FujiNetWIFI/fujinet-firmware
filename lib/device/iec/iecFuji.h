@@ -185,6 +185,11 @@ protected:
     void set_boot_config_basic();
     void set_boot_config_raw();
 
+    // 0xD8
+    void copy_file(std::string source, std::string destination);
+    void copy_file_basic();
+    void copy_file_raw();
+
     // 0xD6
     void set_boot_mode_basic();
     void set_boot_mode_raw();
@@ -214,6 +219,9 @@ protected:
     void hash_clear_raw();
 
     // Commodore specific
+    void update_firmware();
+
+    // Commodore specific
     void local_ip();
     void netmask();
     void gateway();
@@ -222,8 +230,8 @@ protected:
     void bssid();
     void fn_version();
 
-    void enable_device_basic();
-    void disable_device_basic();
+    void enable_device_basic(std::string ids = "");
+    void disable_device_basic(std::string ids = "");
 
     bool check_appkey_creator(bool check_is_write);
 
