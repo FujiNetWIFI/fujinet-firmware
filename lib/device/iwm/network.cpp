@@ -90,7 +90,7 @@ void iwmNetwork::open()
 
     Debug_printf("\naux1: %u aux2: %u path %s", _aux1, _aux2, d.c_str());
 
-    current_network_data.channelMode = NetworkData::PROTOCOL;
+    current_network_data.channelMode = CHANNEL_MODE::PROTOCOL;
 
     // persist aux1/aux2 values - this is a smell
     cmdFrame.aux1 = _aux1;
@@ -259,11 +259,11 @@ void iwmNetwork::channel_mode()
     {
     case 0:
         Debug_printf("channelMode = PROTOCOL\n");
-        current_network_data.channelMode = NetworkData::PROTOCOL;
+        current_network_data.channelMode = CHANNEL_MODE::PROTOCOL;
         break;
     case 1:
         Debug_printf("channelMode = JSON\n");
-        current_network_data.channelMode = NetworkData::JSON;
+        current_network_data.channelMode = CHANNEL_MODE::JSON;
         break;
     default:
         Debug_printf("INVALID MODE = %02x\r\n", data_buffer[0]);
@@ -308,7 +308,7 @@ void iwmNetwork::status()
 
     switch (current_network_data.channelMode)
     {
-    case NetworkData::PROTOCOL:
+    case CHANNEL_MODE::PROTOCOL:
         if (!current_network_data.protocol) {
             Debug_printf("ERROR: Calling status on a null protocol.\r\n");
             err = SP_ERR_BADCMD;
@@ -319,7 +319,7 @@ void iwmNetwork::status()
             avail = current_network_data.protocol->available();
         }
         break;
-    case NetworkData::JSON:
+    case CHANNEL_MODE::JSON:
         err = (current_network_data.json->status(&s) == false) ? SP_ERR_NOERROR : SP_ERR_IOERROR;
         avail = current_network_data.json->available();
         break;
@@ -460,9 +460,9 @@ bool iwmNetwork::write_channel(unsigned short num_bytes)
     auto& current_network_data = network_data_map[current_network_unit];
     switch (current_network_data.channelMode)
     {
-    case NetworkData::PROTOCOL:
+    case CHANNEL_MODE::PROTOCOL:
         current_network_data.protocol->write(num_bytes);
-    case NetworkData::JSON:
+    case CHANNEL_MODE::JSON:
         break;
     }
     return false;
@@ -491,10 +491,10 @@ void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
 
     switch (current_network_data.channelMode)
     {
-    case NetworkData::PROTOCOL:
+    case CHANNEL_MODE::PROTOCOL:
         error = read_channel(numbytes, cmd);
         break;
-    case NetworkData::JSON:
+    case CHANNEL_MODE::JSON:
         error = read_channel_json(numbytes, cmd);
         break;
     }

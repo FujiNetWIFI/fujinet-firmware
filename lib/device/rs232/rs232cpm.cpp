@@ -6,7 +6,7 @@
 
 #include "fnSystem.h"
 #include "fnWiFi.h"
-#include "fujiDevice.h"
+#include "rs232Fuji.h"
 #include "fnFS.h"
 #include "fnFsSD.h"
 
@@ -23,7 +23,7 @@
 #endif
 
 
-void rs232CPM::rs232_status()
+void rs232CPM::rs232_status(FujiStatusReq reqType)
 {
     // Nothing to do here
     return;
@@ -70,21 +70,20 @@ void rs232CPM::init_cpm(int baud)
     memset(pattern, 0, sizeof(pattern));
 }
 
-void rs232CPM::rs232_process(cmdFrame_t *cmd_ptr)
+void rs232CPM::rs232_process(FujiBusPacket &packet)
 {
-    cmdFrame = *cmd_ptr;
-    switch (cmdFrame.comnd)
+    switch (packet.command())
     {
-    case 'G':
-        rs232_ack();
+    case CPMCMD_INIT:
+        transaction_continue(TRANS_STATE::NO_GET);
         fnSystem.delay(10);
-        rs232_complete();
+        transaction_complete();
         fnSystem.delay(5000);
         init_cpm(9600);
         cpmActive = true;
         break;
     default:
-        rs232_nak();
+        transaction_error();
         break;
     }
 }

@@ -11,6 +11,7 @@
 #include "peoples_url_parser.h"
 #include "networkStatus.h"
 #include "status_error_codes.h"
+#include "network_data.h"
 #include "fnjson.h"
 
 #include "ProtocolParser.h"
@@ -58,13 +59,13 @@ public:
      * Called for RS232 Command 'O' to open a connection to a network protocol, allocate all buffers,
      * and start the receive PROCEED interrupt.
      */
-    virtual void rs232_open();
+    void rs232_open(fileAccessMode_t access, netProtoTranslation_t translate);
 
     /**
      * Called for RS232 Command 'C' to close a connection to a network protocol, de-allocate all buffers,
      * and stop the receive PROCEED interrupt.
      */
-    virtual void rs232_close();
+    void rs232_close();
 
     /**
      * RS232 Read command
@@ -73,47 +74,46 @@ public:
      *
      * @note It is the channel's responsibility to pad to required length.
      */
-    virtual void rs232_read();
+    void rs232_read(uint16_t length);
 
     /**
      * RS232 Write command
      * Write # of bytes specified by aux1/aux2 from tx_buffer out to RS232. If protocol is unable to return requested
      * number of bytes, return ERROR.
      */
-    virtual void rs232_write();
+    void rs232_write(uint16_t length);
 
     /**
-     * RS232 Special, called as a default for any other RS232 command not processed by the other rs232_ functions.
-     * First, the protocol is asked whether it wants to process the command, and if so, the protocol will
-     * process the special command. Otherwise, the command is handled locally. In either case, either rs232_complete()
-     * or rs232_error() is called.
+     * RS232 Status Command. First try to populate NetworkStatus object from protocol. If protocol not instantiated,
+     * or Protocol does not want to fill status buffer (e.g. due to unknown aux1/aux2 values), then try to deal
+     * with them locally. Then serialize resulting NetworkStatus object to RS232.
      */
-    virtual void rs232_status();
+    void rs232_status(FujiStatusReq reqType) override;
 
     /**
      * @brief set channel mode, JSON or PROTOCOL
      */
-    virtual void rs232_set_channel_mode();
+    void rs232_set_channel_mode(channelMode_t chanMode);
 
     /**
      * @brief Called to set prefix
      */
-    virtual void rs232_set_prefix();
+    void rs232_set_prefix();
 
     /**
      * @brief Called to get prefix
      */
-    virtual void rs232_get_prefix();
+    void rs232_get_prefix();
 
     /**
      * @brief called to set login
      */
-    virtual void rs232_set_login();
+    void rs232_set_login();
 
     /**
      * @brief called to set password
      */
-    virtual void rs232_set_password();
+    void rs232_set_password();
 
     /**
      * Check to see if PROCEED needs to be asserted.
@@ -125,13 +125,13 @@ public:
      * @param comanddata incoming 4 bytes containing command and aux bytes
      * @param checksum 8 bit checksum
      */
-    virtual void rs232_process(cmdFrame_t *cmd_ptr);
-    void process_tcp();
-    void process_http();
-    void process_udp();
-    void process_fs();
+    void rs232_process(FujiBusPacket &packet) override;
+    void process_tcp(FujiBusPacket &packet);
+    void process_http(FujiBusPacket &packet);
+    void process_udp(FujiBusPacket &packet);
+    void process_fs(FujiBusPacket &packet);
 
-    void rs232_seek();
+    void rs232_seek(uint32_t offset);
     void rs232_tell();
 
 private:
@@ -167,7 +167,7 @@ private:
 
     /**
      * @brief Factory that creates protocol from urls
-    */
+     */
     ProtocolParser *protocolParser = nullptr;
 
     /**
@@ -206,7 +206,7 @@ private:
      * The Translation mode ORed into AUX2 for READ/WRITE/STATUS operations.
      * 0 = No Translation, 1 = CR<->EOL (Macintosh), 2 = LF<->EOL (UNIX), 3 = CR/LF<->EOL (PC/Windows)
      */
-    uint8_t trans_aux2 = 0;
+    netProtoTranslation_t trans_mode = NETPROTO_TRANS_NONE;
 
     /**
      * The login to use for a protocol action
@@ -231,11 +231,7 @@ private:
      * @enum PROTOCOL Send to protocol
      * @enum JSON Send to JSON parser.
      */
-    enum _channel_mode
-    {
-        PROTOCOL,
-        JSON
-    } channelMode;
+    channelMode_t channelMode;
 
     /**
      * saved NetworkStatus items
@@ -251,7 +247,7 @@ private:
     /**
      * Bytes sent of current JSON query object.
      */
-    unsigned short json_bytes_remaining = 0;
+    uint16_t json_bytes_remaining = 0;
 
     /**
      * Instantiate protocol object
@@ -262,13 +258,14 @@ private:
     /**
      * Create the deviceSpec and fix it for parsing
      */
-    void create_devicespec();
+    void create_devicespec(fileAccessMode_t access);
 
     /**
      * Create a urlParser from deviceSpec
-    */
-   void create_url_parser();
+     */
+    void create_url_parser();
 
+#ifdef ESP_PLATFORM
     /**
      * Start the Interrupt rate limiting timer
      */
@@ -278,6 +275,7 @@ private:
      * Stop the Interrupt rate limiting timer
      */
     void timer_stop();
+#endif /* ESP_PLATFORM */
 
     /**
      * We were passed a COPY arg from DOS 2. This is complex, because we need to parse the comma,
@@ -289,33 +287,33 @@ private:
      *
      * DeviceSpec will be transformed to only contain the relevant part of the deviceSpec, sans comma.
      */
-    void processCommaFromDevicespec();
+    void processCommaFromDevicespec(unsigned int dev);
 
     /**
      * Perform the correct read based on value of channelMode
      * @param num_bytes Number of bytes to read.
      * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
      */
-    protocolError_t rs232_read_channel(unsigned short num_bytes);
+    protocolError_t rs232_read_channel(uint16_t num_bytes);
 
     /**
      * @brief Perform read of the current JSON channel
      * @param num_bytes Number of bytes to read
      */
-    protocolError_t rs232_read_channel_json(unsigned short num_bytes);
+    protocolError_t rs232_read_channel_json(uint16_t num_bytes);
 
     /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
      * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit rs232_error or rs232_complete().
      */
-    protocolError_t rs232_write_channel(unsigned short num_bytes);
+    protocolError_t rs232_write_channel(uint16_t num_bytes);
 
     /**
      * @brief perform local status commands, if protocol is not bound, based on cmdFrame
      * value.
      */
-    void rs232_status_local();
+    void rs232_status_local(FujiStatusReq reqType);
 
     /**
      * @brief perform channel status commands, if there is a protocol bound.
@@ -325,7 +323,7 @@ private:
     /**
      * @brief get JSON status (# of bytes in receive channel)
      */
-    bool rs232_status_channel_json(NetworkStatus *ns);
+    protocolError_t rs232_status_channel_json(NetworkStatus *ns);
 
     /**
      * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
@@ -335,7 +333,7 @@ private:
     /**
      * @brief set translation specified by aux1 to aux2_translation mode.
      */
-    void rs232_set_translation();
+    void rs232_set_translation(netProtoTranslation_t mode);
 
     /**
      * @brief Parse incoming JSON. (must be in JSON channelMode)
@@ -350,17 +348,12 @@ private:
     /**
      * @brief Set timer rate for PROCEED timer in ms
      */
-    void rs232_set_timer_rate();
-
-    /**
-     * @brief perform ->FujiNet commands on protocols that do not use an explicit OPEN channel.
-     */
-    void rs232_do_idempotent_command_80();
+    void rs232_set_timer_rate(int newRate);
 
     /**
      * @brief parse URL and instantiate protocol
      */
-    void parse_and_instantiate_protocol();
+    void parse_and_instantiate_protocol(fileAccessMode_t access);
 
 };
 

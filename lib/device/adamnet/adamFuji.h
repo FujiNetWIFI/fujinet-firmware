@@ -18,7 +18,7 @@ private:
     bool new_disk_completed = false;
 
 protected:
-    void transaction_continue(bool expectMoreData) override {
+    void transaction_continue(transState_t expectMoreData) override {
         // Adam needs ACK ASAP and never sends error, so discard checksum and ACK here
         adamnet_recv(); // Discard CK
         SYSTEM_BUS.start_time = esp_timer_get_time();

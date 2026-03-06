@@ -1,6 +1,13 @@
 #ifndef BUS_H
 #define BUS_H
 
+typedef enum class TRANS_STATE {
+    INVALID,
+    NO_GET,
+    WILL_GET,
+    DID_GET,
+} transState_t;
+
 #ifdef BUILD_ATARI
 #include "sio/sio.h"
 #ifdef ESP_PLATFORM
@@ -66,7 +73,6 @@
 
 #ifdef BUILD_COCO
 #include "drivewire/drivewire.h"
-#define FN_BUS_PORT fnDwCom
 #endif
 
 #endif // BUS_H
