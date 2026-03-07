@@ -41,11 +41,13 @@ class rs232UDPStream; // declare here so can reference it, but define in udpstre
 class rs232Cassette; // Cassette forward-declaration.
 class rs232CPM;      // CPM device.
 class rs232Printer;  // Printer device
+class fujiDevice;
 
 class virtualDevice
 {
 protected:
     friend systemBus;
+    friend fujiDevice;
 
     fujiDeviceID_t _devnum;
 
