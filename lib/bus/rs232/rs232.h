@@ -45,10 +45,10 @@ class fujiDevice;
 
 class virtualDevice
 {
-protected:
     friend systemBus;
     friend fujiDevice;
 
+protected:
     fujiDeviceID_t _devnum;
 
     bool listen_to_type3_polls = false;

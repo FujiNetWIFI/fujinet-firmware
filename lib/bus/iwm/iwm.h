@@ -128,6 +128,7 @@ class iwmDisk;     // disk device cause I need to use "iwmDisk smort" for protot
 class iwmCPM;      // CPM Virtual Device
 class iwmClock;    // Real Time Clock Device
 class systemBus;      // forward declare bus so can be friend
+class fujiDevice;
 
 #define BLOCK_DATA_LEN      512
 #define MAX_DATA_LEN        767
@@ -186,7 +187,8 @@ struct iwm_device_info_block_t
 
 class virtualDevice
 {
-friend systemBus; // put here for prototype, not sure if will need to keep it
+    friend systemBus; // put here for prototype, not sure if will need to keep it
+    friend fujiDevice;
 
 protected:
   // set these things in constructor or initializer?
