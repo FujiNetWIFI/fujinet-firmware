@@ -44,21 +44,21 @@ lynxNetwork::lynxNetwork()
  */
 lynxNetwork::~lynxNetwork()
 {
+    // delete protocol instance
+    if (protocol != nullptr)
+        delete protocol;
+    protocol = nullptr;
+
+    // delete all buffers
     receiveBuffer->clear();
     transmitBuffer->clear();
     specialBuffer->clear();
-
     delete receiveBuffer;
     delete transmitBuffer;
     delete specialBuffer;
     receiveBuffer = nullptr;
     transmitBuffer = nullptr;
     specialBuffer = nullptr;
-
-    if (protocol != nullptr)
-        delete protocol;
-
-    protocol = nullptr;
 }
 
 /** LYNX COMMANDS ***************************************************************/

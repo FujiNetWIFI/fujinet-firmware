@@ -3,6 +3,7 @@
 #include "lynxFuji.h"
 
 #include <cstring>
+#include <PSRAMAllocator.h>
 
 #include "../../include/debug.h"
 
@@ -22,9 +23,15 @@
 
 lynxFuji platformFuji;
 fujiDevice *theFuji = &platformFuji;        // global fuji device object
-lynxNetwork *theNetwork;                    // global network device object (temporary)
+//lynxNetwork *theNetwork;                    // global network device object (temporary)
 lynxPrinter *thePrinter;                    // global printer
 //lynxSerial *theSerial;                      // global serial
+
+#ifdef ESP_PLATFORM
+std::unique_ptr<lynxNetwork, PSRAMDeleter<lynxNetwork>> lynxNetDevs[MAX_NETWORK_DEVICES];
+#else
+std::unique_ptr<lynxNetwork> lynxNetDevs[MAX_NETWORK_DEVICES];
+#endif
 
 using namespace std;
 
@@ -73,6 +80,29 @@ lynxFuji::lynxFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, std::nullop
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].slotid = i;
+
+    #ifdef ESP_PLATFORM
+    for (int i = 0; i < MAX_NETWORK_DEVICES; ++i)
+    {
+        PSRAMAllocator<lynxNetwork> allocator;
+        lynxNetwork* ptr = allocator.allocate(1); // Allocate memory for one sioNetwork object
+
+        if (ptr != nullptr)
+        {
+            new (ptr) lynxNetwork(); // Construct the object using placement new
+            lynxNetDevs[i] = std::unique_ptr<lynxNetwork, PSRAMDeleter<lynxNetwork>>(ptr); // Store in smart pointer
+        }
+    }
+    #else
+    for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
+    {
+        lynxNetwork *ptr = (lynxNetwork *) malloc(sizeof(lynxNetwork));
+        if (ptr != nullptr) {
+            new (ptr) lynxNetwork();
+            lynxNetDevs[i] = std::unique_ptr<lynxNetwork>(ptr);
+        }
+    }
+    #endif
 }
 
 
@@ -255,14 +285,16 @@ void lynxFuji::setup()
     boot_config = false;
 
     // Add our devices to the bus
+    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET);   // Fuji becomes the gateway device.
+
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
         SYSTEM_BUS.addDevice(&_fnDisks[i].disk_dev, (fujiDeviceID_t) (FUJI_DEVICEID_DISK + i));
-
-    //SYSTEM_BUS.addDevice(&_fnDisks[0].disk_dev, FUJI_DEVICEID_DISK);
-    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET);   // Fuji becomes the gateway device.
     
-    theNetwork = new lynxNetwork();
-    SYSTEM_BUS.addDevice(theNetwork, FUJI_DEVICEID_NETWORK);
+    for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
+        SYSTEM_BUS.addDevice(lynxNetDevs[i].get(), (fujiDeviceID_t) (FUJI_DEVICEID_NETWORK + i));
+
+    //theNetwork = new lynxNetwork();
+    //SYSTEM_BUS.addDevice(theNetwork, FUJI_DEVICEID_NETWORK);
 }
 
 void lynxFuji::fujicmd_random_number()

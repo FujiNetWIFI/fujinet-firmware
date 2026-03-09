@@ -259,8 +259,29 @@ void systemBus::_comlynx_process_cmd()
 
     d = SYSTEM_BUS.read();
 
+    for (auto devicep : _daisyChain)
+    {
+        if (d == devicep->_devnum)
+        {
+            //_activeDev = devicep;
+            // handle command
+            //_activeDev->sio_process(tempFrame.commanddata, tempFrame.checksum);
+
+            #ifdef DEBUG
+            Debug_println("---");
+            Debug_printf("comlynx_process_cmd - dev:%X\n", d);
+            #endif
+
+            // turn on Comlynx Indicator LED
+            fnLedManager.set(eLed::LED_BUS, true);
+            devicep->comlynx_process();
+            // turn off Comlynx Indicator LED
+            fnLedManager.set(eLed::LED_BUS, false);
+        }
+    }
+
     // Find device ID and pass control to it
-    if (_daisyChain.count(d) < 1)
+    /*if (_daisyChain.count(d) < 1)
     {
     }
     else if (_daisyChain[d]->device_active == true)
@@ -275,7 +296,7 @@ void systemBus::_comlynx_process_cmd()
         _daisyChain[d]->comlynx_process();
         // turn off Comlynx Indicator LED
         fnLedManager.set(eLed::LED_BUS, false);
-    }
+    }*/
 
     SYSTEM_BUS.flush();
 }
@@ -322,8 +343,8 @@ void systemBus::shutdown()
 {
     for (auto devicep : _daisyChain)
     {
-        Debug_printf("Shutting down device %02x\n", devicep.second->id());
-        devicep.second->shutdown();
+        Debug_printf("Shutting down device %02x\n", devicep->id());
+        devicep->shutdown();
     }
     Debug_printf("All devices shut down.\n");
 }
@@ -331,10 +352,25 @@ void systemBus::shutdown()
 void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
 {
     Debug_printf("Adding device: %02X\n", device_id);
-    pDevice->_devnum = device_id;
-    _daisyChain[device_id] = pDevice;
 
-    switch (device_id)
+    if (device_id == FUJI_DEVICEID_FUJINET)
+    {
+        _fujiDev = (lynxFuji *)pDevice;
+    }
+    else if (device_id >= FUJI_DEVICEID_NETWORK && device_id <= FUJI_DEVICEID_NETWORK_LAST)
+    {
+        _netDev[device_id - FUJI_DEVICEID_NETWORK] = (lynxNetwork*)pDevice;
+    }
+    else if (device_id == FUJI_DEVICEID_PRINTER)
+    {
+        _printerDev = (lynxPrinter *)pDevice;
+    }
+
+    pDevice->_devnum = device_id;
+    //_daisyChain[device_id] = pDevice;
+    _daisyChain.push_front(pDevice);
+
+    /*switch (device_id)
     {
     case FUJI_DEVICEID_PRINTER:
         _printerDev = (lynxPrinter *)pDevice;
@@ -344,45 +380,51 @@ void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
         break;
     default:
         break;
-    }
+    }*/
 }
 
-bool systemBus::deviceExists(fujiDeviceID_t device_id)
+/*bool systemBus::deviceExists(fujiDeviceID_t device_id)
 {
     return _daisyChain.find(device_id) != _daisyChain.end();
-}
+}*/
 
-bool systemBus::deviceEnabled(fujiDeviceID_t device_id)
+/*bool systemBus::deviceEnabled(fujiDeviceID_t device_id)
 {
     if (deviceExists(device_id))
         return _daisyChain[device_id]->device_active;
     else
         return false;
-}
+}*/
 
 void systemBus::remDevice(virtualDevice *pDevice)
 {
+    _daisyChain.remove(pDevice);
 }
 
 void systemBus::remDevice(fujiDeviceID_t device_id)
 {
-    if (deviceExists(device_id))
+    /*if (deviceExists(device_id))
     {
         _daisyChain.erase(device_id);
-    }
+    }*/
 }
 
 int systemBus::numDevices()
 {
-    return _daisyChain.size();
+      int i = 0;
+    //__BEGIN_IGNORE_UNUSEDVARS
+    for (auto devicep : _daisyChain)
+        i++;
+    return i;
+    //__END_IGNORE_UNUSEDVARS
 }
 
 void systemBus::changeDeviceId(virtualDevice *p, int device_id)
 {
     for (auto devicep : _daisyChain)
     {
-        if (devicep.second == p)
-            devicep.second->_devnum = (fujiDeviceID_t) device_id;
+        if (devicep == p)
+            devicep->_devnum = (fujiDeviceID_t) device_id;
     }
 }
 
@@ -390,8 +432,8 @@ virtualDevice *systemBus::deviceById(fujiDeviceID_t device_id)
 {
     for (auto devicep : _daisyChain)
     {
-        if (devicep.second->_devnum == device_id)
-            return devicep.second;
+        if (devicep->_devnum == device_id)
+            return devicep;
     }
     return nullptr;
 }
@@ -399,23 +441,23 @@ virtualDevice *systemBus::deviceById(fujiDeviceID_t device_id)
 void systemBus::reset()
 {
     for (auto devicep : _daisyChain)
-        devicep.second->reset();
+        devicep->reset();
 }
 
 void systemBus::enableDevice(fujiDeviceID_t device_id)
 {
-    Debug_printf("Enabling Comlynx Device %d\n", device_id);
+    /*Debug_printf("Enabling Comlynx Device %d\n", device_id);
 
     if (_daisyChain.find(device_id) != _daisyChain.end())
-        _daisyChain[device_id]->device_active = true;
+        _daisyChain[device_id]->device_active = true;*/
 }
 
 void systemBus::disableDevice(fujiDeviceID_t device_id)
 {
-    Debug_printf("Disabling Comlynx Device %d\n", device_id);
+    /*Debug_printf("Disabling Comlynx Device %d\n", device_id);
 
     if (_daisyChain.find(device_id) != _daisyChain.end())
-        _daisyChain[device_id]->device_active = false;
+        _daisyChain[device_id]->device_active = false;*/
 }
 
 void systemBus::setUDPHost(const char *hostname, int port)

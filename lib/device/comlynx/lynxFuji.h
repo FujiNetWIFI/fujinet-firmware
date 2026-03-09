@@ -4,6 +4,7 @@
 #include "fujiDevice.h"
 
 #include <cstdint>
+#include <cassert>
 
 #include "network.h"
 #include "disk.h"
@@ -12,6 +13,8 @@
 #include "fujiHost.h"
 #include "fujiDisk.h"
 #include "fujiDevice.h"
+
+
 
 class lynxFuji : public fujiDevice
 {
@@ -26,21 +29,8 @@ protected:
                                            uint8_t maxlen) override;
 
     void comlynx_new_disk();               // 0xE7
-    //void comlynx_write_app_key();          // 0xDE
-    //void comlynx_set_boot_config();        // 0xD9
-    //void comlynx_enable_device();          // 0xD5
-    //void comlynx_disable_device();         // 0xD4
     void fujicmd_random_number();          // 0xD3
     void fujicmd_get_time();               // 0xD2
-    //void comlynx_device_enable_status();   // 0xD1
-
-    //void comlynx_hello(); // test
-
-    //void comlynx_test_command();
-
-    //void comlynx_control_status() override;
-    //void comlynx_control_send();
-    //void comlynx_control_clr();
 
     void comlynx_process() override;
 
