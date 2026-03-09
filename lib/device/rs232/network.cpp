@@ -749,10 +749,20 @@ void rs232Network::rs232_process(FujiBusPacket &packet)
         rs232_close();
         break;
     case NETCMD_READ:
-        rs232_read(packet.param(0));
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient read paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            rs232_read(packet.param(0));
         break;
     case NETCMD_WRITE:
-        rs232_write(packet.param(0));
+        if (packet.paramCount() < 1 || !packet.data().has_value()) {
+            Debug_printv("Insufficient write paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            rs232_write(packet.param(0));
         break;
     case NETCMD_STATUS:
         {
@@ -770,20 +780,42 @@ void rs232Network::rs232_process(FujiBusPacket &packet)
         rs232_set_json_query();
         break;
     case NETCMD_CHANNEL_MODE:
-        transaction_continue(TRANS_STATE::NO_GET);
-        rs232_set_channel_mode((channelMode_t) packet.param(1));
+        if (packet.paramCount() < 2) {
+            Debug_printv("Insufficient mode paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+        {
+            transaction_continue(TRANS_STATE::NO_GET);
+            rs232_set_channel_mode((channelMode_t) packet.param(1));
+        }
         break;
     case NETCMD_SEEK:
-        rs232_seek(packet.param(0));
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient seek paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            rs232_seek(packet.param(0));
         break;
     case NETCMD_TELL:
         rs232_tell();
         break;
     case NETCMD_TRANSLATION:
-        rs232_set_translation((netProtoTranslation_t) packet.param(1));
+        if (packet.paramCount() < 2) {
+            Debug_printv("Insufficient translation paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            rs232_set_translation((netProtoTranslation_t) packet.param(1));
         break;
     case NETCMD_SET_INT_RATE:
-        rs232_set_timer_rate(packet.param(1));
+        if (packet.paramCount() < 2) {
+            Debug_printv("Insufficient rate paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            rs232_set_timer_rate(packet.param(1));
         break;
     case NETCMD_GETCWD:
         rs232_get_prefix();

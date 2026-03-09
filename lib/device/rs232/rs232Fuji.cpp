@@ -197,7 +197,12 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
     switch (packet.command())
     {
     case FUJICMD_STATUS:
-        rs232_status(static_cast<FujiStatusReq>(packet.param(0)));
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient status paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            rs232_status(static_cast<FujiStatusReq>(packet.param(0)));
         break;
     case FUJICMD_RESET:
         fujicmd_reset();
@@ -206,10 +211,20 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
         fujicmd_net_scan_networks();
         break;
     case FUJICMD_GET_SCAN_RESULT:
-        fujicmd_net_scan_result(packet.param(0));
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient scan paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_net_scan_result(packet.param(0));
         break;
     case FUJICMD_SET_SSID:
-        rs232_net_set_ssid(packet.param(0));
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient SSID paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            rs232_net_set_ssid(packet.param(0));
         break;
     case FUJICMD_GET_SSID:
         fujicmd_net_get_ssid();
@@ -218,16 +233,36 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
         fujicmd_net_get_wifi_status();
         break;
     case FUJICMD_MOUNT_HOST:
-        fujicmd_mount_host_success(packet.param(0));
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient mount host paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_mount_host_success(packet.param(0));
         break;
     case FUJICMD_MOUNT_IMAGE:
-        fujicmd_mount_disk_image_success(packet.param(0), (disk_access_flags_t) packet.param(1));
+        if (packet.paramCount() < 2) {
+            Debug_printv("Insufficient mount image paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_mount_disk_image_success(packet.param(0), (disk_access_flags_t) packet.param(1));
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        fujicmd_open_directory_success(packet.param(0));
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient open dir paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_open_directory_success(packet.param(0));
         break;
     case FUJICMD_READ_DIR_ENTRY:
-        fujicmd_read_directory_entry(packet.param(0), packet.param(1));
+        if (packet.paramCount() < 2) {
+            Debug_printv("Insufficient read dir paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_read_directory_entry(packet.param(0), packet.param(1));
         break;
     case FUJICMD_CLOSE_DIRECTORY:
         fujicmd_close_directory();
@@ -236,7 +271,12 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
         fujicmd_get_directory_position();
         break;
     case FUJICMD_SET_DIRECTORY_POSITION:
-        fujicmd_set_directory_position(packet.param(0));
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient set dir position paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_set_directory_position(packet.param(0));
         break;
     case FUJICMD_READ_HOST_SLOTS:
         fujicmd_read_host_slots();
@@ -254,7 +294,12 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
         fujicmd_net_get_wifi_enabled();
         break;
     case FUJICMD_UNMOUNT_IMAGE:
-        fujicmd_unmount_disk_image_success(packet.param(0));
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient unmount image paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_unmount_disk_image_success(packet.param(0));
         break;
     case FUJICMD_GET_ADAPTERCONFIG:
         fujicmd_get_adapter_config();
@@ -266,14 +311,29 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
         rs232_new_disk();
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
-        fujicmd_set_device_filename_success(packet.param(0), packet.param(1),
-                                            (disk_access_flags_t) packet.param(2));
+        if (packet.paramCount() < 3) {
+            Debug_printv("Insufficient set device fullpath paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_set_device_filename_success(packet.param(0), packet.param(1),
+                                                (disk_access_flags_t) packet.param(2));
         break;
     case FUJICMD_SET_HOST_PREFIX:
-        fujicmd_set_host_prefix(packet.param(0));
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient set host prefix paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_set_host_prefix(packet.param(0));
         break;
     case FUJICMD_GET_HOST_PREFIX:
-        fujicmd_get_host_prefix(packet.param(0));
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient get host prefix paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_get_host_prefix(packet.param(0));
         break;
     case FUJICMD_WRITE_APPKEY:
         fujicmd_write_app_key(packet.data()->size());
@@ -288,20 +348,40 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
         fujicmd_close_app_key();
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
-        fujicmd_get_device_filename(packet.param(0));
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient get device fullpath paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_get_device_filename(packet.param(0));
         break;
     case FUJICMD_CONFIG_BOOT:
-        fujicmd_set_boot_config(packet.param(0));
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient config boot paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_set_boot_config(packet.param(0));
         break;
     case FUJICMD_COPY_FILE:
-        fujicmd_copy_file_success(packet.param(0), packet.param(1),
-                                  packet.dataAsString().value_or(""));
+        if (packet.paramCount() < 2 || !packet.data().has_value()) {
+            Debug_printv("Insufficient copy files paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_copy_file_success(packet.param(0), packet.param(1),
+                                      packet.dataAsString().value_or(""));
         break;
     case FUJICMD_MOUNT_ALL:
         fujicmd_mount_all_success();
         break;
     case FUJICMD_SET_BOOT_MODE:
-        fujicmd_set_boot_mode(packet.param(0), MEDIATYPE_UNKNOWN, &bootdisk);
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient set boot mode paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_set_boot_mode(packet.param(0), MEDIATYPE_UNKNOWN, &bootdisk);
         break;
     case FUJICMD_DEVICE_READY:
         Debug_printf("FUJICMD DEVICE TEST\n");
