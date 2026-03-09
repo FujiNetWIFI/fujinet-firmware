@@ -22,12 +22,18 @@
 #include "IECDevice.h"
 
 
+class fujiDevice;
+
 class IECFileDevice : public IECDevice
 {
+    friend fujiDevice;
+
  public:
   IECFileDevice(uint8_t devnr = 0xFF);
 
  protected:
+    uint8_t _devnum; // For fujiDevice compatility
+
   // --- override the following functions in your device class:
 
   // called during IECBusHandler::begin()
@@ -56,14 +62,14 @@ class IECFileDevice : public IECDevice
   virtual uint8_t read(uint8_t channel, uint8_t *buffer, uint8_t bufferSize, bool *eoi) = 0;
 
   // called when the bus master reads from channel 15, the status
-  // buffer is currently empty and getStatusData() is not overloaded. 
+  // buffer is currently empty and getStatusData() is not overloaded.
   // This should populate buffer with an appropriate status message,
   // bufferSize is the maximum allowed length of the message
   // the data in the buffer should be a null-terminated string
   virtual void getStatus(char *buffer, uint8_t bufferSize) { *buffer=0; }
 
   // called when the bus master reads from channel 15 and the status
-  // buffer is currently empty, this should 
+  // buffer is currently empty, this should
   // - fill buffer with up to bufferSize bytes of data
   // - return the number of data bytes stored in the buffer
   // The default implementation of getStatusData just calls getStatus().
@@ -86,7 +92,7 @@ class IECFileDevice : public IECDevice
   void clearStatus();
 
   // clear the internal read buffer of the given channel, calling this will ensure
-  // that the next TALK command will immediately call "read" to get new data instead 
+  // that the next TALK command will immediately call "read" to get new data instead
   // of first sending the contents of the buffer
   void clearReadBuffer(uint8_t channel);
 

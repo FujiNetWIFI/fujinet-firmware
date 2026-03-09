@@ -1,8 +1,10 @@
 #ifndef RS232_H
 #define RS232_H
 
-#include "cmdFrame.h"
+#include "bus.h"
 #include "UARTChannel.h"
+#include "FujiBusPacket.h"
+#include "../drivewire/BeckerSocket.h"
 
 #ifdef ESP_PLATFORM
 #include <freertos/FreeRTOS.h>
@@ -17,6 +19,16 @@
 #define DELAY_T4 800
 #define DELAY_T5 800
 
+enum FujiStatusReq {
+    STATUS_NETWORK_CONNERR = 0,
+    STATUS_NETWORK_IP      = 1,
+    STATUS_NETWORK_NETMASK = 2,
+    STATUS_NETWORK_GATEWAY = 3,
+    STATUS_NETWORK_DNS     = 4,
+
+    STATUS_MOUNT_TIME      = 1,
+};
+
 // helper functions
 uint8_t rs232_checksum(uint8_t *buf, unsigned short len);
 
@@ -29,85 +41,42 @@ class rs232UDPStream; // declare here so can reference it, but define in udpstre
 class rs232Cassette; // Cassette forward-declaration.
 class rs232CPM;      // CPM device.
 class rs232Printer;  // Printer device
+class fujiDevice;
 
 class virtualDevice
 {
-protected:
     friend systemBus;
+    friend fujiDevice;
 
+protected:
     fujiDeviceID_t _devnum;
 
-    cmdFrame_t cmdFrame;
     bool listen_to_type3_polls = false;
 
-    /**
-     * @brief Send the desired buffer to the Atari.
-     * @param buff The byte buffer to send to the Atari
-     * @param len The length of the buffer to send to the Atari.
-     * @return TRUE if the Atari processed the data in error, FALSE if the Atari successfully processed
-     * the data.
-     */
-    void bus_to_computer(uint8_t *buff, uint16_t len, bool err);
+    transState_t _transaction_state = TRANS_STATE::INVALID;
+    virtual void transaction_continue(transState_t expectMoreData);
+    virtual void transaction_complete();
+    virtual void transaction_error();
+    virtual bool transaction_get(void *data, size_t len);
+    virtual void transaction_put(const void *data, size_t len, bool err);
 
-    /**
-     * @brief Receive data from the Atari.
-     * @param buff The byte buffer provided for data from the Atari.
-     * @param len The length of the amount of data to receive from the Atari.
-     * @return An 8-bit wrap-around checksum calculated by the Atari, which should be checked with rs232_checksum()
-     */
-    uint8_t bus_to_peripheral(uint8_t *buff, uint16_t len);
-
-    /**
-     * @brief Send an acknowledgement byte to the Atari 'A'
-     * This should be used if the command received by the RS232 device is valid, and is used to signal to the
-     * Atari that we are now processing the command.
-     */
-    void rs232_ack();
-
-    /**
-     * @brief Send a non-acknowledgement (NAK) to the Atari 'N'
-     * This should be used if the command received by the RS232 device is invalid, in the first place. It is not
-     * the same as rs232_error().
-     */
-    void rs232_nak();
-
-    /**
-     * @brief Send a COMPLETE to the Atari 'C'
-     * This should be used after processing of the command to indicate that we've successfully finished. Failure to send
-     * either a COMPLETE or ERROR will result in a RS232 TIMEOUT (138) to be reported in DSTATS.
-     */
-    void rs232_complete();
-
-    /**
-     * @brief Send an ERROR to the Atari 'E'
-     * This should be used during or after processing of the command to indicate that an error resulted
-     * from processing the command, and that the Atari should probably re-try the command. Failure to
-     * send an ERROR or COMPLTE will result in a RS232 TIMEOUT (138) to be reported in DSTATS.
-     */
-    void rs232_error();
-
-    /**
-     * @brief Return the aux bytes in cmdFrame as a single 16-bit or
-     * 32-bit value, commonly used, for example to retrieve a sector
-     * number, for disk, or a number of bytes waiting for the
-     * rs232Network device.
-     */
-    // FIXME - these should probably be macros
-    uint16_t rs232_get_aux16_lo();
-    uint16_t rs232_get_aux16_hi();
-    uint32_t rs232_get_aux32();
+    // FIXME - This is a terrible hack to allow devices to continue to
+    // use the pattern of fetching data on their own instead of
+    // upgrading them fully to work with packets.
+    FujiBusPacket *_legacyPacketData;
+    size_t _legacyDataPosition;
 
     /**
      * @brief All RS232 commands by convention should return a status command, using bus_to_computer() to return
      * four bytes of status information to be put into DVSTAT ($02EA)
      */
-    virtual void rs232_status() = 0;
+    virtual void rs232_status(FujiStatusReq reqType) = 0;
 
     /**
      * @brief All RS232 devices repeatedly call this routine to fan out to other methods for each command.
      * This is typcially implemented as a switch() statement.
      */
-    virtual void rs232_process(cmdFrame_t *cmd_ptr) = 0;
+    virtual void rs232_process(FujiBusPacket &packet) = 0;
 
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};
@@ -118,12 +87,6 @@ public:
      * @return The device number registered for this device
      */
     fujiDeviceID_t id() { return _devnum; };
-
-    /**
-     * @brief Command 0x3F '?' intended to return a single byte to the atari via bus_to_computer(), which
-     * signifies the high speed RS232 divisor chosen by the user in their #FujiNet configuration.
-     */
-    virtual void rs232_high_speed();
 
     /**
      * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?
@@ -176,11 +139,9 @@ private:
 
     bool useUltraHigh = false; // Use fujinet derived clock.
 
-#if FUJINET_OVER_USB
-    ACMChannel _port;
-#else /* ! FUJINET_OVER_USB */
-    UARTChannel _port;
-#endif /* FUJINET_OVER_USB */
+    IOChannel *_port;
+    UARTChannel _serial;
+    BeckerSocket _becker;
 
     void _rs232_process_cmd();
     /* void _rs232_process_queue(); */
@@ -216,19 +177,29 @@ public:
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
 
-    // Everybody thinks "oh I know how a serial port works, I'll just
-    // access it directly and bypass the bus!" ಠ_ಠ
-    size_t read(void *buffer, size_t length) { return _port.read(buffer, length); }
-    size_t read() { return _port.read(); }
-    size_t write(const void *buffer, size_t length) { return _port.write(buffer, length); }
-    size_t write(int n) { return _port.write(n); }
-    size_t available() { return _port.available(); }
-    void flushOutput() { _port.flushOutput(); }
-    size_t print(int n, int base = 10) { return _port.print(n, base); }
-    size_t print(const char *str) { return _port.print(str); }
-    size_t print(const std::string &str) { return _port.print(str); }
+    std::unique_ptr<FujiBusPacket> readBusPacket();
+    void writeBusPacket(FujiBusPacket &packet);
+    void sendReplyPacket(fujiDeviceID_t source, bool ack, const void *data, size_t length);
+    template<typename... Args>
+    std::unique_ptr<FujiBusPacket> sendCommand(fujiDeviceID_t device,
+                                               fujiCommandID_t command,
+                                               Args&&... args)
+    {
+        FujiBusPacket packet(device, command, std::forward<Args>(args)...);
+        writeBusPacket(packet);
+        return readBusPacket();
+    }
+
+    // Convenience wrapper: raw buffer
+    std::unique_ptr<FujiBusPacket> sendCommand(fujiDeviceID_t device,
+                                               fujiCommandID_t command,
+                                               void *buf, size_t len)
+    {
+        std::string data(reinterpret_cast<const char*>(buf), static_cast<size_t>(len));
+        return sendCommand(device, command, std::move(data));
+    }
 };
 
 extern systemBus SYSTEM_BUS;
 
-#endif // guard
+#endif /* RS232_H */

@@ -593,7 +593,7 @@ void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
         return;
     }
 
-    transaction_continue(false);
+    transaction_continue(TRANS_STATE::NO_GET);
     Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu) (addtl=%02x)\n", maxlen, addtl);
 
     auto current_entry = fujicore_read_directory_entry(maxlen, addtl);

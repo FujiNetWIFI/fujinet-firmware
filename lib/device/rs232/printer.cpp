@@ -77,9 +77,7 @@ void rs232Printer::rs232_write(uint8_t aux1, uint8_t aux2)
     }
 
     memset(_buffer, 0, sizeof(_buffer)); // clear _buffer
-    uint8_t ck = bus_to_peripheral(_buffer, linelen);
-
-    if (ck == rs232_checksum(_buffer, linelen))
+    if (transaction_get(_buffer, linelen))
     {
         if (linelen == 29)
         {
@@ -97,15 +95,15 @@ void rs232Printer::rs232_write(uint8_t aux1, uint8_t aux2)
         memcpy(_pptr->provideBuffer(), _buffer, linelen);
 
         if (_pptr->process(linelen, aux1, aux2))
-            rs232_complete();
+            transaction_complete();
         else
         {
-            rs232_error();
+            transaction_error();
         }
     }
     else
     {
-        rs232_error();
+        transaction_error();
     }
 }
 
@@ -120,7 +118,7 @@ void rs232Printer::print_from_cpm(uint8_t c)
 }
 
 // Status
-void rs232Printer::rs232_status()
+void rs232Printer::rs232_status(FujiStatusReq reqType)
 {
     /*
   STATUS frame per the 400/800 OS ROM Manual
@@ -155,7 +153,7 @@ void rs232Printer::rs232_status()
     status[2] = 5;
     status[3] = 0;
 
-    bus_to_computer(status, sizeof(status), false);
+    transaction_put(status, sizeof(status), false);
 }
 
 void rs232Printer::set_printer_type(rs232Printer::printer_type printer_type)
@@ -279,7 +277,7 @@ rs232Printer::printer_type rs232Printer::match_modelname(const std::string &mode
 }
 
 // Process command
-void rs232Printer::rs232_process(cmdFrame_t *cmd_ptr)
+void rs232Printer::rs232_process(FujiBusPacket &packet)
 {
     if (!Config.get_printer_enabled())
     {
@@ -287,24 +285,23 @@ void rs232Printer::rs232_process(cmdFrame_t *cmd_ptr)
     }
     else
     {
-        cmdFrame = *cmd_ptr;
-        switch (cmdFrame.comnd)
+        switch (packet.command())
         {
         case RS232_PRINTERCMD_PUT: // Needed by A822 for graphics mode printing
         case RS232_PRINTERCMD_WRITE:
-            _lastaux1 = cmd_ptr->aux1;
-            _lastaux2 = cmd_ptr->aux2;
+            _lastaux1 = packet.param(0);
+            _lastaux2 = packet.param(1);
             _last_ms = fnSystem.millis();
-            rs232_ack();
+            transaction_continue(TRANS_STATE::NO_GET);
             rs232_write(_lastaux1, _lastaux2);
             break;
         case RS232_PRINTERCMD_STATUS:
             _last_ms = fnSystem.millis();
-            rs232_ack();
-            rs232_status();
+            transaction_continue(TRANS_STATE::NO_GET);
+            rs232_status(static_cast<FujiStatusReq>(packet.param(0)));
             break;
         default:
-            rs232_nak();
+            transaction_error();
         }
     }
 }

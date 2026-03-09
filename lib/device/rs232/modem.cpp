@@ -36,8 +36,7 @@ static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *us
     switch (ev->type)
     {
     case TELNET_EV_DATA:
-        if (ev->data.size && SYSTEM_BUS.write((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
-            Debug_printf("_telnet_event_handler(%d) - Could not write complete buffer to RS232.\n", ev->type);
+        modem->telnetWrite(ev->data.buffer, ev->data.size);
         break;
     case TELNET_EV_SEND:
         modem->get_tcp_client().write((uint8_t *)ev->data.buffer, ev->data.size);
@@ -93,7 +92,7 @@ rs232Modem::~rs232Modem()
 }
 
 // 0x57 / 'W' - WRITE
-void rs232Modem::rs232_write()
+void rs232Modem::rs232_write(uint8_t ch)
 {
     uint8_t ck;
 
@@ -103,26 +102,24 @@ void rs232Modem::rs232_write()
        AUX2: NA
        Payload always padded to 64 bytes
     */
-    if (cmdFrame.aux1 == 0)
+    if (ch == 0)
     {
-        rs232_complete();
+        transaction_complete();
     }
     else
     {
         memset(txBuf, 0, sizeof(txBuf));
 
-        ck = bus_to_peripheral(txBuf, 64);
-
-        if (ck != rs232_checksum(txBuf, 64))
+        if (!transaction_get(txBuf, 64))
         {
-            rs232_error();
+            transaction_error();
         }
         else
         {
             if (cmdMode == true)
             {
                 cmdOutput = false;
-                cmd.assign((char *)txBuf, cmdFrame.aux1);
+                cmd.assign((char *)txBuf, ch);
 
                 if (cmd == "ATA\r")
                     answerHack = true;
@@ -134,16 +131,16 @@ void rs232Modem::rs232_write()
             else
             {
                 if (tcpClient.connected())
-                    tcpClient.write(txBuf, cmdFrame.aux1);
+                    tcpClient.write(txBuf, ch);
             }
 
-            rs232_complete();
+            transaction_complete();
         }
     }
 }
 
 // 0x53 / 'S' - STATUS
-void rs232Modem::rs232_status()
+void rs232Modem::rs232_status(FujiStatusReq reqType)
 {
 
     Debug_println("Modem cmd: STATUS");
@@ -183,7 +180,7 @@ void rs232Modem::rs232_status()
 
     Debug_printf("rs232Modem::rs232_status(%02x,%02x)\n", mdmStatus[0], mdmStatus[1]);
 
-    bus_to_computer(mdmStatus, sizeof(mdmStatus), false);
+    transaction_put(mdmStatus, sizeof(mdmStatus), false);
 }
 
 // 0x41 / 'A' - CONTROL
@@ -203,6 +200,7 @@ void rs232Modem::rs232_control()
 
     Debug_println("Modem cmd: CONTROL");
 
+#ifdef OBSOLETE
     if (cmdFrame.aux1 & 0x02)
     {
         XMT = (cmdFrame.aux1 & 0x01 ? true : false);
@@ -234,8 +232,9 @@ void rs232Modem::rs232_control()
             }
         }
     }
+#endif /* OBSOLETE */
     // for now, just complete
-    rs232_complete();
+    transaction_complete();
 }
 
 // 0x42 / 'B' - CONFIGURE
@@ -266,11 +265,15 @@ void rs232Modem::rs232_config()
          0: Watch CRX line
     */
     // Complete and then set newbaud
-    rs232_complete();
+    transaction_complete();
 
+#ifdef OBSOLETE
     uint8_t newBaud = 0x0F & cmdFrame.aux1; // Get baud rate
     //uint8_t wordSize = 0x30 & cmdFrame.aux1; // Get word size
     //uint8_t stopBit = (1 << 7) & cmdFrame.aux1; // Get stop bits
+#else
+    uint8_t newBaud = SIO_BAUD_9600;
+#endif /* OBSOLETE */
 
     // Do not reset MODEM baud rate if locked.
     if (baudLock == true)
@@ -310,10 +313,10 @@ void rs232Modem::rs232_config()
 }
 
 // 0x44 / 'D' - Dump
-void rs232Modem::rs232_set_dump()
+void rs232Modem::rs232_set_dump(bool enable)
 {
-    modemSniffer->setEnable(cmdFrame.aux1);
-    rs232_complete();
+    modemSniffer->setEnable(enable);
+    transaction_complete();
 }
 
 // 0x58 / 'X' - STREAM
@@ -367,7 +370,7 @@ void rs232Modem::rs232_stream()
         break;
     }
 
-    bus_to_computer((uint8_t *)response, sizeof(response), false);
+    transaction_put((uint8_t *)response, sizeof(response), false);
 
     SYSTEM_BUS.setBaudrate(modemBaud);
     modemActive = true;
@@ -377,25 +380,24 @@ void rs232Modem::rs232_stream()
 /**
  * Set listen port
  */
-void rs232Modem::rs232_listen()
+void rs232Modem::rs232_listen(unsigned short newPort)
 {
+    listenPort = newPort;
     if (listenPort != 0)
     {
         tcpClient.stop();
         tcpServer.stop();
     }
 
-    listenPort = cmdFrame.aux2 * 256 + cmdFrame.aux1;
-
     if (listenPort < 1)
-        rs232_nak();
+        transaction_error();
     else
-        rs232_ack();
+        transaction_continue(TRANS_STATE::NO_GET);
 
     tcpServer.setMaxClients(1);
     tcpServer.begin(listenPort);
 
-    rs232_complete();
+    transaction_complete();
 }
 
 /**
@@ -403,37 +405,37 @@ void rs232Modem::rs232_listen()
  */
 void rs232Modem::rs232_unlisten()
 {
-    rs232_ack();
+    transaction_continue(TRANS_STATE::NO_GET);
     tcpClient.stop();
     tcpServer.stop();
-    rs232_complete();
+    transaction_complete();
 }
 
 /**
  * Lock MODEM baud rate to last configured value
  */
-void rs232Modem::rs232_baudlock()
+void rs232Modem::rs232_baudlock(bool enable, unsigned int newBaud)
 {
-    rs232_ack();
-    baudLock = (cmdFrame.aux1 > 0 ? true : false);
-    modemBaud = rs232_get_aux16_lo();
+    transaction_continue(TRANS_STATE::NO_GET);
+    baudLock = enable;
+    modemBaud = newBaud;
 
     Debug_printf("baudLock: %d\n", baudLock);
 
-    rs232_complete();
+    transaction_complete();
 }
 
 /**
  * enable/disable auto-answer
  */
-void rs232Modem::rs232_autoanswer()
+void rs232Modem::rs232_autoanswer(bool enable)
 {
-    rs232_ack();
-    autoAnswer = (cmdFrame.aux1 > 0 ? true : false);
+    transaction_continue(TRANS_STATE::NO_GET);
+    autoAnswer = enable;
 
     Debug_printf("autoanswer: %d\n", autoAnswer);
 
-    rs232_complete();
+    transaction_complete();
 }
 
 void rs232Modem::at_connect_resultCode(int modemBaud)
@@ -463,8 +465,8 @@ void rs232Modem::at_connect_resultCode(int modemBaud)
         resultCode = 1;
         break;
     }
-    SYSTEM_BUS.print(resultCode);
-    SYSTEM_BUS.write(ASCII_CR);
+    print(resultCode);
+    write(ASCII_CR);
 }
 
 /**
@@ -473,9 +475,9 @@ void rs232Modem::at_connect_resultCode(int modemBaud)
  */
 void rs232Modem::at_cmd_resultCode(int resultCode)
 {
-    SYSTEM_BUS.print(resultCode);
-    SYSTEM_BUS.write(ASCII_CR);
-    SYSTEM_BUS.write(ASCII_LF);
+    print(resultCode);
+    write(ASCII_CR);
+    write(ASCII_LF);
 }
 
 /**
@@ -488,14 +490,14 @@ void rs232Modem::at_cmd_println()
 
     if (cmdAtascii == true)
     {
-        SYSTEM_BUS.write(ATASCII_EOL);
+        write(ATASCII_EOL);
     }
     else
     {
-        SYSTEM_BUS.write(ASCII_CR);
-        SYSTEM_BUS.write(ASCII_LF);
+        write(ASCII_CR);
+        write(ASCII_LF);
     }
-    SYSTEM_BUS.flushOutput();
+    sendReplyPacket();
 }
 
 void rs232Modem::at_cmd_println(const char *s, bool addEol)
@@ -503,20 +505,20 @@ void rs232Modem::at_cmd_println(const char *s, bool addEol)
     if (cmdOutput == false)
         return;
 
-    SYSTEM_BUS.print(s);
+    print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            SYSTEM_BUS.write(ATASCII_EOL);
+            write(ATASCII_EOL);
         }
         else
         {
-            SYSTEM_BUS.write(ASCII_CR);
-            SYSTEM_BUS.write(ASCII_LF);
+            write(ASCII_CR);
+            write(ASCII_LF);
         }
     }
-    SYSTEM_BUS.flushOutput();
+    sendReplyPacket();
 }
 
 void rs232Modem::at_cmd_println(int i, bool addEol)
@@ -524,20 +526,20 @@ void rs232Modem::at_cmd_println(int i, bool addEol)
     if (cmdOutput == false)
         return;
 
-    SYSTEM_BUS.print(i);
+    print(i);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            SYSTEM_BUS.write(ATASCII_EOL);
+            write(ATASCII_EOL);
         }
         else
         {
-            SYSTEM_BUS.write(ASCII_CR);
-            SYSTEM_BUS.write(ASCII_LF);
+            write(ASCII_CR);
+            write(ASCII_LF);
         }
     }
-    SYSTEM_BUS.flushOutput();
+    sendReplyPacket();
 }
 
 void rs232Modem::at_cmd_println(std::string s, bool addEol)
@@ -545,20 +547,20 @@ void rs232Modem::at_cmd_println(std::string s, bool addEol)
     if (cmdOutput == false)
         return;
 
-    SYSTEM_BUS.print(s);
+    print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            SYSTEM_BUS.write(ATASCII_EOL);
+            write(ATASCII_EOL);
         }
         else
         {
-            SYSTEM_BUS.write(ASCII_CR);
-            SYSTEM_BUS.write(ASCII_LF);
+            write(ASCII_CR);
+            write(ASCII_LF);
         }
     }
-    SYSTEM_BUS.flushOutput();
+    sendReplyPacket();
 }
 
 void rs232Modem::at_handle_wificonnect()
@@ -824,7 +826,7 @@ void rs232Modem::at_handle_answer()
         CRX = true;
 
         cmdMode = false;
-        SYSTEM_BUS.flushOutput();
+        sendReplyPacket();
         answerHack = false;
     }
 }
@@ -1328,6 +1330,7 @@ void rs232Modem::modemCommand()
     cmd = "";
 }
 
+#ifdef OBSOLETE
 /*
   Handle incoming & outgoing data for modem
 */
@@ -1367,11 +1370,9 @@ void rs232Modem::rs232_handle_modem()
         }
 
         // In command mode - don't exchange with TCP but gather characters to a string
-        //if (RS232_UART.available() /*|| blockWritePending == true */ )
         if (SYSTEM_BUS.available() > 0)
         {
             // get char from Atari RS232
-            //char chr = RS232_UART.read();
             uint8_t chr = SYSTEM_BUS.read();
 
             // Return, enter, new line, carriage return.. anything goes to end the command
@@ -1397,9 +1398,9 @@ void rs232Modem::rs232_handle_modem()
                     // Clear with a space
                     if (commandEcho == true)
                     {
-                        SYSTEM_BUS.write(ASCII_BACKSPACE);
-                        SYSTEM_BUS.write(' ');
-                        SYSTEM_BUS.write(ASCII_BACKSPACE);
+                        write(ASCII_BACKSPACE);
+                        write(' ');
+                        write(ASCII_BACKSPACE);
                     }
                 }
             }
@@ -1412,7 +1413,7 @@ void rs232Modem::rs232_handle_modem()
                 {
                     cmd.erase(len - 1);
                     if (commandEcho == true)
-                        SYSTEM_BUS.write(ATASCII_BACKSPACE);
+                        write(ATASCII_BACKSPACE);
                 }
             }
             // Take into account arrow key movement and clear screen
@@ -1420,7 +1421,7 @@ void rs232Modem::rs232_handle_modem()
                      ((chr >= ATASCII_CURSOR_UP) && (chr <= ATASCII_CURSOR_RIGHT)))
             {
                 if (commandEcho == true)
-                    SYSTEM_BUS.write(chr);
+                    write(chr);
             }
             else
             {
@@ -1430,7 +1431,7 @@ void rs232Modem::rs232_handle_modem()
                     cmd += chr;
                 }
                 if (commandEcho == true)
-                    SYSTEM_BUS.write(chr);
+                    write(chr);
             }
         }
     }
@@ -1527,8 +1528,8 @@ void rs232Modem::rs232_handle_modem()
             }
             else
             {
-                SYSTEM_BUS.write(buf, bytesRead);
-                SYSTEM_BUS.flushOutput();
+                write(buf, bytesRead);
+                sendReplyPacket();
             }
 
             // And dump to sniffer, if enabled.
@@ -1591,6 +1592,7 @@ void rs232Modem::rs232_handle_modem()
         }
     }
 }
+#endif /* OBSOLETE */
 
 void rs232Modem::shutdown()
 {
@@ -1602,7 +1604,7 @@ void rs232Modem::shutdown()
 /*
   Process command
 */
-void rs232Modem::rs232_process(cmdFrame_t *cmd_ptr)
+void rs232Modem::rs232_process(FujiBusPacket &packet)
 {
     if (!Config.get_modem_enabled())
     {
@@ -1612,49 +1614,89 @@ void rs232Modem::rs232_process(cmdFrame_t *cmd_ptr)
     {
         Debug_println("rs232Modem::rs232_process() called");
 
-        cmdFrame = *cmd_ptr;
-        switch (cmdFrame.comnd)
+        switch (packet.command())
         {
         case MODEMCMD_CONTROL:
-            rs232_ack();
+            transaction_continue(TRANS_STATE::NO_GET);
             rs232_control();
             break;
         case MODEMCMD_CONFIGURE:
-            rs232_ack();
+            transaction_continue(TRANS_STATE::NO_GET);
             rs232_config();
             break;
         case MODEMCMD_SET_DUMP:
-            rs232_ack();
-            rs232_set_dump();
+            transaction_continue(TRANS_STATE::NO_GET);
+            rs232_set_dump(packet.param(0));
             break;
         case MODEMCMD_LISTEN:
-            rs232_listen();
+            rs232_listen(packet.param(0));
             break;
         case MODEMCMD_UNLISTEN:
             rs232_unlisten();
             break;
         case MODEMCMD_BAUDRATELOCK:
-            rs232_baudlock();
+            rs232_baudlock(packet.param(0), packet.param(1));
             break;
         case MODEMCMD_AUTOANSWER:
-            rs232_autoanswer();
+            rs232_autoanswer(packet.param(0));
             break;
         case MODEMCMD_STATUS:
-            rs232_ack();
-            rs232_status();
+            transaction_continue(TRANS_STATE::NO_GET);
+            rs232_status(static_cast<FujiStatusReq>(packet.param(0)));
             break;
         case MODEMCMD_WRITE:
-            rs232_ack();
-            rs232_write();
+            transaction_continue(TRANS_STATE::NO_GET);
+            rs232_write(packet.param(0));
             break;
         case MODEMCMD_STREAM:
-            rs232_ack();
+            transaction_continue(TRANS_STATE::NO_GET);
             rs232_stream();
             break;
         default:
-            rs232_nak();
+            transaction_error();
         }
     }
+}
+
+size_t rs232Modem::print(int n)
+{
+    std::string fmt = std::to_string(n);
+    _packetData.insert(_packetData.end(), fmt.begin(), fmt.end());
+    return fmt.size();
+}
+
+size_t rs232Modem::print(const char *str)
+{
+    size_t len = strlen(str);
+    _packetData.insert(_packetData.end(), str, str + len);
+    return len;
+}
+
+size_t rs232Modem::print(const std::string &str)
+{
+    _packetData.insert(_packetData.end(), str.begin(), str.end());
+    return str.size();
+}
+
+size_t rs232Modem::write(int n)
+{
+    _packetData.push_back(n);
+    return 1;
+}
+
+void rs232Modem::sendReplyPacket()
+{
+    SYSTEM_BUS.sendReplyPacket(_devnum, true, _packetData.data(), _packetData.size());
+    _packetData.clear();
+    _packetData.shrink_to_fit();
+    return;
+}
+
+size_t rs232Modem::telnetWrite(const void *data, size_t len)
+{
+    uint8_t *ptr = (uint8_t *) data;
+    _packetData.insert(_packetData.end(), ptr, ptr + len);
+    return len;
 }
 
 #endif /* BUILD_RS232 */

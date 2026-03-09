@@ -50,17 +50,16 @@ void rs232Fuji::setup()
 }
 
 // Status
-void rs232Fuji::rs232_status()
+void rs232Fuji::rs232_status(FujiStatusReq reqType)
 {
-    transaction_continue(false);
+    transaction_continue(TRANS_STATE::NO_GET);
     Debug_println("Fuji cmd: STATUS");
 
-    if (cmdFrame.aux == STATUS_MOUNT_TIME)
+    if (reqType == STATUS_MOUNT_TIME)
     {
         // Return drive slot mount status: 0 if unmounted, otherwise time when mounted
         time_t mount_status[MAX_DISK_DEVICES];
         int idx;
-
 
         for (idx = 0; idx < MAX_DISK_DEVICES; idx++)
             mount_status[idx] = _fnDisks[idx].disk_dev.mount_time();
@@ -71,7 +70,7 @@ void rs232Fuji::rs232_status()
     {
         char ret[4] = {0};
 
-        Debug_printf("Status for what? %08lx\n", cmdFrame.aux);
+        Debug_printf("Status for what? %08x\n", reqType);
         transaction_put((uint8_t *)ret, sizeof(ret), false);
     }
     return;
@@ -81,32 +80,17 @@ void rs232Fuji::rs232_status()
 void rs232Fuji::rs232_net_set_ssid(bool save) // was aux1
 {
     SSIDConfig cfg;
-    transaction_continue(false);
+    transaction_continue(TRANS_STATE::NO_GET);
     if (!transaction_get((uint8_t *)&cfg, sizeof(cfg)))
         transaction_error();
     else
         fujicmd_net_set_ssid_success(cfg.ssid, cfg.password, save);
 }
 
-// Do RS232 copy
-void rs232Fuji::rs232_copy_file()
-{
-    char csBuf[256];
-
-    transaction_continue(true);
-    if (!transaction_get(csBuf, sizeof(csBuf)))
-    {
-        transaction_error();
-        return;
-    }
-
-    fujicmd_copy_file_success(cmdFrame.aux1, cmdFrame.aux2, csBuf);
-}
-
 //  Make new disk and shove into device slot
 void rs232Fuji::rs232_new_disk()
 {
-    transaction_continue(true);
+    transaction_continue(TRANS_STATE::WILL_GET);
     Debug_println("Fuji cmd: NEW DISK");
 
     struct
@@ -172,7 +156,7 @@ void rs232Fuji::rs232_test()
 {
     uint8_t buf[512];
 
-    transaction_continue(false);
+    transaction_continue(TRANS_STATE::NO_GET);
     Debug_printf("rs232_test()\n");
     memset(buf, 'A', 512);
     transaction_put(buf, 512, false);
@@ -206,15 +190,19 @@ size_t rs232Fuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *des
     return sizeof(custom_details);
 }
 
-void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
+void rs232Fuji::rs232_process(FujiBusPacket &packet)
 {
     Debug_println("rs232Fuji::rs232_process() called");
 
-    cmdFrame = *cmd_ptr;
-    switch (cmdFrame.comnd)
+    switch (packet.command())
     {
     case FUJICMD_STATUS:
-        rs232_status();
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient status paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            rs232_status(static_cast<FujiStatusReq>(packet.param(0)));
         break;
     case FUJICMD_RESET:
         fujicmd_reset();
@@ -223,10 +211,20 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         fujicmd_net_scan_networks();
         break;
     case FUJICMD_GET_SCAN_RESULT:
-        fujicmd_net_scan_result(cmdFrame.aux1);
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient scan paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_net_scan_result(packet.param(0));
         break;
     case FUJICMD_SET_SSID:
-        rs232_net_set_ssid(cmdFrame.aux1);
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient SSID paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            rs232_net_set_ssid(packet.param(0));
         break;
     case FUJICMD_GET_SSID:
         fujicmd_net_get_ssid();
@@ -235,16 +233,36 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         fujicmd_net_get_wifi_status();
         break;
     case FUJICMD_MOUNT_HOST:
-        fujicmd_mount_host_success(cmdFrame.aux1);
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient mount host paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_mount_host_success(packet.param(0));
         break;
     case FUJICMD_MOUNT_IMAGE:
-        fujicmd_mount_disk_image_success(cmdFrame.aux1, (disk_access_flags_t) cmdFrame.aux2);
+        if (packet.paramCount() < 2) {
+            Debug_printv("Insufficient mount image paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_mount_disk_image_success(packet.param(0), (disk_access_flags_t) packet.param(1));
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        fujicmd_open_directory_success(cmdFrame.aux1);
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient open dir paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_open_directory_success(packet.param(0));
         break;
     case FUJICMD_READ_DIR_ENTRY:
-        fujicmd_read_directory_entry(cmdFrame.aux1, cmdFrame.aux2);
+        if (packet.paramCount() < 2) {
+            Debug_printv("Insufficient read dir paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_read_directory_entry(packet.param(0), packet.param(1));
         break;
     case FUJICMD_CLOSE_DIRECTORY:
         fujicmd_close_directory();
@@ -253,7 +271,12 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         fujicmd_get_directory_position();
         break;
     case FUJICMD_SET_DIRECTORY_POSITION:
-        fujicmd_set_directory_position(cmdFrame.aux1);
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient set dir position paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_set_directory_position(packet.param(0));
         break;
     case FUJICMD_READ_HOST_SLOTS:
         fujicmd_read_host_slots();
@@ -271,7 +294,12 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         fujicmd_net_get_wifi_enabled();
         break;
     case FUJICMD_UNMOUNT_IMAGE:
-        fujicmd_unmount_disk_image_success(cmdFrame.aux1);
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient unmount image paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_unmount_disk_image_success(packet.param(0));
         break;
     case FUJICMD_GET_ADAPTERCONFIG:
         fujicmd_get_adapter_config();
@@ -283,17 +311,32 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         rs232_new_disk();
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
-        fujicmd_set_device_filename_success(cmdFrame.aux1, cmdFrame.aux2,
-                                            (disk_access_flags_t) cmdFrame.aux3);
+        if (packet.paramCount() < 3) {
+            Debug_printv("Insufficient set device fullpath paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_set_device_filename_success(packet.param(0), packet.param(1),
+                                                (disk_access_flags_t) packet.param(2));
         break;
     case FUJICMD_SET_HOST_PREFIX:
-        fujicmd_set_host_prefix(cmdFrame.aux1);
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient set host prefix paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_set_host_prefix(packet.param(0));
         break;
     case FUJICMD_GET_HOST_PREFIX:
-        fujicmd_get_host_prefix(cmdFrame.aux1);
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient get host prefix paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_get_host_prefix(packet.param(0));
         break;
     case FUJICMD_WRITE_APPKEY:
-        fujicmd_write_app_key(cmdFrame.aux1);
+        fujicmd_write_app_key(packet.data()->size());
         break;
     case FUJICMD_READ_APPKEY:
         fujicmd_read_app_key();
@@ -305,19 +348,40 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         fujicmd_close_app_key();
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
-        fujicmd_get_device_filename(cmdFrame.aux1);
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient get device fullpath paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_get_device_filename(packet.param(0));
         break;
     case FUJICMD_CONFIG_BOOT:
-        fujicmd_set_boot_config(cmdFrame.aux1);
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient config boot paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_set_boot_config(packet.param(0));
         break;
     case FUJICMD_COPY_FILE:
-        rs232_copy_file();
+        if (packet.paramCount() < 2 || !packet.data().has_value()) {
+            Debug_printv("Insufficient copy files paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_copy_file_success(packet.param(0), packet.param(1),
+                                      packet.dataAsString().value_or(""));
         break;
     case FUJICMD_MOUNT_ALL:
         fujicmd_mount_all_success();
         break;
     case FUJICMD_SET_BOOT_MODE:
-        fujicmd_set_boot_mode(cmdFrame.aux1, MEDIATYPE_UNKNOWN, &bootdisk);
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient set boot mode paramaters: %d", packet.paramCount());
+            transaction_error();
+        }
+        else
+            fujicmd_set_boot_mode(packet.param(0), MEDIATYPE_UNKNOWN, &bootdisk);
         break;
     case FUJICMD_DEVICE_READY:
         Debug_printf("FUJICMD DEVICE TEST\n");
@@ -329,6 +393,21 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
     default:
         transaction_error();
     }
+}
+
+std::optional<std::vector<uint8_t>> rs232Fuji::fujicore_read_app_key()
+{
+    auto result = fujiDevice::fujicore_read_app_key();
+
+    if (result)
+    {
+        uint16_t len = htole16(result->size());
+        result->resize(result->size() + sizeof(len), 0);
+        const uint8_t *len_bytes = reinterpret_cast<const uint8_t*>(&len);
+        result->insert(result->begin(), len_bytes, len_bytes + sizeof(len));
+    }
+
+    return result;
 }
 
 #endif /* BUILD_RS232 */

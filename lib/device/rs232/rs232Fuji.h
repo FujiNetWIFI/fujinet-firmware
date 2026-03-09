@@ -11,35 +11,21 @@ class rs232Fuji : public fujiDevice
 private:
 
 protected:
-    bool _transaction_did_ack = false;
-    void transaction_continue(bool expectMoreData) override {
-        assert(!_transaction_did_ack);
-        rs232_ack();
-        _transaction_did_ack = true;
+    // Temporary until all platforms have transaction_ methods in virtualDevice base class
+    void transaction_continue(transState_t expectMoreData) override {
+        virtualDevice::transaction_continue(expectMoreData);
     }
     void transaction_complete() override {
-        assert(_transaction_did_ack);
-        rs232_complete();
-        _transaction_did_ack = false;
+        virtualDevice::transaction_complete();
     }
     void transaction_error() override {
-        if (_transaction_did_ack)
-            rs232_error();
-        else
-            rs232_nak();
-        _transaction_did_ack = false;
+        virtualDevice::transaction_error();
     }
     bool transaction_get(void *data, size_t len) override {
-        assert(_transaction_did_ack);
-        uint8_t ck = bus_to_peripheral((uint8_t *) data, len);
-        if (rs232_checksum((uint8_t *) data, len) != ck)
-            return false;
-        return true;
+        return virtualDevice::transaction_get(data, len);
     }
     void transaction_put(const void *data, size_t len, bool err) override {
-        assert(_transaction_did_ack);
-        bus_to_computer((uint8_t *) data, len, err);
-        _transaction_did_ack = false;
+        virtualDevice::transaction_put(data, len, err);
     }
 
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
@@ -47,16 +33,16 @@ protected:
 
     void rs232_net_set_ssid(bool save);    // 0xFB
     void rs232_new_disk();                 // 0xE7
-    void rs232_copy_file();                // 0xD8
     void rs232_test();                     // 0x00
 
 public:
     rs232Fuji();
     void setup() override;
-    void rs232_status() override;
-    void rs232_process(cmdFrame_t *cmd_ptr) override;
+    void rs232_status(FujiStatusReq reqType) override;
+    void rs232_process(FujiBusPacket &packet) override;
 
     // ============ Wrapped Fuji commands ============
+    std::optional<std::vector<uint8_t>> fujicore_read_app_key() override;
 };
 
 #endif /* RS232FUJI_H */

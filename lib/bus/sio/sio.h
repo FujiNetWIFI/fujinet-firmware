@@ -70,12 +70,14 @@ class sioUDPStream;   // declare here so can reference it, but define in udpstre
 class sioCassette;    // Cassette forward-declaration.
 class sioCPM;         // CPM device.
 class sioPrinter;     // Printer device
+class fujiDevice;
 
 class virtualDevice
 {
-protected:
     friend systemBus;
+    friend fujiDevice;
 
+protected:
     fujiDeviceID_t _devnum;
 
     cmdFrame_t cmdFrame;

@@ -1,6 +1,7 @@
 #ifdef BUILD_RS232
 
 #include "rs232.h"
+#include "FujiBusPacket.h"
 
 #include "../../include/debug.h"
 
@@ -25,21 +26,6 @@
 
 // Helper functions outside the class defintions
 
-uint16_t virtualDevice::rs232_get_aux16_lo()
-{
-    return le16toh(cmdFrame.aux12);
-}
-
-uint16_t virtualDevice::rs232_get_aux16_hi()
-{
-    return le16toh(cmdFrame.aux34);
-}
-
-uint32_t virtualDevice::rs232_get_aux32()
-{
-    return le32toh(cmdFrame.aux);
-}
-
 // Calculate 8-bit checksum
 uint8_t rs232_checksum(uint8_t *buf, unsigned short len)
 {
@@ -51,114 +37,51 @@ uint8_t rs232_checksum(uint8_t *buf, unsigned short len)
     return chk;
 }
 
-/*
-   RS232 WRITE to COMPUTER from DEVICE
-   buf = buffer to send to Atari
-   len = length of buffer
-   err = along with data, send ERROR status to Atari rather than COMPLETE
-*/
-void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
+void virtualDevice::transaction_continue(transState_t expectMoreData)
 {
-    // Write data frame to computer
-    Debug_printf("->RS232 write %hu bytes\n", len);
-#ifdef VERBOSE_RS232
-    Debug_printf("SEND <%u> BYTES\n", len);
-    Debug_printf("\n%s\n", util_hexdump(buf, len).c_str());
-#endif
-
-    // Write ERROR or COMPLETE status
-    if (err == true)
-        rs232_error();
-    else
-        rs232_complete();
-
-    // Write data frame
-    SYSTEM_BUS.write(buf, len);
-    // Write checksum
-    SYSTEM_BUS.write(rs232_checksum(buf, len));
-
-    SYSTEM_BUS.flushOutput();
+    assert(_transaction_state == TRANS_STATE::INVALID);
+    _transaction_state = expectMoreData;
 }
 
-/*
-   RS232 READ from ATARI by DEVICE
-   buf = buffer from atari to fujinet
-   len = length
-   Returns checksum
-*/
-uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
+void virtualDevice::transaction_complete()
 {
-    // Retrieve data frame from computer
-    Debug_printf("<-RS232 read %hu bytes\n", len);
+    assert(_transaction_state == TRANS_STATE::NO_GET || _transaction_state == TRANS_STATE::DID_GET);
+    SYSTEM_BUS.sendReplyPacket(_devnum, true, nullptr, 0);
+    _transaction_state = TRANS_STATE::INVALID;
+}
 
-    __BEGIN_IGNORE_UNUSEDVARS
-    size_t l = SYSTEM_BUS.read(buf, len);
-    __END_IGNORE_UNUSEDVARS
+void virtualDevice::transaction_error()
+{
+    SYSTEM_BUS.sendReplyPacket(_devnum, false, nullptr, 0);
+    _transaction_state = TRANS_STATE::INVALID;
+}
 
-    // Wait for checksum
-    while (SYSTEM_BUS.available() <= 0)
-        fnSystem.yield();
-    uint8_t ck_rcv = SYSTEM_BUS.read();
+bool virtualDevice::transaction_get(void *data, size_t len)
+{
+    assert(_transaction_state == TRANS_STATE::WILL_GET);
+    _transaction_state = TRANS_STATE::DID_GET;
 
-    uint8_t ck_tst = rs232_checksum(buf, len);
+    // FIXME - This is a terrible hack to allow devices to continue to
+    // use the pattern of fetching data on their own instead of
+    // upgrading them fully to work with packets.
+    auto optional_data = _legacyPacketData->data();
+    if (!optional_data.has_value())
+        return 0;
+    size_t avail = optional_data.value().size() - _legacyDataPosition;
+    avail = std::min(avail, (size_t) len);
+    memcpy(data, optional_data.value().data() + _legacyDataPosition, avail);
+    _legacyDataPosition += avail;
 
-#ifdef VERBOSE_RS232
-    Debug_printf("RECV <%u> BYTES, checksum: %hu\n", l, ck_rcv);
-    Debug_printf("\n%s\n", util_hexdump(buf, len).c_str());
-#endif
-
-    fnSystem.delay_microseconds(DELAY_T4);
-
-    if (ck_rcv != ck_tst)
-    {
-        rs232_nak();
+    if (avail != len)
         return false;
-    }
-    else
-        rs232_ack();
-
-    return ck_rcv;
+    return true;
 }
 
-// RS232 NAK
-void virtualDevice::rs232_nak()
+void virtualDevice::transaction_put(const void *data, size_t len, bool err)
 {
-    SYSTEM_BUS.write('N');
-    SYSTEM_BUS.flushOutput();
-    Debug_println("NAK!");
-}
-
-// RS232 ACK
-void virtualDevice::rs232_ack()
-{
-    SYSTEM_BUS.write('A');
-    fnSystem.delay_microseconds(DELAY_T5); //?
-    SYSTEM_BUS.flushOutput();
-    Debug_println("ACK!");
-}
-
-// RS232 COMPLETE
-void virtualDevice::rs232_complete()
-{
-    fnSystem.delay_microseconds(DELAY_T5);
-    SYSTEM_BUS.write('C');
-    Debug_println("COMPLETE!");
-}
-
-// RS232 ERROR
-void virtualDevice::rs232_error()
-{
-    fnSystem.delay_microseconds(DELAY_T5);
-    SYSTEM_BUS.write('E');
-    Debug_println("ERROR!");
-}
-
-// RS232 HIGH SPEED REQUEST
-void virtualDevice::rs232_high_speed()
-{
-    Debug_print("rs232 HRS232 INDEX\n");
-    uint8_t hsd = SYSTEM_BUS.getHighSpeedIndex();
-    bus_to_computer((uint8_t *)&hsd, 1, false);
+    assert(_transaction_state == TRANS_STATE::NO_GET);
+    SYSTEM_BUS.sendReplyPacket(_devnum, !err, data, len);
+    _transaction_state = TRANS_STATE::INVALID;
 }
 
 // Read and process a command frame from RS232
@@ -169,64 +92,55 @@ void systemBus::_rs232_process_cmd()
     {
         _modemDev->modemActive = false;
         Debug_println("Modem was active - resetting RS232 baud");
-        _port.setBaudrate(_rs232Baud);
+        _serial.setBaudrate(_rs232Baud);
     }
 
-    // Read CMD frame
-    cmdFrame_t tempFrame;
-    memset(&tempFrame, 0, sizeof(tempFrame));
-
-    if (_port.read((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
+    auto tempFrame = readBusPacket();
+    if (!tempFrame)
     {
-        Debug_println("Timeout waiting for data after CMD pin asserted");
+        Debug_printv("packet fail");
         return;
     }
+
     // Turn on the RS232 indicator LED
     fnLedManager.set(eLed::LED_BUS, true);
 
-    Debug_printf("\nCF: %02x %02x %02x %02x %02x %02x %02x\n",
-                 tempFrame.device, tempFrame.comnd,
-                 tempFrame.aux1, tempFrame.aux2, tempFrame.aux3, tempFrame.aux4,
-                 tempFrame.cksum);
-#if 0 && !defined(FUJINET_OVER_USB)
-    // Wait for CMD line to raise again
-    while (dsrState())
-        vTaskDelay(1);
-#endif /* FUJINET_OVER_USB */
+    Debug_printf("\nCF: dev:%02x cmd:%02x dlen:%d\n",
+                 tempFrame->device(), tempFrame->command(),
+                 tempFrame->data() ? tempFrame->data()->size() : -1);
 
-    uint8_t ck = rs232_checksum((uint8_t *)&tempFrame, sizeof(tempFrame) - sizeof(tempFrame.cksum)); // Calculate Checksum
-    if (ck == tempFrame.cksum)
+    if (tempFrame->device() == FUJI_DEVICEID_DISK && _fujiDev != nullptr
+        && _fujiDev->boot_config)
     {
-        if (tempFrame.device == FUJI_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
-        {
-            _activeDev = &_fujiDev->bootdisk;
+        _activeDev = &_fujiDev->bootdisk;
 
-            Debug_println("FujiNet CONFIG boot");
-            // handle command
-            _activeDev->rs232_process(&tempFrame);
-        }
-        else
-        {
-            {
-                // find device, ack and pass control
-                // or go back to WAIT
-                for (auto devicep : _daisyChain)
-                {
-                    if (tempFrame.device == devicep->_devnum)
-                    {
-                        _activeDev = devicep;
-                        // handle command
-                        _activeDev->rs232_process(&tempFrame);
-                    }
-                }
-            }
-        }
-    } // valid checksum
+        Debug_println("FujiNet CONFIG boot");
+        // handle command
+        _activeDev->rs232_process(*tempFrame);
+    }
     else
     {
-        Debug_printf("CHECKSUM_ERROR: Calc checksum: %02x\n",ck);
-        // Switch to/from hispeed RS232 if we get enough failed frame checksums
+        // find device, ack and pass control
+        // or go back to WAIT
+        for (auto devicep : _daisyChain)
+        {
+            if (tempFrame->device() == devicep->_devnum)
+            {
+                _activeDev = devicep;
+
+                // FIXME - This is a terrible hack to allow devices to continue to
+                // use the pattern of fetching data on their own instead of
+                // upgrading them fully to work with packets.
+                _activeDev->_legacyPacketData = tempFrame.get();
+                _activeDev->_legacyDataPosition = 0;
+
+                // handle command
+                _activeDev->rs232_process(*tempFrame);
+                break;
+            }
+        }
     }
+
     fnLedManager.set(eLed::LED_BUS, false);
 }
 
@@ -250,14 +164,9 @@ void systemBus::service()
         return; // break!
     }
 
-    if (_port.available())
+    if (_port->available())
     {
         _rs232_process_cmd();
-    }
-    // Go check if the modem needs to read data if it's active
-    else if (_modemDev != nullptr && _modemDev->modemActive && Config.get_modem_enabled())
-    {
-        _modemDev->rs232_handle_modem();
     }
 
     // Handle interrupts from network protocols
@@ -275,14 +184,29 @@ void systemBus::setup()
 
     // Set up UART
 #ifndef FUJINET_OVER_USB
-    _port.begin(ChannelConfig().baud(Config.get_rs232_baud()).deviceID(SERIAL_DEVICE));
+    if (Config.get_boip_enabled())
+    {
+        Debug_printf("RS232 SETUP: BOIP host: %s\n", Config.get_boip_host().c_str());
+        _becker.setHost(Config.get_boip_host(), Config.get_boip_port());
+        _becker.begin(Config.get_boip_host(), Config.get_rs232_baud());
+        _port = &_becker;
+    }
+    else {
+        _serial.begin(ChannelConfig()
+                    .baud(Config.get_rs232_baud())
+                    .readTimeout(200)
+                    .deviceID(SERIAL_DEVICE))
+            ;
+        _port = &_serial;
+    }
 
 #else /* FUJINET_OVER_USB */
-    _port.begin();
+    _serial.begin();
+    _port = &_serial;
 #endif /* FUJINET_OVER_USB */
 
     Debug_println("RS232 Setup Flush");
-    _port.discardInput();
+    _port->discardInput();
 }
 
 // Add device to RS232 bus
@@ -368,18 +292,6 @@ void systemBus::shutdown()
     Debug_printf("All devices shut down.\n");
 }
 
-void systemBus::toggleBaudrate()
-{
-    int baudrate = _rs232Baud == RS232_BAUDRATE ? _rs232BaudHigh : RS232_BAUDRATE;
-
-    if (useUltraHigh == true)
-        baudrate = _rs232Baud == RS232_BAUDRATE ? _rs232BaudUltraHigh : RS232_BAUDRATE;
-
-    // Debug_printf("Toggling baudrate from %d to %d\n", _rs232Baud, baudrate);
-    _rs232Baud = baudrate;
-    _port.setBaudrate(_rs232Baud);
-}
-
 int systemBus::getBaudrate()
 {
     return _rs232Baud;
@@ -395,30 +307,51 @@ void systemBus::setBaudrate(int baud)
 
     Debug_printf("Changing baudrate from %d to %d\n", _rs232Baud, baud);
     _rs232Baud = baud;
-    _port.setBaudrate(baud);
+    _serial.setBaudrate(baud);
 }
 
-// Set HRS232 index. Sets high speed RS232 baud and also returns that value.
-int systemBus::setHighSpeedIndex(int hrs232_index)
+std::unique_ptr<FujiBusPacket> systemBus::readBusPacket()
 {
-    return 0;
+    ByteBuffer packet;
+    int val, count;
+
+    for (count = 0; count < 2; )
+    {
+        val = _port->read();
+        if (val < 0)
+            break;
+        packet.push_back(val);
+        if (val == SLIP_END)
+            count++;
+    }
+
+    Debug_printv("Received %d:\n%s", packet.size(),
+                 util_hexdump(packet.data(), packet.size()).c_str());
+    return FujiBusPacket::fromSerialized(packet);
 }
 
-int systemBus::getHighSpeedIndex()
+void systemBus::writeBusPacket(FujiBusPacket &packet)
 {
-    return 0;
+    ByteBuffer encoded = packet.serialize();
+    _port->write(encoded.data(), encoded.size());
+    Debug_printv("Sent %d:\n%s", encoded.size(),
+                 util_hexdump(encoded.data(), encoded.size()).c_str());
+    return;
 }
 
-int systemBus::getHighSpeedBaud()
+void systemBus::sendReplyPacket(fujiDeviceID_t source, bool ack, const void *data, size_t length)
 {
-    return _rs232BaudHigh;
+    ByteBuffer bb;
+
+    if (ack && data)
+    {
+        const uint8_t *start = static_cast<const uint8_t*>(data);
+        bb.assign(start, start + length);
+    }
+
+    FujiBusPacket packet(source, ack ? FUJICMD_ACK : FUJICMD_NAK, bb);
+    writeBusPacket(packet);
+    return;
 }
 
-void systemBus::setUDPHost(const char *hostname, int port)
-{
-}
-
-void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
-{
-}
 #endif /* BUILD_RS232 */

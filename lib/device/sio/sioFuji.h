@@ -14,42 +14,41 @@ private:
     QRManager _qrManager = QRManager();
 
 protected:
-    AtariSIODirection _transaction_direction = SIO_DIRECTION_INVALID;
-    void transaction_continue(bool expectMoreData) override {
-        assert(_transaction_direction == SIO_DIRECTION_INVALID);
+    transState_t _transaction_state = TRANS_STATE::INVALID;
+    void transaction_continue(transState_t expectMoreData) override {
+        assert(_transaction_state == TRANS_STATE::INVALID);
+        _transaction_state = expectMoreData;
         // For some reason NetSIO needs a hint that this is a WRITE transaction
-        if (expectMoreData) {
+        if (expectMoreData == TRANS_STATE::WILL_GET)
             sio_late_ack();
-            _transaction_direction = SIO_DIRECTION_WRITE;
-        }
-        else {
+        else
             sio_ack();
-            _transaction_direction = SIO_DIRECTION_READ; // FIXME - do we care about NONE?
-        }
     }
     void transaction_complete() override {
-        assert(_transaction_direction != SIO_DIRECTION_INVALID);
+        assert(_transaction_state == TRANS_STATE::NO_GET || _transaction_state == TRANS_STATE::DID_GET);
         sio_complete();
-        _transaction_direction = SIO_DIRECTION_INVALID;
+        _transaction_state = TRANS_STATE::INVALID;
     }
     void transaction_error() override {
-        if (_transaction_direction == SIO_DIRECTION_INVALID)
+        if (_transaction_state == TRANS_STATE::INVALID)
             sio_error();
         else
             sio_nak();
-        _transaction_direction = SIO_DIRECTION_INVALID;
+        _transaction_state = TRANS_STATE::INVALID;
     }
     bool transaction_get(void *data, size_t len) override {
-        assert(_transaction_direction == SIO_DIRECTION_WRITE);
+        assert(_transaction_state == TRANS_STATE::WILL_GET);
+        _transaction_state = TRANS_STATE::DID_GET;
+
         uint8_t ck = bus_to_peripheral((uint8_t *) data, len);
         if (sio_checksum((uint8_t *) data, len) != ck)
             return false;
         return true;
     }
     void transaction_put(const void *data, size_t len, bool err) override {
-        assert(_transaction_direction == SIO_DIRECTION_READ);
+        assert(_transaction_state == TRANS_STATE::NO_GET);
         bus_to_computer((uint8_t *) data, len, err);
-        _transaction_direction = SIO_DIRECTION_INVALID;
+        _transaction_state = TRANS_STATE::INVALID;
     }
 
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,

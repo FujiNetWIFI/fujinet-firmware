@@ -16,8 +16,8 @@ protected:
     // RS232 THINGS
     uint8_t _buffer[40];
     void rs232_write(uint8_t aux1, uint8_t aux2);
-    void rs232_status() override;
-    void rs232_process(cmdFrame_t *cmd_ptr) override;
+    void rs232_status(FujiStatusReq reqType) override;
+    void rs232_process(FujiBusPacket &packet) override;
     void shutdown() override;
 
     printer_emu *_pptr = nullptr;
