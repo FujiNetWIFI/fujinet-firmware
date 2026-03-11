@@ -166,7 +166,7 @@ size_t rs232Fuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *des
 {
     struct {
         dirEntryTimestamp modified;
-        uint16_t size;
+        uint32_t size;
         uint8_t flags;
         uint8_t mediatype;
     } __attribute__((packed)) custom_details;
@@ -175,7 +175,7 @@ size_t rs232Fuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *des
     details = _additional_direntry_details(f);
     custom_details.modified = details.modified;
     custom_details.modified.year -= 70;
-    custom_details.size = htole16(details.size);
+    custom_details.size = htole32(details.size);
     custom_details.flags = details.flags;
     custom_details.mediatype = details.mediatype;
 
