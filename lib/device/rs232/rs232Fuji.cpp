@@ -77,7 +77,7 @@ void rs232Fuji::rs232_status(FujiStatusReq reqType)
 }
 
 // Set SSID
-void rs232Fuji::rs232_net_set_ssid(bool save) // was aux1                                       
+void rs232Fuji::rs232_net_set_ssid(bool save) // was aux1
 {
     SSIDConfig cfg;
     transaction_continue(TRANS_STATE::WILL_GET);
