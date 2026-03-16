@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "TCP.h"
+#include "TCPS.h"
 #include "UDP.h"
 #include "Test.h"
 #include "Telnet.h"
@@ -30,6 +31,9 @@ NetworkProtocol* ProtocolParser::createProtocol(std::string scheme, std::string 
     {
         case "TCP"_sh:
             protocol = new NetworkProtocolTCP(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "TCPS"_sh:
+            protocol = new NetworkProtocolTCPS(receiveBuffer, transmitBuffer, specialBuffer);
             break;
         case "UDP"_sh:
             protocol = new NetworkProtocolUDP(receiveBuffer, transmitBuffer, specialBuffer);
