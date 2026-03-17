@@ -803,7 +803,7 @@ size_t fnFTP::get_file_size(string path)
     {
         // Parse size from response
         size_t size = strtoull(controlResponse.substr(4).c_str(), nullptr, 10);
-        Debug_printf("File size of %s is %llu bytes.\r\n", path.c_str(), size);
+        Debug_printf("File size of %s is %u bytes.\r\n", path.c_str(), size);
         return size;
     }
     else
