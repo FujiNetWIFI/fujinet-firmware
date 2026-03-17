@@ -13,6 +13,8 @@
 
 #include <forward_list>
 
+#define FUJINET_SYS "/data/webui/device_specific/BUILD_RS232/fujinet.sys"
+
 #define RS232_BAUDRATE 9600
 //#define RS232_BAUDRATE 115200
 
@@ -144,6 +146,7 @@ private:
     BeckerSocket _becker;
 
     void _rs232_process_cmd();
+    bool _check_bootstrap_sequence();
     /* void _rs232_process_queue(); */
 
 public:
@@ -164,6 +167,8 @@ public:
     int setHighSpeedIndex(int hrs232_index);                      // Set HRS232 index. Sets high speed RS232 baud and also returns that value.
     int getHighSpeedIndex();                                    // Gets current HRS232 index
     int getHighSpeedBaud();                                     // Gets current HRS232 baud
+
+    void send_bootstrap();                                      // Handle AT$BOOTSTRAP command
 
     void setUDPHost(const char *newhost, int port);             // Set new host/ip & port for UDP Stream
     void setUltraHigh(bool _enable, int _ultraHighBaud = 0);    // enable ultrahigh/set baud rate
