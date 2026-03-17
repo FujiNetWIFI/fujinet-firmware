@@ -782,6 +782,37 @@ protocolError_t fnFTP::reconnect()
     return login(username, password, hostname, control_port);
 }
 
+size_t fnFTP::get_file_size(string path)
+{
+    if (!control->connected())
+    {
+        Debug_printf("fnFTP::get_file_size(%s) attempted while not logged in. Aborting.\r\n", path.c_str());
+        return (size_t)-1;
+    }
+
+    // Send SIZE command
+    SIZE(path);
+
+    if (parse_response() != PROTOCOL_ERROR::NONE)
+    {
+        Debug_printf("Timed out waiting for 213 response.\r\n");
+        return (size_t)-1;
+    }
+
+    if (is_positive_completion_reply() && is_informational())
+    {
+        // Parse size from response
+        size_t size = strtoull(controlResponse.substr(4).c_str(), nullptr, 10);
+        Debug_printf("File size of %s is %llu bytes.\r\n", path.c_str(), size);
+        return size;
+    }
+    else
+    {
+        Debug_printf("Could not get file size. Response was: %s\r\n", controlResponse.c_str());
+        return (size_t)-1;
+    }
+}
+
 protocolError_t fnFTP::open_file(string path, bool stor)
 {
     if (!control->connected())
@@ -1270,6 +1301,18 @@ void fnFTP::RANG(unsigned long start, unsigned long end)
     }
 }
 
+void fnFTP::SIZE(string path)
+{
+    Debug_printf("fnFTP::SIZE(%s)\r\n",path.c_str());
+    control->write("SIZE " + path + "\r\n");
+}
+
+void fnFTP::NOOP()
+{
+    Debug_printf("fnFTP::NOOP\r\n");
+    control->write("NOOP\r\n");
+}
+
 protocolError_t fnFTP::keep_alive()
 {
     if (!control->connected())
@@ -1297,11 +1340,6 @@ protocolError_t fnFTP::keep_alive()
     }
 }
 
-void fnFTP::NOOP()
-{
-    Debug_printf("fnFTP::NOOP\r\n");
-    control->write("NOOP\r\n");
-}
 
 protocolError_t fnFTP::delete_file(string path)
 {

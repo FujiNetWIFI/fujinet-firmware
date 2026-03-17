@@ -181,6 +181,10 @@ FileHandler *FileSystemFTP::cache_file(const char *path, const char *mode)
     if (fc == nullptr)
         return nullptr;
 
+    // Get file size from FTP server
+    size_t filesize = _ftp->get_file_size(path);
+    Debug_printf("File size reported by server: %llu bytes\n", filesize);
+
     // Open FTP file
     Debug_println("Initiating file RETR");
     if (_ftp->open_file(path, false) != PROTOCOL_ERROR::NONE)
@@ -211,7 +215,13 @@ FileHandler *FileSystemFTP::cache_file(const char *path, const char *mode)
 
         if (available == 0)
         {
-            break;
+            // No bytes in TCP receive buffer right now, but the data connection
+            // is still open — the server is still sending.  Busy-wait on the
+            // data_connected() check at the top of the loop rather than exiting
+            // early.  Without this, large files that span multiple TCP segments
+            // get truncated when the receive window empties between bursts.
+            vTaskDelay(1);
+            continue;
         }
         else if (available > 0)
         {
@@ -229,7 +239,9 @@ FileHandler *FileSystemFTP::cache_file(const char *path, const char *mode)
                     break;
                 }
                 // Write cache file
-                if (FileCache::write(fc, buf, to_read) < to_read)
+                int written = FileCache::write(fc, buf, to_read);
+                filesize -= written;
+                if (written < to_read)
                 {
                     Debug_printf("FileSystemFTP::cache_file - Cache write failed\n");
                     cancel = true;
@@ -238,6 +250,9 @@ FileHandler *FileSystemFTP::cache_file(const char *path, const char *mode)
                 // Next chunk
                 available = _ftp->data_available();
             }
+
+            if (filesize == 0)
+                break;
         }
         else if (available < 0)
         {
