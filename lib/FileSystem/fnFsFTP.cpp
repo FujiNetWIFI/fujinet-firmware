@@ -188,7 +188,7 @@ FileHandler *FileSystemFTP::cache_file(const char *path, const char *mode)
 
     // Get file size from FTP server
     size_t filesize = _ftp->get_file_size(path);
-    Debug_printf("File size reported by server: %llu bytes\n", filesize);
+    Debug_printf("File size reported by server: %u bytes\n", filesize);
 
     // Open FTP file
     Debug_println("Initiating file RETR");
