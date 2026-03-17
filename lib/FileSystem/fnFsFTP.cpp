@@ -5,6 +5,11 @@
 
 #include "../../include/debug.h"
 
+#ifdef ESP_PLATFORM
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#endif
+
 #include "fnSystem.h"
 #include "fnFileCache.h"
 
@@ -220,7 +225,9 @@ FileHandler *FileSystemFTP::cache_file(const char *path, const char *mode)
             // data_connected() check at the top of the loop rather than exiting
             // early.  Without this, large files that span multiple TCP segments
             // get truncated when the receive window empties between bursts.
+#ifdef ESP_PLATFORM
             vTaskDelay(1);
+#endif
             continue;
         }
         else if (available > 0)
