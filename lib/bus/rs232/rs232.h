@@ -13,7 +13,7 @@
 
 #include <forward_list>
 
-#define FUJINET_SYS "/data/webui/device_specific/BUILD_RS232/fujinet.sys"
+#define FUJINET_SYS "data/webui/device_specific/BUILD_RS232/fujinet.sys"
 
 #define RS232_BAUDRATE 9600
 //#define RS232_BAUDRATE 115200
