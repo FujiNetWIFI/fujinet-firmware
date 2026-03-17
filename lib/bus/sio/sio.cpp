@@ -734,6 +734,31 @@ void systemBus::set_command_processed(bool processed)
     _command_processed = processed;
 }
 
+void systemBus::set_proceed(bool level)
+{
+    if (_port == &_netsio)
+    {
+        _netsio.setProceed(level);
+        return;
+    }
+
+    RS232ChannelProtocol *rs232 = dynamic_cast<RS232ChannelProtocol *>(_port);
+    if (!rs232)
+        return;
+
+    switch (Config.get_serial_proceed())
+    {
+    case fnConfig::SERIAL_PROCEED_DTR:
+        rs232->setDSR(level); // drives RS-232 DTR
+        break;
+    case fnConfig::SERIAL_PROCEED_RTS:
+        rs232->setCTS(level); // drives RS-232 RTS
+        break;
+    default:
+        break; // SERIAL_PROCEED_NONE / invalid
+    }
+}
+
 // Empty acknowledgment message for NetSIO hub
 void systemBus::sio_empty_ack()
 {
