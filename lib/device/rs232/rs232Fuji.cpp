@@ -80,11 +80,15 @@ void rs232Fuji::rs232_status(FujiStatusReq reqType)
 void rs232Fuji::rs232_net_set_ssid(bool save) // was aux1
 {
     SSIDConfig cfg;
-    transaction_continue(TRANS_STATE::NO_GET);
-    if (!transaction_get((uint8_t *)&cfg, sizeof(cfg)))
+    transaction_continue(TRANS_STATE::WILL_GET);
+    if (!transaction_get((uint8_t *)&cfg, sizeof(cfg)) ||
+        !fujicore_net_set_ssid_success(cfg.ssid, cfg.password, save))
+    {
         transaction_error();
-    else
-        fujicmd_net_set_ssid_success(cfg.ssid, cfg.password, save);
+        return;
+    }
+
+    transaction_complete();
 }
 
 //  Make new disk and shove into device slot

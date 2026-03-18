@@ -281,7 +281,7 @@ void sioCassette::sio_enable_cassette()
         SYSTEM_BUS.setBaudrate(CASSETTE_BAUDRATE);
         // Only reset boot flag on fresh mount (tape_offset==0), not on
         // motor OFF/ON cycles during T2K playback between blocks.
-        if (tape_offset == 0 && _turbo_loader_slot < 0)
+        if (tape_offset == 0)
             t2k_boot_sent = false;
     }
 
