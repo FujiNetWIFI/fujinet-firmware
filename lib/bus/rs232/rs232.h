@@ -177,7 +177,7 @@ public:
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
 
-    std::unique_ptr<FujiBusPacket> readBusPacket();
+    std::unique_ptr<FujiBusPacket> readBusPacket(int first=-1);
     void writeBusPacket(FujiBusPacket &packet);
     void sendReplyPacket(fujiDeviceID_t source, bool ack, const void *data, size_t length);
     template<typename... Args>
