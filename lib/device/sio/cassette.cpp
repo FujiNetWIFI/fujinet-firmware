@@ -8,6 +8,9 @@
 
 #include "fnSystem.h"
 #include "fnFsSD.h"
+#include "fsFlash.h"
+#include "fujiDevice.h"
+#include "../../media/atari/diskType.h"
 
 #include "led.h"
 
@@ -236,13 +239,13 @@ void sioCassette::open_cassette_file(FileSystem *_FS)
 
 void sioCassette::umount_cassette_file()
 {
+        unmount_turbo_loader();
         Debug_println("CAS file closed.");
         _mounted = false;
 }
 
 void sioCassette::mount_cassette_file(fnFile *f, size_t fz)
 {
-
     tape_offset = 0;
     if (cassetteMode == cassette_mode_t::playback)
     {
@@ -250,6 +253,10 @@ void sioCassette::mount_cassette_file(fnFile *f, size_t fz)
         _file = f;
         filesize = fz;
         check_for_FUJI_file();
+
+        // If T2K format, mount loader on a free disk slot
+        if (tape_flags.turbo2000)
+            mount_turbo_loader();
     }
     else
     {
@@ -274,7 +281,7 @@ void sioCassette::sio_enable_cassette()
         SYSTEM_BUS.setBaudrate(CASSETTE_BAUDRATE);
         // Only reset boot flag on fresh mount (tape_offset==0), not on
         // motor OFF/ON cycles during T2K playback between blocks.
-        if (tape_offset == 0)
+        if (tape_offset == 0 && _turbo_loader_slot < 0)
             t2k_boot_sent = false;
     }
 
@@ -749,125 +756,57 @@ uint8_t sioCassette::decode_fsk()
 // Turbo 2000 PWM cassette playback
 // =============================================================================
 
-// Real Turbo 2000 boot loader extracted from t2000.cas
-// Verified working in Altirra. Displays "TURBO  2000", then
-// decodes T2K PWM header+data blocks from cassette DATA IN line.
-static const uint8_t t2k_boot_loader[] = {
-    0x00, 0x03, 0xAC, 0x05, 0xBA, 0x05, 0xA9, 0x3C, 0x8D, 0x02, 0xD3, 0x18, 0x60, 0x00, 0xA2, 0x25, // $0400
-    0xA0, 0x06, 0x20, 0x42, 0xC6, 0xA9, 0x01, 0x85, 0x09, 0x8D, 0xF8, 0x03, 0xA9, 0xFF, 0x8D, 0x01, // $0410
-    0xD3, 0xA9, 0x00, 0x8D, 0x44, 0x02, 0xA9, 0x01, 0x20, 0xFC, 0xFD, 0xA9, 0x04, 0x85, 0x33, 0x85, // $0420
-    0x35, 0xA9, 0x11, 0x85, 0x34, 0xA9, 0x00, 0x85, 0x32, 0x20, 0x31, 0x06, 0x90, 0xED, 0xAD, 0x0B, // $0430
-    0x04, 0x85, 0x32, 0x18, 0x6D, 0x0D, 0x04, 0x85, 0x34, 0xAD, 0x0C, 0x04, 0x85, 0x33, 0x6D, 0x0E, // $0440
-    0x04, 0x85, 0x35, 0xA9, 0x7D, 0x8D, 0x00, 0x04, 0xA9, 0x9B, 0x8D, 0x0B, 0x04, 0xA2, 0x00, 0xA0, // $0450
-    0x04, 0x20, 0x42, 0xC6, 0xA9, 0x01, 0x20, 0xFC, 0xFD, 0xA9, 0xFF, 0x20, 0x31, 0x06, 0xB0, 0x06, // $0460
-    0x20, 0x3E, 0xC6, 0x4C, 0xD2, 0x05, 0x6C, 0x0F, 0x04, 0x54, 0x55, 0x52, 0x42, 0x4F, 0x20, 0x20, // $0470
-    0x32, 0x30, 0x30, 0x30, 0x9B, 0x85, 0x36, 0xA9, 0x34, 0x8D, 0x02, 0xD3, 0x8D, 0x03, 0xD3, 0xA9, // $0480
-    0x80, 0x85, 0x10, 0x8D, 0x0E, 0xD2, 0x18, 0xA0, 0x00, 0x84, 0x30, 0x84, 0x31, 0x8C, 0x0E, 0xD4, // $0490
-    0x8C, 0x00, 0xD4, 0x08, 0xD0, 0x70, 0x20, 0xDB, 0x06, 0x90, 0xF9, 0xA9, 0x00, 0x85, 0x2E, 0x85, // $04A0
-    0x37, 0xA0, 0xB4, 0x20, 0xD6, 0x06, 0x90, 0xEC, 0xC0, 0xD8, 0x90, 0xEA, 0xE6, 0x2E, 0xD0, 0xF1, // $04B0
-    0xC6, 0x37, 0xA0, 0xD1, 0x20, 0xDB, 0x06, 0x90, 0xDB, 0xC0, 0xDE, 0xB0, 0xF5, 0x20, 0xDB, 0x06, // $04C0
-    0x90, 0x44, 0xA0, 0xC6, 0x4C, 0x9D, 0x06, 0x28, 0xD0, 0x08, 0xA5, 0x36, 0x45, 0x2F, 0xD0, 0x37, // $04D0
-    0xF0, 0x0C, 0xA0, 0x00, 0xA5, 0x2F, 0x91, 0x32, 0xE6, 0x32, 0xD0, 0x02, 0xE6, 0x33, 0xA0, 0xC8, // $04E0
-    0x08, 0xA9, 0x01, 0x85, 0x2F, 0x20, 0xD6, 0x06, 0x90, 0x1C, 0xC0, 0xE3, 0x26, 0x2F, 0xA0, 0xC6, // $04F0
-    0x90, 0xF3, 0xA5, 0x31, 0x45, 0x2F, 0x85, 0x31, 0xA5, 0x32, 0xC5, 0x34, 0xA5, 0x33, 0xE5, 0x35, // $0500
-    0x90, 0xC5, 0xA9, 0x00, 0xC5, 0x31, 0x68, 0xA9, 0xC0, 0x8D, 0x0E, 0xD4, 0x85, 0x10, 0x8D, 0x0E, // $0510
-    0xD2, 0xA9, 0x3C, 0x8D, 0x02, 0xD3, 0x8D, 0x03, 0xD3, 0x60, 0x20, 0xDB, 0x06, 0x90, 0x24, 0xA2, // $0520
-    0x04, 0xCA, 0xD0, 0xFD, 0xA5, 0x30, 0x4A, 0x25, 0x37, 0x8D, 0x1A, 0xD0, 0xC8, 0xF0, 0x13, 0xA5, // $0530
-    0x11, 0xF0, 0x0D, 0xAD, 0x0F, 0xD2, 0x29, 0x10, 0xC5, 0x30, 0xF0, 0xF0, 0x85, 0x30, 0x38, 0x60, // $0540
-    0xC6, 0x11, 0x18, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $0550
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $0560
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $0570
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $0580
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $0590
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $05A0
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $05B0
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $05C0
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $05D0
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $05E0
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7F, // $05F0
-};
-static const uint8_t T2K_BOOT_RECORDS = 4;
-static const uint8_t t2k_boot_control[] = { 0xFC, 0xFC, 0xFC, 0xFA };
-
-void sioCassette::send_turbo2000_boot_loader()
+void sioCassette::mount_turbo_loader()
 {
-    // Send the T2K boot loader as standard cassette boot records.
-    // Mimics turbo2000-nizke.cas: 600 baud, ~20s leader before first
-    // record, ~270ms IRG between records, end record (0xFE).
+    if (!tape_flags.turbo2000)
+        return;
 
-    Debug_println("T2K: Sending boot loader");
-
-    SYSTEM_BUS.setBaudrate(CASSETTE_BAUDRATE);
-
-    const uint8_t *src = t2k_boot_loader;
-    const uint16_t irg_first = 19841;  // ms, leader before first record
-    const uint16_t irg_between = 270;  // ms, gap between records
-    const uint16_t irg_end = 250;      // ms, gap before end record
-
-    // IRG values from turbo2000-nizke.cas:
-    // record 1: irg=19841, record 2: irg=273, record 3: irg=293, end: irg=253
-    const uint16_t irg_table[] = { irg_first, irg_between, irg_between, irg_between, irg_end };
-
-    // Wait for motor to be asserted (Atari is ready for cassette boot)
-    Debug_println("T2K boot: waiting for motor ON");
-    while (has_pulldown() && !motor_line())
+    // Mount on D1: (slot 0) — CAS went to cassette handler so _disk is nullptr.
+    // boot_config is already false (set by fujicore_mount_disk_image_success),
+    // so the bootdisk won't interfere. Our XEX gets device_active=true and
+    // D1: responds with the loader on next boot.
+    int8_t slot = 0;
+    if (theFuji->get_disk_dev(slot)->disktype() != MEDIATYPE_UNKNOWN)
     {
-        fnSystem.delay(10);
+        Debug_println("T2K: D1: is not free for loader!");
+        return;
     }
 
-    // Send 3 data records + 1 end record (same as turbo2000-nizke.cas)
-    // Each record is 132 bytes: 55 55 ctrl [128 data] checksum
-    // Must be sent in one write() call — split writes cause timing gaps.
-    for (int rec = 0; rec <= T2K_BOOT_RECORDS; rec++)
+    // Open loader from flash
+    fnFile *f = fsFlash.fnfile_open("/turbo-2000-super-turbo.xex");
+    if (!f)
     {
-        uint8_t buf[BLOCK_LEN + 4]; // 55 55 ctrl + 128 data + checksum = 132
-        buf[0] = 0x55; // sync marker
-        buf[1] = 0x55; // sync marker
-
-        if (rec < T2K_BOOT_RECORDS)
-        {
-            buf[2] = t2k_boot_control[rec]; // 0xFC, 0xFC, 0xFA
-            memcpy(buf + 3, src + rec * BLOCK_LEN, BLOCK_LEN);
-        }
-        else
-        {
-            buf[2] = 0xFE; // end record
-            memset(buf + 3, 0, BLOCK_LEN);
-        }
-
-        // Compute checksum and append it — send everything in one write
-        buf[BLOCK_LEN + 3] = sio_checksum(buf, BLOCK_LEN + 3);
-
-        // Wait for IRG — use delay_microseconds like send_FUJI_tape_block
-        uint16_t gap = irg_table[rec];
-        Debug_printf("T2K boot record %d: waiting IRG %u ms\n", rec, gap);
-        while (gap > 0)
-        {
-#ifdef ESP_PLATFORM
-            gap--;
-            fnSystem.delay_microseconds(999);
-#else
-            fnSystem.delay(1);
-            gap--;
-#endif
-        }
-
-        // Send complete record (132 bytes) in one call
-        SYSTEM_BUS.write(buf, BLOCK_LEN + 4);
-        SYSTEM_BUS.flushOutput();
-
-        Debug_printf("T2K boot record %d sent (ctrl=0x%02X, cksum=0x%02X)\n",
-                     rec, buf[2], buf[BLOCK_LEN + 3]);
+        Debug_println("T2K: Failed to open /turbo-2000-super-turbo.xex from flash");
+        return;
     }
 
-    Debug_println("T2K: Boot loader sent, waiting for init");
+    size_t fsize = fsFlash.filesize(f);
 
-    // Give the Atari time to run the boot loader init routine.
-    // The T2K loader sets PACTL=52 (motor ON, turbo mode)
-    // and starts waiting for pilot tone pulses.
-    fnSystem.delay(500);
+    // Mount on free slot as XEX (PicoBoot + AUTORUN)
+    // Use mount_disk_media() instead of mount() to avoid recursive call —
+    // we are already inside sioDisk::mount() which routed CAS here.
+    DISK_DEVICE *disk = theFuji->get_disk_dev(slot);
+    disk->mount_disk_media(f, "/turbo-2000-super-turbo.xex", fsize, MEDIATYPE_XEX);
 
+    _turbo_loader_slot = slot;
     t2k_boot_sent = true;
+
+    // boot_config stays false — bootdisk (autorun.atr) must NOT respond,
+    // so our XEX on D1: slot 0 (device_active=true) takes over.
+
+    Debug_printf("T2K: Loader mounted on D%d: (%u bytes)\n",
+                 slot + 1, (unsigned)fsize);
+}
+
+void sioCassette::unmount_turbo_loader()
+{
+    if (_turbo_loader_slot >= 0)
+    {
+        DISK_DEVICE *disk = theFuji->get_disk_dev(_turbo_loader_slot);
+        disk->unmount();
+        Debug_printf("T2K: Loader unmounted from D%d:\n", _turbo_loader_slot + 1);
+        _turbo_loader_slot = -1;
+    }
 }
 
 uint16_t sioCassette::t2k_samples_to_us(uint8_t samples)
@@ -1131,12 +1070,12 @@ size_t sioCassette::send_turbo2000_tape_block(size_t offset)
     uint8_t *p = hdr->chunk_type;
     size_t starting_offset = offset;
 
-    // Send T2K boot loader on first call (standard 600 baud cassette boot)
+    // Mount loader on disk slot if not yet done (e.g. after rewind)
     if (!t2k_boot_sent)
     {
-        send_turbo2000_boot_loader();
+        mount_turbo_loader();
         if (!t2k_boot_sent)
-            return starting_offset; // boot failed, retry next call
+            return starting_offset; // no free slot, retry next call
     }
 
     fnLedManager.set(eLed::LED_BUS, true);

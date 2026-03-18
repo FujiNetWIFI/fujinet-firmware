@@ -154,7 +154,9 @@ private:
     size_t   t2k_data_present = 0;   // bytes already sent from pwmd by pwml pre-send
 
     size_t send_turbo2000_tape_block(size_t offset);
-    void send_turbo2000_boot_loader();
+    void mount_turbo_loader();
+    void unmount_turbo_loader();
+    int8_t _turbo_loader_slot = -1;
     uint16_t t2k_samples_to_us(uint8_t samples);
 #ifdef ESP_PLATFORM
     // Simple encoder callback needs access to our members

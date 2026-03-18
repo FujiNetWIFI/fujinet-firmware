@@ -213,6 +213,12 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
     }
 }
 
+mediatype_t rs232Disk::mount_disk_media(fnFile *f, const char *filename, uint32_t disksize,
+                                         mediatype_t disk_type)
+{
+    return mount(f, filename, disksize, DISK_ACCESS_MODE_READ, disk_type);
+}
+
 mediatype_t rs232Disk::mountROM(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
     uint32_t offset, rlen, sectorNum;
