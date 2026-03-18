@@ -27,20 +27,6 @@
 using namespace std;
 
 /**
- * Static callback function for the interrupt rate limiting timer. It sets the interruptCD
- * flag to true. This is set to false when the interrupt is serviced.
- */
-#ifdef ESP_PLATFORM
-void onTimer(void *info)
-{
-    drivewireNetwork *parent = (drivewireNetwork *)info;
-    portENTER_CRITICAL_ISR(&parent->timerMux);
-    parent->interruptCD = !parent->interruptCD;
-    portEXIT_CRITICAL_ISR(&parent->timerMux);
-}
-#endif
-
-/**
  * Constructor
  */
 drivewireNetwork::drivewireNetwork()
@@ -76,41 +62,6 @@ drivewireNetwork::~drivewireNetwork()
     protocol = nullptr;
 }
 
-/**
- * Start the Interrupt rate limiting timer
- */
-void drivewireNetwork::timer_start()
-{
-#ifdef ESP_PLATFORM
-    esp_timer_create_args_t tcfg;
-    tcfg.arg = this;
-    tcfg.callback = onTimer;
-    tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
-    tcfg.name = nullptr;
-    esp_timer_create(&tcfg, &rateTimerHandle);
-    esp_timer_start_periodic(rateTimerHandle, timerRate * 1000);
-#else
-    lastInterruptMs = fnSystem.millis() - timerRate;
-#endif
-}
-
-/**
- * Stop the Interrupt rate limiting timer
- */
-void drivewireNetwork::timer_stop()
-{
-#ifdef ESP_PLATFORM
-    // Delete existing timer
-    if (rateTimerHandle != nullptr)
-    {
-        Debug_println("Deleting existing rateTimer\n");
-        esp_timer_stop(rateTimerHandle);
-        esp_timer_delete(rateTimerHandle);
-        rateTimerHandle = nullptr;
-    }
-#endif
-}
-
 /** DRIVEWIRE COMMANDS ***************************************************************/
 
 void drivewireNetwork::ready()
@@ -143,9 +94,6 @@ void drivewireNetwork::open()
     deviceSpec = std::string(tmp);
 
     channelMode = PROTOCOL;
-
-    // Delete timer if already extant.
-    timer_stop();
 
     // persist aux1/aux2 values
     open_aux1 = cmdFrame.aux1;
@@ -203,12 +151,6 @@ void drivewireNetwork::open()
         //SYSTEM_BUS.write(ns.error);
         return;
     }
-
-    // Everything good, start the interrupt timer!
-    timer_start();
-
-    // Go ahead and send an interrupt, so CoCo knows to get ns.
-    protocol->forceStatus = true;
 
     // TODO: Finally, go ahead and let the parsers know
     json = new FNJSON();
@@ -282,6 +224,8 @@ void drivewireNetwork::read()
     uint8_t num_bytesh = cmdFrame.aux1;
     uint8_t num_bytesl = cmdFrame.aux2;
     uint16_t num_bytes = (num_bytesh * 256) + num_bytesl;
+
+    readAck = GET_TIMESTAMP();
 
     if (!num_bytes)
     {
@@ -460,7 +404,9 @@ void drivewireNetwork::status_local()
     NDeviceStatus status {};
 
 
-    Debug_printf("drivewireNetwork::sio_status_local(%u)\n", cmdFrame.aux2);
+#ifdef TOO_MUCH_DEBUG
+    Debug_printf("drivewireNetwork::status_local(%u)\n", cmdFrame.aux2);
+#endif /* TOO_MUCH_DEBUG */
 
     fnSystem.Net.get_ip4_info((uint8_t *)ipAddress, (uint8_t *)ipNetmask, (uint8_t *)ipGateway);
     fnSystem.Net.get_ip4_dns_info((uint8_t *)ipDNS);
@@ -508,7 +454,9 @@ void drivewireNetwork::status_channel()
     NDeviceStatus status;
     size_t avail = 0;
 
-    Debug_printf("drivewireNetwork::sio_status_channel(%u)\n", channelMode);
+#ifdef TOO_MUCH_DEBUG
+    Debug_printf("drivewireNetwork::status_channel(%u)\n", channelMode);
+#endif /* TOO_MUCH_DEBUG */
 
     switch (channelMode)
     {
@@ -526,8 +474,6 @@ void drivewireNetwork::status_channel()
         avail = json_bytes_remaining;
         break;
     }
-    // clear forced flag (first status after open)
-    protocol->forceStatus = false;
 
     avail = avail > 65535 ? 65535 : avail;
     status.avail = htobe16(avail);
@@ -728,59 +674,16 @@ bool drivewireNetwork::instantiate_protocol()
 }
 
 /**
- * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
- */
-void drivewireNetwork::assert_interrupt()
-{
-#ifdef ESP_PLATFORM
-    fnSystem.digital_write(PIN_CD, interruptCD == true ? DIGI_HIGH : DIGI_LOW);
-#else
-/* TODO: We'll get to this at a future date.
-
-    uint64_t ms = fnSystem.millis();
-    if (ms - lastInterruptMs >= timerRate)
-    {
-        interruptCD = !interruptCD;
-        fnSioCom.set_proceed(interruptCD);
-        lastInterruptMs = ms;
-    }
-    */
-#endif
-}
-
-/**
  * Check to see if PROCEED needs to be asserted, and assert if needed (continue toggling PROCEED).
  */
-void drivewireNetwork::poll_interrupt()
+bool drivewireNetwork::poll_interrupt()
 {
-    if (protocol != nullptr)
-    {
-        if (protocol->interruptEnable == false)
-            return;
-
-        /* assert interrupt if we need Status call from host to arrive */
-        if (protocol->forceStatus == true)
-        {
-            assert_interrupt();
-            return;
-        }
-
-        protocol->fromInterrupt = true;
-        protocol->status(&ns);
-        protocol->fromInterrupt = false;
-
-        if (protocol->available() > 0 || ns.connected == 0)
-            assert_interrupt();
-#ifndef ESP_PLATFORM
-else
-/* TODO: We'll get to this at a future date.
-            sio_clear_interrupt();
- */
-#endif
-
-        reservedSave = ns.connected;
-        errorSave = ns.error;
-    }
+    if (!protocol)
+        return false;
+    uint32_t now = GET_TIMESTAMP();
+    if (now - readAck < 5000)
+        return false;
+    return protocol->available() > 0;
 }
 
 void drivewireNetwork::send_error()

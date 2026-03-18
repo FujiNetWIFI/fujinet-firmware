@@ -1,10 +1,6 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
-#ifdef ESP32_PLATFORM
-#include <driver/timer.h>
-#endif
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -45,19 +41,6 @@ public:
     virtual ~drivewireNetwork();
 
     /**
-     * Toggled by the rate limiting timer to indicate that the CD interrupt should
-     * be pulsed.
-     */
-    bool interruptCD = false;
-
-    /**
-     * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
-     */
-#ifdef ESP_PLATFORM
-    portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
-#endif
-
-    /**
      * @brief process network device command
      */
     void process();
@@ -69,7 +52,7 @@ public:
     /**
      * Check to see if PROCEED needs to be asserted.
      */
-    void poll_interrupt();
+    bool poll_interrupt();
 
     /**
      * @brief Ready?
@@ -193,15 +176,6 @@ private:
     NetworkStatus ns;
 
     /**
-     * ESP timer handle for the Interrupt rate limiting timer
-     */
-#ifdef ESP_PLATFORM
-    esp_timer_handle_t rateTimerHandle = nullptr;
-#else
-    uint64_t lastInterruptMs;
-#endif
-
-    /**
      * Devicespec passed to us, e.g. N:HTTP://WWW.GOOGLE.COM:80/
      */
     std::string deviceSpec;
@@ -238,15 +212,6 @@ private:
     std::string password;
 
     /**
-     * Timer Rate for interrupt timer (ms)
-     */
-#ifdef ESP_PLATFORM
-    int timerRate = 100;
-#else
-    int timerRate = 20;
-#endif
-
-    /**
      * The channel mode for the currently open DRIVEWIRE device. By default, it is PROTOCOL, which passes
      * read/write/status commands to the protocol. Otherwise, it's a special mode, e.g. to pass to
      * the JSON or XML parsers.
@@ -277,10 +242,7 @@ private:
     // FIXME - don't cache this, ask the fnJSON parser!
     unsigned short json_bytes_remaining = 0;
 
-    /**
-     * Called to pulse the CD interrupt, rate limited by the interrupt timer.
-     */
-    void assert_interrupt();
+    uint32_t readAck = 0;
 
     /**
      * Return 16 bit value returned from command frame
@@ -386,16 +348,6 @@ private:
      * @brief parse URL and instantiate protocol
      */
     void parse_and_instantiate_protocol();
-
-    /**
-     * Start the Interrupt rate limiting timer
-     */
-    void timer_start();
-
-    /**
-     * Stop the Interrupt rate limiting timer
-     */
-    void timer_stop();
 };
 
 #endif /* NETWORK_H */
