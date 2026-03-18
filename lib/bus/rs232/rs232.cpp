@@ -84,10 +84,57 @@ void virtualDevice::transaction_put(const void *data, size_t len, bool err)
     _transaction_state = TRANS_STATE::INVALID;
 }
 
+// Check if the bootstrap sequence (AT$BOOTSTRAP<Enter>) is being sent
+bool systemBus::_check_bootstrap_sequence()
+{
+    // Bootstrap sequence: 'A' 'T' '$' 'B' 'O' 'O' 'T' 'S' 'T' 'R' 'A' 'P' <newline>
+    const char bootstrap_seq[] = "AT$BOOTSTRAP";
+    const int BOOTSTRAP_LEN = strlen(bootstrap_seq);
+    ByteBuffer buffer;
+    int val;
+    
+    // Peek at incoming data without consuming it initially
+    for (int i = 0; i < BOOTSTRAP_LEN + 1; i++) // +1 for the newline
+    {
+        val = _port->read();
+        if (val < 0)
+        {
+            // Restore bytes to port if we don't have a complete sequence
+            // Since we can't easily put bytes back, we'll just return false
+            return false;
+        }
+        buffer.push_back(val);
+    }
+    
+    // Check if we have the bootstrap sequence
+    bool is_bootstrap = (buffer.size() == BOOTSTRAP_LEN + 1) &&
+                        (memcmp(buffer.data(), bootstrap_seq, BOOTSTRAP_LEN) == 0) &&
+                        (buffer[BOOTSTRAP_LEN] == '\n' || buffer[BOOTSTRAP_LEN] == '\r');
+    
+    if (is_bootstrap)
+    {
+        Debug_println("Bootstrap sequence detected!");
+        return true;
+    }
+    
+    // Not bootstrap sequence - need to handle this data as normal packet
+    // For now, we'll just discard it and log an error
+    Debug_printf("Invalid packet start: %s\n", util_hexdump(buffer.data(), buffer.size()).c_str());
+    return false;
+}
+
 // Read and process a command frame from RS232
 void systemBus::_rs232_process_cmd()
 {
     Debug_printf("rs232_process_cmd()\n");
+    
+    // Check if this is a bootstrap sequence first
+    if (_check_bootstrap_sequence())
+    {
+        send_bootstrap();
+        return;
+    }
+    
     if (_modemDev != nullptr && _modemDev->modemActive && Config.get_modem_enabled())
     {
         _modemDev->modemActive = false;
@@ -352,6 +399,39 @@ void systemBus::sendReplyPacket(fujiDeviceID_t source, bool ack, const void *dat
     FujiBusPacket packet(source, ack ? FUJICMD_ACK : FUJICMD_NAK, bb);
     writeBusPacket(packet);
     return;
+}
+
+void systemBus::send_bootstrap()
+{
+    Debug_println("Sending bootstrap...");
+    FILE *fp = fopen(FUJINET_SYS, "rb");
+    if (!fp)
+    {
+        Debug_printf("Failed to open bootstrap file: %s\n", FUJINET_SYS);
+        return;
+    }
+
+    // Get filesize and read entire file into buffer
+    fseek(fp, 0, SEEK_END);
+    long filesize = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    std::vector<uint8_t> buffer(filesize);
+    size_t read_bytes = fread(buffer.data(), 1, filesize, fp);
+    
+    if (read_bytes != filesize)
+    {
+        Debug_printf("Failed to read complete bootstrap file: %s\n", FUJINET_SYS);
+        fclose(fp);
+        return;
+    }
+
+    fnLedManager.set(eLed::LED_BT, true);    
+    _port->write(buffer.data(), buffer.size());
+    fclose(fp);
+    fnLedManager.set(eLed::LED_BT, false);
+    
+    // indicate successful send of bootstrap
+    Debug_println("Bootstrap sent successfully.");
 }
 
 #endif /* BUILD_RS232 */
