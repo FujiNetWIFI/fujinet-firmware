@@ -137,7 +137,7 @@ void lynxNetwork::open(unsigned short len)
 
     // setup JSON
     json = new FNJSON();
-    json->setLineEnding("\x0a");
+    json->setLineEnding("\x00");        // null terminate json values always
     json->setProtocol(protocol);
     channelMode = PROTOCOL;
 
@@ -427,34 +427,33 @@ void lynxNetwork::set_channel_mode()
 
 void lynxNetwork::json_query(unsigned short len)
 {
-     uint8_t in[256];
+    std::string in(len, '\0');
 
-    // get the query
-    memset(in, 0, sizeof(in));
-    transaction_get(in, len);
 
-    // strip away line endings from input spec.
-    // may not need this for Lynx -SJ
-    for (int i = 0; i < 256; i++)
-    {
-        if (in[i] == 0x0A || in[i] == 0x0D || in[i] == 0x9b)
-            in[i] = 0x00;
+    // get the query string
+    transaction_get(in.data(), len);
+    Debug_printf("lynxNetwork::json_query - query:%s\n", in.c_str());
+
+    // read the json value from query, there may be more bytes than we can transfer
+    // in one response
+    json->setReadQuery(in, cmdFrame.aux2);
+    uint16_t jsonlen = json->available();
+    jsonlen = std::min<uint16_t>(json->available(), SERIAL_PACKET_SIZE);
+    Debug_printf("lynxNetwork::json_query - json->available:%d, len:%d\n", json->available(), jsonlen);
+
+    if (jsonlen == 0) {
+      transaction_error();
+      return;
     }
-    std::string in_string(reinterpret_cast<char*>(in));
     
-    json->setReadQuery(in_string, cmdFrame.aux2);
-    uint16_t json_bytes_remaining = json->available();
+    std::vector<uint8_t> tmp(jsonlen);
+    json->readValue(tmp.data(), jsonlen);
 
-    Debug_printf("lynxNetwork::json_query - query: %s\n", in_string.c_str());
-    Debug_printf("lynxNetwork::json_query - json->available: %d\n", json_bytes_remaining);
+    // don't copy past first nul char in tmp (don't think this is needed -SJ)
+    //auto null_pos = std::find(tmp.begin(), tmp.end(), 0);
+    //*receiveBuffer += std::string(tmp.begin(), null_pos);
 
-    std::vector<uint8_t> tmp(json_bytes_remaining);
-    json->readValue(tmp.data(), json_bytes_remaining);
-
-    // don't copy past first nul char in tmp
-    auto null_pos = std::find(tmp.begin(), tmp.end(), 0);
-    *receiveBuffer += std::string(tmp.begin(), null_pos);
-
+    Debug_printf("lynxNetwork::json_query - value:%.*s\n", static_cast<int>(jsonlen), reinterpret_cast<const char*>(tmp.data()));
     transaction_put(tmp.data(), tmp.size());
 }
 
@@ -489,10 +488,12 @@ void lynxNetwork::read_channel_json()
 
     // check how many bytes available and truncated to packet size
     response_len = json->available();
-    response_len = response_len % SERIAL_PACKET_SIZE;
+    response_len = std::min<uint16_t>(response_len, SERIAL_PACKET_SIZE);
 
-    if (response_len == 0)
+    if (response_len == 0) {
       transaction_error();
+      return;
+    }
 
     json->readValue(response, response_len);
     Debug_printf("lynxNetwork:read_channel_json, len:%d %s\n",response_len, response);
