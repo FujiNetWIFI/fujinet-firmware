@@ -128,6 +128,13 @@ public:
      */
     protocolError_t reconnect();
 
+    /**
+     * @brief get size of file at path
+     * @param path path to file
+     * @return size of file in bytes, or -1 on error.
+     */
+    int32_t get_file_size(string path);
+
 protected:
 private:
     /**
