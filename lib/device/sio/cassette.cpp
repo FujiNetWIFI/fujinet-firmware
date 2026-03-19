@@ -281,7 +281,9 @@ void sioCassette::sio_enable_cassette()
         SYSTEM_BUS.setBaudrate(CASSETTE_BAUDRATE);
         // Only reset boot flag on fresh mount (tape_offset==0), not on
         // motor OFF/ON cycles during T2K playback between blocks.
-        if (tape_offset == 0)
+        // Skip reset if turbo loader XEX is already mounted on disk —
+        // PicoBoot handles booting, we must not send CAS boot again.
+        if (tape_offset == 0 && _turbo_loader_slot < 0)
         {
             t2k_boot_sent = false;
             qros_boot_sent = false;
@@ -1161,7 +1163,8 @@ void sioCassette::mount_turbo_loader()
     }
     else if (tape_flags.qros)
     {
-        xex_path = "/qtos51.xex";
+        // AUDF=$7F (6600 baud) or AUDF=$56 (9600 baud)
+        xex_path = (qros_turbo_baud > 8000) ? "/qtos51_9600.xex" : "/qtos51.xex";
         label = "QROS";
     }
     else
