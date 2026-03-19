@@ -225,22 +225,40 @@ mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
         // TODO left off here for tape cassette
         break;
     default:
-        switch (disk_type)
-        {
-        case MEDIATYPE_XEX:
-            _disk = new MediaTypeXEX();
-            break;
-        case MEDIATYPE_ATX:
-            _disk = new MediaTypeATX();
-            break;
-        default:
-            _disk = new MediaTypeATR();
-            break;
-        }
-        device_active = true;
-        strcpy(_disk->_disk_filename, filename);
-        return _disk->mount(f, disksize);
+        return mount_disk_media(f, filename, disksize, disk_type);
     }
+}
+
+// Mount a disk media type directly (ATR/XEX/ATX).
+// Unlike mount(), this does NOT route CAS/WAV to the cassette handler,
+// so it is safe to call from within cassette code (avoids recursive mount).
+mediatype_t sioDisk::mount_disk_media(fnFile *f, const char *filename, uint32_t disksize,
+                                       mediatype_t disk_type)
+{
+    Debug_print("disk MOUNT\n");
+
+    // Destroy any existing MediaType
+    if (_disk != nullptr)
+    {
+        delete _disk;
+        _disk = nullptr;
+    }
+
+    switch (disk_type)
+    {
+    case MEDIATYPE_XEX:
+        _disk = new MediaTypeXEX();
+        break;
+    case MEDIATYPE_ATX:
+        _disk = new MediaTypeATX();
+        break;
+    default:
+        _disk = new MediaTypeATR();
+        break;
+    }
+    device_active = true;
+    strcpy(_disk->_disk_filename, filename);
+    return _disk->mount(f, disksize);
 }
 
 // Destructor

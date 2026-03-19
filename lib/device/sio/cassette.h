@@ -129,6 +129,7 @@ private:
         unsigned char FUJI : 1;
         unsigned char turbo : 1;
         unsigned char turbo2000 : 1;
+        unsigned char qros : 1;
     } tape_flags;
 
     uint8_t atari_sector_buffer[256];
@@ -143,6 +144,17 @@ private:
     size_t send_FUJI_tape_block(size_t offset);
     size_t receive_FUJI_tape_block(size_t offset);
 
+    // QROS turbo cassette support
+    bool qros_boot_sent = false;       // boot loader already sent?
+    uint16_t qros_turbo_baud = 6580;   // turbo baud rate from CAS
+    size_t send_QROS_tape_block(size_t offset);
+    void send_QROS_boot_loader();
+#ifdef ESP_PLATFORM
+    void qros_pilot_on();   // detach UART TX, set GPIO HIGH for pilot tone
+    void qros_pilot_off();  // reattach UART TX
+    bool _qros_pilot_active = false;
+#endif
+
     // Turbo 2000 PWM cassette support
     uint16_t t2k_pilot_half  = 726;   // pilot pulse half-period in µs
     uint16_t t2k_bit0_half   = 272;   // narrow pulse (bit 0) half-period in µs
@@ -154,7 +166,9 @@ private:
     size_t   t2k_data_present = 0;   // bytes already sent from pwmd by pwml pre-send
 
     size_t send_turbo2000_tape_block(size_t offset);
-    void send_turbo2000_boot_loader();
+    void mount_turbo_loader();
+    void unmount_turbo_loader();
+    int8_t _turbo_loader_slot = -1;
     uint16_t t2k_samples_to_us(uint8_t samples);
 #ifdef ESP_PLATFORM
     // Simple encoder callback needs access to our members
