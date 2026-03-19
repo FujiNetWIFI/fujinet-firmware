@@ -254,8 +254,8 @@ void sioCassette::mount_cassette_file(fnFile *f, size_t fz)
         filesize = fz;
         check_for_FUJI_file();
 
-        // If T2K format, mount loader on a free disk slot
-        if (tape_flags.turbo2000)
+        // If turbo format, mount loader XEX on a free disk slot
+        if (tape_flags.turbo2000 || tape_flags.qros)
             mount_turbo_loader();
     }
     else
@@ -282,7 +282,10 @@ void sioCassette::sio_enable_cassette()
         // Only reset boot flag on fresh mount (tape_offset==0), not on
         // motor OFF/ON cycles during T2K playback between blocks.
         if (tape_offset == 0)
+        {
             t2k_boot_sent = false;
+            qros_boot_sent = false;
+        }
     }
 
     if (cassetteMode == cassette_mode_t::record && tape_offset == 0)
@@ -347,6 +350,8 @@ void sioCassette::sio_disable_cassette()
 #ifdef ESP_PLATFORM
             if (_rmt_active)
                 turbo2000_deinit_rmt();
+            if (_qros_pilot_active)
+                qros_pilot_off();
 #endif
             SYSTEM_BUS.setBaudrate(SIO_STANDARD_BAUDRATE);
         }
@@ -365,6 +370,8 @@ void sioCassette::sio_handle_cassette()
     {
         if (tape_flags.turbo2000)
             tape_offset = send_turbo2000_tape_block(tape_offset);
+        else if (tape_flags.qros)
+            tape_offset = send_QROS_tape_block(tape_offset);
         else if (tape_flags.FUJI)
             tape_offset = send_FUJI_tape_block(tape_offset);
         else
@@ -387,6 +394,7 @@ void sioCassette::rewind()
     // Is this all that's needed? -tschak
     tape_offset = 0;
     t2k_boot_sent = false;
+    qros_boot_sent = false;
 }
 
 void sioCassette::set_buttons(bool play_record)
@@ -482,6 +490,7 @@ void sioCassette::check_for_FUJI_file()
 
     tape_flags.FUJI = 0;
     tape_flags.turbo2000 = 0;
+    tape_flags.qros = 0;
 
     fnio::fseek(_file, 0, SEEK_SET);
     fnio::fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
@@ -490,8 +499,10 @@ void sioCassette::check_for_FUJI_file()
         tape_flags.FUJI = 1;
         Debug_println("FUJI File Found");
 
+        uint16_t fuji_chunk_length = hdr->chunk_length; // save before scans clobber buffer
+
         // Scan first few chunks to detect Turbo 2000 PWM format
-        size_t scan_offset = sizeof(struct tape_FUJI_hdr) + hdr->chunk_length;
+        size_t scan_offset = sizeof(struct tape_FUJI_hdr) + fuji_chunk_length;
         while (scan_offset < filesize && scan_offset < 256)
         {
             fnio::fseek(_file, scan_offset, SEEK_SET);
@@ -513,6 +524,41 @@ void sioCassette::check_for_FUJI_file()
                 break;
 
             scan_offset += sizeof(struct tape_FUJI_hdr) + len;
+        }
+
+        // If FUJI file but no T2K detected, scan for QROS turbo (baud > 3000)
+        // QROS turbo uses 6580-6595 (AUDF=127) or 9535-9622 (AUDF=86).
+        // Lower bauds (600, 854, 1000 etc.) are standard/KSO and handled
+        // by the normal FUJI path.
+        if (!tape_flags.turbo2000)
+        {
+            bool has_600_boot = false;
+            scan_offset = sizeof(struct tape_FUJI_hdr) + fuji_chunk_length;
+            while (scan_offset < filesize)
+            {
+                fnio::fseek(_file, scan_offset, SEEK_SET);
+                fnio::fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
+                uint16_t clen = hdr->chunk_length;
+
+                if (p[0] == 'b' && p[1] == 'a' && p[2] == 'u' && p[3] == 'd')
+                {
+                    if (hdr->irg_length <= 600)
+                    {
+                        has_600_boot = true;
+                    }
+                    else if (hdr->irg_length > 3000)
+                    {
+                        tape_flags.qros = 1;
+                        qros_turbo_baud = hdr->irg_length;
+                        qros_boot_sent = has_600_boot; // skip embedded boot if CAS has its own
+                        Debug_printf("QROS turbo format detected (baud=%u, has_boot=%d)\n",
+                                     qros_turbo_baud, has_600_boot);
+                        break;
+                    }
+                }
+
+                scan_offset += sizeof(struct tape_FUJI_hdr) + clen;
+            }
         }
     }
     else
@@ -753,12 +799,372 @@ uint8_t sioCassette::decode_fsk()
 }
 
 // =============================================================================
+// QROS turbo cassette playback
+// =============================================================================
+
+// QROS/EMO Stage 1 boot loader — 128 bytes of data (inside 132-byte record)
+// Extracted from mercenary_EMO_6600.cas. Loaded at $036B by Atari ROM.
+// Sets up POKEY async serial receive, receives Stage 2 (883B) at turbo baud,
+// then jumps to $0700.
+static const uint8_t qros_stage1_boot[] = {
+    0x00, 0x01, 0x6B, 0x03, 0x00, 0x07, 0xA9, 0x34, 0x8D, 0x03, 0xD3, 0x78, 0xA0, 0x00, 0xA2, 0x0A,
+    0xAD, 0x0F, 0xD2, 0x29, 0x10, 0xF0, 0xF5, 0x88, 0xD0, 0xF6, 0xCA, 0xD0, 0xF3, 0x84, 0x32, 0xA9,
+    0x07, 0x85, 0x33, 0xA9, 0x72, 0x85, 0x34, 0xA9, 0x0A, 0x85, 0x35, 0xA9, 0x7F, 0x8D, 0x04, 0xD2,
+    0x8C, 0x06, 0xD2, 0x84, 0x31, 0x84, 0x38, 0x84, 0x39, 0x84, 0x30, 0x84, 0x10, 0xA9, 0x13, 0x20,
+    0x47, 0xEC, 0x58, 0x18, 0xA5, 0x39, 0xF0, 0xFC, 0xA4, 0x30, 0x10, 0x06, 0x20, 0x3E, 0xC6, 0x38,
+    0xB0, 0x17, 0xA9, 0xC0, 0x20, 0x89, 0xEC, 0xA8, 0xA5, 0x6A, 0x49, 0xC0, 0xD0, 0x01, 0x88, 0x84,
+    0x08, 0xA9, 0xAD, 0x85, 0x0A, 0xA9, 0x09, 0x85, 0x0B, 0xA9, 0x3C, 0x8D, 0x02, 0xD3, 0x8D, 0x03,
+    0xD3, 0xA2, 0x10, 0xBD, 0x40, 0x03, 0x9D, 0x50, 0x03, 0xE8, 0x10, 0xF7, 0x60, 0x00, 0x00, 0x00,
+};
+
+// QROS/EMO Stage 2 main loader — 883 bytes, loads at $0700
+// Full turbo loader with Atari DOS binary format support.
+// Displays "LOADER -EMOSOFT-V5.1 (c) 02.03.90", waits for START key.
+static const uint8_t qros_stage2_loader[] = {
+    0xA9, 0xF5, 0x8D, 0xE7, 0x02, 0xA9, 0x0A, 0x8D, 0xE8, 0x02, 0xA2, 0x54, 0xA0, 0x2B, 0x20, 0x86,  // $0700
+    0xE4, 0xA2, 0x4B, 0xA0, 0x0A, 0x4C, 0x42, 0xC6, 0xA9, 0x7F, 0x8D, 0x04, 0xD2, 0xA9, 0x00, 0x8D,  // $0710
+    0x06, 0xD2, 0xA9, 0x28, 0x8D, 0x08, 0xD2, 0x8E, 0x0F, 0xD2, 0xA9, 0xFD, 0x85, 0x32, 0xA9, 0x03,  // $0720
+    0x85, 0x33, 0xA9, 0x80, 0x85, 0x34, 0xA9, 0x04, 0x85, 0x35, 0x60, 0xA5, 0x2A, 0xC9, 0x04, 0xF0,  // $0730
+    0x57, 0xC9, 0x08, 0xD0, 0xF5, 0xA9, 0x02, 0x20, 0xFC, 0xFD, 0x30, 0xEE, 0xA0, 0x80, 0x8C, 0x89,  // $0740
+    0x02, 0xA9, 0x34, 0x8D, 0x02, 0xD3, 0x8D, 0x03, 0xD3, 0xA2, 0x23, 0xA9, 0x81, 0x20, 0x1A, 0x07,  // $0750
+    0x20, 0x84, 0x09, 0x8A, 0xA2, 0x83, 0xCA, 0x9D, 0x72, 0x0A, 0xD0, 0xFA, 0xA2, 0x08, 0xC8, 0xB1,  // $0760
+    0x24, 0x49, 0x58, 0x8D, 0x71, 0x0A, 0xD0, 0x01, 0xC8, 0xB1, 0x24, 0xC9, 0x3A, 0xF0, 0xF9, 0x9D,  // $0770
+    0x72, 0x0A, 0x49, 0x9B, 0xF0, 0x08, 0xE8, 0x10, 0xEF, 0xA9, 0x9B, 0x9D, 0x72, 0x0A, 0xA9, 0xFD,  // $0780
+    0x20, 0x58, 0x09, 0xA9, 0xFD, 0x4C, 0x35, 0x09, 0xA9, 0x01, 0x20, 0xFC, 0xFD, 0x30, 0x9B, 0xA0,  // $0790
+    0x00, 0x8C, 0x89, 0x02, 0x84, 0x41, 0xA9, 0x34, 0x8D, 0x02, 0xD3, 0x8D, 0x03, 0xD3, 0x20, 0x88,  // $07A0
+    0x08, 0x20, 0xC7, 0x08, 0x30, 0xF8, 0x20, 0xAC, 0x08, 0x20, 0xDA, 0x08, 0xAC, 0x74, 0x0A, 0xC0,  // $07B0
+    0xFD, 0xD0, 0xEE, 0xAC, 0x73, 0x0A, 0x88, 0xD0, 0xE8, 0xAC, 0x72, 0x0A, 0xD0, 0xE3, 0xA0, 0x08,  // $07C0
+    0x84, 0x3D, 0x8C, 0x8A, 0x02, 0xB9, 0x72, 0x0A, 0x20, 0xB0, 0xF2, 0xC9, 0x9B, 0xF0, 0x06, 0xE6,  // $07D0
+    0x3D, 0xA4, 0x3D, 0x10, 0xF0, 0xA0, 0x01, 0x84, 0x41, 0x60, 0xA4, 0x3D, 0xCC, 0x8A, 0x02, 0xB0,  // $07E0
+    0x0B, 0xB9, 0x75, 0x0A, 0xE6, 0x3D, 0xA0, 0x01, 0x60, 0x20, 0xAC, 0x08, 0x20, 0xC7, 0x08, 0x10,  // $07F0
+    0x3F, 0xA9, 0x3C, 0x8D, 0x02, 0xD3, 0xA9, 0x00, 0x85, 0x41, 0xA9, 0xA0, 0x8D, 0x07, 0xD2, 0xAC,  // $0800
+    0xC8, 0x02, 0xEE, 0xC8, 0x02, 0xAD, 0x1F, 0xD0, 0xC9, 0x07, 0xF0, 0xF6, 0x8C, 0xC8, 0x02, 0xA9,  // $0810
+    0x34, 0x8D, 0x02, 0xD3, 0x20, 0x88, 0x08, 0x20, 0xC7, 0x08, 0x30, 0xF8, 0xAD, 0xFE, 0x03, 0xCD,  // $0820
+    0x73, 0x0A, 0xAD, 0xFD, 0x03, 0xED, 0x72, 0x0A, 0x90, 0xEA, 0xA9, 0x01, 0x85, 0x41, 0xD0, 0xB9,  // $0830
+    0xAC, 0xFF, 0x03, 0xC0, 0xFD, 0xF0, 0xB2, 0xC0, 0xFE, 0xF0, 0x37, 0xAC, 0x73, 0x0A, 0xAE, 0x72,  // $0840
+    0x0A, 0xC8, 0xD0, 0x01, 0xE8, 0xCC, 0xFE, 0x03, 0xD0, 0xA7, 0xEC, 0xFD, 0x03, 0xD0, 0xA2, 0x20,  // $0850
+    0xAC, 0x08, 0x20, 0xDA, 0x08, 0xAC, 0x74, 0x0A, 0xA9, 0x80, 0xC0, 0xFA, 0xD0, 0x09, 0x20, 0xC7,  // $0860
+    0x08, 0x20, 0x13, 0x09, 0xAD, 0xF4, 0x0A, 0x8D, 0x8A, 0x02, 0xAD, 0x75, 0x0A, 0xA0, 0x01, 0x84,  // $0870
+    0x3D, 0x60, 0x20, 0x13, 0x09, 0xA0, 0x88, 0x60, 0x78, 0xA9, 0x10, 0xA0, 0x6F, 0x2C, 0x0F, 0xD2,  // $0880
+    0xF0, 0xF9, 0x88, 0xD0, 0xF8, 0x20, 0xB1, 0x08, 0x8C, 0x0E, 0xD2, 0xA2, 0x13, 0x20, 0x18, 0x07,  // $0890
+    0xA9, 0xA0, 0x8D, 0x0A, 0xD2, 0x85, 0x10, 0x8D, 0x0E, 0xD2, 0x58, 0x60, 0x20, 0x2A, 0x07, 0xA0,  // $08A0
+    0x00, 0x84, 0x30, 0x84, 0x31, 0x84, 0x38, 0x84, 0x39, 0x84, 0x3C, 0xA9, 0xA0, 0xA6, 0x41, 0xF0,  // $08B0
+    0x02, 0xA9, 0xAF, 0x8D, 0x07, 0xD2, 0x60, 0xA4, 0x11, 0xF0, 0x07, 0xA4, 0x39, 0xF0, 0xF8, 0xA4,  // $08C0
+    0x30, 0x60, 0x68, 0x68, 0x20, 0x13, 0x09, 0xA0, 0x80, 0x60, 0xA2, 0x7D, 0xBD, 0x80, 0x03, 0x9D,  // $08D0
+    0xF5, 0x09, 0xE8, 0xD0, 0xF7, 0x60, 0xAC, 0x89, 0x02, 0x10, 0x28, 0xA4, 0x3D, 0xF0, 0x13, 0xA9,  // $08E0
+    0x00, 0x99, 0x75, 0x0A, 0xC8, 0x10, 0xFA, 0xA5, 0x3D, 0x8D, 0xF4, 0x0A, 0xA9, 0xFA, 0x20, 0x35,  // $08F0
+    0x09, 0x88, 0x98, 0x99, 0x75, 0x0A, 0xC8, 0x10, 0xFA, 0xA9, 0xFE, 0x20, 0x35, 0x09, 0xA0, 0x32,  // $0900
+    0x20, 0x84, 0x09, 0xA9, 0xC0, 0x85, 0x10, 0x8D, 0x0E, 0xD2, 0xA9, 0xA0, 0x8D, 0x07, 0xD2, 0xA9,  // $0910
+    0x3C, 0x8D, 0x02, 0xD3, 0x8D, 0x03, 0xD3, 0xA0, 0x01, 0x60, 0xA4, 0x3D, 0x99, 0x75, 0x0A, 0xE6,  // $0920
+    0x3D, 0x10, 0xF4, 0xA9, 0xFC, 0xA6, 0x3A, 0xF0, 0xFC, 0xA4, 0x11, 0xF0, 0x43, 0xA2, 0xA0, 0x8E,  // $0930
+    0x07, 0xD2, 0xAE, 0x71, 0x0A, 0xF0, 0x09, 0xA6, 0x2B, 0x30, 0x05, 0xA0, 0x0B, 0x20, 0x84, 0x09,  // $0940
+    0xEE, 0x73, 0x0A, 0xD0, 0x03, 0xEE, 0x72, 0x0A, 0x8D, 0x74, 0x0A, 0xA0, 0x7D, 0xB9, 0xF5, 0x09,  // $0950
+    0x99, 0x80, 0x03, 0xC8, 0xD0, 0xF7, 0x20, 0x2A, 0x07, 0xA9, 0x90, 0x85, 0x10, 0x8D, 0x0E, 0xD2,  // $0960
+    0xA9, 0xA8, 0x8D, 0x07, 0xD2, 0x84, 0x3B, 0x84, 0x3A, 0xB1, 0x32, 0x85, 0x31, 0x8D, 0x0D, 0xD2,  // $0970
+    0x84, 0x3D, 0xC8, 0x60, 0xA2, 0x00, 0x8D, 0x0A, 0xD4, 0xCA, 0xD0, 0xFA, 0x88, 0xD0, 0xF7, 0x60,  // $0980
+    0x20, 0xEA, 0x07, 0x30, 0x0A, 0x48, 0x20, 0xEA, 0x07, 0x30, 0x03, 0xA8, 0x68, 0x60, 0x68, 0x68,  // $0990
+    0x68, 0xC0, 0x88, 0xF0, 0x76, 0xA2, 0x38, 0x20, 0x13, 0x07, 0x20, 0x21, 0x0A, 0xA9, 0x37, 0x8D,  // $09A0
+    0x54, 0x03, 0xA9, 0x0A, 0x8D, 0x55, 0x03, 0xA2, 0x04, 0x8E, 0x5A, 0x03, 0xCA, 0x20, 0x23, 0x0A,  // $09B0
+    0x30, 0xDF, 0x20, 0x90, 0x09, 0xA2, 0x3E, 0xC9, 0xFF, 0xD0, 0xDC, 0xC8, 0xD0, 0xD9, 0x20, 0x90,  // $09C0
+    0x09, 0x8D, 0xE0, 0x02, 0x8C, 0xE1, 0x02, 0x4C, 0xE5, 0x09, 0x20, 0x90, 0x09, 0xC9, 0xFF, 0xD0,  // $09D0
+    0x04, 0xC0, 0xFF, 0xF0, 0xF5, 0xA2, 0x9D, 0x8E, 0xE2, 0x02, 0xA2, 0x09, 0x8E, 0xE3, 0x02, 0x85,  // $09E0
+    0x45, 0x84, 0x46, 0x20, 0x90, 0x09, 0x85, 0x47, 0x84, 0x48, 0x20, 0xEA, 0x07, 0x30, 0xA2, 0x88,  // $09F0
+    0x91, 0x45, 0xE6, 0x45, 0xD0, 0x02, 0xE6, 0x46, 0xA5, 0x47, 0xC5, 0x45, 0xA5, 0x48, 0xE5, 0x46,  // $0A00
+    0xB0, 0xE8, 0xA9, 0x09, 0x48, 0xA9, 0xD9, 0x48, 0x6C, 0xE2, 0x02, 0x20, 0x21, 0x0A, 0x6C, 0xE0,  // $0A10
+    0x02, 0xA2, 0x0C, 0x8E, 0x52, 0x03, 0xA2, 0x10, 0x4C, 0x56, 0xE4, 0x3A, 0x07, 0xE5, 0x08, 0xE9,  // $0A20
+    0x07, 0x29, 0x09, 0x39, 0x07, 0x9C, 0x09, 0x54, 0x42, 0x52, 0x41, 0x4B, 0x45, 0x9B, 0x4E, 0x4F,  // $0A30
+    0x54, 0x20, 0x44, 0x4F, 0x53, 0x20, 0x46, 0x49, 0x4C, 0x45, 0x9B, 0x7D, 0x1D, 0xA0, 0xCC, 0xCF,  // $0A40
+    0xC1, 0xC4, 0xC5, 0xD2, 0xA0, 0x2D, 0x45, 0x4D, 0x4F, 0x53, 0x4F, 0x46, 0x54, 0x2D, 0x56, 0x35,  // $0A50
+    0x2E, 0x31, 0x20, 0x28, 0x63, 0x29, 0x20, 0x30, 0x32, 0x2E, 0x30, 0x33, 0x2E, 0x39, 0x30, 0x1D,  // $0A60
+    0x9B, 0x00, 0xFA,                                                                                    // $0A70
+};
+
+// Ident text sent before Stage 2 (40 bytes, ATASCII)
+// "LOADER -EMOSOFT-V5.1 (c) 02.03.90"
+static const uint8_t qros_ident_text[] = {
+    0x7D, 0x1D, 0xA0, 0xCC, 0xCF, 0xC1, 0xC4, 0xC5, 0xD2, 0xA0, 0x2D, 0x45, 0x4D, 0x4F, 0x53, 0x4F,
+    0x46, 0x54, 0x2D, 0x56, 0x35, 0x2E, 0x31, 0x20, 0x28, 0x63, 0x29, 0x20, 0x30, 0x32, 0x2E, 0x30,
+    0x33, 0x2E, 0x39, 0x30, 0x1D, 0x9B, 0x00, 0x35,
+};
+
+void sioCassette::send_QROS_boot_loader()
+{
+    // Send QROS two-stage boot loader:
+    // Stage 1: standard 600 baud cassette boot record (loads mini loader at $036B)
+    // Stage 2: turbo baud pilot + 883 bytes (main loader at $0700)
+
+    Debug_println("QROS: Sending boot loader");
+
+    // --- Stage 1: standard 600 baud cassette boot record ---
+    SYSTEM_BUS.setBaudrate(CASSETTE_BAUDRATE);
+
+    // Wait for motor ON (Atari is ready for cassette boot)
+    Debug_println("QROS boot: waiting for motor ON");
+    while (has_pulldown() && !motor_line())
+    {
+        fnSystem.delay(10);
+    }
+
+    // IRG before first boot record (~19 seconds leader)
+    uint16_t gap = 19320;
+    Debug_printf("QROS boot: IRG %u ms\n", gap);
+    while (gap > 0)
+    {
+#ifdef ESP_PLATFORM
+        gap--;
+        fnSystem.delay_microseconds(999);
+#else
+        fnSystem.delay(1);
+        gap--;
+#endif
+    }
+
+    // Build 132-byte record: 55 55 FC [128 data] checksum
+    uint8_t buf[BLOCK_LEN + 4];
+    buf[0] = 0x55;
+    buf[1] = 0x55;
+    buf[2] = 0xFC; // full record
+    memcpy(buf + 3, qros_stage1_boot, BLOCK_LEN);
+    buf[BLOCK_LEN + 3] = sio_checksum(buf, BLOCK_LEN + 3);
+
+    SYSTEM_BUS.write(buf, BLOCK_LEN + 4);
+    SYSTEM_BUS.flushOutput();
+    Debug_printf("QROS boot: Stage 1 sent (cksum=0x%02X)\n", buf[BLOCK_LEN + 3]);
+
+    // --- Stage 2: turbo baud with pilot ---
+    // Original CAS flow after Stage 1 boot record:
+    //   baud 6580 → data 40B IRG=0 (ident) → data 883B IRG=156 (Stage 2)
+    // On tape: ident bytes are noise (Stage 1 is in pilot detection,
+    // UART start bits reset its counter). The 156ms gap before Stage 2
+    // is the actual pilot tone (sustained HIGH). Stage 1 needs ~17ms
+    // (2560 consecutive HIGH reads) to detect pilot, then sets up POKEY
+    // async receive for exactly 883 bytes into $0700-$0A72.
+#ifdef ESP_PLATFORM
+    // Stage 1 needs time to start executing after boot record
+    fnSystem.delay(100);
+
+    // Switch to turbo baud
+    SYSTEM_BUS.setBaudrate(qros_turbo_baud);
+
+    // Send ident text as noise — Stage 1 is in pilot detection mode,
+    // UART data (with LOW start bits) resets its pilot counter.
+    SYSTEM_BUS.write(qros_ident_text, sizeof(qros_ident_text));
+    SYSTEM_BUS.flushOutput();
+    Debug_println("QROS boot: ident text sent (noise for Stage 1)");
+
+    // Pilot tone = sustained HIGH. Stage 1 detects pilot here.
+    // Original CAS has 156ms, we use 200ms for safety margin.
+    qros_pilot_on();
+    fnSystem.delay(200);
+    qros_pilot_off();
+
+    // Send Stage 2 main loader (883 bytes into $0700-$0A72)
+    SYSTEM_BUS.write(qros_stage2_loader, sizeof(qros_stage2_loader));
+    SYSTEM_BUS.flushOutput();
+    Debug_printf("QROS boot: Stage 2 sent (%u bytes)\n", (unsigned)sizeof(qros_stage2_loader));
+
+    // Give loader time to initialize (display text, wait for user)
+    fnSystem.delay(500);
+#endif
+
+    qros_boot_sent = true;
+    Debug_println("QROS: Boot loader complete");
+}
+
+#ifdef ESP_PLATFORM
+void sioCassette::qros_pilot_on()
+{
+    if (_qros_pilot_active)
+        return;
+
+    // Flush pending UART output before detaching
+    SYSTEM_BUS.flushOutput();
+
+    // Detach UART2 TX from GPIO — same pattern as T2K init_rmt
+    esp_rom_gpio_connect_out_signal(PIN_UART2_TX, SIG_GPIO_OUT_IDX, false, false);
+
+    // Set GPIO HIGH = pilot tone (sustained mark level on SIO DATA IN)
+    gpio_set_direction((gpio_num_t)PIN_UART2_TX, GPIO_MODE_OUTPUT);
+    gpio_set_level((gpio_num_t)PIN_UART2_TX, 1);
+
+    _qros_pilot_active = true;
+    Debug_println("QROS: pilot ON (GPIO HIGH)");
+}
+
+void sioCassette::qros_pilot_off()
+{
+    if (!_qros_pilot_active)
+        return;
+
+    // Reattach UART2 TX to GPIO — same pattern as T2K deinit_rmt
+    esp_rom_gpio_connect_out_signal(PIN_UART2_TX,
+        uart_periph_signal[2].pins[SOC_UART_TX_PIN_IDX].signal, false, false);
+
+    _qros_pilot_active = false;
+    Debug_println("QROS: pilot OFF (UART reattached)");
+}
+#endif
+
+size_t sioCassette::send_QROS_tape_block(size_t offset)
+{
+#ifdef ESP_PLATFORM
+    size_t r;
+    uint16_t gap, len;
+    struct tape_FUJI_hdr *hdr = (struct tape_FUJI_hdr *)atari_sector_buffer;
+    uint8_t *p = hdr->chunk_type;
+    bool is_turbo = (baud > 3000);
+
+    // Send embedded boot loader on first call (if CAS has no own 600 Bd boot)
+    if (!qros_boot_sent)
+    {
+        send_QROS_boot_loader();
+        if (!qros_boot_sent)
+            return offset; // boot failed, retry next call
+    }
+
+    size_t starting_offset = offset;
+
+    while (offset < filesize)
+    {
+        Debug_printf("QROS offset: %u\r\n", (unsigned)offset);
+        fnio::fseek(_file, offset, SEEK_SET);
+        fnio::fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
+        len = hdr->chunk_length;
+
+        if (p[0] == 'd' && p[1] == 'a' && p[2] == 't' && p[3] == 'a')
+        {
+            block++;
+            break;
+        }
+        else if (p[0] == 'b' && p[1] == 'a' && p[2] == 'u' && p[3] == 'd')
+        {
+            baud = hdr->irg_length;
+            is_turbo = (baud > 3000);
+            Debug_printf("QROS baud change: %u (turbo=%d)\n", baud, is_turbo);
+        }
+        else if (p[0] == 'f' && p[1] == 's' && p[2] == 'k')
+        {
+            // FSK chunk — skip (digital playback ignores FSK settings)
+            Debug_println("QROS: skipping fsk chunk");
+        }
+
+        offset += sizeof(struct tape_FUJI_hdr) + len;
+    }
+
+    if (offset >= filesize)
+    {
+        Debug_println("QROS: end of tape");
+        return 0;
+    }
+
+    gap = hdr->irg_length;
+    len = hdr->chunk_length;
+    Debug_printf("QROS block %u: baud=%u len=%u gap=%u turbo=%d\n",
+                 block, baud, len, gap, is_turbo);
+
+    fnLedManager.set(eLed::LED_BUS, true);
+
+    if (is_turbo && gap > 0)
+    {
+        // Wait for motor ON before sending turbo data.
+        // After boot, the QROS loader displays program name and waits
+        // for user to press START. Motor is OFF during this wait.
+        if (has_pulldown() && !motor_line())
+        {
+            Debug_println("QROS: waiting for motor ON (user START key)");
+            while (!motor_line())
+            {
+                fnSystem.delay(10);
+            }
+            Debug_println("QROS: motor ON, proceeding");
+        }
+
+        // Turbo block: generate pilot tone (GPIO HIGH) during IRG
+        qros_pilot_on();
+
+        while (gap)
+        {
+            gap--;
+            fnSystem.delay_microseconds(999);
+        }
+
+        qros_pilot_off();
+
+        // Set turbo baud rate for data transmission
+        SYSTEM_BUS.setBaudrate(baud);
+    }
+    else
+    {
+        // Standard 600 baud block: normal IRG delay (no pilot)
+        while (gap)
+        {
+            gap--;
+            fnSystem.delay_microseconds(999);
+
+            if (has_pulldown() && !motor_line() && gap > 1000)
+            {
+                fnLedManager.set(eLed::LED_BUS, false);
+                return starting_offset;
+            }
+        }
+
+        SYSTEM_BUS.setBaudrate(baud);
+    }
+
+    fnLedManager.set(eLed::LED_BUS, false);
+    Debug_printf("QROS: sending block %u\n", block);
+
+    // Send data
+    if (offset < filesize)
+    {
+        uint16_t buflen;
+        offset += sizeof(struct tape_FUJI_hdr);
+
+        while (len)
+        {
+            buflen = (len > 256) ? 256 : len;
+            len -= buflen;
+
+            fnio::fseek(_file, offset, SEEK_SET);
+            r = fnio::fread(atari_sector_buffer, 1, buflen, _file);
+            offset += r;
+
+            Debug_printf("QROS: sending %u bytes\r\n", buflen);
+            SYSTEM_BUS.write(atari_sector_buffer, buflen);
+            SYSTEM_BUS.flushOutput();
+        }
+    }
+    else
+    {
+        offset = 0;
+    }
+
+    return offset;
+#else
+    return 0;
+#endif
+}
+
+// =============================================================================
 // Turbo 2000 PWM cassette playback
 // =============================================================================
 
 void sioCassette::mount_turbo_loader()
 {
-    if (!tape_flags.turbo2000)
+    const char *xex_path = nullptr;
+    const char *label = nullptr;
+
+    if (tape_flags.turbo2000)
+    {
+        xex_path = "/turbo-2000-super-turbo.xex";
+        label = "T2K";
+    }
+    else if (tape_flags.qros)
+    {
+        xex_path = "/qtos51.xex";
+        label = "QROS";
+    }
+    else
         return;
 
     // Mount on D1: (slot 0) — CAS went to cassette handler so _disk is nullptr.
@@ -768,15 +1174,15 @@ void sioCassette::mount_turbo_loader()
     int8_t slot = 0;
     if (theFuji->get_disk_dev(slot)->disktype() != MEDIATYPE_UNKNOWN)
     {
-        Debug_println("T2K: D1: is not free for loader!");
+        Debug_printf("%s: D1: is not free for loader!\n", label);
         return;
     }
 
     // Open loader from flash
-    fnFile *f = fsFlash.fnfile_open("/turbo-2000-super-turbo.xex");
+    fnFile *f = fsFlash.fnfile_open(xex_path);
     if (!f)
     {
-        Debug_println("T2K: Failed to open /turbo-2000-super-turbo.xex from flash");
+        Debug_printf("%s: Failed to open %s from flash\n", label, xex_path);
         return;
     }
 
@@ -786,16 +1192,20 @@ void sioCassette::mount_turbo_loader()
     // Use mount_disk_media() instead of mount() to avoid recursive call —
     // we are already inside sioDisk::mount() which routed CAS here.
     DISK_DEVICE *disk = theFuji->get_disk_dev(slot);
-    disk->mount_disk_media(f, "/turbo-2000-super-turbo.xex", fsize, MEDIATYPE_XEX);
+    disk->mount_disk_media(f, xex_path, fsize, MEDIATYPE_XEX);
 
     _turbo_loader_slot = slot;
-    t2k_boot_sent = true;
+
+    if (tape_flags.turbo2000)
+        t2k_boot_sent = true;
+    if (tape_flags.qros)
+        qros_boot_sent = true;
 
     // boot_config stays false — bootdisk (autorun.atr) must NOT respond,
     // so our XEX on D1: slot 0 (device_active=true) takes over.
 
-    Debug_printf("T2K: Loader mounted on D%d: (%u bytes)\n",
-                 slot + 1, (unsigned)fsize);
+    Debug_printf("%s: Loader mounted on D%d: (%u bytes)\n",
+                 label, slot + 1, (unsigned)fsize);
 }
 
 void sioCassette::unmount_turbo_loader()
