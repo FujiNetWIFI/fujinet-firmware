@@ -139,7 +139,7 @@ sioFuji::sioFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
 void sioFuji::sio_net_set_ssid()
 {
     SSIDConfig cfg;
-    transaction_continue(true);
+    transaction_continue(TRANS_STATE::WILL_GET);
     if (!transaction_get(&cfg, sizeof(cfg))) {
         transaction_error();
         return;
@@ -416,7 +416,7 @@ size_t sioFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
 //  Make new disk and shove into device slot
 void sioFuji::sio_new_disk()
 {
-    transaction_continue(true);
+    transaction_continue(TRANS_STATE::WILL_GET);
     Debug_println("Fuji cmd: NEW DISK");
 
     struct
@@ -545,7 +545,7 @@ void sioFuji::setup()
 
 void sioFuji::sio_qrcode_input()
 {
-    transaction_continue(true);
+    transaction_continue(TRANS_STATE::WILL_GET);
 
     uint16_t len = sio_get_aux();
 
@@ -662,7 +662,7 @@ void sioFuji::sio_qrcode_output()
 
 void sioFuji::sio_base64_encode_input()
 {
-    transaction_continue(true);
+    transaction_continue(TRANS_STATE::WILL_GET);
 
     uint16_t len = sio_get_aux();
 
@@ -762,7 +762,7 @@ void sioFuji::sio_random_number()
 
 void sioFuji::sio_base64_decode_input()
 {
-    transaction_continue(true);
+    transaction_continue(TRANS_STATE::WILL_GET);
 
     uint16_t len = sio_get_aux();
 
@@ -858,7 +858,7 @@ void sioFuji::sio_base64_decode_output()
 
 void sioFuji::sio_hash_input()
 {
-    transaction_continue(true);
+    transaction_continue(TRANS_STATE::WILL_GET);
 
     Debug_printf("FUJI: HASH INPUT\n");
     uint16_t len = sio_get_aux();
@@ -877,7 +877,7 @@ void sioFuji::sio_hash_input()
 
 void sioFuji::sio_hash_compute(bool clear_data)
 {
-    transaction_continue(false);
+    transaction_continue(TRANS_STATE::NO_GET);
     Debug_printf("FUJI: HASH COMPUTE\n");
     algorithm = Hash::to_algorithm(sio_get_aux());
     hasher.compute(algorithm, clear_data);
@@ -886,7 +886,7 @@ void sioFuji::sio_hash_compute(bool clear_data)
 
 void sioFuji::sio_hash_length()
 {
-    transaction_continue(false);
+    transaction_continue(TRANS_STATE::NO_GET);
     Debug_printf("FUJI: HASH LENGTH\n");
     uint16_t is_hex = sio_get_aux() == 1;
     uint8_t r = hasher.hash_length(algorithm, is_hex);
@@ -895,7 +895,7 @@ void sioFuji::sio_hash_length()
 
 void sioFuji::sio_hash_output()
 {
-    transaction_continue(false);
+    transaction_continue(TRANS_STATE::NO_GET);
     Debug_printf("FUJI: HASH OUTPUT\n");
     uint16_t is_hex = sio_get_aux() == 1;
 
@@ -911,7 +911,7 @@ void sioFuji::sio_hash_output()
 
 void sioFuji::sio_hash_clear()
 {
-    transaction_continue(false);
+    transaction_continue(TRANS_STATE::NO_GET);
     Debug_printf("FUJI: HASH CLEAR\n");
     hasher.clear();
     transaction_complete();
@@ -1136,7 +1136,7 @@ bool sioFuji::fujicore_mount_disk_image_success(uint8_t deviceSlot,
 // we override it here to pad/encode the same computed value as LE32.
 void sioFuji::fujicmd_net_scan_networks()
 {
-    transaction_continue(false);
+    transaction_continue(TRANS_STATE::NO_GET);
     Debug_println("Fuji cmd: SCAN NETWORKS");
 
     char ret[4] = {0};

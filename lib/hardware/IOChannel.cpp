@@ -70,7 +70,7 @@ int IOChannel::read(void)
     int result = read(buf, 1);
 
     if (result < 1)
-        return result;
+        return -1;
     return buf[0];
 }
 

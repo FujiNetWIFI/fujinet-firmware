@@ -80,6 +80,7 @@ enum fujiCommandID_t : uint8_t {
     FUJICMD_GET_DEVICE3_FULLPATH       = 0xA2,
     FUJICMD_GET_DEVICE2_FULLPATH       = 0xA1,
     FUJICMD_GET_DEVICE1_FULLPATH       = 0xA0,
+    FUJICMD_UPDATE_FIRMWARE            = 0x90,
     FUJICMD_STATUS                     = 0x53, // S
     FUJICMD_HSIO_INDEX                 = 0x3F, // ?
     FUJICMD_NAK                        = 0x15, // ASCII NAK
@@ -174,6 +175,8 @@ enum fujiCommandID_t : uint8_t {
     APETIMECMD_GET_ISO_LOCAL           = 0x49, // I
     APETIMECMD_GET_GENERAL             = 0x47, // G
     APETIMECMD_GET_ATARI               = 0x41, // A
+
+    CPMCMD_INIT                        = 0x47, // G
 };
 
 #endif /* FUJI_COMMANDS_H */

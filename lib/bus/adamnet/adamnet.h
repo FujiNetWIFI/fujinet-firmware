@@ -59,6 +59,7 @@ static_assert(sizeof(AdamNetPacket) == 6, "AdamNetPacket must be 6 bytes");
 class systemBus;
 class adamFuji;     // declare here so can reference it, but define in fuji.h
 class adamPrinter;
+class fujiDevice;
 
 /**
  * @brief Calculate checksum for AdamNet packets. Uses a simple 8-bit XOR of each successive byte.
@@ -73,9 +74,10 @@ uint8_t adamnet_checksum(uint8_t *buf, unsigned short len);
  */
 class virtualDevice
 {
-protected:
-    friend systemBus; // We exist on the AdamNet Bus, and need its methods.
+    friend systemBus; // We exist on the AdamNet Bus, and need to let it muck with our internals
+    friend fujiDevice;
 
+protected:
     /**
      * @brief Send Byte to AdamNet
      * @param b Byte to send via AdamNet

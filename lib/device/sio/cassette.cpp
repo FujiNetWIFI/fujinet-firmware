@@ -11,6 +11,76 @@
 
 #include "led.h"
 
+#ifdef ESP_PLATFORM
+#include <esp_rom_gpio.h>
+#include <driver/gpio.h>
+#include <driver/rmt_tx.h>
+#include <driver/rmt_encoder.h>
+#include <soc/uart_periph.h>
+
+// Turbo 2000: RMT clock = 1 MHz (1 µs per tick)
+#define T2K_RMT_RESOLUTION_HZ 1000000
+
+// Simple encoder callback for T2K — generates RMT symbols on the fly.
+// Runs in ISR context (RMT ping-pong refill), MUST be in IRAM so it
+// executes instantly without flash cache misses.
+// Phases: pilot → sync → data bits (all gapless in one rmt_transmit).
+size_t IRAM_ATTR t2k_encode_cb(const void *data, size_t data_size,
+                                       size_t symbols_written, size_t symbols_free,
+                                       rmt_symbol_word_t *symbols, bool *done, void *arg)
+{
+    sioCassette *cas = (sioCassette *)arg;
+    const uint8_t *bytes = (const uint8_t *)data;
+    const size_t pilot_count = cas->_t2k_pilot_pending;
+    const size_t sync_count = cas->_t2k_sync_count;
+    const size_t total_needed = pilot_count + sync_count + data_size * 8;
+    const uint16_t ph = cas->t2k_pilot_half;
+    const uint16_t b0h = cas->t2k_bit0_half;
+    const uint16_t b1h = cas->t2k_bit1_half;
+    const bool msb = cas->t2k_msb_first;
+    size_t num = 0;
+
+    while (num < symbols_free && (symbols_written + num) < total_needed)
+    {
+        size_t pos = symbols_written + num;
+        if (pos < pilot_count)
+        {
+            // Phase 1: pilot tone
+            symbols[num].duration0 = ph;
+            symbols[num].level0 = 1;
+            symbols[num].duration1 = ph;
+            symbols[num].level1 = 0;
+        }
+        else if (pos < pilot_count + sync_count)
+        {
+            // Phase 2: sync symbols
+            symbols[num] = cas->_t2k_sync_syms[pos - pilot_count];
+        }
+        else
+        {
+            // Phase 3: data bits
+            size_t data_pos = pos - pilot_count - sync_count;
+            size_t byte_idx = data_pos >> 3;
+            size_t bit_idx = data_pos & 7;
+            uint8_t bval = bytes[byte_idx];
+            uint16_t half;
+            if (msb)
+                half = (bval & (0x80 >> bit_idx)) ? b1h : b0h;
+            else
+                half = (bval & (1 << bit_idx)) ? b1h : b0h;
+            symbols[num].duration0 = half;
+            symbols[num].level0 = 1;
+            symbols[num].duration1 = half;
+            symbols[num].level1 = 0;
+        }
+        num++;
+    }
+
+    *done = (symbols_written + num >= total_needed);
+    return num;
+}
+#endif
+
 /** thinking about state machine
  * boolean states:
  *      file mounted or not
@@ -200,7 +270,13 @@ void sioCassette::sio_enable_cassette()
     cassetteActive = true;
 
     if (cassetteMode == cassette_mode_t::playback)
+    {
         SYSTEM_BUS.setBaudrate(CASSETTE_BAUDRATE);
+        // Only reset boot flag on fresh mount (tape_offset==0), not on
+        // motor OFF/ON cycles during T2K playback between blocks.
+        if (tape_offset == 0)
+            t2k_boot_sent = false;
+    }
 
     if (cassetteMode == cassette_mode_t::record && tape_offset == 0)
     {
@@ -260,7 +336,13 @@ void sioCassette::sio_disable_cassette()
     {
         cassetteActive = false;
         if (cassetteMode == cassette_mode_t::playback)
+        {
+#ifdef ESP_PLATFORM
+            if (_rmt_active)
+                turbo2000_deinit_rmt();
+#endif
             SYSTEM_BUS.setBaudrate(SIO_STANDARD_BAUDRATE);
+        }
         else
         {
             close_cassette_file();
@@ -274,7 +356,9 @@ void sioCassette::sio_handle_cassette()
 {
     if (cassetteMode == cassette_mode_t::playback)
     {
-        if (tape_flags.FUJI)
+        if (tape_flags.turbo2000)
+            tape_offset = send_turbo2000_tape_block(tape_offset);
+        else if (tape_flags.FUJI)
             tape_offset = send_FUJI_tape_block(tape_offset);
         else
             tape_offset = send_tape_block(tape_offset);
@@ -295,6 +379,7 @@ void sioCassette::rewind()
 {
     // Is this all that's needed? -tschak
     tape_offset = 0;
+    t2k_boot_sent = false;
 }
 
 void sioCassette::set_buttons(bool play_record)
@@ -388,29 +473,52 @@ void sioCassette::check_for_FUJI_file()
     struct tape_FUJI_hdr *hdr = (struct tape_FUJI_hdr *)atari_sector_buffer;
     uint8_t *p = hdr->chunk_type;
 
-    // faccess_offset(FILE_ACCESS_READ, 0, sizeof(struct tape_FUJI_hdr));
+    tape_flags.FUJI = 0;
+    tape_flags.turbo2000 = 0;
+
     fnio::fseek(_file, 0, SEEK_SET);
     fnio::fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
-    if (p[0] == 'F' && //search for FUJI header
-        p[1] == 'U' &&
-        p[2] == 'J' &&
-        p[3] == 'I')
+    if (p[0] == 'F' && p[1] == 'U' && p[2] == 'J' && p[3] == 'I')
     {
         tape_flags.FUJI = 1;
-            Debug_println("FUJI File Found");
+        Debug_println("FUJI File Found");
+
+        // Scan first few chunks to detect Turbo 2000 PWM format
+        size_t scan_offset = sizeof(struct tape_FUJI_hdr) + hdr->chunk_length;
+        while (scan_offset < filesize && scan_offset < 256)
+        {
+            fnio::fseek(_file, scan_offset, SEEK_SET);
+            fnio::fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
+            uint16_t len = hdr->chunk_length;
+
+            // Detect A8CAS PWM chunks → Turbo 2000
+            if (p[0] == 'p' && p[1] == 'w' && p[2] == 'm')
+            {
+                tape_flags.turbo2000 = 1;
+                Debug_println("Turbo 2000 PWM format detected (A8CAS)!");
+                break;
+            }
+
+            // Standard CAS data chunk — stop scanning
+            if (p[0] == 'd' && p[1] == 'a' && p[2] == 't' && p[3] == 'a')
+                break;
+            if (p[0] == 'b' && p[1] == 'a' && p[2] == 'u' && p[3] == 'd')
+                break;
+
+            scan_offset += sizeof(struct tape_FUJI_hdr) + len;
+        }
     }
     else
     {
-        tape_flags.FUJI = 0;
-          Debug_println("Not a FUJI File");
+        Debug_println("Not a FUJI File");
     }
 
-    if (tape_flags.turbo) //set fix to
-        baud = 1000;      //1000 baud
+    if (tape_flags.turbo2000)
+        baud = 600; // nominal, not used for UART — RMT bypasses UART
+    else if (tape_flags.turbo)
+        baud = 1000;
     else
         baud = 600;
-    // TO DO support kbps turbo mode
-    // set_tape_baud();
 
     block = 0;
     return;
@@ -636,4 +744,830 @@ uint8_t sioCassette::decode_fsk()
     // Debug_printf("%u\n", out);
     return out;
 }
+
+// =============================================================================
+// Turbo 2000 PWM cassette playback
+// =============================================================================
+
+// Real Turbo 2000 boot loader extracted from t2000.cas
+// Verified working in Altirra. Displays "TURBO  2000", then
+// decodes T2K PWM header+data blocks from cassette DATA IN line.
+static const uint8_t t2k_boot_loader[] = {
+    0x00, 0x03, 0xAC, 0x05, 0xBA, 0x05, 0xA9, 0x3C, 0x8D, 0x02, 0xD3, 0x18, 0x60, 0x00, 0xA2, 0x25, // $0400
+    0xA0, 0x06, 0x20, 0x42, 0xC6, 0xA9, 0x01, 0x85, 0x09, 0x8D, 0xF8, 0x03, 0xA9, 0xFF, 0x8D, 0x01, // $0410
+    0xD3, 0xA9, 0x00, 0x8D, 0x44, 0x02, 0xA9, 0x01, 0x20, 0xFC, 0xFD, 0xA9, 0x04, 0x85, 0x33, 0x85, // $0420
+    0x35, 0xA9, 0x11, 0x85, 0x34, 0xA9, 0x00, 0x85, 0x32, 0x20, 0x31, 0x06, 0x90, 0xED, 0xAD, 0x0B, // $0430
+    0x04, 0x85, 0x32, 0x18, 0x6D, 0x0D, 0x04, 0x85, 0x34, 0xAD, 0x0C, 0x04, 0x85, 0x33, 0x6D, 0x0E, // $0440
+    0x04, 0x85, 0x35, 0xA9, 0x7D, 0x8D, 0x00, 0x04, 0xA9, 0x9B, 0x8D, 0x0B, 0x04, 0xA2, 0x00, 0xA0, // $0450
+    0x04, 0x20, 0x42, 0xC6, 0xA9, 0x01, 0x20, 0xFC, 0xFD, 0xA9, 0xFF, 0x20, 0x31, 0x06, 0xB0, 0x06, // $0460
+    0x20, 0x3E, 0xC6, 0x4C, 0xD2, 0x05, 0x6C, 0x0F, 0x04, 0x54, 0x55, 0x52, 0x42, 0x4F, 0x20, 0x20, // $0470
+    0x32, 0x30, 0x30, 0x30, 0x9B, 0x85, 0x36, 0xA9, 0x34, 0x8D, 0x02, 0xD3, 0x8D, 0x03, 0xD3, 0xA9, // $0480
+    0x80, 0x85, 0x10, 0x8D, 0x0E, 0xD2, 0x18, 0xA0, 0x00, 0x84, 0x30, 0x84, 0x31, 0x8C, 0x0E, 0xD4, // $0490
+    0x8C, 0x00, 0xD4, 0x08, 0xD0, 0x70, 0x20, 0xDB, 0x06, 0x90, 0xF9, 0xA9, 0x00, 0x85, 0x2E, 0x85, // $04A0
+    0x37, 0xA0, 0xB4, 0x20, 0xD6, 0x06, 0x90, 0xEC, 0xC0, 0xD8, 0x90, 0xEA, 0xE6, 0x2E, 0xD0, 0xF1, // $04B0
+    0xC6, 0x37, 0xA0, 0xD1, 0x20, 0xDB, 0x06, 0x90, 0xDB, 0xC0, 0xDE, 0xB0, 0xF5, 0x20, 0xDB, 0x06, // $04C0
+    0x90, 0x44, 0xA0, 0xC6, 0x4C, 0x9D, 0x06, 0x28, 0xD0, 0x08, 0xA5, 0x36, 0x45, 0x2F, 0xD0, 0x37, // $04D0
+    0xF0, 0x0C, 0xA0, 0x00, 0xA5, 0x2F, 0x91, 0x32, 0xE6, 0x32, 0xD0, 0x02, 0xE6, 0x33, 0xA0, 0xC8, // $04E0
+    0x08, 0xA9, 0x01, 0x85, 0x2F, 0x20, 0xD6, 0x06, 0x90, 0x1C, 0xC0, 0xE3, 0x26, 0x2F, 0xA0, 0xC6, // $04F0
+    0x90, 0xF3, 0xA5, 0x31, 0x45, 0x2F, 0x85, 0x31, 0xA5, 0x32, 0xC5, 0x34, 0xA5, 0x33, 0xE5, 0x35, // $0500
+    0x90, 0xC5, 0xA9, 0x00, 0xC5, 0x31, 0x68, 0xA9, 0xC0, 0x8D, 0x0E, 0xD4, 0x85, 0x10, 0x8D, 0x0E, // $0510
+    0xD2, 0xA9, 0x3C, 0x8D, 0x02, 0xD3, 0x8D, 0x03, 0xD3, 0x60, 0x20, 0xDB, 0x06, 0x90, 0x24, 0xA2, // $0520
+    0x04, 0xCA, 0xD0, 0xFD, 0xA5, 0x30, 0x4A, 0x25, 0x37, 0x8D, 0x1A, 0xD0, 0xC8, 0xF0, 0x13, 0xA5, // $0530
+    0x11, 0xF0, 0x0D, 0xAD, 0x0F, 0xD2, 0x29, 0x10, 0xC5, 0x30, 0xF0, 0xF0, 0x85, 0x30, 0x38, 0x60, // $0540
+    0xC6, 0x11, 0x18, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $0550
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $0560
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $0570
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $0580
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $0590
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $05A0
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $05B0
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $05C0
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $05D0
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // $05E0
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7F, // $05F0
+};
+static const uint8_t T2K_BOOT_RECORDS = 4;
+static const uint8_t t2k_boot_control[] = { 0xFC, 0xFC, 0xFC, 0xFA };
+
+void sioCassette::send_turbo2000_boot_loader()
+{
+    // Send the T2K boot loader as standard cassette boot records.
+    // Mimics turbo2000-nizke.cas: 600 baud, ~20s leader before first
+    // record, ~270ms IRG between records, end record (0xFE).
+
+    Debug_println("T2K: Sending boot loader");
+
+    SYSTEM_BUS.setBaudrate(CASSETTE_BAUDRATE);
+
+    const uint8_t *src = t2k_boot_loader;
+    const uint16_t irg_first = 19841;  // ms, leader before first record
+    const uint16_t irg_between = 270;  // ms, gap between records
+    const uint16_t irg_end = 250;      // ms, gap before end record
+
+    // IRG values from turbo2000-nizke.cas:
+    // record 1: irg=19841, record 2: irg=273, record 3: irg=293, end: irg=253
+    const uint16_t irg_table[] = { irg_first, irg_between, irg_between, irg_between, irg_end };
+
+    // Wait for motor to be asserted (Atari is ready for cassette boot)
+    Debug_println("T2K boot: waiting for motor ON");
+    while (has_pulldown() && !motor_line())
+    {
+        fnSystem.delay(10);
+    }
+
+    // Send 3 data records + 1 end record (same as turbo2000-nizke.cas)
+    // Each record is 132 bytes: 55 55 ctrl [128 data] checksum
+    // Must be sent in one write() call — split writes cause timing gaps.
+    for (int rec = 0; rec <= T2K_BOOT_RECORDS; rec++)
+    {
+        uint8_t buf[BLOCK_LEN + 4]; // 55 55 ctrl + 128 data + checksum = 132
+        buf[0] = 0x55; // sync marker
+        buf[1] = 0x55; // sync marker
+
+        if (rec < T2K_BOOT_RECORDS)
+        {
+            buf[2] = t2k_boot_control[rec]; // 0xFC, 0xFC, 0xFA
+            memcpy(buf + 3, src + rec * BLOCK_LEN, BLOCK_LEN);
+        }
+        else
+        {
+            buf[2] = 0xFE; // end record
+            memset(buf + 3, 0, BLOCK_LEN);
+        }
+
+        // Compute checksum and append it — send everything in one write
+        buf[BLOCK_LEN + 3] = sio_checksum(buf, BLOCK_LEN + 3);
+
+        // Wait for IRG — use delay_microseconds like send_FUJI_tape_block
+        uint16_t gap = irg_table[rec];
+        Debug_printf("T2K boot record %d: waiting IRG %u ms\n", rec, gap);
+        while (gap > 0)
+        {
+#ifdef ESP_PLATFORM
+            gap--;
+            fnSystem.delay_microseconds(999);
+#else
+            fnSystem.delay(1);
+            gap--;
+#endif
+        }
+
+        // Send complete record (132 bytes) in one call
+        SYSTEM_BUS.write(buf, BLOCK_LEN + 4);
+        SYSTEM_BUS.flushOutput();
+
+        Debug_printf("T2K boot record %d sent (ctrl=0x%02X, cksum=0x%02X)\n",
+                     rec, buf[2], buf[BLOCK_LEN + 3]);
+    }
+
+    Debug_println("T2K: Boot loader sent, waiting for init");
+
+    // Give the Atari time to run the boot loader init routine.
+    // The T2K loader sets PACTL=52 (motor ON, turbo mode)
+    // and starts waiting for pilot tone pulses.
+    fnSystem.delay(500);
+
+    t2k_boot_sent = true;
+}
+
+uint16_t sioCassette::t2k_samples_to_us(uint8_t samples)
+{
+    // CAS sample count = full period. Divide by 2 to get half-period
+    // for symmetric square wave generation via RMT.
+    return (uint16_t)((uint32_t)samples * 1000000 / t2k_samplerate / 2);
+}
+
+#ifdef ESP_PLATFORM
+
+void sioCassette::turbo2000_init_rmt()
+{
+    if (_rmt_active)
+        return;
+
+    // Flush any pending UART output before detaching
+    SYSTEM_BUS.flushOutput();
+
+    // Detach UART2 TX from GPIO — same pattern as IWM uses for SPI
+    esp_rom_gpio_connect_out_signal(PIN_UART2_TX, SIG_GPIO_OUT_IDX, false, false);
+    // Set idle level HIGH (mark) before RMT takes over
+    gpio_set_level((gpio_num_t)PIN_UART2_TX, 1);
+
+    // Configure RMT TX channel on SIO DATA IN pin (GPIO 21 → SIO Pin 3, into Atari)
+    rmt_tx_channel_config_t tx_cfg = {};
+    tx_cfg.gpio_num = (gpio_num_t)PIN_UART2_TX;
+    tx_cfg.clk_src = RMT_CLK_SRC_DEFAULT;
+    tx_cfg.resolution_hz = T2K_RMT_RESOLUTION_HZ; // 1 µs per tick
+    tx_cfg.mem_block_symbols = 64 * 8; // 512 symbols for gapless ping-pong
+    tx_cfg.trans_queue_depth = 4;
+    tx_cfg.intr_priority = 0;
+    tx_cfg.flags.invert_out = false;
+    tx_cfg.flags.with_dma = false;
+    tx_cfg.flags.io_loop_back = false;
+    tx_cfg.flags.io_od_mode = false;
+    tx_cfg.flags.allow_pd = false;
+
+    rmt_channel_handle_t channel = nullptr;
+    ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_cfg, &channel));
+    _rmt_channel = channel;
+
+    // Copy encoder for pilot tone (uniform pulses, gaps don't matter)
+    rmt_copy_encoder_config_t copy_cfg = {};
+    rmt_encoder_handle_t copy_enc = nullptr;
+    ESP_ERROR_CHECK(rmt_new_copy_encoder(&copy_cfg, &copy_enc));
+    _rmt_copy_encoder = copy_enc;
+
+    // Simple encoder for data — generates symbols on the fly in IRAM ISR.
+    // No gaps between symbols because it fills RMT memory directly during
+    // ping-pong refill (like FozzTexx's Apple II floppy code).
+    rmt_simple_encoder_config_t simple_cfg = {};
+    simple_cfg.callback = t2k_encode_cb;
+    simple_cfg.arg = (void *)this;
+    simple_cfg.min_chunk_size = 0;
+    rmt_encoder_handle_t simple_enc = nullptr;
+    ESP_ERROR_CHECK(rmt_new_simple_encoder(&simple_cfg, &simple_enc));
+    _rmt_simple_encoder = simple_enc;
+
+    ESP_ERROR_CHECK(rmt_enable(channel));
+
+    _rmt_active = true;
+    Debug_printf("Turbo 2000: RMT initialized on SIO DATA IN pin (GPIO %d), invert=%d\n",
+                 PIN_UART2_TX, tx_cfg.flags.invert_out);
+}
+
+void sioCassette::turbo2000_deinit_rmt()
+{
+    if (!_rmt_active)
+        return;
+
+    rmt_channel_handle_t channel = (rmt_channel_handle_t)_rmt_channel;
+
+    // Flush any pending RMT data before tearing down
+    rmt_tx_wait_all_done(channel, -1);
+
+    // Free pending buffer now that RMT is done with it
+    if (_t2k_pending_buf)
+    {
+        free(_t2k_pending_buf);
+        _t2k_pending_buf = nullptr;
+    }
+
+    rmt_disable(channel);
+    rmt_del_channel(channel);
+    if (_rmt_copy_encoder)
+        rmt_del_encoder((rmt_encoder_handle_t)_rmt_copy_encoder);
+    if (_rmt_simple_encoder)
+        rmt_del_encoder((rmt_encoder_handle_t)_rmt_simple_encoder);
+
+    _rmt_channel = nullptr;
+    _rmt_copy_encoder = nullptr;
+    _rmt_simple_encoder = nullptr;
+    _rmt_active = false;
+
+    // Reattach UART2 TX to GPIO 21
+    // UART2 TX signal index = uart_periph_signal[2].pins[SOC_UART_TX_PIN_IDX].signal
+    esp_rom_gpio_connect_out_signal(PIN_UART2_TX,
+        uart_periph_signal[2].pins[SOC_UART_TX_PIN_IDX].signal, false, false);
+
+    Debug_println("Turbo 2000: UART restored on SIO DATA IN pin");
+}
+
+void sioCassette::turbo2000_send_pulses(uint16_t half_period_us, int count)
+{
+    if (!_rmt_active || count <= 0)
+        return;
+
+    rmt_channel_handle_t channel = (rmt_channel_handle_t)_rmt_channel;
+    rmt_encoder_handle_t encoder = (rmt_encoder_handle_t)_rmt_copy_encoder;
+
+    rmt_transmit_config_t tx_cfg = {};
+    tx_cfg.loop_count = 0;
+    tx_cfg.flags.eot_level = 0;
+    tx_cfg.flags.queue_nonblocking = false;
+
+    // Send in batches of up to 64 symbols.
+    // With queue_depth=2, rmt_transmit blocks when queue is full,
+    // providing natural backpressure with gapless output.
+    // Copy encoder copies data to RMT memory before returning,
+    // so reusing the same buffer is safe.
+    rmt_symbol_word_t batch[64];
+    while (count > 0)
+    {
+        int n = (count > 64) ? 64 : count;
+        for (int i = 0; i < n; i++)
+        {
+            batch[i].duration0 = half_period_us;
+            batch[i].level0 = 1;
+            batch[i].duration1 = half_period_us;
+            batch[i].level1 = 0;
+        }
+        esp_err_t err = rmt_transmit(channel, encoder, batch,
+            n * sizeof(rmt_symbol_word_t), &tx_cfg);
+        if (err != ESP_OK)
+        {
+            Debug_printf("T2K: rmt_transmit error: %s\n", esp_err_to_name(err));
+            return;
+        }
+        count -= n;
+    }
+    // No wait here — caller uses turbo2000_flush_rmt() when synchronization needed.
+}
+
+void sioCassette::turbo2000_flush_rmt()
+{
+    if (!_rmt_active)
+        return;
+    rmt_channel_handle_t channel = (rmt_channel_handle_t)_rmt_channel;
+
+    // Poll with 100ms timeout, checking motor line each iteration.
+    // If user presses RESET on Atari, motor goes OFF — stop RMT.
+    // Use 2-second threshold to ignore brief motor OFF pulses (the T2K
+    // loader briefly turns motor OFF between header and data blocks).
+    uint32_t motor_off_start = 0;
+    bool motor_was_off = false;
+    while (rmt_tx_wait_all_done(channel, 100) == ESP_ERR_TIMEOUT)
+    {
+        if (has_pulldown() && !motor_line())
+        {
+            if (!motor_was_off)
+            {
+                motor_was_off = true;
+                motor_off_start = fnSystem.millis();
+            }
+            else if (fnSystem.millis() - motor_off_start > 2000)
+            {
+                Debug_println("T2K flush: motor OFF > 2s, stopping RMT");
+                rmt_disable(channel);
+                rmt_enable(channel);
+                break;
+            }
+        }
+        else
+        {
+            motor_was_off = false;
+        }
+    }
+
+    // Free pending buffer now that RMT is done with it
+    if (_t2k_pending_buf)
+    {
+        free(_t2k_pending_buf);
+        _t2k_pending_buf = nullptr;
+    }
+}
+
+void sioCassette::turbo2000_send_pilot(uint16_t count)
+{
+    turbo2000_send_pulses(t2k_pilot_half, count);
+}
+
+void sioCassette::turbo2000_send_byte(uint8_t byte)
+{
+    // Single-byte wrapper for send_bytes
+    turbo2000_send_bytes(&byte, 1);
+}
+
+void sioCassette::turbo2000_send_bytes(const uint8_t *data, size_t length)
+{
+    if (!_rmt_active || length == 0)
+        return;
+
+    rmt_channel_handle_t channel = (rmt_channel_handle_t)_rmt_channel;
+    rmt_encoder_handle_t encoder = (rmt_encoder_handle_t)_rmt_copy_encoder;
+
+    rmt_transmit_config_t tx_cfg = {};
+    tx_cfg.loop_count = 0;
+    tx_cfg.flags.eot_level = 0;
+    tx_cfg.flags.queue_nonblocking = false;
+
+    // Build symbols for multiple bytes at once.
+    // Max batch = 64 symbols = 8 bytes (RMT memory block size).
+    // With queue_depth=2, rmt_transmit blocks when queue is full,
+    // so the next batch is queued while the current one is still
+    // transmitting — gapless output with no explicit wait needed.
+    rmt_symbol_word_t items[64];
+    size_t sym_idx = 0;
+
+    for (size_t b = 0; b < length; b++)
+    {
+        uint8_t byte = data[b];
+        for (int i = 0; i < 8; i++)
+        {
+            uint16_t half;
+            if (t2k_msb_first)
+                half = (byte & (1 << (7 - i))) ? t2k_bit1_half : t2k_bit0_half;
+            else
+                half = (byte & (1 << i)) ? t2k_bit1_half : t2k_bit0_half;
+
+            items[sym_idx].duration0 = half;
+            items[sym_idx].level0 = 1;
+            items[sym_idx].duration1 = half;
+            items[sym_idx].level1 = 0;
+            sym_idx++;
+        }
+
+        // Queue when batch is full (64 symbols = 8 bytes)
+        if (sym_idx >= 64 || b == length - 1)
+        {
+            esp_err_t err = rmt_transmit(channel, encoder, items,
+                sym_idx * sizeof(rmt_symbol_word_t), &tx_cfg);
+            if (err != ESP_OK)
+            {
+                Debug_printf("T2K: rmt_transmit error: %s\n", esp_err_to_name(err));
+                return;
+            }
+            sym_idx = 0;
+        }
+    }
+    // No wait here — RMT pipeline keeps outputting.
+    // Caller uses turbo2000_flush_rmt() when synchronization is needed.
+}
+
+#endif // ESP_PLATFORM
+
+size_t sioCassette::send_turbo2000_tape_block(size_t offset)
+{
+#ifdef ESP_PLATFORM
+    struct tape_FUJI_hdr *hdr = (struct tape_FUJI_hdr *)atari_sector_buffer;
+    uint8_t *p = hdr->chunk_type;
+    size_t starting_offset = offset;
+
+    // Send T2K boot loader on first call (standard 600 baud cassette boot)
+    if (!t2k_boot_sent)
+    {
+        send_turbo2000_boot_loader();
+        if (!t2k_boot_sent)
+            return starting_offset; // boot failed, retry next call
+    }
+
+    fnLedManager.set(eLed::LED_BUS, true);
+
+    bool chunk_preread = false; // true if next chunk header already in atari_sector_buffer
+
+    while (offset < filesize)
+    {
+        // Read chunk header (skip if already pre-read by previous handler)
+        if (!chunk_preread)
+        {
+            fnio::fseek(_file, offset, SEEK_SET);
+            fnio::fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
+        }
+        chunk_preread = false;
+        uint16_t len = hdr->chunk_length;
+        uint16_t aux = hdr->irg_length;
+
+        // ------- pwms: speed/config -------
+        if (p[0] == 'p' && p[1] == 'w' && p[2] == 'm' && p[3] == 's')
+        {
+            if (len >= 2)
+            {
+                uint8_t tmp[2];
+                fnio::fread(tmp, 1, 2, _file);
+                t2k_samplerate = tmp[0] | (tmp[1] << 8);
+            }
+            uint8_t config = aux & 0xFF;
+            t2k_msb_first = (config >> 2) & 1;
+            Debug_printf("T2K pwms: samplerate=%u, config=0x%02X, msb=%d\n",
+                         t2k_samplerate, config, t2k_msb_first);
+            offset += sizeof(struct tape_FUJI_hdr) + len;
+            continue;
+        }
+
+        // ------- pwmc: pilot tone -------
+        if (p[0] == 'p' && p[1] == 'w' && p[2] == 'm' && p[3] == 'c')
+        {
+            uint16_t silence_ms = aux;
+            uint8_t pilot_pulse_len = 32;  // default
+            uint16_t pilot_count = 256;    // default
+
+            if (len >= 1)
+            {
+                uint8_t tmp[3];
+                fnio::fread(tmp, 1, (len >= 3) ? 3 : len, _file);
+                pilot_pulse_len = tmp[0];
+                if (len >= 3)
+                    pilot_count = tmp[1] | (tmp[2] << 8);
+            }
+
+            t2k_pilot_half = t2k_samples_to_us(pilot_pulse_len);
+            t2k_pilot_count = pilot_count;
+
+            Debug_printf("T2K pwmc: silence=%ums, pilot=%u@%u\n",
+                         silence_ms, pilot_count, t2k_pilot_half);
+
+            // Wait for silence period. During silence, the T2K loader may
+            // briefly turn motor OFF between blocks (L06C2: PACTL=60).
+            // Don't abort — wait for motor to come back ON.
+            if (silence_ms > 0)
+            {
+                if (_rmt_active)
+                    turbo2000_flush_rmt();
+
+                uint32_t motor_off_start = 0;
+                bool motor_was_off = false;
+                while (silence_ms > 0)
+                {
+                    fnSystem.delay(1);
+                    silence_ms--;
+                    if (has_pulldown() && !motor_line())
+                    {
+                        if (!motor_was_off)
+                        {
+                            motor_off_start = fnSystem.millis();
+                            motor_was_off = true;
+                            Debug_println("T2K pwmc: motor OFF during silence (expected between blocks)");
+                        }
+                        // Abort only if motor stays OFF for > 2 seconds (real STOP)
+                        if (fnSystem.millis() - motor_off_start > 2000)
+                        {
+                            Debug_println("T2K pwmc: motor OFF > 2s, aborting");
+                            if (_rmt_active) turbo2000_deinit_rmt();
+                            fnLedManager.set(eLed::LED_BUS, false);
+                            return starting_offset;
+                        }
+                    }
+                    else
+                    {
+                        motor_was_off = false;
+                    }
+                }
+            }
+
+            // After silence, wait for motor ON. The T2K loader shows the
+            // program name and waits for the user to press a key before
+            // requesting the data block (motor OFF during this wait).
+            // Use a long timeout — user may take a while to press a key.
+            if (has_pulldown() && !motor_line())
+            {
+                Debug_println("T2K pwmc: waiting for motor ON (user key press)");
+                while (!motor_line())
+                {
+                    fnSystem.delay(10);
+                    // No timeout — wait indefinitely for user to press key.
+                    // The cassette service loop won't be called during motor OFF
+                    // because we haven't returned. Check BREAK via RESET only.
+                }
+                Debug_println("T2K pwmc: motor back ON, continuing");
+            }
+
+            // Init RMT if not yet active
+            if (!_rmt_active)
+                turbo2000_init_rmt();
+
+            // Don't send pilot here — store params for the simple encoder
+            // callback. Pilot will be generated as part of the next
+            // rmt_transmit (pilot+sync+data gapless in one call).
+            _t2k_pilot_pending = t2k_pilot_count;
+            Debug_printf("T2K pilot: %u pulses @ %u us (deferred to encoder)\n",
+                         t2k_pilot_count, t2k_pilot_half);
+
+            offset += sizeof(struct tape_FUJI_hdr) + len;
+
+            // Pre-read next chunk header.
+            if (offset < filesize)
+            {
+                fnio::fseek(_file, offset, SEEK_SET);
+                fnio::fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
+                chunk_preread = true;
+            }
+            continue;
+        }
+
+        // ------- pwml: sync/end markers or silence -------
+        if (p[0] == 'p' && p[1] == 'w' && p[2] == 'm' && p[3] == 'l')
+        {
+            uint16_t silence_ms = aux;
+
+            if (silence_ms > 0)
+            {
+                if (_rmt_active)
+                    turbo2000_deinit_rmt();
+                fnSystem.delay(silence_ms);
+            }
+
+            if (len > 0)
+            {
+                if (!_rmt_active)
+                    turbo2000_init_rmt();
+
+                uint8_t states[64];
+                size_t read_len = (len > sizeof(states)) ? sizeof(states) : len;
+                fnio::fread(states, 1, read_len, _file);
+
+                // pwml = alternating level durations (16-bit LE, in samples).
+                // Each pair of values forms ONE complete pulse cycle:
+                //   element 0 = HIGH duration, element 1 = LOW duration.
+                // Values are already half-periods — don't divide by 2.
+
+                // Build sync symbols but DON'T send yet — we need to do all
+                // file I/O first, then send sync + data back-to-back so the
+                // T2K loader sees no gap (it has only ~675µs timeout).
+                rmt_symbol_word_t sync_syms[16];
+                size_t sync_count = 0;
+                Debug_printf("T2K pwml raw (%u bytes):", (unsigned)read_len);
+                for (size_t di = 0; di < read_len; di++)
+                    Debug_printf(" %02X", states[di]);
+                Debug_println("");
+
+                for (size_t i = 0; i + 3 < read_len; i += 4)
+                {
+                    uint16_t s0 = states[i] | (states[i + 1] << 8);
+                    uint16_t s1 = states[i + 2] | (states[i + 3] << 8);
+                    uint16_t us0 = (uint16_t)((uint32_t)s0 * 1000000 / t2k_samplerate);
+                    uint16_t us1 = (uint16_t)((uint32_t)s1 * 1000000 / t2k_samplerate);
+                    Debug_printf("T2K sync sym %u: s0=%u(%uus) s1=%u(%uus)\n",
+                                 (unsigned)sync_count, s0, us0, s1, us1);
+                    if ((us0 > 0 || us1 > 0) && sync_count < 16)
+                    {
+                        sync_syms[sync_count].duration0 = us0;
+                        sync_syms[sync_count].level0 = 1;
+                        sync_syms[sync_count].duration1 = us1;
+                        sync_syms[sync_count].level1 = 0;
+                        sync_count++;
+                    }
+                }
+
+                offset += sizeof(struct tape_FUJI_hdr) + len;
+
+                // Read ALL data from the following pwmd block so we can
+                // send sync + entire data in ONE rmt_transmit call.
+                // This eliminates gaps between batches that corrupt bits.
+                t2k_data_present = 0;
+                uint8_t *all_data = nullptr;
+                uint16_t pwmd_len = 0;
+                if (offset < filesize && silence_ms == 0)
+                {
+                    fnio::fseek(_file, offset, SEEK_SET);
+                    fnio::fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
+                    chunk_preread = true;
+
+                    if (p[0] == 'p' && p[1] == 'w' && p[2] == 'm' && p[3] == 'd')
+                    {
+                        uint16_t pwmd_aux = hdr->irg_length;
+                        pwmd_len = hdr->chunk_length;
+                        t2k_bit0_half = t2k_samples_to_us(pwmd_aux & 0xFF);
+                        t2k_bit1_half = t2k_samples_to_us((pwmd_aux >> 8) & 0xFF);
+
+                        // Read ALL pwmd data into RAM
+                        if (pwmd_len > 0)
+                        {
+                            all_data = (uint8_t *)malloc(pwmd_len);
+                            if (all_data)
+                            {
+                                size_t r = fnio::fread(all_data, 1, pwmd_len, _file);
+                                t2k_data_present = r;
+                            }
+                        }
+
+                        // Re-read chunk header so pwmd handler can parse it
+                        fnio::fseek(_file, offset, SEEK_SET);
+                        fnio::fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
+                    }
+                }
+
+                // Debug info BEFORE sending anything (serial output is slow)
+                if (all_data && t2k_data_present > 0)
+                {
+                    Debug_printf("T2K presend %u bytes:", (unsigned)t2k_data_present);
+                    for (size_t pi = 0; pi < t2k_data_present && pi < 32; pi++)
+                        Debug_printf(" %02X", all_data[pi]);
+                    Debug_println("");
+                }
+
+                // Use simple encoder: generates symbols on the fly in IRAM ISR.
+                // Pass raw byte data — callback reads bytes and creates symbols
+                // directly into RMT ping-pong memory. Zero gaps guaranteed.
+                // (Same technique as FozzTexx's Apple II floppy code.)
+                rmt_channel_handle_t channel = (rmt_channel_handle_t)_rmt_channel;
+                rmt_transmit_config_t tx_cfg = {};
+                tx_cfg.loop_count = 0;
+                tx_cfg.flags.eot_level = 0;
+                tx_cfg.flags.queue_nonblocking = false;
+
+                // Free any previous pending buffer
+                if (_t2k_pending_buf)
+                {
+                    free(_t2k_pending_buf);
+                    _t2k_pending_buf = nullptr;
+                }
+
+                // Store sync symbols in class for callback to access
+                memcpy(_t2k_sync_syms, sync_syms, sync_count * sizeof(rmt_symbol_word_t));
+                _t2k_sync_count = sync_count;
+
+                if (all_data && t2k_data_present > 0)
+                {
+                    Debug_printf("T2K: simple encoder %u pilot + %u sync + %u bytes data\n",
+                                 (unsigned)_t2k_pilot_pending, (unsigned)sync_count,
+                                 (unsigned)t2k_data_present);
+                    rmt_transmit(channel,
+                        (rmt_encoder_handle_t)_rmt_simple_encoder,
+                        all_data, t2k_data_present, &tx_cfg);
+                    // Do NOT reset _t2k_pilot_pending here!
+                    // rmt_transmit is non-blocking — the callback reads
+                    // _t2k_pilot_pending asynchronously from ISR context.
+                    // Changing it now would corrupt symbol generation.
+                    // It gets overwritten by the next pwmc handler.
+                    _t2k_pending_buf = all_data; // freed after flush
+                    all_data = nullptr; // don't free below
+                }
+                else if (sync_count > 0 || _t2k_pilot_pending > 0)
+                {
+                    // Fallback: no pre-read data. Send pilot + sync via copy encoder.
+                    if (_t2k_pilot_pending > 0)
+                    {
+                        turbo2000_send_pilot(_t2k_pilot_pending);
+                        _t2k_pilot_pending = 0;
+                    }
+                    if (sync_count > 0)
+                    {
+                        rmt_transmit(channel,
+                            (rmt_encoder_handle_t)_rmt_copy_encoder,
+                            sync_syms, sync_count * sizeof(rmt_symbol_word_t), &tx_cfg);
+                    }
+                }
+
+                if (all_data)
+                    free(all_data);
+
+                continue;
+            }
+
+            offset += sizeof(struct tape_FUJI_hdr) + len;
+            continue;
+        }
+
+        // ------- pwmd: data block -------
+        if (p[0] == 'p' && p[1] == 'w' && p[2] == 'm' && p[3] == 'd')
+        {
+            // aux = pulse0 | (pulse1 << 8)
+            t2k_bit0_half = t2k_samples_to_us(aux & 0xFF);
+            t2k_bit1_half = t2k_samples_to_us((aux >> 8) & 0xFF);
+
+            Debug_printf("T2K data: %u bytes, bit0=%u us, bit1=%u us, presend=%u\n",
+                         len, t2k_bit0_half, t2k_bit1_half, (unsigned)t2k_data_present);
+
+            if (!_rmt_active)
+                turbo2000_init_rmt();
+
+            // Read ALL remaining data into RAM first, then send without
+            // file I/O interruptions. SD card latency spikes can cause
+            // RMT underrun (output goes LOW → lost bits → cascading corruption).
+            // Skip bytes already pre-sent by the pwml handler.
+            size_t data_offset = offset + sizeof(struct tape_FUJI_hdr) + t2k_data_present;
+            size_t remaining = (len > t2k_data_present) ? len - t2k_data_present : 0;
+            t2k_data_present = 0;
+
+            if (remaining > 0)
+            {
+                uint8_t *data_buf = (uint8_t *)malloc(remaining);
+                if (data_buf)
+                {
+                    fnio::fseek(_file, data_offset, SEEK_SET);
+                    size_t r = fnio::fread(data_buf, 1, remaining, _file);
+                    Debug_printf("T2K pwmd: read %u bytes into RAM, sending\n", (unsigned)r);
+                    turbo2000_send_bytes(data_buf, r);
+                    free(data_buf);
+                }
+                else
+                {
+                    // Fallback: chunked read if malloc fails (large blocks)
+                    Debug_printf("T2K pwmd: malloc(%u) failed, using chunked read\n", (unsigned)remaining);
+                    while (remaining > 0)
+                    {
+                        if (has_pulldown() && !motor_line())
+                        {
+                            Debug_println("T2K: motor OFF during data, aborting");
+                            if (_rmt_active) turbo2000_deinit_rmt();
+                            fnLedManager.set(eLed::LED_BUS, false);
+                            return starting_offset;
+                        }
+
+                        size_t chunk = (remaining > 256) ? 256 : remaining;
+                        fnio::fseek(_file, data_offset, SEEK_SET);
+                        size_t r = fnio::fread(atari_sector_buffer, 1, chunk, _file);
+                        turbo2000_send_bytes(atari_sector_buffer, r);
+                        data_offset += r;
+                        remaining -= r;
+                    }
+                }
+            }
+
+            block++;
+            offset += sizeof(struct tape_FUJI_hdr) + len;
+
+            // Process trailing end marker (pwml) if present —
+            // send it seamlessly (no flush) so it follows data without gap.
+            if (offset < filesize)
+            {
+                fnio::fseek(_file, offset, SEEK_SET);
+                fnio::fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
+                if (p[0] == 'p' && p[1] == 'w' && p[2] == 'm' && p[3] == 'l')
+                {
+                    uint16_t elen = hdr->chunk_length;
+                    if (elen > 0)
+                    {
+                        uint8_t states[8];
+                        size_t slen = (elen > sizeof(states)) ? sizeof(states) : elen;
+                        fnio::fread(states, 1, slen, _file);
+
+                        // pwml pairs → one RMT symbol each (same as above)
+                        rmt_channel_handle_t ch = (rmt_channel_handle_t)_rmt_channel;
+                        rmt_encoder_handle_t enc = (rmt_encoder_handle_t)_rmt_copy_encoder;
+                        rmt_transmit_config_t tcfg = {};
+                        tcfg.loop_count = 0;
+                        tcfg.flags.eot_level = 0;
+                        tcfg.flags.queue_nonblocking = false;
+
+                        for (size_t i = 0; i + 3 < slen; i += 4)
+                        {
+                            uint16_t s0 = states[i] | (states[i + 1] << 8);
+                            uint16_t s1 = states[i + 2] | (states[i + 3] << 8);
+                            uint16_t us0 = (uint16_t)((uint32_t)s0 * 1000000 / t2k_samplerate);
+                            uint16_t us1 = (uint16_t)((uint32_t)s1 * 1000000 / t2k_samplerate);
+                            if (us0 > 0 || us1 > 0)
+                            {
+                                rmt_symbol_word_t sym;
+                                sym.duration0 = us0;
+                                sym.level0 = 1;
+                                sym.duration1 = us1;
+                                sym.level1 = 0;
+                                rmt_transmit(ch, enc, &sym,
+                                    sizeof(rmt_symbol_word_t), &tcfg);
+                            }
+                        }
+                    }
+                    offset += sizeof(struct tape_FUJI_hdr) + elen;
+                }
+            }
+
+            // Don't return between blocks! The T2K loader on Atari turns
+            // motor OFF briefly between header and data blocks (L06C2: PACTL=60).
+            // If we return here, FujiNet sees motor OFF, deactivates cassette,
+            // re-sends boot loader, and the T2K loader restarts — losing context.
+            // Instead, flush RMT and continue the while loop to process the next
+            // CAS chunk (pilot for data block). The pwmc handler will wait for
+            // its silence period, giving the Atari time to process the header.
+            if (_rmt_active)
+                turbo2000_flush_rmt();
+
+            fnLedManager.set(eLed::LED_BUS, false);
+            Debug_printf("T2K block %u done, continuing to next chunk\n", block);
+            continue; // Continue the while loop — don't fall through!
+        }
+
+        // ------- FUJI or unknown chunk: skip -------
+        offset += sizeof(struct tape_FUJI_hdr) + len;
+    }
+
+    // End of file
+    if (_rmt_active)
+        turbo2000_deinit_rmt();
+
+    fnLedManager.set(eLed::LED_BUS, false);
+    return 0; // signal end of tape
+#else
+    return 0;
+#endif
+}
+
 #endif /* BUILD_ATARI */

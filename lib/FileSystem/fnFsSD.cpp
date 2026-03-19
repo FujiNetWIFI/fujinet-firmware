@@ -455,9 +455,10 @@ long FileSystemSDFAT::mtime(const char *path)
     return res;
 }
 
-/* Checks that path exists and creates if it doesn't including any parent directories
-   Each directory along the path is limited to 64 characters
-   An initial "/" is optional, but you should not include an ending "/"
+/* Checks that path exists and creates if it doesn't including any parent directories.
+   cumulativePath holds the path prefix built up to the current segment (for mkdir),
+   so it can be as long as the full path.
+   An initial "/" is optional, but you should not include an ending "/".
 
    Examples:
    "abc"
@@ -467,7 +468,8 @@ long FileSystemSDFAT::mtime(const char *path)
 */
 bool FileSystemSDFAT::create_path(const char *path)
 {
-    char segment[64];
+    /* Holds the path prefix built up to the current segment (for mkdir). */
+    char cumulativePath[MAX_PATHLEN];
 
 #ifdef ESP_PLATFORM
     const char *fullpath = path;
@@ -484,36 +486,37 @@ bool FileSystemSDFAT::create_path(const char *path)
         if(*end == '\0')
         {
             done = true;
-            // Only indicate we found a segment if we're not still pointing to the start
             if(end != fullpath)
                 found = true;
         } else if(*end == '/')
         {
-            // Only indicate we found a segment if this isn't a starting '/'
             if(end != fullpath)
                 found = true;
         }
 
         if(found)
         {
-            /* We copy the segment from the fullpath using a length of (end - fullpath) + 1
-               This allows for the ending terminator but not for the trailing '/'
-               If we're done (at the end of fullpath), we assume there's no  trailing '/' so the length
-               is (end - fullpath) + 2
-            */
-            strlcpy(segment, fullpath, end - fullpath + (done ? 2 : 1));
-            //Debug_printf("Checking/creating directory: \"%s\"\r\n", segment);
-#ifdef ESP_PLATFORM
-            if ( !exists(segment) )
+            size_t len = (size_t)(end - fullpath + (done ? 2 : 1));
+            if (len > sizeof(cumulativePath))
             {
-                if(0 != f_mkdir(segment))
+                Debug_printf("create_path: path prefix too long\r\n");
+#ifndef ESP_PLATFORM
+                free(fullpath);
+#endif
+                return false;
+            }
+            strlcpy(cumulativePath, fullpath, len);
+#ifdef ESP_PLATFORM
+            if ( !exists(cumulativePath) )
+            {
+                if(0 != f_mkdir(cumulativePath))
                 {
                     Debug_printf("FAILED errno=%d\r\n", errno);
                     return false;
                 }
             }
 #else
-            if(0 != ::mkdir(segment, S_IRWXU))
+            if(0 != ::mkdir(cumulativePath, S_IRWXU))
             {
                 if(errno != EEXIST)
                 {
@@ -523,7 +526,7 @@ bool FileSystemSDFAT::create_path(const char *path)
                 }
             }
 #endif
-        } // found
+        }
 
         end++;
     }

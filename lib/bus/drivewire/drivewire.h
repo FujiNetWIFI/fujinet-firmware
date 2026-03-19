@@ -125,12 +125,14 @@ class drivewireUDPStream;   // declare here so can reference it, but define in u
 class drivewireCassette;    // Cassette forward-declaration.
 class drivewireCPM;         // CPM device.
 class drivewirePrinter;     // Printer device
+class fujiDevice;
 
 class virtualDevice
 {
-protected:
     friend systemBus;
+    friend fujiDevice;
 
+protected:
     fujiDeviceID_t _devnum;
 
     cmdFrame_t cmdFrame;

@@ -3,6 +3,10 @@
 
 #include "../../include/pinmap.h"
 
+#ifdef ESP_PLATFORM
+#include <driver/rmt_types.h>
+#endif
+
 #include "bus.h"
 #include "fnSystem.h"
 #include "fnio.h"
@@ -124,6 +128,7 @@ private:
     {
         unsigned char FUJI : 1;
         unsigned char turbo : 1;
+        unsigned char turbo2000 : 1;
     } tape_flags;
 
     uint8_t atari_sector_buffer[256];
@@ -137,6 +142,43 @@ private:
     void check_for_FUJI_file();
     size_t send_FUJI_tape_block(size_t offset);
     size_t receive_FUJI_tape_block(size_t offset);
+
+    // Turbo 2000 PWM cassette support
+    uint16_t t2k_pilot_half  = 726;   // pilot pulse half-period in µs
+    uint16_t t2k_bit0_half   = 272;   // narrow pulse (bit 0) half-period in µs
+    uint16_t t2k_bit1_half   = 589;   // wide pulse (bit 1) half-period in µs
+    uint16_t t2k_pilot_count = 3072;  // pilot pulses before current block
+    uint16_t t2k_samplerate  = 44100; // CAS file sample rate
+    bool     t2k_msb_first   = true;  // bit order
+    bool     t2k_boot_sent   = false; // boot loader already sent?
+    size_t   t2k_data_present = 0;   // bytes already sent from pwmd by pwml pre-send
+
+    size_t send_turbo2000_tape_block(size_t offset);
+    void send_turbo2000_boot_loader();
+    uint16_t t2k_samples_to_us(uint8_t samples);
+#ifdef ESP_PLATFORM
+    // Simple encoder callback needs access to our members
+    friend size_t t2k_encode_cb(const void *, size_t, size_t, size_t,
+                                rmt_symbol_word_t *, bool *, void *);
+
+    void turbo2000_init_rmt();
+    void turbo2000_deinit_rmt();
+    void turbo2000_send_pulses(uint16_t half_period_us, int count);
+    void turbo2000_send_byte(uint8_t byte);
+    void turbo2000_send_bytes(const uint8_t *data, size_t length);
+    void turbo2000_send_pilot(uint16_t count);
+    void turbo2000_flush_rmt();
+    void *_rmt_channel = nullptr;        // rmt_channel_handle_t
+    void *_rmt_copy_encoder = nullptr;   // copy encoder for pilot tone
+    void *_rmt_simple_encoder = nullptr; // simple encoder for data (gapless)
+    bool _rmt_active = false;
+    void *_t2k_pending_buf = nullptr;    // raw byte data buffer (freed after flush)
+
+    // State for simple encoder callback (set before rmt_transmit)
+    rmt_symbol_word_t _t2k_sync_syms[16];
+    size_t _t2k_sync_count = 0;
+    size_t _t2k_pilot_pending = 0; // pilot symbols to generate before sync+data
+#endif
 };
 
 #endif

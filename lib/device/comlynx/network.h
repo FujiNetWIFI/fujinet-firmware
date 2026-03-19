@@ -372,7 +372,7 @@ private:
      */
     void parse_and_instantiate_protocol(std::string d);
 
-    //void transaction_continue(bool expectMoreData) override {};
+    //void transaction_continue(transState_t expectMoreData) override {};
     void transaction_complete();
     void transaction_error();
     bool transaction_get(void *data, size_t len);

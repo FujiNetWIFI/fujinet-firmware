@@ -70,12 +70,14 @@ class sioUDPStream;   // declare here so can reference it, but define in udpstre
 class sioCassette;    // Cassette forward-declaration.
 class sioCPM;         // CPM device.
 class sioPrinter;     // Printer device
+class fujiDevice;
 
 class virtualDevice
 {
-protected:
     friend systemBus;
+    friend fujiDevice;
 
+protected:
     fujiDeviceID_t _devnum;
 
     cmdFrame_t cmdFrame;
@@ -305,7 +307,7 @@ public:
     void set_command_processed(bool processed);
     void sio_empty_ack();                                       // for NetSIO, notify hub we are not interested to handle the command
 
-    void set_proceed(bool level) { _netsio.setProceed(level); }
+    void set_proceed(bool level);
     void bus_idle(uint16_t ms) { _netsio.busIdle(ms); }
 #endif /* ESP_PLATFORM */
 
