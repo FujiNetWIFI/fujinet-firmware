@@ -225,10 +225,12 @@ public:
 class systemBus
 {
 private:
-    std::map<uint8_t, virtualDevice *> _daisyChain;
+    //std::map<uint8_t, virtualDevice *> _daisyChain;
+    std::forward_list<virtualDevice *> _daisyChain;
     virtualDevice *_activeDev = nullptr;
     lynxFuji *_fujiDev = nullptr;
     lynxPrinter *_printerDev = nullptr;
+    lynxNetwork *_netDev[8] = {nullptr};
 
     UARTChannel _port;
 

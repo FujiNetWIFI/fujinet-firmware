@@ -155,7 +155,7 @@ private:
     /**
      * JSON Object
      */
-    FNJSON json;
+    FNJSON *json = nullptr;
 
     /**
      * Has JSON been sent via CLR?

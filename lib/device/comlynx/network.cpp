@@ -23,6 +23,10 @@
 
 using namespace std;
 
+#define VERBOSE_PROTOCOL
+
+
+
 /**
  * Constructor
  */
@@ -35,8 +39,6 @@ lynxNetwork::lynxNetwork()
     receiveBuffer->clear();
     transmitBuffer->clear();
     specialBuffer->clear();
-
-    json.setLineEnding("\x00");
 }
 
 /**
@@ -44,21 +46,21 @@ lynxNetwork::lynxNetwork()
  */
 lynxNetwork::~lynxNetwork()
 {
+    // delete protocol instance
+    if (protocol != nullptr)
+        delete protocol;
+    protocol = nullptr;
+
+    // delete all buffers
     receiveBuffer->clear();
     transmitBuffer->clear();
     specialBuffer->clear();
-
     delete receiveBuffer;
     delete transmitBuffer;
     delete specialBuffer;
     receiveBuffer = nullptr;
     transmitBuffer = nullptr;
     specialBuffer = nullptr;
-
-    if (protocol != nullptr)
-        delete protocol;
-
-    protocol = nullptr;
 }
 
 /** LYNX COMMANDS ***************************************************************/
@@ -81,9 +83,7 @@ void lynxNetwork::open(unsigned short len)
     memset(response, 0, sizeof(response));
     transaction_get(&response, len);
 
-    channelMode = PROTOCOL;
-
-    // persist aux1/aux2 values
+      // persist aux1/aux2 values
     cmdFrame.aux1 = _aux1;
     cmdFrame.aux2 = _aux2;
 
@@ -107,7 +107,7 @@ void lynxNetwork::open(unsigned short len)
     // Reset status buffer
     statusByte.byte = 0x00;
 
-    Debug_printf("lynxNetwork::open - aux1: %02X aux2: %02X %s\n", open_aux1, open_aux2, response);
+    Debug_printf("lynxNetwork::open - aux1:%02X aux2:%02X %s\n", open_aux1, open_aux2, response);
 
     // Parse and instantiate protocol
     d = string((char *)response, len);
@@ -135,8 +135,12 @@ void lynxNetwork::open(unsigned short len)
         return;
     }
 
-    // Associate channel mode
-    json.setProtocol(protocol);
+    // setup JSON
+    json = new FNJSON();
+    json->setLineEnding("\x00");        // null terminate json values always
+    json->setProtocol(protocol);
+    channelMode = PROTOCOL;
+
     transaction_complete();
 }
 
@@ -170,6 +174,13 @@ void lynxNetwork::close()
     delete protocol;
     protocol = nullptr;
 
+    // delete the json object
+    if (json != nullptr)
+    {
+        delete json;
+        json = nullptr;
+    }
+
     transaction_complete();
 }
 
@@ -182,15 +193,20 @@ protocolError_t lynxNetwork::read_channel(unsigned short num_bytes)
 {
     protocolError_t _err = PROTOCOL_ERROR::NONE;
 
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
+
     switch (channelMode)
     {
     case PROTOCOL:
         read_channel_protocol();
         break;
     case JSON:
-        response_len = json.available();
+        response_len = json->available();
         response_len = response_len % SERIAL_PACKET_SIZE;
-        json.readValue(response, response_len);
+        json->readValue(response, response_len);
 
         _err = PROTOCOL_ERROR::NONE;
         break;
@@ -213,6 +229,11 @@ protocolError_t lynxNetwork::read_channel(unsigned short num_bytes)
  */
 void lynxNetwork::write(uint16_t num_bytes)
 {
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return; // Punch out.
+    }
+
     Debug_printf("lynxNetwork::write\n");
     memset(response, 0, sizeof(response));
 
@@ -225,7 +246,7 @@ void lynxNetwork::write(uint16_t num_bytes)
 
 void lynxNetwork::read()
 {
-    Debug_printf("lynxNetwork::read\n");
+    Debug_println("lynxNetwork::read");
     read_channel();
 }
 
@@ -239,6 +260,11 @@ void lynxNetwork::read()
 protocolError_t lynxNetwork::write_channel(unsigned short num_bytes)
 {
     protocolError_t err = PROTOCOL_ERROR::NONE;
+
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
 
     switch (channelMode)
     {
@@ -266,6 +292,8 @@ void lynxNetwork::status()
     //NDeviceStatus *status = (NDeviceStatus *) response;
     NDeviceStatus status;
 
+    Debug_println("lynxNetwork::status");
+
     switch (channelMode)
     {
     case PROTOCOL:
@@ -278,7 +306,7 @@ void lynxNetwork::status()
         }
         break;
     case JSON:
-        // err = json.status(&status);
+        // err = json->status(&status);
         break;
     }
 
@@ -288,9 +316,7 @@ void lynxNetwork::status()
     status.conn = s.connected;
     status.err = s.error;
 
-    //response_len = sizeof(*status);     // need this? -SJ
-    receiveMode = STATUS;               // need this? -SJ
-
+    Debug_printf("lynxNetwork::comlynx_status - avail:%d conn:%d err:%d\n", status.avail, status.conn, status.err);
     transaction_put(&status, sizeof(status));
 }
 
@@ -299,6 +325,11 @@ void lynxNetwork::status()
  */
 void lynxNetwork::get_prefix()
 {
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return; // Punch out.
+    }
+    
     Debug_printf("lynxNetwork::comlynx_getprefix(%s)\n", prefix.c_str());
     memcpy(response, prefix.data(), prefix.size());
     response_len = prefix.size();
@@ -313,6 +344,11 @@ void lynxNetwork::set_prefix(unsigned short len)
 {
     uint8_t prefixSpec[256];
     string prefixSpec_str;
+
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return; // Punch out.
+    }
 
     memset(prefixSpec, 0, sizeof(prefixSpec));
     transaction_get(&prefixSpec, len);
@@ -370,6 +406,11 @@ void lynxNetwork::set_login(uint16_t len)
 {
     uint8_t loginspec[256];
 
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return; // Punch out.
+    }
+
     memset(loginspec, 0, sizeof(loginspec));
     transaction_get(loginspec, len);
 
@@ -384,6 +425,11 @@ void lynxNetwork::set_password(uint16_t len)
 {
     uint8_t passwordspec[256];
 
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return; // Punch out.
+    }
+
     memset(passwordspec, 0, sizeof(passwordspec));
     transaction_get(passwordspec, len);
 
@@ -394,6 +440,11 @@ void lynxNetwork::set_password(uint16_t len)
 void lynxNetwork::set_channel_mode()
 {
     unsigned char m;
+
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return; // Punch out.
+    }
 
     transaction_get(&m, sizeof(m));
     Debug_printf("lynxNetwork::channel_mode - mode: %02X\n", m);
@@ -416,87 +467,49 @@ void lynxNetwork::set_channel_mode()
 
 void lynxNetwork::json_query(unsigned short len)
 {
- /*   uint8_t in[256];
-    NetworkStatus ns;
+    std::string in(len, '\0');
 
-    // get the query
-    memset(in, 0, sizeof(in));
-    transaction_get(in, len);
-
-    // strip away line endings from input spec.
-    for (int i = 0; i < len; i++)
-    {
-        if (in[i] == 0x0A || in[i] == 0x0D || in[i] == 0x9b)
-            in[i] = 0x00;
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return; // Punch out.
     }
 
-    std::string in_string(reinterpret_cast<char*>(in));
-    size_t last_colon_pos = in_string.rfind(':');
+    // get the query string
+    transaction_get(in.data(), len);
+    Debug_printf("lynxNetwork::json_query - query:%s\n", in.c_str());
 
-    std::string inp_string;
-    if (last_colon_pos != std::string::npos) {
-        // Skip the device spec. There was a debug message here,
-        // but it was removed, because there are cases where
-        // removing the devicespec isn't possible, e.g. accessing
-        // via CIO (as an XIO). -thom
-        inp_string = in_string.substr(last_colon_pos + 1);
-    } else {
-        inp_string = in_string;
+    // read the json value from query, there may be more bytes than we can transfer
+    // in one response
+    json->setReadQuery(in, cmdFrame.aux2);
+    uint16_t jsonlen = json->available();
+    jsonlen = std::min<uint16_t>(json->available(), SERIAL_PACKET_SIZE);
+    Debug_printf("lynxNetwork::json_query - json->available:%d, len:%d\n", json->available(), jsonlen);
+
+    if (jsonlen == 0) {
+      transaction_error();
+      return;
     }
+    
+    std::vector<uint8_t> tmp(jsonlen);
+    json->readValue(tmp.data(), jsonlen);
 
-    json.setReadQuery(inp_string, cmdFrame.aux2);
-    Debug_printf("lynxNetwork::json_query - (%s)\n", inp_string.c_str());
-    read_channel();
-    */
+    // don't copy past first nul char in tmp (don't think this is needed -SJ)
+    //auto null_pos = std::find(tmp.begin(), tmp.end(), 0);
+    //*receiveBuffer += std::string(tmp.begin(), null_pos);
 
-    uint8_t in[256];
-
-    // get the query
-    memset(in, 0, sizeof(in));
-    transaction_get(in, len);
-
-    // strip away line endings from input spec.
-    for (int i = 0; i < 256; i++)
-    {
-        if (in[i] == 0x0A || in[i] == 0x0D || in[i] == 0x9b)
-            in[i] = 0x00;
-    }
-
-    std::string in_string(reinterpret_cast<char*>(in));
-    size_t last_colon_pos = in_string.rfind(':');
-
-    std::string inp_string;
-    if (last_colon_pos != std::string::npos) {
-        // Skip the device spec. There was a debug message here,
-        // but it was removed, because there are cases where
-        // removing the devicespec isn't possible, e.g. accessing
-        // via CIO (as an XIO). -thom
-        inp_string = in_string.substr(last_colon_pos + 1);
-    } else {
-        inp_string = in_string;
-    }
-
-    json.setReadQuery(inp_string, cmdFrame.aux2);
-    uint16_t json_bytes_remaining = json.available();
-
-    Debug_printf("lynxNetwork::json_query - query: %s\n", inp_string.c_str());
-    Debug_printf("lynxNetwork::json_query - json->available: %d\n", json_bytes_remaining);
-
-    std::vector<uint8_t> tmp(json_bytes_remaining);
-    json.readValue(tmp.data(), json_bytes_remaining);
-
-    // don't copy past first nul char in tmp
-    auto null_pos = std::find(tmp.begin(), tmp.end(), 0);
-    *receiveBuffer += std::string(tmp.begin(), null_pos);
-
-    Debug_printf("lynxNetwork::json_query - reponse: %s\n", tmp.data());
+    Debug_printf("lynxNetwork::json_query - value:%.*s\n", static_cast<int>(jsonlen), reinterpret_cast<const char*>(tmp.data()));
     transaction_put(tmp.data(), tmp.size());
 }
 
 void lynxNetwork::json_parse()
 {
+  if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return; // Punch out.
+    }
+
     Debug_println("lynxNetwork::json_parse");
-    json.parse();
+    json->parse();
     transaction_complete();
 }
 
@@ -519,26 +532,21 @@ void lynxNetwork::read_channel_json()
 
     if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
         transaction_error();
-        return; // Punch out.
+        return;
     }
 
-    //if (jsonRecvd == false)
-    //{
-        response_len = json.available();
-        response_len = response_len % SERIAL_PACKET_SIZE;
-        json.readValue(response, response_len);
+    // check how many bytes available and truncated to packet size
+    response_len = json->available();
+    response_len = std::min<uint16_t>(response_len, SERIAL_PACKET_SIZE);
 
-        Debug_printf("lynxNetwork:read_channel_json, len:%d %s\n",response_len, response);
-        //jsonRecvd = true;
-        transaction_put(response, response_len);
-    //}
-    //else
-    //{
-    //    if (response_len > 0)
-    //        transaction_complete();
-    //    else
-    //        transaction_error();
-    //}
+    if (response_len == 0) {
+      transaction_error();
+      return;
+    }
+
+    json->readValue(response, response_len);
+    Debug_printf("lynxNetwork:read_channel_json, len:%d %s\n",response_len, response);
+    transaction_put(response, response_len);
 }
 
 void lynxNetwork::read_channel_protocol()
@@ -547,12 +555,14 @@ void lynxNetwork::read_channel_protocol()
 
     if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
         transaction_error();
-        return; // Punch out.
+        return;
     }
 
     // Get status
     protocol->status(&ns);
     size_t avail = protocol->available();
+
+    Debug_printf("lynxNetwork:read_channel_protocol - protcol->available:%d\n", avail);
 
     if (!avail)
     {
@@ -561,7 +571,7 @@ void lynxNetwork::read_channel_protocol()
     }
 
     // Truncate bytes waiting to response size
-    avail = avail % SERIAL_PACKET_SIZE;
+    avail = std::min<uint16_t>(avail, SERIAL_PACKET_SIZE);
     response_len = avail;
 
     if (protocol->read(response_len) != PROTOCOL_ERROR::NONE) // protocol adapter returned error
