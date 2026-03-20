@@ -107,7 +107,7 @@ void lynxNetwork::open(unsigned short len)
     // Reset status buffer
     statusByte.byte = 0x00;
 
-    Debug_printf("lynxNetwork::open - aux1: %02X aux2: %02X %s\n", open_aux1, open_aux2, response);
+    Debug_printf("lynxNetwork::open - aux1:%02X aux2:%02X %s\n", open_aux1, open_aux2, response);
 
     // Parse and instantiate protocol
     d = string((char *)response, len);
@@ -193,6 +193,11 @@ protocolError_t lynxNetwork::read_channel(unsigned short num_bytes)
 {
     protocolError_t _err = PROTOCOL_ERROR::NONE;
 
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
+
     switch (channelMode)
     {
     case PROTOCOL:
@@ -224,6 +229,11 @@ protocolError_t lynxNetwork::read_channel(unsigned short num_bytes)
  */
 void lynxNetwork::write(uint16_t num_bytes)
 {
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return; // Punch out.
+    }
+
     Debug_printf("lynxNetwork::write\n");
     memset(response, 0, sizeof(response));
 
@@ -236,7 +246,7 @@ void lynxNetwork::write(uint16_t num_bytes)
 
 void lynxNetwork::read()
 {
-    Debug_printf("lynxNetwork::read\n");
+    Debug_println("lynxNetwork::read");
     read_channel();
 }
 
@@ -250,6 +260,11 @@ void lynxNetwork::read()
 protocolError_t lynxNetwork::write_channel(unsigned short num_bytes)
 {
     protocolError_t err = PROTOCOL_ERROR::NONE;
+
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return PROTOCOL_ERROR::UNSPECIFIED;
+    }
 
     switch (channelMode)
     {
@@ -277,6 +292,8 @@ void lynxNetwork::status()
     //NDeviceStatus *status = (NDeviceStatus *) response;
     NDeviceStatus status;
 
+    Debug_println("lynxNetwork::status");
+
     switch (channelMode)
     {
     case PROTOCOL:
@@ -299,9 +316,7 @@ void lynxNetwork::status()
     status.conn = s.connected;
     status.err = s.error;
 
-    //response_len = sizeof(*status);     // need this? -SJ
-    receiveMode = STATUS;               // need this? -SJ
-
+    Debug_printf("lynxNetwork::comlynx_status - avail:%d conn:%d err:%d\n", status.avail, status.conn, status.err);
     transaction_put(&status, sizeof(status));
 }
 
@@ -310,6 +325,11 @@ void lynxNetwork::status()
  */
 void lynxNetwork::get_prefix()
 {
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return; // Punch out.
+    }
+    
     Debug_printf("lynxNetwork::comlynx_getprefix(%s)\n", prefix.c_str());
     memcpy(response, prefix.data(), prefix.size());
     response_len = prefix.size();
@@ -324,6 +344,11 @@ void lynxNetwork::set_prefix(unsigned short len)
 {
     uint8_t prefixSpec[256];
     string prefixSpec_str;
+
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return; // Punch out.
+    }
 
     memset(prefixSpec, 0, sizeof(prefixSpec));
     transaction_get(&prefixSpec, len);
@@ -381,6 +406,11 @@ void lynxNetwork::set_login(uint16_t len)
 {
     uint8_t loginspec[256];
 
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return; // Punch out.
+    }
+
     memset(loginspec, 0, sizeof(loginspec));
     transaction_get(loginspec, len);
 
@@ -395,6 +425,11 @@ void lynxNetwork::set_password(uint16_t len)
 {
     uint8_t passwordspec[256];
 
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return; // Punch out.
+    }
+
     memset(passwordspec, 0, sizeof(passwordspec));
     transaction_get(passwordspec, len);
 
@@ -405,6 +440,11 @@ void lynxNetwork::set_password(uint16_t len)
 void lynxNetwork::set_channel_mode()
 {
     unsigned char m;
+
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return; // Punch out.
+    }
 
     transaction_get(&m, sizeof(m));
     Debug_printf("lynxNetwork::channel_mode - mode: %02X\n", m);
@@ -429,6 +469,10 @@ void lynxNetwork::json_query(unsigned short len)
 {
     std::string in(len, '\0');
 
+    if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return; // Punch out.
+    }
 
     // get the query string
     transaction_get(in.data(), len);
@@ -459,6 +503,11 @@ void lynxNetwork::json_query(unsigned short len)
 
 void lynxNetwork::json_parse()
 {
+  if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
+        transaction_error();
+        return; // Punch out.
+    }
+
     Debug_println("lynxNetwork::json_parse");
     json->parse();
     transaction_complete();
@@ -506,12 +555,14 @@ void lynxNetwork::read_channel_protocol()
 
     if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
         transaction_error();
-        return; // Punch out.
+        return;
     }
 
     // Get status
     protocol->status(&ns);
     size_t avail = protocol->available();
+
+    Debug_printf("lynxNetwork:read_channel_protocol - protcol->available:%d\n", avail);
 
     if (!avail)
     {
@@ -520,7 +571,7 @@ void lynxNetwork::read_channel_protocol()
     }
 
     // Truncate bytes waiting to response size
-    avail = avail % SERIAL_PACKET_SIZE;
+    avail = std::min<uint16_t>(avail, SERIAL_PACKET_SIZE);
     response_len = avail;
 
     if (protocol->read(response_len) != PROTOCOL_ERROR::NONE) // protocol adapter returned error
