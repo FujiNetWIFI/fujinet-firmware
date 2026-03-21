@@ -194,6 +194,10 @@ void virtualDevice::sio_high_speed()
 // Read and process a command frame from SIO
 void systemBus::_sio_process_cmd()
 {
+#ifndef ESP_PLATFORM
+    _command_processed = false;
+#endif
+
 #ifdef ESP_PLATFORM
     if (_modemDev != nullptr && _modemDev->modemActive && Config.get_modem_enabled())
 #else
