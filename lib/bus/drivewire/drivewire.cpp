@@ -668,16 +668,37 @@ void systemBus::service()
     // network device.
     if (!_netDev.empty())
     {
+        bool hasUpdate = false;
         for (auto it=_netDev.begin(); it != _netDev.end(); ++it)
         {
-            it->second->poll_interrupt();
+            if (it->second->poll_interrupt())
+            {
+                hasUpdate = true;
+                break;
+            }
+        }
+        if (!isBoIP())
+        {
+#ifdef ESP_PLATFORM
+            _serial.setDCD(!hasUpdate);
+#else /* ! ESP_PLATFORM */
+            switch (Config.get_serial_proceed())
+            {
+            case fnConfig::SERIAL_PROCEED_DTR:
+                _serial.setDSR(!hasUpdate); // drives RS-232 DTR
+                break;
+            case fnConfig::SERIAL_PROCEED_RTS:
+                _serial.setCTS(!hasUpdate); // drives RS-232 RTS
+                break;
+            default:
+                break; // SERIAL_PROCEED_NONE / invalid
+            }
+#endif /* ESP_PLATFORM */
         }
     }
 
     if (_port->available())
         _drivewire_process_cmd();
-
-    // dload.dload_process();
 }
 
 #ifdef ESP_PLATFORM
