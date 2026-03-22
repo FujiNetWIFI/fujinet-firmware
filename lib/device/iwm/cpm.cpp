@@ -152,10 +152,10 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
         break;
     case 'B':
 #ifdef ESP_PLATFORM // OS
-        data_buffer[0]=(cpmTaskHandle==NULL ? 0 : 1);
+        data_buffer[0]=(cpmTaskHandle==NULL ? 1 : 0);
 #endif
-        data_len = 0;
-        Debug_printf("CPM Task Running? %d",data_buffer[0]);
+        data_len = 1;
+        Debug_printf("CPM Task Running? %d %s", data_buffer[0],(data_buffer[0]) ? "=No" : "=Yes");
         break;
     }
 
@@ -266,7 +266,7 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
                 {
                         break;
                 }
-                xTaskCreatePinnedToCore(cpmTask, "cpmtask", 4096, this, CPM_TASK_PRIORITY, &cpmTaskHandle, 0);
+                xTaskCreatePinnedToCore(cpmTask, "cpmtask", 8192, this, CPM_TASK_PRIORITY, &cpmTaskHandle, 0);
 #endif
             }
             break;
