@@ -88,14 +88,31 @@ void virtualDevice::transaction_put(const void *data, size_t len, bool err)
 void systemBus::_rs232_process_cmd()
 {
     Debug_printf("rs232_process_cmd()\n");
+#ifdef OBSOLETE
     if (_modemDev != nullptr && _modemDev->modemActive && Config.get_modem_enabled())
     {
         _modemDev->modemActive = false;
         Debug_println("Modem was active - resetting RS232 baud");
         _serial.setBaudrate(_rs232Baud);
     }
+#endif /* OBSOLETE */
 
-    auto tempFrame = readBusPacket();
+    ByteBuffer packet;
+    int val, count;
+
+    while (1)
+    {
+        val = _port->read();
+        if (val < 0 || val == SLIP_END)
+            break;
+        packet.push_back(val);
+    }
+    if (packet.size())
+        _modemDev->tx(packet);
+    if (val < 0)
+        return;
+
+    auto tempFrame = readBusPacket(val);
     if (!tempFrame)
     {
         Debug_printv("packet fail");
@@ -167,6 +184,11 @@ void systemBus::service()
     if (_port->available())
     {
         _rs232_process_cmd();
+    }
+    // Go check if the modem needs to read data if it's active
+    else if (_modemDev != nullptr /*&& _modemDev->modemActive*/ && Config.get_modem_enabled())
+    {
+        _modemDev->rs232_handle_modem();
     }
 
     // Handle interrupts from network protocols
@@ -310,19 +332,28 @@ void systemBus::setBaudrate(int baud)
     _serial.setBaudrate(baud);
 }
 
-std::unique_ptr<FujiBusPacket> systemBus::readBusPacket()
+std::unique_ptr<FujiBusPacket> systemBus::readBusPacket(int first)
 {
     ByteBuffer packet;
-    int val, count;
+    int count = 0;
 
-    for (count = 0; count < 2; )
+    // Define the logic once in a local lambda
+    auto processByte = [&](int val) -> bool
     {
-        val = _port->read();
         if (val < 0)
-            break;
-        packet.push_back(val);
+            return false;
+        packet.push_back(static_cast<uint8_t>(val));
         if (val == SLIP_END)
             count++;
+        return true;
+    };
+
+    processByte(first);
+
+    while (count < 2)
+    {
+        if (!processByte(_port->read()))
+            break;
     }
 
     Debug_printv("Received %d:\n%s", packet.size(),
@@ -341,6 +372,13 @@ void systemBus::writeBusPacket(FujiBusPacket &packet)
 
 void systemBus::sendReplyPacket(fujiDeviceID_t source, bool ack, const void *data, size_t length)
 {
+    // FIXME - check to make sure this wasn't through a bus call
+    if (source == _modemDev->_devnum)
+    {
+        _port->write(data, length);
+        return;
+    }
+
     ByteBuffer bb;
 
     if (ack && data)

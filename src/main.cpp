@@ -332,8 +332,10 @@ void main_setup(int argc, char *argv[])
 
     rs232Printer *ptr = new rs232Printer(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, 0);
-
     SYSTEM_BUS.addDevice(ptr, FUJI_DEVICEID_PRINTER); // P:
+
+    rs232Modem *mdm = new rs232Modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
+    SYSTEM_BUS.addDevice(mdm, FUJI_DEVICEID_SERIAL); // R:
 #endif
 
 #ifdef BUILD_RC2014

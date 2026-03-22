@@ -94,7 +94,9 @@ bool fnTcpServer::hasClient()
     struct sockaddr_in _client;
     int cs = sizeof(struct sockaddr_in);
     _accepted_sockfd = ::accept(_sockfd, (struct sockaddr *)&_client, (socklen_t *)&cs);
+#ifdef TOO_MUCH_DEBUG
     Debug_printf("hasClient accepted %d\n", _accepted_sockfd);
+#endif // TOO_MUCH_DEBUG
 
     if (_accepted_sockfd >= 0)
     {
