@@ -5,8 +5,6 @@
 #include <cstring>
 
 #include "../../include/debug.h"
-#include "../../include/atascii.h"
-
 #include "fnSystem.h"
 #include "fnConfig.h"
 
@@ -42,69 +40,21 @@ rs232Printer::~rs232Printer()
 }
 
 // write for W commands
-void rs232Printer::rs232_write(uint8_t aux1, uint8_t aux2)
+void rs232Printer::rs232_write(const std::optional<ByteBuffer>& data)
 {
-    /*
-  How many bytes the Atari will be sending us:
-  Auxiliary Byte 1 values per 400/800 OS Manual
-  Normal   0x4E 'N'  40 chars
-  Sideways 0x53 'S'  29 chars (820 sideways printing)
-  Wide     0x57 'W'  "not supported"
-
-  Double   0x44 'D'  20 chars (XL OS Source)
-
-  Atari 822 in graphics mode (RS232 command 'P')
-           0x50 'L'  40 bytes
-  as inferred from screen print program in operators manual
-
-  Auxiliary Byte 2 for Atari 822 might be 0 or 1 in graphics mode
-*/
-    uint8_t linelen;
-    switch (aux1)
-    {
-    case 'N':
-    case 'L':
-        linelen = 40;
-        break;
-    case 'S':
-        linelen = 29;
-        break;
-    case 'D':
-        linelen = 20;
-        break;
-    default:
-        linelen = 1;
-    }
-
-    memset(_buffer, 0, sizeof(_buffer)); // clear _buffer
-    if (transaction_get(_buffer, linelen))
-    {
-        if (linelen == 29)
-        {
-            for (int i = 0; i < (linelen / 2); i++)
-            {
-                uint8_t tmp = _buffer[i];
-                _buffer[i] = _buffer[linelen - i - 1];
-                _buffer[linelen - i - 1] = tmp;
-                if (_buffer[i] == ATASCII_EOL)
-                    _buffer[i] = ' ';
-            }
-            _buffer[linelen] = ATASCII_EOL;
-        }
-        // Copy the data to the printer emulator's buffer
-        memcpy(_pptr->provideBuffer(), _buffer, linelen);
-
-        if (_pptr->process(linelen, aux1, aux2))
-            transaction_complete();
-        else
-        {
-            transaction_error();
-        }
-    }
-    else
+    if (!data || data->empty())
     {
         transaction_error();
+        return;
     }
+
+    size_t len = data->size();
+    memcpy(_pptr->provideBuffer(), data->data(), len);
+
+    if (_pptr->process(len, 0, 0))
+        transaction_complete();
+    else
+        transaction_error();
 }
 
 /**
@@ -289,16 +239,21 @@ void rs232Printer::rs232_process(FujiBusPacket &packet)
         {
         case RS232_PRINTERCMD_PUT: // Needed by A822 for graphics mode printing
         case RS232_PRINTERCMD_WRITE:
-            _lastaux1 = packet.param(0);
-            _lastaux2 = packet.param(1);
             _last_ms = fnSystem.millis();
             transaction_continue(TRANS_STATE::NO_GET);
-            rs232_write(_lastaux1, _lastaux2);
+            rs232_write(packet.data());
             break;
         case RS232_PRINTERCMD_STATUS:
-            _last_ms = fnSystem.millis();
-            transaction_continue(TRANS_STATE::NO_GET);
-            rs232_status(static_cast<FujiStatusReq>(packet.param(0)));
+            if (packet.paramCount() < 1) {
+                Debug_printv("Insufficient status paramaters: %d", packet.paramCount());
+                transaction_error();
+            }
+            else
+            {
+                _last_ms = fnSystem.millis();
+                transaction_continue(TRANS_STATE::NO_GET);
+                rs232_status(static_cast<FujiStatusReq>(packet.param(0)));
+            }
             break;
         default:
             transaction_error();
