@@ -50,6 +50,8 @@ public:
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_825];
         #elif NEW_TARGET
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_825];
+        #elif BUILD_RS232
+            return rs232Printer::printer_model_str[rs232Printer::PRINTER_ATARI_825];
         #else
             return PRINTER_UNSUPPORTED;
         #endif

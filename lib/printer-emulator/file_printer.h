@@ -30,6 +30,8 @@ public:
                 return rc2014Printer::printer_model_str[rc2014Printer::PRINTER_FILE_ASCII];
             #elif NEW_TARGET
                 return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_ASCII];
+            #elif BUILD_RS232
+                return rs232Printer::printer_model_str[rs232Printer::PRINTER_FILE_ASCII];
             #else
                 return PRINTER_UNSUPPORTED;
             #endif
@@ -48,6 +50,8 @@ public:
                 return rc2014Printer::printer_model_str[rc2014Printer::PRINTER_FILE_RAW];
             #elif NEW_TARGET
                 return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_RAW];
+            #elif BUILD_RS232
+                return rs232Printer::printer_model_str[rs232Printer::PRINTER_FILE_RAW];
             #else
                 return PRINTER_UNSUPPORTED;
             #endif
@@ -66,6 +70,8 @@ public:
                 return rc2014Printer::printer_model_str[rc2014Printer::PRINTER_FILE_TRIM];
             #elif NEW_TARGET
                 return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_TRIM];
+            #elif BUILD_RS232
+                return rs232Printer::printer_model_str[rs232Printer::PRINTER_FILE_TRIM];
             #else
                 return PRINTER_UNSUPPORTED;
             #endif

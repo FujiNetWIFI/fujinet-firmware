@@ -57,6 +57,8 @@ public:
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_PNG];
         #elif NEW_TARGET
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_PNG];
+        #elif BUILD_RS232
+            return rs232Printer::printer_model_str[rs232Printer::PRINTER_PNG];
         #else
             return PRINTER_UNSUPPORTED;
         #endif
