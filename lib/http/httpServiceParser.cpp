@@ -416,17 +416,12 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 #ifdef BUILD_ADAM
             adamPrinter *ap = fnPrinters.get_ptr(0);
             if (ap != nullptr)
-            {
                 resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
-            } else
+            else
                 resultstream << "No Virtual Printer";
-#endif /* BUILD_ADAM */
-#ifdef BUILD_ATARI
+#elif defined(BUILD_ATARI) || defined(BUILD_APPLE) || defined(BUILD_RS232)
             resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
-#endif /* BUILD_ATARI */
-#ifdef BUILD_APPLE
-            resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
-#endif /* BUILD_APPLE */
+#endif
         }
         break;
     case FN_PRINTER1_PORT:
@@ -434,17 +429,12 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 #ifdef BUILD_ADAM
             adamPrinter *ap = fnPrinters.get_ptr(0);
             if (ap != nullptr)
-            {
                 resultstream << (fnPrinters.get_port(0) + 1);
-            } else
+            else
                 resultstream << "";
-#endif/* BUILD_ADAM */
-#ifdef BUILD_ATARI
+#elif defined(BUILD_ATARI) || defined(BUILD_APPLE) || defined(BUILD_RS232)
             resultstream << (fnPrinters.get_port(0) + 1);
-#endif /* BUILD_ATARI */
-#ifdef BUILD_APPLE
-            resultstream << (fnPrinters.get_port(0) + 1);
-#endif /* BUILD_APPLE */
+#endif
         }
         break;
 #ifdef BUILD_ATARI

@@ -26,6 +26,8 @@ public:
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_EPSON_PRINTSHOP];
         #elif NEW_TARGET
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_EPSON_PRINTSHOP];
+        #elif BUILD_RS232
+            return rs232Printer::printer_model_str[rs232Printer::PRINTER_EPSON_PRINTSHOP];
         #else
             return PRINTER_UNSUPPORTED;
         #endif
