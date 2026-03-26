@@ -7,6 +7,8 @@
 #include "../../qrcode/qrmanager.h"
 #include "compat_string.h"
 #include "fuji_endian.h"
+#include "siocpm.h"
+extern sioCPM sioZ;
 
 #define IMAGE_EXTENSION ".atr"
 #define LOBBY_URL       "tnfs://tnfs.fujinet.online/ATARI/_lobby.xex"
@@ -533,6 +535,7 @@ void sioFuji::setup()
                              (fujiDeviceID_t) (FUJI_DEVICEID_NETWORK + i));
 
     SYSTEM_BUS.addDevice(&_cassetteDev, FUJI_DEVICEID_CASSETTE);
+    SYSTEM_BUS.addDevice(&sioZ, FUJI_DEVICEID_CPM);
     cassette()->set_buttons(Config.get_cassette_buttons());
     cassette()->set_pulldown(Config.get_cassette_pulldown());
 

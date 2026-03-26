@@ -509,6 +509,11 @@ uint8_t _sys_makedisk(uint8_t drive)
 /* Console abstraction functions */
 /*===============================================================================*/
 
+#ifdef BUILD_ATARI
+#define BYPASS_BUS 1
+#endif
+
+
 #ifdef BYPASS_BUS
 #define _kbhit() SYSTEM_BUS.available()
 #define _cread() SYSTEM_BUS.read()
