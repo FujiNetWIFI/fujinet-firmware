@@ -36,7 +36,8 @@ enum mediatype_t
 {
     MEDIATYPE_UNKNOWN = 0,
     MEDIATYPE_IMG,
-    MEDIATYPE_COUNT
+    MEDIATYPE_COUNT,
+    MEDIATYPE_ROM,
 };
 
 class MediaType

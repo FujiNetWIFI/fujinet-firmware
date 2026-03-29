@@ -1,3 +1,4 @@
+#include "rs232/diskType.h"
 #ifdef BUILD_RS232
 
 #include "disk.h"
@@ -8,6 +9,7 @@
 #include "../../include/debug.h"
 
 #include "fujiDevice.h"
+#include "romType.h"
 #include "utils.h"
 
 rs232Disk::rs232Disk()
@@ -195,14 +197,11 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
     if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
         disk_type = MediaType::discover_mediatype(filename);
 
-    // TODO: Stupid hack to treat ROM-sized files as ROMs and not disks. Should be
-    // replaced with proper ROM-handling logic
-    if (disksize == 8192 || disksize == 16384 || disksize == 32768)
-        return mountROM(f, filename, disksize, disk_type);
-
     // Now mount based on MediaType
     switch (disk_type)
     {
+    case MEDIATYPE_ROM:
+        return mountROM(f, filename, disksize, disk_type);
     case MEDIATYPE_IMG:
     case MEDIATYPE_UNKNOWN:
     default:
@@ -224,12 +223,25 @@ mediatype_t rs232Disk::mountROM(fnFile *f, const char *filename, uint32_t disksi
     uint32_t offset, rlen, sectorNum;
     MediaTypeImg romImage;
 
+    // TODO: Don't assume MSX
+    // TODO: Replace with ROM DB lookup
+    // TODO: Should this be a sub-type of the MediaType?
+    fujiROMType_t romType = ROM_TYPE_MSX_PLAIN;
+    int filename_len = strlen(filename);
+    if (0 == strncmp("[Konami].rom", &filename[filename_len-12], 12))
+        romType = ROM_TYPE_MSX_KONAMI;
+    else if (0 == strncmp("[KonamiSCC].rom", &filename[filename_len-15], 15))
+        romType = ROM_TYPE_MSX_KONAMI_SCC;
+    else if (0 == strncmp("[ASCII8].rom", &filename[filename_len-12], 12))
+        romType = ROM_TYPE_MSX_ASCII8;
+    else if (0 == strncmp("[ASCII16].rom", &filename[filename_len-13], 13))
+        romType = ROM_TYPE_MSX_ASCII16;
 
     romImage.mount(f, disksize);
 
     Debug_printv("Attempting to send ROM contents to pico");
     // "open" RAM in bank
-    if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_OPEN, (uint16_t) 0)) {
+    if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_OPEN, (uint16_t) 0, (uint8_t) romType)) {
         Debug_printv("Failed to open pico");
         return (mediatype_t) -1;
     }
