@@ -24,6 +24,12 @@ using IWMStatusHandlers = std::function<void()>;
 class iwmFuji : public fujiDevice
 {
 private:
+
+    void prodos_write_boot_sector(fnFile *f);
+    void prodos_write_sos_sector(fnFile *f);
+    void prodos_write_directory_sectors(fnFile *f);
+    void prodos_write_bitmap(fnFile *f, uint32_t numBlocks);
+
     // Response to SIO_FUJICMD_GET_SCAN_RESULT
     struct
     {
