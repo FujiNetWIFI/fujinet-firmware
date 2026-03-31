@@ -225,7 +225,7 @@ mediatype_t rs232Disk::mountROM(fnFile *f, const char *filename, uint32_t disksi
 
     // TODO: Don't assume MSX
     // TODO: Replace with ROM DB lookup
-    // TODO: Should this be a sub-type of the MediaType?
+    // TODO: Should this be a sub-type of the MediaType z?
     fujiROMType_t romType = ROM_TYPE_MSX_PLAIN;
     int filename_len = strlen(filename);
     if (0 == strncmp("[Konami].rom", &filename[filename_len-12], 12))
@@ -255,6 +255,8 @@ mediatype_t rs232Disk::mountROM(fnFile *f, const char *filename, uint32_t disksi
             Debug_printv("Failed to send block");
             break;
         }
+
+        // usleep(30000);
     }
 
     // "closing" RAM will make the bank active
