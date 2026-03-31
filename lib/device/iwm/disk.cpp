@@ -526,6 +526,286 @@ void iwmDisk::unmount()
     }
 }
 
+// ProDOS Filesystem Creation Functions and Constants
+
+/* -------------------------------------------------------------------------
+ * Constants
+ * ---------------------------------------------------------------------- */
+
+#define PRODOS_BLOCK_SIZE       512u    /* bytes per block                   */
+
+#define VOL_DIR_KEY_BLOCK       2u      /* first block of volume directory   */
+#define VOL_DIR_NUM_BLOCKS      4u      /* volume directory spans 4 blocks   */
+#define BITMAP_START_BLOCK      6u      /* volume bitmap begins here         */
+
+#define ENTRY_LENGTH            0x27u   /* 39 bytes per directory entry      */
+#define ENTRIES_PER_BLOCK       0x0Du   /* 13 directory entries per block    */
+
+/*
+ * Access byte for a freshly formatted volume:
+ *   Bit 7 (0x80) – D: destroy enable
+ *   Bit 6 (0x40) – N: rename enable
+ *   Bit 2 (0x02) – W: write enable
+ *   Bit 0 (0x01) – R: read enable
+ */
+#define DEFAULT_ACCESS          0xC3u
+
+/* High nibble of the first byte of the volume directory header entry */
+#define VOL_HDR_STORAGE_TYPE    0xF0u
+
+/*
+ * prodos_encode_datetime – encode the current local wall-clock time into
+ * the two 16-bit ProDOS date/time words.
+ *
+ * Date word layout (little-endian in the directory):
+ *   Bits 15-9  : year  (tm_year value, i.e. years since 1900, 7-bit field)
+ *   Bits  8-5  : month (1-12)
+ *   Bits  4-0  : day   (1-31)
+ *
+ * Time word layout:
+ *   Bits 12-8  : hour   (0-23)
+ *   Bits  5-0  : minute (0-59)
+ */
+void iwmDisk::prodos_encode_datetime(unsigned short *date_out, unsigned short *time_out)
+{
+    time_t      now = time(NULL);
+    struct tm  *t   = localtime(&now);
+
+    *date_out = (unsigned short)(
+          (((unsigned)t->tm_year  & 0x7Fu) << 9)
+        | (((unsigned)(t->tm_mon + 1) & 0x0Fu) << 5)
+        |  ((unsigned)t->tm_mday  & 0x1Fu));
+
+    *time_out = (unsigned short)(
+          (((unsigned)t->tm_hour & 0x1Fu) << 8)
+        |  ((unsigned)t->tm_min  & 0x3Fu));
+}
+
+/*
+ * write_block – write one 512-byte block to *fp.
+ * Returns 0 on success, -1 on I/O error.
+ */
+int iwmDisk::prodos_write_block(fnFile *f, const unsigned char *buf)
+{
+    return (fnio::fwrite(buf, sizeof(unsigned char), PRODOS_BLOCK_SIZE, f) == PRODOS_BLOCK_SIZE) ? 0 : -1;
+}
+
+/**
+ * @brief write prodos boot sector
+ * @param f file to write to
+ * @return true if error, false if success
+ */
+bool iwmDisk::prodos_write_boot_block(fnFile *f)
+{
+  unsigned char buf[PRODOS_BLOCK_SIZE];
+  memset(&buf,0,sizeof(buf));
+
+  FILE *sf = fsFlash.file_open("/prodos_boot_block.bin","rb");
+  if (!sf)
+  {
+    Debug_printf("Could not open /prodos_boot_block.bin. Aborting.\n");
+    fclose(sf);
+    return true;
+  }
+
+  if (fread(buf,sizeof(unsigned char),sizeof(buf),sf) != sizeof(buf))
+  {
+    Debug_printf("Short read of prodos_boot_block.bin, aborting.\n");
+    fclose(sf);
+    return true;
+  }
+  if (fnio::fwrite(buf,sizeof(unsigned char),sizeof(buf),f) != sizeof(buf))
+  {
+    Debug_printf("Short write to destination image. Aborting.\n");
+    fclose(sf);
+    return true;
+  }
+
+  fclose(sf);
+  Debug_printf("ProDOS boot block written successfully.\n");
+  return false;
+}
+
+/**
+ * @brief write prodos SOS sector
+ * @param f file to write to
+ * @return true if error, false if success
+ */
+bool iwmDisk::prodos_write_sos_block(fnFile *f)
+{
+  unsigned char buf[PRODOS_BLOCK_SIZE];
+  memset(&buf,0,sizeof(buf));
+
+  if (fnio::fwrite(buf,sizeof(unsigned char),sizeof(buf),f) != sizeof(buf))
+  {
+    Debug_printf("Short write to destination image. Aborting.\n");
+    return true;
+  }
+
+  Debug_printf("ProDOS SOS block written successfully.\n");
+  return false;
+}
+
+bool iwmDisk::prodos_write_directory_sectors(fnFile *f, uint16_t numBlocks, const char *label)
+{
+  unsigned char block[PRODOS_BLOCK_SIZE];
+  unsigned short cr_date, cr_time;
+  size_t nameLen = (label) ? strnlen(label,15) : 0;
+
+  prodos_encode_datetime(&cr_date, &cr_time);
+
+  for (unsigned int b = VOL_DIR_KEY_BLOCK; b < VOL_DIR_KEY_BLOCK + VOL_DIR_NUM_BLOCKS; b++)
+  {
+    memset(block,0,sizeof(block));
+
+    /* block link pointers */
+    if (b > VOL_DIR_KEY_BLOCK) 
+    {
+      block[0] = (unsigned char)((b - 1u) & 0xFFu);
+      block[1] = (unsigned char)((b - 1u) >> 8);
+    }
+    
+    if (b < VOL_DIR_KEY_BLOCK + VOL_DIR_NUM_BLOCKS - 1u) 
+    {
+      block[2] = (unsigned char)((b + 1u) & 0xFFu);
+      block[3] = (unsigned char)((b + 1u) >> 8);
+    }
+
+    /* Volume Directory Header – key block only */
+    if (b == VOL_DIR_KEY_BLOCK) 
+    {
+      unsigned char *h = &block[4];   /* h[N] = entry offset +N */
+
+      h[0]  = (unsigned char)(VOL_HDR_STORAGE_TYPE | (nameLen & 0x0Fu));
+      memcpy(&h[1], label, nameLen);   /* +1..+15: name, zero-padded */
+      /* +16..+17: RESERVED ($0000 – already zero from memset) */
+
+      h[18] = (unsigned char)(cr_date & 0xFFu); /* +18..+19: CREAT_DATE */
+      h[19] = (unsigned char)(cr_date >> 8);
+      h[20] = (unsigned char)(cr_time & 0xFFu); /* +20..+21: CREAT_TIME */
+      h[21] = (unsigned char)(cr_time >> 8);
+
+      h[22] = 0x00;   /* +22: VERSION     */
+      h[23] = 0x00;   /* +23: MIN_VERSION */
+
+      h[24] = (unsigned char)(cr_date & 0xFFu); /* +24..+25: MOD_DATE   */
+      h[25] = (unsigned char)(cr_date >> 8);
+      h[26] = (unsigned char)(cr_time & 0xFFu); /* +26..+27: MOD_TIME   */
+      h[27] = (unsigned char)(cr_time >> 8);
+
+      /* +28: last directory block number (blocks 2..5, so last = 5) */
+      h[28] = (unsigned char)(VOL_DIR_KEY_BLOCK + VOL_DIR_NUM_BLOCKS - 1u);
+      /* +29: reserved/padding ($00 – already zero) */
+
+      h[30] = DEFAULT_ACCESS;     /* +30: ACCESS           */
+      h[31] = ENTRY_LENGTH;       /* +31: ENTRY_LENGTH     */
+      h[32] = ENTRIES_PER_BLOCK;  /* +32: ENTRIES_PER_BLOCK*/
+      /* +33..+34: FILE_COUNT ($0000 – already zero) */
+
+      h[35] = (unsigned char)(BITMAP_START_BLOCK & 0xFFu); /* +35..+36 */
+      h[36] = (unsigned char)(BITMAP_START_BLOCK >> 8);
+
+      h[37] = (unsigned char)((unsigned)numBlocks & 0xFFu); /* +37..+38 */
+      h[38] = (unsigned char)((unsigned)numBlocks >> 8);
+    }
+
+    if (prodos_write_block(f, block)<0)
+    {
+      Debug_printf("Short write to destination image. Aborting.\n");
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * @brief write bitmap blocks for a ProDOS volume
+ * @param f file to write to
+ * @param numBlocks total number of blocks on the volume
+ * @return true if error, false if success
+ */
+bool iwmDisk::prodos_write_bitmap(fnFile *f, uint16_t numBlocks)
+{
+    unsigned int bitmapBytes       = ((unsigned int)numBlocks + 7u) / 8u;
+    unsigned int bitmapBlocks      = (bitmapBytes + PRODOS_BLOCK_SIZE - 1u) / PRODOS_BLOCK_SIZE;
+    unsigned int totalSystemBlocks = 2u + VOL_DIR_NUM_BLOCKS + bitmapBlocks;
+    unsigned char *bitmap          = (unsigned char *)malloc(bitmapBlocks * PRODOS_BLOCK_SIZE);
+    unsigned int b=0, i=0;
+
+    if (!bitmap)
+    {
+        Debug_printf("Failed to allocate memory for ProDOS bitmap.\n");
+        return true;
+    }
+    else
+        Debug_printf("ProDOS bitmap: numBlocks=%u, bitmapBytes=%u, bitmapBlocks=%u, totalSystemBlocks=%u\n",
+                     (unsigned)numBlocks, bitmapBytes, bitmapBlocks, totalSystemBlocks);
+
+    memset(bitmap, 0xFFu, bitmapBlocks * PRODOS_BLOCK_SIZE);
+
+    /* Mark system blocks as used */
+    for (i = 0; i < totalSystemBlocks; i++) {
+        bitmap[i / 8u] &= (unsigned char)~(1u << (7u - (i % 8u)));
+    }
+    /* Clear phantom bits beyond numBlocks */
+    for (i = (unsigned int)numBlocks; i < bitmapBlocks * PRODOS_BLOCK_SIZE * 8u; i++) {
+        bitmap[i / 8u] &= (unsigned char)~(1u << (7u - (i % 8u)));
+    }
+
+    for (b = 0; b < bitmapBlocks; b++) {
+      if (prodos_write_block(f, bitmap + b * PRODOS_BLOCK_SIZE) < 0)
+      {
+        Debug_printf("Short write to destination image. Aborting.\n");
+        free(bitmap);
+        return true;
+      }
+    }
+
+    free(bitmap);
+    Debug_printf("ProDOS bitmap blocks written successfully.\n");
+    return false;
+}
+
+/**
+ * @brief write data blocks for a ProDOS volume
+ * @param f file to write to
+ * @param numBlocks total number of blocks on the volume
+ * @verbose Uses a sparse write.
+ * @return true if error, false if success
+ */
+bool iwmDisk::prodos_write_data_blocks(fnFile *f, uint16_t numBlocks)
+{
+  unsigned char buf[PRODOS_BLOCK_SIZE];
+  unsigned long offset = (numBlocks - 1) * PRODOS_BLOCK_SIZE;
+  
+  memset(&buf,0,sizeof(buf));
+
+  fnio::fseek(f,offset,SEEK_SET);
+  if (fnio::fwrite(buf,sizeof(unsigned char),sizeof(buf),f) != sizeof(buf))
+  {
+    Debug_printf("Short write to destination image. Aborting.\n");
+    return true;
+  }
+
+  Debug_printf("ProDOS data blocks written successfully.\n");
+
+  return false;
+}
+
+static unsigned char random_hex_digit()
+{
+  const char hex_digits[] = "0123456789ABCDEF";
+  return hex_digits[rand() % 16];
+}
+
+static const char *prodos_generate_temp_name()
+{
+  static char temp_name[16];
+  snprintf(temp_name, sizeof(temp_name), "NEWDISK.%c%c%c%c", random_hex_digit(), random_hex_digit(), random_hex_digit(), random_hex_digit());
+  return temp_name;
+}
+
 /**
  * Used for writing ProDOS images which exist in multiples of
  * 512 byte blocks.
@@ -592,19 +872,27 @@ bool iwmDisk::write_blank(fnFile *f, uint16_t numBlocks, uint8_t blank_header_ty
     Debug_printf("Writing 2MG Header\n");
 
     header.numBlocks = numBlocks;
-
+    
     fnio::fwrite(&header,sizeof(header),1,f);
   }
 
-  long offset = (numBlocks - 1) * 512;
+  if (prodos_write_boot_block(f))
+    return true;
+  if (prodos_write_sos_block(f))
+    return true;
+  if (prodos_write_directory_sectors(f, numBlocks, prodos_generate_temp_name()))
+    return true;
+  if (prodos_write_bitmap(f, numBlocks))
+    return true;
+  if (prodos_write_data_blocks(f, numBlocks))
+    return true;
 
-  // Sparse Write
-  fnio::fseek(f,offset,SEEK_SET);
-  fnio::fwrite(&buf,sizeof(unsigned char),sizeof(buf),f);
+  Debug_printf("Creation of new ProDOS disk successful.\n");
 
   return false;
 }
 
+// End of ProDOS image creation functions.
 
 /* void iwmDisk::startup_hack()
 {

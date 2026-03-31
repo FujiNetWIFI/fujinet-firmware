@@ -10,6 +10,13 @@ class iwmDisk : public virtualDevice
 {
 private:
     uint8_t err_result = SP_ERR_NOERROR;
+    void prodos_encode_datetime(unsigned short *date_out, unsigned short *time_out);
+    int prodos_write_block(fnFile *f, const unsigned char *buf);
+    bool prodos_write_boot_block(fnFile *f);
+    bool prodos_write_sos_block(fnFile *f);
+    bool prodos_write_directory_sectors(fnFile *f, uint16_t numBlocks, const char *label = nullptr);
+    bool prodos_write_bitmap(fnFile *f, uint16_t numBlocks);
+    bool prodos_write_data_blocks(fnFile *f, uint16_t numBlocks);
 
 protected:
     void send_status_reply_packet() override;
