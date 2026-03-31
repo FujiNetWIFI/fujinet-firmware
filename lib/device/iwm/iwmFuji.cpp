@@ -222,7 +222,6 @@ void iwmFuji::iwm_stat_get_heap()
     data_len = sizeof(avail);
     return;
 }
-
 //  Make new disk and shove into device slot
 void iwmFuji::iwm_ctrl_new_disk()
 {
