@@ -24,16 +24,16 @@ public:
     /**
      * @brief Read len bytes into rx_buf, If protocol times out, the buffer should be null padded to length.
      * @param len Number of bytes to read.
-     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
+     * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
      */
-    protocolError_t read(unsigned short len) override;
+    fujiError_t read(unsigned short len) override;
 
     /**
      * @brief Write len bytes from tx_buf to protocol.
      * @param len The # of bytes to transmit, len should not be larger than buffer.
-     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
+     * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
      */
-    protocolError_t write(unsigned short len) override;
+    fujiError_t write(unsigned short len) override;
 
     /**
      * Get Receive Buffer

@@ -33,7 +33,7 @@ NetworkProtocolSSH::~NetworkProtocolSSH()
 #endif
 }
 
-protocolError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
+fujiError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
                                          fileAccessMode_t access,
                                          netProtoTranslation_t translate)
 {
@@ -51,7 +51,7 @@ protocolError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
     if (!login || !password || (login->empty() && password->empty()))
     {
         error = NDEV_STATUS::INVALID_USERNAME_OR_PASSWORD;
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     // Port 22 by default.
@@ -64,7 +64,7 @@ protocolError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
     {
         Debug_printf("NetworkProtocolSSH::open() - ssh_init not successful. Value returned: %d\r\n", ret);
         error = NDEV_STATUS::GENERAL;
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     Debug_printf("NetworkProtocolSSH::open() - Opening session.\r\n");
@@ -73,7 +73,7 @@ protocolError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
     {
         Debug_printf("Could not create session. aborting.\r\n");
         error = NDEV_STATUS::NOT_CONNECTED;
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     int verbosity = SSH_LOG_PROTOCOL;
@@ -92,7 +92,7 @@ protocolError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
         error = NDEV_STATUS::NOT_CONNECTED;
         const char *message = ssh_get_error(session);
         Debug_printf("NetworkProtocolSSH::open() - Could not connect, error: %s.\r\n", message);
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     ssh_key srv_pubkey = NULL;
@@ -101,7 +101,7 @@ protocolError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
         error = NDEV_STATUS::GENERAL;
         const char *message = ssh_get_error(session);
         Debug_printf("NetworkProtocolSSH::open() - Could not get server ssh public key, error: %s.\r\n", message);
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     size_t hlen;
@@ -113,7 +113,7 @@ protocolError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
         error = NDEV_STATUS::GENERAL;
         const char *message = ssh_get_error(session);
         Debug_printf("NetworkProtocolSSH::open() - Could not get server ssh public key hash, error: %s.\r\n", message);
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     // TODO: We really should be first checking this is a known server to stop MITM attacks etc. before continuing
@@ -138,7 +138,7 @@ protocolError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
         error = NDEV_STATUS::GENERAL;
         const char *message = ssh_get_error(session);
         Debug_printf("NetworkProtocolSSH::open() - Could not issue 'none' userauth method to server, error: %s.\r\n", message);
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     ret = ssh_userauth_list(session, NULL);
@@ -161,7 +161,7 @@ protocolError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
         // May as well stop here, as our only ability (password) isn't allowed
         error = NDEV_STATUS::GENERAL;
         Debug_printf("NetworkProtocolSSH::open() - Could not login to server as it does not allow password auth.\r\n");
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     ret = ssh_userauth_password(session, NULL, password->c_str());
@@ -180,14 +180,14 @@ protocolError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
         error = NDEV_STATUS::GENERAL;
         const char *message = ssh_get_error(session);
         Debug_printf("NetworkProtocolSSH::open() - Could not open new channel, error: %s.\r\n", message);
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
     ret = ssh_channel_open_session(channel);
     if (ret != SSH_OK) {
         error = NDEV_STATUS::GENERAL;
         const char *message = ssh_get_error(session);
         Debug_printf("NetworkProtocolSSH::open() - Could not open session, error: %s.\r\n", message);
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
 
@@ -196,7 +196,7 @@ protocolError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
     {
         error = NDEV_STATUS::GENERAL;
         Debug_printf("Could not request pty\r\n");
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     ret = ssh_channel_request_shell(channel);
@@ -204,7 +204,7 @@ protocolError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
     {
         error = NDEV_STATUS::GENERAL;
         Debug_printf("Could not open shell on channel\r\n");
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     ssh_channel_set_blocking(channel, 0);
@@ -212,25 +212,25 @@ protocolError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
     // At this point, we should be able to talk to the shell.
     Debug_printf("Shell opened.\r\n");
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSSH::close()
+fujiError_t NetworkProtocolSSH::close()
 {
     ssh_disconnect(session);
     ssh_free(session);
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSSH::read(unsigned short len)
+fujiError_t NetworkProtocolSSH::read(unsigned short len)
 {
     // Ironically, All of the read is handled in available().
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSSH::write(unsigned short len)
+fujiError_t NetworkProtocolSSH::write(unsigned short len)
 {
-    protocolError_t err = PROTOCOL_ERROR::NONE;
+    fujiError_t err = FUJI_ERROR::NONE;
 
     len = translate_transmit_buffer();
     ssh_channel_write(channel, transmitBuffer->data(), len);
@@ -242,13 +242,13 @@ protocolError_t NetworkProtocolSSH::write(unsigned short len)
     return err;
 }
 
-protocolError_t NetworkProtocolSSH::status(NetworkStatus *status)
+fujiError_t NetworkProtocolSSH::status(NetworkStatus *status)
 {
     bool isEOF = ssh_channel_is_eof(channel) == 0;
     status->connected = isEOF ? 1 : 0;
     status->error = isEOF ? NDEV_STATUS::SUCCESS : NDEV_STATUS::END_OF_FILE;
     NetworkProtocol::status(status);
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 size_t NetworkProtocolSSH::available()

@@ -31,12 +31,12 @@ NetworkProtocolSD::~NetworkProtocolSD()
     Debug_printf("NetworkProtocolSD::dtor\r\n");
 }
 
-protocolError_t NetworkProtocolSD::open_file_handle()
+fujiError_t NetworkProtocolSD::open_file_handle()
 {
     const char *mode = FILE_READ;
 
     // return error if SD is not mounted
-    if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
+    if (check_fs() != FUJI_ERROR::NONE) return FUJI_ERROR::UNSPECIFIED;
 
     // Map aux1 to mode
     switch (streamMode)
@@ -70,13 +70,13 @@ protocolError_t NetworkProtocolSD::open_file_handle()
     Debug_printf("NetworkProtocolSD::open_file_handle(file: \"%s\" mode: \"%s\") error: %d\r\n",
                  opened_url->path.c_str(), mode, (int) error);
 
-    return nullptr == fh ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return nullptr == fh ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSD::open_dir_handle()
+fujiError_t NetworkProtocolSD::open_dir_handle()
 {
     // return error if SD is not mounted
-    if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
+    if (check_fs() != FUJI_ERROR::NONE) return FUJI_ERROR::UNSPECIFIED;
 
     fnSDFAT.dir_close();
     bool success = fnSDFAT.dir_open(dir.c_str(), filename.c_str(), 0);
@@ -86,29 +86,29 @@ protocolError_t NetworkProtocolSD::open_dir_handle()
         error = NDEV_STATUS::SUCCESS;
 
     Debug_printf("NetworkProtocolSD::open_dir_handle(%s) error: %d\r\n", opened_url->path.c_str(), (int) error);
-    return success ? PROTOCOL_ERROR::NONE : PROTOCOL_ERROR::UNSPECIFIED;
+    return success ? FUJI_ERROR::NONE : FUJI_ERROR::UNSPECIFIED;
 }
 
-protocolError_t NetworkProtocolSD::mount(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolSD::mount(PeoplesUrlParser *url)
 {
     error = NDEV_STATUS::SUCCESS;
     return check_fs();
 }
 
-protocolError_t NetworkProtocolSD::check_fs()
+fujiError_t NetworkProtocolSD::check_fs()
 {
     if (!fnSDFAT.running())
     {
         error = NDEV_STATUS::CONNECTION_REFUSED;
-        return PROTOCOL_ERROR::UNSPECIFIED; // error
+        return FUJI_ERROR::UNSPECIFIED; // error
     }
-    return PROTOCOL_ERROR::NONE; // no error
+    return FUJI_ERROR::NONE; // no error
 }
 
-protocolError_t NetworkProtocolSD::umount()
+fujiError_t NetworkProtocolSD::umount()
 {
     error = NDEV_STATUS::SUCCESS;
-    return PROTOCOL_ERROR::NONE; // no error
+    return FUJI_ERROR::NONE; // no error
 }
 
 void NetworkProtocolSD::fserror_to_error()
@@ -145,7 +145,7 @@ void NetworkProtocolSD::errno_to_error()
     Debug_printf("NetworkProtocolSD::errno_to_error() %d -> %d\r\n", errno, (int) error);
 }
 
-protocolError_t NetworkProtocolSD::read_file_handle(uint8_t *buf, unsigned short len)
+fujiError_t NetworkProtocolSD::read_file_handle(uint8_t *buf, unsigned short len)
 {
     error = NDEV_STATUS::SUCCESS;
 
@@ -158,10 +158,10 @@ protocolError_t NetworkProtocolSD::read_file_handle(uint8_t *buf, unsigned short
     }
     Debug_printf("NetworkProtocolSD::read_file_handle(len: %u) error: %d\r\n", len, (int) error);
 
-    return NDEV_STATUS::SUCCESS != error ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return NDEV_STATUS::SUCCESS != error ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSD::read_dir_entry(char *buf, unsigned short len)
+fujiError_t NetworkProtocolSD::read_dir_entry(char *buf, unsigned short len)
 {
     fsdir_entry_t *entry;
     error = NDEV_STATUS::SUCCESS;
@@ -179,10 +179,10 @@ protocolError_t NetworkProtocolSD::read_dir_entry(char *buf, unsigned short len)
     }
     Debug_printf("NetworkProtocolSD::read_dir_entry(len: %u) error: %d\r\n", len, (int) error);
 
-    return NDEV_STATUS::SUCCESS != error ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return NDEV_STATUS::SUCCESS != error ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSD::close_file_handle()
+fujiError_t NetworkProtocolSD::close_file_handle()
 {
     Debug_printf("NetworkProtocolSD:::close_file_handle()\r\n");
     if (fh != nullptr)
@@ -191,18 +191,18 @@ protocolError_t NetworkProtocolSD::close_file_handle()
         fh = nullptr;
     }
     error = NDEV_STATUS::SUCCESS;
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSD::close_dir_handle()
+fujiError_t NetworkProtocolSD::close_dir_handle()
 {
     Debug_printf("NetworkProtocolSD:::close_dir_handle()\r\n");
     fnSDFAT.dir_close();
     error = NDEV_STATUS::SUCCESS;
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSD::write_file_handle(uint8_t *buf, unsigned short len)
+fujiError_t NetworkProtocolSD::write_file_handle(uint8_t *buf, unsigned short len)
 {
     error = NDEV_STATUS::SUCCESS;
 
@@ -210,18 +210,18 @@ protocolError_t NetworkProtocolSD::write_file_handle(uint8_t *buf, unsigned shor
         errno_to_error(); // fwrite may not set errno!
     Debug_printf("NetworkProtocolSD::write_file_handle(len: %u) error: %d\r\n", len, (int) error);
 
-    return NDEV_STATUS::SUCCESS != error ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return NDEV_STATUS::SUCCESS != error ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSD::rename(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolSD::rename(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
     // return error if SD is not mounted
-    if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
+    if (check_fs() != FUJI_ERROR::NONE) return FUJI_ERROR::UNSPECIFIED;
 
-    if (NetworkProtocolFS::rename(url) != PROTOCOL_ERROR::NONE)
-        return PROTOCOL_ERROR::UNSPECIFIED;
+    if (NetworkProtocolFS::rename(url) != FUJI_ERROR::NONE)
+        return FUJI_ERROR::UNSPECIFIED;
 
     bool success = fnSDFAT.rename(filename.c_str(), destFilename.c_str());
     if (!success)
@@ -230,15 +230,15 @@ protocolError_t NetworkProtocolSD::rename(PeoplesUrlParser *url)
         error = NDEV_STATUS::SUCCESS;
     Debug_printf("NetworkProtocolSD::rename(%s -> %s) error: %d\r\n", filename.c_str(), destFilename.c_str(), (int) error);
 
-    return NDEV_STATUS::SUCCESS != error ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return NDEV_STATUS::SUCCESS != error ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSD::del(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolSD::del(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
     // return error if SD is not mounted
-    if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
+    if (check_fs() != FUJI_ERROR::NONE) return FUJI_ERROR::UNSPECIFIED;
 
     bool success = fnSDFAT.remove(url->path.c_str());
     if (!success)
@@ -247,15 +247,15 @@ protocolError_t NetworkProtocolSD::del(PeoplesUrlParser *url)
         error = NDEV_STATUS::SUCCESS;
     Debug_printf("NetworkProtocolSD::del(%s) error: %d\r\n", url->path.c_str(), (int) error);
 
-    return NDEV_STATUS::SUCCESS != error ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return NDEV_STATUS::SUCCESS != error ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSD::mkdir(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolSD::mkdir(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
     // return error if SD is not mounted
-    if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
+    if (check_fs() != FUJI_ERROR::NONE) return FUJI_ERROR::UNSPECIFIED;
 
     bool success = fnSDFAT.mkdir(url->path.c_str());
     if (!success)
@@ -264,15 +264,15 @@ protocolError_t NetworkProtocolSD::mkdir(PeoplesUrlParser *url)
         error = NDEV_STATUS::SUCCESS;
     Debug_printf("NetworkProtocolSD::mkdir(%s) error: %d\r\n", url->path.c_str(), (int) error);
 
-    return NDEV_STATUS::SUCCESS != error ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return NDEV_STATUS::SUCCESS != error ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSD::rmdir(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolSD::rmdir(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
     // return error if SD is not mounted
-    if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
+    if (check_fs() != FUJI_ERROR::NONE) return FUJI_ERROR::UNSPECIFIED;
 
     bool success = fnSDFAT.rmdir(url->path.c_str());
     if (!success)
@@ -281,13 +281,13 @@ protocolError_t NetworkProtocolSD::rmdir(PeoplesUrlParser *url)
         error = NDEV_STATUS::SUCCESS;
     Debug_printf("NetworkProtocolSD::rmdir(%s) error: %d\r\n", url->path.c_str(), (int) error);
 
-    return NDEV_STATUS::SUCCESS != error ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return NDEV_STATUS::SUCCESS != error ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSD::stat()
+fujiError_t NetworkProtocolSD::stat()
 {
     // return error if SD is not mounted
-    if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
+    if (check_fs() != FUJI_ERROR::NONE) return FUJI_ERROR::UNSPECIFIED;
 
     if (fh != nullptr)
         fileSize = FileSystem::filesize(fh);
@@ -301,33 +301,33 @@ protocolError_t NetworkProtocolSD::stat()
 
     Debug_printf("NetworkProtocolSD::stat(%s) fileSize: %d\r\n", opened_url->path.c_str(), fileSize);
 
-    return fileSize < 0 ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return fileSize < 0 ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSD::lock(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolSD::lock(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
     Debug_printf("NetworkProtocolSD::lock(%s) - not implemented\r\n", url->path.c_str());
 
     // return error if SD is not mounted
-    if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
+    if (check_fs() != FUJI_ERROR::NONE) return FUJI_ERROR::UNSPECIFIED;
 
     error = NDEV_STATUS::NOT_IMPLEMENTED;
-    return PROTOCOL_ERROR::UNSPECIFIED;
+    return FUJI_ERROR::UNSPECIFIED;
 }
 
-protocolError_t NetworkProtocolSD::unlock(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolSD::unlock(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
     Debug_printf("NetworkProtocolSD::unlock(%s) - not implemented\r\n", url->path.c_str());
 
     // return error if SD is not mounted
-    if (check_fs() != PROTOCOL_ERROR::NONE) return PROTOCOL_ERROR::UNSPECIFIED;
+    if (check_fs() != FUJI_ERROR::NONE) return FUJI_ERROR::UNSPECIFIED;
 
     error = NDEV_STATUS::NOT_IMPLEMENTED;
-    return PROTOCOL_ERROR::UNSPECIFIED;
+    return FUJI_ERROR::UNSPECIFIED;
 }
 
 off_t NetworkProtocolSD::seek(off_t offset, int whence)

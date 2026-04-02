@@ -100,9 +100,9 @@ NetworkProtocolTELNET::~NetworkProtocolTELNET()
 /**
  * @brief Read len bytes into rx_buf, If protocol times out, the buffer should be null padded to length.
  * @param len number of bytes to read.
- * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
+ * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
  */
-protocolError_t NetworkProtocolTELNET::read(unsigned short len)
+fujiError_t NetworkProtocolTELNET::read(unsigned short len)
 {
     std::vector<uint8_t> newData = std::vector<uint8_t>(len);
 
@@ -114,7 +114,7 @@ protocolError_t NetworkProtocolTELNET::read(unsigned short len)
         if (!client.connected())
         {
             error = NDEV_STATUS::NOT_CONNECTED;
-            return PROTOCOL_ERROR::UNSPECIFIED; // error
+            return FUJI_ERROR::UNSPECIFIED; // error
         }
 
         // Do the read from client socket.
@@ -126,7 +126,7 @@ protocolError_t NetworkProtocolTELNET::read(unsigned short len)
         if (errno == ECONNRESET)
         {
             error = NDEV_STATUS::CONNECTION_RESET;
-            return PROTOCOL_ERROR::UNSPECIFIED;
+            return FUJI_ERROR::UNSPECIFIED;
         }
     }
 
@@ -143,7 +143,7 @@ protocolError_t NetworkProtocolTELNET::read(unsigned short len)
  * @param len The # of bytes to transmit, len should not be larger than buffer.
  * @return Number of bytes written.
  */
-protocolError_t NetworkProtocolTELNET::write(unsigned short len)
+fujiError_t NetworkProtocolTELNET::write(unsigned short len)
 {
     Debug_printf("NetworkProtocolTELNET::write(%u)\r\n", len);
 
@@ -151,7 +151,7 @@ protocolError_t NetworkProtocolTELNET::write(unsigned short len)
     if (!client.connected())
     {
         error = NDEV_STATUS::NOT_CONNECTED;
-        return PROTOCOL_ERROR::UNSPECIFIED; // error
+        return FUJI_ERROR::UNSPECIFIED; // error
     }
 
     // Call base class to do translation.
@@ -164,13 +164,13 @@ protocolError_t NetworkProtocolTELNET::write(unsigned short len)
     if (errno == ECONNRESET)
     {
         error = NDEV_STATUS::CONNECTION_RESET;
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     // Return success
     error = NDEV_STATUS::SUCCESS;
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 void NetworkProtocolTELNET::flush(const char *buf, unsigned short size)

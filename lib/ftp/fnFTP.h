@@ -43,13 +43,13 @@ public:
      * @param port port to login (default 21)
      * @return TRUE on error, FALSE on success
      */
-    protocolError_t login(const string &_username, const string &_password, const string &_hostname, unsigned short _port = 21);
+    fujiError_t login(const string &_username, const string &_password, const string &_hostname, unsigned short _port = 21);
 
     /**
      * Log out of FTP server, closes control connection.
      * @return TRUE on error, FALSE on success.
      */
-    protocolError_t logout();
+    fujiError_t logout();
 
     /**
      * Open file on FTP server
@@ -57,7 +57,7 @@ public:
      * @param stor TRUE means STOR, otherwise RETR
      * @return TRUE if error, FALSE if successful.
      */
-    protocolError_t open_file(string path, bool stor);
+    fujiError_t open_file(string path, bool stor);
 
     /**
      * Open directory on FTP server, grab it, and return back.
@@ -65,7 +65,7 @@ public:
      * @param pattern pattern to retrieve.
      * @return TRUE if error, FALSE if successful.
      */
-    protocolError_t open_directory(string path, string pattern);
+    fujiError_t open_directory(string path, string pattern);
 
     /**
      * Read and return one parsed line of directory
@@ -73,7 +73,7 @@ public:
      * @param filesize pointer to output filesize
      * @return TRUE if error, FALSE if successful
      */
-    protocolError_t read_directory(string& name, long& filesize, bool &is_dir);
+    fujiError_t read_directory(string& name, long& filesize, bool &is_dir);
 
     /**
      * Read file from data socket into buffer.
@@ -83,7 +83,7 @@ public:
      * @param range_end optional end byte position for partial file read (0 = no range)
      * @return TRUE if error, FALSE if successful.
      */
-    protocolError_t read_file(uint8_t* buf, unsigned short len, unsigned long range_begin = 0, unsigned long range_end = 0);
+    fujiError_t read_file(uint8_t* buf, unsigned short len, unsigned long range_begin = 0, unsigned long range_end = 0);
 
     /**
      * Write file from buffer into data socket.
@@ -91,12 +91,12 @@ public:
      * @param len length of source buffer
      * @return TRUE if error, FALSE if successful.
      */
-    protocolError_t write_file(uint8_t* buf, unsigned short len);
+    fujiError_t write_file(uint8_t* buf, unsigned short len);
 
     /**
      * @brief close data and/or control sockets.
      */
-    protocolError_t close();
+    fujiError_t close();
 
     /**
      * @brief parsed out response code from controlResponse
@@ -114,7 +114,7 @@ public:
      * @brief return if data connected
      * @return TRUE if connected, FALSE if disconnected
      */
-    protocolError_t data_connected();
+    fujiError_t data_connected();
 
     /**
      * @brief return if control connection is active
@@ -126,7 +126,7 @@ public:
      * Recovery FTP connection.
      * @return TRUE on error, FALSE on success
      */
-    protocolError_t reconnect();
+    fujiError_t reconnect();
 
     /**
      * @brief get size of file at path
@@ -144,7 +144,7 @@ private:
 
     /* do STOR - file opened for write */
     bool _stor = false;
-    
+
     /* if to check control channel too while dealing with data channel */
     bool _expect_control_response = false;
 
@@ -185,7 +185,7 @@ private:
      * Directory buffer stream
      */
     std::stringstream dirBuffer;
-    
+
     /**
      * The data port returned by EPSV
      */
@@ -195,7 +195,7 @@ private:
      * read and parse control response
      * @return true on error, false on success.
      */
-    protocolError_t parse_response();
+    fujiError_t parse_response();
 
     /**
      * read single line of control response
@@ -208,7 +208,7 @@ private:
      * Port is set and returned in data_port variable.
      * @return TRUE if error, FALSE if successful.
      */
-    protocolError_t get_data_port();
+    fujiError_t get_data_port();
 
     /**
      * @brief Is response a positive preliminary reply?
@@ -355,7 +355,7 @@ public:
      * @param path path to file to delete.
      * @return TRUE if error, FALSE if successful.
      */
-    protocolError_t delete_file(string path);
+    fujiError_t delete_file(string path);
 
     /**
      * Rename file on FTP server
@@ -363,27 +363,27 @@ public:
      * @param pathTo new file path
      * @return TRUE if error, FALSE if successful.
      */
-    protocolError_t rename_file(string pathFrom, string pathTo);
+    fujiError_t rename_file(string pathFrom, string pathTo);
 
     /**
      * Create directory on FTP server
      * @param path path of directory to create.
      * @return TRUE if error, FALSE if successful.
      */
-    protocolError_t make_directory(string path);
+    fujiError_t make_directory(string path);
 
     /**
      * Remove directory on FTP server
      * @param path path of directory to remove.
      * @return TRUE if error, FALSE if successful.
      */
-    protocolError_t remove_directory(string path);
+    fujiError_t remove_directory(string path);
 
     /**
      * Send NOOP command as lightweight keep-alive
      * @return TRUE on success, FALSE on error.
      */
-    protocolError_t keep_alive();
+    fujiError_t keep_alive();
 
 protected:
     /**

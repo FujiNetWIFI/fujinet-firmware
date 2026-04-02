@@ -24,36 +24,36 @@ public:
     /**
      * @brief Open connection to the protocol using URL
      * @param urlParser The URL object passed in to open.
-     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
+     * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
      */
-    protocolError_t open(PeoplesUrlParser *urlParser, fileAccessMode_t access,
+    fujiError_t open(PeoplesUrlParser *urlParser, fileAccessMode_t access,
                          netProtoTranslation_t translate) override;
 
     /**
      * @brief Close connection to the protocol.
      */
-    protocolError_t close() override;
+    fujiError_t close() override;
 
     /**
      * @brief Read len bytes into rx_buf, If protocol times out, the buffer should be null padded to length.
      * @param len Number of bytes to read.
-     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
+     * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
      */
-    protocolError_t read(unsigned short len) override;
+    fujiError_t read(unsigned short len) override;
 
     /**
      * @brief Write len bytes from tx_buf to protocol.
      * @param len The # of bytes to transmit, len should not be larger than buffer.
-     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
+     * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
      */
-    protocolError_t write(unsigned short len) override;
+    fujiError_t write(unsigned short len) override;
 
     /**
      * @brief Return protocol status information in provided NetworkStatus object.
      * @param status a pointer to a NetworkStatus object to receive status information
-     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
+     * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
      */
-    protocolError_t status(NetworkStatus *status) override;
+    fujiError_t status(NetworkStatus *status) override;
 
 #ifndef ESP_PLATFORM
     /**
@@ -61,7 +61,7 @@ public:
      * @param sp_buf pointer to transmit special buffer.
      * @param len of special transmit buffer
      */
-    protocolError_t get_remote(void *sp_buf, unsigned short len);
+    fujiError_t get_remote(void *sp_buf, unsigned short len);
 #endif
 
     /**
@@ -69,7 +69,7 @@ public:
      * @param sp_buf pointer to received special buffer.
      * @param len of special received buffer
      */
-    protocolError_t set_destination(uint8_t *sp_buf, unsigned short len);
+    fujiError_t set_destination(uint8_t *sp_buf, unsigned short len);
 
     size_t available() override { return udp.available(); }
 

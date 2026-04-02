@@ -179,7 +179,7 @@ void sioNetwork::sio_open()
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != PROTOCOL_ERROR::NONE)
+    if (protocol->open(urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != FUJI_ERROR::NONE)
     {
         status.error = protocol->error;
         Debug_printf("Protocol unable to make connection. Error: %d\n", status.error);
@@ -240,7 +240,7 @@ void sioNetwork::sio_close()
     }
 
     // Ask the protocol to close
-    if (protocol->close() != PROTOCOL_ERROR::NONE)
+    if (protocol->close() != FUJI_ERROR::NONE)
         sio_error();
     else
         sio_complete();
@@ -271,7 +271,7 @@ void sioNetwork::sio_close()
 void sioNetwork::sio_read()
 {
     unsigned short num_bytes = sio_get_aux();
-    protocolError_t err = PROTOCOL_ERROR::NONE;
+    fujiError_t err = FUJI_ERROR::NONE;
 
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("sioNetwork::sio_read(%d bytes)\n", num_bytes);
@@ -305,7 +305,7 @@ void sioNetwork::sio_read()
     err = sio_read_channel(num_bytes);
 
     // And send off to the computer
-    bus_to_computer((uint8_t *)receiveBuffer->data(), num_bytes, err != PROTOCOL_ERROR::NONE);
+    bus_to_computer((uint8_t *)receiveBuffer->data(), num_bytes, err != FUJI_ERROR::NONE);
     receiveBuffer->erase(0, num_bytes);
     receiveBuffer->shrink_to_fit();
 }
@@ -314,24 +314,24 @@ void sioNetwork::sio_read()
  * @brief Perform read of the current JSON channel
  * @param num_bytes Number of bytes to read
  */
-protocolError_t sioNetwork::sio_read_channel_json(unsigned short num_bytes)
+fujiError_t sioNetwork::sio_read_channel_json(unsigned short num_bytes)
 {
     if (num_bytes > json_bytes_remaining)
         json_bytes_remaining=0;
     else
         json_bytes_remaining-=num_bytes;
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 /**
  * Perform the channel read based on the channelMode
  * @param num_bytes - number of bytes to read from channel.
- * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
+ * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Passed directly to bus_to_computer().
  */
-protocolError_t sioNetwork::sio_read_channel(unsigned short num_bytes)
+fujiError_t sioNetwork::sio_read_channel(unsigned short num_bytes)
 {
-    protocolError_t err = PROTOCOL_ERROR::NONE;
+    fujiError_t err = FUJI_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -353,7 +353,7 @@ protocolError_t sioNetwork::sio_read_channel(unsigned short num_bytes)
 void sioNetwork::sio_write()
 {
     unsigned short num_bytes = sio_get_aux();
-    protocolError_t err = PROTOCOL_ERROR::NONE;
+    fujiError_t err = FUJI_ERROR::NONE;
 
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("sioNetwork::sio_write(%d bytes)\n", num_bytes);
@@ -384,7 +384,7 @@ void sioNetwork::sio_write()
     err = sio_write_channel(num_bytes);
 
     // Acknowledge to Atari of channel outcome.
-    if (err == PROTOCOL_ERROR::NONE)
+    if (err == FUJI_ERROR::NONE)
     {
         sio_complete();
     }
@@ -397,11 +397,11 @@ void sioNetwork::sio_write()
 /**
  * Perform the correct write based on value of channelMode
  * @param num_bytes Number of bytes to write.
- * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit sio_error or sio_complete().
+ * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Used to emit sio_error or sio_complete().
  */
-protocolError_t sioNetwork::sio_write_channel(unsigned short num_bytes)
+fujiError_t sioNetwork::sio_write_channel(unsigned short num_bytes)
 {
-    protocolError_t err = PROTOCOL_ERROR::NONE;
+    fujiError_t err = FUJI_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -410,7 +410,7 @@ protocolError_t sioNetwork::sio_write_channel(unsigned short num_bytes)
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
-        err = PROTOCOL_ERROR::UNSPECIFIED;
+        err = FUJI_ERROR::UNSPECIFIED;
         break;
     }
     return err;
@@ -498,7 +498,7 @@ void sioNetwork::sio_status_channel()
 {
     NDeviceStatus nstatus;
     size_t avail = 0;
-    protocolError_t err = PROTOCOL_ERROR::NONE;
+    fujiError_t err = FUJI_ERROR::NONE;
 
 #if 1 //def VERBOSE_PROTOCOL
     Debug_printf("sioNetwork::sio_status_channel(mode: %u)\n", channelMode);
@@ -509,7 +509,7 @@ void sioNetwork::sio_status_channel()
     case PROTOCOL:
         if (protocol == nullptr) {
             Debug_printf("ERROR: Calling status on a null protocol.\r\n");
-            err = PROTOCOL_ERROR::UNSPECIFIED;
+            err = FUJI_ERROR::UNSPECIFIED;
             status.error = NDEV_STATUS::NOT_CONNECTED;
         } else {
             err = protocol->status(&status);
@@ -535,7 +535,7 @@ void sioNetwork::sio_status_channel()
                  nstatus.avail, nstatus.conn, nstatus.err);
 
     // and send to computer
-    bus_to_computer((uint8_t *) &nstatus, sizeof(nstatus), err != PROTOCOL_ERROR::NONE);
+    bus_to_computer((uint8_t *) &nstatus, sizeof(nstatus), err != FUJI_ERROR::NONE);
 }
 
 /**
@@ -1133,7 +1133,7 @@ void sioNetwork::process_fs()
         return;
     }
 
-    protocolError_t err;
+    fujiError_t err;
     auto url = urlParser.get();
     switch (cmdFrame.comnd)
     {
@@ -1160,7 +1160,7 @@ void sioNetwork::process_fs()
         return;
     }
 
-    if (err != PROTOCOL_ERROR::NONE)
+    if (err != FUJI_ERROR::NONE)
         sio_error();
     else
         sio_complete();
@@ -1176,7 +1176,7 @@ void sioNetwork::process_tcp()
         return;
     }
 
-    protocolError_t err;
+    fujiError_t err;
     switch (cmdFrame.comnd)
     {
     case NETCMD_CONTROL:
@@ -1192,7 +1192,7 @@ void sioNetwork::process_tcp()
         return;
     }
 
-    if (err != PROTOCOL_ERROR::NONE)
+    if (err != FUJI_ERROR::NONE)
         sio_error();
     else
         sio_complete();
@@ -1208,7 +1208,7 @@ void sioNetwork::process_http()
         return;
     }
 
-    protocolError_t err;
+    fujiError_t err;
     switch (cmdFrame.comnd)
     {
     case NETCMD_UNLISTEN:
@@ -1220,7 +1220,7 @@ void sioNetwork::process_http()
         return;
     }
 
-    if (err != PROTOCOL_ERROR::NONE)
+    if (err != FUJI_ERROR::NONE)
         sio_error();
     else
         sio_complete();
@@ -1236,14 +1236,14 @@ void sioNetwork::process_udp()
         return;
     }
 
-    protocolError_t err;
+    fujiError_t err;
     switch (cmdFrame.comnd)
     {
 #ifndef ESP_PLATFORM
     case NETCMD_GET_REMOTE:
         sio_ack();
         err = udp->get_remote(receiveBuffer->data(), SPECIAL_BUFFER_SIZE);
-        bus_to_computer((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, err != PROTOCOL_ERROR::NONE);
+        bus_to_computer((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, err != FUJI_ERROR::NONE);
         break;
 #endif /* ESP_PLATFORM */
     case NETCMD_SET_DESTINATION:
@@ -1251,7 +1251,7 @@ void sioNetwork::process_udp()
             uint8_t spData[SPECIAL_BUFFER_SIZE];
             bus_to_peripheral(spData, sizeof(spData));
             err = udp->set_destination(spData, sizeof(spData));
-            if (err != PROTOCOL_ERROR::NONE)
+            if (err != FUJI_ERROR::NONE)
                 sio_error();
             else
                 sio_complete();

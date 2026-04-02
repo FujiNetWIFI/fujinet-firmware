@@ -120,7 +120,7 @@ void lynxNetwork::open(unsigned short len)
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != PROTOCOL_ERROR::NONE)
+    if (protocol->open(urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != FUJI_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
         Debug_printf("Protocol unable to make connection. Error: %d\n", err);
@@ -187,15 +187,15 @@ void lynxNetwork::close()
 /**
  * Perform the channel read based on the channelMode
  * @param num_bytes - number of bytes to read from channel.
- * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
+ * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Passed directly to bus_to_computer().
  */
-protocolError_t lynxNetwork::read_channel(unsigned short num_bytes)
+fujiError_t lynxNetwork::read_channel(unsigned short num_bytes)
 {
-    protocolError_t _err = PROTOCOL_ERROR::NONE;
+    fujiError_t _err = FUJI_ERROR::NONE;
 
     if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
         transaction_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     switch (channelMode)
@@ -208,12 +208,12 @@ protocolError_t lynxNetwork::read_channel(unsigned short num_bytes)
         response_len = response_len % SERIAL_PACKET_SIZE;
         json->readValue(response, response_len);
 
-        _err = PROTOCOL_ERROR::NONE;
+        _err = FUJI_ERROR::NONE;
         break;
     default:
         Debug_println("lynxNetwork::read_channel - unknown channelMode");
         transaction_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     Debug_printf("lynxNetwork:receive_channel_json, len:%d %s\n",response_len, response);
@@ -240,7 +240,7 @@ void lynxNetwork::write(uint16_t num_bytes)
     transaction_get(response, num_bytes);
 
     *transmitBuffer += string((char *)response, num_bytes);
-    err = write_channel(num_bytes) == PROTOCOL_ERROR::NONE ? NDEV_STATUS::SUCCESS : NDEV_STATUS::GENERAL;
+    err = write_channel(num_bytes) == FUJI_ERROR::NONE ? NDEV_STATUS::SUCCESS : NDEV_STATUS::GENERAL;
 }
 
 
@@ -255,15 +255,15 @@ void lynxNetwork::read()
 /**
  * Perform the correct write based on value of channelMode
  * @param num_bytes Number of bytes to write.
- * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit comlynx_error or comlynx_complete().
+ * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Used to emit comlynx_error or comlynx_complete().
  */
-protocolError_t lynxNetwork::write_channel(unsigned short num_bytes)
+fujiError_t lynxNetwork::write_channel(unsigned short num_bytes)
 {
-    protocolError_t err = PROTOCOL_ERROR::NONE;
+    fujiError_t err = FUJI_ERROR::NONE;
 
     if ((protocol == nullptr) || (receiveBuffer == nullptr)) {
         transaction_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     switch (channelMode)
@@ -273,7 +273,7 @@ protocolError_t lynxNetwork::write_channel(unsigned short num_bytes)
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
-        err = PROTOCOL_ERROR::UNSPECIFIED;
+        err = FUJI_ERROR::UNSPECIFIED;
         break;
     }
 
@@ -302,7 +302,7 @@ void lynxNetwork::status()
             err = s.error = NDEV_STATUS::NOT_CONNECTED;
             transaction_error();
         } else {
-            err = protocol->status(&s) == PROTOCOL_ERROR::NONE ? NDEV_STATUS::SUCCESS : NDEV_STATUS::GENERAL;
+            err = protocol->status(&s) == FUJI_ERROR::NONE ? NDEV_STATUS::SUCCESS : NDEV_STATUS::GENERAL;
         }
         break;
     case JSON:
@@ -329,7 +329,7 @@ void lynxNetwork::get_prefix()
         transaction_error();
         return; // Punch out.
     }
-    
+
     Debug_printf("lynxNetwork::comlynx_getprefix(%s)\n", prefix.c_str());
     memcpy(response, prefix.data(), prefix.size());
     response_len = prefix.size();
@@ -489,7 +489,7 @@ void lynxNetwork::json_query(unsigned short len)
       transaction_error();
       return;
     }
-    
+
     std::vector<uint8_t> tmp(jsonlen);
     json->readValue(tmp.data(), jsonlen);
 
@@ -574,7 +574,7 @@ void lynxNetwork::read_channel_protocol()
     avail = std::min<uint16_t>(avail, SERIAL_PACKET_SIZE);
     response_len = avail;
 
-    if (protocol->read(response_len) != PROTOCOL_ERROR::NONE) // protocol adapter returned error
+    if (protocol->read(response_len) != FUJI_ERROR::NONE) // protocol adapter returned error
     {
         statusByte.bits.client_error = true;
         err = protocol->error;
@@ -789,7 +789,7 @@ void lynxNetwork::process_fs(fujiCommandID_t cmd, unsigned pkt_len)
         return;
     }
 
-    protocolError_t cmd_err;
+    fujiError_t cmd_err;
     auto url = urlParser.get();
     switch (cmd)
     {
@@ -812,11 +812,11 @@ void lynxNetwork::process_fs(fujiCommandID_t cmd, unsigned pkt_len)
         cmd_err = fs->rmdir(url);
         break;
     default:
-        cmd_err = PROTOCOL_ERROR::UNSPECIFIED;
+        cmd_err = FUJI_ERROR::UNSPECIFIED;
         break;
     }
 
-    if (cmd_err != PROTOCOL_ERROR::NONE) {
+    if (cmd_err != FUJI_ERROR::NONE) {
         transaction_error();
         statusByte.bits.client_error = true;
     }
@@ -837,11 +837,11 @@ void lynxNetwork::process_tcp(fujiCommandID_t cmd)
         return;
     }
 
-    protocolError_t cmd_err;
+    fujiError_t cmd_err;
     switch (cmd)
     {
     case NETCMD_CONTROL:
-        cmd_err = PROTOCOL_ERROR::NONE;
+        cmd_err = FUJI_ERROR::NONE;
 
         // Because we're not handling Adam bus very well, sometimes it
         // retries and we've already accepted which will return an
@@ -861,11 +861,11 @@ void lynxNetwork::process_tcp(fujiCommandID_t cmd)
         cmd_err = tcp->close_client_connection();
         break;
     default:
-        cmd_err = PROTOCOL_ERROR::UNSPECIFIED;
+        cmd_err = FUJI_ERROR::UNSPECIFIED;
         break;
     }
 
-    if (cmd_err != PROTOCOL_ERROR::NONE) {
+    if (cmd_err != FUJI_ERROR::NONE) {
         statusByte.bits.client_error = true;
         transaction_error();
     }
@@ -886,18 +886,18 @@ void lynxNetwork::process_http(fujiCommandID_t cmd)
         return;
     }
 
-    protocolError_t cmd_err;
+    fujiError_t cmd_err;
     switch (cmd)
     {
     case NETCMD_UNLISTEN:
         cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmdFrame.aux2);
         break;
     default:
-        cmd_err = PROTOCOL_ERROR::UNSPECIFIED;
+        cmd_err = FUJI_ERROR::UNSPECIFIED;
         return;
     }
 
-    if (cmd_err != PROTOCOL_ERROR::NONE) {
+    if (cmd_err != FUJI_ERROR::NONE) {
         statusByte.bits.client_error = true;
         transaction_error();
     }
@@ -918,7 +918,7 @@ void lynxNetwork::process_udp(fujiCommandID_t cmd)
         return;
     }
 
-    protocolError_t cmd_err;
+    fujiError_t cmd_err;
     switch (cmd)
     {
 #ifndef ESP_PLATFORM
@@ -933,17 +933,17 @@ void lynxNetwork::process_udp(fujiCommandID_t cmd)
             uint8_t spData[SPECIAL_BUFFER_SIZE];
             size_t bytes_read = SYSTEM_BUS.read(spData, sizeof(spData));
             cmd_err = udp->set_destination(spData, bytes_read);
-            if (cmd_err != PROTOCOL_ERROR::NONE)
+            if (cmd_err != FUJI_ERROR::NONE)
                 statusByte.bits.client_error = true;
         }
         break;
     default:
-        cmd_err = PROTOCOL_ERROR::UNSPECIFIED;
+        cmd_err = FUJI_ERROR::UNSPECIFIED;
         statusByte.bits.client_error = true;
         break;
     }
 
-    if (cmd_err != PROTOCOL_ERROR::NONE)
+    if (cmd_err != FUJI_ERROR::NONE)
         transaction_error();
     else
         transaction_complete();

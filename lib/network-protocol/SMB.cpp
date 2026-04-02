@@ -40,12 +40,12 @@ NetworkProtocolSMB::~NetworkProtocolSMB()
     smb2_destroy_context(smb);
 }
 
-protocolError_t NetworkProtocolSMB::open_file_handle()
+fujiError_t NetworkProtocolSMB::open_file_handle()
 {
     if (smb == nullptr)
     {
         Debug_printf("NetworkProtocolSMB::open_file_handle() - no smb context. aborting.\r\n");
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     // Determine flags
@@ -75,26 +75,26 @@ protocolError_t NetworkProtocolSMB::open_file_handle()
     {
         Debug_printf("NetworkProtocolSMB::open_file_handle() - SMB Error %s\r\n", smb2_get_error(smb));
         fserror_to_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     offset = 0;
 
     Debug_printf("DO WE FUCKING GET HERE?!\r\n");
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSMB::open_dir_handle()
+fujiError_t NetworkProtocolSMB::open_dir_handle()
 {
     if ((smb_dir = smb2_opendir(smb, smb_url->path)) == nullptr)
     {
         Debug_printf("NetworkProtocolSMB::open_dir_handle() - ERROR: %s\r\n", smb2_get_error(smb));
         fserror_to_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 std::string lowercase_if_no_lowercase(std::string s)
@@ -106,7 +106,7 @@ std::string lowercase_if_no_lowercase(std::string s)
     return s;
 }
 
-protocolError_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
 {
     std::string openURL = url->url;
 
@@ -139,7 +139,7 @@ protocolError_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
     {
         Debug_printf("aNetworkProtocolSMB::mount(%s) - failed to parse URL, SMB2 error: %s\n", openURL.c_str(), smb2_get_error(smb));
         fserror_to_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     smb2_set_security_mode(smb, SMB2_NEGOTIATE_SIGNING_ENABLED);
@@ -172,7 +172,7 @@ protocolError_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
         {
             Debug_printf("aNetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\r\n", openURL.c_str(), smb2_get_error(smb));
             fserror_to_error();
-            return PROTOCOL_ERROR::UNSPECIFIED;
+            return FUJI_ERROR::UNSPECIFIED;
         }
     }
     else // no u/p
@@ -181,25 +181,25 @@ protocolError_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
         {
             Debug_printf("aNetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\r\n", openURL.c_str(), smb2_get_error(smb));
             fserror_to_error();
-            return PROTOCOL_ERROR::UNSPECIFIED;
+            return FUJI_ERROR::UNSPECIFIED;
         }
     }
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSMB::umount()
+fujiError_t NetworkProtocolSMB::umount()
 {
     if (smb == nullptr)
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
 
     smb2_disconnect_share(smb);
 
     if (smb_url == nullptr)
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
 
     smb2_destroy_url(smb_url);
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 void NetworkProtocolSMB::fserror_to_error()
@@ -212,29 +212,29 @@ void NetworkProtocolSMB::fserror_to_error()
     }
 }
 
-protocolError_t NetworkProtocolSMB::read_file_handle(uint8_t *buf, unsigned short len)
+fujiError_t NetworkProtocolSMB::read_file_handle(uint8_t *buf, unsigned short len)
 {
     int actual_len;
 
     if ((actual_len = smb2_pread(smb, fh, buf, len, offset)) != len)
     {
         fserror_to_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     offset += actual_len;
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSMB::read_dir_entry(char *buf, unsigned short len)
+fujiError_t NetworkProtocolSMB::read_dir_entry(char *buf, unsigned short len)
 {
     ent = smb2_readdir(smb, smb_dir);
 
     if (ent == nullptr)
     {
         error = NDEV_STATUS::END_OF_FILE;
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     // Set filename to buffer
@@ -244,37 +244,37 @@ protocolError_t NetworkProtocolSMB::read_dir_entry(char *buf, unsigned short len
     fileSize = ent->st.smb2_size;
     is_directory = ent->st.smb2_type == SMB2_TYPE_DIRECTORY;
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSMB::close_file_handle()
+fujiError_t NetworkProtocolSMB::close_file_handle()
 {
     smb2_close(smb, fh);
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSMB::close_dir_handle()
+fujiError_t NetworkProtocolSMB::close_dir_handle()
 {
     smb2_closedir(smb, smb_dir);
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSMB::write_file_handle(uint8_t *buf, unsigned short len)
+fujiError_t NetworkProtocolSMB::write_file_handle(uint8_t *buf, unsigned short len)
 {
     int actual_len;
 
     if ((actual_len = smb2_pwrite(smb, fh, buf, len, offset)) != len)
     {
         fserror_to_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     offset += actual_len;
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSMB::mkdir(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolSMB::mkdir(PeoplesUrlParser *url)
 {
     mount(url);
 
@@ -286,10 +286,10 @@ protocolError_t NetworkProtocolSMB::mkdir(PeoplesUrlParser *url)
 
     umount();
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSMB::rmdir(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolSMB::rmdir(PeoplesUrlParser *url)
 {
     mount(url);
 
@@ -301,17 +301,17 @@ protocolError_t NetworkProtocolSMB::rmdir(PeoplesUrlParser *url)
 
     umount();
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolSMB::stat()
+fujiError_t NetworkProtocolSMB::stat()
 {
     struct smb2_stat_64 st;
 
     int ret = smb2_stat(smb, smb_url->path, &st);
 
     fileSize = st.smb2_size;
-    return ret != 0 ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return ret != 0 ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
 off_t NetworkProtocolSMB::seek(off_t position, int whence)

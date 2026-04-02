@@ -1465,7 +1465,7 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
             // fallback to retry
             break;
         }
-        
+
         // Make sure we wait before retrying
         fnSystem.delay(m_info->min_retry_ms);
     }
@@ -1542,7 +1542,7 @@ _tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPa
         m_info->protocol = TNFS_PROTOCOL_UDP;
         return RESET;
     }
-    
+
     Debug_printf("Timeout after %d milliseconds. Retrying\r\n", m_info->timeout_ms);
     return FAILED;
 }
@@ -1833,7 +1833,7 @@ const char *_tnfs_result_code_string(int resultcode)
         return "No data available";
     case TNFS_RESULT_OUT_OF_STREAMS:
         return "Out of streams resources";
-    case TNFS_RESULT_PROTOCOL_ERROR:
+    case TNFS_RESULT_FUJI_ERROR:
         return "Protocol error";
     case TNFS_RESULT_BAD_FILE_DESCRIPTOR:
         return "File descriptor in bad state";
@@ -1915,7 +1915,7 @@ int tnfs_code_to_errno(int tnfs_code)
         return ENODATA;
     case TNFS_RESULT_OUT_OF_STREAMS:
         return ENOSTR;
-    case TNFS_RESULT_PROTOCOL_ERROR:
+    case TNFS_RESULT_FUJI_ERROR:
         return EPROTO;
     case TNFS_RESULT_BAD_FILE_DESCRIPTOR:
         return EBADF; // Different from EBADFD documented

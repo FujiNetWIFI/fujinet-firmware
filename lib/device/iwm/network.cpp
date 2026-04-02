@@ -122,7 +122,7 @@ void iwmNetwork::open()
     }
 
     // Attempt protocol open
-    if (current_network_data.protocol->open(current_network_data.urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != PROTOCOL_ERROR::NONE)
+    if (current_network_data.protocol->open(current_network_data.urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != FUJI_ERROR::NONE)
     {
         Debug_printf("Protocol unable to make connection. Error: %d\n", err);
         current_network_data.protocol.reset();
@@ -314,7 +314,7 @@ void iwmNetwork::status()
             err = SP_ERR_BADCMD;
             s.error = NDEV_STATUS::INVALID_COMMAND;
         } else {
-            err = current_network_data.protocol->status(&s) == PROTOCOL_ERROR::NONE
+            err = current_network_data.protocol->status(&s) == FUJI_ERROR::NONE
                 ? SP_ERR_NOERROR : SP_ERR_BADCMD;
             avail = current_network_data.protocol->available();
         }
@@ -442,7 +442,7 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 
     //Debug_printf("\r\nAvailable bytes %04x\n", data_len);
 
-    if (current_network_data.protocol->read(data_len) != PROTOCOL_ERROR::NONE) // protocol adapter returned error
+    if (current_network_data.protocol->read(data_len) != FUJI_ERROR::NONE) // protocol adapter returned error
     {
         err = current_network_data.protocol->error == NDEV_STATUS::SUCCESS ? SP_ERR_NOERROR : SP_ERR_BADCMD;
         return true;
@@ -789,7 +789,7 @@ void iwmNetwork::process_fs(fujiCommandID_t control_code)
         return;
     }
 
-    protocolError_t cmd_err;
+    fujiError_t cmd_err;
     auto url = current_network_data.urlParser.get();
     switch (control_code)
     {
@@ -812,11 +812,11 @@ void iwmNetwork::process_fs(fujiCommandID_t control_code)
         cmd_err = fs->rmdir(url);
         break;
     default:
-        cmd_err = PROTOCOL_ERROR::UNSPECIFIED;
+        cmd_err = FUJI_ERROR::UNSPECIFIED;
         break;
     }
 
-    if (cmd_err != PROTOCOL_ERROR::NONE)
+    if (cmd_err != FUJI_ERROR::NONE)
         err = SP_ERR_IOERROR;
 }
 
@@ -831,7 +831,7 @@ void iwmNetwork::process_tcp(fujiCommandID_t control_code)
         return;
     }
 
-    protocolError_t cmd_err;
+    fujiError_t cmd_err;
     switch (control_code)
     {
     case NETCMD_CONTROL:
@@ -841,11 +841,11 @@ void iwmNetwork::process_tcp(fujiCommandID_t control_code)
         cmd_err = tcp->close_client_connection();
         break;
     default:
-        cmd_err = PROTOCOL_ERROR::UNSPECIFIED;
+        cmd_err = FUJI_ERROR::UNSPECIFIED;
         break;
     }
 
-    if (cmd_err != PROTOCOL_ERROR::NONE)
+    if (cmd_err != FUJI_ERROR::NONE)
         err = SP_ERR_IOERROR;
 }
 
@@ -860,18 +860,18 @@ void iwmNetwork::process_http(fujiCommandID_t control_code)
         return;
     }
 
-    protocolError_t cmd_err;
+    fujiError_t cmd_err;
     switch (control_code)
     {
     case NETCMD_UNLISTEN:
         cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmdFrame.aux2);
         break;
     default:
-        cmd_err = PROTOCOL_ERROR::UNSPECIFIED;
+        cmd_err = FUJI_ERROR::UNSPECIFIED;
         return;
     }
 
-    if (cmd_err != PROTOCOL_ERROR::NONE)
+    if (cmd_err != FUJI_ERROR::NONE)
         err = SP_ERR_IOERROR;
 }
 
@@ -886,7 +886,7 @@ void iwmNetwork::process_udp(fujiCommandID_t control_code)
         return;
     }
 
-    protocolError_t cmd_err;
+    fujiError_t cmd_err;
     switch (control_code)
     {
 #ifndef ESP_PLATFORM
@@ -899,7 +899,7 @@ void iwmNetwork::process_udp(fujiCommandID_t control_code)
     case NETCMD_SET_DESTINATION:
         {
             cmd_err = udp->set_destination(data_buffer, data_len);
-            if (cmd_err != PROTOCOL_ERROR::NONE)
+            if (cmd_err != FUJI_ERROR::NONE)
                 err = SP_ERR_IOERROR;
         }
         break;
