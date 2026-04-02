@@ -61,6 +61,9 @@ bool virtualDevice::transaction_get(void *data, size_t len)
     assert(_transaction_state == TRANS_STATE::WILL_GET);
     _transaction_state = TRANS_STATE::DID_GET;
 
+    if (!len)
+        return true;
+
     // FIXME - This is a terrible hack to allow devices to continue to
     // use the pattern of fetching data on their own instead of
     // upgrading them fully to work with packets.
