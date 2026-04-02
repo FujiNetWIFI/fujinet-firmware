@@ -38,7 +38,7 @@ FileSystemFTP::~FileSystemFTP()
 
 bool FileSystemFTP::start(const char *url, const char *user, const char *password)
 {
-    protocolError_t res;
+    fujiError_t res;
 
     if (_started)
         return false;
@@ -74,11 +74,11 @@ bool FileSystemFTP::start(const char *url, const char *user, const char *passwor
         _url->port.empty() ? 21 : atoi(_url->port.c_str())
     );
 
-    if (res != PROTOCOL_ERROR::NONE)
+    if (res != FUJI_ERROR::NONE)
     {
         Debug_printf("FileSystemFTP::start() - FTP login failed: %s\n", _url->host.c_str());
         return false;
-	}
+        }
 
     Debug_printf("FTP logged in: %s\n", _url->host.c_str());
 
@@ -95,9 +95,9 @@ bool FileSystemFTP::exists(const char *path)
     Debug_printf("FileSystemFTP::exists(\"%s\")\n", path);
 
     // Use LIST to check if path exists (works for both files and directories)
-    protocolError_t res = _ftp->open_directory(path, "");
-    
-    if (res != PROTOCOL_ERROR::NONE)  // open_directory returns PROTOCOL_ERROR::NONE on success
+    fujiError_t res = _ftp->open_directory(path, "");
+
+    if (res != FUJI_ERROR::NONE)  // open_directory returns FUJI_ERROR::NONE on success
     {
         Debug_printf("Path does not exist\n");
         return false;
@@ -107,10 +107,10 @@ bool FileSystemFTP::exists(const char *path)
     string filename;
     long filesz;
     bool is_directory;
-    
+
     res = _ftp->read_directory(filename, filesz, is_directory);
-    bool exists = (res == PROTOCOL_ERROR::NONE && !filename.empty());
-    
+    bool exists = (res == FUJI_ERROR::NONE && !filename.empty());
+
     Debug_printf("Path %s\n", exists ? "exists" : "does not exist");
     return exists;
 }
@@ -124,7 +124,7 @@ bool FileSystemFTP::remove(const char *path)
 
     // Attempt to delete the file
     // delete_file returns FALSE on success, TRUE on error
-    if (_ftp->delete_file(path) == PROTOCOL_ERROR::NONE)
+    if (_ftp->delete_file(path) == FUJI_ERROR::NONE)
     {
         Debug_printf("File deleted successfully\n");
         return true;
@@ -145,7 +145,7 @@ bool FileSystemFTP::rename(const char *pathFrom, const char *pathTo)
 
     // Attempt to rename the file
     // rename_file returns FALSE on success, TRUE on error
-    if (_ftp->rename_file(pathFrom, pathTo) == PROTOCOL_ERROR::NONE)
+    if (_ftp->rename_file(pathFrom, pathTo) == FUJI_ERROR::NONE)
     {
         Debug_printf("File renamed successfully\n");
         return true;
@@ -192,7 +192,7 @@ FileHandler *FileSystemFTP::cache_file(const char *path, const char *mode)
 
     // Open FTP file
     Debug_println("Initiating file RETR");
-    if (_ftp->open_file(path, false) != PROTOCOL_ERROR::NONE)
+    if (_ftp->open_file(path, false) != FUJI_ERROR::NONE)
     {
         Debug_println("FileSystemFTP::cache_file - RETR failed");
         return nullptr;
@@ -215,7 +215,7 @@ FileHandler *FileSystemFTP::cache_file(const char *path, const char *mode)
     while ( !cancel )
     {
         available = _ftp->data_available();
-        if (_ftp->data_connected() == PROTOCOL_ERROR::NONE) // done
+        if (_ftp->data_connected() == FUJI_ERROR::NONE) // done
             break;
 
         if (available == 0)
@@ -234,12 +234,12 @@ FileHandler *FileSystemFTP::cache_file(const char *path, const char *mode)
         {
             while (available > 0)
             {
-                if (_ftp->data_connected() == PROTOCOL_ERROR::NONE) // done
+                if (_ftp->data_connected() == FUJI_ERROR::NONE) // done
                     break;
 
                 // Read FTP data
                 int to_read = available > COPY_BLK_SIZE ? COPY_BLK_SIZE : available;
-                if (_ftp->read_file(buf, to_read) != PROTOCOL_ERROR::NONE)
+                if (_ftp->read_file(buf, to_read) != FUJI_ERROR::NONE)
                 {
                     Debug_println("FileSystemFTP::cache_file - FTP read failed");
                     cancel = true;
@@ -296,9 +296,9 @@ bool FileSystemFTP::is_dir(const char *path)
     Debug_printf("FileSystemFTP::is_dir(\"%s\")\n", path);
 
     // Try to open the path as a directory
-    protocolError_t res = _ftp->open_directory(path, "");
-    
-    if (res != PROTOCOL_ERROR::NONE)  // open_directory returns PROTOCOL_ERROR::NONE on success
+    fujiError_t res = _ftp->open_directory(path, "");
+
+    if (res != FUJI_ERROR::NONE)  // open_directory returns FUJI_ERROR::NONE on success
     {
         Debug_printf("Failed to LIST path\n");
         return false;
@@ -310,27 +310,27 @@ bool FileSystemFTP::is_dir(const char *path)
     string filename;
     long filesz;
     bool is_directory;
-    
+
     res = _ftp->read_directory(filename, filesz, is_directory);
-    if (res == PROTOCOL_ERROR::NONE && !filename.empty())
+    if (res == FUJI_ERROR::NONE && !filename.empty())
     {
         // Successfully read an entry
         // If the filename matches the path (or just the basename), it's listing the file itself
         // Some servers return full path, others return just basename
-        
+
         if (strcmp(path, filename.c_str()) == 0)
         {
             // Full path matches - it's listing the file itself
             Debug_printf("Path is %s (is_dir=%d)\n", is_directory ? "a directory" : "a file", is_directory);
             return is_directory;
         }
-        
+
         const char *last_slash = strrchr(path, '/');
         const char *basename = last_slash ? last_slash + 1 : path;
-        
+
         const char *file_last_slash = strrchr(filename.c_str(), '/');
         const char *file_basename = file_last_slash ? file_last_slash + 1 : filename.c_str();
-        
+
         if (strcmp(basename, file_basename) == 0)
         {
             // Basename matches - it's listing the file itself
@@ -344,7 +344,7 @@ bool FileSystemFTP::is_dir(const char *path)
             return true;
         }
     }
-    
+
     Debug_printf("Could not determine if path is directory\n");
     return false;
 }
@@ -358,7 +358,7 @@ bool FileSystemFTP::mkdir(const char* path)
 
     // Attempt to create the directory
     // make_directory returns FALSE on success, TRUE on error
-    if (_ftp->make_directory(path) == PROTOCOL_ERROR::NONE)
+    if (_ftp->make_directory(path) == FUJI_ERROR::NONE)
     {
         Debug_printf("Directory created successfully\n");
         return true;
@@ -379,7 +379,7 @@ bool FileSystemFTP::rmdir(const char* path)
 
     // Attempt to remove the directory
     // remove_directory returns FALSE on success, TRUE on error
-    if (_ftp->remove_directory(path) == PROTOCOL_ERROR::NONE)
+    if (_ftp->remove_directory(path) == FUJI_ERROR::NONE)
     {
         Debug_printf("Directory removed successfully\n");
         return true;
@@ -420,10 +420,10 @@ bool FileSystemFTP::dir_open(const char  *path, const char *pattern, uint16_t di
         _last_dir[0] = '\0';
 
         // List FTP directory
-        protocolError_t res;
+        fujiError_t res;
         res = _ftp->open_directory(path, "");
 
-        if (res != PROTOCOL_ERROR::NONE)
+        if (res != FUJI_ERROR::NONE)
         {
             Debug_printf("Failed to open directory\n");
             return false;
@@ -440,7 +440,7 @@ bool FileSystemFTP::dir_open(const char  *path, const char *pattern, uint16_t di
 
         // get first directory entry
         res = _ftp->read_directory(filename, filesz, is_dir);
-        while(res == PROTOCOL_ERROR::NONE)
+        while(res == FUJI_ERROR::NONE)
         {
             // skip hidden
             if (filename[0] == '.')
@@ -492,14 +492,14 @@ bool FileSystemFTP::keep_alive()
         return false;
 
     // Send NOOP command as lightweight keep-alive
-    protocolError_t res = _ftp->keep_alive();
-    
-    if (res != PROTOCOL_ERROR::NONE) {
+    fujiError_t res = _ftp->keep_alive();
+
+    if (res != FUJI_ERROR::NONE) {
         Debug_printf("FTP keep_alive failed - marking session as disconnected\n");
         _started = false;
     }
-    
-    return res == PROTOCOL_ERROR::NONE;
+
+    return res == FUJI_ERROR::NONE;
 }
 
 bool FileSystemFTP::ensure_connected()
@@ -508,38 +508,38 @@ bool FileSystemFTP::ensure_connected()
     if (_started && _ftp && _ftp->control_connected()) {
         return true;  // Already connected and verified
     }
-    
+
     // If we thought we were connected but aren't, mark as disconnected
     if (_started) {
         Debug_printf("FTP control connection lost, attempting reconnect\n");
         _started = false;
     }
-    
+
     if (!_url || !_ftp) {
         Debug_printf("Cannot connect - missing URL or FTP client\n");
         return false;
     }
-    
+
     if (_username.empty()) {
         Debug_printf("Cannot connect - credentials not set (start() was never called)\n");
         return false;
     }
-    
+
     Debug_printf("Attempting to connect to FTP server: %s\n", _url->host.c_str());
-    
+
     // Attempt to connect using stored credentials
-    protocolError_t res = _ftp->login(
+    fujiError_t res = _ftp->login(
         _username.c_str(),
         _password.c_str(),
         _url->host,
         _url->port.empty() ? 21 : atoi(_url->port.c_str())
     );
-    
-    if (res != PROTOCOL_ERROR::NONE) {
+
+    if (res != FUJI_ERROR::NONE) {
         Debug_printf("Failed to connect to FTP server\n");
         return false;
     }
-    
+
     Debug_printf("Successfully connected to FTP server\n");
     _started = true;
     return true;

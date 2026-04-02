@@ -5,6 +5,7 @@
 #include "bus.h"
 #include "networkStatus.h"
 #include "peoples_url_parser.h"
+#include "global_types.h"
 
 #include <string>
 
@@ -26,11 +27,6 @@ enum netProtoTranslation_t {
     NETPROTO_TRANS_CRLF     = 3,
     NETPROTO_TRANS_PETSCII  = 4,
 };
-
-typedef enum class PROTOCOL_ERROR {
-    NONE = 0,
-    UNSPECIFIED = 1,
-} protocolError_t;
 
 class NetworkProtocol
 {
@@ -134,36 +130,36 @@ public:
     /**
      * @brief Open connection to the protocol using URL
      * @param urlParser The URL object passed in to open.
-     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
+     * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
      */
-    virtual protocolError_t open(PeoplesUrlParser *urlParser, fileAccessMode_t access,
+    virtual fujiError_t open(PeoplesUrlParser *urlParser, fileAccessMode_t access,
                                  netProtoTranslation_t translate);
 
     /**
      * @brief Close connection to the protocol.
      */
-    virtual protocolError_t close();
+    virtual fujiError_t close();
 
     /**
      * @brief Read len bytes into receiveBuffer, If protocol times out, the buffer should be null padded to length.
      * @param len Number of bytes to read.
      * @return translation successful.
      */
-    virtual protocolError_t read(unsigned short len);
+    virtual fujiError_t read(unsigned short len);
 
     /**
      * @brief Write len bytes from tx_buf to protocol.
      * @param len The # of bytes to transmit, len should not be larger than buffer.
-     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
+     * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
      */
-    virtual protocolError_t write(unsigned short len) { return PROTOCOL_ERROR::NONE; }
+    virtual fujiError_t write(unsigned short len) { return FUJI_ERROR::NONE; }
 
     /**
      * @brief Return protocol status information in provided NetworkStatus object.
      * @param status a pointer to a NetworkStatus object to receive status information
-     * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
+     * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
      */
-    virtual protocolError_t status(NetworkStatus *status);
+    virtual fujiError_t status(NetworkStatus *status);
 
     /**
      * @brief return an _atari_ error (>199) based on errno. into error for status reporting.

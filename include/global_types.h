@@ -22,4 +22,9 @@ typedef uint16_t BufferLength;
  */
 typedef uint16_t AuxWord;
 
+typedef enum class FUJI_ERROR {
+    NONE = 0,
+    UNSPECIFIED = 1,
+} fujiError_t;
+
 #endif

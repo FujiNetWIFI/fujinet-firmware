@@ -56,9 +56,9 @@ NetworkProtocolHTTP::~NetworkProtocolHTTP()
         delete(client);
 }
 
-protocolError_t NetworkProtocolHTTP::set_channel_mode(netProtoHTTPChannelMode_t newMode)
+fujiError_t NetworkProtocolHTTP::set_channel_mode(netProtoHTTPChannelMode_t newMode)
 {
-    protocolError_t err = PROTOCOL_ERROR::NONE;
+    fujiError_t err = FUJI_ERROR::NONE;
 
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::special_set_channel_mode(%u)\r\n", httpChannelMode);
@@ -88,13 +88,13 @@ protocolError_t NetworkProtocolHTTP::set_channel_mode(netProtoHTTPChannelMode_t 
         break;
     default:
         error = NDEV_STATUS::INVALID_COMMAND;
-        err = PROTOCOL_ERROR::UNSPECIFIED;
+        err = FUJI_ERROR::UNSPECIFIED;
     }
 
     return err;
 }
 
-protocolError_t NetworkProtocolHTTP::open_file_handle()
+fujiError_t NetworkProtocolHTTP::open_file_handle()
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printv("NetworkProtocolHTTP::open_file_handle() aux1[%d]\r\n", (int) streamMode);
@@ -126,20 +126,20 @@ protocolError_t NetworkProtocolHTTP::open_file_handle()
         break;
     default:
         error = NDEV_STATUS::NOT_IMPLEMENTED;
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     // This is set IF we came back through here via resolve().
     if (resultCode > 399)
     {
         fserror_to_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolHTTP::open_dir_handle()
+fujiError_t NetworkProtocolHTTP::open_dir_handle()
 {
     int len, actual_len;
 
@@ -166,7 +166,7 @@ protocolError_t NetworkProtocolHTTP::open_dir_handle()
     {
         httpMethod = HTTP_METHOD::GET;
         http_transaction();
-        return PROTOCOL_ERROR::NONE;
+        return FUJI_ERROR::NONE;
     }
 
     if (resultCode > 399)
@@ -175,7 +175,7 @@ protocolError_t NetworkProtocolHTTP::open_dir_handle()
         Debug_printf("Could not do PROPFIND. Result code %u\r\n", resultCode);
 #endif
         fserror_to_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     // Setup XML WebDAV parser
@@ -185,7 +185,7 @@ protocolError_t NetworkProtocolHTTP::open_dir_handle()
         Debug_printf("Failed to setup parser.\r\n");
 #endif
         error = NDEV_STATUS::GENERAL;
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     std::vector<uint8_t> buf;
@@ -251,7 +251,7 @@ protocolError_t NetworkProtocolHTTP::open_dir_handle()
         Debug_printf("NetworkProtocolHTTP::open_dir_handle() - error %u\r\n", (uint8_t) error);
 #endif
         webDAV.end_parser(true); // release parser resources + clear collected entries
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     // finish parsing (not sure if this is necessary)
@@ -271,10 +271,10 @@ protocolError_t NetworkProtocolHTTP::open_dir_handle()
     }
 
     // Directory parsed, ready to be returned by read_dir_entry()
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolHTTP::mount(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolHTTP::mount(PeoplesUrlParser *url)
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::mount(%s)\r\n", url->url.c_str());
@@ -313,22 +313,22 @@ protocolError_t NetworkProtocolHTTP::mount(PeoplesUrlParser *url)
         url->rebuildUrl();
     }
 
-    return client->begin(url->url) ? PROTOCOL_ERROR::NONE : PROTOCOL_ERROR::UNSPECIFIED;
+    return client->begin(url->url) ? FUJI_ERROR::NONE : FUJI_ERROR::UNSPECIFIED;
 }
 
-protocolError_t NetworkProtocolHTTP::umount()
+fujiError_t NetworkProtocolHTTP::umount()
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::umount()\r\n");
 #endif
 
     if (client == nullptr)
-        return PROTOCOL_ERROR::NONE;
+        return FUJI_ERROR::NONE;
 
     delete client;
     client = nullptr;
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 void NetworkProtocolHTTP::fserror_to_error()
@@ -410,7 +410,7 @@ void NetworkProtocolHTTP::fserror_to_error()
     }
 }
 
-protocolError_t NetworkProtocolHTTP::status_file(NetworkStatus *status)
+fujiError_t NetworkProtocolHTTP::status_file(NetworkStatus *status)
 {
     // if (fromInterrupt == false)
     //     Debug_printf("Channel mode is %u\r\n", httpChannelMode);
@@ -418,7 +418,7 @@ protocolError_t NetworkProtocolHTTP::status_file(NetworkStatus *status)
     if (client == nullptr) {
         status->connected = 0;
         status->error = NDEV_STATUS::GENERAL;
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     switch (httpChannelMode)
@@ -440,28 +440,28 @@ protocolError_t NetworkProtocolHTTP::status_file(NetworkStatus *status)
         else
             status->error = error;
         // Debug_printf("NetworkProtocolHTTP::status_file DATA, available: %d, s.rxBW: %d, s.conn: %d, s.err: %d\r\n", available, status->rxBytesWaiting, status->connected, status->error);
-        return PROTOCOL_ERROR::NONE;
+        return FUJI_ERROR::NONE;
     }
     case SET_HEADERS:
     case COLLECT_HEADERS:
     case SEND_POST_DATA:
         status->error = NDEV_STATUS::SUCCESS;
         // Debug_printf("NetworkProtocolHTTP::status_file SH/CH/SPD, s.rxBW: %d, s.conn: %d, s.err: %d\r\n", status->rxBytesWaiting, status->connected, status->error);
-        return PROTOCOL_ERROR::NONE;
+        return FUJI_ERROR::NONE;
     case GET_HEADERS:
         if (resultCode == 0)
             http_transaction();
         status->connected = 0; // so that we always ask in this mode.
         status->error = returned_header_cursor == collect_headers.size() && error == NDEV_STATUS::SUCCESS ? NDEV_STATUS::END_OF_FILE : error;
         // Debug_printf("NetworkProtocolHTTP::status_file GH, s.rxBW: %d, s.conn: %d, s.err: %d\r\n", status->rxBytesWaiting, status->connected, status->error);
-        return PROTOCOL_ERROR::NONE;
+        return FUJI_ERROR::NONE;
     default:
         Debug_printf("ERROR: Unknown httpChannelMode: %d\r\n", httpChannelMode);
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 }
 
-protocolError_t NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short len)
+fujiError_t NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short len)
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::read_file_handle(%p,%u)\r\n", buf, len);
@@ -474,22 +474,22 @@ protocolError_t NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned sho
     case SET_HEADERS:
     case SEND_POST_DATA:
         error = NDEV_STATUS::WRITE_ONLY;
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     case GET_HEADERS:
         return read_file_handle_header(buf, len);
     default:
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 }
 
-protocolError_t NetworkProtocolHTTP::read_file_handle_header(uint8_t *buf, unsigned short len)
+fujiError_t NetworkProtocolHTTP::read_file_handle_header(uint8_t *buf, unsigned short len)
 {
     memcpy(buf, returned_headers[returned_header_cursor++].data(), len);
     return returned_header_cursor > returned_headers.size()
-        ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+        ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolHTTP::read_file_handle_data(uint8_t *buf, unsigned short len)
+fujiError_t NetworkProtocolHTTP::read_file_handle_data(uint8_t *buf, unsigned short len)
 {
     int actual_len;
 
@@ -502,12 +502,12 @@ protocolError_t NetworkProtocolHTTP::read_file_handle_data(uint8_t *buf, unsigne
 
     actual_len = client->read(buf, len);
 
-    return len != actual_len ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return len != actual_len ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
+fujiError_t NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
 {
-    protocolError_t err = PROTOCOL_ERROR::NONE;
+    fujiError_t err = FUJI_ERROR::NONE;
 
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::read_dir_entry(%p,%u)\r\n", buf, len);
@@ -527,13 +527,13 @@ protocolError_t NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short le
     {
         // EOF
         error = NDEV_STATUS::END_OF_FILE;
-        err = PROTOCOL_ERROR::UNSPECIFIED;
+        err = FUJI_ERROR::UNSPECIFIED;
     }
 
     return err;
 }
 
-protocolError_t NetworkProtocolHTTP::close_file_handle()
+fujiError_t NetworkProtocolHTTP::close_file_handle()
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::close_file_Handle()\r\n");
@@ -547,19 +547,19 @@ protocolError_t NetworkProtocolHTTP::close_file_handle()
         fserror_to_error();
     }
 
-    return (error == NDEV_STATUS::SUCCESS ? PROTOCOL_ERROR::NONE : PROTOCOL_ERROR::UNSPECIFIED);
+    return (error == NDEV_STATUS::SUCCESS ? FUJI_ERROR::NONE : FUJI_ERROR::UNSPECIFIED);
 }
 
-protocolError_t NetworkProtocolHTTP::close_dir_handle()
+fujiError_t NetworkProtocolHTTP::close_dir_handle()
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::close_dir_handle()\r\n");
 #endif
     webDAV.clear(); // release directory entries
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned short len)
+fujiError_t NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned short len)
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::write_file_handle(%p,%u)\r\n", buf, len);
@@ -577,18 +577,18 @@ protocolError_t NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned sh
         return write_file_handle_send_post_data(buf, len);
     case GET_HEADERS:
         error = NDEV_STATUS::READ_ONLY;
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     default:
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 }
 
-protocolError_t NetworkProtocolHTTP::write_file_handle_get_header(uint8_t *buf, unsigned short len)
+fujiError_t NetworkProtocolHTTP::write_file_handle_get_header(uint8_t *buf, unsigned short len)
 {
     if (httpMethod != HTTP_METHOD::GET)
     {
         error = NDEV_STATUS::NOT_IMPLEMENTED;
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     if (len > 0) {
@@ -605,10 +605,10 @@ protocolError_t NetworkProtocolHTTP::write_file_handle_get_header(uint8_t *buf, 
 
     // Add result to header vector.
     collect_headers.push_back(std::move(requestedHeader)); // Use std::move to avoid copying the string
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolHTTP::write_file_handle_set_header(uint8_t *buf, unsigned short len)
+fujiError_t NetworkProtocolHTTP::write_file_handle_set_header(uint8_t *buf, unsigned short len)
 {
     std::string incomingHeader = std::string((char *)buf, len);
     size_t pos = incomingHeader.find('\x9b');
@@ -621,7 +621,7 @@ protocolError_t NetworkProtocolHTTP::write_file_handle_set_header(uint8_t *buf, 
     pos = incomingHeader.find(":");
 
     if (pos == std::string::npos)
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
 
 #ifdef ESP_PLATFORM
 #ifdef VERBOSE_PROTOCOL
@@ -641,36 +641,36 @@ protocolError_t NetworkProtocolHTTP::write_file_handle_set_header(uint8_t *buf, 
 
     client->set_header(key.c_str(), val.c_str());
 #endif
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolHTTP::write_file_handle_send_post_data(uint8_t *buf, unsigned short len)
+fujiError_t NetworkProtocolHTTP::write_file_handle_send_post_data(uint8_t *buf, unsigned short len)
 {
     if (httpMethod != HTTP_METHOD::POST)
     {
         error = NDEV_STATUS::INVALID_COMMAND;
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     postData += std::string((char *)buf, len);
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolHTTP::write_file_handle_data(uint8_t *buf, unsigned short len)
+fujiError_t NetworkProtocolHTTP::write_file_handle_data(uint8_t *buf, unsigned short len)
 {
     if (httpMethod == HTTP_METHOD::PUT)
     {
         postData += std::string((char *)buf, len);
-        return PROTOCOL_ERROR::NONE; // come back here later.
+        return FUJI_ERROR::NONE; // come back here later.
     }
 
     error = NDEV_STATUS::INVALID_COMMAND;
-    return PROTOCOL_ERROR::UNSPECIFIED;
+    return FUJI_ERROR::UNSPECIFIED;
 }
 
-protocolError_t NetworkProtocolHTTP::stat()
+fujiError_t NetworkProtocolHTTP::stat()
 {
-    protocolError_t ret = PROTOCOL_ERROR::NONE;
+    fujiError_t ret = FUJI_ERROR::NONE;
     return ret; // short circuit it for now.
 
 #ifdef VERBOSE_PROTOCOL
@@ -678,7 +678,7 @@ protocolError_t NetworkProtocolHTTP::stat()
 #endif
 
     if (streamMode != ACCESS_MODE::READ) // only for READ FILE
-        return PROTOCOL_ERROR::NONE;   // We don't care.
+        return FUJI_ERROR::NONE;   // We don't care.
 
     // Since we know client is active, we need to destroy it.
     delete client;
@@ -690,7 +690,7 @@ protocolError_t NetworkProtocolHTTP::stat()
     fserror_to_error();
 
     if ((resultCode == 0) || (resultCode > 399))
-        ret = PROTOCOL_ERROR::UNSPECIFIED;
+        ret = FUJI_ERROR::UNSPECIFIED;
     else
     {
         // We got valid data, set filesize, then close and dispose of client.
@@ -701,7 +701,7 @@ protocolError_t NetworkProtocolHTTP::stat()
 
         // Recreate it for the rest of resolve()
         client = new HTTP_CLIENT_CLASS();
-        ret = client->begin(opened_url->url) ? PROTOCOL_ERROR::NONE : PROTOCOL_ERROR::UNSPECIFIED;
+        ret = client->begin(opened_url->url) ? FUJI_ERROR::NONE : FUJI_ERROR::UNSPECIFIED;
         resultCode = 0; // so GET will actually happen.
     }
 
@@ -754,10 +754,10 @@ void NetworkProtocolHTTP::http_transaction()
 #endif
 }
 
-protocolError_t NetworkProtocolHTTP::rename(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolHTTP::rename(PeoplesUrlParser *url)
 {
-    if (NetworkProtocolFS::rename(url) != PROTOCOL_ERROR::NONE)
-        return PROTOCOL_ERROR::UNSPECIFIED;
+    if (NetworkProtocolFS::rename(url) != FUJI_ERROR::NONE)
+        return FUJI_ERROR::UNSPECIFIED;
 
     url->path = url->path.substr(0, url->path.find(","));
 
@@ -768,10 +768,10 @@ protocolError_t NetworkProtocolHTTP::rename(PeoplesUrlParser *url)
 
     umount();
 
-    return resultCode > 399 ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return resultCode > 399 ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolHTTP::del(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolHTTP::del(PeoplesUrlParser *url)
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::del(%s,%s)", url->host.c_str(), url->path.c_str());
@@ -783,10 +783,10 @@ protocolError_t NetworkProtocolHTTP::del(PeoplesUrlParser *url)
 
     umount();
 
-    return resultCode > 399 ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return resultCode > 399 ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolHTTP::mkdir(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolHTTP::mkdir(PeoplesUrlParser *url)
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::mkdir(%s,%s)", url->host.c_str(), url->path.c_str());
@@ -798,10 +798,10 @@ protocolError_t NetworkProtocolHTTP::mkdir(PeoplesUrlParser *url)
 
     umount();
 
-    return resultCode > 399 ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return resultCode > 399 ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolHTTP::rmdir(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolHTTP::rmdir(PeoplesUrlParser *url)
 {
     return del(url);
 }

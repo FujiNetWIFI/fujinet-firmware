@@ -329,16 +329,16 @@ private:
     /**
      * Perform the correct read based on value of channelMode
      * @param num_bytes Number of bytes to read.
-     * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
+     * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Passed directly to bus_to_computer().
      */
-    protocolError_t read_channel(unsigned short num_bytes);
+    fujiError_t read_channel(unsigned short num_bytes);
 
     /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
-     * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit adamnet_error or adamnet_complete().
+     * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Used to emit adamnet_error or adamnet_complete().
      */
-    protocolError_t adamnet_write_channel(unsigned short num_bytes);
+    fujiError_t adamnet_write_channel(unsigned short num_bytes);
 
     /**
      * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.

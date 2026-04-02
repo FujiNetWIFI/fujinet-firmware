@@ -292,22 +292,22 @@ private:
     /**
      * Perform the correct read based on value of channelMode
      * @param num_bytes Number of bytes to read.
-     * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
+     * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Passed directly to bus_to_computer().
      */
-    protocolError_t rs232_read_channel(uint16_t num_bytes);
+    fujiError_t rs232_read_channel(uint16_t num_bytes);
 
     /**
      * @brief Perform read of the current JSON channel
      * @param num_bytes Number of bytes to read
      */
-    protocolError_t rs232_read_channel_json(uint16_t num_bytes);
+    fujiError_t rs232_read_channel_json(uint16_t num_bytes);
 
     /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
-     * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit rs232_error or rs232_complete().
+     * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Used to emit rs232_error or rs232_complete().
      */
-    protocolError_t rs232_write_channel(uint16_t num_bytes);
+    fujiError_t rs232_write_channel(uint16_t num_bytes);
 
     /**
      * @brief perform local status commands, if protocol is not bound, based on cmdFrame
@@ -323,7 +323,7 @@ private:
     /**
      * @brief get JSON status (# of bytes in receive channel)
      */
-    protocolError_t rs232_status_channel_json(NetworkStatus *ns);
+    fujiError_t rs232_status_channel_json(NetworkStatus *ns);
 
     /**
      * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.

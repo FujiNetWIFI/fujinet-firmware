@@ -33,9 +33,9 @@ NetworkProtocolFTP::~NetworkProtocolFTP()
     ftp = nullptr;
 }
 
-protocolError_t NetworkProtocolFTP::open_file_handle()
+fujiError_t NetworkProtocolFTP::open_file_handle()
 {
-    protocolError_t res;
+    fujiError_t res;
 
     switch (streamMode)
     {
@@ -48,7 +48,7 @@ protocolError_t NetworkProtocolFTP::open_file_handle()
     case ACCESS_MODE::APPEND:
     case ACCESS_MODE::READWRITE:
         error = NDEV_STATUS::NOT_IMPLEMENTED;
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     default:
         break;
     }
@@ -58,18 +58,18 @@ protocolError_t NetworkProtocolFTP::open_file_handle()
     return res;
 }
 
-protocolError_t NetworkProtocolFTP::open_dir_handle()
+fujiError_t NetworkProtocolFTP::open_dir_handle()
 {
-    protocolError_t res;
+    fujiError_t res;
 
     res = ftp->open_directory(dir, filename);
     fserror_to_error();
     return res;
 }
 
-protocolError_t NetworkProtocolFTP::mount(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolFTP::mount(PeoplesUrlParser *url)
 {
-    protocolError_t res;
+    fujiError_t res;
 
     // Path isn't used
     res = ftp->login("anonymous", "fujinet@fujinet.online", url->host);
@@ -77,7 +77,7 @@ protocolError_t NetworkProtocolFTP::mount(PeoplesUrlParser *url)
     return res;
 }
 
-protocolError_t NetworkProtocolFTP::umount()
+fujiError_t NetworkProtocolFTP::umount()
 {
     return ftp->logout();
 }
@@ -158,24 +158,24 @@ void NetworkProtocolFTP::fserror_to_error()
     }
 }
 
-protocolError_t NetworkProtocolFTP::read_file_handle(uint8_t *buf, unsigned short len)
+fujiError_t NetworkProtocolFTP::read_file_handle(uint8_t *buf, unsigned short len)
 {
-    protocolError_t res;
+    fujiError_t res;
 
     res = ftp->read_file(buf, len);
     fserror_to_error();
     return res;
 }
 
-protocolError_t NetworkProtocolFTP::read_dir_entry(char *buf, unsigned short len)
+fujiError_t NetworkProtocolFTP::read_dir_entry(char *buf, unsigned short len)
 {
-    protocolError_t res;
+    fujiError_t res;
     std::string filename;
     long filesz;
     bool is_dir;
 
     res = ftp->read_directory(filename, filesz, is_dir);
-    if (res == PROTOCOL_ERROR::NONE)
+    if (res == FUJI_ERROR::NONE)
     {
         strncpy(buf, filename.c_str(), len);
         fileSize = filesz;
@@ -186,37 +186,37 @@ protocolError_t NetworkProtocolFTP::read_dir_entry(char *buf, unsigned short len
     return res;
 }
 
-protocolError_t NetworkProtocolFTP::close_file_handle()
+fujiError_t NetworkProtocolFTP::close_file_handle()
 {
-    protocolError_t res;
+    fujiError_t res;
 
     res = ftp->close();
     fserror_to_error();
     return res;
 }
 
-protocolError_t NetworkProtocolFTP::close_dir_handle()
+fujiError_t NetworkProtocolFTP::close_dir_handle()
 {
-    protocolError_t res;
+    fujiError_t res;
 
     res = ftp->close();
     fserror_to_error();
     return res;
 }
 
-protocolError_t NetworkProtocolFTP::write_file_handle(uint8_t *buf, unsigned short len)
+fujiError_t NetworkProtocolFTP::write_file_handle(uint8_t *buf, unsigned short len)
 {
     return ftp->write_file(buf, len);
 }
 
-protocolError_t NetworkProtocolFTP::status_file(NetworkStatus *status)
+fujiError_t NetworkProtocolFTP::status_file(NetworkStatus *status)
 {
-    status->connected = ftp->data_connected() != PROTOCOL_ERROR::NONE;
+    status->connected = ftp->data_connected() != FUJI_ERROR::NONE;
     fserror_to_error();
     status->error = error;
 
     NetworkProtocol::status(status);
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 size_t NetworkProtocolFTP::available()

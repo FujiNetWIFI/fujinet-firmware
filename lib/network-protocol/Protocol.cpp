@@ -97,7 +97,7 @@ NetworkProtocol::~NetworkProtocol()
  * @brief Open connection to the protocol using URL
  * @param urlParser The URL object passed in to open.
  */
-protocolError_t NetworkProtocol::open(PeoplesUrlParser *urlParser, fileAccessMode_t access,
+fujiError_t NetworkProtocol::open(PeoplesUrlParser *urlParser, fileAccessMode_t access,
                                       netProtoTranslation_t translate)
 {
     // Set translation mode, Bits 0-1 of aux2
@@ -105,13 +105,13 @@ protocolError_t NetworkProtocol::open(PeoplesUrlParser *urlParser, fileAccessMod
 
     opened_url = urlParser;
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 /**
  * @brief Close connection to the protocol.
  */
-protocolError_t NetworkProtocol::close()
+fujiError_t NetworkProtocol::close()
 {
     if (!transmitBuffer->empty())
         write(transmitBuffer->length());
@@ -124,39 +124,39 @@ protocolError_t NetworkProtocol::close()
     specialBuffer->shrink_to_fit();
 
     error = NDEV_STATUS::SUCCESS;
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 /**
  * @brief Read len bytes into receiveBuffer, If protocol times out, the buffer should be null padded to length.
  * @param len Number of bytes to read.
- * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
+ * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
  */
-protocolError_t NetworkProtocol::read(unsigned short len)
+fujiError_t NetworkProtocol::read(unsigned short len)
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocol::read(%u)\r\n", len);
 #endif
     translate_receive_buffer();
     error = NDEV_STATUS::SUCCESS;
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 /**
  * @brief Return protocol status information in provided NetworkStatus object.
  * @param status a pointer to a NetworkStatus object to receive status information
  * @param rx_buf a pointer to the receive buffer (to call read())
- * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
+ * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
  */
-protocolError_t NetworkProtocol::status(NetworkStatus *status)
+fujiError_t NetworkProtocol::status(NetworkStatus *status)
 {
     if (fromInterrupt)
-        return PROTOCOL_ERROR::NONE;
+        return FUJI_ERROR::NONE;
 
     if (!was_write && receiveBuffer->length() == 0 && available() > 0)
         read(available());
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 /**

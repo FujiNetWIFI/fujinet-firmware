@@ -136,7 +136,7 @@ void rs232Network::rs232_open(fileAccessMode_t access, netProtoTranslation_t tra
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), access, translate) != PROTOCOL_ERROR::NONE)
+    if (protocol->open(urlParser.get(), access, translate) != FUJI_ERROR::NONE)
     {
         status.error = protocol->error;
         Debug_printf("Protocol unable to make connection. Error: %d\n", (int) status.error);
@@ -194,7 +194,7 @@ void rs232Network::rs232_close()
     }
 
     // Ask the protocol to close
-    if (protocol->close() != PROTOCOL_ERROR::NONE)
+    if (protocol->close() != FUJI_ERROR::NONE)
         transaction_error();
     else
         transaction_complete();
@@ -213,7 +213,7 @@ void rs232Network::rs232_close()
  */
 void rs232Network::rs232_read(uint16_t length)
 {
-    protocolError_t err = PROTOCOL_ERROR::NONE;
+    fujiError_t err = FUJI_ERROR::NONE;
 
     Debug_printf("rs232Network::rs232_read( %d bytes)\n", length);
 
@@ -239,7 +239,7 @@ void rs232Network::rs232_read(uint16_t length)
     err = rs232_read_channel(length);
 
     // And send off to the computer
-    transaction_put((uint8_t *)receiveBuffer->data(), length, err != PROTOCOL_ERROR::NONE);
+    transaction_put((uint8_t *)receiveBuffer->data(), length, err != FUJI_ERROR::NONE);
     receiveBuffer->erase(0, length);
 }
 
@@ -247,14 +247,14 @@ void rs232Network::rs232_read(uint16_t length)
  * @brief Perform read of the current JSON channel
  * @param num_bytes Number of bytes to read
  */
-protocolError_t rs232Network::rs232_read_channel_json(uint16_t num_bytes)
+fujiError_t rs232Network::rs232_read_channel_json(uint16_t num_bytes)
 {
     if (num_bytes > json_bytes_remaining)
         json_bytes_remaining=0;
     else
         json_bytes_remaining-=num_bytes;
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 /**
@@ -262,9 +262,9 @@ protocolError_t rs232Network::rs232_read_channel_json(uint16_t num_bytes)
  * @param num_bytes - number of bytes to read from channel.
  * @return TRUE on error, FALSE on success. Passed directly to transaction_put().
  */
-protocolError_t rs232Network::rs232_read_channel(uint16_t num_bytes)
+fujiError_t rs232Network::rs232_read_channel(uint16_t num_bytes)
 {
-    protocolError_t err = PROTOCOL_ERROR::NONE;
+    fujiError_t err = FUJI_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -286,7 +286,7 @@ protocolError_t rs232Network::rs232_read_channel(uint16_t num_bytes)
 void rs232Network::rs232_write(uint16_t length)
 {
     uint8_t *newData;
-    protocolError_t err = PROTOCOL_ERROR::NONE;
+    fujiError_t err = FUJI_ERROR::NONE;
 
     newData = (uint8_t *)malloc(length);
     Debug_printf("rs232Network::rs232_write( %d bytes)\n", length);
@@ -318,7 +318,7 @@ void rs232Network::rs232_write(uint16_t length)
     err = rs232_write_channel(length);
 
     // Acknowledge to Atari of channel outcome.
-    if (err == PROTOCOL_ERROR::NONE)
+    if (err == FUJI_ERROR::NONE)
     {
         transaction_complete();
     }
@@ -331,9 +331,9 @@ void rs232Network::rs232_write(uint16_t length)
  * @param num_bytes Number of bytes to write.
  * @return TRUE on error, FALSE on success. Used to emit transaction_error or transaction_complete().
  */
-protocolError_t rs232Network::rs232_write_channel(uint16_t num_bytes)
+fujiError_t rs232Network::rs232_write_channel(uint16_t num_bytes)
 {
-    protocolError_t err = PROTOCOL_ERROR::NONE;
+    fujiError_t err = FUJI_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -342,7 +342,7 @@ protocolError_t rs232Network::rs232_write_channel(uint16_t num_bytes)
         break;
     case CHANNEL_MODE::JSON:
         Debug_printf("JSON Not Handled.\n");
-        err = PROTOCOL_ERROR::UNSPECIFIED;
+        err = FUJI_ERROR::UNSPECIFIED;
         break;
     }
     return err;
@@ -406,11 +406,11 @@ void rs232Network::rs232_status_local(FujiStatusReq reqType)
     }
 }
 
-protocolError_t rs232Network::rs232_status_channel_json(NetworkStatus *ns)
+fujiError_t rs232Network::rs232_status_channel_json(NetworkStatus *ns)
 {
     ns->connected = json_bytes_remaining > 0;
     ns->error = json_bytes_remaining > 0 ? NDEV_STATUS::SUCCESS : NDEV_STATUS::END_OF_FILE;
-    return PROTOCOL_ERROR::NONE; // for now
+    return FUJI_ERROR::NONE; // for now
 }
 
 /**
@@ -420,7 +420,7 @@ void rs232Network::rs232_status_channel()
 {
     NDeviceStatus nstatus;
     size_t avail = 0;
-    protocolError_t err = PROTOCOL_ERROR::NONE;
+    fujiError_t err = FUJI_ERROR::NONE;
 
     Debug_printf("rs232Network::rs232_status_channel(%u)\n", (unsigned) channelMode);
 
@@ -429,7 +429,7 @@ void rs232Network::rs232_status_channel()
     case CHANNEL_MODE::PROTOCOL:
         if (protocol == nullptr) {
             Debug_printf("ERROR: Calling rs232_status_channel on a null protocol.\r\n");
-            err = PROTOCOL_ERROR::UNSPECIFIED;
+            err = FUJI_ERROR::UNSPECIFIED;
             status.error = NDEV_STATUS::NOT_CONNECTED;
         } else {
             err = protocol->status(&status);
@@ -452,7 +452,7 @@ void rs232Network::rs232_status_channel()
                  nstatus.avail, nstatus.conn, (uint8_t) nstatus.err);
 
     // and send to computer
-    transaction_put((uint8_t *) &nstatus, sizeof(nstatus), err != PROTOCOL_ERROR::NONE);
+    transaction_put((uint8_t *) &nstatus, sizeof(nstatus), err != FUJI_ERROR::NONE);
 }
 
 /**
@@ -609,7 +609,7 @@ void rs232Network::process_tcp(FujiBusPacket &packet)
         return;
     }
 
-    protocolError_t err;
+    fujiError_t err;
     switch (packet.command())
     {
     case NETCMD_CONTROL:
@@ -625,7 +625,7 @@ void rs232Network::process_tcp(FujiBusPacket &packet)
         return;
     }
 
-    if (err != PROTOCOL_ERROR::NONE)
+    if (err != FUJI_ERROR::NONE)
         transaction_error();
     else
         transaction_complete();
@@ -641,7 +641,7 @@ void rs232Network::process_http(FujiBusPacket &packet)
         return;
     }
 
-    protocolError_t err;
+    fujiError_t err;
     switch (packet.command())
     {
     case NETCMD_UNLISTEN:
@@ -653,7 +653,7 @@ void rs232Network::process_http(FujiBusPacket &packet)
         return;
     }
 
-    if (err != PROTOCOL_ERROR::NONE)
+    if (err != FUJI_ERROR::NONE)
         transaction_error();
     else
         transaction_complete();
@@ -669,14 +669,14 @@ void rs232Network::process_udp(FujiBusPacket &packet)
         return;
     }
 
-    protocolError_t err;
+    fujiError_t err;
     switch (packet.command())
     {
 #ifndef ESP_PLATFORM
     case NETCMD_GET_REMOTE:
         transaction_continue(TRANS_STATE::NO_GET);
         err = udp->get_remote(receiveBuffer->data(), SPECIAL_BUFFER_SIZE);
-        transaction_put((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, err != PROTOCOL_ERROR::NONE);
+        transaction_put((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, err != FUJI_ERROR::NONE);
         break;
 #endif /* ESP_PLATFORM */
     case NETCMD_SET_DESTINATION:
@@ -685,7 +685,7 @@ void rs232Network::process_udp(FujiBusPacket &packet)
             transaction_continue(TRANS_STATE::WILL_GET);
             transaction_get(spData, sizeof(spData));
             err = udp->set_destination(spData, sizeof(spData));
-            if (err != PROTOCOL_ERROR::NONE)
+            if (err != FUJI_ERROR::NONE)
                 transaction_error();
             else
                 transaction_complete();
@@ -1115,7 +1115,7 @@ void rs232Network::process_fs(FujiBusPacket &packet)
         return;
     }
 
-    protocolError_t err;
+    fujiError_t err;
     auto url = urlParser.get();
     switch (packet.command())
     {
@@ -1142,7 +1142,7 @@ void rs232Network::process_fs(FujiBusPacket &packet)
         return;
     }
 
-    if (err != PROTOCOL_ERROR::NONE)
+    if (err != FUJI_ERROR::NONE)
         transaction_error();
     else
         transaction_complete();

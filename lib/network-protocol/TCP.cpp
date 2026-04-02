@@ -50,11 +50,11 @@ NetworkProtocolTCP::~NetworkProtocolTCP()
  * @brief Open connection to the protocol using URL
  * @param urlParser The URL object passed in to open.
  */
-protocolError_t NetworkProtocolTCP::open(PeoplesUrlParser *urlParser,
+fujiError_t NetworkProtocolTCP::open(PeoplesUrlParser *urlParser,
                                          fileAccessMode_t access,
                                          netProtoTranslation_t translate)
 {
-    protocolError_t ret = PROTOCOL_ERROR::UNSPECIFIED; // assume error until proven ok
+    fujiError_t ret = FUJI_ERROR::UNSPECIFIED; // assume error until proven ok
 
     Debug_printf("NetworkProtocolTCP::open(%s:%s)\r\n", urlParser->host.c_str(), urlParser->port.c_str());
 
@@ -66,7 +66,7 @@ protocolError_t NetworkProtocolTCP::open(PeoplesUrlParser *urlParser,
         else
         {
             Debug_printf("Empty socket enabled.\r\n");
-            ret = PROTOCOL_ERROR::NONE; // No error.
+            ret = FUJI_ERROR::NONE; // No error.
         }
     }
     else
@@ -87,7 +87,7 @@ protocolError_t NetworkProtocolTCP::open(PeoplesUrlParser *urlParser,
 /**
  * @brief Close connection to the protocol.
  */
-protocolError_t NetworkProtocolTCP::close()
+fujiError_t NetworkProtocolTCP::close()
 {
     Debug_printf("NetworkProtocolTCP::close()\r\n");
 
@@ -105,15 +105,15 @@ protocolError_t NetworkProtocolTCP::close()
         server->stop();
     }
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 /**
  * @brief Read len bytes into rx_buf, If protocol times out, the buffer should be null padded to length.
  * @param len number of bytes to read.
- * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
+ * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
  */
-protocolError_t NetworkProtocolTCP::read(unsigned short len)
+fujiError_t NetworkProtocolTCP::read(unsigned short len)
 {
     unsigned short actual_len = 0;
     std::vector<uint8_t> newData = std::vector<uint8_t>(len);
@@ -129,13 +129,13 @@ protocolError_t NetworkProtocolTCP::read(unsigned short len)
         if (errno == ECONNRESET)
         {
             error = NDEV_STATUS::CONNECTION_RESET;
-            return PROTOCOL_ERROR::UNSPECIFIED;
+            return FUJI_ERROR::UNSPECIFIED;
         }
         else if (actual_len != len) // Read was short and timed out.
         {
             Debug_printf("Short receive. We got %u bytes, returning %u bytes and ERROR\r\n", actual_len, len);
             error = NDEV_STATUS::SOCKET_TIMEOUT;
-            return PROTOCOL_ERROR::UNSPECIFIED;
+            return FUJI_ERROR::UNSPECIFIED;
         }
 
         // Add new data to buffer.
@@ -150,7 +150,7 @@ protocolError_t NetworkProtocolTCP::read(unsigned short len)
  * @param len The # of bytes to transmit, len should not be larger than buffer.
  * @return Number of bytes written.
  */
-protocolError_t NetworkProtocolTCP::write(unsigned short len)
+fujiError_t NetworkProtocolTCP::write(unsigned short len)
 {
     int actual_len = 0;
 
@@ -160,7 +160,7 @@ protocolError_t NetworkProtocolTCP::write(unsigned short len)
     if (!client.connected())
     {
         error = NDEV_STATUS::NOT_CONNECTED;
-        return PROTOCOL_ERROR::UNSPECIFIED; // error
+        return FUJI_ERROR::UNSPECIFIED; // error
     }
 
     // Call base class to do translation.
@@ -173,28 +173,28 @@ protocolError_t NetworkProtocolTCP::write(unsigned short len)
     if (errno == ECONNRESET)
     {
         error = NDEV_STATUS::CONNECTION_RESET;
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
     else if (actual_len != len) // write was short.
     {
         Debug_printf("Short send. We sent %u bytes, but asked to send %u bytes.\r\n", actual_len, len);
         error = NDEV_STATUS::SOCKET_TIMEOUT;
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     // Return success
     error = NDEV_STATUS::SUCCESS;
     transmitBuffer->erase(0, len);
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 /**
  * @brief Return protocol status information in provided NetworkStatus object.
  * @param status a pointer to a NetworkStatus object to receive status information
- * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
+ * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
  */
-protocolError_t NetworkProtocolTCP::status(NetworkStatus *status)
+fujiError_t NetworkProtocolTCP::status(NetworkStatus *status)
 {
     if (connectionIsServer == true)
         status_server(status);
@@ -203,7 +203,7 @@ protocolError_t NetworkProtocolTCP::status(NetworkStatus *status)
 
     NetworkProtocol::status(status);
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 void NetworkProtocolTCP::status_client(NetworkStatus *status)
@@ -235,9 +235,9 @@ size_t NetworkProtocolTCP::available()
 /**
  * Open a server (listening) connection.
  * @param port bind to port #
- * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
+ * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
  */
-protocolError_t NetworkProtocolTCP::open_server(unsigned short port)
+fujiError_t NetworkProtocolTCP::open_server(unsigned short port)
 {
     Debug_printf("Binding to port %d\r\n", port);
 
@@ -248,19 +248,19 @@ protocolError_t NetworkProtocolTCP::open_server(unsigned short port)
     {
         Debug_printf("errno = %u\r\n", errno);
         errno_to_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 /**
  * Open a client connection to host and port.
  * @param hostname The hostname to connect to.
  * @param port the port number to connect to.
- * @return PROTOCOL_ERROR::NONE on success, PROTOCOL_ERROR::UNSPECIFIED on error
+ * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
  */
-protocolError_t NetworkProtocolTCP::open_client(std::string hostname, unsigned short port)
+fujiError_t NetworkProtocolTCP::open_client(std::string hostname, unsigned short port)
 {
     int res = 0;
 
@@ -277,22 +277,22 @@ protocolError_t NetworkProtocolTCP::open_client(std::string hostname, unsigned s
     if (res == 0)
     {
         errno_to_error();
-        return PROTOCOL_ERROR::UNSPECIFIED; // Error.
+        return FUJI_ERROR::UNSPECIFIED; // Error.
     }
     else
-        return PROTOCOL_ERROR::NONE; // We're connected.
+        return FUJI_ERROR::NONE; // We're connected.
 }
 
 /**
  * Accept a server connection, transfer to client socket.
  */
-protocolError_t NetworkProtocolTCP::accept_connection()
+fujiError_t NetworkProtocolTCP::accept_connection()
 {
     if (server == nullptr)
     {
         Debug_printf("Attempted accept connection on NULL server socket. Aborting.\r\n");
         error = NDEV_STATUS::SERVER_NOT_RUNNING;
-        return PROTOCOL_ERROR::UNSPECIFIED; // Error
+        return FUJI_ERROR::UNSPECIFIED; // Error
     }
 
     if (server->hasClient())
@@ -309,25 +309,25 @@ protocolError_t NetworkProtocolTCP::accept_connection()
             remotePort = client.remotePort();
             remoteIPString = compat_inet_ntoa(remoteIP);
             Debug_printf("Accepted connection from %s:%u\r\n", remoteIPString, remotePort);
-            return PROTOCOL_ERROR::NONE;
+            return FUJI_ERROR::NONE;
         }
         else
         {
             error = NDEV_STATUS::CONNECTION_RESET;
             Debug_printf("Client immediately disconnected.\r\n");
-            return PROTOCOL_ERROR::UNSPECIFIED;
+            return FUJI_ERROR::UNSPECIFIED;
         }
     }
 
     // Otherwise, we are calling accept on a connection that isn't available.
     error = NDEV_STATUS::NO_CONNECTION_WAITING;
-    return PROTOCOL_ERROR::UNSPECIFIED;
+    return FUJI_ERROR::UNSPECIFIED;
 }
 
 /**
  * Close client connection.
  */
-protocolError_t NetworkProtocolTCP::close_client_connection()
+fujiError_t NetworkProtocolTCP::close_client_connection()
 {
     in_addr_t remoteIP;
     unsigned char remotePort;
@@ -337,14 +337,14 @@ protocolError_t NetworkProtocolTCP::close_client_connection()
     {
         Debug_printf("Attempted close client connection on NULL server socket. Aborting.\r\n");
         error = NDEV_STATUS::SERVER_NOT_RUNNING;
-        return PROTOCOL_ERROR::NONE;
+        return FUJI_ERROR::NONE;
     }
 
     if (!client.connected())
     {
         Debug_printf("Attempted close client with no client connected.\r\n");
         error = NDEV_STATUS::NOT_CONNECTED;
-        return PROTOCOL_ERROR::NONE;
+        return FUJI_ERROR::NONE;
     }
 
     remoteIP = client.remoteIP();
@@ -360,5 +360,5 @@ protocolError_t NetworkProtocolTCP::close_client_connection()
 
     client.stop();
 
-    return PROTOCOL_ERROR::UNSPECIFIED;
+    return FUJI_ERROR::UNSPECIFIED;
 }

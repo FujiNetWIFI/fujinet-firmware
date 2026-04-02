@@ -121,7 +121,7 @@ void iecNetwork::iec_open()
 
     Debug_printv("Protocol %s opened.", channel_data.urlParser->scheme.c_str());
 
-    if (channel_data.protocol->open(channel_data.urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != PROTOCOL_ERROR::NONE) {
+    if (channel_data.protocol->open(channel_data.urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != FUJI_ERROR::NONE) {
         Debug_printv("Protocol unable to make connection.");
         channel_data.protocol.reset(); // Clean up the protocol
 
@@ -741,7 +741,7 @@ void iecNetwork::fsop(fujiCommandID_t comnd)
         return;
     }
 
-    protocolError_t err;
+    fujiError_t err;
     auto url = channel_data.urlParser.get();
     switch (cmdFrame.comnd)
     {
@@ -764,11 +764,11 @@ void iecNetwork::fsop(fujiCommandID_t comnd)
         err = fs->rmdir(url);
         break;
     default:
-        err = PROTOCOL_ERROR::UNSPECIFIED;
+        err = FUJI_ERROR::UNSPECIFIED;
         return;
     }
 
-    if (err != PROTOCOL_ERROR::NONE)
+    if (err != FUJI_ERROR::NONE)
     {
         iecStatus.error = NDEV_STATUS::GENERAL;
         iecStatus.channel = commanddata.channel;
@@ -875,7 +875,7 @@ bool iecNetwork::receive(NetworkData &channel_data, uint16_t rxBytes)
     {
       uint16_t blockSize = std::min(avail, (size_t) rxBytes);
       Debug_printf("bytes waiting: %u / blockSize: %u / connected: %u / error: %u ", avail, blockSize, ns.connected, ns.error);
-      if( channel_data.protocol->read(blockSize) != PROTOCOL_ERROR::NONE )
+      if( channel_data.protocol->read(blockSize) != FUJI_ERROR::NONE )
         {
           // protocol adapter returned error
           iecStatus.error = NDEV_STATUS::GENERAL;

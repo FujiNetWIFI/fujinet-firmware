@@ -30,7 +30,7 @@ NetworkProtocolUDP::~NetworkProtocolUDP()
     Debug_printf("NetworkProtocolUDP::dtor\r\n");
 }
 
-protocolError_t NetworkProtocolUDP::open(PeoplesUrlParser *urlParser,
+fujiError_t NetworkProtocolUDP::open(PeoplesUrlParser *urlParser,
                                          fileAccessMode_t access,
                                          netProtoTranslation_t translate)
 {
@@ -49,7 +49,7 @@ protocolError_t NetworkProtocolUDP::open(PeoplesUrlParser *urlParser,
     if (urlParser->port.empty())
     {
         Debug_printf("Port is empty, aborting.\r\n");
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
     else
     {
@@ -68,7 +68,7 @@ protocolError_t NetworkProtocolUDP::open(PeoplesUrlParser *urlParser,
     if (udp.begin(bind_port) == false)
     {
         errno_to_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
     else
     {
@@ -82,10 +82,10 @@ protocolError_t NetworkProtocolUDP::open(PeoplesUrlParser *urlParser,
     // call base class
     NetworkProtocol::open(urlParser, access, translate);
 
-    return PROTOCOL_ERROR::NONE; // all good.
+    return FUJI_ERROR::NONE; // all good.
 }
 
-protocolError_t NetworkProtocolUDP::close()
+fujiError_t NetworkProtocolUDP::close()
 {
     // Call base class.
     NetworkProtocol::close();
@@ -93,10 +93,10 @@ protocolError_t NetworkProtocolUDP::close()
     // unbind.
     udp.stop();
 
-    return PROTOCOL_ERROR::NONE; // all good.
+    return FUJI_ERROR::NONE; // all good.
 }
 
-protocolError_t NetworkProtocolUDP::read(unsigned short len)
+fujiError_t NetworkProtocolUDP::read(unsigned short len)
 {
     std::vector<uint8_t> newData = std::vector<uint8_t>(len);
 
@@ -107,7 +107,7 @@ protocolError_t NetworkProtocolUDP::read(unsigned short len)
         if (udp.available() == 0)
         {
             errno_to_error();
-            return PROTOCOL_ERROR::UNSPECIFIED;
+            return FUJI_ERROR::UNSPECIFIED;
         }
 
         // Do the read.
@@ -124,7 +124,7 @@ protocolError_t NetworkProtocolUDP::read(unsigned short len)
     return NetworkProtocol::read(len);
 }
 
-protocolError_t NetworkProtocolUDP::write(unsigned short len)
+fujiError_t NetworkProtocolUDP::write(unsigned short len)
 {
     // Call base class to do translation.
     len = translate_transmit_buffer();
@@ -135,14 +135,14 @@ protocolError_t NetworkProtocolUDP::write(unsigned short len)
     if (dest.empty())
     {
         error = NDEV_STATUS::NOT_CONNECTED;
-        return PROTOCOL_ERROR::UNSPECIFIED; // error
+        return FUJI_ERROR::UNSPECIFIED; // error
     }
 
     // Do the write to client socket.
     if (udp.beginPacket(dest.c_str(), port) == false)
     {
         errno_to_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     udp.write((uint8_t *)transmitBuffer->data(), len);
@@ -150,17 +150,17 @@ protocolError_t NetworkProtocolUDP::write(unsigned short len)
     if (udp.endPacket() == false)
     {
         errno_to_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     // Return success
     error = NDEV_STATUS::SUCCESS;
     transmitBuffer->erase(0, len);
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolUDP::status(NetworkStatus *status)
+fujiError_t NetworkProtocolUDP::status(NetworkStatus *status)
 {
     if (receiveBuffer->length() == 0)
     {
@@ -183,10 +183,10 @@ protocolError_t NetworkProtocolUDP::status(NetworkStatus *status)
 
     NetworkProtocol::status(status);
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolUDP::set_destination(uint8_t *sp_buf, unsigned short len)
+fujiError_t NetworkProtocolUDP::set_destination(uint8_t *sp_buf, unsigned short len)
 {
 #ifdef ESP_PLATFORM // TODO review & merge
     std::string path((const char *)sp_buf, len);
@@ -199,10 +199,10 @@ protocolError_t NetworkProtocolUDP::set_destination(uint8_t *sp_buf, unsigned sh
     int port_colon = path.find_last_of(":");
 
     if (device_colon == std::string::npos)
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
 
     if (port_colon == device_colon)
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
 
 #ifdef ESP_PLATFORM // TODO review & merge
     std::string new_dest_str = path.substr(device_colon + 1, port_colon - 2);
@@ -216,11 +216,11 @@ protocolError_t NetworkProtocolUDP::set_destination(uint8_t *sp_buf, unsigned sh
     port = atoi(new_port_str.c_str());
     dest = new_dest_str;
 
-    return PROTOCOL_ERROR::NONE; // no error.
+    return FUJI_ERROR::NONE; // no error.
 }
 
 #ifndef ESP_PLATFORM
-protocolError_t NetworkProtocolUDP::get_remote(void *sp_buf, unsigned short len)
+fujiError_t NetworkProtocolUDP::get_remote(void *sp_buf, unsigned short len)
 {
     char port_part[8];
 
@@ -229,7 +229,7 @@ protocolError_t NetworkProtocolUDP::get_remote(void *sp_buf, unsigned short len)
     strlcat((char *)sp_buf, port_part, len);
     Debug_printf("UDP remote is %s\n", sp_buf);
 
-    return PROTOCOL_ERROR::NONE; // no error.
+    return FUJI_ERROR::NONE; // no error.
 }
 #endif
 

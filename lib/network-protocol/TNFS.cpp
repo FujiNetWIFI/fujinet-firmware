@@ -30,7 +30,7 @@ NetworkProtocolTNFS::~NetworkProtocolTNFS()
     Debug_printf("NetworkProtocolTNFS::dtor\r\n");
 }
 
-protocolError_t NetworkProtocolTNFS::open_file_handle()
+fujiError_t NetworkProtocolTNFS::open_file_handle()
 {
     // Map aux1 to mode and perms for tnfs_open()
     switch (streamMode)
@@ -62,20 +62,20 @@ protocolError_t NetworkProtocolTNFS::open_file_handle()
 
     Debug_printf("NetworkProtocolTNFS::open_file_handle(mode: %d perms %d) - %d\r\n", mode, perms, tnfs_error);
 
-    return tnfs_error != TNFS_RESULT_SUCCESS ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolTNFS::open_dir_handle()
+fujiError_t NetworkProtocolTNFS::open_dir_handle()
 {
     tnfs_error = tnfs_opendirx(&mountInfo, dir.c_str(), 0, 0, filename.c_str(), 0);
     fserror_to_error();
 
     Debug_printf("NetworkProtocolTNFS::open_dir_handle(%s, %s) - %d\r\n", dir.c_str(), filename.c_str(), tnfs_error);
 
-    return tnfs_error != TNFS_RESULT_SUCCESS ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolTNFS::mount(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolTNFS::mount(PeoplesUrlParser *url)
 {
     strcpy(mountInfo.hostname, url->host.c_str());
     strcpy(mountInfo.mountpath, "/");
@@ -85,15 +85,15 @@ protocolError_t NetworkProtocolTNFS::mount(PeoplesUrlParser *url)
 
     Debug_printf("NetworkProtocolTNFS::mount(%s,%s) - %d\r\n", url->host.c_str(), url->path.c_str(), tnfs_error);
 
-    return tnfs_error != TNFS_RESULT_SUCCESS ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolTNFS::umount()
+fujiError_t NetworkProtocolTNFS::umount()
 {
     Debug_printf("NetworkProtocolTNFS::umount()\r\n");
     tnfs_umount(&mountInfo);
 
-    return PROTOCOL_ERROR::NONE; // always success.
+    return FUJI_ERROR::NONE; // always success.
 }
 
 void NetworkProtocolTNFS::fserror_to_error()
@@ -128,7 +128,7 @@ void NetworkProtocolTNFS::fserror_to_error()
     }
 }
 
-protocolError_t NetworkProtocolTNFS::read_file_handle(uint8_t *buf, unsigned short len)
+fujiError_t NetworkProtocolTNFS::read_file_handle(uint8_t *buf, unsigned short len)
 {
     unsigned short total_len = len;
     unsigned short block_len = TNFS_MAX_READWRITE_PAYLOAD;
@@ -147,7 +147,7 @@ protocolError_t NetworkProtocolTNFS::read_file_handle(uint8_t *buf, unsigned sho
         if (tnfs_error != 0)
         {
             fserror_to_error();
-            return PROTOCOL_ERROR::UNSPECIFIED; // error.
+            return FUJI_ERROR::UNSPECIFIED; // error.
         }
         else
         {
@@ -159,10 +159,10 @@ protocolError_t NetworkProtocolTNFS::read_file_handle(uint8_t *buf, unsigned sho
     Debug_printf("NetworkProtocolTNFS::read_file_handle(B: %d, A: %d, T: %d)\r\n", block_len, actual_len, total_len);
 
     fserror_to_error();
-    return tnfs_error != TNFS_RESULT_SUCCESS ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolTNFS::read_dir_entry(char *buf, unsigned short len)
+fujiError_t NetworkProtocolTNFS::read_dir_entry(char *buf, unsigned short len)
 {
     tnfs_error = tnfs_readdirx(&mountInfo, &fileStat, buf, len);
     fileSize = fileStat.filesize;
@@ -171,27 +171,27 @@ protocolError_t NetworkProtocolTNFS::read_dir_entry(char *buf, unsigned short le
     is_locked = (fileStat.mode & 0200);
     fserror_to_error();
     Debug_printf("NetworkProtocolTNFS::read_dir_entry(N: %s, F: %d, M: %d, D: %d, L: %d) - %d\r\n", buf, fileSize, mode, is_directory, is_locked, tnfs_error);
-    return tnfs_error != TNFS_RESULT_SUCCESS ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolTNFS::close_file_handle()
+fujiError_t NetworkProtocolTNFS::close_file_handle()
 {
     if (fd != 0)
         tnfs_error = tnfs_close(&mountInfo, fd);
     fserror_to_error();
     Debug_printf("NetworkProtocolTNFS::close_file_handle(%u) - %d\r\n", fd, tnfs_error);
-    return tnfs_error != TNFS_RESULT_SUCCESS ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolTNFS::close_dir_handle()
+fujiError_t NetworkProtocolTNFS::close_dir_handle()
 {
     tnfs_error = tnfs_closedir(&mountInfo);
     fserror_to_error();
     Debug_printf("NetworkProtocolTNFS::close_dir_handle() - %d\r\n", tnfs_error);
-    return tnfs_error != TNFS_RESULT_SUCCESS ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolTNFS::write_file_handle(uint8_t *buf, unsigned short len)
+fujiError_t NetworkProtocolTNFS::write_file_handle(uint8_t *buf, unsigned short len)
 {
     unsigned short total_len = len;
     unsigned short block_len = TNFS_MAX_READWRITE_PAYLOAD;
@@ -217,13 +217,13 @@ protocolError_t NetworkProtocolTNFS::write_file_handle(uint8_t *buf, unsigned sh
         Debug_printf("NetworkProtocolTNFS::write_file_handle(B: %d, A: %d, T: %d)\r\n", block_len, actual_len, total_len);
     }
 
-    return tnfs_error != TNFS_RESULT_SUCCESS ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolTNFS::rename(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolTNFS::rename(PeoplesUrlParser *url)
 {
-    if (NetworkProtocolFS::rename(url) != PROTOCOL_ERROR::NONE)
-        return PROTOCOL_ERROR::NONE;
+    if (NetworkProtocolFS::rename(url) != FUJI_ERROR::NONE)
+        return FUJI_ERROR::NONE;
 
     mount(url);
 
@@ -234,10 +234,10 @@ protocolError_t NetworkProtocolTNFS::rename(PeoplesUrlParser *url)
 
     umount();
 
-    return tnfs_error != TNFS_RESULT_SUCCESS ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolTNFS::del(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolTNFS::del(PeoplesUrlParser *url)
 {
     mount(url);
 
@@ -248,10 +248,10 @@ protocolError_t NetworkProtocolTNFS::del(PeoplesUrlParser *url)
 
     umount();
 
-    return tnfs_error != TNFS_RESULT_SUCCESS ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolTNFS::mkdir(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolTNFS::mkdir(PeoplesUrlParser *url)
 {
     Debug_printf("NetworkProtocolTNFS::mkdir(%s,%s)", url->host.c_str(), url->path.c_str());
 
@@ -262,10 +262,10 @@ protocolError_t NetworkProtocolTNFS::mkdir(PeoplesUrlParser *url)
     if (tnfs_error != TNFS_RESULT_SUCCESS)
         fserror_to_error();
 
-    return tnfs_error != TNFS_RESULT_SUCCESS ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolTNFS::rmdir(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolTNFS::rmdir(PeoplesUrlParser *url)
 {
     mount(url);
 
@@ -274,10 +274,10 @@ protocolError_t NetworkProtocolTNFS::rmdir(PeoplesUrlParser *url)
     if (tnfs_error != TNFS_RESULT_SUCCESS)
         fserror_to_error();
 
-    return tnfs_error != TNFS_RESULT_SUCCESS ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolTNFS::stat()
+fujiError_t NetworkProtocolTNFS::stat()
 {
     tnfs_error = tnfs_stat(&mountInfo, &fileStat, opened_url->path.c_str());
     fileSize = fileStat.filesize;
@@ -286,10 +286,10 @@ protocolError_t NetworkProtocolTNFS::stat()
 
     Debug_printf("NetworkProtocolTNFS::stat(F: %d, M: %d, D: %d, L: %d) - %d\r\n", fileSize, mode, is_directory, is_locked, tnfs_error);
 
-    return tnfs_error != TNFS_RESULT_SUCCESS ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolTNFS::lock(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolTNFS::lock(PeoplesUrlParser *url)
 {
     Debug_printf("lock: %s\r\n", url->path.c_str());
     tnfs_error = tnfs_chmod(&mountInfo, url->path.c_str(), 0444);
@@ -297,17 +297,17 @@ protocolError_t NetworkProtocolTNFS::lock(PeoplesUrlParser *url)
     if (tnfs_error != TNFS_RESULT_SUCCESS)
         fserror_to_error();
 
-    return tnfs_error != TNFS_RESULT_SUCCESS ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolTNFS::unlock(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolTNFS::unlock(PeoplesUrlParser *url)
 {
     tnfs_error = tnfs_chmod(&mountInfo, url->path.c_str(), 0644);
 
     if (tnfs_error != TNFS_RESULT_SUCCESS)
         fserror_to_error();
 
-    return tnfs_error != TNFS_RESULT_SUCCESS ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
 off_t NetworkProtocolTNFS::seek(off_t offset, int whence)

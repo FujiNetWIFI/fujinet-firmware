@@ -155,7 +155,7 @@ void adamNetwork::open(unsigned short s)
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != PROTOCOL_ERROR::NONE)
+    if (protocol->open(urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != FUJI_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
         Debug_printf("Protocol unable to make connection.\n");
@@ -219,11 +219,11 @@ void adamNetwork::close()
 /**
  * Perform the channel read based on the channelMode
  * @param num_bytes - number of bytes to read from channel.
- * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
+ * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Passed directly to bus_to_computer().
  */
-protocolError_t adamNetwork::read_channel(unsigned short num_bytes)
+fujiError_t adamNetwork::read_channel(unsigned short num_bytes)
 {
-    protocolError_t _err = PROTOCOL_ERROR::NONE;
+    fujiError_t _err = FUJI_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -232,7 +232,7 @@ protocolError_t adamNetwork::read_channel(unsigned short num_bytes)
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
-        _err = PROTOCOL_ERROR::UNSPECIFIED;
+        _err = FUJI_ERROR::UNSPECIFIED;
         break;
     }
     return _err;
@@ -261,11 +261,11 @@ void adamNetwork::write(uint16_t num_bytes)
 /**
  * Perform the correct write based on value of channelMode
  * @param num_bytes Number of bytes to write.
- * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit adamnet_error or adamnet_complete().
+ * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Used to emit adamnet_error or adamnet_complete().
  */
-protocolError_t adamNetwork::adamnet_write_channel(unsigned short num_bytes)
+fujiError_t adamNetwork::adamnet_write_channel(unsigned short num_bytes)
 {
-    protocolError_t err_net = PROTOCOL_ERROR::NONE;
+    fujiError_t err_net = FUJI_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -274,7 +274,7 @@ protocolError_t adamNetwork::adamnet_write_channel(unsigned short num_bytes)
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
-        err_net = PROTOCOL_ERROR::UNSPECIFIED;
+        err_net = FUJI_ERROR::UNSPECIFIED;
         break;
     }
     return err_net;
@@ -652,7 +652,7 @@ inline void adamNetwork::adamnet_control_receive_channel_protocol()
     avail = avail > 1024 ? 1024 : avail;
     response_len = avail;
 
-    if (protocol->read(response_len) != PROTOCOL_ERROR::NONE) // protocol adapter returned error
+    if (protocol->read(response_len) != FUJI_ERROR::NONE) // protocol adapter returned error
     {
         statusByte.bits.client_error = true;
         adamnet_response_nack();
@@ -848,7 +848,7 @@ void adamNetwork::process_fs(fujiCommandID_t cmd, unsigned pkt_len)
         return;
     }
 
-    protocolError_t cmd_err;
+    fujiError_t cmd_err;
     auto url = urlParser.get();
     switch (cmd)
     {
@@ -871,11 +871,11 @@ void adamNetwork::process_fs(fujiCommandID_t cmd, unsigned pkt_len)
         cmd_err = fs->rmdir(url);
         break;
     default:
-        cmd_err = PROTOCOL_ERROR::UNSPECIFIED;
+        cmd_err = FUJI_ERROR::UNSPECIFIED;
         break;
     }
 
-    if (cmd_err != PROTOCOL_ERROR::NONE)
+    if (cmd_err != FUJI_ERROR::NONE)
         statusByte.bits.client_error = true;
 }
 
@@ -891,11 +891,11 @@ void adamNetwork::process_tcp(fujiCommandID_t cmd)
         return;
     }
 
-    protocolError_t cmd_err;
+    fujiError_t cmd_err;
     switch (cmd)
     {
     case NETCMD_CONTROL:
-        cmd_err = PROTOCOL_ERROR::NONE;
+        cmd_err = FUJI_ERROR::NONE;
 
         // Because we're not handling Adam bus very well, sometimes it
         // retries and we've already accepted which will return an
@@ -914,11 +914,11 @@ void adamNetwork::process_tcp(fujiCommandID_t cmd)
         cmd_err = tcp->close_client_connection();
         break;
     default:
-        cmd_err = PROTOCOL_ERROR::UNSPECIFIED;
+        cmd_err = FUJI_ERROR::UNSPECIFIED;
         break;
     }
 
-    if (cmd_err != PROTOCOL_ERROR::NONE)
+    if (cmd_err != FUJI_ERROR::NONE)
         statusByte.bits.client_error = true;
 }
 
@@ -934,18 +934,18 @@ void adamNetwork::process_http(fujiCommandID_t cmd)
         return;
     }
 
-    protocolError_t cmd_err;
+    fujiError_t cmd_err;
     switch (cmd)
     {
     case NETCMD_UNLISTEN:
         cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmdFrame.aux2);
         break;
     default:
-        cmd_err = PROTOCOL_ERROR::UNSPECIFIED;
+        cmd_err = FUJI_ERROR::UNSPECIFIED;
         return;
     }
 
-    if (cmd_err != PROTOCOL_ERROR::NONE)
+    if (cmd_err != FUJI_ERROR::NONE)
         statusByte.bits.client_error = true;
 }
 
@@ -961,7 +961,7 @@ void adamNetwork::process_udp(fujiCommandID_t cmd)
         return;
     }
 
-    protocolError_t cmd_err;
+    fujiError_t cmd_err;
     switch (cmd)
     {
 #ifndef ESP_PLATFORM
@@ -976,7 +976,7 @@ void adamNetwork::process_udp(fujiCommandID_t cmd)
             uint8_t spData[SPECIAL_BUFFER_SIZE];
             size_t bytes_read = SYSTEM_BUS.read(spData, sizeof(spData));
             cmd_err = udp->set_destination(spData, bytes_read);
-            if (cmd_err != PROTOCOL_ERROR::NONE)
+            if (cmd_err != FUJI_ERROR::NONE)
                 statusByte.bits.client_error = true;
         }
         break;

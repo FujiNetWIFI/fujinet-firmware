@@ -20,7 +20,7 @@ NetworkProtocolTest::~NetworkProtocolTest()
     test_data.clear();
 }
 
-protocolError_t NetworkProtocolTest::open(PeoplesUrlParser *urlParser,
+fujiError_t NetworkProtocolTest::open(PeoplesUrlParser *urlParser,
                                           fileAccessMode_t access,
                                           netProtoTranslation_t translate)
 {
@@ -55,10 +55,10 @@ protocolError_t NetworkProtocolTest::open(PeoplesUrlParser *urlParser,
         break;
     }
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolTest::read(unsigned short len)
+fujiError_t NetworkProtocolTest::read(unsigned short len)
 {
     if (receiveBuffer->length() == 0)
         *receiveBuffer += test_data.substr(0, len);
@@ -73,9 +73,9 @@ protocolError_t NetworkProtocolTest::read(unsigned short len)
     return NetworkProtocol::read(len);
 }
 
-protocolError_t NetworkProtocolTest::write(unsigned short len)
+fujiError_t NetworkProtocolTest::write(unsigned short len)
 {
-    protocolError_t err = PROTOCOL_ERROR::NONE;
+    fujiError_t err = FUJI_ERROR::NONE;
 
     Debug_printf("NetworkProtocolTest::write(%u) - Before translate_transmit_buffer()", len);
     for (int i = 0; i < len; i++)
@@ -94,12 +94,12 @@ protocolError_t NetworkProtocolTest::write(unsigned short len)
     return err;
 }
 
-protocolError_t NetworkProtocolTest::status(NetworkStatus *status)
+fujiError_t NetworkProtocolTest::status(NetworkStatus *status)
 {
     status->connected = 1;
     status->error = error;
 
     NetworkProtocol::status(status);
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }

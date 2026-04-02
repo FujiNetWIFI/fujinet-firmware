@@ -32,7 +32,7 @@ NetworkProtocolFS::~NetworkProtocolFS()
 {
 }
 
-protocolError_t NetworkProtocolFS::open(PeoplesUrlParser *urlParser,
+fujiError_t NetworkProtocolFS::open(PeoplesUrlParser *urlParser,
                                         fileAccessMode_t access,
                                         netProtoTranslation_t translate)
 {
@@ -43,8 +43,8 @@ protocolError_t NetworkProtocolFS::open(PeoplesUrlParser *urlParser,
 
     update_dir_filename(opened_url);
 
-    if (mount(urlParser) != PROTOCOL_ERROR::NONE)
-        return PROTOCOL_ERROR::UNSPECIFIED;
+    if (mount(urlParser) != FUJI_ERROR::NONE)
+        return FUJI_ERROR::UNSPECIFIED;
 
     if (access == ACCESS_MODE::DIRECTORY || access == ACCESS_MODE::DIRECTORY_ALT)
         return open_dir((apple2Flag_t) translate);
@@ -52,7 +52,7 @@ protocolError_t NetworkProtocolFS::open(PeoplesUrlParser *urlParser,
     return open_file();
 }
 
-protocolError_t NetworkProtocolFS::open_file()
+fujiError_t NetworkProtocolFS::open_file()
 {
     update_dir_filename(opened_url);
 
@@ -66,12 +66,12 @@ protocolError_t NetworkProtocolFS::open_file()
     streamType = streamType_t::FILE;
 
     if (opened_url->path.empty())
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
 
     return open_file_handle();
 }
 
-protocolError_t NetworkProtocolFS::open_dir(apple2Flag_t a2flags)
+fujiError_t NetworkProtocolFS::open_dir(apple2Flag_t a2flags)
 {
     streamType = streamType_t::DIR;
 #ifndef BUILD_ATARI
@@ -91,18 +91,18 @@ protocolError_t NetworkProtocolFS::open_dir(apple2Flag_t a2flags)
 
     if (opened_url->path.empty())
     {
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
-    if (open_dir_handle() != PROTOCOL_ERROR::NONE)
+    if (open_dir_handle() != FUJI_ERROR::NONE)
     {
         fserror_to_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     std::vector<uint8_t> entryBuffer(ENTRY_BUFFER_SIZE);
 
-    while (read_dir_entry((char *)entryBuffer.data(), ENTRY_BUFFER_SIZE - 1) == PROTOCOL_ERROR::NONE)
+    while (read_dir_entry((char *)entryBuffer.data(), ENTRY_BUFFER_SIZE - 1) == FUJI_ERROR::NONE)
     {
         if (entryBuffer.at(0) == '.' || entryBuffer.at(0) == '/')
             continue;
@@ -134,7 +134,7 @@ protocolError_t NetworkProtocolFS::open_dir(apple2Flag_t a2flags)
     if (error == NDEV_STATUS::END_OF_FILE)
         error = NDEV_STATUS::SUCCESS;
 
-    return error == NDEV_STATUS::SUCCESS ? PROTOCOL_ERROR::NONE : PROTOCOL_ERROR::UNSPECIFIED;
+    return error == NDEV_STATUS::SUCCESS ? FUJI_ERROR::NONE : FUJI_ERROR::UNSPECIFIED;
 }
 
 void NetworkProtocolFS::update_dir_filename(PeoplesUrlParser *url)
@@ -158,9 +158,9 @@ void NetworkProtocolFS::set_open_params(fileAccessMode_t access, netProtoTransla
 #endif
 }
 
-protocolError_t NetworkProtocolFS::close()
+fujiError_t NetworkProtocolFS::close()
 {
-    protocolError_t err;
+    fujiError_t err;
     // call base class.
     NetworkProtocol::close();
 
@@ -173,31 +173,31 @@ protocolError_t NetworkProtocolFS::close()
         err = close_dir();
         break;
     default:
-        err = PROTOCOL_ERROR::UNSPECIFIED;
+        err = FUJI_ERROR::UNSPECIFIED;
     }
 
-    if (err != PROTOCOL_ERROR::NONE)
+    if (err != FUJI_ERROR::NONE)
         fserror_to_error();
 
-    if (umount() != PROTOCOL_ERROR::NONE)
-        return PROTOCOL_ERROR::UNSPECIFIED;
+    if (umount() != FUJI_ERROR::NONE)
+        return FUJI_ERROR::UNSPECIFIED;
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolFS::close_file()
+fujiError_t NetworkProtocolFS::close_file()
 {
     return close_file_handle();
 }
 
-protocolError_t NetworkProtocolFS::close_dir()
+fujiError_t NetworkProtocolFS::close_dir()
 {
     return close_dir_handle();
 }
 
-protocolError_t NetworkProtocolFS::read(unsigned short len)
+fujiError_t NetworkProtocolFS::read(unsigned short len)
 {
-    protocolError_t ret;
+    fujiError_t ret;
 
     was_write = false;
 
@@ -210,13 +210,13 @@ protocolError_t NetworkProtocolFS::read(unsigned short len)
         ret = read_dir(len);
         break;
     default:
-        ret = PROTOCOL_ERROR::UNSPECIFIED;
+        ret = FUJI_ERROR::UNSPECIFIED;
     }
 
     return ret;
 }
 
-protocolError_t NetworkProtocolFS::read_file(unsigned short len)
+fujiError_t NetworkProtocolFS::read_file(unsigned short len)
 {
     std::vector<uint8_t> buf = std::vector<uint8_t>(len);
 
@@ -227,12 +227,12 @@ protocolError_t NetworkProtocolFS::read_file(unsigned short len)
     if (receiveBuffer->length() == 0)
     {
         // Do block read.
-        if (read_file_handle(buf.data(), len) != PROTOCOL_ERROR::NONE)
+        if (read_file_handle(buf.data(), len) != FUJI_ERROR::NONE)
         {
 #ifdef VERBOSE_PROTOCOL
             Debug_printf("Nothing new from adapter, bailing.\n");
 #endif
-            return PROTOCOL_ERROR::UNSPECIFIED;
+            return FUJI_ERROR::UNSPECIFIED;
         }
 
         // Append to receive buffer.
@@ -246,9 +246,9 @@ protocolError_t NetworkProtocolFS::read_file(unsigned short len)
     return NetworkProtocol::read(len);
 }
 
-protocolError_t NetworkProtocolFS::read_dir(unsigned short len)
+fujiError_t NetworkProtocolFS::read_dir(unsigned short len)
 {
-    protocolError_t ret;
+    fujiError_t ret;
 
     if (receiveBuffer->length() == 0)
     {
@@ -262,23 +262,23 @@ protocolError_t NetworkProtocolFS::read_dir(unsigned short len)
     return ret;
 }
 
-protocolError_t NetworkProtocolFS::write(unsigned short len)
+fujiError_t NetworkProtocolFS::write(unsigned short len)
 {
     was_write = true;
     len = translate_transmit_buffer();
     return write_file(len); // Do more here? not sure.
 }
 
-protocolError_t NetworkProtocolFS::write_file(unsigned short len)
+fujiError_t NetworkProtocolFS::write_file(unsigned short len)
 {
-    if (write_file_handle((uint8_t *)transmitBuffer->data(), len) != PROTOCOL_ERROR::NONE)
-        return PROTOCOL_ERROR::UNSPECIFIED;
+    if (write_file_handle((uint8_t *)transmitBuffer->data(), len) != FUJI_ERROR::NONE)
+        return FUJI_ERROR::UNSPECIFIED;
 
     transmitBuffer->erase(0, len);
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolFS::status(NetworkStatus *status)
+fujiError_t NetworkProtocolFS::status(NetworkStatus *status)
 {
     switch (streamType)
     {
@@ -289,13 +289,13 @@ protocolError_t NetworkProtocolFS::status(NetworkStatus *status)
         return status_dir(status);
         break;
     default:
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 }
 
 #define WAITING_CAP 65534
 
-protocolError_t NetworkProtocolFS::status_file(NetworkStatus *status)
+fujiError_t NetworkProtocolFS::status_file(NetworkStatus *status)
 {
     unsigned int remaining;
 
@@ -312,17 +312,17 @@ protocolError_t NetworkProtocolFS::status_file(NetworkStatus *status)
     else
         status->error = remaining > 0 ? error : NDEV_STATUS::END_OF_FILE;
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolFS::status_dir(NetworkStatus *status)
+fujiError_t NetworkProtocolFS::status_dir(NetworkStatus *status)
 {
     status->connected = dirBuffer.length() > 0 ? 1 : 0;
     status->error = dirBuffer.length() > 0 ? error : NDEV_STATUS::END_OF_FILE;
 
     NetworkProtocol::status(status);
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 void NetworkProtocolFS::resolve()
@@ -331,7 +331,7 @@ void NetworkProtocolFS::resolve()
     Debug_printf("NetworkProtocolFS::resolve(%s,%s,%s)\r\n", opened_url->path.c_str(), dir.c_str(), filename.c_str());
 #endif
 
-    if (stat() != PROTOCOL_ERROR::NONE)
+    if (stat() != FUJI_ERROR::NONE)
     {
         // File wasn't found, let's try resolving against the crunched filename
         std::string crunched_filename = util_crunch(filename);
@@ -340,13 +340,13 @@ void NetworkProtocolFS::resolve()
 
         filename = "*"; // Temporarily reset filename to search for all files.
 
-        if (open_dir_handle() != PROTOCOL_ERROR::NONE) // couldn't open dir, return path as is.
+        if (open_dir_handle() != FUJI_ERROR::NONE) // couldn't open dir, return path as is.
         {
             fserror_to_error();
             return;
         }
 
-        while (read_dir_entry(e, 255) == PROTOCOL_ERROR::NONE)
+        while (read_dir_entry(e, 255) == FUJI_ERROR::NONE)
         {
             std::string current_entry = std::string(e);
             std::string crunched_entry = util_crunch(current_entry);
@@ -375,7 +375,7 @@ void NetworkProtocolFS::resolve()
         fileSize = 0;
 }
 
-protocolError_t NetworkProtocolFS::rename(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolFS::rename(PeoplesUrlParser *url)
 {
     update_dir_filename(url);
 
@@ -387,7 +387,7 @@ protocolError_t NetworkProtocolFS::rename(PeoplesUrlParser *url)
     if (comma_pos == std::string::npos)
     {
         error = NDEV_STATUS::INVALID_DEVICESPEC;
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     destFilename = dir + filename.substr(comma_pos + 1);
@@ -397,7 +397,7 @@ protocolError_t NetworkProtocolFS::rename(PeoplesUrlParser *url)
     Debug_printf("RENAME destfilename, %s, filename, %s\r\n", destFilename.c_str(), filename.c_str());
 #endif
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 size_t NetworkProtocolFS::available()

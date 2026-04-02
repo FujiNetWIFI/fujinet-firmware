@@ -137,7 +137,7 @@ void drivewireNetwork::open()
     protocol->setLineEnding("\x0D");
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != PROTOCOL_ERROR::NONE)
+    if (protocol->open(urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != FUJI_ERROR::NONE)
     {
         ns.error = protocol->error;
         Debug_printf("Protocol unable to make connection. Error: %d\n", ns.error);
@@ -270,24 +270,24 @@ void drivewireNetwork::read()
  * @brief Perform read of the current JSON channel
  * @param num_bytes Number of bytes to read
  */
-protocolError_t drivewireNetwork::read_channel_json(unsigned short num_bytes)
+fujiError_t drivewireNetwork::read_channel_json(unsigned short num_bytes)
 {
     if (num_bytes > json_bytes_remaining)
         json_bytes_remaining = 0;
     else
         json_bytes_remaining -= num_bytes;
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 /**
  * Perform the channel read based on the channelMode
  * @param num_bytes - number of bytes to read from channel.
- * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Passed directly to bus_to_computer().
+ * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Passed directly to bus_to_computer().
  */
-protocolError_t drivewireNetwork::read_channel(unsigned short num_bytes)
+fujiError_t drivewireNetwork::read_channel(unsigned short num_bytes)
 {
-    protocolError_t err = PROTOCOL_ERROR::NONE;
+    fujiError_t err = FUJI_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -359,11 +359,11 @@ void drivewireNetwork::write()
 /**
  * Perform the correct write based on value of channelMode
  * @param num_bytes Number of bytes to write.
- * @return PROTOCOL_ERROR::UNSPECIFIED on error, PROTOCOL_ERROR::NONE on success. Used to emit drivewire_error or drivewire_complete().
+ * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Used to emit drivewire_error or drivewire_complete().
  */
-protocolError_t drivewireNetwork::write_channel(unsigned short num_bytes)
+fujiError_t drivewireNetwork::write_channel(unsigned short num_bytes)
 {
-    protocolError_t err = PROTOCOL_ERROR::NONE;
+    fujiError_t err = FUJI_ERROR::NONE;
 
     switch (channelMode)
     {
@@ -372,7 +372,7 @@ protocolError_t drivewireNetwork::write_channel(unsigned short num_bytes)
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
-        err = PROTOCOL_ERROR::UNSPECIFIED;
+        err = FUJI_ERROR::UNSPECIFIED;
         break;
     }
     return err;
@@ -1034,7 +1034,7 @@ void drivewireNetwork::process_fs()
         return;
     }
 
-    protocolError_t err;
+    fujiError_t err;
     auto url = urlParser.get();
     switch (cmdFrame.comnd)
     {
@@ -1057,11 +1057,11 @@ void drivewireNetwork::process_fs()
         err = fs->rmdir(url);
         break;
     default:
-        err = PROTOCOL_ERROR::UNSPECIFIED;
+        err = FUJI_ERROR::UNSPECIFIED;
         break;
     }
 
-    if (err != PROTOCOL_ERROR::NONE)
+    if (err != FUJI_ERROR::NONE)
     {
         ns.reset();
         ns.error = NDEV_STATUS::GENERAL;
@@ -1079,7 +1079,7 @@ void drivewireNetwork::process_tcp()
         return;
     }
 
-    protocolError_t err;
+    fujiError_t err;
     switch (cmdFrame.comnd)
     {
     case NETCMD_CONTROL:
@@ -1089,11 +1089,11 @@ void drivewireNetwork::process_tcp()
         err = tcp->close_client_connection();
         break;
     default:
-        err = PROTOCOL_ERROR::UNSPECIFIED;
+        err = FUJI_ERROR::UNSPECIFIED;
         break;
     }
 
-    if (err != PROTOCOL_ERROR::NONE)
+    if (err != FUJI_ERROR::NONE)
     {
         ns.reset();
         ns.error = NDEV_STATUS::GENERAL;
@@ -1111,18 +1111,18 @@ void drivewireNetwork::process_http()
         return;
     }
 
-    protocolError_t err;
+    fujiError_t err;
     switch (cmdFrame.comnd)
     {
     case NETCMD_UNLISTEN:
         err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmdFrame.aux2);
         break;
     default:
-        err = PROTOCOL_ERROR::UNSPECIFIED;
+        err = FUJI_ERROR::UNSPECIFIED;
         return;
     }
 
-    if (err != PROTOCOL_ERROR::NONE)
+    if (err != FUJI_ERROR::NONE)
     {
         ns.reset();
         ns.error = NDEV_STATUS::GENERAL;
@@ -1140,7 +1140,7 @@ void drivewireNetwork::process_udp()
         return;
     }
 
-    protocolError_t err;
+    fujiError_t err;
     switch (cmdFrame.comnd)
     {
 #ifndef ESP_PLATFORM
@@ -1155,7 +1155,7 @@ void drivewireNetwork::process_udp()
             uint8_t spData[SPECIAL_BUFFER_SIZE];
             size_t bytes_read = SYSTEM_BUS.read(spData, sizeof(spData));
             err = udp->set_destination(spData, bytes_read);
-            if (err != PROTOCOL_ERROR::NONE)
+            if (err != FUJI_ERROR::NONE)
             {
                 ns.reset();
                 ns.error = NDEV_STATUS::GENERAL;

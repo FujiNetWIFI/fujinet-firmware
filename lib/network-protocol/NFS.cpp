@@ -37,12 +37,12 @@ NetworkProtocolNFS::~NetworkProtocolNFS()
     nfs_destroy_context(nfs);
 }
 
-protocolError_t NetworkProtocolNFS::open_file_handle()
+fujiError_t NetworkProtocolNFS::open_file_handle()
 {
     if (nfs == nullptr)
     {
         Debug_printf("NetworkProtocolNFS::open_file_handle() - no nfs context. aborting.\r\n");
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     // Determine flags
@@ -70,29 +70,29 @@ protocolError_t NetworkProtocolNFS::open_file_handle()
     {
         Debug_printf("NetworkProtocolNFS::open_file_handle() - NFS Error %s\r\n", nfs_get_error(nfs));
         fserror_to_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     offset = 0;
 
     Debug_printf("NetworkProtocolNFS::open_file_handle() - file opened successfully\r\n");
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolNFS::open_dir_handle()
+fujiError_t NetworkProtocolNFS::open_dir_handle()
 {
     if (nfs_opendir(nfs, nfs_url->path, &nfs_dir) != 0)
     {
         Debug_printf("NetworkProtocolNFS::open_dir_handle() - ERROR: %s\r\n", nfs_get_error(nfs));
         fserror_to_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolNFS::mount(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolNFS::mount(PeoplesUrlParser *url)
 {
     std::string openURL = url->url;
 
@@ -110,7 +110,7 @@ protocolError_t NetworkProtocolNFS::mount(PeoplesUrlParser *url)
     {
         Debug_printf("NetworkProtocolNFS::mount(%s) - failed to parse URL, NFS error: %s\n", openURL.c_str(), nfs_get_error(nfs));
         fserror_to_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     // Set UID/GID from login credentials if provided
@@ -125,24 +125,24 @@ protocolError_t NetworkProtocolNFS::mount(PeoplesUrlParser *url)
     {
         Debug_printf("NetworkProtocolNFS::mount(%s) - could not mount, NFS error: %s\r\n", openURL.c_str(), nfs_get_error(nfs));
         fserror_to_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolNFS::umount()
+fujiError_t NetworkProtocolNFS::umount()
 {
     if (nfs == nullptr)
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
 
     nfs_umount(nfs);
 
     if (nfs_url == nullptr)
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
 
     nfs_destroy_url(nfs_url);
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 void NetworkProtocolNFS::fserror_to_error()
@@ -155,29 +155,29 @@ void NetworkProtocolNFS::fserror_to_error()
     }
 }
 
-protocolError_t NetworkProtocolNFS::read_file_handle(uint8_t *buf, unsigned short len)
+fujiError_t NetworkProtocolNFS::read_file_handle(uint8_t *buf, unsigned short len)
 {
     int actual_len;
 
     if ((actual_len = nfs_pread(nfs, fh, buf, len, offset)) != len)
     {
         fserror_to_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     offset += actual_len;
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolNFS::read_dir_entry(char *buf, unsigned short len)
+fujiError_t NetworkProtocolNFS::read_dir_entry(char *buf, unsigned short len)
 {
     ent = nfs_readdir(nfs, nfs_dir);
 
     if (ent == nullptr)
     {
         error = NDEV_STATUS::END_OF_FILE;
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     // Set filename to buffer
@@ -187,47 +187,47 @@ protocolError_t NetworkProtocolNFS::read_dir_entry(char *buf, unsigned short len
     fileSize = ent->size;
     is_directory = S_ISDIR(ent->mode);
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolNFS::close_file_handle()
+fujiError_t NetworkProtocolNFS::close_file_handle()
 {
     nfs_close(nfs, fh);
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolNFS::close_dir_handle()
+fujiError_t NetworkProtocolNFS::close_dir_handle()
 {
     nfs_closedir(nfs, nfs_dir);
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolNFS::write_file_handle(uint8_t *buf, unsigned short len)
+fujiError_t NetworkProtocolNFS::write_file_handle(uint8_t *buf, unsigned short len)
 {
     int actual_len;
 
     if ((actual_len = nfs_pwrite(nfs, fh, buf, len, offset)) != len)
     {
         fserror_to_error();
-        return PROTOCOL_ERROR::UNSPECIFIED;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     offset += actual_len;
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolNFS::rename(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolNFS::rename(PeoplesUrlParser *url)
 {
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolNFS::del(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolNFS::del(PeoplesUrlParser *url)
 {
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolNFS::mkdir(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolNFS::mkdir(PeoplesUrlParser *url)
 {
     mount(url);
 
@@ -239,10 +239,10 @@ protocolError_t NetworkProtocolNFS::mkdir(PeoplesUrlParser *url)
 
     umount();
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolNFS::rmdir(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolNFS::rmdir(PeoplesUrlParser *url)
 {
     mount(url);
 
@@ -254,27 +254,27 @@ protocolError_t NetworkProtocolNFS::rmdir(PeoplesUrlParser *url)
 
     umount();
 
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolNFS::stat()
+fujiError_t NetworkProtocolNFS::stat()
 {
     struct nfs_stat_64 st;
 
     int ret = nfs_stat64(nfs, nfs_url->path, &st);
 
     fileSize = st.nfs_size;
-    return ret != 0 ? PROTOCOL_ERROR::UNSPECIFIED : PROTOCOL_ERROR::NONE;
+    return ret != 0 ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolNFS::lock(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolNFS::lock(PeoplesUrlParser *url)
 {
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
-protocolError_t NetworkProtocolNFS::unlock(PeoplesUrlParser *url)
+fujiError_t NetworkProtocolNFS::unlock(PeoplesUrlParser *url)
 {
-    return PROTOCOL_ERROR::NONE;
+    return FUJI_ERROR::NONE;
 }
 
 off_t NetworkProtocolNFS::seek(off_t position, int whence)
