@@ -116,7 +116,7 @@ void MediaTypeXEX::_fake_directory_entry()
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
+error_is_true MediaTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
 {
     Debug_printf("XEX READ (%d)\r\n", sectornum);
 
@@ -147,7 +147,7 @@ bool MediaTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
 
         // Note that we may not have read an entire sector's worth of bytes. That's okay.
         _disk_last_sector = INVALID_SECTOR_VALUE; // Reset this so we're forced to seek
-        return false;
+        RETURN_SUCCESS_AS_FALSE();
     }
 
     *readcount = _disk_sector_size;
@@ -158,14 +158,14 @@ bool MediaTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
         Debug_printf("faking DOS 2 VTOC\r\n");
         _fake_vtoc();
         _disk_last_sector = INVALID_SECTOR_VALUE;
-        return false;
+        RETURN_SUCCESS_AS_FALSE();
     }
     else if (sectornum >= DIRECTORY_START && sectornum <= DIRECTORY_END)
     {
         Debug_print("faking DOS 2 directory\r\n");
         _fake_directory_entry();
         _disk_last_sector = INVALID_SECTOR_VALUE; // Reset this so we're forced to seek        
-        return false;
+        RETURN_SUCCESS_AS_FALSE();
     }
 
     int data_bytes = _disk_sector_size - SECTOR_LINK_SIZE;
@@ -208,7 +208,7 @@ bool MediaTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
     else
         _disk_last_sector = INVALID_SECTOR_VALUE;
 
-    return err;
+    RETURN_ERROR_IF(err);
 }
 
 void MediaTypeXEX::status(uint8_t statusbuff[4])

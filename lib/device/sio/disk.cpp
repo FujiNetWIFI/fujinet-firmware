@@ -288,7 +288,7 @@ void sioDisk::unmount()
 }
 
 // Create blank disk
-bool sioDisk::write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
+success_is_true sioDisk::write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
 {
     Debug_print("disk CREATE NEW IMAGE\n");
 

@@ -16,10 +16,10 @@ uint32_t MediaTypeMRM::_block_to_offset(uint32_t blockNum)
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeMRM::read(uint32_t blockNum, uint16_t *readcount)
+error_is_true MediaTypeMRM::read(uint32_t blockNum, uint16_t *readcount)
 {
     if (blockNum == _media_last_block)
-        return false; // We already have block.
+        RETURN_SUCCESS_AS_FALSE(); // We already have block.
 
     // Debug_print("MRM READ\n");
 
@@ -28,7 +28,7 @@ bool MediaTypeMRM::read(uint32_t blockNum, uint16_t *readcount)
     {
         Debug_printf("::read block %lu >= %lu\n", blockNum, _media_num_blocks);
         _media_controller_status = 2;
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
     memset(_media_blockbuff, 0xFF, sizeof(_media_blockbuff));
@@ -57,15 +57,15 @@ bool MediaTypeMRM::read(uint32_t blockNum, uint16_t *readcount)
 
     _media_controller_status = 0;
 
-    return err;
+    RETURN_ERROR_IF(err);
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeMRM::write(uint32_t blockNum, bool verify)
+error_is_true MediaTypeMRM::write(uint32_t blockNum, bool verify)
 {
     Debug_printf("MRM WRITE - not implemented\n");
 
-    return true;
+    RETURN_ERROR_AS_TRUE();
 }
 
 void MediaTypeMRM::get_block_buffer(uint8_t **p_buffer, uint16_t *p_blk_size)
@@ -80,11 +80,11 @@ uint8_t MediaTypeMRM::status()
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeMRM::format(uint16_t *responsesize)
+error_is_true MediaTypeMRM::format(uint16_t *responsesize)
 {
     Debug_printf("MRM FORMAT - not implemented\n");
 
-    return true;
+    RETURN_ERROR_AS_TRUE();
 }
 
 mediatype_t MediaTypeMRM::mount(fnFile *f, uint32_t disksize)
@@ -100,10 +100,10 @@ mediatype_t MediaTypeMRM::mount(fnFile *f, uint32_t disksize)
 }
 
 // Returns FALSE on error
-bool MediaTypeMRM::create(FILE *f, uint32_t numBlocks)
+success_is_true MediaTypeMRM::create(FILE *f, uint32_t numBlocks)
 {
     Debug_print("MRM CREATE - not implemented\n");
 
-    return false;
+    RETURN_ERROR_AS_FALSE();
 }
 #endif // BUILD_COCO

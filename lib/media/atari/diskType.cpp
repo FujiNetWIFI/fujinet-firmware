@@ -26,17 +26,17 @@ uint16_t MediaType::sector_size(uint16_t sectornum)
 }
 
 // Default WRITE is not implemented
-bool MediaType::write(uint16_t sectornum, bool verify)
+error_is_true MediaType::write(uint16_t sectornum, bool verify)
 {
     Debug_print("DISK WRITE NOT IMPLEMENTED\r\n");
-    return true;
+    RETURN_ERROR_AS_TRUE();
 }
 
 // Default FORMAT is not implemented
-bool MediaType::format(uint16_t *responsesize)
+error_is_true MediaType::format(uint16_t *responsesize)
 {
     Debug_print("DISK FORMAT NOT IMPLEMENTED\r\n");
-    return true;
+    RETURN_ERROR_AS_TRUE();
 }
 
 // Update PERCOM block from the total # of sectors

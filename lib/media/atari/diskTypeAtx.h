@@ -204,18 +204,18 @@ private:
     // ATX header.end - normally the size of the entire ATX file
     uint32_t _atx_size = 0;
 
-    bool _load_atx_data(atx_header_t &atx_hdr);
-    bool _load_atx_record();
-    bool _load_atx_track_record(uint32_t length);
+    success_is_true _load_atx_data(atx_header_t &atx_hdr);
+    success_is_true _load_atx_record();
+    success_is_true _load_atx_track_record(uint32_t length);
     int _load_atx_track_chunk(track_header_t &trk_hdr, AtxTrack &track);
 
-    bool _load_atx_chunk_sector_list(chunk_header_t &chunk_hdr, AtxTrack &track);
-    bool _load_atx_chunk_sector_data(chunk_header_t &chunk_hdr, AtxTrack &track);
-    bool _load_atx_chunk_weak_sector(chunk_header_t &chunk_hdr, AtxTrack &track);
-    bool _load_atx_chunk_extended_sector(chunk_header_t &chunk_hdr, AtxTrack &track);
-    bool _load_atx_chunk_unknown(chunk_header_t &chunk_hdr, AtxTrack &track);
+    success_is_true _load_atx_chunk_sector_list(chunk_header_t &chunk_hdr, AtxTrack &track);
+    success_is_true _load_atx_chunk_sector_data(chunk_header_t &chunk_hdr, AtxTrack &track);
+    success_is_true _load_atx_chunk_weak_sector(chunk_header_t &chunk_hdr, AtxTrack &track);
+    success_is_true _load_atx_chunk_extended_sector(chunk_header_t &chunk_hdr, AtxTrack &track);
+    success_is_true _load_atx_chunk_unknown(chunk_header_t &chunk_hdr, AtxTrack &track);
 
-    bool _copy_track_sector_data(uint8_t tracknum, uint8_t sectornum, uint16_t sectorsize);
+    error_is_true _copy_track_sector_data(uint8_t tracknum, uint8_t sectornum, uint16_t sectorsize);
     void _process_sector(AtxTrack &track, AtxSector *sectorp, uint16_t sectorsize);
 
     uint16_t _get_head_position();
@@ -223,12 +223,12 @@ private:
     void _wait_head_position(uint16_t pos, uint16_t extra_delay);
 
 public:
-    virtual bool read(uint16_t sectornum, uint16_t *readcount) override;
-    virtual bool format(uint16_t *responsesize) override;
+    error_is_true read(uint16_t sectornum, uint16_t *readcount) override;
+    error_is_true format(uint16_t *responsesize) override;
 
-    virtual mediatype_t mount(fnFile *f, uint32_t disksize) override;
+    mediatype_t mount(fnFile *f, uint32_t disksize) override;
 
-    virtual void status(uint8_t statusbuff[4]) override;
+    void status(uint8_t statusbuff[4]) override;
 
     static void on_timer(void *info);
 

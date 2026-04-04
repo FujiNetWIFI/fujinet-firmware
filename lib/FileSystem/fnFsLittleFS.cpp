@@ -31,13 +31,13 @@ bool FileSystemLittleFS::is_dir(const char *path)
     return (info.st_mode == S_IFDIR) ? true: false;
 }
 
-bool FileSystemLittleFS::dir_open(const char * path, const char * pattern, uint16_t diropts)
+success_is_true FileSystemLittleFS::dir_open(const char * path, const char * pattern, uint16_t diropts)
 {
     // We ignore sorting options since we don't expect user browsing on LITTLEFS
     char * fpath = _make_fullpath(path);
     _dir = opendir(fpath);
     free(fpath);
-    return(_dir != nullptr);
+    RETURN_SUCCESS_IF(_dir != nullptr);
 }
 
 fsdir_entry * FileSystemLittleFS::dir_read()
@@ -83,9 +83,9 @@ uint16_t FileSystemLittleFS::dir_tell()
     return 0;
 }
 
-bool FileSystemLittleFS::dir_seek(uint16_t)
+success_is_true FileSystemLittleFS::dir_seek(uint16_t)
 {
-    return false;
+    RETURN_ERROR_AS_FALSE();
 }
 
 
@@ -99,7 +99,7 @@ bool FileSystemLittleFS::dir_seek(uint16_t)
    "/abc/def"
    "abc/def/ghi"
 */
-bool FileSystemLittleFS::create_path(const char *fullpath)
+success_is_true FileSystemLittleFS::create_path(const char *fullpath)
 {
     char segment[64];
 
@@ -144,7 +144,7 @@ bool FileSystemLittleFS::create_path(const char *fullpath)
         end++;
     }
 
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 FILE * FileSystemLittleFS::file_open(const char* path, const char* mode)
@@ -176,7 +176,7 @@ bool FileSystemLittleFS::exists(const char* path)
     return (i == 0);
 }
 
-bool FileSystemLittleFS::remove(const char* path)
+success_is_true FileSystemLittleFS::remove(const char* path)
 {
     char * fpath = _make_fullpath(path);
     int i = ::remove(fpath);
@@ -184,10 +184,10 @@ bool FileSystemLittleFS::remove(const char* path)
     Debug_printv("FileSystemLittleFS::remove returned %d on \"%s\" (%s)\r\n", i, path, fpath);
 #endif
     free(fpath);
-    return (i == 0);
+    RETURN_SUCCESS_IF(i == 0);
 }
 
-bool FileSystemLittleFS::rename(const char* pathFrom, const char* pathTo)
+success_is_true FileSystemLittleFS::rename(const char* pathFrom, const char* pathTo)
 {
     char * spath = _make_fullpath(pathFrom);
     char * dpath = _make_fullpath(pathTo);
@@ -197,7 +197,7 @@ bool FileSystemLittleFS::rename(const char* pathFrom, const char* pathTo)
 #endif
     free(spath);
     free(dpath);
-    return (i == 0);
+    RETURN_SUCCESS_IF(i == 0);
 }
 
 uint64_t FileSystemLittleFS::total_bytes()
@@ -214,10 +214,10 @@ uint64_t FileSystemLittleFS::used_bytes()
     return (uint64_t)used;
 }
 
-bool FileSystemLittleFS::start()
+success_is_true FileSystemLittleFS::start()
 {
     if(_started)
-        return true;
+        RETURN_SUCCESS_AS_TRUE();
 
     // Set our basepath
     // strlcpy(_basepath, "/flash", sizeof(_basepath));
@@ -251,14 +251,14 @@ bool FileSystemLittleFS::start()
     #endif
     }
 
-    return _started;
+    RETURN_SUCCESS_IF(_started);
 }
 
 
-bool FileSystemLittleFS::stop()
+success_is_true FileSystemLittleFS::stop()
 {
     if(!_started)
-        return true;
+        RETURN_SUCCESS_AS_TRUE();
 
     esp_err_t e = esp_vfs_littlefs_unregister("storage");
 
@@ -281,7 +281,7 @@ bool FileSystemLittleFS::stop()
     #endif
     }
 
-    return !_started;
+    RETURN_SUCCESS_IF(!_started);
 }
 
 #endif // FLASH_LITTLEFS

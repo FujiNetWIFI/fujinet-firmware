@@ -92,9 +92,9 @@ void iwmDisk2::unmount()
 
 }
 
-bool iwmDisk2::write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
+error_is_true iwmDisk2::write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
 {
-  return false;
+  RETURN_ERROR_AS_TRUE();
 }
 
 bool IRAM_ATTR iwmDisk2::phases_valid(uint8_t phases)
@@ -102,7 +102,7 @@ bool IRAM_ATTR iwmDisk2::phases_valid(uint8_t phases)
   return (phase2seq[phases] != -1);
 }
 
-bool IRAM_ATTR iwmDisk2::move_head()
+success_is_true IRAM_ATTR iwmDisk2::move_head()
 {
   int delta = 0;
   uint8_t newphases = smartport.iwm_phase_vector(); // could access through IWM instead
@@ -124,7 +124,7 @@ bool IRAM_ATTR iwmDisk2::move_head()
     }
     oldphases = newphases;
   }
-  return (delta != 0);
+  RETURN_SUCCESS_IF(delta != 0);
 }
 
 void IRAM_ATTR iwmDisk2::change_track(int indicator)
@@ -166,7 +166,7 @@ void IRAM_ATTR iwmDisk2::change_track(int indicator)
   // Since the empty track has no data, and therefore no length, using a fake length of 51,200 bits (6400 bytes) works very well.
 }
 
-bool iwmDisk2::write_sector(int track, int sector, uint8_t* buffer)
+error_is_true iwmDisk2::write_sector(int track, int sector, uint8_t* buffer)
 {
   return _disk->write_sector(track, sector, buffer);
 }

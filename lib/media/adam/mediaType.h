@@ -67,12 +67,12 @@ public:
     virtual void unmount();
 
     // Returns TRUE if an error condition occurred
-    virtual bool format(uint16_t *responsesize);
+    virtual error_is_true format(uint16_t *responsesize);
 
     // Returns TRUE if an error condition occurred
-    virtual bool read(uint32_t blockNum, uint16_t *readcount) = 0;
+    virtual error_is_true read(uint32_t blockNum, uint16_t *readcount) = 0;
     // Returns TRUE if an error condition occurred
-    virtual bool write(uint32_t blockNum, bool verify);
+    virtual error_is_true write(uint32_t blockNum, bool verify);
     
     virtual uint8_t status() = 0;
 

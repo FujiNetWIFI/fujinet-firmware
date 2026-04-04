@@ -28,8 +28,8 @@ protected:
     void transaction_error() override {
         _errorCode = 144;
     }
-    bool transaction_get(void *data, size_t len) override {
-        return SYSTEM_BUS.read((uint8_t *) data, len) == len;
+    success_is_true transaction_get(void *data, size_t len) override {
+        RETURN_SUCCESS_IF(SYSTEM_BUS.read((uint8_t *) data, len) == len);
     }
     void transaction_put(const void *data, size_t len, bool err=false) override {
         transaction_complete();

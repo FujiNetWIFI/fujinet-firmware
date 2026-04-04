@@ -122,13 +122,13 @@ uint16_t DirCache::tell()
         return _current;
 }
 
-bool DirCache::seek(uint16_t pos)
+success_is_true DirCache::seek(uint16_t pos)
 {
     if(pos <= _entries_filtered.size())
     {
         _current = pos;
-        return true;
+        RETURN_SUCCESS_AS_TRUE();
     }
     else
-        return false;
+        RETURN_ERROR_AS_FALSE();
 }

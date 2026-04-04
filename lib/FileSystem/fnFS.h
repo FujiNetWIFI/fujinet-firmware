@@ -7,6 +7,7 @@
 #include <cstdint>
 
 #include "fnio.h"
+#include "global_types.h"
 
 #ifndef ESP_PLATFORM
 #include "compat_dirent.h"
@@ -109,23 +110,23 @@ public:
 
     virtual bool exists(const char* path) = 0;
 
-    virtual bool remove(const char* path) = 0;
+    virtual success_is_true remove(const char* path) = 0;
 
-    virtual bool rename(const char* pathFrom, const char* pathTo) = 0;
+    virtual success_is_true rename(const char* pathFrom, const char* pathTo) = 0;
 
     virtual bool is_dir(const char *path) = 0;
-    virtual bool mkdir(const char* path) = 0;
-    virtual bool rmdir(const char* path) = 0;
+    virtual success_is_true mkdir(const char* path) = 0;
+    virtual success_is_true rmdir(const char* path) = 0;
     virtual bool dir_exists(const char* path) = 0;
 
     // By default, a directory should be sorted and special/hidden items should be filtered out
-    virtual bool dir_open(const char *path, const char *pattern, uint16_t diroptions) = 0;
+    virtual success_is_true dir_open(const char *path, const char *pattern, uint16_t diroptions) = 0;
     virtual fsdir_entry_t *dir_read() = 0;
     virtual void dir_close() = 0;
     // Returns current position in directory stream or FNFS_INVALID_DIRPOS on error
     virtual uint16_t dir_tell() = 0;
     // Sets current position in directory stream. Returns false on error.
-    virtual bool dir_seek(uint16_t position) = 0;
+    virtual success_is_true dir_seek(uint16_t position) = 0;
 };
 
 #endif //_FN_FS_

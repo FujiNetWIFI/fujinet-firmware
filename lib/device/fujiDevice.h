@@ -148,7 +148,7 @@ protected:
     virtual void transaction_continue(transState_t expectMoreData) = 0;
     virtual void transaction_complete() = 0;
     virtual void transaction_error() = 0;
-    virtual bool transaction_get(void *data, size_t len) = 0;
+    virtual success_is_true transaction_get(void *data, size_t len) = 0;
     virtual void transaction_put(const void *data, size_t len, bool err=false) = 0;
 
     virtual size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
@@ -156,8 +156,8 @@ protected:
     dirEntryDetails _additional_direntry_details(fsdir_entry_t *f);
 
     // ============ Validation of inputs ============
-    bool validate_host_slot(uint8_t slot, const char *dmsg=nullptr);
-    bool validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
+    success_is_true validate_host_slot(uint8_t slot, const char *dmsg=nullptr);
+    success_is_true validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
 
 public:
     bool boot_config = true;
@@ -184,28 +184,28 @@ public:
     // commands received over the bus. Intended for ease of calling by
     // process() because they validate inputs, call the matching
     // fujicore_ logic, and send the result back via transaction_*.
-    virtual bool fujicmd_mount_all_success();
+    virtual success_is_true fujicmd_mount_all_success();
     virtual void fujicmd_reset();
-    bool fujicmd_mount_host_success(unsigned hostSlot);
+    success_is_true fujicmd_mount_host_success(unsigned hostSlot);
     virtual void fujicmd_net_scan_networks();
     void fujicmd_net_scan_result(uint8_t index);
     void fujicmd_net_get_ssid();
-    bool fujicmd_net_set_ssid_success(const char *ssid, const char *password, bool save);
+    success_is_true fujicmd_net_set_ssid_success(const char *ssid, const char *password, bool save);
     void fujicmd_net_get_wifi_enabled();
-    virtual bool fujicmd_mount_disk_image_success(uint8_t deviceSlot, disk_access_flags_t access_mode);
-    bool fujicmd_unmount_disk_image_success(uint8_t deviceSlot);
+    virtual success_is_true fujicmd_mount_disk_image_success(uint8_t deviceSlot, disk_access_flags_t access_mode);
+    success_is_true fujicmd_unmount_disk_image_success(uint8_t deviceSlot);
     void fujicmd_image_rotate();
-    bool fujicmd_open_directory_success(uint8_t hostSlot);
+    success_is_true fujicmd_open_directory_success(uint8_t hostSlot);
     virtual void fujicmd_close_directory();
     virtual void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl);
     void fujicmd_get_directory_position();
     void fujicmd_set_directory_position(uint16_t pos);
-    bool fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot, std::string copySpec);
+    success_is_true fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot, std::string copySpec);
     virtual void fujicmd_get_adapter_config();
     virtual void fujicmd_get_adapter_config_extended();
     void fujicmd_get_device_filename(uint8_t slot);
-    virtual bool fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
-                                                     disk_access_flags_t mode);
+    virtual success_is_true fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
+                                                                disk_access_flags_t mode);
     void fujicmd_get_host_prefix(uint8_t hostSlot);
     void fujicmd_net_get_wifi_status();
     void fujicmd_read_host_slots();
@@ -213,7 +213,7 @@ public:
     void fujicmd_set_boot_config(bool enable);
     void fujicmd_set_boot_mode(uint8_t bootMode, mediatype_t disk_type, DISK_DEVICE *disk_dev);
     void fujicmd_set_host_prefix(uint8_t hostSlot, const char *prefix=nullptr);
-    bool fujicmd_unmount_host_success(uint8_t hostSlot);
+    success_is_true fujicmd_unmount_host_success(uint8_t hostSlot);
     void fujicmd_read_device_slots();
     void fujicmd_write_device_slots();
     void fujicmd_status();
@@ -233,30 +233,30 @@ public:
     // ============ Implementations by fujicmd_ methods ============
     // These are safe to call directly if the bus abstraction
     // (transaction_) doesn't suit the platform.
-    bool fujicore_open_app_key(uint16_t creator, uint8_t app, uint8_t key,
-                               appkey_mode mode, uint8_t reserved);
+    success_is_true fujicore_open_app_key(uint16_t creator, uint8_t app, uint8_t key,
+                                          appkey_mode mode, uint8_t reserved);
     SSIDInfo fujicore_net_scan_result(uint8_t index, bool *err=nullptr);
     SSIDConfig fujicore_net_get_ssid();
     uint8_t fujicore_net_get_wifi_status();
     uint8_t fujicore_net_get_wifi_enabled();
     int fujicore_write_app_key(std::vector<uint8_t>&& value, int *err=nullptr);
     virtual std::optional<std::vector<uint8_t>> fujicore_read_app_key();
-    bool fujicore_open_directory_success(uint8_t hostSlot, const std::string &dirpath);
-    bool fujicore_open_directory_success(uint8_t hostSlot, const std::string &dirpath,
-                                         const std::optional<std::string> &pattern);
+    success_is_true fujicore_open_directory_success(uint8_t hostSlot, const std::string &dirpath);
+    success_is_true fujicore_open_directory_success(uint8_t hostSlot, const std::string &dirpath,
+                                                    const std::optional<std::string> &pattern);
     std::optional<std::string> fujicore_read_directory_entry(size_t maxlen, uint8_t addtl);
     uint16_t fujicore_get_directory_position();
     AdapterConfigExtended fujicore_get_adapter_config_extended();
-    bool fujicore_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
-                                              disk_access_flags_t mode, std::string filename);
+    success_is_true fujicore_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
+                                                         disk_access_flags_t mode, std::string filename);
     std::optional<std::string> fujicore_get_device_filename(uint8_t slot);
-    virtual bool fujicore_mount_disk_image_success(uint8_t deviceSlot,
-                                                   disk_access_flags_t access_mode);
-    bool fujicore_unmount_disk_image_success(uint8_t deviceSlot);
-    bool fujicore_mount_host_success(unsigned hostSlot);
-    bool fujicore_mount_all_success();
+    virtual success_is_true fujicore_mount_disk_image_success(uint8_t deviceSlot,
+                                                              disk_access_flags_t access_mode);
+    success_is_true fujicore_unmount_disk_image_success(uint8_t deviceSlot);
+    success_is_true fujicore_mount_host_success(unsigned hostSlot);
+    success_is_true fujicore_mount_all_success();
     void fujicore_net_scan_networks();
-    bool fujicore_net_set_ssid_success(const char *ssid, const char *password, bool save);
+    success_is_true fujicore_net_set_ssid_success(const char *ssid, const char *password, bool save);
 
     // Should be protected but being called by drivewire.cpp
     void insert_boot_device(uint8_t image_id, mediatype_t disk_type, DISK_DEVICE *disk_dev);

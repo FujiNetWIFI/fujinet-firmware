@@ -276,7 +276,7 @@ private:
      * Instantiate protocol object
      * @return bool TRUE if protocol successfully called open(), FALSE if protocol could not open
      */
-    bool instantiate_protocol();
+    success_is_true instantiate_protocol();
 
     /**
      * Create the deviceSpec and fix it for parsing
@@ -344,7 +344,7 @@ private:
     /**
      * @brief get JSON status (# of bytes in receive channel)
      */
-    bool sio_status_channel_json(NetworkStatus *ns);
+    error_is_true sio_status_channel_json(NetworkStatus *ns);
 
     /**
      * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.

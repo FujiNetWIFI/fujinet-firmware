@@ -20,10 +20,10 @@ public:
                       mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
 
-    bool write_blank(fnFile *f, uint8_t numDisks);
+    success_is_true write_blank(fnFile *f, uint8_t numDisks);
 
-    bool read(uint32_t sector, uint8_t *buf);
-    bool write(uint32_t sector, uint8_t *buf);
+    error_is_true read(uint32_t sector, uint8_t *buf);
+    error_is_true write(uint32_t sector, uint8_t *buf);
 
     void get_media_buffer(uint8_t **p_buffer, uint16_t *p_blk_size);
     uint8_t get_media_status();

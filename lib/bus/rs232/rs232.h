@@ -5,6 +5,7 @@
 #include "UARTChannel.h"
 #include "FujiBusPacket.h"
 #include "../drivewire/BeckerSocket.h"
+#include "global_types.h"
 
 #ifdef ESP_PLATFORM
 #include <freertos/FreeRTOS.h>
@@ -57,7 +58,7 @@ protected:
     virtual void transaction_continue(transState_t expectMoreData);
     virtual void transaction_complete();
     virtual void transaction_error();
-    virtual bool transaction_get(void *data, size_t len);
+    virtual success_is_true transaction_get(void *data, size_t len);
     virtual void transaction_put(const void *data, size_t len, bool err);
 
     // FIXME - This is a terrible hack to allow devices to continue to

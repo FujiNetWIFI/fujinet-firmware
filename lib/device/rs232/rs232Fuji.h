@@ -21,7 +21,7 @@ protected:
     void transaction_error() override {
         virtualDevice::transaction_error();
     }
-    bool transaction_get(void *data, size_t len) override {
+    success_is_true transaction_get(void *data, size_t len) override {
         return virtualDevice::transaction_get(data, len);
     }
     void transaction_put(const void *data, size_t len, bool err) override {

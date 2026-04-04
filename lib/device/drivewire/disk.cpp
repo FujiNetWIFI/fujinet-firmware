@@ -67,7 +67,7 @@ void drivewireDisk::unmount()
 {
 }
 
-bool drivewireDisk::read(uint32_t lsn, uint8_t *buf)
+error_is_true drivewireDisk::read(uint32_t lsn, uint8_t *buf)
 {
     bool r = _media->read(lsn,0);
     // copy data to destination buffer, if provided
@@ -75,21 +75,21 @@ bool drivewireDisk::read(uint32_t lsn, uint8_t *buf)
     {
         memcpy(buf, _media->_media_blockbuff, MEDIA_BLOCK_SIZE);
     }
-    return r;
+    RETURN_ERROR_IF(r);
 }
 
-bool drivewireDisk::write(uint32_t lsn, uint8_t *buf)
+error_is_true drivewireDisk::write(uint32_t lsn, uint8_t *buf)
 {
     if (!buf)
     {
         Debug_printv("BUFFER is NULL, IGNORED.");
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
     memcpy(_media->_media_blockbuff,buf,MEDIA_BLOCK_SIZE);
     bool r = _media->write(lsn,0);
 
-    return r;
+    RETURN_ERROR_IF(r);
 }
 
 void drivewireDisk::get_media_buffer(uint8_t **p_buffer, uint16_t *p_blk_size)
@@ -113,7 +113,7 @@ uint8_t drivewireDisk::get_media_status()
     return _media->status();
 }
 
-bool drivewireDisk::write_blank(fnFile *f, uint8_t numDisks)
+success_is_true drivewireDisk::write_blank(fnFile *f, uint8_t numDisks)
 {
     uint8_t b[512];
     size_t n = numDisks * 315;
@@ -125,7 +125,7 @@ bool drivewireDisk::write_blank(fnFile *f, uint8_t numDisks)
     for (size_t i=0;i<n;i++)
         fnio::fwrite(b,sizeof(b),1,f);
 
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 

@@ -23,7 +23,7 @@
 // forward reference
 static void serialise_track(TRK_bitstream *dest, const uint8_t *src, uint8_t track_number, bool is_prodos);
 
-bool MediaTypeDSK::write_sector(int qtrack, int sector, uint8_t *buffer)
+error_is_true MediaTypeDSK::write_sector(int qtrack, int sector, uint8_t *buffer)
 {
   size_t offset, size;
   size_t sectors_per_track = 16; // FIXME - what about 13 sector disks?
@@ -37,7 +37,7 @@ bool MediaTypeDSK::write_sector(int qtrack, int sector, uint8_t *buffer)
       _mediatype != MEDIATYPE_DSK &&
       _mediatype != MEDIATYPE_PO) {
     Debug_printf("\r\nDon't know how to write sector");
-    return true;
+    RETURN_ERROR_AS_TRUE();
   }
 
   sector = phys2log[sector];
@@ -48,23 +48,23 @@ bool MediaTypeDSK::write_sector(int qtrack, int sector, uint8_t *buffer)
 
   offset = (track * sectors_per_track + sector) * BYTES_PER_SECTOR;
   if (fnio::fseek(_media_fileh, offset, SEEK_SET) != 0)
-    return true;
+    RETURN_ERROR_AS_TRUE();
   size = fnio::fwrite(buffer, 1, BYTES_PER_SECTOR, _media_fileh);
   if (size != BYTES_PER_SECTOR)
-    return true;
+    RETURN_ERROR_AS_TRUE();
 
   offset = track * sectors_per_track * BYTES_PER_SECTOR;
   if (fnio::fseek(_media_fileh, offset, SEEK_SET) != 0)
-    return true;
+    RETURN_ERROR_AS_TRUE();
 
   size = sectors_per_track * BYTES_PER_SECTOR;
   trackbuf = (uint8_t *) malloc(size);
   if (!trackbuf)
-    return true;
+    RETURN_ERROR_AS_TRUE();
 
   offset = fnio::fread(trackbuf, 1, size, _media_fileh);
   if (offset != size)
-    return true;
+    RETURN_ERROR_AS_TRUE();
 
   offset = sector * BYTES_PER_SECTOR;
   memcpy(&trackbuf[offset], buffer, BYTES_PER_SECTOR);
@@ -74,7 +74,7 @@ bool MediaTypeDSK::write_sector(int qtrack, int sector, uint8_t *buffer)
 
   free(trackbuf);
 
-  return false;
+  RETURN_SUCCESS_AS_FALSE();
 }
 
 mediatype_t MediaTypeDSK::mount(fnFile *f, uint32_t disksize)
@@ -187,10 +187,10 @@ bool MediaTypeDSK::dsk2woz_tracks(uint8_t *dsk)
 		else
 		{
 			Debug_printf("\nNo RAM allocated!");
-			return true;
+			RETURN_ERROR_AS_TRUE();
             }
 	}
-	return false;
+	RETURN_SUCCESS_AS_FALSE();
 }
 
 // ================ code below from TomHarte dsk2woz program ===============

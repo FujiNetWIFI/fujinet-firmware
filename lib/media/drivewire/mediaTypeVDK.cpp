@@ -16,12 +16,12 @@ uint32_t MediaTypeVDK::_block_to_offset(uint32_t blockNum)
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeVDK::read(uint32_t blockNum, uint16_t *readcount)
+error_is_true MediaTypeVDK::read(uint32_t blockNum, uint16_t *readcount)
 {
     Debug_printf("DW VDK READ file\n");
 
     if (blockNum == _media_last_block)
-        return false; // We already have block.
+        RETURN_SUCCESS_AS_FALSE(); // We already have block.
 
     Debug_print("DW VDK READ\n");
 
@@ -30,7 +30,7 @@ bool MediaTypeVDK::read(uint32_t blockNum, uint16_t *readcount)
     {
         Debug_printf("::read block %lu > %lu\n", blockNum, _media_num_blocks);
         _media_controller_status = 2;
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
     memset(_media_blockbuff, 0, sizeof(_media_blockbuff));
@@ -53,11 +53,11 @@ bool MediaTypeVDK::read(uint32_t blockNum, uint16_t *readcount)
 
     _media_controller_status = 0;
 
-    return err;
+    RETURN_ERROR_IF(err);
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeVDK::write(uint32_t blockNum, bool verify)
+error_is_true MediaTypeVDK::write(uint32_t blockNum, bool verify)
 {
     // Debug_printf("VDK WRITE\n", blockNum, _media_num_blocks);
 
@@ -72,7 +72,7 @@ bool MediaTypeVDK::write(uint32_t blockNum, bool verify)
     {
         Debug_printf("::write seek error %d\n", e);
         _media_controller_status = 2;
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
     // Write the data
     e = fnio::fwrite(&_media_blockbuff, 1, MEDIA_BLOCK_SIZE, _media_fileh);
@@ -80,7 +80,7 @@ bool MediaTypeVDK::write(uint32_t blockNum, bool verify)
     if (e != MEDIA_BLOCK_SIZE)
     {
         Debug_printf("::write error %d, %d\n", e, errno);
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
     int ret = fnio::fflush(_media_fileh);    // This doesn't seem to be connected to anything in ESP-IDF VF, so it may not do anything
@@ -94,7 +94,7 @@ bool MediaTypeVDK::write(uint32_t blockNum, bool verify)
 
     _media_last_block = INVALID_SECTOR_VALUE;
     _media_controller_status = 0;
-    return false;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 uint8_t MediaTypeVDK::status()
@@ -103,9 +103,9 @@ uint8_t MediaTypeVDK::status()
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeVDK::format(uint16_t *responsesize)
+error_is_true MediaTypeVDK::format(uint16_t *responsesize)
 {
-    return false;
+    RETURN_ERROR_AS_TRUE();
 }
 
 mediatype_t MediaTypeVDK::mount(fnFile *f, uint32_t disksize)
@@ -123,11 +123,11 @@ mediatype_t MediaTypeVDK::mount(fnFile *f, uint32_t disksize)
 }
 
 // Returns FALSE on error
-bool MediaTypeVDK::create(FILE *f, uint32_t numBlocks)
+success_is_true MediaTypeVDK::create(FILE *f, uint32_t numBlocks)
 {
     Debug_print("VDK CREATE\n");
 
-    return true;
+    RETURN_ERROR_AS_FALSE();
 }
 
 void MediaTypeVDK::get_block_buffer(uint8_t **p_buffer, uint16_t *p_blk_size)

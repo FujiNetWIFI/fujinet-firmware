@@ -12,11 +12,11 @@ private:
     uint8_t err_result = SP_ERR_NOERROR;
     void prodos_encode_datetime(unsigned short *date_out, unsigned short *time_out);
     int prodos_write_block(fnFile *f, const unsigned char *buf);
-    bool prodos_write_boot_block(fnFile *f);
-    bool prodos_write_sos_block(fnFile *f);
-    bool prodos_write_directory_sectors(fnFile *f, uint16_t numBlocks, const char *label = nullptr);
-    bool prodos_write_bitmap(fnFile *f, uint16_t numBlocks);
-    bool prodos_write_data_blocks(fnFile *f, uint16_t numBlocks);
+    error_is_true prodos_write_boot_block(fnFile *f);
+    error_is_true prodos_write_sos_block(fnFile *f);
+    error_is_true prodos_write_directory_sectors(fnFile *f, uint16_t numBlocks, const char *label = nullptr);
+    error_is_true prodos_write_bitmap(fnFile *f, uint16_t numBlocks);
+    error_is_true prodos_write_data_blocks(fnFile *f, uint16_t numBlocks);
 
 protected:
     void send_status_reply_packet() override;
@@ -59,7 +59,7 @@ public:
                       mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     virtual mediatype_t mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_type);
     void unmount();
-    bool write_blank(fnFile *f, uint16_t numBlocks, uint8_t blank_header_type);
+    error_is_true write_blank(fnFile *f, uint16_t numBlocks, uint8_t blank_header_type);
 
     void set_disk_number(char c) { disk_num = c; }
     char get_disk_number() { return disk_num; };

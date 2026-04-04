@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "fnio.h"
+#include "global_types.h"
 
 #define INVALID_SECTOR_VALUE 65536
 
@@ -73,12 +74,12 @@ public:
     virtual void unmount();
 
     // Returns TRUE if an error condition occurred
-    virtual bool format(uint32_t *responsesize);
+    virtual error_is_true format(uint32_t *responsesize);
 
     // Returns TRUE if an error condition occurred
-    virtual bool read(uint32_t sectornum, uint32_t *readcount) = 0;
+    virtual error_is_true read(uint32_t sectornum, uint32_t *readcount) = 0;
     // Returns TRUE if an error condition occurred
-    virtual bool write(uint32_t sectornum, bool verify);
+    virtual error_is_true write(uint32_t sectornum, bool verify);
 
     // Always returns 128 for the first 3 sectors, otherwise _sectorSize
     virtual uint16_t sector_size(uint32_t sectornum);

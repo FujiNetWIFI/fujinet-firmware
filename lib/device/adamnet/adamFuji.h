@@ -26,9 +26,9 @@ protected:
     }
     void transaction_complete() override {}
     void transaction_error() override {}
-    bool transaction_get(void *data, size_t len) override {
+    success_is_true transaction_get(void *data, size_t len) override {
         unsigned short rlen = adamnet_recv_buffer((uint8_t *) data, len);
-        return rlen == len;
+        RETURN_SUCCESS_IF(rlen == len);
     }
     void transaction_put(const void *data, size_t len, bool err=false) override {
         memcpy(response, data, len);

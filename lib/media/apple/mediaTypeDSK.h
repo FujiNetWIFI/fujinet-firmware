@@ -27,9 +27,9 @@ private:
 
 public:
 
-    virtual mediatype_t mount(fnFile *f, uint32_t disksize) override;
-    // virtual void unmount() override;
-    virtual bool write_sector(int track, int sector, uint8_t *buffer) override;
+    mediatype_t mount(fnFile *f, uint32_t disksize) override;
+    // void unmount() override;
+    error_is_true write_sector(int track, int sector, uint8_t *buffer) override;
 
     // static bool create(FILE *f, uint32_t numBlock);
 };

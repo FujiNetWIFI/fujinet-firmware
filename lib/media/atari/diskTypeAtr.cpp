@@ -52,7 +52,7 @@ uint32_t MediaTypeATR::_sector_to_offset(uint16_t sectorNum)
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeATR::read(uint16_t sectornum, uint16_t *readcount)
+error_is_true MediaTypeATR::read(uint16_t sectornum, uint16_t *readcount)
 {
     Debug_printf("ATR READ %d / %lu\r\n", sectornum, _disk_num_sectors);
 
@@ -62,7 +62,7 @@ bool MediaTypeATR::read(uint16_t sectornum, uint16_t *readcount)
     if (sectornum > _disk_num_sectors)
     {
         Debug_printf("::read sector %d > %lu\r\n", sectornum, _disk_num_sectors);
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
     uint16_t sectorSize = sector_size(sectornum);
@@ -87,7 +87,7 @@ bool MediaTypeATR::read(uint16_t sectornum, uint16_t *readcount)
 
     *readcount = sectorSize;
 
-    return err;
+    RETURN_ERROR_IF(err);
 }
 
 bool inHighScoreRange(int minimum, int maximum, int val)
@@ -96,7 +96,7 @@ bool inHighScoreRange(int minimum, int maximum, int val)
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeATR::write(uint16_t sectornum, bool verify)
+error_is_true MediaTypeATR::write(uint16_t sectornum, bool verify)
 {
     fnFile *oldFileh, *hsFileh;
 
@@ -109,7 +109,7 @@ bool MediaTypeATR::write(uint16_t sectornum, bool verify)
     if (sectornum > _disk_num_sectors)
     {
         Debug_printf("::write sector %d > %lu\r\n", sectornum, _disk_num_sectors);
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
     if (_high_score_sector != 0)
@@ -139,7 +139,7 @@ bool MediaTypeATR::write(uint16_t sectornum, bool verify)
         if (e != 0)
         {
             Debug_printf("::write seek error %d\r\n", e);
-            return true;
+            RETURN_ERROR_AS_TRUE();
         }
     }
     // Write the data
@@ -147,7 +147,7 @@ bool MediaTypeATR::write(uint16_t sectornum, bool verify)
     if (e != sectorSize)
     {
         Debug_printf("::write error %d, %d\r\n", e, errno);
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
     int ret = fnio::fflush(_disk_fileh); // Since we might get reset at any moment, go ahead and sync the file
@@ -166,7 +166,7 @@ bool MediaTypeATR::write(uint16_t sectornum, bool verify)
     else
         _disk_last_sector = sectornum;
 
-    return false;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 void MediaTypeATR::status(uint8_t statusbuff[4])
@@ -193,7 +193,7 @@ void MediaTypeATR::status(uint8_t statusbuff[4])
     a sector-sized buffer containing a list of 16-bit bad sector numbers terminated by $FFFF.
 */
 // Returns TRUE if an error condition occurred
-bool MediaTypeATR::format(uint16_t *responsesize)
+error_is_true MediaTypeATR::format(uint16_t *responsesize)
 {
     Debug_print("ATR FORMAT\r\n");
 
@@ -204,7 +204,7 @@ bool MediaTypeATR::format(uint16_t *responsesize)
 
     *responsesize = _disk_sector_size;
 
-    return false;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 /*
@@ -282,7 +282,7 @@ mediatype_t MediaTypeATR::mount(fnFile *f, uint32_t disksize)
 }
 
 // Returns FALSE on error
-bool MediaTypeATR::create(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
+success_is_true MediaTypeATR::create(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
 {
     Debug_print("ATR CREATE\r\n");
 
@@ -343,7 +343,7 @@ bool MediaTypeATR::create(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
             if (out != 128)
             {
                 Debug_printf("Error writing sector %d\r\n", i);
-                return false;
+                RETURN_ERROR_AS_FALSE();
             }
             offset += 128;
             numSectors--;
@@ -358,9 +358,9 @@ bool MediaTypeATR::create(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
     if (out != sectorSize)
     {
         Debug_println("Error writing last sector");
-        return false;
+        RETURN_ERROR_AS_FALSE();
     }
 
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }
 #endif /* BUILD_ATARI */
