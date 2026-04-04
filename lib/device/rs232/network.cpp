@@ -891,7 +891,7 @@ void rs232Network::rs232_poll_interrupt()
  * Instantiate protocol object
  * @return bool TRUE if protocol successfully called open(), FALSE if protocol could not open
  */
-bool rs232Network::instantiate_protocol()
+success_is_true rs232Network::instantiate_protocol()
 {
     if (!protocolParser)
     {
@@ -903,11 +903,11 @@ bool rs232Network::instantiate_protocol()
     if (protocol == nullptr)
     {
         Debug_printf("rs232Network::instantiate_protocol() - Could not create protocol.\n");
-        return false;
+        RETURN_ERROR_AS_FALSE();
     }
 
     Debug_printf("rs232Network::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 /**

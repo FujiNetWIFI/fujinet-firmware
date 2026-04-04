@@ -29,18 +29,18 @@ public:
     virtual ~MediaTypeROM();
 
     // Returns byte offset of given sector number
-    virtual uint32_t _block_to_offset(uint32_t blockNum);
+    uint32_t _block_to_offset(uint32_t blockNum);
 
-    virtual bool read(uint32_t blockNum, uint16_t *readcount) override;
-    virtual bool write(uint32_t blockNum, bool verify) override;
+    error_is_true read(uint32_t blockNum, uint16_t *readcount) override;
+    error_is_true write(uint32_t blockNum, bool verify) override;
 
-    virtual bool format(uint16_t *responsesize) override;
+    error_is_true format(uint16_t *responsesize) override;
 
-    virtual mediatype_t mount(FILE *f, uint32_t disksize) override;
+    mediatype_t mount(FILE *f, uint32_t disksize) override;
 
-    virtual uint8_t status() override;
+    uint8_t status() override;
 
-    static bool create(FILE *f, uint32_t numBlock);
+    static success_is_true create(FILE *f, uint32_t numBlock);
 };
 
 

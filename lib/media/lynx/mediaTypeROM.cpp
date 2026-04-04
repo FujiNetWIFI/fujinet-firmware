@@ -15,10 +15,10 @@ uint32_t MediaTypeROM::_block_to_offset(uint32_t blockNum)
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeROM::read(uint32_t blockNum, uint16_t *readcount)
+error_is_true MediaTypeROM::read(uint32_t blockNum, uint16_t *readcount)
 {
     if (blockNum == _media_last_block)
-        return false; // We already have block.
+        RETURN_SUCCESS_AS_FALSE(); // We already have block.
 
     Debug_print("**DISK READ START**\r\n");
 
@@ -27,7 +27,7 @@ bool MediaTypeROM::read(uint32_t blockNum, uint16_t *readcount)
     {
         Debug_printf("::read block %lu > %lu\r\n", blockNum, _media_num_blocks);
         _media_controller_status=2;
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
     memset(_media_blockbuff, 0, sizeof(_media_blockbuff));
@@ -48,22 +48,22 @@ bool MediaTypeROM::read(uint32_t blockNum, uint16_t *readcount)
     {
         _media_last_block = blockNum;
         _media_controller_status = 0;
-        return false;
+        RETURN_SUCCESS_AS_FALSE();
     }
     else
     {
         _media_last_block = INVALID_SECTOR_VALUE;
         _media_controller_status = 2;
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
-    return err;
+    RETURN_ERROR_IF(err);
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeROM::write(uint32_t blockNum, bool verify)
+error_is_true MediaTypeROM::write(uint32_t blockNum, bool verify)
 {
-    return false;
+    RETURN_ERROR_AS_TRUE();
 }
 
 uint8_t MediaTypeROM::status()
@@ -72,9 +72,9 @@ uint8_t MediaTypeROM::status()
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeROM::format(uint16_t *responsesize)
+error_is_true MediaTypeROM::format(uint16_t *responsesize)
 {
-    return false;
+    RETURN_ERROR_AS_TRUE();
 }
 
 mediatype_t MediaTypeROM::mount(FILE *f, uint32_t disksize)
@@ -91,11 +91,11 @@ mediatype_t MediaTypeROM::mount(FILE *f, uint32_t disksize)
 }
 
 // Returns FALSE on error
-bool MediaTypeROM::create(FILE *f, uint32_t numBlocks)
+success_is_true MediaTypeROM::create(FILE *f, uint32_t numBlocks)
 {
     Debug_print("FILE CREATE\r\n");
 
-    return true;
+    RETURN_ERROR_AS_FALSE();
 }
 
 

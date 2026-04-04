@@ -122,7 +122,7 @@ void lynxFuji::transaction_error()
         SYSTEM_BUS.read();
 }
     
-bool lynxFuji::transaction_get(void *data, size_t len) 
+success_is_true lynxFuji::transaction_get(void *data, size_t len) 
 {
     size_t remaining = recvbuffer_len - (recvbuf_pos - recvbuffer);
     size_t to_copy = (len > remaining) ? remaining : len;
@@ -130,7 +130,7 @@ bool lynxFuji::transaction_get(void *data, size_t len)
     memcpy(data, recvbuf_pos, to_copy);
     recvbuf_pos += to_copy;
 
-    return len;
+    RETURN_SUCCESS_IF(len == to_copy);
 }
 
 

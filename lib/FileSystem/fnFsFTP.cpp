@@ -36,15 +36,15 @@ FileSystemFTP::~FileSystemFTP()
         delete _ftp;
 }
 
-bool FileSystemFTP::start(const char *url, const char *user, const char *password)
+success_is_true FileSystemFTP::start(const char *url, const char *user, const char *password)
 {
     fujiError_t res;
 
     if (_started)
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     if(url == nullptr || url[0] == '\0')
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     if (_ftp != nullptr)
         delete _ftp;
@@ -53,14 +53,14 @@ bool FileSystemFTP::start(const char *url, const char *user, const char *passwor
     if (_ftp == nullptr)
     {
         Debug_printf("FileSystemFTP::start() - failed to create FTP client\n");
-        return false;
+        RETURN_ERROR_AS_FALSE();
     }
 
     _url = PeoplesUrlParser::parseURL(url);
     if (!_url->isValidUrl())
     {
         Debug_printf("FileSystemFTP::start() - failed to parse URL \"%s\"\n", url);
-        return false;
+        RETURN_ERROR_AS_FALSE();
     }
 
     // Store credentials for reconnection
@@ -77,20 +77,20 @@ bool FileSystemFTP::start(const char *url, const char *user, const char *passwor
     if (res != FUJI_ERROR::NONE)
     {
         Debug_printf("FileSystemFTP::start() - FTP login failed: %s\n", _url->host.c_str());
-        return false;
+        RETURN_ERROR_AS_FALSE();
         }
 
     Debug_printf("FTP logged in: %s\n", _url->host.c_str());
 
     _started = true;
 
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 bool FileSystemFTP::exists(const char *path)
 {
     if (!ensure_connected() || path == nullptr)
-        return false;
+        RETURN_ERROR_AS_FALSE();
     // TODO
     Debug_printf("FileSystemFTP::exists(\"%s\")\n", path);
 
@@ -100,7 +100,7 @@ bool FileSystemFTP::exists(const char *path)
     if (res != FUJI_ERROR::NONE)  // open_directory returns FUJI_ERROR::NONE on success
     {
         Debug_printf("Path does not exist\n");
-        return false;
+        RETURN_ERROR_AS_FALSE();
     }
 
     // Read at least one entry to confirm it exists
@@ -115,10 +115,10 @@ bool FileSystemFTP::exists(const char *path)
     return exists;
 }
 
-bool FileSystemFTP::remove(const char *path)
+success_is_true FileSystemFTP::remove(const char *path)
 {
     if (!_started || path == nullptr)
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     Debug_printf("FileSystemFTP::remove(\"%s\")\n", path);
 
@@ -127,19 +127,17 @@ bool FileSystemFTP::remove(const char *path)
     if (_ftp->delete_file(path) == FUJI_ERROR::NONE)
     {
         Debug_printf("File deleted successfully\n");
-        return true;
+        RETURN_SUCCESS_AS_TRUE();
     }
-    else
-    {
-        Debug_printf("Failed to delete file\n");
-        return false;
-    }
+
+    Debug_printf("Failed to delete file\n");
+    RETURN_ERROR_AS_FALSE();
 }
 
-bool FileSystemFTP::rename(const char *pathFrom, const char *pathTo)
+success_is_true FileSystemFTP::rename(const char *pathFrom, const char *pathTo)
 {
     if (!_started || pathFrom == nullptr || pathTo == nullptr)
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     Debug_printf("FileSystemFTP::rename(\"%s\" -> \"%s\")\n", pathFrom, pathTo);
 
@@ -148,13 +146,11 @@ bool FileSystemFTP::rename(const char *pathFrom, const char *pathTo)
     if (_ftp->rename_file(pathFrom, pathTo) == FUJI_ERROR::NONE)
     {
         Debug_printf("File renamed successfully\n");
-        return true;
+        RETURN_SUCCESS_AS_TRUE();
     }
-    else
-    {
-        Debug_printf("Failed to rename file\n");
-        return false;
-    }
+
+    Debug_printf("Failed to rename file\n");
+    RETURN_ERROR_AS_FALSE();
 }
 
 FILE  *FileSystemFTP::file_open(const char *path, const char *mode)
@@ -349,10 +345,10 @@ bool FileSystemFTP::is_dir(const char *path)
     return false;
 }
 
-bool FileSystemFTP::mkdir(const char* path)
+success_is_true FileSystemFTP::mkdir(const char* path)
 {
     if (!_started || path == nullptr)
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     Debug_printf("FileSystemFTP::mkdir(\"%s\")\n", path);
 
@@ -361,19 +357,17 @@ bool FileSystemFTP::mkdir(const char* path)
     if (_ftp->make_directory(path) == FUJI_ERROR::NONE)
     {
         Debug_printf("Directory created successfully\n");
-        return true;
+        RETURN_SUCCESS_AS_TRUE();
     }
-    else
-    {
-        Debug_printf("Failed to create directory\n");
-        return false;
-    }
+
+    Debug_printf("Failed to create directory\n");
+    RETURN_ERROR_AS_FALSE();
 }
 
-bool FileSystemFTP::rmdir(const char* path)
+success_is_true FileSystemFTP::rmdir(const char* path)
 {
     if (!_started || path == nullptr)
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     Debug_printf("FileSystemFTP::rmdir(\"%s\")\n", path);
 
@@ -382,13 +376,11 @@ bool FileSystemFTP::rmdir(const char* path)
     if (_ftp->remove_directory(path) == FUJI_ERROR::NONE)
     {
         Debug_printf("Directory removed successfully\n");
-        return true;
+        RETURN_SUCCESS_AS_TRUE();
     }
-    else
-    {
-        Debug_printf("Failed to remove directory\n");
-        return false;
-    }
+
+    Debug_printf("Failed to remove directory\n");
+    RETURN_ERROR_AS_FALSE();
 }
 
 bool FileSystemFTP::dir_exists(const char* path)
@@ -397,15 +389,15 @@ bool FileSystemFTP::dir_exists(const char* path)
     return is_dir(path);
 }
 
-bool FileSystemFTP::dir_open(const char  *path, const char *pattern, uint16_t diropts)
+success_is_true FileSystemFTP::dir_open(const char  *path, const char *pattern, uint16_t diropts)
 {
     if (!ensure_connected())
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     Debug_printf("FileSystemFTP::dir_open(\"%s\", \"%s\", %u)\n", path ? path : "", pattern ? pattern : "", diropts);
 
     if (path == nullptr)
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     if (strcmp(_last_dir, path) == 0 && !_dircache.empty())
     {
@@ -426,7 +418,7 @@ bool FileSystemFTP::dir_open(const char  *path, const char *pattern, uint16_t di
         if (res != FUJI_ERROR::NONE)
         {
             Debug_printf("Failed to open directory\n");
-            return false;
+            RETURN_ERROR_AS_FALSE();
         }
 
         // Remember last visited directory
@@ -463,7 +455,7 @@ bool FileSystemFTP::dir_open(const char  *path, const char *pattern, uint16_t di
     // Apply pattern matching filter and sort entries
     _dircache.apply_filter(pattern, diropts);
 
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 fsdir_entry *FileSystemFTP::dir_read()
@@ -481,15 +473,15 @@ uint16_t FileSystemFTP::dir_tell()
     return _dircache.tell();
 }
 
-bool FileSystemFTP::dir_seek(uint16_t pos)
+success_is_true FileSystemFTP::dir_seek(uint16_t pos)
 {
     return _dircache.seek(pos);
 }
 
-bool FileSystemFTP::keep_alive()
+success_is_true FileSystemFTP::keep_alive()
 {
     if (!_started)
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     // Send NOOP command as lightweight keep-alive
     fujiError_t res = _ftp->keep_alive();
@@ -499,14 +491,14 @@ bool FileSystemFTP::keep_alive()
         _started = false;
     }
 
-    return res == FUJI_ERROR::NONE;
+    RETURN_SUCCESS_IF(res == FUJI_ERROR::NONE);
 }
 
-bool FileSystemFTP::ensure_connected()
+success_is_true FileSystemFTP::ensure_connected()
 {
     // Check if we're actually connected at the FTP protocol level
     if (_started && _ftp && _ftp->control_connected()) {
-        return true;  // Already connected and verified
+        RETURN_SUCCESS_AS_TRUE();  // Already connected and verified
     }
 
     // If we thought we were connected but aren't, mark as disconnected
@@ -517,12 +509,12 @@ bool FileSystemFTP::ensure_connected()
 
     if (!_url || !_ftp) {
         Debug_printf("Cannot connect - missing URL or FTP client\n");
-        return false;
+        RETURN_ERROR_AS_FALSE();
     }
 
     if (_username.empty()) {
         Debug_printf("Cannot connect - credentials not set (start() was never called)\n");
-        return false;
+        RETURN_ERROR_AS_FALSE();
     }
 
     Debug_printf("Attempting to connect to FTP server: %s\n", _url->host.c_str());
@@ -537,10 +529,10 @@ bool FileSystemFTP::ensure_connected()
 
     if (res != FUJI_ERROR::NONE) {
         Debug_printf("Failed to connect to FTP server\n");
-        return false;
+        RETURN_ERROR_AS_FALSE();
     }
 
     Debug_printf("Successfully connected to FTP server\n");
     _started = true;
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }

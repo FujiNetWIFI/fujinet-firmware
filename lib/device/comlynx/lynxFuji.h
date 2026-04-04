@@ -22,7 +22,7 @@ protected:
     void transaction_continue(transState_t expectMoreData) override {};
     void transaction_complete() override;
     void transaction_error() override;
-    bool transaction_get(void *data, size_t len) override;
+    success_is_true transaction_get(void *data, size_t len) override;
     void transaction_put(const void *data, size_t len, bool err=false);
 
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,

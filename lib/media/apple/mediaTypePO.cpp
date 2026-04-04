@@ -6,7 +6,7 @@
 #include "utils.h"
 #include "../../include/debug.h"
 
-bool MediaTypePO::read(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
+error_is_true MediaTypePO::read(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
 {
     size_t readsize = *count;
 if (blockNum == 0 || blockNum != last_block_num + 1) // example optimization, only do seek if not reading next block -tschak
@@ -14,7 +14,7 @@ if (blockNum == 0 || blockNum != last_block_num + 1) // example optimization, on
      if (fnio::fseek(_media_fileh, (blockNum * readsize) + offset, SEEK_SET))
     {
         reset_seek_opto();
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
   }
 
@@ -24,10 +24,10 @@ if (blockNum == 0 || blockNum != last_block_num + 1) // example optimization, on
     last_block_num = blockNum;
 
   readsize = fnio::fread((unsigned char *)buffer, 1, readsize, _media_fileh); // Reading block from SD Card
-  return (readsize != *count);
+  RETURN_ERROR_IF(readsize != *count);
 }
 
-bool MediaTypePO::write(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
+error_is_true MediaTypePO::write(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
 {
     size_t writesize = *count;
 
@@ -44,7 +44,7 @@ bool MediaTypePO::write(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
          if (fnio::fseek(_media_fileh, (blockNum * writesize) + offset, SEEK_SET))
         {
             reset_seek_opto();
-            return true;
+            RETURN_ERROR_AS_TRUE();
         }
     }
     last_block_num = blockNum;
@@ -52,7 +52,7 @@ bool MediaTypePO::write(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
     if (writesize != *count)
     {
        reset_seek_opto();
-       return true;
+       RETURN_ERROR_AS_TRUE();
     }
 
     if (high_score_enabled && blockNum >= _high_score_block_lb && blockNum <= _high_score_block_ub)
@@ -65,18 +65,18 @@ bool MediaTypePO::write(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
         last_block_num = INVALID_SECTOR_VALUE; // Invalidate cache
     }
 
-    return false;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
-bool MediaTypePO::write_sector(int track, int sector, uint8_t *buffer)
+error_is_true MediaTypePO::write_sector(int track, int sector, uint8_t *buffer)
 {
   Debug_printf("\r\nProDOS disk needs to write sector!");
-  return false;
+  RETURN_ERROR_AS_TRUE();
 }
 
-bool MediaTypePO::format(uint16_t *responsesize)
+error_is_true MediaTypePO::format(uint16_t *responsesize)
 {
-    return false;
+    RETURN_ERROR_AS_TRUE();
 }
 
 mediatype_t MediaTypePO::mount(fnFile *f, uint32_t disksize)
@@ -113,9 +113,9 @@ mediatype_t MediaTypePO::mount(fnFile *f, uint32_t disksize)
 }
 
 
-// static bool create(FILE *f, uint32_t numBlock)
+// static success_is_true create(FILE *f, uint32_t numBlock)
 // {
-//     return false;
+//     RETURN_ERROR_AS_FALSE();
 // }
 
 #endif // BUILD_APPLE

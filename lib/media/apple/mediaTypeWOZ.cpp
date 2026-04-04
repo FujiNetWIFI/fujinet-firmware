@@ -10,10 +10,10 @@
 #define WOZ1 '1'
 #define WOZ2 '2'
 
-bool MediaTypeWOZ::write_sector(int track, int sector, uint8_t *buffer)
+error_is_true MediaTypeWOZ::write_sector(int track, int sector, uint8_t *buffer)
 {
   Debug_printf("\r\nWOZ disk needs to write sector!");
-  return false;
+  RETURN_ERROR_AS_TRUE();
 }
 
 mediatype_t MediaTypeWOZ::mount(fnFile *f, uint32_t disksize)
@@ -60,7 +60,7 @@ void MediaTypeWOZ::unmount()
     }
 }
 
-bool MediaTypeWOZ::wozX_check_header()
+error_is_true MediaTypeWOZ::wozX_check_header()
 {
     char hdr[12];
     fnio::fread(&hdr, sizeof(char), 12, _media_fileh);
@@ -72,7 +72,7 @@ bool MediaTypeWOZ::wozX_check_header()
     else
     {
         Debug_printf("\nNot a WOZ file!");
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
     // check for file integrity
     if ((unsigned char)(hdr[4]) == 0xFF && hdr[5] == 0x0A && hdr[6] == 0x0D && hdr[7] == 0x0A)
@@ -81,20 +81,20 @@ bool MediaTypeWOZ::wozX_check_header()
     }
     else
     {
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
     // could check CRC if one wanted
     
-    return false;  
+    RETURN_SUCCESS_AS_FALSE();  
 }
 
-bool MediaTypeWOZ::wozX_read_info()
+error_is_true MediaTypeWOZ::wozX_read_info()
 {
     if (fnio::fseek(_media_fileh, 12, SEEK_SET))
     {
         Debug_printf("\nError seeking INFO chunk");
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
     uint32_t chunk_id, chunk_size;
     fnio::fread(&chunk_id, sizeof(chunk_id), 1, _media_fileh);
@@ -128,18 +128,18 @@ bool MediaTypeWOZ::wozX_read_info()
         break;
     default:
         Debug_printf("\nWOZ version %c not supported", woz_version);
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
-    return false;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
-bool MediaTypeWOZ::wozX_read_tmap()
+error_is_true MediaTypeWOZ::wozX_read_tmap()
 { // read TMAP
     if (fnio::fseek(_media_fileh, 80, SEEK_SET))
     {
         Debug_printf("\nError seeking TMAP chunk");
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
     uint32_t chunk_id, chunk_size;
@@ -156,10 +156,10 @@ bool MediaTypeWOZ::wozX_read_tmap()
         Debug_printf("\n%d/4, %d", i, tmap[i]);
 #endif
 
-    return false;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
-bool MediaTypeWOZ::woz1_read_tracks()
+error_is_true MediaTypeWOZ::woz1_read_tracks()
 {    // depend upon little endian-ness
     fnio::fseek(_media_fileh, 256, SEEK_SET);
 
@@ -212,7 +212,7 @@ bool MediaTypeWOZ::woz1_read_tracks()
             else
             {
                 Debug_printf("\nNo RAM allocated!");
-                return true;
+                RETURN_ERROR_AS_TRUE();
             }
         }
         else
@@ -223,7 +223,7 @@ bool MediaTypeWOZ::woz1_read_tracks()
         fnio::fread(bitstream, 1, 6, _media_fileh); // read through rest of bytes in track
     }
     free(bitstream);
-    return false;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 struct WOZ2_TRK_t
@@ -233,7 +233,7 @@ struct WOZ2_TRK_t
     uint32_t bit_count;
 };
 
-bool MediaTypeWOZ::woz2_read_tracks()
+error_is_true MediaTypeWOZ::woz2_read_tracks()
 {    // depend upon little endian-ness
     WOZ2_TRK_t trks[MAX_TRACKS];
 
@@ -270,11 +270,11 @@ bool MediaTypeWOZ::woz2_read_tracks()
             else
             {
                 Debug_printf("\nNo RAM allocated!");
-                return true;
+                RETURN_ERROR_AS_TRUE();
             }
         }
     }
-    return false;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 #endif // BUILD_APPLE

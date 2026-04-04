@@ -1125,13 +1125,13 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     }
 }
 
-bool sioFuji::fujicore_mount_disk_image_success(uint8_t deviceSlot,
-                                                disk_access_flags_t access_mode)
+success_is_true sioFuji::fujicore_mount_disk_image_success(uint8_t deviceSlot,
+                                                           disk_access_flags_t access_mode)
 {
     if (!fujiDevice::fujicore_mount_disk_image_success(deviceSlot, access_mode))
-        return false;
+        RETURN_ERROR_AS_FALSE();
     status_wait_count = 0;
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 // Atari expects this field as a 32-bit little-endian value.

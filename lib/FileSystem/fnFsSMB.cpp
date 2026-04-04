@@ -32,28 +32,28 @@ FileSystemSMB::~FileSystemSMB()
     }
 }
 
-bool FileSystemSMB::start(const char *url, const char *user, const char *password)
+success_is_true FileSystemSMB::start(const char *url, const char *user, const char *password)
 {
     int smb_error;
 
     if (_started)
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     if(url == nullptr || url[0] == '\0')
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     _smb = smb2_init_context();
     if (_smb == nullptr) 
     {
         Debug_printf("FileSystemSMB::start() - failed to init SMB2 context\n");
-        return false;
+        RETURN_ERROR_AS_FALSE();
     }
 
     _url = smb2_parse_url(_smb, url);
     if (_url == nullptr) 
     {
         Debug_printf("FileSystemSMB::start() - failed to parse URL \"%s\", SMB2 error: %s\n", url, smb2_get_error(_smb));
-        return false;
+        RETURN_ERROR_AS_FALSE();
     }
 
     smb2_set_security_mode(_smb, SMB2_NEGOTIATE_SIGNING_ENABLED);
@@ -72,14 +72,14 @@ bool FileSystemSMB::start(const char *url, const char *user, const char *passwor
 	if (smb_error != 0) 
     {
         Debug_printf("FileSystemSMB::start() - failed to connect share \"//%s/%s\", SMB2 error: %s\n", _url->server, _url->share, smb2_get_error(_smb));
-        return false;
+        RETURN_ERROR_AS_FALSE();
 	}
 
     Debug_printf("SMB share connected: //%s/%s\n", _url->server, _url->share);
 
     _started = true;
 
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 bool FileSystemSMB::exists(const char *path)
@@ -90,15 +90,15 @@ bool FileSystemSMB::exists(const char *path)
     return smb_error == 0;
 }
 
-bool FileSystemSMB::remove(const char *path)
+success_is_true FileSystemSMB::remove(const char *path)
 {
     if(path == nullptr)
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     // Figure out if this is a file or directory
     smb2_stat_64 st;
     if (0 != smb2_stat(_smb, path, &st))
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     int smb_error;
     if (st.smb2_type == SMB2_TYPE_DIRECTORY)
@@ -109,13 +109,13 @@ bool FileSystemSMB::remove(const char *path)
     if (smb_error != 0)
         Debug_printf("FileSystemSMB::remove(\"%s\") - failed, SMB2 error: %s\n", path, smb2_get_error(_smb));
 
-    return smb_error == 0;
+    RETURN_SUCCESS_IF(smb_error == 0);
 }
 
-bool FileSystemSMB::rename(const char *pathFrom, const char *pathTo)
+success_is_true FileSystemSMB::rename(const char *pathFrom, const char *pathTo)
 {
     int smb_error = smb2_rename(_smb, pathFrom, pathTo);
-    return smb_error == 0;    
+    RETURN_SUCCESS_IF(smb_error == 0);    
 }
 
 FILE  *FileSystemSMB::file_open(const char *path, const char *mode)
@@ -177,14 +177,14 @@ bool FileSystemSMB::is_dir(const char *path)
 {
     smb2_stat_64 st;
     if (smb2_stat(_smb, path, &st) != 0)
-        return false;
+        RETURN_ERROR_AS_FALSE();
     return st.smb2_type == SMB2_TYPE_DIRECTORY;
 }
 
-bool FileSystemSMB::dir_open(const char  *path, const char *pattern, uint16_t diropts)
+success_is_true FileSystemSMB::dir_open(const char  *path, const char *pattern, uint16_t diropts)
 {
     if(!_started)
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     Debug_printf("FileSystemSMB::dir_open(\"%s\", \"%s\", %u)\n", path ? path : "", pattern ? pattern : "", diropts);
 
@@ -213,7 +213,7 @@ bool FileSystemSMB::dir_open(const char  *path, const char *pattern, uint16_t di
         if (smb_dir == nullptr)
         {
             Debug_printf("Failed to open directory: %s\n", smb2_get_error(_smb));
-            return false;
+            RETURN_ERROR_AS_FALSE();
         }
 
         // Remember last visited directory
@@ -257,7 +257,7 @@ bool FileSystemSMB::dir_open(const char  *path, const char *pattern, uint16_t di
     // Apply pattern matching filter and sort entries
     _dircache.apply_filter(pattern, diropts);
 
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 fsdir_entry *FileSystemSMB::dir_read()
@@ -275,7 +275,7 @@ uint16_t FileSystemSMB::dir_tell()
     return _dircache.tell();
 }
 
-bool FileSystemSMB::dir_seek(uint16_t pos)
+success_is_true FileSystemSMB::dir_seek(uint16_t pos)
 {
     return _dircache.seek(pos);
 }

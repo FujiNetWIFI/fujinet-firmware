@@ -24,7 +24,7 @@ private:
     //void transaction_continue(transState_t expectMoreData) override {};
     void transaction_complete();
     void transaction_error();
-    bool transaction_get(void *data, size_t len);
+    success_is_true transaction_get(void *data, size_t len);
     void transaction_put(const void *data, size_t len, bool err=false);
 
     void comlynx_process() override;
@@ -37,7 +37,7 @@ public:
                       disk_access_flags_t access_mode,
                       mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
-    bool write_blank(FILE *f, uint32_t numBlocks);
+    error_is_true write_blank(FILE *f, uint32_t numBlocks);
     virtual void reset() override;
 
     mediatype_t mediatype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_mediatype; };

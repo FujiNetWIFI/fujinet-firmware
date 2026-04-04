@@ -56,28 +56,28 @@ void virtualDevice::transaction_error()
     _transaction_state = TRANS_STATE::INVALID;
 }
 
-bool virtualDevice::transaction_get(void *data, size_t len)
+success_is_true virtualDevice::transaction_get(void *data, size_t len)
 {
     assert(_transaction_state == TRANS_STATE::WILL_GET);
     _transaction_state = TRANS_STATE::DID_GET;
 
     if (!len)
-        return true;
+        RETURN_SUCCESS_AS_TRUE();
 
     // FIXME - This is a terrible hack to allow devices to continue to
     // use the pattern of fetching data on their own instead of
     // upgrading them fully to work with packets.
     auto optional_data = _legacyPacketData->data();
     if (!optional_data.has_value())
-        return 0;
+        RETURN_ERROR_AS_FALSE();
     size_t avail = optional_data.value().size() - _legacyDataPosition;
     avail = std::min(avail, (size_t) len);
     memcpy(data, optional_data.value().data() + _legacyDataPosition, avail);
     _legacyDataPosition += avail;
 
     if (avail != len)
-        return false;
-    return true;
+        RETURN_ERROR_AS_FALSE();
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 void virtualDevice::transaction_put(const void *data, size_t len, bool err)

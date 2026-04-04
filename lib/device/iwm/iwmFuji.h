@@ -65,11 +65,11 @@ protected:
     void transaction_continue(transState_t expectMoreData) override {}
     void transaction_complete() override {}
     void transaction_error() override {}
-    bool transaction_get(void *data, size_t len) override {
+    success_is_true transaction_get(void *data, size_t len) override {
         if (len > sizeof(data_buffer))
-            return false;
+            RETURN_ERROR_AS_FALSE();
         memcpy((uint8_t *) data, data_buffer, len);
-        return true;
+        RETURN_SUCCESS_AS_TRUE();
     }
     void transaction_put(const void *data, size_t len, bool err) override {
         // Move into response.
@@ -142,8 +142,8 @@ public:
     void fujicmd_reset() override;
     void fujicmd_close_directory() override;
     void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl) override;
-    bool fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
-                                             disk_access_flags_t mode) override;
+    success_is_true fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
+                                                        disk_access_flags_t mode) override;
 };
 
 extern iwmFuji platformFuji;

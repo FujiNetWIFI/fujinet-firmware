@@ -32,13 +32,14 @@ bool FileSystemSPIFFS::is_dir(const char *path)
     return (info.st_mode == S_IFDIR) ? true: false;
 }
 
-bool FileSystemSPIFFS::dir_open(const char * path, const char * pattern, uint16_t diropts)
+success_is_true FileSystemSPIFFS::dir_open(const char * path, const char * pattern,
+                                           uint16_t diropts)
 {
     // We ignore sorting options since we don't expect user browsing on SPIFFS
     char * fpath = _make_fullpath(path);
     _dir = opendir(fpath);
     free(fpath);
-    return(_dir != nullptr);
+    RETURN_SUCCESS_IF(_dir != nullptr);
 }
 
 fsdir_entry * FileSystemSPIFFS::dir_read()
@@ -83,9 +84,9 @@ uint16_t FileSystemSPIFFS::dir_tell()
     return 0;
 }
 
-bool FileSystemSPIFFS::dir_seek(uint16_t)
+success_is_true FileSystemSPIFFS::dir_seek(uint16_t)
 {
-    return false;
+    RETURN_ERROR_AS_FALSE();
 }
 
 FILE * FileSystemSPIFFS::file_open(const char* path, const char* mode)
@@ -115,16 +116,16 @@ bool FileSystemSPIFFS::exists(const char* path)
     return (i == 0);
 }
 
-bool FileSystemSPIFFS::remove(const char* path)
+success_is_true FileSystemSPIFFS::remove(const char* path)
 {
     char * fpath = _make_fullpath(path);
     int i = ::remove(fpath);
     Debug_printf("FileSystemSPIFFS::remove returned %d on \"%s\" (%s)\r\n", i, path, fpath);
     free(fpath);
-    return (i == 0);
+    RETURN_SUCCESS_IF(i == 0);
 }
 
-bool FileSystemSPIFFS::rename(const char* pathFrom, const char* pathTo)
+success_is_true FileSystemSPIFFS::rename(const char* pathFrom, const char* pathTo)
 {
     char * spath = _make_fullpath(pathFrom);
     char * dpath = _make_fullpath(pathTo);
@@ -132,7 +133,7 @@ bool FileSystemSPIFFS::rename(const char* pathFrom, const char* pathTo)
     Debug_printf("FileSystemSPIFFS::rename returned %d on \"%s\" -> \"%s\" (%s -> %s)\r\n", i, pathFrom, pathTo, spath, dpath);
     free(spath);
     free(dpath);
-    return (i == 0);
+    RETURN_SUCCESS_IF(i == 0);
 }
 
 uint64_t FileSystemSPIFFS::total_bytes()
@@ -153,10 +154,10 @@ uint64_t FileSystemSPIFFS::used_bytes()
     return (uint64_t)used;
 }
 
-bool FileSystemSPIFFS::start()
+success_is_true FileSystemSPIFFS::start()
 {
     if(_started)
-        return true;
+        RETURN_SUCCESS_AS_TRUE();
 
     // Set our basepath
 #ifdef ESP_PLATFORM
@@ -201,13 +202,13 @@ bool FileSystemSPIFFS::start()
     #endif
     }
 
-    return _started;
+    RETURN_SUCCESS_IF(_started);
 }
 
-bool FileSystemSPIFFS::stop()
+success_is_true FileSystemSPIFFS::stop()
 {
     if(!_started)
-        return true;
+        RETURN_SUCCESS_AS_TRUE();
 
 #ifdef ESP_PLATFORM
     esp_err_t e = esp_vfs_spiffs_unregister("storage");
@@ -230,7 +231,7 @@ bool FileSystemSPIFFS::stop()
     #endif
     }
 
-    return !_started;
+    RETURN_SUCCESS_IF(!_started);
 }
 
 #endif // FLASH_SPIFFS

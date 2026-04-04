@@ -18,7 +18,7 @@
 // This table maps ProDOS blocks to pairs of DOS logical sectors.
 static const int prodos2dos[8][2] = { {0, 14}, {13, 12}, {11, 10}, {9, 8}, {7, 6}, {5, 4}, {3, 2}, {1, 15} };
 
-bool MediaTypeDO::read(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
+error_is_true MediaTypeDO::read(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
 {
     bool err = false;
     uint32_t track = blockNum / BLOCKS_PER_TRACK;
@@ -29,10 +29,10 @@ bool MediaTypeDO::read(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
     if (!err)
         err = read_sector(track, sectors[1], &buffer[BYTES_PER_SECTOR]);
 
-    return err;
+    RETURN_ERROR_IF(err);
 }
 
-bool MediaTypeDO::read_sector(int track, int sector, uint8_t* buffer)
+error_is_true MediaTypeDO::read_sector(int track, int sector, uint8_t* buffer)
 {
     Debug_printf("\r\nMediaTypeDO read track %d sector %d", track, sector);
     
@@ -44,16 +44,16 @@ bool MediaTypeDO::read_sector(int track, int sector, uint8_t* buffer)
     if (!err)
         err = fnio::fread(buffer, 1, BYTES_PER_SECTOR, _media_fileh) != BYTES_PER_SECTOR;
 
-    return err;
+    RETURN_ERROR_IF(err);
 }
 
-bool MediaTypeDO::write(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
+error_is_true MediaTypeDO::write(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
 {
     // Return an error if we're trying to write beyond the end of the disk
     if (blockNum >= num_blocks)
     {
         Debug_printf("\r\nwrite block BEYOND END %lu > %lu", blockNum, num_blocks);
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
     bool err = false;
@@ -65,10 +65,10 @@ bool MediaTypeDO::write(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
     if (!err)
         err = write_sector(track, sectors[1], &buffer[BYTES_PER_SECTOR]);
 
-    return err;
+    RETURN_ERROR_IF(err);
 }
 
-bool MediaTypeDO::write_sector(int track, int sector, uint8_t* buffer)
+error_is_true MediaTypeDO::write_sector(int track, int sector, uint8_t* buffer)
 {
     Debug_printf("\r\nMediaTypeDO write track %d sector %d", track, sector);
 
@@ -80,12 +80,12 @@ bool MediaTypeDO::write_sector(int track, int sector, uint8_t* buffer)
     if (!err)
         err = fnio::fwrite(buffer, 1, BYTES_PER_SECTOR, _media_fileh) != BYTES_PER_SECTOR;
 
-    return err;
+    RETURN_ERROR_IF(err);
 }
 
-bool MediaTypeDO::format(uint16_t *responsesize)
+error_is_true MediaTypeDO::format(uint16_t *responsesize)
 {
-    return false;
+    RETURN_ERROR_AS_TRUE();
 }
 
 mediatype_t MediaTypeDO::mount(fnFile *f, uint32_t disksize)

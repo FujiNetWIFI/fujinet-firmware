@@ -34,7 +34,7 @@ public:
     mediatype_t mountROM(fnFile *f, const char *filename, uint32_t disksize,
                          mediatype_t disk_type);
     void unmount();
-    bool write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors);
+    success_is_true write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors);
 
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_disktype; };
     time_t mount_time() { return _mount_time; }

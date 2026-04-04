@@ -484,11 +484,11 @@ void sioNetwork::sio_status_local()
     }
 }
 
-bool sioNetwork::sio_status_channel_json(NetworkStatus *ns)
+error_is_true sioNetwork::sio_status_channel_json(NetworkStatus *ns)
 {
     ns->connected = json_bytes_remaining > 0;
     ns->error = json_bytes_remaining > 0 ? NDEV_STATUS::SUCCESS : NDEV_STATUS::END_OF_FILE;
-    return false; // for now
+    RETURN_SUCCESS_AS_FALSE(); // for now
 }
 
 /**
@@ -832,7 +832,7 @@ void sioNetwork::sio_poll_interrupt()
  * Instantiate protocol object
  * @return bool TRUE if protocol successfully called open(), FALSE if protocol could not open
  */
-bool sioNetwork::instantiate_protocol()
+success_is_true sioNetwork::instantiate_protocol()
 {
     if (!protocolParser)
     {
@@ -844,12 +844,12 @@ bool sioNetwork::instantiate_protocol()
     if (protocol == nullptr)
     {
         Debug_printf("sioNetwork::instantiate_protocol() - Could not create protocol.\n");
-        return false;
+        RETURN_ERROR_AS_FALSE();
     }
 
     // leaving this one to print
     Debug_printf("sioNetwork::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 /**

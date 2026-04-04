@@ -36,14 +36,14 @@ protected:
             sio_nak();
         _transaction_state = TRANS_STATE::INVALID;
     }
-    bool transaction_get(void *data, size_t len) override {
+    success_is_true transaction_get(void *data, size_t len) override {
         assert(_transaction_state == TRANS_STATE::WILL_GET);
         _transaction_state = TRANS_STATE::DID_GET;
 
         uint8_t ck = bus_to_peripheral((uint8_t *) data, len);
         if (sio_checksum((uint8_t *) data, len) != ck)
-            return false;
-        return true;
+            RETURN_ERROR_AS_FALSE();
+        RETURN_SUCCESS_AS_TRUE();
     }
     void transaction_put(const void *data, size_t len, bool err) override {
         assert(_transaction_state == TRANS_STATE::NO_GET);
@@ -101,8 +101,8 @@ public:
     bool status_wait_enabled = true;
 
     // ============ Wrapped Fuji commands ============
-    bool fujicore_mount_disk_image_success(uint8_t deviceSlot,
-                                           disk_access_flags_t access_mode) override;
+    success_is_true fujicore_mount_disk_image_success(uint8_t deviceSlot,
+                                                      disk_access_flags_t access_mode) override;
     std::optional<std::vector<uint8_t>> fujicore_read_app_key() override;
     void fujicmd_net_scan_networks() override;
 };

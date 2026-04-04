@@ -44,7 +44,7 @@ void lynxDisk::transaction_error()
         SYSTEM_BUS.read();
 }
     
-bool lynxDisk::transaction_get(void *data, size_t len) 
+success_is_true lynxDisk::transaction_get(void *data, size_t len) 
 {
     size_t remaining = recvbuffer_len - (recvbuf_pos - recvbuffer);
     size_t to_copy = (len > remaining) ? remaining : len;
@@ -52,7 +52,7 @@ bool lynxDisk::transaction_get(void *data, size_t len)
     memcpy(data, recvbuf_pos, to_copy);
     recvbuf_pos += to_copy;
 
-    return len;
+    RETURN_SUCCESS_IF(len == to_copy);
 }
 
 
@@ -137,7 +137,7 @@ void lynxDisk::unmount()
     }
 }
 
-bool lynxDisk::write_blank(FILE *fileh, uint32_t numBlocks)
+error_is_true lynxDisk::write_blank(FILE *fileh, uint32_t numBlocks)
 {
     uint8_t buf[MEDIA_BLOCK_SIZE];
 
@@ -149,7 +149,7 @@ bool lynxDisk::write_blank(FILE *fileh, uint32_t numBlocks)
         fwrite(buf, 1, MEDIA_BLOCK_SIZE, fileh);
     }
 
-    return false;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 void lynxDisk::read_block(uint32_t block)

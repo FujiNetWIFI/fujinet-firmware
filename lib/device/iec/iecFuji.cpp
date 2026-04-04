@@ -1182,9 +1182,9 @@ void iecFuji::close_app_key_raw()
     set_fuji_iec_status(0, "");
 }
 
-bool iecFuji::check_appkey_creator(bool check_is_write)
+success_is_true iecFuji::check_appkey_creator(bool check_is_write)
 {
-    return !(_current_appkey.creator == 0 || (check_is_write && _current_appkey.mode != APPKEYMODE_WRITE));
+    RETURN_SUCCESS_IF(!(_current_appkey.creator == 0 || (check_is_write && _current_appkey.mode != APPKEYMODE_WRITE)));
 }
 
 void iecFuji::write_app_key_basic()
@@ -1412,17 +1412,17 @@ void iecFuji::open_directory_raw()
 }
 
 
-bool iecFuji::validate_parameters_and_setup(uint8_t& maxlen, uint8_t& addtlopts) {
+success_is_true iecFuji::validate_parameters_and_setup(uint8_t& maxlen, uint8_t& addtlopts) {
     if (pt.size() < 2) {
-        return false;
+        RETURN_ERROR_AS_FALSE();
     }
     maxlen = atoi(pt[1].c_str());
     addtlopts = atoi(pt[2].c_str());
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
-bool iecFuji::validate_directory_slot() {
-    return _current_open_directory_slot != -1;
+success_is_true iecFuji::validate_directory_slot() {
+    RETURN_SUCCESS_IF(_current_open_directory_slot != -1);
 }
 
 void iecFuji::read_directory_entry_basic() {

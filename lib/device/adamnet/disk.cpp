@@ -96,7 +96,7 @@ void adamDisk::unmount()
     }
 }
 
-bool adamDisk::write_blank(FILE *fileh, uint32_t numBlocks)
+error_is_true adamDisk::write_blank(FILE *fileh, uint32_t numBlocks)
 {
     uint8_t buf[256];
 
@@ -110,7 +110,7 @@ bool adamDisk::write_blank(FILE *fileh, uint32_t numBlocks)
         fwrite(buf, 1, 256, fileh);
     }
 
-    return false;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 void adamDisk::adamnet_control_clr()

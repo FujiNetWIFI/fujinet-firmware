@@ -23,7 +23,7 @@ protected:
     void transaction_continue(transState_t expectMoreData) override {}
     void transaction_complete() override {}
     void transaction_error() override {}
-    bool transaction_get(void *data, size_t len) override {return false;}
+    success_is_true transaction_get(void *data, size_t len) override {RETURN_ERROR_AS_FALSE();}
     void transaction_put(const void *data, size_t len, bool err) override {
         response.clear();
         response.append(reinterpret_cast<const char*>(data), len);
@@ -47,8 +47,8 @@ protected:
     void process_basic_commands();
     std::vector<std::string> tokenize_basic_command(std::string command);
 
-    bool validate_parameters_and_setup(uint8_t& maxlen, uint8_t& addtlopts);
-    bool validate_directory_slot();
+    success_is_true validate_parameters_and_setup(uint8_t& maxlen, uint8_t& addtlopts);
+    success_is_true validate_directory_slot();
 
     // track what our current command is, -1 is none being processed.
     int current_fuji_cmd = -1;
@@ -233,7 +233,7 @@ protected:
     void enable_device_basic(std::string ids = "");
     void disable_device_basic(std::string ids = "");
 
-    bool check_appkey_creator(bool check_is_write);
+    success_is_true check_appkey_creator(bool check_is_write);
 
     void set_fuji_iec_status(int8_t error, const std::string msg) {
         set_iec_status(error, last_command, msg, fnWiFi.connected(), 15);

@@ -24,32 +24,32 @@ class MediaTypeWOZ : public MediaType
 private:
     char woz_version;
 
-    bool wozX_check_header();
-    bool wozX_read_info();
-    bool wozX_read_tmap();
-    bool woz1_read_tracks();
-    bool woz2_read_tracks();
+    error_is_true wozX_check_header();
+    error_is_true wozX_read_info();
+    error_is_true wozX_read_tmap();
+    error_is_true woz1_read_tracks();
+    error_is_true woz2_read_tracks();
 
 protected:
     uint8_t tmap[MAX_TRACKS];
     TRK_bitstream *trk_data[MAX_TRACKS];
 
 public:
-    virtual bool read(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override { return false; };
-    virtual bool write(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override { return false; };
-    virtual bool write_sector(int track, int sector, uint8_t *buffer) override;
+    error_is_true read(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override { RETURN_ERROR_AS_TRUE(); };
+    error_is_true write(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override { RETURN_ERROR_AS_TRUE(); };
+    error_is_true write_sector(int track, int sector, uint8_t *buffer) override;
 
-    virtual bool format(uint16_t *responsesize) override { return false; };
+    error_is_true format(uint16_t *responsesize) override { RETURN_ERROR_AS_TRUE(); };
 
-    virtual mediatype_t mount(fnFile *f, uint32_t disksize) override;
-    virtual void unmount() override;
+    mediatype_t mount(fnFile *f, uint32_t disksize) override;
+    void unmount() override;
 
-    virtual bool status() override {return (_media_fileh != nullptr);}
+    success_is_true status() override {RETURN_SUCCESS_IF(_media_fileh != nullptr);}
 
     uint8_t trackmap(uint8_t t) { return tmap[t]; };
     TRK_bitstream *get_track(int t) { return trk_data[tmap[t]]; };
     uint8_t optimal_bit_timing;
-    // static bool create(FILE *f, uint32_t numBlock);
+    // static success_is_true create(FILE *f, uint32_t numBlock);
 };
 
 

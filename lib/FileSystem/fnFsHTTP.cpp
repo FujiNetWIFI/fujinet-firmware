@@ -47,13 +47,13 @@ FileSystemHTTP::~FileSystemHTTP()
         delete _http;
 }
 
-bool FileSystemHTTP::start(const char *url, const char *user, const char *password)
+success_is_true FileSystemHTTP::start(const char *url, const char *user, const char *password)
 {
     if (_started)
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     if(url == nullptr || url[0] == '\0')
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     if (_http != nullptr)
     {
@@ -65,19 +65,19 @@ bool FileSystemHTTP::start(const char *url, const char *user, const char *passwo
     // if (_http == nullptr)
     // {
     //     Debug_println("FileSystemHTTP::start() - failed to create HTTP client\n");
-    //     return false;
+    //     RETURN_ERROR_AS_FALSE();
     // }
 
     _url = PeoplesUrlParser::parseURL(url);
     if (!_url->isValidUrl())
     {
         Debug_printf("FileSystemHTTP::start() - failed to parse URL \"%s\"\n", _url->url.c_str());
-        return false;
+        RETURN_ERROR_AS_FALSE();
     }
 
     Debug_println("FileSystemHTTP started");
 
-    return _started = true;
+    RETURN_SUCCESS_IF(_started = true);
 }
 
 bool FileSystemHTTP::exists(const char *path)
@@ -86,14 +86,14 @@ bool FileSystemHTTP::exists(const char *path)
     return false;
 }
 
-bool FileSystemHTTP::remove(const char *path)
+success_is_true FileSystemHTTP::remove(const char *path)
 {
-    return false;
+    RETURN_ERROR_AS_FALSE();
 }
 
-bool FileSystemHTTP::rename(const char *pathFrom, const char *pathTo)
+success_is_true FileSystemHTTP::rename(const char *pathFrom, const char *pathTo)
 {
-    return false;
+    RETURN_ERROR_AS_FALSE();
 }
 
 FILE  *FileSystemHTTP::file_open(const char *path, const char *mode)
@@ -253,10 +253,10 @@ bool FileSystemHTTP::is_dir(const char *path)
     return false;
 }
 
-bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t diropts)
+success_is_true FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t diropts)
 {
     if(!_started)
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     Debug_printf("FileSystemHTTP::dir_open(\"%s\", \"%s\", %u)\n", path ? path : "", pattern ? pattern : "", diropts);
     HEAP_DEBUG();
@@ -268,7 +268,7 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
     }
 
     if (path == nullptr)
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     if (strcmp(_last_dir, path) == 0 && !_dircache.empty())
     {
@@ -287,7 +287,7 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
         if (_http == nullptr)
         {
             Debug_println("FileSystemHTTP::dir_open() - failed to create HTTP client\n");
-            return false;
+            RETURN_ERROR_AS_FALSE();
         }
         // url + '/' + path + '/'
         std::string url_str = _url->url;
@@ -299,14 +299,14 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
         if (!_http->begin(url_str))
         {
             Debug_println("FileSystemHTTP::dir_open - failed to start HTTP client");
-            return false;
+            RETURN_ERROR_AS_FALSE();
         }
     
         // Setup HTML Index parser
         if (_parser.begin_parser())
         {
             Debug_printf("Failed to setup parser.\r\n");
-            return false;
+            RETURN_ERROR_AS_FALSE();
         }
 
         // GET request
@@ -314,7 +314,7 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
         if (_http->GET() > 399)
         {
             Debug_println("FileSystemHTTP::dir_open - GET failed");
-            return false;
+            RETURN_ERROR_AS_FALSE();
         }
     
         // Remember last visited directory
@@ -334,7 +334,7 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
         if (buf == nullptr)
         {
             Debug_println("FileSystemHTTP::dir_open - failed to allocate buffer");
-            return false;
+            RETURN_ERROR_AS_FALSE();
         }
 
         // Process all response chunks
@@ -402,7 +402,7 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
         {
             Debug_println("Cancelled");
             _parser.clear();
-            return false;
+            RETURN_ERROR_AS_FALSE();
         }
         else
         {
@@ -511,7 +511,7 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
     _dircache.apply_filter(pattern, diropts);
 
     HEAP_DEBUG();
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 fsdir_entry *FileSystemHTTP::dir_read()
@@ -529,7 +529,7 @@ uint16_t FileSystemHTTP::dir_tell()
     return _dircache.tell();
 }
 
-bool FileSystemHTTP::dir_seek(uint16_t pos)
+success_is_true FileSystemHTTP::dir_seek(uint16_t pos)
 {
     return _dircache.seek(pos);
 }

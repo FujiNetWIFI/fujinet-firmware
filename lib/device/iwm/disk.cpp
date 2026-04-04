@@ -595,7 +595,7 @@ int iwmDisk::prodos_write_block(fnFile *f, const unsigned char *buf)
  * @param f file to write to
  * @return true if error, false if success
  */
-bool iwmDisk::prodos_write_boot_block(fnFile *f)
+error_is_true iwmDisk::prodos_write_boot_block(fnFile *f)
 {
   unsigned char buf[PRODOS_BLOCK_SIZE];
   memset(&buf,0,sizeof(buf));
@@ -605,25 +605,25 @@ bool iwmDisk::prodos_write_boot_block(fnFile *f)
   {
     Debug_printf("Could not open /prodos_boot_block.bin. Aborting.\n");
     fclose(sf);
-    return true;
+    RETURN_ERROR_AS_TRUE();
   }
 
   if (fread(buf,sizeof(unsigned char),sizeof(buf),sf) != sizeof(buf))
   {
     Debug_printf("Short read of prodos_boot_block.bin, aborting.\n");
     fclose(sf);
-    return true;
+    RETURN_ERROR_AS_TRUE();
   }
   if (fnio::fwrite(buf,sizeof(unsigned char),sizeof(buf),f) != sizeof(buf))
   {
     Debug_printf("Short write to destination image. Aborting.\n");
     fclose(sf);
-    return true;
+    RETURN_ERROR_AS_TRUE();
   }
 
   fclose(sf);
   Debug_printf("ProDOS boot block written successfully.\n");
-  return false;
+  RETURN_SUCCESS_AS_FALSE();
 }
 
 /**
@@ -631,7 +631,7 @@ bool iwmDisk::prodos_write_boot_block(fnFile *f)
  * @param f file to write to
  * @return true if error, false if success
  */
-bool iwmDisk::prodos_write_sos_block(fnFile *f)
+error_is_true iwmDisk::prodos_write_sos_block(fnFile *f)
 {
   unsigned char buf[PRODOS_BLOCK_SIZE];
   memset(&buf,0,sizeof(buf));
@@ -639,14 +639,14 @@ bool iwmDisk::prodos_write_sos_block(fnFile *f)
   if (fnio::fwrite(buf,sizeof(unsigned char),sizeof(buf),f) != sizeof(buf))
   {
     Debug_printf("Short write to destination image. Aborting.\n");
-    return true;
+    RETURN_ERROR_AS_TRUE();
   }
 
   Debug_printf("ProDOS SOS block written successfully.\n");
-  return false;
+  RETURN_SUCCESS_AS_FALSE();
 }
 
-bool iwmDisk::prodos_write_directory_sectors(fnFile *f, uint16_t numBlocks, const char *label)
+error_is_true iwmDisk::prodos_write_directory_sectors(fnFile *f, uint16_t numBlocks, const char *label)
 {
   unsigned char block[PRODOS_BLOCK_SIZE];
   unsigned short cr_date, cr_time;
@@ -712,11 +712,11 @@ bool iwmDisk::prodos_write_directory_sectors(fnFile *f, uint16_t numBlocks, cons
     if (prodos_write_block(f, block)<0)
     {
       Debug_printf("Short write to destination image. Aborting.\n");
-      return true;
+      RETURN_ERROR_AS_TRUE();
     }
   }
 
-  return false;
+  RETURN_SUCCESS_AS_FALSE();
 }
 
 /**
@@ -725,7 +725,7 @@ bool iwmDisk::prodos_write_directory_sectors(fnFile *f, uint16_t numBlocks, cons
  * @param numBlocks total number of blocks on the volume
  * @return true if error, false if success
  */
-bool iwmDisk::prodos_write_bitmap(fnFile *f, uint16_t numBlocks)
+error_is_true iwmDisk::prodos_write_bitmap(fnFile *f, uint16_t numBlocks)
 {
     unsigned int bitmapBytes       = ((unsigned int)numBlocks + 7u) / 8u;
     unsigned int bitmapBlocks      = (bitmapBytes + PRODOS_BLOCK_SIZE - 1u) / PRODOS_BLOCK_SIZE;
@@ -736,7 +736,7 @@ bool iwmDisk::prodos_write_bitmap(fnFile *f, uint16_t numBlocks)
     if (!bitmap)
     {
         Debug_printf("Failed to allocate memory for ProDOS bitmap.\n");
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
     else
         Debug_printf("ProDOS bitmap: numBlocks=%u, bitmapBytes=%u, bitmapBlocks=%u, totalSystemBlocks=%u\n",
@@ -758,13 +758,13 @@ bool iwmDisk::prodos_write_bitmap(fnFile *f, uint16_t numBlocks)
       {
         Debug_printf("Short write to destination image. Aborting.\n");
         free(bitmap);
-        return true;
+        RETURN_ERROR_AS_TRUE();
       }
     }
 
     free(bitmap);
     Debug_printf("ProDOS bitmap blocks written successfully.\n");
-    return false;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 /**
@@ -774,7 +774,7 @@ bool iwmDisk::prodos_write_bitmap(fnFile *f, uint16_t numBlocks)
  * @verbose Uses a sparse write.
  * @return true if error, false if success
  */
-bool iwmDisk::prodos_write_data_blocks(fnFile *f, uint16_t numBlocks)
+error_is_true iwmDisk::prodos_write_data_blocks(fnFile *f, uint16_t numBlocks)
 {
   unsigned char buf[PRODOS_BLOCK_SIZE];
   unsigned long offset = (numBlocks - 1) * PRODOS_BLOCK_SIZE;
@@ -785,12 +785,12 @@ bool iwmDisk::prodos_write_data_blocks(fnFile *f, uint16_t numBlocks)
   if (fnio::fwrite(buf,sizeof(unsigned char),sizeof(buf),f) != sizeof(buf))
   {
     Debug_printf("Short write to destination image. Aborting.\n");
-    return true;
+    RETURN_ERROR_AS_TRUE();
   }
 
   Debug_printf("ProDOS data blocks written successfully.\n");
 
-  return false;
+  RETURN_SUCCESS_AS_FALSE();
 }
 
 static unsigned char random_hex_digit()
@@ -810,7 +810,7 @@ static const char *prodos_generate_temp_name()
  * Used for writing ProDOS images which exist in multiples of
  * 512 byte blocks.
  */
-bool iwmDisk::write_blank(fnFile *f, uint16_t numBlocks, uint8_t blank_header_type)
+error_is_true iwmDisk::write_blank(fnFile *f, uint16_t numBlocks, uint8_t blank_header_type)
 {
   unsigned char buf[512];
 
@@ -823,7 +823,7 @@ bool iwmDisk::write_blank(fnFile *f, uint16_t numBlocks, uint8_t blank_header_ty
     {
       Debug_printf("Could not open /blank.do. Aborting.\n");
       fclose(sf);
-      return true;
+      RETURN_ERROR_AS_TRUE();
     }
 
     while (!feof(sf))
@@ -832,19 +832,19 @@ bool iwmDisk::write_blank(fnFile *f, uint16_t numBlocks, uint8_t blank_header_ty
       {
         Debug_printf("Short read of blank.do, aborting.\n");
         fclose(sf);
-        return true;
+        RETURN_ERROR_AS_TRUE();
       }
       if (fnio::fwrite(buf,sizeof(unsigned char),sizeof(buf),f) != sizeof(buf))
       {
         Debug_printf("Short write to destination image. Aborting.\n");
         fclose(sf);
-        return true;
+        RETURN_ERROR_AS_TRUE();
       }
     }
 
     fclose(sf);
     Debug_printf("Creation of new DOS 3.3 disk successful.\n");
-    return false;
+    RETURN_SUCCESS_AS_FALSE();
   }
 
   if (blank_header_type == 1) // 2MG
@@ -877,19 +877,19 @@ bool iwmDisk::write_blank(fnFile *f, uint16_t numBlocks, uint8_t blank_header_ty
   }
 
   if (prodos_write_boot_block(f))
-    return true;
+    RETURN_ERROR_AS_TRUE();
   if (prodos_write_sos_block(f))
-    return true;
+    RETURN_ERROR_AS_TRUE();
   if (prodos_write_directory_sectors(f, numBlocks, prodos_generate_temp_name()))
-    return true;
+    RETURN_ERROR_AS_TRUE();
   if (prodos_write_bitmap(f, numBlocks))
-    return true;
+    RETURN_ERROR_AS_TRUE();
   if (prodos_write_data_blocks(f, numBlocks))
-    return true;
+    RETURN_ERROR_AS_TRUE();
 
   Debug_printf("Creation of new ProDOS disk successful.\n");
 
-  return false;
+  RETURN_SUCCESS_AS_FALSE();
 }
 
 // End of ProDOS image creation functions.

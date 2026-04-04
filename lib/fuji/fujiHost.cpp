@@ -122,11 +122,11 @@ uint16_t fujiHost::dir_tell()
     return result;
 }
 
-bool fujiHost::dir_seek(uint16_t pos)
+success_is_true fujiHost::dir_seek(uint16_t pos)
 {
     Debug_printf("::dir_seek {%d:%d} %hu\n", slotid, _type, pos);
     if (_fs == nullptr)
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     bool result = false;
     switch (_type)
@@ -142,22 +142,22 @@ bool fujiHost::dir_seek(uint16_t pos)
     case HOSTTYPE_UNINITIALIZED:
         break;
     }
-    return result;
+    RETURN_SUCCESS_IF(result);
 }
 
-bool fujiHost::dir_open(const char *path, const char *pattern, uint16_t options)
+success_is_true fujiHost::dir_open(const char *path, const char *pattern, uint16_t options)
 {
     Debug_printf("::dir_open {%d:%d} \"%s\", pattern \"%s\"\n", slotid, _type, path, pattern ? pattern : "");
     if (_fs == nullptr)
     {
         Debug_println("::dir_open no FileSystem set");
-        return false;
+        RETURN_ERROR_AS_FALSE();
     }
 
     // Add our prefix before opening
     char realpath[MAX_PATHLEN];
     if( false == util_concat_paths(realpath, _prefix, path, sizeof(realpath)) )
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     Debug_printf("::dir_open actual path = \"%s\"\n", realpath);
 
@@ -175,7 +175,7 @@ bool fujiHost::dir_open(const char *path, const char *pattern, uint16_t options)
     case HOSTTYPE_UNINITIALIZED:
         break;
     }
-    return result;
+    RETURN_SUCCESS_IF(result);
 }
 
 fsdir_entry_t *fujiHost::dir_nextfile()
@@ -257,12 +257,12 @@ fnFile * fujiHost::fnfile_open(const char *path, char *fullpath, int fullpathlen
 /* Remove a file from the host
  * Returns true on error, false on success
 */
-bool fujiHost::file_remove(char *fullpath)
+error_is_true fujiHost::file_remove(char *fullpath)
 {
     if (_type == HOSTTYPE_UNINITIALIZED || _fs == nullptr)
-        return true;
+        RETURN_ERROR_AS_TRUE();
 
-    return _fs->remove(fullpath);
+    RETURN_ERROR_IF(_fs->remove(fullpath));
 }
 
 /* Returns pointer to current hostname and, if provided, fills buffer with that string
@@ -551,47 +551,47 @@ int fujiHost::unmount_fs()
 *  "http://" or "https://" = Web server with file/dir-like access
 *  anything else = TNFS
 */
-bool fujiHost::mount()
+success_is_true fujiHost::mount()
 {
     Debug_printf("::mount {%d} \"%s\"\n", slotid, _hostname);
 
     if (strlen(_hostname) == 0) {
         Debug_printf("::mount hostname is empty, exiting\r\n");
-        return false;
+        RETURN_ERROR_AS_FALSE();
     }
 
     // Try mounting locally first
     if (0 == mount_local())
-        return true;
+        RETURN_SUCCESS_AS_TRUE();
 
     if (0 == strncasecmp("smb://", _hostname, 6))
-        return 0 == mount_smb();
+        RETURN_SUCCESS_IF(0 == mount_smb());
 
     if (0 == strncasecmp("nfs://", _hostname, 6))
-        return 0 == mount_nfs();
+        RETURN_SUCCESS_IF(0 == mount_nfs());
 
     if (0 == strncasecmp("ftp://", _hostname, 6))
-        return 0 == mount_ftp();
+        RETURN_SUCCESS_IF(0 == mount_ftp());
 
     if (0 == strncasecmp("http://", _hostname, 7) || 0 == strncasecmp("https://", _hostname, 8))
-        return 0 == mount_http();
+        RETURN_SUCCESS_IF(0 == mount_http());
 
     // Try mounting TNFS last
-    return 0 == mount_tnfs();
+    RETURN_SUCCESS_IF(0 == mount_tnfs());
 }
 
 /* Returns true if successful
 */
-bool fujiHost::unmount_success()
+success_is_true fujiHost::unmount_success()
 {
     Debug_printf("::unmount {%d} \"%s\"\n", slotid+1, _hostname);
 
     if (_type == HOSTTYPE_LOCAL)
     {
         Debug_println("::skip unmounting SD");
-        return 0;
+        RETURN_ERROR_AS_FALSE();
     }
 
     // Try unmounting TNFS/SMB/FTP/HTTP/...
-    return 0 == unmount_fs();
+    RETURN_SUCCESS_IF(0 == unmount_fs());
 }

@@ -275,7 +275,7 @@ void rs232Disk::unmount()
 }
 
 // Create blank disk
-bool rs232Disk::write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
+success_is_true rs232Disk::write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
 {
     Debug_print("disk CREATE NEW IMAGE\n");
 

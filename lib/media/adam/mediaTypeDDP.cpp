@@ -19,10 +19,10 @@ uint32_t MediaTypeDDP::_block_to_offset(uint32_t blockNum)
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
+error_is_true MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
 {
     if (blockNum == _media_last_block)
-        return false; // We already have block.
+        RETURN_SUCCESS_AS_FALSE(); // We already have block.
 
     Debug_print("DDP READ\r\n");
 
@@ -31,7 +31,7 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
     {
         Debug_printf("::read block %lu > %lu\r\n", blockNum, _media_num_blocks);
         _media_controller_status=2;
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
     memset(_media_blockbuff, 0, sizeof(_media_blockbuff));
@@ -52,20 +52,20 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
     {
         _media_last_block = blockNum;
         _media_controller_status = 0;
-        return false;
+        RETURN_SUCCESS_AS_FALSE();
     }
     else
     {
         _media_last_block = INVALID_SECTOR_VALUE;
         _media_controller_status = 2;
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
-    return err;
+    RETURN_ERROR_IF(err);
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeDDP::write(uint32_t blockNum, bool verify)
+error_is_true MediaTypeDDP::write(uint32_t blockNum, bool verify)
 {
     Debug_printf("DDP WRITE [%lu/%lu]\r\n", blockNum, _media_num_blocks);
 
@@ -91,7 +91,7 @@ bool MediaTypeDDP::write(uint32_t blockNum, bool verify)
         {
             Debug_printf("::write seek error %d\r\n", e);
             _media_controller_status=2;
-            return true;
+            RETURN_ERROR_AS_TRUE();
         }
 //    }
     // Write the data
@@ -103,7 +103,7 @@ bool MediaTypeDDP::write(uint32_t blockNum, bool verify)
     if (e != 1024)
     {
         Debug_printf("::write error %d, %d\r\n", e, errno);
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
     int ret = fflush(_media_fileh);    // This doesn't seem to be connected to anything in ESP-IDF VF, so it may not do anything
@@ -127,7 +127,7 @@ bool MediaTypeDDP::write(uint32_t blockNum, bool verify)
 
     _media_last_block = INVALID_SECTOR_VALUE;
     _media_controller_status=0;
-    return false;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 uint8_t MediaTypeDDP::status()
@@ -136,9 +136,9 @@ uint8_t MediaTypeDDP::status()
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeDDP::format(uint16_t *responsesize)
+error_is_true MediaTypeDDP::format(uint16_t *responsesize)
 {
-    return false;
+    RETURN_ERROR_AS_TRUE();
 }
 
 mediatype_t MediaTypeDDP::mount(FILE *f, uint32_t disksize)
@@ -154,10 +154,10 @@ mediatype_t MediaTypeDDP::mount(FILE *f, uint32_t disksize)
 }
 
 // Returns FALSE on error
-bool MediaTypeDDP::create(FILE *f, uint32_t numBlocks)
+success_is_true MediaTypeDDP::create(FILE *f, uint32_t numBlocks)
 {
     Debug_print("DDP CREATE\r\n");
 
-    return true;
+    RETURN_ERROR_AS_FALSE();
 }
 #endif /* BUILD_ADAM */

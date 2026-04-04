@@ -20,7 +20,7 @@ uint32_t MediaTypeImg::_sector_to_offset(uint32_t sectorNum)
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeImg::read(uint32_t sectornum, uint32_t *readcount)
+error_is_true MediaTypeImg::read(uint32_t sectornum, uint32_t *readcount)
 {
     Debug_print("IMG READ\r\n");
 
@@ -30,7 +30,7 @@ bool MediaTypeImg::read(uint32_t sectornum, uint32_t *readcount)
     if (sectornum > _disk_num_sectors)
     {
         Debug_printf("::read sector %ld > %lu\r\n", sectornum, _disk_num_sectors);
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
     uint16_t sectorSize = sector_size(sectornum);
@@ -55,11 +55,11 @@ bool MediaTypeImg::read(uint32_t sectornum, uint32_t *readcount)
 
     *readcount = sectorSize;
 
-    return err;
+    RETURN_ERROR_IF(err);
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeImg::write(uint32_t sectornum, bool verify)
+error_is_true MediaTypeImg::write(uint32_t sectornum, bool verify)
 {
     Debug_printf("IMG WRITE\r\n");
 
@@ -67,7 +67,7 @@ bool MediaTypeImg::write(uint32_t sectornum, bool verify)
     if (sectornum > _disk_num_sectors)
     {
         Debug_printf("::write sector %ld > %lu\r\n", sectornum, _disk_num_sectors);
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
     uint16_t sectorSize = sector_size(sectornum);
@@ -83,7 +83,7 @@ bool MediaTypeImg::write(uint32_t sectornum, bool verify)
         if (e != 0)
         {
             Debug_printf("::write seek error %d\r\n", e);
-            return true;
+            RETURN_ERROR_AS_TRUE();
         }
     }
     // Write the data
@@ -91,7 +91,7 @@ bool MediaTypeImg::write(uint32_t sectornum, bool verify)
     if (e != sectorSize)
     {
         Debug_printf("::write error %d, %d\r\n", e, errno);
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
     int ret = fnio::fflush(_disk_fileh); // Since we might get reset at any moment, go ahead and sync the file
@@ -99,7 +99,7 @@ bool MediaTypeImg::write(uint32_t sectornum, bool verify)
 
     _disk_last_sector = sectornum;
 
-    return false;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 void MediaTypeImg::status(uint8_t statusbuff[4])
@@ -125,7 +125,7 @@ void MediaTypeImg::status(uint8_t statusbuff[4])
     a sector-sized buffer containing a list of 16-bit bad sector numbers terminated by $FFFF.
 */
 // Returns TRUE if an error condition occurred
-bool MediaTypeImg::format(uint32_t *responsesize)
+error_is_true MediaTypeImg::format(uint32_t *responsesize)
 {
     Debug_print("IMG FORMAT\r\n");
 
@@ -136,7 +136,7 @@ bool MediaTypeImg::format(uint32_t *responsesize)
 
     *responsesize = _disk_sector_size;
 
-    return false;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 /* 
@@ -164,8 +164,8 @@ mediatype_t MediaTypeImg::mount(fnFile *f, uint32_t disksize)
 }
 
 // Returns FALSE on error
-bool MediaTypeImg::create(fnFile *f, uint16_t sectorSize, uint32_t numSectors)
+success_is_true MediaTypeImg::create(fnFile *f, uint16_t sectorSize, uint32_t numSectors)
 {
-    return true;
+    RETURN_ERROR_AS_FALSE();
 }
 #endif /* BUILD_ATARI */
