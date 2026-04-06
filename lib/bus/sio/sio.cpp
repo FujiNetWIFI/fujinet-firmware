@@ -182,12 +182,8 @@ void virtualDevice::sio_error()
 void virtualDevice::sio_high_speed()
 {
     Debug_print("sio HSIO INDEX\n");
-#ifdef ESP_PLATFORM
-    uint8_t hsd = SYSTEM_BUS.getHighSpeedIndex();
-#else
     int index = SYSTEM_BUS.getHighSpeedIndex();
     uint8_t hsd = index == HSIO_INVALID_INDEX ? 40 : (uint8_t)index;
-#endif
     bus_to_computer((uint8_t *)&hsd, 1, false);
 }
 
@@ -526,13 +522,8 @@ void systemBus::setup()
         _port = &_serial;
     }
 
-    // Set the initial HSIO index
-    // First see if Config has read a value
-    int i = Config.get_general_hsioindex();
-    if (i != HSIO_INVALID_INDEX)
-        setHighSpeedIndex(i);
-    else
-        setHighSpeedIndex(_sioHighSpeedIndex);
+    // Set the initial HSIO index from config; HSIO_INVALID_INDEX (-1) disables HSIO.
+    setHighSpeedIndex(Config.get_general_hsioindex());
 
     _port->discardInput();
 }
@@ -674,6 +665,13 @@ int systemBus::setHighSpeedIndex(int hsio_index)
     int temp = _sioBaudHigh;
 
 #ifdef ESP_PLATFORM
+    if (hsio_index == HSIO_INVALID_INDEX)
+    {
+        _sioHighSpeedIndex = HSIO_INVALID_INDEX;
+        _sioBaudHigh = SIO_STANDARD_BAUDRATE;
+        Debug_print("HSIO disabled\n");
+        return _sioBaudHigh;
+    }
     _sioBaudHigh = (SIO_ATARI_PAL_FREQUENCY * 10) / (10 * (2 * (hsio_index + 7)) + 3);
     _sioHighSpeedIndex = hsio_index;
 
