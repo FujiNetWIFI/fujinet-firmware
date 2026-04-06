@@ -503,7 +503,7 @@ void mgHttpClient::process_response_headers(struct mg_connection *c, struct mg_h
 
     if ((te = mg_http_get_header(&hm, "Transfer-Encoding")) != nullptr)
     {
-        if (mg_casecmp(te->buf, "chunked") == 0)
+        if (mg_strcasecmp(*te, mg_str("chunked")) == 0)
         {
             _is_chunked = true;
         }
