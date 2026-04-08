@@ -1,7 +1,8 @@
-# Visual Studio Code workspace files
+# IDE/editor files
 *.code-workspace
 **/.vscode
 .vs/
+.zed
 
 # PlatformIO build directory
 **/.pio

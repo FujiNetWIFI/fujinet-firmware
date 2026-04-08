@@ -1,14 +1,17 @@
-#include "rs232/diskType.h"
 #ifdef BUILD_RS232
 
 #include "disk.h"
 #include "fujiCommandID.h"
 
+#include <cstdint>
 #include <cstring>
+#include <algorithm>
 
 #include "../../include/debug.h"
 
 #include "fujiDevice.h"
+#include "rs232/diskType.h"
+#include "rs232/romIdentifier.h"
 #include "romType.h"
 #include "utils.h"
 
@@ -220,24 +223,33 @@ mediatype_t rs232Disk::mount_disk_media(fnFile *f, const char *filename, uint32_
 
 mediatype_t rs232Disk::mountROM(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
-    uint32_t offset, rlen, sectorNum;
+    uint32_t offset, len, sectorNum;
+    uint16_t i;
+    uint32_t chunk_size = 512;
     MediaTypeImg romImage;
 
-    // TODO: Don't assume MSX
-    // TODO: Replace with ROM DB lookup
-    // TODO: Should this be a sub-type of the MediaType z?
-    fujiROMType_t romType = ROM_TYPE_MSX_PLAIN;
-    int filename_len = strlen(filename);
-    if (0 == strncmp("[Konami].rom", &filename[filename_len-12], 12))
-        romType = ROM_TYPE_MSX_KONAMI;
-    else if (0 == strncmp("[KonamiSCC].rom", &filename[filename_len-15], 15))
-        romType = ROM_TYPE_MSX_KONAMI_SCC;
-    else if (0 == strncmp("[ASCII8].rom", &filename[filename_len-12], 12))
-        romType = ROM_TYPE_MSX_ASCII8;
-    else if (0 == strncmp("[ASCII16].rom", &filename[filename_len-13], 13))
-        romType = ROM_TYPE_MSX_ASCII16;
+    // Lazily instantiate RomIdentifier -- loads 500K ROM DB into memory
+    if (_romIdentifier == nullptr) {
+	   	_romIdentifier = new RomIdentifier;
+    }
 
     romImage.mount(f, disksize);
+
+    // Read in full ROM to identify it
+   	std::vector<uint8_t> romData;
+	for (offset = sectorNum = 0; offset < disksize; offset += len, sectorNum++)
+    {
+        if (romImage.read(sectorNum, &len) != 0)
+            break;
+        for (i = 0; i < len; i++)
+	        romData.push_back(romImage._disk_sectorbuff[i]);
+    }
+
+	// TODO: Don't assume MSX
+    // TODO: Should this be a sub-type of the MediaType z?
+	fujiROMType_t romType = _romIdentifier->identify_rom_type(romData);
+    if (romType == ROM_TYPE_UNKNOWN)
+    	romType = ROM_TYPE_MSX_PLAIN;
 
     Debug_printv("Attempting to send ROM contents to pico");
     // "open" RAM in bank
@@ -246,17 +258,17 @@ mediatype_t rs232Disk::mountROM(fnFile *f, const char *filename, uint32_t disksi
         return (mediatype_t) -1;
     }
 
-    for (offset = sectorNum = 0; offset < disksize; offset += rlen, sectorNum++)
+    offset = 0;
+    len = 0;
+    while (offset < disksize)
     {
-        if (romImage.read(sectorNum, &rlen) != 0)
-            break;
-        if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_WRITE,
-                                    std::string((char *) romImage._disk_sectorbuff, rlen))) {
+	   	if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_WRITE,
+                                      std::string(romData.begin() + offset, romData.begin() + offset + len))) {
             Debug_printv("Failed to send block");
             break;
         }
-
-        // usleep(30000);
+       	offset += len;
+      	len = std::min(disksize - offset, chunk_size);
     }
 
     // "closing" RAM will make the bank active

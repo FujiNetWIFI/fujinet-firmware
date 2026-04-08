@@ -6,12 +6,14 @@
 #include "../disk.h"
 #include "bus.h"
 #include "media.h"
+#include "rs232/romIdentifier.h"
 
 class rs232Disk : public virtualDevice
 {
 private:
     MediaType *_disk = nullptr;
     time_t _mount_time = 0;
+    RomIdentifier *_romIdentifier = nullptr;
 
     void rs232_read(uint32_t sector);
     void rs232_write(uint32_t sector, bool verify);
