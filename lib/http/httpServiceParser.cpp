@@ -397,7 +397,11 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << SYSTEM_BUS.getHighSpeedBaud();
         break;
 #endif /* BUILD_ATARI */
-#ifndef ESP_PLATFORM
+#if defined(BUILD_RS232)
+    case FN_SERIAL_PORT_BAUD:
+        resultstream << Config.get_rs232_baud();
+        break;
+#elif !defined(ESP_PLATFORM)
     case FN_SERIAL_PORT:
         resultstream << Config.get_serial_port();
         break;
