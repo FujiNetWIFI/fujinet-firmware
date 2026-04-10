@@ -340,7 +340,7 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
             fujicmd_get_host_prefix(packet.param(0));
         break;
     case FUJICMD_WRITE_APPKEY:
-        fujicmd_write_app_key(packet.data()->size());
+        fujicmd_write_app_key(packet.data() ? packet.data()->size() : 0);
         break;
     case FUJICMD_READ_APPKEY:
         fujicmd_read_app_key();
