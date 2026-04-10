@@ -307,16 +307,12 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
     _scan_records = nullptr;
     _scan_record_count = 0;
 
-    wifi_scan_config_t scan_conf;
-    scan_conf.bssid = 0;
-    scan_conf.ssid = 0;
+    wifi_scan_config_t scan_conf = {};
     scan_conf.channel = 0;
     scan_conf.show_hidden = false;
     scan_conf.scan_type = WIFI_SCAN_TYPE_ACTIVE;
     scan_conf.scan_time.active.min = 100; // ms; 100 is what Arduino-ESP uses
     scan_conf.scan_time.active.max = 300; // ms; 300 is what Arduino-ESP uses
-    scan_conf.channel_bitmap.ghz_2_channels = 0xFFFF; // all channels
-    scan_conf.channel_bitmap.ghz_5_channels = 0xFFFFFFFF; // all channels
 
     bool temporary_disconnect = false;
     uint16_t result = 0;
