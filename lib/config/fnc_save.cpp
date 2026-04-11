@@ -203,6 +203,12 @@ void fnConfig::save()
 #endif
 #endif
 
+#ifdef BUILD_RS232
+    // SERIAL
+    ss << LINETERM << "[Serial]" << LINETERM;
+    ss << "baud=" << _serial.baud << LINETERM;
+#endif
+
 #ifdef ESP_PLATFORM
     // Write the results out
     FILE *fout = NULL;
