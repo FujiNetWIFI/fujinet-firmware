@@ -3,6 +3,7 @@
  */
 
 #include "Protocol.h"
+#include "TCP.h"
 
 #include <algorithm>
 #include <errno.h>
@@ -150,7 +151,9 @@ fujiError_t NetworkProtocol::read(unsigned short len)
  */
 fujiError_t NetworkProtocol::status(NetworkStatus *status)
 {
-    if (fromInterrupt)
+    bool isTCP = dynamic_cast<NetworkProtocolTCP*>(this) != nullptr;
+
+    if (fromInterrupt && !isTCP)
         return FUJI_ERROR::NONE;
 
     if (!was_write && receiveBuffer->length() == 0 && available() > 0)
