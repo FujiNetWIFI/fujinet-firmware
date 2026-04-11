@@ -313,6 +313,10 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
     scan_conf.scan_type = WIFI_SCAN_TYPE_ACTIVE;
     scan_conf.scan_time.active.min = 100; // ms; 100 is what Arduino-ESP uses
     scan_conf.scan_time.active.max = 300; // ms; 300 is what Arduino-ESP uses
+#ifndef BUILD_COCO
+    scan_conf.channel_bitmap.ghz_2_channels = 0xFFFF; // all channels
+    scan_conf.channel_bitmap.ghz_5_channels = 0xFFFFFFFF; // all channels
+#endif
 
     bool temporary_disconnect = false;
     uint16_t result = 0;
