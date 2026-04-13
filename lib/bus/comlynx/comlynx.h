@@ -18,23 +18,6 @@
 
 #define COMLYNX_BAUDRATE 62500
 
-#define MN_RESET 0x00   // command.control (reset)
-#define MN_STATUS 0x01  // command.control (status)
-#define MN_ACK 0x02     // command.control (ack)
-#define MN_CLR 0x03     // command.control (clr) (aka CTS)
-#define MN_RECEIVE 0x04 // command.control (receive)
-#define MN_CANCEL 0x05  // command.control (cancel)
-#define MN_SEND 0x06    // command.control (send)
-#define MN_NACK 0x07    // command.control (nack)
-#define MN_READY 0x0D   // command.control (ready)
-
-#define NM_STATUS 0x08 // response.control (status)
-#define NM_ACK 0x09    // response.control (ack)
-#define NM_CANCEL 0x0A // response.control (cancel)
-#define NM_SEND 0x0B   // response.data (send)
-#define NM_NACK 0x0C   // response.control (nack)
-
-
 #define COMLYNX_RESET_DEBOUNCE_PERIOD 100 // in ms
 
 class systemBus;
@@ -138,11 +121,6 @@ protected:
     virtual void comlynx_response_nack();
 
     /**
-     * @brief acknowledge if device is ready, but not if cmd took too long.
-     */
-    //virtual void comlynx_control_ready();
-
-    /**
      * @brief Device Number: 0-15
      */
     fujiDeviceID_t _devnum;
@@ -156,34 +134,9 @@ protected:
     virtual void comlynx_process();
 
     /**
-     * @brief Do any tasks that can only be done when the bus is quiet
-     */
-    //virtual void comlynx_idle();
-
-    /**
-     * @brief send current status of device
-     */
-    //virtual void comlynx_control_status();
-
-    /**
-     * @brief lynx says clear to send!
-     */
-    //virtual void comlynx_control_clr();
-
-    /**
-     * @brief send status response
-     */
-    //virtual void comlynx_response_status();
-
-    /**
      * @brief command frame, used by network protocol, ultimately
      */
     cmdFrame_t cmdFrame;
-
-    /**
-     * The response sent in comlynx_response_status()
-     */
-    //uint8_t status_response[6] = {0x80,0x00,0x00,0x01,0x00,0x00};
 
     /**
      * Response buffer and length
@@ -225,7 +178,6 @@ public:
 class systemBus
 {
 private:
-    //std::map<uint8_t, virtualDevice *> _daisyChain;
     std::forward_list<virtualDevice *> _daisyChain;
     virtualDevice *_activeDev = nullptr;
     lynxFuji *_fujiDev = nullptr;
@@ -253,7 +205,7 @@ public:
     /**
      * stopwatch
      */
-    int64_t start_time;
+    //int64_t start_time;
 
     int numDevices();
     void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id);

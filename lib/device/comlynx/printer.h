@@ -1,8 +1,8 @@
 #ifndef LYNX_PRINTER_H
 #define LYNX_PRINTER_H
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+//#include <freertos/FreeRTOS.h>
+//#include <freertos/task.h>
 
 #include <cstdint>
 #include <string>
@@ -20,7 +20,7 @@ class lynxPrinter : public virtualDevice
 {
 protected:
     // SIO THINGS
-    TaskHandle_t thPrinter;
+    //TaskHandle_t thPrinter;
 
     uint8_t _buffer[16];
 
@@ -106,7 +106,7 @@ public:
 
 private:
     printer_type _ptype;
-    TaskHandle_t ioTask = NULL;
+    //TaskHandle_t ioTask = NULL;
     bool _backwards = false;
 
 };

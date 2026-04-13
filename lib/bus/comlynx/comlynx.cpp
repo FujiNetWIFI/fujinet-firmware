@@ -15,8 +15,6 @@
 
 #define IDLE_TIME 500 // Idle tolerance in microseconds (roughly three characters at 62500 baud)
 
-//systemBus SYSTEM_BUS.;
-
 static QueueHandle_t reset_evt_queue = NULL;
 
 static void IRAM_ATTR comlynx_reset_isr_handler(void *arg)
@@ -367,34 +365,8 @@ void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
     }
 
     pDevice->_devnum = device_id;
-    //_daisyChain[device_id] = pDevice;
     _daisyChain.push_front(pDevice);
-
-    /*switch (device_id)
-    {
-    case FUJI_DEVICEID_PRINTER:
-        _printerDev = (lynxPrinter *)pDevice;
-        break;
-    case FUJI_DEVICEID_FUJINET:
-        _fujiDev = (lynxFuji *)pDevice;
-        break;
-    default:
-        break;
-    }*/
 }
-
-/*bool systemBus::deviceExists(fujiDeviceID_t device_id)
-{
-    return _daisyChain.find(device_id) != _daisyChain.end();
-}*/
-
-/*bool systemBus::deviceEnabled(fujiDeviceID_t device_id)
-{
-    if (deviceExists(device_id))
-        return _daisyChain[device_id]->device_active;
-    else
-        return false;
-}*/
 
 void systemBus::remDevice(virtualDevice *pDevice)
 {
@@ -403,10 +375,6 @@ void systemBus::remDevice(virtualDevice *pDevice)
 
 void systemBus::remDevice(fujiDeviceID_t device_id)
 {
-    /*if (deviceExists(device_id))
-    {
-        _daisyChain.erase(device_id);
-    }*/
 }
 
 int systemBus::numDevices()
@@ -446,18 +414,10 @@ void systemBus::reset()
 
 void systemBus::enableDevice(fujiDeviceID_t device_id)
 {
-    /*Debug_printf("Enabling Comlynx Device %d\n", device_id);
-
-    if (_daisyChain.find(device_id) != _daisyChain.end())
-        _daisyChain[device_id]->device_active = true;*/
 }
 
 void systemBus::disableDevice(fujiDeviceID_t device_id)
 {
-    /*Debug_printf("Disabling Comlynx Device %d\n", device_id);
-
-    if (_daisyChain.find(device_id) != _daisyChain.end())
-        _daisyChain[device_id]->device_active = false;*/
 }
 
 void systemBus::setUDPHost(const char *hostname, int port)
@@ -509,14 +469,12 @@ void systemBus::setUDPHost(const char *hostname, int port)
     }
 }
 
-
 void systemBus::setRedeyeMode(bool enable)
 {
     Debug_printf("setRedeyeMode, %d\n", enable);
     _udpDev->redeye_mode = enable;
     _udpDev->redeye_logon = true;
 }
-
 
 void systemBus::setRedeyeGameRemap(uint32_t remap)
 {

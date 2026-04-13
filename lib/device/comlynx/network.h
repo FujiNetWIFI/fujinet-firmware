@@ -1,18 +1,14 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
-#include <esp_timer.h>
+//#include <esp_timer.h>
 #include <memory>
 #include <string>
 
 #include "bus.h"
-
 #include "peoples_url_parser.h"
-
 #include "Protocol.h"
-
 #include "fnjson.h"
-
 #include "ProtocolParser.h"
 
 /**
@@ -49,13 +45,7 @@ public:
     /**
      * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
      */
-    portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
-
-    /**
-     * Toggled by the rate limiting timer to indicate that the PROCEED interrupt should
-     * be pulsed.
-     */
-    bool interruptProceed = false;
+    //portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
     /**
      * Called for LYNX Command 'O' to open a connection to a network protocol, allocate all buffers,
@@ -214,11 +204,6 @@ private:
     nDevStatus_t err = NDEV_STATUS::SUCCESS;
 
     /**
-     * ESP timer handle for the Interrupt rate limiting timer
-     */
-    esp_timer_handle_t rateTimerHandle = nullptr;
-
-    /**
      * Devicespec passed to us, e.g. N:HTTP://WWW.GOOGLE.COM:80/
      */
     std::string deviceSpec;
@@ -253,11 +238,6 @@ private:
      * The password to use for a protocol action
      */
     std::string password;
-
-    /**
-     * Timer Rate for interrupt timer
-     */
-    int timerRate = 100;
 
     /**
      * The channel mode for the currently open LYNX device. By default, it is PROTOCOL, which passes
@@ -305,16 +285,6 @@ private:
    void create_url_parser();
 
     /**
-     * Start the Interrupt rate limiting timer
-     */
-    void timer_start();
-
-    /**
-     * Stop the Interrupt rate limiting timer
-     */
-    void timer_stop();
-
-    /**
      * We were passed a COPY arg from DOS 2. This is complex, because we need to parse the comma,
      * and figure out one of three states:
      *
@@ -360,11 +330,6 @@ private:
      * @brief set translation specified by aux1 to aux2_translation mode.
      */
     void comlynx_set_translation();
-
-    /**
-     * @brief Set timer rate for PROCEED timer in ms
-     */
-    void comlynx_set_timer_rate();
 
     /**
      * @brief parse URL and instantiate protocol

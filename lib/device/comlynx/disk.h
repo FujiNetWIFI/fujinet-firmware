@@ -5,20 +5,12 @@
 #include "bus.h"
 #include "media.h"
 
-/*
-#define STATUS_OK        0
-#define STATUS_BAD_BLOCK 1
-#define STATUS_NO_BLOCK  2
-#define STATUS_NO_MEDIA  3
-#define STATUS_NO_DRIVE  4
-*/
 
 class lynxDisk : public virtualDevice
 {
 private:
     MediaType *_media = nullptr;
-    TaskHandle_t diskTask;
-
+  
     unsigned long blockNum=INVALID_SECTOR_VALUE;
 
     //void transaction_continue(transState_t expectMoreData) override {};

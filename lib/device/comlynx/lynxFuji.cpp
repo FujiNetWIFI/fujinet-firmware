@@ -130,7 +130,8 @@ success_is_true lynxFuji::transaction_get(void *data, size_t len)
     memcpy(data, recvbuf_pos, to_copy);
     recvbuf_pos += to_copy;
 
-    RETURN_SUCCESS_IF(len == to_copy);
+    //RETURN_SUCCESS_IF(len == to_copy);
+    RETURN_SUCCESS_IF(len != 0);
 }
 
 

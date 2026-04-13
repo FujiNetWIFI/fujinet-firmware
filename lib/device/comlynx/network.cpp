@@ -769,9 +769,6 @@ void lynxNetwork::parse_and_instantiate_protocol(string d)
 {
 }*/
 
-/*void lynxNetwork::comlynx_set_timer_rate()
-{
-}*/
 
 void lynxNetwork::process_fs(fujiCommandID_t cmd, unsigned pkt_len)
 {

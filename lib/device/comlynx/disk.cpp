@@ -55,7 +55,6 @@ success_is_true lynxDisk::transaction_get(void *data, size_t len)
     RETURN_SUCCESS_IF(len == to_copy);
 }
 
-
 void lynxDisk::transaction_put(const void *data, size_t len, bool err)
 {
     uint8_t b;

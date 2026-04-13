@@ -61,13 +61,13 @@ lynxPrinter::lynxPrinter(FileSystem *filesystem, printer_type print_type)
     getPrinterPtr()->setTranslate850(false);
     getPrinterPtr()->setEOL(0x0D);
 
-    xTaskCreate(printerTask, "ptsk", 4096, this, PRINTER_PRIORITY, &thPrinter);
+    //xTaskCreate(printerTask, "ptsk", 4096, this, PRINTER_PRIORITY, &thPrinter);
 }
 
 lynxPrinter::~lynxPrinter()
 {
-    if (thPrinter != nullptr)
-        vTaskDelete(thPrinter);
+    //if (thPrinter != nullptr)
+        //vTaskDelete(thPrinter);
 
     if (_pptr != nullptr)
     {
@@ -89,15 +89,6 @@ lynxPrinter::printer_type lynxPrinter::match_modelname(std::string model_name)
 
     return (printer_type)i;
 }
-
-/*
-void lynxPrinter::comlynx_control_status()
-{
-    uint8_t c[6] = {0x82, 0x10, 0x00, 0x00, 0x00, 0x10};
-
-    comlynx_send_buffer(c, sizeof(c));
-}
-*/
 
 void lynxPrinter::perform_print()
 {
@@ -136,20 +127,7 @@ void lynxPrinter::comlynx_control_ready()
 
 void lynxPrinter::comlynx_process()
 {
-    /*unsigned char c = b >> 4;
 
-    switch (c)
-    {
-    case MN_STATUS:
-        comlynx_control_status();
-        break;
-    case MN_SEND:
-        comlynx_control_send();
-        break;
-    case MN_READY:
-        comlynx_control_ready();
-        break;
-    }*/
 }
 
 void lynxPrinter::shutdown()
