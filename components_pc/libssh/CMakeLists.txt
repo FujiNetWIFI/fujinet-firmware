@@ -27,6 +27,7 @@ set(LIBRARY_SOVERSION "4")
 # where to look first for cmake modules, before ${CMAKE_ROOT}/Modules/ is checked
 
 # add definitions
+add_compile_definitions(_GNU_SOURCE)
 include(DefinePlatformDefaults)
 include(DefineOptions.cmake)
 # jk: include(CPackConfig.cmake)
