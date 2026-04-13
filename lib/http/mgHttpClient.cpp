@@ -281,10 +281,10 @@ int mgHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
         return -1;
 
     int bytes_copied = 0;
-    int bytes_available = _buffer_str.size();
 
     while (bytes_copied < dest_bufflen)
     {
+        int bytes_available = _buffer_str.size();
         if (bytes_available > 0)
         {
             // Copy our buffer to the destination buffer
@@ -742,6 +742,14 @@ int mgHttpClient::_perform()
             done = !_perform_redirect(); // continue if we're going to redirect
         else
             done = true;
+    }
+
+    if (_method == HTTP_GET || _method == HTTP_HEAD)
+    {
+        while (!_transaction_done)
+        {
+            _perform_fetch();
+        }
     }
 
     // Reset request data
