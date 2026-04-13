@@ -27,7 +27,6 @@ set(LIBRARY_SOVERSION "4")
 # where to look first for cmake modules, before ${CMAKE_ROOT}/Modules/ is checked
 
 # add definitions
-add_compile_definitions(_GNU_SOURCE)
 include(DefinePlatformDefaults)
 include(DefineOptions.cmake)
 # jk: include(CPackConfig.cmake)
@@ -85,6 +84,13 @@ endif (UNIX)
 
 # config.h checks
 include(ConfigureChecks.cmake)
+
+# MinGW's runtime has strndup as a symbol but the headers won't declare it
+# under strict POSIX flags. Force the fallback in priv.h/misc.c instead.
+if (MINGW)
+    set(HAVE_STRNDUP OFF CACHE BOOL "" FORCE)
+endif()
+
 configure_file(config.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 
 if (NOT HAVE_ARGP_PARSE)

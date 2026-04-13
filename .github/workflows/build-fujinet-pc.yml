@@ -113,7 +113,6 @@ jobs:
           ninja:p
           python-pip:p
           mbedtls:p
-          headers-git:p
 
     - name: '[macOS] Install MbedTLS'
       if: ${{ startsWith(matrix.os.target, 'macos') }}

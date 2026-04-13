@@ -352,7 +352,7 @@ endif (WITH_VISIBILITY_HIDDEN)
 
 if (MINGW)
     target_link_libraries(ssh PRIVATE "-Wl,--enable-stdcall-fixup")
-    target_compile_definitions(ssh PRIVATE "_POSIX_C_SOURCE=200809L")
+    target_compile_definitions(ssh PRIVATE "_POSIX_SOURCE")
 endif ()
 if (WITH_COVERAGE)
     include(CodeCoverage)
