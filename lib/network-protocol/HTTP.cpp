@@ -748,7 +748,10 @@ void NetworkProtocolHTTP::http_transaction()
     }
 
     fserror_to_error();
-    fileSize = bodySize = client->available();
+    bodySize = client->content_length();
+    if (bodySize <= 0)
+        bodySize = client->available();
+    fileSize = bodySize;
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::http_transaction() done, resultCode=%d, fileSize=%u\r\n", resultCode, fileSize);
 #endif

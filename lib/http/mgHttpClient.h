@@ -63,6 +63,7 @@ private:
 
     // chunked transfer encoding
     bool _is_chunked = false;
+    bool _chunked_complete = false;
 
     // authentication
     std::string _username;
@@ -135,6 +136,7 @@ public:
     int MOVE(const char *destination, bool overwrite);
 
     bool is_transaction_done() { return _transaction_done; }
+    int content_length() const { return _content_length; }
     int available();
 
     int read(uint8_t *dest_buffer, int dest_bufflen);

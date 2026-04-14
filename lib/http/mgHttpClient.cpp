@@ -328,9 +328,23 @@ int mgHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
 void mgHttpClient::close()
 {
     Debug_println("mgHttpClient::close");
+    _buffer_str.clear();
+    _processed = false;
+    _progressed = false;
+    _transaction_begin = false;
+    _transaction_done = true;
+    _redirect_count = 0;
+    _status_code = -1;
+    _content_length = 0;
+    _is_chunked = false;
+    _chunked_complete = false;
+    _location.clear();
+    _username.clear();
+    _password.clear();
+    _post_data = nullptr;
+    _post_datalen = 0;
     _stored_headers.clear();
     _request_headers.clear();
-    _buffer_str.clear();
 }
 
 const char* mgHttpClient::method_to_string(HttpMethod method)
@@ -499,6 +513,7 @@ void mgHttpClient::process_response_headers(struct mg_connection *c, struct mg_h
 {
     _status_code = mg_http_status(&hm);
     _content_length = (int)hm.body.len;
+    _chunked_complete = false;
     struct mg_str *te;
 
     if ((te = mg_http_get_header(&hm, "Transfer-Encoding")) != nullptr)
@@ -598,6 +613,14 @@ void mgHttpClient::process_body_data(struct mg_connection *c, char *data, int le
             {
                 _buffer_str.append(data + o + pl, dl);
             }
+            else
+            {
+                _chunked_complete = true;
+                _content_length = _buffer_str.size();
+#ifdef VERBOSE_HTTP
+                Debug_printf("mgHttpClient: Final chunk received, body=%d bytes\n", _content_length);
+#endif
+            }
             o += cl;
         }
         if (o > 0)
@@ -696,6 +719,11 @@ void mgHttpClient::_httpevent_handler(struct mg_connection *c, int ev, void *ev_
 #ifdef VERBOSE_HTTP
         Debug_printf("mgHttpClient: Connection closed\n");
 #endif
+        if (client->_is_chunked && !client->_chunked_complete && client->_status_code >= 200 && client->_status_code < 400)
+        {
+            Debug_println("mgHttpClient: Chunked response ended before final chunk");
+            client->_status_code = 902; // Fake HTTP status code to indicate truncated chunked body. Maybe should be 204-"Connection was reset during read/write"
+        }
         client->_transaction_done = true;
         break;
 
@@ -770,6 +798,7 @@ void mgHttpClient::_perform_connect()
     _status_code = -1;
     _content_length = 0;
     _is_chunked = false;
+    _chunked_complete = false;
 
     _transaction_begin = true; // waiting for response headers
     _transaction_done = false;
