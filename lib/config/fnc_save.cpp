@@ -128,6 +128,7 @@ void fnConfig::save()
     ss << LINETERM << "[Modem]" << LINETERM;
     ss << "modem_enabled=" << _modem.modem_enabled << LINETERM;
     ss << "sniffer_enabled=" << _modem.sniffer_enabled << LINETERM;
+    ss << "connect_delay_ms=" << _modem.connect_delay_ms << LINETERM;
 
     //PHONEBOOK
     for (i = 0; i < MAX_PB_SLOTS; i++)

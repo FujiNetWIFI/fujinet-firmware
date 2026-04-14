@@ -66,7 +66,6 @@
 #define MAX_CMD_LENGTH 256 // Maximum length for AT command
 #define TX_BUF_SIZE 256    // Buffer where to read from serial before writing to TCP (that direction is very blocking by the ESP TCP stack, so we can't do one byte a time.)
 
-#define ANSWER_TIMER_MS 2000 // milliseconds to wait before issuing CONNECT command, to simulate carrier negotiation.
 #define RING_TIMEOUT 10 // How many times to allow rings before "hanging up"
 
 class modem : public virtualDevice
@@ -190,6 +189,7 @@ private:
     bool do_echo;                   // telnet echo toggle.
     std::string term_type;               // telnet terminal type.
     long answerTimer;
+    uint32_t answerDelayMs = 2000;  // milliseconds to wait before issuing CONNECT after answer.
     bool answered=false;
     int ringCount;                  // Keep track of how many incoming RINGs
 
@@ -231,6 +231,7 @@ private:
     void at_handle_pblist();
     void at_handle_pb();
     void at_handle_pbclear();
+    void load_connect_delay_ms();
 
 
 protected:

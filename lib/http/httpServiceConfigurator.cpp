@@ -259,6 +259,16 @@ void fnHttpServiceConfigurator::config_modem_sniffer_enabled(std::string modem_s
     Config.save();
 }
 
+void fnHttpServiceConfigurator::config_modem_connect_delay_ms(std::string modem_connect_delay_ms)
+{
+    Debug_printf("New Modem Connect Delay Value: %s\n", modem_connect_delay_ms.c_str());
+
+    // Store
+    Config.store_modem_connect_delay_ms(strtoul(modem_connect_delay_ms.c_str(), nullptr, 10));
+    // Save*
+    Config.save();
+}
+
 void fnHttpServiceConfigurator::config_boot_mode(std::string boot_mode)
 {
     Debug_printf("New CONFIG Boot Mode value: %s\n", boot_mode.c_str());
@@ -728,6 +738,10 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         {
             config_modem_sniffer_enabled(i->second);
         }
+        else if (i->first.compare("modem_connect_delay_ms") == 0)
+        {
+            config_modem_connect_delay_ms(i->second);
+        }
         else if (i->first.compare("passphrase_encrypt") == 0)
         {
             config_encrypt_passphrase_enabled(i->second);
@@ -809,3 +823,4 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
 
     return 0;
 }
+#include <cstdlib>

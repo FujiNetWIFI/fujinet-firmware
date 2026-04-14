@@ -547,6 +547,16 @@
 								</div>
 							</div>
 						</div>
+						{% if tweaks.platform == "ATARI" %}
+						<div class="set">
+							<div class="settings-label">
+								<label for="modem-connect-delay-ms">Answer CONNECT Delay (ms)</label>
+							</div>
+							<div class="settings-value">
+								<input type="text" name="modem_connect_delay_ms" id="modem-connect-delay-ms" value="<%FN_MODEM_CONNECT_DELAY_MS%>">
+							</div>
+						</div>
+						{% endif %}
 						<script>
 							var current_modem_enabled = "<%FN_MODEM_ENABLED%>";
 							var current_modem_sniffer_enabled = "<%FN_MODEM_SNIFFER_ENABLED%>";

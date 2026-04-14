@@ -1,4 +1,5 @@
 #include "fnConfig.h"
+#include <cstdlib>
 #include <cstring>
 #include "../device/modem.h"
 #include "modem-sniffer.h"
@@ -29,6 +30,15 @@ void fnConfig::store_modem_sniffer_enabled(bool modem_sniffer_enabled)
 #endif /* BUILD_ATARI */
 }
 
+void fnConfig::store_modem_connect_delay_ms(uint32_t modem_connect_delay_ms)
+{
+    if (_modem.connect_delay_ms == modem_connect_delay_ms)
+        return;
+
+    _modem.connect_delay_ms = modem_connect_delay_ms;
+    _dirty = true;
+}
+
 void fnConfig::_read_section_modem(std::stringstream &ss)
 {
     std::string line;
@@ -44,6 +54,8 @@ void fnConfig::_read_section_modem(std::stringstream &ss)
                 _modem.modem_enabled = util_string_value_is_true(value);
             else if (strcasecmp(name.c_str(), "sniffer_enabled") == 0)
                 _modem.sniffer_enabled = util_string_value_is_true(value);
+            else if (strcasecmp(name.c_str(), "connect_delay_ms") == 0)
+                _modem.connect_delay_ms = strtoul(value.c_str(), nullptr, 10);
         }
     }
 }
