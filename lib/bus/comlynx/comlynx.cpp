@@ -137,7 +137,7 @@ uint8_t virtualDevice::comlynx_recv()
     return b;
 }
 
-bool virtualDevice::comlynx_recv_timeout(uint8_t *b, uint64_t dur)
+/*bool virtualDevice::comlynx_recv_timeout(uint8_t *b, uint64_t dur)
 {
     uint64_t start, current, elapsed;
     bool timeout = true;
@@ -161,7 +161,7 @@ bool virtualDevice::comlynx_recv_timeout(uint8_t *b, uint64_t dur)
       //   Debug_printf("duration: %llu\n", elapsed);
 
     return timeout;
-}
+}*/
 
 uint16_t virtualDevice::comlynx_recv_length()
 {
@@ -498,5 +498,61 @@ void systemBus::setRedeyeGameRemap(uint32_t remap)
     }
 }
 
+void virtualDevice::transaction_continue(transState_t expectMoreData)
+{    
+}
+
+void virtualDevice::transaction_complete()
+{
+    Debug_println("transaction_complete - sent ACK");
+    comlynx_response_ack();
+}
+
+void virtualDevice::transaction_error()
+{
+    Debug_println("transaction_error - send NAK");
+    comlynx_response_nack();
+    
+    // throw away any waiting bytes
+    while (SYSTEM_BUS.available() > 0)
+        SYSTEM_BUS.read();
+}
+    
+success_is_true virtualDevice::transaction_get(void *data, size_t len) 
+{
+    size_t remaining = recvbuffer_len - (recvbuf_pos - recvbuffer);
+    size_t to_copy = (len > remaining) ? remaining : len;
+
+    memcpy(data, recvbuf_pos, to_copy);
+    recvbuf_pos += to_copy;
+
+    RETURN_SUCCESS_IF(to_copy != 0);
+}
+
+void virtualDevice::transaction_put(const void *data, size_t len, bool err)
+{
+    uint8_t b;
+
+    // set response buffer
+    memcpy(response, data, len);
+    response_len = len;
+
+    // send all data back to Lynx
+    uint8_t ck = comlynx_checksum(response, response_len);
+    comlynx_send_length(response_len);
+    comlynx_send_buffer(response, response_len);
+    comlynx_send(ck);
+
+    // get ACK or NACK from Lynx, we're ignoring currently
+    uint8_t r = comlynx_recv();
+    #ifdef DEBUG
+        if (r == FUJICMD_ACK)
+            Debug_println("transaction_put - Lynx ACKed");
+        else
+            Debug_println("transaction put - Lynx NAKed");
+    #endif
+
+    return;
+}
 
 #endif /* BUILD_LYNX */

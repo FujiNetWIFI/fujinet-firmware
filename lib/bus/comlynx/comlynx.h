@@ -5,11 +5,12 @@
  * Comlynx Routines
  */
 
+#include "bus.h"
+#include "global_types.h"
 #include "cmdFrame.h"
 #include "UARTChannel.h"
 #include "fujiDeviceID.h"
 #include "fujiCommandID.h"
-#include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
 #include <forward_list>
@@ -31,6 +32,7 @@ class fujiDevice;
  * @brief Calculate checksum for Comlynx packets. Uses a simple 8-bit XOR of each successive byte.
  * @param buf pointer to buffer
  * @param len length of buffer
+
  * @return checksum value (0x00 - 0xFF)
  */
 uint8_t comlynx_checksum(uint8_t *buf, unsigned short len);
@@ -44,94 +46,34 @@ class virtualDevice
     friend fujiDevice;
 
 protected:
-
-    /**
-     * @brief Send Byte to Comlynx
-     * @param b Byte to send via Comlynx
-     * @return was byte sent?
-     */
-    void comlynx_send(uint8_t b);
-
-    /**
-     * @brief Send buffer to Comlynx
-     * @param buf Buffer to send to Comlynx
-     * @param len Length of buffer
-     * @return number of bytes sent.
-     */
-    void comlynx_send_buffer(uint8_t *buf, unsigned short len);
-
-    /**
-     * @brief Receive checksum byte and compare with checksum calculation
-     * @return true or false
-     */
-    bool comlynx_recv_ck();
-
-    /**
-     * @brief Receive byte from Comlynx
-     * @return byte received
-     */
-    uint8_t comlynx_recv();
-
-    /**
-     * @brief Receive byte from Comlynx with a timeout period
-     * @param dur timeout period in milliseconds
-     * @return true = timeout, false = b contains byte received
-     */
-    bool comlynx_recv_timeout(uint8_t *b, uint64_t dur);
-
-    /**
-     * @brief convenience function to recieve length
-     * @return short containing length.
-     */
-    uint16_t comlynx_recv_length();
-
-    /**
-     * @brief convenience function to receive block number
-     * @return ulong containing block num.
-     */
-    uint32_t comlynx_recv_blockno();
-
-    /**
-     * @brief covenience function to send length
-     * @param l Length.
-     */
     void comlynx_send_length(uint16_t l);
-
-    /**
-     * @brief Receive desired # of bytes into buffer from Comlynx
-     * @param buf Buffer in which to receive
-     * @param len length of buffer
-     * @return # of bytes received.
-     */
+    void comlynx_send(uint8_t b);
+    void comlynx_send_buffer(uint8_t *buf, unsigned short len);
+    bool comlynx_recv_ck();
+    uint8_t comlynx_recv();
+    uint16_t comlynx_recv_length();
+    uint32_t comlynx_recv_blockno();
     unsigned short comlynx_recv_buffer(uint8_t *buf, unsigned short len);
-
-    /**
-     * @brief Perform reset of device
-     */
-    virtual void reset();
-
-    /**
-     * @brief acknowledge, but not if cmd took too long.
-     */
     virtual void comlynx_response_ack();
-
-    /**
-     * @brief non-acknowledge, but not if cmd took too long
-     */
     virtual void comlynx_response_nack();
+
+    transState_t _transaction_state = TRANS_STATE::INVALID;
+    virtual void transaction_continue(transState_t expectMoreData);
+    virtual void transaction_complete();
+    virtual void transaction_error();
+    virtual success_is_true transaction_get(void *data, size_t len);
+    virtual void transaction_put(const void *data, size_t len, bool err);
+
+    virtual void reset();
+    virtual void shutdown() {}
+    virtual void comlynx_process();
+
+
 
     /**
      * @brief Device Number: 0-15
      */
     fujiDeviceID_t _devnum;
-
-    virtual void shutdown() {}
-
-    /**
-     * @brief process the next packet with the active device.
-     * @param b first byte of packet.
-     */
-    virtual void comlynx_process();
 
     /**
      * @brief command frame, used by network protocol, ultimately
@@ -168,8 +110,6 @@ public:
      * @return the device # (0-15) of this device
      */
     fujiDeviceID_t id() { return _devnum; }
-
-
 };
 
 /**
@@ -201,11 +141,6 @@ public:
      * @brief Wait to see if Comlynx bus is idle.
      */
     bool wait_for_idle();
-
-    /**
-     * stopwatch
-     */
-    //int64_t start_time;
 
     int numDevices();
     void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id);

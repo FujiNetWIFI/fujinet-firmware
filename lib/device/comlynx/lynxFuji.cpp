@@ -23,9 +23,7 @@
 
 lynxFuji platformFuji;
 fujiDevice *theFuji = &platformFuji;        // global fuji device object
-//lynxNetwork *theNetwork;                    // global network device object (temporary)
 lynxPrinter *thePrinter;                    // global printer
-//lynxSerial *theSerial;                      // global serial
 
 #ifdef ESP_PLATFORM
 std::unique_ptr<lynxNetwork, PSRAMDeleter<lynxNetwork>> lynxNetDevs[MAX_NETWORK_DEVICES];
@@ -103,66 +101,6 @@ lynxFuji::lynxFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, std::nullop
         }
     }
     #endif
-}
-
-
-void lynxFuji::transaction_complete()
-{
-    Debug_println("transaction_complete - sent ACK");
-    comlynx_response_ack();
-}
-
-void lynxFuji::transaction_error()
-{
-    Debug_println("transaction_error - send NAK");
-    comlynx_response_nack();
-    
-    // throw away any waiting bytes
-    while (SYSTEM_BUS.available() > 0)
-        SYSTEM_BUS.read();
-}
-    
-success_is_true lynxFuji::transaction_get(void *data, size_t len) 
-{
-    size_t remaining = recvbuffer_len - (recvbuf_pos - recvbuffer);
-    size_t to_copy = (len > remaining) ? remaining : len;
-
-    memcpy(data, recvbuf_pos, to_copy);
-    recvbuf_pos += to_copy;
-
-    //RETURN_SUCCESS_IF(len == to_copy);
-    RETURN_SUCCESS_IF(len != 0);
-}
-
-
-void lynxFuji::transaction_put(const void *data, size_t len, bool err)
-{
-    uint8_t b;
-
-    // set response buffer
-    memcpy(response, data, len);
-    response_len = len;
-
-    // send all data back to Lynx
-    uint8_t ck = comlynx_checksum(response, response_len);
-    comlynx_send_length(response_len);
-    comlynx_send_buffer(response, response_len);
-    comlynx_send(ck);
-
-    // get ACK or NACK from Lynx, we're ignoring currently
-    //uint8_t t = comlynx_recv_timeout(&b, 8000);
-    uint8_t r = comlynx_recv();
-    #ifdef DEBUG
-        //if (!t)
-            if (r == FUJICMD_ACK)
-                Debug_println("transaction_put - Lynx ACKed");
-            else
-                Debug_println("transaction put - Lynx NAKed");
-        //else
-        //    Debug_println("transaction_put - timed out waiting for ACK/NAK from Lynx");
-    #endif
-
-    return;
 }
 
 /*
@@ -273,7 +211,6 @@ void lynxFuji::comlynx_new_disk()
     disk.disk_dev.write_blank(disk.fileh, numBlocks);
     fclose(disk.fileh);
 
-    //comlynx_response_ack();
     transaction_complete();
 }
 
@@ -293,9 +230,6 @@ void lynxFuji::setup()
     
     for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
         SYSTEM_BUS.addDevice(lynxNetDevs[i].get(), (fujiDeviceID_t) (FUJI_DEVICEID_NETWORK + i));
-
-    //theNetwork = new lynxNetwork();
-    //SYSTEM_BUS.addDevice(theNetwork, FUJI_DEVICEID_NETWORK);
 }
 
 void lynxFuji::fujicmd_random_number()
@@ -308,7 +242,6 @@ void lynxFuji::fujicmd_random_number()
 void lynxFuji::fujicmd_get_time()
 {
     uint8_t time_resp[6];
-
 
     Debug_println("Fuji cmd: GET TIME");
 
@@ -337,10 +270,6 @@ void lynxFuji::comlynx_process()
 {
     uint8_t c;
     uint8_t slot;
-
-
-    // Reset the recvbuffer
-    //recvbuffer_len = 0;         // happens in recv_length, but may remove from there -SJ
     
     // Get the entire payload from Lynx
     uint16_t len = comlynx_recv_length();
@@ -467,21 +396,9 @@ void lynxFuji::comlynx_process()
         transaction_get(&slot, sizeof(slot));
         fujicmd_get_device_filename(slot);
         break;
-    /*case FUJICMD_CONFIG_BOOT:
-        comlynx_set_boot_config();
-        break;
-    case FUJICMD_ENABLE_DEVICE:
-        comlynx_enable_device();
-        break;
-    case FUJICMD_DISABLE_DEVICE:
-        comlynx_disable_device();
-        break;*/
     case FUJICMD_MOUNT_ALL:
         fujicmd_mount_all_success();
         break;
-    /*case FUJICMD_SET_BOOT_MODE:
-        fujicmd_set_boot_mode(*recvbuf_pos, MEDIATYPE_UNKNOWN, &bootdisk);
-        break;*/
     case FUJICMD_WRITE_APPKEY:
         fujicmd_write_app_key(0, 0);
         break;
@@ -494,9 +411,6 @@ void lynxFuji::comlynx_process()
     case FUJICMD_GET_TIME:
         fujicmd_get_time();
         break;
-    /*case FUJICMD_DEVICE_ENABLE_STATUS:
-        comlynx_device_enable_status();
-        break;*/
     case FUJICMD_COPY_FILE:
         {
             uint8_t source;

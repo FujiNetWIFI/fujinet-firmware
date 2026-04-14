@@ -37,6 +37,13 @@ elseif(FUJINET_TARGET STREQUAL "RS232")
     set(FUJINET_BUILD_BOARD fujinet-lwm-rs232)
     # fujinet.build_bus
     set(FUJINET_BUILD_BUS RS232)
+elseif(FUJINET_TARGET STREQUAL "LYNX")
+    # fujinet.build_platform
+    set(FUJINET_BUILD_PLATFORM BUILD_LYNX)
+    # fujinet.build_board (used by build_webui.py)
+    set(FUJINET_BUILD_BOARD fujinet-lynx-devkitc)
+    # fujinet.build_bus
+    set(FUJINET_BUILD_BUS LYNX)
 else()
     message(FATAL_ERROR "Invalid target: '${FUJINET_TARGET}'. Please choose from 'RS232', 'ATARI', 'APPLE', or 'COCO'.")
 endif()

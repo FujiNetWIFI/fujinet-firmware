@@ -3,6 +3,7 @@
 
 #include "../disk.h"
 #include "bus.h"
+#include "global_types.h"
 #include "media.h"
 
 
@@ -13,11 +14,22 @@ private:
   
     unsigned long blockNum=INVALID_SECTOR_VALUE;
 
-    //void transaction_continue(transState_t expectMoreData) override {};
-    void transaction_complete();
-    void transaction_error();
-    success_is_true transaction_get(void *data, size_t len);
-    void transaction_put(const void *data, size_t len, bool err=false);
+    // Temporary until all platforms have transaction_ methods in virtualDevice base class
+    void transaction_continue(transState_t expectMoreData) override {
+        virtualDevice::transaction_continue(expectMoreData);
+    }
+    void transaction_complete() override {
+        virtualDevice::transaction_complete();
+    }
+    void transaction_error() override {
+        virtualDevice::transaction_error();
+    }
+    success_is_true transaction_get(void *data, size_t len) override {
+        return virtualDevice::transaction_get(data, len);
+    }
+    void transaction_put(const void *data, size_t len, bool err=false) override {
+        virtualDevice::transaction_put(data, len, err);
+    }
 
     void comlynx_process() override;
     void read_block(uint32_t block);

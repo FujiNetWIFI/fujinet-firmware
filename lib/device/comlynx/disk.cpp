@@ -27,60 +27,6 @@ lynxDisk::~lynxDisk()
     }
 }
 
-
-void lynxDisk::transaction_complete()
-{
-    Debug_println("transaction_complete - sent ACK");
-    comlynx_response_ack();
-}
-
-void lynxDisk::transaction_error()
-{
-    Debug_println("transaction_error - send NAK");
-    comlynx_response_nack();
-    
-    // throw away any waiting bytes
-    while (SYSTEM_BUS.available() > 0)
-        SYSTEM_BUS.read();
-}
-    
-success_is_true lynxDisk::transaction_get(void *data, size_t len) 
-{
-    size_t remaining = recvbuffer_len - (recvbuf_pos - recvbuffer);
-    size_t to_copy = (len > remaining) ? remaining : len;
-
-    memcpy(data, recvbuf_pos, to_copy);
-    recvbuf_pos += to_copy;
-
-    RETURN_SUCCESS_IF(len == to_copy);
-}
-
-void lynxDisk::transaction_put(const void *data, size_t len, bool err)
-{
-    uint8_t b;
-
-    // set response buffer
-    memcpy(response, data, len);
-    response_len = len;
-
-    // send all data back to Lynx
-    uint8_t ck = comlynx_checksum(response, response_len);
-    comlynx_send_length(response_len);
-    comlynx_send_buffer(response, response_len);
-    comlynx_send(ck);
-
-    // get ACK or NACK from Lynx, we're ignoring currently
-    uint8_t r = comlynx_recv();
-    #ifdef DEBUG
-            if (r == FUJICMD_ACK)
-                Debug_println("transaction_put - Lynx ACKed");
-            else
-                Debug_println("transaction put - Lynx NAKed");
-    #endif
-
-    return;
-}
-
 void lynxDisk::reset()
 {
     blockNum = INVALID_SECTOR_VALUE;
