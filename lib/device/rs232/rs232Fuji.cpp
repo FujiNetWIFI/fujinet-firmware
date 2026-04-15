@@ -229,7 +229,7 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
             transaction_error();
         }
         else
-            rs232_net_set_ssid(packet.param(0));
+            rs232_net_set_ssid(true);
         break;
     case FUJICMD_GET_SSID:
         fujicmd_net_get_ssid();
