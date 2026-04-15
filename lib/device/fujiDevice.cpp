@@ -1033,6 +1033,8 @@ success_is_true fujiDevice::fujicmd_unmount_disk_image_success(uint8_t deviceSlo
         RETURN_ERROR_AS_FALSE();
     }
 
+    populate_config_from_slots();
+    Config.save();
     transaction_complete();
     RETURN_SUCCESS_AS_TRUE();
 }

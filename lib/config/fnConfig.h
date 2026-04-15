@@ -489,7 +489,11 @@ private:
     struct serial_info
     {
         std::string port;
+#ifdef BUILD_RS232
+        int baud = CONFIG_DEFAULT_RS232_BAUD;
+#else /* ! BUILD_RS232 */
         int baud = 57600; // Used by CoCo, ignored by Atari
+#endif /* BUILD_RS232 */
 #ifndef ESP_PLATFORM
         serial_command_pin command = SERIAL_COMMAND_DSR; // Used by Atari, ignored by CoCo
         serial_proceed_pin proceed = SERIAL_PROCEED_DTR; // Used by Atari, ignored by CoCo

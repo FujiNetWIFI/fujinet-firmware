@@ -125,22 +125,18 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
             {
                 return SECTION_BOIP;
             }
-#ifndef ESP_PLATFORM
+#if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
             else if (strncasecmp("Serial", s1.c_str(), 6) == 0)
             {
                 return SECTION_SERIAL;
             }
+#endif // defined(BUILD_RS232) || !defined(ESP_PLATFORM)
+#ifndef ESP_PLATFORM
             else if (strncasecmp("BOS", s1.c_str(), 3) == 0)
             {
                 return SECTION_BOS;
             }
-#endif
-#ifdef BUILD_RS232
-            else if (strncasecmp("Serial", s1.c_str(), 6) == 0)
-            {
-                return SECTION_SERIAL;
-            }
-#endif /* BUILD_RS232 */
+#endif // ! ESP_PLATFORM
         }
     }
     return SECTION_UNKNOWN;

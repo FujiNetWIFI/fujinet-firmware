@@ -471,7 +471,7 @@ void drivewireFuji::process()
             if (!transaction_get(&cfg, sizeof(cfg)))
                 transaction_error();
             else
-                fujicmd_net_set_ssid_success(cfg.ssid, cfg.password, false);
+                fujicmd_net_set_ssid_success(cfg.ssid, cfg.password, true);
         }
         break;
     case FUJICMD_GET_SSID:

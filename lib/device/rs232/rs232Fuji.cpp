@@ -11,6 +11,7 @@
 #include "fuji_endian.h"
 
 #define IMAGE_EXTENSION ".img"
+#define LOBBY_URL       "tnfs://tnfs.fujinet.online/MSDOS/lobby.img"
 
 #ifndef ESP_PLATFORM // why ESP does not like it? it throws a linker error undefined reference to 'basename'
 #include <libgen.h>
@@ -24,7 +25,7 @@ rs232Fuji platformFuji;
 fujiDevice *theFuji = &platformFuji;
 rs232Network rs232NetDevs[MAX_NETWORK_DEVICES];
 
-rs232Fuji::rs232Fuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, std::nullopt)
+rs232Fuji::rs232Fuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
 {}
 
 // Initializes base settings and adds our devices to the RS232 bus
@@ -228,7 +229,7 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
             transaction_error();
         }
         else
-            rs232_net_set_ssid(packet.param(0));
+            rs232_net_set_ssid(true);
         break;
     case FUJICMD_GET_SSID:
         fujicmd_net_get_ssid();
