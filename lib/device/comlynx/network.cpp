@@ -23,7 +23,6 @@
 
 using namespace std;
 
-#define VERBOSE_PROTOCOL
 
 
 

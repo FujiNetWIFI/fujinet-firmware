@@ -62,7 +62,7 @@ protected:
     virtual void transaction_complete();
     virtual void transaction_error();
     virtual success_is_true transaction_get(void *data, size_t len);
-    virtual void transaction_put(const void *data, size_t len, bool err);
+    virtual void transaction_put(const void *data, size_t len, bool err=false);
 
     virtual void reset();
     virtual void shutdown() {}

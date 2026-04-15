@@ -336,23 +336,6 @@ private:
      * @param db pointer to devicespecbuf 256 chars
      */
     void parse_and_instantiate_protocol(std::string d);
-
-    // Temporary until all platforms have transaction_ methods in virtualDevice base class
-    void transaction_continue(transState_t expectMoreData) override {
-        virtualDevice::transaction_continue(expectMoreData);
-    }
-    void transaction_complete() override {
-        virtualDevice::transaction_complete();
-    }
-    void transaction_error() override {
-        virtualDevice::transaction_error();
-    }
-    success_is_true transaction_get(void *data, size_t len) override {
-        return virtualDevice::transaction_get(data, len);
-    }
-    void transaction_put(const void *data, size_t len, bool err=false) override {
-        virtualDevice::transaction_put(data, len, err);
-    }    
 };
 
 #endif /* NETWORK_H */
