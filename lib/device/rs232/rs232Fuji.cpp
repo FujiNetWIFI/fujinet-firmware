@@ -65,6 +65,9 @@ void rs232Fuji::rs232_status(FujiStatusReq reqType)
         for (idx = 0; idx < MAX_DISK_DEVICES; idx++)
             mount_status[idx] = _fnDisks[idx].disk_dev.mount_time();
 
+        if (boot_config)
+            mount_status[0] = bootdisk.mount_time();
+
         transaction_put((uint8_t *) mount_status, sizeof(mount_status), false);
     }
     else
