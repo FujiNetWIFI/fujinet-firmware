@@ -3,12 +3,15 @@
 
 #include "bus.h"
 #include "media.h"
+#include "../disk.h"
 
 #define STATUS_OK        0
 #define STATUS_BAD_BLOCK 1
 #define STATUS_NO_BLOCK  2
 #define STATUS_NO_MEDIA  3
 #define STATUS_NO_DRIVE  4
+
+#define DISKCMD_SIZE     0x47 // G - RC2014 specific: get disk size
 
 class rc2014Disk : public virtualDevice
 {

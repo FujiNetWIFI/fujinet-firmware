@@ -1,7 +1,7 @@
 #ifndef RC2014FUJI_H
 #define RC2014FUJI_H
 
-#include "fujiDevice.h
+#include "fujiDevice.h"
 
 #include <cstdint>
 
@@ -143,6 +143,10 @@ public:
     void _populate_config_from_slots();
 
     void mount_all();              // 0xD7
+    void fujicmd_mount_all_success() { mount_all(); }
+    void fujicore_mount_all_success() { mount_all(); }
+    void populate_slots_from_config() { _populate_slots_from_config(); }
+    bool fujicore_mount_disk_image_success(uint8_t deviceSlot, disk_access_flags_t access_mode);
 
     rc2014Fuji();
 };

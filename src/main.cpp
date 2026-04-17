@@ -352,7 +352,7 @@ void main_setup(int argc, char *argv[])
     rc2014Printer *ptr = new rc2014Printer(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
 
-    SYSTEM_BUS.addDevice(ptr, RC2014_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
+    SYSTEM_BUS.addDevice(ptr, (fujiDeviceID_t)(RC2014_DEVICEID_PRINTER + fnPrinters.get_port(0))); // P:
 
     sioR = new rc2014Modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
     SYSTEM_BUS.addDevice(sioR, RC2014_DEVICEID_MODEM); // R:

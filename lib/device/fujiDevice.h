@@ -263,6 +263,9 @@ public:
     void insert_boot_device(std::string boot_img, mediatype_t disk_type, DISK_DEVICE *disk_dev);
 };
 
+// Platforms with their own Fuji class not extending fujiDevice declare theFuji themselves
+#if !defined(BUILD_RC2014) && !defined(BUILD_CX16) && !defined(BUILD_H89) && !defined(BUILD_S100)
 extern fujiDevice *theFuji;
+#endif
 
 #endif // FUJIDEVICE_H

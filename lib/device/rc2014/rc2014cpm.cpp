@@ -5,7 +5,6 @@
 #include "rc2014cpm.h"
 
 #include "fnSystem.h"
-#include "fnUART.h"
 #include "fnWiFi.h"
 #include "fujiDevice.h"
 #include "fnFS.h"
@@ -58,7 +57,7 @@ void rc2014CPM::rc2014_handle_cpm()
 
 void rc2014CPM::init_cpm(int baud)
 {
-    fnUartBUS.set_baudrate(baud);
+    // fnUartBUS.set_baudrate(baud); // RC2014 SPI bus does not use UART
     Status = Debug = 0;
     Break = Step = -1;
     RAM = (uint8_t *)malloc(MEMSIZE);

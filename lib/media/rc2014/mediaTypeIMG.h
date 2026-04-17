@@ -35,16 +35,16 @@ public:
     };
 
 public:
-    success_is_true read(uint16_t sectornum, uint16_t *readcount) override;
-    success_is_true write(uint16_t sectornum, bool verify) override;
+    bool read(uint16_t sectornum, uint16_t *readcount) override;
+    bool write(uint16_t sectornum, bool verify) override;
 
-    success_is_true format(uint16_t *responsesize) override;
+    bool format(uint16_t *responsesize) override;
 
     mediatype_t mount(FILE *f, uint32_t disksize, mediatype_t disk_type) override;
 
     void status(uint8_t statusbuff[4]) override;
 
-    static success_is_true create(FILE *f, uint16_t sectorSize, uint16_t numSectors);
+    static bool create(FILE *f, uint16_t sectorSize, uint16_t numSectors);
 };
 
 

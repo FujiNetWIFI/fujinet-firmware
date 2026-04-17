@@ -148,6 +148,7 @@ enum fujiCommandID_t : uint8_t {
     MODEMCMD_STREAM                    = 0x58, // X
     MODEMCMD_WRITE                     = 0x57, // W
     MODEMCMD_STATUS                    = 0x53, // S
+    MODEMCMD_READ                      = 0x52, // R
     MODEMCMD_AUTOANSWER                = 0x4F, // O
     MODEMCMD_BAUDRATELOCK              = 0x4E, // N
     MODEMCMD_UNLISTEN                  = 0x4D, // M

@@ -23,6 +23,9 @@
 #include "fnTcpClient.h"
 
 #include "fujiDevice.h"
+#ifdef BUILD_RC2014
+#include "rc2014Fuji.h"
+#endif
 
 // Why is CP/M writing directly to the SYSTEM_BUS?
 #define FN_CPM_LINK SYSTEM_BUS

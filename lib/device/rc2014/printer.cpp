@@ -117,8 +117,8 @@ void rc2014Printer::stream()
     Debug_printf("rc2014Printer::stream()\n");
 
     rc2014_send_ack();
-    rc2014Bus.streamDeactivate();
-    rc2014Bus.streamDevice(_devnum);
+    SYSTEM_BUS.streamDeactivate();
+    SYSTEM_BUS.streamDevice((fujiDeviceID_t)_devnum);
     rc2014_send_complete();
 }
 

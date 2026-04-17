@@ -13,6 +13,7 @@
 
 #include "utils.h"
 #include "string_utils.h"
+#include "fuji_endian.h"
 
 #include "../../encoding/base64.h"
 #include "../../encoding/hash.h"
@@ -298,7 +299,7 @@ void rc2014Fuji::rc2014_disk_image_mount()
     disk.disk_size = host.file_size(disk.fileh);
 
     // And now mount it
-    disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+    disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size, disk.access_mode);
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
@@ -319,14 +320,6 @@ void rc2014Fuji::rc2014_copy_file()
 // Set boot mode
 void rc2014Fuji::rc2014_set_boot_mode()
 {
-}
-
-char *_generate_appkey_filename(appkey *info)
-{
-    static char filenamebuf[30];
-
-    snprintf(filenamebuf, sizeof(filenamebuf), "/FujiNet/%04hx%02hhx%02hhx.key", info->creator, info->app, info->key);
-    return filenamebuf;
 }
 
 /*
@@ -404,13 +397,13 @@ void rc2014Fuji::image_rotate()
 
         for (int n = count; n > 0; n--)
         {
-            int swap = _fnDisks[n - 1].disk_dev.id();
+            fujiDeviceID_t swap = (fujiDeviceID_t)_fnDisks[n - 1].disk_dev.id();
             Debug_printf("setting slot %d to ID %hx\n", n, swap);
-            _rc2014_bus->changeDeviceId(&_fnDisks[n].disk_dev, swap);
+            SYSTEM_BUS.changeDeviceId(&_fnDisks[n].disk_dev, swap);
         }
 
         // The first slot gets the device ID of the last slot
-        _rc2014_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
+        SYSTEM_BUS.changeDeviceId(&_fnDisks[0].disk_dev, (fujiDeviceID_t)last_id);
     }
 }
 
@@ -463,10 +456,32 @@ void rc2014Fuji::rc2014_open_directory()
     rc2014_send_complete();
 }
 
+#define ADDITIONAL_DETAILS_BYTES 12
+
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
 {
-    set_additional_direntry_details(f, dest, maxlen, 100, SIZE_32_LE,
-                                    HAS_DIR_ENTRY_FLAGS_COMBINED, HAS_DIR_ENTRY_TYPE);
+    struct {
+        uint8_t year, month, day;
+        uint8_t hour, minute, second;
+        uint32_t size;
+        uint8_t flags;
+        uint8_t mediatype;
+    } __attribute__((packed)) details;
+
+    struct tm *modtime = localtime(&f->modified_time);
+    details.year    = (uint8_t)(modtime->tm_year - 100);
+    details.month   = (uint8_t)(modtime->tm_mon + 1);
+    details.day     = (uint8_t)(modtime->tm_mday);
+    details.hour    = (uint8_t)(modtime->tm_hour);
+    details.minute  = (uint8_t)(modtime->tm_min);
+    details.second  = (uint8_t)(modtime->tm_sec);
+    details.size    = htole32(f->size);
+    details.flags   = 0;
+    size_t name_max = maxlen - sizeof(details) - (f->isDir ? 1 : 0);
+    if (f->isDir)                           details.flags |= 0x01;
+    if (strlen(f->filename) >= name_max)    details.flags |= 0x02;
+    details.mediatype = (uint8_t)MediaType::discover_mediatype(f->filename);
+    memcpy(dest, &details, sizeof(details));
 }
 
 void rc2014Fuji::rc2014_read_directory_entry()
@@ -785,7 +800,7 @@ void rc2014Fuji::rc2014_write_device_slots()
 
     // Load the data into our current device array
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
+        _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, (disk_access_flags_t)diskSlots[i].mode);
 
     // Save the data to disk
     _populate_config_from_slots();
@@ -872,7 +887,7 @@ void rc2014Fuji::rc2014_set_device_filename()
     rc2014_send_ack();
 
     memcpy(_fnDisks[ds].filename, f, MAX_FILENAME_LEN);
-    _fnDisks[ds].access_mode = flags;
+    _fnDisks[ds].access_mode = (disk_access_flags_t)flags;
     _populate_config_from_slots();
 
     rc2014_send_complete();
@@ -903,7 +918,7 @@ void rc2014Fuji::rc2014_enable_device()
 
     rc2014_send_ack();
 
-    rc2014Bus.enableDevice(d);
+    SYSTEM_BUS.enableDevice((fujiDeviceID_t)d);
 
     rc2014_send_complete();
 }
@@ -914,7 +929,7 @@ void rc2014Fuji::rc2014_disable_device()
 
     rc2014_send_ack();
 
-    rc2014Bus.disableDevice(d);
+    SYSTEM_BUS.disableDevice((fujiDeviceID_t)d);
 
     rc2014_send_complete();
 }
@@ -925,7 +940,7 @@ void rc2014Fuji::rc2014_device_enabled_status()
 
     rc2014_send_ack();
 
-    response[0] = (uint8_t)rc2014Bus.enabledDeviceStatus(d);
+    response[0] = (uint8_t)SYSTEM_BUS.enabledDeviceStatus((fujiDeviceID_t)d);
     response_len = 1;
 
     rc2014_send_buffer(response, response_len);
@@ -1201,11 +1216,8 @@ void rc2014Fuji::rc2014_hash_clear()
 
 
 // Initializes base settings and adds our devices to the SIO bus
-void rc2014Fuji::setup(systemBus *siobus)
+void rc2014Fuji::setup()
 {
-    // set up Fuji device
-    _rc2014_bus = siobus;
-
     _populate_slots_from_config();
 
     // Disable booting from CONFIG if our settings say to turn it off
@@ -1214,19 +1226,19 @@ void rc2014Fuji::setup(systemBus *siobus)
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = false;
 
-    _rc2014_bus->addDevice(&_fnDisks[0].disk_dev, RC2014_DEVICEID_DISK);
-    _rc2014_bus->addDevice(&_fnDisks[1].disk_dev, RC2014_DEVICEID_DISK + 1);
-    _rc2014_bus->addDevice(&_fnDisks[2].disk_dev, RC2014_DEVICEID_DISK + 2);
-    _rc2014_bus->addDevice(&_fnDisks[3].disk_dev, RC2014_DEVICEID_DISK + 3);
+    SYSTEM_BUS.addDevice(&_fnDisks[0].disk_dev, RC2014_DEVICEID_DISK);
+    SYSTEM_BUS.addDevice(&_fnDisks[1].disk_dev, (fujiDeviceID_t)(RC2014_DEVICEID_DISK + 1));
+    SYSTEM_BUS.addDevice(&_fnDisks[2].disk_dev, (fujiDeviceID_t)(RC2014_DEVICEID_DISK + 2));
+    SYSTEM_BUS.addDevice(&_fnDisks[3].disk_dev, (fujiDeviceID_t)(RC2014_DEVICEID_DISK + 3));
 
     //FILE *f = fsFlash.file_open("/autorun.ddp");
     //_fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, MEDIATYPE_DDP);
 
     theNetwork = new rc2014Network();
-    _rc2014_bus->addDevice(theNetwork, RC2014_DEVICEID_FN_NETWORK); // temporary.
-    _rc2014_bus->addDevice(theFuji, RC2014_DEVICEID_FUJINET);   // Fuji becomes the gateway device.
-  //  _rc2014_bus->addDevice(&_fnModem, RC2014_DEVICEID_MODEM);
-  //  _rc2014_bus->addDevice(&_fnCpm, RC2014_DEVICEID_CPM);
+    SYSTEM_BUS.addDevice(theNetwork, RC2014_DEVICEID_FN_NETWORK); // temporary.
+    SYSTEM_BUS.addDevice(theFuji, RC2014_DEVICEID_FUJINET);   // Fuji becomes the gateway device.
+  //  SYSTEM_BUS.addDevice(&_fnModem, RC2014_DEVICEID_MODEM);
+  //  SYSTEM_BUS.addDevice(&_fnCpm, RC2014_DEVICEID_CPM);
 
 
     // Add our devices to the rc2014 bus
@@ -1277,7 +1289,7 @@ void rc2014Fuji::mount_all()
             disk.disk_size = host.file_size(disk.fileh);
 
             // And now mount it
-            disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+            disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size, disk.access_mode);
         }
     }
 
@@ -1286,6 +1298,30 @@ void rc2014Fuji::mount_all()
         // No disks in a slot, disable config
         boot_config = false;
     }
+}
+
+bool rc2014Fuji::fujicore_mount_disk_image_success(uint8_t deviceSlot, disk_access_flags_t access_mode)
+{
+    char flag[3] = {'r', 0, 0};
+    if (access_mode == DISK_ACCESS_MODE_WRITE)
+        flag[1] = '+';
+
+    if (deviceSlot >= MAX_DISK_DEVICES)
+        return false;
+    if (_fnDisks[deviceSlot].host_slot >= MAX_HOSTS)
+        return false;
+
+    fujiDisk &disk = _fnDisks[deviceSlot];
+    fujiHost &host = _fnHosts[disk.host_slot];
+
+    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+    if (disk.fileh == nullptr)
+        return false;
+
+    boot_config = false;
+    disk.disk_size = host.file_size(disk.fileh);
+    disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size, access_mode);
+    return true;
 }
 
 rc2014Disk *rc2014Fuji::bootdisk()
@@ -1470,7 +1506,7 @@ void rc2014Fuji::rc2014_process(uint32_t commanddata, uint8_t checksum)
         rc2014_hash_clear();
         break;
     default:
-        fnUartDebug.printf("rc2014_process() not implemented yet for this device. Cmd received: %02x\n", cmdFrame.comnd);
+        Debug_printf("rc2014_process() not implemented yet for this device. Cmd received: %02x\n", cmdFrame.comnd);
         rc2014_send_nak();
     }
 }

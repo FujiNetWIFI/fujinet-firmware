@@ -78,7 +78,7 @@ public:
     
     virtual void status(uint8_t statusbuff[4]) = 0;
 
-    static mediatype_t discover_mediatype(const char *filename, uint32_t disksize);
+    static mediatype_t discover_mediatype(const char *filename, uint32_t disksize = 0);
     uint16_t sector_size(uint16_t sector);
     uint32_t num_sectors();
 

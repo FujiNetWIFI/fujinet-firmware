@@ -6,6 +6,7 @@
  */
 
 #include "cmdFrame.h"
+#include "fujiDeviceID.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <deque>
@@ -25,7 +26,7 @@ constexpr int RC2014_RX_BUFFER_SIZE = 1024;
 
 // buffer with inbuilt checksum
 // -- instantiate with desired buffer size + 1 for checksum
-template <size_t BUFFER_SIZE>
+template <size_t RC2014_FIFO_SIZE>
 class rc2014Fifo {
 public:
     rc2014Fifo() { clear(); };
@@ -38,7 +39,7 @@ public:
 
     bool is_full() {
         std::scoped_lock<std::mutex> lock(_m);
-        return ((_i_head + 1) % BUFFER_SIZE) == _i_tail;
+        return ((_i_head + 1) % RC2014_FIFO_SIZE) == _i_tail;
     };
 
     bool is_overrun() {
@@ -59,7 +60,7 @@ public:
 
         std::scoped_lock<std::mutex> lock(_m);
         _fifo[_i_head] = val;
-        _i_head = (_i_head + 1) % BUFFER_SIZE;
+        _i_head = (_i_head + 1) % RC2014_FIFO_SIZE;
     };
 
     void push(uint8_t* buffer, size_t len) {
@@ -84,7 +85,7 @@ public:
 
         std::scoped_lock<std::mutex> lock(_m);
         uint8_t val = _fifo[_i_tail];
-        _i_tail = (_i_tail + 1) % BUFFER_SIZE;
+        _i_tail = (_i_tail + 1) % RC2014_FIFO_SIZE;
         return val;
     };
 
@@ -104,12 +105,12 @@ public:
         if (_i_head == _i_tail)
             return 0; // Empty buffer
 
-        return (_i_head - _i_tail + BUFFER_SIZE) % BUFFER_SIZE;
+        return (_i_head - _i_tail + RC2014_FIFO_SIZE) % RC2014_FIFO_SIZE;
     }
 
 private:
     std::mutex _m;
-    std::array<uint8_t, BUFFER_SIZE> _fifo;
+    std::array<uint8_t, RC2014_FIFO_SIZE> _fifo;
     unsigned _i_tail;
     unsigned _i_head;
     bool _overrun;
@@ -137,6 +138,7 @@ class virtualDevice
 {
 protected:
     friend systemBus; // We exist on the rc2014 Bus, and need its methods.
+    friend class fujiDevice;
 
     /**
      * @brief Send Byte to rc2014
@@ -362,17 +364,17 @@ public:
     int64_t start_time;
 
     int numDevices();
-    void addDevice(virtualDevice *pDevice, FujiDeviceID device_id);
+    void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id);
     void remDevice(virtualDevice *pDevice);
-    void remDevice(FujiDeviceID device_id);
-    bool deviceExists(FujiDeviceID device_id);
-    void enableDevice(FujiDeviceID device_id);
-    void disableDevice(FujiDeviceID device_id);
-    bool enabledDeviceStatus(FujiDeviceID device_id);
-    void streamDevice(FujiDeviceID device_id);
+    void remDevice(fujiDeviceID_t device_id);
+    bool deviceExists(fujiDeviceID_t device_id);
+    void enableDevice(fujiDeviceID_t device_id);
+    void disableDevice(fujiDeviceID_t device_id);
+    bool enabledDeviceStatus(fujiDeviceID_t device_id);
+    void streamDevice(fujiDeviceID_t device_id);
     void streamDeactivate();
-    virtualDevice *deviceById(FujiDeviceID device_id);
-    void changeDeviceId(virtualDevice *pDevice, FujiDeviceID device_id);
+    virtualDevice *deviceById(fujiDeviceID_t device_id);
+    void changeDeviceId(virtualDevice *pDevice, fujiDeviceID_t device_id);
     QueueHandle_t qrc2014Messages = nullptr;
 
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
@@ -393,5 +395,13 @@ public:
 };
 
 extern systemBus SYSTEM_BUS;
+
+// RC2014 device IDs (mapped to FUJI_DEVICEID values)
+#define RC2014_DEVICEID_DISK        FUJI_DEVICEID_DISK
+#define RC2014_DEVICEID_PRINTER     FUJI_DEVICEID_PRINTER
+#define RC2014_DEVICEID_MODEM       FUJI_DEVICEID_SERIAL
+#define RC2014_DEVICEID_FN_NETWORK  FUJI_DEVICEID_NETWORK
+#define RC2014_DEVICEID_FUJINET     FUJI_DEVICEID_FUJINET
+#define RC2014_DEVICEID_CPM         FUJI_DEVICEID_CPM
 
 #endif /* rc2014_H */

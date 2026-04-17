@@ -123,9 +123,9 @@ void rc2014Network::open()
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), &cmdFrame) == true)
+    if (protocol->open(urlParser.get(), (fileAccessMode_t)open_aux1, (netProtoTranslation_t)open_aux2) != FUJI_ERROR::NONE)
     {
-        network_status.error = protocol->error;
+        network_status.error = NDEV_STATUS::GENERAL;
         Debug_printf("Protocol unable to make connection. Error: %d\n", protocol->error);
         delete protocol;
         protocol = nullptr;
@@ -201,7 +201,7 @@ bool rc2014Network::read_channel(unsigned short num_bytes)
     switch (channelMode)
     {
     case PROTOCOL:
-        _err = protocol->read(num_bytes);
+        _err = (protocol->read(num_bytes) != FUJI_ERROR::NONE);
         break;
     case JSON:
         err = read_channel_json(num_bytes);
@@ -230,7 +230,7 @@ void rc2014Network::write()
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
     {
-        network_status.error = DEVICE_STATUS_NOT_CONNECTED;
+        network_status.error = NDEV_STATUS::NOT_CONNECTED;
         rc2014_send_error();
         return;
     }
@@ -254,7 +254,7 @@ void rc2014Network::read()
     // Check for rx buffer. If NULL, then tell caller we could not allocate buffers.
     if (receiveBuffer == nullptr)
     {
-        network_status.error = DEVICE_STATUS_COULD_NOT_ALLOCATE_BUFFERS;
+        network_status.error = NDEV_STATUS::COULD_NOT_ALLOCATE_BUFFERS;
         rc2014_send_error();
         return;
     }
@@ -262,7 +262,7 @@ void rc2014Network::read()
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
     {
-        network_status.error = DEVICE_STATUS_NOT_CONNECTED;
+        network_status.error = NDEV_STATUS::NOT_CONNECTED;
         rc2014_send_error();
         return;
     }
@@ -291,7 +291,7 @@ bool rc2014Network::write_channel(unsigned short num_bytes)
     switch (channelMode)
     {
     case PROTOCOL:
-        err = protocol->write(num_bytes);
+        err = (protocol->write(num_bytes) != FUJI_ERROR::NONE);
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
@@ -304,8 +304,7 @@ bool rc2014Network::write_channel(unsigned short num_bytes)
 bool rc2014Network::status_channel_json(NetworkStatus *ns)
 {
     ns->connected = json_bytes_remaining > 0;
-    ns->error = json_bytes_remaining > 0 ? 1 : 136;
-    ns->rxBytesWaiting = json_bytes_remaining;
+    ns->error = json_bytes_remaining > 0 ? NDEV_STATUS::SUCCESS : NDEV_STATUS::END_OF_FILE;
     return false; // for now
 }
 
@@ -327,10 +326,10 @@ void rc2014Network::status()
     case PROTOCOL:
         if (protocol == nullptr) {
             Debug_printf("ERROR: Calling status on a null protocol.\r\n");
-            err = true;
-            s.error = true;
+            err = 1;
+            s.error = NDEV_STATUS::GENERAL;
         } else {
-            err = protocol->status(&s);
+            err = (protocol->status(&s) != FUJI_ERROR::NONE);
         }
         break;
     case JSON:
@@ -338,13 +337,13 @@ void rc2014Network::status()
         break;
     }
 
-    uint16_t bytes_waiting = (s.rxBytesWaiting > RC2014_TX_BUFFER_SIZE) ?
-            RC2014_TX_BUFFER_SIZE : s.rxBytesWaiting;
+    uint16_t bytes_waiting = (protocol != nullptr && protocol->bytesWaiting > RC2014_TX_BUFFER_SIZE) ?
+            RC2014_TX_BUFFER_SIZE : (protocol != nullptr ? protocol->bytesWaiting : 0);
 
     response[0] = bytes_waiting & 0xFF;
     response[1] = bytes_waiting >> 8;
     response[2] = s.connected;
-    response[3] = s.error;
+    response[3] = (uint8_t)s.error;
     response_len = 4;
     //receiveMode = STATUS;
 
@@ -617,7 +616,7 @@ bool rc2014Network::rc2014_poll_interrupt()
         switch (channelMode)
         {
         case PROTOCOL:
-            err = protocol->status(&s);
+            err = (protocol->status(&s) != FUJI_ERROR::NONE);
             break;
         case JSON:
             err = status_channel_json(&s);
@@ -626,7 +625,7 @@ bool rc2014Network::rc2014_poll_interrupt()
 
         protocol->fromInterrupt = false;
 
-        if (s.rxBytesWaiting > 0 || s.connected == 0)
+        if (protocol->bytesWaiting > 0 || s.connected == 0)
             result = true;
     }
 
@@ -689,7 +688,7 @@ void rc2014Network::parse_and_instantiate_protocol(string d)
         Debug_printf("Invalid devicespec: >%s<\n", deviceSpec.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = DEVICE_STATUS_INVALID_DEVICESPEC;
+        err = (uint8_t)NDEV_STATUS::INVALID_DEVICESPEC;
         return;
     }
 
@@ -703,7 +702,7 @@ void rc2014Network::parse_and_instantiate_protocol(string d)
         Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
-        err = DEVICE_STATUS_GENERAL;
+        err = (uint8_t)NDEV_STATUS::GENERAL;
         return;
     }
 }
@@ -729,4 +728,4 @@ void rc2014Network::set_timer_rate()
 }
 
 
-#endif /* NEW_TARGET */
+#endif /* BUILD_RC2014 */

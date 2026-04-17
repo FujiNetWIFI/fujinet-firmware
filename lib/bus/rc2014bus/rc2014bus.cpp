@@ -37,7 +37,7 @@ uint8_t rc2014_checksum(uint8_t *buf, unsigned short len)
 
 void virtualDevice::rc2014_send(uint8_t b)
 {
-    rc2014Bus.busTxByte(b);
+    SYSTEM_BUS.busTxByte(b);
 }
 
 void virtualDevice::rc2014_send_string(const std::string& str)
@@ -54,13 +54,13 @@ void virtualDevice::rc2014_send_int(const int i)
 
 void virtualDevice::rc2014_flush()
 {
-    rc2014Bus.busTxTransfer();
+    SYSTEM_BUS.busTxTransfer();
 }
 
 
 size_t virtualDevice::rc2014_send_buffer(const uint8_t *buf, unsigned short len)
 {
-    unsigned short buf_len = rc2014Bus.busTxAvail();
+    unsigned short buf_len = SYSTEM_BUS.busTxAvail();
     if (len > buf_len)
         len = buf_len;
 
@@ -75,14 +75,14 @@ size_t virtualDevice::rc2014_send_buffer(const uint8_t *buf, unsigned short len)
 
 size_t virtualDevice::rc2014_send_available()
 {
-    return rc2014Bus.busTxAvail();
+    return SYSTEM_BUS.busTxAvail();
 }
 
 uint8_t virtualDevice::rc2014_recv()
 {
     uint8_t val;
 
-    return rc2014Bus.busRxBuffer(&val, 1);
+    return SYSTEM_BUS.busRxBuffer(&val, 1);
 }
 
 int virtualDevice::rc2014_recv_available()
@@ -112,7 +112,7 @@ void virtualDevice::rc2014_send_length(uint16_t l)
 
 unsigned short virtualDevice::rc2014_recv_buffer(uint8_t *buf, unsigned short len)
 {
-    return rc2014Bus.busRxBuffer(buf, len);
+    return SYSTEM_BUS.busRxBuffer(buf, len);
 }
 
 uint32_t virtualDevice::rc2014_recv_blockno()
@@ -172,7 +172,7 @@ void virtualDevice::rc2014_process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.checksum = checksum;
 
 
-    fnUartDebug.printf("rc2014_process() not implemented yet for this device. Cmd received: %02x\n", cmdFrame.comnd);
+    Debug_printf("rc2014_process() not implemented yet for this device. Cmd received: %02x\n", cmdFrame.comnd);
 }
 
 void virtualDevice::rc2014_control_status()
@@ -228,7 +228,7 @@ void systemBus::_rc2014_process_cmd()
     fnLedManager.set(eLed::LED_BUS, true);
 
     Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
-                 tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
+                 tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.checksum);
 
     uint8_t ck = rc2014_checksum((uint8_t *)&tempFrame.commanddata, sizeof(tempFrame.commanddata)); // Calculate Checksum
     if (ck == tempFrame.checksum)
@@ -418,14 +418,14 @@ void systemBus::shutdown()
     Debug_printf("All devices shut down.\n");
 }
 
-void systemBus::addDevice(virtualDevice *pDevice, uint8_t device_id)
+void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
 {
     Debug_printf("Adding device: %02X\n", device_id);
     pDevice->_devnum = device_id;
     _daisyChain[device_id] = pDevice;
 }
 
-bool systemBus::deviceExists(uint8_t device_id)
+bool systemBus::deviceExists(fujiDeviceID_t device_id)
 {
     return _daisyChain.find(device_id) != _daisyChain.end();
 }
@@ -435,7 +435,7 @@ void systemBus::remDevice(virtualDevice *pDevice)
 
 }
 
-void systemBus::remDevice(uint8_t device_id)
+void systemBus::remDevice(fujiDeviceID_t device_id)
 {
     if (deviceExists(device_id))
     {
@@ -448,7 +448,7 @@ int systemBus::numDevices()
     return _daisyChain.size();
 }
 
-void systemBus::changeDeviceId(virtualDevice *p, uint8_t device_id)
+void systemBus::changeDeviceId(virtualDevice *p, fujiDeviceID_t device_id)
 {
     for (auto devicep : _daisyChain)
     {
@@ -457,7 +457,7 @@ void systemBus::changeDeviceId(virtualDevice *p, uint8_t device_id)
     }
 }
 
-virtualDevice *systemBus::deviceById(uint8_t device_id)
+virtualDevice *systemBus::deviceById(fujiDeviceID_t device_id)
 {
     for (auto devicep : _daisyChain)
     {
@@ -473,19 +473,19 @@ void systemBus::reset()
         devicep.second->reset();
 }
 
-void systemBus::enableDevice(uint8_t device_id)
+void systemBus::enableDevice(fujiDeviceID_t device_id)
 {
     if (_daisyChain.find(device_id) != _daisyChain.end())
         _daisyChain[device_id]->device_active = true;
 }
 
-void systemBus::disableDevice(uint8_t device_id)
+void systemBus::disableDevice(fujiDeviceID_t device_id)
 {
     if (_daisyChain.find(device_id) != _daisyChain.end())
         _daisyChain[device_id]->device_active = false;
 }
 
-bool systemBus::enabledDeviceStatus(uint8_t device_id)
+bool systemBus::enabledDeviceStatus(fujiDeviceID_t device_id)
 {
     if (_daisyChain.find(device_id) != _daisyChain.end())
         return _daisyChain[device_id]->device_active;
@@ -493,7 +493,7 @@ bool systemBus::enabledDeviceStatus(uint8_t device_id)
     return false;
 }
 
-void systemBus::streamDevice(uint8_t device_id)
+void systemBus::streamDevice(fujiDeviceID_t device_id)
 {
     Debug_printf("streamDevice: %x\n", device_id);
     auto device = _daisyChain.find(device_id);
