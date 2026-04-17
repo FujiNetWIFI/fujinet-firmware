@@ -337,8 +337,8 @@ void rc2014Network::status()
         break;
     }
 
-    uint16_t bytes_waiting = (protocol != nullptr && protocol->bytesWaiting > RC2014_TX_BUFFER_SIZE) ?
-            RC2014_TX_BUFFER_SIZE : (protocol != nullptr ? protocol->bytesWaiting : 0);
+    size_t avail = (protocol != nullptr) ? protocol->available() : 0;
+    uint16_t bytes_waiting = (uint16_t)(avail > RC2014_TX_BUFFER_SIZE ? RC2014_TX_BUFFER_SIZE : avail);
 
     response[0] = bytes_waiting & 0xFF;
     response[1] = bytes_waiting >> 8;
@@ -625,7 +625,7 @@ bool rc2014Network::rc2014_poll_interrupt()
 
         protocol->fromInterrupt = false;
 
-        if (protocol->bytesWaiting > 0 || s.connected == 0)
+        if (protocol->available() > 0 || s.connected == 0)
             result = true;
     }
 
