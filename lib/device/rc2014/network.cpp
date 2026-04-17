@@ -44,6 +44,8 @@ rc2014Network::rc2014Network()
     receiveBuffer->clear();
     transmitBuffer->clear();
     specialBuffer->clear();
+
+    json.setLineEnding("\n");
 }
 
 /**
@@ -138,6 +140,8 @@ void rc2014Network::open()
     }
 
     json.setProtocol(protocol);
+    json.setLineEnding("\n");
+    protocol->setLineEnding("\n");
 
     rc2014_send_complete();
 }
@@ -337,7 +341,8 @@ void rc2014Network::status()
         break;
     }
 
-    size_t avail = (protocol != nullptr) ? protocol->available() : 0;
+    size_t avail = (channelMode == JSON) ? json_bytes_remaining
+                                         : (protocol != nullptr ? protocol->available() : 0);
     uint16_t bytes_waiting = (uint16_t)(avail > RC2014_TX_BUFFER_SIZE ? RC2014_TX_BUFFER_SIZE : avail);
 
     response[0] = bytes_waiting & 0xFF;
