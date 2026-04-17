@@ -14,9 +14,6 @@
 #ifdef BUILD_ATARI
 #include "sio/sioFuji.h"
 #endif /* BUILD_ATARI */
-#ifdef BUILD_RC2014
-#include "rc2014/rc2014Fuji.h"
-#endif /* BUILD_RC2014 */
 
 using namespace std;
 

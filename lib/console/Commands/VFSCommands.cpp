@@ -13,11 +13,7 @@
 #include "../Helpers/PWDHelpers.h"
 #include "../ute/ute.h"
 
-#ifdef BUILD_RC2014
-#include "rc2014/rc2014Fuji.h"
-#else
 #include "fujiDevice.h"
-#endif
 #include "display.h"
 #include "meatloaf.h"
 #include "string_utils.h"

@@ -1,3 +1,4 @@
+#ifdef BUILD_RC2014
 #ifndef RC2014FUJI_H
 #define RC2014FUJI_H
 
@@ -13,36 +14,18 @@
 #include "network.h"
 #include "disk.h"
 
-#include "fujiHost.h"
-#include "fujiDisk.h"
-
-#include "hash.h"
-
-class rc2014Fuji : public virtualDevice
+class rc2014Fuji : public fujiDevice
 {
 private:
     bool isReady = false;
-    bool alreadyRunning = false; // Replace isReady and scanStarted with THIS.
+    bool alreadyRunning = false;
     bool scanStarted = false;
-    bool hostMounted[MAX_HOSTS];
     bool setSSIDStarted = false;
 
     uint8_t response[1024];
     uint16_t response_len;
 
-    fujiHost _fnHosts[MAX_HOSTS];
-
-    fujiDisk _fnDisks[MAX_DISK_DEVICES];
-
-    int _current_open_directory_slot = -1;
-
-    rc2014Disk *_bootDisk; // special disk drive just for configuration
-
-    uint8_t bootMode = 0; // Boot mode 0 = CONFIG, 1 = MINI-BOOT
-
-    uint8_t _countScannedSSIDs = 0;
-
-    appkey _current_appkey;
+    uint8_t bootMode = 0;
 
     mbedtls_md5_context _md5;
     mbedtls_sha1_context _sha1;
@@ -52,6 +35,29 @@ private:
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
 
 protected:
+    void transaction_continue(transState_t expectMoreData) override {
+        rc2014_send_ack();
+    }
+    void transaction_complete() override {
+        rc2014_send_complete();
+    }
+    void transaction_error() override {
+        rc2014_send_error();
+    }
+    success_is_true transaction_get(void *data, size_t len) override {
+        rc2014_recv_buffer((uint8_t *)data, len);
+        rc2014_send_ack();
+        return success_is_true(true);
+    }
+    void transaction_put(const void *data, size_t len, bool err) override {
+        rc2014_send_buffer((const uint8_t *)data, len);
+        rc2014_flush();
+        if (err) rc2014_send_error(); else rc2014_send_complete();
+    }
+
+    size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
+                                           uint8_t maxlen) override;
+
     void rc2014_reset_fujinet();          // 0xFF
     void rc2014_net_get_ssid();           // 0xFE
     void rc2014_net_scan_networks();      // 0xFD
@@ -117,11 +123,7 @@ protected:
     void shutdown() override;
 
 public:
-    bool boot_config = true;
-
     bool status_wait_enabled = true;
-
-    rc2014Disk *bootdisk();
 
     rc2014Network *network();
 
@@ -129,28 +131,12 @@ public:
 
     void insert_boot_device(uint8_t d);
 
-    void setup();
+    void setup() override;
 
     void image_rotate();
-    int get_disk_id(int drive_slot);
-    std::string get_host_prefix(int host_slot);
-
-    fujiHost *get_host(int i) { return &_fnHosts[i]; }
-    fujiDisk *get_disk(int i) { return &_fnDisks[i]; }
-    fujiHost *set_slot_hostname(int host_slot, char *hostname);
-
-    void _populate_slots_from_config();
-    void _populate_config_from_slots();
-
-    void mount_all();              // 0xD7
-    void fujicmd_mount_all_success() { mount_all(); }
-    void fujicore_mount_all_success() { mount_all(); }
-    void populate_slots_from_config() { _populate_slots_from_config(); }
-    bool fujicore_mount_disk_image_success(uint8_t deviceSlot, disk_access_flags_t access_mode);
 
     rc2014Fuji();
 };
 
-extern rc2014Fuji *theFuji;
-
 #endif // RC2014FUJI_H
+#endif /* BUILD_RC2014 */
