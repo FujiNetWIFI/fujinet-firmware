@@ -38,19 +38,19 @@ MediaType::~MediaType()
     unmount();
 }
 
-bool MediaType::format(uint16_t *responsesize)
+error_is_true MediaType::format(uint16_t *responsesize)
 {
-    return true;
+    RETURN_ERROR_AS_TRUE();
 }
 
-bool MediaType::read(uint16_t sectornum, uint16_t *readcount)
+error_is_true MediaType::read(uint16_t sectornum, uint16_t *readcount)
 {
-    return true;
+    RETURN_ERROR_AS_TRUE();
 }
 
-bool MediaType::write(uint16_t sectornum, bool verify)
+error_is_true MediaType::write(uint16_t sectornum, bool verify)
 {
-    return true;
+    RETURN_ERROR_AS_TRUE();
 }
 
 void MediaType::unmount()

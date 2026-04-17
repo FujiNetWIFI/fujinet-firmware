@@ -1,6 +1,7 @@
 #ifndef _MEDIA_TYPE_
 #define _MEDIA_TYPE_
 
+#include "global_types.h"
 #include <string>
 
 #define INVALID_SECTOR_VALUE 0xFFFFFFFF
@@ -69,12 +70,12 @@ public:
     virtual void unmount();
 
     // Returns TRUE if an error condition occurred
-    virtual bool format(uint16_t *responsesize);
+    virtual error_is_true format(uint16_t *responsesize);
 
     // Returns TRUE if an error condition occurred
-    virtual bool read(uint16_t sectornum, uint16_t *readcount) = 0;
+    virtual error_is_true read(uint16_t sectornum, uint16_t *readcount) = 0;
     // Returns TRUE if an error condition occurred
-    virtual bool write(uint16_t sectornum, bool verify);
+    virtual error_is_true write(uint16_t sectornum, bool verify);
     
     virtual void status(uint8_t statusbuff[4]) = 0;
 

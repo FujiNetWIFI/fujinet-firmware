@@ -151,8 +151,7 @@ uint32_t MediaTypeIMG::_sector_to_offset(uint16_t sectorNum)
     return (uint32_t )sectorNum * DISK_BYTES_PER_SECTOR_SINGLE;
 }
 
-// Returns TRUE if an error condition occurred
-bool MediaTypeIMG::read(uint16_t sectornum, uint16_t *readcount)
+error_is_true MediaTypeIMG::read(uint16_t sectornum, uint16_t *readcount)
 {
     Debug_print("IMG READ\r\n");
 
@@ -162,7 +161,7 @@ bool MediaTypeIMG::read(uint16_t sectornum, uint16_t *readcount)
     if (sectornum > _media_num_sectors)
     {
         Debug_printf("::read sector %d > %lu\r\n", sectornum, _media_num_sectors);
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
     uint16_t sectorSize = DISK_BYTES_PER_SECTOR_BLOCK;
@@ -187,11 +186,10 @@ bool MediaTypeIMG::read(uint16_t sectornum, uint16_t *readcount)
 
     *readcount = sectorSize;
 
-    return err;
+    RETURN_ERROR_IF(err);
 }
 
-// Returns TRUE if an error condition occurred
-bool MediaTypeIMG::write(uint16_t sectornum, bool verify)
+error_is_true MediaTypeIMG::write(uint16_t sectornum, bool verify)
 {
     Debug_printf("IMG WRITE %u of %lu\r\n", sectornum, _media_num_sectors);
 
@@ -200,7 +198,7 @@ bool MediaTypeIMG::write(uint16_t sectornum, bool verify)
     {
         Debug_printf("::write sector %d > %lu\r\n", sectornum, _media_num_sectors);
         _media_controller_status=2;
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
     uint32_t offset = _sector_to_offset(sectornum);
@@ -215,7 +213,7 @@ bool MediaTypeIMG::write(uint16_t sectornum, bool verify)
         if (e != 0)
         {
             Debug_printf("::write seek error %d\r\n", e);
-            return true;
+            RETURN_ERROR_AS_TRUE();
         }
     }
     // Write the data
@@ -223,7 +221,7 @@ bool MediaTypeIMG::write(uint16_t sectornum, bool verify)
     if (e != DISK_BYTES_PER_SECTOR_BLOCK)
     {
         Debug_printf("::write error %d, %d\r\n", e, errno);
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
 
     int ret = fflush(_media_fileh);    // This doesn't seem to be connected to anything in ESP-IDF VF, so it may not do anything
@@ -233,7 +231,7 @@ bool MediaTypeIMG::write(uint16_t sectornum, bool verify)
     _media_last_sector = sectornum;
     _media_controller_status=0;
 
-    return false;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 void MediaTypeIMG::status(uint8_t statusbuff[4])
@@ -246,8 +244,7 @@ void MediaTypeIMG::status(uint8_t statusbuff[4])
     All sectors are filleded with the data byte $00. On completion, the drive returns
     a sector-sized buffer containing a list of 16-bit bad sector numbers terminated by $FFFF.
 */
-// Returns TRUE if an error condition occurred
-bool MediaTypeIMG::format(uint16_t *responsesize)
+error_is_true MediaTypeIMG::format(uint16_t *responsesize)
 {
     Debug_print("IMG FORMAT\r\n");
 
@@ -256,7 +253,7 @@ bool MediaTypeIMG::format(uint16_t *responsesize)
 
     *responsesize = _media_sector_size;
 
-    return false;
+    RETURN_ERROR_AS_TRUE();
 }
 
 /* 
@@ -274,9 +271,9 @@ mediatype_t MediaTypeIMG::mount(FILE *f, uint32_t disksize, mediatype_t disk_typ
 }
 
 // Returns FALSE on error
-bool MediaTypeIMG::create(FILE *f, uint16_t sectorSize, uint16_t numSectors)
+success_is_true MediaTypeIMG::create(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 {
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 #endif /* BUILD_ADAM */
