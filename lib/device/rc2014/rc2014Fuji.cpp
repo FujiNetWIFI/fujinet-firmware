@@ -1042,11 +1042,11 @@ void rc2014Fuji::setup()
 
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
         SYSTEM_BUS.addDevice(&_fnDisks[i].disk_dev,
-                             static_cast<fujiDeviceID_t>(RC2014_DEVICEID_DISK + i));
+                             static_cast<fujiDeviceID_t>(FUJI_DEVICEID_DISK + i));
 
     theNetwork = new rc2014Network();
-    SYSTEM_BUS.addDevice(theNetwork, RC2014_DEVICEID_FN_NETWORK);
-    SYSTEM_BUS.addDevice(theFuji, RC2014_DEVICEID_FUJINET);
+    SYSTEM_BUS.addDevice(theNetwork, FUJI_DEVICEID_NETWORK);
+    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET);
 }
 
 void rc2014Fuji::rc2014_process(uint32_t commanddata, uint8_t checksum)
