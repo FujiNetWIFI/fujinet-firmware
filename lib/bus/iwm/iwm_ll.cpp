@@ -495,9 +495,9 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int packet_len)
   {
     return 0; // all good
   }
-  else if (((numodd + numgrps * 7) > 0xff && (numodd + numgrps * 7) < 0x200) && (checksum == smartport.last_checksum)) // Liron bug workaround
+  else if (((numodd + numgrps * 7) > 0xff && (numodd + numgrps * 7) < 0x200)) // Liron, IIc rom0 bug workaround
   {
-    return 0; // just assume its ok due to last checksum being the same as this one for the Liron affected size data packets
+    return 0; // just assume its ok
   }
   else
   {
