@@ -99,6 +99,14 @@ int fnHttpClient::available()
     return result;
 }
 
+int fnHttpClient::content_length()
+{
+    if (_handle == nullptr)
+        return 0;
+
+    return esp_http_client_get_content_length(_handle);
+}
+
 bool fnHttpClient::is_transaction_done()
 {
     return _transaction_done;
