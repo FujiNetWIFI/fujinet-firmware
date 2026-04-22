@@ -389,6 +389,7 @@ if(FUJINET_TARGET STREQUAL "COCO")
     lib/device/drivewire/disk.h lib/device/drivewire/disk.cpp
     lib/device/drivewire/printer.h lib/device/drivewire/printer.cpp
     lib/device/drivewire/printerlist.h lib/device/drivewire/printerlist.cpp
+    lib/device/drivewire/clock.h lib/device/drivewire/clock.cpp
 
     )
 endif()

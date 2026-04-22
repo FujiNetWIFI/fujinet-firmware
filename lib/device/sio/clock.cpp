@@ -93,6 +93,7 @@ void sioClock::sio_process(uint32_t commanddata, uint8_t checksum)
     }
     case 'S': {
         // Date and time, ASCII string in Apple /// SOS format: YYYYMMDD0HHMMSS000
+        sio_ack();
         std::string sosTime = Clock::get_current_time_sos(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
         bus_to_computer((uint8_t *) sosTime.c_str(), sosTime.size() + 1, false);
         break;

@@ -67,6 +67,7 @@
 #define OP_FUJI        0xE2
 #define OP_NET         0xE3
 #define OP_CPM         0xE4
+#define OP_CLOCK       0xE5
 #define OP_NAMEOBJ_MNT 0x01
 
 #define FEATURE_EMCEE    0x01
@@ -226,6 +227,7 @@ private:
     void op_fuji();
     void op_net();
     void op_cpm();
+    void op_clock();
     void op_write();
     void op_time();
     void op_init();

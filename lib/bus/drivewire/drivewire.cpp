@@ -4,6 +4,7 @@
 
 #include "drivewire.h"
 #include "drivewire/drivewireFuji.h"
+#include "drivewire/clock.h"
 
 #include "../../include/debug.h"
 
@@ -344,6 +345,11 @@ void systemBus::op_cpm()
 #endif /* ESP_PLATFORM */
 }
 
+void systemBus::op_clock()
+{
+    platformClock.process();
+}
+
 void systemBus::op_net()
 {
     // Get device ID
@@ -627,6 +633,9 @@ void systemBus::_drivewire_process_cmd()
             break;
         case OP_CPM:
             op_cpm();
+            break;
+        case OP_CLOCK:
+            op_clock();
             break;
         default:
             op_unhandled(c);
