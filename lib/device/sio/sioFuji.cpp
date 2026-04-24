@@ -229,6 +229,7 @@ void sioFuji::sio_copy_file()
 
     memset(&csBuf, 0, sizeof(csBuf));
 
+    sio_late_ack(); // quick fix to permit copy to work again
     ck = bus_to_peripheral(csBuf, sizeof(csBuf));
 
     if (ck != sio_checksum(csBuf, sizeof(csBuf)))
