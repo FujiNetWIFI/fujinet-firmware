@@ -172,7 +172,6 @@ bool fnUDP::beginPacket(in_addr_t ip, uint16_t port)
 
 bool fnUDP::beginPacket(const char *host, uint16_t port)
 {
-
     remote_ip = get_ip4_addr_by_name(host);
     remote_port = port;
     return beginPacket();
@@ -305,6 +304,10 @@ int fnUDP::read(unsigned char *buffer, size_t len)
 
 int fnUDP::available()
 {
+    if (!rx_buffer)
+    {
+        parsePacket();  // Try to receive pending data from socket
+    }
     if (!rx_buffer)
         return 0;
     return rx_buffer->available();

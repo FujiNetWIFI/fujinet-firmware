@@ -513,7 +513,12 @@ void sioNetwork::sio_status_channel()
             status.error = NDEV_STATUS::NOT_CONNECTED;
         } else {
             err = protocol->status(&status);
-            avail = protocol->available();
+            // Check receiveBuffer first — protocol->status() may have
+            // auto-read data into it, but protocol->available() only
+            // checks the underlying socket (which is now empty).
+            avail = receiveBuffer->length();
+            if (avail == 0)
+                avail = protocol->available();
         }
         break;
     case JSON:
