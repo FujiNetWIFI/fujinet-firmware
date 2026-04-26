@@ -137,6 +137,8 @@ public:
     bool get_general_encrypt_passphrase();
 
     const char * get_network_sntpserver() { return _network.sntpserver; };
+    bool get_network_log_json() { return _network.log_network_json; };
+    void store_network_log_json(bool log_json);
 
 #ifndef ESP_PLATFORM
     std::string get_general_interface_url() { return _general.interface_url; };
@@ -443,6 +445,7 @@ private:
         char udpstream_host [64];
         int udpstream_port;
         bool udpstream_servermode;
+        bool log_network_json = false;
     };
 
     struct general_info
