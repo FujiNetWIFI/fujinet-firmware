@@ -568,7 +568,10 @@ void drivewireFuji::process()
             uint8_t lenh = SYSTEM_BUS.read();
             uint8_t lenl = SYSTEM_BUS.read();
             uint16_t len = lenh << 8 | lenl;
-            fujicmd_write_app_key(len);
+            // fujinet-lib always sends MAX_APPKEY_LEN data bytes
+            // regardless of len. Drain the full payload so leftover
+            // bytes don't get interpreted as bus opcodes.
+            fujicmd_write_app_key(len, MAX_APPKEY_LEN);
         }
         break;
     case FUJICMD_RANDOM_NUMBER:
