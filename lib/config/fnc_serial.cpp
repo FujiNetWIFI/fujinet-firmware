@@ -116,6 +116,24 @@ void fnConfig::store_serial_proceed(serial_proceed_pin proceed_pin)
     _dirty = true;
 }
 
+void fnConfig::store_serial_chunk_size(int chunk_size)
+{
+    if (chunk_size < 0 || _serial.chunk_size == chunk_size)
+        return;
+
+    _serial.chunk_size = chunk_size;
+    _dirty = true;
+}
+
+void fnConfig::store_serial_chunk_delay_us(int chunk_delay_us)
+{
+    if (chunk_delay_us < 0 || _serial.chunk_delay_us == chunk_delay_us)
+        return;
+
+    _serial.chunk_delay_us = chunk_delay_us;
+    _dirty = true;
+}
+
 void fnConfig::store_bos_enabled(bool bos_enabled) {
     if (_bos.bos_enabled == bos_enabled)
         return;
@@ -200,6 +218,18 @@ void fnConfig::_read_section_serial(std::stringstream &ss)
             else if (strcasecmp(name.c_str(), "proceed") == 0)
             {
                 _serial.proceed = serial_proceed_from_string(value.c_str());
+            }
+            else if (strcasecmp(name.c_str(), "chunk_size") == 0)
+            {
+                int cs = atoi(value.c_str());
+                if (cs >= 0)
+                    _serial.chunk_size = cs;
+            }
+            else if (strcasecmp(name.c_str(), "chunk_delay_us") == 0)
+            {
+                int cd = atoi(value.c_str());
+                if (cd >= 0)
+                    _serial.chunk_delay_us = cd;
             }
 #endif /* ESP_PLATFORM */
         }

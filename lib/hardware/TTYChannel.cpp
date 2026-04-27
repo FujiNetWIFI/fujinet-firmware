@@ -108,6 +108,11 @@ void TTYChannel::begin(const ChannelConfig& conf)
         return;
     }
 
+    _chunk_size = conf.chunk_size;
+    _chunk_delay_us = conf.chunk_delay_us;
+    if (_chunk_size > 0)
+        Debug_printf("TTY chunk_size: %d, chunk_delay_us: %d\n", _chunk_size, _chunk_delay_us);
+
     Debug_printf("### TTY initialized ###\n");
     setBaudrate(conf.baud_rate);
 
@@ -192,8 +197,12 @@ size_t TTYChannel::dataOut(const void *buffer, size_t length)
             // Make sure our file descriptor is in the ready to write list
             if (FD_ISSET(_fd, &writefds))
             {
+                size_t want = length - txbytes;
+                if (_chunk_size > 0 && want > (size_t)_chunk_size)
+                    want = _chunk_size;
+
                 // This will write some
-                result = ::write(_fd, &((uint8_t *)buffer)[txbytes], length-txbytes);
+                result = ::write(_fd, &((uint8_t *)buffer)[txbytes], want);
                 // Debug_printf("write: %d\n", result);
                 if (result < 1)
                 {
@@ -213,6 +222,12 @@ size_t TTYChannel::dataOut(const void *buffer, size_t length)
                 }
                 if (txbytes < length)
                 {
+                    if (_chunk_size > 0)
+                    {
+                        tcdrain(_fd);
+                        if (_chunk_delay_us > 0)
+                            usleep(_chunk_delay_us);
+                    }
                     timeout_tv = timeval_from_ms(1000 + result * 12500 / _baud);
                     continue;
                 }
