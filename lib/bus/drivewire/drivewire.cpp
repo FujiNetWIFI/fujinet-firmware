@@ -140,8 +140,6 @@ void systemBus::op_readex()
     lsn |= _port->read() << 8;
     lsn |= _port->read();
 
-    Debug_printf("OP_READ: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
-
     // named object support for dragon
     if (strlen((const char*)szNamedMount))
     {
@@ -181,8 +179,10 @@ void systemBus::op_readex()
     }
     else
     {
-        if (true==bDragon && drive_num>=5) drive_num = drive_num-5;
-    Debug_printf("OP_READ: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
+        if (true == bDragon && drive_num >= 5)
+            drive_num = drive_num - 5;
+
+        Debug_printf("OP_READ: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
 
         if (theFuji->boot_config && drive_num == 0)
             d = &theFuji->bootdisk;
@@ -602,7 +602,10 @@ void systemBus::_drivewire_process_cmd()
             op_print();
             break;
         case OP_NAMEOBJ_MNT:
-            op_namedobj_mnt();
+            if (bDragon)
+                op_namedobj_mnt();
+            else
+                op_unhandled(c);
             break;
         case OP_PRINTFLUSH:
             // Not needed.
