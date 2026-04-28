@@ -818,10 +818,6 @@ void systemBus::setup()
                       .baud(_drivewireBaud)
                       .deviceID(DW_UART_DEVICE)
                       .readTimeout(500)
-#ifndef ESP_PLATFORM
-                      .chunkSize(Config.get_serial_chunk_size())
-                      .chunkDelayUs(Config.get_serial_chunk_delay_us())
-#endif /* ! ESP_PLATFORM */
 #ifdef ESP_PLATFORM
                       .inverted(DW_UART_DEVICE == UART_NUM_2)
 #endif /* ESP_PLATFORM */

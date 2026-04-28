@@ -149,12 +149,8 @@ public:
     // SERIAL PORT
     serial_command_pin get_serial_command() { return _serial.command; };
     serial_proceed_pin get_serial_proceed() { return _serial.proceed; };
-    int get_serial_chunk_size() { return _serial.chunk_size; };
-    int get_serial_chunk_delay_us() { return _serial.chunk_delay_us; };
     void store_serial_command(serial_command_pin command_pin);
     void store_serial_proceed(serial_proceed_pin proceed_pin);
-    void store_serial_chunk_size(int chunk_size);
-    void store_serial_chunk_delay_us(int chunk_delay_us);
 #endif /* ! ESP_PLATFORM */
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
     std::string get_serial_port() { return _serial.port; };
@@ -501,8 +497,6 @@ private:
 #ifndef ESP_PLATFORM
         serial_command_pin command = SERIAL_COMMAND_DSR; // Used by Atari, ignored by CoCo
         serial_proceed_pin proceed = SERIAL_PROCEED_DTR; // Used by Atari, ignored by CoCo
-        int chunk_size = 0; // 0 = single write, >0 = max bytes per ::write() with tcdrain between chunks
-        int chunk_delay_us = 0; // microseconds to sleep after tcdrain between chunks (only applied when chunk_size > 0)
 #endif /* ESP_PLATFORM */
     };
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */

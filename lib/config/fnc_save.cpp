@@ -189,10 +189,6 @@ void fnConfig::save()
     ss << "command=" << std::string(_serial_command_pin_names[_serial.command]) << LINETERM;
     ss << "proceed=" << std::string(_serial_proceed_pin_names[_serial.proceed]) << LINETERM;
 #endif
-    if (_serial.chunk_size > 0)
-        ss << "chunk_size=" << _serial.chunk_size << LINETERM;
-    if (_serial.chunk_delay_us > 0)
-        ss << "chunk_delay_us=" << _serial.chunk_delay_us << LINETERM;
 
 #ifdef BUILD_APPLE
     // Bus Over Serial - not used, yet

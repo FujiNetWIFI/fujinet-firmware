@@ -12,8 +12,6 @@ struct ChannelConfig
 {
     std::string device;
     int baud_rate;
-    int chunk_size = 0;
-    int chunk_delay_us = 0;
     double read_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
     double discard_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
 
@@ -22,12 +20,6 @@ struct ChannelConfig
     }
     ChannelConfig& deviceID(std::string path) {
         device = path; return *this;
-    }
-    ChannelConfig& chunkSize(int n) {
-        chunk_size = n; return *this;
-    }
-    ChannelConfig& chunkDelayUs(int us) {
-        chunk_delay_us = us; return *this;
     }
     ChannelConfig& readTimeout(double millis) {
         read_timeout_ms = millis; return *this;
@@ -43,8 +35,6 @@ private:
     int _fd = -1;
     std::string _device;
     uint32_t _baud;
-    int _chunk_size = 0;
-    int _chunk_delay_us = 0;
     bool _dtrState = true, _rtsState = true;
 
 protected:
