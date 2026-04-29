@@ -1,6 +1,7 @@
 #include "fnConfig.h"
 #include <cstring>
 #include "compat_string.h"
+#include "../utils/utils.h"
 
 void fnConfig::store_udpstream_host(const char host_ip[64])
 {
@@ -17,6 +18,11 @@ void fnConfig::store_udpstream_servermode(bool mode)
     _network.udpstream_servermode = mode;
 }
 
+void fnConfig::store_network_log_json(bool log_json)
+{
+    _network.log_network_json = log_json;
+}
+
 void fnConfig::_read_section_network(std::stringstream &ss)
 {
     std::string line;
@@ -30,6 +36,10 @@ void fnConfig::_read_section_network(std::stringstream &ss)
             if (strcasecmp(name.c_str(), "sntpserver") == 0)
             {
                 strlcpy(_network.sntpserver, value.c_str(), sizeof(_network.sntpserver));
+            }
+            else if (strcasecmp(name.c_str(), "log_network_json") == 0)
+            {
+                _network.log_network_json = util_string_value_is_true(value);
             }
         }
     }

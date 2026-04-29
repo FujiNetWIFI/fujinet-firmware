@@ -77,6 +77,7 @@ void fnConfig::save()
     // NETWORK
     ss << LINETERM << "[Network]" LINETERM;
     ss << "sntpserver=" << _network.sntpserver << LINETERM;
+    ss << "log_network_json=" << _network.log_network_json << LINETERM;
 
     // HOSTS
     for (i = 0; i < MAX_HOST_SLOTS; i++)
