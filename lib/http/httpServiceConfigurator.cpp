@@ -139,7 +139,7 @@ void netstream_activate()
         Config.get_network_netstream_register());
 #endif /* ATARI */
 #ifdef BUILD_LYNX
-    ComLynx.setStreamHost(Config.get_network_netstream_host().c_str(), Config.get_network_netstream_port());
+    SYSTEM_BUS.setStreamHost(Config.get_network_netstream_host().c_str(), Config.get_network_netstream_port());
 #endif /* LYNX */
 }
 

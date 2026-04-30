@@ -8,6 +8,7 @@
 
 #include "network.h"
 #include "disk.h"
+#include "netstream.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
@@ -17,6 +18,9 @@
 
 class lynxFuji : public fujiDevice
 {
+private:
+    lynxNetStream _streamDev;
+
 protected:
    // Temporary until all platforms have transaction_ methods in virtualDevice base class
     void transaction_continue(transState_t expectMoreData) override {

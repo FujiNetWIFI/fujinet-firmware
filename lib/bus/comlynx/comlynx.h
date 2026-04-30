@@ -24,13 +24,15 @@
 class systemBus;
 class lynxFuji;     // declare here so can reference it, but define in fuji.h
 class lynxPrinter;
-class lynxNetStream; // declare here so can reference it, but define in netstream.h
+class lynxNetStream;
+class lynxNetwork;
 class fujiDevice;
 
 /**
  * @brief Calculate checksum for Comlynx packets. Uses a simple 8-bit XOR of each successive byte.
  * @param buf pointer to buffer
  * @param len length of buffer
+
  * @return checksum value (0x00 - 0xFF)
  */
 uint8_t comlynx_checksum(uint8_t *buf, unsigned short len);
@@ -120,6 +122,7 @@ private:
     virtualDevice *_activeDev = nullptr;
     lynxFuji *_fujiDev = nullptr;
     lynxPrinter *_printerDev = nullptr;
+    lynxNetwork *_netDev[8] = {nullptr};
     lynxNetStream *_streamDev = nullptr;
 
     UARTChannel _port;
@@ -137,6 +140,7 @@ public:
      * @brief Wait to see if Comlynx bus is idle.
      */
     bool wait_for_idle();
+    bool netstreamActive() const;
 
     int numDevices();
     void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id);
@@ -149,7 +153,7 @@ public:
     void changeDeviceId(virtualDevice *pDevice, int device_id);
     bool deviceEnabled(fujiDeviceID_t device_id);
     QueueHandle_t qComlynxMessages = nullptr;
-    void setStreamHost(const char *newhost, int port);          // Set new host/ip & port for NetStream
+    void setStreamHost(const char *newhost, int port);    
 
     void setRedeyeMode(bool enable);
     void setRedeyeGameRemap(uint32_t remap);

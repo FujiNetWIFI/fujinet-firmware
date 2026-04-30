@@ -230,6 +230,8 @@ void lynxFuji::setup()
     
     for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
         SYSTEM_BUS.addDevice(lynxNetDevs[i].get(), (fujiDeviceID_t) (FUJI_DEVICEID_NETWORK + i));
+
+    SYSTEM_BUS.addDevice(&_streamDev, FUJI_DEVICEID_MIDI);
 }
 
 void lynxFuji::fujicmd_random_number()
@@ -425,7 +427,7 @@ void lynxFuji::comlynx_process()
     case FUJICMD_ENABLE_UDPSTREAM:
         uint16_t port;
         transaction_get(&port, sizeof(port));
-        fujicmd_enable_udpstream(port);
+        fujicmd_enable_netstream(port);
         break;
     default:
         Debug_printf("lynxFuji::process - unknown command: %02X\n", c);

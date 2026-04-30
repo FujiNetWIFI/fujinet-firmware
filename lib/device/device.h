@@ -89,7 +89,7 @@
 # include "comlynx/netstream.h"
 
 //lynxModem *sioR;
-lynxUDPStream *udpDev;
+lynxNetStream streamDev;
 #endif
 
 #ifdef BUILD_APPLE
