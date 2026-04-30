@@ -7,7 +7,6 @@
 
 #include "rs232/rs232Fuji.h"
 #include "rs232/network.h"
-#include "udpstream.h"
 #include "modem.h"
 #include "siocpm.h"
 
