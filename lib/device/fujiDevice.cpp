@@ -1748,7 +1748,7 @@ void fujiDevice::fujicmd_set_sio_external_clock(uint16_t speed)
 
 #ifdef SYSTEM_BUS_IS_UDP
 // Set UDP Stream HOST & PORT and start it
-void fujiDevice::fujicmd_enable_udpstream(int port)
+void fujiDevice::fujicmd_enable_netstream(int port)
 {
     char host[64];
 
@@ -1759,16 +1759,16 @@ void fujiDevice::fujicmd_enable_udpstream(int port)
         return;
     }
 
-    Debug_printf("Fuji cmd ENABLE UDPSTREAM: HOST:%s PORT: %d\n", host, port);
+    Debug_printf("Fuji cmd ENABLE NETSTREAM: HOST:%s PORT: %d\n", host, port);
 
     // Save the host and port
-    Config.store_udpstream_host(host);
-    Config.store_udpstream_port(port);
+    Config.store_netstream_host(host);
+    Config.store_netstream_port(port);
     Config.save();
 
     transaction_complete();
 
     // Start the UDP Stream
-    SYSTEM_BUS.setUDPHost(host, port);
+    SYSTEM_BUS.setStreamHost(host, port);
 }
 #endif /* SYSTEM_BUS_IS_UDP */

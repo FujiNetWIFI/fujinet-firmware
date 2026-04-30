@@ -219,7 +219,7 @@ public:
     void fujicmd_status();
     void fujicmd_set_sio_external_clock(uint16_t speed);
 #ifdef SYSTEM_BUS_IS_UDP
-    void fujicmd_enable_udpstream(int port);
+    void fujicmd_enable_netstream(int port);
 #endif /* SYSTEM_BUS_IS_UDP */
 
     // Move appkey stuff to its own file?

@@ -9,14 +9,6 @@
 #include "fnSystem.h"
 #include "utils.h"
 
-// TODO: merge/fix this at global level
-#ifdef ESP_PLATFORM
-#include "fnUART.h"
-#define FN_BUS_LINK fnUartBUS
-#else
-#define FN_BUS_LINK fnSioCom
-#endif
-
 static uint64_t netstream_time_us()
 {
 #ifdef ESP_PLATFORM
@@ -129,7 +121,7 @@ void sioNetStream::pace_to_atari(uint32_t min_gap_us)
         uint8_t out = rx_ring[rx_tail];
         rx_tail = (rx_tail + 1) % NETSTREAM_RX_RING_SIZE;
         rx_count--;
-        FN_BUS_LINK.write(&out, 1);
+        SYSTEM_BUS.write(&out, 1);
         last_tx_us += min_gap_us;
         send_count++;
     }
@@ -140,11 +132,11 @@ void sioNetStream::sio_enable_netstream()
     int baud = 0;
 
     // Disable cassette so it doesn't interfere with SIO Motor Control toggle
-    if (SIO.getCassette() != nullptr)
+    if (SYSTEM_BUS.getCassette() != nullptr)
     {
-        cassette_was_active = SIO.getCassette()->is_active();
+        cassette_was_active = SYSTEM_BUS.getCassette()->is_active();
         if (cassette_was_active)
-            SIO.getCassette()->sio_disable_cassette();
+            SYSTEM_BUS.getCassette()->sio_disable_cassette();
     }
     else
     {
@@ -160,7 +152,7 @@ void sioNetStream::sio_enable_netstream()
 
     netstream_baud = baud;
     // Don't set baud until MOTOR asserted
-    //FN_BUS_LINK.set_baudrate(netstream_baud);
+    //SYSTEM_BUS.set_baudrate(netstream_baud);
 
 #ifdef DEBUG_NETSTREAM
     Debug_printf("NETSTREAM baud: %d (AUDF3=%u %s)\n",
@@ -206,13 +198,13 @@ void sioNetStream::sio_disable_netstream()
 {
     netStreamTcp.stop();
     netStreamUdp.stop();
-    if (cassette_was_active && SIO.getCassette() != nullptr && SIO.getCassette()->is_mounted())
-        SIO.getCassette()->sio_enable_cassette();
+    if (cassette_was_active && SYSTEM_BUS.getCassette() != nullptr && SYSTEM_BUS.getCassette()->is_mounted())
+        SYSTEM_BUS.getCassette()->sio_enable_cassette();
     cassette_was_active = false;
 #ifdef ESP_PLATFORM
         ledc_stop(LEDC_ESP32XX_HIGH_SPEED, LEDC_CHANNEL_1, 0);
 #endif
-        FN_BUS_LINK.set_baudrate(SIO_STANDARD_BAUDRATE);
+        SYSTEM_BUS.setBaudrate(SIO_STANDARD_BAUDRATE);
 #ifdef ESP_PLATFORM
     // Reset CKI pin back to output open drain high
     fnSystem.set_pin_mode(PIN_CKI, gpio_mode_t::GPIO_MODE_OUTPUT_OD);
@@ -342,7 +334,7 @@ void sioNetStream::sio_handle_netstream()
     pace_to_atari(min_gap_us);
 
     // Read the data until there's a pause in the incoming stream
-    if (FN_BUS_LINK.available() > 0)
+    if (SYSTEM_BUS.available() > 0)
     {
         while (true)
         {
@@ -350,17 +342,17 @@ void sioNetStream::sio_handle_netstream()
 #ifdef ESP_PLATFORM
             if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
 #else
-            if (FN_BUS_LINK.command_asserted())
+            if (SYSTEM_BUS.command_asserted())
 #endif
             {
                 Debug_println("CMD Asserted, stopping NetStream");
                 sio_disable_netstream();
                 return;
             }
-            if (FN_BUS_LINK.available() > 0)
+            if (SYSTEM_BUS.available() > 0)
             {
                 // Collect bytes read in our buffer
-                int in_byte = FN_BUS_LINK.read(); // TODO apc: check for error first
+                int in_byte = SYSTEM_BUS.read(); // TODO apc: check for error first
                 if (!batch_active)
                 {
                     batch_start_us = netstream_time_us();
@@ -389,7 +381,7 @@ void sioNetStream::sio_handle_netstream()
                 const uint32_t wait_budget_us = 10000;
                 uint32_t waited_us = 0;
                 bool flushed = false;
-                while (waited_us < wait_budget_us && FN_BUS_LINK.available() <= 0)
+                while (waited_us < wait_budget_us && SYSTEM_BUS.available() <= 0)
                 {
                     fnSystem.delay_microseconds(wait_step_us);
                     waited_us += wait_step_us;
@@ -402,9 +394,9 @@ void sioNetStream::sio_handle_netstream()
                         break;
                     }
                 }
-                if (flushed && FN_BUS_LINK.available() > 0)
+                if (flushed && SYSTEM_BUS.available() > 0)
                     continue;
-                if (FN_BUS_LINK.available() <= 0)
+                if (SYSTEM_BUS.available() <= 0)
                     break;
             }
         }

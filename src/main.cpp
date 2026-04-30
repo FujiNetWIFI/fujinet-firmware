@@ -242,7 +242,7 @@ void main_setup(int argc, char *argv[])
         SYSTEM_BUS.addDevice(&clockDevice, FUJI_DEVICEID_CLOCK); // Clock for Atari, APETime compatible, but extended for additional return types
 
 #ifdef ESP_PLATFORM
-    SYSTEM_BUS.addDevice(&udpDev, FUJI_DEVICEID_MIDI); // UDP/MIDI device
+    SYSTEM_BUS.addDevice(&streamDev, FUJI_DEVICEID_MIDI); // UDP/MIDI device
 #endif
 
     // add PCLink device only if we have SD card

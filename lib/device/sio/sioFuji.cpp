@@ -1059,7 +1059,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         fujicmd_set_boot_mode(cmdFrame.aux1, MEDIATYPE_UNKNOWN, &bootdisk);
         break;
     case FUJICMD_ENABLE_UDPSTREAM:
-        fujicmd_enable_udpstream(le16toh(cmdFrame.aux12));
+        fujicmd_enable_netstream(le16toh(cmdFrame.aux12));
         break;
     case FUJICMD_QRCODE_INPUT:
         sio_qrcode_input();

@@ -132,7 +132,7 @@ std::map<std::string, std::string> fnHttpServiceConfigurator::parse_postdata(con
 void netstream_activate()
 {
 #ifdef BUILD_ATARI
-    SIO.setStreamHostWithOptions(
+    SYSTEM_BUS.setStreamHostWithOptions(
         Config.get_network_netstream_host().c_str(),
         Config.get_network_netstream_port(),
         (Config.get_network_netstream_mode() == 0) ? 0 : 1,
