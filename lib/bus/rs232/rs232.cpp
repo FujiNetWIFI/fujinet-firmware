@@ -358,8 +358,10 @@ std::unique_ptr<FujiBusPacket> systemBus::readBusPacket(int first)
             break;
     }
 
+#ifdef DEBUG_RAW_PACKET
     Debug_printv("Received %d:\n%s", packet.size(),
                  util_hexdump(packet.data(), packet.size()).c_str());
+#endif // DEBUG_RAW_PACKET
     return FujiBusPacket::fromSerialized(packet);
 }
 
@@ -367,8 +369,10 @@ void systemBus::writeBusPacket(FujiBusPacket &packet)
 {
     ByteBuffer encoded = packet.serialize();
     _port->write(encoded.data(), encoded.size());
+#ifdef DEBUG_RAW_PACKET
     Debug_printv("Sent %d:\n%s", encoded.size(),
                  util_hexdump(encoded.data(), encoded.size()).c_str());
+#endif // DEBUG_RAW_PACKET
     return;
 }
 
