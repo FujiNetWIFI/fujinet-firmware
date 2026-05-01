@@ -106,10 +106,11 @@ def main():
   ver_major = int(cur_macros['FN_VERSION_MAJOR'])
   ver_minor = int(cur_macros['FN_VERSION_MINOR'])
   ver_patch = int(cur_macros.get('FN_VERSION_PATCH', 0))
+  ver_suffix = cur_macros.get('FN_VERSION_SUFFIX', "")
 
   if args.set_version:
     version = args.set_version
-    m = re.match(r"^v([0-9]+)[.]([0-9]+)([.]([0-9]+))?(-rc([0-9]+))?", version)
+    m = re.match(r"^v([0-9]+)[.]([0-9]+)([.]([0-9]+))?(-[a-z0-9]+)?", version)
     if not m:
       print("Unable to parse version:", version)
       exit(1)
@@ -122,11 +123,11 @@ def main():
     if m.group(4):
       ver_patch = int(m.group(4))
       cur_macros['FN_VERSION_PATCH'] = ver_patch
-    if m.group(6):
-      ver_rc = int(m.group(6))
-      cur_macros['FN_VERSION_RC'] = ver_rc
+    if m.group(5):
+      ver_suffix = m.group(5)
+      cur_macros['FN_VERSION_SUFFIX'] = ver_suffix
     cur_macros['FN_VERSION_DATE'] = modified
-    version = f"v{ver_major}.{ver_minor}.{ver_patch}"
+    version = f"v{ver_major}.{ver_minor}.{ver_patch}{ver_suffix}"
 
   else:
     m = re.match(r"^v([0-9]+)[.]([0-9]+)[.]([0-9]+)-([0-9]+)-g(.*)", version)
