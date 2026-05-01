@@ -8,6 +8,9 @@
 #include "compat_string.h"
 #include "fuji_endian.h"
 #include "siocpm.h"
+
+#include <cstring>
+
 extern sioCPM sioZ;
 
 #define IMAGE_EXTENSION ".atr"
@@ -540,11 +543,82 @@ void sioFuji::setup()
     cassette()->set_buttons(Config.get_cassette_buttons());
     cassette()->set_pulldown(Config.get_cassette_pulldown());
 
-#ifdef UNUSED
-#ifndef ESP_PLATFORM // required for FN-PC, causes RAM overflow on ESP32
-    SYSTEM_BUS.addDevice(&_udpDev, FUJI_DEVICEID_MIDI);
+    SYSTEM_BUS.addDevice(&_streamDev, FUJI_DEVICEID_MIDI);
+}
+
+// Set NetStream HOST, PORT, and options, then start it.
+void sioFuji::sio_enable_netstream()
+{
+    char host[64];
+
+    transaction_continue(TRANS_STATE::WILL_GET);
+    if (!transaction_get(&host, sizeof(host)))
+    {
+        transaction_error();
+        return;
+    }
+
+    size_t host_len = 0;
+    uint8_t flags = 0;
+    uint8_t audf3 = 0;
+    bool has_audf3 = false;
+    char host_out[64];
+
+    const char *nul = static_cast<const char *>(memchr(host, '\0', sizeof(host)));
+    host_len = nul ? static_cast<size_t>(nul - host) : sizeof(host);
+
+    if (nul != nullptr)
+    {
+        size_t nul_index = static_cast<size_t>(nul - host);
+        if (nul_index + 1 < sizeof(host))
+            flags = static_cast<uint8_t>(host[nul_index + 1]);
+        if (nul_index + 2 < sizeof(host))
+        {
+            audf3 = static_cast<uint8_t>(host[nul_index + 2]);
+            has_audf3 = true;
+        }
+    }
+
+    int stream_mode = (flags & 0x01) ? 1 : 0;
+    bool register_enabled = (flags & 0x02) != 0;
+    bool tx_clock_external = (flags & 0x04) != 0;
+    bool rx_clock_external = (flags & 0x08) != 0;
+    bool video_pal = (flags & 0x10) != 0;
+
+    size_t copy_len = host_len;
+    if (copy_len > sizeof(host_out) - 1)
+        copy_len = sizeof(host_out) - 1;
+    memcpy(host_out, host, copy_len);
+    host_out[copy_len] = '\0';
+
+    int port = (cmdFrame.aux1 << 8) | cmdFrame.aux2;
+
+    Debug_printf("Fuji cmd ENABLE NETSTREAM: HOST:%s PORT: %d\n", host_out, port);
+#ifdef DEBUG_NETSTREAM
+    Debug_printf("NETSTREAM opts: transport=%s register=%s flags=0x%02X audf3=%u\n",
+                 (stream_mode == 0) ? "udp" : "tcp",
+                 register_enabled ? "on" : "off",
+                 flags,
+                 audf3);
 #endif
-#endif /* UNUSED */
+
+    Config.store_netstream_host(host_out);
+    Config.store_netstream_port(port);
+    Config.store_netstream_mode(stream_mode);
+    Config.store_netstream_register(register_enabled);
+    Config.save();
+
+    transaction_complete();
+
+    SYSTEM_BUS.setStreamHostWithOptions(host_out,
+                                        port,
+                                        stream_mode,
+                                        register_enabled,
+                                        has_audf3 ? audf3 : 0,
+                                        video_pal,
+                                        tx_clock_external,
+                                        rx_clock_external,
+                                        has_audf3);
 }
 
 void sioFuji::sio_qrcode_input()
@@ -1059,7 +1133,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         fujicmd_set_boot_mode(cmdFrame.aux1, MEDIATYPE_UNKNOWN, &bootdisk);
         break;
     case FUJICMD_ENABLE_UDPSTREAM:
-        fujicmd_enable_netstream(le16toh(cmdFrame.aux12));
+        sio_enable_netstream();
         break;
     case FUJICMD_QRCODE_INPUT:
         sio_qrcode_input();

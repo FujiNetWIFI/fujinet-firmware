@@ -3,6 +3,7 @@
 
 #include "fujiDevice.h"
 #include "cassette.h"
+#include "netstream.h"
 #include "../../qrcode/qrmanager.h"
 
 #include <cassert>
@@ -11,6 +12,7 @@ class sioFuji : public fujiDevice
 {
 private:
     sioCassette _cassetteDev;
+    sioNetStream _streamDev;
     QRManager _qrManager = QRManager();
 
 protected:
@@ -60,6 +62,7 @@ protected:
     void sio_new_disk();               // 0xE7
     void sio_set_hsio_index();         // 0xE3
     void sio_copy_file();              // 0xD8
+    void sio_enable_netstream();       // 0xF0
 
     // FIXME - move to fujiDevice mixin
     void sio_random_number();          // 0xD3

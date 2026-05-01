@@ -367,14 +367,10 @@ void systemBus::service()
     // modes disrupt normal SIO handling - should probably make a separate task for this)
     _sio_process_queue();
 
-    bool motor_asserted = false;
-#ifdef ESP_PLATFORM
-    motor_asserted = (fnSystem.digital_read(PIN_MTR) == DIGI_HIGH);
-#else
-    motor_asserted = fnSioCom.motor_asserted();
-#endif
+    bool is_motor_asserted = false;
+    is_motor_asserted = motor_asserted();
 
-    if (_streamDev != nullptr && _streamDev->netstreamActive && motor_asserted)
+    if (_streamDev != nullptr && _streamDev->netstreamActive && is_motor_asserted)
     {
         if (commandAsserted())
         {
@@ -410,7 +406,7 @@ void systemBus::service()
 #ifdef ESP_PLATFORM
             if (fnSystem.digital_read(PIN_MTR) == DIGI_HIGH) // TODO: use cassette helper function for consistency?
 #else
-            if (motor_asserted())
+            if (is_motor_asserted)
 #endif
             {
                 if (_fujiDev->cassette()->is_active() == false) // keep this logic because motor line mode

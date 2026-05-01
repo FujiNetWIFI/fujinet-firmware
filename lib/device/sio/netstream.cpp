@@ -342,7 +342,7 @@ void sioNetStream::sio_handle_netstream()
 #ifdef ESP_PLATFORM
             if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
 #else
-            if (SYSTEM_BUS.command_asserted())
+            if (SYSTEM_BUS.commandAsserted())
 #endif
             {
                 Debug_println("CMD Asserted, stopping NetStream");
