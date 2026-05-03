@@ -763,6 +763,10 @@ void sioFuji::sio_base64_encode_compute()
 {
     size_t out_len;
 
+    /* ACK before CPU work (matches sio_hash_compute); NetSIO/tight SIO timing
+     * otherwise leaves the host waiting past dtimlo (Atari status 138 timeout). */
+    transaction_continue(TRANS_STATE::NO_GET);
+
     Debug_printf("FUJI: BASE64 ENCODE COMPUTE\n");
 
     std::unique_ptr<char[]> p = Base64::encode(base64.base64_buffer.c_str(), base64.base64_buffer.size(), &out_len);
@@ -782,6 +786,7 @@ void sioFuji::sio_base64_encode_compute()
 
 void sioFuji::sio_base64_encode_length()
 {
+    transaction_continue(TRANS_STATE::NO_GET);
     Debug_printf("FUJI: BASE64 ENCODE LENGTH\n");
 
     size_t l = base64.base64_buffer.length();
@@ -796,6 +801,7 @@ void sioFuji::sio_base64_encode_length()
     {
         Debug_printf("BASE64 buffer is 0 bytes, sending error.\n");
         transaction_put(response, sizeof(response), true);
+        return;
     }
 
     Debug_printf("base64 buffer length: %u bytes\n", l);
@@ -805,6 +811,7 @@ void sioFuji::sio_base64_encode_length()
 
 void sioFuji::sio_base64_encode_output()
 {
+    transaction_continue(TRANS_STATE::NO_GET);
     Debug_printf("FUJI: BASE64 ENCODE OUTPUT\n");
 
     size_t len = sio_get_aux();
@@ -812,11 +819,13 @@ void sioFuji::sio_base64_encode_output()
     if (!len)
     {
         Debug_printf("Refusing to send a zero byte buffer. Aborting\n");
+        transaction_error();
         return;
     }
     else if (len > base64.base64_buffer.length())
     {
         Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n", len, base64.base64_buffer.length());
+        transaction_error();
         return;
     }
     else
@@ -863,6 +872,8 @@ void sioFuji::sio_base64_decode_compute()
 {
     size_t out_len;
 
+    transaction_continue(TRANS_STATE::NO_GET);
+
     Debug_printf("FUJI: BASE64 DECODE COMPUTE\n");
 
     std::unique_ptr<unsigned char[]> p = Base64::decode(base64.base64_buffer.c_str(), base64.base64_buffer.size(), &out_len);
@@ -882,6 +893,7 @@ void sioFuji::sio_base64_decode_compute()
 
 void sioFuji::sio_base64_decode_length()
 {
+    transaction_continue(TRANS_STATE::NO_GET);
     Debug_printf("FUJI: BASE64 DECODE LENGTH\n");
 
     size_t len = base64.base64_buffer.length();
@@ -906,6 +918,7 @@ void sioFuji::sio_base64_decode_length()
 
 void sioFuji::sio_base64_decode_output()
 {
+    transaction_continue(TRANS_STATE::NO_GET);
     Debug_printf("FUJI: BASE64 DECODE OUTPUT\n");
 
     size_t len = sio_get_aux();
