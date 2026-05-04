@@ -27,6 +27,10 @@
 #include "Protocol.h"
 
 #include <libssh/libssh.h>
+#ifdef ESP_PLATFORM
+// apc: this is libssh private header!
+#include "libssh/session.h"
+#endif
 
 class NetworkProtocolSSHCopyId : public NetworkProtocol
 {
