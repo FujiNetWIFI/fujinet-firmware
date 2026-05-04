@@ -20,6 +20,9 @@
 #include <cstdio>
 #include <cstring>
 #include <sys/stat.h>
+#ifdef _WIN32
+#include <direct.h>
+#endif
 #include <algorithm>
 
 /* ------------------------------------------------------------------ */
@@ -92,7 +95,11 @@ bool NetworkProtocolSSHKeygen::ensureSshDirectoryExists()
 
     /* Directory does not exist — create it */
     Debug_printf("SSH.KEYGEN: creating directory %s\r\n", dirPath.c_str());
+#ifdef _WIN32
+    if (mkdir(dirPath.c_str()) != 0) {
+#else
     if (mkdir(dirPath.c_str(), 0755) != 0) {
+#endif
         Debug_printf("SSH.KEYGEN: mkdir(%s) failed.\r\n", dirPath.c_str());
         return false;
     }
