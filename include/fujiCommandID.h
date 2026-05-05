@@ -112,6 +112,7 @@ enum fujiCommandID_t : uint8_t {
     NETCMD_USERNAME                    = 0xFD,
     NETCMD_CHANNEL_MODE                = 0xFC,
     NETCMD_SET_PARAMETERS              = 0xFB,
+    NETCMD_SET_CHANNEL                 = 0xFA,
     NETCMD_SET_HSIO_INDEX              = 0xE3,
     NETCMD_QUERY_ALT                   = 0x81,
     NETCMD_PARSE_ALT                   = 0x80,

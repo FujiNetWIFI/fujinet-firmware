@@ -286,15 +286,13 @@ void iwmNetwork::json_parse()
 
 void iwmNetwork::iwm_open(iwm_decoded_cmd_t cmd)
 {
-    // nothing in fujinet-lib calls this, it does a control with open command, so something else called it, let's ensure the default N device is used
-    current_network_unit = 1;
+    // nothing in fujinet-lib calls this, it does a control with open command. This is used only by the Apple/// as it has no fn-lib support yet
     send_reply_packet(SP_ERR_NOERROR);
 }
 
 void iwmNetwork::iwm_close(iwm_decoded_cmd_t cmd)
 {
-    // nothing in fujinet-lib calls this, it does a control with close command, so something else called it, let's ensure the default N device is used
-    current_network_unit = 1;
+    // nothing in fujinet-lib calls this, it does a control with close command. This is used only by the Apple/// as it has no fn-lib support yet
     send_reply_packet(SP_ERR_NOERROR);
     close();
 }
@@ -339,11 +337,11 @@ void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
 {
     uint8_t status_code = get_status_code(cmd); //(cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
 
+    // TODO: remove this in the future when we decide to drop support of the deprecated fujinet-lib (with unit-id support)
+    // We have moved to a separate control command that sets the active channel for all subsequent commands
     // fujinet-lib (with unit-id support) sends the count of bytes for a status as 4 to cater for the network unit.
     // Older code sends 3 as the count, so we can detect if the network unit byte is there or not.
-    if (cmd.count != 4) {
-        current_network_unit = 1;
-    } else {
+    if (cmd.count == 4) {
         current_network_unit = cmd.params[3];
     }
 
@@ -473,11 +471,11 @@ void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
     bool error = false;
     uint16_t numbytes = get_numbytes(cmd);
 
+    // TODO: remove this in the future when we decide to drop support of the deprecated fujinet-lib (with unit-id support)
+    // We have moved to a separate control command that sets the active channel for all subsequent commands
     // fujinet-lib (with unit-id support) sends the count of bytes for a read as 5 to cater for the network unit.
     // Older code sends 4 as the count, so we can detect if the network unit byte is there or not.
-    if (cmd.count != 5) {
-        current_network_unit = 1;
-    } else {
+    if (cmd.count == 5) {
         // in a network device, there is no "address" value, this is hijacked by fujinet-lib to pass the network unit in first byte
         current_network_unit = cmd.params[4];
     }
@@ -524,11 +522,11 @@ void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
 {
     uint16_t num_bytes = get_numbytes(cmd);
 
+    // TODO: remove this in the future when we decide to drop support of the deprecated fujinet-lib (with unit-id support)
+    // We have moved to a separate control command that sets the active channel for all subsequent commands
     // fujinet-lib (with unit-id support) sends the count of bytes for a write as 5 to cater for the network unit.
     // Older code sends 4 as the count, so we can detect if the network unit byte is there or not.
-    if (cmd.count != 5) {
-        current_network_unit = 1;
-    } else {
+    if (cmd.count == 5) {
         // in a network device, there is no "address" value, this is hijacked by fujinet-lib to pass the network unit in first byte
         current_network_unit = cmd.params[4];
     }
@@ -565,23 +563,26 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
 
     fujiCommandID_t control_code = (fujiCommandID_t) get_status_code(cmd);
 
+    // TODO: remove this in the future when we decide to drop support of the deprecated fujinet-lib (with unit-id support)
+    // We have moved to a separate control command that sets the active channel for all subsequent commands
     // fujinet-lib (with unit-id support) sends the count of bytes for a control as 4 to cater for the network unit.
     // Older code sends 3 as the count, so we can detect if the network unit byte is there or not.
-    if (cmd.count != 4) {
-        current_network_unit = 1;
-    } else {
+    if (cmd.count == 4) {
         current_network_unit = cmd.params[3];
     }
-
-#ifdef DEBUG
-    char as_char = (char) control_code;
-    Debug_printf("\r\nNet Device %02x Control Code %02x('%c') net_unit %02x", id(), control_code, isprint(as_char) ? as_char : '.', current_network_unit);
-#endif
 
     auto& current_network_data = network_data_map[current_network_unit];
 
     SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
     print_packet((uint8_t *)data_buffer);
+
+#ifdef DEBUG
+    char as_char = (char) control_code;
+    if (control_code == NETCMD_SET_CHANNEL)
+        Debug_printf("\r\nNet Device %02x Control Code %02x('%c') net_unit %02x", id(), control_code, isprint(as_char) ? as_char : '.', data_buffer[0]);
+    else
+        Debug_printf("\r\nNet Device %02x Control Code %02x('%c') net_unit %02x", id(), control_code, isprint(as_char) ? as_char : '.', current_network_unit);
+#endif
 
     // Debug_printv("cmd (looking for network_unit in byte 6, i.e. hex[5]):\r\n%s\r\n", mstr::toHex(cmd.decoded, 9).c_str());
 
@@ -591,6 +592,9 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
 
     switch (control_code)
     {
+    case NETCMD_SET_CHANNEL:
+        current_network_unit = data_buffer[0];
+        break;
     case NETCMD_CHDIR:
         set_prefix();
         break;
