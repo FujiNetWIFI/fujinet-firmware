@@ -1,5 +1,15 @@
 /**
  * SSH protocol implementation
+ *
+ * Supports two authentication modes, inferred from the URL:
+ *
+ *   N:SSH://user:pass@host:port/   => password authentication
+ *   N:SSH://user@host:port/        => public-key authentication
+ *                                     using default key from SD card:
+ *                                     /.ssh/id_ed25519
+ *
+ * The auth mode is determined solely by whether the URL contains a
+ * password component.  No query parameters are needed.
  */
 
 #include "SSH.h"
@@ -11,6 +21,20 @@
 #include <vector>
 
 #define RXBUF_SIZE 65535
+
+/**
+ * Default SSH private key path relative to SD card root.
+ */
+#define SSH_DEFAULT_KEY_REL "/.ssh/id_ed25519"
+
+/**
+ * SD card base path differs between ESP and PC builds.
+ */
+#ifdef ESP_PLATFORM
+#define SD_BASE_PATH "/sd"
+#else
+#define SD_BASE_PATH "SD"
+#endif
 
 NetworkProtocolSSH::NetworkProtocolSSH(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
@@ -33,6 +57,98 @@ NetworkProtocolSSH::~NetworkProtocolSSH()
 #endif
 }
 
+/* ------------------------------------------------------------------ */
+/* Helper: check if URL provided a password                           */
+/* ------------------------------------------------------------------ */
+bool NetworkProtocolSSH::hasPassword()
+{
+    return password != nullptr && !password->empty();
+}
+
+/* ------------------------------------------------------------------ */
+/* Helper: build absolute filesystem path to default private key      */
+/* ------------------------------------------------------------------ */
+std::string NetworkProtocolSSH::getDefaultPrivateKeyPath()
+{
+    return std::string(SD_BASE_PATH) + SSH_DEFAULT_KEY_REL;
+}
+
+/* ------------------------------------------------------------------ */
+/* Helper: authenticate with password                                 */
+/* ------------------------------------------------------------------ */
+bool NetworkProtocolSSH::authenticateWithPassword()
+{
+    Debug_printf("SSH auth mode: password\r\n");
+
+    int ret = ssh_userauth_list(session, NULL);
+    bool allowsPassword = ret & SSH_AUTH_METHOD_PASSWORD;
+
+    if (!allowsPassword) {
+        error = NDEV_STATUS::GENERAL;
+        Debug_printf("NetworkProtocolSSH::authenticateWithPassword() - Server does not allow password auth.\r\n");
+        return false;
+    }
+
+    ret = ssh_userauth_password(session, NULL, password->c_str());
+    if (ret != SSH_AUTH_SUCCESS) {
+        error = NDEV_STATUS::ACCESS_DENIED;
+        const char *message = ssh_get_error(session);
+        Debug_printf("NetworkProtocolSSH::authenticateWithPassword() - Password auth failed, error: %s.\r\n", message);
+        return false;
+    }
+
+    return true;
+}
+
+/* ------------------------------------------------------------------ */
+/* Helper: authenticate with default private key from SD card         */
+/* ------------------------------------------------------------------ */
+bool NetworkProtocolSSH::authenticateWithDefaultKey()
+{
+    Debug_printf("SSH auth mode: publickey\r\n");
+
+    int ret = ssh_userauth_list(session, NULL);
+    bool allowsPublicKey = ret & SSH_AUTH_METHOD_PUBLICKEY;
+
+    if (!allowsPublicKey) {
+        error = NDEV_STATUS::GENERAL;
+        Debug_printf("NetworkProtocolSSH::authenticateWithDefaultKey() - Server does not allow public key auth.\r\n");
+        return false;
+    }
+
+    std::string keyPath = getDefaultPrivateKeyPath();
+    Debug_printf("SSH private key: %s\r\n", keyPath.c_str());
+
+    /* Import the private key from file */
+    ssh_key privkey = NULL;
+    ret = ssh_pki_import_privkey_file(keyPath.c_str(), NULL, NULL, NULL, &privkey);
+    if (ret != SSH_OK) {
+        error = NDEV_STATUS::GENERAL;
+        Debug_printf("NetworkProtocolSSH::authenticateWithDefaultKey() - "
+                     "Could not load private key from %s (error code: %d). "
+                     "Check that the file exists and is a valid SSH private key.\r\n",
+                     keyPath.c_str(), ret);
+        return false;
+    }
+
+    /* Authenticate with the imported key */
+    ret = ssh_userauth_publickey(session, NULL, privkey);
+    ssh_key_free(privkey);
+
+    if (ret != SSH_AUTH_SUCCESS) {
+        error = NDEV_STATUS::ACCESS_DENIED;
+        const char *message = ssh_get_error(session);
+        Debug_printf("NetworkProtocolSSH::authenticateWithDefaultKey() - "
+                     "Public key auth failed, error: %s.\r\n", message);
+        return false;
+    }
+
+    return true;
+}
+
+/* ------------------------------------------------------------------ */
+/* open() — main connection and authentication flow                   */
+/* ------------------------------------------------------------------ */
 fujiError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
                                          fileAccessMode_t access,
                                          netProtoTranslation_t translate)
@@ -40,6 +156,7 @@ fujiError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
     NetworkProtocol::open(urlParser, access, translate);
     int ret;
 
+    /* ---- Parse credentials from URL ---- */
     if (!urlParser->user.empty()) {
         login = &urlParser->user;
     }
@@ -48,9 +165,20 @@ fujiError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
         password = &urlParser->password;
     }
 
-    if (!login || !password || (login->empty() && password->empty()))
-    {
+    /* Determine auth mode: password if URL has password, key otherwise */
+    usePasswordAuth = hasPassword();
+
+    /* Username is always required */
+    if (!login || login->empty()) {
         error = NDEV_STATUS::INVALID_USERNAME_OR_PASSWORD;
+        Debug_printf("NetworkProtocolSSH::open() - Missing SSH username.\r\n");
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+
+    /* For password auth, password must be present */
+    if (usePasswordAuth && (!password || password->empty())) {
+        error = NDEV_STATUS::INVALID_USERNAME_OR_PASSWORD;
+        Debug_printf("NetworkProtocolSSH::open() - Password auth selected but password is empty.\r\n");
         return FUJI_ERROR::UNSPECIFIED;
     }
 
@@ -95,6 +223,7 @@ fujiError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
         return FUJI_ERROR::UNSPECIFIED;
     }
 
+    /* ---- Host key verification ---- */
     ssh_key srv_pubkey = NULL;
     ret = ssh_get_server_publickey(session, &srv_pubkey);
     if (ret < 0) {
@@ -121,19 +250,17 @@ fujiError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
     ssh_key_free(srv_pubkey);
 
     Debug_printf("SSH Host Key Fingerprint with length %d is: ", hlen);
-    // ODE FOR string.join();
-    for (int i = 0; i < hlen; i++)
+    for (int i = 0; i < (int)hlen; i++)
     {
         Debug_printf("%02X", fingerprint[i]);
-        if (i < (hlen - 1))
+        if (i < (int)(hlen - 1))
             Debug_printf(":");
     }
     Debug_printf("\r\n");
     ssh_clean_pubkey_hash(&fingerprint);
 
-
+    /* ---- Probe server auth methods ---- */
     ret = ssh_userauth_none(session, NULL);
-    // TODO: Are we in blocking mode? If we are not, then we will have to deal with SSH_AUTH_AGAIN
     if (ret == SSH_AUTH_ERROR) {
         error = NDEV_STATUS::GENERAL;
         const char *message = ssh_get_error(session);
@@ -141,40 +268,36 @@ fujiError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
         return FUJI_ERROR::UNSPECIFIED;
     }
 
-    ret = ssh_userauth_list(session, NULL);
-    bool allowsPassword = ret & SSH_AUTH_METHOD_PASSWORD;
-    bool allowsPublicKey = ret & SSH_AUTH_METHOD_PUBLICKEY;
-    bool allowsHostBased = ret & SSH_AUTH_METHOD_HOSTBASED;
-    bool allowsInteractive = ret & SSH_AUTH_METHOD_INTERACTIVE;
-    Debug_printf("Authentication methods:\r\n"
-                 "Password:    %s\r\n"
-                 "Public Key:  %s\r\n"
-                 "Host Based:  %s\r\n"
-                 "Interactive: %s\r\n",
-        allowsPassword ? "true":"false",
-        allowsPublicKey ? "true":"false",
-        allowsHostBased ? "true":"false",
-        allowsInteractive ? "true":"false"
-    );
+    /* Log available methods */
+    {
+        int methods = ssh_userauth_list(session, NULL);
+        Debug_printf("Authentication methods:\r\n"
+                     "Password:    %s\r\n"
+                     "Public Key:  %s\r\n"
+                     "Host Based:  %s\r\n"
+                     "Interactive: %s\r\n",
+            (methods & SSH_AUTH_METHOD_PASSWORD) ? "true":"false",
+            (methods & SSH_AUTH_METHOD_PUBLICKEY) ? "true":"false",
+            (methods & SSH_AUTH_METHOD_HOSTBASED) ? "true":"false",
+            (methods & SSH_AUTH_METHOD_INTERACTIVE) ? "true":"false"
+        );
+    }
 
-    if (!allowsPassword) {
-        // May as well stop here, as our only ability (password) isn't allowed
-        error = NDEV_STATUS::GENERAL;
-        Debug_printf("NetworkProtocolSSH::open() - Could not login to server as it does not allow password auth.\r\n");
+    /* ---- Authenticate ---- */
+    bool authOk;
+    if (usePasswordAuth) {
+        authOk = authenticateWithPassword();
+    } else {
+        authOk = authenticateWithDefaultKey();
+    }
+
+    if (!authOk) {
+        ssh_disconnect(session);
+        ssh_free(session);
         return FUJI_ERROR::UNSPECIFIED;
     }
 
-    ret = ssh_userauth_password(session, NULL, password->c_str());
-    // SSH_AUTH_AGAIN may need to be handled here too, if we're in non-blocking mode.
-
-    if (ret != SSH_AUTH_SUCCESS) {
-        error = NDEV_STATUS::ACCESS_DENIED;
-        const char *message = ssh_get_error(session);
-        Debug_printf("NetworkProtocolSSH::open() - Unable to authorise with given password, error: %s.\r\n", message);
-        ssh_disconnect(session);
-        ssh_free(session);
-    }
-
+    /* ---- Open channel, PTY, shell ---- */
     channel = ssh_channel_new(session);
     if (channel == NULL) {
         error = NDEV_STATUS::GENERAL;
@@ -189,7 +312,6 @@ fujiError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
         Debug_printf("NetworkProtocolSSH::open() - Could not open session, error: %s.\r\n", message);
         return FUJI_ERROR::UNSPECIFIED;
     }
-
 
     ret = ssh_channel_request_pty_size(channel, "vanilla", 80, 24);
     if (ret != SSH_OK)

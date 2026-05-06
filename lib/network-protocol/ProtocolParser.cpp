@@ -10,6 +10,8 @@
 #include "FTP.h"
 #include "HTTP.h"
 #include "SSH.h"
+#include "SSHKeygen.h"
+#include "SSHCopyId.h"
 #include "SMB.h"
 #include "NFS.h"
 #include "SD.h"
@@ -52,6 +54,12 @@ NetworkProtocol* ProtocolParser::createProtocol(std::string scheme, std::string 
             break;
         case "SSH"_sh:
             protocol = new NetworkProtocolSSH(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "SSH.KEYGEN"_sh:
+            protocol = new NetworkProtocolSSHKeygen(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "SSH.COPYID"_sh:
+            protocol = new NetworkProtocolSSHCopyId(receiveBuffer, transmitBuffer, specialBuffer);
             break;
         case "SMB"_sh:
             protocol = new NetworkProtocolSMB(receiveBuffer, transmitBuffer, specialBuffer);
