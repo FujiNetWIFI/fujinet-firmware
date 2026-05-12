@@ -653,22 +653,17 @@ int systemBus::getBaudrate()
     return _sioBaud;
 }
 
+// This method is called by devices to change the "UART" baudrate, it
+// has nothing to do with setting the SIO command baudrate. SIO
+// command baudrate is managed by toggleBaudrate() so _sioBaud is not
+// changed here.
 void systemBus::setBaudrate(int baud)
 {
-    if (_sioBaud == baud)
-    {
-        Debug_printf("Baudrate already at %d - nothing to do\n", baud);
-        return;
-    }
-
-    Debug_printf("Changing baudrate from %d to %d\n", _sioBaud, baud);
-    _sioBaud = baud;
-
     // Yah this looks stupid but C++ doesn't do true polymorphism
     if (isBoIP())
-        _netsio.setBaudrate(_sioBaud);
+        _netsio.setBaudrate(baud);
     else
-        _serial.setBaudrate(_sioBaud);
+        _serial.setBaudrate(baud);
 }
 
 // Set HSIO index. Sets high speed SIO baud and also returns that value.
