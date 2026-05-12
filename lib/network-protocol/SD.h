@@ -64,8 +64,6 @@ public:
      */
     fujiError_t unlock(PeoplesUrlParser *url) override;
 
-    size_t available() override { return 0; }
-
 protected:
 
     /**
