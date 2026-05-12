@@ -461,6 +461,8 @@ void systemBus::service()
 #else
         if (!SYSTEM_BUS.isBoIP())
             _port->discardInput();
+        else
+            _netsio.poll(1); // wait 1 ms for something to happen (reliefs CPU usage)
 #endif
     }
 
