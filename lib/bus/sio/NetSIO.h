@@ -97,6 +97,8 @@ public:
     void begin(std::string host, int port, int baud);
     void end() override;
 
+    bool poll(int ms);
+
     void setBaudrate(uint32_t baud);
     uint32_t getBaudrate();
 
