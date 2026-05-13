@@ -16,9 +16,17 @@ BANNER_WIDTH = 40
 BUILD = "./build.sh"
 FNCONFIG = "fnconfig.ini"
 
+class BisectParser(argparse.ArgumentParser):
+  def error(self, message):
+    sys.stderr.write(f"error: {message}\n")
+    self.print_usage(sys.stderr)
+    # Exit with 255 so the git bisect run stops
+    self.exit(255)
+
 def build_argparser():
-  parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+  parser = BisectParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument("patch", nargs="*", help="patches to apply")
+  parser.add_argument("--anypatch", action="store_true", help="not all patches need to apply")
   parser.add_argument("--esp32", action="store_true", help="build for ESP32")
   parser.add_argument("--skip-fs", action="store_true", help="don't flash the filesystem")
   parser.add_argument("--compile-only", action="store_true", help="don't run, just compile")
@@ -91,14 +99,24 @@ def run_cmd(cmd, **kwargs):
 
 def check_patches(patches):
   """Check if all patches can be applied cleanly."""
-  for patch in patches:
-    run_cmd(["git", "apply", "--check", patch])
-  return
+  try:
+    for patch in patches:
+      run_cmd(["git", "apply", "--check", patch])
+  except subprocess.CalledProcessError:
+    return False
+  return True
 
 def apply_patches(patches):
-  """Apply all patches in order."""
+  """Apply patches in order."""
   for patch in patches:
-    run_cmd(["git", "apply", patch])
+    try:
+      print(f"PATCH: Trying to apply {patch}...")
+      run_cmd(["git", "apply", patch])
+    except subprocess.CalledProcessError:
+      print(f"PATCH: Unable to apply {patch}")
+      pass
+    else:
+      print(f"PATCH: Applied {patch}")
   return
 
 def restore_repo():
@@ -125,11 +143,8 @@ def main():
     bisectExit(SKIP, restoreFlag=do_restore)
 
   if args.patch:
-    try:
-      check_patches(args.patch)
+    if args.anypatch or check_patches(args.patch):
       apply_patches(args.patch)
-    except subprocess.CalledProcessError:
-      pass
     do_restore = True
 
   cmd = [BUILD, ]
