@@ -532,34 +532,51 @@ void sioCassette::check_for_FUJI_file()
         // QROS turbo uses 6580-6595 (AUDF=127) or 9535-9622 (AUDF=86).
         // Lower bauds (600, 854, 1000 etc.) are standard/KSO and handled
         // by the normal FUJI path.
+        // Scan first 2 KB for QROS turbo baud chunk (irg > 3000).
+        // QROS turbo uses 6580-6595 (AUDF=127) or 9535-9622 (AUDF=86).
+        // Real-world QROS marker offsets: 8 B, 168 B max — 2 KB gives ~10x
+        // headroom. We read the whole 2 KB in a single fread to avoid one
+        // TNFS round-trip per chunk header; on slow TNFS the old
+        // chunk-by-chunk scan caused mount freezes (30+ round-trips).
         if (!tape_flags.turbo2000)
         {
-            bool has_600_boot = false;
-            scan_offset = sizeof(struct tape_FUJI_hdr) + fuji_chunk_length;
-            while (scan_offset < filesize)
+            static uint8_t qros_scan_buf[2048];
+            size_t base = sizeof(struct tape_FUJI_hdr) + fuji_chunk_length;
+            size_t avail = (filesize > base) ? (filesize - base) : 0;
+            size_t want = avail < sizeof(qros_scan_buf) ? avail : sizeof(qros_scan_buf);
+
+            if (want >= sizeof(struct tape_FUJI_hdr))
             {
-                fnio::fseek(_file, scan_offset, SEEK_SET);
-                fnio::fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
-                uint16_t clen = hdr->chunk_length;
+                fnio::fseek(_file, base, SEEK_SET);
+                size_t got = fnio::fread(qros_scan_buf, 1, want, _file);
 
-                if (p[0] == 'b' && p[1] == 'a' && p[2] == 'u' && p[3] == 'd')
+                bool has_600_boot = false;
+                size_t pos = 0;
+                while (pos + sizeof(struct tape_FUJI_hdr) <= got)
                 {
-                    if (hdr->irg_length <= 600)
-                    {
-                        has_600_boot = true;
-                    }
-                    else if (hdr->irg_length > 3000)
-                    {
-                        tape_flags.qros = 1;
-                        qros_turbo_baud = hdr->irg_length;
-                        qros_boot_sent = has_600_boot; // skip embedded boot if CAS has its own
-                        Debug_printf("QROS turbo format detected (baud=%u, has_boot=%d)\n",
-                                     qros_turbo_baud, has_600_boot);
-                        break;
-                    }
-                }
+                    struct tape_FUJI_hdr *h = (struct tape_FUJI_hdr *)&qros_scan_buf[pos];
+                    uint8_t *t = h->chunk_type;
+                    uint16_t clen = h->chunk_length;
 
-                scan_offset += sizeof(struct tape_FUJI_hdr) + clen;
+                    if (t[0] == 'b' && t[1] == 'a' && t[2] == 'u' && t[3] == 'd')
+                    {
+                        if (h->irg_length <= 600)
+                        {
+                            has_600_boot = true;
+                        }
+                        else if (h->irg_length > 3000)
+                        {
+                            tape_flags.qros = 1;
+                            qros_turbo_baud = h->irg_length;
+                            qros_boot_sent = has_600_boot;
+                            Debug_printf("QROS turbo format detected (baud=%u, has_boot=%d)\n",
+                                         qros_turbo_baud, has_600_boot);
+                            break;
+                        }
+                    }
+
+                    pos += sizeof(struct tape_FUJI_hdr) + clen;
+                }
             }
         }
     }
