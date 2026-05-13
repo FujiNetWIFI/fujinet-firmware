@@ -7,10 +7,11 @@
 using namespace WebDav;
 
 void Response::setDavHeaders() {
-    setHeader("DAV", "1,2");
+    setHeader("DAV", "1, 2");
+    setHeader("MS-Author-Via", "DAV");
     setHeader("Allow", "COPY,DELETE,GET,HEAD,LOCK,MKCOL,MOVE,OPTIONS,PROPFIND,PROPPATCH,PUT,UNLOCK");
-    setHeader("Keep-Alive", "timeout=5, max=100");
-    setHeader("Connection", "Keep-Alive");
+    setHeader("Public", "COPY,DELETE,GET,HEAD,LOCK,MKCOL,MOVE,OPTIONS,PROPFIND,PROPPATCH,PUT,UNLOCK");
+    setHeader("Connection", "close");
 }
 
 void Response::setHeader(std::string header, std::string value) {
@@ -26,5 +27,8 @@ void Response::setHeader(std::string header, size_t value) {
 void Response::flushHeaders() {
     for (const auto &h: headers)
         writeHeader(h.first.c_str(), h.second.c_str());
-    headers.clear();
+    // Do NOT clear headers here. httpd_resp_set_hdr() stores raw pointers without
+    // copying — the strings must remain alive until the response is fully transmitted
+    // (i.e. until the first sendChunk/closeBody call). The map is cleaned up naturally
+    // when the Response object goes out of scope at the end of the handler.
 }
