@@ -532,13 +532,15 @@ void sioCassette::check_for_FUJI_file()
         // QROS turbo uses 6580-6595 (AUDF=127) or 9535-9622 (AUDF=86).
         // Lower bauds (600, 854, 1000 etc.) are standard/KSO and handled
         // by the normal FUJI path.
-        // Scan limited to first 8 KB: QROS turbo baud chunk always appears
-        // near file start (after FUJI header and optional 600 Bd boot block,
-        // which is at most ~2-3 KB). Unbounded scan caused SIO timeouts on
-        // standard CAS files mounted over slow networks.
+        // Scan limited to first 2 KB: QROS turbo baud chunk always appears
+        // near file start (verified offsets in real CAS files: 8 B, 168 B max).
+        // 2 KB gives ~10x headroom while keeping TNFS round-trips bounded —
+        // each chunk hdr read = 1 round-trip, so smaller limit is essential
+        // on slow networks. Unbounded scan caused SIO timeouts on standard
+        // 600 Bd CAS files mounted over slow TNFS.
         if (!tape_flags.turbo2000)
         {
-            const size_t QROS_SCAN_LIMIT = 8192;
+            const size_t QROS_SCAN_LIMIT = 2048;
             bool has_600_boot = false;
             scan_offset = sizeof(struct tape_FUJI_hdr) + fuji_chunk_length;
             while (scan_offset < filesize && scan_offset < QROS_SCAN_LIMIT)
