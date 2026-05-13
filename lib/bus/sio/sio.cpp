@@ -202,7 +202,7 @@ void systemBus::_sio_process_cmd()
     {
         _modemDev->modemActive = false;
         Debug_println("Modem was active - resetting SIO baud");
-        SYSTEM_BUS.setBaudrate(_sioBaud);
+        SYSTEM_BUS.setBaudrate(getBaudrate());
     }
 
     // Read CMD frame
@@ -513,13 +513,13 @@ void systemBus::setup()
     // Setup SIO ports: serial UART and NetSIO
     if (Config.get_boip_enabled())
     {
-        _netsio.begin(Config.get_boip_host(), Config.get_boip_port(), _sioBaud);
+        _netsio.begin(Config.get_boip_host(), Config.get_boip_port(), getBaudrate());
         _port = &_netsio;
     }
     else
     {
         _serial.begin(ChannelConfig()
-                      .baud(_sioBaud)
+                      .baud(getBaudrate())
                       .deviceID(SIO_UART_DEVICE)
 #ifdef ESP_PLATFORM
                       .readTimeout(pdTICKS_TO_MS(200))
@@ -634,12 +634,26 @@ void systemBus::shutdown()
 
 void systemBus::toggleBaudrate()
 {
-    int baudrate = _sioBaud == SIO_STANDARD_BAUDRATE ? _sioBaudHigh : SIO_STANDARD_BAUDRATE;
+    sioSpeedMode_t newMode;
+    if (_sioBaud == SIO_SPEED::STANDARD)
+        newMode = useUltraHigh ? SIO_SPEED::ULTRA : SIO_SPEED::HIGH;
+    else
+        newMode = SIO_SPEED::STANDARD;
 
-    if (useUltraHigh == true)
-        baudrate = _sioBaud == SIO_STANDARD_BAUDRATE ? _sioBaudUltraHigh : SIO_STANDARD_BAUDRATE;
+    int newBaud;
+    switch (newMode)
+    {
+    case SIO_SPEED::STANDARD:
+        newBaud = SIO_STANDARD_BAUDRATE;
+        break;
+    case SIO_SPEED::HIGH:
+        newBaud = _sioBaudHigh;
+        break;
+    case SIO_SPEED::ULTRA:
+        newBaud = _sioBaudUltraHigh;
+        break;
+    }
 
-    // Debug_printf("Toggling baudrate from %d to %d\n", _sioBaud, baudrate);
 #ifndef ESP_PLATFORM
     _port->discardInput();
     _port->flushOutput();
@@ -647,12 +661,23 @@ void systemBus::toggleBaudrate()
     fnSystem.delay_microseconds(2000);
 #endif
 
-    setBaudrate(baudrate);
+    _sioBaud = newMode;
+    setBaudrate(newBaud);
 }
 
 int systemBus::getBaudrate()
 {
-    return _sioBaud;
+    switch (_sioBaud)
+    {
+    case SIO_SPEED::HIGH:
+        return _sioBaudHigh;
+    case SIO_SPEED::ULTRA:
+        return _sioBaudUltraHigh;
+    default:
+        break;
+    }
+
+    return SIO_STANDARD_BAUDRATE;
 }
 
 // This method is called by devices to change the "UART" baudrate, it

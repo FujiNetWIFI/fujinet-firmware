@@ -58,6 +58,12 @@ enum AtariSIODirection {
     SIO_DIRECTION_INVALID = 0xFF,
 };
 
+typedef enum class SIO_SPEED {
+    STANDARD,
+    HIGH,
+    ULTRA,
+} sioSpeedMode_t;
+
 // helper functions
 uint8_t sio_checksum(uint8_t *buf, unsigned short len);
 
@@ -225,7 +231,7 @@ private:
     sioCPM *_cpmDev = nullptr;
     sioPrinter *_printerdev = nullptr;
 
-    int _sioBaud = SIO_STANDARD_BAUDRATE;
+    sioSpeedMode_t _sioBaud = SIO_SPEED::STANDARD;
     int _sioHighSpeedIndex = SIO_HISPEED_INDEX;
     int _sioBaudHigh = SIO_STANDARD_BAUDRATE;
     int _sioBaudUltraHigh = SIO_STANDARD_BAUDRATE;
