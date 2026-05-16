@@ -193,18 +193,6 @@ void fnConfig::save()
     ss << "command=" << std::string(_serial_command_pin_names[_serial.command]) << LINETERM;
     ss << "proceed=" << std::string(_serial_proceed_pin_names[_serial.proceed]) << LINETERM;
 #endif
-
-#ifdef BUILD_APPLE
-    // Bus Over Serial - not used, yet
-    ss << LINETERM << "[BOS]" << LINETERM;
-    ss << "enabled=" << _bos.bos_enabled << LINETERM;
-    ss << "port_name=" << _bos.port_name.c_str() << LINETERM;
-    ss << "baud=" << _bos.baud << LINETERM;
-    ss << "bits=" << _bos.bits << LINETERM;
-    ss << "parity=" << _bos.parity << LINETERM;
-    ss << "stop_bits=" << _bos.stop_bits << LINETERM;
-    ss << "flowcontrol=" << _bos.flowcontrol << LINETERM;
-#endif
 #endif
 
 #ifdef BUILD_RS232

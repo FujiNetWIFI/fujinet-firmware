@@ -63,6 +63,7 @@ if(FUJINET_TARGET STREQUAL "APPLE")
         add_compile_definitions(SLIP_PROTOCOL_NET=1)
     elseif(SLIP_PROTOCOL STREQUAL "COM")
         add_compile_definitions(SLIP_PROTOCOL_COM=1)
+        set(USE_LIBSERIAL TRUE)
     endif()
 
     message(STATUS "SLIP_PROTOCOL is ${SLIP_PROTOCOL}")
