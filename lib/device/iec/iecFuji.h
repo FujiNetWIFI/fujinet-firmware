@@ -20,7 +20,7 @@ typedef enum
 class iecFuji : public fujiDevice
 {
 protected:
-    void transaction_continue(transState_t expectMoreData) override {}
+    void transaction_begin(transState_t expectMoreData) override {}
     void transaction_complete() override {}
     void transaction_error() override {}
     success_is_true transaction_get(void *data, size_t len) override {RETURN_ERROR_AS_FALSE();}

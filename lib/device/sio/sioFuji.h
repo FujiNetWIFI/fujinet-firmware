@@ -17,7 +17,7 @@ private:
 
 protected:
     transState_t _transaction_state = TRANS_STATE::INVALID;
-    void transaction_continue(transState_t expectMoreData) override {
+    void transaction_begin(transState_t expectMoreData) override {
         assert(_transaction_state == TRANS_STATE::INVALID);
         _transaction_state = expectMoreData;
         // For some reason NetSIO needs a hint that this is a WRITE transaction

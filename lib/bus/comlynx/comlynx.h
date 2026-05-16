@@ -58,7 +58,7 @@ protected:
     virtual void comlynx_response_nack();
 
     transState_t _transaction_state = TRANS_STATE::INVALID;
-    virtual void transaction_continue(transState_t expectMoreData);
+    virtual void transaction_begin(transState_t expectMoreData);
     virtual void transaction_complete();
     virtual void transaction_error();
     virtual success_is_true transaction_get(void *data, size_t len);

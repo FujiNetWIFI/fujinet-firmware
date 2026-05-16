@@ -25,7 +25,7 @@ std::optional<std::string> rs232ApeTime::_read_tz(const FujiBusPacket &packet)
 
 void rs232ApeTime::_set_alternate_tz(const FujiBusPacket &packet)
 {
-    transaction_continue(TRANS_STATE::NO_GET);
+    transaction_begin(TRANS_STATE::NO_GET);
     auto tz = _read_tz(packet);
     if (tz) {
         alternate_tz = tz.value();
@@ -36,7 +36,7 @@ void rs232ApeTime::_set_alternate_tz(const FujiBusPacket &packet)
 
 void rs232ApeTime::_set_fn_tz(const FujiBusPacket &packet)
 {
-    transaction_continue(TRANS_STATE::NO_GET);
+    transaction_begin(TRANS_STATE::NO_GET);
     auto tz = _read_tz(packet);
     if (tz)
         Config.store_general_timezone(tz->c_str());
@@ -45,7 +45,7 @@ void rs232ApeTime::_set_fn_tz(const FujiBusPacket &packet)
 
 void rs232ApeTime::_get_time_apetime(const FujiBusPacket &packet, bool force_alt)
 {
-    transaction_continue(TRANS_STATE::NO_GET);
+    transaction_begin(TRANS_STATE::NO_GET);
     bool use_alt = force_alt ||
                    (packet.paramCount() > 0 && packet.param(0) == 0x01);
     auto t = Clock::get_current_time_apetime(
@@ -55,7 +55,7 @@ void rs232ApeTime::_get_time_apetime(const FujiBusPacket &packet, bool force_alt
 
 void rs232ApeTime::_get_time_simple(const FujiBusPacket &packet)
 {
-    transaction_continue(TRANS_STATE::NO_GET);
+    transaction_begin(TRANS_STATE::NO_GET);
     bool use_alt = packet.paramCount() > 0 && packet.param(0) == 0x01;
     auto t = Clock::get_current_time_simple(
         Clock::tz_to_use(use_alt, alternate_tz, Config.get_general_timezone()));
@@ -64,7 +64,7 @@ void rs232ApeTime::_get_time_simple(const FujiBusPacket &packet)
 
 void rs232ApeTime::_get_time_prodos(const FujiBusPacket &packet)
 {
-    transaction_continue(TRANS_STATE::NO_GET);
+    transaction_begin(TRANS_STATE::NO_GET);
     bool use_alt = packet.paramCount() > 0 && packet.param(0) == 0x01;
     auto t = Clock::get_current_time_prodos(
         Clock::tz_to_use(use_alt, alternate_tz, Config.get_general_timezone()));
@@ -73,7 +73,7 @@ void rs232ApeTime::_get_time_prodos(const FujiBusPacket &packet)
 
 void rs232ApeTime::_get_time_sos(const FujiBusPacket &packet)
 {
-    transaction_continue(TRANS_STATE::NO_GET);
+    transaction_begin(TRANS_STATE::NO_GET);
     bool use_alt = packet.paramCount() > 0 && packet.param(0) == 0x01;
     std::string s = Clock::get_current_time_sos(
         Clock::tz_to_use(use_alt, alternate_tz, Config.get_general_timezone()));
@@ -82,7 +82,7 @@ void rs232ApeTime::_get_time_sos(const FujiBusPacket &packet)
 
 void rs232ApeTime::_get_time_iso_local(const FujiBusPacket &packet)
 {
-    transaction_continue(TRANS_STATE::NO_GET);
+    transaction_begin(TRANS_STATE::NO_GET);
     bool use_alt = packet.paramCount() > 0 && packet.param(0) == 0x01;
     std::string s = Clock::get_current_time_iso(
         Clock::tz_to_use(use_alt, alternate_tz, Config.get_general_timezone()));
@@ -91,21 +91,21 @@ void rs232ApeTime::_get_time_iso_local(const FujiBusPacket &packet)
 
 void rs232ApeTime::_get_time_iso_utc()
 {
-    transaction_continue(TRANS_STATE::NO_GET);
+    transaction_begin(TRANS_STATE::NO_GET);
     std::string s = Clock::get_current_time_iso("UTC+0");
     transaction_put(s.c_str(), s.size() + 1, false);
 }
 
 void rs232ApeTime::_get_general_tz()
 {
-    transaction_continue(TRANS_STATE::NO_GET);
+    transaction_begin(TRANS_STATE::NO_GET);
     const std::string tz = Config.get_general_timezone();
     transaction_put(tz.c_str(), tz.size() + 1, false);
 }
 
 void rs232ApeTime::_get_general_tz_len()
 {
-    transaction_continue(TRANS_STATE::NO_GET);
+    transaction_begin(TRANS_STATE::NO_GET);
     uint8_t len = Config.get_general_timezone().size() + 1;
     transaction_put(&len, 1, false);
 }

@@ -447,7 +447,7 @@ void systemBus::setRedeyeGameRemap(uint32_t remap)
     }
 }
 
-void virtualDevice::transaction_continue(transState_t expectMoreData)
+void virtualDevice::transaction_begin(transState_t expectMoreData)
 {    
 }
 

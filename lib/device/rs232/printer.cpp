@@ -240,7 +240,7 @@ void rs232Printer::rs232_process(FujiBusPacket &packet)
         case RS232_PRINTERCMD_PUT: // Needed by A822 for graphics mode printing
         case RS232_PRINTERCMD_WRITE:
             _last_ms = fnSystem.millis();
-            transaction_continue(TRANS_STATE::NO_GET);
+            transaction_begin(TRANS_STATE::NO_GET);
             rs232_write(packet.data());
             break;
         case RS232_PRINTERCMD_STATUS:
@@ -251,7 +251,7 @@ void rs232Printer::rs232_process(FujiBusPacket &packet)
             else
             {
                 _last_ms = fnSystem.millis();
-                transaction_continue(TRANS_STATE::NO_GET);
+                transaction_begin(TRANS_STATE::NO_GET);
                 rs232_status(static_cast<FujiStatusReq>(packet.param(0)));
             }
             break;

@@ -19,7 +19,7 @@ private:
 #endif
 
 protected:
-    void transaction_continue(transState_t expectMoreData) override {}
+    void transaction_begin(transState_t expectMoreData) override {}
     void transaction_complete() override {
         _errorCode = 1;
         _response.clear();

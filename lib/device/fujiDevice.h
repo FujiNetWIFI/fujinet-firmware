@@ -145,7 +145,7 @@ protected:
 
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
 
-    virtual void transaction_continue(transState_t expectMoreData) = 0;
+    virtual void transaction_begin(transState_t expectMoreData) = 0;
     virtual void transaction_complete() = 0;
     virtual void transaction_error() = 0;
     virtual success_is_true transaction_get(void *data, size_t len) = 0;

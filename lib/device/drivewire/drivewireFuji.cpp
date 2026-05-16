@@ -668,7 +668,7 @@ void drivewireFuji::fujicmd_open_app_key()
     // fujinet-lib for coco sends appkey creator with backwards
     // endianness, we'll fix it here
 
-    transaction_continue(TRANS_STATE::WILL_GET);
+    transaction_begin(TRANS_STATE::WILL_GET);
     Debug_print("Fuji cmd: OPEN APPKEY\n");
 
     appkey key;
