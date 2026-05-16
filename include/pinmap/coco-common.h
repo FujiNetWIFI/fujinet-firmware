@@ -7,9 +7,9 @@
 #ifndef PIN_CASS_DATA_OUT
 #define PIN_CASS_DATA_OUT       GPIO_NUM_26                    // use count: 3
 #endif /* PIN_CASS_DATA_OUT */
-#ifndef PIN_CD
-#define PIN_CD                  GPIO_NUM_22                    // use count: 3
-#endif /* PIN_CD */
+#ifndef PIN_RS232_DCD
+#define PIN_RS232_DCD           GPIO_NUM_22                    // use count: 3
+#endif /* PIN_RS232_DCD */
 #ifndef PIN_EPROM_A14
 #define PIN_EPROM_A14           GPIO_NUM_36                    // use count: 3
 #endif /* PIN_EPROM_A14 */

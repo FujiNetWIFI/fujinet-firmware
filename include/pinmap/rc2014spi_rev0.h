@@ -22,8 +22,8 @@
 #define PIN_BUS_DEVICE_MOSI     GPIO_NUM_25
 #define PIN_BUS_DEVICE_SCK      GPIO_NUM_33
 
-#define PIN_CMD_RDY             GPIO_NUM_27
-#define PIN_CMD                 GPIO_NUM_32
+#define PIN_CMD_ACK             GPIO_NUM_27
+#define PIN_CMD_REQ             GPIO_NUM_32
 #define PIN_DATA                GPIO_NUM_34 // input only
 #define PIN_PROCEED             GPIO_NUM_4
 
