@@ -36,7 +36,7 @@ uint8_t rs232_checksum(uint8_t *buf, unsigned short len)
     return chk;
 }
 
-void virtualDevice::transaction_continue(transState_t expectMoreData)
+void virtualDevice::transaction_begin(transState_t expectMoreData)
 {
     assert(_transaction_state == TRANS_STATE::INVALID);
     _transaction_state = expectMoreData;

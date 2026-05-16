@@ -35,7 +35,7 @@ private:
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
 
 protected:
-    void transaction_continue(transState_t expectMoreData) override {
+    void transaction_begin(transState_t expectMoreData) override {
         rc2014_send_ack();
     }
     void transaction_complete() override {

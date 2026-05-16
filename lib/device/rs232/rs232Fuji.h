@@ -12,8 +12,8 @@ private:
 
 protected:
     // Temporary until all platforms have transaction_ methods in virtualDevice base class
-    void transaction_continue(transState_t expectMoreData) override {
-        virtualDevice::transaction_continue(expectMoreData);
+    void transaction_begin(transState_t expectMoreData) override {
+        virtualDevice::transaction_begin(expectMoreData);
     }
     void transaction_complete() override {
         virtualDevice::transaction_complete();

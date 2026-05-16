@@ -626,7 +626,7 @@ success_is_true iwmFuji::fujicmd_set_device_filename_success(uint8_t deviceSlot,
 {
     char tmp[MAX_FILENAME_LEN];
 
-    transaction_continue(TRANS_STATE::WILL_GET);
+    transaction_begin(TRANS_STATE::WILL_GET);
     if (!transaction_get(tmp, sizeof(tmp)))
     {
         transaction_error();
