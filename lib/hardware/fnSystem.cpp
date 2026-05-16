@@ -484,13 +484,13 @@ void SystemManager::update_hostname(const char *hostname)
 void SystemManager::update_firmware()
 {
 #ifdef ESP_PLATFORM
-    Serial.printf("Stopping flash filesystem...\r\n");
+    Debug_printf("Stopping flash filesystem...\r\n");
     fsFlash.stop();
 
-    Serial.println("Flash bin files from '/sd/.bin/'");
+    Debug_println("Flash bin files from '/sd/.bin/'");
     mlff_update(PIN_SD_HOST_CS, PIN_SD_HOST_MISO, PIN_SD_HOST_MOSI, PIN_SD_HOST_SCK);
 
-    Serial.println("Reboot to run update app and flash 'main.*.bin'...");
+    Debug_println("Reboot to run update app and flash 'main.*.bin'...");
     reboot();
 #endif
 }
