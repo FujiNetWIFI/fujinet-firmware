@@ -335,7 +335,7 @@ void systemBus::service()
     }    
 #endif
     // Go process a command frame if the RC2014 CMD line is asserted
-    if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
+    if (fnSystem.digital_read(PIN_CMD_REQ) == DIGI_LOW)
     {
         Debug_println("RC2014 CMD low");
         _rc2014_process_cmd();
@@ -350,12 +350,12 @@ void systemBus::service()
 //Called after a transaction is queued and ready for pickup by master.
 // Note: called after master asserts CS.
 void my_post_setup_cb(spi_slave_transaction_t *trans) {
-    gpio_set_level(PIN_CMD_RDY, DIGI_LOW);
+    gpio_set_level(PIN_CMD_ACK, DIGI_LOW);
 }
 
 //Called after transaction is sent/received.
 void my_post_trans_cb(spi_slave_transaction_t *trans) {
-    gpio_set_level(PIN_CMD_RDY, DIGI_HIGH);
+    gpio_set_level(PIN_CMD_ACK, DIGI_HIGH);
 }
     
 void systemBus::setup()
@@ -363,11 +363,11 @@ void systemBus::setup()
     Debug_println("RC2014 SETUP");
 
     // CMD PIN
-    fnSystem.set_pin_mode(PIN_CMD, gpio_mode_t::GPIO_MODE_INPUT); // There's no PULLUP/PULLDOWN on pins 34-39
+    fnSystem.set_pin_mode(PIN_CMD_REQ, gpio_mode_t::GPIO_MODE_INPUT); // There's no PULLUP/PULLDOWN on pins 34-39
     fnSystem.set_pin_mode(PIN_DATA, gpio_mode_t::GPIO_MODE_INPUT); // There's no PULLUP/PULLDOWN on pins 34-39
 
-    fnSystem.set_pin_mode(PIN_CMD_RDY, gpio_mode_t::GPIO_MODE_OUTPUT);
-    fnSystem.digital_write(PIN_CMD_RDY, DIGI_HIGH);
+    fnSystem.set_pin_mode(PIN_CMD_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
+    fnSystem.digital_write(PIN_CMD_ACK, DIGI_HIGH);
 
     fnSystem.set_pin_mode(PIN_PROCEED, gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_PROCEED, DIGI_HIGH);

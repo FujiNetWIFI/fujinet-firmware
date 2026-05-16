@@ -212,7 +212,7 @@ void systemBus::_rc2014_process_cmd()
     Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
                  tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
     // Wait for CMD line to raise again
-    while (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
+    while (fnSystem.digital_read(PIN_CMD_REQ) == DIGI_LOW)
         vTaskDelay(1);
 
     uint8_t ck = rc2014_checksum((uint8_t *)&tempFrame.commanddata, sizeof(tempFrame.commanddata)); // Calculate Checksum
@@ -272,7 +272,7 @@ void systemBus::service()
     }    
 #endif
     // Go process a command frame if the RS232 CMD line is asserted
-    if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
+    if (fnSystem.digital_read(PIN_CMD_REQ) == DIGI_LOW)
     {
         Debug_println("RC2014 CMD low");
         _rc2014_process_cmd();
@@ -306,7 +306,7 @@ void systemBus::setup()
     fnUartBUS.begin(RC2014SIO_BAUDRATE);
 
     // CMD PIN
-    fnSystem.set_pin_mode(PIN_CMD, gpio_mode_t::GPIO_MODE_INPUT); // There's no PULLUP/PULLDOWN on pins 34-39
+    fnSystem.set_pin_mode(PIN_CMD_REQ, gpio_mode_t::GPIO_MODE_INPUT); // There's no PULLUP/PULLDOWN on pins 34-39
     fnSystem.set_pin_mode(PIN_RS232_RTS, gpio_mode_t::GPIO_MODE_INPUT);
     fnSystem.set_pin_mode(PIN_RS232_CTS, gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_RS232_CTS,DIGI_LOW);

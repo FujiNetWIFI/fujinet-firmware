@@ -29,7 +29,7 @@
 #define PIN_CASS_MOTOR          GPIO_NUM_NC // Second motor pin is tied to +3V
 #define PIN_CASS_DATA_IN        GPIO_NUM_NC
 #define PIN_CASS_DATA_OUT       GPIO_NUM_NC
-#define PIN_CD                  GPIO_NUM_NC // same as atari PROC
+#define PIN_RS232_DCD           GPIO_NUM_NC // same as atari PROC
 #define PIN_EPROM_A14           GPIO_NUM_NC // Used to set the serial baud rate
 #define PIN_EPROM_A15           GPIO_NUM_NC // based on the HDB-DOS image selected
 
