@@ -827,6 +827,9 @@ void systemBus::setup()
     }
     else
     {
+#if FUJINET_OVER_USB
+        _serial.begin();
+#else /* ! FUJINET_OVER_USB */
         _serial.begin(ChannelConfig()
                       .baud(_drivewireBaud)
                       .deviceID(DW_UART_DEVICE)
@@ -835,6 +838,7 @@ void systemBus::setup()
                       .inverted(DW_UART_DEVICE == UART_NUM_2)
 #endif /* ESP_PLATFORM */
                       );
+#endif /* FUJINET_OVER_USB */
         _port = &_serial;
     }
 

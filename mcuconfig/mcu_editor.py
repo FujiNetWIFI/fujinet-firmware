@@ -132,6 +132,10 @@ class MCUEditor:
       self.mcu.isDirty = True
       self.mcu.esp32 = result['ESP32']
 
+    if result['ESP32'] != getattr(self.mcu, 'esp32', None):
+      self.mcu.isDirty = True
+      self.mcu.esp32 = result['ESP32']
+
     return
 
   def availablePins(self, label):

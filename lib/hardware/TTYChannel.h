@@ -6,8 +6,6 @@
 
 #ifdef ITS_A_UNIX_SYSTEM_I_KNOW_THIS
 
-#define FN_UART_BUS ""
-
 struct ChannelConfig
 {
     std::string device;
