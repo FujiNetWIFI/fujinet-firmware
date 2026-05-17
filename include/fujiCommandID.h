@@ -107,7 +107,8 @@ enum fujiCommandID_t : uint8_t {
     DISKCMD_FORMAT_MEDIUM              = 0x22, // "
     DISKCMD_FORMAT                     = 0x21, // !
 
-    NETCMD_SPECIAL_INQUIRY             = 0xFF,
+    NETCMD_GET_DSTATS_VALUE            = 0xFF, // Get DSTATS value for a command
+    NETCMD_SPECIAL_INQUIRY             = 0xFF, // (same as NETCMD_GET_DSTATS_VALUE, for backward compatibility)
     NETCMD_PASSWORD                    = 0xFE,
     NETCMD_USERNAME                    = 0xFD,
     NETCMD_CHANNEL_MODE                = 0xFC,
