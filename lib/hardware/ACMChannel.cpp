@@ -7,17 +7,13 @@
 #include "../../include/debug.h"
 
 #define USB_HOST_PRIORITY   (20)
-// FIXME - don't hard code, use whatever CDC-ADM device is connected
-#define USB_DEVICE_VID (0xf022)
-#define USB_DEVICE_PID (0x4001)
 
-#define TX_STRING           ("CDC test string!")
 #define TX_TIMEOUT_MS       (1000)
 
 #include <inttypes.h> // debug
 #include <esp_log.h>
 
-#define DEBUG_TAG "SerialACM"
+#define DEBUG_TAG "ACMChannel"
 
 #define MAX_FIFO_PAYLOAD 32
 typedef struct {
@@ -43,20 +39,20 @@ static void usb_lib_task(void *arg)
 
 static bool rxForwarder(const uint8_t *data, size_t length, void *arg)
 {
-    SerialACM *instance = (SerialACM *) arg;
+    ACMChannel *instance = (ACMChannel *) arg;
 
     instance->dataReceived(data, length);
     return true;
 }
 
-void SerialACM::dataReceived(const uint8_t *data, size_t length)
+void ACMChannel::dataReceived(const uint8_t *data, size_t length)
 {
     size_t offset;
     FIFOPacket pkt;
     BaseType_t woken;
 
 
-    Debug_printv("received %i", length);
+    //Debug_printv("received %i", length);
     for (offset = 0; length; offset += pkt.length, length -= pkt.length)
     {
         pkt.length = std::min(length, (size_t) MAX_FIFO_PAYLOAD);
@@ -69,12 +65,12 @@ void SerialACM::dataReceived(const uint8_t *data, size_t length)
 
 static void eventForwarder(const cdc_acm_host_dev_event_data_t *event, void *user_ctx)
 {
-    SerialACM *instance = (SerialACM *) user_ctx;
+    ACMChannel *instance = (ACMChannel *) user_ctx;
     instance->eventReceived(event);
     return;
 }
 
-void SerialACM::eventReceived(const cdc_acm_host_dev_event_data_t *event)
+void ACMChannel::eventReceived(const cdc_acm_host_dev_event_data_t *event)
 {
     switch (event->type) {
     case CDC_ACM_HOST_ERROR:
@@ -87,6 +83,7 @@ void SerialACM::eventReceived(const cdc_acm_host_dev_event_data_t *event)
         break;
     case CDC_ACM_HOST_SERIAL_STATE:
         Debug_printv("Serial state notif 0x%04X", event->data.serial_state.val);
+        _serial_state = event->data.serial_state;
         break;
     case CDC_ACM_HOST_NETWORK_CONNECTION:
     default:
@@ -95,28 +92,81 @@ void SerialACM::eventReceived(const cdc_acm_host_dev_event_data_t *event)
     }
 }
 
-void SerialACM::begin()
+void ACMChannel::newDevice(usb_device_handle_t usb_dev)
+{
+    Debug_printv("newDevCallback fired");
+
+    const usb_device_desc_t *dev_desc;
+    usb_host_get_device_descriptor(usb_dev, &dev_desc);
+    Debug_printv("VID: 0x%04X PID: 0x%04X", dev_desc->idVendor, dev_desc->idProduct);
+
+    const usb_config_desc_t *config_desc;
+    usb_host_get_active_config_descriptor(usb_dev, &config_desc);
+
+    int offset = 0;
+    const usb_standard_desc_t *desc = (const usb_standard_desc_t *)config_desc;
+    uint16_t total_len = config_desc->wTotalLength;
+
+    while ((desc = usb_parse_next_descriptor_of_type(
+                desc, total_len, USB_B_DESCRIPTOR_TYPE_INTERFACE_ASSOCIATION, &offset)) != NULL)
+    {
+        const usb_iad_desc_t *iad = (const usb_iad_desc_t *)desc;
+        Debug_printv("IAD: class=%d subclass=%d firstIface=%d",
+            iad->bFunctionClass, iad->bFunctionSubClass, iad->bFirstInterface);
+
+        if (iad->bFunctionClass == USB_CLASS_COMM &&
+            iad->bFunctionSubClass == USB_CDC_SUBCLASS_ACM)
+        {
+            Debug_printv("Found CDC-ACM IAD");
+            found_vid = dev_desc->idVendor;
+            found_pid = dev_desc->idProduct;
+            found_interface = iad->bFirstInterface;
+            xSemaphoreGive(device_connected_sem);
+            return;
+        }
+    }
+    Debug_printv("No CDC-ACM IAD found");
+}
+
+// FIXME - apparently it later ESP-DIF versions there's a `void *user_arg`
+static ACMChannel *ndc_instance = nullptr;
+static void newDevForwarder(usb_device_handle_t usb_dev)
+{
+    ndc_instance->newDevice(usb_dev);
+    return;
+}
+
+void ACMChannel::begin()
 {
     rxQueue = xQueueCreate(1024 / MAX_FIFO_PAYLOAD, sizeof(FIFOPacket));
-
     device_disconnected_sem = xSemaphoreCreateBinary();
+    device_connected_sem = xSemaphoreCreateBinary();  // <-- new
     assert(device_disconnected_sem);
+    assert(device_connected_sem);
 
-    // Install USB Host driver. Should only be called once in entire application
     Debug_printv("Installing USB Host");
     usb_host_config_t host_config = {};
     host_config.skip_phy_setup = false;
     host_config.intr_flags = ESP_INTR_FLAG_LEVEL1;
     ESP_ERROR_CHECK(usb_host_install(&host_config));
 
-    // Create a task that will handle USB library events
     BaseType_t task_created = xTaskCreate(usb_lib_task, "usb_lib", 4096,
                                           xTaskGetCurrentTaskHandle(),
                                           USB_HOST_PRIORITY, NULL);
     assert(task_created == pdTRUE);
 
     Debug_printv("Installing CDC-ACM driver");
-    ESP_ERROR_CHECK(cdc_acm_host_install(NULL));
+
+    ndc_instance = this;
+
+    // Register the new-device callback before installing, so we don't miss
+    // devices that were already connected at boot
+    cdc_acm_host_driver_config_t driver_config = {};
+    driver_config.driver_task_stack_size = 4096;
+    driver_config.driver_task_priority = USB_HOST_PRIORITY;
+    driver_config.xCoreID = 0;
+    driver_config.new_dev_cb = newDevForwarder;
+    ESP_ERROR_CHECK(cdc_acm_host_install(&driver_config));
 
     cdc_acm_host_device_config_t dev_config = {};
     dev_config.connection_timeout_ms = 1000;
@@ -127,34 +177,20 @@ void SerialACM::begin()
     dev_config.data_cb = rxForwarder;
 
     while (true) {
-        // Open USB device from tusb_serial_device example
-        // example. Either single or dual port configuration.
-        Debug_printv("Opening CDC ACM device 0x%04X:0x%04X...", USB_DEVICE_VID,
-                 USB_DEVICE_PID);
-        esp_err_t err = cdc_acm_host_open(USB_DEVICE_VID, USB_DEVICE_PID,
-                                          0, &dev_config, &cdc_dev);
-        if (ESP_OK != err) {
-#if 0
-            Debug_printv("Opening CDC ACM device 0x%04X:0x%04X...",
-                     USB_DEVICE_VID, USB_DEVICE_DUAL_PID);
-            err = cdc_acm_host_open(USB_DEVICE_VID, USB_DEVICE_DUAL_PID,
-                                    0, &dev_config, &cdc_dev);
-#endif
-            if (ESP_OK != err) {
-                Debug_printv("Failed to open device");
-                continue;
-            }
+        // Wait for newDevCallback to find a CDC-ACM device
+        Debug_printv("Waiting for CDC-ACM device...");
+        xSemaphoreTake(device_connected_sem, portMAX_DELAY);
+
+        Debug_printv("Opening CDC ACM device 0x%04X:0x%04X...", found_vid, found_pid);
+        esp_err_t err = cdc_acm_host_open_vendor_specific(found_vid, found_pid,
+                                                          found_interface,
+                                                          &dev_config, &cdc_dev);
+
+        if (err != ESP_OK) {
+            Debug_printv("Failed to open device, waiting for next...");
+            continue;
         }
         //cdc_acm_host_desc_print(cdc_dev);
-        vTaskDelay(pdMS_TO_TICKS(100));
-
-#if 1
-        // Test sending and receiving: responses are handled in handle_rx callback
-        ESP_ERROR_CHECK(cdc_acm_host_data_tx_blocking(cdc_dev,
-                                                      (const uint8_t *) TX_STRING,
-                                                      strlen(TX_STRING),
-                                                      TX_TIMEOUT_MS));
-#endif
         vTaskDelay(pdMS_TO_TICKS(100));
 
         // Test Line Coding commands: Get current line coding, change
@@ -196,28 +232,28 @@ void SerialACM::begin()
     return;
 }
 
-void SerialACM::end()
+void ACMChannel::end()
 {
 }
 
-void SerialACM::update_fifo()
+void ACMChannel::updateFIFO()
 {
     FIFOPacket pkt;
     size_t old_len;
 
     while (xQueueReceive(rxQueue, &pkt, 0))
     {
-        Debug_printv("packet %i", pkt.length);
-        old_len = fifo.size();
-        fifo.resize(old_len + pkt.length);
-        memcpy(&fifo[old_len], pkt.data, pkt.length);
-        Debug_printv("fifo %i", fifo.size());
+        //Debug_printv("packet %i", pkt.length);
+        old_len = _fifo.size();
+        _fifo.resize(old_len + pkt.length);
+        memcpy(&_fifo[old_len], pkt.data, pkt.length);
+        //Debug_printv("fifo %i", _fifo.size());
     }
 
     return;
 }
 
-size_t SerialACM::si_send(const void *buffer, size_t length)
+size_t ACMChannel::dataOut(const void *buffer, size_t length)
 {
     cdc_acm_host_data_tx_blocking(cdc_dev,
                                   (const uint8_t *) buffer,
@@ -226,9 +262,41 @@ size_t SerialACM::si_send(const void *buffer, size_t length)
     return length;
 }
 
-void SerialACM::flush()
+void ACMChannel::flushOutput()
 {
     return;
+}
+
+bool ACMChannel::getDTR()
+{
+    return _serial_state.bTxCarrier;
+}
+
+void ACMChannel::setDSR(bool state)
+{
+    _dsr = state;
+    cdc_acm_host_set_control_line_state(cdc_dev, _dsr, _cts);
+}
+
+bool ACMChannel::getRTS()
+{
+    return 1;
+}
+
+void ACMChannel::setCTS(bool state)
+{
+    _cts = state;
+    cdc_acm_host_set_control_line_state(cdc_dev, _dsr, _cts);
+}
+
+bool ACMChannel::getDCD()
+{
+    return _serial_state.bRxCarrier;
+}
+
+bool ACMChannel::getRI()
+{
+    return _serial_state.bRingSignal;
 }
 
 #endif /* CONFIG_USB_CDC_ACM_HOST_ENABLED */
