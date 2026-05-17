@@ -1,0 +1,15 @@
+{
+  "adamnet": ["ADAMNET_RESET"],
+  "comlynx": ["COMLYNX_RESET"],
+  "cx16": [],
+  "h89": [],
+  "iec": ["IEC_ATN", "IEC_CLK_IN", "IEC_CLK_OUT", "IEC_DATA_IN", "IEC_DATA_OUT",
+          "IEC_RESET", "IEC_SRQ"],
+  "iwm": ["SP_ACK", "SP_DRIVE1", "SP_DRIVE2", "SP_EN35", "SP_ENABLE", "SP_EXTRA", "SP_HDSEL",
+          "SP_PHI0", "SP_PHI1", "SP_PHI2", "SP_PHI3", "SP_RDDATA", "SP_RD_BUFFER", "SP_REQ",
+          "SP_WRDATA", "SP_WREQ", "SP_WRPROT"],
+  "mac": ["MCI_HDSEL"],
+  "rc2014spi": ["CMD_REQ", "CMD_ACK", "DATA", "PROCEED"],
+  "s100": [],
+  "sio": ["CKI", "CKO", "CMD", "INT", "MTR", "PROC"]
+}
