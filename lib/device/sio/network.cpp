@@ -871,14 +871,14 @@ uint8_t sioNetwork::get_dstats_for_command(uint8_t command)
     case NETCMD_PARSE:
     case NETCMD_CONTROL:
     case NETCMD_CLOSE_CLIENT:
-        return 0x00;
+        return SIO_DIRECTION_NONE;
 
     // Payload from FujiNet to Atari (0x40)
     case NETCMD_HSIO_INDEX:
     case NETCMD_READ:
     case NETCMD_STATUS:
     case NETCMD_GETCWD:
-        return 0x40;
+        return SIO_DIRECTION_READ;
 
     // Payload from Atari to FujiNet (0x80)
     case NETCMD_OPEN:
@@ -898,11 +898,11 @@ uint8_t sioNetwork::get_dstats_for_command(uint8_t command)
     case NETCMD_MKDIR:
     case NETCMD_RMDIR:
     case NETCMD_SET_DESTINATION:
-        return 0x80;
+        return SIO_DIRECTION_WRITE;
 
     // Invalid/unknown command
     default:
-        return 0xFF;
+        return SIO_DIRECTION_INVALID;
     }
 }
 
