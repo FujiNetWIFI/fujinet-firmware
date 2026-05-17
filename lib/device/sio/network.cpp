@@ -692,6 +692,19 @@ void sioNetwork::sio_set_password()
 }
 
 /**
+ * Get DSTATS value for a given command.
+ * This command allows CIO programs to query the data direction (DSTATS) for any network command.
+ * The command code to query is passed in DAUX1 (aux1).
+ * Returns a single byte: 0x00 (no payload), 0x40 (FujiNet→Atari), 0x80 (Atari→FujiNet), or 0xFF (invalid command).
+ */
+void sioNetwork::sio_get_dstats_value()
+{
+    uint8_t command = cmdFrame.aux1;
+    uint8_t dstats = get_dstats_for_command(command);
+    bus_to_computer(&dstats, 1, false);
+}
+
+/**
  * Process incoming SIO command for device 0x7X
  * @param comanddata incoming 4 bytes containing command and aux bytes
  * @param checksum 8 bit checksum
@@ -769,6 +782,11 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_set_password();
         return;
 
+    case NETCMD_GET_DSTATS_VALUE:
+        sio_ack();
+        sio_get_dstats_value();
+        break;
+
     case NETCMD_RENAME:
     case NETCMD_DELETE:
     case NETCMD_LOCK:
@@ -832,6 +850,61 @@ void sioNetwork::sio_poll_interrupt()
 }
 
 /** PRIVATE METHODS ************************************************************/
+
+/**
+ * Get the DSTATS value for a given network command.
+ * DSTATS indicates the direction of data for a command:
+ * - 0x00: No payload
+ * - 0x40: Payload from FujiNet to Atari
+ * - 0x80: Payload from Atari to FujiNet
+ * - 0xFF: Invalid/unknown command
+ *
+ * @param command The network command code (typically from aux1)
+ * @return The DSTATS byte value for that command
+ */
+uint8_t sioNetwork::get_dstats_for_command(uint8_t command)
+{
+    switch (command)
+    {
+    // No payload commands (0x00)
+    case NETCMD_CLOSE:
+    case NETCMD_PARSE:
+    case NETCMD_CONTROL:
+    case NETCMD_CLOSE_CLIENT:
+        return 0x00;
+
+    // Payload from FujiNet to Atari (0x40)
+    case NETCMD_HSIO_INDEX:
+    case NETCMD_READ:
+    case NETCMD_STATUS:
+    case NETCMD_GETCWD:
+        return 0x40;
+
+    // Payload from Atari to FujiNet (0x80)
+    case NETCMD_OPEN:
+    case NETCMD_WRITE:
+    case NETCMD_TRANSLATION:
+    case NETCMD_SET_INT_RATE:
+    case NETCMD_SET_PARAMETERS:
+    case NETCMD_CHANNEL_MODE:
+    case NETCMD_CHDIR:
+    case NETCMD_QUERY:
+    case NETCMD_USERNAME:
+    case NETCMD_PASSWORD:
+    case NETCMD_RENAME:
+    case NETCMD_DELETE:
+    case NETCMD_LOCK:
+    case NETCMD_UNLOCK:
+    case NETCMD_MKDIR:
+    case NETCMD_RMDIR:
+    case NETCMD_SET_DESTINATION:
+        return 0x80;
+
+    // Invalid/unknown command
+    default:
+        return 0xFF;
+    }
+}
 
 /**
  * Instantiate protocol object
