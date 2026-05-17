@@ -22,6 +22,7 @@
 #include "cmdFrame.h"
 #include "BeckerSocket.h"
 #include "UARTChannel.h"
+#include "ACMChannel.h"
 #include "fujiDeviceID.h"
 
 #ifdef ESP32_PLATFORM
@@ -34,6 +35,14 @@
 #include "media.h"
 
 #define DRIVEWIRE_BAUDRATE 57600
+
+#if !defined(ESP_PLATFORM) || \
+    (FN_UART_BUS == UART_NUM_1 && defined(PIN_UART1_RX)) ||     \
+    (FN_UART_BUS == UART_NUM_2 && defined(PIN_UART2_RX))
+#undef FUJINET_OVER_USB
+#else
+#define FUJINET_OVER_USB 1
+#endif
 
 /* Operation Codes */
 #define OP_NOP         0
@@ -174,7 +183,11 @@ class systemBus
 {
 private:
     IOChannel *_port = nullptr;
+#if FUJINET_OVER_USB
+    ACMChannel _serial;
+#else /* ! FUJINET_OVER_USB */
     UARTChannel _serial;
+#endif /* FUJINET_OVER_USB */
     BeckerSocket _becker;
 
     virtualDevice *_activeDev = nullptr;

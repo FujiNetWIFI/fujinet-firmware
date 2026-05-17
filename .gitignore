@@ -62,3 +62,4 @@ fujinet_releases/*
 
 # espressif managed components
 managed_components
+__pycache__

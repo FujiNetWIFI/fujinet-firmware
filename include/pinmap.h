@@ -31,6 +31,7 @@
 #include "pinmap/heathkit_h89.h"
 #include "pinmap/atari2600.h"
 #include "pinmap/esp32s3-xdrive.h"
+#include "pinmap/fujiversal-drivewire.h"
 
 
 #ifndef PIN_DEBUG
