@@ -285,7 +285,11 @@ void OutputSound()
         pdm_tx_cfg.slot_cfg.sd_dither2 = 1;
 
         pdm_tx_cfg.gpio_cfg.clk = GPIO_NUM_NC; //(gpio_num_t) I2S_PIN_NO_CHANGE; //GPIO_NUM_5
+#ifdef PIN_DAC1
         pdm_tx_cfg.gpio_cfg.dout = PIN_DAC1; //GPIO_NUM_18
+#else
+        pdm_tx_cfg.gpio_cfg.dout = GPIO_NUM_NC;
+#endif /* PIN_DAC1 */
         pdm_tx_cfg.gpio_cfg.invert_flags.clk_inv = false;
 
         i2s_channel_init_pdm_tx_mode(tx_handle, &pdm_tx_cfg);

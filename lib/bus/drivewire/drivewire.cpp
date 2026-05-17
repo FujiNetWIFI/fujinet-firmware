@@ -715,6 +715,7 @@ void systemBus::service()
 #ifdef ESP_PLATFORM
 void systemBus::configureGPIO()
 {
+#ifdef PIN_CASS_MOTOR
     // Setup interrupt for cassette motor pin
     gpio_config_t io_conf = {
         .pin_bit_mask = (1ULL << PIN_CASS_MOTOR), // bit mask of the pins that you want to set
@@ -729,11 +730,15 @@ void systemBus::configureGPIO()
     // configure GPIO with the given settings
     gpio_config(&io_conf);
     gpio_isr_handler_add((gpio_num_t)PIN_CASS_MOTOR, drivewire_isr_handler, (void *)PIN_CASS_MOTOR);
+#endif /* PIN_CASS_MOTOR */
 
+#ifdef PIN_RS232_DCD
     // Configure CD pin.
     fnSystem.set_pin_mode(PIN_RS232_DCD, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
     fnSystem.digital_write(PIN_RS232_DCD, DIGI_HIGH);
+#endif // PIN_RS232_DCD
 
+#ifdef PIN_EPROM_A14
     // Start in DRIVEWIRE mode
     // Set the initial buad rate based on which ROM image is selected by the A14/A15 dip switch on Rev000 or newer.
     // If using an older Rev0 or Rev00 board, you will need to pull PIN_EPROM_A14 (IO36) up to 3.3V or 5V via a 10K
@@ -742,12 +747,14 @@ void systemBus::configureGPIO()
 
     fnSystem.set_pin_mode(PIN_EPROM_A14, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
     fnSystem.set_pin_mode(PIN_EPROM_A15, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+#endif /* PIN_EPROM_A14 */
 
     return;
 }
 
 int systemBus::readBaudSwitch()
 {
+#ifdef PIN_EPROM_A14
     if (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_LOW
         && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_LOW)
     {
@@ -771,6 +778,9 @@ int systemBus::readBaudSwitch()
 
     Debug_printv("A14 and A15 High, defaulting to 57600 baud");
     return 57600; //Default or no switch
+#else /* ! PIN_EPROM_A14 */
+    return 921600;
+#endif /* PIN_EPROM_A14 */
 }
 #endif /* ESP_PLATFORM */
 

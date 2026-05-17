@@ -46,16 +46,22 @@ void LedManager::setup()
 
     fnSystem.set_pin_mode(PIN_LED_WIFI, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
     fnSystem.digital_write(PIN_LED_WIFI, DIGI_HIGH);
-#else
+#else // ! PINMAP_LYNX_S3
+#if defined(PIN_LED_BUS) && (PIN_LED_BUS != GPIO_NUM_NC)
     fnSystem.set_pin_mode(PIN_LED_BUS, gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_LED_BUS, DIGI_HIGH);
+#endif // PIN_LED_BUS
 
+#if defined(PIN_LED_BUS) && (PIN_LED_BUS != GPIO_NUM_NC)
     fnSystem.set_pin_mode(PIN_LED_BT, gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_LED_BT, DIGI_HIGH);
+#endif // PIN_LED_BUS
 
+#if defined(PIN_LED_BUS) && (PIN_LED_BUS != GPIO_NUM_NC)
     fnSystem.set_pin_mode(PIN_LED_WIFI, gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_LED_WIFI, DIGI_HIGH);
-#endif
+#endif // PIN_LED_BUS
+#endif // PINMAP_LYNX_S3
 #endif // ESP_PLATFORM
 }
 
@@ -89,7 +95,8 @@ void LedManager::set(eLed led, bool on)
         else
             fnSystem.digital_write(mLedPin[led], (on ? DIGI_LOW : DIGI_HIGH));
 #else
-        fnSystem.digital_write(mLedPin[led], (on ? DIGI_LOW : DIGI_HIGH));
+        if (mLedPin[led] != GPIO_NUM_NC)
+            fnSystem.digital_write(mLedPin[led], (on ? DIGI_LOW : DIGI_HIGH));
 #endif
     }
 #endif // ESP_PLATFORM
