@@ -47,19 +47,28 @@ void LedManager::setup()
     fnSystem.set_pin_mode(PIN_LED_WIFI, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
     fnSystem.digital_write(PIN_LED_WIFI, DIGI_HIGH);
 #else // ! PINMAP_LYNX_S3
-#if defined(PIN_LED_BUS) && (PIN_LED_BUS != GPIO_NUM_NC)
-    fnSystem.set_pin_mode(PIN_LED_BUS, gpio_mode_t::GPIO_MODE_OUTPUT);
-    fnSystem.digital_write(PIN_LED_BUS, DIGI_HIGH);
+#ifdef PIN_LED_BUS
+    if (PIN_LED_BUS != GPIO_NUM_NC)
+    {
+        fnSystem.set_pin_mode(PIN_LED_BUS, gpio_mode_t::GPIO_MODE_OUTPUT);
+        fnSystem.digital_write(PIN_LED_BUS, DIGI_HIGH);
+    }
 #endif // PIN_LED_BUS
 
-#if defined(PIN_LED_BUS) && (PIN_LED_BUS != GPIO_NUM_NC)
-    fnSystem.set_pin_mode(PIN_LED_BT, gpio_mode_t::GPIO_MODE_OUTPUT);
-    fnSystem.digital_write(PIN_LED_BT, DIGI_HIGH);
+#ifdef PIN_LED_BT
+    if (PIN_LED_BT != GPIO_NUM_NC)
+    {
+        fnSystem.set_pin_mode(PIN_LED_BT, gpio_mode_t::GPIO_MODE_OUTPUT);
+        fnSystem.digital_write(PIN_LED_BT, DIGI_HIGH);
+    }
 #endif // PIN_LED_BUS
 
-#if defined(PIN_LED_BUS) && (PIN_LED_BUS != GPIO_NUM_NC)
-    fnSystem.set_pin_mode(PIN_LED_WIFI, gpio_mode_t::GPIO_MODE_OUTPUT);
-    fnSystem.digital_write(PIN_LED_WIFI, DIGI_HIGH);
+#ifdef PIN_LED_WIFI
+    if (PIN_LED_WIFI != GPIO_NUM_NC)
+    {
+        fnSystem.set_pin_mode(PIN_LED_WIFI, gpio_mode_t::GPIO_MODE_OUTPUT);
+        fnSystem.digital_write(PIN_LED_WIFI, DIGI_HIGH);
+    }
 #endif // PIN_LED_BUS
 #endif // PINMAP_LYNX_S3
 #endif // ESP_PLATFORM
