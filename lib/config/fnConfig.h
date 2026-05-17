@@ -284,26 +284,6 @@ public:
     void store_boip_host(const char *host);
     void store_boip_port(int port);
 
-#ifndef ESP_PLATFORM
-    // BUS over Serial
-    bool get_bos_enabled() { return _bos.bos_enabled; } // unused
-    std::string get_bos_port_name() { return _bos.port_name; }
-    int get_bos_baud() { return _bos.baud; }
-    int get_bos_bits() { return _bos.bits; }
-    int get_bos_parity() { return _bos.parity; }
-    int get_bos_stop_bits() { return _bos.stop_bits; }
-    int get_bos_flowcontrol() { return _bos.flowcontrol; }
-
-    void store_bos_enabled(bool bos_enabled);
-    void store_bos_port_name(char *port_name);
-    void store_bos_baud(int baud);
-    void store_bos_bits(int bits);
-    void store_bos_parity(int parity);
-    void store_bos_stop_bits(int stop_bits);
-    void store_bos_flowcontrol(int flowcontrol);
-
-#endif
-
     void load();
     void save();
 
@@ -334,9 +314,6 @@ private:
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
     void _read_section_serial(std::stringstream &ss);
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
-#ifndef ESP_PLATFORM
-    void _read_section_bos(std::stringstream &ss);
-#endif /* ! ESP_PLATFORM */
 
     enum section_match
     {
@@ -358,9 +335,6 @@ private:
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
         SECTION_SERIAL,
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
-#ifndef ESP_PLATFORM
-        SECTION_BOS,
-#endif /* ! ESP_PLATFORM */
         SECTION_UNKNOWN
     };
     section_match _find_section_in_line(std::string &line, int &index);
@@ -504,20 +478,6 @@ private:
     };
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
 
-#ifndef ESP_PLATFORM
-    // "bus" over serial
-    struct bos_info
-    {
-        bool bos_enabled = false;
-        std::string port_name = "COM1";
-        int baud = 9600;
-        int bits = 8;
-        int parity = 0; // SP_PARITY_NONE
-        int stop_bits = 1;
-        int flowcontrol = 0; // SP_FLOWCONTROL_NONE
-    };
-#endif /* ! ESP_PLATFORM */
-
     struct modem_info
     {
         bool modem_enabled = true;
@@ -576,9 +536,6 @@ private:
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
     serial_info _serial;
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
-#ifndef ESP_PLATFORM
-    bos_info _bos;
-#endif /* ! ESP_PLATFORM */
     cpm_info _cpm;
     device_enable_info _denable;
     phbook_info _phonebook_slots[MAX_PB_SLOTS];

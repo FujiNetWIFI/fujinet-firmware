@@ -192,12 +192,6 @@ New behavior: copy from SD first if available, then read FLASH.
             _read_section_serial(ss);
             break;
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
-#ifndef ESP_PLATFORM
-        // Bus Over Serial, for APPLE SmartPort over Serial via USB/Serial
-        case SECTION_BOS:
-            _read_section_bos(ss);
-            break;
-#endif /* ! ESP_PLATFORM */
         case SECTION_UNKNOWN:
             break;
         }
