@@ -23,23 +23,30 @@ void ESP32UARTChannel::begin(const ChannelConfig& conf)
     uart_param_config(_uart_num, &conf.uart_config);
 
     int tx, rx;
-    if (_uart_num == 0)
+    switch (_uart_num)
     {
+#ifdef PIN_UART0_RX
+    case 0:
         rx = PIN_UART0_RX;
         tx = PIN_UART0_TX;
-    }
-    else if (_uart_num == 1)
-    {
+        break;
+#endif /* PIN_UART0_RX */
+
+#ifdef PIN_UART1_RX
+    case 1:
         rx = PIN_UART1_RX;
         tx = PIN_UART1_TX;
-    }
-    else if (_uart_num == 2)
-    {
+        break;
+#endif /* PIN_UART1_RX */
+
+#ifdef PIN_UART2_RX
+    case 2:
         rx = PIN_UART2_RX;
         tx = PIN_UART2_TX;
-    }
-    else
-    {
+        break;
+#endif /* PIN_UART2_RX */
+
+    default:
         return;
     }
 
@@ -106,7 +113,7 @@ void ESP32UARTChannel::updateFIFO()
 {
     uart_event_t event;
 
-    while (xQueueReceive(_uart_q, &event, 1))
+    while (_uart_q && xQueueReceive(_uart_q, &event, 1))
     {
         if (event.type == UART_DATA)
         {
