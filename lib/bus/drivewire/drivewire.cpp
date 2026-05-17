@@ -42,8 +42,9 @@ static QueueHandle_t drivewire_evt_queue = NULL;
 drivewireDload dload;
 
 // Host & client channel queues
-std::queue<char> outgoingChannel[16];
-std::queue<char> incomingChannel[16];
+#define MAX_CHANNEL_QUEUES 16
+std::queue<char> outgoingChannel[MAX_CHANNEL_QUEUES];
+std::queue<char> incomingChannel[MAX_CHANNEL_QUEUES];
 
 #define DEBOUNCE_THRESHOLD_US 50000ULL
 
@@ -506,6 +507,9 @@ void systemBus::op_serwritem()
     vchan = _port->read();
     _port->read(); // discard
     count = _port->read();
+
+    if (vchan >= MAX_CHANNEL_QUEUES)
+        return;
 
     for (int i = 0; i < count; i++) {
         int byte = _port->read();
