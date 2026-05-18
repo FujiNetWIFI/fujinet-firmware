@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include "CPM.h"
 #include "TCP.h"
 #include "UDP.h"
 #include "Test.h"
@@ -30,6 +31,9 @@ NetworkProtocol* ProtocolParser::createProtocol(std::string scheme, std::string 
 
     switch (hash_djb2a(scheme))
     {
+        case "CPM"_sh:
+            protocol = new NetworkProtocolCPM(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
         case "TCP"_sh:
             protocol = new NetworkProtocolTCP(receiveBuffer, transmitBuffer, specialBuffer);
             break;
