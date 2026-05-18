@@ -32,7 +32,7 @@ class PlatformIOIni:
     if self.config.has_section(self.envSectionName):
       return False
     if not self.config.has_section('fujinet'):
-      raise ValueError(self.path)
+      self.config.add_section('fujinet')
     build_board = self.config['fujinet'].get('build_board', "").strip()
     if not build_board or build_board == self.mcu:
       return False

@@ -1,0 +1,13 @@
+#ifdef PINMAP_FUJIVERSAL_RS232
+
+#define PIN_CARD_DETECT         GPIO_NUM_NC
+#define PIN_CARD_DETECT_FIX     GPIO_NUM_NC
+#define PIN_SD_HOST_CS          GPIO_NUM_41
+#define PIN_SD_HOST_SCK         GPIO_NUM_39
+#define PIN_SD_HOST_MISO        GPIO_NUM_40
+#define PIN_SD_HOST_MOSI        GPIO_NUM_38
+
+#define PIN_UART0_RX            GPIO_NUM_44
+#define PIN_UART0_TX            GPIO_NUM_43
+
+#endif /* PINMAP_FUJIVERSAL_RS232 */

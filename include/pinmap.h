@@ -32,10 +32,11 @@
 #include "pinmap/atari2600.h"
 #include "pinmap/esp32s3-xdrive.h"
 #include "pinmap/fujiversal-drivewire.h"
+#include "pinmap/fujiversal-rs232.h"
 
 
 #ifndef PIN_DEBUG
-#define PIN_DEBUG		PIN_IEC_SRQ
+#define PIN_DEBUG PIN_IEC_SRQ
 #endif
 
 #endif // ESP_PLATFORM

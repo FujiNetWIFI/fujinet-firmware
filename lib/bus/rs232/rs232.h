@@ -3,6 +3,7 @@
 
 #include "bus.h"
 #include "UARTChannel.h"
+#include "ACMChannel.h"
 #include "FujiBusPacket.h"
 #include "../drivewire/BeckerSocket.h"
 #include "global_types.h"
@@ -14,11 +15,15 @@
 
 #include <forward_list>
 
-#define RS232_BAUDRATE 9600
-//#define RS232_BAUDRATE 115200
+#define RS232_BAUDRATE 115200
 
-#define DELAY_T4 800
-#define DELAY_T5 800
+#if !defined(ESP_PLATFORM) || \
+    (FN_UART_BUS == UART_NUM_1 && defined(PIN_UART1_RX)) ||     \
+    (FN_UART_BUS == UART_NUM_2 && defined(PIN_UART2_RX))
+#undef FUJINET_OVER_USB
+#else
+#define FUJINET_OVER_USB 1
+#endif
 
 enum FujiStatusReq {
     STATUS_NETWORK_CONNERR = 0,
@@ -135,13 +140,13 @@ private:
     rs232Printer *_printerdev = nullptr;
 
     int _rs232Baud = RS232_BAUDRATE;
-    int _rs232BaudHigh = RS232_BAUDRATE;
-    int _rs232BaudUltraHigh = RS232_BAUDRATE;
-
-    bool useUltraHigh = false; // Use fujinet derived clock.
 
     IOChannel *_port;
+#if FUJINET_OVER_USB
+    ACMChannel _serial;
+#else /* ! FUJINET_OVER_USB */
     UARTChannel _serial;
+#endif /* FUJINET_OVER_USB */
     BeckerSocket _becker;
 
     void _rs232_process_cmd();
@@ -160,16 +165,8 @@ public:
 
     int getBaudrate();                                          // Gets current RS232 baud rate setting
     void setBaudrate(int baud);                                 // Sets RS232 to specific baud rate
-    void toggleBaudrate();                                      // Toggle between standard and high speed RS232 baud rate
-
-    int setHighSpeedIndex(int hrs232_index);                      // Set HRS232 index. Sets high speed RS232 baud and also returns that value.
-    int getHighSpeedIndex();                                    // Gets current HRS232 index
-    int getHighSpeedBaud();                                     // Gets current HRS232 baud
 
     void setStreamHost(const char *newhost, int port);             // Set new host/ip & port for NetStream
-    void setUltraHigh(bool _enable, int _ultraHighBaud = 0);    // enable ultrahigh/set baud rate
-    bool getUltraHighEnabled() { return useUltraHigh; }
-    int getUltraHighBaudRate() { return _rs232BaudUltraHigh; }
 
     rs232Printer *getPrinter() { return _printerdev; }
     rs232CPM *getCPM() { return _cpmDev; }

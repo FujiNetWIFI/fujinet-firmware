@@ -296,8 +296,12 @@ class MCUManager:
       cleaned = cleaned.replace(name, "")
     if cleaned.startswith("fuji"):
       match = re.search(r"\W", cleaned)
-      prefix = cleaned[:match.start()]
-      cleaned = cleaned[match.start():]
+      if match:
+        prefix = cleaned[:match.start()]
+        cleaned = cleaned[match.start():]
+      else:
+        prefix = cleaned
+        cleaned = ""
     cleaned = cleaned.strip("-")
     suffix = re.sub(r"(-)\1+", r"\1", cleaned)
     if prefix:
