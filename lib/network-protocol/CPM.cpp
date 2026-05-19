@@ -101,6 +101,9 @@ fujiError_t NetworkProtocolCPM::open(PeoplesUrlParser *urlParser,
 {
     Debug_printf("NetworkProtocolCPM::open\r\n");
 
+    if (running)
+        stopCPM();
+
 #ifdef ESP_PLATFORM
     _cpm_rxq = xQueueCreate(2048, sizeof(uint8_t));
     _cpm_txq = xQueueCreate(2048, sizeof(uint8_t));
