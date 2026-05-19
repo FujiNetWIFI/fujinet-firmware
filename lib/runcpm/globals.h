@@ -204,7 +204,34 @@ static uint16	physicalExtentBytes;// # bytes described by 1 directory entry
 
 #define tohex(x)	((x) < 10 ? (x) + 48 : (x) + 87)
 
-/* Definition of externs to prevent precedence compilation errors */
+/* When RUNCPM_STATIC_IMPL is defined, RunCPM symbols get internal (static)
+ * linkage so this translation unit can coexist with another TU that also
+ * includes the RunCPM headers (e.g. a bus-specific CPM device and the
+ * network-protocol CPM adapter built into the same binary). */
+#ifdef RUNCPM_STATIC_IMPL
+#define RUNCPM_DECL static
+#else
+#define RUNCPM_DECL
+#endif
+
+/* Definition of externs/forward-declarations to prevent precedence
+ * compilation errors inside the RunCPM header chain. */
+#ifdef RUNCPM_STATIC_IMPL
+/* Static (internal-linkage) forward declarations for RUNCPM_STATIC_IMPL mode.
+ * The definitions below (in console.h, disk.h, cpm.h, …) are also static, so
+ * these forward-decls must match in linkage to avoid a C++ constraint error. */
+static void _Bdos(void);
+static void _Bios(void);
+static void _HostnameToFCB(uint16 fcbaddr, uint8* filename);
+static void _HostnameToFCBname(uint8* from, uint8* to);
+static void _mockupDirEntry(void);
+static uint8 match(uint8* fcbname, uint8* pattern);
+static void _puts(const char* str);
+#ifndef RAM_FAST
+static uint8* _RamSysAddr(uint16 address);
+static void _RamWrite(uint16 address, uint8 value);
+#endif
+#else /* !RUNCPM_STATIC_IMPL */
 #ifdef __cplusplus // If building on Arduino
 extern "C"
 {
@@ -228,5 +255,6 @@ extern "C"
 #ifdef __cplusplus // If building on Arduino
 }
 #endif
+#endif /* RUNCPM_STATIC_IMPL */
 
 #endif

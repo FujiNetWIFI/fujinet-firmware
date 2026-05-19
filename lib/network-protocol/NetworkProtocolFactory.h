@@ -11,6 +11,7 @@
 #include "network_data.h"
 
 #include "Protocol.h"
+#include "CPM.h"
 #include "FTP.h"
 #include "HTTP.h"
 #include "SSH.h"
@@ -28,6 +29,7 @@ public:
 	static std::unique_ptr<NetworkProtocol> createProtocol(const std::string &scheme, NetworkData &data)
 	{
 		static const std::unordered_map<std::string, std::function<std::unique_ptr<NetworkProtocol>(NetworkData &)>> constructors = {
+			{"CPM",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolCPM>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
 			{"FTP",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolFTP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
 			{"HTTP",   [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolHTTP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
 			{"HTTPS",  [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolHTTP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},

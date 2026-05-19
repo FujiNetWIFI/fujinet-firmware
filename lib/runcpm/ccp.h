@@ -1,6 +1,10 @@
 #ifndef CCP_H
 #define CCP_H
 
+#ifndef RUNCPM_DECL
+#define RUNCPM_DECL
+#endif
+
 // CP/M BDOS calls
 #include "cpm.h"
 
@@ -16,15 +20,15 @@
 #define defLoad	0x0100									// Default load address
 
 // CCP global variables
-uint8 pgSize = 22;  // for TYPE
-uint8 curDrive = 0; // 0 -> 15 = A -> P	.. Current drive for the CCP (same as RAM[DSKByte])
-uint8 parDrive = 0; // 0 -> 15 = A -> P .. Drive for the first file parameter
-uint8 curUser = 0;  // 0 -> 15			.. Current user area to access
-bool sFlag = FALSE; // Submit Flag
-uint8 sRecs = 0;    // Number of records on the Submit file
-uint8 prompt[8] = "\r\n  >";
-uint16 pbuf, perr;
-uint8 blen; // Actual size of the typed command line (size of the buffer)
+RUNCPM_DECL uint8 pgSize = 22;  // for TYPE
+RUNCPM_DECL uint8 curDrive = 0; // 0 -> 15 = A -> P	.. Current drive for the CCP (same as RAM[DSKByte])
+RUNCPM_DECL uint8 parDrive = 0; // 0 -> 15 = A -> P .. Drive for the first file parameter
+RUNCPM_DECL uint8 curUser = 0;  // 0 -> 15			.. Current user area to access
+RUNCPM_DECL bool sFlag = FALSE; // Submit Flag
+RUNCPM_DECL uint8 sRecs = 0;    // Number of records on the Submit file
+RUNCPM_DECL uint8 prompt[8] = "\r\n  >";
+RUNCPM_DECL uint16 pbuf, perr;
+RUNCPM_DECL uint8 blen; // Actual size of the typed command line (size of the buffer)
 
 static const char *Commands[] =
 {
@@ -46,7 +50,7 @@ static const char *Commands[] =
 };
 
 // Used to call BDOS from inside the CCP
-uint16 _ccp_bdos(uint8 function, uint16 de) {
+RUNCPM_DECL uint16 _ccp_bdos(uint8 function, uint16 de) {
     SET_LOW_REGISTER(BC, function);
     DE = de;
     _Bdos();
@@ -55,7 +59,7 @@ uint16 _ccp_bdos(uint8 function, uint16 de) {
 } // _ccp_bdos
 
 // Compares two strings (Atmel doesn't like strcmp)
-uint8 _ccp_strcmp(char *stra, char *strb) {
+RUNCPM_DECL uint8 _ccp_strcmp(char *stra, char *strb) {
     while (*stra && *strb && (*stra == *strb)) {
         ++stra;
         ++strb;
@@ -64,7 +68,7 @@ uint8 _ccp_strcmp(char *stra, char *strb) {
 } // _ccp_strcmp
 
 // Gets the command ID number
-uint8 _ccp_cnum(void) {
+RUNCPM_DECL uint8 _ccp_cnum(void) {
     uint8 result = 255;
     uint8 command[9];
     uint8 i = 0;
@@ -91,12 +95,12 @@ uint8 _ccp_cnum(void) {
 } // _ccp_cnum
 
 // Returns true if character is a separator
-uint8 _ccp_delim(uint8 ch) {
+RUNCPM_DECL uint8 _ccp_delim(uint8 ch) {
     return (ch == 0 || ch == ' ' || ch == '=' || ch == '.' || ch == ':' || ch == ';' || ch == '<' || ch == '>');
 }
 
 // Prints the FCB filename
-void _ccp_printfcb(uint16 fcb, uint8 compact) {
+RUNCPM_DECL void _ccp_printfcb(uint16 fcb, uint8 compact) {
     uint8 i, ch;
     
     ch = _RamRead(fcb);
@@ -118,7 +122,7 @@ void _ccp_printfcb(uint16 fcb, uint8 compact) {
 } // _ccp_printfcb
 
 // Initializes the FCB
-void _ccp_initFCB(uint16 address, uint8 size) {
+RUNCPM_DECL void _ccp_initFCB(uint16 address, uint8 size) {
     uint8 i;
     
     for (i = 0; i < size; ++i) {
@@ -131,7 +135,7 @@ void _ccp_initFCB(uint16 address, uint8 size) {
 } // _ccp_initFCB
 
 // Name to FCB
-uint8 _ccp_nameToFCB(uint16 fcb) {
+RUNCPM_DECL uint8 _ccp_nameToFCB(uint16 fcb) {
     uint8 pad, plen, ch, n = 0;
     
     // Checks for a drive and places it on the Command FCB
@@ -204,7 +208,7 @@ uint8 _ccp_nameToFCB(uint16 fcb) {
 } // _ccp_nameToFCB
 
 // Converts the ParFCB name to a number
-uint16 _ccp_fcbtonum() {
+RUNCPM_DECL uint16 _ccp_fcbtonum() {
     uint8 ch;
     uint16 n = 0;
     uint8 pos = ParFCB + 1;
@@ -220,7 +224,7 @@ uint16 _ccp_fcbtonum() {
 } // _ccp_fcbtonum
 
 // DIR command
-void _ccp_dir(void) {
+RUNCPM_DECL void _ccp_dir(void) {
     uint8 i;
     uint8 dirHead[6] = "A: ";
     uint8 dirSep[6] = "  |  ";
@@ -261,14 +265,14 @@ void _ccp_dir(void) {
 } // _ccp_dir
 
 // ERA command
-void _ccp_era(void) {
+RUNCPM_DECL void _ccp_era(void) {
     if (_ccp_bdos(F_DELETE, ParFCB)) {
         _puts("\r\nNo file");
     }
 } // _ccp_era
 
 // TYPE command
-uint8 _ccp_type(void) {
+RUNCPM_DECL uint8 _ccp_type(void) {
     uint8 i, c, l = 0, error = TRUE;
     uint16 a, p = 0;
     
@@ -308,7 +312,7 @@ uint8 _ccp_type(void) {
 } // _ccp_type
 
 // SAVE command
-uint8 _ccp_save(void) {
+RUNCPM_DECL uint8 _ccp_save(void) {
     uint8 error = TRUE;
     uint16 pages = _ccp_fcbtonum();
     uint16 i, dma;
@@ -345,7 +349,7 @@ uint8 _ccp_save(void) {
 } // _ccp_save
 
 // REN command
-void _ccp_ren(void) {
+RUNCPM_DECL void _ccp_ren(void) {
     uint8 ch, i;
     
     ++pbuf;
@@ -363,7 +367,7 @@ void _ccp_ren(void) {
 } // _ccp_ren
 
 // USER command
-uint8 _ccp_user(void) {
+RUNCPM_DECL uint8 _ccp_user(void) {
     uint8 error = TRUE;
     
     curUser = (uint8)_ccp_fcbtonum();
@@ -375,7 +379,7 @@ uint8 _ccp_user(void) {
 } // _ccp_user
 
 // PAGE command
-uint8 _ccp_page(void) {
+RUNCPM_DECL uint8 _ccp_page(void) {
     uint8 error = TRUE;
     uint16 r = _ccp_fcbtonum();
     
@@ -387,7 +391,7 @@ uint8 _ccp_page(void) {
 } // _ccp_page
 
 // VOL command
-uint8 _ccp_vol(void) {
+RUNCPM_DECL uint8 _ccp_vol(void) {
     uint8 error = FALSE;
     uint8 letter = _RamRead(ParFCB) ? '@' + _RamRead(ParFCB) : 'A' + curDrive;
     uint8 folder[5] = {letter, FOLDERCHAR, '0', FOLDERCHAR, 0};
@@ -424,7 +428,7 @@ uint8 _ccp_vol(void) {
 #ifdef HASLUA
 
 // External (.LUA) command
-uint8 _ccp_lua(void) {
+RUNCPM_DECL uint8 _ccp_lua(void) {
     uint8 error = TRUE;
     uint8 found, drive, user = 0;
     uint16 loadAddr = defLoad;
@@ -473,7 +477,7 @@ uint8 _ccp_lua(void) {
 #endif // ifdef HASLUA
 
 // External (.COM) command
-uint8 _ccp_ext(void) {
+RUNCPM_DECL uint8 _ccp_ext(void) {
     bool error = TRUE, found = FALSE;
     uint8 drive = 0, user = 0;
     uint16 loadAddr = defLoad;
@@ -636,7 +640,7 @@ uint8 _ccp_ext(void) {
 } // _ccp_ext
 
 // Prints a command error
-void _ccp_cmdError() {
+RUNCPM_DECL void _ccp_cmdError() {
     uint8 ch;
     
     _puts("\r\n");
@@ -651,7 +655,7 @@ void _ccp_cmdError() {
 } // _ccp_cmdError
 
 // Reads input, either from the $$$.SUB or console
-void _ccp_readInput(void) {
+RUNCPM_DECL void _ccp_readInput(void) {
     uint8 i;
     uint8 chars;
     
@@ -681,7 +685,7 @@ void _ccp_readInput(void) {
 } // _ccp_readInput
 
 // Main CCP code
-void _ccp(void) {
+RUNCPM_DECL void _ccp(void) {
     uint8 i;
     
     sFlag = (bool)_ccp_bdos(DRV_ALLRESET, 0x0000);

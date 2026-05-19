@@ -3,30 +3,36 @@
 
 /* see main.c for definition */
 
-int32 PCX; /* external view of PC                          */
-int32 AF;  /* AF register                                  */
-int32 BC;  /* BC register                                  */
-int32 DE;  /* DE register                                  */
-int32 HL;  /* HL register                                  */
-int32 IX;  /* IX register                                  */
-int32 IY;  /* IY register                                  */
-int32 PC;  /* program counter                              */
-int32 SP;  /* SP register                                  */
-int32 AF1; /* alternate AF register                        */
-int32 BC1; /* alternate BC register                        */
-int32 DE1; /* alternate DE register                        */
-int32 HL1; /* alternate HL register                        */
-int32 IFF; /* Interrupt Flip Flop                          */
-int32 IR;  /* Interrupt (upper) / Refresh (lower) register */
-int32 Status = 0; /* Status of the CPU 0=running 1=end request 2=back to CCP */
-int32 Debug = 0;
-int32 Break = -1;
-int32 Step = -1;
+/* Fallback: globals.h normally defines RUNCPM_DECL before cpu.h is included.
+ * This guard handles the case where cpu.h is inspected in isolation. */
+#ifndef RUNCPM_DECL
+#define RUNCPM_DECL
+#endif
+
+RUNCPM_DECL int32 PCX; /* external view of PC                          */
+RUNCPM_DECL int32 AF;  /* AF register                                  */
+RUNCPM_DECL int32 BC;  /* BC register                                  */
+RUNCPM_DECL int32 DE;  /* DE register                                  */
+RUNCPM_DECL int32 HL;  /* HL register                                  */
+RUNCPM_DECL int32 IX;  /* IX register                                  */
+RUNCPM_DECL int32 IY;  /* IY register                                  */
+RUNCPM_DECL int32 PC;  /* program counter                              */
+RUNCPM_DECL int32 SP;  /* SP register                                  */
+RUNCPM_DECL int32 AF1; /* alternate AF register                        */
+RUNCPM_DECL int32 BC1; /* alternate BC register                        */
+RUNCPM_DECL int32 DE1; /* alternate DE register                        */
+RUNCPM_DECL int32 HL1; /* alternate HL register                        */
+RUNCPM_DECL int32 IFF; /* Interrupt Flip Flop                          */
+RUNCPM_DECL int32 IR;  /* Interrupt (upper) / Refresh (lower) register */
+RUNCPM_DECL int32 Status = 0; /* Status of the CPU 0=running 1=end request 2=back to CCP */
+RUNCPM_DECL int32 Debug = 0;
+RUNCPM_DECL int32 Break = -1;
+RUNCPM_DECL int32 Step = -1;
 
 #ifdef iDEBUG
-FILE* iLogFile;
-char iLogBuffer[256];
-const char* iLogTxt;
+RUNCPM_DECL FILE* iLogFile;
+RUNCPM_DECL char iLogBuffer[256];
+RUNCPM_DECL const char* iLogTxt;
 #endif
 
 /* increase R by val (to correctly implement refresh counter) if enabled */
@@ -39,7 +45,7 @@ const char* iLogTxt;
 /*
 	Functions needed by the soft CPU implementation
 */
-void cpu_out(const uint32 Port, const uint32 Value) {
+RUNCPM_DECL void cpu_out(const uint32 Port, const uint32 Value) {
 	if (Port == 0xFF) {
 		_Bios();
 	} else {
@@ -47,7 +53,7 @@ void cpu_out(const uint32 Port, const uint32 Value) {
 	}
 }
 
-uint32 cpu_in(const uint32 Port) {
+RUNCPM_DECL uint32 cpu_in(const uint32 Port) {
 	uint32 Result;
 	if (Port == 0xFF) {
 		_Bdos();
@@ -1120,7 +1126,7 @@ static const char* CPMCalls[41] =
 	"Get/Set User", "Read Random", "Write Random", "Get File Size", "Set Random Record", "Reset Drive", "N/A", "N/A", "Write Random 0 fill"
 };
 
-int32 Watch = -1;
+RUNCPM_DECL int32 Watch = -1;
 #endif
 
 /* Memory management    */
@@ -1191,7 +1197,7 @@ static inline void Z80reset(void) {
 }
 
 #ifdef DEBUG
-void watchprint(uint16 pos) {
+RUNCPM_DECL void watchprint(uint16 pos) {
 	uint8 I, J;
 	_puts("\r\n");
 	_puts("  Watch : "); _puthex16(Watch);
@@ -1202,7 +1208,7 @@ void watchprint(uint16 pos) {
 	for (J = 0, I = _RamRead(Watch + 1); J < 8; ++J, I <<= 1) _putcon(I & 0x80 ? '1' : '0');
 }
 
-void memdump(uint16 pos) {
+RUNCPM_DECL void memdump(uint16 pos) {
 	uint16 h = pos;
 	uint16 c = pos;
 	uint8 l, i;
@@ -1233,7 +1239,7 @@ void memdump(uint16 pos) {
 	}
 }
 
-uint8 Disasm(uint16 pos) {
+RUNCPM_DECL uint8 Disasm(uint16 pos) {
 	const char* txt;
 	char jr;
 	uint8 ch = _RamRead(pos);
@@ -1296,7 +1302,7 @@ uint8 Disasm(uint16 pos) {
 	return(count);
 }
 
-void Z80debug(void) {
+RUNCPM_DECL void Z80debug(void) {
 	uint8 ch = 0;
 	uint16 pos, l;
 	static const char Flags[9] = "SZ5H3PNC";
