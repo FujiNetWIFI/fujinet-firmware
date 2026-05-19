@@ -63,6 +63,10 @@ static std::mutex _cpm_txmtx;
 static std::condition_variable _cpm_txcv;
 #endif
 
+/* Set by _cpm_run() when the CCP exits of its own accord (e.g. user typed EXIT).
+ * Polled by NetworkProtocolCPM::status() to drive EOF back to the host. */
+static volatile bool _cpm_session_ended = false;
+
 /* -------------------------------------------------------------------------
  * Path helpers
  * ------------------------------------------------------------------------- */
