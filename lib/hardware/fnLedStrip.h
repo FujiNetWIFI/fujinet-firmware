@@ -14,8 +14,6 @@ public:
 
     void setup();
     void set(eLedID id, bool on);
-    void toggle(eLedID id);
-    void blink(eLedID led, int count);
     bool present();
 
 private:

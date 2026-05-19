@@ -10,8 +10,6 @@ static led_strip_handle_t strip;
 #endif // defined(PIN_LED_STRIP) && defined(LED_STRIP_COUNT)
 #endif // ESP_PLATFORM
 
-#define BLINKING_TIME 100
-
 
 void LedStripManager::setup()
 {
@@ -43,7 +41,7 @@ void LedStripManager::setup()
 
     for(int i = 0; i < LED_STRIP_COUNT; i++)
         led_strip_set_pixel(strip, i, r, g, b);
-    
+
     led_strip_refresh(strip);
 #endif
 }
@@ -51,6 +49,26 @@ void LedStripManager::setup()
 void LedStripManager::set(eLedID id, bool on)
 {
 #ifdef HAVE_LED_STRIP
+#ifdef LED_STRIP_STATUS_LIGHT
+    // Single combined status pixel, last writer wins: WiFi -> white, Bus -> orange.
+    // Flicker timing is handled by LedManager, not here.
+    switch (id)
+    {
+    case LED_STRIP_WIFI:
+        led_strip_set_pixel(strip, 0, on ? brightness : 0,
+                                      on ? brightness : 0,
+                                      on ? brightness : 0); // white
+        break;
+    case LED_STRIP_BUS:
+        led_strip_set_pixel(strip, 0, on ? brightness : 0,
+                                      on ? brightness * 45 / 100 : 0,
+                                      0); // orange
+        break;
+    default:
+        break;
+    }
+    led_strip_refresh(strip);
+#else
     switch(id)
     {
     case LED_STRIP_BUS:
@@ -65,43 +83,10 @@ void LedStripManager::set(eLedID id, bool on)
     };
     for(int i = 0; i < LED_STRIP_COUNT; i++)
         led_strip_set_pixel(strip, i, r, g, b);
-    
-    led_strip_refresh(strip);
-#endif
-}
 
-void LedStripManager::toggle(eLedID id)
-{
-#ifdef HAVE_LED_STRIP
-    switch(id)
-    {
-    case LED_STRIP_BUS:
-        g = brightness-g;
-        break;
-    case LED_STRIP_BT:
-        r = brightness-r;
-        break;
-    case LED_STRIP_WIFI:
-        b = brightness-b;
-        break;
-    };
-    for(int i = 0; i < LED_STRIP_COUNT; i++)
-        led_strip_set_pixel(strip, i, r, g, b);
-    
     led_strip_refresh(strip);
+#endif // LED_STRIP_STATUS_LIGHT
 #endif
-}
-
-void LedStripManager::blink(eLedID led, int count)
-{
-    for(int i = 0; i < count; i++)
-    {
-        toggle(led);
-        fnSystem.delay(BLINKING_TIME);
-        toggle(led);
-        if(i < count - 1)
-            fnSystem.delay(BLINKING_TIME);
-    }
 }
 
 bool LedStripManager::present()
