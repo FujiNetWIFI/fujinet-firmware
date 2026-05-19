@@ -3,6 +3,10 @@
 
 #include "printer.h"
 
+#ifndef RUNCPM_DECL
+#define RUNCPM_DECL
+#endif
+
 enum eBDOSFunc {
 	F_BOOT = 0,
 	C_READ = 1,
@@ -70,7 +74,7 @@ unsigned long time_now = 0;
 
 #endif // ifdef PROFILE
 
-void _PatchCPM(void) {
+RUNCPM_DECL void _PatchCPM(void) {
 	uint16 i;
 
 	// **********  Patch CP/M page zero into the memory  **********
@@ -182,7 +186,7 @@ void _PatchCPM(void) {
 #ifdef DEBUGLOG
 uint8 LogBuffer[128];
 
-void _logRegs(void) {
+RUNCPM_DECL void _logRegs(void) {
 	uint8 J, I;
 	uint8 Flags[9] = {'S', 'Z', '5', 'H', '3', 'P', 'N', 'C'};
 	uint8 c = HIGH_REGISTER(AF);
@@ -199,7 +203,7 @@ void _logRegs(void) {
 	_sys_logbuffer(LogBuffer);
 } // _logRegs
 
-void _logMem(uint16 address, uint8 amount) {    // Amount = number of 16 bytes lines, so 1 CP/M block = 8, not 128
+RUNCPM_DECL void _logMem(uint16 address, uint8 amount) {    // Amount = number of 16 bytes lines, so 1 CP/M block = 8, not 128
 	uint8 i, m, c, pos;
 	uint8 head = 8;
 	uint8 hexa[] = "0123456789ABCDEF";
@@ -226,7 +230,7 @@ void _logMem(uint16 address, uint8 amount) {    // Amount = number of 16 bytes l
 	}
 } // _logMem
 
-void _logChar(char *txt, uint8 c) {
+RUNCPM_DECL void _logChar(char *txt, uint8 c) {
 	uint8 asc[2];
 
 	asc[0] = c > 31 && c < 127 ? c : '.';
@@ -235,7 +239,7 @@ void _logChar(char *txt, uint8 c) {
 	_sys_logbuffer(LogBuffer);
 } // _logChar
 
-void _logBiosIn(uint8 ch) {
+RUNCPM_DECL void _logBiosIn(uint8 ch) {
 #ifdef LOGBIOS_NOT
 	if (ch == LOGBIOS_NOT) {
 		return;
@@ -263,7 +267,7 @@ void _logBiosIn(uint8 ch) {
 	_logRegs();
 } // _logBiosIn
 
-void _logBiosOut(uint8 ch) {
+RUNCPM_DECL void _logBiosOut(uint8 ch) {
 #ifdef LOGBIOS_NOT
 	if (ch == LOGBIOS_NOT) {
 		return;
@@ -279,7 +283,7 @@ void _logBiosOut(uint8 ch) {
 	_logRegs();
 } // _logBiosOut
 
-void _logBdosIn(uint8 ch) {
+RUNCPM_DECL void _logBdosIn(uint8 ch) {
 #ifdef LOGBDOS_NOT
 	if (ch == LOGBDOS_NOT) {
 		return;
@@ -370,7 +374,7 @@ void _logBdosIn(uint8 ch) {
 	}
 } // _logBdosIn
 
-void _logBdosOut(uint8 ch) {
+RUNCPM_DECL void _logBdosOut(uint8 ch) {
 #ifdef LOGBDOS_NOT
 	if (ch == LOGBDOS_NOT) {
 		return;
@@ -440,7 +444,7 @@ void _logBdosOut(uint8 ch) {
 } // _logBdosOut
 #endif // ifdef DEBUGLOG
 
-void _Bios(void) {
+RUNCPM_DECL void _Bios(void) {
 	uint8 ch = LOW_REGISTER(PCX);
 	uint8 disk[2] = {'A', 0};
 
@@ -560,7 +564,7 @@ void _Bios(void) {
 #endif
 } // _Bios
 
-void _Bdos(void) {
+RUNCPM_DECL void _Bdos(void) {
 	uint16 i;
 	uint8 j, chr, ch = LOW_REGISTER(BC);
 	uint8 trans_ch = 0x9b;
