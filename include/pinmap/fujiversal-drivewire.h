@@ -12,7 +12,8 @@
 // white = WiFi up, fast orange flicker = bus activity
 #define PIN_LED_STRIP           GPIO_NUM_48
 #define LED_STRIP_COUNT         1
-#define LED_STRIP_ACTIVITY_FLICKER
+#define LED_STRIP_STATUS_LIGHT          // WS2812 acts as a combined status light
+#define LED_BUS_FLICKER_US      30000   // bus LED flickers (hard-drive activity style)
 
 #define PIN_CARD_DETECT         GPIO_NUM_NC
 #define PIN_CARD_DETECT_FIX     GPIO_NUM_NC
