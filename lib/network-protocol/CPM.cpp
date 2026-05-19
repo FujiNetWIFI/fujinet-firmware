@@ -66,6 +66,9 @@ static void _cpm_run(void)
             break;
         /* Status == 2: warm-boot — re-enter the CCP loop */
     }
+
+    /* Notify the protocol object that the session ended from the CP/M side. */
+    _cpm_session_ended = true;
 }
 
 #ifdef ESP_PLATFORM
@@ -100,6 +103,11 @@ fujiError_t NetworkProtocolCPM::open(PeoplesUrlParser *urlParser,
                                      netProtoTranslation_t translate)
 {
     Debug_printf("NetworkProtocolCPM::open\r\n");
+
+    if (running)
+        stopCPM();
+
+    _cpm_session_ended = false;
 
 #ifdef ESP_PLATFORM
     _cpm_rxq = xQueueCreate(2048, sizeof(uint8_t));
@@ -240,6 +248,10 @@ fujiError_t NetworkProtocolCPM::write(unsigned short len)
 
 fujiError_t NetworkProtocolCPM::status(NetworkStatus *status)
 {
+    /* If the CCP exited on its own, clean up and report EOF to the host. */
+    if (_cpm_session_ended && running)
+        stopCPM();
+
     status->connected = running ? 1 : 0;
     status->error     = running ? error : NDEV_STATUS::END_OF_FILE;
     NetworkProtocol::status(status);
