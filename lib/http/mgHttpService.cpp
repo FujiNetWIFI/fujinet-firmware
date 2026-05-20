@@ -10,9 +10,6 @@
 #include <ctime>
 #include <cstdlib>
 
-#include <cJSON.h>
-#include "mgHttpClient.h"
-
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnWiFi.h"
@@ -25,6 +22,8 @@
 #endif /* BUILD_ATARI */
 
 #include "mongoose.h"
+#include <cJSON.h>
+#include "mgHttpClient.h"
 #include "httpService.h"
 #include "httpServiceConfigurator.h"
 #include "httpServiceParser.h"
