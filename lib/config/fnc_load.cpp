@@ -187,6 +187,9 @@ New behavior: copy from SD first if available, then read FLASH.
         case SECTION_BOIP:
             _read_section_boip(ss);
             break;
+        case SECTION_GOOGLEDRIVE:
+            _read_section_gdrive(ss);
+            break;
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
         case SECTION_SERIAL:
             _read_section_serial(ss);

@@ -1124,6 +1124,104 @@
 				</form>
 			</div>
 			{% endif %}
+			{% if components.network %}
+			<div class="module">
+				<form action="/config" method="post">
+				<div class="settings">
+					<div class="settings-header">
+						Google Drive
+					</div>
+					<div class="settings-left">
+						<div class="svgicon">
+							<svg width="90%" height="90%" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
+								<path d="m6.6 66.85 3.85 6.65c.8 1.385 1.95 2.465 3.3 3.215l13.75-23.8h-27.5c0 1.61.415 3.22 1.235 4.6z" fill="#0066da"/>
+								<path d="m43.65 25-13.75-23.8c-1.35.75-2.5 1.83-3.3 3.215l-25.4 44a9.4 9.4 0 0 0 -1.2 4.585h27.5z" fill="#00ac47"/>
+								<path d="m73.55 76.715c1.35-.75 2.5-1.83 3.3-3.215l1.6-2.77 7.65-13.25c.82-1.38 1.235-2.99 1.235-4.6h-27.502l5.852 11.95z" fill="#ea4335"/>
+								<path d="m43.65 25 13.75-23.8c-1.35-.75-2.9-1.2-4.55-1.2h-18.4c-1.65 0-3.2.45-4.55 1.2z" fill="#00832d"/>
+								<path d="m59.8 52.88h-32.3l-13.75 23.8c1.35.75 2.9 1.2 4.55 1.2h50.7c1.65 0 3.2-.45 4.55-1.2z" fill="#2684fc"/>
+								<path d="m73.4 26.5-12.7-22a9.15 9.15 0 0 0 -3.3-3.215l-13.75 23.8 16.15 27.98h27.45c0-1.61-.415-3.22-1.235-4.6z" fill="#ffba00"/>
+							</svg>
+						</div>
+					</div>
+					<div class="settings-content settings-55-45">
+						<div class="set">
+							<div class="settings-label">
+								<label>Drive Status</label>
+							</div>
+							<div class="settings-value">
+								<span id="gdrive-connected-indicator"></span>
+							</div>
+						</div>
+						<hr>
+												<div class="settings-text">
+								<p>Click <strong>Authorize with Google</strong>. A new tab will open for Google consent; this page detects completion automatically.</p>
+								<p>Google may show an &ldquo;app isn&rsquo;t verified&rdquo; warning. Click <strong>Advanced &rarr; Go to FujiNet</strong> to continue.</p>
+							</div>
+						</div>
+						<div class="settings-footer">
+							<div class="save-button">
+								<button id="gdrive-auth-btn" type="button">Authorize with Google</button>
+							</div>
+							<div class="settings-text" style="margin-top:0.5em">
+								<span id="gdrive-auth-status"></span>
+							</div>
+						</div>
+						<script>
+							(function() {
+								var connected = "<%FN_GDRIVE_CONNECTED%>";
+								var indicator = document.getElementById("gdrive-connected-indicator");
+								indicator.textContent = (connected === "1") ? "Connected" : "Not connected";
+								indicator.style.color  = (connected === "1") ? "green"     : "red";
+								var statusEl = document.getElementById("gdrive-auth-status");
+								var pollTimer = null;
+								var pollState = null;
+								function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+								function doPoll() {
+									fetch("/gdrive-poll?state=" + encodeURIComponent(pollState))
+										.then(function(r){ return r.json(); })
+										.then(function(d){
+											if (d.status === "authorized") {
+												stopPoll();
+												indicator.textContent = "Connected"; indicator.style.color = "green";
+												document.getElementById("gdrive-auth-btn").disabled = false;
+												statusEl.textContent = "Authorization complete!";
+											} else if (d.status === "pending") {
+												statusEl.textContent = "Waiting for Google consent...";
+											} else {
+												stopPoll();
+												document.getElementById("gdrive-auth-btn").disabled = false;
+												statusEl.textContent = "Authorization failed: " + (d.message || d.status);
+											}
+										}).catch(function(){
+											stopPoll();
+											document.getElementById("gdrive-auth-btn").disabled = false;
+											statusEl.textContent = "Poll error.";
+										});
+								}
+								document.getElementById("gdrive-auth-btn").addEventListener("click", function(e) {
+									e.preventDefault(); this.disabled = true;
+									statusEl.textContent = "Starting...";
+									fetch("/gdrive-auth").then(function(r){ return r.json(); }).then(function(d){
+										if (d.error) {
+											document.getElementById("gdrive-auth-btn").disabled = false;
+											statusEl.textContent = "Error: " + d.error;
+											return;
+										}
+										pollState = d.state;
+										window.open(d.auth_url, "_blank");
+										statusEl.textContent = "Approve in the new tab, then wait...";
+										pollTimer = setInterval(doPoll, 3000);
+									}).catch(function(){
+										document.getElementById("gdrive-auth-btn").disabled = false;
+										statusEl.textContent = "Failed to start auth.";
+									});
+								});
+							})();
+						</script>
+				</div>
+				</form>
+			</div>
+			{% endif %}
 			{% if components.disk_swap %}
 			<div class="module" {% if components.disk_swap == "experimental" %}data-experimental{% endif %}>
 				<form action="/config" method="post">

@@ -156,6 +156,12 @@ void fnConfig::save()
     ss << "cpm_enabled=" << _cpm.cpm_enabled << LINETERM;
     ss << "ccp=" << _cpm.ccp << LINETERM;
 
+    // GOOGLE DRIVE
+    ss << LINETERM << "[GoogleDrive]" << LINETERM;
+    ss << "refresh_token=" << _gdrive.refresh_token << LINETERM;
+    ss << "access_token=" << _gdrive.access_token << LINETERM;
+    ss << "token_expiry=" << _gdrive.token_expiry << LINETERM;
+
     // ENABLE DEVICE SLOTS
     ss << LINETERM << "[ENABLE]" << LINETERM;
     ss << "enable_device_slot_1=" << _denable.device_1_enabled << LINETERM;

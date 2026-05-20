@@ -6,6 +6,9 @@
 
 #include <sstream>
 #include <vector>
+#include <ctime>
+
+#include <cJSON.h>
 
 #include "../../include/debug.h"
 
@@ -29,6 +32,10 @@
 
 #ifdef BUILD_LYNX
 #define NO_MODEM_DEVICE         // doesn't have a modem device
+#endif
+
+#ifdef ESP_PLATFORM
+#include "esp_random.h"
 #endif
 
 using namespace std;
@@ -1293,6 +1300,247 @@ esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
 
 
 
+// ─── Google Drive OAuth2 relay-based authorization-code-flow handlers ────────
+//
+// The FujiNet project registers ONE Google OAuth2 "Desktop application" client.
+// Its client_id is public and baked in here.  PKCE (RFC 7636) is used so no
+// client_secret is ever needed on the device.
+//
+// Every FujiNet user registers the same relay redirect URI in their copy of
+// the shared OAuth client:
+//   https://auth.fujinet.online/gdrive-callback
+//
+// FujiNet project's Web application OAuth2 client ID.
+// The client_secret lives on the relay server — never in firmware.
+#define GDRIVE_CLIENT_ID          "197927610161-me037pnh65lh9g8cad6fg62ifni9fik0.apps.googleusercontent.com"
+#define GDRIVE_RELAY_REDIRECT_URI "https://auth.fujinet.online/gdrive-callback"
+#define GDRIVE_RELAY_CODE_URL     "https://auth.fujinet.online/gdrive-code?state="
+#define GDRIVE_RELAY_REFRESH_URL  "https://auth.fujinet.online/gdrive-refresh"
+
+static std::string gdrive_auth_state;
+
+#ifdef ESP_PLATFORM
+// Synchronous HTTPS POST: open → write → fetch_headers → read.
+static int gdrive_do_post(const char *url, const char *post_body, std::string &out_body)
+{
+    esp_http_client_config_t cfg = {};
+    cfg.url = url;
+    cfg.timeout_ms = 15000;
+
+    esp_http_client_handle_t h = esp_http_client_init(&cfg);
+    if (!h) return -1;
+
+    esp_http_client_set_method(h, HTTP_METHOD_POST);
+    esp_http_client_set_header(h, "Content-Type", "application/x-www-form-urlencoded");
+
+    int wlen = (int)strlen(post_body);
+    if (esp_http_client_open(h, wlen) != ESP_OK) {
+        esp_http_client_cleanup(h);
+        return -1;
+    }
+    esp_http_client_write(h, post_body, wlen);
+    esp_http_client_fetch_headers(h);
+
+    int status = esp_http_client_get_status_code(h);
+    char buf[256];
+    int n;
+    while ((n = esp_http_client_read(h, buf, sizeof(buf))) > 0)
+        out_body.append(buf, n);
+
+    esp_http_client_close(h);
+    esp_http_client_cleanup(h);
+    return status;
+}
+
+// Synchronous HTTPS GET: open (no body) → fetch_headers → read.
+static int gdrive_do_get(const char *url, std::string &out_body)
+{
+    esp_http_client_config_t cfg = {};
+    cfg.url = url;
+    cfg.timeout_ms = 10000;
+
+    esp_http_client_handle_t h = esp_http_client_init(&cfg);
+    if (!h) return -1;
+
+    if (esp_http_client_open(h, 0) != ESP_OK) {
+        esp_http_client_cleanup(h);
+        return -1;
+    }
+    esp_http_client_fetch_headers(h);
+
+    int status = esp_http_client_get_status_code(h);
+    char buf[256];
+    int n;
+    while ((n = esp_http_client_read(h, buf, sizeof(buf))) > 0)
+        out_body.append(buf, n);
+
+    esp_http_client_close(h);
+    esp_http_client_cleanup(h);
+    return status;
+}
+
+// Percent-encode a string for use as a URL query value or form field value.
+static std::string gdrive_pct_encode(const std::string &s)
+{
+    std::string out;
+    for (unsigned char c : s) {
+        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~')
+            out += (char)c;
+        else {
+            char buf[4];
+            snprintf(buf, sizeof(buf), "%%%02X", c);
+            out += buf;
+        }
+    }
+    return out;
+}
+
+#else
+static int gdrive_do_post(const char *, const char *, std::string &) { return -1; }
+static int gdrive_do_get(const char *, std::string &) { return -1; }
+static std::string gdrive_pct_encode(const std::string &s) { return s; }
+#endif
+
+/**
+ * GET /gdrive-auth
+ *
+ * Generates a CSRF state token, stores it, and returns JSON with the full
+ * Google authorization URL pointing to the shared FujiNet relay redirect URI.
+ * The browser opens that URL in a new tab; FujiNet polls /gdrive-poll until
+ * the relay delivers the authorization code.
+ *
+ *   { "auth_url": "https://accounts.google.com/o/oauth2/auth?...", "state": "XXXXXXXX" }
+ */
+esp_err_t fnHttpService::get_handler_gdrive_auth(httpd_req_t *req)
+{
+    uint32_t r = esp_random();
+    char state[16];
+    snprintf(state, sizeof(state), "%08lx", (unsigned long)r);
+    gdrive_auth_state = state;
+
+    std::string auth_url =
+        "https://accounts.google.com/o/oauth2/auth"
+        "?response_type=code"
+        "&access_type=offline"
+        "&prompt=consent"
+        "&client_id="    + gdrive_pct_encode(GDRIVE_CLIENT_ID) +
+        "&redirect_uri=" + gdrive_pct_encode(GDRIVE_RELAY_REDIRECT_URI) +
+        "&scope="        + gdrive_pct_encode("https://www.googleapis.com/auth/drive") +
+        "&state="        + std::string(state);
+
+    cJSON *out = cJSON_CreateObject();
+    cJSON_AddStringToObject(out, "auth_url", auth_url.c_str());
+    cJSON_AddStringToObject(out, "state",    state);
+    char *s = cJSON_PrintUnformatted(out);
+    cJSON_Delete(out);
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, s, strlen(s));
+    free(s);
+    return ESP_OK;
+}
+
+/**
+ * GET /gdrive-poll?state=STATE
+ *
+ * Called by the web UI JS every few seconds while the user is approving
+ * access on Google's consent page.  Queries the FujiNet relay service for
+ * the authorization code keyed by STATE.  If found, exchanges it for tokens
+ * directly with Google and stores them.
+ *
+ * Response JSON:
+ *   { "status": "pending"    }  — relay hasn't received the code yet
+ *   { "status": "authorized" }  — tokens obtained and stored
+ *   { "status": "expired"    }  — relay TTL exceeded; user must restart
+ *   { "status": "error", "message": "..." }  — unexpected failure
+ */
+esp_err_t fnHttpService::get_handler_gdrive_poll(httpd_req_t *req)
+{
+    auto send_json = [&](const char *status_val, const char *msg = nullptr) {
+        cJSON *j = cJSON_CreateObject();
+        cJSON_AddStringToObject(j, "status", status_val);
+        if (msg) cJSON_AddStringToObject(j, "message", msg);
+        char *s = cJSON_PrintUnformatted(j);
+        cJSON_Delete(j);
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_send(req, s, strlen(s));
+        free(s);
+    };
+
+    // Extract ?state= from query string.
+    size_t qlen = httpd_req_get_url_query_len(req) + 1;
+    std::string qbuf(qlen, '\0');
+    httpd_req_get_url_query_str(req, &qbuf[0], qlen);
+
+    char state[32] = {};
+    httpd_query_key_value(qbuf.c_str(), "state", state, sizeof(state));
+
+    if (!state[0] || gdrive_auth_state.empty() || std::string(state) != gdrive_auth_state) {
+        send_json("error", "state mismatch");
+        return ESP_OK;
+    }
+
+    // Poll the relay for the finished tokens (relay does the exchange).
+    std::string relay_url = std::string(GDRIVE_RELAY_CODE_URL) + state;
+    std::string relay_body;
+    int relay_status = gdrive_do_get(relay_url.c_str(), relay_body);
+
+    if (relay_status < 0) {
+        send_json("error", "relay unreachable");
+        return ESP_OK;
+    }
+
+    cJSON *rj = cJSON_Parse(relay_body.c_str());
+    if (!rj) { send_json("error", "bad relay response"); return ESP_OK; }
+
+    cJSON *pending_node = cJSON_GetObjectItemCaseSensitive(rj, "pending");
+    cJSON *expired_node = cJSON_GetObjectItemCaseSensitive(rj, "expired");
+    cJSON *error_node   = cJSON_GetObjectItemCaseSensitive(rj, "error");
+    cJSON *at_node      = cJSON_GetObjectItemCaseSensitive(rj, "access_token");
+    cJSON *rt_node      = cJSON_GetObjectItemCaseSensitive(rj, "refresh_token");
+    cJSON *ei_node      = cJSON_GetObjectItemCaseSensitive(rj, "expires_in");
+
+    if (pending_node && cJSON_IsTrue(pending_node)) {
+        cJSON_Delete(rj);
+        send_json("pending");
+        return ESP_OK;
+    }
+    if (expired_node && cJSON_IsTrue(expired_node)) {
+        cJSON_Delete(rj);
+        gdrive_auth_state.clear();
+        send_json("expired");
+        return ESP_OK;
+    }
+    if (error_node && cJSON_IsString(error_node)) {
+        const char *msg = error_node->valuestring;
+        Debug_printf("gdrive-poll: relay returned error: %s\n", msg);
+        cJSON_Delete(rj);
+        gdrive_auth_state.clear();
+        send_json("error", msg);
+        return ESP_OK;
+    }
+    if (!at_node || !cJSON_IsString(at_node)) {
+        cJSON_Delete(rj);
+        send_json("pending");
+        return ESP_OK;
+    }
+
+    // Relay has exchanged the code — store the tokens.
+    gdrive_auth_state.clear();
+    if (cJSON_IsString(at_node)) Config.store_gdrive_access_token(at_node->valuestring);
+    if (rt_node && cJSON_IsString(rt_node)) Config.store_gdrive_refresh_token(rt_node->valuestring);
+    if (ei_node && cJSON_IsNumber(ei_node)) {
+        long expiry = (long)time(nullptr) + (long)ei_node->valuedouble;
+        Config.store_gdrive_token_expiry(expiry);
+    }
+    Config.save();
+    cJSON_Delete(rj);
+
+    send_json("authorized");
+    return ESP_OK;
+}
+
+// ─── end Google Drive handlers ────────────────────────────────────────────────
+
 esp_err_t fnHttpService::webdav_handler(httpd_req_t *httpd_req)
 {
     WebDav::Server *server = (WebDav::Server *)httpd_req->user_ctx;
@@ -1535,6 +1783,20 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
          .user_ctx = NULL,
          .is_websocket = false,
          .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/gdrive-auth",
+         .method = HTTP_GET,
+         .handler = get_handler_gdrive_auth,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/gdrive-poll",
+         .method = HTTP_GET,
+         .handler = get_handler_gdrive_poll,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
          .supported_subprotocol = nullptr}};
 
     if (!fnWiFi.connected())
@@ -1549,7 +1811,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.task_priority = 12; // Bump this higher than fnService loop
     config.core_id = 0; // Pin to CPU core 0
-    config.stack_size = 8192;
+    config.stack_size = 12288;
     config.max_uri_handlers = 32;
     config.max_resp_headers = 16;
     config.keep_alive_enable = true;

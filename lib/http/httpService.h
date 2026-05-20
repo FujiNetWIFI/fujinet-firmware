@@ -151,6 +151,10 @@ public:
 #endif
 
     static esp_err_t post_handler_config(httpd_req_t *req);
+
+    // Google Drive OAuth2 relay-based endpoints
+    static esp_err_t get_handler_gdrive_auth(httpd_req_t *req);
+    static esp_err_t get_handler_gdrive_poll(httpd_req_t *req);
 #else
 // !ESP_PLATFORM
     static int get_handler_print(struct mg_connection *c);
