@@ -216,11 +216,15 @@ void systemBus::setup()
         _port = &_becker;
     }
     else {
+#if FUJINET_OVER_USB
+        _serial.begin();
+#else /* ! FUJINET_OVER_USB */
         _serial.begin(ChannelConfig()
-                    .baud(Config.get_serial_baud())
-                    .readTimeout(200)
-                    .deviceID(SERIAL_DEVICE))
-            ;
+                      .baud(Config.get_serial_baud())
+                      .readTimeout(200)
+                      .deviceID(SERIAL_DEVICE)
+                      );
+#endif /* FUJINET_OVER_USB */
         _port = &_serial;
     }
 

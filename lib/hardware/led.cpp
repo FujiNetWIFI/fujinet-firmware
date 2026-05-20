@@ -39,9 +39,16 @@ LedManager fnLedManager;
 LedManager::LedManager()
 {
 #ifdef ESP_PLATFORM
+    std::fill_n(mLedPin, eLed::LED_COUNT, GPIO_NUM_NC);
+#ifdef PIN_LED_BUS
     mLedPin[eLed::LED_BUS] = PIN_LED_BUS;
+#endif // PIN_LED_BUS
+#ifdef PIN_LED_BT
     mLedPin[eLed::LED_BT] = PIN_LED_BT;
+#endif // PIN_LED_BT
+#ifdef PIN_LED_WIFI
     mLedPin[eLed::LED_WIFI] = PIN_LED_WIFI;
+#endif // PIN_LED_WIFI
 
     mFlickerIntervalUs[eLed::LED_WIFI] = LED_WIFI_FLICKER_US;
     mFlickerIntervalUs[eLed::LED_BUS]  = LED_BUS_FLICKER_US;

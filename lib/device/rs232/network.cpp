@@ -875,10 +875,10 @@ void rs232Network::rs232_poll_interrupt()
 
         if (protocol->available() > 0 || status.connected == 0)
             rs232_assert_interrupt();
-#ifdef ESP_PLATFORM
+#if defined(ESP_PLATFORM) && defined(PIN_RS232_RI)
         else
             fnSystem.digital_write(PIN_RS232_RI,DIGI_HIGH);
-#endif /* ESP_PLATFORM */
+#endif /* ESP_PLATFORM && PIN_RS232_RI */
 
         reservedSave = status.connected;
         errorSave = status.error;
