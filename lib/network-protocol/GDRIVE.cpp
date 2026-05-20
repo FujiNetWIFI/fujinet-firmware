@@ -582,37 +582,72 @@ fujiError_t NetworkProtocolGDRIVE::open_dir_handle()
         }
     }
 
-    std::string folder_id = resolve_path(dir_path);
-    if (folder_id.empty())
-        folder_id = "root";
+    std::string node_id = resolve_path(dir_path);
+    if (node_id.empty())
+        node_id = "root";
 
-    _parent_folder_id = folder_id;
+    _parent_folder_id = node_id;
 
-    std::string q = "'" + folder_id + "' in parents and trashed=false";
-    std::string url = std::string(GDRIVE_FILES_URL) +
-                      "?q=" + url_encode(q) +
-                      "&fields=files(" GDRIVE_FIELDS ")"
-                      "&pageSize=1000"
-                      "&orderBy=name";
+    // Determine whether the resolved node is a folder or a plain file.
+    // "root" is always a folder; everything else needs a metadata fetch.
+    bool is_folder = (node_id == "root");
+    std::string meta_resp;
 
-    std::string resp = api_get(url);
-    if (resp.empty())
+    if (!is_folder)
     {
-        fserror_to_error();
-        return FUJI_ERROR::UNSPECIFIED;
+        meta_resp = api_get(std::string(GDRIVE_FILES_URL) + "/" + node_id +
+                            "?fields=" GDRIVE_FIELDS);
+        if (meta_resp.empty())
+        {
+            fserror_to_error();
+            return FUJI_ERROR::UNSPECIFIED;
+        }
+        cJSON *meta = cJSON_Parse(meta_resp.c_str());
+        if (meta)
+        {
+            is_folder = (json_str(meta, "mimeType") == GDRIVE_FOLDER_MIME);
+            cJSON_Delete(meta);
+        }
     }
 
     if (_dir_json)
         cJSON_Delete(_dir_json);
 
-    _dir_json = cJSON_Parse(resp.c_str());
-    if (!_dir_json)
+    if (is_folder)
     {
-        error = NDEV_STATUS::GENERAL;
-        return FUJI_ERROR::UNSPECIFIED;
+        // List the children of this folder.
+        std::string q = "'" + node_id + "' in parents and trashed=false";
+        std::string resp = api_get(std::string(GDRIVE_FILES_URL) +
+                                   "?q=" + url_encode(q) +
+                                   "&fields=files(" GDRIVE_FIELDS ")"
+                                   "&pageSize=1000"
+                                   "&orderBy=name");
+        if (resp.empty())
+        {
+            fserror_to_error();
+            return FUJI_ERROR::UNSPECIFIED;
+        }
+        _dir_json = cJSON_Parse(resp.c_str());
+        if (!_dir_json)
+        {
+            error = NDEV_STATUS::GENERAL;
+            return FUJI_ERROR::UNSPECIFIED;
+        }
+        _dir_items = cJSON_GetObjectItemCaseSensitive(_dir_json, "files");
+    }
+    else
+    {
+        // The path names a single file — synthesise a one-entry listing so the
+        // caller sees exactly that file (same JSON shape as a real directory response).
+        _dir_json = cJSON_CreateObject();
+        cJSON *arr = cJSON_CreateArray();
+        cJSON *entry = cJSON_Parse(meta_resp.c_str());
+        if (entry)
+            cJSON_AddItemToArray(arr, entry);
+        cJSON_AddItemToObject(_dir_json, "files", arr);
+        _dir_items = arr;
     }
 
-    _dir_items = cJSON_GetObjectItemCaseSensitive(_dir_json, "files");
     _dir_item_idx = 0;
     return FUJI_ERROR::NONE;
 }
