@@ -9,6 +9,10 @@
 
 #ifdef ESP_PLATFORM
 #include "../http/fnHttpClient.h"
+#define GDRIVE_HTTP_CLIENT fnHttpClient
+#else
+#include "../http/mgHttpClient.h"
+#define GDRIVE_HTTP_CLIENT mgHttpClient
 #endif
 
 /**
@@ -70,10 +74,8 @@ private:
     // Last Google Drive API error message (for debug)
     std::string _last_error;
 
-#ifdef ESP_PLATFORM
     // Persistent HTTP client used for streaming file downloads
-    fnHttpClient _http;
-#endif
+    GDRIVE_HTTP_CLIENT _http;
 
     // Ensure _access_token is valid, refreshing via refresh_token if needed.
     bool ensure_access_token();

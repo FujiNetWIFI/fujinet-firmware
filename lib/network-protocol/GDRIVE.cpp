@@ -252,10 +252,45 @@ bool NetworkProtocolGDRIVE::api_delete(const std::string &url)
 
 #else /* !ESP_PLATFORM */
 
-// Stub implementations for non-ESP builds (e.g. native unit-test build).
-std::string NetworkProtocolGDRIVE::api_get(const std::string &) { return ""; }
-std::string NetworkProtocolGDRIVE::api_post(const std::string &, const std::string &, const std::string &) { return ""; }
-bool NetworkProtocolGDRIVE::api_delete(const std::string &) { return false; }
+std::string NetworkProtocolGDRIVE::api_get(const std::string &url)
+{
+    mgHttpClient http;
+    if (!http.begin(url)) { Debug_printf("GDRIVE api_get: begin failed for %s\r\n", url.c_str()); return ""; }
+    if (!_access_token.empty())
+        http.set_header("Authorization", ("Bearer " + _access_token).c_str());
+    int status = http.GET();
+    if (status < 200 || status >= 300) { Debug_printf("GDRIVE api_get: HTTP %d for %s\r\n", status, url.c_str()); return ""; }
+    std::string body;
+    uint8_t buf[512]; int n;
+    while ((n = http.read(buf, sizeof(buf))) > 0) body.append((char *)buf, n);
+    return body;
+}
+
+std::string NetworkProtocolGDRIVE::api_post(const std::string &url,
+                                              const std::string &body,
+                                              const std::string &content_type)
+{
+    mgHttpClient http;
+    if (!http.begin(url)) { Debug_printf("GDRIVE api_post: begin failed for %s\r\n", url.c_str()); return ""; }
+    if (!_access_token.empty())
+        http.set_header("Authorization", ("Bearer " + _access_token).c_str());
+    http.set_header("Content-Type", content_type.c_str());
+    int status = http.POST(body.c_str(), (int)body.size());
+    if (status < 200 || status >= 300) { Debug_printf("GDRIVE api_post: HTTP %d for %s\r\n", status, url.c_str()); return ""; }
+    std::string resp;
+    uint8_t buf[512]; int n;
+    while ((n = http.read(buf, sizeof(buf))) > 0) resp.append((char *)buf, n);
+    return resp;
+}
+
+bool NetworkProtocolGDRIVE::api_delete(const std::string &url)
+{
+    mgHttpClient http;
+    if (!http.begin(url)) return false;
+    http.set_header("Authorization", ("Bearer " + _access_token).c_str());
+    int status = http.DELETE();
+    return (status == 200 || status == 204);
+}
 
 #endif /* ESP_PLATFORM */
 
@@ -447,7 +482,6 @@ fujiError_t NetworkProtocolGDRIVE::open_file_handle()
         }
     }
 
-#ifdef ESP_PLATFORM
     std::string dl_url = std::string(GDRIVE_FILES_URL) + "/" +
                          _file_id + "?alt=media";
     if (!_http.begin(dl_url))
@@ -463,7 +497,6 @@ fujiError_t NetworkProtocolGDRIVE::open_file_handle()
         fserror_to_error();
         return FUJI_ERROR::UNSPECIFIED;
     }
-#endif
 
     return FUJI_ERROR::NONE;
 }
@@ -471,7 +504,6 @@ fujiError_t NetworkProtocolGDRIVE::open_file_handle()
 fujiError_t NetworkProtocolGDRIVE::read_file_handle(uint8_t *buf,
                                                       unsigned short len)
 {
-#ifdef ESP_PLATFORM
     // Guard: base class read_file() decrements fileSize by len after we return,
     // so we must NOT also decrement here — that would double-count and wrap the
     // signed int negative, making available() return ~4 GB forever.
@@ -487,9 +519,6 @@ fujiError_t NetworkProtocolGDRIVE::read_file_handle(uint8_t *buf,
         return FUJI_ERROR::UNSPECIFIED;
     }
     return FUJI_ERROR::NONE;
-#else
-    return FUJI_ERROR::UNSPECIFIED;
-#endif
 }
 
 fujiError_t NetworkProtocolGDRIVE::write_file_handle(uint8_t *buf,
@@ -556,9 +585,7 @@ fujiError_t NetworkProtocolGDRIVE::close_file_handle()
     }
     else
     {
-#ifdef ESP_PLATFORM
         _http.close();
-#endif
     }
     return FUJI_ERROR::NONE;
 }
