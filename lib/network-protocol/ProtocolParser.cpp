@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "CPM.h"
+#include "GDRIVE.h"
 #include "TCP.h"
 #include "UDP.h"
 #include "Test.h"
@@ -33,6 +34,9 @@ NetworkProtocol* ProtocolParser::createProtocol(std::string scheme, std::string 
     {
         case "CPM"_sh:
             protocol = new NetworkProtocolCPM(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "GDRIVE"_sh:
+            protocol = new NetworkProtocolGDRIVE(receiveBuffer, transmitBuffer, specialBuffer);
             break;
         case "TCP"_sh:
             protocol = new NetworkProtocolTCP(receiveBuffer, transmitBuffer, specialBuffer);

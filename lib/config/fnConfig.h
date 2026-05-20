@@ -247,6 +247,14 @@ public:
     void store_cpm_enabled(bool cpm_enabled);
     bool get_cpm_enabled(){ return _cpm.cpm_enabled; };
 
+    // GOOGLE DRIVE
+    std::string get_gdrive_refresh_token() { return _gdrive.refresh_token; };
+    std::string get_gdrive_access_token() { return _gdrive.access_token; };
+    long get_gdrive_token_expiry() { return _gdrive.token_expiry; };
+    void store_gdrive_refresh_token(const std::string &refresh_token);
+    void store_gdrive_access_token(const std::string &access_token);
+    void store_gdrive_token_expiry(long expiry);
+
     // ENABLE/DISABLE DEVICE SLOTS
     bool get_device_slot_enable(uint8_t slot);
     bool get_device_slot_enable_1();
@@ -311,6 +319,7 @@ private:
     void _read_section_cpm(std::stringstream &ss);
     void _read_section_device_enable(std::stringstream &ss);
     void _read_section_boip(std::stringstream &ss);
+    void _read_section_gdrive(std::stringstream &ss);
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
     void _read_section_serial(std::stringstream &ss);
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
@@ -332,6 +341,7 @@ private:
         SECTION_CPM,
         SECTION_DEVICE_ENABLE,
         SECTION_BOIP,
+        SECTION_GOOGLEDRIVE,
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
         SECTION_SERIAL,
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
@@ -497,6 +507,13 @@ private:
         std::string ccp;
     };
 
+    struct googledrive_info
+    {
+        std::string refresh_token;
+        std::string access_token;
+        long token_expiry = 0;
+    };
+
     struct device_enable_info
     {
         bool device_1_enabled = true;
@@ -537,6 +554,7 @@ private:
     serial_info _serial;
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
     cpm_info _cpm;
+    googledrive_info _gdrive;
     device_enable_info _denable;
     phbook_info _phonebook_slots[MAX_PB_SLOTS];
 };
