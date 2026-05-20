@@ -45,16 +45,39 @@ NetworkProtocolSSH::NetworkProtocolSSH(std::string *rx_buf, std::string *tx_buf,
 #else
     rxbuf = (char *)malloc(RXBUF_SIZE);
 #endif
+    if (rxbuf == nullptr)
+    {
+        /*
+         * Fix (2026-05-19): heap_caps_malloc(MALLOC_CAP_SPIRAM) can
+         * fail when PSRAM is unavailable or exhausted.  Previously
+         * the NULL pointer was used unguarded in ssh_channel_read()
+         * and std::string::append() below, which crashed the firmware.
+         * The destructor now also tolerates a NULL rxbuf, but log the
+         * allocation failure so the operator can see it.
+         */
+        Debug_printf("NetworkProtocolSSH::NetworkProtocolSSH() - rxbuf allocation FAILED (%u bytes)\r\n",
+                     (unsigned)RXBUF_SIZE);
+    }
 }
 
 NetworkProtocolSSH::~NetworkProtocolSSH()
 {
     Debug_printf("NetworkProtocolSSH::~NetworkProtocolSSH()\r\n");
+    /*
+     * Fix (2026-05-19): guard against a NULL rxbuf so a failed
+     * heap_caps_malloc() in the ctor doesn't crash the dtor.  Null
+     * the pointer after the free so a (hypothetical) second dtor
+     * invocation would not double-free.
+     */
+    if (rxbuf != nullptr)
+    {
 #ifdef ESP_PLATFORM
-    heap_caps_free(rxbuf);
+        heap_caps_free(rxbuf);
 #else
-    free(rxbuf);
+        free(rxbuf);
 #endif
+        rxbuf = nullptr;
+    }
 }
 
 /* ------------------------------------------------------------------ */
@@ -339,9 +362,35 @@ fujiError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
 
 fujiError_t NetworkProtocolSSH::close()
 {
-    ssh_disconnect(session);
-    ssh_free(session);
-    return FUJI_ERROR::NONE;
+    /*
+     * Fix (2026-05-19): the previous implementation unconditionally
+     * called ssh_disconnect()/ssh_free() on `session` without
+     *   - tearing down `channel` first (ssh_channel_send_eof /
+     *     ssh_channel_close / ssh_channel_free),
+     *   - guarding against a NULL or already-freed `session`, and
+     *   - chaining to NetworkProtocol::close() (which clears and
+     *     shrinks the std::string buffers, like TCP::close() does).
+     * That left libssh internal channel state half-freed when the
+     * remote host had already closed the shell (after "exit\n"),
+     * and a second CLOSE from the host would double-free the session.
+     * Both cases corrupted the heap and crashed the next free().
+     */
+    if (channel != nullptr)
+    {
+        ssh_channel_send_eof(channel);
+        ssh_channel_close(channel);
+        ssh_channel_free(channel);
+        channel = nullptr;
+    }
+
+    if (session != nullptr)
+    {
+        ssh_disconnect(session);
+        ssh_free(session);
+        session = nullptr;
+    }
+
+    return NetworkProtocol::close();
 }
 
 fujiError_t NetworkProtocolSSH::read(unsigned short len)
@@ -377,12 +426,23 @@ size_t NetworkProtocolSSH::available()
 {
     if (receiveBuffer->length() == 0)
     {
-        if (ssh_channel_is_eof(channel) == 0)
+        if (channel != nullptr && ssh_channel_is_eof(channel) == 0)
         {
             int len = ssh_channel_read(channel, rxbuf, RXBUF_SIZE, 0);
-            if (len != SSH_AGAIN)
+            /*
+             * Fix (2026-05-19): ssh_channel_read() returns a signed int
+             * that can be SSH_AGAIN, SSH_EOF (0) or SSH_ERROR (-1).
+             * The previous code only filtered SSH_AGAIN, so SSH_ERROR
+             * (-1) was implicitly cast to size_t (~4 GB) inside
+             * std::string::append(), trashing the PSRAM heap.  The
+             * corruption only surfaced later as
+             * "heap_caps_free target pointer is outside heap areas"
+             * during ~NetworkProtocolSSH() in sio_close().
+             * Accept only strictly positive byte counts.
+             */
+            if (len > 0)
             {
-                receiveBuffer->append(rxbuf, len);
+                receiveBuffer->append(rxbuf, (size_t)len);
                 translate_receive_buffer();
             }
         }
