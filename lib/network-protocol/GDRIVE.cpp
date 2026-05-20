@@ -472,15 +472,20 @@ fujiError_t NetworkProtocolGDRIVE::read_file_handle(uint8_t *buf,
                                                       unsigned short len)
 {
 #ifdef ESP_PLATFORM
-    int n = _http.read(buf, len);
-    if (n < 0)
+    // Guard: base class read_file() decrements fileSize by len after we return,
+    // so we must NOT also decrement here — that would double-count and wrap the
+    // signed int negative, making available() return ~4 GB forever.
+    if (fileSize <= 0)
     {
-        fserror_to_error();
+        error = NDEV_STATUS::END_OF_FILE;
         return FUJI_ERROR::UNSPECIFIED;
     }
-    fileSize -= n;
-    if (fileSize <= 0)
+    int n = _http.read(buf, len);
+    if (n <= 0)
+    {
         error = NDEV_STATUS::END_OF_FILE;
+        return FUJI_ERROR::UNSPECIFIED;
+    }
     return FUJI_ERROR::NONE;
 #else
     return FUJI_ERROR::UNSPECIFIED;
