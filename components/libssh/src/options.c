@@ -1452,18 +1452,6 @@ int ssh_options_apply(ssh_session session) {
     free(session->opts.knownhosts);
     session->opts.knownhosts = tmp;
     #else
-    /*
-     * Fix (2026-05-19): the previous code assigned the RODATA literal
-     * "" to session->opts.knownhosts.  ssh_free() in session.c later
-     * calls SAFE_FREE(session->opts.knownhosts), which invokes free()
-     * on a non-heap pointer and aborts the firmware with
-     * "heap_caps_free target pointer is outside heap areas" on every
-     * SSH close.  All consumers in known_hosts.c / knownhosts.c
-     * already treat NULL as "no known_hosts file", and they emit the
-     * spurious log "Failed to open the known_hosts file '': Is a
-     * directory" when given an empty path, so NULL is both safer and
-     * cleaner than "".
-     */
     if (session->opts.knownhosts != NULL) free(session->opts.knownhosts);
     session->opts.knownhosts = NULL;
     #endif
@@ -1480,9 +1468,6 @@ int ssh_options_apply(ssh_session session) {
     free(session->opts.global_knownhosts);
     session->opts.global_knownhosts = tmp;
     #else
-    /* Fix (2026-05-19): same root cause as knownhosts above — the
-     * RODATA "" assignment crashes ssh_free() at session.c:311.
-     */
     if (session->opts.global_knownhosts != NULL) free(session->opts.global_knownhosts);
     session->opts.global_knownhosts = NULL;
     #endif

@@ -175,32 +175,6 @@ success_is_true fujiDevice::fujicmd_mount_all_success()
     RETURN_SUCCESS_AS_TRUE();
 }
 
-// Idempotent mount-all for the startup path.
-//
-// Two callers race for the boot-time mount of config slots:
-//   1. fn_service_loop() in src/main.cpp, immediately after starting
-//      WiFi but before WiFi has acquired an IP.
-//   2. The IP_EVENT_STA_GOT_IP handler in lib/hardware/fnWiFi.cpp,
-//      after WiFi successfully obtains an IP.
-//
-// Both call paths only fire when general_config_enabled == false, so
-// they target the same set of saved mount slots.  Letting them both
-// run risked deleting and recreating the FileSystemTNFS instance
-// underneath an in-flight first call, which invalidated any open
-// disk-image file handles (symptom: EBADF, "failed seeking to header
-// on disk image (-1, 9)").
-//
-// This wrapper claims an atomic lock on entry.  Whichever caller
-// arrives first proceeds with the mount; the other one returns
-// success immediately and does not touch the host filesystems.
-// On a failed mount the lock is released so a later caller can
-// retry (typical scenario: main_setup() loses the race only because
-// WiFi has not yet acquired an IP -> mount fails fast -> lock
-// released -> IP_GOT handler succeeds a few seconds later).
-//
-// User- and bus-initiated remounts use fujicmd_mount_all_success()
-// or fujicore_mount_all_success() directly and are unaffected by
-// this guard.
 success_is_true fujiDevice::fujicore_mount_all_at_startup()
 {
     bool was_locked = _startup_mount_lock.exchange(true);

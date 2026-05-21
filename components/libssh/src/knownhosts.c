@@ -222,18 +222,6 @@ static int ssh_known_hosts_read_entries(const char *match,
     FILE *fp;
     int rc;
 
-    /* Fix (2026-05-19, fujinet): the LIBSSH_FUJINET branch of
-     * ssh_options_apply() leaves session->opts.knownhosts and
-     * global_knownhosts as NULL (FujiNet has no persistent
-     * known_hosts file).  Callers (ssh_known_hosts_get_algorithms_names,
-     * ssh_session_has_known_hosts_entry, ...) pass that NULL straight
-     * through to here.  Plain libssh tolerates that because glibc's
-     * fopen(NULL, "r") returns NULL with errno=EFAULT, but ESP32 newlib's
-     * fopen() passes the NULL path to strlen() inside get_vfs_for_path()
-     * which then dereferences it and panics the firmware with
-     * "Guru Meditation Error: LoadProhibited" at strlen+0x5 in ROM.
-     * Treat a NULL filename the same as a missing file: success with
-     * no entries appended. */
     if (filename == NULL) {
         return SSH_OK;
     }
