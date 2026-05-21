@@ -72,14 +72,18 @@ public:
 
 private:
     /**
-     * The libssh session structure
+     * The libssh session structure.
+     * Initialised to nullptr so close() can safely null-check it on
+     * teardown paths where open() failed before ssh_new().
      */
-    ssh_session session;
+    ssh_session session = nullptr;
 
     /**
-     * The libssh communication channel
+     * The libssh communication channel.
+     * Initialised to nullptr so close() can safely null-check it on
+     * teardown paths where open() failed before ssh_channel_new().
      */
-    ssh_channel channel;
+    ssh_channel channel = nullptr;
 
     /**
      * The underlying TCP client

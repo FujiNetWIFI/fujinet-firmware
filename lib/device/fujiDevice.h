@@ -11,6 +11,7 @@
 #include <string>
 #include <optional>
 #include <map>
+#include <atomic>
 
 #if defined(BUILD_ATARI) || defined(BUILD_LYNX)
 #define SYSTEM_BUS_IS_UDP 1
@@ -143,6 +144,29 @@ protected:
     int _current_open_directory_slot = -1;
     uint8_t _countScannedSSIDs = 0;
 
+    // Idempotent guard for the startup mount-all path.
+    // Two startup callers race for the mount: main_setup() at boot
+    // (before WiFi has an IP) and the IP_EVENT_STA_GOT_IP handler in
+    // fnWiFi.cpp (after WiFi connects).  Without coordination, the
+    // second caller deletes/recreates the FileSystemTNFS underneath
+    // an in-flight first call, invalidating any opened disk image
+    // file handles (EBADF / "failed seeking to header on disk image
+    // (-1, 9)").
+    //
+    // The lock is cleared on a *failed* attempt so a later startup
+    // caller can retry (e.g. main_setup attempt fails because WiFi
+    // has not yet acquired IP -> lock released -> IP_GOT handler
+    // retries successfully a moment later).  After a successful
+    // mount the lock stays held forever; the firmware does not
+    // re-mount config slots at startup more than once.
+    //
+    // This guard is intentionally restricted to the startup path
+    // (fujicore_mount_all_at_startup) and does NOT cover user- or
+    // bus-initiated remounts (fujicmd_mount_all_success and the many
+    // platform fujicmd_* callers), which must continue to work on
+    // demand.
+    std::atomic<bool> _startup_mount_lock{false};
+
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
 
     virtual void transaction_begin(transState_t expectMoreData) = 0;
@@ -255,6 +279,10 @@ public:
     success_is_true fujicore_unmount_disk_image_success(uint8_t deviceSlot);
     success_is_true fujicore_mount_host_success(unsigned hostSlot);
     success_is_true fujicore_mount_all_success();
+    // Idempotent wrapper around fujicore_mount_all_success() for the
+    // startup mount-all path.  See _startup_mount_lock for the design
+    // notes and intended call sites.
+    success_is_true fujicore_mount_all_at_startup();
     void fujicore_net_scan_networks();
     success_is_true fujicore_net_set_ssid_success(const char *ssid, const char *password, bool save);
 
