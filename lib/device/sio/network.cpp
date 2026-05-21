@@ -871,6 +871,10 @@ uint8_t sioNetwork::get_dstats_for_command(uint8_t command)
     case NETCMD_PARSE:
     case NETCMD_CONTROL:
     case NETCMD_CLOSE_CLIENT:
+    case NETCMD_CHANNEL_MODE:
+    case NETCMD_TRANSLATION:
+    case NETCMD_SET_INT_RATE:
+    case NETCMD_SET_PARAMETERS:
         return SIO_DIRECTION_NONE;
 
     // Payload from FujiNet to Atari (0x40)
@@ -883,10 +887,6 @@ uint8_t sioNetwork::get_dstats_for_command(uint8_t command)
     // Payload from Atari to FujiNet (0x80)
     case NETCMD_OPEN:
     case NETCMD_WRITE:
-    case NETCMD_TRANSLATION:
-    case NETCMD_SET_INT_RATE:
-    case NETCMD_SET_PARAMETERS:
-    case NETCMD_CHANNEL_MODE:
     case NETCMD_CHDIR:
     case NETCMD_QUERY:
     case NETCMD_USERNAME:
