@@ -537,36 +537,6 @@ void fn_service_loop(void *param)
     // selected, then just mount what we have so we are after all of
     // the setup and wifi has been started.
     //
-    // Bug fix history:
-    //   * The original code called fujicmd_mount_all_success() here,
-    //     which wraps the work in transaction_begin / transaction_complete
-    //     intended for an incoming SIO command frame -- not appropriate
-    //     from this startup context.  The right entrypoint is the
-    //     transaction-free fujicore_mount_all_success() instead.
-    //   * An earlier attempt to fix the double-mount race (see below)
-    //     gated this call on !Config.get_wifi_enabled().  That broke
-    //     two important scenarios:
-    //       - WiFi enabled but the router is unreachable / wrong
-    //         credentials: no IP_EVENT_STA_GOT_IP ever fires, so the
-    //         config slots were never mounted.  FujiNet would happily
-    //         answer the SIO bus but every slot was empty.
-    //       - Config-disabled startup with a slow / failing WiFi:
-    //         same symptom.
-    //     Both regressions matched the "test from far away from your
-    //     router" / "with config disabled" feedback from the FujiNet
-    //     team.  The condition is intentionally reverted here.
-    //
-    // Race avoidance: this same set of slots is also mounted by the
-    // IP_EVENT_STA_GOT_IP handler in lib/hardware/fnWiFi.cpp.  When
-    // WiFi has not yet acquired an IP at this point, this attempt
-    // fails fast (~ms) and the IP_GOT handler picks it up later.
-    // Both call paths now go through fujicore_mount_all_at_startup()
-    // which holds an atomic startup-mount lock: whichever caller
-    // arrives first mounts; the other returns success immediately
-    // without touching the host filesystems.  A failed first attempt
-    // releases the lock so the IP_GOT handler can retry once WiFi
-    // is up.  See fujiDevice::fujicore_mount_all_at_startup() for
-    // details.
     if (!Config.get_general_config_enabled() && Config.get_config_filename().empty())
         theFuji->fujicore_mount_all_at_startup();
 

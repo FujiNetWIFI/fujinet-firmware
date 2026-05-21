@@ -637,15 +637,6 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
 //             IWM.startup_hack();
 // #endif
 #ifdef BUILD_ATARI // temporary
-            // Mount saved config slots once WiFi has an IP.
-            // fn_service_loop() in src/main.cpp also attempts this
-            // mount earlier, before WiFi was up.  Both paths share
-            // fujicore_mount_all_at_startup() -- an idempotent
-            // wrapper that lets whichever caller arrives first do
-            // the work and turns the other into a no-op, avoiding
-            // the previous double-mount race that invalidated open
-            // disk image file handles (EBADF / "failed seeking to
-            // header on disk image (-1, 9)").
             if (Config.get_general_config_enabled() == false)
                 theFuji->fujicore_mount_all_at_startup();
 #endif /* BUILD_ATARI */
