@@ -52,7 +52,6 @@ void ACMChannel::dataReceived(const uint8_t *data, size_t length)
     BaseType_t woken;
 
 
-    //Debug_printv("received %i", length);
     for (offset = 0; length; offset += pkt.length, length -= pkt.length)
     {
         pkt.length = std::min(length, (size_t) MAX_FIFO_PAYLOAD);
@@ -82,7 +81,6 @@ void ACMChannel::eventReceived(const cdc_acm_host_dev_event_data_t *event)
         xSemaphoreGive(device_disconnected_sem);
         break;
     case CDC_ACM_HOST_SERIAL_STATE:
-        Debug_printv("Serial state notif 0x%04X", event->data.serial_state.val);
         _serial_state = event->data.serial_state;
         break;
     case CDC_ACM_HOST_NETWORK_CONNECTION:
@@ -94,11 +92,8 @@ void ACMChannel::eventReceived(const cdc_acm_host_dev_event_data_t *event)
 
 void ACMChannel::newDevice(usb_device_handle_t usb_dev)
 {
-    Debug_printv("newDevCallback fired");
-
     const usb_device_desc_t *dev_desc;
     usb_host_get_device_descriptor(usb_dev, &dev_desc);
-    Debug_printv("VID: 0x%04X PID: 0x%04X", dev_desc->idVendor, dev_desc->idProduct);
 
     const usb_config_desc_t *config_desc;
     usb_host_get_active_config_descriptor(usb_dev, &config_desc);
@@ -111,13 +106,10 @@ void ACMChannel::newDevice(usb_device_handle_t usb_dev)
                 desc, total_len, USB_B_DESCRIPTOR_TYPE_INTERFACE_ASSOCIATION, &offset)) != NULL)
     {
         const usb_iad_desc_t *iad = (const usb_iad_desc_t *)desc;
-        Debug_printv("IAD: class=%d subclass=%d firstIface=%d",
-            iad->bFunctionClass, iad->bFunctionSubClass, iad->bFirstInterface);
 
         if (iad->bFunctionClass == USB_CLASS_COMM &&
             iad->bFunctionSubClass == USB_CDC_SUBCLASS_ACM)
         {
-            Debug_printv("Found CDC-ACM IAD");
             found_vid = dev_desc->idVendor;
             found_pid = dev_desc->idProduct;
             found_interface = iad->bFirstInterface;
@@ -125,7 +117,6 @@ void ACMChannel::newDevice(usb_device_handle_t usb_dev)
             return;
         }
     }
-    Debug_printv("No CDC-ACM IAD found");
 }
 
 // FIXME - apparently it later ESP-DIF versions there's a `void *user_arg`
@@ -144,7 +135,6 @@ void ACMChannel::begin()
     assert(device_disconnected_sem);
     assert(device_connected_sem);
 
-    Debug_printv("Installing USB Host");
     usb_host_config_t host_config = {};
     host_config.skip_phy_setup = false;
     host_config.intr_flags = ESP_INTR_FLAG_LEVEL1;
@@ -154,8 +144,6 @@ void ACMChannel::begin()
                                           xTaskGetCurrentTaskHandle(),
                                           USB_HOST_PRIORITY, NULL);
     assert(task_created == pdTRUE);
-
-    Debug_printv("Installing CDC-ACM driver");
 
     ndc_instance = this;
 
@@ -178,16 +166,13 @@ void ACMChannel::begin()
 
     while (true) {
         // Wait for newDevCallback to find a CDC-ACM device
-        Debug_printv("Waiting for CDC-ACM device...");
         xSemaphoreTake(device_connected_sem, portMAX_DELAY);
 
-        Debug_printv("Opening CDC ACM device 0x%04X:0x%04X...", found_vid, found_pid);
         esp_err_t err = cdc_acm_host_open_vendor_specific(found_vid, found_pid,
                                                           found_interface,
                                                           &dev_config, &cdc_dev);
 
         if (err != ESP_OK) {
-            Debug_printv("Failed to open device, waiting for next...");
             continue;
         }
         //cdc_acm_host_desc_print(cdc_dev);
@@ -195,37 +180,17 @@ void ACMChannel::begin()
 
         // Test Line Coding commands: Get current line coding, change
         // it 9600 7N1 and read again
-        Debug_printv("Setting up line coding");
 
         cdc_acm_line_coding_t line_coding;
         ESP_ERROR_CHECK(cdc_acm_host_line_coding_get(cdc_dev, &line_coding));
-        Debug_printv("Line Get: Rate: %" PRIu32", Stop bits: %" PRIu8
-                 ", Parity: %" PRIu8", Databits: %" PRIu8"",
-                 line_coding.dwDTERate,
-                 line_coding.bCharFormat, line_coding.bParityType, line_coding.bDataBits);
 
         line_coding.dwDTERate = 9600;
         line_coding.bDataBits = 7;
         line_coding.bParityType = 1;
         line_coding.bCharFormat = 1;
         ESP_ERROR_CHECK(cdc_acm_host_line_coding_set(cdc_dev, &line_coding));
-        Debug_printv("Line Set: Rate: %" PRIu32", Stop bits: %" PRIu8
-                 ", Parity: %" PRIu8", Databits: %" PRIu8"",
-                 line_coding.dwDTERate, line_coding.bCharFormat, line_coding.bParityType,
-                 line_coding.bDataBits);
-
         ESP_ERROR_CHECK(cdc_acm_host_line_coding_get(cdc_dev, &line_coding));
-        Debug_printv("Line Get: Rate: %" PRIu32", Stop bits: %" PRIu8
-                 ", Parity: %" PRIu8", Databits: %" PRIu8"",
-                 line_coding.dwDTERate, line_coding.bCharFormat, line_coding.bParityType,
-                 line_coding.bDataBits);
-
         ESP_ERROR_CHECK(cdc_acm_host_set_control_line_state(cdc_dev, true, false));
-
-        // We are done. Wait for device disconnection and start over
-        Debug_printv(
-                 "Example finished successfully! You can reconnect the device to run again.");
-        //xSemaphoreTake(device_disconnected_sem, portMAX_DELAY);
         break;
     }
 
@@ -243,11 +208,9 @@ void ACMChannel::updateFIFO()
 
     while (xQueueReceive(rxQueue, &pkt, 0))
     {
-        //Debug_printv("packet %i", pkt.length);
         old_len = _fifo.size();
         _fifo.resize(old_len + pkt.length);
         memcpy(&_fifo[old_len], pkt.data, pkt.length);
-        //Debug_printv("fifo %i", _fifo.size());
     }
 
     return;
