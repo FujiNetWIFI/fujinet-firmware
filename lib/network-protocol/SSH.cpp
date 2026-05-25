@@ -18,6 +18,7 @@
 
 #include "status_error_codes.h"
 
+#include <cstdlib>
 #include <vector>
 
 #define RXBUF_SIZE 65535
@@ -322,7 +323,17 @@ fujiError_t NetworkProtocolSSH::open(PeoplesUrlParser *urlParser,
         return FUJI_ERROR::UNSPECIFIED;
     }
 
-    ret = ssh_channel_request_pty_size(channel, "vanilla", 80, 24);
+    // Terminal type and size come from the URL query (?term=...&cols=..&rows=..),
+    // so the remote host learns them in the pty request. When a value is absent
+    // we keep the original default (vanilla / 80 / 24) - unchanged behavior.
+    std::string term = urlParser->queryParam("term", "vanilla");
+    int cols = atoi(urlParser->queryParam("cols", "80").c_str());
+    int rows = atoi(urlParser->queryParam("rows", "24").c_str());
+    if (cols <= 0) cols = 80;
+    if (rows <= 0) rows = 24;
+
+    ret = ssh_channel_request_pty_size(channel, term.c_str(), cols, rows);
+
     if (ret != SSH_OK)
     {
         error = NDEV_STATUS::GENERAL;

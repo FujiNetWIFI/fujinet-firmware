@@ -205,6 +205,26 @@ uint16_t PeoplesUrlParser::getPort() {
     return std::stoi(port);
 }
 
+std::string PeoplesUrlParser::queryParam(const std::string &key, const std::string &def) {
+    // Scan "key=value" pairs separated by '&'.
+    std::string::size_type pos = 0;
+    while (pos < query.length()) {
+        std::string::size_type amp = query.find('&', pos);
+        std::string pair = (amp == std::string::npos)
+            ? query.substr(pos)
+            : query.substr(pos, amp - pos);
+
+        std::string::size_type eq = pair.find('=');
+        if (eq != std::string::npos && pair.substr(0, eq) == key)
+            return pair.substr(eq + 1);
+
+        if (amp == std::string::npos)
+            break;
+        pos = amp + 1;
+    }
+    return def;
+}
+
 
 std::unique_ptr<PeoplesUrlParser> PeoplesUrlParser::parseURL(const std::string &u) {
     // Directly creating a unique_ptr using a private constructor workaround. If direct constructor was available, this wouldn't be needed
