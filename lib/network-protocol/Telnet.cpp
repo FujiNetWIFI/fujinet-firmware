@@ -54,6 +54,19 @@ static void _event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data
     case TELNET_EV_WONT:
         break;
     case TELNET_EV_DO:
+        // Server agreed to NAWS: report our window size (RFC 1073) - but only
+        // if the app actually gave us one. With no cols/rows we never invent a
+        // size; the server falls back to its own default.
+        if (ev->neg.telopt == TELNET_TELOPT_NAWS &&
+            protocol->naws_w > 0 && protocol->naws_h > 0)
+        {
+            unsigned char nb[4];
+            nb[0] = (protocol->naws_w >> 8) & 0xFF;   // width  hi
+            nb[1] = protocol->naws_w & 0xFF;          // width  lo
+            nb[2] = (protocol->naws_h >> 8) & 0xFF;   // height hi
+            nb[3] = protocol->naws_h & 0xFF;          // height lo
+            telnet_subnegotiation(telnet, TELNET_TELOPT_NAWS, (const char *)nb, 4);
+        }
         break;
     case TELNET_EV_DONT:
         break;
@@ -94,6 +107,37 @@ NetworkProtocolTELNET::~NetworkProtocolTELNET()
         telnet_free(telnet);
     }
     newRxLen = 0;
+}
+
+/**
+ * @brief Open: pick up terminal type and window size from the URL query
+ *        (?term=..&cols=..&rows=..) before the TCP connect, so they're ready
+ *        when the server negotiates TTYPE/NAWS. Then defer to TCP::open().
+ */
+fujiError_t NetworkProtocolTELNET::open(PeoplesUrlParser *urlParser,
+                                        fileAccessMode_t access,
+                                        netProtoTranslation_t translate)
+{
+    std::string t = urlParser->queryParam("term", "");
+    if (!t.empty())
+    {
+        strncpy(ttype, t.c_str(), sizeof(ttype) - 1);
+        ttype[sizeof(ttype) - 1] = '\0';
+    }
+
+    int c = atoi(urlParser->queryParam("cols", "0").c_str());
+    int r = atoi(urlParser->queryParam("rows", "0").c_str());
+    if (c > 0) naws_w = c;
+    if (r > 0) naws_h = r;
+
+    fujiError_t err = NetworkProtocolTCP::open(urlParser, access, translate);
+
+    // Only offer NAWS when the app actually gave a window size. With no size we
+    // never mention NAWS, so negotiation is byte-for-byte the old behavior.
+    if (err == FUJI_ERROR::NONE && naws_w > 0 && naws_h > 0)
+        telnet_negotiate(telnet, TELNET_WILL, TELNET_TELOPT_NAWS);
+
+    return err;
 }
 
 
