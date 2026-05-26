@@ -10,7 +10,14 @@
 class Hash {
 public:
     enum class Algorithm {
-        UNKNOWN = -1, MD5, SHA1, SHA224, SHA256, SHA384, SHA512
+        // Do not change these values, they must match what existing programs use
+        UNKNOWN = -1,
+        MD5 = 0,
+        SHA1 = 1,
+        SHA256 = 2,
+        SHA512 = 3,
+        SHA224 = 4,
+        SHA384 = 5,
     };
 
     Hash();
