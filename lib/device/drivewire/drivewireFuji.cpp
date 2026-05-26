@@ -338,8 +338,8 @@ void drivewireFuji::base64_decode_output()
 void drivewireFuji::hash_input()
 {
     Debug_printf("FUJI: HASH INPUT\n");
-    uint8_t lenl = SYSTEM_BUS.read();
     uint8_t lenh = SYSTEM_BUS.read();
+    uint8_t lenl = SYSTEM_BUS.read();
     uint16_t len = lenh << 8 | lenl;
 
 
@@ -442,7 +442,7 @@ void drivewireFuji::ready()
 
 void drivewireFuji::process()
 {
-    uint8_t c = SYSTEM_BUS.read();
+    fujiCommandID_t c = (fujiCommandID_t) SYSTEM_BUS.read();
 
     _errorCode = 1;
     switch (c)
