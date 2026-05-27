@@ -219,8 +219,8 @@ void drivewireFuji::base64_encode_length()
 
 void drivewireFuji::base64_encode_output()
 {
-    uint8_t lenl = SYSTEM_BUS.read();
     uint8_t lenh = SYSTEM_BUS.read();
+    uint8_t lenl = SYSTEM_BUS.read();
     uint16_t len = lenh << 8 | lenl;
 
     if (!len)
@@ -240,8 +240,8 @@ void drivewireFuji::base64_encode_output()
 
 void drivewireFuji::base64_decode_input()
 {
-    uint8_t lenl = SYSTEM_BUS.read();
     uint8_t lenh = SYSTEM_BUS.read();
+    uint8_t lenl = SYSTEM_BUS.read();
     uint16_t len = lenh << 8 | lenl;
 
     if (!len)
@@ -291,13 +291,6 @@ void drivewireFuji::base64_decode_length()
         (uint8_t)(len >>  0)
     };
 
-    if (!len)
-    {
-        Debug_printf("BASE64 buffer is 0 bytes, sending error.\n");
-        transaction_error();
-        return;
-    }
-
     Debug_printf("base64 buffer length: %u bytes\n", len);
 
     transaction_put(_response, 4);
@@ -307,8 +300,8 @@ void drivewireFuji::base64_decode_output()
 {
     Debug_printf("FUJI: BASE64 DECODE OUTPUT\n");
 
-    uint8_t lenl = SYSTEM_BUS.read();
     uint8_t lenh = SYSTEM_BUS.read();
+    uint8_t lenl = SYSTEM_BUS.read();
     uint16_t len = lenh << 8 | lenl;
 
     if (!len)
@@ -642,6 +635,12 @@ void drivewireFuji::process()
         break;
     case FUJICMD_GENERATE_GUID:
         fujicmd_generate_guid();
+        break;
+    case FUJICMD_STATUS:
+        fujicmd_status();
+        break;
+    case FUJICMD_GET_DIRECTORY_POSITION:
+        fujicmd_get_directory_position();
         break;
     default:
         break;
