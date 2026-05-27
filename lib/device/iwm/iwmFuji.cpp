@@ -387,6 +387,7 @@ void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
         it->second();
     } else {
                 Debug_printf("ERROR: Unhandled status code: %02X\n", status_code);
+                data_len = 0;
     }
 
         if (status_completed) return;
