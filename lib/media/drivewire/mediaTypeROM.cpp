@@ -1,5 +1,4 @@
 #ifdef BUILD_COCO
-#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
 
 #include "mediaTypeROM.h"
 
@@ -42,6 +41,7 @@ mediatype_t MediaTypeROM::mount(fnFile *f, uint32_t disksize)
     _mediatype = MEDIATYPE_ROM;
     _media_image_size = disksize;
 
+#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
     if (SYSTEM_BUS.isBoIP())
     {
         Debug_printv("ROM media requires a real pico; not supported over BoIP");
@@ -79,7 +79,10 @@ mediatype_t MediaTypeROM::mount(fnFile *f, uint32_t disksize)
     Debug_printv("ROM transfer complete: %lu / %lu bytes", (unsigned long)sent, (unsigned long)disksize);
 
     return _mediatype;
+#else
+    Debug_printv("ROM mount not supported on this FujiNet hardware.");
+    return MEDIATYPE_UNKNOWN;
+#endif
 }
 
-#endif // PINMAP_FUJIVERSAL_DRIVEWIRE
 #endif // BUILD_COCO
