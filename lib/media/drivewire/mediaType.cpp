@@ -63,6 +63,12 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
         {
             return MEDIATYPE_VDK;
         }
+#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+        else if (strcasecmp(ext, "ROM") == 0 || strcasecmp(ext, "CCC") == 0)
+        {
+            return MEDIATYPE_ROM;
+        }
+#endif
     }
     return MEDIATYPE_UNKNOWN;
 }

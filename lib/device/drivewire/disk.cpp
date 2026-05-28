@@ -48,6 +48,11 @@ mediatype_t drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disks
     case MEDIATYPE_VDK:
         _media = new MediaTypeVDK();
         break;
+#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+    case MEDIATYPE_ROM:
+        _media = new MediaTypeROM();
+        break;
+#endif
     default:
         device_active = false;
         break;

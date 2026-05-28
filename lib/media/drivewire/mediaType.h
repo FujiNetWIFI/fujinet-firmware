@@ -15,7 +15,8 @@ enum mediatype_t
     MEDIATYPE_UNKNOWN = 0,
     MEDIATYPE_DSK,
     MEDIATYPE_MRM,
-    MEDIATYPE_VDK,    
+    MEDIATYPE_VDK,
+    MEDIATYPE_ROM,
     MEDIATYPE_COUNT
 };
 
