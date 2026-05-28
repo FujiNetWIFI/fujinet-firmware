@@ -2,6 +2,8 @@
 
 #include "sioFuji.h"
 #include "httpService.h"
+#include "fsFlash.h"
+#include "fnFsSD.h"
 #include "utils.h"
 #include "base64.h"
 #include "../../qrcode/qrmanager.h"
@@ -514,6 +516,57 @@ void sioFuji::sio_set_hsio_index()
     }
 
     transaction_complete();
+}
+
+// Mounts the desired boot disk, honoring alternate SD config and CONFIG-NG settings.
+void sioFuji::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
+                                 DISK_DEVICE *disk_dev)
+{
+    if (image_id != 0)
+    {
+        fujiDevice::insert_boot_device(image_id, disk_type, disk_dev);
+        return;
+    }
+
+    std::string altconfigfile = Config.get_config_filename();
+    fnFile *fBoot = nullptr;
+    size_t image_size = 0;
+    std::string boot_img;
+
+    if (!altconfigfile.empty() && fnSDFAT.running())
+    {
+        fBoot = fnSDFAT.fnfile_open(altconfigfile.c_str());
+        if (fBoot != nullptr)
+        {
+            boot_img = altconfigfile;
+            image_size = FileSystem::filesize(fBoot);
+            Debug_printf("Mounted Alternate CONFIG %s\n", boot_img.c_str());
+            disk_dev->mount(fBoot, boot_img.c_str(), image_size, DISK_ACCESS_MODE_READ, disk_type);
+            disk_dev->is_config_device = true;
+            return;
+        }
+    }
+
+    if (Config.get_general_config_ng())
+    {
+        boot_img = "/autorun-cng" + _diskImageExtension;
+        Debug_printf("Mounted CONFIG-NG\n");
+    }
+    else
+    {
+        boot_img = "/autorun" + _diskImageExtension;
+    }
+
+    fBoot = fsFlash.fnfile_open(boot_img.c_str());
+    if (fBoot == nullptr)
+    {
+        Debug_printf("Failed to open boot disk image: %s\n", boot_img.c_str());
+        return;
+    }
+
+    image_size = fsFlash.filesize(fBoot);
+    disk_dev->mount(fBoot, boot_img.c_str(), image_size, DISK_ACCESS_MODE_READ, disk_type);
+    disk_dev->is_config_device = true;
 }
 
 // Initializes base settings and adds our devices to the SIO bus

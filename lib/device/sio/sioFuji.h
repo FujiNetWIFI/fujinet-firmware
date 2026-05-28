@@ -94,6 +94,8 @@ protected:
 public:
     sioFuji();
     void setup() override;
+    void insert_boot_device(uint8_t image_id, mediatype_t disk_type,
+                            DISK_DEVICE *disk_dev) override;
 
     // Used by sio.cpp
     void debug_tape();
