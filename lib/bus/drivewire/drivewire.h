@@ -198,17 +198,6 @@ private:
     std::deque<uint8_t> _dbc_pushback;
 #endif
 
-    int _readByte() {
-#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
-        if (!_dbc_pushback.empty()) {
-            uint8_t b = _dbc_pushback.front();
-            _dbc_pushback.pop_front();
-            return b;
-        }
-#endif
-        return _port->read();
-    }
-
     virtualDevice *_activeDev = nullptr;
     drivewireModem *_modemDev = nullptr;
     drivewireFuji *_fujiDev = nullptr;
@@ -364,15 +353,9 @@ public:
         return _port->read(buffer, length);
 #endif
     }
-    size_t read() {
-#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
-        if (!_dbc_pushback.empty()) {
-            uint8_t b = _dbc_pushback.front();
-            _dbc_pushback.pop_front();
-            return b;
-        }
-#endif
-        return _port->read();
+    int read() {
+        uint8_t b;
+        return read(&b, 1) == 1 ? b : -1;
     }
     size_t write(const void *buffer, size_t length) { return _port->write(buffer, length); }
     size_t write(int n) { return _port->write(n); }

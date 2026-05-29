@@ -543,7 +543,7 @@ void systemBus::op_namedobj_mnt()
 // Read and process a command frame from DRIVEWIRE
 void systemBus::_drivewire_process_cmd()
 {
-    int c = _readByte();
+    int c = read();
     if (c < 0)
     {
         Debug_println("Failed to read cmd!");
