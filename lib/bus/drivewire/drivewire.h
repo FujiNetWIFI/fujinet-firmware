@@ -24,6 +24,10 @@
 #include "UARTChannel.h"
 #include "ACMChannel.h"
 #include "fujiDeviceID.h"
+#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+#include "../rs232/FujiBusPacket.h"
+#include <deque>
+#endif
 
 #ifdef ESP32_PLATFORM
 #include <freertos/FreeRTOS.h>
@@ -190,6 +194,10 @@ private:
 #endif /* FUJINET_OVER_USB */
     BeckerSocket _becker;
 
+#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+    std::deque<uint8_t> _dbc_pushback;
+#endif
+
     virtualDevice *_activeDev = nullptr;
     drivewireModem *_modemDev = nullptr;
     drivewireFuji *_fujiDev = nullptr;
@@ -331,12 +339,57 @@ public:
 
     // Everybody thinks "oh I know how a serial port works, I'll just
     // access it directly and bypass the bus!" ಠ_ಠ
-    size_t read(void *buffer, size_t length) { return _port->read(buffer, length); }
-    size_t read() { return _port->read(); }
+    size_t read(void *buffer, size_t length) {
+#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+        size_t n = 0;
+        while (!_dbc_pushback.empty() && n < length) {
+            ((uint8_t *)buffer)[n++] = _dbc_pushback.front();
+            _dbc_pushback.pop_front();
+        }
+        if (n < length)
+            n += _port->read((uint8_t *)buffer + n, length - n);
+        return n;
+#else
+        return _port->read(buffer, length);
+#endif
+    }
+    int read() {
+        uint8_t b;
+        return read(&b, 1) == 1 ? b : -1;
+    }
     size_t write(const void *buffer, size_t length) { return _port->write(buffer, length); }
     size_t write(int n) { return _port->write(n); }
-    size_t available() { return _port->available(); }
+    size_t available() {
+#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+        return _dbc_pushback.size() + _port->available();
+#else
+        return _port->available();
+#endif
+    }
     void flushOutput() { _port->flushOutput(); }
+
+#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+    std::unique_ptr<FujiBusPacket> readBusPacket(int first = -1);
+    void writeBusPacket(FujiBusPacket &packet);
+
+    template<typename... Args>
+    std::unique_ptr<FujiBusPacket> sendCommand(fujiDeviceID_t device,
+                                               fujiCommandID_t command,
+                                               Args&&... args)
+    {
+        FujiBusPacket packet(device, command, std::forward<Args>(args)...);
+        writeBusPacket(packet);
+        return readBusPacket();
+    }
+
+    std::unique_ptr<FujiBusPacket> sendCommand(fujiDeviceID_t device,
+                                               fujiCommandID_t command,
+                                               void *buf, size_t len)
+    {
+        std::string data(reinterpret_cast<const char *>(buf), static_cast<size_t>(len));
+        return sendCommand(device, command, std::move(data));
+    }
+#endif /* PINMAP_FUJIVERSAL_DRIVEWIRE */
 
 #ifdef ESP32_PLATFORM
     QueueHandle_t qDrivewireMessages = nullptr;

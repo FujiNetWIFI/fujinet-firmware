@@ -63,6 +63,10 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
         {
             return MEDIATYPE_VDK;
         }
+        else if (strcasecmp(ext, "ROM") == 0 || strcasecmp(ext, "CCC") == 0)
+        {
+            return MEDIATYPE_ROM;
+        }
     }
     return MEDIATYPE_UNKNOWN;
 }

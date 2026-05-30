@@ -543,7 +543,7 @@ void systemBus::op_namedobj_mnt()
 // Read and process a command frame from DRIVEWIRE
 void systemBus::_drivewire_process_cmd()
 {
-    int c = _port->read();
+    int c = read();
     if (c < 0)
     {
         Debug_println("Failed to read cmd!");
@@ -712,7 +712,7 @@ void systemBus::service()
         }
     }
 
-    if (_port->available())
+    if (available())
         _drivewire_process_cmd();
 }
 
@@ -904,4 +904,45 @@ void systemBus::setBaudrate(int baud)
     _drivewireBaud = baud;
     //_modemDev->get_uart()->set_baudrate(baud); // TODO COME BACK HERE.
 }
+
+#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+std::unique_ptr<FujiBusPacket> systemBus::readBusPacket(int first)
+{
+    ByteBuffer packet;
+    int count = 0;
+
+    auto processByte = [&](int val) -> bool
+    {
+        if (val < 0)
+            return false;
+        // Pre-frame bytes are CoCo DriveWire traffic on the shared link;
+        // stash them for the bus reader instead of letting them be discarded.
+        if (count == 0 && val != SLIP_END) {
+            _dbc_pushback.push_back(static_cast<uint8_t>(val));
+            return true;
+        }
+        packet.push_back(static_cast<uint8_t>(val));
+        if (val == SLIP_END)
+            count++;
+        return true;
+    };
+
+    processByte(first);
+
+    while (count < 2)
+    {
+        if (!processByte(_port->read()))
+            break;
+    }
+
+    return FujiBusPacket::fromSerialized(packet);
+}
+
+void systemBus::writeBusPacket(FujiBusPacket &packet)
+{
+    ByteBuffer encoded = packet.serialize();
+    _port->write(encoded.data(), encoded.size());
+}
+#endif /* PINMAP_FUJIVERSAL_DRIVEWIRE */
+
 #endif               /* BUILD_COCO */
