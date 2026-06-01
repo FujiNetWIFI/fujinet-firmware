@@ -46,6 +46,12 @@ struct adamnet_message_t
 // the whole payload, so there is no following command to lose.
 #define ECHO_DRAIN_MAX 64
 
+// How long to wait for a straggler echo byte to land before giving up. Above
+// the few-us RX commit latency after a transmit, well below the master's ~80us
+// turnaround -- so a lost echo byte is never "made up" from the master's next
+// command.
+#define ECHO_SETTLE_US 50
+
 #define MN_RESET 0x00   // command.control (reset)
 #define MN_STATUS 0x01  // command.control (status)
 #define MN_ACK 0x02     // command.control (ack)

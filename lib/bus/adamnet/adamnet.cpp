@@ -191,10 +191,9 @@ void systemBus::min_turnaround()
 void systemBus::drain_echo(size_t n)
 {
     // Everything we transmit on the one-wire bus echoes back into our own RX.
-    // For a response that fits the RX ring, consume exactly the bytes we sent so
-    // a command the master has already started survives for the next service
-    // pass. A larger response overflows the ring during its long transmit, so
-    // fall back to idle-detection draining (safe: the master blocks on it).
+    // Consume our echo so the next service pass starts on a real command byte.
+    // A response larger than the RX ring overflows it during the long transmit,
+    // so fall back to idle-detection draining (safe: the master blocks on it).
     if (n == 0)
         return;
     if (n > ECHO_DRAIN_MAX)
@@ -202,8 +201,33 @@ void systemBus::drain_echo(size_t n)
         wait_for_idle();
         return;
     }
+
+    // The echo is already in RX after flushOutput(), so take the bytes actually
+    // present, capped at the count we sent. Never block waiting for a byte that
+    // may have been lost to a bus glitch: doing so could swallow the master's
+    // next command and desync the stream (misframing later reads as a phantom
+    // command). Reading at most n also leaves a fast-following master command
+    // intact.
     uint8_t scratch[ECHO_DRAIN_MAX];
-    _port.read(scratch, n);
+    size_t got = 0;
+    int64_t last = esp_timer_get_time();
+
+    while (got < n)
+    {
+        size_t avail = _port.available();
+        if (avail)
+        {
+            size_t take = n - got;
+            if (take > avail)
+                take = avail;
+            got += _port.read(scratch, take);
+            last = esp_timer_get_time();
+        }
+        else if (esp_timer_get_time() - last > ECHO_SETTLE_US)
+        {
+            break; // straggler window elapsed; don't wait for a lost echo byte
+        }
+    }
 }
 
 void virtualDevice::adamnet_process(uint8_t b)
