@@ -10,6 +10,7 @@
 #endif
 
 #include "../../include/debug.h"
+#include "fsFlash.h"
 
 
 // Returns byte offset of given sector number
@@ -73,13 +74,25 @@ error_is_true MediaTypeDDP::write(uint32_t blockNum, bool verify)
 
     _media_last_block = INVALID_SECTOR_VALUE;
 
-    if (_media_fileh->_flags == 0x1484) // mounted R/O, attempt HS R/W
+    // The boot/config DDP is mounted read-only; to persist a write (e.g. a game
+    // saving a high score) reopen it read/write on the flash filesystem where
+    // those images live. (_media_host was never wired up, so the old reopen via
+    // it dereferenced null.)
+    bool hs_mode = (_media_fileh->_flags == 0x1484);
+    if (hs_mode)
     {
         Debug_printf("High score mode activated, attempting write open\r\n");
-        
+
         oldFileh = _media_fileh;
-        hsFileh = _media_host->file_open(_disk_filename, _disk_filename, strlen(_disk_filename) + 1, "r+");
-        _media_fileh = hsFileh;   
+        hsFileh = fsFlash.file_open(_disk_filename, "r+");
+        if (hsFileh == nullptr)
+        {
+            Debug_printf("HS write open failed for %s; leaving read-only\r\n", _disk_filename);
+            _media_fileh = oldFileh;
+            _media_controller_status = 2;
+            RETURN_ERROR_AS_TRUE();
+        }
+        _media_fileh = hsFileh;
     }
 
     // Perform a seek if we're writing to the sector after the last one
@@ -91,6 +104,7 @@ error_is_true MediaTypeDDP::write(uint32_t blockNum, bool verify)
         {
             Debug_printf("::write seek error %d\r\n", e);
             _media_controller_status=2;
+            if (hs_mode) { fclose(hsFileh); _media_fileh = oldFileh; }
             RETURN_ERROR_AS_TRUE();
         }
 //    }
@@ -99,10 +113,11 @@ error_is_true MediaTypeDDP::write(uint32_t blockNum, bool verify)
     e += fwrite(&_media_blockbuff[256], 1, 256, _media_fileh);
     e += fwrite(&_media_blockbuff[512], 1, 256, _media_fileh);
     e += fwrite(&_media_blockbuff[768], 1, 256, _media_fileh);
-    
+
     if (e != 1024)
     {
         Debug_printf("::write error %d, %d\r\n", e, errno);
+        if (hs_mode) { fclose(hsFileh); _media_fileh = oldFileh; }
         RETURN_ERROR_AS_TRUE();
     }
 
@@ -111,8 +126,8 @@ error_is_true MediaTypeDDP::write(uint32_t blockNum, bool verify)
     Debug_printf("DDP::write fsync:%d\r\n", ret);
 
     Debug_printv("media flags %x\n",_media_fileh->_flags);
-    
-    if (_media_fileh->_flags == 0x1484)
+
+    if (hs_mode)
     {
         Debug_printf("Closing high score sector.\r\n");
 

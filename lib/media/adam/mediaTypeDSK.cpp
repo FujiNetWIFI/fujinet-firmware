@@ -11,6 +11,7 @@
 #endif
 
 #include "../../include/debug.h"
+#include "fsFlash.h"
 
 #define INTERLEAVE 5 // 5:1 sector layout in image files (WHY?!?!!?)
 
@@ -87,12 +88,24 @@ error_is_true MediaTypeDSK::write(uint32_t blockNum, bool verify)
 
     std::pair<uint32_t, uint32_t> offsets = _block_to_offsets(blockNum);
 
-    if (_media_fileh->_flags == 0x1484) // mounted R/O, attempt HS R/W
+    // The boot/config image is mounted read-only; to persist a write (e.g. a
+    // game saving a high score) reopen it read/write on the flash filesystem
+    // where those images live. (_media_host was never wired up, so the old
+    // reopen via it dereferenced null.)
+    bool hs_mode = (_media_fileh->_flags == 0x1484);
+    if (hs_mode)
     {
         Debug_printf("High score mode activated, attempting write open\r\n");
 
         oldFileh = _media_fileh;
-        hsFileh = _media_host->file_open(_disk_filename, _disk_filename, strlen(_disk_filename) + 1, "r+");
+        hsFileh = fsFlash.file_open(_disk_filename, "r+");
+        if (hsFileh == nullptr)
+        {
+            Debug_printf("HS write open failed for %s; leaving read-only\r\n", _disk_filename);
+            _media_fileh = oldFileh;
+            _media_controller_status = 2;
+            RETURN_ERROR_AS_TRUE();
+        }
         _media_fileh = hsFileh;
     }
 
@@ -111,7 +124,7 @@ error_is_true MediaTypeDSK::write(uint32_t blockNum, bool verify)
     ret = fsync(fileno(_media_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
     Debug_printf("DSK::write fsync:%d\r\n", ret);
 
-    if (_media_fileh->_flags == 0x1484)
+    if (hs_mode)
     {
         Debug_printf("Closing high score sector.\r\n");
 
