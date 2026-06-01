@@ -141,6 +141,8 @@ void adamDisk::adamnet_control_send_block_num()
     for (uint16_t i = 0; i < 5; i++)
         x[i] = adamnet_recv();
 
+    adamnet_recv(); // CK -- consume the trailing checksum so the packet is fully read
+
     blockNum = x[3] << 24 | x[2] << 16 | x[1] << 8 | x[0];
 
     if (_media->num_blocks() < 0x10000UL) // Smaller than 64MB?
@@ -166,6 +168,7 @@ void adamDisk::adamnet_control_send_block_data()
         return;
 
     adamnet_recv_buffer(_media->_media_blockbuff, 1024);
+    adamnet_recv(); // CK -- consume the trailing checksum so the packet is fully read
     SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
     Debug_printf("Block Data Write\n");

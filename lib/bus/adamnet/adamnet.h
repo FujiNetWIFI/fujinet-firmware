@@ -30,6 +30,22 @@ struct adamnet_message_t
 // can't spin the bus task forever.
 #define ADAMNET_RECV_TIMEOUT_US 400
 
+// Minimum turnaround before driving the shared wire in response to a command.
+// Above the ~80us bus-contention floor, below the 200us STATUS deadline.
+#define ADAMNET_TURNAROUND_US 100
+
+// A response must reach the master within this long of the command (the 6801
+// allows ~400us for an ACK); a response that already missed its budget is
+// suppressed so it can't collide with the master moving on.
+#define ADAMNET_RESPONSE_DEADLINE_US 300
+
+// Largest response whose half-duplex echo still fits the RX ring, so it can be
+// drained deterministically by byte count. Larger responses (the 1024-byte
+// block payload) overflow the ring during the long transmit and are drained by
+// idle detection instead -- safe there because the master blocks waiting for
+// the whole payload, so there is no following command to lose.
+#define ECHO_DRAIN_MAX 64
+
 #define MN_RESET 0x00   // command.control (reset)
 #define MN_STATUS 0x01  // command.control (status)
 #define MN_ACK 0x02     // command.control (ack)
@@ -239,6 +255,10 @@ private:
 
     UARTChannel _port;
 
+    // Bytes transmitted while handling the current command; lets us drain
+    // exactly our own half-duplex bus echo afterward.
+    size_t _tx_count = 0;
+
     void _adamnet_process_cmd();
     void _adamnet_process_queue();
 
@@ -252,6 +272,21 @@ public:
      * @brief Wait for AdamNet bus to become idle.
      */
     void wait_for_idle();
+
+    /**
+     * @brief Hold off driving the shared one-wire bus until at least
+     *        ADAMNET_TURNAROUND_US after the current command, so the response
+     *        doesn't collide with the master still releasing the line.
+     */
+    void min_turnaround();
+
+    /**
+     * @brief Consume the half-duplex echo of a response we just transmitted.
+     *        @p n is the number of bytes sent; exactly that many are read back
+     *        and discarded so a following master command is left intact. A
+     *        response too large for the RX ring is drained by idle detection.
+     */
+    void drain_echo(size_t n);
 
     /**
      * stopwatch
@@ -284,8 +319,8 @@ public:
     // access it directly and bypass the bus!" ಠ_ಠ
     size_t read(void *buffer, size_t length) { return _port.read(buffer, length); }
     size_t read() { return _port.read(); }
-    size_t write(const void *buffer, size_t length) { return _port.write(buffer, length); }
-    size_t write(int n) { return _port.write(n); }
+    size_t write(const void *buffer, size_t length) { _tx_count += length; return _port.write(buffer, length); }
+    size_t write(int n) { _tx_count += 1; return _port.write(n); }
     size_t available() { return _port.available(); }
     void flush() { _port.flushOutput(); }
     size_t print(int n, int base = 10) { return _port.print(n, base); }

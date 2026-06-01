@@ -145,34 +145,26 @@ void virtualDevice::reset()
     Debug_printf("No Reset implemented for device %u\n", _devnum);
 }
 
+// doNotWaitForIdle skips the turnaround delay for callers that have already
+// paced themselves and need to respond immediately.
 void virtualDevice::adamnet_response_ack(bool doNotWaitForIdle)
 {
-    int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
-
     if (!doNotWaitForIdle)
-    {
-        SYSTEM_BUS.wait_for_idle();
-    }
+        SYSTEM_BUS.min_turnaround();
 
-    if (t < 300)
-    {
+    // Measure the deadline after the mandatory turnaround so it reflects the
+    // real elapsed time, not just processing latency.
+    if (esp_timer_get_time() - SYSTEM_BUS.start_time < ADAMNET_RESPONSE_DEADLINE_US)
         adamnet_send(0x90 | _devnum);
-    }
 }
 
 void virtualDevice::adamnet_response_nack(bool doNotWaitForIdle)
 {
-    int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
-
     if (!doNotWaitForIdle)
-    {
-        SYSTEM_BUS.wait_for_idle();
-    }
+        SYSTEM_BUS.min_turnaround();
 
-    if (t < 300)
-    {
+    if (esp_timer_get_time() - SYSTEM_BUS.start_time < ADAMNET_RESPONSE_DEADLINE_US)
         adamnet_send(0xC0 | _devnum);
-    }
 }
 
 void virtualDevice::adamnet_control_ready()
@@ -184,6 +176,34 @@ void systemBus::wait_for_idle()
 {
     _port.discardInput();
     fnSystem.yield();
+}
+
+void systemBus::min_turnaround()
+{
+    // Don't drive the shared wire until the master has had time to release it
+    // after sending its command; responding inside the contention window ORs
+    // our signal with the master's and corrupts the frame.
+    int64_t dt = esp_timer_get_time() - start_time;
+    if (dt >= 0 && dt < ADAMNET_TURNAROUND_US)
+        fnSystem.delay_microseconds(ADAMNET_TURNAROUND_US - dt);
+}
+
+void systemBus::drain_echo(size_t n)
+{
+    // Everything we transmit on the one-wire bus echoes back into our own RX.
+    // For a response that fits the RX ring, consume exactly the bytes we sent so
+    // a command the master has already started survives for the next service
+    // pass. A larger response overflows the ring during its long transmit, so
+    // fall back to idle-detection draining (safe: the master blocks on it).
+    if (n == 0)
+        return;
+    if (n > ECHO_DRAIN_MAX)
+    {
+        wait_for_idle();
+        return;
+    }
+    uint8_t scratch[ECHO_DRAIN_MAX];
+    _port.read(scratch, n);
 }
 
 void virtualDevice::adamnet_process(uint8_t b)
@@ -202,6 +222,8 @@ void virtualDevice::adamnet_response_status()
     status_response.cmd_dev = (NM_STATUS << 4) | _devnum;
 
     status_response.checksum = adamnet_checksum((uint8_t *) &status_response.length, 4);
+
+    SYSTEM_BUS.min_turnaround();
     adamnet_send_buffer((uint8_t *) &status_response, sizeof(status_response));
 }
 
@@ -239,6 +261,7 @@ void systemBus::_adamnet_process_cmd()
     b = _port.read();
     start_time = esp_timer_get_time();
     frame_error = false;
+    _tx_count = 0;
 
     uint8_t d = b & 0x0F;
 
@@ -255,7 +278,15 @@ void systemBus::_adamnet_process_cmd()
         fnLedManager.set(eLed::LED_BUS, false);
     }
 
-    wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
+    // Clear our half-duplex echo before the next service pass. When the command
+    // was fully handled we know exactly how many bytes we sent, so drain just
+    // our echo and leave a following master command intact. Otherwise (command
+    // for an unknown/disabled device, or an aborted packet) time-flush whatever
+    // unconsumed bytes remain on the bus.
+    if (_tx_count > 0 && !frame_error)
+        drain_echo(_tx_count);
+    else
+        wait_for_idle();
 }
 
 void systemBus::_adamnet_process_queue()
