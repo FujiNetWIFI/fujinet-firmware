@@ -25,6 +25,11 @@ struct adamnet_message_t
 
 #define ADAMNET_BAUDRATE 62500
 
+// Abort a stalled multi-byte receive after this long with no byte arriving
+// (~2.5 byte times). Bounds the half-duplex read so an aborted/garbled packet
+// can't spin the bus task forever.
+#define ADAMNET_RECV_TIMEOUT_US 400
+
 #define MN_RESET 0x00   // command.control (reset)
 #define MN_STATUS 0x01  // command.control (status)
 #define MN_ACK 0x02     // command.control (ack)
@@ -252,6 +257,13 @@ public:
      * stopwatch
      */
     int64_t start_time;
+
+    /**
+     * @brief Set true when a multi-byte receive times out mid-packet, so a
+     *        handler can abort the current transaction instead of acting on a
+     *        truncated payload. Cleared at the start of each command.
+     */
+    bool frame_error = false;
 
     int numDevices();
     void addDevice(virtualDevice *pDevice, uint8_t device_id);

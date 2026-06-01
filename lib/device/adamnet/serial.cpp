@@ -51,6 +51,9 @@ void adamSerial::adamnet_control_send()
 {
     next.len = adamnet_recv_length();
 
+    if (next.len > sizeof(next.data)) // clamp wire length to buffer
+        next.len = sizeof(next.data);
+
     adamnet_recv_buffer(next.data, next.len);
     adamnet_recv();
 

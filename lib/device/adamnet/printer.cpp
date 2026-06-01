@@ -102,6 +102,8 @@ void adamPrinter::adamnet_control_send()
     PrintItem pi;
 
     pi.len = adamnet_recv_length();
+    if (pi.len > sizeof(pi.buf)) // clamp wire length to buffer
+        pi.len = sizeof(pi.buf);
     adamnet_recv_buffer(pi.buf, pi.len);
     adamnet_recv(); // ck
 

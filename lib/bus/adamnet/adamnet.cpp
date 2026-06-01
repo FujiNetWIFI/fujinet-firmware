@@ -91,9 +91,20 @@ void virtualDevice::adamnet_send_buffer(uint8_t *buf, unsigned short len)
 uint8_t virtualDevice::adamnet_recv()
 {
     uint8_t b;
+    int64_t start = esp_timer_get_time();
 
+    // Half-duplex bus: if the master aborts a packet (reset, framing error,
+    // dropped byte) the remaining bytes never arrive. Bounding the wait keeps a
+    // stalled packet from spinning the bus task forever and tripping the WDT.
     while (SYSTEM_BUS.available() <= 0)
+    {
+        if (esp_timer_get_time() - start > ADAMNET_RECV_TIMEOUT_US)
+        {
+            SYSTEM_BUS.frame_error = true;
+            return 0;
+        }
         fnSystem.yield();
+    }
 
     b = SYSTEM_BUS.read();
 
@@ -227,6 +238,7 @@ void systemBus::_adamnet_process_cmd()
 
     b = _port.read();
     start_time = esp_timer_get_time();
+    frame_error = false;
 
     uint8_t d = b & 0x0F;
 
