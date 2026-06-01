@@ -171,6 +171,19 @@ void adamDisk::adamnet_control_send_block_data()
     adamnet_recv(); // CK -- consume the trailing checksum so the packet is fully read
     SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
+
+    // CONFIG / the boot image is read-only and must never be written back to.
+    // A write addressed to it is spurious (the master does not write the config
+    // disk), so consume the packet to stay in bus sync and ACK it, but protect
+    // the image -- do not write or reopen it.
+    if (is_config_device)
+    {
+        Debug_printf("Refusing spurious write to read-only config device, block %lu\n", blockNum);
+        blockNum = 0xFFFFFFFF;
+        _media->_media_last_block = 0xFFFFFFFE;
+        return;
+    }
+
     Debug_printf("Block Data Write\n");
 
     _media->write(blockNum, false);
