@@ -492,10 +492,19 @@ void adamFuji::adamnet_control_send()
         {
             uint8_t deviceSlot = adamnet_recv();
             char filename[256];
-            transaction_get(filename, s - 2);
+            uint16_t flen = (s > 2) ? (s - 2) : 0;
+            if (flen > sizeof(filename)) // clamp wire length to buffer
+                flen = sizeof(filename);
+            // WILL_GET: read the filename (rest of this frame) and THEN ACK. Going
+            // through the transaction model is what sends the ACK at all -- without
+            // it CONFIG never gets a response and re-sends SET_DEVICE_FULLPATH
+            // forever (the mount loop, leaving the slot empty).
+            transaction_begin(TRANS_STATE::WILL_GET);
+            transaction_get(filename, flen);
             fujicore_set_device_filename_success(deviceSlot, _fnDisks[deviceSlot].host_slot,
                                                  _fnDisks[deviceSlot].access_mode,
-                                                 std::string(filename, s - 2));
+                                                 std::string(filename, flen));
+            transaction_complete();
         }
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
