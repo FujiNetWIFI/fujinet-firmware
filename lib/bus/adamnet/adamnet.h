@@ -58,6 +58,10 @@ struct adamnet_message_t
 // Above the longest legitimate block transfer (~164ms), below a WiFi scan (>1s).
 #define ADAMNET_LONG_CMD_US 500000
 
+// Safety bound for wait_until_quiet(): far longer than a full 256-byte payload
+// streamed at bus speed (~41ms), so it never trips on a legitimate frame.
+#define ADAMNET_QUIET_TIMEOUT_US 100000
+
 #define MN_RESET 0x00   // command.control (reset)
 #define MN_STATUS 0x01  // command.control (status)
 #define MN_ACK 0x02     // command.control (ack)
@@ -291,6 +295,15 @@ public:
      *        doesn't collide with the master still releasing the line.
      */
     void min_turnaround();
+
+    /**
+     * @brief Wait until the master has stopped driving the wire (no new RX byte
+     *        for a turnaround period) before we transmit. Unlike wait_for_idle()
+     *        this does NOT discard -- a payload still streaming in (e.g. a
+     *        WILL_GET path) is left buffered for the handler to read. Avoids
+     *        ACKing mid-frame and corrupting the payload via bus contention.
+     */
+    void wait_until_quiet();
 
     /**
      * @brief Consume the half-duplex echo of a response we just transmitted.

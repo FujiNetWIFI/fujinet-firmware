@@ -19,10 +19,16 @@ private:
 
 protected:
     void transaction_begin(transState_t expectMoreData) override {
-        // Adam needs ACK ASAP and never sends error, so discard checksum and ACK here
+        // Adam never sends error, so discard checksum and ACK here.
         adamnet_recv(); // Discard CK
         SYSTEM_BUS.start_time = esp_timer_get_time();
-        adamnet_response_ack();
+        // Half-duplex: don't ACK until the master has stopped driving the wire,
+        // or our ACK ORs onto the rest of a frame still in flight and corrupts
+        // the payload (was mangling the directory path on WILL_GET commands).
+        // wait_until_quiet() does not discard, so a streaming WILL_GET payload
+        // stays buffered for transaction_get().
+        SYSTEM_BUS.wait_until_quiet();
+        adamnet_send(0x90 | _devnum); // RESPONSE.ACK (device 0x0F -> 0x9F)
     }
     void transaction_complete() override {}
     void transaction_error() override {}
