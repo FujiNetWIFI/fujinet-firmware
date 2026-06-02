@@ -60,8 +60,11 @@ void ESP32UARTChannel::begin(const ChannelConfig& conf)
     int uart_queue_size = 10;
     int intr_alloc_flags = 0;
 
-    // Install UART driver using an event queue here
-    uart_driver_install(_uart_num, uart_buffer_size, 0, uart_queue_size, &_uart_q,
+    // Install UART driver using an event queue here. A non-zero TX buffer makes
+    // uart_write_bytes() queue into an ISR-fed ring instead of streaming straight
+    // from the calling task, so a long transmit (e.g. a 1028-byte AdamNet block)
+    // won't underrun the TX FIFO when the bus task is preempted (WiFi/TNFS).
+    uart_driver_install(_uart_num, uart_buffer_size, conf.tx_buffer_size, uart_queue_size, &_uart_q,
                         intr_alloc_flags);
 
     controlPins = conf.pins;

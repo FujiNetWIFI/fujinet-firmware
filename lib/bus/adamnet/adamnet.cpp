@@ -369,6 +369,9 @@ void systemBus::setup()
                 .readTimeout(0.180)
                 .discardTimeout(0.180)
                 .rxThreshold(1)
+                // ISR-fed TX ring so a 1028-byte block response can't underrun
+                // the FIFO when the bus task is preempted by WiFi/TNFS.
+                .txBuffer(2048)
                 );
 }
 
