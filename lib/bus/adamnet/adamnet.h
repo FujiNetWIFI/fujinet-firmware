@@ -39,6 +39,15 @@ struct adamnet_message_t
 // suppressed so it can't collide with the master moving on.
 #define ADAMNET_RESPONSE_DEADLINE_US 300
 
+// A real Adam disk drive answers a block read more slowly than FujiNet can.
+// The 6801 master masks interrupts for the block transfer only once the device
+// has responded within the drive's normal window; answering too early leaves a
+// gap in which EOS's ~60Hz frame interrupt still runs its keyboard scan and
+// corrupts the inbound block. Pace the block-read responses to a real drive's
+// measured turnaround (command-end -> response-start).
+#define ADAMNET_DISK_RECV_TURNAROUND_US 256  // CONTROL.RECEIVE -> RESPONSE.ACK
+#define ADAMNET_DISK_SEND_TURNAROUND_US 200  // CONTROL.CLR     -> RESPONSE.SEND
+
 // Largest response whose half-duplex echo still fits the RX ring, so it can be
 // drained deterministically by byte count. Larger responses (the 1024-byte
 // block payload) overflow the ring during the long transmit and are drained by
@@ -295,6 +304,13 @@ public:
      *        doesn't collide with the master still releasing the line.
      */
     void min_turnaround();
+
+    /**
+     * @brief Hold off driving the wire until at least @p us microseconds after
+     *        the current command (measured from start_time). Lets a device pace
+     *        its response to match real hardware's turnaround.
+     */
+    void wait_turnaround(uint32_t us);
 
     /**
      * @brief Consume the half-duplex echo of a response we just transmitted.

@@ -128,10 +128,16 @@ void adamDisk::adamnet_control_receive()
     if (_media == nullptr)
         return;
 
-    if (_media->read(blockNum, nullptr))
-        adamnet_response_nack();
+    bool err = _media->read(blockNum, nullptr);
+
+    // Match a real drive's RECEIVE->ACK turnaround so the master masks
+    // interrupts for the coming block before we answer.
+    SYSTEM_BUS.wait_turnaround(ADAMNET_DISK_RECV_TURNAROUND_US);
+
+    if (err)
+        adamnet_response_nack(true);
     else
-        adamnet_response_ack();
+        adamnet_response_ack(true);
 }
 
 void adamDisk::adamnet_control_send_block_num()
@@ -231,6 +237,10 @@ void adamDisk::adamnet_response_send()
     b[1] = 0x04;
     b[2] = 0x00;
     b[1027] = c;
+
+    // Pace CLR->block to a real drive's turnaround (done after building the
+    // buffer so the B4 byte itself lands at the target, not the prep work).
+    SYSTEM_BUS.wait_turnaround(ADAMNET_DISK_SEND_TURNAROUND_US);
     adamnet_send_buffer(b, sizeof(b));
 }
 

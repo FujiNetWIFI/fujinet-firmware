@@ -178,14 +178,20 @@ void systemBus::wait_for_idle()
     fnSystem.yield();
 }
 
+void systemBus::wait_turnaround(uint32_t us)
+{
+    // Don't drive the shared wire until at least `us` after the command. Below
+    // the contention floor it avoids ORing onto a frame the master is still
+    // releasing; at a real drive's longer block-read turnaround it keeps us from
+    // answering before the master has masked interrupts for the transfer.
+    int64_t dt = esp_timer_get_time() - start_time;
+    if (dt >= 0 && dt < (int64_t)us)
+        fnSystem.delay_microseconds(us - dt);
+}
+
 void systemBus::min_turnaround()
 {
-    // Don't drive the shared wire until the master has had time to release it
-    // after sending its command; responding inside the contention window ORs
-    // our signal with the master's and corrupts the frame.
-    int64_t dt = esp_timer_get_time() - start_time;
-    if (dt >= 0 && dt < ADAMNET_TURNAROUND_US)
-        fnSystem.delay_microseconds(ADAMNET_TURNAROUND_US - dt);
+    wait_turnaround(ADAMNET_TURNAROUND_US);
 }
 
 void systemBus::drain_echo(size_t n)
