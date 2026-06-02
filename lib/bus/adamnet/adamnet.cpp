@@ -283,7 +283,8 @@ void systemBus::_adamnet_process_cmd()
     uint8_t b;
 
     b = _port.read();
-    start_time = esp_timer_get_time();
+    int64_t cmd_start = esp_timer_get_time();
+    start_time = cmd_start;
     frame_error = false;
     _tx_count = 0;
 
@@ -302,12 +303,18 @@ void systemBus::_adamnet_process_cmd()
         fnLedManager.set(eLed::LED_BUS, false);
     }
 
-    // Clear our half-duplex echo before the next service pass. When the command
-    // was fully handled we know exactly how many bytes we sent, so drain just
-    // our echo and leave a following master command intact. Otherwise (command
-    // for an unknown/disabled device, or an aborted packet) time-flush whatever
+    // A handler that blocked the bus task for a long time (e.g. a multi-second
+    // WiFi scan) leaves a backlog of the master's CONTROL.RECEIVE retries piled
+    // up in RX. Counting our echo off that backlog would desync, so flush to the
+    // next idle gap instead and let the post-command exchange start clean.
+    if (esp_timer_get_time() - cmd_start > ADAMNET_LONG_CMD_US)
+        wait_for_idle();
+    // Otherwise clear our half-duplex echo before the next service pass. When the
+    // command was fully handled we know exactly how many bytes we sent, so drain
+    // just our echo and leave a following master command intact. Otherwise
+    // (unknown/disabled device, or an aborted packet) time-flush whatever
     // unconsumed bytes remain on the bus.
-    if (_tx_count > 0 && !frame_error)
+    else if (_tx_count > 0 && !frame_error)
         drain_echo(_tx_count);
     else
         wait_for_idle();

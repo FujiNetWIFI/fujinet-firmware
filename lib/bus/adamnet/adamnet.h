@@ -52,6 +52,12 @@ struct adamnet_message_t
 // command.
 #define ECHO_SETTLE_US 50
 
+// A handler that blocked the bus task longer than this (e.g. a multi-second
+// WiFi scan) leaves a backlog of the master's CONTROL.RECEIVE retries in RX.
+// Past this threshold we resync to the next idle gap instead of counting echo.
+// Above the longest legitimate block transfer (~164ms), below a WiFi scan (>1s).
+#define ADAMNET_LONG_CMD_US 500000
+
 #define MN_RESET 0x00   // command.control (reset)
 #define MN_STATUS 0x01  // command.control (status)
 #define MN_ACK 0x02     // command.control (ack)
