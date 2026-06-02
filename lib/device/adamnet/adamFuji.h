@@ -16,24 +16,51 @@ class adamFuji : public fujiDevice
 {
 private:
     bool new_disk_completed = false;
+    bool _ack_deferred = false;
 
 protected:
-    void transaction_begin(transState_t expectMoreData) override {
-        // Adam never sends error, so discard checksum and ACK here.
-        adamnet_recv(); // Discard CK
+    // Consume the trailing checksum and ACK, once the full payload has been read.
+    void deferred_ack() {
+        adamnet_recv(); // CK
         SYSTEM_BUS.start_time = esp_timer_get_time();
-        // Half-duplex: don't ACK until the master has stopped driving the wire,
-        // or our ACK ORs onto the rest of a frame still in flight and corrupts
-        // the payload (was mangling the directory path on WILL_GET commands).
-        // wait_until_quiet() does not discard, so a streaming WILL_GET payload
-        // stays buffered for transaction_get().
-        SYSTEM_BUS.wait_until_quiet();
-        adamnet_send(0x90 | _devnum); // RESPONSE.ACK (device 0x0F -> 0x9F)
+        adamnet_response_ack();
+        _ack_deferred = false;
+    }
+    void transaction_begin(transState_t expectMoreData) override {
+        SYSTEM_BUS.start_time = esp_timer_get_time();
+        if (expectMoreData == TRANS_STATE::WILL_GET)
+        {
+            // The data transaction_get() will read arrives in THIS same one-wire
+            // CONTROL.SEND frame (cmd + slot + path + CK, all together). Defer the
+            // ACK until after we've read it: ACKing mid-frame ORs our 0x9F onto
+            // the inbound payload and corrupts it (was mangling the directory
+            // path). No CK to discard here either -- it's at the end of the frame.
+            _ack_deferred = true;
+        }
+        else
+        {
+            // No payload follows; the next byte is the checksum.
+            adamnet_recv(); // Discard CK
+            adamnet_response_ack();
+        }
     }
     void transaction_complete() override {}
-    void transaction_error() override {}
+    void transaction_error() override {
+        // Command rejected before reading its payload (e.g. bad host slot): drain
+        // the unread remainder of the frame so the bus stays in sync, then ACK
+        // (Adam never expects an error response).
+        if (_ack_deferred)
+        {
+            SYSTEM_BUS.wait_for_idle();
+            SYSTEM_BUS.start_time = esp_timer_get_time();
+            adamnet_response_ack();
+            _ack_deferred = false;
+        }
+    }
     success_is_true transaction_get(void *data, size_t len) override {
         unsigned short rlen = adamnet_recv_buffer((uint8_t *) data, len);
+        if (_ack_deferred)
+            deferred_ack();
         RETURN_SUCCESS_IF(rlen == len);
     }
     void transaction_put(const void *data, size_t len, bool err=false) override {

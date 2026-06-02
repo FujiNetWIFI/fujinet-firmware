@@ -188,34 +188,6 @@ void systemBus::min_turnaround()
         fnSystem.delay_microseconds(ADAMNET_TURNAROUND_US - dt);
 }
 
-void systemBus::wait_until_quiet()
-{
-    // Wait until the master has stopped driving the shared wire before we
-    // transmit, so our response can't OR onto a frame still in flight. Unlike
-    // wait_for_idle() this does NOT discard: calling available() pulls any bytes
-    // still streaming in (e.g. a WILL_GET path) into the FIFO where the handler
-    // can read them. We consider the bus quiet once no new byte has arrived for a
-    // turnaround period.
-    int64_t start = esp_timer_get_time();
-    int64_t quiet_since = start;
-    size_t seen = _port.available();
-
-    while (true)
-    {
-        int64_t now = esp_timer_get_time();
-        size_t avail = _port.available();
-        if (avail != seen)
-        {
-            seen = avail;
-            quiet_since = now;
-        }
-        if (now - quiet_since >= ADAMNET_TURNAROUND_US)
-            break;
-        if (now - start >= ADAMNET_QUIET_TIMEOUT_US)
-            break; // safety: master stuck driving; don't hang the bus task
-    }
-}
-
 void systemBus::drain_echo(size_t n)
 {
     // Everything we transmit on the one-wire bus echoes back into our own RX.
