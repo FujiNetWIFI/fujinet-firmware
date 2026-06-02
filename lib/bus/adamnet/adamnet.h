@@ -52,11 +52,15 @@ struct adamnet_message_t
 // command.
 #define ECHO_SETTLE_US 50
 
-// A handler that blocked the bus task longer than this (e.g. a multi-second
-// WiFi scan) leaves a backlog of the master's CONTROL.RECEIVE retries in RX.
-// Past this threshold we resync to the next idle gap instead of counting echo.
-// Above the longest legitimate block transfer (~164ms), below a WiFi scan (>1s).
-#define ADAMNET_LONG_CMD_US 500000
+// A handler that blocked the bus task longer than this leaves a backlog of the
+// master's CONTROL.RECEIVE retries piled up in RX (it retries every ~2ms once it
+// has ACKed our command and is waiting on the response). Past this threshold we
+// resync to the next idle gap instead of counting echo. Set above fast cached
+// reads / single-byte handshakes (sub-millisecond, where the master proceeds
+// within a turnaround and a precise echo drain matters), but below a slow
+// network round-trip -- a TNFS dir_open or per-entry stat runs tens of ms and
+// must trigger the resync, or the directory-entry response desyncs.
+#define ADAMNET_LONG_CMD_US 10000
 
 #define MN_RESET 0x00   // command.control (reset)
 #define MN_STATUS 0x01  // command.control (status)
