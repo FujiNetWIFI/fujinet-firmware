@@ -230,16 +230,10 @@ void adamDisk::adamnet_control_send_block_data()
     if (_media == nullptr)
         return;
 
-    // The 6801 master pauses up to ~220us between bytes mid-write (it services its
-    // own ~60Hz keyboard-scan ISR), which exceeds the 180us inter-byte read timeout
-    // and truncates this 1024-byte receive -- leaving the tail of the block buffer
-    // stale (proven on the wire: short data SENDs == corrupted block tails). Widen
-    // the gap tolerance for just this fixed-length receive; dataIn still returns the
-    // instant all 1024 bytes are in, so a normal write isn't slowed.
-    double saved_to = SYSTEM_BUS.get_read_timeout();
-    SYSTEM_BUS.set_read_timeout(2.0); // ms; ride out the master's mid-stream pauses
+    // The 1024-byte receive rides out the 6801 master's ~220us mid-write pauses via
+    // the bus-wide readTimeout (see ChannelConfig in adamnet.cpp); without it the
+    // receive truncated and left the block-buffer tail stale.
     adamnet_recv_buffer(_media->_media_blockbuff, 1024);
-    SYSTEM_BUS.set_read_timeout(saved_to);
     adamnet_recv(); // CK -- consume the trailing checksum so the packet is fully read
     SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();

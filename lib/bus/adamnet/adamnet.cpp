@@ -391,7 +391,17 @@ void systemBus::setup()
                 .deviceID(FN_UART_BUS)
                 .baud(ADAMNET_BAUDRATE)
                 .inverted(true)
-                .readTimeout(0.180)
+                // Inter-byte gap tolerance for a KNOWN-LENGTH receive (read(buf,n),
+                // e.g. a device receiving a block/print/network payload). The 6801
+                // master pauses up to ~220us between bytes mid-transfer when its
+                // ~60Hz keyboard-scan ISR fires; at the old 180us this returned the
+                // buffer truncated and the tail went stale (proven on disk writes:
+                // short data SENDs == corrupted block tails). We always know how
+                // many bytes we want, so this is only a stalled-transfer guard --
+                // make it generous; read() still returns the instant all n arrive.
+                .readTimeout(2.0)
+                // discardInput()'s bus-idle detector stays tight: this IS the
+                // ~160us AdamNet packet-boundary heuristic, unrelated to read(buf,n).
                 .discardTimeout(0.180)
                 .rxThreshold(1)
                 // ISR-fed TX ring so a 1028-byte block response can't underrun

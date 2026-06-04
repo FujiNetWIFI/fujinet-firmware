@@ -375,8 +375,6 @@ public:
     // access it directly and bypass the bus!" ಠ_ಠ
     size_t read(void *buffer, size_t length) { return _port.read(buffer, length); }
     size_t read() { return _port.read(); }
-    void set_read_timeout(double ms) { _port.setReadTimeout(ms); }
-    double get_read_timeout() { return _port.getReadTimeout(); }
     size_t write(const void *buffer, size_t length) { _tx_count += length; return _port.write(buffer, length); }
     size_t write(int n) { _tx_count += 1; return _port.write(n); }
     size_t available() { return _port.available(); }
