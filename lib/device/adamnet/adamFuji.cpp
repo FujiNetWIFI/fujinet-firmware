@@ -422,7 +422,7 @@ void adamFuji::adamnet_control_send()
             if (s > sizeof(cfg)) // clamp wire length to struct
                 s = sizeof(cfg);
             adamnet_recv_buffer((uint8_t *)&cfg, s);
-            fujicmd_net_set_ssid_success(cfg.ssid, cfg.password, false);
+            fujicmd_net_set_ssid_success(cfg.ssid, cfg.password, true);
         }
         break;
     case FUJICMD_GET_WIFISTATUS:
