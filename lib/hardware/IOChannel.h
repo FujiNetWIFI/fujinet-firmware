@@ -61,6 +61,13 @@ public:
     size_t read(void *buffer, size_t length);
     int read(void);
 
+    // Inter-byte gap tolerance for read(buf,len). Exposed so a known-length bus
+    // receive (a 1024-byte AdamNet block write) can widen it past the ~160us
+    // packet-idle default and ride out the 6801 master's mid-stream pauses
+    // (it still returns the instant all requested bytes are in).
+    void setReadTimeout(double ms) { read_timeout_ms = ms; }
+    double getReadTimeout() const { return read_timeout_ms; }
+
     size_t write(const void *buffer, size_t length);
     size_t write(uint8_t c);
     size_t write(const char *s);

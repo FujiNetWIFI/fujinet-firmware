@@ -19,6 +19,19 @@ private:
 
     unsigned long blockNum=INVALID_SECTOR_VALUE;
 
+    // Seek emulation state (see ADAMNET_DISK_SEEK_* in adamnet.h). Set at
+    // block-number time; CONTROL.RECEIVE stays silent until _seek_deadline.
+    // _seek_block + _last_blocknum_us distinguish a new request from the master's
+    // rapid same-block retries so the timer isn't reset forever / shared between
+    // blocks.
+    int64_t _seek_deadline = 0;
+    int64_t _last_blocknum_us = 0;
+    unsigned long _seek_block = INVALID_SECTOR_VALUE;
+    // Set true once a CONTROL.RECEIVE confirms the pending block# is a READ. The
+    // seek STATUS-silence applies only to reads; a write must keep STATUS answered
+    // or the master abandons the block before sending its data.
+    bool _seek_is_read = false;
+
     void adamnet_control_clr();
     void adamnet_control_receive();
     void adamnet_control_send();

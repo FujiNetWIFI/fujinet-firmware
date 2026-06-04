@@ -293,6 +293,7 @@ void systemBus::_adamnet_process_cmd()
     start_time = cmd_start;
     frame_error = false;
     _tx_count = 0;
+    stall_silent = false;
 
     uint8_t d = b & 0x0F;
 
@@ -313,7 +314,13 @@ void systemBus::_adamnet_process_cmd()
     // WiFi scan) leaves a backlog of the master's CONTROL.RECEIVE retries piled
     // up in RX. Counting our echo off that backlog would desync, so flush to the
     // next idle gap instead and let the post-command exchange start clean.
-    if (esp_timer_get_time() - cmd_start > ADAMNET_LONG_CMD_US)
+    if (stall_silent)
+        // The handler intentionally gave no response (disk seek stall) and the
+        // master is mid re-poll. We transmitted nothing, so there is no echo to
+        // drain; just yield (don't starve the UART/other tasks) and return. Do NOT
+        // discardInput() -- it would clear the FIFO and swallow the re-poll.
+        fnSystem.yield();
+    else if (esp_timer_get_time() - cmd_start > ADAMNET_LONG_CMD_US)
         wait_for_idle();
     // Otherwise clear our half-duplex echo before the next service pass. When the
     // command was fully handled we know exactly how many bytes we sent, so drain

@@ -39,14 +39,29 @@ struct adamnet_message_t
 // suppressed so it can't collide with the master moving on.
 #define ADAMNET_RESPONSE_DEADLINE_US 300
 
-// A real Adam disk drive answers a block read more slowly than FujiNet can.
-// The 6801 master masks interrupts for the block transfer only once the device
-// has responded within the drive's normal window; answering too early leaves a
-// gap in which EOS's ~60Hz frame interrupt still runs its keyboard scan and
-// corrupts the inbound block. Pace the block-read responses to a real drive's
-// measured turnaround (command-end -> response-start).
+// Pace the block-read handshake responses toward a real drive's measured
+// turnaround (command-end -> response-start).
+//
+// The 6801 master receives the block in a tight polled loop (MSTR6801 $FD36):
+// per byte it reads the SCI, DMA-copies into Z80 RAM, accumulates the checksum,
+// and loops. A single SCI framing/overrun error (TRCSR & $40) aborts the ENTIRE
+// block ($FD39 BCC). NOTE: an experiment adding a 60us+ inter-byte gap to the
+// block stream (giving the master ample per-byte margin) did NOT remove the
+// framing errors, so master receive-overrun is ruled out as the cause.
 #define ADAMNET_DISK_RECV_TURNAROUND_US 256  // CONTROL.RECEIVE -> RESPONSE.ACK
 #define ADAMNET_DISK_SEND_TURNAROUND_US 200  // CONTROL.CLR     -> RESPONSE.SEND
+
+// Seek emulation (Step 1: fixed window, stall-mechanism verification). The disk
+// stays silent on CONTROL.RECEIVE for this long after the block number arrives,
+// like a real drive seeking, so EOS's ~60Hz keyboard scan runs in the gap and the
+// (then EOS-masked) block stream stays clean. Must exceed one 16.6ms video frame
+// and sit well inside the master's RECEIVE-retry patience (measured >=61ms).
+#define ADAMNET_DISK_SEEK_US 22000
+// A block number re-arriving within this is the master retrying the SAME request
+// (~12.5ms apart) while we stall, not a new operation -- don't restart the seek
+// (would loop forever). Sits between the retry interval and a real next read
+// (>= one ~164ms block stream later; also re-seeks the double-read's 2nd pass).
+#define ADAMNET_DISK_SEEK_NEWOP_US 130000
 
 // Largest response whose half-duplex echo still fits the RX ring, so it can be
 // drained deterministically by byte count. Larger responses (the 1024-byte
@@ -332,6 +347,15 @@ public:
      */
     bool frame_error = false;
 
+    /**
+     * @brief Set true by a handler that intentionally produced NO response and
+     *        wants the master to re-poll (the disk seek stall). The bus task then
+     *        only yields and returns: nothing was transmitted so there is no echo
+     *        to drain, and it must NOT discardInput() (that 180us FIFO-clear eats
+     *        the master's re-poll). Cleared at the start of each command.
+     */
+    bool stall_silent = false;
+
     int numDevices();
     void addDevice(virtualDevice *pDevice, uint8_t device_id);
     void remDevice(virtualDevice *pDevice);
@@ -351,10 +375,28 @@ public:
     // access it directly and bypass the bus!" ಠ_ಠ
     size_t read(void *buffer, size_t length) { return _port.read(buffer, length); }
     size_t read() { return _port.read(); }
+    void set_read_timeout(double ms) { _port.setReadTimeout(ms); }
+    double get_read_timeout() { return _port.getReadTimeout(); }
     size_t write(const void *buffer, size_t length) { _tx_count += length; return _port.write(buffer, length); }
     size_t write(int n) { _tx_count += 1; return _port.write(n); }
     size_t available() { return _port.available(); }
     void flush() { _port.flushOutput(); }
+
+    // Protect a large response (a 1028-byte disk block) while it streams. On the
+    // half-duplex bus every transmitted byte echoes straight back into our own RX,
+    // so a full block injects ~1028 echo bytes over its 164ms send. At rxThreshold
+    // =1 that is ~1028 RX-FIFO interrupts competing inside the SHARED UART ISR with
+    // the TX-FIFO refill, jittering the outgoing bytes -- measured on FujiNet's own
+    // TX pin as ~28% framing errors during CP/M boot (DSK) vs ~0 on CONFIG (DDP).
+    // Raise the RX-full threshold for the duration so the echo coalesces into a
+    // handful of interrupts, then restore single-byte RX for low command latency.
+    // No real command can arrive mid-send (the master is busy receiving the block),
+    // and the echo is discarded afterward, so losing echo bytes is harmless.
+    void quiet_rx_for_send(bool on) {
+#ifdef ESP_PLATFORM
+        _port.setRXThreshold(on ? 120 : 1);
+#endif
+    }
     size_t print(int n, int base = 10) { return _port.print(n, base); }
     size_t print(const char *str) { return _port.print(str); }
     size_t print(const std::string &str) { return _port.print(str); }
