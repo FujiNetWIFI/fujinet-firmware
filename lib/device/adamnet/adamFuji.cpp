@@ -598,8 +598,10 @@ void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
     if (response[0])
     {
         // Adam is bonkers and if it already got any data we are going
-        // to ignore its request and tell it complete instead
+        // to ignore its request and tell it complete instead. We must
+        // still consume the CK byte and ACK so the bus stays in sync.
         Debug_printv("No soup for you!");
+        transaction_begin(TRANS_STATE::NO_GET);
         transaction_complete();
         return;
     }
