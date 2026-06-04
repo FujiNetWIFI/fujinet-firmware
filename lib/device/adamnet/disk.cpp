@@ -202,7 +202,19 @@ void adamDisk::adamnet_control_send_block_num()
     int64_t now = esp_timer_get_time();
     // Each new block# starts unclassified; a following RECEIVE marks it a read.
     _seek_is_read = false;
-    if (blockNum != _seek_block || now - _last_blocknum_us > ADAMNET_DISK_SEEK_NEWOP_US)
+    // Arm a fresh seek only for a genuinely new fetch. EOS's double-read asks for
+    // the SAME block twice: the 1st pass seeks+reads it into the buffer, the 2nd
+    // pass must deliver from cache WITHOUT re-seeking. Re-seeking the 2nd pass makes
+    // it re-stall and the master then abandons the block. The old gate let the 2nd
+    // pass re-arm once it arrived > NEWOP after the 1st -- fine on fast local media
+    // (2nd pass lands well inside NEWOP) but broken over TNFS, where the slow read
+    // pushes the 2nd pass past NEWOP for some blocks (network jitter), so only some
+    // delivered. Gating on "already cached" instead is independent of read latency.
+    // A genuinely new read of the same block comes after other blocks, so it is no
+    // longer cached (and _seek_block has moved) and re-arms correctly.
+    bool already_cached = (_media->_media_last_block == blockNum);
+    if (blockNum != _seek_block ||
+        (now - _last_blocknum_us > ADAMNET_DISK_SEEK_NEWOP_US && !already_cached))
     {
         _seek_block = blockNum;
         _seek_deadline = now + ADAMNET_DISK_SEEK_US;

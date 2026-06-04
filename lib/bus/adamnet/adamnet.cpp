@@ -315,11 +315,23 @@ void systemBus::_adamnet_process_cmd()
     // up in RX. Counting our echo off that backlog would desync, so flush to the
     // next idle gap instead and let the post-command exchange start clean.
     if (stall_silent)
+    {
         // The handler intentionally gave no response (disk seek stall) and the
         // master is mid re-poll. We transmitted nothing, so there is no echo to
-        // drain; just yield (don't starve the UART/other tasks) and return. Do NOT
+        // drain; just yield (don't starve the UART/other tasks). Do NOT
         // discardInput() -- it would clear the FIFO and swallow the re-poll.
-        fnSystem.yield();
+        //
+        // EXCEPT when the stall itself ran long because it did a blocking media
+        // read (a network/TNFS block fetch is 100s of ms, vs ~ms for SD). The
+        // master's CONTROL.RECEIVE re-polls piled up in RX during that read;
+        // replaying that stale backlog responds at the wrong times and desyncs
+        // the bus. Flush to the next idle gap and let the next exchange start
+        // clean -- the block is cached now, so the master's next RECEIVE delivers.
+        if (esp_timer_get_time() - cmd_start > ADAMNET_LONG_CMD_US)
+            wait_for_idle();
+        else
+            fnSystem.yield();
+    }
     else if (esp_timer_get_time() - cmd_start > ADAMNET_LONG_CMD_US)
         wait_for_idle();
     // Otherwise clear our half-duplex echo before the next service pass. When the
