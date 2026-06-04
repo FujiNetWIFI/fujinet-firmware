@@ -407,6 +407,21 @@ int _tnfs_fill_cache(tnfsMountInfo *m_info, tnfsFileHandleInfo *pFHI)
                 // Copy the actual number of bytes returned to us into our cache
                 // (offset by how many bytes we've already put in the cache)
                 uint16_t bytes_read = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + 1);
+
+                // A well-behaved server never returns more than we asked for. A
+                // stale/corrupt/truncated reply (seen on a flaky high-latency link)
+                // can carry a bogus length here; trusting it memcpys past the payload
+                // and underflows bytes_remaining_to_load (unsigned) so the next offset
+                // writes out of bounds -- silent data corruption, or worse. Reject it
+                // and fail the read so the upper layer retries instead of caching junk.
+                if (bytes_read > bytes_to_read)
+                {
+                    Debug_printf("_tnfs_fill_cache bogus read length %u > requested %u; rejecting\r\n",
+                                 bytes_read, bytes_to_read);
+                    error = -1;
+                    break;
+                }
+
                 memcpy(pFHI->cache + (sizeof(pFHI->cache) - bytes_remaining_to_load),
                        packet.payload + 3, bytes_read);
 
