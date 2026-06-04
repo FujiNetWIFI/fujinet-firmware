@@ -718,10 +718,16 @@ void adamNetwork::adamnet_response_send()
 
     if (response_len)
     {
+        // response_len can be a full 1024 bytes; on the half-duplex bus that whole
+        // burst echoes back into our own RX and, at rxThreshold=1, storms the shared
+        // UART ISR enough to jitter the outgoing bytes. Coalesce the echo for the
+        // duration of the send (same fix as the disk block stream).
+        SYSTEM_BUS.quiet_rx_for_send(true);
         adamnet_send(0xB0 | _devnum);
         adamnet_send_length(response_len);
         adamnet_send_buffer(response, response_len);
         adamnet_send(c);
+        SYSTEM_BUS.quiet_rx_for_send(false);
     }
     else
         adamnet_send(0xC0 | _devnum); // NAK!
