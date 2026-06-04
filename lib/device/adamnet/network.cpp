@@ -581,7 +581,7 @@ void adamNetwork::adamnet_control_send()
         json_parse();
         break;
     case NETCMD_QUERY:
-        json_query(cmd);
+        json_query(pkt_len);
         break;
 
     case NETCMD_RENAME:
