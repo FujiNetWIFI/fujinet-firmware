@@ -97,6 +97,14 @@ public:
         return _line;
     }
 
+    bool hasContent() const
+    {
+        for (int i = 0; i < 80; i++)
+            if (_line[i] > 0x20 && _line[i] < 0x7F)
+                return true;
+        return false;
+    }
+
     void put(char c)
     {
         switch (c)
@@ -136,9 +144,10 @@ private:
 
 protected:
     adamBidiBuffer bdb;
-   virtual void pdf_clear_modes() override {};
+    virtual void pdf_clear_modes() override {};
     void pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2);
     virtual void post_new_file() override;
+    virtual void pre_close_file() override;
 public:
     const char *modelname()  override 
     { 
