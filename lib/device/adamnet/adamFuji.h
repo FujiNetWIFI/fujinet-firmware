@@ -55,6 +55,7 @@ protected:
             deferred_ack();
         RETURN_SUCCESS_IF(rlen == len);
     }
+
     void transaction_put(const void *data, size_t len, bool err=false) override {
         memcpy(response, data, len);
         response_len = len;
@@ -64,7 +65,6 @@ protected:
                                            uint8_t maxlen) override;
 
     void adamnet_new_disk();               // 0xE7
-    void adamnet_write_app_key();          // 0xDE
     void adamnet_set_boot_config();        // 0xD9
     void adamnet_enable_device();          // 0xD5
     void adamnet_disable_device();         // 0xD4

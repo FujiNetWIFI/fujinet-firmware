@@ -69,40 +69,6 @@ void adamFuji::adamnet_set_boot_config()
     }
 }
 
-/*
- Write an "app key" to SD (ONLY!) storage.
-*/
-void adamFuji::adamnet_write_app_key()
-{
-    uint16_t creator = adamnet_recv_length();
-    uint8_t app = adamnet_recv();
-    uint8_t key = adamnet_recv();
-    uint8_t data[64];
-    char appkeyfilename[30];
-    FILE *fp;
-
-    snprintf(appkeyfilename, sizeof(appkeyfilename), "/FujiNet/%04hx%02hhx%02hhx.key", creator, app, key);
-
-    adamnet_recv_buffer(data, 64);
-    adamnet_recv(); // CK
-
-    Debug_printf("Fuji Cmd: WRITE APPKEY %s\n", appkeyfilename);
-
-    SYSTEM_BUS.start_time = esp_timer_get_time();
-    adamnet_response_ack();
-
-    fp = fnSDFAT.file_open(appkeyfilename, "w");
-
-    if (fp == nullptr)
-    {
-        Debug_printf("Could not open.\n");
-        return;
-    }
-
-    fwrite(data, sizeof(uint8_t), sizeof(data), fp);
-    fclose(fp);
-}
-
 // DEBUG TAPE
 void adamFuji::debug_tape()
 {
@@ -521,8 +487,14 @@ void adamFuji::adamnet_control_send()
     case FUJICMD_SET_BOOT_MODE:
         fujicmd_set_boot_mode(adamnet_recv(), MEDIATYPE_UNKNOWN, &bootdisk);
         break;
+    case FUJICMD_OPEN_APPKEY:
+        fujicmd_open_app_key();
+        break;
+    case FUJICMD_CLOSE_APPKEY:
+        fujicmd_close_app_key();
+        break;
     case FUJICMD_WRITE_APPKEY:
-        adamnet_write_app_key();
+        fujicmd_write_app_key(s-1,s-1);
         break;
     case FUJICMD_READ_APPKEY:
         fujicmd_read_app_key();
