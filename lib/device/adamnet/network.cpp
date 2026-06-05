@@ -105,6 +105,9 @@ void adamNetwork::open(unsigned short s)
     s--;
     s--;
 
+    if (s > sizeof(response)) // clamp wire length to buffer
+        s = sizeof(response);
+
     memset(response, 0, sizeof(response));
     adamnet_recv_buffer(response, s);
     adamnet_recv(); // checksum
@@ -246,6 +249,10 @@ fujiError_t adamNetwork::read_channel(unsigned short num_bytes)
 void adamNetwork::write(uint16_t num_bytes)
 {
     Debug_printf("!!! WRITE\n");
+
+    if (num_bytes > sizeof(response)) // clamp wire length to buffer
+        num_bytes = sizeof(response);
+
     memset(response, 0, sizeof(response));
 
     adamnet_recv_buffer(response, num_bytes);
@@ -344,6 +351,9 @@ void adamNetwork::set_prefix(unsigned short s)
     uint8_t prefixSpec[256];
     string prefixSpec_str;
 
+    if (s > sizeof(prefixSpec)) // clamp wire length to buffer
+        s = sizeof(prefixSpec);
+
     memset(prefixSpec, 0, sizeof(prefixSpec));
 
     adamnet_recv_buffer(prefixSpec, s);
@@ -406,6 +416,9 @@ void adamNetwork::set_login(uint16_t s)
 {
     uint8_t loginspec[256];
 
+    if (s > sizeof(loginspec)) // clamp wire length to buffer
+        s = sizeof(loginspec);
+
     memset(loginspec, 0, sizeof(loginspec));
 
     adamnet_recv_buffer(loginspec, s);
@@ -423,6 +436,9 @@ void adamNetwork::set_login(uint16_t s)
 void adamNetwork::set_password(uint16_t s)
 {
     uint8_t passwordspec[256];
+
+    if (s > sizeof(passwordspec)) // clamp wire length to buffer
+        s = sizeof(passwordspec);
 
     memset(passwordspec, 0, sizeof(passwordspec));
 
@@ -465,6 +481,9 @@ void adamNetwork::channel_mode()
 
 void adamNetwork::json_query(unsigned short s)
 {
+    if (s > sizeof(response)) // clamp wire length to buffer
+        s = sizeof(response);
+
     memset(response, 0, sizeof(response));
     response_len = 0;
 
@@ -517,6 +536,10 @@ void adamNetwork::adamnet_control_ack()
 void adamNetwork::adamnet_control_send()
 {
     uint16_t pkt_len = adamnet_recv_length(); // receive length
+
+    if (pkt_len == 0) // malformed: would underflow to 0xFFFF below
+        return;
+
     fujiCommandID_t cmd = (fujiCommandID_t) adamnet_recv();         // receive command
 
     pkt_len--; // Because we've popped the command off the stack
@@ -558,7 +581,7 @@ void adamNetwork::adamnet_control_send()
         json_parse();
         break;
     case NETCMD_QUERY:
-        json_query(cmd);
+        json_query(pkt_len);
         break;
 
     case NETCMD_RENAME:
@@ -695,10 +718,16 @@ void adamNetwork::adamnet_response_send()
 
     if (response_len)
     {
+        // response_len can be a full 1024 bytes; on the half-duplex bus that whole
+        // burst echoes back into our own RX and, at rxThreshold=1, storms the shared
+        // UART ISR enough to jitter the outgoing bytes. Coalesce the echo for the
+        // duration of the send (same fix as the disk block stream).
+        SYSTEM_BUS.quiet_rx_for_send(true);
         adamnet_send(0xB0 | _devnum);
         adamnet_send_length(response_len);
         adamnet_send_buffer(response, response_len);
         adamnet_send(c);
+        SYSTEM_BUS.quiet_rx_for_send(false);
     }
     else
         adamnet_send(0xC0 | _devnum); // NAK!
@@ -831,6 +860,9 @@ void adamNetwork::adamnet_set_timer_rate()
 
 void adamNetwork::process_fs(fujiCommandID_t cmd, unsigned pkt_len)
 {
+    if (pkt_len > sizeof(response)) // clamp wire length to buffer
+        pkt_len = sizeof(response);
+
     adamnet_recv_buffer(response, pkt_len);
     adamnet_recv(); // CK
 

@@ -53,6 +53,13 @@ void colecoprinter::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
     }
 }
 
+void colecoprinter::pre_close_file()
+{
+    if (bdb.hasContent())
+        line_output();
+    pdfPrinter::pre_close_file();
+}
+
 void colecoprinter::post_new_file()
 {
     shortname = "a1027";

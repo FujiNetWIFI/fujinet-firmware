@@ -55,13 +55,11 @@ void ESP32UARTChannel::begin(const ChannelConfig& conf)
     if (conf.isInverted)
         uart_set_line_inverse(_uart_num, UART_SIGNAL_TXD_INV | UART_SIGNAL_RXD_INV);
 
-    // Arduino default buffer size is 256
-    int uart_buffer_size = UART_HW_FIFO_LEN(uart_num) * 2;
-    int uart_queue_size = 10;
-    int intr_alloc_flags = 0;
+    int uart_buffer_size = 2048;
+    int uart_queue_size = 20;
+    int intr_alloc_flags = ESP_INTR_FLAG_IRAM;
 
-    // Install UART driver using an event queue here
-    uart_driver_install(_uart_num, uart_buffer_size, 0, uart_queue_size, &_uart_q,
+    uart_driver_install(_uart_num, uart_buffer_size, conf.tx_buffer_size, uart_queue_size, &_uart_q,
                         intr_alloc_flags);
 
     controlPins = conf.pins;

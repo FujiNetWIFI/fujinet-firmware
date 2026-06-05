@@ -12,6 +12,8 @@
 #include <cstring>
 #include "adamFuji.h"
 
+#include <driver/gpio.h>
+
 #define IDLE_TIME 180 // Idle tolerance in microseconds
 
 static QueueHandle_t reset_evt_queue = NULL;
@@ -65,6 +67,23 @@ static void adamnet_reset_intr_task(void *arg)
     }
 }
 
+// Dedicated AdamNet bus service task. 
+static void adamnet_bus_task(void *arg)
+{
+    systemBus *b = (systemBus *)arg;
+    int64_t last = esp_timer_get_time();
+    for (;;)
+    {
+        int64_t now = esp_timer_get_time();
+
+        if (now - last > ADAMNET_STALL_RESYNC_US && b->available())
+            b->wait_for_idle();
+        b->service();
+        last = esp_timer_get_time();
+        taskYIELD(); // cooperative; returns at once when no other core-1 task is ready
+    }
+}
+
 uint8_t adamnet_checksum(uint8_t *buf, unsigned short len)
 {
     uint8_t checksum = 0x00;
@@ -91,9 +110,17 @@ void virtualDevice::adamnet_send_buffer(uint8_t *buf, unsigned short len)
 uint8_t virtualDevice::adamnet_recv()
 {
     uint8_t b;
+    int64_t start = esp_timer_get_time();
 
     while (SYSTEM_BUS.available() <= 0)
+    {
+        if (esp_timer_get_time() - start > ADAMNET_RECV_TIMEOUT_US)
+        {
+            SYSTEM_BUS.frame_error = true;
+            return 0;
+        }
         fnSystem.yield();
+    }
 
     b = SYSTEM_BUS.read();
 
@@ -136,32 +163,20 @@ void virtualDevice::reset()
 
 void virtualDevice::adamnet_response_ack(bool doNotWaitForIdle)
 {
-    int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
-
     if (!doNotWaitForIdle)
-    {
-        SYSTEM_BUS.wait_for_idle();
-    }
+        SYSTEM_BUS.min_turnaround();
 
-    if (t < 300)
-    {
+    if (esp_timer_get_time() - SYSTEM_BUS.start_time < ADAMNET_RESPONSE_DEADLINE_US)
         adamnet_send(0x90 | _devnum);
-    }
 }
 
 void virtualDevice::adamnet_response_nack(bool doNotWaitForIdle)
 {
-    int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
-
     if (!doNotWaitForIdle)
-    {
-        SYSTEM_BUS.wait_for_idle();
-    }
+        SYSTEM_BUS.min_turnaround();
 
-    if (t < 300)
-    {
+    if (esp_timer_get_time() - SYSTEM_BUS.start_time < ADAMNET_RESPONSE_DEADLINE_US)
         adamnet_send(0xC0 | _devnum);
-    }
 }
 
 void virtualDevice::adamnet_control_ready()
@@ -173,6 +188,52 @@ void systemBus::wait_for_idle()
 {
     _port.discardInput();
     fnSystem.yield();
+}
+
+void systemBus::wait_turnaround(uint32_t us)
+{
+    // Don't drive the shared wire until at least `us` after the command.
+    int64_t dt = esp_timer_get_time() - start_time;
+    if (dt >= 0 && dt < (int64_t)us)
+        fnSystem.delay_microseconds(us - dt);
+}
+
+void systemBus::min_turnaround()
+{
+    wait_turnaround(ADAMNET_TURNAROUND_US);
+}
+
+void systemBus::drain_echo(size_t n)
+{
+    // Because: Everything we transmit on the one-wire bus echoes back into our own RX.
+    if (n == 0)
+        return;
+    if (n > ECHO_DRAIN_MAX)
+    {
+        wait_for_idle();
+        return;
+    }
+
+    uint8_t scratch[ECHO_DRAIN_MAX];
+    size_t got = 0;
+    int64_t last = esp_timer_get_time();
+
+    while (got < n)
+    {
+        size_t avail = _port.available();
+        if (avail)
+        {
+            size_t take = n - got;
+            if (take > avail)
+                take = avail;
+            got += _port.read(scratch, take);
+            last = esp_timer_get_time();
+        }
+        else if (esp_timer_get_time() - last > ECHO_SETTLE_US)
+        {
+            break; // straggler window elapsed; don't wait for a lost echo byte
+        }
+    }
 }
 
 void virtualDevice::adamnet_process(uint8_t b)
@@ -191,6 +252,8 @@ void virtualDevice::adamnet_response_status()
     status_response.cmd_dev = (NM_STATUS << 4) | _devnum;
 
     status_response.checksum = adamnet_checksum((uint8_t *) &status_response.length, 4);
+
+    SYSTEM_BUS.min_turnaround();
     adamnet_send_buffer((uint8_t *) &status_response, sizeof(status_response));
 }
 
@@ -226,7 +289,11 @@ void systemBus::_adamnet_process_cmd()
     uint8_t b;
 
     b = _port.read();
-    start_time = esp_timer_get_time();
+    int64_t cmd_start = esp_timer_get_time();
+    start_time = cmd_start;
+    frame_error = false;
+    _tx_count = 0;
+    stall_silent = false;
 
     uint8_t d = b & 0x0F;
 
@@ -243,7 +310,19 @@ void systemBus::_adamnet_process_cmd()
         fnLedManager.set(eLed::LED_BUS, false);
     }
 
-    wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
+    if (stall_silent)
+    {
+        if (esp_timer_get_time() - cmd_start > ADAMNET_LONG_CMD_US)
+            wait_for_idle();
+        else
+            fnSystem.yield();
+    }
+    else if (esp_timer_get_time() - cmd_start > ADAMNET_LONG_CMD_US)
+        wait_for_idle();
+    else if (_tx_count > 0 && !frame_error)
+        drain_echo(_tx_count);
+    else
+        wait_for_idle();
 }
 
 void systemBus::_adamnet_process_queue()
@@ -292,10 +371,20 @@ void systemBus::setup()
                 .deviceID(FN_UART_BUS)
                 .baud(ADAMNET_BAUDRATE)
                 .inverted(true)
-                .readTimeout(0.180)
+                .readTimeout(2.0)
                 .discardTimeout(0.180)
                 .rxThreshold(1)
+                .txBuffer(2048)
                 );
+}
+
+void systemBus::start_bus_task()
+{
+    xTaskCreatePinnedToCore(adamnet_bus_task, "adamnet_bus", ADAMNET_BUS_TASK_STACK,
+                            this, ADAMNET_BUS_TASK_PRIORITY, NULL, ADAMNET_BUS_TASK_CORE);
+
+    gpio_set_drive_capability((gpio_num_t)PIN_UART2_TX, GPIO_DRIVE_CAP_3);
+    Debug_printf("AdamNet TX (GPIO%d) drive strength set to MAX\n", PIN_UART2_TX);
 }
 
 void systemBus::shutdown()

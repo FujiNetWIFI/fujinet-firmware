@@ -19,6 +19,11 @@ private:
 
     unsigned long blockNum=INVALID_SECTOR_VALUE;
 
+    int64_t _seek_deadline = 0;
+    int64_t _last_blocknum_us = 0;
+    unsigned long _seek_block = INVALID_SECTOR_VALUE;
+    bool _seek_is_read = false;
+
     void adamnet_control_clr();
     void adamnet_control_receive();
     void adamnet_control_send();

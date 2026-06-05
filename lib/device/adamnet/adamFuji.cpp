@@ -419,8 +419,10 @@ void adamFuji::adamnet_control_send()
     case FUJICMD_SET_SSID:
         {
             SSIDConfig cfg;
+            if (s > sizeof(cfg)) // clamp wire length to struct
+                s = sizeof(cfg);
             adamnet_recv_buffer((uint8_t *)&cfg, s);
-            fujicmd_net_set_ssid_success(cfg.ssid, cfg.password, false);
+            fujicmd_net_set_ssid_success(cfg.ssid, cfg.password, true);
         }
         break;
     case FUJICMD_GET_WIFISTATUS:
@@ -490,10 +492,15 @@ void adamFuji::adamnet_control_send()
         {
             uint8_t deviceSlot = adamnet_recv();
             char filename[256];
-            transaction_get(filename, s - 2);
+            uint16_t flen = (s > 2) ? (s - 2) : 0;
+            if (flen > sizeof(filename)) // clamp wire length to buffer
+                flen = sizeof(filename);
+            transaction_begin(TRANS_STATE::WILL_GET);
+            transaction_get(filename, flen);
             fujicore_set_device_filename_success(deviceSlot, _fnDisks[deviceSlot].host_slot,
                                                  _fnDisks[deviceSlot].access_mode,
-                                                 std::string(filename, s - 2));
+                                                 std::string(filename, flen));
+            transaction_complete();
         }
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
@@ -586,9 +593,8 @@ void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
 {
     if (response[0])
     {
-        // Adam is bonkers and if it already got any data we are going
-        // to ignore its request and tell it complete instead
         Debug_printv("No soup for you!");
+        transaction_begin(TRANS_STATE::NO_GET);
         transaction_complete();
         return;
     }

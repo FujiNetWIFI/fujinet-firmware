@@ -819,7 +819,7 @@ size_t NetworkProtocolHTTP::available()
     switch (httpChannelMode)
     {
     case DATA:
-        avail = client->available();
+        avail = client->available() + receiveBuffer->size();
         break;
     case SET_HEADERS:
     case COLLECT_HEADERS:

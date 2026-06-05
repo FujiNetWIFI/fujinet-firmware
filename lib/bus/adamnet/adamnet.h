@@ -25,6 +25,43 @@ struct adamnet_message_t
 
 #define ADAMNET_BAUDRATE 62500
 
+// Abort a stalled multi-byte receive after this long with no byte arriving
+// (~2.5 byte times). 
+#define ADAMNET_RECV_TIMEOUT_US 400
+
+// Minimum turnaround before driving the shared wire in response to a command
+#define ADAMNET_TURNAROUND_US 150
+
+// A response must reach the master within this long of the command
+#define ADAMNET_RESPONSE_DEADLINE_US 300
+
+// Pace the block-read handshake responses toward a real drive's measured
+// turnaround (command-end -> response-start).
+#define ADAMNET_DISK_RECV_TURNAROUND_US 256  // CONTROL.RECEIVE -> RESPONSE.ACK
+#define ADAMNET_DISK_SEND_TURNAROUND_US 200  // CONTROL.CLR     -> RESPONSE.SEND
+
+// Seek emulation
+#define ADAMNET_DISK_SEEK_US 22000
+#define ADAMNET_DISK_SEEK_NEWOP_US 130000
+
+// Largest response whose half-duplex echo still fits the RX ring
+#define ECHO_DRAIN_MAX 64
+
+// How long to wait for a straggler echo byte to land before giving up. 
+#define ECHO_SETTLE_US 50
+
+// A handler that blocked the bus task longer than this leaves a backlog of the
+// master's CONTROL.RECEIVE retries piled up in RX (it retries every ~2ms once it
+// has ACKed our command and is waiting on the response). 
+#define ADAMNET_LONG_CMD_US 10000
+
+// The bus service runs in its own high-priority task
+#define ADAMNET_BUS_TASK_PRIORITY 19
+#define ADAMNET_BUS_TASK_CORE 1
+#define ADAMNET_BUS_TASK_STACK 8192
+
+#define ADAMNET_STALL_RESYNC_US 600
+
 #define MN_RESET 0x00   // command.control (reset)
 #define MN_STATUS 0x01  // command.control (status)
 #define MN_ACK 0x02     // command.control (ack)
@@ -234,12 +271,19 @@ private:
 
     UARTChannel _port;
 
+    // Bytes transmitted while handling the current command; lets us drain
+    // exactly our own half-duplex bus echo afterward.
+    size_t _tx_count = 0;
+
     void _adamnet_process_cmd();
     void _adamnet_process_queue();
 
 public:
     void setup();
     void service();
+    // Start the dedicated high-priority core-1 bus service task. Call once, after
+    // all devices are registered and disks mounted (BUILD_ADAM only).
+    void start_bus_task();
     void shutdown();
     void reset();
 
@@ -249,9 +293,47 @@ public:
     void wait_for_idle();
 
     /**
+     * @brief Hold off driving the shared one-wire bus until at least
+     *        ADAMNET_TURNAROUND_US after the current command, so the response
+     *        doesn't collide with the master still releasing the line.
+     */
+    void min_turnaround();
+
+    /**
+     * @brief Hold off driving the wire until at least @p us microseconds after
+     *        the current command (measured from start_time). Lets a device pace
+     *        its response to match real hardware's turnaround.
+     */
+    void wait_turnaround(uint32_t us);
+
+    /**
+     * @brief Consume the half-duplex echo of a response we just transmitted.
+     *        @p n is the number of bytes sent; exactly that many are read back
+     *        and discarded so a following master command is left intact. A
+     *        response too large for the RX ring is drained by idle detection.
+     */
+    void drain_echo(size_t n);
+
+    /**
      * stopwatch
      */
     int64_t start_time;
+
+    /**
+     * @brief Set true when a multi-byte receive times out mid-packet, so a
+     *        handler can abort the current transaction instead of acting on a
+     *        truncated payload. Cleared at the start of each command.
+     */
+    bool frame_error = false;
+
+    /**
+     * @brief Set true by a handler that intentionally produced NO response and
+     *        wants the master to re-poll (the disk seek stall). The bus task then
+     *        only yields and returns: nothing was transmitted so there is no echo
+     *        to drain, and it must NOT discardInput() (that 180us FIFO-clear eats
+     *        the master's re-poll). Cleared at the start of each command.
+     */
+    bool stall_silent = false;
 
     int numDevices();
     void addDevice(virtualDevice *pDevice, uint8_t device_id);
@@ -272,10 +354,17 @@ public:
     // access it directly and bypass the bus!" ಠ_ಠ
     size_t read(void *buffer, size_t length) { return _port.read(buffer, length); }
     size_t read() { return _port.read(); }
-    size_t write(const void *buffer, size_t length) { return _port.write(buffer, length); }
-    size_t write(int n) { return _port.write(n); }
+    size_t write(const void *buffer, size_t length) { _tx_count += length; return _port.write(buffer, length); }
+    size_t write(int n) { _tx_count += 1; return _port.write(n); }
     size_t available() { return _port.available(); }
     void flush() { _port.flushOutput(); }
+
+    // Protect a large response (a 1028-byte disk block) while it streams.
+    void quiet_rx_for_send(bool on) {
+#ifdef ESP_PLATFORM
+        _port.setRXThreshold(on ? 120 : 1);
+#endif
+    }
     size_t print(int n, int base = 10) { return _port.print(n, base); }
     size_t print(const char *str) { return _port.print(str); }
     size_t print(const std::string &str) { return _port.print(str); }

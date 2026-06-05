@@ -42,6 +42,7 @@ struct ChannelConfig
     double read_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
     double discard_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
     unsigned rx_threshold = 0;
+    unsigned tx_buffer_size = 0; // 0 = blocking TX; >FIFO enables ISR-fed ring (no underrun under task starvation)
     RS232ControlPins pins = {
 #ifdef PIN_RS232_RTS
         .rts = PIN_RS232_RTS,
@@ -104,6 +105,9 @@ struct ChannelConfig
     }
     ChannelConfig& rxThreshold(unsigned limit) {
         rx_threshold = limit; return *this;
+    }
+    ChannelConfig& txBuffer(unsigned bytes) {
+        tx_buffer_size = bytes; return *this;
     }
     ChannelConfig& rtsPin(int num) {
         pins.rts = num; return *this;
