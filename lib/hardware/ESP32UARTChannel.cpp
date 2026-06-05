@@ -55,29 +55,10 @@ void ESP32UARTChannel::begin(const ChannelConfig& conf)
     if (conf.isInverted)
         uart_set_line_inverse(_uart_num, UART_SIGNAL_TXD_INV | UART_SIGNAL_RXD_INV);
 
-    // The RX ring must outlast the half-duplex echo of a full 1028-byte block.
-    // While the bus task is parked in flushOutput() streaming a block response,
-    // every transmitted byte echoes back into our own RX and nothing drains it
-    // until the send completes. With only FIFO(128)+ring(256)=384 bytes of RX, the
-    // echo overflows ~60ms into the 164ms stream; the RX overflow plus the
-    // per-byte (rxThreshold=1) interrupt storm then starves the IRAM UART ISR's
-    // TX-FIFO refill -> the outgoing block underruns and breaks (measured on the
-    // wire: 215 gaps / 5 breaks / 330 framing errors inside ONE block at size 256;
-    // 0 at size 2048). 2048 > 1028 so the echo can't overflow the ring mid-stream.
     int uart_buffer_size = 2048;
     int uart_queue_size = 20;
-    // Put the UART ISR in IRAM (CONFIG_UART_ISR_IN_IRAM=y) so it keeps refilling
-    // the TX FIFO even while the flash cache is disabled -- which happens during
-    // internal-flash writes and WiFi PHY work. Without this, a non-IRAM ISR simply
-    // cannot run during those windows; the 128-byte TX FIFO drains (~20ms) and the
-    // in-flight block stream corrupts. This is the documented ESP32 fix for UART
-    // glitching under WiFi/flash load.
     int intr_alloc_flags = ESP_INTR_FLAG_IRAM;
 
-    // Install UART driver using an event queue here. A non-zero TX buffer makes
-    // uart_write_bytes() queue into an ISR-fed ring instead of streaming straight
-    // from the calling task, so a long transmit (e.g. a 1028-byte AdamNet block)
-    // won't underrun the TX FIFO when the bus task is preempted (WiFi/TNFS).
     uart_driver_install(_uart_num, uart_buffer_size, conf.tx_buffer_size, uart_queue_size, &_uart_q,
                         intr_alloc_flags);
 

@@ -74,10 +74,6 @@ error_is_true MediaTypeDDP::write(uint32_t blockNum, bool verify)
 
     _media_last_block = INVALID_SECTOR_VALUE;
 
-    // The boot/config DDP is mounted read-only; to persist a write (e.g. a game
-    // saving a high score) reopen it read/write on the flash filesystem where
-    // those images live. (_media_host was never wired up, so the old reopen via
-    // it dereferenced null.)
     bool hs_mode = (_media_fileh->_flags == 0x1484);
     if (hs_mode)
     {
