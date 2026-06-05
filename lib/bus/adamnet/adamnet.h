@@ -30,9 +30,17 @@ struct adamnet_message_t
 // can't spin the bus task forever.
 #define ADAMNET_RECV_TIMEOUT_US 400
 
-// Minimum turnaround before driving the shared wire in response to a command.
-// Above the ~80us bus-contention floor, below the 200us STATUS deadline.
-#define ADAMNET_TURNAROUND_US 100
+// Minimum turnaround before driving the shared wire in response to a command
+// (the generic ACK/NACK and the STATUS reply). Matched to a real floppy's
+// measured READY / block-number -> ACK turnaround (~150-166us after the command's
+// stop bit) and the ADE emulator's uniform 150us pre-response delay. The old
+// 100us only looked fine because the low-priority main-loop service added
+// scheduling latency on top; now that the bus runs in a dedicated high-priority
+// task that latency is gone, so we must not answer FASTER than real hardware or
+// the master can miss the ACK (the ADE author's note: "Otherwise Adam could miss
+// it"). Still well inside the master's ~300us response window (floppy STATUS
+// replies land ~230us out and the master accepts them).
+#define ADAMNET_TURNAROUND_US 150
 
 // A response must reach the master within this long of the command (the 6801
 // allows ~400us for an ACK); a response that already missed its budget is
