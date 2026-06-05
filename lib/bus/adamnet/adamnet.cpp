@@ -12,6 +12,8 @@
 #include <cstring>
 #include "adamFuji.h"
 
+#include <driver/gpio.h>
+
 #define IDLE_TIME 180 // Idle tolerance in microseconds
 
 static QueueHandle_t reset_evt_queue = NULL;
@@ -448,6 +450,15 @@ void systemBus::start_bus_task()
     // SYSTEM_BUS.service() for BUILD_ADAM, so this task is the sole servicer.
     xTaskCreatePinnedToCore(adamnet_bus_task, "adamnet_bus", ADAMNET_BUS_TASK_STACK,
                             this, ADAMNET_BUS_TASK_PRIORITY, NULL, ADAMNET_BUS_TASK_CORE);
+
+    // Drive the AdamNet TX pin as hard as the ESP32 allows, to sharpen the bus
+    // edges the 6801 master samples. On the gapless 1028-byte block stream a
+    // marginally-slow edge would otherwise let the master mis-sample ~1 byte in
+    // several thousand and abort the whole block (the residual "Drive Error" under
+    // PIP *.*[V]); measured on the wire this cut mid-delivery aborts from ~1-in-7
+    // blocks to ~0. Harmless if the board's bus driver is open-drain.
+    gpio_set_drive_capability((gpio_num_t)PIN_UART2_TX, GPIO_DRIVE_CAP_3);
+    Debug_printf("AdamNet TX (GPIO%d) drive strength set to MAX\n", PIN_UART2_TX);
 }
 
 void systemBus::shutdown()
