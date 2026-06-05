@@ -65,6 +65,34 @@ static void adamnet_reset_intr_task(void *arg)
     }
 }
 
+// Dedicated AdamNet bus service task. Runs at high priority on APP_CPU (core 1),
+// isolated from the WiFi/lwIP stack (pinned to PRO_CPU/core 0). This is the fix
+// for intermittent "Drive Error"/desync under heavy traffic (PIP *.*[V]): in the
+// old design the bus service ran in the lowest-priority main loop on core 0, so
+// after its SD read blocked on the SPI semaphore it had to wait behind WiFi and
+// the coarse 100Hz (10ms) tick to be rescheduled -- measured on the wire as a
+// ~1.5ms idle-bus stall during which a master handshake byte sat unread in the
+// FIFO, the master gave up, and the bus collapsed into a contention storm. A
+// high-priority core-1 task services the UART continuously and resumes the instant
+// its own SD I/O completes, the way a real drive / the ADE emulator does.
+static void adamnet_bus_task(void *arg)
+{
+    systemBus *b = (systemBus *)arg;
+    int64_t last = esp_timer_get_time();
+    for (;;)
+    {
+        int64_t now = esp_timer_get_time();
+        // If we were nonetheless descheduled longer than a turnaround between
+        // passes, a byte that arrived during the gap is stale -- resync to the next
+        // idle gap rather than answer it late (ADE's AdamNetIdle() after a stall).
+        if (now - last > ADAMNET_STALL_RESYNC_US && b->available())
+            b->wait_for_idle();
+        b->service();
+        last = esp_timer_get_time();
+        taskYIELD(); // cooperative; returns at once when no other core-1 task is ready
+    }
+}
+
 uint8_t adamnet_checksum(uint8_t *buf, unsigned short len)
 {
     uint8_t checksum = 0x00;
@@ -408,6 +436,18 @@ void systemBus::setup()
                 // the FIFO when the bus task is preempted by WiFi/TNFS.
                 .txBuffer(2048)
                 );
+}
+
+void systemBus::start_bus_task()
+{
+    // Run the bus service in its own high-priority task on core 1 (see
+    // adamnet_bus_task). Started only AFTER all devices are registered and disks
+    // are mounted -- before that, setup code drives the UART directly (e.g.
+    // adamDeviceExists probes), and the std::map of devices is still being built,
+    // so a concurrently-servicing task would race. The main loop no longer calls
+    // SYSTEM_BUS.service() for BUILD_ADAM, so this task is the sole servicer.
+    xTaskCreatePinnedToCore(adamnet_bus_task, "adamnet_bus", ADAMNET_BUS_TASK_STACK,
+                            this, ADAMNET_BUS_TASK_PRIORITY, NULL, ADAMNET_BUS_TASK_CORE);
 }
 
 void systemBus::shutdown()

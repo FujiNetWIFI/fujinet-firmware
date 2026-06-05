@@ -86,6 +86,23 @@ struct adamnet_message_t
 // must trigger the resync, or the directory-entry response desyncs.
 #define ADAMNET_LONG_CMD_US 10000
 
+// The bus service runs in its own high-priority task pinned to APP_CPU (core 1),
+// away from the WiFi/lwIP stack (core 0), so it services the one-wire bus
+// continuously and resumes INSTANTLY after its own SD I/O -- like a real drive /
+// the ADE emulator, which never leave a master command unanswered long enough for
+// the master to give up and desync the bus into a contention storm.
+#define ADAMNET_BUS_TASK_PRIORITY 19
+#define ADAMNET_BUS_TASK_CORE 1
+#define ADAMNET_BUS_TASK_STACK 8192
+
+// If the bus task is ever descheduled (preempted) for longer than this between
+// service passes, any master byte that landed during the gap is already stale --
+// the master has moved on. We then resync to the next idle gap instead of
+// answering it late (a late answer is what cascades into the desync/storm). This
+// mirrors the ADE calling AdamNetIdle() after any blocking access. Sits above
+// normal per-command turnarounds (~100-470us) and below the master's ACK patience.
+#define ADAMNET_STALL_RESYNC_US 600
+
 #define MN_RESET 0x00   // command.control (reset)
 #define MN_STATUS 0x01  // command.control (status)
 #define MN_ACK 0x02     // command.control (ack)
@@ -305,6 +322,9 @@ private:
 public:
     void setup();
     void service();
+    // Start the dedicated high-priority core-1 bus service task. Call once, after
+    // all devices are registered and disks mounted (BUILD_ADAM only).
+    void start_bus_task();
     void shutdown();
     void reset();
 
