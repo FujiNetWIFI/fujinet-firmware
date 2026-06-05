@@ -67,16 +67,7 @@ static void adamnet_reset_intr_task(void *arg)
     }
 }
 
-// Dedicated AdamNet bus service task. Runs at high priority on APP_CPU (core 1),
-// isolated from the WiFi/lwIP stack (pinned to PRO_CPU/core 0). This is the fix
-// for intermittent "Drive Error"/desync under heavy traffic (PIP *.*[V]): in the
-// old design the bus service ran in the lowest-priority main loop on core 0, so
-// after its SD read blocked on the SPI semaphore it had to wait behind WiFi and
-// the coarse 100Hz (10ms) tick to be rescheduled -- measured on the wire as a
-// ~1.5ms idle-bus stall during which a master handshake byte sat unread in the
-// FIFO, the master gave up, and the bus collapsed into a contention storm. A
-// high-priority core-1 task services the UART continuously and resumes the instant
-// its own SD I/O completes, the way a real drive / the ADE emulator does.
+// Dedicated AdamNet bus service task. 
 static void adamnet_bus_task(void *arg)
 {
     systemBus *b = (systemBus *)arg;
@@ -84,9 +75,7 @@ static void adamnet_bus_task(void *arg)
     for (;;)
     {
         int64_t now = esp_timer_get_time();
-        // If we were nonetheless descheduled longer than a turnaround between
-        // passes, a byte that arrived during the gap is stale -- resync to the next
-        // idle gap rather than answer it late (ADE's AdamNetIdle() after a stall).
+
         if (now - last > ADAMNET_STALL_RESYNC_US && b->available())
             b->wait_for_idle();
         b->service();
@@ -123,9 +112,6 @@ uint8_t virtualDevice::adamnet_recv()
     uint8_t b;
     int64_t start = esp_timer_get_time();
 
-    // Half-duplex bus: if the master aborts a packet (reset, framing error,
-    // dropped byte) the remaining bytes never arrive. Bounding the wait keeps a
-    // stalled packet from spinning the bus task forever and tripping the WDT.
     while (SYSTEM_BUS.available() <= 0)
     {
         if (esp_timer_get_time() - start > ADAMNET_RECV_TIMEOUT_US)
@@ -175,15 +161,11 @@ void virtualDevice::reset()
     Debug_printf("No Reset implemented for device %u\n", _devnum);
 }
 
-// doNotWaitForIdle skips the turnaround delay for callers that have already
-// paced themselves and need to respond immediately.
 void virtualDevice::adamnet_response_ack(bool doNotWaitForIdle)
 {
     if (!doNotWaitForIdle)
         SYSTEM_BUS.min_turnaround();
 
-    // Measure the deadline after the mandatory turnaround so it reflects the
-    // real elapsed time, not just processing latency.
     if (esp_timer_get_time() - SYSTEM_BUS.start_time < ADAMNET_RESPONSE_DEADLINE_US)
         adamnet_send(0x90 | _devnum);
 }
@@ -210,10 +192,7 @@ void systemBus::wait_for_idle()
 
 void systemBus::wait_turnaround(uint32_t us)
 {
-    // Don't drive the shared wire until at least `us` after the command. Below
-    // the contention floor it avoids ORing onto a frame the master is still
-    // releasing; at a real drive's longer block-read turnaround it keeps us from
-    // answering before the master has masked interrupts for the transfer.
+    // Don't drive the shared wire until at least `us` after the command.
     int64_t dt = esp_timer_get_time() - start_time;
     if (dt >= 0 && dt < (int64_t)us)
         fnSystem.delay_microseconds(us - dt);
@@ -226,10 +205,7 @@ void systemBus::min_turnaround()
 
 void systemBus::drain_echo(size_t n)
 {
-    // Everything we transmit on the one-wire bus echoes back into our own RX.
-    // Consume our echo so the next service pass starts on a real command byte.
-    // A response larger than the RX ring overflows it during the long transmit,
-    // so fall back to idle-detection draining (safe: the master blocks on it).
+    // Because: Everything we transmit on the one-wire bus echoes back into our own RX.
     if (n == 0)
         return;
     if (n > ECHO_DRAIN_MAX)
@@ -238,12 +214,6 @@ void systemBus::drain_echo(size_t n)
         return;
     }
 
-    // The echo is already in RX after flushOutput(), so take the bytes actually
-    // present, capped at the count we sent. Never block waiting for a byte that
-    // may have been lost to a bus glitch: doing so could swallow the master's
-    // next command and desync the stream (misframing later reads as a phantom
-    // command). Reading at most n also leaves a fast-following master command
-    // intact.
     uint8_t scratch[ECHO_DRAIN_MAX];
     size_t got = 0;
     int64_t last = esp_timer_get_time();
@@ -340,23 +310,8 @@ void systemBus::_adamnet_process_cmd()
         fnLedManager.set(eLed::LED_BUS, false);
     }
 
-    // A handler that blocked the bus task for a long time (e.g. a multi-second
-    // WiFi scan) leaves a backlog of the master's CONTROL.RECEIVE retries piled
-    // up in RX. Counting our echo off that backlog would desync, so flush to the
-    // next idle gap instead and let the post-command exchange start clean.
     if (stall_silent)
     {
-        // The handler intentionally gave no response (disk seek stall) and the
-        // master is mid re-poll. We transmitted nothing, so there is no echo to
-        // drain; just yield (don't starve the UART/other tasks). Do NOT
-        // discardInput() -- it would clear the FIFO and swallow the re-poll.
-        //
-        // EXCEPT when the stall itself ran long because it did a blocking media
-        // read (a network/TNFS block fetch is 100s of ms, vs ~ms for SD). The
-        // master's CONTROL.RECEIVE re-polls piled up in RX during that read;
-        // replaying that stale backlog responds at the wrong times and desyncs
-        // the bus. Flush to the next idle gap and let the next exchange start
-        // clean -- the block is cached now, so the master's next RECEIVE delivers.
         if (esp_timer_get_time() - cmd_start > ADAMNET_LONG_CMD_US)
             wait_for_idle();
         else
@@ -364,11 +319,6 @@ void systemBus::_adamnet_process_cmd()
     }
     else if (esp_timer_get_time() - cmd_start > ADAMNET_LONG_CMD_US)
         wait_for_idle();
-    // Otherwise clear our half-duplex echo before the next service pass. When the
-    // command was fully handled we know exactly how many bytes we sent, so drain
-    // just our echo and leave a following master command intact. Otherwise
-    // (unknown/disabled device, or an aborted packet) time-flush whatever
-    // unconsumed bytes remain on the bus.
     else if (_tx_count > 0 && !frame_error)
         drain_echo(_tx_count);
     else
@@ -421,42 +371,18 @@ void systemBus::setup()
                 .deviceID(FN_UART_BUS)
                 .baud(ADAMNET_BAUDRATE)
                 .inverted(true)
-                // Inter-byte gap tolerance for a KNOWN-LENGTH receive (read(buf,n),
-                // e.g. a device receiving a block/print/network payload). The 6801
-                // master pauses up to ~220us between bytes mid-transfer when its
-                // ~60Hz keyboard-scan ISR fires; at the old 180us this returned the
-                // buffer truncated and the tail went stale (proven on disk writes:
-                // short data SENDs == corrupted block tails). We always know how
-                // many bytes we want, so this is only a stalled-transfer guard --
-                // make it generous; read() still returns the instant all n arrive.
                 .readTimeout(2.0)
-                // discardInput()'s bus-idle detector stays tight: this IS the
-                // ~160us AdamNet packet-boundary heuristic, unrelated to read(buf,n).
                 .discardTimeout(0.180)
                 .rxThreshold(1)
-                // ISR-fed TX ring so a 1028-byte block response can't underrun
-                // the FIFO when the bus task is preempted by WiFi/TNFS.
                 .txBuffer(2048)
                 );
 }
 
 void systemBus::start_bus_task()
 {
-    // Run the bus service in its own high-priority task on core 1 (see
-    // adamnet_bus_task). Started only AFTER all devices are registered and disks
-    // are mounted -- before that, setup code drives the UART directly (e.g.
-    // adamDeviceExists probes), and the std::map of devices is still being built,
-    // so a concurrently-servicing task would race. The main loop no longer calls
-    // SYSTEM_BUS.service() for BUILD_ADAM, so this task is the sole servicer.
     xTaskCreatePinnedToCore(adamnet_bus_task, "adamnet_bus", ADAMNET_BUS_TASK_STACK,
                             this, ADAMNET_BUS_TASK_PRIORITY, NULL, ADAMNET_BUS_TASK_CORE);
 
-    // Drive the AdamNet TX pin as hard as the ESP32 allows, to sharpen the bus
-    // edges the 6801 master samples. On the gapless 1028-byte block stream a
-    // marginally-slow edge would otherwise let the master mis-sample ~1 byte in
-    // several thousand and abort the whole block (the residual "Drive Error" under
-    // PIP *.*[V]); measured on the wire this cut mid-delivery aborts from ~1-in-7
-    // blocks to ~0. Harmless if the board's bus driver is open-drain.
     gpio_set_drive_capability((gpio_num_t)PIN_UART2_TX, GPIO_DRIVE_CAP_3);
     Debug_printf("AdamNet TX (GPIO%d) drive strength set to MAX\n", PIN_UART2_TX);
 }

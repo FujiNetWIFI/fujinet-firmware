@@ -30,11 +30,6 @@ protected:
         SYSTEM_BUS.start_time = esp_timer_get_time();
         if (expectMoreData == TRANS_STATE::WILL_GET)
         {
-            // The data transaction_get() will read arrives in THIS same one-wire
-            // CONTROL.SEND frame (cmd + slot + path + CK, all together). Defer the
-            // ACK until after we've read it: ACKing mid-frame ORs our 0x9F onto
-            // the inbound payload and corrupts it (was mangling the directory
-            // path). No CK to discard here either -- it's at the end of the frame.
             _ack_deferred = true;
         }
         else
@@ -46,9 +41,6 @@ protected:
     }
     void transaction_complete() override {}
     void transaction_error() override {
-        // Command rejected before reading its payload (e.g. bad host slot): drain
-        // the unread remainder of the frame so the bus stays in sync, then ACK
-        // (Adam never expects an error response).
         if (_ack_deferred)
         {
             SYSTEM_BUS.wait_for_idle();

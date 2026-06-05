@@ -26,89 +26,40 @@ struct adamnet_message_t
 #define ADAMNET_BAUDRATE 62500
 
 // Abort a stalled multi-byte receive after this long with no byte arriving
-// (~2.5 byte times). Bounds the half-duplex read so an aborted/garbled packet
-// can't spin the bus task forever.
+// (~2.5 byte times). 
 #define ADAMNET_RECV_TIMEOUT_US 400
 
 // Minimum turnaround before driving the shared wire in response to a command
-// (the generic ACK/NACK and the STATUS reply). Matched to a real floppy's
-// measured READY / block-number -> ACK turnaround (~150-166us after the command's
-// stop bit) and the ADE emulator's uniform 150us pre-response delay. The old
-// 100us only looked fine because the low-priority main-loop service added
-// scheduling latency on top; now that the bus runs in a dedicated high-priority
-// task that latency is gone, so we must not answer FASTER than real hardware or
-// the master can miss the ACK (the ADE author's note: "Otherwise Adam could miss
-// it"). Still well inside the master's ~300us response window (floppy STATUS
-// replies land ~230us out and the master accepts them).
 #define ADAMNET_TURNAROUND_US 150
 
-// A response must reach the master within this long of the command (the 6801
-// allows ~400us for an ACK); a response that already missed its budget is
-// suppressed so it can't collide with the master moving on.
+// A response must reach the master within this long of the command
 #define ADAMNET_RESPONSE_DEADLINE_US 300
 
 // Pace the block-read handshake responses toward a real drive's measured
 // turnaround (command-end -> response-start).
-//
-// The 6801 master receives the block in a tight polled loop (MSTR6801 $FD36):
-// per byte it reads the SCI, DMA-copies into Z80 RAM, accumulates the checksum,
-// and loops. A single SCI framing/overrun error (TRCSR & $40) aborts the ENTIRE
-// block ($FD39 BCC). NOTE: an experiment adding a 60us+ inter-byte gap to the
-// block stream (giving the master ample per-byte margin) did NOT remove the
-// framing errors, so master receive-overrun is ruled out as the cause.
 #define ADAMNET_DISK_RECV_TURNAROUND_US 256  // CONTROL.RECEIVE -> RESPONSE.ACK
 #define ADAMNET_DISK_SEND_TURNAROUND_US 200  // CONTROL.CLR     -> RESPONSE.SEND
 
-// Seek emulation (Step 1: fixed window, stall-mechanism verification). The disk
-// stays silent on CONTROL.RECEIVE for this long after the block number arrives,
-// like a real drive seeking, so EOS's ~60Hz keyboard scan runs in the gap and the
-// (then EOS-masked) block stream stays clean. Must exceed one 16.6ms video frame
-// and sit well inside the master's RECEIVE-retry patience (measured >=61ms).
+// Seek emulation
 #define ADAMNET_DISK_SEEK_US 22000
-// A block number re-arriving within this is the master retrying the SAME request
-// (~12.5ms apart) while we stall, not a new operation -- don't restart the seek
-// (would loop forever). Sits between the retry interval and a real next read
-// (>= one ~164ms block stream later; also re-seeks the double-read's 2nd pass).
 #define ADAMNET_DISK_SEEK_NEWOP_US 130000
 
-// Largest response whose half-duplex echo still fits the RX ring, so it can be
-// drained deterministically by byte count. Larger responses (the 1024-byte
-// block payload) overflow the ring during the long transmit and are drained by
-// idle detection instead -- safe there because the master blocks waiting for
-// the whole payload, so there is no following command to lose.
+// Largest response whose half-duplex echo still fits the RX ring
 #define ECHO_DRAIN_MAX 64
 
-// How long to wait for a straggler echo byte to land before giving up. Above
-// the few-us RX commit latency after a transmit, well below the master's ~80us
-// turnaround -- so a lost echo byte is never "made up" from the master's next
-// command.
+// How long to wait for a straggler echo byte to land before giving up. 
 #define ECHO_SETTLE_US 50
 
 // A handler that blocked the bus task longer than this leaves a backlog of the
 // master's CONTROL.RECEIVE retries piled up in RX (it retries every ~2ms once it
-// has ACKed our command and is waiting on the response). Past this threshold we
-// resync to the next idle gap instead of counting echo. Set above fast cached
-// reads / single-byte handshakes (sub-millisecond, where the master proceeds
-// within a turnaround and a precise echo drain matters), but below a slow
-// network round-trip -- a TNFS dir_open or per-entry stat runs tens of ms and
-// must trigger the resync, or the directory-entry response desyncs.
+// has ACKed our command and is waiting on the response). 
 #define ADAMNET_LONG_CMD_US 10000
 
-// The bus service runs in its own high-priority task pinned to APP_CPU (core 1),
-// away from the WiFi/lwIP stack (core 0), so it services the one-wire bus
-// continuously and resumes INSTANTLY after its own SD I/O -- like a real drive /
-// the ADE emulator, which never leave a master command unanswered long enough for
-// the master to give up and desync the bus into a contention storm.
+// The bus service runs in its own high-priority task
 #define ADAMNET_BUS_TASK_PRIORITY 19
 #define ADAMNET_BUS_TASK_CORE 1
 #define ADAMNET_BUS_TASK_STACK 8192
 
-// If the bus task is ever descheduled (preempted) for longer than this between
-// service passes, any master byte that landed during the gap is already stale --
-// the master has moved on. We then resync to the next idle gap instead of
-// answering it late (a late answer is what cascades into the desync/storm). This
-// mirrors the ADE calling AdamNetIdle() after any blocking access. Sits above
-// normal per-command turnarounds (~100-470us) and below the master's ACK patience.
 #define ADAMNET_STALL_RESYNC_US 600
 
 #define MN_RESET 0x00   // command.control (reset)
@@ -408,16 +359,7 @@ public:
     size_t available() { return _port.available(); }
     void flush() { _port.flushOutput(); }
 
-    // Protect a large response (a 1028-byte disk block) while it streams. On the
-    // half-duplex bus every transmitted byte echoes straight back into our own RX,
-    // so a full block injects ~1028 echo bytes over its 164ms send. At rxThreshold
-    // =1 that is ~1028 RX-FIFO interrupts competing inside the SHARED UART ISR with
-    // the TX-FIFO refill, jittering the outgoing bytes -- measured on FujiNet's own
-    // TX pin as ~28% framing errors during CP/M boot (DSK) vs ~0 on CONFIG (DDP).
-    // Raise the RX-full threshold for the duration so the echo coalesces into a
-    // handful of interrupts, then restore single-byte RX for low command latency.
-    // No real command can arrive mid-send (the master is busy receiving the block),
-    // and the echo is discarded afterward, so losing echo bytes is harmless.
+    // Protect a large response (a 1028-byte disk block) while it streams.
     void quiet_rx_for_send(bool on) {
 #ifdef ESP_PLATFORM
         _port.setRXThreshold(on ? 120 : 1);

@@ -495,10 +495,6 @@ void adamFuji::adamnet_control_send()
             uint16_t flen = (s > 2) ? (s - 2) : 0;
             if (flen > sizeof(filename)) // clamp wire length to buffer
                 flen = sizeof(filename);
-            // WILL_GET: read the filename (rest of this frame) and THEN ACK. Going
-            // through the transaction model is what sends the ACK at all -- without
-            // it CONFIG never gets a response and re-sends SET_DEVICE_FULLPATH
-            // forever (the mount loop, leaving the slot empty).
             transaction_begin(TRANS_STATE::WILL_GET);
             transaction_get(filename, flen);
             fujicore_set_device_filename_success(deviceSlot, _fnDisks[deviceSlot].host_slot,
@@ -597,9 +593,6 @@ void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
 {
     if (response[0])
     {
-        // Adam is bonkers and if it already got any data we are going
-        // to ignore its request and tell it complete instead. We must
-        // still consume the CK byte and ACK so the bus stays in sync.
         Debug_printv("No soup for you!");
         transaction_begin(TRANS_STATE::NO_GET);
         transaction_complete();
