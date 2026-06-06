@@ -50,7 +50,7 @@ bool _tnfs_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t pay
 int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt);
 bool _tnfs_tcp_send(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size);
 int _tnfs_tcp_recv(tnfsMountInfo *m_info, tnfsPacket &pkt);
-_tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt, bool &tcp_reconnected);
+_tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt, bool &tcp_reconnected, bool quiet);
 _tnfs_recv_result _tnfs_recv_and_validate(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt);
 uint8_t _tnfs_session_recovery(tnfsMountInfo *m_info, uint8_t command);
 
@@ -1611,10 +1611,15 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
     // request (we only do it once; see _tnfs_send_recv).
     bool tcp_reconnected = false;
 
+    // Consume the one-shot quiet flag: suppress timeout/retry logging for this
+    // transaction (set by the idle keep-alive so its reconnects don't spam).
+    bool quiet = m_info->quiet_transaction;
+    m_info->quiet_transaction = false;
+
     // Start a new retry sequence
     for (int retry = 0; retry < m_info->max_retries; retry++)
     {
-        switch(_tnfs_send_recv(udp, m_info, reqPkt, payload_size, pkt, tcp_reconnected))
+        switch(_tnfs_send_recv(udp, m_info, reqPkt, payload_size, pkt, tcp_reconnected, quiet))
         {
             case SUCCESS:
             return true;
@@ -1634,12 +1639,13 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
         fnSystem.delay(m_info->min_retry_ms);
     }
 
-    Debug_printf("Retry attempts failed for host: %s, path: %s, cwd: %s\r\n", m_info->hostname, m_info->mountpath, m_info->current_working_directory);
+    if (!quiet)
+        Debug_printf("Retry attempts failed for host: %s, path: %s, cwd: %s\r\n", m_info->hostname, m_info->mountpath, m_info->current_working_directory);
 
     return false;
 }
 
-_tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt, bool &tcp_reconnected)
+_tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt, bool &tcp_reconnected, bool quiet)
 {
 #ifdef DEBUG
     _tnfs_debug_packet(req_pkt, payload_size);
@@ -1649,7 +1655,8 @@ _tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPa
     bool sent = _tnfs_send(&udp, m_info, req_pkt, payload_size);
     if (!sent)
     {
-        Debug_println("Failed to send packet - retrying");
+        if (!quiet)
+            Debug_println("Failed to send packet - retrying");
         return FAILED;
     }
 
@@ -1723,12 +1730,14 @@ _tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPa
             m_info->tcp_client.stop();
             m_info->tcp_recv_len = 0;
             m_info->tcp_last_sent_seq = -1;
-            Debug_printf("Timeout after %d milliseconds; reconnecting to %s\r\n", m_info->timeout_ms, m_info->hostname);
+            if (!quiet)
+                Debug_printf("Timeout after %d milliseconds; reconnecting to %s\r\n", m_info->timeout_ms, m_info->hostname);
         }
         return FAILED;
     }
 
-    Debug_printf("Timeout after %d milliseconds. Retrying\r\n", m_info->timeout_ms);
+    if (!quiet)
+        Debug_printf("Timeout after %d milliseconds. Retrying\r\n", m_info->timeout_ms);
     return FAILED;
 }
 

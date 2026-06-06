@@ -112,6 +112,11 @@ public:
     // (a re-send would make the server resend and duplicate the response).
     int tcp_last_sent_seq = -1;
 
+    // One-shot: when set, the next transaction suppresses its timeout/retry log
+    // messages. Used by the periodic keep-alive so its routine reconnects during
+    // idle don't spam the log like a real (device-initiated) operation would.
+    bool quiet_transaction = false;
+
     // These char[] sizes are abitrary...
     char hostname[64] = { '\0' };
     in_addr_t host_ip = IPADDR_NONE;

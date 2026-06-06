@@ -373,6 +373,14 @@ success_is_true FileSystemTNFS::dir_seek(uint16_t position)
     RETURN_SUCCESS_IF(0 == tnfs_seekdir(&_mountinfo, position));
 }
 
+void FileSystemTNFS::keep_alive()
+{
+    // Mark the next transaction quiet so a routine idle reconnect doesn't log,
+    // then issue a cheap stat as the liveness probe.
+    _mountinfo.quiet_transaction = true;
+    exists("keep-alive");
+}
+
 #ifdef ESP_PLATFORM
 void keepAliveTNFS(void *info)
 {
@@ -380,6 +388,6 @@ void keepAliveTNFS(void *info)
     Debug_println("Sending keep-alive command");
 #endif
     FileSystemTNFS *parent = (FileSystemTNFS *)info;
-    parent->exists("keep-alive");
+    parent->keep_alive();
 }
 #endif
