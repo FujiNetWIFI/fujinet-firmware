@@ -69,6 +69,19 @@ dead connection on timeout and reconnects; the run ends in PASS.
 ./run_stall.sh 127.0.0.1 16384
 ```
 
+## Session-migration test (server side)
+
+`zombie_proxy.py` models a real NAT/firewall idle drop: when the connection
+stalls it keeps the upstream socket open, so the server's session stays bound to
+the dead connection (the client's FIN never arrived). The client reconnects, but
+a stock server rejects the new connection until it reaps the zombie. A server
+with the TCP session-migration fix (FujiNetWIFI/tnfsd) migrates the session to
+the new connection and the run PASSes.
+
+```sh
+./run_zombie.sh 127.0.0.1 16384
+```
+
 ## Reproducing the bug / confirming the fix
 
 Through the fragmenting proxy the fixed client passes with correct data and zero
