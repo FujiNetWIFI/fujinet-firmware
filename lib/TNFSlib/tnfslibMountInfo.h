@@ -107,6 +107,10 @@ public:
     static const int TCP_RECV_BUFFER_SIZE = 2 * 532;
     uint8_t tcp_recv_buffer[TCP_RECV_BUFFER_SIZE];
     int tcp_recv_len = 0;
+    // Sequence number last written on the current TCP connection, or -1 if none.
+    // Used to avoid re-sending a request already in flight on the same socket
+    // (a re-send would make the server resend and duplicate the response).
+    int tcp_last_sent_seq = -1;
 
     // These char[] sizes are abitrary...
     char hostname[64] = { '\0' };

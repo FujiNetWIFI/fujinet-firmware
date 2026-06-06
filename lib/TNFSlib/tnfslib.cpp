@@ -50,7 +50,7 @@ bool _tnfs_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t pay
 int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt);
 bool _tnfs_tcp_send(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size);
 int _tnfs_tcp_recv(tnfsMountInfo *m_info, tnfsPacket &pkt);
-_tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt);
+_tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt, bool &tcp_reconnected);
 _tnfs_recv_result _tnfs_recv_and_validate(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt);
 uint8_t _tnfs_session_recovery(tnfsMountInfo *m_info, uint8_t command);
 
@@ -1359,11 +1359,21 @@ bool _tnfs_tcp_send(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_siz
         // drop the path (which would otherwise force a reconnect on the next
         // request). Probe every ~15s; give up after ~4 missed probes.
         tcp->keepAlive(15, 5, 4);
-        // Fresh connection: drop any leftover bytes so framing starts aligned.
+        // Fresh connection: drop any leftover bytes so framing starts aligned and
+        // force a (re)send of this request on it.
         m_info->tcp_recv_len = 0;
+        m_info->tcp_last_sent_seq = -1;
     }
+    // TCP guarantees delivery, so don't write a request already sent on this
+    // connection; re-sending would make the server resend and leave a duplicate
+    // response in the stream. Only (re)send on a new connection or new sequence.
+    if (pkt.sequence_num == m_info->tcp_last_sent_seq)
+        return true;
     int l = tcp->write(pkt.rawData, payload_size + TNFS_HEADER_SIZE);
-    return l == payload_size + TNFS_HEADER_SIZE;
+    if (l != payload_size + TNFS_HEADER_SIZE)
+        return false;
+    m_info->tcp_last_sent_seq = pkt.sequence_num;
+    return true;
 }
 
 #ifndef TNFS_UDP_SIMULATE_POOR_CONNECTION
@@ -1597,16 +1607,21 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
     // Set sequence number before the transaction loop
     reqPkt.sequence_num = m_info->current_sequence_num++;
 
+    // Whether we've already dropped+reconnected the TCP connection for this
+    // request (we only do it once; see _tnfs_send_recv).
+    bool tcp_reconnected = false;
+
     // Start a new retry sequence
     for (int retry = 0; retry < m_info->max_retries; retry++)
     {
-        switch(_tnfs_send_recv(udp, m_info, reqPkt, payload_size, pkt))
+        switch(_tnfs_send_recv(udp, m_info, reqPkt, payload_size, pkt, tcp_reconnected))
         {
             case SUCCESS:
             return true;
 
             case RESET:
             retry = -1;
+            tcp_reconnected = false;
             continue;
 
             case FAILED:
@@ -1624,7 +1639,7 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
     return false;
 }
 
-_tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt)
+_tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt, bool &tcp_reconnected)
 {
 #ifdef DEBUG
     _tnfs_debug_packet(req_pkt, payload_size);
@@ -1694,17 +1709,23 @@ _tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPa
 
     // On TCP a timeout almost always means the connection has gone stale (e.g.
     // dropped by a NAT/firewall during an idle period) rather than a lost packet
-    // -- TCP already guarantees delivery. Re-sending on the same socket would
-    // just make the server resend, leaving duplicate/one-behind responses in the
-    // stream. Drop the connection (and the reassembly buffer) so the retry
-    // reconnects fresh and sends once. The session is keyed by SID so it survives
-    // the reconnect, and the server's seqno cache resends the same response, so
-    // no read is executed twice.
+    // -- TCP already guarantees delivery. Drop the connection ONCE per request so
+    // the next retry reconnects fresh and sends once; further retries of the same
+    // request just keep waiting on the new connection. This avoids a reconnect
+    // storm (and a flood of log lines) when a host is persistently unreachable.
+    // The session is keyed by SID so it survives the reconnect, and the server's
+    // seqno cache resends the same response, so no read is executed twice.
     if (m_info->protocol == TNFS_PROTOCOL_TCP)
     {
-        Debug_println("TNFS TCP timeout; dropping stale connection to reconnect");
-        m_info->tcp_client.stop();
-        m_info->tcp_recv_len = 0;
+        if (!tcp_reconnected)
+        {
+            tcp_reconnected = true;
+            m_info->tcp_client.stop();
+            m_info->tcp_recv_len = 0;
+            m_info->tcp_last_sent_seq = -1;
+            Debug_printf("Timeout after %d milliseconds; reconnecting to %s\r\n", m_info->timeout_ms, m_info->hostname);
+        }
+        return FAILED;
     }
 
     Debug_printf("Timeout after %d milliseconds. Retrying\r\n", m_info->timeout_ms);
