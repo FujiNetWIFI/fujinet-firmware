@@ -1688,6 +1688,21 @@ _tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPa
         return RESET;
     }
 
+    // On TCP a timeout almost always means the connection has gone stale (e.g.
+    // dropped by a NAT/firewall during an idle period) rather than a lost packet
+    // -- TCP already guarantees delivery. Re-sending on the same socket would
+    // just make the server resend, leaving duplicate/one-behind responses in the
+    // stream. Drop the connection (and the reassembly buffer) so the retry
+    // reconnects fresh and sends once. The session is keyed by SID so it survives
+    // the reconnect, and the server's seqno cache resends the same response, so
+    // no read is executed twice.
+    if (m_info->protocol == TNFS_PROTOCOL_TCP)
+    {
+        Debug_println("TNFS TCP timeout; dropping stale connection to reconnect");
+        m_info->tcp_client.stop();
+        m_info->tcp_recv_len = 0;
+    }
+
     Debug_printf("Timeout after %d milliseconds. Retrying\r\n", m_info->timeout_ms);
     return FAILED;
 }
