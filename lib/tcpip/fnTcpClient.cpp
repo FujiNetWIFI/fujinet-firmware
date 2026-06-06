@@ -271,6 +271,30 @@ int fnTcpClient::setNoDelay(bool nodelay)
     return setOption(TCP_NODELAY, &flag);
 }
 
+// Enable TCP keep-alive and tune the timing. The system default idle is hours,
+// far too long to keep a NAT/firewall mapping warm; a short idle makes the stack
+// send small probes that both refresh the mapping and detect a dead path within
+// seconds. idle_s: idle before the first probe; interval_s: gap between probes;
+// count: unanswered probes before the connection is considered dead.
+int fnTcpClient::keepAlive(int idle_s, int interval_s, int count)
+{
+    int enable = 1;
+    if (setSocketOption(SO_KEEPALIVE, (char *)&enable, sizeof(enable)) < 0)
+        return -1;
+#if defined(TCP_KEEPIDLE)
+    setOption(TCP_KEEPIDLE, &idle_s);
+#elif defined(TCP_KEEPALIVE)
+    setOption(TCP_KEEPALIVE, &idle_s); // macOS/BSD spell the idle time this way
+#endif
+#if defined(TCP_KEEPINTVL)
+    setOption(TCP_KEEPINTVL, &interval_s);
+#endif
+#if defined(TCP_KEEPCNT)
+    setOption(TCP_KEEPCNT, &count);
+#endif
+    return 0;
+}
+
 bool fnTcpClient::getNoDelay()
 {
     int flag = 0;

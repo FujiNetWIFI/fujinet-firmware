@@ -1355,6 +1355,10 @@ bool _tnfs_tcp_send(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_siz
             Debug_println("Can't connect to the TCP server");
             return false;
         }
+        // Keep the connection warm during idle so a NAT/firewall doesn't silently
+        // drop the path (which would otherwise force a reconnect on the next
+        // request). Probe every ~15s; give up after ~4 missed probes.
+        tcp->keepAlive(15, 5, 4);
         // Fresh connection: drop any leftover bytes so framing starts aligned.
         m_info->tcp_recv_len = 0;
     }

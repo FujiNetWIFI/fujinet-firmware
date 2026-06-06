@@ -50,6 +50,7 @@ public:
     int setTimeout(uint32_t seconds);
     int setNoDelay(bool nodelay);
     bool getNoDelay();
+    int keepAlive(int idle_s, int interval_s, int count);
 
     in_addr_t remoteIP() const;
     in_addr_t remoteIP(int fd) const;
