@@ -101,6 +101,13 @@ public:
     uint8_t protocol = TNFS_PROTOCOL_UNKNOWN;
     fnTcpClient tcp_client;
 
+    // Reassembly buffer for the TNFS-over-TCP byte stream: accumulate until a
+    // whole message is present, hand out one, keep the rest (see _tnfs_tcp_recv).
+    // Two max (532-byte) messages so a coalesced duplicate can't overflow it.
+    static const int TCP_RECV_BUFFER_SIZE = 2 * 532;
+    uint8_t tcp_recv_buffer[TCP_RECV_BUFFER_SIZE];
+    int tcp_recv_len = 0;
+
     // These char[] sizes are abitrary...
     char hostname[64] = { '\0' };
     in_addr_t host_ip = IPADDR_NONE;
