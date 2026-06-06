@@ -58,6 +58,17 @@ FRAG=1 ./run.sh apps.irata.online 16384   # 1 byte/piece = most brutal
 
 Exit code is 0 only if every run passes.
 
+## Stale-connection / reconnect test
+
+`stall_proxy.py` lets a session start normally, then black-holes the connection
+mid-session (the socket stays "connected" but no further responses flow) — the
+"connection went stale during an idle period" case. A correct client drops the
+dead connection on timeout and reconnects; the run ends in PASS.
+
+```sh
+./run_stall.sh 127.0.0.1 16384
+```
+
 ## Reproducing the bug / confirming the fix
 
 Through the fragmenting proxy the fixed client passes with correct data and zero
