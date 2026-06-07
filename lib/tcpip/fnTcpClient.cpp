@@ -436,47 +436,6 @@ int fnTcpClient::read_until(char terminator, char *buf, size_t size)
     return count;
 }
 
-// Wait up to wait_ms for data, then recv up to size bytes directly from the socket.
-// Drains the internal buffer first if it has pending bytes.
-// Returns bytes read (>0), 0 on timeout, -1 on socket error or disconnected.
-int fnTcpClient::recv_direct(uint8_t *buf, size_t size, int wait_ms)
-{
-    int sfd = fd();
-    if (sfd < 0 || !_connected)
-        return -1;
-
-    // Drain internal buffer first (populated by any earlier updateFIFO calls).
-    if (!_rxBuffer.empty())
-    {
-        size_t n = std::min(_rxBuffer.size(), size);
-        memcpy(buf, _rxBuffer.data(), n);
-        _rxBuffer.erase(0, n);
-        return (int)n;
-    }
-
-    // Use select() to wait for the kernel buffer to have data rather than
-    // polling FIONREAD, which races with TCP segment delivery.
-    fd_set fds;
-    FD_ZERO(&fds);
-    FD_SET(sfd, &fds);
-    struct timeval tv;
-    tv.tv_sec  = wait_ms / 1000;
-    tv.tv_usec = (wait_ms % 1000) * 1000;
-    int res = select(sfd + 1, &fds, nullptr, nullptr, &tv);
-    if (res < 0)
-        return -1;
-    if (res == 0)
-        return 0; // timeout — no data yet
-
-    int n = recv(sfd, (char *)buf, size, 0);
-    if (n == 0)
-    {
-        _connected = false; // clean EOF
-        return -1;
-    }
-    return n;
-}
-
 // Peek at next byte available for reading
 int fnTcpClient::peek()
 {
@@ -507,11 +466,8 @@ void fnTcpClient::updateFIFO()
             size_t old_len = _rxBuffer.size();
             _rxBuffer.resize(old_len + count);
             result = recv(fd(), &_rxBuffer[old_len], count, 0);
-            if (result <= 0)
-            {
-                _rxBuffer.resize(old_len);
-                break; // EOF or error — don't loop forever
-            }
+            if (result < 0)
+                result = 0;
             _rxBuffer.resize(old_len + result);
         }
 

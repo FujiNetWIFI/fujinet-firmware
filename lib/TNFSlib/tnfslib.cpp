@@ -1525,16 +1525,12 @@ int _tnfs_tcp_recv(tnfsMountInfo *m_info, tnfsPacket &pkt)
 
     // Pull any new bytes into the reassembly buffer; a whole message may already
     // be buffered from a previous read, so proceed even if nothing new arrived.
-    // Use recv_direct (select-based) rather than available()/read() to avoid
-    // the FIONREAD race where data has not yet landed in the kernel buffer.
     if (tcp->connected())
     {
         int space = (int)sizeof(m_info->tcp_recv_buffer) - m_info->tcp_recv_len;
-        if (space > 0)
+        if (space > 0 && tcp->available())
         {
-            int got = tcp->recv_direct(m_info->tcp_recv_buffer + m_info->tcp_recv_len, space, 100);
-            if (got < 0)
-                return -1; // socket error or disconnected
+            int got = tcp->read(m_info->tcp_recv_buffer + m_info->tcp_recv_len, space);
             if (got > 0)
                 m_info->tcp_recv_len += got;
         }
