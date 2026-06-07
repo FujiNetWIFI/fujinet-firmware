@@ -35,6 +35,7 @@ public:
     int read();
     int read(uint8_t *buf, size_t size);
     int read_until(char terminator, char *buf, size_t size);
+    int recv_direct(uint8_t *buf, size_t size, int wait_ms);
 
     void updateFIFO();
     size_t available();
