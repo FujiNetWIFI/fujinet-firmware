@@ -969,15 +969,12 @@ success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_
         RETURN_ERROR_AS_FALSE();
     }
 
-    if (sourceSlot < 1 || sourceSlot > _totalDiskDevices
-        || destSlot < 1 || destSlot > _totalDiskDevices)
+    if (!validate_host_slot(sourceSlot, "copy_file_source")
+        || !validate_host_slot(destSlot, "copy_file_dest"))
     {
         transaction_error();
         RETURN_ERROR_AS_FALSE();
     }
-
-    sourceSlot--;
-    destSlot--;
 
     // Chop up copyspec.
     sourcePath = copySpec.substr(0, copySpec.find_first_of("|"));
