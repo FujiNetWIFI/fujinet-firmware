@@ -198,7 +198,7 @@ public:
     void fujicmd_net_get_wifi_enabled();
     virtual success_is_true fujicmd_mount_disk_image_success(uint8_t deviceSlot, disk_access_flags_t access_mode);
     success_is_true fujicmd_unmount_disk_image_success(uint8_t deviceSlot);
-    virtual void fujicmd_image_rotate();
+    void fujicmd_image_rotate();
     success_is_true fujicmd_open_directory_success(uint8_t hostSlot);
     virtual void fujicmd_close_directory();
     virtual void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl);
