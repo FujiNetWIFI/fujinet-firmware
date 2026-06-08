@@ -145,6 +145,7 @@ protected:
     uint8_t _countScannedSSIDs = 0;
 
     std::atomic<bool> _startup_mount_lock{false};
+    unsigned char _active_rotate_slot = 0;
 
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
 
@@ -197,7 +198,7 @@ public:
     void fujicmd_net_get_wifi_enabled();
     virtual success_is_true fujicmd_mount_disk_image_success(uint8_t deviceSlot, disk_access_flags_t access_mode);
     success_is_true fujicmd_unmount_disk_image_success(uint8_t deviceSlot);
-    void fujicmd_image_rotate();
+    virtual void fujicmd_image_rotate();
     success_is_true fujicmd_open_directory_success(uint8_t hostSlot);
     virtual void fujicmd_close_directory();
     virtual void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl);
