@@ -20,6 +20,6 @@ void fujiDisk::reset(const char *fname, uint8_t hostslot, disk_access_flags_t mo
     host = nullptr;
 
     host_slot = hostslot;
-    access_mode = mode;
+    access_mode = (disk_access_flags_t)(mode & ~DISK_ACCESS_MODE_MOUNTED);
 #endif
 }
