@@ -98,12 +98,17 @@ void adamNetwork::get_error()
  */
 void adamNetwork::open(unsigned short s)
 {
-    uint8_t _aux1 = adamnet_recv();
-    uint8_t _aux2 = adamnet_recv();
+    uint8_t _aux1 = 0, _aux2 = 0;
     string d;
 
-    s--;
-    s--;
+    if (s) {
+        _aux1 = adamnet_recv();
+        s--;
+    }
+    if (s) {
+        _aux2 = adamnet_recv();
+        s--;
+    }
 
     if (s > sizeof(response)) // clamp wire length to buffer
         s = sizeof(response);
@@ -913,6 +918,9 @@ void adamNetwork::process_fs(fujiCommandID_t cmd, unsigned pkt_len)
 
 void adamNetwork::process_tcp(fujiCommandID_t cmd)
 {
+    SYSTEM_BUS.start_time = esp_timer_get_time();
+    adamnet_response_ack();
+
     statusByte.byte = 0x00;
 
     // Make sure this is really a TCP protocol instance
@@ -929,17 +937,15 @@ void adamNetwork::process_tcp(fujiCommandID_t cmd)
     case NETCMD_CONTROL:
         cmd_err = FUJI_ERROR::NONE;
 
-        // Because we're not handling Adam bus very well, sometimes it
-        // retries and we've already accepted which will return an
-        // error. Don't do accept if client is already connected.
         {
-            NetworkStatus status;
-            tcp->status(&status);
-            if (!status.connected)
-            {
-                cmd_err = tcp->accept_connection();
-                Debug_printf("ACCEPT %x CHANMODE %d ERR: %d\n", _devnum, channelMode, cmd_err);
-            }
+            cmd_err = tcp->accept_connection();
+            Debug_printf("ACCEPT %x CHANMODE %d ERR: %d\n", _devnum, channelMode, cmd_err);
+
+            // Because we're not handling Adam bus very well, sometimes it
+            // retries and we've already accepted which will return an
+            // error. Clear error if client is already connected.
+            cmd_err = FUJI_ERROR::NONE;
+            statusByte.bits.client_error = false;
         }
         break;
     case NETCMD_CLOSE_CLIENT:
