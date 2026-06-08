@@ -118,7 +118,7 @@ void fujiDevice::populate_config_from_slots()
             Config.clear_mount(i);
         else
             Config.store_mount(i, _fnDisks[i].host_slot, _fnDisks[i].filename,
-                               _fnDisks[i].access_mode == DISK_ACCESS_MODE_WRITE
+                               (_fnDisks[i].access_mode & DISK_ACCESS_MODE_WRITE)
                                ? fnConfig::mount_modes::MOUNTMODE_WRITE
                                : fnConfig::mount_modes::MOUNTMODE_READ);
     }
@@ -134,7 +134,7 @@ success_is_true fujiDevice::fujicore_mount_all_success()
         fujiDisk &disk = _fnDisks[i];
         fujiHost &host = _fnHosts[disk.host_slot];
         char flag[4] = {'r', 'b', 0, 0};
-        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
+        if (disk.access_mode & DISK_ACCESS_MODE_WRITE)
             flag[2] = '+';
 
         if (disk.host_slot != INVALID_HOST_SLOT && strlen(disk.filename) > 0)
@@ -472,7 +472,7 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
 {
     // TODO: Implement FETCH?
     char mode[4] = {'r', 'b', 0, 0};
-    if (access_mode == DISK_ACCESS_MODE_WRITE)
+    if (access_mode & DISK_ACCESS_MODE_WRITE)
         mode[2] = '+';
 
     // Make sure we weren't given a bad hostSlot
