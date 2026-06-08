@@ -465,7 +465,7 @@ mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
   else if (_disk && strlen(_disk->_disk_filename))
       strcpy(_disk->_disk_filename, filename);
 
-    if (access_mode == DISK_ACCESS_MODE_WRITE)
+    if (access_mode & DISK_ACCESS_MODE_WRITE)
     {
         Debug_printv("Setting disk to read/write");
         readonly = false;
