@@ -145,6 +145,7 @@ protected:
     uint8_t _countScannedSSIDs = 0;
 
     std::atomic<bool> _startup_mount_lock{false};
+    unsigned char _active_rotate_slot = 0;
 
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
 

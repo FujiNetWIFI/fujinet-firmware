@@ -27,6 +27,7 @@
 #include "fsFlash.h"
 #include "fnFsTNFS.h"
 
+#include "led.h"
 #include "utils.h"
 #include "directoryPageGroup.h"
 #include "compat_string.h"
@@ -211,12 +212,14 @@ void fujiDevice::fujicmd_image_rotate()
     Debug_println("Fuji cmd: IMAGE ROTATE");
 
     int count = 0;
-    // Find the first empty slot
-    while (_fnDisks[count].fileh != nullptr && count < _totalDiskDevices)
+    while (count < (int)_totalDiskDevices && _fnDisks[count].fileh != nullptr)
         count++;
 
     if (count > 1)
     {
+        _active_rotate_slot = (_active_rotate_slot + 1) % count;
+        fnLedManager.blink(LED_BUS, _active_rotate_slot + 1);
+
         count--;
 
         // Save the device ID of the disk in the last slot
