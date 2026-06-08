@@ -346,11 +346,16 @@ int systemBus::numDevices()
 
 void systemBus::changeDeviceId(virtualDevice *p, uint8_t device_id)
 {
-    for (auto devicep : _daisyChain)
+    for (auto it = _daisyChain.begin(); it != _daisyChain.end(); ++it)
     {
-        if (devicep.second == p)
-            devicep.second->_devnum = device_id;
+        if (it->second == p)
+        {
+            _daisyChain.erase(it);
+            break;
+        }
     }
+    p->_devnum = device_id;
+    _daisyChain[device_id] = p;
 }
 
 virtualDevice *systemBus::deviceById(uint8_t device_id)
