@@ -843,8 +843,9 @@ void sioFuji::sio_base64_encode_output()
 
 void sioFuji::sio_random_number()
 {
+    transaction_begin(TRANS_STATE::NO_GET);
     int r = rand();
-    transaction_put(&r,sizeof(int),true);
+    transaction_put(&r,sizeof(int),false);
 }
 
 void sioFuji::sio_base64_decode_input()
