@@ -380,7 +380,7 @@ void systemBus::service()
         else
         {
             const int netstream_baud = _streamDev->netstream_baud;
-            if (getBaudrate() != netstream_baud)
+            if (getCurrentBaudrate() != netstream_baud)
             {
                 // Ensure NetStream baud
 #ifdef DEBUG_NETSTREAM
@@ -678,6 +678,14 @@ int systemBus::getBaudrate()
     }
 
     return SIO_STANDARD_BAUDRATE;
+}
+
+int systemBus::getCurrentBaudrate()
+{
+    if (isBoIP())
+        return _netsio.getBaudrate();
+
+    return _serial.getBaudrate();
 }
 
 // This method is called by devices to change the "UART" baudrate, it

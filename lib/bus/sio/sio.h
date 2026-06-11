@@ -264,6 +264,7 @@ public:
     void changeDeviceId(virtualDevice *pDevice, int device_id);
 
     int getBaudrate();                                          // Gets current SIO baud rate setting
+    int getCurrentBaudrate();                                   // Gets current I/O channel baud rate
     void setBaudrate(int baud);                                 // Sets SIO to specific baud rate
     void toggleBaudrate();                                      // Toggle between standard and high speed SIO baud rate
 
