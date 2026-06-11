@@ -181,9 +181,9 @@ void virtualDevice::sio_error()
 // SIO HIGH SPEED REQUEST
 void virtualDevice::sio_high_speed()
 {
-    Debug_print("sio HSIO INDEX\n");
     int index = SYSTEM_BUS.getHighSpeedIndex();
     uint8_t hsd = index == HSIO_INVALID_INDEX ? 40 : (uint8_t)index;
+    Debug_printf("sio HSIO INDEX: %d\n", hsd);
     bus_to_computer((uint8_t *)&hsd, 1, false);
 }
 

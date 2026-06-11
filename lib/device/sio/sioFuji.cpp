@@ -1072,6 +1072,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     switch (cmdFrame.comnd)
     {
     case FUJICMD_HSIO_INDEX:
+        /* ACK is required here since it's not done elsewhere for this device/command. The bus should probably
+        * handle this instead. Disk and network devices currently send their own ACK for this
+        */
+        sio_ack();
         sio_high_speed();
         break;
     case FUJICMD_SET_HSIO_INDEX:
