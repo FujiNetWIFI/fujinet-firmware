@@ -114,7 +114,11 @@ fujiError_t NetworkProtocolCPM::open(PeoplesUrlParser *urlParser,
     _cpm_txq = xQueueCreate(2048, sizeof(uint8_t));
     xTaskCreatePinnedToCore(_cpm_task_entry,
                             "cpmnet",
+#ifdef BUILD_APPLE
+                            4096,
+#else
                             32768,
+#endif
                             nullptr,
                             20,
                             &cpmTaskHandle,
