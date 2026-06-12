@@ -13,15 +13,25 @@
   // survive container rebuilds and stay out of the bind-mounted source tree.
   // Overrides the image's default PLATFORMIO_CORE_DIR=/workspace/.platformio.
   "containerEnv": {
-    "PLATFORMIO_CORE_DIR": "/home/wario/.platformio"
+    "PLATFORMIO_CORE_DIR": "/home/wario/.platformio",
+    "GIT_SSH_COMMAND": "ssh -o UserKnownHostsFile=/tmp/fujinet-github-known_hosts",
+    // 1Password CLI v2 agent socket, if present, for GitHub SSH auth. Optional
+    // Comment out if you don't use 1Password or want to set up SSH keys in another way
+    //"SSH_AUTH_SOCK": "/home/wario/.1password/agent.sock"
   },
   "mounts": [
-    "source=fujinet-platformio,target=/home/wario/.platformio,type=volume"
+    "source=fujinet-platformio,target=/home/wario/.platformio,type=volume",
+    "type=bind,source=${localEnv:HOME}/.ssh,target=/home/wario/.ssh,readonly",
+    // 1Password CLI v2 agent socket, if present, for GitHub SSH auth. Optional
+    // Comment out if you don't use 1Password or want to set up SSH keys in another way
+    //"type=bind,source=${localEnv:HOME}/.1password,target=/home/wario/.1password,readonly"
   ],
 
   // Named volumes mount root-owned; hand it to the build user. safe.directory
   // keeps git happy when the host UID differs from the container user.
-  "postCreateCommand": "sudo chown -R wario:wario /home/wario/.platformio && git config --global --add safe.directory ${containerWorkspaceFolder}",
+  // Git-over-SSH uses the read-only ~/.ssh key mount above; known_hosts is
+  // seeded here so the first GitHub connection doesn't prompt.
+  "postCreateCommand": "sudo chown -R wario:wario /home/wario/.platformio && ssh-keyscan -H github.com > /tmp/fujinet-github-known_hosts 2>/dev/null && git config --global --add safe.directory ${containerWorkspaceFolder} && git config --global core.sshCommand 'ssh -o UserKnownHostsFile=/tmp/fujinet-github-known_hosts'",
 
   "customizations": {
     "vscode": {

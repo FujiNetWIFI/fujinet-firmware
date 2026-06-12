@@ -20,6 +20,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         clang-format \
         libssl-dev \
+        openssh-client \
         pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
