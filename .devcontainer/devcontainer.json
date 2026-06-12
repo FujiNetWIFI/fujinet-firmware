@@ -1,0 +1,48 @@
+{
+  "name": "FujiNet Firmware (defoogi)",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+
+  // The defoogi image already has a non-root build user (uid/gid 1000, in the
+  // dialout group for serial access). Run as that user; the runtime maps its
+  // UID to the host user on local Docker so bind-mounted files stay writable.
+  "remoteUser": "wario",
+
+  // Cache the (multi-GB) PlatformIO ESP32 toolchains in a named volume so they
+  // survive container rebuilds and stay out of the bind-mounted source tree.
+  // Overrides the image's default PLATFORMIO_CORE_DIR=/workspace/.platformio.
+  "containerEnv": {
+    "PLATFORMIO_CORE_DIR": "/home/wario/.platformio"
+  },
+  "mounts": [
+    "source=fujinet-platformio,target=/home/wario/.platformio,type=volume"
+  ],
+
+  // Named volumes mount root-owned; hand it to the build user. safe.directory
+  // keeps git happy when the host UID differs from the container user.
+  "postCreateCommand": "sudo chown -R wario:wario /home/wario/.platformio && git config --global --add safe.directory ${containerWorkspaceFolder}",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "platformio.platformio-ide",
+        "ms-vscode.cpptools",
+        "ms-python.python"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "C_Cpp.default.compileCommands": "${containerWorkspaceFolder}/build/compile_commands.json"
+      }
+    }
+  }
+
+  // --- Local USB flashing (opt-in; ignored by Codespaces, which has no USB) ---
+  // To upload firmware / use the serial monitor against a real ESP32 over USB,
+  // add the following keys (a privileged container with /dev passed through,
+  // mirroring defoogi's own `start` script) and rebuild the container:
+  //
+  //   "runArgs": ["--privileged", "-v", "/dev:/dev"],
+  //
+  // Then `./build.sh -cbum` etc. can reach the device. See .devcontainer/README.md.
+}
