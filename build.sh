@@ -230,9 +230,15 @@ same_dir() {
 }
 
 if [[ "$VIRTUAL_ENV" != "$VENV_ROOT" ]] ; then
-    if [ ! -f "${ACTIVATE}" ] ; then
-        echo Creating venv at "${VENV_ROOT}"
-        mkdir -p $(dirname "${VENV_ROOT}")
+    STALE_VENV=0
+    if [ -f "${ACTIVATE}" ] && ! grep -Fq "${VENV_ROOT}" "${ACTIVATE}" ; then
+        STALE_VENV=1
+    fi
+
+    if [ ! -f "${ACTIVATE}" ] || [ "${STALE_VENV}" -eq 1 ] ; then
+        echo "Refreshing virtual environment at ${VENV_ROOT}"
+        rm -rf "${VENV_ROOT}"
+        mkdir -p "$(dirname "${VENV_ROOT}")"
         ${PYTHON} -m venv "${VENV_ROOT}" || exit 1
     fi
     if [ -f "${ACTIVATE}" ] ; then
@@ -251,8 +257,10 @@ if [[ "$VIRTUAL_ENV" != "$VENV_ROOT" ]] ; then
         echo "VIRTAUL_ENV = ${VIRTUAL_ENV}"
         echo "VENV_ACTUAL = ${VENV_ACTUAL}"
         echo "VENV_ROOT = ${VENV_ROOT}"
-        ls -Fla "$(dirname ${ACTIVATE})" || true
-        ls -Fla "$(dirname ${ALT_ACTIVATE})" || true
+        ls -Fla "$(dirname "${ACTIVATE}")" || true
+        if [ -d "$(dirname "${ALT_ACTIVATE}")" ] ; then
+            ls -Fla "$(dirname "${ALT_ACTIVATE}")" || true
+        fi
         exit 1
     fi
 fi
@@ -311,6 +319,11 @@ if [ ! -z "$PC_TARGET" ] ; then
     echo "Removing old build artifacts"
     rm -rf $SCRIPT_DIR/build/*
     rm -f $SCRIPT_DIR/build/.ninja* 2>/dev/null
+  fi
+
+  if [ -f "$SCRIPT_DIR/build/CMakeCache.txt" ] && grep -q "/home/bkrein/code/fujinet/fujinet-firmware" "$SCRIPT_DIR/build/CMakeCache.txt" 2>/dev/null ; then
+    echo "Removing stale CMake cache from a previous workspace path"
+    find "$SCRIPT_DIR/build" -mindepth 1 -maxdepth 1 ! -name '.venv' -exec rm -rf {} +
   fi
 
   cd $SCRIPT_DIR/build
