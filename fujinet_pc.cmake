@@ -44,8 +44,15 @@ elseif(FUJINET_TARGET STREQUAL "LYNX")
     set(FUJINET_BUILD_BOARD fujinet-lynx-devkitc)
     # fujinet.build_bus
     set(FUJINET_BUILD_BUS LYNX)
+elseif(FUJINET_TARGET STREQUAL "ADAM")
+    # fujinet.build_platform
+    set(FUJINET_BUILD_PLATFORM BUILD_ADAM)
+    # fujinet.build_board (used by build_webui.py)
+    set(FUJINET_BUILD_BOARD fujinet-pc-adam)
+    # fujinet.build_bus
+    set(FUJINET_BUILD_BUS ADAMNET)
 else()
-    message(FATAL_ERROR "Invalid target: '${FUJINET_TARGET}'. Please choose from 'RS232', 'ATARI', 'APPLE', or 'COCO'.")
+    message(FATAL_ERROR "Invalid target: '${FUJINET_TARGET}'. Please choose from 'RS232', 'ATARI', 'APPLE', 'COCO', 'LYNX', or 'ADAM'.")
 endif()
 
 if(FUJINET_TARGET STREQUAL "APPLE")
@@ -397,6 +404,45 @@ if(FUJINET_TARGET STREQUAL "COCO")
     lib/device/drivewire/printer.h lib/device/drivewire/printer.cpp
     lib/device/drivewire/printerlist.h lib/device/drivewire/printerlist.cpp
     lib/device/drivewire/clock.h lib/device/drivewire/clock.cpp
+
+    )
+endif()
+
+if(FUJINET_TARGET STREQUAL "ADAM")
+    # PC shims for the FreeRTOS/esp_timer subset the AdamNet bus+devices use.
+    # Prepended so it is searched first; ADAM-only so it never affects ESP or
+    # other PC targets (the shimmed headers don't exist on the PC path anyway).
+    set(INCLUDE_DIRS lib/compat/pc_rtos ${INCLUDE_DIRS})
+
+    # The adam bus/device/media sources include each other by bare filename.
+    # APPEND (after the base lib/device, lib/bus, lib/media) so shared names like
+    # disk.h / network.h / printer.h still resolve to the base platform-dispatch
+    # headers, while adam-only names (adamFuji.h, serial.h, ...) resolve here.
+    list(APPEND INCLUDE_DIRS lib/bus/adamnet lib/device/adamnet lib/media/adam)
+
+    list(APPEND SOURCES
+
+    lib/compat/pc_rtos/pc_rtos.cpp
+
+    lib/printer-emulator/coleco_printer.h lib/printer-emulator/coleco_printer.cpp
+
+    lib/bus/adamnet/adamnet.h lib/bus/adamnet/adamnet.cpp
+    lib/hardware/NetAdamNet.h lib/hardware/NetAdamNet.cpp
+
+    lib/media/adam/mediaType.h lib/media/adam/mediaType.cpp
+    lib/media/adam/mediaTypeDDP.h lib/media/adam/mediaTypeDDP.cpp
+    lib/media/adam/mediaTypeDSK.h lib/media/adam/mediaTypeDSK.cpp
+    lib/media/adam/mediaTypeROM.h lib/media/adam/mediaTypeROM.cpp
+
+    lib/device/adamnet/adamFuji.h lib/device/adamnet/adamFuji.cpp
+    lib/device/adamnet/disk.h lib/device/adamnet/disk.cpp
+    lib/device/adamnet/keyboard.h lib/device/adamnet/keyboard.cpp
+    lib/device/adamnet/modem.h lib/device/adamnet/modem.cpp
+    lib/device/adamnet/network.h lib/device/adamnet/network.cpp
+    lib/device/adamnet/printer.h lib/device/adamnet/printer.cpp
+    lib/device/adamnet/printerlist.h lib/device/adamnet/printerlist.cpp
+    lib/device/adamnet/query_device.h lib/device/adamnet/query_device.cpp
+    lib/device/adamnet/serial.h lib/device/adamnet/serial.cpp
 
     )
 endif()

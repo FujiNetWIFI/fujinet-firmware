@@ -16,11 +16,11 @@ public:
 
     error_is_true format(uint16_t *responsesize) override;
 
-    mediatype_t mount(FILE *f, uint32_t disksize) override;
+    mediatype_t mount(fnFile *f, uint32_t disksize) override;
 
     uint8_t status() override;
 
-    static success_is_true create(FILE *f, uint32_t numBlock);
+    static success_is_true create(fnFile *f, uint32_t numBlock);
 };
 
 

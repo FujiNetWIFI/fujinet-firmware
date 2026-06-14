@@ -1004,10 +1004,14 @@ void adamNetwork::process_udp(fujiCommandID_t cmd)
     {
 #ifndef ESP_PLATFORM
     case NETCMD_GET_REMOTE:
+    {
         receiveBuffer->resize(SPECIAL_BUFFER_SIZE);
         cmd_err = udp->get_remote(receiveBuffer->data(), receiveBuffer->size());
-        response += *receiveBuffer;
+        size_t n = receiveBuffer->size() < sizeof(response) ? receiveBuffer->size() : sizeof(response);
+        memcpy(response, receiveBuffer->data(), n);
+        response_len = n;
         break;
+    }
 #endif /* ESP_PLATFORM */
     case NETCMD_SET_DESTINATION:
         {

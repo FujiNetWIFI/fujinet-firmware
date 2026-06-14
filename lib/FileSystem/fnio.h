@@ -3,8 +3,10 @@
 
 #include <cstddef>
 
-#if defined(BUILD_ATARI) || defined(BUILD_APPLE) || defined(BUILD_COCO) || defined(BUILD_RS232)
-  // ATARI and APPLE was already ported to use fnio
+#if defined(BUILD_ATARI) || defined(BUILD_APPLE) || defined(BUILD_COCO) || defined(BUILD_RS232) || (defined(BUILD_ADAM) && !defined(ESP_PLATFORM))
+  // ATARI and APPLE was already ported to use fnio.
+  // ADAM uses fnio on PC only (TNFS needs FileHandler there); ESP ADAM keeps
+  // stdio, where TNFS is mapped to FILE* via the ESP-IDF VFS.
   // set FNIO_IS_STDIO to force stdio
 
   // for testing/debugging, it is possible to switch to stdio
