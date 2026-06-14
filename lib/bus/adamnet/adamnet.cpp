@@ -353,6 +353,13 @@ void systemBus::service()
     // Process anything waiting.
     if (_port->available() > 0)
         _adamnet_process_cmd();
+#ifndef ESP_PLATFORM
+    else
+        // Idle: block briefly on the socket instead of spinning the PC main loop
+        // at 100% CPU. Wakes immediately when the emulator sends a command. (When
+        // BoIP isn't the active port this just naps, which is fine.)
+        _netadam.poll(1);
+#endif
 }
 
 void systemBus::setup()

@@ -8,6 +8,8 @@
 
 #include <cstring>
 #include <cerrno>
+#include <chrono>
+#include <thread>
 
 #if defined(_WIN32)
 #include <winsock2.h>
@@ -201,6 +203,27 @@ size_t NetAdamNet::dataOut(const void *buffer, size_t length)
     }
 
     return length;
+}
+
+void NetAdamNet::poll(int ms)
+{
+    if (_fd >= 0)
+    {
+        // Wait for the emulator to send something, but wake immediately when it
+        // does. This keeps the idle bus from busy-looping the main thread.
+        fd_set rfds;
+        FD_ZERO(&rfds);
+        FD_SET(_fd, &rfds);
+        struct timeval tv;
+        tv.tv_sec = ms / 1000;
+        tv.tv_usec = (ms % 1000) * 1000;
+        select(_fd + 1, &rfds, NULL, NULL, &tv);
+    }
+    else
+    {
+        // Not connected yet; just nap so we don't spin while waiting for ADAMEm.
+        std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+    }
 }
 
 void NetAdamNet::flushOutput()

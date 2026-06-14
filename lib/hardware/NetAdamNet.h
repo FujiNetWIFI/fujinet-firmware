@@ -51,6 +51,11 @@ public:
 
     bool connected() const { return _fd >= 0; }
 
+    // Block up to ms milliseconds waiting for incoming data (or just nap if not
+    // connected). Called when the bus is idle so the PC main loop doesn't spin
+    // at 100% CPU. Returns as soon as a byte is readable.
+    void poll(int ms);
+
     // RS232ChannelProtocol: there are no real control lines over the socket.
     uint32_t getBaudrate() override { return _baud; }
     void setBaudrate(uint32_t baud) override { _baud = baud; }
