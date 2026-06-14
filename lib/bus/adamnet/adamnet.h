@@ -190,6 +190,12 @@ protected:
      */
     uint8_t _devnum;
 
+    // PC/BoIP only: when set, always transmit ACK/NACK even past the 300us
+    // hardware response window (a slow host can blow it). Safe only for devices
+    // the master re-polls (block devices); single-shot char/network devices keep
+    // the deadline so a late response can't pollute the next command's reply.
+    bool _pc_no_response_deadline = false;
+
     virtual void shutdown() {}
 
     /**

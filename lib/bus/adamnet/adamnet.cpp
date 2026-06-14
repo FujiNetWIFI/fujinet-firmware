@@ -171,7 +171,8 @@ void virtualDevice::adamnet_response_ack(bool doNotWaitForIdle)
     if (!doNotWaitForIdle)
         SYSTEM_BUS.min_turnaround();
 
-    if (esp_timer_get_time() - SYSTEM_BUS.start_time < ADAMNET_RESPONSE_DEADLINE_US)
+    if (_pc_no_response_deadline ||
+        esp_timer_get_time() - SYSTEM_BUS.start_time < ADAMNET_RESPONSE_DEADLINE_US)
         adamnet_send(0x90 | _devnum);
 }
 
@@ -180,7 +181,8 @@ void virtualDevice::adamnet_response_nack(bool doNotWaitForIdle)
     if (!doNotWaitForIdle)
         SYSTEM_BUS.min_turnaround();
 
-    if (esp_timer_get_time() - SYSTEM_BUS.start_time < ADAMNET_RESPONSE_DEADLINE_US)
+    if (_pc_no_response_deadline ||
+        esp_timer_get_time() - SYSTEM_BUS.start_time < ADAMNET_RESPONSE_DEADLINE_US)
         adamnet_send(0xC0 | _devnum);
 }
 

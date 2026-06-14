@@ -17,6 +17,9 @@ adamDisk::adamDisk()
     blockNum = 0;
     status_response.length = htole16(1024);
     status_response.devtype = ADAMNET_DEVTYPE_BLOCK;
+#ifndef ESP_PLATFORM
+    _pc_no_response_deadline = true;
+#endif
 }
 
 // Destructor
@@ -116,8 +119,10 @@ error_is_true adamDisk::write_blank(fnFile *fileh, uint32_t numBlocks)
 void adamDisk::adamnet_control_clr()
 {
     int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
-
+    (void)t;
+#ifdef ESP_PLATFORM
     if (t < 1500)
+#endif
     {
         adamnet_response_send();
     }
@@ -243,8 +248,10 @@ void adamDisk::adamnet_response_status()
         status_response.status = 0x40 | _media->_media_controller_status;
 
     int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
-
+    (void)t;
+#ifdef ESP_PLATFORM
     if (t < 300)
+#endif
     {
         virtualDevice::adamnet_response_status();
     }
