@@ -109,7 +109,7 @@ public:
     std::string get_general_label();
 #endif
     int get_general_hsioindex() { return _general.hsio_index; };
-    std::string get_general_timezone() { return _general.timezone; };
+    std::string get_general_timezone() { return _general.timezone.empty() ? "UTC" : _general.timezone; };
     bool get_general_rotation_sounds() { return _general.rotation_sounds; };
     std::string get_network_netstream_host() { return _network.netstream_host; };
     int get_network_netstream_port() { return _network.netstream_port; };
