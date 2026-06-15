@@ -31,6 +31,11 @@ adamNetwork::adamNetwork()
 {
     status_response.length = htole16(1024);
     status_response.devtype = ADAMNET_DEVTYPE_CHAR;
+#ifndef ESP_PLATFORM
+    // Over BoIP a network (N:) op blocks on a remote host; let its ACK/response
+    // through past the 300us hardware window -- the master waits far longer.
+    _pc_no_response_deadline = true;
+#endif
 
     receiveBuffer = new string();
     transmitBuffer = new string();

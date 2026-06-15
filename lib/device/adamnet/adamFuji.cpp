@@ -41,6 +41,12 @@ adamFuji::adamFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, std::nullop
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].slotid = i;
+#ifndef ESP_PLATFORM
+    // Over BoIP a TNFS-backed Fuji op (host slots, directory open/read) easily
+    // overruns the 300us hardware response window; the master waits much longer,
+    // so always send the ACK/response rather than suppressing it. See disk.cpp.
+    _pc_no_response_deadline = true;
+#endif
 }
 
 // Status
