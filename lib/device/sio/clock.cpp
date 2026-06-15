@@ -85,10 +85,9 @@ void sioClock::sio_process(uint32_t commanddata, uint8_t checksum)
         break;
     }
     case 'M': {
-        // Simple binary + 2-byte big-endian milliseconds (9 bytes total)
         sio_ack();
-        auto milliTime = Clock::get_current_time_simple_millis(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
-        bus_to_computer(milliTime.data(), milliTime.size(), false);
+        auto hundredthsTime = Clock::get_current_time_simple_hundredths(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
+        bus_to_computer(hundredthsTime.data(), hundredthsTime.size(), false);
         break;
     }
     case 'P': {

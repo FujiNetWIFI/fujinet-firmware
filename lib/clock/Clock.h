@@ -20,8 +20,8 @@ public:
     // current local time in ApeTime format
     static std::vector<uint8_t> get_current_time_apetime(const std::string& posixTimeZone);
 
-    // current local time in Simple binary format with milliseconds appended (9 bytes total)
-    static std::vector<uint8_t> get_current_time_simple_millis(const std::string& posixTimeZone);
+    // current local time in Simple binary format with hundredths of a second appended (8 bytes total)
+    static std::vector<uint8_t> get_current_time_simple_hundredths(const std::string& posixTimeZone);
 
     // current local time in SOS set_time format
     static std::string get_current_time_sos(const std::string& posixTimeZone);

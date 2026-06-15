@@ -176,7 +176,7 @@ enum fujiCommandID_t : uint8_t {
     APETIMECMD_SETTZ_ALT2              = 0x54, // T
     APETIMECMD_GET_SOS                 = 0x53, // S
     APETIMECMD_GET_PRODOS              = 0x50, // P
-    APETIMECMD_GET_SIMPLE_MILLIS       = 0x4D, // M - simple binary + 2-byte big-endian milliseconds
+    APETIMECMD_GET_SIMPLE_HUNDREDTHS   = 0x4D, // M - simple binary + 1-byte hundredths (0-99)
     APETIMECMD_GETTZ_LEN               = 0x4C, // L
     APETIMECMD_GET_ISO_LOCAL           = 0x49, // I
     APETIMECMD_GET_GENERAL             = 0x47, // G

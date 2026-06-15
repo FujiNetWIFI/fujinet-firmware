@@ -123,15 +123,15 @@ std::vector<uint8_t> Clock::get_current_time_apetime(const std::string& posixTim
     return apeTime;
 }
 
-std::vector<uint8_t> Clock::get_current_time_simple_millis(const std::string& posixTimeZone) {
+std::vector<uint8_t> Clock::get_current_time_simple_hundredths(const std::string& posixTimeZone) {
     ScopedTimezone tz(posixTimeZone);
     auto now = std::chrono::system_clock::now();
     time_t tt = std::chrono::system_clock::to_time_t(now);
     auto localTime = *std::localtime(&tt);
-    uint16_t ms = static_cast<uint16_t>(
-        std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000);
+    uint8_t hundredths = static_cast<uint8_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000 / 10);
 
-    std::vector<uint8_t> result(9);
+    std::vector<uint8_t> result(8);
     result[0] = static_cast<uint8_t>((localTime.tm_year) / 100 + 19);
     result[1] = static_cast<uint8_t>(localTime.tm_year % 100);
     result[2] = static_cast<uint8_t>(localTime.tm_mon + 1);
@@ -139,8 +139,7 @@ std::vector<uint8_t> Clock::get_current_time_simple_millis(const std::string& po
     result[4] = static_cast<uint8_t>(localTime.tm_hour);
     result[5] = static_cast<uint8_t>(localTime.tm_min);
     result[6] = static_cast<uint8_t>(localTime.tm_sec);
-    result[7] = static_cast<uint8_t>((ms >> 8) & 0xFF);
-    result[8] = static_cast<uint8_t>(ms & 0xFF);
+    result[7] = hundredths;
 
     return result;
 }

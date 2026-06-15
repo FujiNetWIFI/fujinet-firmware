@@ -72,10 +72,10 @@ void drivewireClock::process()
         SYSTEM_BUS.write(t.data(), t.size());
         break;
     }
-    case APETIMECMD_GET_SIMPLE_MILLIS: {
+    case APETIMECMD_GET_SIMPLE_HUNDREDTHS: {
         aux1 = SYSTEM_BUS.read();
         use_alt = (aux1 == 0x01);
-        auto t = Clock::get_current_time_simple_millis(
+        auto t = Clock::get_current_time_simple_hundredths(
             Clock::tz_to_use(use_alt, alternate_tz, Config.get_general_timezone()));
         SYSTEM_BUS.write(t.data(), t.size());
         break;

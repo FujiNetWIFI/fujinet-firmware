@@ -16,7 +16,7 @@ private:
     void _set_fn_tz(const FujiBusPacket &packet);
     void _get_time_apetime(const FujiBusPacket &packet, bool force_alt);
     void _get_time_simple(const FujiBusPacket &packet);
-    void _get_time_simple_millis(const FujiBusPacket &packet);
+    void _get_time_simple_hundredths(const FujiBusPacket &packet);
     void _get_time_prodos(const FujiBusPacket &packet);
     void _get_time_sos(const FujiBusPacket &packet);
     void _get_time_iso_local(const FujiBusPacket &packet);
