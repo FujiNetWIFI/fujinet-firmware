@@ -124,6 +124,12 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
         data_len = simpleTime.size();
         break;
     }
+    case APETIMECMD_GET_SIMPLE_MILLIS: {
+        auto milliTime = Clock::get_current_time_simple_millis(Clock::tz_to_use(false, alternate_tz, Config.get_general_timezone()));
+        std::copy(milliTime.begin(), milliTime.end(), data_buffer);
+        data_len = milliTime.size();
+        break;
+    }
     case APETIMECMD_GET_PRODOS:
     case APETIMECMD_GET_PRODOS_ALT: {
         use_alternate_tz = status_code == APETIMECMD_GET_PRODOS_ALT;

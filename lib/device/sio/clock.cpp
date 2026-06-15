@@ -84,6 +84,13 @@ void sioClock::sio_process(uint32_t commanddata, uint8_t checksum)
         bus_to_computer(simpleTime.data(), simpleTime.size(), false);
         break;
     }
+    case 'M': {
+        // Simple binary + 2-byte big-endian milliseconds (9 bytes total)
+        sio_ack();
+        auto milliTime = Clock::get_current_time_simple_millis(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
+        bus_to_computer(milliTime.data(), milliTime.size(), false);
+        break;
+    }
     case 'P': {
         // Date and time, to be used by a ProDOS driver
         sio_ack();
