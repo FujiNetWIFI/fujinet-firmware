@@ -780,9 +780,11 @@ int systemBus::readBaudSwitch()
         return 115200; //Coco3 ROM Image
     }
 
-    Debug_printv("A14 and A15 High, defaulting to 57600 baud");
-    return 57600; //Default or no switch
-#else /* ! PIN_EPROM_A14 */
+    bDragon = true;
+    Debug_printv("A14 and A15 High, (DRAGON) 38400 baud");
+
+    return 57600; // Default or no switch
+#else             /* ! PIN_EPROM_A14 */
     return 921600;
 #endif /* PIN_EPROM_A14 */
 }
@@ -835,7 +837,8 @@ void systemBus::setup()
                       .deviceID(DW_UART_DEVICE)
                       .readTimeout(500)
 #ifdef ESP_PLATFORM
-                      .inverted(DW_UART_DEVICE == UART_NUM_2)
+                          .txInverted(DW_UART_DEVICE == UART_NUM_2 && !bDragon)
+                          .rxInverted(DW_UART_DEVICE == UART_NUM_2)
 #endif /* ESP_PLATFORM */
                       );
 #endif /* FUJINET_OVER_USB */
