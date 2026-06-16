@@ -1575,18 +1575,19 @@ _tnfs_recv_result _tnfs_recv_and_validate(fnUDP &udp, tnfsMountInfo *m_info, tnf
         m_info->protocol = TNFS_PROTOCOL_TCP;
     }
 
-    // Delayed response for the previous request. We should just try to recv the next response.
-    if (res_pkt.sequence_num < req_pkt.sequence_num)
-    {
-        Debug_printf("Received delayed response! Rcvd: %x, Expected: %x\r\n", res_pkt.sequence_num, req_pkt.sequence_num);
-        return NO_RESP;
-    }
-
-    // Out of order packet received.
+    // A response whose sequence doesn't match the request is a stale/reordered
+    // response for an EARLIER request: discard it and keep waiting for the one we
+    // actually asked for. The sequence number is a single byte that wraps at 256,
+    // so a numerically-larger value is really an *older* request -- the client
+    // never legitimately receives a response for a request it hasn't sent yet.
+    // (Treating the wrapped case as a hard "out of order" failure made large
+    // transfers hang once the counter wrapped, e.g. booting a big .ddp over a
+    // laggy link when a late pre-wrap response lands during a post-wrap request.)
     if (res_pkt.sequence_num != req_pkt.sequence_num)
     {
-        Debug_printf("TNFS OUT OF ORDER SEQUENCE! Rcvd: %x, Expected: %x\r\n", res_pkt.sequence_num, req_pkt.sequence_num);
-        return RESP_INVALID;
+        Debug_printf("Discarding stale TNFS response. Rcvd: %x, Expected: %x\r\n",
+                     res_pkt.sequence_num, req_pkt.sequence_num);
+        return NO_RESP;
     }
 
     // Check in case the server asks us to wait and try again
