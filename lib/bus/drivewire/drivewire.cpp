@@ -864,36 +864,6 @@ void systemBus::setup()
     //     }
     // }
     // end jeff hack
-    while(0)
-    { 
-        for(int i=0;i<255;i++) 
-            _port->write(0xF0);
-        _port->flushOutput();
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-        for(int i=0;i<255;i++) 
-            _port->write(0x0F);
-        _port->flushOutput();
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-        for(int i=0;i<255;i++) 
-            _port->write(0xa5);
-        _port->flushOutput();
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-        for(int i=0;i<255;i++) 
-            _port->write(0xcc);
-        _port->flushOutput();
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-        for(int i=0;i<255;i++) 
-            _port->write(0x00);
-        _port->flushOutput();
-
-        
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
-
 }
 
 // Give devices an opportunity to clean up before a reboot
