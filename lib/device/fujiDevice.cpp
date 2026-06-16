@@ -969,6 +969,15 @@ success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_
         RETURN_ERROR_AS_FALSE();
     }
 
+    // Protocol sends 1-based slot numbers; convert to 0-based array indices.
+    if (sourceSlot == 0 || destSlot == 0)
+    {
+        transaction_error();
+        RETURN_ERROR_AS_FALSE();
+    }
+    sourceSlot--;
+    destSlot--;
+
     if (!validate_host_slot(sourceSlot, "copy_file_source")
         || !validate_host_slot(destSlot, "copy_file_dest"))
     {
