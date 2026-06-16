@@ -814,10 +814,6 @@ void systemBus::setup()
     _drivewireBaud = FORCE_UART_BAUD;
   #else /* !FORCE_UART_BAUD */
     _drivewireBaud = readBaudSwitch();
-    if (bDragon)
-    {
-        // Additional configuration for Dragon mode if needed
-    }
 #endif /* FORCE_UART_BAUD */
 #endif /* CONFIG_IDF_TARGET_ESP32S3 */
 #else /* !ESP_PLATFORM */

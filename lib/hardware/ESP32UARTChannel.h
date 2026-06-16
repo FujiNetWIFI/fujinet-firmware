@@ -37,7 +37,6 @@ struct ChannelConfig
             .backup_before_sleep = 0,
         }
     };
-    bool isInverted = false;
     bool isRxInverted = false;
     bool isTxInverted = false;
     uart_port_t device;
@@ -95,7 +94,6 @@ struct ChannelConfig
     }
     ChannelConfig &inverted(bool inv)
     {
-        isInverted = inv;
         isRxInverted = inv;
         isTxInverted = inv;
         return *this;

@@ -56,9 +56,9 @@ void ESP32UARTChannel::begin(const ChannelConfig& conf)
     
 
     uint32_t inv_mask = 0;
-    if (conf.isInverted || conf.isTxInverted)
+    if (conf.isTxInverted)
         inv_mask |= UART_SIGNAL_TXD_INV;
-    if (conf.isInverted || conf.isRxInverted)
+    if (conf.isRxInverted)
         inv_mask |= UART_SIGNAL_RXD_INV;
     if (inv_mask)
         uart_set_line_inverse(_uart_num, inv_mask);
