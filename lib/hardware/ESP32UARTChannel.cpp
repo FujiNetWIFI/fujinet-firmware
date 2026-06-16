@@ -43,6 +43,8 @@ void ESP32UARTChannel::begin(const ChannelConfig& conf)
     case 2:
         rx = PIN_UART2_RX;
         tx = PIN_UART2_TX;
+        //gpio_set_pull_mode((gpio_num_t)rx,GPIO_PULLUP_ONLY);
+        //gpio_set_drive_capability((gpio_num_t)PIN_UART2_TX, GPIO_DRIVE_CAP_3);
         break;
 #endif /* PIN_UART2_RX */
 
@@ -51,9 +53,15 @@ void ESP32UARTChannel::begin(const ChannelConfig& conf)
     }
 
     uart_set_pin(_uart_num, tx, rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    
 
-    if (conf.isInverted)
-        uart_set_line_inverse(_uart_num, UART_SIGNAL_TXD_INV | UART_SIGNAL_RXD_INV);
+    uint32_t inv_mask = 0;
+    if (conf.isInverted || conf.isTxInverted)
+        inv_mask |= UART_SIGNAL_TXD_INV;
+    if (conf.isInverted || conf.isRxInverted)
+        inv_mask |= UART_SIGNAL_RXD_INV;
+    if (inv_mask)
+        uart_set_line_inverse(_uart_num, inv_mask);
 
     int uart_buffer_size = 2048;
     int uart_queue_size = 20;

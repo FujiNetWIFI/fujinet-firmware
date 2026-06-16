@@ -780,9 +780,11 @@ int systemBus::readBaudSwitch()
         return 115200; //Coco3 ROM Image
     }
 
-    Debug_printv("A14 and A15 High, defaulting to 57600 baud");
-    return 57600; //Default or no switch
-#else /* ! PIN_EPROM_A14 */
+    bDragon = true;
+    Debug_printv("A14 and A15 High, (DRAGON) 38400 baud");
+
+    return 57600; // Default or no switch
+#else             /* ! PIN_EPROM_A14 */
     return 921600;
 #endif /* PIN_EPROM_A14 */
 }
@@ -812,7 +814,11 @@ void systemBus::setup()
     _drivewireBaud = FORCE_UART_BAUD;
   #else /* !FORCE_UART_BAUD */
     _drivewireBaud = readBaudSwitch();
-  #endif /* FORCE_UART_BAUD */
+    if (bDragon)
+    {
+        // Additional configuration for Dragon mode if needed
+    }
+#endif /* FORCE_UART_BAUD */
 #endif /* CONFIG_IDF_TARGET_ESP32S3 */
 #else /* !ESP_PLATFORM */
     // FujiNet-PC specific
@@ -835,7 +841,8 @@ void systemBus::setup()
                       .deviceID(DW_UART_DEVICE)
                       .readTimeout(500)
 #ifdef ESP_PLATFORM
-                      .inverted(DW_UART_DEVICE == UART_NUM_2)
+                          .txInverted(DW_UART_DEVICE == UART_NUM_2 && !bDragon)
+                          .rxInverted(DW_UART_DEVICE == UART_NUM_2)
 #endif /* ESP_PLATFORM */
                       );
 #endif /* FUJINET_OVER_USB */
@@ -857,6 +864,35 @@ void systemBus::setup()
     //     }
     // }
     // end jeff hack
+    while(0)
+    { 
+        for(int i=0;i<255;i++) 
+            _port->write(0xF0);
+        _port->flushOutput();
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+        for(int i=0;i<255;i++) 
+            _port->write(0x0F);
+        _port->flushOutput();
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+        for(int i=0;i<255;i++) 
+            _port->write(0xa5);
+        _port->flushOutput();
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+        for(int i=0;i<255;i++) 
+            _port->write(0xcc);
+        _port->flushOutput();
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+        for(int i=0;i<255;i++) 
+            _port->write(0x00);
+        _port->flushOutput();
+
+        
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
 
 }
 

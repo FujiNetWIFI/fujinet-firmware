@@ -38,6 +38,8 @@ struct ChannelConfig
         }
     };
     bool isInverted = false;
+    bool isRxInverted = false;
+    bool isTxInverted = false;
     uart_port_t device;
     double read_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
     double discard_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
@@ -91,11 +93,27 @@ struct ChannelConfig
     ChannelConfig& flowControl(uart_hw_flowcontrol_t flow) {
         uart_config.flow_ctrl = flow; return *this;
     }
-    ChannelConfig& inverted(bool inv) {
-        isInverted = inv; return *this;
+    ChannelConfig &inverted(bool inv)
+    {
+        isInverted = inv;
+        isRxInverted = inv;
+        isTxInverted = inv;
+        return *this;
     }
-    ChannelConfig& deviceID(uart_port_t num) {
-        device = num; return *this;
+    ChannelConfig &rxInverted(bool inv)
+    {
+        isRxInverted = inv;
+        return *this;
+    }
+    ChannelConfig &txInverted(bool inv)
+    {
+        isTxInverted = inv;
+        return *this;
+    }
+    ChannelConfig &deviceID(uart_port_t num)
+    {
+        device = num;
+        return *this;
     }
     ChannelConfig& readTimeout(double millis) {
         read_timeout_ms = millis; return *this;
