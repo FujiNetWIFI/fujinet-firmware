@@ -13,8 +13,6 @@ struct ChannelConfig
 {
     std::string device;
     int baud_rate;
-    bool isRxInverted = false;
-    bool isTxInverted = false;
     double read_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
     double discard_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
 
@@ -23,17 +21,6 @@ struct ChannelConfig
     }
     ChannelConfig& deviceID(std::string path) {
         device = path; return *this;
-    }
-    ChannelConfig& inverted(bool inv) {
-        isRxInverted = inv;
-        isTxInverted = inv;
-        return *this;
-    }
-    ChannelConfig& rxInverted(bool inv) {
-        isRxInverted = inv; return *this;
-    }
-    ChannelConfig& txInverted(bool inv) {
-        isTxInverted = inv; return *this;
     }
     ChannelConfig& readTimeout(double millis) {
         read_timeout_ms = millis; return *this;

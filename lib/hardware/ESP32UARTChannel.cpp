@@ -43,8 +43,6 @@ void ESP32UARTChannel::begin(const ChannelConfig& conf)
     case 2:
         rx = PIN_UART2_RX;
         tx = PIN_UART2_TX;
-        //gpio_set_pull_mode((gpio_num_t)rx,GPIO_PULLUP_ONLY);
-        //gpio_set_drive_capability((gpio_num_t)PIN_UART2_TX, GPIO_DRIVE_CAP_3);
         break;
 #endif /* PIN_UART2_RX */
 
