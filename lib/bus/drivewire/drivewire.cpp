@@ -814,7 +814,7 @@ void systemBus::setup()
     _drivewireBaud = FORCE_UART_BAUD;
   #else /* !FORCE_UART_BAUD */
     _drivewireBaud = readBaudSwitch();
-#endif /* FORCE_UART_BAUD */
+  #endif /* FORCE_UART_BAUD */
 #endif /* CONFIG_IDF_TARGET_ESP32S3 */
 #else /* !ESP_PLATFORM */
     // FujiNet-PC specific
@@ -860,6 +860,7 @@ void systemBus::setup()
     //     }
     // }
     // end jeff hack
+
 }
 
 // Give devices an opportunity to clean up before a reboot

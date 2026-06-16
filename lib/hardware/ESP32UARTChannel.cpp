@@ -51,7 +51,6 @@ void ESP32UARTChannel::begin(const ChannelConfig& conf)
     }
 
     uart_set_pin(_uart_num, tx, rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    
 
     uint32_t inv_mask = 0;
     if (conf.isTxInverted)

@@ -108,10 +108,8 @@ struct ChannelConfig
         isTxInverted = inv;
         return *this;
     }
-    ChannelConfig &deviceID(uart_port_t num)
-    {
-        device = num;
-        return *this;
+    ChannelConfig& deviceID(uart_port_t num) {
+        device = num; return *this;
     }
     ChannelConfig& readTimeout(double millis) {
         read_timeout_ms = millis; return *this;
