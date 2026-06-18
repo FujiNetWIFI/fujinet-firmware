@@ -11,6 +11,7 @@
 #include "fnFsNFS.h"
 #include "fnFsFTP.h"
 #include "fnFsHTTP.h"
+#include "fnFsGDrive.h"
 
 #include "utils.h"
 
@@ -50,6 +51,7 @@ void fujiHost::set_type(fujiHostType type)
     case HOSTTYPE_NFS:
     case HOSTTYPE_FTP:
     case HOSTTYPE_HTTP:
+    case HOSTTYPE_GDRIVE:
         cleanup();
         break;
     }
@@ -114,6 +116,7 @@ uint16_t fujiHost::dir_tell()
     case HOSTTYPE_NFS:
     case HOSTTYPE_FTP:
     case HOSTTYPE_HTTP:
+    case HOSTTYPE_GDRIVE:
         result = _fs->dir_tell();
         break;
     case HOSTTYPE_UNINITIALIZED:
@@ -137,6 +140,7 @@ success_is_true fujiHost::dir_seek(uint16_t pos)
     case HOSTTYPE_NFS:
     case HOSTTYPE_FTP:
     case HOSTTYPE_HTTP:
+    case HOSTTYPE_GDRIVE:
         result = _fs->dir_seek(pos);
         break;
     case HOSTTYPE_UNINITIALIZED:
@@ -170,6 +174,7 @@ success_is_true fujiHost::dir_open(const char *path, const char *pattern, uint16
     case HOSTTYPE_NFS:
     case HOSTTYPE_FTP:
     case HOSTTYPE_HTTP:
+    case HOSTTYPE_GDRIVE:
         result = _fs->dir_open(realpath, pattern, options);
         break;
     case HOSTTYPE_UNINITIALIZED:
@@ -190,6 +195,7 @@ fsdir_entry_t *fujiHost::dir_nextfile()
     case HOSTTYPE_NFS:
     case HOSTTYPE_FTP:
     case HOSTTYPE_HTTP:
+    case HOSTTYPE_GDRIVE:
         return _fs->dir_read();
     case HOSTTYPE_UNINITIALIZED:
         break;
@@ -556,6 +562,46 @@ int fujiHost::mount_http()
     return -1;
 }
 
+int fujiHost::mount_gdrive()
+{
+    Debug_printf("::mount_gdrive {%d:%d} \"%s\"\n", slotid, _type, _hostname);
+
+    // Don't do anything if that's already what's set
+    if (_type == HOSTTYPE_GDRIVE)
+    {
+        if (_fs != nullptr && _fs->running())
+        {
+            Debug_printf("::mount_gdrive Currently connected to \"%s\"\n", _hostname);
+            return 0;
+        }
+        if (_fs != nullptr)
+        {
+            delete _fs;
+            _fs = nullptr;
+        }
+    }
+    else
+        set_type(HOSTTYPE_GDRIVE); // Only start fresh if not HOSTTYPE_GDRIVE
+
+    _fs = new FileSystemGDrive;
+
+    if (_fs == nullptr)
+    {
+        Debug_println("Couldn't create a new FileSystemGDrive in fujiHost::mount_gdrive!");
+    }
+    else
+    {
+        Debug_printf("Starting FileSystemGDrive(\"%s\")\n", _hostname);
+
+        if (((FileSystemGDrive *)_fs)->start(_hostname))
+        {
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
 int fujiHost::unmount_fs()
 {
     Debug_printf("Filesystem (%s) unmounted.\n", _fs != nullptr ? _fs->typestring() : "null");
@@ -575,6 +621,7 @@ int fujiHost::unmount_fs()
 *  "smb://" = SMB share
 *  "ftp://" = FTP server
 *  "http://" or "https://" = Web server with file/dir-like access
+*  "gdrive://" = Google Drive (uses authorized account, host part is ignored)
 *  anything else = TNFS
 */
 success_is_true fujiHost::mount()
@@ -601,6 +648,9 @@ success_is_true fujiHost::mount()
 
     if (0 == strncasecmp("http://", _hostname, 7) || 0 == strncasecmp("https://", _hostname, 8))
         RETURN_SUCCESS_IF(0 == mount_http());
+
+    if (0 == strncasecmp("gdrive://", _hostname, 9))
+        RETURN_SUCCESS_IF(0 == mount_gdrive());
 
     // Try mounting TNFS last
     RETURN_SUCCESS_IF(0 == mount_tnfs());

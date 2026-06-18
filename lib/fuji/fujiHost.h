@@ -15,6 +15,7 @@ enum fujiHostType
     HOSTTYPE_NFS,
     HOSTTYPE_FTP,
     HOSTTYPE_HTTP,
+    HOSTTYPE_GDRIVE,
 };
 
 class fujiHost
@@ -35,6 +36,7 @@ private:
     int mount_nfs();
     int mount_ftp();
     int mount_http();
+    int mount_gdrive();
 
     int unmount_local();
     int unmount_fs();

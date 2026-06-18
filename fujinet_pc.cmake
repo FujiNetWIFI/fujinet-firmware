@@ -194,6 +194,7 @@ set(SOURCES src/main.cpp
     lib/FileSystem/fnFsNFS.h lib/FileSystem/fnFsNFS.cpp
     lib/FileSystem/fnFsFTP.h lib/FileSystem/fnFsFTP.cpp
     lib/FileSystem/fnFsHTTP.h lib/FileSystem/fnFsHTTP.cpp
+    lib/FileSystem/fnFsGDrive.h lib/FileSystem/fnFsGDrive.cpp
     lib/FileSystem/fnFile.h lib/FileSystem/fnFile.cpp
     lib/FileSystem/fnFileLocal.h lib/FileSystem/fnFileLocal.cpp
     lib/FileSystem/fnFileTNFS.h lib/FileSystem/fnFileTNFS.cpp
@@ -246,6 +247,7 @@ set(SOURCES src/main.cpp
     lib/network-protocol/ProtocolParser.h lib/network-protocol/ProtocolParser.cpp
     lib/network-protocol/CPM.h lib/network-protocol/CPM.cpp
     lib/network-protocol/GDRIVE.h lib/network-protocol/GDRIVE.cpp
+    lib/network-protocol/GoogleDriveClient.h lib/network-protocol/GoogleDriveClient.cpp
     lib/network-protocol/Test.h lib/network-protocol/Test.cpp
     lib/network-protocol/TCP.h lib/network-protocol/TCP.cpp
     lib/network-protocol/UDP.h lib/network-protocol/UDP.cpp
