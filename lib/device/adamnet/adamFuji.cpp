@@ -141,6 +141,15 @@ void adamFuji::adamnet_new_disk()
 
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
 
+    if (disk.fileh == nullptr)
+    {
+        // e.g. read-only host, no SD card, or the host couldn't create the file.
+        // Bail out cleanly rather than fwrite()'ing to a null handle (crash).
+        Debug_printf("adamnet_new_disk: failed to create file %s on host slot %u\n", disk.filename, hs);
+        new_disk_completed = true;
+        return;
+    }
+
     Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, numBlocks);
 
     disk.disk_dev.write_blank(disk.fileh, numBlocks);

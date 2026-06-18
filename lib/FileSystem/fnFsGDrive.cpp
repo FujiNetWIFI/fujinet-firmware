@@ -104,12 +104,16 @@ success_is_true FileSystemGDrive::rename(const char *pathFrom, const char *pathT
 FILE *FileSystemGDrive::file_open(const char *path, const char *mode)
 {
 #ifdef FNIO_IS_STDIO
-    // stdio targets (e.g. ADAM) have no FileHandler/FileCache. Cache the Drive
-    // file to the SD card and hand back a FILE*. Local writes are NOT synced
-    // back to Drive — host-slot media from Drive is effectively read-only.
+    // stdio targets (e.g. ADAM) have no FileHandler/FileCache. Drive files are
+    // cached to the SD card and served as a FILE*.
+    //
+    // NOTE: writes/creates are LOCAL ONLY for now — a newly created or modified
+    // image lives in the SD cache (so it can be created and used within this
+    // session) but is NOT uploaded back to Google Drive yet. Pushing changes
+    // back needs an upload on disk-image unmount (TODO).
     Debug_printf("FileSystemGDrive::file_open(\"%s\", \"%s\")\n", path, mode);
 
-    if (!_started || path == nullptr)
+    if (!_started || path == nullptr || mode == nullptr)
         return nullptr;
 
     if (!fnSDFAT.running())
@@ -118,17 +122,25 @@ FILE *FileSystemGDrive::file_open(const char *path, const char *mode)
         return nullptr;
     }
 
+    const bool truncating = (mode[0] == 'w');                  // create/overwrite
+    const bool writing    = (strpbrk(mode, "wa+") != nullptr); // any write intent
+
     std::string cache_path = cache_file_path(path);
 
-    // Reuse a recent cache file if present (avoids re-downloading on re-mount)
-    long mt = fnSDFAT.mtime(cache_path.c_str());
-    if (mt > 0 && (time(nullptr) - mt) < GDRIVE_CACHE_MAX_AGE)
+    // Reuse a recent cache file if present (avoids re-downloading on re-mount,
+    // and lets a just-created local image be mounted in this session). Skip for
+    // 'w' which is meant to start from an empty file.
+    if (!truncating)
     {
-        FILE *cached = fnSDFAT.file_open(cache_path.c_str(), mode);
-        if (cached != nullptr)
+        long mt = fnSDFAT.mtime(cache_path.c_str());
+        if (mt > 0 && (time(nullptr) - mt) < GDRIVE_CACHE_MAX_AGE)
         {
-            Debug_printf("FileSystemGDrive: using cached file %s\n", cache_path.c_str());
-            return cached;
+            FILE *cached = fnSDFAT.file_open(cache_path.c_str(), mode);
+            if (cached != nullptr)
+            {
+                Debug_printf("FileSystemGDrive: using cached file %s\n", cache_path.c_str());
+                return cached;
+            }
         }
     }
 
@@ -138,13 +150,31 @@ FILE *FileSystemGDrive::file_open(const char *path, const char *mode)
         return nullptr;
     }
 
+    // 'w'/'w+' starts from an empty local file regardless of what's on Drive.
+    if (truncating)
+    {
+        Debug_printf("FileSystemGDrive: creating local-only file %s (not uploaded to Drive)\n", path);
+        fnSDFAT.create_path(GDRIVE_CACHE_DIR);
+        return fnSDFAT.file_open(cache_path.c_str(), mode);
+    }
+
     std::string file_id = _gdrive.resolve_path(path);
     if (file_id.empty())
     {
+        // Nothing on Drive. For append-create, start a new local file; for a
+        // pure read this is a genuine "not found".
+        if (writing)
+        {
+            Debug_printf("FileSystemGDrive: creating local-only file %s (not uploaded to Drive)\n", path);
+            fnSDFAT.create_path(GDRIVE_CACHE_DIR);
+            return fnSDFAT.file_open(cache_path.c_str(), mode);
+        }
         Debug_printf("FileSystemGDrive::file_open - not found: %s\n", path);
         return nullptr;
     }
 
+    // File exists on Drive — download it to the cache, then open in the
+    // requested mode (read, or read/write for local-only edits).
     fnSDFAT.create_path(GDRIVE_CACHE_DIR);
     FILE *out = fnSDFAT.file_open(cache_path.c_str(), "wb");
     if (out == nullptr)
