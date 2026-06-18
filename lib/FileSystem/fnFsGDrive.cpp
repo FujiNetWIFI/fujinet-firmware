@@ -2,6 +2,8 @@
 #include "fnFsGDrive.h"
 
 #include <cstring>
+#include <cstdio>
+#include <ctime>
 
 #include "compat_string.h"
 
@@ -9,11 +11,20 @@
 
 #include "fnSystem.h"
 #include "fnFileCache.h"
+#include "fnFsSD.h"
 
 // http timeout in ms while streaming a download
 #define GDRIVE_GET_TIMEOUT 20000
 
 #define COPY_BLK_SIZE 4096
+
+#ifdef FNIO_IS_STDIO
+// On stdio targets (e.g. ADAM) there is no FileHandler/FileCache; Drive files
+// are cached to the SD card and served as a FILE*.
+#define GDRIVE_CACHE_DIR        "/FujiNet/cache"
+// Cached file is reused if it is younger than this (seconds), like fnFileCache.
+#define GDRIVE_CACHE_MAX_AGE    10800
+#endif
 
 FileSystemGDrive::FileSystemGDrive()
 {
@@ -92,9 +103,178 @@ success_is_true FileSystemGDrive::rename(const char *pathFrom, const char *pathT
 
 FILE *FileSystemGDrive::file_open(const char *path, const char *mode)
 {
+#ifdef FNIO_IS_STDIO
+    // stdio targets (e.g. ADAM) have no FileHandler/FileCache. Cache the Drive
+    // file to the SD card and hand back a FILE*. Local writes are NOT synced
+    // back to Drive — host-slot media from Drive is effectively read-only.
+    Debug_printf("FileSystemGDrive::file_open(\"%s\", \"%s\")\n", path, mode);
+
+    if (!_started || path == nullptr)
+        return nullptr;
+
+    if (!fnSDFAT.running())
+    {
+        Debug_println("FileSystemGDrive::file_open - SD card required to cache Drive files");
+        return nullptr;
+    }
+
+    std::string cache_path = cache_file_path(path);
+
+    // Reuse a recent cache file if present (avoids re-downloading on re-mount)
+    long mt = fnSDFAT.mtime(cache_path.c_str());
+    if (mt > 0 && (time(nullptr) - mt) < GDRIVE_CACHE_MAX_AGE)
+    {
+        FILE *cached = fnSDFAT.file_open(cache_path.c_str(), mode);
+        if (cached != nullptr)
+        {
+            Debug_printf("FileSystemGDrive: using cached file %s\n", cache_path.c_str());
+            return cached;
+        }
+    }
+
+    if (!_gdrive.ensure_access_token())
+    {
+        Debug_println("FileSystemGDrive::file_open - no access token");
+        return nullptr;
+    }
+
+    std::string file_id = _gdrive.resolve_path(path);
+    if (file_id.empty())
+    {
+        Debug_printf("FileSystemGDrive::file_open - not found: %s\n", path);
+        return nullptr;
+    }
+
+    fnSDFAT.create_path(GDRIVE_CACHE_DIR);
+    FILE *out = fnSDFAT.file_open(cache_path.c_str(), "wb");
+    if (out == nullptr)
+    {
+        Debug_printf("FileSystemGDrive::file_open - cannot create cache file %s\n", cache_path.c_str());
+        return nullptr;
+    }
+
+    bool ok = stream_download(file_id, [out](const uint8_t *data, int len) -> bool {
+        return fwrite(data, 1, len, out) == (size_t)len;
+    });
+    fclose(out);
+
+    if (!ok)
+    {
+        fnSDFAT.remove(cache_path.c_str());
+        return nullptr;
+    }
+
+    Debug_printf("FileSystemGDrive: cached %s\n", cache_path.c_str());
+    return fnSDFAT.file_open(cache_path.c_str(), mode);
+#else
     Debug_printf("FileSystemGDrive::file_open() - ERROR! Use filehandler_open() instead\n");
     return nullptr;
+#endif
 }
+
+// Stream a Drive file's content (?alt=media) for the given file id, passing
+// each chunk to sink(). Returns true on a complete, successful download.
+bool FileSystemGDrive::stream_download(const std::string &file_id,
+                                       const std::function<bool(const uint8_t *, int)> &sink)
+{
+    GDFS_HTTP_CLIENT http;
+    std::string dl_url = std::string(GDRIVE_FILES_URL) + "/" + file_id + "?alt=media";
+    if (!http.begin(dl_url))
+    {
+        Debug_println("FileSystemGDrive::stream_download - failed to start HTTP client");
+        return false;
+    }
+    http.set_header("Authorization", ("Bearer " + _gdrive.access_token()).c_str());
+
+    Debug_println("Initiating GET request");
+    if (http.GET() > 399)
+    {
+        Debug_println("FileSystemGDrive::stream_download - GET failed");
+        http.close();
+        return false;
+    }
+
+    int tmout_counter = 1 + GDRIVE_GET_TIMEOUT / 50;
+    bool cancel = false;
+    int available;
+
+#ifdef ESP_PLATFORM
+    uint8_t *buf = (uint8_t *)heap_caps_malloc(COPY_BLK_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#else
+    uint8_t *buf = (uint8_t *)malloc(COPY_BLK_SIZE);
+#endif
+    if (buf == nullptr)
+    {
+        Debug_println("FileSystemGDrive::stream_download - failed to allocate buffer");
+        http.close();
+        return false;
+    }
+
+    Debug_println("Retrieving file data");
+    while (!cancel)
+    {
+        available = http.available();
+        if (http.is_transaction_done() && available == 0) // done
+            break;
+
+        if (available == 0) // transaction not completed, wait for data
+        {
+            if (--tmout_counter == 0)
+            {
+                Debug_println("FileSystemGDrive::stream_download - Timeout");
+                cancel = true;
+                break;
+            }
+            fnSystem.delay(50);
+        }
+        else if (available > 0)
+        {
+            while (available > 0)
+            {
+                int to_read = (available > COPY_BLK_SIZE) ? COPY_BLK_SIZE : available;
+                int from_read = http.read(buf, to_read);
+                if (from_read != to_read)
+                {
+                    Debug_println("FileSystemGDrive::stream_download - HTTP read failed");
+                    Debug_printf("  Expected %d bytes, actually got %d bytes.\r\n", to_read, from_read);
+                    cancel = true;
+                    break;
+                }
+                if (!sink(buf, to_read))
+                {
+                    Debug_printf("FileSystemGDrive::stream_download - sink write failed\n");
+                    cancel = true;
+                    break;
+                }
+                available = http.available();
+            }
+            tmout_counter = 1 + GDRIVE_GET_TIMEOUT / 50; // reset timeout counter
+        }
+        else // available < 0
+        {
+            Debug_println("FileSystemGDrive::stream_download - something went wrong");
+            cancel = true;
+        }
+    }
+    free(buf);
+    http.close();
+
+    return !cancel;
+}
+
+#ifdef FNIO_IS_STDIO
+std::string FileSystemGDrive::cache_file_path(const char *path)
+{
+    // Deterministic, filesystem-safe name derived from host + path so the same
+    // Drive file maps to the same cache file (and distinct files don't collide).
+    std::hash<std::string> hasher;
+    unsigned long h1 = (unsigned long)hasher(_rawurl);
+    unsigned long h2 = (unsigned long)hasher(std::string(path));
+    char name[64];
+    snprintf(name, sizeof(name), "%s/gd-%08lx%08lx.tmp", GDRIVE_CACHE_DIR, h1, h2);
+    return std::string(name);
+}
+#endif
 
 #ifndef FNIO_IS_STDIO
 FileHandler *FileSystemGDrive::filehandler_open(const char *path, const char *mode)
@@ -132,103 +312,17 @@ FileHandler *FileSystemGDrive::cache_file(const char *path, const char *mode)
     if (fc == nullptr)
         return nullptr;
 
-    // Stream the file content (?alt=media) into the cache file
-    GDFS_HTTP_CLIENT http;
-    std::string dl_url = std::string(GDRIVE_FILES_URL) + "/" + file_id + "?alt=media";
-    if (!http.begin(dl_url))
-    {
-        Debug_println("FileSystemGDrive::cache_file - failed to start HTTP client");
-        FileCache::remove(fc);
-        return nullptr;
-    }
-    http.set_header("Authorization", ("Bearer " + _gdrive.access_token()).c_str());
+    bool ok = stream_download(file_id, [fc](const uint8_t *data, int len) -> bool {
+        return FileCache::write(fc, data, len) == (size_t)len;
+    });
 
-    Debug_println("Initiating GET request");
-    if (http.GET() > 399)
+    if (!ok)
     {
-        Debug_println("FileSystemGDrive::cache_file - GET failed");
         FileCache::remove(fc);
         return nullptr;
     }
 
-    // Retrieve data
-    int tmout_counter = 1 + GDRIVE_GET_TIMEOUT / 50;
-    bool cancel = false;
-    int available;
-
-#ifdef ESP_PLATFORM
-    uint8_t *buf = (uint8_t *)heap_caps_malloc(COPY_BLK_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-#else
-    uint8_t *buf = (uint8_t *)malloc(COPY_BLK_SIZE);
-#endif
-    if (buf == nullptr)
-    {
-        Debug_println("FileSystemGDrive::cache_file - failed to allocate buffer");
-        FileCache::remove(fc);
-        return nullptr;
-    }
-
-    Debug_println("Retrieving file data");
-    while (!cancel)
-    {
-        available = http.available();
-        if (http.is_transaction_done() && available == 0) // done
-            break;
-
-        if (available == 0) // transaction not completed, wait for data
-        {
-            if (--tmout_counter == 0)
-            {
-                Debug_println("FileSystemGDrive::cache_file - Timeout");
-                cancel = true;
-                break;
-            }
-            fnSystem.delay(50);
-        }
-        else if (available > 0)
-        {
-            while (available > 0)
-            {
-                int to_read = (available > COPY_BLK_SIZE) ? COPY_BLK_SIZE : available;
-                int from_read = http.read(buf, to_read);
-                if (from_read != to_read)
-                {
-                    Debug_println("FileSystemGDrive::cache_file - HTTP read failed");
-                    Debug_printf("  Expected %d bytes, actually got %d bytes.\r\n", to_read, from_read);
-                    cancel = true;
-                    break;
-                }
-                if (FileCache::write(fc, buf, to_read) < (size_t)to_read)
-                {
-                    Debug_printf("FileSystemGDrive::cache_file - Cache write failed\n");
-                    cancel = true;
-                    break;
-                }
-                available = http.available();
-            }
-            tmout_counter = 1 + GDRIVE_GET_TIMEOUT / 50; // reset timeout counter
-        }
-        else // available < 0
-        {
-            Debug_println("FileSystemGDrive::cache_file - something went wrong");
-            cancel = true;
-        }
-    }
-    free(buf);
-    http.close();
-
-    if (cancel)
-    {
-        Debug_println("Cancelled");
-        FileCache::remove(fc);
-        fh = nullptr;
-    }
-    else
-    {
-        Debug_println("File data retrieved");
-        fh = FileCache::reopen(fc, mode);
-    }
-    return fh;
+    return FileCache::reopen(fc, mode);
 }
 #endif //!FNIO_IS_STDIO
 

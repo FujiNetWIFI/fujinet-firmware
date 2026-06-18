@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <stdint.h>
 #include <string>
+#include <functional>
 
 #ifdef ESP_PLATFORM
 #include "fnHttpClient.h"
@@ -75,6 +76,18 @@ public:
 
 #ifndef FNIO_IS_STDIO
     FileHandler *cache_file(const char *path, const char *mode);
+#endif
+
+private:
+    // Stream a Drive file's content (?alt=media) for the given file id, passing
+    // each chunk to sink(). sink returns false to abort. Returns true on a
+    // complete, successful download.
+    bool stream_download(const std::string &file_id,
+                         const std::function<bool(const uint8_t *, int)> &sink);
+
+#ifdef FNIO_IS_STDIO
+    // SD-card cache path (relative to SD root) for a Drive file at `path`.
+    std::string cache_file_path(const char *path);
 #endif
 };
 
