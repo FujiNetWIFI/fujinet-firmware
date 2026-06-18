@@ -95,6 +95,12 @@ private:
     bool stream_download(const std::string &file_id,
                          const std::function<bool(const uint8_t *, int)> &sink);
 
+    // Upload `len` bytes pulled from read_chunk() to Drive at `path` (create or
+    // update), then clear the dirty flag on success. Shared by the stdio (FILE*)
+    // and FileHandler sync_file paths.
+    success_is_true upload_path(const char *path, size_t len,
+                                const std::function<int(uint8_t *, int)> &read_chunk);
+
 #ifdef FNIO_IS_STDIO
     // SD-card cache path (relative to SD root) for a Drive file at `path`.
     std::string cache_file_path(const char *path);

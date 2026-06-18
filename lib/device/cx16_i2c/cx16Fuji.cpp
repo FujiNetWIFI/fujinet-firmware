@@ -1013,6 +1013,10 @@ void cx16Fuji::new_disk()
         return;
     }
 
+    // Push the newly created image back to the host's backing store (e.g. upload
+    // to Google Drive). No-op for hosts that write directly to their storage.
+    host.sync_file(disk.filename);
+
     Debug_print("sio_new_disk succeeded\n");
     cx16_complete();
 }
