@@ -318,6 +318,124 @@ std::string GoogleDriveClient::create_folder(const std::string &parent_id,
     return id;
 }
 
+// ─── upload ───────────────────────────────────────────────────────────────────
+
+std::string GoogleDriveClient::upload_stream(const std::string &parent_id,
+                                             const std::string &name,
+                                             const std::string &file_id,
+                                             size_t total_len,
+                                             const std::function<int(uint8_t *, int)> &read_chunk)
+{
+    const std::string boundary = "fuji_gdrive_boundary";
+
+    // Metadata part. Only set parents when creating a new file (an update keeps
+    // the file in place; Drive rejects parents on a plain media update here).
+    std::string meta = "{\"name\":\"" + name + "\"";
+    if (file_id.empty() && !parent_id.empty())
+        meta += ",\"parents\":[\"" + parent_id + "\"]";
+    meta += "}";
+
+    std::string head;
+    head += "--" + boundary + "\r\n";
+    head += "Content-Type: application/json; charset=UTF-8\r\n\r\n";
+    head += meta + "\r\n";
+    head += "--" + boundary + "\r\n";
+    head += "Content-Type: application/octet-stream\r\n\r\n";
+
+    std::string tail = "\r\n--" + boundary + "--";
+
+    std::string ct = "multipart/related; boundary=" + boundary;
+
+    std::string url = file_id.empty()
+        ? std::string(GDRIVE_UPLOAD_URL) + "?uploadType=multipart&fields=id"
+        : std::string(GDRIVE_UPLOAD_URL) + "/" + file_id + "?uploadType=multipart&fields=id";
+
+#ifdef ESP_PLATFORM
+    // Stream the body so we never hold the whole image (which can be hundreds of
+    // KB) in RAM at once.
+    esp_http_client_config_t cfg = {};
+    cfg.url        = url.c_str();
+    cfg.timeout_ms = 30000;
+
+    esp_http_client_handle_t h = esp_http_client_init(&cfg);
+    if (!h) return "";
+
+    esp_http_client_set_method(h, HTTP_METHOD_POST);
+    if (!_access_token.empty()) {
+        std::string auth = "Bearer " + _access_token;
+        esp_http_client_set_header(h, "Authorization", auth.c_str());
+    }
+    esp_http_client_set_header(h, "Content-Type", ct.c_str());
+
+    int content_length = (int)(head.size() + total_len + tail.size());
+    if (esp_http_client_open(h, content_length) != ESP_OK) {
+        Debug_printf("GDRIVE upload: open failed\r\n");
+        esp_http_client_cleanup(h);
+        return "";
+    }
+
+    bool ok = (esp_http_client_write(h, head.c_str(), head.size()) >= 0);
+    if (ok) {
+        uint8_t buf[1024];
+        size_t remaining = total_len;
+        while (remaining > 0) {
+            int want = (int)((remaining > sizeof(buf)) ? sizeof(buf) : remaining);
+            int n = read_chunk(buf, want);
+            if (n <= 0) { Debug_printf("GDRIVE upload: source read failed\r\n"); ok = false; break; }
+            if (esp_http_client_write(h, (const char *)buf, n) != n) { Debug_printf("GDRIVE upload: write failed\r\n"); ok = false; break; }
+            remaining -= n;
+        }
+    }
+    if (ok)
+        ok = (esp_http_client_write(h, tail.c_str(), tail.size()) >= 0);
+
+    std::string id;
+    if (ok) {
+        esp_http_client_fetch_headers(h);
+        int status = esp_http_client_get_status_code(h);
+        std::string resp;
+        char rbuf[256];
+        int rn;
+        while ((rn = esp_http_client_read(h, rbuf, sizeof(rbuf))) > 0)
+            resp.append(rbuf, rn);
+        if (status >= 200 && status < 300) {
+            cJSON *j = cJSON_Parse(resp.c_str());
+            if (j) { id = json_str(j, "id"); cJSON_Delete(j); }
+        } else {
+            Debug_printf("GDRIVE upload: HTTP %d\r\n", status);
+        }
+    }
+    esp_http_client_close(h);
+    esp_http_client_cleanup(h);
+    return id;
+#else
+    // Non-ESP (PC build): buffer the body. Payloads here are small.
+    std::string body;
+    body.reserve(head.size() + total_len + tail.size());
+    body += head;
+    {
+        uint8_t buf[1024];
+        size_t remaining = total_len;
+        while (remaining > 0) {
+            int want = (int)((remaining > sizeof(buf)) ? sizeof(buf) : remaining);
+            int n = read_chunk(buf, want);
+            if (n <= 0) return "";
+            body.append((const char *)buf, n);
+            remaining -= n;
+        }
+    }
+    body += tail;
+
+    std::string resp = api_post(url, body, ct);
+    if (resp.empty()) return "";
+    cJSON *j = cJSON_Parse(resp.c_str());
+    if (!j) return "";
+    std::string id = json_str(j, "id");
+    cJSON_Delete(j);
+    return id;
+#endif
+}
+
 std::string GoogleDriveClient::resolve_path(const std::string &path)
 {
     // Split the path (leading '/' is ignored) into components and walk the tree.

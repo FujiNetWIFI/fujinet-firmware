@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <string>
 #include <functional>
+#include <set>
 
 #ifdef ESP_PLATFORM
 #include "fnHttpClient.h"
@@ -39,6 +40,11 @@ private:
     // Host-slot URL string ("GDRIVE:///..."), used as the file-cache host key.
     std::string _rawurl;
 
+    // Paths opened with write intent that may need uploading back to Drive.
+    // Keyed by the (already prefix-resolved) path that file_open() received,
+    // which matches what sync_file() is later called with at unmount.
+    std::set<std::string> _dirty;
+
     // directory cache
     char _last_dir[MAX_PATHLEN];
     DirCache _dircache;
@@ -58,6 +64,10 @@ public:
 #endif
 
     bool exists(const char *path) override;
+
+    // Upload a locally-written/created image back to Google Drive. Only files
+    // that were opened with write intent (tracked in _dirty) are uploaded.
+    success_is_true sync_file(const char *path) override;
 
     success_is_true remove(const char *path) override;
 

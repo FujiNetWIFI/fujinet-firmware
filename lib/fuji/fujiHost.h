@@ -76,6 +76,11 @@ public:
 
     error_is_true file_remove(char *fullpath);
 
+    // Push a locally-written file back to the host's backing store (e.g. upload
+    // to Google Drive). `path` is the already prefix-resolved host path, as
+    // stored in fujiDisk::filename. No-op for hosts that write directly.
+    success_is_true sync_file(const char *path);
+
     // Directory functions
     success_is_true dir_open(const char *path, const char *pattern, uint16_t options = 0);
     void dir_close();

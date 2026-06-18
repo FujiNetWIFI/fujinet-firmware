@@ -4,6 +4,9 @@
 #include <cJSON.h>
 #include <string>
 #include <vector>
+#include <functional>
+#include <cstddef>
+#include <cstdint>
 
 /**
  * GoogleDriveClient
@@ -72,6 +75,18 @@ public:
     // Create a folder with the given name inside parent_id. Returns its id.
     std::string create_folder(const std::string &parent_id,
                               const std::string &name);
+
+    // Upload file content via a multipart/related request, reading the body in
+    // chunks from read_chunk() (returns bytes read, 0 = EOF, <0 = error) so the
+    // whole file never needs to be buffered in RAM. If file_id is non-empty the
+    // existing file is updated; otherwise a new file named `name` is created
+    // under parent_id. total_len must be the exact number of content bytes that
+    // read_chunk will deliver. Returns the resulting Drive file id, or "".
+    std::string upload_stream(const std::string &parent_id,
+                              const std::string &name,
+                              const std::string &file_id,
+                              size_t total_len,
+                              const std::function<int(uint8_t *, int)> &read_chunk);
 
     // URL-encode a string (RFC 3986 unreserved characters pass through).
     static std::string url_encode(const std::string &s);

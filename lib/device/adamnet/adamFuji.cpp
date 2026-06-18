@@ -156,6 +156,10 @@ void adamFuji::adamnet_new_disk()
 
     fclose(disk.fileh);
 
+    // Push the newly created image back to the host's backing store (e.g. upload
+    // to Google Drive). No-op for hosts that write directly to their storage.
+    host.sync_file(disk.filename);
+
     new_disk_completed = true;
 }
 

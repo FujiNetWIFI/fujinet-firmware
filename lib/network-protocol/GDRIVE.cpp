@@ -206,41 +206,18 @@ fujiError_t NetworkProtocolGDRIVE::close_file_handle()
         if (_write_buf.empty())
             return FUJI_ERROR::NONE;
 
-        // Build a multipart/related body
-        const std::string boundary = "fuji_gdrive_boundary";
-        std::string meta = "{\"name\":\"" + filename + "\"";
-        if (!_parent_folder_id.empty() && _file_id.empty())
-            meta += ",\"parents\":[\"" + _parent_folder_id + "\"]";
-        meta += "}";
+        // Upload the buffered bytes via the shared client (streamed).
+        size_t off = 0;
+        std::string id = _gdrive.upload_stream(
+            _parent_folder_id, filename, _file_id, _write_buf.size(),
+            [this, &off](uint8_t *buf, int want) -> int {
+                size_t remaining = _write_buf.size() - off;
+                int n = (int)((remaining < (size_t)want) ? remaining : (size_t)want);
+                if (n > 0) { memcpy(buf, _write_buf.data() + off, n); off += n; }
+                return n;
+            });
 
-        std::string body;
-        body.reserve(256 + _write_buf.size());
-        body += "--" + boundary + "\r\n";
-        body += "Content-Type: application/json; charset=UTF-8\r\n\r\n";
-        body += meta + "\r\n";
-        body += "--" + boundary + "\r\n";
-        body += "Content-Type: application/octet-stream\r\n\r\n";
-        body.append((char *)_write_buf.data(), _write_buf.size());
-        body += "\r\n--" + boundary + "--";
-
-        std::string ct = "multipart/related; boundary=" + boundary;
-
-        std::string url;
-        if (_file_id.empty())
-        {
-            // New file
-            url = std::string(GDRIVE_UPLOAD_URL) +
-                  "?uploadType=multipart&fields=id";
-        }
-        else
-        {
-            // Update existing file
-            url = std::string(GDRIVE_UPLOAD_URL) + "/" + _file_id +
-                  "?uploadType=multipart&fields=id";
-        }
-
-        std::string resp = _gdrive.api_post(url, body, ct);
-        if (resp.empty())
+        if (id.empty())
         {
             error = NDEV_STATUS::GENERAL;
             return FUJI_ERROR::UNSPECIFIED;

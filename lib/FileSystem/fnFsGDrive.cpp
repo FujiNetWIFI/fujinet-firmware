@@ -77,6 +77,86 @@ bool FileSystemGDrive::exists(const char *path)
     return found;
 }
 
+success_is_true FileSystemGDrive::sync_file(const char *path)
+{
+#ifdef FNIO_IS_STDIO
+    if (!_started || path == nullptr)
+        RETURN_ERROR_AS_FALSE();
+
+    // Only upload files that were opened for writing in this session.
+    auto it = _dirty.find(path);
+    if (it == _dirty.end())
+        RETURN_SUCCESS_AS_TRUE(); // nothing to push back
+
+    if (!fnSDFAT.running())
+        RETURN_ERROR_AS_FALSE();
+
+    std::string cache_path = cache_file_path(path);
+    FILE *in = fnSDFAT.file_open(cache_path.c_str(), "rb");
+    if (in == nullptr)
+    {
+        Debug_printf("FileSystemGDrive::sync_file - no cache file for %s\n", path);
+        _dirty.erase(it);
+        RETURN_ERROR_AS_FALSE();
+    }
+
+    fseek(in, 0, SEEK_END);
+    long sz = ftell(in);
+    fseek(in, 0, SEEK_SET);
+    if (sz < 0)
+    {
+        fclose(in);
+        RETURN_ERROR_AS_FALSE();
+    }
+
+    if (!_gdrive.ensure_access_token())
+    {
+        fclose(in);
+        RETURN_ERROR_AS_FALSE();
+    }
+
+    // Split path into parent folder + file name.
+    std::string p = path;
+    size_t slash = p.find_last_of('/');
+    std::string parent_path = (slash != std::string::npos) ? p.substr(0, slash) : "/";
+    std::string name = (slash != std::string::npos) ? p.substr(slash + 1) : p;
+    if (name.empty())
+    {
+        fclose(in);
+        RETURN_ERROR_AS_FALSE();
+    }
+
+    std::string parent_id = _gdrive.resolve_path(parent_path);
+    if (parent_id.empty())
+        parent_id = "root";
+    std::string file_id = _gdrive.find_child(parent_id, name, false); // "" => create new
+
+    Debug_printf("FileSystemGDrive::sync_file uploading %s (%ld bytes)\n", path, sz);
+
+    std::string id = _gdrive.upload_stream(parent_id, name, file_id, (size_t)sz,
+        [in](uint8_t *buf, int want) -> int {
+            return (int)fread(buf, 1, (size_t)want, in);
+        });
+
+    fclose(in);
+
+    if (id.empty())
+    {
+        Debug_printf("FileSystemGDrive::sync_file - upload failed for %s\n", path);
+        RETURN_ERROR_AS_FALSE();
+    }
+
+    _dirty.erase(it);
+    _last_dir[0] = '\0'; // directory listing may have changed
+    Debug_printf("FileSystemGDrive::sync_file - uploaded %s\n", path);
+    RETURN_SUCCESS_AS_TRUE();
+#else
+    // The FileHandler/FileCache (non-stdio) path doesn't track writes for
+    // upload yet; nothing to push back.
+    RETURN_SUCCESS_AS_TRUE();
+#endif
+}
+
 success_is_true FileSystemGDrive::remove(const char *path)
 {
     if (!_started || path == nullptr)
@@ -124,6 +204,11 @@ FILE *FileSystemGDrive::file_open(const char *path, const char *mode)
 
     const bool truncating = (mode[0] == 'w');                  // create/overwrite
     const bool writing    = (strpbrk(mode, "wa+") != nullptr); // any write intent
+
+    // Remember write-intent opens so the image is uploaded back to Drive when
+    // the disk is unmounted (see sync_file()).
+    if (writing)
+        _dirty.insert(path);
 
     std::string cache_path = cache_file_path(path);
 
