@@ -1115,7 +1115,7 @@ void drivewireNetwork::process_http()
     switch (cmdFrame.comnd)
     {
     case NETCMD_UNLISTEN:
-        err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmdFrame.aux1);
+        err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmdFrame.aux2);
         break;
     default:
         err = FUJI_ERROR::UNSPECIFIED;
