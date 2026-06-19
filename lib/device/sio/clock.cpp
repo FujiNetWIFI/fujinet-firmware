@@ -84,6 +84,12 @@ void sioClock::sio_process(uint32_t commanddata, uint8_t checksum)
         bus_to_computer(simpleTime.data(), simpleTime.size(), false);
         break;
     }
+    case 'M': {
+        sio_ack();
+        auto hundredthsTime = Clock::get_current_time_simple_hundredths(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
+        bus_to_computer(hundredthsTime.data(), hundredthsTime.size(), false);
+        break;
+    }
     case 'P': {
         // Date and time, to be used by a ProDOS driver
         sio_ack();

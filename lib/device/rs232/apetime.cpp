@@ -62,6 +62,15 @@ void rs232ApeTime::_get_time_simple(const FujiBusPacket &packet)
     transaction_put(t.data(), t.size(), false);
 }
 
+void rs232ApeTime::_get_time_simple_hundredths(const FujiBusPacket &packet)
+{
+    transaction_begin(TRANS_STATE::NO_GET);
+    bool use_alt = packet.paramCount() > 0 && packet.param(0) == 0x01;
+    auto t = Clock::get_current_time_simple_hundredths(
+        Clock::tz_to_use(use_alt, alternate_tz, Config.get_general_timezone()));
+    transaction_put(t.data(), t.size(), false);
+}
+
 void rs232ApeTime::_get_time_prodos(const FujiBusPacket &packet)
 {
     transaction_begin(TRANS_STATE::NO_GET);
@@ -122,6 +131,9 @@ void rs232ApeTime::rs232_process(FujiBusPacket &packet)
         break;
     case APETIMECMD_SETTZ_ALT2:
         _get_time_simple(packet);
+        break;
+    case APETIMECMD_GET_SIMPLE_HUNDREDTHS:
+        _get_time_simple_hundredths(packet);
         break;
     case APETIMECMD_GET_PRODOS:
         _get_time_prodos(packet);
