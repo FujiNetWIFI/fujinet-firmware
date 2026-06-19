@@ -336,7 +336,7 @@ std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir)
 #endif /* BUILD_COCO */
     std::string stylized_filesize;
 
-    char tmp[8];
+    char tmp[12];
 
     if (is_dir == true)
         filename += "/";
@@ -349,7 +349,7 @@ std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir)
     returned_entry.replace(0, filename.length(), filename);
 
     if (fileSize > 1048576)
-        snprintf(tmp, sizeof(tmp), "%2uM", (unsigned int)(fileSize >> 20));
+        snprintf(tmp, sizeof(tmp), "%.1fM", (float)fileSize / 1048576.0f);
     else if (fileSize > 1024)
         snprintf(tmp, sizeof(tmp), "%4uK", (unsigned int)(fileSize >> 10));
     else
