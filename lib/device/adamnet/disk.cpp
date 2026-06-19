@@ -35,6 +35,7 @@ adamDisk::~adamDisk()
 void adamDisk::reset()
 {
     blockNum = INVALID_SECTOR_VALUE;
+    _receive_acked = false;
 
     if (_media != nullptr)
     {
@@ -133,6 +134,19 @@ void adamDisk::adamnet_control_receive()
     if (_media == nullptr)
         return;
 
+    // Already answered this block's RECEIVE. The master re-polls RECEIVE roughly
+    // once per ms while we read (a TNFS block can take tens of ms), so by the time
+    // we ACK, several of those re-polls are queued. Answering them too would emit
+    // duplicate ACKs; a late one gets consumed as the next block's block-number
+    // ACK and shifts the stream by a byte -- the boot then stalls a block in. Stay
+    // silent until a new block number resets us. (stall_silent so the bus task
+    // just yields and does not discardInput(), which would eat the master's CLR.)
+    if (_receive_acked)
+    {
+        SYSTEM_BUS.stall_silent = true;
+        return;
+    }
+
     // Seek emulation.
     if (esp_timer_get_time() < _seek_deadline)
     {
@@ -152,6 +166,9 @@ void adamDisk::adamnet_control_receive()
         adamnet_response_nack(true);
     else
         adamnet_response_ack(true);
+
+    // Exactly one ACK per block: suppress the master's surplus re-poll RECEIVEs.
+    _receive_acked = true;
 }
 
 void adamDisk::adamnet_control_send_block_num()
@@ -187,6 +204,8 @@ void adamDisk::adamnet_control_send_block_num()
     int64_t now = esp_timer_get_time();
     // Each new block# starts unclassified; a following RECEIVE marks it a read.
     _seek_is_read = false;
+    // New block operation: allow exactly one ACK for its RECEIVE sequence again.
+    _receive_acked = false;
 
     bool already_cached = (_media->_media_last_block == blockNum);
     if (blockNum != _seek_block ||

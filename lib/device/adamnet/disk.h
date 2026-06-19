@@ -23,6 +23,12 @@ private:
     int64_t _last_blocknum_us = 0;
     unsigned long _seek_block = INVALID_SECTOR_VALUE;
     bool _seek_is_read = false;
+    // True once we've ACKed the current block's CONTROL.RECEIVE. The master only
+    // sends CONTROL.CLR after it sees that ACK, so any further RECEIVE for the
+    // same block is a buffered re-poll it fired during our (slow) read; we must
+    // stay silent rather than emit a second ACK that desyncs the next block's
+    // handshake. Cleared when a new block number arrives (or on reset).
+    bool _receive_acked = false;
 
     void adamnet_control_clr();
     void adamnet_control_receive();
