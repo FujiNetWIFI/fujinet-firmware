@@ -37,11 +37,6 @@ class iwmNetwork : public virtualDevice
 public:
 
     /**
-     * Command frame for protocol adapter
-     */
-    cmdFrame_t cmdFrame;
-
-    /**
      * Constructor
      */
     iwmNetwork();
