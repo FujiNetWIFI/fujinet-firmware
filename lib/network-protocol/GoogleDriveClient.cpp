@@ -15,6 +15,11 @@
 #include "../http/fnHttpClient.h"
 #else
 #include "../http/mgHttpClient.h"
+// mongoose.h (via mgHttpClient.h) #defines poll/mkdir as macros on Windows,
+// which then mangle method declarations in headers included below (e.g.
+// NetSIO::poll reached through fnConfig.h). Drop them, matching httpService.h.
+#undef poll
+#undef mkdir
 #endif
 
 #include "../../include/debug.h"
