@@ -16,19 +16,20 @@
 #ifndef ESP_PLATFORM // PC-only transport
 
 #include "IOChannel.h"
-#include "RS232ChannelProtocol.h"
 #include "compat_inet.h"
 
 #include <cstdint>
 #include <string>
 
-class NetAdamNet : public IOChannel, public RS232ChannelProtocol
+// AdamNet is a half-duplex one-wire bus with no RS-232 control lines, so this
+// channel does NOT implement RS232ChannelProtocol -- that base class is only for
+// IOChannels that actually carry RS-232 signals (DTR/DSR/RTS/CTS/DCD/RI).
+class NetAdamNet : public IOChannel
 {
 private:
     std::string _host;
     uint16_t _port = 0;
     int _fd = -1;            // connected stream socket (-1 = not connected)
-    uint32_t _baud = 62500;
     uint64_t _last_connect_attempt = 0;
     in_addr_t _ip = IPADDR_NONE; // resolved host, cached so we don't re-resolve
     bool _connect_warned = false; // logged the "can't reach" notice for this offline period
@@ -45,7 +46,7 @@ public:
     ~NetAdamNet(); // IOChannel has no virtual dtor; held by value, never deleted via base
 
     // Connect (lazily/retrying) to the AdamNet master at host:port.
-    void begin(const std::string &host, int port, int baud = 62500);
+    void begin(const std::string &host, int port);
     void end() override;
     void flushOutput() override;
 
@@ -55,18 +56,6 @@ public:
     // connected). Called when the bus is idle so the PC main loop doesn't spin
     // at 100% CPU. Returns as soon as a byte is readable.
     void poll(int ms);
-
-    // RS232ChannelProtocol: there are no real control lines over the socket.
-    uint32_t getBaudrate() override { return _baud; }
-    void setBaudrate(uint32_t baud) override { _baud = baud; }
-    bool getDTR() override { return true; }
-    void setDSR(bool state) override { (void)state; }
-    bool getRTS() override { return true; }
-    void setCTS(bool state) override { (void)state; }
-    bool getDCD() override { return true; }
-    void setDCD(bool state) override { (void)state; }
-    void setRI(bool state) override { (void)state; }
-    bool getRI() override { return false; }
 };
 
 #endif // !ESP_PLATFORM

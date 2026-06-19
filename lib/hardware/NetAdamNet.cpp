@@ -29,13 +29,12 @@ NetAdamNet::~NetAdamNet()
     end();
 }
 
-void NetAdamNet::begin(const std::string &host, int port, int baud)
+void NetAdamNet::begin(const std::string &host, int port)
 {
     end();
 
     _host = host;
     _port = (uint16_t)port;
-    _baud = baud;
 
     // A reliable stream needs no resync window, but tolerate network latency
     // before declaring a byte missing.
