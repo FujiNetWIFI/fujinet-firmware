@@ -861,7 +861,7 @@ void iwmNetwork::process_http(fujiCommandID_t fuji_command)
     switch (fuji_command)
     {
     case NETCMD_UNLISTEN:
-        cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmdFrame.aux2);
+        cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) data_buffer[1]);
         break;
     default:
         cmd_err = FUJI_ERROR::UNSPECIFIED;
