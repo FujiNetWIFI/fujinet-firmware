@@ -96,11 +96,6 @@ void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
 
     data_len = num_bytes;
     SYSTEM_BUS.iwm_decode_data_packet((unsigned char *)data_buffer, data_len);
-    // if (SYSTEM_BUS.iwm_decode_data_packet(100, (unsigned char *)data_buffer, data_len)) // write data packet now read in ISR
-    // {
-    //     Debug_printf("\r\nTIMEOUT in read packet!");
-    //     return;
-    // }
 
     if (data_len == -1)
     {

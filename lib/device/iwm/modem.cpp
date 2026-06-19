@@ -1446,11 +1446,6 @@ void iwmModem::iwm_write(iwm_decoded_cmd_t cmd)
 
     data_len = num_bytes;
     SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len);
-    // if (SYSTEM_BUS.iwm_decode_data_packet(100, data_buffer, data_len)) // write data packet now read in ISR
-    // {
-    //     Debug_printf("\r\nTIMEOUT in read packet!");
-    //     return;
-    // }
 
     {
         // DO write
