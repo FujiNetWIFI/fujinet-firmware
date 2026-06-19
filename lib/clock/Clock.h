@@ -1,6 +1,7 @@
 #ifndef CLASS_CLOCK_H
 #define CLASS_CLOCK_H
 
+#include <chrono>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -31,6 +32,9 @@ public:
         return use_alternate_tz ? (alternate_tz.empty() ? default_tz : alternate_tz) : default_tz;
     }
 
+private:
+    static std::vector<uint8_t> build_simple(const std::chrono::system_clock::time_point& now,
+                                             const std::string& posixTimeZone);
 };
 
 #endif // CLASS_CLOCK_H
