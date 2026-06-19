@@ -558,6 +558,10 @@ void fujiDevice::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
             }
         }
         break;
+    case 3:
+        boot_img = "/hisioboot-fujinet" + _diskImageExtension;
+        fBoot = fsFlash.fnfile_open(boot_img.c_str());
+        break;
     default:
         Debug_printf("Invalid boot mode: %d\n", image_id);
         return;
