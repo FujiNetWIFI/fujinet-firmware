@@ -1620,28 +1620,46 @@ void fujiDevice::fujicmd_write_app_key(uint16_t keylen, uint16_t readlen)
     transaction_begin(TRANS_STATE::WILL_GET);
     Debug_printf("Fuji cmd: WRITE APPKEY (keylen = %hu)\n", keylen);
 
-    // Data for  FUJICMD_WRITE_APPKEY
-    uint8_t value[MAX_APPKEY_LEN];
-
     if (!readlen)
         readlen = keylen;
-    if (!transaction_get(value, readlen))
+
+    // Read the controller-supplied payload into a heap buffer sized to it so the
+    // AdamNet stream stays in sync (transaction_get consumes exactly `readlen`
+    // bytes plus the trailing checksum), then store at most MAX_APPKEY_LEN. The
+    // previous fixed `uint8_t value[MAX_APPKEY_LEN]` stack buffer overflowed when
+    // keylen/readlen exceeded 64 (e.g. a keylen=132 write), smashing the stack --
+    // a fatal abort under -fstack-protector, or a corrupted return (SIGSEGV)
+    // without it.
+    std::vector<uint8_t> value(readlen);
+    if (!transaction_get(value.data(), readlen))
     {
         transaction_error();
         return;
     }
 
+    // An app key holds at most MAX_APPKEY_LEN bytes (the read path never returns
+    // more), so keep the leading bytes and drop any excess.
+    size_t storelen = keylen;
+    if (storelen > value.size())
+        storelen = value.size();
+    if (storelen > MAX_APPKEY_LEN)
+    {
+        Debug_printf("WRITE APPKEY truncated from %hu to %d bytes\n", keylen, MAX_APPKEY_LEN);
+        storelen = MAX_APPKEY_LEN;
+    }
+
     int err;
-    int count = fujicore_write_app_key(std::vector<uint8_t>(value, value + keylen), &err);
+    int count = fujicore_write_app_key(
+        std::vector<uint8_t>(value.begin(), value.begin() + storelen), &err);
     if (count < 0)
     {
         transaction_error();
         return;
     }
 
-    if (count != keylen)
+    if ((size_t)count != storelen)
     {
-        Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", count, keylen, err);
+        Debug_printf("Only wrote %u bytes of expected %zu, errno=%d\n", count, storelen, err);
         transaction_error();
     }
 
