@@ -138,47 +138,6 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
 
 }
 
-//// UNHANDLED CONTROL FUNCTIONS
-// case FUJICMD_CLOSE_APPKEY:           // 0xDB
-// case FUJICMD_GET_ADAPTERCONFIG:      // 0xE8
-// case FUJICMD_GET_DEVICE_FULLPATH:    // 0xDA
-// case FUJICMD_GET_DIRECTORY_POSITION: // 0xE5
-// case FUJICMD_GET_HOST_PREFIX:        // 0xE0
-// case FUJICMD_GET_SSID:               // 0xFE
-// case FUJICMD_GET_WIFISTATUS:         // 0xFA
-// case FUJICMD_READ_APPKEY:                    // 0xDD
-// case FUJICMD_READ_DEVICE_SLOTS:      // 0xF2
-// case FUJICMD_READ_HOST_SLOTS:        // 0xF4
-// case FUJICMD_SCAN_NETWORKS:          // 0xFD
-// case FUJICMD_STATUS:                 // 0x53
-
-//// Unhandled Status Commands
-// case FUJICMD_CLOSE_APPKEY:           // 0xDB
-// case FUJICMD_CLOSE_DIRECTORY:        // 0xF5
-// case FUJICMD_CONFIG_BOOT:            // 0xD9
-// case FUJICMD_COPY_FILE:              // 0xD8
-// case FUJICMD_DISABLE_DEVICE:         // 0xD4
-// case FUJICMD_ENABLE_DEVICE:          // 0xD5
-// case FUJICMD_MOUNT_ALL:              // 0xD7
-// case FUJICMD_MOUNT_HOST:             // 0xF9
-// case FUJICMD_MOUNT_IMAGE:            // 0xF8
-// case FUJICMD_NEW_DISK:               // 0xE7
-// case FUJICMD_OPEN_APPKEY:            // 0xDC
-// case FUJICMD_OPEN_DIRECTORY:         // 0xF7
-// case FUJICMD_RESET:                  // 0xFF
-// case FUJICMD_SET_BOOT_MODE:          // 0xD6
-// case FUJICMD_SET_DEVICE_FULLPATH:    // 0xE2
-// case FUJICMD_SET_DIRECTORY_POSITION: // 0xE4
-// case FUJICMD_SET_HOST_PREFIX:        // 0xE1
-// case FUJICMD_SET_SSID:               // 0xFB
-// case FUJICMD_UNMOUNT_HOST:           // 0xE6
-// case FUJICMD_UNMOUNT_IMAGE:          // 0xE9
-// case FUJICMD_WRITE_APPKEY:           // 0xDE
-// case FUJICMD_WRITE_DEVICE_SLOTS:     // 0xF1
-// case FUJICMD_WRITE_HOST_SLOTS:       // 0xF3
-// case IWM_STATUS_DCB:                 // 0x01
-// case IWM_STATUS_NEWLINE:             // 0x02
-
 void iwmFuji::iwm_dummy_command() // SP CTRL command
 {
         Debug_printf("\r\nData Received: ");

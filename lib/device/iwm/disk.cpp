@@ -287,26 +287,13 @@ void iwmDisk::process(iwm_decoded_cmd_t cmd)
 
 void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
 {
-  // uint8_t LBH, LBL, LBN, LBT;
   uint32_t block_num;
   uint16_t sdstato;
-  // uint8_t source;
 
-  // source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
   Debug_printf("\r\nDrive %02x ", id());
 
 
 
-  // LBH = cmd.grp7msb; //packet_buffer[16]; // high order bits
-  // LBT = cmd.g7byte5; //packet_buffer[21]; // block number high
-  // LBL = cmd.g7byte4; //packet_buffer[20]; // block number middle
-  // LBN = cmd.g7byte3; //  packet_buffer[19]; // block number low
-  // block_num = (LBN & 0x7f) | (((unsigned short)LBH << 3) & 0x80);
-  // // block num second byte
-  // // print_packet ((unsigned char*) packet_buffer,get_packet_length());
-  // // Added (unsigned short) cast to ensure calculated block is not underflowing.
-  // block_num = block_num + (((LBL & 0x7f) | (((unsigned short)LBH << 4) & 0x80)) << 8);
-  // block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
   block_num = get_block_number(cmd);
   Debug_printf(" Read block %06lx\r\n", block_num);
   if (!(_disk != nullptr))
@@ -348,17 +335,9 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
   uint8_t status = 0;
 
 
- //  uint8_t source = cmd.dest; // packet_buffer[6];
-  // to do - actually we will already know that the cmd.dest == id(), so can just use id() here
   Debug_printf("\r\nDrive %02x ", id());
-  //Added (unsigned short) cast to ensure calculated block is not underflowing.
   uint32_t block_num = get_block_number(cmd); // (cmd.g7byte3 & 0x7f) | (((unsigned short)cmd.grp7msb << 3) & 0x80);
-  // block num second byte
-  //Added (unsigned short) cast to ensure calculated block is not underflowing.
-  // block_num = block_num + (((cmd.g7byte4 & 0x7f) | (((unsigned short)cmd.grp7msb << 4) & 0x80)) * 256);
   Debug_printf("Write block %06lx", block_num);
-  //get write data packet, keep trying until no timeout
-  // to do - this blows up - check handshaking
   data_len = BLOCK_DATA_LEN;
   if (SYSTEM_BUS.iwm_decode_data_packet((unsigned char *)data_buffer, data_len))
   {

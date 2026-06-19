@@ -159,42 +159,6 @@ public:
     uint8_t current_network_unit = 1;
 
 private:
-
-    // /**
-    //  * JSON Object
-    //  */
-    // FNJSON json;
-
-    // /**
-    //  * The Receive buffer for this N: device
-    //  */
-    // std::string *receiveBuffer = nullptr;
-
-    // /**
-    //  * The transmit buffer for this N: device
-    //  */
-    // std::string *transmitBuffer = nullptr;
-
-    // /**
-    //  * The special buffer for this N: device
-    //  */
-    // std::string *specialBuffer = nullptr;
-
-    // /**
-    //  * The PeoplesUrlParser object used to hold/process a URL
-    //  */
-    // std::unique_ptr<PeoplesUrlParser> urlParser = nullptr;
-
-    // /**
-    //  * Instance of currently open network protocol
-    //  */
-    // NetworkProtocol *protocol = nullptr;
-
-    // /**
-    //  * @brief Factory that creates protocol from urls
-    // */
-    // ProtocolParser *protocolParser = nullptr;
-
     /**
      * SP_ERR number when there's an ... error!
      */
@@ -206,16 +170,6 @@ private:
 #ifdef ESP_PLATFORM // OS
     esp_timer_handle_t rateTimerHandle = nullptr;
 #endif
-
-    // /**
-    //  * Devicespec passed to us, e.g. N:HTTP://WWW.GOOGLE.COM:80/
-    //  */
-    // std::string deviceSpec;
-
-    // /**
-    //  * The currently set Prefix for this N: device, set by iwm call 0x2C
-    //  */
-    // std::string prefix;
 
     /**
      * The AUX1 value used for OPEN.
@@ -234,33 +188,9 @@ private:
     uint8_t trans_aux2 = 0;
 
     /**
-     * The login to use for a protocol action
-     */
-    // std::string login;
-
-    /**
-     * The password to use for a protocol action
-     */
-    // std::string password;
-
-    /**
      * Timer Rate for interrupt timer
      */
     int timerRate = 100;
-
-    /**
-     * The channel mode for the currently open iwm device. By default, it is PROTOCOL, which passes
-     * read/write/status commands to the protocol. Otherwise, it's a special mode, e.g. to pass to
-     * the JSON or XML parsers.
-     *
-     * @enum PROTOCOL Send to protocol
-     * @enum JSON Send to JSON parser.
-     */
-    // enum _channel_mode
-    // {
-    //     PROTOCOL,
-    //     JSON
-    // } channelMode;
 
     /**
      * The current receive state, are we sending channel or status data?

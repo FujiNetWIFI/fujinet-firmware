@@ -327,7 +327,6 @@ public:
   void remDevice(virtualDevice *pDevice);
   virtualDevice *deviceById(int device_id);
   virtualDevice *firstDev() {return _daisyChain.front();}
-  uint8_t* devBuffer() {return (uint8_t *)virtualDevice::data_buffer;}
   void enableDevice(uint8_t device_id);
   void disableDevice(uint8_t device_id);
   void changeDeviceId(virtualDevice *p, int device_id);
