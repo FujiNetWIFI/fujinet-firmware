@@ -413,6 +413,41 @@ std::string util_long_entry_apple2_80col(std::string filename, size_t fileSize, 
     return returned_entry;
 }
 
+// CoCo 80-col directory entry with Google Drive file ID embedded in the middle.
+// Format: NAME(25) + SP + ID(33) + SP + SIZE(4-5) = ~65 chars, fits in 80 columns.
+// First token = filename, last token = size — backward-compatible with old parsers.
+// Middle token = Google Drive file ID — new parsers extract it for Drive URL construction.
+std::string util_long_entry_with_gdrive_id(std::string filename, size_t fileSize, bool is_dir, const std::string &file_id)
+{
+    char size_tmp[12];
+
+    if (is_dir)
+        filename += "/";
+
+    // Filename field: exactly 25 chars
+    if (filename.length() > 25)
+        filename = filename.substr(0, 25);
+    while (filename.length() < 25)
+        filename += ' ';
+
+    // File ID field: exactly 33 chars (Google Drive IDs are typically 28-33 chars)
+    std::string id = file_id;
+    if (id.length() > 33)
+        id = id.substr(0, 33);
+    while (id.length() < 33)
+        id += ' ';
+
+    // Size field
+    if (fileSize > 1048576)
+        snprintf(size_tmp, sizeof(size_tmp), "%.1fM", (float)fileSize / 1048576.0f);
+    else if (fileSize > 1024)
+        snprintf(size_tmp, sizeof(size_tmp), "%4uK", (unsigned int)(fileSize >> 10));
+    else
+        snprintf(size_tmp, sizeof(size_tmp), "%4u", (unsigned int)fileSize);
+
+    return filename + ' ' + id + ' ' + std::string(size_tmp);
+}
+
 /* Shortens the source string by splitting it in to shorter halves connected by "..." if it won't fit in the destination buffer.
    Returns number of bytes copied into buffer.
 */

@@ -112,6 +112,8 @@ fujiError_t NetworkProtocolFS::open_dir(apple2Flag_t a2flags)
             // Long entry
             if (a2flags == APPLE2_FLAG::IS_80COL) // Apple2 80 col format.
                 dirBuffer += util_long_entry_apple2_80col((char *)entryBuffer.data(), fileSize, is_directory) + lineEnding;
+            else if (a2flags == APPLE2_FLAG::IS_A2_WITH_GDRIVE_ID)
+                dirBuffer += util_long_entry_with_gdrive_id((char *)entryBuffer.data(), fileSize, is_directory, entry_id) + lineEnding;
             else
                 dirBuffer += util_long_entry((char *)entryBuffer.data(), fileSize, is_directory) + lineEnding;
         }
@@ -123,6 +125,7 @@ fujiError_t NetworkProtocolFS::open_dir(apple2Flag_t a2flags)
         fserror_to_error();
 
         // Clearing the buffer for reuse
+        entry_id.clear();
         std::fill(entryBuffer.begin(), entryBuffer.end(), 0); // fenrock was right.
     }
 
