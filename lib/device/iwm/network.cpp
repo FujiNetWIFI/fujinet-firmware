@@ -92,9 +92,6 @@ void iwmNetwork::open()
 
     current_network_data.channelMode = CHANNEL_MODE::PROTOCOL;
 
-    open_aux1 = _aux1;
-    open_aux2 = _aux2;
-
     // Shut down protocol if we are sending another open before we close.
     if (current_network_data.protocol)
     {
