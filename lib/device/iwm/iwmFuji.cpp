@@ -37,8 +37,8 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
 
     control_handlers = {
         { 0xAA, [this]()                               { this->iwm_dummy_command(); }},
-        { IWM_CTRL_SET_DCB, [this]()                   { this->iwm_dummy_command(); }},                 // 0x01
-        { IWM_CTRL_SET_NEWLINE, [this]()               { this->iwm_dummy_command(); }},                 // 0x02
+        { SP_CTRL_SET_DCB, [this]()                   { this->iwm_dummy_command(); }},                 // 0x01
+        { SP_CTRL_SET_NEWLINE, [this]()               { this->iwm_dummy_command(); }},                 // 0x02
 
         { FUJICMD_CLOSE_DIRECTORY, [this]()            { this->fujicmd_close_directory(); }},          // 0xF5
         { FUJICMD_GET_HOST_PREFIX, [this]()            { this->fujicmd_get_host_prefix(data_buffer[0]); }},                  // 0xE0
@@ -78,14 +78,14 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
              this->send_reply_packet(err_result);
              this->fujicmd_reset();
          }},   // 0xFF
-        { IWM_CTRL_RESET, [this]()                     {
+        { SP_CTRL_RESET, [this]()                     {
              this->send_reply_packet(err_result);
              this->fujicmd_reset();
          }},   // 0x00
 #ifdef DEV_RELAY_SLIP
-        { IWM_CTRL_CLEAR_ENSEEN, [this]()              { err_result = SP_ERR_NODRIVE; }},
+        { SP_CTRL_CLEAR_DISKII_SEEN, [this]()              { err_result = SP_ERR_NODRIVE; }},
 #else
-        { IWM_CTRL_CLEAR_ENSEEN, [this]()              { diskii_xface.d2_enable_seen = 0; err_result = SP_ERR_NOERROR; }},
+        { SP_CTRL_CLEAR_DISKII_SEEN, [this]()              { diskii_xface.d2_enable_seen = 0; err_result = SP_ERR_NOERROR; }},
 #endif
 
         { FUJICMD_MOUNT_ALL, [&]()                     {
@@ -98,10 +98,10 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
     status_handlers = {
         { 0xAA, [this]()                               { this->iwm_hello_world(); }},
 
-        { IWM_STATUS_DIB, [this]()                     { this->send_status_dib_reply_packet(); status_completed = true; }},     // 0x03
-        { IWM_STATUS_STATUS, [this]()                  { this->send_status_reply_packet(); status_completed = true; }},         // 0x00
+        { SP_STAT_DIB, [this]()                     { this->send_status_dib_reply_packet(); status_completed = true; }},     // 0x03
+        { SP_STAT_DEVICE, [this]()                  { this->send_status_reply_packet(); status_completed = true; }},         // 0x00
 #ifndef DEV_RELAY_SLIP
-        { IWM_STATUS_ENSEEN, [this]()                  { data_len = 1; data_buffer[0] = diskii_xface.d2_enable_seen; }},
+        { SP_STAT_GET_DISKII_SEEN, [this]()                  { data_len = 1; data_buffer[0] = diskii_xface.d2_enable_seen; }},
 #endif
 
         { FUJICMD_DEVICE_ENABLE_STATUS, [this]()       { this->send_stat_get_enable(); }},                      // 0xD1
