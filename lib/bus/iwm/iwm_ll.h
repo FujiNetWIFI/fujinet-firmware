@@ -242,7 +242,7 @@ public:
   int iwm_read_packet_spi(int packet_len);
   void spi_end();
 
-  size_t decode_data_packet(uint8_t* input_data, uint8_t* output_data); //decode smartport data packet
+  size_t decode_data_packet(uint8_t* input_data, void* output_data); //decode smartport data packet
   size_t decode_data_packet(uint8_t* output_data); //decode smartport data packet
   void encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t *data, uint16_t num);
 

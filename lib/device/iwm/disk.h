@@ -35,7 +35,6 @@ protected:
     void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
     void iwm_readblock(iwm_decoded_cmd_t cmd) override;
     void iwm_writeblock(iwm_decoded_cmd_t cmd) override;
-    uint32_t get_block_number(iwm_decoded_cmd_t cmd) {return cmd.params[2] + (cmd.params[3] << 8) + (cmd.params[4] << 16); };
 
     // void derive_percom_block(uint16_t numSectors);
     // void iwm_read_percom_block();
