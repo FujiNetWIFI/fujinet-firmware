@@ -47,7 +47,7 @@ fujiError_t NetworkProtocolFS::open(PeoplesUrlParser *urlParser,
         return FUJI_ERROR::UNSPECIFIED;
 
     if (access == ACCESS_MODE::DIRECTORY || access == ACCESS_MODE::DIRECTORY_ALT)
-        return open_dir((dirEntryFormatFlag_t) translate);
+        return open_dir((dirFormat_t) translate);
 
     return open_file();
 }
@@ -71,7 +71,7 @@ fujiError_t NetworkProtocolFS::open_file()
     return open_file_handle();
 }
 
-fujiError_t NetworkProtocolFS::open_dir(dirEntryFormatFlag_t fmt)
+fujiError_t NetworkProtocolFS::open_dir(dirFormat_t fmt)
 {
     streamType = streamType_t::DIR;
 #ifndef BUILD_ATARI
@@ -109,14 +109,14 @@ fujiError_t NetworkProtocolFS::open_dir(dirEntryFormatFlag_t fmt)
 
         switch (fmt)
         {
-        case DIR_ENTRY_FORMAT_FLAG::IS_80COL:
+        case DIR_FORMAT::A2COL80:
             dirBuffer += util_long_entry_apple2_80col((char *)entryBuffer.data(), fileSize, is_directory) + lineEnding;
             break;
-        case DIR_ENTRY_FORMAT_FLAG::IS_80COL_WITH_GDRIVE_ID:
+        case DIR_FORMAT::GDRIVE:
             dirBuffer += util_long_entry_with_gdrive_id((char *)entryBuffer.data(), fileSize, is_directory, entry_id) + lineEnding;
             break;
         default:
-            if (fmt >= DIR_ENTRY_FORMAT_FLAG::IS_LONG_FMT)
+            if (fmt >= DIR_FORMAT::LONG)
                 dirBuffer += util_long_entry((char *)entryBuffer.data(), fileSize, is_directory) + lineEnding;
             else
                 dirBuffer += util_entry(util_crunch((char *)entryBuffer.data()), fileSize, is_directory, is_locked) + lineEnding;
