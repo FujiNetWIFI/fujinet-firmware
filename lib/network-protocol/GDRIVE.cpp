@@ -676,6 +676,7 @@ fujiError_t NetworkProtocolGDRIVE::open_dir_handle()
     }
 
     _dir_item_idx = 0;
+    _include_file_id = (translation_mode == (netProtoTranslation_t)DIR_FORMAT::GDRIVE);
     return FUJI_ERROR::NONE;
 }
 
@@ -706,6 +707,10 @@ fujiError_t NetworkProtocolGDRIVE::read_dir_entry(char *buf, unsigned short len)
         is_directory = (mime == GDRIVE_FOLDER_MIME);
         fileSize = size_str.empty() ? 0 : atoi(size_str.c_str());
         mode = 0755;
+
+        if (_include_file_id)
+            entry_id = json_str(entry, "id");
+
         return FUJI_ERROR::NONE;
     }
 

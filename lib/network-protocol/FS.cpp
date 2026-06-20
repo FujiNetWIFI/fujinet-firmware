@@ -47,7 +47,7 @@ fujiError_t NetworkProtocolFS::open(PeoplesUrlParser *urlParser,
         return FUJI_ERROR::UNSPECIFIED;
 
     if (access == ACCESS_MODE::DIRECTORY || access == ACCESS_MODE::DIRECTORY_ALT)
-        return open_dir((apple2Flag_t) translate);
+        return open_dir((dirFormat_t) translate);
 
     return open_file();
 }
@@ -71,7 +71,7 @@ fujiError_t NetworkProtocolFS::open_file()
     return open_file_handle();
 }
 
-fujiError_t NetworkProtocolFS::open_dir(apple2Flag_t a2flags)
+fujiError_t NetworkProtocolFS::open_dir(dirFormat_t fmt)
 {
     streamType = streamType_t::DIR;
 #ifndef BUILD_ATARI
@@ -107,22 +107,25 @@ fujiError_t NetworkProtocolFS::open_dir(apple2Flag_t a2flags)
         if (entryBuffer.at(0) == '.' || entryBuffer.at(0) == '/')
             continue;
 
-        if (a2flags >= APPLE2_FLAG::IS_A2)
+        switch (fmt)
         {
-            // Long entry
-            if (a2flags == APPLE2_FLAG::IS_80COL) // Apple2 80 col format.
-                dirBuffer += util_long_entry_apple2_80col((char *)entryBuffer.data(), fileSize, is_directory) + lineEnding;
-            else
+        case DIR_FORMAT::A2COL80:
+            dirBuffer += util_long_entry_apple2_80col((char *)entryBuffer.data(), fileSize, is_directory) + lineEnding;
+            break;
+        case DIR_FORMAT::GDRIVE:
+            dirBuffer += util_long_entry_with_gdrive_id((char *)entryBuffer.data(), fileSize, is_directory, entry_id) + lineEnding;
+            break;
+        default:
+            if (fmt >= DIR_FORMAT::LONG)
                 dirBuffer += util_long_entry((char *)entryBuffer.data(), fileSize, is_directory) + lineEnding;
-        }
-        else
-        {
-            // 8.3 entry
-            dirBuffer += util_entry(util_crunch((char *)entryBuffer.data()), fileSize, is_directory, is_locked) + lineEnding;
+            else
+                dirBuffer += util_entry(util_crunch((char *)entryBuffer.data()), fileSize, is_directory, is_locked) + lineEnding;
+            break;
         }
         fserror_to_error();
 
         // Clearing the buffer for reuse
+        entry_id.clear();
         std::fill(entryBuffer.begin(), entryBuffer.end(), 0); // fenrock was right.
     }
 
