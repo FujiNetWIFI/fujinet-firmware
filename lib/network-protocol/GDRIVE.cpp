@@ -676,7 +676,7 @@ fujiError_t NetworkProtocolGDRIVE::open_dir_handle()
     }
 
     _dir_item_idx = 0;
-    _include_file_id = (translation_mode == (netProtoTranslation_t)APPLE2_FLAG::IS_A2_WITH_GDRIVE_ID);
+    _include_file_id = (translation_mode == (netProtoTranslation_t)DIR_ENTRY_FORMAT_FLAG::IS_80COL_WITH_GDRIVE_ID);
     return FUJI_ERROR::NONE;
 }
 

@@ -7,11 +7,11 @@
 
 #include "Protocol.h"
 
-typedef enum class APPLE2_FLAG {
-    IS_A2              = 0x80,
-    IS_80COL           = 0x81,
-    IS_A2_WITH_GDRIVE_ID = 0x82,
-} apple2Flag_t;
+typedef enum class DIR_ENTRY_FORMAT_FLAG {
+    IS_LONG_FMT             = 0x80,
+    IS_80COL                = 0x81,
+    IS_80COL_WITH_GDRIVE_ID = 0x82,
+} dirEntryFormatFlag_t;
 
 class NetworkProtocolFS : public NetworkProtocol
 {
@@ -191,7 +191,7 @@ protected:
 
     /**
      * Optional file ID string populated by read_dir_entry() implementations
-     * that support it (e.g. GDRIVE when IS_A2_WITH_GDRIVE_ID is requested).
+     * that support it (e.g. GDRIVE when IS_80COL_WITH_GDRIVE_ID is requested).
      * Reset to empty by open_dir() between entries.
      */
     std::string entry_id;
@@ -212,7 +212,7 @@ protected:
      * @brief Open a Directory via path
      * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
      */
-    virtual fujiError_t open_dir(apple2Flag_t a2flags);
+    virtual fujiError_t open_dir(dirEntryFormatFlag_t fmt);
 
     /**
      * @brief Open directory handle
