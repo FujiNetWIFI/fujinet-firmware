@@ -102,10 +102,10 @@ public:
     virtual void status();
 
     void process(iwm_decoded_cmd_t cmd) override;
-    void process_fs(fujiCommandID_t control_code);
-    void process_tcp(fujiCommandID_t control_code);
-    void process_http(fujiCommandID_t control_code);
-    void process_udp(fujiCommandID_t control_code);
+    void process_fs(fujiCommandID_t fuji_command);
+    void process_tcp(fujiCommandID_t fuji_command);
+    void process_http(fujiCommandID_t fuji_command);
+    void process_udp(fujiCommandID_t fuji_command);
 
     void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
     void iwm_open(iwm_decoded_cmd_t cmd) override;

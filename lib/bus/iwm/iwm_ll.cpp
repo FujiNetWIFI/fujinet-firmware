@@ -789,13 +789,14 @@ size_t iwm_sp_ll::decode_data_packet(uint8_t* output_data)
   return decode_data_packet(packet_buffer, output_data);
 }
 
-size_t iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
+size_t iwm_sp_ll::decode_data_packet(uint8_t* input_data, void* output_data)
 {
-  int grpbyte, grpcount;
+  unsigned grpbyte, grpcount;
   uint8_t numgrps, numodd;
   size_t numdata;
   uint8_t bit0to6, bit7;
   uint8_t group_buffer[8];
+  uint8_t *out_ptr = (uint8_t*) output_data;
 
   //Handle arbitrary length packets :)
   numodd = input_data[11] & 0x7f;
@@ -804,8 +805,8 @@ size_t iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
   // Debug_printf("\nDecoding %d bytes",numdata);
 
   // decode oddbyte(s), 1 in a 512 data packet
-  for(int i = 0; i < numodd; i++){
-    output_data[i] = ((input_data[13] << (i+1)) & 0x80) | (input_data[14+i] & 0x7f);
+  for(unsigned i = 0; i < numodd; i++){
+    out_ptr[i] = ((input_data[13] << (i+1)) & 0x80) | (input_data[14+i] & 0x7f);
   }
 
   // decode groups of 7, 73 grps of 7 in a 512 byte packet
@@ -817,7 +818,7 @@ size_t iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
     {
       bit7 = (group_buffer[0] << (grpbyte + 1)) & 0x80;
       bit0to6 = (group_buffer[grpbyte + 1]) & 0x7f;
-      output_data[numodd + (grpcount * 7) + grpbyte] = bit7 | bit0to6;
+      out_ptr[numodd + (grpcount * 7) + grpbyte] = bit7 | bit0to6;
     }
   }
 

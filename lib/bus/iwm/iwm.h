@@ -142,16 +142,39 @@ enum spCode_t : uint8_t {
   SP_STAT_GET_DISKII_SEEN   = 0x08, // iwmFuji
 };
 
-union iwm_decoded_cmd_t
+struct iwm_decoded_cmd_t
 {
-  struct
-  {
-    uint8_t command;
-    uint8_t count;
-    uint8_t params[7];
+  spCommandID_t sp_command;
+  uint8_t param_count;
+  uint8_t sp_dev_id;
+  uint8_t unknown;
+
+  union {
+    struct {
+      union {
+        spCode_t code;
+        struct {
+          fujiCommandID_t command;
+          uint8_t network_unit;
+        } fuji;
+      };
+    } control_status;
+    struct {
+      u24le_t num;
+    } block_rw;
+    struct {
+      u16le_t length;
+      union {
+        u24le_t address;
+        struct {
+          uint8_t network_unit;
+        } fuji;
+      };
+    } char_rw;
+    // format, init, open, close do not have any parameters
   };
-  uint8_t decoded[9];
-};
+} __attribute__((packed));
+static_assert(sizeof(iwm_decoded_cmd_t) == 9, "iwm_decoded_cmd_t must be 9 bytes");
 
 enum class iwm_smartport_type_t
 {
@@ -190,8 +213,8 @@ struct iwm_device_info_block_t
 };
 
 //#ifdef DEBUG
-  void print_packet(uint8_t *data, int bytes);
-  void print_packet(uint8_t* data);
+void print_packet(void *data, int bytes);
+void print_packet(void *data);
 //#endif
 
 class virtualDevice
@@ -232,10 +255,6 @@ protected:
   virtual void iwm_close(iwm_decoded_cmd_t cmd) {};
   virtual void iwm_read(iwm_decoded_cmd_t cmd) {};
   virtual void iwm_write(iwm_decoded_cmd_t cmd) {};
-
-  uint8_t get_status_code(iwm_decoded_cmd_t cmd) {return cmd.params[2];}
-  uint16_t get_numbytes(iwm_decoded_cmd_t cmd) { return cmd.params[2] + (cmd.params[3] << 8); };
-  uint32_t get_address(iwm_decoded_cmd_t cmd) { return cmd.params[4] + (cmd.params[5] << 8) + (cmd.params[6] << 16); }
 
   void iwm_return_badcmd(iwm_decoded_cmd_t cmd);
   void iwm_return_device_offline(iwm_decoded_cmd_t cmd);

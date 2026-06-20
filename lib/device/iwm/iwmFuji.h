@@ -118,7 +118,7 @@ protected:
 public:
     uint8_t err_result = SP_ERR_NOERROR;
     bool status_completed = false;
-    uint8_t status_code;
+    fujiCommandID_t active_fuji_command;
 
     iwmFuji();
     void setup() override;

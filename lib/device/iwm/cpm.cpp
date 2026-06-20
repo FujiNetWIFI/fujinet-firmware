@@ -121,11 +121,11 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
 {
     unsigned short mw;
     // uint8_t source = cmd.dest;                                                // we are the destination and will become the source // packet_buffer[6];
-    uint8_t status_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
-    Debug_printf("\r\n[CPM] Device %02x Status Code %02x\r\n", id(), status_code);
+    Debug_printf("\r\n[CPM] Device %02x Status Code %02x\r\n", id(), cmd.control_status.fuji.command);
     // Debug_printf("\r\nStatus List is at %02x %02x\n", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
 
-    switch (status_code)
+    // FIXME - enums have been mixed&matched, having to cast to int
+    switch (static_cast<int>(cmd.control_status.code))
     {
     case SP_STAT_DEVICE: // 0x00
         send_status_reply_packet();
@@ -157,6 +157,9 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
         data_len = 1;
         Debug_printf("CPM Task Running? %d %s", data_buffer[0],(data_buffer[0]) ? "=No" : "=Yes");
         break;
+    default:
+        send_reply_packet(SP_ERR_BADCMD);
+        return;
     }
 
     Debug_printf("\r\nStatus code complete, sending response");
@@ -165,27 +168,25 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
 
 void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
 {
-    uint16_t numbytes = get_numbytes(cmd); // cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-    uint32_t addy = get_address(cmd);      // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
 #ifdef ESP_PLATFORM // OS
     unsigned short mw = uxQueueMessagesWaiting(rxq);
 #else
     unsigned short mw;
 #endif
 
-    Debug_printf("\r\nDevice %02x READ %04x bytes from address %06lx\n", id(), numbytes, addy);
+    Debug_printf("\r\nDevice %02x READ %04x bytes from address %06lx\n", id(), cmd.char_rw.length, cmd.char_rw.address);
 
     memset(data_buffer, 0, sizeof(data_buffer));
 
     if (mw) // check if we really have some bytes waiting
     {
-        if (mw < numbytes) //if there are less than requested, just send what we have
+        if (mw < cmd.char_rw.length) //if there are less than requested, just send what we have
         {
-            numbytes = mw;
+            cmd.char_rw.length = mw;
         }
 
         data_len = 0;
-        for (int i = 0; i < numbytes; i++)
+        for (int i = 0; i < cmd.char_rw.length; i++)
         {
             char b;
 #ifdef ESP_PLATFORM // OS
@@ -208,14 +209,12 @@ void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
 
 void iwmCPM::iwm_write(iwm_decoded_cmd_t cmd)
 {
-    uint16_t num_bytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-
-    Debug_printf("\nWRITE %u bytes\n", num_bytes);
+    Debug_printf("\nWRITE %u bytes\n", cmd.char_rw.length);
 
     // get write data packet, keep trying until no timeout
     //  to do - this blows up - check handshaking
 
-    data_len = num_bytes;
+    data_len = cmd.char_rw.length;
     SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len); // write data packet now read in ISR
     // if (SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len))
     // {
@@ -226,7 +225,7 @@ void iwmCPM::iwm_write(iwm_decoded_cmd_t cmd)
     {
         // DO write
 #ifdef ESP_PLATFORM // OS
-        for (int i = 0; i < num_bytes; i++)
+        for (int i = 0; i < cmd.char_rw.length; i++)
             xQueueSend(txq, &data_buffer[i], portMAX_DELAY);
 #endif
     }
@@ -239,8 +238,7 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
     uint8_t err_result = SP_ERR_NOERROR;
 
     // uint8_t source = cmd.dest;                                                 // we are the destination and will become the source // data_buffer[6];
-    uint8_t control_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
-    Debug_printf("\r\nCPM Device %02x Control Code %02x", id(), control_code);
+    Debug_printf("\r\nCPM Device %02x Control Code %02x", id(), cmd.control_status.fuji.command);
     // Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
     data_len = 512;
     SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len);
@@ -248,7 +246,7 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
     print_packet(data_buffer);
 
     if (data_len > 0)
-        switch (control_code)
+        switch (cmd.control_status.fuji.command)
         {
         case 'B': // Boot
 #ifdef ESP_PLATFORM // OS
@@ -270,6 +268,9 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
 #endif
             }
             break;
+        default:
+            send_reply_packet(SP_ERR_BADCMD);
+            return;
         }
     else
         err_result = SP_ERR_IOERROR;
@@ -286,7 +287,7 @@ void iwmCPM::process(iwm_decoded_cmd_t cmd)
         return;
     }
 
-    switch (cmd.command)
+    switch (cmd.sp_command)
     {
     case SP_CMD_STATUS:
         Debug_printf("\r\nhandling status command");

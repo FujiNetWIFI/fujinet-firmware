@@ -72,7 +72,7 @@ public:
 
 	void encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t *data, uint16_t num);
 	size_t decode_data_packet(uint8_t *output_data);
-	size_t decode_data_packet(uint8_t *input_data, uint8_t *output_data);
+	size_t decode_data_packet(uint8_t *input_data, void *output_data);
 
 	// void close_connection(int sock, bool report_error);
 	// bool create_connection(in_addr_t host, int port);

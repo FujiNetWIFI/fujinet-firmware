@@ -61,18 +61,18 @@ void iwmPrinter::send_extended_status_dib_reply_packet()
 
 void iwmPrinter::iwm_status(iwm_decoded_cmd_t cmd)
 {
-    uint8_t status_code = get_status_code(cmd); 
-    Debug_printf("\r\n[PRINTER]: Device: %02x Status Code %02x\r\n", id(), status_code);
-    switch (status_code)
+    Debug_printf("\r\n[PRINTER]: Device: %02x Status Code %02x\r\n", id(), cmd.control_status.fuji.command);
+    switch (cmd.control_status.code)
     {
     case SP_STAT_DEVICE:
         send_status_reply_packet();
-        return;
         break;
     case SP_STAT_DIB:
         send_status_dib_reply_packet();
-        return;
         break;
+    default:
+      send_reply_packet(SP_ERR_BADCMD);
+      break;
     }
 }
 
@@ -90,11 +90,8 @@ void iwmPrinter::iwm_close(iwm_decoded_cmd_t cmd)
 
 void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
 {
-    uint16_t num_bytes = get_numbytes(cmd);
+    Debug_printf("\nPrinter: Write %u bytes\n", cmd.char_rw.length);
 
-    Debug_printf("\nPrinter: Write %u bytes\n", num_bytes);
-
-    data_len = num_bytes;
     SYSTEM_BUS.iwm_decode_data_packet((unsigned char *)data_buffer, data_len);
 
     if (data_len == -1)
@@ -136,7 +133,7 @@ void iwmPrinter::print_from_cpm(uint8_t c)
 void iwmPrinter::process(iwm_decoded_cmd_t cmd)
 {
     fnLedManager.set(LED_BUS, true);
-    switch (cmd.command)
+    switch (cmd.sp_command)
     {
     case SP_CMD_STATUS:
         iwm_status(cmd);
@@ -151,7 +148,7 @@ void iwmPrinter::process(iwm_decoded_cmd_t cmd)
         iwm_write(cmd);
         break;
     default:
-        Debug_printf("\nPrinter: Bad cmd %02X\n", cmd.command);
+        Debug_printf("\nPrinter: Bad cmd %02X\n", cmd.sp_command);
         iwm_return_badcmd(cmd);
         break;
     }

@@ -108,16 +108,16 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
         { FUJICMD_GET_ADAPTERCONFIG_EXTENDED, [this]() { this->fujicmd_get_adapter_config_extended(); }},      // 0xC4
         { FUJICMD_GET_ADAPTERCONFIG, [this]()          { this->fujicmd_get_adapter_config(); }},               // 0xE8
         { FUJICMD_GET_DEVICE_FULLPATH, [this]()        { this->fujicmd_get_device_filename(data_buffer[0]); }},   // 0xDA
-        { FUJICMD_GET_DEVICE1_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA0
-        { FUJICMD_GET_DEVICE2_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA1
-        { FUJICMD_GET_DEVICE3_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA2
-        { FUJICMD_GET_DEVICE4_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA3
-        { FUJICMD_GET_DEVICE5_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA4
-        { FUJICMD_GET_DEVICE6_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA5
-        { FUJICMD_GET_DEVICE7_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA6
-        { FUJICMD_GET_DEVICE8_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA7
-        { FUJICMD_GET_DEVICE9_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA8
-        { FUJICMD_GET_DEVICE10_FULLPATH, [this]()      { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA9
+        { FUJICMD_GET_DEVICE1_FULLPATH, [this]()       { this->fujicmd_get_device_filename(active_fuji_command - 160); }},   // 0xA0
+        { FUJICMD_GET_DEVICE2_FULLPATH, [this]()       { this->fujicmd_get_device_filename(active_fuji_command - 160); }},   // 0xA1
+        { FUJICMD_GET_DEVICE3_FULLPATH, [this]()       { this->fujicmd_get_device_filename(active_fuji_command - 160); }},   // 0xA2
+        { FUJICMD_GET_DEVICE4_FULLPATH, [this]()       { this->fujicmd_get_device_filename(active_fuji_command - 160); }},   // 0xA3
+        { FUJICMD_GET_DEVICE5_FULLPATH, [this]()       { this->fujicmd_get_device_filename(active_fuji_command - 160); }},   // 0xA4
+        { FUJICMD_GET_DEVICE6_FULLPATH, [this]()       { this->fujicmd_get_device_filename(active_fuji_command - 160); }},   // 0xA5
+        { FUJICMD_GET_DEVICE7_FULLPATH, [this]()       { this->fujicmd_get_device_filename(active_fuji_command - 160); }},   // 0xA6
+        { FUJICMD_GET_DEVICE8_FULLPATH, [this]()       { this->fujicmd_get_device_filename(active_fuji_command - 160); }},   // 0xA7
+        { FUJICMD_GET_DEVICE9_FULLPATH, [this]()       { this->fujicmd_get_device_filename(active_fuji_command - 160); }},   // 0xA8
+        { FUJICMD_GET_DEVICE10_FULLPATH, [this]()      { this->fujicmd_get_device_filename(active_fuji_command - 160); }},   // 0xA9
         { FUJICMD_GET_DIRECTORY_POSITION, [this]()     { this->fujicmd_get_directory_position(); }},           // 0xE5
         { FUJICMD_GET_HOST_PREFIX, [this]()            { }},                  // 0xE0
         { FUJICMD_GET_SCAN_RESULT, [this]()            { }},                  // 0xFC
@@ -336,16 +336,16 @@ void iwmFuji::iwm_read(iwm_decoded_cmd_t cmd) {}
 
 void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
 {
-        status_code = get_status_code(cmd);
         status_completed = false;
+        active_fuji_command = cmd.control_status.fuji.command;
 
-        Debug_printf("\r\n[Fuji] Device %02x Status Code %02x\r\n", id(), status_code);
+        Debug_printf("\r\n[Fuji] Device %02x Status Code %02x\r\n", id(), active_fuji_command);
 
-        auto it = status_handlers.find(status_code);
+        auto it = status_handlers.find(active_fuji_command);
     if (it != status_handlers.end()) {
         it->second();
     } else {
-                Debug_printf("ERROR: Unhandled status code: %02X\n", status_code);
+                Debug_printf("ERROR: Unhandled status code: %02X\n", active_fuji_command);
                 data_len = 0;
     }
 
@@ -357,21 +357,20 @@ void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
 
 void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
 {
-        uint8_t control_code = get_status_code(cmd);
-        Debug_printf("\ntheFuji Device %02x Control Code %02x", id(), control_code);
+        Debug_printf("\ntheFuji Device %02x Control Code %02x", id(), cmd.control_status.fuji.command);
 
         err_result = SP_ERR_NOERROR;
         data_len = 512;
 
-        Debug_printf("\nDecoding Control Data Packet for code: 0x%02x\r\n", control_code);
+        Debug_printf("\nDecoding Control Data Packet for code: 0x%02x\r\n", cmd.control_status.fuji.command);
         SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
         print_packet((uint8_t *)data_buffer, data_len);
 
-        auto it = control_handlers.find(control_code);
+        auto it = control_handlers.find(cmd.control_status.fuji.command);
     if (it != control_handlers.end()) {
         it->second();
     } else {
-                Debug_printf("ERROR: Unhandled control code: %02X\n", control_code);
+                Debug_printf("ERROR: Unhandled control code: %02X\n", cmd.control_status.fuji.command);
         err_result = SP_ERR_BADCTL;
     }
 
@@ -383,12 +382,12 @@ void iwmFuji::process(iwm_decoded_cmd_t cmd)
 {
         fnLedManager.set(LED_BUS, true);
 
-    auto it = command_handlers.find(cmd.command);
-        // Debug_printf("\r\n----- iwmFuji::process handling command: %02X\r\n", cmd.command);
+    auto it = command_handlers.find(cmd.sp_command);
+        // Debug_printf("\r\n----- iwmFuji::process handling command: %02X\r\n", cmd.sp_command);
     if (it != command_handlers.end()) {
         it->second(cmd);
     } else {
-        Debug_printv("\r\nUnknown command: %02x\r\n", cmd.command);
+        Debug_printv("\r\nUnknown command: %02x\r\n", cmd.sp_command);
                 iwm_return_badcmd(cmd);
     }
 

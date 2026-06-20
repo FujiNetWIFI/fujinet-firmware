@@ -56,7 +56,7 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 //
 // Description: prints packet data for debug purposes to the serial port
 //*****************************************************************************
-void print_packet(uint8_t *data, int bytes)
+void print_packet(void *data, int bytes)
 {
   // int print_len = bytes;
   // if (print_len > 16) print_len = 16;
@@ -67,12 +67,12 @@ void print_packet(uint8_t *data, int bytes)
   // }
 }
 
-void print_packet(uint8_t *data)
+void print_packet(void *data)
 {
   Debug_printf("\n");
 #ifdef DEV_RELAY_SLIP
-  for (int i = 0; i < COMMAND_LEN; i++)
-    Debug_printf("%02x ", data[i]);
+  for (uint8_t *ptr = (uint8_t*)data, *end = ptr + COMMAND_LEN; ptr < end; ptr++)
+    Debug_printf("%02x ", *ptr);
   Debug_printf("\r\n");
 #else
   // Debug_printf("packet: %s\r\n", mstr::toHex(data, 16).c_str());
@@ -256,7 +256,7 @@ void virtualDevice::send_reply_packet(uint8_t status)
 void virtualDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
 {
   //Handle possible data packet to avoid crash extended and non-extended
-  switch(cmd.command)
+  switch(cmd.sp_command)
   {
     case SP_ECMD_WRITEBLOCK:
     case SP_ECMD_CONTROL:
@@ -266,22 +266,21 @@ void virtualDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
     case SP_CMD_WRITE:
       data_len = 512;
       SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
-      Debug_printf("\r\nUnit %02x Bad Command with data packet %02x\r\n", id(), cmd.command);
-      print_packet((uint8_t *)data_buffer, data_len);
+      Debug_printf("\r\nUnit %02x Bad Command with data packet %02x\r\n", id(), cmd.sp_command);
+      print_packet(data_buffer, data_len);
       break;
     default: //just send the response and return like before
       send_reply_packet(SP_ERR_BADCMD);
-      Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
+      Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.sp_command);
       return;
   }
 
-  if(cmd.command == SP_CMD_CONTROL) //Decode command control code
+  if(cmd.sp_command == SP_CMD_CONTROL) //Decode command control code
   {
     send_reply_packet(SP_ERR_BADCTL); //we may be required to accept some control commands
                                       // but for now just report bad control if it's a control
                                       // command
-    uint8_t control_code = get_status_code(cmd);
-    Debug_printf("\r\nbad command was a control command with control code %02x",control_code);
+    Debug_printf("\r\nbad command was a control command with control code %02x",cmd.control_status.fuji.command);
   }
   else
   {
@@ -292,7 +291,7 @@ void virtualDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
 void virtualDevice::iwm_return_device_offline(iwm_decoded_cmd_t cmd)
 {
   //Handle possible data packet to avoid crash extended and non-extended
-  switch(cmd.command)
+  switch(cmd.sp_command)
   {
     case SP_ECMD_WRITEBLOCK:
     case SP_ECMD_CONTROL:
@@ -302,20 +301,19 @@ void virtualDevice::iwm_return_device_offline(iwm_decoded_cmd_t cmd)
     case SP_CMD_WRITE:
       data_len = 512;
       SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
-      Debug_printf("\r\nUnit %02x Offline, Command with data packet %02x\r\n", id(), cmd.command);
+      Debug_printf("\r\nUnit %02x Offline, Command with data packet %02x\r\n", id(), cmd.sp_command);
       print_packet((uint8_t *)data_buffer, data_len);
       break;
     default: //just send the response and return like before
       send_reply_packet(SP_ERR_OFFLINE);
-      Debug_printf("\r\nUnit %02x Offline, Command %02x", id(), cmd.command);
+      Debug_printf("\r\nUnit %02x Offline, Command %02x", id(), cmd.sp_command);
       return;
   }
 
-  if(cmd.command == SP_CMD_CONTROL) //Decode command control code
+  if(cmd.sp_command == SP_CMD_CONTROL) //Decode command control code
   {
     send_reply_packet(SP_ERR_OFFLINE);
-    uint8_t control_code = get_status_code(cmd);
-    Debug_printf("\r\nOffline command was a control command with control code %02x",control_code);
+    Debug_printf("\r\nOffline command was a control command with control code %02x",cmd.control_status.fuji.command);
   }
   else
   {
@@ -325,7 +323,7 @@ void virtualDevice::iwm_return_device_offline(iwm_decoded_cmd_t cmd)
 
 void virtualDevice::iwm_return_ioerror()
 {
-  // Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
+  // Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.sp_command);
   send_reply_packet(SP_ERR_IOERROR);
 }
 
@@ -336,7 +334,7 @@ void virtualDevice::iwm_return_noerror()
 
 void virtualDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 {
-  uint8_t status_code = cmd.params[2];
+  uint8_t status_code = cmd.control_status.code;
 
   if (status_code == SP_CMD_FORMAT)
   {
@@ -533,9 +531,8 @@ bool IRAM_ATTR systemBus::serviceSmartPort()
 
           _activeDev = devicep;
           // handle command
-          memset(command.decoded, 0, sizeof(command.decoded));
-          smartport.decode_data_packet(command_packet.data, command.decoded);
-          print_packet(command.decoded, 9);
+          smartport.decode_data_packet(command_packet.data, &command);
+          print_packet(&command, sizeof(command));
           _activeDev->process(command);
           break; // we don't need to needlessly keep looping once we find it
         }

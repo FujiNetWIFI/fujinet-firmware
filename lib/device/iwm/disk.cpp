@@ -213,16 +213,12 @@ void iwmDisk::send_extended_status_dib_reply_packet() //XXX! currently unused
 void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)
 {
   err_result = SP_ERR_NOERROR;
-  uint8_t control_code = get_status_code(cmd);
-  Debug_printf("\nDisk Device %02x Control Code %02x", id(), control_code);
-  // already called by ISR
-  data_len = 512;
+  Debug_printf("\nDisk Device %02x Control Code %02x", id(), cmd.control_status.fuji.command);
   Debug_printf("\nDecoding Control Data Packet:");
   SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
-  // data_len = decode_packet((uint8_t *)data_buffer);
   print_packet((uint8_t *)data_buffer, data_len);
 
-  switch (control_code)
+  switch (cmd.control_status.code)
   {
   case SP_CTRL_EJECT:
     Debug_printf("Handling Eject command\r\n");
@@ -239,15 +235,13 @@ void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)
 
 void iwmDisk::process(iwm_decoded_cmd_t cmd)
 {
-  uint8_t status_code;
   fnLedManager.set(LED_BUS, true);
-  switch (cmd.command)
+  switch (cmd.sp_command)
   {
   case SP_CMD_STATUS:
     Debug_printf("\r\nhandling status command");
-    status_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x00); // status codes 00-FF
     // max regular status code is 0x05 to UniDisk
-    if (disk_num == '0' && status_code > 0x05) {
+    if (disk_num == '0' && cmd.control_status.fuji.command > 0x05) {
       // THIS IS AN OLD HACK FOR CALLING STATUS ON THE FUJI DEVICE INSTEAD OF ADDING THE_FUJI AS A DEVICE.
       Debug_printf("\r\nUsing DISK_0 for FUJI device\r\n");
       platformFuji.FujiStatus(cmd);
@@ -268,9 +262,8 @@ void iwmDisk::process(iwm_decoded_cmd_t cmd)
     iwm_return_noerror();
     break;
   case SP_CMD_CONTROL:
-    status_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
     // max regular control code is 0x0A to 3.5" disk
-    if (disk_num == '0' && status_code > 0x0A) {
+    if (disk_num == '0' && cmd.control_status.fuji.command > 0x0A) {
       // THIS IS AN OLD HACK FOR CALLING CONTROL ON THE FUJI DEVICE INSTEAD OF ADDING THE_FUJI AS A DEVICE.
       Debug_printf("\r\nUsing DISK_0 for FUJI device\r\n");
       platformFuji.FujiControl(cmd);
@@ -287,15 +280,11 @@ void iwmDisk::process(iwm_decoded_cmd_t cmd)
 
 void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
 {
-  uint32_t block_num;
   uint16_t sdstato;
 
   Debug_printf("\r\nDrive %02x ", id());
 
-
-
-  block_num = get_block_number(cmd);
-  Debug_printf(" Read block %06lx\r\n", block_num);
+  Debug_printf(" Read block %06lx\r\n", cmd.block_rw.num);
   if (!(_disk != nullptr))
   {
     Debug_printf(" - ERROR - No image mounted");
@@ -307,7 +296,7 @@ void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
     send_reply_packet(SP_ERR_OFFLINE);
     return;
   }
-  if((switched) && (block_num > 2)){
+  if((switched) && (cmd.block_rw.num > 2)){
     Debug_printf("iwm_readblock() returning disk switched error\r\n");
     send_reply_packet(SP_ERR_OFFLINE);
     switched = false;
@@ -317,7 +306,7 @@ void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
   switched = false; //if we made it here it's ok to reset switched
 
   sdstato = BLOCK_DATA_LEN;
-  if (_disk->read(block_num, &sdstato, data_buffer))
+  if (_disk->read(cmd.block_rw.num, &sdstato, data_buffer))
   {
     Debug_printf("\r\nFile Seek or Read err: %d bytes", sdstato);
     send_reply_packet(SP_ERR_IOERROR);
@@ -336,9 +325,7 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
 
 
   Debug_printf("\r\nDrive %02x ", id());
-  uint32_t block_num = get_block_number(cmd); // (cmd.g7byte3 & 0x7f) | (((unsigned short)cmd.grp7msb << 3) & 0x80);
-  Debug_printf("Write block %06lx", block_num);
-  data_len = BLOCK_DATA_LEN;
+  Debug_printf("Write block %06lx", cmd.block_rw.num);
   if (SYSTEM_BUS.iwm_decode_data_packet((unsigned char *)data_buffer, data_len))
   {
     Debug_printf("\r\nTIMEOUT in read packet!");
@@ -374,7 +361,7 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
       }
 
       uint16_t sdstato = BLOCK_DATA_LEN;
-      _disk->write(block_num, &sdstato, data_buffer);
+      _disk->write(cmd.block_rw.num, &sdstato, data_buffer);
 
       if (sdstato != BLOCK_DATA_LEN)
       {

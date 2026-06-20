@@ -68,17 +68,15 @@ void iwmClock::set_alternate_tz()
 
 void iwmClock::iwm_ctrl(iwm_decoded_cmd_t cmd)
 {
-    uint8_t control_code = get_status_code(cmd);
 #ifdef DEBUG
-    auto as_char = (char) control_code;
-    Debug_printf("[CLOCK] Device %02x Control Code %02x('%c')\r\n", id(), control_code, isprint(as_char) ? as_char : '.');
+    Debug_printf("[CLOCK] Device %02x Control Code %02x('%c')\r\n", id(), cmd.control_status.fuji.command, isprint(cmd.control_status.fuji.command) ? (char) cmd.control_status.fuji.command : '.');
 #endif
 
     SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
 
     uint8_t err_result = SP_ERR_NOERROR;
 
-    switch (control_code)
+    switch (cmd.control_status.fuji.command)
     {
         case APETIMECMD_SETTZ_ALT2:
             set_tz();
@@ -96,14 +94,13 @@ void iwmClock::iwm_ctrl(iwm_decoded_cmd_t cmd)
 
 void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
 {
-    uint8_t status_code = get_status_code(cmd);
     bool use_alternate_tz = false;
 
 #ifdef DEBUG
-    auto as_char = (char) status_code;
-    Debug_printf("[CLOCK] Device %02x Status Code %02x('%c')\r\n", id(), status_code, isprint(as_char) ? as_char : '.');
+    Debug_printf("[CLOCK] Device %02x Status Code %02x('%c')\r\n", id(), cmd.control_status.fuji.command, isprint(cmd.control_status.fuji.command) ? (char)cmd.control_status.fuji.command : '.');
 #endif
-    switch (status_code)
+    // FIXME - enums have been mixed&matched, having to cast to int
+    switch (static_cast<int>(cmd.control_status.fuji.command))
     {
     case SP_STAT_DEVICE: // 0x00
         send_status_reply_packet();
@@ -117,7 +114,7 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
     // Uppercase = use FN tz, otherwise use alt tz
     case APETIMECMD_SETTZ_ALT2:
     case APETIMECMD_SETTZ_ALT: {
-        use_alternate_tz = status_code == APETIMECMD_SETTZ_ALT;
+        use_alternate_tz = cmd.control_status.fuji.command == APETIMECMD_SETTZ_ALT;
         // Date and time, easy to be used by general programs
         auto simpleTime = Clock::get_current_time_simple(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
         std::copy(simpleTime.begin(), simpleTime.end(), data_buffer);
@@ -132,7 +129,7 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
     }
     case APETIMECMD_GET_PRODOS:
     case APETIMECMD_GET_PRODOS_ALT: {
-        use_alternate_tz = status_code == APETIMECMD_GET_PRODOS_ALT;
+        use_alternate_tz = cmd.control_status.fuji.command == APETIMECMD_GET_PRODOS_ALT;
         // Date and time, to be used by a ProDOS driver
         auto prodosTime = Clock::get_current_time_prodos(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
         std::copy(prodosTime.begin(), prodosTime.end(), data_buffer);
@@ -141,7 +138,7 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
     }
     case APETIMECMD_GET_SOS:
     case APETIMECMD_GET_SOS_ALT: {
-        use_alternate_tz = status_code == APETIMECMD_GET_SOS_ALT;
+        use_alternate_tz = cmd.control_status.fuji.command == APETIMECMD_GET_SOS_ALT;
         // Date and time, ASCII string in Apple /// SOS format: YYYYMMDD0HHMMSS000
         std::string sosTime = Clock::get_current_time_sos(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
         std::copy(sosTime.begin(), sosTime.end(), data_buffer);
@@ -151,7 +148,7 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
     }
     case APETIMECMD_GET_ISO_LOCAL:
     case APETIMECMD_GET_ISO_LOCAL_ALT: {
-        use_alternate_tz = status_code == APETIMECMD_GET_ISO_LOCAL_ALT;
+        use_alternate_tz = cmd.control_status.fuji.command == APETIMECMD_GET_ISO_LOCAL_ALT;
         // Date and time, ASCII string in ISO format
         std::string utcTime = Clock::get_current_time_iso(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
         std::copy(utcTime.begin(), utcTime.end(), data_buffer);
@@ -161,7 +158,7 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
     }
     case APETIMECMD_GET_ISO_UTC:
     case APETIMECMD_GET_ISO_UTC_ALT: {
-        use_alternate_tz = status_code == APETIMECMD_GET_ISO_UTC_ALT;
+        use_alternate_tz = cmd.control_status.fuji.command == APETIMECMD_GET_ISO_UTC_ALT;
         // utc (zulu)
         std::string isoTime = Clock::get_current_time_iso("UTC+0");
         std::copy(isoTime.begin(), isoTime.end(), data_buffer);
@@ -171,7 +168,7 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
     }
     case APETIMECMD_GET_ATARI:
     case APETIMECMD_GET_ATARI_ALT: {
-        use_alternate_tz = status_code == APETIMECMD_GET_ATARI_ALT;
+        use_alternate_tz = cmd.control_status.fuji.command == APETIMECMD_GET_ATARI_ALT;
         // Apetime (Atari, but why not eh?) with TZ
         auto apeTime = Clock::get_current_time_apetime(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
         std::copy(apeTime.begin(), apeTime.end(), data_buffer);
@@ -211,7 +208,7 @@ void iwmClock::iwm_close(iwm_decoded_cmd_t cmd)
 void iwmClock::process(iwm_decoded_cmd_t cmd)
 {
     fnLedManager.set(LED_BUS, true);
-    switch (cmd.command)
+    switch (cmd.sp_command)
     {
     case SP_CMD_STATUS:
         Debug_printf("\r\nclock: handling status command\r\n");

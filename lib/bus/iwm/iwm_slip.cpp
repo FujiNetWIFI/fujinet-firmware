@@ -231,11 +231,11 @@ size_t iwm_slip::decode_data_packet(uint8_t *output_data)
 	return payload_size;
 }
 
-size_t iwm_slip::decode_data_packet(uint8_t *input_data, uint8_t *output_data)
+size_t iwm_slip::decode_data_packet(uint8_t *input_data, void *output_data)
 {
 	// Used to create the initial "command" for the request into output_data.
 	// We can ignore the input_data, we already have current_request, which can write the appropriate command data to output_data
-	current_request->create_command(output_data);
+	current_request->create_command((uint8_t *) output_data);
 	return 0; // unused
 }
 
