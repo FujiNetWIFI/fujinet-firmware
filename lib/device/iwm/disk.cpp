@@ -224,7 +224,7 @@ void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)
 
   switch (control_code)
   {
-  case IWM_CTRL_EJECT_DISK:
+  case SP_CTRL_EJECT:
     Debug_printf("Handling Eject command\r\n");
     unmount();
     switched = false; //force switched = false when ejected from host.

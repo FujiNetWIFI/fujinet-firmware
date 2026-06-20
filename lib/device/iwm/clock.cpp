@@ -105,11 +105,11 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
 #endif
     switch (status_code)
     {
-    case IWM_STATUS_STATUS: // 0x00
+    case SP_STAT_DEVICE: // 0x00
         send_status_reply_packet();
         return;
         break;
-    case IWM_STATUS_DIB: // 0x03
+    case SP_STAT_DIB: // 0x03
         send_status_dib_reply_packet();
         return;
         break;
