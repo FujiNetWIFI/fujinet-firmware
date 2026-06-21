@@ -92,13 +92,6 @@ void iwmNetwork::open()
 
     current_network_data.channelMode = CHANNEL_MODE::PROTOCOL;
 
-    // persist aux1/aux2 values - this is a smell
-    cmdFrame.aux1 = _aux1;
-    cmdFrame.aux2 = _aux2;
-
-    open_aux1 = cmdFrame.aux1;
-    open_aux2 = cmdFrame.aux2;
-
     // Shut down protocol if we are sending another open before we close.
     if (current_network_data.protocol)
     {
@@ -122,7 +115,7 @@ void iwmNetwork::open()
     }
 
     // Attempt protocol open
-    if (current_network_data.protocol->open(current_network_data.urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != FUJI_ERROR::NONE)
+    if (current_network_data.protocol->open(current_network_data.urlParser.get(), (fileAccessMode_t) data_buffer[0], (netProtoTranslation_t) data_buffer[1]) != FUJI_ERROR::NONE)
     {
         Debug_printf("Protocol unable to make connection. Error: %d\n", err);
         current_network_data.protocol.reset();
@@ -275,7 +268,7 @@ void iwmNetwork::json_query(iwm_decoded_cmd_t cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
     Debug_printf("\r\nQuery set to: %s, data_len: %d\r\n", string((char *)data_buffer, data_len).c_str(), data_len);
-    current_network_data.json->setReadQuery(string((char *)data_buffer, data_len), cmdFrame.aux2);
+    current_network_data.json->setReadQuery(string((char *)data_buffer, data_len), data_buffer[1]);
 }
 
 void iwmNetwork::json_parse()
@@ -718,7 +711,7 @@ bool iwmNetwork::instantiate_protocol()
 void iwmNetwork::create_devicespec(string d)
 {
     auto& current_network_data = network_data_map[current_network_unit];
-    current_network_data.deviceSpec = util_devicespec_fix_for_parsing(d, current_network_data.prefix, cmdFrame.aux1 == 6, false);
+    current_network_data.deviceSpec = util_devicespec_fix_for_parsing(d, current_network_data.prefix, data_buffer[0] == 6, false);
 }
 
 /*
@@ -861,7 +854,7 @@ void iwmNetwork::process_http(fujiCommandID_t fuji_command)
     switch (fuji_command)
     {
     case NETCMD_UNLISTEN:
-        cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmdFrame.aux2);
+        cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) data_buffer[1]);
         break;
     default:
         cmd_err = FUJI_ERROR::UNSPECIFIED;

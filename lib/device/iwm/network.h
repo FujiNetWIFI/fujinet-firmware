@@ -37,11 +37,6 @@ class iwmNetwork : public virtualDevice
 public:
 
     /**
-     * Command frame for protocol adapter
-     */
-    cmdFrame_t cmdFrame;
-
-    /**
      * Constructor
      */
     iwmNetwork();
@@ -170,22 +165,6 @@ private:
 #ifdef ESP_PLATFORM // OS
     esp_timer_handle_t rateTimerHandle = nullptr;
 #endif
-
-    /**
-     * The AUX1 value used for OPEN.
-     */
-    uint8_t open_aux1 = 0;
-
-    /**
-     * The AUX2 value used for OPEN.
-     */
-    uint8_t open_aux2 = 0;
-
-    /**
-     * The Translation mode ORed into AUX2 for READ/WRITE/STATUS operations.
-     * 0 = No Translation, 1 = CR<->EOL (Macintosh), 2 = LF<->EOL (UNIX), 3 = CR/LF<->EOL (PC/Windows)
-     */
-    uint8_t trans_aux2 = 0;
 
     /**
      * Timer Rate for interrupt timer
