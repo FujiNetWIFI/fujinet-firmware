@@ -29,6 +29,22 @@
 
 #define HostOS 0x07 // FUJINET
 
+/* FujiNet vendoring: RunCPM 6.9 disk.h::_mockupDirEntry references FILEBASE
+   (the host path prefix) to optionally strip it from enumerated names. FujiNet
+   stores bare filenames (no prefix) and always calls _mockupDirEntry(0), so
+   define FILEBASE empty to satisfy compilation with zero-length prefix. */
+#ifndef FILEBASE
+#define FILEBASE ""
+#endif
+
+/* FujiNet vendoring: RunCPM 6.9 calls millis() unconditionally (CPU throttle in
+   cpu.h, Z80estimateClock in cpu_mhz.h, BDOS F_UPTIME C=248 in cpm.h). In 5.8
+   millis() was only used under #ifdef PROFILE (never compiled). Map it to the
+   FujiNet system uptime clock, mirroring upstream's macro abstraction. */
+#ifndef millis
+#define millis() ((uint32)fnSystem.millis())
+#endif
+
 typedef struct
 {
     uint8_t dr;
@@ -81,27 +97,26 @@ uint32 _HardwareIn(const uint32 Port)
 
 /* Memory abstraction functions */
 /*===============================================================================*/
-bool _RamLoad(char *fn, uint16_t address)
+/* FujiNet vendoring: RunCPM 6.9 changed _RamLoad to
+   `uint16 _RamLoad(uint8 *filename, uint16 address, uint16 maxsize)` returning
+   the number of bytes read (maxsize == 0 means "no limit"). ccp.h's AUTOEXEC
+   path relies on the byte count, so honor maxsize and return the count. */
+uint16 _RamLoad(uint8 *filename, uint16 address, uint16 maxsize)
 {
-    FILE *f = fnSDFAT.file_open(full_path(fn), "r");
-    bool result = false;
+    FILE *f = fnSDFAT.file_open(full_path((char *)filename), "r");
+    uint16 count = 0;
     uint8_t b;
 
     if (f)
     {
-        while (!feof(f))
+        while ((!maxsize || count < maxsize) && fread(&b, sizeof(uint8_t), 1, f) == 1)
         {
-            if (fread(&b, sizeof(uint8_t), 1, f) == 1)
-            {
-                _RamWrite(address++, b);
-                result = true;
-            }
-            else
-                result = false;
+            _RamWrite(address++, b);
+            count++;
         }
         fclose(f);
     }
-    return (result);
+    return (count);
 }
 
 /* filesystem (disk) abstraction fuctions */
@@ -245,7 +260,20 @@ uint8_t _sys_readseq(uint8_t *fn, long fpos)
         {
             // set DMA buffer to EOF
             memset(dmabuf, 0x1a, BlkSZ);
-            bytesread = fread(&dmabuf[0], BlkSZ, sizeof(uint8_t), f);
+            // BUG FIX (2026-06-21): this was fread(dmabuf, BlkSZ, 1, f), i.e.
+            // size=128, nmemb=1.  fread() returns the number of *complete*
+            // elements read, so a final PARTIAL record (file size not a
+            // multiple of 128) made it return 0: the bytes that WERE read were
+            // discarded (the `if (bytesread)` memcpy was skipped) and result
+            // was reported as 0x01 (EOF).  Symptom: TYPE / ASM / LOAD / PIP
+            // silently dropped the last partial 128-byte record of every file
+            // whose length was not a multiple of 128 -- a 127-byte file showed
+            // nothing at all, a 202-byte file was truncated at exactly 128
+            // bytes.  Fix: read byte-wise (size=1, nmemb=BlkSZ) so fread
+            // returns the byte count (1..128) for partial records too; dmabuf
+            // is already pre-filled with 0x1a so the short record is padded
+            // with CP/M EOF markers as the BDOS sequential read expects.
+            bytesread = fread(&dmabuf[0], sizeof(uint8_t), BlkSZ, f);
             if (bytesread)
                 memcpy((uint8_t *)&RAM[dmaAddr], dmabuf, BlkSZ);
             result = bytesread ? 0x00 : 0x01;
@@ -303,7 +331,12 @@ uint8_t _sys_readrand(uint8_t *fn, long fpos)
         if (fseek(f, fpos, SEEK_SET) == 0)
         {
             memset(dmabuf, 0x1A, BlkSZ);
-            bytesread = fread(&dmabuf[0], BlkSZ, sizeof(uint8_t), f);
+            // BUG FIX (2026-06-21): same partial-record fread bug as
+            // _sys_readseq above -- fread(dmabuf, BlkSZ, 1, f) returns 0 for a
+            // final record shorter than 128 bytes, dropping its data and
+            // signalling premature EOF.  Read byte-wise so the count (1..128)
+            // is returned; dmabuf is pre-filled with 0x1A as EOF padding.
+            bytesread = fread(&dmabuf[0], sizeof(uint8_t), BlkSZ, f);
             if (bytesread)
                 memcpy((uint8_t *)&RAM[dmaAddr], dmabuf, BlkSZ);
             result = bytesread ? 0x00 : 0x01;
@@ -382,7 +415,7 @@ uint8_t _findnext(uint8_t isdir)
 
     if (allExtents && fileRecords)
     {
-        _mockupDirEntry();
+        _mockupDirEntry(0); // FujiNet vendoring: mode 0 = bare filename (no FILEBASE prefix)
         result = 0;
     }
     else
@@ -409,7 +442,7 @@ uint8_t _findnext(uint8_t isdir)
                     fileExtents = fileRecords / BlkEX + ((fileRecords & (BlkEX - 1)) ? 1 : 0);
                     fileExtentsUsed = 0;
                     firstFreeAllocBlock = firstBlockAfterDir;
-                    _mockupDirEntry();
+                    _mockupDirEntry(0); // FujiNet vendoring: mode 0 = bare filename (no FILEBASE prefix)
                 }
                 else
                 {
@@ -515,9 +548,59 @@ uint8_t _sys_makedisk(uint8_t drive)
 
 
 #ifdef BYPASS_BUS
-#define _kbhit() SYSTEM_BUS.available()
+
+/*
+ * CP/M console output batching (FujiNet, 2026-06-21)
+ *
+ * BUG / SYMPTOM:
+ *   The RunCPM console was painfully slow on the Atari client (~500 char/s,
+ *   ~2 s to print 1000 characters, DIR/TYPE crawling) even though the serial
+ *   link is configured for 111861 bit/s (~11 kB/s).  The SSH (N:) examples on
+ *   the very same link are fast.
+ *
+ * ROOT CAUSE:
+ *   The Z80 BDOS console calls (_putch -> _cwrite) wrote ONE byte per call
+ *   straight to the bus: SYSTEM_BUS.write(ch) -> IOChannel::write(int) ->
+ *   dataOut(buf, 1).  Each dataOut() call pays a fixed cost (a pre-write
+ *   select(), the ::write(), and a post-write select() that waits for the TTY
+ *   to be writable again - TTYChannel.cpp).  For block transfers (how the N:
+ *   device sends a whole SIO frame) that cost is amortised over the frame; for
+ *   the per-character console stream it was paid for every single byte, so the
+ *   per-call overhead - not the bit rate - dominated.
+ *
+ * FIX:
+ *   Accumulate console output in a small buffer and emit it as a block with
+ *   SYSTEM_BUS.write(buffer, length), exactly like the fast N:/SIO frame path.
+ *   The buffer is flushed (a) when it fills and (b) whenever CP/M polls for
+ *   keyboard input (_kbhit) - interactive CP/M always polls/reads input right
+ *   after emitting a prompt or output, so the user never sees stale output.
+ */
+#define CPM_TX_BUFSZ 512
+static uint8_t _cpm_txbuf[CPM_TX_BUFSZ];
+static size_t _cpm_txlen = 0;
+
+static inline void _cflush(void)
+{
+    if (_cpm_txlen)
+    {
+        SYSTEM_BUS.write(_cpm_txbuf, _cpm_txlen);
+        _cpm_txlen = 0;
+    }
+}
+
+static inline void _cput(uint8_t ch)
+{
+    if (_cpm_txlen >= CPM_TX_BUFSZ)
+        _cflush();
+    _cpm_txbuf[_cpm_txlen++] = ch;
+}
+
+// _kbhit flushes any pending console output before reporting input
+// availability, so buffered output is always on screen before CP/M blocks
+// waiting for a key.
+#define _kbhit() (_cflush(), SYSTEM_BUS.available())
 #define _cread() SYSTEM_BUS.read()
-#define _cwrite(ch) SYSTEM_BUS.write(ch)
+#define _cwrite(ch) _cput((uint8_t)(ch))
 #else
 #define _kbhit() 0
 #define _cread() 0

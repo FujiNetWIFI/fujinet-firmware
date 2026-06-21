@@ -24,6 +24,18 @@
 
 #define HostOS 0x07 // FUJINET
 
+/* FujiNet vendoring: see abstraction_fujinet.h — 6.9 disk.h needs FILEBASE;
+   FujiNet uses bare filenames and always calls _mockupDirEntry(0). */
+#ifndef FILEBASE
+#define FILEBASE ""
+#endif
+
+/* FujiNet vendoring: see abstraction_fujinet.h — 6.9 calls millis()
+   unconditionally; map it to the FujiNet system uptime clock. */
+#ifndef millis
+#define millis() ((uint32)fnSystem.millis())
+#endif
+
 #ifdef BUILD_COCO
 // This file says "apple2" right in the name so CoCo should follow apple2 convention, right?
 #include "drivewire/drivewireFuji.h"
@@ -75,28 +87,25 @@ char *full_path(char *fn)
 
 /* Memory abstraction functions */
 /*===============================================================================*/
-bool _RamLoad(char *fn, uint16_t address)
+/* FujiNet vendoring: RunCPM 6.9 _RamLoad signature returns bytes read and
+   honors maxsize (0 == no limit). See abstraction_fujinet.h for rationale. */
+uint16 _RamLoad(uint8 *filename, uint16 address, uint16 maxsize)
 {
-        FILE *f = fnSDFAT.file_open(full_path(fn), "r");
-        bool result = false;
+        FILE *f = fnSDFAT.file_open(full_path((char *)filename), "r");
+        uint16 count = 0;
         uint8_t b;
 
         if (f)
         {
-                while (!feof(f))
+                while ((!maxsize || count < maxsize) && fread(&b, sizeof(uint8_t), 1, f) == 1)
                 {
-                        if (fread(&b, sizeof(uint8_t), 1, f) == 1)
-                        {
-                                _RamWrite(address++, b);
-                                result = true;
-                        }
-                        else
-                                result = false;
+                        _RamWrite(address++, b);
+                        count++;
                 }
                 fclose(f);
         }
         Debug_printf("CCP last address: %04x\r\n",address);
-        return (result);
+        return (count);
 }
 
 //
@@ -389,7 +398,7 @@ uint8_t _findnext(uint8_t isdir)
 
         if (allExtents && fileRecords)
         {
-                _mockupDirEntry();
+                _mockupDirEntry(0); // FujiNet vendoring: mode 0 = bare filename (no FILEBASE prefix)
                 result = 0;
         }
         else
@@ -416,7 +425,7 @@ uint8_t _findnext(uint8_t isdir)
                                         fileExtents = fileRecords / BlkEX + ((fileRecords & (BlkEX - 1)) ? 1 : 0);
                                         fileExtentsUsed = 0;
                                         firstFreeAllocBlock = firstBlockAfterDir;
-                                        _mockupDirEntry();
+                                        _mockupDirEntry(0); // FujiNet vendoring: mode 0 = bare filename (no FILEBASE prefix)
                                 }
                                 else
                                 {
