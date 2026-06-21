@@ -6,7 +6,7 @@
 #endif
 
 /* Mnemonic tables for Z80 disassembly - shared by all CPU models */
-#if defined(DEBUG) || defined(iDEBUG)
+#if RUNCPMDEBUG || defined(iDEBUG)
 
 static const char* Mnemonics[256] =
 {
@@ -231,7 +231,7 @@ static const char* CPMCalls[41] =
 
 RUNCPM_DECL int32 Watch = -1;
 
-#endif /* defined(DEBUG) || defined(iDEBUG) */
+#endif /* RUNCPMDEBUG || defined(iDEBUG) */
 
 RUNCPM_DECL void watchprint(uint16 pos) {
     uint8 I, J;
@@ -638,6 +638,16 @@ RUNCPM_DECL uint8 Disasm(uint16 pos) {
    Implemented inline here to avoid changing platform Makefiles.
    Trace records last N executed instructions (pc, bytes, len, reg snapshot).
 */
+/* FujiNet/ESP32 note: the instruction-trace history is a developer-only
+   debugger aid.  trace_buf is ~20KB of static .bss.  The RunCPM engine is now
+   compiled exactly once (lib/runcpm/runcpm_core.cpp), but on the Atari ESP32
+   build even a single ~20KB trace buffer is precious internal DRAM, so the
+   feature is compiled out unless RUNCPM_TRACE is defined to 1 (e.g. on a PC
+   debug build with RAM to spare). */
+#ifndef RUNCPM_TRACE
+#define RUNCPM_TRACE 0
+#endif
+
 #define TRACE_CAPACITY 512
 typedef struct {
     uint16 pc;
@@ -646,6 +656,7 @@ typedef struct {
     int32 AF, BC, DE, HL, IX, IY, SP;
 } trace_entry_t;
 
+#if RUNCPM_TRACE
 static trace_entry_t trace_buf[TRACE_CAPACITY];
 static uint32 trace_pos = 0; /* next write index */
 static int trace_enabled = 1;
@@ -670,6 +681,9 @@ static void __attribute__((unused)) z80_trace_push(uint16 pc) {
     e->IY = IY;
     e->SP = SP;
 }
+#else
+static inline void __attribute__((unused)) z80_trace_push(uint16 pc) { (void)pc; }
+#endif /* RUNCPM_TRACE */
 
 RUNCPM_DECL void z80_print_flags(uint16 AF) {
     static const char Flags[9] = "SZ5H3PNC";
@@ -680,6 +694,7 @@ RUNCPM_DECL void z80_print_flags(uint16 AF) {
     _puts("]");
 }
 
+#if RUNCPM_TRACE
 static void z80_trace_dump(void) {
     uint32 start = trace_pos;
     uint32 i;
@@ -714,6 +729,11 @@ static void z80_trace_dump(void) {
     }
     _puts("--- end trace ---\r\n");
 }
+#else
+static void __attribute__((unused)) z80_trace_dump(void) {
+    _puts("\r\nTrace disabled in this build.\r\n");
+}
+#endif /* RUNCPM_TRACE */
 
 /* Exec breakpoints: small fixed-size list. Only the bp_addrs[] list is used. */
 #define MAX_BREAKPOINTS 32

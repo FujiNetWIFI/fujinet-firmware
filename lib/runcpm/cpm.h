@@ -578,10 +578,10 @@ RUNCPM_DECL void _Bios(void) {
     }
     case B_CONIN: { // 3 - Console input
         SET_HIGH_REGISTER(AF, _getcon());
-#ifdef DEBUG
+#if RUNCPMDEBUG
         if (HIGH_REGISTER(AF) == DEBUGKEY)
             Debug = 1;
-#endif // ifdef DEBUG
+#endif // RUNCPMDEBUG
         break;
     }
     case B_CONOUT: { // 4 - Console output
@@ -705,12 +705,12 @@ RUNCPM_DECL void _Bios(void) {
         break;
     }
     default: {
-#ifdef DEBUG // Show unimplemented BIOS calls only when debugging
+#if RUNCPMDEBUG // Show unimplemented BIOS calls only when debugging
         _puts("\r\nUnimplemented BIOS call.\r\n");
         _puts("C = 0x");
         _puthex8(ch);
         _puts("\r\n");
-#endif // ifdef DEBUG
+#endif // RUNCPMDEBUG
         break;
     }
     } // switch
@@ -766,10 +766,10 @@ RUNCPM_DECL void _Bdos(void) {
      */
     case C_READ: {
         HL = _getconE();
-    #ifdef DEBUG
+    #if RUNCPMDEBUG
         if (HL == DEBUGKEY)
             Debug = 1;
-    #endif // ifdef DEBUG
+    #endif // RUNCPMDEBUG
         break;
     }
 
@@ -848,10 +848,10 @@ RUNCPM_DECL void _Bdos(void) {
         if (e == 0xFF) {
             // Check for char available and return it, or 0x00 if none (non-blocking read)
             HL = _getconNB();
-    #ifdef DEBUG
+    #if RUNCPMDEBUG
             if (HL == DEBUGKEY)
                 Debug = 1;
-    #endif // ifdef DEBUG
+    #endif // RUNCPMDEBUG
     #ifdef CPM3
         } else if (e == 0xFE) {
             // Return console input status. Zero if no character is waiting, nonzero otherwise. (CPM3)
@@ -859,10 +859,10 @@ RUNCPM_DECL void _Bdos(void) {
         } else if (e == 0xFD) {
             // Wait until a character is ready, return it without echoing. (CPM3)
             HL = _getcon();
-    #ifdef DEBUG
+    #if RUNCPMDEBUG
             if (HL == DEBUGKEY)
                 Debug = 1;
-    #endif // ifdef DEBUG
+    #endif // RUNCPMDEBUG
     #endif // ifdef CPM3
         } else {
             // E = char : Outputs char (write)
@@ -1004,12 +1004,12 @@ RUNCPM_DECL void _Bdos(void) {
                 break;
             }
 
-    #ifdef DEBUG
+    #if RUNCPMDEBUG
             if (chr == DEBUGKEY) { // Enter debugger
                 Debug = 1;
                 break;
             }
-    #endif // ifdef DEBUG
+    #endif // RUNCPMDEBUG
 
             if (chr == 5) { // ^E - goto beginning of next line
                 _putcon('\n');
@@ -2149,12 +2149,12 @@ RUNCPM_DECL void _Bdos(void) {
        Unimplemented calls get listed
      */
     default: {
-#ifdef DEBUG // Show unimplemented BDOS calls only when debugging
+#if RUNCPMDEBUG // Show unimplemented BDOS calls only when debugging
         _puts("\r\nUnimplemented BDOS call.\r\n");
         _puts("C = 0x");
         _puthex8(ch);
         _puts("\r\n");
-#endif // ifdef DEBUG
+#endif // RUNCPMDEBUG
         break;
     }
     } // switch

@@ -16,6 +16,29 @@ RUNCPM_DECL uint8 mask8bit = 0x7f; // TO be used for masking 8 bit characters (X
 
 RUNCPM_DECL void _putcon(uint8 ch) // Puts a character
 {
+#ifdef BUILD_ATARI
+    /* Terminal-compat (FujiNet): many CP/M programs emit a bare Form Feed
+     * (0x0C, ^L) to clear the screen — the convention of page-oriented
+     * terminals (Hazeltine, TeleVideo, Lear-Siegler...).  VT100/ANSI clients
+     * (xterm, iTerm2, the N:TELNET console, the Atari terminal) instead treat
+     * 0x0C as a line feed, so the screen scrolls but never clears.  Translate
+     * it to the same VT100 home+clear sequence RunCPM itself uses in _clrscr()
+     * (ESC [1;1H  ESC [2J), which makes ^L-clear work on every console
+     * transport (SIO 'G'/R:, N:CPM://, telnet).
+     *
+     * Gated on mask8bit == 0x7f: that is normal 7-bit console mode.  The XMODEM
+     * helpers switch to 8-bit transparent mode (mask8bit = 0xff via BDOS
+     * F_SETMASK) where 0x0C is binary payload, not a control code, and must
+     * pass through untouched.  Masking ch to 7 bits matches the byte that would
+     * otherwise have been emitted (ch & mask8bit below). */
+    if (mask8bit == 0x7f && (ch & 0x7f) == 0x0C)
+    {
+        _putch(0x1B); _putch('['); _putch('1'); _putch(';');
+        _putch('1');  _putch('H'); _putch(0x1B); _putch('[');
+        _putch('2');  _putch('J');
+        return;
+    }
+#endif
 #ifdef STREAMIO
     if (consoleOutputActive)
         _putch(ch & mask8bit);

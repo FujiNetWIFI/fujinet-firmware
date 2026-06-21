@@ -29,6 +29,14 @@
 // #define USE_LST
 
 /* Definitions for file/console based debugging */
+/* FujiNet: PlatformIO `build_type = debug` injects a global -DDEBUG, which
+   would otherwise switch on RunCPM's internal Z80 debugger (debug.h) and the
+   " - DEBUG" CCP greeting suffix.  That debugger pulls ~20KB .bss per RunCPM
+   TU (three TUs) and overflows ESP32 DRAM, and the banner leaks to modem/
+   telnet users.  We therefore key RunCPM's debugger off a dedicated
+   RUNCPMDEBUG macro (default false) instead of the ambient DEBUG, so the
+   firmware build never enables it regardless of build_type. */
+#define RUNCPMDEBUG false
 // #define DEBUG			// Enables the internal debugger (enabled by default on visual studio debug builds)
 // #define DEBUGONHALT		// Enables the internal debugger when the CPU halts
 // #define iDEBUG			// Enables instruction logging onto iDebug.log (for development debug only)
@@ -115,7 +123,7 @@
 
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
-#ifdef DEBUG
+#if RUNCPMDEBUG
     #define DBG " - DEBUG"
 #else
     #define DBG

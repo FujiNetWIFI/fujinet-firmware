@@ -39,7 +39,7 @@ RUNCPM_DECL int32 Step = -1;
    compatibility globals.  `Watch` is suppressed when DEBUG/iDEBUG is on so
    it does not clash with debug.h's own definition. */
 RUNCPM_DECL int32 Break = -1;
-#if !defined(DEBUG) && !defined(iDEBUG)
+#if !RUNCPMDEBUG && !defined(iDEBUG)
 RUNCPM_DECL int32 Watch = -1;
 #endif
 
@@ -1059,7 +1059,7 @@ static inline void Z80reset(void) {
 	#endif
 }
 
-#if defined(DEBUG) || defined(iDEBUG)
+#if RUNCPMDEBUG || defined(iDEBUG)
 #include "debug.h"
 #endif
 
@@ -1098,7 +1098,7 @@ static inline void Z80run(uint32 cpu_delay) {
         	}
 		}
 
-#ifdef DEBUG
+#if RUNCPMDEBUG
 		if (z80_check_breakpoints_on_exec(PC)) {
 			Debug = 1;
 		}
@@ -1116,7 +1116,7 @@ static inline void Z80run(uint32 cpu_delay) {
 	INCR(1); /* Add one M1 cycle to refresh counter */
 
 	/* push instruction into trace (before it is executed) */
-#if defined(DEBUG) || defined(iDEBUG)
+#if RUNCPMDEBUG || defined(iDEBUG)
 	z80_trace_push(PCX);
 #endif
 
@@ -1702,7 +1702,7 @@ static inline void Z80run(uint32 cpu_delay) {
 			break;
 
 		case 0x76:      /* HALT */
-#ifdef DEBUG
+#if RUNCPMDEBUG
 			_puts("\r\n::CPU HALTED::\r\n");	// A halt is a good indicator of broken code
 			_puts("Press any key...");
 			_getcon();

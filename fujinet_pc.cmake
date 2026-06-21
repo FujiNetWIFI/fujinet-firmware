@@ -245,6 +245,10 @@ set(SOURCES src/main.cpp
     lib/network-protocol/Protocol.h lib/network-protocol/Protocol.cpp
     lib/network-protocol/ProtocolParser.h lib/network-protocol/ProtocolParser.cpp
     lib/network-protocol/CPM.h lib/network-protocol/CPM.cpp
+    # Single shared RunCPM core (one Z80/CP/M state + engine).  Compiled on every
+    # target because the N:CPM:// device (CPM.cpp, above) is available on all of
+    # them; the SIO 'G' and telnet transports that also drive it are ATARI-only.
+    lib/runcpm/runcpm_session.h lib/runcpm/runcpm_core.cpp
     lib/network-protocol/GDRIVE.h lib/network-protocol/GDRIVE.cpp
     lib/network-protocol/Test.h lib/network-protocol/Test.cpp
     lib/network-protocol/TCP.h lib/network-protocol/TCP.cpp
@@ -303,6 +307,8 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     lib/device/sio/voice.h lib/device/sio/voice.cpp
     lib/device/sio/clock.h lib/device/sio/clock.cpp
     lib/device/sio/siocpm.h lib/device/sio/siocpm.cpp
+    lib/device/sio/vm_telnet.h lib/device/sio/vm_telnet.cpp
+    lib/device/sio/vm_bar.h lib/device/sio/vm_bar.cpp
     lib/device/sio/pclink.h lib/device/sio/pclink.cpp
     lib/device/sio/modem.h lib/device/sio/modem.cpp
 
