@@ -4,6 +4,8 @@
 
 #include "debug.h"
 #include "fnFsSD.h"
+#include "fnFsSPIFFS.h"
+#include "fsFlash.h"
 #include "rs232/diskTypeImg.h"
 #include "string_utils.h"
 #include "romType.h"
@@ -21,7 +23,6 @@ RomIdentifier::RomIdentifier(void)
 {
 	Debug_printf("RomIdentifier::RomIdentifier\n");
 	// TODO: Read from config to allow override
-	db_filepath = "/msxromdb.txt";
 	load_db();
 }
 
@@ -33,10 +34,15 @@ RomIdentifier::~RomIdentifier(void)
 bool RomIdentifier::load_db()
 {
 	FILE *fin = NULL; //declare fin
-    if (fnSDFAT.running() && fnSDFAT.exists(db_filepath.c_str()))
+    if (fnSDFAT.running() && fnSDFAT.exists(ROM_DB_FILENAME))
     {
-        Debug_printf("Loading ROM database (%s) from SD\n", db_filepath.c_str());
-        fin = fnSDFAT.file_open(db_filepath.c_str());
+        Debug_printf("Loading ROM database (%s) from SD\n", ROM_DB_FILENAME);
+        fin = fnSDFAT.file_open(ROM_DB_FILENAME);
+    }
+    else if (fsFlash.running() && fsFlash.exists(ROM_DB_FILENAME))
+    {
+        Debug_println("Loading ROM database from flash");
+        fin = fsFlash.file_open(ROM_DB_FILENAME);
     }
 
     if (fin == nullptr)

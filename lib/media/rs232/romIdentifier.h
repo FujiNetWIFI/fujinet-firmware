@@ -7,6 +7,8 @@
 #include "romType.h"
 #include "diskTypeImg.h"
 
+#define ROM_DB_FILENAME "/msxromdb.txt"
+
 class RomIdentifier
 {
 private:
