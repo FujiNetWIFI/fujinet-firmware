@@ -64,7 +64,7 @@ void iwmCPM::send_status_reply_packet()
     data[1] = 0; // block size 1
     data[2] = 0; // block size 2
     data[3] = 0; // block size 3
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR::NOERROR, data, 4);
 }
 
 void iwmCPM::send_status_dib_reply_packet()
@@ -77,7 +77,7 @@ void iwmCPM::send_status_dib_reply_packet()
                 { SP_TYPE_BYTE_FUJINET_CPM, SP_SUBTYPE_BYTE_FUJINET_CPM },  // type, subtype
                 { 0x00, 0x01 }                                              // version.
         );
-        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR::NOERROR, data.data(), data.size());
 
 }
 
@@ -89,13 +89,13 @@ void iwmCPM::sio_status()
 
 void iwmCPM::iwm_open(iwm_decoded_cmd_t cmd)
 {
-    uint8_t err_result = SP_ERR_NOERROR;
+    spError_t err_result = SP_ERR::NOERROR;
 
     Debug_printf("\r\nCP/M: Open\n");
 #ifdef ESP_PLATFORM // OS
     if (!fnSystem.hasbuffer())
     {
-        err_result = SP_ERR_OFFLINE;
+        err_result = SP_ERR::OFFLINE;
     Debug_printf("FujiApple HASBUFFER Missing, not starting CP/M\n");
     }
     else
@@ -114,7 +114,7 @@ void iwmCPM::iwm_open(iwm_decoded_cmd_t cmd)
 void iwmCPM::iwm_close(iwm_decoded_cmd_t cmd)
 {
     Debug_printf("\r\nCP/M: Close\n");
-    send_reply_packet(SP_ERR_NOERROR);
+    send_reply_packet(SP_ERR::NOERROR);
 }
 
 void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
@@ -158,12 +158,12 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
         Debug_printf("CPM Task Running? %d %s", data_buffer[0],(data_buffer[0]) ? "=No" : "=Yes");
         break;
     default:
-        send_reply_packet(SP_ERR_BADCMD);
+        send_reply_packet(SP_ERR::BADCMD);
         return;
     }
 
     Debug_printf("\r\nStatus code complete, sending response");
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, data_len);
 }
 
 void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
@@ -202,7 +202,7 @@ void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
     }
 
     Debug_printf("\r\nsending CPM read data packet ...");
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, data_len);
     data_len = 0;
     memset(data_buffer, 0, sizeof(data_buffer));
 }
@@ -230,12 +230,12 @@ void iwmCPM::iwm_write(iwm_decoded_cmd_t cmd)
 #endif
     }
 
-    send_reply_packet(SP_ERR_NOERROR);
+    send_reply_packet(SP_ERR::NOERROR);
 }
 
 void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
 {
-    uint8_t err_result = SP_ERR_NOERROR;
+    spError_t err_result = SP_ERR::NOERROR;
 
     // uint8_t source = cmd.dest;                                                 // we are the destination and will become the source // data_buffer[6];
     Debug_printf("\r\nCPM Device %02x Control Code %02x", id(), cmd.control_status.fuji.command);
@@ -252,7 +252,7 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
 #ifdef ESP_PLATFORM // OS
             if (!fnSystem.hasbuffer())
             {
-                err_result = SP_ERR_OFFLINE;
+                err_result = SP_ERR::OFFLINE;
                 Debug_printf("FujiApple HASBUFFER Missing, not starting CP/M\n");
             }
             else
@@ -269,11 +269,11 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
             }
             break;
         default:
-            send_reply_packet(SP_ERR_BADCMD);
+            send_reply_packet(SP_ERR::BADCMD);
             return;
         }
     else
-        err_result = SP_ERR_IOERROR;
+        err_result = SP_ERR::IOERROR;
 
     send_reply_packet(err_result);
 }
