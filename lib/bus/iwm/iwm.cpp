@@ -188,13 +188,13 @@ systemBus::iwm_phases_t systemBus::iwm_phases()
 
 //------------------------------------------------------
 
-int systemBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t *data, uint16_t num)
+int systemBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, spError_t err, const uint8_t *data, uint16_t num)
 {
   int r;
   int retry = 5; // host seems to control the retries, this is here so we don't get stuck
 
   //print_packet ((uint8_t*) data, num); // before encoding
-  smartport.encode_packet(source, packet_type, status, data, num);
+  smartport.encode_packet(source, packet_type, static_cast<uint8_t>(err), data, num);
 #ifdef DEBUG
   //print_packet(smartport.packet_buffer,BLOCK_PACKET_LEN); // print raw packet contents to be sent
 #endif
@@ -243,14 +243,14 @@ void systemBus::setup(void)
 // to 4 partions, i.e. devices, so we need to specify when we are doing the last
 // init reply.
 //*****************************************************************************
-void virtualDevice::send_init_reply_packet(uint8_t source, uint8_t status)
+void virtualDevice::send_init_reply_packet(uint8_t source, spError_t err)
 {
-  SYSTEM_BUS.iwm_send_packet(source, iwm_packet_type_t::status, status, nullptr, 0);
+  SYSTEM_BUS.iwm_send_packet(source, iwm_packet_type_t::status, err, nullptr, 0);
 }
 
-void virtualDevice::send_reply_packet(uint8_t status)
+void virtualDevice::send_reply_packet(spError_t err)
 {
-  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, status, nullptr, 0);
+  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, err, nullptr, 0);
 }
 
 void virtualDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
@@ -270,21 +270,21 @@ void virtualDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
       print_packet(data_buffer, data_len);
       break;
     default: //just send the response and return like before
-      send_reply_packet(SP_ERR_BADCMD);
+      send_reply_packet(SP_ERR::BADCMD);
       Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.sp_command);
       return;
   }
 
   if(cmd.sp_command == SP_CMD_CONTROL) //Decode command control code
   {
-    send_reply_packet(SP_ERR_BADCTL); //we may be required to accept some control commands
+    send_reply_packet(SP_ERR::BADCTL); //we may be required to accept some control commands
                                       // but for now just report bad control if it's a control
                                       // command
     Debug_printf("\r\nbad command was a control command with control code %02x",cmd.control_status.fuji.command);
   }
   else
   {
-    send_reply_packet(SP_ERR_BADCMD); //response for Any other command with a data packet
+    send_reply_packet(SP_ERR::BADCMD); //response for Any other command with a data packet
   }
 }
 
@@ -305,38 +305,36 @@ void virtualDevice::iwm_return_device_offline(iwm_decoded_cmd_t cmd)
       print_packet((uint8_t *)data_buffer, data_len);
       break;
     default: //just send the response and return like before
-      send_reply_packet(SP_ERR_OFFLINE);
+      send_reply_packet(SP_ERR::OFFLINE);
       Debug_printf("\r\nUnit %02x Offline, Command %02x", id(), cmd.sp_command);
       return;
   }
 
   if(cmd.sp_command == SP_CMD_CONTROL) //Decode command control code
   {
-    send_reply_packet(SP_ERR_OFFLINE);
+    send_reply_packet(SP_ERR::OFFLINE);
     Debug_printf("\r\nOffline command was a control command with control code %02x",cmd.control_status.fuji.command);
   }
   else
   {
-    send_reply_packet(SP_ERR_OFFLINE); //response for Any other command with a data packet
+    send_reply_packet(SP_ERR::OFFLINE); //response for Any other command with a data packet
   }
 }
 
 void virtualDevice::iwm_return_ioerror()
 {
   // Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.sp_command);
-  send_reply_packet(SP_ERR_IOERROR);
+  send_reply_packet(SP_ERR::IOERROR);
 }
 
 void virtualDevice::iwm_return_noerror()
 {
-  send_reply_packet(SP_ERR_NOERROR);
+  send_reply_packet(SP_ERR::NOERROR);
 }
 
 void virtualDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 {
-  uint8_t status_code = cmd.control_status.code;
-
-  if (status_code == SP_CMD_FORMAT)
+  if (cmd.control_status.code == SP_STAT_DIB)
   {
     Debug_printf("\r\nSending DIB Status for device 0x%02x", id());
     send_status_dib_reply_packet();
@@ -355,10 +353,10 @@ void virtualDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 // data[..16 bytes ]      = name padded with spaces to 16 bytes
 // data[..2 bytes]        = device type
 // data[..2 byte]         = device version
-std::vector<uint8_t> virtualDevice::create_dib_reply_packet(const std::string& device_name, uint8_t status, const std::vector<uint8_t>& block_size, const std::array<uint8_t, 2>& type, const std::array<uint8_t, 2>& version)
+std::vector<uint8_t> virtualDevice::create_dib_reply_packet(const std::string& device_name, uint8_t device_status, const std::vector<uint8_t>& block_size, const std::array<uint8_t, 2>& type, const std::array<uint8_t, 2>& version)
 {
     std::vector<uint8_t> data;
-    data.push_back(status);
+    data.push_back(device_status);
     data.insert(data.end(), block_size.begin(), block_size.end());
     data.push_back(static_cast<uint8_t>(device_name.size()));
 
@@ -740,7 +738,7 @@ iwm_enable_state_t IRAM_ATTR systemBus::iwm_motor_state()
 
 void systemBus::handle_init()
 {
-  uint8_t status = 0;
+  spError_t err = SP_ERR::NOERROR;
   virtualDevice *pDevice = nullptr;
 
   fnLedManager.set(LED_BUS, true);
@@ -757,9 +755,9 @@ void systemBus::handle_init()
     {
       pDevice->_devnum = command_packet.dest; // assign address
       if (++it == _daisyChain.end())
-        status = 0xff; // end of the line, so status=non zero - to do: check GPIO for another device in the physical daisy chain
+        err = SP_ERR::ENDOFCHAIN; // end of the line, so status=non zero - to do: check GPIO for another device in the physical daisy chain
       Debug_printf("\r\nSending INIT Response Packet...");
-      pDevice->send_init_reply_packet(command_packet.dest, status);
+      pDevice->send_init_reply_packet(command_packet.dest, err);
 
       // smartport.iwm_send_packet_spi((uint8_t *)pDevice->packet_buffer); // timeout error return is not handled here (yet?)
 

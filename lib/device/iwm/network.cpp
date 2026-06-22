@@ -53,7 +53,7 @@ void iwmNetwork::send_status_reply_packet()
     data[1] = 0; // block size 1
     data[2] = 0; // block size 2
     data[3] = 0; // block size 3
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR::NOERROR, data, 4);
 }
 
 void iwmNetwork::send_status_dib_reply_packet()
@@ -66,7 +66,7 @@ void iwmNetwork::send_status_dib_reply_packet()
         { SP_TYPE_BYTE_FUJINET_NETWORK, SP_SUBTYPE_BYTE_FUJINET_NETWORK },  // type, subtype
         { 0x00, 0x01 }                                                      // version.
     );
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR::NOERROR, data.data(), data.size());
 }
 
 /**
@@ -102,7 +102,7 @@ void iwmNetwork::open()
         current_network_data.urlParser.reset();
     }
 
-    err = SP_ERR_NOERROR;
+    err = SP_ERR::NOERROR;
 
     Debug_printf("\nopen()\n");
 
@@ -134,7 +134,7 @@ void iwmNetwork::open()
 void iwmNetwork::close()
 {
     Debug_printf("iwmNetwork::close()\n");
-    err = SP_ERR_NOERROR;
+    err = SP_ERR::NOERROR;
     if (network_data_map.find(current_network_unit) == network_data_map.end()) {
         Debug_printf("No network_data for unit: %d, exiting close\r\n", current_network_unit);
         return;
@@ -280,13 +280,13 @@ void iwmNetwork::json_parse()
 void iwmNetwork::iwm_open(iwm_decoded_cmd_t cmd)
 {
     // nothing in fujinet-lib calls this, it does a control with open command. This is used only by the Apple/// as it has no fn-lib support yet
-    send_reply_packet(SP_ERR_NOERROR);
+    send_reply_packet(SP_ERR::NOERROR);
 }
 
 void iwmNetwork::iwm_close(iwm_decoded_cmd_t cmd)
 {
     // nothing in fujinet-lib calls this, it does a control with close command. This is used only by the Apple/// as it has no fn-lib support yet
-    send_reply_packet(SP_ERR_NOERROR);
+    send_reply_packet(SP_ERR::NOERROR);
     close();
 }
 
@@ -302,16 +302,16 @@ void iwmNetwork::status()
     case CHANNEL_MODE::PROTOCOL:
         if (!current_network_data.protocol) {
             Debug_printf("ERROR: Calling status on a null protocol.\r\n");
-            err = SP_ERR_BADCMD;
+            err = SP_ERR::BADCMD;
             s.error = NDEV_STATUS::INVALID_COMMAND;
         } else {
             err = current_network_data.protocol->status(&s) == FUJI_ERROR::NONE
-                ? SP_ERR_NOERROR : SP_ERR_BADCMD;
+                ? SP_ERR::NOERROR : SP_ERR::BADCMD;
             avail = current_network_data.protocol->available();
         }
         break;
     case CHANNEL_MODE::JSON:
-        err = (current_network_data.json->status(&s) == false) ? SP_ERR_NOERROR : SP_ERR_IOERROR;
+        err = (current_network_data.json->status(&s) == false) ? SP_ERR::NOERROR : SP_ERR::IOERROR;
         avail = current_network_data.json->available();
         break;
     }
@@ -363,13 +363,13 @@ void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
         status();
         break;
     default:
-        send_reply_packet(SP_ERR_BADCMD);
+        send_reply_packet(SP_ERR::BADCMD);
         return;
     }
 
     Debug_printf("\r\nStatus code complete, sending response");
     //send_data_packet(data_len);
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, data_len);
     data_len = 0;
     memset(data_buffer, 0, sizeof(data_buffer));
 }
@@ -434,7 +434,7 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 
     if (current_network_data.protocol->read(data_len) != FUJI_ERROR::NONE) // protocol adapter returned error
     {
-        err = current_network_data.protocol->error == NDEV_STATUS::SUCCESS ? SP_ERR_NOERROR : SP_ERR_BADCMD;
+        err = current_network_data.protocol->error == NDEV_STATUS::SUCCESS ? SP_ERR::NOERROR : SP_ERR::BADCMD;
         return true;
     }
     else // everything ok
@@ -495,7 +495,7 @@ void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
     else
     {
         Debug_printf("\r\nsending Network read data packet (%04x bytes)...", data_len);
-        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, data_len);
         data_len = 0;
         memset(data_buffer, 0, sizeof(data_buffer));
     }
@@ -534,11 +534,11 @@ void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
         current_network_data.transmitBuffer += string((char *)data_buffer, cmd.char_rw.length);
         if (write_channel(cmd.char_rw.length))
         {
-            send_reply_packet(SP_ERR_IOERROR);
+            send_reply_packet(SP_ERR::IOERROR);
         }
         else
         {
-            send_reply_packet(SP_ERR_NOERROR);
+            send_reply_packet(SP_ERR::NOERROR);
         }
     }
 
@@ -548,7 +548,7 @@ void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
 
 void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
 {
-    uint8_t err_result = SP_ERR_NOERROR;
+    spError_t err_result = SP_ERR::NOERROR;
 
     // TODO: remove this in the future when we decide to drop support of the deprecated fujinet-lib (with unit-id support)
     // We have moved to a separate control command that sets the active channel for all subsequent commands
@@ -637,12 +637,12 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
         break;
 
     default:
-        err = SP_ERR_IOERROR;
+        err = SP_ERR::IOERROR;
         break;
     }
 
-    if (err != 0)
-        err_result = SP_ERR_IOERROR;
+    if (err != SP_ERR::NOERROR)
+        err_result = SP_ERR::IOERROR;
 
     send_reply_packet(err_result);
 
@@ -735,7 +735,7 @@ void iwmNetwork::parse_and_instantiate_protocol(string d)
     if (!current_network_data.urlParser->isValidUrl())
     {
         Debug_printf("Invalid devicespec: %s\n", current_network_data.deviceSpec.c_str());
-        err = SP_ERR_BADCTLPARM;
+        err = SP_ERR::BADCTLPARM;
         return;
     }
 
@@ -747,7 +747,7 @@ void iwmNetwork::parse_and_instantiate_protocol(string d)
     if (!instantiate_protocol())
     {
         Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", current_network_data.deviceSpec.c_str(), current_network_data.urlParser->mRawUrl.c_str());
-        err = SP_ERR_BADCMD;
+        err = SP_ERR::BADCMD;
         return;
     }
 }
@@ -775,7 +775,7 @@ void iwmNetwork::process_fs(fujiCommandID_t fuji_command)
     NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(current_network_data.protocol.get());
     if (!fs)
     {
-        err = SP_ERR_IOERROR;
+        err = SP_ERR::IOERROR;
         return;
     }
 
@@ -807,7 +807,7 @@ void iwmNetwork::process_fs(fujiCommandID_t fuji_command)
     }
 
     if (cmd_err != FUJI_ERROR::NONE)
-        err = SP_ERR_IOERROR;
+        err = SP_ERR::IOERROR;
 }
 
 void iwmNetwork::process_tcp(fujiCommandID_t fuji_command)
@@ -817,7 +817,7 @@ void iwmNetwork::process_tcp(fujiCommandID_t fuji_command)
     NetworkProtocolTCP *tcp = dynamic_cast<NetworkProtocolTCP *>(current_network_data.protocol.get());
     if (!tcp)
     {
-        err = SP_ERR_IOERROR;
+        err = SP_ERR::IOERROR;
         return;
     }
 
@@ -836,7 +836,7 @@ void iwmNetwork::process_tcp(fujiCommandID_t fuji_command)
     }
 
     if (cmd_err != FUJI_ERROR::NONE)
-        err = SP_ERR_IOERROR;
+        err = SP_ERR::IOERROR;
 }
 
 void iwmNetwork::process_http(fujiCommandID_t fuji_command)
@@ -846,7 +846,7 @@ void iwmNetwork::process_http(fujiCommandID_t fuji_command)
     NetworkProtocolHTTP *http = dynamic_cast<NetworkProtocolHTTP *>(current_network_data.protocol.get());
     if (!http)
     {
-        err = SP_ERR_IOERROR;
+        err = SP_ERR::IOERROR;
         return;
     }
 
@@ -862,7 +862,7 @@ void iwmNetwork::process_http(fujiCommandID_t fuji_command)
     }
 
     if (cmd_err != FUJI_ERROR::NONE)
-        err = SP_ERR_IOERROR;
+        err = SP_ERR::IOERROR;
 }
 
 void iwmNetwork::process_udp(fujiCommandID_t fuji_command)
@@ -872,7 +872,7 @@ void iwmNetwork::process_udp(fujiCommandID_t fuji_command)
     NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(current_network_data.protocol.get());
     if (!udp)
     {
-        err = SP_ERR_IOERROR;
+        err = SP_ERR::IOERROR;
         return;
     }
 
@@ -882,7 +882,7 @@ void iwmNetwork::process_udp(fujiCommandID_t fuji_command)
 #ifndef ESP_PLATFORM
     case NETCMD_GET_REMOTE:
         cmd_err = udp->get_remote(data_buffer, SPECIAL_BUFFER_SIZE);
-        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0,
+        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR,
                                    data_buffer, SPECIAL_BUFFER_SIZE);
         break;
 #endif /* ESP_PLATFORM */
@@ -890,11 +890,11 @@ void iwmNetwork::process_udp(fujiCommandID_t fuji_command)
         {
             cmd_err = udp->set_destination(data_buffer, data_len);
             if (cmd_err != FUJI_ERROR::NONE)
-                err = SP_ERR_IOERROR;
+                err = SP_ERR::IOERROR;
         }
         break;
     default:
-        err = SP_ERR_IOERROR;
+        err = SP_ERR::IOERROR;
         break;
     }
 }

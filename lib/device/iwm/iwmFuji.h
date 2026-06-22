@@ -116,7 +116,7 @@ protected:
     void send_extended_status_dib_reply_packet() override {};
 
 public:
-    uint8_t err_result = SP_ERR_NOERROR;
+    spError_t err_result = SP_ERR::NOERROR;
     bool status_completed = false;
     fujiCommandID_t active_fuji_command;
 

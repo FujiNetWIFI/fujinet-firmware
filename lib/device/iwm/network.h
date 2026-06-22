@@ -157,7 +157,7 @@ private:
     /**
      * SP_ERR number when there's an ... error!
      */
-    uint8_t err = SP_ERR_NOERROR;
+    spError_t err = SP_ERR::NOERROR;
 
     /**
      * ESP timer handle for the Interrupt rate limiting timer

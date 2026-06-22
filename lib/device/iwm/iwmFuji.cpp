@@ -83,16 +83,16 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
              this->fujicmd_reset();
          }},   // 0x00
 #ifdef DEV_RELAY_SLIP
-        { SP_CTRL_CLEAR_DISKII_SEEN, [this]()              { err_result = SP_ERR_NODRIVE; }},
+        { SP_CTRL_CLEAR_DISKII_SEEN, [this]()              { err_result = SP_ERR::NODRIVE; }},
 #else
-        { SP_CTRL_CLEAR_DISKII_SEEN, [this]()              { diskii_xface.d2_enable_seen = 0; err_result = SP_ERR_NOERROR; }},
+        { SP_CTRL_CLEAR_DISKII_SEEN, [this]()              { diskii_xface.d2_enable_seen = 0; err_result = SP_ERR::NOERROR; }},
 #endif
 
         { FUJICMD_MOUNT_ALL, [&]()                     {
-             err_result = fujicmd_mount_all_success() ? SP_ERR_NOERROR : SP_ERR_IOERROR;
+             err_result = fujicmd_mount_all_success() ? SP_ERR::NOERROR : SP_ERR::IOERROR;
          }},          // 0xD7
-        { FUJICMD_MOUNT_IMAGE, [&]()                   { err_result = fujicmd_mount_disk_image_success(data_buffer[0], (disk_access_flags_t) data_buffer[1]) ? SP_ERR_NOERROR : SP_ERR_NODRIVE; }},  // 0xF8
-        { FUJICMD_OPEN_DIRECTORY, [&]()                { err_result = fujicore_open_directory_success(data_buffer[0], std::string((char *) &data_buffer[1], sizeof(data_buffer) - 1)) ? SP_ERR_NOERROR : SP_ERR_IOERROR; }}     // 0xF7
+        { FUJICMD_MOUNT_IMAGE, [&]()                   { err_result = fujicmd_mount_disk_image_success(data_buffer[0], (disk_access_flags_t) data_buffer[1]) ? SP_ERR::NOERROR : SP_ERR::NODRIVE; }},  // 0xF8
+        { FUJICMD_OPEN_DIRECTORY, [&]()                { err_result = fujicore_open_directory_success(data_buffer[0], std::string((char *) &data_buffer[1], sizeof(data_buffer) - 1)) ? SP_ERR::NOERROR : SP_ERR::IOERROR; }}     // 0xF7
     };
 
     status_handlers = {
@@ -304,7 +304,7 @@ void iwmFuji::send_status_reply_packet()
         data[1] = 0; // block size 1
         data[2] = 0; // block size 2
         data[3] = 0; // block size 3
-        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
+        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR::NOERROR, data, 4);
 }
 
 void iwmFuji::send_status_dib_reply_packet()
@@ -317,7 +317,7 @@ void iwmFuji::send_status_dib_reply_packet()
                 { SP_TYPE_BYTE_FUJINET, SP_SUBTYPE_BYTE_FUJINET },      // type, subtype
                 { 0x00, 0x01 }                                          // version.
         );
-        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR::NOERROR, data.data(), data.size());
 }
 
 void iwmFuji::send_stat_get_enable()
@@ -352,14 +352,14 @@ void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
         if (status_completed) return;
 
         Debug_printf("\nStatus code complete, sending response");
-        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, data_len);
 }
 
 void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
 {
         Debug_printf("\ntheFuji Device %02x Control Code %02x", id(), cmd.control_status.fuji.command);
 
-        err_result = SP_ERR_NOERROR;
+        err_result = SP_ERR::NOERROR;
         data_len = 512;
 
         Debug_printf("\nDecoding Control Data Packet for code: 0x%02x\r\n", cmd.control_status.fuji.command);
@@ -371,7 +371,7 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
         it->second();
     } else {
                 Debug_printf("ERROR: Unhandled control code: %02X\n", cmd.control_status.fuji.command);
-        err_result = SP_ERR_BADCTL;
+        err_result = SP_ERR::BADCTL;
     }
 
         send_reply_packet(err_result);

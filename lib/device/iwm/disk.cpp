@@ -118,7 +118,7 @@ void iwmDisk::send_status_reply_packet()
   std::vector<uint8_t> data;
   data.push_back(status);
   data.insert(data.end(), block_size.begin(), block_size.end());
-  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status,SP_ERR_NOERROR, data.data(), data.size());
+  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status,SP_ERR::NOERROR, data.data(), data.size());
 }
 
 //*****************************************************************************
@@ -146,7 +146,7 @@ void iwmDisk::send_extended_status_reply_packet() //XXX! Currently unused
   std::vector<uint8_t> data;
   data.push_back(status);
   data.insert(data.end(), block_size.begin(), block_size.end());
-  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data.data(), data.size());
+  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR::NOERROR, data.data(), data.size());
 }
 
 //*****************************************************************************
@@ -173,7 +173,7 @@ void iwmDisk::send_status_dib_reply_packet() // to do - abstract this out with p
     { smartport_device_type(), smartport_device_subtype() },    // type, subtype
     { 0x01, 0x0f }                                              // version.
   );
-        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR::NOERROR, data.data(), data.size());
 }
 
 //*****************************************************************************
@@ -207,12 +207,12 @@ void iwmDisk::send_extended_status_dib_reply_packet() //XXX! currently unused
     switched = false;
   }
 
-  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data.data(), data.size());
+  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR::NOERROR, data.data(), data.size());
 }
 
 void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)
 {
-  err_result = SP_ERR_NOERROR;
+  err_result = SP_ERR::NOERROR;
   Debug_printf("\nDisk Device %02x Control Code %02x", id(), cmd.control_status.fuji.command);
   Debug_printf("\nDecoding Control Data Packet:");
   SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
@@ -227,7 +227,7 @@ void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)
     platformFuji.handle_ctl_eject(_devnum);
     break;
   default:
-    err_result = SP_ERR_BADCTL;
+    err_result = SP_ERR::BADCTL;
     break;
   }
   send_reply_packet(err_result);
@@ -288,17 +288,17 @@ void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
   if (!(_disk != nullptr))
   {
     Debug_printf(" - ERROR - No image mounted");
-    send_reply_packet(SP_ERR_OFFLINE);
+    send_reply_packet(SP_ERR::OFFLINE);
     return;
   }
   if((!device_active)) {
     Debug_printf("iwm_readblock while device offline!\r\n");
-    send_reply_packet(SP_ERR_OFFLINE);
+    send_reply_packet(SP_ERR::OFFLINE);
     return;
   }
   if((switched) && (cmd.block_rw.num > 2)){
     Debug_printf("iwm_readblock() returning disk switched error\r\n");
-    send_reply_packet(SP_ERR_OFFLINE);
+    send_reply_packet(SP_ERR::OFFLINE);
     switched = false;
     return;
   }
@@ -309,19 +309,19 @@ void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
   if (_disk->read(cmd.block_rw.num, &sdstato, data_buffer))
   {
     Debug_printf("\r\nFile Seek or Read err: %d bytes", sdstato);
-    send_reply_packet(SP_ERR_IOERROR);
+    send_reply_packet(SP_ERR::IOERROR);
     return; // todo - true or false?
   }
 
   // send_data_packet();
   Debug_printf("\r\nsending block packet ...");
-  if (SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, BLOCK_DATA_LEN))
+  if (SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, BLOCK_DATA_LEN))
    ((MediaTypePO*)_disk)->reset_seek_opto();  // force seek next time if send error
 }
 
 void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
 {
-  uint8_t status = 0;
+  spError_t err = SP_ERR::NOERROR;
 
 
   Debug_printf("\r\nDrive %02x ", id());
@@ -339,24 +339,24 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
 
       if((!device_active)) {
         Debug_printf("iwm_writeblock while device offline!\r\n");
-        send_reply_packet(SP_ERR_OFFLINE);
+        send_reply_packet(SP_ERR::OFFLINE);
         return;
       }
       if(switched && readonly) {
         Debug_printf("iwm_writeblock while readonly and disk switched\r\n");
-        send_reply_packet(SP_ERR_NOWRITE);
+        send_reply_packet(SP_ERR::NOWRITE);
         switched = false;
         return;
       }
       if(switched) {
         Debug_printf("iwm_writeblock while disk switched = true\r\nn");
-        send_reply_packet(SP_ERR_OFFLINE);
+        send_reply_packet(SP_ERR::OFFLINE);
         switched = false;
         return;
       }
       if(readonly) {
         Debug_printf("\r\niwm_writeblock tried to write while readonly = true!");
-        send_reply_packet(SP_ERR_NOWRITE);
+        send_reply_packet(SP_ERR::NOWRITE);
         return;
       }
 
@@ -367,13 +367,13 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
       {
         Debug_printf("\r\nFile Write err: %d bytes", sdstato);
         if (sdstato == 0)
-          status = 0x2B; // write protected todo: we should probably have a read-only flag that gets set and tested up top
+          err = SP_ERR::NOWRITE; // write protected todo: we should probably have a read-only flag that gets set and tested up top
         else
-          status = 0x27; // 6;
+          err = SP_ERR::IOERROR; // 6;
         //return;
       }
       //now return status code to host
-      send_reply_packet(status);
+      send_reply_packet(err);
     }
 }
 

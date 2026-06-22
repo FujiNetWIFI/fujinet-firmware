@@ -35,7 +35,7 @@ void iwmClock::send_status_reply_packet()
     data[1] = 0; // block size 1
     data[2] = 0; // block size 2
     data[3] = 0; // block size 3
-    SYSTEM_BUS.iwm_send_packet(id(),iwm_packet_type_t::status,SP_ERR_NOERROR, data, 4);
+    SYSTEM_BUS.iwm_send_packet(id(),iwm_packet_type_t::status,SP_ERR::NOERROR, data, 4);
 }
 
 void iwmClock::send_status_dib_reply_packet()
@@ -48,7 +48,7 @@ void iwmClock::send_status_dib_reply_packet()
                 { SP_TYPE_BYTE_FUJINET_CLOCK, SP_SUBTYPE_BYTE_FUJINET_CLOCK },  // type, subtype
                 { 0x00, 0x01 }                                                  // version.
         );
-        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR::NOERROR, data.data(), data.size());
 }
 
 void iwmClock::set_tz()
@@ -74,7 +74,7 @@ void iwmClock::iwm_ctrl(iwm_decoded_cmd_t cmd)
 
     SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
 
-    uint8_t err_result = SP_ERR_NOERROR;
+    spError_t err_result = SP_ERR::NOERROR;
 
     switch (cmd.control_status.fuji.command)
     {
@@ -85,7 +85,7 @@ void iwmClock::iwm_ctrl(iwm_decoded_cmd_t cmd)
             set_alternate_tz();
             break;
         default:
-            err_result = SP_ERR_BADCTL;
+            err_result = SP_ERR::BADCTL;
             break;
     }
 
@@ -184,24 +184,24 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
         break;
     }
     default:
-        send_reply_packet(SP_ERR_BADCTL);
+        send_reply_packet(SP_ERR::BADCTL);
         return;
     }
 
     // If we got here, we have data to send
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR_NOERROR, data_buffer, data_len);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, data_len);
 }
 
 void iwmClock::iwm_open(iwm_decoded_cmd_t cmd)
 {
     Debug_printf("\r\nClock: Open\n");
-    send_reply_packet(SP_ERR_NOERROR);
+    send_reply_packet(SP_ERR::NOERROR);
 }
 
 void iwmClock::iwm_close(iwm_decoded_cmd_t cmd)
 {
     Debug_printf("\r\nClock: Close\n");
-    send_reply_packet(SP_ERR_NOERROR);
+    send_reply_packet(SP_ERR::NOERROR);
 }
 
 

@@ -9,7 +9,7 @@
 class iwmDisk : public virtualDevice
 {
 private:
-    uint8_t err_result = SP_ERR_NOERROR;
+    spError_t err_result = SP_ERR::NOERROR;
     void prodos_encode_datetime(unsigned short *date_out, unsigned short *time_out);
     int prodos_write_block(fnFile *f, const unsigned char *buf);
     error_is_true prodos_write_boot_block(fnFile *f);

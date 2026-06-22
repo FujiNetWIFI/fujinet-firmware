@@ -45,23 +45,31 @@ enum spCommandID_t : uint8_t {
   SP_ECMD_WRITE         = 0x49,
 };
 
-enum spError_t {
+// Windows defines this and it conflicts with the SmartPort erro
+// code. We don't need it, just undef it.
+#ifdef NOERROR
+#undef NOERROR
+#endif
+
+typedef enum class SP_ERR {
     // see page 81-82 in Apple IIc ROM reference and Table 7-5 in IIgs firmware ref
-    SP_ERR_NOERROR    = 0x00, // no error
-    SP_ERR_BADCMD     = 0x01, // invalid command
-    SP_ERR_BUSERR     = 0x06, // communications error
-    SP_ERR_BADCTL     = 0x21, // invalid status or control code
-    SP_ERR_BADCTLPARM = 0x22, // invalid parameter list
-    SP_ERR_IOERROR    = 0x27, // i/o error on device side
-    SP_ERR_NODRIVE    = 0x28, // no device connected
-    SP_ERR_NOWRITE    = 0x2b, // disk write protected
-    SP_ERR_BADBLOCK   = 0x2d, // invalid block number
-    SP_ERR_DISKSW     = 0x2e, // media has been swapped - extended calls only
-    SP_ERR_OFFLINE    = 0x2f, // device offline or no disk in drive
+    NOERROR    = 0x00, // no error
+    BADCMD     = 0x01, // invalid command
+    BUSERR     = 0x06, // communications error
+    BADCTL     = 0x21, // invalid status or control code
+    BADCTLPARM = 0x22, // invalid parameter list
+    IOERROR    = 0x27, // i/o error on device side
+    NODRIVE    = 0x28, // no device connected
+    NOWRITE    = 0x2b, // disk write protected
+    BADBLOCK   = 0x2d, // invalid block number
+    DISKSW     = 0x2e, // media has been swapped - extended calls only
+    OFFLINE    = 0x2f, // device offline or no disk in drive
 
     // $30-$3F are for device specific errors
-    SP_ERR_BADWIFI    = 0x30, // error connecting to new SSID - todo: implement usage
-};
+    BADWIFI    = 0x30, // error connecting to new SSID - todo: implement usage
+
+    ENDOFCHAIN = 0xff,
+} spError_t;
 
 #define STATCODE_BLOCK_DEVICE 0x01 << 7   // block device = 1, char device = 0
 #define STATCODE_WRITE_ALLOWED 0x01 << 6
@@ -232,10 +240,10 @@ protected:
 
    // void send_data_packet(); //encode smartport 512 byte data packet
   // void encode_data_packet(uint16_t num = 512); //encode smartport "num" byte data packet
-  void send_init_reply_packet(uint8_t source, uint8_t status);
+  void send_init_reply_packet(uint8_t source, spError_t err);
   virtual void send_status_reply_packet() = 0;
-  void send_reply_packet(uint8_t status);
-  // void send_reply_packet(uint8_t source, uint8_t status) { send_reply_packet(status); };
+  void send_reply_packet(spError_t err);
+  // void send_reply_packet(uint8_t source, spError_t err) { send_reply_packet(status); };
   virtual void send_status_dib_reply_packet() = 0;
 
   virtual void send_extended_status_reply_packet() = 0;
@@ -265,7 +273,7 @@ protected:
   static uint8_t data_buffer[MAX_DATA_LEN]; // un-encoded binary data (512 bytes for a block)
   static int data_len; // how many bytes in the data buffer
 
-  std::vector<uint8_t> create_dib_reply_packet(const std::string& device_name, uint8_t status, const std::vector<uint8_t>& block_size, const std::array<uint8_t, 2>& type, const std::array<uint8_t, 2>& version);
+  std::vector<uint8_t> create_dib_reply_packet(const std::string& device_name, uint8_t device_status, const std::vector<uint8_t>& block_size, const std::array<uint8_t, 2>& type, const std::array<uint8_t, 2>& version);
 
 public:
   bool device_active;
@@ -338,7 +346,7 @@ public:
 
   cmdPacket_t command_packet;
   bool iwm_decode_data_packet(uint8_t *a, int &n);
-   int iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num);
+   int iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, spError_t err, const uint8_t* data, uint16_t num);
 
   // these things stay for the most part
   void setup();

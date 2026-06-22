@@ -28,7 +28,7 @@ void iwmPrinter::send_status_reply_packet()
     data[0] = 0b01110000;
     data[1] = data[2] = data[3] = 0;
 
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data, 4);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR::NOERROR, data, 4);
 }
 
 void iwmPrinter::send_extended_status_reply_packet()
@@ -38,7 +38,7 @@ void iwmPrinter::send_extended_status_reply_packet()
     data[0] = 0b01110000;
     data[1] = data[2] = data[3] = data[4] = 0;
 
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data, 5);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR::NOERROR, data, 5);
 }
 
 void iwmPrinter::send_status_dib_reply_packet()
@@ -51,7 +51,7 @@ void iwmPrinter::send_status_dib_reply_packet()
         { SP_TYPE_BYTE_FUJINET_PRINTER, SP_SUBTYPE_BYTE_FUJINET_PRINTER },  // type, subtype
         { 0x00, 0x01 }                                                      // version.
     );
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR::NOERROR, data.data(), data.size());
 }
 
 void iwmPrinter::send_extended_status_dib_reply_packet()
@@ -71,7 +71,7 @@ void iwmPrinter::iwm_status(iwm_decoded_cmd_t cmd)
         send_status_dib_reply_packet();
         break;
     default:
-      send_reply_packet(SP_ERR_BADCMD);
+      send_reply_packet(SP_ERR::BADCMD);
       break;
     }
 }
@@ -79,13 +79,13 @@ void iwmPrinter::iwm_status(iwm_decoded_cmd_t cmd)
 void iwmPrinter::iwm_open(iwm_decoded_cmd_t cmd)
 {
     Debug_printf("\nPrinter: Open\n");
-    send_reply_packet(SP_ERR_NOERROR);
+    send_reply_packet(SP_ERR::NOERROR);
 }
 
 void iwmPrinter::iwm_close(iwm_decoded_cmd_t cmd)
 {
     Debug_printf("\nPrinter: Close\n");
-    send_reply_packet(SP_ERR_NOERROR);
+    send_reply_packet(SP_ERR::NOERROR);
 }
 
 void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
@@ -112,7 +112,7 @@ void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
     }
 
     _last_ms = fnSystem.millis();
-    send_reply_packet(SP_ERR_NOERROR);
+    send_reply_packet(SP_ERR::NOERROR);
 }
 
 /**
