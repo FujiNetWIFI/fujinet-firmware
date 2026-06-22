@@ -28,14 +28,6 @@
 
 #include "../../include/debug.h"
 
-#ifdef ESP_PLATFORM
-#include "fnHttpClient.h"
-#define HTTP_CLIENT_CLASS fnHttpClient
-#else
-#include "mgHttpClient.h"
-#define HTTP_CLIENT_CLASS mgHttpClient
-#endif
-
 #include "fnFsSD.h"
 #include "fnSystem.h"
 #include "peoples_url_parser.h"
@@ -43,6 +35,21 @@
 #include "fnConfig.h" // Config: read-only host/mount slot accessors for |fn mounts
 
 #include "fnFTP.h" // existing FujiNet FTP client, reused by |ftp (no new stack)
+
+// NOTE: the HTTP client header MUST come after the FujiNet bus headers above.
+// On Windows/FujiNet-PC, mgHttpClient.h pulls in mongoose.h, which does
+// `#define poll(a,b,c) WSAPoll(...)`.  bus headers (fnSystem.h -> bus.h ->
+// NetSIO.h) declare a method `bool poll(int ms);` — if mongoose's macro is
+// already active, that declaration fails with "too few arguments provided to
+// function-like macro invocation".  Including the bus headers first lets
+// NetSIO.h parse cleanly before the macro is defined.
+#ifdef ESP_PLATFORM
+#include "fnHttpClient.h"
+#define HTTP_CLIENT_CLASS fnHttpClient
+#else
+#include "mgHttpClient.h"
+#define HTTP_CLIENT_CLASS mgHttpClient
+#endif
 
 #include <ctype.h>
 #include <stdio.h>

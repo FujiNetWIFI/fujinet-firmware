@@ -1,27 +1,74 @@
 #ifdef BUILD_RS232
 
-#define CCP_INTERNAL
+/*
+ * rs232cpm.cpp — RS232 CP/M transport, now a thin console back-end.
+ *
+ * The RunCPM engine + state live once in lib/runcpm/runcpm_core.cpp.  This file
+ * no longer includes the RunCPM header chain (which, since RunCPM 6.9, defines
+ * the `Command` struct and the `CPM` macro that collide with the FujiNet bus
+ * headers); it only supplies an RS232 console back-end (runcpm_console_ops) and
+ * asks the shared core to run a session.  The RS232 bus has no character-stream
+ * console, so the back-end is a no-op stub (see below).
+ */
 
 #include "rs232cpm.h"
 
+#include <string.h>
+
 #include "fnSystem.h"
-#include "fnWiFi.h"
-#include "rs232Fuji.h"
-#include "fnFS.h"
-#include "fnFsSD.h"
 
-#include "../runcpm/globals.h"
-#include "../runcpm/abstraction_fujinet.h"
-#include "../runcpm/ram.h"     // ram.h - Implements the RAM
-#include "../runcpm/console.h" // console.h - implements console.
-#include "../runcpm/cpu.h"     // cpu.h - Implements the emulated CPU
-#include "../runcpm/disk.h"    // disk.h - Defines all the disk access abstraction functions
-#include "../runcpm/host.h"    // host.h - Custom host-specific BDOS call
-#include "../runcpm/cpm.h"     // cpm.h - Defines the CPM structures and calls
-#ifdef CCP_INTERNAL
-# include "../runcpm/ccp.h" // ccp.h - Defines a simple internal CCP
-#endif
+#include "../runcpm/runcpm_session.h"
 
+/*
+ * ----- console back-end (runcpm_console_ops) -----
+ *
+ * The RS232 systemBus does not expose a character-stream console API
+ * (read/write/available); it is a transaction-based bus.  Historically the
+ * RS232 CP/M console went through abstraction_fujinet.h, whose console was only
+ * wired to the bus when BYPASS_BUS was defined — and BYPASS_BUS is defined
+ * *only* for BUILD_ATARI.  For RS232 the console was therefore a no-op stub
+ * (and _getch actually busy-looped forever), so RS232 CP/M has never had a
+ * working interactive console.
+ *
+ * To preserve that "no console transport" reality while still compiling against
+ * the shared core, these ops are clean no-ops.  getch returns CP/M EOF (^Z)
+ * instead of busy-looping, so the session terminates gracefully rather than
+ * hanging the bus service loop as the old code did.
+ */
+
+static int rs232_kbhit(void)
+{
+    return 0;
+}
+
+static int rs232_getch(void)
+{
+    return 0x1a; /* ^Z / CP/M EOF */
+}
+
+static int rs232_getche(void)
+{
+    return rs232_getch();
+}
+
+static void rs232_putch(uint8_t ch)
+{
+    (void)ch;
+}
+
+static void rs232_clrscr(void)
+{
+}
+
+static const runcpm_console_ops rs232_console_ops = {
+    rs232_getch,
+    rs232_getche,
+    rs232_kbhit,
+    rs232_putch,
+    rs232_clrscr,
+};
+
+/* ============================ rs232CPM device =========================== */
 
 void rs232CPM::rs232_status(FujiStatusReq reqType)
 {
@@ -31,43 +78,18 @@ void rs232CPM::rs232_status(FujiStatusReq reqType)
 
 void rs232CPM::rs232_handle_cpm()
 {
-    _puts(CCPHEAD);
-    _PatchCPM();
-    Status = 0;
-#ifdef CCP_INTERNAL
-    _ccp();
-#else
-    if (!_sys_exists((uint8 *)CCPname))
-    {
-        _puts("Unable to load CP/M CCP.\r\nCPU halted.\r\n");
-        break;
-    }
-    _RamLoad((uint8 *)CCPname, CCPaddr);    // Loads the CCP binary file into memory
-    Z80reset();                             // Resets the Z80 CPU
-    SET_LOW_REGISTER(BC, _RamRead(0x0004)); // Sets C to the current drive/user
-    PC = CCPaddr;                           // Sets CP/M application jump point
-    Z80run();                               // Starts simulation
-#endif
-    if (Status == 1) // This is set by a call to BIOS 0 - ends CP/M
-    {
-        cpmActive = false;
-        free(RAM);
-    }
+    // Run a full CP/M session on the shared core using the RS232 console.
+    // Blocks until the session ends; the bus service loop then stops calling
+    // us because cpmActive is cleared.
+    runcpm_session_run(&rs232_console_ops);
+    cpmActive = false;
 }
 
 void rs232CPM::init_cpm(int baud)
 {
-#ifdef OBSOLETE
-    SYSTEM_BUS.setBaudrate(baud);
-#endif /* OBSOLETE */
-    Status = Debug = 0;
-    Break = Step = -1;
-    RAM = (uint8_t *)malloc(MEMSIZE);
-    memset(RAM, 0, MEMSIZE);
-    memset(filename, 0, sizeof(filename));
-    memset(newname, 0, sizeof(newname));
-    memset(fcbname, 0, sizeof(fcbname));
-    memset(pattern, 0, sizeof(pattern));
+    // RAM/globals are owned by the shared core now; nothing transport-specific
+    // to set up here (the RS232 link rate is managed elsewhere).
+    (void)baud;
 }
 
 void rs232CPM::rs232_process(FujiBusPacket &packet)

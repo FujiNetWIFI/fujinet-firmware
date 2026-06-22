@@ -49,10 +49,14 @@ RUNCPM_DECL uint8 prompt[PROMPT_SIZE] = "\r\n  >";  // Command prompt
 RUNCPM_DECL uint16 cmdBufferPtr, errorPtr;          // Pointer to the command buffer, and error position
 RUNCPM_DECL uint8 bufferLen = 0;                    // Actual size of the typed command line
 
+/* FujiNet vendoring: renamed from RunCPM's `Command` to `CcpCommand` to avoid a
+   name collision with FujiNet's `class Command` (lib/devrelay/types/Command.h),
+   which is pulled into the shared RunCPM core TU (runcpm_core.cpp) via the bus
+   headers on the APPLE/COCO targets. */
 typedef struct {
     const char *name;
     uint8 (*handler)(void);
-} Command;
+} CcpCommand;
 
 // Used to call BIOS from inside the CCP
 RUNCPM_DECL void _ccp_bios(uint8 function) {
@@ -1146,7 +1150,7 @@ RUNCPM_DECL uint8 _ccp_hlp(void) {
 }
 
 // List of CCP commands
-static const Command Commands[] = {
+static const CcpCommand Commands[] = {
 #ifdef Internals
     // Standard CP/M commands
     {"DIR", _ccp_dir},
@@ -1177,7 +1181,7 @@ static const Command Commands[] = {
 };
 
 // Gets the command pointer
-RUNCPM_DECL const Command *_ccp_cnum(void) {
+RUNCPM_DECL const CcpCommand *_ccp_cnum(void) {
     uint8 command[9];
     uint8 i = 0;
 
@@ -1665,7 +1669,7 @@ RUNCPM_DECL void _ccp(void) {
 
             i = FALSE; // Checks if the command is valid and executes
 
-            const Command *cmd = _ccp_cnum();
+            const CcpCommand *cmd = _ccp_cnum();
             if (cmd) {
                 i = cmd->handler();
             } else {

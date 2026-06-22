@@ -133,12 +133,16 @@
 #else
     #define ABD
 #endif
+/* FujiNet vendoring: renamed RunCPM's banner macro from `CPM` to `CPM_VERSTR`
+   to avoid a collision with FujiNet's `CPM` enumerator (lib/bus/iwm/iwm.h),
+   which is pulled into the shared RunCPM core TU (runcpm_core.cpp) via the bus
+   headers on the APPLE/COCO targets.  The macro only feeds the CCPHEAD banner. */
 #ifdef CPM3
-    #define CPM "CP/M 3"
+    #define CPM_VERSTR "CP/M 3"
 #else
-    #define CPM "CP/M 2.2"
+    #define CPM_VERSTR "CP/M 2.2"
 #endif
-#define CCPHEAD "\r\nRunCPM Version " VERSION " (" CCPname ") - " CPM DBG ABD "\r\n"
+#define CCPHEAD "\r\nRunCPM Version " VERSION " (" CCPname ") - " CPM_VERSTR DBG ABD "\r\n"
 
 #define NOSLASH // Will translate '/' to '_' on filenames to prevent directory errors
 

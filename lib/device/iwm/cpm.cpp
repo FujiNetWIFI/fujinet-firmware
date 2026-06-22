@@ -1,5 +1,15 @@
 #ifdef BUILD_APPLE
-#define CCP_INTERNAL
+
+/*
+ * iwm/cpm.cpp — Apple II SmartPort CP/M transport, now a thin console back-end.
+ *
+ * The RunCPM engine + state live once in lib/runcpm/runcpm_core.cpp.  This file
+ * no longer includes the RunCPM header chain (which, since RunCPM 6.9, defines
+ * the `Command` struct and the `CPM` macro that collide with the Apple-II bus
+ * headers, e.g. devrelay/types/Command.h and improv.h); it only supplies a
+ * queue-based console back-end (runcpm_console_ops) over the SmartPort rx/tx
+ * queues and asks the shared core to run a session.
+ */
 
 #include "cpm.h"
 
@@ -13,39 +23,91 @@
 
 #include "../hardware/led.h"
 
-#include "../runcpm/abstraction_fujinet_apple2.h"
-
-#include "../runcpm/globals.h"
-#include "../runcpm/ram.h"     // ram.h - Implements the RAM
-#include "../runcpm/console.h" // console.h - implements console.
-#include "../runcpm/cpu.h"     // cpu.h - Implements the emulated CPU
-#include "../runcpm/disk.h"    // disk.h - Defines all the disk access abstraction functions
-#include "../runcpm/host.h"    // host.h - Custom host-specific BDOS call
-#include "../runcpm/cpm.h"     // cpm.h - Defines the CPM structures and calls
-#ifdef CCP_INTERNAL
-#include "../runcpm/ccp.h" // ccp.h - Defines a simple internal CCP
-#endif
+#include "../runcpm/runcpm_session.h"
 
 #define CPM_TASK_PRIORITY 10
 
+/*
+ * SmartPort console queues (this TU owns them).
+ *   rxq : CP/M stdout -> host read  (putch pushes; iwm_read pops)
+ *   txq : host write  -> CP/M stdin (iwm_write pushes; getch pops)
+ * They are FreeRTOS queues, so they only exist on the ESP target; on
+ * FujiNet-PC the Apple-II CP/M console is inert (as it was before).
+ */
+#ifdef ESP_PLATFORM // OS
+static QueueHandle_t rxq = nullptr;
+static QueueHandle_t txq = nullptr;
+#endif
+
+/* ----- console back-end (runcpm_console_ops) ----- */
+
+static int cpm_kbhit(void)
+{
+#ifdef ESP_PLATFORM // OS
+    return txq ? (int)uxQueueMessagesWaiting(txq) : 0;
+#else
+    return 0;
+#endif
+}
+
+static int cpm_getch(void)
+{
+    uint8_t c = 0;
+#ifdef ESP_PLATFORM // OS
+    if (txq)
+        xQueueReceive(txq, &c, portMAX_DELAY);
+#endif
+    return c;
+}
+
+static int cpm_getche(void)
+{
+    uint8_t c = (uint8_t)cpm_getch();
+#ifdef ESP_PLATFORM // OS
+    if (rxq)
+        xQueueSend(rxq, &c, portMAX_DELAY);
+#endif
+    return c;
+}
+
+static void cpm_putch(uint8_t ch)
+{
+#ifdef ESP_PLATFORM // OS
+    if (rxq)
+        xQueueSend(rxq, &ch, portMAX_DELAY);
+#else
+    (void)ch;
+#endif
+}
+
+static void cpm_clrscr(void)
+{
+    /* VT100 cursor-home + clear-screen */
+    static const uint8_t seq[] = {0x1B, '[', '1', ';', '1', 'H',
+                                  0x1B, '[', '2', 'J'};
+    for (size_t i = 0; i < sizeof(seq); i++)
+        cpm_putch(seq[i]);
+}
+
+static const runcpm_console_ops cpm_console_ops = {
+    cpm_getch,
+    cpm_getche,
+    cpm_kbhit,
+    cpm_putch,
+    cpm_clrscr,
+};
+
+#ifdef ESP_PLATFORM // OS
 static void cpmTask(void *arg)
 {
+    (void)arg;
     Debug_printf("cpmTask()\n");
+    // The shared core owns the CCP + warm-boot loop; keep re-running it so the
+    // SmartPort console behaves like the original always-on task.
     while (1)
-    {
-        Status = Debug = 0;
-        Break = Step = -1;
-        RAM = (uint8_t *)malloc(MEMSIZE);
-        memset(RAM, 0, MEMSIZE);
-        memset(filename, 0, sizeof(filename));
-        memset(newname, 0, sizeof(newname));
-        memset(fcbname, 0, sizeof(fcbname));
-        memset(pattern, 0, sizeof(pattern));
-        _puts(CCPHEAD);
-        _PatchCPM();
-        _ccp();
-    }
+        runcpm_session_run(&cpm_console_ops);
 }
+#endif
 
 iwmCPM::iwmCPM()
 {
