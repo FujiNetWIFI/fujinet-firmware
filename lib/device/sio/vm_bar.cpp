@@ -36,6 +36,8 @@
 
 #include "fnFTP.h" // existing FujiNet FTP client, reused by |ftp (no new stack)
 
+#include "utils.h" // util_sam_say(): SAM text-to-speech out the SIO AUDIO line, used by |say
+
 // NOTE: the HTTP client header MUST come after the FujiNet bus headers above.
 // On Windows/FujiNet-PC, mgHttpClient.h pulls in mongoose.h, which does
 // `#define poll(a,b,c) WSAPoll(...)`.  bus headers (fnSystem.h -> bus.h ->
@@ -526,6 +528,42 @@ int do_fn(const char *args, const char *dir_prefix, char *outmsg,
 }
 
 // ---------------------------------------------------------------------------
+// Verb: say  (speak text via the SAM voice synth, out the SIO AUDIO line)
+// ---------------------------------------------------------------------------
+//
+// Reuses the firmware's built-in SAM (Software Automatic Mouth) synthesizer via
+// util_sam_say() (lib/utils/utils.cpp) — the same engine that announces disk
+// swaps.  The synthesized 8-bit/22050 Hz PCM is played out the FujiNet DAC onto
+// the Atari SIO AUDIO IN line.  util_sam_say() copies the text into SAM's own
+// buffer, so this never writes back into Z80 RAM (the gate's contract holds).
+// Playback is synchronous (it blocks the CP/M worker task for the speech
+// duration, exactly like the disk-swap announcements).
+
+int do_say(const char *args, const char *dir_prefix, char *outmsg,
+           int outmsg_size, const vm_bar_io *io)
+{
+    (void)dir_prefix;
+    (void)io; // non-interactive: speech is hardware audio, not console I/O
+
+    const char *text = skip_spaces(args);
+
+    if (text[0] == '\0' || strcmp(text, "help") == 0 ||
+        strcmp(text, "--help") == 0)
+    {
+        snprintf(outmsg, outmsg_size,
+                 "|say <text> - speak text aloud via the SAM voice synth\r\n"
+                 "              (audio out the Atari SIO AUDIO line)\r\n");
+        return text[0] == '\0' ? 1 : 0;
+    }
+
+    // English text -> SAM's reciter converts it to phonemes (phonetic=false).
+    util_sam_say(text);
+
+    snprintf(outmsg, outmsg_size, "OK\r\n");
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
 // Verb: help
 // ---------------------------------------------------------------------------
 
@@ -542,6 +580,7 @@ int do_help(const char *args, const char *dir_prefix, char *outmsg,
              "|ftp HOST             - interactive anonymous FTP client\r\n"
              "|fn                   - FujiNet Network Configuration Tools\r\n"
              "|apt                  - Advanced Packaging Tool\r\n"
+             "|say <text>           - Speak aloud using SAM voice\r\n"
              "|help                 - this list\r\n");
     return 0;
 }
@@ -1289,6 +1328,7 @@ const BarVerb kVerbs[] = {
     {"ftp", do_ftp},
     {"fn", do_fn},
     {"apt", do_apt},
+    {"say", do_say},
     {"help", do_help},
 };
 
