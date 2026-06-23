@@ -1513,44 +1513,4 @@ void iwmModem::iwm_status(iwm_decoded_cmd_t cmd)
     SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, data_len);
 }
 
-void iwmModem::process(iwm_decoded_cmd_t cmd)
-{
-    switch (cmd.sp_command)
-    {
-    case SP_CMD_STATUS:
-        Debug_printf("\r\nhandling status command");
-        iwm_status(cmd);
-        break;
-    case SP_CMD_CONTROL:
-        Debug_printf("\r\nhandling control command");
-        iwm_ctrl(cmd);
-        Debug_printf("\r\ncontrol command done");
-        break;
-    case SP_CMD_OPEN:
-        Debug_printf("\r\nhandling open command");
-        iwm_open(cmd);
-        break;
-    case SP_CMD_CLOSE:
-        Debug_printf("\r\nhandling close command");
-        iwm_close(cmd);
-        break;
-    case SP_CMD_READ:
-        Debug_printf("\r\nhandling read command");
-        fnLedManager.set(LED_BUS, true);
-        iwm_read(cmd);
-        fnLedManager.set(LED_BUS, false);
-        break;
-    case SP_CMD_WRITE:
-        Debug_printf("\r\nhandling write command");
-        fnLedManager.set(LED_BUS, true);
-        iwm_write(cmd);
-        fnLedManager.set(LED_BUS, true);
-        break;
-    default:
-        iwm_return_badcmd(cmd);
-        break;
-    } // switch (cmd)
-    fnLedManager.set(LED_BUS, false);
-}
-
 #endif /* BUILD_APPLE */

@@ -650,41 +650,6 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
     memset(data_buffer, 0, sizeof(data_buffer));
 }
 
-void iwmNetwork::process(iwm_decoded_cmd_t cmd)
-{
-    fnLedManager.set(LED_BUS, true);
-    switch (cmd.sp_command)
-    {
-    case SP_CMD_STATUS:
-        Debug_printf("\r\nhandling status command");
-        iwm_status(cmd);
-        break;
-    case SP_CMD_CONTROL:
-        Debug_printf("\r\nhandling control command");
-        iwm_ctrl(cmd);
-        break;
-    case SP_CMD_OPEN:
-        Debug_printf("\r\nhandling open command");
-        iwm_open(cmd);
-        break;
-    case SP_CMD_CLOSE:
-        Debug_printf("\r\nhandling close command");
-        iwm_close(cmd);
-        break;
-    case SP_CMD_READ:
-        Debug_printf("\r\nhandling read command");
-        iwm_read(cmd);
-        break;
-    case SP_CMD_WRITE:
-        iwm_write(cmd);
-        break;
-    default:
-        iwm_return_badcmd(cmd);
-        break;
-    } // switch (cmd)
-    fnLedManager.set(LED_BUS, false);
-}
-
 /**
  * Instantiate protocol object
  * @return bool TRUE if protocol successfully called open(), FALSE if protocol could not open - WHY IS SUCCESS true HERE AND ERROR true MOST OTHER PLACES? :hair_pull:

@@ -233,51 +233,6 @@ void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)
   send_reply_packet(err_result);
 }
 
-void iwmDisk::process(iwm_decoded_cmd_t cmd)
-{
-  fnLedManager.set(LED_BUS, true);
-  switch (cmd.sp_command)
-  {
-  case SP_CMD_STATUS:
-    Debug_printf("\r\nhandling status command");
-    // max regular status code is 0x05 to UniDisk
-    if (disk_num == '0' && cmd.control_status.fuji.command > 0x05) {
-      // THIS IS AN OLD HACK FOR CALLING STATUS ON THE FUJI DEVICE INSTEAD OF ADDING THE_FUJI AS A DEVICE.
-      Debug_printf("\r\nUsing DISK_0 for FUJI device\r\n");
-      platformFuji.FujiStatus(cmd);
-    }
-    else {
-      iwm_status(cmd);
-    }
-    break;
-  case SP_CMD_READBLOCK:
-    Debug_printf("\r\nhandling read block command");
-    iwm_readblock(cmd);
-    break;
-  case SP_CMD_WRITEBLOCK:
-    Debug_printf("\r\nhandling write block command");
-    iwm_writeblock(cmd);
-    break;
-  case SP_CMD_FORMAT:
-    iwm_return_noerror();
-    break;
-  case SP_CMD_CONTROL:
-    // max regular control code is 0x0A to 3.5" disk
-    if (disk_num == '0' && cmd.control_status.fuji.command > 0x0A) {
-      // THIS IS AN OLD HACK FOR CALLING CONTROL ON THE FUJI DEVICE INSTEAD OF ADDING THE_FUJI AS A DEVICE.
-      Debug_printf("\r\nUsing DISK_0 for FUJI device\r\n");
-      platformFuji.FujiControl(cmd);
-    }
-    else {
-      iwm_ctrl(cmd);
-    }
-    break;
-  default:
-    iwm_return_badcmd(cmd);
-  } // switch (cmd)
-  fnLedManager.set(LED_BUS, false);
-}
-
 void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
 {
   uint16_t sdstato;
@@ -377,16 +332,10 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
     }
 }
 
-
-
-// void iwm_format();
-
-
-
-// void derive_percom_block(uint16_t numSectors);
-// void iwm_read_percom_block();
-// void iwm_write_percom_block();
-// void dump_percom_block();
+void iwmDisk::iwm_format(iwm_decoded_cmd_t cmd)
+{
+    iwm_return_noerror();
+}
 
 void iwmDisk::shutdown()
 {

@@ -332,7 +332,56 @@ void virtualDevice::iwm_return_noerror()
   send_reply_packet(SP_ERR::NOERROR);
 }
 
-void virtualDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
+void virtualDevice::iwm_process(iwm_decoded_cmd_t cmd)
+{
+  fnLedManager.set(LED_BUS, true);
+
+  switch (cmd.sp_command)
+  {
+  case SP_CMD_STATUS:
+    Debug_printf("\r\nhandling status command");
+    iwm_status(cmd);
+    break;
+  case SP_CMD_READBLOCK:
+    Debug_printf("\r\nhandling readblock command");
+    iwm_readblock(cmd);
+    break;
+  case SP_CMD_WRITEBLOCK:
+    Debug_printf("\r\nhandling writeblock command");
+    iwm_writeblock(cmd);
+    break;
+  case SP_CMD_FORMAT:
+    Debug_printf("\r\nhandling format command");
+    iwm_format(cmd);
+    break;
+  case SP_CMD_CONTROL:
+    Debug_printf("\r\nhandling control command");
+    iwm_ctrl(cmd);
+    break;
+  case SP_CMD_OPEN:
+    Debug_printf("\r\nhandling open command");
+    iwm_open(cmd);
+    break;
+  case SP_CMD_CLOSE:
+    Debug_printf("\r\nhandling close command");
+    iwm_close(cmd);
+    break;
+  case SP_CMD_READ:
+    Debug_printf("\r\nhandling read command");
+    iwm_read(cmd);
+    break;
+  case SP_CMD_WRITE:
+    iwm_write(cmd);
+    break;
+  default:
+    iwm_return_badcmd(cmd);
+    break;
+  }
+
+  fnLedManager.set(LED_BUS, false);
+}
+
+void virtualDevice::iwm_status(iwm_decoded_cmd_t cmd)
 {
   if (cmd.control_status.code == SP_STAT_DIB)
   {
@@ -344,6 +393,46 @@ void virtualDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
     Debug_printf("\r\nSending Device Status for device 0x%02x", id());
     send_status_reply_packet();
   }
+}
+
+void virtualDevice::iwm_readblock(iwm_decoded_cmd_t cmd)
+{
+  iwm_return_badcmd(cmd);
+}
+
+void virtualDevice::iwm_writeblock(iwm_decoded_cmd_t cmd)
+{
+  iwm_return_badcmd(cmd);
+}
+
+void virtualDevice::iwm_format(iwm_decoded_cmd_t cmd)
+{
+  iwm_return_badcmd(cmd);
+}
+
+void virtualDevice::iwm_ctrl(iwm_decoded_cmd_t cmd)
+{
+  iwm_return_badcmd(cmd);
+}
+
+void virtualDevice::iwm_open(iwm_decoded_cmd_t cmd)
+{
+  iwm_return_badcmd(cmd);
+}
+
+void virtualDevice::iwm_close(iwm_decoded_cmd_t cmd)
+{
+  iwm_return_badcmd(cmd);
+}
+
+void virtualDevice::iwm_read(iwm_decoded_cmd_t cmd)
+{
+  iwm_return_badcmd(cmd);
+}
+
+void virtualDevice::iwm_write(iwm_decoded_cmd_t cmd)
+{
+  iwm_return_badcmd(cmd);
 }
 
 // Create a vector from the input for the various send_status_dib_reply_packet routines to call
@@ -531,7 +620,7 @@ bool IRAM_ATTR systemBus::serviceSmartPort()
           // handle command
           smartport.decode_data_packet(command_packet.data, &command);
           print_packet(&command, sizeof(command));
-          _activeDev->process(command);
+          _activeDev->iwm_process(command);
           break; // we don't need to needlessly keep looping once we find it
         }
       }
@@ -805,30 +894,15 @@ void systemBus::addDevice(virtualDevice *pDevice, iwm_fujinet_type_t deviceType)
   // assign dedicated pointers to certain devices
   switch (deviceType)
   {
-  case iwm_fujinet_type_t::BlockDisk:
-    break;
-  case iwm_fujinet_type_t::FujiNet:
-    _fujiDev = (iwmFuji *)pDevice;
-    break;
-  case iwm_fujinet_type_t::Modem:
-    _modemDev = (iwmModem *)pDevice;
-    break;
-  case iwm_fujinet_type_t::Network:
-    break;
   case iwm_fujinet_type_t::CPM:
-    _cpmDev = (iwmCPM *)pDevice;
+    if ( !Config.get_cpm_enabled() )
+      return;
     break;
   case iwm_fujinet_type_t::Printer:
     _printerdev = (iwmPrinter *)pDevice;
     break;
-  case iwm_fujinet_type_t::Voice:
-    // not yet implemented: todo - take SAM and implement as a special block device. Also then available for disk rotate annunciation.
-    break;
-  case iwm_fujinet_type_t::Clock:
-    _clockDev = (iwmClock *)pDevice;
-    break;
-  case iwm_fujinet_type_t::Other:
-    break;
+  default:
+      break;
   }
 
   pDevice->_devnum = 0;

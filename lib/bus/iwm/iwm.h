@@ -250,24 +250,23 @@ protected:
   virtual void send_extended_status_dib_reply_packet() = 0;
 
   virtual void shutdown() = 0;
-  virtual void process(iwm_decoded_cmd_t cmd) = 0;
 
   // these are good for the high level device
   virtual void iwm_status(iwm_decoded_cmd_t cmd);
-  virtual void iwm_readblock(iwm_decoded_cmd_t cmd) {};
-  virtual void iwm_writeblock(iwm_decoded_cmd_t cmd) {};
-  // virtual void iwm_handle_eject(iwm_decoded_cmd_t cmd) {};
-  virtual void iwm_format(iwm_decoded_cmd_t cmd) {};
-  virtual void iwm_ctrl(iwm_decoded_cmd_t cmd) {};
-  virtual void iwm_open(iwm_decoded_cmd_t cmd) {};
-  virtual void iwm_close(iwm_decoded_cmd_t cmd) {};
-  virtual void iwm_read(iwm_decoded_cmd_t cmd) {};
-  virtual void iwm_write(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_readblock(iwm_decoded_cmd_t cmd);
+  virtual void iwm_writeblock(iwm_decoded_cmd_t cmd);
+  virtual void iwm_format(iwm_decoded_cmd_t cmd);
+  virtual void iwm_ctrl(iwm_decoded_cmd_t cmd);
+  virtual void iwm_open(iwm_decoded_cmd_t cmd);
+  virtual void iwm_close(iwm_decoded_cmd_t cmd);
+  virtual void iwm_read(iwm_decoded_cmd_t cmd);
+  virtual void iwm_write(iwm_decoded_cmd_t cmd);
 
   void iwm_return_badcmd(iwm_decoded_cmd_t cmd);
   void iwm_return_device_offline(iwm_decoded_cmd_t cmd);
   void iwm_return_ioerror();
   void iwm_return_noerror();
+  void iwm_process(iwm_decoded_cmd_t cmd);
 
   // iwm packet handling
   static uint8_t data_buffer[MAX_DATA_LEN]; // un-encoded binary data (512 bytes for a block)
@@ -299,14 +298,7 @@ private:
 
   virtualDevice *_activeDev = nullptr;
 
-  iwmFuji *_fujiDev = nullptr;
-  iwmModem *_modemDev = nullptr;
-  // iwmNetwork *_netDev[4] = {nullptr};
-  //sioMIDIMaze *_midiDev = nullptr;
-  //sioCassette *_cassetteDev = nullptr;
-  iwmCPM *_cpmDev = nullptr;
   iwmPrinter *_printerdev = nullptr;
-  iwmClock *_clockDev = nullptr;
 
   #ifndef DEV_RELAY_SLIP
   bool iwm_phase_val(uint8_t p);

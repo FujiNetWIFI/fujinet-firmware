@@ -13,8 +13,6 @@ private:
 public:
     iwmClock();
 
-    void process(iwm_decoded_cmd_t cmd) override;
-
     void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
     void iwm_status(iwm_decoded_cmd_t cmd) override;
     void iwm_open(iwm_decoded_cmd_t cmd) override;
@@ -25,7 +23,7 @@ public:
     void send_extended_status_reply_packet() override{};
     void send_status_dib_reply_packet() override;
     void send_extended_status_dib_reply_packet() override{};
-    
+
 };
 
 #endif /* IWMCLOCK_H */

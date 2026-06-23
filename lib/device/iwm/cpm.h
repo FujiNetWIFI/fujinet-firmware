@@ -24,8 +24,6 @@ private:
 public:
     iwmCPM();
 
-    void process(iwm_decoded_cmd_t cmd) override;
-
     void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
     void iwm_open(iwm_decoded_cmd_t cmd) override;
     void iwm_close(iwm_decoded_cmd_t cmd) override;

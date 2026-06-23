@@ -26,20 +26,11 @@ protected:
 
     MediaType *_disk = nullptr;
 
-    //void iwm_read();
-    //void iwm_write(bool verify);
-    // void iwm_format();
-    //void iwm_status(cmdPacket_t cmd); // override;
-    void process(iwm_decoded_cmd_t cmd) override; // uint32_t commanddata, uint8_t checksum); // override;
-    // void iwm_handle_eject(iwm_decoded_cmd_t cmd) override;
     void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
     void iwm_readblock(iwm_decoded_cmd_t cmd) override;
     void iwm_writeblock(iwm_decoded_cmd_t cmd) override;
+    void iwm_format(iwm_decoded_cmd_t cmd) override;
 
-    // void derive_percom_block(uint16_t numSectors);
-    // void iwm_read_percom_block();
-    // void iwm_write_percom_block();
-    // void dump_percom_block();
     void shutdown() override; //todo change back
 
     char disk_num;

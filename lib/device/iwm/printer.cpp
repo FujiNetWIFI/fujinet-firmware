@@ -130,31 +130,6 @@ void iwmPrinter::print_from_cpm(uint8_t c)
     }
 }
 
-void iwmPrinter::process(iwm_decoded_cmd_t cmd)
-{
-    fnLedManager.set(LED_BUS, true);
-    switch (cmd.sp_command)
-    {
-    case SP_CMD_STATUS:
-        iwm_status(cmd);
-        break;
-    case SP_CMD_OPEN:
-        iwm_open(cmd);
-        break;
-    case SP_CMD_CLOSE:
-        iwm_close(cmd);
-        break;
-    case SP_CMD_WRITE:
-        iwm_write(cmd);
-        break;
-    default:
-        Debug_printf("\nPrinter: Bad cmd %02X\n", cmd.sp_command);
-        iwm_return_badcmd(cmd);
-        break;
-    }
-    fnLedManager.set(LED_BUS, false);
-}
-
 void iwmPrinter::set_printer_type(iwmPrinter::printer_type printer_type)
 {
     // Destroy any current printer emu object
