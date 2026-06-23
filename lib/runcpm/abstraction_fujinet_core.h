@@ -98,6 +98,62 @@ char *full_path(char *fn)
     return full_filename;
 }
 
+/* ---------------------------------------------------------------------------
+ * Read file-handle cache (FujiNet vendoring, 2026-06-23).
+ *
+ * RunCPM's host abstraction keeps no persistent FILE* per FCB: the stock
+ * _sys_readseq / _sys_readrand re-derived the host path from the FCB and
+ * performed a full open / seek / read(128) / close for EVERY 128-byte CP/M
+ * record.  Loading a 39 KB .COM is ~310 records, and on the FujiNet SD card
+ * each fnSDFAT.file_open() costs ~11 ms, so a program took several SECONDS just
+ * to load -- and an editor reading a file by random access paid the same toll
+ * (the serial log shows hundreds of consecutive "fopen ... ok" lines for the
+ * same file).
+ *
+ * Only one CP/M session runs at a time (the core's g_busy interlock) and the
+ * BDOS read loops hit the same file back-to-back, so we keep the
+ * most-recently-read file open and reuse the handle when the next read --
+ * sequential OR random -- targets the same path, turning ~310 opens into 1.
+ *
+ * The cached handle is opened read-only ("r").  Both read primitives only
+ * *read* here (writes go through _sys_writeseq / _sys_writerand on their own
+ * "r+" handle), so a shared read-only handle serves both -- and keeping it
+ * read-only means we never hold a writable handle that FatFs FF_FS_LOCK would
+ * have to arbitrate, and a transient read-only probe open of the same file is
+ * compatible with it.
+ *
+ * Coherency: the cached handle is closed/invalidated
+ *   - when a different file is read (path change in _sys_readseq/_sys_readrand),
+ *   - before any create / write / delete / rename / extend touches a file (so
+ *     subsequent reads always observe fresh on-disk data, and we never hold a
+ *     read handle while FatFs wants exclusive write access),
+ *   - and at session boundaries in runcpm_core.cpp (so a file replaced between
+ *     sessions is never read through a stale handle).
+ * Read-only probes (_sys_filesize / _sys_openfile / _sys_exists) do NOT touch
+ * the cache: they never interleave inside the record-read loop and a second
+ * read-only open of the same file is harmless.
+ * ------------------------------------------------------------------------- */
+static FILE *seq_cache_fp = nullptr;
+static char  seq_cache_path[sizeof(full_filename)] = {0};
+
+static void _seq_cache_close(void)
+{
+    if (seq_cache_fp)
+    {
+        fclose(seq_cache_fp);
+        seq_cache_fp = nullptr;
+    }
+    seq_cache_path[0] = '\0';
+}
+
+/* Drop the cached handle if it refers to `path` (already built via full_path).
+   Called by the mutating ops so the next read reopens with fresh contents. */
+static void _seq_cache_invalidate(const char *path)
+{
+    if (seq_cache_fp && strcmp(seq_cache_path, path) == 0)
+        _seq_cache_close();
+}
+
 
 //
 // Hardware functions, new in 5.x
@@ -195,6 +251,7 @@ int _sys_openfile(uint8_t *fn)
 
 int _sys_makefile(uint8_t *fn)
 {
+    _seq_cache_invalidate(full_path((char *)fn));
     FILE *fp = fnSDFAT.file_open(full_path((char *)fn), "w");
     if (fp)
     {
@@ -207,6 +264,7 @@ int _sys_makefile(uint8_t *fn)
 
 int _sys_deletefile(uint8_t *fn)
 {
+    _seq_cache_invalidate(full_path((char *)fn));
     return fnSDFAT.remove(full_path((char *)fn));
 }
 
@@ -216,6 +274,11 @@ int _sys_renamefile(uint8_t *fn, uint8_t *newname)
 
     from = std::string(full_path((char *)fn));
     to = std::string(full_path((char *)newname));
+
+    /* Invalidate both endpoints: the source is moving, and a stale handle on
+       the destination path (if any) must not survive the rename. */
+    _seq_cache_invalidate(from.c_str());
+    _seq_cache_invalidate(to.c_str());
 
     return fnSDFAT.rename(from.c_str(), to.c_str());
 }
@@ -227,6 +290,7 @@ void _sys_logbuffer(uint8_t *buffer)
 
 bool _sys_extendfile(char *fn, unsigned long fpos)
 {
+    _seq_cache_invalidate(full_path((char *)fn));
     FILE *fp = fnSDFAT.file_open(full_path((char *)fn), "a");
 
     if (!fp)
@@ -259,48 +323,61 @@ uint8_t _sys_readseq(uint8_t *fn, long fpos)
     uint8_t dmabuf[BlkSZ];
     int seekErr;
 
-    f = fnSDFAT.file_open(full_path((char *)fn), "r");
-    if (!f)
+    const char *path = full_path((char *)fn);
+
+    /* Reuse the cached handle when this record is from the same file as the
+       previous sequential read; otherwise (re)open and cache it.  This is the
+       optimization that collapses a ~310-open .COM load into a single open --
+       see the _seq_cache_* block above. */
+    if (seq_cache_fp && strcmp(seq_cache_path, path) == 0)
     {
-        result = 0x10;
-        return result;
-    }
-    seekErr = fseek(f, fpos, SEEK_SET);
-    if (f)
-    {
-        if (fpos > 0 && seekErr != 0)
-        {
-            // EOF
-            result = 0x01;
-        }
-        else
-        {
-            // set DMA buffer to EOF
-            memset(dmabuf, 0x1a, BlkSZ);
-            // BUG FIX (2026-06-21): this was fread(dmabuf, BlkSZ, 1, f), i.e.
-            // size=128, nmemb=1.  fread() returns the number of *complete*
-            // elements read, so a final PARTIAL record (file size not a
-            // multiple of 128) made it return 0: the bytes that WERE read were
-            // discarded (the `if (bytesread)` memcpy was skipped) and result
-            // was reported as 0x01 (EOF).  Symptom: TYPE / ASM / LOAD / PIP
-            // silently dropped the last partial 128-byte record of every file
-            // whose length was not a multiple of 128 -- a 127-byte file showed
-            // nothing at all, a 202-byte file was truncated at exactly 128
-            // bytes.  Fix: read byte-wise (size=1, nmemb=BlkSZ) so fread
-            // returns the byte count (1..128) for partial records too; dmabuf
-            // is already pre-filled with 0x1a so the short record is padded
-            // with CP/M EOF markers as the BDOS sequential read expects.
-            bytesread = fread(&dmabuf[0], sizeof(uint8_t), BlkSZ, f);
-            if (bytesread)
-                memcpy((uint8_t *)&RAM[dmaAddr], dmabuf, BlkSZ);
-            result = bytesread ? 0x00 : 0x01;
-        }
+        f = seq_cache_fp;
     }
     else
     {
-        result = 0x10;
+        _seq_cache_close();
+        f = fnSDFAT.file_open(path, "r");
+        if (!f)
+        {
+            result = 0x10;
+            return result;
+        }
+        seq_cache_fp = f;
+        strncpy(seq_cache_path, path, sizeof(seq_cache_path) - 1);
+        seq_cache_path[sizeof(seq_cache_path) - 1] = '\0';
     }
-    fclose(f);
+
+    seekErr = fseek(f, fpos, SEEK_SET);
+    if (fpos > 0 && seekErr != 0)
+    {
+        // EOF
+        result = 0x01;
+    }
+    else
+    {
+        // set DMA buffer to EOF
+        memset(dmabuf, 0x1a, BlkSZ);
+        // BUG FIX (2026-06-21): this was fread(dmabuf, BlkSZ, 1, f), i.e.
+        // size=128, nmemb=1.  fread() returns the number of *complete*
+        // elements read, so a final PARTIAL record (file size not a
+        // multiple of 128) made it return 0: the bytes that WERE read were
+        // discarded (the `if (bytesread)` memcpy was skipped) and result
+        // was reported as 0x01 (EOF).  Symptom: TYPE / ASM / LOAD / PIP
+        // silently dropped the last partial 128-byte record of every file
+        // whose length was not a multiple of 128 -- a 127-byte file showed
+        // nothing at all, a 202-byte file was truncated at exactly 128
+        // bytes.  Fix: read byte-wise (size=1, nmemb=BlkSZ) so fread
+        // returns the byte count (1..128) for partial records too; dmabuf
+        // is already pre-filled with 0x1a so the short record is padded
+        // with CP/M EOF markers as the BDOS sequential read expects.
+        bytesread = fread(&dmabuf[0], sizeof(uint8_t), BlkSZ, f);
+        if (bytesread)
+            memcpy((uint8_t *)&RAM[dmaAddr], dmabuf, BlkSZ);
+        result = bytesread ? 0x00 : 0x01;
+    }
+    /* Handle intentionally left open and cached for the next record; closed by
+       _seq_cache_close()/_seq_cache_invalidate() on file change, mutation, or
+       session end. */
     return (result);
 }
 
@@ -309,6 +386,7 @@ uint8_t _sys_writeseq(uint8_t *fn, long fpos)
     uint8_t result = 0xff;
     FILE *f;
 
+    _seq_cache_invalidate(full_path((char *)fn));
     if (_sys_extendfile((char *)fn, fpos))
         f = fnSDFAT.file_open(full_path((char *)fn), "r+");
     else
@@ -342,7 +420,30 @@ uint8_t _sys_readrand(uint8_t *fn, long fpos)
     uint8 dmabuf[BlkSZ];
     long extSize;
 
-    f = fnSDFAT.file_open(full_path((char *)fn), "r+");
+    const char *path = full_path((char *)fn);
+
+    /* Reuse the shared read-handle cache (see the _seq_cache_* block above).
+       Random access is a pure read here -- random writes go through
+       _sys_writerand on their own "r+" handle -- so the read-only cached "r"
+       handle serves it too.  This collapses an editor's per-record random reads
+       (a 39 KB file is ~310 reopens) into a single open, exactly as for the
+       sequential .COM-load path. */
+    if (seq_cache_fp && strcmp(seq_cache_path, path) == 0)
+    {
+        f = seq_cache_fp;
+    }
+    else
+    {
+        _seq_cache_close();
+        f = fnSDFAT.file_open(path, "r");
+        if (f)
+        {
+            seq_cache_fp = f;
+            strncpy(seq_cache_path, path, sizeof(seq_cache_path) - 1);
+            seq_cache_path[sizeof(seq_cache_path) - 1] = '\0';
+        }
+    }
+
     if (f)
     {
         if (fseek(f, fpos, SEEK_SET) == 0)
@@ -381,7 +482,9 @@ uint8_t _sys_readrand(uint8_t *fn, long fpos)
     {
         result = 0x10;
     }
-    fclose(f);
+    /* Handle intentionally left open and cached for the next read; closed by
+       _seq_cache_close()/_seq_cache_invalidate() on file change, mutation, or
+       session end. */
     return (result);
 }
 
@@ -390,6 +493,7 @@ uint8_t _sys_writerand(uint8_t *fn, long fpos)
     uint8 result = 0xff;
     FILE *f;
 
+    _seq_cache_invalidate(full_path((char *)fn));
     if (_sys_extendfile((char *)fn, fpos))
     {
         f = fnSDFAT.file_open(full_path((char *)fn), "r+");

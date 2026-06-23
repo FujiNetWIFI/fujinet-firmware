@@ -87,6 +87,12 @@ extern "C" bool runcpm_session_run(const runcpm_console_ops *ops)
         Status = Debug = 0;
         Break = Step = Watch = -1;
 
+        /* Drop any sequential-read handle cached by a previous (warm) boot so a
+           file replaced on the SD card between boots is never read through a
+           stale handle.  See the _seq_cache_* block in
+           abstraction_fujinet_core.h. */
+        _seq_cache_close();
+
         RAM = (uint8_t *)malloc(MEMSIZE);
         if (!RAM)
             break;
@@ -107,6 +113,10 @@ extern "C" bool runcpm_session_run(const runcpm_console_ops *ops)
         if (Status == STATUS_EXIT)
             break;
     }
+
+    /* Release the cached read handle so it does not linger open across the
+       (idle) gap until the next session. */
+    _seq_cache_close();
 
     g_busy.store(false);
     return true;
