@@ -102,7 +102,32 @@ static int _vm_kbhit(void)
 {
 #ifdef ESP_PLATFORM
     if (_vm_txq == nullptr) return 0;
-    return (int)uxQueueMessagesWaiting(_vm_txq);
+    UBaseType_t waiting = uxQueueMessagesWaiting(_vm_txq);
+    if (waiting == 0)
+    {
+        /* No input pending — yield core 1 back to the SIO loop and idle task.
+         *
+         * The VM worker (this task) is pinned to core 1 at priority 20, ABOVE
+         * fn_service_loop ("fnLoop", the SIO bus pump, priority 17, also core 1)
+         * and IDLE1 (priority 0).  CP/M full-screen programs (vi, etc.) poll
+         * console status (BDOS 6/11 -> _kbhit) in a tight loop while waiting for
+         * a keypress.  If we returned immediately the worker would never block,
+         * so fnLoop would never run (every SIO command — including the Atari's
+         * own N:TELNET reads back into this console — times out) and IDLE1 would
+         * never run (the task watchdog is never fed and deleted tasks are never
+         * reaped), wedging the device into an unrecoverable hang where even the
+         * safe-reset button stops responding.  taskYIELD() cannot fix this: it
+         * only yields to ready tasks of EQUAL OR HIGHER priority, and this
+         * worker is the highest-priority task on core 1.  Block for one tick so
+         * the lower-priority SIO loop and idle task get the core back.
+         *
+         * Cost is latency on the idle path only: real Z80 computation does not
+         * poll kbhit, and a screen redraw polls it once after many putch calls,
+         * so throughput is unaffected. */
+        vTaskDelay(1);
+        return 0;
+    }
+    return (int)waiting;
 #else
     std::lock_guard<std::mutex> lk(_vm_txmtx);
     return (int)_vm_txq.size();
