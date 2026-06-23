@@ -142,7 +142,10 @@
 #else
     #define CPM_VERSTR "CP/M 2.2"
 #endif
-#define CCPHEAD "\r\nRunCPM Version " VERSION " (" CCPname ") - " CPM_VERSTR DBG ABD "\r\n"
+/* FujiNet vendoring: rebranded banner ("FujiNet CP/M 2.2 - RunCPM 6.9").
+   DBG/ABD (debug/ABDOS build markers, normally empty) are kept so a debug build
+   is still flagged.  CCPname (the internal CCP version) is no longer shown. */
+#define CCPHEAD "\r\nFujiNet " CPM_VERSTR " - RunCPM " VERSION DBG ABD "\r\n"
 
 #define NOSLASH // Will translate '/' to '_' on filenames to prevent directory errors
 
