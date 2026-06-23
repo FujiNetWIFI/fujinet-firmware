@@ -412,9 +412,11 @@ static void _handle_session(int cfd)
 
         /* Drain VM stdout to the client. */
         int oi = 0;
+        bool produced = false;
         uint8_t c;
         while (_pop_stdout(c))
         {
+            produced = true;
             obuf[oi++] = (char)c;
             if (oi == (int)sizeof(obuf))
             {
@@ -425,7 +427,31 @@ static void _handle_session(int cfd)
         if (oi > 0)
             telnet_send(tn, obuf, (size_t)oi);
 
+#ifdef ESP_PLATFORM
+        /* Yield core 0 to lower-priority tasks when this iteration had no
+         * socket input and produced no console output.
+         *
+         * This pump runs on the "cpmtelsrv" task (core 0, priority 10) and the
+         * accepted socket is non-blocking, so an idle CP/M prompt spins this
+         * loop at 100%.  fnSystem.delay(2) maps to vTaskDelay(2/portTICK)==
+         * vTaskDelay(0) at the firmware's 100 Hz tick (portTICK_PERIOD_MS=10),
+         * which only yields to EQUAL-or-higher-priority READY tasks on this
+         * core.  The safe-reset button poller ("fnKeys") runs at priority 1, so
+         * it could never get core 0 while a session was connected (core 1 is
+         * likewise saturated by the priority-17 SIO "fnLoop").  Net effect: the
+         * physical reset button was dead for the entire telnet session and only
+         * worked again once the client disconnected.  A real one-tick block
+         * (~10 ms) deschedules the pump so the priority-1 button task (and the
+         * idle/watchdog task) actually run — giving the reset button priority
+         * over the session as expected.  When there IS traffic we only
+         * taskYIELD() to keep terminal latency low. */
+        if (n <= 0 && !produced)
+            vTaskDelay(1);
+        else
+            taskYIELD();
+#else
         fnSystem.delay(2);
+#endif
     }
 
     /* Teardown.  Ask the core's CCP loop (and any running Z80 program, via
