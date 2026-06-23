@@ -22,19 +22,6 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
         for (int i = 0; i < MAX_HOSTS; i++)
                 _fnHosts[i].slotid = i;
 
-    command_handlers = {
-        { SP_CMD_STATUS, [this](iwm_decoded_cmd_t cmd) { iwm_status(cmd); }},                           // 0x00
-        { SP_CMD_CONTROL, [this](iwm_decoded_cmd_t cmd) { iwm_ctrl(cmd); }},                            // 0x04
-        { SP_CMD_OPEN, [this](iwm_decoded_cmd_t cmd) { iwm_open(cmd); }},                               // 0x06
-        { SP_CMD_CLOSE, [this](iwm_decoded_cmd_t cmd) { iwm_close(cmd); }},                              // 0x07
-        { SP_CMD_READ, [this](iwm_decoded_cmd_t cmd) { iwm_read(cmd); }},                               // 0x08
-
-        { SP_CMD_READBLOCK, [this](iwm_decoded_cmd_t cmd) { iwm_return_badcmd(cmd); }},                 // 0x01
-        { SP_CMD_WRITEBLOCK, [this](iwm_decoded_cmd_t cmd) { iwm_return_badcmd(cmd); }},                // 0x02
-        { SP_CMD_FORMAT, [this](iwm_decoded_cmd_t cmd) { iwm_return_badcmd(cmd); }},                    // 0x03
-        { SP_CMD_WRITE, [this](iwm_decoded_cmd_t cmd) { iwm_return_badcmd(cmd); }}                      // 0x09
-    };
-
     control_handlers = {
         { 0xAA, [this]()                               { this->iwm_dummy_command(); }},
         { SP_CTRL_SET_DCB, [this]()                   { this->iwm_dummy_command(); }},                 // 0x01
@@ -375,23 +362,6 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
     }
 
         send_reply_packet(err_result);
-}
-
-
-void iwmFuji::process(iwm_decoded_cmd_t cmd)
-{
-        fnLedManager.set(LED_BUS, true);
-
-    auto it = command_handlers.find(cmd.sp_command);
-        // Debug_printf("\r\n----- iwmFuji::process handling command: %02X\r\n", cmd.sp_command);
-    if (it != command_handlers.end()) {
-        it->second(cmd);
-    } else {
-        Debug_printv("\r\nUnknown command: %02x\r\n", cmd.sp_command);
-                iwm_return_badcmd(cmd);
-    }
-
-        fnLedManager.set(LED_BUS, false);
 }
 
 void iwmFuji::handle_ctl_eject(uint8_t spid)

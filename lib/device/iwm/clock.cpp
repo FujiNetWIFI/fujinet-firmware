@@ -204,39 +204,8 @@ void iwmClock::iwm_close(iwm_decoded_cmd_t cmd)
     send_reply_packet(SP_ERR::NOERROR);
 }
 
-
-void iwmClock::process(iwm_decoded_cmd_t cmd)
-{
-    fnLedManager.set(LED_BUS, true);
-    switch (cmd.sp_command)
-    {
-    case SP_CMD_STATUS:
-        Debug_printf("\r\nclock: handling status command\r\n");
-        iwm_status(cmd);
-        break;
-    case SP_CMD_CONTROL:
-        Debug_printf("\r\nclock: handling control command");
-        iwm_ctrl(cmd);
-        break;
-    case SP_CMD_OPEN:
-        Debug_printf("\r\nclock: handling open command");
-        iwm_open(cmd);
-        break;
-    case SP_CMD_CLOSE:
-        Debug_printf("\r\nclock: handling close command");
-        iwm_close(cmd);
-        break;
-    default:
-        iwm_return_badcmd(cmd);
-        break;
-    } // switch (cmd)
-    fnLedManager.set(LED_BUS, false);
-}
-
 void iwmClock::shutdown()
 {
 }
-
-
 
 #endif /* BUILD_APPLE */

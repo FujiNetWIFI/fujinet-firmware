@@ -54,7 +54,6 @@ private:
         {2, 256}
     };
 
-    std::unordered_map<uint8_t, IWMCmdHandlers> command_handlers;
     std::unordered_map<uint8_t, IWMControlHandlers> control_handlers;
     std::unordered_map<uint8_t, IWMStatusHandlers> status_handlers;
 
@@ -101,8 +100,6 @@ protected:
     void iwm_stat_qrcode_length();                // 0xBE
     void iwm_ctrl_qrcode_output();                // 0xBF
     void iwm_stat_qrcode_output();                // 0xBF
-
-    void process(iwm_decoded_cmd_t cmd) override;
 
     void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
     void iwm_open(iwm_decoded_cmd_t cmd) override;

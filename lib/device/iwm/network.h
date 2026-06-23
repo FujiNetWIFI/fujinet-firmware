@@ -96,7 +96,6 @@ public:
      */
     virtual void status();
 
-    void process(iwm_decoded_cmd_t cmd) override;
     void process_fs(fujiCommandID_t fuji_command);
     void process_tcp(fujiCommandID_t fuji_command);
     void process_http(fujiCommandID_t fuji_command);

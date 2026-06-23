@@ -16,7 +16,9 @@ protected:
     void send_extended_status_reply_packet() override {};
     void send_status_dib_reply_packet() override {};
     void send_extended_status_dib_reply_packet() override {};
+#ifdef OBSOLETE
     void process(iwm_decoded_cmd_t cmd) override {};
+#endif /* OBSOLETE */
     void iwm_readblock(iwm_decoded_cmd_t cmd) override {};
     void iwm_writeblock(iwm_decoded_cmd_t cmd) override {};
 
