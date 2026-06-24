@@ -4,7 +4,6 @@
 #include "clock.h"
 
 #include "fnConfig.h"
-#include "../hardware/led.h"
 
 namespace {
     // Helper function to prepare timezone buffer with null termination
@@ -71,8 +70,6 @@ void iwmClock::iwm_ctrl(iwm_decoded_cmd_t cmd)
 #ifdef DEBUG
     Debug_printf("[CLOCK] Device %02x Control Code %02x('%c')\r\n", id(), cmd.control_status.fuji.command, isprint(cmd.control_status.fuji.command) ? (char) cmd.control_status.fuji.command : '.');
 #endif
-
-    SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
 
     spError_t err_result = SP_ERR::NOERROR;
 

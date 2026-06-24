@@ -3,7 +3,6 @@
 #include "iwmFuji.h"
 #include "httpService.h"
 #include "fnSystem.h"
-#include "led.h"
 #include "utils.h"
 #include "compat_string.h"
 #include "fuji_endian.h"
@@ -347,11 +346,9 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
         Debug_printf("\ntheFuji Device %02x Control Code %02x", id(), cmd.control_status.fuji.command);
 
         err_result = SP_ERR::NOERROR;
-        data_len = 512;
 
-        Debug_printf("\nDecoding Control Data Packet for code: 0x%02x\r\n", cmd.control_status.fuji.command);
-        SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
-        print_packet((uint8_t *)data_buffer, data_len);
+    Debug_printf("\nDecoding Control Data Packet for code: 0x%02x\r\n", cmd.control_status.fuji.command);
+    print_packet((uint8_t *)data_buffer, data_len);
 
         auto it = control_handlers.find(cmd.control_status.fuji.command);
     if (it != control_handlers.end()) {

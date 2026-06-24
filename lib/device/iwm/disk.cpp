@@ -9,7 +9,6 @@
 // #include "fnFsTNFS.h"
 // #include "fnFsSD.h"
 #include "fsFlash.h"
-#include "led.h"
 #include "iwm/iwmFuji.h"
 
 // #define LOCAL_TNFS
@@ -215,7 +214,6 @@ void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)
   err_result = SP_ERR::NOERROR;
   Debug_printf("\nDisk Device %02x Control Code %02x", id(), cmd.control_status.fuji.command);
   Debug_printf("\nDecoding Control Data Packet:");
-  SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
   print_packet((uint8_t *)data_buffer, data_len);
 
   switch (cmd.control_status.code)
@@ -281,11 +279,6 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
 
   Debug_printf("\r\nDrive %02x ", id());
   Debug_printf("Write block %06lx", cmd.block_rw.num);
-  if (SYSTEM_BUS.iwm_decode_data_packet((unsigned char *)data_buffer, data_len))
-  {
-    Debug_printf("\r\nTIMEOUT in read packet!");
-    return;
-  }
   // partition number indicates which 32mb block we access
   if (data_len == -1)
     iwm_return_ioerror();

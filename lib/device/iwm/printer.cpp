@@ -5,7 +5,6 @@
 #include "html_printer.h"
 #include "epson_80.h"
 #include "fnSystem.h"
-#include "../../hardware/led.h"
 
 constexpr const char *const iwmPrinter::printer_model_str[PRINTER_INVALID];
 
@@ -91,8 +90,6 @@ void iwmPrinter::iwm_close(iwm_decoded_cmd_t cmd)
 void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
 {
     Debug_printf("\nPrinter: Write %u bytes\n", cmd.char_rw.length);
-
-    SYSTEM_BUS.iwm_decode_data_packet((unsigned char *)data_buffer, data_len);
 
     if (data_len == -1)
     {

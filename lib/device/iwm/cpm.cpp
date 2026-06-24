@@ -11,8 +11,6 @@
 #include "fnConfig.h"
 #include "compat_string.h"
 
-#include "../hardware/led.h"
-
 #include "../runcpm/abstraction_fujinet_apple2.h"
 
 #include "../runcpm/globals.h"
@@ -211,17 +209,6 @@ void iwmCPM::iwm_write(iwm_decoded_cmd_t cmd)
 {
     Debug_printf("\nWRITE %u bytes\n", cmd.char_rw.length);
 
-    // get write data packet, keep trying until no timeout
-    //  to do - this blows up - check handshaking
-
-    data_len = cmd.char_rw.length;
-    SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len); // write data packet now read in ISR
-    // if (SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len))
-    // {
-    //     Debug_printf("\r\nTIMEOUT in read packet!");
-    //     return;
-    // }
-
     {
         // DO write
 #ifdef ESP_PLATFORM // OS
@@ -240,8 +227,6 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
     // uint8_t source = cmd.dest;                                                 // we are the destination and will become the source // data_buffer[6];
     Debug_printf("\r\nCPM Device %02x Control Code %02x", id(), cmd.control_status.fuji.command);
     // Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
-    data_len = 512;
-    SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len);
     // Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", packet_buffer[11] & 0x7f, data_buffer[12] & 0x7f);
     print_packet(data_buffer);
 
