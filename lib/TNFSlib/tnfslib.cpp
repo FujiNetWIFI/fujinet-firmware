@@ -1575,18 +1575,13 @@ _tnfs_recv_result _tnfs_recv_and_validate(fnUDP &udp, tnfsMountInfo *m_info, tnf
         m_info->protocol = TNFS_PROTOCOL_TCP;
     }
 
-    // Delayed response for the previous request. We should just try to recv the next response.
-    if (res_pkt.sequence_num < req_pkt.sequence_num)
-    {
-        Debug_printf("Received delayed response! Rcvd: %x, Expected: %x\r\n", res_pkt.sequence_num, req_pkt.sequence_num);
-        return NO_RESP;
-    }
-
-    // Out of order packet received.
+    // Sequence mismatch = stale/reordered response for an earlier request (the
+    // seq byte wraps at 256). Discard it and keep waiting for the matching one.
     if (res_pkt.sequence_num != req_pkt.sequence_num)
     {
-        Debug_printf("TNFS OUT OF ORDER SEQUENCE! Rcvd: %x, Expected: %x\r\n", res_pkt.sequence_num, req_pkt.sequence_num);
-        return RESP_INVALID;
+        Debug_printf("Discarding stale TNFS response. Rcvd: %x, Expected: %x\r\n",
+                     res_pkt.sequence_num, req_pkt.sequence_num);
+        return NO_RESP;
     }
 
     // Check in case the server asks us to wait and try again
