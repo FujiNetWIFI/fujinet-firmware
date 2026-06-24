@@ -25,6 +25,9 @@ private:
     int64_t _last_blocknum_us = 0;
     unsigned long _seek_block = INVALID_SECTOR_VALUE;
     bool _seek_is_read = false;
+    // Set once we've ACKed this block's RECEIVE; further RECEIVEs for the same
+    // block are stale re-polls to ignore. Cleared on a new block number / reset.
+    bool _receive_acked = false;
 
     void adamnet_control_clr();
     void adamnet_control_receive();

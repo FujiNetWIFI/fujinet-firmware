@@ -41,6 +41,10 @@ adamFuji::adamFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, std::nullop
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].slotid = i;
+#ifndef ESP_PLATFORM
+    // BoIP: TNFS-backed Fuji ops overrun the 300us window; send anyway. See disk.cpp.
+    _pc_no_response_deadline = true;
+#endif
 }
 
 // Status

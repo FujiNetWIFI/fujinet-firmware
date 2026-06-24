@@ -31,6 +31,10 @@ adamNetwork::adamNetwork()
 {
     status_response.length = htole16(1024);
     status_response.devtype = ADAMNET_DEVTYPE_CHAR;
+#ifndef ESP_PLATFORM
+    // BoIP: N: ops block on a remote host; send past the 300us window.
+    _pc_no_response_deadline = true;
+#endif
 
     receiveBuffer = new string();
     transmitBuffer = new string();

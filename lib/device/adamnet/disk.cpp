@@ -17,6 +17,9 @@ adamDisk::adamDisk()
     blockNum = 0;
     status_response.length = htole16(1024);
     status_response.devtype = ADAMNET_DEVTYPE_BLOCK;
+#ifndef ESP_PLATFORM
+    _pc_no_response_deadline = true;
+#endif
 }
 
 // Destructor
@@ -32,6 +35,7 @@ adamDisk::~adamDisk()
 void adamDisk::reset()
 {
     blockNum = INVALID_SECTOR_VALUE;
+    _receive_acked = false;
 
     if (_media != nullptr)
     {
@@ -128,6 +132,15 @@ void adamDisk::adamnet_control_receive()
     if (_media == nullptr)
         return;
 
+    // Already ACKed this block's RECEIVE. The master re-polls RECEIVE while we
+    // read; a second ACK would desync the next block, so stay silent until a new
+    // block number resets us. (stall_silent: yield without discardInput().)
+    if (_receive_acked)
+    {
+        SYSTEM_BUS.stall_silent = true;
+        return;
+    }
+
     // Seek emulation.
     if (GET_TIMESTAMP() < _seek_deadline)
     {
@@ -147,6 +160,9 @@ void adamDisk::adamnet_control_receive()
         adamnet_response_nack(true);
     else
         adamnet_response_ack(true);
+
+    // Exactly one ACK per block: suppress the master's surplus re-poll RECEIVEs.
+    _receive_acked = true;
 }
 
 void adamDisk::adamnet_control_send_block_num()
@@ -182,6 +198,8 @@ void adamDisk::adamnet_control_send_block_num()
     int64_t now = GET_TIMESTAMP();
     // Each new block# starts unclassified; a following RECEIVE marks it a read.
     _seek_is_read = false;
+    // New block operation: allow exactly one ACK for its RECEIVE sequence again.
+    _receive_acked = false;
 
     bool already_cached = (_media->_media_last_block == blockNum);
     if (blockNum != _seek_block ||
