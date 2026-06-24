@@ -11,11 +11,15 @@
 #include "led.h"
 #include <cstring>
 #include "adamFuji.h"
+#include "fnConfig.h"
 
+#ifdef ESP_PLATFORM
 #include <driver/gpio.h>
+#endif
 
 #define IDLE_TIME 180 // Idle tolerance in microseconds
 
+#ifdef ESP_PLATFORM
 static QueueHandle_t reset_evt_queue = NULL;
 
 static void IRAM_ATTR adamnet_reset_isr_handler(void *arg)
@@ -83,6 +87,7 @@ static void adamnet_bus_task(void *arg)
         taskYIELD(); // cooperative; returns at once when no other core-1 task is ready
     }
 }
+#endif // ESP_PLATFORM
 
 uint8_t adamnet_checksum(uint8_t *buf, unsigned short len)
 {
@@ -186,7 +191,7 @@ void virtualDevice::adamnet_control_ready()
 
 void systemBus::wait_for_idle()
 {
-    _port.discardInput();
+    _port->discardInput();
     fnSystem.yield();
 }
 
@@ -220,13 +225,13 @@ void systemBus::drain_echo(size_t n)
 
     while (got < n)
     {
-        size_t avail = _port.available();
+        size_t avail = _port->available();
         if (avail)
         {
             size_t take = n - got;
             if (take > avail)
                 take = avail;
-            got += _port.read(scratch, take);
+            got += _port->read(scratch, take);
             last = esp_timer_get_time();
         }
         else if (esp_timer_get_time() - last > ECHO_SETTLE_US)
@@ -238,7 +243,7 @@ void systemBus::drain_echo(size_t n)
 
 void virtualDevice::adamnet_process(uint8_t b)
 {
-    fnDebugConsole.printf("adamnet_process() not implemented yet for this device. Cmd received: %02x\n", b);
+    Debug_printf("adamnet_process() not implemented yet for this device. Cmd received: %02x\n", b);
 }
 
 void virtualDevice::adamnet_control_status()
@@ -288,7 +293,7 @@ void systemBus::_adamnet_process_cmd()
 {
     uint8_t b;
 
-    b = _port.read();
+    b = _port->read();
     int64_t cmd_start = esp_timer_get_time();
     start_time = cmd_start;
     frame_error = false;
@@ -346,18 +351,25 @@ void systemBus::service()
     _adamnet_process_queue();
 
     // Process anything waiting.
-    if (_port.available() > 0)
+    if (_port->available() > 0)
         _adamnet_process_cmd();
+#ifndef ESP_PLATFORM
+    else
+        // Idle: block briefly instead of spinning the PC main loop at 100% CPU.
+        _netadam.poll(1);
+#endif
 }
 
 void systemBus::setup()
 {
     Debug_println("ADAMNET SETUP");
 
+    // Set up event queue (disk swap messages)
+    qAdamNetMessages = xQueueCreate(4, sizeof(adamnet_message_t));
+
+#ifdef ESP_PLATFORM
     // Set up interrupt for RESET line
     reset_evt_queue = xQueueCreate(10, sizeof(uint32_t));
-    // Set up event queue
-    qAdamNetMessages = xQueueCreate(4, sizeof(adamnet_message_t));
 
     // Start card detect task
     xTaskCreate(adamnet_reset_intr_task, "adamnet_reset_intr_task", 2048, this, 10, NULL);
@@ -367,7 +379,7 @@ void systemBus::setup()
     gpio_isr_handler_add((gpio_num_t)PIN_ADAMNET_RESET, adamnet_reset_isr_handler, (void *)PIN_CARD_DETECT_FIX);
 
     // Set up UART
-    _port.begin(ChannelConfig()
+    _serial.begin(ChannelConfig()
                 .deviceID(FN_UART_BUS)
                 .baud(ADAMNET_BAUDRATE)
                 .inverted(true)
@@ -376,15 +388,37 @@ void systemBus::setup()
                 .rxThreshold(1)
                 .txBuffer(2048)
                 );
+    _port = &_serial;
+#else
+    // PC build: carry AdamNet over a TCP socket (Bus over IP) when enabled,
+    // otherwise fall back to a real serial port.
+    if (Config.get_boip_enabled())
+    {
+        _netadam.begin(Config.get_boip_host(), Config.get_boip_port());
+        _port = &_netadam;
+    }
+    else
+    {
+        _serial.begin(ChannelConfig()
+                    .baud(ADAMNET_BAUDRATE)
+                    .readTimeout(2.0)
+                    .discardTimeout(0.180)
+                    );
+        _port = &_serial;
+    }
+#endif
 }
 
 void systemBus::start_bus_task()
 {
+#ifdef ESP_PLATFORM
     xTaskCreatePinnedToCore(adamnet_bus_task, "adamnet_bus", ADAMNET_BUS_TASK_STACK,
                             this, ADAMNET_BUS_TASK_PRIORITY, NULL, ADAMNET_BUS_TASK_CORE);
 
     gpio_set_drive_capability((gpio_num_t)PIN_UART2_TX, GPIO_DRIVE_CAP_3);
     Debug_printf("AdamNet TX (GPIO%d) drive strength set to MAX\n", PIN_UART2_TX);
+#endif
+    // On PC the bus is serviced from the main loop (see src/main.cpp).
 }
 
 void systemBus::shutdown()
