@@ -36,11 +36,11 @@ private:
 
 public:
     adamDisk();
-    mediatype_t mount(FILE *f, const char *filename, uint32_t disksize,
+    mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize,
                       disk_access_flags_t access_mode,
                       mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
-    error_is_true write_blank(FILE *f, uint32_t numBlocks);
+    error_is_true write_blank(fnFile *f, uint32_t numBlocks);
     virtual void reset() override;
     MediaType *get_media() { return  _media; }
     void set_media(MediaType *__media) { _media = __media; }

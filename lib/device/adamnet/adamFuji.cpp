@@ -13,6 +13,7 @@
 #include "fnConfig.h"
 #include "fnWiFi.h"
 #include "fsFlash.h"
+#include "fnio.h"
 #include "led.h"
 
 #include "utils.h"
@@ -139,13 +140,13 @@ void adamFuji::adamnet_new_disk()
     disk.access_mode = DISK_ACCESS_MODE_WRITE;
     strlcpy(disk.filename, (const char *)p, 256);
 
-    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
+    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
 
     Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, numBlocks);
 
     disk.disk_dev.write_blank(disk.fileh, numBlocks);
 
-    fclose(disk.fileh);
+    fnio::fclose(disk.fileh);
 
     new_disk_completed = true;
 }
@@ -155,17 +156,17 @@ void adamFuji::insert_boot_device(uint8_t d)
 {
     const char *config_atr = "/autorun.ddp";
     const char *mount_all_atr = "/mount-and-boot.ddp";
-    FILE *fBoot;
+    fnFile *fBoot;
 
     switch (d)
     {
     case 0:
-        fBoot = fsFlash.file_open(config_atr);
+        fBoot = fsFlash.fnfile_open(config_atr);
         _fnDisks[0].disk_dev.mount(fBoot, config_atr, 262144, DISK_ACCESS_MODE_READ, MEDIATYPE_DDP);
         break;
     case 1:
 
-        fBoot = fsFlash.file_open(mount_all_atr);
+        fBoot = fsFlash.fnfile_open(mount_all_atr);
         _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 262144, DISK_ACCESS_MODE_READ, MEDIATYPE_DDP);
         break;
     }
@@ -272,13 +273,13 @@ void adamFuji::setup()
         Debug_printf("Config General Boot Mode: %u\n", Config.get_general_boot_mode());
         if (Config.get_general_boot_mode() == 0)
         {
-            FILE *f = fsFlash.file_open("/autorun.ddp");
+            fnFile *f = fsFlash.fnfile_open("/autorun.ddp");
             _fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, DISK_ACCESS_MODE_READ, MEDIATYPE_DDP);
             _fnDisks[0].disk_dev.is_config_device = true;
         }
         else
         {
-            FILE *f = fsFlash.file_open("/mount-and-boot.ddp");
+            fnFile *f = fsFlash.fnfile_open("/mount-and-boot.ddp");
             _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.ddp", 262144, DISK_ACCESS_MODE_READ, MEDIATYPE_DDP);
         }
     }

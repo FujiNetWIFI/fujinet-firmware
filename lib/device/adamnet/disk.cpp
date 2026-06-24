@@ -40,7 +40,7 @@ void adamDisk::reset()
     }
 }
 
-mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize,
+mediatype_t adamDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
                             disk_access_flags_t access_mode, mediatype_t disk_type)
 {
     mediatype_t mt = MEDIATYPE_UNKNOWN;
@@ -96,7 +96,7 @@ void adamDisk::unmount()
     }
 }
 
-error_is_true adamDisk::write_blank(FILE *fileh, uint32_t numBlocks)
+error_is_true adamDisk::write_blank(fnFile *fileh, uint32_t numBlocks)
 {
     uint8_t buf[256];
 
@@ -104,10 +104,10 @@ error_is_true adamDisk::write_blank(FILE *fileh, uint32_t numBlocks)
     {
         memset(buf, 0xE5, 256);
 
-        fwrite(buf, 1, 256, fileh);
-        fwrite(buf, 1, 256, fileh);
-        fwrite(buf, 1, 256, fileh);
-        fwrite(buf, 1, 256, fileh);
+        fnio::fwrite(buf, 1, 256, fileh);
+        fnio::fwrite(buf, 1, 256, fileh);
+        fnio::fwrite(buf, 1, 256, fileh);
+        fnio::fwrite(buf, 1, 256, fileh);
     }
 
     RETURN_SUCCESS_AS_FALSE();

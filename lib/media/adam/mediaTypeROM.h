@@ -12,10 +12,10 @@ private:
     // Block 0 and 1 data borrowed from Sean Myers' AdamNet Drive Emulator
     // https://github.com/Kalidomra/AdamNet-Drive-Emulator/blob/master/AdamNet_Drive_Emulator/SDLoadBlock.ino#L95
 
-    const char block0[1024]={0x3A,0x6F,0xFD,0x01,0x00,0x00,0x11,0x01,    // This is the boot block it just loads block 1 into 0x2000 and then jumps to 0x2000
+    const uint8_t block0[1024]={0x3A,0x6F,0xFD,0x01,0x00,0x00,0x11,0x01,    // This is the boot block it just loads block 1 into 0x2000 and then jumps to 0x2000
                              0x00,0x21,0x00,0x20,0xCD,0xF3,0xFC,0xC3,
                              0x00,0x20};
-    const char block1[1024]={0x11,0x02,0x00,0x21,0x00,0x40,0x3A,0x6F,  // This code will load the rom file from block 2 and above into 0x4000
+    const uint8_t block1[1024]={0x11,0x02,0x00,0x21,0x00,0x40,0x3A,0x6F,  // This code will load the rom file from block 2 and above into 0x4000
                              0xFD,0x01,0x00,0x00,0xCD,0xF3,0xFC,0x3E,  // Then the PCB's are move to 0x2100 and the AdamNet scanned
                              0x21,0xBB,0xCA,0x1D,0x20,0x01,0x00,0x04,  // (Thanks to Milli for this information)
                              0x09,0x13,0xC3,0x06,0x20,0x21,0x00,0x21,  // It will then bank switch in OS7 and move the rom code to 0x8000.
@@ -36,11 +36,11 @@ public:
 
     error_is_true format(uint16_t *responsesize) override;
 
-    mediatype_t mount(FILE *f, uint32_t disksize) override;
+    mediatype_t mount(fnFile *f, uint32_t disksize) override;
 
     uint8_t status() override;
 
-    static success_is_true create(FILE *f, uint32_t numBlock);
+    static success_is_true create(fnFile *f, uint32_t numBlock);
 };
 
 
