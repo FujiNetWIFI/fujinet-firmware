@@ -200,9 +200,7 @@ void sioVoice::sio_write()
 
     memset(sioBuffer, 0, n); // clear buffer
 
-    ck = bus_to_peripheral(sioBuffer, n);
-
-    if (ck == sio_checksum(sioBuffer, n))
+    if (transaction_get(sioBuffer, n))
     {
         // append sioBuffer onto lineBuffer until EOL is reached
         // move this logic to append \0 into sio_write
@@ -225,11 +223,11 @@ void sioVoice::sio_write()
             }
             i++;
         }
-        sio_complete();
+        transaction_complete();
     }
     else
     {
-        sio_error();
+        transaction_error();
     }
 }
 
@@ -244,7 +242,7 @@ void sioVoice::sio_status()
     status[2] = 15; // set timeout > 10 seconds (SAM audio buffer)
     status[3] = 0;
 
-    bus_to_computer(status, sizeof(status), false);
+    transaction_put(status, sizeof(status), false);
 }
 
 void sioVoice::sio_process(uint32_t commanddata, uint8_t checksum)
@@ -257,16 +255,16 @@ void sioVoice::sio_process(uint32_t commanddata, uint8_t checksum)
     {
     case 'P': // 0x50
     case 'W': // 0x57
-        sio_late_ack();
+        transaction_begin(TRANS_STATE::WILL_GET);
         sio_write();
         lastAux1 = cmdFrame.aux1;
         break;
     case 'S': // 0x53
-        sio_ack();
+        transaction_begin(TRANS_STATE::NO_GET);
         sio_status();
         break;
     default:
-        sio_nak();
+        transaction_error();
     }
 }
 

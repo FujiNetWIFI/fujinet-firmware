@@ -1,10 +1,13 @@
 #ifndef SIO_H
 #define SIO_H
 
+#include "bus.h"
 #include "cmdFrame.h"
 #include "UARTChannel.h"
 #include "NetSIO.h"
+#include "global_types.h"
 #include <forward_list>
+#include <cassert>
 
 #define DELAY_T4 850
 #define DELAY_T5 250
@@ -83,11 +86,8 @@ class virtualDevice
     friend systemBus;
     friend fujiDevice;
 
-protected:
-    fujiDeviceID_t _devnum;
-
-    cmdFrame_t cmdFrame;
-    bool listen_to_type3_polls = false;
+private:
+    transState_t _transaction_state = TRANS_STATE::INVALID;
 
     /**
      * @brief Send the desired buffer to the Atari.
@@ -96,7 +96,7 @@ protected:
      * @return TRUE if the Atari processed the data in error, FALSE if the Atari successfully processed
      * the data.
      */
-    void bus_to_computer(uint8_t *buff, uint16_t len, bool err);
+    void _bus_to_computer(uint8_t *buff, uint16_t len, bool err);
 
     /**
      * @brief Receive data from the Atari.
@@ -104,14 +104,14 @@ protected:
      * @param len The length of the amount of data to receive from the Atari.
      * @return An 8-bit wrap-around checksum calculated by the Atari, which should be checked with sio_checksum()
      */
-    uint8_t bus_to_peripheral(uint8_t *buff, uint16_t len);
+    uint8_t _bus_to_peripheral(uint8_t *buff, uint16_t len);
 
     /**
      * @brief Send an acknowledgement byte to the Atari 'A'
      * This should be used if the command received by the SIO device is valid, and is used to signal to the
      * Atari that we are now processing the command.
      */
-    void sio_ack();
+    void _sio_ack();
 
     /**
      * @brief Send an acknowledgement byte to the Atari 'A'
@@ -120,9 +120,9 @@ protected:
      *   ACK byte together with expected write size is send as part of SYNC_RESPONSE
      */
 #ifdef ESP_PLATFORM
-    inline void sio_late_ack() { sio_ack(); };
+    inline void _sio_late_ack() { _sio_ack(); };
 #else
-    void sio_late_ack();
+    void _sio_late_ack();
 #endif
 
     /**
@@ -130,14 +130,14 @@ protected:
      * This should be used if the command received by the SIO device is invalid, in the first place. It is not
      * the same as sio_error().
      */
-    void sio_nak();
+    void _sio_nak();
 
     /**
      * @brief Send a COMPLETE to the Atari 'C'
      * This should be used after processing of the command to indicate that we've successfully finished. Failure to send
      * either a COMPLETE or ERROR will result in a SIO TIMEOUT (138) to be reported in DSTATS.
      */
-    void sio_complete();
+    void _sio_complete();
 
     /**
      * @brief Send an ERROR to the Atari 'E'
@@ -145,7 +145,49 @@ protected:
      * from processing the command, and that the Atari should probably re-try the command. Failure to
      * send an ERROR or COMPLTE will result in a SIO TIMEOUT (138) to be reported in DSTATS.
      */
-    void sio_error();
+    void _sio_error();
+
+protected:
+    fujiDeviceID_t _devnum;
+
+    void transaction_begin(transState_t expectMoreData) {
+        assert(_transaction_state == TRANS_STATE::INVALID);
+        _transaction_state = expectMoreData;
+        // For some reason NetSIO needs a hint that this is a WRITE transaction
+        if (expectMoreData == TRANS_STATE::WILL_GET)
+            _sio_late_ack();
+        else
+            _sio_ack();
+    }
+    void transaction_complete() {
+        assert(_transaction_state == TRANS_STATE::NO_GET || _transaction_state == TRANS_STATE::DID_GET);
+        _sio_complete();
+        _transaction_state = TRANS_STATE::INVALID;
+    }
+    void transaction_error() {
+        if (_transaction_state == TRANS_STATE::INVALID)
+            _sio_error();
+        else
+            _sio_nak();
+        _transaction_state = TRANS_STATE::INVALID;
+    }
+    success_is_true transaction_get(void *data, size_t len) {
+        assert(_transaction_state == TRANS_STATE::WILL_GET);
+        _transaction_state = TRANS_STATE::DID_GET;
+
+        uint8_t ck = _bus_to_peripheral((uint8_t *) data, len);
+        if (sio_checksum((uint8_t *) data, len) != ck)
+            RETURN_ERROR_AS_FALSE();
+        RETURN_SUCCESS_AS_TRUE();
+    }
+    void transaction_put(const void *data, size_t len, bool err=false) {
+        assert(_transaction_state == TRANS_STATE::NO_GET);
+        _bus_to_computer((uint8_t *) data, len, err);
+        _transaction_state = TRANS_STATE::INVALID;
+    }
+
+    cmdFrame_t cmdFrame;
+    bool listen_to_type3_polls = false;
 
     /**
      * @brief Return the two aux bytes in cmdFrame as a single 16-bit value, commonly used, for example to retrieve
