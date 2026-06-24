@@ -1633,28 +1633,40 @@ void fujiDevice::fujicmd_write_app_key(uint16_t keylen, uint16_t readlen)
     transaction_begin(TRANS_STATE::WILL_GET);
     Debug_printf("Fuji cmd: WRITE APPKEY (keylen = %hu)\n", keylen);
 
-    // Data for  FUJICMD_WRITE_APPKEY
-    uint8_t value[MAX_APPKEY_LEN];
-
     if (!readlen)
         readlen = keylen;
-    if (!transaction_get(value, readlen))
+
+    // Size the buffer to readlen (controller-supplied) so the stream stays in
+    // sync; a fixed MAX_APPKEY_LEN buffer overflowed the stack when readlen > 64.
+    std::vector<uint8_t> value(readlen);
+    if (!transaction_get(value.data(), readlen))
     {
         transaction_error();
         return;
     }
 
+    // Store at most MAX_APPKEY_LEN bytes.
+    size_t storelen = keylen;
+    if (storelen > value.size())
+        storelen = value.size();
+    if (storelen > MAX_APPKEY_LEN)
+    {
+        Debug_printf("WRITE APPKEY truncated from %hu to %d bytes\n", keylen, MAX_APPKEY_LEN);
+        storelen = MAX_APPKEY_LEN;
+    }
+
     int err;
-    int count = fujicore_write_app_key(std::vector<uint8_t>(value, value + keylen), &err);
+    int count = fujicore_write_app_key(
+        std::vector<uint8_t>(value.begin(), value.begin() + storelen), &err);
     if (count < 0)
     {
         transaction_error();
         return;
     }
 
-    if (count != keylen)
+    if ((size_t)count != storelen)
     {
-        Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", count, keylen, err);
+        Debug_printf("Only wrote %u bytes of expected %zu, errno=%d\n", count, storelen, err);
         transaction_error();
     }
 
