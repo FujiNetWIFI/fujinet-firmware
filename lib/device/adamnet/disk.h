@@ -15,7 +15,9 @@ class adamDisk : public virtualDevice
 {
 private:
     MediaType *_media = nullptr;
+#ifdef ESP_PLATFORM
     TaskHandle_t diskTask;
+#endif /* ESP_PLATFORM */
 
     unsigned long blockNum=INVALID_SECTOR_VALUE;
 

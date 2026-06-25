@@ -8,8 +8,6 @@
 #include "cmdFrame.h"
 #include "UARTChannel.h"
 #include "BoIPChannel.h"
-#include <freertos/FreeRTOS.h>
-#include <freertos/queue.h>
 
 #include <map>
 
@@ -282,7 +280,9 @@ private:
     size_t _tx_count = 0;
 
     void _adamnet_process_cmd();
+#ifdef ESP_PLATFORM
     void _adamnet_process_queue();
+#endif /* ESP_PLATFORM */
 
 public:
     void setup();
@@ -351,7 +351,9 @@ public:
     virtualDevice *deviceById(uint8_t device_id);
     void changeDeviceId(virtualDevice *pDevice, uint8_t device_id);
     bool deviceEnabled(uint8_t device_id);
+#ifdef ESP_PLATFORM
     QueueHandle_t qAdamNetMessages = nullptr;
+#endif /* ESP_PLATFORM */
 
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };

@@ -2,8 +2,6 @@
 #define ADAM_SERIAL_H
 
 #include <cstdint>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
 
 #include "bus.h"
 
@@ -43,17 +41,21 @@ class adamSerial : public virtualDevice
     
     void adamnet_control_send();
 
+#ifdef ESP_PLATFORM
     /**
      * Queue Handle
      */
     QueueHandle_t serial_out_queue;
+#endif /* ESP_PLATFORM */
 
 private:
 
+#ifdef ESP_PLATFORM
     /**
      * Task handle for TX task
      */
     TaskHandle_t thSerial;
+#endif /* ESP_PLATFORM */
 
     /**
      * Send Structure
