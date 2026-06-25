@@ -171,8 +171,12 @@ void virtualDevice::adamnet_response_ack(bool doNotWaitForIdle)
     if (!doNotWaitForIdle)
         SYSTEM_BUS.min_turnaround();
 
-    if (esp_timer_get_time() - SYSTEM_BUS.start_time < ADAMNET_RESPONSE_DEADLINE_US)
-        adamnet_send(0x90 | _devnum);
+#ifdef ESP_PLATFORM
+    // Real bus only: don't answer past the master's window. BoIP just waits.
+    if (esp_timer_get_time() - SYSTEM_BUS.start_time >= ADAMNET_RESPONSE_DEADLINE_US)
+        return;
+#endif
+    adamnet_send(0x90 | _devnum);
 }
 
 void virtualDevice::adamnet_response_nack(bool doNotWaitForIdle)
@@ -180,8 +184,12 @@ void virtualDevice::adamnet_response_nack(bool doNotWaitForIdle)
     if (!doNotWaitForIdle)
         SYSTEM_BUS.min_turnaround();
 
-    if (esp_timer_get_time() - SYSTEM_BUS.start_time < ADAMNET_RESPONSE_DEADLINE_US)
-        adamnet_send(0xC0 | _devnum);
+#ifdef ESP_PLATFORM
+    // Real bus only: don't answer past the master's window. BoIP just waits.
+    if (esp_timer_get_time() - SYSTEM_BUS.start_time >= ADAMNET_RESPONSE_DEADLINE_US)
+        return;
+#endif
+    adamnet_send(0xC0 | _devnum);
 }
 
 void virtualDevice::adamnet_control_ready()
@@ -197,10 +205,15 @@ void systemBus::wait_for_idle()
 
 void systemBus::wait_turnaround(uint32_t us)
 {
-    // Don't drive the shared wire until at least `us` after the command.
+#ifdef ESP_PLATFORM
+    // Hold off the shared one-wire bus until `us` after the command.
     int64_t dt = esp_timer_get_time() - start_time;
     if (dt >= 0 && dt < (int64_t)us)
         fnSystem.delay_microseconds(us - dt);
+#else
+    // BoIP has no shared wire, and usleep() can't honor sub-ms holds anyway.
+    (void)us;
+#endif
 }
 
 void systemBus::min_turnaround()
@@ -399,6 +412,8 @@ void systemBus::setup()
                        .portNum(Config.get_boip_port())
                        .client()
                        .localEcho(true)
+                       .nonBlocking()  // recv path can't absorb a blocking poll; idle is throttled by poll(1) in service()
+                       .noDelay()      // disable Nagle: tiny request/response packets
                        .readTimeout(1000)
                        .discardTimeout(0)
                        );

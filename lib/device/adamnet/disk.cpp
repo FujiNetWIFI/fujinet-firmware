@@ -115,12 +115,12 @@ error_is_true adamDisk::write_blank(fnFile *fileh, uint32_t numBlocks)
 
 void adamDisk::adamnet_control_clr()
 {
-    int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
-
-    if (t < 1500)
-    {
-        adamnet_response_send();
-    }
+#ifdef ESP_PLATFORM
+    // Real bus only: stream the block only inside the master's window.
+    if (esp_timer_get_time() - SYSTEM_BUS.start_time >= 1500)
+        return;
+#endif
+    adamnet_response_send();
 }
 
 void adamDisk::adamnet_control_receive()
@@ -242,12 +242,12 @@ void adamDisk::adamnet_response_status()
     else
         status_response.status = 0x40 | _media->_media_controller_status;
 
-    int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
-
-    if (t < 300)
-    {
-        virtualDevice::adamnet_response_status();
-    }
+#ifdef ESP_PLATFORM
+    // Real bus only: answer only inside the master's status window.
+    if (esp_timer_get_time() - SYSTEM_BUS.start_time >= 300)
+        return;
+#endif
+    virtualDevice::adamnet_response_status();
 }
 
 void adamDisk::adamnet_response_send()
