@@ -20,7 +20,7 @@
 #define COCO_H
 
 #include "cmdFrame.h"
-#include "BeckerSocket.h"
+#include "BoIPChannel.h"
 #include "UARTChannel.h"
 #include "ACMChannel.h"
 #include "fujiDeviceID.h"
@@ -192,7 +192,7 @@ private:
 #else /* ! FUJINET_OVER_USB */
     UARTChannel _serial;
 #endif /* FUJINET_OVER_USB */
-    BeckerSocket _becker;
+    BoIPChannel _becker;
 
 #ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
     std::deque<uint8_t> _dbc_pushback;

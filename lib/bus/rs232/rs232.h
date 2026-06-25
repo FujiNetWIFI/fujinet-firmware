@@ -5,7 +5,7 @@
 #include "UARTChannel.h"
 #include "ACMChannel.h"
 #include "FujiBusPacket.h"
-#include "../drivewire/BeckerSocket.h"
+#include "BoIPChannel.h"
 #include "global_types.h"
 
 #ifdef ESP_PLATFORM
@@ -147,7 +147,7 @@ private:
 #else /* ! FUJINET_OVER_USB */
     UARTChannel _serial;
 #endif /* FUJINET_OVER_USB */
-    BeckerSocket _becker;
+    BoIPChannel _boip;
 
     void _rs232_process_cmd();
     /* void _rs232_process_queue(); */

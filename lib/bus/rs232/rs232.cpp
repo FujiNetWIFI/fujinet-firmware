@@ -211,9 +211,11 @@ void systemBus::setup()
     if (Config.get_boip_enabled())
     {
         Debug_printf("RS232 SETUP: BOIP host: %s\n", Config.get_boip_host().c_str());
-        _becker.setHost(Config.get_boip_host(), Config.get_boip_port());
-        _becker.begin(Config.get_boip_host(), Config.get_serial_baud());
-        _port = &_becker;
+        _boip.begin(BoIPConfig()
+                    .hostName(Config.get_boip_host())
+                    .portNum(Config.get_boip_port())
+                    );
+        _port = &_boip;
     }
     else {
 #if FUJINET_OVER_USB
