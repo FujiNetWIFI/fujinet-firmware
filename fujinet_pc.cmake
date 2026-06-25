@@ -382,7 +382,7 @@ if(FUJINET_TARGET STREQUAL "COCO")
     list(APPEND SOURCES
 
     lib/bus/drivewire/drivewire.h lib/bus/drivewire/drivewire.cpp
-    lib/bus/drivewire/BeckerSocket.h lib/bus/drivewire/BeckerSocket.cpp
+    lib/hardware/BoIPChannel.h lib/hardware/BoIPChannel.cpp
 
     lib/media/drivewire/mediaType.h lib/media/drivewire/mediaType.cpp
     lib/media/drivewire/mediaTypeDSK.h lib/media/drivewire/mediaTypeDSK.cpp
@@ -406,7 +406,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
 
     lib/bus/rs232/rs232.h lib/bus/rs232/rs232.cpp
     lib/bus/rs232/FujiBusPacket.h lib/bus/rs232/FujiBusPacket.cpp
-    lib/bus/drivewire/BeckerSocket.h lib/bus/drivewire/BeckerSocket.cpp
+    lib/hardware/BoIPChannel.h lib/hardware/BoIPChannel.cpp
 
     lib/media/rs232/diskType.h lib/media/rs232/diskType.cpp
     lib/media/rs232/diskTypeImg.h lib/media/rs232/diskTypeImg.cpp
