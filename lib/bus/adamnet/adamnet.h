@@ -7,7 +7,7 @@
 
 #include "cmdFrame.h"
 #include "UARTChannel.h"
-#include "NetAdamNet.h"
+#include "BoIPChannel.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
@@ -273,7 +273,7 @@ private:
     // _port = UART on hardware, or a TCP socket to an emulator on PC (Bus over IP).
     UARTChannel _serial;
 #ifndef ESP_PLATFORM
-    NetAdamNet _netadam;
+    BoIPChannel _netadam;
 #endif
     IOChannel *_port = nullptr;
 

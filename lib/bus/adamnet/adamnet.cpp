@@ -394,7 +394,14 @@ void systemBus::setup()
     // otherwise fall back to a real serial port.
     if (Config.get_boip_enabled())
     {
-        _netadam.begin(Config.get_boip_host(), Config.get_boip_port());
+        _netadam.begin(BoIPConfig()
+                       .hostName(Config.get_boip_host())
+                       .portNum(Config.get_boip_port())
+                       .client()
+                       .localEcho(true)
+                       .readTimeout(1000)
+                       .discardTimeout(0)
+                       );
         _port = &_netadam;
     }
     else
