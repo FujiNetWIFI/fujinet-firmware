@@ -101,6 +101,22 @@ public:
     uint8_t protocol = TNFS_PROTOCOL_UNKNOWN;
     fnTcpClient tcp_client;
 
+    // Reassembly buffer for the TNFS-over-TCP byte stream: accumulate until a
+    // whole message is present, hand out one, keep the rest (see _tnfs_tcp_recv).
+    // Two max (532-byte) messages so a coalesced duplicate can't overflow it.
+    static const int TCP_RECV_BUFFER_SIZE = 2 * 532;
+    uint8_t tcp_recv_buffer[TCP_RECV_BUFFER_SIZE];
+    int tcp_recv_len = 0;
+    // Sequence number last written on the current TCP connection, or -1 if none.
+    // Used to avoid re-sending a request already in flight on the same socket
+    // (a re-send would make the server resend and duplicate the response).
+    int tcp_last_sent_seq = -1;
+
+    // One-shot: when set, the next transaction suppresses its timeout/retry log
+    // messages. Used by the periodic keep-alive so its routine reconnects during
+    // idle don't spam the log like a real (device-initiated) operation would.
+    bool quiet_transaction = false;
+
     // These char[] sizes are abitrary...
     char hostname[64] = { '\0' };
     in_addr_t host_ip = IPADDR_NONE;

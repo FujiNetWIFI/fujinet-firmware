@@ -36,6 +36,10 @@ public:
     bool is_started();
     bool exists(const char* path) override;
 
+    // Quiet liveness probe used by the periodic keep-alive timer. Its transaction
+    // suppresses timeout/retry logging so routine idle reconnects don't spam.
+    void keep_alive();
+
     success_is_true remove(const char* path) override;
 
     success_is_true rename(const char* pathFrom, const char* pathTo) override;

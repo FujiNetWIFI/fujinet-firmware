@@ -50,7 +50,7 @@ bool _tnfs_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t pay
 int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt);
 bool _tnfs_tcp_send(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size);
 int _tnfs_tcp_recv(tnfsMountInfo *m_info, tnfsPacket &pkt);
-_tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt);
+_tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt, bool &tcp_reconnected, bool quiet);
 _tnfs_recv_result _tnfs_recv_and_validate(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt);
 uint8_t _tnfs_session_recovery(tnfsMountInfo *m_info, uint8_t command);
 
@@ -440,7 +440,7 @@ int _tnfs_fill_cache(tnfsMountInfo *m_info, tnfsFileHandleInfo *pFHI)
 #endif
                 break;
             }
-            else
+            else 
             {
                 Debug_printf("_tnfs_fill_cache unexepcted result: %u\r\n", tnfs_result);
                 error = tnfs_result;
@@ -1355,9 +1355,25 @@ bool _tnfs_tcp_send(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_siz
             Debug_println("Can't connect to the TCP server");
             return false;
         }
+        // Keep the connection warm during idle so a NAT/firewall doesn't silently
+        // drop the path (which would otherwise force a reconnect on the next
+        // request). Probe every ~15s; give up after ~4 missed probes.
+        tcp->keepAlive(15, 5, 4);
+        // Fresh connection: drop any leftover bytes so framing starts aligned and
+        // force a (re)send of this request on it.
+        m_info->tcp_recv_len = 0;
+        m_info->tcp_last_sent_seq = -1;
     }
+    // TCP guarantees delivery, so don't write a request already sent on this
+    // connection; re-sending would make the server resend and leave a duplicate
+    // response in the stream. Only (re)send on a new connection or new sequence.
+    if (pkt.sequence_num == m_info->tcp_last_sent_seq)
+        return true;
     int l = tcp->write(pkt.rawData, payload_size + TNFS_HEADER_SIZE);
-    return l == payload_size + TNFS_HEADER_SIZE;
+    if (l != payload_size + TNFS_HEADER_SIZE)
+        return false;
+    m_info->tcp_last_sent_seq = pkt.sequence_num;
+    return true;
 }
 
 #ifndef TNFS_UDP_SIMULATE_POOR_CONNECTION
@@ -1404,18 +1420,152 @@ int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt)
     }
 }
 
+/*
+    Length of a variable-length READDIRX reply: count(1) + dirstatus(1) +
+    dirpos(2), then `count` entries of flags(1)+size(4)+mtime(4)+ctime(4)+name(z).
+    Returns the total message length, or 0 if more bytes are needed.
+*/
+static int _tnfs_tcp_readdirx_length(const uint8_t *buf, int have)
+{
+    if (have < 9) // header(4) + status(1) + count(1) + dirstatus(1) + dirpos(2)
+        return 0;
+
+    int count = buf[5];
+    int offset = 9;
+    for (int e = 0; e < count; e++)
+    {
+        offset += 13; // flags(1) + size(4) + mtime(4) + ctime(4)
+        // Scan the null-terminated entry name that follows
+        int i = offset;
+        for (;; i++)
+        {
+            if (i >= have)
+                return 0; // name not fully received yet
+            if (buf[i] == '\0')
+                break;
+        }
+        offset = i + 1; // step past the null terminator
+    }
+    return offset;
+}
+
+/*
+    Total length of the single TNFS response at the front of `buf` (the first
+    `have` bytes), or 0 if more bytes are needed to determine it. TNFS has no
+    length field, so it's derived from the command, status and self-describing
+    payload fields. Every response is header(4) + status(1) + command-specific.
+*/
+static int _tnfs_tcp_response_length(const uint8_t *buf, int have)
+{
+    if (have < 5) // need at least header(4) + status(1)
+        return 0;
+
+    uint8_t command = buf[3];
+    uint8_t status = buf[4];
+
+    // MOUNT is never pipelined: success appends 4 version/timeout bytes (total
+    // 9); failure is ambiguous (5 or 7), so just consume whatever's available.
+    if (command == TNFS_CMD_MOUNT)
+        return (status == TNFS_RESULT_SUCCESS) ? 9 : have;
+
+    // Every other command returns just the status byte on error.
+    if (status != TNFS_RESULT_SUCCESS)
+        return 5;
+
+    // Success responses, by command (total length = 5 + payload size):
+    switch (command)
+    {
+    case TNFS_CMD_READ: // status + count(2) + data(count)
+        if (have < 7)
+            return 0; // need the 2-byte count before we know the length
+        return 7 + TNFS_UINT16_FROM_LOHI_BYTEPTR(buf + 5);
+
+    case TNFS_CMD_READDIRX:
+        return _tnfs_tcp_readdirx_length(buf, have);
+
+    case TNFS_CMD_READDIR: // status + null-terminated filename
+        for (int i = 5; i < have; i++)
+            if (buf[i] == '\0')
+                return i + 1;
+        return 0; // terminator not yet received
+
+    case TNFS_CMD_STAT:       return 5 + 0x16; // status + TNFS_STAT_SIZE (22)
+    case TNFS_CMD_OPENDIRX:   return 8;  // handle(1) + entrycount(2)
+    case TNFS_CMD_WRITE:      return 7;  // count(2)
+    case TNFS_CMD_LSEEK:      return 9;  // position(4)
+    case TNFS_CMD_TELLDIR:    return 9;  // position(4)
+    case TNFS_CMD_SIZE:       return 9;  // kbytes(4)
+    case TNFS_CMD_FREE:       return 9;  // kbytes(4)
+    case TNFS_CMD_SIZE_BYTES: return 13; // bytes(8)
+    case TNFS_CMD_FREE_BYTES: return 13; // bytes(8)
+    case TNFS_CMD_OPEN:       return 6;  // handle(1)
+    case TNFS_CMD_OPENDIR:    return 6;  // handle(1)
+
+    // Commands whose success reply is the status byte only.
+    case TNFS_CMD_UNMOUNT:
+    case TNFS_CMD_CLOSEDIR:
+    case TNFS_CMD_MKDIR:
+    case TNFS_CMD_RMDIR:
+    case TNFS_CMD_SEEKDIR:
+    case TNFS_CMD_CLOSE:
+    case TNFS_CMD_UNLINK:
+    case TNFS_CMD_CHMOD:
+    case TNFS_CMD_RENAME:
+        return 5;
+
+    default:
+        // Unknown command: assume status-only so we can re-sync.
+        return 5;
+    }
+}
+
 int _tnfs_tcp_recv(tnfsMountInfo *m_info, tnfsPacket &pkt)
 {
     fnTcpClient *tcp = &m_info->tcp_client;
-    if (!tcp->connected())
+
+    // Pull any new bytes into the reassembly buffer; a whole message may already
+    // be buffered from a previous read, so proceed even if nothing new arrived.
+    if (tcp->connected())
     {
-        return -1;
+        int space = (int)sizeof(m_info->tcp_recv_buffer) - m_info->tcp_recv_len;
+        if (space > 0 && tcp->available())
+        {
+            int got = tcp->read(m_info->tcp_recv_buffer + m_info->tcp_recv_len, space);
+            if (got > 0)
+                m_info->tcp_recv_len += got;
+        }
     }
-    if (!tcp->available())
+    else if (m_info->tcp_recv_len == 0)
     {
-        return -1;
+        return -1; // disconnected and nothing buffered to process
     }
-    return tcp->read(pkt.rawData, sizeof(pkt.rawData));
+
+    // Is there a complete TNFS message at the front of the buffer yet?
+    int msg_len = _tnfs_tcp_response_length(m_info->tcp_recv_buffer, m_info->tcp_recv_len);
+    if (msg_len <= 0 || msg_len > m_info->tcp_recv_len)
+    {
+        // Not complete. A bogus oversized length, or a full buffer with no
+        // complete message, means the stream is desynced -- drop it to re-sync.
+        if (msg_len > (int)sizeof(m_info->tcp_recv_buffer) ||
+            m_info->tcp_recv_len >= (int)sizeof(m_info->tcp_recv_buffer))
+        {
+            Debug_println("TNFS TCP reassembly buffer full without a complete message; resetting");
+            m_info->tcp_recv_len = 0;
+        }
+        return -1; // behave like "no response yet"; caller keeps polling
+    }
+
+    // Hand out exactly one message and retain any remainder for the next call.
+    if (msg_len > (int)sizeof(pkt.rawData))
+        msg_len = (int)sizeof(pkt.rawData); // clamp defensively
+    memcpy(pkt.rawData, m_info->tcp_recv_buffer, msg_len);
+
+    int remainder = m_info->tcp_recv_len - msg_len;
+    if (remainder > 0)
+        memmove(m_info->tcp_recv_buffer, m_info->tcp_recv_buffer + msg_len, remainder);
+    m_info->tcp_recv_len = remainder;
+
+    return msg_len;
 }
 
 #ifndef TNFS_UDP_SIMULATE_POOR_CONNECTION
@@ -1457,16 +1607,26 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
     // Set sequence number before the transaction loop
     reqPkt.sequence_num = m_info->current_sequence_num++;
 
+    // Whether we've already dropped+reconnected the TCP connection for this
+    // request (we only do it once; see _tnfs_send_recv).
+    bool tcp_reconnected = false;
+
+    // Consume the one-shot quiet flag: suppress timeout/retry logging for this
+    // transaction (set by the idle keep-alive so its reconnects don't spam).
+    bool quiet = m_info->quiet_transaction;
+    m_info->quiet_transaction = false;
+
     // Start a new retry sequence
     for (int retry = 0; retry < m_info->max_retries; retry++)
     {
-        switch(_tnfs_send_recv(udp, m_info, reqPkt, payload_size, pkt))
+        switch(_tnfs_send_recv(udp, m_info, reqPkt, payload_size, pkt, tcp_reconnected, quiet))
         {
             case SUCCESS:
             return true;
 
             case RESET:
             retry = -1;
+            tcp_reconnected = false;
             continue;
 
             case FAILED:
@@ -1479,12 +1639,13 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
         fnSystem.delay(m_info->min_retry_ms);
     }
 
-    Debug_printf("Retry attempts failed for host: %s, path: %s, cwd: %s\r\n", m_info->hostname, m_info->mountpath, m_info->current_working_directory);
+    if (!quiet)
+        Debug_printf("Retry attempts failed for host: %s, path: %s, cwd: %s\r\n", m_info->hostname, m_info->mountpath, m_info->current_working_directory);
 
     return false;
 }
 
-_tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt)
+_tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt, bool &tcp_reconnected, bool quiet)
 {
 #ifdef DEBUG
     _tnfs_debug_packet(req_pkt, payload_size);
@@ -1494,7 +1655,8 @@ _tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPa
     bool sent = _tnfs_send(&udp, m_info, req_pkt, payload_size);
     if (!sent)
     {
-        Debug_println("Failed to send packet - retrying");
+        if (!quiet)
+            Debug_println("Failed to send packet - retrying");
         return FAILED;
     }
 
@@ -1552,7 +1714,30 @@ _tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPa
         return RESET;
     }
 
-    Debug_printf("Timeout after %d milliseconds. Retrying\r\n", m_info->timeout_ms);
+    // On TCP a timeout almost always means the connection has gone stale (e.g.
+    // dropped by a NAT/firewall during an idle period) rather than a lost packet
+    // -- TCP already guarantees delivery. Drop the connection ONCE per request so
+    // the next retry reconnects fresh and sends once; further retries of the same
+    // request just keep waiting on the new connection. This avoids a reconnect
+    // storm (and a flood of log lines) when a host is persistently unreachable.
+    // The session is keyed by SID so it survives the reconnect, and the server's
+    // seqno cache resends the same response, so no read is executed twice.
+    if (m_info->protocol == TNFS_PROTOCOL_TCP)
+    {
+        if (!tcp_reconnected)
+        {
+            tcp_reconnected = true;
+            m_info->tcp_client.stop();
+            m_info->tcp_recv_len = 0;
+            m_info->tcp_last_sent_seq = -1;
+            if (!quiet)
+                Debug_printf("Timeout after %d milliseconds; reconnecting to %s\r\n", m_info->timeout_ms, m_info->hostname);
+        }
+        return FAILED;
+    }
+
+    if (!quiet)
+        Debug_printf("Timeout after %d milliseconds. Retrying\r\n", m_info->timeout_ms);
     return FAILED;
 }
 
