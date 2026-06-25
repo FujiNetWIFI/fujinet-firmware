@@ -56,7 +56,7 @@ void adamFuji::adamnet_set_boot_config()
     boot_config = adamnet_recv();
     adamnet_recv();
 
-    SYSTEM_BUS.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
     adamnet_response_ack();
 
     Debug_printf("Boot config is now %d\n", boot_config);
@@ -131,14 +131,14 @@ void adamFuji::adamnet_new_disk()
     if (new_disk_completed)
     {
         new_disk_completed = false;
-        SYSTEM_BUS.start_time = esp_timer_get_time();
+        SYSTEM_BUS.start_time = GET_TIMESTAMP();
         adamnet_response_ack();
         return;
     }
 
     disk.host_slot = hs;
     disk.access_mode = DISK_ACCESS_MODE_WRITE;
-    strlcpy(disk.filename, (const char *)p, 256);
+    snprintf(disk.filename, 256, "%s", (const char *)p);
 
     disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
 
@@ -183,7 +183,7 @@ void adamFuji::adamnet_enable_device()
 
     adamnet_recv();
 
-    SYSTEM_BUS.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
     adamnet_response_ack();
 
     switch (d)
@@ -218,7 +218,7 @@ void adamFuji::adamnet_disable_device()
 
     adamnet_recv();
 
-    SYSTEM_BUS.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
     adamnet_response_ack();
 
     switch (d)
@@ -302,7 +302,7 @@ void adamFuji::adamnet_random_number()
 
     adamnet_recv(); // CK
 
-    SYSTEM_BUS.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
     adamnet_response_ack();
 
     response_len = sizeof(int);
@@ -314,7 +314,7 @@ void adamFuji::adamnet_get_time()
     Debug_println("FUJI GET TIME");
     adamnet_recv(); // CK
 
-    SYSTEM_BUS.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
     adamnet_response_ack();
 
     time_t tt = time(nullptr);
@@ -353,7 +353,7 @@ void adamFuji::adamnet_device_enable_status()
     uint8_t d = adamnet_recv();
     adamnet_recv(); // CK
 
-    SYSTEM_BUS.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
 
     if (SYSTEM_BUS.deviceExists(d))
         adamnet_response_ack();

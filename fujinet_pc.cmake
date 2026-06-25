@@ -409,11 +409,6 @@ if(FUJINET_TARGET STREQUAL "COCO")
 endif()
 
 if(FUJINET_TARGET STREQUAL "ADAM")
-    # PC shims for the FreeRTOS/esp_timer subset the AdamNet bus+devices use.
-    # Prepended so it is searched first; ADAM-only so it never affects ESP or
-    # other PC targets (the shimmed headers don't exist on the PC path anyway).
-    set(INCLUDE_DIRS lib/compat/pc_rtos ${INCLUDE_DIRS})
-
     # The adam bus/device/media sources include each other by bare filename.
     # APPEND (after the base lib/device, lib/bus, lib/media) so shared names like
     # disk.h / network.h / printer.h still resolve to the base platform-dispatch
@@ -421,8 +416,6 @@ if(FUJINET_TARGET STREQUAL "ADAM")
     list(APPEND INCLUDE_DIRS lib/bus/adamnet lib/device/adamnet lib/media/adam)
 
     list(APPEND SOURCES
-
-    lib/compat/pc_rtos/pc_rtos.cpp
 
     lib/printer-emulator/coleco_printer.h lib/printer-emulator/coleco_printer.cpp
 
