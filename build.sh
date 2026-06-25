@@ -224,8 +224,16 @@ normalize_path() {
 
 same_dir() {
     [ -d "$1" ] && [ -d "$2" ] || return 1
-    stat1=$(stat -c "%d:%i" "$1")
-    stat2=$(stat -c "%d:%i" "$2")
+    # Use -f for macOS, -c for Linux
+    if stat -f "%d:%i" "$1" >/dev/null 2>&1; then
+        # macOS
+        stat1=$(stat -f "%d:%i" "$1")
+        stat2=$(stat -f "%d:%i" "$2")
+    else
+        # Linux
+        stat1=$(stat -c "%d:%i" "$1")
+        stat2=$(stat -c "%d:%i" "$2")
+    fi
     [ "$stat1" = "$stat2" ]
 }
 
@@ -289,6 +297,8 @@ fi
 # PC BUILD using cmake
 if [ ! -z "$PC_TARGET" ] ; then
   echo "PC Build Mode"
+  # Convert PC_TARGET to uppercase for CMake compatibility
+  PC_TARGET="${PC_TARGET^^}"
   # lets build_webui.py know we are using the generated INI file, this variable name is the one PIO uses when it calls subprocesses, so we use same name.
   export PROJECT_CONFIG=$INI_FILE
   GEN_CMD=""
