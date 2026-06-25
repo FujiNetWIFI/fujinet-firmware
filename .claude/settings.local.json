@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(z80asm --version)",
+      "Bash(z80asm)",
+      "Bash(z80asm -h)",
+      "Bash(z80asm -b -r=0xFF00 -o=/tmp/bios_test.bin cbios/bios.asm)",
+      "Bash(z80asm *)",
+      "Bash(python3 *)",
+      "Bash(CPMTOOLSFMT=/home/bkrein/code/fujinet/fujinet-osborne/diskdefs cpmls -f osborne1ss bootdisk.img)"
+    ]
+  }
+}
