@@ -205,6 +205,7 @@ set(SOURCES src/main.cpp
     lib/tcpip/fnUDP.h lib/tcpip/fnUDP.cpp
     lib/tcpip/fnTcpClient.h lib/tcpip/fnTcpClient.cpp
     lib/tcpip/fnTcpServer.h lib/tcpip/fnTcpServer.cpp
+    lib/tcpip/fnTcpsConnection.h lib/tcpip/fnTcpsConnection.cpp
     lib/ftp/fnFTP.h lib/ftp/fnFTP.cpp
     lib/TNFSlib/tnfslibMountInfo.h lib/TNFSlib/tnfslibMountInfo.cpp
     lib/TNFSlib/tnfslib.h lib/TNFSlib/tnfslib.cpp
@@ -248,6 +249,7 @@ set(SOURCES src/main.cpp
     lib/network-protocol/GDRIVE.h lib/network-protocol/GDRIVE.cpp
     lib/network-protocol/Test.h lib/network-protocol/Test.cpp
     lib/network-protocol/TCP.h lib/network-protocol/TCP.cpp
+    lib/network-protocol/TCPS.h lib/network-protocol/TCPS.cpp
     lib/network-protocol/UDP.h lib/network-protocol/UDP.cpp
     lib/network-protocol/Telnet.h lib/network-protocol/Telnet.cpp
     lib/network-protocol/FS.h lib/network-protocol/FS.cpp
