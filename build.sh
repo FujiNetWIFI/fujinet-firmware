@@ -81,7 +81,7 @@ function show_help {
   echo ""
   echo "fujinet-pc (cmake) options:"
   echo "   -c       # run clean before build"
-  echo "   -p TGT   # perform PC build instead of ESP, for given target (e.g. APPLE|ATARI)"
+  echo "   -p TGT   # perform PC build instead of ESP, for given target (e.g. APPLE|ATARI|ADAM)"
   echo "   -g       # enable debug in generated fujinet-pc exe"
   echo "   -G GEN   # Use GEN as the Generator for cmake (e.g. -G \"Unix Makefiles\" )"
   echo ""

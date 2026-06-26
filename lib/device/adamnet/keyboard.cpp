@@ -3,7 +3,7 @@
 #include "keyboard.h"
 
 
-TaskHandle_t kbTask;
+//TaskHandle_t kbTask;
 
 // ctor
 adamKeyboard::adamKeyboard()

@@ -571,10 +571,9 @@ void fn_service_loop(void *param)
         Debug_printv("Low Heap: %lu",esp_get_free_internal_heap_size());
   #endif
 #endif
-#ifndef BUILD_ADAM
-        // ADAM runs the bus service in its own high-priority core-1 task
-        // (see adamnet_bus_task); calling it here too would double-service the
-        // UART from two tasks and race. Every other platform services it here.
+#if !(defined(BUILD_ADAM) && defined(ESP_PLATFORM))
+        // ESP ADAM services the bus in its own core-1 task; every other build
+        // (including ADAM PC) services it here from the main loop.
         SYSTEM_BUS.service();
 #endif
 

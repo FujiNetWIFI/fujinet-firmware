@@ -1,7 +1,6 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
-#include <esp_timer.h>
 #include <memory>
 #include <string>
 
@@ -40,11 +39,6 @@ public:
      * Destructor
      */
     virtual ~adamNetwork();
-
-    /**
-     * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
-     */
-    portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
     /**
      * Toggled by the rate limiting timer to indicate that the PROCEED interrupt should
@@ -212,11 +206,6 @@ private:
         } bits;
         unsigned char byte;
     } statusByte;
-
-    /**
-     * ESP timer handle for the Interrupt rate limiting timer
-     */
-    esp_timer_handle_t rateTimerHandle = nullptr;
 
     /**
      * Devicespec passed to us, e.g. N:HTTP://WWW.GOOGLE.COM:80/

@@ -22,12 +22,12 @@ protected:
     // Consume the trailing checksum and ACK, once the full payload has been read.
     void deferred_ack() {
         adamnet_recv(); // CK
-        SYSTEM_BUS.start_time = esp_timer_get_time();
+        SYSTEM_BUS.start_time = GET_TIMESTAMP();
         adamnet_response_ack();
         _ack_deferred = false;
     }
     void transaction_begin(transState_t expectMoreData) override {
-        SYSTEM_BUS.start_time = esp_timer_get_time();
+        SYSTEM_BUS.start_time = GET_TIMESTAMP();
         if (expectMoreData == TRANS_STATE::WILL_GET)
         {
             _ack_deferred = true;
@@ -44,7 +44,7 @@ protected:
         if (_ack_deferred)
         {
             SYSTEM_BUS.wait_for_idle();
-            SYSTEM_BUS.start_time = esp_timer_get_time();
+            SYSTEM_BUS.start_time = GET_TIMESTAMP();
             adamnet_response_ack();
             _ack_deferred = false;
         }

@@ -7,8 +7,7 @@
 
 #include "cmdFrame.h"
 #include "UARTChannel.h"
-#include <freertos/FreeRTOS.h>
-#include <freertos/queue.h>
+#include "BoIPChannel.h"
 
 #include <map>
 
@@ -269,14 +268,21 @@ private:
     adamFuji *_fujiDev = nullptr;
     adamPrinter *_printerDev = nullptr;
 
-    UARTChannel _port;
+    // _port = UART on hardware, or a TCP socket to an emulator on PC (Bus over IP).
+    UARTChannel _serial;
+#ifndef ESP_PLATFORM
+    BoIPChannel _netadam;
+#endif
+    IOChannel *_port = nullptr;
 
     // Bytes transmitted while handling the current command; lets us drain
     // exactly our own half-duplex bus echo afterward.
     size_t _tx_count = 0;
 
     void _adamnet_process_cmd();
+#ifdef ESP_PLATFORM
     void _adamnet_process_queue();
+#endif /* ESP_PLATFORM */
 
 public:
     void setup();
@@ -345,29 +351,31 @@ public:
     virtualDevice *deviceById(uint8_t device_id);
     void changeDeviceId(virtualDevice *pDevice, uint8_t device_id);
     bool deviceEnabled(uint8_t device_id);
+#ifdef ESP_PLATFORM
     QueueHandle_t qAdamNetMessages = nullptr;
+#endif /* ESP_PLATFORM */
 
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
 
     // Everybody thinks "oh I know how a serial port works, I'll just
     // access it directly and bypass the bus!" ಠ_ಠ
-    size_t read(void *buffer, size_t length) { return _port.read(buffer, length); }
-    size_t read() { return _port.read(); }
-    size_t write(const void *buffer, size_t length) { _tx_count += length; return _port.write(buffer, length); }
-    size_t write(int n) { _tx_count += 1; return _port.write(n); }
-    size_t available() { return _port.available(); }
-    void flush() { _port.flushOutput(); }
+    size_t read(void *buffer, size_t length) { return _port->read(buffer, length); }
+    size_t read() { return _port->read(); }
+    size_t write(const void *buffer, size_t length) { _tx_count += length; return _port->write(buffer, length); }
+    size_t write(int n) { _tx_count += 1; return _port->write(n); }
+    size_t available() { return _port->available(); }
+    void flush() { _port->flushOutput(); }
 
     // Protect a large response (a 1028-byte disk block) while it streams.
     void quiet_rx_for_send(bool on) {
 #ifdef ESP_PLATFORM
-        _port.setRXThreshold(on ? 120 : 1);
+        _serial.setRXThreshold(on ? 120 : 1);
 #endif
     }
-    size_t print(int n, int base = 10) { return _port.print(n, base); }
-    size_t print(const char *str) { return _port.print(str); }
-    size_t print(const std::string &str) { return _port.print(str); }
+    size_t print(int n, int base = 10) { return _port->print(n, base); }
+    size_t print(const char *str) { return _port->print(str); }
+    size_t print(const std::string &str) { return _port->print(str); }
 };
 
 extern systemBus SYSTEM_BUS;

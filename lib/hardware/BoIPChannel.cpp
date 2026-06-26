@@ -42,6 +42,9 @@ BoIPChannel::BoIPChannel() :
     _ip(IPADDR_NONE),
     _port(BOIP_DEFAULT_PORT),
     _listening(true),
+    _local_echo(false),
+    _non_blocking(false),
+    _no_delay(true),
     _fd(-1),
     _listen_fd(-1),
     _state(BoIPStopped),
@@ -63,6 +66,8 @@ void BoIPChannel::begin(const BoIPConfig& conf)
     read_timeout_ms = conf.read_timeout_ms;
     discard_timeout_ms = conf.discard_timeout_ms;
     _local_echo = conf.local_echo;
+    _non_blocking = conf.non_blocking;
+    _no_delay = conf.no_delay;
 
     _listening = conf.listening;
     // listen or connect
@@ -232,6 +237,14 @@ void BoIPChannel::make_connection()
         return;
     }
 
+    // Disable Nagle (when enabled) so tiny replies aren't batched into stalls.
+    if (_no_delay)
+    {
+        int val = 1;
+        if (setsockopt(_fd, IPPROTO_TCP, TCP_NODELAY, (char *)&val, sizeof(val)) < 0)
+            Debug_printf("BoIPChannel warning: failed to set NODELAY on socket\n");
+    }
+
 #ifdef USE_SO_NOSIGPIPE
     // Set NOSIGPIPE socket option (old macOS)
     int enable = 1;
@@ -326,7 +339,7 @@ bool BoIPChannel::accept_connection()
     {
         Debug_printf("BoIPChannel warning: failed to set KEEPALIVE on socket\n");
     }
-    if (setsockopt(_fd, IPPROTO_TCP, TCP_NODELAY, (char *)&val, sizeof(val)) < 0)
+    if (_no_delay && setsockopt(_fd, IPPROTO_TCP, TCP_NODELAY, (char *)&val, sizeof(val)) < 0)
     {
         Debug_printf("BoIPChannel warning: failed to set NODELAY on socket\n");
     }
@@ -600,7 +613,9 @@ bool BoIPChannel::wait_sock_writable(uint32_t timeout_ms)
 
 void BoIPChannel::updateFIFO()
 {
-    poll_connection(1);
+    // Block 1ms by default so callers without their own idle throttle don't
+    // spin at 100% CPU; non_blocking callers (e.g. AdamNet) throttle via poll().
+    poll_connection(_non_blocking ? 0 : 1);
 
     // only in connected state
     if (_state != BoIPConnected)

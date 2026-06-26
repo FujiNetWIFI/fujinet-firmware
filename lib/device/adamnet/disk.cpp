@@ -115,12 +115,12 @@ error_is_true adamDisk::write_blank(fnFile *fileh, uint32_t numBlocks)
 
 void adamDisk::adamnet_control_clr()
 {
-    int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
-
-    if (t < 1500)
-    {
-        adamnet_response_send();
-    }
+#ifdef ESP_PLATFORM
+    // Real bus only: stream the block only inside the master's window.
+    if (GET_TIMESTAMP() - SYSTEM_BUS.start_time >= 1500)
+        return;
+#endif
+    adamnet_response_send();
 }
 
 void adamDisk::adamnet_control_receive()
@@ -129,7 +129,7 @@ void adamDisk::adamnet_control_receive()
         return;
 
     // Seek emulation.
-    if (esp_timer_get_time() < _seek_deadline)
+    if (GET_TIMESTAMP() < _seek_deadline)
     {
         _seek_is_read = true;
         _media->read(blockNum, nullptr);
@@ -173,13 +173,13 @@ void adamDisk::adamnet_control_send_block_num()
         _media->format(NULL);
     }
 
-    SYSTEM_BUS.start_time=esp_timer_get_time();
+    SYSTEM_BUS.start_time=GET_TIMESTAMP();
 
     adamnet_response_ack();
 
     Debug_printf("BLOCK: %lu\n", blockNum);
 
-    int64_t now = esp_timer_get_time();
+    int64_t now = GET_TIMESTAMP();
     // Each new block# starts unclassified; a following RECEIVE marks it a read.
     _seek_is_read = false;
 
@@ -200,7 +200,7 @@ void adamDisk::adamnet_control_send_block_data()
 
     adamnet_recv_buffer(_media->_media_blockbuff, 1024);
     adamnet_recv(); // CK -- consume the trailing checksum so the packet is fully read
-    SYSTEM_BUS.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
     adamnet_response_ack();
 
     if (is_config_device)
@@ -231,7 +231,7 @@ void adamDisk::adamnet_control_send()
 
 void adamDisk::adamnet_response_status()
 {
-    if (_media != nullptr && _seek_is_read && esp_timer_get_time() < _seek_deadline)
+    if (_media != nullptr && _seek_is_read && GET_TIMESTAMP() < _seek_deadline)
     {
         SYSTEM_BUS.stall_silent = true;
         return;
@@ -242,12 +242,12 @@ void adamDisk::adamnet_response_status()
     else
         status_response.status = 0x40 | _media->_media_controller_status;
 
-    int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
-
-    if (t < 300)
-    {
-        virtualDevice::adamnet_response_status();
-    }
+#ifdef ESP_PLATFORM
+    // Real bus only: answer only inside the master's status window.
+    if (GET_TIMESTAMP() - SYSTEM_BUS.start_time >= 300)
+        return;
+#endif
+    virtualDevice::adamnet_response_status();
 }
 
 void adamDisk::adamnet_response_send()

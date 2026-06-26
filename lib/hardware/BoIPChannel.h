@@ -22,6 +22,8 @@ struct BoIPConfig
     uint16_t port = BOIP_DEFAULT_PORT;
     bool listening = true;
     bool local_echo = false;
+    bool non_blocking = false;
+    bool no_delay = true;
     double read_timeout_ms = BOIP_IOWAIT_MS;
     double discard_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
 
@@ -39,6 +41,14 @@ struct BoIPConfig
     }
     BoIPConfig& localEcho(bool e = true) {
         local_echo = e; return *this;
+    }
+    // Non-blocking updateFIFO(); caller must throttle idle CPU itself via poll().
+    BoIPConfig& nonBlocking(bool nb = true) {
+        non_blocking = nb; return *this;
+    }
+    // TCP_NODELAY: disable Nagle for tiny request/response packets. On by default.
+    BoIPConfig& noDelay(bool nd = true) {
+        no_delay = nd; return *this;
     }
     BoIPConfig& readTimeout(double millis) {
         read_timeout_ms = millis; return *this;
@@ -58,6 +68,8 @@ private:
     // is waiting for connection (listening) or connecting to?
     bool _listening;
     bool _local_echo;
+    bool _non_blocking;
+    bool _no_delay;
 
     // file descriptors
     int _fd;
