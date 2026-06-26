@@ -188,6 +188,10 @@ protected:
      */
     uint8_t _devnum;
 
+    // PC/BoIP: bypass the 300us response window (a slow host can blow it). Only
+    // for re-polled block devices; single-shot devices keep it.
+    bool _pc_no_response_deadline = false;
+
     virtual void shutdown() {}
 
     /**
