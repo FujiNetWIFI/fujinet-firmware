@@ -1370,9 +1370,9 @@ void fujiDevice::fujicmd_set_host_prefix(uint8_t hostSlot, const char *prefix)
 {
     char buffer[MAX_HOST_PREFIX_LEN];
 
-    transaction_begin(TRANS_STATE::WILL_GET);
     if (!prefix)
     {
+        transaction_begin(TRANS_STATE::WILL_GET);
         if (!transaction_get(buffer, MAX_FILENAME_LEN))
         {
             transaction_error();
@@ -1380,6 +1380,8 @@ void fujiDevice::fujicmd_set_host_prefix(uint8_t hostSlot, const char *prefix)
         }
         prefix = buffer;
     }
+    else
+        transaction_begin(TRANS_STATE::NO_GET);
 
     Debug_printf("Fuji cmd: SET HOST PREFIX %uh \"%s\"\n", hostSlot, prefix);
 
