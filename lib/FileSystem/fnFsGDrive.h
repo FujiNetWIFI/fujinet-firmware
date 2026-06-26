@@ -20,29 +20,20 @@
 #include "fnDirCache.h"
 
 /**
- * FileSystemGDrive
- *
- * Google Drive as a FujiNet *host slot*. A user puts "GDRIVE:///" (optionally
- * with a starting path) in a host slot and can then browse folders and mount
- * media images straight from their Drive.
- *
- * Directory listings come from the Drive REST API; opening a file downloads it
- * in full to the local file cache (memory or SD) and hands back a FileHandler,
- * exactly like the FTP and HTTP host filesystems. All Drive REST + OAuth2 token
- * work is delegated to the shared GoogleDriveClient.
+ * Google Drive as a FujiNet host slot. Listings come from the Drive REST API;
+ * opening a file downloads it to the local cache (memory or SD) and returns a
+ * FileHandler, like the FTP/HTTP host filesystems. Drive REST + OAuth2 work is
+ * delegated to the shared GoogleDriveClient.
  */
 class FileSystemGDrive : public FileSystem
 {
 private:
-    // Shared Google Drive REST + OAuth2 token helper.
     GoogleDriveClient _gdrive;
 
-    // Host-slot URL string ("GDRIVE:///..."), used as the file-cache host key.
+    // Host-slot URL ("GDRIVE:///..."), used as the file-cache host key.
     std::string _rawurl;
 
-    // Paths opened with write intent that may need uploading back to Drive.
-    // Keyed by the (already prefix-resolved) path that file_open() received,
-    // which matches what sync_file() is later called with at unmount.
+    // Paths opened with write intent, to upload back on unmount (sync_file).
     std::set<std::string> _dirty;
 
     // directory cache
@@ -65,8 +56,7 @@ public:
 
     bool exists(const char *path) override;
 
-    // Upload a locally-written/created image back to Google Drive. Only files
-    // that were opened with write intent (tracked in _dirty) are uploaded.
+    // Upload a locally-written image back to Drive (only _dirty paths).
     success_is_true sync_file(const char *path) override;
 
     success_is_true remove(const char *path) override;
@@ -89,20 +79,16 @@ public:
 #endif
 
 private:
-    // Stream a Drive file's content (?alt=media) for the given file id, passing
-    // each chunk to sink(). sink returns false to abort. Returns true on a
-    // complete, successful download.
+    // Stream a Drive file (?alt=media) to sink() (returns false to abort).
     bool stream_download(const std::string &file_id,
                          const std::function<bool(const uint8_t *, int)> &sink);
 
-    // Upload `len` bytes pulled from read_chunk() to Drive at `path` (create or
-    // update), then clear the dirty flag on success. Shared by the stdio (FILE*)
-    // and FileHandler sync_file paths.
+    // Upload `len` bytes from read_chunk() to Drive at `path`, then clear dirty.
     success_is_true upload_path(const char *path, size_t len,
                                 const std::function<int(uint8_t *, int)> &read_chunk);
 
 #ifdef FNIO_IS_STDIO
-    // SD-card cache path (relative to SD root) for a Drive file at `path`.
+    // SD-card cache path for a Drive file at `path`.
     std::string cache_file_path(const char *path);
 #endif
 };

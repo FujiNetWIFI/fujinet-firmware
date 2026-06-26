@@ -19,10 +19,10 @@
 #define COPY_BLK_SIZE 4096
 
 #ifdef FNIO_IS_STDIO
-// On stdio targets (e.g. ADAM) there is no FileHandler/FileCache; Drive files
-// are cached to the SD card and served as a FILE*.
+// stdio targets (e.g. ADAM) have no FileHandler/FileCache; Drive files are
+// cached to the SD card and served as a FILE*.
 #define GDRIVE_CACHE_DIR        "/FujiNet/cache"
-// Cached file is reused if it is younger than this (seconds), like fnFileCache.
+// Reuse a cached file younger than this (seconds), like fnFileCache.
 #define GDRIVE_CACHE_MAX_AGE    10800
 #endif
 
@@ -47,14 +47,10 @@ success_is_true FileSystemGDrive::start(const char *url, const char *user, const
     if (url == nullptr || url[0] == '\0')
         RETURN_ERROR_AS_FALSE();
 
-    // The host string is just the GDRIVE:// scheme (Drive itself is the host);
-    // keep it verbatim as the file-cache key so cached images are namespaced
-    // per host slot.
+    // Keep the URL verbatim as the file-cache key (namespaces cache per slot).
     _rawurl = url;
 
-    // We need a usable OAuth2 access token to talk to Drive. If the user has
-    // not authorized (no refresh token), fail the mount so the slot shows as
-    // disconnected rather than silently empty.
+    // Fail the mount if unauthorized, so the slot shows disconnected.
     if (!_gdrive.ensure_access_token())
     {
         Debug_printf("FileSystemGDrive::start() - no Google Drive access token (authorize in web UI first)\n");
@@ -77,8 +73,6 @@ bool FileSystemGDrive::exists(const char *path)
     return found;
 }
 
-// Upload `len` bytes pulled from read_chunk() to Drive at `path` (create or
-// update), then clear the dirty flag on success.
 success_is_true FileSystemGDrive::upload_path(const char *path, size_t len,
         const std::function<int(uint8_t *, int)> &read_chunk)
 {
@@ -108,7 +102,7 @@ success_is_true FileSystemGDrive::upload_path(const char *path, size_t len,
     }
 
     _dirty.erase(path);
-    _last_dir[0] = '\0'; // directory listing may have changed
+    _last_dir[0] = '\0'; // listing may have changed
     Debug_printf("FileSystemGDrive::sync_file - uploaded %s\n", path);
     RETURN_SUCCESS_AS_TRUE();
 }
@@ -118,12 +112,12 @@ success_is_true FileSystemGDrive::sync_file(const char *path)
     if (!_started || path == nullptr)
         RETURN_ERROR_AS_FALSE();
 
-    // Only upload files that were opened for writing in this session.
+    // Only upload files opened for writing this session.
     if (_dirty.find(path) == _dirty.end())
-        RETURN_SUCCESS_AS_TRUE(); // nothing to push back
+        RETURN_SUCCESS_AS_TRUE();
 
 #ifdef FNIO_IS_STDIO
-    // stdio: the image was written straight to an SD cache FILE*; read it back.
+    // stdio: the image is in an SD cache FILE*; read it back.
     if (!fnSDFAT.running())
         RETURN_ERROR_AS_FALSE();
 
@@ -152,8 +146,8 @@ success_is_true FileSystemGDrive::sync_file(const char *path)
     fclose(in);
     return ok;
 #else
-    // FileHandler/FileCache: the writable cache was forced onto SD (see
-    // cache_file), so reopen it for reading and upload.
+    // FileHandler/FileCache: writable cache was forced onto SD (see cache_file);
+    // reopen for reading and upload.
     FileHandler *in = FileCache::open(_rawurl.c_str(), path, "rb");
     if (in == nullptr)
     {
@@ -190,16 +184,14 @@ success_is_true FileSystemGDrive::remove(const char *path)
     if (id.empty())
         RETURN_ERROR_AS_FALSE();
 
-    // Removing changes the listing — invalidate the cached directory.
-    _last_dir[0] = '\0';
+    _last_dir[0] = '\0'; // listing changed
 
     RETURN_SUCCESS_IF(_gdrive.api_delete(std::string(GDRIVE_FILES_URL) + "/" + id));
 }
 
 success_is_true FileSystemGDrive::rename(const char *pathFrom, const char *pathTo)
 {
-    // Google Drive rename requires a PATCH on the file metadata, which is not
-    // implemented here (mirrors NetworkProtocolGDRIVE::rename_implemented=false).
+    // Drive rename needs a metadata PATCH; not implemented.
     Debug_printf("FileSystemGDrive::rename() - not supported\n");
     RETURN_ERROR_AS_FALSE();
 }
@@ -207,13 +199,7 @@ success_is_true FileSystemGDrive::rename(const char *pathFrom, const char *pathT
 FILE *FileSystemGDrive::file_open(const char *path, const char *mode)
 {
 #ifdef FNIO_IS_STDIO
-    // stdio targets (e.g. ADAM) have no FileHandler/FileCache. Drive files are
-    // cached to the SD card and served as a FILE*.
-    //
-    // NOTE: writes/creates are LOCAL ONLY for now — a newly created or modified
-    // image lives in the SD cache (so it can be created and used within this
-    // session) but is NOT uploaded back to Google Drive yet. Pushing changes
-    // back needs an upload on disk-image unmount (TODO).
+    // stdio targets (e.g. ADAM): cache Drive files to SD and serve as a FILE*.
     Debug_printf("FileSystemGDrive::file_open(\"%s\", \"%s\")\n", path, mode);
 
     if (!_started || path == nullptr || mode == nullptr)
@@ -228,16 +214,13 @@ FILE *FileSystemGDrive::file_open(const char *path, const char *mode)
     const bool truncating = (mode[0] == 'w');                  // create/overwrite
     const bool writing    = (strpbrk(mode, "wa+") != nullptr); // any write intent
 
-    // Remember write-intent opens so the image is uploaded back to Drive when
-    // the disk is unmounted (see sync_file()).
+    // Track write-intent opens for upload on unmount (sync_file()).
     if (writing)
         _dirty.insert(path);
 
     std::string cache_path = cache_file_path(path);
 
-    // Reuse a recent cache file if present (avoids re-downloading on re-mount,
-    // and lets a just-created local image be mounted in this session). Skip for
-    // 'w' which is meant to start from an empty file.
+    // Reuse a recent cache file if present. Skip for 'w' (starts empty).
     if (!truncating)
     {
         long mt = fnSDFAT.mtime(cache_path.c_str());
@@ -258,10 +241,10 @@ FILE *FileSystemGDrive::file_open(const char *path, const char *mode)
         return nullptr;
     }
 
-    // 'w'/'w+' starts from an empty local file regardless of what's on Drive.
+    // 'w'/'w+' starts from an empty local file regardless of Drive.
     if (truncating)
     {
-        Debug_printf("FileSystemGDrive: creating local-only file %s (not uploaded to Drive)\n", path);
+        Debug_printf("FileSystemGDrive: creating local file %s\n", path);
         fnSDFAT.create_path(GDRIVE_CACHE_DIR);
         return fnSDFAT.file_open(cache_path.c_str(), mode);
     }
@@ -269,11 +252,10 @@ FILE *FileSystemGDrive::file_open(const char *path, const char *mode)
     std::string file_id = _gdrive.resolve_path(path);
     if (file_id.empty())
     {
-        // Nothing on Drive. For append-create, start a new local file; for a
-        // pure read this is a genuine "not found".
+        // Not on Drive: append-create starts a new local file; read is "not found".
         if (writing)
         {
-            Debug_printf("FileSystemGDrive: creating local-only file %s (not uploaded to Drive)\n", path);
+            Debug_printf("FileSystemGDrive: creating local file %s\n", path);
             fnSDFAT.create_path(GDRIVE_CACHE_DIR);
             return fnSDFAT.file_open(cache_path.c_str(), mode);
         }
@@ -281,8 +263,7 @@ FILE *FileSystemGDrive::file_open(const char *path, const char *mode)
         return nullptr;
     }
 
-    // File exists on Drive — download it to the cache, then open in the
-    // requested mode (read, or read/write for local-only edits).
+    // Exists on Drive: download to cache, then open in the requested mode.
     fnSDFAT.create_path(GDRIVE_CACHE_DIR);
     FILE *out = fnSDFAT.file_open(cache_path.c_str(), "wb");
     if (out == nullptr)
@@ -310,8 +291,6 @@ FILE *FileSystemGDrive::file_open(const char *path, const char *mode)
 #endif
 }
 
-// Stream a Drive file's content (?alt=media) for the given file id, passing
-// each chunk to sink(). Returns true on a complete, successful download.
 bool FileSystemGDrive::stream_download(const std::string &file_id,
                                        const std::function<bool(const uint8_t *, int)> &sink)
 {
@@ -403,8 +382,7 @@ bool FileSystemGDrive::stream_download(const std::string &file_id,
 #ifdef FNIO_IS_STDIO
 std::string FileSystemGDrive::cache_file_path(const char *path)
 {
-    // Deterministic, filesystem-safe name derived from host + path so the same
-    // Drive file maps to the same cache file (and distinct files don't collide).
+    // Deterministic name from host + path: same Drive file -> same cache file.
     std::hash<std::string> hasher;
     unsigned long h1 = (unsigned long)hasher(_rawurl);
     unsigned long h2 = (unsigned long)hasher(std::string(path));
@@ -420,8 +398,8 @@ FileHandler *FileSystemGDrive::filehandler_open(const char *path, const char *mo
     return cache_file(path, mode);
 }
 
-// Download the Drive file at `path` into the local file cache and return a
-// FileHandler for it (memory or SD file). Returns nullptr on error.
+// Download the Drive file at `path` into the local cache and return a
+// FileHandler. nullptr on error.
 FileHandler *FileSystemGDrive::cache_file(const char *path, const char *mode)
 {
     Debug_printf("FileSystemGDrive::cache_file(\"%s\", \"%s\")\n", path, mode);
@@ -429,17 +407,16 @@ FileHandler *FileSystemGDrive::cache_file(const char *path, const char *mode)
     const bool truncating = (mode[0] == 'w');                  // create/overwrite
     const bool writing    = (strpbrk(mode, "wa+") != nullptr); // any write intent
 
-    // Remember write-intent opens so the image is uploaded back to Drive when
-    // the disk is unmounted (see sync_file()).
+    // Track write-intent opens for upload on unmount (sync_file()).
     if (writing)
         _dirty.insert(path);
 
-    // Try the SD cache first (skip for 'w' which should start from empty).
+    // Try the SD cache first (skip for 'w', which starts empty).
     if (!truncating)
     {
         FileHandler *fh = FileCache::open(_rawurl.c_str(), path, mode);
         if (fh != nullptr)
-            return fh; // cache hit, done
+            return fh;
     }
 
     if (!_gdrive.ensure_access_token())
@@ -448,8 +425,7 @@ FileHandler *FileSystemGDrive::cache_file(const char *path, const char *mode)
         return nullptr;
     }
 
-    // Decide whether to seed the cache with the file's current Drive content.
-    // 'w'/'w+' always starts empty; otherwise download the existing file.
+    // Seed the cache with Drive content unless truncating ('w'/'w+').
     std::string file_id;
     if (!truncating)
     {
@@ -461,18 +437,16 @@ FileHandler *FileSystemGDrive::cache_file(const char *path, const char *mode)
         }
     }
 
-    // For write modes force the cache onto the SD card (threshold 0) so the disk
-    // device's writes land in a real file that survives the handle being closed
-    // and can be read back for upload on unmount. Reads keep the faster
-    // memory-first cache.
+    // Write modes force the cache onto SD (threshold 0) so writes survive the
+    // handle closing and can be read back for upload. Reads stay memory-first.
     const int threshold = writing ? 0 : -1;
 
     fc_handle *fc = FileCache::create(_rawurl.c_str(), path, threshold);
     if (fc == nullptr)
         return nullptr;
 
-    // A zero-length write makes the (threshold 0) cache switch to SD right away,
-    // even when there is no Drive content to download (e.g. a brand-new image).
+    // Zero-length write switches the (threshold 0) cache to SD immediately,
+    // even with no Drive content to download (e.g. a brand-new image).
     if (writing)
         FileCache::write(fc, "", 0);
 
@@ -524,7 +498,7 @@ success_is_true FileSystemGDrive::mkdir(const char *path)
 
     _gdrive.ensure_access_token();
 
-    // parent = everything before the last '/'; new folder name = the remainder
+    // Split into parent path + new folder name.
     std::string p = path;
     size_t slash = p.find_last_of('/');
     std::string parent_path = (slash != std::string::npos) ? p.substr(0, slash) : "/";
@@ -540,7 +514,7 @@ success_is_true FileSystemGDrive::mkdir(const char *path)
 
 success_is_true FileSystemGDrive::rmdir(const char *path)
 {
-    // A folder is deleted the same way as a file in Drive.
+    // In Drive a folder is deleted like a file.
     return remove(path);
 }
 
@@ -576,12 +550,11 @@ success_is_true FileSystemGDrive::dir_open(const char *path, const char *pattern
             RETURN_ERROR_AS_FALSE();
         }
 
-        // Resolve the path to a folder id ("root" for the Drive root).
         std::string folder_id = _gdrive.resolve_path(path);
         if (folder_id.empty())
             folder_id = "root";
 
-        // List the children of this folder.
+        // List the folder's children.
         std::string q = "'" + folder_id + "' in parents and trashed=false";
         std::string resp = _gdrive.api_get(std::string(GDRIVE_FILES_URL) +
                                            "?q=" + GoogleDriveClient::url_encode(q) +
@@ -626,7 +599,7 @@ success_is_true FileSystemGDrive::dir_open(const char *path, const char *pattern
             strlcpy(fs_de->filename, name.c_str(), sizeof(fs_de->filename));
             fs_de->isDir = (mime == GDRIVE_FOLDER_MIME);
             fs_de->size = size_str.empty() ? 0 : (uint32_t)atol(size_str.c_str());
-            fs_de->modified_time = 0; // Drive modifiedTime not requested
+            fs_de->modified_time = 0; // modifiedTime not requested
 
             Debug_printf(" add entry: \"%s\"\t%s\n", fs_de->filename,
                          fs_de->isDir ? "DIR" : "");
@@ -634,7 +607,6 @@ success_is_true FileSystemGDrive::dir_open(const char *path, const char *pattern
         cJSON_Delete(root);
     }
 
-    // Apply pattern matching filter and sort entries
     _dircache.apply_filter(pattern, diropts);
 
     RETURN_SUCCESS_AS_TRUE();
@@ -647,7 +619,7 @@ fsdir_entry *FileSystemGDrive::dir_read()
 
 void FileSystemGDrive::dir_close()
 {
-    // Keep the cache populated so repeat dir_open() of the same path is cheap.
+    // Keep the cache so a repeat dir_open() of the same path is cheap.
 }
 
 uint16_t FileSystemGDrive::dir_tell()

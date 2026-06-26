@@ -265,8 +265,7 @@ void iwmFuji::iwm_ctrl_new_disk()
 
         fnio::fclose(disk.fileh);
 
-        // Push the newly created image back to the host's backing store (e.g.
-        // upload to Google Drive). No-op for direct-write hosts.
+        // Push the new image back to the host (e.g. upload to Drive); no-op otherwise.
         host.sync_file(disk.filename);
 
         // Persist slots

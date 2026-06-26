@@ -111,9 +111,8 @@ public:
 
     virtual bool exists(const char* path) = 0;
 
-    // Push a locally-written file back to its backing store. Filesystems that
-    // cache writes locally (e.g. Google Drive) upload here; the default does
-    // nothing. Called when a disk image opened for writing is unmounted.
+    // Push a locally-written file back to its backing store (e.g. upload to
+    // Drive). Called on unmount of a writable disk image. Default: no-op.
     virtual success_is_true sync_file(const char* path) { RETURN_SUCCESS_AS_TRUE(); }
 
     virtual success_is_true remove(const char* path) = 0;

@@ -1,8 +1,4 @@
-/**
- * GoogleDriveClient
- *
- * Shared Google Drive REST helper. See GoogleDriveClient.h for the rationale.
- */
+// Shared Google Drive REST + OAuth2 helper. See GoogleDriveClient.h.
 
 #include "GoogleDriveClient.h"
 
@@ -15,9 +11,8 @@
 #include "../http/fnHttpClient.h"
 #else
 #include "../http/mgHttpClient.h"
-// mongoose.h (via mgHttpClient.h) #defines poll/mkdir as macros on Windows,
-// which then mangle method declarations in headers included below (e.g.
-// NetSIO::poll reached through fnConfig.h). Drop them, matching httpService.h.
+// mongoose.h #defines poll/mkdir as macros on Windows, mangling declarations in
+// headers included below (e.g. NetSIO::poll). Drop them, matching httpService.h.
 #undef poll
 #undef mkdir
 #endif
@@ -109,7 +104,7 @@ bool GoogleDriveClient::refresh_access_token()
 bool GoogleDriveClient::ensure_access_token()
 {
     long now = (long)time(nullptr);
-    // Refresh 60 seconds before actual expiry to avoid clock skew issues
+    // Refresh 60s early to tolerate clock skew.
     if (now >= Config.get_gdrive_token_expiry() - 60)
         return refresh_access_token();
 
@@ -333,8 +328,7 @@ std::string GoogleDriveClient::upload_stream(const std::string &parent_id,
 {
     const std::string boundary = "fuji_gdrive_boundary";
 
-    // Metadata part. Only set parents when creating a new file (an update keeps
-    // the file in place; Drive rejects parents on a plain media update here).
+    // Only set parents when creating; Drive rejects parents on a media update.
     std::string meta = "{\"name\":\"" + name + "\"";
     if (file_id.empty() && !parent_id.empty())
         meta += ",\"parents\":[\"" + parent_id + "\"]";
@@ -356,8 +350,7 @@ std::string GoogleDriveClient::upload_stream(const std::string &parent_id,
         : std::string(GDRIVE_UPLOAD_URL) + "/" + file_id + "?uploadType=multipart&fields=id";
 
 #ifdef ESP_PLATFORM
-    // Stream the body so we never hold the whole image (which can be hundreds of
-    // KB) in RAM at once.
+    // Stream the body so the whole image is never held in RAM.
     esp_http_client_config_t cfg = {};
     cfg.url        = url.c_str();
     cfg.timeout_ms = 30000;
@@ -414,7 +407,7 @@ std::string GoogleDriveClient::upload_stream(const std::string &parent_id,
     esp_http_client_cleanup(h);
     return id;
 #else
-    // Non-ESP (PC build): buffer the body. Payloads here are small.
+    // PC build: buffer the body (payloads here are small).
     std::string body;
     body.reserve(head.size() + total_len + tail.size());
     body += head;
@@ -443,7 +436,7 @@ std::string GoogleDriveClient::upload_stream(const std::string &parent_id,
 
 std::string GoogleDriveClient::resolve_path(const std::string &path)
 {
-    // Split the path (leading '/' is ignored) into components and walk the tree.
+    // Split into components (leading '/' ignored) and walk the tree.
     std::vector<std::string> parts;
     std::stringstream ss(path);
     std::string part;
@@ -457,12 +450,11 @@ std::string GoogleDriveClient::resolve_path(const std::string &path)
     for (size_t i = 0; i < parts.size(); i++)
     {
         bool last = (i == parts.size() - 1);
-        // Treat intermediate components as folders; the last one may be a file
+        // Intermediate components are folders; the last may be a file.
         std::string child = find_child(current_id, parts[i], !last);
         if (child.empty())
         {
-            // Try again without the folder restriction in case the last
-            // component is actually a folder (directory open case)
+            // Last component might itself be a folder (dir-open case).
             if (last)
                 child = find_child(current_id, parts[i], true);
             if (child.empty())

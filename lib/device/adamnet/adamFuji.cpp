@@ -143,8 +143,7 @@ void adamFuji::adamnet_new_disk()
 
     if (disk.fileh == nullptr)
     {
-        // e.g. read-only host, no SD card, or the host couldn't create the file.
-        // Bail out cleanly rather than fwrite()'ing to a null handle (crash).
+        // Read-only host / no SD / create failed: bail rather than fwrite() null.
         Debug_printf("adamnet_new_disk: failed to create file %s on host slot %u\n", disk.filename, hs);
         new_disk_completed = true;
         return;
@@ -156,8 +155,7 @@ void adamFuji::adamnet_new_disk()
 
     fclose(disk.fileh);
 
-    // Push the newly created image back to the host's backing store (e.g. upload
-    // to Google Drive). No-op for hosts that write directly to their storage.
+    // Push the new image back to the host (e.g. upload to Drive); no-op otherwise.
     host.sync_file(disk.filename);
 
     new_disk_completed = true;

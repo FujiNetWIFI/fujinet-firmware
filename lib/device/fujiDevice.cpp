@@ -1056,11 +1056,8 @@ success_is_true fujiDevice::fujicore_unmount_disk_image_success(uint8_t deviceSl
     disk_dev = get_disk_dev(deviceSlot);
     disk_dev->unmount();
 
-    // unmount() closed/flushed the (possibly local cache) file, so now push any
-    // locally-written image back to its host's backing store. This is a no-op
-    // for hosts that write directly (SD/TNFS/...) and for read-only mounts; the
-    // host filesystem decides whether there is anything to upload (e.g. Google
-    // Drive uploads images that were opened for writing).
+    // unmount() flushed the file; push any locally-written image back to its
+    // host (no-op for direct-write/read-only hosts, e.g. SD/TNFS).
     {
         fujiDisk &udisk = _fnDisks[deviceSlot];
         if (validate_host_slot(udisk.host_slot) && udisk.filename[0] != '\0')

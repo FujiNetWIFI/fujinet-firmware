@@ -1,11 +1,8 @@
 /**
  * NetworkProtocolGDRIVE
  *
- * Google Drive protocol adapter for FujiNet.
- *
- * The Drive REST calls and OAuth2 token handling live in the shared
- * GoogleDriveClient (_gdrive); this class implements the NetworkProtocolFS
- * surface (open/read/write/dir/del/mkdir/rmdir) on top of it.
+ * Google Drive protocol adapter. REST + OAuth2 live in the shared
+ * GoogleDriveClient (_gdrive); this implements NetworkProtocolFS on top.
  */
 
 #include "GDRIVE.h"

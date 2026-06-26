@@ -260,10 +260,7 @@ fnFile * fujiHost::fnfile_open(const char *path, char *fullpath, int fullpathlen
     return _fs->fnfile_open(fullpath, mode);
 }
 
-/* Push a locally-written file back to the host's backing store.
- * `path` is already prefix-resolved (fujiDisk::filename), matching what
- * fnfile_open() handed to the filesystem, so it is passed straight through.
-*/
+/* Push a locally-written file back to the host's backing store. */
 success_is_true fujiHost::sync_file(const char *path)
 {
     if (_fs == nullptr || path == nullptr)
