@@ -17,7 +17,6 @@
 #define MAX_DISK2_DEVICES 2 // for now until we add 3.5" disks
 #define MAX_A2DISK_DEVICES (MAX_SPDISK_DEVICES + MAX_DISK2_DEVICES)
 
-using IWMCmdHandlers = std::function<void(iwm_decoded_cmd_t)>;
 using IWMControlHandlers = std::function<void()>;
 using IWMStatusHandlers = std::function<void()>;
 

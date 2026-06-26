@@ -207,12 +207,6 @@ int systemBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, sp
   return r;
 }
 
-bool systemBus::iwm_decode_data_packet(uint8_t *data, int &n)
-{
-  n = smartport.decode_data_packet(data);
-  return false;
-}
-
 void systemBus::setup(void)
 {
   Debug_printf("\r\nIWM FujiNet based on SmartportSD v1.15\r\n");
@@ -264,8 +258,6 @@ void virtualDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
     case SP_CMD_WRITEBLOCK:
     case SP_CMD_CONTROL:
     case SP_CMD_WRITE:
-      data_len = 512;
-      SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
       Debug_printf("\r\nUnit %02x Bad Command with data packet %02x\r\n", id(), cmd.sp_command);
       print_packet(data_buffer, data_len);
       break;
@@ -299,8 +291,6 @@ void virtualDevice::iwm_return_device_offline(iwm_decoded_cmd_t cmd)
     case SP_CMD_WRITEBLOCK:
     case SP_CMD_CONTROL:
     case SP_CMD_WRITE:
-      data_len = 512;
-      SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
       Debug_printf("\r\nUnit %02x Offline, Command with data packet %02x\r\n", id(), cmd.sp_command);
       print_packet((uint8_t *)data_buffer, data_len);
       break;
@@ -620,6 +610,19 @@ bool IRAM_ATTR systemBus::serviceSmartPort()
           // handle command
           smartport.decode_data_packet(command_packet.data, &command);
           print_packet(&command, sizeof(command));
+          switch (command.sp_command)
+          {
+          case SP_CMD_CONTROL:
+          case SP_CMD_WRITE:
+          case SP_CMD_WRITEBLOCK:
+          case SP_ECMD_CONTROL:
+          case SP_ECMD_WRITE:
+          case SP_ECMD_WRITEBLOCK:
+            virtualDevice::data_len = smartport.decode_data_packet(virtualDevice::data_buffer);
+            break;
+          default:
+            break;
+          }
           _activeDev->iwm_process(command);
           break; // we don't need to needlessly keep looping once we find it
         }

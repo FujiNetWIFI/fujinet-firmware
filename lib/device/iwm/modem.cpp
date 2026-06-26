@@ -9,7 +9,6 @@
 #include "fnSystem.h"
 #include "../utils/utils.h"
 #include "fnConfig.h"
-#include "led.h"
 
 #define RECVBUFSIZE 512
 
@@ -1442,8 +1441,6 @@ void iwmModem::iwm_write(iwm_decoded_cmd_t cmd)
     // get write data packet, keep trying until no timeout
     //  to do - this blows up - check handshaking
 
-    SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len);
-
     {
         // DO write
 #ifdef ESP_PLATFORM // OS
@@ -1460,7 +1457,6 @@ void iwmModem::iwm_ctrl(iwm_decoded_cmd_t cmd)
     spError_t err_result = SP_ERR::NOERROR;
 
     Debug_printf("\r\nModem Device %02x Control Code %02x", id(), cmd.control_status.fuji.command);
-    SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len);
     print_packet(data_buffer,data_len);
 
     Debug_printf("\nSending Control Reply");
@@ -1486,7 +1482,6 @@ void iwmModem::iwm_modem_status()
 
 void iwmModem::iwm_status(iwm_decoded_cmd_t cmd)
 {
-    // uint8_t source = cmd.dest;                                                // we are the destination and will become the source // packet_buffer[6];
     Debug_printf("\r\n[MODEM] Device %02x Status Code %02x\r\n", id(), cmd.control_status.fuji.command);
     // Debug_printf("\r\nStatus List is at %02x %02x\n", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
 
@@ -1496,11 +1491,9 @@ void iwmModem::iwm_status(iwm_decoded_cmd_t cmd)
     case SP_STAT_DEVICE: // 0x00
         send_status_reply_packet();
         return;
-        break;
     case SP_STAT_DIB: // 0x03
         send_status_dib_reply_packet();
         return;
-        break;
     case MODEMCMD_STATUS:
         iwm_modem_status();
         break;

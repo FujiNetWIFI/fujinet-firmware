@@ -12,7 +12,6 @@
 #include <algorithm>
 
 #include "../../include/debug.h"
-#include "../../hardware/led.h"
 
 #include "utils.h"
 #include "string_utils.h"
@@ -346,13 +345,11 @@ void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
     case SP_STAT_DEVICE: // 0x00
         send_status_reply_packet();
         return;
-        break;
     // case SP_STAT_DCB:                  // 0x01
     // case SP_STAT_NEWLINE:              // 0x02
     case SP_STAT_DIB: // 0x03
         send_status_dib_reply_packet();
         return;
-        break;
     case NETCMD_GETCWD:
         get_prefix();
         break;
@@ -524,9 +521,6 @@ void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
 
     auto& current_network_data = network_data_map[current_network_unit];
 
-    // get write data packet, keep trying until no timeout
-    SYSTEM_BUS.iwm_decode_data_packet((unsigned char *)data_buffer, data_len);
-
     if (data_len == -1)
         iwm_return_ioerror();
     else
@@ -560,7 +554,6 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
 
     auto& current_network_data = network_data_map[current_network_unit];
 
-    SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
     print_packet((uint8_t *)data_buffer);
 
 #ifdef DEBUG
