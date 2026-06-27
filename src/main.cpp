@@ -50,6 +50,10 @@ Console console;
 #include "fnBluetooth.h"
 #endif
 
+#ifdef BUILD_ATARI
+#include "sio/vm_telnet.h" // loopback TELNET console for RunCPM (N:TELNET://127.0.0.1:8677)
+#endif
+
 // fnSystem is declared and defined in fnSystem.h/cpp
 // fnBtManager is declared and defined in fnBluetooth.h/cpp
 // fnLedManager is declared and defined in led.h/cpp
@@ -281,6 +285,13 @@ void main_setup(int argc, char *argv[])
 
     // Go setup SIO
     SYSTEM_BUS.setup();
+
+    // NOTE: the loopback TELNET console for RunCPM is started later, in
+    // fn_service_loop() after fnWiFi.start(), NOT here.  On ESP32 the lwIP
+    // tcpip thread / mbox is created by esp_netif_init() inside
+    // WiFiManager::start(); starting the telnet acceptor here (before WiFi is
+    // up) made its loopback socket call tcpip_send_msg_wait_sem() with an
+    // uninitialised mbox and panic in a boot loop.
 #endif // BUILD_ATARI
 
 #ifdef BUILD_COCO
@@ -517,6 +528,7 @@ void fn_service_loop(void *param)
 #endif
 
     // Now that our main service is running, try connecting to WiFi or BlueTooth
+    bool network_stack_up = false;
     if (Config.get_bt_status())
     {
 #ifdef BLUETOOTH_SUPPORT
@@ -531,7 +543,24 @@ void fn_service_loop(void *param)
         fnWiFi.start();
         // Go ahead and try reconnecting to WiFi
         fnWiFi.connect();
+        // fnWiFi.start() -> esp_netif_init() has now created the lwIP tcpip
+        // thread / mbox, so loopback sockets are safe to open from here on.
+        network_stack_up = true;
     }
+
+#ifdef BUILD_ATARI
+    // Start the loopback TELNET console for RunCPM (N:TELNET://127.0.0.1:8677)
+    // ONLY after the network stack exists.  On ESP32 lwIP is brought up by
+    // esp_netif_init() inside fnWiFi.start() above; starting the acceptor
+    // before that made its loopback socket panic in tcpip_send_msg_wait_sem()
+    // ("Invalid mbox") in a boot loop.  On FujiNet-PC the host OS stack is
+    // always up, so start it unconditionally there.
+#ifdef ESP_PLATFORM
+    if (network_stack_up)
+#endif
+        vm_telnet_start();
+#endif // BUILD_ATARI
+    (void)network_stack_up;
 
     // If we don't have config enabled, and no alternate config disk
     // selected, then just mount what we have so we are after all of
@@ -638,6 +667,14 @@ int main(int argc, char *argv[])
     main_setup(argc, argv);
     // Enter service loop
     fn_service_loop(nullptr);
+
+#ifdef BUILD_ATARI
+    // Wind down the RunCPM telnet console (acceptor + any live session) while
+    // its global queue mutexes are still valid.  Skipping this lets the
+    // detached worker threads race static destruction and abort the process
+    // with "mutex lock failed" at exit.
+    vm_telnet_stop();
+#endif
 
     if (exit_for_restart)
         fnSystem.reboot(); // calls exit(75)
