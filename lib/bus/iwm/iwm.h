@@ -2,6 +2,7 @@
 #ifndef IWM_H
 #define IWM_H
 
+#include "bus.h"
 #include "cmdFrame.h"
 #include "../../include/debug.h"
 
@@ -237,6 +238,13 @@ protected:
   iwm_fujinet_type_t internal_type;
   uint8_t _devnum; // assigned by Apple II during INIT
   bool _initialized;
+
+  transState_t _transaction_state = TRANS_STATE::INVALID;
+  virtual void transaction_begin(transState_t expectMoreData);
+  virtual void transaction_complete();
+  virtual void transaction_error();
+  virtual success_is_true transaction_get(void *data, size_t len);
+  virtual void transaction_put(const void *data, size_t len, bool err=false);
 
    // void send_data_packet(); //encode smartport 512 byte data packet
   // void encode_data_packet(uint16_t num = 512); //encode smartport "num" byte data packet

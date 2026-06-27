@@ -60,19 +60,21 @@ private:
     QRManager _qrManager = QRManager();
 
 protected:
-    void transaction_begin(transState_t expectMoreData) override {}
-    void transaction_complete() override {}
-    void transaction_error() override {}
+    // Temporary until all platforms have transaction_ methods in virtualDevice base class
+    void transaction_begin(transState_t expectMoreData) override {
+        virtualDevice::transaction_begin(expectMoreData);
+    }
+    void transaction_complete() override {
+        virtualDevice::transaction_complete();
+    }
+    void transaction_error() override {
+        virtualDevice::transaction_error();
+    }
     success_is_true transaction_get(void *data, size_t len) override {
-        if (len > sizeof(data_buffer))
-            RETURN_ERROR_AS_FALSE();
-        memcpy((uint8_t *) data, data_buffer, len);
-        RETURN_SUCCESS_AS_TRUE();
+        return virtualDevice::transaction_get(data, len);
     }
     void transaction_put(const void *data, size_t len, bool err) override {
-        // Move into response.
-        memcpy(data_buffer, data, len);
-        data_len = len;
+        virtualDevice::transaction_put(data, len, err);
     }
 
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
