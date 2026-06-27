@@ -315,6 +315,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     lib/device/sio/clock.h lib/device/sio/clock.cpp
     lib/device/sio/siocpm.h lib/device/sio/siocpm.cpp
     lib/device/sio/vm_telnet.h lib/device/sio/vm_telnet.cpp
+    lib/device/sio/vm_bar.h lib/device/sio/vm_bar.cpp
     lib/device/sio/pclink.h lib/device/sio/pclink.cpp
     lib/device/sio/modem.h lib/device/sio/modem.cpp
 

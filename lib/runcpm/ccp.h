@@ -8,6 +8,15 @@
 // CP/M BDOS calls
 #include "cpm.h"
 
+#ifdef BUILD_ATARI
+// RSX-style "bar command" gate into the FujiNet firmware.  Defined once in
+// lib/device/sio/vm_bar.cpp and shared by every RunCPM instance.  The header
+// declares the gate (at namespace scope, as the linkage specification
+// requires) plus the vm_bar_io callback struct used by interactive verbs.
+// See vm_bar.h for the full contract.
+#include "../device/sio/vm_bar.h"
+#endif
+
 // Memory Layout Definitions
 #define CmdFCB      (BatchFCB + 48)     // FCB for use by internal commands
 #define ParFCB      0x005C              // FCB for use by line parameters
@@ -1561,6 +1570,54 @@ RUNCPM_DECL void _ccp(void) {
                 bufferLen = 0;                // Ignore the rest of the line
                 continue;
             }
+
+#ifdef BUILD_ATARI
+            // RSX-style "bar command" (Amstrad-CPC inspired): a line whose first
+            // non-space character is '|' is not a CP/M command.  Hand the rest of
+            // the line to the FujiNet firmware gate (lib/device/sio/vm_bar.cpp),
+            // which performs a host-side action (e.g. |wget URL) and returns a
+            // status string we print here.  The gate is decoupled from RunCPM
+            // internals, so this works for every RunCPM instance (R:, N:CPM:,
+            // telnet).  See vm_bar.h for the gate contract.
+            if (_RamRead(cmdBufferPtr) == '|') {
+                // Sized for multi-line replies such as "|fn mounts" (8 drive
+                // slots) and "|help"; the gate bounds its output to this size.
+                char _barmsg[640];
+                _barmsg[0] = 0;
+                // Build the host directory prefix for the current drive/user the
+                // same way RunCPM maps CP/M files: full_path("<drive>/<user>/")
+                // -> "/CPM/A/0/".  Uses cDrive/userCode (what _FCBtoHostname in
+                // disk.h uses) so downloads land where DIR/TYPE look for them.
+                char _bardir[6];
+                _bardir[0] = cDrive + 'A';
+                _bardir[1] = FOLDERCHAR;
+                _bardir[2] = (char)toupper(tohex(userCode));
+                _bardir[3] = FOLDERCHAR;
+                _bardir[4] = '\0';
+                // Terminal-I/O callbacks for interactive verbs (e.g. |ftp).
+                // Captureless lambdas convert to plain function pointers and
+                // bind to THIS translation unit's console primitives, so the
+                // single shared gate can drive the right console for whichever
+                // RunCPM instance (R:, N:CPM:, telnet) is running.
+                vm_bar_io _bario;
+                _bario.getch = []() -> int { return (int)_getch(); };
+                _bario.putch = [](int c) { _putch((uint8_t)c); };
+                _bario.puts_ = [](const char *s) { _puts((char *)s); };
+                vm_bar_command((const char *)_RamSysAddr(cmdBufferPtr + 1),
+                                full_path(_bardir), _barmsg,
+                                (int)sizeof(_barmsg), &_bario);
+                // C_READSTR leaves the cursor at the end of the echoed
+                // command line, so start the reply on a fresh line (same
+                // convention as _ccp_cmdError() above) to avoid overwriting
+                // the "A0>|verb" the user just typed.
+                if (_barmsg[0]) {
+                    _puts("\r\n");
+                    _puts(_barmsg);
+                }
+                bufferLen = 0; // ignore the rest of the line
+                continue;
+            }
+#endif
 
             // parse for DU: command line shortcut
             bool errorFlag = FALSE;
