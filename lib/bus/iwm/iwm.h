@@ -214,11 +214,12 @@ enum class iwm_enable_state_t
 struct iwm_device_info_block_t
 {
   uint8_t stat_code; // byte with 8 flags indicating device status
-  std::string device_name; // limited to 16 chars std ascii (<128), no zero terminator
-  uint8_t device_type;
-  uint8_t device_subtype;
-  uint8_t firmware_rev;
-};
+  u24le_t block_size;
+  uint8_t name_len;
+  char name[16];
+  uint8_t type, subtype;
+  u16le_t version;
+} __attribute__((packed));
 
 //#ifdef DEBUG
 void print_packet(void *data, int bytes);
@@ -234,7 +235,6 @@ protected:
   // set these things in constructor or initializer?
   iwm_smartport_type_t device_type;
   iwm_fujinet_type_t internal_type;
-  iwm_device_info_block_t dib;   // device information block
   uint8_t _devnum; // assigned by Apple II during INIT
   bool _initialized;
 
@@ -244,10 +244,10 @@ protected:
   virtual void send_status_reply_packet() = 0;
   void send_reply_packet(spError_t err);
   // void send_reply_packet(uint8_t source, spError_t err) { send_reply_packet(status); };
-  virtual void send_status_dib_reply_packet() = 0;
+  void send_status_dib_reply_packet();
 
   virtual void send_extended_status_reply_packet() = 0;
-  virtual void send_extended_status_dib_reply_packet() = 0;
+  void send_extended_status_dib_reply_packet();
 
   virtual void shutdown() = 0;
 
@@ -272,7 +272,7 @@ protected:
   static uint8_t data_buffer[MAX_DATA_LEN]; // un-encoded binary data (512 bytes for a block)
   static int data_len; // how many bytes in the data buffer
 
-  std::vector<uint8_t> create_dib_reply_packet(const std::string& device_name, uint8_t device_status, const std::vector<uint8_t>& block_size, const std::array<uint8_t, 2>& type, const std::array<uint8_t, 2>& version);
+  virtual iwm_device_info_block_t create_dib_reply_packet() = 0;
 
 public:
   bool device_active;
@@ -286,9 +286,6 @@ public:
    */
   void set_id(uint8_t dn) { _devnum=dn; };
   int id() { return _devnum; };
-  //void assign_id(uint8_t n) { _devnum = n; };
-
-  void assign_name(std::string name) {dib.device_name = name;}
 };
 
 class systemBus
@@ -338,7 +335,7 @@ public:
 
   cmdPacket_t command_packet;
   bool iwm_decode_data_packet(uint8_t *a, int &n);
-   int iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, spError_t err, const uint8_t* data, uint16_t num);
+   int iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, spError_t err, const void* data, uint16_t num);
 
   // these things stay for the most part
   void setup();

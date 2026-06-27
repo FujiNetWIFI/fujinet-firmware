@@ -55,17 +55,19 @@ void iwmNetwork::send_status_reply_packet()
     SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR::NOERROR, data, 4);
 }
 
-void iwmNetwork::send_status_dib_reply_packet()
+iwm_device_info_block_t iwmNetwork::create_dib_reply_packet()
 {
-    Debug_printf("\r\nNETWORK: Sending DIB reply\r\n");
-    std::vector<uint8_t> data = create_dib_reply_packet(
-        "NETWORK",                                                          // name
-        STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE,                     // status
-        { 0, 0, 0 },                                                        // block size
-        { SP_TYPE_BYTE_FUJINET_NETWORK, SP_SUBTYPE_BYTE_FUJINET_NETWORK },  // type, subtype
-        { 0x00, 0x01 }                                                      // version.
-    );
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR::NOERROR, data.data(), data.size());
+  iwm_device_info_block_t dib;
+
+  dib.stat_code = STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE;
+  dib.block_size = 0;
+  strcpy(dib.name, "NETWORK");
+  dib.name_len = strlen(dib.name);
+  dib.type = SP_TYPE_BYTE_FUJINET_NETWORK;
+  dib.subtype = SP_SUBTYPE_BYTE_FUJINET_NETWORK;
+  dib.version = 0x0100;
+
+  return dib;
 }
 
 /**
