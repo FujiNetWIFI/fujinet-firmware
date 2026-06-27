@@ -107,9 +107,8 @@ protected:
     void iwm_status(iwm_decoded_cmd_t cmd) override;
 
     void send_status_reply_packet() override;
-    void send_status_dib_reply_packet() override;
     void send_extended_status_reply_packet() override {};
-    void send_extended_status_dib_reply_packet() override {};
+    iwm_device_info_block_t create_dib_reply_packet() override;
 
 public:
     spError_t err_result = SP_ERR::NOERROR;

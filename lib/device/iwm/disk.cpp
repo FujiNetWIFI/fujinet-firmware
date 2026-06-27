@@ -11,10 +11,6 @@
 #include "fsFlash.h"
 #include "iwm/iwmFuji.h"
 
-// #define LOCAL_TNFS
-
-// FileSystemTNFS tserver;
-
 iwmDisk::~iwmDisk()
 {
 }
@@ -148,65 +144,23 @@ void iwmDisk::send_extended_status_reply_packet() //XXX! Currently unused
   SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR::NOERROR, data.data(), data.size());
 }
 
-//*****************************************************************************
-// Function: send_status_dib_reply_packet
-// Parameters: source
-// Returns: none
-//
-// Description: this is the reply to the status command 03 packet. The reply
-// includes following:
-// data byte 1
-// data byte 2-4 number of blocks. 2 is the LSB and 4 the MSB.
-// Calculated from actual image file size.
-//*****************************************************************************
-void iwmDisk::send_status_dib_reply_packet() // to do - abstract this out with passsed parameters
+iwm_device_info_block_t iwmDisk::create_dib_reply_packet()
 {
-  uint8_t status = create_status();
-  auto block_size = create_blocksize();
+  iwm_device_info_block_t dib;
 
-  Debug_printf("\r\nFUJINET_DISK_%c: Sending DIB reply with status: 0x%02X\n", disk_num, status);
-  std::vector<uint8_t> data = create_dib_reply_packet(
-    std::string("FUJINET_DISK_") + disk_num,                    // name
-    status,                                                     // status
-    block_size,                                                 // block size
-    { smartport_device_type(), smartport_device_subtype() },    // type, subtype
-    { 0x01, 0x0f }                                              // version.
-  );
-        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR::NOERROR, data.data(), data.size());
-}
+  dib.stat_code = create_status();
+  if (_disk != nullptr)
+    dib.block_size = _disk->num_blocks;
 
-//*****************************************************************************
-// Function: send_long_status_dib_reply_packet
-// Parameters: source
-// Returns: none
-//
-// Description: this is the reply to the status command 03 packet. The reply
-// includes following:
-// data byte 1
-// data byte 2-5 number of blocks. 2 is the LSB and 5 the MSB.
-// Calculated from actual image file size.
-//*****************************************************************************
-void iwmDisk::send_extended_status_dib_reply_packet() //XXX! currently unused
-{
-  uint8_t status = create_status();
-  auto block_size = create_blocksize();
+  std::string name = "FUJINET_DISK_" + std::to_string(disk_num);
+  dib.name_len = std::min(name.size(), sizeof(dib.name));
+  std::memcpy(dib.name, name.data(), dib.name_len);
 
-  Debug_printf("FUJINET_DISK: Sending DIB reply with status: %02X\n", status);
-  std::vector<uint8_t> data = create_dib_reply_packet(
-    std::string("FUJINET_DISK_") + disk_num,  // name
-    status,                                   // status
-    block_size,                               // block size
-    { 0x02, 0x0a },                           // type, subtype
-    { 0x01, 0x0f }                            // version.
-  );
+  dib.type = smartport_device_type();
+  dib.subtype = smartport_device_subtype();
+  dib.version = 0x0f01;
 
-  // TODO: is this correct? Should it be checking the device_active similar to send_status_reply_packet?
-  if (switched) {
-    data[0] |= STATCODE_DISK_SWITCHED;
-    switched = false;
-  }
-
-  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR::NOERROR, data.data(), data.size());
+  return dib;
 }
 
 void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)

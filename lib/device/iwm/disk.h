@@ -21,8 +21,7 @@ private:
 protected:
     void send_status_reply_packet() override;
     void send_extended_status_reply_packet() override;
-    void send_status_dib_reply_packet() override;
-    void send_extended_status_dib_reply_packet() override;
+    iwm_device_info_block_t create_dib_reply_packet() override;
 
     MediaType *_disk = nullptr;
 

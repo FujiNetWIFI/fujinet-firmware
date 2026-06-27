@@ -188,13 +188,13 @@ systemBus::iwm_phases_t systemBus::iwm_phases()
 
 //------------------------------------------------------
 
-int systemBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, spError_t err, const uint8_t *data, uint16_t num)
+int systemBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, spError_t err, const void *data, uint16_t num)
 {
   int r;
   int retry = 5; // host seems to control the retries, this is here so we don't get stuck
 
   //print_packet ((uint8_t*) data, num); // before encoding
-  smartport.encode_packet(source, packet_type, static_cast<uint8_t>(err), data, num);
+  smartport.encode_packet(source, packet_type, static_cast<uint8_t>(err), static_cast<const uint8_t *>(data), num);
 #ifdef DEBUG
   //print_packet(smartport.packet_buffer,BLOCK_PACKET_LEN); // print raw packet contents to be sent
 #endif
@@ -245,6 +245,18 @@ void virtualDevice::send_init_reply_packet(uint8_t source, spError_t err)
 void virtualDevice::send_reply_packet(spError_t err)
 {
   SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, err, nullptr, 0);
+}
+
+void virtualDevice::send_status_dib_reply_packet()
+{
+  iwm_device_info_block_t dib_packet = create_dib_reply_packet();
+
+  if (dib_packet.name_len < sizeof(dib_packet.name))
+    std::fill(dib_packet.name + dib_packet.name_len,
+              dib_packet.name + sizeof(dib_packet.name), ' ');
+
+  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR::NOERROR,
+                             &dib_packet, sizeof(dib_packet));
 }
 
 void virtualDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
@@ -423,36 +435,6 @@ void virtualDevice::iwm_read(iwm_decoded_cmd_t cmd)
 void virtualDevice::iwm_write(iwm_decoded_cmd_t cmd)
 {
   iwm_return_badcmd(cmd);
-}
-
-// Create a vector from the input for the various send_status_dib_reply_packet routines to call
-// data[0]                = status
-// data[1..1+block_size]  = block bytes - 3 bytes except in some unused code!!
-// data[..1 byte ]        = name real size
-// data[..16 bytes ]      = name padded with spaces to 16 bytes
-// data[..2 bytes]        = device type
-// data[..2 byte]         = device version
-std::vector<uint8_t> virtualDevice::create_dib_reply_packet(const std::string& device_name, uint8_t device_status, const std::vector<uint8_t>& block_size, const std::array<uint8_t, 2>& type, const std::array<uint8_t, 2>& version)
-{
-    std::vector<uint8_t> data;
-    data.push_back(device_status);
-    data.insert(data.end(), block_size.begin(), block_size.end());
-    data.push_back(static_cast<uint8_t>(device_name.size()));
-
-    data.insert(data.end(), device_name.begin(), device_name.end());
-    size_t padding_size = 16 - device_name.size();
-    for (int i = 0; i < padding_size; i++) {
-      data.push_back(' ');
-    }
-
-    data.insert(data.end(), type.begin(), type.end());
-    data.insert(data.end(), version.begin(), version.end());
-
-    // std::string ddump = util_hexdump(data.data(), data.size());
-    // Debug_printv("DIB DATA");
-    // Debug_printf("%s\r\n", ddump.c_str());
-
-    return data;
 }
 
 //*****************************************************************************

@@ -40,22 +40,19 @@ void iwmPrinter::send_extended_status_reply_packet()
     SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR::NOERROR, data, 5);
 }
 
-void iwmPrinter::send_status_dib_reply_packet()
+iwm_device_info_block_t iwmPrinter::create_dib_reply_packet()
 {
-    Debug_printf("\r\nPRINTER: Sending DIB reply\r\n");
-    std::vector<uint8_t> data = create_dib_reply_packet(
-        "PRINTER",                                                          // name
-        0b01110000,                                                         // status
-        { 0, 0, 0 },                                                        // block size
-        { SP_TYPE_BYTE_FUJINET_PRINTER, SP_SUBTYPE_BYTE_FUJINET_PRINTER },  // type, subtype
-        { 0x00, 0x01 }                                                      // version.
-    );
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR::NOERROR, data.data(), data.size());
-}
+  iwm_device_info_block_t dib;
 
-void iwmPrinter::send_extended_status_dib_reply_packet()
-{
-    send_status_dib_reply_packet();
+  dib.stat_code = STATCODE_WRITE_ALLOWED | STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE;
+  dib.block_size = 0;
+  strcpy(dib.name, "PRINTER");
+  dib.name_len = strlen(dib.name);
+  dib.type = SP_TYPE_BYTE_FUJINET_MODEM;
+  dib.subtype = SP_SUBTYPE_BYTE_FUJINET_MODEM;
+  dib.version = 0x0100;
+
+  return dib;
 }
 
 void iwmPrinter::iwm_status(iwm_decoded_cmd_t cmd)
