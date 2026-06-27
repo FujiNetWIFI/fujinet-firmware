@@ -118,6 +118,7 @@ public:
     int get_network_netstream_port() { return _network.netstream_port; };
     bool get_network_netstream_register() { return _network.netstream_register; };
     int get_network_netstream_mode() { return _network.netstream_mode; };
+    int get_network_netstream_rx_depth() { return _network.netstream_rx_depth; };
     bool get_general_config_enabled() { return _general.config_enabled; };
     void store_general_devicename(const char *devicename);
     void store_general_hsioindex(int hsio_index);
@@ -134,6 +135,7 @@ public:
     void store_netstream_port(int port);
     void store_netstream_register(bool enable);
     void store_netstream_mode(int mode);
+    void store_netstream_rx_depth(int depth);
     bool get_general_fnconfig_spifs() { return _general.fnconfig_spifs; };
     void store_general_fnconfig_spifs(bool fnconfig_spifs);
     bool get_general_status_wait_enabled() { return _general.status_wait_enabled; }
@@ -433,6 +435,7 @@ private:
         int netstream_port;
         bool netstream_register = true;
         int netstream_mode = 1;
+        int netstream_rx_depth = 0; // 0 => use firmware default (NETSTREAM_RX_MAX_FRAMES)
     };
 
     struct general_info
