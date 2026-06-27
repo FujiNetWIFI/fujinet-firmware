@@ -200,9 +200,8 @@ private:
 
     void iwm_modem_status();
 
-    void send_status_reply_packet() override;
-    void send_extended_status_reply_packet() override{};
     iwm_device_info_block_t create_dib_reply_packet() override;
+    iwm_device_status_block_t create_status_reply_packet() override;
 
     void crx_toggle(bool toggle);                // CRX active/inactive?
 

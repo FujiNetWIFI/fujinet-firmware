@@ -19,9 +19,8 @@ private:
     error_is_true prodos_write_data_blocks(fnFile *f, uint16_t numBlocks);
 
 protected:
-    void send_status_reply_packet() override;
-    void send_extended_status_reply_packet() override;
     iwm_device_info_block_t create_dib_reply_packet() override;
+    iwm_device_status_block_t create_status_reply_packet() override;
 
     MediaType *_disk = nullptr;
 

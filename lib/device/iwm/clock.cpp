@@ -25,24 +25,20 @@ iwmClock::iwmClock()
 {
 }
 
-void iwmClock::send_status_reply_packet()
+iwm_device_status_block_t iwmClock::create_status_reply_packet()
 {
-    uint8_t data[4];
+  iwm_device_status_block_t status;
 
-    // Build the contents of the packet
-    data[0] = STATCODE_DEVICE_ONLINE;
-    data[1] = 0; // block size 1
-    data[2] = 0; // block size 2
-    data[3] = 0; // block size 3
-    SYSTEM_BUS.iwm_send_packet(id(),iwm_packet_type_t::status,SP_ERR::NOERROR, data, 4);
+  status.code = STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE;
+  status.block_size = 0;
+  return status;
 }
 
 iwm_device_info_block_t iwmClock::create_dib_reply_packet()
 {
   iwm_device_info_block_t dib;
 
-  dib.stat_code = STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE;
-  dib.block_size = 0;
+  dib.dev_status = create_status_reply_packet();
   strcpy(dib.name, "FN_CLOCK");
   dib.name_len = strlen(dib.name);
   dib.type = SP_TYPE_BYTE_FUJINET_CLOCK;
