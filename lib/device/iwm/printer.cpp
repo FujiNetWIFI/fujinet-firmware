@@ -20,32 +20,20 @@ iwmPrinter::~iwmPrinter()
     _pptr = nullptr;
 }
 
-void iwmPrinter::send_status_reply_packet()
+iwm_device_status_block_t iwmPrinter::create_status_reply_packet()
 {
-    uint8_t data[4];
+  iwm_device_status_block_t status;
 
-    data[0] = 0b01110000;
-    data[1] = data[2] = data[3] = 0;
-
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR::NOERROR, data, 4);
-}
-
-void iwmPrinter::send_extended_status_reply_packet()
-{
-    uint8_t data[5];
-
-    data[0] = 0b01110000;
-    data[1] = data[2] = data[3] = data[4] = 0;
-
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR::NOERROR, data, 5);
+  status.code = STATCODE_WRITE_ALLOWED | STATCODE_DEVICE_ONLINE;
+  status.block_size = 0;
+  return status;
 }
 
 iwm_device_info_block_t iwmPrinter::create_dib_reply_packet()
 {
   iwm_device_info_block_t dib;
 
-  dib.stat_code = STATCODE_WRITE_ALLOWED | STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE;
-  dib.block_size = 0;
+  dib.dev_status = create_status_reply_packet();
   strcpy(dib.name, "PRINTER");
   dib.name_len = strlen(dib.name);
   dib.type = SP_TYPE_BYTE_FUJINET_MODEM;

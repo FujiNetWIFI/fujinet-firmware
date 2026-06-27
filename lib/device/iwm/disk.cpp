@@ -88,70 +88,21 @@ uint8_t iwmDisk::smartport_device_subtype()
     return SP_SUBTYPE_BYTE_SWITCHED; // Hard Disk
 }
 
-//*****************************************************************************
-// Function: send_status_reply_packet
-// Parameters: source
-// Returns: none
-//
-// Description: this is the reply to the status command packet. The reply
-// includes following:
-// data byte 1 is general info.
-// data byte 2-4 number of blocks. 2 is the LSB and 4 the MSB.
-// Size determined from image file.
-//*****************************************************************************
-void iwmDisk::send_status_reply_packet()
+iwm_device_status_block_t iwmDisk::create_status_reply_packet()
 {
+  iwm_device_status_block_t status;
 
-  uint8_t status = create_status();
-  if (switched && device_active) {
-    status |= STATCODE_DISK_SWITCHED;
-    switched = false;
-  }
-
-  auto block_size = create_blocksize();
-
-  std::vector<uint8_t> data;
-  data.push_back(status);
-  data.insert(data.end(), block_size.begin(), block_size.end());
-  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status,SP_ERR::NOERROR, data.data(), data.size());
-}
-
-//*****************************************************************************
-// Function: send_long_status_reply_packet
-// Parameters: source
-// Returns: none
-//
-// Description: this is the reply to the extended status command packet. The reply
-// includes following:
-// data byte 1
-// data byte 2-5 number of blocks. 2 is the LSB and 5 the MSB.
-// Size determined from image file.
-//*****************************************************************************
-void iwmDisk::send_extended_status_reply_packet() //XXX! Currently unused
-{
-  uint8_t status = create_status();
-  // TODO: is this correct? Should it be checking the device_active similar to send_status_reply_packet?
-  if (switched) {
-    status |= STATCODE_DISK_SWITCHED;
-    switched = false;
-  }
-
-  auto block_size = create_blocksize(true);
-
-  std::vector<uint8_t> data;
-  data.push_back(status);
-  data.insert(data.end(), block_size.begin(), block_size.end());
-  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR::NOERROR, data.data(), data.size());
+  status.code = create_status();
+  if (_disk != nullptr)
+    status.block_size = _disk->num_blocks;
+  return status;
 }
 
 iwm_device_info_block_t iwmDisk::create_dib_reply_packet()
 {
   iwm_device_info_block_t dib;
 
-  dib.stat_code = create_status();
-  if (_disk != nullptr)
-    dib.block_size = _disk->num_blocks;
-
+  dib.dev_status = create_status_reply_packet();
   std::string name = "FUJINET_DISK_" + std::to_string(disk_num);
   dib.name_len = std::min(name.size(), sizeof(dib.name));
   std::memcpy(dib.name, name.data(), dib.name_len);
@@ -763,3 +714,12 @@ error_is_true iwmDisk::write_blank(fnFile *f, uint16_t numBlocks, uint8_t blank_
 }
  */
 #endif /* BUILD_APPLE */
+
+/*
+  Local Variables:
+  mode: c++
+  indent-tabs-mode: nil
+  c-basic-offset: 2
+  c-file-offsets: ((substatement-open . 0))
+  End:
+*/

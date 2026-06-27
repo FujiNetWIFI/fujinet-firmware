@@ -284,6 +284,14 @@ void virtualDevice::send_reply_packet(spError_t err)
   SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, err, nullptr, 0);
 }
 
+void virtualDevice::send_status_reply_packet()
+{
+  iwm_device_status_block_t status_packet = create_status_reply_packet();
+
+  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR::NOERROR,
+                             &status_packet, sizeof(status_packet));
+}
+
 void virtualDevice::send_status_dib_reply_packet()
 {
   iwm_device_info_block_t dib_packet = create_dib_reply_packet();

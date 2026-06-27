@@ -108,9 +108,8 @@ public:
     void iwm_write(iwm_decoded_cmd_t cmd) override;
     void iwm_status(iwm_decoded_cmd_t cmd) override;
     void shutdown() override;
-    void send_status_reply_packet() override;
-    void send_extended_status_reply_packet() override{};
     iwm_device_info_block_t create_dib_reply_packet() override;
+    iwm_device_status_block_t create_status_reply_packet() override;
 
     /**
      * @brief Called to set prefix

@@ -212,10 +212,15 @@ enum class iwm_enable_state_t
   on,
 };
 
+struct iwm_device_status_block_t
+{
+  uint8_t code; // byte with 8 flags indicating device status
+  u24le_t block_size;
+} __attribute__((packed));
+
 struct iwm_device_info_block_t
 {
-  uint8_t stat_code; // byte with 8 flags indicating device status
-  u24le_t block_size;
+  iwm_device_status_block_t dev_status;
   uint8_t name_len;
   char name[16];
   uint8_t type, subtype;
@@ -246,16 +251,10 @@ protected:
   virtual success_is_true transaction_get(void *data, size_t len);
   virtual void transaction_put(const void *data, size_t len, bool err=false);
 
-   // void send_data_packet(); //encode smartport 512 byte data packet
-  // void encode_data_packet(uint16_t num = 512); //encode smartport "num" byte data packet
   void send_init_reply_packet(uint8_t source, spError_t err);
-  virtual void send_status_reply_packet() = 0;
+  void send_status_reply_packet();
   void send_reply_packet(spError_t err);
-  // void send_reply_packet(uint8_t source, spError_t err) { send_reply_packet(status); };
   void send_status_dib_reply_packet();
-
-  virtual void send_extended_status_reply_packet() = 0;
-  void send_extended_status_dib_reply_packet();
 
   virtual void shutdown() = 0;
 
@@ -281,6 +280,7 @@ protected:
   static int data_len; // how many bytes in the data buffer
 
   virtual iwm_device_info_block_t create_dib_reply_packet() = 0;
+  virtual iwm_device_status_block_t create_status_reply_packet() = 0;
 
 public:
   bool device_active;
