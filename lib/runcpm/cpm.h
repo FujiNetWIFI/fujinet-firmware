@@ -1,6 +1,13 @@
  #ifndef CPM_H
 #define CPM_H
 
+#ifndef RUNCPM_DECL
+#define RUNCPM_DECL
+#endif
+
+/* FujiNet: printer routing for BDOS C=5 (L_WRITE), see below. */
+#include "printer.h"
+
 enum eBIOSFunc {
     // CP/M 2.2 Stuff
     B_BOOT = 0,
@@ -143,19 +150,19 @@ enum eBDOSFunc {
 
 /* set up full PUN and LST filenames to be on drive A: user 0 */
 #ifdef USE_PUN
-char pun_file[17] = {'A', FOLDERCHAR, '0', FOLDERCHAR, 'P', 'U', 'N', '.', 'T', 'X', 'T', 0};
+RUNCPM_DECL char pun_file[17] = {'A', FOLDERCHAR, '0', FOLDERCHAR, 'P', 'U', 'N', '.', 'T', 'X', 'T', 0};
 #endif // ifdef USE_PUN
 
 #ifdef USE_LST
-char lst_file[17] = {'A', FOLDERCHAR, '0', FOLDERCHAR, 'L', 'S', 'T', '.', 'T', 'X', 'T', 0};
+RUNCPM_DECL char lst_file[17] = {'A', FOLDERCHAR, '0', FOLDERCHAR, 'L', 'S', 'T', '.', 'T', 'X', 'T', 0};
 #endif // ifdef USE_LST
 
 #ifdef PROFILE
-unsigned long time_start = 0;
-unsigned long time_now = 0;
+RUNCPM_DECL unsigned long time_start = 0;
+RUNCPM_DECL unsigned long time_now = 0;
 #endif // ifdef PROFILE
 
-void _PatchBIOS(void) {
+RUNCPM_DECL void _PatchBIOS(void) {
     uint16 i;
 
     // Patches in the BIOS jump destinations
@@ -178,7 +185,7 @@ void _PatchBIOS(void) {
     }
 } //_PatchBIOS
 
-void _PatchCPM(void) {
+RUNCPM_DECL void _PatchCPM(void) {
     uint16 i;
 
     // **********  Patch CP/M page zero into the memory  **********
@@ -294,9 +301,9 @@ void _PatchCPM(void) {
 } // _PatchCPM
 
 #ifdef DEBUGLOG
-uint8 LogBuffer[128];
+RUNCPM_DECL uint8 LogBuffer[128];
 
-void _logRegs(void) {
+RUNCPM_DECL void _logRegs(void) {
     uint8 J, I;
     uint8 Flags[9] = {'S', 'Z', '5', 'H', '3', 'P', 'N', 'C'};
     uint8 c = HIGH_REGISTER(AF);
@@ -311,7 +318,7 @@ void _logRegs(void) {
     _sys_logbuffer(LogBuffer);
 } // _logRegs
 
-void _logMem(uint16 address, uint8 amount) { // Amount = number of 16 bytes lines, so 1 CP/M block = 8, not 128
+RUNCPM_DECL void _logMem(uint16 address, uint8 amount) { // Amount = number of 16 bytes lines, so 1 CP/M block = 8, not 128
     uint8 i, m, c, pos;
     uint8 head = 8;
     uint8 hexa[] = "0123456789ABCDEF";
@@ -337,7 +344,7 @@ void _logMem(uint16 address, uint8 amount) { // Amount = number of 16 bytes line
     }
 } // _logMem
 
-void _logChar(char *txt, uint8 c) {
+RUNCPM_DECL void _logChar(char *txt, uint8 c) {
     uint8 asc[2];
 
     asc[0] = c > 31 && c < 127 ? c : '.';
@@ -346,7 +353,7 @@ void _logChar(char *txt, uint8 c) {
     _sys_logbuffer(LogBuffer);
 } // _logChar
 
-void _logBiosIn(uint8 ch) {
+RUNCPM_DECL void _logBiosIn(uint8 ch) {
     #ifdef LOGBIOS_NOT
     if (ch == LOGBIOS_NOT)
         return;
@@ -372,7 +379,7 @@ void _logBiosIn(uint8 ch) {
     _logRegs();
 } // _logBiosIn
 
-void _logBiosOut(uint8 ch) {
+RUNCPM_DECL void _logBiosOut(uint8 ch) {
     #ifdef LOGBIOS_NOT
     if (ch == LOGBIOS_NOT)
         return;
@@ -386,7 +393,7 @@ void _logBiosOut(uint8 ch) {
     _logRegs();
 } // _logBiosOut
 
-void _logBdosIn(uint8 ch) {
+RUNCPM_DECL void _logBdosIn(uint8 ch) {
     #ifdef LOGBDOS_NOT
     if (ch == LOGBDOS_NOT)
         return;
@@ -471,7 +478,7 @@ void _logBdosIn(uint8 ch) {
         _logMem(address, size);
 } // _logBdosIn
 
-void _logBdosOut(uint8 ch) {
+RUNCPM_DECL void _logBdosOut(uint8 ch) {
     #ifdef LOGBDOS_NOT
     if (ch == LOGBDOS_NOT)
         return;
@@ -546,7 +553,7 @@ void _logBdosOut(uint8 ch) {
 } // _logBdosOut
 #endif // ifdef DEBUGLOG
 
-void _Bios(void) {
+RUNCPM_DECL void _Bios(void) {
     uint8 ch = LOW_REGISTER(PCX);
     uint8 disk[2] = {'A', 0};
 
@@ -569,10 +576,10 @@ void _Bios(void) {
     }
     case B_CONIN: { // 3 - Console input
         SET_HIGH_REGISTER(AF, _getcon());
-#ifdef DEBUG
+#if RUNCPMDEBUG
         if (HIGH_REGISTER(AF) == DEBUGKEY)
             Debug = 1;
-#endif // ifdef DEBUG
+#endif // RUNCPMDEBUG
         break;
     }
     case B_CONOUT: { // 4 - Console output
@@ -696,12 +703,12 @@ void _Bios(void) {
         break;
     }
     default: {
-#ifdef DEBUG // Show unimplemented BIOS calls only when debugging
+#if RUNCPMDEBUG // Show unimplemented BIOS calls only when debugging
         _puts("\r\nUnimplemented BIOS call.\r\n");
         _puts("C = 0x");
         _puthex8(ch);
         _puts("\r\n");
-#endif // ifdef DEBUG
+#endif // RUNCPMDEBUG
         break;
     }
     } // switch
@@ -727,8 +734,10 @@ static uint16 programRetCode = 0;
    function 11 (Get console status). */
 static uint16 consoleMode = 0;
 
-void _Bdos(void) {
+RUNCPM_DECL void _Bdos(void) {
     uint8 ch = LOW_REGISTER(BC);
+    uint8 trans_ch = 0x9b; // FujiNet: CR->ATASCII EOL for printer (C=5)
+    (void)trans_ch;
 
 #ifdef DEBUGLOG
     _logBdosIn(ch);
@@ -755,10 +764,10 @@ void _Bdos(void) {
      */
     case C_READ: {
         HL = _getconE();
-    #ifdef DEBUG
+    #if RUNCPMDEBUG
         if (HL == DEBUGKEY)
             Debug = 1;
-    #endif // ifdef DEBUG
+    #endif // RUNCPMDEBUG
         break;
     }
 
@@ -801,6 +810,17 @@ void _Bdos(void) {
        C = 5 : Printer output
      */
     case L_WRITE: {
+    /* FujiNet: route printer output to the device printer. Atari translates
+       CR->ATASCII EOL and drops LF; Apple passes through. */
+    #ifdef BUILD_ATARI
+        if (LOW_REGISTER(DE) != 0x0A) {
+            trans_ch = LOW_REGISTER(DE) == 0x0D ? 0x9B : LOW_REGISTER(DE);
+            SYSTEM_BUS.getPrinter()->print_from_cpm(LOW_REGISTER(DE));
+        }
+    #endif /* BUILD_ATARI */
+    #ifdef BUILD_APPLE
+        SYSTEM_BUS.getPrinter()->print_from_cpm(LOW_REGISTER(DE));
+    #endif /* BUILD_APPLE */
     #ifdef USE_LST
         if (!lst_open) {
             lst_dev = _sys_fopen_w((uint8 *)lst_file);
@@ -825,10 +845,10 @@ void _Bdos(void) {
         if (e == 0xFF) {
             // Check for char available and return it, or 0x00 if none (non-blocking read)
             HL = _getconNB();
-    #ifdef DEBUG
+    #if RUNCPMDEBUG
             if (HL == DEBUGKEY)
                 Debug = 1;
-    #endif // ifdef DEBUG
+    #endif // RUNCPMDEBUG
     #ifdef CPM3
         } else if (e == 0xFE) {
             // Return console input status. Zero if no character is waiting, nonzero otherwise. (CPM3)
@@ -836,10 +856,10 @@ void _Bdos(void) {
         } else if (e == 0xFD) {
             // Wait until a character is ready, return it without echoing. (CPM3)
             HL = _getcon();
-    #ifdef DEBUG
+    #if RUNCPMDEBUG
             if (HL == DEBUGKEY)
                 Debug = 1;
-    #endif // ifdef DEBUG
+    #endif // RUNCPMDEBUG
     #endif // ifdef CPM3
         } else {
             // E = char : Outputs char (write)
@@ -981,12 +1001,12 @@ void _Bdos(void) {
                 break;
             }
 
-    #ifdef DEBUG
+    #if RUNCPMDEBUG
             if (chr == DEBUGKEY) { // Enter debugger
                 Debug = 1;
                 break;
             }
-    #endif // ifdef DEBUG
+    #endif // RUNCPMDEBUG
 
             if (chr == 5) { // ^E - goto beginning of next line
                 _putcon('\n');
@@ -2126,12 +2146,12 @@ void _Bdos(void) {
        Unimplemented calls get listed
      */
     default: {
-#ifdef DEBUG // Show unimplemented BDOS calls only when debugging
+#if RUNCPMDEBUG // Show unimplemented BDOS calls only when debugging
         _puts("\r\nUnimplemented BDOS call.\r\n");
         _puts("C = 0x");
         _puthex8(ch);
         _puts("\r\n");
-#endif // ifdef DEBUG
+#endif // RUNCPMDEBUG
         break;
     }
     } // switch

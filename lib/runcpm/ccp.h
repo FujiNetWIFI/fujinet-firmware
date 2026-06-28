@@ -1,6 +1,10 @@
 #ifndef CCP_H
 #define CCP_H
 
+#ifndef RUNCPM_DECL
+#define RUNCPM_DECL
+#endif
+
 // CP/M BDOS calls
 #include "cpm.h"
 
@@ -26,29 +30,31 @@
 #define MAX_USER          15
 
 // CCP global variables
-uint8 pageSize = DEFAULT_PAGE_SIZE;     // for TYPE
-uint8 currentDrive = 0;                 // 0 -> 15 = A -> P (Current drive for the CCP)
-uint8 paramDrive = 0;                   // 0 -> 15 = A -> P (Drive for the first file parameter)
-uint8 currentUser = 0;                  // 0 -> 15 (Current user area to access)
-bool submitFlag = FALSE;                // Submit Flag
-uint8 submitRecords = 0;                // Number of records on the Submit file
-uint8 prompt[PROMPT_SIZE] = "\r\n  >";  // Command prompt
-uint16 cmdBufferPtr, errorPtr;          // Pointer to the command buffer, and error position
-uint8 bufferLen = 0;                    // Actual size of the typed command line
+RUNCPM_DECL uint8 pageSize = DEFAULT_PAGE_SIZE;     // for TYPE
+RUNCPM_DECL uint8 currentDrive = 0;                 // 0 -> 15 = A -> P (Current drive for the CCP)
+RUNCPM_DECL uint8 paramDrive = 0;                   // 0 -> 15 = A -> P (Drive for the first file parameter)
+RUNCPM_DECL uint8 currentUser = 0;                  // 0 -> 15 (Current user area to access)
+RUNCPM_DECL bool submitFlag = FALSE;                // Submit Flag
+RUNCPM_DECL uint8 submitRecords = 0;                // Number of records on the Submit file
+RUNCPM_DECL uint8 prompt[PROMPT_SIZE] = "\r\n  >";  // Command prompt
+RUNCPM_DECL uint16 cmdBufferPtr, errorPtr;          // Pointer to the command buffer, and error position
+RUNCPM_DECL uint8 bufferLen = 0;                    // Actual size of the typed command line
 
+/* FujiNet: renamed `Command` -> `CcpCommand` to avoid clashing with FujiNet's
+   `class Command` (lib/devrelay/types/Command.h) pulled into the shared core. */
 typedef struct {
     const char *name;
     uint8 (*handler)(void);
-} Command;
+} CcpCommand;
 
 // Used to call BIOS from inside the CCP
-void _ccp_bios(uint8 function) {
+RUNCPM_DECL void _ccp_bios(uint8 function) {
     SET_LOW_REGISTER(PCX, function);
     _Bios();
 } // _ccp_bios
 
 // Used to call BDOS from inside the CCP
-uint16 _ccp_bdos(uint8 function, uint16 de) {
+RUNCPM_DECL uint16 _ccp_bdos(uint8 function, uint16 de) {
     SET_LOW_REGISTER(BC, function);
     DE = de;
     _Bdos();
@@ -59,7 +65,7 @@ uint16 _ccp_bdos(uint8 function, uint16 de) {
 // --- New Helper Functions for Printing ---
 
 // Helper to print a byte in Hex
-void _ccp_printHex8(uint8 v) {
+RUNCPM_DECL void _ccp_printHex8(uint8 v) {
     uint8 nibble = v >> 4;
     _ccp_bdos(C_WRITE, nibble > 9 ? nibble + 55 : nibble + 48);
     nibble = v & 0x0F;
@@ -67,13 +73,13 @@ void _ccp_printHex8(uint8 v) {
 }
 
 // Helper to print a word in Hex
-void _ccp_printHex16(uint16 v) {
+RUNCPM_DECL void _ccp_printHex16(uint16 v) {
     _ccp_printHex8(v >> 8);
     _ccp_printHex8(v & 0xFF);
 }
 
 // Helper to print a number in Decimal
-void _ccp_printDec(uint32 v) {
+RUNCPM_DECL void _ccp_printDec(uint32 v) {
     char buf[10];
     uint8 i = 0;
     if (v == 0) {
@@ -91,14 +97,14 @@ void _ccp_printDec(uint32 v) {
 
 #ifdef CPM3
 // Helper to print a 2-digit zero-padded decimal value
-void _ccp_print2(uint8 v) {
+RUNCPM_DECL void _ccp_print2(uint8 v) {
     _ccp_bdos(C_WRITE, '0' + (v / 10) % 10);
     _ccp_bdos(C_WRITE, '0' + v % 10);
 }
 
 // Prints a CP/M 3 date stamp (4 bytes at 'stamp': day word, hour BCD,
 // minute BCD) as MM/DD/YYYY HH:MM. Day 1 = 1978-01-01.
-void _ccp_printFileDate(uint16 stamp) {
+RUNCPM_DECL void _ccp_printFileDate(uint16 stamp) {
     uint16 days = _RamRead(stamp) | (_RamRead(stamp + 1) << 8);
     uint8 bh = _RamRead(stamp + 2);
     uint8 bm = _RamRead(stamp + 3);
@@ -142,7 +148,7 @@ void _ccp_printFileDate(uint16 stamp) {
 #endif
 
 // Compares two strings (Atmel doesn't like strcmp)
-uint8 _ccp_strEqual(const char *stra, const char *strb) {
+RUNCPM_DECL uint8 _ccp_strEqual(const char *stra, const char *strb) {
     while (*stra && *strb && (*stra == *strb)) {
         ++stra;
         ++strb;
@@ -151,13 +157,13 @@ uint8 _ccp_strEqual(const char *stra, const char *strb) {
 } // _ccp_strEqual
 
 // Returns true if character is a delimiter
-uint8 _ccp_delim(uint8 ch) {
+RUNCPM_DECL uint8 _ccp_delim(uint8 ch) {
     return (ch == 0 || ch == ' ' || ch == '=' || ch == '.' || ch == ':' ||
             ch == ';' || ch == '<' || ch == '>');
 }
 
 // Prints the FCB filename
-void _ccp_printfcb(uint16 fcb, uint8 compact) {
+RUNCPM_DECL void _ccp_printfcb(uint16 fcb, uint8 compact) {
     uint8 i, ch;
 
     ch = _RamRead(fcb);
@@ -177,7 +183,7 @@ void _ccp_printfcb(uint16 fcb, uint8 compact) {
 } // _ccp_printfcb
 
 // Initializes the FCB
-void _ccp_initFCB(uint16 address, uint8 size) {
+RUNCPM_DECL void _ccp_initFCB(uint16 address, uint8 size) {
     uint8 i;
 
     for (i = 0; i < size; ++i)
@@ -190,7 +196,7 @@ void _ccp_initFCB(uint16 address, uint8 size) {
 // Name to FCB
 // Parses a filename from the command buffer into an FCB
 // Handles drive specifiers (A:), wildcards (*, ?), and extensions
-uint8 _ccp_nameToFCB(uint16 fcb) {
+RUNCPM_DECL uint8 _ccp_nameToFCB(uint16 fcb) {
     uint8 pad, plen, ch, n = 0;
 
     // Checks for a drive and places it on the Command FCB
@@ -262,7 +268,7 @@ uint8 _ccp_nameToFCB(uint16 fcb) {
 } // _ccp_nameToFCB
 
 // Converts the ParFCB name to a number
-uint16 _ccp_fcbtonum() {
+RUNCPM_DECL uint16 _ccp_fcbtonum() {
     uint8 ch;
     uint16 n = 0;
     uint8 pos = ParFCB + 1;
@@ -278,7 +284,7 @@ uint16 _ccp_fcbtonum() {
 } // _ccp_fcbtonum
 
 // Asks for a key to continue, used by TYPE and LDIR
-void _ccp_askForKey(void) {
+RUNCPM_DECL void _ccp_askForKey(void) {
     _puts("-- Press any key, ^C to quit --");
     _ccp_bios(B_CONIN);
     _puts("\r");
@@ -287,7 +293,7 @@ void _ccp_askForKey(void) {
 
 #ifdef Internals
 // DIR command - standard directory listing
-uint8 _ccp_dir(void) {
+RUNCPM_DECL uint8 _ccp_dir(void) {
     uint8 i;
     uint8 dirHead[6] = "A: ";
     uint8 dirSep[6] = "  |  ";
@@ -324,7 +330,7 @@ uint8 _ccp_dir(void) {
 
 // LDIR command (Long DIR) - directory listing with file sizes and optional
 // checksum
-uint8 _ccp_ldir(void) {
+RUNCPM_DECL uint8 _ccp_ldir(void) {
     uint8 checksumOption = 0;
     uint8 l = 0;
 
@@ -452,14 +458,14 @@ uint8 _ccp_ldir(void) {
 } // _ccp_ldir
 
 // ERA command - erases files
-uint8 _ccp_era(void) {
+RUNCPM_DECL uint8 _ccp_era(void) {
     if (_ccp_bdos(F_DELETE, ParFCB))
         _puts("\r\nNo file");
     return 0;
 } // _ccp_era
 
 // TYPE command - types a file to the console
-uint8 _ccp_type(void) {
+RUNCPM_DECL uint8 _ccp_type(void) {
     uint8 i, c, l = 0, p = 0;
     uint16 a = 0;
 
@@ -498,7 +504,7 @@ uint8 _ccp_type(void) {
 } // _ccp_type
 
 // SAVE command - saves memory pages to a file
-uint8 _ccp_save(void) {
+RUNCPM_DECL uint8 _ccp_save(void) {
     uint8 error = TRUE;
     uint16 pages = _ccp_fcbtonum();
     uint16 i, dma;
@@ -536,7 +542,7 @@ uint8 _ccp_save(void) {
 } // _ccp_save
 
 // REN command - renames a file
-uint8 _ccp_ren(void) {
+RUNCPM_DECL uint8 _ccp_ren(void) {
     uint8 ch, i;
 
     ++cmdBufferPtr;
@@ -555,7 +561,7 @@ uint8 _ccp_ren(void) {
 } // _ccp_ren
 
 // USER command - changes user area
-uint8 _ccp_user(void) {
+RUNCPM_DECL uint8 _ccp_user(void) {
     uint8 error = TRUE;
 
     currentUser = (uint8)_ccp_fcbtonum();
@@ -567,13 +573,13 @@ uint8 _ccp_user(void) {
 } // _ccp_user
 
 // CLS command - clears the screen
-uint8 _ccp_cls(void) {
+RUNCPM_DECL uint8 _ccp_cls(void) {
     _clrscr();
     return (FALSE);
 } // _ccp_cls
 
 // EXIT command - terminates RunCPM
-uint8 _ccp_exit(void) {
+RUNCPM_DECL uint8 _ccp_exit(void) {
     _puts("\r\nTerminating RunCPM.");
     _puts("\r\nCPU Halted.");
     Status = STATUS_EXIT;
@@ -581,7 +587,7 @@ uint8 _ccp_exit(void) {
 } // _ccp_exit
 
 // PAGE command - sets the paging size for TYPE and LDIR
-uint8 _ccp_page(void) {
+RUNCPM_DECL uint8 _ccp_page(void) {
     uint8 error = TRUE;
     uint16 r = _ccp_fcbtonum();
 
@@ -597,14 +603,14 @@ uint8 _ccp_page(void) {
 } // _ccp_page
 
 // VER command - displays the CCP version
-uint8 _ccp_ver(void) {
+RUNCPM_DECL uint8 _ccp_ver(void) {
     _puts(CCPHEAD);
     return (FALSE);
 }
 
 // DUMP command - dump memory or file in hex+ASCII, 128 bytes per screen, stop
 // on ESC
-uint8 _ccp_dump(void) {
+RUNCPM_DECL uint8 _ccp_dump(void) {
     uint8 param[17];
     uint8 i = 0, c;
     uint16 addr = 0;
@@ -722,7 +728,7 @@ uint8 _ccp_dump(void) {
 } // _ccp_dump
 
 // VOL command - shows the volume INFO.TXT information
-uint8 _ccp_vol(void) {
+RUNCPM_DECL uint8 _ccp_vol(void) {
     uint8 error = FALSE;
     uint8 letter = _RamRead(ParFCB) ? '@' + _RamRead(ParFCB) : 'A' + currentDrive;
     uint8 folder[5] = {letter, FOLDERCHAR, '0', FOLDERCHAR, 0};
@@ -759,7 +765,7 @@ uint8 _ccp_vol(void) {
 
 // COPY command - copies a file
 // Usage: COPY <src> <dest>
-uint8 _ccp_copy(void) {
+RUNCPM_DECL uint8 _ccp_copy(void) {
     if (_RamRead(ParFCB + 1) == ' ') {
         _puts("\r\nNo source");
         return 0;
@@ -815,7 +821,7 @@ uint8 _ccp_copy(void) {
 
 // ECHO command - prints text to console
 // Usage: ECHO <text>
-uint8 _ccp_echo(void) {
+RUNCPM_DECL uint8 _ccp_echo(void) {
     // Find the start of the arguments in the input buffer
     // inBuf + 2 is the start of the command line
     uint16 ptr = inBuf + 2;
@@ -841,7 +847,7 @@ uint8 _ccp_echo(void) {
 
 // POKE command - writes a byte to memory
 // Usage: POKE <addr> <val> (hex)
-uint8 _ccp_poke(void) {
+RUNCPM_DECL uint8 _ccp_poke(void) {
     uint16 addr = 0;
     uint16 val = 0;
     uint8 c, i;
@@ -1009,7 +1015,7 @@ static void _ccp_readLine(char *buf, uint8 maxlen) {
 }
 
 // DATE command
-uint8 _ccp_date(void) {
+RUNCPM_DECL uint8 _ccp_date(void) {
     char arg[64];
     uint8 len = _RamRead(defDMA);
     uint8 i = 0, j = 0;
@@ -1103,7 +1109,7 @@ uint8 _ccp_date(void) {
 #endif // Internals
 
 // ?/Help command
-uint8 _ccp_hlp(void) {
+RUNCPM_DECL uint8 _ccp_hlp(void) {
     _puts("\r\nCCP Commands:\r\n");
     _puts(" ?                  - Shows this list of commands\r\n");
     _puts(" CLS                - Clears the screen\r\n");
@@ -1133,7 +1139,7 @@ uint8 _ccp_hlp(void) {
 }
 
 // List of CCP commands
-static const Command Commands[] = {
+static const CcpCommand Commands[] = {
 #ifdef Internals
     // Standard CP/M commands
     {"DIR", _ccp_dir},
@@ -1164,7 +1170,7 @@ static const Command Commands[] = {
 };
 
 // Gets the command pointer
-const Command *_ccp_cnum(void) {
+RUNCPM_DECL const CcpCommand *_ccp_cnum(void) {
     uint8 command[9];
     uint8 i = 0;
 
@@ -1187,7 +1193,7 @@ const Command *_ccp_cnum(void) {
 } // _ccp_cnum
 
 // External (.COM) command
-uint8 _ccp_ext(void) {
+RUNCPM_DECL uint8 _ccp_ext(void) {
     bool error = TRUE, found = FALSE;
     uint8 drive = 0, user = 0;
     uint16 loadAddr = defLoad;
@@ -1377,7 +1383,7 @@ uint8 _ccp_ext(void) {
 } // _ccp_ext
 
 // Prints a command error
-void _ccp_cmdError() {
+RUNCPM_DECL void _ccp_cmdError() {
     uint8 ch;
 
     _puts("\r\n");
@@ -1390,7 +1396,7 @@ void _ccp_cmdError() {
 } // _ccp_cmdError
 
 // Reads input, either from the $$$.SUB or console
-void _ccp_readInput(void) {
+RUNCPM_DECL void _ccp_readInput(void) {
     uint8 i;
     uint8 chars;
 
@@ -1423,7 +1429,7 @@ void _ccp_readInput(void) {
 // Parses the command line for drive/user changes (e.g., A:, 0:, A0:)
 // Returns TRUE if a drive/user change was processed, FALSE otherwise
 // Sets errorFlag if an invalid user was specified
-bool _ccp_parseDriveUser(bool *errorFlag) {
+RUNCPM_DECL bool _ccp_parseDriveUser(bool *errorFlag) {
     uint8 i;
     uint8 ch, tDrive = 0, tUser = currentUser, u = 0;
 
@@ -1468,7 +1474,7 @@ bool _ccp_parseDriveUser(bool *errorFlag) {
 }
 
 // Main CCP code
-void _ccp(void) {
+RUNCPM_DECL void _ccp(void) {
     uint8 i;
 
     submitFlag = (bool)_ccp_bdos(DRV_ALLRESET, 0x0000);
@@ -1604,7 +1610,7 @@ void _ccp(void) {
 
             i = FALSE; // Checks if the command is valid and executes
 
-            const Command *cmd = _ccp_cnum();
+            const CcpCommand *cmd = _ccp_cnum();
             if (cmd) {
                 i = cmd->handler();
             } else {

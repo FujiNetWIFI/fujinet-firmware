@@ -2,7 +2,11 @@
 
 #ifdef ESP_PLATFORM
 
-#define CCP_INTERNAL
+/*
+ * drivewire/cpm.cpp — CoCo DriveWire CP/M transport: a thin console back-end
+ * for the shared RunCPM core (lib/runcpm/runcpm_core.cpp). Supplies a
+ * queue-based console over the DriveWire rx/tx queues and runs a session.
+ */
 
 #include "cpm.h"
 
@@ -12,38 +16,70 @@
 #include "fnFS.h"
 #include "fnFsSD.h"
 
-#include "../runcpm/globals.h"
-#include "../runcpm/abstraction_fujinet_apple2.h"
-#include "../runcpm/ram.h"     // ram.h - Implements the RAM
-#include "../runcpm/console.h" // console.h - implements console.
-#include "../runcpm/cpu.h"     // cpu.h - Implements the emulated CPU
-#include "../runcpm/disk.h"    // disk.h - Defines all the disk access abstraction functions
-#include "../runcpm/host.h"    // host.h - Custom host-specific BDOS call
-#include "../runcpm/cpm.h"     // cpm.h - Defines the CPM structures and calls
-#ifdef CCP_INTERNAL
-# include "../runcpm/ccp.h" // ccp.h - Defines a simple internal CCP
-#endif
+#include "../runcpm/runcpm_session.h"
+
+/*
+ * DriveWire console queues (this TU owns them).
+ *   rxq : CP/M stdout -> host read  (putch pushes; read() pops)
+ *   txq : host write  -> CP/M stdin (write() pushes; getch pops)
+ */
+static QueueHandle_t rxq = nullptr;
+static QueueHandle_t txq = nullptr;
+
+/* ----- console back-end (runcpm_console_ops) ----- */
+
+static int cpm_kbhit(void)
+{
+    return txq ? (int)uxQueueMessagesWaiting(txq) : 0;
+}
+
+static int cpm_getch(void)
+{
+    uint8_t c = 0;
+    if (txq)
+        xQueueReceive(txq, &c, portMAX_DELAY);
+    return c;
+}
+
+static int cpm_getche(void)
+{
+    uint8_t c = (uint8_t)cpm_getch();
+    if (rxq)
+        xQueueSend(rxq, &c, portMAX_DELAY);
+    return c;
+}
+
+static void cpm_putch(uint8_t ch)
+{
+    if (rxq)
+        xQueueSend(rxq, &ch, portMAX_DELAY);
+}
+
+static void cpm_clrscr(void)
+{
+    /* VT100 cursor-home + clear-screen */
+    static const uint8_t seq[] = {0x1B, '[', '1', ';', '1', 'H',
+                                  0x1B, '[', '2', 'J'};
+    for (size_t i = 0; i < sizeof(seq); i++)
+        cpm_putch(seq[i]);
+}
+
+static const runcpm_console_ops cpm_console_ops = {
+    cpm_getch,
+    cpm_getche,
+    cpm_kbhit,
+    cpm_putch,
+    cpm_clrscr,
+};
 
 static void cpmTask(void *arg)
 {
+    (void)arg;
     Debug_printf("cpmTask()\n");
+    // The shared core owns the CCP + warm-boot loop; keep re-running it so the
+    // DriveWire console behaves like the original always-on task.
     while (1)
-    {
-        Status = Debug = 0;
-        Break = Step = -1;
-        RAM = (uint8_t *)malloc(MEMSIZE);
-        memset(RAM, 0, MEMSIZE);
-        memset(filename, 0, sizeof(filename));
-        memset(newname, 0, sizeof(newname));
-        memset(fcbname, 0, sizeof(fcbname));
-        memset(pattern, 0, sizeof(pattern));
-#ifdef ESP_PLATFORM // OS
-        vTaskDelay(100);
-#endif
-        _puts(CCPHEAD);
-        _PatchCPM();
-        _ccp();
-    }
+        runcpm_session_run(&cpm_console_ops);
 }
 
 drivewireCPM::drivewireCPM()

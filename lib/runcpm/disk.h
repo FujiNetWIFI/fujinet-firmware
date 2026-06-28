@@ -1,5 +1,11 @@
-#ifndef DISK_H
-#define DISK_H
+/* FujiNet: guard renamed DISK_H -> CPM_DISK_H to avoid colliding with the
+   bus-device disk headers (sio/disk.h, rc2014/disk.h, h89/disk.h). */
+#ifndef CPM_DISK_H
+#define CPM_DISK_H
+
+#ifndef RUNCPM_DECL
+#define RUNCPM_DECL
+#endif
 
 /* see main.c for definition */
 
@@ -20,7 +26,7 @@ Disk errors
 #define RW (roVector & (1 << cDrive))
 
 // Prints out a BDOS error
-void _error(uint8 error) {
+RUNCPM_DECL void _error(uint8 error) {
     _puts("\r\nBdos Err on ");
     _putcon('A' + cDrive);
     _puts(": ");
@@ -42,7 +48,7 @@ void _error(uint8 error) {
 }
 
 // Selects the disk to be used by the next disk function
-int _SelectDisk(uint8 dr) {
+RUNCPM_DECL int _SelectDisk(uint8 dr) {
     uint8 result = 0xff;
     uint8 disk[2] = {'A', 0};
 
@@ -65,7 +71,7 @@ int _SelectDisk(uint8 dr) {
 }
 
 // Converts a FCB entry onto a host OS filename string
-uint8 _FCBtoHostname(uint16 fcbaddr, uint8 *filename) {
+RUNCPM_DECL uint8 _FCBtoHostname(uint16 fcbaddr, uint8 *filename) {
     uint8 addDot = TRUE;
     CPM_FCB *F = (CPM_FCB *)_RamSysAddr(fcbaddr);
     uint8 i = 0;
@@ -127,7 +133,7 @@ uint8 _FCBtoHostname(uint16 fcbaddr, uint8 *filename) {
 }
 
 // Converts a host OS filename string onto a FCB entry
-void _HostnameToFCB(uint16 fcbaddr, uint8 *filename) {
+RUNCPM_DECL void _HostnameToFCB(uint16 fcbaddr, uint8 *filename) {
     CPM_FCB *F = (CPM_FCB *)_RamSysAddr(fcbaddr);
     uint8 i = 0;
 
@@ -162,7 +168,7 @@ void _HostnameToFCB(uint16 fcbaddr, uint8 *filename) {
 }
 
 // Converts a string name (AB.TXT) onto FCB name (AB      TXT)
-void _HostnameToFCBname(uint8 *from, uint8 *to) {
+RUNCPM_DECL void _HostnameToFCBname(uint8 *from, uint8 *to) {
     int i = 0;
 
     ++from;
@@ -201,7 +207,7 @@ void _HostnameToFCBname(uint8 *from, uint8 *to) {
 }
 
 // Creates a fake directory entry for the current dmaAddr FCB
-void _mockupDirEntry(uint8 mode) {
+RUNCPM_DECL void _mockupDirEntry(uint8 mode) {
     CPM_DIRENTRY *DirEntry = (CPM_DIRENTRY *)_RamSysAddr(dmaAddr);
     uint8 blocks, i;
 
@@ -268,7 +274,7 @@ void _mockupDirEntry(uint8 mode) {
 }
 
 // Matches a FCB name to a search pattern
-uint8 match(uint8 *fcbname, uint8 *pattern) {
+RUNCPM_DECL uint8 match(uint8 *fcbname, uint8 *pattern) {
     uint8 result = 1;
     uint8 i;
 
@@ -286,7 +292,7 @@ uint8 match(uint8 *fcbname, uint8 *pattern) {
 }
 
 // Returns the size of a file
-long _FileSize(uint16 fcbaddr) {
+RUNCPM_DECL long _FileSize(uint16 fcbaddr) {
     CPM_FCB *F = (CPM_FCB *)_RamSysAddr(fcbaddr);
     long r, l = -1;
 
@@ -305,7 +311,7 @@ long _FileSize(uint16 fcbaddr) {
 // Opens a file
 // Returns a 16-bit packed value: (hardware_error<<8) | result
 // result (A) = 0-3 for success or 0xFF for error (CP/M3 semantics)
-uint16 _OpenFile(uint16 fcbaddr) {
+RUNCPM_DECL uint16 _OpenFile(uint16 fcbaddr) {
     CPM_FCB *F = (CPM_FCB *)_RamSysAddr(fcbaddr);
     uint8 result = 0xff;   // low byte -> A
     uint8 hwerr = 0x00;    // high byte -> B/H (hardware error when result==0xFF)
@@ -363,7 +369,7 @@ uint16 _OpenFile(uint16 fcbaddr) {
 // Closes a file
 // Returns a 16-bit packed value: (hardware_error<<8) | result
 // result (A) = 0-3 for success or 0xFF for error (CP/M3 semantics)
-uint16 _CloseFile(uint16 fcbaddr) {
+RUNCPM_DECL uint16 _CloseFile(uint16 fcbaddr) {
     CPM_FCB *F = (CPM_FCB *)_RamSysAddr(fcbaddr);
     uint8 result = 0xff;
     uint8 hwerr = 0x00;
@@ -410,7 +416,7 @@ uint16 _CloseFile(uint16 fcbaddr) {
 }
 
 // Creates a file
-uint8 _MakeFile(uint16 fcbaddr) {
+RUNCPM_DECL uint8 _MakeFile(uint16 fcbaddr) {
     CPM_FCB *F = (CPM_FCB *)_RamSysAddr(fcbaddr);
     uint8 result = 0xff;
     uint8 i;
@@ -438,7 +444,7 @@ uint8 _MakeFile(uint16 fcbaddr) {
 }
 
 // Searches for the first directory file
-uint8 _SearchFirst(uint16 fcbaddr, uint8 isdir) {
+RUNCPM_DECL uint8 _SearchFirst(uint16 fcbaddr, uint8 isdir) {
     CPM_FCB *F = (CPM_FCB *)_RamSysAddr(fcbaddr);
     uint8 result = 0xff;
 
@@ -458,7 +464,7 @@ uint8 _SearchFirst(uint16 fcbaddr, uint8 isdir) {
 }
 
 // Searches for the next directory file
-uint8 _SearchNext(uint16 fcbaddr, uint8 isdir) {
+RUNCPM_DECL uint8 _SearchNext(uint16 fcbaddr, uint8 isdir) {
     CPM_FCB *F = (CPM_FCB *)_RamSysAddr(tmpFCB);
     uint8 result = 0xff;
 
@@ -473,7 +479,7 @@ uint8 _SearchNext(uint16 fcbaddr, uint8 isdir) {
 }
 
 // Deletes a file
-uint8 _DeleteFile(uint16 fcbaddr) {
+RUNCPM_DECL uint8 _DeleteFile(uint16 fcbaddr) {
     CPM_FCB *F = (CPM_FCB *)_RamSysAddr(fcbaddr);
 #if defined(USE_PUN) || defined(USE_LST)
     CPM_FCB *T = (CPM_FCB *)_RamSysAddr(tmpFCB);
@@ -514,7 +520,7 @@ uint8 _DeleteFile(uint16 fcbaddr) {
 }
 
 // Renames a file
-uint8 _RenameFile(uint16 fcbaddr) {
+RUNCPM_DECL uint8 _RenameFile(uint16 fcbaddr) {
     CPM_FCB *F = (CPM_FCB *)_RamSysAddr(fcbaddr);
     uint8 result = 0xff;
 
@@ -538,7 +544,7 @@ uint8 _RenameFile(uint16 fcbaddr) {
 
 // Sequential read
 // Returns a 16-bit value: (H = number of records processed, L = BDOS return code)
-uint16 _ReadSeq(uint16 fcbaddr) {
+RUNCPM_DECL uint16 _ReadSeq(uint16 fcbaddr) {
     CPM_FCB *F = (CPM_FCB *)_RamSysAddr(fcbaddr);
     uint8 result = 0xff;
     uint16 processed = 0;
@@ -599,7 +605,7 @@ uint16 _ReadSeq(uint16 fcbaddr) {
 
 // Sequential write
 // Returns a 16-bit value: (H = number of records processed, L = BDOS return code)
-uint16 _WriteSeq(uint16 fcbaddr) {
+RUNCPM_DECL uint16 _WriteSeq(uint16 fcbaddr) {
     CPM_FCB *F = (CPM_FCB *)_RamSysAddr(fcbaddr);
     uint8 result = 0xff;
     uint16 processed = 0;
@@ -676,7 +682,7 @@ uint16 _WriteSeq(uint16 fcbaddr) {
 
 // Random read
 // Returns a 16-bit value: (H = number of records processed, L = BDOS return code)
-uint16 _ReadRand(uint16 fcbaddr) {
+RUNCPM_DECL uint16 _ReadRand(uint16 fcbaddr) {
     CPM_FCB *F = (CPM_FCB *)_RamSysAddr(fcbaddr);
     uint8 result = 0xff;
     uint16 processed = 0;
@@ -725,7 +731,7 @@ uint16 _ReadRand(uint16 fcbaddr) {
 
 // Random write
 // Returns a 16-bit value: (H = number of records processed, L = BDOS return code)
-uint16 _WriteRand(uint16 fcbaddr) {
+RUNCPM_DECL uint16 _WriteRand(uint16 fcbaddr) {
     CPM_FCB *F = (CPM_FCB *)_RamSysAddr(fcbaddr);
     uint8 result = 0xff;
     uint16 processed = 0;
@@ -773,7 +779,7 @@ uint16 _WriteRand(uint16 fcbaddr) {
 }
 
 // Returns the size of a CP/M file
-uint8 _GetFileSize(uint16 fcbaddr) {
+RUNCPM_DECL uint8 _GetFileSize(uint16 fcbaddr) {
     CPM_FCB *F = (CPM_FCB *)_RamSysAddr(fcbaddr);
     uint8 result = 0xff;
     int32 count = _FileSize(DE) >> 7;
@@ -790,7 +796,7 @@ uint8 _GetFileSize(uint16 fcbaddr) {
 #ifdef CPM3
 // Truncates a file to the random record count held in the FCB (record * 128
 // bytes). Returns 0 on success, 0xFF on error.
-uint8 _TruncateFile(uint16 fcbaddr) {
+RUNCPM_DECL uint8 _TruncateFile(uint16 fcbaddr) {
     CPM_FCB *F = (CPM_FCB *)_RamSysAddr(fcbaddr);
     uint8 result = 0xff;
 
@@ -807,7 +813,7 @@ uint8 _TruncateFile(uint16 fcbaddr) {
 #endif
 
 // Set the next random record
-uint8 _SetRandom(uint16 fcbaddr) {
+RUNCPM_DECL uint8 _SetRandom(uint16 fcbaddr) {
     CPM_FCB *F = (CPM_FCB *)_RamSysAddr(fcbaddr);
     uint8 result = 0x00;
 
@@ -823,7 +829,7 @@ uint8 _SetRandom(uint16 fcbaddr) {
 }
 
 // Sets the current user area
-void _SetUser(uint8 user) {
+RUNCPM_DECL void _SetUser(uint8 user) {
     userCode = user & 0x1f; // BDOS unoficially allows user areas 0-31
                             // this may create folders from G-V if this function is called from an user program
                             // It is an unwanted behavior, but kept as BDOS does it
@@ -834,13 +840,13 @@ void _SetUser(uint8 user) {
 }
 
 // Creates a disk directory folder
-uint8 _MakeDisk(uint16 fcbaddr) {
+RUNCPM_DECL uint8 _MakeDisk(uint16 fcbaddr) {
     CPM_FCB *F = (CPM_FCB *)_RamSysAddr(fcbaddr);
     return (_sys_makedisk(F->dr));
 }
 
 // Checks if there's a temp submit file present
-uint8 _CheckSUB(void) {
+RUNCPM_DECL uint8 _CheckSUB(void) {
     uint8 result;
     uint8 oCode = userCode;                          // Saves the current user code (original BDOS does not do this)
     _HostnameToFCB(tmpFCB, (uint8 *)"$???????.???"); // The original BDOS in fact only looks for a file which start with $

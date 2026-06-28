@@ -22,10 +22,14 @@
 #define DO_INCR // Loses a bit of performance in favor or realistic R register emulation
 
 /* Definitions for enabling PUN: and LST: devices */
-#define USE_PUN // The pun.txt and lst.txt files will appear on drive A: user 0
-#define USE_LST
+/* FujiNet: disabled - they need main.c globals FujiNet doesn't compile. */
+// #define USE_PUN // The pun.txt and lst.txt files will appear on drive A: user 0
+// #define USE_LST
 
 /* Definitions for file/console based debugging */
+/* FujiNet: key the Z80 debugger off RUNCPMDEBUG, not the ambient -DDEBUG that
+   PlatformIO debug builds inject (it overflows ESP32 DRAM and leaks the banner). */
+#define RUNCPMDEBUG false
 // #define DEBUG			// Enables the internal debugger (enabled by default on visual studio debug builds)
 // #define DEBUGONHALT		// Enables the internal debugger when the CPU halts
 // #define iDEBUG			// Enables instruction logging onto iDebug.log (for development debug only)
@@ -47,7 +51,7 @@
 // #define ABDOS				// Based on work by Pavel Zampach (https://www.chstercius.cz/runcpm/)
 //  This requires ABDOS.SYS to be present on A: user 0 - see 'abdos' folder under 'tools'
 
-#if defined(_WIN32) || defined(ARDUINO)  // Windows needs a default CCP defined to compile as there's no Makefile
+#ifdef _WIN32   // Windows needs a default CCP defined to compile as there's no Makefile
     #define CCP_INTERNAL
 // #define CCP_DR
 // #define CCP_CCPZ
@@ -112,7 +116,7 @@
 
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
-#ifdef DEBUG
+#if RUNCPMDEBUG
     #define DBG " - DEBUG"
 #else
     #define DBG
@@ -122,12 +126,15 @@
 #else
     #define ABD
 #endif
+/* FujiNet: renamed `CPM` -> `CPM_VERSTR` to avoid clashing with FujiNet's `CPM`
+   enumerator (lib/bus/iwm/iwm.h) pulled into the shared core TU. Banner only. */
 #ifdef CPM3
-    #define CPM "CP/M 3"
+    #define CPM_VERSTR "CP/M 3"
 #else
-    #define CPM "CP/M 2.2"
+    #define CPM_VERSTR "CP/M 2.2"
 #endif
-#define CCPHEAD "\r\nRunCPM Version " VERSION " (" CCPname ") - " CPM DBG ABD "\r\n"
+/* FujiNet: rebranded banner. */
+#define CCPHEAD "\r\nFujiNet " CPM_VERSTR " - RunCPM " VERSION DBG ABD "\r\n"
 
 #define NOSLASH // Will translate '/' to '_' on filenames to prevent directory errors
 
@@ -200,6 +207,7 @@ typedef unsigned long long uint64;
                    // For TPASIZE<60 CCP ORG = (SIZEK * 1024) - 0x0C00
 
 #ifndef BANKS
+    /* FujiNet: 1 bank = 64K; the 6.9 default of 8 (512K) won't fit ESP32. */
     #define BANKS 1 // Number of memory banks available (defined in Makefile per platform)
 #endif
 static uint8 curBank = 0;     // Number of the current RAM bank in use (0-based, 0 to BANKS-1, as in CP/M 3)
@@ -222,7 +230,9 @@ static uint32 ioBankBase = 0;
 #endif
 
 #ifdef RAM_FAST // Makes all function calls to memory access into direct RAM access (less calls / less code)
-static uint8 RAM[MEMSIZE];
+/* FujiNet: RAM is a heap pointer (consumer does malloc/free) to keep the 64K
+   buffer off the ESP32 static-BSS budget. */
+static uint8 *RAM;
     #define _RamSysAddr(a) &RAM[a]
     #define _RamRead(a) RAM[a]
     #define _RamRead16(a) ((RAM[((a) & 0xffff) + 1] << 8) | RAM[(a) & 0xffff])
@@ -234,7 +244,9 @@ static uint8 RAM[MEMSIZE];
 
 // If this is defined, the emulator will use interrupt-based BIOS/BDOS calls instead of
 // the legacy IN/OUT method for handing control to the emulated BIOS/BDOS routines
-#define INT_HANDOFF
+/* FujiNet: keep the legacy IN/OUT port-0xFF handoff (driven by the
+   _HardwareIn/_HardwareOut in the abstraction layer). */
+// #define INT_HANDOFF
 
 // Size of the allocated pages (Minimum size = 1 page = 256 bytes)
 
@@ -317,7 +329,31 @@ static uint8 streamInputActive = FALSE;
 static uint8 consoleOutputActive = TRUE;
 #endif
 
-/* Definition of externs to prevent precedence compilation errors */
+/* FujiNet: RUNCPM_DECL gives RunCPM's file-scope symbols internal linkage under
+ * RUNCPM_STATIC_IMPL, so a header-only consumer TU can coexist with the shared
+ * core in one binary. The core headers tag definitions with RUNCPM_DECL. */
+#ifdef RUNCPM_STATIC_IMPL
+#define RUNCPM_DECL static
+#else
+#define RUNCPM_DECL
+#endif
+
+/* Definition of externs/forward-declarations to prevent precedence
+ * compilation errors inside the RunCPM header chain. */
+#ifdef RUNCPM_STATIC_IMPL
+/* Forward-decls must match the static linkage of the later definitions. */
+static void _Bdos(void);
+static void _Bios(void);
+static void _HostnameToFCB(uint16 fcbaddr, uint8 *filename);
+static void _HostnameToFCBname(uint8 *from, uint8 *to);
+static void _mockupDirEntry(uint8 mode);
+static uint8 match(uint8 *fcbname, uint8 *pattern);
+static void _puts(const char *str);
+#ifndef RAM_FAST
+static uint8 *_RamSysAddr(uint16 address);
+static void _RamWrite(uint16 address, uint8 value);
+#endif
+#else /* !RUNCPM_STATIC_IMPL */
 #ifdef __cplusplus // If building on Arduino
 extern "C" {
 #endif
@@ -340,5 +376,6 @@ extern void _puts(const char *str);
 #ifdef __cplusplus // If building on Arduino
 }
 #endif
+#endif /* RUNCPM_STATIC_IMPL */
 
 #endif

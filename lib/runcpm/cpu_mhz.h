@@ -1,6 +1,10 @@
 #ifndef CPU_MHZ_H
 #define CPU_MHZ_H
 
+#ifndef RUNCPM_DECL
+#define RUNCPM_DECL
+#endif
+
 #include <stdint.h>
 
 /* T-states for main Z80 instructions */
@@ -26,7 +30,7 @@ static const uint8 z80_tstates_main[256] = {
 /* Run a small Z80 code and measure the time to estimate emulated clock.
    This will load a small z80 code into RAM, run it until halt, then compute the 
    estimated clock at which the CPU is running */
-void Z80estimateClock(void) {
+RUNCPM_DECL void Z80estimateClock(void) {
 	const uint8 testCode[] = {
 #ifdef ARDUINO
 		0x11, 0xF4, 0x01, // LD DE, 500
