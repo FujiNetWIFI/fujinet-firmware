@@ -24,13 +24,15 @@ void fujiHost::unmount()
 void fujiHost::cleanup()
 {
     if (_fs != nullptr)
+    {
         _fs->dir_close();
 
-    // Delete the filesystem if it's not one of the global ones
-    if (_fs->is_global() == false)
-        delete _fs;
+        // Delete the filesystem if it's not one of the global ones
+        if (_fs->is_global() == false)
+            delete _fs;
 
-    _fs = nullptr;
+        _fs = nullptr;
+    }
 
     _hostname[0] = '\0';
 }
