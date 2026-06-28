@@ -387,7 +387,17 @@ void virtualDevice::iwm_process(iwm_decoded_cmd_t cmd)
   {
   case SP_CMD_STATUS:
     Debug_printf("\r\nhandling status command");
-    iwm_status(cmd);
+    switch (cmd.control_status.code) {
+    case SP_STAT_DEVICE:
+        send_status_reply_packet();
+        break;
+    case SP_STAT_DIB:
+        send_status_dib_reply_packet();
+        break;
+    default:
+      iwm_status(cmd);
+      break;
+    }
     break;
   case SP_CMD_READBLOCK:
     Debug_printf("\r\nhandling readblock command");

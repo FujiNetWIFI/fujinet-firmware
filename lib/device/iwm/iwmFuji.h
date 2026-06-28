@@ -113,7 +113,6 @@ protected:
 
 public:
     spError_t err_result = SP_ERR::NOERROR;
-    bool status_completed = false;
     fujiCommandID_t active_fuji_command;
 
     iwmFuji();
