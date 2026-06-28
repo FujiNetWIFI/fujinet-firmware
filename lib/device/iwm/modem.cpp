@@ -1483,15 +1483,8 @@ void iwmModem::iwm_status(iwm_decoded_cmd_t cmd)
     Debug_printf("\r\n[MODEM] Device %02x Status Code %02x\r\n", id(), cmd.control_status.fuji.command);
     // Debug_printf("\r\nStatus List is at %02x %02x\n", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
 
-    // FIXME - enums have been mixed&matched, having to cast to int
-    switch (static_cast<int>(cmd.control_status.code))
+    switch (cmd.control_status.fuji.command)
     {
-    case SP_STAT_DEVICE: // 0x00
-        send_status_reply_packet();
-        return;
-    case SP_STAT_DIB: // 0x03
-        send_status_dib_reply_packet();
-        return;
     case MODEMCMD_STATUS:
         iwm_modem_status();
         break;

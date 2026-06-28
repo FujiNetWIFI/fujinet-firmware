@@ -337,17 +337,8 @@ void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
     Debug_printf("\r\n[NETWORK] Device %02x Status Code %02x('%c') net_unit %02x\r\n", id(), cmd.control_status.fuji.command, isprint(cmd.control_status.fuji.command) ? (char) cmd.control_status.fuji.command : '.', current_network_unit);
 #endif
 
-    // FIXME - enums have been mixed&matched, having to cast to int
-    switch (static_cast<int>(cmd.control_status.fuji.command))
+    switch (cmd.control_status.fuji.command)
     {
-    case SP_STAT_DEVICE: // 0x00
-        send_status_reply_packet();
-        return;
-    // case SP_STAT_DCB:                  // 0x01
-    // case SP_STAT_NEWLINE:              // 0x02
-    case SP_STAT_DIB: // 0x03
-        send_status_dib_reply_packet();
-        return;
     case NETCMD_GETCWD:
         get_prefix();
         break;

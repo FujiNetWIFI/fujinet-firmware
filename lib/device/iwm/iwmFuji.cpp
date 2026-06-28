@@ -84,8 +84,6 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
     status_handlers = {
         { 0xAA, [this]()                               { this->iwm_hello_world(); }},
 
-        { SP_STAT_DIB, [this]()                     { this->send_status_dib_reply_packet(); status_completed = true; }},     // 0x03
-        { SP_STAT_DEVICE, [this]()                  { this->send_status_reply_packet(); status_completed = true; }},         // 0x00
 #ifndef DEV_RELAY_SLIP
         { SP_STAT_GET_DISKII_SEEN, [this]()                  { data_len = 1; data_buffer[0] = diskii_xface.d2_enable_seen; }},
 #endif
@@ -319,43 +317,40 @@ void iwmFuji::iwm_read(iwm_decoded_cmd_t cmd) {}
 
 void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
 {
-        status_completed = false;
-        active_fuji_command = cmd.control_status.fuji.command;
+    active_fuji_command = cmd.control_status.fuji.command;
 
-        Debug_printf("\r\n[Fuji] Device %02x Status Code %02x\r\n", id(), active_fuji_command);
+    Debug_printf("\r\n[Fuji] Device %02x Status Code %02x\r\n", id(), active_fuji_command);
 
-        auto it = status_handlers.find(active_fuji_command);
+    auto it = status_handlers.find(active_fuji_command);
     if (it != status_handlers.end()) {
         it->second();
     } else {
-                Debug_printf("ERROR: Unhandled status code: %02X\n", active_fuji_command);
-                data_len = 0;
+        Debug_printf("ERROR: Unhandled status code: %02X\n", active_fuji_command);
+        data_len = 0;
     }
 
-        if (status_completed) return;
-
-        Debug_printf("\nStatus code complete, sending response");
-        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, data_len);
+    Debug_printf("\nStatus code complete, sending response");
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, data_len);
 }
 
 void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
 {
-        Debug_printf("\ntheFuji Device %02x Control Code %02x", id(), cmd.control_status.fuji.command);
+    Debug_printf("\ntheFuji Device %02x Control Code %02x", id(), cmd.control_status.fuji.command);
 
-        err_result = SP_ERR::NOERROR;
+    err_result = SP_ERR::NOERROR;
 
     Debug_printf("\nDecoding Control Data Packet for code: 0x%02x\r\n", cmd.control_status.fuji.command);
     print_packet((uint8_t *)data_buffer, data_len);
 
-        auto it = control_handlers.find(cmd.control_status.fuji.command);
+    auto it = control_handlers.find(cmd.control_status.fuji.command);
     if (it != control_handlers.end()) {
         it->second();
     } else {
-                Debug_printf("ERROR: Unhandled control code: %02X\n", cmd.control_status.fuji.command);
+        Debug_printf("ERROR: Unhandled control code: %02X\n", cmd.control_status.fuji.command);
         err_result = SP_ERR::BADCTL;
     }
 
-        send_reply_packet(err_result);
+    send_reply_packet(err_result);
 }
 
 void iwmFuji::handle_ctl_eject(uint8_t spid)

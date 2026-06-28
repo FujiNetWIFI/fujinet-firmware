@@ -43,23 +43,6 @@ iwm_device_info_block_t iwmPrinter::create_dib_reply_packet()
   return dib;
 }
 
-void iwmPrinter::iwm_status(iwm_decoded_cmd_t cmd)
-{
-    Debug_printf("\r\n[PRINTER]: Device: %02x Status Code %02x\r\n", id(), cmd.control_status.fuji.command);
-    switch (cmd.control_status.code)
-    {
-    case SP_STAT_DEVICE:
-        send_status_reply_packet();
-        break;
-    case SP_STAT_DIB:
-        send_status_dib_reply_packet();
-        break;
-    default:
-      send_reply_packet(SP_ERR::BADCMD);
-      break;
-    }
-}
-
 void iwmPrinter::iwm_open(iwm_decoded_cmd_t cmd)
 {
     Debug_printf("\nPrinter: Open\n");
