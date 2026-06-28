@@ -201,11 +201,7 @@ void fujiDevice::shutdown()
     for (int i = 0; i < _totalDiskDevices; i++)
         _fnDisks[i].disk_dev.unmount();
 
-    // Release host mounts so the next startup re-mounts them fresh. The Android
-    // "FujiNet Go" runtime restarts in-process (re-runs main_setup() without
-    // killing the process), so these process-global fujiHost objects otherwise
-    // survive with a dead TNFS session that mount() reuses -- garbage directory
-    // listings and failed mounts until a Force Stop.
+    // Make sure we clean the mounts, to prevent a leak.
     for (int i = 0; i < MAX_HOSTS; i++)
     {
         fujiHostType htype = _fnHosts[i].get_type();
