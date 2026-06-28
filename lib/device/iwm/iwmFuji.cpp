@@ -247,23 +247,28 @@ void iwmFuji::setup()
         // Disable booting from CONFIG if our settings say to turn it off
         boot_config = Config.get_general_config_enabled();
 
-        // add ourselves as a device
-        SYSTEM_BUS.addDevice(this, iwm_fujinet_type_t::FujiNet);
-
-        theNetwork = new iwmNetwork();
-        SYSTEM_BUS.addDevice(theNetwork, iwm_fujinet_type_t::Network);
-
-        theClock = new iwmClock();
-        SYSTEM_BUS.addDevice(theClock, iwm_fujinet_type_t::Clock);
-
-        theCPM = new iwmCPM();
-        SYSTEM_BUS.addDevice(theCPM, iwm_fujinet_type_t::CPM);
-
-        for (int i = MAX_SPDISK_DEVICES - 1; i >= 0; i--)
+        // Build the device topology once, to avoid duplicating the daisy chain
+        // and leaking the devices when setup() re-runs on an in-process restart.
+        if (theNetwork == nullptr)
         {
-                DISK_DEVICE *disk_dev = get_disk_dev(i);
-                disk_dev->set_disk_number('0' + i);
-                SYSTEM_BUS.addDevice(disk_dev, iwm_fujinet_type_t::BlockDisk);
+                // add ourselves as a device
+                SYSTEM_BUS.addDevice(this, iwm_fujinet_type_t::FujiNet);
+
+                theNetwork = new iwmNetwork();
+                SYSTEM_BUS.addDevice(theNetwork, iwm_fujinet_type_t::Network);
+
+                theClock = new iwmClock();
+                SYSTEM_BUS.addDevice(theClock, iwm_fujinet_type_t::Clock);
+
+                theCPM = new iwmCPM();
+                SYSTEM_BUS.addDevice(theCPM, iwm_fujinet_type_t::CPM);
+
+                for (int i = MAX_SPDISK_DEVICES - 1; i >= 0; i--)
+                {
+                        DISK_DEVICE *disk_dev = get_disk_dev(i);
+                        disk_dev->set_disk_number('0' + i);
+                        SYSTEM_BUS.addDevice(disk_dev, iwm_fujinet_type_t::BlockDisk);
+                }
         }
 
         if (boot_config)
