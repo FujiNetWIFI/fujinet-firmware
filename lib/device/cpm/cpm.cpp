@@ -13,9 +13,21 @@ int cpmDevice::s_kbhit()
     return s_active ? s_active->ep_kbhit() : 0;
 }
 
-uint8_t cpmDevice::s_getch()
+int cpmDevice::s_getch()
 {
     return s_active ? s_active->ep_getch() : 0x03;
+}
+
+// getche = blocking read then echo.  Generic for every transport: read a byte
+// from the endpoint, mask to 7 bits (CP/M console is 7-bit), echo it back out
+// the same endpoint.  No per-bus override needed.
+int cpmDevice::s_getche()
+{
+    if (!s_active)
+        return 0x03;
+    uint8_t ch = s_active->ep_getch() & 0x7f;
+    s_active->ep_putch(ch);
+    return ch;
 }
 
 void cpmDevice::s_putch(uint8_t c)
@@ -37,6 +49,7 @@ void cpmDevice::handle_cpm()
     runcpm_console_ops ops;
     ops.kbhit  = &cpmDevice::s_kbhit;
     ops.getch  = &cpmDevice::s_getch;
+    ops.getche = &cpmDevice::s_getche;
     ops.putch  = &cpmDevice::s_putch;
     ops.clrscr = &cpmDevice::s_clrscr;
 

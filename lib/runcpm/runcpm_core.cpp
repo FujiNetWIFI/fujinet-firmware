@@ -1,101 +1,104 @@
-/**
- * runcpm_core.cpp - the one and only build of the RunCPM engine.
- *
- * Historically every transport (the SIO/Atari bus device, the IWM/Apple and
- * DriveWire/CoCo background tasks, the RS232 bus device and the N:CPM://
- * network adapter) #included the whole header-only engine into its own
- * translation unit.  That meant several independent 64K RAM images and several
- * copies of the BDOS/BIOS/CCP code in the firmware, kept apart only by the
- * RUNCPM_STATIC_IMPL "make every symbol static" hack.
- *
- * This file compiles the engine exactly once, with normal (external) linkage,
- * for every platform.  Transports no longer include the engine; they call
- * runcpm_session_run() with a small set of console callbacks (see
- * runcpm_session.h) and the engine talks to them through g_runcpm_console.
+/*
+ * The single shared RunCPM core: the only TU that compiles the Z80/CP/M engine
+ * (built without RUNCPM_STATIC_IMPL, so all state/tables/functions are external
+ * and defined here once).  Transports include runcpm_session.h only and drive
+ * it as console back-ends.  One session at a time, enforced by g_busy.
  */
-
-#include <atomic>
-#include <cstdlib>
-#include <cstring>
 
 #define CCP_INTERNAL
 
+/* Use cpu.h's precomputed const Z80 tables (placed in flash) instead of
+   building them into ~11 KB of DRAM .bss at boot.  Must precede cpu.h. */
+#define preTables
+
+#include <atomic>
+#include <stdlib.h>
+#include <string.h>
+#if !defined(_WIN32) && !defined(ARDUINO)
+#include <unistd.h> // cpu.h's Z80 throttle calls usleep() on POSIX/ESP-IDF
+#endif
+
+#include "fnSystem.h"
+#include "fnFS.h"
+#include "fnFsSD.h"
+
 #include "runcpm_session.h"
 
+/* RunCPM header chain (external linkage).  abstraction_fujinet_core.h supplies
+   the disk/SD family and the console shims that dispatch through
+   g_runcpm_console. */
 #include "globals.h"
-#include "abstraction_fujinet.h" // filesystem + console-dispatch glue
-#include "ram.h"                 // RAM access
-#include "console.h"             // _putcon/_puts built on the console callbacks
-#include "cpu.h"                 // Z80 core + Status/Debug/Break/Step
-#include "disk.h"                // CP/M disk abstraction
-#include "host.h"                // custom host-specific BDOS call
-#include "cpm.h"                 // CP/M structures and BDOS/BIOS
-#include "ccp.h"                 // internal CCP
+#include "abstraction_fujinet_core.h"
+#include "ram.h"
+#include "console.h"
+#include "cpu.h"
+#include "disk.h"
+#include "host.h"
+#include "cpm.h"
+#include "ccp.h"
 
-// The live console endpoint.  Declared extern in abstraction_fujinet.h and read
-// by the _kbhit/_getch/_putch/_clrscr glue there.
-runcpm_console_ops g_runcpm_console{};
+/* Active transport's console back-end; the shims in abstraction_fujinet_core.h
+   route _getch/_putch/etc. through it. */
+extern "C" runcpm_console_ops g_runcpm_console = {};
 
-// The engine owns a single 64K RAM image and is not re-entrant, so only one
-// session may run at a time.  g_busy guards that; g_exit lets another task ask
-// the running session to stop.
+/* Single-instance interlock against clobbering the shared RAM/state. */
 static std::atomic<bool> g_busy{false};
-static volatile bool     g_exit = false;
 
-bool runcpm_session_active(void)
+extern "C" bool runcpm_session_run(const runcpm_console_ops *ops)
 {
-    return g_busy.load();
-}
+    if (ops == nullptr)
+        return false;
 
-void runcpm_session_request_exit(void)
-{
-    // Status == 1 is the engine's "BIOS BOOT / exit CP/M" signal; setting it
-    // makes the CCP fall out of its loop at the next iteration.  g_exit also
-    // breaks our own warm-boot loop below.
-    g_exit = true;
-    Status = 1;
-}
+    if (g_busy.exchange(true))
+        return false;
 
-bool runcpm_session_run(const runcpm_console_ops *ops)
-{
-    bool expected = false;
-    if (!g_busy.compare_exchange_strong(expected, true))
-        return false; // a session is already running
-
-    g_exit = false;
     g_runcpm_console = *ops;
 
-    // One-time machine setup for the whole session.
-    Status = Debug = 0;
-    Break = Step = -1;
-    RAM = (uint8 *)malloc(MEMSIZE);
-    if (RAM != nullptr)
+    /* CCP + warm-boot loop: STATUS_EXIT ends the session, STATUS_RESTART warm-
+       boots CP/M as real hardware would. */
+    while (true)
     {
-        memset(RAM, 0, MEMSIZE);
-        memset(filename, 0, sizeof(filename));
-        memset(newname, 0, sizeof(newname));
-        memset(fcbname, 0, sizeof(fcbname));
-        memset(pattern, 0, sizeof(pattern));
+        Status = Debug = 0;
+        Break = Step = Watch = -1;
 
-        // CCP loop: a warm boot (Status == 2, e.g. ^C at the prompt or a
-        // program that RETs) re-enters the CCP and reprints the banner, exactly
-        // like real CP/M.  An exit (Status == 1) or an external exit request
-        // ends the session.
-        while (true)
-        {
-            _puts(CCPHEAD);
-            _PatchCPM();
-            Status = 0;
-            _ccp();
-            if (Status == 1 || g_exit)
-                break;
-        }
+        /* Drop any cached sequential-read handle so a file replaced between
+           boots is never read through a stale handle. */
+        _seq_cache_close();
+
+        RAM = (uint8_t *)malloc(MEMSIZE);
+        if (!RAM)
+            break;
+
+        memset(RAM,      0, MEMSIZE);
+        memset(filename, 0, sizeof(filename));
+        memset(newname,  0, sizeof(newname));
+        memset(fcbname,  0, sizeof(fcbname));
+        memset(pattern,  0, sizeof(pattern));
+
+        _puts(CCPHEAD);
+        _PatchCPM();
+        _ccp();
 
         free(RAM);
         RAM = nullptr;
+
+        if (Status == STATUS_EXIT)
+            break;
     }
 
-    g_runcpm_console = runcpm_console_ops{};
+    _seq_cache_close();
+
     g_busy.store(false);
     return true;
+}
+
+extern "C" void runcpm_session_request_exit(void)
+{
+    /* Stop at the next warm boot; caller must unblock its own getch. */
+    Status = STATUS_EXIT;
+}
+
+extern "C" bool runcpm_session_active(void)
+{
+    return g_busy.load();
 }

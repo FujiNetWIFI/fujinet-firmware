@@ -61,7 +61,8 @@ private:
     // to the device that owns the running session (only one runs at a time).
     static cpmDevice *s_active;
     static int     s_kbhit();
-    static uint8_t s_getch();
+    static int     s_getch();
+    static int     s_getche();
     static void    s_putch(uint8_t c);
     static void    s_clrscr();
 };

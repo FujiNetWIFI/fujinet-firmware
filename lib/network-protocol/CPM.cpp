@@ -56,7 +56,7 @@ static int net_kbhit(void)
 #endif
 }
 
-static uint8_t net_getch(void)
+static int net_getch(void)
 {
     uint8_t c = 0;
 #ifdef ESP_PLATFORM
@@ -68,6 +68,16 @@ static uint8_t net_getch(void)
     c = _cpm_txq.front();
     _cpm_txq.pop();
 #endif
+    return c;
+}
+
+static void net_putch(uint8_t ch);
+
+/* getche = blocking read then echo (CP/M console is 7-bit). */
+static int net_getche(void)
+{
+    uint8_t c = (uint8_t)(net_getch() & 0x7f);
+    net_putch(c);
     return c;
 }
 
@@ -100,6 +110,7 @@ static void _cpm_run(void)
     runcpm_console_ops ops;
     ops.kbhit  = net_kbhit;
     ops.getch  = net_getch;
+    ops.getche = net_getche;
     ops.putch  = net_putch;
     ops.clrscr = net_clrscr;
 
