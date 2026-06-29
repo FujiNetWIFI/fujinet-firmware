@@ -6,7 +6,7 @@
 #endif
 
 RUNCPM_DECL uint8 hostbdos(uint16 dmaaddr) {
-	return(0x00);
+    return (0x00);
 }
 
 #endif

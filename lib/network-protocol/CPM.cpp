@@ -1,71 +1,120 @@
 /**
  * NetworkProtocolCPM — CP/M emulator as a network protocol adapter.
  *
- * IMPORTANT: RUNCPM_STATIC_IMPL must be defined before any RunCPM header so
- * that every RunCPM symbol in this TU gets static (internal) linkage.  This
- * lets the network-protocol CPM adapter and any bus-device CPM adapter (sio,
- * drivewire, iwm, …) coexist in the same binary without linker conflicts.
+ * Like every other CP/M transport, this drives the single shared RunCPM engine
+ * (lib/runcpm/runcpm_core.cpp) through runcpm_session_run().  The only thing it
+ * owns is a pair of byte queues bridging the engine console to the network
+ * read()/write() buffers.
  */
-
-#define RUNCPM_STATIC_IMPL
-#define CCP_INTERNAL
 
 #include "CPM.h"
 #include "../../include/debug.h"
 #include "status_error_codes.h"
 
-/* The network-protocol abstraction defines the static queue variables
- * (_cpm_rxq / _cpm_txq) and the _kbhit / _getch / _putch / _clrscr
- * functions.  It must come before the RunCPM headers that use them. */
-#include "../runcpm/abstraction_network_protocol.h"
+#include "../runcpm/runcpm_session.h"
 
-/* Standard RunCPM header chain */
-#include "../runcpm/globals.h"
-#include "../runcpm/ram.h"
-#include "../runcpm/console.h"
-#include "../runcpm/cpu.h"
-#include "../runcpm/disk.h"
-#include "../runcpm/host.h"
-#include "../runcpm/cpm.h"
-#include "../runcpm/ccp.h"
+#ifdef ESP_PLATFORM
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#else
+#include <queue>
+#include <mutex>
+#include <condition_variable>
+#endif
+
+/* -------------------------------------------------------------------------
+ * Console queues
+ *
+ * _cpm_txq : user -> CPM stdin   (write() pushes; net_getch() pops)
+ * _cpm_rxq : CPM stdout -> user  (net_putch() pushes; read() pops)
+ * ------------------------------------------------------------------------- */
+#ifdef ESP_PLATFORM
+static QueueHandle_t _cpm_rxq = nullptr;
+static QueueHandle_t _cpm_txq = nullptr;
+#else
+static std::queue<uint8_t>     _cpm_rxq;
+static std::queue<uint8_t>     _cpm_txq;
+static std::mutex              _cpm_rxmtx;
+static std::mutex              _cpm_txmtx;
+static std::condition_variable _cpm_txcv;
+#endif
+
+/* Set by _cpm_run() when the session ends; polled by status() to drive EOF. */
+static volatile bool _cpm_session_ended = false;
+
+/* -------------------------------------------------------------------------
+ * Console endpoint — bridges the engine's console callbacks to the queues.
+ * ------------------------------------------------------------------------- */
+static int net_kbhit(void)
+{
+#ifdef ESP_PLATFORM
+    if (_cpm_txq == nullptr) return 0;
+    return (int)uxQueueMessagesWaiting(_cpm_txq);
+#else
+    std::lock_guard<std::mutex> lk(_cpm_txmtx);
+    return (int)_cpm_txq.size();
+#endif
+}
+
+static int net_getch(void)
+{
+    uint8_t c = 0;
+#ifdef ESP_PLATFORM
+    if (_cpm_txq != nullptr)
+        xQueueReceive(_cpm_txq, &c, portMAX_DELAY);
+#else
+    std::unique_lock<std::mutex> lk(_cpm_txmtx);
+    _cpm_txcv.wait(lk, [] { return !_cpm_txq.empty(); });
+    c = _cpm_txq.front();
+    _cpm_txq.pop();
+#endif
+    return c;
+}
+
+static void net_putch(uint8_t ch);
+
+/* getche = blocking read then echo (CP/M console is 7-bit). */
+static int net_getche(void)
+{
+    uint8_t c = (uint8_t)(net_getch() & 0x7f);
+    net_putch(c);
+    return c;
+}
+
+static void net_putch(uint8_t ch)
+{
+#ifdef ESP_PLATFORM
+    if (_cpm_rxq != nullptr)
+        xQueueSend(_cpm_rxq, &ch, portMAX_DELAY);
+#else
+    {
+        std::lock_guard<std::mutex> lk(_cpm_rxmtx);
+        _cpm_rxq.push(ch);
+    }
+#endif
+}
+
+static void net_clrscr(void)
+{
+    /* VT100 cursor-home + clear-screen */
+    net_putch(0x1B); net_putch('['); net_putch('1'); net_putch(';');
+    net_putch('1');  net_putch('H'); net_putch(0x1B); net_putch('[');
+    net_putch('2');  net_putch('J');
+}
 
 /* -------------------------------------------------------------------------
  * CPM task / thread entry point
- *
- * Runs the CCP in a loop.  Status == 1 is the conventional "exit" signal
- * set by the CCP itself on a warm-boot, or by stopCPM() on close().
- * The outer loop re-boots CP/M (as a real machine would on warm-boot)
- * unless a clean exit was requested.
  * ------------------------------------------------------------------------- */
 static void _cpm_run(void)
 {
-    while (true)
-    {
-        Status = Debug = 0;
-        Break = Step = Watch = -1;
+    runcpm_console_ops ops;
+    ops.kbhit  = net_kbhit;
+    ops.getch  = net_getch;
+    ops.getche = net_getche;
+    ops.putch  = net_putch;
+    ops.clrscr = net_clrscr;
 
-        RAM = (uint8_t *)malloc(MEMSIZE);
-        if (!RAM)
-            break;
-
-        memset(RAM,      0, MEMSIZE);
-        memset(filename, 0, sizeof(filename));
-        memset(newname,  0, sizeof(newname));
-        memset(fcbname,  0, sizeof(fcbname));
-        memset(pattern,  0, sizeof(pattern));
-
-        _puts(CCPHEAD);
-        _PatchCPM();
-        _ccp();
-
-        free(RAM);
-        RAM = nullptr;
-
-        /* Status == 1: clean exit requested — stop looping */
-        if (Status == 1)
-            break;
-        /* Status == 2: warm-boot — re-enter the CCP loop */
-    }
+    runcpm_session_run(&ops);
 
     /* Notify the protocol object that the session ended from the CP/M side. */
     _cpm_session_ended = true;
@@ -147,16 +196,16 @@ void NetworkProtocolCPM::stopCPM()
     if (!running) return;
     running = false;
 
-    /* Signal the CCP to stop re-booting */
-    Status = 1;
+    /* Signal the engine to stop re-booting and fall out of the session loop. */
+    runcpm_session_request_exit();
 
-    /* Unblock any _getch() call waiting for user input */
+    /* Unblock any net_getch() call waiting for user input */
     uint8_t sentinel = 0x03;  // CTRL-C
 #ifdef ESP_PLATFORM
     if (_cpm_txq != nullptr)
         xQueueSend(_cpm_txq, &sentinel, pdMS_TO_TICKS(200));
 
-    /* Give the FreeRTOS task time to notice Status==1 and self-delete */
+    /* Give the FreeRTOS task time to notice the exit request and self-delete */
     vTaskDelay(pdMS_TO_TICKS(300));
 
     if (_cpm_rxq != nullptr) { vQueueDelete(_cpm_rxq); _cpm_rxq = nullptr; }
