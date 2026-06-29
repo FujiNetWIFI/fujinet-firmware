@@ -279,6 +279,8 @@ set(SOURCES src/main.cpp
     lib/device/network.h
     lib/device/netstream.h
     lib/device/siocpm.h
+    lib/runcpm/runcpm_session.h lib/runcpm/runcpm_core.cpp
+    lib/device/cpm/cpm.h lib/device/cpm/cpm.cpp
     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
     lib/media/media.h
     lib/encoding/base64.h lib/encoding/base64.cpp
@@ -310,6 +312,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     lib/device/sio/voice.h lib/device/sio/voice.cpp
     lib/device/sio/clock.h lib/device/sio/clock.cpp
     lib/device/sio/siocpm.h lib/device/sio/siocpm.cpp
+    lib/device/sio/vm_telnet.h lib/device/sio/vm_telnet.cpp
     lib/device/sio/pclink.h lib/device/sio/pclink.cpp
     lib/device/sio/modem.h lib/device/sio/modem.cpp
 
