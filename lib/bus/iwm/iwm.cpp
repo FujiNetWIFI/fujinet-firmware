@@ -1011,5 +1011,10 @@ void systemBus::shutdown()
     devicep->shutdown();
   }
   Debug_printf("All devices shut down.\n");
+
+#ifdef DEV_RELAY_SLIP
+  // Close the SLIP connection so its socket/thread aren't leaked on restart.
+  smartport.end_request_thread();
+#endif
 }
 #endif /* BUILD_APPLE */
