@@ -267,7 +267,7 @@ void systemBus::service()
 #if 0
     if (_cpmDev != nullptr && _cpmDev->cpmActive)
     {
-        _cpmDev->rc2014_handle_cpm();
+        _cpmDev->handle_cpm();
         return; // break!
     }    
 #endif

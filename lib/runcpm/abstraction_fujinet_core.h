@@ -1,9 +1,11 @@
-/**
- * Abstraction functions for #FujiNet
+/*
+ * FujiNet RunCPM abstraction (shared core): the disk/SD + BDOS-helper layer,
+ * compiled once inside runcpm_core.cpp. Console I/O dispatches through the
+ * active transport's runcpm_console_ops (g_runcpm_console).
  */
 
-#ifndef ABSTRACTION_FUJINET_H
-#define ABSTRACTION_FUJINET_H
+#ifndef ABSTRACTION_FUJINET_CORE_H
+#define ABSTRACTION_FUJINET_CORE_H
 
 #include <string.h>
 #include <errno.h>
@@ -14,20 +16,26 @@
 #include "../../include/debug.h"
 
 #include "fnSystem.h"
-#include "fnWiFi.h"
 #include "fnFsSD.h"
-#ifdef ESP_PLATFORM
-#include "IOChannel.h"
-#endif
-#include "fnTcpServer.h"
-#include "fnTcpClient.h"
 
-#include "fujiDevice.h"
-
-// Why is CP/M writing directly to the SYSTEM_BUS?
-#define FN_CPM_LINK SYSTEM_BUS
+#include "runcpm_session.h"
 
 #define HostOS 0x07 // FUJINET
+
+/* FujiNet: SD path separator (disks live under "/CPM/<drive>/<user>/"). */
+#ifndef FOLDERCHAR
+#define FOLDERCHAR '/'
+#endif
+
+/* FujiNet: 6.9 _mockupDirEntry references FILEBASE; FujiNet uses bare names. */
+#ifndef FILEBASE
+#define FILEBASE ""
+#endif
+
+/* FujiNet: 6.9 calls millis() unconditionally; map it to the system clock. */
+#ifndef millis
+#define millis() ((uint32)fnSystem.millis())
+#endif
 
 typedef struct
 {
@@ -52,17 +60,39 @@ int dirPos;
 
 char full_filename[128];
 
-fnTcpClient client;
-fnTcpServer *server;
-bool teeMode = false;
-unsigned short portActive = 0;
-
 char *full_path(char *fn)
 {
     memset(full_filename, 0, sizeof(full_filename));
     strcpy(full_filename, "/CPM/");
     strcat(full_filename, fn);
     return full_filename;
+}
+
+/* Read file-handle cache.  Stock _sys_readseq/_sys_readrand do a full
+   open/seek/read(128)/close per 128-byte record; on the SD card each open is
+   ~11 ms, so loading a .COM took seconds.  Since one session runs at a time and
+   read loops hit the same file repeatedly, keep the last-read file open ("r")
+   and reuse it for the next read of the same path (~310 opens -> 1).  Closed on
+   path change, before any mutating op, and at session boundaries. */
+static FILE *seq_cache_fp = nullptr;
+static char  seq_cache_path[sizeof(full_filename)] = {0};
+
+static void _seq_cache_close(void)
+{
+    if (seq_cache_fp)
+    {
+        fclose(seq_cache_fp);
+        seq_cache_fp = nullptr;
+    }
+    seq_cache_path[0] = '\0';
+}
+
+/* Drop the cached handle if it refers to `path` (already built via full_path).
+   Called by the mutating ops so the next read reopens with fresh contents. */
+static void _seq_cache_invalidate(const char *path)
+{
+    if (seq_cache_fp && strcmp(seq_cache_path, path) == 0)
+        _seq_cache_close();
 }
 
 
@@ -81,27 +111,23 @@ uint32 _HardwareIn(const uint32 Port)
 
 /* Memory abstraction functions */
 /*===============================================================================*/
-bool _RamLoad(char *fn, uint16_t address)
+/* FujiNet: 6.9 _RamLoad takes a maxsize and returns the byte count. */
+uint16 _RamLoad(uint8 *filename, uint16 address, uint16 maxsize)
 {
-    FILE *f = fnSDFAT.file_open(full_path(fn), "r");
-    bool result = false;
+    FILE *f = fnSDFAT.file_open(full_path((char *)filename), "r");
+    uint16 count = 0;
     uint8_t b;
 
     if (f)
     {
-        while (!feof(f))
+        while ((!maxsize || count < maxsize) && fread(&b, sizeof(uint8_t), 1, f) == 1)
         {
-            if (fread(&b, sizeof(uint8_t), 1, f) == 1)
-            {
-                _RamWrite(address++, b);
-                result = true;
-            }
-            else
-                result = false;
+            _RamWrite(address++, b);
+            count++;
         }
         fclose(f);
     }
-    return (result);
+    return (count);
 }
 
 /* filesystem (disk) abstraction fuctions */
@@ -163,6 +189,7 @@ int _sys_openfile(uint8_t *fn)
 
 int _sys_makefile(uint8_t *fn)
 {
+    _seq_cache_invalidate(full_path((char *)fn));
     FILE *fp = fnSDFAT.file_open(full_path((char *)fn), "w");
     if (fp)
     {
@@ -175,6 +202,7 @@ int _sys_makefile(uint8_t *fn)
 
 int _sys_deletefile(uint8_t *fn)
 {
+    _seq_cache_invalidate(full_path((char *)fn));
     return fnSDFAT.remove(full_path((char *)fn));
 }
 
@@ -184,6 +212,11 @@ int _sys_renamefile(uint8_t *fn, uint8_t *newname)
 
     from = std::string(full_path((char *)fn));
     to = std::string(full_path((char *)newname));
+
+    /* Invalidate both endpoints: the source is moving, and a stale handle on
+       the destination path (if any) must not survive the rename. */
+    _seq_cache_invalidate(from.c_str());
+    _seq_cache_invalidate(to.c_str());
 
     return fnSDFAT.rename(from.c_str(), to.c_str());
 }
@@ -195,6 +228,7 @@ void _sys_logbuffer(uint8_t *buffer)
 
 bool _sys_extendfile(char *fn, unsigned long fpos)
 {
+    _seq_cache_invalidate(full_path((char *)fn));
     FILE *fp = fnSDFAT.file_open(full_path((char *)fn), "a");
 
     if (!fp)
@@ -227,35 +261,49 @@ uint8_t _sys_readseq(uint8_t *fn, long fpos)
     uint8_t dmabuf[BlkSZ];
     int seekErr;
 
-    f = fnSDFAT.file_open(full_path((char *)fn), "r");
-    if (!f)
+    const char *path = full_path((char *)fn);
+
+    /* Reuse the cached handle when this record is from the same file as the
+       previous sequential read; otherwise (re)open and cache it.  This is the
+       optimization that collapses a ~310-open .COM load into a single open --
+       see the _seq_cache_* block above. */
+    if (seq_cache_fp && strcmp(seq_cache_path, path) == 0)
     {
-        result = 0x10;
-        return result;
-    }
-    seekErr = fseek(f, fpos, SEEK_SET);
-    if (f)
-    {
-        if (fpos > 0 && seekErr != 0)
-        {
-            // EOF
-            result = 0x01;
-        }
-        else
-        {
-            // set DMA buffer to EOF
-            memset(dmabuf, 0x1a, BlkSZ);
-            bytesread = fread(&dmabuf[0], BlkSZ, sizeof(uint8_t), f);
-            if (bytesread)
-                memcpy((uint8_t *)&RAM[dmaAddr], dmabuf, BlkSZ);
-            result = bytesread ? 0x00 : 0x01;
-        }
+        f = seq_cache_fp;
     }
     else
     {
-        result = 0x10;
+        _seq_cache_close();
+        f = fnSDFAT.file_open(path, "r");
+        if (!f)
+        {
+            result = 0x10;
+            return result;
+        }
+        seq_cache_fp = f;
+        strncpy(seq_cache_path, path, sizeof(seq_cache_path) - 1);
+        seq_cache_path[sizeof(seq_cache_path) - 1] = '\0';
     }
-    fclose(f);
+
+    seekErr = fseek(f, fpos, SEEK_SET);
+    if (fpos > 0 && seekErr != 0)
+    {
+        // EOF
+        result = 0x01;
+    }
+    else
+    {
+        memset(dmabuf, 0x1a, BlkSZ); // pre-pad with CP/M EOF markers
+        // Read byte-wise (size=1) so fread returns the byte count for a final
+        // partial record too; (BlkSZ,1) would return 0 and drop those bytes.
+        bytesread = fread(&dmabuf[0], sizeof(uint8_t), BlkSZ, f);
+        if (bytesread)
+            memcpy((uint8_t *)&RAM[dmaAddr], dmabuf, BlkSZ);
+        result = bytesread ? 0x00 : 0x01;
+    }
+    /* Handle intentionally left open and cached for the next record; closed by
+       _seq_cache_close()/_seq_cache_invalidate() on file change, mutation, or
+       session end. */
     return (result);
 }
 
@@ -264,6 +312,7 @@ uint8_t _sys_writeseq(uint8_t *fn, long fpos)
     uint8_t result = 0xff;
     FILE *f;
 
+    _seq_cache_invalidate(full_path((char *)fn));
     if (_sys_extendfile((char *)fn, fpos))
         f = fnSDFAT.file_open(full_path((char *)fn), "r+");
     else
@@ -297,13 +346,39 @@ uint8_t _sys_readrand(uint8_t *fn, long fpos)
     uint8 dmabuf[BlkSZ];
     long extSize;
 
-    f = fnSDFAT.file_open(full_path((char *)fn), "r+");
+    const char *path = full_path((char *)fn);
+
+    /* Reuse the shared read-handle cache (see the _seq_cache_* block above).
+       Random access is a pure read here -- random writes go through
+       _sys_writerand on their own "r+" handle -- so the read-only cached "r"
+       handle serves it too.  This collapses an editor's per-record random reads
+       (a 39 KB file is ~310 reopens) into a single open, exactly as for the
+       sequential .COM-load path. */
+    if (seq_cache_fp && strcmp(seq_cache_path, path) == 0)
+    {
+        f = seq_cache_fp;
+    }
+    else
+    {
+        _seq_cache_close();
+        f = fnSDFAT.file_open(path, "r");
+        if (f)
+        {
+            seq_cache_fp = f;
+            strncpy(seq_cache_path, path, sizeof(seq_cache_path) - 1);
+            seq_cache_path[sizeof(seq_cache_path) - 1] = '\0';
+        }
+    }
+
     if (f)
     {
         if (fseek(f, fpos, SEEK_SET) == 0)
         {
             memset(dmabuf, 0x1A, BlkSZ);
-            bytesread = fread(&dmabuf[0], BlkSZ, sizeof(uint8_t), f);
+            // FujiNet: byte-wise read (size=1) for correct partial-record
+            // counts; see _sys_readseq above. dmabuf pre-padded with 0x1A
+            // (CP/M EOF).
+            bytesread = fread(&dmabuf[0], sizeof(uint8_t), BlkSZ, f);
             if (bytesread)
                 memcpy((uint8_t *)&RAM[dmaAddr], dmabuf, BlkSZ);
             result = bytesread ? 0x00 : 0x01;
@@ -331,7 +406,9 @@ uint8_t _sys_readrand(uint8_t *fn, long fpos)
     {
         result = 0x10;
     }
-    fclose(f);
+    /* Handle intentionally left open and cached for the next read; closed by
+       _seq_cache_close()/_seq_cache_invalidate() on file change, mutation, or
+       session end. */
     return (result);
 }
 
@@ -340,6 +417,7 @@ uint8_t _sys_writerand(uint8_t *fn, long fpos)
     uint8 result = 0xff;
     FILE *f;
 
+    _seq_cache_invalidate(full_path((char *)fn));
     if (_sys_extendfile((char *)fn, fpos))
     {
         f = fnSDFAT.file_open(full_path((char *)fn), "r+");
@@ -382,7 +460,7 @@ uint8_t _findnext(uint8_t isdir)
 
     if (allExtents && fileRecords)
     {
-        _mockupDirEntry();
+        _mockupDirEntry(0); // FujiNet: mode 0 = bare filename (no FILEBASE prefix)
         result = 0;
     }
     else
@@ -409,7 +487,7 @@ uint8_t _findnext(uint8_t isdir)
                     fileExtents = fileRecords / BlkEX + ((fileRecords & (BlkEX - 1)) ? 1 : 0);
                     fileExtentsUsed = 0;
                     firstFreeAllocBlock = firstBlockAfterDir;
-                    _mockupDirEntry();
+                    _mockupDirEntry(0); // FujiNet: mode 0 = bare filename (no FILEBASE prefix)
                 }
                 else
                 {
@@ -508,203 +586,34 @@ uint8_t _sys_makedisk(uint8_t drive)
 
 /* Console abstraction functions */
 /*===============================================================================*/
+/*
+ * Transport-agnostic console: every console primitive the RunCPM chain
+ * (console.h, cpm.h, ccp.h) calls is dispatched through the active transport's
+ * runcpm_console_ops, installed by runcpm_session_run() before the CCP starts.
+ * g_runcpm_console is defined in runcpm_core.cpp.
+ */
+extern "C" runcpm_console_ops g_runcpm_console;
 
-#ifdef BUILD_ATARI
-#define BYPASS_BUS 1
-#endif
+#define _kbhit() (g_runcpm_console.kbhit())
 
-
-#ifdef BYPASS_BUS
-#define _kbhit() SYSTEM_BUS.available()
-#define _cread() SYSTEM_BUS.read()
-#define _cwrite(ch) SYSTEM_BUS.write(ch)
-#else
-#define _kbhit() 0
-#define _cread() 0
-#define _cwrite(ch)
-#endif // BYPASS_BUS
-
-uint8_t _getch(void)
+static inline uint8 _getch(void)
 {
-    if (teeMode == true)
-    {
-        while (_kbhit() > 0)
-        {
-            if (client.available())
-            {
-                uint8_t ch;
-                client.read(&ch, 1);
-                return ch & 0x7F;
-            }
-        }
-        return _cread() & 0x7F;
-    }
-    else
-    {
-        while (_kbhit() <= 0)
-        {
-        }
-        return _cread() & 0x7f;
-    }
+    return (uint8)g_runcpm_console.getch();
 }
 
-uint8_t _getche(void)
+static inline uint8 _getche(void)
 {
-    uint8_t ch = _getch() & 0x7f;
-    _cwrite(ch);
-    if (teeMode == true)
-        client.write(ch);
-    return ch;
+    return (uint8)g_runcpm_console.getche();
 }
 
-void _putch(uint8_t ch)
+static inline void _putch(uint8 ch)
 {
-    _cwrite(ch & 0x7f);
-    if (teeMode == true)
-        client.write(ch);
+    g_runcpm_console.putch(ch);
 }
 
-void _clrscr(void)
+static inline void _clrscr(void)
 {
+    g_runcpm_console.clrscr();
 }
 
-uint8_t bdos_networkConfig(uint16_t addr)
-{
-    // Response to FUJICMD_GET_ADAPTERCONFIG
-    struct
-    {
-        char ssid[32];
-        char hostname[64];
-        unsigned char localIP[4];
-        unsigned char gateway[4];
-        unsigned char netmask[4];
-        unsigned char dnsIP[4];
-        unsigned char macAddress[6];
-        unsigned char bssid[6];
-        char fn_version[15];
-    } cfg;
-
-    memset(&cfg, 0, sizeof(cfg));
-
-    strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
-
-    if (!fnWiFi.connected())
-    {
-        strlcpy(cfg.ssid, "NOT CONNECTED", sizeof(cfg.ssid));
-    }
-    else
-    {
-        strlcpy(cfg.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(cfg.hostname));
-        strlcpy(cfg.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(cfg.ssid));
-        fnWiFi.get_current_bssid(cfg.bssid);
-        fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
-        fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
-    }
-
-    fnWiFi.get_mac(cfg.macAddress);
-
-    // Transfer to Z80 RAM.
-    memset(&RAM[addr], 0, sizeof(cfg));
-    memcpy(&RAM[addr], &cfg, sizeof(cfg));
-
-    return 0;
-}
-
-uint8_t bdos_readHostSlots(uint16_t addr)
-{
-    char hostSlots[8][32];
-    memset(hostSlots, 0, sizeof(hostSlots));
-
-        for (int i = 0; i < 8; i++)
-                strlcpy(hostSlots[i], theFuji->get_host(i)->get_hostname(), 32);
-
-    memset(&RAM[addr], 0, sizeof(hostSlots));
-    memcpy(&RAM[addr], &hostSlots, sizeof(hostSlots));
-    return 0;
-}
-
-uint8_t bdos_readDeviceSlots(uint16_t addr)
-{
-    struct disk_slot
-    {
-        uint8_t hostSlot;
-        uint8_t mode;
-        char filename[MAX_DISPLAY_FILENAME_LEN];
-    };
-    disk_slot diskSlots[MAX_DISK_DEVICES];
-
-    // Load the data from our current device array
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
-    {
-        diskSlots[i].mode = theFuji->get_disk(i)->access_mode;
-        diskSlots[i].hostSlot = theFuji->get_disk(i)->host_slot;
-        strlcpy(diskSlots[i].filename, theFuji->get_disk(i)->filename, MAX_DISPLAY_FILENAME_LEN);
-    }
-
-    // Transfer to Z80 RAM.
-    memset(&RAM[addr], 0, sizeof(diskSlots));
-    memcpy(&RAM[addr], &diskSlots, sizeof(diskSlots));
-
-    return 0;
-}
-
-uint8_t bios_tcpListen(uint16_t port)
-{
-    Debug_printf("Do we get here?\r\n");
-
-    if (client.connected())
-        client.stop();
-
-    if (server != nullptr && port != portActive)
-    {
-        server->stop();
-        delete server;
-    }
-
-    server = new fnTcpServer(port,1);
-
-    int res = server->begin(port);
-    if (res == 0)
-    {
-        Debug_printf("bios_tcpListen - failed to open port %u\nError (%d): %s\r\n", port, errno, strerror(errno));
-        return true;
-    }
-    else
-    {
-        Debug_printf("bios_tcpListen - Now listening on port %u\r\n", port);
-        return false;
-    }
-}
-
-uint8_t bios_tcpAvailable(void)
-{
-    if (server == nullptr)
-        return 0;
-
-    return server->hasClient();
-}
-
-uint8_t bios_tcpTeeAccept(void)
-{
-    if (server == nullptr)
-        return false;
-
-    if (server->hasClient())
-        client = server->accept();
-
-    teeMode = true;
-
-    return client.connected();
-}
-
-uint8_t bios_tcpDrop(void)
-{
-    if (server == nullptr)
-        return false;
-
-    client.stop();
-
-    return true;
-}
-
-#endif /* ABSTRACTION_FUJINET_H */
+#endif /* ABSTRACTION_FUJINET_CORE_H */

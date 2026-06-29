@@ -395,7 +395,7 @@ void systemBus::service()
     }
     else if (_cpmDev != nullptr && _cpmDev->cpmActive && Config.get_cpm_enabled())
     {
-        _cpmDev->sio_handle_cpm();
+        _cpmDev->handle_cpm();
         return; // break!
     }
 
