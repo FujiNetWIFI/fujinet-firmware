@@ -292,12 +292,17 @@ void adamFuji::setup()
         Debug_printf("Not mounting config disk\n");
     }
 
-    theNetwork = new adamNetwork();
-    theNetwork2 = new adamNetwork();
-    theSerial = new adamSerial();
-    SYSTEM_BUS.addDevice(theNetwork, FUJI_DEVICEID_NETWORK);  // temporary.
-    SYSTEM_BUS.addDevice(theNetwork2, FUJI_DEVICEID_NETWORK + 1); // temporary
-    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET);    // Fuji becomes the gateway device.
+    // Create these once, to avoid leaking them when setup() re-runs on an
+    // in-process restart.
+    if (theNetwork == nullptr)
+    {
+        theNetwork = new adamNetwork();
+        theNetwork2 = new adamNetwork();
+        theSerial = new adamSerial();
+        SYSTEM_BUS.addDevice(theNetwork, FUJI_DEVICEID_NETWORK);  // temporary.
+        SYSTEM_BUS.addDevice(theNetwork2, FUJI_DEVICEID_NETWORK + 1); // temporary
+        SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET);    // Fuji becomes the gateway device.
+    }
 }
 
 void adamFuji::adamnet_random_number()

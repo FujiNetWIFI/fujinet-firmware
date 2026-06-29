@@ -40,14 +40,21 @@ void rs232Fuji::setup()
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
 
-    // Add our devices to the RS232 bus
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        SYSTEM_BUS.addDevice(&_fnDisks[i].disk_dev,
-                             static_cast<fujiDeviceID_t>(FUJI_DEVICEID_DISK + i));
+    // Add our devices once, to avoid duplicating the bus chain when setup()
+    // re-runs on an in-process restart.
+    static bool devices_added = false;
+    if (!devices_added)
+    {
+        devices_added = true;
 
-    for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-        SYSTEM_BUS.addDevice(&rs232NetDevs[i],
-                             static_cast<fujiDeviceID_t>(FUJI_DEVICEID_NETWORK + i));
+        for (int i = 0; i < MAX_DISK_DEVICES; i++)
+            SYSTEM_BUS.addDevice(&_fnDisks[i].disk_dev,
+                                 static_cast<fujiDeviceID_t>(FUJI_DEVICEID_DISK + i));
+
+        for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
+            SYSTEM_BUS.addDevice(&rs232NetDevs[i],
+                                 static_cast<fujiDeviceID_t>(FUJI_DEVICEID_NETWORK + i));
+    }
 }
 
 // Status
