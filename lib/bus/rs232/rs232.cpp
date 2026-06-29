@@ -179,7 +179,7 @@ void systemBus::service()
 
     if (_cpmDev != nullptr && _cpmDev->cpmActive)
     {
-        _cpmDev->rs232_handle_cpm();
+        _cpmDev->handle_cpm();
         return; // break!
     }
 

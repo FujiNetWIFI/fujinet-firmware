@@ -1,57 +1,30 @@
 #ifdef BUILD_APPLE
-#define CCP_INTERNAL
 
 #include "cpm.h"
 
+#include <cstring>
+
+#include "../../include/debug.h"
 #include "fnSystem.h"
-#include "fnWiFi.h"
-#include "fujiDevice.h"
-#include "fnFS.h"
-#include "fnFsSD.h"
-#include "fnConfig.h"
 #include "compat_string.h"
-
-#include "../runcpm/abstraction_fujinet_apple2.h"
-
-#include "../runcpm/globals.h"
-#include "../runcpm/ram.h"     // ram.h - Implements the RAM
-#include "../runcpm/console.h" // console.h - implements console.
-#include "../runcpm/cpu.h"     // cpu.h - Implements the emulated CPU
-#include "../runcpm/disk.h"    // disk.h - Defines all the disk access abstraction functions
-#include "../runcpm/host.h"    // host.h - Custom host-specific BDOS call
-#include "../runcpm/cpm.h"     // cpm.h - Defines the CPM structures and calls
-#ifdef CCP_INTERNAL
-#include "../runcpm/ccp.h" // ccp.h - Defines a simple internal CCP
-#endif
 
 #define CPM_TASK_PRIORITY 10
 
+#ifdef ESP_PLATFORM // OS
+// The CP/M engine runs on its own task; iwm_read/iwm_write shuttle bytes to and
+// from it through the cpmQueueDevice byte queues.  handle_cpm() runs one full
+// CP/M session (it returns when the program exits CP/M); the loop starts a
+// fresh session afterwards, exactly like the old free-running cpmTask did.
 static void cpmTask(void *arg)
 {
     Debug_printf("cpmTask()\n");
+    iwmCPM *dev = static_cast<iwmCPM *>(arg);
     while (1)
     {
-        Status = Debug = 0;
-        Break = Step = -1;
-        RAM = (uint8_t *)malloc(MEMSIZE);
-        memset(RAM, 0, MEMSIZE);
-        memset(filename, 0, sizeof(filename));
-        memset(newname, 0, sizeof(newname));
-        memset(fcbname, 0, sizeof(fcbname));
-        memset(pattern, 0, sizeof(pattern));
-        _puts(CCPHEAD);
-        _PatchCPM();
-        _ccp();
+        dev->handle_cpm();
     }
 }
-
-iwmCPM::iwmCPM()
-{
-#ifdef ESP_PLATFORM // OS
-    rxq = xQueueCreate(2048, sizeof(char));
-    txq = xQueueCreate(2048, sizeof(char));
 #endif
-}
 
 iwm_device_status_block_t iwmCPM::create_status_reply_packet()
 {
@@ -74,12 +47,6 @@ iwm_device_info_block_t iwmCPM::create_dib_reply_packet()
   dib.version = 0x0100;
 
   return dib;
-}
-
-void iwmCPM::sio_status()
-{
-    // Nothing to do here
-    return;
 }
 
 void iwmCPM::iwm_open(iwm_decoded_cmd_t cmd)
@@ -133,9 +100,7 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
         return;
         break;
     case 'S': // Status
-#ifdef ESP_PLATFORM // OS
-        mw = uxQueueMessagesWaiting(rxq);
-#endif
+        mw = host_available();
 
         if (mw > 512)
             mw = 512;
@@ -148,6 +113,8 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
     case 'B':
 #ifdef ESP_PLATFORM // OS
         data_buffer[0]=(cpmTaskHandle==NULL ? 1 : 0);
+#else
+        data_buffer[0]=1;
 #endif
         data_len = 1;
         Debug_printf("CPM Task Running? %d %s", data_buffer[0],(data_buffer[0]) ? "=No" : "=Yes");
@@ -163,11 +130,7 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
 
 void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
 {
-#ifdef ESP_PLATFORM // OS
-    unsigned short mw = uxQueueMessagesWaiting(rxq);
-#else
-    unsigned short mw;
-#endif
+    unsigned short mw = host_available();
 
     Debug_printf("\r\nDevice %02x READ %04x bytes from address %06lx\n", id(), cmd.char_rw.length, cmd.char_rw.address);
 
@@ -180,16 +143,7 @@ void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
             cmd.char_rw.length = mw;
         }
 
-        data_len = 0;
-        for (int i = 0; i < cmd.char_rw.length; i++)
-        {
-            char b;
-#ifdef ESP_PLATFORM // OS
-            xQueueReceive(rxq, &b, portMAX_DELAY);
-#endif
-            data_buffer[i] = b;
-            data_len++;
-        }
+        data_len = host_read(data_buffer, cmd.char_rw.length);
     }
     else // no bytes waiting, just reply back with no data
     {
@@ -206,13 +160,7 @@ void iwmCPM::iwm_write(iwm_decoded_cmd_t cmd)
 {
     Debug_printf("\nWRITE %u bytes\n", cmd.char_rw.length);
 
-    {
-        // DO write
-#ifdef ESP_PLATFORM // OS
-        for (int i = 0; i < cmd.char_rw.length; i++)
-            xQueueSend(txq, &data_buffer[i], portMAX_DELAY);
-#endif
-    }
+    host_write(data_buffer, cmd.char_rw.length);
 
     send_reply_packet(SP_ERR::NOERROR);
 }
