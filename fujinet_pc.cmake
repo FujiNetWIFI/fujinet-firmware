@@ -279,6 +279,8 @@ set(SOURCES src/main.cpp
     lib/device/network.h
     lib/device/netstream.h
     lib/device/siocpm.h
+    lib/runcpm/runcpm_session.h lib/runcpm/runcpm_core.cpp
+    lib/device/cpm/cpm.h lib/device/cpm/cpm.cpp
     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
     lib/media/media.h
     lib/encoding/base64.h lib/encoding/base64.cpp
