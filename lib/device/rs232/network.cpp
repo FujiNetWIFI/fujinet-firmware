@@ -644,7 +644,7 @@ void rs232Network::process_http(FujiBusPacket &packet)
     fujiError_t err;
     switch (packet.command())
     {
-    case NETCMD_UNLISTEN:
+    case NETCMD_SET_CHANNEL_MODE:
         transaction_begin(TRANS_STATE::NO_GET);
         err = http->set_channel_mode((netProtoHTTPChannelMode_t) packet.param(1));
         break;
@@ -835,7 +835,7 @@ void rs232Network::rs232_process(FujiBusPacket &packet)
         process_tcp(packet);
         break;
 
-    case NETCMD_UNLISTEN:
+    case NETCMD_SET_CHANNEL_MODE:
         process_http(packet);
         break;
 

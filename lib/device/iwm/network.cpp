@@ -609,7 +609,7 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
         process_tcp(cmd.control_status.fuji.command);
         break;
 
-    case NETCMD_UNLISTEN:
+    case NETCMD_SET_CHANNEL_MODE:
         process_http(cmd.control_status.fuji.command);
         break;
 
@@ -800,7 +800,7 @@ void iwmNetwork::process_http(fujiCommandID_t fuji_command)
     fujiError_t cmd_err;
     switch (fuji_command)
     {
-    case NETCMD_UNLISTEN:
+    case NETCMD_SET_CHANNEL_MODE:
         cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) data_buffer[1]);
         break;
     default:
