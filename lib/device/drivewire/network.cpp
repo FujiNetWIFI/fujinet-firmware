@@ -1005,7 +1005,7 @@ void drivewireNetwork::process()
         process_tcp();
         break;
 
-    case NETCMD_UNLISTEN:
+    case NETCMD_SET_CHANNEL_MODE:
         process_http();
         break;
 
@@ -1114,7 +1114,7 @@ void drivewireNetwork::process_http()
     fujiError_t err;
     switch (cmdFrame.comnd)
     {
-    case NETCMD_UNLISTEN:
+    case NETCMD_SET_CHANNEL_MODE:
         err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmdFrame.aux2);
         break;
     default:

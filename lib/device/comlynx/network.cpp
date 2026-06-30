@@ -675,7 +675,7 @@ void lynxNetwork::comlynx_process()
         process_tcp(cmd);
         break;
 
-    case NETCMD_UNLISTEN:
+    case NETCMD_SET_CHANNEL_MODE:
         process_http(cmd);
         break;
 
@@ -885,7 +885,7 @@ void lynxNetwork::process_http(fujiCommandID_t cmd)
     fujiError_t cmd_err;
     switch (cmd)
     {
-    case NETCMD_UNLISTEN:
+    case NETCMD_SET_CHANNEL_MODE:
         cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmdFrame.aux2);
         break;
     default:

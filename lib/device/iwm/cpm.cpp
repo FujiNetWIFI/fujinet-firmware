@@ -121,7 +121,7 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
 
     switch (cmd.control_status.fuji.command)
     {
-    case 'S': // Status
+    case CPMCMD_STATUS:
 #ifdef ESP_PLATFORM // OS
         mw = uxQueueMessagesWaiting(rxq);
 #endif
@@ -219,7 +219,7 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
     if (data_len > 0)
         switch (cmd.control_status.fuji.command)
         {
-        case 'B': // Boot
+        case CPMCMD_BOOT:
 #ifdef ESP_PLATFORM // OS
             if (!fnSystem.hasbuffer())
             {
