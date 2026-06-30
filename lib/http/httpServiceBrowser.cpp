@@ -9,6 +9,7 @@
 #include "fnFsNFS.h"
 #include "fnFsFTP.h"
 #include "fnFsHTTP.h"
+#include "fnFsGDrive.h"
 #include "fnTaskManager.h"
 #include "fnConfig.h"
 #include "fnio.h"
@@ -554,6 +555,11 @@ int fnHttpServiceBrowser::process_browse_get(mg_connection *c, mg_http_message *
         fs = new FileSystemHTTP;
         host_type = HOSTTYPE_HTTP;
     }
+    else if (strncasecmp("gdrive://", hostname, 9) == 0)
+    {
+        fs = new FileSystemGDrive;
+        host_type = HOSTTYPE_GDRIVE;
+    }
     else
     {
         fs = new FileSystemTNFS;
@@ -584,6 +590,9 @@ int fnHttpServiceBrowser::process_browse_get(mg_connection *c, mg_http_message *
         break;
     case HOSTTYPE_HTTP:
         started = ((FileSystemHTTP *)fs)->start(hostname);
+        break;
+    case HOSTTYPE_GDRIVE:
+        started = ((FileSystemGDrive *)fs)->start(hostname);
         break;
     case HOSTTYPE_TNFS:
         started = ((FileSystemTNFS *)fs)->start(hostname);

@@ -1059,6 +1059,15 @@ success_is_true fujiDevice::fujicore_unmount_disk_image_success(uint8_t deviceSl
 
     disk_dev = get_disk_dev(deviceSlot);
     disk_dev->unmount();
+
+    // unmount() flushed the file; push any locally-written image back to its
+    // host (no-op for direct-write/read-only hosts, e.g. SD/TNFS).
+    {
+        fujiDisk &udisk = _fnDisks[deviceSlot];
+        if (validate_host_slot(udisk.host_slot) && udisk.filename[0] != '\0')
+            _fnHosts[udisk.host_slot].sync_file(udisk.filename);
+    }
+
     _fnDisks[deviceSlot].reset();
 
     RETURN_SUCCESS_AS_TRUE();

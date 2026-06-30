@@ -208,6 +208,9 @@ void iwmFuji::iwm_ctrl_new_disk()
 
         fnio::fclose(disk.fileh);
 
+        // Push the new image back to the host (e.g. upload to Drive); no-op otherwise.
+        host.sync_file(disk.filename);
+
         // Persist slots
         populate_config_from_slots();
         Config.mark_dirty();

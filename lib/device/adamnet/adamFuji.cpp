@@ -146,11 +146,22 @@ void adamFuji::adamnet_new_disk()
 
     disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
 
+    if (disk.fileh == nullptr)
+    {
+        // Read-only host / no SD / create failed: bail rather than fwrite() null.
+        Debug_printf("adamnet_new_disk: failed to create file %s on host slot %u\n", disk.filename, hs);
+        new_disk_completed = true;
+        return;
+    }
+
     Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, numBlocks);
 
     disk.disk_dev.write_blank(disk.fileh, numBlocks);
 
     fnio::fclose(disk.fileh);
+
+    // Push the new image back to the host (e.g. upload to Drive); no-op otherwise.
+    host.sync_file(disk.filename);
 
     new_disk_completed = true;
 }

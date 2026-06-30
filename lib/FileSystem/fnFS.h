@@ -42,6 +42,7 @@ enum fsType
     FSTYPE_NFS,
     FSTYPE_FTP,
     FSTYPE_HTTP,
+    FSTYPE_GDRIVE,
     FSTYPE_COUNT
 };
 
@@ -109,6 +110,10 @@ public:
 #endif
 
     virtual bool exists(const char* path) = 0;
+
+    // Push a locally-written file back to its backing store (e.g. upload to
+    // Drive). Called on unmount of a writable disk image. Default: no-op.
+    virtual success_is_true sync_file(const char* path) { RETURN_SUCCESS_AS_TRUE(); }
 
     virtual success_is_true remove(const char* path) = 0;
 

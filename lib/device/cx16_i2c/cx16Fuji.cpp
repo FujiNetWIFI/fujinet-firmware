@@ -1013,6 +1013,9 @@ void cx16Fuji::new_disk()
         return;
     }
 
+    // Push the new image back to the host (e.g. upload to Drive); no-op otherwise.
+    host.sync_file(disk.filename);
+
     Debug_print("sio_new_disk succeeded\n");
     cx16_complete();
 }

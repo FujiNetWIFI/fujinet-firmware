@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "additionalDirectories": [
+      "/home/thomc/Workspace/fujinet-config/src"
+    ],
+    "allow": [
+      "Bash(timeout 300 make atari)"
+    ]
+  }
+}
