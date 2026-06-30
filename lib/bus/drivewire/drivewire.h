@@ -19,6 +19,7 @@
 #ifndef COCO_H
 #define COCO_H
 
+#include "bus.h"
 #include "cmdFrame.h"
 #include "BoIPChannel.h"
 #include "UARTChannel.h"
@@ -36,6 +37,7 @@
 
 #include <forward_list>
 #include <map>
+#include <cassert>
 #include "media.h"
 
 #define DRIVEWIRE_BAUDRATE 57600
@@ -151,6 +153,13 @@ protected:
 
     cmdFrame_t cmdFrame;
     bool listen_to_type3_polls = false;
+
+    transState_t _transaction_state = TRANS_STATE::INVALID;
+    virtual void transaction_begin(transState_t expectMoreData);
+    virtual void transaction_complete();
+    virtual void transaction_error();
+    virtual success_is_true transaction_get(void *data, size_t len);
+    virtual void transaction_put(const void *data, size_t len, bool err=false);
 
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};

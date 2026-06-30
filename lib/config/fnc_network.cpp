@@ -23,6 +23,11 @@ void fnConfig::store_netstream_mode(int mode)
     _network.netstream_mode = mode;
 }
 
+void fnConfig::store_netstream_rx_depth(int depth)
+{
+    _network.netstream_rx_depth = depth;
+}
+
 void fnConfig::_read_section_network(std::stringstream &ss)
 {
     std::string line;
@@ -54,6 +59,10 @@ void fnConfig::_read_section_network(std::stringstream &ss)
             else if (strcasecmp(name.c_str(), "netstream_register") == 0)
             {
                 _network.netstream_register = util_string_value_is_true(value);
+            }
+            else if (strcasecmp(name.c_str(), "netstream_rx_depth") == 0)
+            {
+                _network.netstream_rx_depth = atoi(value.c_str());
             }
         }
     }

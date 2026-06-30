@@ -94,18 +94,8 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
 #ifdef DEBUG
     Debug_printf("[CLOCK] Device %02x Status Code %02x('%c')\r\n", id(), cmd.control_status.fuji.command, isprint(cmd.control_status.fuji.command) ? (char)cmd.control_status.fuji.command : '.');
 #endif
-    // FIXME - enums have been mixed&matched, having to cast to int
-    switch (static_cast<int>(cmd.control_status.fuji.command))
+    switch (cmd.control_status.fuji.command)
     {
-    case SP_STAT_DEVICE: // 0x00
-        send_status_reply_packet();
-        return;
-        break;
-    case SP_STAT_DIB: // 0x03
-        send_status_dib_reply_packet();
-        return;
-        break;
-
     // Uppercase = use FN tz, otherwise use alt tz
     case APETIMECMD_SETTZ_ALT2:
     case APETIMECMD_SETTZ_ALT: {

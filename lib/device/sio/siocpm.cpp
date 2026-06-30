@@ -43,7 +43,7 @@ void sioCPM::sio_process(uint32_t commanddata, uint8_t checksum)
 
     switch (cmdFrame.comnd)
     {
-    case 'G':
+    case CPMCMD_INIT:
         transaction_begin(TRANS_STATE::NO_GET);
         fnSystem.delay(10);
         transaction_complete();

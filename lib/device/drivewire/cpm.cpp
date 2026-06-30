@@ -106,16 +106,16 @@ void drivewireCPM::process()
         case 0x01:
             send_response();
             break;
-        case 'B':
+        case CPMCMD_BOOT:
             boot();
             break;
-        case 'R':
+        case CPMCMD_READ:
             read();
             break;
-        case 'W':
+        case CPMCMD_WRITE:
             write();
             break;
-        case 'S':
+        case CPMCMD_STATUS:
             status();
             break;
     }

@@ -800,7 +800,7 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
         process_tcp();
         break;
 
-    case NETCMD_UNLISTEN:
+    case NETCMD_SET_CHANNEL_MODE:
         process_http();
         break;
 
@@ -1322,7 +1322,7 @@ void sioNetwork::process_http()
     fujiError_t err;
     switch (cmdFrame.comnd)
     {
-    case NETCMD_UNLISTEN:
+    case NETCMD_SET_CHANNEL_MODE:
         transaction_begin(TRANS_STATE::NO_GET);
         err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmdFrame.aux2);
         break;
