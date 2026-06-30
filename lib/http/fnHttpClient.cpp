@@ -23,6 +23,10 @@ const char *webdav_depths[] = {"0", "1", "infinity"};
 fnHttpClient::fnHttpClient()
 {
     _buffer = (char *)malloc(DEFAULT_HTTP_BUF_SIZE);
+    if (_buffer == nullptr)
+    {
+        Debug_printf("fnHttpClient::fnHttpClient() failed to allocate %d byte buffer\r\n", DEFAULT_HTTP_BUF_SIZE);
+    }
 }
 
 // Close connection, destroy any resoruces
@@ -354,9 +358,16 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
         Debug_printf("HTTP_EVENT_ON_DATA: Data: %p, Datalen: %d\r\n", evt->data, evt->data_len);
 #endif
 
-        client->_buffer_pos = 0;
-        client->_buffer_len = (evt->data_len > DEFAULT_HTTP_BUF_SIZE) ? DEFAULT_HTTP_BUF_SIZE : evt->data_len;
-        memcpy(client->_buffer, evt->data, client->_buffer_len);
+        if (client->_buffer == nullptr) {
+            Debug_printf("HTTP_EVENT_ON_DATA: _buffer is null, dropping data\r\n");
+            client->_buffer_pos = 0;
+            client->_buffer_len = 0;
+        }
+        else {
+            client->_buffer_pos = 0;
+            client->_buffer_len = (evt->data_len > DEFAULT_HTTP_BUF_SIZE) ? DEFAULT_HTTP_BUF_SIZE : evt->data_len;
+            memcpy(client->_buffer, evt->data, client->_buffer_len);
+        }
 
         // Now let the reader know there's data in the buffer
         xTaskNotifyGive(client->_taskh_consumer);
