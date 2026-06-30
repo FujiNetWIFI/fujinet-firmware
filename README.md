@@ -1,4 +1,4 @@
-# FujiNet afdsssssssssss
+# FujiNet
 
 A multi-function peripheral built on ESP32 hardware being developed for the multiple 8-bit systems
 
