@@ -19,23 +19,26 @@ private:
 #endif
 
 protected:
-    void transaction_begin(transState_t expectMoreData) override {}
+    // Temporary until all platforms have transaction_ methods in virtualDevice base class
+    void transaction_begin(transState_t expectMoreData) override {
+        virtualDevice::transaction_begin(expectMoreData);
+    }
     void transaction_complete() override {
+        virtualDevice::transaction_complete();
         _errorCode = 1;
         _response.clear();
         _response.shrink_to_fit();
     }
     void transaction_error() override {
+        virtualDevice::transaction_error();
         _errorCode = 144;
     }
     success_is_true transaction_get(void *data, size_t len) override {
-        RETURN_SUCCESS_IF(SYSTEM_BUS.read((uint8_t *) data, len) == len);
+        return virtualDevice::transaction_get(data, len);
     }
     void transaction_put(const void *data, size_t len, bool err=false) override {
-        transaction_complete();
+        virtualDevice::transaction_put(data, len, err);
         _response.append((char *) data, len);
-        if (err)
-            transaction_error();
     }
 
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
