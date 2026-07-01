@@ -394,8 +394,6 @@ void fnHttpClient::_perform_subtask(void *param)
     parent->_redirect_count = 0;
     parent->_buffer_len = 0;
 
-    // Debug_printf("esp_http_client_perform start\r\n");
-
     esp_err_t e = esp_http_client_perform(parent->_handle);
 #ifdef VERBOSE_HTTP
     Debug_printf("esp_http_client_perform returned %d, stack HWM %u\r\n", e, uxTaskGetStackHighWaterMark(nullptr));
@@ -464,7 +462,18 @@ int fnHttpClient::_perform()
 
     // Start a new task to perform the http client work
     _delete_subtask_if_running();
-    xTaskCreate(_perform_subtask, "perform_subtask", 4096, this, 5, &_taskh_subtask);
+    // The perform_subtask stack must come from INTERNAL RAM.  If internal RAM
+    // is exhausted, xTaskCreate fails; without this guard the subtask never
+    // runs, the ulTaskNotifyTake() below blocks its full 20s timeout, and we
+    // return a misleading -1.  Detect the failure and report it immediately.
+    _taskh_subtask = nullptr;
+    if (xTaskCreate(_perform_subtask, "perform_subtask", 4096, this, 5, &_taskh_subtask) != pdPASS
+        || _taskh_subtask == nullptr)
+    {
+        Debug_printf("fnHttpClient::_perform() could not create subtask (free internal heap=%u) - out of internal RAM\r\n",
+                     (unsigned)esp_get_free_internal_heap_size());
+        return -1;
+    }
 #ifdef VERBOSE_HTTP
     // Debug_printf("%08lx _perform subtask created\r\n", fnSystem.millis());
 #endif
