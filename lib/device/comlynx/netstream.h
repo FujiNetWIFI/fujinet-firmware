@@ -8,7 +8,7 @@
 #define LEDC_TIMER_RESOLUTION  LEDC_TIMER_1_BIT
 
 #define NETSTREAM_BUFFER_SIZE 8192
-#define NETSTREAM_PACKET_TIMEOUT 5000
+#define NETSTREAM_PACKET_TIMEOUT 160
 #define MIDI_PORT 5004
 #define MIDI_BAUDRATE 31250
 
@@ -38,7 +38,8 @@ public:
     uint8_t redeye_players = 0;     // redeye number of players - not sure we need this
     bool remap_game_id = false;     // should we be remapping the game id?
     uint16_t new_game_id = 0xFFFF;  // the new game ID to remap, set from Web GUI
-
+    bool redeye_logon_sent = false;
+    bool redeye_logon_recv = false; 
 
     void comlynx_enable_netstream();  // setup netstream
     void comlynx_disable_netstream(); // stop netstream

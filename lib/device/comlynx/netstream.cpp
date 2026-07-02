@@ -17,6 +17,7 @@ void lynxNetStream::comlynx_enable_netstream()
 
     netstreamActive = true;
 #ifdef DEBUG
+    Debug_println("---");
     Debug_println("NETSTREAM mode ENABLED");
 #endif
 }
@@ -27,6 +28,7 @@ void lynxNetStream::comlynx_disable_netstream()
     netstreamActive = false;
 #ifdef DEBUG
     Debug_println("NETSTREAM mode DISABLED");
+    Debug_println("---");
 #endif
 }
 
@@ -58,6 +60,7 @@ void lynxNetStream::comlynx_disable_redeye()
 void lynxNetStream::comlynx_handle_netstream()
 {
     bool good_packet = true;
+    uint8_t n;
 
     // if there’s data available, read a packet
     int packetSize = netStream.parsePacket();
@@ -81,10 +84,21 @@ void lynxNetStream::comlynx_handle_netstream()
                     util_dump_bytes(buf_net, packetSize);
                 #endif
                 }
+
+                // try to slow down logon packets a little
+                if ((buf_net[0] == 0x05) && (buf_net[1] == 0x00)) {
+                    if (!redeye_logon_recv)
+                        redeye_logon_recv = true;
+                    else
+                        good_packet = false;
+                }
             }
         }
 
         if (good_packet) {
+            // Let's try to get Lynx to back off sending a bit
+            //SYSTEM_BUS.write("\xFF\xFF", 1);
+
             // Send to Lynx UART
             _comlynx_bus->wait_for_idle();
             SYSTEM_BUS.write(buf_net, packetSize);
@@ -98,24 +112,32 @@ void lynxNetStream::comlynx_handle_netstream()
 
     // Read the data until there's a pause in the incoming stream
 
-    SYSTEM_BUS.flush();
+    //SYSTEM_BUS.flush();
 
     buf_stream_index = 0;
     if (SYSTEM_BUS.available() > 0)
+    //while (SYSTEM_BUS.available() > 0)
     {
         while (true)
         {
+            n = 0;  
             if (SYSTEM_BUS.available() > 0)
             {
                 // Collect bytes read in our buffer
                 buf_stream[buf_stream_index] = (char)SYSTEM_BUS.read();
-                if (redeye_mode && (buf_stream_index == 0)) {           // Check first byte
-                  if ((buf_stream[0] < 1) || (buf_stream[0] > 6))       // discard bad size byte (must be between 1 and 6)
-                    continue;
-                }
+                n++;
+
+                //if (redeye_mode && (buf_stream_index == 0)) {           // Check first byte
+                //  if ((buf_stream[0] < 1) || (buf_stream[0] > 6))       // discard bad size byte (must be between 1 and 6)
+                //    continue;
+                //}
 
                 if (buf_stream_index < NETSTREAM_BUFFER_SIZE - 1)
                     buf_stream_index++;
+
+                // Is this packet complete?
+                if (buf_stream_index == buf_stream[0]+2)
+                    break;
             }
             else
             {
@@ -191,6 +213,8 @@ void lynxNetStream::comlynx_handle_netstream()
             Debug_print("UDP-OUT: ");
             util_dump_bytes(buf_stream, buf_stream_index);
         #endif
+    
+        redeye_logon_recv = false;
     }
 }
 

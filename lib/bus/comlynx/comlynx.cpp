@@ -13,7 +13,8 @@
 #include "led.h"
 #include <cstring>
 
-#define IDLE_TIME 500 // Idle tolerance in microseconds (roughly three characters at 62500 baud)
+//#define IDLE_TIME 500 // Idle tolerance in microseconds (roughly three characters at 62500 baud)
+#define IDLE_TIME 500
 
 uint8_t comlynx_checksum(uint8_t *buf, unsigned short len)
 {
