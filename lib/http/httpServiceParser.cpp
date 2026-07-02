@@ -652,7 +652,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
                 {
                     strncat(result, "<option value=\"", MAX_PRINTER_LIST_BUFFER-1);
                     strncat(result, PRINTER_CLASS::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
-                    strncat(result, "\">", MAX_PRINTER_LIST_BUFFER);
+                    strncat(result, "\">", MAX_PRINTER_LIST_BUFFER - strlen(result) - 1);
                     strncat(result, PRINTER_CLASS::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
                     strncat(result, "</option>\n", MAX_PRINTER_LIST_BUFFER-1);
                 }

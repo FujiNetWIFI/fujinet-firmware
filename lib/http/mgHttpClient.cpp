@@ -984,7 +984,7 @@ int mgHttpClient::COPY(const char *destination, bool overwrite, bool move)
     _flush_response();
 
     // Set method
-    _method = HTTP_MOVE;
+    _method = move ? HTTP_MOVE : HTTP_COPY;
     // Set detination
     set_header("Destination", destination);
     // Set overwrite
@@ -1110,7 +1110,9 @@ char *mgHttpClient::get_header(int index, char *buffer, int buffer_len)
 
     auto vi = _stored_headers.begin();
     std::advance(vi, index);
-    return strncpy(buffer, vi->second.c_str(), buffer_len);
+    strncpy(buffer, vi->second.c_str(), buffer_len - 1);
+    buffer[buffer_len - 1] = '\0';
+    return buffer;
 }
 
 const std::string mgHttpClient::get_header(int index)

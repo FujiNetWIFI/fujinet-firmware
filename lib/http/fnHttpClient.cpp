@@ -297,7 +297,7 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
         Debug_printf("HTTP_EVENT_ON_HEADER %u\r\n", uxTaskGetStackHighWaterMark(nullptr));
 #endif
         // Check to see if we should store this response header
-        if (client->_stored_headers.size() <= 0)
+        if (client->_stored_headers.size() == 0)
             break;
 
         client->set_header_value(evt->header_key, evt->header_value);
@@ -822,7 +822,9 @@ char *fnHttpClient::get_header(int index, char *buffer, int buffer_len)
 
     auto vi = _stored_headers.begin();
     std::advance(vi, index);
-    return strncpy(buffer, vi->second.c_str(), buffer_len);
+    strncpy(buffer, vi->second.c_str(), buffer_len - 1);
+    buffer[buffer_len - 1] = '\0';
+    return buffer;
 }
 
 const std::string fnHttpClient::get_header(int index)

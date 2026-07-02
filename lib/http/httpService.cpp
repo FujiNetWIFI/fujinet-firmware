@@ -65,7 +65,11 @@ char to_hex(char code)
 /* IMPORTANT: be sure to free() the returned string after use */
 char *url_encode(char *str)
 {
-    char *pstr = str, *buf = (char *)malloc(strlen(str) * 3 + 1), *pbuf = buf;
+    char *pstr = str;
+    char *buf = (char *)malloc(strlen(str) * 3 + 1);
+    if (buf == NULL)
+        return NULL;
+    char *pbuf = buf;
     while (*pstr)
     {
         if (isalnum(*pstr) || *pstr == '-' || *pstr == '_' || *pstr == '.' || *pstr == '~')
@@ -84,7 +88,11 @@ char *url_encode(char *str)
 /* IMPORTANT: be sure to free() the returned string after use */
 char *url_decode(char *str)
 {
-    char *pstr = str, *buf = (char *)malloc(strlen(str) + 1), *pbuf = buf;
+    char *pstr = str;
+    char *buf = (char *)malloc(strlen(str) + 1);
+    if (buf == NULL)
+        return NULL;
+    char *pbuf = buf;
     while (*pstr)
     {
         if (*pstr == '%')
@@ -341,7 +349,7 @@ void fnHttpService::parse_query(httpd_req_t *req, queryparts *results)
     }
 
     /// @todo Error if path_end == 0, the index to substr becomes -1
-    results->path += results->full_uri.substr(0, path_end - 1);
+    results->path += results->full_uri.substr(0, path_end);
     results->query += results->full_uri.substr(path_end + 1);
 
     // URL Decode query
