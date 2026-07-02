@@ -822,8 +822,7 @@ char *fnHttpClient::get_header(int index, char *buffer, int buffer_len)
 
     auto vi = _stored_headers.begin();
     std::advance(vi, index);
-    strncpy(buffer, vi->second.c_str(), buffer_len - 1);
-    buffer[buffer_len - 1] = '\0';
+    strlcpy(buffer, vi->second.c_str(), buffer_len);
     return buffer;
 }
 
