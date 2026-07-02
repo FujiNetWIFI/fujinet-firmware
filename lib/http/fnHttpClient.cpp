@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "fnHttpClient.h"
+#include "compat_string.h"
 
 #include "../../include/debug.h"
 

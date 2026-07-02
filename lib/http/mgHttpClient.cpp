@@ -14,6 +14,7 @@
 
 #include "mongoose.h"
 #undef mkdir
+#include "compat_string.h"
 
 #if defined(_WIN32)
 
