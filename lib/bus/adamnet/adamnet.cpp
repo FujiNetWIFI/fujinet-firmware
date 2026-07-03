@@ -13,6 +13,8 @@
 #include "adamFuji.h"
 #include "fnConfig.h"
 
+#include <cassert>
+
 #ifdef ESP_PLATFORM
 #include <driver/gpio.h>
 #endif
@@ -71,7 +73,7 @@ static void adamnet_reset_intr_task(void *arg)
     }
 }
 
-// Dedicated AdamNet bus service task. 
+// Dedicated AdamNet bus service task.
 static void adamnet_bus_task(void *arg)
 {
     systemBus *b = (systemBus *)arg;
@@ -97,6 +99,71 @@ uint8_t adamnet_checksum(uint8_t *buf, unsigned short len)
         checksum ^= buf[i];
 
     return checksum;
+}
+
+// Consume the trailing checksum and ACK, once the full payload has been read.
+void virtualDevice::deferred_ack()
+{
+    adamnet_recv(); // CK
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
+    adamnet_response_ack();
+    _ack_deferred = false;
+}
+
+void virtualDevice::transaction_begin(transState_t expectMoreData)
+{
+    assert(_transaction_state == TRANS_STATE::INVALID);
+
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
+    if (expectMoreData == TRANS_STATE::WILL_GET)
+    {
+        _ack_deferred = true;
+    }
+    else
+    {
+        // No payload follows; the next byte is the checksum.
+        adamnet_recv(); // Discard CK
+        adamnet_response_ack();
+    }
+
+    _transaction_state = expectMoreData;
+}
+
+void virtualDevice::transaction_complete()
+{
+    assert(_transaction_state == TRANS_STATE::NO_GET
+           || _transaction_state == TRANS_STATE::DID_GET);
+    _transaction_state = TRANS_STATE::INVALID;
+}
+
+void virtualDevice::transaction_error()
+{
+    if (_ack_deferred)
+    {
+        SYSTEM_BUS.wait_for_idle();
+        SYSTEM_BUS.start_time = GET_TIMESTAMP();
+        adamnet_response_ack();
+        _ack_deferred = false;
+    }
+    _transaction_state = TRANS_STATE::INVALID;
+}
+
+success_is_true virtualDevice::transaction_get(void *data, size_t len)
+{
+    assert(_transaction_state == TRANS_STATE::WILL_GET);
+    _transaction_state = TRANS_STATE::DID_GET;
+    unsigned short rlen = adamnet_recv_buffer((uint8_t *) data, len);
+    if (_ack_deferred)
+        deferred_ack();
+    RETURN_SUCCESS_IF(rlen == len);
+}
+
+void virtualDevice::transaction_put(const void *data, size_t len, bool err)
+{
+    assert(_transaction_state == TRANS_STATE::NO_GET);
+    memcpy(response, data, len);
+    response_len = len;
+    _transaction_state = TRANS_STATE::INVALID;
 }
 
 void virtualDevice::adamnet_send(uint8_t b)
