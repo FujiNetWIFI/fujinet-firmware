@@ -87,11 +87,14 @@ void adamNetwork::get_error()
 
     if (protocol == nullptr)
     {
-        response[0] = (uint8_t) NDEV_STATUS::NOT_CONNECTED;
+        response[0] = (uint8_t) err_open; // last open failure, if any
     }
     else
     {
+        // passive, like the bus status poll
+        protocol->fromInterrupt = true;
         protocol->status(&ns);
+        protocol->fromInterrupt = false;
         response[0] = (uint8_t) ns.error;
     }
 }
@@ -170,6 +173,7 @@ void adamNetwork::open(unsigned short s)
     if (protocol->open(urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != FUJI_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
+        err_open = protocol->error; // keep the reason for get_error()
         Debug_printf("Protocol unable to make connection.\n");
         delete protocol;
         protocol = nullptr;
@@ -204,6 +208,7 @@ void adamNetwork::close()
     adamnet_response_ack();
 
     statusByte.byte = 0x00;
+    err_open = NDEV_STATUS::NOT_CONNECTED;
 
     if (protocolParser != nullptr)
     {
@@ -313,7 +318,7 @@ void adamNetwork::status()
     {
         status->avail = 0;
         status->conn = 0;
-        status->err = NDEV_STATUS::INVALID_DEVICESPEC;
+        status->err = err_open;
         response_len = sizeof(*status);
         return;
     }
@@ -512,7 +517,9 @@ void adamNetwork::json_parse()
     adamnet_recv(); // CK
     SYSTEM_BUS.start_time = GET_TIMESTAMP();
     adamnet_response_ack();
-    json.parse();
+    bool ok = json.parse();
+    if (protocol != nullptr)
+        protocol->error = ok ? NDEV_STATUS::SUCCESS : NDEV_STATUS::COULD_NOT_PARSE_JSON;
     memset(response, 0, sizeof(response));
     response_len = 0;
 }
@@ -523,7 +530,11 @@ void adamNetwork::adamnet_response_status()
 
     if (protocol != nullptr)
     {
+        // passive: a bus status poll must not trigger deferred protocol
+        // work (e.g. the lazy HTTP transaction) inside the reply deadline
+        protocol->fromInterrupt = true;
         protocol->status(&s);
+        protocol->fromInterrupt = false;
         statusByte.bits.client_connected = s.connected == true;
         statusByte.bits.client_data_available = protocol->available() > 0;
         statusByte.bits.client_error = s.error != NDEV_STATUS::SUCCESS;
@@ -832,6 +843,7 @@ void adamNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Invalid devicespec: %s\n", deviceSpec.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
+        err_open = NDEV_STATUS::INVALID_DEVICESPEC;
         return;
     }
 
@@ -843,6 +855,7 @@ void adamNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Could not open protocol.\n");
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
+        err_open = NDEV_STATUS::INVALID_DEVICESPEC; // unknown scheme
         return;
     }
 }
@@ -979,6 +992,8 @@ void adamNetwork::process_http(fujiCommandID_t cmd)
     if (!http)
     {
         statusByte.bits.client_error = true;
+        if (protocol != nullptr)
+            protocol->error = NDEV_STATUS::INVALID_COMMAND;
         return;
     }
 

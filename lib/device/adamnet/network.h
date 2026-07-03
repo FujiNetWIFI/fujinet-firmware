@@ -187,6 +187,12 @@ private:
     NetworkProtocol *protocol = nullptr;
 
     /**
+     * Error from the last failed open, reported by get_error() while no
+     * protocol is instantiated
+     */
+    nDevStatus_t err_open = NDEV_STATUS::NOT_CONNECTED;
+
+    /**
      * @brief Factory that creates protocol from urls
     */
     ProtocolParser *protocolParser = nullptr;
