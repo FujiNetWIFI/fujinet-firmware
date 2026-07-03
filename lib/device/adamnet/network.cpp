@@ -966,6 +966,12 @@ void adamNetwork::process_tcp(fujiCommandID_t cmd)
 
 void adamNetwork::process_http(fujiCommandID_t cmd)
 {
+    unsigned char m = adamnet_recv();
+    adamnet_recv(); // CK
+
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
+    adamnet_response_ack();
+
     statusByte.byte = 0x00;
 
     // Make sure this is really a HTTP protocol instance
@@ -980,7 +986,7 @@ void adamNetwork::process_http(fujiCommandID_t cmd)
     switch (cmd)
     {
     case NETCMD_SET_CHANNEL_MODE:
-        cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmdFrame.aux2);
+        cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) m);
         break;
     default:
         cmd_err = FUJI_ERROR::UNSPECIFIED;
