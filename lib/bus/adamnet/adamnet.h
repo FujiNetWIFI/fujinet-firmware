@@ -5,9 +5,11 @@
  * AdamNet Routines
  */
 
+#include "bus.h"
 #include "cmdFrame.h"
 #include "UARTChannel.h"
 #include "BoIPChannel.h"
+#include "global_types.h"
 
 #include <map>
 
@@ -25,7 +27,7 @@ struct adamnet_message_t
 #define ADAMNET_BAUDRATE 62500
 
 // Abort a stalled multi-byte receive after this long with no byte arriving
-// (~2.5 byte times). 
+// (~2.5 byte times).
 #define ADAMNET_RECV_TIMEOUT_US 400
 
 // Minimum turnaround before driving the shared wire in response to a command
@@ -46,12 +48,12 @@ struct adamnet_message_t
 // Largest response whose half-duplex echo still fits the RX ring
 #define ECHO_DRAIN_MAX 64
 
-// How long to wait for a straggler echo byte to land before giving up. 
+// How long to wait for a straggler echo byte to land before giving up.
 #define ECHO_SETTLE_US 50
 
 // A handler that blocked the bus task longer than this leaves a backlog of the
 // master's CONTROL.RECEIVE retries piled up in RX (it retries every ~2ms once it
-// has ACKed our command and is waiting on the response). 
+// has ACKed our command and is waiting on the response).
 #define ADAMNET_LONG_CMD_US 10000
 
 // The bus service runs in its own high-priority task
@@ -113,7 +115,18 @@ class virtualDevice
     friend systemBus; // We exist on the AdamNet Bus, and need to let it muck with our internals
     friend fujiDevice;
 
+private:
+    bool _ack_deferred = false;
+    void deferred_ack();
+
 protected:
+    transState_t _transaction_state = TRANS_STATE::INVALID;
+    virtual void transaction_begin(transState_t expectMoreData);
+    virtual void transaction_complete();
+    virtual void transaction_error();
+    virtual success_is_true transaction_get(void *data, size_t len);
+    virtual void transaction_put(const void *data, size_t len, bool err=false);
+
     /**
      * @brief Send Byte to AdamNet
      * @param b Byte to send via AdamNet
