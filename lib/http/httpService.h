@@ -155,6 +155,19 @@ public:
     // Google Drive OAuth2 relay-based endpoints
     static esp_err_t get_handler_gdrive_auth(httpd_req_t *req);
     static esp_err_t get_handler_gdrive_poll(httpd_req_t *req);
+
+    // REST API handlers
+    static esp_err_t api_handler_status(httpd_req_t *req);
+    static esp_err_t api_handler_drives(httpd_req_t *req);
+    static esp_err_t api_handler_drive_slot(httpd_req_t *req);
+    static esp_err_t api_handler_drive_mount(httpd_req_t *req);
+    static esp_err_t api_handler_drive_eject(httpd_req_t *req);
+    static esp_err_t api_handler_hosts(httpd_req_t *req);
+    static esp_err_t api_handler_host_slot(httpd_req_t *req);
+    static esp_err_t api_handler_printer_status(httpd_req_t *req);
+    static esp_err_t api_handler_printer_clear(httpd_req_t *req);
+    static esp_err_t api_handler_wifi_scan(httpd_req_t *req);
+    static esp_err_t api_handler_wifi_status(httpd_req_t *req);
 #else
 // !ESP_PLATFORM
     static int get_handler_print(struct mg_connection *c);
