@@ -78,9 +78,7 @@ void drivewireCPM::read()
     if (!mw)
         return;
 
-    response.clear();
-    response.shrink_to_fit();
-
+    ByteBuffer buffer(len);
     for (uint16_t i=0; i<len; i++)
     {
         char b;
@@ -88,8 +86,10 @@ void drivewireCPM::read()
 #ifdef ESP_PLATFORM
         xQueueReceive(rxq, &b, portMAX_DELAY);
 #endif /* ESP_PLATFORM */
-        response += b;
+        buffer[i] = b;
     }
+
+    transaction_put(buffer);
 }
 
 void drivewireCPM::write()
@@ -115,13 +115,10 @@ void drivewireCPM::status()
     unsigned short mw = uxQueueMessagesWaiting(rxq);
     unsigned char status_response[2] = {0,0};
 
-    response.clear();
-    response.shrink_to_fit();
-
     status_response[0] = mw >> 8;
     status_response[1] = mw & 0xFF;
 
-    response = std::string((const char *)status_response, 2);
+    transaction_put(&status_response, sizeof(status_response));
 }
 
 void drivewireCPM::process()
