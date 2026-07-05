@@ -20,6 +20,8 @@ public:
                       mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
 
+    void set_media_host(fujiHost *host);
+
     success_is_true write_blank(fnFile *f, uint8_t numDisks);
 
     error_is_true read(uint32_t sector, uint8_t *buf);
