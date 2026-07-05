@@ -10,10 +10,6 @@
 class drivewireFuji : public fujiDevice
 {
 private:
-    std::string _response;
-
-    uint8_t _errorCode;
-
 #ifdef ESP_PLATFORM
     drivewireCassette _cassetteDev;
 #endif
@@ -25,20 +21,16 @@ protected:
     }
     void transaction_complete() override {
         virtualDevice::transaction_complete();
-        _errorCode = 1;
-        _response.clear();
-        _response.shrink_to_fit();
     }
     void transaction_error() override {
         virtualDevice::transaction_error();
-        _errorCode = 144;
     }
     success_is_true transaction_get(void *data, size_t len) override {
         return virtualDevice::transaction_get(data, len);
     }
+    using virtualDevice::transaction_put;
     void transaction_put(const void *data, size_t len, bool err=false) override {
         virtualDevice::transaction_put(data, len, err);
-        _response.append((char *) data, len);
     }
 
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
@@ -60,9 +52,6 @@ protected:
     void hash_output();            // 0xC5
     void hash_clear();             // 0xC2
 
-    void send_error();             // 0x02
-    void send_response();          // 0x01
-    void ready();                  // 0x00
     void shutdown() override;
 
 public:

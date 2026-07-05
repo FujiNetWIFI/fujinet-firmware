@@ -204,6 +204,7 @@ public:
     virtual void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl);
     void fujicmd_get_directory_position();
     void fujicmd_set_directory_position(uint16_t pos);
+    success_is_true fujicore_copy_file_success(uint8_t sourceSlot, uint8_t destSlot, std::string copySpec);
     success_is_true fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot, std::string copySpec);
     virtual void fujicmd_get_adapter_config();
     virtual void fujicmd_get_adapter_config_extended();
