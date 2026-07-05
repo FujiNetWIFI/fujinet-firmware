@@ -145,6 +145,7 @@ FILE(GLOB_RECURSE SOURCES
     ${CMAKE_SOURCE_DIR}/lib/printer-emulator/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/qrcode/*.c
     ${CMAKE_SOURCE_DIR}/lib/qrcode/*.cpp
+    ${CMAKE_SOURCE_DIR}/lib/runcpm/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/sam/*.c
     ${CMAKE_SOURCE_DIR}/lib/sam/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/task/*.cpp

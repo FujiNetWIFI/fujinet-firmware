@@ -4,28 +4,18 @@
 
 #ifdef ESP_PLATFORM
 
-#include "bus.h"
+#include <string>
 
+#include "../cpm/cpm.h"
 
-#define FOLDERCHAR '/'
-
-// Silly typedefs that runcpm uses
-typedef unsigned char   uint8;
-typedef unsigned short  uint16;
-typedef unsigned int    uint32;
-
-class drivewireCPM : public virtualDevice
+class drivewireCPM : public cpmQueueDevice
 {
 private:
     std::string response;
 
-#ifdef ESP_PLATFORM
     TaskHandle_t cpmTaskHandle = NULL;
-#endif /* ESP_PLATFORM */
 
 public:
-    drivewireCPM();
-    // virtual ~drivewireCPM();
     virtual void process();
     virtual void ready();
     virtual void send_response();
