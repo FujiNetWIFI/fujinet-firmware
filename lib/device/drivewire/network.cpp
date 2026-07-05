@@ -64,11 +64,6 @@ drivewireNetwork::~drivewireNetwork()
 
 /** DRIVEWIRE COMMANDS ***************************************************************/
 
-void drivewireNetwork::ready()
-{
-    SYSTEM_BUS.write(0x01); // yes, ready.
-}
-
 /**
  * DRIVEWIRE Open command
  * Called in response to 'O' command. Instantiate a protocol, pass URL to it, call its open
@@ -115,9 +110,6 @@ void drivewireNetwork::open()
         protocolParser = nullptr;
     }
 
-    // Reset status buffer
-    ns.reset();
-
     // Parse and instantiate protocol
     parse_and_instantiate_protocol();
 
@@ -139,8 +131,8 @@ void drivewireNetwork::open()
     // Attempt protocol open
     if (protocol->open(urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != FUJI_ERROR::NONE)
     {
-        ns.error = protocol->error;
-        Debug_printf("Protocol unable to make connection. Error: %d\n", ns.error);
+        _errorCode = protocol->error;
+        Debug_printf("Protocol unable to make connection. Error: %d\n", _errorCode);
         delete protocol;
         protocol = nullptr;
         if (protocolParser != nullptr)
@@ -148,7 +140,6 @@ void drivewireNetwork::open()
             delete protocolParser;
             protocolParser = nullptr;
         }
-        //SYSTEM_BUS.write(ns.error);
         return;
     }
 
@@ -158,10 +149,8 @@ void drivewireNetwork::open()
     json->setProtocol(protocol);
     channelMode = PROTOCOL;
 
-    // And signal complete!
-    ns.error = NDEV_STATUS::SUCCESS;
-    //SYSTEM_BUS.write(ns.error);
-    Debug_printf("ns.error = %u\n",ns.error);
+    transaction_begin(TRANS_STATE::NO_GET);
+    transaction_complete();
 }
 
 /**
@@ -171,8 +160,6 @@ void drivewireNetwork::open()
 void drivewireNetwork::close()
 {
     Debug_printf("drivewireNetwork::close()\n");
-
-    ns.reset();
 
     if (protocolParser != nullptr)
     {
@@ -207,9 +194,8 @@ void drivewireNetwork::close()
     Debug_printv("After protocol delete %lu\n",esp_get_free_internal_heap_size());
 #endif
 
-    // And signal complete!
-    ns.error = NDEV_STATUS::SUCCESS;
-    //SYSTEM_BUS.write(ns.error);
+    transaction_begin(TRANS_STATE::NO_GET);
+    transaction_complete();
 }
 
 /**
@@ -238,7 +224,8 @@ void drivewireNetwork::read()
     // Check for rx buffer. If NULL, then tell caller we could not allocate buffers.
     if (receiveBuffer == nullptr)
     {
-        ns.error = NDEV_STATUS::COULD_NOT_ALLOCATE_BUFFERS;
+        transaction_error();
+        _errorCode = NDEV_STATUS::COULD_NOT_ALLOCATE_BUFFERS;
         return;
     }
 
@@ -251,15 +238,16 @@ void drivewireNetwork::read()
             protocolParser = nullptr;
         }
 
-        ns.error = NDEV_STATUS::NOT_CONNECTED;
+        transaction_error();
+        _errorCode = NDEV_STATUS::NOT_CONNECTED;
         return;
     }
 
     // Do the channel read
     read_channel(num_bytes);
 
-    // And set response buffer.
-    response += *receiveBuffer;
+    transaction_begin(TRANS_STATE::NO_GET);
+    transaction_put(*receiveBuffer);
 
     // Remove from receive buffer and shrink.
     receiveBuffer->erase(0, num_bytes);
@@ -342,7 +330,7 @@ void drivewireNetwork::write()
             delete protocolParser;
             protocolParser = nullptr;
         }
-        ns.error = NDEV_STATUS::NOT_CONNECTED;
+        _errorCode = NDEV_STATUS::NOT_CONNECTED;
         return;
     }
 
@@ -430,13 +418,12 @@ void drivewireNetwork::status_local()
         memcpy(&status,ipDNS,sizeof(status));
         break;
     default:
-        status.conn = ns.connected;
-        status.err = ns.error;
+        status.conn = true;
+        status.err = _errorCode;
         break;
     }
 
-    response.clear();
-    response.append((char *) &status, sizeof(status));
+    transaction_put(&status, sizeof(status));
 }
 
 bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
@@ -451,6 +438,7 @@ bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
  */
 void drivewireNetwork::status_channel()
 {
+    NetworkStatus ns;
     NDeviceStatus status;
     size_t avail = 0;
 
@@ -485,10 +473,8 @@ void drivewireNetwork::status_channel()
                  avail, ns.connected, ns.error);
 #endif /* TOO_MUCH_DEBUG */
 
-    // and fill response.
-    response.clear();
-    response.shrink_to_fit();
-    response.append((char *) &status, sizeof(status));
+    transaction_begin(TRANS_STATE::NO_GET);
+    transaction_put(&status, sizeof(status));
 }
 
 /**
@@ -500,7 +486,7 @@ void drivewireNetwork::get_prefix()
     Debug_printf("drivewireNetwork::get_prefix(%s)\n",prefix.c_str());
     memset(out,0,sizeof(out));
     strcpy(out,prefix.c_str());
-    response = std::string(out,256);
+    transaction_put(out, sizeof(out));
 }
 
 /**
@@ -686,30 +672,6 @@ bool drivewireNetwork::poll_interrupt()
     return protocol->available() > 0;
 }
 
-void drivewireNetwork::send_error()
-{
-    Debug_printf("drivewireNetwork::send_error(%u)\n",ns.error);
-    SYSTEM_BUS.write((uint8_t) ns.error);
-}
-
-void drivewireNetwork::send_response()
-{
-    uint16_t len = cmdFrame.aux1 << 8 | cmdFrame.aux2; // big endian
-
-    // Pad to requested response length. Thanks apc!
-    if (response.length() < len)
-        response.insert(response.length(), len - response.length(), '\0');
-
-    // Send body
-    SYSTEM_BUS.write((uint8_t *)response.c_str(), len);
-
-    Debug_printf("drivewireNetwork::send_response[%d]:%s\n", len, response.c_str());
-
-    // Clear the response
-    response.clear();
-    response.shrink_to_fit();
-}
-
 /**
  * Preprocess deviceSpec given aux1 open mode. This is used to work around various assumptions that different
  * disk utility packages do when opening a device, such as adding wildcards for directory opens.
@@ -740,7 +702,7 @@ void drivewireNetwork::parse_and_instantiate_protocol()
     if (!urlParser->isValidUrl())
     {
         Debug_printf("Invalid devicespec: >%s<\n", deviceSpec.c_str());
-        ns.error = NDEV_STATUS::INVALID_DEVICESPEC;
+        _errorCode = NDEV_STATUS::INVALID_DEVICESPEC;
         return;
     }
 
@@ -752,7 +714,7 @@ void drivewireNetwork::parse_and_instantiate_protocol()
     if (!instantiate_protocol())
     {
         Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
-        ns.error = NDEV_STATUS::GENERAL;
+        _errorCode = NDEV_STATUS::GENERAL;
         return;
     }
 }
@@ -869,13 +831,13 @@ void drivewireNetwork::parse_json()
 {
     bool success = json->parse();
 
-    ns.error = NDEV_STATUS::SUCCESS;
+    _errorCode = NDEV_STATUS::SUCCESS;
 #ifdef UNUSED
     // Atari doesn't check for errors and blindly returns that
     // everything is fine. This causes the httpbin test to pass when
     // it probably shouldn't. However we'll just do what Atari does.
     if (!success)
-        ns.error = NDEV_STATUS::COULD_NOT_PARSE_JSON;
+        _errorCode = NDEV_STATUS::COULD_NOT_PARSE_JSON;
 #endif /* UNUSED */
 }
 
@@ -1015,8 +977,7 @@ void drivewireNetwork::process()
         break;
 
     default:
-        ns.reset();
-        ns.error = NDEV_STATUS::GENERAL;
+        transaction_error();
         break;
     }
 }
@@ -1029,8 +990,7 @@ void drivewireNetwork::process_fs()
     NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol);
     if (!fs)
     {
-        ns.reset();
-        ns.error = NDEV_STATUS::GENERAL;
+        transaction_error();
         return;
     }
 
@@ -1063,8 +1023,7 @@ void drivewireNetwork::process_fs()
 
     if (err != FUJI_ERROR::NONE)
     {
-        ns.reset();
-        ns.error = NDEV_STATUS::GENERAL;
+        transaction_error();
     }
 }
 
@@ -1074,8 +1033,7 @@ void drivewireNetwork::process_tcp()
     NetworkProtocolTCP *tcp = dynamic_cast<NetworkProtocolTCP *>(protocol);
     if (!tcp)
     {
-        ns.reset();
-        ns.error = NDEV_STATUS::GENERAL;
+        transaction_error();
         return;
     }
 
@@ -1095,8 +1053,7 @@ void drivewireNetwork::process_tcp()
 
     if (err != FUJI_ERROR::NONE)
     {
-        ns.reset();
-        ns.error = NDEV_STATUS::GENERAL;
+        transaction_error();
     }
 }
 
@@ -1106,8 +1063,7 @@ void drivewireNetwork::process_http()
     NetworkProtocolHTTP *http = dynamic_cast<NetworkProtocolHTTP *>(protocol);
     if (!http)
     {
-        ns.reset();
-        ns.error = NDEV_STATUS::GENERAL;
+        transaction_error();
         return;
     }
 
@@ -1124,8 +1080,7 @@ void drivewireNetwork::process_http()
 
     if (err != FUJI_ERROR::NONE)
     {
-        ns.reset();
-        ns.error = NDEV_STATUS::GENERAL;
+        transaction_error();
     }
 }
 
@@ -1135,8 +1090,7 @@ void drivewireNetwork::process_udp()
     NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(protocol);
     if (!udp)
     {
-        ns.reset();
-        ns.error = NDEV_STATUS::GENERAL;
+        transaction_error();
         return;
     }
 
@@ -1147,7 +1101,7 @@ void drivewireNetwork::process_udp()
     case NETCMD_GET_REMOTE:
         receiveBuffer->resize(SPECIAL_BUFFER_SIZE);
         err = udp->get_remote(receiveBuffer->data(), receiveBuffer->size());
-        response += *receiveBuffer;
+        transaction_put(*receiveBuffer);
         break;
 #endif /* ESP_PLATFORM */
     case NETCMD_SET_DESTINATION:
@@ -1157,14 +1111,12 @@ void drivewireNetwork::process_udp()
             err = udp->set_destination(spData, bytes_read);
             if (err != FUJI_ERROR::NONE)
             {
-                ns.reset();
-                ns.error = NDEV_STATUS::GENERAL;
+                transaction_error();
             }
         }
         break;
     default:
-        ns.reset();
-        ns.error = NDEV_STATUS::GENERAL;
+        transaction_error();
         break;
     }
 }

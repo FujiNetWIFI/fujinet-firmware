@@ -55,21 +55,6 @@ public:
     bool poll_interrupt();
 
     /**
-     * @brief Ready?
-     */
-    void ready();
-
-    /**
-     * @brief Get last error
-     */
-    void send_error();
-
-    /**
-     * @brief send response
-     */
-    void send_response();
-
-    /**
      * Called for DRIVEWIRE Command 'O' to open a connection to a network protocol, allocate all buffers,
      */
     virtual void open();
@@ -131,11 +116,6 @@ public:
 private:
 
     /**
-     * @brief the response buffer
-     */
-    std::string response;
-
-    /**
      * Buffer for holding devicespec
      */
     uint8_t devicespecBuf[256];
@@ -169,11 +149,6 @@ private:
      * @brief Factory that creates protocol from urls
     */
     ProtocolParser *protocolParser = nullptr;
-
-    /**
-     * Network Status object
-     */
-    NetworkStatus ns;
 
     /**
      * Devicespec passed to us, e.g. N:HTTP://WWW.GOOGLE.COM:80/

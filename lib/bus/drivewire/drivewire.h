@@ -25,6 +25,7 @@
 #include "UARTChannel.h"
 #include "ACMChannel.h"
 #include "fujiDeviceID.h"
+#include "status_error_codes.h"
 #ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
 #include "../rs232/FujiBusPacket.h"
 #include <deque>
@@ -148,18 +149,32 @@ class virtualDevice
     friend systemBus;
     friend fujiDevice;
 
+private:
+    ByteBuffer _response;
+    transState_t _transaction_state = TRANS_STATE::INVALID;
+
 protected:
+    nDevStatus_t _errorCode;
     fujiDeviceID_t _devnum;
 
     cmdFrame_t cmdFrame;
     bool listen_to_type3_polls = false;
 
-    transState_t _transaction_state = TRANS_STATE::INVALID;
     virtual void transaction_begin(transState_t expectMoreData);
     virtual void transaction_complete();
     virtual void transaction_error();
     virtual success_is_true transaction_get(void *data, size_t len);
     virtual void transaction_put(const void *data, size_t len, bool err=false);
+    inline void transaction_put(std::string data) {
+        transaction_put(data.data(), data.size());
+    }
+    inline void transaction_put(ByteBuffer data) {
+        transaction_put(data.data(), data.size());
+    }
+
+    void send_error();             // 0x02
+    void send_response();          // 0x01
+    void ready();                  // 0x00
 
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};

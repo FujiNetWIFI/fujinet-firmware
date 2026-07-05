@@ -179,6 +179,7 @@ void drivewireFuji::base64_encode_input()
     }
 
     std::vector<unsigned char> p(len);
+    transaction_begin(TRANS_STATE::WILL_GET);
     transaction_get(p.data(), len);
     base64.base64_buffer += std::string((const char *)p.data(), len);
     transaction_complete();
@@ -200,6 +201,7 @@ void drivewireFuji::base64_encode_compute()
     base64.base64_buffer.clear();
     base64.base64_buffer = std::string(p.get(), out_len);
 
+    transaction_begin(TRANS_STATE::NO_GET);
     transaction_complete();
 }
 
@@ -214,6 +216,7 @@ void drivewireFuji::base64_encode_length()
         (uint8_t)(l)
     };
 
+    transaction_begin(TRANS_STATE::NO_GET);
     transaction_put(&o, 4);
 }
 
@@ -230,12 +233,13 @@ void drivewireFuji::base64_encode_output()
         return;
     }
 
-    std::vector<unsigned char> p(len);
-    std::memcpy(p.data(), base64.base64_buffer.data(), len);
+    std::vector<unsigned char> p(base64.base64_buffer.data(),
+                                 base64.base64_buffer.data() + len);
     base64.base64_buffer.erase(0, len);
     base64.base64_buffer.shrink_to_fit();
 
-    transaction_put(p.data(), len);
+    transaction_begin(TRANS_STATE::NO_GET);
+    transaction_put(p);
 }
 
 void drivewireFuji::base64_decode_input()
@@ -251,6 +255,7 @@ void drivewireFuji::base64_decode_input()
         return;
     }
 
+    transaction_begin(TRANS_STATE::WILL_GET);
     std::vector<unsigned char> p(len);
     transaction_get(p.data(), len);
     base64.base64_buffer += std::string((const char *)p.data(), len);
@@ -276,6 +281,7 @@ void drivewireFuji::base64_decode_compute()
     base64.base64_buffer = std::string((const char *)p.get(), out_len);
 
     Debug_printf("Resulting BASE64 encoded data is: %u bytes\n", out_len);
+    transaction_begin(TRANS_STATE::NO_GET);
     transaction_complete();
 }
 
@@ -293,6 +299,7 @@ void drivewireFuji::base64_decode_length()
 
     Debug_printf("base64 buffer length: %u bytes\n", len);
 
+    transaction_begin(TRANS_STATE::NO_GET);
     transaction_put(_response, 4);
 }
 
@@ -325,6 +332,7 @@ void drivewireFuji::base64_decode_output()
     memcpy(p.data(), base64.base64_buffer.data(), len);
     base64.base64_buffer.erase(0, len);
     base64.base64_buffer.shrink_to_fit();
+    transaction_begin(TRANS_STATE::NO_GET);
     transaction_put(p.data(), len);
 }
 
@@ -343,6 +351,7 @@ void drivewireFuji::hash_input()
         return;
     }
 
+    transaction_begin(TRANS_STATE::WILL_GET);
     std::vector<uint8_t> p(len);
     transaction_get(p.data(), len);
     hasher.add_data(p);
@@ -354,6 +363,7 @@ void drivewireFuji::hash_compute(bool clear_data)
     Debug_printf("FUJI: HASH COMPUTE\n");
     algorithm = Hash::to_algorithm(SYSTEM_BUS.read());
     hasher.compute(algorithm, clear_data);
+    transaction_begin(TRANS_STATE::NO_GET);
     transaction_complete();
 }
 
@@ -362,6 +372,7 @@ void drivewireFuji::hash_length()
     Debug_printf("FUJI: HASH LENGTH\n");
     uint8_t is_hex = SYSTEM_BUS.read() == 1;
     uint8_t r = hasher.hash_length(algorithm, is_hex);
+    transaction_begin(TRANS_STATE::NO_GET);
     transaction_put(&r, 1);
 }
 
@@ -369,6 +380,7 @@ void drivewireFuji::hash_output()
 {
     Debug_printf("FUJI: HASH OUTPUT\n");
 
+    transaction_begin(TRANS_STATE::NO_GET);
     uint8_t is_hex = SYSTEM_BUS.read() == 1;
     if (is_hex) {
         std::string output = hasher.output_hex();
@@ -383,6 +395,7 @@ void drivewireFuji::hash_clear()
 {
     Debug_printf("FUJI: HASH INIT\n");
     hasher.clear();
+    transaction_begin(TRANS_STATE::NO_GET);
     transaction_complete();
 }
 
@@ -405,12 +418,6 @@ void drivewireFuji::setup()
 #endif /* OBSOLETE */
 }
 
-void drivewireFuji::send_error()
-{
-    Debug_printf("drivewireFuji::send_error(%u)\n",_errorCode);
-    SYSTEM_BUS.write(_errorCode);
-}
-
 void drivewireFuji::random()
 {
     int r = rand();
@@ -418,26 +425,11 @@ void drivewireFuji::random()
     transaction_put(&r, sizeof(r));
 }
 
-void drivewireFuji::send_response()
-{
-    // Send body
-    SYSTEM_BUS.write((uint8_t *)_response.c_str(),_response.length());
-
-    // Clear the response
-    _response.clear();
-    _response.shrink_to_fit();
-}
-
-void drivewireFuji::ready()
-{
-    SYSTEM_BUS.write(0x01); // Yes, ready.
-}
-
 void drivewireFuji::process()
 {
     fujiCommandID_t c = (fujiCommandID_t) SYSTEM_BUS.read();
 
-    _errorCode = 1;
+    _errorCode = NDEV_STATUS::SUCCESS;
     switch (c)
     {
     case FUJICMD_SEND_ERROR:
@@ -629,8 +621,12 @@ void drivewireFuji::process()
             uint8_t source = SYSTEM_BUS.read();
             uint8_t dest = SYSTEM_BUS.read();
             char dirpath[256];
+            transaction_begin(TRANS_STATE::WILL_GET);
             transaction_get(dirpath, sizeof(dirpath));
-            fujicmd_copy_file_success(source, dest, dirpath);
+            if (fujicore_copy_file_success(source, dest, dirpath).is_error())
+                transaction_error();
+            else
+                transaction_complete();
         }
         break;
     case FUJICMD_GENERATE_GUID:

@@ -52,32 +52,6 @@ drivewireCPM::drivewireCPM()
     txq = xQueueCreate(2048, sizeof(char));
 }
 
-// drivewireCPM::~drivewireCPM()
-// {
-//     if (cpmTaskHandle != NULL)
-//     {
-//         vTaskDelete(cpmTaskHandle);
-//     }
-
-//     vQueueDelete(rxq);
-//     vQueueDelete(txq);
-// }
-
-void drivewireCPM::ready()
-{
-    SYSTEM_BUS.write(0x01);
-}
-
-void drivewireCPM::send_response()
-{
-    // Send body
-    SYSTEM_BUS.write((uint8_t *)response.c_str(),response.length());
-
-    // Clear the response
-    response.clear();
-    response.shrink_to_fit();
-}
-
 void drivewireCPM::boot()
 {
 #ifdef ESP_PLATFORM

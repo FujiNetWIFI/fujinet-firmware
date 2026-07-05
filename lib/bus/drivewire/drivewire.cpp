@@ -950,6 +950,35 @@ void systemBus::writeBusPacket(FujiBusPacket &packet)
 }
 #endif /* PINMAP_FUJIVERSAL_DRIVEWIRE */
 
+void virtualDevice::ready()
+{
+    SYSTEM_BUS.write(0x01); // yes, ready.
+}
+
+void virtualDevice::send_response()
+{
+    uint16_t len = be16toh(cmdFrame.aux12);
+
+    // Pad to requested response length. Thanks apc!
+    if (_response.size() < len)
+        _response.resize(std::max<size_t>(_response.size(), len), 0);
+
+    // Send body
+    SYSTEM_BUS.write(_response.data(), _response.size());
+
+    // Clear the response
+    _response.clear();
+    _response.shrink_to_fit();
+}
+
+void virtualDevice::send_error()
+{
+    Debug_printf("drivewire device error = %s\n",
+                 _errorCode == NDEV_STATUS::SUCCESS
+                 ? "NONE" : std::to_string(static_cast<int>(_errorCode)).c_str());
+    SYSTEM_BUS.write(static_cast<uint8_t>(_errorCode));
+}
+
 void virtualDevice::transaction_begin(transState_t expectMoreData)
 {
     assert(_transaction_state == TRANS_STATE::INVALID);
@@ -960,11 +989,15 @@ void virtualDevice::transaction_complete()
 {
     assert(_transaction_state == TRANS_STATE::NO_GET
            || _transaction_state == TRANS_STATE::DID_GET);
+    _errorCode = NDEV_STATUS::SUCCESS;
+    _response.clear();
+    _response.shrink_to_fit();
     _transaction_state = TRANS_STATE::INVALID;
 }
 
 void virtualDevice::transaction_error()
 {
+    _errorCode = NDEV_STATUS::GENERAL;
     _transaction_state = TRANS_STATE::INVALID;
 }
 
@@ -978,9 +1011,11 @@ success_is_true virtualDevice::transaction_get(void *data, size_t len)
 void virtualDevice::transaction_put(const void *data, size_t len, bool err)
 {
     assert(_transaction_state == TRANS_STATE::NO_GET);
-    transaction_complete();
     if (err)
         transaction_error();
+    _response.insert(_response.end(), static_cast<const uint8_t *>(data),
+                     static_cast<const uint8_t *>(data) + len);
+    _transaction_state = TRANS_STATE::INVALID;
 }
 
 #endif               /* BUILD_COCO */
