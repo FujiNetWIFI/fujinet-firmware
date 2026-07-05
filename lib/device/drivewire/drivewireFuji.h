@@ -80,6 +80,8 @@ public:
     // ============ Wrapped Fuji commands ============
     std::optional<std::vector<uint8_t>> fujicore_read_app_key() override;
     void fujicmd_open_app_key() override;
+    success_is_true fujicore_mount_disk_image_success(uint8_t deviceSlot,
+                                                      disk_access_flags_t access_mode) override;
 
 };
 

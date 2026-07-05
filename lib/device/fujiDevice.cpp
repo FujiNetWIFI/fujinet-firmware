@@ -503,11 +503,6 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
     disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size, access_mode);
     disk_dev->is_config_device = false;
 
-#ifdef BUILD_COCO
-    // the media layer needs the host to reopen high-score sectors read-write
-    disk_dev->set_media_host(&host);
-#endif
-
     RETURN_SUCCESS_AS_TRUE();
 }
 

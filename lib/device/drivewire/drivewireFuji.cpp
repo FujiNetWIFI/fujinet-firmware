@@ -647,6 +647,19 @@ void drivewireFuji::process()
     }
 }
 
+success_is_true drivewireFuji::fujicore_mount_disk_image_success(uint8_t deviceSlot,
+                                                                   disk_access_flags_t access_mode)
+{
+    if (!fujiDevice::fujicore_mount_disk_image_success(deviceSlot, access_mode))
+        RETURN_ERROR_AS_FALSE();
+
+    fujiDisk &disk = *get_disk(deviceSlot);
+    fujiHost &host = _fnHosts[disk.host_slot];
+    get_disk_dev(deviceSlot)->set_media_host(&host);
+
+    RETURN_SUCCESS_AS_TRUE();
+}
+
 std::optional<std::vector<uint8_t>> drivewireFuji::fujicore_read_app_key()
 {
     auto result = fujiDevice::fujicore_read_app_key();
