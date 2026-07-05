@@ -50,6 +50,7 @@ public:
     uint8_t _media_controller_status = DISK_CTRL_STATUS_CLEAR;
     fujiHost *_media_host = nullptr;
     char _disk_filename[256];
+    bool _media_read_only = false;
 
 
     mediatype_t _mediatype = MEDIATYPE_UNKNOWN;
