@@ -157,9 +157,6 @@ protected:
     nDevStatus_t _errorCode;
     fujiDeviceID_t _devnum;
 
-    cmdFrame_t cmdFrame;
-    bool listen_to_type3_polls = false;
-
     virtual void transaction_begin(transState_t expectMoreData);
     virtual void transaction_complete();
     virtual void transaction_error();
@@ -172,19 +169,14 @@ protected:
         transaction_put(data.data(), data.size());
     }
 
-    void send_error();             // 0x02
-    void send_response();          // 0x01
-    void ready();                  // 0x00
+    void send_error();                // 0x02
+    void send_response(uint16_t len); // 0x01
+    void ready();                     // 0x00
 
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};
 
 public:
-    /**
-     * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?
-     */
-    bool is_config_device = false;
-
     /**
      * @brief is device active (turned on?)
      */

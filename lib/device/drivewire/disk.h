@@ -11,6 +11,11 @@ private:
     MediaType *_media = nullptr;
 
 public:
+    /**
+     * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?
+     */
+    bool is_config_device = false;
+
     drivewireDisk();
     ~drivewireDisk();
 

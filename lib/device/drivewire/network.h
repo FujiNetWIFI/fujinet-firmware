@@ -44,10 +44,10 @@ public:
      * @brief process network device command
      */
     void process();
-    void process_fs();
-    void process_tcp();
-    void process_http();
-    void process_udp();
+    void process_fs(fujiCommandID_t cmd, bool is_dir);
+    void process_tcp(fujiCommandID_t cmd);
+    void process_http(fujiCommandID_t cmd, uint8_t chan_mode);
+    void process_udp(fujiCommandID_t cmd);
 
     /**
      * Check to see if PROCEED needs to be asserted.
@@ -57,28 +57,28 @@ public:
     /**
      * Called for DRIVEWIRE Command 'O' to open a connection to a network protocol, allocate all buffers,
      */
-    virtual void open();
+    void open(fileAccessMode_t access, netProtoTranslation_t trans_mode);
 
     /**
      * Called for DRIVEWIRE Command 'C' to close a connection to a network protocol, de-allocate all buffers,
      */
-    virtual void close();
+    void close();
 
     /**
      * DRIVEWIRE Read command
-     * Read # of bytes from the protocol adapter specified by the aux1/aux2 bytes, into the RX buffer. If we are short
+     * Read # of bytes from the protocol adapter specified, into the RX buffer. If we are short
      * fill the rest with nulls and return ERROR.
      *
      * @note It is the channel's responsibility to pad to required length.
      */
-    virtual void read();
+    void read(uint16_t num_bytes);
 
     /**
      * DRIVEWIRE Write command
-     * Write # of bytes specified by aux1/aux2 from tx_buffer out to DRIVEWIRE. If protocol is unable to return requested
+     * Write # of bytes specified from tx_buffer out to DRIVEWIRE. If protocol is unable to return requested
      * number of bytes, return ERROR.
      */
-    virtual void write();
+    void write(uint16_t num_bytes);
 
     /**
      * DRIVEWIRE Special, called as a default for any other DRIVEWIRE command not processed by the other drivewire_ functions.
@@ -86,32 +86,32 @@ public:
      * process the special command. Otherwise, the command is handled locally. In either case, either drivewire_complete()
      * or drivewire_error() is called.
      */
-    virtual void status();
+    void status(uint8_t mode);
 
     /**
      * @brief set channel mode, JSON or PROTOCOL
      */
-    virtual void set_channel_mode();
+    void set_channel_mode(uint8_t mode);
 
     /**
      * @brief Called to set prefix
      */
-    virtual void set_prefix();
+    void set_prefix();
 
     /**
      * @brief Called to get prefix
      */
-    virtual void get_prefix();
+    void get_prefix();
 
     /**
      * @brief called to set login
      */
-    virtual void set_login();
+    void set_login();
 
     /**
      * @brief called to set password
      */
-    virtual void set_password();
+    void set_password();
 
 private:
 
@@ -161,22 +161,6 @@ private:
     std::string prefix;
 
     /**
-     * The AUX1 value used for OPEN.
-     */
-    uint8_t open_aux1 = 0;
-
-    /**
-     * The AUX2 value used for OPEN.
-     */
-    uint8_t open_aux2 = 0;
-
-    /**
-     * The Translation mode ORed into AUX2 for READ/WRITE/STATUS operations.
-     * 0 = No Translation, 1 = CR<->EOL (Macintosh), 2 = LF<->EOL (UNIX), 3 = CR/LF<->EOL (PC/Windows)
-     */
-    uint8_t trans_aux2 = 0;
-
-    /**
      * The login to use for a protocol action
      */
     std::string login;
@@ -220,11 +204,6 @@ private:
     uint32_t readAck = 0;
 
     /**
-     * Return 16 bit value returned from command frame
-     */
-    uint16_t get_daux() { return (uint16_t)((cmdFrame.aux1 * 256) + cmdFrame.aux2);}
-
-    /**
      * Instantiate protocol object
      * @return bool TRUE if protocol successfully called open(), FALSE if protocol could not open
      */
@@ -233,7 +212,7 @@ private:
     /**
      * Create the deviceSpec and fix it for parsing
      */
-    void create_devicespec();
+    void create_devicespec(bool is_dir);
 
     /**
      * Create a urlParser from deviceSpec
@@ -244,29 +223,6 @@ private:
      * Is this a valid URL? (used to generate ERROR 165)
      */
     bool isValidURL(PeoplesUrlParser *url);
-
-    /**
-     * Preprocess a URL given aux1 open mode. This is used to work around various assumptions that different
-     * disk utility packages do when opening a device, such as adding wildcards for directory opens.
-     *
-     * The resulting URL is then sent into a URL Parser to get our URLParser object which is used in the rest
-     * of drivewireNetwork.
-     *
-     * This function is a mess, because it has to be, maybe we can factor it out, later. -Thom
-     */
-    bool parseURL();
-
-    /**
-     * We were passed a COPY arg from DOS 2. This is complex, because we need to parse the comma,
-     * and figure out one of three states:
-     *
-     * (1) we were passed D1:FOO.TXT,N:FOO.TXT, the second arg is ours.
-     * (2) we were passed N:FOO.TXT,D1:FOO.TXT, the first arg is ours.
-     * (3) we were passed N1:FOO.TXT,N2:FOO.TXT, get whichever one corresponds to our device ID.
-     *
-     * DeviceSpec will be transformed to only contain the relevant part of the deviceSpec, sans comma.
-     */
-    void processCommaFromDevicespec();
 
     /**
      * Perform the correct read based on value of channelMode
@@ -292,7 +248,7 @@ private:
      * @brief perform local status commands, if protocol is not bound, based on cmdFrame
      * value.
      */
-    void status_local();
+    void status_local(uint8_t req);
 
     /**
      * @brief perform channel status commands, if there is a protocol bound.
@@ -303,11 +259,6 @@ private:
      * @brief get JSON status (# of bytes in receive channel)
      */
     bool status_channel_json(NetworkStatus *ns);
-
-    /**
-     * @brief set translation specified by aux1 to aux2_translation mode.
-     */
-    void set_translation();
 
     /**
      * @brief Parse incoming JSON. (must be in JSON channelMode)
@@ -322,7 +273,7 @@ private:
     /**
      * @brief parse URL and instantiate protocol
      */
-    void parse_and_instantiate_protocol();
+    void parse_and_instantiate_protocol(bool is_dir);
 };
 
 #endif /* NETWORK_H */
