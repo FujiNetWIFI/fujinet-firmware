@@ -149,12 +149,6 @@ protected:
 
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
 
-    virtual void transaction_begin(transState_t expectMoreData) = 0;
-    virtual void transaction_complete() = 0;
-    virtual void transaction_error() = 0;
-    virtual success_is_true transaction_get(void *data, size_t len) = 0;
-    virtual void transaction_put(const void *data, size_t len, bool err=false) = 0;
-
     virtual size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                                    uint8_t maxlen) = 0;
     dirEntryDetails _additional_direntry_details(fsdir_entry_t *f);
