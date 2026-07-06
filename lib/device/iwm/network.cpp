@@ -100,6 +100,7 @@ void iwmNetwork::open()
     }
 
     err = SP_ERR::NOERROR;
+    current_network_data.open_error = NDEV_STATUS::SUCCESS;
 
     Debug_printf("\nopen()\n");
 
@@ -108,13 +109,21 @@ void iwmNetwork::open()
 
     if (!current_network_data.protocol)
     {
+        current_network_data.open_error = NDEV_STATUS::INVALID_DEVICESPEC;
         return;
     }
 
     // Attempt protocol open
     if (current_network_data.protocol->open(current_network_data.urlParser.get(), (fileAccessMode_t) data_buffer[0], (netProtoTranslation_t) data_buffer[1]) != FUJI_ERROR::NONE)
     {
-        Debug_printf("Protocol unable to make connection. Error: %d\n", err);
+        // Remember the failure before the protocol (and its error) is destroyed,
+        // so a subsequent STATUS can report the real code (e.g. FILE_NOT_FOUND).
+        current_network_data.open_error =
+            current_network_data.protocol->error != NDEV_STATUS::SUCCESS
+                ? current_network_data.protocol->error
+                : NDEV_STATUS::GENERAL;
+        Debug_printf("Protocol unable to make connection. Error: %d\n",
+                     (int)current_network_data.open_error);
         current_network_data.protocol.reset();
         return;
     }
@@ -300,7 +309,12 @@ void iwmNetwork::status()
         if (!current_network_data.protocol) {
             Debug_printf("ERROR: Calling status on a null protocol.\r\n");
             err = SP_ERR::BADCMD;
-            s.error = NDEV_STATUS::INVALID_COMMAND;
+            s.connected = 0;
+            // A failed OPEN destroyed the protocol; report the remembered
+            // open error (e.g. FILE_NOT_FOUND) rather than a generic code.
+            s.error = current_network_data.open_error != NDEV_STATUS::SUCCESS
+                        ? current_network_data.open_error
+                        : NDEV_STATUS::INVALID_COMMAND;
         } else {
             err = current_network_data.protocol->status(&s) == FUJI_ERROR::NONE
                 ? SP_ERR::NOERROR : SP_ERR::BADCMD;
