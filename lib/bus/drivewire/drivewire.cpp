@@ -12,7 +12,6 @@
 #include "cassette.h"
 #include "printer.h"
 #include "network.h"
-#include "drivewire/dload.h"
 #include "../../lib/device/drivewire/cpm.h"
 
 #include "fnSystem.h"
@@ -38,8 +37,6 @@ static QueueHandle_t drivewire_evt_queue = NULL;
 #else /* !ESP_PLATFORM */
 #define DW_UART_DEVICE Config.get_serial_port()
 #endif /* ESP_PLATFORM */
-
-drivewireDload dload;
 
 // Host & client channel queues
 #define MAX_CHANNEL_QUEUES 16
