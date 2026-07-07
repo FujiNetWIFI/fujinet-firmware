@@ -952,10 +952,8 @@ void virtualDevice::ready()
     SYSTEM_BUS.write(0x01); // yes, ready.
 }
 
-void virtualDevice::send_response()
+void virtualDevice::send_response(uint16_t len)
 {
-    uint16_t len = be16toh(cmdFrame.aux12);
-
     // Pad to requested response length. Thanks apc!
     if (_response.size() < len)
         _response.resize(std::max<size_t>(_response.size(), len), 0);

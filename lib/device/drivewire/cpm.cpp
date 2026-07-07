@@ -131,7 +131,7 @@ void drivewireCPM::process()
             ready();
             break;
         case 0x01:
-            send_response();
+            send_response(0);
             break;
         case CPMCMD_BOOT:
             boot();

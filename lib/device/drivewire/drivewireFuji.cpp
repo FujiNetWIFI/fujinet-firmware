@@ -534,7 +534,7 @@ void drivewireFuji::process()
         new_disk();
         break;
     case FUJICMD_SEND_RESPONSE:
-        send_response();
+        send_response(0);
         break;
     case FUJICMD_DEVICE_READY:
         ready();
