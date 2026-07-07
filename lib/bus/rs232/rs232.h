@@ -54,34 +54,13 @@ class virtualDevice
     friend systemBus;
     friend fujiDevice;
 
-private:
-    transState_t _transaction_state = TRANS_STATE::INVALID;
-
 protected:
     fujiDeviceID_t _devnum;
 
     bool listen_to_type3_polls = false;
 
-    virtual void transaction_begin(transState_t expectMoreData);
-    virtual void transaction_complete();
-    virtual void transaction_error();
-    virtual success_is_true transaction_get(void *data, size_t len);
-    virtual void transaction_put(const void *data, size_t len, bool err=false);
-    inline void transaction_put(std::string data) {
-        transaction_put(data.data(), data.size());
-    }
-    inline void transaction_put(ByteBuffer data) {
-        transaction_put(data.data(), data.size());
-    }
-
-    // FIXME - This is a terrible hack to allow devices to continue to
-    // use the pattern of fetching data on their own instead of
-    // upgrading them fully to work with packets.
-    FujiBusPacket *_legacyPacketData;
-    size_t _legacyDataPosition;
-
     /**
-     * @brief All RS232 commands by convention should return a status command, using bus_to_computer() to return
+     * @brief All RS232 commands by convention should return a status command to return
      * four bytes of status information to be put into DVSTAT ($02EA)
      */
     virtual void rs232_status(FujiStatusReq reqType) = 0;
@@ -132,9 +111,12 @@ struct rs232_message_t
 
 // typedef rs232_message_t rs232_message_t;
 
-class systemBus
+class systemBus : public SystemBusBase
 {
 private:
+    FujiBusPacket *_activePacket;
+    size_t _activePacketDataPosition;
+
     std::forward_list<virtualDevice *> _daisyChain;
 
     int _command_frame_counter = 0;
@@ -182,6 +164,12 @@ public:
 
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
+
+    void transaction_accept(transState_t expectMoreData) override;
+    void transaction_success() override;
+    void transaction_error() override;
+    success_is_true transaction_get(void *data, size_t len) override;
+    void transaction_send(const void *data, size_t len, bool is_error=false) override;
 
     std::unique_ptr<FujiBusPacket> readBusPacket(int first=-1);
     void writeBusPacket(FujiBusPacket &packet);

@@ -269,7 +269,7 @@ set(SOURCES src/main.cpp
     lib/network-protocol/SD.h lib/network-protocol/SD.cpp
     lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
     lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
-    lib/bus/bus.h
+    lib/bus/bus.h lib/bus/bus.cpp
     lib/device/device.h
     lib/device/disk.h
     lib/device/printer.h
