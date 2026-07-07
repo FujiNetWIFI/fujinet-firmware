@@ -121,7 +121,7 @@ enum DET_file_flags_t {
     DET_FF_TRUNC = 0x02,
 };
 
-class fujiDevice : public virtualDevice
+class fujiDevice : public virtualDevice, public VDevMigrationWrapper
 {
 private:
     bool hostMounted[MAX_HOSTS];

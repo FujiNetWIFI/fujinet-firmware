@@ -58,6 +58,20 @@ public:
     }
 };
 
+// Temporary migration wrappers. Remove after all buses have been
+// converted to inherit from SystemBusBase.
+class VDevMigrationWrapper
+{
+#if defined(BUILD_RS232)
+protected:
+    void transaction_begin(transState_t expectMoreData);
+    void transaction_complete();
+    void transaction_error();
+    success_is_true transaction_get(void *data, size_t len);
+    void transaction_put(const void *data, size_t len, bool is_error=false);
+#endif
+};
+
 #ifdef BUILD_ATARI
 #include "sio/sio.h"
 #ifdef ESP_PLATFORM

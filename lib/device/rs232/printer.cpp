@@ -44,7 +44,7 @@ void rs232Printer::rs232_write(const std::optional<ByteBuffer>& data)
 {
     if (!data || data->empty())
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
@@ -52,9 +52,9 @@ void rs232Printer::rs232_write(const std::optional<ByteBuffer>& data)
     memcpy(_pptr->provideBuffer(), data->data(), len);
 
     if (_pptr->process(len, 0, 0))
-        transaction_complete();
+        SYSTEM_BUS.transaction_success();
     else
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
 }
 
 /**
@@ -103,7 +103,7 @@ void rs232Printer::rs232_status(FujiStatusReq reqType)
     status[2] = 5;
     status[3] = 0;
 
-    transaction_put(status, sizeof(status), false);
+    SYSTEM_BUS.transaction_send(status, sizeof(status), false);
 }
 
 void rs232Printer::set_printer_type(rs232Printer::printer_type printer_type)
@@ -240,23 +240,23 @@ void rs232Printer::rs232_process(FujiBusPacket &packet)
         case RS232_PRINTERCMD_PUT: // Needed by A822 for graphics mode printing
         case RS232_PRINTERCMD_WRITE:
             _last_ms = fnSystem.millis();
-            transaction_begin(TRANS_STATE::NO_GET);
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             rs232_write(packet.data());
             break;
         case RS232_PRINTERCMD_STATUS:
             if (packet.paramCount() < 1) {
                 Debug_printv("Insufficient status paramaters: %d", packet.paramCount());
-                transaction_error();
+                SYSTEM_BUS.transaction_error();
             }
             else
             {
                 _last_ms = fnSystem.millis();
-                transaction_begin(TRANS_STATE::NO_GET);
+                SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
                 rs232_status(static_cast<FujiStatusReq>(packet.param(0)));
             }
             break;
         default:
-            transaction_error();
+            SYSTEM_BUS.transaction_error();
         }
     }
 }
