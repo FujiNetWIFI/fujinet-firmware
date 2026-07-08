@@ -43,11 +43,11 @@ public:
     /**
      * @brief process network device command
      */
-    void process(fujiCommandID_t cmd);
-    void process_fs(fujiCommandID_t cmd, bool is_dir);
-    void process_tcp(fujiCommandID_t cmd);
-    void process_http(fujiCommandID_t cmd, uint8_t chan_mode);
-    void process_udp(fujiCommandID_t cmd);
+    void processCommand(FujiDWPacket &packet) override;
+    void process_fs(FujiDWPacket &packet);
+    void process_tcp(FujiDWPacket &packet);
+    void process_http(FujiDWPacket &packet);
+    void process_udp(FujiDWPacket &packet);
 
     /**
      * Check to see if PROCEED needs to be asserted.

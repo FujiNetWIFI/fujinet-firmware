@@ -70,7 +70,7 @@
 
 #define ANSWER_TIMER_MS 1000 // milliseconds to wait before issuing CONNECT command, to simulate carrier negotiation.
 
-class drivewireModem : public virtualDevice
+class drivewireModem : public drivewireDevice
 {
 private:
     static constexpr int TX_BUF_SIZE = 256;

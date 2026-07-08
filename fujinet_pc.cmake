@@ -389,6 +389,7 @@ if(FUJINET_TARGET STREQUAL "COCO")
     list(APPEND SOURCES
 
     lib/bus/drivewire/drivewire.h lib/bus/drivewire/drivewire.cpp
+    lib/bus/drivewire/FujiDWPacket.h lib/bus/drivewire/FujiDWPacket.cpp
     lib/hardware/BoIPChannel.h lib/hardware/BoIPChannel.cpp
 
     lib/media/drivewire/mediaType.h lib/media/drivewire/mediaType.cpp

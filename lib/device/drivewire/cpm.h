@@ -24,10 +24,10 @@ private:
 public:
     drivewireCPM();
     // virtual ~drivewireCPM();
-    void process(fujiCommandID_t cmd);
+    void processCommand(FujiDWPacket &packet) override;
     void boot();
-    void read();
-    void write();
+    void read(uint16_t len);
+    void write(uint16_t len);
     void status();
 };
 

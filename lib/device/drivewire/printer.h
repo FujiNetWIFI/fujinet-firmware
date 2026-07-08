@@ -10,7 +10,7 @@
 
 #define PRINTER_UNSUPPORTED "Unsupported"
 
-class drivewirePrinter : public virtualDevice
+class drivewirePrinter : public drivewireDevice
 {
 protected:
     // DRIVEWIRE THINGS

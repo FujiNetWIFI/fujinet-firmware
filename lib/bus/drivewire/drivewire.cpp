@@ -330,12 +330,16 @@ void systemBus::op_write()
     _port->write(0x00); // success
 }
 
-bool systemBus::_transaction_handle_command(dwOpcode_t opcode, fujiCommandID_t cmd,
-                                            virtualDevice &device)
+bool systemBus::_transaction_handle_command(FujiDWPacket &packet, virtualDevice &device)
 {
-    u16be_t len;
+    uint16_t len;
+    fujiCommandID_t cmd = packet.command();
 
     _activeDev = &device;
+    _activeFrame = &packet;
+
+    if (packet.device() == OP::CLOCK)
+        cmd = FUJICMD_SEND_RESPONSE;
 
     switch (cmd)
     {
@@ -352,8 +356,8 @@ bool systemBus::_transaction_handle_command(dwOpcode_t opcode, fujiCommandID_t c
 
     case FUJICMD_SEND_RESPONSE:
         len = 0;
-        if (opcode == OP::NET)
-            read(&len, sizeof(len));
+        if (packet.device() == OP::NET)
+            len = packet.param(0);
 
         // Pad to requested response length. Thanks apc!
         if (_transaction_response.size() < len)
@@ -371,52 +375,53 @@ bool systemBus::_transaction_handle_command(dwOpcode_t opcode, fujiCommandID_t c
     return false;
 }
 
-void systemBus::op_fuji()
+void systemBus::op_fuji(dwOpcode_t opcode)
 {
-    fujiCommandID_t cmd = static_cast<fujiCommandID_t>(read());
+    FujiDWPacket packet(opcode);
 
-    if (_transaction_handle_command(OP::FUJI, cmd, platformFuji))
+    if (_transaction_handle_command(packet, platformFuji))
         return;
-    platformFuji.process(cmd);
+
+    platformFuji.processCommand(packet);
 }
 
-void systemBus::op_cpm()
+void systemBus::op_cpm(dwOpcode_t opcode)
 {
-    fujiCommandID_t cmd = static_cast<fujiCommandID_t>(read());
+    FujiDWPacket packet(opcode);
 
 #ifdef ESP_PLATFORM
-    if (_transaction_handle_command(OP::CPM, cmd, theCPM))
+    if (_transaction_handle_command(packet, theCPM))
         return;
-    theCPM.process(cmd);
+
+    theCPM.processCommand(packet);
 #endif /* ESP_PLATFORM */
 }
 
-void systemBus::op_clock()
+void systemBus::op_clock(dwOpcode_t opcode)
 {
-    fujiCommandID_t cmd = static_cast<fujiCommandID_t>(read());
+    FujiDWPacket packet(opcode);
 
-    platformClock.process(cmd);
-    _transaction_handle_command(OP::CLOCK, FUJICMD_SEND_RESPONSE, platformClock);
+    platformClock.processCommand(packet);
+    _transaction_handle_command(packet, platformClock);
 }
 
-void systemBus::op_net()
+void systemBus::op_net(dwOpcode_t opcode)
 {
-    uint8_t unit = (uint8_t)_port->read();
-    fujiCommandID_t cmd = static_cast<fujiCommandID_t>(read());
+    FujiDWPacket packet(opcode);
 
     // If device doesn't exist, create it.
-    if (!_netDev.contains(unit))
+    if (!_netDev.contains(packet.unit()))
     {
-        Debug_printf("Opening new network device %u\n",unit);
-        _netDev[unit] = new drivewireNetwork();
+        Debug_printf("Opening new network device %u\n", packet.unit());
+        _netDev[packet.unit()] = new drivewireNetwork();
     }
 
-    if (_transaction_handle_command(OP::NET, cmd, *_netDev[unit]))
+    if (_transaction_handle_command(packet, platformFuji))
         return;
 
     // And pass control to it
-    Debug_printf("OP_NET: %u\n",unit);
-    _netDev[unit]->process(cmd);
+    Debug_printf("OP_NET: %u\n", packet.unit());
+    _netDev[packet.unit()]->processCommand(packet);
 }
 
 void systemBus::op_unhandled(dwOpcode_t opcode)
@@ -685,16 +690,16 @@ void systemBus::_drivewire_process_cmd()
             op_serterm();
             break;
         case OP::FUJI:
-            op_fuji();
+            op_fuji(opcode);
             break;
         case OP::NET:
-            op_net();
+            op_net(opcode);
             break;
         case OP::CPM:
-            op_cpm();
+            op_cpm(opcode);
             break;
         case OP::CLOCK:
-            op_clock();
+            op_clock(opcode);
             break;
         default:
             op_unhandled(opcode);
@@ -941,28 +946,6 @@ void systemBus::shutdown()
     Debug_printf("All devices shut down.\n");
 }
 
-void systemBus::toggleBaudrate()
-{
-}
-
-int systemBus::getBaudrate()
-{
-    return _drivewireBaud;
-}
-
-void systemBus::setBaudrate(int baud)
-{
-    if (_drivewireBaud == baud)
-    {
-        Debug_printf("Baudrate already at %d - nothing to do\n", baud);
-        return;
-    }
-
-    Debug_printf("Changing baudrate from %d to %d\n", _drivewireBaud, baud);
-    _drivewireBaud = baud;
-    //_modemDev->get_uart()->set_baudrate(baud); // TODO COME BACK HERE.
-}
-
 #ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
 std::unique_ptr<FujiBusPacket> systemBus::readBusPacket(int first)
 {
@@ -1029,7 +1012,12 @@ success_is_true systemBus::transaction_get(void *data, size_t len)
 {
     assert(_transaction_state == TRANS_STATE::WILL_GET);
     _transaction_state = TRANS_STATE::DID_GET;
-    RETURN_SUCCESS_IF(SYSTEM_BUS.read((uint8_t *) data, len) == len);
+    _activeFrame->setDataLength(len);
+    if (_activeFrame->data()->size() != len)
+        RETURN_ERROR_AS_FALSE();
+    std::copy(_activeFrame->data()->begin(), _activeFrame->data()->end(),
+              static_cast<uint8_t *>(data));
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 void systemBus::transaction_send(const void *data, size_t len, bool is_error)

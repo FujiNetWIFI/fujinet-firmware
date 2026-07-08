@@ -186,12 +186,12 @@ fujiError_t NetworkProtocolUDP::status(NetworkStatus *status)
     return FUJI_ERROR::NONE;
 }
 
-fujiError_t NetworkProtocolUDP::set_destination(uint8_t *sp_buf, unsigned short len)
+fujiError_t NetworkProtocolUDP::set_destination(const uint8_t *sp_buf, unsigned short len)
 {
 #ifdef ESP_PLATFORM // TODO review & merge
     std::string path((const char *)sp_buf, len);
 #else
-    util_devicespec_fix_9b(sp_buf, len); // TODO check sp_buf, first byte seems corrupted
+    util_devicespec_fix_9b((uint8_t *) sp_buf, len); // TODO check sp_buf, first byte seems corrupted
     Debug_printf("set_destination %s\n", sp_buf);
     std::string path((const char *)sp_buf);
 #endif
