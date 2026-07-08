@@ -20,7 +20,7 @@
 #define COCO_H
 
 #include "bus.h"
-#include "cmdFrame.h"
+#include "opcode.h"
 #include "BoIPChannel.h"
 #include "UARTChannel.h"
 #include "ACMChannel.h"
@@ -51,41 +51,6 @@
 #define FUJINET_OVER_USB 1
 #endif
 
-/* Operation Codes */
-#define OP_NOP         0
-#define OP_JEFF        0xA5
-#define OP_SERREAD     'C'
-#define OP_SERREADM    'c'
-#define OP_SERWRITE    0xC3
-#define OP_SERWRITEM   0x64
-#define OP_GETSTAT     'G'
-#define OP_SETSTAT     'S'
-#define OP_SERGETSTAT  'D'
-#define OP_SERSETSTAT  'D'+128
-#define OP_READ        'R'
-#define OP_READEX      'R'+128
-#define OP_WRITE       'W'
-#define OP_REREAD      'r'
-#define OP_REREADEX    'r'+128
-#define OP_REWRITE     'w'
-#define OP_INIT        'I'
-#define OP_SERINIT     'E'
-#define OP_SERTERM     'E'+128
-#define OP_DWINIT      'Z'
-#define OP_TERM        'T'
-#define OP_TIME        '#'
-#define OP_RESET3      0xF8
-#define OP_RESET2      0xFE
-#define OP_RESET1      0xFF
-#define OP_PRINT       'P'
-#define OP_PRINTFLUSH  'F'
-#define OP_VPORT_READ  'C'
-#define OP_FUJI        0xE2
-#define OP_NET         0xE3
-#define OP_CPM         0xE4
-#define OP_CLOCK       0xE5
-#define OP_NAMEOBJ_MNT 0x01
-
 #define FEATURE_EMCEE    0x01
 #define FEATURE_DLOAD    0x02
 #define FEATURE_HDBDOS   0x04
@@ -98,40 +63,6 @@
 #define DWINIT_FEATURES  FEATURE_DLOAD | \
                          FEATURE_HDBDOS | \
                          FEATURE_PRINTER
-
-// struct dwTransferData
-// {
-//      int             dw_protocol_vrsn;
-//      FILE            *devpath;
-//      FILE            *dskpath[4];
-//      int             cocoType;
-//      int             baudRate;
-//      unsigned char   lastDrive;
-//      uint32_t        readRetries;
-//      uint32_t        writeRetries;
-//      uint32_t        sectorsRead;
-//      uint32_t        sectorsWritten;
-//      unsigned char   lastOpcode;
-//      unsigned char   lastLSN[3];
-//      unsigned char   lastSector[256];
-//      unsigned char   lastGetStat;
-//      unsigned char   lastSetStat;
-//      uint16_t        lastChecksum;
-//      unsigned char   lastError;
-//      FILE    *prtfp;
-//      unsigned char   lastChar;
-//      char    prtcmd[80];
-// };
-
-// EXTERN char device[256];
-// EXTERN char dskfile[4][256];
-// EXTERN int maxy, maxx;
-// EXTERN int updating;
-// EXTERN int thread_dead;
-// EXTERN FILE *logfp;
-// EXTERN WINDOW *window0, *window1, *window2, *window3;
-// EXTERN struct dwTransferData datapack;
-// EXTERN int interactive;
 
 // class def'ns
 class drivewireModem;          // declare here so can reference it, but define in modem.h
@@ -271,7 +202,7 @@ private:
     void op_serinit();
     void op_serterm();
     void op_dwinit();
-    void op_unhandled(uint8_t c);
+    void op_unhandled(dwOpcode_t opcode);
     void op_getstat();
     void op_setstat();
     void op_sergetstat();
@@ -282,54 +213,6 @@ private:
     void op_serwritem();
     void op_print();
     void op_namedobj_mnt();
-
-    // int readSector(struct dwTransferData *dp);
-    // int writeSector(struct dwTransferData *dp);
-    // int seekSector(struct dwTransferData *dp, int sector);
-    // void DoOP_INIT(struct dwTransferData *dp);
-    // void DoOP_TERM(struct dwTransferData *dp);
-    // void DoOP_RESET(struct dwTransferData *dp);
-    // void DoOP_READ(struct dwTransferData *dp, char *logStr);
-    // void DoOP_REREAD(struct dwTransferData *dp, char *logStr);
-    // void DoOP_READEX(struct dwTransferData *dp, char *logStr);
-    // void DoOP_REREADEX(struct dwTransferData *dp, char *logStr);
-    // void DoOP_WRITE(struct dwTransferData *dp, char *logStr);
-    // void DoOP_REWRITE(struct dwTransferData *dp, char *logStr);
-    // void DoOP_GETSTAT(struct dwTransferData *dp);
-    // void DoOP_SETSTAT(struct dwTransferData *dp);
-    // void DoOP_TERM(struct dwTransferData *dp);
-    // void DoOP_TIME(struct dwTransferData *dp);
-    // void DoOP_PRINT(struct dwTransferData *dp);
-    // void DoOP_PRINTFLUSH(struct dwTransferData *dp);
-    // void DoOP_VPORT_READ(struct dwTransferData *dp);
-    // char *getStatCode(int statcode);
-    // void WinInit(void);
-    // void WinSetup(WINDOW *window);
-    // void WinUpdate(WINDOW *window, struct dwTransferData *dp);
-    // void WinTerm(void);
-    // uint16_t computeChecksum(u_char *data, int numbytes);
-    // uint16_t computeCRC(u_char *data, int numbytes);
-    // int comOpen(struct dwTransferData *dp, const char *device);
-    // void comRaw(struct dwTransferData *dp);
-    // int comRead(struct dwTransferData *dp, void *data, int numbytes);
-    // int comWrite(struct dwTransferData *dp, void *data, int numbytes);
-    // int comClose(struct dwTransferData *dp);
-    // unsigned int int4(u_char *a);
-    // unsigned int int3(u_char *a);
-    // unsigned int int2(u_char *a);
-    // unsigned int int1(u_char *a);
-    // void _int2(uint16_t a, u_char *b);
-    // int loadPreferences(struct dwTransferData *datapack);
-    // int savePreferences(struct dwTransferData *datapack);
-    // void openDSK(struct dwTransferData *dp, int which);
-    // void closeDSK(struct dwTransferData *dp, int which);
-    // void *DriveWireProcessor(void *dp);
-    // void prtOpen(struct dwTransferData *dp);
-    // void prtClose(struct dwTransferData *dp);
-    // void logOpen(void);
-    // void logClose(void);
-    // void logHeader(void);
-    // void setCoCo(struct dwTransferData* datapack, int cocoType);
 
 public:
     void setup();

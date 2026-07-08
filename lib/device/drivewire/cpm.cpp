@@ -11,6 +11,7 @@
 #include "fujiDevice.h"
 #include "fnFS.h"
 #include "fnFsSD.h"
+#include "fujiCommandID.h"
 
 #include "../runcpm/globals.h"
 #include "../runcpm/abstraction_fujinet_apple2.h"
@@ -123,28 +124,30 @@ void drivewireCPM::status()
 
 void drivewireCPM::process()
 {
-    uint8_t cmd = SYSTEM_BUS.read();
+    fujiCommandID_t cmd = static_cast<fujiCommandID_t>(SYSTEM_BUS.read());
 
     switch(cmd)
     {
-        case 0x00:
-            ready();
-            break;
-        case 0x01:
-            send_response(0);
-            break;
-        case CPMCMD_BOOT:
-            boot();
-            break;
-        case CPMCMD_READ:
-            read();
-            break;
-        case CPMCMD_WRITE:
-            write();
-            break;
-        case CPMCMD_STATUS:
-            status();
-            break;
+    case FUJICMD_DEVICE_READY:
+        ready();
+        break;
+    case FUJICMD_SEND_RESPONSE:
+        send_response(0);
+        break;
+    case CPMCMD_BOOT:
+        boot();
+        break;
+    case CPMCMD_READ:
+        read();
+        break;
+    case CPMCMD_WRITE:
+        write();
+        break;
+    case CPMCMD_STATUS:
+        status();
+        break;
+    default:
+        break;
     }
 }
 

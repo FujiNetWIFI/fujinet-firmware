@@ -364,9 +364,9 @@ void systemBus::op_net()
     _netDev[device_id]->process();
 }
 
-void systemBus::op_unhandled(uint8_t c)
+void systemBus::op_unhandled(dwOpcode_t opcode)
 {
-    Debug_printv("Unhandled opcode: %02x", c);
+    Debug_printv("Unhandled opcode: %02x", opcode);
 
     while (_port->available())
         Debug_printf("%02x ", _port->read());
@@ -540,8 +540,8 @@ void systemBus::op_namedobj_mnt()
 // Read and process a command frame from DRIVEWIRE
 void systemBus::_drivewire_process_cmd()
 {
-    int c = read();
-    if (c < 0)
+    int val = read();
+    if (val < 0)
     {
         Debug_println("Failed to read cmd!");
         return;
@@ -549,99 +549,100 @@ void systemBus::_drivewire_process_cmd()
 
     fnLedManager.set(eLed::LED_BUS, true);
 
-    if (c >= 0x80 && c <= 0x8F) {
+    dwOpcode_t opcode = static_cast<dwOpcode_t>(val);
+    if (opcode >= OP::FASTWRITE_0 && opcode <= OP::FASTWRITE_F) {
         // handle FASTWRITE here
-        int vchan = c & 0xF;
+        int vchan = static_cast<int>(opcode) & 0xF;
         int byte = _port->read();
         incomingChannel[vchan].push(byte);
     } else {
-        switch (c)
+        switch (opcode)
         {
-        case OP_JEFF:
+        case OP::JEFF:
             op_jeff();
             break;
-        case OP_NOP:
+        case OP::NOP:
             op_nop();
             break;
-        case OP_RESET1:
-        case OP_RESET2:
-        case OP_RESET3:
+        case OP::RESET1:
+        case OP::RESET2:
+        case OP::RESET3:
             op_reset();
             break;
-        case OP_READEX:
+        case OP::READEX:
             op_readex();
             break;
-        case OP_WRITE:
+        case OP::WRITE:
             op_write();
             break;
-        case OP_TIME:
+        case OP::TIME:
             op_time();
             break;
-        case OP_INIT:
+        case OP::INIT:
             op_init();
             break;
-        case OP_SERINIT:
+        case OP::SERINIT:
             op_serinit();
             break;
-        case OP_DWINIT:
+        case OP::DWINIT:
             op_dwinit();
             break;
-        case OP_SERREAD:
+        case OP::SERREAD:
             op_serread();
             break;
-        case OP_SERREADM:
+        case OP::SERREADM:
             op_serreadm();
             break;
-        case OP_SERWRITE:
+        case OP::SERWRITE:
             op_serwrite();
             break;
-        case OP_SERWRITEM:
+        case OP::SERWRITEM:
             op_serwritem();
             break;
-        case OP_PRINT:
+        case OP::PRINT:
             op_print();
             break;
-        case OP_NAMEOBJ_MNT:
+        case OP::NAMEOBJ_MNT:
             if (bDragon)
                 op_namedobj_mnt();
             else
-                op_unhandled(c);
+                op_unhandled(opcode);
             break;
-        case OP_PRINTFLUSH:
+        case OP::PRINTFLUSH:
             // Not needed.
             break;
-        case OP_GETSTAT:
+        case OP::GETSTAT:
             op_getstat();
             break;
-        case OP_SETSTAT:
+        case OP::SETSTAT:
             op_setstat();
             break;
-        case OP_SERGETSTAT:
+        case OP::SERGETSTAT:
             op_sergetstat();
             break;
-        case OP_SERSETSTAT:
+        case OP::SERSETSTAT:
             op_sersetstat();
             break;
-        case OP_TERM:
+        case OP::TERM:
             Debug_printf("OP_TERM!\n");
             break;
-        case OP_SERTERM:
+        case OP::SERTERM:
             op_serterm();
             break;
-        case OP_FUJI:
+        case OP::FUJI:
             op_fuji();
             break;
-        case OP_NET:
+        case OP::NET:
             op_net();
             break;
-        case OP_CPM:
+        case OP::CPM:
             op_cpm();
             break;
-        case OP_CLOCK:
+        case OP::CLOCK:
             op_clock();
             break;
         default:
-            op_unhandled(c);
+            op_unhandled(opcode);
             break;
         }
     }
