@@ -330,38 +330,91 @@ void systemBus::op_write()
     _port->write(0x00); // success
 }
 
+bool systemBus::_transaction_handle_command(dwOpcode_t opcode, fujiCommandID_t cmd,
+                                            virtualDevice &device)
+{
+    u16be_t len;
+
+    switch (cmd)
+    {
+    case FUJICMD_DEVICE_READY:
+        write(0x01); // yes, ready.
+        return true;
+
+    case FUJICMD_SEND_ERROR:
+        Debug_printf("drivewire device error = %s\n",
+                     device._errorCode == NDEV_STATUS::SUCCESS
+                     ? "NONE" : std::to_string(static_cast<int>(device._errorCode)).c_str());
+        write(static_cast<uint8_t>(device._errorCode));
+        return true;
+
+    case FUJICMD_SEND_RESPONSE:
+        len = 0;
+        if (opcode == OP::NET)
+            read(&len, sizeof(len));
+
+        // Pad to requested response length. Thanks apc!
+        if (device._response.size() < len)
+            device._response.resize(std::max<size_t>(device._response.size(), len), 0);
+
+        write(device._response.data(), device._response.size());
+        device._response.clear();
+        device._response.shrink_to_fit();
+        return true;
+
+    default:
+        break;
+    }
+
+    return false;
+}
+
 void systemBus::op_fuji()
 {
-    platformFuji.process();
+    fujiCommandID_t cmd = static_cast<fujiCommandID_t>(read());
+
+    if (_transaction_handle_command(OP::FUJI, cmd, platformFuji))
+        return;
+    platformFuji.process(cmd);
 }
 
 void systemBus::op_cpm()
 {
+    fujiCommandID_t cmd = static_cast<fujiCommandID_t>(read());
+
 #ifdef ESP_PLATFORM
-    theCPM.process();
+    if (_transaction_handle_command(OP::CPM, cmd, theCPM))
+        return;
+    theCPM.process(cmd);
 #endif /* ESP_PLATFORM */
 }
 
 void systemBus::op_clock()
 {
-    platformClock.process();
+    fujiCommandID_t cmd = static_cast<fujiCommandID_t>(read());
+
+    platformClock.process(cmd);
+    _transaction_handle_command(OP::CLOCK, FUJICMD_SEND_RESPONSE, platformClock);
 }
 
 void systemBus::op_net()
 {
-    // Get device ID
-    uint8_t device_id = (uint8_t)_port->read();
+    uint8_t unit = (uint8_t)_port->read();
+    fujiCommandID_t cmd = static_cast<fujiCommandID_t>(read());
 
     // If device doesn't exist, create it.
-    if (!_netDev.contains(device_id))
+    if (!_netDev.contains(unit))
     {
-        Debug_printf("Opening new network device %u\n",device_id);
-        _netDev[device_id] = new drivewireNetwork();
+        Debug_printf("Opening new network device %u\n",unit);
+        _netDev[unit] = new drivewireNetwork();
     }
 
+    if (_transaction_handle_command(OP::NET, cmd, *_netDev[unit]))
+        return;
+
     // And pass control to it
-    Debug_printf("OP_NET: %u\n",device_id);
-    _netDev[device_id]->process();
+    Debug_printf("OP_NET: %u\n",unit);
+    _netDev[unit]->process(cmd);
 }
 
 void systemBus::op_unhandled(dwOpcode_t opcode)
@@ -947,33 +1000,6 @@ void systemBus::writeBusPacket(FujiBusPacket &packet)
     _port->write(encoded.data(), encoded.size());
 }
 #endif /* PINMAP_FUJIVERSAL_DRIVEWIRE */
-
-void virtualDevice::ready()
-{
-    SYSTEM_BUS.write(0x01); // yes, ready.
-}
-
-void virtualDevice::send_response(uint16_t len)
-{
-    // Pad to requested response length. Thanks apc!
-    if (_response.size() < len)
-        _response.resize(std::max<size_t>(_response.size(), len), 0);
-
-    // Send body
-    SYSTEM_BUS.write(_response.data(), _response.size());
-
-    // Clear the response
-    _response.clear();
-    _response.shrink_to_fit();
-}
-
-void virtualDevice::send_error()
-{
-    Debug_printf("drivewire device error = %s\n",
-                 _errorCode == NDEV_STATUS::SUCCESS
-                 ? "NONE" : std::to_string(static_cast<int>(_errorCode)).c_str());
-    SYSTEM_BUS.write(static_cast<uint8_t>(_errorCode));
-}
 
 void virtualDevice::transaction_begin(transState_t expectMoreData)
 {

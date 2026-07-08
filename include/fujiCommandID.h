@@ -143,9 +143,6 @@ enum fujiCommandID_t : uint8_t {
     NETCMD_LOCK                        = 0x23, // #
     NETCMD_DELETE                      = 0x21, // !
     NETCMD_RENAME                      = 0x20,
-    NETCMD_SEND_ERROR                  = 0x02,
-    NETCMD_SEND_RESPONSE               = 0x01,
-    NETCMD_DEVICE_READY                = 0x00,
 
     MODEMCMD_STREAM                    = 0x58, // X
     MODEMCMD_WRITE                     = 0x57, // W

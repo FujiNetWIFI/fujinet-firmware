@@ -784,10 +784,8 @@ void drivewireNetwork::json_query()
     Debug_printf("Query set to >%s<\r\n", in_string.c_str());
 }
 
-void drivewireNetwork::process()
+void drivewireNetwork::process(fujiCommandID_t cmd)
 {
-    // Read the three command and param bytes
-    fujiCommandID_t cmd = (fujiCommandID_t)SYSTEM_BUS.read();
     uint8_t param1 = SYSTEM_BUS.read();
     uint8_t param2 = SYSTEM_BUS.read();
 
@@ -795,15 +793,6 @@ void drivewireNetwork::process()
 
     switch (cmd)
     {
-    case NETCMD_DEVICE_READY:
-        ready(); // Yes.
-        break;
-    case NETCMD_SEND_RESPONSE:
-        send_response((param1 << 8) | param2);
-        break;
-    case NETCMD_SEND_ERROR:
-        send_error();
-        break;
     case NETCMD_OPEN:
         open(static_cast<fileAccessMode_t>(param1),
              static_cast<netProtoTranslation_t>(param2));

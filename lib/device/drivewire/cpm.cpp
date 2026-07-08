@@ -122,18 +122,10 @@ void drivewireCPM::status()
     transaction_put(&status_response, sizeof(status_response));
 }
 
-void drivewireCPM::process()
+void drivewireCPM::process(fujiCommandID_t cmd)
 {
-    fujiCommandID_t cmd = static_cast<fujiCommandID_t>(SYSTEM_BUS.read());
-
     switch(cmd)
     {
-    case FUJICMD_DEVICE_READY:
-        ready();
-        break;
-    case FUJICMD_SEND_RESPONSE:
-        send_response(0);
-        break;
     case CPMCMD_BOOT:
         boot();
         break;

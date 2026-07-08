@@ -24,7 +24,7 @@ private:
 public:
     drivewireCPM();
     // virtual ~drivewireCPM();
-    void process();
+    void process(fujiCommandID_t cmd);
     void boot();
     void read();
     void write();

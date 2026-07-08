@@ -16,7 +16,7 @@ private:
     void set_alternate_tz();
 
 public:
-    void process();
+    void process(fujiCommandID_t cmd);
 };
 
 extern drivewireClock platformClock;

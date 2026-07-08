@@ -43,7 +43,7 @@ public:
     /**
      * @brief process network device command
      */
-    void process();
+    void process(fujiCommandID_t cmd);
     void process_fs(fujiCommandID_t cmd, bool is_dir);
     void process_tcp(fujiCommandID_t cmd);
     void process_http(fujiCommandID_t cmd, uint8_t chan_mode);
