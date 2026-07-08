@@ -143,8 +143,8 @@ void drivewireNetwork::open(fileAccessMode_t access, netProtoTranslation_t trans
     json->setProtocol(protocol);
     channelMode = PROTOCOL;
 
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_complete();
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_success();
 }
 
 /**
@@ -188,8 +188,8 @@ void drivewireNetwork::close()
     Debug_printv("After protocol delete %lu\n",esp_get_free_internal_heap_size());
 #endif
 
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_complete();
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_success();
 }
 
 /**
@@ -214,7 +214,7 @@ void drivewireNetwork::read(uint16_t num_bytes)
     // Check for rx buffer. If NULL, then tell caller we could not allocate buffers.
     if (receiveBuffer == nullptr)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         _errorCode = NDEV_STATUS::COULD_NOT_ALLOCATE_BUFFERS;
         return;
     }
@@ -228,7 +228,7 @@ void drivewireNetwork::read(uint16_t num_bytes)
             protocolParser = nullptr;
         }
 
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         _errorCode = NDEV_STATUS::NOT_CONNECTED;
         return;
     }
@@ -236,8 +236,8 @@ void drivewireNetwork::read(uint16_t num_bytes)
     // Do the channel read
     read_channel(num_bytes);
 
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_put(*receiveBuffer);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_send(*receiveBuffer);
 
     // Remove from receive buffer and shrink.
     receiveBuffer->erase(0, num_bytes);
@@ -412,7 +412,7 @@ void drivewireNetwork::status_local(uint8_t req)
         break;
     }
 
-    transaction_put(&status, sizeof(status));
+    SYSTEM_BUS.transaction_send(&status, sizeof(status));
 }
 
 bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
@@ -462,8 +462,8 @@ void drivewireNetwork::status_channel()
                  avail, ns.connected, ns.error);
 #endif /* TOO_MUCH_DEBUG */
 
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_put(&status, sizeof(status));
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_send(&status, sizeof(status));
 }
 
 /**
@@ -475,7 +475,7 @@ void drivewireNetwork::get_prefix()
     Debug_printf("drivewireNetwork::get_prefix(%s)\n",prefix.c_str());
     memset(out,0,sizeof(out));
     strcpy(out,prefix.c_str());
-    transaction_put(out, sizeof(out));
+    SYSTEM_BUS.transaction_send(out, sizeof(out));
 }
 
 /**
@@ -858,7 +858,7 @@ void drivewireNetwork::process(fujiCommandID_t cmd)
         break;
 
     default:
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         break;
     }
 }
@@ -871,7 +871,7 @@ void drivewireNetwork::process_fs(fujiCommandID_t cmd, bool is_dir)
     NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol);
     if (!fs)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
@@ -904,7 +904,7 @@ void drivewireNetwork::process_fs(fujiCommandID_t cmd, bool is_dir)
 
     if (err != FUJI_ERROR::NONE)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
     }
 }
 
@@ -914,7 +914,7 @@ void drivewireNetwork::process_tcp(fujiCommandID_t cmd)
     NetworkProtocolTCP *tcp = dynamic_cast<NetworkProtocolTCP *>(protocol);
     if (!tcp)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
@@ -934,7 +934,7 @@ void drivewireNetwork::process_tcp(fujiCommandID_t cmd)
 
     if (err != FUJI_ERROR::NONE)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
     }
 }
 
@@ -944,7 +944,7 @@ void drivewireNetwork::process_http(fujiCommandID_t cmd, uint8_t chan_mode)
     NetworkProtocolHTTP *http = dynamic_cast<NetworkProtocolHTTP *>(protocol);
     if (!http)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
@@ -961,7 +961,7 @@ void drivewireNetwork::process_http(fujiCommandID_t cmd, uint8_t chan_mode)
 
     if (err != FUJI_ERROR::NONE)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
     }
 }
 
@@ -971,7 +971,7 @@ void drivewireNetwork::process_udp(fujiCommandID_t cmd)
     NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(protocol);
     if (!udp)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
@@ -982,7 +982,7 @@ void drivewireNetwork::process_udp(fujiCommandID_t cmd)
     case NETCMD_GET_REMOTE:
         receiveBuffer->resize(SPECIAL_BUFFER_SIZE);
         err = udp->get_remote(receiveBuffer->data(), receiveBuffer->size());
-        transaction_put(*receiveBuffer);
+        SYSTEM_BUS.transaction_send(*receiveBuffer);
         break;
 #endif /* ESP_PLATFORM */
     case NETCMD_SET_DESTINATION:
@@ -992,12 +992,12 @@ void drivewireNetwork::process_udp(fujiCommandID_t cmd)
             err = udp->set_destination(spData, bytes_read);
             if (err != FUJI_ERROR::NONE)
             {
-                transaction_error();
+                SYSTEM_BUS.transaction_error();
             }
         }
         break;
     default:
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         break;
     }
 }

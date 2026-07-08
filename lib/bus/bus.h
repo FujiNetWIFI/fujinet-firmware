@@ -62,13 +62,19 @@ public:
 // converted to inherit from SystemBusBase.
 class VDevMigrationWrapper
 {
-#if defined(BUILD_RS232)
+#if defined(BUILD_RS232) || defined(BUILD_COCO)
 protected:
     void transaction_begin(transState_t expectMoreData);
     void transaction_complete();
     void transaction_error();
     success_is_true transaction_get(void *data, size_t len);
     void transaction_put(const void *data, size_t len, bool is_error=false);
+    inline void transaction_put(std::string data) {
+        transaction_put(data.data(), data.size());
+    }
+    inline void transaction_put(ByteBuffer data) {
+        transaction_put(data.data(), data.size());
+    }
 #endif
 };
 
