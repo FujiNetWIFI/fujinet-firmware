@@ -19,6 +19,8 @@ fujiDevice *theFuji = &platformFuji; // Global fuji object.
 // drivewireDisk drivewireDiskDevs[MAX_HOSTS];
 drivewireNetwork drivewireNetDevs[MAX_NETWORK_DEVICES];
 
+#define SYS_BUS_READ16BE() ({ u16be_t val; SYSTEM_BUS.read(&val, sizeof(val)); val; })
+
 /**
  * Say the numbers 1-8 using phonetic tweaks.
  * @param n The number to say.
@@ -165,12 +167,8 @@ void drivewireFuji::new_disk()
     fnio::fclose(disk.fileh);
 }
 
-void drivewireFuji::base64_encode_input()
+void drivewireFuji::base64_encode_input(uint16_t len)
 {
-    uint8_t lenh = SYSTEM_BUS.read();
-    uint8_t lenl = SYSTEM_BUS.read();
-    uint16_t len = lenh << 8 | lenl;
-
     if (!len)
     {
         Debug_printf("Zero length. Aborting.\n");
@@ -220,12 +218,8 @@ void drivewireFuji::base64_encode_length()
     transaction_put(&o, 4);
 }
 
-void drivewireFuji::base64_encode_output()
+void drivewireFuji::base64_encode_output(uint16_t len)
 {
-    uint8_t lenh = SYSTEM_BUS.read();
-    uint8_t lenl = SYSTEM_BUS.read();
-    uint16_t len = lenh << 8 | lenl;
-
     if (!len)
     {
         Debug_printf("Refusing to send zero byte buffer. Exiting.");
@@ -242,12 +236,8 @@ void drivewireFuji::base64_encode_output()
     transaction_put(p);
 }
 
-void drivewireFuji::base64_decode_input()
+void drivewireFuji::base64_decode_input(uint16_t len)
 {
-    uint8_t lenh = SYSTEM_BUS.read();
-    uint8_t lenl = SYSTEM_BUS.read();
-    uint16_t len = lenh << 8 | lenl;
-
     if (!len)
     {
         Debug_printf("Refusing to input zero length. Exiting.\n");
@@ -303,13 +293,9 @@ void drivewireFuji::base64_decode_length()
     transaction_put(_response, 4);
 }
 
-void drivewireFuji::base64_decode_output()
+void drivewireFuji::base64_decode_output(uint16_t len)
 {
     Debug_printf("FUJI: BASE64 DECODE OUTPUT\n");
-
-    uint8_t lenh = SYSTEM_BUS.read();
-    uint8_t lenl = SYSTEM_BUS.read();
-    uint16_t len = lenh << 8 | lenl;
 
     if (!len)
     {
@@ -336,13 +322,9 @@ void drivewireFuji::base64_decode_output()
     transaction_put(p.data(), len);
 }
 
-void drivewireFuji::hash_input()
+void drivewireFuji::hash_input(uint16_t len)
 {
     Debug_printf("FUJI: HASH INPUT\n");
-    uint8_t lenh = SYSTEM_BUS.read();
-    uint8_t lenl = SYSTEM_BUS.read();
-    uint16_t len = lenh << 8 | lenl;
-
 
     if (!len)
     {
@@ -358,30 +340,28 @@ void drivewireFuji::hash_input()
     transaction_complete();
 }
 
-void drivewireFuji::hash_compute(bool clear_data)
+void drivewireFuji::hash_compute(bool clear_data, uint8_t algo)
 {
     Debug_printf("FUJI: HASH COMPUTE\n");
-    algorithm = Hash::to_algorithm(SYSTEM_BUS.read());
+    algorithm = Hash::to_algorithm(algo);
     hasher.compute(algorithm, clear_data);
     transaction_begin(TRANS_STATE::NO_GET);
     transaction_complete();
 }
 
-void drivewireFuji::hash_length()
+void drivewireFuji::hash_length(bool is_hex)
 {
     Debug_printf("FUJI: HASH LENGTH\n");
-    uint8_t is_hex = SYSTEM_BUS.read() == 1;
     uint8_t r = hasher.hash_length(algorithm, is_hex);
     transaction_begin(TRANS_STATE::NO_GET);
     transaction_put(&r, 1);
 }
 
-void drivewireFuji::hash_output()
+void drivewireFuji::hash_output(bool is_hex)
 {
     Debug_printf("FUJI: HASH OUTPUT\n");
 
     transaction_begin(TRANS_STATE::NO_GET);
-    uint8_t is_hex = SYSTEM_BUS.read() == 1;
     if (is_hex) {
         std::string output = hasher.output_hex();
         transaction_put(output.c_str(), output.size());
@@ -492,14 +472,7 @@ void drivewireFuji::process(fujiCommandID_t cmd)
         }
         break;
     case FUJICMD_SET_DIRECTORY_POSITION:
-        {
-            uint8_t h, l;
-            h = SYSTEM_BUS.read();
-            l = SYSTEM_BUS.read();
-            uint16_t pos = UINT16_FROM_HILOBYTES(h, l);
-
-            fujicmd_set_directory_position(pos);
-        }
+        fujicmd_set_directory_position(SYS_BUS_READ16BE());
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
         {
@@ -538,21 +511,16 @@ void drivewireFuji::process(fujiCommandID_t cmd)
         fujicmd_read_app_key();
         break;
     case FUJICMD_WRITE_APPKEY:
-        {
-            uint8_t lenh = SYSTEM_BUS.read();
-            uint8_t lenl = SYSTEM_BUS.read();
-            uint16_t len = lenh << 8 | lenl;
-            // fujinet-lib always sends MAX_APPKEY_LEN data bytes
-            // regardless of len. Drain the full payload so leftover
-            // bytes don't get interpreted as bus opcodes.
-            fujicmd_write_app_key(len, MAX_APPKEY_LEN);
-        }
+        // fujinet-lib always sends MAX_APPKEY_LEN data bytes
+        // regardless of len. Drain the full payload so leftover
+        // bytes don't get interpreted as bus opcodes.
+        fujicmd_write_app_key(SYS_BUS_READ16BE(), MAX_APPKEY_LEN);
         break;
     case FUJICMD_RANDOM_NUMBER:
         random();
         break;
     case FUJICMD_BASE64_ENCODE_INPUT:
-        base64_encode_input();
+        base64_encode_input(SYS_BUS_READ16BE());
         break;
     case FUJICMD_BASE64_ENCODE_COMPUTE:
         base64_encode_compute();
@@ -561,10 +529,10 @@ void drivewireFuji::process(fujiCommandID_t cmd)
         base64_encode_length();
         break;
     case FUJICMD_BASE64_ENCODE_OUTPUT:
-        base64_encode_output();
+        base64_encode_output(SYS_BUS_READ16BE());
         break;
     case FUJICMD_BASE64_DECODE_INPUT:
-        base64_decode_input();
+        base64_decode_input(SYS_BUS_READ16BE());
         break;
     case FUJICMD_BASE64_DECODE_COMPUTE:
         base64_decode_compute();
@@ -573,22 +541,22 @@ void drivewireFuji::process(fujiCommandID_t cmd)
         base64_decode_length();
         break;
     case FUJICMD_BASE64_DECODE_OUTPUT:
-        base64_decode_output();
+        base64_decode_output(SYS_BUS_READ16BE());
         break;
     case FUJICMD_HASH_INPUT:
-        hash_input();
+        hash_input(SYS_BUS_READ16BE());
         break;
     case FUJICMD_HASH_COMPUTE:
-        hash_compute(true);
+        hash_compute(true, SYSTEM_BUS.read());
         break;
     case FUJICMD_HASH_COMPUTE_NO_CLEAR:
-        hash_compute(false);
+        hash_compute(false, SYSTEM_BUS.read());
         break;
     case FUJICMD_HASH_LENGTH:
-        hash_length();
+        hash_length(SYSTEM_BUS.read() == 1);
         break;
     case FUJICMD_HASH_OUTPUT:
-        hash_output();
+        hash_output(SYSTEM_BUS.read() == 1);
         break;
     case FUJICMD_HASH_CLEAR:
         hash_clear();

@@ -18,21 +18,21 @@ protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
 
-    void new_disk();               // 0xE7
-    void random();                 // 0xD3
-    void base64_encode_input();    // 0xD0
-    void base64_encode_compute();  // 0xCF
-    void base64_encode_length();   // 0xCE
-    void base64_encode_output();   // 0xCD
-    void base64_decode_input();    // 0xCC
-    void base64_decode_compute();  // 0xCB
-    void base64_decode_length();   // 0xCA
-    void base64_decode_output();   // 0xC9
-    void hash_input();             // 0xC8
-    void hash_compute(bool clear_data); // 0xC7, 0xC3
-    void hash_length();            // 0xC6
-    void hash_output();            // 0xC5
-    void hash_clear();             // 0xC2
+    void new_disk();
+    void random();
+    void base64_encode_input(uint16_t len);
+    void base64_encode_compute();
+    void base64_encode_length();
+    void base64_encode_output(uint16_t len);
+    void base64_decode_input(uint16_t len);
+    void base64_decode_compute();
+    void base64_decode_length();
+    void base64_decode_output(uint16_t len);
+    void hash_input(uint16_t len);
+    void hash_compute(bool clear_data, uint8_t algo);
+    void hash_length(bool is_hex);
+    void hash_output(bool is_hex);
+    void hash_clear();
 
     void shutdown() override;
 
