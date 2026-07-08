@@ -5,7 +5,7 @@
 #include "bus.h"
 #include "media.h"
 
-class drivewireDisk : public virtualDevice
+class drivewireDisk : public drivewireDevice
 {
 private:
     MediaType *_media = nullptr;

@@ -19,8 +19,6 @@ fujiDevice *theFuji = &platformFuji; // Global fuji object.
 // drivewireDisk drivewireDiskDevs[MAX_HOSTS];
 drivewireNetwork drivewireNetDevs[MAX_NETWORK_DEVICES];
 
-#define SYS_BUS_READ16BE() ({ u16be_t val; SYSTEM_BUS.read(&val, sizeof(val)); val; })
-
 /**
  * Say the numbers 1-8 using phonetic tweaks.
  * @param n The number to say.
@@ -405,10 +403,10 @@ void drivewireFuji::random()
     transaction_put(&r, sizeof(r));
 }
 
-void drivewireFuji::process(fujiCommandID_t cmd)
+void drivewireFuji::processCommand(FujiDWPacket &packet)
 {
     _errorCode = NDEV_STATUS::SUCCESS;
-    switch (cmd)
+    switch (packet.command())
     {
     case FUJICMD_RESET:
         fnSystem.reboot();
@@ -420,7 +418,7 @@ void drivewireFuji::process(fujiCommandID_t cmd)
         fujicmd_get_adapter_config_extended();
         break;
     case FUJICMD_GET_SCAN_RESULT:
-        fujicmd_net_scan_result(SYSTEM_BUS.read());
+        fujicmd_net_scan_result(packet.param(0));
         break;
     case FUJICMD_SCAN_NETWORKS:
         fujicmd_net_scan_networks();
@@ -456,47 +454,36 @@ void drivewireFuji::process(fujiCommandID_t cmd)
         fujicmd_net_get_wifi_status();
         break;
     case FUJICMD_MOUNT_HOST:
-        fujicmd_mount_host_success(SYSTEM_BUS.read());
+        fujicmd_mount_host_success(packet.param8(0));
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        fujicmd_open_directory_success(SYSTEM_BUS.read());
+        fujicmd_open_directory_success(packet.param(0));
         break;
     case FUJICMD_CLOSE_DIRECTORY:
         fujicmd_close_directory();
         break;
     case FUJICMD_READ_DIR_ENTRY:
-        {
-            uint8_t maxlen = SYSTEM_BUS.read();
-            uint8_t addtl = SYSTEM_BUS.read();
-            fujicmd_read_directory_entry(maxlen, addtl);
-        }
+        fujicmd_read_directory_entry(packet.param8(0), packet.param(1));
         break;
     case FUJICMD_SET_DIRECTORY_POSITION:
-        fujicmd_set_directory_position(SYS_BUS_READ16BE());
+        fujicmd_set_directory_position(packet.param(0));
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
-        {
-            uint8_t slot = SYSTEM_BUS.read();
-            uint8_t host = SYSTEM_BUS.read();
-            uint8_t mode = SYSTEM_BUS.read();
-            fujicmd_set_device_filename_success(slot, host, (disk_access_flags_t) mode);
-        }
+        fujicmd_set_device_filename_success(packet.param(0), packet.param(1),
+                                            (disk_access_flags_t) packet.param8(2));
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
-        fujicmd_get_device_filename(SYSTEM_BUS.read());
+        fujicmd_get_device_filename(packet.param(0));
         break;
     case FUJICMD_MOUNT_IMAGE:
-        {
-            uint8_t slot = SYSTEM_BUS.read();
-            uint8_t mode = SYSTEM_BUS.read();
-            fujicmd_mount_disk_image_success(slot, (disk_access_flags_t) mode);
-        }
+        fujicmd_mount_disk_image_success(packet.param(0),
+                                         (disk_access_flags_t) packet.param8(1));
         break;
     case FUJICMD_UNMOUNT_HOST:
-        fujicmd_unmount_host_success(SYSTEM_BUS.read());
+        fujicmd_unmount_host_success(packet.param(0));
         break;
     case FUJICMD_UNMOUNT_IMAGE:
-        fujicmd_unmount_disk_image_success(SYSTEM_BUS.read());
+        fujicmd_unmount_disk_image_success(packet.param(0));
         break;
     case FUJICMD_NEW_DISK:
         new_disk();
@@ -514,13 +501,13 @@ void drivewireFuji::process(fujiCommandID_t cmd)
         // fujinet-lib always sends MAX_APPKEY_LEN data bytes
         // regardless of len. Drain the full payload so leftover
         // bytes don't get interpreted as bus opcodes.
-        fujicmd_write_app_key(SYS_BUS_READ16BE(), MAX_APPKEY_LEN);
+        fujicmd_write_app_key(packet.param(0), MAX_APPKEY_LEN);
         break;
     case FUJICMD_RANDOM_NUMBER:
         random();
         break;
     case FUJICMD_BASE64_ENCODE_INPUT:
-        base64_encode_input(SYS_BUS_READ16BE());
+        base64_encode_input(packet.param(0));
         break;
     case FUJICMD_BASE64_ENCODE_COMPUTE:
         base64_encode_compute();
@@ -529,10 +516,10 @@ void drivewireFuji::process(fujiCommandID_t cmd)
         base64_encode_length();
         break;
     case FUJICMD_BASE64_ENCODE_OUTPUT:
-        base64_encode_output(SYS_BUS_READ16BE());
+        base64_encode_output(packet.param(0));
         break;
     case FUJICMD_BASE64_DECODE_INPUT:
-        base64_decode_input(SYS_BUS_READ16BE());
+        base64_decode_input(packet.param(0));
         break;
     case FUJICMD_BASE64_DECODE_COMPUTE:
         base64_decode_compute();
@@ -541,42 +528,42 @@ void drivewireFuji::process(fujiCommandID_t cmd)
         base64_decode_length();
         break;
     case FUJICMD_BASE64_DECODE_OUTPUT:
-        base64_decode_output(SYS_BUS_READ16BE());
+        base64_decode_output(packet.param(0));
         break;
     case FUJICMD_HASH_INPUT:
-        hash_input(SYS_BUS_READ16BE());
+        hash_input(packet.param(0));
         break;
     case FUJICMD_HASH_COMPUTE:
-        hash_compute(true, SYSTEM_BUS.read());
+        hash_compute(true, packet.param(0));
         break;
     case FUJICMD_HASH_COMPUTE_NO_CLEAR:
-        hash_compute(false, SYSTEM_BUS.read());
+        hash_compute(false, packet.param(0));
         break;
     case FUJICMD_HASH_LENGTH:
-        hash_length(SYSTEM_BUS.read() == 1);
+        hash_length(packet.param8(0) == 1);
         break;
     case FUJICMD_HASH_OUTPUT:
-        hash_output(SYSTEM_BUS.read() == 1);
+        hash_output(packet.param8(0) == 1);
         break;
     case FUJICMD_HASH_CLEAR:
         hash_clear();
         break;
     case FUJICMD_SET_BOOT_MODE:
-        fujicmd_set_boot_mode(SYSTEM_BUS.read(), MEDIATYPE_UNKNOWN, &bootdisk);
+        fujicmd_set_boot_mode(packet.param(0), MEDIATYPE_UNKNOWN, &bootdisk);
         break;
     case FUJICMD_MOUNT_ALL:
         fujicmd_mount_all_success();
         break;
     case FUJICMD_GET_HOST_PREFIX:
-        fujicmd_get_host_prefix(SYSTEM_BUS.read());
+        fujicmd_get_host_prefix(packet.param(0));
         break;
     case FUJICMD_SET_HOST_PREFIX:
-        fujicmd_set_host_prefix(SYSTEM_BUS.read());
+        fujicmd_set_host_prefix(packet.param(0));
         break;
     case FUJICMD_COPY_FILE:
         {
-            uint8_t source = SYSTEM_BUS.read();
-            uint8_t dest = SYSTEM_BUS.read();
+            uint8_t source = packet.param(0);
+            uint8_t dest = packet.param(1);
             char dirpath[256];
             transaction_begin(TRANS_STATE::WILL_GET);
             transaction_get(dirpath, sizeof(dirpath));

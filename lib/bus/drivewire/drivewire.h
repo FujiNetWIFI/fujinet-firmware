@@ -20,6 +20,7 @@
 #define COCO_H
 
 #include "bus.h"
+#include "FujiDWPacket.h"
 #include "opcode.h"
 #include "BoIPChannel.h"
 #include "UARTChannel.h"
@@ -76,7 +77,7 @@ class drivewireCPM;       // CPM device.
 class drivewirePrinter;   // Printer device
 class fujiDevice;
 
-class virtualDevice
+class drivewireDevice
 {
     friend systemBus;
     friend fujiDevice;
@@ -97,6 +98,12 @@ public:
     fujiDeviceID_t id() { return _devnum; };
 };
 
+class virtualDevice : public drivewireDevice
+{
+public:
+    virtual void processCommand(FujiDWPacket &packet) = 0;
+};
+
 enum drivewire_message : uint16_t
 {
     DRIVEWIREMSG_DISKSWAP,  // Rotate disk
@@ -113,6 +120,8 @@ struct drivewire_message_t
 
 class systemBus : public SystemBusBase
 {
+    friend FujiDWPacket;
+
 private:
     IOChannel *_port = nullptr;
 #if FUJINET_OVER_USB
@@ -126,7 +135,8 @@ private:
     std::deque<uint8_t> _dbc_pushback;
 #endif
 
-    virtualDevice *_activeDev = nullptr;
+    FujiDWPacket *_activeFrame;
+    drivewireDevice *_activeDev = nullptr;
     drivewireModem *_modemDev = nullptr;
     drivewireFuji *_fujiDev = nullptr;
     //drivewireNetwork *_netDev[8] = {nullptr};
@@ -139,8 +149,7 @@ private:
     uint8_t bDragon;
 
     ByteBuffer _transaction_response;
-    bool _transaction_handle_command(dwOpcode_t opcode, fujiCommandID_t cmd,
-                                     virtualDevice &device);
+    bool _transaction_handle_command(FujiDWPacket &packet, virtualDevice &device);
 
     void _drivewire_process_cmd();
     void _drivewire_process_queue();
@@ -177,10 +186,10 @@ private:
     void op_nop();
     void op_reset();
     void op_readex();
-    void op_fuji();
-    void op_net();
-    void op_cpm();
-    void op_clock();
+    void op_fuji(dwOpcode_t opcode);
+    void op_net(dwOpcode_t opcode);
+    void op_cpm(dwOpcode_t opcode);
+    void op_clock(dwOpcode_t opcode);
     void op_write();
     void op_time();
     void op_init();
@@ -199,37 +208,6 @@ private:
     void op_print();
     void op_namedobj_mnt();
 
-public:
-    void setup();
-    void service();
-    void shutdown();
-
-    void transaction_accept(transState_t expectMoreData) override;
-    void transaction_success() override;
-    void transaction_error() override;
-    success_is_true transaction_get(void *data, size_t len) override;
-    using SystemBusBase::transaction_send;
-    void transaction_send(const void *data, size_t len, bool is_error=false) override;
-
-    int getBaudrate();                                          // Gets current DRIVEWIRE baud rate setting
-    void setBaudrate(int baud);                                 // Sets DRIVEWIRE to specific baud rate
-    void toggleBaudrate();                                      // Toggle between standard and high speed DRIVEWIRE baud rate
-
-    bool shuttingDown = false;                                  // TRUE if we are in shutdown process
-    bool getShuttingDown() { return shuttingDown; };
-    bool motorActive = false;
-
-    drivewireCassette *getCassette() { return _cassetteDev; }
-    drivewirePrinter *getPrinter() { return _printerdev; }
-    void setPrinter(drivewirePrinter *_p) { _printerdev = _p; }
-    drivewireCPM *getCPM() { return _cpmDev; }
-    std::map<uint8_t,drivewireNetwork *> _netDev;
-
-    // I wish this codebase would make up its mind to use camel or snake casing.
-    drivewireModem *get_modem() { return _modemDev; }
-
-    // Everybody thinks "oh I know how a serial port works, I'll just
-    // access it directly and bypass the bus!" ಠ_ಠ
     size_t read(void *buffer, size_t length) {
 #ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
         size_t n = 0;
@@ -258,6 +236,31 @@ public:
 #endif
     }
     void flushOutput() { _port->flushOutput(); }
+
+public:
+    void setup();
+    void service();
+    void shutdown();
+
+    void transaction_accept(transState_t expectMoreData) override;
+    void transaction_success() override;
+    void transaction_error() override;
+    success_is_true transaction_get(void *data, size_t len) override;
+    using SystemBusBase::transaction_send;
+    void transaction_send(const void *data, size_t len, bool is_error=false) override;
+
+    bool shuttingDown = false;                                  // TRUE if we are in shutdown process
+    bool getShuttingDown() { return shuttingDown; };
+    bool motorActive = false;
+
+    drivewireCassette *getCassette() { return _cassetteDev; }
+    drivewirePrinter *getPrinter() { return _printerdev; }
+    void setPrinter(drivewirePrinter *_p) { _printerdev = _p; }
+    drivewireCPM *getCPM() { return _cpmDev; }
+    std::map<uint8_t,drivewireNetwork *> _netDev;
+
+    // I wish this codebase would make up its mind to use camel or snake casing.
+    drivewireModem *get_modem() { return _modemDev; }
 
 #ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
     std::unique_ptr<FujiBusPacket> readBusPacket(int first = -1);
