@@ -45,7 +45,7 @@ public:
     void debug_tape();
 
     void setup() override;
-    void process();
+    void process(fujiCommandID_t cmd);
     drivewireFuji();
 
     // ============ Wrapped Fuji commands ============

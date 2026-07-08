@@ -425,16 +425,11 @@ void drivewireFuji::random()
     transaction_put(&r, sizeof(r));
 }
 
-void drivewireFuji::process()
+void drivewireFuji::process(fujiCommandID_t cmd)
 {
-    fujiCommandID_t c = (fujiCommandID_t) SYSTEM_BUS.read();
-
     _errorCode = NDEV_STATUS::SUCCESS;
-    switch (c)
+    switch (cmd)
     {
-    case FUJICMD_SEND_ERROR:
-        send_error();
-        break;
     case FUJICMD_RESET:
         fnSystem.reboot();
         break;
@@ -532,12 +527,6 @@ void drivewireFuji::process()
         break;
     case FUJICMD_NEW_DISK:
         new_disk();
-        break;
-    case FUJICMD_SEND_RESPONSE:
-        send_response(0);
-        break;
-    case FUJICMD_DEVICE_READY:
-        ready();
         break;
     case FUJICMD_OPEN_APPKEY:
         fujicmd_open_app_key();

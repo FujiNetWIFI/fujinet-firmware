@@ -47,9 +47,8 @@ void drivewireClock::set_alternate_tz()
         alternate_tz = result.value();
 }
 
-void drivewireClock::process()
+void drivewireClock::process(fujiCommandID_t cmd)
 {
-    uint8_t cmd = SYSTEM_BUS.read();
     uint8_t aux1;
     bool use_alt;
 

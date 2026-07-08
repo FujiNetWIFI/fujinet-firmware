@@ -25,6 +25,7 @@
 #include "UARTChannel.h"
 #include "ACMChannel.h"
 #include "fujiDeviceID.h"
+#include "fujiCommandID.h"
 #include "status_error_codes.h"
 #ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
 #include "../rs232/FujiBusPacket.h"
@@ -184,6 +185,9 @@ private:
      * @brief Sector data (256 bytes)
      */
     uint8_t sector_data[MEDIA_BLOCK_SIZE];
+
+    bool _transaction_handle_command(dwOpcode_t opcode, fujiCommandID_t cmd,
+                                     virtualDevice &device);
 
     /**
      * @brief NOP command (do nothing)
