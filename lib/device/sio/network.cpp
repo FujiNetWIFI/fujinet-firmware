@@ -714,6 +714,72 @@ void sioNetwork::sio_get_dstats_value()
 }
 
 /**
+ * Seek (POINT) command
+ * Set the file position from a 3-byte LE payload.
+ */
+void sioNetwork::sio_seek()
+{
+    uint8_t pos[3];
+    off_t offset;
+
+    // If protocol isn't connected, then return not connected.
+    if (protocol == nullptr)
+    {
+        status.error = NDEV_STATUS::NOT_CONNECTED;
+        transaction_error();
+        return;
+    }
+
+    if (channelMode != PROTOCOL)
+    {
+        status.error = NDEV_STATUS::INVALID_POINT;
+        transaction_error();
+        return;
+    }
+
+    transaction_begin(TRANS_STATE::WILL_GET);
+    transaction_get(pos, sizeof(pos));
+
+    offset = pos[0] | (pos[1] << 8) | (pos[2] << 16);
+
+    if (protocol->seek(offset, SEEK_SET) == -1)
+    {
+        status.error = NDEV_STATUS::INVALID_POINT;
+        transaction_error();
+        return;
+    }
+
+    transaction_complete();
+}
+
+/**
+ * Tell (NOTE) command
+ * Return the current file position as a 3-byte LE payload.
+ */
+void sioNetwork::sio_tell()
+{
+    uint8_t pos[3] = {0, 0, 0};
+    off_t offset = -1;
+
+    transaction_begin(TRANS_STATE::NO_GET);
+
+    if (protocol != nullptr && channelMode == PROTOCOL)
+        offset = protocol->seek(0, SEEK_CUR);
+
+    if (offset == -1)
+    {
+        status.error = protocol == nullptr ? NDEV_STATUS::NOT_CONNECTED : NDEV_STATUS::INVALID_POINT;
+        transaction_put(pos, sizeof(pos), true);
+        return;
+    }
+
+    pos[0] = offset & 0xFF;
+    pos[1] = (offset >> 8) & 0xFF;
+    pos[2] = (offset >> 16) & 0xFF;
+    transaction_put(pos, sizeof(pos), false);
+}
+
+/**
  * Process incoming SIO command for device 0x7X
  * @param comanddata incoming 4 bytes containing command and aux bytes
  * @param checksum 8 bit checksum
@@ -784,6 +850,13 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
 
     case NETCMD_GET_DSTATS_VALUE:
         sio_get_dstats_value();
+        break;
+
+    case NETCMD_SEEK: // POINT
+        sio_seek();
+        break;
+    case NETCMD_TELL: // NOTE
+        sio_tell();
         break;
 
     case NETCMD_RENAME:
@@ -881,6 +954,7 @@ uint8_t sioNetwork::get_dstats_for_command(uint8_t command)
     case NETCMD_READ:
     case NETCMD_STATUS:
     case NETCMD_GETCWD:
+    case NETCMD_TELL:
         return SIO_DIRECTION_READ;
 
     // Payload from Atari to FujiNet (0x80)
@@ -897,6 +971,7 @@ uint8_t sioNetwork::get_dstats_for_command(uint8_t command)
     case NETCMD_MKDIR:
     case NETCMD_RMDIR:
     case NETCMD_SET_DESTINATION:
+    case NETCMD_SEEK:
         return SIO_DIRECTION_WRITE;
 
     // Invalid/unknown command

@@ -127,6 +127,16 @@ public:
     virtual void sio_get_dstats_value();
 
     /**
+     * @brief called to seek to a file position (POINT)
+     */
+    virtual void sio_seek();
+
+    /**
+     * @brief called to return the current file position (NOTE)
+     */
+    virtual void sio_tell();
+
+    /**
      * Check to see if PROCEED needs to be asserted.
      */
     void sio_poll_interrupt();
