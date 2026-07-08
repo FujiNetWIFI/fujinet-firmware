@@ -335,6 +335,8 @@ bool systemBus::_transaction_handle_command(dwOpcode_t opcode, fujiCommandID_t c
 {
     u16be_t len;
 
+    _activeDev = &device;
+
     switch (cmd)
     {
     case FUJICMD_DEVICE_READY:
@@ -354,12 +356,12 @@ bool systemBus::_transaction_handle_command(dwOpcode_t opcode, fujiCommandID_t c
             read(&len, sizeof(len));
 
         // Pad to requested response length. Thanks apc!
-        if (device._response.size() < len)
-            device._response.resize(std::max<size_t>(device._response.size(), len), 0);
+        if (_transaction_response.size() < len)
+            _transaction_response.resize(std::max<size_t>(_transaction_response.size(), len), 0);
 
-        write(device._response.data(), device._response.size());
-        device._response.clear();
-        device._response.shrink_to_fit();
+        write(_transaction_response.data(), _transaction_response.size());
+        _transaction_response.clear();
+        _transaction_response.shrink_to_fit();
         return true;
 
     default:
@@ -1001,42 +1003,43 @@ void systemBus::writeBusPacket(FujiBusPacket &packet)
 }
 #endif /* PINMAP_FUJIVERSAL_DRIVEWIRE */
 
-void virtualDevice::transaction_begin(transState_t expectMoreData)
+void systemBus::transaction_accept(transState_t expectMoreData)
 {
     assert(_transaction_state == TRANS_STATE::INVALID);
     _transaction_state = expectMoreData;
 }
 
-void virtualDevice::transaction_complete()
+void systemBus::transaction_success()
 {
     assert(_transaction_state == TRANS_STATE::NO_GET
            || _transaction_state == TRANS_STATE::DID_GET);
-    _errorCode = NDEV_STATUS::SUCCESS;
-    _response.clear();
-    _response.shrink_to_fit();
+    _activeDev->_errorCode = NDEV_STATUS::SUCCESS;
+    _transaction_response.clear();
+    _transaction_response.shrink_to_fit();
     _transaction_state = TRANS_STATE::INVALID;
 }
 
-void virtualDevice::transaction_error()
+void systemBus::transaction_error()
 {
-    _errorCode = NDEV_STATUS::GENERAL;
+    _activeDev->_errorCode = NDEV_STATUS::GENERAL;
     _transaction_state = TRANS_STATE::INVALID;
 }
 
-success_is_true virtualDevice::transaction_get(void *data, size_t len)
+success_is_true systemBus::transaction_get(void *data, size_t len)
 {
     assert(_transaction_state == TRANS_STATE::WILL_GET);
     _transaction_state = TRANS_STATE::DID_GET;
     RETURN_SUCCESS_IF(SYSTEM_BUS.read((uint8_t *) data, len) == len);
 }
 
-void virtualDevice::transaction_put(const void *data, size_t len, bool err)
+void systemBus::transaction_send(const void *data, size_t len, bool is_error)
 {
     assert(_transaction_state == TRANS_STATE::NO_GET);
-    if (err)
+    if (is_error)
         transaction_error();
-    _response.insert(_response.end(), static_cast<const uint8_t *>(data),
-                     static_cast<const uint8_t *>(data) + len);
+    _transaction_response.insert(_transaction_response.end(),
+                                 static_cast<const uint8_t *>(data),
+                                 static_cast<const uint8_t *>(data) + len);
     _transaction_state = TRANS_STATE::INVALID;
 }
 

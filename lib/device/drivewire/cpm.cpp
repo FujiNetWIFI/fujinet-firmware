@@ -90,7 +90,7 @@ void drivewireCPM::read()
         buffer[i] = b;
     }
 
-    transaction_put(buffer);
+    SYSTEM_BUS.transaction_send(buffer);
 }
 
 void drivewireCPM::write()
@@ -119,7 +119,7 @@ void drivewireCPM::status()
     status_response[0] = mw >> 8;
     status_response[1] = mw & 0xFF;
 
-    transaction_put(&status_response, sizeof(status_response));
+    SYSTEM_BUS.transaction_send(&status_response, sizeof(status_response));
 }
 
 void drivewireCPM::process(fujiCommandID_t cmd)
