@@ -824,8 +824,16 @@ off_t NetworkProtocolHTTP::seek(off_t offset, int whence)
     if (newPos < 0)
         return -1;
 
-    // Re-request the body starting at newPos via an HTTP Range header. Reusing the
-    // existing client preserves any user-set request headers (e.g. auth).
+    // Re-request the body starting at newPos via an HTTP Range header.
+    delete client;
+    client = new HTTP_CLIENT_CLASS();
+    if (!client->begin(opened_url->url))
+    {
+        resultCode = 901; // Fake HTTP status code indicating connection error
+        fserror_to_error();
+        return -1;
+    }
+
     char range[32];
     snprintf(range, sizeof(range), "bytes=%lld-", (long long)newPos);
     client->set_header("Range", range);
