@@ -26,6 +26,7 @@
 #include "fnWiFi.h"
 #include "fsFlash.h"
 #include "fnFsTNFS.h"
+#include "fujiDeviceID.h"
 
 #include "led.h"
 #include "utils.h"
