@@ -5,6 +5,8 @@
 #define VERBOSE_HTTP 1
 #define VERBOSE_PROTOCOL 1
 
+#include <algorithm>
+#include <cstdio>
 #include <cstring>
 
 #include "HTTP.h"
@@ -502,6 +504,10 @@ fujiError_t NetworkProtocolHTTP::read_file_handle_data(uint8_t *buf, unsigned sh
 
     actual_len = client->read(buf, len);
 
+    // Track absolute position so NOTE (seek(0, SEEK_CUR)) reports bytes fetched.
+    if (actual_len > 0)
+        filePosition += actual_len;
+
     return len != actual_len ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
@@ -752,9 +758,107 @@ void NetworkProtocolHTTP::http_transaction()
     if (bodySize <= 0)
         bodySize = client->available();
     fileSize = bodySize;
+
+    // This path is always a position-0 (non-ranged) request, so the body length
+    // is the full resource size. Seed the seek() bookkeeping accordingly.
+    resourceSize = bodySize;
+    filePosition = 0;
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::http_transaction() done, resultCode=%d, fileSize=%u\r\n", resultCode, fileSize);
 #endif
+}
+
+fujiError_t NetworkProtocolHTTP::skip_bytes(size_t n)
+{
+    uint8_t scratch[512];
+
+    while (n > 0)
+    {
+        int chunk = (int)std::min<size_t>(n, sizeof(scratch));
+        int got = client->read(scratch, chunk);
+        if (got <= 0)
+            return FUJI_ERROR::UNSPECIFIED; // premature EOF / error
+        n -= (size_t)got;
+    }
+
+    return FUJI_ERROR::NONE;
+}
+
+off_t NetworkProtocolHTTP::seek(off_t offset, int whence)
+{
+#ifdef VERBOSE_PROTOCOL
+    Debug_printf("NetworkProtocolHTTP::seek(%lld,%d)\r\n", (long long)offset, whence);
+#endif
+
+    // Seeking only makes sense for a DATA-mode GET body read. Header/POST channel
+    // modes and PUT/POST/DELETE methods are not seekable.
+    if (client == nullptr || httpChannelMode != DATA || httpMethod != HTTP_METHOD::GET)
+        return -1;
+
+    // NOTE (tell): report current position without perturbing the stream.
+    if (whence == SEEK_CUR && offset == 0)
+        return filePosition;
+
+    off_t newPos;
+    switch (whence)
+    {
+    case SEEK_SET:
+        newPos = offset;
+        break;
+    case SEEK_CUR:
+        newPos = filePosition + offset;
+        break;
+    case SEEK_END:
+        // SEEK_END needs the total size up front; run the initial transaction if
+        // nothing has been fetched yet so resourceSize is populated.
+        if (resourceSize < 0 && resultCode == 0)
+            http_transaction();
+        if (resourceSize < 0)
+            return -1;
+        newPos = (off_t)resourceSize + offset;
+        break;
+    default:
+        return -1;
+    }
+
+    if (newPos < 0)
+        return -1;
+
+    // Re-request the body starting at newPos via an HTTP Range header. Reusing the
+    // existing client preserves any user-set request headers (e.g. auth).
+    char range[32];
+    snprintf(range, sizeof(range), "bytes=%lld-", (long long)newPos);
+    client->set_header("Range", range);
+
+    resultCode = client->GET();
+    fserror_to_error();
+
+    if (resultCode == 416 || resultCode > 399) // Range Not Satisfiable / other error
+        return -1;
+
+    if (resultCode == 206)
+    {
+        // Partial Content: stream is positioned at newPos; content_length is the
+        // number of bytes remaining from here to the end.
+        resourceSize = client->content_length() + (int)newPos;
+    }
+    else
+    {
+        // Server ignored the Range (200 OK): body starts at 0, so emulate the seek
+        // by discarding newPos bytes from the stream.
+        resourceSize = client->content_length();
+        if (skip_bytes((size_t)newPos) != FUJI_ERROR::NONE)
+            return -1;
+    }
+
+    if (newPos > resourceSize)
+        return -1;
+
+    filePosition = newPos;
+    fileSize = resourceSize - (int)newPos; // fileSize is treated as bytes remaining
+    receiveBuffer->clear();
+
+    return newPos;
 }
 
 fujiError_t NetworkProtocolHTTP::rename(PeoplesUrlParser *url)
