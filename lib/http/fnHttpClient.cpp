@@ -52,6 +52,22 @@ bool fnHttpClient::begin(const std::string &url)
     Debug_printf("fnHttpClient::begin \"%s\"\r\n", url.c_str());
 #endif
 
+    // Allow begin() to be called again on the same client (keep-alive reuse after
+    // a seek): esp_http_client_init() below would overwrite and leak _handle, and
+    // close() doesn't free it. No-op on the first call (_handle is null).
+    if (_handle != nullptr)
+    {
+        close();
+        esp_http_client_cleanup(_handle);
+        _handle = nullptr;
+    }
+    _buffer_pos = 0;
+    _buffer_len = 0;
+    _buffer_total_read = 0;
+    _transaction_begin = false;
+    _transaction_done = false;
+    _redirect_count = 0;
+
     esp_http_client_config_t cfg;
     memset(&cfg, 0, sizeof(cfg));
     cfg.url = url.c_str();

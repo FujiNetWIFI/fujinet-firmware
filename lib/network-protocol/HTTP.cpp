@@ -824,9 +824,10 @@ off_t NetworkProtocolHTTP::seek(off_t offset, int whence)
     if (newPos < 0)
         return -1;
 
-    // Re-request the body starting at newPos via an HTTP Range header.
-    delete client;
-    client = new HTTP_CLIENT_CLASS();
+    // Re-request the body from newPos via a Range header. Reuse the client object
+    // instead of reallocating it: begin() rebuilds the connection cheaply, whereas
+    // a new client would reload the whole system cert store (on PC) every seek.
+    client->set_keep_alive(true);
     if (!client->begin(opened_url->url))
     {
         resultCode = 901; // Fake HTTP status code indicating connection error

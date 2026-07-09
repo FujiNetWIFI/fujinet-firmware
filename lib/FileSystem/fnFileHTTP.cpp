@@ -12,9 +12,8 @@
 #include "../../include/debug.h"
 #include "string_utils.h"
 
-// Size of the read-ahead window fetched per HTTP Range request. Large enough to
-// amortize the per-request TLS handshake over runs of sequential block reads,
-// small enough that only this much is ever resident in memory.
+// Bytes fetched per Range request: big enough to amortize the TLS handshake over
+// sequential reads, small enough to keep memory bounded.
 #define HTTP_STREAM_WINDOW 65536
 
 static uint8_t *stream_buf_alloc(size_t len)
@@ -129,9 +128,8 @@ int FileHandlerHTTP::fetch_range(long pos, long want, long *out_total)
     if (rc != 200 && rc != 206)
         return rc;
 
-    // On 200 the server ignored the Range and the body starts at offset 0, so we
-    // must discard the leading bytes. create() confirmed range support, so this
-    // is only a safety net (and only viable for small resources).
+    // 200 means the server ignored the Range (body starts at 0); discard the
+    // leading bytes. A safety net only - create() already confirmed range support.
     long skip = (rc == 200) ? pos : 0;
     uint8_t scratch[512];
     while (skip > 0)
@@ -294,9 +292,8 @@ int FileHandlerHTTP::seek(long int off, int whence)
         return -1;
     }
 
-    // Purely logical: the next read() fetches the window if needed. This keeps
-    // filesize()'s seek(END)/seek(0) probe free of network traffic, and a small
-    // backward seek that stays inside the current window costs no request.
+    // Purely logical - the next read() fetches the window if needed. Keeps
+    // filesize()'s seek(END)/seek(0) probe (and in-window seeks) network-free.
     _position = new_pos;
     _eof = false;
     return 0;

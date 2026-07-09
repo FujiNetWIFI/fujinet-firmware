@@ -80,7 +80,8 @@ public:
     int content_length();
     bool is_transaction_done();
 
-    // Enable/disable connection reuse (keep-alive). Must be set before begin().
+    // Request connection reuse (keep-alive). Accepted for interface parity;
+    // esp_http_client manages keep-alive itself.
     void set_keep_alive(bool enable) { _keep_alive = enable; }
 
     int read(uint8_t *dest_buffer, int dest_bufflen);

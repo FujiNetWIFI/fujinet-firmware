@@ -23,22 +23,16 @@
 #endif
 
 /*
- * FileHandlerHTTP - read-only FileHandler that streams a remote resource over
- * HTTP instead of caching the whole thing locally.
+ * FileHandlerHTTP - read-only FileHandler that streams a remote resource with
+ * HTTP Range requests instead of caching the whole file.
  *
- * Random access (POINT/NOTE, disk sector reads) is served with bounded HTTP
- * Range requests. seek() only moves a logical cursor; read() fetches a window
- * of bytes starting at that cursor (bytes=lo-hi) into a small read-ahead
- * buffer, so a run of sequential reads is satisfied from one request. Only a
- * fixed-size window is ever held in memory, never the whole file.
+ * seek() just moves a logical cursor; read() fetches a bounded window
+ * (bytes=lo-hi) at the cursor into a read-ahead buffer, so sequential reads
+ * share one request and only the window is ever held in memory. Ranges must be
+ * bounded, not open-ended: the PC client downloads the whole body during GET().
  *
- * Bounded (not open-ended) ranges are required because the PC HTTP client
- * downloads the entire response body during GET(); an open-ended bytes=N-
- * would pull the rest of the file in one shot.
- *
- * Only usable when the server advertises byte-range support AND a content
- * length; create() returns nullptr otherwise so the caller can fall back to
- * downloading the file to a cache.
+ * create() returns nullptr unless the server advertises range support and a
+ * content length, so the caller can fall back to caching.
  */
 class FileHandlerHTTP : public FileHandler
 {

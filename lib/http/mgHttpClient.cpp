@@ -416,9 +416,9 @@ void mgHttpClient::handle_connect(struct mg_connection *c)
         _conn = c;
 }
 
-// Write the HTTP request line, headers and (for write methods) body onto an
-// already-connected connection. Split out from handle_connect so a keep-alive
-// session can send a follow-up request on the reused connection.
+// Write the request line, headers and (for write methods) body onto a connected
+// socket. Split from handle_connect so keep-alive can send a follow-up request
+// on the reused connection.
 void mgHttpClient::send_request(struct mg_connection *c)
 {
     const char *url = _url.c_str();
@@ -555,8 +555,8 @@ void mgHttpClient::process_response_headers(struct mg_connection *c, struct mg_h
         }
     }
 
-    // Record the declared body length so a keep-alive transaction knows when the
-    // response is complete without waiting for the server to close the socket.
+    // Record the declared length so keep-alive knows when the body is complete
+    // without waiting for a socket close.
     _declared_len = -1;
     struct mg_str *clh = mg_http_get_header(&hm, "Content-Length");
     if (clh != nullptr)
@@ -653,8 +653,7 @@ void mgHttpClient::process_body_data(struct mg_connection *c, char *data, int le
 #ifdef VERBOSE_HTTP
                 Debug_printf("mgHttpClient: Final chunk received, body=%d bytes\n", _content_length);
 #endif
-                // Keep-alive: the socket stays open, so mark the transaction done
-                // here rather than waiting for a close that won't come.
+                // Keep-alive: socket stays open, so finish here, not on close.
                 if (_keep_alive)
                     _transaction_done = true;
             }
@@ -690,8 +689,7 @@ void mgHttpClient::process_body_data(struct mg_connection *c, char *data, int le
         c->recv.len = 0;   // cleanup mongoose receive buffer
         _processed = true; // stop polling, data is available in _buffer_str
 
-        // Keep-alive: the connection is not closed by the server, so detect the
-        // end of the body from the declared Content-Length.
+        // Keep-alive: server won't close, so detect end-of-body via Content-Length.
         if (_keep_alive && _declared_len >= 0 && _body_received >= _declared_len)
             _transaction_done = true;
     }
@@ -859,9 +857,8 @@ void mgHttpClient::_perform_connect()
 
     if (_keep_alive && _conn != nullptr)
     {
-        // Reuse the existing keep-alive connection: send the request directly on
-        // it. If the peer has since dropped it, the poll will surface MG_EV_CLOSE
-        // and the caller retries on a fresh connection.
+        // Reuse the keep-alive connection. If the peer dropped it, the poll
+        // surfaces MG_EV_CLOSE and the caller retries on a fresh connection.
         send_request(_conn);
     }
     else

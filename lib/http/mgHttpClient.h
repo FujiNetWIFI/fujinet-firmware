@@ -61,10 +61,8 @@ private:
     int _status_code = -1;
     int _content_length = 0;
 
-    // keep-alive (persistent connection) support. When enabled, requests are
-    // sent with "Connection: keep-alive", response completion is detected via
-    // Content-Length (instead of the server closing the socket), and the
-    // connection is reused across requests.
+    // keep-alive: when enabled, send "Connection: keep-alive", detect completion
+    // via Content-Length (not socket close), and reuse the connection.
     bool _keep_alive = false;
     struct mg_connection *_conn = nullptr; // reused connection when keep-alive
     long _declared_len = -1;               // Content-Length of current response, -1 if unknown
