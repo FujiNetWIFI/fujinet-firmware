@@ -121,39 +121,39 @@ void print_packet_wave(uint8_t *data, int bytes)
 uint8_t virtualDevice::data_buffer[MAX_DATA_LEN] = {0};
 int virtualDevice::data_len = 0;
 
-void virtualDevice::transaction_begin(transState_t expectMoreData)
+void systemBus::transaction_accept(transState_t expectMoreData)
 {
   assert(_transaction_state == TRANS_STATE::INVALID);
   _transaction_state = expectMoreData;
 }
 
-void virtualDevice::transaction_complete()
+void systemBus::transaction_success()
 {
   assert(_transaction_state == TRANS_STATE::NO_GET
          || _transaction_state == TRANS_STATE::DID_GET);
   _transaction_state = TRANS_STATE::INVALID;
 }
 
-void virtualDevice::transaction_error()
+void systemBus::transaction_error()
 {
   _transaction_state = TRANS_STATE::INVALID;
 }
 
-success_is_true virtualDevice::transaction_get(void *data, size_t len)
+success_is_true systemBus::transaction_get(void *data, size_t len)
 {
   assert(_transaction_state == TRANS_STATE::WILL_GET);
   _transaction_state = TRANS_STATE::DID_GET;
-  if (len > data_len)
-    len = data_len;
-  memcpy((uint8_t *) data, data_buffer, len);
+  if (len > virtualDevice::data_len)
+    len = virtualDevice::data_len;
+  memcpy((uint8_t *) data, virtualDevice::data_buffer, len);
   RETURN_SUCCESS_AS_TRUE();
 }
 
-void virtualDevice::transaction_put(const void *data, size_t len, bool err)
+void systemBus::transaction_send(const void *data, size_t len, bool err)
 {
   assert(_transaction_state == TRANS_STATE::NO_GET);
-  memcpy(data_buffer, data, len);
-  data_len = len;
+  memcpy(virtualDevice::data_buffer, data, len);
+  virtualDevice::data_len = len;
   _transaction_state = TRANS_STATE::INVALID;
 }
 

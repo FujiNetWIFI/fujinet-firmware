@@ -60,9 +60,14 @@ public:
 
 // Temporary migration wrappers. Remove after all buses have been
 // converted to inherit from SystemBusBase.
+#if defined(BUILD_RS232) || defined(BUILD_COCO) || defined(BUILD_APPLE)
+#define NEED_VDEV_MIGRATION
+#else
+#undef NEED_VDEV_MIGRATION
+#endif
 class VDevMigrationWrapper
 {
-#if defined(BUILD_RS232) || defined(BUILD_COCO)
+#ifdef NEED_VDEV_MIGRATION
 protected:
     void transaction_begin(transState_t expectMoreData);
     void transaction_complete();

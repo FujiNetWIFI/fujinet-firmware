@@ -2,7 +2,7 @@
 
 // Temporary migration wrappers. Remove after all buses have been
 // converted to inherit from SystemBusBase.
-#if defined(BUILD_RS232) || defined(BUILD_COCO)
+#ifdef NEED_VDEV_MIGRATION
 
 void VDevMigrationWrapper::transaction_begin(transState_t expectMoreData)
 {

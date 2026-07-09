@@ -3,7 +3,7 @@
 #define IWM_H
 
 #include "bus.h"
-#include "cmdFrame.h"
+#include "fujiCommandID.h"
 #include "../../include/debug.h"
 
 // for ESP IWM-SLIP build, DEV_RELAY_SLIP should be defined in platformio.ini
@@ -244,13 +244,6 @@ protected:
   uint8_t _devnum; // assigned by Apple II during INIT
   bool _initialized;
 
-  transState_t _transaction_state = TRANS_STATE::INVALID;
-  virtual void transaction_begin(transState_t expectMoreData);
-  virtual void transaction_complete();
-  virtual void transaction_error();
-  virtual success_is_true transaction_get(void *data, size_t len);
-  virtual void transaction_put(const void *data, size_t len, bool err=false);
-
   void send_init_reply_packet(uint8_t source, spError_t err);
   void send_status_reply_packet();
   void send_reply_packet(spError_t err);
@@ -296,11 +289,9 @@ public:
   int id() { return _devnum; };
 };
 
-class systemBus
+class systemBus : public SystemBusBase
 {
 private:
-
-
   virtualDevice *_activeDev = nullptr;
 
   iwmPrinter *_printerdev = nullptr;
@@ -354,6 +345,13 @@ public:
   bool serviceDiskIIWrite();
 #endif
   void shutdown();
+
+  void transaction_accept(transState_t expectMoreData) override;
+  void transaction_success() override;
+  void transaction_error() override;
+  success_is_true transaction_get(void *data, size_t len) override;
+  using SystemBusBase::transaction_send;
+  void transaction_send(const void *data, size_t len, bool is_error=false) override;
 
   int numDevices();
   void addDevice(virtualDevice *pDevice, iwm_fujinet_type_t deviceType); // todo: probably get called by handle_init()
