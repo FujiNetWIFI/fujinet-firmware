@@ -165,10 +165,12 @@ protected:
         _transaction_state = TRANS_STATE::INVALID;
     }
     void transaction_error() {
+        // Not yet ACKed -> the command itself was invalid: NAK.  Already
+        // ACKed -> failure during/after processing: ERROR ('E' -> 144).
         if (_transaction_state == TRANS_STATE::INVALID)
-            _sio_error();
-        else
             _sio_nak();
+        else
+            _sio_error();
         _transaction_state = TRANS_STATE::INVALID;
     }
     success_is_true transaction_get(void *data, size_t len) {
