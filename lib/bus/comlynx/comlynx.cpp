@@ -14,7 +14,7 @@
 #include <cstring>
 
 //#define IDLE_TIME 500 // Idle tolerance in microseconds (roughly three characters at 62500 baud)
-#define IDLE_TIME 500
+
 
 uint8_t comlynx_checksum(uint8_t *buf, unsigned short len)
 {
@@ -188,7 +188,7 @@ bool systemBus::wait_for_idle()
         if (SYSTEM_BUS.available() > 0)
             return false;
 
-    } while (dur < IDLE_TIME);
+    } while (dur < COMLYNX_IDLE_TIME);
 
     // Must have been idle at least IDLE_TIME to get here
     return true;
@@ -261,8 +261,12 @@ void systemBus::_comlynx_process_queue()
 void systemBus::service()
 {
     // Handle NetStream if active
-    if (_streamDev != nullptr && _streamDev->netstreamActive)
-        _streamDev->comlynx_handle_netstream();
+    if (_streamDev != nullptr && _streamDev->netstreamActive) {
+        if (_streamDev->redeye_mode)
+            _streamDev->comlynx_handle_redeye_netstream();    
+        else
+            _streamDev->comlynx_handle_netstream();
+    }
     // Process anything waiting
     else if (SYSTEM_BUS.available() > 0)
         _comlynx_process_cmd();
@@ -423,7 +427,7 @@ void systemBus::setRedeyeMode(bool enable)
 {
     Debug_printf("setRedeyeMode, %d\n", enable);
     _streamDev->redeye_mode = enable;
-    _streamDev->redeye_logon = true;
+    _streamDev->redeye_reset_game();
 }
 
 void systemBus::setRedeyeGameRemap(uint32_t remap)
@@ -433,18 +437,18 @@ void systemBus::setRedeyeGameRemap(uint32_t remap)
     // handle pure updstream games
     if ((remap >> 8) == 0xE1) {
         _streamDev->redeye_mode = false;           // turn off redeye
-        _streamDev->redeye_logon = true;           // reset logon phase toggle
-        _streamDev->redeye_game = remap;           // set game, since we can't detect it
+        _streamDev->game.game_id = remap;          // set game, since we can't detect it
+        _streamDev->game.remap_game_id = remap;
+        return;
     }
 
     // handle redeye game that need remapping
+    _streamDev->redeye_mode = true;
     if (remap != 0xFFFF) {
-        _streamDev->remap_game_id = true;
-        _streamDev->new_game_id = remap;
+        _streamDev->game.remap_game_id = remap;
     }
     else {
-        _streamDev->remap_game_id = false;
-        _streamDev->new_game_id = 0xFFFF;
+        _streamDev->game.remap_game_id = 0;
     }
 }
 
