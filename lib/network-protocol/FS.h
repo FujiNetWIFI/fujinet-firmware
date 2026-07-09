@@ -11,6 +11,7 @@ typedef enum class DIR_FORMAT {
     LONG   = 0x80,
     A2COL80 = 0x81,
     GDRIVE = 0x82,
+    RAW    = 0x83,   // filename only + line ending (no size, no crunch)
 } dirFormat_t;
 
 class NetworkProtocolFS : public NetworkProtocol
