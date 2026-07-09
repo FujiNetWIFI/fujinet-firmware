@@ -22,8 +22,9 @@
 #define GDRIVE_RELAY_REFRESH_URL "https://auth.fujinet.online/gdrive-refresh"
 #define GDRIVE_FILES_URL     "https://www.googleapis.com/drive/v3/files"
 #define GDRIVE_UPLOAD_URL    "https://www.googleapis.com/upload/drive/v3/files"
-#define GDRIVE_FIELDS        "id,name,size,mimeType,trashed"
+#define GDRIVE_FIELDS        "id,name,size,mimeType,trashed,shortcutDetails(targetId,targetMimeType)"
 #define GDRIVE_FOLDER_MIME   "application/vnd.google-apps.folder"
+#define GDRIVE_SHORTCUT_MIME "application/vnd.google-apps.shortcut"
 
 // ─── construction ────────────────────────────────────────────────────────────
 
@@ -303,12 +304,16 @@ std::string NetworkProtocolGDRIVE::find_child(const std::string &folder_id,
     std::string q = "'" + folder_id + "' in parents"
                     " and name='" + name + "'"
                     " and trashed=false";
+    // A folder that was shared with you and added to My Drive lives in your
+    // tree as a *shortcut* (mimeType shortcut), not the folder itself, so the
+    // folder restriction must admit shortcuts too — we resolve them below.
     if (is_folder)
-        q += " and mimeType='" GDRIVE_FOLDER_MIME "'";
+        q += " and (mimeType='" GDRIVE_FOLDER_MIME "'"
+             " or mimeType='" GDRIVE_SHORTCUT_MIME "')";
 
     std::string url = std::string(GDRIVE_FILES_URL) +
                       "?q=" + url_encode(q) +
-                      "&fields=files(id,mimeType)&pageSize=1";
+                      "&fields=files(id,mimeType,shortcutDetails(targetId))&pageSize=1";
 
     std::string resp = api_get(url);
     if (resp.empty())
@@ -320,7 +325,20 @@ std::string NetworkProtocolGDRIVE::find_child(const std::string &folder_id,
     std::string id;
     cJSON *files = cJSON_GetObjectItemCaseSensitive(j, "files");
     if (files && cJSON_IsArray(files) && cJSON_GetArraySize(files) > 0)
-        id = json_str(cJSON_GetArrayItem(files, 0), "id");
+    {
+        cJSON *item = cJSON_GetArrayItem(files, 0);
+        id = json_str(item, "id");
+
+        // Follow a shortcut to its real target so callers (resolve_path,
+        // stat, open, del, dir listing) operate on the actual item.
+        if (json_str(item, "mimeType") == GDRIVE_SHORTCUT_MIME)
+        {
+            cJSON *sd = cJSON_GetObjectItemCaseSensitive(item, "shortcutDetails");
+            std::string target = json_str(sd, "targetId");
+            if (!target.empty())
+                id = target;
+        }
+    }
 
     cJSON_Delete(j);
     return id;
@@ -596,8 +614,8 @@ fujiError_t NetworkProtocolGDRIVE::open_dir_handle()
                  opened_url->path.c_str());
 
     // Strip trailing wildcard so "GDRIVE:///folder/*.*" lists that folder.
-    // resolve_path would otherwise hunt for a child literally named "*.*".
     std::string dir_path = opened_url->path;
+    _dir_filter.clear();
     {
         size_t slash = dir_path.rfind('/');
         if (slash != std::string::npos)
@@ -605,7 +623,13 @@ fujiError_t NetworkProtocolGDRIVE::open_dir_handle()
             std::string leaf = dir_path.substr(slash + 1);
             if (leaf.find('*') != std::string::npos ||
                 leaf.find('?') != std::string::npos)
+            {
+                // "*.*" and "**" both mean "everything"; normalise to "*" so
+                // extension-less names aren't excluded by a literal-dot match
+                // (mirrors NetworkProtocolFS::update_dir_filename).
+                _dir_filter = (leaf == "*.*" || leaf == "**") ? "*" : leaf;
                 dir_path = dir_path.substr(0, slash);
+            }
         }
     }
 
@@ -700,16 +724,38 @@ fujiError_t NetworkProtocolGDRIVE::read_dir_entry(char *buf, unsigned short len)
         std::string name = json_str(entry, "name");
         std::string mime = json_str(entry, "mimeType");
         std::string size_str = json_str(entry, "size");
+        std::string id = json_str(entry, "id");
+
+        is_directory = (mime == GDRIVE_FOLDER_MIME);
+
+        // A Drive shortcut (e.g. a folder shared with you and added to My
+        // Drive) stands in for its target. Present it as whatever it points
+        // at — so a shortcut-to-folder lists as a directory the user can
+        // descend into — and hand back the target's id, not the stub's.
+        if (mime == GDRIVE_SHORTCUT_MIME)
+        {
+            cJSON *sd = cJSON_GetObjectItemCaseSensitive(entry, "shortcutDetails");
+            is_directory = (json_str(sd, "targetMimeType") == GDRIVE_FOLDER_MIME);
+            std::string target = json_str(sd, "targetId");
+            if (!target.empty())
+                id = target;
+        }
+
+        // Apply the devicespec wildcard (e.g. "*.TXT", captured in
+        // open_dir_handle) to files only; directories are always shown so the
+        // tree stays navigable, matching the TNFS/SD/dir-cache convention.
+        if (!is_directory && !_dir_filter.empty() &&
+            !util_wildcard_match(name.c_str(), _dir_filter.c_str()))
+            continue;
 
         strncpy(buf, name.c_str(), len - 1);
         buf[len - 1] = '\0';
 
-        is_directory = (mime == GDRIVE_FOLDER_MIME);
         fileSize = size_str.empty() ? 0 : atoi(size_str.c_str());
         mode = 0755;
 
         if (_include_file_id)
-            entry_id = json_str(entry, "id");
+            entry_id = id;
 
         return FUJI_ERROR::NONE;
     }
