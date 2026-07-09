@@ -252,6 +252,8 @@ bool mgHttpClient::begin(std::string url)
     if (_handle == nullptr)
         return false;
 
+    _conn = nullptr; // fresh manager, any previous connection is invalid
+
     _url = url;
     // For mongoose, lowercase the first 5 characters of the URL, assuming it starts with http:// or https://
     for (size_t i = 0; i < 5 && i < _url.size(); ++i)
@@ -336,6 +338,9 @@ void mgHttpClient::close()
     _redirect_count = 0;
     _status_code = -1;
     _content_length = 0;
+    _conn = nullptr;
+    _declared_len = -1;
+    _body_received = 0;
     _is_chunked = false;
     _chunked_complete = false;
     _location.clear();
@@ -404,8 +409,23 @@ void mgHttpClient::handle_connect(struct mg_connection *c)
         _password = std::string(p.buf, p.len);
     }
 
-    // Send request
-    const char* method_str = method_to_string(_method);
+    send_request(c);
+
+    // Remember the connection so a keep-alive session can reuse it next request.
+    if (_keep_alive)
+        _conn = c;
+}
+
+// Write the HTTP request line, headers and (for write methods) body onto an
+// already-connected connection. Split out from handle_connect so a keep-alive
+// session can send a follow-up request on the reused connection.
+void mgHttpClient::send_request(struct mg_connection *c)
+{
+    const char *url = _url.c_str();
+    struct mg_str host = mg_url_host(url);
+    const char *method_str = method_to_string(_method);
+    const char *conn_hdr = _keep_alive ? "keep-alive" : "close";
+
     switch(_method)
     {
         case HTTP_GET:
@@ -421,8 +441,8 @@ void mgHttpClient::handle_connect(struct mg_connection *c)
             // start the request
             mg_printf(c, "%s %s HTTP/1.1\r\n"
                             "Host: %.*s\r\n"
-                            "Connection: close\r\n",
-                            method_str, mg_url_uri(url), (int)host.len, host.buf);
+                            "Connection: %s\r\n",
+                            method_str, mg_url_uri(url), (int)host.len, host.buf, conn_hdr);
 
             // send auth header
             if (!_username.empty())
@@ -535,6 +555,19 @@ void mgHttpClient::process_response_headers(struct mg_connection *c, struct mg_h
         }
     }
 
+    // Record the declared body length so a keep-alive transaction knows when the
+    // response is complete without waiting for the server to close the socket.
+    _declared_len = -1;
+    struct mg_str *clh = mg_http_get_header(&hm, "Content-Length");
+    if (clh != nullptr)
+    {
+        std::string cls(clh->buf, clh->len);
+        _declared_len = atol(cls.c_str());
+    }
+    // A HEAD (or 204/304) carries no body: it is complete as soon as headers arrive.
+    if (_keep_alive && (_method == HTTP_HEAD || _status_code == 204 || _status_code == 304))
+        _transaction_done = true;
+
 #ifdef VERBOSE_HTTP
     Debug_printf("  Headers: %d bytes\n", hdrs_len);
     Debug_printf("  status_code: %d\n", _status_code);
@@ -620,6 +653,10 @@ void mgHttpClient::process_body_data(struct mg_connection *c, char *data, int le
 #ifdef VERBOSE_HTTP
                 Debug_printf("mgHttpClient: Final chunk received, body=%d bytes\n", _content_length);
 #endif
+                // Keep-alive: the socket stays open, so mark the transaction done
+                // here rather than waiting for a close that won't come.
+                if (_keep_alive)
+                    _transaction_done = true;
             }
             o += cl;
         }
@@ -649,8 +686,14 @@ void mgHttpClient::process_body_data(struct mg_connection *c, char *data, int le
     {
         // Append entire body data to buffer
         _buffer_str.append(data, len);
+        _body_received += len;
         c->recv.len = 0;   // cleanup mongoose receive buffer
         _processed = true; // stop polling, data is available in _buffer_str
+
+        // Keep-alive: the connection is not closed by the server, so detect the
+        // end of the body from the declared Content-Length.
+        if (_keep_alive && _declared_len >= 0 && _body_received >= _declared_len)
+            _transaction_done = true;
     }
 }
 
@@ -724,11 +767,13 @@ void mgHttpClient::_httpevent_handler(struct mg_connection *c, int ev, void *ev_
             Debug_println("mgHttpClient: Chunked response ended before final chunk");
             client->_status_code = 902; // Fake HTTP status code to indicate truncated chunked body. Maybe should be 204-"Connection was reset during read/write"
         }
+        client->_conn = nullptr; // connection gone; a keep-alive reuse must reconnect
         client->_transaction_done = true;
         break;
 
     case MG_EV_ERROR:
         Debug_printf("mgHttpClient: Error - %s\n", (const char*)ev_data);
+        client->_conn = nullptr;
         client->_transaction_done = true;
         client->_status_code = 901; // Fake HTTP status code to indicate connection error
         break;
@@ -799,6 +844,8 @@ void mgHttpClient::_perform_connect()
     _content_length = 0;
     _is_chunked = false;
     _chunked_complete = false;
+    _declared_len = -1;
+    _body_received = 0;
 
     _transaction_begin = true; // waiting for response headers
     _transaction_done = false;
@@ -810,7 +857,17 @@ void mgHttpClient::_perform_connect()
         return;
     }
 
-    mg_connect(_handle.get(), _url.c_str(), _httpevent_handler, this);  // Create client connection
+    if (_keep_alive && _conn != nullptr)
+    {
+        // Reuse the existing keep-alive connection: send the request directly on
+        // it. If the peer has since dropped it, the poll will surface MG_EV_CLOSE
+        // and the caller retries on a fresh connection.
+        send_request(_conn);
+    }
+    else
+    {
+        mg_connect(_handle.get(), _url.c_str(), _httpevent_handler, this);  // Create client connection
+    }
 }
 
 void mgHttpClient::_perform_fetch()

@@ -61,6 +61,15 @@ private:
     int _status_code = -1;
     int _content_length = 0;
 
+    // keep-alive (persistent connection) support. When enabled, requests are
+    // sent with "Connection: keep-alive", response completion is detected via
+    // Content-Length (instead of the server closing the socket), and the
+    // connection is reused across requests.
+    bool _keep_alive = false;
+    struct mg_connection *_conn = nullptr; // reused connection when keep-alive
+    long _declared_len = -1;               // Content-Length of current response, -1 if unknown
+    long _body_received = 0;               // body bytes received so far this transaction
+
     // chunked transfer encoding
     bool _is_chunked = false;
     bool _chunked_complete = false;
@@ -103,6 +112,7 @@ private:
 	// int _perform_stream(esp_http_client_method_t method, uint8_t *write_data, int write_size);
 
     void handle_connect(struct mg_connection *c);
+    void send_request(struct mg_connection *c);
     void handle_http_msg(struct mg_connection *c, struct mg_http_message *hm);
     void handle_read(struct mg_connection *c);
 	void process_response_headers(mg_connection *c, mg_http_message &hm, int hdrs_len);
@@ -138,6 +148,9 @@ public:
     bool is_transaction_done() { return _transaction_done; }
     int content_length() const { return _content_length; }
     int available();
+
+    // Enable/disable connection reuse (keep-alive) for subsequent requests.
+    void set_keep_alive(bool enable) { _keep_alive = enable; }
 
     int read(uint8_t *dest_buffer, int dest_bufflen);
 
