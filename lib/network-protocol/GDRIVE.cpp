@@ -304,9 +304,7 @@ std::string NetworkProtocolGDRIVE::find_child(const std::string &folder_id,
     std::string q = "'" + folder_id + "' in parents"
                     " and name='" + name + "'"
                     " and trashed=false";
-    // A folder that was shared with you and added to My Drive lives in your
-    // tree as a *shortcut* (mimeType shortcut), not the folder itself, so the
-    // folder restriction must admit shortcuts too — we resolve them below.
+    // A shared folder added to My Drive appears as a shortcut, not the folder.
     if (is_folder)
         q += " and (mimeType='" GDRIVE_FOLDER_MIME "'"
              " or mimeType='" GDRIVE_SHORTCUT_MIME "')";
@@ -329,8 +327,7 @@ std::string NetworkProtocolGDRIVE::find_child(const std::string &folder_id,
         cJSON *item = cJSON_GetArrayItem(files, 0);
         id = json_str(item, "id");
 
-        // Follow a shortcut to its real target so callers (resolve_path,
-        // stat, open, del, dir listing) operate on the actual item.
+        // Follow shortcuts so callers operate on the real target.
         if (json_str(item, "mimeType") == GDRIVE_SHORTCUT_MIME)
         {
             cJSON *sd = cJSON_GetObjectItemCaseSensitive(item, "shortcutDetails");
@@ -624,9 +621,7 @@ fujiError_t NetworkProtocolGDRIVE::open_dir_handle()
             if (leaf.find('*') != std::string::npos ||
                 leaf.find('?') != std::string::npos)
             {
-                // "*.*" and "**" both mean "everything"; normalise to "*" so
-                // extension-less names aren't excluded by a literal-dot match
-                // (mirrors NetworkProtocolFS::update_dir_filename).
+                // "*.*"/"**" mean everything; normalise so dotless names match.
                 _dir_filter = (leaf == "*.*" || leaf == "**") ? "*" : leaf;
                 dir_path = dir_path.substr(0, slash);
             }
@@ -728,10 +723,7 @@ fujiError_t NetworkProtocolGDRIVE::read_dir_entry(char *buf, unsigned short len)
 
         is_directory = (mime == GDRIVE_FOLDER_MIME);
 
-        // A Drive shortcut (e.g. a folder shared with you and added to My
-        // Drive) stands in for its target. Present it as whatever it points
-        // at — so a shortcut-to-folder lists as a directory the user can
-        // descend into — and hand back the target's id, not the stub's.
+        // Present a shortcut as its target (folder shows as a directory).
         if (mime == GDRIVE_SHORTCUT_MIME)
         {
             cJSON *sd = cJSON_GetObjectItemCaseSensitive(entry, "shortcutDetails");
@@ -741,9 +733,7 @@ fujiError_t NetworkProtocolGDRIVE::read_dir_entry(char *buf, unsigned short len)
                 id = target;
         }
 
-        // Apply the devicespec wildcard (e.g. "*.TXT", captured in
-        // open_dir_handle) to files only; directories are always shown so the
-        // tree stays navigable, matching the TNFS/SD/dir-cache convention.
+        // Filter files by the wildcard; directories always list.
         if (!is_directory && !_dir_filter.empty() &&
             !util_wildcard_match(name.c_str(), _dir_filter.c_str()))
             continue;
