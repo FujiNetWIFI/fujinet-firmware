@@ -173,9 +173,8 @@ void iwmNetwork::get_prefix()
     auto& current_network_data = network_data_map[current_network_unit];
 
     Debug_printf("iwmNetwork::get_prefix(%s)\n", current_network_data.prefix.c_str());
-    memset(data_buffer, 0, sizeof(data_buffer));
-    memcpy(data_buffer, current_network_data.prefix.c_str(), current_network_data.prefix.length());
-    data_len = current_network_data.prefix.length();
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_send(current_network_data.prefix);
 }
 
 /**
@@ -273,8 +272,13 @@ void iwmNetwork::channel_mode()
 void iwmNetwork::json_query(iwm_decoded_cmd_t cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
-    Debug_printf("\r\nQuery set to: %s, data_len: %d\r\n", string((char *)data_buffer, data_len).c_str(), data_len);
-    current_network_data.json->setReadQuery(string((char *)data_buffer, data_len), data_buffer[1]);
+    std::string buffer(data_len, 0);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
+    buffer.resize(strlen(buffer.c_str())); // Truncate to null terminator
+    Debug_printf("\r\nQuery set to: %s, data_len: %d\r\n", buffer.c_str(), buffer.size());
+    current_network_data.json->setReadQuery(buffer, 0);
+    SYSTEM_BUS.transaction_success();
 }
 
 void iwmNetwork::json_parse()
@@ -334,7 +338,8 @@ void iwmNetwork::status()
     status->avail = avail;
     status->conn = s.connected;
     status->err = s.error;
-    data_len = sizeof(*status);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_send(status, sizeof(*status));
 }
 
 void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
@@ -368,10 +373,7 @@ void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
     }
 
     Debug_printf("\r\nStatus code complete, sending response");
-    //send_data_packet(data_len);
     SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, data_len);
-    data_len = 0;
-    memset(data_buffer, 0, sizeof(data_buffer));
 }
 
 void iwmNetwork::net_read()
@@ -386,33 +388,12 @@ bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t c
     {
         data_len = 0;
     }
-    else if (num_bytes > current_network_data.json->available())
-    {
-        data_len = current_network_data.json->readValueLen();
-        current_network_data.json->readValue(data_buffer, data_len);
-
-        // Debug_printf("read_channel_json(1) - data_len: %02x, json_bytes_remaining: %02x\n", data_len, current_network_data.json->json_bytes_remaining);
-        // int print_len = data_len;
-        // if (print_len > 16) print_len = 16;
-        //std::string msg = util_hexdump(data_buffer, print_len);
-        //Debug_printf("%s\n", msg.c_str());
-        //if (print_len != data_len) {
-        //    Debug_printf("... truncated");
-        //}
-    }
     else
     {
+        num_bytes = std::min<uint16_t>(num_bytes, current_network_data.json->readValueLen());
         current_network_data.json->readValue(data_buffer, num_bytes);
-        data_len = current_network_data.json->readValueLen();
-
-        // Debug_printf("read_channel_json(2) - data_len: %02x, json_bytes_remaining: %02x\n", num_bytes, current_network_data.json->json_bytes_remaining);
-        // int print_len = num_bytes;
-        // if (print_len > 16) print_len = 16;
-        //std::string msg = util_hexdump(data_buffer, print_len);
-        //Debug_printf("%s\n", msg.c_str());
-        //if (print_len != num_bytes) {
-        //    Debug_printf("... truncated");
-        //}
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_send(data_buffer, num_bytes);
     }
 
     return false;
@@ -428,19 +409,21 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
         return true; // Punch out.
 
     avail = current_network_data.protocol->available();
-    data_len = std::min((size_t) num_bytes, std::min((size_t) 512, avail));
+    auto rlen = std::min<size_t>({
+            num_bytes, 512, current_network_data.protocol->available()});
 
     //Debug_printf("\r\nAvailable bytes %04x\n", data_len);
 
-    if (current_network_data.protocol->read(data_len) != FUJI_ERROR::NONE) // protocol adapter returned error
+    if (current_network_data.protocol->read(rlen) != FUJI_ERROR::NONE) // protocol adapter returned error
     {
         err = current_network_data.protocol->error == NDEV_STATUS::SUCCESS ? SP_ERR::NOERROR : SP_ERR::BADCMD;
         return true;
     }
     else // everything ok
     {
-        memcpy(data_buffer, current_network_data.receiveBuffer.data(), data_len);
-        current_network_data.receiveBuffer.erase(0, data_len);
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_send(current_network_data.receiveBuffer, rlen);
+        current_network_data.receiveBuffer.erase(0, rlen);
     }
     return false;
 }
@@ -475,9 +458,6 @@ void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
 
     auto& current_network_data = network_data_map[current_network_unit];
 
-    data_len = 0;
-    memset(data_buffer, 0, sizeof(data_buffer));
-
     switch (current_network_data.channelMode)
     {
     case CHANNEL_MODE::PROTOCOL:
@@ -496,8 +476,6 @@ void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
     {
         Debug_printf("\r\nsending Network read data packet (%04x bytes)...", data_len);
         SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, data_len);
-        data_len = 0;
-        memset(data_buffer, 0, sizeof(data_buffer));
     }
 }
 
@@ -505,8 +483,11 @@ void iwmNetwork::net_write()
 {
     auto& current_network_data = network_data_map[current_network_unit];
     // TODO: Handle errors.
-    current_network_data.transmitBuffer += string((char *)data_buffer, data_len);
-    write_channel(data_len);
+    std::string buffer(data_len, 0);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
+    current_network_data.transmitBuffer += buffer;
+    write_channel(buffer.size());
 }
 
 void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
@@ -524,23 +505,11 @@ void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
 
     auto& current_network_data = network_data_map[current_network_unit];
 
-    if (data_len == -1)
-        iwm_return_ioerror();
+    current_network_data.transmitBuffer += string((char *)data_buffer, cmd.char_rw.length);
+    if (write_channel(cmd.char_rw.length))
+        send_reply_packet(SP_ERR::IOERROR);
     else
-    {
-        current_network_data.transmitBuffer += string((char *)data_buffer, cmd.char_rw.length);
-        if (write_channel(cmd.char_rw.length))
-        {
-            send_reply_packet(SP_ERR::IOERROR);
-        }
-        else
-        {
-            send_reply_packet(SP_ERR::NOERROR);
-        }
-    }
-
-    data_len = 0;
-    memset(data_buffer, 0, sizeof(data_buffer));
+        send_reply_packet(SP_ERR::NOERROR);
 }
 
 void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
@@ -641,9 +610,6 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
         err_result = SP_ERR::IOERROR;
 
     send_reply_packet(err_result);
-
-    data_len = 0;
-    memset(data_buffer, 0, sizeof(data_buffer));
 }
 
 /**
@@ -849,9 +815,14 @@ void iwmNetwork::process_udp(fujiCommandID_t fuji_command)
 #endif /* ESP_PLATFORM */
     case NETCMD_SET_DESTINATION:
         {
-            cmd_err = udp->set_destination(data_buffer, data_len);
+            ByteBuffer buffer(data_len, 0);
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+            SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
+            cmd_err = udp->set_destination(buffer.data(), buffer.size());
             if (cmd_err != FUJI_ERROR::NONE)
                 err = SP_ERR::IOERROR;
+            else
+                SYSTEM_BUS.transaction_success();
         }
         break;
     default:

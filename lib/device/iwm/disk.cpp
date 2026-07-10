@@ -185,49 +185,44 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
   Debug_printf("\r\nDrive %02x ", id());
   Debug_printf("Write block %06lx", cmd.block_rw.num);
   // partition number indicates which 32mb block we access
-  if (data_len == -1)
-    iwm_return_ioerror();
-  else
-    { // We have to return the error after ingesting the block to write or ProDOS doesn't correctly see the status.
 
-      if((!device_active)) {
-        Debug_printf("iwm_writeblock while device offline!\r\n");
-        send_reply_packet(SP_ERR::OFFLINE);
-        return;
-      }
-      if(switched && readonly) {
-        Debug_printf("iwm_writeblock while readonly and disk switched\r\n");
-        send_reply_packet(SP_ERR::NOWRITE);
-        switched = false;
-        return;
-      }
-      if(switched) {
-        Debug_printf("iwm_writeblock while disk switched = true\r\nn");
-        send_reply_packet(SP_ERR::OFFLINE);
-        switched = false;
-        return;
-      }
-      if(readonly) {
-        Debug_printf("\r\niwm_writeblock tried to write while readonly = true!");
-        send_reply_packet(SP_ERR::NOWRITE);
-        return;
-      }
+  if((!device_active)) {
+    Debug_printf("iwm_writeblock while device offline!\r\n");
+    send_reply_packet(SP_ERR::OFFLINE);
+    return;
+  }
+  if(switched && readonly) {
+    Debug_printf("iwm_writeblock while readonly and disk switched\r\n");
+    send_reply_packet(SP_ERR::NOWRITE);
+    switched = false;
+    return;
+  }
+  if(switched) {
+    Debug_printf("iwm_writeblock while disk switched = true\r\nn");
+    send_reply_packet(SP_ERR::OFFLINE);
+    switched = false;
+    return;
+  }
+  if(readonly) {
+    Debug_printf("\r\niwm_writeblock tried to write while readonly = true!");
+    send_reply_packet(SP_ERR::NOWRITE);
+    return;
+  }
 
-      uint16_t sdstato = BLOCK_DATA_LEN;
-      _disk->write(cmd.block_rw.num, &sdstato, data_buffer);
+  uint16_t sdstato = BLOCK_DATA_LEN;
+  _disk->write(cmd.block_rw.num, &sdstato, data_buffer);
 
-      if (sdstato != BLOCK_DATA_LEN)
-      {
-        Debug_printf("\r\nFile Write err: %d bytes", sdstato);
-        if (sdstato == 0)
-          err = SP_ERR::NOWRITE; // write protected todo: we should probably have a read-only flag that gets set and tested up top
-        else
-          err = SP_ERR::IOERROR; // 6;
-        //return;
-      }
-      //now return status code to host
-      send_reply_packet(err);
-    }
+  if (sdstato != BLOCK_DATA_LEN)
+  {
+    Debug_printf("\r\nFile Write err: %d bytes", sdstato);
+    if (sdstato == 0)
+      err = SP_ERR::NOWRITE; // write protected todo: we should probably have a read-only flag that gets set and tested up top
+    else
+      err = SP_ERR::IOERROR; // 6;
+    //return;
+  }
+  //now return status code to host
+  send_reply_packet(err);
 }
 
 void iwmDisk::iwm_format(iwm_decoded_cmd_t cmd)

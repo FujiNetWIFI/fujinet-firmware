@@ -6,6 +6,8 @@
 #include "epson_80.h"
 #include "fnSystem.h"
 
+#include <algorithm>
+
 constexpr const char *const iwmPrinter::printer_model_str[PRINTER_INVALID];
 
 iwmPrinter::iwmPrinter(FileSystem *filesystem, printer_type printer_type)
@@ -59,22 +61,21 @@ void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
 {
     Debug_printf("\nPrinter: Write %u bytes\n", cmd.char_rw.length);
 
-    if (data_len == -1)
+    size_t offset = 0;
+    ByteBuffer buffer(data_len, 0);
+
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
+
+    while (offset < buffer.size())
     {
-        iwm_return_ioerror();
-        return;
+        size_t chunk_size = std::min<size_t>(80, buffer.size() - offset);
+        std::copy_n(buffer.begin() + offset, chunk_size, _pptr->provideBuffer());
+        _pptr->process(chunk_size, 8, 0);
+        offset += chunk_size;
     }
 
-    uint16_t offset = 0;
-
-    while (data_len > 0)
-    {
-        uint8_t l = (data_len > 80 ? 80 : data_len);
-        memcpy(_pptr->provideBuffer(), &data_buffer[offset], l);
-        _pptr->process(l, 8, 0);
-        data_len -= l;
-        offset += l;
-    }
+    SYSTEM_BUS.transaction_success();
 
     _last_ms = fnSystem.millis();
     send_reply_packet(SP_ERR::NOERROR);
