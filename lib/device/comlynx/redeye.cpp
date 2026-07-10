@@ -658,6 +658,7 @@ bool lynxNetStream::redeye_check_logon_state()
 			game.state.logon = false;
 			game.state.logon_timer = 0;
 
+			// Change baud rate for Gauntlet3 (0001)
 			if (game.game_id == 0001) {
 				SYSTEM_BUS.change_baud(31250);
 			}
