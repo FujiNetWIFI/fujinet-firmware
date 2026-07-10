@@ -22,7 +22,7 @@ private:
     uint8_t buf_net[NETSTREAM_BUFFER_SIZE];
     uint8_t buf_stream[NETSTREAM_BUFFER_SIZE];
 
-    uint8_t buf_stream_index=0;
+    uint16_t buf_stream_index=0;
 
     void comlynx_process() override;
 
@@ -56,6 +56,7 @@ public:
     void redeye_process_logon_packet_from_lynx(uint8_t *buf);
     void redeye_process_game_packet_from_lynx(uint8_t *buf);
 
+    void redeye_change_baud(int baud);
 };
 
 #endif

@@ -509,4 +509,14 @@ void virtualDevice::transaction_put(const void *data, size_t len, bool err)
     return;
 }
 
+
+void systemBus::change_baud(int baud)
+{
+    _port.begin(ChannelConfig()
+                .deviceID(FN_UART_BUS)
+                .baud(baud)
+                .parity(UART_PARITY_ODD)
+                );	
+}
+
 #endif /* BUILD_LYNX */
