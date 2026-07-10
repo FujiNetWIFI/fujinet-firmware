@@ -630,9 +630,11 @@ void systemBus::_drivewire_process_cmd()
             op_reset();
             break;
         case OP::READEX:
+        case OP::REREADEX:
             op_readex();
             break;
         case OP::WRITE:
+        case OP::REWRITE:
             op_write();
             break;
         case OP::TIME:
