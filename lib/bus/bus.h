@@ -56,6 +56,10 @@ public:
     inline void transaction_send(ByteBuffer data, bool is_error=false) {
         transaction_send(data.data(), data.size(), is_error);
     }
+    inline void transaction_send(int val) {
+        uint8_t c = val;
+        transaction_send(&c, sizeof(c));
+    }
 };
 
 // Temporary migration wrappers. Remove after all buses have been
@@ -79,6 +83,10 @@ protected:
     }
     inline void transaction_put(ByteBuffer data) {
         transaction_put(data.data(), data.size());
+    }
+    void transaction_put(int val) {
+        uint8_t c = val;
+        transaction_put(&c, sizeof(c));
     }
 #endif
 };

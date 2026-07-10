@@ -132,8 +132,8 @@ void iwmFuji::iwm_dummy_command() // SP CTRL command
 void iwmFuji::iwm_hello_world()
 {
         Debug_printf("\r\nFuji cmd: HELLO WORLD");
-        memcpy(data_buffer, "HELLO WORLD", 11);
-        data_len = 11;
+        transaction_begin(TRANS_STATE::NO_GET);
+        transaction_put("HELLO WORLD", 11);
 }
 
 //==============================================================================================================================
@@ -159,14 +159,15 @@ void iwmFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
 
 void iwmFuji::iwm_stat_get_heap()
 {
+    u32le_t avail;
 #ifdef ESP_PLATFORM
-        uint32_t avail = esp_get_free_internal_heap_size();
+    avail = esp_get_free_internal_heap_size();
 #else
-        uint32_t avail = 0;
+    avail = 0;
 #endif
 
-    memcpy(data_buffer, &avail, sizeof(avail));
-    data_len = sizeof(avail);
+    transaction_begin(TRANS_STATE::NO_GET);
+    transaction_put(&avail, sizeof(avail));
     return;
 }
 //  Make new disk and shove into device slot
@@ -219,8 +220,8 @@ void iwmFuji::iwm_stat_get_wifi_enabled()
 {
         uint8_t e = Config.get_wifi_enabled() ? 1 : 0;
         Debug_printf("\nFuji cmd: GET WIFI ENABLED: %d", e);
-        data_buffer[0] = e;
-        data_len = 1;
+        transaction_begin(TRANS_STATE::NO_GET);
+        transaction_put(e);
 }
 
 void iwmFuji::iwm_ctrl_enable_device()
@@ -308,8 +309,8 @@ iwm_device_info_block_t iwmFuji::create_dib_reply_packet()
 
 void iwmFuji::send_stat_get_enable()
 {
-        data_len = 1;
-        data_buffer[0] = 1;
+    transaction_begin(TRANS_STATE::NO_GET);
+    transaction_put(1);
 }
 
 void iwmFuji::iwm_open(iwm_decoded_cmd_t cmd)
@@ -345,7 +346,6 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
     err_result = SP_ERR::NOERROR;
 
     Debug_printf("\nDecoding Control Data Packet for code: 0x%02x\r\n", cmd.control_status.fuji.command);
-    print_packet((uint8_t *)data_buffer, data_len);
 
     auto it = control_handlers.find(cmd.control_status.fuji.command);
     if (it != control_handlers.end()) {
@@ -379,9 +379,11 @@ void iwmFuji::handle_ctl_eject(uint8_t spid)
 
 void iwmFuji::iwm_ctrl_hash_input()
 {
-    std::vector<uint8_t> data(data_len, 0);
-    std::copy(&data_buffer[0], &data_buffer[0] + data_len, data.begin());
+    ByteBuffer data(data_len, 0);
+    transaction_begin(TRANS_STATE::WILL_GET);
+    transaction_get(data.data(), data.size());
     hasher.add_data(data);
+    transaction_complete();
 }
 
 void iwmFuji::iwm_ctrl_hash_compute(bool clear_data)
@@ -396,9 +398,8 @@ void iwmFuji::iwm_stat_hash_length()
     uint8_t is_hex = data_buffer[0] == 1;
     uint8_t r = hasher.hash_length(algorithm, is_hex);
 
-        memset(data_buffer, 0, sizeof(data_buffer));
-        data_buffer[0] = r;
-        data_len = 1;
+    transaction_begin(TRANS_STATE::NO_GET);
+    transaction_put(r);
 }
 
 void iwmFuji::iwm_ctrl_hash_output()
@@ -410,17 +411,13 @@ void iwmFuji::iwm_ctrl_hash_output()
 void iwmFuji::iwm_stat_hash_output()
 {
     Debug_printf("FUJI: HASH OUTPUT STAT\n");
-        memset(data_buffer, 0, sizeof(data_buffer));
+    memset(data_buffer, 0, sizeof(data_buffer));
 
-        if (hash_is_hex_output) {
-                std::string hex_output = hasher.output_hex();
-                std::memcpy(data_buffer, hex_output.c_str(), hex_output.size());
-                data_len = static_cast<int>(hex_output.size());
-        } else {
-                std::vector<uint8_t> binary_output = hasher.output_binary();
-                std::memcpy(data_buffer, binary_output.data(), binary_output.size());
-                data_len = static_cast<int>(binary_output.size());
-        }
+    transaction_begin(TRANS_STATE::NO_GET);
+    if (hash_is_hex_output)
+        transaction_put(hasher.output_hex());
+    else
+        transaction_put(hasher.output_binary());
 }
 
 void iwmFuji::iwm_ctrl_hash_clear()
@@ -431,9 +428,11 @@ void iwmFuji::iwm_ctrl_hash_clear()
 void iwmFuji::iwm_ctrl_qrcode_input()
 {
     Debug_printf("FUJI: QRCODE INPUT (len: %d)\n", data_len);
-    std::vector<uint8_t> data(data_len, 0);
-    std::copy(&data_buffer[0], &data_buffer[0] + data_len, data.begin());
-    _qrManager.data += std::string((const char *)data.data(), data_len);
+    std::string data(data_len, 0);
+    transaction_begin(TRANS_STATE::WILL_GET);
+    transaction_get(data.data(), data.size());
+    _qrManager.data += data;
+    transaction_complete();
 }
 
 void iwmFuji::iwm_ctrl_qrcode_encode()
@@ -469,11 +468,11 @@ void iwmFuji::iwm_ctrl_qrcode_encode()
 
 void iwmFuji::iwm_stat_qrcode_length()
 {
+    u16le_t len;
     Debug_printf("FUJI: QRCODE LENGTH\n");
-    size_t len = _qrManager.code.size();
-        data_buffer[0] = (uint8_t)(len >> 0);
-    data_buffer[1] = (uint8_t)(len >> 8);
-        data_len = 2;
+    len = _qrManager.code.size();
+    transaction_begin(TRANS_STATE::NO_GET);
+    transaction_put(&len, sizeof(len));
 }
 
 void iwmFuji::iwm_ctrl_qrcode_output()
@@ -494,12 +493,9 @@ void iwmFuji::iwm_ctrl_qrcode_output()
 void iwmFuji::iwm_stat_qrcode_output()
 {
     Debug_printf("FUJI: QRCODE OUTPUT STAT\n");
-        memset(data_buffer, 0, sizeof(data_buffer));
-
-        data_len = _qrManager.code.size();
-        memcpy(data_buffer, &_qrManager.code[0], data_len);
-
-        _qrManager.code.clear();
+    transaction_begin(TRANS_STATE::NO_GET);
+    transaction_put(_qrManager.code);
+    _qrManager.code.clear();
     _qrManager.code.shrink_to_fit();
 }
 

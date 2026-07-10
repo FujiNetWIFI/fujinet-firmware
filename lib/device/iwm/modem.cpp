@@ -1399,37 +1399,23 @@ void iwmModem::iwm_read(iwm_decoded_cmd_t cmd)
 
     Debug_printf("\r\nDevice %02x READ %04x bytes from address %06lx\n", id(), cmd.char_rw.length, cmd.char_rw.address);
 
-    memset(data_buffer, 0, sizeof(data_buffer));
-
+    std::vector<uint8_t> buffer;
     if (mw) // check if we really have some bytes waiting
     {
-        size_t numbytes = cmd.char_rw.length;
+        size_t numbytes = std::min<uint16_t>(mw, cmd.char_rw.length);
 
-        if (mw < numbytes) //if there are less than requested, just send what we have
+        for (size_t i = 0; i < numbytes; i++)
         {
-            numbytes = mw;  
-        }
-
-        data_len = 0;
-        for (int i = 0; i < numbytes; i++)
-        {
-            char b;
+            uint8_t b;
 #ifdef ESP_PLATFORM // OS
             xQueueReceive(mrxq, &b, portMAX_DELAY);
 #endif
-            data_buffer[i] = b;
-            data_len++;
+            buffer.push_back(b);
         }
-    }
-    else // no bytes waiting, just reply back with no data
-    {
-        data_len = 0;
     }
 
     Debug_printf("\r\nsending Modem read data packet ...");
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, data_len);
-    data_len = 0;
-    memset(data_buffer, 0, sizeof(data_buffer));
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, buffer.data(), buffer.size());
 }
 
 void iwmModem::iwm_write(iwm_decoded_cmd_t cmd)
@@ -1463,18 +1449,14 @@ void iwmModem::iwm_ctrl(iwm_decoded_cmd_t cmd)
 
 void iwmModem::iwm_modem_status()
 {
+    u16le_t mw;
 #ifdef ESP_PLATFORM // OS
-    unsigned short mw = uxQueueMessagesWaiting(mrxq);
-#else
-    unsigned short mw;
+    mw = uxQueueMessagesWaiting(mrxq);
 #endif
 
-    //if (mw > 512)
-    //    mw = 512;
 
-    data_buffer[0] = mw & 0xFF;
-    data_buffer[1] = mw >> 8;
-    data_len = 2;
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_send(&mw, sizeof(mw));
     Debug_printf("--- %u bytes waiting\n", mw);
 }
 
