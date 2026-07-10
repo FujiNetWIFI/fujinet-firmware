@@ -4,6 +4,7 @@ import datetime
 import re
 import subprocess
 import sys
+import re
 
 class Version:
     def __init__(self):
@@ -17,12 +18,41 @@ class Version:
         self._git_date = None
         self._head_tags = None
 
+    def run_command(self, cmd):
+        return subprocess.check_output(cmd, universal_newlines=True).strip()
+
+    def get_modified_files(self):
+        files = self.run_command(["git", "diff", "--name-only"]).split("\n")
+        files = [f for f in files if f]
+        return files
+
+    def get_commit_version(self):
+        version = self.run_command(["git", "describe", "--always", "HEAD"])
+        m = re.match(r"^v([0-9]+)[.]([0-9]+)[.]([0-9]+)-([0-9]+)-g(.*)", version)
+        if m:
+            ver_major = int(m.group(1))
+            ver_minor = int(m.group(2))
+            ver_minor = int(m.group(3))
+            version = f"v{m.group(1)}.{m.group(2)}-{m.group(5)}"
+        else:
+            m = re.match(r"^([a-z0-9]{8})$", version)
+            if m:
+                version = f"v{ver_major}.{ver_minor}-{version}"
+
+        modified = self.get_modified_files()
+        if modified:
+            version += "*"
+        return version
+
     def load(self, version):
         """load version attributes"""
         self.version = version
         self.suffix = ""
         if version not in self.head_tags:
-            if self.git_sha_short:
+            descr = self.get_commit_version()
+            if descr:
+                self.version = descr
+            elif self.git_sha_short:
                 self.suffix = "+git-" + self.git_sha_short
             else:
                 self.suffix = "-nogit"
