@@ -45,19 +45,19 @@ iwm_device_info_block_t iwmPrinter::create_dib_reply_packet()
   return dib;
 }
 
-void iwmPrinter::iwm_open(iwm_decoded_cmd_t cmd)
+void iwmPrinter::iwm_open(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\nPrinter: Open\n");
-    send_reply_packet(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmPrinter::iwm_close(iwm_decoded_cmd_t cmd)
+void iwmPrinter::iwm_close(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\nPrinter: Close\n");
-    send_reply_packet(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
+void iwmPrinter::iwm_write(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\nPrinter: Write %u bytes\n", cmd.char_rw.length);
 
@@ -78,7 +78,7 @@ void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
     SYSTEM_BUS.transaction_success();
 
     _last_ms = fnSystem.millis();
-    send_reply_packet(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
 /**

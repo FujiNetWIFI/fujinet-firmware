@@ -244,26 +244,20 @@ protected:
   uint8_t _devnum; // assigned by Apple II during INIT
   bool _initialized;
 
-  void send_init_reply_packet(uint8_t source, spError_t err);
-  void send_reply_packet(spError_t err);
-
   virtual void shutdown() = 0;
 
   // FIXME - these are all bus commands and belong in systemBus
-  virtual void iwm_status(iwm_decoded_cmd_t cmd);
-  virtual void iwm_readblock(iwm_decoded_cmd_t cmd);
-  virtual void iwm_writeblock(iwm_decoded_cmd_t cmd);
-  virtual void iwm_format(iwm_decoded_cmd_t cmd);
-  virtual void iwm_ctrl(iwm_decoded_cmd_t cmd);
-  virtual void iwm_open(iwm_decoded_cmd_t cmd);
-  virtual void iwm_close(iwm_decoded_cmd_t cmd);
-  virtual void iwm_read(iwm_decoded_cmd_t cmd);
-  virtual void iwm_write(iwm_decoded_cmd_t cmd);
+  virtual void iwm_status(const iwm_decoded_cmd_t &cmd);
+  virtual void iwm_readblock(const iwm_decoded_cmd_t &cmd);
+  virtual void iwm_writeblock(const iwm_decoded_cmd_t &cmd);
+  virtual void iwm_format(const iwm_decoded_cmd_t &cmd);
+  virtual void iwm_ctrl(const iwm_decoded_cmd_t &cmd);
+  virtual void iwm_open(const iwm_decoded_cmd_t &cmd);
+  virtual void iwm_close(const iwm_decoded_cmd_t &cmd);
+  virtual void iwm_read(const iwm_decoded_cmd_t &cmd);
+  virtual void iwm_write(const iwm_decoded_cmd_t &cmd);
 
-  void iwm_return_badcmd(iwm_decoded_cmd_t cmd);
-  void iwm_return_device_offline(iwm_decoded_cmd_t cmd);
-  void iwm_return_ioerror();
-  void iwm_return_noerror();
+  void iwm_return_badcmd(const iwm_decoded_cmd_t &cmd);
 
   // iwm packet handling
   static uint8_t data_buffer[MAX_DATA_LEN]; // un-encoded binary data (512 bytes for a block)
@@ -290,6 +284,7 @@ class systemBus : public SystemBusBase
 {
 private:
   virtualDevice *_activeDev = nullptr;
+  ByteBuffer _transaction_response;
 
   iwmPrinter *_printerdev = nullptr;
 
@@ -320,8 +315,10 @@ private:
   bool iwm_req_assert_timeout(int t) { return smartport.req_wait_for_rising_timeout(t); };
 
   iwm_decoded_cmd_t command;
-  void iwm_process(iwm_decoded_cmd_t cmd);
+  void iwm_process(const iwm_decoded_cmd_t &cmd);
+  error_is_true iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, spError_t err, const void* data, uint16_t num);
 
+  void send_init_reply_packet(uint8_t source, spError_t err);
   void send_status_reply_packet();
   void send_status_dib_reply_packet();
 
@@ -335,7 +332,6 @@ public:
 
   cmdPacket_t command_packet;
   bool iwm_decode_data_packet(uint8_t *a, int &n);
-  error_is_true iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, spError_t err, const void* data, uint16_t num);
 
   // these things stay for the most part
   void setup();
@@ -349,7 +345,8 @@ public:
 
   void transaction_accept(transState_t expectMoreData) override;
   void transaction_success() override;
-  void transaction_error() override;
+  void transaction_error(spError_t err);
+  void transaction_error() override { transaction_error(SP_ERR::IOERROR); }
   success_is_true transaction_get(void *data, size_t len) override;
   using SystemBusBase::transaction_send;
   void transaction_send(const void *data, size_t len, bool is_error=false) override;

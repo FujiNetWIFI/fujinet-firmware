@@ -1370,13 +1370,13 @@ iwm_device_info_block_t iwmModem::create_dib_reply_packet()
   return dib;
 }
 
-void iwmModem::iwm_open(iwm_decoded_cmd_t cmd)
+void iwmModem::iwm_open(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\nModem: Open\n");
-    send_reply_packet(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmModem::iwm_close(iwm_decoded_cmd_t cmd)
+void iwmModem::iwm_close(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\nModem: Close\n");
     
@@ -1386,10 +1386,10 @@ void iwmModem::iwm_close(iwm_decoded_cmd_t cmd)
         tcpClient.stop();
     }
     
-    send_reply_packet(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmModem::iwm_read(iwm_decoded_cmd_t cmd)
+void iwmModem::iwm_read(const iwm_decoded_cmd_t &cmd)
 {
 #ifdef ESP_PLATFORM // OS
     unsigned short mw = uxQueueMessagesWaiting(mrxq);
@@ -1415,10 +1415,11 @@ void iwmModem::iwm_read(iwm_decoded_cmd_t cmd)
     }
 
     Debug_printf("\r\nsending Modem read data packet ...");
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, buffer.data(), buffer.size());
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_send(buffer);
 }
 
-void iwmModem::iwm_write(iwm_decoded_cmd_t cmd)
+void iwmModem::iwm_write(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\nWRITE %u bytes\n", cmd.char_rw.length);
 
@@ -1433,10 +1434,10 @@ void iwmModem::iwm_write(iwm_decoded_cmd_t cmd)
 #endif
     }
 
-    send_reply_packet(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmModem::iwm_ctrl(iwm_decoded_cmd_t cmd)
+void iwmModem::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
 {
     spError_t err_result = SP_ERR::NOERROR;
 
@@ -1444,7 +1445,7 @@ void iwmModem::iwm_ctrl(iwm_decoded_cmd_t cmd)
     print_packet(data_buffer,data_len);
 
     Debug_printf("\nSending Control Reply");
-    send_reply_packet(err_result);
+    SYSTEM_BUS.transaction_error(err_result);
 }
 
 void iwmModem::iwm_modem_status()
@@ -1460,7 +1461,7 @@ void iwmModem::iwm_modem_status()
     Debug_printf("--- %u bytes waiting\n", mw);
 }
 
-void iwmModem::iwm_status(iwm_decoded_cmd_t cmd)
+void iwmModem::iwm_status(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\r\n[MODEM] Device %02x Status Code %02x\r\n", id(), cmd.control_status.fuji.command);
     // Debug_printf("\r\nStatus List is at %02x %02x\n", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
@@ -1471,12 +1472,9 @@ void iwmModem::iwm_status(iwm_decoded_cmd_t cmd)
         iwm_modem_status();
         break;
     default:
-        send_reply_packet(SP_ERR::BADCMD);
+        SYSTEM_BUS.transaction_error(SP_ERR::BADCMD);
         return;
     }
-
-    Debug_printf("\r\nStatus code complete, sending response");
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, data_len);
 }
 
 #endif /* BUILD_APPLE */
