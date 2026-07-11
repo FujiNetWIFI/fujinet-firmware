@@ -30,9 +30,11 @@
 #define NETSTREAM_RX_DRAIN_MAX_PACKETS 32                       // Max UDP datagrams pulled per service pass.
 #define NETSTREAM_RX_MAX_FRAMES 4                               // Default shallow-buffer depth (whole frames). >=2.
 #define NETSTREAM_RX_FRAME_SLOTS 64                             // Descriptor ring capacity (>= any rx_depth used).
+#define NETSTREAM_RX_BACKPRESSURE_RESERVE 16                    // Stop TCP drains with this much ring headroom left.
 #define NETSTREAM_MAX_FRAME 256                                 // Max datagram size buffered on the framed (lossy UDP) path.
 #define NETSTREAM_MAX_BATCH_AGE_US 3000                         // Max SIO->NET batch age before forced flush.
 #define NETSTREAM_FLUSH_THRESHOLD (NETSTREAM_BUFFER_SIZE - 16)  // Flush when nearly full.
+#define NETSTREAM_RX_STATS_INTERVAL_US 1000000                  // Periodic debug stats cadence while active.
 #define MIDI_PORT 5004
 #define MIDI_BAUDRATE 31250
 
@@ -51,6 +53,7 @@ private:
     uint16_t rx_head = 0;
     uint16_t rx_tail = 0;
     uint16_t rx_count = 0;
+    uint16_t rx_high_water_mark = 0;
     uint32_t rx_drop_count = 0;
 
     // Framed (lossy UDP) inbound buffering: a bounded queue of whole datagrams/frames.
@@ -71,9 +74,12 @@ private:
 
     uint64_t last_rx_us = 0;
     uint64_t last_tx_us = 0;
+    uint64_t last_rx_stats_us = 0;
     bool ensure_netstream_ready();
     void pace_to_atari(uint32_t min_gap_us);
-    void enqueue_rx(const uint8_t *data, int len);    // byte path (lossless MIDI/TCP): push bytes, drop-oldest only on overflow
+    void update_rx_high_water();
+    void log_rx_stats();
+    void enqueue_rx(const uint8_t *data, int len);    // byte path enqueue; TCP drains are capped before overflow
     void enqueue_frame(const uint8_t *data, int len); // framed path (lossy UDP): push whole frame, evict oldest whole frames over cap
     void drain_net_to_ring();                         // pull all available net datagrams into the buffer
     void sio_status() override;
