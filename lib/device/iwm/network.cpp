@@ -79,7 +79,7 @@ void iwmNetwork::open()
     uint8_t _aux2 = data_buffer[1];
 
     auto start = data_buffer + 2;
-    auto end = start + std::min<std::size_t>(256, sizeof(data_buffer) - 2);
+    auto end = start + std::min<std::size_t>(256, data_len - 2);
     auto null_pos = std::find(start, end, 0);
 
     // ensure the string does not go past a null, but can be up to 256 bytes long if one not found
@@ -184,7 +184,9 @@ void iwmNetwork::set_prefix()
 {
     auto& current_network_data = network_data_map[current_network_unit];
 
-    string prefixSpec_str = string((const char *)data_buffer);
+    string prefixSpec_str(data_len, 0);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_get(prefixSpec_str.data(), prefixSpec_str.size());
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
     Debug_printf("iwmNetwork::iwmnet_set_prefix(%s)\n", prefixSpec_str.c_str());
 
@@ -225,6 +227,7 @@ void iwmNetwork::set_prefix()
         current_network_data.prefix += prefixSpec_str;
     }
 
+    SYSTEM_BUS.transaction_success();
     Debug_printf("Prefix now: %s\n", current_network_data.prefix.c_str());
 }
 
@@ -235,8 +238,12 @@ void iwmNetwork::set_login()
 {
     auto& current_network_data = network_data_map[current_network_unit];
 
-    current_network_data.login = string((char *)data_buffer, 256);
+    string buffer(data_len, 0);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
+    current_network_data.login = buffer;
     Debug_printf("Login is %s\n", current_network_data.login.c_str());
+    SYSTEM_BUS.transaction_success();
 }
 
 /**
@@ -246,8 +253,12 @@ void iwmNetwork::set_password()
 {
     auto& current_network_data = network_data_map[current_network_unit];
 
-    current_network_data.password = string((char *)data_buffer, 256);
+    string buffer(data_len, 0);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
+    current_network_data.password = buffer;
     Debug_printf("Password is %s\n", current_network_data.password.c_str()); // GREAT LOGGING
+    SYSTEM_BUS.transaction_success();
 }
 
 void iwmNetwork::channel_mode()
@@ -305,7 +316,7 @@ void iwmNetwork::status()
     auto& current_network_data = network_data_map[current_network_unit];
     NetworkStatus s;
     size_t avail = 0;
-    NDeviceStatus *status;
+    NDeviceStatus status;
 
     switch (current_network_data.channelMode)
     {
@@ -334,12 +345,11 @@ void iwmNetwork::status()
     Debug_printf("Bytes Waiting: 0x%02x, Connected: %u, Error: %u\n", avail, s.connected, s.error);
 
     avail = std::min((size_t) 512, avail);
-    status = (NDeviceStatus *) data_buffer;
-    status->avail = avail;
-    status->conn = s.connected;
-    status->err = s.error;
+    status.avail = avail;
+    status.conn = s.connected;
+    status.err = s.error;
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    SYSTEM_BUS.transaction_send(status, sizeof(*status));
+    SYSTEM_BUS.transaction_send(&status, sizeof(status));
 }
 
 void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
@@ -380,7 +390,7 @@ void iwmNetwork::net_read()
 {
 }
 
-bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
+error_is_true iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
     Debug_printf("read_channel_json - num_bytes: %02x, json_bytes_remaining: %02x\n", num_bytes, current_network_data.json->available());
@@ -391,22 +401,23 @@ bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t c
     else
     {
         num_bytes = std::min<uint16_t>(num_bytes, current_network_data.json->readValueLen());
-        current_network_data.json->readValue(data_buffer, num_bytes);
+        ByteBuffer buffer(num_bytes, 0);
+        current_network_data.json->readValue(buffer.data(), buffer.size());
         SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-        SYSTEM_BUS.transaction_send(data_buffer, num_bytes);
+        SYSTEM_BUS.transaction_send(buffer);
     }
 
-    return false;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
-bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
+error_is_true iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 {
     NetworkStatus ns;
     size_t avail;
     auto& current_network_data = network_data_map[current_network_unit];
 
     if (!current_network_data.protocol)
-        return true; // Punch out.
+        RETURN_ERROR_AS_TRUE(); // Punch out.
 
     avail = current_network_data.protocol->available();
     auto rlen = std::min<size_t>({
@@ -417,7 +428,7 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
     if (current_network_data.protocol->read(rlen) != FUJI_ERROR::NONE) // protocol adapter returned error
     {
         err = current_network_data.protocol->error == NDEV_STATUS::SUCCESS ? SP_ERR::NOERROR : SP_ERR::BADCMD;
-        return true;
+        RETURN_ERROR_AS_TRUE();
     }
     else // everything ok
     {
@@ -425,10 +436,10 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
         SYSTEM_BUS.transaction_send(current_network_data.receiveBuffer, rlen);
         current_network_data.receiveBuffer.erase(0, rlen);
     }
-    return false;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
-bool iwmNetwork::write_channel(unsigned short num_bytes)
+error_is_true iwmNetwork::write_channel(unsigned short num_bytes)
 {
     auto& current_network_data = network_data_map[current_network_unit];
     switch (current_network_data.channelMode)
@@ -438,7 +449,7 @@ bool iwmNetwork::write_channel(unsigned short num_bytes)
     case CHANNEL_MODE::JSON:
         break;
     }
-    return false;
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
@@ -505,11 +516,20 @@ void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
 
     auto& current_network_data = network_data_map[current_network_unit];
 
-    current_network_data.transmitBuffer += string((char *)data_buffer, cmd.char_rw.length);
+    string buffer(cmd.char_rw.length, 0);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
+    current_network_data.transmitBuffer += buffer;
     if (write_channel(cmd.char_rw.length))
+    {
+        SYSTEM_BUS.transaction_error();
         send_reply_packet(SP_ERR::IOERROR);
+    }
     else
+    {
+        SYSTEM_BUS.transaction_success();
         send_reply_packet(SP_ERR::NOERROR);
+    }
 }
 
 void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
@@ -526,7 +546,7 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
 
     auto& current_network_data = network_data_map[current_network_unit];
 
-    print_packet((uint8_t *)data_buffer);
+    print_packet(data_buffer);
 
 #ifdef DEBUG
     if (cmd.control_status.fuji.command == NETCMD_SET_CHANNEL)
@@ -652,7 +672,7 @@ void iwmNetwork::create_url_parser()
     current_network_data.urlParser = std::move(PeoplesUrlParser::parseURL(url));
 }
 
-void iwmNetwork::parse_and_instantiate_protocol(string d)
+error_is_true iwmNetwork::parse_and_instantiate_protocol(string d)
 {
     auto& current_network_data = network_data_map[current_network_unit];
     create_devicespec(d);
@@ -663,7 +683,7 @@ void iwmNetwork::parse_and_instantiate_protocol(string d)
     {
         Debug_printf("Invalid devicespec: %s\n", current_network_data.deviceSpec.c_str());
         err = SP_ERR::BADCTLPARM;
-        return;
+        RETURN_ERROR_AS_TRUE();
     }
 
 #ifdef VERBOSE_PROTOCOL
@@ -675,8 +695,10 @@ void iwmNetwork::parse_and_instantiate_protocol(string d)
     {
         Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", current_network_data.deviceSpec.c_str(), current_network_data.urlParser->mRawUrl.c_str());
         err = SP_ERR::BADCMD;
-        return;
+        RETURN_ERROR_AS_TRUE();
     }
+
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 void iwmNetwork::iwmnet_set_translation()
@@ -690,13 +712,17 @@ void iwmNetwork::iwmnet_set_timer_rate()
 void iwmNetwork::process_fs(fujiCommandID_t fuji_command)
 {
     auto& current_network_data = network_data_map[current_network_unit];
-    string d;
+    string d(256, 0);
 
-    d = string((char *)data_buffer, 256);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_get(d.data(), d.size());
     parse_and_instantiate_protocol(d);
 
     if (!current_network_data.protocol)
+    {
+        SYSTEM_BUS.transaction_error();
         return;
+    }
 
     // Make sure this is really a FS protocol instance
     NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(current_network_data.protocol.get());
@@ -734,7 +760,12 @@ void iwmNetwork::process_fs(fujiCommandID_t fuji_command)
     }
 
     if (cmd_err != FUJI_ERROR::NONE)
+    {
         err = SP_ERR::IOERROR;
+        return;
+    }
+
+    SYSTEM_BUS.transaction_success();
 }
 
 void iwmNetwork::process_tcp(fujiCommandID_t fuji_command)
@@ -808,9 +839,13 @@ void iwmNetwork::process_udp(fujiCommandID_t fuji_command)
     {
 #ifndef ESP_PLATFORM
     case NETCMD_GET_REMOTE:
-        cmd_err = udp->get_remote(data_buffer, SPECIAL_BUFFER_SIZE);
-        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR,
-                                   data_buffer, SPECIAL_BUFFER_SIZE);
+        {
+            ByteBuffer buffer(SPECIAL_BUFFER_SIZE, 0);
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+            cmd_err = udp->get_remote(buffer.data(), buffer.size());
+            SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR,
+                                       buffer.data(), buffer.size());
+        }
         break;
 #endif /* ESP_PLATFORM */
     case NETCMD_SET_DESTINATION:

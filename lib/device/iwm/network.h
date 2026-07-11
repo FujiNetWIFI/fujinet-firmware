@@ -226,21 +226,21 @@ private:
      * @param num_bytes Number of bytes to read.
      * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
      */
-    bool read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd);
+    error_is_true read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd);
 
     /**
      * Perform the correct read based on value of channelMode
      * @param num_bytes Number of bytes to read.
      * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
      */
-    bool read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t cmd);
+    error_is_true read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t cmd);
 
     /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
      * @return TRUE on error, FALSE on success. Used to emit iwmnet_error or iwmnet_complete().
      */
-    bool write_channel(unsigned short num_bytes);
+    error_is_true write_channel(unsigned short num_bytes);
 
     /**
      * @brief perform local status commands, if protocol is not bound, based on cmdFrame
@@ -272,7 +272,7 @@ private:
      * @brief parse URL and instantiate protocol
      * @param db pointer to devicespecbuf 256 chars
      */
-    void parse_and_instantiate_protocol(std::string d);
+    error_is_true parse_and_instantiate_protocol(std::string d);
 };
 
 #endif /* NETWORK_H */
