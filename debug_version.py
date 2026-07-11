@@ -3,16 +3,16 @@
 # Created by FozzTexx
 
 import argparse
-import subprocess
-import os, sys
+import os
 import re
 import shlex
 from datetime import datetime
-from pathlib import Path
+
+import version_common as vc
 
 VERSION_H = "include/version.h"
 PLATFORMS = "build-platforms"
-MACRO_PATTERN = r"^\s*#define\s+(.*?)\s+(.*?)\s*(?://.*|/\*[\s\S]*?\*/)?$"
+
 
 def build_argparser():
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -22,11 +22,8 @@ def build_argparser():
                       help="update include/version.h and create annotated tag")
   return parser
 
-def run_command(cmd):
-  return subprocess.check_output(cmd, universal_newlines=True).strip()
-
 def get_repo_base():
-  return run_command(["git", "rev-parse", "--show-toplevel"])
+  return vc.run_command(["git", "rev-parse", "--show-toplevel"])
 
 def is_fujinet_repo(base):
   if os.path.exists(os.path.join(base, VERSION_H)) \
@@ -34,34 +31,11 @@ def is_fujinet_repo(base):
     return True
   return False
 
-def get_commit_version():
-  return run_command(["git", "describe", "--always", "HEAD"])
-
-def get_modified_files():
-  files = run_command(["git", "diff", "--name-only"]).split("\n")
-  files = [f for f in files if f]
-  return files
-
-def load_version_macros(path):
-  txt = [line for line in open(path)]
-  macros = {}
-  for line in txt:
-    m = re.match(MACRO_PATTERN, line)
-    if m:
-      name = m.group(1)
-      if '(' in name:
-        continue
-      value = m.group(2)
-      if not value:
-        value = None
-      macros[name] = value
-  return macros
-
 def update_version_macros(path, macros):
   txt = [line.rstrip() for line in open(path)]
   saw_minor = saw_patch = False
   for line in txt:
-    m = re.match(MACRO_PATTERN, line)
+    m = re.match(vc.MACRO_PATTERN, line)
     if m:
       name = m.group(1)
       if name not in macros:
@@ -87,11 +61,11 @@ def main():
   args = build_argparser().parse_args()
 
   version_h_path = os.path.join(base, VERSION_H)
-  version = get_commit_version()
-  modified = get_modified_files()
-  commit_id_long = run_command(["git", "rev-parse", "HEAD"])
+  version = vc.get_commit_version()
+  modified = vc.get_modified_files()
+  commit_id_long = vc.get_commit_sha()
 
-  mtime = int(run_command(["git", "show", "--no-patch", "--format=%ct", "HEAD"]))
+  mtime = int(vc.run_command(["git", "show", "--no-patch", "--format=%ct", "HEAD"]))
   if args.use_modified_date:
     for path in modified:
       if os.path.exists(path):
@@ -102,7 +76,7 @@ def main():
   macros = {
     'FN_VERSION_BUILD': commit_id_long,
   }
-  cur_macros = load_version_macros(version_h_path)
+  cur_macros = vc.load_version_macros(version_h_path)
   ver_major = int(cur_macros['FN_VERSION_MAJOR'])
   ver_minor = int(cur_macros['FN_VERSION_MINOR'])
   ver_patch = int(cur_macros.get('FN_VERSION_PATCH', 0))
@@ -126,20 +100,17 @@ def main():
     if m.group(5):
       ver_suffix = m.group(5)
       cur_macros['FN_VERSION_SUFFIX'] = ver_suffix
-    cur_macros['FN_VERSION_DATE'] = modified
     version = f"v{ver_major}.{ver_minor}.{ver_patch}{ver_suffix}"
 
   else:
-    m = re.match(r"^v([0-9]+)[.]([0-9]+)[.]([0-9]+)-([0-9]+)-g(.*)", version)
-    if m:
-      ver_major = macros['FN_VERSION_MAJOR'] = int(m.group(1))
-      ver_minor = macros['FN_VERSION_MINOR'] = int(m.group(2))
-      ver_minor = macros['FN_VERSION_PATCH'] = int(m.group(3))
-      version = f"v{m.group(1)}.{m.group(2)}-{m.group(5)}"
-    else:
-      m = re.match(r"^([a-z0-9]{8})$", version)
-      if m:
-        version = f"v{ver_major}.{ver_minor}-{version}"
+    version, parsed_major, parsed_minor, parsed_patch, commits, git_hash = \
+      vc.parse_describe(version, ver_major, ver_minor)
+    if parsed_patch is not None:
+      # only came from a full tag match (v1.2.3-N-gHASH) -- a bare-hash
+      # match keeps the existing major/minor from version.h as-is
+      ver_major = macros['FN_VERSION_MAJOR'] = parsed_major
+      ver_minor = macros['FN_VERSION_MINOR'] = parsed_minor
+      ver_patch = macros['FN_VERSION_PATCH'] = parsed_patch
 
   if modified and not args.set_version:
     version += "*"
