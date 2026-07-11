@@ -3,7 +3,7 @@
 #define IWM_H
 
 #include "bus.h"
-#include "fujiCommandID.h"
+#include "FujiIWMPacket.h"
 #include "../../include/debug.h"
 
 // for ESP IWM-SLIP build, DEV_RELAY_SLIP should be defined in platformio.ini
@@ -23,28 +23,7 @@
 
 #include "fnFS.h"
 
-enum spCommandID_t : uint8_t {
-  SP_CMD_STATUS         = 0x00,
-  SP_CMD_READBLOCK      = 0x01,
-  SP_CMD_WRITEBLOCK     = 0x02,
-  SP_CMD_FORMAT         = 0x03,
-  SP_CMD_CONTROL        = 0x04,
-  SP_CMD_INIT           = 0x05,
-  SP_CMD_OPEN           = 0x06,
-  SP_CMD_CLOSE          = 0x07,
-  SP_CMD_READ           = 0x08,
-  SP_CMD_WRITE          = 0x09,
-  SP_ECMD_STATUS        = 0x40,
-  SP_ECMD_READBLOCK     = 0x41,
-  SP_ECMD_WRITEBLOCK    = 0x42,
-  SP_ECMD_FORMAT        = 0x43,
-  SP_ECMD_CONTROL       = 0x44,
-  SP_ECMD_INIT          = 0x45,
-  SP_ECMD_OPEN          = 0x46,
-  SP_ECMD_CLOSE         = 0x47,
-  SP_ECMD_READ          = 0x48,
-  SP_ECMD_WRITE         = 0x49,
-};
+using iwm_decoded_cmd_t = FujiIWMPacket;
 
 // Windows defines this and it conflicts with the SmartPort erro
 // code. We don't need it, just undef it.
@@ -125,66 +104,6 @@ class fujiDevice;
 #define BLOCK_DATA_LEN      512
 #define MAX_DATA_LEN        767
 
-enum spCode_t : uint8_t {
-  SP_STAT_DEVICE            = 0x00,
-  SP_STAT_CONTROL_BLOCK     = 0x01,
-  SP_STAT_NEWLINE           = 0x02,
-  SP_STAT_DIB               = 0x03,
-  SP_STAT_UNIDISK           = 0x05,
-
-  SP_CTRL_RESET             = 0x00,
-  SP_CTRL_SET_DCB           = 0x01,
-  SP_CTRL_SET_NEWLINE       = 0x02,
-  SP_CTRL_DEV_INTERRUPT     = 0x03,
-  SP_CTRL_EJECT             = 0x04, // Apple 3.5, UniDisk 3.5
-  SP_CTRL_EXECUTE           = 0x05, // UniDisk 3.5
-  SP_CTRL_SET_ADDRESS       = 0x06, // UniDisk 3.5
-  SP_CTRL_DOWNLOAD          = 0x07, // UniDiisk 3.5
-  SP_CTRL_SET_HOOK          = 0x05, // Apple 3.5
-  SP_CTRL_RESET_HOOK        = 0x06, // Apple 3.5
-  SP_CTRL_SET_MARK          = 0x07, // Apple 3.5
-  SP_CTRL_RESET_MARK        = 0x08, // Apple 3.5
-  SP_CTRL_SET_SIDES         = 0x09, // Apple 3.5
-  SP_CTRL_SET_INTERLEAVE    = 0x0A, // Apple 3.5
-
-  SP_CTRL_CLEAR_DISKII_SEEN = 0x08, // iwmFuji
-  SP_STAT_GET_DISKII_SEEN   = 0x08, // iwmFuji
-};
-
-struct iwm_decoded_cmd_t
-{
-  spCommandID_t sp_command;
-  uint8_t param_count;
-  uint8_t sp_dev_id;
-  uint8_t unknown;
-
-  union {
-    struct {
-      union {
-        spCode_t code;
-        struct {
-          fujiCommandID_t command;
-          uint8_t network_unit;
-        } fuji;
-      };
-    } control_status;
-    struct {
-      u24le_t num;
-    } block_rw;
-    struct {
-      u16le_t length;
-      union {
-        u24le_t address;
-        struct {
-          uint8_t network_unit;
-        } fuji;
-      };
-    } char_rw;
-    // format, init, open, close do not have any parameters
-  };
-} __attribute__((packed));
-static_assert(sizeof(iwm_decoded_cmd_t) == 9, "iwm_decoded_cmd_t must be 9 bytes");
-
 enum class iwm_smartport_type_t
 {
   Block_Device,
@@ -234,8 +153,8 @@ void print_packet(void *data);
 
 class virtualDevice
 {
-    friend systemBus; // put here for prototype, not sure if will need to keep it
-    friend fujiDevice;
+  friend systemBus; // put here for prototype, not sure if will need to keep it
+  friend fujiDevice;
 
 protected:
   // set these things in constructor or initializer?
@@ -258,10 +177,6 @@ protected:
   virtual void iwm_write(const iwm_decoded_cmd_t &cmd);
 
   void iwm_return_badcmd(const iwm_decoded_cmd_t &cmd);
-
-  // iwm packet handling
-  static uint8_t data_buffer[MAX_DATA_LEN]; // un-encoded binary data (512 bytes for a block)
-  static int data_len; // how many bytes in the data buffer
 
   virtual iwm_device_info_block_t create_dib_reply_packet() = 0;
   virtual iwm_device_status_block_t create_status_reply_packet() = 0;

@@ -118,9 +118,6 @@ void print_packet_wave(uint8_t *data, int bytes)
 
 //------------------------------------------------------------------------------
 
-uint8_t virtualDevice::data_buffer[MAX_DATA_LEN] = {0};
-int virtualDevice::data_len = 0;
-
 void systemBus::transaction_accept(transState_t expectMoreData)
 {
   assert(_transaction_state == TRANS_STATE::INVALID);
@@ -146,9 +143,9 @@ success_is_true systemBus::transaction_get(void *data, size_t len)
 {
   assert(_transaction_state == TRANS_STATE::WILL_GET);
   _transaction_state = TRANS_STATE::DID_GET;
-  if (len > virtualDevice::data_len)
-    len = virtualDevice::data_len;
-  memcpy((uint8_t *) data, virtualDevice::data_buffer, len);
+  auto spanData = command.data().value();
+  len = std::min(len, spanData.size());
+  std::copy(spanData.begin(), spanData.end(), static_cast<uint8_t *>(data));
   RETURN_SUCCESS_AS_TRUE();
 }
 
@@ -164,7 +161,7 @@ void systemBus::transaction_send(const void *data, size_t len, bool is_error)
   // CONTROL is used by Fuji devices to process payload and queue up
   // reply data. If this was a CONTROL command, queue up the data and
   // send it when a STATUS command is received.
-  switch (command.sp_command) {
+  switch (command.frame.sp_command) {
   case SP_CMD_CONTROL:
   case SP_ECMD_CONTROL:
     _transaction_response.insert(_transaction_response.end(),
@@ -325,7 +322,7 @@ void systemBus::send_status_dib_reply_packet()
 void virtualDevice::iwm_return_badcmd(const iwm_decoded_cmd_t &cmd)
 {
   //Handle possible data packet to avoid crash extended and non-extended
-  switch(cmd.sp_command)
+  switch (cmd.frame.sp_command)
   {
     case SP_ECMD_WRITEBLOCK:
     case SP_ECMD_CONTROL:
@@ -333,21 +330,20 @@ void virtualDevice::iwm_return_badcmd(const iwm_decoded_cmd_t &cmd)
     case SP_CMD_WRITEBLOCK:
     case SP_CMD_CONTROL:
     case SP_CMD_WRITE:
-      Debug_printf("\r\nUnit %02x Bad Command with data packet %02x\r\n", id(), cmd.sp_command);
-      print_packet(data_buffer, data_len);
+      Debug_printf("\r\nUnit %02x Bad Command with data packet %02x\r\n", id(), cmd.frame.sp_command);
       break;
     default: //just send the response and return like before
       SYSTEM_BUS.transaction_error(SP_ERR::BADCMD);
-      Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.sp_command);
+      Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.frame.sp_command);
       return;
   }
 
-  if(cmd.sp_command == SP_CMD_CONTROL) //Decode command control code
+  if (cmd.frame.sp_command == SP_CMD_CONTROL) //Decode command control code
   {
     //we may be required to accept some control commands but for now
     // just report bad control if it's a control command
     SYSTEM_BUS.transaction_error(SP_ERR::BADCTL);
-    Debug_printf("\r\nbad command was a control command with control code %02x",cmd.control_status.fuji.command);
+    Debug_printf("\r\nbad command was a control command with control code %02x",cmd.command());
   }
   else
   {
@@ -363,7 +359,7 @@ void systemBus::iwm_process(const iwm_decoded_cmd_t &cmd)
   // CONTROL is used by Fuji devices to process payload and queue up
   // reply data. If this was a STATUS command, send any data that is
   // sitting in the queue.
-  if ((cmd.sp_command == SP_CMD_STATUS || cmd.sp_command == SP_ECMD_STATUS)
+  if ((cmd.frame.sp_command == SP_CMD_STATUS || cmd.frame.sp_command == SP_ECMD_STATUS)
       && _transaction_response.size()) {
     iwm_send_packet(_activeDev->id(), iwm_packet_type_t::status, SP_ERR::NOERROR,
                     _transaction_response.data(), _transaction_response.size());
@@ -372,17 +368,17 @@ void systemBus::iwm_process(const iwm_decoded_cmd_t &cmd)
     goto done;
   }
 
-  switch (cmd.sp_command)
+  switch (cmd.frame.sp_command)
   {
   case SP_CMD_STATUS:
-    Debug_printf("\r\nhandling status command code=0x%02x", cmd.control_status.code);
-    switch (cmd.control_status.code) {
+    Debug_printf("\r\nhandling status command code=0x%02x", cmd.frame.control_status.code);
+    switch (cmd.frame.control_status.code) {
     case SP_STAT_DEVICE:
-        send_status_reply_packet();
-        break;
+      send_status_reply_packet();
+      break;
     case SP_STAT_DIB:
-        send_status_dib_reply_packet();
-        break;
+      send_status_dib_reply_packet();
+      break;
     default:
       _activeDev->iwm_status(cmd);
       break;
@@ -626,21 +622,7 @@ bool IRAM_ATTR systemBus::serviceSmartPort()
 
           _activeDev = devicep;
           // handle command
-          smartport.decode_data_packet(command_packet.data, &command);
-          print_packet(&command, sizeof(command));
-          switch (command.sp_command)
-          {
-          case SP_CMD_CONTROL:
-          case SP_CMD_WRITE:
-          case SP_CMD_WRITEBLOCK:
-          case SP_ECMD_CONTROL:
-          case SP_ECMD_WRITE:
-          case SP_ECMD_WRITEBLOCK:
-            virtualDevice::data_len = smartport.decode_data_packet(virtualDevice::data_buffer);
-            break;
-          default:
-            break;
-          }
+          command.decode(command_packet.data);
           iwm_process(command);
           break; // we don't need to needlessly keep looping once we find it
         }

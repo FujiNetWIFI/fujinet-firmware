@@ -360,6 +360,12 @@ success_is_true fujiDevice::fujicore_mount_host_success(unsigned hostSlot)
 success_is_true fujiDevice::fujicmd_mount_host_success(unsigned hostSlot)
 {
     transaction_begin(TRANS_STATE::NO_GET);
+    if (hostSlot >= MAX_HOSTS)
+    {
+        transaction_error();
+        RETURN_ERROR_AS_FALSE();
+    }
+
     if (!fujicore_mount_host_success(hostSlot))
     {
         Debug_println("fujicore_mount_host_success returned false");

@@ -1397,12 +1397,13 @@ void iwmModem::iwm_read(const iwm_decoded_cmd_t &cmd)
     unsigned short mw;
 #endif
 
-    Debug_printf("\r\nDevice %02x READ %04x bytes from address %06lx\n", id(), cmd.char_rw.length, cmd.char_rw.address);
+    Debug_printf("\r\nDevice %02x READ %04x bytes from address %06lx\n", id(), cmd.frame.char_rw.length, cmd.frame.char_rw.address);
 
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     std::vector<uint8_t> buffer;
     if (mw) // check if we really have some bytes waiting
     {
-        size_t numbytes = std::min<uint16_t>(mw, cmd.char_rw.length);
+        size_t numbytes = std::min<uint16_t>(mw, cmd.frame.char_rw.length);
 
         for (size_t i = 0; i < numbytes; i++)
         {
@@ -1421,16 +1422,17 @@ void iwmModem::iwm_read(const iwm_decoded_cmd_t &cmd)
 
 void iwmModem::iwm_write(const iwm_decoded_cmd_t &cmd)
 {
-    Debug_printf("\nWRITE %u bytes\n", cmd.char_rw.length);
+    Debug_printf("\nWRITE %u bytes\n", cmd.frame.char_rw.length);
 
     // get write data packet, keep trying until no timeout
     //  to do - this blows up - check handshaking
 
     {
+        auto buffer = cmd.data().value();
         // DO write
 #ifdef ESP_PLATFORM // OS
-        for (int i = 0; i < cmd.char_rw.length; i++)
-            xQueueSend(mtxq, &data_buffer[i], portMAX_DELAY);
+        for (int i = 0; i < cmd.frame.char_rw.length; i++)
+            xQueueSend(mtxq, &buffer[i], portMAX_DELAY);
 #endif
     }
 
@@ -1439,13 +1441,10 @@ void iwmModem::iwm_write(const iwm_decoded_cmd_t &cmd)
 
 void iwmModem::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
 {
-    spError_t err_result = SP_ERR::NOERROR;
-
-    Debug_printf("\r\nModem Device %02x Control Code %02x", id(), cmd.control_status.fuji.command);
-    print_packet(data_buffer,data_len);
-
+    Debug_printf("\r\nModem Device %02x Control Code %02x", id(), cmd.command());
     Debug_printf("\nSending Control Reply");
-    SYSTEM_BUS.transaction_error(err_result);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_success();
 }
 
 void iwmModem::iwm_modem_status()
@@ -1455,7 +1454,6 @@ void iwmModem::iwm_modem_status()
     mw = uxQueueMessagesWaiting(mrxq);
 #endif
 
-
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     SYSTEM_BUS.transaction_send(&mw, sizeof(mw));
     Debug_printf("--- %u bytes waiting\n", mw);
@@ -1463,10 +1461,9 @@ void iwmModem::iwm_modem_status()
 
 void iwmModem::iwm_status(const iwm_decoded_cmd_t &cmd)
 {
-    Debug_printf("\r\n[MODEM] Device %02x Status Code %02x\r\n", id(), cmd.control_status.fuji.command);
-    // Debug_printf("\r\nStatus List is at %02x %02x\n", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
+    Debug_printf("\r\n[MODEM] Device %02x Status Code %02x\r\n", id(), cmd.command());
 
-    switch (cmd.control_status.fuji.command)
+    switch (cmd.command())
     {
     case MODEMCMD_STATUS:
         iwm_modem_status();

@@ -71,19 +71,16 @@ iwm_device_info_block_t iwmNetwork::create_dib_reply_packet()
  * Called in response to 'O' command. Instantiate a protocol, pass URL to it, call its open
  * method. Also set up RX interrupt.
  */
-void iwmNetwork::open()
+void iwmNetwork::open(const iwm_decoded_cmd_t &cmd)
 {
     // This will create the entry if one doesn't exist yet.
     auto& current_network_data = network_data_map[current_network_unit];
-    uint8_t _aux1 = data_buffer[0];
-    uint8_t _aux2 = data_buffer[1];
+    uint8_t _aux1 = cmd.param(0);
+    uint8_t _aux2 = cmd.param(1);
 
-    auto start = data_buffer + 2;
-    auto end = start + std::min<std::size_t>(256, data_len - 2);
-    auto null_pos = std::find(start, end, 0);
-
-    // ensure the string does not go past a null, but can be up to 256 bytes long if one not found
-    string d(start, null_pos);
+    bool is_dir = static_cast<fileAccessMode_t>(_aux1) == ACCESS_MODE::DIRECTORY;
+    string d = cmd.dataAsString().value();
+    d.resize(strlen(d.c_str())); // Truncate to null terminator
 
     Debug_printf("\naux1: %u aux2: %u path %s", _aux1, _aux2, d.c_str());
 
@@ -104,7 +101,8 @@ void iwmNetwork::open()
     Debug_printf("\nopen()\n");
 
     // Parse and instantiate protocol
-    parse_and_instantiate_protocol(d);
+    parse_and_instantiate_protocol(d, is_dir);
+
 
     if (!current_network_data.protocol)
     {
@@ -113,7 +111,10 @@ void iwmNetwork::open()
     }
 
     // Attempt protocol open
-    if (current_network_data.protocol->open(current_network_data.urlParser.get(), (fileAccessMode_t) data_buffer[0], (netProtoTranslation_t) data_buffer[1]) != FUJI_ERROR::NONE)
+    if (current_network_data.protocol->open(current_network_data.urlParser.get(),
+                                            (fileAccessMode_t) cmd.param8(0),
+                                            (netProtoTranslation_t) cmd.param8(1))
+        != FUJI_ERROR::NONE)
     {
         // Remember the failure before the protocol (and its error) is destroyed,
         // so a subsequent STATUS can report the real code (e.g. FILE_NOT_FOUND).
@@ -184,13 +185,12 @@ void iwmNetwork::get_prefix()
 /**
  * Set Prefix
  */
-void iwmNetwork::set_prefix()
+void iwmNetwork::set_prefix(const iwm_decoded_cmd_t &cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
 
-    string prefixSpec_str(data_len, 0);
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    SYSTEM_BUS.transaction_get(prefixSpec_str.data(), prefixSpec_str.size());
+    string prefixSpec_str = cmd.dataAsString().value();
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
     Debug_printf("iwmNetwork::iwmnet_set_prefix(%s)\n", prefixSpec_str.c_str());
 
@@ -238,14 +238,12 @@ void iwmNetwork::set_prefix()
 /**
  * Set login
  */
-void iwmNetwork::set_login()
+void iwmNetwork::set_login(const iwm_decoded_cmd_t &cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
 
-    string buffer(data_len, 0);
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
-    current_network_data.login = buffer;
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    current_network_data.login = cmd.dataAsString().value();
     Debug_printf("Login is %s\n", current_network_data.login.c_str());
     SYSTEM_BUS.transaction_success();
 }
@@ -253,34 +251,34 @@ void iwmNetwork::set_login()
 /**
  * Set password
  */
-void iwmNetwork::set_password()
+void iwmNetwork::set_password(const iwm_decoded_cmd_t &cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
 
-    string buffer(data_len, 0);
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
-    current_network_data.password = buffer;
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    current_network_data.password = cmd.dataAsString().value();
     Debug_printf("Password is %s\n", current_network_data.password.c_str()); // GREAT LOGGING
     SYSTEM_BUS.transaction_success();
 }
 
-void iwmNetwork::channel_mode()
+void iwmNetwork::channel_mode(const iwm_decoded_cmd_t &cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
-    switch (data_buffer[0])
+    channelMode_t mode = static_cast<channelMode_t>(cmd.param8(0));
+    switch (mode)
     {
-    case 0:
+    case CHANNEL_MODE::PROTOCOL:
         Debug_printf("channelMode = PROTOCOL\n");
-        current_network_data.channelMode = CHANNEL_MODE::PROTOCOL;
+        current_network_data.channelMode = mode;
         break;
-    case 1:
+    case CHANNEL_MODE::JSON:
         Debug_printf("channelMode = JSON\n");
-        current_network_data.channelMode = CHANNEL_MODE::JSON;
+        current_network_data.channelMode = mode;
         break;
     default:
-        Debug_printf("INVALID MODE = %02x\r\n", data_buffer[0]);
-        break;
+        Debug_printf("INVALID MODE = %02x\r\n", mode);
+        SYSTEM_BUS.transaction_error();
+        return;
     }
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     SYSTEM_BUS.transaction_success();
@@ -289,9 +287,8 @@ void iwmNetwork::channel_mode()
 void iwmNetwork::json_query(const iwm_decoded_cmd_t &cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
-    std::string buffer(data_len, 0);
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    std::string buffer = cmd.dataAsString().value();
     buffer.resize(strlen(buffer.c_str())); // Truncate to null terminator
     Debug_printf("\r\nQuery set to: %s, data_len: %d\r\n", buffer.c_str(), buffer.size());
     current_network_data.json->setReadQuery(buffer, 0);
@@ -364,15 +361,15 @@ void iwmNetwork::iwm_status(const iwm_decoded_cmd_t &cmd)
     // We have moved to a separate control command that sets the active channel for all subsequent commands
     // fujinet-lib (with unit-id support) sends the count of bytes for a status as 4 to cater for the network unit.
     // Older code sends 3 as the count, so we can detect if the network unit byte is there or not.
-    if (cmd.param_count == 4) {
-        current_network_unit = cmd.control_status.fuji.network_unit;
+    if (cmd.frame.param_count == 4) {
+        current_network_unit = cmd.frame.control_status.fuji.network_unit;
     }
 
 #ifdef DEBUG
-    Debug_printf("\r\n[NETWORK] Device %02x Status Code %02x('%c') net_unit %02x\r\n", id(), cmd.control_status.fuji.command, isprint(cmd.control_status.fuji.command) ? (char) cmd.control_status.fuji.command : '.', current_network_unit);
+    Debug_printf("\r\n[NETWORK] Device %02x Status Code %02x('%c') net_unit %02x\r\n", id(), cmd.command(), isprint(cmd.command()) ? (char) cmd.command() : '.', current_network_unit);
 #endif
 
-    switch (cmd.control_status.fuji.command)
+    switch (cmd.command())
     {
     case NETCMD_GETCWD:
         get_prefix();
@@ -397,7 +394,7 @@ error_is_true iwmNetwork::read_channel_json(const iwm_decoded_cmd_t &cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
     Debug_printf("read_channel_json - num_bytes: %02x, json_bytes_remaining: %02x\n",
-                 cmd.char_rw.length, current_network_data.json->available());
+                 cmd.frame.char_rw.length, current_network_data.json->available());
     if (current_network_data.json->available() == 0) // if no bytes, we just return with no data
     {
         SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
@@ -405,7 +402,7 @@ error_is_true iwmNetwork::read_channel_json(const iwm_decoded_cmd_t &cmd)
         RETURN_ERROR_AS_TRUE();
     }
 
-    auto rlen = std::min<uint16_t>(cmd.char_rw.length,
+    auto rlen = std::min<uint16_t>(cmd.frame.char_rw.length,
                                    current_network_data.json->readValueLen());
     ByteBuffer buffer(rlen, 0);
     current_network_data.json->readValue(buffer.data(), buffer.size());
@@ -425,7 +422,7 @@ error_is_true iwmNetwork::read_channel(const iwm_decoded_cmd_t &cmd)
 
     avail = current_network_data.protocol->available();
     auto rlen = std::min<size_t>({
-            cmd.char_rw.length, 512, current_network_data.protocol->available()});
+            cmd.frame.char_rw.length, 512, current_network_data.protocol->available()});
 
     if (current_network_data.protocol->read(rlen) != FUJI_ERROR::NONE) // protocol adapter returned error
         RETURN_ERROR_AS_TRUE();
@@ -455,12 +452,12 @@ void iwmNetwork::iwm_read(const iwm_decoded_cmd_t &cmd)
     // We have moved to a separate control command that sets the active channel for all subsequent commands
     // fujinet-lib (with unit-id support) sends the count of bytes for a read as 5 to cater for the network unit.
     // Older code sends 4 as the count, so we can detect if the network unit byte is there or not.
-    if (cmd.param_count == 5) {
+    if (cmd.frame.param_count == 5) {
         // in a network device, there is no "address" value, this is hijacked by fujinet-lib to pass the network unit in first byte
-        current_network_unit = cmd.char_rw.fuji.network_unit;
+        current_network_unit = cmd.frame.char_rw.fuji.network_unit;
     }
 
-    Debug_printf("\r\nDevice %02x Read %04x bytes, net_unit %02x\n", id(), cmd.char_rw.length, current_network_unit);
+    Debug_printf("\r\nDevice %02x Read %04x bytes, net_unit %02x\n", id(), cmd.frame.char_rw.length, current_network_unit);
 
     auto& current_network_data = network_data_map[current_network_unit];
 
@@ -475,15 +472,14 @@ void iwmNetwork::iwm_read(const iwm_decoded_cmd_t &cmd)
     }
 }
 
-void iwmNetwork::net_write()
+void iwmNetwork::net_write(const iwm_decoded_cmd_t &cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
     // TODO: Handle errors.
-    std::string buffer(data_len, 0);
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
-    current_network_data.transmitBuffer += buffer;
-    write_channel(buffer.size());
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    std::string data = cmd.dataAsString().value();
+    current_network_data.transmitBuffer += data;
+    write_channel(data.size());
 }
 
 void iwmNetwork::iwm_write(const iwm_decoded_cmd_t &cmd)
@@ -492,16 +488,16 @@ void iwmNetwork::iwm_write(const iwm_decoded_cmd_t &cmd)
     // We have moved to a separate control command that sets the active channel for all subsequent commands
     // fujinet-lib (with unit-id support) sends the count of bytes for a write as 5 to cater for the network unit.
     // Older code sends 4 as the count, so we can detect if the network unit byte is there or not.
-    if (cmd.param_count == 5) {
+    if (cmd.frame.param_count == 5) {
         // in a network device, there is no "address" value, this is hijacked by fujinet-lib to pass the network unit in first byte
-        current_network_unit = cmd.char_rw.fuji.network_unit;
+        current_network_unit = cmd.frame.char_rw.fuji.network_unit;
     }
 
-    Debug_printf("\r\nDevice %02x Write %04x bytes, net_unit %02x\n", id(), cmd.char_rw.length, current_network_unit);
+    Debug_printf("\r\nDevice %02x Write %04x bytes, net_unit %02x\n", id(), cmd.frame.char_rw.length, current_network_unit);
 
     auto& current_network_data = network_data_map[current_network_unit];
 
-    string buffer(cmd.char_rw.length, 0);
+    string buffer(cmd.frame.char_rw.length, 0);
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
     SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
     current_network_data.transmitBuffer += buffer;
@@ -522,55 +518,53 @@ void iwmNetwork::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
     // We have moved to a separate control command that sets the active channel for all subsequent commands
     // fujinet-lib (with unit-id support) sends the count of bytes for a control as 4 to cater for the network unit.
     // Older code sends 3 as the count, so we can detect if the network unit byte is there or not.
-    if (cmd.param_count == 4) {
-        current_network_unit = cmd.control_status.fuji.network_unit;
+    if (cmd.frame.param_count == 4) {
+        current_network_unit = cmd.frame.control_status.fuji.network_unit;
     }
 
     auto& current_network_data = network_data_map[current_network_unit];
 
-    print_packet(data_buffer);
-
 #ifdef DEBUG
-    if (cmd.control_status.fuji.command == NETCMD_SET_CHANNEL)
-        Debug_printf("\r\nNet Device %02x Control Code %02x('%c') net_unit %02x", id(), cmd.control_status.fuji.command, isprint(cmd.control_status.fuji.command) ? (char)cmd.control_status.fuji.command : '.', data_buffer[0]);
+    if (cmd.command() == NETCMD_SET_CHANNEL)
+        Debug_printf("\r\nNet Device %02x Control Code %02x('%c') net_unit %02x", id(), cmd.command(), isprint(cmd.command()) ? (char)cmd.command() : '.', cmd.param(0));
     else
-        Debug_printf("\r\nNet Device %02x Control Code %02x('%c') net_unit %02x", id(), cmd.control_status.fuji.command, isprint(cmd.control_status.fuji.command) ? (char)cmd.control_status.fuji.command : '.', current_network_unit);
+        Debug_printf("\r\nNet Device %02x Control Code %02x('%c') net_unit %02x", id(), cmd.command(), isprint(cmd.command()) ? (char)cmd.command() : '.', current_network_unit);
 #endif
 
-    // Debug_printv("cmd (looking for network_unit in byte 6, i.e. hex[5]):\r\n%s\r\n", mstr::toHex(cmd.decoded, 9).c_str());
+    // Debug_printv("cmd (looking for network_unit in byte 6, i.e. hex[5]):\r\n%s\r\n", mstr::toHex(cmd.frame.decoded, 9).c_str());
 
-    if (cmd.control_status.fuji.command != NETCMD_OPEN && current_network_data.json == nullptr) {
+    if (cmd.command() != NETCMD_OPEN && current_network_data.json == nullptr) {
         Debug_printv("control should not be called on a non-open channel - FN was probably reset");
     }
 
-    switch (cmd.control_status.fuji.command)
+    switch (cmd.command())
     {
     case NETCMD_SET_CHANNEL:
-        current_network_unit = data_buffer[0];
+        current_network_unit = cmd.param(0);
         break;
     case NETCMD_CHDIR:
-        set_prefix();
+        set_prefix(cmd);
         break;
     case NETCMD_GETCWD:
         get_prefix();
         break;
     case NETCMD_OPEN:
-        open();
+        open(cmd);
         break;
     case NETCMD_CLOSE:
         close();
         break;
     case NETCMD_WRITE:
-        net_write();
+        net_write(cmd);
         break;
     case NETCMD_CHANNEL_MODE:
-        channel_mode();
+        channel_mode(cmd);
         break;
     case NETCMD_USERNAME: // login
-        set_login();
+        set_login(cmd);
         break;
     case NETCMD_PASSWORD: // password
-        set_password();
+        set_password(cmd);
         break;
 
     case NETCMD_PARSE:
@@ -586,21 +580,21 @@ void iwmNetwork::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
     case NETCMD_UNLOCK:
     case NETCMD_MKDIR:
     case NETCMD_RMDIR:
-        process_fs(cmd.control_status.fuji.command);
+        process_fs(cmd);
         break;
 
     case NETCMD_CONTROL:
     case NETCMD_CLOSE_CLIENT:
-        process_tcp(cmd.control_status.fuji.command);
+        process_tcp(cmd);
         break;
 
     case NETCMD_SET_CHANNEL_MODE:
-        process_http(cmd.control_status.fuji.command);
+        process_http(cmd);
         break;
 
     case NETCMD_GET_REMOTE:
     case NETCMD_SET_DESTINATION:
-        process_udp(cmd.control_status.fuji.command);
+        process_udp(cmd);
         break;
 
     default:
@@ -632,10 +626,10 @@ bool iwmNetwork::instantiate_protocol()
  * Preprocess deviceSpec given aux1 open mode. This is used to work around various assumptions that different
  * disk utility packages do when opening a device, such as adding wildcards for directory opens.
  */
-void iwmNetwork::create_devicespec(string d)
+void iwmNetwork::create_devicespec(string d, bool is_dir)
 {
     auto& current_network_data = network_data_map[current_network_unit];
-    current_network_data.deviceSpec = util_devicespec_fix_for_parsing(d, current_network_data.prefix, data_buffer[0] == 6, false);
+    current_network_data.deviceSpec = util_devicespec_fix_for_parsing(d, current_network_data.prefix, is_dir, false);
 }
 
 /*
@@ -649,10 +643,10 @@ void iwmNetwork::create_url_parser()
     current_network_data.urlParser = std::move(PeoplesUrlParser::parseURL(url));
 }
 
-error_is_true iwmNetwork::parse_and_instantiate_protocol(string d)
+error_is_true iwmNetwork::parse_and_instantiate_protocol(string d, bool is_dir)
 {
     auto& current_network_data = network_data_map[current_network_unit];
-    create_devicespec(d);
+    create_devicespec(d, is_dir);
     create_url_parser();
 
     // Invalid URL returns error 165 in status.
@@ -684,14 +678,15 @@ void iwmNetwork::iwmnet_set_timer_rate()
 {
 }
 
-void iwmNetwork::process_fs(fujiCommandID_t fuji_command)
+void iwmNetwork::process_fs(const iwm_decoded_cmd_t &cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
-    string d(256, 0);
 
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    SYSTEM_BUS.transaction_get(d.data(), d.size());
-    parse_and_instantiate_protocol(d);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    bool is_dir = static_cast<fileAccessMode_t>(cmd.param8(0)) == ACCESS_MODE::DIRECTORY;
+    std::string d = cmd.dataAsString().value();
+    d.resize(strlen(d.c_str())); // Truncate to null terminator
+    parse_and_instantiate_protocol(d, is_dir);
 
     if (!current_network_data.protocol)
     {
@@ -709,7 +704,7 @@ void iwmNetwork::process_fs(fujiCommandID_t fuji_command)
 
     fujiError_t cmd_err;
     auto url = current_network_data.urlParser.get();
-    switch (fuji_command)
+    switch (cmd.command())
     {
     case NETCMD_RENAME:
         cmd_err = fs->rename(url);
@@ -743,7 +738,7 @@ void iwmNetwork::process_fs(fujiCommandID_t fuji_command)
     SYSTEM_BUS.transaction_success();
 }
 
-void iwmNetwork::process_tcp(fujiCommandID_t fuji_command)
+void iwmNetwork::process_tcp(const iwm_decoded_cmd_t &cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
     // Make sure this is really a TCP protocol instance
@@ -755,7 +750,7 @@ void iwmNetwork::process_tcp(fujiCommandID_t fuji_command)
     }
 
     fujiError_t cmd_err;
-    switch (fuji_command)
+    switch (cmd.command())
     {
     case NETCMD_CONTROL:
         cmd_err = tcp->accept_connection();
@@ -777,7 +772,7 @@ void iwmNetwork::process_tcp(fujiCommandID_t fuji_command)
     SYSTEM_BUS.transaction_success();
 }
 
-void iwmNetwork::process_http(fujiCommandID_t fuji_command)
+void iwmNetwork::process_http(const iwm_decoded_cmd_t &cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
     // Make sure this is really an HTTP protocol instance
@@ -791,10 +786,10 @@ void iwmNetwork::process_http(fujiCommandID_t fuji_command)
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     fujiError_t cmd_err;
-    switch (fuji_command)
+    switch (cmd.command())
     {
     case NETCMD_SET_CHANNEL_MODE:
-        cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) data_buffer[1]);
+        cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmd.param8(1));
         break;
     default:
         cmd_err = FUJI_ERROR::UNSPECIFIED;
@@ -810,7 +805,7 @@ void iwmNetwork::process_http(fujiCommandID_t fuji_command)
     SYSTEM_BUS.transaction_success();
 }
 
-void iwmNetwork::process_udp(fujiCommandID_t fuji_command)
+void iwmNetwork::process_udp(const iwm_decoded_cmd_t &cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
     // Make sure this is really a UDP protocol instance
@@ -822,7 +817,7 @@ void iwmNetwork::process_udp(fujiCommandID_t fuji_command)
     }
 
     fujiError_t cmd_err;
-    switch (fuji_command)
+    switch (cmd.command())
     {
 #ifndef ESP_PLATFORM
     case NETCMD_GET_REMOTE:
@@ -836,10 +831,9 @@ void iwmNetwork::process_udp(fujiCommandID_t fuji_command)
 #endif /* ESP_PLATFORM */
     case NETCMD_SET_DESTINATION:
         {
-            ByteBuffer buffer(data_len, 0);
-            SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-            SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
-            cmd_err = udp->set_destination(buffer.data(), buffer.size());
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+            auto data = cmd.data().value();
+            cmd_err = udp->set_destination(data.data(), data.size());
             if (cmd_err != FUJI_ERROR::NONE)
                 SYSTEM_BUS.transaction_error(SP_ERR::IOERROR);
             else

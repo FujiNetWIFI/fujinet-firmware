@@ -59,14 +59,13 @@ void iwmPrinter::iwm_close(const iwm_decoded_cmd_t &cmd)
 
 void iwmPrinter::iwm_write(const iwm_decoded_cmd_t &cmd)
 {
-    Debug_printf("\nPrinter: Write %u bytes\n", cmd.char_rw.length);
+    Debug_printf("\nPrinter: Write %u bytes\n", cmd.frame.char_rw.length);
 
-    size_t offset = 0;
-    ByteBuffer buffer(data_len, 0);
-
+    ByteBuffer buffer(cmd.frame.char_rw.length, 0);
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
     SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
 
+    size_t offset = 0;
     while (offset < buffer.size())
     {
         size_t chunk_size = std::min<size_t>(80, buffer.size() - offset);

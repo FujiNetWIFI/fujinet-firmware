@@ -7,8 +7,8 @@
 class iwmClock : public virtualDevice
 {
 private:
-    void set_tz();
-    void set_alternate_tz();
+    void set_tz(const iwm_decoded_cmd_t &cmd);
+    void set_alternate_tz(const iwm_decoded_cmd_t &cmd);
     std::string alternate_tz = "";
 public:
     iwmClock();
