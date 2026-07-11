@@ -119,7 +119,7 @@ void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)
   err_result = SP_ERR::NOERROR;
   Debug_printf("\nDisk Device %02x Control Code %02x", id(), cmd.control_status.fuji.command);
   Debug_printf("\nDecoding Control Data Packet:");
-  print_packet((uint8_t *)data_buffer, data_len);
+  print_packet(data_buffer, data_len);
 
   switch (cmd.control_status.code)
   {
@@ -164,7 +164,8 @@ void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
   switched = false; //if we made it here it's ok to reset switched
 
   sdstato = BLOCK_DATA_LEN;
-  if (_disk->read(cmd.block_rw.num, &sdstato, data_buffer))
+  ByteBuffer buffer(sdstato);
+  if (_disk->read(cmd.block_rw.num, &sdstato, buffer.data()))
   {
     Debug_printf("\r\nFile Seek or Read err: %d bytes", sdstato);
     send_reply_packet(SP_ERR::IOERROR);
@@ -173,18 +174,18 @@ void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
 
   // send_data_packet();
   Debug_printf("\r\nsending block packet ...");
-  if (SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, BLOCK_DATA_LEN))
-   ((MediaTypePO*)_disk)->reset_seek_opto();  // force seek next time if send error
+  if (SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, buffer.data(), BLOCK_DATA_LEN))
+    ((MediaTypePO*)_disk)->reset_seek_opto();  // force seek next time if send error
 }
 
 void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
 {
   spError_t err = SP_ERR::NOERROR;
 
-
   Debug_printf("\r\nDrive %02x ", id());
   Debug_printf("Write block %06lx", cmd.block_rw.num);
   // partition number indicates which 32mb block we access
+  // We have to return the error after ingesting the block to write or ProDOS doesn't correctly see the status.
 
   if((!device_active)) {
     Debug_printf("iwm_writeblock while device offline!\r\n");
@@ -210,7 +211,10 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
   }
 
   uint16_t sdstato = BLOCK_DATA_LEN;
-  _disk->write(cmd.block_rw.num, &sdstato, data_buffer);
+  ByteBuffer buffer(sdstato, 0);
+  SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+  SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
+  _disk->write(cmd.block_rw.num, &sdstato, buffer.data());
 
   if (sdstato != BLOCK_DATA_LEN)
   {
@@ -221,6 +225,8 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
       err = SP_ERR::IOERROR; // 6;
     //return;
   }
+
+  SYSTEM_BUS.transaction_success();
   //now return status code to host
   send_reply_packet(err);
 }

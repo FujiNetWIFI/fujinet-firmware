@@ -1410,7 +1410,7 @@ void iwmModem::iwm_read(iwm_decoded_cmd_t cmd)
 #ifdef ESP_PLATFORM // OS
             xQueueReceive(mrxq, &b, portMAX_DELAY);
 #endif
-            buffer.push_back(b);
+            buffer[i] = b;
         }
     }
 
