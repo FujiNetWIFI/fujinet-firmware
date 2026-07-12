@@ -434,18 +434,18 @@ success_is_true FileSystemFTP::dir_open(const char  *path, const char *pattern, 
         res = _ftp->read_directory(filename, filesz, is_dir);
         while(res == FUJI_ERROR::NONE)
         {
-            // skip hidden
-            if (filename[0] == '.')
-                continue;
+            // skip hidden (must still advance to next entry, else infinite loop)
+            if (filename[0] != '.')
+            {
+                // new dir entry
+                fs_de = &_dircache.new_entry();
 
-            // new dir entry
-            fs_de = &_dircache.new_entry();
-
-            // set entry members
-            strlcpy(fs_de->filename, filename.c_str(), sizeof(fs_de->filename));
-            fs_de->isDir = is_dir;
-            fs_de->size = (uint32_t)filesz;
-            fs_de->modified_time = 0; // TODO
+                // set entry members
+                strlcpy(fs_de->filename, filename.c_str(), sizeof(fs_de->filename));
+                fs_de->isDir = is_dir;
+                fs_de->size = (uint32_t)filesz;
+                fs_de->modified_time = 0; // TODO
+            }
 
             // get next
             res = _ftp->read_directory(filename, filesz, is_dir);

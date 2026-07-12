@@ -924,6 +924,9 @@ fujiError_t NetworkProtocolHTTP::rmdir(PeoplesUrlParser *url)
 
 size_t NetworkProtocolHTTP::available()
 {
+    if (streamType == streamType_t::DIR)
+        return NetworkProtocolFS::available();
+
     size_t avail = 0;
 
     if (client == nullptr)
