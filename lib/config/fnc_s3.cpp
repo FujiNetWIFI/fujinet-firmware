@@ -1,5 +1,6 @@
 #include "fnConfig.h"
 #include <cstring>
+#include "utils.h"
 
 void fnConfig::store_s3_endpoint(const std::string &endpoint)
 {
