@@ -18,6 +18,7 @@
 #include "SSH.h"
 #include "SMB.h"
 #include "NFS.h"
+#include "S3.h"
 #include "TCP.h"
 #include "Telnet.h"
 #include "Test.h"
@@ -38,6 +39,7 @@ public:
 			{"SSH",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolSSH>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
 			{"SMB",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolSMB>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
 			{"NFS",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolNFS>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
+			{"S3",     [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolS3>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
 			{"TCP",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolTCP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
 			{"TELNET", [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolTELNET>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
 			{"TEST",   [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolTest>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
