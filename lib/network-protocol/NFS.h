@@ -165,11 +165,6 @@ private:
     struct nfs_context *nfs = nullptr;
 
     /**
-     * NFS URL
-     */
-    struct nfs_url *nfs_url = nullptr;
-
-    /**
      * NFS directory handle
      */
     struct nfsdir *nfs_dir = nullptr;
