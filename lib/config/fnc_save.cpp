@@ -163,6 +163,14 @@ void fnConfig::save()
     ss << "access_token=" << _gdrive.access_token << LINETERM;
     ss << "token_expiry=" << _gdrive.token_expiry << LINETERM;
 
+    // S3 (Amazon S3 / S3-compatible object storage)
+    ss << LINETERM << "[S3]" << LINETERM;
+    ss << "endpoint=" << _s3.endpoint << LINETERM;
+    ss << "region=" << _s3.region << LINETERM;
+    ss << "access_key=" << _s3.access_key << LINETERM;
+    ss << "secret_key=" << _s3.secret_key << LINETERM;
+    ss << "use_ssl=" << (_s3.use_ssl ? 1 : 0) << LINETERM;
+
     // ENABLE DEVICE SLOTS
     ss << LINETERM << "[ENABLE]" << LINETERM;
     ss << "enable_device_slot_1=" << _denable.device_1_enabled << LINETERM;

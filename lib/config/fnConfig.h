@@ -260,6 +260,18 @@ public:
     void store_gdrive_access_token(const std::string &access_token);
     void store_gdrive_token_expiry(long expiry);
 
+    // S3 (Amazon S3 / S3-compatible object storage, e.g. MinIO)
+    std::string get_s3_endpoint() { return _s3.endpoint; };
+    std::string get_s3_region() { return _s3.region; };
+    std::string get_s3_access_key() { return _s3.access_key; };
+    std::string get_s3_secret_key() { return _s3.secret_key; };
+    bool get_s3_use_ssl() { return _s3.use_ssl; };
+    void store_s3_endpoint(const std::string &endpoint);
+    void store_s3_region(const std::string &region);
+    void store_s3_access_key(const std::string &access_key);
+    void store_s3_secret_key(const std::string &secret_key);
+    void store_s3_use_ssl(bool use_ssl);
+
     // ENABLE/DISABLE DEVICE SLOTS
     bool get_device_slot_enable(uint8_t slot);
     bool get_device_slot_enable_1();
@@ -325,6 +337,7 @@ private:
     void _read_section_device_enable(std::stringstream &ss);
     void _read_section_boip(std::stringstream &ss);
     void _read_section_gdrive(std::stringstream &ss);
+    void _read_section_s3(std::stringstream &ss);
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
     void _read_section_serial(std::stringstream &ss);
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
@@ -347,6 +360,7 @@ private:
         SECTION_DEVICE_ENABLE,
         SECTION_BOIP,
         SECTION_GOOGLEDRIVE,
+        SECTION_S3,
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
         SECTION_SERIAL,
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
@@ -525,6 +539,15 @@ private:
         long token_expiry = 0;
     };
 
+    struct s3_info
+    {
+        std::string endpoint;
+        std::string region;
+        std::string access_key;
+        std::string secret_key;
+        bool use_ssl = true;
+    };
+
     struct device_enable_info
     {
         bool device_1_enabled = true;
@@ -566,6 +589,7 @@ private:
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
     cpm_info _cpm;
     googledrive_info _gdrive;
+    s3_info _s3;
     device_enable_info _denable;
     phbook_info _phonebook_slots[MAX_PB_SLOTS];
 };

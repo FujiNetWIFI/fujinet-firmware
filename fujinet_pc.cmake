@@ -165,6 +165,7 @@ set(SOURCES src/main.cpp
     lib/config/fnc_cpm.cpp
     lib/config/fnc_enable.cpp
     lib/config/fnc_gdrive.cpp
+    lib/config/fnc_s3.cpp
     lib/config/fnc_general.cpp
     lib/config/fnc_hosts.cpp
     lib/config/fnc_load.cpp
@@ -264,6 +265,7 @@ set(SOURCES src/main.cpp
     lib/network-protocol/HTTP.h lib/network-protocol/HTTP.cpp
     lib/network-protocol/SMB.h lib/network-protocol/SMB.cpp
     lib/network-protocol/NFS.h lib/network-protocol/NFS.cpp
+    lib/network-protocol/S3.h lib/network-protocol/S3.cpp
     lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp
     lib/network-protocol/SFTP.h lib/network-protocol/SFTP.cpp
     lib/network-protocol/SSHKeygen.h lib/network-protocol/SSHKeygen.cpp
