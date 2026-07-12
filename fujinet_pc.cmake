@@ -265,6 +265,7 @@ set(SOURCES src/main.cpp
     lib/network-protocol/SMB.h lib/network-protocol/SMB.cpp
     lib/network-protocol/NFS.h lib/network-protocol/NFS.cpp
     lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp
+    lib/network-protocol/SFTP.h lib/network-protocol/SFTP.cpp
     lib/network-protocol/SSHKeygen.h lib/network-protocol/SSHKeygen.cpp
     lib/network-protocol/SSHCopyId.h lib/network-protocol/SSHCopyId.cpp
     lib/network-protocol/SD.h lib/network-protocol/SD.cpp
