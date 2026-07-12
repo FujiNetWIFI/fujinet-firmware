@@ -66,7 +66,7 @@ fujiError_t NetworkProtocolNFS::open_file_handle()
         Debug_printf("NetworkProtocolNFS::open_file_handle() - Uncaught aux1 %d", (int) streamMode);
     }
 
-    if (nfs_open(nfs, nfs_url->path, flags, &fh) != 0)
+    if (nfs_open(nfs, opened_url->path.c_str(), flags, &fh) != 0)
     {
         Debug_printf("NetworkProtocolNFS::open_file_handle() - NFS Error %s\r\n", nfs_get_error(nfs));
         fserror_to_error();
@@ -82,7 +82,7 @@ fujiError_t NetworkProtocolNFS::open_file_handle()
 
 fujiError_t NetworkProtocolNFS::open_dir_handle()
 {
-    if (nfs_opendir(nfs, nfs_url->path, &nfs_dir) != 0)
+    if (nfs_opendir(nfs, dir.c_str(), &nfs_dir) != 0)
     {
         Debug_printf("NetworkProtocolNFS::open_dir_handle() - ERROR: %s\r\n", nfs_get_error(nfs));
         fserror_to_error();
@@ -94,23 +94,16 @@ fujiError_t NetworkProtocolNFS::open_dir_handle()
 
 fujiError_t NetworkProtocolNFS::mount(PeoplesUrlParser *url)
 {
-    std::string openURL = url->url;
+    Debug_printf("NetworkProtocolNFS::mount() - server: %s port: %s path: %s\r\n",
+                 url->host.c_str(), url->port.c_str(), url->path.c_str());
 
-    // use mRawURL to bypass our normal URL processing.
-    if (openURL.find("NFS:") != std::string::npos)
+    nfs_set_version(nfs, 3);
+    nfs_set_auto_traverse_mounts(nfs, 0);
+    if (!url->port.empty())
     {
-        openURL[0] = 'n';
-        openURL[1] = 'f';
-        openURL[2] = 's';
-    }
-
-    Debug_printf("NetworkProtocolNFS::mount() - openURL: %s\r\n", openURL.c_str());
-    nfs_url = nfs_parse_url_full(nfs, openURL.c_str());
-    if (nfs_url == nullptr)
-    {
-        Debug_printf("NetworkProtocolNFS::mount(%s) - failed to parse URL, NFS error: %s\n", openURL.c_str(), nfs_get_error(nfs));
-        fserror_to_error();
-        return FUJI_ERROR::UNSPECIFIED;
+        int port = atoi(url->port.c_str());
+        nfs_set_mountport(nfs, port);
+        nfs_set_nfsport(nfs, port);
     }
 
     // Set UID/GID from login credentials if provided
@@ -121,9 +114,11 @@ fujiError_t NetworkProtocolNFS::mount(PeoplesUrlParser *url)
             nfs_set_gid(nfs, atoi(password->c_str()));
     }
 
-    if ((nfs_error = nfs_mount(nfs, nfs_url->server, nfs_url->path)) != 0)
+    // Mount the server's root export; files/dirs are addressed by their
+    // absolute path beneath it (see open_dir_handle/open_file_handle).
+    if ((nfs_error = nfs_mount(nfs, url->host.c_str(), "/")) != 0)
     {
-        Debug_printf("NetworkProtocolNFS::mount(%s) - could not mount, NFS error: %s\r\n", openURL.c_str(), nfs_get_error(nfs));
+        Debug_printf("NetworkProtocolNFS::mount(%s) - could not mount, NFS error: %s\r\n", url->host.c_str(), nfs_get_error(nfs));
         fserror_to_error();
         return FUJI_ERROR::UNSPECIFIED;
     }
@@ -137,11 +132,6 @@ fujiError_t NetworkProtocolNFS::umount()
         return FUJI_ERROR::UNSPECIFIED;
 
     nfs_umount(nfs);
-
-    if (nfs_url == nullptr)
-        return FUJI_ERROR::UNSPECIFIED;
-
-    nfs_destroy_url(nfs_url);
     return FUJI_ERROR::NONE;
 }
 
@@ -231,7 +221,7 @@ fujiError_t NetworkProtocolNFS::mkdir(PeoplesUrlParser *url)
 {
     mount(url);
 
-    if (nfs_mkdir(nfs, nfs_url->path) != 0)
+    if (nfs_mkdir(nfs, url->path.c_str()) != 0)
     {
         fserror_to_error();
         Debug_printf("NetworkProtocolNFS::mkdir(%s) NFS error: %s\r\n",url->url.c_str(), nfs_get_error(nfs));
@@ -246,7 +236,7 @@ fujiError_t NetworkProtocolNFS::rmdir(PeoplesUrlParser *url)
 {
     mount(url);
 
-    if (nfs_rmdir(nfs, nfs_url->path) != 0)
+    if (nfs_rmdir(nfs, url->path.c_str()) != 0)
     {
         fserror_to_error();
         Debug_printf("NetworkProtocolNFS::rmdir(%s) NFS error: %s\r\n",url->url.c_str(), nfs_get_error(nfs));
@@ -261,7 +251,7 @@ fujiError_t NetworkProtocolNFS::stat()
 {
     struct nfs_stat_64 st;
 
-    int ret = nfs_stat64(nfs, nfs_url->path, &st);
+    int ret = nfs_stat64(nfs, opened_url->path.c_str(), &st);
 
     fileSize = st.nfs_size;
     return ret != 0 ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
