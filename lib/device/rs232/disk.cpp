@@ -42,6 +42,8 @@ void rs232Disk::rs232_write(uint32_t sector, bool verify)
 {
     //Debug_print("disk WRITE\n");
 
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+
     if (_disk != nullptr)
     {
         uint16_t sectorSize = _disk->sector_size(sector);

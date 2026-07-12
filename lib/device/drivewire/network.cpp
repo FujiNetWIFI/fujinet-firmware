@@ -496,6 +496,8 @@ void drivewireNetwork::set_prefix()
     std::string prefixSpec_str;
     char tmp[256];
 
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+
     if (SYSTEM_BUS.transaction_get(tmp, sizeof(tmp)).is_error())
     {
         Debug_printf("Short read. Exiting.");

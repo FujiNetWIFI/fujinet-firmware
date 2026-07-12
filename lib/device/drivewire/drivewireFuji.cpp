@@ -126,6 +126,7 @@ void drivewireFuji::new_disk()
         char filename[MAX_FILENAME_LEN]; // WIll set this to MAX_FILENAME_LEN, later.
     } newDisk;
 
+    transaction_begin(TRANS_STATE::WILL_GET);
     transaction_get(&newDisk, sizeof(newDisk));
 
     Debug_printf("numDisks: %u\n",newDisk.numDisks);
@@ -152,6 +153,7 @@ void drivewireFuji::new_disk()
     if (disk.fileh == nullptr)
     {
         Debug_printf("drivewire_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
+        transaction_error();
         return;
     }
 
@@ -426,10 +428,15 @@ void drivewireFuji::processCommand(FujiDWPacket &packet)
     case FUJICMD_SET_SSID:
         {
             SSIDConfig cfg;
+            // Handler owns the transaction because it must transaction_get the
+            // payload first, so call the core (not fujicmd_) set-ssid helper.
+            transaction_begin(TRANS_STATE::WILL_GET);
             if (!transaction_get(&cfg, sizeof(cfg)))
                 transaction_error();
+            else if (fujicore_net_set_ssid_success(cfg.ssid, cfg.password, true).is_error())
+                transaction_error();
             else
-                fujicmd_net_set_ssid_success(cfg.ssid, cfg.password, true);
+                transaction_complete();
         }
         break;
     case FUJICMD_GET_SSID:
