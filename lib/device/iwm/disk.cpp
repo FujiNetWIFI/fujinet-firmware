@@ -116,11 +116,10 @@ iwm_device_info_block_t iwmDisk::create_dib_reply_packet()
 
 void iwmDisk::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
 {
-  Debug_printf("\nDisk Device %02x Control Code %02x", id(), cmd.control_status.fuji.command);
+  Debug_printf("\nDisk Device %02x Control Code %02x", id(), cmd.command());
   Debug_printf("\nDecoding Control Data Packet:");
-  print_packet(data_buffer, data_len);
 
-  switch (cmd.control_status.code)
+  switch (cmd.frame.control_status.code)
   {
   case SP_CTRL_EJECT:
     Debug_printf("Handling Eject command\r\n");
@@ -140,7 +139,7 @@ void iwmDisk::iwm_readblock(const iwm_decoded_cmd_t &cmd)
 
   Debug_printf("\r\nDrive %02x ", id());
 
-  Debug_printf(" Read block %06lx\r\n", cmd.block_rw.num);
+  Debug_printf(" Read block %06lx\r\n", cmd.frame.block_rw.num);
   if (!(_disk != nullptr))
   {
     Debug_printf(" - ERROR - No image mounted");
@@ -152,7 +151,7 @@ void iwmDisk::iwm_readblock(const iwm_decoded_cmd_t &cmd)
     SYSTEM_BUS.transaction_error(SP_ERR::OFFLINE);
     return;
   }
-  if((switched) && (cmd.block_rw.num > 2)){
+  if((switched) && (cmd.frame.block_rw.num > 2)){
     Debug_printf("iwm_readblock() returning disk switched error\r\n");
     SYSTEM_BUS.transaction_error(SP_ERR::OFFLINE);
     switched = false;
@@ -163,7 +162,7 @@ void iwmDisk::iwm_readblock(const iwm_decoded_cmd_t &cmd)
 
   sdstato = BLOCK_DATA_LEN;
   ByteBuffer buffer(sdstato);
-  if (_disk->read(cmd.block_rw.num, &sdstato, buffer.data()))
+  if (_disk->read(cmd.frame.block_rw.num, &sdstato, buffer.data()))
   {
     Debug_printf("\r\nFile Seek or Read err: %d bytes", sdstato);
     SYSTEM_BUS.transaction_error(SP_ERR::IOERROR);
@@ -179,7 +178,7 @@ void iwmDisk::iwm_readblock(const iwm_decoded_cmd_t &cmd)
 void iwmDisk::iwm_writeblock(const iwm_decoded_cmd_t &cmd)
 {
   Debug_printf("\r\nDrive %02x ", id());
-  Debug_printf("Write block %06lx", cmd.block_rw.num);
+  Debug_printf("Write block %06lx", cmd.frame.block_rw.num);
   // partition number indicates which 32mb block we access
   // We have to return the error after ingesting the block to write or ProDOS doesn't correctly see the status.
 
@@ -210,7 +209,7 @@ void iwmDisk::iwm_writeblock(const iwm_decoded_cmd_t &cmd)
   ByteBuffer buffer(sdstato, 0);
   SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
   SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
-  _disk->write(cmd.block_rw.num, &sdstato, buffer.data());
+  _disk->write(cmd.frame.block_rw.num, &sdstato, buffer.data());
 
   if (sdstato != BLOCK_DATA_LEN)
   {

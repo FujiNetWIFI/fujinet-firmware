@@ -338,6 +338,7 @@ if(FUJINET_TARGET STREQUAL "APPLE")
     lib/bus/iwm/iwm_slip.h lib/utils/std_extensions.hpp lib/bus/iwm/iwm_slip.cpp
     lib/bus/iwm/connector.h
     lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
+    lib/bus/iwm/FujiIWMPacket.h lib/bus/iwm/FujiIWMPacket.cpp
 
     lib/devrelay/util.h lib/devrelay/util.cpp
     lib/devrelay/types/Request.h lib/devrelay/types/Request.cpp

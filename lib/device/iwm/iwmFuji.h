@@ -17,8 +17,8 @@
 #define MAX_DISK2_DEVICES 2 // for now until we add 3.5" disks
 #define MAX_A2DISK_DEVICES (MAX_SPDISK_DEVICES + MAX_DISK2_DEVICES)
 
-using IWMControlHandlers = std::function<void()>;
-using IWMStatusHandlers = std::function<void()>;
+using IWMControlHandlers = std::function<void(const iwm_decoded_cmd_t &cmd)>;
+using IWMStatusHandlers = std::function<void(const iwm_decoded_cmd_t &cmd)>;
 
 class iwmFuji : public fujiDevice
 {
@@ -63,26 +63,26 @@ protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
 
-    void iwm_dummy_command();                     // control 0xAA
+    void iwm_dummy_command(const iwm_decoded_cmd_t &cmd);                     // control 0xAA
     void iwm_hello_world();                       // status 0xAA
     void iwm_stat_get_wifi_enabled();             // 0xEA
-    void iwm_ctrl_new_disk();                     // 0xE7
-    void iwm_ctrl_enable_device();                // 0xD5
-    void iwm_ctrl_disable_device();               // 0xD4
+    void iwm_ctrl_new_disk(const iwm_decoded_cmd_t &cmd);                     // 0xE7
+    void iwm_ctrl_enable_device(const iwm_decoded_cmd_t &cmd);                // 0xD5
+    void iwm_ctrl_disable_device(const iwm_decoded_cmd_t &cmd);               // 0xD4
     void send_stat_get_enable();                  // 0xD1
 
-    void iwm_ctrl_hash_input();                   // 0xC8
-    void iwm_ctrl_hash_compute(bool clear_data);  // 0xC7, 0xC3
-    void iwm_stat_hash_length();                  // 0xC6
-    void iwm_ctrl_hash_output();                  // 0xC5 set hash_is_hex_output
+    void iwm_ctrl_hash_input(const iwm_decoded_cmd_t &cmd);                   // 0xC8
+    void iwm_ctrl_hash_compute(const iwm_decoded_cmd_t &cmd, bool clear_data);  // 0xC7, 0xC3
+    void iwm_stat_hash_length(const iwm_decoded_cmd_t &cmd);                  // 0xC6
+    void iwm_ctrl_hash_output(const iwm_decoded_cmd_t &cmd);                  // 0xC5 set hash_is_hex_output
     void iwm_stat_hash_output();                  // 0xC5 write response
     void iwm_ctrl_hash_clear();                   // 0xC2
     void iwm_stat_get_heap();                     // 0xC1
 
-    void iwm_ctrl_qrcode_input();                 // 0xBC
-    void iwm_ctrl_qrcode_encode();                // 0xBD
+    void iwm_ctrl_qrcode_input(const iwm_decoded_cmd_t &cmd);                 // 0xBC
+    void iwm_ctrl_qrcode_encode(const iwm_decoded_cmd_t &cmd);                // 0xBD
     void iwm_stat_qrcode_length();                // 0xBE
-    void iwm_ctrl_qrcode_output();                // 0xBF
+    void iwm_ctrl_qrcode_output(const iwm_decoded_cmd_t &cmd);                // 0xBF
     void iwm_stat_qrcode_output();                // 0xBF
 
     void iwm_ctrl(const iwm_decoded_cmd_t &cmd) override;
@@ -95,8 +95,6 @@ protected:
     iwm_device_status_block_t create_status_reply_packet() override;
 
 public:
-    fujiCommandID_t active_fuji_command;
-
     iwmFuji();
     void setup() override;
 
