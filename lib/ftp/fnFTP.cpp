@@ -973,7 +973,7 @@ fujiError_t fnFTP::read_directory(string &name, long &filesize, bool &is_dir)
     getline(dirBuffer, line);
 
     if (line.empty())
-        return FUJI_ERROR::NONE; // no more entries
+        return FUJI_ERROR::UNSPECIFIED; // empty line / EOF: stop, no more entries
 
     //Debug_printf("fnFTP::read_directory - %s\r\n",line.c_str());
     line = line.substr(0, line.size() - 1);
