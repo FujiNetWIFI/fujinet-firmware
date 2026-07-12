@@ -85,17 +85,16 @@ protected:
     void iwm_ctrl_qrcode_output();                // 0xBF
     void iwm_stat_qrcode_output();                // 0xBF
 
-    void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
-    void iwm_open(iwm_decoded_cmd_t cmd) override;
-    void iwm_close(iwm_decoded_cmd_t cmd) override;
-    void iwm_read(iwm_decoded_cmd_t cmd) override;
-    void iwm_status(iwm_decoded_cmd_t cmd) override;
+    void iwm_ctrl(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_open(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_close(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_read(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_status(const iwm_decoded_cmd_t &cmd) override;
 
     iwm_device_info_block_t create_dib_reply_packet() override;
     iwm_device_status_block_t create_status_reply_packet() override;
 
 public:
-    spError_t err_result = SP_ERR::NOERROR;
     fujiCommandID_t active_fuji_command;
 
     iwmFuji();
@@ -113,8 +112,8 @@ public:
 
     // Being used by iwm/disk.cpp
     void handle_ctl_eject(uint8_t spid);
-    void FujiStatus(iwm_decoded_cmd_t cmd) { iwm_status(cmd); }
-    void FujiControl(iwm_decoded_cmd_t cmd) { iwm_ctrl(cmd); }
+    void FujiStatus(const iwm_decoded_cmd_t &cmd) { iwm_status(cmd); }
+    void FujiControl(const iwm_decoded_cmd_t &cmd) { iwm_ctrl(cmd); }
 
     // ============ Wrapped Fuji commands ============
     void fujicmd_close_directory() override;

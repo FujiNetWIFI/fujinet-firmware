@@ -82,7 +82,7 @@ void iwmCPM::sio_status()
     return;
 }
 
-void iwmCPM::iwm_open(iwm_decoded_cmd_t cmd)
+void iwmCPM::iwm_open(const iwm_decoded_cmd_t &cmd)
 {
     spError_t err_result = SP_ERR::NOERROR;
 
@@ -103,16 +103,16 @@ void iwmCPM::iwm_open(iwm_decoded_cmd_t cmd)
     }
 #endif
 
-    send_reply_packet(err_result);
+    SYSTEM_BUS.transaction_error(err_result);
 }
 
-void iwmCPM::iwm_close(iwm_decoded_cmd_t cmd)
+void iwmCPM::iwm_close(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\r\nCP/M: Close\n");
-    send_reply_packet(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
+void iwmCPM::iwm_status(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\r\n[CPM] Device %02x Status Code %02x\r\n", id(), cmd.control_status.fuji.command);
 
@@ -143,14 +143,14 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
         }
         break;
     default:
-        send_reply_packet(SP_ERR::BADCMD);
+        SYSTEM_BUS.transaction_error(SP_ERR::BADCMD);
         return;
     }
 
     Debug_printf("\r\nStatus code complete, sending response");
 }
 
-void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
+void iwmCPM::iwm_read(const iwm_decoded_cmd_t &cmd)
 {
 #ifdef ESP_PLATFORM // OS
     unsigned short mw = uxQueueMessagesWaiting(rxq);
@@ -176,10 +176,11 @@ void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
     }
 
     Debug_printf("\r\nsending CPM read data packet ...");
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, buffer.data(), buffer.size());
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_send(buffer);
 }
 
-void iwmCPM::iwm_write(iwm_decoded_cmd_t cmd)
+void iwmCPM::iwm_write(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\nWRITE %u bytes\n", cmd.char_rw.length);
 
@@ -191,10 +192,10 @@ void iwmCPM::iwm_write(iwm_decoded_cmd_t cmd)
 #endif
     }
 
-    send_reply_packet(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
+void iwmCPM::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
 {
     spError_t err_result = SP_ERR::NOERROR;
 
@@ -228,13 +229,13 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
             }
             break;
         default:
-            send_reply_packet(SP_ERR::BADCMD);
+            SYSTEM_BUS.transaction_error(SP_ERR::BADCMD);
             return;
         }
     else
         err_result = SP_ERR::IOERROR;
 
-    send_reply_packet(err_result);
+    SYSTEM_BUS.transaction_error(err_result);
 }
 
 void iwmCPM::shutdown()

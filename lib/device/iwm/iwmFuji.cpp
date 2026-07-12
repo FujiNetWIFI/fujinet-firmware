@@ -68,24 +68,26 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
         { FUJICMD_WRITE_HOST_SLOTS, [this]()           { this->fujicmd_write_host_slots(); }},         // 0xF3
 
         { FUJICMD_RESET,  [this]()                     {
-             this->send_reply_packet(err_result);
              this->fujicmd_reset();
          }},   // 0xFF
         { SP_CTRL_RESET, [this]()                     {
-             this->send_reply_packet(err_result);
              this->fujicmd_reset();
          }},   // 0x00
 #ifdef DEV_RELAY_SLIP
-        { SP_CTRL_CLEAR_DISKII_SEEN, [this]()              { err_result = SP_ERR::NODRIVE; }},
+        { SP_CTRL_CLEAR_DISKII_SEEN, [this]()              { SYSTEM_BUS.transaction_error(SP_ERR::NODRIVE); }},
 #else
-        { SP_CTRL_CLEAR_DISKII_SEEN, [this]()              { diskii_xface.d2_enable_seen = 0; err_result = SP_ERR::NOERROR; }},
+        { SP_CTRL_CLEAR_DISKII_SEEN, [this]()              { diskii_xface.d2_enable_seen = 0; SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET); SYSTEM_BUS.transaction_success(); }},
 #endif
 
-        { FUJICMD_MOUNT_ALL, [&]()                     {
-             err_result = fujicmd_mount_all_success() ? SP_ERR::NOERROR : SP_ERR::IOERROR;
-         }},          // 0xD7
-        { FUJICMD_MOUNT_IMAGE, [&]()                   { err_result = fujicmd_mount_disk_image_success(data_buffer[0], (disk_access_flags_t) data_buffer[1]) ? SP_ERR::NOERROR : SP_ERR::NODRIVE; }},  // 0xF8
-        { FUJICMD_OPEN_DIRECTORY, [&]()                { err_result = fujicore_open_directory_success(data_buffer[0], std::string((char *) &data_buffer[1], data_len - 1)) ? SP_ERR::NOERROR : SP_ERR::IOERROR; }}     // 0xF7
+        { FUJICMD_MOUNT_ALL, [&]()                     { fujicmd_mount_all_success(); }},          // 0xD7
+        { FUJICMD_MOUNT_IMAGE, [&]()                   { fujicmd_mount_disk_image_success(data_buffer[0], (disk_access_flags_t) data_buffer[1]); }},  // 0xF8
+        { FUJICMD_OPEN_DIRECTORY, [&]()                {
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+            if (fujicore_open_directory_success(data_buffer[0], std::string((char *) &data_buffer[1], data_len - 1)).is_error())
+                SYSTEM_BUS.transaction_error(SP_ERR::IOERROR);
+            else
+                SYSTEM_BUS.transaction_success();
+        }}     // 0xF7
     };
 
     status_handlers = {
@@ -317,11 +319,11 @@ void iwmFuji::send_stat_get_enable()
     transaction_put(1);
 }
 
-void iwmFuji::iwm_open(iwm_decoded_cmd_t cmd) {}
-void iwmFuji::iwm_close(iwm_decoded_cmd_t cmd) {}
-void iwmFuji::iwm_read(iwm_decoded_cmd_t cmd) {}
+void iwmFuji::iwm_open(const iwm_decoded_cmd_t &cmd) {}
+void iwmFuji::iwm_close(const iwm_decoded_cmd_t &cmd) {}
+void iwmFuji::iwm_read(const iwm_decoded_cmd_t &cmd) {}
 
-void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
+void iwmFuji::iwm_status(const iwm_decoded_cmd_t &cmd)
 {
     active_fuji_command = cmd.control_status.fuji.command;
 
@@ -332,18 +334,13 @@ void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
         it->second();
     } else {
         Debug_printf("ERROR: Unhandled status code: %02X\n", active_fuji_command);
-        data_len = 0;
+        transaction_error();
     }
-
-    Debug_printf("\nStatus code complete, sending response");
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, data_len);
 }
 
-void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
+void iwmFuji::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\ntheFuji Device %02x Control Code %02x", id(), cmd.control_status.fuji.command);
-
-    err_result = SP_ERR::NOERROR;
 
     Debug_printf("\nDecoding Control Data Packet for code: 0x%02x\r\n", cmd.control_status.fuji.command);
 
@@ -352,10 +349,8 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
         it->second();
     } else {
         Debug_printf("ERROR: Unhandled control code: %02X\n", cmd.control_status.fuji.command);
-        err_result = SP_ERR::BADCTL;
+        SYSTEM_BUS.transaction_error(SP_ERR::BADCTL);
     }
-
-    send_reply_packet(err_result);
 }
 
 void iwmFuji::handle_ctl_eject(uint8_t spid)

@@ -52,31 +52,27 @@ void iwmClock::set_alternate_tz()
     SYSTEM_BUS.transaction_success();
 }
 
-void iwmClock::iwm_ctrl(iwm_decoded_cmd_t cmd)
+void iwmClock::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
 {
 #ifdef DEBUG
     Debug_printf("[CLOCK] Device %02x Control Code %02x('%c')\r\n", id(), cmd.control_status.fuji.command, isprint(cmd.control_status.fuji.command) ? (char) cmd.control_status.fuji.command : '.');
 #endif
 
-    spError_t err_result = SP_ERR::NOERROR;
-
     switch (cmd.control_status.fuji.command)
     {
-        case APETIMECMD_SETTZ_ALT2:
-            set_tz();
-            break;
-        case APETIMECMD_SETTZ_ALT:
-            set_alternate_tz();
-            break;
-        default:
-            err_result = SP_ERR::BADCTL;
-            break;
+    case APETIMECMD_SETTZ_ALT2:
+        set_tz();
+        break;
+    case APETIMECMD_SETTZ_ALT:
+        set_alternate_tz();
+        break;
+    default:
+        SYSTEM_BUS.transaction_error(SP_ERR::BADCTL);
+        break;
     }
-
-    send_reply_packet(err_result);
 }
 
-void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
+void iwmClock::iwm_status(const iwm_decoded_cmd_t &cmd)
 {
     bool use_alternate_tz = false;
 
@@ -154,24 +150,21 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
         break;
     }
     default:
-        send_reply_packet(SP_ERR::BADCTL);
+        SYSTEM_BUS.transaction_error(SP_ERR::BADCTL);
         return;
     }
-
-    // If we got here, we have data to send
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, data_len);
 }
 
-void iwmClock::iwm_open(iwm_decoded_cmd_t cmd)
+void iwmClock::iwm_open(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\r\nClock: Open\n");
-    send_reply_packet(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmClock::iwm_close(iwm_decoded_cmd_t cmd)
+void iwmClock::iwm_close(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\r\nClock: Close\n");
-    send_reply_packet(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
 void iwmClock::shutdown()

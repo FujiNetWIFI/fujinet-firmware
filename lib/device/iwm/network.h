@@ -101,12 +101,12 @@ public:
     void process_http(fujiCommandID_t fuji_command);
     void process_udp(fujiCommandID_t fuji_command);
 
-    void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
-    void iwm_open(iwm_decoded_cmd_t cmd) override;
-    void iwm_close(iwm_decoded_cmd_t cmd) override;
-    void iwm_read(iwm_decoded_cmd_t cmd) override;
-    void iwm_write(iwm_decoded_cmd_t cmd) override;
-    void iwm_status(iwm_decoded_cmd_t cmd) override;
+    void iwm_ctrl(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_open(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_close(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_read(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_write(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_status(const iwm_decoded_cmd_t &cmd) override;
     void shutdown() override;
     iwm_device_info_block_t create_dib_reply_packet() override;
     iwm_device_status_block_t create_status_reply_packet() override;
@@ -145,17 +145,12 @@ public:
      * @brief JSON Query
      * @param s size of query
      */
-    void json_query(iwm_decoded_cmd_t cmd);
+    void json_query(const iwm_decoded_cmd_t &cmd);
 
     std::unordered_map<uint8_t, NetworkData> network_data_map;
     uint8_t current_network_unit = 1;
 
 private:
-    /**
-     * SP_ERR number when there's an ... error!
-     */
-    spError_t err = SP_ERR::NOERROR;
-
     /**
      * ESP timer handle for the Interrupt rate limiting timer
      */
@@ -226,14 +221,14 @@ private:
      * @param num_bytes Number of bytes to read.
      * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
      */
-    error_is_true read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd);
+    error_is_true read_channel(const iwm_decoded_cmd_t &cmd);
 
     /**
      * Perform the correct read based on value of channelMode
      * @param num_bytes Number of bytes to read.
      * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
      */
-    error_is_true read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t cmd);
+    error_is_true read_channel_json(const iwm_decoded_cmd_t &cmd);
 
     /**
      * Perform the correct write based on value of channelMode
