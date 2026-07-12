@@ -245,13 +245,11 @@ protected:
   bool _initialized;
 
   void send_init_reply_packet(uint8_t source, spError_t err);
-  void send_status_reply_packet();
   void send_reply_packet(spError_t err);
-  void send_status_dib_reply_packet();
 
   virtual void shutdown() = 0;
 
-  // these are good for the high level device
+  // FIXME - these are all bus commands and belong in systemBus
   virtual void iwm_status(iwm_decoded_cmd_t cmd);
   virtual void iwm_readblock(iwm_decoded_cmd_t cmd);
   virtual void iwm_writeblock(iwm_decoded_cmd_t cmd);
@@ -266,7 +264,6 @@ protected:
   void iwm_return_device_offline(iwm_decoded_cmd_t cmd);
   void iwm_return_ioerror();
   void iwm_return_noerror();
-  void iwm_process(iwm_decoded_cmd_t cmd);
 
   // iwm packet handling
   static uint8_t data_buffer[MAX_DATA_LEN]; // un-encoded binary data (512 bytes for a block)
@@ -323,6 +320,10 @@ private:
   bool iwm_req_assert_timeout(int t) { return smartport.req_wait_for_rising_timeout(t); };
 
   iwm_decoded_cmd_t command;
+  void iwm_process(iwm_decoded_cmd_t cmd);
+
+  void send_status_reply_packet();
+  void send_status_dib_reply_packet();
 
   void handle_init();
 
@@ -334,7 +335,7 @@ public:
 
   cmdPacket_t command_packet;
   bool iwm_decode_data_packet(uint8_t *a, int &n);
-   int iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, spError_t err, const void* data, uint16_t num);
+  error_is_true iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, spError_t err, const void* data, uint16_t num);
 
   // these things stay for the most part
   void setup();

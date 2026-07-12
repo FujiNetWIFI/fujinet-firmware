@@ -317,11 +317,7 @@ void iwmFuji::send_stat_get_enable()
     transaction_put(1);
 }
 
-void iwmFuji::iwm_open(iwm_decoded_cmd_t cmd)
-{
-        send_status_reply_packet();
-}
-
+void iwmFuji::iwm_open(iwm_decoded_cmd_t cmd) {}
 void iwmFuji::iwm_close(iwm_decoded_cmd_t cmd) {}
 void iwmFuji::iwm_read(iwm_decoded_cmd_t cmd) {}
 
@@ -500,12 +496,6 @@ void iwmFuji::iwm_stat_qrcode_output()
     transaction_put(_qrManager.code);
     _qrManager.code.clear();
     _qrManager.code.shrink_to_fit();
-}
-
-void iwmFuji::fujicmd_reset()
-{
-    send_status_reply_packet();
-    fujiDevice::fujicmd_reset();
 }
 
 void iwmFuji::fujicmd_close_directory()

@@ -117,7 +117,6 @@ public:
     void FujiControl(iwm_decoded_cmd_t cmd) { iwm_ctrl(cmd); }
 
     // ============ Wrapped Fuji commands ============
-    void fujicmd_reset() override;
     void fujicmd_close_directory() override;
     void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl) override;
     success_is_true fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
