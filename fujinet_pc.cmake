@@ -166,6 +166,7 @@ set(SOURCES src/main.cpp
     lib/config/fnc_enable.cpp
     lib/config/fnc_gdrive.cpp
     lib/config/fnc_s3.cpp
+    lib/config/fnc_onedrive.cpp
     lib/config/fnc_general.cpp
     lib/config/fnc_hosts.cpp
     lib/config/fnc_load.cpp
@@ -255,6 +256,7 @@ set(SOURCES src/main.cpp
     lib/network-protocol/ProtocolParser.h lib/network-protocol/ProtocolParser.cpp
     lib/network-protocol/CPM.h lib/network-protocol/CPM.cpp
     lib/network-protocol/GDRIVE.h lib/network-protocol/GDRIVE.cpp
+    lib/network-protocol/ONEDRIVE.h lib/network-protocol/ONEDRIVE.cpp
     lib/network-protocol/Test.h lib/network-protocol/Test.cpp
     lib/network-protocol/TCP.h lib/network-protocol/TCP.cpp
     lib/network-protocol/UDP.h lib/network-protocol/UDP.cpp
