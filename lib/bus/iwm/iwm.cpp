@@ -225,9 +225,9 @@ systemBus::iwm_phases_t systemBus::iwm_phases()
 
 //------------------------------------------------------
 
-int systemBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, spError_t err, const void *data, uint16_t num)
+error_is_true systemBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, spError_t err, const void *data, uint16_t num)
 {
-  int r;
+  error_is_true r(false);
   int retry = 5; // host seems to control the retries, this is here so we don't get stuck
 
   //print_packet ((uint8_t*) data, num); // before encoding
@@ -284,23 +284,23 @@ void virtualDevice::send_reply_packet(spError_t err)
   SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, err, nullptr, 0);
 }
 
-void virtualDevice::send_status_reply_packet()
+void systemBus::send_status_reply_packet()
 {
-  iwm_device_status_block_t status_packet = create_status_reply_packet();
+  iwm_device_status_block_t status_packet = _activeDev->create_status_reply_packet();
 
-  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR::NOERROR,
-                             &status_packet, sizeof(status_packet));
+  iwm_send_packet(_activeDev->id(), iwm_packet_type_t::status, SP_ERR::NOERROR,
+                  &status_packet, sizeof(status_packet));
 }
 
-void virtualDevice::send_status_dib_reply_packet()
+void systemBus::send_status_dib_reply_packet()
 {
-  iwm_device_info_block_t dib_packet = create_dib_reply_packet();
+  iwm_device_info_block_t dib_packet = _activeDev->create_dib_reply_packet();
 
   if (dib_packet.name_len < sizeof(dib_packet.name))
     std::fill(dib_packet.name + dib_packet.name_len,
               dib_packet.name + sizeof(dib_packet.name), ' ');
 
-  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR::NOERROR,
+  SYSTEM_BUS.iwm_send_packet(_activeDev->id(), iwm_packet_type_t::status, SP_ERR::NOERROR,
                              &dib_packet, sizeof(dib_packet));
 }
 
@@ -379,7 +379,7 @@ void virtualDevice::iwm_return_noerror()
   send_reply_packet(SP_ERR::NOERROR);
 }
 
-void virtualDevice::iwm_process(iwm_decoded_cmd_t cmd)
+void systemBus::iwm_process(iwm_decoded_cmd_t cmd)
 {
   fnLedManager.set(LED_BUS, true);
 
@@ -395,43 +395,43 @@ void virtualDevice::iwm_process(iwm_decoded_cmd_t cmd)
         send_status_dib_reply_packet();
         break;
     default:
-      iwm_status(cmd);
+      _activeDev->iwm_status(cmd);
       break;
     }
     break;
   case SP_CMD_READBLOCK:
     Debug_printf("\r\nhandling readblock command");
-    iwm_readblock(cmd);
+    _activeDev->iwm_readblock(cmd);
     break;
   case SP_CMD_WRITEBLOCK:
     Debug_printf("\r\nhandling writeblock command");
-    iwm_writeblock(cmd);
+    _activeDev->iwm_writeblock(cmd);
     break;
   case SP_CMD_FORMAT:
     Debug_printf("\r\nhandling format command");
-    iwm_format(cmd);
+    _activeDev->iwm_format(cmd);
     break;
   case SP_CMD_CONTROL:
     Debug_printf("\r\nhandling control command");
-    iwm_ctrl(cmd);
+    _activeDev->iwm_ctrl(cmd);
     break;
   case SP_CMD_OPEN:
     Debug_printf("\r\nhandling open command");
-    iwm_open(cmd);
+    _activeDev->iwm_open(cmd);
     break;
   case SP_CMD_CLOSE:
     Debug_printf("\r\nhandling close command");
-    iwm_close(cmd);
+    _activeDev->iwm_close(cmd);
     break;
   case SP_CMD_READ:
     Debug_printf("\r\nhandling read command");
-    iwm_read(cmd);
+    _activeDev->iwm_read(cmd);
     break;
   case SP_CMD_WRITE:
-    iwm_write(cmd);
+    _activeDev->iwm_write(cmd);
     break;
   default:
-    iwm_return_badcmd(cmd);
+    _activeDev->iwm_return_badcmd(cmd);
     break;
   }
 
@@ -440,16 +440,7 @@ void virtualDevice::iwm_process(iwm_decoded_cmd_t cmd)
 
 void virtualDevice::iwm_status(iwm_decoded_cmd_t cmd)
 {
-  if (cmd.control_status.code == SP_STAT_DIB)
-  {
-    Debug_printf("\r\nSending DIB Status for device 0x%02x", id());
-    send_status_dib_reply_packet();
-  }
-  else
-  {
-    Debug_printf("\r\nSending Device Status for device 0x%02x", id());
-    send_status_reply_packet();
-  }
+  iwm_return_badcmd(cmd);
 }
 
 void virtualDevice::iwm_readblock(iwm_decoded_cmd_t cmd)
@@ -660,7 +651,7 @@ bool IRAM_ATTR systemBus::serviceSmartPort()
           default:
             break;
           }
-          _activeDev->iwm_process(command);
+          iwm_process(command);
           break; // we don't need to needlessly keep looping once we find it
         }
       }
