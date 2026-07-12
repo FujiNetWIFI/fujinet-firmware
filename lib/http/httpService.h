@@ -156,6 +156,10 @@ public:
     static esp_err_t get_handler_gdrive_auth(httpd_req_t *req);
     static esp_err_t get_handler_gdrive_poll(httpd_req_t *req);
 
+    // OneDrive OAuth2 relay-based endpoints
+    static esp_err_t get_handler_onedrive_auth(httpd_req_t *req);
+    static esp_err_t get_handler_onedrive_poll(httpd_req_t *req);
+
     // REST API handlers
     static esp_err_t api_handler_status(httpd_req_t *req);
     static esp_err_t api_handler_drives(httpd_req_t *req);
@@ -189,6 +193,10 @@ public:
     // Google Drive OAuth2 relay-based endpoints
     static int get_handler_gdrive_auth(struct mg_connection *c, struct mg_http_message *hm);
     static int get_handler_gdrive_poll(struct mg_connection *c, struct mg_http_message *hm);
+
+    // OneDrive OAuth2 relay-based endpoints
+    static int get_handler_onedrive_auth(struct mg_connection *c, struct mg_http_message *hm);
+    static int get_handler_onedrive_poll(struct mg_connection *c, struct mg_http_message *hm);
 
     static std::vector<struct mg_connection*> m_sseClients;
     static size_t m_lastOutputSize;

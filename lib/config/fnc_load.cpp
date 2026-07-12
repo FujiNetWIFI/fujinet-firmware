@@ -193,6 +193,9 @@ New behavior: copy from SD first if available, then read FLASH.
         case SECTION_S3:
             _read_section_s3(ss);
             break;
+        case SECTION_ONEDRIVE:
+            _read_section_onedrive(ss);
+            break;
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
         case SECTION_SERIAL:
             _read_section_serial(ss);

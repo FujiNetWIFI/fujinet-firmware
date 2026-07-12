@@ -4,6 +4,7 @@
 
 #include "CPM.h"
 #include "GDRIVE.h"
+#include "ONEDRIVE.h"
 #include "TCP.h"
 #include "UDP.h"
 #include "Test.h"
@@ -39,6 +40,9 @@ NetworkProtocol* ProtocolParser::createProtocol(std::string scheme, std::string 
             break;
         case "GDRIVE"_sh:
             protocol = new NetworkProtocolGDRIVE(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "ONEDRIVE"_sh:
+            protocol = new NetworkProtocolONEDRIVE(receiveBuffer, transmitBuffer, specialBuffer);
             break;
         case "TCP"_sh:
             protocol = new NetworkProtocolTCP(receiveBuffer, transmitBuffer, specialBuffer);
