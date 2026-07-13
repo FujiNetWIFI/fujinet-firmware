@@ -118,7 +118,11 @@ fujiError_t NetworkProtocolFS::open_dir(dirFormat_t fmt)
         case DIR_FORMAT::RAW:
             // Exact filename only (no size, no crunch) so clients can
             // enumerate/copy the real names, incl. long/spaced ones.
+            // Directories get a trailing '/' (ls -F style) so a client
+            // enumerating files to copy can recognize and skip them.
             dirBuffer += (const char *)entryBuffer.data();
+            if (is_directory)
+                dirBuffer += "/";
             dirBuffer += lineEnding;
             break;
         default:
