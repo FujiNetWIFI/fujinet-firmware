@@ -136,6 +136,11 @@ class FujiDeviceChain : public FujiDeviceMixins...
         // Try each mixin's processCommand() until one returns true
         return (FujiDeviceMixins::processCommand(packet) || ...);
     }
+
+ public:
+    bool processCommand(const FUJI_COMMAND_PACKET &packet) override {
+        return (FujiDeviceMixins::processCommand(packet) || ...);
+    }
 };
 #endif // FUJI_MIXINS_ENABLED
 
@@ -192,7 +197,9 @@ public:
 
 #ifdef FUJI_MIXINS_ENABLED
     // Return true if command was handled here
-    bool processCommand(const FUJI_COMMAND_PACKET &packet) { return tryAllMixins(packet); }
+    bool processCommand(const FUJI_COMMAND_PACKET &packet) override {
+        return tryAllMixins(packet);
+    }
 #endif // FUJI_MIXINS_ENABLED
 
     fujiHost *get_host(int i) { return &_fnHosts[i]; }

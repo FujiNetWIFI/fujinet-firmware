@@ -797,7 +797,7 @@ void drivewireNetwork::json_query()
     SYSTEM_BUS.transaction_success();
 }
 
-void drivewireNetwork::processCommand(FujiDWPacket &packet)
+bool drivewireNetwork::processCommand(const FujiDWPacket &packet)
 {
     Debug_printf("comnd: '%c' %u\n", packet.command(), packet.command());
 
@@ -833,16 +833,16 @@ void drivewireNetwork::processCommand(FujiDWPacket &packet)
 
     case NETCMD_CHDIR:
         set_prefix();
-        return;
+        break;
     case NETCMD_QUERY:
         json_query();
-        return;
+        break;
     case NETCMD_USERNAME:
         set_login();
-        return;
+        break;
     case NETCMD_PASSWORD:
         set_password();
-        return;
+        break;
 
     case NETCMD_RENAME:
     case NETCMD_DELETE:
@@ -869,11 +869,13 @@ void drivewireNetwork::processCommand(FujiDWPacket &packet)
 
     default:
         SYSTEM_BUS.transaction_error();
-        break;
+        return false;
     }
+
+    return true;
 }
 
-void drivewireNetwork::process_fs(FujiDWPacket &packet)
+void drivewireNetwork::process_fs(const FujiDWPacket &packet)
 {
     parse_and_instantiate_protocol(static_cast<fileAccessMode_t>(packet.param8(0))
                                    == ACCESS_MODE::DIRECTORY);
@@ -919,7 +921,7 @@ void drivewireNetwork::process_fs(FujiDWPacket &packet)
     }
 }
 
-void drivewireNetwork::process_tcp(FujiDWPacket &packet)
+void drivewireNetwork::process_tcp(const FujiDWPacket &packet)
 {
     // Make sure this is really a TCP protocol instance
     NetworkProtocolTCP *tcp = dynamic_cast<NetworkProtocolTCP *>(protocol);
@@ -949,7 +951,7 @@ void drivewireNetwork::process_tcp(FujiDWPacket &packet)
     }
 }
 
-void drivewireNetwork::process_http(FujiDWPacket &packet)
+void drivewireNetwork::process_http(const FujiDWPacket &packet)
 {
     // Make sure this is really an HTTP protocol instance
     NetworkProtocolHTTP *http = dynamic_cast<NetworkProtocolHTTP *>(protocol);
@@ -981,7 +983,7 @@ void drivewireNetwork::process_http(FujiDWPacket &packet)
     SYSTEM_BUS.transaction_success();
 }
 
-void drivewireNetwork::process_udp(FujiDWPacket &packet)
+void drivewireNetwork::process_udp(const FujiDWPacket &packet)
 {
     // Make sure this is really a UDP protocol instance
     NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(protocol);

@@ -16,7 +16,7 @@ private:
     void set_alternate_tz(uint16_t bufsz);
 
 public:
-    void processCommand(FujiDWPacket &packet) override;
+    bool processCommand(const FujiDWPacket &packet) override;
 };
 
 extern drivewireClock platformClock;

@@ -43,6 +43,8 @@
 #include <cassert>
 #include "media.h"
 
+#define FUJI_COMMAND_PACKET FujiDWPacket
+
 #define DRIVEWIRE_BAUDRATE 57600
 
 #if !defined(ESP_PLATFORM) || \
@@ -101,7 +103,7 @@ public:
 class virtualDevice : public drivewireDevice
 {
 public:
-    virtual void processCommand(FujiDWPacket &packet) = 0;
+    virtual bool processCommand(const FujiDWPacket &packet) = 0;
 };
 
 enum drivewire_message : uint16_t
@@ -135,7 +137,7 @@ private:
     std::deque<uint8_t> _dbc_pushback;
 #endif
 
-    FujiDWPacket *_activeFrame;
+    const FujiDWPacket *_activeFrame;
     drivewireDevice *_activeDev = nullptr;
     drivewireModem *_modemDev = nullptr;
     drivewireFuji *_fujiDev = nullptr;
@@ -149,7 +151,7 @@ private:
     uint8_t bDragon;
 
     ByteBuffer _transaction_response;
-    bool _transaction_handle_command(FujiDWPacket &packet, virtualDevice &device);
+    bool _transaction_handle_command(const FujiDWPacket &packet, virtualDevice &device);
 
     void _drivewire_process_cmd();
     void _drivewire_process_queue();

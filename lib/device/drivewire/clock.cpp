@@ -42,7 +42,7 @@ void drivewireClock::set_alternate_tz(uint16_t bufsz)
         alternate_tz = result.value();
 }
 
-void drivewireClock::processCommand(FujiDWPacket &packet)
+bool drivewireClock::processCommand(const FujiDWPacket &packet)
 {
     uint8_t aux1;
     bool use_alt;
@@ -131,8 +131,10 @@ void drivewireClock::processCommand(FujiDWPacket &packet)
     }
     default:
         Debug_printv("Unknown drivewire clock cmd: %02x", packet.command());
-        break;
+        return false;
     }
+
+    return true;
 }
 
 #endif /* BUILD_COCO */

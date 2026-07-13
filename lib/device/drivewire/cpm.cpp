@@ -117,7 +117,7 @@ void drivewireCPM::status()
     SYSTEM_BUS.transaction_send(&status_response, sizeof(status_response));
 }
 
-void drivewireCPM::processCommand(FujiDWPacket &packet)
+bool drivewireCPM::processCommand(const FujiDWPacket &packet)
 {
     switch(packet.command())
     {
@@ -134,8 +134,10 @@ void drivewireCPM::processCommand(FujiDWPacket &packet)
         status();
         break;
     default:
-        break;
+        return false;
     }
+
+    return true;
 }
 
 drivewireCPM theCPM;

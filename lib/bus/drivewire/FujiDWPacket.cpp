@@ -4,7 +4,7 @@
 
 #include "bus.h"
 
-uint32_t FujiDWPacket::getParam(size_t index, size_t psize)
+uint32_t FujiDWPacket::getParam(size_t index, size_t psize) const
 {
     size_t count;
 
@@ -27,7 +27,7 @@ uint32_t FujiDWPacket::getParam(size_t index, size_t psize)
     return _params[index];
 }
 
-void FujiDWPacket::fillParams(size_t count, size_t psize)
+void FujiDWPacket::fillParams(size_t count, size_t psize) const
 {
     uint32_t val;
     size_t idx;
@@ -57,7 +57,7 @@ void FujiDWPacket::fillParams(size_t count, size_t psize)
     }
 }
 
-fujiCommandID_t FujiDWPacket::command()
+fujiCommandID_t FujiDWPacket::command() const
 {
     if (!_command.has_value()) {
         assert(!_data.has_value() && _params.size() == 0);
@@ -70,7 +70,7 @@ fujiCommandID_t FujiDWPacket::command()
     return *_command;
 }
 
-uint8_t FujiDWPacket::unit()
+uint8_t FujiDWPacket::unit() const
 {
     if (!_unit.has_value()) {
         assert(_opcode == OP::NET && !_command.has_value());
@@ -79,7 +79,7 @@ uint8_t FujiDWPacket::unit()
     return *_unit;
 }
 
-void FujiDWPacket::setDataLength(const size_t len)
+void FujiDWPacket::setDataLength(const size_t len) const
 {
     size_t rlen;
 
