@@ -66,7 +66,7 @@ fujiError_t NetworkProtocolNFS::open_file_handle()
         Debug_printf("NetworkProtocolNFS::open_file_handle() - Uncaught aux1 %d", (int) streamMode);
     }
 
-    if (nfs_open(nfs, opened_url->path.c_str(), flags, &fh) != 0)
+    if (nfs_open(nfs, export_relative(opened_url->path).c_str(), flags, &fh) != 0)
     {
         Debug_printf("NetworkProtocolNFS::open_file_handle() - NFS Error %s\r\n", nfs_get_error(nfs));
         fserror_to_error();
@@ -82,7 +82,7 @@ fujiError_t NetworkProtocolNFS::open_file_handle()
 
 fujiError_t NetworkProtocolNFS::open_dir_handle()
 {
-    if (nfs_opendir(nfs, dir.c_str(), &nfs_dir) != 0)
+    if (nfs_opendir(nfs, export_relative(dir).c_str(), &nfs_dir) != 0)
     {
         Debug_printf("NetworkProtocolNFS::open_dir_handle() - ERROR: %s\r\n", nfs_get_error(nfs));
         fserror_to_error();
@@ -92,18 +92,45 @@ fujiError_t NetworkProtocolNFS::open_dir_handle()
     return FUJI_ERROR::NONE;
 }
 
-fujiError_t NetworkProtocolNFS::mount(PeoplesUrlParser *url)
+std::string NetworkProtocolNFS::export_relative(const std::string &path)
 {
-    Debug_printf("NetworkProtocolNFS::mount() - server: %s port: %s path: %s\r\n",
-                 url->host.c_str(), url->port.c_str(), url->path.c_str());
+    // mount_dir keeps its trailing slash, so the remainder is the leaf.
+    if (path.size() >= mount_dir.size() &&
+        path.compare(0, mount_dir.size(), mount_dir) == 0)
+        return "/" + path.substr(mount_dir.size());
+
+    return path.empty() ? "/" : path;
+}
+
+fujiError_t NetworkProtocolNFS::mount_path(const std::string &host, const std::string &port, const std::string &path)
+{
+    // A path ending in '/' names a directory to list; otherwise mount the
+    // parent and address the leaf beneath it. mountd lets us mount any
+    // directory at or below an export, so this never requires the server
+    // to export "/".
+    if (!path.empty() && path.back() == '/')
+        mount_dir = path;
+    else
+    {
+        size_t slash = path.find_last_of('/');
+        mount_dir = (slash == std::string::npos) ? "/" : path.substr(0, slash + 1);
+    }
+
+    // The export name mountd matches has no trailing slash (except root).
+    std::string exportname = mount_dir;
+    if (exportname.size() > 1 && exportname.back() == '/')
+        exportname.pop_back();
+
+    Debug_printf("NetworkProtocolNFS::mount() - server: %s port: %s export: %s\r\n",
+                 host.c_str(), port.c_str(), exportname.c_str());
 
     nfs_set_version(nfs, 3);
     nfs_set_auto_traverse_mounts(nfs, 0);
-    if (!url->port.empty())
+    if (!port.empty())
     {
-        int port = atoi(url->port.c_str());
-        nfs_set_mountport(nfs, port);
-        nfs_set_nfsport(nfs, port);
+        int p = atoi(port.c_str());
+        nfs_set_mountport(nfs, p);
+        nfs_set_nfsport(nfs, p);
     }
 
     // Set UID/GID from login credentials if provided
@@ -114,16 +141,35 @@ fujiError_t NetworkProtocolNFS::mount(PeoplesUrlParser *url)
             nfs_set_gid(nfs, atoi(password->c_str()));
     }
 
-    // Mount the server's root export; files/dirs are addressed by their
-    // absolute path beneath it (see open_dir_handle/open_file_handle).
-    if ((nfs_error = nfs_mount(nfs, url->host.c_str(), "/")) != 0)
+    nfs_error = nfs_mount(nfs, host.c_str(), exportname.c_str());
+
+    // Kernel NFS exports a subtree (e.g. /public) and refuses MNT "/".
+    // rclone/go-nfs exports only "/" and refuses subtree mounts. If the
+    // directory mount fails, fall back to the root export and address
+    // targets by their absolute path beneath it (export_relative tracks
+    // whichever directory actually mounted).
+    if (nfs_error != 0 && exportname != "/")
     {
-        Debug_printf("NetworkProtocolNFS::mount(%s) - could not mount, NFS error: %s\r\n", url->host.c_str(), nfs_get_error(nfs));
+        Debug_printf("NetworkProtocolNFS::mount() - export %s failed (%s), retrying root\r\n",
+                     exportname.c_str(), nfs_get_error(nfs));
+        mount_dir = "/";
+        nfs_error = nfs_mount(nfs, host.c_str(), "/");
+    }
+
+    if (nfs_error != 0)
+    {
+        Debug_printf("NetworkProtocolNFS::mount(%s:%s) - could not mount, NFS error: %s\r\n",
+                     host.c_str(), exportname.c_str(), nfs_get_error(nfs));
         fserror_to_error();
         return FUJI_ERROR::UNSPECIFIED;
     }
 
     return FUJI_ERROR::NONE;
+}
+
+fujiError_t NetworkProtocolNFS::mount(PeoplesUrlParser *url)
+{
+    return mount_path(url->host, url->port, url->path);
 }
 
 fujiError_t NetworkProtocolNFS::umount()
@@ -219,9 +265,14 @@ fujiError_t NetworkProtocolNFS::del(PeoplesUrlParser *url)
 
 fujiError_t NetworkProtocolNFS::mkdir(PeoplesUrlParser *url)
 {
-    mount(url);
+    // Strip trailing slash so the last component is the directory to create.
+    std::string path = url->path;
+    while (path.size() > 1 && path.back() == '/')
+        path.pop_back();
 
-    if (nfs_mkdir(nfs, url->path.c_str()) != 0)
+    mount_path(url->host, url->port, path);
+
+    if (nfs_mkdir(nfs, export_relative(path).c_str()) != 0)
     {
         fserror_to_error();
         Debug_printf("NetworkProtocolNFS::mkdir(%s) NFS error: %s\r\n",url->url.c_str(), nfs_get_error(nfs));
@@ -234,9 +285,14 @@ fujiError_t NetworkProtocolNFS::mkdir(PeoplesUrlParser *url)
 
 fujiError_t NetworkProtocolNFS::rmdir(PeoplesUrlParser *url)
 {
-    mount(url);
+    // Strip trailing slash so the last component is the directory to remove.
+    std::string path = url->path;
+    while (path.size() > 1 && path.back() == '/')
+        path.pop_back();
 
-    if (nfs_rmdir(nfs, url->path.c_str()) != 0)
+    mount_path(url->host, url->port, path);
+
+    if (nfs_rmdir(nfs, export_relative(path).c_str()) != 0)
     {
         fserror_to_error();
         Debug_printf("NetworkProtocolNFS::rmdir(%s) NFS error: %s\r\n",url->url.c_str(), nfs_get_error(nfs));
@@ -251,7 +307,7 @@ fujiError_t NetworkProtocolNFS::stat()
 {
     struct nfs_stat_64 st;
 
-    int ret = nfs_stat64(nfs, opened_url->path.c_str(), &st);
+    int ret = nfs_stat64(nfs, export_relative(opened_url->path).c_str(), &st);
 
     fileSize = st.nfs_size;
     return ret != 0 ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
