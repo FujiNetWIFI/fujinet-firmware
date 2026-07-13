@@ -64,7 +64,7 @@ public:
 
 // Temporary migration wrappers. Remove after all buses have been
 // converted to inherit from SystemBusBase.
-#if defined(BUILD_RS232) || defined(BUILD_COCO) || defined(BUILD_APPLE) || defined(BUILD_ADAM)
+#if defined(BUILD_RS232) || defined(BUILD_COCO) || defined(BUILD_APPLE) || defined(BUILD_ADAM) || defined(BUILD_ATARI)
 #define NEED_VDEV_MIGRATION
 #else
 #undef NEED_VDEV_MIGRATION
