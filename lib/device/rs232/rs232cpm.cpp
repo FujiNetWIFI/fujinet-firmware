@@ -70,7 +70,7 @@ void rs232CPM::init_cpm(int baud)
     memset(pattern, 0, sizeof(pattern));
 }
 
-void rs232CPM::rs232_process(FujiBusPacket &packet)
+void rs232CPM::rs232_process(const FujiBusPacket &packet)
 {
     switch (packet.command())
     {

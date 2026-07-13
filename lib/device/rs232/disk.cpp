@@ -285,7 +285,7 @@ success_is_true rs232Disk::write_blank(fnFile *f, uint16_t sectorSize, uint16_t 
 }
 
 // Process command
-void rs232Disk::rs232_process(FujiBusPacket &packet)
+void rs232Disk::rs232_process(const FujiBusPacket &packet)
 {
     Debug_print("disk rs232_process()\n");
 

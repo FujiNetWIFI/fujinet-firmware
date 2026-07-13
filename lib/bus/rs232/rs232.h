@@ -69,7 +69,7 @@ protected:
      * @brief All RS232 devices repeatedly call this routine to fan out to other methods for each command.
      * This is typcially implemented as a switch() statement.
      */
-    virtual void rs232_process(FujiBusPacket &packet) = 0;
+    virtual void rs232_process(const FujiBusPacket &packet) = 0;
 
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};
@@ -169,6 +169,7 @@ public:
     void transaction_success() override;
     void transaction_error() override;
     success_is_true transaction_get(void *data, size_t len) override;
+    using SystemBusBase::transaction_send;
     void transaction_send(const void *data, size_t len, bool is_error=false) override;
 
     std::unique_ptr<FujiBusPacket> readBusPacket(int first=-1);

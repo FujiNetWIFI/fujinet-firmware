@@ -119,7 +119,7 @@ void rs232ApeTime::_get_general_tz_len()
     SYSTEM_BUS.transaction_send(&len, 1, false);
 }
 
-void rs232ApeTime::rs232_process(FujiBusPacket &packet)
+void rs232ApeTime::rs232_process(const FujiBusPacket &packet)
 {
     switch (packet.command())
     {

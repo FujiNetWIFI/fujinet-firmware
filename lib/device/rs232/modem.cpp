@@ -1607,7 +1607,7 @@ void rs232Modem::shutdown()
 /*
   Process command
 */
-void rs232Modem::rs232_process(FujiBusPacket &packet)
+void rs232Modem::rs232_process(const FujiBusPacket &packet)
 {
     if (!Config.get_modem_enabled())
     {

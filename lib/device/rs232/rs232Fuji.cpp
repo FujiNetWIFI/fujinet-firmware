@@ -205,7 +205,7 @@ size_t rs232Fuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *des
     return sizeof(custom_details);
 }
 
-void rs232Fuji::rs232_process(FujiBusPacket &packet)
+void rs232Fuji::rs232_process(const FujiBusPacket &packet)
 {
     Debug_println("rs232Fuji::rs232_process() called");
 

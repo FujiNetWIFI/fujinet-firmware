@@ -227,7 +227,7 @@ rs232Printer::printer_type rs232Printer::match_modelname(const std::string &mode
 }
 
 // Process command
-void rs232Printer::rs232_process(FujiBusPacket &packet)
+void rs232Printer::rs232_process(const FujiBusPacket &packet)
 {
     if (!Config.get_printer_enabled())
     {

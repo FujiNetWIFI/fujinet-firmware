@@ -125,11 +125,11 @@ public:
      * @param comanddata incoming 4 bytes containing command and aux bytes
      * @param checksum 8 bit checksum
      */
-    void rs232_process(FujiBusPacket &packet) override;
-    void process_tcp(FujiBusPacket &packet);
-    void process_http(FujiBusPacket &packet);
-    void process_udp(FujiBusPacket &packet);
-    void process_fs(FujiBusPacket &packet);
+    void rs232_process(const FujiBusPacket &packet) override;
+    void process_tcp(const FujiBusPacket &packet);
+    void process_http(const FujiBusPacket &packet);
+    void process_udp(const FujiBusPacket &packet);
+    void process_fs(const FujiBusPacket &packet);
 
     void rs232_seek(uint32_t offset);
     void rs232_tell();

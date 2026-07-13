@@ -599,7 +599,7 @@ void rs232Network::rs232_set_password()
     SYSTEM_BUS.transaction_success();
 }
 
-void rs232Network::process_tcp(FujiBusPacket &packet)
+void rs232Network::process_tcp(const FujiBusPacket &packet)
 {
     // Make sure this is really a TCP protocol instance
     NetworkProtocolTCP *tcp = dynamic_cast<NetworkProtocolTCP *>(protocol);
@@ -631,7 +631,7 @@ void rs232Network::process_tcp(FujiBusPacket &packet)
         SYSTEM_BUS.transaction_success();
 }
 
-void rs232Network::process_http(FujiBusPacket &packet)
+void rs232Network::process_http(const FujiBusPacket &packet)
 {
     // Make sure this is really an HTTP protocol instance
     NetworkProtocolHTTP *http = dynamic_cast<NetworkProtocolHTTP *>(protocol);
@@ -659,7 +659,7 @@ void rs232Network::process_http(FujiBusPacket &packet)
         SYSTEM_BUS.transaction_success();
 }
 
-void rs232Network::process_udp(FujiBusPacket &packet)
+void rs232Network::process_udp(const FujiBusPacket &packet)
 {
     // Make sure this is really a UDP protocol instance
     NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(protocol);
@@ -731,7 +731,7 @@ void rs232Network::rs232_tell()
  * @param comanddata incoming 4 bytes containing command and aux bytes
  * @param checksum 8 bit checksum
  */
-void rs232Network::rs232_process(FujiBusPacket &packet)
+void rs232Network::rs232_process(const FujiBusPacket &packet)
 {
     switch (packet.command())
     {
@@ -1105,7 +1105,7 @@ void rs232Network::rs232_set_timer_rate(int newRate)
     SYSTEM_BUS.transaction_success();
 }
 
-void rs232Network::process_fs(FujiBusPacket &packet)
+void rs232Network::process_fs(const FujiBusPacket &packet)
 {
     // Make sure this is really a FS protocol instance
     NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol);
