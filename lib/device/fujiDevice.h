@@ -136,6 +136,9 @@ concept FujiPacketLike = requires(T p) {
     { p.dataAsString() };
 };
 
+static_assert(FujiPacketLike<FUJI_COMMAND_PACKET>,
+              "FUJI_COMMAND_PACKET must satisfy FujiPacketLike");
+
 // This class inherits from all the mixins you list and tries each one in order
 template<typename... FujiDeviceMixins>
 requires FujiPacketLike<FUJI_COMMAND_PACKET>
