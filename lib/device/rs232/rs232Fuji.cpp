@@ -209,6 +209,10 @@ void rs232Fuji::rs232_process(const FujiBusPacket &packet)
 {
     Debug_println("rs232Fuji::rs232_process() called");
 
+    // Let the base class handle standard commands
+    if (fujiDevice::processCommand(packet))
+        return;
+
     switch (packet.command())
     {
     case FUJICMD_STATUS:
