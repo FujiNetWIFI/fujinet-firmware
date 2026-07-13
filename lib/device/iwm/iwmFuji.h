@@ -56,7 +56,6 @@ private:
     std::unordered_map<uint8_t, IWMControlHandlers> control_handlers;
     std::unordered_map<uint8_t, IWMStatusHandlers> status_handlers;
 
-    bool hash_is_hex_output = false;
     QRManager _qrManager = QRManager();
 
 protected:
@@ -71,12 +70,6 @@ protected:
     void iwm_ctrl_disable_device(const iwm_decoded_cmd_t &cmd);               // 0xD4
     void send_stat_get_enable();                  // 0xD1
 
-    void iwm_ctrl_hash_input(const iwm_decoded_cmd_t &cmd);                   // 0xC8
-    void iwm_ctrl_hash_compute(const iwm_decoded_cmd_t &cmd, bool clear_data);  // 0xC7, 0xC3
-    void iwm_stat_hash_length(const iwm_decoded_cmd_t &cmd);                  // 0xC6
-    void iwm_ctrl_hash_output(const iwm_decoded_cmd_t &cmd);                  // 0xC5 set hash_is_hex_output
-    void iwm_stat_hash_output();                  // 0xC5 write response
-    void iwm_ctrl_hash_clear();                   // 0xC2
     void iwm_stat_get_heap();                     // 0xC1
 
     void iwm_ctrl_qrcode_input(const iwm_decoded_cmd_t &cmd);                 // 0xBC

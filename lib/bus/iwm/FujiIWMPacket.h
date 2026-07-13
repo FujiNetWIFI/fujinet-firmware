@@ -95,6 +95,8 @@ private:
 public:
   SmartPortFrame frame;
 
+  FujiIWMPacket() = default;
+
   void decode(uint8_t *raw);
 
   uint8_t device() const { return frame.sp_dev_id; }
@@ -113,6 +115,11 @@ public:
   uint8_t  param8(size_t index)  const { return (uint8_t) param(index); }
   uint16_t param16(size_t index) const { return (uint16_t) param(index); }
   uint32_t param32(size_t index) const { return (uint32_t) param(index); }
+
+  // Delete copy semantics to prevent pass-by-value bugs
+  FujiIWMPacket(const FujiIWMPacket&) = delete;
+  FujiIWMPacket& operator=(const FujiIWMPacket&) = delete;
+
 };
 
 #endif /* FUJIIWMPACKET_H */
