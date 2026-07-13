@@ -17,6 +17,8 @@
 
 #define RS232_BAUDRATE 115200
 
+#define FUJI_COMMAND_PACKET FujiBusPacket
+
 #if !defined(ESP_PLATFORM) || \
     (FN_UART_BUS == UART_NUM_1 && defined(PIN_UART1_RX)) ||     \
     (FN_UART_BUS == UART_NUM_2 && defined(PIN_UART2_RX))
