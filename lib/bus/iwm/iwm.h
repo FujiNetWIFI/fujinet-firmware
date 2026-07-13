@@ -24,6 +24,7 @@
 #include "fnFS.h"
 
 using iwm_decoded_cmd_t = FujiIWMPacket;
+#define FUJI_COMMAND_PACKET iwm_decoded_cmd_t
 
 // Windows defines this and it conflicts with the SmartPort erro
 // code. We don't need it, just undef it.

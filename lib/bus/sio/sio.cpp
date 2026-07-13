@@ -548,7 +548,7 @@ void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
 {
     if (device_id == FUJI_DEVICEID_FUJINET)
     {
-        _fujiDev = (sioFuji *)pDevice;
+        _fujiDev = dynamic_cast<sioFuji*>(pDevice);
     }
     else if (device_id == FUJI_DEVICEID_SERIAL)
     {

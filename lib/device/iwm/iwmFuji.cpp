@@ -29,17 +29,13 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
         { FUJICMD_CLOSE_DIRECTORY, [this](const iwm_decoded_cmd_t &cmd)            { this->fujicmd_close_directory(); }},          // 0xF5
         { FUJICMD_GET_HOST_PREFIX, [this](const iwm_decoded_cmd_t &cmd)            { this->fujicmd_get_host_prefix(cmd.param(0)); }},                  // 0xE0
         { FUJICMD_CONFIG_BOOT, [this](const iwm_decoded_cmd_t &cmd)                { this->fujicmd_set_boot_config(cmd.param(0)); }},          // 0xD9
-        { FUJICMD_COPY_FILE, [this](const iwm_decoded_cmd_t &cmd)                  { this->fujicmd_copy_file_success(cmd.param(0), cmd.param(1), cmd.dataAsString()->data()); }},                // 0xD8
+        { FUJICMD_COPY_FILE, [this](const iwm_decoded_cmd_t &cmd)                  {
+            uint8_t source = cmd.param(0), dest = cmd.param(1);
+            this->fujicmd_copy_file_success(source, dest, cmd.dataAsString()->data());
+        }},                // 0xD8
         { FUJICMD_DISABLE_DEVICE, [this](const iwm_decoded_cmd_t &cmd)             { this->iwm_ctrl_disable_device(cmd); }},           // 0xD4
         { FUJICMD_ENABLE_DEVICE, [this](const iwm_decoded_cmd_t &cmd)              { this->iwm_ctrl_enable_device(cmd); }},            // 0xD5
         { FUJICMD_GET_SCAN_RESULT, [this](const iwm_decoded_cmd_t &cmd)            { this->fujicmd_net_scan_result(cmd.param(0)); }},          // 0xFC
-
-        { FUJICMD_HASH_INPUT, [this](const iwm_decoded_cmd_t &cmd)                 { this->iwm_ctrl_hash_input(cmd); }},               // 0xC8
-        { FUJICMD_HASH_COMPUTE, [this](const iwm_decoded_cmd_t &cmd)               { this->iwm_ctrl_hash_compute(cmd, true); }},         // 0xC7
-        { FUJICMD_HASH_COMPUTE_NO_CLEAR, [this](const iwm_decoded_cmd_t &cmd)      { this->iwm_ctrl_hash_compute(cmd, false); }},        // 0xC7
-        { FUJICMD_HASH_LENGTH, [this](const iwm_decoded_cmd_t &cmd)                { this->iwm_stat_hash_length(cmd); }},              // 0xC6
-        { FUJICMD_HASH_OUTPUT, [this](const iwm_decoded_cmd_t &cmd)                { this->iwm_stat_hash_output(); }},              // 0xC5
-        { FUJICMD_HASH_CLEAR, [this](const iwm_decoded_cmd_t &cmd)                 { this->iwm_ctrl_hash_clear(); }},               // 0xC2
 
         { FUJICMD_QRCODE_INPUT, [this](const iwm_decoded_cmd_t &cmd)               { this->iwm_ctrl_qrcode_input(cmd); }},             // 0xBC
         { FUJICMD_QRCODE_ENCODE, [this](const iwm_decoded_cmd_t &cmd)              { this->iwm_ctrl_qrcode_encode(cmd); }},            // 0xBD
@@ -330,6 +326,10 @@ void iwmFuji::iwm_status(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\r\n[Fuji] Device %02x Status Code %02x\r\n", id(), cmd.command());
 
+    // Let the base class handle standard commands
+    if (fujiDevice::processCommand(cmd))
+        return;
+
     auto it = status_handlers.find(cmd.command());
     if (it != status_handlers.end()) {
         it->second(cmd);
@@ -343,7 +343,9 @@ void iwmFuji::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\ntheFuji Device %02x Control Code %02x", id(), cmd.command());
 
-    Debug_printf("\nDecoding Control Data Packet for code: 0x%02x\r\n", cmd.command());
+    // Let the base class handle standard commands
+    if (fujiDevice::processCommand(cmd))
+        return;
 
     auto it = control_handlers.find(cmd.command());
     if (it != control_handlers.end()) {
@@ -371,51 +373,6 @@ void iwmFuji::handle_ctl_eject(uint8_t spid)
                 Config.save();
                 theFuji->populate_slots_from_config();
         }
-}
-
-void iwmFuji::iwm_ctrl_hash_input(const iwm_decoded_cmd_t &cmd)
-{
-    transaction_begin(TRANS_STATE::NO_GET);
-    hasher.add_data(cmd.dataAsString().value());
-    transaction_complete();
-}
-
-void iwmFuji::iwm_ctrl_hash_compute(const iwm_decoded_cmd_t &cmd, bool clear_data)
-{
-    Debug_printf("FUJI: HASH COMPUTE\n");
-    algorithm = Hash::to_algorithm(cmd.param(0));
-    hasher.compute(algorithm, clear_data);
-}
-
-void iwmFuji::iwm_stat_hash_length(const iwm_decoded_cmd_t &cmd)
-{
-    uint8_t is_hex = cmd.param8(0) == 1;
-    uint8_t r = hasher.hash_length(algorithm, is_hex);
-
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_put(r);
-}
-
-void iwmFuji::iwm_ctrl_hash_output(const iwm_decoded_cmd_t &cmd)
-{
-    Debug_printf("FUJI: HASH OUTPUT CONTROL\n");
-    hash_is_hex_output = cmd.param8(0) == 1;
-}
-
-void iwmFuji::iwm_stat_hash_output()
-{
-    Debug_printf("FUJI: HASH OUTPUT STAT\n");
-
-    transaction_begin(TRANS_STATE::NO_GET);
-    if (hash_is_hex_output)
-        transaction_put(hasher.output_hex());
-    else
-        transaction_put(hasher.output_binary());
-}
-
-void iwmFuji::iwm_ctrl_hash_clear()
-{
-    hasher.clear();
 }
 
 void iwmFuji::iwm_ctrl_qrcode_input(const iwm_decoded_cmd_t &cmd)

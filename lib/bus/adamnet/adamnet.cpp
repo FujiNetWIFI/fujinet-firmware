@@ -538,7 +538,7 @@ void systemBus::addDevice(virtualDevice *pDevice, uint8_t device_id)
         _printerDev = (adamPrinter *)pDevice;
         break;
     case 0x0f:
-        _fujiDev = (adamFuji *)pDevice;
+        _fujiDev = dynamic_cast<adamFuji*>(pDevice);
         break;
     }
 }

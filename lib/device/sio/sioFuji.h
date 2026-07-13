@@ -4,6 +4,7 @@
 #include "fujiDevice.h"
 #include "cassette.h"
 #include "netstream.h"
+#include "hash.h"
 #include "../../qrcode/qrmanager.h"
 
 #include <cassert>
