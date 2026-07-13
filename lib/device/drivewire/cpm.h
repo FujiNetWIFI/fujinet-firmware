@@ -24,7 +24,7 @@ private:
 public:
     drivewireCPM();
     // virtual ~drivewireCPM();
-    void processCommand(FujiDWPacket &packet) override;
+    bool processCommand(const FujiDWPacket &packet) override;
     void boot();
     void read(uint16_t len);
     void write(uint16_t len);

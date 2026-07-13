@@ -330,7 +330,7 @@ void systemBus::op_write()
     _port->write(0x00); // success
 }
 
-bool systemBus::_transaction_handle_command(FujiDWPacket &packet, virtualDevice &device)
+bool systemBus::_transaction_handle_command(const FujiDWPacket &packet, virtualDevice &device)
 {
     uint16_t len;
     fujiCommandID_t cmd = packet.command();

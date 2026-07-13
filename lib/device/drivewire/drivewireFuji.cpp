@@ -4,7 +4,6 @@
 #include "fujiCommandID.h"
 #include "network.h"
 #include "fnWiFi.h"
-#include "base64.h"
 #include "utils.h"
 #include "compat_string.h"
 #include "endianness.h"
@@ -167,218 +166,6 @@ void drivewireFuji::new_disk()
     fnio::fclose(disk.fileh);
 }
 
-void drivewireFuji::base64_encode_input(uint16_t len)
-{
-    if (!len)
-    {
-        Debug_printf("Zero length. Aborting.\n");
-        transaction_error();
-        return;
-    }
-
-    std::vector<unsigned char> p(len);
-    transaction_begin(TRANS_STATE::WILL_GET);
-    transaction_get(p.data(), len);
-    base64.base64_buffer += std::string((const char *)p.data(), len);
-    transaction_complete();
-}
-
-void drivewireFuji::base64_encode_compute()
-{
-    size_t out_len;
-
-    std::unique_ptr<char[]> p = Base64::encode(base64.base64_buffer.c_str(), base64.base64_buffer.size(), &out_len);
-
-    if (!p)
-    {
-        Debug_printf("base64_encode_compute() failed.\n");
-        transaction_error();
-        return;
-    }
-
-    base64.base64_buffer.clear();
-    base64.base64_buffer = std::string(p.get(), out_len);
-
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_complete();
-}
-
-void drivewireFuji::base64_encode_length()
-{
-    size_t l = base64.base64_buffer.length();
-    uint8_t o[4] =
-    {
-        (uint8_t)(l >> 24),
-        (uint8_t)(l >> 16),
-        (uint8_t)(l >> 8),
-        (uint8_t)(l)
-    };
-
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_put(&o, 4);
-}
-
-void drivewireFuji::base64_encode_output(uint16_t len)
-{
-    if (!len)
-    {
-        Debug_printf("Refusing to send zero byte buffer. Exiting.");
-        transaction_error();
-        return;
-    }
-
-    std::vector<unsigned char> p(base64.base64_buffer.data(),
-                                 base64.base64_buffer.data() + len);
-    base64.base64_buffer.erase(0, len);
-    base64.base64_buffer.shrink_to_fit();
-
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_put(p);
-}
-
-void drivewireFuji::base64_decode_input(uint16_t len)
-{
-    if (!len)
-    {
-        Debug_printf("Refusing to input zero length. Exiting.\n");
-        transaction_error();
-        return;
-    }
-
-    transaction_begin(TRANS_STATE::WILL_GET);
-    std::vector<unsigned char> p(len);
-    transaction_get(p.data(), len);
-    base64.base64_buffer += std::string((const char *)p.data(), len);
-
-    transaction_complete();
-}
-
-void drivewireFuji::base64_decode_compute()
-{
-    size_t out_len;
-
-    Debug_printf("FUJI: BASE64 DECODE COMPUTE\n");
-
-    std::unique_ptr<unsigned char[]> p = Base64::decode(base64.base64_buffer.c_str(), base64.base64_buffer.size(), &out_len);
-    if (!p)
-    {
-        Debug_printf("base64_encode compute failed\n");
-        transaction_error();
-        return;
-    }
-
-    base64.base64_buffer.clear();
-    base64.base64_buffer = std::string((const char *)p.get(), out_len);
-
-    Debug_printf("Resulting BASE64 encoded data is: %u bytes\n", out_len);
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_complete();
-}
-
-void drivewireFuji::base64_decode_length()
-{
-    Debug_printf("FUJI: BASE64 DECODE LENGTH\n");
-
-    size_t len = base64.base64_buffer.length();
-    uint8_t _response[4] = {
-        (uint8_t)(len >>  24),
-        (uint8_t)(len >>  16),
-        (uint8_t)(len >>  8),
-        (uint8_t)(len >>  0)
-    };
-
-    Debug_printf("base64 buffer length: %u bytes\n", len);
-
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_put(_response, 4);
-}
-
-void drivewireFuji::base64_decode_output(uint16_t len)
-{
-    Debug_printf("FUJI: BASE64 DECODE OUTPUT\n");
-
-    if (!len)
-    {
-        Debug_printf("Refusing to send a zero byte buffer. Aborting\n");
-        transaction_error();
-        return;
-    }
-    else if (len > base64.base64_buffer.length())
-    {
-        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n", len, base64.base64_buffer.length());
-        transaction_error();
-        return;
-    }
-    else
-    {
-        Debug_printf("Requested %u bytes\n", len);
-    }
-
-    std::vector<unsigned char> p(len);
-    memcpy(p.data(), base64.base64_buffer.data(), len);
-    base64.base64_buffer.erase(0, len);
-    base64.base64_buffer.shrink_to_fit();
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_put(p.data(), len);
-}
-
-void drivewireFuji::hash_input(uint16_t len)
-{
-    Debug_printf("FUJI: HASH INPUT\n");
-
-    if (!len)
-    {
-        Debug_printf("Invalid length. Aborting");
-        transaction_error();
-        return;
-    }
-
-    transaction_begin(TRANS_STATE::WILL_GET);
-    std::vector<uint8_t> p(len);
-    transaction_get(p.data(), len);
-    hasher.add_data(p);
-    transaction_complete();
-}
-
-void drivewireFuji::hash_compute(bool clear_data, uint8_t algo)
-{
-    Debug_printf("FUJI: HASH COMPUTE\n");
-    algorithm = Hash::to_algorithm(algo);
-    hasher.compute(algorithm, clear_data);
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_complete();
-}
-
-void drivewireFuji::hash_length(bool is_hex)
-{
-    Debug_printf("FUJI: HASH LENGTH\n");
-    uint8_t r = hasher.hash_length(algorithm, is_hex);
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_put(&r, 1);
-}
-
-void drivewireFuji::hash_output(bool is_hex)
-{
-    Debug_printf("FUJI: HASH OUTPUT\n");
-
-    transaction_begin(TRANS_STATE::NO_GET);
-    if (is_hex) {
-        std::string output = hasher.output_hex();
-        transaction_put(output.c_str(), output.size());
-    } else {
-        std::vector<uint8_t> hashed_data = hasher.output_binary();
-        transaction_put(hashed_data.data(), hashed_data.size());
-    }
-}
-
-void drivewireFuji::hash_clear()
-{
-    Debug_printf("FUJI: HASH INIT\n");
-    hasher.clear();
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_complete();
-}
-
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
 void drivewireFuji::setup()
 {
@@ -405,8 +192,12 @@ void drivewireFuji::random()
     transaction_put(&r, sizeof(r));
 }
 
-void drivewireFuji::processCommand(FujiDWPacket &packet)
+bool drivewireFuji::processCommand(const FujiDWPacket &packet)
 {
+    // Let the base class handle standard commands
+    if (fujiDevice::processCommand(packet))
+        return true;
+
     _errorCode = NDEV_STATUS::SUCCESS;
     switch (packet.command())
     {
@@ -513,48 +304,6 @@ void drivewireFuji::processCommand(FujiDWPacket &packet)
     case FUJICMD_RANDOM_NUMBER:
         random();
         break;
-    case FUJICMD_BASE64_ENCODE_INPUT:
-        base64_encode_input(packet.param(0));
-        break;
-    case FUJICMD_BASE64_ENCODE_COMPUTE:
-        base64_encode_compute();
-        break;
-    case FUJICMD_BASE64_ENCODE_LENGTH:
-        base64_encode_length();
-        break;
-    case FUJICMD_BASE64_ENCODE_OUTPUT:
-        base64_encode_output(packet.param(0));
-        break;
-    case FUJICMD_BASE64_DECODE_INPUT:
-        base64_decode_input(packet.param(0));
-        break;
-    case FUJICMD_BASE64_DECODE_COMPUTE:
-        base64_decode_compute();
-        break;
-    case FUJICMD_BASE64_DECODE_LENGTH:
-        base64_decode_length();
-        break;
-    case FUJICMD_BASE64_DECODE_OUTPUT:
-        base64_decode_output(packet.param(0));
-        break;
-    case FUJICMD_HASH_INPUT:
-        hash_input(packet.param(0));
-        break;
-    case FUJICMD_HASH_COMPUTE:
-        hash_compute(true, packet.param(0));
-        break;
-    case FUJICMD_HASH_COMPUTE_NO_CLEAR:
-        hash_compute(false, packet.param(0));
-        break;
-    case FUJICMD_HASH_LENGTH:
-        hash_length(packet.param8(0) == 1);
-        break;
-    case FUJICMD_HASH_OUTPUT:
-        hash_output(packet.param8(0) == 1);
-        break;
-    case FUJICMD_HASH_CLEAR:
-        hash_clear();
-        break;
     case FUJICMD_SET_BOOT_MODE:
         fujicmd_set_boot_mode(packet.param(0), MEDIATYPE_UNKNOWN, &bootdisk);
         break;
@@ -590,8 +339,10 @@ void drivewireFuji::processCommand(FujiDWPacket &packet)
         fujicmd_get_directory_position();
         break;
     default:
-        break;
+        return false;
     }
+
+    return true;
 }
 
 success_is_true drivewireFuji::fujicore_mount_disk_image_success(uint8_t deviceSlot,

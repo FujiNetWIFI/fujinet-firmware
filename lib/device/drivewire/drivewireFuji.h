@@ -20,19 +20,6 @@ protected:
 
     void new_disk();
     void random();
-    void base64_encode_input(uint16_t len);
-    void base64_encode_compute();
-    void base64_encode_length();
-    void base64_encode_output(uint16_t len);
-    void base64_decode_input(uint16_t len);
-    void base64_decode_compute();
-    void base64_decode_length();
-    void base64_decode_output(uint16_t len);
-    void hash_input(uint16_t len);
-    void hash_compute(bool clear_data, uint8_t algo);
-    void hash_length(bool is_hex);
-    void hash_output(bool is_hex);
-    void hash_clear();
 
     void shutdown() override;
 
@@ -45,7 +32,7 @@ public:
     void debug_tape();
 
     void setup() override;
-    void processCommand(FujiDWPacket &packet) override;
+    bool processCommand(const FujiDWPacket &packet) override;
     drivewireFuji();
 
     // ============ Wrapped Fuji commands ============

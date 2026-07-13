@@ -37,11 +37,11 @@ class FujiDWPacket
 {
 private:
     dwOpcode_t _opcode;
-    std::optional<uint8_t> _unit;
-    std::optional<fujiCommandID_t> _command;
-    std::vector<uint32_t> _params;
-    unsigned _paramSize;
-    std::optional<ByteBuffer> _data;
+    mutable std::optional<uint8_t> _unit;
+    mutable std::optional<fujiCommandID_t> _command;
+    mutable std::vector<uint32_t> _params;
+    mutable unsigned _paramSize;
+    mutable std::optional<ByteBuffer> _data;
 
     struct PacketParamProxy
     {
@@ -79,7 +79,7 @@ private:
          */
 
         size_t index;
-        FujiDWPacket *packet;
+        const FujiDWPacket *packet;
 
         // These tell the compiler: "Run this code if the destination matches my type"
         operator bool() const {
@@ -112,8 +112,8 @@ private:
 
     friend PacketParamProxy;
 
-    uint32_t getParam(size_t index, size_t psize);
-    void fillParams(size_t count, size_t psize);
+    uint32_t getParam(size_t index, size_t psize) const;
+    void fillParams(size_t count, size_t psize) const;
 
 public:
     FujiDWPacket(dwOpcode_t opcode) : _opcode(opcode) {};
@@ -125,17 +125,15 @@ public:
     }
 
     dwOpcode_t device() const { return _opcode; }
-    fujiCommandID_t command();
+    fujiCommandID_t command() const;
 
-    uint8_t unit();
+    uint8_t unit() const;
 
-    PacketParamProxy param(size_t index) {
-        return PacketParamProxy{ index, this };
-    }
+    PacketParamProxy param(size_t index) const { return PacketParamProxy{ index, this }; }
 
     // Completes deserialization by reading the trailing data field once its
     // length has been determined from command-specific context.
-    void setDataLength(const size_t len);
+    void setDataLength(const size_t len) const;
 
     const std::optional<ByteBuffer>& data() const {
         assert(_data.has_value());
@@ -150,9 +148,13 @@ public:
 
     // Explicit alternatives to the implicit PacketParamProxy conversions.
     // These may be preferred where the destination type is not obvious.
-    uint8_t  param8(int idx)  { return (uint8_t)param(idx); }
-    uint16_t param16(int idx) { return (uint16_t)param(idx); }
-    uint32_t param32(int idx) { return (uint32_t)param(idx); }
+    uint8_t  param8(int idx)  const { return (uint8_t)param(idx); }
+    uint16_t param16(int idx) const { return (uint16_t)param(idx); }
+    uint32_t param32(int idx) const { return (uint32_t)param(idx); }
+
+    // Delete copy semantics to prevent pass-by-value bugs
+    FujiDWPacket(const FujiDWPacket&) = delete;
+    FujiDWPacket& operator=(const FujiDWPacket&) = delete;
 };
 
 /**

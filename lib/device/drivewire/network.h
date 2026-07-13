@@ -43,11 +43,11 @@ public:
     /**
      * @brief process network device command
      */
-    void processCommand(FujiDWPacket &packet) override;
-    void process_fs(FujiDWPacket &packet);
-    void process_tcp(FujiDWPacket &packet);
-    void process_http(FujiDWPacket &packet);
-    void process_udp(FujiDWPacket &packet);
+    bool processCommand(const FujiDWPacket &packet) override;
+    void process_fs(const FujiDWPacket &packet);
+    void process_tcp(const FujiDWPacket &packet);
+    void process_http(const FujiDWPacket &packet);
+    void process_udp(const FujiDWPacket &packet);
 
     /**
      * Check to see if PROCEED needs to be asserted.
