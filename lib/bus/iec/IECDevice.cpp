@@ -134,38 +134,4 @@ uint8_t IECDevice::write(uint8_t *buffer, uint8_t bufferSize, bool eoi)
 }
 #endif
 
-
-void virtualDevice::transaction_begin(transState_t expectMoreData)
-{
-  assert(_transaction_state == TRANS_STATE::INVALID);
-  _transaction_state = expectMoreData;
-}
-
-void virtualDevice::transaction_complete()
-{
-  assert(_transaction_state == TRANS_STATE::NO_GET
-         || _transaction_state == TRANS_STATE::DID_GET);
-  _transaction_state = TRANS_STATE::INVALID;
-}
-
-void virtualDevice::transaction_error()
-{
-  _transaction_state = TRANS_STATE::INVALID;
-}
-
-success_is_true virtualDevice::transaction_get(void *data, size_t len)
-{
-    assert(_transaction_state == TRANS_STATE::WILL_GET);
-    _transaction_state = TRANS_STATE::DID_GET;
-    RETURN_ERROR_AS_FALSE();
-}
-
-void virtualDevice::transaction_put(const void *data, size_t len, bool err)
-{
-    assert(_transaction_state == TRANS_STATE::NO_GET);
-    response.clear();
-    response.append(reinterpret_cast<const char*>(data), len);
-    _transaction_state = TRANS_STATE::INVALID;
-}
-
 #endif /* BUILD_IEC */
