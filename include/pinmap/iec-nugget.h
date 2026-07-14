@@ -13,8 +13,6 @@
 
 /* SD Card */
 #define PIN_CARD_DETECT         GPIO_NUM_NC
-#define PIN_CARD_DETECT         GPIO_NUM_12 // fnSystem.h
-
 #define PIN_SD_HOST_CS          GPIO_NUM_4  // LOLIN D32 Pro
 
 /* UART */
