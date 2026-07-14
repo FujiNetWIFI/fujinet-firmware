@@ -1,0 +1,6 @@
+#ifndef MEATLOAF_AFPFS_NG_PUBLIC_MIDLEVEL_H
+#define MEATLOAF_AFPFS_NG_PUBLIC_MIDLEVEL_H
+
+#include "include/midlevel.h"
+
+#endif // MEATLOAF_AFPFS_NG_PUBLIC_MIDLEVEL_H

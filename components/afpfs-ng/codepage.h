@@ -1,0 +1,6 @@
+#ifndef MEATLOAF_AFPFS_NG_PUBLIC_CODEPAGE_H
+#define MEATLOAF_AFPFS_NG_PUBLIC_CODEPAGE_H
+
+#include "include/codepage.h"
+
+#endif // MEATLOAF_AFPFS_NG_PUBLIC_CODEPAGE_H

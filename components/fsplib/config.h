@@ -1,0 +1,8 @@
+#define HAVE_STDINT_H 1
+
+#define HAVE_DIRENT_TYPE 1
+//#define HAVE_DIRENT_FILENO 1
+//#define HAVE_DIRENT_NAMLEN 1
+
+#define FSP_NOLOCKING
+//#define FSP_USE_SHAREMEM_AND_SEMOP

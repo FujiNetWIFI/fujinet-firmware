@@ -1,0 +1,66 @@
+				     FSP v2
+			     protocol stack library
+				     fsplib
+
+This is C library which support talking with FSP server using FSP v2 protocol
+and provides posix-like file manipulation interface.
+
+For more information about FSP protocol see http://fsp.sourceforge.net/
+For library and API info see http://fsp.sourceforge.net/fsplib.html
+
+    ***********************************************************************
+
+		     This is a free software.  Be creative. 
+		    Let me know of any bugs and suggestions.
+
+    ***********************************************************************
+		
+Copyright (c) 2003, 2004, 2005, 2006, 2009 by Radim HSN Kolar (hsn sendmail.cz)
+
+You may copy or modify this file in any manner you wish, provided
+that this notice is always included, and that you hold the author
+harmless for any loss or damage resulting from the installation or
+use of this software.
+
+Building
+
+This software is builded by Scons software construction tool -
+http://www.scons.org/
+
+Scons building
+
+run: scons [options] [install]
+
+for building/installing the library and header file. Unlike Autotools
+you must add build-time configure options to install target also.
+
+Build time configuration
+
+At build time you can configure locking subsystem. There are
+two lock configuration options.
+
+Note: 
+     Scons do not uses leading -- before option names.
+     Example: scons with-lockprefix=/tmp/.FSPL install
+
+with-lockprefix=path
+      Set lock prefix path to (default /tmp/.FSPL). Most users do not
+      need to change it.
+      
+with-locking=none/semop/lockf
+      Configure type of locking subsytem used. FSP library support currently
+      3 types of locking subsystem.
+         none  - no locking used
+	 lockf - use lockf on lock file
+         semop - use Sys V shared memory and semaphore. Lock file will be
+	           still created because of use of ftok, but no locking is
+		   done on this file -> it can be on shared filesystem.
+
+prefix=/path
+      Where to install builded library and header file. Standard option.
+
+enable-maintainer-mode=yes
+      Compile with more debug code inside
+
+enable-shared=yes
+      Build and install shared version of fsplib

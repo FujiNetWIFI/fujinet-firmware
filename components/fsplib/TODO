@@ -1,0 +1,24 @@
+high priority
+=============
+
+low priority
+============
+
+caching
+
+normalizing of file pathnames
+
+cache server flag bits (i.e. readonly, ...) and max. packet size
+
+large packets
+
+errno
+=====
+
+set char * fsp_errno from FSP_CC_ERR error messages
+
+all functions should set errno now
+
+api design 
+==========
+open session should ping the server? Or add function for it?
