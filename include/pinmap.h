@@ -35,9 +35,7 @@
 #include "pinmap/fujiversal-rs232.h"
 
 
-#ifndef PIN_DEBUG
-#define PIN_DEBUG PIN_IEC_SRQ
-#endif
+#include "pinmap_defaults.h"
 
 #endif // ESP_PLATFORM
 

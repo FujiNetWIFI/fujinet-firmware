@@ -22,18 +22,26 @@
 */
 #ifdef DEBUG
 #ifdef ESP_PLATFORM
+#ifdef ENABLE_CONSOLE
+    #include "../lib/console/ESP32Console.h"
+    #define Serial console
+#else // ENABLE_CONSOLE
     // Use FujiNet debug serial output
     #include "../lib/hardware/ESP32UARTChannel.h"
+    #define Serial fnDebugConsole
+#endif // !ENABLE_CONSOLE
+
 #if defined( PINMAP_RS232_S3 ) || defined( PINMAP_LYNX_S3 )
     #define Debug_print(...) printf( __VA_ARGS__ )
     #define Debug_printf(...) printf( __VA_ARGS__ )
     #define Debug_println(...) do { printf(__VA_ARGS__); printf("\n"); } while (0)
     #define Debug_printv(format, ...) {printf( ANSI_YELLOW "[%s:%u] %s(): " ANSI_GREEN_BOLD format ANSI_RESET "\r\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);}
+    #define Debug_memory() {Debug_printv("Heap[%lu] Low[%lu] Task[%u]", esp_get_free_heap_size(), esp_get_free_internal_heap_size(), uxTaskGetStackHighWaterMark(NULL));}
 #else
-    #define Debug_print(...) fnDebugConsole.print( __VA_ARGS__ )
-    #define Debug_printf(...) fnDebugConsole.printf( __VA_ARGS__ )
-    #define Debug_println(...) fnDebugConsole.println( __VA_ARGS__ )
-    #define Debug_printv(format, ...) {fnDebugConsole.printf( ANSI_YELLOW "[%s:%u] %s(): " ANSI_GREEN_BOLD format ANSI_RESET "\r\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);}
+    #define Debug_print(...) Serial.print( __VA_ARGS__ )
+    #define Debug_printf(...) Serial.printf( __VA_ARGS__ )
+    #define Debug_println(...) Serial.println( __VA_ARGS__ )
+    #define Debug_printv(format, ...) {Serial.printf( ANSI_YELLOW "[%s:%u] %s(): " ANSI_GREEN_BOLD format ANSI_RESET "\r\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);}
 #endif // PINMAP_RS232_S3
 
     #define HEAP_CHECK(x) Debug_printf("HEAP CHECK %s " x "\r\n", heap_caps_check_integrity_all(true) ? "PASSED":"FAILED")
@@ -48,6 +56,15 @@
 
     #define HEAP_CHECK(x) Debug_printf("HEAP CHECK %s " x "\r\n", heap_caps_check_integrity_all(true) ? "PASSED":"FAILED")
 #endif // ESP_PLATFORM
+
+#ifdef ESP_PLATFORM
+    #include <esp_heap_caps.h>
+    #define Debug_memory() Debug_printf("Free heap: %u bytes (min free: %u bytes)\r\n", \
+                                        (unsigned) heap_caps_get_free_size(MALLOC_CAP_INTERNAL), \
+                                        (unsigned) heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL))
+#else
+    #define Debug_memory()
+#endif // ESP_PLATFORM
 #endif // DEBUG
 
 #ifndef DEBUG
@@ -61,6 +78,7 @@
     #define Debug_println(...)
     #define Debug_printv(format, ...)
 
+    #define Debug_memory()
     #define HEAP_CHECK(x)
 #endif // !DEBUG
 

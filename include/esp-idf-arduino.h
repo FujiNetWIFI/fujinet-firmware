@@ -21,16 +21,14 @@
 
 #include <stdint.h>
 #include <memory.h>
+#include <ctype.h>
+#include "debug.h"
+#undef DEBUG
 #include <esp_timer.h>
 #include <driver/gpio.h>
 #include <soc/gpio_reg.h>
 #include "hal/gpio_hal.h"
 #include <freertos/FreeRTOS.h>
-
-#define ARDUINO 2024
-#define ESP32
-
-#define PROGMEM
 
 #pragma GCC diagnostic ignored "-Wunused-function"
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
@@ -65,17 +63,27 @@ typedef void (*interruptFcn)(void *);
 #define min(x, y) ((x)<(y) ? (x) : (y))
 #define max(x, y) ((x)>(y) ? (x) : (y))
 
+#define PROGMEM
+#define pgm_read_word_near(p) (*(p))
+#define pgm_read_byte_near(p) (*(p))
+#define F(s) s
+
 static void delayMicroseconds(uint32_t n) 
 { 
   uint32_t s = micros(); 
   while((micros()-s)<n); 
 }
 
+static void delay(int n) 
+{ 
+  delayMicroseconds(n*1000); 
+}
+
 static void attachInterrupt(uint8_t pin, interruptFcn userFunc, gpio_int_type_t intr_type)
 {
   static bool interrupt_initialized = false;
 
-  if (pin >= SOC_GPIO_PIN_COUNT) return;
+  if (pin >= SOC_GPIO_PIN_COUNT || pin == GPIO_NUM_NC) return;
 
   if (!interrupt_initialized) {
     esp_err_t err = gpio_install_isr_service(0 /* ESP_INTR_FLAG_IRAM */);
@@ -92,6 +100,7 @@ static void attachInterrupt(uint8_t pin, interruptFcn userFunc, gpio_int_type_t 
 
 static void detachInterrupt(uint8_t pin)
 {
+  if (pin >= SOC_GPIO_PIN_COUNT || pin == GPIO_NUM_NC) return;
   gpio_isr_handler_remove((gpio_num_t)pin);
   gpio_set_intr_type((gpio_num_t)pin, GPIO_INTR_DISABLE);
 }
