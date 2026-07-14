@@ -900,6 +900,7 @@ std::optional<std::string> fujiDevice::fujicore_read_directory_entry(size_t maxl
     }
 
     result += filename;
+    result += '\0'; // Don't forget the null terminator for fixed-length packets
     return result;
 }
 
