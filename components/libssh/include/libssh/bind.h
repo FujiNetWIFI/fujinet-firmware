@@ -25,6 +25,10 @@
 #include "libssh/kex.h"
 #include "libssh/session.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct ssh_bind_struct {
   struct ssh_common_struct common; /* stuff common to ssh_bind and ssh_session */
   struct ssh_bind_callbacks_struct *bind_callbacks;
@@ -35,11 +39,9 @@ struct ssh_bind_struct {
   char *wanted_methods[SSH_KEX_METHODS];
   char *banner;
   char *ecdsakey;
-  char *dsakey;
   char *rsakey;
   char *ed25519key;
   ssh_key ecdsa;
-  ssh_key dsa;
   ssh_key rsa;
   ssh_key ed25519;
   char *bindaddr;
@@ -50,10 +52,15 @@ struct ssh_bind_struct {
   bool config_processed;
   char *config_dir;
   char *pubkey_accepted_key_types;
+  char* moduli_file;
+  int rsa_min_size;
 };
 
 struct ssh_poll_handle_struct *ssh_bind_get_poll(struct ssh_bind_struct
     *sshbind);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BIND_H_ */

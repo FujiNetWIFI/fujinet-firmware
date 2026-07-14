@@ -1,4 +1,4 @@
-/* $OpenBSD: blowfish.c,v 1.18 2004/11/02 17:23:26 hshoexer Exp $ */
+/* $OpenBSD: blowfish.c,v 1.20 2021/11/29 01:04:45 djm Exp $ */
 /*
  * Blowfish block cipher for OpenBSD
  * Copyright 1997 Niels Provos <provos@physnet.uni-hamburg.de>
@@ -14,10 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by Niels Provos.
- * 4. The name of the author may not be used to endorse or promote products
+ * 3. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
@@ -652,7 +649,7 @@ report(uint32_t data[], uint16_t len)
 {
 	uint16_t i;
 	for (i = 0; i < len; i += 2)
-		printf("Block %0hd: %08lx %08lx.\r\n",
+		printf("Block %0hd: %08lx %08lx.\n",
 		    i / 2, data[i], data[i + 1]);
 }
 void
@@ -677,13 +674,13 @@ main(void)
 	ssh_blf_enc(&c, data, 5);
 	ssh_blf_dec(&c, data, 1);
 	ssh_blf_dec(&c, data + 2, 4);
-	printf("Should read as 0 - 9.\r\n");
+	printf("Should read as 0 - 9.\n");
 	report(data, 10);
 
 	/* Second test */
 	ssh_blf_key(&c, (uint8_t *) key2, strlen(key2));
 	ssh_blf_enc(&c, data2, 1);
-	printf("\nShould read as: 0x324ed0fe 0xf413a203.\r\n");
+	printf("\nShould read as: 0x324ed0fe 0xf413a203.\n");
 	report(data2, 2);
 	ssh_blf_dec(&c, data2, 1);
 	report(data2, 2);

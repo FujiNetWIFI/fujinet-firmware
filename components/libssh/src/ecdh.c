@@ -19,11 +19,10 @@
  * MA 02111-1307, USA.
  */
 
-#include "libssh/config.h"
-#include "libssh/dh.h" //MYM
+#include "../config.h"
 #include "libssh/session.h"
 #include "libssh/ecdh.h"
-//#include "libssh/dh.h" //MYM
+#include "libssh/dh.h"
 #include "libssh/buffer.h"
 #include "libssh/ssh2.h"
 #include "libssh/pki.h"
@@ -44,6 +43,11 @@ struct ssh_packet_callbacks_struct ssh_ecdh_client_callbacks = {
     .user = NULL
 };
 
+void ssh_client_ecdh_remove_callbacks(ssh_session session)
+{
+    ssh_packet_remove_callbacks(session, &ssh_ecdh_client_callbacks);
+}
+
 /** @internal
  * @brief parses a SSH_MSG_KEX_ECDH_REPLY packet and sends back
  * a SSH_MSG_NEWKEYS
@@ -56,7 +60,7 @@ SSH_PACKET_CALLBACK(ssh_packet_client_ecdh_reply){
   (void)type;
   (void)user;
 
-  ssh_packet_remove_callbacks(session, &ssh_ecdh_client_callbacks);
+  ssh_client_ecdh_remove_callbacks(session);
   pubkey_blob = ssh_buffer_get_ssh_string(packet);
   if (pubkey_blob == NULL) {
     ssh_set_error(session,SSH_FATAL, "No public key in packet");
@@ -89,16 +93,10 @@ SSH_PACKET_CALLBACK(ssh_packet_client_ecdh_reply){
   }
 
   /* Send the MSG_NEWKEYS */
-  if (ssh_buffer_add_u8(session->out_buffer, SSH2_MSG_NEWKEYS) < 0) {
-    goto error;
-  }
-
-  rc=ssh_packet_send(session);
+  rc = ssh_packet_send_newkeys(session);
   if (rc == SSH_ERROR) {
     goto error;
   }
-
-  SSH_LOG(SSH_LOG_PROTOCOL, "SSH_MSG_NEWKEYS sent");
   session->dh_handshake_state = DH_STATE_NEWKEYS_SENT;
 
   return SSH_PACKET_USED;

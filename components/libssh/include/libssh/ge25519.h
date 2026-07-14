@@ -28,6 +28,10 @@ typedef struct
   fe25519 t;
 } ge25519;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern const ge25519 ge25519_base;
 
 int ge25519_unpackneg_vartime(ge25519 *r, const unsigned char p[32]);
@@ -39,5 +43,9 @@ int ge25519_isneutral_vartime(const ge25519 *p);
 void ge25519_double_scalarmult_vartime(ge25519 *r, const ge25519 *p1, const sc25519 *s1, const ge25519 *p2, const sc25519 *s2);
 
 void ge25519_scalarmult_base(ge25519 *r, const sc25519 *s);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
