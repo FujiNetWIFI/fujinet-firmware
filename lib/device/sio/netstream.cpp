@@ -10,6 +10,11 @@
 #include "fnConfig.h"
 #include "utils.h"
 
+#ifdef ESP_PLATFORM
+#include <errno.h>
+#include <sys/socket.h>
+#endif
+
 static uint64_t netstream_time_us()
 {
 #ifdef ESP_PLATFORM
@@ -120,6 +125,27 @@ static uint32_t netstream_gap_us_for_baud(int baud, int port)
     return (port == MIDI_PORT) ? NETSTREAM_MIN_GAP_US_MIDI : NETSTREAM_MIN_GAP_US_SIO;
 }
 
+void sioNetStream::update_rx_high_water()
+{
+    if (rx_count > rx_high_water_mark)
+        rx_high_water_mark = rx_count;
+}
+
+void sioNetStream::log_rx_stats()
+{
+#ifdef DEBUG_NETSTREAM
+    uint64_t now_us = netstream_time_us();
+    if ((now_us - last_rx_stats_us) < NETSTREAM_RX_STATS_INTERVAL_US)
+        return;
+    last_rx_stats_us = now_us;
+    Debug_printf("NETSTREAM RX stats: drops=%lu high_water=%u/%u count=%u\n",
+                 (unsigned long)rx_drop_count,
+                 rx_high_water_mark,
+                 NETSTREAM_RX_RING_SIZE,
+                 rx_count);
+#endif
+}
+
 void sioNetStream::enqueue_rx(const uint8_t *data, int len)
 {
     for (int i = 0; i < len; i++)
@@ -138,6 +164,7 @@ void sioNetStream::enqueue_rx(const uint8_t *data, int len)
             rx_head = (rx_head + 1) % NETSTREAM_RX_RING_SIZE;
             rx_drop_count++;
         }
+        update_rx_high_water();
     }
 }
 
@@ -178,6 +205,7 @@ void sioNetStream::enqueue_frame(const uint8_t *data, int len)
     frame_len[frame_head] = (uint16_t)len;
     frame_head = (frame_head + 1) % NETSTREAM_RX_FRAME_SLOTS;
     frame_count++;
+    update_rx_high_water();
 }
 
 void sioNetStream::drain_net_to_ring()
@@ -204,22 +232,43 @@ void sioNetStream::drain_net_to_ring()
     }
     else if (ensure_netstream_ready())
     {
-        size_t available = netStreamTcp.available();
-        while (available > 0)
+        while (rx_count + NETSTREAM_RX_BACKPRESSURE_RESERVE < NETSTREAM_RX_RING_SIZE)
         {
+            size_t free_space = NETSTREAM_RX_RING_SIZE - rx_count;
+            if (free_space <= NETSTREAM_RX_BACKPRESSURE_RESERVE)
+                break;
+            free_space -= NETSTREAM_RX_BACKPRESSURE_RESERVE;
+#ifdef ESP_PLATFORM
+            size_t to_read = (free_space > NETSTREAM_BUFFER_SIZE) ? NETSTREAM_BUFFER_SIZE : free_space;
+            int packetSize = recv(netStreamTcp.fd(), (char *)buf_net, to_read, MSG_DONTWAIT);
+            if (packetSize <= 0)
+            {
+                if (packetSize == 0)
+                    netStreamTcp.stop();
+                else if (errno != EWOULDBLOCK && errno != EAGAIN)
+                    netStreamTcp.stop();
+                break;
+            }
+#else
+            size_t available = netStreamTcp.available();
+            if (available == 0)
+                break;
             size_t to_read = (available > NETSTREAM_BUFFER_SIZE) ? NETSTREAM_BUFFER_SIZE : available;
+            if (to_read > free_space)
+                to_read = free_space;
             int packetSize = netStreamTcp.read(buf_net, to_read);
             if (packetSize <= 0)
                 break;
+#endif
             enqueue_rx(buf_net, packetSize);
             last_rx_us = netstream_time_us();
 #ifdef DEBUG_NETSTREAM
             Debug_printf("STREAM-IN [%llu ms]: ", (unsigned long long)(netstream_time_us() / 1000ULL));
             util_dump_bytes(buf_net, packetSize);
 #endif
-            available = netStreamTcp.available();
         }
     }
+    log_rx_stats();
 }
 
 void sioNetStream::pace_to_atari(uint32_t min_gap_us)
@@ -344,7 +393,9 @@ void sioNetStream::sio_enable_netstream()
     rx_head = 0;
     rx_tail = 0;
     rx_count = 0;
+    rx_high_water_mark = 0;
     rx_drop_count = 0;
+    last_rx_stats_us = last_rx_us;
 
     // Lossy, frame-aligned shallow buffering applies only to UDP non-MIDI streams;
     // MIDI and TCP stay lossless (full byte ring, no proactive drops).
