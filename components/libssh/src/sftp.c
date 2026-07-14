@@ -74,12 +74,6 @@ struct sftp_ext_struct {
   char **data;
 };
 
-/* functions */
-static int sftp_enqueue(sftp_session session, sftp_message msg);
-static void sftp_message_free(sftp_message msg);
-static void sftp_set_error(sftp_session sftp, int errnum);
-static void status_msg_free(sftp_status_message status);
-
 static sftp_ext sftp_ext_new(void) {
   sftp_ext ext;
 
