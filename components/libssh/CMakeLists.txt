@@ -32,3 +32,11 @@ idf_component_register(
 # Prefer using a compile definition instead of raw -D flags.
 target_compile_definitions(${COMPONENT_LIB} PRIVATE HAVE_CONFIG_H)
 target_compile_definitions(${COMPONENT_LIB} PRIVATE MBEDTLS_GCM_ALT)
+
+target_compile_options(${COMPONENT_LIB} PRIVATE 
+    -Wno-unused-function
+    -Wno-unused-variable
+    -Wno-unused-value
+    -Wno-missing-field-initializers
+    -Wno-deprecated-declarations
+)

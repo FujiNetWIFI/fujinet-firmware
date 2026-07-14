@@ -19,9 +19,14 @@ target_compile_options(${COMPONENT_LIB} BEFORE PRIVATE
 target_compile_options(${COMPONENT_LIB} PRIVATE
     -Wno-unused-function
     -Wno-unused-variable
+    -Wno-unused-but-set-variable
     -Wno-implicit-function-declaration
     -Wno-incompatible-pointer-types
     -Wno-unused-parameter
     -Wno-sign-compare
     -Wno-missing-field-initializers
+    -Wno-discarded-qualifiers
+    -Wno-address-of-packed-member
+    -Wno-implicit-fallthrough
+    -Wno-type-limits
 )

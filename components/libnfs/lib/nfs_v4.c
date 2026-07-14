@@ -369,7 +369,7 @@ check_nfs4_error(struct nfs_context *nfs, int status,
                               data->path ? data->path : "<null>",
                               status_str ? status_str : "<unknown>",
                               nfsstat4_to_errno(res->status));
-                const char *error_msg = nfs_get_error(nfs);
+                char *error_msg = nfs_get_error(nfs);
                 data->cb(nfsstat4_to_errno(res->status), nfs,
                          error_msg ? error_msg : "Unknown NFS error", 
                          data->private_data);
