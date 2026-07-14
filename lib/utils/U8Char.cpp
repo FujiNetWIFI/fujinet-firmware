@@ -119,7 +119,7 @@ uint8_t U8Char::toPetscii() {
 
     uint8_t c = (uint8_t) ch;
     if ((c > 0x40) && (c < 0x5B))
-        c += 0x20;
+        c += 0x80;
     else if ((c > 0x60) && (c < 0x7B))
         c -= 0x20;
     
