@@ -19,7 +19,7 @@
  * MA 02111-1307, USA.
  */
 
-#include "libssh/config.h"
+#include "../config.h"
 
 #include <stdio.h>
 
@@ -44,7 +44,7 @@ ssh_string ssh_make_bignum_string(bignum num) {
 
 #ifdef DEBUG_CRYPTO
   SSH_LOG(SSH_LOG_TRACE,
-          "%zu bits, %zu bytes, %zu padding\r\n",
+          "%zu bits, %zu bytes, %zu padding",
           bits, len, pad);
 #endif /* DEBUG_CRYPTO */
 
@@ -70,7 +70,7 @@ bignum ssh_make_string_bn(ssh_string string)
 
 #ifdef DEBUG_CRYPTO
     SSH_LOG(SSH_LOG_TRACE,
-            "Importing a %zu bits, %zu bytes object ...\r\n",
+            "Importing a %zu bits, %zu bytes object ...",
             len * 8, len);
 #endif /* DEBUG_CRYPTO */
 
@@ -86,12 +86,7 @@ void ssh_print_bignum(const char *name, const_bignum num)
     if (num != NULL) {
         bignum_bn2hex(num, &hex);
     }
-    fprintf(stderr, "%s value: %s\r\n", name, (hex == NULL) ? "(null)" : (char *) hex);
-#ifdef HAVE_LIBGCRYPT
-    SAFE_FREE(hex);
-#elif defined HAVE_LIBCRYPTO
-    OPENSSL_free(hex);
-#elif defined HAVE_LIBMBEDCRYPTO
-    SAFE_FREE(hex);
-#endif
+    SSH_LOG(SSH_LOG_DEBUG, "%s value: %s", name,
+            (hex == NULL) ? "(null)" : (char *)hex);
+    ssh_crypto_free(hex);
 }

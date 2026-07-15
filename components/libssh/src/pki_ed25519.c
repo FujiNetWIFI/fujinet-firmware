@@ -1,5 +1,5 @@
 /*
- * pki_ed25519 .c - PKI infrastructure using ed25519
+ * pki_ed25519.c - PKI infrastructure using ed25519
  *
  * This file is part of the SSH Library
  *
@@ -21,7 +21,7 @@
  * MA 02111-1307, USA.
  */
 
-#include "libssh/config.h"
+#include "../config.h"
 
 #include "libssh/pki.h"
 #include "libssh/pki_priv.h"
@@ -62,7 +62,7 @@ int pki_ed25519_sign(const ssh_key privkey,
                      size_t hlen)
 {
     int rc;
-    uint8_t *buffer;
+    uint8_t *buffer = NULL;
     uint64_t dlen = 0;
 
     buffer = malloc(hlen + ED25519_SIG_LEN);
@@ -104,8 +104,8 @@ int pki_ed25519_verify(const ssh_key pubkey,
                        size_t hlen)
 {
     uint64_t mlen = 0;
-    uint8_t *buffer;
-    uint8_t *buffer2;
+    uint8_t *buffer = NULL;
+    uint8_t *buffer2 = NULL;
     int rc;
 
     if (pubkey == NULL || sig == NULL ||

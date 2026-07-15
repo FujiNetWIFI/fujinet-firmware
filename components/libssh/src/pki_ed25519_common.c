@@ -21,7 +21,7 @@
  * MA 02111-1307, USA.
  */
 
-#include "libssh/config.h"
+#include "../config.h"
 
 #include "libssh/pki.h"
 #include "libssh/pki_priv.h"
@@ -34,11 +34,11 @@ int pki_privkey_build_ed25519(ssh_key key,
     if (ssh_string_len(pubkey) != ED25519_KEY_LEN ||
         ssh_string_len(privkey) != (2 * ED25519_KEY_LEN))
     {
-        SSH_LOG(SSH_LOG_WARN, "Invalid ed25519 key len");
+        SSH_LOG(SSH_LOG_TRACE, "Invalid ed25519 key len");
         return SSH_ERROR;
     }
 
-#ifdef HAVE_OPENSSL_ED25519
+#ifdef HAVE_LIBCRYPTO
     /* In OpenSSL implementation, the private key is the original private seed,
      * without the public key. */
     key->ed25519_privkey = malloc(ED25519_KEY_LEN);
@@ -56,7 +56,7 @@ int pki_privkey_build_ed25519(ssh_key key,
         goto error;
     }
 
-#ifdef HAVE_OPENSSL_ED25519
+#ifdef HAVE_LIBCRYPTO
     memcpy(key->ed25519_privkey, ssh_string_data(privkey),
            ED25519_KEY_LEN);
 #else
@@ -99,7 +99,7 @@ int pki_ed25519_key_cmp(const ssh_key k1,
         if (k1->ed25519_privkey == NULL || k2->ed25519_privkey == NULL) {
             return 1;
         }
-#ifdef HAVE_OPENSSL_ED25519
+#ifdef HAVE_LIBCRYPTO
         /* In OpenSSL implementation, the private key is the original private
          * seed, without the public key. */
         cmp = memcmp(k1->ed25519_privkey, k2->ed25519_privkey, ED25519_KEY_LEN);
@@ -121,6 +121,10 @@ int pki_ed25519_key_cmp(const ssh_key k1,
         if (cmp != 0) {
             return 1;
         }
+        break;
+    case SSH_KEY_CMP_CERTIFICATE:
+        /* handled globally */
+        return 1;
     }
 
     return 0;
@@ -137,39 +141,39 @@ int pki_ed25519_key_cmp(const ssh_key k1,
  *
  * @return SSH_ERROR on error, SSH_OK on success
  */
-int pki_ed25519_key_dup(ssh_key new, const ssh_key key)
+int pki_ed25519_key_dup(ssh_key new_key, const ssh_key key)
 {
     if (key->ed25519_privkey == NULL && key->ed25519_pubkey == NULL) {
         return SSH_ERROR;
     }
 
     if (key->ed25519_privkey != NULL) {
-#ifdef HAVE_OPENSSL_ED25519
+#ifdef HAVE_LIBCRYPTO
         /* In OpenSSL implementation, the private key is the original private
          * seed, without the public key. */
-        new->ed25519_privkey = malloc(ED25519_KEY_LEN);
+        new_key->ed25519_privkey = malloc(ED25519_KEY_LEN);
 #else
         /* In the internal implementation, the private key is the concatenation
          * of the private seed with the public key. */
-        new->ed25519_privkey = malloc(2 * ED25519_KEY_LEN);
+        new_key->ed25519_privkey = malloc(2 * ED25519_KEY_LEN);
 #endif
-        if (new->ed25519_privkey == NULL) {
+        if (new_key->ed25519_privkey == NULL) {
             return SSH_ERROR;
         }
-#ifdef HAVE_OPENSSL_ED25519
-        memcpy(new->ed25519_privkey, key->ed25519_privkey, ED25519_KEY_LEN);
+#ifdef HAVE_LIBCRYPTO
+        memcpy(new_key->ed25519_privkey, key->ed25519_privkey, ED25519_KEY_LEN);
 #else
-        memcpy(new->ed25519_privkey, key->ed25519_privkey, 2 * ED25519_KEY_LEN);
+        memcpy(new_key->ed25519_privkey, key->ed25519_privkey, 2 * ED25519_KEY_LEN);
 #endif
     }
 
     if (key->ed25519_pubkey != NULL) {
-        new->ed25519_pubkey = malloc(ED25519_KEY_LEN);
-        if (new->ed25519_pubkey == NULL) {
-            SAFE_FREE(new->ed25519_privkey);
+        new_key->ed25519_pubkey = malloc(ED25519_KEY_LEN);
+        if (new_key->ed25519_pubkey == NULL) {
+            SAFE_FREE(new_key->ed25519_privkey);
             return SSH_ERROR;
         }
-        memcpy(new->ed25519_pubkey, key->ed25519_pubkey, ED25519_KEY_LEN);
+        memcpy(new_key->ed25519_pubkey, key->ed25519_pubkey, ED25519_KEY_LEN);
     }
 
     return SSH_OK;
@@ -202,6 +206,34 @@ int pki_ed25519_public_key_to_blob(ssh_buffer buffer, ssh_key key)
     return rc;
 }
 
+/** @internal
+ * @brief exports a ed25519 private key to a string blob.
+ * @param[in] privkey private key to convert
+ * @param[out] buffer buffer to write the blob in.
+ * @returns SSH_OK on success
+ */
+int pki_ed25519_private_key_to_blob(ssh_buffer buffer, const ssh_key privkey)
+{
+    int rc;
+
+    if (privkey->type != SSH_KEYTYPE_ED25519) {
+        SSH_LOG(SSH_LOG_TRACE, "Type %s not supported", privkey->type_c);
+        return SSH_ERROR;
+    }
+    if (privkey->ed25519_privkey == NULL ||
+        privkey->ed25519_pubkey == NULL) {
+        return SSH_ERROR;
+    }
+    rc = ssh_buffer_pack(buffer,
+                         "dPdPP",
+                         (uint32_t)ED25519_KEY_LEN,
+                         (size_t)ED25519_KEY_LEN, privkey->ed25519_pubkey,
+                         (uint32_t)(2 * ED25519_KEY_LEN),
+                         (size_t)ED25519_KEY_LEN, privkey->ed25519_privkey,
+                         (size_t)ED25519_KEY_LEN, privkey->ed25519_pubkey);
+    return rc;
+}
+
 /**
  * @internal
  *
@@ -213,9 +245,10 @@ int pki_ed25519_public_key_to_blob(ssh_buffer buffer, ssh_key key)
  */
 ssh_string pki_ed25519_signature_to_blob(ssh_signature sig)
 {
-    ssh_string sig_blob;
+    ssh_string sig_blob = NULL;
+    int rc;
 
-#ifdef HAVE_OPENSSL_ED25519
+#ifdef HAVE_LIBCRYPTO
     /* When using the OpenSSL implementation, the signature is stored in raw_sig
      * which is shared by all algorithms.*/
     if (sig->raw_sig == NULL) {
@@ -234,12 +267,16 @@ ssh_string pki_ed25519_signature_to_blob(ssh_signature sig)
         return NULL;
     }
 
-#ifdef HAVE_OPENSSL_ED25519
-    ssh_string_fill(sig_blob, ssh_string_data(sig->raw_sig),
-                    ssh_string_len(sig->raw_sig));
+#ifdef HAVE_LIBCRYPTO
+    rc = ssh_string_fill(sig_blob, ssh_string_data(sig->raw_sig),
+                         ssh_string_len(sig->raw_sig));
 #else
-    ssh_string_fill(sig_blob, sig->ed25519_sig, ED25519_SIG_LEN);
+    rc = ssh_string_fill(sig_blob, sig->ed25519_sig, ED25519_SIG_LEN);
 #endif
+    if (rc < 0) {
+        SSH_STRING_FREE(sig_blob);
+        return NULL;
+    }
 
     return sig_blob;
 }
@@ -261,11 +298,11 @@ int pki_signature_from_ed25519_blob(ssh_signature sig, ssh_string sig_blob)
 
     len = ssh_string_len(sig_blob);
     if (len != ED25519_SIG_LEN){
-        SSH_LOG(SSH_LOG_WARN, "Invalid ssh-ed25519 signature len: %zu", len);
+        SSH_LOG(SSH_LOG_TRACE, "Invalid ssh-ed25519 signature len: %zu", len);
         return SSH_ERROR;
     }
 
-#ifdef HAVE_OPENSSL_ED25519
+#ifdef HAVE_LIBCRYPTO
     sig->raw_sig = ssh_string_copy(sig_blob);
 #else
     sig->ed25519_sig = malloc(ED25519_SIG_LEN);
@@ -277,4 +314,3 @@ int pki_signature_from_ed25519_blob(ssh_signature sig, ssh_string sig_blob)
 
     return SSH_OK;
 }
-

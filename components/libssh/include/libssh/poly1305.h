@@ -5,9 +5,11 @@
 
 #ifndef POLY1305_H
 #define POLY1305_H
+#include "libssh/chacha20-poly1305-common.h"
 
-#define POLY1305_KEYLEN    32
-#define POLY1305_TAGLEN    16
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void poly1305_auth(uint8_t out[POLY1305_TAGLEN], const uint8_t *m, size_t inlen,
     const uint8_t key[POLY1305_KEYLEN])
@@ -17,5 +19,9 @@ void poly1305_auth(uint8_t out[POLY1305_TAGLEN], const uint8_t *m, size_t inlen,
     __attribute__((__bounded__(__minbytes__, 4, POLY1305_KEYLEN)))
 #endif
     ;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* POLY1305_H */

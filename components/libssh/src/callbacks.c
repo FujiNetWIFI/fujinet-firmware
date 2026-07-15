@@ -21,7 +21,7 @@
  * MA 02111-1307, USA.
  */
 
-#include "libssh/config.h"
+#include "../config.h"
 
 #include "libssh/callbacks.h"
 #include "libssh/session.h"
@@ -43,6 +43,15 @@ static void ssh_legacy_log_callback(int priority,
     (void)function; /* unused */
 
     log_fn(session, priority, buffer, log_data);
+}
+
+void
+_ssh_remove_legacy_log_cb(void)
+{
+    if (ssh_get_log_callback() == ssh_legacy_log_callback) {
+        _ssh_reset_log_cb();
+        ssh_set_log_userdata(NULL);
+    }
 }
 
 int ssh_set_callbacks(ssh_session session, ssh_callbacks cb) {
@@ -113,7 +122,7 @@ int ssh_add_channel_callbacks(ssh_channel channel, ssh_channel_callbacks cb)
 
 int ssh_remove_channel_callbacks(ssh_channel channel, ssh_channel_callbacks cb)
 {
-    struct ssh_iterator *it;
+    struct ssh_iterator *it = NULL;
 
     if (channel == NULL || channel->callbacks == NULL){
         return SSH_ERROR;

@@ -21,7 +21,7 @@
  * MA 02111-1307, USA.
  */
 
-#include "libssh/config.h"
+#include "../config.h"
 
 #include "libssh/curve25519.h"
 #ifdef HAVE_CURVE25519
@@ -33,14 +33,13 @@
 #include "libssh/ssh2.h"
 #include "libssh/buffer.h"
 #include "libssh/priv.h"
-#include "libssh/crypto.h" //MYM
 #include "libssh/session.h"
-//#include "libssh/crypto.h" //MYM
+#include "libssh/crypto.h"
 #include "libssh/dh.h"
 #include "libssh/pki.h"
 #include "libssh/bignum.h"
 
-#ifdef HAVE_OPENSSL_X25519
+#ifdef HAVE_LIBCRYPTO
 #include <openssl/err.h>
 #endif
 
@@ -60,7 +59,7 @@ static struct ssh_packet_callbacks_struct ssh_curve25519_client_callbacks = {
 static int ssh_curve25519_init(ssh_session session)
 {
     int rc;
-#ifdef HAVE_OPENSSL_X25519
+#ifdef HAVE_LIBCRYPTO
     EVP_PKEY_CTX *pctx = NULL;
     EVP_PKEY *pkey = NULL;
     size_t pubkey_len = CURVE25519_PUBKEY_SIZE;
@@ -137,7 +136,7 @@ static int ssh_curve25519_init(ssh_session session)
         crypto_scalarmult_base(session->next_crypto->curve25519_client_pubkey,
                                session->next_crypto->curve25519_privkey);
     }
-#endif /* HAVE_OPENSSL_X25519 */
+#endif /* HAVE_LIBCRYPTO */
 
     return SSH_OK;
 }
@@ -173,11 +172,16 @@ int ssh_client_curve25519_init(ssh_session session)
     return rc;
 }
 
+void ssh_client_curve25519_remove_callbacks(ssh_session session)
+{
+    ssh_packet_remove_callbacks(session, &ssh_curve25519_client_callbacks);
+}
+
 static int ssh_curve25519_build_k(ssh_session session)
 {
     ssh_curve25519_pubkey k;
 
-#ifdef HAVE_OPENSSL_X25519
+#ifdef HAVE_LIBCRYPTO
     EVP_PKEY_CTX *pctx = NULL;
     EVP_PKEY *pkey = NULL, *pubkey = NULL;
     size_t shared_key_len = sizeof(k);
@@ -256,7 +260,7 @@ out:
         crypto_scalarmult(k, session->next_crypto->curve25519_privkey,
                           session->next_crypto->curve25519_server_pubkey);
     }
-#endif /* HAVE_OPENSSL_X25519 */
+#endif /* HAVE_LIBCRYPTO */
 
     bignum_bin2bn(k, CURVE25519_PUBKEY_SIZE, &session->next_crypto->shared_secret);
     if (session->next_crypto->shared_secret == NULL) {
@@ -286,7 +290,7 @@ static SSH_PACKET_CALLBACK(ssh_packet_client_curve25519_reply){
   (void)type;
   (void)user;
 
-  ssh_packet_remove_callbacks(session, &ssh_curve25519_client_callbacks);
+  ssh_client_curve25519_remove_callbacks(session);
 
   pubkey_blob = ssh_buffer_get_ssh_string(packet);
   if (pubkey_blob == NULL) {
@@ -331,16 +335,10 @@ static SSH_PACKET_CALLBACK(ssh_packet_client_curve25519_reply){
   }
 
   /* Send the MSG_NEWKEYS */
-  if (ssh_buffer_add_u8(session->out_buffer, SSH2_MSG_NEWKEYS) < 0) {
-    goto error;
-  }
-
-  rc=ssh_packet_send(session);
+  rc = ssh_packet_send_newkeys(session);
   if (rc == SSH_ERROR) {
     goto error;
   }
-
-  SSH_LOG(SSH_LOG_PROTOCOL, "SSH_MSG_NEWKEYS sent");
   session->dh_handshake_state = DH_STATE_NEWKEYS_SENT;
 
   return SSH_PACKET_USED;
@@ -378,12 +376,12 @@ void ssh_server_curve25519_init(ssh_session session){
  */
 static SSH_PACKET_CALLBACK(ssh_packet_server_curve25519_init){
     /* ECDH keys */
-    ssh_string q_c_string;
-    ssh_string q_s_string;
+    ssh_string q_c_string = NULL;
+    ssh_string q_s_string = NULL;
     ssh_string server_pubkey_blob = NULL;
 
-    /* SSH host keys (rsa,dsa,ecdsa) */
-    ssh_key privkey;
+    /* SSH host keys (rsa, ed25519 and ecdsa) */
+    ssh_key privkey = NULL;
     enum ssh_digest_e digest = SSH_DIGEST_AUTO;
     ssh_string sig_blob = NULL;
     int rc;
@@ -403,15 +401,14 @@ static SSH_PACKET_CALLBACK(ssh_packet_server_curve25519_init){
                       SSH_FATAL,
                       "Incorrect size for server Curve25519 public key: %zu",
                       ssh_string_len(q_c_string));
-        SSH_STRING_FREE(q_c_string);
         goto error;
     }
 
     memcpy(session->next_crypto->curve25519_client_pubkey,
            ssh_string_data(q_c_string), CURVE25519_PUBKEY_SIZE);
     SSH_STRING_FREE(q_c_string);
-    /* Build server's keypair */
 
+    /* Build server's key pair */
     rc = ssh_curve25519_init(session);
     if (rc != SSH_OK) {
         ssh_set_error(session, SSH_FATAL, "Failed to generate curve25519 keys");
@@ -461,12 +458,17 @@ static SSH_PACKET_CALLBACK(ssh_packet_server_curve25519_init){
     /* add ecdh public key */
     q_s_string = ssh_string_new(CURVE25519_PUBKEY_SIZE);
     if (q_s_string == NULL) {
+        ssh_set_error_oom(session);
         goto error;
     }
 
-    ssh_string_fill(q_s_string,
-                    session->next_crypto->curve25519_server_pubkey,
-                    CURVE25519_PUBKEY_SIZE);
+    rc = ssh_string_fill(q_s_string,
+                         session->next_crypto->curve25519_server_pubkey,
+                         CURVE25519_PUBKEY_SIZE);
+    if (rc < 0) {
+        ssh_set_error(session, SSH_FATAL, "Could not copy public key");
+        goto error;
+    }
 
     rc = ssh_buffer_add_ssh_string(session->out_buffer, q_s_string);
     SSH_STRING_FREE(q_s_string);
@@ -488,27 +490,24 @@ static SSH_PACKET_CALLBACK(ssh_packet_server_curve25519_init){
         goto error;
     }
 
-    SSH_LOG(SSH_LOG_PROTOCOL, "SSH_MSG_KEX_ECDH_REPLY sent");
+    SSH_LOG(SSH_LOG_DEBUG, "SSH_MSG_KEX_ECDH_REPLY sent");
     rc = ssh_packet_send(session);
     if (rc == SSH_ERROR) {
         return SSH_ERROR;
     }
 
-    /* Send the MSG_NEWKEYS */
-    rc = ssh_buffer_add_u8(session->out_buffer, SSH2_MSG_NEWKEYS);
-    if (rc < 0) {
-        goto error;
-    }
-
     session->dh_handshake_state = DH_STATE_NEWKEYS_SENT;
-    rc = ssh_packet_send(session);
+
+    /* Send the MSG_NEWKEYS */
+    rc = ssh_packet_send_newkeys(session);
     if (rc == SSH_ERROR) {
         goto error;
     }
-    SSH_LOG(SSH_LOG_PROTOCOL, "SSH_MSG_NEWKEYS sent");
 
     return SSH_PACKET_USED;
 error:
+    SSH_STRING_FREE(q_c_string);
+    SSH_STRING_FREE(q_s_string);
     ssh_buffer_reinit(session->out_buffer);
     session->session_state=SSH_SESSION_STATE_ERROR;
     return SSH_PACKET_USED;

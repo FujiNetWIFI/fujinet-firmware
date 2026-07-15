@@ -71,6 +71,8 @@ struct nfs_url {
 #if defined(WIN32) && defined(HAVE_FUSE_H)
 #include <fuse.h>
 #else
+#ifndef _STATVFS_DEFINED
+#define _STATVFS_DEFINED
 struct statvfs {
 	uint32_t	f_bsize;
 	uint32_t	f_frsize;
@@ -84,6 +86,7 @@ struct statvfs {
 	uint32_t	f_flag;
 	uint32_t	f_namemax;
 };
+#endif /* _STATVFS_DEFINED */
 #endif
 #if !defined(__MINGW32__) && !defined(ESP_PLATFORM)
 struct utimbuf {

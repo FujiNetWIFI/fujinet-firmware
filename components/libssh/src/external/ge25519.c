@@ -6,7 +6,7 @@
  * Copied from supercop-20130419/crypto_sign/ed25519/ref/ge25519.c
  */
 
-#include "libssh/config.h"
+#include "../../config.h"
 
 #include "libssh/fe25519.h"
 #include "libssh/sc25519.h"
