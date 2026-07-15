@@ -928,6 +928,14 @@ bool mgHttpClient::_perform_redirect()
     }
 
     Debug_printf("HTTP redirect (%d) to %s\n", _redirect_count, _location.c_str());
+
+    // Drop credentials before following a cross-host redirect. 
+    if (mg_strcasecmp(mg_url_host(_url.c_str()), mg_url_host(_location.c_str())) != 0)
+    {
+        _request_headers.erase("Authorization");
+        _request_headers.erase("Cookie");
+    }
+
     // update url to connect to
     _url = _location;
     _location.clear();
