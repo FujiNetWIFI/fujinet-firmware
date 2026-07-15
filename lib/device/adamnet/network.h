@@ -224,22 +224,6 @@ private:
     std::string prefix;
 
     /**
-     * The AUX1 value used for OPEN.
-     */
-    uint8_t open_aux1;
-
-    /**
-     * The AUX2 value used for OPEN.
-     */
-    uint8_t open_aux2;
-
-    /**
-     * The Translation mode ORed into AUX2 for READ/WRITE/STATUS operations.
-     * 0 = No Translation, 1 = CR<->EOL (Macintosh), 2 = LF<->EOL (UNIX), 3 = CR/LF<->EOL (PC/Windows)
-     */
-    uint8_t trans_aux2;
-
-    /**
      * The login to use for a protocol action
      */
     std::string login;
@@ -292,7 +276,7 @@ private:
     /**
      * Create the deviceSpec and fix it for parsing
      */
-    void create_devicespec(std::string d);
+    void create_devicespec(std::string d, bool is_dir);
 
     /**
      * Create a urlParser from deviceSpec
@@ -354,7 +338,7 @@ private:
      * @brief parse URL and instantiate protocol
      * @param db pointer to devicespecbuf 256 chars
      */
-    void parse_and_instantiate_protocol(std::string d);
+    void parse_and_instantiate_protocol(std::string d, bool is_dir);
 };
 
 #endif /* NETWORK_H */

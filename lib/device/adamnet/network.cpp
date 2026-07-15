@@ -129,13 +129,6 @@ void adamNetwork::open(unsigned short s)
 
     channelMode = PROTOCOL;
 
-    // persist aux1/aux2 values
-    cmdFrame.aux1 = _aux1;
-    cmdFrame.aux2 = _aux2;
-
-    open_aux1 = cmdFrame.aux1;
-    open_aux2 = cmdFrame.aux2;
-
     // Shut down protocol if we are sending another open before we close.
     if (protocol != nullptr)
     {
@@ -157,7 +150,7 @@ void adamNetwork::open(unsigned short s)
 
     // Parse and instantiate protocol
     d = string((char *)response, s);
-    parse_and_instantiate_protocol(d);
+    parse_and_instantiate_protocol(d, (fileAccessMode_t) _aux1 == ACCESS_MODE::DIRECTORY);
 
     if (protocol == nullptr)
     {
@@ -170,7 +163,7 @@ void adamNetwork::open(unsigned short s)
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != FUJI_ERROR::NONE)
+    if (protocol->open(urlParser.get(), (fileAccessMode_t) _aux1, (netProtoTranslation_t) _aux2) != FUJI_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
         err_open = protocol->error; // keep the reason for get_error()
@@ -507,7 +500,7 @@ void adamNetwork::json_query(unsigned short s)
     SYSTEM_BUS.start_time = GET_TIMESTAMP();
     adamnet_response_ack();
 
-    json.setReadQuery(std::string((char *)response, s), cmdFrame.aux2);
+    json.setReadQuery(std::string((char *)response, s), 0);
 
     Debug_printv("adamNetwork::json_query(%s)\n", response);
 }
@@ -817,9 +810,9 @@ bool adamNetwork::instantiate_protocol()
  * Preprocess deviceSpec given aux1 open mode. This is used to work around various assumptions that different
  * disk utility packages do when opening a device, such as adding wildcards for directory opens.
  */
-void adamNetwork::create_devicespec(string d)
+void adamNetwork::create_devicespec(string d, bool is_dir)
 {
-    deviceSpec = util_devicespec_fix_for_parsing(d, prefix, cmdFrame.aux1 == 6, false);
+    deviceSpec = util_devicespec_fix_for_parsing(d, prefix, is_dir, false);
 }
 
 /*
@@ -832,9 +825,9 @@ void adamNetwork::create_url_parser()
     urlParser = PeoplesUrlParser::parseURL(url);
 }
 
-void adamNetwork::parse_and_instantiate_protocol(string d)
+void adamNetwork::parse_and_instantiate_protocol(string d, bool is_dir)
 {
-    create_devicespec(d);
+    create_devicespec(d, is_dir);
     create_url_parser();
 
     // Invalid URL returns error 165 in status.
@@ -892,7 +885,7 @@ void adamNetwork::process_fs(fujiCommandID_t cmd, unsigned pkt_len)
     adamnet_response_ack();
 
     auto data = string((char *)response, pkt_len);
-    parse_and_instantiate_protocol(data);
+    parse_and_instantiate_protocol(data, false);
 
     // Make sure this is really a FS protocol instance
     NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol);
