@@ -23,6 +23,9 @@ class fnTcpServer
 
     int begin(uint16_t port=0);
 
+    // Actual bound port; useful after begin(0) requests an OS-assigned ephemeral port.
+    uint16_t port() const { return _port; }
+
     fnTcpClient accept(){ return client(); }
     void setNoDelay(bool nodelay) { _noDelay = nodelay; };
     bool getNoDelay() {return _noDelay; };

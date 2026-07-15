@@ -8,6 +8,7 @@
 #include <sstream>
 
 #include "fnTcpClient.h"
+#include "fnTcpServer.h"
 #include "Protocol.h"
 
 using std::string;
@@ -187,9 +188,20 @@ private:
     std::stringstream dirBuffer;
 
     /**
-     * The data port returned by EPSV
+     * The data port returned by EPSV/PASV
      */
     unsigned short data_port = 0;
+
+    /**
+     * TRUE if the data connection for the current transfer is active mode (PORT),
+     * meaning the server connects to us rather than the other way around.
+     */
+    bool _active_mode = false;
+
+    /**
+     * Listening socket used for active mode (PORT) data transfers.
+     */
+    fnTcpServer _active_server;
 
     /**
      * read and parse control response
@@ -204,17 +216,45 @@ private:
     int read_response_line(char *buf, int buflen);
 
     /**
-     * Ask server to prepare a data port for us in extended passive mode.
-     * Port is set and returned in data_port variable.
-     * @return TRUE if error, FALSE if successful.
+     * Ask server to prepare a data port for us, trying extended passive mode
+     * (EPSV) first, falling back to passive mode (PASV), and finally to
+     * active mode (PORT) if both passive attempts fail.
+     * @return FUJI_ERROR::UNSPECIFIED if error, FUJI_ERROR::NONE if successful.
      */
     fujiError_t get_data_port();
+
+    /**
+     * @brief Try to get a data connection via EPSV (RFC 2428).
+     * @return FUJI_ERROR::UNSPECIFIED if error, FUJI_ERROR::NONE if successful.
+     */
+    fujiError_t get_data_port_epsv();
+
+    /**
+     * @brief Try to get a data connection via PASV (RFC 959).
+     * @return FUJI_ERROR::UNSPECIFIED if error, FUJI_ERROR::NONE if successful.
+     */
+    fujiError_t get_data_port_pasv();
+
+    /**
+     * @brief Try to get a data connection via PORT/active mode (RFC 959).
+     * We open a local listening socket, tell the server about it via PORT,
+     * and the actual connection is accepted later in accept_active_connection().
+     * @return FUJI_ERROR::UNSPECIFIED if error, FUJI_ERROR::NONE if successful.
+     */
+    fujiError_t get_data_port_port();
+
+    /**
+     * @brief If the current transfer is active mode (PORT), wait for and
+     * accept the server's incoming data connection. No-op otherwise.
+     * @return FUJI_ERROR::UNSPECIFIED if error (e.g. timed out waiting), FUJI_ERROR::NONE if successful.
+     */
+    fujiError_t accept_active_connection();
 
     /**
      * @brief Is response a positive preliminary reply?
      * @return true or false.
      */
-    bool is_positive_preliminary_reply() { return controlResponse[0] == '1'; }
+    fujiError_t is_positive_preliminary_reply() { return controlResponse[0] == '1' ? FUJI_ERROR::NONE : FUJI_ERROR::UNSPECIFIED; }
 
     /**
      * @brief Is response a positive completion reply?
@@ -300,6 +340,18 @@ private:
      * @brief Enter extended passive mode (RFC 2428)
      */
     void EPSV();
+
+    /**
+     * @brief Enter passive mode (RFC 959)
+     */
+    void PASV();
+
+    /**
+     * @brief Enter active mode (RFC 959), telling the server our IP/port to connect to.
+     * @param h1,h2,h3,h4 our IP address octets
+     * @param port our listening port
+     */
+    void PORT(uint8_t h1, uint8_t h2, uint8_t h3, uint8_t h4, uint16_t port);
 
     /**
      * @brief Ask server to retrieve path
