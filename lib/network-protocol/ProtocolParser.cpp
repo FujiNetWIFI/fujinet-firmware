@@ -11,6 +11,8 @@
 #include "TNFS.h"
 #include "FTP.h"
 #include "HTTP.h"
+#include "WS.h"
+#include "WSS.h"
 #include "SSH.h"
 #include "SFTP.h"
 #include "SSHKeygen.h"
@@ -61,6 +63,12 @@ NetworkProtocol* ProtocolParser::createProtocol(std::string scheme, std::string 
         case "HTTP"_sh:
         case "HTTPS"_sh:
             protocol = new NetworkProtocolHTTP(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "WS"_sh:
+            protocol = new NetworkProtocolWS(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "WSS"_sh:
+            protocol = new NetworkProtocolWSS(receiveBuffer, transmitBuffer, specialBuffer);
             break;
         case "SSH"_sh:
             protocol = new NetworkProtocolSSH(receiveBuffer, transmitBuffer, specialBuffer);

@@ -263,6 +263,9 @@ set(SOURCES src/main.cpp
     lib/network-protocol/FTP.h lib/network-protocol/FTP.cpp
     lib/network-protocol/TNFS.h lib/network-protocol/TNFS.cpp
     lib/network-protocol/HTTP.h lib/network-protocol/HTTP.cpp
+    lib/network-protocol/WS.h lib/network-protocol/WS.cpp
+    lib/network-protocol/WSS.h lib/network-protocol/WSS.cpp
+    lib/network-protocol/mgWebSocketClient.h lib/network-protocol/mgWebSocketClient.cpp
     lib/network-protocol/SMB.h lib/network-protocol/SMB.cpp
     lib/network-protocol/NFS.h lib/network-protocol/NFS.cpp
     lib/network-protocol/S3.h lib/network-protocol/S3.cpp
