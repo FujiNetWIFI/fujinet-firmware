@@ -115,6 +115,10 @@ success_is_true FileSystemTNFS::start(const char *host, uint16_t port, const cha
     if(vfs_tnfs_register(_mountinfo, _basepath, sizeof(_basepath)) != 0)
     {
         Debug_println("Failed to register VFS driver!");
+        // Release the server session opened by tnfs_mount above.
+        tnfs_umount(&_mountinfo);
+        _mountinfo.session = TNFS_INVALID_SESSION;
+        _basepath[0] = '\0';
         RETURN_ERROR_AS_FALSE();
     }
 

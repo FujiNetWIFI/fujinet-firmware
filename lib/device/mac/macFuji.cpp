@@ -117,7 +117,7 @@ void macFuji::_populate_config_from_slots()
             Config.clear_mount(i);
         else
             Config.store_mount(i, _fnDisks[i].host_slot, _fnDisks[i].filename,
-                               _fnDisks[i].access_mode == DISK_ACCESS_MODE_WRITE ? fnConfig::mount_modes::MOUNTMODE_WRITE : fnConfig::mount_modes::MOUNTMODE_READ);
+                               (_fnDisks[i].access_mode & DISK_ACCESS_MODE_WRITE) ? fnConfig::mount_modes::MOUNTMODE_WRITE : fnConfig::mount_modes::MOUNTMODE_READ);
     }
 }
 
@@ -132,7 +132,7 @@ bool macFuji::mount_all()
         fujiHost &host = _fnHosts[disk.host_slot];
         char flag[3] = {'r', 0, 0};
 
-        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
+        if (disk.access_mode & DISK_ACCESS_MODE_WRITE)
             flag[1] = '+';
 
         if (disk.host_slot != 0xFF)
@@ -163,7 +163,7 @@ bool macFuji::mount_all()
             // And now mount it
             disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
             disk.disk_dev.readonly = true;
-            if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
+            if (disk.access_mode & DISK_ACCESS_MODE_WRITE)
             {
               disk.disk_dev.readonly = false;
             }

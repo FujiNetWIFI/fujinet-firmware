@@ -4,7 +4,7 @@
  * Comlynx Functions
  */
 #include "comlynx.h"
-#include "udpstream.h"
+#include "netstream.h"
 
 #include "../../include/debug.h"
 
@@ -14,57 +14,6 @@
 #include <cstring>
 
 #define IDLE_TIME 500 // Idle tolerance in microseconds (roughly three characters at 62500 baud)
-
-static QueueHandle_t reset_evt_queue = NULL;
-
-static void IRAM_ATTR comlynx_reset_isr_handler(void *arg)
-{
-    uint32_t gpio_num = (uint32_t)arg;
-    xQueueSendFromISR(reset_evt_queue, &gpio_num, NULL);
-}
-
-static void comlynx_reset_intr_task(void *arg)
-{
-    uint32_t io_num;
-    bool was_reset = false;
-    bool reset_debounced = false;
-    uint64_t start, current, elapsed;
-    systemBus *b = (systemBus *)arg;
-
-    // reset_detect_status = gpio_get_level((gpio_num_t)PIN_COMLYNX_RESET);
-    start = current = esp_timer_get_time();
-    for (;;)
-    {
-        if (xQueueReceive(reset_evt_queue, &io_num, portMAX_DELAY))
-        {
-            start = esp_timer_get_time();
-            printf("Comlynx RESET Asserted\n");
-            was_reset = true;
-        }
-        current = esp_timer_get_time();
-
-        elapsed = current - start;
-
-        if (was_reset)
-        {
-            if (elapsed >= COMLYNX_RESET_DEBOUNCE_PERIOD)
-            {
-                reset_debounced = true;
-            }
-        }
-
-        if (was_reset && reset_debounced)
-        {
-            was_reset = false;
-            // debounce period for reset completed
-            reset_debounced = false;
-            ;
-        }
-
-        b->reset();
-        vTaskDelay(1);
-    }
-}
 
 uint8_t comlynx_checksum(uint8_t *buf, unsigned short len)
 {
@@ -80,8 +29,8 @@ void virtualDevice::comlynx_send(uint8_t b)
 {
     //Debug_printf("comlynx_send_buffer - %X\n", b);
 
-    // Wait for idle only when in UDPStream mode
-    if (SYSTEM_BUS._udpDev->udpstreamActive)
+    // Wait for idle only when in netstream mode
+    if (SYSTEM_BUS.netstreamActive())
         SYSTEM_BUS.wait_for_idle();
 
     // Write the byte
@@ -93,8 +42,8 @@ void virtualDevice::comlynx_send_buffer(uint8_t *buf, unsigned short len)
 {
     Debug_printf("comlynx_send_buffer - len:%d\n", len);
 
-    // Wait for idle only when in UDPStream mode
-    if (SYSTEM_BUS._udpDev->udpstreamActive)
+    // Wait for idle only when in netstream mode
+    if (SYSTEM_BUS.netstreamActive())
         SYSTEM_BUS.wait_for_idle();
 
     SYSTEM_BUS.write(buf, len);
@@ -185,7 +134,7 @@ void virtualDevice::comlynx_send_length(uint16_t l)
     comlynx_send(l & 0xFF);
 
     #ifdef DEBUG
-        Debug_printf("comlynx_send_length - len: %ld\n", l);
+        Debug_printf("comlynx_send_length - len: %ld\n", (long int)l);
     #endif
 }
 
@@ -222,7 +171,7 @@ bool systemBus::wait_for_idle()
 {
     int64_t start, current, dur;
 
-    // SJ notes: we really don't need to do this unless we are in UDPStream mode
+    // SJ notes: we really don't need to do this unless we are in netstream mode
     // Likely we want to just wait until the bus is "idle" for about 3 character times
     // which is about 0.5 ms at 62500 baud 8N1
     //
@@ -244,6 +193,11 @@ bool systemBus::wait_for_idle()
     return true;
 
     //fnSystem.yield();         // not sure if we need to do this, from old function - SJ
+}
+
+bool systemBus::netstreamActive() const
+{
+    return _streamDev != nullptr && _streamDev->netstreamActive;
 }
 
 void virtualDevice::comlynx_process()
@@ -305,9 +259,9 @@ void systemBus::_comlynx_process_queue()
 
 void systemBus::service()
 {
-    // Handle UDP Stream if active
-    if (_udpDev != nullptr && _udpDev->udpstreamActive)
-        _udpDev->comlynx_handle_udpstream();
+    // Handle NetStream if active
+    if (_streamDev != nullptr && _streamDev->netstreamActive)
+        _streamDev->comlynx_handle_netstream();
     // Process anything waiting
     else if (SYSTEM_BUS.available() > 0)
         _comlynx_process_cmd();
@@ -317,17 +271,8 @@ void systemBus::setup()
 {
     Debug_println("COMLYNX SETUP");
 
-    // Set up interrupt for RESET line
-    reset_evt_queue = xQueueCreate(10, sizeof(uint32_t));
-    // Start card detect task
-    xTaskCreate(comlynx_reset_intr_task, "comlynx_reset_intr_task", 2048, this, 10, NULL);
-    // Enable interrupt for card detection
-    fnSystem.set_pin_mode(PIN_COMLYNX_RESET, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP, GPIO_INTR_NEGEDGE);
-    // Add the card detect handler
-    gpio_isr_handler_add((gpio_num_t)PIN_COMLYNX_RESET, comlynx_reset_isr_handler, (void *)PIN_CARD_DETECT_FIX);
-
-    // Set up UDP device
-    _udpDev = new lynxUDPStream();
+    // Set up NetStream device
+    //_streamDev = new lynxnetstream();
 
     // Set up UART
     _port.begin(ChannelConfig()
@@ -362,6 +307,10 @@ void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
     else if (device_id == FUJI_DEVICEID_PRINTER)
     {
         _printerDev = (lynxPrinter *)pDevice;
+    }
+    else if (device_id == FUJI_DEVICEID_MIDI)
+    {
+        _streamDev = (lynxNetStream *)pDevice;
     }
 
     pDevice->_devnum = device_id;
@@ -420,13 +369,13 @@ void systemBus::disableDevice(fujiDeviceID_t device_id)
 {
 }
 
-void systemBus::setUDPHost(const char *hostname, int port)
+void systemBus::setStreamHost(const char *hostname, int port)
 {
     // Turn off if hostname is STOP
     if (hostname != nullptr && !strcmp(hostname, "STOP"))
     {
-        if (_udpDev->udpstreamActive)
-            _udpDev->comlynx_disable_udpstream();
+        if (_streamDev->netstreamActive)
+            _streamDev->comlynx_disable_netstream();
 
         return;
     }
@@ -434,71 +383,71 @@ void systemBus::setUDPHost(const char *hostname, int port)
     if (hostname != nullptr && hostname[0] != '\0')
     {
         // Try to resolve the hostname and store that so we don't have to keep looking it up
-        _udpDev->udpstream_host_ip = get_ip4_addr_by_name(hostname);
-        //_udpDev->udpstream_host_ip = IPADDR_NONE;
+        _streamDev->netstream_host_ip = get_ip4_addr_by_name(hostname);
+        //_streamDev->netstream_host_ip = IPADDR_NONE;
 
-        if (_udpDev->udpstream_host_ip == IPADDR_NONE)
+        if (_streamDev->netstream_host_ip == IPADDR_NONE)
         {
             Debug_printf("Failed to resolve hostname \"%s\"\n", hostname);
         }
     }
     else
     {
-        _udpDev->udpstream_host_ip = IPADDR_NONE;
+        _streamDev->netstream_host_ip = IPADDR_NONE;
     }
 
     if (port > 0 && port <= 65535)
     {
-        _udpDev->udpstream_port = port;
+        _streamDev->netstream_port = port;
     }
     else
     {
-        _udpDev->udpstream_port = 5004;
-        Debug_printf("UDPStream port not provided or invalid (%d), setting to 5004\n", port);
+        _streamDev->netstream_port = 5004;
+        Debug_printf("netstream port not provided or invalid (%d), setting to 5004\n", port);
     }
 
-    // Restart UDP Stream mode if needed
-    if (_udpDev->udpstreamActive) {
-        _udpDev->comlynx_disable_udpstream();
-        _udpDev->comlynx_disable_redeye();
+    // Restart NetStream mode if needed
+    if (_streamDev->netstreamActive) {
+        _streamDev->comlynx_disable_netstream();
+        _streamDev->comlynx_disable_redeye();
     }
-    if (_udpDev->udpstream_host_ip != IPADDR_NONE) {
-        _udpDev->comlynx_enable_udpstream();
-        if (_udpDev->redeye_mode)
-            _udpDev->comlynx_enable_redeye();
+    if (_streamDev->netstream_host_ip != IPADDR_NONE) {
+        _streamDev->comlynx_enable_netstream();
+        if (_streamDev->redeye_mode)
+            _streamDev->comlynx_enable_redeye();
     }
 }
 
 void systemBus::setRedeyeMode(bool enable)
 {
     Debug_printf("setRedeyeMode, %d\n", enable);
-    _udpDev->redeye_mode = enable;
-    _udpDev->redeye_logon = true;
+    _streamDev->redeye_mode = enable;
+    _streamDev->redeye_logon = true;
 }
 
 void systemBus::setRedeyeGameRemap(uint32_t remap)
 {
-    Debug_printf("setRedeyeGameRemap, %d\n", remap);
+    Debug_printf("setRedeyeGameRemap, %d\n", (int) remap);
 
     // handle pure updstream games
     if ((remap >> 8) == 0xE1) {
-        _udpDev->redeye_mode = false;           // turn off redeye
-        _udpDev->redeye_logon = true;           // reset logon phase toggle
-        _udpDev->redeye_game = remap;           // set game, since we can't detect it
+        _streamDev->redeye_mode = false;           // turn off redeye
+        _streamDev->redeye_logon = true;           // reset logon phase toggle
+        _streamDev->redeye_game = remap;           // set game, since we can't detect it
     }
 
     // handle redeye game that need remapping
     if (remap != 0xFFFF) {
-        _udpDev->remap_game_id = true;
-        _udpDev->new_game_id = remap;
+        _streamDev->remap_game_id = true;
+        _streamDev->new_game_id = remap;
     }
     else {
-        _udpDev->remap_game_id = false;
-        _udpDev->new_game_id = 0xFFFF;
+        _streamDev->remap_game_id = false;
+        _streamDev->new_game_id = 0xFFFF;
     }
 }
 
-void virtualDevice::transaction_continue(transState_t expectMoreData)
+void virtualDevice::transaction_begin(transState_t expectMoreData)
 {    
 }
 

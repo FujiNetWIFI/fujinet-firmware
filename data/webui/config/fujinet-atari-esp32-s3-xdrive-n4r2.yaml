@@ -12,7 +12,7 @@ components:
   modem_settings: true
   hsio_settings: true
   timezone: true
-  udp_stream: true
+  net_stream: true
   program_recorder: true
   disk_swap: true
   boot_settings: true

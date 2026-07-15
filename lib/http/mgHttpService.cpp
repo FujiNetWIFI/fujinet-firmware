@@ -7,6 +7,8 @@
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <ctime>
+#include <cstdlib>
 
 #include "fnSystem.h"
 #include "fnConfig.h"
@@ -20,6 +22,8 @@
 #endif /* BUILD_ATARI */
 
 #include "mongoose.h"
+#include <cJSON.h>
+#include "mgHttpClient.h"
 #include "httpService.h"
 #include "httpServiceConfigurator.h"
 #include "httpServiceParser.h"
@@ -679,6 +683,136 @@ int fnHttpService::get_handler_shorturl(mg_connection *c, mg_http_message *hm)
     return 0;
 }
 
+// ─── Google Drive OAuth2 relay handlers ──────────────────────────────────────
+
+#define GDRIVE_CLIENT_ID          "197927610161-me037pnh65lh9g8cad6fg62ifni9fik0.apps.googleusercontent.com"
+#define GDRIVE_RELAY_REDIRECT_URI "https://auth.fujinet.online/gdrive-callback"
+#define GDRIVE_RELAY_CODE_URL     "https://auth.fujinet.online/gdrive-code?state="
+
+static std::string gdrive_auth_state;
+
+static std::string gdrive_pct_encode(const std::string &s)
+{
+    std::string out;
+    for (unsigned char c : s) {
+        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~')
+            out += (char)c;
+        else {
+            char buf[4];
+            snprintf(buf, sizeof(buf), "%%%02X", c);
+            out += buf;
+        }
+    }
+    return out;
+}
+
+static std::string gdrive_do_get(const std::string &url)
+{
+    mgHttpClient http;
+    if (!http.begin(url)) return "";
+    int status = http.GET();
+    if (status < 200 || status >= 300) { Debug_printf("gdrive_do_get: HTTP %d\n", status); return ""; }
+    std::string body;
+    uint8_t buf[512]; int n;
+    while ((n = http.read(buf, sizeof(buf))) > 0) body.append((char *)buf, n);
+    return body;
+}
+
+int fnHttpService::get_handler_gdrive_auth(mg_connection *c, mg_http_message *)
+{
+    char state[16];
+    snprintf(state, sizeof(state), "%08lx",
+             (unsigned long)((uint32_t)rand() ^ (uint32_t)time(nullptr)));
+    gdrive_auth_state = state;
+
+    std::string auth_url =
+        "https://accounts.google.com/o/oauth2/auth"
+        "?response_type=code"
+        "&access_type=offline"
+        "&prompt=consent"
+        "&client_id="    + gdrive_pct_encode(GDRIVE_CLIENT_ID) +
+        "&redirect_uri=" + gdrive_pct_encode(GDRIVE_RELAY_REDIRECT_URI) +
+        "&scope="        + gdrive_pct_encode("https://www.googleapis.com/auth/drive") +
+        "&state="        + std::string(state);
+
+    cJSON *out = cJSON_CreateObject();
+    cJSON_AddStringToObject(out, "auth_url", auth_url.c_str());
+    cJSON_AddStringToObject(out, "state",    state);
+    char *s = cJSON_PrintUnformatted(out);
+    cJSON_Delete(out);
+    mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s", s);
+    free(s);
+    return 0;
+}
+
+int fnHttpService::get_handler_gdrive_poll(mg_connection *c, mg_http_message *hm)
+{
+    auto send_json = [&](const char *status_val, const char *msg = nullptr) {
+        cJSON *j = cJSON_CreateObject();
+        cJSON_AddStringToObject(j, "status", status_val);
+        if (msg) cJSON_AddStringToObject(j, "message", msg);
+        char *s = cJSON_PrintUnformatted(j);
+        cJSON_Delete(j);
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s", s);
+        free(s);
+    };
+
+    char state[32] = {};
+    mg_http_get_var(&hm->query, "state", state, sizeof(state));
+
+    if (!state[0] || gdrive_auth_state.empty() || std::string(state) != gdrive_auth_state) {
+        send_json("error", "state mismatch");
+        return 0;
+    }
+
+    std::string relay_url = std::string(GDRIVE_RELAY_CODE_URL) + state;
+    std::string relay_body = gdrive_do_get(relay_url);
+
+    if (relay_body.empty()) {
+        send_json("error", "relay unreachable");
+        return 0;
+    }
+
+    cJSON *rj = cJSON_Parse(relay_body.c_str());
+    if (!rj) { send_json("error", "bad relay response"); return 0; }
+
+    cJSON *pending_node = cJSON_GetObjectItemCaseSensitive(rj, "pending");
+    cJSON *expired_node = cJSON_GetObjectItemCaseSensitive(rj, "expired");
+    cJSON *error_node   = cJSON_GetObjectItemCaseSensitive(rj, "error");
+    cJSON *at_node      = cJSON_GetObjectItemCaseSensitive(rj, "access_token");
+    cJSON *rt_node      = cJSON_GetObjectItemCaseSensitive(rj, "refresh_token");
+    cJSON *ei_node      = cJSON_GetObjectItemCaseSensitive(rj, "expires_in");
+
+    if (pending_node && cJSON_IsTrue(pending_node)) {
+        cJSON_Delete(rj); send_json("pending"); return 0;
+    }
+    if (expired_node && cJSON_IsTrue(expired_node)) {
+        cJSON_Delete(rj); gdrive_auth_state.clear(); send_json("expired"); return 0;
+    }
+    if (error_node && cJSON_IsString(error_node)) {
+        const char *msg = error_node->valuestring;
+        Debug_printf("gdrive-poll: relay returned error: %s\n", msg);
+        cJSON_Delete(rj); gdrive_auth_state.clear(); send_json("error", msg); return 0;
+    }
+    if (!at_node || !cJSON_IsString(at_node)) {
+        cJSON_Delete(rj); send_json("pending"); return 0;
+    }
+
+    gdrive_auth_state.clear();
+    if (cJSON_IsString(at_node)) Config.store_gdrive_access_token(at_node->valuestring);
+    if (rt_node && cJSON_IsString(rt_node)) Config.store_gdrive_refresh_token(rt_node->valuestring);
+    if (ei_node && cJSON_IsNumber(ei_node)) {
+        long expiry = (long)time(nullptr) + (long)ei_node->valuedouble;
+        Config.store_gdrive_token_expiry(expiry);
+    }
+    Config.save();
+    cJSON_Delete(rj);
+    send_json("authorized");
+    return 0;
+}
+
+// ─── end Google Drive handlers ────────────────────────────────────────────────
+
 void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
 {
     static const char *s_root_dir = "data/www";
@@ -790,6 +924,14 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
         else if (mg_match(hm->uri, mg_str("/url/*"), NULL))
         {
             get_handler_shorturl(c, hm);
+        }
+        else if (mg_match(hm->uri, mg_str("/gdrive-auth"), NULL))
+        {
+            get_handler_gdrive_auth(c, hm);
+        }
+        else if (mg_match(hm->uri, mg_str("/gdrive-poll"), NULL))
+        {
+            get_handler_gdrive_poll(c, hm);
         }
         else
         // default handler, serve static content of www firectory

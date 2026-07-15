@@ -36,11 +36,11 @@ void systemBus::setup()
     Debug_println("H89 SETUP");
 
     // // Do any first time setup here
-    // fnSystem.set_pin_mode(PIN_CMD, gpio_mode_t::GPIO_MODE_INPUT); // There's no PULLUP/PULLDOWN on pins 34-39
+    // fnSystem.set_pin_mode(PIN_CMD_REQ, gpio_mode_t::GPIO_MODE_INPUT); // There's no PULLUP/PULLDOWN on pins 34-39
     // fnSystem.set_pin_mode(PIN_DATA, gpio_mode_t::GPIO_MODE_INPUT); // There's no PULLUP/PULLDOWN on pins 34-39
 
-    // fnSystem.set_pin_mode(PIN_CMD_RDY, gpio_mode_t::GPIO_MODE_OUTPUT);
-    // fnSystem.digital_write(PIN_CMD_RDY, DIGI_HIGH);
+    // fnSystem.set_pin_mode(PIN_CMD_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
+    // fnSystem.digital_write(PIN_CMD_ACK, DIGI_HIGH);
 
     // fnSystem.set_pin_mode(PIN_PROCEED, gpio_mode_t::GPIO_MODE_OUTPUT);
     // fnSystem.digital_write(PIN_PROCEED, DIGI_HIGH);

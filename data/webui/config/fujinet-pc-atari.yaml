@@ -13,7 +13,7 @@ components:
   hsio_settings: true
   timezone: true
   apetime: true
-  udp_stream: true
+  net_stream: true
   program_recorder: true
   disk_swap: true
   boot_settings: true

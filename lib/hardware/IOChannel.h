@@ -53,16 +53,6 @@ public:
 
     virtual void flushOutput() = 0;
 
-#ifdef RS232_THINGS
-    virtual uint32_t getBaudrate() = 0;
-    virtual void setBaudrate(uint32_t baud) = 0;
-
-    virtual bool getDTR() = 0;
-    virtual void setDSR(bool state) = 0;
-    virtual bool getRTS() = 0;
-    virtual void setCTS(bool state) = 0;
-#endif /* RS232_THINGS */
-
     // Handled by IOChannel, not implemented by subclass
     size_t available();
     void discardInput();

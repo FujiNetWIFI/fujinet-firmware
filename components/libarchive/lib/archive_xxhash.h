@@ -31,31 +31,16 @@
 #error This header is only to be used internally to libarchive.
 #endif
 
-/***************************************
-** Basic Types
-****************************************/
-#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
-# include <stdint.h>
-  typedef uint8_t  BYTE;
-  typedef uint16_t U16;
-  typedef uint32_t U32;
-  typedef  int32_t S32;
-  typedef uint64_t U64;
-#else
-  typedef unsigned char      BYTE;
-  typedef unsigned short     U16;
-  typedef unsigned int       U32;
-  typedef   signed int       S32;
-  typedef unsigned long long U64;
-#endif
 
 typedef enum { XXH_OK=0, XXH_ERROR } XXH_errorcode;
 
 struct archive_xxhash {
-	U32  (*XXH32)(const void* input, U32 len, U32 seed);
-	void* (*XXH32_init)(U32 seed);
-	XXH_errorcode (*XXH32_update)(void* state, const void* input, U32 len);
-	U32  (*XXH32_digest)(void* state);
+	unsigned int  (*XXH32)(const void* input, unsigned int len,
+			unsigned int seed);
+	void*         (*XXH32_init)(unsigned int seed);
+	XXH_errorcode (*XXH32_update)(void* state, const void* input,
+			unsigned int len);
+	unsigned int  (*XXH32_digest)(void* state);
 };
 
 extern const struct archive_xxhash __archive_xxhash;

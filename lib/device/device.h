@@ -6,7 +6,7 @@
 # include "sio/cassette.h"
 # include "sio/disk.h"
 # include "sio/pclink.h"
-# include "sio/udpstream.h"
+# include "sio/netstream.h"
 # include "sio/modem.h"
 # include "sio/network.h"
 # include "sio/printer.h"
@@ -17,7 +17,7 @@
 
     sioClock clockDevice;
     sioVoice sioV;
-    sioUDPStream udpDev;
+    sioNetStream streamDev;
     // sioCassette sioC; // now part of sioFuji theFuji object
     modem *sioR;
     sioCPM sioZ;
@@ -86,10 +86,10 @@
 # include "comlynx/printer.h"
 # include "comlynx/printerlist.h"
 # include "comlynx/lynxFuji.h"
-# include "comlynx/udpstream.h"
+# include "comlynx/netstream.h"
 
 //lynxModem *sioR;
-lynxUDPStream *udpDev;
+lynxNetStream streamDev;
 #endif
 
 #ifdef BUILD_APPLE

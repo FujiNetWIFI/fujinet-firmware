@@ -24,7 +24,7 @@
 class systemBus;
 class lynxFuji;     // declare here so can reference it, but define in fuji.h
 class lynxPrinter;
-class lynxUDPStream; // declare here so can reference it, but define in udpstream.h
+class lynxNetStream;
 class lynxNetwork;
 class fujiDevice;
 
@@ -58,7 +58,7 @@ protected:
     virtual void comlynx_response_nack();
 
     transState_t _transaction_state = TRANS_STATE::INVALID;
-    virtual void transaction_continue(transState_t expectMoreData);
+    virtual void transaction_begin(transState_t expectMoreData);
     virtual void transaction_complete();
     virtual void transaction_error();
     virtual success_is_true transaction_get(void *data, size_t len);
@@ -123,6 +123,7 @@ private:
     lynxFuji *_fujiDev = nullptr;
     lynxPrinter *_printerDev = nullptr;
     lynxNetwork *_netDev[8] = {nullptr};
+    lynxNetStream *_streamDev = nullptr;
 
     UARTChannel _port;
 
@@ -130,8 +131,6 @@ private:
     void _comlynx_process_queue();
 
 public:
-    lynxUDPStream *_udpDev = nullptr;
-
     void setup();
     void service();
     void shutdown();
@@ -141,6 +140,7 @@ public:
      * @brief Wait to see if Comlynx bus is idle.
      */
     bool wait_for_idle();
+    bool netstreamActive() const;
 
     int numDevices();
     void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id);
@@ -153,7 +153,7 @@ public:
     void changeDeviceId(virtualDevice *pDevice, int device_id);
     bool deviceEnabled(fujiDeviceID_t device_id);
     QueueHandle_t qComlynxMessages = nullptr;
-    void setUDPHost(const char *newhost, int port);             // Set new host/ip & port for UDP Stream
+    void setStreamHost(const char *newhost, int port);    
 
     void setRedeyeMode(bool enable);
     void setRedeyeGameRemap(uint32_t remap);

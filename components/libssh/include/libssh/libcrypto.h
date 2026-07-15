@@ -21,29 +21,25 @@
 #ifndef LIBCRYPTO_H_
 #define LIBCRYPTO_H_
 
-#include "config.h"
+#include "../../config.h"
 
 #ifdef HAVE_LIBCRYPTO
 
-#include <openssl/dsa.h>
+#include "libssh/libssh.h"
 #include <openssl/rsa.h>
 #include <openssl/sha.h>
 #include <openssl/md5.h>
 #include <openssl/hmac.h>
 #include <openssl/evp.h>
 #include <openssl/crypto.h>
+#include <openssl/ec.h>
 
 typedef EVP_MD_CTX* SHACTX;
 typedef EVP_MD_CTX* SHA256CTX;
 typedef EVP_MD_CTX* SHA384CTX;
 typedef EVP_MD_CTX* SHA512CTX;
 typedef EVP_MD_CTX* MD5CTX;
-typedef HMAC_CTX* HMACCTX;
-#ifdef HAVE_ECC
-typedef EVP_MD_CTX *EVPCTX;
-#else
-typedef void *EVPCTX;
-#endif
+typedef EVP_MD_CTX* HMACCTX;
 
 #define SHA_DIGEST_LEN SHA_DIGEST_LENGTH
 #define SHA256_DIGEST_LEN SHA256_DIGEST_LENGTH
@@ -58,12 +54,15 @@ typedef void *EVPCTX;
 #define EVP_DIGEST_LEN EVP_MAX_MD_SIZE
 #endif
 
+/* Use ssh_crypto_free() to release memory allocated by bignum_bn2dec(),
+   bignum_bn2hex() and other functions that use crypto-library functions that
+   are documented to allocate memory that needs to be de-allocate with
+   OPENSSL_free. */
+#define ssh_crypto_free(x) OPENSSL_free(x)
+
 #include <openssl/bn.h>
 #include <openssl/opensslv.h>
-#define OPENSSL_0_9_7b 0x0090702fL
-#if (OPENSSL_VERSION_NUMBER <= OPENSSL_0_9_7b)
-#define BROKEN_AES_CTR
-#endif
+
 typedef BIGNUM*  bignum;
 typedef const BIGNUM* const_bignum;
 typedef BN_CTX* bignum_CTX;
@@ -114,9 +113,22 @@ typedef BN_CTX* bignum_CTX;
 /* Returns true if the OpenSSL is operating in FIPS mode */
 #ifdef HAVE_OPENSSL_FIPS_MODE
 #define ssh_fips_mode() (FIPS_mode() != 0)
+#elif OPENSSL_VERSION_NUMBER >= 0x30000000L
+#define ssh_fips_mode() EVP_default_properties_is_fips_enabled(NULL)
 #else
 #define ssh_fips_mode() false
 #endif
+
+ssh_string pki_key_make_ecpoint_string(const EC_GROUP *g, const EC_POINT *p);
+int pki_key_ecgroup_name_to_nid(const char *group);
+
+#if defined(WITH_PKCS11_URI)
+#if defined(WITH_PKCS11_PROVIDER)
+int pki_load_pkcs11_provider(void);
+#else
+ENGINE *pki_get_engine(void);
+#endif
+#endif /* WITH_PKCS11_PROVIDER */
 
 #endif /* HAVE_LIBCRYPTO */
 

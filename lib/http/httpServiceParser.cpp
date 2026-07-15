@@ -49,7 +49,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_CURRENTTIME,
         FN_TIMEZONE,
         FN_ROTATION_SOUNDS,
-        FN_UDPSTREAM_HOST,
+        FN_NETSTREAM_HOST,
+        FN_NETSTREAM_MODE,
+        FN_NETSTREAM_REGISTER,
         FN_HEAPSIZE,
         FN_SYSSDK,
         FN_SYSCPUREV,
@@ -150,6 +152,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_CPM_CCP,
         FN_ALT_CFG,
         FN_PCLINK_ENABLED,
+        FN_GDRIVE_CONNECTED,
         FN_LASTTAG
     };
 
@@ -181,7 +184,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_CURRENTTIME",
         "FN_TIMEZONE",
         "FN_ROTATION_SOUNDS",
-        "FN_UDPSTREAM_HOST",
+        "FN_NETSTREAM_HOST",
+        "FN_NETSTREAM_MODE",
+        "FN_NETSTREAM_REGISTER",
         "FN_HEAPSIZE",
         "FN_SYSSDK",
         "FN_SYSCPUREV",
@@ -282,6 +287,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_CPM_CCP",
         "FN_ALT_CFG",
         "FN_PCLINK_ENABLED",
+        "FN_GDRIVE_CONNECTED",
     };
 
     stringstream resultstream;
@@ -386,11 +392,17 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_ROTATION_SOUNDS:
         resultstream << Config.get_general_rotation_sounds();
         break;
-    case FN_UDPSTREAM_HOST:
-        if (Config.get_network_udpstream_port() > 0)
-            resultstream << Config.get_network_udpstream_host() << ":" << Config.get_network_udpstream_port();
+    case FN_NETSTREAM_HOST:
+        if (Config.get_network_netstream_port() > 0)
+            resultstream << Config.get_network_netstream_host() << ":" << Config.get_network_netstream_port();
         else
-            resultstream << Config.get_network_udpstream_host();
+            resultstream << Config.get_network_netstream_host();
+        break;
+    case FN_NETSTREAM_MODE:
+        resultstream << (Config.get_network_netstream_mode() == 0 ? "udp" : "tcp");
+        break;
+    case FN_NETSTREAM_REGISTER:
+        resultstream << (Config.get_network_netstream_register() ? "1" : "0");
         break;
     case FN_HEAPSIZE:
         resultstream << fnSystem.get_free_heap_size();
@@ -640,7 +652,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
                 {
                     strncat(result, "<option value=\"", MAX_PRINTER_LIST_BUFFER-1);
                     strncat(result, PRINTER_CLASS::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
-                    strncat(result, "\">", MAX_PRINTER_LIST_BUFFER);
+                    strncat(result, "\">", MAX_PRINTER_LIST_BUFFER - strlen(result) - 1);
                     strncat(result, PRINTER_CLASS::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
                     strncat(result, "</option>\n", MAX_PRINTER_LIST_BUFFER-1);
                 }
@@ -661,6 +673,10 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_ALT_CFG:
         resultstream << Config.get_config_filename();
+        break;
+
+    case FN_GDRIVE_CONNECTED:
+        resultstream << (Config.get_gdrive_refresh_token().empty() ? "0" : "1");
         break;
     default:
         resultstream << tag;

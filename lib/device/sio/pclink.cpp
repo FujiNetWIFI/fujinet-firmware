@@ -2589,27 +2589,26 @@ sioPCLink::sioPCLink()
     do_pclink_init(1);
 }
 
-// public wrapper around sio_ack(), sio_nak(), etc...
 void sioPCLink::send_ack_byte(uint8_t  what)
 {
         switch (what)
         {
         case 'a':
 #ifndef ESP_PLATFORM
-        sio_late_ack();
+        transaction_begin(TRANS_STATE::WILL_GET);
         break;
 #endif
     case 'A':
-        sio_ack();
+        transaction_begin(TRANS_STATE::NO_GET);
         break;
     case 'N':
-        sio_nak();
+        transaction_error();
         break;
     case 'C':
-        sio_complete();
+        transaction_complete();
         break;
     case 'E':
-        sio_error();
+        transaction_error();
         break;
         }
 }
@@ -2658,7 +2657,7 @@ void sioPCLink::sio_status()
 //      if (log_flag)
                 Debug_printf("STATUS: %02x %02x %02x %02x\n", status[0], status[1], status[2], status[3]);
 // # endif
-    bus_to_computer(status, sizeof(status), false);
+    transaction_put(status, sizeof(status), false);
 }
 
 // Process SIO command

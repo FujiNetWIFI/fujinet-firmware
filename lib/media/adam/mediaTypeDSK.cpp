@@ -11,6 +11,7 @@
 #endif
 
 #include "../../include/debug.h"
+#include "fsFlash.h"
 
 #define INTERLEAVE 5 // 5:1 sector layout in image files (WHY?!?!!?)
 
@@ -49,17 +50,17 @@ error_is_true MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
 
     // Read lower part of block
     std::pair<uint32_t, uint32_t> offsets = _block_to_offsets(blockNum);
-    err = fseek(_media_fileh, offsets.first, SEEK_SET) != 0;
+    err = fnio::fseek(_media_fileh, offsets.first, SEEK_SET) != 0;
 
     if (err == false)
-        err = fread(_media_blockbuff, 1, 512, _media_fileh) != 512;
+        err = fnio::fread(_media_blockbuff, 1, 512, _media_fileh) != 512;
 
     // Read upper part of block
     if (err == false)
-        err = fseek(_media_fileh, offsets.second, SEEK_SET) != 0;
+        err = fnio::fseek(_media_fileh, offsets.second, SEEK_SET) != 0;
 
     if (err == false)
-        err = fread(&_media_blockbuff[512], 1, 512, _media_fileh) != 512;
+        err = fnio::fread(&_media_blockbuff[512], 1, 512, _media_fileh) != 512;
 
     if (err == false)
         _media_last_block = blockNum;
@@ -87,36 +88,54 @@ error_is_true MediaTypeDSK::write(uint32_t blockNum, bool verify)
 
     std::pair<uint32_t, uint32_t> offsets = _block_to_offsets(blockNum);
 
-    if (_media_fileh->_flags == 0x1484) // mounted R/O, attempt HS R/W
+    // The boot/config image is mounted read-only; to persist a write (e.g. a
+    // game saving a high score) reopen it read/write on the flash filesystem
+    // where those images live. (_media_host was never wired up, so the old
+    // reopen via it dereferenced null.)
+#ifdef FNIO_IS_STDIO
+    bool hs_mode = (_media_fileh->_flags == 0x1484);
+#else
+    bool hs_mode = false; // FileHandler (PC) doesn't expose stdio flags
+#endif
+    if (hs_mode)
     {
         Debug_printf("High score mode activated, attempting write open\r\n");
 
         oldFileh = _media_fileh;
-        hsFileh = _media_host->file_open(_disk_filename, _disk_filename, strlen(_disk_filename) + 1, "r+");
+        hsFileh = fsFlash.fnfile_open(_disk_filename, "r+");
+        if (hsFileh == nullptr)
+        {
+            Debug_printf("HS write open failed for %s; leaving read-only\r\n", _disk_filename);
+            _media_fileh = oldFileh;
+            _media_controller_status = 2;
+            RETURN_ERROR_AS_TRUE();
+        }
         _media_fileh = hsFileh;
     }
 
     // Write lower part of block
-    err = fseek(_media_fileh, offsets.first, SEEK_SET) != 0;
+    err = fnio::fseek(_media_fileh, offsets.first, SEEK_SET) != 0;
     if (err == false)
-        err = fwrite(_media_blockbuff, 1, 512, _media_fileh) != 512;
+        err = fnio::fwrite(_media_blockbuff, 1, 512, _media_fileh) != 512;
 
     // Write upper part of block
     if (err == false)
-        err = fseek(_media_fileh, offsets.second, SEEK_SET) != 0;
+        err = fnio::fseek(_media_fileh, offsets.second, SEEK_SET) != 0;
     if (err == false)
-        err = fwrite(&_media_blockbuff[512], 1, 512, _media_fileh) != 512;
+        err = fnio::fwrite(&_media_blockbuff[512], 1, 512, _media_fileh) != 512;
 
-    int ret = fflush(_media_fileh);    // This doesn't seem to be connected to anything in ESP-IDF VF, so it may not do anything
-    ret = fsync(fileno(_media_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
+    int ret = fnio::fflush(_media_fileh);
+#ifdef FNIO_IS_STDIO
+    ret = fsync(fileno(_media_fileh)); // sync now in case we get reset at any moment
+#endif
     Debug_printf("DSK::write fsync:%d\r\n", ret);
 
-    if (_media_fileh->_flags == 0x1484)
+    if (hs_mode)
     {
         Debug_printf("Closing high score sector.\r\n");
 
         if (hsFileh != nullptr)
-            fclose(hsFileh);
+            fnio::fclose(hsFileh);
 
         _media_fileh = oldFileh;
         _media_last_block = INVALID_SECTOR_VALUE; // force a cache invalidate.
@@ -147,7 +166,7 @@ error_is_true MediaTypeDSK::format(uint16_t *responsesize)
     RETURN_SUCCESS_AS_FALSE();
 }
 
-mediatype_t MediaTypeDSK::mount(FILE *f, uint32_t disksize)
+mediatype_t MediaTypeDSK::mount(fnFile *f, uint32_t disksize)
 {
     Debug_print("DSK MOUNT\r\n");
 
@@ -161,7 +180,7 @@ mediatype_t MediaTypeDSK::mount(FILE *f, uint32_t disksize)
 }
 
 // Returns FALSE on error
-success_is_true MediaTypeDSK::create(FILE *f, uint32_t numBlocks)
+success_is_true MediaTypeDSK::create(fnFile *f, uint32_t numBlocks)
 {
     Debug_print("DSK CREATE\r\n");
     uint8_t buf[1024];
@@ -170,7 +189,7 @@ success_is_true MediaTypeDSK::create(FILE *f, uint32_t numBlocks)
     
     for (uint32_t b = 0; b < numBlocks; b++)
     {
-        fwrite(buf, 1024, 1, f);
+        fnio::fwrite(buf, 1024, 1, f);
     }
 
     RETURN_SUCCESS_AS_TRUE();

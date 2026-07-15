@@ -5,24 +5,75 @@ import re
 import subprocess
 import sys
 
+import version_common as vc
+
+
 class Version:
     def __init__(self):
-
-        # @property git_sha
-        # @property git_sha_short
-        # @property git_date
-        # @property head_tags
         self._git_sha = None
         self._git_sha_short = None
         self._git_date = None
         self._head_tags = None
+
+    @property
+    def git_sha_short(self):
+        """return short version of commit hash"""
+        if self._git_sha_short is None:
+            self._git_sha_short = vc.get_commit_sha(short=True)
+        return self._git_sha_short
+
+    @property
+    def git_sha(self):
+        """return commit hash"""
+        if self._git_sha is None:
+            self._git_sha = vc.get_commit_sha(short=False)
+        return self._git_sha
+
+    @property
+    def git_date(self):
+        """return HEAD commit date"""
+        if self._git_date is None:
+            self._git_date = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            if self.git_sha:
+                try:
+                    self._git_date = subprocess.check_output(
+                        ["git", "show", "--quiet", "--date=format-local:%Y-%m-%d %H:%M:%S",
+                         "--format=%cd", self.git_sha],
+                        env={'TZ': 'UTC0'}, universal_newlines=True).strip()
+                except (FileNotFoundError, subprocess.CalledProcessError):
+                    pass
+        return self._git_date
+
+    @property
+    def head_tags(self):
+        """return list of tags pointing at HEAD"""
+        if self._head_tags is None:
+            self._head_tags = vc.get_head_tags()
+        return self._head_tags
+
+    def get_commit_version(self, ver_major=0, ver_minor=0):
+        """derive a short build-version string from `git describe`,
+        falling back to ver_major.ver_minor when no tag is reachable"""
+        describe = vc.get_commit_version()
+        version, *_rest = vc.parse_describe(describe, ver_major, ver_minor)
+        if vc.get_modified_files():
+            version += "*"
+        return version
 
     def load(self, version):
         """load version attributes"""
         self.version = version
         self.suffix = ""
         if version not in self.head_tags:
-            if self.git_sha_short:
+            # fall back to the release version's own major.minor when
+            # `git describe` can't find a reachable tag at all
+            m = re.match(r"^v([0-9]+)[.]([0-9]+)", version)
+            ver_major = int(m.group(1)) if m else 0
+            ver_minor = int(m.group(2)) if m else 0
+            descr = self.get_commit_version(ver_major, ver_minor)
+            if descr:
+                self.version = descr
+            elif self.git_sha_short:
                 self.suffix = "+git-" + self.git_sha_short
             else:
                 self.suffix = "-nogit"
@@ -30,55 +81,6 @@ class Version:
     @property
     def version_full(self):
         return self.version + self.suffix
-
-    @property
-    def git_sha_short(self):
-        """return short version of commit hash"""
-        if self._git_sha_short is None:
-            try:
-                self._git_sha_short = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], universal_newlines=True).strip()
-            except (FileNotFoundError, subprocess.CalledProcessError):
-                self._git_sha_short = ""
-            # print("SHA short:", self._git_sha_short)
-        return self._git_sha_short
-
-    @property
-    def git_sha(self):
-        """return commit hash"""
-        if self._git_sha is None:
-            try:
-                self._git_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], universal_newlines=True).strip()
-            except (FileNotFoundError, subprocess.CalledProcessError):
-                self._git_sha = ""
-            # print("SHA:", self._git_sha)
-        return self._git_sha
-
-    @property
-    def git_date(self):
-        """return HEAD commit date"""
-        if self._git_date is None:
-            #self._git_date = ""
-            self._git_date = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-            if self.git_sha:
-                try:
-                    self._git_date = subprocess.check_output(
-                        ["git", "show", "--quiet", "--date=format-local:%Y-%m-%d %H:%M:%S", "--format=%cd", self.git_sha],
-                        env={'TZ': 'UTC0'}, universal_newlines=True).strip()
-                    # print("HEAD date:", self._git_date)
-                except (FileNotFoundError, subprocess.CalledProcessError):
-                    pass
-        return self._git_date
-
-    @property
-    def head_tags(self):
-        """return list of tags pointing to HEAD"""
-        if self._head_tags is None:
-            try:
-                self._head_tags = subprocess.check_output(["git", "tag", "--points-at", "HEAD"], universal_newlines=True).splitlines()
-            except (FileNotFoundError, subprocess.CalledProcessError):
-                self._head_tags = []
-            # print("HEAD tags:", self._head_tags)
-        return self._head_tags
 
 
 def create_build_version_file(filename, ver):
@@ -101,8 +103,9 @@ def get_version_from_file(filename):
     print("Reading", filename)
     with open(filename, "rt") as fin:
         for line in fin:
-            if line.startswith("#define FN_VERSION_FULL "):
-                version_str = line[24:].strip().strip('"')
+            m = re.match(vc.MACRO_PATTERN, line)
+            if m and m.group(1) == "FN_VERSION_FULL":
+                version_str = m.group(2).strip().strip('"')
     return version_str
 
 
@@ -113,7 +116,6 @@ def main():
     ver = Version()
     ver.load(fn_version)
 
-    # print("date:", ver.date)
     print("FujiNet release version:", fn_version)
     print("FujiNet build git version:", ver.version_full)
     print("FujiNet build git date:", ver.git_date)

@@ -867,7 +867,7 @@ void s100spiFuji::_populate_config_from_slots()
             Config.clear_mount(i);
         else
             Config.store_mount(i, _fnDisks[i].host_slot, _fnDisks[i].filename,
-                               _fnDisks[i].access_mode == DISK_ACCESS_MODE_WRITE ? fnConfig::mount_modes::MOUNTMODE_WRITE : fnConfig::mount_modes::MOUNTMODE_READ);
+                               (_fnDisks[i].access_mode & DISK_ACCESS_MODE_WRITE) ? fnConfig::mount_modes::MOUNTMODE_WRITE : fnConfig::mount_modes::MOUNTMODE_READ);
     }
 }
 
@@ -1002,7 +1002,7 @@ void s100spiFuji::mount_all()
         fujiHost &host = _fnHosts[disk.host_slot];
         char flag[3] = {'r', 0, 0};
 
-        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
+        if (disk.access_mode & DISK_ACCESS_MODE_WRITE)
             flag[1] = '+';
 
         if (disk.host_slot != INVALID_HOST_SLOT && strlen(disk.filename) > 0)

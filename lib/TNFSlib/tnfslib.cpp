@@ -407,6 +407,15 @@ int _tnfs_fill_cache(tnfsMountInfo *m_info, tnfsFileHandleInfo *pFHI)
                 // Copy the actual number of bytes returned to us into our cache
                 // (offset by how many bytes we've already put in the cache)
                 uint16_t bytes_read = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + 1);
+
+                if (bytes_read > bytes_to_read)
+                {
+                    Debug_printf("_tnfs_fill_cache bogus read length %u > requested %u; rejecting\r\n",
+                                 bytes_read, bytes_to_read);
+                    error = -1;
+                    break;
+                }
+
                 memcpy(pFHI->cache + (sizeof(pFHI->cache) - bytes_remaining_to_load),
                        packet.payload + 3, bytes_read);
 
@@ -1566,18 +1575,13 @@ _tnfs_recv_result _tnfs_recv_and_validate(fnUDP &udp, tnfsMountInfo *m_info, tnf
         m_info->protocol = TNFS_PROTOCOL_TCP;
     }
 
-    // Delayed response for the previous request. We should just try to recv the next response.
-    if (res_pkt.sequence_num < req_pkt.sequence_num)
-    {
-        Debug_printf("Received delayed response! Rcvd: %x, Expected: %x\r\n", res_pkt.sequence_num, req_pkt.sequence_num);
-        return NO_RESP;
-    }
-
-    // Out of order packet received.
+    // Sequence mismatch = stale/reordered response for an earlier request (the
+    // seq byte wraps at 256). Discard it and keep waiting for the matching one.
     if (res_pkt.sequence_num != req_pkt.sequence_num)
     {
-        Debug_printf("TNFS OUT OF ORDER SEQUENCE! Rcvd: %x, Expected: %x\r\n", res_pkt.sequence_num, req_pkt.sequence_num);
-        return RESP_INVALID;
+        Debug_printf("Discarding stale TNFS response. Rcvd: %x, Expected: %x\r\n",
+                     res_pkt.sequence_num, req_pkt.sequence_num);
+        return NO_RESP;
     }
 
     // Check in case the server asks us to wait and try again

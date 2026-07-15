@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "CPM.h"
+#include "GDRIVE.h"
 #include "TCP.h"
 #include "UDP.h"
 #include "Test.h"
@@ -10,8 +12,12 @@
 #include "FTP.h"
 #include "HTTP.h"
 #include "SSH.h"
+#include "SFTP.h"
+#include "SSHKeygen.h"
+#include "SSHCopyId.h"
 #include "SMB.h"
 #include "NFS.h"
+#include "S3.h"
 #include "SD.h"
 
 #include "../utils/string_utils.h"
@@ -28,6 +34,12 @@ NetworkProtocol* ProtocolParser::createProtocol(std::string scheme, std::string 
 
     switch (hash_djb2a(scheme))
     {
+        case "CPM"_sh:
+            protocol = new NetworkProtocolCPM(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "GDRIVE"_sh:
+            protocol = new NetworkProtocolGDRIVE(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
         case "TCP"_sh:
             protocol = new NetworkProtocolTCP(receiveBuffer, transmitBuffer, specialBuffer);
             break;
@@ -53,11 +65,23 @@ NetworkProtocol* ProtocolParser::createProtocol(std::string scheme, std::string 
         case "SSH"_sh:
             protocol = new NetworkProtocolSSH(receiveBuffer, transmitBuffer, specialBuffer);
             break;
+        case "SFTP"_sh:
+            protocol = new NetworkProtocolSFTP(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "SSH.KEYGEN"_sh:
+            protocol = new NetworkProtocolSSHKeygen(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "SSH.COPYID"_sh:
+            protocol = new NetworkProtocolSSHCopyId(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
         case "SMB"_sh:
             protocol = new NetworkProtocolSMB(receiveBuffer, transmitBuffer, specialBuffer);
             break;
         case "NFS"_sh:
             protocol = new NetworkProtocolNFS(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "S3"_sh:
+            protocol = new NetworkProtocolS3(receiveBuffer, transmitBuffer, specialBuffer);
             break;
         case "SD"_sh:
             protocol = new NetworkProtocolSD(receiveBuffer, transmitBuffer, specialBuffer);

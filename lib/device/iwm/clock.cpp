@@ -2,238 +2,169 @@
 #define CCP_INTERNAL
 
 #include "clock.h"
-
 #include "fnConfig.h"
-#include "../hardware/led.h"
-
-namespace {
-    // Helper function to prepare timezone buffer with null termination
-    void prepare_tz_buffer(uint8_t* buffer, int& len) {
-        if (len <= 0) return;
-
-        // Ensure there's room for a null terminator if one is not already present.
-        if (buffer[len - 1] != '\0' && len < MAX_DATA_LEN) {
-            buffer[len] = '\0';
-        } else if (len == MAX_DATA_LEN && buffer[MAX_DATA_LEN - 1] != '\0') {
-            // If the buffer is full and the last character is not a null terminator,
-            // safely truncate the string to make room for a null terminator. this should never happen, as it means user sent a 767 byte timezone.
-            buffer[MAX_DATA_LEN - 1] = '\0';
-        }
-    }
-}
 
 iwmClock::iwmClock()
 {
 }
 
-void iwmClock::send_status_reply_packet()
+iwm_device_status_block_t iwmClock::create_status_reply_packet()
 {
-    uint8_t data[4];
+  iwm_device_status_block_t status;
 
-    // Build the contents of the packet
-    data[0] = STATCODE_DEVICE_ONLINE;
-    data[1] = 0; // block size 1
-    data[2] = 0; // block size 2
-    data[3] = 0; // block size 3
-    SYSTEM_BUS.iwm_send_packet(id(),iwm_packet_type_t::status,SP_ERR_NOERROR, data, 4);
+  status.code = STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE;
+  status.block_size = 0;
+  return status;
 }
 
-void iwmClock::send_status_dib_reply_packet()
+iwm_device_info_block_t iwmClock::create_dib_reply_packet()
 {
-        Debug_printf("CLOCK: Sending DIB reply\r\n");
-        std::vector<uint8_t> data = create_dib_reply_packet(
-                "FN_CLOCK",                                                     // name
-                STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE,                 // status
-                { 0, 0, 0 },                                                    // block size
-                { SP_TYPE_BYTE_FUJINET_CLOCK, SP_SUBTYPE_BYTE_FUJINET_CLOCK },  // type, subtype
-                { 0x00, 0x01 }                                                  // version.
-        );
-        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+  iwm_device_info_block_t dib;
+
+  dib.dev_status = create_status_reply_packet();
+  strcpy(dib.name, "FN_CLOCK");
+  dib.name_len = strlen(dib.name);
+  dib.type = SP_TYPE_BYTE_FUJINET_CLOCK;
+  dib.subtype = SP_SUBTYPE_BYTE_FUJINET_CLOCK;
+  dib.version = 0x0100;
+
+  return dib;
 }
 
-void iwmClock::set_tz()
+void iwmClock::set_tz(const iwm_decoded_cmd_t &cmd)
 {
-    prepare_tz_buffer(data_buffer, data_len);
-    Config.store_general_timezone(reinterpret_cast<const char*>(data_buffer));
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    Config.store_general_timezone(cmd.dataAsString()->c_str());
     Config.save();
     Debug_printf("sys_tz set to: >%s<\n", Config.get_general_timezone().c_str());
+    SYSTEM_BUS.transaction_success();
 }
 
-void iwmClock::set_alternate_tz()
+void iwmClock::set_alternate_tz(const iwm_decoded_cmd_t &cmd)
 {
-    prepare_tz_buffer(data_buffer, data_len);
-    alternate_tz = std::string(reinterpret_cast<const char*>(data_buffer), data_len);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    alternate_tz = cmd.dataAsString().value();
     Debug_printf("alt_tz set to: >%s<\n", alternate_tz.c_str());
+    SYSTEM_BUS.transaction_success();
 }
 
-void iwmClock::iwm_ctrl(iwm_decoded_cmd_t cmd)
+void iwmClock::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
 {
-    uint8_t control_code = get_status_code(cmd);
 #ifdef DEBUG
-    auto as_char = (char) control_code;
-    Debug_printf("[CLOCK] Device %02x Control Code %02x('%c')\r\n", id(), control_code, isprint(as_char) ? as_char : '.');
+    Debug_printf("[CLOCK] Device %02x Control Code %02x('%c')\r\n", id(), cmd.command(), isprint(cmd.command()) ? (char) cmd.command() : '.');
 #endif
 
-    SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
-
-    uint8_t err_result = SP_ERR_NOERROR;
-
-    switch (control_code)
+    switch (cmd.command())
     {
-        case APETIMECMD_SETTZ_ALT2:
-            set_tz();
-            break;
-        case APETIMECMD_SETTZ_ALT:
-            set_alternate_tz();
-            break;
-        default:
-            err_result = SP_ERR_BADCTL;
-            break;
+    case APETIMECMD_SETTZ_ALT2:
+        set_tz(cmd);
+        break;
+    case APETIMECMD_SETTZ_ALT:
+        set_alternate_tz(cmd);
+        break;
+    default:
+        SYSTEM_BUS.transaction_error(SP_ERR::BADCTL);
+        break;
     }
-
-    send_reply_packet(err_result);
 }
 
-void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
+void iwmClock::iwm_status(const iwm_decoded_cmd_t &cmd)
 {
-    uint8_t status_code = get_status_code(cmd);
     bool use_alternate_tz = false;
 
 #ifdef DEBUG
-    auto as_char = (char) status_code;
-    Debug_printf("[CLOCK] Device %02x Status Code %02x('%c')\r\n", id(), status_code, isprint(as_char) ? as_char : '.');
+    Debug_printf("[CLOCK] Device %02x Status Code %02x('%c')\r\n", id(), cmd.command(), isprint(cmd.command()) ? (char)cmd.command() : '.');
 #endif
-    switch (status_code)
+    switch (cmd.command())
     {
-    case IWM_STATUS_STATUS: // 0x00
-        send_status_reply_packet();
-        return;
-        break;
-    case IWM_STATUS_DIB: // 0x03
-        send_status_dib_reply_packet();
-        return;
-        break;
-
     // Uppercase = use FN tz, otherwise use alt tz
     case APETIMECMD_SETTZ_ALT2:
     case APETIMECMD_SETTZ_ALT: {
-        use_alternate_tz = status_code == APETIMECMD_SETTZ_ALT;
+        use_alternate_tz = cmd.command() == APETIMECMD_SETTZ_ALT;
         // Date and time, easy to be used by general programs
         auto simpleTime = Clock::get_current_time_simple(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
-        std::copy(simpleTime.begin(), simpleTime.end(), data_buffer);
-        data_len = simpleTime.size();
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_send(simpleTime);
+        break;
+    }
+    case APETIMECMD_GET_SIMPLE_HUNDREDTHS: {
+        auto milliTime = Clock::get_current_time_simple_hundredths(Clock::tz_to_use(false, alternate_tz, Config.get_general_timezone()));
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_send(milliTime);
         break;
     }
     case APETIMECMD_GET_PRODOS:
     case APETIMECMD_GET_PRODOS_ALT: {
-        use_alternate_tz = status_code == APETIMECMD_GET_PRODOS_ALT;
+        use_alternate_tz = cmd.command() == APETIMECMD_GET_PRODOS_ALT;
         // Date and time, to be used by a ProDOS driver
         auto prodosTime = Clock::get_current_time_prodos(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
-        std::copy(prodosTime.begin(), prodosTime.end(), data_buffer);
-        data_len = prodosTime.size();
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_send(prodosTime);
         break;
     }
     case APETIMECMD_GET_SOS:
     case APETIMECMD_GET_SOS_ALT: {
-        use_alternate_tz = status_code == APETIMECMD_GET_SOS_ALT;
+        use_alternate_tz = cmd.command() == APETIMECMD_GET_SOS_ALT;
         // Date and time, ASCII string in Apple /// SOS format: YYYYMMDD0HHMMSS000
         std::string sosTime = Clock::get_current_time_sos(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
-        std::copy(sosTime.begin(), sosTime.end(), data_buffer);
-        data_buffer[sosTime.size()] = '\0';         // this is a string in a buffer, we will null terminate it
-        data_len = sosTime.size() + 1;              // and ensure the size reflects the null terminator
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_send(sosTime);
         break;
     }
     case APETIMECMD_GET_ISO_LOCAL:
     case APETIMECMD_GET_ISO_LOCAL_ALT: {
-        use_alternate_tz = status_code == APETIMECMD_GET_ISO_LOCAL_ALT;
+        use_alternate_tz = cmd.command() == APETIMECMD_GET_ISO_LOCAL_ALT;
         // Date and time, ASCII string in ISO format
         std::string utcTime = Clock::get_current_time_iso(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
-        std::copy(utcTime.begin(), utcTime.end(), data_buffer);
-        data_buffer[utcTime.size()] = '\0';         // this is a string in a buffer, we will null terminate it
-        data_len = utcTime.size() + 1;              // and ensure the size reflects the null terminator
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_send(utcTime);
         break;
     }
     case APETIMECMD_GET_ISO_UTC:
     case APETIMECMD_GET_ISO_UTC_ALT: {
-        use_alternate_tz = status_code == APETIMECMD_GET_ISO_UTC_ALT;
+        use_alternate_tz = cmd.command() == APETIMECMD_GET_ISO_UTC_ALT;
         // utc (zulu)
         std::string isoTime = Clock::get_current_time_iso("UTC+0");
-        std::copy(isoTime.begin(), isoTime.end(), data_buffer);
-        data_buffer[isoTime.size()] = '\0';         // this is a string in a buffer, we will null terminate it
-        data_len = isoTime.size() + 1;              // and ensure the size reflects the null terminator
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_send(isoTime);
         break;
     }
     case APETIMECMD_GET_ATARI:
     case APETIMECMD_GET_ATARI_ALT: {
-        use_alternate_tz = status_code == APETIMECMD_GET_ATARI_ALT;
+        use_alternate_tz = cmd.command() == APETIMECMD_GET_ATARI_ALT;
         // Apetime (Atari, but why not eh?) with TZ
         auto apeTime = Clock::get_current_time_apetime(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
-        std::copy(apeTime.begin(), apeTime.end(), data_buffer);
-        data_len = apeTime.size();
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_send(apeTime);
         break;
     }
     case APETIMECMD_GET_GENERAL: {
         // Get current system timezone
         std::string curr = Config.get_general_timezone();
-        std::copy(curr.begin(), curr.end(), data_buffer);
-        data_buffer[curr.size()] = '\0';
-        data_len = curr.size() + 1;
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_send(curr);
         break;
     }
     default:
-        send_reply_packet(SP_ERR_BADCTL);
+        SYSTEM_BUS.transaction_error(SP_ERR::BADCTL);
         return;
     }
-
-    // If we got here, we have data to send
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR_NOERROR, data_buffer, data_len);
 }
 
-void iwmClock::iwm_open(iwm_decoded_cmd_t cmd)
+void iwmClock::iwm_open(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\r\nClock: Open\n");
-    send_reply_packet(SP_ERR_NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmClock::iwm_close(iwm_decoded_cmd_t cmd)
+void iwmClock::iwm_close(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\r\nClock: Close\n");
-    send_reply_packet(SP_ERR_NOERROR);
-}
-
-
-void iwmClock::process(iwm_decoded_cmd_t cmd)
-{
-    fnLedManager.set(LED_BUS, true);
-    switch (cmd.command)
-    {
-    case SP_CMD_STATUS:
-        Debug_printf("\r\nclock: handling status command\r\n");
-        iwm_status(cmd);
-        break;
-    case SP_CMD_CONTROL:
-        Debug_printf("\r\nclock: handling control command");
-        iwm_ctrl(cmd);
-        break;
-    case SP_CMD_OPEN:
-        Debug_printf("\r\nclock: handling open command");
-        iwm_open(cmd);
-        break;
-    case SP_CMD_CLOSE:
-        Debug_printf("\r\nclock: handling close command");
-        iwm_close(cmd);
-        break;
-    default:
-        iwm_return_badcmd(cmd);
-        break;
-    } // switch (cmd)
-    fnLedManager.set(LED_BUS, false);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
 void iwmClock::shutdown()
 {
 }
-
-
 
 #endif /* BUILD_APPLE */

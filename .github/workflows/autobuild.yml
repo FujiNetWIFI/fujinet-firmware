@@ -29,6 +29,7 @@ jobs:
           - IEC-LOLIN-D32
           - IEC-NUGGET
           - LYNX
+          - LYNX-S3
           - RS232
 
     steps:

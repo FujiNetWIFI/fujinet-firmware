@@ -3,6 +3,8 @@
 
 #include "fujiDevice.h"
 #include "cassette.h"
+#include "netstream.h"
+#include "hash.h"
 #include "../../qrcode/qrmanager.h"
 
 #include <cassert>
@@ -11,46 +13,10 @@ class sioFuji : public fujiDevice
 {
 private:
     sioCassette _cassetteDev;
+    sioNetStream _streamDev;
     QRManager _qrManager = QRManager();
 
 protected:
-    transState_t _transaction_state = TRANS_STATE::INVALID;
-    void transaction_continue(transState_t expectMoreData) override {
-        assert(_transaction_state == TRANS_STATE::INVALID);
-        _transaction_state = expectMoreData;
-        // For some reason NetSIO needs a hint that this is a WRITE transaction
-        if (expectMoreData == TRANS_STATE::WILL_GET)
-            sio_late_ack();
-        else
-            sio_ack();
-    }
-    void transaction_complete() override {
-        assert(_transaction_state == TRANS_STATE::NO_GET || _transaction_state == TRANS_STATE::DID_GET);
-        sio_complete();
-        _transaction_state = TRANS_STATE::INVALID;
-    }
-    void transaction_error() override {
-        if (_transaction_state == TRANS_STATE::INVALID)
-            sio_error();
-        else
-            sio_nak();
-        _transaction_state = TRANS_STATE::INVALID;
-    }
-    success_is_true transaction_get(void *data, size_t len) override {
-        assert(_transaction_state == TRANS_STATE::WILL_GET);
-        _transaction_state = TRANS_STATE::DID_GET;
-
-        uint8_t ck = bus_to_peripheral((uint8_t *) data, len);
-        if (sio_checksum((uint8_t *) data, len) != ck)
-            RETURN_ERROR_AS_FALSE();
-        RETURN_SUCCESS_AS_TRUE();
-    }
-    void transaction_put(const void *data, size_t len, bool err) override {
-        assert(_transaction_state == TRANS_STATE::NO_GET);
-        bus_to_computer((uint8_t *) data, len, err);
-        _transaction_state = TRANS_STATE::INVALID;
-    }
-
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
 
@@ -60,6 +26,7 @@ protected:
     void sio_new_disk();               // 0xE7
     void sio_set_hsio_index();         // 0xE3
     void sio_copy_file();              // 0xD8
+    void sio_enable_netstream();       // 0xF0
 
     // FIXME - move to fujiDevice mixin
     void sio_random_number();          // 0xD3
@@ -91,6 +58,8 @@ protected:
 public:
     sioFuji();
     void setup() override;
+    void insert_boot_device(uint8_t image_id, mediatype_t disk_type,
+                            DISK_DEVICE *disk_dev) override;
 
     // Used by sio.cpp
     void debug_tape();

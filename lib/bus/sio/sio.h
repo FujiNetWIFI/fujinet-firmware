@@ -1,10 +1,13 @@
 #ifndef SIO_H
 #define SIO_H
 
+#include "bus.h"
 #include "cmdFrame.h"
 #include "UARTChannel.h"
 #include "NetSIO.h"
+#include "global_types.h"
 #include <forward_list>
+#include <cassert>
 
 #define DELAY_T4 850
 #define DELAY_T5 250
@@ -58,6 +61,12 @@ enum AtariSIODirection {
     SIO_DIRECTION_INVALID = 0xFF,
 };
 
+typedef enum class SIO_SPEED {
+    STANDARD,
+    HIGH,
+    ULTRA,
+} sioSpeedMode_t;
+
 // helper functions
 uint8_t sio_checksum(uint8_t *buf, unsigned short len);
 
@@ -66,7 +75,7 @@ class modem;          // declare here so can reference it, but define in modem.h
 class sioFuji;        // declare here so can reference it, but define in fuji.h
 class systemBus;      // declare early so can be friend
 class sioNetwork;     // declare here so can reference it, but define in network.h
-class sioUDPStream;   // declare here so can reference it, but define in udpstream.h
+class sioNetStream;   // declare here so can reference it, but define in netstream.h
 class sioCassette;    // Cassette forward-declaration.
 class sioCPM;         // CPM device.
 class sioPrinter;     // Printer device
@@ -77,11 +86,8 @@ class virtualDevice
     friend systemBus;
     friend fujiDevice;
 
-protected:
-    fujiDeviceID_t _devnum;
-
-    cmdFrame_t cmdFrame;
-    bool listen_to_type3_polls = false;
+private:
+    transState_t _transaction_state = TRANS_STATE::INVALID;
 
     /**
      * @brief Send the desired buffer to the Atari.
@@ -90,7 +96,7 @@ protected:
      * @return TRUE if the Atari processed the data in error, FALSE if the Atari successfully processed
      * the data.
      */
-    void bus_to_computer(uint8_t *buff, uint16_t len, bool err);
+    void _bus_to_computer(uint8_t *buff, uint16_t len, bool err);
 
     /**
      * @brief Receive data from the Atari.
@@ -98,14 +104,14 @@ protected:
      * @param len The length of the amount of data to receive from the Atari.
      * @return An 8-bit wrap-around checksum calculated by the Atari, which should be checked with sio_checksum()
      */
-    uint8_t bus_to_peripheral(uint8_t *buff, uint16_t len);
+    uint8_t _bus_to_peripheral(uint8_t *buff, uint16_t len);
 
     /**
      * @brief Send an acknowledgement byte to the Atari 'A'
      * This should be used if the command received by the SIO device is valid, and is used to signal to the
      * Atari that we are now processing the command.
      */
-    void sio_ack();
+    void _sio_ack();
 
     /**
      * @brief Send an acknowledgement byte to the Atari 'A'
@@ -114,9 +120,9 @@ protected:
      *   ACK byte together with expected write size is send as part of SYNC_RESPONSE
      */
 #ifdef ESP_PLATFORM
-    inline void sio_late_ack() { sio_ack(); };
+    inline void _sio_late_ack() { _sio_ack(); };
 #else
-    void sio_late_ack();
+    void _sio_late_ack();
 #endif
 
     /**
@@ -124,14 +130,14 @@ protected:
      * This should be used if the command received by the SIO device is invalid, in the first place. It is not
      * the same as sio_error().
      */
-    void sio_nak();
+    void _sio_nak();
 
     /**
      * @brief Send a COMPLETE to the Atari 'C'
      * This should be used after processing of the command to indicate that we've successfully finished. Failure to send
      * either a COMPLETE or ERROR will result in a SIO TIMEOUT (138) to be reported in DSTATS.
      */
-    void sio_complete();
+    void _sio_complete();
 
     /**
      * @brief Send an ERROR to the Atari 'E'
@@ -139,7 +145,51 @@ protected:
      * from processing the command, and that the Atari should probably re-try the command. Failure to
      * send an ERROR or COMPLTE will result in a SIO TIMEOUT (138) to be reported in DSTATS.
      */
-    void sio_error();
+    void _sio_error();
+
+protected:
+    fujiDeviceID_t _devnum;
+
+    void transaction_begin(transState_t expectMoreData) {
+        assert(_transaction_state == TRANS_STATE::INVALID);
+        _transaction_state = expectMoreData;
+        // For some reason NetSIO needs a hint that this is a WRITE transaction
+        if (expectMoreData == TRANS_STATE::WILL_GET)
+            _sio_late_ack();
+        else
+            _sio_ack();
+    }
+    void transaction_complete() {
+        assert(_transaction_state == TRANS_STATE::NO_GET || _transaction_state == TRANS_STATE::DID_GET);
+        _sio_complete();
+        _transaction_state = TRANS_STATE::INVALID;
+    }
+    void transaction_error() {
+        // Not yet ACKed -> the command itself was invalid: NAK.  Already
+        // ACKed -> failure during/after processing: ERROR ('E' -> 144).
+        if (_transaction_state == TRANS_STATE::INVALID)
+            _sio_nak();
+        else
+            _sio_error();
+        _transaction_state = TRANS_STATE::INVALID;
+    }
+    success_is_true transaction_get(void *data, size_t len) {
+        assert(_transaction_state == TRANS_STATE::WILL_GET);
+        _transaction_state = TRANS_STATE::DID_GET;
+
+        uint8_t ck = _bus_to_peripheral((uint8_t *) data, len);
+        if (sio_checksum((uint8_t *) data, len) != ck)
+            RETURN_ERROR_AS_FALSE();
+        RETURN_SUCCESS_AS_TRUE();
+    }
+    void transaction_put(const void *data, size_t len, bool err=false) {
+        assert(_transaction_state == TRANS_STATE::NO_GET);
+        _bus_to_computer((uint8_t *) data, len, err);
+        _transaction_state = TRANS_STATE::INVALID;
+    }
+
+    cmdFrame_t cmdFrame;
+    bool listen_to_type3_polls = false;
 
     /**
      * @brief Return the two aux bytes in cmdFrame as a single 16-bit value, commonly used, for example to retrieve
@@ -220,12 +270,12 @@ private:
     modem *_modemDev = nullptr;
     sioFuji *_fujiDev = nullptr;
     sioNetwork *_netDev[8] = {nullptr};
-    sioUDPStream *_udpDev = nullptr;
+    sioNetStream *_streamDev = nullptr;
     sioCassette *_cassetteDev = nullptr;
     sioCPM *_cpmDev = nullptr;
     sioPrinter *_printerdev = nullptr;
 
-    int _sioBaud = SIO_STANDARD_BAUDRATE;
+    sioSpeedMode_t _sioBaud = SIO_SPEED::STANDARD;
     int _sioHighSpeedIndex = SIO_HISPEED_INDEX;
     int _sioBaudHigh = SIO_STANDARD_BAUDRATE;
     int _sioBaudUltraHigh = SIO_STANDARD_BAUDRATE;
@@ -258,6 +308,7 @@ public:
     void changeDeviceId(virtualDevice *pDevice, int device_id);
 
     int getBaudrate();                                          // Gets current SIO baud rate setting
+    int getCurrentBaudrate();                                   // Gets current I/O channel baud rate
     void setBaudrate(int baud);                                 // Sets SIO to specific baud rate
     void toggleBaudrate();                                      // Toggle between standard and high speed SIO baud rate
 
@@ -265,7 +316,16 @@ public:
     int getHighSpeedIndex();                                    // Gets current HSIO index
     int getHighSpeedBaud();                                     // Gets current HSIO baud
 
-    void setUDPHost(const char *newhost, int port);             // Set new host/ip & port for UDP Stream
+    void setStreamHost(const char *newhost, int port);             // Set new host/ip & port for NetStream
+    void setStreamHostWithOptions(const char *newhost,
+                                  int port,
+                                  int mode,
+                                  bool register_enabled,
+                                  uint8_t audf3 = 0,
+                                  bool video_pal = false,
+                                  bool tx_clock_external = false,
+                                  bool rx_clock_external = false,
+                                  bool has_audf3 = false);
     void setUltraHigh(bool _enable, int _ultraHighBaud = 0);    // enable ultrahigh/set baud rate
     bool getUltraHighEnabled() { return useUltraHigh; }
     int getUltraHighBaudRate() { return _sioBaudUltraHigh; }

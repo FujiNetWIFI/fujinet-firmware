@@ -87,6 +87,25 @@ You can contact the author at :
 
 
 /***************************************
+** Basic Types
+****************************************/
+#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
+# include <stdint.h>
+  typedef uint8_t  BYTE;
+  typedef uint16_t U16;
+  typedef uint32_t U32;
+  typedef  int32_t S32;
+  typedef uint64_t U64;
+#else
+  typedef unsigned char      BYTE;
+  typedef unsigned short     U16;
+  typedef unsigned int       U32;
+  typedef   signed int       S32;
+  typedef unsigned long long U64;
+#endif
+
+
+/***************************************
 ** Includes & Memory related functions
 ****************************************/
 #define XXH_malloc malloc
@@ -98,6 +117,10 @@ static U32	  XXH32 (const void*, U32, U32);
 static void*		  XXH32_init   (U32);
 static XXH_errorcode	  XXH32_update (void*, const void*, U32);
 static U32	  XXH32_digest (void*);
+static unsigned int      XXH32_archive(const void*, unsigned int, unsigned int);
+static void*             XXH32_init_archive(unsigned int);
+static XXH_errorcode     XXH32_update_archive(void*, const void*, unsigned int);
+static unsigned int      XXH32_digest_archive(void*);
 /*static int		  XXH32_sizeofState(void);*/
 static XXH_errorcode	  XXH32_resetState(void*, U32);
 #define       XXH32_SIZEOFSTATE 48
@@ -490,12 +513,42 @@ U32 XXH32_digest (void* state_in)
     return h32;
 }
 
+/*
+ * libarchive's internal API uses unsigned int in callback signatures,
+ * while this xxhash implementation uses U32 (which may be unsigned long on
+ * some toolchains). Keep the implementation untouched and adapt at the API
+ * boundary.
+ */
+static
+unsigned int XXH32_archive(const void* input, unsigned int len, unsigned int seed)
+{
+    return (unsigned int)XXH32(input, (U32)len, (U32)seed);
+}
+
+static
+void* XXH32_init_archive(unsigned int seed)
+{
+    return XXH32_init((U32)seed);
+}
+
+static
+XXH_errorcode XXH32_update_archive(void* state, const void* input, unsigned int len)
+{
+    return XXH32_update(state, input, (U32)len);
+}
+
+static
+unsigned int XXH32_digest_archive(void* state)
+{
+    return (unsigned int)XXH32_digest(state);
+}
+
 const
 struct archive_xxhash __archive_xxhash = {
-	XXH32,
-	XXH32_init,
-	XXH32_update,
-	XXH32_digest
+    XXH32_archive,
+    XXH32_init_archive,
+    XXH32_update_archive,
+    XXH32_digest_archive
 };
 #else
 

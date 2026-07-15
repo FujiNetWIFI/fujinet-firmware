@@ -17,6 +17,9 @@ adamDisk::adamDisk()
     blockNum = 0;
     status_response.length = htole16(1024);
     status_response.devtype = ADAMNET_DEVTYPE_BLOCK;
+#ifndef ESP_PLATFORM
+    _pc_no_response_deadline = true;
+#endif
 }
 
 // Destructor
@@ -32,6 +35,7 @@ adamDisk::~adamDisk()
 void adamDisk::reset()
 {
     blockNum = INVALID_SECTOR_VALUE;
+    _receive_acked = false;
 
     if (_media != nullptr)
     {
@@ -40,7 +44,7 @@ void adamDisk::reset()
     }
 }
 
-mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize,
+mediatype_t adamDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
                             disk_access_flags_t access_mode, mediatype_t disk_type)
 {
     mediatype_t mt = MEDIATYPE_UNKNOWN;
@@ -96,7 +100,7 @@ void adamDisk::unmount()
     }
 }
 
-error_is_true adamDisk::write_blank(FILE *fileh, uint32_t numBlocks)
+error_is_true adamDisk::write_blank(fnFile *fileh, uint32_t numBlocks)
 {
     uint8_t buf[256];
 
@@ -104,10 +108,10 @@ error_is_true adamDisk::write_blank(FILE *fileh, uint32_t numBlocks)
     {
         memset(buf, 0xE5, 256);
 
-        fwrite(buf, 1, 256, fileh);
-        fwrite(buf, 1, 256, fileh);
-        fwrite(buf, 1, 256, fileh);
-        fwrite(buf, 1, 256, fileh);
+        fnio::fwrite(buf, 1, 256, fileh);
+        fnio::fwrite(buf, 1, 256, fileh);
+        fnio::fwrite(buf, 1, 256, fileh);
+        fnio::fwrite(buf, 1, 256, fileh);
     }
 
     RETURN_SUCCESS_AS_FALSE();
@@ -115,12 +119,12 @@ error_is_true adamDisk::write_blank(FILE *fileh, uint32_t numBlocks)
 
 void adamDisk::adamnet_control_clr()
 {
-    int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
-
-    if (t < 1500)
-    {
-        adamnet_response_send();
-    }
+#ifdef ESP_PLATFORM
+    // Real bus only: stream the block only inside the master's window.
+    if (GET_TIMESTAMP() - SYSTEM_BUS.start_time >= 1500)
+        return;
+#endif
+    adamnet_response_send();
 }
 
 void adamDisk::adamnet_control_receive()
@@ -128,10 +132,37 @@ void adamDisk::adamnet_control_receive()
     if (_media == nullptr)
         return;
 
-    if (_media->read(blockNum, nullptr))
-        adamnet_response_nack();
+    // Already ACKed this block's RECEIVE. The master re-polls RECEIVE while we
+    // read; a second ACK would desync the next block, so stay silent until a new
+    // block number resets us. (stall_silent: yield without discardInput().)
+    if (_receive_acked)
+    {
+        SYSTEM_BUS.stall_silent = true;
+        return;
+    }
+
+    // Seek emulation.
+    if (GET_TIMESTAMP() < _seek_deadline)
+    {
+        _seek_is_read = true;
+        _media->read(blockNum, nullptr);
+        SYSTEM_BUS.stall_silent = true;
+        return;
+    }
+
+    bool err = _media->read(blockNum, nullptr);
+
+    // Match a real drive's RECEIVE->ACK turnaround so the master masks
+    // interrupts for the coming block before we answer.
+    SYSTEM_BUS.wait_turnaround(ADAMNET_DISK_RECV_TURNAROUND_US);
+
+    if (err)
+        adamnet_response_nack(true);
     else
-        adamnet_response_ack();
+        adamnet_response_ack(true);
+
+    // Exactly one ACK per block: suppress the master's surplus re-poll RECEIVEs.
+    _receive_acked = true;
 }
 
 void adamDisk::adamnet_control_send_block_num()
@@ -141,7 +172,12 @@ void adamDisk::adamnet_control_send_block_num()
     for (uint16_t i = 0; i < 5; i++)
         x[i] = adamnet_recv();
 
+    adamnet_recv(); // CK -- consume the trailing checksum so the packet is fully read
+
     blockNum = x[3] << 24 | x[2] << 16 | x[1] << 8 | x[0];
+
+    if (_media == nullptr)
+        return;
 
     if (_media->num_blocks() < 0x10000UL) // Smaller than 64MB?
     {
@@ -153,11 +189,26 @@ void adamDisk::adamnet_control_send_block_num()
         _media->format(NULL);
     }
 
-    SYSTEM_BUS.start_time=esp_timer_get_time();
+    SYSTEM_BUS.start_time=GET_TIMESTAMP();
 
     adamnet_response_ack();
 
     Debug_printf("BLOCK: %lu\n", blockNum);
+
+    int64_t now = GET_TIMESTAMP();
+    // Each new block# starts unclassified; a following RECEIVE marks it a read.
+    _seek_is_read = false;
+    // New block operation: allow exactly one ACK for its RECEIVE sequence again.
+    _receive_acked = false;
+
+    bool already_cached = (_media->_media_last_block == blockNum);
+    if (blockNum != _seek_block ||
+        (now - _last_blocknum_us > ADAMNET_DISK_SEEK_NEWOP_US && !already_cached))
+    {
+        _seek_block = blockNum;
+        _seek_deadline = now + ADAMNET_DISK_SEEK_US;
+    }
+    _last_blocknum_us = now;
 }
 
 void adamDisk::adamnet_control_send_block_data()
@@ -166,8 +217,18 @@ void adamDisk::adamnet_control_send_block_data()
         return;
 
     adamnet_recv_buffer(_media->_media_blockbuff, 1024);
-    SYSTEM_BUS.start_time = esp_timer_get_time();
+    adamnet_recv(); // CK -- consume the trailing checksum so the packet is fully read
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
     adamnet_response_ack();
+
+    if (is_config_device)
+    {
+        Debug_printf("Refusing spurious write to read-only config device, block %lu\n", blockNum);
+        blockNum = 0xFFFFFFFF;
+        _media->_media_last_block = 0xFFFFFFFE;
+        return;
+    }
+
     Debug_printf("Block Data Write\n");
 
     _media->write(blockNum, false);
@@ -188,17 +249,23 @@ void adamDisk::adamnet_control_send()
 
 void adamDisk::adamnet_response_status()
 {
+    if (_media != nullptr && _seek_is_read && GET_TIMESTAMP() < _seek_deadline)
+    {
+        SYSTEM_BUS.stall_silent = true;
+        return;
+    }
+
     if (_media == nullptr)
         status_response.status = 0x40 | STATUS_NO_MEDIA;
     else
         status_response.status = 0x40 | _media->_media_controller_status;
 
-    int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
-
-    if (t < 300)
-    {
-        virtualDevice::adamnet_response_status();
-    }
+#ifdef ESP_PLATFORM
+    // Real bus only: answer only inside the master's status window.
+    if (GET_TIMESTAMP() - SYSTEM_BUS.start_time >= 300)
+        return;
+#endif
+    virtualDevice::adamnet_response_status();
 }
 
 void adamDisk::adamnet_response_send()
@@ -215,7 +282,11 @@ void adamDisk::adamnet_response_send()
     b[1] = 0x04;
     b[2] = 0x00;
     b[1027] = c;
+
+    SYSTEM_BUS.wait_turnaround(ADAMNET_DISK_SEND_TURNAROUND_US);
+    SYSTEM_BUS.quiet_rx_for_send(true);
     adamnet_send_buffer(b, sizeof(b));
+    SYSTEM_BUS.quiet_rx_for_send(false);
 }
 
 void adamDisk::adamnet_process(uint8_t b)

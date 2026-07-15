@@ -70,20 +70,20 @@ void rs232CPM::init_cpm(int baud)
     memset(pattern, 0, sizeof(pattern));
 }
 
-void rs232CPM::rs232_process(FujiBusPacket &packet)
+void rs232CPM::rs232_process(const FujiBusPacket &packet)
 {
     switch (packet.command())
     {
     case CPMCMD_INIT:
-        transaction_continue(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
         fnSystem.delay(10);
-        transaction_complete();
+        SYSTEM_BUS.transaction_success();
         fnSystem.delay(5000);
         init_cpm(9600);
         cpmActive = true;
         break;
     default:
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         break;
     }
 }

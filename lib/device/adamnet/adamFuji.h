@@ -18,28 +18,10 @@ private:
     bool new_disk_completed = false;
 
 protected:
-    void transaction_continue(transState_t expectMoreData) override {
-        // Adam needs ACK ASAP and never sends error, so discard checksum and ACK here
-        adamnet_recv(); // Discard CK
-        SYSTEM_BUS.start_time = esp_timer_get_time();
-        adamnet_response_ack();
-    }
-    void transaction_complete() override {}
-    void transaction_error() override {}
-    success_is_true transaction_get(void *data, size_t len) override {
-        unsigned short rlen = adamnet_recv_buffer((uint8_t *) data, len);
-        RETURN_SUCCESS_IF(rlen == len);
-    }
-    void transaction_put(const void *data, size_t len, bool err=false) override {
-        memcpy(response, data, len);
-        response_len = len;
-    }
-
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
 
     void adamnet_new_disk();               // 0xE7
-    void adamnet_write_app_key();          // 0xDE
     void adamnet_set_boot_config();        // 0xD9
     void adamnet_enable_device();          // 0xD5
     void adamnet_disable_device();         // 0xD4

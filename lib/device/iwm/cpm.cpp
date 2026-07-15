@@ -11,8 +11,6 @@
 #include "fnConfig.h"
 #include "compat_string.h"
 
-#include "../hardware/led.h"
-
 #include "../runcpm/abstraction_fujinet_apple2.h"
 
 #include "../runcpm/globals.h"
@@ -55,30 +53,27 @@ iwmCPM::iwmCPM()
 #endif
 }
 
-void iwmCPM::send_status_reply_packet()
+iwm_device_status_block_t iwmCPM::create_status_reply_packet()
 {
-    uint8_t data[4];
+  iwm_device_status_block_t status;
 
-    // Build the contents of the packet
-    data[0] = STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE;
-    data[1] = 0; // block size 1
-    data[2] = 0; // block size 2
-    data[3] = 0; // block size 3
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
+  status.code = STATCODE_WRITE_ALLOWED | STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE;
+  status.block_size = 0;
+  return status;
 }
 
-void iwmCPM::send_status_dib_reply_packet()
+iwm_device_info_block_t iwmCPM::create_dib_reply_packet()
 {
-        Debug_printf("\r\nCPM: Sending DIB reply\r\n");
-        std::vector<uint8_t> data = create_dib_reply_packet(
-                "CPM",                                                      // name
-                STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE,             // status
-                { 0, 0, 0 },                                                // block size
-                { SP_TYPE_BYTE_FUJINET_CPM, SP_SUBTYPE_BYTE_FUJINET_CPM },  // type, subtype
-                { 0x00, 0x01 }                                              // version.
-        );
-        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+  iwm_device_info_block_t dib;
 
+  dib.dev_status = create_status_reply_packet();
+  strcpy(dib.name, "CPM");
+  dib.name_len = strlen(dib.name);
+  dib.type = SP_TYPE_BYTE_FUJINET_CPM;
+  dib.subtype = SP_SUBTYPE_BYTE_FUJINET_CPM;
+  dib.version = 0x0100;
+
+  return dib;
 }
 
 void iwmCPM::sio_status()
@@ -87,15 +82,15 @@ void iwmCPM::sio_status()
     return;
 }
 
-void iwmCPM::iwm_open(iwm_decoded_cmd_t cmd)
+void iwmCPM::iwm_open(const iwm_decoded_cmd_t &cmd)
 {
-    uint8_t err_result = SP_ERR_NOERROR;
+    spError_t err_result = SP_ERR::NOERROR;
 
     Debug_printf("\r\nCP/M: Open\n");
 #ifdef ESP_PLATFORM // OS
     if (!fnSystem.hasbuffer())
     {
-        err_result = SP_ERR_OFFLINE;
+        err_result = SP_ERR::OFFLINE;
     Debug_printf("FujiApple HASBUFFER Missing, not starting CP/M\n");
     }
     else
@@ -108,153 +103,113 @@ void iwmCPM::iwm_open(iwm_decoded_cmd_t cmd)
     }
 #endif
 
-    send_reply_packet(err_result);
+    SYSTEM_BUS.transaction_error(err_result);
 }
 
-void iwmCPM::iwm_close(iwm_decoded_cmd_t cmd)
+void iwmCPM::iwm_close(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\r\nCP/M: Close\n");
-    send_reply_packet(SP_ERR_NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
+void iwmCPM::iwm_status(const iwm_decoded_cmd_t &cmd)
 {
-    unsigned short mw;
-    // uint8_t source = cmd.dest;                                                // we are the destination and will become the source // packet_buffer[6];
-    uint8_t status_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
-    Debug_printf("\r\n[CPM] Device %02x Status Code %02x\r\n", id(), status_code);
-    // Debug_printf("\r\nStatus List is at %02x %02x\n", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
+    Debug_printf("\r\n[CPM] Device %02x Status Code %02x\r\n", id(), cmd.command());
 
-    switch (status_code)
+    switch (cmd.command())
     {
-    case IWM_STATUS_STATUS: // 0x00
-        send_status_reply_packet();
-        return;
-        break;
-    // case IWM_STATUS_DCB:                  // 0x01
-    // case IWM_STATUS_NEWLINE:              // 0x02
-    case IWM_STATUS_DIB: // 0x03
-        send_status_dib_reply_packet();
-        return;
-        break;
-    case 'S': // Status
+    case CPMCMD_STATUS:
+        {
+            u16le_t mw;
 #ifdef ESP_PLATFORM // OS
-        mw = uxQueueMessagesWaiting(rxq);
+            mw = uxQueueMessagesWaiting(rxq);
 #endif
 
-        if (mw > 512)
-            mw = 512;
-
-        data_buffer[0] = mw & 0xFF;
-        data_buffer[1] = mw >> 8;
-        data_len = 2;
-        Debug_printf("%u bytes waiting\n", mw);
+            mw = std::min<uint16_t>(512, mw);
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+            SYSTEM_BUS.transaction_send(&mw, sizeof(mw));
+            Debug_printf("%u bytes waiting\n", mw);
+        }
         break;
     case 'B':
+        {
+            uint8_t booted = false;
 #ifdef ESP_PLATFORM // OS
-        data_buffer[0]=(cpmTaskHandle==NULL ? 1 : 0);
+            booted = cpmTaskHandle==NULL ? 1 : 0;
 #endif
-        data_len = 1;
-        Debug_printf("CPM Task Running? %d %s", data_buffer[0],(data_buffer[0]) ? "=No" : "=Yes");
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+            SYSTEM_BUS.transaction_send(booted);
+            Debug_printf("CPM Task Running? %d %s", booted, booted ? "=No" : "=Yes");
+        }
         break;
+    default:
+        SYSTEM_BUS.transaction_error(SP_ERR::BADCMD);
+        return;
     }
 
     Debug_printf("\r\nStatus code complete, sending response");
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
 }
 
-void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
+void iwmCPM::iwm_read(const iwm_decoded_cmd_t &cmd)
 {
-    uint16_t numbytes = get_numbytes(cmd); // cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-    uint32_t addy = get_address(cmd);      // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
 #ifdef ESP_PLATFORM // OS
     unsigned short mw = uxQueueMessagesWaiting(rxq);
 #else
     unsigned short mw;
 #endif
 
-    Debug_printf("\r\nDevice %02x READ %04x bytes from address %06lx\n", id(), numbytes, addy);
+    Debug_printf("\r\nDevice %02x READ %04x bytes from address %06lx\n", id(), cmd.frame.char_rw.length, cmd.frame.char_rw.address);
 
-    memset(data_buffer, 0, sizeof(data_buffer));
-
+    std::vector<uint8_t> buffer;
     if (mw) // check if we really have some bytes waiting
     {
-        if (mw < numbytes) //if there are less than requested, just send what we have
-        {
-            numbytes = mw;
-        }
+        size_t numbytes = std::min<uint16_t>(mw, cmd.frame.char_rw.length);
 
-        data_len = 0;
-        for (int i = 0; i < numbytes; i++)
+        for (size_t i = 0; i < numbytes; i++)
         {
-            char b;
+            uint8_t b;
 #ifdef ESP_PLATFORM // OS
             xQueueReceive(rxq, &b, portMAX_DELAY);
 #endif
-            data_buffer[i] = b;
-            data_len++;
+            buffer[i] = b;
         }
-    }
-    else // no bytes waiting, just reply back with no data
-    {
-        data_len = 0;
     }
 
     Debug_printf("\r\nsending CPM read data packet ...");
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
-    data_len = 0;
-    memset(data_buffer, 0, sizeof(data_buffer));
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_send(buffer);
 }
 
-void iwmCPM::iwm_write(iwm_decoded_cmd_t cmd)
+void iwmCPM::iwm_write(const iwm_decoded_cmd_t &cmd)
 {
-    uint16_t num_bytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-
-    Debug_printf("\nWRITE %u bytes\n", num_bytes);
-
-    // get write data packet, keep trying until no timeout
-    //  to do - this blows up - check handshaking
-
-    data_len = num_bytes;
-    SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len); // write data packet now read in ISR
-    // if (SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len))
-    // {
-    //     Debug_printf("\r\nTIMEOUT in read packet!");
-    //     return;
-    // }
+    Debug_printf("\nWRITE %u bytes\n", cmd.frame.char_rw.length);
 
     {
+        auto buffer = cmd.data().value();
         // DO write
 #ifdef ESP_PLATFORM // OS
-        for (int i = 0; i < num_bytes; i++)
-            xQueueSend(txq, &data_buffer[i], portMAX_DELAY);
+        for (int i = 0; i < cmd.frame.char_rw.length; i++)
+            xQueueSend(txq, &buffer[i], portMAX_DELAY);
 #endif
     }
 
-    send_reply_packet(SP_ERR_NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
+void iwmCPM::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
 {
-    uint8_t err_result = SP_ERR_NOERROR;
+    spError_t err_result = SP_ERR::NOERROR;
 
-    // uint8_t source = cmd.dest;                                                 // we are the destination and will become the source // data_buffer[6];
-    uint8_t control_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
-    Debug_printf("\r\nCPM Device %02x Control Code %02x", id(), control_code);
-    // Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
-    data_len = 512;
-    SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len);
-    // Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", packet_buffer[11] & 0x7f, data_buffer[12] & 0x7f);
-    print_packet(data_buffer);
+    Debug_printf("\r\nCPM Device %02x Control Code %02x", id(), cmd.command());
 
-    if (data_len > 0)
-        switch (control_code)
+    if (cmd.data()->size() > 0)
+      switch (cmd.command())
         {
-        case 'B': // Boot
+        case CPMCMD_BOOT:
 #ifdef ESP_PLATFORM // OS
             if (!fnSystem.hasbuffer())
             {
-                err_result = SP_ERR_OFFLINE;
+                err_result = SP_ERR::OFFLINE;
                 Debug_printf("FujiApple HASBUFFER Missing, not starting CP/M\n");
             }
             else
@@ -270,56 +225,14 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
 #endif
             }
             break;
+        default:
+            SYSTEM_BUS.transaction_error(SP_ERR::BADCMD);
+            return;
         }
     else
-        err_result = SP_ERR_IOERROR;
+        err_result = SP_ERR::IOERROR;
 
-    send_reply_packet(err_result);
-}
-
-void iwmCPM::process(iwm_decoded_cmd_t cmd)
-{
-    // Respond with device offline if cp/m is disabled
-    if ( !Config.get_cpm_enabled() )
-    {
-        iwm_return_device_offline(cmd);
-        return;
-    }
-
-    switch (cmd.command)
-    {
-    case SP_CMD_STATUS:
-        Debug_printf("\r\nhandling status command");
-        iwm_status(cmd);
-        break;
-    case SP_CMD_CONTROL:
-        Debug_printf("\r\nhandling control command");
-        iwm_ctrl(cmd);
-        break;
-    case SP_CMD_OPEN:
-        Debug_printf("\r\nhandling open command");
-        iwm_open(cmd);
-        break;
-    case SP_CMD_CLOSE:
-        Debug_printf("\r\nhandling close command");
-        iwm_close(cmd);
-        break;
-    case SP_CMD_READ:
-        fnLedManager.set(LED_BUS, true);
-        Debug_printf("\r\nhandling read command");
-        iwm_read(cmd);
-        fnLedManager.set(LED_BUS, false);
-        break;
-    case SP_CMD_WRITE:
-        fnLedManager.set(LED_BUS, true);
-        Debug_printf("\r\nHandling write command");
-        iwm_write(cmd);
-        fnLedManager.set(LED_BUS, false);
-        break;
-    default:
-        iwm_return_badcmd(cmd);
-        break;
-    } // switch (cmd)
+    SYSTEM_BUS.transaction_error(err_result);
 }
 
 void iwmCPM::shutdown()

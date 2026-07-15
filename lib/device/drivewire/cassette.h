@@ -6,7 +6,7 @@
 #include "bus.h"
 #include "fnSystem.h"
 
-class drivewireCassette : public virtualDevice
+class drivewireCassette : public drivewireDevice
 {
 protected:
 

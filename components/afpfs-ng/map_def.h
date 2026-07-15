@@ -1,0 +1,6 @@
+#ifndef MEATLOAF_AFPFS_NG_PUBLIC_MAP_DEF_H
+#define MEATLOAF_AFPFS_NG_PUBLIC_MAP_DEF_H
+
+#include "include/map_def.h"
+
+#endif // MEATLOAF_AFPFS_NG_PUBLIC_MAP_DEF_H

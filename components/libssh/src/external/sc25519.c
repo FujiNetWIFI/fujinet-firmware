@@ -4,7 +4,7 @@
  * Copied from supercop-20130419/crypto_sign/ed25519/ref/sc25519.c
  */
 
-#include "libssh/config.h"
+#include "../../config.h"
 
 #include "libssh/priv.h"
 #include "libssh/sc25519.h"

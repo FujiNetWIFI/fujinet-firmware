@@ -5,7 +5,7 @@
 #include "../../include/debug.h"
 
 #include "sio/sioFuji.h"
-#include "udpstream.h"
+#include "netstream.h"
 #include "modem.h"
 #include "siocpm.h"
 
@@ -46,7 +46,7 @@ uint8_t sio_checksum(uint8_t *buf, unsigned short len)
    len = length of buffer
    err = along with data, send ERROR status to Atari rather than COMPLETE
 */
-void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
+void virtualDevice::_bus_to_computer(uint8_t *buf, uint16_t len, bool err)
 {
     // Write data frame to computer
     Debug_printf("->SIO write %hu bytes\n", len);
@@ -59,9 +59,9 @@ void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
 
     // Write ERROR or COMPLETE status
     if (err == true)
-        sio_error();
+        _sio_error();
     else
-        sio_complete();
+        _sio_complete();
 
     // Write data frame
     SYSTEM_BUS.write(buf, len);
@@ -78,7 +78,7 @@ void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
    len = length
    Returns checksum
 */
-uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
+uint8_t virtualDevice::_bus_to_peripheral(uint8_t *buf, unsigned short len)
 {
     // Retrieve data frame from computer
     Debug_printf("<-SIO read %hu bytes\n", len);
@@ -112,18 +112,18 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 
     if (ck_rcv != ck_tst)
     {
-        sio_nak();
+        _sio_error();
         Debug_printf("bus_to_peripheral() - Data Frame Chksum error, calc %02x, rcv %02x\n", ck_tst, ck_rcv);
         // return false; // apc
     }
     else
-        sio_ack();
+        _sio_ack();
 
     return ck_rcv; // TODO apc: change to true and update all callers, no need to calculate/check checksum again
 }
 
 // SIO NAK
-void virtualDevice::sio_nak()
+void virtualDevice::_sio_nak()
 {
     SYSTEM_BUS.write('N');
     SYSTEM_BUS.flushOutput();
@@ -134,7 +134,7 @@ void virtualDevice::sio_nak()
 }
 
 // SIO ACK
-void virtualDevice::sio_ack()
+void virtualDevice::_sio_ack()
 {
     SYSTEM_BUS.write('A');
     fnSystem.delay_microseconds(DELAY_T5); //?
@@ -147,7 +147,7 @@ void virtualDevice::sio_ack()
 
 // SIO ACK, delayed for NetSIO sync
 #ifndef ESP_PLATFORM
-void virtualDevice::sio_late_ack()
+void virtualDevice::_sio_late_ack()
 {
     if (SYSTEM_BUS.isBoIP())
     {
@@ -157,13 +157,13 @@ void virtualDevice::sio_late_ack()
     }
     else
     {
-        sio_ack();
+        _sio_ack();
     }
 }
 #endif
 
 // SIO COMPLETE
-void virtualDevice::sio_complete()
+void virtualDevice::_sio_complete()
 {
     fnSystem.delay_microseconds(DELAY_T5);
     SYSTEM_BUS.write('C');
@@ -171,7 +171,7 @@ void virtualDevice::sio_complete()
 }
 
 // SIO ERROR
-void virtualDevice::sio_error()
+void virtualDevice::_sio_error()
 {
     fnSystem.delay_microseconds(DELAY_T5);
     SYSTEM_BUS.write('E');
@@ -181,10 +181,11 @@ void virtualDevice::sio_error()
 // SIO HIGH SPEED REQUEST
 void virtualDevice::sio_high_speed()
 {
-    Debug_print("sio HSIO INDEX\n");
+    transaction_begin(TRANS_STATE::NO_GET);
     int index = SYSTEM_BUS.getHighSpeedIndex();
     uint8_t hsd = index == HSIO_INVALID_INDEX ? 40 : (uint8_t)index;
-    bus_to_computer((uint8_t *)&hsd, 1, false);
+    Debug_printf("sio HSIO INDEX: %d\n", hsd);
+    transaction_put((uint8_t *)&hsd, 1, false);
 }
 
 // Read and process a command frame from SIO
@@ -202,7 +203,7 @@ void systemBus::_sio_process_cmd()
     {
         _modemDev->modemActive = false;
         Debug_println("Modem was active - resetting SIO baud");
-        SYSTEM_BUS.setBaudrate(_sioBaud);
+        SYSTEM_BUS.setBaudrate(getBaudrate());
     }
 
     // Read CMD frame
@@ -367,16 +368,28 @@ void systemBus::service()
     // modes disrupt normal SIO handling - should probably make a separate task for this)
     _sio_process_queue();
 
-    if (_udpDev != nullptr && _udpDev->udpstreamActive)
+    bool is_motor_asserted = false;
+    is_motor_asserted = motor_asserted();
+
+    if (_streamDev != nullptr && _streamDev->netstreamActive && is_motor_asserted)
     {
         if (commandAsserted())
         {
-            Debug_println("CMD Asserted, stopping UDP Stream");
-            _udpDev->sio_disable_udpstream();
+            Debug_println("CMD Asserted, stopping NetStream");
+            _streamDev->sio_disable_netstream();
         }
         else
         {
-            _udpDev->sio_handle_udpstream();
+            const int netstream_baud = _streamDev->netstream_baud;
+            if (getCurrentBaudrate() != netstream_baud)
+            {
+                // Ensure NetStream baud
+#ifdef DEBUG_NETSTREAM
+                Debug_println("NETSTREAM: MOTOR assert, switch baud");
+#endif
+                setBaudrate(netstream_baud);
+            }
+            _streamDev->sio_handle_netstream();
             return; // break!
         }
     }
@@ -394,7 +407,7 @@ void systemBus::service()
 #ifdef ESP_PLATFORM
             if (fnSystem.digital_read(PIN_MTR) == DIGI_HIGH) // TODO: use cassette helper function for consistency?
 #else
-            if (motor_asserted())
+            if (is_motor_asserted)
 #endif
             {
                 if (_fujiDev->cassette()->is_active() == false) // keep this logic because motor line mode
@@ -449,6 +462,8 @@ void systemBus::service()
 #else
         if (!SYSTEM_BUS.isBoIP())
             _port->discardInput();
+        else
+            _netsio.poll(1); // wait 1 ms for something to happen (reliefs CPU usage)
 #endif
     }
 
@@ -499,13 +514,13 @@ void systemBus::setup()
     // Setup SIO ports: serial UART and NetSIO
     if (Config.get_boip_enabled())
     {
-        _netsio.begin(Config.get_boip_host(), Config.get_boip_port(), _sioBaud);
+        _netsio.begin(Config.get_boip_host(), Config.get_boip_port(), getBaudrate());
         _port = &_netsio;
     }
     else
     {
         _serial.begin(ChannelConfig()
-                      .baud(_sioBaud)
+                      .baud(getBaudrate())
                       .deviceID(SIO_UART_DEVICE)
 #ifdef ESP_PLATFORM
                       .readTimeout(pdTICKS_TO_MS(200))
@@ -533,7 +548,7 @@ void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
 {
     if (device_id == FUJI_DEVICEID_FUJINET)
     {
-        _fujiDev = (sioFuji *)pDevice;
+        _fujiDev = dynamic_cast<sioFuji*>(pDevice);
     }
     else if (device_id == FUJI_DEVICEID_SERIAL)
     {
@@ -545,7 +560,7 @@ void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
     }
     else if (device_id == FUJI_DEVICEID_MIDI)
     {
-        _udpDev = (sioUDPStream *)pDevice;
+        _streamDev = (sioNetStream *)pDevice;
     }
     else if (device_id == FUJI_DEVICEID_CASSETTE)
     {
@@ -620,12 +635,26 @@ void systemBus::shutdown()
 
 void systemBus::toggleBaudrate()
 {
-    int baudrate = _sioBaud == SIO_STANDARD_BAUDRATE ? _sioBaudHigh : SIO_STANDARD_BAUDRATE;
+    sioSpeedMode_t newMode;
+    if (_sioBaud == SIO_SPEED::STANDARD)
+        newMode = useUltraHigh ? SIO_SPEED::ULTRA : SIO_SPEED::HIGH;
+    else
+        newMode = SIO_SPEED::STANDARD;
 
-    if (useUltraHigh == true)
-        baudrate = _sioBaud == SIO_STANDARD_BAUDRATE ? _sioBaudUltraHigh : SIO_STANDARD_BAUDRATE;
+    int newBaud;
+    switch (newMode)
+    {
+    case SIO_SPEED::STANDARD:
+        newBaud = SIO_STANDARD_BAUDRATE;
+        break;
+    case SIO_SPEED::HIGH:
+        newBaud = _sioBaudHigh;
+        break;
+    case SIO_SPEED::ULTRA:
+        newBaud = _sioBaudUltraHigh;
+        break;
+    }
 
-    // Debug_printf("Toggling baudrate from %d to %d\n", _sioBaud, baudrate);
 #ifndef ESP_PLATFORM
     _port->discardInput();
     _port->flushOutput();
@@ -633,30 +662,44 @@ void systemBus::toggleBaudrate()
     fnSystem.delay_microseconds(2000);
 #endif
 
-    setBaudrate(baudrate);
+    _sioBaud = newMode;
+    setBaudrate(newBaud);
 }
 
 int systemBus::getBaudrate()
 {
-    return _sioBaud;
-}
-
-void systemBus::setBaudrate(int baud)
-{
-    if (_sioBaud == baud)
+    switch (_sioBaud)
     {
-        Debug_printf("Baudrate already at %d - nothing to do\n", baud);
-        return;
+    case SIO_SPEED::HIGH:
+        return _sioBaudHigh;
+    case SIO_SPEED::ULTRA:
+        return _sioBaudUltraHigh;
+    default:
+        break;
     }
 
-    Debug_printf("Changing baudrate from %d to %d\n", _sioBaud, baud);
-    _sioBaud = baud;
+    return SIO_STANDARD_BAUDRATE;
+}
 
+int systemBus::getCurrentBaudrate()
+{
+    if (isBoIP())
+        return _netsio.getBaudrate();
+
+    return _serial.getBaudrate();
+}
+
+// This method is called by devices to change the "UART" baudrate, it
+// has nothing to do with setting the SIO command baudrate. SIO
+// command baudrate is managed by toggleBaudrate() so _sioBaud is not
+// changed here.
+void systemBus::setBaudrate(int baud)
+{
     // Yah this looks stupid but C++ doesn't do true polymorphism
     if (isBoIP())
-        _netsio.setBaudrate(_sioBaud);
+        _netsio.setBaudrate(baud);
     else
-        _serial.setBaudrate(_sioBaud);
+        _serial.setBaudrate(baud);
 }
 
 // Set HSIO index. Sets high speed SIO baud and also returns that value.
@@ -771,9 +814,26 @@ void systemBus::sio_empty_ack()
 }
 #endif
 
-void systemBus::setUDPHost(const char *hostname, int port)
+void systemBus::setStreamHost(const char *hostname, int port)
 {
-    if (_udpDev == nullptr)
+    setStreamHostWithOptions(
+        hostname,
+        port,
+        (Config.get_network_netstream_mode() == 0) ? 0 : 1,
+        Config.get_network_netstream_register());
+}
+
+void systemBus::setStreamHostWithOptions(const char *hostname,
+                                         int port,
+                                         int mode,
+                                         bool register_enabled,
+                                         uint8_t audf3,
+                                         bool video_pal,
+                                         bool tx_clock_external,
+                                         bool rx_clock_external,
+                                         bool has_audf3)
+{
+    if (_streamDev == nullptr)
     {
         Debug_printf("ERROR: UDP Device is not set. Cannot set HOST/PORT");
         return;
@@ -782,8 +842,8 @@ void systemBus::setUDPHost(const char *hostname, int port)
     // Turn off if hostname is STOP
     if (hostname != nullptr && !strcmp(hostname, "STOP"))
     {
-        if (_udpDev->udpstreamActive)
-            _udpDev->sio_disable_udpstream();
+        if (_streamDev->netstreamActive)
+            _streamDev->sio_disable_netstream();
 
         return;
     }
@@ -791,36 +851,44 @@ void systemBus::setUDPHost(const char *hostname, int port)
     if (hostname != nullptr && hostname[0] != '\0')
     {
         // Try to resolve the hostname and store that so we don't have to keep looking it up
-        _udpDev->udpstream_host_ip = get_ip4_addr_by_name(hostname);
+        _streamDev->netstream_host_ip = get_ip4_addr_by_name(hostname);
 
-        if (_udpDev->udpstream_host_ip == IPADDR_NONE)
+        if (_streamDev->netstream_host_ip == IPADDR_NONE)
         {
             Debug_printf("Failed to resolve hostname \"%s\"\n", hostname);
         }
     }
     else
     {
-        _udpDev->udpstream_host_ip = IPADDR_NONE;
+        _streamDev->netstream_host_ip = IPADDR_NONE;
     }
 
     if (port > 0 && port <= 65535)
     {
-        _udpDev->udpstream_port = port;
+        _streamDev->netstream_port = port;
     }
     else
     {
-        _udpDev->udpstream_port = 5004;
-        Debug_printf("UDPStream port not provided or invalid (%d), setting to 5004\n", port);
+        _streamDev->netstream_port = 5004;
+        Debug_printf("NetStream port not provided or invalid (%d), setting to 5004\n", port);
     }
 
-    // Set if server mode or not
-    _udpDev->udpstreamIsServer = Config.get_network_udpstream_servermode();
+    // Set stream mode and server/ring mode
+    _streamDev->netstreamMode = (mode == 0)
+        ? sioNetStream::NetStreamMode::UDP
+        : sioNetStream::NetStreamMode::TCP;
+    _streamDev->netstreamRegisterEnabled = register_enabled;
+    _streamDev->netstream_video_pal = video_pal;
+    _streamDev->netstream_tx_clock_external = tx_clock_external;
+    _streamDev->netstream_rx_clock_external = rx_clock_external;
+    _streamDev->netstream_audf3 = audf3;
+    _streamDev->netstream_has_audf3 = has_audf3;
 
-    // Restart UDP Stream mode if needed
-    if (_udpDev->udpstreamActive)
-        _udpDev->sio_disable_udpstream();
-    if (_udpDev->udpstream_host_ip != IPADDR_NONE)
-        _udpDev->sio_enable_udpstream();
+    // Restart NetStream mode if needed
+    if (_streamDev->netstreamActive)
+        _streamDev->sio_disable_netstream();
+    if (_streamDev->netstream_host_ip != IPADDR_NONE)
+        _streamDev->sio_enable_netstream();
 }
 
 void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)

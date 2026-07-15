@@ -5,7 +5,8 @@
 #include "html_printer.h"
 #include "epson_80.h"
 #include "fnSystem.h"
-#include "../../hardware/led.h"
+
+#include <algorithm>
 
 constexpr const char *const iwmPrinter::printer_model_str[PRINTER_INVALID];
 
@@ -21,106 +22,62 @@ iwmPrinter::~iwmPrinter()
     _pptr = nullptr;
 }
 
-void iwmPrinter::send_status_reply_packet()
+iwm_device_status_block_t iwmPrinter::create_status_reply_packet()
 {
-    uint8_t data[4];
+  iwm_device_status_block_t status;
 
-    data[0] = 0b01110000;
-    data[1] = data[2] = data[3] = 0;
-
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data, 4);
+  status.code = STATCODE_WRITE_ALLOWED | STATCODE_DEVICE_ONLINE;
+  status.block_size = 0;
+  return status;
 }
 
-void iwmPrinter::send_extended_status_reply_packet()
+iwm_device_info_block_t iwmPrinter::create_dib_reply_packet()
 {
-    uint8_t data[5];
+  iwm_device_info_block_t dib;
 
-    data[0] = 0b01110000;
-    data[1] = data[2] = data[3] = data[4] = 0;
+  dib.dev_status = create_status_reply_packet();
+  strcpy(dib.name, "PRINTER");
+  dib.name_len = strlen(dib.name);
+  dib.type = SP_TYPE_BYTE_FUJINET_MODEM;
+  dib.subtype = SP_SUBTYPE_BYTE_FUJINET_MODEM;
+  dib.version = 0x0100;
 
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data, 5);
+  return dib;
 }
 
-void iwmPrinter::send_status_dib_reply_packet()
-{
-    Debug_printf("\r\nPRINTER: Sending DIB reply\r\n");
-    std::vector<uint8_t> data = create_dib_reply_packet(
-        "PRINTER",                                                          // name
-        0b01110000,                                                         // status
-        { 0, 0, 0 },                                                        // block size
-        { SP_TYPE_BYTE_FUJINET_PRINTER, SP_SUBTYPE_BYTE_FUJINET_PRINTER },  // type, subtype
-        { 0x00, 0x01 }                                                      // version.
-    );
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
-}
-
-void iwmPrinter::send_extended_status_dib_reply_packet()
-{
-    send_status_dib_reply_packet();
-}
-
-void iwmPrinter::iwm_status(iwm_decoded_cmd_t cmd)
-{
-    uint8_t status_code = get_status_code(cmd); 
-    Debug_printf("\r\n[PRINTER]: Device: %02x Status Code %02x\r\n", id(), status_code);
-    switch (status_code)
-    {
-    case IWM_STATUS_STATUS:
-        send_status_reply_packet();
-        return;
-        break;
-    case IWM_STATUS_DIB:
-        send_status_dib_reply_packet();
-        return;
-        break;
-    }
-}
-
-void iwmPrinter::iwm_open(iwm_decoded_cmd_t cmd)
+void iwmPrinter::iwm_open(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\nPrinter: Open\n");
-    send_reply_packet(SP_ERR_NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmPrinter::iwm_close(iwm_decoded_cmd_t cmd)
+void iwmPrinter::iwm_close(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\nPrinter: Close\n");
-    send_reply_packet(SP_ERR_NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
+void iwmPrinter::iwm_write(const iwm_decoded_cmd_t &cmd)
 {
-    uint16_t num_bytes = get_numbytes(cmd);
+    Debug_printf("\nPrinter: Write %u bytes\n", cmd.frame.char_rw.length);
 
-    Debug_printf("\nPrinter: Write %u bytes\n", num_bytes);
+    ByteBuffer buffer(cmd.frame.char_rw.length, 0);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
 
-    data_len = num_bytes;
-    SYSTEM_BUS.iwm_decode_data_packet((unsigned char *)data_buffer, data_len);
-    // if (SYSTEM_BUS.iwm_decode_data_packet(100, (unsigned char *)data_buffer, data_len)) // write data packet now read in ISR
-    // {
-    //     Debug_printf("\r\nTIMEOUT in read packet!");
-    //     return;
-    // }
-
-    if (data_len == -1)
+    size_t offset = 0;
+    while (offset < buffer.size())
     {
-        iwm_return_ioerror();
-        return;
+        size_t chunk_size = std::min<size_t>(80, buffer.size() - offset);
+        std::copy_n(buffer.begin() + offset, chunk_size, _pptr->provideBuffer());
+        _pptr->process(chunk_size, 8, 0);
+        offset += chunk_size;
     }
 
-    uint16_t offset = 0;
-
-    while (data_len > 0)
-    {
-        uint8_t l = (data_len > 80 ? 80 : data_len);
-        memcpy(_pptr->provideBuffer(), &data_buffer[offset], l);
-        _pptr->process(l, 8, 0);
-        data_len -= l;
-        offset += l;
-    }
+    SYSTEM_BUS.transaction_success();
 
     _last_ms = fnSystem.millis();
-    send_reply_packet(SP_ERR_NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
 /**
@@ -136,31 +93,6 @@ void iwmPrinter::print_from_cpm(uint8_t c)
         _pptr->process(_llen, 0, 0);
         _llen = 0;
     }
-}
-
-void iwmPrinter::process(iwm_decoded_cmd_t cmd)
-{
-    fnLedManager.set(LED_BUS, true);
-    switch (cmd.command)
-    {
-    case SP_CMD_STATUS:
-        iwm_status(cmd);
-        break;
-    case SP_CMD_OPEN:
-        iwm_open(cmd);
-        break;
-    case SP_CMD_CLOSE:
-        iwm_close(cmd);
-        break;
-    case SP_CMD_WRITE:
-        iwm_write(cmd);
-        break;
-    default:
-        Debug_printf("\nPrinter: Bad cmd %02X\n", cmd.command);
-        iwm_return_badcmd(cmd);
-        break;
-    }
-    fnLedManager.set(LED_BUS, false);
 }
 
 void iwmPrinter::set_printer_type(iwmPrinter::printer_type printer_type)

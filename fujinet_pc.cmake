@@ -44,8 +44,15 @@ elseif(FUJINET_TARGET STREQUAL "LYNX")
     set(FUJINET_BUILD_BOARD fujinet-lynx-devkitc)
     # fujinet.build_bus
     set(FUJINET_BUILD_BUS LYNX)
+elseif(FUJINET_TARGET STREQUAL "ADAM")
+    # fujinet.build_platform
+    set(FUJINET_BUILD_PLATFORM BUILD_ADAM)
+    # fujinet.build_board (used by build_webui.py)
+    set(FUJINET_BUILD_BOARD fujinet-pc-adam)
+    # fujinet.build_bus
+    set(FUJINET_BUILD_BUS ADAMNET)
 else()
-    message(FATAL_ERROR "Invalid target: '${FUJINET_TARGET}'. Please choose from 'RS232', 'ATARI', 'APPLE', or 'COCO'.")
+    message(FATAL_ERROR "Invalid target: '${FUJINET_TARGET}'. Please choose from 'RS232', 'ATARI', 'APPLE', 'COCO', 'LYNX', or 'ADAM'.")
 endif()
 
 if(FUJINET_TARGET STREQUAL "APPLE")
@@ -63,6 +70,7 @@ if(FUJINET_TARGET STREQUAL "APPLE")
         add_compile_definitions(SLIP_PROTOCOL_NET=1)
     elseif(SLIP_PROTOCOL STREQUAL "COM")
         add_compile_definitions(SLIP_PROTOCOL_COM=1)
+        set(USE_LIBSERIAL TRUE)
     endif()
 
     message(STATUS "SLIP_PROTOCOL is ${SLIP_PROTOCOL}")
@@ -103,7 +111,7 @@ set(BUILD_DATA_DIR ${CMAKE_CURRENT_BINARY_DIR}/data)
 
 # -DDBUG2 to enable monitor messages for a release build
 # -DSKIP_SERVER_CERT_VERIFY does not work with MbedTLS
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${FUJINET_BUILD_PLATFORM} -DDEV_RELAY_SLIP -DFLASH_SPIFFS -DDBUG2")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${FUJINET_BUILD_PLATFORM} -DDEV_RELAY_SLIP -DFLASH_SPIFFS -DDBUG2 -DDEBUG_NETSTREAM")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVERBOSE_HTTP -D__PC_BUILD_DEBUG__")
 
 # mongoose.c some compile options: -DMG_ENABLE_LINES=1 -DMG_ENABLE_DIRECTORY_LISTING=1 -DMG_ENABLE_SSI=1
@@ -156,6 +164,8 @@ set(SOURCES src/main.cpp
     lib/config/fnc_cassette.cpp
     lib/config/fnc_cpm.cpp
     lib/config/fnc_enable.cpp
+    lib/config/fnc_gdrive.cpp
+    lib/config/fnc_s3.cpp
     lib/config/fnc_general.cpp
     lib/config/fnc_hosts.cpp
     lib/config/fnc_load.cpp
@@ -198,6 +208,7 @@ set(SOURCES src/main.cpp
     lib/FileSystem/fnFileSMB.h lib/FileSystem/fnFileSMB.cpp
     lib/FileSystem/fnFileNFS.h lib/FileSystem/fnFileNFS.cpp
     lib/FileSystem/fnFileMem.h lib/FileSystem/fnFileMem.cpp
+    lib/FileSystem/fnFileHTTP.h lib/FileSystem/fnFileHTTP.cpp
     lib/FileSystem/fnio.h lib/FileSystem/fnio.cpp
     lib/tcpip/fnDNS.h lib/tcpip/fnDNS.cpp
     lib/tcpip/fnUDP.h lib/tcpip/fnUDP.cpp
@@ -242,6 +253,8 @@ set(SOURCES src/main.cpp
     lib/network-protocol/networkStatus.h lib/network-protocol/status_error_codes.h
     lib/network-protocol/Protocol.h lib/network-protocol/Protocol.cpp
     lib/network-protocol/ProtocolParser.h lib/network-protocol/ProtocolParser.cpp
+    lib/network-protocol/CPM.h lib/network-protocol/CPM.cpp
+    lib/network-protocol/GDRIVE.h lib/network-protocol/GDRIVE.cpp
     lib/network-protocol/Test.h lib/network-protocol/Test.cpp
     lib/network-protocol/TCP.h lib/network-protocol/TCP.cpp
     lib/network-protocol/UDP.h lib/network-protocol/UDP.cpp
@@ -252,19 +265,26 @@ set(SOURCES src/main.cpp
     lib/network-protocol/HTTP.h lib/network-protocol/HTTP.cpp
     lib/network-protocol/SMB.h lib/network-protocol/SMB.cpp
     lib/network-protocol/NFS.h lib/network-protocol/NFS.cpp
+    lib/network-protocol/S3.h lib/network-protocol/S3.cpp
     lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp
+    lib/network-protocol/SFTP.h lib/network-protocol/SFTP.cpp
+    lib/network-protocol/SSHKeygen.h lib/network-protocol/SSHKeygen.cpp
+    lib/network-protocol/SSHCopyId.h lib/network-protocol/SSHCopyId.cpp
     lib/network-protocol/SD.h lib/network-protocol/SD.cpp
     lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
     lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
-    lib/bus/bus.h
+    lib/bus/bus.h lib/bus/bus.cpp
     lib/device/device.h
     lib/device/disk.h
     lib/device/printer.h
     lib/device/modem.h
     lib/device/cassette.h
     lib/device/fujiDevice.h lib/device/fujiDevice.cpp
+    lib/device/FujiDeviceMixin.h
+    lib/device/Base64Mixin.h lib/device/Base64Mixin.cpp
+    lib/device/HashMixin.h lib/device/HashMixin.cpp
     lib/device/network.h
-    lib/device/udpstream.h
+    lib/device/netstream.h
     lib/device/siocpm.h
     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
     lib/media/media.h
@@ -293,7 +313,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     lib/device/sio/cassette.h lib/device/sio/cassette.cpp
     lib/device/sio/sioFuji.h lib/device/sio/sioFuji.cpp
     lib/device/sio/network.h lib/device/sio/network.cpp
-    lib/device/sio/udpstream.h lib/device/sio/udpstream.cpp
+    lib/device/sio/netstream.h lib/device/sio/netstream.cpp
     lib/device/sio/voice.h lib/device/sio/voice.cpp
     lib/device/sio/clock.h lib/device/sio/clock.cpp
     lib/device/sio/siocpm.h lib/device/sio/siocpm.cpp
@@ -321,6 +341,7 @@ if(FUJINET_TARGET STREQUAL "APPLE")
     lib/bus/iwm/iwm_slip.h lib/utils/std_extensions.hpp lib/bus/iwm/iwm_slip.cpp
     lib/bus/iwm/connector.h
     lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
+    lib/bus/iwm/FujiIWMPacket.h lib/bus/iwm/FujiIWMPacket.cpp
 
     lib/devrelay/util.h lib/devrelay/util.cpp
     lib/devrelay/types/Request.h lib/devrelay/types/Request.cpp
@@ -376,20 +397,53 @@ if(FUJINET_TARGET STREQUAL "COCO")
     list(APPEND SOURCES
 
     lib/bus/drivewire/drivewire.h lib/bus/drivewire/drivewire.cpp
-    lib/bus/drivewire/BeckerSocket.h lib/bus/drivewire/BeckerSocket.cpp
+    lib/bus/drivewire/FujiDWPacket.h lib/bus/drivewire/FujiDWPacket.cpp
+    lib/hardware/BoIPChannel.h lib/hardware/BoIPChannel.cpp
 
     lib/media/drivewire/mediaType.h lib/media/drivewire/mediaType.cpp
     lib/media/drivewire/mediaTypeDSK.h lib/media/drivewire/mediaTypeDSK.cpp
     lib/media/drivewire/mediaTypeMRM.h lib/media/drivewire/mediaTypeMRM.cpp
     lib/media/drivewire/mediaTypeVDK.h lib/media/drivewire/mediaTypeVDK.cpp
+    lib/media/drivewire/mediaTypeROM.h lib/media/drivewire/mediaTypeROM.cpp
 
     lib/device/drivewire/drivewireFuji.h lib/device/drivewire/drivewireFuji.cpp
     lib/device/drivewire/network.h lib/device/drivewire/network.cpp
-    lib/device/drivewire/dload.h lib/device/drivewire/dload.cpp
     lib/device/drivewire/disk.h lib/device/drivewire/disk.cpp
     lib/device/drivewire/printer.h lib/device/drivewire/printer.cpp
     lib/device/drivewire/printerlist.h lib/device/drivewire/printerlist.cpp
     lib/device/drivewire/clock.h lib/device/drivewire/clock.cpp
+
+    )
+endif()
+
+if(FUJINET_TARGET STREQUAL "ADAM")
+    # The adam bus/device/media sources include each other by bare filename.
+    # APPEND (after the base lib/device, lib/bus, lib/media) so shared names like
+    # disk.h / network.h / printer.h still resolve to the base platform-dispatch
+    # headers, while adam-only names (adamFuji.h, serial.h, ...) resolve here.
+    list(APPEND INCLUDE_DIRS lib/bus/adamnet lib/device/adamnet lib/media/adam)
+
+    list(APPEND SOURCES
+
+    lib/printer-emulator/coleco_printer.h lib/printer-emulator/coleco_printer.cpp
+
+    lib/bus/adamnet/adamnet.h lib/bus/adamnet/adamnet.cpp
+    lib/hardware/BoIPChannel.h lib/hardware/BoIPChannel.cpp
+
+    lib/media/adam/mediaType.h lib/media/adam/mediaType.cpp
+    lib/media/adam/mediaTypeDDP.h lib/media/adam/mediaTypeDDP.cpp
+    lib/media/adam/mediaTypeDSK.h lib/media/adam/mediaTypeDSK.cpp
+    lib/media/adam/mediaTypeROM.h lib/media/adam/mediaTypeROM.cpp
+
+    lib/device/adamnet/adamFuji.h lib/device/adamnet/adamFuji.cpp
+    lib/device/adamnet/disk.h lib/device/adamnet/disk.cpp
+    lib/device/adamnet/keyboard.h lib/device/adamnet/keyboard.cpp
+    lib/device/adamnet/modem.h lib/device/adamnet/modem.cpp
+    lib/device/adamnet/network.h lib/device/adamnet/network.cpp
+    lib/device/adamnet/printer.h lib/device/adamnet/printer.cpp
+    lib/device/adamnet/printerlist.h lib/device/adamnet/printerlist.cpp
+    lib/device/adamnet/query_device.h lib/device/adamnet/query_device.cpp
+    lib/device/adamnet/serial.h lib/device/adamnet/serial.cpp
 
     )
 endif()
@@ -399,7 +453,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
 
     lib/bus/rs232/rs232.h lib/bus/rs232/rs232.cpp
     lib/bus/rs232/FujiBusPacket.h lib/bus/rs232/FujiBusPacket.cpp
-    lib/bus/drivewire/BeckerSocket.h lib/bus/drivewire/BeckerSocket.cpp
+    lib/hardware/BoIPChannel.h lib/hardware/BoIPChannel.cpp
 
     lib/media/rs232/diskType.h lib/media/rs232/diskType.cpp
     lib/media/rs232/diskTypeImg.h lib/media/rs232/diskTypeImg.cpp

@@ -160,7 +160,7 @@ void rs232Modem::rs232_status(FujiStatusReq reqType)
 
     Debug_printf("rs232Modem::rs232_status(%02x,%02x)\n", mdmStatus[0], mdmStatus[1]);
 
-    transaction_put(mdmStatus, sizeof(mdmStatus), false);
+    SYSTEM_BUS.transaction_send(mdmStatus, sizeof(mdmStatus), false);
 }
 
 // 0x41 / 'A' - CONTROL
@@ -214,7 +214,7 @@ void rs232Modem::rs232_control()
     }
 #endif /* OBSOLETE */
     // for now, just complete
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 }
 
 // 0x42 / 'B' - CONFIGURE
@@ -245,7 +245,7 @@ void rs232Modem::rs232_config()
          0: Watch CRX line
     */
     // Complete and then set newbaud
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 
 #ifdef OBSOLETE
     uint8_t newBaud = 0x0F & cmdFrame.aux1; // Get baud rate
@@ -296,7 +296,7 @@ void rs232Modem::rs232_config()
 void rs232Modem::rs232_set_dump(bool enable)
 {
     modemSniffer->setEnable(enable);
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 }
 
 // 0x58 / 'X' - STREAM
@@ -350,7 +350,7 @@ void rs232Modem::rs232_stream()
         break;
     }
 
-    transaction_put((uint8_t *)response, sizeof(response), false);
+    SYSTEM_BUS.transaction_send((uint8_t *)response, sizeof(response), false);
 
     SYSTEM_BUS.setBaudrate(modemBaud);
     modemActive = true;
@@ -370,14 +370,14 @@ void rs232Modem::rs232_listen(unsigned short newPort)
     }
 
     if (listenPort < 1)
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
     else
-        transaction_continue(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     tcpServer.setMaxClients(1);
     tcpServer.begin(listenPort);
 
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 }
 
 /**
@@ -385,10 +385,10 @@ void rs232Modem::rs232_listen(unsigned short newPort)
  */
 void rs232Modem::rs232_unlisten()
 {
-    transaction_continue(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     tcpClient.stop();
     tcpServer.stop();
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 }
 
 /**
@@ -396,13 +396,13 @@ void rs232Modem::rs232_unlisten()
  */
 void rs232Modem::rs232_baudlock(bool enable, unsigned int newBaud)
 {
-    transaction_continue(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     baudLock = enable;
     modemBaud = newBaud;
 
     Debug_printf("baudLock: %d\n", baudLock);
 
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 }
 
 /**
@@ -410,12 +410,12 @@ void rs232Modem::rs232_baudlock(bool enable, unsigned int newBaud)
  */
 void rs232Modem::rs232_autoanswer(bool enable)
 {
-    transaction_continue(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     autoAnswer = enable;
 
     Debug_printf("autoanswer: %d\n", autoAnswer);
 
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 }
 
 void rs232Modem::at_connect_resultCode(int modemBaud)
@@ -1607,7 +1607,7 @@ void rs232Modem::shutdown()
 /*
   Process command
 */
-void rs232Modem::rs232_process(FujiBusPacket &packet)
+void rs232Modem::rs232_process(const FujiBusPacket &packet)
 {
     if (!Config.get_modem_enabled())
     {
@@ -1620,15 +1620,15 @@ void rs232Modem::rs232_process(FujiBusPacket &packet)
         switch (packet.command())
         {
         case MODEMCMD_CONTROL:
-            transaction_continue(TRANS_STATE::NO_GET);
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             rs232_control();
             break;
         case MODEMCMD_CONFIGURE:
-            transaction_continue(TRANS_STATE::NO_GET);
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             rs232_config();
             break;
         case MODEMCMD_SET_DUMP:
-            transaction_continue(TRANS_STATE::NO_GET);
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             rs232_set_dump(packet.param(0));
             break;
         case MODEMCMD_LISTEN:
@@ -1644,20 +1644,20 @@ void rs232Modem::rs232_process(FujiBusPacket &packet)
             rs232_autoanswer(packet.param(0));
             break;
         case MODEMCMD_STATUS:
-            transaction_continue(TRANS_STATE::NO_GET);
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             rs232_status(static_cast<FujiStatusReq>(packet.param(0)));
             break;
         case MODEMCMD_WRITE:
-            transaction_continue(TRANS_STATE::NO_GET);
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             rs232_write(packet.data());
-            transaction_complete();
+            SYSTEM_BUS.transaction_success();
             break;
         case MODEMCMD_STREAM:
-            transaction_continue(TRANS_STATE::NO_GET);
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             rs232_stream();
             break;
         default:
-            transaction_error();
+            SYSTEM_BUS.transaction_error();
         }
     }
 }

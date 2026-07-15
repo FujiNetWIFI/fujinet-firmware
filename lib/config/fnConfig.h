@@ -38,6 +38,9 @@
 #elif defined(BUILD_COCO)
 // DriveWire default port for CoCo
 #  define CONFIG_DEFAULT_BOIP_PORT 65504
+#elif defined(BUILD_ADAM)
+// AdamNet-over-IP default port (matches ADAMEm's -fujinet default)
+#  define CONFIG_DEFAULT_BOIP_PORT 65216
 #else
 // Dev relay over network, used by Apple
 #  define CONFIG_DEFAULT_BOIP_PORT 1985
@@ -109,11 +112,13 @@ public:
     std::string get_general_label();
 #endif
     int get_general_hsioindex() { return _general.hsio_index; };
-    std::string get_general_timezone() { return _general.timezone; };
+    std::string get_general_timezone() { return _general.timezone.empty() ? "UTC" : _general.timezone; };
     bool get_general_rotation_sounds() { return _general.rotation_sounds; };
-    std::string get_network_udpstream_host() { return _network.udpstream_host; };
-    int get_network_udpstream_port() { return _network.udpstream_port; };
-    bool get_network_udpstream_servermode() { return _network.udpstream_servermode; };
+    std::string get_network_netstream_host() { return _network.netstream_host; };
+    int get_network_netstream_port() { return _network.netstream_port; };
+    bool get_network_netstream_register() { return _network.netstream_register; };
+    int get_network_netstream_mode() { return _network.netstream_mode; };
+    int get_network_netstream_rx_depth() { return _network.netstream_rx_depth; };
     bool get_general_config_enabled() { return _general.config_enabled; };
     void store_general_devicename(const char *devicename);
     void store_general_hsioindex(int hsio_index);
@@ -126,9 +131,11 @@ public:
     void store_config_filename(const std::string &filename);
     bool get_general_boot_mode() { return _general.boot_mode; }
     void store_general_boot_mode(uint8_t boot_mode);
-    void store_udpstream_host(const char host_ip[64]);
-    void store_udpstream_port(int port);
-    void store_udpstream_servermode(bool mode);
+    void store_netstream_host(const char host_ip[64]);
+    void store_netstream_port(int port);
+    void store_netstream_register(bool enable);
+    void store_netstream_mode(int mode);
+    void store_netstream_rx_depth(int depth);
     bool get_general_fnconfig_spifs() { return _general.fnconfig_spifs; };
     void store_general_fnconfig_spifs(bool fnconfig_spifs);
     bool get_general_status_wait_enabled() { return _general.status_wait_enabled; }
@@ -247,6 +254,26 @@ public:
     void store_cpm_enabled(bool cpm_enabled);
     bool get_cpm_enabled(){ return _cpm.cpm_enabled; };
 
+    // GOOGLE DRIVE
+    std::string get_gdrive_refresh_token() { return _gdrive.refresh_token; };
+    std::string get_gdrive_access_token() { return _gdrive.access_token; };
+    long get_gdrive_token_expiry() { return _gdrive.token_expiry; };
+    void store_gdrive_refresh_token(const std::string &refresh_token);
+    void store_gdrive_access_token(const std::string &access_token);
+    void store_gdrive_token_expiry(long expiry);
+
+    // S3 (Amazon S3 / S3-compatible object storage, e.g. MinIO)
+    std::string get_s3_endpoint() { return _s3.endpoint; };
+    std::string get_s3_region() { return _s3.region; };
+    std::string get_s3_access_key() { return _s3.access_key; };
+    std::string get_s3_secret_key() { return _s3.secret_key; };
+    bool get_s3_use_ssl() { return _s3.use_ssl; };
+    void store_s3_endpoint(const std::string &endpoint);
+    void store_s3_region(const std::string &region);
+    void store_s3_access_key(const std::string &access_key);
+    void store_s3_secret_key(const std::string &secret_key);
+    void store_s3_use_ssl(bool use_ssl);
+
     // ENABLE/DISABLE DEVICE SLOTS
     bool get_device_slot_enable(uint8_t slot);
     bool get_device_slot_enable_1();
@@ -284,26 +311,6 @@ public:
     void store_boip_host(const char *host);
     void store_boip_port(int port);
 
-#ifndef ESP_PLATFORM
-    // BUS over Serial
-    bool get_bos_enabled() { return _bos.bos_enabled; } // unused
-    std::string get_bos_port_name() { return _bos.port_name; }
-    int get_bos_baud() { return _bos.baud; }
-    int get_bos_bits() { return _bos.bits; }
-    int get_bos_parity() { return _bos.parity; }
-    int get_bos_stop_bits() { return _bos.stop_bits; }
-    int get_bos_flowcontrol() { return _bos.flowcontrol; }
-
-    void store_bos_enabled(bool bos_enabled);
-    void store_bos_port_name(char *port_name);
-    void store_bos_baud(int baud);
-    void store_bos_bits(int bits);
-    void store_bos_parity(int parity);
-    void store_bos_stop_bits(int stop_bits);
-    void store_bos_flowcontrol(int flowcontrol);
-
-#endif
-
     void load();
     void save();
 
@@ -331,12 +338,11 @@ private:
     void _read_section_cpm(std::stringstream &ss);
     void _read_section_device_enable(std::stringstream &ss);
     void _read_section_boip(std::stringstream &ss);
+    void _read_section_gdrive(std::stringstream &ss);
+    void _read_section_s3(std::stringstream &ss);
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
     void _read_section_serial(std::stringstream &ss);
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
-#ifndef ESP_PLATFORM
-    void _read_section_bos(std::stringstream &ss);
-#endif /* ! ESP_PLATFORM */
 
     enum section_match
     {
@@ -355,12 +361,11 @@ private:
         SECTION_CPM,
         SECTION_DEVICE_ENABLE,
         SECTION_BOIP,
+        SECTION_GOOGLEDRIVE,
+        SECTION_S3,
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
         SECTION_SERIAL,
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
-#ifndef ESP_PLATFORM
-        SECTION_BOS,
-#endif /* ! ESP_PLATFORM */
         SECTION_UNKNOWN
     };
     section_match _find_section_in_line(std::string &line, int &index);
@@ -442,9 +447,11 @@ private:
     struct network_info
     {
         char sntpserver [40];
-        char udpstream_host [64];
-        int udpstream_port;
-        bool udpstream_servermode;
+        char netstream_host [64];
+        int netstream_port;
+        bool netstream_register = true;
+        int netstream_mode = 1;
+        int netstream_rx_depth = 0; // 0 => use firmware default (NETSTREAM_RX_MAX_FRAMES)
         bool log_network_json = false;
     };
 
@@ -476,7 +483,12 @@ private:
     // "bus" over IP
     struct boip_info
     {
+#if defined(BUILD_ADAM) && !defined(ESP_PLATFORM)
+        // ADAM PC build defaults to ADAMEm over IP (no real AdamNet hardware).
+        bool boip_enabled = true;
+#else
         bool boip_enabled = false;
+#endif
 #ifdef ESP_PLATFORM
         // CoCo: DriveWire server (listen) -> listen on all IPs by default
         // Atari: NetSIO hub (connect to)  -> hub host/IP must be specified
@@ -504,20 +516,6 @@ private:
     };
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
 
-#ifndef ESP_PLATFORM
-    // "bus" over serial
-    struct bos_info
-    {
-        bool bos_enabled = false;
-        std::string port_name = "COM1";
-        int baud = 9600;
-        int bits = 8;
-        int parity = 0; // SP_PARITY_NONE
-        int stop_bits = 1;
-        int flowcontrol = 0; // SP_FLOWCONTROL_NONE
-    };
-#endif /* ! ESP_PLATFORM */
-
     struct modem_info
     {
         bool modem_enabled = true;
@@ -535,6 +533,22 @@ private:
     {
         bool cpm_enabled = true;
         std::string ccp;
+    };
+
+    struct googledrive_info
+    {
+        std::string refresh_token;
+        std::string access_token;
+        long token_expiry = 0;
+    };
+
+    struct s3_info
+    {
+        std::string endpoint;
+        std::string region;
+        std::string access_key;
+        std::string secret_key;
+        bool use_ssl = true;
     };
 
     struct device_enable_info
@@ -576,10 +590,9 @@ private:
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
     serial_info _serial;
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
-#ifndef ESP_PLATFORM
-    bos_info _bos;
-#endif /* ! ESP_PLATFORM */
     cpm_info _cpm;
+    googledrive_info _gdrive;
+    s3_info _s3;
     device_enable_info _denable;
     phbook_info _phonebook_slots[MAX_PB_SLOTS];
 };

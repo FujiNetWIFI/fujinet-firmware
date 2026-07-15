@@ -2063,7 +2063,7 @@ void iecFuji::copy_file(std::string source, std::string destination)
         auto in_stream = in_file->getSourceStream(std::ios_base::in);
         if (in_stream == nullptr)
         {
-            Serial.printf("2 Error: Can't open source!\r\n");
+            Debug_printf("2 Error: Can't open source!\r\n");
             set_fuji_iec_status(62, "can't open source stream");
             return;
         }
@@ -2071,7 +2071,7 @@ void iecFuji::copy_file(std::string source, std::string destination)
         auto out_stream = out_file->getSourceStream(std::ios_base::out);
         if (out_stream == nullptr)
         {
-            Serial.printf("2 Error: Can't open destination!\r\n");
+            Debug_printf("2 Error: Can't open destination!\r\n");
             set_fuji_iec_status(62, "can't open destination stream");
             return;
         }
@@ -2087,14 +2087,14 @@ void iecFuji::copy_file(std::string source, std::string destination)
             if (bytes_read < 1)
             {
                 if (in_stream->available())
-                    Serial.printf("\nError reading '%s'\r", in_file->name.c_str());
+                    Debug_printf("\nError reading '%s'\r", in_file->name.c_str());
                 break;
             }
 
             int bytes_written = out_stream->write(bytes, bytes_read);
             if (bytes_written != bytes_read)
             {
-                Serial.printf("\nError writing '%s'\r", out_file->name.c_str());
+                Debug_printf("\nError writing '%s'\r", out_file->name.c_str());
                 break;
             }
 
@@ -2103,10 +2103,10 @@ void iecFuji::copy_file(std::string source, std::string destination)
 #ifdef ENABLE_DISPLAY
             LEDS.progress = percent;
 #endif
-            Serial.printf("Downloading '%s' %d%% [%lu]\r", in_file->name.c_str(), percent, in_stream->position());
+            Debug_printf("Downloading '%s' %d%% [%lu]\r", in_file->name.c_str(), percent, in_stream->position());
             count++;
         }
-        Serial.printf("\n");
+        Debug_printf("\n");
     }
 
     set_fuji_iec_status(0, "");

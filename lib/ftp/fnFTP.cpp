@@ -4,6 +4,7 @@
 
 #include "fnFTP.h"
 
+#include <cstdio>
 #include <string.h>
 
 #include "../../include/debug.h"
@@ -848,10 +849,12 @@ fujiError_t fnFTP::open_file(string path, bool stor)
     if (parse_response() != FUJI_ERROR::NONE)
     {
         Debug_printf("Timed out waiting for 150 response.\r\n");
+        if (_active_mode)
+            _active_server.stop();
         return FUJI_ERROR::UNSPECIFIED;
     }
 
-    if (is_positive_preliminary_reply() && is_filesystem_related())
+    if ((is_positive_preliminary_reply() == FUJI_ERROR::NONE) && is_filesystem_related())
     {
         _stor = stor;
         _expect_control_response = !stor;
@@ -861,6 +864,8 @@ fujiError_t fnFTP::open_file(string path, bool stor)
     else
     {
         Debug_printf("Server could not begin transfer. Response was: %s\r\n", controlResponse.c_str());
+        if (_active_mode)
+            _active_server.stop();
         return FUJI_ERROR::UNSPECIFIED;
     }
 }
@@ -893,12 +898,14 @@ fujiError_t fnFTP::open_directory(string path, string pattern)
     if (parse_response() != FUJI_ERROR::NONE)
     {
         Debug_printf("fnFTP::open_directory(%s%s) Timed out waiting for 150 response.\r\n", path.c_str(), pattern.c_str());
+        if (_active_mode)
+            _active_server.stop();
         return FUJI_ERROR::UNSPECIFIED;
     }
 
     Debug_printf("fnFTP::open_directory(%s%s) - %s\r\n", path.c_str(), pattern.c_str(), controlResponse.c_str());
 
-    if (is_positive_preliminary_reply() && is_filesystem_related())
+    if ((is_positive_preliminary_reply() == FUJI_ERROR::NONE) && is_filesystem_related())
     {
         // Do nothing.
         Debug_printf("Got our 150\r\n");
@@ -906,6 +913,14 @@ fujiError_t fnFTP::open_directory(string path, string pattern)
     else
     {
         Debug_printf("Didn't get our 150\r\n");
+        if (_active_mode)
+            _active_server.stop();
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+
+    if (accept_active_connection() != FUJI_ERROR::NONE)
+    {
+        Debug_printf("fnFTP::open_directory(%s%s) - active mode connection failed.\r\n", path.c_str(), pattern.c_str());
         return FUJI_ERROR::UNSPECIFIED;
     }
 
@@ -1072,7 +1087,6 @@ bool fnFTP::control_connected()
 
 /** FTP UTILITY FUNCTIONS **********************************************************************/
 
-
 fujiError_t fnFTP::parse_response()
 {
     char respBuf[384];  // room for control message incl. file path and file size
@@ -1168,9 +1182,29 @@ int fnFTP::read_response_line(char *buf, int buflen)
 
 fujiError_t fnFTP::get_data_port()
 {
+    Debug_printf("fnFTP::get_data_port()\r\n");
+
+    _active_mode = false;
+    control->flush();
+
+    if (get_data_port_epsv() == FUJI_ERROR::NONE)
+        return FUJI_ERROR::NONE; // success
+
+    Debug_printf("EPSV failed (%s), falling back to PASV.\r\n", controlResponse.c_str());
+
+    if (get_data_port_pasv() == FUJI_ERROR::NONE)
+        return FUJI_ERROR::NONE; // success
+
+    Debug_printf("PASV failed (%s), falling back to PORT (active mode).\r\n", controlResponse.c_str());
+
+    return get_data_port_port();
+}
+
+fujiError_t fnFTP::get_data_port_epsv()
+{
     size_t port_pos_beg, port_pos_end;
 
-    Debug_printf("fnFTP::get_data_port()\r\n");
+    Debug_printf("fnFTP::get_data_port_epsv()\r\n");
 
     control->flush();
     EPSV();
@@ -1225,9 +1259,123 @@ fujiError_t fnFTP::get_data_port()
     }
     else
     {
-        Debug_printf("Data port %u opened.\r\n", data_port);
+        Debug_printf("Data port %u opened (EPSV).\r\n", data_port);
     }
 
+    return FUJI_ERROR::NONE;
+}
+
+fujiError_t fnFTP::get_data_port_pasv()
+{
+    PASV();
+
+    Debug_printf("Did PASV, getting response.\r\n");
+
+    if (parse_response() != FUJI_ERROR::NONE)
+    {
+        Debug_printf("Timed out waiting for response.\r\n");
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+
+    // accept only 227 response: Entering Passive Mode (h1,h2,h3,h4,p1,p2)
+    if (_statusCode != 227)
+    {
+        Debug_printf("Cannot get data port. Response was: %s\n", controlResponse.c_str());
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+
+    size_t paren_beg = controlResponse.find('(');
+    size_t paren_end = controlResponse.find(')', paren_beg == string::npos ? 0 : paren_beg);
+    if (paren_beg == string::npos || paren_end == string::npos)
+    {
+        Debug_printf("Could not parse PASV response: %s\r\n", controlResponse.c_str());
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+
+    string nums = controlResponse.substr(paren_beg + 1, paren_end - paren_beg - 1);
+    unsigned int h1, h2, h3, h4, p1, p2;
+    if (sscanf(nums.c_str(), "%u,%u,%u,%u,%u,%u", &h1, &h2, &h3, &h4, &p1, &p2) != 6)
+    {
+        Debug_printf("Could not parse PASV address: %s\r\n", nums.c_str());
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+
+    char ip_str[16];
+    snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u", h1, h2, h3, h4);
+    data_port = (uint16_t)((p1 << 8) | p2);
+
+    Debug_printf("Server gave us data address %s:%u\r\n", ip_str, data_port);
+
+    // Note: some servers behind NAT report an internal/unreachable IP here;
+    // we use it as given, per RFC 959.
+    if (!data->connect(ip_str, data_port, FTP_TIMEOUT))
+    {
+        Debug_printf("Could not open data port %s:%u, errno = %u\r\n", ip_str, data_port, errno);
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+    else
+    {
+        Debug_printf("Data port %s:%u opened (PASV).\r\n", ip_str, data_port);
+    }
+    return FUJI_ERROR::NONE;
+}
+
+
+fujiError_t fnFTP::get_data_port_port()
+{
+    if (!_active_server.begin(0))
+    {
+        Debug_printf("Could not start listening socket for active mode.\r\n");
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+
+    in_addr_t local_ip = control->localIP();
+    uint16_t local_port = _active_server.port();
+    const uint8_t *ip_bytes = (const uint8_t *)&local_ip;
+
+    PORT(ip_bytes[0], ip_bytes[1], ip_bytes[2], ip_bytes[3], local_port);
+
+    if (parse_response() != FUJI_ERROR::NONE)
+    {
+        Debug_printf("Timed out waiting for response.\r\n");
+        _active_server.stop();
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+
+    if (!is_positive_completion_reply())
+    {
+        Debug_printf("Server rejected PORT. Response was: %s\r\n", controlResponse.c_str());
+        _active_server.stop();
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+
+    _active_mode = true;
+    Debug_printf("Listening on port %u for server to connect (PORT).\r\n", local_port);
+
+    return FUJI_ERROR::NONE;
+}
+
+fujiError_t fnFTP::accept_active_connection()
+{
+    if (!_active_mode)
+        return FUJI_ERROR::NONE; // nothing to do, EPSV/PASV already connected
+
+    int tmout_counter = 1 + FTP_TIMEOUT / 50;
+    while (!_active_server.hasClient())
+    {
+        if (--tmout_counter == 0)
+        {
+            Debug_printf("fnFTP::accept_active_connection() - timed out waiting for server to connect.\r\n");
+            _active_server.stop();
+            return FUJI_ERROR::UNSPECIFIED;
+        }
+        fnSystem.delay(50);
+    }
+
+    *data = _active_server.client();
+    _active_server.stop(); // done listening, we only needed the one connection
+
+    Debug_printf("fnFTP::accept_active_connection() - server connected.\r\n");
     return FUJI_ERROR::NONE;
 }
 
@@ -1259,6 +1407,20 @@ void fnFTP::EPSV()
 {
     Debug_printf("fnFTP::EPSV()\r\n");
     control->write("EPSV\r\n");
+}
+
+void fnFTP::PASV()
+{
+    Debug_printf("fnFTP::PASV()\r\n");
+    control->write("PASV\r\n");
+}
+
+void fnFTP::PORT(uint8_t h1, uint8_t h2, uint8_t h3, uint8_t h4, uint16_t port)
+{
+    Debug_printf("fnFTP::PORT(%u.%u.%u.%u:%u)\r\n", h1, h2, h3, h4, port);
+    control->write("PORT " + std::to_string(h1) + "," + std::to_string(h2) + "," +
+                   std::to_string(h3) + "," + std::to_string(h4) + "," +
+                   std::to_string(port >> 8) + "," + std::to_string(port & 0xff) + "\r\n");
 }
 
 void fnFTP::RETR(string path)

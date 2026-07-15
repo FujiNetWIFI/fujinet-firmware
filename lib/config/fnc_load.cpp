@@ -187,17 +187,17 @@ New behavior: copy from SD first if available, then read FLASH.
         case SECTION_BOIP:
             _read_section_boip(ss);
             break;
+        case SECTION_GOOGLEDRIVE:
+            _read_section_gdrive(ss);
+            break;
+        case SECTION_S3:
+            _read_section_s3(ss);
+            break;
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
         case SECTION_SERIAL:
             _read_section_serial(ss);
             break;
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
-#ifndef ESP_PLATFORM
-        // Bus Over Serial, for APPLE SmartPort over Serial via USB/Serial
-        case SECTION_BOS:
-            _read_section_bos(ss);
-            break;
-#endif /* ! ESP_PLATFORM */
         case SECTION_UNKNOWN:
             break;
         }

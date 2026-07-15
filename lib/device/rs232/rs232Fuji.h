@@ -11,23 +11,6 @@ class rs232Fuji : public fujiDevice
 private:
 
 protected:
-    // Temporary until all platforms have transaction_ methods in virtualDevice base class
-    void transaction_continue(transState_t expectMoreData) override {
-        virtualDevice::transaction_continue(expectMoreData);
-    }
-    void transaction_complete() override {
-        virtualDevice::transaction_complete();
-    }
-    void transaction_error() override {
-        virtualDevice::transaction_error();
-    }
-    success_is_true transaction_get(void *data, size_t len) override {
-        return virtualDevice::transaction_get(data, len);
-    }
-    void transaction_put(const void *data, size_t len, bool err) override {
-        virtualDevice::transaction_put(data, len, err);
-    }
-
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
 
@@ -39,7 +22,7 @@ public:
     rs232Fuji();
     void setup() override;
     void rs232_status(FujiStatusReq reqType) override;
-    void rs232_process(FujiBusPacket &packet) override;
+    void rs232_process(const FujiBusPacket &packet) override;
 
     // ============ Wrapped Fuji commands ============
     std::optional<std::vector<uint8_t>> fujicore_read_app_key() override;

@@ -2,15 +2,16 @@
 #define FUJIDEVICE_H
 
 #include "fnConfig.h"
+#include "Base64Mixin.h"
+#include "HashMixin.h"
 
 #include "../fuji/fujiHost.h"
 #include "../fuji/fujiDisk.h"
 
-#include "hash.h"
-
 #include <string>
 #include <optional>
 #include <map>
+#include <atomic>
 
 #if defined(BUILD_ATARI) || defined(BUILD_LYNX)
 #define SYSTEM_BUS_IS_UDP 1
@@ -120,7 +121,33 @@ enum DET_file_flags_t {
     DET_FF_TRUNC = 0x02,
 };
 
-class fujiDevice : public virtualDevice
+#ifdef FUJI_MIXINS_ENABLED
+/* Mixin handling. This allows adding additional commands to a
+   fujiDevice without having to mess around with the command handling
+   in each subclass. Just add a mixin and add more commands.
+ */
+
+// This class inherits from all the mixins you list and tries each one in order
+template<typename... FujiDeviceMixins>
+class FujiDeviceChain : public FujiDeviceMixins...
+{
+ protected:
+    bool tryAllMixins(const FUJI_COMMAND_PACKET &packet) {
+        // Try each mixin's processCommand() until one returns true
+        return (FujiDeviceMixins::processCommand(packet) || ...);
+    }
+
+ public:
+    bool processCommand(const FUJI_COMMAND_PACKET &packet) override {
+        return (FujiDeviceMixins::processCommand(packet) || ...);
+    }
+};
+#endif // FUJI_MIXINS_ENABLED
+
+class fujiDevice : public virtual virtualDevice, public VDevMigrationWrapper
+#ifdef FUJI_MIXINS_ENABLED
+                 , public FujiDeviceChain<Base64Mixin, HashMixin>
+#endif // FUJI_MIXINS_ENABLED
 {
 private:
     bool hostMounted[MAX_HOSTS];
@@ -143,13 +170,13 @@ protected:
     int _current_open_directory_slot = -1;
     uint8_t _countScannedSSIDs = 0;
 
-    Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
+    std::atomic<bool> _startup_mount_lock{false};
+    unsigned char _active_rotate_slot = 0;
 
-    virtual void transaction_continue(transState_t expectMoreData) = 0;
-    virtual void transaction_complete() = 0;
-    virtual void transaction_error() = 0;
-    virtual success_is_true transaction_get(void *data, size_t len) = 0;
-    virtual void transaction_put(const void *data, size_t len, bool err=false) = 0;
+#ifndef FUJI_HASH_MIXIN_ENABLED
+    // FIXME - remove when mixins enabled for all buses
+    Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
+#endif // FUJI_HASH_MIXIN_ENABLED
 
     virtual size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                                    uint8_t maxlen) = 0;
@@ -167,6 +194,13 @@ public:
                std::optional<std::string> lobbyURL);
     virtual void setup() = 0;
     void shutdown() override;
+
+#ifdef FUJI_MIXINS_ENABLED
+    // Return true if command was handled here
+    bool processCommand(const FUJI_COMMAND_PACKET &packet) override {
+        return tryAllMixins(packet);
+    }
+#endif // FUJI_MIXINS_ENABLED
 
     fujiHost *get_host(int i) { return &_fnHosts[i]; }
     std::string get_host_prefix(int host_slot) { return _fnHosts[host_slot].get_prefix(); }
@@ -200,6 +234,7 @@ public:
     virtual void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl);
     void fujicmd_get_directory_position();
     void fujicmd_set_directory_position(uint16_t pos);
+    success_is_true fujicore_copy_file_success(uint8_t sourceSlot, uint8_t destSlot, std::string copySpec);
     success_is_true fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot, std::string copySpec);
     virtual void fujicmd_get_adapter_config();
     virtual void fujicmd_get_adapter_config_extended();
@@ -219,7 +254,7 @@ public:
     void fujicmd_status();
     void fujicmd_set_sio_external_clock(uint16_t speed);
 #ifdef SYSTEM_BUS_IS_UDP
-    void fujicmd_enable_udpstream(int port);
+    void fujicmd_enable_netstream(int port);
 #endif /* SYSTEM_BUS_IS_UDP */
 
     // Move appkey stuff to its own file?
@@ -255,11 +290,12 @@ public:
     success_is_true fujicore_unmount_disk_image_success(uint8_t deviceSlot);
     success_is_true fujicore_mount_host_success(unsigned hostSlot);
     success_is_true fujicore_mount_all_success();
+    success_is_true fujicore_mount_all_at_startup();
     void fujicore_net_scan_networks();
     success_is_true fujicore_net_set_ssid_success(const char *ssid, const char *password, bool save);
 
     // Should be protected but being called by drivewire.cpp
-    void insert_boot_device(uint8_t image_id, mediatype_t disk_type, DISK_DEVICE *disk_dev);
+    virtual void insert_boot_device(uint8_t image_id, mediatype_t disk_type, DISK_DEVICE *disk_dev);
     void insert_boot_device(std::string boot_img, mediatype_t disk_type, DISK_DEVICE *disk_dev);
 };
 

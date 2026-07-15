@@ -16,6 +16,7 @@ private:
     void _set_fn_tz(const FujiBusPacket &packet);
     void _get_time_apetime(const FujiBusPacket &packet, bool force_alt);
     void _get_time_simple(const FujiBusPacket &packet);
+    void _get_time_simple_hundredths(const FujiBusPacket &packet);
     void _get_time_prodos(const FujiBusPacket &packet);
     void _get_time_sos(const FujiBusPacket &packet);
     void _get_time_iso_local(const FujiBusPacket &packet);
@@ -24,7 +25,7 @@ private:
     void _get_general_tz_len();
 
 public:
-    void rs232_process(FujiBusPacket &packet) override;
+    void rs232_process(const FujiBusPacket &packet) override;
     void rs232_status(FujiStatusReq reqType) override {}
 };
 

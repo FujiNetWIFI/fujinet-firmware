@@ -56,9 +56,11 @@ data/webui/device_specific/BUILD_ATARI/fnconfig.ini
 fujinet_releases/*
 
 *~
+\#*
 *.orig
 *.rej
 *.lst
 
 # espressif managed components
 managed_components
+__pycache__

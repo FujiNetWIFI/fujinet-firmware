@@ -37,11 +37,6 @@ class iwmNetwork : public virtualDevice
 public:
 
     /**
-     * Command frame for protocol adapter
-     */
-    cmdFrame_t cmdFrame;
-
-    /**
      * Constructor
      */
     iwmNetwork();
@@ -68,7 +63,7 @@ public:
      * Called for iwm Command 'O' to open a connection to a network protocol, allocate all buffers,
      * and start the receive PROCEED interrupt.
      */
-    virtual void open();
+    virtual void open(const iwm_decoded_cmd_t &cmd);
 
     /**
      * Called for iwm Command 'C' to close a connection to a network protocol, de-allocate all buffers,
@@ -79,7 +74,7 @@ public:
     /**
      * Write to Network Socket 'W'
      */
-    void net_write();
+    void net_write(const iwm_decoded_cmd_t &cmd);
 
     /**
      * Read from Network Socket 'R'
@@ -101,28 +96,25 @@ public:
      */
     virtual void status();
 
-    void process(iwm_decoded_cmd_t cmd) override;
-    void process_fs(fujiCommandID_t control_code);
-    void process_tcp(fujiCommandID_t control_code);
-    void process_http(fujiCommandID_t control_code);
-    void process_udp(fujiCommandID_t control_code);
+    void process_fs(const iwm_decoded_cmd_t &cmd);
+    void process_tcp(const iwm_decoded_cmd_t &cmd);
+    void process_http(const iwm_decoded_cmd_t &cmd);
+    void process_udp(const iwm_decoded_cmd_t &cmd);
 
-    void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
-    void iwm_open(iwm_decoded_cmd_t cmd) override;
-    void iwm_close(iwm_decoded_cmd_t cmd) override;
-    void iwm_read(iwm_decoded_cmd_t cmd) override;
-    void iwm_write(iwm_decoded_cmd_t cmd) override;
-    void iwm_status(iwm_decoded_cmd_t cmd) override;
+    void iwm_ctrl(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_open(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_close(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_read(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_write(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_status(const iwm_decoded_cmd_t &cmd) override;
     void shutdown() override;
-    void send_status_reply_packet() override;
-    void send_extended_status_reply_packet() override{};
-    void send_status_dib_reply_packet() override;
-    void send_extended_status_dib_reply_packet() override{};
+    iwm_device_info_block_t create_dib_reply_packet() override;
+    iwm_device_status_block_t create_status_reply_packet() override;
 
     /**
      * @brief Called to set prefix
      */
-    virtual void set_prefix();
+    virtual void set_prefix(const iwm_decoded_cmd_t &cmd);
 
     /**
      * @brief Called to get prefix
@@ -132,17 +124,17 @@ public:
     /**
      * @brief called to set login
      */
-    virtual void set_login();
+    virtual void set_login(const iwm_decoded_cmd_t &cmd);
 
     /**
      * @brief called to set password
      */
-    virtual void set_password();
+    virtual void set_password(const iwm_decoded_cmd_t &cmd);
 
     /**
      * @brief set channel mode
      */
-    void channel_mode();
+    void channel_mode(const iwm_decoded_cmd_t &cmd);
 
     /**
      * @brief parse incoming data
@@ -153,53 +145,12 @@ public:
      * @brief JSON Query
      * @param s size of query
      */
-    void json_query(iwm_decoded_cmd_t cmd);
+    void json_query(const iwm_decoded_cmd_t &cmd);
 
     std::unordered_map<uint8_t, NetworkData> network_data_map;
     uint8_t current_network_unit = 1;
 
 private:
-
-    // /**
-    //  * JSON Object
-    //  */
-    // FNJSON json;
-
-    // /**
-    //  * The Receive buffer for this N: device
-    //  */
-    // std::string *receiveBuffer = nullptr;
-
-    // /**
-    //  * The transmit buffer for this N: device
-    //  */
-    // std::string *transmitBuffer = nullptr;
-
-    // /**
-    //  * The special buffer for this N: device
-    //  */
-    // std::string *specialBuffer = nullptr;
-
-    // /**
-    //  * The PeoplesUrlParser object used to hold/process a URL
-    //  */
-    // std::unique_ptr<PeoplesUrlParser> urlParser = nullptr;
-
-    // /**
-    //  * Instance of currently open network protocol
-    //  */
-    // NetworkProtocol *protocol = nullptr;
-
-    // /**
-    //  * @brief Factory that creates protocol from urls
-    // */
-    // ProtocolParser *protocolParser = nullptr;
-
-    /**
-     * SP_ERR number when there's an ... error!
-     */
-    uint8_t err = SP_ERR_NOERROR;
-
     /**
      * ESP timer handle for the Interrupt rate limiting timer
      */
@@ -207,60 +158,10 @@ private:
     esp_timer_handle_t rateTimerHandle = nullptr;
 #endif
 
-    // /**
-    //  * Devicespec passed to us, e.g. N:HTTP://WWW.GOOGLE.COM:80/
-    //  */
-    // std::string deviceSpec;
-
-    // /**
-    //  * The currently set Prefix for this N: device, set by iwm call 0x2C
-    //  */
-    // std::string prefix;
-
-    /**
-     * The AUX1 value used for OPEN.
-     */
-    uint8_t open_aux1 = 0;
-
-    /**
-     * The AUX2 value used for OPEN.
-     */
-    uint8_t open_aux2 = 0;
-
-    /**
-     * The Translation mode ORed into AUX2 for READ/WRITE/STATUS operations.
-     * 0 = No Translation, 1 = CR<->EOL (Macintosh), 2 = LF<->EOL (UNIX), 3 = CR/LF<->EOL (PC/Windows)
-     */
-    uint8_t trans_aux2 = 0;
-
-    /**
-     * The login to use for a protocol action
-     */
-    // std::string login;
-
-    /**
-     * The password to use for a protocol action
-     */
-    // std::string password;
-
     /**
      * Timer Rate for interrupt timer
      */
     int timerRate = 100;
-
-    /**
-     * The channel mode for the currently open iwm device. By default, it is PROTOCOL, which passes
-     * read/write/status commands to the protocol. Otherwise, it's a special mode, e.g. to pass to
-     * the JSON or XML parsers.
-     *
-     * @enum PROTOCOL Send to protocol
-     * @enum JSON Send to JSON parser.
-     */
-    // enum _channel_mode
-    // {
-    //     PROTOCOL,
-    //     JSON
-    // } channelMode;
 
     /**
      * The current receive state, are we sending channel or status data?
@@ -286,7 +187,7 @@ private:
     /**
      * Create the deviceSpec and fix it for parsing
      */
-    void create_devicespec(std::string d);
+    void create_devicespec(std::string d, bool is_dir);
 
     /**
      * Create a urlParser from deviceSpec
@@ -320,21 +221,21 @@ private:
      * @param num_bytes Number of bytes to read.
      * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
      */
-    bool read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd);
+    error_is_true read_channel(const iwm_decoded_cmd_t &cmd);
 
     /**
      * Perform the correct read based on value of channelMode
      * @param num_bytes Number of bytes to read.
      * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
      */
-    bool read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t cmd);
+    error_is_true read_channel_json(const iwm_decoded_cmd_t &cmd);
 
     /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
      * @return TRUE on error, FALSE on success. Used to emit iwmnet_error or iwmnet_complete().
      */
-    bool write_channel(unsigned short num_bytes);
+    error_is_true write_channel(unsigned short num_bytes);
 
     /**
      * @brief perform local status commands, if protocol is not bound, based on cmdFrame
@@ -366,7 +267,7 @@ private:
      * @brief parse URL and instantiate protocol
      * @param db pointer to devicespecbuf 256 chars
      */
-    void parse_and_instantiate_protocol(std::string d);
+    error_is_true parse_and_instantiate_protocol(std::string d, bool is_dir);
 };
 
 #endif /* NETWORK_H */

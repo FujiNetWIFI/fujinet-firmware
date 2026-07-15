@@ -155,6 +155,18 @@ void NetSIO::end()
     _initialized = false;
 }
 
+bool NetSIO::poll(int ms)
+{
+    if (_initialized)
+    {
+        if (handle_netsio() > 0)
+            return true;
+        return (wait_sock_readable(ms));
+    }
+    fnSystem.delay(ms);
+    return false;
+}
+
 void NetSIO::suspend(int ms)
 {
     Debug_printf("Suspending NetSIO for %d ms\n", ms);

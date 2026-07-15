@@ -466,7 +466,9 @@ void drivewireModem::at_handle_answer()
         CRX = true;
 
         cmdMode = false;
+#ifdef OBSOLETE
         SYSTEM_BUS.flushOutput();
+#endif /* OBSOLETE */
         answerHack = false;
     }
 }

@@ -122,7 +122,7 @@ void lynxNetwork::open(unsigned short len)
     if (protocol->open(urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != FUJI_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
-        Debug_printf("Protocol unable to make connection. Error: %d\n", err);
+        Debug_printf("Protocol unable to make connection. Error: %d\n", (int)err);
         delete protocol;
         protocol = nullptr;
         if (protocolParser != nullptr)
@@ -315,7 +315,7 @@ void lynxNetwork::status()
     status.conn = s.connected;
     status.err = s.error;
 
-    Debug_printf("lynxNetwork::comlynx_status - avail:%d conn:%d err:%d\n", status.avail, status.conn, status.err);
+    Debug_printf("lynxNetwork::comlynx_status - avail:%d conn:%d err:%d\n", status.avail, status.conn, (int)status.err);
     transaction_put(&status, sizeof(status));
 }
 
@@ -602,7 +602,7 @@ void lynxNetwork::comlynx_process()
 
     // Get the entire payload from Lynx
     uint16_t len = comlynx_recv_length();
-    Debug_printf("lynxNetwork::comlynx_process - len: %ld, ", len);
+    Debug_printf("lynxNetwork::comlynx_process - len: %ld, ", (long int)len);
 
     comlynx_recv_buffer(recvbuffer, len);
     if (comlynx_recv_ck()) {
@@ -675,7 +675,7 @@ void lynxNetwork::comlynx_process()
         process_tcp(cmd);
         break;
 
-    case NETCMD_UNLISTEN:
+    case NETCMD_SET_CHANNEL_MODE:
         process_http(cmd);
         break;
 
@@ -849,7 +849,7 @@ void lynxNetwork::process_tcp(fujiCommandID_t cmd)
             if (!status.connected)
             {
                 cmd_err = tcp->accept_connection();
-                Debug_printf("ACCEPT %x CHANMODE %d ERR: %d\n", _devnum, channelMode, cmd_err);
+                Debug_printf("ACCEPT %x CHANMODE %d ERR: %d\n", _devnum, channelMode, (int)cmd_err);
             }
         }
         break;
@@ -885,7 +885,7 @@ void lynxNetwork::process_http(fujiCommandID_t cmd)
     fujiError_t cmd_err;
     switch (cmd)
     {
-    case NETCMD_UNLISTEN:
+    case NETCMD_SET_CHANNEL_MODE:
         cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmdFrame.aux2);
         break;
     default:

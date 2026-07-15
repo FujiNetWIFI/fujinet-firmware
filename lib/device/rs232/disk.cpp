@@ -19,13 +19,13 @@ rs232Disk::rs232Disk()
 // Read disk data and send to computer
 void rs232Disk::rs232_read(uint32_t sector)
 {
-    transaction_continue(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     Debug_printf("disk READ %lu\n", sector);
 
     if (_disk == nullptr)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
@@ -34,7 +34,7 @@ void rs232Disk::rs232_read(uint32_t sector)
     bool err = _disk->read(sector, &readcount);
 
     // Send result to Atari
-    transaction_put(_disk->_disk_sectorbuff, readcount, err);
+    SYSTEM_BUS.transaction_send(_disk->_disk_sectorbuff, readcount, err);
 }
 
 // Write disk data from computer
@@ -42,23 +42,25 @@ void rs232Disk::rs232_write(uint32_t sector, bool verify)
 {
     //Debug_print("disk WRITE\n");
 
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+
     if (_disk != nullptr)
     {
         uint16_t sectorSize = _disk->sector_size(sector);
 
         memset(_disk->_disk_sectorbuff, 0, DISK_SECTORBUF_SIZE);
 
-        if (transaction_get(_disk->_disk_sectorbuff, sectorSize))
+        if (SYSTEM_BUS.transaction_get(_disk->_disk_sectorbuff, sectorSize))
         {
             if (_disk->write(sector, verify) == false)
             {
-                transaction_complete();
+                SYSTEM_BUS.transaction_success();
                 return;
             }
         }
     }
 
-    transaction_error();
+    SYSTEM_BUS.transaction_error();
 }
 
 // Status
@@ -111,18 +113,18 @@ void rs232Disk::rs232_status(FujiStatusReq reqType)
 
     Debug_printf("response: 0x%02x, 0x%02x, 0x%02x\n", _status[0], _status[1], _status[2]);
 
-    transaction_put(_status, sizeof(_status), false);
+    SYSTEM_BUS.transaction_send(_status, sizeof(_status), false);
 }
 
 // Disk format
 void rs232Disk::rs232_format()
 {
-    transaction_continue(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_print("disk FORMAT\n");
 
     if (_disk == nullptr)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
@@ -130,44 +132,44 @@ void rs232Disk::rs232_format()
     bool err = _disk->format(&responsesize);
 
     // Send to computer
-    transaction_put(_disk->_disk_sectorbuff, responsesize, err);
+    SYSTEM_BUS.transaction_send(_disk->_disk_sectorbuff, responsesize, err);
 }
 
 // Read percom block
 void rs232Disk::rs232_read_percom_block()
 {
-    transaction_continue(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_print("disk READ PERCOM BLOCK\n");
 
     if (_disk == nullptr)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
 #ifdef VERBOSE_DISK
     _disk->dump_percom_block();
 #endif
-    transaction_put((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock), false);
+    SYSTEM_BUS.transaction_send((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock), false);
 }
 
 // Write percom block
 void rs232Disk::rs232_write_percom_block()
 {
-    transaction_continue(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
     Debug_print("disk WRITE PERCOM BLOCK\n");
 
     if (_disk == nullptr)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
-    transaction_get((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock));
+    SYSTEM_BUS.transaction_get((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock));
 #ifdef VERBOSE_DISK
     _disk->dump_percom_block();
 #endif
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 }
 
 /* Mount Disk
@@ -283,7 +285,7 @@ success_is_true rs232Disk::write_blank(fnFile *f, uint16_t sectorSize, uint16_t 
 }
 
 // Process command
-void rs232Disk::rs232_process(FujiBusPacket &packet)
+void rs232Disk::rs232_process(const FujiBusPacket &packet)
 {
     Debug_print("disk rs232_process()\n");
 
@@ -313,7 +315,7 @@ void rs232Disk::rs232_process(FujiBusPacket &packet)
         break;
     }
 
-    transaction_error();
+    SYSTEM_BUS.transaction_error();
 }
 
 #endif /* BUILD_RS232 */

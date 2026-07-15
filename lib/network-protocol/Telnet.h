@@ -22,6 +22,13 @@ public:
     virtual ~NetworkProtocolTELNET();
 
     /**
+     * @brief Open the connection, taking terminal type and (optionally) window
+     *        size from the URL query (?term=..&cols=..&rows=..) before connecting.
+     */
+    fujiError_t open(PeoplesUrlParser *urlParser, fileAccessMode_t access,
+                     netProtoTranslation_t translate) override;
+
+    /**
      * @brief Read len bytes into rx_buf, If protocol times out, the buffer should be null padded to length.
      * @param len Number of bytes to read.
      * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
@@ -56,6 +63,11 @@ public:
     int newRxLen;
 
     char ttype[32]="dumb";
+
+    /* Window size from the URL query; 0 means "not specified" - in that case we
+       do NOT report a size (no NAWS), rather than inventing one. */
+    int naws_w = 0;
+    int naws_h = 0;
 };
 
 #endif /* NETWORKPROTOCOL_TELNET */

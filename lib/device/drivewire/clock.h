@@ -11,12 +11,12 @@ class drivewireClock : public virtualDevice
 {
 private:
     std::string alternate_tz = "";
-    std::optional<std::string> read_tz_from_host();
-    void set_fn_tz();
-    void set_alternate_tz();
+    std::optional<std::string> read_tz_from_host(uint16_t bufsz);
+    void set_fn_tz(uint16_t bufsz);
+    void set_alternate_tz(uint16_t bufsz);
 
 public:
-    void process();
+    bool processCommand(const FujiDWPacket &packet) override;
 };
 
 extern drivewireClock platformClock;

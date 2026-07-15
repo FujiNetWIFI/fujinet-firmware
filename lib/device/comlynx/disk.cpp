@@ -144,7 +144,7 @@ void lynxDisk::comlynx_process()
  
      // Get the entire payload from Lynx
     uint16_t len = comlynx_recv_length();
-    Debug_printf("lynxDisk::comlynx_process - len: %ld, ", len);
+    Debug_printf("lynxDisk::comlynx_process - len: %ld, ", (long int)len);
 
     comlynx_recv_buffer(recvbuffer, len);
     if (comlynx_recv_ck()) {

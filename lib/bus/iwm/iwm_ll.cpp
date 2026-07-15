@@ -196,12 +196,12 @@ int IRAM_ATTR iwm_sp_ll::encode_spi_packet()
 }
 
 
-int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
+error_is_true IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
 {
   //*****************************************************************************
   // Function: iwm_send_packet_spi
   // Parameters: packet_buffer pointer
-  // Returns: status (not used yet, always returns 0)
+  // Returns: TRUE on error, FALSE on success
   //
   // Description: This handles the ACK and REQ lines and sends the packet from the
   // pointer passed to it. (packet_buffer)
@@ -227,7 +227,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
       // timeout!
       portENABLE_INTERRUPTS(); // takes 7 us to execute
       Debug_printf("\nSendPacket timeout waiting for REQ");
-      return 1;
+      RETURN_ERROR_AS_TRUE();
     }
 
   // send the data
@@ -244,10 +244,10 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
     portENABLE_INTERRUPTS(); // takes 7 us to execute
     Debug_printf("\nSend REQ timeout");
     req_wait_for_falling_timeout(100000); //wait until host eventually sets REQ low (~1ms), then we can retry send
-    return 1;
+    RETURN_ERROR_AS_TRUE();
   }
   portENABLE_INTERRUPTS();
-  return 0;
+  RETURN_SUCCESS_AS_FALSE();
 }
 
 #define IWM_NEXT_BIT() ({bool _v = ((src[offset / 8] << (offset % 8)) & 0x80) == 0x80; \
@@ -789,13 +789,14 @@ size_t iwm_sp_ll::decode_data_packet(uint8_t* output_data)
   return decode_data_packet(packet_buffer, output_data);
 }
 
-size_t iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
+size_t iwm_sp_ll::decode_data_packet(uint8_t* input_data, void* output_data)
 {
-  int grpbyte, grpcount;
+  unsigned grpbyte, grpcount;
   uint8_t numgrps, numodd;
   size_t numdata;
   uint8_t bit0to6, bit7;
   uint8_t group_buffer[8];
+  uint8_t *out_ptr = (uint8_t*) output_data;
 
   //Handle arbitrary length packets :)
   numodd = input_data[11] & 0x7f;
@@ -804,8 +805,8 @@ size_t iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
   // Debug_printf("\nDecoding %d bytes",numdata);
 
   // decode oddbyte(s), 1 in a 512 data packet
-  for(int i = 0; i < numodd; i++){
-    output_data[i] = ((input_data[13] << (i+1)) & 0x80) | (input_data[14+i] & 0x7f);
+  for(unsigned i = 0; i < numodd; i++){
+    out_ptr[i] = ((input_data[13] << (i+1)) & 0x80) | (input_data[14+i] & 0x7f);
   }
 
   // decode groups of 7, 73 grps of 7 in a 512 byte packet
@@ -817,7 +818,7 @@ size_t iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
     {
       bit7 = (group_buffer[0] << (grpbyte + 1)) & 0x80;
       bit0to6 = (group_buffer[grpbyte + 1]) & 0x7f;
-      output_data[numodd + (grpcount * 7) + grpbyte] = bit7 | bit0to6;
+      out_ptr[numodd + (grpcount * 7) + grpbyte] = bit7 | bit0to6;
     }
   }
 

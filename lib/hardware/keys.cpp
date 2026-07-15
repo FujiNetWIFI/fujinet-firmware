@@ -16,10 +16,20 @@
 
 #include "led.h"
 
+#ifndef PIN_BUTTON_A
+#define PIN_BUTTON_A GPIO_NUM_NC
+#endif
+#ifndef PIN_BUTTON_B
+#define PIN_BUTTON_B GPIO_NUM_NC
+#endif
+#ifndef PIN_BUTTON_C
+#define PIN_BUTTON_C GPIO_NUM_NC
+#endif
+
 // Global KeyManager object
 KeyManager fnKeyManager;
 
-static int mButtonPin[eKey::KEY_COUNT] = {PIN_BUTTON_A, PIN_BUTTON_B, PIN_BUTTON_C};
+static int mButtonPin[eKey::KEY_COUNT];
 
 void KeyManager::setup()
 {

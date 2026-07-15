@@ -48,6 +48,9 @@ mediatype_t drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disks
     case MEDIATYPE_VDK:
         _media = new MediaTypeVDK();
         break;
+    case MEDIATYPE_ROM:
+        _media = new MediaTypeROM();
+        break;
     default:
         device_active = false;
         break;
@@ -56,8 +59,18 @@ mediatype_t drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disks
     if (_media)
     {
         strcpy(_media->_disk_filename,filename);
+        _media->_media_read_only = !(access_mode & DISK_ACCESS_MODE_WRITE);
         mt = _media->mount(f, disksize);
-        device_active = true;
+        if (mt == MEDIATYPE_UNKNOWN)
+        {
+            delete _media;
+            _media = nullptr;
+            device_active = false;
+        }
+        else
+        {
+            device_active = true;
+        }
     }
 
     return mt;
@@ -65,6 +78,12 @@ mediatype_t drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disks
 
 void drivewireDisk::unmount()
 {
+}
+
+void drivewireDisk::set_media_host(fujiHost *host)
+{
+    if (_media)
+        _media->_media_host = host;
 }
 
 error_is_true drivewireDisk::read(uint32_t lsn, uint8_t *buf)

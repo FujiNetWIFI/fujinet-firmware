@@ -23,6 +23,7 @@
 #include "pinmap/esp32s3.h"
 #include "pinmap/esp32s3-wroom-1.h"
 #include "pinmap/lynx.h"
+#include "pinmap/lynx-s3.h"
 #include "pinmap/rs232_rev0.h"
 #include "pinmap/rs232_s3.h"
 #include "pinmap/cx16.h"
@@ -30,11 +31,11 @@
 #include "pinmap/heathkit_h89.h"
 #include "pinmap/atari2600.h"
 #include "pinmap/esp32s3-xdrive.h"
+#include "pinmap/fujiversal-drivewire.h"
+#include "pinmap/fujiversal-rs232.h"
 
 
-#ifndef PIN_DEBUG
-#define PIN_DEBUG		PIN_IEC_SRQ
-#endif
+#include "pinmap_defaults.h"
 
 #endif // ESP_PLATFORM
 

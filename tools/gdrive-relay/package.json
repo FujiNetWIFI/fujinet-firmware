@@ -1,0 +1,11 @@
+{
+  "name": "fujinet-gdrive-relay",
+  "version": "1.0.0",
+  "description": "OAuth2 relay for FujiNet Google Drive authorization",
+  "main": "relay.js",
+  "scripts": {
+    "start": "node relay.js"
+  },
+  "engines": { "node": ">=16" },
+  "license": "GPL-3.0-or-later"
+}

@@ -148,7 +148,7 @@ void main_setup(int argc, char *argv[])
     //You can change the baud rate and pin numbers similar to Serial.begin() here.
     console.begin(DEBUG_SPEED);
 #else
-    Serial.begin(ChannelConfig().baud(DEBUG_SPEED).deviceID(FN_UART_DEBUG));
+    fnDebugConsole.begin(ChannelConfig().baud(DEBUG_SPEED).deviceID(FN_UART_DEBUG));
 #endif
 
 #ifdef DEBUG
@@ -242,7 +242,7 @@ void main_setup(int argc, char *argv[])
         SYSTEM_BUS.addDevice(&clockDevice, FUJI_DEVICEID_CLOCK); // Clock for Atari, APETime compatible, but extended for additional return types
 
 #ifdef ESP_PLATFORM
-    SYSTEM_BUS.addDevice(&udpDev, FUJI_DEVICEID_MIDI); // UDP/MIDI device
+    SYSTEM_BUS.addDevice(&streamDev, FUJI_DEVICEID_MIDI); // UDP/MIDI device
 #endif
 
     // add PCLink device only if we have SD card
@@ -533,10 +533,21 @@ void fn_service_loop(void *param)
         fnWiFi.connect();
     }
 
-    // if we dont have config enabled, and no alternate config disk selected, then just mount what we have
-    // in here so we are after all of the setup and wifi has been started
+    // If we don't have config enabled, and no alternate config disk
+    // selected, then just mount what we have so we are after all of
+    // the setup and wifi has been started.
+    //
     if (!Config.get_general_config_enabled() && Config.get_config_filename().empty())
-        theFuji->fujicmd_mount_all_success();
+        theFuji->fujicore_mount_all_at_startup();
+
+#ifdef BUILD_ADAM
+    // All devices registered and disks mounted: hand the AdamNet bus to its own
+    // high-priority core-1 task so it services the one-wire bus continuously and
+    // can't be stalled by WiFi/scheduler latency mid-handshake (the desync that
+    // caused intermittent "Drive Error" under PIP *.*[V]). Must be after the mount
+    // above so the task never races device registration / direct-UART setup probes.
+    SYSTEM_BUS.start_bus_task();
+#endif
 
     // Main service loop
 #ifdef ESP_PLATFORM
@@ -560,7 +571,11 @@ void fn_service_loop(void *param)
         Debug_printv("Low Heap: %lu",esp_get_free_internal_heap_size());
   #endif
 #endif
+#if !(defined(BUILD_ADAM) && defined(ESP_PLATFORM))
+        // ESP ADAM services the bus in its own core-1 task; every other build
+        // (including ADAM PC) services it here from the main loop.
         SYSTEM_BUS.service();
+#endif
 
 #ifdef ESP_PLATFORM
         taskYIELD(); // Allow other tasks to run

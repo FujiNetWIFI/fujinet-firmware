@@ -21,7 +21,7 @@
  * MA 02111-1307, USA.
  */
 
-#include "libssh/config.h"
+#include "../config.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -29,6 +29,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif /* HAVE_SYS_TIME_H */
 
 #include "libssh/libssh.h"
 #include "libssh/misc.h"
@@ -51,11 +54,6 @@
 #define NTDDI_VERSION 0x05010000 /* NTDDI_WINXP */
 #endif
 
-#if _MSC_VER >= 1400
-#include <io.h>
-#undef close
-#define close _close
-#endif /* _MSC_VER */
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
@@ -133,7 +131,7 @@ static int getai(const char *host, int port, struct addrinfo **ai)
 #endif
     }
 
-    if (ssh_is_ipaddr(host)) {
+    if (ssh_is_ipaddr(host) == 1) {
         /* this is an IP address */
         SSH_LOG(SSH_LOG_PACKET, "host %s matches an IP address", host);
         hints.ai_flags |= AI_NUMERICHOST;
@@ -165,7 +163,7 @@ static int set_tcp_nodelay(socket_t socket)
 socket_t ssh_connect_host_nonblocking(ssh_session session, const char *host,
                                       const char *bind_addr, int port)
 {
-    socket_t s = -1;
+    socket_t s = -1, first = -1;
     int rc;
     struct addrinfo *ai = NULL;
     struct addrinfo *itr = NULL;
@@ -180,17 +178,19 @@ socket_t ssh_connect_host_nonblocking(ssh_session session, const char *host,
     }
 
     for (itr = ai; itr != NULL; itr = itr->ai_next) {
+        char err_msg[SSH_ERRNO_MSG_MAX] = {0};
         /* create socket */
         s = socket(itr->ai_family, itr->ai_socktype, itr->ai_protocol);
         if (s < 0) {
             ssh_set_error(session, SSH_FATAL,
-                          "Socket create failed: %s", strerror(errno));
+                          "Socket create failed: %s",
+                          ssh_strerror(errno, err_msg, SSH_ERRNO_MSG_MAX));
             continue;
         }
 
         if (bind_addr) {
-            struct addrinfo *bind_ai;
-            struct addrinfo *bind_itr;
+            struct addrinfo *bind_ai = NULL;
+            struct addrinfo *bind_itr = NULL;
 
             SSH_LOG(SSH_LOG_PACKET, "Resolving %s", bind_addr);
 
@@ -211,7 +211,8 @@ socket_t ssh_connect_host_nonblocking(ssh_session session, const char *host,
             {
                 if (bind(s, bind_itr->ai_addr, bind_itr->ai_addrlen) < 0) {
                     ssh_set_error(session, SSH_FATAL,
-                                  "Binding local address: %s", strerror(errno));
+                                  "Binding local address: %s",
+                                  ssh_strerror(errno, err_msg, SSH_ERRNO_MSG_MAX));
                     continue;
                 } else {
                     break;
@@ -243,7 +244,7 @@ socket_t ssh_connect_host_nonblocking(ssh_session session, const char *host,
             if (rc < 0) {
                 ssh_set_error(session, SSH_FATAL,
                               "Failed to set TCP_NODELAY on socket: %s",
-                              strerror(errno));
+                              ssh_strerror(errno, err_msg, SSH_ERRNO_MSG_MAX));
                 ssh_connect_socket_close(s);
                 s = -1;
                 continue;
@@ -252,11 +253,22 @@ socket_t ssh_connect_host_nonblocking(ssh_session session, const char *host,
 
         errno = 0;
         rc = connect(s, itr->ai_addr, itr->ai_addrlen);
-        if (rc == -1 && (errno != 0) && (errno != EINPROGRESS)) {
-            ssh_set_error(session, SSH_FATAL,
-                          "Failed to connect: %s", strerror(errno));
-            ssh_connect_socket_close(s);
-            s = -1;
+        if (rc == -1) {
+            if ((errno != 0) && (errno != EINPROGRESS)) {
+                ssh_set_error(session, SSH_FATAL,
+                              "Failed to connect: %s",
+                              ssh_strerror(errno, err_msg, SSH_ERRNO_MSG_MAX));
+                ssh_connect_socket_close(s);
+                s = -1;
+            } else {
+                if (first == -1) {
+                    first = s;
+                } else { /* errno == EINPROGRESS */
+                    /* save only the first "working" socket */
+                    ssh_connect_socket_close(s);
+                    s = -1;
+                }
+            }
             continue;
         }
 
@@ -264,6 +276,12 @@ socket_t ssh_connect_host_nonblocking(ssh_session session, const char *host,
     }
 
     freeaddrinfo(ai);
+
+    /* first let's go through all the addresses looking for immediate
+     * connection, otherwise return the first address without error or error */
+    if (s == -1) {
+        s = first;
+    }
 
     return s;
 }
@@ -286,14 +304,14 @@ static int ssh_select_cb (socket_t fd, int revents, void *userdata)
 /**
  * @brief A wrapper for the select syscall
  *
- * This functions acts more or less like the select(2) syscall.\n
+ * This function acts more or less like the select(2) syscall.\n
  * There is no support for writing or exceptions.\n
  *
  * @param[in]  channels Arrays of channels pointers terminated by a NULL.
  *                      It is never rewritten.
  *
- * @param[out] outchannels Arrays of same size that "channels", there is no need
- *                         to initialize it.
+ * @param[out] outchannels Arrays of the same size as "channels", there is no
+ *                         need to initialize it.
  *
  * @param[in]  maxfd    Maximum +1 file descriptor from readfds.
  *

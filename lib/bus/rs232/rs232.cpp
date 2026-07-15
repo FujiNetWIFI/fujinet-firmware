@@ -7,7 +7,6 @@
 
 #include "rs232/rs232Fuji.h"
 #include "rs232/network.h"
-#include "udpstream.h"
 #include "modem.h"
 #include "siocpm.h"
 
@@ -37,26 +36,27 @@ uint8_t rs232_checksum(uint8_t *buf, unsigned short len)
     return chk;
 }
 
-void virtualDevice::transaction_continue(transState_t expectMoreData)
+void systemBus::transaction_accept(transState_t expectMoreData)
 {
     assert(_transaction_state == TRANS_STATE::INVALID);
+    _activePacketDataPosition = 0;
     _transaction_state = expectMoreData;
 }
 
-void virtualDevice::transaction_complete()
+void systemBus::transaction_success()
 {
     assert(_transaction_state == TRANS_STATE::NO_GET || _transaction_state == TRANS_STATE::DID_GET);
-    SYSTEM_BUS.sendReplyPacket(_devnum, true, nullptr, 0);
+    sendReplyPacket(_activeDev->_devnum, true, nullptr, 0);
     _transaction_state = TRANS_STATE::INVALID;
 }
 
-void virtualDevice::transaction_error()
+void systemBus::transaction_error()
 {
-    SYSTEM_BUS.sendReplyPacket(_devnum, false, nullptr, 0);
+    sendReplyPacket(_activeDev->_devnum, false, nullptr, 0);
     _transaction_state = TRANS_STATE::INVALID;
 }
 
-success_is_true virtualDevice::transaction_get(void *data, size_t len)
+success_is_true systemBus::transaction_get(void *data, size_t len)
 {
     assert(_transaction_state == TRANS_STATE::WILL_GET);
     _transaction_state = TRANS_STATE::DID_GET;
@@ -64,26 +64,23 @@ success_is_true virtualDevice::transaction_get(void *data, size_t len)
     if (!len)
         RETURN_SUCCESS_AS_TRUE();
 
-    // FIXME - This is a terrible hack to allow devices to continue to
-    // use the pattern of fetching data on their own instead of
-    // upgrading them fully to work with packets.
-    auto optional_data = _legacyPacketData->data();
+    auto optional_data = _activePacket->data();
     if (!optional_data.has_value())
         RETURN_ERROR_AS_FALSE();
-    size_t avail = optional_data.value().size() - _legacyDataPosition;
+    size_t avail = optional_data.value().size() - _activePacketDataPosition;
     avail = std::min(avail, (size_t) len);
-    memcpy(data, optional_data.value().data() + _legacyDataPosition, avail);
-    _legacyDataPosition += avail;
+    memcpy(data, optional_data.value().data() + _activePacketDataPosition, avail);
+    _activePacketDataPosition += avail;
 
     if (avail != len)
         RETURN_ERROR_AS_FALSE();
     RETURN_SUCCESS_AS_TRUE();
 }
 
-void virtualDevice::transaction_put(const void *data, size_t len, bool err)
+void systemBus::transaction_send(const void *data, size_t len, bool is_error)
 {
     assert(_transaction_state == TRANS_STATE::NO_GET);
-    SYSTEM_BUS.sendReplyPacket(_devnum, !err, data, len);
+    sendReplyPacket(_activeDev->_devnum, !is_error, data, len);
     _transaction_state = TRANS_STATE::INVALID;
 }
 
@@ -129,14 +126,15 @@ void systemBus::_rs232_process_cmd()
                  tempFrame->device(), tempFrame->command(),
                  tempFrame->data() ? tempFrame->data()->size() : -1);
 
+
+    _activePacket = tempFrame.get();
+    _activeDev = nullptr;
+
     if (tempFrame->device() == FUJI_DEVICEID_DISK && _fujiDev != nullptr
         && _fujiDev->boot_config)
     {
         _activeDev = &_fujiDev->bootdisk;
-
         Debug_println("FujiNet CONFIG boot");
-        // handle command
-        _activeDev->rs232_process(*tempFrame);
     }
     else
     {
@@ -147,19 +145,13 @@ void systemBus::_rs232_process_cmd()
             if (tempFrame->device() == devicep->_devnum)
             {
                 _activeDev = devicep;
-
-                // FIXME - This is a terrible hack to allow devices to continue to
-                // use the pattern of fetching data on their own instead of
-                // upgrading them fully to work with packets.
-                _activeDev->_legacyPacketData = tempFrame.get();
-                _activeDev->_legacyDataPosition = 0;
-
-                // handle command
-                _activeDev->rs232_process(*tempFrame);
                 break;
             }
         }
     }
+
+    if (_activeDev != nullptr)
+        _activeDev->rs232_process(*tempFrame);
 
     fnLedManager.set(eLed::LED_BUS, false);
 }
@@ -212,16 +204,22 @@ void systemBus::setup()
     if (Config.get_boip_enabled())
     {
         Debug_printf("RS232 SETUP: BOIP host: %s\n", Config.get_boip_host().c_str());
-        _becker.setHost(Config.get_boip_host(), Config.get_boip_port());
-        _becker.begin(Config.get_boip_host(), Config.get_serial_baud());
-        _port = &_becker;
+        _boip.begin(BoIPConfig()
+                    .hostName(Config.get_boip_host())
+                    .portNum(Config.get_boip_port())
+                    );
+        _port = &_boip;
     }
     else {
+#if FUJINET_OVER_USB
+        _serial.begin();
+#else /* ! FUJINET_OVER_USB */
         _serial.begin(ChannelConfig()
-                    .baud(Config.get_serial_baud())
-                    .readTimeout(200)
-                    .deviceID(SERIAL_DEVICE))
-            ;
+                      .baud(Config.get_serial_baud())
+                      .readTimeout(200)
+                      .deviceID(SERIAL_DEVICE)
+                      );
+#endif /* FUJINET_OVER_USB */
         _port = &_serial;
     }
 
@@ -239,7 +237,7 @@ void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
 {
     if (device_id == FUJI_DEVICEID_FUJINET)
     {
-        _fujiDev = (rs232Fuji *)pDevice;
+        _fujiDev = dynamic_cast<rs232Fuji *>(pDevice);
     }
     else if (device_id == FUJI_DEVICEID_SERIAL)
     {
@@ -251,7 +249,7 @@ void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
     }
     else if (device_id == FUJI_DEVICEID_MIDI)
     {
-        _udpDev = (rs232UDPStream *)pDevice;
+        _streamDev = (rs232NetStream *)pDevice;
     }
     else if (device_id == FUJI_DEVICEID_CPM)
     {
@@ -359,8 +357,10 @@ std::unique_ptr<FujiBusPacket> systemBus::readBusPacket(int first)
             break;
     }
 
+#ifdef DEBUG_RAW_PACKET
     Debug_printv("Received %d:\n%s", packet.size(),
                  util_hexdump(packet.data(), packet.size()).c_str());
+#endif // DEBUG_RAW_PACKET
     return FujiBusPacket::fromSerialized(packet);
 }
 
@@ -368,8 +368,10 @@ void systemBus::writeBusPacket(FujiBusPacket &packet)
 {
     ByteBuffer encoded = packet.serialize();
     _port->write(encoded.data(), encoded.size());
+#ifdef DEBUG_RAW_PACKET
     Debug_printv("Sent %d:\n%s", encoded.size(),
                  util_hexdump(encoded.data(), encoded.size()).c_str());
+#endif // DEBUG_RAW_PACKET
     return;
 }
 

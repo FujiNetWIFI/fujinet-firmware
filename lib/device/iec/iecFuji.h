@@ -20,22 +20,13 @@ typedef enum
 class iecFuji : public fujiDevice
 {
 protected:
-    void transaction_continue(transState_t expectMoreData) override {}
-    void transaction_complete() override {}
-    void transaction_error() override {}
-    success_is_true transaction_get(void *data, size_t len) override {RETURN_ERROR_AS_FALSE();}
-    void transaction_put(const void *data, size_t len, bool err) override {
-        response.clear();
-        response.append(reinterpret_cast<const char*>(data), len);
-    }
-
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
 
     AdapterConfig cfg;
 
     std::vector<std::string> pt;
-    std::string payloadRaw, payload, response;
+    std::string payloadRaw, payload;
     std::vector<uint8_t> responseV;
     size_t responsePtr;
     bool is_raw_command;

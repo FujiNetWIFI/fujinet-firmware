@@ -121,6 +121,22 @@ public:
     virtual void sio_set_password();
 
     /**
+     * @brief Get DSTATS value for a given network command
+     * Allows programs to query the data direction for any command.
+     */
+    virtual void sio_get_dstats_value();
+
+    /**
+     * @brief called to seek to a file position (POINT)
+     */
+    virtual void sio_seek();
+
+    /**
+     * @brief called to return the current file position (NOTE)
+     */
+    virtual void sio_tell();
+
+    /**
      * Check to see if PROCEED needs to be asserted.
      */
     void sio_poll_interrupt();
@@ -287,6 +303,13 @@ private:
      * Create a urlParser from deviceSpec
     */
    void create_url_parser();
+
+    /**
+     * Get the DSTATS value for a given network command
+     * @param command The network command code
+     * @return The DSTATS byte value (0x00, 0x40, 0x80, or 0xFF for invalid)
+     */
+    uint8_t get_dstats_for_command(uint8_t command);
 
     /**
      * Start the Interrupt rate limiting timer

@@ -21,7 +21,6 @@
 #define PIN_LED_BT              GPIO_NUM_NC // No BT LED
 #define PIN_LED_RGB             GPIO_NUM_4
 
-#define PIN_I2S                 GPIO_NUM_25
 #define PIN_IEC_RESET           GPIO_NUM_14
 #define PIN_IEC_DATA_IN         GPIO_NUM_26
 #define PIN_IEC_DATA_OUT        GPIO_NUM_26

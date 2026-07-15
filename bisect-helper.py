@@ -16,9 +16,26 @@ BANNER_WIDTH = 40
 BUILD = "./build.sh"
 FNCONFIG = "fnconfig.ini"
 
+BUILD_exit_on_error_patch = """diff --git a/build.sh b/build.sh
+index cba114136..e6a8d41d0 100755
+--- a/build.sh
++++ b/build.sh
+@@ -1,2 +1,3 @@
+ #!/bin/bash
++set -e
+"""
+
+class BisectParser(argparse.ArgumentParser):
+  def error(self, message):
+    sys.stderr.write(f"error: {message}\n")
+    self.print_usage(sys.stderr)
+    # Exit with 255 so the git bisect run stops
+    self.exit(255)
+
 def build_argparser():
-  parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+  parser = BisectParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument("patch", nargs="*", help="patches to apply")
+  parser.add_argument("--anypatch", action="store_true", help="not all patches need to apply")
   parser.add_argument("--esp32", action="store_true", help="build for ESP32")
   parser.add_argument("--skip-fs", action="store_true", help="don't flash the filesystem")
   parser.add_argument("--compile-only", action="store_true", help="don't run, just compile")
@@ -91,26 +108,86 @@ def run_cmd(cmd, **kwargs):
 
 def check_patches(patches):
   """Check if all patches can be applied cleanly."""
-  for patch in patches:
-    run_cmd(["git", "apply", "--check", patch])
-  return
+  try:
+    for patch in patches:
+      run_cmd(["git", "apply", "--check", patch])
+  except subprocess.CalledProcessError:
+    return False
+  return True
 
 def apply_patches(patches):
-  """Apply all patches in order."""
+  """Apply patches in order."""
   for patch in patches:
-    run_cmd(["git", "apply", patch])
+    try:
+      print(f"PATCH: Trying to apply {patch}...")
+      run_cmd(["git", "apply", "--index", patch])
+    except subprocess.CalledProcessError:
+      print(f"PATCH: Unable to apply {patch}")
+      pass
+    else:
+      print(f"PATCH: Applied {patch}")
   return
 
 def restore_repo():
   """Restore all changes so bisect continues."""
-  subprocess.run(["git", "restore", "--staged", "."])
-  subprocess.run(["git", "restore", "."])
+  subprocess.run(["git", "reset", "--hard", "HEAD"])
   return
 
 def bisectExit(code, restoreFlag):
   if restoreFlag:
     restore_repo()
   exit(code)
+
+def get_unique_shortcuts(term_old: str, term_new: str) -> tuple[str, str]:
+  """Calculates distinct single-character shortcuts for both terms."""
+  str1 = term_old.lower()
+  str2 = term_new.lower()
+
+  # 1. Look for the first position where the characters differ
+  for c1, c2 in zip(str1, str2):
+      if c1 != c2:
+          return c1, c2
+
+  # 2. Fallback if one word is a prefix of another or identical (e.g. "fix" vs "fixed")
+  c1 = str1[0] if str1 else 'g'
+  # Shift the character by 1 position in the alphabet (mod 26)
+  c2 = chr(((ord(c1) - ord('a') + 1) % 26) + ord('a'))
+  return c1, c2
+
+def prompt_bisect_status():
+  try:
+    res_old = subprocess.run(["git", "bisect", "terms", "--term-old"],
+                             capture_output=True, text=True, check=True)
+    res_new = subprocess.run(["git", "bisect", "terms", "--term-new"],
+                             capture_output=True, text=True, check=True)
+    term_old = res_old.stdout.strip()
+    term_new = res_new.stdout.strip()
+  except subprocess.CalledProcessError:
+    term_old, term_new = "good", "bad"
+
+  char_old, char_new = get_unique_shortcuts(term_old, term_new)
+
+  result = None
+  while result is None:
+    try:
+      prompt_text = f"{term_old.capitalize()}/{term_new.capitalize()}/Skip?" \
+        f" ({char_old}/{char_new}/s) "
+      response = input(prompt_text).strip().lower()
+    except EOFError:
+      result = SKIP
+      break
+
+    if response == char_old or response == term_old.lower():
+      result = GOOD
+    elif response == char_new or response == term_new.lower():
+      result = BAD
+    elif response == 's' or response == 'skip':
+      result = SKIP
+
+    print(f"Invalid input. Use '{char_old}' for {term_old}," \
+          f" '{char_new}' for {term_new}, or 's' to skip.")
+
+  return result
 
 def main():
   args = build_argparser().parse_args()
@@ -125,11 +202,11 @@ def main():
     bisectExit(SKIP, restoreFlag=do_restore)
 
   if args.patch:
-    try:
-      check_patches(args.patch)
+    if args.anypatch or check_patches(args.patch):
       apply_patches(args.patch)
-    except subprocess.CalledProcessError:
-      pass
+    else:
+      print("Failed to apply patches")
+      exit(255)
     do_restore = True
 
   cmd = [BUILD, ]
@@ -141,9 +218,14 @@ def main():
     except subprocess.CalledProcessError:
       print()
       print("#" * BANNER_WIDTH)
-      print("build.sh is obsolete".center(BANNER_WIDTH))
+      print("build.sh ignores errors, patching".center(BANNER_WIDTH))
       print("#" * BANNER_WIDTH)
-      bisectExit(SKIP, restoreFlag=do_restore)
+      try:
+        run_cmd(["patch", "-p1"], input=BUILD_exit_on_error_patch, text=True,
+                 capture_output=True)
+        do_restore=True
+      except:
+        bisectExit(SKIP, restoreFlag=do_restore)
 
     if args.compile_only:
       cmd.extend(["-b", ])
@@ -189,21 +271,8 @@ def main():
     print()
     print()
 
-    # Ask whether the result was good or bad
-    while True:
-      try:
-        response = input("Good/Bad/Skip? (g/b/s) ").strip().lower()
-      except EOFError:
-        response = 's'
-
-      if response.startswith('g'):
-        bisectExit(GOOD, restoreFlag=do_restore)
-      elif response.startswith('b'):
-        bisectExit(BAD, restoreFlag=do_restore)
-      elif response.startswith('s'):
-        bisectExit(SKIP, restoreFlag=do_restore)
-      else:
-        print("Invalid input. Please answer 'good' or 'bad' or 'skip'.")
+    result = prompt_bisect_status()
+    bisectExit(result, restoreFlag=do_restore)
 
   else:
     # If we are only compiling and didn't fail, then it's good

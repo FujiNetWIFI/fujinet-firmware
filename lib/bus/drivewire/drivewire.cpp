@@ -8,12 +8,10 @@
 
 #include "../../include/debug.h"
 
-#include "udpstream.h"
 #include "modem.h"
 #include "cassette.h"
 #include "printer.h"
 #include "network.h"
-#include "drivewire/dload.h"
 #include "../../lib/device/drivewire/cpm.h"
 
 #include "fnSystem.h"
@@ -40,11 +38,10 @@ static QueueHandle_t drivewire_evt_queue = NULL;
 #define DW_UART_DEVICE Config.get_serial_port()
 #endif /* ESP_PLATFORM */
 
-drivewireDload dload;
-
 // Host & client channel queues
-std::queue<char> outgoingChannel[16];
-std::queue<char> incomingChannel[16];
+#define MAX_CHANNEL_QUEUES 16
+std::queue<char> outgoingChannel[MAX_CHANNEL_QUEUES];
+std::queue<char> incomingChannel[MAX_CHANNEL_QUEUES];
 
 #define DEBOUNCE_THRESHOLD_US 50000ULL
 
@@ -140,8 +137,6 @@ void systemBus::op_readex()
     lsn |= _port->read() << 8;
     lsn |= _port->read();
 
-    Debug_printf("OP_READ: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
-
     // named object support for dragon
     if (strlen((const char*)szNamedMount))
     {
@@ -181,8 +176,10 @@ void systemBus::op_readex()
     }
     else
     {
-        if (true==bDragon && drive_num>=5) drive_num = drive_num-5;
-    Debug_printf("OP_READ: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
+        if (true == bDragon && drive_num >= 5)
+            drive_num = drive_num - 5;
+
+        Debug_printf("OP_READ: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
 
         if (theFuji->boot_config && drive_num == 0)
             d = &theFuji->bootdisk;
@@ -333,43 +330,103 @@ void systemBus::op_write()
     _port->write(0x00); // success
 }
 
-void systemBus::op_fuji()
+bool systemBus::_transaction_handle_command(const FujiDWPacket &packet, virtualDevice &device)
 {
-    platformFuji.process();
+    uint16_t len;
+    fujiCommandID_t cmd = packet.command();
+
+    _activeDev = &device;
+    _activeFrame = &packet;
+
+    if (packet.device() == OP::CLOCK)
+        cmd = FUJICMD_SEND_RESPONSE;
+
+    switch (cmd)
+    {
+    case FUJICMD_DEVICE_READY:
+        write(0x01); // yes, ready.
+        return true;
+
+    case FUJICMD_SEND_ERROR:
+        Debug_printf("drivewire device error = %s\n",
+                     device._errorCode == NDEV_STATUS::SUCCESS
+                     ? "NONE" : std::to_string(static_cast<int>(device._errorCode)).c_str());
+        write(static_cast<uint8_t>(device._errorCode));
+        return true;
+
+    case FUJICMD_SEND_RESPONSE:
+        len = 0;
+        if (packet.device() == OP::NET)
+            len = packet.param(0);
+
+        // Pad to requested response length. Thanks apc!
+        if (_transaction_response.size() < len)
+            _transaction_response.resize(std::max<size_t>(_transaction_response.size(), len), 0);
+
+        write(_transaction_response.data(), _transaction_response.size());
+        _transaction_response.clear();
+        _transaction_response.shrink_to_fit();
+        return true;
+
+    default:
+        break;
+    }
+
+    return false;
 }
 
-void systemBus::op_cpm()
+void systemBus::op_fuji(dwOpcode_t opcode)
 {
+    FujiDWPacket packet(opcode);
+
+    if (_transaction_handle_command(packet, platformFuji))
+        return;
+
+    platformFuji.processCommand(packet);
+}
+
+void systemBus::op_cpm(dwOpcode_t opcode)
+{
+    FujiDWPacket packet(opcode);
+
 #ifdef ESP_PLATFORM
-    theCPM.process();
+    if (_transaction_handle_command(packet, theCPM))
+        return;
+
+    theCPM.processCommand(packet);
 #endif /* ESP_PLATFORM */
 }
 
-void systemBus::op_clock()
+void systemBus::op_clock(dwOpcode_t opcode)
 {
-    platformClock.process();
+    FujiDWPacket packet(opcode);
+
+    platformClock.processCommand(packet);
+    _transaction_handle_command(packet, platformClock);
 }
 
-void systemBus::op_net()
+void systemBus::op_net(dwOpcode_t opcode)
 {
-    // Get device ID
-    uint8_t device_id = (uint8_t)_port->read();
+    FujiDWPacket packet(opcode);
 
     // If device doesn't exist, create it.
-    if (!_netDev.contains(device_id))
+    if (!_netDev.contains(packet.unit()))
     {
-        Debug_printf("Opening new network device %u\n",device_id);
-        _netDev[device_id] = new drivewireNetwork();
+        Debug_printf("Opening new network device %u\n", packet.unit());
+        _netDev[packet.unit()] = new drivewireNetwork();
     }
 
+    if (_transaction_handle_command(packet, platformFuji))
+        return;
+
     // And pass control to it
-    Debug_printf("OP_NET: %u\n",device_id);
-    _netDev[device_id]->process();
+    Debug_printf("OP_NET: %u\n", packet.unit());
+    _netDev[packet.unit()]->processCommand(packet);
 }
 
-void systemBus::op_unhandled(uint8_t c)
+void systemBus::op_unhandled(dwOpcode_t opcode)
 {
-    Debug_printv("Unhandled opcode: %02x", c);
+    Debug_printv("Unhandled opcode: %02x", opcode);
 
     while (_port->available())
         Debug_printf("%02x ", _port->read());
@@ -508,6 +565,9 @@ void systemBus::op_serwritem()
     _port->read(); // discard
     count = _port->read();
 
+    if (vchan >= MAX_CHANNEL_QUEUES)
+        return;
+
     for (int i = 0; i < count; i++) {
         int byte = _port->read();
         incomingChannel[vchan].push(byte);
@@ -540,8 +600,8 @@ void systemBus::op_namedobj_mnt()
 // Read and process a command frame from DRIVEWIRE
 void systemBus::_drivewire_process_cmd()
 {
-    int c = _port->read();
-    if (c < 0)
+    int val = read();
+    if (val < 0)
     {
         Debug_println("Failed to read cmd!");
         return;
@@ -549,96 +609,102 @@ void systemBus::_drivewire_process_cmd()
 
     fnLedManager.set(eLed::LED_BUS, true);
 
-    if (c >= 0x80 && c <= 0x8F) {
+    dwOpcode_t opcode = static_cast<dwOpcode_t>(val);
+    if (opcode >= OP::FASTWRITE_0 && opcode <= OP::FASTWRITE_F) {
         // handle FASTWRITE here
-        int vchan = c & 0xF;
+        int vchan = static_cast<int>(opcode) & 0xF;
         int byte = _port->read();
         incomingChannel[vchan].push(byte);
     } else {
-        switch (c)
+        switch (opcode)
         {
-        case OP_JEFF:
+        case OP::JEFF:
             op_jeff();
             break;
-        case OP_NOP:
+        case OP::NOP:
             op_nop();
             break;
-        case OP_RESET1:
-        case OP_RESET2:
-        case OP_RESET3:
+        case OP::RESET1:
+        case OP::RESET2:
+        case OP::RESET3:
             op_reset();
             break;
-        case OP_READEX:
+        case OP::READEX:
+        case OP::REREADEX:
             op_readex();
             break;
-        case OP_WRITE:
+        case OP::WRITE:
+        case OP::REWRITE:
             op_write();
             break;
-        case OP_TIME:
+        case OP::TIME:
             op_time();
             break;
-        case OP_INIT:
+        case OP::INIT:
             op_init();
             break;
-        case OP_SERINIT:
+        case OP::SERINIT:
             op_serinit();
             break;
-        case OP_DWINIT:
+        case OP::DWINIT:
             op_dwinit();
             break;
-        case OP_SERREAD:
+        case OP::SERREAD:
             op_serread();
             break;
-        case OP_SERREADM:
+        case OP::SERREADM:
             op_serreadm();
             break;
-        case OP_SERWRITE:
+        case OP::SERWRITE:
             op_serwrite();
             break;
-        case OP_SERWRITEM:
+        case OP::SERWRITEM:
             op_serwritem();
             break;
-        case OP_PRINT:
+        case OP::PRINT:
             op_print();
             break;
-        case OP_NAMEOBJ_MNT:
-            op_namedobj_mnt();
+        case OP::NAMEOBJ_MNT:
+            if (bDragon)
+                op_namedobj_mnt();
+            else
+                op_unhandled(opcode);
             break;
-        case OP_PRINTFLUSH:
+        case OP::PRINTFLUSH:
             // Not needed.
             break;
-        case OP_GETSTAT:
+        case OP::GETSTAT:
             op_getstat();
             break;
-        case OP_SETSTAT:
+        case OP::SETSTAT:
             op_setstat();
             break;
-        case OP_SERGETSTAT:
+        case OP::SERGETSTAT:
             op_sergetstat();
             break;
-        case OP_SERSETSTAT:
+        case OP::SERSETSTAT:
             op_sersetstat();
             break;
-        case OP_TERM:
+        case OP::TERM:
             Debug_printf("OP_TERM!\n");
             break;
-        case OP_SERTERM:
+        case OP::SERTERM:
             op_serterm();
             break;
-        case OP_FUJI:
-            op_fuji();
+        case OP::FUJI:
+            op_fuji(opcode);
             break;
-        case OP_NET:
-            op_net();
+        case OP::NET:
+            op_net(opcode);
             break;
-        case OP_CPM:
-            op_cpm();
+        case OP::CPM:
+            op_cpm(opcode);
             break;
-        case OP_CLOCK:
-            op_clock();
+        case OP::CLOCK:
+            op_clock(opcode);
             break;
         default:
-            op_unhandled(c);
+            op_unhandled(opcode);
             break;
         }
     }
@@ -706,13 +772,14 @@ void systemBus::service()
         }
     }
 
-    if (_port->available())
+    if (available())
         _drivewire_process_cmd();
 }
 
 #ifdef ESP_PLATFORM
 void systemBus::configureGPIO()
 {
+#ifdef PIN_CASS_MOTOR
     // Setup interrupt for cassette motor pin
     gpio_config_t io_conf = {
         .pin_bit_mask = (1ULL << PIN_CASS_MOTOR), // bit mask of the pins that you want to set
@@ -727,11 +794,15 @@ void systemBus::configureGPIO()
     // configure GPIO with the given settings
     gpio_config(&io_conf);
     gpio_isr_handler_add((gpio_num_t)PIN_CASS_MOTOR, drivewire_isr_handler, (void *)PIN_CASS_MOTOR);
+#endif /* PIN_CASS_MOTOR */
 
+#ifdef PIN_RS232_DCD
     // Configure CD pin.
-    fnSystem.set_pin_mode(PIN_CD, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
-    fnSystem.digital_write(PIN_CD, DIGI_HIGH);
+    fnSystem.set_pin_mode(PIN_RS232_DCD, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
+    fnSystem.digital_write(PIN_RS232_DCD, DIGI_HIGH);
+#endif // PIN_RS232_DCD
 
+#ifdef PIN_EPROM_A14
     // Start in DRIVEWIRE mode
     // Set the initial buad rate based on which ROM image is selected by the A14/A15 dip switch on Rev000 or newer.
     // If using an older Rev0 or Rev00 board, you will need to pull PIN_EPROM_A14 (IO36) up to 3.3V or 5V via a 10K
@@ -740,12 +811,14 @@ void systemBus::configureGPIO()
 
     fnSystem.set_pin_mode(PIN_EPROM_A14, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
     fnSystem.set_pin_mode(PIN_EPROM_A15, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+#endif /* PIN_EPROM_A14 */
 
     return;
 }
 
 int systemBus::readBaudSwitch()
 {
+#ifdef PIN_EPROM_A14
     if (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_LOW
         && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_LOW)
     {
@@ -767,8 +840,13 @@ int systemBus::readBaudSwitch()
         return 115200; //Coco3 ROM Image
     }
 
-    Debug_printv("A14 and A15 High, defaulting to 57600 baud");
-    return 57600; //Default or no switch
+    bDragon = true;
+    Debug_printv("A14 and A15 High, (DRAGON) 38400 baud");
+
+    return 57600; // Default or no switch
+#else             /* ! PIN_EPROM_A14 */
+    return 921600;
+#endif /* PIN_EPROM_A14 */
 }
 #endif /* ESP_PLATFORM */
 
@@ -805,20 +883,27 @@ void systemBus::setup()
 
     if (Config.get_boip_enabled())
     {
-        _becker.setHost(Config.get_boip_host(), Config.get_boip_port());
-        _becker.begin(Config.get_boip_host(), _drivewireBaud);
+        _becker.begin(BoIPConfig()
+                      .hostName(Config.get_boip_host())
+                      .portNum(Config.get_boip_port())
+                      );
         _port = &_becker;
     }
     else
     {
+#if FUJINET_OVER_USB
+        _serial.begin();
+#else /* ! FUJINET_OVER_USB */
         _serial.begin(ChannelConfig()
                       .baud(_drivewireBaud)
                       .deviceID(DW_UART_DEVICE)
                       .readTimeout(500)
 #ifdef ESP_PLATFORM
-                      .inverted(DW_UART_DEVICE == UART_NUM_2)
+                          .txInverted(DW_UART_DEVICE == UART_NUM_2 && !bDragon)
+                          .rxInverted(DW_UART_DEVICE == UART_NUM_2)
 #endif /* ESP_PLATFORM */
                       );
+#endif /* FUJINET_OVER_USB */
         _port = &_serial;
     }
 
@@ -863,25 +948,89 @@ void systemBus::shutdown()
     Debug_printf("All devices shut down.\n");
 }
 
-void systemBus::toggleBaudrate()
+#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+std::unique_ptr<FujiBusPacket> systemBus::readBusPacket(int first)
 {
-}
+    ByteBuffer packet;
+    int count = 0;
 
-int systemBus::getBaudrate()
-{
-    return _drivewireBaud;
-}
-
-void systemBus::setBaudrate(int baud)
-{
-    if (_drivewireBaud == baud)
+    auto processByte = [&](int val) -> bool
     {
-        Debug_printf("Baudrate already at %d - nothing to do\n", baud);
-        return;
+        if (val < 0)
+            return false;
+        // Pre-frame bytes are CoCo DriveWire traffic on the shared link;
+        // stash them for the bus reader instead of letting them be discarded.
+        if (count == 0 && val != SLIP_END) {
+            _dbc_pushback.push_back(static_cast<uint8_t>(val));
+            return true;
+        }
+        packet.push_back(static_cast<uint8_t>(val));
+        if (val == SLIP_END)
+            count++;
+        return true;
+    };
+
+    processByte(first);
+
+    while (count < 2)
+    {
+        if (!processByte(_port->read()))
+            break;
     }
 
-    Debug_printf("Changing baudrate from %d to %d\n", _drivewireBaud, baud);
-    _drivewireBaud = baud;
-    //_modemDev->get_uart()->set_baudrate(baud); // TODO COME BACK HERE.
+    return FujiBusPacket::fromSerialized(packet);
 }
+
+void systemBus::writeBusPacket(FujiBusPacket &packet)
+{
+    ByteBuffer encoded = packet.serialize();
+    _port->write(encoded.data(), encoded.size());
+}
+#endif /* PINMAP_FUJIVERSAL_DRIVEWIRE */
+
+void systemBus::transaction_accept(transState_t expectMoreData)
+{
+    assert(_transaction_state == TRANS_STATE::INVALID);
+    _transaction_state = expectMoreData;
+}
+
+void systemBus::transaction_success()
+{
+    assert(_transaction_state == TRANS_STATE::NO_GET
+           || _transaction_state == TRANS_STATE::DID_GET);
+    _activeDev->_errorCode = NDEV_STATUS::SUCCESS;
+    _transaction_response.clear();
+    _transaction_response.shrink_to_fit();
+    _transaction_state = TRANS_STATE::INVALID;
+}
+
+void systemBus::transaction_error()
+{
+    _activeDev->_errorCode = NDEV_STATUS::GENERAL;
+    _transaction_state = TRANS_STATE::INVALID;
+}
+
+success_is_true systemBus::transaction_get(void *data, size_t len)
+{
+    assert(_transaction_state == TRANS_STATE::WILL_GET);
+    _transaction_state = TRANS_STATE::DID_GET;
+    _activeFrame->setDataLength(len);
+    if (_activeFrame->data()->size() != len)
+        RETURN_ERROR_AS_FALSE();
+    std::copy(_activeFrame->data()->begin(), _activeFrame->data()->end(),
+              static_cast<uint8_t *>(data));
+    RETURN_SUCCESS_AS_TRUE();
+}
+
+void systemBus::transaction_send(const void *data, size_t len, bool is_error)
+{
+    assert(_transaction_state == TRANS_STATE::NO_GET);
+    if (is_error)
+        transaction_error();
+    _transaction_response.insert(_transaction_response.end(),
+                                 static_cast<const uint8_t *>(data),
+                                 static_cast<const uint8_t *>(data) + len);
+    _transaction_state = TRANS_STATE::INVALID;
+}
+
 #endif               /* BUILD_COCO */

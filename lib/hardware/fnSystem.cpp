@@ -146,7 +146,7 @@ static void setup_card_detect(gpio_num_t pin)
     // Create a queue to handle card detect event from ISR
     card_detect_evt_queue = xQueueCreate(10, sizeof(gpio_num_t));
     // Start card detect task
-    xTaskCreate(card_detect_intr_task, "card_detect_intr_task", 2048, (void *)pin, 10, NULL);
+    xTaskCreate(card_detect_intr_task, "card_detect_intr_task", 6144, (void *)pin, 10, NULL);
     // Enable interrupt for card detection
     fnSystem.set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_ANYEDGE);
     // Add the card detect handler
@@ -176,7 +176,7 @@ SystemManager::SystemManager()
     memset(_currenttime_string,0,sizeof(_currenttime_string));
 #ifndef ESP_PLATFORM
     memset(_uname_string, 0, sizeof(_uname_string));
-#else    
+#else
     ledstrip_found = fnLedStrip.present();
 #endif
     _hardware_version=0;
@@ -230,28 +230,7 @@ void SystemManager::set_pin_mode(uint8_t pin, gpio_mode_t mode, pull_updown_t pu
 void IRAM_ATTR SystemManager::digital_write(uint8_t pin, uint8_t val)
 {
 #ifdef ESP_PLATFORM
-    if (val)
-    {
-        if (pin < 32)
-        {
-            GPIO.out_w1ts = ((uint32_t)1 << pin);
-        }
-        else if (pin < 34)
-        {
-            GPIO.out1_w1ts.val = ((uint32_t)1 << (pin - 32));
-        }
-    }
-    else
-    {
-        if (pin < 32)
-        {
-            GPIO.out_w1tc = ((uint32_t)1 << pin);
-        }
-        else if (pin < 34)
-        {
-            GPIO.out1_w1tc.val = ((uint32_t)1 << (pin - 32));
-        }
-    }
+    gpio_set_level((gpio_num_t)pin, val ? 1 : 0);
 #else
     Debug_println("SystemManager::digital_write() not implemented");
 #endif
@@ -262,18 +241,11 @@ void IRAM_ATTR SystemManager::digital_write(uint8_t pin, uint8_t val)
 int IRAM_ATTR SystemManager::digital_read(uint8_t pin)
 {
 #ifdef ESP_PLATFORM
-    if (pin < 32)
-    {
-        return (GPIO.in >> pin) & 0x1;
-    }
-    else if (pin < 40)
-    {
-        return (GPIO.in1.val >> (pin - 32)) & 0x1;
-    }
+    return gpio_get_level((gpio_num_t)pin);
 #else
     Debug_println("SystemManager::digital_read() not implemented");
-#endif
     return 0;
+#endif
 }
 
 #ifdef ESP_PLATFORM
@@ -348,14 +320,14 @@ void SystemManager::delay_microseconds(uint32_t us)
 void SystemManager::delay_microseconds(uint32_t us)
 {
     // a)
-    // HANDLE timer; 
-    // LARGE_INTEGER ft; 
+    // HANDLE timer;
+    // LARGE_INTEGER ft;
 
     // ft.QuadPart = -(10*us); // Convert to 100 nanosecond interval, negative value indicates relative time
 
-    // timer = CreateWaitableTimer(NULL, TRUE, NULL); 
-    // SetWaitableTimer(timer, &ft, 0, NULL, NULL, 0); 
-    // WaitForSingleObject(timer, INFINITE); 
+    // timer = CreateWaitableTimer(NULL, TRUE, NULL);
+    // SetWaitableTimer(timer, &ft, 0, NULL, NULL, 0);
+    // WaitForSingleObject(timer, INFINITE);
 
     // CloseHandle(timer);
 
@@ -512,13 +484,13 @@ void SystemManager::update_hostname(const char *hostname)
 void SystemManager::update_firmware()
 {
 #ifdef ESP_PLATFORM
-    Serial.printf("Stopping flash filesystem...\r\n");
+    Debug_printf("Stopping flash filesystem...\r\n");
     fsFlash.stop();
 
-    Serial.println("Flash bin files from '/sd/.bin/'");
+    Debug_println("Flash bin files from '/sd/.bin/'");
     mlff_update(PIN_SD_HOST_CS, PIN_SD_HOST_MISO, PIN_SD_HOST_MOSI, PIN_SD_HOST_SCK);
 
-    Serial.println("Reboot to run update app and flash 'main.*.bin'...");
+    Debug_println("Reboot to run update app and flash 'main.*.bin'...");
     reboot();
 #endif
 }
@@ -1023,6 +995,9 @@ const char *SystemManager::get_hardware_ver_str()
     case 2:
         return "Lynx DEVKITC";
         break;
+    case 3:
+        return "Lynx Rev1 (S3)";
+        break;
 #elif defined(BUILD_RS232)
     /* RS232 */
     case 1 :
@@ -1112,11 +1087,11 @@ void SystemManager::check_hardware_ver()
         _hardware_version = 1;
         safe_reset_gpio = GPIO_NUM_NC;
     }
-    
+
 #elif defined(BUILD_ADAM)
     /*  Coleco ADAM
-        Only 1.0 version of Coleco ADAM 
-    */  
+        Only 1.0 version of Coleco ADAM
+    */
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
     setup_card_detect((gpio_num_t)PIN_CARD_DETECT);
@@ -1135,7 +1110,7 @@ void SystemManager::check_hardware_ver()
     a2hasbuffer = true;
     _hardware_version = 5;
 #   elif defined(MASTERIES_REVAB)
-    /* All Masteries boards have Tristate buffer. Check for pullup on IO14 to 
+    /* All Masteries boards have Tristate buffer. Check for pullup on IO14 to
         determine if it's RevB
     */
     int hasbufferupcheck, hasbufferdowncheck;
@@ -1210,7 +1185,7 @@ void SystemManager::check_hardware_ver()
             _hardware_version = 3;
         }
     }
-    
+
     /* Apple 2 Rev00 original has no hardware pullup for Button C Safe Reset (IO14)
     Apple 2 Rev00 with SPI fix has 10K hardware pullup on IO14
     Check for pullup and determine if safe reset button or SPI fix
@@ -1277,6 +1252,9 @@ void SystemManager::check_hardware_ver()
     */
 #   if defined(NO_BUTTONS)
     _hardware_version = 2;
+#   elif CONFIG_IDF_TARGET_ESP32S3
+    _hardware_version = 3;
+    safe_reset_gpio = PIN_BUTTON_C;
 #   else
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
@@ -1285,6 +1263,7 @@ void SystemManager::check_hardware_ver()
 #elif defined(BUILD_RS232)
     /* RS232
     */
+#ifdef PIN_BUTTON_C
 #if CONFIG_IDF_TARGET_ESP32S3
     _hardware_version = 2;
     safe_reset_gpio = PIN_BUTTON_C;
@@ -1293,7 +1272,10 @@ void SystemManager::check_hardware_ver()
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
     setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
-#endif
+#endif // CONFIG_IDF_TARGET_ESP32S3
+#else
+    safe_reset_gpio = GPIO_NUM_NC;
+#endif // PIN_BUTTON_C
 #elif defined(BUILD_RC2014)
     /* RC2014
     */

@@ -16,6 +16,8 @@
 // Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 // -----------------------------------------------------------------------------
 
+#ifdef BUILD_IEC
+
 #ifndef IECFILEDEVICE_H
 #define IECFILEDEVICE_H
 
@@ -136,3 +138,5 @@ class IECFileDevice : public IECDevice
 
 
 #endif
+
+#endif /* BUILD_IEC */

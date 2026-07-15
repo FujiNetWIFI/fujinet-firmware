@@ -24,13 +24,15 @@ void fujiHost::unmount()
 void fujiHost::cleanup()
 {
     if (_fs != nullptr)
+    {
         _fs->dir_close();
 
-    // Delete the filesystem if it's not one of the global ones
-    if (_fs->is_global() == false)
-        delete _fs;
+        // Delete the filesystem if it's not one of the global ones
+        if (_fs->is_global() == false)
+            delete _fs;
 
-    _fs = nullptr;
+        _fs = nullptr;
+    }
 
     _hostname[0] = '\0';
 }
@@ -356,6 +358,12 @@ int fujiHost::mount_tnfs()
             Debug_printf("::mount_tnfs Currently connected to host \"%s\"\n", _hostname);
             return 0;
         }
+        // Stale instance from a partial start(); release before re-allocating.
+        if (_fs != nullptr)
+        {
+            delete _fs;
+            _fs = nullptr;
+        }
     }
     else
         set_type(HOSTTYPE_TNFS); // Only start fresh if not HOSTTYPE_TNFS
@@ -389,6 +397,11 @@ int fujiHost::mount_smb()
         {
             Debug_printf("::mount_smb Currently connected to share \"%s\"\n", _hostname);
             return 0;
+        }
+        if (_fs != nullptr)
+        {
+            delete _fs;
+            _fs = nullptr;
         }
     }
     else
@@ -431,6 +444,11 @@ int fujiHost::mount_nfs()
             Debug_printf("::mount_nfs Currently connected to share \"%s\"\n", _hostname);
             return 0;
         }
+        if (_fs != nullptr)
+        {
+            delete _fs;
+            _fs = nullptr;
+        }
     }
     else
         set_type(HOSTTYPE_NFS); // Only start fresh if not HOSTTYPE_NFS
@@ -472,6 +490,11 @@ int fujiHost::mount_ftp()
             Debug_printf("::mount_ftp Currently connected to host \"%s\"\n", _hostname);
             return 0;
         }
+        if (_fs != nullptr)
+        {
+            delete _fs;
+            _fs = nullptr;
+        }
     }
     else
         set_type(HOSTTYPE_FTP); // Only start fresh if not HOSTTYPE_FTP
@@ -506,6 +529,11 @@ int fujiHost::mount_http()
         {
             Debug_printf("::mount_http Currently connected to \"%s\"\n", _hostname);
             return 0;
+        }
+        if (_fs != nullptr)
+        {
+            delete _fs;
+            _fs = nullptr;
         }
     }
     else

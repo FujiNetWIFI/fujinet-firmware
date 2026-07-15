@@ -1,6 +1,7 @@
 #ifndef CLASS_CLOCK_H
 #define CLASS_CLOCK_H
 
+#include <chrono>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -20,6 +21,9 @@ public:
     // current local time in ApeTime format
     static std::vector<uint8_t> get_current_time_apetime(const std::string& posixTimeZone);
 
+    // current local time in Simple binary format with hundredths of a second appended (8 bytes total)
+    static std::vector<uint8_t> get_current_time_simple_hundredths(const std::string& posixTimeZone);
+
     // current local time in SOS set_time format
     static std::string get_current_time_sos(const std::string& posixTimeZone);
 
@@ -28,6 +32,9 @@ public:
         return use_alternate_tz ? (alternate_tz.empty() ? default_tz : alternate_tz) : default_tz;
     }
 
+private:
+    static std::vector<uint8_t> build_simple(const std::chrono::system_clock::time_point& now,
+                                             const std::string& posixTimeZone);
 };
 
 #endif // CLASS_CLOCK_H

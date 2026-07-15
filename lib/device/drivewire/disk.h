@@ -5,12 +5,17 @@
 #include "bus.h"
 #include "media.h"
 
-class drivewireDisk : public virtualDevice
+class drivewireDisk : public drivewireDevice
 {
 private:
     MediaType *_media = nullptr;
 
 public:
+    /**
+     * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?
+     */
+    bool is_config_device = false;
+
     drivewireDisk();
     ~drivewireDisk();
 
@@ -19,6 +24,8 @@ public:
                       disk_access_flags_t access_mode,
                       mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
+
+    void set_media_host(fujiHost *host);
 
     success_is_true write_blank(fnFile *f, uint8_t numDisks);
 

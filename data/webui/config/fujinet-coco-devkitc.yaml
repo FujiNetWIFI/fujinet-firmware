@@ -12,7 +12,7 @@ components:
   hsio_settings: false
   timezone: true
   apetime: false
-  udp_stream: true
+  net_stream: false
   program_recorder: experimental
   disk_swap: false
   emulator_settings: true
