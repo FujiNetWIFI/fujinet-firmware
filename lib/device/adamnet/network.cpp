@@ -87,11 +87,14 @@ void adamNetwork::get_error()
 
     if (protocol == nullptr)
     {
-        response[0] = (uint8_t) NDEV_STATUS::NOT_CONNECTED;
+        response[0] = (uint8_t) err_open; // last open failure, if any
     }
     else
     {
+        // passive, like the bus status poll
+        protocol->fromInterrupt = true;
         protocol->status(&ns);
+        protocol->fromInterrupt = false;
         response[0] = (uint8_t) ns.error;
     }
 }
@@ -126,13 +129,6 @@ void adamNetwork::open(unsigned short s)
 
     channelMode = PROTOCOL;
 
-    // persist aux1/aux2 values
-    cmdFrame.aux1 = _aux1;
-    cmdFrame.aux2 = _aux2;
-
-    open_aux1 = cmdFrame.aux1;
-    open_aux2 = cmdFrame.aux2;
-
     // Shut down protocol if we are sending another open before we close.
     if (protocol != nullptr)
     {
@@ -154,7 +150,7 @@ void adamNetwork::open(unsigned short s)
 
     // Parse and instantiate protocol
     d = string((char *)response, s);
-    parse_and_instantiate_protocol(d);
+    parse_and_instantiate_protocol(d, (fileAccessMode_t) _aux1 == ACCESS_MODE::DIRECTORY);
 
     if (protocol == nullptr)
     {
@@ -167,9 +163,10 @@ void adamNetwork::open(unsigned short s)
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != FUJI_ERROR::NONE)
+    if (protocol->open(urlParser.get(), (fileAccessMode_t) _aux1, (netProtoTranslation_t) _aux2) != FUJI_ERROR::NONE)
     {
         statusByte.bits.client_error = true;
+        err_open = protocol->error; // keep the reason for get_error()
         Debug_printf("Protocol unable to make connection.\n");
         delete protocol;
         protocol = nullptr;
@@ -204,6 +201,7 @@ void adamNetwork::close()
     adamnet_response_ack();
 
     statusByte.byte = 0x00;
+    err_open = NDEV_STATUS::NOT_CONNECTED;
 
     if (protocolParser != nullptr)
     {
@@ -313,7 +311,7 @@ void adamNetwork::status()
     {
         status->avail = 0;
         status->conn = 0;
-        status->err = NDEV_STATUS::INVALID_DEVICESPEC;
+        status->err = err_open;
         response_len = sizeof(*status);
         return;
     }
@@ -502,7 +500,7 @@ void adamNetwork::json_query(unsigned short s)
     SYSTEM_BUS.start_time = GET_TIMESTAMP();
     adamnet_response_ack();
 
-    json.setReadQuery(std::string((char *)response, s), cmdFrame.aux2);
+    json.setReadQuery(std::string((char *)response, s), 0);
 
     Debug_printv("adamNetwork::json_query(%s)\n", response);
 }
@@ -512,7 +510,9 @@ void adamNetwork::json_parse()
     adamnet_recv(); // CK
     SYSTEM_BUS.start_time = GET_TIMESTAMP();
     adamnet_response_ack();
-    json.parse();
+    bool ok = json.parse();
+    if (protocol != nullptr)
+        protocol->error = ok ? NDEV_STATUS::SUCCESS : NDEV_STATUS::COULD_NOT_PARSE_JSON;
     memset(response, 0, sizeof(response));
     response_len = 0;
 }
@@ -523,7 +523,11 @@ void adamNetwork::adamnet_response_status()
 
     if (protocol != nullptr)
     {
+        // passive: a bus status poll must not trigger deferred protocol
+        // work (e.g. the lazy HTTP transaction) inside the reply deadline
+        protocol->fromInterrupt = true;
         protocol->status(&s);
+        protocol->fromInterrupt = false;
         statusByte.bits.client_connected = s.connected == true;
         statusByte.bits.client_data_available = protocol->available() > 0;
         statusByte.bits.client_error = s.error != NDEV_STATUS::SUCCESS;
@@ -806,9 +810,9 @@ bool adamNetwork::instantiate_protocol()
  * Preprocess deviceSpec given aux1 open mode. This is used to work around various assumptions that different
  * disk utility packages do when opening a device, such as adding wildcards for directory opens.
  */
-void adamNetwork::create_devicespec(string d)
+void adamNetwork::create_devicespec(string d, bool is_dir)
 {
-    deviceSpec = util_devicespec_fix_for_parsing(d, prefix, cmdFrame.aux1 == 6, false);
+    deviceSpec = util_devicespec_fix_for_parsing(d, prefix, is_dir, false);
 }
 
 /*
@@ -821,9 +825,9 @@ void adamNetwork::create_url_parser()
     urlParser = PeoplesUrlParser::parseURL(url);
 }
 
-void adamNetwork::parse_and_instantiate_protocol(string d)
+void adamNetwork::parse_and_instantiate_protocol(string d, bool is_dir)
 {
-    create_devicespec(d);
+    create_devicespec(d, is_dir);
     create_url_parser();
 
     // Invalid URL returns error 165 in status.
@@ -832,6 +836,7 @@ void adamNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Invalid devicespec: %s\n", deviceSpec.c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
+        err_open = NDEV_STATUS::INVALID_DEVICESPEC;
         return;
     }
 
@@ -843,6 +848,7 @@ void adamNetwork::parse_and_instantiate_protocol(string d)
         Debug_printf("Could not open protocol.\n");
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
+        err_open = NDEV_STATUS::INVALID_DEVICESPEC; // unknown scheme
         return;
     }
 }
@@ -879,7 +885,7 @@ void adamNetwork::process_fs(fujiCommandID_t cmd, unsigned pkt_len)
     adamnet_response_ack();
 
     auto data = string((char *)response, pkt_len);
-    parse_and_instantiate_protocol(data);
+    parse_and_instantiate_protocol(data, false);
 
     // Make sure this is really a FS protocol instance
     NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol);
@@ -966,6 +972,12 @@ void adamNetwork::process_tcp(fujiCommandID_t cmd)
 
 void adamNetwork::process_http(fujiCommandID_t cmd)
 {
+    unsigned char m = adamnet_recv();
+    adamnet_recv(); // CK
+
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
+    adamnet_response_ack();
+
     statusByte.byte = 0x00;
 
     // Make sure this is really a HTTP protocol instance
@@ -973,6 +985,8 @@ void adamNetwork::process_http(fujiCommandID_t cmd)
     if (!http)
     {
         statusByte.bits.client_error = true;
+        if (protocol != nullptr)
+            protocol->error = NDEV_STATUS::INVALID_COMMAND;
         return;
     }
 
@@ -980,7 +994,7 @@ void adamNetwork::process_http(fujiCommandID_t cmd)
     switch (cmd)
     {
     case NETCMD_SET_CHANNEL_MODE:
-        cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmdFrame.aux2);
+        cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) m);
         break;
     default:
         cmd_err = FUJI_ERROR::UNSPECIFIED;

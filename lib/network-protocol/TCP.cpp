@@ -309,6 +309,7 @@ fujiError_t NetworkProtocolTCP::accept_connection()
             remotePort = client.remotePort();
             remoteIPString = compat_inet_ntoa(remoteIP);
             Debug_printf("Accepted connection from %s:%u\r\n", remoteIPString, remotePort);
+            error = NDEV_STATUS::SUCCESS; // clear e.g. a prior NO_CONNECTION_WAITING
             return FUJI_ERROR::NONE;
         }
         else
