@@ -277,3 +277,5 @@
 // #define mbedtls_sha256_finish mbedtls_sha256_finish_ret
 
 #define SSIZE_MAX SIZE_MAX
+
+#define OUT_BLOCK_SIZE 1024

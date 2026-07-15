@@ -21,7 +21,7 @@
  * MA 02111-1307, USA.
  */
 
-#include "libssh/config.h"
+#include "../config.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -39,11 +39,12 @@
 #include "libssh/buffer.h"
 #include "libssh/poll.h"
 #include "libssh/pki.h"
+#include "libssh/gssapi.h"
 
 #define FIRST_CHANNEL 42 // why not ? it helps to find bugs.
 
 /**
- * @defgroup libssh_session The SSH session functions.
+ * @defgroup libssh_session The SSH session functions
  * @ingroup libssh
  *
  * Functions that manage a session.
@@ -58,7 +59,7 @@
  */
 ssh_session ssh_new(void)
 {
-    ssh_session session;
+    ssh_session session = NULL;
     char *id = NULL;
     int rc;
 
@@ -96,28 +97,56 @@ ssh_session ssh_new(void)
     session->auth.supported_methods = 0;
     ssh_set_blocking(session, 1);
     session->maxchannel = FIRST_CHANNEL;
+    session->proxy_root = true;
 
-#ifndef _WIN32
     session->agent = ssh_agent_new(session);
     if (session->agent == NULL) {
         goto err;
     }
-#endif /* _WIN32 */
 
     /* OPTIONS */
     session->opts.StrictHostKeyChecking = 1;
-    session->opts.port = 0;
+    session->opts.port = 22;
     session->opts.fd = -1;
     session->opts.compressionlevel = 7;
     session->opts.nodelay = 0;
+    session->opts.identities_only = false;
+    session->opts.control_master = SSH_CONTROL_MASTER_NO;
 
     session->opts.flags = SSH_OPT_FLAG_PASSWORD_AUTH |
                           SSH_OPT_FLAG_PUBKEY_AUTH |
                           SSH_OPT_FLAG_KBDINT_AUTH |
                           SSH_OPT_FLAG_GSSAPI_AUTH;
 
+    session->opts.exp_flags = 0;
+
     session->opts.identity = ssh_list_new();
     if (session->opts.identity == NULL) {
+        goto err;
+    }
+    session->opts.identity_non_exp = ssh_list_new();
+    if (session->opts.identity_non_exp == NULL) {
+        goto err;
+    }
+
+    session->opts.certificate = ssh_list_new();
+    if (session->opts.certificate == NULL) {
+        goto err;
+    }
+    session->opts.certificate_non_exp = ssh_list_new();
+    if (session->opts.certificate_non_exp == NULL) {
+        goto err;
+    }
+    /* the default certificates are loaded automatically from the default
+     * identities later */
+
+    session->opts.proxy_jumps = ssh_list_new();
+    if (session->opts.proxy_jumps == NULL) {
+        goto err;
+    }
+
+    session->opts.proxy_jumps_user_cb = ssh_list_new();
+    if (session->opts.proxy_jumps_user_cb == NULL) {
         goto err;
     }
 
@@ -126,7 +155,7 @@ ssh_session ssh_new(void)
         goto err;
     }
 
-    rc = ssh_list_append(session->opts.identity, id);
+    rc = ssh_list_append(session->opts.identity_non_exp, id);
     if (rc == SSH_ERROR) {
         goto err;
     }
@@ -136,7 +165,7 @@ ssh_session ssh_new(void)
     if (id == NULL) {
         goto err;
     }
-    rc = ssh_list_append(session->opts.identity, id);
+    rc = ssh_list_append(session->opts.identity_non_exp, id);
     if (rc == SSH_ERROR) {
         goto err;
     }
@@ -146,21 +175,10 @@ ssh_session ssh_new(void)
     if (id == NULL) {
         goto err;
     }
-    rc = ssh_list_append(session->opts.identity, id);
+    rc = ssh_list_append(session->opts.identity_non_exp, id);
     if (rc == SSH_ERROR) {
         goto err;
     }
-
-#ifdef HAVE_DSA
-    id = strdup("%d/id_dsa");
-    if (id == NULL) {
-        goto err;
-    }
-    rc = ssh_list_append(session->opts.identity, id);
-    if (rc == SSH_ERROR) {
-        goto err;
-    }
-#endif
 
     /* Explicitly initialize states */
     session->session_state = SSH_SESSION_STATE_NONE;
@@ -242,12 +260,8 @@ void ssh_free(ssh_session session)
   crypto_free(session->current_crypto);
   crypto_free(session->next_crypto);
 
-#ifndef _WIN32
   ssh_agent_free(session->agent);
-#endif /* _WIN32 */
 
-  ssh_key_free(session->srv.dsa_key);
-  session->srv.dsa_key = NULL;
   ssh_key_free(session->srv.rsa_key);
   session->srv.rsa_key = NULL;
   ssh_key_free(session->srv.ecdsa_key);
@@ -274,9 +288,13 @@ void ssh_free(ssh_session session)
     ssh_list_free(session->packet_callbacks);
   }
 
+#ifdef WITH_GSSAPI
+    ssh_gssapi_free(session);
+#endif
+
   /* options */
   if (session->opts.identity) {
-      char *id;
+      char *id = NULL;
 
       for (id = ssh_list_pop_head(char *, session->opts.identity);
            id != NULL;
@@ -286,24 +304,61 @@ void ssh_free(ssh_session session)
       ssh_list_free(session->opts.identity);
   }
 
+  if (session->opts.identity_non_exp) {
+      char *id = NULL;
+
+      for (id = ssh_list_pop_head(char *, session->opts.identity_non_exp);
+           id != NULL;
+           id = ssh_list_pop_head(char *, session->opts.identity_non_exp)) {
+          SAFE_FREE(id);
+      }
+      ssh_list_free(session->opts.identity_non_exp);
+  }
+
+    if (session->opts.certificate) {
+        char *cert = NULL;
+
+        for (cert = ssh_list_pop_head(char *, session->opts.certificate);
+             cert != NULL;
+             cert = ssh_list_pop_head(char *, session->opts.certificate)) {
+            SAFE_FREE(cert);
+        }
+        ssh_list_free(session->opts.certificate);
+    }
+
+    if (session->opts.certificate_non_exp) {
+        char *cert = NULL;
+
+        for (cert = ssh_list_pop_head(char *, session->opts.certificate_non_exp);
+             cert != NULL;
+             cert = ssh_list_pop_head(char *, session->opts.certificate_non_exp)) {
+            SAFE_FREE(cert);
+        }
+        ssh_list_free(session->opts.certificate_non_exp);
+    }
+
+    ssh_proxyjumps_free(session->opts.proxy_jumps);
+    SSH_LIST_FREE(session->opts.proxy_jumps);
+    SSH_LIST_FREE(session->opts.proxy_jumps_user_cb);
+
     while ((b = ssh_list_pop_head(struct ssh_buffer_struct *,
                                   session->out_queue)) != NULL) {
         SSH_BUFFER_FREE(b);
     }
     ssh_list_free(session->out_queue);
 
-#ifndef _WIN32
-  ssh_agent_state_free (session->agent_state);
-#endif
+  ssh_agent_state_free(session->agent_state);
   session->agent_state = NULL;
 
   SAFE_FREE(session->auth.auto_state);
   SAFE_FREE(session->serverbanner);
   SAFE_FREE(session->clientbanner);
   SAFE_FREE(session->banner);
+  SAFE_FREE(session->disconnect_message);
+  SAFE_FREE(session->peer_discon_msg);
 
+  SAFE_FREE(session->opts.agent_socket);
   SAFE_FREE(session->opts.bindaddr);
-  SAFE_FREE(session->opts.custombanner);
   SAFE_FREE(session->opts.username);
   SAFE_FREE(session->opts.host);
   SAFE_FREE(session->opts.sshdir);
@@ -313,12 +368,18 @@ void ssh_free(ssh_session session)
   SAFE_FREE(session->opts.gss_server_identity);
   SAFE_FREE(session->opts.gss_client_identity);
   SAFE_FREE(session->opts.pubkey_accepted_types);
+  SAFE_FREE(session->opts.control_path);
 
   for (i = 0; i < SSH_KEX_METHODS; i++) {
       if (session->opts.wanted_methods[i]) {
           SAFE_FREE(session->opts.wanted_methods[i]);
       }
   }
+
+  SAFE_FREE(session->server_opts.custombanner);
+  SAFE_FREE(session->server_opts.moduli_file);
+
+  _ssh_remove_legacy_log_cb();
 
   /* burn connection, it could contain sensitive data */
   explicit_bzero(session, sizeof(struct ssh_session_struct));
@@ -458,20 +519,36 @@ const char* ssh_get_hmac_out(ssh_session session) {
 }
 
 /**
+ * @internal
+ * @brief Close the connection socket if it is a socket created by us.
+ * Does not close the sockets provided by the user through options API.
+ */
+void
+ssh_session_socket_close(ssh_session session)
+{
+    if (session->opts.fd == SSH_INVALID_SOCKET) {
+        ssh_socket_close(session->socket);
+    }
+    session->alive = 0;
+    session->session_state = SSH_SESSION_STATE_ERROR;
+}
+
+/**
  * @brief Disconnect impolitely from a remote host by closing the socket.
  *
  * Suitable if you forked and want to destroy this session.
  *
  * @param[in]  session  The SSH session to disconnect.
  */
-void ssh_silent_disconnect(ssh_session session) {
-  if (session == NULL) {
-    return;
-  }
+void
+ssh_silent_disconnect(ssh_session session)
+{
+    if (session == NULL) {
+        return;
+    }
 
-  ssh_socket_close(session->socket);
-  session->alive = 0;
-  ssh_disconnect(session);
+    ssh_session_socket_close(session);
+    ssh_disconnect(session);
 }
 
 /**
@@ -632,9 +709,10 @@ void ssh_set_fd_except(ssh_session session) {
  *
  * @return              SSH_OK on success, SSH_ERROR otherwise.
  */
-int ssh_handle_packets(ssh_session session, int timeout) {
-    ssh_poll_handle spoll;
-    ssh_poll_ctx ctx;
+int ssh_handle_packets(ssh_session session, int timeout)
+{
+    ssh_poll_handle spoll = NULL;
+    ssh_poll_ctx ctx = NULL;
     int tm = timeout;
     int rc;
 
@@ -643,20 +721,29 @@ int ssh_handle_packets(ssh_session session, int timeout) {
     }
 
     spoll = ssh_socket_get_poll_handle(session->socket);
+    if (spoll == NULL) {
+        ssh_set_error_oom(session);
+        return SSH_ERROR;
+    }
     ssh_poll_add_events(spoll, POLLIN);
     ctx = ssh_poll_get_ctx(spoll);
 
-    if (!ctx) {
+    if (ctx == NULL) {
         ctx = ssh_poll_get_default_ctx(session);
+        if (ctx == NULL) {
+            ssh_set_error_oom(session);
+            return SSH_ERROR;
+        }
         ssh_poll_ctx_add(ctx, spoll);
     }
 
     if (timeout == SSH_TIMEOUT_USER) {
-        if (ssh_is_blocking(session))
-          tm = ssh_make_milliseconds(session->opts.timeout,
-                                     session->opts.timeout_usec);
-        else
-          tm = 0;
+        if (ssh_is_blocking(session)) {
+            tm = ssh_make_milliseconds(session->opts.timeout,
+                                       session->opts.timeout_usec);
+        } else {
+            tm = 0;
+        }
     }
     rc = ssh_poll_ctx_dopoll(ctx, tm);
     if (rc == SSH_ERROR) {
@@ -679,7 +766,7 @@ int ssh_handle_packets(ssh_session session, int timeout) {
  * @param[in] timeout   Set an upper limit on the time for which this function
  *                      will block, in milliseconds. Specifying
  *                      SSH_TIMEOUT_INFINITE (-1) means an infinite timeout.
- *                      Specifying SSH_TIMEOUT_USER means to use the timeout
+ *                      Specifying SSH_TIMEOUT_USER means using the timeout
  *                      specified in options. 0 means poll will return
  *                      immediately.
  *                      SSH_TIMEOUT_DEFAULT uses the session timeout if set or
@@ -693,13 +780,13 @@ int ssh_handle_packets(ssh_session session, int timeout) {
  *                      SSH_ERROR otherwise.
  */
 int ssh_handle_packets_termination(ssh_session session,
-                                   long timeout,
+                                   int timeout,
                                    ssh_termination_function fct,
                                    void *user)
 {
     struct ssh_timestamp ts;
-    long timeout_ms = SSH_TIMEOUT_INFINITE;
-    long tm;
+    int timeout_ms = SSH_TIMEOUT_INFINITE;
+    int tm;
     int ret = SSH_OK;
 
     /* If a timeout has been provided, use it */
@@ -818,11 +905,11 @@ const char *ssh_get_disconnect_message(ssh_session session) {
   if (session->session_state != SSH_SESSION_STATE_DISCONNECTED) {
     ssh_set_error(session, SSH_REQUEST_DENIED,
         "Connection not closed yet");
-  } else if(!session->discon_msg) {
+  } else if(!session->peer_discon_msg) {
     ssh_set_error(session, SSH_FATAL,
         "Connection correctly closed but no disconnect message");
   } else {
-    return session->discon_msg;
+    return session->peer_discon_msg;
   }
 
   return NULL;
@@ -856,7 +943,9 @@ void ssh_socket_exception_callback(int code, int errno_code, void *user){
     if (errno_code == 0 && code == SSH_SOCKET_EXCEPTION_EOF) {
         ssh_set_error(session, SSH_FATAL, "Socket error: disconnected");
     } else {
-        ssh_set_error(session, SSH_FATAL, "Socket error: %s", strerror(errno_code));
+        char err_msg[SSH_ERRNO_MSG_MAX] = {0};
+        ssh_set_error(session, SSH_FATAL, "Socket error: %s",
+                ssh_strerror(errno_code, err_msg, SSH_ERRNO_MSG_MAX));
     }
 
     session->ssh_connection_callback(session);
@@ -933,7 +1022,7 @@ error:
  /**
  * @brief Set the session data counters.
  *
- * This functions sets the counter structures to be used to calculate data
+ * This function sets the counter structures to be used to calculate data
  * which comes in and goes out through the session at different levels.
  *
  * @code
@@ -976,8 +1065,8 @@ int ssh_get_pubkey_hash(ssh_session session, unsigned char **hash)
 {
     ssh_key pubkey = NULL;
     ssh_string pubkey_blob = NULL;
-    MD5CTX ctx;
-    unsigned char *h;
+    MD5CTX ctx = NULL;
+    unsigned char *h = NULL;
     int rc;
 
     if (session == NULL || hash == NULL) {
@@ -997,39 +1086,49 @@ int ssh_get_pubkey_hash(ssh_session session, unsigned char **hash)
     *hash = NULL;
     if (session->current_crypto == NULL ||
         session->current_crypto->server_pubkey == NULL) {
-        ssh_set_error(session,SSH_FATAL,"No current cryptographic context");
-        return SSH_ERROR;
-    }
-
-    h = calloc(MD5_DIGEST_LEN, sizeof(unsigned char));
-    if (h == NULL) {
-        return SSH_ERROR;
-    }
-
-    ctx = md5_init();
-    if (ctx == NULL) {
-        SAFE_FREE(h);
+        ssh_set_error(session, SSH_FATAL, "No current cryptographic context");
         return SSH_ERROR;
     }
 
     rc = ssh_get_server_publickey(session, &pubkey);
     if (rc != SSH_OK) {
-        md5_final(h, ctx);
-        SAFE_FREE(h);
         return SSH_ERROR;
     }
 
     rc = ssh_pki_export_pubkey_blob(pubkey, &pubkey_blob);
     ssh_key_free(pubkey);
     if (rc != SSH_OK) {
-        md5_final(h, ctx);
+        return SSH_ERROR;
+    }
+
+    h = calloc(MD5_DIGEST_LEN, sizeof(unsigned char));
+    if (h == NULL) {
+        SSH_STRING_FREE(pubkey_blob);
+        return SSH_ERROR;
+    }
+
+    ctx = md5_init();
+    if (ctx == NULL) {
+        SSH_STRING_FREE(pubkey_blob);
         SAFE_FREE(h);
         return SSH_ERROR;
     }
 
-    md5_update(ctx, ssh_string_data(pubkey_blob), ssh_string_len(pubkey_blob));
+    rc = md5_update(ctx,
+                    ssh_string_data(pubkey_blob),
+                    ssh_string_len(pubkey_blob));
+    if (rc != SSH_OK) {
+        SSH_STRING_FREE(pubkey_blob);
+        md5_ctx_free(ctx);
+        SAFE_FREE(h);
+        return rc;
+    }
     SSH_STRING_FREE(pubkey_blob);
-    md5_final(h, ctx);
+    rc = md5_final(h, ctx);
+    if (rc != SSH_OK) {
+        SAFE_FREE(h);
+        return rc;
+    }
 
     *hash = h;
 
@@ -1039,14 +1138,15 @@ int ssh_get_pubkey_hash(ssh_session session, unsigned char **hash)
 /**
  * @brief Deallocate the hash obtained by ssh_get_pubkey_hash.
  *
- * This is required under Microsoft platform as this library might use a 
+ * This is required under Microsoft platform as this library might use a
  * different C library than your software, hence a different heap.
  *
  * @param[in] hash      The buffer to deallocate.
  *
  * @see ssh_get_pubkey_hash()
  */
-void ssh_clean_pubkey_hash(unsigned char **hash) {
+void ssh_clean_pubkey_hash(unsigned char **hash)
+{
     SAFE_FREE(*hash);
 }
 
@@ -1056,9 +1156,9 @@ void ssh_clean_pubkey_hash(unsigned char **hash) {
  * @param[in]  session  The session to get the key from.
  *
  * @param[out] key      A pointer to store the allocated key. You need to free
- *                      the key.
+ *                      the key using ssh_key_free().
  *
- * @return              SSH_OK on success, SSH_ERROR on errror.
+ * @return              SSH_OK on success, SSH_ERROR on error.
  *
  * @see ssh_key_free()
  */
@@ -1100,15 +1200,15 @@ int ssh_get_publickey(ssh_session session, ssh_key *key)
  *
  * @param[in]  type     The type of the hash you want.
  *
- * @param[in]  hash     A pointer to store the allocated buffer. It can be
+ * @param[out]  hash    A pointer to store the allocated buffer. It can be
  *                      freed using ssh_clean_pubkey_hash().
  *
  * @param[in]  hlen     The length of the hash.
  *
- * @return 0 on success, -1 if an error occured.
+ * @return 0 on success, -1 if an error occurred.
  *
  * @warning It is very important that you verify at some moment that the hash
- *          matches a known server. If you don't do it, cryptography wont help
+ *          matches a known server. If you don't do it, cryptography won't help
  *          you at making things secure.
  *          OpenSSH uses SHA256 to print public key digests.
  *
@@ -1122,8 +1222,8 @@ int ssh_get_publickey_hash(const ssh_key key,
                            unsigned char **hash,
                            size_t *hlen)
 {
-    ssh_string blob;
-    unsigned char *h;
+    ssh_string blob = NULL;
+    unsigned char *h = NULL;
     int rc;
 
     rc = ssh_pki_export_pubkey_blob(key, &blob);
@@ -1134,7 +1234,7 @@ int ssh_get_publickey_hash(const ssh_key key,
     switch (type) {
     case SSH_PUBLICKEY_HASH_SHA1:
         {
-            SHACTX ctx;
+            SHACTX ctx = NULL;
 
             h = calloc(1, SHA_DIGEST_LEN);
             if (h == NULL) {
@@ -1149,15 +1249,24 @@ int ssh_get_publickey_hash(const ssh_key key,
                 goto out;
             }
 
-            sha1_update(ctx, ssh_string_data(blob), ssh_string_len(blob));
-            sha1_final(h, ctx);
+            rc = sha1_update(ctx, ssh_string_data(blob), ssh_string_len(blob));
+            if (rc != SSH_OK) {
+                free(h);
+                sha1_ctx_free(ctx);
+                goto out;
+            }
+            rc = sha1_final(h, ctx);
+            if (rc != SSH_OK) {
+                free(h);
+                goto out;
+            }
 
             *hlen = SHA_DIGEST_LEN;
         }
         break;
     case SSH_PUBLICKEY_HASH_SHA256:
         {
-            SHA256CTX ctx;
+            SHA256CTX ctx = NULL;
 
             h = calloc(1, SHA256_DIGEST_LEN);
             if (h == NULL) {
@@ -1172,20 +1281,29 @@ int ssh_get_publickey_hash(const ssh_key key,
                 goto out;
             }
 
-            sha256_update(ctx, ssh_string_data(blob), ssh_string_len(blob));
-            sha256_final(h, ctx);
+            rc = sha256_update(ctx, ssh_string_data(blob), ssh_string_len(blob));
+            if (rc != SSH_OK) {
+                free(h);
+                sha256_ctx_free(ctx);
+                goto out;
+            }
+            rc = sha256_final(h, ctx);
+            if (rc != SSH_OK) {
+                free(h);
+                goto out;
+            }
 
             *hlen = SHA256_DIGEST_LEN;
         }
         break;
     case SSH_PUBLICKEY_HASH_MD5:
         {
-            MD5CTX ctx;
+            MD5CTX ctx = NULL;
 
             /* In FIPS mode, we cannot use MD5 */
             if (ssh_fips_mode()) {
-                SSH_LOG(SSH_LOG_WARN, "In FIPS mode MD5 is not allowed."
-                                      "Try using SSH_PUBLICKEY_HASH_SHA256");
+                SSH_LOG(SSH_LOG_TRACE, "In FIPS mode MD5 is not allowed."
+                                       "Try using SSH_PUBLICKEY_HASH_SHA256");
                 rc = SSH_ERROR;
                 goto out;
             }
@@ -1203,8 +1321,17 @@ int ssh_get_publickey_hash(const ssh_key key,
                 goto out;
             }
 
-            md5_update(ctx, ssh_string_data(blob), ssh_string_len(blob));
-            md5_final(h, ctx);
+            rc = md5_update(ctx, ssh_string_data(blob), ssh_string_len(blob));
+            if (rc != SSH_OK) {
+                free(h);
+                md5_ctx_free(ctx);
+                goto out;
+            }
+            rc = md5_final(h, ctx);
+            if (rc != SSH_OK) {
+                free(h);
+                goto out;
+            }
 
             *hlen = MD5_DIGEST_LEN;
         }

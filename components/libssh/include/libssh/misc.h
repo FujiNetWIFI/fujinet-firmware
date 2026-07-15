@@ -21,6 +21,26 @@
 #ifndef MISC_H_
 #define MISC_H_
 
+#ifdef _WIN32
+
+# ifdef _MSC_VER
+#  ifndef _SSIZE_T_DEFINED
+#   undef ssize_t
+#   include <BaseTsd.h>
+    typedef _W64 SSIZE_T ssize_t;
+#   define _SSIZE_T_DEFINED
+#  endif /* _SSIZE_T_DEFINED */
+# endif /* _MSC_VER */
+
+#else
+#include <sys/types.h>
+#include <stdbool.h>
+#endif /* _WIN32 */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* in misc.c */
 /* gets the user home dir. */
 char *ssh_get_user_home_dir(void);
@@ -44,6 +64,12 @@ struct ssh_list {
 struct ssh_iterator {
   struct ssh_iterator *next;
   const void *data;
+};
+
+struct ssh_jump_info_struct {
+    char *hostname;
+    char *username;
+    int port;
 };
 
 struct ssh_timestamp {
@@ -75,18 +101,19 @@ const void *_ssh_list_pop_head(struct ssh_list *list);
 
 /** @brief fetch the head element of a list and remove it from list
  * @param type type of the element to return
- * @param list the ssh_list to use
+ * @param ssh_list the ssh_list to use
  * @return the first element of the list, or NULL if the list is empty
  */
 #define ssh_list_pop_head(type, ssh_list)\
   ((type)_ssh_list_pop_head(ssh_list))
 
-int ssh_make_milliseconds(long sec, long usec);
+#define SSH_LIST_FREE(x) \
+    do { if ((x) != NULL) { ssh_list_free(x); (x) = NULL; } } while(0)
+
+int ssh_make_milliseconds(unsigned long sec, unsigned long usec);
 void ssh_timestamp_init(struct ssh_timestamp *ts);
 int ssh_timeout_elapsed(struct ssh_timestamp *ts, int timeout);
 int ssh_timeout_update(struct ssh_timestamp *ts, int timeout);
-
-int ssh_match_group(const char *group, const char *object);
 
 void uint64_inc(unsigned char *counter);
 
@@ -96,5 +123,21 @@ int ssh_mkdirs(const char *pathname, mode_t mode);
 
 int ssh_quote_file_name(const char *file_name, char *buf, size_t buf_len);
 int ssh_newline_vis(const char *string, char *buf, size_t buf_len);
+int ssh_tmpname(char *name);
+
+char *ssh_strreplace(const char *src, const char *pattern, const char *repl);
+
+ssize_t ssh_readn(int fd, void *buf, size_t nbytes);
+ssize_t ssh_writen(int fd, const void *buf, size_t nbytes);
+
+int ssh_check_hostname_syntax(const char *hostname);
+int ssh_check_username_syntax(const char *username);
+
+void ssh_proxyjumps_free(struct ssh_list *proxy_jump_list);
+bool ssh_libssh_proxy_jumps(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MISC_H_ */

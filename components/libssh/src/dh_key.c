@@ -24,7 +24,7 @@
  * MA 02111-1307, USA.
  */
 
-#include "libssh/config.h"
+#include "../config.h"
 
 #include "libssh/priv.h"
 #include "libssh/crypto.h"
@@ -237,6 +237,11 @@ int ssh_dh_init_common(struct ssh_crypto_struct *crypto)
     struct dh_ctx *ctx = NULL;
     int rc;
 
+    /* Cleanup any previously allocated dh_ctx */
+    if (crypto->dh_ctx != NULL) {
+        ssh_dh_cleanup(crypto);
+    }
+
     ctx = calloc(1, sizeof(*ctx));
     if (ctx == NULL) {
         return SSH_ERROR;
@@ -289,8 +294,10 @@ void ssh_dh_cleanup(struct ssh_crypto_struct *crypto)
 /** @internal
  * @brief generates a secret DH parameter of at least DH_SECURITY_BITS
  *        security as well as the corresponding public key.
- * @param[out] parms a dh_kex paramters structure with preallocated bignum
+ *
+ * @param[out] params a dh_kex parameters structure with preallocated bignum
  *             where to store the parameters
+ *
  * @return SSH_OK on success, SSH_ERROR on error
  */
 int ssh_dh_keypair_gen_keys(struct dh_ctx *dh_ctx, int peer)

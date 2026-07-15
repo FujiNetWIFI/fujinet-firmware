@@ -21,7 +21,7 @@
  * MA 02111-1307, USA.
  */
 
-#include "libssh/config.h"
+#include "../config.h"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -29,7 +29,7 @@
 #include "libssh/session.h"
 
 /**
- * @defgroup libssh_error The SSH error functions.
+ * @defgroup libssh_error The SSH error functions
  * @ingroup libssh
  *
  * Functions for error handling.
@@ -63,8 +63,8 @@ void _ssh_set_error(void *error,
     va_end(va);
 
     err->error.error_code = code;
-    if (ssh_get_log_level() >= SSH_LOG_WARN) {
-        ssh_log_function(SSH_LOG_WARN,
+    if (ssh_get_log_level() == SSH_LOG_TRACE) {
+        ssh_log_function(SSH_LOG_TRACE,
                          function,
                          err->error.error_buffer);
     }
@@ -142,7 +142,7 @@ const char *ssh_get_error(void *error) {
  *         SSH_FATAL          A fatal error occurred. This could be an unexpected
  *                            disconnection\n
  *
- *         Other error codes are internal but can be considered same than
+ *         Other error codes are internal but can be considered the same as
  *         SSH_FATAL.
  */
 int ssh_get_error_code(void *error) {

@@ -984,7 +984,9 @@ void
 archive_entry_set_ino(struct archive_entry *entry, la_int64_t ino)
 {
 	if (ino < 0) {
-		ino = 0;
+		entry->stat_valid = 0;
+		entry->ae_set &= ~AE_SET_INO;
+		return;
 	}
 	entry->stat_valid = 0;
 	entry->ae_set |= AE_SET_INO;
@@ -995,7 +997,9 @@ void
 archive_entry_set_ino64(struct archive_entry *entry, la_int64_t ino)
 {
 	if (ino < 0) {
-		ino = 0;
+		entry->stat_valid = 0;
+		entry->ae_set &= ~AE_SET_INO;
+		return;
 	}
 	entry->stat_valid = 0;
 	entry->ae_set |= AE_SET_INO;
@@ -1603,21 +1607,27 @@ archive_entry_set_digest(struct archive_entry *entry, int type,
 	switch (type) {
 	case ARCHIVE_ENTRY_DIGEST_MD5:
 		copy_digest(entry, md5, digest);
+		entry->mset_digest |= AE_MSET_DIGEST_MD5;
 		break;
 	case ARCHIVE_ENTRY_DIGEST_RMD160:
 		copy_digest(entry, rmd160, digest);
+		entry->mset_digest |= AE_MSET_DIGEST_RMD160;
 		break;
 	case ARCHIVE_ENTRY_DIGEST_SHA1:
 		copy_digest(entry, sha1, digest);
+		entry->mset_digest |= AE_MSET_DIGEST_SHA1;
 		break;
 	case ARCHIVE_ENTRY_DIGEST_SHA256:
 		copy_digest(entry, sha256, digest);
+		entry->mset_digest |= AE_MSET_DIGEST_SHA256;
 		break;
 	case ARCHIVE_ENTRY_DIGEST_SHA384:
 		copy_digest(entry, sha384, digest);
+		entry->mset_digest |= AE_MSET_DIGEST_SHA384;
 		break;
 	case ARCHIVE_ENTRY_DIGEST_SHA512:
 		copy_digest(entry, sha512, digest);
+		entry->mset_digest |= AE_MSET_DIGEST_SHA512;
 		break;
 	default:
 		return ARCHIVE_WARN;

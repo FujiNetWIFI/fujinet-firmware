@@ -19,9 +19,9 @@
  * MA 02111-1307, USA.
  */
 
-#include "libssh/config.h"
+#include "../../config.h"
 #include "libssh/threads.h"
-#include "libssh/callbacks.h"
+#include <libssh/callbacks.h>
 
 #include <errno.h>
 #include <stdlib.h>

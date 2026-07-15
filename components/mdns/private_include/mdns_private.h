@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -32,6 +32,20 @@
 #define CONFIG_MDNS_PREDEF_NETIF_ETH 0
 #endif
 #define MDNS_MAX_PREDEF_INTERFACES (CONFIG_MDNS_PREDEF_NETIF_STA + CONFIG_MDNS_PREDEF_NETIF_AP + CONFIG_MDNS_PREDEF_NETIF_ETH)
+
+#ifdef CONFIG_LWIP_IPV6_NUM_ADDRESSES
+#define NETIF_IPV6_MAX_NUMS CONFIG_LWIP_IPV6_NUM_ADDRESSES
+#else
+#define NETIF_IPV6_MAX_NUMS 3
+#endif
+
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 1, 0)
+/* CONFIG_LWIP_IPV4 was introduced in IDF v5.1 */
+/* For IDF v5.0, set CONFIG_LWIP_IPV4 to 1 by default */
+#ifndef CONFIG_LWIP_IPV4
+#define CONFIG_LWIP_IPV4 1
+#endif // CONFIG_LWIP_IPV4
+#endif // ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 1, 0)
 
 /** Number of configured interfaces */
 #if MDNS_MAX_PREDEF_INTERFACES > CONFIG_MDNS_MAX_INTERFACES
@@ -87,14 +101,8 @@
 #define MDNS_SERVICE_ADD_TIMEOUT_MS CONFIG_MDNS_SERVICE_ADD_TIMEOUT_MS
 
 #define MDNS_PACKET_QUEUE_LEN       16                      // Maximum packets that can be queued for parsing
-#define MDNS_ACTION_QUEUE_LEN       16                      // Maximum actions pending to the server
+#define MDNS_ACTION_QUEUE_LEN       CONFIG_MDNS_ACTION_QUEUE_LEN  // Maximum actions pending to the server
 #define MDNS_TXT_MAX_LEN            1024                    // Maximum string length of text data in TXT record
-#if defined(CONFIG_LWIP_IPV6) && defined(CONFIG_MDNS_RESPOND_REVERSE_QUERIES)
-#define MDNS_NAME_MAX_LEN           (64+4)                  // Need to account for IPv6 reverse queries (64 char address  + ".ip6" )
-#else
-#define MDNS_NAME_MAX_LEN           64                      // Maximum string length of hostname, instance, service and proto
-#endif
-#define MDNS_NAME_BUF_LEN           (MDNS_NAME_MAX_LEN+1)   // Maximum char buffer size to hold hostname, instance, service or proto
 #define MDNS_MAX_PACKET_SIZE        1460                    // Maximum size of mDNS  outgoing packet
 
 #define MDNS_HEAD_LEN               12
@@ -153,7 +161,7 @@
 #define PCB_STATE_IS_RUNNING(s) (s->state == PCB_RUNNING)
 
 #ifndef HOOK_MALLOC_FAILED
-#define HOOK_MALLOC_FAILED  ESP_LOGE(TAG, "Cannot allocate memory (line: %d, free heap: %d bytes)", __LINE__, esp_get_free_heap_size());
+#define HOOK_MALLOC_FAILED  ESP_LOGE(TAG, "Cannot allocate memory (line: %d, free heap: %" PRIu32 " bytes)", __LINE__, esp_get_free_heap_size());
 #endif
 
 typedef size_t mdns_if_t;
@@ -173,23 +181,18 @@ typedef enum {
     ACTION_SYSTEM_EVENT,
     ACTION_HOSTNAME_SET,
     ACTION_INSTANCE_SET,
-    ACTION_SERVICE_ADD,
-    ACTION_SERVICE_DEL,
-    ACTION_SERVICE_INSTANCE_SET,
-    ACTION_SERVICE_PORT_SET,
-    ACTION_SERVICE_TXT_REPLACE,
-    ACTION_SERVICE_TXT_SET,
-    ACTION_SERVICE_TXT_DEL,
-    ACTION_SERVICE_SUBTYPE_ADD,
-    ACTION_SERVICES_CLEAR,
     ACTION_SEARCH_ADD,
     ACTION_SEARCH_SEND,
     ACTION_SEARCH_END,
+    ACTION_BROWSE_ADD,
+    ACTION_BROWSE_SYNC,
+    ACTION_BROWSE_END,
     ACTION_TX_HANDLE,
     ACTION_RX_HANDLE,
     ACTION_TASK_STOP,
     ACTION_DELEGATE_HOSTNAME_ADD,
     ACTION_DELEGATE_HOSTNAME_REMOVE,
+    ACTION_DELEGATE_HOSTNAME_SET_ADDR,
     ACTION_MAX
 } mdns_action_type_t;
 
@@ -341,7 +344,6 @@ typedef struct mdns_tx_packet_s {
 
 typedef struct {
     mdns_pcb_state_t state;
-    struct udp_pcb *pcb;
     mdns_srv_item_t **probe_services;
     uint8_t probe_services_len;
     uint8_t probe_ip;
@@ -355,6 +357,13 @@ typedef enum {
     SEARCH_RUNNING,
     SEARCH_MAX
 } mdns_search_once_state_t;
+
+typedef enum {
+    BROWSE_OFF,
+    BROWSE_INIT,
+    BROWSE_RUNNING,
+    BROWSE_MAX
+} mdns_browse_state_t;
 
 typedef struct mdns_search_once_s {
     struct mdns_search_once_s *next;
@@ -375,6 +384,27 @@ typedef struct mdns_search_once_s {
     mdns_result_t *result;
 } mdns_search_once_t;
 
+typedef struct mdns_browse_s {
+    struct mdns_browse_s *next;
+
+    mdns_browse_state_t state;
+    mdns_browse_notify_t notifier;
+
+    char *service;
+    char *proto;
+    mdns_result_t *result;
+} mdns_browse_t;
+
+typedef struct mdns_browse_result_sync_t {
+    mdns_result_t *result;
+    struct mdns_browse_result_sync_t *next;
+} mdns_browse_result_sync_t;
+
+typedef struct mdns_browse_sync {
+    mdns_browse_t *browse;
+    mdns_browse_result_sync_t *sync_result;
+} mdns_browse_sync_t;
+
 typedef struct mdns_server_s {
     struct {
         mdns_pcb_t pcbs[MDNS_IP_PROTOCOL_MAX];
@@ -382,12 +412,12 @@ typedef struct mdns_server_s {
     const char *hostname;
     const char *instance;
     mdns_srv_item_t *services;
-    SemaphoreHandle_t lock;
     QueueHandle_t action_queue;
     SemaphoreHandle_t action_sema;
     mdns_tx_packet_t *tx_queue_head;
     mdns_search_once_t *search_once;
     esp_timer_handle_t timer_handle;
+    mdns_browse_t *browse;
 } mdns_server_t;
 
 typedef struct {
@@ -402,38 +432,6 @@ typedef struct {
             mdns_event_actions_t event_action;
         } sys_event;
         struct {
-            mdns_srv_item_t *service;
-        } srv_add;
-        struct {
-            mdns_srv_item_t *service;
-        } srv_del;
-        struct {
-            mdns_srv_item_t *service;
-            char *instance;
-        } srv_instance;
-        struct {
-            mdns_srv_item_t *service;
-            uint16_t port;
-        } srv_port;
-        struct {
-            mdns_srv_item_t *service;
-            mdns_txt_linked_item_t *txt;
-        } srv_txt_replace;
-        struct {
-            mdns_srv_item_t *service;
-            char *key;
-            char *value;
-            uint8_t value_len;
-        } srv_txt_set;
-        struct {
-            mdns_srv_item_t *service;
-            char *key;
-        } srv_txt_del;
-        struct {
-            mdns_srv_item_t *service;
-            char *subtype;
-        } srv_subtype_add;
-        struct {
             mdns_search_once_t *search;
         } search_add;
         struct {
@@ -446,6 +444,12 @@ typedef struct {
             const char *hostname;
             mdns_ip_addr_t *address_list;
         } delegate_hostname;
+        struct {
+            mdns_browse_t *browse;
+        } browse_add;
+        struct {
+            mdns_browse_sync_t *browse_sync;
+        } browse_sync;
     } data;
 } mdns_action_t;
 

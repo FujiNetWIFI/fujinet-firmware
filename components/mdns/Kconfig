@@ -10,13 +10,11 @@ menu "mDNS"
 
     config MDNS_MAX_SERVICES
         int "Max number of services"
-        range 1 64
         default 10
         help
             Services take up a certain amount of memory, and allowing fewer
             services to be open at the same time conserves memory. Specify
-            the maximum amount of services here. The valid value is from 1
-            to 64.
+            the maximum amount of services here.
 
     config MDNS_TASK_PRIORITY
         int "mDNS task priority"
@@ -26,6 +24,13 @@ menu "mDNS"
             Allows setting mDNS task priority. Please do not set the task priority
             higher than priorities of system tasks. Compile time warning/error
             would be emitted if the chosen task priority were too high.
+
+    config MDNS_ACTION_QUEUE_LEN
+        int "Maximum actions pending to the server"
+        range 8 64
+        default 16
+        help
+            Allows setting the length of mDNS action queue.
 
     config MDNS_TASK_STACK_SIZE
         int "mDNS task stack size"
@@ -55,6 +60,48 @@ menu "mDNS"
         default FREERTOS_NO_AFFINITY if MDNS_TASK_AFFINITY_NO_AFFINITY
         default 0x0 if MDNS_TASK_AFFINITY_CPU0
         default 0x1 if MDNS_TASK_AFFINITY_CPU1
+
+    menu "MDNS Memory Configuration"
+
+        choice MDNS_TASK_MEMORY_ALLOC_FROM
+            prompt "Select mDNS task create on which type of memory"
+            default MDNS_TASK_CREATE_FROM_INTERNAL
+            config MDNS_TASK_CREATE_FROM_SPIRAM
+                bool "mDNS task creates on the SPIRAM (READ HELP)"
+                depends on (SPIRAM_USE_CAPS_ALLOC || SPIRAM_USE_MALLOC)
+                help
+                    mDNS task creates on the SPIRAM.
+                    This option requires FreeRTOS component to allow creating
+                    tasks on the external memory.
+                    Please read the documentation about FREERTOS_TASK_CREATE_ALLOW_EXT_MEM
+
+            config MDNS_TASK_CREATE_FROM_INTERNAL
+                bool "mDNS task creates on the internal RAM"
+
+        endchoice
+
+        choice MDNS_MEMORY_ALLOC_FROM
+            prompt "Select mDNS memory allocation type"
+            default MDNS_MEMORY_ALLOC_INTERNAL
+
+            config MDNS_MEMORY_ALLOC_SPIRAM
+                bool "Allocate mDNS memory from SPIRAM"
+                depends on (SPIRAM_USE_CAPS_ALLOC || SPIRAM_USE_MALLOC)
+
+            config MDNS_MEMORY_ALLOC_INTERNAL
+                bool "Allocate mDNS memory from internal RAM"
+
+        endchoice
+
+        config MDNS_MEMORY_CUSTOM_IMPL
+            bool "Implement custom memory functions"
+            default n
+            help
+                Enable to implement custom memory functions for mDNS library.
+                This option is useful when the application wants to use custom
+                memory allocation functions for mDNS library.
+
+    endmenu # MDNS Memory Configuration
 
     config MDNS_SERVICE_ADD_TIMEOUT_MS
         int "mDNS adding service timeout (ms)"
@@ -94,6 +141,12 @@ menu "mDNS"
         default n
         help
             Enable for the library to log received and sent mDNS packets to stdout.
+
+    config MDNS_ENABLE_CONSOLE_CLI
+        bool "Enable Command Line Interface on device console"
+        default y
+        help
+            Enable for the console cli to be available on the device.
 
     config MDNS_RESPOND_REVERSE_QUERIES
         bool "Enable responding to IPv4 reverse queries"
