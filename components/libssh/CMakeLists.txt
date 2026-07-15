@@ -31,7 +31,14 @@ idf_component_register(
 
 # Prefer using a compile definition instead of raw -D flags.
 target_compile_definitions(${COMPONENT_LIB} PRIVATE HAVE_CONFIG_H)
-target_compile_definitions(${COMPONENT_LIB} PRIVATE MBEDTLS_GCM_ALT)
+# gcm_alt.h checks #if defined(MBEDTLS_GCM_ALT) before esp_config.h gets a
+# chance to define it (crypto.h -> gcm_alt.h -> esp_aes_gcm.h -> cipher.h ->
+# build_info.h -> esp_config.h), and it's include-guarded, so the macro must
+# already be set on the command line or the alt struct/macros never appear.
+# Define it with an explicitly empty value (matching esp_config.h's
+# `#define MBEDTLS_GCM_ALT`) instead of CMake's implicit "=1", so the two
+# definitions are token-identical and GCC doesn't warn about redefinition.
+target_compile_definitions(${COMPONENT_LIB} PRIVATE "MBEDTLS_GCM_ALT=")
 
 target_compile_options(${COMPONENT_LIB} PRIVATE 
     -Wno-unused-function
