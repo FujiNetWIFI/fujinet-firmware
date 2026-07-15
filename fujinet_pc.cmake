@@ -165,6 +165,7 @@ set(SOURCES src/main.cpp
     lib/config/fnc_cpm.cpp
     lib/config/fnc_enable.cpp
     lib/config/fnc_gdrive.cpp
+    lib/config/fnc_s3.cpp
     lib/config/fnc_general.cpp
     lib/config/fnc_hosts.cpp
     lib/config/fnc_load.cpp
@@ -207,6 +208,7 @@ set(SOURCES src/main.cpp
     lib/FileSystem/fnFileSMB.h lib/FileSystem/fnFileSMB.cpp
     lib/FileSystem/fnFileNFS.h lib/FileSystem/fnFileNFS.cpp
     lib/FileSystem/fnFileMem.h lib/FileSystem/fnFileMem.cpp
+    lib/FileSystem/fnFileHTTP.h lib/FileSystem/fnFileHTTP.cpp
     lib/FileSystem/fnio.h lib/FileSystem/fnio.cpp
     lib/tcpip/fnDNS.h lib/tcpip/fnDNS.cpp
     lib/tcpip/fnUDP.h lib/tcpip/fnUDP.cpp
@@ -263,19 +265,24 @@ set(SOURCES src/main.cpp
     lib/network-protocol/HTTP.h lib/network-protocol/HTTP.cpp
     lib/network-protocol/SMB.h lib/network-protocol/SMB.cpp
     lib/network-protocol/NFS.h lib/network-protocol/NFS.cpp
+    lib/network-protocol/S3.h lib/network-protocol/S3.cpp
     lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp
+    lib/network-protocol/SFTP.h lib/network-protocol/SFTP.cpp
     lib/network-protocol/SSHKeygen.h lib/network-protocol/SSHKeygen.cpp
     lib/network-protocol/SSHCopyId.h lib/network-protocol/SSHCopyId.cpp
     lib/network-protocol/SD.h lib/network-protocol/SD.cpp
     lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
     lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
-    lib/bus/bus.h
+    lib/bus/bus.h lib/bus/bus.cpp
     lib/device/device.h
     lib/device/disk.h
     lib/device/printer.h
     lib/device/modem.h
     lib/device/cassette.h
     lib/device/fujiDevice.h lib/device/fujiDevice.cpp
+    lib/device/FujiDeviceMixin.h
+    lib/device/Base64Mixin.h lib/device/Base64Mixin.cpp
+    lib/device/HashMixin.h lib/device/HashMixin.cpp
     lib/device/network.h
     lib/device/netstream.h
     lib/device/siocpm.h
@@ -334,6 +341,7 @@ if(FUJINET_TARGET STREQUAL "APPLE")
     lib/bus/iwm/iwm_slip.h lib/utils/std_extensions.hpp lib/bus/iwm/iwm_slip.cpp
     lib/bus/iwm/connector.h
     lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
+    lib/bus/iwm/FujiIWMPacket.h lib/bus/iwm/FujiIWMPacket.cpp
 
     lib/devrelay/util.h lib/devrelay/util.cpp
     lib/devrelay/types/Request.h lib/devrelay/types/Request.cpp
@@ -389,6 +397,7 @@ if(FUJINET_TARGET STREQUAL "COCO")
     list(APPEND SOURCES
 
     lib/bus/drivewire/drivewire.h lib/bus/drivewire/drivewire.cpp
+    lib/bus/drivewire/FujiDWPacket.h lib/bus/drivewire/FujiDWPacket.cpp
     lib/hardware/BoIPChannel.h lib/hardware/BoIPChannel.cpp
 
     lib/media/drivewire/mediaType.h lib/media/drivewire/mediaType.cpp
@@ -399,7 +408,6 @@ if(FUJINET_TARGET STREQUAL "COCO")
 
     lib/device/drivewire/drivewireFuji.h lib/device/drivewire/drivewireFuji.cpp
     lib/device/drivewire/network.h lib/device/drivewire/network.cpp
-    lib/device/drivewire/dload.h lib/device/drivewire/dload.cpp
     lib/device/drivewire/disk.h lib/device/drivewire/disk.cpp
     lib/device/drivewire/printer.h lib/device/drivewire/printer.cpp
     lib/device/drivewire/printerlist.h lib/device/drivewire/printerlist.cpp

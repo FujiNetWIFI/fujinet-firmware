@@ -26,6 +26,7 @@
 #include "fnWiFi.h"
 #include "fsFlash.h"
 #include "fnFsTNFS.h"
+#include "fujiDeviceID.h"
 
 #include "led.h"
 #include "utils.h"
@@ -200,6 +201,16 @@ void fujiDevice::shutdown()
 {
     for (int i = 0; i < _totalDiskDevices; i++)
         _fnDisks[i].disk_dev.unmount();
+
+    // Clean the mounts and mount tracking, so they re-mount after a restart.
+    for (int i = 0; i < MAX_HOSTS; i++)
+    {
+        fujiHostType htype = _fnHosts[i].get_type();
+        if (htype != HOSTTYPE_UNINITIALIZED && htype != HOSTTYPE_LOCAL)
+            _fnHosts[i].unmount_success();
+        hostMounted[i] = false;
+    }
+    _startup_mount_lock.store(false);
 }
 
 // Disk Image Rotate
@@ -359,6 +370,12 @@ success_is_true fujiDevice::fujicore_mount_host_success(unsigned hostSlot)
 success_is_true fujiDevice::fujicmd_mount_host_success(unsigned hostSlot)
 {
     transaction_begin(TRANS_STATE::NO_GET);
+    if (hostSlot >= MAX_HOSTS)
+    {
+        transaction_error();
+        RETURN_ERROR_AS_FALSE();
+    }
+
     if (!fujicore_mount_host_success(hostSlot))
     {
         Debug_println("fujicore_mount_host_success returned false");
@@ -893,6 +910,7 @@ std::optional<std::string> fujiDevice::fujicore_read_directory_entry(size_t maxl
     }
 
     result += filename;
+    result += '\0'; // Don't forget the null terminator for fixed-length packets
     return result;
 }
 
@@ -954,8 +972,8 @@ dirEntryDetails fujiDevice::_additional_direntry_details(fsdir_entry_t *f)
     return details;
 }
 
-success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot,
-                                                      std::string copySpec)
+success_is_true fujiDevice::fujicore_copy_file_success(uint8_t sourceSlot, uint8_t destSlot,
+                                                       std::string copySpec)
 {
     std::string sourcePath;
     std::string destPath;
@@ -963,31 +981,20 @@ success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_
     fnFile *destFile;
     char *dataBuf;
 
-    transaction_begin(TRANS_STATE::NO_GET);
-    Debug_printf("copySpec: %s\n", copySpec.c_str());
-
     // Check for malformed copyspec.
     if (copySpec.empty() || copySpec.find_first_of("|") == std::string::npos)
-    {
-        transaction_error();
         RETURN_ERROR_AS_FALSE();
-    }
 
     // Protocol sends 1-based slot numbers; convert to 0-based array indices.
     if (sourceSlot == 0 || destSlot == 0)
-    {
-        transaction_error();
         RETURN_ERROR_AS_FALSE();
-    }
+
     sourceSlot--;
     destSlot--;
 
     if (!validate_host_slot(sourceSlot, "copy_file_source")
         || !validate_host_slot(destSlot, "copy_file_dest"))
-    {
-        transaction_error();
         RETURN_ERROR_AS_FALSE();
-    }
 
     // Chop up copyspec.
     sourcePath = copySpec.substr(0, copySpec.find_first_of("|"));
@@ -1009,16 +1016,12 @@ success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_
     sourceFile = _fnHosts[sourceSlot].fnfile_open(
         sourcePath.c_str(), (char *)sourcePath.c_str(), sourcePath.size() + 1, "rb");
     if (sourceFile == nullptr)
-    {
-        transaction_error();
         RETURN_ERROR_AS_FALSE();
-    }
 
     destFile = _fnHosts[destSlot].fnfile_open(destPath.c_str(), (char *)destPath.c_str(),
                                               destPath.size() + 1, "wb");
     if (destFile == nullptr)
     {
-        transaction_error();
         fnio::fclose(sourceFile);
         RETURN_ERROR_AS_FALSE();
     }
@@ -1026,7 +1029,6 @@ success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_
     dataBuf = (char *)malloc(532);
     if (dataBuf == nullptr)
     {
-        transaction_error();
         fnio::fclose(sourceFile);
         RETURN_ERROR_AS_FALSE();
     }
@@ -1038,12 +1040,24 @@ success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_
         fnio::fwrite(dataBuf, 1, count, destFile);
     } while (count > 0);
 
-    transaction_complete();
-
     // copyEnd:
     fnio::fclose(sourceFile);
     fnio::fclose(destFile);
     free(dataBuf);
+    RETURN_SUCCESS_AS_TRUE();
+}
+
+success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot,
+                                                      std::string copySpec)
+{
+    transaction_begin(TRANS_STATE::NO_GET);
+
+    if (!fujicore_copy_file_success(sourceSlot, destSlot, copySpec)) {
+        transaction_error();
+        RETURN_ERROR_AS_FALSE();
+    }
+
+    transaction_complete();
     RETURN_SUCCESS_AS_TRUE();
 }
 

@@ -26,7 +26,7 @@
 #define _CRYPTO_H_
 
 #include <stdbool.h>
-#include "config.h"
+#include "../../config.h"
 
 // START
 // Needed for libcrypto.c which uses old locking callbacks
@@ -41,7 +41,7 @@
 #include <gcrypt.h>
 #elif defined(HAVE_LIBMBEDCRYPTO)
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-#define MBEDTLS_GCM_ALT
+//#define MBEDTLS_GCM_ALT
 #include <gcm_alt.h>
 #else
 #include <mbedtls/gcm.h>
@@ -100,9 +100,9 @@ enum ssh_key_exchange_e {
 
 enum ssh_cipher_e {
     SSH_NO_CIPHER=0,
-#ifdef WITH_BLOWFISH_CIPHER
+#ifdef HAVE_BLOWFISH
     SSH_BLOWFISH_CBC,
-#endif /* WITH_BLOWFISH_CIPHER */
+#endif /* HAVE_BLOWFISH */
     SSH_3DES_CBC,
     SSH_AES128_CBC,
     SSH_AES192_CBC,
@@ -125,7 +125,11 @@ struct ssh_crypto_struct {
 #endif /* WITH_GEX */
 #ifdef HAVE_ECDH
 #ifdef HAVE_OPENSSL_ECC
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
     EC_KEY *ecdh_privkey;
+#else
+    EVP_PKEY *ecdh_privkey;
+#endif /* OPENSSL_VERSION_NUMBER */
 #elif defined HAVE_GCRYPT_ECC
     gcry_sexp_t ecdh_privkey;
 #elif defined HAVE_LIBMBEDCRYPTO
@@ -140,8 +144,9 @@ struct ssh_crypto_struct {
     ssh_curve25519_pubkey curve25519_server_pubkey;
 #endif
     ssh_string dh_server_signature; /* information used by dh_handshake. */
-    size_t digest_len; /* len of the two fields below */
+    size_t session_id_len;
     unsigned char *session_id;
+    size_t digest_len; /* len of the secret hash */
     unsigned char *secret_hash; /* Secret hash is same as session id until re-kex */
     unsigned char *encryptIV;
     unsigned char *decryptIV;
@@ -221,10 +226,22 @@ struct ssh_cipher_struct {
     void (*cleanup)(struct ssh_cipher_struct *cipher);
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 const struct ssh_cipher_struct *ssh_get_chacha20poly1305_cipher(void);
 int sshkdf_derive_key(struct ssh_crypto_struct *crypto,
                       unsigned char *key, size_t key_len,
-                      int key_type, unsigned char *output,
+                      uint8_t key_type, unsigned char *output,
                       size_t requested_len);
+
+int secure_memcmp(const void *s1, const void *s2, size_t n);
+
+void compress_cleanup(struct ssh_crypto_struct *crypto);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _CRYPTO_H_ */

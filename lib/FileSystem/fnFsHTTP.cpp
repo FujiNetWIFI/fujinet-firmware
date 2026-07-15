@@ -12,6 +12,7 @@
 
 #include "fnSystem.h"
 #include "fnFileCache.h"
+#include "fnFileHTTP.h"
 #include "string_utils.h"
 
 // http timeout in ms
@@ -102,11 +103,31 @@ FILE  *FileSystemHTTP::file_open(const char *path, const char *mode)
     return nullptr;
 }
 
+// url + '/' + url-encoded path
+std::string FileSystemHTTP::make_file_url(const char *path)
+{
+    std::string url_str = _url->url;
+    std::string path_str = mstr::urlEncode(path);
+    if (url_str.back() != '/') url_str.push_back('/');
+    if (path_str.front() == '/') path_str.erase(0, 1);
+    url_str += path_str;
+    return url_str;
+}
+
 #ifndef FNIO_IS_STDIO
 FileHandler *FileSystemHTTP::filehandler_open(const char *path, const char *mode)
 {
-    FileHandler *fh = cache_file(path, mode);
-    return fh;
+    // For read-only opens, try to stream directly from HTTP using Range requests
+    // (no full-file cache). Falls back to caching if the server can't serve ranges.
+    if (mode != nullptr && mode[0] == 'r' && strchr(mode, '+') == nullptr)
+    {
+        FileHandler *fh = FileHandlerHTTP::create(make_file_url(path));
+        if (fh != nullptr)
+            return fh;
+        Debug_println("FileSystemHTTP::filehandler_open - no range support, caching whole file");
+    }
+
+    return cache_file(path, mode);
 }
 
 // Read file from HTTP path and write it to cache file
@@ -135,11 +156,7 @@ FileHandler *FileSystemHTTP::cache_file(const char *path, const char *mode)
         return nullptr;
     }
     // url + '/' + path
-    std::string url_str = _url->url;
-    std::string path_str = mstr::urlEncode(path);
-    if (url_str.back() != '/') url_str.push_back('/');
-    if (path_str.front() == '/') path_str.erase(0, 1);
-    url_str += path_str;
+    std::string url_str = make_file_url(path);
     if (!_http->begin(url_str))
     {
         Debug_println("FileSystemHTTP::cache_file - failed to start HTTP client");

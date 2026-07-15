@@ -3,7 +3,7 @@
  * poly1305-donna-unrolled.c from https://github.com/floodyberry/poly1305-donna
  */
 
-#include "libssh/config.h"
+#include "../../config.h"
 
 #include <stdint.h>
 #include <sys/types.h>

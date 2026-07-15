@@ -21,7 +21,7 @@
 #ifndef ECDH_H_
 #define ECDH_H_
 
-#include "config.h"
+#include "../../config.h"
 #include "libssh/callbacks.h"
 
 #ifdef HAVE_LIBCRYPTO
@@ -42,9 +42,14 @@
 #define HAVE_ECDH 1
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern struct ssh_packet_callbacks_struct ssh_ecdh_client_callbacks;
 /* Backend-specific functions.  */
 int ssh_client_ecdh_init(ssh_session session);
+void ssh_client_ecdh_remove_callbacks(ssh_session session);
 int ecdh_build_k(ssh_session session);
 
 #ifdef WITH_SERVER
@@ -52,5 +57,9 @@ extern struct ssh_packet_callbacks_struct ssh_ecdh_server_callbacks;
 void ssh_server_ecdh_init(ssh_session session);
 SSH_PACKET_CALLBACK(ssh_packet_server_ecdh_init);
 #endif /* WITH_SERVER */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ECDH_H_ */

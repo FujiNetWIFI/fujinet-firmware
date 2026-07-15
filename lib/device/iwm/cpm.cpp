@@ -82,7 +82,7 @@ void iwmCPM::sio_status()
     return;
 }
 
-void iwmCPM::iwm_open(iwm_decoded_cmd_t cmd)
+void iwmCPM::iwm_open(const iwm_decoded_cmd_t &cmd)
 {
     spError_t err_result = SP_ERR::NOERROR;
 
@@ -103,54 +103,54 @@ void iwmCPM::iwm_open(iwm_decoded_cmd_t cmd)
     }
 #endif
 
-    send_reply_packet(err_result);
+    SYSTEM_BUS.transaction_error(err_result);
 }
 
-void iwmCPM::iwm_close(iwm_decoded_cmd_t cmd)
+void iwmCPM::iwm_close(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\r\nCP/M: Close\n");
-    send_reply_packet(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
+void iwmCPM::iwm_status(const iwm_decoded_cmd_t &cmd)
 {
-    unsigned short mw;
-    // uint8_t source = cmd.dest;                                                // we are the destination and will become the source // packet_buffer[6];
-    Debug_printf("\r\n[CPM] Device %02x Status Code %02x\r\n", id(), cmd.control_status.fuji.command);
-    // Debug_printf("\r\nStatus List is at %02x %02x\n", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
+    Debug_printf("\r\n[CPM] Device %02x Status Code %02x\r\n", id(), cmd.command());
 
-    switch (cmd.control_status.fuji.command)
+    switch (cmd.command())
     {
     case CPMCMD_STATUS:
+        {
+            u16le_t mw;
 #ifdef ESP_PLATFORM // OS
-        mw = uxQueueMessagesWaiting(rxq);
+            mw = uxQueueMessagesWaiting(rxq);
 #endif
 
-        if (mw > 512)
-            mw = 512;
-
-        data_buffer[0] = mw & 0xFF;
-        data_buffer[1] = mw >> 8;
-        data_len = 2;
-        Debug_printf("%u bytes waiting\n", mw);
+            mw = std::min<uint16_t>(512, mw);
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+            SYSTEM_BUS.transaction_send(&mw, sizeof(mw));
+            Debug_printf("%u bytes waiting\n", mw);
+        }
         break;
     case 'B':
+        {
+            uint8_t booted = false;
 #ifdef ESP_PLATFORM // OS
-        data_buffer[0]=(cpmTaskHandle==NULL ? 1 : 0);
+            booted = cpmTaskHandle==NULL ? 1 : 0;
 #endif
-        data_len = 1;
-        Debug_printf("CPM Task Running? %d %s", data_buffer[0],(data_buffer[0]) ? "=No" : "=Yes");
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+            SYSTEM_BUS.transaction_send(booted);
+            Debug_printf("CPM Task Running? %d %s", booted, booted ? "=No" : "=Yes");
+        }
         break;
     default:
-        send_reply_packet(SP_ERR::BADCMD);
+        SYSTEM_BUS.transaction_error(SP_ERR::BADCMD);
         return;
     }
 
     Debug_printf("\r\nStatus code complete, sending response");
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, data_len);
 }
 
-void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
+void iwmCPM::iwm_read(const iwm_decoded_cmd_t &cmd)
 {
 #ifdef ESP_PLATFORM // OS
     unsigned short mw = uxQueueMessagesWaiting(rxq);
@@ -158,66 +158,52 @@ void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
     unsigned short mw;
 #endif
 
-    Debug_printf("\r\nDevice %02x READ %04x bytes from address %06lx\n", id(), cmd.char_rw.length, cmd.char_rw.address);
+    Debug_printf("\r\nDevice %02x READ %04x bytes from address %06lx\n", id(), cmd.frame.char_rw.length, cmd.frame.char_rw.address);
 
-    memset(data_buffer, 0, sizeof(data_buffer));
-
+    std::vector<uint8_t> buffer;
     if (mw) // check if we really have some bytes waiting
     {
-        if (mw < cmd.char_rw.length) //if there are less than requested, just send what we have
-        {
-            cmd.char_rw.length = mw;
-        }
+        size_t numbytes = std::min<uint16_t>(mw, cmd.frame.char_rw.length);
 
-        data_len = 0;
-        for (int i = 0; i < cmd.char_rw.length; i++)
+        for (size_t i = 0; i < numbytes; i++)
         {
-            char b;
+            uint8_t b;
 #ifdef ESP_PLATFORM // OS
             xQueueReceive(rxq, &b, portMAX_DELAY);
 #endif
-            data_buffer[i] = b;
-            data_len++;
+            buffer[i] = b;
         }
-    }
-    else // no bytes waiting, just reply back with no data
-    {
-        data_len = 0;
     }
 
     Debug_printf("\r\nsending CPM read data packet ...");
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, data_len);
-    data_len = 0;
-    memset(data_buffer, 0, sizeof(data_buffer));
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_send(buffer);
 }
 
-void iwmCPM::iwm_write(iwm_decoded_cmd_t cmd)
+void iwmCPM::iwm_write(const iwm_decoded_cmd_t &cmd)
 {
-    Debug_printf("\nWRITE %u bytes\n", cmd.char_rw.length);
+    Debug_printf("\nWRITE %u bytes\n", cmd.frame.char_rw.length);
 
     {
+        auto buffer = cmd.data().value();
         // DO write
 #ifdef ESP_PLATFORM // OS
-        for (int i = 0; i < cmd.char_rw.length; i++)
-            xQueueSend(txq, &data_buffer[i], portMAX_DELAY);
+        for (int i = 0; i < cmd.frame.char_rw.length; i++)
+            xQueueSend(txq, &buffer[i], portMAX_DELAY);
 #endif
     }
 
-    send_reply_packet(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
+void iwmCPM::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
 {
     spError_t err_result = SP_ERR::NOERROR;
 
-    // uint8_t source = cmd.dest;                                                 // we are the destination and will become the source // data_buffer[6];
-    Debug_printf("\r\nCPM Device %02x Control Code %02x", id(), cmd.control_status.fuji.command);
-    // Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
-    // Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", packet_buffer[11] & 0x7f, data_buffer[12] & 0x7f);
-    print_packet(data_buffer);
+    Debug_printf("\r\nCPM Device %02x Control Code %02x", id(), cmd.command());
 
-    if (data_len > 0)
-        switch (cmd.control_status.fuji.command)
+    if (cmd.data()->size() > 0)
+      switch (cmd.command())
         {
         case CPMCMD_BOOT:
 #ifdef ESP_PLATFORM // OS
@@ -240,13 +226,13 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
             }
             break;
         default:
-            send_reply_packet(SP_ERR::BADCMD);
+            SYSTEM_BUS.transaction_error(SP_ERR::BADCMD);
             return;
         }
     else
         err_result = SP_ERR::IOERROR;
 
-    send_reply_packet(err_result);
+    SYSTEM_BUS.transaction_error(err_result);
 }
 
 void iwmCPM::shutdown()

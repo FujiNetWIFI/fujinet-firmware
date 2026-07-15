@@ -13,7 +13,7 @@
 #include "fnSystem.h"
 
 #include "led.h"
-#include "modem.h" 
+#include "modem.h"
 
 #define RC2014_SPI_HOST   SPI3_HOST
 
@@ -33,6 +33,45 @@ uint8_t rc2014_checksum(uint8_t *buf, unsigned short len)
         checksum ^= buf[i];
 
     return checksum;
+}
+
+void virtualDevice::transaction_begin(transState_t expectMoreData)
+{
+    assert(_transaction_state == TRANS_STATE::INVALID);
+    rc2014_send_ack();
+    _transaction_state = expectMoreData;
+}
+
+void virtualDevice::transaction_complete()
+{
+    assert(_transaction_state == TRANS_STATE::NO_GET
+           || _transaction_state == TRANS_STATE::DID_GET);
+    rc2014_send_complete();
+    _transaction_state = TRANS_STATE::INVALID;
+}
+
+void virtualDevice::transaction_error()
+{
+    rc2014_send_error();
+    _transaction_state = TRANS_STATE::INVALID;
+}
+
+success_is_true virtualDevice::transaction_get(void *data, size_t len)
+{
+    assert(_transaction_state == TRANS_STATE::WILL_GET);
+    _transaction_state = TRANS_STATE::DID_GET;
+    rc2014_recv_buffer((uint8_t *)data, len);
+    rc2014_send_ack();
+    return success_is_true(true);
+}
+
+void virtualDevice::transaction_put(const void *data, size_t len, bool err)
+{
+    assert(_transaction_state == TRANS_STATE::NO_GET);
+    rc2014_send_buffer((const uint8_t *)data, len);
+    rc2014_flush();
+    if (err) rc2014_send_error(); else rc2014_send_complete();
+    _transaction_state = TRANS_STATE::INVALID;
 }
 
 void virtualDevice::rc2014_send(uint8_t b)
@@ -293,7 +332,7 @@ void systemBus::_rc2014_process_data()
         Debug_printf("Timeout waiting for data after DATA pin asserted (bytes_read = %d)\n", (int)bytes_read);
         return;
     }
-  
+
     if (_streamDev != nullptr && _streamDev->device_active)
     {
         //_streamDev->rc2014_handle_stream();
@@ -332,7 +371,7 @@ void systemBus::service()
     {
         _cpmDev->rc2014_handle_cpm();
         return; // break!
-    }    
+    }
 #endif
     // Go process a command frame if the RC2014 CMD line is asserted
     if (fnSystem.digital_read(PIN_CMD_REQ) == DIGI_LOW)
@@ -357,7 +396,7 @@ void my_post_setup_cb(spi_slave_transaction_t *trans) {
 void my_post_trans_cb(spi_slave_transaction_t *trans) {
     gpio_set_level(PIN_CMD_ACK, DIGI_HIGH);
 }
-    
+
 void systemBus::setup()
 {
     Debug_println("RC2014 SETUP");
@@ -373,7 +412,7 @@ void systemBus::setup()
     fnSystem.digital_write(PIN_PROCEED, DIGI_HIGH);
 
     // Set up SPI bus
-    spi_bus_config_t bus_cfg = 
+    spi_bus_config_t bus_cfg =
     {
         .mosi_io_num = PIN_BUS_DEVICE_MOSI,
         .miso_io_num = PIN_BUS_DEVICE_MISO,

@@ -21,7 +21,7 @@
 #ifndef LIBGCRYPT_H_
 #define LIBGCRYPT_H_
 
-#include "config.h"
+#include "../../config.h"
 
 #ifdef HAVE_LIBGCRYPT
 
@@ -32,7 +32,6 @@ typedef gcry_md_hd_t SHA384CTX;
 typedef gcry_md_hd_t SHA512CTX;
 typedef gcry_md_hd_t MD5CTX;
 typedef gcry_md_hd_t HMACCTX;
-typedef gcry_md_hd_t EVPCTX;
 #define SHA_DIGEST_LENGTH 20
 #define SHA_DIGEST_LEN SHA_DIGEST_LENGTH
 #define MD5_DIGEST_LEN 16
@@ -48,6 +47,8 @@ typedef gcry_md_hd_t EVPCTX;
 #endif
 
 #define EVP_DIGEST_LEN EVP_MAX_MD_SIZE
+
+#define ssh_crypto_free(x) gcry_free(x)
 
 typedef gcry_mpi_t bignum;
 typedef const struct gcry_mpi *const_bignum;
@@ -104,6 +105,10 @@ int ssh_gcry_rand_range(bignum rnd, bignum max);
     } while(0)
 /* Helper functions for data conversions.  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Extract an MPI from the given s-expression SEXP named NAME which is
    encoded using INFORMAT and store it in a newly allocated ssh_string
    encoded using OUTFORMAT.  */
@@ -113,6 +118,10 @@ ssh_string ssh_sexp_extract_mpi(const gcry_sexp_t sexp,
                                 enum gcry_mpi_format outformat);
 
 #define ssh_fips_mode() false
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HAVE_LIBGCRYPT */
 

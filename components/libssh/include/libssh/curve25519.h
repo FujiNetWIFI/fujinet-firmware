@@ -21,7 +21,7 @@
 #ifndef CURVE25519_H_
 #define CURVE25519_H_
 
-#include "config.h"
+#include "../../config.h"
 #include "libssh.h"
 
 #ifdef WITH_NACL
@@ -32,6 +32,10 @@
 #define crypto_scalarmult_base crypto_scalarmult_curve25519_base
 #define crypto_scalarmult crypto_scalarmult_curve25519
 #else
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define CURVE25519_PUBKEY_SIZE 32
 #define CURVE25519_PRIVKEY_SIZE 32
@@ -48,9 +52,14 @@ typedef unsigned char ssh_curve25519_privkey[CURVE25519_PRIVKEY_SIZE];
 
 
 int ssh_client_curve25519_init(ssh_session session);
+void ssh_client_curve25519_remove_callbacks(ssh_session session);
 
 #ifdef WITH_SERVER
 void ssh_server_curve25519_init(ssh_session session);
 #endif /* WITH_SERVER */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* CURVE25519_H_ */

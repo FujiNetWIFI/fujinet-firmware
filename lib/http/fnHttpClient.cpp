@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "fnHttpClient.h"
+#include "compat_string.h"
 
 #include "../../include/debug.h"
 
@@ -51,6 +52,22 @@ bool fnHttpClient::begin(const std::string &url)
 #ifdef VERBOSE_HTTP
     Debug_printf("fnHttpClient::begin \"%s\"\r\n", url.c_str());
 #endif
+
+    // Allow begin() to be called again on the same client (keep-alive reuse after
+    // a seek): esp_http_client_init() below would overwrite and leak _handle, and
+    // close() doesn't free it. No-op on the first call (_handle is null).
+    if (_handle != nullptr)
+    {
+        close();
+        esp_http_client_cleanup(_handle);
+        _handle = nullptr;
+    }
+    _buffer_pos = 0;
+    _buffer_len = 0;
+    _buffer_total_read = 0;
+    _transaction_begin = false;
+    _transaction_done = false;
+    _redirect_count = 0;
 
     esp_http_client_config_t cfg;
     memset(&cfg, 0, sizeof(cfg));
@@ -297,7 +314,7 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
         Debug_printf("HTTP_EVENT_ON_HEADER %u\r\n", uxTaskGetStackHighWaterMark(nullptr));
 #endif
         // Check to see if we should store this response header
-        if (client->_stored_headers.size() <= 0)
+        if (client->_stored_headers.size() == 0)
             break;
 
         client->set_header_value(evt->header_key, evt->header_value);
@@ -822,7 +839,8 @@ char *fnHttpClient::get_header(int index, char *buffer, int buffer_len)
 
     auto vi = _stored_headers.begin();
     std::advance(vi, index);
-    return strncpy(buffer, vi->second.c_str(), buffer_len);
+    strlcpy(buffer, vi->second.c_str(), buffer_len);
+    return buffer;
 }
 
 const std::string fnHttpClient::get_header(int index)

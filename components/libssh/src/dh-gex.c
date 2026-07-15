@@ -21,7 +21,7 @@
  * MA 02111-1307, USA.
  */
 
-#include "libssh/config.h"
+#include "../config.h"
 
 #include <errno.h>
 #include <stdbool.h>
@@ -37,7 +37,7 @@
 #include "libssh/buffer.h"
 #include "libssh/session.h"
 
-/* Minimum, recommanded and maximum size of DH group */
+/* Minimum, recommended and maximum size of DH group */
 #define DH_PMIN 2048
 #define DH_PREQ 2048
 #define DH_PMAX 8192
@@ -108,11 +108,15 @@ SSH_PACKET_CALLBACK(ssh_packet_client_dhgex_group)
     bignum pmin1 = NULL, one = NULL;
     bignum_CTX ctx = bignum_ctx_new();
     bignum modulus = NULL, generator = NULL;
+#if !defined(HAVE_LIBCRYPTO) || OPENSSL_VERSION_NUMBER < 0x30000000L
     const_bignum pubkey;
+#else
+    bignum pubkey = NULL;
+#endif /* OPENSSL_VERSION_NUMBER */
     (void) type;
     (void) user;
 
-    SSH_LOG(SSH_LOG_PROTOCOL, "SSH_MSG_KEX_DH_GEX_GROUP received");
+    SSH_LOG(SSH_LOG_DEBUG, "SSH_MSG_KEX_DH_GEX_GROUP received");
 
     if (bignum_ctx_invalid(ctx)) {
         goto error;
@@ -212,6 +216,9 @@ SSH_PACKET_CALLBACK(ssh_packet_client_dhgex_group)
     if (rc != SSH_OK) {
         goto error;
     }
+#if defined(HAVE_LIBCRYPTO) && OPENSSL_VERSION_NUMBER >= 0x30000000L
+    bignum_safe_free(pubkey);
+#endif /* OPENSSL_VERSION_NUMBER */
 
     session->dh_handshake_state = DH_STATE_INIT_SENT;
 
@@ -229,6 +236,9 @@ error:
     bignum_safe_free(generator);
     bignum_safe_free(one);
     bignum_safe_free(pmin1);
+#if defined(HAVE_LIBCRYPTO) && OPENSSL_VERSION_NUMBER >= 0x30000000L
+    bignum_safe_free(pubkey);
+#endif /* OPENSSL_VERSION_NUMBER */
     if(!bignum_ctx_invalid(ctx)) {
         bignum_ctx_free(ctx);
     }
@@ -236,6 +246,11 @@ error:
     session->session_state = SSH_SESSION_STATE_ERROR;
 
     return SSH_PACKET_USED;
+}
+
+void ssh_client_dhgex_remove_callbacks(ssh_session session)
+{
+    ssh_packet_remove_callbacks(session, &ssh_dhgex_client_callbacks);
 }
 
 static SSH_PACKET_CALLBACK(ssh_packet_client_dhgex_reply)
@@ -246,9 +261,9 @@ static SSH_PACKET_CALLBACK(ssh_packet_client_dhgex_reply)
     bignum server_pubkey = NULL;
     (void)type;
     (void)user;
-    SSH_LOG(SSH_LOG_PROTOCOL, "SSH_MSG_KEX_DH_GEX_REPLY received");
+    SSH_LOG(SSH_LOG_DEBUG, "SSH_MSG_KEX_DH_GEX_REPLY received");
 
-    ssh_packet_remove_callbacks(session, &ssh_dhgex_client_callbacks);
+    ssh_client_dhgex_remove_callbacks(session);
     rc = ssh_buffer_unpack(packet,
                            "SBS",
                            &pubkey_blob, &server_pubkey,
@@ -263,6 +278,8 @@ static SSH_PACKET_CALLBACK(ssh_packet_client_dhgex_reply)
         bignum_safe_free(server_pubkey);
         goto error;
     }
+    /* The ownership was passed to the crypto structure */
+    server_pubkey = NULL;
 
     rc = ssh_dh_import_next_pubkey_blob(session, pubkey_blob);
     SSH_STRING_FREE(pubkey_blob);
@@ -280,19 +297,15 @@ static SSH_PACKET_CALLBACK(ssh_packet_client_dhgex_reply)
     }
 
     /* Send the MSG_NEWKEYS */
-    if (ssh_buffer_add_u8(session->out_buffer, SSH2_MSG_NEWKEYS) < 0) {
-        goto error;
-    }
-
-    rc = ssh_packet_send(session);
+    rc = ssh_packet_send_newkeys(session);
     if (rc == SSH_ERROR) {
         goto error;
     }
-    SSH_LOG(SSH_LOG_PROTOCOL, "SSH_MSG_NEWKEYS sent");
     session->dh_handshake_state = DH_STATE_NEWKEYS_SENT;
 
     return SSH_PACKET_USED;
 error:
+    SSH_STRING_FREE(pubkey_blob);
     ssh_dh_cleanup(session->next_crypto);
     session->session_state = SSH_SESSION_STATE_ERROR;
 
@@ -364,9 +377,9 @@ static bool dhgroup_better_size(uint32_t pmin,
  * @brief returns 1 with 1/n probability
  * @returns 1 on with P(1/n), 0 with P(n-1/n).
  */
-static bool invn_chance(int n)
+static bool invn_chance(size_t n)
 {
-    uint32_t nounce = 0;
+    size_t nounce = 0;
     int ok;
 
     ok = ssh_get_random(&nounce, sizeof(nounce), 0);
@@ -410,7 +423,7 @@ static int ssh_retrieve_dhgroup_file(FILE *moduli,
         }
         ungetc(firstbyte, moduli);
         rc = fscanf(moduli,
-                    "%31s %zu %zu %zu %zu %31s %4095s\r\n",
+                    "%31s %zu %zu %zu %zu %31s %4095s\n",
                     timestamp,
                     &type,
                     &tests,
@@ -422,7 +435,7 @@ static int ssh_retrieve_dhgroup_file(FILE *moduli,
             if (rc == EOF) {
                 break;
             }
-            SSH_LOG(SSH_LOG_INFO, "Invalid moduli entry line %zu", line);
+            SSH_LOG(SSH_LOG_DEBUG, "Invalid moduli entry line %zu", line);
             do {
                 firstbyte = getc(moduli);
             } while(firstbyte != '\n' && firstbyte != EOF);
@@ -437,10 +450,9 @@ static int ssh_retrieve_dhgroup_file(FILE *moduli,
         proposed_size = size + 1;
         if (proposed_size != *best_size &&
             dhgroup_better_size(pmin, pn, pmax, *best_size, proposed_size)) {
-            best_nlines = 0;
+            best_nlines = 1;
             *best_size = proposed_size;
-        }
-        if (proposed_size == *best_size) {
+        } else if (proposed_size == *best_size) {
             best_nlines++;
         }
 
@@ -460,17 +472,17 @@ static int ssh_retrieve_dhgroup_file(FILE *moduli,
         }
     }
     if (*best_size != 0) {
-        SSH_LOG(SSH_LOG_INFO,
+        SSH_LOG(SSH_LOG_DEBUG,
                 "Selected %zu bits modulus out of %zu candidates in %zu lines",
                 *best_size,
                 best_nlines - 1,
                 line);
     } else {
-        SSH_LOG(SSH_LOG_WARNING,
-                "No moduli found for [%u:%u:%u]",
-                (unsigned) pmin,
-                (unsigned) pn,
-                (unsigned) pmax);
+        SSH_LOG(SSH_LOG_DEBUG,
+                "No moduli found for [%" PRIu32 ":%" PRIu32 ":%" PRIu32 "]",
+                pmin,
+                pn,
+                pmax);
     }
 
     return SSH_OK;
@@ -486,7 +498,8 @@ static int ssh_retrieve_dhgroup_file(FILE *moduli,
  * @param[out] g generator
  * @return SSH_OK on success, SSH_ERROR otherwise.
  */
-static int ssh_retrieve_dhgroup(uint32_t pmin,
+static int ssh_retrieve_dhgroup(char *moduli_file,
+                                uint32_t pmin,
                                 uint32_t pn,
                                 uint32_t pmax,
                                 size_t *size,
@@ -505,12 +518,17 @@ static int ssh_retrieve_dhgroup(uint32_t pmin,
         return ssh_fallback_group(pmax, p, g);
     }
 
-    moduli = fopen(MODULI_FILE, "r");
+    if (moduli_file != NULL)
+        moduli = fopen(moduli_file, "r");
+    else
+        moduli = fopen(MODULI_FILE, "r");
+
     if (moduli == NULL) {
-        SSH_LOG(SSH_LOG_WARNING,
+        char err_msg[SSH_ERRNO_MSG_MAX] = {0};
+        SSH_LOG(SSH_LOG_DEBUG,
                 "Unable to open moduli file: %s",
-                strerror(errno));
-        return ssh_fallback_group(pmax, p, g);
+                ssh_strerror(errno, err_msg, SSH_ERRNO_MSG_MAX));
+                return ssh_fallback_group(pmax, p, g);
     }
 
     *size = 0;
@@ -553,12 +571,12 @@ error:
 static SSH_PACKET_CALLBACK(ssh_packet_server_dhgex_request);
 static SSH_PACKET_CALLBACK(ssh_packet_server_dhgex_init);
 
-static ssh_packet_callback dhgex_server_callbacks[]= {
-    NULL, /* SSH_MSG_KEX_DH_GEX_REQUEST_OLD */
-    NULL, /* SSH_MSG_KEX_DH_GEX_GROUP */
+static ssh_packet_callback dhgex_server_callbacks[] = {
+    NULL,                           /* SSH_MSG_KEX_DH_GEX_REQUEST_OLD */
+    NULL,                           /* SSH_MSG_KEX_DH_GEX_GROUP */
     ssh_packet_server_dhgex_init,   /* SSH_MSG_KEX_DH_GEX_INIT */
     NULL,                           /* SSH_MSG_KEX_DH_GEX_REPLY */
-    ssh_packet_server_dhgex_request /* SSH_MSG_GEX_DH_GEX_REQUEST */
+    ssh_packet_server_dhgex_request /* SSH_MSG_KEX_DH_GEX_REQUEST */
 
 };
 
@@ -602,15 +620,15 @@ static SSH_PACKET_CALLBACK(ssh_packet_server_dhgex_request)
         ssh_set_error_invalid(session);
         goto error;
     }
-    SSH_LOG(SSH_LOG_INFO, "dh-gex: DHGEX_REQUEST[%u:%u:%u]", (unsigned) pmin, (unsigned) pn, (unsigned) pmax);
+    SSH_LOG(SSH_LOG_DEBUG, "dh-gex: DHGEX_REQUEST[%" PRIu32 ":%" PRIu32 ":%" PRIu32 "]", pmin, pn, pmax);
 
     if (pmin > pn || pn > pmax || pn > DH_PMAX || pmax < DH_PMIN) {
         ssh_set_error(session,
                       SSH_FATAL,
-                      "Invalid dh-gex arguments [%u:%u:%u]",
-                      (unsigned) pmin,
-                      (unsigned) pn,
-                      (unsigned) pmax);
+                      "Invalid dh-gex arguments [%" PRIu32 ":%" PRIu32 ":%" PRIu32 "]",
+                      pmin,
+                      pn,
+                      pmax);
         goto error;
     }
     session->next_crypto->dh_pmin = pmin;
@@ -624,7 +642,8 @@ static SSH_PACKET_CALLBACK(ssh_packet_server_dhgex_request)
             pn = pmin;
         }
     }
-    rc = ssh_retrieve_dhgroup(pmin,
+    rc = ssh_retrieve_dhgroup(session->server_opts.moduli_file,
+                              pmin,
                               pn,
                               pmax,
                               &size,
@@ -633,10 +652,10 @@ static SSH_PACKET_CALLBACK(ssh_packet_server_dhgex_request)
     if (rc == SSH_ERROR) {
         ssh_set_error(session,
                       SSH_FATAL,
-                      "Couldn't find DH group for [%u:%u:%u]",
-                      (unsigned) pmin,
-                      (unsigned) pn,
-                      (unsigned) pmax);
+                      "Couldn't find DH group for [%" PRIu32 ":%" PRIu32 ":%" PRIu32 "]",
+                      pmin,
+                      pn,
+                      pmax);
         goto error;
     }
     rc = ssh_dh_set_parameters(session->next_crypto->dh_ctx,

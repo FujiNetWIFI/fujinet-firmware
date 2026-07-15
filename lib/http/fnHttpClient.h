@@ -29,6 +29,7 @@ private:
     bool _ignore_response_body = false;
     bool _transaction_begin = false;
     bool _transaction_done = false;
+    bool _keep_alive = false;
     int _redirect_count = 0;
     int _max_redirects = 0;
     bool connected = false;
@@ -78,6 +79,10 @@ public:
     int available();
     int content_length();
     bool is_transaction_done();
+
+    // Request connection reuse (keep-alive). Accepted for interface parity;
+    // esp_http_client manages keep-alive itself.
+    void set_keep_alive(bool enable) { _keep_alive = enable; }
 
     int read(uint8_t *dest_buffer, int dest_bufflen);
 

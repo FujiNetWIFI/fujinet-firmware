@@ -311,7 +311,7 @@ static int
 gzip_bidder_init(struct archive_read_filter *self)
 {
 	struct private_data *state;
-	static const size_t out_block_size = 64 * 1024;
+	static const size_t out_block_size = OUT_BLOCK_SIZE;
 	void *out_block;
 
 	self->code = ARCHIVE_FILTER_GZIP;
@@ -359,6 +359,12 @@ consume_header(struct archive_read_filter *self)
 	/* Initialize compression library. */
 	state->stream.next_in = (unsigned char *)(uintptr_t)
 	    __archive_read_filter_ahead(self->upstream, 1, &avail);
+	if (state->stream.next_in == NULL || avail <= 0) {
+		archive_set_error(&self->archive->archive,
+		    ARCHIVE_ERRNO_MISC,
+		    "No compressed data available");
+		return (ARCHIVE_FATAL);
+	}
 	state->stream.avail_in = (uInt)avail;
 	ret = inflateInit2(&(state->stream),
 	    -15 /* Don't check for zlib header */);
@@ -461,7 +467,11 @@ gzip_filter_read(struct archive_read_filter *self, const void **p)
 		 * it so, hence this ugly cast. */
 		state->stream.next_in = (unsigned char *)(uintptr_t)
 		    __archive_read_filter_ahead(self->upstream, 1, &avail_in);
-		if (state->stream.next_in == NULL) {
+		/* Validate avail_in before using it.
+		 * avail_in < 0 means an upstream read error (ssize_t error code).
+		 * avail_in == 0 is valid: zlib may still have internally buffered
+		 * data to flush via inflate() even with no new input available. */
+		if (state->stream.next_in == NULL || avail_in < 0) {
 			archive_set_error(&self->archive->archive,
 			    ARCHIVE_ERRNO_MISC,
 			    "truncated gzip input");
@@ -475,16 +485,53 @@ gzip_filter_read(struct archive_read_filter *self, const void **p)
 			avail_in = max_in;
 		state->stream.avail_in = (uInt)avail_in;
 
-		/* Decompress and consume some of that data. */
+		/* Cap avail_in to the actual number of valid bytes in the
+		 * upstream filter.  On ESP32, __archive_read_filter_ahead may
+		 * return an avail_in value that exceeds the data truly present
+		 * in the client/copy buffers (observed as UINT_MAX), causing
+		 * inflate to read past the end of valid compressed bytes at
+		 * chunk boundaries and produce corrupt output.  Clamping to
+		 * upstream->avail + upstream->client_avail is always safe: it
+		 * reflects exactly how many compressed bytes can be consumed
+		 * without triggering another cb_read call. */
+		{
+			size_t actual_avail =
+			    self->upstream->avail +
+			    self->upstream->client_avail;
+			if (actual_avail > 0 &&
+			    state->stream.avail_in > (uInt)actual_avail)
+				state->stream.avail_in = (uInt)actual_avail;
+		}
+
+		/* Decompress and consume some of that data.
+		 *
+		 * Use avail_in subtraction at Z_OK (no wrapping at Z_OK on ESP32).
+		 * At Z_STREAM_END, avail_in wraps to 0xFFFFFFCD on ESP32 zlib, so
+		 * use pointer arithmetic instead (next_in advances past the deflate
+		 * stream into the gzip trailer; pointer difference is always correct). */
+		ssize_t bytes_consumed;
+		{
+		const unsigned char *next_in_pre = state->stream.next_in;
+		uInt avail_in_before = state->stream.avail_in;
 		ret = inflate(&(state->stream), 0);
+		ssize_t bc_ptr  = (ssize_t)(state->stream.next_in - next_in_pre);
+		ssize_t bc_avail = (ssize_t)(avail_in_before - state->stream.avail_in);
+		if (ret == Z_STREAM_END)
+			bytes_consumed = bc_ptr;
+		else
+			bytes_consumed = bc_avail;
+		}
 		switch (ret) {
 		case Z_OK: /* Decompressor made some progress. */
 			__archive_read_filter_consume(self->upstream,
-			    avail_in - state->stream.avail_in);
+			    (size_t)bytes_consumed);
 			break;
 		case Z_STREAM_END: /* Found end of stream. */
+			/* next_in now points past the deflate stream to the gzip
+			 * trailer.  Consume exactly what inflate read, leaving
+			 * the 8-byte trailer in the upstream for consume_trailer. */
 			__archive_read_filter_consume(self->upstream,
-			    avail_in - state->stream.avail_in);
+			    (size_t)bytes_consumed);
 			/* Consume the stream trailer; release the
 			 * decompression library. */
 			ret = consume_trailer(self);

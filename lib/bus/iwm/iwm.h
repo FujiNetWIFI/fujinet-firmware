@@ -3,7 +3,7 @@
 #define IWM_H
 
 #include "bus.h"
-#include "cmdFrame.h"
+#include "FujiIWMPacket.h"
 #include "../../include/debug.h"
 
 // for ESP IWM-SLIP build, DEV_RELAY_SLIP should be defined in platformio.ini
@@ -23,28 +23,8 @@
 
 #include "fnFS.h"
 
-enum spCommandID_t : uint8_t {
-  SP_CMD_STATUS         = 0x00,
-  SP_CMD_READBLOCK      = 0x01,
-  SP_CMD_WRITEBLOCK     = 0x02,
-  SP_CMD_FORMAT         = 0x03,
-  SP_CMD_CONTROL        = 0x04,
-  SP_CMD_INIT           = 0x05,
-  SP_CMD_OPEN           = 0x06,
-  SP_CMD_CLOSE          = 0x07,
-  SP_CMD_READ           = 0x08,
-  SP_CMD_WRITE          = 0x09,
-  SP_ECMD_STATUS        = 0x40,
-  SP_ECMD_READBLOCK     = 0x41,
-  SP_ECMD_WRITEBLOCK    = 0x42,
-  SP_ECMD_FORMAT        = 0x43,
-  SP_ECMD_CONTROL       = 0x44,
-  SP_ECMD_INIT          = 0x45,
-  SP_ECMD_OPEN          = 0x46,
-  SP_ECMD_CLOSE         = 0x47,
-  SP_ECMD_READ          = 0x48,
-  SP_ECMD_WRITE         = 0x49,
-};
+using iwm_decoded_cmd_t = FujiIWMPacket;
+#define FUJI_COMMAND_PACKET iwm_decoded_cmd_t
 
 // Windows defines this and it conflicts with the SmartPort erro
 // code. We don't need it, just undef it.
@@ -125,66 +105,6 @@ class fujiDevice;
 #define BLOCK_DATA_LEN      512
 #define MAX_DATA_LEN        767
 
-enum spCode_t : uint8_t {
-  SP_STAT_DEVICE            = 0x00,
-  SP_STAT_CONTROL_BLOCK     = 0x01,
-  SP_STAT_NEWLINE           = 0x02,
-  SP_STAT_DIB               = 0x03,
-  SP_STAT_UNIDISK           = 0x05,
-
-  SP_CTRL_RESET             = 0x00,
-  SP_CTRL_SET_DCB           = 0x01,
-  SP_CTRL_SET_NEWLINE       = 0x02,
-  SP_CTRL_DEV_INTERRUPT     = 0x03,
-  SP_CTRL_EJECT             = 0x04, // Apple 3.5, UniDisk 3.5
-  SP_CTRL_EXECUTE           = 0x05, // UniDisk 3.5
-  SP_CTRL_SET_ADDRESS       = 0x06, // UniDisk 3.5
-  SP_CTRL_DOWNLOAD          = 0x07, // UniDiisk 3.5
-  SP_CTRL_SET_HOOK          = 0x05, // Apple 3.5
-  SP_CTRL_RESET_HOOK        = 0x06, // Apple 3.5
-  SP_CTRL_SET_MARK          = 0x07, // Apple 3.5
-  SP_CTRL_RESET_MARK        = 0x08, // Apple 3.5
-  SP_CTRL_SET_SIDES         = 0x09, // Apple 3.5
-  SP_CTRL_SET_INTERLEAVE    = 0x0A, // Apple 3.5
-
-  SP_CTRL_CLEAR_DISKII_SEEN = 0x08, // iwmFuji
-  SP_STAT_GET_DISKII_SEEN   = 0x08, // iwmFuji
-};
-
-struct iwm_decoded_cmd_t
-{
-  spCommandID_t sp_command;
-  uint8_t param_count;
-  uint8_t sp_dev_id;
-  uint8_t unknown;
-
-  union {
-    struct {
-      union {
-        spCode_t code;
-        struct {
-          fujiCommandID_t command;
-          uint8_t network_unit;
-        } fuji;
-      };
-    } control_status;
-    struct {
-      u24le_t num;
-    } block_rw;
-    struct {
-      u16le_t length;
-      union {
-        u24le_t address;
-        struct {
-          uint8_t network_unit;
-        } fuji;
-      };
-    } char_rw;
-    // format, init, open, close do not have any parameters
-  };
-} __attribute__((packed));
-static_assert(sizeof(iwm_decoded_cmd_t) == 9, "iwm_decoded_cmd_t must be 9 bytes");
-
 enum class iwm_smartport_type_t
 {
   Block_Device,
@@ -234,8 +154,8 @@ void print_packet(void *data);
 
 class virtualDevice
 {
-    friend systemBus; // put here for prototype, not sure if will need to keep it
-    friend fujiDevice;
+  friend systemBus; // put here for prototype, not sure if will need to keep it
+  friend fujiDevice;
 
 protected:
   // set these things in constructor or initializer?
@@ -244,40 +164,20 @@ protected:
   uint8_t _devnum; // assigned by Apple II during INIT
   bool _initialized;
 
-  transState_t _transaction_state = TRANS_STATE::INVALID;
-  virtual void transaction_begin(transState_t expectMoreData);
-  virtual void transaction_complete();
-  virtual void transaction_error();
-  virtual success_is_true transaction_get(void *data, size_t len);
-  virtual void transaction_put(const void *data, size_t len, bool err=false);
-
-  void send_init_reply_packet(uint8_t source, spError_t err);
-  void send_status_reply_packet();
-  void send_reply_packet(spError_t err);
-  void send_status_dib_reply_packet();
-
   virtual void shutdown() = 0;
 
-  // these are good for the high level device
-  virtual void iwm_status(iwm_decoded_cmd_t cmd);
-  virtual void iwm_readblock(iwm_decoded_cmd_t cmd);
-  virtual void iwm_writeblock(iwm_decoded_cmd_t cmd);
-  virtual void iwm_format(iwm_decoded_cmd_t cmd);
-  virtual void iwm_ctrl(iwm_decoded_cmd_t cmd);
-  virtual void iwm_open(iwm_decoded_cmd_t cmd);
-  virtual void iwm_close(iwm_decoded_cmd_t cmd);
-  virtual void iwm_read(iwm_decoded_cmd_t cmd);
-  virtual void iwm_write(iwm_decoded_cmd_t cmd);
+  // FIXME - these are all bus commands and belong in systemBus
+  virtual void iwm_status(const iwm_decoded_cmd_t &cmd);
+  virtual void iwm_readblock(const iwm_decoded_cmd_t &cmd);
+  virtual void iwm_writeblock(const iwm_decoded_cmd_t &cmd);
+  virtual void iwm_format(const iwm_decoded_cmd_t &cmd);
+  virtual void iwm_ctrl(const iwm_decoded_cmd_t &cmd);
+  virtual void iwm_open(const iwm_decoded_cmd_t &cmd);
+  virtual void iwm_close(const iwm_decoded_cmd_t &cmd);
+  virtual void iwm_read(const iwm_decoded_cmd_t &cmd);
+  virtual void iwm_write(const iwm_decoded_cmd_t &cmd);
 
-  void iwm_return_badcmd(iwm_decoded_cmd_t cmd);
-  void iwm_return_device_offline(iwm_decoded_cmd_t cmd);
-  void iwm_return_ioerror();
-  void iwm_return_noerror();
-  void iwm_process(iwm_decoded_cmd_t cmd);
-
-  // iwm packet handling
-  static uint8_t data_buffer[MAX_DATA_LEN]; // un-encoded binary data (512 bytes for a block)
-  static int data_len; // how many bytes in the data buffer
+  void iwm_return_badcmd(const iwm_decoded_cmd_t &cmd);
 
   virtual iwm_device_info_block_t create_dib_reply_packet() = 0;
   virtual iwm_device_status_block_t create_status_reply_packet() = 0;
@@ -296,12 +196,11 @@ public:
   int id() { return _devnum; };
 };
 
-class systemBus
+class systemBus : public SystemBusBase
 {
 private:
-
-
   virtualDevice *_activeDev = nullptr;
+  ByteBuffer _transaction_response;
 
   iwmPrinter *_printerdev = nullptr;
 
@@ -332,6 +231,12 @@ private:
   bool iwm_req_assert_timeout(int t) { return smartport.req_wait_for_rising_timeout(t); };
 
   iwm_decoded_cmd_t command;
+  void iwm_process(const iwm_decoded_cmd_t &cmd);
+  error_is_true iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, spError_t err, const void* data, uint16_t num);
+
+  void send_init_reply_packet(uint8_t source, spError_t err);
+  void send_status_reply_packet();
+  void send_status_dib_reply_packet();
 
   void handle_init();
 
@@ -343,7 +248,6 @@ public:
 
   cmdPacket_t command_packet;
   bool iwm_decode_data_packet(uint8_t *a, int &n);
-   int iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, spError_t err, const void* data, uint16_t num);
 
   // these things stay for the most part
   void setup();
@@ -354,6 +258,14 @@ public:
   bool serviceDiskIIWrite();
 #endif
   void shutdown();
+
+  void transaction_accept(transState_t expectMoreData) override;
+  void transaction_success() override;
+  void transaction_error(spError_t err);
+  void transaction_error() override { transaction_error(SP_ERR::IOERROR); }
+  success_is_true transaction_get(void *data, size_t len) override;
+  using SystemBusBase::transaction_send;
+  void transaction_send(const void *data, size_t len, bool is_error=false) override;
 
   int numDevices();
   void addDevice(virtualDevice *pDevice, iwm_fujinet_type_t deviceType); // todo: probably get called by handle_init()

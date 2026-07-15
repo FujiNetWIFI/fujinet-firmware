@@ -19,29 +19,21 @@
  * MA 02111-1307, USA.
  */
 
-#include "libssh/config.h"
+#include "../config.h"
 
 #include "libssh/libssh.h"
 #include "libssh/crypto.h"
 #include "libssh/chacha.h"
 #include "libssh/poly1305.h"
 #include "libssh/misc.h"
+#include "libssh/chacha20-poly1305-common.h"
 
-/* size of the keys k1 and k2 as defined in specs */
-#define CHACHA20_KEYLEN 32
 struct chacha20_poly1305_keysched {
     /* key used for encrypting the length field*/
     struct chacha_ctx k1;
     /* key used for encrypting the packets */
     struct chacha_ctx k2;
 };
-
-#pragma pack(push, 1)
-struct ssh_packet_header {
-    uint32_t length;
-    uint8_t payload[];
-};
-#pragma pack(pop)
 
 static const uint8_t zero_block_counter[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 static const uint8_t payload_block_counter[8] = {1, 0, 0, 0, 0, 0, 0, 0};
@@ -50,7 +42,7 @@ static int chacha20_set_encrypt_key(struct ssh_cipher_struct *cipher,
                                     void *key,
                                     void *IV)
 {
-    struct chacha20_poly1305_keysched *sched;
+    struct chacha20_poly1305_keysched *sched = NULL;
     uint8_t *u8key = key;
     (void)IV;
 
@@ -73,7 +65,7 @@ static int chacha20_set_encrypt_key(struct ssh_cipher_struct *cipher,
 /**
  * @internal
  *
- * @brief encrypts an outgoing packet with chacha20 and authenticate it
+ * @brief encrypts an outgoing packet with chacha20 and authenticates it
  * with poly1305.
  */
 static void chacha20_poly1305_aead_encrypt(struct ssh_cipher_struct *cipher,
@@ -172,7 +164,7 @@ static int chacha20_poly1305_aead_decrypt(struct ssh_cipher_struct *cipher,
     ssh_log_hexdump("received tag", mac, POLY1305_TAGLEN);
 #endif
 
-    cmp = memcmp(tag, mac, POLY1305_TAGLEN);
+    cmp = secure_memcmp(tag, mac, POLY1305_TAGLEN);
     if(cmp != 0) {
         /* mac error */
         SSH_LOG(SSH_LOG_PACKET,"poly1305 verify error");

@@ -35,26 +35,6 @@ private:
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
 
 protected:
-    void transaction_begin(transState_t expectMoreData) override {
-        rc2014_send_ack();
-    }
-    void transaction_complete() override {
-        rc2014_send_complete();
-    }
-    void transaction_error() override {
-        rc2014_send_error();
-    }
-    success_is_true transaction_get(void *data, size_t len) override {
-        rc2014_recv_buffer((uint8_t *)data, len);
-        rc2014_send_ack();
-        return success_is_true(true);
-    }
-    void transaction_put(const void *data, size_t len, bool err) override {
-        rc2014_send_buffer((const uint8_t *)data, len);
-        rc2014_flush();
-        if (err) rc2014_send_error(); else rc2014_send_complete();
-    }
-
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
 

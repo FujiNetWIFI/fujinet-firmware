@@ -1,0 +1,6 @@
+#ifndef MEATLOAF_AFPFS_NG_PUBLIC_UAMS_DEF_H
+#define MEATLOAF_AFPFS_NG_PUBLIC_UAMS_DEF_H
+
+#include "include/uams_def.h"
+
+#endif // MEATLOAF_AFPFS_NG_PUBLIC_UAMS_DEF_H

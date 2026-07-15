@@ -63,7 +63,7 @@ public:
      * Called for iwm Command 'O' to open a connection to a network protocol, allocate all buffers,
      * and start the receive PROCEED interrupt.
      */
-    virtual void open();
+    virtual void open(const iwm_decoded_cmd_t &cmd);
 
     /**
      * Called for iwm Command 'C' to close a connection to a network protocol, de-allocate all buffers,
@@ -74,7 +74,7 @@ public:
     /**
      * Write to Network Socket 'W'
      */
-    void net_write();
+    void net_write(const iwm_decoded_cmd_t &cmd);
 
     /**
      * Read from Network Socket 'R'
@@ -96,17 +96,17 @@ public:
      */
     virtual void status();
 
-    void process_fs(fujiCommandID_t fuji_command);
-    void process_tcp(fujiCommandID_t fuji_command);
-    void process_http(fujiCommandID_t fuji_command);
-    void process_udp(fujiCommandID_t fuji_command);
+    void process_fs(const iwm_decoded_cmd_t &cmd);
+    void process_tcp(const iwm_decoded_cmd_t &cmd);
+    void process_http(const iwm_decoded_cmd_t &cmd);
+    void process_udp(const iwm_decoded_cmd_t &cmd);
 
-    void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
-    void iwm_open(iwm_decoded_cmd_t cmd) override;
-    void iwm_close(iwm_decoded_cmd_t cmd) override;
-    void iwm_read(iwm_decoded_cmd_t cmd) override;
-    void iwm_write(iwm_decoded_cmd_t cmd) override;
-    void iwm_status(iwm_decoded_cmd_t cmd) override;
+    void iwm_ctrl(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_open(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_close(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_read(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_write(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_status(const iwm_decoded_cmd_t &cmd) override;
     void shutdown() override;
     iwm_device_info_block_t create_dib_reply_packet() override;
     iwm_device_status_block_t create_status_reply_packet() override;
@@ -114,7 +114,7 @@ public:
     /**
      * @brief Called to set prefix
      */
-    virtual void set_prefix();
+    virtual void set_prefix(const iwm_decoded_cmd_t &cmd);
 
     /**
      * @brief Called to get prefix
@@ -124,17 +124,17 @@ public:
     /**
      * @brief called to set login
      */
-    virtual void set_login();
+    virtual void set_login(const iwm_decoded_cmd_t &cmd);
 
     /**
      * @brief called to set password
      */
-    virtual void set_password();
+    virtual void set_password(const iwm_decoded_cmd_t &cmd);
 
     /**
      * @brief set channel mode
      */
-    void channel_mode();
+    void channel_mode(const iwm_decoded_cmd_t &cmd);
 
     /**
      * @brief parse incoming data
@@ -145,17 +145,12 @@ public:
      * @brief JSON Query
      * @param s size of query
      */
-    void json_query(iwm_decoded_cmd_t cmd);
+    void json_query(const iwm_decoded_cmd_t &cmd);
 
     std::unordered_map<uint8_t, NetworkData> network_data_map;
     uint8_t current_network_unit = 1;
 
 private:
-    /**
-     * SP_ERR number when there's an ... error!
-     */
-    spError_t err = SP_ERR::NOERROR;
-
     /**
      * ESP timer handle for the Interrupt rate limiting timer
      */
@@ -192,7 +187,7 @@ private:
     /**
      * Create the deviceSpec and fix it for parsing
      */
-    void create_devicespec(std::string d);
+    void create_devicespec(std::string d, bool is_dir);
 
     /**
      * Create a urlParser from deviceSpec
@@ -226,21 +221,21 @@ private:
      * @param num_bytes Number of bytes to read.
      * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
      */
-    bool read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd);
+    error_is_true read_channel(const iwm_decoded_cmd_t &cmd);
 
     /**
      * Perform the correct read based on value of channelMode
      * @param num_bytes Number of bytes to read.
      * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
      */
-    bool read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t cmd);
+    error_is_true read_channel_json(const iwm_decoded_cmd_t &cmd);
 
     /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
      * @return TRUE on error, FALSE on success. Used to emit iwmnet_error or iwmnet_complete().
      */
-    bool write_channel(unsigned short num_bytes);
+    error_is_true write_channel(unsigned short num_bytes);
 
     /**
      * @brief perform local status commands, if protocol is not bound, based on cmdFrame
@@ -272,7 +267,7 @@ private:
      * @brief parse URL and instantiate protocol
      * @param db pointer to devicespecbuf 256 chars
      */
-    void parse_and_instantiate_protocol(std::string d);
+    error_is_true parse_and_instantiate_protocol(std::string d, bool is_dir);
 };
 
 #endif /* NETWORK_H */

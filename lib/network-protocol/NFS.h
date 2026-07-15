@@ -1,6 +1,8 @@
 #ifndef NETWORKPROTOCOLNFS_H
 #define NETWORKPROTOCOLNFS_H
 
+#include <string>
+
 #include "FS.h"
 
 
@@ -165,11 +167,6 @@ private:
     struct nfs_context *nfs = nullptr;
 
     /**
-     * NFS URL
-     */
-    struct nfs_url *nfs_url = nullptr;
-
-    /**
      * NFS directory handle
      */
     struct nfsdir *nfs_dir = nullptr;
@@ -193,6 +190,22 @@ private:
      * Offset through file
      */
     uint64_t offset = 0;
+
+    /**
+     * Directory currently mounted (server-absolute, trailing slash kept).
+     */
+    std::string mount_dir;
+
+    /**
+     * @brief Mount the directory containing path; a path ending in '/'
+     *        is treated as the directory itself.
+     */
+    fujiError_t mount_path(const std::string &host, const std::string &port, const std::string &path);
+
+    /**
+     * @brief Path relative to the mounted directory (leading slash).
+     */
+    std::string export_relative(const std::string &path);
 
     /**
      * @brief get status of file, filling in filesize. mount() must have already been called.

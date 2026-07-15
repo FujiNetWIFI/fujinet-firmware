@@ -1370,13 +1370,13 @@ iwm_device_info_block_t iwmModem::create_dib_reply_packet()
   return dib;
 }
 
-void iwmModem::iwm_open(iwm_decoded_cmd_t cmd)
+void iwmModem::iwm_open(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\nModem: Open\n");
-    send_reply_packet(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmModem::iwm_close(iwm_decoded_cmd_t cmd)
+void iwmModem::iwm_close(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\nModem: Close\n");
     
@@ -1386,10 +1386,10 @@ void iwmModem::iwm_close(iwm_decoded_cmd_t cmd)
         tcpClient.stop();
     }
     
-    send_reply_packet(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmModem::iwm_read(iwm_decoded_cmd_t cmd)
+void iwmModem::iwm_read(const iwm_decoded_cmd_t &cmd)
 {
 #ifdef ESP_PLATFORM // OS
     unsigned short mw = uxQueueMessagesWaiting(mrxq);
@@ -1397,104 +1397,81 @@ void iwmModem::iwm_read(iwm_decoded_cmd_t cmd)
     unsigned short mw;
 #endif
 
-    Debug_printf("\r\nDevice %02x READ %04x bytes from address %06lx\n", id(), cmd.char_rw.length, cmd.char_rw.address);
+    Debug_printf("\r\nDevice %02x READ %04x bytes from address %06lx\n", id(), cmd.frame.char_rw.length, cmd.frame.char_rw.address);
 
-    memset(data_buffer, 0, sizeof(data_buffer));
-
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    std::vector<uint8_t> buffer;
     if (mw) // check if we really have some bytes waiting
     {
-        size_t numbytes = cmd.char_rw.length;
+        size_t numbytes = std::min<uint16_t>(mw, cmd.frame.char_rw.length);
 
-        if (mw < numbytes) //if there are less than requested, just send what we have
+        for (size_t i = 0; i < numbytes; i++)
         {
-            numbytes = mw;  
-        }
-
-        data_len = 0;
-        for (int i = 0; i < numbytes; i++)
-        {
-            char b;
+            uint8_t b;
 #ifdef ESP_PLATFORM // OS
             xQueueReceive(mrxq, &b, portMAX_DELAY);
 #endif
-            data_buffer[i] = b;
-            data_len++;
+            buffer[i] = b;
         }
-    }
-    else // no bytes waiting, just reply back with no data
-    {
-        data_len = 0;
     }
 
     Debug_printf("\r\nsending Modem read data packet ...");
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, data_len);
-    data_len = 0;
-    memset(data_buffer, 0, sizeof(data_buffer));
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_send(buffer);
 }
 
-void iwmModem::iwm_write(iwm_decoded_cmd_t cmd)
+void iwmModem::iwm_write(const iwm_decoded_cmd_t &cmd)
 {
-    Debug_printf("\nWRITE %u bytes\n", cmd.char_rw.length);
+    Debug_printf("\nWRITE %u bytes\n", cmd.frame.char_rw.length);
 
     // get write data packet, keep trying until no timeout
     //  to do - this blows up - check handshaking
 
     {
+        auto buffer = cmd.data().value();
         // DO write
 #ifdef ESP_PLATFORM // OS
-        for (int i = 0; i < cmd.char_rw.length; i++)
-            xQueueSend(mtxq, &data_buffer[i], portMAX_DELAY);
+        for (int i = 0; i < cmd.frame.char_rw.length; i++)
+            xQueueSend(mtxq, &buffer[i], portMAX_DELAY);
 #endif
     }
 
-    send_reply_packet(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmModem::iwm_ctrl(iwm_decoded_cmd_t cmd)
+void iwmModem::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
 {
-    spError_t err_result = SP_ERR::NOERROR;
-
-    Debug_printf("\r\nModem Device %02x Control Code %02x", id(), cmd.control_status.fuji.command);
-    print_packet(data_buffer,data_len);
-
+    Debug_printf("\r\nModem Device %02x Control Code %02x", id(), cmd.command());
     Debug_printf("\nSending Control Reply");
-    send_reply_packet(err_result);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_success();
 }
 
 void iwmModem::iwm_modem_status()
 {
+    u16le_t mw;
 #ifdef ESP_PLATFORM // OS
-    unsigned short mw = uxQueueMessagesWaiting(mrxq);
-#else
-    unsigned short mw;
+    mw = uxQueueMessagesWaiting(mrxq);
 #endif
 
-    //if (mw > 512)
-    //    mw = 512;
-
-    data_buffer[0] = mw & 0xFF;
-    data_buffer[1] = mw >> 8;
-    data_len = 2;
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_send(&mw, sizeof(mw));
     Debug_printf("--- %u bytes waiting\n", mw);
 }
 
-void iwmModem::iwm_status(iwm_decoded_cmd_t cmd)
+void iwmModem::iwm_status(const iwm_decoded_cmd_t &cmd)
 {
-    Debug_printf("\r\n[MODEM] Device %02x Status Code %02x\r\n", id(), cmd.control_status.fuji.command);
-    // Debug_printf("\r\nStatus List is at %02x %02x\n", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
+    Debug_printf("\r\n[MODEM] Device %02x Status Code %02x\r\n", id(), cmd.command());
 
-    switch (cmd.control_status.fuji.command)
+    switch (cmd.command())
     {
     case MODEMCMD_STATUS:
         iwm_modem_status();
         break;
     default:
-        send_reply_packet(SP_ERR::BADCMD);
+        SYSTEM_BUS.transaction_error(SP_ERR::BADCMD);
         return;
     }
-
-    Debug_printf("\r\nStatus code complete, sending response");
-    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, data_len);
 }
 
 #endif /* BUILD_APPLE */

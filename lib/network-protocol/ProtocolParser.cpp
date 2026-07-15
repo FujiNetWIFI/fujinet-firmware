@@ -12,10 +12,12 @@
 #include "FTP.h"
 #include "HTTP.h"
 #include "SSH.h"
+#include "SFTP.h"
 #include "SSHKeygen.h"
 #include "SSHCopyId.h"
 #include "SMB.h"
 #include "NFS.h"
+#include "S3.h"
 #include "SD.h"
 
 #include "../utils/string_utils.h"
@@ -63,6 +65,9 @@ NetworkProtocol* ProtocolParser::createProtocol(std::string scheme, std::string 
         case "SSH"_sh:
             protocol = new NetworkProtocolSSH(receiveBuffer, transmitBuffer, specialBuffer);
             break;
+        case "SFTP"_sh:
+            protocol = new NetworkProtocolSFTP(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
         case "SSH.KEYGEN"_sh:
             protocol = new NetworkProtocolSSHKeygen(receiveBuffer, transmitBuffer, specialBuffer);
             break;
@@ -74,6 +79,9 @@ NetworkProtocol* ProtocolParser::createProtocol(std::string scheme, std::string 
             break;
         case "NFS"_sh:
             protocol = new NetworkProtocolNFS(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "S3"_sh:
+            protocol = new NetworkProtocolS3(receiveBuffer, transmitBuffer, specialBuffer);
             break;
         case "SD"_sh:
             protocol = new NetworkProtocolSD(receiveBuffer, transmitBuffer, specialBuffer);

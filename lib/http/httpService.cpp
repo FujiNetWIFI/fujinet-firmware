@@ -13,9 +13,7 @@
 #include "../../include/debug.h"
 
 // WebDAV
-#include "webdav/webdav_server.h"
-#include "webdav/request.h"
-#include "webdav/response.h"
+#include "webdav/handler.h"
 
 #include "fnSystem.h"
 #include "fnConfig.h"
@@ -1541,132 +1539,561 @@ esp_err_t fnHttpService::get_handler_gdrive_poll(httpd_req_t *req)
 
 // ─── end Google Drive handlers ────────────────────────────────────────────────
 
-esp_err_t fnHttpService::webdav_handler(httpd_req_t *httpd_req)
+/*
+ * REST API Handlers
+ * JSON API endpoints for programmatic access to FujiNet
+ */
+
+// Helper: Send JSON response with proper headers
+static void api_send_json(httpd_req_t *req, const char *json, int status_code = 200)
 {
-    WebDav::Server *server = (WebDav::Server *)httpd_req->user_ctx;
-    WebDav::Request req(httpd_req);
-    WebDav::Response resp(httpd_req);
-    int ret;
-
-    //Debug_printv("url[%s]", httpd_req->uri);
-
-    if (!req.parseRequest())
+    const char *status_str;
+    switch (status_code)
     {
-        resp.setStatus(400); // Bad Request
-        resp.flushHeaders();
-        resp.closeBody();
+    case 200: status_str = "200 OK"; break;
+    case 201: status_str = "201 Created"; break;
+    case 400: status_str = "400 Bad Request"; break;
+    case 404: status_str = "404 Not Found"; break;
+    case 500: status_str = "500 Internal Server Error"; break;
+    default: status_str = "200 OK"; break;
+    }
+    httpd_resp_set_status(req, status_str);
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    httpd_resp_send(req, json, strlen(json));
+}
+
+// Helper: Extract slot number from URI path like /api/v1/drives/3
+static int api_extract_slot_from_uri(const char *uri, const char *prefix)
+{
+    const char *slot_str = strstr(uri, prefix);
+    if (slot_str == nullptr)
+        return -1;
+    slot_str += strlen(prefix);
+    if (*slot_str == '\0' || !isdigit(*slot_str))
+        return -1;
+    return atoi(slot_str);
+}
+
+// GET /api/v1/status - System status information
+esp_err_t fnHttpService::api_handler_status(httpd_req_t *req)
+{
+    cJSON *root = cJSON_CreateObject();
+    if (root == nullptr)
+    {
+        api_send_json(req, "{\"error\":\"out of memory\"}", 500);
         return ESP_OK;
     }
 
-    // httpd_resp_set_hdr(httpd_req, "Access-Control-Allow-Origin", "*");
-    // httpd_resp_set_hdr(httpd_req, "Access-Control-Allow-Headers", "*");
-    // httpd_resp_set_hdr(httpd_req, "Access-Control-Allow-Methods", "*");
+    cJSON_AddStringToObject(root, "version", fnSystem.get_fujinet_version(true));
+    cJSON_AddStringToObject(root, "ip", fnSystem.Net.get_ip4_address_str().c_str());
+    cJSON_AddStringToObject(root, "hostname", fnSystem.Net.get_hostname().c_str());
+    cJSON_AddNumberToObject(root, "uptime_s", fnSystem.get_uptime() / 1000000);
+    cJSON_AddNumberToObject(root, "free_heap", fnSystem.get_free_heap_size());
+    cJSON_AddNumberToObject(root, "cpu_freq_mhz", fnSystem.get_cpu_frequency());
+    cJSON_AddStringToObject(root, "sdk_version", fnSystem.get_sdk_version());
 
-    Debug_printv("%d %s[%s]", httpd_req->method, http_method_str((enum http_method)httpd_req->method), httpd_req->uri);
-
-    switch (httpd_req->method)
+    // WiFi info
+    cJSON *wifi = cJSON_AddObjectToObject(root, "wifi");
+    if (wifi)
     {
-    case HTTP_COPY:
-        ret = server->doCopy(req, resp);
-        break;
-    case HTTP_DELETE:
-        ret = server->doDelete(req, resp);
-        break;
-    case HTTP_GET:
-        ret = server->doGet(req, resp);
-        if ( ret == 200 )
-            return ESP_OK;
-        break;
-    case HTTP_HEAD:
-        ret = server->doHead(req, resp);
-        break;
-    case HTTP_LOCK:
-        ret = server->doLock(req, resp);
-        break;
-    case HTTP_MKCOL:
-        ret = server->doMkcol(req, resp);
-        break;
-    case HTTP_MOVE:
-        ret = server->doMove(req, resp);
-        break;
-    case HTTP_OPTIONS:
-        ret = server->doOptions(req, resp);
-        break;
-    case HTTP_PROPFIND:
-        ret = server->doPropfind(req, resp);
-        if (ret == 207)
-            return ESP_OK;
-        break;
-    case HTTP_PROPPATCH:
-        ret = server->doProppatch(req, resp);
-        break;
-    case HTTP_PUT:
-        ret = server->doPut(req, resp);
-        break;
-    case HTTP_UNLOCK:
-        ret = server->doUnlock(req, resp);
-        break;
-    default:
-        return ESP_ERR_HTTPD_INVALID_REQ;
-        break;
+        cJSON_AddBoolToObject(wifi, "connected", fnWiFi.connected());
+        cJSON_AddStringToObject(wifi, "ssid", fnWiFi.get_current_ssid().c_str());
+        cJSON_AddStringToObject(wifi, "ip", fnSystem.Net.get_ip4_address_str().c_str());
     }
 
-    resp.setStatus(ret);
+    // SD card info
+    cJSON_AddBoolToObject(root, "sd_present", fsFlash.exists("/"));
 
-    if ( (ret > 399) & (httpd_req->method != HTTP_HEAD) )
-    {
-        // Send error
-        httpd_resp_send(httpd_req, NULL, 0);
-    }
-    else
-    {
-        // Send empty response
-        resp.setHeader("Connection","close");
-        resp.flushHeaders();
-        resp.closeBody();
-    }
-
-    Debug_printv("ret[%d]", ret);
-
+    char *json = cJSON_PrintUnformatted(root);
+    api_send_json(req, json);
+    cJSON_free(json);
+    cJSON_Delete(root);
     return ESP_OK;
 }
 
-
-void fnHttpService::webdav_register(httpd_handle_t server, const char *root_uri, const char *root_path)
+// GET /api/v1/drives - List all drive slots
+esp_err_t fnHttpService::api_handler_drives(httpd_req_t *req)
 {
-    WebDav::Server *webDavServer = new WebDav::Server(root_uri, root_path);
-
-    char *uri;
-    asprintf(&uri, "%s/?*", root_uri);
-
-    httpd_uri_t uri_dav = {
-        .uri = uri,
-        .method = http_method(0),
-        .handler = webdav_handler,
-        .user_ctx = webDavServer,
-        .is_websocket = false
-    };
-
-    http_method methods[] = {
-        HTTP_COPY,
-        HTTP_DELETE,
-        HTTP_GET,
-        HTTP_HEAD,
-        HTTP_LOCK,
-        HTTP_MKCOL,
-        HTTP_MOVE,
-        HTTP_OPTIONS,
-        HTTP_PROPFIND,
-        HTTP_PROPPATCH,
-        HTTP_PUT,
-        HTTP_UNLOCK,
-    };
-
-    for (int i = 0; i < sizeof(methods) / sizeof(methods[0]); i++)
+    cJSON *root = cJSON_CreateArray();
+    if (root == nullptr)
     {
-        uri_dav.method = methods[i];
-        httpd_register_uri_handler(server, &uri_dav);
+        api_send_json(req, "{\"error\":\"out of memory\"}", 500);
+        return ESP_OK;
     }
+
+    for (int i = 0; i < MAX_MOUNT_SLOTS; i++)
+    {
+        cJSON *slot = cJSON_CreateObject();
+        if (slot == nullptr)
+            continue;
+
+        cJSON_AddNumberToObject(slot, "slot", i + 1);
+
+        std::string path = Config.get_mount_path(i);
+        cJSON_AddStringToObject(slot, "path", path.c_str());
+        cJSON_AddBoolToObject(slot, "mounted", !path.empty());
+
+        fnConfig::mount_mode_t mode = Config.get_mount_mode(i);
+        cJSON_AddStringToObject(slot, "mode", mode == fnConfig::MOUNTMODE_WRITE ? "w" : "r");
+
+        int host_slot = Config.get_mount_host_slot(i);
+        cJSON_AddNumberToObject(slot, "host_slot", host_slot);
+
+        if (host_slot >= 0 && host_slot < MAX_HOST_SLOTS)
+        {
+            cJSON_AddStringToObject(slot, "host", Config.get_host_name(host_slot).c_str());
+        }
+
+        cJSON_AddItemToArray(root, slot);
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    api_send_json(req, json);
+    cJSON_free(json);
+    cJSON_Delete(root);
+    return ESP_OK;
+}
+
+// GET /api/v1/drives/{slot} - Get specific drive slot
+esp_err_t fnHttpService::api_handler_drive_slot(httpd_req_t *req)
+{
+    int slot = api_extract_slot_from_uri(req->uri, "/drives/");
+    if (slot < 1 || slot > MAX_MOUNT_SLOTS)
+    {
+        api_send_json(req, "{\"error\":\"invalid slot\"}", 400);
+        return ESP_OK;
+    }
+    slot--; // Convert to 0-based
+
+    cJSON *root = cJSON_CreateObject();
+    if (root == nullptr)
+    {
+        api_send_json(req, "{\"error\":\"out of memory\"}", 500);
+        return ESP_OK;
+    }
+
+    cJSON_AddNumberToObject(root, "slot", slot + 1);
+
+    std::string path = Config.get_mount_path(slot);
+    cJSON_AddStringToObject(root, "path", path.c_str());
+    cJSON_AddBoolToObject(root, "mounted", !path.empty());
+
+    fnConfig::mount_mode_t mode = Config.get_mount_mode(slot);
+    cJSON_AddStringToObject(root, "mode", mode == fnConfig::MOUNTMODE_WRITE ? "w" : "r");
+
+    int host_slot = Config.get_mount_host_slot(slot);
+    cJSON_AddNumberToObject(root, "host_slot", host_slot);
+
+    if (host_slot >= 0 && host_slot < MAX_HOST_SLOTS)
+    {
+        cJSON_AddStringToObject(root, "host", Config.get_host_name(host_slot).c_str());
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    api_send_json(req, json);
+    cJSON_free(json);
+    cJSON_Delete(root);
+    return ESP_OK;
+}
+
+// POST /api/v1/drives/{slot}/mount - Mount a disk image
+esp_err_t fnHttpService::api_handler_drive_mount(httpd_req_t *req)
+{
+    int slot = api_extract_slot_from_uri(req->uri, "/drives/");
+    if (slot < 1 || slot > MAX_MOUNT_SLOTS)
+    {
+        api_send_json(req, "{\"error\":\"invalid slot\"}", 400);
+        return ESP_OK;
+    }
+    slot--; // Convert to 0-based
+
+    // Read POST body
+    char buf[FNWS_RECV_BUFF_SIZE];
+    int ret = httpd_req_recv(req, buf, sizeof(buf) - 1);
+    if (ret <= 0)
+    {
+        api_send_json(req, "{\"error\":\"failed to read request body\"}", 400);
+        return ESP_OK;
+    }
+    buf[ret] = '\0';
+
+    // Parse JSON body
+    cJSON *body = cJSON_Parse(buf);
+    if (body == nullptr)
+    {
+        api_send_json(req, "{\"error\":\"invalid JSON\"}", 400);
+        return ESP_OK;
+    }
+
+    cJSON *path_json = cJSON_GetObjectItem(body, "path");
+    cJSON *host_slot_json = cJSON_GetObjectItem(body, "host_slot");
+    cJSON *mode_json = cJSON_GetObjectItem(body, "mode");
+
+    if (path_json == nullptr || host_slot_json == nullptr)
+    {
+        cJSON_Delete(body);
+        api_send_json(req, "{\"error\":\"missing path or host_slot\"}", 400);
+        return ESP_OK;
+    }
+
+    const char *path = cJSON_GetStringValue(path_json);
+    int host_slot = cJSON_GetNumberValue(host_slot_json);
+    const char *mode_str = mode_json ? cJSON_GetStringValue(mode_json) : "r";
+
+    if (path == nullptr || host_slot < 0 || host_slot >= MAX_HOST_SLOTS)
+    {
+        cJSON_Delete(body);
+        api_send_json(req, "{\"error\":\"invalid parameters\"}", 400);
+        return ESP_OK;
+    }
+
+    fnConfig::mount_mode_t mount_mode = (strcmp(mode_str, "w") == 0)
+        ? fnConfig::MOUNTMODE_WRITE
+        : fnConfig::MOUNTMODE_READ;
+
+    Config.store_mount(slot, host_slot, path, mount_mode);
+
+    cJSON *resp = cJSON_CreateObject();
+    cJSON_AddStringToObject(resp, "status", "success");
+    cJSON_AddNumberToObject(resp, "slot", slot + 1);
+    cJSON_AddStringToObject(resp, "path", path);
+
+    char *json = cJSON_PrintUnformatted(resp);
+    api_send_json(req, json);
+    cJSON_free(json);
+    cJSON_Delete(resp);
+    cJSON_Delete(body);
+    return ESP_OK;
+}
+
+// POST /api/v1/drives/{slot}/eject - Eject disk from slot
+esp_err_t fnHttpService::api_handler_drive_eject(httpd_req_t *req)
+{
+    int slot = api_extract_slot_from_uri(req->uri, "/drives/");
+    if (slot < 1 || slot > MAX_MOUNT_SLOTS)
+    {
+        api_send_json(req, "{\"error\":\"invalid slot\"}", 400);
+        return ESP_OK;
+    }
+    slot--; // Convert to 0-based
+
+    Config.clear_mount(slot);
+
+    cJSON *resp = cJSON_CreateObject();
+    cJSON_AddStringToObject(resp, "status", "success");
+    cJSON_AddNumberToObject(resp, "slot", slot + 1);
+
+    char *json = cJSON_PrintUnformatted(resp);
+    api_send_json(req, json);
+    cJSON_free(json);
+    cJSON_Delete(resp);
+    return ESP_OK;
+}
+
+// GET /api/v1/hosts - List all host slots
+esp_err_t fnHttpService::api_handler_hosts(httpd_req_t *req)
+{
+    cJSON *root = cJSON_CreateArray();
+    if (root == nullptr)
+    {
+        api_send_json(req, "{\"error\":\"out of memory\"}", 500);
+        return ESP_OK;
+    }
+
+    for (int i = 0; i < MAX_HOST_SLOTS; i++)
+    {
+        cJSON *slot = cJSON_CreateObject();
+        if (slot == nullptr)
+            continue;
+
+        cJSON_AddNumberToObject(slot, "slot", i + 1);
+
+        std::string name = Config.get_host_name(i);
+        cJSON_AddStringToObject(slot, "hostname", name.c_str());
+        cJSON_AddBoolToObject(slot, "configured", !name.empty());
+
+        fnConfig::host_type_t type = Config.get_host_type(i);
+        cJSON_AddStringToObject(slot, "type",
+            type == fnConfig::HOSTTYPE_SD ? "SD" :
+            type == fnConfig::HOSTTYPE_TNFS ? "TNFS" : "unknown");
+
+        cJSON_AddItemToArray(root, slot);
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    api_send_json(req, json);
+    cJSON_free(json);
+    cJSON_Delete(root);
+    return ESP_OK;
+}
+
+// GET/POST /api/v1/hosts/{slot} - Get or update host slot
+esp_err_t fnHttpService::api_handler_host_slot(httpd_req_t *req)
+{
+    int slot = api_extract_slot_from_uri(req->uri, "/hosts/");
+    if (slot < 1 || slot > MAX_HOST_SLOTS)
+    {
+        api_send_json(req, "{\"error\":\"invalid slot\"}", 400);
+        return ESP_OK;
+    }
+    slot--; // Convert to 0-based
+
+    if (req->method == HTTP_GET)
+    {
+        cJSON *root = cJSON_CreateObject();
+        if (root == nullptr)
+        {
+            api_send_json(req, "{\"error\":\"out of memory\"}", 500);
+            return ESP_OK;
+        }
+
+        cJSON_AddNumberToObject(root, "slot", slot + 1);
+
+        std::string name = Config.get_host_name(slot);
+        cJSON_AddStringToObject(root, "hostname", name.c_str());
+        cJSON_AddBoolToObject(root, "configured", !name.empty());
+
+        fnConfig::host_type_t type = Config.get_host_type(slot);
+        cJSON_AddStringToObject(root, "type",
+            type == fnConfig::HOSTTYPE_SD ? "SD" :
+            type == fnConfig::HOSTTYPE_TNFS ? "TNFS" : "unknown");
+
+        char *json = cJSON_PrintUnformatted(root);
+        api_send_json(req, json);
+        cJSON_free(json);
+        cJSON_Delete(root);
+        return ESP_OK;
+    }
+    else if (req->method == HTTP_POST)
+    {
+        // Read POST body
+        char buf[FNWS_RECV_BUFF_SIZE];
+        int ret = httpd_req_recv(req, buf, sizeof(buf) - 1);
+        if (ret <= 0)
+        {
+            api_send_json(req, "{\"error\":\"failed to read request body\"}", 400);
+            return ESP_OK;
+        }
+        buf[ret] = '\0';
+
+        // Parse JSON body
+        cJSON *body = cJSON_Parse(buf);
+        if (body == nullptr)
+        {
+            api_send_json(req, "{\"error\":\"invalid JSON\"}", 400);
+            return ESP_OK;
+        }
+
+        cJSON *hostname_json = cJSON_GetObjectItem(body, "hostname");
+        cJSON *type_json = cJSON_GetObjectItem(body, "type");
+
+        if (hostname_json == nullptr)
+        {
+            cJSON_Delete(body);
+            api_send_json(req, "{\"error\":\"missing hostname\"}", 400);
+            return ESP_OK;
+        }
+
+        const char *hostname = cJSON_GetStringValue(hostname_json);
+        if (hostname == nullptr)
+        {
+            cJSON_Delete(body);
+            api_send_json(req, "{\"error\":\"invalid hostname\"}", 400);
+            return ESP_OK;
+        }
+
+        fnConfig::host_type_t host_type = fnConfig::HOSTTYPE_SD;
+        if (type_json != nullptr)
+        {
+            const char *type_str = cJSON_GetStringValue(type_json);
+            if (type_str != nullptr)
+            {
+                if (strcasecmp(type_str, "TNFS") == 0)
+                    host_type = fnConfig::HOSTTYPE_TNFS;
+                else
+                    host_type = fnConfig::HOSTTYPE_SD;
+            }
+        }
+
+        Config.store_host(slot, hostname, host_type);
+
+        cJSON *resp = cJSON_CreateObject();
+        cJSON_AddStringToObject(resp, "status", "success");
+        cJSON_AddNumberToObject(resp, "slot", slot + 1);
+        cJSON_AddStringToObject(resp, "hostname", hostname);
+
+        char *json = cJSON_PrintUnformatted(resp);
+        api_send_json(req, json);
+        cJSON_free(json);
+        cJSON_Delete(resp);
+        cJSON_Delete(body);
+        return ESP_OK;
+    }
+
+    api_send_json(req, "{\"error\":\"method not allowed\"}", 400);
+    return ESP_OK;
+}
+
+// GET /api/v1/printer/status - Printer status
+esp_err_t fnHttpService::api_handler_printer_status(httpd_req_t *req)
+{
+    PRINTER_CLASS *printer = (PRINTER_CLASS *)fnPrinters.get_ptr(0);
+    if (printer == nullptr)
+    {
+        api_send_json(req, "{\"enabled\":false}");
+        return ESP_OK;
+    }
+
+    printer_emu *emu = printer->getPrinterPtr();
+    if (emu == nullptr)
+    {
+        api_send_json(req, "{\"enabled\":false}");
+        return ESP_OK;
+    }
+
+    uint64_t now = fnSystem.millis();
+    bool ready = (now - printer->lastPrintTime() >= PRINTER_BUSY_TIME);
+    size_t sz = emu->getOutputSize();
+
+    const char *ct;
+    switch (emu->getPaperType())
+    {
+    case RAW:
+    case TRIM:
+    case ASCII:
+        ct = "text/plain";
+        break;
+    case PDF:
+        ct = "application/pdf";
+        break;
+    case SVG:
+        ct = "image/svg+xml";
+        break;
+    case PNG:
+        ct = "image/png";
+        break;
+    case HTML:
+    case HTML_ATASCII:
+        ct = "text/html";
+        break;
+    default:
+        ct = "application/octet-stream";
+    }
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddBoolToObject(root, "enabled", true);
+    cJSON_AddStringToObject(root, "model", emu->modelname());
+    cJSON_AddBoolToObject(root, "ready", ready);
+    cJSON_AddBoolToObject(root, "has_output", sz > 0);
+    cJSON_AddNumberToObject(root, "output_size", sz);
+    cJSON_AddStringToObject(root, "content_type", ct);
+    cJSON_AddNumberToObject(root, "last_print_time", printer->lastPrintTime());
+
+    char *json = cJSON_PrintUnformatted(root);
+    api_send_json(req, json);
+    cJSON_free(json);
+    cJSON_Delete(root);
+    return ESP_OK;
+}
+
+// POST /api/v1/printer/clear - Clear printer output
+esp_err_t fnHttpService::api_handler_printer_clear(httpd_req_t *req)
+{
+    PRINTER_CLASS *printer = (PRINTER_CLASS *)fnPrinters.get_ptr(0);
+    if (printer == nullptr || printer->getPrinterPtr() == nullptr)
+    {
+        api_send_json(req, "{\"error\":\"printer not available\"}", 400);
+        return ESP_OK;
+    }
+
+    printer_emu *emu = printer->getPrinterPtr();
+    emu->closeOutput();
+    printer->reset_printer();
+
+    // Try to remove the file (may fail on some filesystems)
+    int remove_result = fsFlash.remove("/paper");
+    Debug_printf("Attempting to remove /paper, result: %d\n", remove_result);
+
+    cJSON *resp = cJSON_CreateObject();
+    cJSON_AddStringToObject(resp, "status", "success");
+
+    char *json = cJSON_PrintUnformatted(resp);
+    api_send_json(req, json);
+    cJSON_free(json);
+    cJSON_Delete(resp);
+    return ESP_OK;
+}
+
+// POST /api/v1/wifi/scan - Scan WiFi networks
+esp_err_t fnHttpService::api_handler_wifi_scan(httpd_req_t *req)
+{
+    uint8_t count = fnWiFi.scan_networks();
+    cJSON *root = cJSON_CreateArray();
+
+    for (int i = 0; i < count; i++)
+    {
+        char ssid[33] = {0};
+        uint8_t rssi = 0;
+        uint8_t channel = 0;
+        char bssid[18] = {0};
+        uint8_t encryption = 0;
+
+        fnWiFi.get_scan_result(i, ssid, &rssi, &channel, bssid, &encryption);
+
+        cJSON *network = cJSON_CreateObject();
+        cJSON_AddStringToObject(network, "ssid", ssid);
+        cJSON_AddNumberToObject(network, "rssi", rssi);
+        cJSON_AddNumberToObject(network, "channel", channel);
+        cJSON_AddStringToObject(network, "bssid", bssid);
+        cJSON_AddNumberToObject(network, "encryption", encryption);
+        cJSON_AddItemToArray(root, network);
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    api_send_json(req, json);
+    cJSON_free(json);
+    cJSON_Delete(root);
+    return ESP_OK;
+}
+
+// GET /api/v1/wifi/status - Current WiFi connection info
+esp_err_t fnHttpService::api_handler_wifi_status(httpd_req_t *req)
+{
+    cJSON *root = cJSON_CreateObject();
+    if (root == nullptr)
+    {
+        api_send_json(req, "{\"error\":\"out of memory\"}", 500);
+        return ESP_OK;
+    }
+
+    cJSON_AddBoolToObject(root, "connected", fnWiFi.connected());
+    cJSON_AddStringToObject(root, "ssid", fnWiFi.get_current_ssid().c_str());
+    cJSON_AddStringToObject(root, "detail", fnWiFi.get_current_detail_str());
+
+    uint8_t bssid[6] = {0};
+    fnWiFi.get_current_bssid(bssid);
+    char bssid_str[18];
+    snprintf(bssid_str, sizeof(bssid_str), "%02X:%02X:%02X:%02X:%02X:%02X",
+             bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5]);
+    cJSON_AddStringToObject(root, "bssid", bssid_str);
+
+    cJSON_AddStringToObject(root, "ip", fnSystem.Net.get_ip4_address_str().c_str());
+    cJSON_AddStringToObject(root, "gateway", fnSystem.Net.get_ip4_gateway_str().c_str());
+    cJSON_AddStringToObject(root, "dns", fnSystem.Net.get_ip4_dns_str().c_str());
+
+    char mac_str[18];
+    uint8_t mac[6];
+    fnWiFi.get_mac(mac);
+    snprintf(mac_str, sizeof(mac_str), "%02X:%02X:%02X:%02X:%02X:%02X",
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    cJSON_AddStringToObject(root, "mac", mac_str);
+
+    char *json = cJSON_PrintUnformatted(root);
+    api_send_json(req, json);
+    cJSON_free(json);
+    cJSON_Delete(root);
+    return ESP_OK;
 }
 
 
@@ -1797,6 +2224,91 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
          .user_ctx = NULL,
          .is_websocket = false,
          .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        // REST API endpoints
+        {.uri = "/api/v1/status",
+         .method = HTTP_GET,
+         .handler = api_handler_status,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/api/v1/drives",
+         .method = HTTP_GET,
+         .handler = api_handler_drives,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/api/v1/drives/*",
+         .method = HTTP_GET,
+         .handler = api_handler_drive_slot,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/api/v1/drives/*/mount",
+         .method = HTTP_POST,
+         .handler = api_handler_drive_mount,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/api/v1/drives/*/eject",
+         .method = HTTP_POST,
+         .handler = api_handler_drive_eject,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/api/v1/hosts",
+         .method = HTTP_GET,
+         .handler = api_handler_hosts,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/api/v1/hosts/*",
+         .method = HTTP_GET,
+         .handler = api_handler_host_slot,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/api/v1/hosts/*",
+         .method = HTTP_POST,
+         .handler = api_handler_host_slot,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/api/v1/printer/status",
+         .method = HTTP_GET,
+         .handler = api_handler_printer_status,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/api/v1/printer/clear",
+         .method = HTTP_POST,
+         .handler = api_handler_printer_clear,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/api/v1/wifi/scan",
+         .method = HTTP_POST,
+         .handler = api_handler_wifi_scan,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/api/v1/wifi/status",
+         .method = HTTP_GET,
+         .handler = api_handler_wifi_status,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
          .supported_subprotocol = nullptr}};
 
     if (!fnWiFi.connected())
@@ -1812,7 +2324,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
     config.task_priority = 12; // Bump this higher than fnService loop
     config.core_id = 0; // Pin to CPU core 0
     config.stack_size = 12288;
-    config.max_uri_handlers = 32;
+    config.max_uri_handlers = 48;
     config.max_resp_headers = 16;
     config.keep_alive_enable = true;
     config.uri_match_fn = httpd_uri_match_wildcard;

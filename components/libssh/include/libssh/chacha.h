@@ -17,7 +17,10 @@ struct chacha_ctx {
 #define CHACHA_NONCELEN   8
 #define CHACHA_CTRLEN     8
 #define CHACHA_STATELEN   (CHACHA_NONCELEN+CHACHA_CTRLEN)
-#define CHACHA_BLOCKLEN   64
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void chacha_keysetup(struct chacha_ctx *x, const uint8_t *k, uint32_t kbits)
 #ifdef HAVE_GCC_BOUNDED_ATTRIBUTE
@@ -37,5 +40,9 @@ void chacha_encrypt_bytes(struct chacha_ctx *x, const uint8_t *m,
     __attribute__((__bounded__(__buffer__, 3, 4)))
 #endif
     ;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif    /* CHACHA_H */

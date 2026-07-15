@@ -129,6 +129,10 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
             {
                 return SECTION_GOOGLEDRIVE;
             }
+            else if (strncasecmp("S3", s1.c_str(), 2) == 0)
+            {
+                return SECTION_S3;
+            }
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
             else if (strncasecmp("Serial", s1.c_str(), 6) == 0)
             {

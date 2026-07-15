@@ -16,51 +16,8 @@ class adamFuji : public fujiDevice
 {
 private:
     bool new_disk_completed = false;
-    bool _ack_deferred = false;
 
 protected:
-    // Consume the trailing checksum and ACK, once the full payload has been read.
-    void deferred_ack() {
-        adamnet_recv(); // CK
-        SYSTEM_BUS.start_time = GET_TIMESTAMP();
-        adamnet_response_ack();
-        _ack_deferred = false;
-    }
-    void transaction_begin(transState_t expectMoreData) override {
-        SYSTEM_BUS.start_time = GET_TIMESTAMP();
-        if (expectMoreData == TRANS_STATE::WILL_GET)
-        {
-            _ack_deferred = true;
-        }
-        else
-        {
-            // No payload follows; the next byte is the checksum.
-            adamnet_recv(); // Discard CK
-            adamnet_response_ack();
-        }
-    }
-    void transaction_complete() override {}
-    void transaction_error() override {
-        if (_ack_deferred)
-        {
-            SYSTEM_BUS.wait_for_idle();
-            SYSTEM_BUS.start_time = GET_TIMESTAMP();
-            adamnet_response_ack();
-            _ack_deferred = false;
-        }
-    }
-    success_is_true transaction_get(void *data, size_t len) override {
-        unsigned short rlen = adamnet_recv_buffer((uint8_t *) data, len);
-        if (_ack_deferred)
-            deferred_ack();
-        RETURN_SUCCESS_IF(rlen == len);
-    }
-
-    void transaction_put(const void *data, size_t len, bool err=false) override {
-        memcpy(response, data, len);
-        response_len = len;
-    }
-
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
 

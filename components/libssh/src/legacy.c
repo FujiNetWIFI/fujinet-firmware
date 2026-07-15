@@ -20,25 +20,24 @@
  */
 
 /** functions in that file are wrappers to the newly named functions. All
- * of them are depreciated, but these wrapper will avoid breaking backward
+ * of them are depreciated, but these wrappers will avoid breaking backward
  * compatibility
  */
 
-#include "libssh/config.h"
+#include "../config.h"
 
 #include <errno.h>
 #include <stdio.h>
 
-#include "libssh/priv.h"
-#include "libssh/dh.h" //MYM
-#include "libssh/session.h"
-#include "libssh/server.h"
-#include "libssh/buffer.h"
-//#include "libssh/dh.h" //MYM
-#include "libssh/pki.h"
+#include <libssh/priv.h>
+#include <libssh/session.h>
+#include <libssh/server.h>
+#include <libssh/buffer.h>
+#include <libssh/dh.h>
+#include <libssh/pki.h>
 #include "libssh/pki_priv.h"
-#include "libssh/misc.h"
-#include "libssh/keys.h"
+#include <libssh/misc.h>
+#include <libssh/keys.h>
 #include "libssh/options.h"
 
 /* AUTH FUNCTIONS */
@@ -49,7 +48,7 @@ int ssh_auth_list(ssh_session session) {
 int ssh_userauth_offer_pubkey(ssh_session session, const char *username,
     int type, ssh_string publickey)
 {
-    ssh_key key;
+    ssh_key key = NULL;
     int rc;
 
     (void) type; /* unused */
@@ -71,7 +70,7 @@ int ssh_userauth_pubkey(ssh_session session,
                         ssh_string publickey,
                         ssh_private_key privatekey)
 {
-    ssh_key key;
+    ssh_key key = NULL;
     int rc;
 
     (void) publickey; /* unused */
@@ -84,12 +83,22 @@ int ssh_userauth_pubkey(ssh_session session,
     key->type = privatekey->type;
     key->type_c = ssh_key_type_to_char(key->type);
     key->flags = SSH_KEY_FLAG_PRIVATE|SSH_KEY_FLAG_PUBLIC;
-    key->dsa = privatekey->dsa_priv;
+#if defined(HAVE_LIBMBEDCRYPTO)
+    key->pk = privatekey->rsa_priv;
+#elif defined(HAVE_LIBCRYPTO)
+    key->key = privatekey->key_priv;
+#else
     key->rsa = privatekey->rsa_priv;
+#endif /* HAVE_LIBCRYPTO */
 
     rc = ssh_userauth_publickey(session, username, key);
-    key->dsa = NULL;
+#if defined(HAVE_LIBMBEDCRYPTO)
+    key->pk = NULL;
+#elif defined(HAVE_LIBCRYPTO)
+    key->key = NULL;
+#else
     key->rsa = NULL;
+#endif /* HAVE_LIBCRYPTO */
     ssh_key_free(key);
 
     return rc;
@@ -165,7 +174,7 @@ int channel_change_pty_size(ssh_channel channel,int cols,int rows){
 }
 
 ssh_channel channel_forward_accept(ssh_session session, int timeout_ms){
-  return ssh_channel_accept_forward(session, timeout_ms, NULL);
+  return ssh_channel_open_forward_port(session, timeout_ms, NULL, NULL, NULL);
 }
 
 int channel_close(ssh_channel channel){
@@ -351,22 +360,15 @@ void publickey_free(ssh_public_key key) {
   }
 
   switch(key->type) {
-    case SSH_KEYTYPE_DSS:
-#ifdef HAVE_LIBGCRYPT
-      gcry_sexp_release(key->dsa_pub);
-#elif defined HAVE_LIBCRYPTO
-      DSA_free(key->dsa_pub);
-#endif
-      break;
     case SSH_KEYTYPE_RSA:
 #ifdef HAVE_LIBGCRYPT
       gcry_sexp_release(key->rsa_pub);
 #elif defined HAVE_LIBCRYPTO
-      RSA_free(key->rsa_pub);
+      EVP_PKEY_free(key->key_pub);
 #elif defined HAVE_LIBMBEDCRYPTO
       mbedtls_pk_free(key->rsa_pub);
       SAFE_FREE(key->rsa_pub);
-#endif
+#endif /* HAVE_LIBGCRYPT */
       break;
     default:
       break;
@@ -374,10 +376,11 @@ void publickey_free(ssh_public_key key) {
   SAFE_FREE(key);
 }
 
-ssh_public_key publickey_from_privatekey(ssh_private_key prv) {
-    struct ssh_public_key_struct *p;
-    ssh_key privkey;
-    ssh_key pubkey;
+ssh_public_key publickey_from_privatekey(ssh_private_key prv)
+{
+    struct ssh_public_key_struct *p = NULL;
+    ssh_key privkey = NULL;
+    ssh_key pubkey = NULL;
     int rc;
 
     privkey = ssh_key_new();
@@ -388,12 +391,22 @@ ssh_public_key publickey_from_privatekey(ssh_private_key prv) {
     privkey->type = prv->type;
     privkey->type_c = ssh_key_type_to_char(privkey->type);
     privkey->flags = SSH_KEY_FLAG_PRIVATE | SSH_KEY_FLAG_PUBLIC;
-    privkey->dsa = prv->dsa_priv;
+#if defined(HAVE_LIBMBEDCRYPTO)
+    privkey->pk = prv->rsa_priv;
+#elif defined(HAVE_LIBCRYPTO)
+    privkey->key = prv->key_priv;
+#else
     privkey->rsa = prv->rsa_priv;
+#endif /* HAVE_LIBCRYPTO */
 
     rc = ssh_pki_export_privkey_to_pubkey(privkey, &pubkey);
-    privkey->dsa = NULL;
+#if defined(HAVE_LIBMBEDCRYPTO)
+    privkey->pk = NULL;
+#elif defined(HAVE_LIBCRYPTO)
+    privkey->key = NULL;
+#else
     privkey->rsa = NULL;
+#endif /* HAVE_LIBCRYPTO */
     ssh_key_free(privkey);
     if (rc < 0) {
         return NULL;
@@ -411,8 +424,8 @@ ssh_private_key privatekey_from_file(ssh_session session,
                                      const char *passphrase) {
     ssh_auth_callback auth_fn = NULL;
     void *auth_data = NULL;
-    ssh_private_key privkey;
-    ssh_key key;
+    ssh_private_key privkey = NULL;
+    ssh_key key = NULL;
     int rc;
 
     (void) type; /* unused */
@@ -428,7 +441,7 @@ ssh_private_key privatekey_from_file(ssh_session session,
                                      auth_fn,
                                      auth_data,
                                      &key);
-    if (rc == SSH_ERROR) {
+    if (rc != SSH_OK) {
         return NULL;
     }
 
@@ -439,11 +452,16 @@ ssh_private_key privatekey_from_file(ssh_session session,
     }
 
     privkey->type = key->type;
-    privkey->dsa_priv = key->dsa;
+#if defined(HAVE_LIBMBEDCRYPTO)
+    privkey->rsa_priv = key->pk;
+    key->pk = NULL;
+#elif defined(HAVE_LIBCRYPTO)
+    privkey->key_priv = key->key;
+    key->key = NULL;
+#else
     privkey->rsa_priv = key->rsa;
-
-    key->dsa = NULL;
     key->rsa = NULL;
+#endif /* HAVE_LIBCRYPTO */
 
     ssh_key_free(key);
 
@@ -462,22 +480,20 @@ void privatekey_free(ssh_private_key prv) {
   }
 
 #ifdef HAVE_LIBGCRYPT
-  gcry_sexp_release(prv->dsa_priv);
   gcry_sexp_release(prv->rsa_priv);
 #elif defined HAVE_LIBCRYPTO
-  DSA_free(prv->dsa_priv);
-  RSA_free(prv->rsa_priv);
+  EVP_PKEY_free(prv->key_priv);
 #elif defined HAVE_LIBMBEDCRYPTO
   mbedtls_pk_free(prv->rsa_priv);
   SAFE_FREE(prv->rsa_priv);
-#endif
+#endif /* HAVE_LIBGCRYPT */
   memset(prv, 0, sizeof(struct ssh_private_key_struct));
   SAFE_FREE(prv);
 }
 
 ssh_string publickey_from_file(ssh_session session, const char *filename,
     int *type) {
-    ssh_key key;
+    ssh_key key = NULL;
     ssh_string key_str = NULL;
     int rc;
 
@@ -510,9 +526,10 @@ int ssh_type_from_name(const char *name) {
     return ssh_key_type_from_name(name);
 }
 
-ssh_public_key publickey_from_string(ssh_session session, ssh_string pubkey_s) {
-    struct ssh_public_key_struct *pubkey;
-    ssh_key key;
+ssh_public_key publickey_from_string(ssh_session session, ssh_string pubkey_s)
+{
+    struct ssh_public_key_struct *pubkey = NULL;
+    ssh_key key = NULL;
     int rc;
 
     (void) session; /* unused */
@@ -531,19 +548,26 @@ ssh_public_key publickey_from_string(ssh_session session, ssh_string pubkey_s) {
     pubkey->type = key->type;
     pubkey->type_c = key->type_c;
 
-    pubkey->dsa_pub = key->dsa;
-    key->dsa = NULL;
+#if defined(HAVE_LIBMBEDCRYPTO)
+    pubkey->rsa_pub = key->pk;
+    key->pk = NULL;
+#elif defined(HAVE_LIBCRYPTO)
+    pubkey->key_pub = key->key;
+    key->key = NULL;
+#else
     pubkey->rsa_pub = key->rsa;
     key->rsa = NULL;
+#endif /* HAVE_LIBCRYPTO */
 
     ssh_key_free(key);
 
     return pubkey;
 }
 
-ssh_string publickey_to_string(ssh_public_key pubkey) {
-    ssh_key key;
-    ssh_string key_blob;
+ssh_string publickey_to_string(ssh_public_key pubkey)
+{
+    ssh_key key = NULL;
+    ssh_string key_blob = NULL;
     int rc;
 
     if (pubkey == NULL) {
@@ -558,16 +582,26 @@ ssh_string publickey_to_string(ssh_public_key pubkey) {
     key->type = pubkey->type;
     key->type_c = pubkey->type_c;
 
-    key->dsa = pubkey->dsa_pub;
+#if defined(HAVE_LIBMBEDCRYPTO)
+    key->pk = pubkey->rsa_pub;
+#elif defined(HAVE_LIBCRYPTO)
+    key->key = pubkey->key_pub;
+#else
     key->rsa = pubkey->rsa_pub;
+#endif /* HAVE_LIBCRYPTO */
 
     rc = ssh_pki_export_pubkey_blob(key, &key_blob);
     if (rc < 0) {
         key_blob = NULL;
     }
 
-    key->dsa = NULL;
+#if defined(HAVE_LIBMBEDCRYPTO)
+    key->pk = NULL;
+#elif defined(HAVE_LIBCRYPTO)
+    key->key = NULL;
+#else
     key->rsa = NULL;
+#endif /* HAVE_LIBCRYPTO */
     ssh_key_free(key);
 
     return key_blob;
@@ -578,11 +612,11 @@ int ssh_publickey_to_file(ssh_session session,
                           ssh_string pubkey,
                           int type)
 {
-    FILE *fp;
-    char *user;
+    FILE *fp = NULL;
+    char *user = NULL;
     char buffer[1024];
     char host[256];
-    unsigned char *pubkey_64;
+    unsigned char *pubkey_64 = NULL;
     size_t len;
     int rc;
     if(session==NULL)
@@ -609,7 +643,7 @@ int ssh_publickey_to_file(ssh_session session,
         return SSH_ERROR;
     }
 
-    snprintf(buffer, sizeof(buffer), "%s %s %s@%s\r\n",
+    snprintf(buffer, sizeof(buffer), "%s %s %s@%s\n",
             ssh_type_to_char(type),
             pubkey_64,
             user,
@@ -623,8 +657,12 @@ int ssh_publickey_to_file(ssh_session session,
 
     fp = fopen(file, "w+");
     if (fp == NULL) {
-        ssh_set_error(session, SSH_REQUEST_DENIED,
-                "Error opening %s: %s", file, strerror(errno));
+        char err_msg[SSH_ERRNO_MSG_MAX] = {0};
+        ssh_set_error(session,
+                      SSH_REQUEST_DENIED,
+                      "Error opening %s: %s",
+                      file,
+                      ssh_strerror(errno, err_msg, SSH_ERRNO_MSG_MAX));
         return SSH_ERROR;
     }
 
@@ -645,9 +683,9 @@ int ssh_try_publickey_from_file(ssh_session session,
                                 const char *keyfile,
                                 ssh_string *publickey,
                                 int *type) {
-    char *pubkey_file;
+    char *pubkey_file = NULL;
     size_t len;
-    ssh_string pubkey_string;
+    ssh_string pubkey_string = NULL;
     int pubkey_type;
 
     if (session == NULL || keyfile == NULL || publickey == NULL || type == NULL) {
@@ -736,7 +774,7 @@ int ssh_accept(ssh_session session) {
 }
 
 int channel_write_stderr(ssh_channel channel, const void *data, uint32_t len) {
-    return ssh_channel_write(channel, data, len);
+    return ssh_channel_write_stderr(channel, data, len);
 }
 
 /** @deprecated

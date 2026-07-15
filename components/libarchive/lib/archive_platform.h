@@ -54,6 +54,10 @@
 #error Oops: No config.h and no pre-built configuration in archive_platform.h.
 #endif
 
+#ifndef OUT_BLOCK_SIZE
+#define OUT_BLOCK_SIZE 64 * 1024
+#endif
+
 /* On macOS check for some symbols based on the deployment target version.  */
 #if defined(__APPLE__)
 # undef HAVE_FUTIMENS
@@ -185,16 +189,6 @@
  */
 #if defined(HAVE_FCHMOD) || defined(HAVE_FUTIMES) || defined(HAVE_ACL_SET_FD) || defined(HAVE_ACL_SET_FD_NP) || defined(HAVE_FCHOWN)
 #define	CAN_RESTORE_METADATA_FD
-#endif
-
-/*
- * glibc 2.24 deprecates readdir_r
- * bionic c deprecates readdir_r too
- */
-#if defined(HAVE_READDIR_R) && (!defined(__GLIBC__) || !defined(__GLIBC_MINOR__) || __GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 24)) && (!defined(__ANDROID__))
-#define	USE_READDIR_R	1
-#else
-#undef	USE_READDIR_R
 #endif
 
 /* Set up defaults for internal error codes. */

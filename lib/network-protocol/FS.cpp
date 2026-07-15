@@ -115,6 +115,16 @@ fujiError_t NetworkProtocolFS::open_dir(dirFormat_t fmt)
         case DIR_FORMAT::GDRIVE:
             dirBuffer += util_long_entry_with_gdrive_id((char *)entryBuffer.data(), fileSize, is_directory, entry_id) + lineEnding;
             break;
+        case DIR_FORMAT::RAW:
+            // Exact filename only (no size, no crunch) so clients can
+            // enumerate/copy the real names, incl. long/spaced ones.
+            // Directories get a trailing '/' (ls -F style) so a client
+            // enumerating files to copy can recognize and skip them.
+            dirBuffer += (const char *)entryBuffer.data();
+            if (is_directory)
+                dirBuffer += "/";
+            dirBuffer += lineEnding;
+            break;
         default:
             if (fmt >= DIR_FORMAT::LONG)
                 dirBuffer += util_long_entry((char *)entryBuffer.data(), fileSize, is_directory) + lineEnding;
@@ -130,8 +140,10 @@ fujiError_t NetworkProtocolFS::open_dir(dirFormat_t fmt)
     }
 
 #ifdef BUILD_ATARI
-    // Finally, drop a FREE SECTORS trailer.
-    dirBuffer += "999+FREE SECTORS\x9b";
+    // Finally, drop a FREE SECTORS trailer -- but not for RAW, which is
+    // machine-parsed filename-only output (a trailer would look like a file).
+    if (fmt != DIR_FORMAT::RAW)
+        dirBuffer += "999+FREE SECTORS\x9b";
 #endif /* BUILD_ATARI */
 
     if (error == NDEV_STATUS::END_OF_FILE)
