@@ -9,12 +9,39 @@
 
 #include <string.h>
 #include <sstream>
+#include <algorithm>
 #include <math.h>
 #include <iomanip>
 #include <ostream>
 #include "string_utils.h"
 #include "../../include/debug.h"
 #include "../utils/utils.h"
+#include "../config/fnConfig.h"
+
+namespace {
+constexpr size_t kFnjsonLogMaxBody = 768;
+
+void fnjson_log_body(const char *tag, const std::string &body)
+{
+    if (!Config.get_network_log_json())
+        return;
+    const size_t len = body.size();
+    if (len == 0)
+    {
+        Debug_printf("[FNJSON:%s] len=0\r\n", tag);
+        return;
+    }
+    Debug_printf("[FNJSON:%s] len=%zu\r\n", tag, len);
+    const size_t show = std::min(len, kFnjsonLogMaxBody);
+    for (size_t off = 0; off < show; off += 64)
+    {
+        const size_t chunk = std::min((size_t)64, show - off);
+        Debug_printf("  %.*s\r\n", (int)chunk, body.c_str() + off);
+    }
+    if (len > kFnjsonLogMaxBody)
+        Debug_printf("  ... truncated (%zu more bytes)\r\n", len - kFnjsonLogMaxBody);
+}
+} // namespace
 
 /**
  * ctor
@@ -74,6 +101,8 @@ void FNJSON::setQueryParam(uint8_t qp)
  */
 void FNJSON::setReadQuery(const std::string &queryString, uint8_t queryParam)
 {
+    if (Config.get_network_log_json())
+        Debug_printf("[FNJSON:query] %s (param=%u)\r\n", queryString.c_str(), (unsigned)queryParam);
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("FNJSON::setReadQuery queryString: %s, queryParam: %d\r\n", queryString.c_str(), queryParam);
 #endif
@@ -339,7 +368,8 @@ bool FNJSON::parse()
 #endif
     }
 
-    // Debug_printf("S: %s\r\n", _parseBuffer.c_str());
+    fnjson_log_body("recv", _parseBuffer);
+
     // only try and parse the buffer if it has data. Empty response doesn't need parsing.
     if (!_parseBuffer.empty())
     {
@@ -349,7 +379,7 @@ bool FNJSON::parse()
     if (_json == nullptr)
     {
 #ifdef VERBOSE_PROTOCOL
-        Debug_printf("FNJSON::parse() - Could not parse JSON, parseBuffer length: %d\r\n", _parseBuffer.size());
+        Debug_printf("FNJSON::parse() - Could not parse JSON, parseBuffer length: %d\r\n", (int)_parseBuffer.size());
 #endif
         return false;
     }

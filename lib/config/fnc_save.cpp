@@ -82,6 +82,7 @@ void fnConfig::save()
     ss << "netstream_mode=" << _network.netstream_mode << LINETERM;
     ss << "netstream_register=" << _network.netstream_register << LINETERM;
     ss << "netstream_rx_depth=" << _network.netstream_rx_depth << LINETERM;
+    ss << "log_network_json=" << _network.log_network_json << LINETERM;
 
     // HOSTS
     for (i = 0; i < MAX_HOST_SLOTS; i++)
