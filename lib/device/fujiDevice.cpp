@@ -201,6 +201,16 @@ void fujiDevice::shutdown()
 {
     for (int i = 0; i < _totalDiskDevices; i++)
         _fnDisks[i].disk_dev.unmount();
+
+    // Clean the mounts and mount tracking, so they re-mount after a restart.
+    for (int i = 0; i < MAX_HOSTS; i++)
+    {
+        fujiHostType htype = _fnHosts[i].get_type();
+        if (htype != HOSTTYPE_UNINITIALIZED && htype != HOSTTYPE_LOCAL)
+            _fnHosts[i].unmount_success();
+        hostMounted[i] = false;
+    }
+    _startup_mount_lock.store(false);
 }
 
 // Disk Image Rotate
