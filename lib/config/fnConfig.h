@@ -144,6 +144,8 @@ public:
     bool get_general_encrypt_passphrase();
 
     const char * get_network_sntpserver() { return _network.sntpserver; };
+    bool get_network_log_json() { return _network.log_network_json; };
+    void store_network_log_json(bool log_json);
 
 #ifndef ESP_PLATFORM
     std::string get_general_interface_url() { return _general.interface_url; };
@@ -450,6 +452,7 @@ private:
         bool netstream_register = true;
         int netstream_mode = 1;
         int netstream_rx_depth = 0; // 0 => use firmware default (NETSTREAM_RX_MAX_FRAMES)
+        bool log_network_json = false;
     };
 
     struct general_info
