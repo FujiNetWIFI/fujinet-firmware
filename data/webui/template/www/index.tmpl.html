@@ -1221,6 +1221,95 @@
 				</div>
 				</form>
 			</div>
+			<div class="module">
+				<form action="/config" method="post">
+				<div class="settings">
+					<div class="settings-header">
+						OneDrive
+					</div>
+					<div class="settings-left">
+						<div class="svgicon">
+							<svg width="90%" height="90%" viewBox="0 0 32 20" xmlns="http://www.w3.org/2000/svg"><path fill="#0a4f9e" d="M19.2 8.1a6.6 6.6 0 0 0-12.2-1.8A5.6 5.6 0 0 0 6 17.6h13.9a4.8 4.8 0 0 0 .9-9.5z"/><path fill="#28a8ea" d="M25.9 9.2a5 5 0 0 0-1.1-.1 5.4 5.4 0 0 0-.4-1 6.6 6.6 0 0 0-5.2-4 5.6 5.6 0 0 1 2.7 3.5 4.8 4.8 0 0 1 3.4 8 4.3 4.3 0 0 0 .6-6.4z"/></svg>
+						</div>
+					</div>
+					<div class="settings-content settings-55-45">
+						<div class="set">
+							<div class="settings-label">
+								<label>Drive Status</label>
+							</div>
+							<div class="settings-value">
+								<span id="onedrive-connected-indicator"></span>
+							</div>
+						</div>
+						<hr>
+												<div class="settings-text">
+								<p>Click <strong>Authorize with Microsoft</strong>. A new tab will open for Microsoft consent; this page detects completion automatically.</p>
+								<p>Sign in with your Microsoft account and grant access when prompted.</p>
+							</div>
+						</div>
+						<div class="settings-footer">
+							<div class="save-button">
+								<button id="onedrive-auth-btn" type="button">Authorize with Microsoft</button>
+							</div>
+							<div class="settings-text" style="margin-top:0.5em">
+								<span id="onedrive-auth-status"></span>
+							</div>
+						</div>
+						<script>
+							(function() {
+								var connected = "<%FN_ONEDRIVE_CONNECTED%>";
+								var indicator = document.getElementById("onedrive-connected-indicator");
+								indicator.textContent = (connected === "1") ? "Connected" : "Not connected";
+								indicator.style.color  = (connected === "1") ? "green"     : "red";
+								var statusEl = document.getElementById("onedrive-auth-status");
+								var pollTimer = null;
+								var pollState = null;
+								function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+								function doPoll() {
+									fetch("/onedrive-poll?state=" + encodeURIComponent(pollState))
+										.then(function(r){ return r.json(); })
+										.then(function(d){
+											if (d.status === "authorized") {
+												stopPoll();
+												indicator.textContent = "Connected"; indicator.style.color = "green";
+												document.getElementById("onedrive-auth-btn").disabled = false;
+												statusEl.textContent = "Authorization complete!";
+											} else if (d.status === "pending") {
+												statusEl.textContent = "Waiting for Microsoft consent...";
+											} else {
+												stopPoll();
+												document.getElementById("onedrive-auth-btn").disabled = false;
+												statusEl.textContent = "Authorization failed: " + (d.message || d.status);
+											}
+										}).catch(function(){
+											stopPoll();
+											document.getElementById("onedrive-auth-btn").disabled = false;
+											statusEl.textContent = "Poll error.";
+										});
+								}
+								document.getElementById("onedrive-auth-btn").addEventListener("click", function(e) {
+									e.preventDefault(); this.disabled = true;
+									statusEl.textContent = "Starting...";
+									fetch("/onedrive-auth").then(function(r){ return r.json(); }).then(function(d){
+										if (d.error) {
+											document.getElementById("onedrive-auth-btn").disabled = false;
+											statusEl.textContent = "Error: " + d.error;
+											return;
+										}
+										pollState = d.state;
+										window.open(d.auth_url, "_blank");
+										statusEl.textContent = "Approve in the new tab, then wait...";
+										pollTimer = setInterval(doPoll, 3000);
+									}).catch(function(){
+										document.getElementById("onedrive-auth-btn").disabled = false;
+										statusEl.textContent = "Failed to start auth.";
+									});
+								});
+							})();
+						</script>
+				</div>
+				</form>
+			</div>
 			{% endif %}
 			{% if components.disk_swap %}
 			<div class="module" {% if components.disk_swap == "experimental" %}data-experimental{% endif %}>

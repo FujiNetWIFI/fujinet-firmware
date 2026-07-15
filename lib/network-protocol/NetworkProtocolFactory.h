@@ -14,6 +14,7 @@
 #include "CPM.h"
 #include "FTP.h"
 #include "GDRIVE.h"
+#include "ONEDRIVE.h"
 #include "HTTP.h"
 #include "SSH.h"
 #include "SFTP.h"
@@ -35,6 +36,7 @@ public:
 			{"CPM",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolCPM>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
 			{"FTP",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolFTP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
 			{"GDRIVE", [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolGDRIVE>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
+			{"ONEDRIVE", [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolONEDRIVE>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
 			{"HTTP",   [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolHTTP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
 			{"HTTPS",  [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolHTTP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
 			{"SSH",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolSSH>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},

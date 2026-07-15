@@ -274,6 +274,14 @@ public:
     void store_s3_secret_key(const std::string &secret_key);
     void store_s3_use_ssl(bool use_ssl);
 
+    // OneDrive
+    std::string get_onedrive_refresh_token() { return _onedrive.refresh_token; };
+    std::string get_onedrive_access_token() { return _onedrive.access_token; };
+    long get_onedrive_token_expiry() { return _onedrive.token_expiry; };
+    void store_onedrive_refresh_token(const std::string &refresh_token);
+    void store_onedrive_access_token(const std::string &access_token);
+    void store_onedrive_token_expiry(long expiry);
+
     // ENABLE/DISABLE DEVICE SLOTS
     bool get_device_slot_enable(uint8_t slot);
     bool get_device_slot_enable_1();
@@ -340,6 +348,7 @@ private:
     void _read_section_boip(std::stringstream &ss);
     void _read_section_gdrive(std::stringstream &ss);
     void _read_section_s3(std::stringstream &ss);
+    void _read_section_onedrive(std::stringstream &ss);
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
     void _read_section_serial(std::stringstream &ss);
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
@@ -363,6 +372,7 @@ private:
         SECTION_BOIP,
         SECTION_GOOGLEDRIVE,
         SECTION_S3,
+        SECTION_ONEDRIVE,
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
         SECTION_SERIAL,
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
@@ -551,6 +561,13 @@ private:
         bool use_ssl = true;
     };
 
+    struct onedrive_info
+    {
+        std::string refresh_token;
+        std::string access_token;
+        long token_expiry = 0;
+    };
+
     struct device_enable_info
     {
         bool device_1_enabled = true;
@@ -593,6 +610,7 @@ private:
     cpm_info _cpm;
     googledrive_info _gdrive;
     s3_info _s3;
+    onedrive_info _onedrive;
     device_enable_info _denable;
     phbook_info _phonebook_slots[MAX_PB_SLOTS];
 };

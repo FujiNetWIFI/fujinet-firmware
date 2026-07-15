@@ -813,6 +813,112 @@ int fnHttpService::get_handler_gdrive_poll(mg_connection *c, mg_http_message *hm
 
 // ─── end Google Drive handlers ────────────────────────────────────────────────
 
+// ─── OneDrive OAuth2 relay handlers ──────────────────────────────────────────
+
+// TODO: replace with the FujiNet project's Microsoft Entra (Azure AD) app client_id.
+// The client_secret lives on the relay server — never in firmware.
+#define ONEDRIVE_CLIENT_ID          "c2835b53-9604-4277-8986-91520e8401be"
+#define ONEDRIVE_RELAY_REDIRECT_URI "https://auth.fujinet.online/onedrive-callback"
+#define ONEDRIVE_RELAY_CODE_URL     "https://auth.fujinet.online/onedrive-code?state="
+#define ONEDRIVE_AUTH_ENDPOINT      "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+#define ONEDRIVE_SCOPE              "offline_access Files.ReadWrite"
+
+static std::string onedrive_auth_state;
+
+int fnHttpService::get_handler_onedrive_auth(mg_connection *c, mg_http_message *)
+{
+    char state[16];
+    snprintf(state, sizeof(state), "%08lx",
+             (unsigned long)((uint32_t)rand() ^ (uint32_t)time(nullptr)));
+    onedrive_auth_state = state;
+
+    std::string auth_url =
+        ONEDRIVE_AUTH_ENDPOINT
+        "?response_type=code"
+        "&response_mode=query"
+        "&client_id="    + gdrive_pct_encode(ONEDRIVE_CLIENT_ID) +
+        "&redirect_uri=" + gdrive_pct_encode(ONEDRIVE_RELAY_REDIRECT_URI) +
+        "&scope="        + gdrive_pct_encode(ONEDRIVE_SCOPE) +
+        "&state="        + std::string(state);
+
+    cJSON *out = cJSON_CreateObject();
+    cJSON_AddStringToObject(out, "auth_url", auth_url.c_str());
+    cJSON_AddStringToObject(out, "state",    state);
+    char *s = cJSON_PrintUnformatted(out);
+    cJSON_Delete(out);
+    mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s", s);
+    free(s);
+    return 0;
+}
+
+int fnHttpService::get_handler_onedrive_poll(mg_connection *c, mg_http_message *hm)
+{
+    auto send_json = [&](const char *status_val, const char *msg = nullptr) {
+        cJSON *j = cJSON_CreateObject();
+        cJSON_AddStringToObject(j, "status", status_val);
+        if (msg) cJSON_AddStringToObject(j, "message", msg);
+        char *s = cJSON_PrintUnformatted(j);
+        cJSON_Delete(j);
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s", s);
+        free(s);
+    };
+
+    char state[32] = {};
+    mg_http_get_var(&hm->query, "state", state, sizeof(state));
+
+    if (!state[0] || onedrive_auth_state.empty() || std::string(state) != onedrive_auth_state) {
+        send_json("error", "state mismatch");
+        return 0;
+    }
+
+    std::string relay_url = std::string(ONEDRIVE_RELAY_CODE_URL) + state;
+    std::string relay_body = gdrive_do_get(relay_url);
+
+    if (relay_body.empty()) {
+        send_json("error", "relay unreachable");
+        return 0;
+    }
+
+    cJSON *rj = cJSON_Parse(relay_body.c_str());
+    if (!rj) { send_json("error", "bad relay response"); return 0; }
+
+    cJSON *pending_node = cJSON_GetObjectItemCaseSensitive(rj, "pending");
+    cJSON *expired_node = cJSON_GetObjectItemCaseSensitive(rj, "expired");
+    cJSON *error_node   = cJSON_GetObjectItemCaseSensitive(rj, "error");
+    cJSON *at_node      = cJSON_GetObjectItemCaseSensitive(rj, "access_token");
+    cJSON *rt_node      = cJSON_GetObjectItemCaseSensitive(rj, "refresh_token");
+    cJSON *ei_node      = cJSON_GetObjectItemCaseSensitive(rj, "expires_in");
+
+    if (pending_node && cJSON_IsTrue(pending_node)) {
+        cJSON_Delete(rj); send_json("pending"); return 0;
+    }
+    if (expired_node && cJSON_IsTrue(expired_node)) {
+        cJSON_Delete(rj); onedrive_auth_state.clear(); send_json("expired"); return 0;
+    }
+    if (error_node && cJSON_IsString(error_node)) {
+        const char *msg = error_node->valuestring;
+        Debug_printf("onedrive-poll: relay returned error: %s\n", msg);
+        cJSON_Delete(rj); onedrive_auth_state.clear(); send_json("error", msg); return 0;
+    }
+    if (!at_node || !cJSON_IsString(at_node)) {
+        cJSON_Delete(rj); send_json("pending"); return 0;
+    }
+
+    onedrive_auth_state.clear();
+    if (cJSON_IsString(at_node)) Config.store_onedrive_access_token(at_node->valuestring);
+    if (rt_node && cJSON_IsString(rt_node)) Config.store_onedrive_refresh_token(rt_node->valuestring);
+    if (ei_node && cJSON_IsNumber(ei_node)) {
+        long expiry = (long)time(nullptr) + (long)ei_node->valuedouble;
+        Config.store_onedrive_token_expiry(expiry);
+    }
+    Config.save();
+    cJSON_Delete(rj);
+    send_json("authorized");
+    return 0;
+}
+
+// ─── end OneDrive handlers ────────────────────────────────────────────────────
+
 void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
 {
     static const char *s_root_dir = "data/www";
@@ -932,6 +1038,14 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
         else if (mg_match(hm->uri, mg_str("/gdrive-poll"), NULL))
         {
             get_handler_gdrive_poll(c, hm);
+        }
+        else if (mg_match(hm->uri, mg_str("/onedrive-auth"), NULL))
+        {
+            get_handler_onedrive_auth(c, hm);
+        }
+        else if (mg_match(hm->uri, mg_str("/onedrive-poll"), NULL))
+        {
+            get_handler_onedrive_poll(c, hm);
         }
         else
         // default handler, serve static content of www firectory

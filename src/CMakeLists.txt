@@ -77,7 +77,7 @@ set(INCLUDES
     ${CMAKE_SOURCE_DIR}/lib/webdav
 )
 
-FILE(GLOB_RECURSE SOURCES 
+FILE(GLOB_RECURSE SOURCES
     ${CMAKE_SOURCE_DIR}/src/*.cpp
 
     ${CMAKE_SOURCE_DIR}/lib/bus/*.cpp
