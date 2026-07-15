@@ -172,6 +172,12 @@ void fnConfig::save()
     ss << "secret_key=" << _s3.secret_key << LINETERM;
     ss << "use_ssl=" << (_s3.use_ssl ? 1 : 0) << LINETERM;
 
+    // ONEDRIVE
+    ss << LINETERM << "[OneDrive]" << LINETERM;
+    ss << "refresh_token=" << _onedrive.refresh_token << LINETERM;
+    ss << "access_token=" << _onedrive.access_token << LINETERM;
+    ss << "token_expiry=" << _onedrive.token_expiry << LINETERM;
+
     // ENABLE DEVICE SLOTS
     ss << LINETERM << "[ENABLE]" << LINETERM;
     ss << "enable_device_slot_1=" << _denable.device_1_enabled << LINETERM;

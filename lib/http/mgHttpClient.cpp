@@ -359,6 +359,7 @@ const char* mgHttpClient::method_to_string(HttpMethod method)
     {
         case HTTP_GET: return "GET";
         case HTTP_PUT: return "PUT";
+        case HTTP_PATCH: return "PATCH";
         case HTTP_POST: return "POST";
         case HTTP_DELETE: return "DELETE";
         case HTTP_HEAD: return "HEAD";
@@ -431,6 +432,7 @@ void mgHttpClient::send_request(struct mg_connection *c)
     {
         case HTTP_GET:
         case HTTP_PUT:
+        case HTTP_PATCH:
         case HTTP_POST:
         case HTTP_DELETE:
         case HTTP_HEAD:
@@ -926,6 +928,14 @@ bool mgHttpClient::_perform_redirect()
     }
 
     Debug_printf("HTTP redirect (%d) to %s\n", _redirect_count, _location.c_str());
+
+    // Drop credentials before following a cross-host redirect. 
+    if (mg_strcasecmp(mg_url_host(_url.c_str()), mg_url_host(_location.c_str())) != 0)
+    {
+        _request_headers.erase("Authorization");
+        _request_headers.erase("Cookie");
+    }
+
     // update url to connect to
     _url = _location;
     _location.clear();
@@ -959,6 +969,25 @@ int mgHttpClient::PUT(const char *put_data, int put_datalen)
     _method = HTTP_PUT;
     // Set the content of the body
     set_post_data(put_data, put_datalen);
+
+    return _perform();
+}
+
+int mgHttpClient::PATCH(const char *patch_data, int patch_datalen)
+{
+#ifdef VERBOSE_HTTP
+    Debug_println("mgHttpClient::PATCH");
+#endif
+    if (_handle == nullptr || patch_data == nullptr || patch_datalen < 1)
+        return -1;
+
+    // Get rid of any pending data
+    _flush_response();
+
+    // Set method
+    _method = HTTP_PATCH;
+    // Set the content of the body
+    set_post_data(patch_data, patch_datalen);
 
     return _perform();
 }

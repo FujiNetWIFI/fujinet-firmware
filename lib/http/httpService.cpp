@@ -1539,6 +1539,150 @@ esp_err_t fnHttpService::get_handler_gdrive_poll(httpd_req_t *req)
 
 // ─── end Google Drive handlers ────────────────────────────────────────────────
 
+// ─── OneDrive OAuth2 relay-based authorization-code-flow handlers ────────────
+//
+// Mirrors the Google Drive relay flow, targeting the Microsoft identity
+// platform and Microsoft Graph.  The client_secret lives on the relay server
+// (auth.fujinet.online) — never in firmware.  The relay redirect URI
+// (registered in the FujiNet project's Entra app) is:
+//   https://auth.fujinet.online/onedrive-callback
+//
+// TODO: replace ONEDRIVE_CLIENT_ID with the FujiNet project's Entra app client_id.
+#define ONEDRIVE_CLIENT_ID          "c2835b53-9604-4277-8986-91520e8401be"
+#define ONEDRIVE_RELAY_REDIRECT_URI "https://auth.fujinet.online/onedrive-callback"
+#define ONEDRIVE_RELAY_CODE_URL     "https://auth.fujinet.online/onedrive-code?state="
+#define ONEDRIVE_AUTH_ENDPOINT      "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+#define ONEDRIVE_SCOPE              "offline_access Files.ReadWrite"
+
+static std::string onedrive_auth_state;
+
+/**
+ * GET /onedrive-auth
+ *
+ * Generates a CSRF state token and returns JSON with the full Microsoft
+ * authorization URL pointing to the shared FujiNet relay redirect URI.
+ *
+ *   { "auth_url": "https://login.microsoftonline.com/...", "state": "XXXXXXXX" }
+ */
+esp_err_t fnHttpService::get_handler_onedrive_auth(httpd_req_t *req)
+{
+    uint32_t r = esp_random();
+    char state[16];
+    snprintf(state, sizeof(state), "%08lx", (unsigned long)r);
+    onedrive_auth_state = state;
+
+    std::string auth_url =
+        ONEDRIVE_AUTH_ENDPOINT
+        "?response_type=code"
+        "&response_mode=query"
+        "&client_id="    + gdrive_pct_encode(ONEDRIVE_CLIENT_ID) +
+        "&redirect_uri=" + gdrive_pct_encode(ONEDRIVE_RELAY_REDIRECT_URI) +
+        "&scope="        + gdrive_pct_encode(ONEDRIVE_SCOPE) +
+        "&state="        + std::string(state);
+
+    cJSON *out = cJSON_CreateObject();
+    cJSON_AddStringToObject(out, "auth_url", auth_url.c_str());
+    cJSON_AddStringToObject(out, "state",    state);
+    char *s = cJSON_PrintUnformatted(out);
+    cJSON_Delete(out);
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, s, strlen(s));
+    free(s);
+    return ESP_OK;
+}
+
+/**
+ * GET /onedrive-poll?state=STATE
+ *
+ * Polls the FujiNet relay for the authorization code keyed by STATE and, once
+ * the relay has exchanged it, stores the resulting tokens.  Response mirrors
+ * /gdrive-poll: {status:"pending"|"authorized"|"expired"|"error"}.
+ */
+esp_err_t fnHttpService::get_handler_onedrive_poll(httpd_req_t *req)
+{
+    auto send_json = [&](const char *status_val, const char *msg = nullptr) {
+        cJSON *j = cJSON_CreateObject();
+        cJSON_AddStringToObject(j, "status", status_val);
+        if (msg) cJSON_AddStringToObject(j, "message", msg);
+        char *s = cJSON_PrintUnformatted(j);
+        cJSON_Delete(j);
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_send(req, s, strlen(s));
+        free(s);
+    };
+
+    size_t qlen = httpd_req_get_url_query_len(req) + 1;
+    std::string qbuf(qlen, '\0');
+    httpd_req_get_url_query_str(req, &qbuf[0], qlen);
+
+    char state[32] = {};
+    httpd_query_key_value(qbuf.c_str(), "state", state, sizeof(state));
+
+    if (!state[0] || onedrive_auth_state.empty() || std::string(state) != onedrive_auth_state) {
+        send_json("error", "state mismatch");
+        return ESP_OK;
+    }
+
+    std::string relay_url = std::string(ONEDRIVE_RELAY_CODE_URL) + state;
+    std::string relay_body;
+    int relay_status = gdrive_do_get(relay_url.c_str(), relay_body);
+
+    if (relay_status < 0) {
+        send_json("error", "relay unreachable");
+        return ESP_OK;
+    }
+
+    cJSON *rj = cJSON_Parse(relay_body.c_str());
+    if (!rj) { send_json("error", "bad relay response"); return ESP_OK; }
+
+    cJSON *pending_node = cJSON_GetObjectItemCaseSensitive(rj, "pending");
+    cJSON *expired_node = cJSON_GetObjectItemCaseSensitive(rj, "expired");
+    cJSON *error_node   = cJSON_GetObjectItemCaseSensitive(rj, "error");
+    cJSON *at_node      = cJSON_GetObjectItemCaseSensitive(rj, "access_token");
+    cJSON *rt_node      = cJSON_GetObjectItemCaseSensitive(rj, "refresh_token");
+    cJSON *ei_node      = cJSON_GetObjectItemCaseSensitive(rj, "expires_in");
+
+    if (pending_node && cJSON_IsTrue(pending_node)) {
+        cJSON_Delete(rj);
+        send_json("pending");
+        return ESP_OK;
+    }
+    if (expired_node && cJSON_IsTrue(expired_node)) {
+        cJSON_Delete(rj);
+        onedrive_auth_state.clear();
+        send_json("expired");
+        return ESP_OK;
+    }
+    if (error_node && cJSON_IsString(error_node)) {
+        const char *msg = error_node->valuestring;
+        Debug_printf("onedrive-poll: relay returned error: %s\n", msg);
+        cJSON_Delete(rj);
+        onedrive_auth_state.clear();
+        send_json("error", msg);
+        return ESP_OK;
+    }
+    if (!at_node || !cJSON_IsString(at_node)) {
+        cJSON_Delete(rj);
+        send_json("pending");
+        return ESP_OK;
+    }
+
+    onedrive_auth_state.clear();
+    if (cJSON_IsString(at_node)) Config.store_onedrive_access_token(at_node->valuestring);
+    if (rt_node && cJSON_IsString(rt_node)) Config.store_onedrive_refresh_token(rt_node->valuestring);
+    if (ei_node && cJSON_IsNumber(ei_node)) {
+        long expiry = (long)time(nullptr) + (long)ei_node->valuedouble;
+        Config.store_onedrive_token_expiry(expiry);
+    }
+    Config.save();
+    cJSON_Delete(rj);
+
+    send_json("authorized");
+    return ESP_OK;
+}
+
+// ─── end OneDrive handlers ────────────────────────────────────────────────────
+
 /*
  * REST API Handlers
  * JSON API endpoints for programmatic access to FujiNet
@@ -2221,6 +2365,20 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
         {.uri = "/gdrive-poll",
          .method = HTTP_GET,
          .handler = get_handler_gdrive_poll,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/onedrive-auth",
+         .method = HTTP_GET,
+         .handler = get_handler_onedrive_auth,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/onedrive-poll",
+         .method = HTTP_GET,
+         .handler = get_handler_onedrive_poll,
          .user_ctx = NULL,
          .is_websocket = false,
          .handle_ws_control_frames = false,
