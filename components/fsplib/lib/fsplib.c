@@ -671,7 +671,7 @@ int fsp_readdir_r(FSP_DIR *dir,struct dirent *entry, struct dirent **result)
     if (fentry.namlen >= MAXNAMLEN)
     {
         entry->d_name[MAXNAMLEN] = '\0';
-#ifdef HAVE_DIRENT_NAMLEN && !defined(ESP_PLATFORM)
+#if defined(HAVE_DIRENT_NAMLEN) && !defined(ESP_PLATFORM)
         entry->d_namlen = MAXNAMLEN;
     } else
     {
