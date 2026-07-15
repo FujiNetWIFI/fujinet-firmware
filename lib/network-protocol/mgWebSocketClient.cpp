@@ -5,6 +5,7 @@
 
 #include <cstring>
 #include <cstdlib>
+#include <sstream>
 
 #include "fnSystem.h"
 
@@ -19,6 +20,9 @@ mgWebSocketClient::~mgWebSocketClient()
 }
 
 // Load the system CA bundle into _certStore for wss:// verification.
+// Only the CERTIFICATE blocks are kept: mongoose's mbedTLS loader treats the
+// buffer as PEM (and appends the trailing NUL it needs) only when it starts
+// with '-', so a bundle prefixed by comment lines must be stripped first.
 void mgWebSocketClient::load_ca()
 {
 #if defined(_WIN32)
@@ -34,9 +38,22 @@ void mgWebSocketClient::load_ca()
             free((void *)tempCa.buf);
         tempCa = mg_file_read(&mg_fs_posix, "data/ca.pem");
     }
+
+    _certStore.clear();
     if (tempCa.buf != nullptr)
     {
-        _certStore.assign(tempCa.buf, tempCa.len);
+        std::istringstream certStream(std::string(tempCa.buf, tempCa.len));
+        std::string line;
+        bool inCertBlock = false;
+        while (std::getline(certStream, line))
+        {
+            if (line.find("-----BEGIN CERTIFICATE-----") != std::string::npos)
+                inCertBlock = true;
+            if (inCertBlock)
+                _certStore += line + "\n";
+            if (line.find("-----END CERTIFICATE-----") != std::string::npos)
+                inCertBlock = false;
+        }
         free((void *)tempCa.buf);
     }
     _ca.buf = _certStore.data();
