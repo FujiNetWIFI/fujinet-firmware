@@ -162,6 +162,9 @@ void adamNetwork::open(unsigned short s)
         return;
     }
 
+    // Set the human-readable line ending for this platform (Adam: CR).
+    protocol->setLineEnding("\x0d");
+
     // Attempt protocol open
     if (protocol->open(urlParser.get(), (fileAccessMode_t) _aux1, (netProtoTranslation_t) _aux2) != FUJI_ERROR::NONE)
     {

@@ -14,13 +14,9 @@
 #include "../../include/debug.h"
 #include "status_error_codes.h"
 
-// Platform-native end-of-line, mirroring Protocol.cpp. Used to terminate the
-// human-readable index/count lines (the EOL "set by the device").
-#ifdef BUILD_APPLE
-#define MB_EOL "\x0d"
-#else
-#define MB_EOL "\x9b"
-#endif
+// The human-readable index/count lines are terminated with `lineEnding`, the
+// per-device end-of-line set by the network.cpp layer (via setLineEnding(),
+// like the JSON parser). Defaults to 0x9B (Atari) in the NetworkProtocol base.
 
 // Default number of messages returned when range= is absent.
 #define MB_DEFAULT_RANGE 20
@@ -202,7 +198,7 @@ fujiError_t NetworkProtocolMailbox::do_folder_count()
         mailbox_error_to_error();
         return FUJI_ERROR::UNSPECIFIED;
     }
-    *receiveBuffer = std::to_string(count) + MB_EOL;
+    *receiveBuffer = std::to_string(count) + lineEnding;
     translation_mode = NETPROTO_TRANS_NONE; // already terminated with native EOL
     return FUJI_ERROR::NONE;
 }
@@ -339,7 +335,7 @@ void NetworkProtocolMailbox::format_index_human(const std::vector<MailboxIndexEn
         for (auto &c : h)
             if (c == ' ') c = '-';
         out += h;
-        out += MB_EOL;
+        out += lineEnding;
     }
 
     for (auto &it : items)
@@ -360,7 +356,7 @@ void NetworkProtocolMailbox::format_index_human(const std::vector<MailboxIndexEn
         // Line 2 (the wrapped half): subject, small indent, no trailing pad.
         out += std::string(subjIndent, ' ');
         out += ellipsize(it.subject, subjW);
-        out += MB_EOL;
+        out += lineEnding;
     }
 
     *receiveBuffer = out;
@@ -407,7 +403,7 @@ void NetworkProtocolMailbox::format_attachment_index_human(const std::vector<Mai
     out += ljust("Type", mimeW);
     out += ' ';
     out += rjust("Size", sizeW);
-    out += MB_EOL;
+    out += lineEnding;
 
     for (auto &it : items)
     {
@@ -419,7 +415,7 @@ void NetworkProtocolMailbox::format_attachment_index_human(const std::vector<Mai
         out += ljust(ellipsize(it.mimeType, mimeW), mimeW);
         out += ' ';
         out += rjust(humanize_size(it.length), sizeW);
-        out += MB_EOL;
+        out += lineEnding;
     }
 
     *receiveBuffer = out;
