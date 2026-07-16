@@ -72,11 +72,16 @@ void append_fixed(std::string &b, const std::string &s, size_t n)
 std::string humanize_date(uint64_t ts)
 {
     time_t t = (time_t)ts;
-    struct tm tmv;
-    localtime_r(&t, &tmv);
     time_t now = time(nullptr);
+    struct tm tmv;
     struct tm nowv;
+#if defined(_WIN32)
+    localtime_s(&tmv, &t);
+    localtime_s(&nowv, &now);
+#else
+    localtime_r(&t, &tmv);
     localtime_r(&now, &nowv);
+#endif
 
     char buf[16];
     if (tmv.tm_year == nowv.tm_year)
