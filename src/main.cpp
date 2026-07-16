@@ -10,6 +10,7 @@
   #include <unistd.h>
 #endif
 
+#include "fujiDeviceID.h"
 #include "debug.h"
 #include "bus.h"
 #include "device.h"

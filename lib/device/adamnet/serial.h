@@ -26,7 +26,7 @@ class adamSerial : public virtualDevice
      * Process incoming SIO command for device 0x7X
      * @param b first byte of packet
      */
-    virtual void adamnet_process(uint8_t b);
+    void adamnet_process(const FujiAdamPacket &packet);
 
     void command_connect(uint16_t s);
     void command_send(uint16_t s);
@@ -35,10 +35,10 @@ class adamSerial : public virtualDevice
     /**
      * return adamnet status
      */
-    virtual void adamnet_idle();
-    virtual void adamnet_response_status();
-    virtual void adamnet_control_ready();
-    
+    void adamnet_idle();
+    void adamnet_response_status();
+    void adamnet_control_ready();
+
     void adamnet_control_send();
 
 #ifdef ESP_PLATFORM

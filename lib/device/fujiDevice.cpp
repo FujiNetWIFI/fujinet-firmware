@@ -348,7 +348,7 @@ void fujiDevice::fujicmd_net_get_ssid()
 }
 
 // Mount Server
-success_is_true fujiDevice::fujicore_mount_host_success(unsigned hostSlot)
+success_is_true fujiDevice::fujicore_mount_host_success(uint8_t hostSlot)
 {
     Debug_println("Fuji cmd: MOUNT HOST");
 
@@ -367,7 +367,7 @@ success_is_true fujiDevice::fujicore_mount_host_success(unsigned hostSlot)
     RETURN_SUCCESS_AS_TRUE();
 }
 
-success_is_true fujiDevice::fujicmd_mount_host_success(unsigned hostSlot)
+success_is_true fujiDevice::fujicmd_mount_host_success(uint8_t hostSlot)
 {
     transaction_begin(TRANS_STATE::NO_GET);
     if (hostSlot >= MAX_HOSTS)
@@ -1319,7 +1319,10 @@ void fujiDevice::fujicmd_write_host_slots()
 
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
     if (!transaction_get(&hostSlots, sizeof(hostSlots)))
+    {
         transaction_error();
+        return;
+    }
 
     for (int i = 0; i < MAX_HOSTS; i++)
     {

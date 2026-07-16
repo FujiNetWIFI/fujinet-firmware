@@ -189,9 +189,9 @@ void iwmFuji::iwm_ctrl_new_disk(const iwm_decoded_cmd_t &cmd)
     uint8_t ds = cmd.param(1);
     uint8_t t = cmd.param(2);
     u32le_t numBlocks;
-    const uint8_t *ptr;
+    const char *ptr;
 
-    ptr = cmd.data()->data();
+    ptr = cmd.dataAsString()->c_str();
     memcpy(&numBlocks, ptr, sizeof(numBlocks));
     ptr += sizeof(numBlocks);
 
