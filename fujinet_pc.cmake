@@ -257,6 +257,9 @@ set(SOURCES src/main.cpp
     lib/network-protocol/CPM.h lib/network-protocol/CPM.cpp
     lib/network-protocol/GDRIVE.h lib/network-protocol/GDRIVE.cpp
     lib/network-protocol/ONEDRIVE.h lib/network-protocol/ONEDRIVE.cpp
+    lib/network-protocol/Mailbox.h lib/network-protocol/Mailbox.cpp
+    lib/network-protocol/GMAIL.h lib/network-protocol/GMAIL.cpp
+    lib/network-protocol/IMAPS.h lib/network-protocol/IMAPS.cpp
     lib/network-protocol/Test.h lib/network-protocol/Test.cpp
     lib/network-protocol/TCP.h lib/network-protocol/TCP.cpp
     lib/network-protocol/UDP.h lib/network-protocol/UDP.cpp
