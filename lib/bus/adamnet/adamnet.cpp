@@ -110,59 +110,59 @@ void virtualDevice::deferred_ack()
     _ack_deferred = false;
 }
 
-void virtualDevice::transaction_begin(transState_t expectMoreData)
+void systemBus::transaction_accept(transState_t expectMoreData)
 {
     assert(_transaction_state == TRANS_STATE::INVALID);
 
-    SYSTEM_BUS.start_time = GET_TIMESTAMP();
+    start_time = GET_TIMESTAMP();
     if (expectMoreData == TRANS_STATE::WILL_GET)
     {
-        _ack_deferred = true;
+        _activeDev->_ack_deferred = true;
     }
     else
     {
         // No payload follows; the next byte is the checksum.
-        adamnet_recv(); // Discard CK
-        adamnet_response_ack();
+        _activeDev->adamnet_recv(); // Discard CK
+        _activeDev->adamnet_response_ack();
     }
 
     _transaction_state = expectMoreData;
 }
 
-void virtualDevice::transaction_complete()
+void systemBus::transaction_success()
 {
     assert(_transaction_state == TRANS_STATE::NO_GET
            || _transaction_state == TRANS_STATE::DID_GET);
     _transaction_state = TRANS_STATE::INVALID;
 }
 
-void virtualDevice::transaction_error()
+void systemBus::transaction_error()
 {
-    if (_ack_deferred)
+    if (_activeDev->_ack_deferred)
     {
-        SYSTEM_BUS.wait_for_idle();
-        SYSTEM_BUS.start_time = GET_TIMESTAMP();
-        adamnet_response_ack();
-        _ack_deferred = false;
+        wait_for_idle();
+        start_time = GET_TIMESTAMP();
+        _activeDev->adamnet_response_ack();
+        _activeDev->_ack_deferred = false;
     }
     _transaction_state = TRANS_STATE::INVALID;
 }
 
-success_is_true virtualDevice::transaction_get(void *data, size_t len)
+success_is_true systemBus::transaction_get(void *data, size_t len)
 {
     assert(_transaction_state == TRANS_STATE::WILL_GET);
     _transaction_state = TRANS_STATE::DID_GET;
-    unsigned short rlen = adamnet_recv_buffer((uint8_t *) data, len);
-    if (_ack_deferred)
-        deferred_ack();
+    unsigned short rlen = _activeDev->adamnet_recv_buffer((uint8_t *) data, len);
+    if (_activeDev->_ack_deferred)
+        _activeDev->deferred_ack();
     RETURN_SUCCESS_IF(rlen == len);
 }
 
-void virtualDevice::transaction_put(const void *data, size_t len, bool err)
+void systemBus::transaction_send(const void *data, size_t len, bool err)
 {
     assert(_transaction_state == TRANS_STATE::NO_GET);
-    memcpy(response, data, len);
-    response_len = len;
+    memcpy(_activeDev->response, data, len);
+    _activeDev->response_len = len;
     _transaction_state = TRANS_STATE::INVALID;
 }
 
@@ -390,7 +390,8 @@ void systemBus::_adamnet_process_cmd()
     {
         // turn on AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, true);
-        _daisyChain[d]->adamnet_process(b);
+        _activeDev = _daisyChain[d];
+        _activeDev->adamnet_process(b);
         // turn off AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, false);
     }
