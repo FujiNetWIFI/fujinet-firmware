@@ -2,28 +2,25 @@
 #define NETWORKPROTOCOLIMAPS_H
 
 #include "Mailbox.h"
+#include "fnTcpClientSecure.h"
+#include "status_error_codes.h"
+
+#include <string>
+#include <vector>
 
 /**
  * NetworkProtocolIMAPS
  *
  * IMAP-over-TLS mailbox adapter for FujiNet.
  *
- * URL format:  IMAPS://user:pass@host:port/FOLDER/item
+ * URL format:  IMAPS://user:pass@host[:port]/FOLDER[/N[/A]]   (default port 993)
  *
- * SCAFFOLD ONLY. The mailbox provider hooks currently return NOT_IMPLEMENTED.
+ * The message sequence number N is the IMAP message sequence number within the
+ * folder (1 = oldest, EXISTS = newest), which is exactly the "folder sequence
+ * position" the Mailbox base class expects.
  *
- * TODO to make this functional:
- *   - Add a TLS client-socket wrapper (e.g. fnTcpClientSecure) that mirrors
- *     fnTcpClient's read/write/read_until API over esp_tls (ESP) and Mongoose
- *     mg_tls (PC). No such wrapper exists in the firmware yet; TLS today lives
- *     only inside the HTTP clients.
- *   - Implement IMAP4rev1 command handling (LOGIN/SELECT/SEARCH/FETCH), mapping
- *     folder -> mailbox, sequence number -> message, and honoring range/newest.
- *   - Implement MIME multipart parsing to produce the message body and the
- *     attachment index/data (shared struct output is already handled by the
- *     Mailbox base class).
- *   - Read credentials from opened_url->user/password, falling back to the
- *     login/password members (set via SET LOGIN/PASSWORD), like S3.
+ * Credentials come from the URL (user:pass@) and fall back to the login/password
+ * members set by SET LOGIN / SET PASSWORD.
  */
 class NetworkProtocolIMAPS : public NetworkProtocolMailbox
 {
@@ -45,6 +42,28 @@ protected:
     fujiError_t attachment_data(const std::string &folder, uint32_t seq, uint8_t attach,
                                 std::string &out) override;
     void mailbox_error_to_error() override;
+
+private:
+    enum ImapStatus { IMAP_OK, IMAP_NO, IMAP_BAD, IMAP_TIMEOUT };
+
+    fnTcpClientSecure _tls;
+    int _tag = 0;
+    bool _loggedIn = false;
+    std::string _host, _user, _pass;
+    uint16_t _port = 993;
+    std::string _selectedFolder;
+    uint32_t _selectedCount = 0;
+    nDevStatus_t _lastErr = NDEV_STATUS::GENERAL;
+
+    // Send "<tag> <cmd>\r\n" and read the full tagged response (literals inlined).
+    ImapStatus do_command(const std::string &cmd, std::string &full);
+    ImapStatus read_raw_response(const std::string &tag, std::string &full);
+
+    // SELECT a folder, populating _selectedCount from the "* n EXISTS" reply.
+    ImapStatus select_folder(const std::string &folder);
+
+    // FETCH a single body section (e.g. "1", "TEXT") and return its raw bytes.
+    bool fetch_section(uint32_t seq, const std::string &section, std::string &rawOut);
 };
 
 #endif /* NETWORKPROTOCOLIMAPS_H */
