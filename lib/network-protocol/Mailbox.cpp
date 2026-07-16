@@ -204,7 +204,10 @@ fujiError_t NetworkProtocolMailbox::do_folder_count()
 
 fujiError_t NetworkProtocolMailbox::do_folder_index(uint8_t transByte)
 {
-    bool raw = (transByte & 0x80) != 0;
+    // aux2 == 255 selects raw binary; anything else is human-readable, with the
+    // line width taken from the low 7 bits (0 -> default). NOS sends 128 for a
+    // default directory listing -> width 0 -> human-readable at the default width.
+    bool raw = (transByte == 0xFF);
     int width = transByte & 0x7F;
 
     long rangeStart = 0;
@@ -258,7 +261,10 @@ fujiError_t NetworkProtocolMailbox::do_message_body()
 
 fujiError_t NetworkProtocolMailbox::do_attachment_index(uint8_t transByte)
 {
-    bool raw = (transByte & 0x80) != 0;
+    // aux2 == 255 selects raw binary; anything else is human-readable, with the
+    // line width taken from the low 7 bits (0 -> default). NOS sends 128 for a
+    // default directory listing -> width 0 -> human-readable at the default width.
+    bool raw = (transByte == 0xFF);
     int width = transByte & 0x7F;
 
     std::vector<MailboxAttachmentEntry> items;
@@ -294,60 +300,61 @@ fujiError_t NetworkProtocolMailbox::do_attachment_data()
 
 void NetworkProtocolMailbox::format_index_human(const std::vector<MailboxIndexEntry> &items, int width)
 {
-    if (width <= 0) width = 40;
+    // Two-line-per-item layout tuned for a 40-column Atari display, whose default
+    // margins make a printed line wrap back to the left after 38 characters. Each
+    // item is one logical record (single trailing EOL) built as two 38-column
+    // halves: line 1 is padded to exactly lineW so the auto-wrap lands on the half
+    // boundary. It wraps to two lines on a 40-column screen and reads as one line
+    // on an 80-column screen.
+    int lineW = 38;
+    if (width >= 24 && width <= 40) lineW = width; // optional per-line override
 
-    // Digit width of the largest message number.
     uint32_t maxNum = 1;
     for (auto &it : items)
         if (it.msgNum > maxNum) maxNum = it.msgNum;
     int numW = (int)std::to_string(maxNum).size();
 
-    const int dateW = 8; // fits "07/31/23" and "31 Jul"
-    int fixedLeft = 1 /*flag*/ + 1 /*sep*/ + numW + 1 /*space*/;
-    int remaining = width - fixedLeft - dateW - 1 /*space before date*/;
-    if (remaining < 6) remaining = 6;
-    int nameW = remaining / 3;
+    const int dateW = 8; // fits "07/31/23" or "31 Jul"
+    int nameW = lineW - numW - dateW - 4; // flag + 3 separators
     if (nameW < 3) nameW = 3;
-    int subjectW = remaining - nameW - 1 /*gutter*/;
-    if (subjectW < 3) subjectW = 3;
+    const int subjIndent = 2;
+    int subjW = lineW - subjIndent;
+    if (subjW < 3) subjW = 3;
 
     std::string out;
 
-    // Header line.
-    out += "I";
-    out += std::string(numW + 2, '-');
-    out += ljust("Name", nameW);
-    // replace trailing spaces of the label with dashes for the classic look
-    for (int i = (int)out.size() - nameW; i < (int)out.size(); i++)
-        if (out[i] == ' ') out[i] = '-';
-    out += "-";
+    // Header mirrors the line-1 columns, dashed, exactly lineW wide.
     {
-        std::string subjHdr = ljust("Subject", subjectW);
-        for (auto &c : subjHdr)
+        std::string h = "I ";
+        h += rjust("#", numW);
+        h += ' ';
+        h += ljust("Name", nameW);
+        h += ' ';
+        h += rjust("Date", dateW);
+        for (auto &c : h)
             if (c == ' ') c = '-';
-        out += subjHdr;
+        out += h;
+        out += MB_EOL;
     }
-    out += "-";
-    {
-        std::string dateHdr = ljust("Date", dateW);
-        for (auto &c : dateHdr)
-            if (c == ' ') c = '-';
-        out += dateHdr;
-    }
-    out += MB_EOL;
 
     for (auto &it : items)
     {
         std::string name = it.displayName.empty() ? it.emailAddress : it.displayName;
-        out += it.important ? '*' : ' ';
-        out += ' ';
-        out += rjust(std::to_string(it.msgNum), numW);
-        out += ' ';
-        out += ljust(ellipsize(name, nameW), nameW);
-        out += ' ';
-        out += ljust(ellipsize(it.subject, subjectW), subjectW);
-        out += ' ';
-        out += rjust(humanize_date(it.timestamp), dateW);
+
+        // Line 1 padded to exactly lineW so the 40-col wrap lands at the half.
+        std::string l1;
+        l1 += it.important ? '*' : ' ';
+        l1 += ' ';
+        l1 += rjust(std::to_string(it.msgNum), numW);
+        l1 += ' ';
+        l1 += ljust(ellipsize(name, nameW), nameW);
+        l1 += ' ';
+        l1 += rjust(humanize_date(it.timestamp), dateW);
+        out += ljust(l1, lineW);
+
+        // Line 2 (the wrapped half): subject, small indent, no trailing pad.
+        out += std::string(subjIndent, ' ');
+        out += ellipsize(it.subject, subjW);
         out += MB_EOL;
     }
 
@@ -371,7 +378,7 @@ void NetworkProtocolMailbox::format_index_raw(const std::vector<MailboxIndexEntr
 void NetworkProtocolMailbox::format_attachment_index_human(const std::vector<MailboxAttachmentEntry> &items,
                                                            int width)
 {
-    if (width <= 0) width = 40;
+    if (width <= 0) width = 38; // Atari 40-col usable width
 
     uint8_t maxNum = 0;
     for (auto &it : items)

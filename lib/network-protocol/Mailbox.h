@@ -23,9 +23,11 @@
  * Query params on a folder index: range=START-END (absolute, inclusive,
  * 0-based; default first 20) and newest=1 (default, descending; 0 ascending).
  *
- * For DIR ops, aux2 (translate) is repurposed exactly like FS repurposes it as
- * a dirFormat_t: bit 7 = raw output, bits 6-0 = human-readable line width.
- * For READ ops, aux2 is the real netProtoTranslation_t EOL code.
+ * For DIR ops, aux2 (translate) selects the output format: 255 = raw binary
+ * structs; any other value = human-readable, with the line width taken from the
+ * low 7 bits (0 -> default). NOS opens a directory with aux2=128, which yields a
+ * human-readable listing at the default width. For READ ops, aux2 is the real
+ * netProtoTranslation_t EOL code.
  */
 
 #ifndef NETWORKPROTOCOL_MAILBOX
