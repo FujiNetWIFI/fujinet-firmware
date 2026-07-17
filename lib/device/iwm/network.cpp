@@ -107,6 +107,9 @@ void iwmNetwork::open(const iwm_decoded_cmd_t &cmd)
     if (!current_network_data.protocol)
     {
         current_network_data.open_error = NDEV_STATUS::INVALID_DEVICESPEC;
+        // OPEN always ACKs at the bus level; real error is read back via STATUS
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_success();
         return;
     }
 
@@ -125,6 +128,9 @@ void iwmNetwork::open(const iwm_decoded_cmd_t &cmd)
         Debug_printf("Protocol unable to make connection. Error: %d\n",
                      (int)current_network_data.open_error);
         current_network_data.protocol.reset();
+        // OPEN always ACKs at the bus level; real error is read back via STATUS
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_success();
         return;
     }
 
@@ -145,6 +151,9 @@ void iwmNetwork::close()
     Debug_printf("iwmNetwork::close()\n");
     if (network_data_map.find(current_network_unit) == network_data_map.end()) {
         Debug_printf("No network_data for unit: %d, exiting close\r\n", current_network_unit);
+        // nothing to close, but the host still needs a bus reply
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_success();
         return;
     }
 
@@ -475,11 +484,15 @@ void iwmNetwork::iwm_read(const iwm_decoded_cmd_t &cmd)
 void iwmNetwork::net_write(const iwm_decoded_cmd_t &cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
-    // TODO: Handle errors.
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     std::string data = cmd.dataAsString().value();
     current_network_data.transmitBuffer += data;
-    write_channel(data.size());
+    if (write_channel(data.size()))
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+    SYSTEM_BUS.transaction_success();
 }
 
 void iwmNetwork::iwm_write(const iwm_decoded_cmd_t &cmd)
@@ -541,6 +554,9 @@ void iwmNetwork::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
     {
     case NETCMD_SET_CHANNEL:
         current_network_unit = cmd.param(0);
+        // control command still needs a bus reply or the host times out
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_success();
         break;
     case NETCMD_CHDIR:
         set_prefix(cmd);
@@ -748,6 +764,8 @@ void iwmNetwork::process_tcp(const iwm_decoded_cmd_t &cmd)
         SYSTEM_BUS.transaction_error(SP_ERR::IOERROR);
         return;
     }
+
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     fujiError_t cmd_err;
     switch (cmd.command())
