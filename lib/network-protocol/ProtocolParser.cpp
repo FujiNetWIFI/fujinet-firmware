@@ -4,6 +4,8 @@
 
 #include "CPM.h"
 #include "GDRIVE.h"
+#include "GMAIL.h"
+#include "IMAPS.h"
 #include "ONEDRIVE.h"
 #include "TCP.h"
 #include "UDP.h"
@@ -42,6 +44,12 @@ NetworkProtocol* ProtocolParser::createProtocol(std::string scheme, std::string 
             break;
         case "GDRIVE"_sh:
             protocol = new NetworkProtocolGDRIVE(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "GMAIL"_sh:
+            protocol = new NetworkProtocolGMAIL(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "IMAPS"_sh:
+            protocol = new NetworkProtocolIMAPS(receiveBuffer, transmitBuffer, specialBuffer);
             break;
         case "ONEDRIVE"_sh:
             protocol = new NetworkProtocolONEDRIVE(receiveBuffer, transmitBuffer, specialBuffer);
