@@ -18,7 +18,7 @@ protected:
     virtual void adamnet_control_clr();
     virtual void adamnet_control_ready() override;
 
-    void adamnet_process(uint8_t b) override;
+    void adamnet_process(const FujiAdamPacket &packet) override;
     void shutdown() override;
 
 public:

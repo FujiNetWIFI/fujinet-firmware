@@ -134,7 +134,7 @@ public:
      * Process incoming ADAM command for device 0x7X
      * @param b The incoming command byte
      */
-    void adamnet_process(uint8_t b) override;
+    void adamnet_process(const FujiAdamPacket &packet) override;
     void process_fs(fujiCommandID_t cmd, unsigned pkt_len);
     void process_tcp(fujiCommandID_t cmd);
     void process_http(fujiCommandID_t cmd);

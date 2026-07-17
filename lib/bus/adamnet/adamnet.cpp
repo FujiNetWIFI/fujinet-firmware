@@ -152,10 +152,13 @@ success_is_true systemBus::transaction_get(void *data, size_t len)
 {
     assert(_transaction_state == TRANS_STATE::WILL_GET);
     _transaction_state = TRANS_STATE::DID_GET;
-    unsigned short rlen = _activeDev->adamnet_recv_buffer((uint8_t *) data, len);
     if (_activeDev->_ack_deferred)
         _activeDev->deferred_ack();
-    RETURN_SUCCESS_IF(rlen == len);
+    if (_activePacket->data()->size() != len)
+        RETURN_ERROR_AS_FALSE();
+    std::copy(_activePacket->data()->begin(), _activePacket->data()->end(),
+              static_cast<uint8_t *>(data));
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 void systemBus::transaction_send(const void *data, size_t len, bool err)
@@ -321,9 +324,9 @@ void systemBus::drain_echo(size_t n)
     }
 }
 
-void virtualDevice::adamnet_process(uint8_t b)
+void virtualDevice::adamnet_process(const FujiAdamPacket &packet)
 {
-    Debug_printf("adamnet_process() not implemented yet for this device. Cmd received: %02x\n", b);
+    Debug_printf("adamnet_process() not implemented yet for this device: 0x%02x  type: 0x%02x\n", packet.device(), packet.type());
 }
 
 void virtualDevice::adamnet_control_status()
@@ -334,7 +337,7 @@ void virtualDevice::adamnet_control_status()
 
 void virtualDevice::adamnet_response_status()
 {
-    status_response.cmd_dev = (NM_STATUS << 4) | _devnum;
+    status_response.cmd_dev = (static_cast<uint8_t>(APT::NM_STATUS) << 4) | _devnum;
 
     status_response.checksum = adamnet_checksum((uint8_t *) &status_response.length, 4);
 
@@ -371,27 +374,26 @@ void virtualDevice::adamnet_idle()
 
 void systemBus::_adamnet_process_cmd()
 {
-    uint8_t b;
-
-    b = _port->read();
+    uint8_t dest = _port->read();
     int64_t cmd_start = GET_TIMESTAMP();
     start_time = cmd_start;
     frame_error = false;
     _tx_count = 0;
     stall_silent = false;
 
-    uint8_t d = b & 0x0F;
+    auto tmpPacket = FujiAdamPacket(dest);
 
     // Find device ID and pass control to it
-    if (_daisyChain.count(d) < 1)
+    if (_daisyChain.count(tmpPacket.device()) < 1)
     {
     }
-    else if (_daisyChain[d]->device_active == true)
+    else if (_daisyChain[tmpPacket.device()]->device_active == true)
     {
         // turn on AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, true);
-        _activeDev = _daisyChain[d];
-        _activeDev->adamnet_process(b);
+        _activeDev = _daisyChain[tmpPacket.device()];
+        _activePacket = &tmpPacket;
+        _activeDev->adamnet_process(tmpPacket);
         // turn off AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, false);
     }

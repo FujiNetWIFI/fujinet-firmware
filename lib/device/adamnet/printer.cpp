@@ -154,20 +154,20 @@ void adamPrinter::adamnet_control_ready()
         adamnet_response_ack();
 }
 
-void adamPrinter::adamnet_process(uint8_t b)
+void adamPrinter::adamnet_process(const FujiAdamPacket &packet)
 {
-    unsigned char c = b >> 4;
-
-    switch (c)
+    switch (packet.type())
     {
-    case MN_STATUS:
+    case APT::MN_STATUS:
         adamnet_control_status();
         break;
-    case MN_SEND:
+    case APT::MN_SEND:
         adamnet_control_send();
         break;
-    case MN_READY:
+    case APT::MN_READY:
         adamnet_control_ready();
+        break;
+    default:
         break;
     }
 }

@@ -289,29 +289,29 @@ void adamDisk::adamnet_response_send()
     SYSTEM_BUS.quiet_rx_for_send(false);
 }
 
-void adamDisk::adamnet_process(uint8_t b)
+void adamDisk::adamnet_process(const FujiAdamPacket &packet)
 {
-    unsigned char c = b >> 4;
-
-    switch (c)
+    switch (packet.type())
     {
-    case MN_RESET:
+    case APT::MN_RESET:
         reset();
         break;
-    case MN_STATUS:
+    case APT::MN_STATUS:
         adamnet_control_status();
         break;
-    case MN_CLR:
+    case APT::MN_CLR:
         adamnet_control_clr();
         break;
-    case MN_RECEIVE:
+    case APT::MN_RECEIVE:
         adamnet_control_receive();
         break;
-    case MN_SEND:
+    case APT::MN_SEND:
         adamnet_control_send();
         break;
-    case MN_READY:
+    case APT::MN_READY:
         adamnet_control_ready();
+        break;
+    default:
         break;
     }
 

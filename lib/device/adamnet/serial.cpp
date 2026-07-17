@@ -72,26 +72,26 @@ void adamSerial::adamnet_control_send()
 #endif /* UNUSED */
 }
 
-void adamSerial::adamnet_process(uint8_t b)
+void adamSerial::adamnet_process(const FujiAdamPacket &packet)
 {
-    unsigned char c = b >> 4;
-
-    switch (c)
+    switch (packet.type())
     {
-    case MN_STATUS:
+    case APT::MN_STATUS:
         adamnet_control_status();
         break;
-    case MN_CLR:
+    case APT::MN_CLR:
         adamnet_control_clr();
         break;
-    case MN_RECEIVE:
+    case APT::MN_RECEIVE:
         command_recv();
         break;
-    case MN_SEND:
+    case APT::MN_SEND:
         adamnet_control_send();
         break;
-    case MN_READY:
+    case APT::MN_READY:
         adamnet_control_ready();
+        break;
+    default:
         break;
     }
 }

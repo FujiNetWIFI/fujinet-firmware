@@ -1,9 +1,9 @@
-#ifdef BUILD_COCO
+#ifdef BUILD_ADAM
 
 #ifndef DRIVEWIREPACKET_H
 #define DRIVEWIREPACKET_H
 
-#include "opcode.h"
+#include "fujiDeviceID.h"
 #include "fujiCommandID.h"
 #include "global_types.h"
 
@@ -11,6 +11,24 @@
 #include <vector>
 #include <cassert>
 #include <string>
+
+typedef enum class APT {
+    MN_RESET   = 0x00,  // command.control  (reset)
+    MN_STATUS  = 0x01,  // command.control  (status)
+    MN_ACK     = 0x02,  // command.control  (ack)
+    MN_CLR     = 0x03,  // command.control  (clr) (aka CTS)
+    MN_RECEIVE = 0x04,  // command.control  (receive)
+    MN_CANCEL  = 0x05,  // command.control  (cancel)
+    MN_SEND    = 0x06,  // command.control  (send)
+    MN_NACK    = 0x07,  // command.control  (nack)
+    MN_READY   = 0x0D,  // command.control  (ready)
+
+    NM_STATUS  = 0x08,  // response.control (status)
+    NM_ACK     = 0x09,  // response.control (ack)
+    NM_CANCEL  = 0x0A,  // response.control (cancel)
+    NM_SEND    = 0x0B,  // response.data    (send)
+    NM_NACK    = 0x0C,  // response.control (nack)
+} adamPacketType_t;
 
 /**
  * DriveWire implementation of the RS232 FujiBusPacket interface.
@@ -33,10 +51,13 @@
  * directly, as those helpers determine the length automatically.
  */
 
-class FujiDWPacket
+class FujiAdamPacket
 {
 private:
-    dwOpcode_t _opcode;
+    fujiDeviceID_t _device;
+    adamPacketType_t _type;
+    mutable std::optional<ByteBuffer> _payload;
+    mutable uint8_t _payload_checksum;
     mutable std::optional<uint8_t> _unit;
     mutable std::optional<fujiCommandID_t> _command;
     mutable std::vector<uint32_t> _params;
@@ -79,7 +100,7 @@ private:
          */
 
         size_t index;
-        const FujiDWPacket *packet;
+        const FujiAdamPacket *packet;
 
         // These tell the compiler: "Run this code if the destination matches my type"
         operator bool() const {
@@ -116,34 +137,23 @@ private:
     void fillParams(size_t count, size_t psize) const;
 
 public:
-    FujiDWPacket(dwOpcode_t opcode) : _opcode(opcode) {};
-    ~FujiDWPacket() {
-        if (_opcode == OP::NET && _params.size() == 0) {
-            // Read off the parameter bytes that were never consumed
-            fillParams(2, 1);
-        }
-    }
+    FujiAdamPacket(uint8_t dest) : _device(static_cast<fujiDeviceID_t>(dest & 0x0F)),
+                                   _type(static_cast<adamPacketType_t>(dest >> 4)) {};
 
-    dwOpcode_t device() const { return _opcode; }
+    fujiDeviceID_t device() const { return _device; }
+    adamPacketType_t type() const { return _type; }
     fujiCommandID_t command() const;
-
-    uint8_t unit() const;
 
     PacketParamProxy param(size_t index) const { return PacketParamProxy{ index, this }; }
 
     // Completes deserialization by reading the trailing data field once its
     // length has been determined from command-specific context.
-    void setDataLength(const size_t len) const;
+    void setPayloadLength(const size_t len) const;
 
-    const std::optional<ByteBuffer>& data() const {
-        assert(_data.has_value());
-        return _data;
-    }
-
-    const std::optional<std::string> dataAsString() const
-    {
-        if (!_data) return std::nullopt;
-        return std::string(_data->begin(), _data->end());
+    const std::optional<ByteBuffer>& data() const;
+    const std::optional<const std::string> dataAsString() const {
+        auto d = data();
+        return std::string(reinterpret_cast<const char *>(d->data()), d->size());
     }
 
     // Explicit alternatives to the implicit PacketParamProxy conversions.
@@ -153,8 +163,8 @@ public:
     uint32_t param32(int idx) const { return (uint32_t)param(idx); }
 
     // Delete copy semantics to prevent pass-by-value bugs
-    FujiDWPacket(const FujiDWPacket&) = delete;
-    FujiDWPacket& operator=(const FujiDWPacket&) = delete;
+    FujiAdamPacket(const FujiAdamPacket&) = delete;
+    FujiAdamPacket& operator=(const FujiAdamPacket&) = delete;
 };
 
 /**
@@ -185,4 +195,4 @@ public:
 
 #endif /* DRIVEWIREPACKET_H */
 
-#endif /* BUILD_COCO */
+#endif /* BUILD_ADAM */

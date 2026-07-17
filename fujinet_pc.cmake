@@ -433,6 +433,7 @@ if(FUJINET_TARGET STREQUAL "ADAM")
     lib/printer-emulator/coleco_printer.h lib/printer-emulator/coleco_printer.cpp
 
     lib/bus/adamnet/adamnet.h lib/bus/adamnet/adamnet.cpp
+    lib/bus/adamnet/FujiAdamPacket.h lib/bus/adamnet/FujiAdamPacket.cpp
     lib/hardware/BoIPChannel.h lib/hardware/BoIPChannel.cpp
 
     lib/media/adam/mediaType.h lib/media/adam/mediaType.cpp

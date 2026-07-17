@@ -37,7 +37,7 @@ private:
     virtual void adamnet_response_status() override;
     void adamnet_response_send();
 
-    void adamnet_process(uint8_t b) override;
+    void adamnet_process(const FujiAdamPacket &packet) override;
 
 public:
     adamDisk();

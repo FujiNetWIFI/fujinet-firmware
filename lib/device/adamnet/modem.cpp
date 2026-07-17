@@ -1263,7 +1263,7 @@ void adamModem::shutdown()
 /*
   Process command
 */
-void adamModem::adamnet_process(uint8_t b)
+void adamModem::adamnet_process(const FujiAdamPacket &packet)
 {
 
 }
