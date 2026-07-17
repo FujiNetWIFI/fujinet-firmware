@@ -97,6 +97,10 @@ public:
     fujiError_t status(NetworkStatus *status) override;
     size_t      available() override;
 
+    // Default human-readable line width, used when the width parameter (aux2
+    // low 7 bits) is 0. Defaulted per platform in the ctor; settable here.
+    void setDefaultHumanWidth(int w) { if (w > 0) _defaultWidth = w; }
+
 protected:
     // ---- provider hooks (implemented by GMAIL / IMAPS) ----
 
@@ -129,6 +133,9 @@ protected:
     std::string _folder;
     uint32_t    _seq = 0;
     uint8_t     _attach = 0;
+
+    // Default human-readable line width (set per platform in the ctor).
+    int _defaultWidth = 40;
 
 private:
     // Operation dispatch (combines path depth with access mode).

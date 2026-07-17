@@ -110,6 +110,22 @@ NetworkProtocolMailbox::NetworkProtocolMailbox(std::string *rx_buf, std::string 
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {
     Debug_printf("NetworkProtocolMailbox::ctor\r\n");
+
+    // Per-platform default human-readable line width (used when the width
+    // parameter is 0). Fallback 40; MS-DOS maps to the RS232 platform.
+#if defined(BUILD_ATARI)
+    _defaultWidth = 38;
+#elif defined(BUILD_APPLE)
+    _defaultWidth = 40;
+#elif defined(BUILD_ADAM)
+    _defaultWidth = 32;
+#elif defined(BUILD_COCO)
+    _defaultWidth = 32;
+#elif defined(BUILD_RS232)
+    _defaultWidth = 80;
+#else
+    _defaultWidth = 40;
+#endif
 }
 
 NetworkProtocolMailbox::~NetworkProtocolMailbox()
@@ -210,6 +226,7 @@ fujiError_t NetworkProtocolMailbox::do_folder_index(uint8_t transByte)
     // default directory listing -> width 0 -> human-readable at the default width.
     bool raw = (transByte == 0xFF);
     int width = transByte & 0x7F;
+    if (width == 0) width = _defaultWidth; // platform default when unspecified
 
     long rangeStart = 0;
     long rangeEnd = MB_DEFAULT_RANGE - 1;
@@ -267,6 +284,7 @@ fujiError_t NetworkProtocolMailbox::do_attachment_index(uint8_t transByte)
     // default directory listing -> width 0 -> human-readable at the default width.
     bool raw = (transByte == 0xFF);
     int width = transByte & 0x7F;
+    if (width == 0) width = _defaultWidth; // platform default when unspecified
 
     std::vector<MailboxAttachmentEntry> items;
     if (attachment_index(_folder, _seq, items) != FUJI_ERROR::NONE)
@@ -307,8 +325,7 @@ void NetworkProtocolMailbox::format_index_human(const std::vector<MailboxIndexEn
     // halves: line 1 is padded to exactly lineW so the auto-wrap lands on the half
     // boundary. It wraps to two lines on a 40-column screen and reads as one line
     // on an 80-column screen.
-    int lineW = 38;
-    if (width >= 24 && width <= 40) lineW = width; // optional per-line override
+    int lineW = (width >= 12) ? width : _defaultWidth;
 
     uint32_t maxNum = 1;
     for (auto &it : items)
@@ -379,7 +396,7 @@ void NetworkProtocolMailbox::format_index_raw(const std::vector<MailboxIndexEntr
 void NetworkProtocolMailbox::format_attachment_index_human(const std::vector<MailboxAttachmentEntry> &items,
                                                            int width)
 {
-    if (width <= 0) width = 38; // Atari 40-col usable width
+    if (width <= 0) width = _defaultWidth;
 
     uint8_t maxNum = 0;
     for (auto &it : items)
