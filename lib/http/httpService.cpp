@@ -1423,7 +1423,8 @@ esp_err_t fnHttpService::get_handler_gdrive_auth(httpd_req_t *req)
         "&prompt=consent"
         "&client_id="    + gdrive_pct_encode(GDRIVE_CLIENT_ID) +
         "&redirect_uri=" + gdrive_pct_encode(GDRIVE_RELAY_REDIRECT_URI) +
-        "&scope="        + gdrive_pct_encode("https://www.googleapis.com/auth/drive") +
+        "&scope="        + gdrive_pct_encode("https://www.googleapis.com/auth/drive"
+                                            " https://www.googleapis.com/auth/gmail.readonly") +
         "&state="        + std::string(state);
 
     cJSON *out = cJSON_CreateObject();

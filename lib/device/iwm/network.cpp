@@ -110,6 +110,9 @@ void iwmNetwork::open(const iwm_decoded_cmd_t &cmd)
         return;
     }
 
+    // Set the human-readable line ending for this platform (Apple II: CR).
+    current_network_data.protocol->setLineEnding("\x0d");
+
     // Attempt protocol open
     if (current_network_data.protocol->open(current_network_data.urlParser.get(),
                                             (fileAccessMode_t) cmd.param8(0),
