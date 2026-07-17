@@ -464,16 +464,14 @@ void adamFuji::adamnet_control_send(const FujiAdamPacket &packet)
     case FUJICMD_SET_DEVICE_FULLPATH:
         {
             uint8_t deviceSlot = packet.param(0);
-            char filename[256];
-            uint16_t flen = packet.param(1);
-            if (flen > sizeof(filename))
-                flen = sizeof(filename);
-            transaction_begin(TRANS_STATE::WILL_GET);
-            transaction_get(filename, flen);
-            fujicore_set_device_filename_success(deviceSlot, _fnDisks[deviceSlot].host_slot,
-                                                 _fnDisks[deviceSlot].access_mode,
-                                                 std::string(filename, flen));
-            transaction_complete();
+            transaction_begin(TRANS_STATE::NO_GET);
+            if (fujicore_set_device_filename_success(deviceSlot,
+                                                     _fnDisks[deviceSlot].host_slot,
+                                                     _fnDisks[deviceSlot].access_mode,
+                                                     packet.dataAsString().value()).is_error())
+                transaction_error();
+            else
+                transaction_complete();
         }
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
