@@ -999,6 +999,9 @@ success_is_true sioNetwork::instantiate_protocol()
         RETURN_ERROR_AS_FALSE();
     }
 
+    // Atari's native EOL is the ATASCII end-of-line (0x9B).
+    protocol->native_eol = "\x9b";
+
     // leaving this one to print
     Debug_printf("sioNetwork::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
     RETURN_SUCCESS_AS_TRUE();

@@ -86,9 +86,16 @@ public:
     nDevStatus_t error = NDEV_STATUS::SUCCESS;
 
     /**
-     * Translation mode: 0=NONE, 1=CR, 2=LF, 3=CR/LF
+     * Translation mode: 0=NONE, 1=CR, 2=LF, 3=CR/LF, 4=PETSCII
      */
     netProtoTranslation_t translation_mode = NETPROTO_TRANS_NONE;
+
+    /**
+     * The target computer's native end-of-line sequence. Each bus's network
+     * device assigns this for its platform (e.g. Atari 0x9B, CR/LF for
+     * serial/CP-M machines); defaults to CR.
+     */
+    std::string native_eol = "\x0d";
 
     /**
      * Is this being called from inside an interrupt?

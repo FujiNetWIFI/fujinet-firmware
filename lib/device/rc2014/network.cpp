@@ -659,6 +659,9 @@ bool rc2014Network::instantiate_protocol()
         return false;
     }
 
+    // Serial/CP-M machines use a CR/LF pair as their native EOL.
+    protocol->native_eol = "\x0d\x0a";
+
     Debug_printf("rc2014Network::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
     return true;
 }

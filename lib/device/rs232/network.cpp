@@ -906,6 +906,9 @@ success_is_true rs232Network::instantiate_protocol()
         RETURN_ERROR_AS_FALSE();
     }
 
+    // Serial/CP-M machines use a CR/LF pair as their native EOL.
+    protocol->native_eol = "\x0d\x0a";
+
     Debug_printf("rs232Network::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
     RETURN_SUCCESS_AS_TRUE();
 }
