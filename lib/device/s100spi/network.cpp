@@ -828,7 +828,7 @@ bool s100spiNetwork::instantiate_protocol()
     }
 
     // Serial/CP-M machines use a CR/LF pair as their native EOL.
-    protocol->native_eol = "\x0d\x0a";
+    protocol->native_eol = STR_ASCII_CRLF;
 
     Debug_printf("s100spiNetwork::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
     return true;
