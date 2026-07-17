@@ -482,32 +482,4 @@ size_t iwmFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
     return sizeof(custom_details);
 }
 
-success_is_true iwmFuji::fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
-                                                              disk_access_flags_t mode)
-{
-    char tmp[MAX_FILENAME_LEN];
-
-    transaction_begin(TRANS_STATE::WILL_GET);
-    if (!transaction_get(tmp, sizeof(tmp)))
-    {
-        transaction_error();
-        RETURN_ERROR_AS_FALSE();
-    }
-
-    // For some reason Apple2 CONFIG sends 3 bytes of garbage before the filename
-    memmove(&tmp, &tmp[3], sizeof(tmp) - 3);
-    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n",
-                 deviceSlot, host, mode, tmp);
-
-    if (!fujicore_set_device_filename_success(deviceSlot, host, mode,
-                                              std::string(tmp, strnlen(tmp, sizeof(tmp)))))
-    {
-        transaction_error();
-        RETURN_ERROR_AS_FALSE();
-    }
-
-    transaction_complete();
-    RETURN_SUCCESS_AS_TRUE();
-}
-
 #endif /* BUILD_APPLE */
