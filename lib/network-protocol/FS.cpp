@@ -102,6 +102,24 @@ fujiError_t NetworkProtocolFS::open_dir(dirFormat_t fmt)
 
     std::vector<uint8_t> entryBuffer(ENTRY_BUFFER_SIZE);
 
+    // Running total of ProDOS blocks, used by the A2CAT/A2CATALOG trailer.
+    unsigned blocks_used = 0;
+    modified_time = created_time = 0;
+
+    // ProDOS CAT/CATALOG listings lead with the path and a column header.
+    if (fmt == DIR_FORMAT::A2CAT || fmt == DIR_FORMAT::A2CATALOG)
+    {
+        char hdr[96];
+        dirBuffer += opened_url->path + lineEnding + lineEnding;
+        if (fmt == DIR_FORMAT::A2CAT)
+            snprintf(hdr, sizeof(hdr), " %-15s %-4s %6s  %-9s",
+                     "NAME", "TYPE", "BLOCKS", "MODIFIED");
+        else
+            snprintf(hdr, sizeof(hdr), " %-15s %-4s %6s  %-15s  %-15s  %8s SUBTYPE",
+                     "NAME", "TYPE", "BLOCKS", "MODIFIED", "CREATED", "ENDFILE");
+        dirBuffer += std::string(hdr) + lineEnding + lineEnding;
+    }
+
     while (read_dir_entry((char *)entryBuffer.data(), ENTRY_BUFFER_SIZE - 1) == FUJI_ERROR::NONE)
     {
         if (entryBuffer.at(0) == '.' || entryBuffer.at(0) == '/')
@@ -109,6 +127,14 @@ fujiError_t NetworkProtocolFS::open_dir(dirFormat_t fmt)
 
         switch (fmt)
         {
+        case DIR_FORMAT::A2CAT:
+            dirBuffer += util_long_entry_apple2_cat((char *)entryBuffer.data(), fileSize, is_directory, is_locked, modified_time) + lineEnding;
+            blocks_used += util_prodos_blocks(fileSize);
+            break;
+        case DIR_FORMAT::A2CATALOG:
+            dirBuffer += util_long_entry_apple2_catalog((char *)entryBuffer.data(), fileSize, is_directory, is_locked, modified_time, created_time) + lineEnding;
+            blocks_used += util_prodos_blocks(fileSize);
+            break;
         case DIR_FORMAT::A2COL80:
             dirBuffer += util_long_entry_apple2_80col((char *)entryBuffer.data(), fileSize, is_directory) + lineEnding;
             break;
@@ -136,7 +162,22 @@ fujiError_t NetworkProtocolFS::open_dir(dirFormat_t fmt)
 
         // Clearing the buffer for reuse
         entry_id.clear();
+        modified_time = created_time = 0;
         std::fill(entryBuffer.begin(), entryBuffer.end(), 0); // fenrock was right.
+    }
+
+    // ProDOS-style trailer with a fake free-blocks count (65535).
+    if (fmt == DIR_FORMAT::A2CAT || fmt == DIR_FORMAT::A2CATALOG)
+    {
+        char trailer[96];
+        if (fmt == DIR_FORMAT::A2CAT)
+            snprintf(trailer, sizeof(trailer),
+                     "BLOCKS FREE: 65535  BLOCKS USED: %u", blocks_used);
+        else
+            snprintf(trailer, sizeof(trailer),
+                     "BLOCKS FREE:  65535     BLOCKS USED:  %u     TOTAL BLOCKS:  %u",
+                     blocks_used, 65535u + blocks_used);
+        dirBuffer += std::string(lineEnding) + trailer + lineEnding;
     }
 
 #ifdef BUILD_ATARI
@@ -349,7 +390,7 @@ void NetworkProtocolFS::resolve()
     if (stat() != FUJI_ERROR::NONE)
     {
         // File wasn't found, let's try resolving against the crunched filename
-        std::string crunched_filename = util_crunch(filename);
+        std::string crunched_filename = util_crunch_platform(filename);
 
         char e[256]; // current entry.
 
@@ -364,7 +405,7 @@ void NetworkProtocolFS::resolve()
         while (read_dir_entry(e, 255) == FUJI_ERROR::NONE)
         {
             std::string current_entry = std::string(e);
-            std::string crunched_entry = util_crunch(current_entry);
+            std::string crunched_entry = util_crunch_platform(current_entry);
 
 #ifdef VERBOSE_PROTOCOL
             Debug_printf("current entry \"%s\" crunched entry \"%s\"\r\n", current_entry.c_str(), crunched_entry.c_str());
