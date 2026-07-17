@@ -6,7 +6,7 @@
  */
 
 #include "bus.h"
-#include "cmdFrame.h"
+#include "FujiAdamPacket.h"
 #include "UARTChannel.h"
 #include "BoIPChannel.h"
 #include "global_types.h"
@@ -62,22 +62,6 @@ struct adamnet_message_t
 #define ADAMNET_BUS_TASK_STACK 8192
 
 #define ADAMNET_STALL_RESYNC_US 600
-
-#define MN_RESET 0x00   // command.control (reset)
-#define MN_STATUS 0x01  // command.control (status)
-#define MN_ACK 0x02     // command.control (ack)
-#define MN_CLR 0x03     // command.control (clr) (aka CTS)
-#define MN_RECEIVE 0x04 // command.control (receive)
-#define MN_CANCEL 0x05  // command.control (cancel)
-#define MN_SEND 0x06    // command.control (send)
-#define MN_NACK 0x07    // command.control (nack)
-#define MN_READY 0x0D   // command.control (ready)
-
-#define NM_STATUS 0x08 // response.control (status)
-#define NM_ACK 0x09    // response.control (ack)
-#define NM_CANCEL 0x0A // response.control (cancel)
-#define NM_SEND 0x0B   // response.data (send)
-#define NM_NACK 0x0C   // response.control (nack)
 
 #define ADAMNET_RESET_DEBOUNCE_PERIOD 100 // in ms
 
@@ -205,7 +189,7 @@ protected:
      * @brief process the next packet with the active device.
      * @param b first byte of packet.
      */
-    virtual void adamnet_process(uint8_t b);
+    virtual void adamnet_process(const FujiAdamPacket &packet);
 
     /**
      * @brief Do any tasks that can only be done when the bus is quiet
@@ -226,11 +210,6 @@ protected:
      * @brief send status response
      */
     virtual void adamnet_response_status();
-
-    /**
-     * @brief command frame, used by network protocol, ultimately
-     */
-    cmdFrame_t cmdFrame;
 
     /**
      * The response sent in adamnet_response_status()
@@ -276,6 +255,7 @@ class systemBus : public SystemBusBase
 private:
     std::map<uint8_t, virtualDevice *> _daisyChain;
     virtualDevice *_activeDev = nullptr;
+    const FujiAdamPacket *_activePacket;
     adamFuji *_fujiDev = nullptr;
     adamPrinter *_printerDev = nullptr;
 

@@ -21,21 +21,21 @@ protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
 
-    void adamnet_new_disk();               // 0xE7
-    void adamnet_set_boot_config();        // 0xD9
-    void adamnet_enable_device();          // 0xD5
-    void adamnet_disable_device();         // 0xD4
+    void adamnet_new_disk(const FujiAdamPacket &packet);               // 0xE7
+    void adamnet_set_boot_config(const FujiAdamPacket &packet);        // 0xD9
+    void adamnet_enable_device(const FujiAdamPacket &packet);          // 0xD5
+    void adamnet_disable_device(const FujiAdamPacket &packet);         // 0xD4
     void adamnet_random_number();          // 0xD3
     void adamnet_get_time();               // 0xD2
-    void adamnet_device_enable_status();   // 0xD1
+    void adamnet_device_enable_status(const FujiAdamPacket &packet);   // 0xD1
 
     void adamnet_test_command();
 
     void adamnet_control_status() override;
-    void adamnet_control_send();
+    void adamnet_control_send(const FujiAdamPacket &packet);
     void adamnet_control_clr();
 
-    void adamnet_process(uint8_t b) override;
+    void adamnet_process(const FujiAdamPacket &packet) override;
 
     void shutdown() override;
 

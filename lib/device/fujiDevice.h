@@ -220,7 +220,7 @@ public:
     // fujicore_ logic, and send the result back via transaction_*.
     virtual success_is_true fujicmd_mount_all_success();
     virtual void fujicmd_reset();
-    success_is_true fujicmd_mount_host_success(unsigned hostSlot);
+    success_is_true fujicmd_mount_host_success(uint8_t hostSlot);
     virtual void fujicmd_net_scan_networks();
     void fujicmd_net_scan_result(uint8_t index);
     void fujicmd_net_get_ssid();
@@ -288,7 +288,7 @@ public:
     virtual success_is_true fujicore_mount_disk_image_success(uint8_t deviceSlot,
                                                               disk_access_flags_t access_mode);
     success_is_true fujicore_unmount_disk_image_success(uint8_t deviceSlot);
-    success_is_true fujicore_mount_host_success(unsigned hostSlot);
+    success_is_true fujicore_mount_host_success(uint8_t hostSlot);
     success_is_true fujicore_mount_all_success();
     success_is_true fujicore_mount_all_at_startup();
     void fujicore_net_scan_networks();
