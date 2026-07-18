@@ -122,6 +122,9 @@ void drivewireNetwork::open(fileAccessMode_t access, netProtoTranslation_t trans
     // Set line ending to CR
     protocol->setLineEnding("\x0D");
 
+    // CoCo DIR_FORMAT::LONG entries are 31 columns wide.
+    protocol->setDirLongWidth(31);
+
     // Attempt protocol open
     if (protocol->open(urlParser.get(), access, trans_mode) != FUJI_ERROR::NONE)
     {
