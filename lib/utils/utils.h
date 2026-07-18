@@ -56,10 +56,18 @@ long util_parseInt(FILE *f);
 
 unsigned char util_checksum(const char *chunk, int length);
 std::string util_crunch(std::string filename);
+std::string util_crunch_prodos(std::string filename);
+std::string util_crunch_platform(std::string filename);
 std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool is_locked);
 std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir, int width = 0);
 std::string util_long_entry_apple2_80col(std::string filename, size_t fileSize, bool is_dir);
+std::string util_long_entry_apple2_cat(std::string filename, size_t fileSize, bool is_dir, bool is_locked, uint32_t modified_time);
+std::string util_long_entry_apple2_catalog(std::string filename, size_t fileSize, bool is_dir, bool is_locked, uint32_t modified_time, uint32_t created_time);
 std::string util_long_entry_with_gdrive_id(std::string filename, size_t fileSize, bool is_dir, const std::string &file_id);
+const char *prodos_filetype(const std::string &filename, bool is_dir);
+unsigned util_prodos_blocks(size_t fileSize);
+std::string util_prodos_date(uint32_t unixtime);
+std::string util_prodos_time(uint32_t unixtime);
 int util_ellipsize(const char* src, char *dst, int dstsize);
 std::string util_ellipsize_string(const std::string& src, size_t maxSize);
 bool util_wildcard_match(const char *str, const char *pattern);
