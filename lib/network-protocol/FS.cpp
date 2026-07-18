@@ -127,7 +127,7 @@ fujiError_t NetworkProtocolFS::open_dir(dirFormat_t fmt)
             break;
         default:
             if (fmt >= DIR_FORMAT::LONG)
-                dirBuffer += util_long_entry((char *)entryBuffer.data(), fileSize, is_directory) + lineEnding;
+                dirBuffer += util_long_entry((char *)entryBuffer.data(), fileSize, is_directory, dirLongWidth) + lineEnding;
             else
                 dirBuffer += util_entry(util_crunch((char *)entryBuffer.data()), fileSize, is_directory, is_locked) + lineEnding;
             break;

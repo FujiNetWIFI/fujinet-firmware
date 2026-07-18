@@ -165,6 +165,9 @@ void adamNetwork::open(unsigned short s)
     // Set the human-readable line ending for this platform (Adam: CR).
     protocol->setLineEnding("\x0d");
 
+    // Narrow DIR_FORMAT::LONG entries to fit Adam's 32-column mode.
+    protocol->setDirLongWidth(30);
+
     // Attempt protocol open
     if (protocol->open(urlParser.get(), (fileAccessMode_t) _aux1, (netProtoTranslation_t) _aux2) != FUJI_ERROR::NONE)
     {

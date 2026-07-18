@@ -128,6 +128,18 @@ public:
     void setFSSectorSize(int sectorSize) { FSSectorSize = sectorSize; }
 
     /**
+     * Width of a DIR_FORMAT::LONG directory entry, in characters. Systems set
+     * this to match their screen width (e.g. ADAM uses 30 to fit 32-column mode).
+     */
+    int dirLongWidth = 37;
+
+    /**
+     * @brief Set the DIR_FORMAT::LONG entry width for FS derived protocols.
+     * @param width entry width in characters.
+     */
+    void setDirLongWidth(int width) { dirLongWidth = width; }
+
+    /**
      * @brief Open connection to the protocol using URL
      * @param urlParser The URL object passed in to open.
      * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
