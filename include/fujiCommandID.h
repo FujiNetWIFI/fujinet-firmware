@@ -128,7 +128,7 @@ enum fujiCommandID_t : uint8_t {
     NETCMD_PARSE                       = 0x50, // P
     NETCMD_OPEN                        = 0x4F, // O
     NETCMD_SET_CHANNEL_MODE            = 0x4D, // M
-    NETCMD_SET_EOL                     = 0x4C, // L - set computer's native EOL (aux1/aux2 carry the bytes; aux1==0 restores platform default)
+    NETCMD_SET_EOL                     = 0x4C, // L - set computer's native EOL (aux1/param0 selector: 0=platform default, 1=CR, 2=LF, 3=CRLF)
     NETCMD_GET_ERROR                   = 0x45, // E
     NETCMD_SET_DESTINATION             = 0x44, // D
     NETCMD_CLOSE                       = 0x43, // C

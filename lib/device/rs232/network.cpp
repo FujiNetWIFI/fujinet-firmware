@@ -815,17 +815,8 @@ void rs232Network::rs232_process(const FujiBusPacket &packet)
             SYSTEM_BUS.transaction_error();
         }
         else
-        {
-            // param(0)/param(1) carry the EOL bytes; param(0)==0 clears the override.
-            std::string eol;
-            if (packet.param(0) != 0x00)
-            {
-                eol.push_back((char) packet.param(0));
-                if (packet.paramCount() >= 2 && packet.param(1) != 0x00)
-                    eol.push_back((char) packet.param(1));
-            }
-            rs232_set_eol(eol);
-        }
+            // param(0) selects the native EOL: 0=platform default, 1=CR, 2=LF, 3=CRLF.
+            rs232_set_eol((netProtoTranslation_t) packet.param(0));
         break;
     case NETCMD_SET_INT_RATE:
         if (packet.paramCount() < 2) {
@@ -1079,9 +1070,16 @@ void rs232Network::rs232_set_translation(netProtoTranslation_t mode)
     SYSTEM_BUS.transaction_success();
 }
 
-void rs232Network::rs232_set_eol(const std::string &eol)
+void rs232Network::rs232_set_eol(netProtoTranslation_t sel)
 {
-    native_eol_override = eol;
+    // Selector chooses the native EOL: 0=platform default, 1=CR, 2=LF, 3=CRLF.
+    switch (sel)
+    {
+    case NETPROTO_TRANS_CR:   native_eol_override = STR_ASCII_CR;   break;
+    case NETPROTO_TRANS_LF:   native_eol_override = STR_ASCII_LF;   break;
+    case NETPROTO_TRANS_CRLF: native_eol_override = STR_ASCII_CRLF; break;
+    default:                  native_eol_override.clear();          break; // 0/unknown = platform default
+    }
 
     // Apply to a live protocol immediately; restore default when cleared.
     if (protocol != nullptr)

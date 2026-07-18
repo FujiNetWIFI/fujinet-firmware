@@ -393,7 +393,7 @@ private:
     void sio_set_translation();
 
     /**
-     * @brief set the computer's native EOL from aux1/aux2 (aux1==0 restores default).
+     * @brief set the computer's native EOL from aux1 selector (0=platform default, 1=CR, 2=LF, 3=CRLF).
      */
     void sio_set_eol();
 
