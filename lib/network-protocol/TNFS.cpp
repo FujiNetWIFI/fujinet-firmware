@@ -169,6 +169,8 @@ fujiError_t NetworkProtocolTNFS::read_dir_entry(char *buf, unsigned short len)
     mode = fileStat.mode;
     is_directory = fileStat.isDir;
     is_locked = (fileStat.mode & 0200);
+    modified_time = fileStat.m_time;
+    created_time = fileStat.c_time;
     fserror_to_error();
     Debug_printf("NetworkProtocolTNFS::read_dir_entry(N: %s, F: %d, M: %d, D: %d, L: %d) - %d\r\n", buf, fileSize, mode, is_directory, is_locked, tnfs_error);
     return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;

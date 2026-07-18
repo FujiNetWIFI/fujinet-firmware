@@ -3,7 +3,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
+#include <ctime>
 #include <map>
 #include <sstream>
 #include <stack>
@@ -452,6 +454,149 @@ std::string util_long_entry_with_gdrive_id(std::string filename, size_t fileSize
         snprintf(size_tmp, sizeof(size_tmp), "%4u", (unsigned int)fileSize);
 
     return filename + ' ' + id + ' ' + std::string(size_tmp);
+}
+
+// Crunch a filename to a legal ProDOS 8 name: uppercase; letters/digits/'.' only;
+// must begin with a letter (prefix 'A' otherwise); max 15 chars.
+std::string util_crunch_prodos(std::string filename)
+{
+    std::string out;
+    for (char c : filename)
+    {
+        char uc = (char)::toupper((unsigned char)c);
+        if ((uc >= 'A' && uc <= 'Z') || (uc >= '0' && uc <= '9') || uc == '.')
+            out += uc;
+    }
+    if (out.empty() || out[0] < 'A' || out[0] > 'Z')
+        out = "A" + out;
+    if (out.length() > 15)
+        out = out.substr(0, 15);
+    return out;
+}
+
+// Platform-specific filename crunch used by resolve(): ProDOS on Apple II, 8.3 elsewhere.
+std::string util_crunch_platform(std::string filename)
+{
+#ifdef BUILD_APPLE
+    return util_crunch_prodos(filename);
+#else
+    return util_crunch(filename);
+#endif
+}
+
+// Map a filename to a 3-char ProDOS file type. Directories are DIR; unknown -> BIN.
+const char *prodos_filetype(const std::string &filename, bool is_dir)
+{
+    if (is_dir)
+        return "DIR";
+
+    size_t dot = filename.find_last_of('.');
+    if (dot == std::string::npos)
+        return "BIN";
+
+    std::string ext = filename.substr(dot + 1);
+    for (auto &c : ext)
+        c = (char)::toupper((unsigned char)c);
+
+    if (ext == "TXT")                    return "TXT";
+    if (ext == "BAS")                    return "BAS";
+    if (ext == "SYS" || ext == "SYSTEM") return "SYS";
+    if (ext == "BIN")                    return "BIN";
+
+    return "BIN";
+}
+
+// ProDOS block count for a byte size (512-byte blocks, minimum 1).
+unsigned util_prodos_blocks(size_t fileSize)
+{
+    unsigned blocks = (unsigned)((fileSize + 511) / 512);
+    return blocks < 1 ? 1 : blocks;
+}
+
+// ProDOS date "DD-MMM-YY", or "<NO DATE>" when the timestamp is unknown (0).
+std::string util_prodos_date(uint32_t unixtime)
+{
+    if (unixtime == 0)
+        return "<NO DATE>";
+
+    static const char *months[] = {
+        "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+        "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+
+    time_t t = (time_t)unixtime;
+    struct tm *lt = localtime(&t);
+    if (lt == nullptr)
+        return "<NO DATE>";
+
+    char buf[12];
+    snprintf(buf, sizeof(buf), "%2d-%s-%02d",
+             lt->tm_mday, months[lt->tm_mon % 12], (lt->tm_year + 1900) % 100);
+    return std::string(buf);
+}
+
+// ProDOS time "HH:MM" (24-hr), or empty when the timestamp is unknown (0).
+std::string util_prodos_time(uint32_t unixtime)
+{
+    if (unixtime == 0)
+        return "";
+
+    time_t t = (time_t)unixtime;
+    struct tm *lt = localtime(&t);
+    if (lt == nullptr)
+        return "";
+
+    char buf[8];
+    snprintf(buf, sizeof(buf), "%2d:%02d", lt->tm_hour, lt->tm_min);
+    return std::string(buf);
+}
+
+// One 40-col ProDOS CAT row. Column widths mirror the CAT header built in
+// NetworkProtocolFS::open_dir(): [lock:1][name:15] [type:4] [blocks:6]  [mod:9]
+std::string util_long_entry_apple2_cat(std::string filename, size_t fileSize, bool is_dir, bool is_locked, uint32_t modified_time)
+{
+    char buf[48];
+    snprintf(buf, sizeof(buf), "%c%-15.15s %-4.4s %6u  %-9.9s",
+             is_locked ? '*' : ' ',
+             util_crunch_prodos(filename).c_str(),
+             prodos_filetype(filename, is_dir),
+             util_prodos_blocks(fileSize),
+             util_prodos_date(modified_time).c_str());
+    return std::string(buf);
+}
+
+// One 80-col ProDOS CATALOG row. Column widths mirror the CATALOG header built in
+// NetworkProtocolFS::open_dir():
+// [lock:1][name:15] [type:4] [blocks:6]  [mod:15]  [created:15]  [endfile:8]
+std::string util_long_entry_apple2_catalog(std::string filename, size_t fileSize, bool is_dir, bool is_locked, uint32_t modified_time, uint32_t created_time)
+{
+    std::string modstr = util_prodos_date(modified_time);
+    std::string modtime = util_prodos_time(modified_time);
+    if (!modtime.empty())
+        modstr += " " + modtime;
+
+    std::string crestr = util_prodos_date(created_time);
+    std::string cretime = util_prodos_time(created_time);
+    if (!cretime.empty())
+        crestr += " " + cretime;
+
+    std::string endstr;
+    if (!is_dir)
+    {
+        char e[12];
+        snprintf(e, sizeof(e), "%u", (unsigned)fileSize);
+        endstr = e;
+    }
+
+    char buf[96];
+    snprintf(buf, sizeof(buf), "%c%-15.15s %-4.4s %6u  %-15.15s  %-15.15s  %8s",
+             is_locked ? '*' : ' ',
+             util_crunch_prodos(filename).c_str(),
+             prodos_filetype(filename, is_dir),
+             util_prodos_blocks(fileSize),
+             modstr.c_str(),
+             crestr.c_str(),
+             endstr.c_str());
+    return std::string(buf);
 }
 
 /* Shortens the source string by splitting it in to shorter halves connected by "..." if it won't fit in the destination buffer.
