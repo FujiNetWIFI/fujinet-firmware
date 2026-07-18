@@ -22,15 +22,6 @@
 
 #define ENTRY_BUFFER_SIZE 256
 
-// System-specific width for DIR_FORMAT::LONG entries. 0 = util_long_entry
-// platform default. ADAM's default text mode is 32 columns, so keep entries
-// narrow enough to avoid wrapping.
-#ifdef BUILD_ADAM
-#define NETWORK_DIR_LONG_WIDTH 30
-#else
-#define NETWORK_DIR_LONG_WIDTH 0
-#endif
-
 NetworkProtocolFS::NetworkProtocolFS(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {
@@ -136,7 +127,7 @@ fujiError_t NetworkProtocolFS::open_dir(dirFormat_t fmt)
             break;
         default:
             if (fmt >= DIR_FORMAT::LONG)
-                dirBuffer += util_long_entry((char *)entryBuffer.data(), fileSize, is_directory, NETWORK_DIR_LONG_WIDTH) + lineEnding;
+                dirBuffer += util_long_entry((char *)entryBuffer.data(), fileSize, is_directory, dirLongWidth) + lineEnding;
             else
                 dirBuffer += util_entry(util_crunch((char *)entryBuffer.data()), fileSize, is_directory, is_locked) + lineEnding;
             break;

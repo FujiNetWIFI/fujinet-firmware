@@ -328,14 +328,14 @@ std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir, 
 #ifdef BUILD_COCO
 #define LONG_ENTRY_RESERVE 6
 #define LONG_ENTRY_EOL "\x0D"
-    if (width <= 0)
-        width = 31;
 #else
 #define LONG_ENTRY_RESERVE 7
 #define LONG_ENTRY_EOL "\x9B"
+#endif /* BUILD_COCO */
+    // Width comes from the caller (NetworkProtocol::dirLongWidth); guard against
+    // an unset value.
     if (width <= 0)
         width = 37;
-#endif /* BUILD_COCO */
     // Filenames longer than this wrap to a second line; the remainder is the
     // size field reserved at the end of the entry.
     const int trim_len = width - LONG_ENTRY_RESERVE;
