@@ -1075,12 +1075,15 @@ void rs232Network::rs232_assert_interrupt()
 
 void rs232Network::rs232_set_translation(netProtoTranslation_t mode)
 {
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     trans_mode = mode;
     SYSTEM_BUS.transaction_success();
 }
 
 void rs232Network::rs232_set_eol(const std::string &eol)
 {
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+
     native_eol_override = eol;
 
     // Apply to a live protocol immediately; restore default when cleared.
