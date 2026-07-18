@@ -209,6 +209,12 @@ private:
     netProtoTranslation_t trans_mode = NETPROTO_TRANS_NONE;
 
     /**
+     * Client-set override for the computer's native EOL. Empty means use the
+     * platform default assigned in instantiate_protocol(). See rs232_set_eol().
+     */
+    std::string native_eol_override;
+
+    /**
      * The login to use for a protocol action
      */
     std::string login;
@@ -334,6 +340,11 @@ private:
      * @brief set translation specified by aux1 to aux2_translation mode.
      */
     void rs232_set_translation(netProtoTranslation_t mode);
+
+    /**
+     * @brief set the computer's native EOL. @param eol the bytes (empty restores default).
+     */
+    void rs232_set_eol(const std::string &eol);
 
     /**
      * @brief Parse incoming JSON. (must be in JSON channelMode)
