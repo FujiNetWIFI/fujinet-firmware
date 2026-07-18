@@ -1187,13 +1187,13 @@ void sioNetwork::sio_set_eol()
 {
     transaction_begin(TRANS_STATE::NO_GET);
 
-    // aux1 selects the native EOL: 0=platform default, 1=CR, 2=LF, 3=CRLF.
-    switch (cmdFrame.aux1)
+    // aux1/aux2 carry the EOL bytes; aux1==0 clears the override (restore default).
+    native_eol_override.clear();
+    if (cmdFrame.aux1 != 0x00)
     {
-    case NETPROTO_TRANS_CR:   native_eol_override = STR_ASCII_CR;   break;
-    case NETPROTO_TRANS_LF:   native_eol_override = STR_ASCII_LF;   break;
-    case NETPROTO_TRANS_CRLF: native_eol_override = STR_ASCII_CRLF; break;
-    default:                  native_eol_override.clear();          break; // 0/unknown = platform default
+        native_eol_override.push_back((char)cmdFrame.aux1);
+        if (cmdFrame.aux2 != 0x00)
+            native_eol_override.push_back((char)cmdFrame.aux2);
     }
 
     // Apply to a live protocol immediately; restore default when cleared.

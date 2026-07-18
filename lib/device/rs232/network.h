@@ -342,9 +342,9 @@ private:
     void rs232_set_translation(netProtoTranslation_t mode);
 
     /**
-     * @brief set the computer's native EOL. @param sel selector 0=platform default, 1=CR, 2=LF, 3=CRLF.
+     * @brief set the computer's native EOL. @param eol the bytes (empty restores default).
      */
-    void rs232_set_eol(netProtoTranslation_t sel);
+    void rs232_set_eol(const std::string &eol);
 
     /**
      * @brief Parse incoming JSON. (must be in JSON channelMode)

@@ -253,12 +253,15 @@ fujiError_t NetworkProtocolFS::read_file(unsigned short len)
         // Append to receive buffer.
         receiveBuffer->insert(receiveBuffer->end(), buf.begin(), buf.end());
         fileSize -= len;
-    }
-    else
-        error = NDEV_STATUS::SUCCESS;
 
-    // Pass back to base class for translation.
-    return NetworkProtocol::read(len);
+        // Translate the freshly-read bytes exactly once.
+        return NetworkProtocol::read(len);
+    }
+
+    // receiveBuffer already holds translated data; return without re-translating,
+    // which would corrupt multi-byte native EOLs.
+    error = NDEV_STATUS::SUCCESS;
+    return FUJI_ERROR::NONE;
 }
 
 fujiError_t NetworkProtocolFS::read_dir(unsigned short len)
