@@ -18,6 +18,7 @@
 
 
 #define COMLYNX_BAUDRATE 62500
+#define COMLYNX_IDLE_TIME 500
 
 #define COMLYNX_RESET_DEBOUNCE_PERIOD 100 // in ms
 
@@ -135,6 +136,8 @@ public:
     void service();
     void shutdown();
     void reset();
+
+    void change_baud(int32_t baud);
 
     /**
      * @brief Wait to see if Comlynx bus is idle.
