@@ -51,9 +51,14 @@ enum ssh_packet_filter_result_e {
 
 int ssh_packet_send(ssh_session session);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 SSH_PACKET_CALLBACK(ssh_packet_unimplemented);
 SSH_PACKET_CALLBACK(ssh_packet_disconnect_callback);
 SSH_PACKET_CALLBACK(ssh_packet_ignore_callback);
+SSH_PACKET_CALLBACK(ssh_packet_debug_callback);
 SSH_PACKET_CALLBACK(ssh_packet_dh_reply);
 SSH_PACKET_CALLBACK(ssh_packet_newkeys);
 SSH_PACKET_CALLBACK(ssh_packet_service_accept);
@@ -63,11 +68,12 @@ SSH_PACKET_CALLBACK(ssh_packet_ext_info);
 SSH_PACKET_CALLBACK(ssh_packet_kexdh_init);
 #endif
 
+int ssh_packet_send_newkeys(ssh_session session);
 int ssh_packet_send_unimplemented(ssh_session session, uint32_t seqnum);
 int ssh_packet_parse_type(ssh_session session);
 //int packet_flush(ssh_session session, int enforce_blocking);
 
-int ssh_packet_socket_callback(const void *data, size_t len, void *user);
+size_t ssh_packet_socket_callback(const void *data, size_t len, void *user);
 void ssh_packet_register_socket_callback(ssh_session session, struct ssh_socket_struct *s);
 void ssh_packet_set_callbacks(ssh_session session, ssh_packet_callbacks callbacks);
 void ssh_packet_remove_callbacks(ssh_session session, ssh_packet_callbacks callbacks);
@@ -87,5 +93,9 @@ int ssh_packet_set_newkeys(ssh_session session,
                            enum ssh_crypto_direction_e direction);
 struct ssh_crypto_struct *ssh_packet_get_current_crypto(ssh_session session,
         enum ssh_crypto_direction_e direction);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PACKET_H_ */

@@ -4,6 +4,7 @@
 #include "fujiDevice.h"
 #include "cassette.h"
 #include "netstream.h"
+#include "hash.h"
 #include "../../qrcode/qrmanager.h"
 
 #include <cassert>
@@ -16,43 +17,6 @@ private:
     QRManager _qrManager = QRManager();
 
 protected:
-    transState_t _transaction_state = TRANS_STATE::INVALID;
-    void transaction_begin(transState_t expectMoreData) override {
-        assert(_transaction_state == TRANS_STATE::INVALID);
-        _transaction_state = expectMoreData;
-        // For some reason NetSIO needs a hint that this is a WRITE transaction
-        if (expectMoreData == TRANS_STATE::WILL_GET)
-            sio_late_ack();
-        else
-            sio_ack();
-    }
-    void transaction_complete() override {
-        assert(_transaction_state == TRANS_STATE::NO_GET || _transaction_state == TRANS_STATE::DID_GET);
-        sio_complete();
-        _transaction_state = TRANS_STATE::INVALID;
-    }
-    void transaction_error() override {
-        if (_transaction_state == TRANS_STATE::INVALID)
-            sio_error();
-        else
-            sio_nak();
-        _transaction_state = TRANS_STATE::INVALID;
-    }
-    success_is_true transaction_get(void *data, size_t len) override {
-        assert(_transaction_state == TRANS_STATE::WILL_GET);
-        _transaction_state = TRANS_STATE::DID_GET;
-
-        uint8_t ck = bus_to_peripheral((uint8_t *) data, len);
-        if (sio_checksum((uint8_t *) data, len) != ck)
-            RETURN_ERROR_AS_FALSE();
-        RETURN_SUCCESS_AS_TRUE();
-    }
-    void transaction_put(const void *data, size_t len, bool err) override {
-        assert(_transaction_state == TRANS_STATE::NO_GET);
-        bus_to_computer((uint8_t *) data, len, err);
-        _transaction_state = TRANS_STATE::INVALID;
-    }
-
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
 

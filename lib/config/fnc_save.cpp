@@ -81,6 +81,8 @@ void fnConfig::save()
     ss << "netstream_port=" << _network.netstream_port << LINETERM;
     ss << "netstream_mode=" << _network.netstream_mode << LINETERM;
     ss << "netstream_register=" << _network.netstream_register << LINETERM;
+    ss << "netstream_rx_depth=" << _network.netstream_rx_depth << LINETERM;
+    ss << "log_network_json=" << _network.log_network_json << LINETERM;
 
     // HOSTS
     for (i = 0; i < MAX_HOST_SLOTS; i++)
@@ -161,6 +163,20 @@ void fnConfig::save()
     ss << "refresh_token=" << _gdrive.refresh_token << LINETERM;
     ss << "access_token=" << _gdrive.access_token << LINETERM;
     ss << "token_expiry=" << _gdrive.token_expiry << LINETERM;
+
+    // S3 (Amazon S3 / S3-compatible object storage)
+    ss << LINETERM << "[S3]" << LINETERM;
+    ss << "endpoint=" << _s3.endpoint << LINETERM;
+    ss << "region=" << _s3.region << LINETERM;
+    ss << "access_key=" << _s3.access_key << LINETERM;
+    ss << "secret_key=" << _s3.secret_key << LINETERM;
+    ss << "use_ssl=" << (_s3.use_ssl ? 1 : 0) << LINETERM;
+
+    // ONEDRIVE
+    ss << LINETERM << "[OneDrive]" << LINETERM;
+    ss << "refresh_token=" << _onedrive.refresh_token << LINETERM;
+    ss << "access_token=" << _onedrive.access_token << LINETERM;
+    ss << "token_expiry=" << _onedrive.token_expiry << LINETERM;
 
     // ENABLE DEVICE SLOTS
     ss << LINETERM << "[ENABLE]" << LINETERM;

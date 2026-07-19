@@ -7,6 +7,8 @@
 #include <memory>
 #include <string>
 
+#include "status_error_codes.h"
+
 class NetworkProtocol;
 class FNJSON;
 class PeoplesUrlParser;
@@ -29,6 +31,10 @@ struct NetworkData {
     uint8_t translationMode = 0;
     std::string login;
     std::string password;
+    // Result of the last OPEN on this channel.  A failed protocol open
+    // destroys the protocol instance, so the specific error (e.g.
+    // FILE_NOT_FOUND) must be remembered here for a later STATUS to report.
+    nDevStatus_t open_error = NDEV_STATUS::SUCCESS;
 };
 
 #endif // NETWORK_DATA_H

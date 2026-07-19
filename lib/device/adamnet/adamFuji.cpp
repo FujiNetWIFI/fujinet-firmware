@@ -2,6 +2,7 @@
 
 #include "adamFuji.h"
 #include "fujiCommandID.h"
+#include "fujiDeviceID.h"
 
 #include <cstring>
 
@@ -13,11 +14,13 @@
 #include "fnConfig.h"
 #include "fnWiFi.h"
 #include "fsFlash.h"
+#include "fnio.h"
 #include "led.h"
 
 #include "utils.h"
 #include "string_utils.h"
 #include "fuji_endian.h"
+#include "compat_string.h"
 
 #define IMAGE_EXTENSION ".ddp"
 #define COPY_SIZE 532
@@ -40,6 +43,10 @@ adamFuji::adamFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, std::nullop
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].slotid = i;
+#ifndef ESP_PLATFORM
+    // BoIP: TNFS-backed Fuji ops overrun the 300us window; send anyway. See disk.cpp.
+    _pc_no_response_deadline = true;
+#endif
 }
 
 // Status
@@ -50,12 +57,11 @@ void adamFuji::adamnet_control_status()
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
-void adamFuji::adamnet_set_boot_config()
+void adamFuji::adamnet_set_boot_config(const FujiAdamPacket &packet)
 {
-    boot_config = adamnet_recv();
-    adamnet_recv();
+    boot_config = packet.param(0);
 
-    SYSTEM_BUS.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
     adamnet_response_ack();
 
     Debug_printf("Boot config is now %d\n", boot_config);
@@ -111,18 +117,16 @@ size_t adamFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest
 }
 
 //  Make new disk and shove into device slot
-void adamFuji::adamnet_new_disk()
+void adamFuji::adamnet_new_disk(const FujiAdamPacket &packet)
 {
-    uint8_t hs = adamnet_recv();
-    uint8_t ds = adamnet_recv();
-    uint32_t numBlocks;
-    uint8_t *c = (uint8_t *)&numBlocks;
-    uint8_t p[256];
+    uint8_t hs = packet.param(0);
+    uint8_t ds = packet.param(1);
+    u32le_t numBlocks;
+    const char *ptr;
 
-    adamnet_recv_buffer(c, sizeof(uint32_t));
-    adamnet_recv_buffer(p, 256);
-
-    adamnet_recv(); // CK
+    ptr = packet.dataAsString()->c_str();
+    memcpy(&numBlocks, ptr, sizeof(numBlocks));
+    ptr += sizeof(numBlocks);
 
     fujiDisk &disk = _fnDisks[ds];
     fujiHost &host = _fnHosts[hs];
@@ -130,22 +134,22 @@ void adamFuji::adamnet_new_disk()
     if (new_disk_completed)
     {
         new_disk_completed = false;
-        SYSTEM_BUS.start_time = esp_timer_get_time();
+        SYSTEM_BUS.start_time = GET_TIMESTAMP();
         adamnet_response_ack();
         return;
     }
 
     disk.host_slot = hs;
     disk.access_mode = DISK_ACCESS_MODE_WRITE;
-    strlcpy(disk.filename, (const char *)p, 256);
+    strlcpy(disk.filename, (const char *) ptr, sizeof(disk.filename));
 
-    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
+    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
 
     Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, numBlocks);
 
     disk.disk_dev.write_blank(disk.fileh, numBlocks);
 
-    fclose(disk.fileh);
+    fnio::fclose(disk.fileh);
 
     new_disk_completed = true;
 }
@@ -155,17 +159,17 @@ void adamFuji::insert_boot_device(uint8_t d)
 {
     const char *config_atr = "/autorun.ddp";
     const char *mount_all_atr = "/mount-and-boot.ddp";
-    FILE *fBoot;
+    fnFile *fBoot;
 
     switch (d)
     {
     case 0:
-        fBoot = fsFlash.file_open(config_atr);
+        fBoot = fsFlash.fnfile_open(config_atr);
         _fnDisks[0].disk_dev.mount(fBoot, config_atr, 262144, DISK_ACCESS_MODE_READ, MEDIATYPE_DDP);
         break;
     case 1:
 
-        fBoot = fsFlash.file_open(mount_all_atr);
+        fBoot = fsFlash.fnfile_open(mount_all_atr);
         _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 262144, DISK_ACCESS_MODE_READ, MEDIATYPE_DDP);
         break;
     }
@@ -174,74 +178,77 @@ void adamFuji::insert_boot_device(uint8_t d)
     _fnDisks[0].disk_dev.device_active = true;
 }
 
-void adamFuji::adamnet_enable_device()
+void adamFuji::adamnet_enable_device(const FujiAdamPacket &packet)
 {
-    unsigned char d = adamnet_recv();
+    fujiDeviceID_t d = static_cast<fujiDeviceID_t>(packet.param8(0));
 
     Debug_printf("FUJI ENABLE DEVICE %02x\n", d);
 
-    adamnet_recv();
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
 
-    SYSTEM_BUS.start_time = esp_timer_get_time();
-    adamnet_response_ack();
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     switch (d)
     {
-    case 0x02:
+    case FUJI_DEVICEID_PRINTER:
         Config.store_printer_enabled(true);
         break;
-    case 0x04:
+    case FUJI_DEVICEID_DISK:
         Config.store_device_slot_enable_1(true);
         break;
-    case 0x05:
+    case FUJI_DEVICEID_DISK2:
         Config.store_device_slot_enable_2(true);
         break;
-    case 0x06:
+    case FUJI_DEVICEID_DISK3:
         Config.store_device_slot_enable_3(true);
         break;
-    case 0x07:
+    case FUJI_DEVICEID_DISK4:
         Config.store_device_slot_enable_4(true);
+        break;
+    default:
         break;
     }
 
     Config.save();
 
     SYSTEM_BUS.enableDevice(d);
+    SYSTEM_BUS.transaction_success();
 }
 
-void adamFuji::adamnet_disable_device()
+void adamFuji::adamnet_disable_device(const FujiAdamPacket &packet)
 {
-    unsigned char d = adamnet_recv();
+    fujiDeviceID_t d = static_cast<fujiDeviceID_t>(packet.param8(0));
 
     Debug_printf("FUJI DISABLE DEVICE %02x\n", d);
 
-    adamnet_recv();
-
-    SYSTEM_BUS.start_time = esp_timer_get_time();
-    adamnet_response_ack();
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     switch (d)
     {
-    case 0x02:
+    case FUJI_DEVICEID_PRINTER:
         Config.store_printer_enabled(false);
         break;
-    case 0x04:
+    case FUJI_DEVICEID_DISK:
         Config.store_device_slot_enable_1(false);
         break;
-    case 0x05:
+    case FUJI_DEVICEID_DISK2:
         Config.store_device_slot_enable_2(false);
         break;
-    case 0x06:
+    case FUJI_DEVICEID_DISK3:
         Config.store_device_slot_enable_3(false);
         break;
-    case 0x07:
+    case FUJI_DEVICEID_DISK4:
         Config.store_device_slot_enable_4(false);
+        break;
+    default:
         break;
     }
 
     Config.save();
 
     SYSTEM_BUS.disableDevice(d);
+    SYSTEM_BUS.transaction_success();
 }
 
 // Initializes base settings and adds our devices to the SIO bus
@@ -272,13 +279,13 @@ void adamFuji::setup()
         Debug_printf("Config General Boot Mode: %u\n", Config.get_general_boot_mode());
         if (Config.get_general_boot_mode() == 0)
         {
-            FILE *f = fsFlash.file_open("/autorun.ddp");
+            fnFile *f = fsFlash.fnfile_open("/autorun.ddp");
             _fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, DISK_ACCESS_MODE_READ, MEDIATYPE_DDP);
             _fnDisks[0].disk_dev.is_config_device = true;
         }
         else
         {
-            FILE *f = fsFlash.file_open("/mount-and-boot.ddp");
+            fnFile *f = fsFlash.fnfile_open("/mount-and-boot.ddp");
             _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.ddp", 262144, DISK_ACCESS_MODE_READ, MEDIATYPE_DDP);
         }
     }
@@ -287,34 +294,38 @@ void adamFuji::setup()
         Debug_printf("Not mounting config disk\n");
     }
 
-    theNetwork = new adamNetwork();
-    theNetwork2 = new adamNetwork();
-    theSerial = new adamSerial();
-    SYSTEM_BUS.addDevice(theNetwork, FUJI_DEVICEID_NETWORK);  // temporary.
-    SYSTEM_BUS.addDevice(theNetwork2, FUJI_DEVICEID_NETWORK + 1); // temporary
-    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET);    // Fuji becomes the gateway device.
+    // Create these once, to avoid leaking them when setup() re-runs on an
+    // in-process restart.
+    if (theNetwork == nullptr)
+    {
+        theNetwork = new adamNetwork();
+        theNetwork2 = new adamNetwork();
+        theSerial = new adamSerial();
+        SYSTEM_BUS.addDevice(theNetwork, FUJI_DEVICEID_NETWORK);  // temporary.
+        SYSTEM_BUS.addDevice(theNetwork2, FUJI_DEVICEID_NETWORK + 1); // temporary
+        SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET);    // Fuji becomes the gateway device.
+    }
 }
 
 void adamFuji::adamnet_random_number()
 {
     int *p = (int *)&response[0];
 
-    adamnet_recv(); // CK
 
-    SYSTEM_BUS.start_time = esp_timer_get_time();
-    adamnet_response_ack();
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     response_len = sizeof(int);
     *p = rand();
+    SYSTEM_BUS.transaction_success();
 }
 
 void adamFuji::adamnet_get_time()
 {
     Debug_println("FUJI GET TIME");
-    adamnet_recv(); // CK
 
-    SYSTEM_BUS.start_time = esp_timer_get_time();
-    adamnet_response_ack();
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     time_t tt = time(nullptr);
 
@@ -345,30 +356,28 @@ void adamFuji::adamnet_get_time()
         response_len = 7;
 
     Debug_printf("Sending %02X %02X %02X %02X %02X %02X %02X\n", response[0], response[1], response[2], response[3], response[4], response[5], response[6]);
+    SYSTEM_BUS.transaction_success();
 }
 
-void adamFuji::adamnet_device_enable_status()
+void adamFuji::adamnet_device_enable_status(const FujiAdamPacket &packet)
 {
-    uint8_t d = adamnet_recv();
-    adamnet_recv(); // CK
+    uint8_t d = packet.param(0);
 
-    SYSTEM_BUS.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     if (SYSTEM_BUS.deviceExists(d))
-        adamnet_response_ack();
+        SYSTEM_BUS.transaction_success();
     else
-        adamnet_response_nack();
+        SYSTEM_BUS.transaction_error();
 
     response_len = 1;
     response[0] = SYSTEM_BUS.deviceEnabled(d);
 }
 
-void adamFuji::adamnet_control_send()
+void adamFuji::adamnet_control_send(const FujiAdamPacket &packet)
 {
-    uint16_t s = adamnet_recv_length();
-    fujiCommandID_t c = (fujiCommandID_t) adamnet_recv();
-
-    switch (c)
+    switch (packet.command())
     {
     case FUJICMD_RESET:
         fujicmd_reset();
@@ -380,14 +389,13 @@ void adamFuji::adamnet_control_send()
         fujicmd_net_scan_networks();
         break;
     case FUJICMD_GET_SCAN_RESULT:
-        fujicmd_net_scan_result(adamnet_recv());
+        fujicmd_net_scan_result(packet.param(0));
         break;
     case FUJICMD_SET_SSID:
         {
             SSIDConfig cfg;
-            if (s > sizeof(cfg)) // clamp wire length to struct
-                s = sizeof(cfg);
-            adamnet_recv_buffer((uint8_t *)&cfg, s);
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+            SYSTEM_BUS.transaction_get(&cfg, sizeof(cfg));
             fujicmd_net_set_ssid_success(cfg.ssid, cfg.password, true);
         }
         break;
@@ -395,25 +403,25 @@ void adamFuji::adamnet_control_send()
         fujicmd_net_get_wifi_status();
         break;
     case FUJICMD_MOUNT_HOST:
-        fujicmd_mount_host_success(adamnet_recv());
+        fujicmd_mount_host_success(packet.param(0));
         break;
     case FUJICMD_UNMOUNT_HOST:
-        fujicmd_unmount_host_success(adamnet_recv());
+        fujicmd_unmount_host_success(packet.param(0));
         break;
     case FUJICMD_MOUNT_IMAGE:
         {
-            uint8_t slot = adamnet_recv();
-            uint8_t mode = adamnet_recv();
+            uint8_t slot = packet.param(0);
+            uint8_t mode = packet.param(0);
             fujicmd_mount_disk_image_success(slot, (disk_access_flags_t) mode);
         }
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        fujicmd_open_directory_success(adamnet_recv());
+        fujicmd_open_directory_success(packet.param(0));
         break;
     case FUJICMD_READ_DIR_ENTRY:
         {
-            uint8_t maxlen = adamnet_recv();
-            uint8_t addtl = adamnet_recv();
+            uint8_t maxlen = packet.param(0);
+            uint8_t addtl = packet.param(0);
             fujicmd_read_directory_entry(maxlen, addtl);
         }
         break;
@@ -433,7 +441,7 @@ void adamFuji::adamnet_control_send()
         fujicmd_write_device_slots();
         break;
     case FUJICMD_UNMOUNT_IMAGE:
-        fujicmd_unmount_disk_image_success(adamnet_recv());
+        fujicmd_unmount_disk_image_success(packet.param(0));
         break;
     case FUJICMD_GET_ADAPTERCONFIG:
         fujicmd_get_adapter_config();
@@ -442,50 +450,47 @@ void adamFuji::adamnet_control_send()
         fujicmd_get_adapter_config_extended();
         break;
     case FUJICMD_NEW_DISK:
-        adamnet_new_disk();
+        adamnet_new_disk(packet);
         break;
     case FUJICMD_GET_DIRECTORY_POSITION:
         fujicmd_get_directory_position();
         break;
     case FUJICMD_SET_DIRECTORY_POSITION:
         {
-            uint16_t pos = 0;
-            adamnet_recv_buffer((uint8_t *)&pos, sizeof(uint16_t));
+            uint16_t pos = packet.param(0);
             fujicmd_set_directory_position(pos);
         }
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
         {
-            uint8_t deviceSlot = adamnet_recv();
-            char filename[256];
-            uint16_t flen = (s > 2) ? (s - 2) : 0;
-            if (flen > sizeof(filename)) // clamp wire length to buffer
-                flen = sizeof(filename);
-            transaction_begin(TRANS_STATE::WILL_GET);
-            transaction_get(filename, flen);
-            fujicore_set_device_filename_success(deviceSlot, _fnDisks[deviceSlot].host_slot,
-                                                 _fnDisks[deviceSlot].access_mode,
-                                                 std::string(filename, flen));
-            transaction_complete();
+            uint8_t deviceSlot = packet.param(0);
+            transaction_begin(TRANS_STATE::NO_GET);
+            if (fujicore_set_device_filename_success(deviceSlot,
+                                                     _fnDisks[deviceSlot].host_slot,
+                                                     _fnDisks[deviceSlot].access_mode,
+                                                     packet.dataAsString().value()).is_error())
+                transaction_error();
+            else
+                transaction_complete();
         }
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
-        fujicmd_get_device_filename(adamnet_recv());
+        fujicmd_get_device_filename(packet.param(0));
         break;
     case FUJICMD_CONFIG_BOOT:
-        adamnet_set_boot_config();
+        adamnet_set_boot_config(packet);
         break;
     case FUJICMD_ENABLE_DEVICE:
-        adamnet_enable_device();
+        adamnet_enable_device(packet);
         break;
     case FUJICMD_DISABLE_DEVICE:
-        adamnet_disable_device();
+        adamnet_disable_device(packet);
         break;
     case FUJICMD_MOUNT_ALL:
         fujicmd_mount_all_success();
         break;
     case FUJICMD_SET_BOOT_MODE:
-        fujicmd_set_boot_mode(adamnet_recv(), MEDIATYPE_UNKNOWN, &bootdisk);
+        fujicmd_set_boot_mode(packet.param(0), MEDIATYPE_UNKNOWN, &bootdisk);
         break;
     case FUJICMD_OPEN_APPKEY:
         fujicmd_open_app_key();
@@ -494,7 +499,7 @@ void adamFuji::adamnet_control_send()
         fujicmd_close_app_key();
         break;
     case FUJICMD_WRITE_APPKEY:
-        fujicmd_write_app_key(s-1,s-1);
+        fujicmd_write_app_key(packet.data()->size(), packet.data()->size());
         break;
     case FUJICMD_READ_APPKEY:
         fujicmd_read_app_key();
@@ -506,12 +511,12 @@ void adamFuji::adamnet_control_send()
         adamnet_get_time();
         break;
     case FUJICMD_DEVICE_ENABLE_STATUS:
-        adamnet_device_enable_status();
+        adamnet_device_enable_status(packet);
         break;
     case FUJICMD_COPY_FILE:
         {
-            uint8_t source = adamnet_recv();
-            uint8_t dest = adamnet_recv();
+            uint8_t source = packet.param(0);
+            uint8_t dest = packet.param(0);
             char dirpath[256];
             transaction_get(dirpath, sizeof(dirpath));
             fujicmd_copy_file_success(source, dest, dirpath);
@@ -521,7 +526,7 @@ void adamFuji::adamnet_control_send()
         fujicmd_generate_guid();
         break;
     default:
-        Debug_printv("Unknown command: %02x\n", c);
+        Debug_printv("Unknown command: %02x\n", packet.command());
         break;
     }
 }
@@ -537,26 +542,26 @@ void adamFuji::adamnet_control_clr()
     response_len = 0;
 }
 
-void adamFuji::adamnet_process(uint8_t b)
+void adamFuji::adamnet_process(const FujiAdamPacket &packet)
 {
-    unsigned char c = b >> 4;
-
-    switch (c)
+    switch (packet.type())
     {
-    case MN_STATUS:
+    case APT::MN_STATUS:
         adamnet_control_status();
         break;
-    case MN_CLR:
+    case APT::MN_CLR:
         adamnet_control_clr();
         break;
-    case MN_RECEIVE:
+    case APT::MN_RECEIVE:
         adamnet_response_ack();
         break;
-    case MN_SEND:
-        adamnet_control_send();
+    case APT::MN_SEND:
+        adamnet_control_send(packet);
         break;
-    case MN_READY:
+    case APT::MN_READY:
         adamnet_control_ready();
+        break;
+    default:
         break;
     }
 }

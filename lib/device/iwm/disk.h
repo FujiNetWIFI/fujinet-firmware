@@ -9,7 +9,6 @@
 class iwmDisk : public virtualDevice
 {
 private:
-    uint8_t err_result = SP_ERR_NOERROR;
     void prodos_encode_datetime(unsigned short *date_out, unsigned short *time_out);
     int prodos_write_block(fnFile *f, const unsigned char *buf);
     error_is_true prodos_write_boot_block(fnFile *f);
@@ -19,28 +18,16 @@ private:
     error_is_true prodos_write_data_blocks(fnFile *f, uint16_t numBlocks);
 
 protected:
-    void send_status_reply_packet() override;
-    void send_extended_status_reply_packet() override;
-    void send_status_dib_reply_packet() override;
-    void send_extended_status_dib_reply_packet() override;
+    iwm_device_info_block_t create_dib_reply_packet() override;
+    iwm_device_status_block_t create_status_reply_packet() override;
 
     MediaType *_disk = nullptr;
 
-    //void iwm_read();
-    //void iwm_write(bool verify);
-    // void iwm_format();
-    //void iwm_status(cmdPacket_t cmd); // override;
-    void process(iwm_decoded_cmd_t cmd) override; // uint32_t commanddata, uint8_t checksum); // override;
-    // void iwm_handle_eject(iwm_decoded_cmd_t cmd) override;
-    void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
-    void iwm_readblock(iwm_decoded_cmd_t cmd) override;
-    void iwm_writeblock(iwm_decoded_cmd_t cmd) override;
-    uint32_t get_block_number(iwm_decoded_cmd_t cmd) {return cmd.params[2] + (cmd.params[3] << 8) + (cmd.params[4] << 16); };
+    void iwm_ctrl(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_readblock(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_writeblock(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_format(const iwm_decoded_cmd_t &cmd) override;
 
-    // void derive_percom_block(uint16_t numSectors);
-    // void iwm_read_percom_block();
-    // void iwm_write_percom_block();
-    // void dump_percom_block();
     void shutdown() override; //todo change back
 
     char disk_num;

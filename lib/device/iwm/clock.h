@@ -7,25 +7,20 @@
 class iwmClock : public virtualDevice
 {
 private:
-    void set_tz();
-    void set_alternate_tz();
+    void set_tz(const iwm_decoded_cmd_t &cmd);
+    void set_alternate_tz(const iwm_decoded_cmd_t &cmd);
     std::string alternate_tz = "";
 public:
     iwmClock();
 
-    void process(iwm_decoded_cmd_t cmd) override;
-
-    void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
-    void iwm_status(iwm_decoded_cmd_t cmd) override;
-    void iwm_open(iwm_decoded_cmd_t cmd) override;
-    void iwm_close(iwm_decoded_cmd_t cmd) override;
+    void iwm_ctrl(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_status(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_open(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_close(const iwm_decoded_cmd_t &cmd) override;
 
     void shutdown() override;
-    void send_status_reply_packet() override;
-    void send_extended_status_reply_packet() override{};
-    void send_status_dib_reply_packet() override;
-    void send_extended_status_dib_reply_packet() override{};
-    
+    iwm_device_info_block_t create_dib_reply_packet() override;
+    iwm_device_status_block_t create_status_reply_packet() override;
 };
 
 #endif /* IWMCLOCK_H */

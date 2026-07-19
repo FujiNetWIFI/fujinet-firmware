@@ -18,6 +18,8 @@ sioDisk::sioDisk()
 // Read disk data and send to computer
 void sioDisk::sio_read()
 {
+    transaction_begin(TRANS_STATE::NO_GET);
+
     // Debug_print("disk READ\n");
 
     if (_disk == nullptr)
@@ -25,7 +27,7 @@ void sioDisk::sio_read()
         // Send error but dummy sector.
         uint8_t dummySector[128];
         memset(dummySector,0,sizeof(dummySector));
-        bus_to_computer(dummySector,128,true);
+        transaction_put(dummySector,128,true);
         return;
     }
 
@@ -34,12 +36,14 @@ void sioDisk::sio_read()
     bool err = _disk->read(UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1), &readcount);
 
     // Send result to Atari
-    bus_to_computer(_disk->_disk_sectorbuff, readcount, err);
+    transaction_put(_disk->_disk_sectorbuff, readcount, err);
 }
 
 // Write disk data from computer
 void sioDisk::sio_write(bool verify)
 {
+    transaction_begin(TRANS_STATE::WILL_GET);
+
     // Debug_print("disk WRITE\n");
 
     if (_disk != nullptr)
@@ -49,24 +53,24 @@ void sioDisk::sio_write(bool verify)
 
         memset(_disk->_disk_sectorbuff, 0, DISK_SECTORBUF_SIZE);
 
-        uint8_t ck = bus_to_peripheral(_disk->_disk_sectorbuff, sectorSize);
-
-        if (ck == sio_checksum(_disk->_disk_sectorbuff, sectorSize))
+        if (transaction_get(_disk->_disk_sectorbuff, sectorSize))
         {
             if (_disk->write(sectorNum, verify) == false)
             {
-                sio_complete();
+                transaction_complete();
                 return;
             }
         }
     }
 
-    sio_error();
+    transaction_error();
 }
 
 // Status
 void sioDisk::sio_status()
 {
+    transaction_begin(TRANS_STATE::NO_GET);
+
     Debug_print("disk STATUS\n");
 
     /* STATUS BYTES
@@ -133,17 +137,19 @@ void sioDisk::sio_status()
 
     Debug_printf("response: 0x%02x, 0x%02x, 0x%02x\n", _status[0], _status[1], _status[2]);
 
-    bus_to_computer(_status, sizeof(_status), false);
+    transaction_put(_status, sizeof(_status), false);
 }
 
 // Disk format
 void sioDisk::sio_format()
 {
+    transaction_begin(TRANS_STATE::NO_GET);
+
     Debug_print("disk FORMAT\n");
 
     if (_disk == nullptr)
     {
-        sio_error();
+        transaction_error();
         return;
     }
 
@@ -151,42 +157,46 @@ void sioDisk::sio_format()
     bool err = _disk->format(&responsesize);
 
     // Send to computer
-    bus_to_computer(_disk->_disk_sectorbuff, responsesize, err);
+    transaction_put(_disk->_disk_sectorbuff, responsesize, err);
 }
 
 // Read percom block
 void sioDisk::sio_read_percom_block()
 {
+    transaction_begin(TRANS_STATE::NO_GET);
+
     Debug_print("disk READ PERCOM BLOCK\n");
 
     if (_disk == nullptr)
     {
-        sio_error();
+        transaction_error();
         return;
     }
 
 #ifdef VERBOSE_DISK
     _disk->dump_percom_block();
 #endif
-    bus_to_computer((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock), false);
+    transaction_put((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock), false);
 }
 
 // Write percom block
 void sioDisk::sio_write_percom_block()
 {
+    transaction_begin(TRANS_STATE::WILL_GET);
+
     Debug_print("disk WRITE PERCOM BLOCK\n");
 
     if (_disk == nullptr)
     {
-        sio_error();
+        transaction_error();
         return;
     }
 
-    bus_to_peripheral((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock));
+    transaction_get(&_disk->_percomBlock, sizeof(_disk->_percomBlock));
 #ifdef VERBOSE_DISK
     _disk->dump_percom_block();
 #endif
-    sio_complete();
+    transaction_complete();
 }
 
 /* Mount Disk
@@ -315,24 +325,22 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
     case DISKCMD_READ:
         if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
         {
-            sio_nak();
+            transaction_error();
             return;
         }
         else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
         {
-            sio_nak();
+            transaction_error();
             return;
         }
         else
         {
-            sio_ack();
             sio_read();
         }
         return;
     case DISKCMD_HSIO_READ:
         if (_disk->_allow_hsio)
         {
-            sio_ack();
             sio_read();
             return;
         }
@@ -340,17 +348,16 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
     case DISKCMD_PUT:
         if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
         {
-            sio_nak();
+            transaction_error();
             return;
         }
         else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
         {
-            sio_nak();
+            transaction_error();
             return;
         }
         else
         {
-            sio_late_ack();
             sio_write(false);
         }
         return;
@@ -359,17 +366,16 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         {
             if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
             {
-                sio_nak();
+                transaction_error();
                 return;
             }
             else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
             {
-                sio_nak();
+                transaction_error();
                 return;
             }
             else
             {
-                sio_late_ack();
                 sio_write(false);
             }
         }
@@ -388,7 +394,6 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
                 else
                 {
                     device_active = true;
-                    sio_ack();
                     sio_status();
                 }
             }
@@ -397,24 +402,22 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         {
             if (cmdFrame.comnd == DISKCMD_HSIO_STATUS && _disk->_allow_hsio == false)
                 break;
-            sio_ack();
             sio_status();
         }
         return;
     case DISKCMD_WRITE:
         if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
         {
-            sio_nak();
+            transaction_error();
             return;
         }
         else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
         {
-            sio_nak();
+            transaction_error();
             return;
         }
         else
         {
-            sio_late_ack();
             sio_write(true);
         }
         return;
@@ -423,17 +426,16 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         {
             if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
             {
-                sio_nak();
+                transaction_error();
                 return;
             }
             else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
             {
-                sio_nak();
+                transaction_error();
                 return;
             }
             else
             {
-                sio_late_ack();
                 sio_write(true);
             }
             return;
@@ -441,30 +443,25 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         break;
     case DISKCMD_FORMAT:
     case DISKCMD_FORMAT_MEDIUM:
-        sio_ack();
         sio_format();
         return;
     case DISKCMD_HSIO_FORMAT:
     case DISKCMD_HSIO_FORMAT_MEDIUM:
         if (_disk->_allow_hsio)
         {
-            sio_ack();
             sio_format();
             return;
         }
         break;
     case DISKCMD_PERCOM_READ:
-        sio_ack();
         sio_read_percom_block();
         return;
     case DISKCMD_PERCOM_WRITE:
-        sio_late_ack();
         sio_write_percom_block();
         return;
     case DISKCMD_HSIO_INDEX:
         if (_disk->_allow_hsio)
         {
-            sio_ack();
             sio_high_speed();
             SYSTEM_BUS.toggleBaudrate();
             return;
@@ -474,7 +471,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         break;
     }
 
-    sio_nak();
+    transaction_error();
 }
 
 #endif /* BUILD_ATARI */

@@ -7,7 +7,13 @@
 
 #include "cassette.h"
 #include "fnSystem.h"
+#include "fnConfig.h"
 #include "utils.h"
+
+#ifdef ESP_PLATFORM
+#include <errno.h>
+#include <sys/socket.h>
+#endif
 
 static uint64_t netstream_time_us()
 {
@@ -109,11 +115,208 @@ bool sioNetStream::ensure_netstream_ready()
     return true;
 }
 
+// Inter-byte gap (us) matching the negotiated baud (8N1 => 10 bits/byte).
+// The hub's credit flow-control already paces writes to the true line rate, so this
+// gap just smooths delivery; fall back to the fixed constants if baud is unknown.
+static uint32_t netstream_gap_us_for_baud(int baud, int port)
+{
+    if (baud > 0)
+        return (uint32_t)(10000000u / (uint32_t)baud);
+    return (port == MIDI_PORT) ? NETSTREAM_MIN_GAP_US_MIDI : NETSTREAM_MIN_GAP_US_SIO;
+}
+
+void sioNetStream::update_rx_high_water()
+{
+    if (rx_count > rx_high_water_mark)
+        rx_high_water_mark = rx_count;
+}
+
+void sioNetStream::log_rx_stats()
+{
+#ifdef DEBUG_NETSTREAM
+    uint64_t now_us = netstream_time_us();
+    if ((now_us - last_rx_stats_us) < NETSTREAM_RX_STATS_INTERVAL_US)
+        return;
+    last_rx_stats_us = now_us;
+    Debug_printf("NETSTREAM RX stats: drops=%lu high_water=%u/%u count=%u\n",
+                 (unsigned long)rx_drop_count,
+                 rx_high_water_mark,
+                 NETSTREAM_RX_RING_SIZE,
+                 rx_count);
+#endif
+}
+
+void sioNetStream::enqueue_rx(const uint8_t *data, int len)
+{
+    for (int i = 0; i < len; i++)
+    {
+        if (rx_count < NETSTREAM_RX_RING_SIZE)
+        {
+            rx_ring[rx_head] = data[i];
+            rx_head = (rx_head + 1) % NETSTREAM_RX_RING_SIZE;
+            rx_count++;
+        }
+        else
+        {
+            // Drop oldest byte to keep the most recent stream data.
+            rx_tail = (rx_tail + 1) % NETSTREAM_RX_RING_SIZE;
+            rx_ring[rx_head] = data[i];
+            rx_head = (rx_head + 1) % NETSTREAM_RX_RING_SIZE;
+            rx_drop_count++;
+        }
+        update_rx_high_water();
+    }
+}
+
+void sioNetStream::enqueue_frame(const uint8_t *data, int len)
+{
+    // Framed (lossy UDP) path: buffer a whole datagram as one frame, evicting the
+    // OLDEST whole frame(s) when over the depth cap or out of physical ring space.
+    // Drops are always whole-frame aligned so the Atari deframer never desyncs.
+    if (len <= 0)
+        return;
+    if (len > NETSTREAM_MAX_FRAME)
+    {
+        // Framed path is for small real-time datagrams; a frame this large can't be
+        // held in inflight[]. Drop it whole (keeps the stream frame-aligned).
+        rx_drop_count++;
+        return;
+    }
+
+    while (frame_count > 0 &&
+           (frame_count >= rx_cap_frames ||
+            frame_count >= NETSTREAM_RX_FRAME_SLOTS ||
+            (int)rx_count + len > NETSTREAM_RX_RING_SIZE))
+    {
+        uint16_t evicted = frame_len[frame_tail];
+        frame_tail = (frame_tail + 1) % NETSTREAM_RX_FRAME_SLOTS;
+        frame_count--;
+        rx_tail = (rx_tail + evicted) % NETSTREAM_RX_RING_SIZE;
+        rx_count -= evicted;
+        rx_drop_count++;
+    }
+
+    for (int i = 0; i < len; i++)
+    {
+        rx_ring[rx_head] = data[i];
+        rx_head = (rx_head + 1) % NETSTREAM_RX_RING_SIZE;
+        rx_count++;
+    }
+    frame_len[frame_head] = (uint16_t)len;
+    frame_head = (frame_head + 1) % NETSTREAM_RX_FRAME_SLOTS;
+    frame_count++;
+    update_rx_high_water();
+}
+
+void sioNetStream::drain_net_to_ring()
+{
+    if (netstreamMode == NetStreamMode::UDP)
+    {
+        // Pull every datagram already queued, not just one, so a burst that arrived
+        // while we were busy doesn't pile up in the kernel UDP receive buffer.
+        int guard = 0;
+        int packetSize;
+        while ((packetSize = netStreamUdp.parsePacket()) > 0 && guard++ < NETSTREAM_RX_DRAIN_MAX_PACKETS)
+        {
+            netStreamUdp.read(buf_net, NETSTREAM_BUFFER_SIZE);
+            if (rx_framed)
+                enqueue_frame(buf_net, packetSize);
+            else
+                enqueue_rx(buf_net, packetSize);
+            last_rx_us = netstream_time_us();
+#ifdef DEBUG_NETSTREAM
+            Debug_printf("STREAM-IN [%llu ms]: ", (unsigned long long)(netstream_time_us() / 1000ULL));
+            util_dump_bytes(buf_net, packetSize);
+#endif
+        }
+    }
+    else if (ensure_netstream_ready())
+    {
+        while (rx_count + NETSTREAM_RX_BACKPRESSURE_RESERVE < NETSTREAM_RX_RING_SIZE)
+        {
+            size_t free_space = NETSTREAM_RX_RING_SIZE - rx_count;
+            if (free_space <= NETSTREAM_RX_BACKPRESSURE_RESERVE)
+                break;
+            free_space -= NETSTREAM_RX_BACKPRESSURE_RESERVE;
+#ifdef ESP_PLATFORM
+            size_t to_read = (free_space > NETSTREAM_BUFFER_SIZE) ? NETSTREAM_BUFFER_SIZE : free_space;
+            int packetSize = recv(netStreamTcp.fd(), (char *)buf_net, to_read, MSG_DONTWAIT);
+            if (packetSize <= 0)
+            {
+                if (packetSize == 0)
+                    netStreamTcp.stop();
+                else if (errno != EWOULDBLOCK && errno != EAGAIN)
+                    netStreamTcp.stop();
+                break;
+            }
+#else
+            size_t available = netStreamTcp.available();
+            if (available == 0)
+                break;
+            size_t to_read = (available > NETSTREAM_BUFFER_SIZE) ? NETSTREAM_BUFFER_SIZE : available;
+            if (to_read > free_space)
+                to_read = free_space;
+            int packetSize = netStreamTcp.read(buf_net, to_read);
+            if (packetSize <= 0)
+                break;
+#endif
+            enqueue_rx(buf_net, packetSize);
+            last_rx_us = netstream_time_us();
+#ifdef DEBUG_NETSTREAM
+            Debug_printf("STREAM-IN [%llu ms]: ", (unsigned long long)(netstream_time_us() / 1000ULL));
+            util_dump_bytes(buf_net, packetSize);
+#endif
+        }
+    }
+    log_rx_stats();
+}
+
 void sioNetStream::pace_to_atari(uint32_t min_gap_us)
 {
     // Pacing to keep NET->SIO output moving even when other paths wait.
+    // Cap bytes per call so a backlog can catch up without holding the SIO service
+    // loop long enough to delay CMD-assert detection. The gap (and the hub's credit
+    // flow-control) still bound the actual rate, so this can't overrun the Atari.
     uint8_t send_count = 0;
-    while (rx_count > 0 && send_count < 16)
+
+    if (rx_framed)
+    {
+        // Framed path: send the in-flight frame byte-by-byte; load the next whole frame
+        // out of the ring when the current one finishes. The in-flight frame lives in
+        // inflight[] (outside the droppable queue), so it is never split by an eviction.
+        while (send_count < NETSTREAM_PACE_MAX_PER_CALL)
+        {
+            if (inflight_pos >= inflight_len)
+            {
+                if (frame_count == 0)
+                    break; // nothing buffered
+                int L = frame_len[frame_tail];
+                frame_tail = (frame_tail + 1) % NETSTREAM_RX_FRAME_SLOTS;
+                frame_count--;
+                for (int j = 0; j < L; j++)
+                {
+                    inflight[j] = rx_ring[rx_tail];
+                    rx_tail = (rx_tail + 1) % NETSTREAM_RX_RING_SIZE;
+                    rx_count--;
+                }
+                inflight_len = L;
+                inflight_pos = 0;
+                if (L == 0)
+                    continue;
+            }
+            uint64_t now_us = netstream_time_us();
+            if ((now_us - last_tx_us) < min_gap_us)
+                break;
+            SYSTEM_BUS.write(&inflight[inflight_pos], 1);
+            inflight_pos++;
+            last_tx_us += min_gap_us;
+            send_count++;
+        }
+        return;
+    }
+
+    // Byte path (lossless MIDI/TCP): drain the ring directly.
+    while (rx_count > 0 && send_count < NETSTREAM_PACE_MAX_PER_CALL)
     {
         uint64_t now_us = netstream_time_us();
         if ((now_us - last_tx_us) < min_gap_us)
@@ -190,7 +393,26 @@ void sioNetStream::sio_enable_netstream()
     rx_head = 0;
     rx_tail = 0;
     rx_count = 0;
+    rx_high_water_mark = 0;
     rx_drop_count = 0;
+    last_rx_stats_us = last_rx_us;
+
+    // Lossy, frame-aligned shallow buffering applies only to UDP non-MIDI streams;
+    // MIDI and TCP stay lossless (full byte ring, no proactive drops).
+    rx_framed = (netstreamMode == NetStreamMode::UDP) && (netstream_port != MIDI_PORT);
+    int cfg_depth = Config.get_network_netstream_rx_depth();
+    int depth = (cfg_depth > 0) ? cfg_depth : NETSTREAM_RX_MAX_FRAMES;
+    if (depth < 2)
+        depth = 2; // need >=2 so an old frame can be shed while one is in flight
+    if (depth > NETSTREAM_RX_FRAME_SLOTS - 1)
+        depth = NETSTREAM_RX_FRAME_SLOTS - 1;
+    rx_cap_frames = depth;
+    frame_head = 0;
+    frame_tail = 0;
+    frame_count = 0;
+    inflight_len = 0;
+    inflight_pos = 0;
+
     Debug_println("NETSTREAM mode ENABLED");
 }
 
@@ -216,7 +438,7 @@ void sioNetStream::sio_disable_netstream()
 
 void sioNetStream::sio_handle_netstream()
 {
-    const uint32_t min_gap_us = (netstream_port == MIDI_PORT) ? NETSTREAM_MIN_GAP_US_MIDI : NETSTREAM_MIN_GAP_US_SIO;
+    const uint32_t min_gap_us = netstream_gap_us_for_baud(netstream_baud, netstream_port);
     uint64_t batch_start_us = 0;
     bool batch_active = false;
 
@@ -260,76 +482,8 @@ void sioNetStream::sio_handle_netstream()
         batch_start_us = 0;
     };
 
-    if (netstreamMode == NetStreamMode::UDP)
-    {
-        // if there’s data available, read a packet
-        int packetSize = netStreamUdp.parsePacket();
-        if (packetSize > 0)
-        {
-            netStreamUdp.read(buf_net, NETSTREAM_BUFFER_SIZE);
-
-            // Buffer incoming UDP bytes for paced UART output.
-            for (int i = 0; i < packetSize; i++)
-            {
-                if (rx_count < NETSTREAM_RX_RING_SIZE)
-                {
-                    rx_ring[rx_head] = buf_net[i];
-                    rx_head = (rx_head + 1) % NETSTREAM_RX_RING_SIZE;
-                    rx_count++;
-                }
-                else
-                {
-                    // Drop oldest byte to keep the most recent stream data.
-                    rx_tail = (rx_tail + 1) % NETSTREAM_RX_RING_SIZE;
-                    rx_ring[rx_head] = buf_net[i];
-                    rx_head = (rx_head + 1) % NETSTREAM_RX_RING_SIZE;
-                    rx_drop_count++;
-                }
-            }
-            last_rx_us = netstream_time_us();
-#ifdef DEBUG_NETSTREAM
-            Debug_printf("STREAM-IN [%llu ms]: ", (unsigned long long)(netstream_time_us() / 1000ULL));
-            util_dump_bytes(buf_net, packetSize);
-#endif
-        }
-    }
-    else if (ensure_netstream_ready())
-    {
-        // if there’s data available, read from the TCP stream
-        size_t available = netStreamTcp.available();
-        while (available > 0)
-        {
-            size_t to_read = (available > NETSTREAM_BUFFER_SIZE) ? NETSTREAM_BUFFER_SIZE : available;
-            int packetSize = netStreamTcp.read(buf_net, to_read);
-            if (packetSize <= 0)
-                break;
-
-            // Buffer incoming TCP bytes for paced UART output.
-            for (int i = 0; i < packetSize; i++)
-            {
-                if (rx_count < NETSTREAM_RX_RING_SIZE)
-                {
-                    rx_ring[rx_head] = buf_net[i];
-                    rx_head = (rx_head + 1) % NETSTREAM_RX_RING_SIZE;
-                    rx_count++;
-                }
-                else
-                {
-                    // Drop oldest byte to keep the most recent stream data.
-                    rx_tail = (rx_tail + 1) % NETSTREAM_RX_RING_SIZE;
-                    rx_ring[rx_head] = buf_net[i];
-                    rx_head = (rx_head + 1) % NETSTREAM_RX_RING_SIZE;
-                    rx_drop_count++;
-                }
-            }
-            last_rx_us = netstream_time_us();
-#ifdef DEBUG_NETSTREAM
-            Debug_printf("STREAM-IN [%llu ms]: ", (unsigned long long)(netstream_time_us() / 1000ULL));
-            util_dump_bytes(buf_net, packetSize);
-#endif
-            available = netStreamTcp.available();
-        }
-    }
+    // Pull all queued inbound datagrams into the ring (drop-oldest on overflow).
+    drain_net_to_ring();
 
     pace_to_atari(min_gap_us);
 
@@ -385,6 +539,9 @@ void sioNetStream::sio_handle_netstream()
                 {
                     fnSystem.delay_microseconds(wait_step_us);
                     waited_us += wait_step_us;
+                    // Keep refilling from the network so inbound isn't starved while
+                    // we wait out an outbound burst (else datagrams pile up upstream).
+                    drain_net_to_ring();
                     pace_to_atari(min_gap_us);
                     if (buf_stream_index >= NETSTREAM_FLUSH_THRESHOLD ||
                         (batch_active && (netstream_time_us() - batch_start_us) >= NETSTREAM_MAX_BATCH_AGE_US))

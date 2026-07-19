@@ -46,7 +46,7 @@ uint8_t sio_checksum(uint8_t *buf, unsigned short len)
    len = length of buffer
    err = along with data, send ERROR status to Atari rather than COMPLETE
 */
-void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
+void virtualDevice::_bus_to_computer(uint8_t *buf, uint16_t len, bool err)
 {
     // Write data frame to computer
     Debug_printf("->SIO write %hu bytes\n", len);
@@ -59,9 +59,9 @@ void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
 
     // Write ERROR or COMPLETE status
     if (err == true)
-        sio_error();
+        _sio_error();
     else
-        sio_complete();
+        _sio_complete();
 
     // Write data frame
     SYSTEM_BUS.write(buf, len);
@@ -78,7 +78,7 @@ void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
    len = length
    Returns checksum
 */
-uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
+uint8_t virtualDevice::_bus_to_peripheral(uint8_t *buf, unsigned short len)
 {
     // Retrieve data frame from computer
     Debug_printf("<-SIO read %hu bytes\n", len);
@@ -112,18 +112,18 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 
     if (ck_rcv != ck_tst)
     {
-        sio_nak();
+        _sio_error();
         Debug_printf("bus_to_peripheral() - Data Frame Chksum error, calc %02x, rcv %02x\n", ck_tst, ck_rcv);
         // return false; // apc
     }
     else
-        sio_ack();
+        _sio_ack();
 
     return ck_rcv; // TODO apc: change to true and update all callers, no need to calculate/check checksum again
 }
 
 // SIO NAK
-void virtualDevice::sio_nak()
+void virtualDevice::_sio_nak()
 {
     SYSTEM_BUS.write('N');
     SYSTEM_BUS.flushOutput();
@@ -134,7 +134,7 @@ void virtualDevice::sio_nak()
 }
 
 // SIO ACK
-void virtualDevice::sio_ack()
+void virtualDevice::_sio_ack()
 {
     SYSTEM_BUS.write('A');
     fnSystem.delay_microseconds(DELAY_T5); //?
@@ -147,7 +147,7 @@ void virtualDevice::sio_ack()
 
 // SIO ACK, delayed for NetSIO sync
 #ifndef ESP_PLATFORM
-void virtualDevice::sio_late_ack()
+void virtualDevice::_sio_late_ack()
 {
     if (SYSTEM_BUS.isBoIP())
     {
@@ -157,13 +157,13 @@ void virtualDevice::sio_late_ack()
     }
     else
     {
-        sio_ack();
+        _sio_ack();
     }
 }
 #endif
 
 // SIO COMPLETE
-void virtualDevice::sio_complete()
+void virtualDevice::_sio_complete()
 {
     fnSystem.delay_microseconds(DELAY_T5);
     SYSTEM_BUS.write('C');
@@ -171,7 +171,7 @@ void virtualDevice::sio_complete()
 }
 
 // SIO ERROR
-void virtualDevice::sio_error()
+void virtualDevice::_sio_error()
 {
     fnSystem.delay_microseconds(DELAY_T5);
     SYSTEM_BUS.write('E');
@@ -181,10 +181,11 @@ void virtualDevice::sio_error()
 // SIO HIGH SPEED REQUEST
 void virtualDevice::sio_high_speed()
 {
-    Debug_print("sio HSIO INDEX\n");
+    transaction_begin(TRANS_STATE::NO_GET);
     int index = SYSTEM_BUS.getHighSpeedIndex();
     uint8_t hsd = index == HSIO_INVALID_INDEX ? 40 : (uint8_t)index;
-    bus_to_computer((uint8_t *)&hsd, 1, false);
+    Debug_printf("sio HSIO INDEX: %d\n", hsd);
+    transaction_put((uint8_t *)&hsd, 1, false);
 }
 
 // Read and process a command frame from SIO
@@ -547,7 +548,7 @@ void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
 {
     if (device_id == FUJI_DEVICEID_FUJINET)
     {
-        _fujiDev = (sioFuji *)pDevice;
+        _fujiDev = dynamic_cast<sioFuji*>(pDevice);
     }
     else if (device_id == FUJI_DEVICEID_SERIAL)
     {

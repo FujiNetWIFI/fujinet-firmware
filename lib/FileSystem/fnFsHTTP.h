@@ -13,6 +13,8 @@
 #define HTTP_CLIENT_CLASS mgHttpClient
 #endif
 
+#include <string>
+
 #include "peoples_url_parser.h"
 #include "fnFS.h"
 #include "fnDirCache.h"
@@ -34,6 +36,9 @@ private:
     // directory cache
     char _last_dir[MAX_PATHLEN];
     DirCache _dircache;
+
+    // Build the fully-qualified, url-encoded URL for a file path under this host.
+    std::string make_file_url(const char *path);
 
 public:
     FileSystemHTTP();

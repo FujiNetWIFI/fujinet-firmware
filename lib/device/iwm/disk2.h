@@ -11,15 +11,6 @@ class iwmDisk2 : public iwmDisk
 protected:
     MediaType *_disk = nullptr;
 
-    // unused because not a smartport device
-    void send_status_reply_packet() override {};
-    void send_extended_status_reply_packet() override {};
-    void send_status_dib_reply_packet() override {};
-    void send_extended_status_dib_reply_packet() override {};
-    void process(iwm_decoded_cmd_t cmd) override {};
-    void iwm_readblock(iwm_decoded_cmd_t cmd) override {};
-    void iwm_writeblock(iwm_decoded_cmd_t cmd) override {};
-
     void shutdown() override;
     char disk_num;
     int track_pos;

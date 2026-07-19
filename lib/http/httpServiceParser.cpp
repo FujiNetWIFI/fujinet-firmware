@@ -153,6 +153,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_ALT_CFG,
         FN_PCLINK_ENABLED,
         FN_GDRIVE_CONNECTED,
+        FN_ONEDRIVE_CONNECTED,
         FN_LASTTAG
     };
 
@@ -288,6 +289,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_ALT_CFG",
         "FN_PCLINK_ENABLED",
         "FN_GDRIVE_CONNECTED",
+        "FN_ONEDRIVE_CONNECTED",
     };
 
     stringstream resultstream;
@@ -652,7 +654,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
                 {
                     strncat(result, "<option value=\"", MAX_PRINTER_LIST_BUFFER-1);
                     strncat(result, PRINTER_CLASS::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
-                    strncat(result, "\">", MAX_PRINTER_LIST_BUFFER);
+                    strncat(result, "\">", MAX_PRINTER_LIST_BUFFER - strlen(result) - 1);
                     strncat(result, PRINTER_CLASS::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
                     strncat(result, "</option>\n", MAX_PRINTER_LIST_BUFFER-1);
                 }
@@ -677,6 +679,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 
     case FN_GDRIVE_CONNECTED:
         resultstream << (Config.get_gdrive_refresh_token().empty() ? "0" : "1");
+        break;
+    case FN_ONEDRIVE_CONNECTED:
+        resultstream << (Config.get_onedrive_refresh_token().empty() ? "0" : "1");
         break;
     default:
         resultstream << tag;

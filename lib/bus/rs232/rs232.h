@@ -5,7 +5,7 @@
 #include "UARTChannel.h"
 #include "ACMChannel.h"
 #include "FujiBusPacket.h"
-#include "../drivewire/BeckerSocket.h"
+#include "BoIPChannel.h"
 #include "global_types.h"
 
 #ifdef ESP_PLATFORM
@@ -16,6 +16,8 @@
 #include <forward_list>
 
 #define RS232_BAUDRATE 115200
+
+#define FUJI_COMMAND_PACKET FujiBusPacket
 
 #if !defined(ESP_PLATFORM) || \
     (FN_UART_BUS == UART_NUM_1 && defined(PIN_UART1_RX)) ||     \
@@ -59,21 +61,8 @@ protected:
 
     bool listen_to_type3_polls = false;
 
-    transState_t _transaction_state = TRANS_STATE::INVALID;
-    virtual void transaction_begin(transState_t expectMoreData);
-    virtual void transaction_complete();
-    virtual void transaction_error();
-    virtual success_is_true transaction_get(void *data, size_t len);
-    virtual void transaction_put(const void *data, size_t len, bool err);
-
-    // FIXME - This is a terrible hack to allow devices to continue to
-    // use the pattern of fetching data on their own instead of
-    // upgrading them fully to work with packets.
-    FujiBusPacket *_legacyPacketData;
-    size_t _legacyDataPosition;
-
     /**
-     * @brief All RS232 commands by convention should return a status command, using bus_to_computer() to return
+     * @brief All RS232 commands by convention should return a status command to return
      * four bytes of status information to be put into DVSTAT ($02EA)
      */
     virtual void rs232_status(FujiStatusReq reqType) = 0;
@@ -82,7 +71,7 @@ protected:
      * @brief All RS232 devices repeatedly call this routine to fan out to other methods for each command.
      * This is typcially implemented as a switch() statement.
      */
-    virtual void rs232_process(FujiBusPacket &packet) = 0;
+    virtual void rs232_process(const FujiBusPacket &packet) = 0;
 
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};
@@ -124,9 +113,12 @@ struct rs232_message_t
 
 // typedef rs232_message_t rs232_message_t;
 
-class systemBus
+class systemBus : public SystemBusBase
 {
 private:
+    FujiBusPacket *_activePacket;
+    size_t _activePacketDataPosition;
+
     std::forward_list<virtualDevice *> _daisyChain;
 
     int _command_frame_counter = 0;
@@ -147,7 +139,7 @@ private:
 #else /* ! FUJINET_OVER_USB */
     UARTChannel _serial;
 #endif /* FUJINET_OVER_USB */
-    BeckerSocket _becker;
+    BoIPChannel _boip;
 
     void _rs232_process_cmd();
     /* void _rs232_process_queue(); */
@@ -174,6 +166,13 @@ public:
 
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
+
+    void transaction_accept(transState_t expectMoreData) override;
+    void transaction_success() override;
+    void transaction_error() override;
+    success_is_true transaction_get(void *data, size_t len) override;
+    using SystemBusBase::transaction_send;
+    void transaction_send(const void *data, size_t len, bool is_error=false) override;
 
     std::unique_ptr<FujiBusPacket> readBusPacket(int first=-1);
     void writeBusPacket(FujiBusPacket &packet);

@@ -14,6 +14,7 @@
 #include <freertos/semphr.h>
 
 #include "../../include/pinmap.h"
+#include "global_types.h"
 
 // #define SPI_II_LEN 27000        // 200 ms at 1 mbps for disk ii + some extra
 #define TRACK_LEN 6646          // https://applesaucefdc.com/woz/reference2/
@@ -237,12 +238,12 @@ public:
 
   // Smartport Bus handling by SPI interface
   int encode_spi_packet();
-  int iwm_send_packet_spi();
+  error_is_true iwm_send_packet_spi();
   int iwm_read_packet_spi(uint8_t *buffer, int packet_len);
   int iwm_read_packet_spi(int packet_len);
   void spi_end();
 
-  size_t decode_data_packet(uint8_t* input_data, uint8_t* output_data); //decode smartport data packet
+  size_t decode_data_packet(uint8_t* input_data, void* output_data); //decode smartport data packet
   size_t decode_data_packet(uint8_t* output_data); //decode smartport data packet
   void encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t *data, uint16_t num);
 

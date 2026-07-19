@@ -33,6 +33,10 @@ typedef struct {
   uint32_t v[32];
 } fe25519;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void fe25519_freeze(fe25519 *r);
 
 void fe25519_unpack(fe25519 *r, const unsigned char x[32]);
@@ -64,5 +68,9 @@ void fe25519_square(fe25519 *r, const fe25519 *x);
 void fe25519_invert(fe25519 *r, const fe25519 *x);
 
 void fe25519_pow2523(fe25519 *r, const fe25519 *x);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

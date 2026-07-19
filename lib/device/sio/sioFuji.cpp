@@ -228,18 +228,16 @@ void sioFuji::sio_copy_file()
 
     if (dataBuf == nullptr)
     {
-        sio_error();
+        transaction_error();
         return;
     }
 
     memset(&csBuf, 0, sizeof(csBuf));
 
-    sio_late_ack(); // quick fix to permit copy to work again
-    ck = bus_to_peripheral(csBuf, sizeof(csBuf));
-
-    if (ck != sio_checksum(csBuf, sizeof(csBuf)))
+    transaction_begin(TRANS_STATE::WILL_GET); // quick fix to permit copy to work again
+    if (!transaction_get(csBuf, sizeof(csBuf)))
     {
-        sio_error();
+        transaction_error();
         free(dataBuf);
         return;
     }
@@ -251,21 +249,21 @@ void sioFuji::sio_copy_file()
     // Check for malformed copyspec.
     if (copySpec.empty() || copySpec.find_first_of("|") == std::string::npos)
     {
-        sio_error();
+        transaction_error();
         free(dataBuf);
         return;
     }
 
     if (cmdFrame.aux1 < 1 || cmdFrame.aux1 > 8)
     {
-        sio_error();
+        transaction_error();
         free(dataBuf);
         return;
     }
 
     if (cmdFrame.aux2 < 1 || cmdFrame.aux2 > 8)
     {
-        sio_error();
+        transaction_error();
         free(dataBuf);
         return;
     }
@@ -296,7 +294,7 @@ void sioFuji::sio_copy_file()
 
     if (sourceFile == nullptr)
     {
-        sio_error();
+        transaction_error();
         free(dataBuf);
         return;
     }
@@ -305,7 +303,7 @@ void sioFuji::sio_copy_file()
 
     if (destFile == nullptr)
     {
-        sio_error();
+        transaction_error();
         fnio::fclose(sourceFile);
         free(dataBuf);
         return;
@@ -340,12 +338,12 @@ void sioFuji::sio_copy_file()
     {
         // Remove the destination file and error
         _fnHosts[destSlot].file_remove((char *)destPath.c_str());
-        sio_error();
+        transaction_error();
         Debug_printf("Copy File Error! wCount: %d, rCount: %d, rTotal: %d, Expect: %d\n", writeCount, readCount, readTotal, expected);
     }
     else
     {
-        sio_complete();
+        transaction_complete();
     }
 
     // copyEnd:
@@ -756,12 +754,12 @@ void sioFuji::sio_qrcode_length()
     if (!len)
     {
         Debug_printf("QR code buffer is 0 bytes, sending error.\n");
-        bus_to_computer(response, sizeof(response), true);
+        transaction_put(response, sizeof(response), true);
     }
 
     Debug_printf("QR code buffer length: %u bytes\n", len);
 
-    bus_to_computer(response, sizeof(response), false);
+    transaction_put(response, sizeof(response), false);
 }
 
 void sioFuji::sio_qrcode_output()
@@ -785,7 +783,7 @@ void sioFuji::sio_qrcode_output()
         Debug_printf("Requested %u bytes\n", len);
     }
 
-    bus_to_computer(&_qrManager.code[0], len, false);
+    transaction_put(&_qrManager.code[0], len, false);
 
     _qrManager.code.clear();
     _qrManager.code.shrink_to_fit();
@@ -1072,6 +1070,9 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     switch (cmdFrame.comnd)
     {
     case FUJICMD_HSIO_INDEX:
+        /* ACK is required here since it's not done elsewhere for this device/command. The bus should probably
+        * handle this instead. Disk and network devices currently send their own ACK for this
+        */
         sio_high_speed();
         break;
     case FUJICMD_SET_HSIO_INDEX:

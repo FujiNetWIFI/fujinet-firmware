@@ -154,7 +154,7 @@ void modem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
         return;
 
     Debug_println("Modem acknowledging Type 4 Poll");
-    sio_ack();
+    transaction_begin(TRANS_STATE::NO_GET);
 
     // Acknowledge and return expected
     uint16_t fsize = filesize;
@@ -166,7 +166,7 @@ void modem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
 
     fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY);
 
-    bus_to_computer(type4response, sizeof(type4response), false);
+    transaction_put(type4response, sizeof(type4response), false);
 
     // TODO: Handle the subsequent request to load the handler properly by providing the relocation blocks
 }
@@ -197,7 +197,7 @@ void modem::sio_poll_1()
         return;
 
     // Acknoledge before continuing
-    sio_ack();
+    transaction_begin(TRANS_STATE::NO_GET);
 
     uint8_t bootBlock[12] = {
         0x50,       // DDEVIC
@@ -221,7 +221,7 @@ void modem::sio_poll_1()
 
     fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY * 2);
 
-    bus_to_computer(bootBlock, sizeof(bootBlock), false);
+    transaction_put(bootBlock, sizeof(bootBlock), false);
 }
 
 // 0x21 / '!' - RELOCATOR DOWNLOAD
@@ -253,13 +253,13 @@ void modem::sio_send_firmware(uint8_t loadcommand)
     // NAK if we failed to get this
     if (codesize < 0 || code == NULL)
     {
-        sio_nak();
+        transaction_error();
         if (code)
             free(code);
         return;
     }
     // Acknowledge before continuing
-    sio_ack();
+    transaction_begin(TRANS_STATE::NO_GET);
 
     // We need a delay here when working in high-speed mode.
     // Doesn't negatively affect normal speed operation.
@@ -270,7 +270,7 @@ void modem::sio_send_firmware(uint8_t loadcommand)
     Debug_printf("Modem sending %d bytes of %s code\n", codesize,
                  loadcommand == MODEMCMD_LOAD_RELOCATOR ? "relocator" : "handler");
 
-    bus_to_computer(code, codesize, false);
+    transaction_put(code, codesize, false);
 
     // Free the buffer!
     free(code);
@@ -290,17 +290,15 @@ void modem::sio_write()
     */
     if (cmdFrame.aux1 == 0)
     {
-        sio_complete();
+        transaction_complete();
     }
     else
     {
         memset(txBuf, 0, sizeof(txBuf));
 
-        ck = bus_to_peripheral(txBuf, 64);
-
-        if (ck != sio_checksum(txBuf, 64))
+        if (!transaction_get(txBuf, 64))
         {
-            sio_error();
+            transaction_error();
         }
         else
         {
@@ -323,7 +321,7 @@ void modem::sio_write()
                     tcpClient.write(txBuf, cmdFrame.aux1);
             }
 
-            sio_complete();
+            transaction_complete();
         }
     }
 }
@@ -369,7 +367,7 @@ void modem::sio_status()
 
     Debug_printf("modem::sio_status(%02x,%02x)\n", mdmStatus[0], mdmStatus[1]);
 
-    bus_to_computer(mdmStatus, sizeof(mdmStatus), false);
+    transaction_put(mdmStatus, sizeof(mdmStatus), false);
 }
 
 // 0x41 / 'A' - CONTROL
@@ -421,7 +419,7 @@ void modem::sio_control()
         }
     }
     // for now, just complete
-    sio_complete();
+    transaction_complete();
 }
 
 // 0x42 / 'B' - CONFIGURE
@@ -454,7 +452,7 @@ void modem::sio_config()
          0: Watch CRX line
     */
     // Complete and then set newbaud
-    sio_complete();
+    transaction_complete();
 
     uint8_t newBaud = 0x0F & cmdFrame.aux1; // Get baud rate
     //uint8_t wordSize = 0x30 & cmdFrame.aux1; // Get word size
@@ -501,7 +499,7 @@ void modem::sio_config()
 void modem::sio_set_dump()
 {
     modemSniffer->setEnable(cmdFrame.aux1);
-    sio_complete();
+    transaction_complete();
 }
 
 // 0x58 / 'X' - STREAM
@@ -555,7 +553,7 @@ void modem::sio_stream()
         break;
     }
 
-    bus_to_computer((uint8_t *)response, sizeof(response), false);
+    transaction_put((uint8_t *)response, sizeof(response), false);
 
     fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY); // macOS workaround (flush on uart was not working)
     SYSTEM_BUS.setBaudrate(modemBaud);
@@ -579,19 +577,19 @@ void modem::sio_listen()
     listenPort = cmdFrame.aux2 * 256 + cmdFrame.aux1;
 
     if (listenPort < 1)
-        sio_nak();
+        transaction_error();
     else
-        sio_ack();
+        transaction_begin(TRANS_STATE::NO_GET);
 
     tcpServer.setMaxClients(1);
     int res = tcpServer.begin(listenPort);
     if (res == 0)
     {
-        sio_error();
+        transaction_error();
     }
     else
     {
-        sio_complete();
+        transaction_complete();
     }
 }
 
@@ -600,11 +598,11 @@ void modem::sio_listen()
  */
 void modem::sio_unlisten()
 {
-    sio_ack();
+    transaction_begin(TRANS_STATE::NO_GET);
     fnLedManager.blink(LED_BT);
     tcpClient.stop();
     tcpServer.stop();
-    sio_complete();
+    transaction_complete();
 }
 
 /**
@@ -612,7 +610,7 @@ void modem::sio_unlisten()
  */
 void modem::sio_baudlock()
 {
-    sio_ack();
+    transaction_begin(TRANS_STATE::NO_GET);
     baudLock = (cmdFrame.aux1 > 0 ? true : false);
     modemBaud = sio_get_aux();
 
@@ -620,7 +618,7 @@ void modem::sio_baudlock()
 
     Debug_printf("baudLock: %d\n", baudLock);
 
-    sio_complete();
+    transaction_complete();
 }
 
 /**
@@ -628,14 +626,14 @@ void modem::sio_baudlock()
  */
 void modem::sio_autoanswer()
 {
-    sio_ack();
+    transaction_begin(TRANS_STATE::NO_GET);
     autoAnswer = (cmdFrame.aux1 > 0 ? true : false);
 
     fnLedManager.blink(LED_BT);
 
     Debug_printf("autoanswer: %d\n", autoAnswer);
 
-    sio_complete();
+    transaction_complete();
 }
 
 void modem::at_connect_resultCode(int modemBaud)
@@ -1910,15 +1908,15 @@ void modem::sio_process(uint32_t commanddata, uint8_t checksum)
             break;
 
         case MODEMCMD_CONTROL:
-            sio_ack();
+            transaction_begin(TRANS_STATE::NO_GET);
             sio_control();
             break;
         case MODEMCMD_CONFIGURE:
-            sio_ack();
+            transaction_begin(TRANS_STATE::NO_GET);
             sio_config();
             break;
         case MODEMCMD_SET_DUMP:
-            sio_ack();
+            transaction_begin(TRANS_STATE::NO_GET);
             sio_set_dump();
             break;
         case MODEMCMD_LISTEN:
@@ -1934,19 +1932,19 @@ void modem::sio_process(uint32_t commanddata, uint8_t checksum)
             sio_autoanswer();
             break;
         case MODEMCMD_STATUS:
-            sio_ack();
+            transaction_begin(TRANS_STATE::NO_GET);
             sio_status();
             break;
         case MODEMCMD_WRITE:
-            sio_late_ack();
+            transaction_begin(TRANS_STATE::WILL_GET);
             sio_write();
             break;
         case MODEMCMD_STREAM:
-            sio_ack();
+            transaction_begin(TRANS_STATE::NO_GET);
             sio_stream();
             break;
         default:
-            sio_nak();
+            transaction_error();
         }
     }
 }

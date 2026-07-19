@@ -3,7 +3,7 @@
 #include "keyboard.h"
 
 
-TaskHandle_t kbTask;
+//TaskHandle_t kbTask;
 
 // ctor
 adamKeyboard::adamKeyboard()
@@ -75,23 +75,23 @@ void adamKeyboard::adamnet_control_ready()
     adamnet_send(0x91); // Ack
 }
 
-void adamKeyboard::adamnet_process(uint8_t b)
+void adamKeyboard::adamnet_process(const FujiAdamPacket &packet)
 {
-    unsigned char c = b >> 4;
-
-    switch (c)
+    switch (packet.type())
     {
-    case MN_STATUS:
+    case APT::MN_STATUS:
         adamnet_control_status();
         break;
-    case MN_RECEIVE:
+    case APT::MN_RECEIVE:
         adamnet_control_receive();
         break;
-    case MN_CLR:
+    case APT::MN_CLR:
         adamnet_control_clr();
         break;
-    case MN_READY:
+    case APT::MN_READY:
         adamnet_control_ready();
+        break;
+    default:
         break;
     }
 }

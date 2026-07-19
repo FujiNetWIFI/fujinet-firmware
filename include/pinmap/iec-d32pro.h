@@ -4,6 +4,7 @@
 #ifdef PINMAP_IEC_D32PRO
 
 /* SD Card */
+#define PIN_CARD_DETECT         GPIO_NUM_NC
 #define PIN_SD_HOST_CS          GPIO_NUM_4  // LOLIN D32 Pro
 
 /* Buttons */

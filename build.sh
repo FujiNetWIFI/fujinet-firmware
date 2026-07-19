@@ -81,7 +81,7 @@ function show_help {
   echo ""
   echo "fujinet-pc (cmake) options:"
   echo "   -c       # run clean before build"
-  echo "   -p TGT   # perform PC build instead of ESP, for given target (e.g. APPLE|ATARI)"
+  echo "   -p TGT   # perform PC build instead of ESP, for given target (e.g. APPLE|ATARI|ADAM)"
   echo "   -g       # enable debug in generated fujinet-pc exe"
   echo "   -G GEN   # Use GEN as the Generator for cmake (e.g. -G \"Unix Makefiles\" )"
   echo ""
@@ -360,6 +360,13 @@ if [ ! -z "$PC_TARGET" ] ; then
   cmake --build . --target dist
   if [ $? -ne 0 ] ; then
     echo "Error running cmake distribution. Aborting"
+    exit 1
+  fi
+
+  # run unit tests
+  ctest -V --progress
+    if [ $? -ne 0 ] ; then
+    echo "Error running unit tests. Aborting"
     exit 1
   fi
 

@@ -75,16 +75,16 @@ void sioCPM::sio_process(uint32_t commanddata, uint8_t checksum)
 
     switch (cmdFrame.comnd)
     {
-    case 'G':
-        sio_ack();
+    case CPMCMD_INIT:
+        transaction_begin(TRANS_STATE::NO_GET);
         fnSystem.delay(10);
-        sio_complete();
+        transaction_complete();
         fnSystem.delay(5000);
         init_cpm(9600);
         cpmActive = true;
         break;
     default:
-        sio_nak();
+        transaction_error();
         break;
     }
 }

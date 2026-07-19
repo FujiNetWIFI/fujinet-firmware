@@ -24,6 +24,7 @@
 
 constexpr const char *const adamPrinter::printer_model_str[PRINTER_INVALID];
 
+#ifdef ESP_PLATFORM
 static QueueHandle_t pxq;
 
 void printerTask(void *param)
@@ -54,6 +55,7 @@ void printerTask(void *param)
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
+#endif /* ESP_PLATFORM */
 
 // Constructor just sets a default printer type
 adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
@@ -61,23 +63,27 @@ adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
     _storage = filesystem;
     set_printer_type(print_type);
 
+#ifdef ESP_PLATFORM
     pxq = xQueueCreate(160, sizeof(PrintItem));
 
     xTaskCreatePinnedToCore(printerTask,"ptsk",4096,this,PRINTER_PRIORITY,&thPrinter,0);
+#endif /* ESP_PLATFORM */
 }
 
 adamPrinter::~adamPrinter()
 {
+#ifdef ESP_PLATFORM
     if (thPrinter != nullptr)
         vTaskDelete(thPrinter);
+
+    vQueueDelete(pxq);
+#endif /* ESP_PLATFORM */
 
     if (_pptr != nullptr)
     {
         delete _pptr;
         _pptr = nullptr;
     }
-
-    vQueueDelete(pxq);
 }
 
 adamPrinter::printer_type adamPrinter::match_modelname(std::string model_name)
@@ -97,6 +103,7 @@ void adamPrinter::adamnet_control_status()
     adamnet_send_buffer(c, sizeof(c));
 }
 
+#ifdef ESP_PLATFORM
 void adamPrinter::adamnet_control_send()
 {
     PrintItem pi;
@@ -107,40 +114,60 @@ void adamPrinter::adamnet_control_send()
     adamnet_recv_buffer(pi.buf, pi.len);
     adamnet_recv(); // ck
 
-    // AdamNet.start_time = esp_timer_get_time();
+    // AdamNet.start_time = GET_TIMESTAMP();
     adamnet_response_ack();
 
     xQueueSend(pxq, &pi, portMAX_DELAY);
 
     _last_ms = fnSystem.millis();
 }
+#else
+void adamPrinter::adamnet_control_send()
+{
+    size_t len = adamnet_recv_length();
+    uint8_t *pbuf = _pptr->provideBuffer();
+
+    adamnet_recv_buffer(pbuf, len);
+    adamnet_recv(); // ck
+
+    // AdamNet.start_time = GET_TIMESTAMP();
+    adamnet_response_ack();
+
+    if (len)
+        _pptr->process(len,0,0);
+
+    _last_ms = fnSystem.millis();
+}
+#endif /* ESP_PLATFORM */
 
 void adamPrinter::adamnet_control_ready()
 {
-    SYSTEM_BUS.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
 
     if (getPrinterPtr()->is_printing)
         adamnet_response_nack();
+#ifdef ESP_PLATFORM
     else if (!uxQueueSpacesAvailable(pxq))
         adamnet_response_nack();
+#endif /* ESP_PLATFORM */
     else
         adamnet_response_ack();
 }
 
-void adamPrinter::adamnet_process(uint8_t b)
+void adamPrinter::adamnet_process(const FujiAdamPacket &packet)
 {
-    unsigned char c = b >> 4;
-
-    switch (c)
+    switch (packet.type())
     {
-    case MN_STATUS:
+    case APT::MN_STATUS:
         adamnet_control_status();
         break;
-    case MN_SEND:
+    case APT::MN_SEND:
         adamnet_control_send();
         break;
-    case MN_READY:
+    case APT::MN_READY:
         adamnet_control_ready();
+        break;
+    default:
         break;
     }
 }

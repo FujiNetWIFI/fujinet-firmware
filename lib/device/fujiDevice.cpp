@@ -26,6 +26,7 @@
 #include "fnWiFi.h"
 #include "fsFlash.h"
 #include "fnFsTNFS.h"
+#include "fujiDeviceID.h"
 
 #include "led.h"
 #include "utils.h"
@@ -200,6 +201,16 @@ void fujiDevice::shutdown()
 {
     for (int i = 0; i < _totalDiskDevices; i++)
         _fnDisks[i].disk_dev.unmount();
+
+    // Clean the mounts and mount tracking, so they re-mount after a restart.
+    for (int i = 0; i < MAX_HOSTS; i++)
+    {
+        fujiHostType htype = _fnHosts[i].get_type();
+        if (htype != HOSTTYPE_UNINITIALIZED && htype != HOSTTYPE_LOCAL)
+            _fnHosts[i].unmount_success();
+        hostMounted[i] = false;
+    }
+    _startup_mount_lock.store(false);
 }
 
 // Disk Image Rotate
@@ -337,7 +348,7 @@ void fujiDevice::fujicmd_net_get_ssid()
 }
 
 // Mount Server
-success_is_true fujiDevice::fujicore_mount_host_success(unsigned hostSlot)
+success_is_true fujiDevice::fujicore_mount_host_success(uint8_t hostSlot)
 {
     Debug_println("Fuji cmd: MOUNT HOST");
 
@@ -356,9 +367,15 @@ success_is_true fujiDevice::fujicore_mount_host_success(unsigned hostSlot)
     RETURN_SUCCESS_AS_TRUE();
 }
 
-success_is_true fujiDevice::fujicmd_mount_host_success(unsigned hostSlot)
+success_is_true fujiDevice::fujicmd_mount_host_success(uint8_t hostSlot)
 {
     transaction_begin(TRANS_STATE::NO_GET);
+    if (hostSlot >= MAX_HOSTS)
+    {
+        transaction_error();
+        RETURN_ERROR_AS_FALSE();
+    }
+
     if (!fujicore_mount_host_success(hostSlot))
     {
         Debug_println("fujicore_mount_host_success returned false");
@@ -557,6 +574,10 @@ void fujiDevice::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
                 fBoot = fnTNFS.fnfile_open(boot_img.c_str());
             }
         }
+        break;
+    case 3:
+        boot_img = "/hisioboot-fujinet" + _diskImageExtension;
+        fBoot = fsFlash.fnfile_open(boot_img.c_str());
         break;
     default:
         Debug_printf("Invalid boot mode: %d\n", image_id);
@@ -889,6 +910,7 @@ std::optional<std::string> fujiDevice::fujicore_read_directory_entry(size_t maxl
     }
 
     result += filename;
+    result += '\0'; // Don't forget the null terminator for fixed-length packets
     return result;
 }
 
@@ -950,8 +972,8 @@ dirEntryDetails fujiDevice::_additional_direntry_details(fsdir_entry_t *f)
     return details;
 }
 
-success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot,
-                                                      std::string copySpec)
+success_is_true fujiDevice::fujicore_copy_file_success(uint8_t sourceSlot, uint8_t destSlot,
+                                                       std::string copySpec)
 {
     std::string sourcePath;
     std::string destPath;
@@ -959,22 +981,20 @@ success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_
     fnFile *destFile;
     char *dataBuf;
 
-    transaction_begin(TRANS_STATE::NO_GET);
-    Debug_printf("copySpec: %s\n", copySpec.c_str());
-
     // Check for malformed copyspec.
     if (copySpec.empty() || copySpec.find_first_of("|") == std::string::npos)
-    {
-        transaction_error();
         RETURN_ERROR_AS_FALSE();
-    }
+
+    // Protocol sends 1-based slot numbers; convert to 0-based array indices.
+    if (sourceSlot == 0 || destSlot == 0)
+        RETURN_ERROR_AS_FALSE();
+
+    sourceSlot--;
+    destSlot--;
 
     if (!validate_host_slot(sourceSlot, "copy_file_source")
         || !validate_host_slot(destSlot, "copy_file_dest"))
-    {
-        transaction_error();
         RETURN_ERROR_AS_FALSE();
-    }
 
     // Chop up copyspec.
     sourcePath = copySpec.substr(0, copySpec.find_first_of("|"));
@@ -996,16 +1016,12 @@ success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_
     sourceFile = _fnHosts[sourceSlot].fnfile_open(
         sourcePath.c_str(), (char *)sourcePath.c_str(), sourcePath.size() + 1, "rb");
     if (sourceFile == nullptr)
-    {
-        transaction_error();
         RETURN_ERROR_AS_FALSE();
-    }
 
     destFile = _fnHosts[destSlot].fnfile_open(destPath.c_str(), (char *)destPath.c_str(),
                                               destPath.size() + 1, "wb");
     if (destFile == nullptr)
     {
-        transaction_error();
         fnio::fclose(sourceFile);
         RETURN_ERROR_AS_FALSE();
     }
@@ -1013,7 +1029,6 @@ success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_
     dataBuf = (char *)malloc(532);
     if (dataBuf == nullptr)
     {
-        transaction_error();
         fnio::fclose(sourceFile);
         RETURN_ERROR_AS_FALSE();
     }
@@ -1025,12 +1040,24 @@ success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_
         fnio::fwrite(dataBuf, 1, count, destFile);
     } while (count > 0);
 
-    transaction_complete();
-
     // copyEnd:
     fnio::fclose(sourceFile);
     fnio::fclose(destFile);
     free(dataBuf);
+    RETURN_SUCCESS_AS_TRUE();
+}
+
+success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot,
+                                                      std::string copySpec)
+{
+    transaction_begin(TRANS_STATE::NO_GET);
+
+    if (!fujicore_copy_file_success(sourceSlot, destSlot, copySpec)) {
+        transaction_error();
+        RETURN_ERROR_AS_FALSE();
+    }
+
+    transaction_complete();
     RETURN_SUCCESS_AS_TRUE();
 }
 
@@ -1292,7 +1319,10 @@ void fujiDevice::fujicmd_write_host_slots()
 
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
     if (!transaction_get(&hostSlots, sizeof(hostSlots)))
+    {
         transaction_error();
+        return;
+    }
 
     for (int i = 0; i < MAX_HOSTS; i++)
     {
@@ -1357,9 +1387,9 @@ void fujiDevice::fujicmd_set_host_prefix(uint8_t hostSlot, const char *prefix)
 {
     char buffer[MAX_HOST_PREFIX_LEN];
 
-    transaction_begin(TRANS_STATE::WILL_GET);
     if (!prefix)
     {
+        transaction_begin(TRANS_STATE::WILL_GET);
         if (!transaction_get(buffer, MAX_FILENAME_LEN))
         {
             transaction_error();
@@ -1367,6 +1397,8 @@ void fujiDevice::fujicmd_set_host_prefix(uint8_t hostSlot, const char *prefix)
         }
         prefix = buffer;
     }
+    else
+        transaction_begin(TRANS_STATE::NO_GET);
 
     Debug_printf("Fuji cmd: SET HOST PREFIX %uh \"%s\"\n", hostSlot, prefix);
 
@@ -1620,28 +1652,40 @@ void fujiDevice::fujicmd_write_app_key(uint16_t keylen, uint16_t readlen)
     transaction_begin(TRANS_STATE::WILL_GET);
     Debug_printf("Fuji cmd: WRITE APPKEY (keylen = %hu)\n", keylen);
 
-    // Data for  FUJICMD_WRITE_APPKEY
-    uint8_t value[MAX_APPKEY_LEN];
-
     if (!readlen)
         readlen = keylen;
-    if (!transaction_get(value, readlen))
+
+    // Size the buffer to readlen (controller-supplied) so the stream stays in
+    // sync; a fixed MAX_APPKEY_LEN buffer overflowed the stack when readlen > 64.
+    std::vector<uint8_t> value(readlen);
+    if (!transaction_get(value.data(), readlen))
     {
         transaction_error();
         return;
     }
 
+    // Store at most MAX_APPKEY_LEN bytes.
+    size_t storelen = keylen;
+    if (storelen > value.size())
+        storelen = value.size();
+    if (storelen > MAX_APPKEY_LEN)
+    {
+        Debug_printf("WRITE APPKEY truncated from %hu to %d bytes\n", keylen, MAX_APPKEY_LEN);
+        storelen = MAX_APPKEY_LEN;
+    }
+
     int err;
-    int count = fujicore_write_app_key(std::vector<uint8_t>(value, value + keylen), &err);
+    int count = fujicore_write_app_key(
+        std::vector<uint8_t>(value.begin(), value.begin() + storelen), &err);
     if (count < 0)
     {
         transaction_error();
         return;
     }
 
-    if (count != keylen)
+    if ((size_t)count != storelen)
     {
-        Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", count, keylen, err);
+        Debug_printf("Only wrote %u bytes of expected %zu, errno=%d\n", count, storelen, err);
         transaction_error();
     }
 

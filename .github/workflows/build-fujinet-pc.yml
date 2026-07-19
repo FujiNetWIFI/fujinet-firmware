@@ -35,7 +35,7 @@ on:
         required: false
         default: 'master'
         type: string
-  
+
   schedule:
     - cron: '12 3 * * *'
 
@@ -194,10 +194,10 @@ jobs:
 
     - name: 'Get build version'
       id: version
-      working-directory: build/dist
       run: |
-        ./fujinet -V
-        echo "fujinet=$(./fujinet -V | awk '{if(tolower($1)=="fujinet-pc") print $2}')" >> $GITHUB_OUTPUT
+        HEADER_FILE="include/version.h"
+        VERSION=$(grep "FN_VERSION_FULL" "$HEADER_FILE" | head -n 1 | sed 's/.*"\(.*\)".*/\1/')
+        echo "fujinet=$VERSION" >> $GITHUB_OUTPUT
         echo "build_date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
     - name: 'Tar dist files'

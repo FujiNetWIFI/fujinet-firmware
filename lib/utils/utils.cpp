@@ -3,7 +3,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
+#include <ctime>
 #include <map>
 #include <sstream>
 #include <stack>
@@ -323,33 +325,39 @@ std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool 
 }
 #endif /* !defined BUILD_RS232 */
 
-std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir)
+std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir, int width)
 {
 #ifdef BUILD_COCO
-#define LONG_ENTRY_TRIM_LEN 25
+#define LONG_ENTRY_RESERVE 6
 #define LONG_ENTRY_EOL "\x0D"
-    std::string returned_entry = "                               ";
 #else
-#define LONG_ENTRY_TRIM_LEN 30
+#define LONG_ENTRY_RESERVE 7
 #define LONG_ENTRY_EOL "\x9B"
-    std::string returned_entry = "                                     ";
 #endif /* BUILD_COCO */
+    // Width comes from the caller (NetworkProtocol::dirLongWidth); guard against
+    // an unset value.
+    if (width <= 0)
+        width = 37;
+    // Filenames longer than this wrap to a second line; the remainder is the
+    // size field reserved at the end of the entry.
+    const int trim_len = width - LONG_ENTRY_RESERVE;
+    std::string returned_entry(width, ' ');
     std::string stylized_filesize;
 
-    char tmp[8];
+    char tmp[12];
 
     if (is_dir == true)
         filename += "/";
 
-    // Double size of returned entry if > 30 chars.
+    // Double size of returned entry if filename too long for the width.
     // Add EOL so SpartaDOS doesn't truncate record. grrr.
-    if (filename.length() > LONG_ENTRY_TRIM_LEN)
+    if ((int)filename.length() > trim_len)
         returned_entry += LONG_ENTRY_EOL + returned_entry;
 
     returned_entry.replace(0, filename.length(), filename);
 
     if (fileSize > 1048576)
-        snprintf(tmp, sizeof(tmp), "%2uM", (unsigned int)(fileSize >> 20));
+        snprintf(tmp, sizeof(tmp), "%.1fM", (float)fileSize / 1048576.0f);
     else if (fileSize > 1024)
         snprintf(tmp, sizeof(tmp), "%4uK", (unsigned int)(fileSize >> 10));
     else
@@ -411,6 +419,184 @@ std::string util_long_entry_apple2_80col(std::string filename, size_t fileSize, 
     // Still trim to 80 columns for the returned value
     returned_entry = string(tmp, 80);
     return returned_entry;
+}
+
+// CoCo 80-col directory entry with Google Drive file ID embedded in the middle.
+// Format: NAME(25) + SP + ID(33) + SP + SIZE(4-5) = ~65 chars, fits in 80 columns.
+// First token = filename, last token = size — backward-compatible with old parsers.
+// Middle token = Google Drive file ID — new parsers extract it for Drive URL construction.
+std::string util_long_entry_with_gdrive_id(std::string filename, size_t fileSize, bool is_dir, const std::string &file_id)
+{
+    char size_tmp[12];
+
+    if (is_dir)
+        filename += "/";
+
+    // Filename field: exactly 25 chars
+    if (filename.length() > 25)
+        filename = filename.substr(0, 25);
+    while (filename.length() < 25)
+        filename += ' ';
+
+    // File ID field: exactly 33 chars (Google Drive IDs are typically 28-33 chars)
+    std::string id = file_id;
+    if (id.length() > 33)
+        id = id.substr(0, 33);
+    while (id.length() < 33)
+        id += ' ';
+
+    // Size field
+    if (fileSize > 1048576)
+        snprintf(size_tmp, sizeof(size_tmp), "%.1fM", (float)fileSize / 1048576.0f);
+    else if (fileSize > 1024)
+        snprintf(size_tmp, sizeof(size_tmp), "%4uK", (unsigned int)(fileSize >> 10));
+    else
+        snprintf(size_tmp, sizeof(size_tmp), "%4u", (unsigned int)fileSize);
+
+    return filename + ' ' + id + ' ' + std::string(size_tmp);
+}
+
+// Crunch a filename to a legal ProDOS 8 name: uppercase; letters/digits/'.' only;
+// must begin with a letter (prefix 'A' otherwise); max 15 chars.
+std::string util_crunch_prodos(std::string filename)
+{
+    std::string out;
+    for (char c : filename)
+    {
+        char uc = (char)::toupper((unsigned char)c);
+        if ((uc >= 'A' && uc <= 'Z') || (uc >= '0' && uc <= '9') || uc == '.')
+            out += uc;
+    }
+    if (out.empty() || out[0] < 'A' || out[0] > 'Z')
+        out = "A" + out;
+    if (out.length() > 15)
+        out = out.substr(0, 15);
+    return out;
+}
+
+// Platform-specific filename crunch used by resolve(): ProDOS on Apple II, 8.3 elsewhere.
+std::string util_crunch_platform(std::string filename)
+{
+#ifdef BUILD_APPLE
+    return util_crunch_prodos(filename);
+#else
+    return util_crunch(filename);
+#endif
+}
+
+// Map a filename to a 3-char ProDOS file type. Directories are DIR; unknown -> BIN.
+const char *prodos_filetype(const std::string &filename, bool is_dir)
+{
+    if (is_dir)
+        return "DIR";
+
+    size_t dot = filename.find_last_of('.');
+    if (dot == std::string::npos)
+        return "BIN";
+
+    std::string ext = filename.substr(dot + 1);
+    for (auto &c : ext)
+        c = (char)::toupper((unsigned char)c);
+
+    if (ext == "TXT")                    return "TXT";
+    if (ext == "BAS")                    return "BAS";
+    if (ext == "SYS" || ext == "SYSTEM") return "SYS";
+    if (ext == "BIN")                    return "BIN";
+
+    return "BIN";
+}
+
+// ProDOS block count for a byte size (512-byte blocks, minimum 1).
+unsigned util_prodos_blocks(size_t fileSize)
+{
+    unsigned blocks = (unsigned)((fileSize + 511) / 512);
+    return blocks < 1 ? 1 : blocks;
+}
+
+// ProDOS date "DD-MMM-YY", or "<NO DATE>" when the timestamp is unknown (0).
+std::string util_prodos_date(uint32_t unixtime)
+{
+    if (unixtime == 0)
+        return "<NO DATE>";
+
+    static const char *months[] = {
+        "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+        "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+
+    time_t t = (time_t)unixtime;
+    struct tm *lt = localtime(&t);
+    if (lt == nullptr)
+        return "<NO DATE>";
+
+    char buf[12];
+    snprintf(buf, sizeof(buf), "%2d-%s-%02d",
+             lt->tm_mday, months[lt->tm_mon % 12], (lt->tm_year + 1900) % 100);
+    return std::string(buf);
+}
+
+// ProDOS time "HH:MM" (24-hr), or empty when the timestamp is unknown (0).
+std::string util_prodos_time(uint32_t unixtime)
+{
+    if (unixtime == 0)
+        return "";
+
+    time_t t = (time_t)unixtime;
+    struct tm *lt = localtime(&t);
+    if (lt == nullptr)
+        return "";
+
+    char buf[8];
+    snprintf(buf, sizeof(buf), "%2d:%02d", lt->tm_hour, lt->tm_min);
+    return std::string(buf);
+}
+
+// One 40-col ProDOS CAT row. Column widths mirror the CAT header built in
+// NetworkProtocolFS::open_dir(): [lock:1][name:15] [type:4] [blocks:6]  [mod:9]
+std::string util_long_entry_apple2_cat(std::string filename, size_t fileSize, bool is_dir, bool is_locked, uint32_t modified_time)
+{
+    char buf[48];
+    snprintf(buf, sizeof(buf), "%c%-15.15s %-4.4s %6u  %-9.9s",
+             is_locked ? '*' : ' ',
+             util_crunch_prodos(filename).c_str(),
+             prodos_filetype(filename, is_dir),
+             util_prodos_blocks(fileSize),
+             util_prodos_date(modified_time).c_str());
+    return std::string(buf);
+}
+
+// One 80-col ProDOS CATALOG row. Column widths mirror the CATALOG header built in
+// NetworkProtocolFS::open_dir():
+// [lock:1][name:15] [type:4] [blocks:6]  [mod:15]  [created:15]  [endfile:8]
+std::string util_long_entry_apple2_catalog(std::string filename, size_t fileSize, bool is_dir, bool is_locked, uint32_t modified_time, uint32_t created_time)
+{
+    std::string modstr = util_prodos_date(modified_time);
+    std::string modtime = util_prodos_time(modified_time);
+    if (!modtime.empty())
+        modstr += " " + modtime;
+
+    std::string crestr = util_prodos_date(created_time);
+    std::string cretime = util_prodos_time(created_time);
+    if (!cretime.empty())
+        crestr += " " + cretime;
+
+    std::string endstr;
+    if (!is_dir)
+    {
+        char e[12];
+        snprintf(e, sizeof(e), "%u", (unsigned)fileSize);
+        endstr = e;
+    }
+
+    char buf[96];
+    snprintf(buf, sizeof(buf), "%c%-15.15s %-4.4s %6u  %-15.15s  %-15.15s  %8s",
+             is_locked ? '*' : ' ',
+             util_crunch_prodos(filename).c_str(),
+             prodos_filetype(filename, is_dir),
+             util_prodos_blocks(fileSize),
+             modstr.c_str(),
+             crestr.c_str(),
+             endstr.c_str());
+    return std::string(buf);
 }
 
 /* Shortens the source string by splitting it in to shorter halves connected by "..." if it won't fit in the destination buffer.

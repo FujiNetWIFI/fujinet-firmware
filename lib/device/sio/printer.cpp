@@ -77,9 +77,7 @@ void sioPrinter::sio_write(uint8_t aux1, uint8_t aux2)
     }
 
     memset(_buffer, 0, sizeof(_buffer)); // clear _buffer
-    uint8_t ck = bus_to_peripheral(_buffer, linelen);
-
-    if (ck == sio_checksum(_buffer, linelen))
+    if (transaction_get(_buffer, linelen))
     {
         if (linelen == 29)
         {
@@ -97,15 +95,15 @@ void sioPrinter::sio_write(uint8_t aux1, uint8_t aux2)
         memcpy(_pptr->provideBuffer(), _buffer, linelen);
 
         if (_pptr->process(linelen, aux1, aux2))
-            sio_complete();
+            transaction_complete();
         else
         {
-            sio_error();
+            transaction_error();
         }
     }
     else
     {
-        sio_error();
+        transaction_error();
     }
 }
 
@@ -155,7 +153,7 @@ void sioPrinter::sio_status()
     status[2] = 5;
     status[3] = 0;
 
-    bus_to_computer(status, sizeof(status), false);
+    transaction_put(status, sizeof(status), false);
 }
 
 void sioPrinter::set_printer_type(sioPrinter::printer_type printer_type)
@@ -295,16 +293,16 @@ void sioPrinter::sio_process(uint32_t commanddata, uint8_t checksum)
             _lastaux1 = cmdFrame.aux1;
             _lastaux2 = cmdFrame.aux2;
             _last_ms = fnSystem.millis();
-            sio_late_ack();
+            transaction_begin(TRANS_STATE::WILL_GET);
             sio_write(_lastaux1, _lastaux2);
             break;
         case SIO_PRINTERCMD_STATUS:
             _last_ms = fnSystem.millis();
-            sio_ack();
+            transaction_begin(TRANS_STATE::NO_GET);
             sio_status();
             break;
         default:
-            sio_nak();
+            transaction_error();
         }
     }
 }

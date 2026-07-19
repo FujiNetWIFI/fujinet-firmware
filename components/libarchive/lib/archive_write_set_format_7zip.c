@@ -58,6 +58,7 @@
 #include "archive_private.h"
 #include "archive_rb.h"
 #include "archive_string.h"
+#include "archive_time_private.h"
 #include "archive_write_private.h"
 #include "archive_write_set_format_private.h"
 
@@ -302,7 +303,7 @@ static int	compression_code_lzma(struct archive *,
 static int	compression_end_lzma(struct archive *, struct la_zstream *);
 #endif
 static int	compression_init_encoder_ppmd(struct archive *,
-		    struct la_zstream *, unsigned, uint32_t);
+		    struct la_zstream *, uint8_t, uint32_t);
 static int	compression_code_ppmd(struct archive *,
 		    struct la_zstream *, enum la_zaction);
 static int	compression_end_ppmd(struct archive *, struct la_zstream *);
@@ -310,13 +311,11 @@ static int	_7z_compression_init_encoder(struct archive_write *, unsigned,
 		    int);
 static int	compression_init_encoder_zstd(struct archive *,
 		    struct la_zstream *, int, int);
-#ifdef UNUSED
 #if defined(HAVE_ZSTD_H)
 static int	compression_code_zstd(struct archive *,
 		    struct la_zstream *, enum la_zaction);
 static int	compression_end_zstd(struct archive *, struct la_zstream *);
 #endif
-#endif /* UNUSED */
 static int	compression_code(struct archive *,
 		    struct la_zstream *, enum la_zaction);
 static int	compression_end(struct archive *,
@@ -616,6 +615,7 @@ _7z_write_header(struct archive_write *a, struct archive_entry *entry)
 		} else if (level < 0 || level > 9) {
 			archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
 				"compression-level option value `%d' out of range 0-9", level);
+			file_free(file);
 			return (ARCHIVE_FATAL);
 		}
 #endif
@@ -686,7 +686,7 @@ write_to_temp(struct archive_write *a, const void *buff, size_t s)
 		ws = write(zip->temp_fd, p, s);
 		if (ws < 0) {
 			archive_set_error(&(a->archive), errno,
-			    "fwrite function failed");
+			    "write function failed");
 			return (ARCHIVE_FATAL);
 		}
 		s -= ws;
@@ -1292,20 +1292,6 @@ make_streamsInfo(struct archive_write *a, uint64_t offset, uint64_t pack_size,
 	return (ARCHIVE_OK);
 }
 
-
-#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
-static uint64_t
-utcToFiletime(time_t t, long ns)
-{
-	uint64_t fileTime;
-
-	fileTime = t;
-	fileTime *= 10000000;
-	fileTime += ns / 100;
-	fileTime += EPOC_TIME;
-	return (fileTime);
-}
-
 static int
 make_time(struct archive_write *a, uint8_t type, unsigned flg, int ti)
 {
@@ -1377,7 +1363,6 @@ make_time(struct archive_write *a, uint8_t type, unsigned flg, int ti)
 	if (r < 0)
 		return (r);
 
-
 	/*
 	 * Make Times.
 	 */
@@ -1385,7 +1370,7 @@ make_time(struct archive_write *a, uint8_t type, unsigned flg, int ti)
 	for (;file != NULL; file = file->next) {
 		if ((file->flg & flg) == 0)
 			continue;
-		archive_le64enc(filetime, utcToFiletime(file->times[ti].time,
+		archive_le64enc(filetime, unix_to_ntfs(file->times[ti].time,
 			file->times[ti].time_ns));
 		r = (int)compress_out(a, filetime, 8, ARCHIVE_Z_RUN);
 		if (r < 0)
@@ -2288,7 +2273,7 @@ ppmd_write(void *p, Byte b)
 
 static int
 compression_init_encoder_ppmd(struct archive *a,
-    struct la_zstream *lastrm, unsigned maxOrder, uint32_t msize)
+    struct la_zstream *lastrm, uint8_t maxOrder, uint32_t msize)
 {
 	struct ppmd_stream *strm;
 	uint8_t *props;

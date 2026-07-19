@@ -59,6 +59,16 @@ public:
      */
     fujiError_t set_channel_mode(netProtoHTTPChannelMode_t newMode);
 
+    /**
+     * @brief Seek within the currently open resource (POINT/NOTE support).
+     *        Repositioning is done with an HTTP Range request; only valid for
+     *        DATA-mode GET reads. seek(0, SEEK_CUR) reports the current position.
+     * @param offset byte offset relative to whence
+     * @param whence SEEK_SET, SEEK_CUR, or SEEK_END
+     * @return new absolute offset, or -1 on error.
+     */
+    off_t seek(off_t offset, int whence) override;
+
 protected:
     /**
      * @brief open a file handle to fd
@@ -223,6 +233,20 @@ private:
     int bodySize = 0;
 
     /**
+     * Total size of the open resource, or -1 if not yet known.
+     * Used by seek() to bound POINT and compute bytes remaining. Unlike fileSize
+     * (bytes remaining) and bodySize (length of the current, possibly-ranged body),
+     * this is the full resource length regardless of current position.
+     */
+    int resourceSize = -1;
+
+    /**
+     * Absolute byte offset of the next byte to be read from the resource.
+     * Advanced by read_file_handle_data(); reported by NOTE via seek(0, SEEK_CUR).
+     */
+    off_t filePosition = 0;
+
+    /**
      * POST or PUT Data to send.
      */
     std::string postData;
@@ -241,6 +265,15 @@ private:
      * Do HTTP transaction
      */
     void http_transaction();
+
+    /**
+     * @brief read and discard n bytes from the client stream.
+     *        Fallback used by seek() when a server ignores the Range request
+     *        and returns the full body (HTTP 200) instead of partial (206).
+     * @param n number of bytes to discard
+     * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on premature EOF
+     */
+    fujiError_t skip_bytes(size_t n);
 
     /**
      * @brief header mode - retrieve requested headers previously collected.

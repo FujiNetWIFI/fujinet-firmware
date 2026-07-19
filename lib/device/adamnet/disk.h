@@ -15,7 +15,9 @@ class adamDisk : public virtualDevice
 {
 private:
     MediaType *_media = nullptr;
+#ifdef ESP_PLATFORM
     TaskHandle_t diskTask;
+#endif /* ESP_PLATFORM */
 
     unsigned long blockNum=INVALID_SECTOR_VALUE;
 
@@ -23,6 +25,9 @@ private:
     int64_t _last_blocknum_us = 0;
     unsigned long _seek_block = INVALID_SECTOR_VALUE;
     bool _seek_is_read = false;
+    // Set once we've ACKed this block's RECEIVE; further RECEIVEs for the same
+    // block are stale re-polls to ignore. Cleared on a new block number / reset.
+    bool _receive_acked = false;
 
     void adamnet_control_clr();
     void adamnet_control_receive();
@@ -32,15 +37,15 @@ private:
     virtual void adamnet_response_status() override;
     void adamnet_response_send();
 
-    void adamnet_process(uint8_t b) override;
+    void adamnet_process(const FujiAdamPacket &packet) override;
 
 public:
     adamDisk();
-    mediatype_t mount(FILE *f, const char *filename, uint32_t disksize,
+    mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize,
                       disk_access_flags_t access_mode,
                       mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
-    error_is_true write_blank(FILE *f, uint32_t numBlocks);
+    error_is_true write_blank(fnFile *f, uint32_t numBlocks);
     virtual void reset() override;
     MediaType *get_media() { return  _media; }
     void set_media(MediaType *__media) { _media = __media; }

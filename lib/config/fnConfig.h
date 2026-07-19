@@ -38,6 +38,9 @@
 #elif defined(BUILD_COCO)
 // DriveWire default port for CoCo
 #  define CONFIG_DEFAULT_BOIP_PORT 65504
+#elif defined(BUILD_ADAM)
+// AdamNet-over-IP default port (matches ADAMEm's -fujinet default)
+#  define CONFIG_DEFAULT_BOIP_PORT 65216
 #else
 // Dev relay over network, used by Apple
 #  define CONFIG_DEFAULT_BOIP_PORT 1985
@@ -115,6 +118,7 @@ public:
     int get_network_netstream_port() { return _network.netstream_port; };
     bool get_network_netstream_register() { return _network.netstream_register; };
     int get_network_netstream_mode() { return _network.netstream_mode; };
+    int get_network_netstream_rx_depth() { return _network.netstream_rx_depth; };
     bool get_general_config_enabled() { return _general.config_enabled; };
     void store_general_devicename(const char *devicename);
     void store_general_hsioindex(int hsio_index);
@@ -131,6 +135,7 @@ public:
     void store_netstream_port(int port);
     void store_netstream_register(bool enable);
     void store_netstream_mode(int mode);
+    void store_netstream_rx_depth(int depth);
     bool get_general_fnconfig_spifs() { return _general.fnconfig_spifs; };
     void store_general_fnconfig_spifs(bool fnconfig_spifs);
     bool get_general_status_wait_enabled() { return _general.status_wait_enabled; }
@@ -139,6 +144,8 @@ public:
     bool get_general_encrypt_passphrase();
 
     const char * get_network_sntpserver() { return _network.sntpserver; };
+    bool get_network_log_json() { return _network.log_network_json; };
+    void store_network_log_json(bool log_json);
 
 #ifndef ESP_PLATFORM
     std::string get_general_interface_url() { return _general.interface_url; };
@@ -255,6 +262,26 @@ public:
     void store_gdrive_access_token(const std::string &access_token);
     void store_gdrive_token_expiry(long expiry);
 
+    // S3 (Amazon S3 / S3-compatible object storage, e.g. MinIO)
+    std::string get_s3_endpoint() { return _s3.endpoint; };
+    std::string get_s3_region() { return _s3.region; };
+    std::string get_s3_access_key() { return _s3.access_key; };
+    std::string get_s3_secret_key() { return _s3.secret_key; };
+    bool get_s3_use_ssl() { return _s3.use_ssl; };
+    void store_s3_endpoint(const std::string &endpoint);
+    void store_s3_region(const std::string &region);
+    void store_s3_access_key(const std::string &access_key);
+    void store_s3_secret_key(const std::string &secret_key);
+    void store_s3_use_ssl(bool use_ssl);
+
+    // OneDrive
+    std::string get_onedrive_refresh_token() { return _onedrive.refresh_token; };
+    std::string get_onedrive_access_token() { return _onedrive.access_token; };
+    long get_onedrive_token_expiry() { return _onedrive.token_expiry; };
+    void store_onedrive_refresh_token(const std::string &refresh_token);
+    void store_onedrive_access_token(const std::string &access_token);
+    void store_onedrive_token_expiry(long expiry);
+
     // ENABLE/DISABLE DEVICE SLOTS
     bool get_device_slot_enable(uint8_t slot);
     bool get_device_slot_enable_1();
@@ -320,6 +347,8 @@ private:
     void _read_section_device_enable(std::stringstream &ss);
     void _read_section_boip(std::stringstream &ss);
     void _read_section_gdrive(std::stringstream &ss);
+    void _read_section_s3(std::stringstream &ss);
+    void _read_section_onedrive(std::stringstream &ss);
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
     void _read_section_serial(std::stringstream &ss);
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
@@ -342,6 +371,8 @@ private:
         SECTION_DEVICE_ENABLE,
         SECTION_BOIP,
         SECTION_GOOGLEDRIVE,
+        SECTION_S3,
+        SECTION_ONEDRIVE,
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
         SECTION_SERIAL,
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
@@ -430,6 +461,8 @@ private:
         int netstream_port;
         bool netstream_register = true;
         int netstream_mode = 1;
+        int netstream_rx_depth = 0; // 0 => use firmware default (NETSTREAM_RX_MAX_FRAMES)
+        bool log_network_json = false;
     };
 
     struct general_info
@@ -460,7 +493,12 @@ private:
     // "bus" over IP
     struct boip_info
     {
+#if defined(BUILD_ADAM) && !defined(ESP_PLATFORM)
+        // ADAM PC build defaults to ADAMEm over IP (no real AdamNet hardware).
+        bool boip_enabled = true;
+#else
         bool boip_enabled = false;
+#endif
 #ifdef ESP_PLATFORM
         // CoCo: DriveWire server (listen) -> listen on all IPs by default
         // Atari: NetSIO hub (connect to)  -> hub host/IP must be specified
@@ -514,6 +552,22 @@ private:
         long token_expiry = 0;
     };
 
+    struct s3_info
+    {
+        std::string endpoint;
+        std::string region;
+        std::string access_key;
+        std::string secret_key;
+        bool use_ssl = true;
+    };
+
+    struct onedrive_info
+    {
+        std::string refresh_token;
+        std::string access_token;
+        long token_expiry = 0;
+    };
+
     struct device_enable_info
     {
         bool device_1_enabled = true;
@@ -555,6 +609,8 @@ private:
 #endif /* BUILD_RS232 || ! ESP_PLATFORM */
     cpm_info _cpm;
     googledrive_info _gdrive;
+    s3_info _s3;
+    onedrive_info _onedrive;
     device_enable_info _denable;
     phbook_info _phonebook_slots[MAX_PB_SLOTS];
 };

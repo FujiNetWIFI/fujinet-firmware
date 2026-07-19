@@ -7,10 +7,14 @@
 
 #include "Protocol.h"
 
-typedef enum class APPLE2_FLAG {
-    IS_A2    = 0x80,
-    IS_80COL = 0x81,
-} apple2Flag_t;
+typedef enum class DIR_FORMAT {
+    LONG   = 0x80,
+    A2COL80 = 0x81,
+    GDRIVE = 0x82,
+    RAW    = 0x83,   // filename only + line ending (no size, no crunch)
+    A2CAT     = 0x84,   // 40-col ProDOS CAT
+    A2CATALOG = 0x85,   // 80-col ProDOS CATALOG
+} dirFormat_t;
 
 class NetworkProtocolFS : public NetworkProtocol
 {
@@ -189,6 +193,21 @@ protected:
     bool is_locked = false;
 
     /**
+     * Optional file ID string populated by read_dir_entry() implementations
+     * that support it (e.g. GDRIVE when DIR_FORMAT::GDRIVE is requested).
+     * Reset to empty by open_dir() between entries.
+     */
+    std::string entry_id;
+
+    /**
+     * Modified/created time (Unix epoch) of the current directory entry, set by
+     * read_dir_entry() implementations that provide it (e.g. TNFS). 0 = unknown,
+     * which the ProDOS date helpers render as "<NO DATE>".
+     */
+    uint32_t modified_time = 0;
+    uint32_t created_time = 0;
+
+    /**
      * @brief Open a file via path.
      * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
      */
@@ -204,7 +223,7 @@ protected:
      * @brief Open a Directory via path
      * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
      */
-    virtual fujiError_t open_dir(apple2Flag_t a2flags);
+    virtual fujiError_t open_dir(dirFormat_t fmt);
 
     /**
      * @brief Open directory handle

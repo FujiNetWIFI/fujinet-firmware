@@ -1,9 +1,6 @@
 #ifndef ADAM_PRINTER_H
 #define ADAM_PRINTER_H
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-
 #include <cstdint>
 #include <string>
 
@@ -14,19 +11,21 @@
 
 #define PRINTER_UNSUPPORTED "Unsupported"
 
-void printerTask(void * param);
-
+#ifdef ESP_PLATFORM
 typedef struct _printItem
 {
     uint8_t len;
     uint8_t buf[16];
 } PrintItem;
+#endif /* ESP_PLATFORM */
 
 class adamPrinter : public virtualDevice
 {
 protected:
     // SIO THINGS
+#ifdef ESP_PLATFORM
     TaskHandle_t thPrinter;
+#endif /* ESP_PLATFORM */
 
     uint8_t _buffer[16];
 
@@ -36,7 +35,7 @@ protected:
     virtual void adamnet_control_send();
     virtual void adamnet_control_ready() override;
 
-    void adamnet_process(uint8_t b) override;
+    void adamnet_process(const FujiAdamPacket &packet) override;
     void shutdown() override;
 
     printer_emu *_pptr = nullptr;
@@ -111,7 +110,9 @@ public:
 
 private:
     printer_type _ptype;
+#ifdef ESP_PLATFORM
     TaskHandle_t ioTask = NULL;
+#endif /* ESP_PLATFORM */
     bool _backwards = false;
 
 };

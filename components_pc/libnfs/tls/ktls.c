@@ -150,7 +150,7 @@ static int ktls_setsockopt(int sock, bool read, const void *info, socklen_t info
 #define GENERATE_SET_CRYPTO_INFO(CIPHER) 				\
 static int ktls_set_##CIPHER##_info(gnutls_session_t session) 		\
 { 									\
-	GENERATE_TLS_INFO(CIPHER) \	
+	GENERATE_TLS_INFO(CIPHER)                                       \
 	unsigned char seq_number[12]; 					\
 	gnutls_datum_t cipher_key; 					\
 	gnutls_datum_t mac_key; 					\

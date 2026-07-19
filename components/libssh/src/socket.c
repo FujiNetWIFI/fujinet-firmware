@@ -21,24 +21,22 @@
  * MA 02111-1307, USA.
  */
 
-#include "libssh/config.h"
+#include "../config.h"
 
 #include <errno.h>
 #include <stdio.h>
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#if _MSC_VER >= 1400
-#include <io.h>
-#undef open
-#define open _open
-#undef close
-#define close _close
-#undef read
-#define read _read
-#undef write
-#define write _write
-#endif /* _MSC_VER */
+#ifndef UNIX_PATH_MAX
+ /* Inlining the key portions of afunix.h in Windows 10 SDK;
+  * that header isn't available in the mingw environment. */
+#define UNIX_PATH_MAX 108
+struct sockaddr_un {
+  ADDRESS_FAMILY sun_family;
+  char sun_path[UNIX_PATH_MAX];
+};
+#endif
 #else /* _WIN32 */
 #include <fcntl.h>
 #include <sys/types.h>
@@ -46,6 +44,9 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <signal.h>
+#ifdef HAVE_PTHREAD
+#include <pthread.h>
+#endif
 #endif /* _WIN32 */
 
 #include "libssh/priv.h"
@@ -56,8 +57,6 @@
 #include "libssh/session.h"
 
 /**
- * @internal
- *
  * @defgroup libssh_socket The SSH socket functions.
  * @ingroup libssh
  *
@@ -93,6 +92,15 @@ struct ssh_socket_struct {
   pid_t proxy_pid;
 #endif
 };
+
+#ifdef HAVE_PTHREAD
+struct jump_thread_data_struct {
+    ssh_session session;
+    socket_t fd;
+};
+
+int proxy_disconnect = 0;
+#endif /* HAVE_PTHREAD */
 
 static int sockets_initialized = 0;
 
@@ -214,6 +222,15 @@ void ssh_socket_set_callbacks(ssh_socket s, ssh_socket_callbacks callbacks)
     s->callbacks = callbacks;
 }
 
+void ssh_socket_set_connected(ssh_socket s, struct ssh_poll_handle_struct *p)
+{
+    s->state = SSH_SOCKET_CONNECTED;
+    /* POLLOUT is the event to wait for in a nonblocking connect */
+    if (p != NULL) {
+        ssh_poll_set_events(p, POLLIN | POLLOUT);
+    }
+}
+
 /**
  * @brief               SSH poll callback. This callback will be used when an event
  *                      caught on the socket.
@@ -221,7 +238,7 @@ void ssh_socket_set_callbacks(ssh_socket s, ssh_socket_callbacks callbacks)
  * @param p             Poll object this callback belongs to.
  * @param fd            The raw socket.
  * @param revents       The current poll events on the socket.
- * @param userdata      Userdata to be passed to the callback function,
+ * @param v_s           Userdata to be passed to the callback function,
  *                      in this case the socket object.
  *
  * @return              0 on success, < 0 when the poll object has been removed
@@ -233,8 +250,8 @@ int ssh_socket_pollcallback(struct ssh_poll_handle_struct *p,
                             void *v_s)
 {
     ssh_socket s = (ssh_socket)v_s;
-    char buffer[MAX_BUF_SIZE];
-    ssize_t nread;
+    void *buffer = NULL;
+    ssize_t nread = 0;
     int rc;
     int err = 0;
     socklen_t errlen = sizeof(err);
@@ -243,11 +260,12 @@ int ssh_socket_pollcallback(struct ssh_poll_handle_struct *p,
     if (!ssh_socket_is_open(s)) {
         return -1;
     }
-    SSH_LOG(SSH_LOG_TRACE, "Poll callback on socket %d (%s%s%s), out buffer %d",fd,
+    SSH_LOG(SSH_LOG_TRACE,
+            "Poll callback on socket %d (%s%s%s), out buffer %" PRIu32, fd,
             (revents & POLLIN) ? "POLLIN ":"",
             (revents & POLLOUT) ? "POLLOUT ":"",
             (revents & POLLERR) ? "POLLERR":"",
-            (int)ssh_buffer_get_len(s->out_buffer));
+            ssh_buffer_get_len(s->out_buffer));
     if ((revents & POLLERR) || (revents & POLLHUP)) {
         /* Check if we are in a connecting state */
         if (s->state == SSH_SOCKET_CONNECTING) {
@@ -275,8 +293,12 @@ int ssh_socket_pollcallback(struct ssh_poll_handle_struct *p,
     }
     if ((revents & POLLIN) && s->state == SSH_SOCKET_CONNECTED) {
         s->read_wontblock = 1;
-        nread = ssh_socket_unbuffered_read(s, buffer, sizeof(buffer));
+        buffer = ssh_buffer_allocate(s->in_buffer, MAX_BUF_SIZE);
+        if (buffer) {
+            nread = ssh_socket_unbuffered_read(s, buffer, MAX_BUF_SIZE);
+        }
         if (nread < 0) {
+            ssh_buffer_pass_bytes_end(s->in_buffer, MAX_BUF_SIZE);
             if (p != NULL) {
                 ssh_poll_remove_events(p, POLLIN);
             }
@@ -288,6 +310,10 @@ int ssh_socket_pollcallback(struct ssh_poll_handle_struct *p,
             }
             return -2;
         }
+
+        /* Rollback the unused space */
+        ssh_buffer_pass_bytes_end(s->in_buffer, MAX_BUF_SIZE - nread);
+
         if (nread == 0) {
             if (p != NULL) {
                 ssh_poll_remove_events(p, POLLIN);
@@ -304,18 +330,15 @@ int ssh_socket_pollcallback(struct ssh_poll_handle_struct *p,
             s->session->socket_counter->in_bytes += nread;
         }
 
-        /* Bufferize the data and then call the callback */
-        rc = ssh_buffer_add_data(s->in_buffer, buffer, nread);
-        if (rc < 0) {
-            return -1;
-        }
+        /* Call the callback */
         if (s->callbacks != NULL && s->callbacks->data != NULL) {
+            size_t processed;
             do {
-                nread = s->callbacks->data(ssh_buffer_get(s->in_buffer),
-                                       ssh_buffer_get_len(s->in_buffer),
-                                       s->callbacks->userdata);
-                ssh_buffer_pass_bytes(s->in_buffer, nread);
-            } while ((nread > 0) && (s->state == SSH_SOCKET_CONNECTED));
+                processed = s->callbacks->data(ssh_buffer_get(s->in_buffer),
+                                               ssh_buffer_get_len(s->in_buffer),
+                                               s->callbacks->userdata);
+                ssh_buffer_pass_bytes(s->in_buffer, processed);
+            } while ((processed > 0) && (s->state == SSH_SOCKET_CONNECTED));
 
             /* p may have been freed, so don't use it
              * anymore in this function */
@@ -332,10 +355,7 @@ int ssh_socket_pollcallback(struct ssh_poll_handle_struct *p,
         /* First, POLLOUT is a sign we may be connected */
         if (s->state == SSH_SOCKET_CONNECTING) {
             SSH_LOG(SSH_LOG_PACKET, "Received POLLOUT in connecting state");
-            s->state = SSH_SOCKET_CONNECTED;
-            if (p != NULL) {
-                ssh_poll_set_events(p, POLLOUT | POLLIN);
-            }
+            ssh_socket_set_connected(s, p);
 
             rc = ssh_socket_set_blocking(ssh_socket_get_fd(s));
             if (rc < 0) {
@@ -363,7 +383,7 @@ int ssh_socket_pollcallback(struct ssh_poll_handle_struct *p,
             ssh_socket_nonblocking_flush(s);
         } else if (s->callbacks != NULL && s->callbacks->controlflow != NULL) {
             /* Otherwise advertise the upper level that write can be done */
-            SSH_LOG(SSH_LOG_TRACE,"sending control flow event");
+            SSH_LOG(SSH_LOG_TRACE, "sending control flow event");
             s->callbacks->controlflow(SSH_SOCKET_FLOW_WRITEWONTBLOCK,
                                       s->callbacks->userdata);
         }
@@ -388,7 +408,7 @@ ssh_poll_handle ssh_socket_get_poll_handle(ssh_socket s)
     if (s->poll_handle) {
         return s->poll_handle;
     }
-    s->poll_handle = ssh_poll_new(s->fd,0,ssh_socket_pollcallback,s);
+    s->poll_handle = ssh_poll_new(s->fd, 0, ssh_socket_pollcallback, s);
     return s->poll_handle;
 }
 
@@ -406,10 +426,10 @@ void ssh_socket_free(ssh_socket s)
     SAFE_FREE(s);
 }
 
-#ifndef _WIN32
 int ssh_socket_unix(ssh_socket s, const char *path)
 {
     struct sockaddr_un sunaddr;
+    char err_msg[SSH_ERRNO_MSG_MAX] = {0};
     socket_t fd;
     sunaddr.sun_family = AF_UNIX;
     snprintf(sunaddr.sun_path, sizeof(sunaddr.sun_path), "%s", path);
@@ -418,28 +438,30 @@ int ssh_socket_unix(ssh_socket s, const char *path)
     if (fd == SSH_INVALID_SOCKET) {
         ssh_set_error(s->session, SSH_FATAL,
                       "Error from socket(AF_UNIX, SOCK_STREAM, 0): %s",
-                      strerror(errno));
+                      ssh_strerror(errno, err_msg, SSH_ERRNO_MSG_MAX));
         return -1;
     }
 
+#ifndef _WIN32
     if (fcntl(fd, F_SETFD, 1) == -1) {
         ssh_set_error(s->session, SSH_FATAL,
                       "Error from fcntl(fd, F_SETFD, 1): %s",
-                      strerror(errno));
-        close(fd);
+                      ssh_strerror(errno, err_msg, SSH_ERRNO_MSG_MAX));
+        CLOSE_SOCKET(fd);
         return -1;
     }
+#endif
 
     if (connect(fd, (struct sockaddr *) &sunaddr, sizeof(sunaddr)) < 0) {
-        ssh_set_error(s->session, SSH_FATAL, "Error from connect(): %s",
-                      strerror(errno));
-        close(fd);
+        ssh_set_error(s->session, SSH_FATAL, "Error from connect(%s): %s",
+                      path,
+                      ssh_strerror(errno, err_msg, SSH_ERRNO_MSG_MAX));
+        CLOSE_SOCKET(fd);
         return -1;
     }
     ssh_socket_set_fd(s,fd);
     return 0;
 }
-#endif
 
 /** \internal
  * \brief closes a socket
@@ -456,7 +478,7 @@ void ssh_socket_close(ssh_socket s)
 #endif
     }
 
-    if (s->poll_handle != NULL) {
+    if (s->poll_handle != NULL && !ssh_poll_is_locked(s->poll_handle)) {
         ssh_poll_free(s->poll_handle);
         s->poll_handle = NULL;
     }
@@ -473,12 +495,14 @@ void ssh_socket_close(ssh_socket s)
         kill(pid, SIGTERM);
         while (waitpid(pid, &status, 0) == -1) {
             if (errno != EINTR) {
-                SSH_LOG(SSH_LOG_WARN, "waitpid failed: %s", strerror(errno));
+                char err_msg[SSH_ERRNO_MSG_MAX] = {0};
+                SSH_LOG(SSH_LOG_TRACE, "waitpid failed: %s",
+                        ssh_strerror(errno, err_msg, SSH_ERRNO_MSG_MAX));
                 return;
             }
         }
         if (!WIFEXITED(status)) {
-            SSH_LOG(SSH_LOG_WARN, "Proxy command exitted abnormally");
+            SSH_LOG(SSH_LOG_TRACE, "Proxy command exited abnormally");
             return;
         }
         SSH_LOG(SSH_LOG_TRACE, "Proxy command returned %d", WEXITSTATUS(status));
@@ -491,22 +515,28 @@ void ssh_socket_close(ssh_socket s)
  * @brief sets the file descriptor of the socket.
  * @param[out] s ssh_socket to update
  * @param[in] fd file descriptor to set
- * @warning this function updates boths the input and output
+ * @warning this function updates both the input and output
  * file descriptors
  */
 void ssh_socket_set_fd(ssh_socket s, socket_t fd)
 {
+    ssh_poll_handle h = NULL;
+
     s->fd = fd;
 
     if (s->poll_handle) {
         ssh_poll_set_fd(s->poll_handle,fd);
     } else {
         s->state = SSH_SOCKET_CONNECTING;
+        h = ssh_socket_get_poll_handle(s);
+        if (h == NULL) {
+            return;
+        }
 
         /* POLLOUT is the event to wait for in a nonblocking connect */
-        ssh_poll_set_events(ssh_socket_get_poll_handle(s), POLLOUT);
+        ssh_poll_set_events(h, POLLOUT);
 #ifdef _WIN32
-        ssh_poll_add_events(ssh_socket_get_poll_handle(s), POLLWRNORM);
+        ssh_poll_add_events(h, POLLWRNORM);
 #endif
     }
 }
@@ -540,9 +570,9 @@ static ssize_t ssh_socket_unbuffered_read(ssh_socket s,
         return -1;
     }
     if (s->fd_is_socket) {
-        rc = recv(s->fd,buffer, len, 0);
+        rc = recv(s->fd, buffer, len, 0);
     } else {
-        rc = read(s->fd,buffer, len);
+        rc = read(s->fd, buffer, len);
     }
 #ifdef _WIN32
     s->last_errno = WSAGetLastError();
@@ -553,6 +583,8 @@ static ssize_t ssh_socket_unbuffered_read(ssh_socket s,
 
     if (rc < 0) {
         s->data_except = 1;
+    } else {
+        SSH_LOG(SSH_LOG_TRACE, "read %zd", rc);
     }
 
     return rc;
@@ -590,12 +622,13 @@ static ssize_t ssh_socket_unbuffered_write(ssh_socket s,
     /* Reactive the POLLOUT detector in the poll multiplexer system */
     if (s->poll_handle) {
         SSH_LOG(SSH_LOG_PACKET, "Enabling POLLOUT for socket");
-        ssh_poll_set_events(s->poll_handle,ssh_poll_get_events(s->poll_handle) | POLLOUT);
+        ssh_poll_add_events(s->poll_handle, POLLOUT);
     }
     if (w < 0) {
         s->data_except = 1;
     }
 
+    SSH_LOG(SSH_LOG_TRACE, "wrote %zd", w);
     return w;
 }
 
@@ -634,7 +667,7 @@ void ssh_socket_fd_set(ssh_socket s, fd_set *set, socket_t *max_fd)
  * \returns SSH_OK, or SSH_ERROR
  * \warning has no effect on socket before a flush
  */
-int ssh_socket_write(ssh_socket s, const void *buffer, int len)
+int ssh_socket_write(ssh_socket s, const void *buffer, uint32_t len)
 {
     if (len > 0) {
         if (ssh_buffer_add_data(s->out_buffer, buffer, len) < 0) {
@@ -664,11 +697,12 @@ int ssh_socket_nonblocking_flush(ssh_socket s)
                                     s->last_errno,
                                     s->callbacks->userdata);
         } else {
+            char err_msg[SSH_ERRNO_MSG_MAX] = {0};
             ssh_set_error(session,
                           SSH_FATAL,
                           "Writing packet: error on socket (or connection "
                           "closed): %s",
-                          strerror(s->last_errno));
+                          ssh_strerror(errno, err_msg, SSH_ERRNO_MSG_MAX));
         }
 
         return SSH_ERROR;
@@ -697,11 +731,12 @@ int ssh_socket_nonblocking_flush(ssh_socket s)
                                         s->last_errno,
                                         s->callbacks->userdata);
             } else {
+                char err_msg[SSH_ERRNO_MSG_MAX] = {0};
                 ssh_set_error(session,
                               SSH_FATAL,
                               "Writing packet: error on socket (or connection "
                               "closed): %s",
-                              strerror(s->last_errno));
+                              ssh_strerror(errno, err_msg, SSH_ERRNO_MSG_MAX));
             }
 
             return SSH_ERROR;
@@ -716,6 +751,8 @@ int ssh_socket_nonblocking_flush(ssh_socket s)
     /* Is there some data pending? */
     len = ssh_buffer_get_len(s->out_buffer);
     if (s->poll_handle && len > 0) {
+        SSH_LOG(SSH_LOG_TRACE,
+                "did not send all the data, queuing pollout event");
         /* force the poll system to catch pollout events */
         ssh_poll_add_events(s->poll_handle, POLLOUT);
 
@@ -825,7 +862,7 @@ int ssh_socket_set_blocking(socket_t fd)
 /**
  * @internal
  * @brief Launches a socket connection
- * If a the socket connected callback has been defined and
+ * If the socket connected callback has been defined and
  * a poll object exists, this call will be non blocking.
  * @param s    socket to connect.
  * @param host hostname or ip address to connect to.
@@ -833,8 +870,6 @@ int ssh_socket_set_blocking(socket_t fd)
  * @param bind_addr address to bind to, or NULL for default.
  * @returns SSH_OK socket is being connected.
  * @returns SSH_ERROR error while connecting to remote host.
- * @bug It only tries connecting to one of the available AI's
- * which is problematic for hosts having DNS fail-over.
  */
 int ssh_socket_connect(ssh_socket s,
                        const char *host,
@@ -842,23 +877,23 @@ int ssh_socket_connect(ssh_socket s,
                        const char *bind_addr)
 {
     socket_t fd;
-    
+
     if (s->state != SSH_SOCKET_NONE) {
         ssh_set_error(s->session, SSH_FATAL,
                       "ssh_socket_connect called on socket not unconnected");
         return SSH_ERROR;
     }
     fd = ssh_connect_host_nonblocking(s->session, host, bind_addr, port);
-    SSH_LOG(SSH_LOG_PROTOCOL, "Nonblocking connection socket: %d", fd);
+    SSH_LOG(SSH_LOG_DEBUG, "Nonblocking connection socket: %d", fd);
     if (fd == SSH_INVALID_SOCKET) {
         return SSH_ERROR;
     }
     ssh_socket_set_fd(s,fd);
-    
+
     return SSH_OK;
 }
 
-#ifndef _WIN32
+#ifdef WITH_EXEC
 /**
  * @internal
  * @brief executes a command and redirect input and outputs
@@ -869,13 +904,34 @@ int ssh_socket_connect(ssh_socket s,
 void
 ssh_execute_command(const char *command, socket_t in, socket_t out)
 {
-    const char *args[] = {"/bin/sh", "-c", command, NULL};
+    const char *shell = NULL;
+    const char *args[] = {NULL/*shell*/, "-c", command, NULL};
+    int devnull;
+    int rc;
+
     /* Prepare /dev/null socket for the stderr redirection */
-    int devnull = open("/dev/null", O_WRONLY);
+    devnull = open("/dev/null", O_WRONLY);
     if (devnull == -1) {
-        SSH_LOG(SSH_LOG_WARNING, "Failed to open /dev/null");
+        SSH_LOG(SSH_LOG_TRACE, "Failed to open /dev/null");
         exit(1);
     }
+
+    /*
+     * By default, use the current users shell. This could fail with some
+     * shells like zsh or dash ...
+     */
+    shell = getenv("SHELL");
+    if (shell == NULL || shell[0] == '\0') {
+        /* Fall back to the /bin/sh only if the bash is not available. But there are
+         * issues with dash or whatever people tend to link to /bin/sh */
+        rc = access("/bin/bash", 0);
+        if (rc != 0) {
+            shell = "/bin/sh";
+        } else {
+            shell = "/bin/bash";
+        }
+    }
+    args[0] = shell;
 
     /* redirect in and out to stdin, stdout */
     dup2(in, 0);
@@ -884,7 +940,13 @@ ssh_execute_command(const char *command, socket_t in, socket_t out)
     dup2(devnull, STDERR_FILENO);
     close(in);
     close(out);
-    execv(args[0], (char * const *)args);
+    rc = execv(args[0], (char * const *)args);
+    if (rc < 0) {
+        char err_msg[SSH_ERRNO_MSG_MAX] = {0};
+
+        SSH_LOG(SSH_LOG_WARN, "Failed to execute command %s: %s",
+                command, ssh_strerror(errno, err_msg, SSH_ERRNO_MSG_MAX));
+    }
     exit(1);
 }
 
@@ -897,11 +959,11 @@ ssh_execute_command(const char *command, socket_t in, socket_t out)
  * @returns SSH_OK socket is being connected.
  * @returns SSH_ERROR error while executing the command.
  */
-
 int
 ssh_socket_connect_proxycommand(ssh_socket s, const char *command)
 {
     socket_t pair[2];
+    ssh_poll_handle h = NULL;
     int pid;
     int rc;
 
@@ -914,7 +976,7 @@ ssh_socket_connect_proxycommand(ssh_socket s, const char *command)
         return SSH_ERROR;
     }
 
-    SSH_LOG(SSH_LOG_PROTOCOL, "Executing proxycommand '%s'", command);
+    SSH_LOG(SSH_LOG_DEBUG, "Executing proxycommand '%s'", command);
     pid = fork();
     if (pid == 0) {
         ssh_execute_command(command, pair[0], pair[0]);
@@ -922,18 +984,314 @@ ssh_socket_connect_proxycommand(ssh_socket s, const char *command)
     }
     s->proxy_pid = pid;
     close(pair[0]);
-    SSH_LOG(SSH_LOG_PROTOCOL, "ProxyCommand connection pipe: [%d,%d]",pair[0],pair[1]);
+    SSH_LOG(SSH_LOG_DEBUG, "ProxyCommand connection pipe: [%d,%d]",pair[0],pair[1]);
     ssh_socket_set_fd(s, pair[1]);
-    s->state=SSH_SOCKET_CONNECTED;
-    s->fd_is_socket=0;
-    /* POLLOUT is the event to wait for in a nonblocking connect */
-    ssh_poll_set_events(ssh_socket_get_poll_handle(s), POLLIN | POLLOUT);
+    s->fd_is_socket = 0;
+    h = ssh_socket_get_poll_handle(s);
+    if (h == NULL) {
+        return SSH_ERROR;
+    }
+    ssh_socket_set_connected(s, h);
     if (s->callbacks && s->callbacks->connected) {
         s->callbacks->connected(SSH_SOCKET_CONNECTED_OK, 0, s->callbacks->userdata);
     }
 
     return SSH_OK;
 }
+#endif /* WITH_EXEC */
+
+#ifndef _WIN32
+#ifdef HAVE_PTHREAD
+static int
+verify_knownhost(ssh_session session)
+{
+    enum ssh_known_hosts_e state;
+
+    state = ssh_session_is_known_server(session);
+
+    switch (state) {
+    case SSH_KNOWN_HOSTS_OK:
+        break; /* ok */
+    default:
+        SSH_LOG(SSH_LOG_WARN, "Couldn't verify knownhost during proxyjump.");
+        return SSH_ERROR;
+    }
+
+    return SSH_OK;
+}
+
+static void *
+jump_thread_func(void *arg)
+{
+    struct jump_thread_data_struct *jump_thread_data = NULL;
+    struct ssh_jump_info_struct *jis = NULL;
+    struct ssh_jump_callbacks_struct *cb = NULL;
+    ssh_session jump_session = NULL;
+    ssh_channel caa = NULL;
+    int rc;
+    ssh_event event = NULL;
+    ssh_connector connector_in = NULL, connector_out = NULL;
+    ssh_session session = NULL;
+    int next_port;
+    char *next_hostname = NULL;
+
+    jump_thread_data = (struct jump_thread_data_struct *)arg;
+    session = jump_thread_data->session;
+
+    next_port = session->opts.port;
+    next_hostname = strdup(session->opts.host);
+
+    jump_session = ssh_new();
+    if (jump_session == NULL) {
+        goto exit;
+    }
+
+    jump_session->proxy_root = false;
+    /* Reset the global variable if it was previously 1 */
+    if (session->proxy_root) {
+        proxy_disconnect = 0;
+    }
+
+    for (jis = ssh_list_pop_head(struct ssh_jump_info_struct *,
+                                 session->opts.proxy_jumps);
+         jis != NULL;
+         jis = ssh_list_pop_head(struct ssh_jump_info_struct *,
+                                 session->opts.proxy_jumps)) {
+        rc = ssh_list_append(jump_session->opts.proxy_jumps, jis);
+        if (rc != SSH_OK) {
+            ssh_set_error_oom(session);
+            goto exit;
+        }
+    }
+    for (jis =
+            ssh_list_pop_head(struct ssh_jump_info_struct *,
+                              session->opts.proxy_jumps_user_cb);
+         jis != NULL;
+         jis = ssh_list_pop_head(struct ssh_jump_info_struct *,
+                                 session->opts.proxy_jumps_user_cb)) {
+        rc = ssh_list_append(jump_session->opts.proxy_jumps_user_cb, jis);
+        if (rc != SSH_OK) {
+            ssh_set_error_oom(session);
+            goto exit;
+        }
+    }
+
+    ssh_options_set(jump_session,
+                    SSH_OPTIONS_LOG_VERBOSITY,
+                    &session->common.log_verbosity);
+
+    /* Pop the information about the current jump */
+    jis = ssh_list_pop_head(struct ssh_jump_info_struct *,
+                            jump_session->opts.proxy_jumps);
+    if (jis == NULL) {
+        SSH_LOG(SSH_LOG_WARN, "Inconsistent list of proxy jumps received");
+        goto exit;
+    }
+
+    ssh_options_set(jump_session, SSH_OPTIONS_HOST, jis->hostname);
+    ssh_options_set(jump_session, SSH_OPTIONS_USER, jis->username);
+    ssh_options_set(jump_session, SSH_OPTIONS_PORT, &jis->port);
+
+    /* Pop the callbacks for the current jump */
+    cb = ssh_list_pop_head(struct ssh_jump_callbacks_struct *,
+                           jump_session->opts.proxy_jumps_user_cb);
+
+    if (cb != NULL) {
+        rc = cb->before_connection(jump_session, cb->userdata);
+        if (rc != SSH_OK) {
+            SSH_LOG(SSH_LOG_WARN, "%s", ssh_get_error(jump_session));
+            goto exit;
+        }
+    }
+
+    /* If there are more jumps then this will make a new thread and call the
+     * current function again, until there are no jumps. When there are no jumps
+     * it connects normally. */
+    rc = ssh_connect(jump_session);
+    if (rc != SSH_OK) {
+        SSH_LOG(SSH_LOG_WARN, "%s", ssh_get_error(jump_session));
+        goto exit;
+    }
+
+    /* Use the callback or default implementation for verifying knownhost */
+    if (cb != NULL && cb->verify_knownhost != NULL) {
+        rc = cb->verify_knownhost(jump_session, cb->userdata);
+    } else {
+        rc = verify_knownhost(jump_session);
+    }
+    if (rc != SSH_OK) {
+        goto exit;
+    }
+
+    /* Use the callback or publickey method to authenticate */
+    if (cb != NULL && cb->authenticate != NULL) {
+        rc = cb->authenticate(jump_session, cb->userdata);
+    } else {
+        rc = ssh_userauth_publickey_auto(jump_session, NULL, NULL);
+    }
+    if (rc != SSH_OK) {
+        SSH_LOG(SSH_LOG_WARN, "%s", ssh_get_error(jump_session));
+        goto exit;
+    }
+
+    caa = ssh_channel_new(jump_session);
+    if (caa == NULL) {
+        goto exit;
+    }
+    /* The origin hostname and port are set to match OpenSSH implementation
+     * they are only used for logging on the server */
+    rc = ssh_channel_open_forward(caa,
+                                  next_hostname,
+                                  next_port,
+                                  "127.0.0.1",
+                                  65535);
+    if (rc != SSH_OK) {
+        SSH_LOG(SSH_LOG_WARN,
+                "Error opening port forwarding channel: %s",
+                ssh_get_error(jump_session));
+        goto exit;
+    }
+
+    event = ssh_event_new();
+    if (event == NULL) {
+        goto exit;
+    }
+
+    connector_in = ssh_connector_new(jump_session);
+    if (connector_in == NULL) {
+        goto exit;
+    }
+    ssh_connector_set_out_channel(connector_in, caa, SSH_CONNECTOR_STDINOUT);
+    ssh_connector_set_in_fd(connector_in, jump_thread_data->fd);
+    ssh_event_add_connector(event, connector_in);
+
+    connector_out = ssh_connector_new(jump_session);
+    if (connector_out == NULL) {
+        goto exit;
+    }
+    ssh_connector_set_out_fd(connector_out, jump_thread_data->fd);
+    ssh_connector_set_in_channel(connector_out, caa, SSH_CONNECTOR_STDINOUT);
+    ssh_event_add_connector(event, connector_out);
+
+    while (ssh_channel_is_open(caa)) {
+        if (proxy_disconnect == 1) {
+            break;
+        }
+        rc = ssh_event_dopoll(event, 60000);
+        if (rc == SSH_ERROR) {
+            SSH_LOG(SSH_LOG_WARN,
+                    "Error in ssh_event_dopoll() during proxy jump");
+            break;
+        }
+    }
+
+exit:
+    if (connector_in != NULL) {
+        ssh_event_remove_connector(event, connector_in);
+        ssh_connector_free(connector_in);
+    }
+    if (connector_out != NULL) {
+        ssh_event_remove_connector(event, connector_out);
+        ssh_connector_free(connector_out);
+    }
+    SAFE_FREE(next_hostname);
+    if (jis != NULL) {
+        SAFE_FREE(jis->hostname);
+        SAFE_FREE(jis->username);
+    }
+    SAFE_FREE(jis);
+
+    ssh_disconnect(jump_session);
+    ssh_event_free(event);
+    ssh_free(jump_session);
+
+    SAFE_FREE(jump_thread_data);
+
+    pthread_exit(NULL);
+}
+
+int
+ssh_socket_connect_proxyjump(ssh_socket s)
+{
+    ssh_poll_handle h = NULL;
+    int rc;
+    pthread_t jump_thread;
+    struct jump_thread_data_struct *jump_thread_data = NULL;
+    socket_t pair[2];
+
+    if (s->state != SSH_SOCKET_NONE) {
+        ssh_set_error(
+            s->session,
+            SSH_FATAL,
+            "ssh_socket_connect_proxyjump called on socket not unconnected");
+        return SSH_ERROR;
+    }
+
+    jump_thread_data = calloc(1, sizeof(struct jump_thread_data_struct));
+    if (jump_thread_data == NULL) {
+        ssh_set_error_oom(s->session);
+        return SSH_ERROR;
+    }
+
+    rc = socketpair(PF_UNIX, SOCK_STREAM, 0, pair);
+    if (rc == -1) {
+        char err_msg[SSH_ERRNO_MSG_MAX] = {0};
+
+        ssh_set_error(s->session,
+                      SSH_FATAL,
+                      "Creating socket pair failed: %s",
+                      ssh_strerror(errno, err_msg, SSH_ERRNO_MSG_MAX));
+        SAFE_FREE(jump_thread_data);
+        return SSH_ERROR;
+    }
+
+    jump_thread_data->session = s->session;
+    jump_thread_data->fd = pair[0];
+
+    rc = pthread_create(&jump_thread, NULL, jump_thread_func, jump_thread_data);
+    if (rc != 0) {
+        char err_msg[SSH_ERRNO_MSG_MAX] = {0};
+
+        ssh_set_error(s->session,
+                      SSH_FATAL,
+                      "Creating new thread failed: %s",
+                      ssh_strerror(rc, err_msg, SSH_ERRNO_MSG_MAX));
+        SAFE_FREE(jump_thread_data);
+        return SSH_ERROR;
+    }
+    rc = pthread_detach(jump_thread);
+    if (rc != 0) {
+        char err_msg[SSH_ERRNO_MSG_MAX] = {0};
+
+        ssh_set_error(s->session,
+                      SSH_FATAL,
+                      "Failed to detach thread: %s",
+                      ssh_strerror(rc, err_msg, SSH_ERRNO_MSG_MAX));
+        SAFE_FREE(jump_thread_data);
+        return SSH_ERROR;
+    }
+
+    SSH_LOG(SSH_LOG_DEBUG,
+            "ProxyJump connection pipe: [%d,%d]",
+            pair[0],
+            pair[1]);
+    ssh_socket_set_fd(s, pair[1]);
+    s->fd_is_socket = 1;
+    h = ssh_socket_get_poll_handle(s);
+    if (h == NULL) {
+        return SSH_ERROR;
+    }
+    ssh_socket_set_connected(s, h);
+    if (s->callbacks && s->callbacks->connected) {
+        s->callbacks->connected(SSH_SOCKET_CONNECTED_OK,
+                                0,
+                                s->callbacks->userdata);
+    }
+
+    return SSH_OK;
+}
+
+#endif /* HAVE_PTHREAD */
 
 #endif /* _WIN32 */
 /** @} */

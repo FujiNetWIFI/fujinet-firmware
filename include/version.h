@@ -12,12 +12,12 @@
 
 #define FN_VERSION_MAJOR 1
 #define FN_VERSION_MINOR 6
-#define FN_VERSION_PATCH 1
+#define FN_VERSION_PATCH 2
 
-#define FN_VERSION_BUILD "5b244cc83414272effdd30dda7b675e6a64b0aec"
+#define FN_VERSION_BUILD "d7a5b2faac61a7889874849bf5db6f82718e42c1"
 
-#define FN_VERSION_DATE "2026-05-01 12:34:07"
+#define FN_VERSION_DATE "2026-06-18 09:35:40"
 
-#define FN_VERSION_FULL "v1.6.1-dev"
+#define FN_VERSION_FULL "v1.6.2-dev"
 
 #endif /* _VERSION_H */

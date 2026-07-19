@@ -115,13 +115,16 @@ fujiError_t NetworkProtocolUDP::read(unsigned short len)
 
         // Add new data to buffer.
         receiveBuffer->insert(receiveBuffer->end(),newData.begin(),newData.end());
+
+        // Translate the freshly-read bytes exactly once.
+        Debug_printf("errno = %u\r\n", errno);
+        return NetworkProtocol::read(len);
     }
 
-    // Return success
-    Debug_printf("errno = %u\r\n", errno);
+    // receiveBuffer already holds translated data; return without re-translating,
+    // which would corrupt multi-byte native EOLs.
     error = NDEV_STATUS::SUCCESS;
-
-    return NetworkProtocol::read(len);
+    return FUJI_ERROR::NONE;
 }
 
 fujiError_t NetworkProtocolUDP::write(unsigned short len)
@@ -186,12 +189,12 @@ fujiError_t NetworkProtocolUDP::status(NetworkStatus *status)
     return FUJI_ERROR::NONE;
 }
 
-fujiError_t NetworkProtocolUDP::set_destination(uint8_t *sp_buf, unsigned short len)
+fujiError_t NetworkProtocolUDP::set_destination(const uint8_t *sp_buf, unsigned short len)
 {
 #ifdef ESP_PLATFORM // TODO review & merge
     std::string path((const char *)sp_buf, len);
 #else
-    util_devicespec_fix_9b(sp_buf, len); // TODO check sp_buf, first byte seems corrupted
+    util_devicespec_fix_9b((uint8_t *) sp_buf, len); // TODO check sp_buf, first byte seems corrupted
     Debug_printf("set_destination %s\n", sp_buf);
     std::string path((const char *)sp_buf);
 #endif

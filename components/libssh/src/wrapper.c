@@ -1,5 +1,5 @@
 /*
- * wrapper.c - wrapper for crytpo functions
+ * wrapper.c - wrapper for crypto functions
  *
  * This file is part of the SSH Library
  *
@@ -25,27 +25,22 @@
  * Why a wrapper?
  *
  * Let's say you want to port libssh from libcrypto of openssl to libfoo
- * you are going to spend hours to remove every references to SHA1_Update()
+ * you are going to spend hours removing every reference to SHA1_Update()
  * to libfoo_sha1_update after the work is finished, you're going to have
  * only this file to modify it's not needed to say that your modifications
  * are welcome.
  */
 
-#include "libssh/config.h"
+#include "../config.h"
 
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
-#ifdef WITH_ZLIB
-#include <zlib.h>
-#endif
-
 #include "libssh/priv.h"
-#include "libssh/crypto.h" //MYM
 #include "libssh/session.h"
-//#include "libssh/crypto.h" //MYM
+#include "libssh/crypto.h"
 #include "libssh/wrapper.h"
 #include "libssh/pki.h"
 #include "libssh/poly1305.h"
@@ -67,6 +62,9 @@ static struct ssh_hmac_struct ssh_hmac_tab[] = {
   { "hmac-sha2-256-etm@openssh.com", SSH_HMAC_SHA256,        true  },
   { "hmac-sha2-512-etm@openssh.com", SSH_HMAC_SHA512,        true  },
   { "hmac-md5-etm@openssh.com",      SSH_HMAC_MD5,           true  },
+#ifdef WITH_INSECURE_NONE
+  { "none",                          SSH_HMAC_NONE,          false },
+#endif /* WITH_INSECURE_NONE */
   { NULL,                            0,                      false }
 };
 
@@ -106,7 +104,7 @@ const char *ssh_hmac_type_to_string(enum ssh_hmac_e hmac_type, bool etm)
 }
 
 /* it allocates a new cipher structure based on its offset into the global table */
-static struct ssh_cipher_struct *cipher_new(int offset) {
+static struct ssh_cipher_struct *cipher_new(uint8_t offset) {
   struct ssh_cipher_struct *cipher = NULL;
 
   cipher = malloc(sizeof(struct ssh_cipher_struct));
@@ -148,15 +146,15 @@ static void cipher_free(struct ssh_cipher_struct *cipher) {
   SAFE_FREE(cipher);
 }
 
-struct ssh_crypto_struct *crypto_new(void) {
-   struct ssh_crypto_struct *crypto;
+struct ssh_crypto_struct *crypto_new(void)
+{
+    struct ssh_crypto_struct *crypto = NULL;
 
-  crypto = malloc(sizeof(struct ssh_crypto_struct));
-  if (crypto == NULL) {
-    return NULL;
-  }
-  ZERO_STRUCTP(crypto);
-  return crypto;
+    crypto = calloc(1, sizeof(struct ssh_crypto_struct));
+    if (crypto == NULL) {
+        return NULL;
+    }
+    return crypto;
 }
 
 void crypto_free(struct ssh_crypto_struct *crypto)
@@ -174,36 +172,32 @@ void crypto_free(struct ssh_crypto_struct *crypto)
 #ifdef HAVE_ECDH
     SAFE_FREE(crypto->ecdh_client_pubkey);
     SAFE_FREE(crypto->ecdh_server_pubkey);
-    if(crypto->ecdh_privkey != NULL){
+    if (crypto->ecdh_privkey != NULL) {
 #ifdef HAVE_OPENSSL_ECC
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
         EC_KEY_free(crypto->ecdh_privkey);
+#else
+        EVP_PKEY_free(crypto->ecdh_privkey);
+#endif /* OPENSSL_VERSION_NUMBER */
 #elif defined HAVE_GCRYPT_ECC
         gcry_sexp_release(crypto->ecdh_privkey);
-#endif
+#elif defined HAVE_LIBMBEDCRYPTO
+        mbedtls_ecp_keypair_free(crypto->ecdh_privkey);
+        SAFE_FREE(crypto->ecdh_privkey);
+#endif /* HAVE_LIBGCRYPT */
         crypto->ecdh_privkey = NULL;
     }
 #endif
+    SAFE_FREE(crypto->dh_server_signature);
     if (crypto->session_id != NULL) {
-        explicit_bzero(crypto->session_id, crypto->digest_len);
+        explicit_bzero(crypto->session_id, crypto->session_id_len);
         SAFE_FREE(crypto->session_id);
     }
     if (crypto->secret_hash != NULL) {
         explicit_bzero(crypto->secret_hash, crypto->digest_len);
         SAFE_FREE(crypto->secret_hash);
     }
-#ifdef WITH_ZLIB
-    if (crypto->compress_out_ctx &&
-        (deflateEnd(crypto->compress_out_ctx) != 0)) {
-        inflateEnd(crypto->compress_out_ctx);
-    }
-    SAFE_FREE(crypto->compress_out_ctx);
-
-    if (crypto->compress_in_ctx &&
-        (deflateEnd(crypto->compress_in_ctx) != 0)) {
-        inflateEnd(crypto->compress_in_ctx);
-    }
-    SAFE_FREE(crypto->compress_in_ctx);
-#endif /* WITH_ZLIB */
+    compress_cleanup(crypto);
     SAFE_FREE(crypto->encryptIV);
     SAFE_FREE(crypto->decryptIV);
     SAFE_FREE(crypto->encryptMAC);
@@ -231,12 +225,35 @@ void crypto_free(struct ssh_crypto_struct *crypto)
     SAFE_FREE(crypto);
 }
 
+static void
+compression_enable(ssh_session session,
+                   enum ssh_crypto_direction_e direction,
+                   bool delayed)
+{
+    /* The delayed compression is turned on AFTER authentication. This means
+     * that we need to turn it on immediately in case of rekeying */
+    if (delayed && !(session->flags & SSH_SESSION_FLAG_AUTHENTICATED)) {
+        if (direction == SSH_DIRECTION_IN) {
+            session->next_crypto->delayed_compress_in = 1;
+        } else { /* SSH_DIRECTION_OUT */
+            session->next_crypto->delayed_compress_out = 1;
+        }
+    } else {
+        if (direction == SSH_DIRECTION_IN) {
+            session->next_crypto->do_compress_in = 1;
+        } else { /* SSH_DIRECTION_OUT */
+            session->next_crypto->do_compress_out = 1;
+        }
+    }
+}
+
 static int crypt_set_algorithms2(ssh_session session)
 {
     const char *wanted = NULL;
+    const char *method = NULL;
     struct ssh_cipher_struct *ssh_ciphertab=ssh_get_ciphertab();
     struct ssh_hmac_struct *ssh_hmactab=ssh_get_hmactab();
-    size_t i = 0;
+    uint8_t i = 0;
     int cmp;
 
     /*
@@ -356,22 +373,29 @@ static int crypt_set_algorithms2(ssh_session session)
     session->next_crypto->in_hmac = ssh_hmactab[i].hmac_type;
     session->next_crypto->in_hmac_etm = ssh_hmactab[i].etm;
 
-    /* compression */
-    cmp = strcmp(session->next_crypto->kex_methods[SSH_COMP_C_S], "zlib");
+    /* compression: client */
+    method = session->next_crypto->kex_methods[SSH_COMP_C_S];
+    cmp = strcmp(method, "zlib");
     if (cmp == 0) {
-        session->next_crypto->do_compress_out = 1;
+        SSH_LOG(SSH_LOG_PACKET, "enabling C->S compression");
+        compression_enable(session, SSH_DIRECTION_OUT, false);
     }
-    cmp = strcmp(session->next_crypto->kex_methods[SSH_COMP_S_C], "zlib");
+    cmp = strcmp(method, "zlib@openssh.com");
     if (cmp == 0) {
-        session->next_crypto->do_compress_in = 1;
+        SSH_LOG(SSH_LOG_PACKET, "enabling C->S delayed compression");
+        compression_enable(session, SSH_DIRECTION_OUT, true);
     }
-    cmp = strcmp(session->next_crypto->kex_methods[SSH_COMP_C_S], "zlib@openssh.com");
+
+    method = session->next_crypto->kex_methods[SSH_COMP_S_C];
+    cmp = strcmp(method, "zlib");
     if (cmp == 0) {
-        session->next_crypto->delayed_compress_out = 1;
+        SSH_LOG(SSH_LOG_PACKET, "enabling S->C compression");
+        compression_enable(session, SSH_DIRECTION_IN, false);
     }
-    cmp = strcmp(session->next_crypto->kex_methods[SSH_COMP_S_C], "zlib@openssh.com");
+    cmp = strcmp(method, "zlib@openssh.com");
     if (cmp == 0) {
-        session->next_crypto->delayed_compress_in = 1;
+        SSH_LOG(SSH_LOG_PACKET, "enabling S->C delayed compression");
+        compression_enable(session, SSH_DIRECTION_IN, true);
     }
 
     return SSH_OK;
@@ -385,11 +409,10 @@ int crypt_set_algorithms_client(ssh_session session)
 #ifdef WITH_SERVER
 int crypt_set_algorithms_server(ssh_session session){
     const char *method = NULL;
-    size_t i = 0;
+    uint8_t i = 0;
     struct ssh_cipher_struct *ssh_ciphertab=ssh_get_ciphertab();
     struct ssh_hmac_struct   *ssh_hmactab=ssh_get_hmactab();
     int cmp;
-
 
     if (session == NULL) {
         return SSH_ERROR;
@@ -509,33 +532,27 @@ int crypt_set_algorithms_server(ssh_session session){
 
     /* compression */
     method = session->next_crypto->kex_methods[SSH_COMP_C_S];
-    if(strcmp(method,"zlib") == 0){
-        SSH_LOG(SSH_LOG_PACKET,"enabling C->S compression");
-        session->next_crypto->do_compress_in=1;
+    cmp = strcmp(method, "zlib");
+    if (cmp == 0) {
+        SSH_LOG(SSH_LOG_PACKET, "enabling C->S compression");
+        compression_enable(session, SSH_DIRECTION_IN, false);
     }
-    if(strcmp(method,"zlib@openssh.com") == 0){
-        SSH_LOG(SSH_LOG_PACKET,"enabling C->S delayed compression");
-
-        if (session->flags & SSH_SESSION_FLAG_AUTHENTICATED) {
-            session->next_crypto->do_compress_in = 1;
-        } else {
-            session->next_crypto->delayed_compress_in = 1;
-        }
+    cmp = strcmp(method, "zlib@openssh.com");
+    if (cmp == 0) {
+        SSH_LOG(SSH_LOG_PACKET, "enabling C->S delayed compression");
+        compression_enable(session, SSH_DIRECTION_IN, true);
     }
 
     method = session->next_crypto->kex_methods[SSH_COMP_S_C];
-    if(strcmp(method,"zlib") == 0){
+    cmp = strcmp(method, "zlib");
+    if (cmp == 0) {
         SSH_LOG(SSH_LOG_PACKET, "enabling S->C compression");
-        session->next_crypto->do_compress_out=1;
+        compression_enable(session, SSH_DIRECTION_OUT, false);
     }
-    if(strcmp(method,"zlib@openssh.com") == 0){
-        SSH_LOG(SSH_LOG_PACKET,"enabling S->C delayed compression");
-
-        if (session->flags & SSH_SESSION_FLAG_AUTHENTICATED) {
-            session->next_crypto->do_compress_out = 1;
-        } else {
-            session->next_crypto->delayed_compress_out = 1;
-        }
+    cmp = strcmp(method, "zlib@openssh.com");
+    if (cmp == 0) {
+        SSH_LOG(SSH_LOG_PACKET, "enabling S->C delayed compression");
+        compression_enable(session, SSH_DIRECTION_OUT, true);
     }
 
     method = session->next_crypto->kex_methods[SSH_HOSTKEYS];

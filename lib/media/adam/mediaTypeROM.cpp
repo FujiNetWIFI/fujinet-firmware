@@ -57,11 +57,11 @@ error_is_true MediaTypeROM::read(uint32_t blockNum, uint16_t *readcount)
     {
         // // Perform a seek if we're not reading the sector after the last one we read
         uint32_t offset = _block_to_offset(blockNum - 2); // minus the two boot blocks
-        err = fseek(_media_fileh, offset, SEEK_SET) != 0;
+        err = fnio::fseek(_media_fileh, offset, SEEK_SET) != 0;
         _media_last_block = INVALID_SECTOR_VALUE;
 
         if (err == false)
-            err = fread(_media_blockbuff, 1, 1024, _media_fileh) != 1024;
+            err = fnio::fread(_media_blockbuff, 1, 1024, _media_fileh) != 1024;
 
         if (err == false)
         {
@@ -114,7 +114,7 @@ error_is_true MediaTypeROM::format(uint16_t *responsesize)
     RETURN_ERROR_AS_TRUE();
 }
 
-mediatype_t MediaTypeROM::mount(FILE *f, uint32_t disksize)
+mediatype_t MediaTypeROM::mount(fnFile *f, uint32_t disksize)
 {
     Debug_print("ROM MOUNT\r\n");
 
@@ -123,12 +123,11 @@ mediatype_t MediaTypeROM::mount(FILE *f, uint32_t disksize)
     _media_num_blocks = disksize / 1024;
     _media_num_blocks += 2; // to account for the two boot blocks.
 
-    Debug_printv("FLAGS: %x\n", _media_fileh->_flags);
     return _mediatype;
 }
 
 // Returns FALSE on error
-success_is_true MediaTypeROM::create(FILE *f, uint32_t numBlocks)
+success_is_true MediaTypeROM::create(fnFile *f, uint32_t numBlocks)
 {
     RETURN_ERROR_AS_FALSE();
 }
