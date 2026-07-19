@@ -2,9 +2,12 @@
 #define NETSTREAM_H
 
 #include "bus.h"
+
+#include "fnTcpClient.h"
 #include "fnUDP.h"
 #include "redeye.h"
 
+#include <cstddef>
 
 #define LEDC_TIMER_RESOLUTION  LEDC_TIMER_1_BIT
 
@@ -16,18 +19,33 @@
 class lynxNetStream : public virtualDevice
 {
 private:
-    fnUDP netStream;
+    fnTcpClient netStreamTcp;
+    fnUDP netStreamUdp;
     systemBus *_comlynx_bus = nullptr;
 
     uint8_t buf_net[NETSTREAM_BUFFER_SIZE];
     uint8_t buf_stream[NETSTREAM_BUFFER_SIZE];
 
-    uint16_t buf_stream_index=0;
+    size_t buf_stream_index = 0;
+    size_t buf_net_index = 0;
 
+    bool ensure_netstream_ready();
+    void send_net_packet(const uint8_t *buf, size_t len);
+    void process_net_packet(const uint8_t *buf, size_t len);
+    void process_redeye_net_packet(uint8_t *buf, size_t len);
+    void drain_tcp_to_lynx();
     void comlynx_process() override;
 
 public:
+    enum class NetStreamMode : uint8_t
+    {
+        UDP = 0,
+        TCP = 1
+    };
+
     bool netstreamActive = false; // If we are in netstream mode or not
+    bool netstreamRegisterEnabled = false; // Send REGISTER on connect
+    NetStreamMode netstreamMode = NetStreamMode::UDP;
     in_addr_t netstream_host_ip = IPADDR_NONE;
     int netstream_port;
 
