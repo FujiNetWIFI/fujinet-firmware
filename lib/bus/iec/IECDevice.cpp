@@ -16,6 +16,8 @@
 // Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 // -----------------------------------------------------------------------------
 
+#ifdef BUILD_IEC
+
 #include "IECDevice.h"
 #include "IECBusHandler.h"
 
@@ -25,9 +27,9 @@
 #include "IECespidf.h"
 #endif
 
-IECDevice::IECDevice(uint8_t devnr) 
-{ 
-  m_devnr   = devnr; 
+IECDevice::IECDevice(uint8_t devnr)
+{
+  m_devnr   = devnr;
   m_handler = NULL;
   m_sflags  = 0;
   //m_isActive = true;
@@ -39,9 +41,9 @@ void IECDevice::setDeviceNumber(uint8_t devnr)
 }
 
 
-void IECDevice::sendSRQ() 
-{ 
-  if( m_handler ) m_handler->sendSRQ(); 
+void IECDevice::sendSRQ()
+{
+  if( m_handler ) m_handler->sendSRQ();
 }
 
 
@@ -53,7 +55,7 @@ bool IECDevice::enableJiffyDosSupport(bool enable)
 #endif
 
 
-#ifdef SUPPORT_DOLPHIN 
+#ifdef SUPPORT_DOLPHIN
 bool IECDevice::enableDolphinDosSupport(bool enable)
 {
   return m_handler ? m_handler->enableDolphinDosSupport(this, enable) : false;
@@ -86,14 +88,14 @@ void IECDevice::epyxLoadRequest()
   if( m_handler ) m_handler->epyxLoadRequest(this);
 }
 
-#endif  
+#endif
 
 
 // default implementation of "buffer read" function which can/should be overridden
 // (for efficiency) by devices using the JiffyDos, Epyx FastLoad or DolphinDos protocol
 #if defined(SUPPORT_JIFFY) || defined(SUPPORT_EPYX) || defined(SUPPORT_DOLPHIN)
 uint8_t IECDevice::read(uint8_t *buffer, uint8_t bufferSize)
-{ 
+{
   uint8_t i;
   for(i=0; i<bufferSize; i++)
     {
@@ -121,13 +123,49 @@ uint8_t IECDevice::write(uint8_t *buffer, uint8_t bufferSize, bool eoi)
     {
       int8_t n;
       while( (n = canWrite())<0 );
-      
+
       if( n==0 )
         break;
       else
         write(buffer[i], eoi && (i==bufferSize-1));
     }
-  
+
   return i;
 }
 #endif
+
+
+void virtualDevice::transaction_begin(transState_t expectMoreData)
+{
+  assert(_transaction_state == TRANS_STATE::INVALID);
+  _transaction_state = expectMoreData;
+}
+
+void virtualDevice::transaction_complete()
+{
+  assert(_transaction_state == TRANS_STATE::NO_GET
+         || _transaction_state == TRANS_STATE::DID_GET);
+  _transaction_state = TRANS_STATE::INVALID;
+}
+
+void virtualDevice::transaction_error()
+{
+  _transaction_state = TRANS_STATE::INVALID;
+}
+
+success_is_true virtualDevice::transaction_get(void *data, size_t len)
+{
+    assert(_transaction_state == TRANS_STATE::WILL_GET);
+    _transaction_state = TRANS_STATE::DID_GET;
+    RETURN_ERROR_AS_FALSE();
+}
+
+void virtualDevice::transaction_put(const void *data, size_t len, bool err)
+{
+    assert(_transaction_state == TRANS_STATE::NO_GET);
+    response.clear();
+    response.append(reinterpret_cast<const char*>(data), len);
+    _transaction_state = TRANS_STATE::INVALID;
+}
+
+#endif /* BUILD_IEC */

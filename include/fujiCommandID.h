@@ -127,7 +127,8 @@ enum fujiCommandID_t : uint8_t {
     NETCMD_QUERY                       = 0x51, // Q
     NETCMD_PARSE                       = 0x50, // P
     NETCMD_OPEN                        = 0x4F, // O
-    NETCMD_UNLISTEN                    = 0x4D, // M
+    NETCMD_SET_CHANNEL_MODE            = 0x4D, // M
+    NETCMD_SET_EOL                     = 0x4C, // L - set computer's native EOL (aux1/aux2 carry the bytes; aux1==0 restores platform default)
     NETCMD_GET_ERROR                   = 0x45, // E
     NETCMD_SET_DESTINATION             = 0x44, // D
     NETCMD_CLOSE                       = 0x43, // C
@@ -143,9 +144,6 @@ enum fujiCommandID_t : uint8_t {
     NETCMD_LOCK                        = 0x23, // #
     NETCMD_DELETE                      = 0x21, // !
     NETCMD_RENAME                      = 0x20,
-    NETCMD_SEND_ERROR                  = 0x02,
-    NETCMD_SEND_RESPONSE               = 0x01,
-    NETCMD_DEVICE_READY                = 0x00,
 
     MODEMCMD_STREAM                    = 0x58, // X
     MODEMCMD_WRITE                     = 0x57, // W
@@ -182,7 +180,11 @@ enum fujiCommandID_t : uint8_t {
     APETIMECMD_GET_GENERAL             = 0x47, // G
     APETIMECMD_GET_ATARI               = 0x41, // A
 
+    CPMCMD_WRITE                       = 0x57, // W
+    CPMCMD_STATUS                      = 0x53, // S
+    CPMCMD_READ                        = 0x52, // R
     CPMCMD_INIT                        = 0x47, // G
+    CPMCMD_BOOT                        = 0x42, // B
 };
 
 #endif /* FUJI_COMMANDS_H */

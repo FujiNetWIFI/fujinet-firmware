@@ -92,48 +92,78 @@ enum IECChannels
     CHANNEL_COMMAND = 15
 };
 
-typedef enum
-{
-    ErrOK = 0,
-    ErrFilesScratched,              // Files scratched response, not an error condition.
-    ErrBlockHeaderNotFound = 20,
-    ErrSyncCharNotFound,
-    ErrDataBlockNotFound,
-    ErrChecksumInData,
-    ErrByteDecoding,
-    ErrWriteVerify,
-    ErrWriteProtectOn,
-    ErrChecksumInHeader,
-    ErrDataExtendsNextBlock,
-    ErrDiskIdMismatch,
-    ErrSyntaxError,
-    ErrInvalidCommand,
-    ErrLongLine,
-    ErrInvalidFilename,
-    ErrNoFileGiven,                 // The file name was left out of a command or the DOS does not recognize it as such.
                                     // Typically, a colon or equal character has been left out of the command
-    ErrCommandNotFound = 39,        // This error may result if the command sent to command channel (secondary address 15) is unrecognizedby the DOS.
-    ErrRecordNotPresent = 50,
-    ErrOverflowInRecord,
-    ErrFileTooLarge,
-    ErrFileOpenForWrite = 60,
-    ErrFileNotOpen,
-    ErrFileNotFound,
-    ErrFileExists,
-    ErrFileTypeMismatch,
-    ErrNoBlock,
-    ErrIllegalTrackOrSector,
-    ErrIllegalSystemTrackOrSector,
-    ErrNoChannelAvailable = 70,
-    ErrDirectoryError,
-    ErrDiskFullOrDirectoryFull,
-    ErrIntro,                       // power up message or write attempt with DOS mismatch
-    ErrDriveNotReady,               // typically in this emulation could also mean: not supported on this file system.
-    ErrSerialComm = 97,             // something went sideways with serial communication to the file server.
-    ErrNotImplemented = 98,         // The command or specific operation is not yet implemented in this device.
-    ErrUnknownError = 99,
-    ErrCount
-} IOErrorMessage;
+// CBM DOS Input Processor Error Codes
+// https://github.com/mojzesh/vice-emu/blob/main/vice/src/cbmdos.h
+#define ST_OK                    0
+#define ST_SCRATCHED             1
+#define ST_PARTITION_SELECTED    2      // 1581
+
+#define ST_READ_NO_HEADER        20
+#define ST_READ_NO_SYNC          21
+#define ST_READ_NO_DATA          22
+#define ST_READ_CHECKSUM         23
+#define ST_READ_ERROR_GCR        24
+#define ST_WRITE_VERIFY          25
+#define ST_WRITE_PROTECT_ON      26
+#define ST_READ_HDRCHECKSUM      27
+#define ST_DISK_ID_MISMATCH      29
+#define ST_SYNTAX_UNKNOWN        30
+#define ST_SYNTAX_INVALID        31
+#define ST_SYNTAX_LONG_LINE      32
+#define ST_SYNTAX_BAD_NAME       33
+#define ST_SYNTAX_NO_NAME        34     // THE FILE NAME WAS LEFT OUT OF A COMMAND OR THE DOS DOES NOT RECOGNIZE IT AS SUCH.
+                                        // TYPICALLY, A COLON OR EQUAL CHARACTER HAS BEEN LEFT OUT OF THE COMMAND
+
+#define ST_FILE_NOT_FOUND_39     39     // THIS ERROR MAY RESULT IF THE COMMAND SENT TO COMMAND CHANNEL (SECONDARY ADDRESS 15) IS UNRECOGNIZEDBY THE DOS.
+
+#define ST_RECORD_MISSING        50
+#define ST_RECORD_OVERFLOW       51
+#define ST_FILE_TOO_LARGE        52     // 1581
+
+#define ST_WRITE_FILE_OPEN       60
+#define ST_FILE_NOT_OPEN         61
+#define ST_FILE_NOT_FOUND        62
+#define ST_FILE_EXISTS           63
+#define ST_FILE_TYPE_MISMATCH    64
+#define ST_NO_BLOCK              65
+#define ST_ILLEGAL_TS_COMMAND    66
+#define ST_ILLEGAL_TS_LINK       67     // 1581
+
+#define ST_NO_CHANNEL            70
+#define ST_DIR_ERROR             71
+#define ST_DISK_FULL             72
+#define ST_DOSVERSION            73     // POWER UP MESSAGE OR WRITE ATTEMPT WITH DOS MISMATCH
+#define ST_DRIVE_NOT_READY       74     // TYPICALLY IN THIS EMULATION COULD ALSO MEAN: NOT SUPPORTED ON THIS FILE SYSTEM.
+#define ST_FORMAT_ERROR          75
+#define ST_PARTITION_ILLEGAL     77     // 1581
+#define ST_BUFFER_TOO_SMALL      78     // Direct Access Buffer Too Small
+
+#define ST_NOT_EMPTY             80     // DIR TO REMOVE NOT EMPTY
+#define ST_PERMISSION_DENIED     81     // PERMISSION DENIED
+
+
+// SD2IEC extended status codes
+#define ST_STATUS                3
+#define ST_LONGVERSION           9
+
+#define ST_BUFFER_TOO_SMALL      78
+#define ST_IMAGE_INVALID         79
+#define ST_UNKNOWN_DRIVECODE     98     // THE COMMAND OR SPECIFIC OPERATION IS NOT YET IMPLEMENTED IN THIS DEVICE.
+#define ST_CLOCK_UNSTABLE        99
+
+
+// Meatloaf extended status codes
+#define ST_SERIALCOMM            97     // SOMETHING WENT SIDEWAYS WITH SERIAL COMMUNICATION TO THE FILE SERVER.
+#define ST_DISPLAY_OFF           254
+#define ST_VDRIVE                255
+
+
+// Alternative
+#define ST_SYNTAX_ERROR_31    31
+#define ST_SYNTAX_ERROR_33    33
+#define ST_SPLASH          73
+
 
 
 // BIT Flags

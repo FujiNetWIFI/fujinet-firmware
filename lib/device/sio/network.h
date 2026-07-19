@@ -127,6 +127,16 @@ public:
     virtual void sio_get_dstats_value();
 
     /**
+     * @brief called to seek to a file position (POINT)
+     */
+    virtual void sio_seek();
+
+    /**
+     * @brief called to return the current file position (NOTE)
+     */
+    virtual void sio_tell();
+
+    /**
      * Check to see if PROCEED needs to be asserted.
      */
     void sio_poll_interrupt();
@@ -217,6 +227,12 @@ private:
      * 0 = No Translation, 1 = CR<->EOL (Macintosh), 2 = LF<->EOL (UNIX), 3 = CR/LF<->EOL (PC/Windows)
      */
     uint8_t trans_aux2 = 0;
+
+    /**
+     * Client-set override for the computer's native EOL. Empty means use the
+     * platform default assigned in instantiate_protocol(). See sio_set_eol().
+     */
+    std::string native_eol_override;
 
     /**
      * Return value for DSTATS inquiry
@@ -375,6 +391,11 @@ private:
      * @brief set translation specified by aux1 to aux2_translation mode.
      */
     void sio_set_translation();
+
+    /**
+     * @brief set the computer's native EOL from aux1/aux2 (aux1==0 restores default).
+     */
+    void sio_set_eol();
 
     /**
      * @brief Parse incoming JSON. (must be in JSON channelMode)

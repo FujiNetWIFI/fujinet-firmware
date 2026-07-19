@@ -39,3 +39,9 @@ set(Headers ${Headers} ${LIBRARY_DIR}/simple)
 idf_component_register( SRCS ${Sources} INCLUDE_DIRS . ${Headers} )
 
 target_compile_options(${COMPONENT_LIB} PRIVATE -DHAVE_CONFIG_H)
+# The LZMA decoder uses a coroutine-style switch where falling through
+# between SEQ_* cases is intentional.
+target_compile_options(${COMPONENT_LIB} PRIVATE 
+    -Wno-implicit-fallthrough
+    -Wno-unused-function
+)

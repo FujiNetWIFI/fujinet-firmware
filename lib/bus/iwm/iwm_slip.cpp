@@ -168,7 +168,7 @@ uint8_t iwm_slip::iwm_phase_vector()
 	return PHASE_ENABLE;
 }
 
-int iwm_slip::iwm_send_packet_spi()
+error_is_true iwm_slip::iwm_send_packet_spi()
 {
 	auto data = current_response->serialize();
 
@@ -181,7 +181,7 @@ int iwm_slip::iwm_send_packet_spi()
 		std::cerr << "iwm_slip::iwm_send_packet_spi ERROR sending response: " << e.what() << std::endl;
 	}
 
-	return 0; // 0 is success
+	RETURN_SUCCESS_AS_FALSE();
 }
 
 void iwm_slip::spi_end() {}

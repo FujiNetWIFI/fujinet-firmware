@@ -19,6 +19,7 @@ typedef enum class NDEV_STATUS : uint8_t {
     FILE_EXISTS                    = 151, //  File exists (directory)
     NO_SPACE_ON_DEVICE             = 162, //  No space left on device
     INVALID_DEVICESPEC             = 165, //  An invalid devicespec was given
+    INVALID_POINT                  = 166, //  Invalid POINT
     ACCESS_DENIED                  = 167, //  Access denied
     FILE_NOT_FOUND                 = 170, //  Network error, file not found
     CONNECTION_REFUSED             = 200, //  A connection was either refused or not possible

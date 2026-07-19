@@ -11,6 +11,7 @@
 #include "fujiDevice.h"
 #include "fnFS.h"
 #include "fnFsSD.h"
+#include "fujiCommandID.h"
 
 #include "../runcpm/globals.h"
 #include "../runcpm/abstraction_fujinet_apple2.h"
@@ -52,32 +53,6 @@ drivewireCPM::drivewireCPM()
     txq = xQueueCreate(2048, sizeof(char));
 }
 
-// drivewireCPM::~drivewireCPM()
-// {
-//     if (cpmTaskHandle != NULL)
-//     {
-//         vTaskDelete(cpmTaskHandle);
-//     }
-
-//     vQueueDelete(rxq);
-//     vQueueDelete(txq);
-// }
-
-void drivewireCPM::ready()
-{
-    SYSTEM_BUS.write(0x01);
-}
-
-void drivewireCPM::send_response()
-{
-    // Send body
-    SYSTEM_BUS.write((uint8_t *)response.c_str(),response.length());
-
-    // Clear the response
-    response.clear();
-    response.shrink_to_fit();
-}
-
 void drivewireCPM::boot()
 {
 #ifdef ESP_PLATFORM
@@ -91,11 +66,8 @@ void drivewireCPM::boot()
 #endif /* ESP_PLATFORM */
 }
 
-void drivewireCPM::read()
+void drivewireCPM::read(uint16_t len)
 {
-    uint8_t lenh = SYSTEM_BUS.read();
-    uint8_t lenl = SYSTEM_BUS.read();
-    uint16_t len = (lenh * 256) + lenl;
     uint16_t mw = uxQueueMessagesWaiting(rxq);
 
     if (!len)
@@ -104,9 +76,7 @@ void drivewireCPM::read()
     if (!mw)
         return;
 
-    response.clear();
-    response.shrink_to_fit();
-
+    ByteBuffer buffer(len);
     for (uint16_t i=0; i<len; i++)
     {
         char b;
@@ -114,24 +84,24 @@ void drivewireCPM::read()
 #ifdef ESP_PLATFORM
         xQueueReceive(rxq, &b, portMAX_DELAY);
 #endif /* ESP_PLATFORM */
-        response += b;
+        buffer[i] = b;
     }
+
+    SYSTEM_BUS.transaction_send(buffer);
 }
 
-void drivewireCPM::write()
+void drivewireCPM::write(uint16_t len)
 {
-    uint8_t lenh = SYSTEM_BUS.read();
-    uint8_t lenl = SYSTEM_BUS.read();
-    uint16_t len = (lenh * 256) + lenl;
-
     if (!len)
         return;
 
-    for (uint16_t i=0;i<len;i++)
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    ByteBuffer data(len, 0);
+    SYSTEM_BUS.transaction_get(data.data(), data.size());
+    for (uint16_t i=0;i<data.size();i++)
     {
-        char b = SYSTEM_BUS.read();
 #ifdef ESP_PLATFORM
-        xQueueSend(txq, &b, portMAX_DELAY);
+        xQueueSend(txq, &data[i], portMAX_DELAY);
 #endif /* ESP_PLATFORM */
     }
 }
@@ -141,40 +111,33 @@ void drivewireCPM::status()
     unsigned short mw = uxQueueMessagesWaiting(rxq);
     unsigned char status_response[2] = {0,0};
 
-    response.clear();
-    response.shrink_to_fit();
-
     status_response[0] = mw >> 8;
     status_response[1] = mw & 0xFF;
 
-    response = std::string((const char *)status_response, 2);
+    SYSTEM_BUS.transaction_send(&status_response, sizeof(status_response));
 }
 
-void drivewireCPM::process()
+bool drivewireCPM::processCommand(const FujiDWPacket &packet)
 {
-    uint8_t cmd = SYSTEM_BUS.read();
-
-    switch(cmd)
+    switch(packet.command())
     {
-        case 0x00:
-            ready();
-            break;
-        case 0x01:
-            send_response();
-            break;
-        case 'B':
-            boot();
-            break;
-        case 'R':
-            read();
-            break;
-        case 'W':
-            write();
-            break;
-        case 'S':
-            status();
-            break;
+    case CPMCMD_BOOT:
+        boot();
+        break;
+    case CPMCMD_READ:
+        read(packet.param(0));
+        break;
+    case CPMCMD_WRITE:
+        write(packet.param(0));
+        break;
+    case CPMCMD_STATUS:
+        status();
+        break;
+    default:
+        return false;
     }
+
+    return true;
 }
 
 drivewireCPM theCPM;

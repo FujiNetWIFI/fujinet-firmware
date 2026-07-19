@@ -11,6 +11,9 @@ typedef enum class DIR_FORMAT {
     LONG   = 0x80,
     A2COL80 = 0x81,
     GDRIVE = 0x82,
+    RAW    = 0x83,   // filename only + line ending (no size, no crunch)
+    A2CAT     = 0x84,   // 40-col ProDOS CAT
+    A2CATALOG = 0x85,   // 80-col ProDOS CATALOG
 } dirFormat_t;
 
 class NetworkProtocolFS : public NetworkProtocol
@@ -195,6 +198,14 @@ protected:
      * Reset to empty by open_dir() between entries.
      */
     std::string entry_id;
+
+    /**
+     * Modified/created time (Unix epoch) of the current directory entry, set by
+     * read_dir_entry() implementations that provide it (e.g. TNFS). 0 = unknown,
+     * which the ProDOS date helpers render as "<NO DATE>".
+     */
+    uint32_t modified_time = 0;
+    uint32_t created_time = 0;
 
     /**
      * @brief Open a file via path.

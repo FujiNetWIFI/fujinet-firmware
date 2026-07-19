@@ -4,6 +4,9 @@
 
 #include "CPM.h"
 #include "GDRIVE.h"
+#include "GMAIL.h"
+#include "IMAPS.h"
+#include "ONEDRIVE.h"
 #include "TCP.h"
 #include "UDP.h"
 #include "Test.h"
@@ -11,11 +14,15 @@
 #include "TNFS.h"
 #include "FTP.h"
 #include "HTTP.h"
+#include "WS.h"
+#include "WSS.h"
 #include "SSH.h"
+#include "SFTP.h"
 #include "SSHKeygen.h"
 #include "SSHCopyId.h"
 #include "SMB.h"
 #include "NFS.h"
+#include "S3.h"
 #include "SD.h"
 
 #include "../utils/string_utils.h"
@@ -37,6 +44,15 @@ NetworkProtocol* ProtocolParser::createProtocol(std::string scheme, std::string 
             break;
         case "GDRIVE"_sh:
             protocol = new NetworkProtocolGDRIVE(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "GMAIL"_sh:
+            protocol = new NetworkProtocolGMAIL(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "IMAPS"_sh:
+            protocol = new NetworkProtocolIMAPS(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "ONEDRIVE"_sh:
+            protocol = new NetworkProtocolONEDRIVE(receiveBuffer, transmitBuffer, specialBuffer);
             break;
         case "TCP"_sh:
             protocol = new NetworkProtocolTCP(receiveBuffer, transmitBuffer, specialBuffer);
@@ -60,8 +76,17 @@ NetworkProtocol* ProtocolParser::createProtocol(std::string scheme, std::string 
         case "HTTPS"_sh:
             protocol = new NetworkProtocolHTTP(receiveBuffer, transmitBuffer, specialBuffer);
             break;
+        case "WS"_sh:
+            protocol = new NetworkProtocolWS(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "WSS"_sh:
+            protocol = new NetworkProtocolWSS(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
         case "SSH"_sh:
             protocol = new NetworkProtocolSSH(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "SFTP"_sh:
+            protocol = new NetworkProtocolSFTP(receiveBuffer, transmitBuffer, specialBuffer);
             break;
         case "SSH.KEYGEN"_sh:
             protocol = new NetworkProtocolSSHKeygen(receiveBuffer, transmitBuffer, specialBuffer);
@@ -74,6 +99,9 @@ NetworkProtocol* ProtocolParser::createProtocol(std::string scheme, std::string 
             break;
         case "NFS"_sh:
             protocol = new NetworkProtocolNFS(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "S3"_sh:
+            protocol = new NetworkProtocolS3(receiveBuffer, transmitBuffer, specialBuffer);
             break;
         case "SD"_sh:
             protocol = new NetworkProtocolSD(receiveBuffer, transmitBuffer, specialBuffer);

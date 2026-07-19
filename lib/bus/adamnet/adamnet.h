@@ -5,9 +5,11 @@
  * AdamNet Routines
  */
 
-#include "cmdFrame.h"
+#include "bus.h"
+#include "FujiAdamPacket.h"
 #include "UARTChannel.h"
 #include "BoIPChannel.h"
+#include "global_types.h"
 
 #include <map>
 
@@ -25,7 +27,7 @@ struct adamnet_message_t
 #define ADAMNET_BAUDRATE 62500
 
 // Abort a stalled multi-byte receive after this long with no byte arriving
-// (~2.5 byte times). 
+// (~2.5 byte times).
 #define ADAMNET_RECV_TIMEOUT_US 400
 
 // Minimum turnaround before driving the shared wire in response to a command
@@ -46,12 +48,12 @@ struct adamnet_message_t
 // Largest response whose half-duplex echo still fits the RX ring
 #define ECHO_DRAIN_MAX 64
 
-// How long to wait for a straggler echo byte to land before giving up. 
+// How long to wait for a straggler echo byte to land before giving up.
 #define ECHO_SETTLE_US 50
 
 // A handler that blocked the bus task longer than this leaves a backlog of the
 // master's CONTROL.RECEIVE retries piled up in RX (it retries every ~2ms once it
-// has ACKed our command and is waiting on the response). 
+// has ACKed our command and is waiting on the response).
 #define ADAMNET_LONG_CMD_US 10000
 
 // The bus service runs in its own high-priority task
@@ -60,22 +62,6 @@ struct adamnet_message_t
 #define ADAMNET_BUS_TASK_STACK 8192
 
 #define ADAMNET_STALL_RESYNC_US 600
-
-#define MN_RESET 0x00   // command.control (reset)
-#define MN_STATUS 0x01  // command.control (status)
-#define MN_ACK 0x02     // command.control (ack)
-#define MN_CLR 0x03     // command.control (clr) (aka CTS)
-#define MN_RECEIVE 0x04 // command.control (receive)
-#define MN_CANCEL 0x05  // command.control (cancel)
-#define MN_SEND 0x06    // command.control (send)
-#define MN_NACK 0x07    // command.control (nack)
-#define MN_READY 0x0D   // command.control (ready)
-
-#define NM_STATUS 0x08 // response.control (status)
-#define NM_ACK 0x09    // response.control (ack)
-#define NM_CANCEL 0x0A // response.control (cancel)
-#define NM_SEND 0x0B   // response.data (send)
-#define NM_NACK 0x0C   // response.control (nack)
 
 #define ADAMNET_RESET_DEBOUNCE_PERIOD 100 // in ms
 
@@ -112,6 +98,11 @@ class virtualDevice
 {
     friend systemBus; // We exist on the AdamNet Bus, and need to let it muck with our internals
     friend fujiDevice;
+
+private:
+    // FIXME - these are part of the bus
+    bool _ack_deferred = false;
+    void deferred_ack();
 
 protected:
     /**
@@ -198,7 +189,7 @@ protected:
      * @brief process the next packet with the active device.
      * @param b first byte of packet.
      */
-    virtual void adamnet_process(uint8_t b);
+    virtual void adamnet_process(const FujiAdamPacket &packet);
 
     /**
      * @brief Do any tasks that can only be done when the bus is quiet
@@ -219,11 +210,6 @@ protected:
      * @brief send status response
      */
     virtual void adamnet_response_status();
-
-    /**
-     * @brief command frame, used by network protocol, ultimately
-     */
-    cmdFrame_t cmdFrame;
 
     /**
      * The response sent in adamnet_response_status()
@@ -264,11 +250,12 @@ public:
 /**
  * @brief The AdamNet Bus
  */
-class systemBus
+class systemBus : public SystemBusBase
 {
 private:
     std::map<uint8_t, virtualDevice *> _daisyChain;
     virtualDevice *_activeDev = nullptr;
+    const FujiAdamPacket *_activePacket;
     adamFuji *_fujiDev = nullptr;
     adamPrinter *_printerDev = nullptr;
 
@@ -361,6 +348,13 @@ public:
 
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
+
+    void transaction_accept(transState_t expectMoreData) override;
+    void transaction_success() override;
+    void transaction_error() override;
+    success_is_true transaction_get(void *data, size_t len) override;
+    using SystemBusBase::transaction_send;
+    void transaction_send(const void *data, size_t len, bool is_error=false) override;
 
     // Everybody thinks "oh I know how a serial port works, I'll just
     // access it directly and bypass the bus!" ಠ_ಠ

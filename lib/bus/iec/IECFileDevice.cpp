@@ -16,6 +16,8 @@
 // Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 // -----------------------------------------------------------------------------
 
+#ifdef BUILD_IEC
+
 #include "IECFileDevice.h"
 #include "IECBusHandler.h"
 
@@ -25,6 +27,9 @@
 #include "IECespidf.h"
 #endif
 
+#ifdef DEBUG
+#undef DEBUG
+#endif
 #define DEBUG 0
 
 #if DEBUG>0
@@ -78,7 +83,7 @@ void dbg_data(uint8_t data)
 #define IFD_WRITE 4
 
 
-IECFileDevice::IECFileDevice(uint8_t devnr) : 
+IECFileDevice::IECFileDevice(uint8_t devnr) :
   IECDevice(devnr)
 {
   m_cmd = IFD_NONE;
@@ -93,7 +98,7 @@ void IECFileDevice::begin()
   for(int i=0; !Serial && i<5; i++) delay(1000);
   Serial.print(F("START:IECFileDevice, devnr=")); Serial.println(m_devnr);
 #endif
-  
+
   bool ok;
 #ifdef SUPPORT_JIFFY
   ok = IECDevice::enableJiffyDosSupport(true);
@@ -143,15 +148,15 @@ void IECFileDevice::begin()
   //    one additional output pin (pinCTRL) used to enable/disable the
   //    override of the DATA line.
   //
-  // if we have the extra hardware then m_pinCTRL!=0xFF 
+  // if we have the extra hardware then m_pinCTRL!=0xFF
   m_canServeATN = m_handler->canServeATN();
 
   IECDevice::begin();
 }
 
 
-uint8_t IECFileDevice::getStatusData(char *buffer, uint8_t bufferSize) 
-{ 
+uint8_t IECFileDevice::getStatusData(char *buffer, uint8_t bufferSize)
+{
   // call the getStatus() function that returns a null-terminated string
   m_statusBuffer[0] = 0;
   getStatus(m_statusBuffer, bufferSize);
@@ -160,8 +165,8 @@ uint8_t IECFileDevice::getStatusData(char *buffer, uint8_t bufferSize)
 }
 
 
-int8_t IECFileDevice::canRead() 
-{ 
+int8_t IECFileDevice::canRead()
+{
 #if DEBUG>2
   Serial.write('c');Serial.write('R');
 #endif
@@ -185,7 +190,7 @@ int8_t IECFileDevice::canRead()
           m_statusBufferPtr = 0;
           m_statusBufferLen = getStatusData(m_statusBuffer, IECFILEDEVICE_STATUS_BUFFER_SIZE);
 #if DEBUG>0
-          Serial.print(F("STATUS")); 
+          Serial.print(F("STATUS"));
 #if MAX_DEVICES>1
           Serial.write('#'); Serial.print(m_devnr);
 #endif
@@ -195,7 +200,7 @@ int8_t IECFileDevice::canRead()
           dbg_print_data();
 #endif
         }
-      
+
       return m_statusBufferLen-m_statusBufferPtr;
     }
   else if( m_channel > 15 || m_readBufferLen[m_channel]==-128 )
@@ -213,7 +218,7 @@ int8_t IECFileDevice::canRead()
 }
 
 
-uint8_t IECFileDevice::peek() 
+uint8_t IECFileDevice::peek()
 {
   uint8_t data = 0;
 
@@ -230,8 +235,8 @@ uint8_t IECFileDevice::peek()
 }
 
 
-uint8_t IECFileDevice::read() 
-{ 
+uint8_t IECFileDevice::read()
+{
   uint8_t data = 0;
 
   if( m_channel==15 )
@@ -279,12 +284,12 @@ uint8_t IECFileDevice::read(uint8_t *buffer, uint8_t bufferSize)
 #endif
       res += n;
     }
-  
+
   return res;
 }
 
 
-int8_t IECFileDevice::canWrite() 
+int8_t IECFileDevice::canWrite()
 {
 #if DEBUG>2
   Serial.write('c');Serial.write('W');
@@ -315,13 +320,13 @@ int8_t IECFileDevice::canWrite()
       // if write buffer is full then send it on now
       if( m_writeBufferLen==IECFILEDEVICE_WRITE_BUFFER_SIZE-1 )
         emptyWriteBuffer();
-      
+
       return (m_writeBufferLen<IECFILEDEVICE_WRITE_BUFFER_SIZE-1) ? 1 : 0;
     }
 }
 
 
-void IECFileDevice::write(uint8_t data, bool eoi) 
+void IECFileDevice::write(uint8_t data, bool eoi)
 {
   // this function must return withitn 1 millisecond
   // => do not add Serial.print or function call that may take longer!
@@ -330,7 +335,7 @@ void IECFileDevice::write(uint8_t data, bool eoi)
   m_eoi |= eoi;
   if( m_writeBufferLen<IECFILEDEVICE_WRITE_BUFFER_SIZE-1 )
     m_writeBuffer[m_writeBufferLen++] = data;
- 
+
 #if DEBUG>1
   Serial.write('W'); print_hex(data);
 #endif
@@ -359,7 +364,7 @@ uint8_t IECFileDevice::write(uint8_t *buffer, uint8_t bufferSize, bool eoi)
 }
 
 
-void IECFileDevice::talk(uint8_t secondary)   
+void IECFileDevice::talk(uint8_t secondary)
 {
 #if DEBUG>1
   Serial.write('T'); print_hex(secondary);
@@ -370,18 +375,18 @@ void IECFileDevice::talk(uint8_t secondary)
 }
 
 
-void IECFileDevice::untalk() 
+void IECFileDevice::untalk()
 {
 #if DEBUG>1
   Serial.write('t');
 #endif
 
   // no current channel
-  m_channel = 0xFF; 
+  m_channel = 0xFF;
 }
 
 
-void IECFileDevice::listen(uint8_t secondary) 
+void IECFileDevice::listen(uint8_t secondary)
 {
 #if DEBUG>1
   Serial.write('L'); print_hex(secondary);
@@ -403,7 +408,7 @@ void IECFileDevice::listen(uint8_t secondary)
 }
 
 
-void IECFileDevice::unlisten() 
+void IECFileDevice::unlisten()
 {
 #if DEBUG>1
   Serial.write('l'); Serial.write('0'+m_channel);
@@ -489,7 +494,7 @@ void IECFileDevice::emptyWriteBuffer()
 #if DEBUG==1
       for(uint8_t i=0; i<n; i++) dbg_data(m_writeBuffer[i]);
 #endif
-      if( n<m_writeBufferLen ) 
+      if( n<m_writeBufferLen )
         {
           memmove(m_writeBuffer, m_writeBuffer+n, m_writeBufferLen-n);
           m_writeBufferLen -= n;
@@ -515,25 +520,25 @@ void IECFileDevice::fileTask()
 #if DEBUG>0
         for(uint8_t i=0; m_writeBuffer[i]; i++) dbg_data(m_writeBuffer[i]);
         dbg_print_data();
-        Serial.print(F("OPEN #")); 
+        Serial.print(F("OPEN #"));
 #if MAX_DEVICES>1
         Serial.print(m_devnr); Serial.write('#');
 #endif
         Serial.print(m_channel); Serial.print(F(": ")); Serial.println((const char *) m_writeBuffer);
 #endif
         bool ok = open(m_channel, (const char *) m_writeBuffer);
-        
+
         m_readBufferLen[m_channel] = ok ? 0 : -128;
         m_writeBufferLen = 0;
-        m_channel = 0xFF; 
+        m_channel = 0xFF;
         break;
       }
-      
-    case IFD_CLOSE: 
+
+    case IFD_CLOSE:
       {
 #if DEBUG>0
         dbg_print_data();
-        Serial.print(F("CLOSE #")); 
+        Serial.print(F("CLOSE #"));
 #if MAX_DEVICES>1
         Serial.print(m_devnr); Serial.write('#');
 #endif
@@ -543,12 +548,12 @@ void IECFileDevice::fileTask()
         emptyWriteBuffer();
         m_writeBufferLen = 0;
 
-        close(m_channel); 
+        close(m_channel);
         m_readBufferLen[m_channel] = 0;
         m_channel = 0xFF;
         break;
       }
-      
+
     case IFD_WRITE:
       {
         // note: any data that cannot be sent on at this point is lost!
@@ -558,7 +563,7 @@ void IECFileDevice::fileTask()
         break;
       }
 
-    case IFD_EXEC:  
+    case IFD_EXEC:
       {
         bool handled = false;
         const char *cmd = (const char *) m_writeBuffer;
@@ -643,7 +648,7 @@ bool IECFileDevice::checkMWcmd(uint16_t addr, uint8_t len, uint8_t checksum) con
 void IECFileDevice::setStatus(const char *data, uint8_t dataLen)
 {
 #if DEBUG>0
-  Serial.print(F("SETSTATUS ")); 
+  Serial.print(F("SETSTATUS "));
 #if MAX_DEVICES>1
   Serial.write('#'); Serial.print(m_devnr); Serial.write(' ');
 #endif
@@ -656,9 +661,9 @@ void IECFileDevice::setStatus(const char *data, uint8_t dataLen)
 }
 
 
-void IECFileDevice::clearStatus() 
-{ 
-  setStatus(NULL, 0); 
+void IECFileDevice::clearStatus()
+{
+  setStatus(NULL, 0);
 }
 
 
@@ -692,3 +697,5 @@ void IECFileDevice::task()
   // see comment in IECFileDevice constructor
   if( m_canServeATN ) fileTask();
 }
+
+#endif /* BUILD_IEC */

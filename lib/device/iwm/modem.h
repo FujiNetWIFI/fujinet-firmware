@@ -191,12 +191,12 @@ private:
 
     void shutdown() override;
 
-    void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
-    void iwm_open(iwm_decoded_cmd_t cmd) override;
-    void iwm_close(iwm_decoded_cmd_t cmd) override;
-    void iwm_read(iwm_decoded_cmd_t cmd) override;
-    void iwm_write(iwm_decoded_cmd_t cmd) override;
-    void iwm_status(iwm_decoded_cmd_t cmd) override;
+    void iwm_ctrl(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_open(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_close(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_read(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_write(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_status(const iwm_decoded_cmd_t &cmd) override;
 
     void iwm_modem_status();
 

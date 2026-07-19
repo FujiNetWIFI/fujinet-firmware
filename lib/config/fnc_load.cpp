@@ -112,13 +112,18 @@ New behavior: copy from SD first if available, then read FLASH.
 
     // Read INI file into buffer (for speed)
     // Then look for sections and handle each
-    char *inibuffer = (char *)malloc(CONFIG_FILEBUFFSIZE);
+    // Size to the real file - long OAuth tokens can exceed CONFIG_FILEBUFFSIZE
+    long insize = FileSystem::filesize(fin);
+    size_t inbufsize = (insize > 0) ? (size_t)insize + 1 : CONFIG_FILEBUFFSIZE;
+    if (inbufsize < CONFIG_FILEBUFFSIZE)
+        inbufsize = CONFIG_FILEBUFFSIZE;
+    char *inibuffer = (char *)malloc(inbufsize);
     if (inibuffer == nullptr)
     {
-        Debug_printf("Failed to allocate %d bytes to read config file\r\n", CONFIG_FILEBUFFSIZE);
+        Debug_printf("Failed to allocate %u bytes to read config file\r\n", (unsigned)inbufsize);
         return;
     }
-    int i = fread(inibuffer, 1, CONFIG_FILEBUFFSIZE - 1, fin);
+    int i = fread(inibuffer, 1, inbufsize - 1, fin);
     fclose(fin);
 
     Debug_printf("fnConfig::load read %d bytes from config file\r\n", i);
@@ -190,6 +195,12 @@ New behavior: copy from SD first if available, then read FLASH.
         case SECTION_GOOGLEDRIVE:
             _read_section_gdrive(ss);
             break;
+        case SECTION_S3:
+            _read_section_s3(ss);
+            break;
+        case SECTION_ONEDRIVE:
+            _read_section_onedrive(ss);
+            break;
 #if defined(BUILD_RS232) || !defined(ESP_PLATFORM)
         case SECTION_SERIAL:
             _read_section_serial(ss);
@@ -209,13 +220,17 @@ New behavior: copy from SD first if available, then read FLASH.
         {
             Debug_println("FLASH Config Storage: Enabled");
             FILE *fin = fsFlash.file_open(CONFIG_FILENAME);
-            char *inibuffer = (char *)malloc(CONFIG_FILEBUFFSIZE);
+            long ffs_insize = FileSystem::filesize(fin);
+            size_t ffs_inbufsize = (ffs_insize > 0) ? (size_t)ffs_insize + 1 : CONFIG_FILEBUFFSIZE;
+            if (ffs_inbufsize < CONFIG_FILEBUFFSIZE)
+                ffs_inbufsize = CONFIG_FILEBUFFSIZE;
+            char *inibuffer = (char *)malloc(ffs_inbufsize);
             if (inibuffer == nullptr)
             {
-                Debug_printf("Failed to allocate %d bytes to read config file from FLASH\r\n", CONFIG_FILEBUFFSIZE);
+                Debug_printf("Failed to allocate %u bytes to read config file from FLASH\r\n", (unsigned)ffs_inbufsize);
                 return;
             }
-            int i = fread(inibuffer, 1, CONFIG_FILEBUFFSIZE - 1, fin);
+            int i = fread(inibuffer, 1, ffs_inbufsize - 1, fin);
             fclose(fin);
             Debug_printf("fnConfig::load read %d bytes from FLASH config file\r\n", i);
             if (i < 0)

@@ -412,12 +412,14 @@ static ssize_t	_archive_write_disk_data_block(struct archive *, const void *,
 static int
 la_mktemp(struct archive_write_disk *a)
 {
+	struct archive_string *tmp = &a->_tmpname_data;
 	int oerrno, fd;
 	mode_t mode;
 
-	archive_string_empty(&a->_tmpname_data);
-	archive_string_sprintf(&a->_tmpname_data, "%s.XXXXXX", a->name);
-	a->tmpname = a->_tmpname_data.s;
+	archive_strcpy(tmp, a->name);
+	archive_string_dirname(tmp);
+	archive_strcat(tmp, "/tar.XXXXXXXX");
+	a->tmpname = tmp->s;
 
 	fd = __archive_mkstemp(a->tmpname);
 	if (fd == -1)
@@ -478,9 +480,11 @@ la_verify_filetype(mode_t mode, __LA_MODE_T filetype) {
 	case AE_IFLNK:
 		ret = (S_ISLNK(mode));
 		break;
+#ifdef S_ISSOCK
 	case AE_IFSOCK:
 		ret = (S_ISSOCK(mode));
 		break;
+#endif
 	case AE_IFCHR:
 		ret = (S_ISCHR(mode));
 		break;
@@ -1971,7 +1975,7 @@ archive_write_disk_gid(struct archive *_a, const char *name, la_int64_t id)
                return (a->lookup_gid)(a->lookup_gid_data, name, id);
        return (id);
 }
- 
+
 int64_t
 archive_write_disk_uid(struct archive *_a, const char *name, la_int64_t id)
 {
@@ -2202,7 +2206,7 @@ restore_entry(struct archive_write_disk *a)
 				(void)clear_nochange_fflags(a);
 
 			if ((a->flags & ARCHIVE_EXTRACT_SAFE_WRITES) &&
-			    S_ISREG(a->st.st_mode)) {
+			    S_ISREG(a->mode)) {
 				/* Use a temporary file to extract */
 				if ((a->fd = la_mktemp(a)) == -1) {
 					archive_set_error(&a->archive, errno,
@@ -2402,7 +2406,7 @@ create_filesystem_object(struct archive_write_disk *a)
 	 */
 	mode = final_mode & 0777 & ~a->user_umask;
 
-	/* 
+	/*
 	 * Always create writable such that [f]setxattr() works if we're not
 	 * root.
 	 */
@@ -3020,7 +3024,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 				/*
 				 * We are not the last element and we want to
 				 * follow symlinks if they are a directory.
-				 * 
+				 *
 				 * This is needed to extract hardlinks over
 				 * symlinks.
 				 */
@@ -3431,7 +3435,7 @@ create_dir(struct archive_write_disk *a, char *path)
 			le = new_fixup(a, path);
 			if (le == NULL)
 				return (ARCHIVE_FATAL);
-			le->fixup |=TODO_MODE_BASE;
+			le->fixup |= TODO_MODE_BASE;
 			le->mode = mode_final;
 		}
 		return (ARCHIVE_OK);
@@ -3443,8 +3447,17 @@ create_dir(struct archive_write_disk *a, char *path)
 	 * don't add it to the fixup list here, as it's already been
 	 * added.
 	 */
-	if (la_stat(path, &st) == 0 && S_ISDIR(st.st_mode))
-		return (ARCHIVE_OK);
+	if (errno == EEXIST) {
+		if (la_stat(path, &st) == 0) {
+			if (S_ISDIR(st.st_mode))
+				return (ARCHIVE_OK);
+			/* path exists but is not a directory */
+			errno = ENOTDIR;
+		} else {
+			/* restore original errno */
+			errno = EEXIST;
+		}
+	}
 
 	archive_set_error(&a->archive, errno, "Failed to create dir '%s'",
 	    path);
@@ -3928,10 +3941,14 @@ clear_nochange_fflags(struct archive_write_disk *a)
 #ifdef UF_APPEND
 	    | UF_APPEND
 #endif
-#ifdef EXT2_APPEND_FL
+#if defined(FS_APPEND_FL)
+	    | FS_APPEND_FL
+#elif defined(EXT2_APPEND_FL)
 	    | EXT2_APPEND_FL
 #endif
-#ifdef EXT2_IMMUTABLE_FL
+#if defined(FS_IMMUTABLE_FL)
+	    | FS_IMMUTABLE_FL
+#elif defined(EXT2_IMMUTABLE_FL)
 	    | EXT2_IMMUTABLE_FL
 #endif
 	;
@@ -4281,8 +4298,10 @@ create_tempdatafork(struct archive_write_disk *a, const char *pathname)
 	int tmpfd;
 
 	archive_string_init(&tmpdatafork);
-	archive_strcpy(&tmpdatafork, "tar.md.XXXXXX");
-	tmpfd = mkstemp(tmpdatafork.s);
+	archive_strcpy(&tmpdatafork, pathname);
+	archive_string_dirname(&tmpdatafork);
+	archive_strcat(&tmpdatafork, "/tar.XXXXXXXX");
+	tmpfd = __archive_mkstemp(tmpdatafork.s);
 	if (tmpfd < 0) {
 		archive_set_error(&a->archive, errno,
 		    "Failed to mkstemp");
@@ -4361,8 +4380,10 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 	 * silly dance of writing the data to disk just so that
 	 * copyfile() can read it back in again. */
 	archive_string_init(&tmp);
-	archive_strcpy(&tmp, "tar.mmd.XXXXXX");
-	fd = mkstemp(tmp.s);
+	archive_strcpy(&tmp, pathname);
+	archive_string_dirname(&tmp);
+	archive_strcat(&tmp, "/tar.XXXXXXXX");
+	fd = __archive_mkstemp(tmp.s);
 
 	if (fd < 0) {
 		archive_set_error(&a->archive, errno,
@@ -4755,4 +4776,3 @@ static void close_file_descriptor(struct archive_write_disk* a)
 
 
 #endif /* !_WIN32 || __CYGWIN__ */
-

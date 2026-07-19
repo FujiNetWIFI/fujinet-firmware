@@ -714,6 +714,72 @@ void sioNetwork::sio_get_dstats_value()
 }
 
 /**
+ * Seek (POINT) command
+ * Set the file position from a 3-byte LE payload.
+ */
+void sioNetwork::sio_seek()
+{
+    uint8_t pos[3];
+    off_t offset;
+
+    // If protocol isn't connected, then return not connected.
+    if (protocol == nullptr)
+    {
+        status.error = NDEV_STATUS::NOT_CONNECTED;
+        transaction_error();
+        return;
+    }
+
+    if (channelMode != PROTOCOL)
+    {
+        status.error = NDEV_STATUS::INVALID_POINT;
+        transaction_error();
+        return;
+    }
+
+    transaction_begin(TRANS_STATE::WILL_GET);
+    transaction_get(pos, sizeof(pos));
+
+    offset = pos[0] | (pos[1] << 8) | (pos[2] << 16);
+
+    if (protocol->seek(offset, SEEK_SET) == -1)
+    {
+        status.error = NDEV_STATUS::INVALID_POINT;
+        transaction_error();
+        return;
+    }
+
+    transaction_complete();
+}
+
+/**
+ * Tell (NOTE) command
+ * Return the current file position as a 3-byte LE payload.
+ */
+void sioNetwork::sio_tell()
+{
+    uint8_t pos[3] = {0, 0, 0};
+    off_t offset = -1;
+
+    transaction_begin(TRANS_STATE::NO_GET);
+
+    if (protocol != nullptr && channelMode == PROTOCOL)
+        offset = protocol->seek(0, SEEK_CUR);
+
+    if (offset == -1)
+    {
+        status.error = protocol == nullptr ? NDEV_STATUS::NOT_CONNECTED : NDEV_STATUS::INVALID_POINT;
+        transaction_put(pos, sizeof(pos), true);
+        return;
+    }
+
+    pos[0] = offset & 0xFF;
+    pos[1] = (offset >> 8) & 0xFF;
+    pos[2] = (offset >> 16) & 0xFF;
+    transaction_put(pos, sizeof(pos), false);
+}
+
+/**
  * Process incoming SIO command for device 0x7X
  * @param comanddata incoming 4 bytes containing command and aux bytes
  * @param checksum 8 bit checksum
@@ -755,6 +821,9 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
     case NETCMD_TRANSLATION:
         sio_set_translation();
         break;
+    case NETCMD_SET_EOL:
+        sio_set_eol();
+        break;
     case NETCMD_SET_INT_RATE:
         sio_set_timer_rate();
         break;
@@ -786,6 +855,13 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_get_dstats_value();
         break;
 
+    case NETCMD_SEEK: // POINT
+        sio_seek();
+        break;
+    case NETCMD_TELL: // NOTE
+        sio_tell();
+        break;
+
     case NETCMD_RENAME:
     case NETCMD_DELETE:
     case NETCMD_LOCK:
@@ -800,7 +876,7 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
         process_tcp();
         break;
 
-    case NETCMD_UNLISTEN:
+    case NETCMD_SET_CHANNEL_MODE:
         process_http();
         break;
 
@@ -881,6 +957,7 @@ uint8_t sioNetwork::get_dstats_for_command(uint8_t command)
     case NETCMD_READ:
     case NETCMD_STATUS:
     case NETCMD_GETCWD:
+    case NETCMD_TELL:
         return SIO_DIRECTION_READ;
 
     // Payload from Atari to FujiNet (0x80)
@@ -897,6 +974,7 @@ uint8_t sioNetwork::get_dstats_for_command(uint8_t command)
     case NETCMD_MKDIR:
     case NETCMD_RMDIR:
     case NETCMD_SET_DESTINATION:
+    case NETCMD_SEEK:
         return SIO_DIRECTION_WRITE;
 
     // Invalid/unknown command
@@ -923,6 +1001,10 @@ success_is_true sioNetwork::instantiate_protocol()
         Debug_printf("sioNetwork::instantiate_protocol() - Could not create protocol.\n");
         RETURN_ERROR_AS_FALSE();
     }
+
+    // Atari's native EOL is the ATASCII end-of-line (0x9B), unless the client
+    // has overridden it with the NETCMD_SET_EOL command.
+    protocol->native_eol = native_eol_override.empty() ? STR_ATASCII_EOL : native_eol_override;
 
     // leaving this one to print
     Debug_printf("sioNetwork::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
@@ -1098,6 +1180,26 @@ void sioNetwork::sio_set_translation()
 {
     transaction_begin(TRANS_STATE::NO_GET);
     trans_aux2 = cmdFrame.aux2;
+    transaction_complete();
+}
+
+void sioNetwork::sio_set_eol()
+{
+    transaction_begin(TRANS_STATE::NO_GET);
+
+    // aux1/aux2 carry the EOL bytes; aux1==0 clears the override (restore default).
+    native_eol_override.clear();
+    if (cmdFrame.aux1 != 0x00)
+    {
+        native_eol_override.push_back((char)cmdFrame.aux1);
+        if (cmdFrame.aux2 != 0x00)
+            native_eol_override.push_back((char)cmdFrame.aux2);
+    }
+
+    // Apply to a live protocol immediately; restore default when cleared.
+    if (protocol != nullptr)
+        protocol->native_eol = native_eol_override.empty() ? STR_ATASCII_EOL : native_eol_override;
+
     transaction_complete();
 }
 
@@ -1322,7 +1424,7 @@ void sioNetwork::process_http()
     fujiError_t err;
     switch (cmdFrame.comnd)
     {
-    case NETCMD_UNLISTEN:
+    case NETCMD_SET_CHANNEL_MODE:
         transaction_begin(TRANS_STATE::NO_GET);
         err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmdFrame.aux2);
         break;

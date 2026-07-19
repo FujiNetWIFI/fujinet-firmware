@@ -134,33 +134,29 @@ archive_libb2_version(struct archive_string* str)
 static void
 archive_crypto_version(struct archive_string* str)
 {
-#if defined(ARCHIVE_CRYPTOR_USE_Apple_CommonCrypto) || defined(ARCHIVE_DIGEST_USE_Apple_CommonCrypto)
+#if defined(ARCHIVE_CRYPTOR_USE_Apple_CommonCrypto)
 	archive_strcat(str, " CommonCrypto/");
 	archive_strcat(str, archive_commoncrypto_version());
 #endif
-#if defined(ARCHIVE_CRYPTOR_USE_CNG) || defined(ARCHIVE_DIGEST_USE_CNG)
+#if defined(ARCHIVE_CRYPTOR_USE_CNG)
 	archive_strcat(str, " cng/");
 	archive_strcat(str, archive_cng_version());
 #endif
-#if defined(ARCHIVE_CRYPTOR_USE_MBED) || defined(ARCHIVE_DIGEST_USE_MBED)
+#if defined(ARCHIVE_CRYPTOR_USE_MBED)
 	archive_strcat(str, " mbedtls/");
 	archive_strcat(str, archive_mbedtls_version());
 #endif
-#if defined(ARCHIVE_CRYPTOR_USE_NETTLE) || defined(ARCHIVE_DIGEST_USE_NETTLE)
+#if defined(ARCHIVE_CRYPTOR_USE_NETTLE)
 	archive_strcat(str, " nettle/");
 	archive_strcat(str, archive_nettle_version());
 #endif
-#if defined(ARCHIVE_CRYPTOR_USE_OPENSSL) || defined(ARCHIVE_DIGEST_USE_OPENSSL)
+#if defined(ARCHIVE_CRYPTOR_USE_OPENSSL)
 	archive_strcat(str, " openssl/");
 	archive_strcat(str, archive_openssl_version());
 #endif
-#if defined(ARCHIVE_CRYPTOR_USE_LIBMD) || defined(ARCHIVE_DIGEST_USE_LIBMD)
+#if defined(ARCHIVE_CRYPTOR_USE_LIBMD)
 	archive_strcat(str, " libmd/");
 	archive_strcat(str, archive_libmd_version());
-#endif
-#if defined(ARCHIVE_CRYPTOR_USE_WINCRYPT) || defined(ARCHIVE_DIGEST_USE_WINCRYPT)
-	archive_strcat(str, " WinCrypt/");
-	archive_strcat(str, archive_wincrypt_version());
 #endif
 	// Just in case
 	(void)str; /* UNUSED */
@@ -333,7 +329,7 @@ archive_libbsdxml_version(void)
 const char *
 archive_libxml2_version(void)
 {
-#if HAVE_LIBXML_XMLREADER_H && HAVE_LIBXML2
+#if HAVE_LIBXML_XMLVERSION_H && HAVE_LIBXML2
 	return LIBXML_DOTTED_VERSION;
 #else
 	return NULL;
@@ -431,27 +427,7 @@ archive_cng_version(void)
 const char *
 archive_wincrypt_version(void)
 {
-#if defined(ARCHIVE_CRYPTOR_USE_WINCRYPT) || defined(ARCHIVE_CRYPTO_WINCRYPT)
-	HCRYPTPROV prov;
-	if (!CryptAcquireContext(&prov, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
-		if (GetLastError() != (DWORD)NTE_BAD_KEYSET)
-			return NULL;
-		if (!CryptAcquireContext(&prov, NULL, NULL, PROV_RSA_FULL, CRYPT_NEWKEYSET))
-			return NULL;
-	}
-	DWORD length, version;
-	if (!CryptGetProvParam(prov, PP_VERSION, &version, &length, 0)) {
-		return NULL;
-	} else {
-		char major = version >> 8;
-		char minor = version & 0xFF
-		static char wincrypt_version[6];
-		snprintf(wincrypt_version, 6, "%hhd.%hhd", major, minor);
-		return wincrypt_version;
-	}
-#else
 	return NULL;
-#endif
 }
 
 const char *
@@ -501,7 +477,7 @@ archive_libiconv_version(void)
 {
 #if HAVE_LIBCHARSET && HAVE_ICONV_H
 	char major = _libiconv_version >> 8;
-	char minor = _libiconv_version & 0xFF
+	char minor = _libiconv_version & 0xFF;
 	static char charset_version[6];
 	snprintf(charset_version, 6, "%hhd.%hhd", major, minor);
 	return charset_version;

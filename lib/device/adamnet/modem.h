@@ -184,7 +184,7 @@ private:
     bool answered=false;
 
     void adamnet_control_status() override;
-    void adamnet_process(uint8_t b) override;
+    void adamnet_process(const FujiAdamPacket &packet) override;
 
     void crx_toggle(bool toggle);                // CRX active/inactive?
 

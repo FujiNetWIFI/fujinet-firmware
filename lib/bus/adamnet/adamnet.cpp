@@ -13,6 +13,8 @@
 #include "adamFuji.h"
 #include "fnConfig.h"
 
+#include <cassert>
+
 #ifdef ESP_PLATFORM
 #include <driver/gpio.h>
 #endif
@@ -71,7 +73,7 @@ static void adamnet_reset_intr_task(void *arg)
     }
 }
 
-// Dedicated AdamNet bus service task. 
+// Dedicated AdamNet bus service task.
 static void adamnet_bus_task(void *arg)
 {
     systemBus *b = (systemBus *)arg;
@@ -97,6 +99,74 @@ uint8_t adamnet_checksum(uint8_t *buf, unsigned short len)
         checksum ^= buf[i];
 
     return checksum;
+}
+
+// Consume the trailing checksum and ACK, once the full payload has been read.
+void virtualDevice::deferred_ack()
+{
+    adamnet_recv(); // CK
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
+    adamnet_response_ack();
+    _ack_deferred = false;
+}
+
+void systemBus::transaction_accept(transState_t expectMoreData)
+{
+    assert(_transaction_state == TRANS_STATE::INVALID);
+
+    start_time = GET_TIMESTAMP();
+    if (expectMoreData == TRANS_STATE::WILL_GET)
+    {
+        _activeDev->_ack_deferred = true;
+    }
+    else
+    {
+        // No payload follows; the next byte is the checksum.
+        _activeDev->adamnet_recv(); // Discard CK
+        _activeDev->adamnet_response_ack();
+    }
+
+    _transaction_state = expectMoreData;
+}
+
+void systemBus::transaction_success()
+{
+    assert(_transaction_state == TRANS_STATE::NO_GET
+           || _transaction_state == TRANS_STATE::DID_GET);
+    _transaction_state = TRANS_STATE::INVALID;
+}
+
+void systemBus::transaction_error()
+{
+    if (_activeDev->_ack_deferred)
+    {
+        wait_for_idle();
+        start_time = GET_TIMESTAMP();
+        _activeDev->adamnet_response_ack();
+        _activeDev->_ack_deferred = false;
+    }
+    _transaction_state = TRANS_STATE::INVALID;
+}
+
+success_is_true systemBus::transaction_get(void *data, size_t len)
+{
+    assert(_transaction_state == TRANS_STATE::WILL_GET);
+    _transaction_state = TRANS_STATE::DID_GET;
+    if (_activeDev->_ack_deferred)
+        _activeDev->deferred_ack();
+    if (_activePacket->data()->size() != len)
+        RETURN_ERROR_AS_FALSE();
+    std::copy(_activePacket->data()->begin(), _activePacket->data()->end(),
+              static_cast<uint8_t *>(data));
+    RETURN_SUCCESS_AS_TRUE();
+}
+
+void systemBus::transaction_send(const void *data, size_t len, bool err)
+{
+    assert(_transaction_state == TRANS_STATE::NO_GET);
+    memcpy(_activeDev->response, data, len);
+    _activeDev->response_len = len;
+    _transaction_state = TRANS_STATE::INVALID;
 }
 
 void virtualDevice::adamnet_send(uint8_t b)
@@ -254,9 +324,9 @@ void systemBus::drain_echo(size_t n)
     }
 }
 
-void virtualDevice::adamnet_process(uint8_t b)
+void virtualDevice::adamnet_process(const FujiAdamPacket &packet)
 {
-    Debug_printf("adamnet_process() not implemented yet for this device. Cmd received: %02x\n", b);
+    Debug_printf("adamnet_process() not implemented yet for this device: 0x%02x  type: 0x%02x\n", packet.device(), packet.type());
 }
 
 void virtualDevice::adamnet_control_status()
@@ -267,7 +337,7 @@ void virtualDevice::adamnet_control_status()
 
 void virtualDevice::adamnet_response_status()
 {
-    status_response.cmd_dev = (NM_STATUS << 4) | _devnum;
+    status_response.cmd_dev = (static_cast<uint8_t>(APT::NM_STATUS) << 4) | _devnum;
 
     status_response.checksum = adamnet_checksum((uint8_t *) &status_response.length, 4);
 
@@ -304,26 +374,26 @@ void virtualDevice::adamnet_idle()
 
 void systemBus::_adamnet_process_cmd()
 {
-    uint8_t b;
-
-    b = _port->read();
+    uint8_t dest = _port->read();
     int64_t cmd_start = GET_TIMESTAMP();
     start_time = cmd_start;
     frame_error = false;
     _tx_count = 0;
     stall_silent = false;
 
-    uint8_t d = b & 0x0F;
+    auto tmpPacket = FujiAdamPacket(dest);
 
     // Find device ID and pass control to it
-    if (_daisyChain.count(d) < 1)
+    if (_daisyChain.count(tmpPacket.device()) < 1)
     {
     }
-    else if (_daisyChain[d]->device_active == true)
+    else if (_daisyChain[tmpPacket.device()]->device_active == true)
     {
         // turn on AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, true);
-        _daisyChain[d]->adamnet_process(b);
+        _activeDev = _daisyChain[tmpPacket.device()];
+        _activePacket = &tmpPacket;
+        _activeDev->adamnet_process(tmpPacket);
         // turn off AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, false);
     }
@@ -471,7 +541,7 @@ void systemBus::addDevice(virtualDevice *pDevice, uint8_t device_id)
         _printerDev = (adamPrinter *)pDevice;
         break;
     case 0x0f:
-        _fujiDev = (adamFuji *)pDevice;
+        _fujiDev = dynamic_cast<adamFuji*>(pDevice);
         break;
     }
 }

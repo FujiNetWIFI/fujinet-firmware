@@ -5,8 +5,10 @@
  * rc2014 Routines
  */
 
+#include "bus.h"
 #include "cmdFrame.h"
 #include "fujiDeviceID.h"
+#include "global_types.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <deque>
@@ -139,6 +141,13 @@ class virtualDevice
 protected:
     friend systemBus; // We exist on the rc2014 Bus, and need its methods.
     friend class fujiDevice;
+
+    transState_t _transaction_state = TRANS_STATE::INVALID;
+    virtual void transaction_begin(transState_t expectMoreData);
+    virtual void transaction_complete();
+    virtual void transaction_error();
+    virtual success_is_true transaction_get(void *data, size_t len);
+    virtual void transaction_put(const void *data, size_t len, bool err=false);
 
     /**
      * @brief Send Byte to rc2014

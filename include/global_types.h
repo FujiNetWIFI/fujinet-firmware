@@ -8,20 +8,13 @@
 #include "fuji_endian.h"
 #include <cstdint>
 #include <cstring>
+#include <vector>
 
-/**
- * byte array for buffers
- */
+using ByteBuffer = std::vector<std::uint8_t>;
+
+// Obsolete, do not use
 typedef uint8_t* Buffer;
-
-/**
- * Used for specifying buffer lengths
- */
 typedef uint16_t BufferLength;
-
-/**
- * Used to specify both aux1/aux2 values
- */
 typedef uint16_t AuxWord;
 
 typedef enum class FUJI_ERROR {

@@ -4,7 +4,6 @@
 #include "fujiCommandID.h"
 #include "network.h"
 #include "fnWiFi.h"
-#include "base64.h"
 #include "utils.h"
 #include "compat_string.h"
 #include "endianness.h"
@@ -126,6 +125,7 @@ void drivewireFuji::new_disk()
         char filename[MAX_FILENAME_LEN]; // WIll set this to MAX_FILENAME_LEN, later.
     } newDisk;
 
+    transaction_begin(TRANS_STATE::WILL_GET);
     transaction_get(&newDisk, sizeof(newDisk));
 
     Debug_printf("numDisks: %u\n",newDisk.numDisks);
@@ -152,6 +152,7 @@ void drivewireFuji::new_disk()
     if (disk.fileh == nullptr)
     {
         Debug_printf("drivewire_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
+        transaction_error();
         return;
     }
 
@@ -163,227 +164,6 @@ void drivewireFuji::new_disk()
         transaction_error();
 
     fnio::fclose(disk.fileh);
-}
-
-void drivewireFuji::base64_encode_input()
-{
-    uint8_t lenh = SYSTEM_BUS.read();
-    uint8_t lenl = SYSTEM_BUS.read();
-    uint16_t len = lenh << 8 | lenl;
-
-    if (!len)
-    {
-        Debug_printf("Zero length. Aborting.\n");
-        transaction_error();
-        return;
-    }
-
-    std::vector<unsigned char> p(len);
-    transaction_get(p.data(), len);
-    base64.base64_buffer += std::string((const char *)p.data(), len);
-    transaction_complete();
-}
-
-void drivewireFuji::base64_encode_compute()
-{
-    size_t out_len;
-
-    std::unique_ptr<char[]> p = Base64::encode(base64.base64_buffer.c_str(), base64.base64_buffer.size(), &out_len);
-
-    if (!p)
-    {
-        Debug_printf("base64_encode_compute() failed.\n");
-        transaction_error();
-        return;
-    }
-
-    base64.base64_buffer.clear();
-    base64.base64_buffer = std::string(p.get(), out_len);
-
-    transaction_complete();
-}
-
-void drivewireFuji::base64_encode_length()
-{
-    size_t l = base64.base64_buffer.length();
-    uint8_t o[4] =
-    {
-        (uint8_t)(l >> 24),
-        (uint8_t)(l >> 16),
-        (uint8_t)(l >> 8),
-        (uint8_t)(l)
-    };
-
-    transaction_put(&o, 4);
-}
-
-void drivewireFuji::base64_encode_output()
-{
-    uint8_t lenh = SYSTEM_BUS.read();
-    uint8_t lenl = SYSTEM_BUS.read();
-    uint16_t len = lenh << 8 | lenl;
-
-    if (!len)
-    {
-        Debug_printf("Refusing to send zero byte buffer. Exiting.");
-        transaction_error();
-        return;
-    }
-
-    std::vector<unsigned char> p(len);
-    std::memcpy(p.data(), base64.base64_buffer.data(), len);
-    base64.base64_buffer.erase(0, len);
-    base64.base64_buffer.shrink_to_fit();
-
-    transaction_put(p.data(), len);
-}
-
-void drivewireFuji::base64_decode_input()
-{
-    uint8_t lenh = SYSTEM_BUS.read();
-    uint8_t lenl = SYSTEM_BUS.read();
-    uint16_t len = lenh << 8 | lenl;
-
-    if (!len)
-    {
-        Debug_printf("Refusing to input zero length. Exiting.\n");
-        transaction_error();
-        return;
-    }
-
-    std::vector<unsigned char> p(len);
-    transaction_get(p.data(), len);
-    base64.base64_buffer += std::string((const char *)p.data(), len);
-
-    transaction_complete();
-}
-
-void drivewireFuji::base64_decode_compute()
-{
-    size_t out_len;
-
-    Debug_printf("FUJI: BASE64 DECODE COMPUTE\n");
-
-    std::unique_ptr<unsigned char[]> p = Base64::decode(base64.base64_buffer.c_str(), base64.base64_buffer.size(), &out_len);
-    if (!p)
-    {
-        Debug_printf("base64_encode compute failed\n");
-        transaction_error();
-        return;
-    }
-
-    base64.base64_buffer.clear();
-    base64.base64_buffer = std::string((const char *)p.get(), out_len);
-
-    Debug_printf("Resulting BASE64 encoded data is: %u bytes\n", out_len);
-    transaction_complete();
-}
-
-void drivewireFuji::base64_decode_length()
-{
-    Debug_printf("FUJI: BASE64 DECODE LENGTH\n");
-
-    size_t len = base64.base64_buffer.length();
-    uint8_t _response[4] = {
-        (uint8_t)(len >>  24),
-        (uint8_t)(len >>  16),
-        (uint8_t)(len >>  8),
-        (uint8_t)(len >>  0)
-    };
-
-    Debug_printf("base64 buffer length: %u bytes\n", len);
-
-    transaction_put(_response, 4);
-}
-
-void drivewireFuji::base64_decode_output()
-{
-    Debug_printf("FUJI: BASE64 DECODE OUTPUT\n");
-
-    uint8_t lenh = SYSTEM_BUS.read();
-    uint8_t lenl = SYSTEM_BUS.read();
-    uint16_t len = lenh << 8 | lenl;
-
-    if (!len)
-    {
-        Debug_printf("Refusing to send a zero byte buffer. Aborting\n");
-        transaction_error();
-        return;
-    }
-    else if (len > base64.base64_buffer.length())
-    {
-        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n", len, base64.base64_buffer.length());
-        transaction_error();
-        return;
-    }
-    else
-    {
-        Debug_printf("Requested %u bytes\n", len);
-    }
-
-    std::vector<unsigned char> p(len);
-    memcpy(p.data(), base64.base64_buffer.data(), len);
-    base64.base64_buffer.erase(0, len);
-    base64.base64_buffer.shrink_to_fit();
-    transaction_put(p.data(), len);
-}
-
-void drivewireFuji::hash_input()
-{
-    Debug_printf("FUJI: HASH INPUT\n");
-    uint8_t lenh = SYSTEM_BUS.read();
-    uint8_t lenl = SYSTEM_BUS.read();
-    uint16_t len = lenh << 8 | lenl;
-
-
-    if (!len)
-    {
-        Debug_printf("Invalid length. Aborting");
-        transaction_error();
-        return;
-    }
-
-    std::vector<uint8_t> p(len);
-    transaction_get(p.data(), len);
-    hasher.add_data(p);
-    transaction_complete();
-}
-
-void drivewireFuji::hash_compute(bool clear_data)
-{
-    Debug_printf("FUJI: HASH COMPUTE\n");
-    algorithm = Hash::to_algorithm(SYSTEM_BUS.read());
-    hasher.compute(algorithm, clear_data);
-    transaction_complete();
-}
-
-void drivewireFuji::hash_length()
-{
-    Debug_printf("FUJI: HASH LENGTH\n");
-    uint8_t is_hex = SYSTEM_BUS.read() == 1;
-    uint8_t r = hasher.hash_length(algorithm, is_hex);
-    transaction_put(&r, 1);
-}
-
-void drivewireFuji::hash_output()
-{
-    Debug_printf("FUJI: HASH OUTPUT\n");
-
-    uint8_t is_hex = SYSTEM_BUS.read() == 1;
-    if (is_hex) {
-        std::string output = hasher.output_hex();
-        transaction_put(output.c_str(), output.size());
-    } else {
-        std::vector<uint8_t> hashed_data = hasher.output_binary();
-        transaction_put(hashed_data.data(), hashed_data.size());
-    }
-}
-
-void drivewireFuji::hash_clear()
-{
-    Debug_printf("FUJI: HASH INIT\n");
-    hasher.clear();
-    transaction_complete();
 }
 
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
@@ -405,12 +185,6 @@ void drivewireFuji::setup()
 #endif /* OBSOLETE */
 }
 
-void drivewireFuji::send_error()
-{
-    Debug_printf("drivewireFuji::send_error(%u)\n",_errorCode);
-    SYSTEM_BUS.write(_errorCode);
-}
-
 void drivewireFuji::random()
 {
     int r = rand();
@@ -418,31 +192,15 @@ void drivewireFuji::random()
     transaction_put(&r, sizeof(r));
 }
 
-void drivewireFuji::send_response()
+bool drivewireFuji::processCommand(const FujiDWPacket &packet)
 {
-    // Send body
-    SYSTEM_BUS.write((uint8_t *)_response.c_str(),_response.length());
+    // Let the base class handle standard commands
+    if (fujiDevice::processCommand(packet))
+        return true;
 
-    // Clear the response
-    _response.clear();
-    _response.shrink_to_fit();
-}
-
-void drivewireFuji::ready()
-{
-    SYSTEM_BUS.write(0x01); // Yes, ready.
-}
-
-void drivewireFuji::process()
-{
-    fujiCommandID_t c = (fujiCommandID_t) SYSTEM_BUS.read();
-
-    _errorCode = 1;
-    switch (c)
+    _errorCode = NDEV_STATUS::SUCCESS;
+    switch (packet.command())
     {
-    case FUJICMD_SEND_ERROR:
-        send_error();
-        break;
     case FUJICMD_RESET:
         fnSystem.reboot();
         break;
@@ -453,7 +211,7 @@ void drivewireFuji::process()
         fujicmd_get_adapter_config_extended();
         break;
     case FUJICMD_GET_SCAN_RESULT:
-        fujicmd_net_scan_result(SYSTEM_BUS.read());
+        fujicmd_net_scan_result(packet.param(0));
         break;
     case FUJICMD_SCAN_NETWORKS:
         fujicmd_net_scan_networks();
@@ -461,10 +219,15 @@ void drivewireFuji::process()
     case FUJICMD_SET_SSID:
         {
             SSIDConfig cfg;
+            // Handler owns the transaction because it must transaction_get the
+            // payload first, so call the core (not fujicmd_) set-ssid helper.
+            transaction_begin(TRANS_STATE::WILL_GET);
             if (!transaction_get(&cfg, sizeof(cfg)))
                 transaction_error();
+            else if (fujicore_net_set_ssid_success(cfg.ssid, cfg.password, true).is_error())
+                transaction_error();
             else
-                fujicmd_net_set_ssid_success(cfg.ssid, cfg.password, true);
+                transaction_complete();
         }
         break;
     case FUJICMD_GET_SSID:
@@ -489,63 +252,39 @@ void drivewireFuji::process()
         fujicmd_net_get_wifi_status();
         break;
     case FUJICMD_MOUNT_HOST:
-        fujicmd_mount_host_success(SYSTEM_BUS.read());
+        fujicmd_mount_host_success(packet.param8(0));
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        fujicmd_open_directory_success(SYSTEM_BUS.read());
+        fujicmd_open_directory_success(packet.param(0));
         break;
     case FUJICMD_CLOSE_DIRECTORY:
         fujicmd_close_directory();
         break;
     case FUJICMD_READ_DIR_ENTRY:
-        {
-            uint8_t maxlen = SYSTEM_BUS.read();
-            uint8_t addtl = SYSTEM_BUS.read();
-            fujicmd_read_directory_entry(maxlen, addtl);
-        }
+        fujicmd_read_directory_entry(packet.param8(0), packet.param(1));
         break;
     case FUJICMD_SET_DIRECTORY_POSITION:
-        {
-            uint8_t h, l;
-            h = SYSTEM_BUS.read();
-            l = SYSTEM_BUS.read();
-            uint16_t pos = UINT16_FROM_HILOBYTES(h, l);
-
-            fujicmd_set_directory_position(pos);
-        }
+        fujicmd_set_directory_position(packet.param(0));
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
-        {
-            uint8_t slot = SYSTEM_BUS.read();
-            uint8_t host = SYSTEM_BUS.read();
-            uint8_t mode = SYSTEM_BUS.read();
-            fujicmd_set_device_filename_success(slot, host, (disk_access_flags_t) mode);
-        }
+        fujicmd_set_device_filename_success(packet.param(0), packet.param(1),
+                                            (disk_access_flags_t) packet.param8(2));
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
-        fujicmd_get_device_filename(SYSTEM_BUS.read());
+        fujicmd_get_device_filename(packet.param(0));
         break;
     case FUJICMD_MOUNT_IMAGE:
-        {
-            uint8_t slot = SYSTEM_BUS.read();
-            uint8_t mode = SYSTEM_BUS.read();
-            fujicmd_mount_disk_image_success(slot, (disk_access_flags_t) mode);
-        }
+        fujicmd_mount_disk_image_success(packet.param(0),
+                                         (disk_access_flags_t) packet.param8(1));
         break;
     case FUJICMD_UNMOUNT_HOST:
-        fujicmd_unmount_host_success(SYSTEM_BUS.read());
+        fujicmd_unmount_host_success(packet.param(0));
         break;
     case FUJICMD_UNMOUNT_IMAGE:
-        fujicmd_unmount_disk_image_success(SYSTEM_BUS.read());
+        fujicmd_unmount_disk_image_success(packet.param(0));
         break;
     case FUJICMD_NEW_DISK:
         new_disk();
-        break;
-    case FUJICMD_SEND_RESPONSE:
-        send_response();
-        break;
-    case FUJICMD_DEVICE_READY:
-        ready();
         break;
     case FUJICMD_OPEN_APPKEY:
         fujicmd_open_app_key();
@@ -557,80 +296,37 @@ void drivewireFuji::process()
         fujicmd_read_app_key();
         break;
     case FUJICMD_WRITE_APPKEY:
-        {
-            uint8_t lenh = SYSTEM_BUS.read();
-            uint8_t lenl = SYSTEM_BUS.read();
-            uint16_t len = lenh << 8 | lenl;
-            // fujinet-lib always sends MAX_APPKEY_LEN data bytes
-            // regardless of len. Drain the full payload so leftover
-            // bytes don't get interpreted as bus opcodes.
-            fujicmd_write_app_key(len, MAX_APPKEY_LEN);
-        }
+        // fujinet-lib always sends MAX_APPKEY_LEN data bytes
+        // regardless of len. Drain the full payload so leftover
+        // bytes don't get interpreted as bus opcodes.
+        fujicmd_write_app_key(packet.param(0), MAX_APPKEY_LEN);
         break;
     case FUJICMD_RANDOM_NUMBER:
         random();
         break;
-    case FUJICMD_BASE64_ENCODE_INPUT:
-        base64_encode_input();
-        break;
-    case FUJICMD_BASE64_ENCODE_COMPUTE:
-        base64_encode_compute();
-        break;
-    case FUJICMD_BASE64_ENCODE_LENGTH:
-        base64_encode_length();
-        break;
-    case FUJICMD_BASE64_ENCODE_OUTPUT:
-        base64_encode_output();
-        break;
-    case FUJICMD_BASE64_DECODE_INPUT:
-        base64_decode_input();
-        break;
-    case FUJICMD_BASE64_DECODE_COMPUTE:
-        base64_decode_compute();
-        break;
-    case FUJICMD_BASE64_DECODE_LENGTH:
-        base64_decode_length();
-        break;
-    case FUJICMD_BASE64_DECODE_OUTPUT:
-        base64_decode_output();
-        break;
-    case FUJICMD_HASH_INPUT:
-        hash_input();
-        break;
-    case FUJICMD_HASH_COMPUTE:
-        hash_compute(true);
-        break;
-    case FUJICMD_HASH_COMPUTE_NO_CLEAR:
-        hash_compute(false);
-        break;
-    case FUJICMD_HASH_LENGTH:
-        hash_length();
-        break;
-    case FUJICMD_HASH_OUTPUT:
-        hash_output();
-        break;
-    case FUJICMD_HASH_CLEAR:
-        hash_clear();
-        break;
     case FUJICMD_SET_BOOT_MODE:
-        fujicmd_set_boot_mode(SYSTEM_BUS.read(), MEDIATYPE_UNKNOWN, &bootdisk);
+        fujicmd_set_boot_mode(packet.param(0), MEDIATYPE_UNKNOWN, &bootdisk);
         break;
     case FUJICMD_MOUNT_ALL:
         fujicmd_mount_all_success();
         break;
     case FUJICMD_GET_HOST_PREFIX:
-        fujicmd_get_host_prefix(SYSTEM_BUS.read());
+        fujicmd_get_host_prefix(packet.param(0));
         break;
     case FUJICMD_SET_HOST_PREFIX:
-        fujicmd_set_host_prefix(SYSTEM_BUS.read());
+        fujicmd_set_host_prefix(packet.param(0));
         break;
     case FUJICMD_COPY_FILE:
         {
-            uint8_t source = SYSTEM_BUS.read();
-            uint8_t dest = SYSTEM_BUS.read();
+            uint8_t source = packet.param(0);
+            uint8_t dest = packet.param(1);
             char dirpath[256];
+            transaction_begin(TRANS_STATE::WILL_GET);
             transaction_get(dirpath, sizeof(dirpath));
-            fujicmd_copy_file_success(source, dest, dirpath);
+            if (fujicore_copy_file_success(source, dest, dirpath).is_error())
+                transaction_error();
+            else
+                transaction_complete();
         }
         break;
     case FUJICMD_GENERATE_GUID:
@@ -643,8 +339,23 @@ void drivewireFuji::process()
         fujicmd_get_directory_position();
         break;
     default:
-        break;
+        return false;
     }
+
+    return true;
+}
+
+success_is_true drivewireFuji::fujicore_mount_disk_image_success(uint8_t deviceSlot,
+                                                                   disk_access_flags_t access_mode)
+{
+    if (!fujiDevice::fujicore_mount_disk_image_success(deviceSlot, access_mode))
+        RETURN_ERROR_AS_FALSE();
+
+    fujiDisk &disk = *get_disk(deviceSlot);
+    fujiHost &host = _fnHosts[disk.host_slot];
+    get_disk_dev(deviceSlot)->set_media_host(&host);
+
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 std::optional<std::vector<uint8_t>> drivewireFuji::fujicore_read_app_key()

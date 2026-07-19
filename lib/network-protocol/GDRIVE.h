@@ -68,6 +68,8 @@ private:
     cJSON *_dir_items = nullptr;
     int _dir_item_idx = 0;
     bool _include_file_id = false; // set when DIR_FORMAT::GDRIVE aux2 flag requested
+    // Wildcard applied to files during a listing; empty means no filter.
+    std::string _dir_filter;
 
     // Write buffer – data accumulates here until close_file_handle uploads it
     std::vector<uint8_t> _write_buf;

@@ -6,6 +6,8 @@
 #include "epson_80.h"
 #include "fnSystem.h"
 
+#include <algorithm>
+
 constexpr const char *const iwmPrinter::printer_model_str[PRINTER_INVALID];
 
 iwmPrinter::iwmPrinter(FileSystem *filesystem, printer_type printer_type)
@@ -43,41 +45,39 @@ iwm_device_info_block_t iwmPrinter::create_dib_reply_packet()
   return dib;
 }
 
-void iwmPrinter::iwm_open(iwm_decoded_cmd_t cmd)
+void iwmPrinter::iwm_open(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\nPrinter: Open\n");
-    send_reply_packet(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmPrinter::iwm_close(iwm_decoded_cmd_t cmd)
+void iwmPrinter::iwm_close(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\nPrinter: Close\n");
-    send_reply_packet(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
-void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
+void iwmPrinter::iwm_write(const iwm_decoded_cmd_t &cmd)
 {
-    Debug_printf("\nPrinter: Write %u bytes\n", cmd.char_rw.length);
+    Debug_printf("\nPrinter: Write %u bytes\n", cmd.frame.char_rw.length);
 
-    if (data_len == -1)
+    ByteBuffer buffer(cmd.frame.char_rw.length, 0);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
+
+    size_t offset = 0;
+    while (offset < buffer.size())
     {
-        iwm_return_ioerror();
-        return;
+        size_t chunk_size = std::min<size_t>(80, buffer.size() - offset);
+        std::copy_n(buffer.begin() + offset, chunk_size, _pptr->provideBuffer());
+        _pptr->process(chunk_size, 8, 0);
+        offset += chunk_size;
     }
 
-    uint16_t offset = 0;
-
-    while (data_len > 0)
-    {
-        uint8_t l = (data_len > 80 ? 80 : data_len);
-        memcpy(_pptr->provideBuffer(), &data_buffer[offset], l);
-        _pptr->process(l, 8, 0);
-        data_len -= l;
-        offset += l;
-    }
+    SYSTEM_BUS.transaction_success();
 
     _last_ms = fnSystem.millis();
-    send_reply_packet(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
 }
 
 /**

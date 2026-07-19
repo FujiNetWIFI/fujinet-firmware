@@ -72,6 +72,7 @@ class fnHttpService
         FileSystem *_FS = nullptr;
     } state;
 
+public:
     enum _fnwserr
     {
         fnwserr_noerrr = 0,
@@ -80,6 +81,7 @@ class fnHttpService
         fnwserr_post_fail
     };
 
+private:
     std::vector<std::string> shortURLs;
 
 #ifdef ESP_PLATFORM
@@ -93,7 +95,6 @@ class fnHttpService
     static void custom_global_ctx_free(void * ctx);
     static httpd_handle_t start_server(serverstate &state);
     static void stop_server(httpd_handle_t hServer);
-    static void return_http_error(httpd_req_t *req, _fnwserr errnum);
     static const char * find_mimetype_str(const char *extension);
     static char * get_extension(const char *filename);
     static void set_file_content_type(httpd_req_t *req, const char *filepath);
@@ -102,9 +103,6 @@ class fnHttpService
     static void parse_query(httpd_req_t *req, queryparts *results);
     static void send_header_footer(httpd_req_t *req, int headfoot);
 
-    // WebDAV
-    static void webdav_register(httpd_handle_t server, const char *root_uri, const char *root_path);
-    static esp_err_t webdav_handler(httpd_req_t *httpd_req);
 #else
 // !ESP_PLATFORM
     static struct mg_mgr * start_server(serverstate &state);
@@ -122,6 +120,10 @@ class fnHttpService
 #endif
 
 public:
+
+#ifdef ESP_PLATFORM
+    static void return_http_error(httpd_req_t *req, _fnwserr errnum);
+#endif
 
     std::string errMsg;
 
@@ -155,6 +157,23 @@ public:
     // Google Drive OAuth2 relay-based endpoints
     static esp_err_t get_handler_gdrive_auth(httpd_req_t *req);
     static esp_err_t get_handler_gdrive_poll(httpd_req_t *req);
+
+    // OneDrive OAuth2 relay-based endpoints
+    static esp_err_t get_handler_onedrive_auth(httpd_req_t *req);
+    static esp_err_t get_handler_onedrive_poll(httpd_req_t *req);
+
+    // REST API handlers
+    static esp_err_t api_handler_status(httpd_req_t *req);
+    static esp_err_t api_handler_drives(httpd_req_t *req);
+    static esp_err_t api_handler_drive_slot(httpd_req_t *req);
+    static esp_err_t api_handler_drive_mount(httpd_req_t *req);
+    static esp_err_t api_handler_drive_eject(httpd_req_t *req);
+    static esp_err_t api_handler_hosts(httpd_req_t *req);
+    static esp_err_t api_handler_host_slot(httpd_req_t *req);
+    static esp_err_t api_handler_printer_status(httpd_req_t *req);
+    static esp_err_t api_handler_printer_clear(httpd_req_t *req);
+    static esp_err_t api_handler_wifi_scan(httpd_req_t *req);
+    static esp_err_t api_handler_wifi_status(httpd_req_t *req);
 #else
 // !ESP_PLATFORM
     static int get_handler_print(struct mg_connection *c);
@@ -176,6 +195,10 @@ public:
     // Google Drive OAuth2 relay-based endpoints
     static int get_handler_gdrive_auth(struct mg_connection *c, struct mg_http_message *hm);
     static int get_handler_gdrive_poll(struct mg_connection *c, struct mg_http_message *hm);
+
+    // OneDrive OAuth2 relay-based endpoints
+    static int get_handler_onedrive_auth(struct mg_connection *c, struct mg_http_message *hm);
+    static int get_handler_onedrive_poll(struct mg_connection *c, struct mg_http_message *hm);
 
     static std::vector<struct mg_connection*> m_sseClients;
     static size_t m_lastOutputSize;

@@ -20,9 +20,9 @@ protected:
     iwm_device_status_block_t create_status_reply_packet() override;
 
     // IWM methods
-    void iwm_open(iwm_decoded_cmd_t cmd) override;
-    void iwm_close(iwm_decoded_cmd_t cmd) override;
-    void iwm_write(iwm_decoded_cmd_t cmd) override;
+    void iwm_open(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_close(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_write(const iwm_decoded_cmd_t &cmd) override;
     void shutdown() override {}
 
     printer_emu *_pptr = nullptr;

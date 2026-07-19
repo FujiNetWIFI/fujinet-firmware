@@ -350,7 +350,11 @@ bool NetworkProtocolSSHCopyId::installPublicKey(
     ssh_channel_send_eof(chan);
     ssh_channel_close(chan);
 
-    int exit_status = ssh_channel_get_exit_status(chan);
+    uint32_t exit_code = 0;
+    int exit_status = -1;
+    if (ssh_channel_get_exit_state(chan, &exit_code, NULL, NULL) == SSH_OK) {
+        exit_status = (int)exit_code;
+    }
     Debug_printf("SSH.COPYID: remote exit status: %d\r\n", exit_status);
     Debug_printf("SSH.COPYID: remote stdout: %s\r\n", output.c_str());
 

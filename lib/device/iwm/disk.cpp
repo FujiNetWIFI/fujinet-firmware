@@ -114,14 +114,12 @@ iwm_device_info_block_t iwmDisk::create_dib_reply_packet()
   return dib;
 }
 
-void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)
+void iwmDisk::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
 {
-  err_result = SP_ERR::NOERROR;
-  Debug_printf("\nDisk Device %02x Control Code %02x", id(), cmd.control_status.fuji.command);
+  Debug_printf("\nDisk Device %02x Control Code %02x", id(), cmd.command());
   Debug_printf("\nDecoding Control Data Packet:");
-  print_packet((uint8_t *)data_buffer, data_len);
 
-  switch (cmd.control_status.code)
+  switch (cmd.frame.control_status.code)
   {
   case SP_CTRL_EJECT:
     Debug_printf("Handling Eject command\r\n");
@@ -130,33 +128,32 @@ void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)
     platformFuji.handle_ctl_eject(_devnum);
     break;
   default:
-    err_result = SP_ERR::BADCTL;
+    SYSTEM_BUS.transaction_error(SP_ERR::BADCTL);
     break;
   }
-  send_reply_packet(err_result);
 }
 
-void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
+void iwmDisk::iwm_readblock(const iwm_decoded_cmd_t &cmd)
 {
   uint16_t sdstato;
 
   Debug_printf("\r\nDrive %02x ", id());
 
-  Debug_printf(" Read block %06lx\r\n", cmd.block_rw.num);
+  Debug_printf(" Read block %06lx\r\n", cmd.frame.block_rw.num);
   if (!(_disk != nullptr))
   {
     Debug_printf(" - ERROR - No image mounted");
-    send_reply_packet(SP_ERR::OFFLINE);
+    SYSTEM_BUS.transaction_error(SP_ERR::OFFLINE);
     return;
   }
   if((!device_active)) {
     Debug_printf("iwm_readblock while device offline!\r\n");
-    send_reply_packet(SP_ERR::OFFLINE);
+    SYSTEM_BUS.transaction_error(SP_ERR::OFFLINE);
     return;
   }
-  if((switched) && (cmd.block_rw.num > 2)){
+  if((switched) && (cmd.frame.block_rw.num > 2)){
     Debug_printf("iwm_readblock() returning disk switched error\r\n");
-    send_reply_packet(SP_ERR::OFFLINE);
+    SYSTEM_BUS.transaction_error(SP_ERR::OFFLINE);
     switched = false;
     return;
   }
@@ -164,75 +161,73 @@ void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
   switched = false; //if we made it here it's ok to reset switched
 
   sdstato = BLOCK_DATA_LEN;
-  if (_disk->read(cmd.block_rw.num, &sdstato, data_buffer))
+  ByteBuffer buffer(sdstato);
+  if (_disk->read(cmd.frame.block_rw.num, &sdstato, buffer.data()))
   {
     Debug_printf("\r\nFile Seek or Read err: %d bytes", sdstato);
-    send_reply_packet(SP_ERR::IOERROR);
+    SYSTEM_BUS.transaction_error(SP_ERR::IOERROR);
     return; // todo - true or false?
   }
 
   // send_data_packet();
   Debug_printf("\r\nsending block packet ...");
-  if (SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR::NOERROR, data_buffer, BLOCK_DATA_LEN))
-   ((MediaTypePO*)_disk)->reset_seek_opto();  // force seek next time if send error
+  SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+  SYSTEM_BUS.transaction_send(buffer);
 }
 
-void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
+void iwmDisk::iwm_writeblock(const iwm_decoded_cmd_t &cmd)
 {
-  spError_t err = SP_ERR::NOERROR;
-
-
   Debug_printf("\r\nDrive %02x ", id());
-  Debug_printf("Write block %06lx", cmd.block_rw.num);
+  Debug_printf("Write block %06lx", cmd.frame.block_rw.num);
   // partition number indicates which 32mb block we access
-  if (data_len == -1)
-    iwm_return_ioerror();
-  else
-    { // We have to return the error after ingesting the block to write or ProDOS doesn't correctly see the status.
+  // We have to return the error after ingesting the block to write or ProDOS doesn't correctly see the status.
 
-      if((!device_active)) {
-        Debug_printf("iwm_writeblock while device offline!\r\n");
-        send_reply_packet(SP_ERR::OFFLINE);
-        return;
-      }
-      if(switched && readonly) {
-        Debug_printf("iwm_writeblock while readonly and disk switched\r\n");
-        send_reply_packet(SP_ERR::NOWRITE);
-        switched = false;
-        return;
-      }
-      if(switched) {
-        Debug_printf("iwm_writeblock while disk switched = true\r\nn");
-        send_reply_packet(SP_ERR::OFFLINE);
-        switched = false;
-        return;
-      }
-      if(readonly) {
-        Debug_printf("\r\niwm_writeblock tried to write while readonly = true!");
-        send_reply_packet(SP_ERR::NOWRITE);
-        return;
-      }
+  if((!device_active)) {
+    Debug_printf("iwm_writeblock while device offline!\r\n");
+    SYSTEM_BUS.transaction_error(SP_ERR::OFFLINE);
+    return;
+  }
+  if(switched && readonly) {
+    Debug_printf("iwm_writeblock while readonly and disk switched\r\n");
+    SYSTEM_BUS.transaction_error(SP_ERR::NOWRITE);
+    switched = false;
+    return;
+  }
+  if(switched) {
+    Debug_printf("iwm_writeblock while disk switched = true\r\nn");
+    SYSTEM_BUS.transaction_error(SP_ERR::OFFLINE);
+    switched = false;
+    return;
+  }
+  if(readonly) {
+    Debug_printf("\r\niwm_writeblock tried to write while readonly = true!");
+    SYSTEM_BUS.transaction_error(SP_ERR::NOWRITE);
+    return;
+  }
 
-      uint16_t sdstato = BLOCK_DATA_LEN;
-      _disk->write(cmd.block_rw.num, &sdstato, data_buffer);
+  uint16_t sdstato = BLOCK_DATA_LEN;
+  ByteBuffer buffer(sdstato, 0);
+  SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+  SYSTEM_BUS.transaction_get(buffer.data(), buffer.size());
+  _disk->write(cmd.frame.block_rw.num, &sdstato, buffer.data());
 
-      if (sdstato != BLOCK_DATA_LEN)
-      {
-        Debug_printf("\r\nFile Write err: %d bytes", sdstato);
-        if (sdstato == 0)
-          err = SP_ERR::NOWRITE; // write protected todo: we should probably have a read-only flag that gets set and tested up top
-        else
-          err = SP_ERR::IOERROR; // 6;
-        //return;
-      }
-      //now return status code to host
-      send_reply_packet(err);
-    }
+  if (sdstato != BLOCK_DATA_LEN)
+  {
+    Debug_printf("\r\nFile Write err: %d bytes", sdstato);
+    if (sdstato == 0)
+      SYSTEM_BUS.transaction_error(SP_ERR::NOWRITE); // write protected todo: we should probably have a read-only flag that gets set and tested up top
+    else
+      SYSTEM_BUS.transaction_error(SP_ERR::IOERROR);
+    return;
+  }
+
+  SYSTEM_BUS.transaction_success();
 }
 
-void iwmDisk::iwm_format(iwm_decoded_cmd_t cmd)
+void iwmDisk::iwm_format(const iwm_decoded_cmd_t &cmd)
 {
-    iwm_return_noerror();
+  SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+  SYSTEM_BUS.transaction_success();
 }
 
 void iwmDisk::shutdown()

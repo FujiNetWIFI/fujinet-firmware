@@ -471,7 +471,7 @@ xz_lzma_reader_vtable = {
 static int
 xz_lzma_bidder_init(struct archive_read_filter *self)
 {
-	static const size_t out_block_size = 64 * 1024;
+	static const size_t out_block_size = OUT_BLOCK_SIZE;
 	void *out_block;
 	struct private_data *state;
 	int ret;

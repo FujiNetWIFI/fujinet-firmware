@@ -1,12 +1,95 @@
 #ifndef BUS_H
 #define BUS_H
 
+#include "global_types.h"
+
+#include <string>
+
 typedef enum class TRANS_STATE {
     INVALID,
     NO_GET,
     WILL_GET,
     DID_GET,
 } transState_t;
+
+/**
+ * Defines the transaction contract between devices and a system bus.
+ *
+ * Bus implementations are responsible for all protocol-specific I/O, timing,
+ * framing, and error handling. Device classes interact with the bus only
+ * through this API and should not perform direct bus operations.
+ *
+ * A transaction is presented to the bus before transaction_accept() is called.
+ * The transaction must be terminated by exactly one of transaction_send(),
+ * transaction_success(), or transaction_error().
+ *
+ * Implementations must preserve the transaction semantics described here,
+ * regardless of the underlying bus protocol.
+ */
+class SystemBusBase
+{
+protected:
+    transState_t _transaction_state = TRANS_STATE::INVALID;
+
+public:
+    // Accept the current transaction and perform any protocol-specific setup
+    // required before data transfer.
+    virtual void transaction_accept(transState_t expectMoreData) = 0;
+
+    // Successfully complete the transaction without sending response data.
+    virtual void transaction_success() = 0;
+
+    // Terminate the transaction without sending response data due to an error.
+    virtual void transaction_error() = 0;
+
+    // Receive exactly len bytes from the current transaction. Returns false if
+    // the transaction cannot be completed successfully.
+    virtual success_is_true transaction_get(void *data, size_t len) = 0;
+
+    // Send response data and complete the transaction. If is_error is true,
+    // the response represents a protocol-defined error.
+    virtual void transaction_send(const void *data, size_t len, bool is_error=false) = 0;
+
+    inline void transaction_send(std::string data, bool is_error=false) {
+        transaction_send(data.data(), data.size(), is_error);
+    }
+    inline void transaction_send(ByteBuffer data, bool is_error=false) {
+        transaction_send(data.data(), data.size(), is_error);
+    }
+    inline void transaction_send(int val) {
+        uint8_t c = val;
+        transaction_send(&c, sizeof(c));
+    }
+};
+
+// Temporary migration wrappers. Remove after all buses have been
+// converted to inherit from SystemBusBase.
+#if defined(BUILD_RS232) || defined(BUILD_COCO) || defined(BUILD_APPLE) || defined(BUILD_ADAM)
+#define NEED_VDEV_MIGRATION
+#else
+#undef NEED_VDEV_MIGRATION
+#endif
+class VDevMigrationWrapper
+{
+#ifdef NEED_VDEV_MIGRATION
+protected:
+    void transaction_begin(transState_t expectMoreData);
+    void transaction_complete();
+    void transaction_error();
+    success_is_true transaction_get(void *data, size_t len);
+    void transaction_put(const void *data, size_t len, bool is_error=false);
+    inline void transaction_put(std::string data) {
+        transaction_put(data.data(), data.size());
+    }
+    inline void transaction_put(ByteBuffer data) {
+        transaction_put(data.data(), data.size());
+    }
+    void transaction_put(int val) {
+        uint8_t c = val;
+        transaction_put(&c, sizeof(c));
+    }
+#endif
+};
 
 #ifdef BUILD_ATARI
 #include "sio/sio.h"

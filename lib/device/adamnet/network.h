@@ -134,7 +134,7 @@ public:
      * Process incoming ADAM command for device 0x7X
      * @param b The incoming command byte
      */
-    void adamnet_process(uint8_t b) override;
+    void adamnet_process(const FujiAdamPacket &packet) override;
     void process_fs(fujiCommandID_t cmd, unsigned pkt_len);
     void process_tcp(fujiCommandID_t cmd);
     void process_http(fujiCommandID_t cmd);
@@ -187,6 +187,12 @@ private:
     NetworkProtocol *protocol = nullptr;
 
     /**
+     * Error from the last failed open, reported by get_error() while no
+     * protocol is instantiated
+     */
+    nDevStatus_t err_open = NDEV_STATUS::NOT_CONNECTED;
+
+    /**
      * @brief Factory that creates protocol from urls
     */
     ProtocolParser *protocolParser = nullptr;
@@ -216,22 +222,6 @@ private:
      * The currently set Prefix for this N: device, set by ADAM call 0x2C
      */
     std::string prefix;
-
-    /**
-     * The AUX1 value used for OPEN.
-     */
-    uint8_t open_aux1;
-
-    /**
-     * The AUX2 value used for OPEN.
-     */
-    uint8_t open_aux2;
-
-    /**
-     * The Translation mode ORed into AUX2 for READ/WRITE/STATUS operations.
-     * 0 = No Translation, 1 = CR<->EOL (Macintosh), 2 = LF<->EOL (UNIX), 3 = CR/LF<->EOL (PC/Windows)
-     */
-    uint8_t trans_aux2;
 
     /**
      * The login to use for a protocol action
@@ -286,7 +276,7 @@ private:
     /**
      * Create the deviceSpec and fix it for parsing
      */
-    void create_devicespec(std::string d);
+    void create_devicespec(std::string d, bool is_dir);
 
     /**
      * Create a urlParser from deviceSpec
@@ -348,7 +338,7 @@ private:
      * @brief parse URL and instantiate protocol
      * @param db pointer to devicespecbuf 256 chars
      */
-    void parse_and_instantiate_protocol(std::string d);
+    void parse_and_instantiate_protocol(std::string d, bool is_dir);
 };
 
 #endif /* NETWORK_H */

@@ -21,13 +21,15 @@
 #ifndef POLL_H_
 #define POLL_H_
 
-#include "config.h"
+#include "../../config.h"
 
 #ifdef HAVE_POLL
 
-/* esp-idf has <sys/poll.h> but not <poll.h> */
+#ifdef ESP_PLATFORM
 #include <sys/poll.h>
-// #include <poll.h>
+#else
+#include <poll.h>
+#endif
 typedef struct pollfd ssh_pollfd_t;
 
 #else /* HAVE_POLL */
@@ -40,7 +42,7 @@ typedef struct ssh_pollfd_struct {
   short revents;    /* returned events */
 } ssh_pollfd_t;
 
-typedef unsigned long int nfds_t;
+typedef long unsigned int nfds_t;
 
 #ifdef _WIN32
 
@@ -116,6 +118,10 @@ typedef unsigned long int nfds_t;
 #endif /* WIN32 */
 #endif /* HAVE_POLL */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ssh_poll_init(void);
 void ssh_poll_cleanup(void);
 int ssh_poll(ssh_pollfd_t *fds, nfds_t nfds, int timeout);
@@ -155,9 +161,14 @@ void ssh_poll_ctx_free(ssh_poll_ctx ctx);
 int ssh_poll_ctx_add(ssh_poll_ctx ctx, ssh_poll_handle p);
 int ssh_poll_ctx_add_socket (ssh_poll_ctx ctx, struct ssh_socket_struct *s);
 void ssh_poll_ctx_remove(ssh_poll_ctx ctx, ssh_poll_handle p);
+bool ssh_poll_is_locked(ssh_poll_handle p);
 int ssh_poll_ctx_dopoll(ssh_poll_ctx ctx, int timeout);
 ssh_poll_ctx ssh_poll_get_default_ctx(ssh_session session);
 int ssh_event_add_poll(ssh_event event, ssh_poll_handle p);
 void ssh_event_remove_poll(ssh_event event, ssh_poll_handle p);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* POLL_H_ */

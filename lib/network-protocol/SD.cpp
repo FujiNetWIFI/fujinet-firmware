@@ -335,7 +335,10 @@ off_t NetworkProtocolSD::seek(off_t offset, int whence)
     off_t new_offset;
 
 
-    new_offset = ::fseek(fh, offset, whence);
+    // fseek returns 0 on success, not the new position
+    if (::fseek(fh, offset, whence) != 0)
+        return -1;
+    new_offset = ::ftell(fh);
 
     // fileSize isn't fileSize, it's bytes remaining. Call stat() to fix fileSize
     stat();

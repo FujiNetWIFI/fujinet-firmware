@@ -28,6 +28,11 @@ void fnConfig::store_netstream_rx_depth(int depth)
     _network.netstream_rx_depth = depth;
 }
 
+void fnConfig::store_network_log_json(bool log_json)
+{
+    _network.log_network_json = log_json;
+}
+
 void fnConfig::_read_section_network(std::stringstream &ss)
 {
     std::string line;
@@ -63,6 +68,10 @@ void fnConfig::_read_section_network(std::stringstream &ss)
             else if (strcasecmp(name.c_str(), "netstream_rx_depth") == 0)
             {
                 _network.netstream_rx_depth = atoi(value.c_str());
+            }
+            else if (strcasecmp(name.c_str(), "log_network_json") == 0)
+            {
+                _network.log_network_json = util_string_value_is_true(value);
             }
         }
     }

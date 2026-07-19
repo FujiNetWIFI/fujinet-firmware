@@ -25,7 +25,7 @@ private:
     void _get_general_tz_len();
 
 public:
-    void rs232_process(FujiBusPacket &packet) override;
+    void rs232_process(const FujiBusPacket &packet) override;
     void rs232_status(FujiStatusReq reqType) override {}
 };
 

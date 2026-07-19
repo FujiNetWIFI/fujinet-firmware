@@ -140,9 +140,15 @@ fujiError_t NetworkProtocolTCP::read(unsigned short len)
 
         // Add new data to buffer.
         receiveBuffer->insert(receiveBuffer->end(), newData.begin(), newData.end());
+
+        // Translate the freshly-read bytes exactly once.
+        return NetworkProtocol::read(len);
     }
+
+    // receiveBuffer already holds translated data (e.g. auto-read during status);
+    // return it without translating again, which would corrupt multi-byte native EOLs.
     error = NDEV_STATUS::SUCCESS;
-    return NetworkProtocol::read(len);
+    return FUJI_ERROR::NONE;
 }
 
 /**
@@ -309,6 +315,7 @@ fujiError_t NetworkProtocolTCP::accept_connection()
             remotePort = client.remotePort();
             remoteIPString = compat_inet_ntoa(remoteIP);
             Debug_printf("Accepted connection from %s:%u\r\n", remoteIPString, remotePort);
+            error = NDEV_STATUS::SUCCESS; // clear e.g. a prior NO_CONNECTION_WAITING
             return FUJI_ERROR::NONE;
         }
         else

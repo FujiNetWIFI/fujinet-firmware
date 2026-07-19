@@ -16,7 +16,7 @@ adamQueryDevice::~adamQueryDevice()
 
 void adamQueryDevice::adamnet_control_ready() { }
 void adamQueryDevice::shutdown() { }
-void adamQueryDevice::adamnet_process(uint8_t b) { }
+void adamQueryDevice::adamnet_process(const FujiAdamPacket &packet) { }
 void adamQueryDevice::adamnet_control_status() { }
 void adamQueryDevice::adamnet_control_receive()  { }
 void adamQueryDevice::adamnet_control_clr() { }

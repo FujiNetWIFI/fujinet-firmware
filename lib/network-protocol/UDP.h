@@ -69,7 +69,7 @@ public:
      * @param sp_buf pointer to received special buffer.
      * @param len of special received buffer
      */
-    fujiError_t set_destination(uint8_t *sp_buf, unsigned short len);
+    fujiError_t set_destination(const uint8_t *sp_buf, unsigned short len);
 
     size_t available() override { return udp.available(); }
 

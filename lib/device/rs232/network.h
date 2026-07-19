@@ -125,11 +125,11 @@ public:
      * @param comanddata incoming 4 bytes containing command and aux bytes
      * @param checksum 8 bit checksum
      */
-    void rs232_process(FujiBusPacket &packet) override;
-    void process_tcp(FujiBusPacket &packet);
-    void process_http(FujiBusPacket &packet);
-    void process_udp(FujiBusPacket &packet);
-    void process_fs(FujiBusPacket &packet);
+    void rs232_process(const FujiBusPacket &packet) override;
+    void process_tcp(const FujiBusPacket &packet);
+    void process_http(const FujiBusPacket &packet);
+    void process_udp(const FujiBusPacket &packet);
+    void process_fs(const FujiBusPacket &packet);
 
     void rs232_seek(uint32_t offset);
     void rs232_tell();
@@ -207,6 +207,12 @@ private:
      * 0 = No Translation, 1 = CR<->EOL (Macintosh), 2 = LF<->EOL (UNIX), 3 = CR/LF<->EOL (PC/Windows)
      */
     netProtoTranslation_t trans_mode = NETPROTO_TRANS_NONE;
+
+    /**
+     * Client-set override for the computer's native EOL. Empty means use the
+     * platform default assigned in instantiate_protocol(). See rs232_set_eol().
+     */
+    std::string native_eol_override;
 
     /**
      * The login to use for a protocol action
@@ -334,6 +340,11 @@ private:
      * @brief set translation specified by aux1 to aux2_translation mode.
      */
     void rs232_set_translation(netProtoTranslation_t mode);
+
+    /**
+     * @brief set the computer's native EOL. @param eol the bytes (empty restores default).
+     */
+    void rs232_set_eol(const std::string &eol);
 
     /**
      * @brief Parse incoming JSON. (must be in JSON channelMode)

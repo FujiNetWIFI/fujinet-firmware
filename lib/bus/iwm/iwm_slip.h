@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <functional>
 #include "Connection.h"
+#include "global_types.h"
 
 #include "../../devrelay/types/Request.h"
 #include "../../devrelay/types/Response.h"
@@ -67,7 +68,7 @@ public:
 	bool req_wait_for_rising_timeout(int t);
 	uint8_t iwm_phase_vector();
 
-	int iwm_send_packet_spi();
+	error_is_true iwm_send_packet_spi();
 	void spi_end();
 
 	void encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t *data, uint16_t num);

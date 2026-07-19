@@ -196,12 +196,12 @@ int IRAM_ATTR iwm_sp_ll::encode_spi_packet()
 }
 
 
-int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
+error_is_true IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
 {
   //*****************************************************************************
   // Function: iwm_send_packet_spi
   // Parameters: packet_buffer pointer
-  // Returns: status (not used yet, always returns 0)
+  // Returns: TRUE on error, FALSE on success
   //
   // Description: This handles the ACK and REQ lines and sends the packet from the
   // pointer passed to it. (packet_buffer)
@@ -227,7 +227,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
       // timeout!
       portENABLE_INTERRUPTS(); // takes 7 us to execute
       Debug_printf("\nSendPacket timeout waiting for REQ");
-      return 1;
+      RETURN_ERROR_AS_TRUE();
     }
 
   // send the data
@@ -244,10 +244,10 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
     portENABLE_INTERRUPTS(); // takes 7 us to execute
     Debug_printf("\nSend REQ timeout");
     req_wait_for_falling_timeout(100000); //wait until host eventually sets REQ low (~1ms), then we can retry send
-    return 1;
+    RETURN_ERROR_AS_TRUE();
   }
   portENABLE_INTERRUPTS();
-  return 0;
+  RETURN_SUCCESS_AS_FALSE();
 }
 
 #define IWM_NEXT_BIT() ({bool _v = ((src[offset / 8] << (offset % 8)) & 0x80) == 0x80; \

@@ -21,7 +21,7 @@
  * MA 02111-1307, USA.
  */
 
-#include "libssh/config.h"
+#include "../config.h"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -38,12 +38,16 @@
 #include "libssh/misc.h"
 #include "libssh/session.h"
 
+#ifndef LOG_SIZE
+#define LOG_SIZE 1024
+#endif
+
 static LIBSSH_THREAD int ssh_log_level;
 static LIBSSH_THREAD ssh_logging_callback ssh_log_cb;
-static LIBSSH_THREAD void *ssh_log_userdata;
+static LIBSSH_THREAD void *ssh_log_userdata = NULL;
 
 /**
- * @defgroup libssh_log The SSH logging functions.
+ * @defgroup libssh_log The SSH logging functions
  * @ingroup libssh
  *
  * Logging functions for debugging and problem resolving.
@@ -91,7 +95,18 @@ static void ssh_log_stderr(int verbosity,
         fprintf(stderr, "[%d] %s", verbosity, function);
     }
 
-    fprintf(stderr, "  %s\r\n", buffer);
+    fprintf(stderr, "  %s\n", buffer);
+}
+
+static void ssh_log_custom(ssh_logging_callback log_fn,
+                           int verbosity,
+                           const char *function,
+                           const char *buffer)
+{
+    char buf[LOG_SIZE + 64];
+
+    snprintf(buf, sizeof(buf), "%s: %s", function, buffer);
+    log_fn(verbosity, function, buf, ssh_get_log_userdata());
 }
 
 void ssh_log_function(int verbosity,
@@ -99,33 +114,36 @@ void ssh_log_function(int verbosity,
                       const char *buffer)
 {
     ssh_logging_callback log_fn = ssh_get_log_callback();
+
     if (log_fn) {
-        char buf[1024];
-
-        snprintf(buf, sizeof(buf), "%s: %s", function, buffer);
-
-        log_fn(verbosity,
-               function,
-               buf,
-               ssh_get_log_userdata());
+        ssh_log_custom(log_fn, verbosity, function, buffer);
         return;
     }
 
     ssh_log_stderr(verbosity, function, buffer);
 }
 
+void ssh_vlog(int verbosity,
+              const char *function,
+              const char *format,
+              va_list *va)
+{
+    char buffer[LOG_SIZE];
+
+    vsnprintf(buffer, sizeof(buffer), format, *va);
+    ssh_log_function(verbosity, function, buffer);
+}
+
 void _ssh_log(int verbosity,
               const char *function,
               const char *format, ...)
 {
-    char buffer[1024];
     va_list va;
 
     if (verbosity <= ssh_get_log_level()) {
         va_start(va, format);
-        vsnprintf(buffer, sizeof(buffer), format, va);
+        ssh_vlog(verbosity, function, format, &va);
         va_end(va);
-        ssh_log_function(verbosity, function, buffer);
     }
 }
 
@@ -135,14 +153,12 @@ void ssh_log(ssh_session session,
              int verbosity,
              const char *format, ...)
 {
-  char buffer[1024];
   va_list va;
 
   if (verbosity <= session->common.log_verbosity) {
     va_start(va, format);
-    vsnprintf(buffer, sizeof(buffer), format, va);
+    ssh_vlog(verbosity, "", format, &va);
     va_end(va);
-    ssh_log_function(verbosity, "", buffer);
   }
 }
 
@@ -157,14 +173,12 @@ void ssh_log_common(struct ssh_common_struct *common,
                     const char *function,
                     const char *format, ...)
 {
-    char buffer[1024];
     va_list va;
 
     if (verbosity <= common->log_verbosity) {
         va_start(va, format);
-        vsnprintf(buffer, sizeof(buffer), format, va);
+        ssh_vlog(verbosity, function, format, &va);
         va_end(va);
-        ssh_log_function(verbosity, function, buffer);
     }
 }
 
@@ -205,6 +219,12 @@ int ssh_set_log_callback(ssh_logging_callback cb) {
   ssh_log_cb = cb;
 
   return SSH_OK;
+}
+
+void
+_ssh_reset_log_cb(void)
+{
+    ssh_log_cb = NULL;
 }
 
 ssh_logging_callback ssh_get_log_callback(void) {
