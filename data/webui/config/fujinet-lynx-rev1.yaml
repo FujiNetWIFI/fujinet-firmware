@@ -11,10 +11,10 @@ components:
   modem_settings: false
   hsio_settings: false
   timezone: true
-  udp_stream: true
+  net_stream: true
   program_recorder: false
   disk_swap: false
-  boot_settings: true
+  boot_settings: false
   apetime: false
   pclink: false
 tweaks:
