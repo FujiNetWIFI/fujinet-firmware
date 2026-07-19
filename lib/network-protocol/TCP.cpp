@@ -140,9 +140,15 @@ fujiError_t NetworkProtocolTCP::read(unsigned short len)
 
         // Add new data to buffer.
         receiveBuffer->insert(receiveBuffer->end(), newData.begin(), newData.end());
+
+        // Translate the freshly-read bytes exactly once.
+        return NetworkProtocol::read(len);
     }
+
+    // receiveBuffer already holds translated data (e.g. auto-read during status);
+    // return it without translating again, which would corrupt multi-byte native EOLs.
     error = NDEV_STATUS::SUCCESS;
-    return NetworkProtocol::read(len);
+    return FUJI_ERROR::NONE;
 }
 
 /**

@@ -821,6 +821,9 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
     case NETCMD_TRANSLATION:
         sio_set_translation();
         break;
+    case NETCMD_SET_EOL:
+        sio_set_eol();
+        break;
     case NETCMD_SET_INT_RATE:
         sio_set_timer_rate();
         break;
@@ -999,6 +1002,10 @@ success_is_true sioNetwork::instantiate_protocol()
         RETURN_ERROR_AS_FALSE();
     }
 
+    // Atari's native EOL is the ATASCII end-of-line (0x9B), unless the client
+    // has overridden it with the NETCMD_SET_EOL command.
+    protocol->native_eol = native_eol_override.empty() ? STR_ATASCII_EOL : native_eol_override;
+
     // leaving this one to print
     Debug_printf("sioNetwork::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
     RETURN_SUCCESS_AS_TRUE();
@@ -1173,6 +1180,26 @@ void sioNetwork::sio_set_translation()
 {
     transaction_begin(TRANS_STATE::NO_GET);
     trans_aux2 = cmdFrame.aux2;
+    transaction_complete();
+}
+
+void sioNetwork::sio_set_eol()
+{
+    transaction_begin(TRANS_STATE::NO_GET);
+
+    // aux1/aux2 carry the EOL bytes; aux1==0 clears the override (restore default).
+    native_eol_override.clear();
+    if (cmdFrame.aux1 != 0x00)
+    {
+        native_eol_override.push_back((char)cmdFrame.aux1);
+        if (cmdFrame.aux2 != 0x00)
+            native_eol_override.push_back((char)cmdFrame.aux2);
+    }
+
+    // Apply to a live protocol immediately; restore default when cleared.
+    if (protocol != nullptr)
+        protocol->native_eol = native_eol_override.empty() ? STR_ATASCII_EOL : native_eol_override;
+
     transaction_complete();
 }
 

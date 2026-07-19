@@ -28,6 +28,13 @@ enum netProtoTranslation_t {
     NETPROTO_TRANS_PETSCII  = 4,
 };
 
+// End-of-line byte sequences shared by the translation code and the per-bus
+// network devices that assign native_eol.
+#define STR_ASCII_CR    "\x0d"
+#define STR_ASCII_LF    "\x0a"
+#define STR_ASCII_CRLF  "\x0d\x0a"
+#define STR_ATASCII_EOL "\x9b"
+
 class NetworkProtocol
 {
 public:
@@ -86,9 +93,16 @@ public:
     nDevStatus_t error = NDEV_STATUS::SUCCESS;
 
     /**
-     * Translation mode: 0=NONE, 1=CR, 2=LF, 3=CR/LF
+     * Translation mode: 0=NONE, 1=CR, 2=LF, 3=CR/LF, 4=PETSCII
      */
     netProtoTranslation_t translation_mode = NETPROTO_TRANS_NONE;
+
+    /**
+     * The target computer's native end-of-line sequence. Each bus's network
+     * device assigns this for its platform (e.g. Atari 0x9B, CR/LF for
+     * serial/CP-M machines); defaults to CR.
+     */
+    std::string native_eol = STR_ASCII_CR;
 
     /**
      * Is this being called from inside an interrupt?

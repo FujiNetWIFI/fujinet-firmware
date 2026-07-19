@@ -809,6 +809,24 @@ void rs232Network::rs232_process(const FujiBusPacket &packet)
         else
             rs232_set_translation((netProtoTranslation_t) packet.param(1));
         break;
+    case NETCMD_SET_EOL:
+        if (packet.paramCount() < 1) {
+            Debug_printv("Insufficient EOL paramaters: %d", packet.paramCount());
+            SYSTEM_BUS.transaction_error();
+        }
+        else
+        {
+            // param(0)/param(1) carry the EOL bytes; param(0)==0 clears the override.
+            std::string eol;
+            if (packet.param(0) != 0x00)
+            {
+                eol.push_back((char) packet.param(0));
+                if (packet.paramCount() >= 2 && packet.param(1) != 0x00)
+                    eol.push_back((char) packet.param(1));
+            }
+            rs232_set_eol(eol);
+        }
+        break;
     case NETCMD_SET_INT_RATE:
         if (packet.paramCount() < 2) {
             Debug_printv("Insufficient rate paramaters: %d", packet.paramCount());
@@ -905,6 +923,10 @@ success_is_true rs232Network::instantiate_protocol()
         Debug_printf("rs232Network::instantiate_protocol() - Could not create protocol.\n");
         RETURN_ERROR_AS_FALSE();
     }
+
+    // Serial/CP-M machines use a CR/LF pair as their native EOL, unless the
+    // client has overridden it with the NETCMD_SET_EOL command.
+    protocol->native_eol = native_eol_override.empty() ? STR_ASCII_CRLF : native_eol_override;
 
     Debug_printf("rs232Network::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
     RETURN_SUCCESS_AS_TRUE();
@@ -1053,7 +1075,21 @@ void rs232Network::rs232_assert_interrupt()
 
 void rs232Network::rs232_set_translation(netProtoTranslation_t mode)
 {
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     trans_mode = mode;
+    SYSTEM_BUS.transaction_success();
+}
+
+void rs232Network::rs232_set_eol(const std::string &eol)
+{
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+
+    native_eol_override = eol;
+
+    // Apply to a live protocol immediately; restore default when cleared.
+    if (protocol != nullptr)
+        protocol->native_eol = native_eol_override.empty() ? STR_ASCII_CRLF : native_eol_override;
+
     SYSTEM_BUS.transaction_success();
 }
 
