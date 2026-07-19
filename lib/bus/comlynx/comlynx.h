@@ -137,7 +137,7 @@ public:
     void shutdown();
     void reset();
 
-    void change_baud(int baud);
+    void change_baud(int32_t baud);
 
     /**
      * @brief Wait to see if Comlynx bus is idle.

@@ -510,13 +510,19 @@ void virtualDevice::transaction_put(const void *data, size_t len, bool err)
 }
 
 
-void systemBus::change_baud(int baud)
+void systemBus::change_baud(int32_t baud)
 {
+    _port.flushOutput();
     _port.begin(ChannelConfig()
                 .deviceID(FN_UART_BUS)
                 .baud(baud)
                 .parity(UART_PARITY_ODD)
-                );	
+                );
+    
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    //uart_set_baudrate(FN_UART_BUS, baud);
+    //_port.setBaudrate(baud);
 }
 
 #endif /* BUILD_LYNX */
