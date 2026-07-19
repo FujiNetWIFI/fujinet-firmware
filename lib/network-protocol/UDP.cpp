@@ -115,13 +115,16 @@ fujiError_t NetworkProtocolUDP::read(unsigned short len)
 
         // Add new data to buffer.
         receiveBuffer->insert(receiveBuffer->end(),newData.begin(),newData.end());
+
+        // Translate the freshly-read bytes exactly once.
+        Debug_printf("errno = %u\r\n", errno);
+        return NetworkProtocol::read(len);
     }
 
-    // Return success
-    Debug_printf("errno = %u\r\n", errno);
+    // receiveBuffer already holds translated data; return without re-translating,
+    // which would corrupt multi-byte native EOLs.
     error = NDEV_STATUS::SUCCESS;
-
-    return NetworkProtocol::read(len);
+    return FUJI_ERROR::NONE;
 }
 
 fujiError_t NetworkProtocolUDP::write(unsigned short len)

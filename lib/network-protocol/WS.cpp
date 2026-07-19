@@ -123,10 +123,15 @@ fujiError_t NetworkProtocolWS::read(unsigned short len)
             error = NDEV_STATUS::SOCKET_TIMEOUT;
             return FUJI_ERROR::UNSPECIFIED;
         }
+
+        // Translate the freshly-read bytes exactly once.
+        return NetworkProtocol::read(len);
     }
 
+    // receiveBuffer already holds translated data; return without re-translating,
+    // which would corrupt multi-byte native EOLs.
     error = NDEV_STATUS::SUCCESS;
-    return NetworkProtocol::read(len);
+    return FUJI_ERROR::NONE;
 }
 
 fujiError_t NetworkProtocolWS::write(unsigned short len)

@@ -172,14 +172,17 @@ fujiError_t NetworkProtocolTELNET::read(unsigned short len)
             error = NDEV_STATUS::CONNECTION_RESET;
             return FUJI_ERROR::UNSPECIFIED;
         }
+
+        // Translate the freshly-read bytes exactly once.
+        error = NDEV_STATUS::SUCCESS;
+        Debug_printf("NetworkProtocolTELNET::read(%d) - %s\r\n", newRxLen, receiveBuffer->c_str());
+        return NetworkProtocol::read(newRxLen); // newRxLen set by calls into telnet_recv()
     }
 
-    // Return success
+    // receiveBuffer already holds translated data; return without re-translating,
+    // which would corrupt multi-byte native EOLs.
     error = NDEV_STATUS::SUCCESS;
-
-    Debug_printf("NetworkProtocolTELNET::read(%d) - %s\r\n", newRxLen, receiveBuffer->c_str());
-
-    return NetworkProtocol::read(newRxLen); // Set by calls into telnet_recv()
+    return FUJI_ERROR::NONE;
 }
 
 /**

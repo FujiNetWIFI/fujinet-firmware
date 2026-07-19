@@ -23,9 +23,6 @@ using namespace std;
 #define ASCII_BELL 0x07
 #define ASCII_BACKSPACE 0x08
 #define ASCII_TAB 0x09
-#define ASCII_LF 0x0A
-#define ASCII_CR 0x0D
-#define ATASCII_EOL 0x9B
 #define ATASCII_DEL 0x7E
 #define ATASCII_TAB 0x7F
 #define ATASCII_BUZZER 0xFD
@@ -33,30 +30,43 @@ using namespace std;
 #define STR_ASCII_BELL "\x07"
 #define STR_ASCII_BACKSPACE "\x08"
 #define STR_ASCII_TAB "\x09"
-#define STR_ASCII_LF "\x0a"
-#define STR_ASCII_CR "\x0d"
-#define STR_ASCII_CRLF "\x0d\x0a"
-#define STR_ATASCII_EOL "\x9b"
 #define STR_ATASCII_DEL "\x7e"
 #define STR_ATASCII_TAB "\x7f"
 #define STR_ATASCII_BUZZER "\xfd"
 
 /**
- * NWD
- * We only have 2 bits for translations (see NetworkProtocol::open)
- * but we need to translate LF to CR or CRLF to just CR
- * The only solution is to change the behaviour of the Apple2
- * version.  It may make more sense to have the Atari be the odd
- * one in the future rather than the Apple2
+ * End-of-line translation
+ * =======================
+ * The network side uses one of CR, LF or CR/LF as its line ending, selected by
+ * the translation mode (aux2). The computer side uses its own native EOL, held
+ * in native_eol and assigned by each bus's network device (default CR).
+ *
+ *   mode 0  binary, no translation
+ *   mode 1  network side uses CR   (0x0D)
+ *   mode 2  network side uses LF   (0x0A)
+ *   mode 3  network side uses CR/LF
+ *   mode 4  PETSCII <-> UTF-8 (Commodore, orthogonal to EOL)
+ *
+ * Receive folds the network line ending into native_eol; transmit expands
+ * native_eol back out to the network line ending. Both are uniform across
+ * platforms.
  */
 
-#ifdef BUILD_APPLE
-#define EOL 0x0D
-#define STR_EOL "\x0d"
-#else
-#define EOL 0x9B
-#define STR_EOL "\x9b"
-#endif
+/**
+ * @brief The line ending a translation mode represents on the network side.
+ * @param mode translation mode (aux2)
+ * @return CR, LF or CR/LF; empty string for non-EOL modes.
+ */
+static const char *network_line_ending(netProtoTranslation_t mode)
+{
+    switch (mode)
+    {
+    case NETPROTO_TRANS_CR:   return STR_ASCII_CR;
+    case NETPROTO_TRANS_LF:   return STR_ASCII_LF;
+    case NETPROTO_TRANS_CRLF: return STR_ASCII_CRLF;
+    default:                  return "";
+    }
+}
 
 /**
  * ctor - Initialize network protocol object.
@@ -163,51 +173,32 @@ fujiError_t NetworkProtocol::status(NetworkStatus *status)
 }
 
 /**
- * Perform end of line translation on receive buffer. based on translation_mode.
- * @param rx_buf The receive buffer to transform
- * @param len The length of the receive buffer
- * @return length after transformation.
-  */
+ * Perform end of line translation on receiveBuffer (FujiNet -> computer),
+ * based on translation_mode. See the translation model note above.
+ */
 void NetworkProtocol::translate_receive_buffer()
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("#### Translating receive buffer, mode: %u\r\n", translation_mode);
 #endif
-    if (translation_mode == 0)
+    if (translation_mode == NETPROTO_TRANS_NONE)
         return;
 
-    #ifdef BUILD_ATARI
+    if (translation_mode == NETPROTO_TRANS_PETSCII)
+    {
+        *receiveBuffer = mstr::toUTF8(*receiveBuffer);
+        return;
+    }
+
+#ifdef BUILD_ATARI
+    // ATASCII uses different codes for these controls; substitute them.
     replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_BELL, ATASCII_BUZZER);
     replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_BACKSPACE, ATASCII_DEL);
     replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_TAB, ATASCII_TAB);
-    #endif
-
-    switch (translation_mode)
-    {
-    case NETPROTO_TRANS_CR:
-        replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_CR, EOL);
-        break;
-    case NETPROTO_TRANS_LF:
-        replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_LF, EOL);
-        break;
-    case NETPROTO_TRANS_CRLF:
-    #ifndef BUILD_APPLE
-        // With Apple2, we would be translating CR to CR; a waste of CPU
-        replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_CR, EOL);
-    #endif
-        break;
-    case NETPROTO_TRANS_PETSCII:
-#ifdef VERBOSE_PROTOCOL
-        Debug_printf("!!! PETSCII !!!\r\n");
 #endif
-        *receiveBuffer = mstr::toUTF8(*receiveBuffer);
-        break;
-    default:
-        break;
-    }
 
-    if (translation_mode == NETPROTO_TRANS_CRLF)
-        receiveBuffer->erase(std::remove(receiveBuffer->begin(), receiveBuffer->end(), '\n'), receiveBuffer->end());
+    // Fold the network line ending into the computer's native EOL.
+    util_replaceAll(*receiveBuffer, network_line_ending(translation_mode), native_eol);
 }
 
 /**
@@ -219,32 +210,24 @@ unsigned short NetworkProtocol::translate_transmit_buffer()
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("#### Translating transmit buffer, mode: %u\r\n", translation_mode);
 #endif
-    if (translation_mode == 0)
+    if (translation_mode == NETPROTO_TRANS_NONE)
         return transmitBuffer->length();
 
-    #ifdef BUILD_ATARI
+    if (translation_mode == NETPROTO_TRANS_PETSCII)
+    {
+        *transmitBuffer = mstr::toUTF8(*transmitBuffer);
+        return transmitBuffer->length();
+    }
+
+#ifdef BUILD_ATARI
+    // Substitute ATASCII control codes back to their ASCII equivalents.
     util_replaceAll(*transmitBuffer, STR_ATASCII_BUZZER, STR_ASCII_BELL);
     util_replaceAll(*transmitBuffer, STR_ATASCII_DEL, STR_ASCII_BACKSPACE);
     util_replaceAll(*transmitBuffer, STR_ATASCII_TAB, STR_ASCII_TAB);
-    #endif
+#endif
 
-    switch (translation_mode)
-    {
-    case NETPROTO_TRANS_CR:
-        util_replaceAll(*transmitBuffer, STR_EOL, STR_ASCII_CR);
-        break;
-    case NETPROTO_TRANS_LF:
-        util_replaceAll(*transmitBuffer, STR_EOL, STR_ASCII_LF);
-        break;
-    case NETPROTO_TRANS_CRLF:
-        util_replaceAll(*transmitBuffer, STR_EOL, STR_ASCII_CRLF);
-        break;
-    case NETPROTO_TRANS_PETSCII:
-        *transmitBuffer = mstr::toUTF8(*transmitBuffer);
-        break;
-    default:
-        break;
-    }
+    // Expand the computer's native EOL out to the network line ending.
+    util_replaceAll(*transmitBuffer, native_eol, network_line_ending(translation_mode));
 
     return transmitBuffer->length();
 }
