@@ -13,6 +13,8 @@
 
 #include <map>
 
+#define FUJI_COMMAND_PACKET FujiAdamPacket
+
 enum adamnet_message : uint16_t
 {
     ADAMNETMSG_DISKSWAP  // Rotate disk
