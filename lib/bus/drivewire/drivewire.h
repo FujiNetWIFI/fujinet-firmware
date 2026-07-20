@@ -254,6 +254,11 @@ public:
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
     bool motorActive = false;
+    bool isDragon() { return bDragon; }
+
+    // When true, op_readex()'s named-object fallback opens /DGNLOBBY.DWL
+    // instead of /AUTOLOAD.DWL. Set via FUJICMD_SET_BOOT_MODE mode 2 on Dragon.
+    bool useLobbyDwl = false;
 
     drivewireCassette *getCassette() { return _cassetteDev; }
     drivewirePrinter *getPrinter() { return _printerdev; }

@@ -8,6 +8,7 @@
 #include "compat_string.h"
 #include "endianness.h"
 #include "fuji_endian.h"
+#include "../../bus/drivewire/drivewire.h"
 
 #define IMAGE_EXTENSION ".dsk"
 #define LOBBY_URL       "tnfs://tnfs.fujinet.online/COCO/lobby.dsk"
@@ -183,6 +184,22 @@ void drivewireFuji::setup()
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = Config.get_general_status_wait_enabled();
 #endif /* OBSOLETE */
+}
+
+// On Dragon, boot mode 2 additionally switches the named-object fallback
+// used by op_readex() from /AUTOLOAD.DWL to /DGNLOBBY.DWL for the next
+// szNamedMount reads. The normal lobby disk mount below still happens for
+// both Dragon and CoCo, unchanged.
+void drivewireFuji::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
+                                       DISK_DEVICE *disk_dev)
+{
+    if (image_id == 2 && SYSTEM_BUS.isDragon())
+    {
+        Debug_printf("Boot mode 2 (Dragon): using DGNLOBBY.DWL for named object fallback\n");
+        SYSTEM_BUS.useLobbyDwl = true;
+    }
+
+    fujiDevice::insert_boot_device(image_id, disk_type, disk_dev);
 }
 
 void drivewireFuji::random()
