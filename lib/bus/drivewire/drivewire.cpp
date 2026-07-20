@@ -16,6 +16,7 @@
 
 #include "fnSystem.h"
 #include "fnConfig.h"
+#include "fnWiFi.h"
 #include "fnDNS.h"
 #include "led.h"
 #include "utils.h"
@@ -44,6 +45,15 @@ std::queue<char> outgoingChannel[MAX_CHANNEL_QUEUES];
 std::queue<char> incomingChannel[MAX_CHANNEL_QUEUES];
 
 #define DEBOUNCE_THRESHOLD_US 50000ULL
+
+#if FUJINET_OVER_USB
+// Cold-boot mitigation: the WiFi association storm can preempt the USB tasks
+// that bridge DriveWire to the RP2040, stalling the CoCo's config load. Run the
+// USB channel just above the WiFi task (prio 23) until the station associates,
+// then return it to normal so interactive use is unaffected.
+#define DW_USB_BOOT_PRIORITY 24
+#define DW_USB_RUN_PRIORITY  20
+#endif
 
 #ifdef ESP_PLATFORM
 static void IRAM_ATTR drivewire_isr_handler(void *arg)
@@ -734,6 +744,16 @@ void systemBus::_drivewire_process_queue()
  */
 void systemBus::service()
 {
+#if FUJINET_OVER_USB
+    // Cold-boot association is over once the station has an IP; drop USB
+    // servicing back to normal priority (one-shot).
+    if (_usb_boot_priority && fnWiFi.connected())
+    {
+        _serial.setServicePriority(DW_USB_RUN_PRIORITY);
+        _usb_boot_priority = false;
+    }
+#endif
+
 #ifdef ESP_PLATFORM
     // Handle cassette play if MOTOR pin active.
     if (_cassetteDev)
@@ -899,7 +919,9 @@ void systemBus::setup()
     else
     {
 #if FUJINET_OVER_USB
+        _serial.setServicePriority(DW_USB_BOOT_PRIORITY);
         _serial.begin();
+        _usb_boot_priority = true;
 #else /* ! FUJINET_OVER_USB */
         _serial.begin(ChannelConfig()
                       .baud(_drivewireBaud)

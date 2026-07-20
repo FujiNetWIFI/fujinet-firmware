@@ -22,6 +22,10 @@ private:
     cdc_acm_uart_state_t _serial_state;
     bool _dsr, _cts;
 
+    // FreeRTOS priority for the USB worker tasks; the owner may override it
+    // (e.g. to win CPU against WiFi during startup) via setServicePriority().
+    UBaseType_t _service_priority = 20;
+
 protected:
     void updateFIFO() override;
     size_t dataOut(const void *buffer, size_t length) override;
@@ -29,6 +33,10 @@ protected:
 public:
     void begin();
     void end() override;
+
+    // Set the FreeRTOS priority of the USB worker tasks. Takes effect at the
+    // next begin(), and is applied immediately if they are already running.
+    void setServicePriority(UBaseType_t priority);
 
     void flushOutput() override;
 
