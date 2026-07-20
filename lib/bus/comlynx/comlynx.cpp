@@ -376,6 +376,11 @@ void systemBus::disableDevice(fujiDeviceID_t device_id)
 
 void systemBus::setStreamHost(const char *hostname, int port)
 {
+    setStreamHostWithOptions(hostname, port, 0, false, true);
+}
+
+void systemBus::setStreamHostWithOptions(const char *hostname, int port, int mode, bool register_enabled, bool redeye_enabled)
+{
     // Turn off if hostname is STOP
     if (hostname != nullptr && !strcmp(hostname, "STOP"))
     {
@@ -410,6 +415,12 @@ void systemBus::setStreamHost(const char *hostname, int port)
         _streamDev->netstream_port = 5004;
         Debug_printf("netstream port not provided or invalid (%d), setting to 5004\n", port);
     }
+
+    _streamDev->netstreamMode = (mode == 0)
+        ? lynxNetStream::NetStreamMode::UDP
+        : lynxNetStream::NetStreamMode::TCP;
+    _streamDev->netstreamRegisterEnabled = register_enabled;
+    _streamDev->redeye_mode = redeye_enabled;
 
     // Restart NetStream mode if needed
     if (_streamDev->netstreamActive) {

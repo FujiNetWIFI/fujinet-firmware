@@ -268,6 +268,55 @@ void lynxFuji::fujicmd_get_time()
     Debug_printf("comlynx_get_time - Sending %02d/%02d/%02d %02d:%02d:%02d\n",now->tm_mon, now->tm_mday, now->tm_year, now->tm_hour, now->tm_min, now->tm_sec);
 }
 
+void lynxFuji::fujicmd_enable_netstream(int port, size_t host_payload_len)
+{
+    char host[64] = {};
+
+    transaction_begin(TRANS_STATE::WILL_GET);
+    if (!transaction_get(&host, sizeof(host)))
+    {
+        transaction_error();
+        return;
+    }
+
+    const char *nul = static_cast<const char *>(memchr(host, '\0', sizeof(host)));
+    size_t host_len = nul ? static_cast<size_t>(nul - host) : sizeof(host);
+    bool has_flags = false;
+    uint8_t flags = 0;
+
+    if (nul != nullptr)
+    {
+        size_t nul_index = static_cast<size_t>(nul - host);
+        has_flags = (host_payload_len > nul_index + 1) &&
+                    (host_payload_len < sizeof(host) || host[nul_index + 1] != 0);
+        if (has_flags && nul_index + 1 < sizeof(host))
+            flags = static_cast<uint8_t>(host[nul_index + 1]);
+    }
+
+    int stream_mode = (flags & 0x01) ? 1 : 0;
+    bool register_enabled = (flags & 0x02) != 0;
+    bool redeye_enabled = has_flags ? ((flags & 0x04) != 0) : true;
+
+    char host_out[64];
+    size_t copy_len = host_len;
+    if (copy_len > sizeof(host_out) - 1)
+        copy_len = sizeof(host_out) - 1;
+    memcpy(host_out, host, copy_len);
+    host_out[copy_len] = '\0';
+
+    Debug_printf("Fuji cmd ENABLE NETSTREAM: HOST:%s PORT: %d\n", host_out, port);
+
+    Config.store_netstream_host(host_out);
+    Config.store_netstream_port(port);
+    Config.store_netstream_mode(stream_mode);
+    Config.store_netstream_register(register_enabled);
+    Config.save();
+
+    transaction_complete();
+
+    SYSTEM_BUS.setStreamHostWithOptions(host_out, port, stream_mode, register_enabled, redeye_enabled);
+}
+
 void lynxFuji::comlynx_process()
 {
     uint8_t c;
@@ -401,8 +450,14 @@ void lynxFuji::comlynx_process()
     case FUJICMD_MOUNT_ALL:
         fujicmd_mount_all_success();
         break;
+    case FUJICMD_OPEN_APPKEY:
+        fujicmd_open_app_key();
+        break;
+    case FUJICMD_CLOSE_APPKEY:
+        fujicmd_close_app_key();
+        break;
     case FUJICMD_WRITE_APPKEY:
-        fujicmd_write_app_key(0, 0);
+        fujicmd_write_app_key((len > 1) ? (len - 1) : 0, (len > 1) ? (len - 1) : 0);
         break;
     case FUJICMD_READ_APPKEY:
         fujicmd_read_app_key();
@@ -427,7 +482,7 @@ void lynxFuji::comlynx_process()
     case FUJICMD_ENABLE_UDPSTREAM:
         uint16_t port;
         transaction_get(&port, sizeof(port));
-        fujicmd_enable_netstream(port);
+        fujicmd_enable_netstream(port, (len > 3) ? (len - 3) : 0);
         break;
     default:
         Debug_printf("lynxFuji::process - unknown command: %02X\n", c);
