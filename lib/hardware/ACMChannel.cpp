@@ -140,9 +140,19 @@ void ACMChannel::begin()
     host_config.intr_flags = ESP_INTR_FLAG_LEVEL1;
     ESP_ERROR_CHECK(usb_host_install(&host_config));
 
+#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+    // Keep USB servicing off core 0. On core 0 the WiFi stack preempts these
+    // tasks during cold boot and stalls the DriveWire byte stream mid-sector,
+    // hanging the CoCo's CONFIG load. Core 1 (only the serve loop lives there)
+    // stays clear of the WiFi bring-up storm.
+    BaseType_t task_created = xTaskCreatePinnedToCore(usb_lib_task, "usb_lib", 4096,
+                                          xTaskGetCurrentTaskHandle(),
+                                          USB_HOST_PRIORITY, NULL, 1);
+#else
     BaseType_t task_created = xTaskCreate(usb_lib_task, "usb_lib", 4096,
                                           xTaskGetCurrentTaskHandle(),
                                           USB_HOST_PRIORITY, NULL);
+#endif
     assert(task_created == pdTRUE);
 
     ndc_instance = this;
@@ -152,7 +162,11 @@ void ACMChannel::begin()
     cdc_acm_host_driver_config_t driver_config = {};
     driver_config.driver_task_stack_size = 4096;
     driver_config.driver_task_priority = USB_HOST_PRIORITY;
+#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+    driver_config.xCoreID = 1;
+#else
     driver_config.xCoreID = 0;
+#endif
     driver_config.new_dev_cb = newDevForwarder;
     ESP_ERROR_CHECK(cdc_acm_host_install(&driver_config));
 
