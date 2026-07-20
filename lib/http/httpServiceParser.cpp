@@ -504,7 +504,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << Config.get_general_status_wait_enabled();
         break;
     case FN_BOOT_MODE:
-        resultstream << Config.get_general_boot_mode();
+        resultstream << (unsigned int)Config.get_general_boot_mode();
         break;
     case FN_PRINTER_ENABLED:
         resultstream << Config.get_printer_enabled();

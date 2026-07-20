@@ -129,7 +129,7 @@ public:
     bool get_general_config_ng(){ return _general.config_ng; };
     std::string get_config_filename(){ return _general.config_filename; };
     void store_config_filename(const std::string &filename);
-    bool get_general_boot_mode() { return _general.boot_mode; }
+    uint8_t get_general_boot_mode() { return _general.boot_mode; }
     void store_general_boot_mode(uint8_t boot_mode);
     void store_netstream_host(const char host_ip[64]);
     void store_netstream_port(int port);

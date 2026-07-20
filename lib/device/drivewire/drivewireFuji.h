@@ -35,6 +35,9 @@ public:
     bool processCommand(const FujiDWPacket &packet) override;
     drivewireFuji();
 
+    void insert_boot_device(uint8_t image_id, mediatype_t disk_type,
+                            DISK_DEVICE *disk_dev) override;
+
     // ============ Wrapped Fuji commands ============
     std::optional<std::vector<uint8_t>> fujicore_read_app_key() override;
     void fujicmd_open_app_key() override;
