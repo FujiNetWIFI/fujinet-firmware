@@ -137,6 +137,12 @@ private:
     std::deque<uint8_t> _dbc_pushback;
 #endif
 
+#if FUJINET_OVER_USB
+    // USB servicing runs boosted through the cold-boot WiFi association storm,
+    // then drops to normal once the station associates (see setup()/service()).
+    bool _usb_boot_priority = false;
+#endif
+
     const FujiDWPacket *_activeFrame;
     drivewireDevice *_activeDev = nullptr;
     drivewireModem *_modemDev = nullptr;

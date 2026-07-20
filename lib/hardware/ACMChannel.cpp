@@ -6,8 +6,6 @@
 
 #include "../../include/debug.h"
 
-#define USB_HOST_PRIORITY   (20)
-
 #define TX_TIMEOUT_MS       (1000)
 
 #include <inttypes.h> // debug
@@ -142,7 +140,7 @@ void ACMChannel::begin()
 
     BaseType_t task_created = xTaskCreate(usb_lib_task, "usb_lib", 4096,
                                           xTaskGetCurrentTaskHandle(),
-                                          USB_HOST_PRIORITY, NULL);
+                                          _service_priority, NULL);
     assert(task_created == pdTRUE);
 
     ndc_instance = this;
@@ -151,7 +149,7 @@ void ACMChannel::begin()
     // devices that were already connected at boot
     cdc_acm_host_driver_config_t driver_config = {};
     driver_config.driver_task_stack_size = 4096;
-    driver_config.driver_task_priority = USB_HOST_PRIORITY;
+    driver_config.driver_task_priority = _service_priority;
     driver_config.xCoreID = 0;
     driver_config.new_dev_cb = newDevForwarder;
     ESP_ERROR_CHECK(cdc_acm_host_install(&driver_config));
@@ -260,6 +258,19 @@ bool ACMChannel::getDCD()
 bool ACMChannel::getRI()
 {
     return _serial_state.bRingSignal;
+}
+
+void ACMChannel::setServicePriority(UBaseType_t priority)
+{
+    _service_priority = priority;
+
+    // Apply immediately if the worker tasks are already running. "usb_lib" is
+    // created here; "USB-CDC" is the cdc_acm host driver task.
+    TaskHandle_t h;
+    if ((h = xTaskGetHandle("usb_lib")) != NULL)
+        vTaskPrioritySet(h, priority);
+    if ((h = xTaskGetHandle("USB-CDC")) != NULL)
+        vTaskPrioritySet(h, priority);
 }
 
 #endif /* CONFIG_USB_CDC_ACM_HOST_ENABLED */
