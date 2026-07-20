@@ -377,6 +377,10 @@ void adamFuji::adamnet_device_enable_status(const FujiAdamPacket &packet)
 
 void adamFuji::adamnet_control_send(const FujiAdamPacket &packet)
 {
+    // Let the base class handle standard commands
+    if (fujiDevice::processCommand(packet))
+        return;
+
     switch (packet.command())
     {
     case FUJICMD_RESET:
@@ -411,7 +415,7 @@ void adamFuji::adamnet_control_send(const FujiAdamPacket &packet)
     case FUJICMD_MOUNT_IMAGE:
         {
             uint8_t slot = packet.param(0);
-            uint8_t mode = packet.param(0);
+            uint8_t mode = packet.param(1);
             fujicmd_mount_disk_image_success(slot, (disk_access_flags_t) mode);
         }
         break;
@@ -421,7 +425,7 @@ void adamFuji::adamnet_control_send(const FujiAdamPacket &packet)
     case FUJICMD_READ_DIR_ENTRY:
         {
             uint8_t maxlen = packet.param(0);
-            uint8_t addtl = packet.param(0);
+            uint8_t addtl = packet.param(1);
             fujicmd_read_directory_entry(maxlen, addtl);
         }
         break;
@@ -516,7 +520,7 @@ void adamFuji::adamnet_control_send(const FujiAdamPacket &packet)
     case FUJICMD_COPY_FILE:
         {
             uint8_t source = packet.param(0);
-            uint8_t dest = packet.param(0);
+            uint8_t dest = packet.param(1);
             char dirpath[256];
             transaction_get(dirpath, sizeof(dirpath));
             fujicmd_copy_file_success(source, dest, dirpath);
