@@ -156,7 +156,8 @@ public:
     void changeDeviceId(virtualDevice *pDevice, int device_id);
     bool deviceEnabled(fujiDeviceID_t device_id);
     QueueHandle_t qComlynxMessages = nullptr;
-    void setStreamHost(const char *newhost, int port);    
+    void setStreamHost(const char *newhost, int port);
+    void setStreamHostWithOptions(const char *newhost, int port, int mode, bool register_enabled, bool redeye_enabled);
 
     void setRedeyeMode(bool enable);
     void setRedeyeGameRemap(uint32_t remap);

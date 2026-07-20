@@ -8,6 +8,13 @@
 #include "fnSystem.h"
 #include "utils.h"
 
+#include <cstring>
+
+#ifdef ESP_PLATFORM
+#include <errno.h>
+#include <sys/socket.h>
+#endif
+
 //#define DEBUG_NETSTREAM
 
 GAME_LIST_T game_list[] = {
@@ -59,33 +66,89 @@ GAME_LIST_T game_list[] = {
 };
 
 
+void lynxNetStream::process_redeye_net_packet(uint8_t *buf, size_t len)
+{
+	if ((len <= 2) || (len >= 10))
+		return;
+
+#ifdef DEBUG_NETSTREAM
+	Debug_print("Netstream Redeye FROM NET: ");
+	util_dump_bytes(buf, len);
+#endif
+
+	if (redeye_validate_packet(buf, len))
+	{
+		if (game.state.logon)
+			redeye_process_logon_packet_from_net(buf);
+		else
+			redeye_process_game_packet_from_net(buf);
+	}
+}
+
+
 void lynxNetStream::comlynx_handle_redeye_netstream() {
 
 	redeye_check_logon_state();
 
 	// Get data from network
-	int packetSize = netStream.parsePacket();
-	if ((packetSize > 2) && (packetSize < 10)) {	// good packetsize is at least 3, and in practice less than 10
-		netStream.read(buf_net, NETSTREAM_BUFFER_SIZE);
-
-		#ifdef DEBUG_NETSTREAM 
-		Debug_print("Netstream Redeye FROM NET: ");
- 		util_dump_bytes(buf_net, packetSize);
- 		#endif // validate this is a good redeye packet
-
- 		if (redeye_validate_packet(buf_net, packetSize)) {
-			if (game.state.logon)
-				redeye_process_logon_packet_from_net(buf_net);
- 			else {
- 				redeye_process_game_packet_from_net(buf_net);
-				
-				// Send to Lynx UART
-    			//_comlynx_bus->wait_for_idle();
-    			//SYSTEM_BUS.write(buf_net, packetSize);
-    			//SYSTEM_BUS.read(buf_net, packetSize); 		// Trash what we just sent over serial
+	int packetSize = 0;
+	if (netstreamMode == NetStreamMode::UDP)
+	{
+		packetSize = netStreamUdp.parsePacket();
+		if (packetSize > 0)
+		{
+			netStreamUdp.read(buf_net, NETSTREAM_BUFFER_SIZE);
+			process_redeye_net_packet(buf_net, packetSize);
+		}
+	}
+	else if (ensure_netstream_ready())
+	{
+		while (buf_net_index < NETSTREAM_BUFFER_SIZE)
+		{
+			size_t free_space = NETSTREAM_BUFFER_SIZE - buf_net_index;
+#ifdef ESP_PLATFORM
+			int bytes_read = recv(netStreamTcp.fd(), (char *)&buf_net[buf_net_index], free_space, MSG_DONTWAIT);
+			if (bytes_read <= 0)
+			{
+				if (bytes_read == 0)
+					netStreamTcp.stop();
+				else if (errno != EWOULDBLOCK && errno != EAGAIN)
+					netStreamTcp.stop();
+				break;
 			}
- 		}
- 	}
+#else
+			size_t available = netStreamTcp.available();
+			if (available == 0)
+				break;
+			size_t to_read = (available > free_space) ? free_space : available;
+			int bytes_read = netStreamTcp.read(&buf_net[buf_net_index], to_read);
+			if (bytes_read <= 0)
+				break;
+#endif
+			buf_net_index += bytes_read;
+			while (buf_net_index > 0)
+			{
+				uint8_t size = buf_net[0];
+				if (size < 1 || size > 6)
+				{
+					memmove(buf_net, &buf_net[1], buf_net_index - 1);
+					buf_net_index--;
+					continue;
+				}
+
+				size_t packet_len = (size_t)size + 2;
+				if (buf_net_index < packet_len)
+					break;
+
+				process_redeye_net_packet(buf_net, packet_len);
+				memmove(buf_net, &buf_net[packet_len], buf_net_index - packet_len);
+				buf_net_index -= packet_len;
+			}
+		}
+
+		if (buf_net_index >= NETSTREAM_BUFFER_SIZE)
+			buf_net_index = 0;
+	}
 
 	// Collect data from serial bus
 	// serial collect loop, waiting until the serial has been idle for IDLE_TIME (2-3 char time at 62500 baud)
@@ -513,9 +576,7 @@ void lynxNetStream::redeye_process_logon_packet_from_lynx(uint8_t *buf)
 	}
 
     // Send to network
-	netStream.beginPacket(netstream_host_ip, netstream_port); // remote IP and port
-	netStream.write(buf, size+2);
-	netStream.endPacket();
+	send_net_packet(buf, size+2);
 }
 
 
@@ -594,9 +655,7 @@ void lynxNetStream::redeye_process_game_packet_from_lynx(uint8_t *buf)
 	}
 
     // Send to network
-	netStream.beginPacket(netstream_host_ip, netstream_port); // remote IP and port
-	netStream.write(buf, size);
-	netStream.endPacket();
+	send_net_packet(buf, size);
 }
 
 
