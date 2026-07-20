@@ -143,6 +143,13 @@ void systemBus::op_readex()
         Debug_printf("op_readex: boot from named object %s\r\n", szNamedMount);
         Debug_printf("OP_READEX: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
 
+        if (NULL==pNamedObjFp && useLobbyDwl)
+        {
+            Debug_printf("op_readex: overriding named object %s with %s\r\n", szNamedMount, "/DGNLOBBY.DWL");
+            pNamedObjFp = fopen((const char*)"/DGNLOBBY.DWL", "r");
+            // one time override - subsequent named object reads go back to normal behavior
+            useLobbyDwl = false;
+        }
         if (NULL==pNamedObjFp)
             pNamedObjFp = fopen((const char*)szNamedMount, "r");
         if (NULL==pNamedObjFp)
