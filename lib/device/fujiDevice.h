@@ -127,8 +127,18 @@ enum DET_file_flags_t {
    in each subclass. Just add a mixin and add more commands.
  */
 
+template<typename T>
+concept FujiPacketLike = requires(T p) {
+    { p.device() };
+    { p.command() };
+    { p.param(0) };
+    { p.data() };
+    { p.dataAsString() };
+};
+
 // This class inherits from all the mixins you list and tries each one in order
 template<typename... FujiDeviceMixins>
+requires FujiPacketLike<FUJI_COMMAND_PACKET>
 class FujiDeviceChain : public FujiDeviceMixins...
 {
  protected:

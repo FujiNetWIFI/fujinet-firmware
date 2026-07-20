@@ -377,6 +377,10 @@ void adamFuji::adamnet_device_enable_status(const FujiAdamPacket &packet)
 
 void adamFuji::adamnet_control_send(const FujiAdamPacket &packet)
 {
+    // Let the base class handle standard commands
+    if (fujiDevice::processCommand(packet))
+        return;
+
     switch (packet.command())
     {
     case FUJICMD_RESET:
