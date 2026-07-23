@@ -142,7 +142,7 @@ endif()
 set(INCLUDE_DIRS include
     lib/compat lib/config lib/utils lib/hardware lib/clock
     lib/FileSystem
-    lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson
+    lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson lib/fnsgml
     lib/webdav lib/http lib/sam lib/task
     lib/modem-sniffer lib/printer-emulator
     lib/network-protocol
@@ -156,6 +156,8 @@ set(INCLUDE_DIRS include
     components_pc/libsmb2/include
     components_pc/libssh/include
     components_pc/libnfs/include
+    lib/gumbo
+    lib/gumbo-query
 )
 
 set(SOURCES src/main.cpp
@@ -222,6 +224,10 @@ set(SOURCES src/main.cpp
     lib/TNFSlib/tnfslib_udp.h lib/TNFSlib/tnfslib_udp_testing.cpp
     lib/telnet/libtelnet.h lib/telnet/libtelnet.c
     lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
+    lib/fnsgml/fnsgml.h lib/fnsgml/fnsgml.cpp
+    lib/gumbo-query/Document.cpp lib/gumbo-query/Node.cpp lib/gumbo-query/Object.cpp
+    lib/gumbo-query/Parser.cpp lib/gumbo-query/QueryUtil.cpp lib/gumbo-query/Selection.cpp
+    lib/gumbo-query/Selector.cpp
     components_pc/mongoose/mongoose.h components_pc/mongoose/mongoose.c
     lib/webdav/WebDAV.h lib/webdav/WebDAV.cpp
     lib/webdav/IndexParser.h lib/webdav/IndexParser.cpp
@@ -581,7 +587,13 @@ add_subdirectory(components_pc/libssh)
 # https://github.com/sahlberg/libnfs
 add_subdirectory(components_pc/libnfs)
 
-target_link_libraries(fujinet pthread expat cjson cjson_utils smb2 ssh nfs)
+# Gumbo (pure-C HTML5 parser) backing lib/gumbo-query (CSS selectors) for FNSGML.
+file(GLOB GUMBO_SOURCES ${CMAKE_SOURCE_DIR}/lib/gumbo/*.c)
+add_library(gumbo_fn STATIC ${GUMBO_SOURCES})
+target_include_directories(gumbo_fn PUBLIC ${CMAKE_SOURCE_DIR}/lib/gumbo)
+target_compile_options(gumbo_fn PRIVATE -w) # vendored third-party; suppress its warnings
+
+target_link_libraries(fujinet pthread expat cjson cjson_utils smb2 ssh nfs gumbo_fn)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     target_link_libraries(fujinet ws2_32 bcrypt)
