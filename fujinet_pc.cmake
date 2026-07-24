@@ -156,8 +156,8 @@ set(INCLUDE_DIRS include
     components_pc/libsmb2/include
     components_pc/libssh/include
     components_pc/libnfs/include
-    lib/gumbo
-    lib/gumbo-query
+    components/gumbo
+    components/gumbo-query
 )
 
 set(SOURCES src/main.cpp
@@ -225,9 +225,9 @@ set(SOURCES src/main.cpp
     lib/telnet/libtelnet.h lib/telnet/libtelnet.c
     lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
     lib/fnsgml/fnsgml.h lib/fnsgml/fnsgml.cpp
-    lib/gumbo-query/Document.cpp lib/gumbo-query/Node.cpp lib/gumbo-query/Object.cpp
-    lib/gumbo-query/Parser.cpp lib/gumbo-query/QueryUtil.cpp lib/gumbo-query/Selection.cpp
-    lib/gumbo-query/Selector.cpp
+    components/gumbo-query/Document.cpp components/gumbo-query/Node.cpp components/gumbo-query/Object.cpp
+    components/gumbo-query/Parser.cpp components/gumbo-query/QueryUtil.cpp components/gumbo-query/Selection.cpp
+    components/gumbo-query/Selector.cpp
     components_pc/mongoose/mongoose.h components_pc/mongoose/mongoose.c
     lib/webdav/WebDAV.h lib/webdav/WebDAV.cpp
     lib/webdav/IndexParser.h lib/webdav/IndexParser.cpp
@@ -587,10 +587,10 @@ add_subdirectory(components_pc/libssh)
 # https://github.com/sahlberg/libnfs
 add_subdirectory(components_pc/libnfs)
 
-# Gumbo (pure-C HTML5 parser) backing lib/gumbo-query (CSS selectors) for FNSGML.
-file(GLOB GUMBO_SOURCES ${CMAKE_SOURCE_DIR}/lib/gumbo/*.c)
+# Gumbo (pure-C HTML5 parser) backing components/gumbo-query (CSS selectors) for FNSGML.
+file(GLOB GUMBO_SOURCES ${CMAKE_SOURCE_DIR}/components/gumbo/*.c)
 add_library(gumbo_fn STATIC ${GUMBO_SOURCES})
-target_include_directories(gumbo_fn PUBLIC ${CMAKE_SOURCE_DIR}/lib/gumbo)
+target_include_directories(gumbo_fn PUBLIC ${CMAKE_SOURCE_DIR}/components/gumbo)
 target_compile_options(gumbo_fn PRIVATE -w) # vendored third-party; suppress its warnings
 
 target_link_libraries(fujinet pthread expat cjson cjson_utils smb2 ssh nfs gumbo_fn)
