@@ -192,14 +192,6 @@ protected:
     bool listen_to_type3_polls = false;
 
     /**
-     * @brief Return the two aux bytes in cmdFrame as a single 16-bit value, commonly used, for example to retrieve
-     * a sector number, for disk, or a number of bytes waiting for the sioNetwork device.
-     *
-     * @return 16-bit value of DAUX1/DAUX2 in cmdFrame.
-     */
-    unsigned short sio_get_aux();
-
-    /**
      * @brief All SIO commands by convention should return a status command, using bus_to_computer() to return
      * four bytes of status information to be put into DVSTAT ($02EA)
      */

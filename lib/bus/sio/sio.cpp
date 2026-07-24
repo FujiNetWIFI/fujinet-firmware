@@ -23,12 +23,6 @@
 
 // Helper functions outside the class defintions
 
-// Get requested buffer length from command frame
-unsigned short virtualDevice::sio_get_aux()
-{
-    return (cmdFrame.aux2 * 256) + cmdFrame.aux1;
-}
-
 // Calculate 8-bit checksum
 uint8_t sio_checksum(uint8_t *buf, unsigned short len)
 {
