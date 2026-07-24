@@ -18,7 +18,7 @@ sioDisk::sioDisk()
 // Read disk data and send to computer
 void sioDisk::sio_read()
 {
-    transaction_begin(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     // Debug_print("disk READ\n");
 
@@ -27,7 +27,7 @@ void sioDisk::sio_read()
         // Send error but dummy sector.
         uint8_t dummySector[128];
         memset(dummySector,0,sizeof(dummySector));
-        transaction_put(dummySector,128,true);
+        SYSTEM_BUS.transaction_send(dummySector,128,true);
         return;
     }
 
@@ -36,13 +36,13 @@ void sioDisk::sio_read()
     bool err = _disk->read(UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1), &readcount);
 
     // Send result to Atari
-    transaction_put(_disk->_disk_sectorbuff, readcount, err);
+    SYSTEM_BUS.transaction_send(_disk->_disk_sectorbuff, readcount, err);
 }
 
 // Write disk data from computer
 void sioDisk::sio_write(bool verify)
 {
-    transaction_begin(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
 
     // Debug_print("disk WRITE\n");
 
@@ -53,23 +53,23 @@ void sioDisk::sio_write(bool verify)
 
         memset(_disk->_disk_sectorbuff, 0, DISK_SECTORBUF_SIZE);
 
-        if (transaction_get(_disk->_disk_sectorbuff, sectorSize))
+        if (SYSTEM_BUS.transaction_get(_disk->_disk_sectorbuff, sectorSize))
         {
             if (_disk->write(sectorNum, verify) == false)
             {
-                transaction_complete();
+                SYSTEM_BUS.transaction_success();
                 return;
             }
         }
     }
 
-    transaction_error();
+    SYSTEM_BUS.transaction_error();
 }
 
 // Status
 void sioDisk::sio_status()
 {
-    transaction_begin(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     Debug_print("disk STATUS\n");
 
@@ -137,19 +137,19 @@ void sioDisk::sio_status()
 
     Debug_printf("response: 0x%02x, 0x%02x, 0x%02x\n", _status[0], _status[1], _status[2]);
 
-    transaction_put(_status, sizeof(_status), false);
+    SYSTEM_BUS.transaction_send(_status, sizeof(_status), false);
 }
 
 // Disk format
 void sioDisk::sio_format()
 {
-    transaction_begin(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     Debug_print("disk FORMAT\n");
 
     if (_disk == nullptr)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
@@ -157,46 +157,46 @@ void sioDisk::sio_format()
     bool err = _disk->format(&responsesize);
 
     // Send to computer
-    transaction_put(_disk->_disk_sectorbuff, responsesize, err);
+    SYSTEM_BUS.transaction_send(_disk->_disk_sectorbuff, responsesize, err);
 }
 
 // Read percom block
 void sioDisk::sio_read_percom_block()
 {
-    transaction_begin(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     Debug_print("disk READ PERCOM BLOCK\n");
 
     if (_disk == nullptr)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
 #ifdef VERBOSE_DISK
     _disk->dump_percom_block();
 #endif
-    transaction_put((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock), false);
+    SYSTEM_BUS.transaction_send((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock), false);
 }
 
 // Write percom block
 void sioDisk::sio_write_percom_block()
 {
-    transaction_begin(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
 
     Debug_print("disk WRITE PERCOM BLOCK\n");
 
     if (_disk == nullptr)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
-    transaction_get(&_disk->_percomBlock, sizeof(_disk->_percomBlock));
+    SYSTEM_BUS.transaction_get(&_disk->_percomBlock, sizeof(_disk->_percomBlock));
 #ifdef VERBOSE_DISK
     _disk->dump_percom_block();
 #endif
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 }
 
 /* Mount Disk
@@ -325,12 +325,12 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
     case DISKCMD_READ:
         if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
         {
-            transaction_error();
+            SYSTEM_BUS.transaction_error();
             return;
         }
         else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
         {
-            transaction_error();
+            SYSTEM_BUS.transaction_error();
             return;
         }
         else
@@ -348,12 +348,12 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
     case DISKCMD_PUT:
         if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
         {
-            transaction_error();
+            SYSTEM_BUS.transaction_error();
             return;
         }
         else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
         {
-            transaction_error();
+            SYSTEM_BUS.transaction_error();
             return;
         }
         else
@@ -366,12 +366,12 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         {
             if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
             {
-                transaction_error();
+                SYSTEM_BUS.transaction_error();
                 return;
             }
             else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
             {
-                transaction_error();
+                SYSTEM_BUS.transaction_error();
                 return;
             }
             else
@@ -408,12 +408,12 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
     case DISKCMD_WRITE:
         if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
         {
-            transaction_error();
+            SYSTEM_BUS.transaction_error();
             return;
         }
         else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
         {
-            transaction_error();
+            SYSTEM_BUS.transaction_error();
             return;
         }
         else
@@ -426,12 +426,12 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         {
             if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
             {
-                transaction_error();
+                SYSTEM_BUS.transaction_error();
                 return;
             }
             else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
             {
-                transaction_error();
+                SYSTEM_BUS.transaction_error();
                 return;
             }
             else
@@ -471,7 +471,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         break;
     }
 
-    transaction_error();
+    SYSTEM_BUS.transaction_error();
 }
 
 #endif /* BUILD_ATARI */
