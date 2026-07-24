@@ -522,8 +522,13 @@ void adamFuji::adamnet_control_send(const FujiAdamPacket &packet)
             uint8_t source = packet.param(0);
             uint8_t dest = packet.param(1);
             char dirpath[256];
-            transaction_get(dirpath, sizeof(dirpath));
-            fujicmd_copy_file_success(source, dest, dirpath);
+            transaction_begin(TRANS_STATE::WILL_GET);
+            if (!transaction_get(dirpath, sizeof(dirpath)))
+                transaction_error();
+            else if (!fujicore_copy_file_success(source, dest, dirpath))
+                transaction_error();
+            else
+                transaction_complete();
         }
         break;
     case FUJICMD_GENERATE_GUID:
