@@ -101,30 +101,14 @@ uint8_t adamnet_checksum(uint8_t *buf, unsigned short len)
     return checksum;
 }
 
-// Consume the trailing checksum and ACK, once the full payload has been read.
-void virtualDevice::deferred_ack()
-{
-    adamnet_recv(); // CK
-    SYSTEM_BUS.start_time = GET_TIMESTAMP();
-    adamnet_response_ack();
-    _ack_deferred = false;
-}
-
 void systemBus::transaction_accept(transState_t expectMoreData)
 {
     assert(_transaction_state == TRANS_STATE::INVALID);
 
+    // By the time we get to transaction_accept the payload has been
+    // read by FujiAdamPacket and needs to be acked.
     start_time = GET_TIMESTAMP();
-    if (expectMoreData == TRANS_STATE::WILL_GET)
-    {
-        _activeDev->_ack_deferred = true;
-    }
-    else
-    {
-        // No payload follows; the next byte is the checksum.
-        _activeDev->adamnet_recv(); // Discard CK
-        _activeDev->adamnet_response_ack();
-    }
+    _activeDev->adamnet_response_ack();
 
     _transaction_state = expectMoreData;
 }
@@ -138,13 +122,6 @@ void systemBus::transaction_success()
 
 void systemBus::transaction_error()
 {
-    if (_activeDev->_ack_deferred)
-    {
-        wait_for_idle();
-        start_time = GET_TIMESTAMP();
-        _activeDev->adamnet_response_ack();
-        _activeDev->_ack_deferred = false;
-    }
     _transaction_state = TRANS_STATE::INVALID;
 }
 
@@ -152,8 +129,6 @@ success_is_true systemBus::transaction_get(void *data, size_t len)
 {
     assert(_transaction_state == TRANS_STATE::WILL_GET);
     _transaction_state = TRANS_STATE::DID_GET;
-    if (_activeDev->_ack_deferred)
-        _activeDev->deferred_ack();
     if (_activePacket->data()->size() != len)
         RETURN_ERROR_AS_FALSE();
     std::copy(_activePacket->data()->begin(), _activePacket->data()->end(),
