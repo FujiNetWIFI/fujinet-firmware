@@ -70,6 +70,12 @@ public:
     std::vector<uint8_t> encode(const void* input = nullptr, uint16_t length = 0, uint8_t version = 0, qr_ecc_t ecc = QR_ECC_LOW);;
 
     /**
+    * render - (re)generate the output buffer from the already-encoded QR
+    * matrix using the current output_mode, without re-encoding from source data.
+    */
+    std::vector<uint8_t> render(void);
+
+    /**
     * to_ansi - Convert QR code in out_buf to ATASCII
     *
     * Replaces data in out_buf, with ATASCII code for drawing the QR code.

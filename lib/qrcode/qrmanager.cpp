@@ -56,6 +56,13 @@ std::vector<uint8_t> QRManager::encode(const void* input, uint16_t length, uint8
     auto encoded = to_ansi();
     printf("%s\n", encoded.data());
 
+    return render();
+}
+
+// Re-format the already-encoded QR matrix into output_mode without re-encoding
+// from the source data (which the caller may have already discarded).
+std::vector<uint8_t> QRManager::render(void)
+{
     //printf("version[%d] ecc[%d] mode[%d] output_mode[%d]\n", qrcode.version, qrcode.ecc, qrcode.mode, output_mode);
     switch (output_mode) {
         case QR_OUTPUT_MODE_ANSI:

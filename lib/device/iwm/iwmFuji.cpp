@@ -392,10 +392,8 @@ void iwmFuji::iwm_ctrl_qrcode_encode(const iwm_decoded_cmd_t &cmd)
     Debug_printf("FUJI: QRCODE ENCODE\n");
     Debug_printf("QR Version: %d, ECC: %d, Shorten: %s\n", version, ecc_mode, shorten ? "Y" : "N");
 
-    std::string url = _qrManager.data;
-
     if (shorten) {
-        url = fnHTTPD.shorten_url(url);
+        _qrManager.data = fnHTTPD.shorten_url(_qrManager.data);
     }
 
         _qrManager.version(version);
@@ -434,7 +432,7 @@ void iwmFuji::iwm_ctrl_qrcode_output(const iwm_decoded_cmd_t &cmd)
 
     if (len && (output_mode != _qrManager.output_mode)) {
                 _qrManager.output_mode = (ouput_mode_t)output_mode;
-                _qrManager.encode();
+                _qrManager.render();
     }
 }
 

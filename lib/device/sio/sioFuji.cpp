@@ -707,10 +707,8 @@ void sioFuji::sio_qrcode_encode()
     Debug_printf("FUJI: QRCODE ENCODE\n");
     Debug_printf("QR Version: %d, ECC: %d, Shorten: %s\n", version, ecc_mode, shorten ? "Y" : "N");
 
-    std::string url = _qrManager.data;
-
     if (shorten) {
-        url = fnHTTPD.shorten_url(url);
+        _qrManager.data = fnHTTPD.shorten_url(_qrManager.data);
     }
 
     _qrManager.version(version);
@@ -739,14 +737,14 @@ void sioFuji::sio_qrcode_length()
     uint8_t output_mode = sio_get_aux();
     Debug_printf("Output mode: %i\n", output_mode);
 
-    size_t len = _qrManager.size();
+    size_t len = _qrManager.code.size();
 
     // A bit gross to have a side effect from length command, but not enough aux bytes
     // to specify version, ecc, *and* output mode for the encode command. Also can't
     // just wait for output command, because output mode determines buffer length,
     if (len && (output_mode != _qrManager.output_mode)) {
         _qrManager.output_mode = (ouput_mode_t)output_mode;
-        _qrManager.encode();
+        _qrManager.render();
         len = _qrManager.code.size();
     }
 
