@@ -270,7 +270,7 @@ void sioNetwork::sio_close()
  */
 void sioNetwork::sio_read()
 {
-    unsigned short num_bytes = sio_get_aux();
+    uint16_t num_bytes = cmdFrame.aux12;
     fujiError_t err = FUJI_ERROR::NONE;
 
 #ifdef VERBOSE_PROTOCOL
@@ -352,7 +352,7 @@ fujiError_t sioNetwork::sio_read_channel(unsigned short num_bytes)
  */
 void sioNetwork::sio_write()
 {
-    unsigned short num_bytes = sio_get_aux();
+    uint16_t num_bytes = cmdFrame.aux12;
     fujiError_t err = FUJI_ERROR::NONE;
 
 #ifdef VERBOSE_PROTOCOL

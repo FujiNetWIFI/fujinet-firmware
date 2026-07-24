@@ -612,7 +612,7 @@ void modem::sio_baudlock()
 {
     transaction_begin(TRANS_STATE::NO_GET);
     baudLock = (cmdFrame.aux1 > 0 ? true : false);
-    modemBaud = sio_get_aux();
+    modemBaud = cmdFrame.aux12;
 
     fnLedManager.blink(LED_BT);
 

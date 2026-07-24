@@ -15,7 +15,7 @@
 std::optional<std::string> sioClock::read_tz_from_host()
 {
     Debug_println("sioClock read_tz_from_host");
-    int bufsz = sio_get_aux();
+    int bufsz = cmdFrame.aux12;
 
     if (bufsz <= 0) {
         Debug_printv("ERROR: No timezone sent");
