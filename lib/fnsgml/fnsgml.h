@@ -49,6 +49,11 @@ private:
     std::string lineEnding;
     std::string _parseBuffer;
 
+    // Match iteration: repeating a query with the same selector advances to the
+    // next match; a different selector (or a fresh parse) restarts at the first.
+    std::string _lastQuery;
+    size_t _matchIndex = 0;
+
     // Result of the last resolved query, plus how many of its bytes are still
     // to be handed to the client.
     std::string _value;

@@ -5,7 +5,6 @@
 #include "fnsgml.h"
 
 #include <string.h>
-#include <sstream>
 
 #include "Document.h"
 #include "Selection.h"
@@ -66,12 +65,25 @@ void FNSGML::setQueryParam(uint8_t qp)
  * Set read query. queryString is a CSS selector (e.g. ".nav-link",
  * ".wp-block-table tbody tr:nth-child(2) td"), optionally followed by "@attr"
  * to return an attribute value instead of the element's text.
+ *
+ * Returns a single match. Calling again with the same selector advances to the
+ * next match (so an 8-bit host iterates by repeating the query until it gets an
+ * empty result); a different selector restarts at the first match.
  */
 void FNSGML::setReadQuery(const std::string &queryString, uint8_t queryParam)
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("FNSGML::setReadQuery queryString: %s, queryParam: %d\r\n", queryString.c_str(), queryParam);
 #endif
+    if (queryString == _lastQuery)
+    {
+        _matchIndex++;
+    }
+    else
+    {
+        _lastQuery = queryString;
+        _matchIndex = 0;
+    }
     _queryString = queryString;
     _queryParam = queryParam;
     resolveQuery();
@@ -106,14 +118,15 @@ void FNSGML::resolveQuery()
     // an empty selection rather than throwing, so no try/catch is needed (the
     // ESP firmware builds with C++ exceptions disabled).
     CSelection sel = _doc->find(selector);
-    std::stringstream ss;
-    for (size_t idx = 0; idx < sel.nodeNum(); idx++)
+
+    // Return only the current match; an out-of-range index (iteration finished)
+    // leaves _value empty so the caller sees 0 bytes available.
+    if (_matchIndex < sel.nodeNum())
     {
-        CNode node = sel.nodeAt(idx);
+        CNode node = sel.nodeAt(_matchIndex);
         std::string v = attr.empty() ? node.text() : node.attribute(attr);
-        ss << processString(v) << lineEnding;
+        _value = processString(v) + lineEnding;
     }
-    _value = ss.str();
 }
 
 /**
@@ -218,6 +231,10 @@ bool FNSGML::parse()
     CDocument *doc = new CDocument();
     doc->parse(_parseBuffer);
     _doc = doc;
+
+    // Fresh document -> restart match iteration.
+    _lastQuery.clear();
+    _matchIndex = 0;
     return true;
 }
 
