@@ -3,6 +3,7 @@
 
 #include "fujiDeviceID.h"
 #include "fujiCommandID.h"
+#include "global_types.h"
 
 #ifdef BUILD_RS232
 
@@ -42,7 +43,7 @@ typedef struct
                     uint8_t aux1;
                     uint8_t aux2;
                 };
-                uint16_t aux12;
+                u16le_t aux12;
             };
         };
         uint32_t commanddata;
