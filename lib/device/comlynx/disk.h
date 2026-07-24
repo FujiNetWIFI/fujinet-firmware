@@ -6,6 +6,15 @@
 #include "global_types.h"
 #include "media.h"
 
+typedef enum
+{
+	BLOCK_RAW = 0,
+	BLOCK_LZSA2,
+    BLOCK_LZ4
+} block_compression_t;
+
+#define BLOCK_COMPRESS_CUTOFF   950
+
 
 class lynxDisk : public virtualDevice
 {
