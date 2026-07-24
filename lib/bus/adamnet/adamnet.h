@@ -101,11 +101,6 @@ class virtualDevice
     friend systemBus; // We exist on the AdamNet Bus, and need to let it muck with our internals
     friend fujiDevice;
 
-private:
-    // FIXME - these are part of the bus
-    bool _ack_deferred = false;
-    void deferred_ack();
-
 protected:
     /**
      * @brief Send Byte to AdamNet
