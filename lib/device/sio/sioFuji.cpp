@@ -700,6 +700,10 @@ void sioFuji::sio_qrcode_encode()
     uint8_t ecc_mode = ((aux >> 8) & 0b00000011);
     bool shorten = (aux >> 12) & 0b00000001;
 
+    /* ACK before CPU work (matches sio_base64_encode_compute); encoding and the
+     * optional URL shorten can otherwise leave the host waiting past dtimlo. */
+    transaction_begin(TRANS_STATE::NO_GET);
+
     Debug_printf("FUJI: QRCODE ENCODE\n");
     Debug_printf("QR Version: %d, ECC: %d, Shorten: %s\n", version, ecc_mode, shorten ? "Y" : "N");
 
@@ -729,6 +733,8 @@ void sioFuji::sio_qrcode_encode()
 
 void sioFuji::sio_qrcode_length()
 {
+    transaction_begin(TRANS_STATE::NO_GET);
+
     Debug_printf("FUJI: QRCODE LENGTH\n");
     uint8_t output_mode = sio_get_aux();
     Debug_printf("Output mode: %i\n", output_mode);
@@ -755,6 +761,7 @@ void sioFuji::sio_qrcode_length()
     {
         Debug_printf("QR code buffer is 0 bytes, sending error.\n");
         transaction_put(response, sizeof(response), true);
+        return;
     }
 
     Debug_printf("QR code buffer length: %u bytes\n", len);
@@ -764,6 +771,8 @@ void sioFuji::sio_qrcode_length()
 
 void sioFuji::sio_qrcode_output()
 {
+    transaction_begin(TRANS_STATE::NO_GET);
+
     Debug_printf("FUJI: QRCODE OUTPUT\n");
 
     size_t len = sio_get_aux();
@@ -771,11 +780,13 @@ void sioFuji::sio_qrcode_output()
     if (!len)
     {
         Debug_printf("Refusing to send a zero byte buffer. Aborting\n");
+        transaction_error();
         return;
     }
-    else if (len > _qrManager.size())
+    else if (len > _qrManager.code.size())
     {
         Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n", len, _qrManager.code.size());
+        transaction_error();
         return;
     }
     else
