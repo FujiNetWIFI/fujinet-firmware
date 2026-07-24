@@ -676,7 +676,7 @@ void sioFuji::sio_qrcode_input()
 {
     transaction_begin(TRANS_STATE::WILL_GET);
 
-    uint16_t len = sio_get_aux();
+    uint16_t len = cmdFrame.aux12;
 
     Debug_printf("FUJI: QRCODE INPUT (len: %d)\n", len);
 
@@ -695,7 +695,7 @@ void sioFuji::sio_qrcode_input()
 
 void sioFuji::sio_qrcode_encode()
 {
-    uint16_t aux = sio_get_aux();
+    uint16_t aux = cmdFrame.aux12;
     uint8_t version = aux & 0b01111111;
     uint8_t ecc_mode = ((aux >> 8) & 0b00000011);
     bool shorten = (aux >> 12) & 0b00000001;
@@ -730,7 +730,7 @@ void sioFuji::sio_qrcode_encode()
 void sioFuji::sio_qrcode_length()
 {
     Debug_printf("FUJI: QRCODE LENGTH\n");
-    uint8_t output_mode = sio_get_aux();
+    uint16_t output_mode = cmdFrame.aux12;
     Debug_printf("Output mode: %i\n", output_mode);
 
     size_t len = _qrManager.size();
@@ -766,7 +766,7 @@ void sioFuji::sio_qrcode_output()
 {
     Debug_printf("FUJI: QRCODE OUTPUT\n");
 
-    size_t len = sio_get_aux();
+    size_t len = cmdFrame.aux12;
 
     if (!len)
     {
@@ -793,7 +793,7 @@ void sioFuji::sio_base64_encode_input()
 {
     transaction_begin(TRANS_STATE::WILL_GET);
 
-    uint16_t len = sio_get_aux();
+    uint16_t len = cmdFrame.aux12;
 
     Debug_printf("FUJI: BASE64 ENCODE INPUT\n");
 
@@ -865,7 +865,7 @@ void sioFuji::sio_base64_encode_output()
     transaction_begin(TRANS_STATE::NO_GET);
     Debug_printf("FUJI: BASE64 ENCODE OUTPUT\n");
 
-    size_t len = sio_get_aux();
+    size_t len = cmdFrame.aux12;
 
     if (!len)
     {
@@ -903,7 +903,7 @@ void sioFuji::sio_base64_decode_input()
 {
     transaction_begin(TRANS_STATE::WILL_GET);
 
-    uint16_t len = sio_get_aux();
+    uint16_t len = cmdFrame.aux12;
 
     Debug_printf("FUJI: BASE64 DECODE INPUT\n");
 
@@ -973,7 +973,7 @@ void sioFuji::sio_base64_decode_output()
     transaction_begin(TRANS_STATE::NO_GET);
     Debug_printf("FUJI: BASE64 DECODE OUTPUT\n");
 
-    size_t len = sio_get_aux();
+    size_t len = cmdFrame.aux12;
 
     if (!len)
     {
@@ -1004,7 +1004,7 @@ void sioFuji::sio_hash_input()
     transaction_begin(TRANS_STATE::WILL_GET);
 
     Debug_printf("FUJI: HASH INPUT\n");
-    uint16_t len = sio_get_aux();
+    uint16_t len = cmdFrame.aux12;
     if (!len)
     {
         Debug_printf("Invalid length. Aborting");
@@ -1022,7 +1022,7 @@ void sioFuji::sio_hash_compute(bool clear_data)
 {
     transaction_begin(TRANS_STATE::NO_GET);
     Debug_printf("FUJI: HASH COMPUTE\n");
-    algorithm = Hash::to_algorithm(sio_get_aux());
+    algorithm = Hash::to_algorithm(cmdFrame.aux12);
     hasher.compute(algorithm, clear_data);
     transaction_complete();
 }
@@ -1031,7 +1031,7 @@ void sioFuji::sio_hash_length()
 {
     transaction_begin(TRANS_STATE::NO_GET);
     Debug_printf("FUJI: HASH LENGTH\n");
-    uint16_t is_hex = sio_get_aux() == 1;
+    uint16_t is_hex = cmdFrame.aux12 == 1;
     uint8_t r = hasher.hash_length(algorithm, is_hex);
     transaction_put(&r, 1, false);
 }
@@ -1040,7 +1040,7 @@ void sioFuji::sio_hash_output()
 {
     transaction_begin(TRANS_STATE::NO_GET);
     Debug_printf("FUJI: HASH OUTPUT\n");
-    uint16_t is_hex = sio_get_aux() == 1;
+    uint16_t is_hex = cmdFrame.aux12 == 1;
 
     std::vector<uint8_t> hashed_data;
     if (is_hex) {
