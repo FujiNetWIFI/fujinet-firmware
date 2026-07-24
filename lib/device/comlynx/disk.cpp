@@ -125,7 +125,7 @@ void lynxDisk::read_block(uint32_t block)
     // LZ4LIB_API int LZ4_compress_default(const char* src, char* dst, int srcSize, int dstCapacity);
     int c_size = LZ4_compress_default((const char *) _media->_media_blockbuff, (char *) &compressed_block[1], 1024, 1024);
 
-    if (c_size <= BLOCK_COMPRESS_CUTOFF) {
+    if ((c_size <= BLOCK_COMPRESS_CUTOFF) && (c_size > 0)) {
         Debug_printf("lynxdisk::read_block - sending compressed LZ4, size:%d\n", c_size);
         compressed_block[0] = BLOCK_LZ4;
         transaction_put(compressed_block, c_size+1);
