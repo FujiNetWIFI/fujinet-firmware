@@ -294,3 +294,6 @@ std::vector<uint8_t> QRManager::to_petscii(void)
     return out;
 }
 
+
+// Shared instance used by the QR command mixin (see QRMixin)
+QRManager qrManager;

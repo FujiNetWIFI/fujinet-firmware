@@ -138,4 +138,7 @@ public:
     std::vector<uint8_t> code;
 };
 
+// Shared instance used by the QR command mixin (see QRMixin)
+extern QRManager qrManager;
+
 #endif /* QRCODE_MANAGER_H */
