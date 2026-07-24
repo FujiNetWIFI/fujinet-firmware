@@ -5,6 +5,7 @@
 #include <memory.h>
 #include <string.h>
 
+#include "lz4.h"
 #include "../../include/debug.h"
 
 #include "media.h"
@@ -99,6 +100,9 @@ error_is_true lynxDisk::write_blank(FILE *fileh, uint32_t numBlocks)
 
 void lynxDisk::read_block(uint32_t block)
 {
+    uint8_t compressed_block[MEDIA_BLOCK_SIZE*2];           // compressed data may be larger than blocksize
+    uint8_t compression_type;
+
     if (_media == nullptr) {
         Debug_println("lynxdisk::read_block - _media is null");
         transaction_error();
@@ -114,7 +118,24 @@ void lynxDisk::read_block(uint32_t block)
         transaction_error();
     }
 
-    transaction_put(_media->_media_blockbuff, MEDIA_BLOCK_SIZE);
+    // Try compressing the block
+    // using LZ4 for now, since Fujinet already supplied it
+    // first byte sent is the compression type field, followed by data, up to 1024 bytes
+    //
+    // LZ4LIB_API int LZ4_compress_default(const char* src, char* dst, int srcSize, int dstCapacity);
+    int c_size = LZ4_compress_default((const char *) _media->_media_blockbuff, (char *) &compressed_block[1], 1024, 1024);
+
+    if ((c_size <= BLOCK_COMPRESS_CUTOFF) && (c_size > 0)) {
+        Debug_printf("lynxdisk::read_block - sending compressed LZ4, size:%d\n", c_size);
+        compressed_block[0] = BLOCK_LZ4;
+        transaction_put(compressed_block, c_size+1);
+    }
+    else {
+        Debug_printf("lynxdisk::read_block - sending raw 1024 bytes, compressed size was: %d\n", c_size);
+        compressed_block[0] = BLOCK_RAW;
+        memcpy(&compressed_block[1], _media->_media_blockbuff, MEDIA_BLOCK_SIZE);
+        transaction_put(&compressed_block, MEDIA_BLOCK_SIZE+1);
+    }
 }
 
 void lynxDisk::write_block(uint32_t block)
