@@ -2595,20 +2595,20 @@ void sioPCLink::send_ack_byte(uint8_t  what)
         {
         case 'a':
 #ifndef ESP_PLATFORM
-        transaction_begin(TRANS_STATE::WILL_GET);
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
         break;
 #endif
     case 'A':
-        transaction_begin(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
         break;
     case 'N':
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         break;
     case 'C':
-        transaction_complete();
+        SYSTEM_BUS.transaction_success();
         break;
     case 'E':
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         break;
         }
 }
@@ -2657,7 +2657,7 @@ void sioPCLink::sio_status()
 //      if (log_flag)
                 Debug_printf("STATUS: %02x %02x %02x %02x\n", status[0], status[1], status[2], status[3]);
 // # endif
-    transaction_put(status, sizeof(status), false);
+    SYSTEM_BUS.transaction_send(status, sizeof(status), false);
 }
 
 // Process SIO command
