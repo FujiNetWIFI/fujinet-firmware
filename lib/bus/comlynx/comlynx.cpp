@@ -135,7 +135,7 @@ void virtualDevice::comlynx_send_length(uint16_t l)
     comlynx_send(l & 0xFF);
 
     #ifdef DEBUG
-        Debug_printf("comlynx_send_length - len: %ld\n", (long int)l);
+        Debug_printf("comlynx_send_length - len:%ld\n", (long int)l);
     #endif
 }
 
