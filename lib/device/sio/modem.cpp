@@ -290,40 +290,40 @@ void modem::sio_write()
     */
     if (cmdFrame.aux1 == 0)
     {
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
         SYSTEM_BUS.transaction_success();
+        return;
+    }
+
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    memset(txBuf, 0, sizeof(txBuf));
+
+    if (!SYSTEM_BUS.transaction_get(txBuf, 64))
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
+    if (cmdMode == true)
+    {
+        cmdOutput = false;
+        cmd.assign((char *)txBuf, cmdFrame.aux1);
+
+        if (cmd == "ATA\r")
+            answerHack = true;
+        else
+            modemCommand();
+
+        cmdOutput = true;
     }
     else
     {
-        memset(txBuf, 0, sizeof(txBuf));
-
-        if (!SYSTEM_BUS.transaction_get(txBuf, 64))
-        {
-            SYSTEM_BUS.transaction_error();
-        }
-        else
-        {
-            if (cmdMode == true)
-            {
-                cmdOutput = false;
-                cmd.assign((char *)txBuf, cmdFrame.aux1);
-
-                if (cmd == "ATA\r")
-                    answerHack = true;
-                else
-                    modemCommand();
-
-                cmdOutput = true;
-            }
-            else
-            {
-                fnLedManager.blink(LED_BT,1);
-                if (tcpClient.connected())
-                    tcpClient.write(txBuf, cmdFrame.aux1);
-            }
-
-            SYSTEM_BUS.transaction_success();
-        }
+        fnLedManager.blink(LED_BT,1);
+        if (tcpClient.connected())
+            tcpClient.write(txBuf, cmdFrame.aux1);
     }
+
+    SYSTEM_BUS.transaction_success();
 }
 
 // 0x53 / 'S' - STATUS
@@ -1936,7 +1936,6 @@ void modem::sio_process(uint32_t commanddata, uint8_t checksum)
             sio_status();
             break;
         case MODEMCMD_WRITE:
-            SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
             sio_write();
             break;
         case MODEMCMD_STREAM:
