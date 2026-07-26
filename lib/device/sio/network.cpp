@@ -117,25 +117,6 @@ void sioNetwork::sio_open()
     // Delete timer if already extant.
     timer_stop();
 
-    // persist aux1/aux2 values - NOTHING USES THEM!
-    open_aux1 = cmdFrame.aux1;
-
-    // Ignore aux2 value if NTRANS set 0xFF, for ACTION!
-    if (trans_aux2 == 0xFF)
-    {
-        open_aux2 = cmdFrame.aux2 = 0;
-    }
-    else if (cmdFrame.aux1 == 6) // don't xlate dir listings.
-    {
-        open_aux2 = cmdFrame.aux2;
-    }
-    else
-    {
-        open_aux2 = cmdFrame.aux2;
-        open_aux2 |= trans_aux2;
-        cmdFrame.aux2 |= trans_aux2;
-    }
-
     // Shut down protocol if we are sending another open before we close.
     if (protocol != nullptr)
     {
@@ -178,8 +159,20 @@ void sioNetwork::sio_open()
         return;
     }
 
+    fileAccessMode_t open_mode = (fileAccessMode_t) cmdFrame.aux1;
+    netProtoTranslation_t open_trans = (netProtoTranslation_t) cmdFrame.aux2;
+
+    // Ignore aux2 value if NTRANS set 0xFF, for ACTION!
+    if (trans_aux2 == 0xFF)
+        open_trans = NETPROTO_TRANS_NONE;
+    else if (open_mode != ACCESS_MODE::DIRECTORY) // don't xlate dir listings.
+    {
+        unsigned flags = (unsigned) open_trans | trans_aux2;
+        open_trans = (netProtoTranslation_t) flags;
+    }
+
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != FUJI_ERROR::NONE)
+    if (protocol->open(urlParser.get(), open_mode, open_trans) != FUJI_ERROR::NONE)
     {
         status.error = protocol->error;
         Debug_printf("Protocol unable to make connection. Error: %d\n", status.error);
@@ -1179,7 +1172,7 @@ void sioNetwork::sio_clear_interrupt()
 void sioNetwork::sio_set_translation()
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    trans_aux2 = cmdFrame.aux2;
+    trans_aux2 = (netProtoTranslation_t) cmdFrame.aux2;
     SYSTEM_BUS.transaction_success();
 }
 
