@@ -82,8 +82,8 @@ private:
     void enqueue_rx(const uint8_t *data, int len);    // byte path enqueue; TCP drains are capped before overflow
     void enqueue_frame(const uint8_t *data, int len); // framed path (lossy UDP): push whole frame, evict oldest whole frames over cap
     void drain_net_to_ring();                         // pull all available net datagrams into the buffer
-    void sio_status() override;
-    void sio_process(uint32_t commanddata, uint8_t checksum) override;
+    void sio_status(const FujiSIOPacket &packet) override;
+    void sio_process(const FujiSIOPacket &packet) override;
 
 public:
     enum class NetStreamMode : uint8_t

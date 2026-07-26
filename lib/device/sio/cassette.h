@@ -90,8 +90,8 @@ protected:
     bool motor_line() { return SYSTEM_BUS.motor_asserted(); }
 
     // have to populate virtual functions to complete class
-    void sio_status() override{}; // $53, 'S', Status
-    void sio_process(uint32_t commanddata, uint8_t checksum) override{};
+    void sio_status(const FujiSIOPacket &packet) override{}; // $53, 'S', Status
+    void sio_process(const FujiSIOPacket &packet) override{};
 
     void open_cassette_file(FileSystem *filesystem);
     void close_cassette_file();

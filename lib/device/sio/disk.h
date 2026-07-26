@@ -10,11 +10,11 @@ class sioDisk : public virtualDevice
 private:
     MediaType *_disk = nullptr;
 
-    void sio_read();
-    void sio_write(bool verify);
+    void sio_read(const FujiSIOPacket &packet);
+    void sio_write(const FujiSIOPacket &packet);
     void sio_format();
-    void sio_status() override;
-    void sio_process(uint32_t commanddata, uint8_t checksum) override;
+    void sio_status(const FujiSIOPacket &packet) override;
+    void sio_process(const FujiSIOPacket &packet) override;
 
     void derive_percom_block(uint16_t numSectors);
     void sio_read_percom_block();

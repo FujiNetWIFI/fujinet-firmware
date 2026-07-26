@@ -11,15 +11,15 @@ class sioClock : public virtualDevice
 {
 private:
     std::string alternate_tz = "";
-    std::optional<std::string> read_tz_from_host();
+    std::optional<std::string> read_tz_from_host(const FujiSIOPacket &packet);
 
     // set the Config timezone for the whole FujiNet (as in WebUI)
-    void set_fn_tz();
-    void set_alternate_tz();
+    void set_fn_tz(const FujiSIOPacket &packet);
+    void set_alternate_tz(const FujiSIOPacket &packet);
 
 public:
-    void sio_process(uint32_t commanddata, uint8_t checksum) override;
-    virtual void sio_status() override {};
+    void sio_process(const FujiSIOPacket &packet) override;
+    void sio_status(const FujiSIOPacket &packet) override {};
 };
 
 #endif // SIO_CLOCK_H

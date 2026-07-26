@@ -20,40 +20,24 @@ protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
 
-    void sio_net_set_ssid();           // 0xFB
-    void sio_read_directory_block();   // 0xF6
-    void sio_set_baudrate();           // 0xEB
-    void sio_new_disk();               // 0xE7
-    void sio_set_hsio_index();         // 0xE3
-    void sio_copy_file();              // 0xD8
-    void sio_enable_netstream();       // 0xF0
+    void sio_net_set_ssid(const FujiSIOPacket &packet);                  // 0xFB
+    void sio_read_directory_block();                                  // 0xF6
+    void sio_set_baudrate(const FujiSIOPacket &packet);                  // 0xEB
+    void sio_new_disk();                                              // 0xE7
+    void sio_set_hsio_index(const FujiSIOPacket &packet);                // 0xE3
+    void sio_copy_file(const FujiSIOPacket &packet);                     // 0xD8
+    void sio_enable_netstream(const FujiSIOPacket &packet);              // 0xF0
+
+    void sio_random_number();                                         // 0xD3
 
     // FIXME - move to fujiDevice mixin
-    void sio_random_number();          // 0xD3
-    void sio_base64_encode_input();    // 0xD0
-    void sio_base64_encode_compute();  // 0xCF
-    void sio_base64_encode_length();   // 0xCE
-    void sio_base64_encode_output();   // 0xCD
-    void sio_base64_decode_input();    // 0xCC
-    void sio_base64_decode_compute();  // 0xCB
-    void sio_base64_decode_length();   // 0xCA
-    void sio_base64_decode_output();   // 0xC9
+    void sio_qrcode_input(const FujiSIOPacket &packet);                  // 0xBC
+    void sio_qrcode_encode(const FujiSIOPacket &packet);                 // 0xBD
+    void sio_qrcode_length(const FujiSIOPacket &packet);                 // OxBE
+    void sio_qrcode_output(const FujiSIOPacket &packet);                 // 0xBF
 
-    // FIXME - move to fujiDevice mixin
-    void sio_hash_input();             // 0xC8
-    void sio_hash_compute(bool clear_data); // 0xC7, 0xC3
-    void sio_hash_length();            // 0xC6
-    void sio_hash_output();            // 0xC5
-    void sio_hash_clear();             // 0xC2
-
-    // FIXME - move to fujiDevice mixin
-    void sio_qrcode_input();           // 0xBC
-    void sio_qrcode_encode();          // 0xBD
-    void sio_qrcode_length();          // OxBE
-    void sio_qrcode_output();          // 0xBF
-
-    void sio_status() override { fujicmd_status(); }
-    void sio_process(uint32_t commanddata, uint8_t checksum) override;
+    void sio_status(const FujiSIOPacket &packet) override { fujicmd_status(); }
+    void sio_process(const FujiSIOPacket &packet) override;
 
 public:
     sioFuji();

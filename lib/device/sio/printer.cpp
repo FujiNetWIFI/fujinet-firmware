@@ -118,7 +118,7 @@ void sioPrinter::print_from_cpm(uint8_t c)
 }
 
 // Status
-void sioPrinter::sio_status()
+void sioPrinter::sio_status(const FujiSIOPacket &packet)
 {
     /*
   STATUS frame per the 400/800 OS ROM Manual
@@ -275,23 +275,20 @@ sioPrinter::printer_type sioPrinter::match_modelname(std::string model_name)
 }
 
 // Process command
-void sioPrinter::sio_process(uint32_t commanddata, uint8_t checksum)
+void sioPrinter::sio_process(const FujiSIOPacket &packet)
 {
-    cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
-
     if (!Config.get_printer_enabled())
     {
         Debug_println("sioPrinter::disabled, ignoring");
     }
     else
     {
-        switch (cmdFrame.comnd)
+        switch (packet.command())
         {
         case SIO_PRINTERCMD_PUT: // Needed by A822 for graphics mode printing
         case SIO_PRINTERCMD_WRITE:
-            _lastaux1 = cmdFrame.aux1;
-            _lastaux2 = cmdFrame.aux2;
+            _lastaux1 = packet.param(0);
+            _lastaux2 = packet.param(1);
             _last_ms = fnSystem.millis();
             SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
             sio_write(_lastaux1, _lastaux2);
@@ -299,7 +296,7 @@ void sioPrinter::sio_process(uint32_t commanddata, uint8_t checksum)
         case SIO_PRINTERCMD_STATUS:
             _last_ms = fnSystem.millis();
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-            sio_status();
+            sio_status(packet);
             break;
         default:
             SYSTEM_BUS.transaction_error();

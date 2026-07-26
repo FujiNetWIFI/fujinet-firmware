@@ -232,7 +232,7 @@ void sioVoice::sio_write()
 }
 
 // Status
-void sioVoice::sio_status()
+void sioVoice::sio_status(const FujiSIOPacket &packet)
 {
     // act like a printer for POC
     uint8_t status[4];
@@ -245,23 +245,20 @@ void sioVoice::sio_status()
     SYSTEM_BUS.transaction_send(status, sizeof(status), false);
 }
 
-void sioVoice::sio_process(uint32_t commanddata, uint8_t checksum)
+void sioVoice::sio_process(const FujiSIOPacket &packet)
 {
-    cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
-
     // act like a printer for POC
-    switch (cmdFrame.comnd)
+    switch (packet.command())
     {
     case 'P': // 0x50
     case 'W': // 0x57
         SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
         sio_write();
-        lastAux1 = cmdFrame.aux1;
+        lastAux1 = packet.param(0);
         break;
     case 'S': // 0x53
         SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-        sio_status();
+        sio_status(packet);
         break;
     default:
         SYSTEM_BUS.transaction_error();
