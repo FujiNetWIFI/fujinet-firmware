@@ -102,14 +102,14 @@ modem::~modem()
 }
 
 // 0x40 / '@' - TYPE 3 POLL
-void modem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
+void modem::sio_poll_3(const FujiSIOPacket &packet)
 {
     bool respond = false;
 
-    // When AUX1 and AUX == 0x4E, it's a normal/general poll
+    // When packet.param8(0) and packet.param8(1) == 0x4E, it's a normal/general poll
     // Since XL/XE OS always does this during boot, we're going to ignore these, otherwise
     // we'd load our handler every time, and that's probably not desireable
-    if (aux1 == 0 && aux2 == 0)
+    if (packet.param8(0) == 0 && packet.param8(1) == 0)
     {
         Debug_printf("MODEM TYPE 3 POLL #%d\n", ++count_PollType3);
         if (count_PollType3 == 26)
@@ -120,23 +120,23 @@ void modem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
         else
             return;
     }
-    // When AUX1 and AUX == 0x4F, it's a request to reset the whole polling process
-    if (aux1 == 0x4F && aux2 == 0x4F)
+    // When packet.param8(0) and packet.param8(1) == 0x4F, it's a request to reset the whole polling process
+    if (packet.param8(0) == 0x4F && packet.param8(1) == 0x4F)
     {
         Debug_print("MODEM TYPE 3 POLL <<RESET POLL>>\n");
         count_PollType3 = 0;
         firmware_sent = false;
         return;
     }
-    // When AUX1 and AUX == 0x4E, it's a request to reset poll counters
-    if (aux1 == 0x4E && aux2 == 0x4E)
+    // When packet.param8(0) and packet.param8(1) == 0x4E, it's a request to reset poll counters
+    if (packet.param8(0) == 0x4E && packet.param8(1) == 0x4E)
     {
         Debug_print("MODEM TYPE 3 POLL <<NULL POLL>>\n");
         count_PollType3 = 0;
         return;
     }
-    // When AUX1 = 0x52 'R' and AUX == 1 or DEVICE == x050, it's a directed poll to "R1:"
-    if ((aux1 == 0x52 && aux2 == 0x01) || device == FUJI_DEVICEID_SERIAL)
+    // When packet.param8(0) = 0x52 'R' and packet.param8(1) == 1 or DEVICE == x050, it's a directed poll to "R1:"
+    if ((packet.param8(0) == 0x52 && packet.param8(1) == 0x01) || packet.device() == FUJI_DEVICEID_SERIAL)
     {
         Debug_print("MODEM TYPE 4 \"R1:\" DIRECTED POLL\n");
         respond = true;
@@ -278,17 +278,17 @@ void modem::sio_send_firmware(uint8_t loadcommand)
 }
 
 // 0x57 / 'W' - WRITE
-void modem::sio_write()
+void modem::sio_write(const FujiSIOPacket &packet)
 {
     uint8_t ck;
 
     Debug_println("Modem cmd: WRITE");
 
-    /* AUX1: Bytes in payload, 0-64
-       AUX2: NA
+    /* packet.param(0): Bytes in payload, 0-64
+       packet.param(1): NA
        Payload always padded to 64 bytes
     */
-    if (cmdFrame.aux1 == 0)
+    if (packet.param8(0) == 0)
     {
         SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
         SYSTEM_BUS.transaction_success();
@@ -307,7 +307,7 @@ void modem::sio_write()
     if (cmdMode == true)
     {
         cmdOutput = false;
-        cmd.assign((char *)txBuf, cmdFrame.aux1);
+        cmd.assign((char *)txBuf, packet.param8(0));
 
         if (cmd == "ATA\r")
             answerHack = true;
@@ -320,14 +320,14 @@ void modem::sio_write()
     {
         fnLedManager.blink(LED_BT,1);
         if (tcpClient.connected())
-            tcpClient.write(txBuf, cmdFrame.aux1);
+            tcpClient.write(txBuf, packet.param8(0));
     }
 
     SYSTEM_BUS.transaction_success();
 }
 
 // 0x53 / 'S' - STATUS
-void modem::sio_status()
+void modem::sio_status(const FujiSIOPacket &packet)
 {
 
     Debug_println("Modem cmd: STATUS");
@@ -371,7 +371,7 @@ void modem::sio_status()
 }
 
 // 0x41 / 'A' - CONTROL
-void modem::sio_control()
+void modem::sio_control(const FujiSIOPacket &packet)
 {
     /* AUX1: Set control state
         7: Enable DTR (Data Terminal Ready) change (1=change, 0=ignore)
@@ -387,21 +387,21 @@ void modem::sio_control()
 
     Debug_println("Modem cmd: CONTROL");
 
-    if (cmdFrame.aux1 & 0x02)
+    if (packet.param8(0) & 0x02)
     {
-        XMT = (cmdFrame.aux1 & 0x01 ? true : false);
+        XMT = (packet.param8(0) & 0x01 ? true : false);
         Debug_printf("XMT=%d\n", XMT);
     }
 
-    if (cmdFrame.aux1 & 0x20)
+    if (packet.param8(0) & 0x20)
     {
-        RTS = (cmdFrame.aux1 & 0x10 ? true : false);
+        RTS = (packet.param8(0) & 0x10 ? true : false);
         Debug_printf("RTS=%d\n", RTS);
     }
 
-    if (cmdFrame.aux1 & 0x80)
+    if (packet.param8(0) & 0x80)
     {
-        DTR = (cmdFrame.aux1 & 0x40 ? true : false);
+        DTR = (packet.param8(0) & 0x40 ? true : false);
 
         Debug_printf("DTR=%d\n", DTR);
 
@@ -423,7 +423,7 @@ void modem::sio_control()
 }
 
 // 0x42 / 'B' - CONFIGURE
-void modem::sio_config()
+void modem::sio_config(const FujiSIOPacket &packet)
 {
 
     Debug_println("Modem cmd: CONFIGURE");
@@ -454,9 +454,9 @@ void modem::sio_config()
     // Complete and then set newbaud
     SYSTEM_BUS.transaction_success();
 
-    uint8_t newBaud = 0x0F & cmdFrame.aux1; // Get baud rate
-    //uint8_t wordSize = 0x30 & cmdFrame.aux1; // Get word size
-    //uint8_t stopBit = (1 << 7) & cmdFrame.aux1; // Get stop bits
+    uint8_t newBaud = 0x0F & packet.param8(0); // Get baud rate
+    //uint8_t wordSize = 0x30 & packet.param(0); // Get word size
+    //uint8_t stopBit = (1 << 7) & packet.param(0); // Get stop bits
 
     // Do not reset MODEM baud rate if locked.
     if (baudLock == true)
@@ -496,9 +496,9 @@ void modem::sio_config()
 }
 
 // 0x44 / 'D' - Dump
-void modem::sio_set_dump()
+void modem::sio_set_dump(const FujiSIOPacket &packet)
 {
-    modemSniffer->setEnable(cmdFrame.aux1);
+    modemSniffer->setEnable(packet.param(0));
     SYSTEM_BUS.transaction_success();
 }
 
@@ -564,7 +564,7 @@ void modem::sio_stream()
 /**
  * Set listen port
  */
-void modem::sio_listen()
+void modem::sio_listen(const FujiSIOPacket &packet)
 {
     if (listenPort != 0)
     {
@@ -574,7 +574,7 @@ void modem::sio_listen()
 
     fnLedManager.blink(LED_BT);
 
-    listenPort = cmdFrame.aux2 * 256 + cmdFrame.aux1;
+    listenPort = packet.param(0);
 
     if (listenPort < 1)
         SYSTEM_BUS.transaction_error();
@@ -608,11 +608,11 @@ void modem::sio_unlisten()
 /**
  * Lock MODEM baud rate to last configured value
  */
-void modem::sio_baudlock()
+void modem::sio_baudlock(const FujiSIOPacket &packet)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    baudLock = (cmdFrame.aux1 > 0 ? true : false);
-    modemBaud = cmdFrame.aux12;
+    modemBaud = packet.param16(0);
+    baudLock = (modemBaud & 0xFF) > 0;
 
     fnLedManager.blink(LED_BT);
 
@@ -624,10 +624,10 @@ void modem::sio_baudlock()
 /**
  * enable/disable auto-answer
  */
-void modem::sio_autoanswer()
+void modem::sio_autoanswer(const FujiSIOPacket &packet)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    autoAnswer = (cmdFrame.aux1 > 0 ? true : false);
+    autoAnswer = (packet.param8(0) > 0 ? true : false);
 
     fnLedManager.blink(LED_BT);
 
@@ -1868,11 +1868,8 @@ void modem::shutdown()
 /*
   Process command
 */
-void modem::sio_process(uint32_t commanddata, uint8_t checksum)
+void modem::sio_process(const FujiSIOPacket &packet)
 {
-    cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
-
     if (!Config.get_modem_enabled())
     {
         Debug_println("modem::disabled, ignoring");
@@ -1881,22 +1878,22 @@ void modem::sio_process(uint32_t commanddata, uint8_t checksum)
     {
         Debug_println("modem::sio_process() called");
 
-        switch (cmdFrame.comnd)
+        switch (packet.command())
         {
         case MODEMCMD_LOAD_RELOCATOR:
             Debug_printf("MODEM $21 RELOCATOR #%d\n", ++count_ReqRelocator);
-            sio_send_firmware(cmdFrame.comnd);
+            sio_send_firmware(packet.command());
             break;
 
         case MODEMCMD_LOAD_HANDLER:
             Debug_printf("MODEM $26 HANDLER DL #%d\n", ++count_ReqHandler);
-            sio_send_firmware(cmdFrame.comnd);
+            sio_send_firmware(packet.command());
             break;
 
         case MODEMCMD_TYPE1_POLL:
             Debug_printf("MODEM TYPE 1 POLL #%d\n", ++count_PollType1);
             // The 850 is only supposed to respond to this if AUX1 = 1 or on the 26th poll attempt
-            if (cmdFrame.aux1 == 1 || count_PollType1 == 16)
+            if (packet.param8(0) == 1 || count_PollType1 == 16)
             {
                 sio_poll_1();
                 count_PollType1 = 0; // Reset the counter so we can respond again if asked
@@ -1904,39 +1901,39 @@ void modem::sio_process(uint32_t commanddata, uint8_t checksum)
             break;
 
         case MODEMCMD_TYPE3_POLL:
-            sio_poll_3(cmdFrame.device, cmdFrame.aux1, cmdFrame.aux2);
+            sio_poll_3(packet);
             break;
 
         case MODEMCMD_CONTROL:
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-            sio_control();
+            sio_control(packet);
             break;
         case MODEMCMD_CONFIGURE:
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-            sio_config();
+            sio_config(packet);
             break;
         case MODEMCMD_SET_DUMP:
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-            sio_set_dump();
+            sio_set_dump(packet);
             break;
         case MODEMCMD_LISTEN:
-            sio_listen();
+            sio_listen(packet);
             break;
         case MODEMCMD_UNLISTEN:
             sio_unlisten();
             break;
         case MODEMCMD_BAUDRATELOCK:
-            sio_baudlock();
+            sio_baudlock(packet);
             break;
         case MODEMCMD_AUTOANSWER:
-            sio_autoanswer();
+            sio_autoanswer(packet);
             break;
         case MODEMCMD_STATUS:
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-            sio_status();
+            sio_status(packet);
             break;
         case MODEMCMD_WRITE:
-            sio_write();
+            sio_write(packet);
             break;
         case MODEMCMD_STREAM:
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);

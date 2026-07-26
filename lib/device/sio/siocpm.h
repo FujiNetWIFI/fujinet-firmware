@@ -16,8 +16,8 @@ class sioCPM : public virtualDevice
 {
 private:
 
-    void sio_status() override;
-    void sio_process(uint32_t commanddata, uint8_t checksum) override;
+    void sio_status(const FujiSIOPacket &packet) override;
+    void sio_process(const FujiSIOPacket &packet) override;
 
 public:
     bool cpmActive = false;

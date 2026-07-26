@@ -17,8 +17,8 @@ protected:
     uint8_t samBuffer[121];
     void sio_write();
 
-    void sio_process(uint32_t commanddata, uint8_t checksum) override;
-    virtual void sio_status() override;
+    void sio_process(const FujiSIOPacket &packet) override;
+    void sio_status(const FujiSIOPacket &packet) override;
 
 private:
     bool sing = false;

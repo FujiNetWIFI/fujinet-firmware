@@ -12,10 +12,10 @@
 #include "fnConfig.h"
 #include "utils.h"
 
-std::optional<std::string> sioClock::read_tz_from_host()
+std::optional<std::string> sioClock::read_tz_from_host(const FujiSIOPacket &packet)
 {
     Debug_println("sioClock read_tz_from_host");
-    int bufsz = cmdFrame.aux12;
+    int bufsz = packet.param16(0);
 
     if (bufsz <= 0) {
         Debug_printv("ERROR: No timezone sent");
@@ -33,31 +33,42 @@ std::optional<std::string> sioClock::read_tz_from_host()
     }
 }
 
-void sioClock::set_fn_tz()
+void sioClock::set_fn_tz(const FujiSIOPacket &packet)
 {
-    auto result = read_tz_from_host();
+    auto result = read_tz_from_host(packet);
     if (result) {
         Config.store_general_timezone(result->c_str());
     }
 }
 
-void sioClock::set_alternate_tz()
+void sioClock::set_alternate_tz(const FujiSIOPacket &packet)
 {
-    auto result = read_tz_from_host();
+    auto result = read_tz_from_host(packet);
     if (result) {
         alternate_tz = result.value();
     }
 }
 
-void sioClock::sio_process(uint32_t commanddata, uint8_t checksum)
+void sioClock::sio_process(const FujiSIOPacket &packet)
 {
-    cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
+    // packet.param(0) = 0x01 means use alternate TZ if it exists, any other value would use system TZ
+    bool use_alternate_tz;
+    switch (packet.command())
+    {
+    case APETIMECMD_GETTZTIME:
+    case APETIMECMD_GETTIME:
+    case APETIMECMD_SETTZ_ALT2:
+    case APETIMECMD_GET_SIMPLE_HUNDREDTHS:
+    case APETIMECMD_GET_PRODOS:
+    case APETIMECMD_GET_SOS:
+    case APETIMECMD_GET_ISO_LOCAL:
+        use_alternate_tz = packet.param8(0) == 0x01;
+        break;
+    default:
+        use_alternate_tz = false;
+    }
 
-    // cmdFrame.aux1 = 0x01 means use alternate TZ if it exists, any other value would use system TZ
-    bool use_alternate_tz = cmdFrame.aux1 == 0x01;
-
-    switch (cmdFrame.comnd)
+    switch (packet.command())
     {
     ////////////////////////////////////////////////////////////////////////////////////
     // TIME FUNCTIONS
@@ -69,47 +80,47 @@ void sioClock::sio_process(uint32_t commanddata, uint8_t checksum)
         // Note: APETIME.COM uses 0x93 with aux1=A0, aux2=EE, so we will always get the FN timezone in response, but fujinet-lib can use the alternate timezone functionality
         SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
         // for backwards compatibility, if we're sent APETIMECMD_GETTZTIME we always use the ALT timezone if set
-        if (cmdFrame.comnd == APETIMECMD_GETTZTIME) use_alternate_tz = true;
+        if (packet.command() == APETIMECMD_GETTZTIME) use_alternate_tz = true;
 
         auto apeTime = Clock::get_current_time_apetime(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
         SYSTEM_BUS.transaction_send(apeTime.data(), apeTime.size(), false);
         break;
     }
-    case 'T': {
+    case APETIMECMD_SETTZ_ALT2: {
         // Date and time, easy to be used by general programs
         SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
         auto simpleTime = Clock::get_current_time_simple(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
         SYSTEM_BUS.transaction_send(simpleTime.data(), simpleTime.size(), false);
         break;
     }
-    case 'M': {
+    case APETIMECMD_GET_SIMPLE_HUNDREDTHS: {
         SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
         auto hundredthsTime = Clock::get_current_time_simple_hundredths(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
         SYSTEM_BUS.transaction_send(hundredthsTime.data(), hundredthsTime.size(), false);
         break;
     }
-    case 'P': {
+    case APETIMECMD_GET_PRODOS: {
         // Date and time, to be used by a ProDOS driver
         SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
         auto prodosTime = Clock::get_current_time_prodos(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
         SYSTEM_BUS.transaction_send(prodosTime.data(), prodosTime.size(), false);
         break;
     }
-    case 'S': {
+    case APETIMECMD_GET_SOS: {
         // Date and time, ASCII string in Apple /// SOS format: YYYYMMDD0HHMMSS000
         SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
         std::string sosTime = Clock::get_current_time_sos(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
         SYSTEM_BUS.transaction_send((uint8_t *) sosTime.c_str(), sosTime.size() + 1, false);
         break;
     }
-    case 'I': {
+    case APETIMECMD_GET_ISO_LOCAL: {
         // Date and time, ASCII string in ISO format - making this consistent with APPLE code
         SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
         std::string utcTime = Clock::get_current_time_iso(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
         SYSTEM_BUS.transaction_send((uint8_t *) utcTime.c_str(), utcTime.size() + 1, false);
         break;
     }
-    case 'Z': {
+    case APETIMECMD_GET_ISO_UTC: {
         // utc (zulu)
         SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
         std::string isoTime = Clock::get_current_time_iso("UTC+0");
@@ -124,13 +135,13 @@ void sioClock::sio_process(uint32_t commanddata, uint8_t checksum)
     // for backwards compatibility with APOD, we use the 0x99 for this command
     case APETIMECMD_SETTZ: {
         SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-        set_alternate_tz();
+        set_alternate_tz(packet);
         break;
     }
     // can't use "T" as that's taken by getter
     case APETIMECMD_SETTZ_ALT: {
         SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-        set_fn_tz();
+        set_fn_tz(packet);
         break;
     }
     case APETIMECMD_GET_GENERAL: {

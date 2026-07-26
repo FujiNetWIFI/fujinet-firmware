@@ -566,13 +566,13 @@ void sioNetStream::sio_handle_netstream()
     pace_to_atari(min_gap_us);
 }
 
-void sioNetStream::sio_status()
+void sioNetStream::sio_status(const FujiSIOPacket &packet)
 {
     // Nothing to do here
     return;
 }
 
-void sioNetStream::sio_process(uint32_t commanddata, uint8_t checksum)
+void sioNetStream::sio_process(const FujiSIOPacket &packet)
 {
     // Nothing to do here
     return;
