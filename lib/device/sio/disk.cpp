@@ -16,8 +16,18 @@ sioDisk::sioDisk()
 }
 
 // Read disk data and send to computer
-void sioDisk::sio_read()
+void sioDisk::sio_read(const FujiSIOPacket &packet)
 {
+    if (packet.command() == DISKCMD_HSIO_READ && !_disk->_allow_hsio)
+        return;
+
+    uint16_t sectorNum = packet.param(0);
+    if (!sectorNum || sectorNum > _disk->_disk_num_sectors)
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     // Debug_print("disk READ\n");
@@ -33,33 +43,37 @@ void sioDisk::sio_read()
 
     uint16_t readcount;
 
-    bool err = _disk->read(UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1), &readcount);
+    bool err = _disk->read(sectorNum, &readcount);
 
     // Send result to Atari
     SYSTEM_BUS.transaction_send(_disk->_disk_sectorbuff, readcount, err);
 }
 
 // Write disk data from computer
-void sioDisk::sio_write(bool verify)
+void sioDisk::sio_write(const FujiSIOPacket &packet)
 {
+    if ((packet.command() == DISKCMD_HSIO_PUT || packet.command() == DISKCMD_HSIO_WRITE)
+        && !_disk->_allow_hsio)
+        return;
+
+    uint16_t sectorNum = packet.param(0);
+    bool verify = true;
+    if (packet.command() == DISKCMD_PUT || packet.command() == DISKCMD_HSIO_PUT)
+        verify = false;
+
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
 
     // Debug_print("disk WRITE\n");
 
     if (_disk != nullptr)
     {
-        uint16_t sectorNum = UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
         uint16_t sectorSize = _disk->sector_size(sectorNum);
 
-        memset(_disk->_disk_sectorbuff, 0, DISK_SECTORBUF_SIZE);
-
-        if (SYSTEM_BUS.transaction_get(_disk->_disk_sectorbuff, sectorSize))
+        if (SYSTEM_BUS.transaction_get(_disk->_disk_sectorbuff, sectorSize)
+            && _disk->write(sectorNum, verify).is_success())
         {
-            if (_disk->write(sectorNum, verify) == false)
-            {
-                SYSTEM_BUS.transaction_success();
-                return;
-            }
+            SYSTEM_BUS.transaction_success();
+            return;
         }
     }
 
@@ -67,7 +81,7 @@ void sioDisk::sio_write(bool verify)
 }
 
 // Status
-void sioDisk::sio_status()
+void sioDisk::sio_status(const FujiSIOPacket &packet)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
@@ -306,79 +320,28 @@ success_is_true sioDisk::write_blank(fnFile *f, uint16_t sectorSize, uint16_t nu
 }
 
 // Process command
-void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
+void sioDisk::sio_process(const FujiSIOPacket &packet)
 {
-    cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
-
     if (_disk == nullptr || _disk->_disktype == MEDIATYPE_UNKNOWN)
         return;
 
-    if ((device_active == false && cmdFrame.device != FUJI_DEVICEID_DISK) || // not active and not D1
+    if ((device_active == false && packet.device() != FUJI_DEVICEID_DISK) || // not active and not D1
         (device_active == false && theFuji->boot_config == false)) // not active and not config boot
         return;
 
     Debug_printf("disk sio_process(), baud: %d\n", SYSTEM_BUS.getBaudrate());
 
-    switch (cmdFrame.comnd)
+    switch (packet.command())
     {
     case DISKCMD_READ:
-        if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
-        {
-            SYSTEM_BUS.transaction_error();
-            return;
-        }
-        else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
-        {
-            SYSTEM_BUS.transaction_error();
-            return;
-        }
-        else
-        {
-            sio_read();
-        }
-        return;
     case DISKCMD_HSIO_READ:
-        if (_disk->_allow_hsio)
-        {
-            sio_read();
-            return;
-        }
+        sio_read(packet);
         break;
     case DISKCMD_PUT:
-        if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
-        {
-            SYSTEM_BUS.transaction_error();
-            return;
-        }
-        else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
-        {
-            SYSTEM_BUS.transaction_error();
-            return;
-        }
-        else
-        {
-            sio_write(false);
-        }
-        return;
     case DISKCMD_HSIO_PUT:
-        if (_disk->_allow_hsio)
-        {
-            if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
-            {
-                SYSTEM_BUS.transaction_error();
-                return;
-            }
-            else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
-            {
-                SYSTEM_BUS.transaction_error();
-                return;
-            }
-            else
-            {
-                sio_write(false);
-            }
-        }
+    case DISKCMD_WRITE:
+    case DISKCMD_HSIO_WRITE:
+        sio_write(packet);
         break;
     case DISKCMD_STATUS:
     case DISKCMD_HSIO_STATUS:
@@ -394,53 +357,17 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
                 else
                 {
                     device_active = true;
-                    sio_status();
+                    sio_status(packet);
                 }
             }
         }
         else
         {
-            if (cmdFrame.comnd == DISKCMD_HSIO_STATUS && _disk->_allow_hsio == false)
+            if (packet.command() == DISKCMD_HSIO_STATUS && _disk->_allow_hsio == false)
                 break;
-            sio_status();
+            sio_status(packet);
         }
         return;
-    case DISKCMD_WRITE:
-        if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
-        {
-            SYSTEM_BUS.transaction_error();
-            return;
-        }
-        else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
-        {
-            SYSTEM_BUS.transaction_error();
-            return;
-        }
-        else
-        {
-            sio_write(true);
-        }
-        return;
-    case DISKCMD_HSIO_WRITE:
-        if (_disk->_allow_hsio)
-        {
-            if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
-            {
-                SYSTEM_BUS.transaction_error();
-                return;
-            }
-            else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
-            {
-                SYSTEM_BUS.transaction_error();
-                return;
-            }
-            else
-            {
-                sio_write(true);
-            }
-            return;
-        }
-        break;
     case DISKCMD_FORMAT:
     case DISKCMD_FORMAT_MEDIUM:
         sio_format();
@@ -468,10 +395,9 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         }
         break;
     default:
-        break;
+        SYSTEM_BUS.transaction_error();
+        return;
     }
-
-    SYSTEM_BUS.transaction_error();
 }
 
 #endif /* BUILD_ATARI */

@@ -193,20 +193,20 @@ private:
     bool answered=false;
     int ringCount;                  // Keep track of how many incoming RINGs
 
-    void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
-    void sio_poll_1();                           // $3F, '?', Type 1 Poll
-    void sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2); // $40, '@', Type 3 Poll
-    void sio_control();                          // $41, 'A', Control
-    void sio_config();                           // $42, 'B', Configure
-    void sio_set_dump();                         // $$4, 'D', Dump
-    void sio_listen();                           // $4C, 'L', Listen
-    void sio_unlisten();                         // $4D, 'M', Unlisten
-    void sio_baudlock();                         // $4E, 'N', Baud lock
-    void sio_autoanswer();                       // $4F, 'O', auto answer
-    void sio_status() override;                  // $53, 'S', Status
-    void sio_write();                            // $57, 'W', Write
-    void sio_stream();                           // $58, 'X', Concurrent/Stream
-    void sio_process(uint32_t commanddata, uint8_t checksum) override;
+    void sio_send_firmware(uint8_t loadcommand);           // $21 and $26: Booter/Relocator download; Handler download
+    void sio_poll_1();                                     // $3F, '?', Type 1 Poll
+    void sio_poll_3(const FujiSIOPacket &packet);          // $40, '@', Type 3 Poll
+    void sio_control(const FujiSIOPacket &packet);         // $41, 'A', Control
+    void sio_config(const FujiSIOPacket &packet);          // $42, 'B', Configure
+    void sio_set_dump(const FujiSIOPacket &packet);        // $$4, 'D', Dump
+    void sio_listen(const FujiSIOPacket &packet);                                     // $4C, 'L', Listen
+    void sio_unlisten();                                   // $4D, 'M', Unlisten
+    void sio_baudlock(const FujiSIOPacket &packet);                                   // $4E, 'N', Baud lock
+    void sio_autoanswer(const FujiSIOPacket &packet);                                 // $4F, 'O', auto answer
+    void sio_status(const FujiSIOPacket &packet) override; // $53, 'S', Status
+    void sio_write(const FujiSIOPacket &packet);           // $57, 'W', Write
+    void sio_stream();                                     // $58, 'X', Concurrent/Stream
+    void sio_process(const FujiSIOPacket &packet) override;
 
     void crx_toggle(bool toggle);                // CRX active/inactive?
 
