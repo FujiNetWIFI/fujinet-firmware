@@ -6,7 +6,6 @@
 #include "utils.h"
 #include "compat_string.h"
 #include "fuji_endian.h"
-#include "../../qrcode/qrmanager.h"
 
 #define DIR_MAX_LEN 40
 #define IMAGE_EXTENSION ".po"
@@ -37,9 +36,6 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
         { FUJICMD_ENABLE_DEVICE, [this](const iwm_decoded_cmd_t &cmd)              { this->iwm_ctrl_enable_device(cmd); }},            // 0xD5
         { FUJICMD_GET_SCAN_RESULT, [this](const iwm_decoded_cmd_t &cmd)            { this->fujicmd_net_scan_result(cmd.param(0)); }},          // 0xFC
 
-        { FUJICMD_QRCODE_INPUT, [this](const iwm_decoded_cmd_t &cmd)               { this->iwm_ctrl_qrcode_input(cmd); }},             // 0xBC
-        { FUJICMD_QRCODE_ENCODE, [this](const iwm_decoded_cmd_t &cmd)              { this->iwm_ctrl_qrcode_encode(cmd); }},            // 0xBD
-        { FUJICMD_QRCODE_OUTPUT, [this](const iwm_decoded_cmd_t &cmd)              { this->iwm_ctrl_qrcode_output(cmd); }},            // 0xBF
 
         { FUJICMD_MOUNT_HOST, [this](const iwm_decoded_cmd_t &cmd)                 { this->fujicmd_mount_host_success(cmd.param8(0)); }},               // 0xF9
         { FUJICMD_NEW_DISK, [this](const iwm_decoded_cmd_t &cmd)                   { this->iwm_ctrl_new_disk(cmd); }},                 // 0xE7
@@ -122,8 +118,6 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
         { FUJICMD_READ_DIR_ENTRY, [this](const iwm_decoded_cmd_t &cmd)             { }},             // 0xF6
         { FUJICMD_READ_HOST_SLOTS, [this](const iwm_decoded_cmd_t &cmd)            { this->fujicmd_read_host_slots(); }},                  // 0xF4
         { FUJICMD_SCAN_NETWORKS, [this](const iwm_decoded_cmd_t &cmd)              { this->fujicmd_net_scan_networks(); }},                // 0xFD
-        { FUJICMD_QRCODE_LENGTH, [this](const iwm_decoded_cmd_t &cmd)              { this->iwm_stat_qrcode_length(); }},                    // 0xBE
-        { FUJICMD_QRCODE_OUTPUT, [this](const iwm_decoded_cmd_t &cmd)              { this->iwm_stat_qrcode_output(); }},                    // 0xBE
         { FUJICMD_STATUS, [this](const iwm_decoded_cmd_t &cmd)                     { this->fujicmd_status(); }},                      // 0x53
         { FUJICMD_GET_HEAP, [this](const iwm_decoded_cmd_t &cmd)                   { this->iwm_stat_get_heap(); }},                         // 0xC1
         { FUJICMD_GENERATE_GUID, [this](const iwm_decoded_cmd_t &cmd)              { this->fujicmd_generate_guid(); }},                     // 0xBB
@@ -373,78 +367,6 @@ void iwmFuji::handle_ctl_eject(uint8_t spid)
                 Config.save();
                 theFuji->populate_slots_from_config();
         }
-}
-
-void iwmFuji::iwm_ctrl_qrcode_input(const iwm_decoded_cmd_t &cmd)
-{
-    Debug_printf("FUJI: QRCODE INPUT (len: %d)\n", cmd.data()->size());
-    transaction_begin(TRANS_STATE::NO_GET);
-    _qrManager.data += cmd.dataAsString().value();
-    transaction_complete();
-}
-
-void iwmFuji::iwm_ctrl_qrcode_encode(const iwm_decoded_cmd_t &cmd)
-{
-    uint8_t version = cmd.param8(0) & 0b01111111;
-    uint8_t ecc_mode = cmd.param(1);
-    bool shorten = cmd.param(2);
-
-    Debug_printf("FUJI: QRCODE ENCODE\n");
-    Debug_printf("QR Version: %d, ECC: %d, Shorten: %s\n", version, ecc_mode, shorten ? "Y" : "N");
-
-    std::string url = _qrManager.data;
-
-    if (shorten) {
-        url = fnHTTPD.shorten_url(url);
-    }
-
-        _qrManager.version(version);
-        _qrManager.ecc((qr_ecc_t)ecc_mode);
-        _qrManager.output_mode = QR_OUTPUT_MODE_BINARY;
-        _qrManager.encode();
-
-    _qrManager.data.clear();
-
-    if (!_qrManager.code.size())
-    {
-        Debug_printf("QR code encoding failed\n");
-        return;
-    }
-
-    Debug_printf("Resulting QR code is: %u modules\n", _qrManager.code.size());
-}
-
-void iwmFuji::iwm_stat_qrcode_length()
-{
-    u16le_t len;
-    Debug_printf("FUJI: QRCODE LENGTH\n");
-    len = _qrManager.code.size();
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_put(&len, sizeof(len));
-}
-
-void iwmFuji::iwm_ctrl_qrcode_output(const iwm_decoded_cmd_t &cmd)
-{
-    Debug_printf("FUJI: QRCODE OUTPUT CONTROL\n");
-
-    uint8_t output_mode = cmd.param(0);
-    Debug_printf("Output mode: %i\n", output_mode);
-
-    size_t len = _qrManager.code.size();
-
-    if (len && (output_mode != _qrManager.output_mode)) {
-                _qrManager.output_mode = (ouput_mode_t)output_mode;
-                _qrManager.encode();
-    }
-}
-
-void iwmFuji::iwm_stat_qrcode_output()
-{
-    Debug_printf("FUJI: QRCODE OUTPUT STAT\n");
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_put(_qrManager.code);
-    _qrManager.code.clear();
-    _qrManager.code.shrink_to_fit();
 }
 
 void iwmFuji::fujicmd_close_directory()

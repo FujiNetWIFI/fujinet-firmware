@@ -56,6 +56,13 @@ std::vector<uint8_t> QRManager::encode(const void* input, uint16_t length, uint8
     auto encoded = to_ansi();
     printf("%s\n", encoded.data());
 
+    return render();
+}
+
+// Re-format the already-encoded QR matrix into output_mode without re-encoding
+// from the source data (which the caller may have already discarded).
+std::vector<uint8_t> QRManager::render(void)
+{
     //printf("version[%d] ecc[%d] mode[%d] output_mode[%d]\n", qrcode.version, qrcode.ecc, qrcode.mode, output_mode);
     switch (output_mode) {
         case QR_OUTPUT_MODE_ANSI:
@@ -116,14 +123,18 @@ std::vector<uint8_t> QRManager::to_binary(void)
 
     out.push_back(qrcode.size);
 
+    auto i = 0;
     uint8_t val = 0;
-    for (auto i = 0; i < qrcode.size; i++) {
-        auto bit = i % 8;
-        if (bit == 0 && i > 0) {
-            out.push_back(val);
-            val = 0;
+    for (uint8_t y = 0; y < qrcode.size; y++) {
+        for (uint8_t x = 0; x < qrcode.size; x++) {
+            auto bit = i % 8;
+            if (bit == 0 && i > 0) {
+                out.push_back(val);
+                val = 0;
+            }
+            val |= qrcode_getModule(&qrcode, x, y) << bit;
+            i++;
         }
-        val |= qrcode_getModule(&qrcode, i, 0) << bit;
     }
     out.push_back(val);
 
@@ -136,28 +147,22 @@ std::vector<uint8_t> QRManager::to_bitmap(void) {
 
     out.push_back(qrcode.size);
 
-    uint8_t val = 0;
-    uint8_t x = 0;
-    uint8_t y = 0;
-    for (auto i = 0; i < qrcode.size; i++) {
-        val |= qrcode_getModule(&qrcode, x, y);
-        x++;
-        if (x == qrcode.size) {
-            val = val << (qrcode.size - x);
+    // Each row is packed into whole bytes, MSB = leftmost pixel, trailing bits
+    // of the last byte in a row left as 0.
+    for (uint8_t y = 0; y < qrcode.size; y++) {
+        uint8_t val = 0;
+        uint8_t bits = 0;
+        for (uint8_t x = 0; x < qrcode.size; x++) {
+            val = (val << 1) | qrcode_getModule(&qrcode, x, y);
+            if (++bits == 8) {
+                out.push_back(val);
+                val = 0;
+                bits = 0;
+            }
+        }
+        if (bits) {
+            val <<= (8 - bits);
             out.push_back(val);
-            val = 0;
-            x = 0;
-            y++;
-        }
-        else if (x % 8 == 0 && i > 0) {
-            out.push_back(val);
-            val = 0;
-        }
-        else {
-            val = val << 1;
-        }
-        if (y == qrcode.size) {
-            break;
         }
     }
 
@@ -287,3 +292,6 @@ std::vector<uint8_t> QRManager::to_petscii(void)
     return out;
 }
 
+
+// Shared instance used by the QR command mixin (see QRMixin)
+QRManager qrManager;
