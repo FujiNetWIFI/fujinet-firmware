@@ -11,8 +11,6 @@
 #include "iwm/cpm.h"
 #include "iwm/clock.h"
 
-#include "../../qrcode/qrmanager.h"
-
 #define MAX_SPDISK_DEVICES 8
 #define MAX_DISK2_DEVICES 2 // for now until we add 3.5" disks
 #define MAX_A2DISK_DEVICES (MAX_SPDISK_DEVICES + MAX_DISK2_DEVICES)
@@ -56,8 +54,6 @@ private:
     std::unordered_map<uint8_t, IWMControlHandlers> control_handlers;
     std::unordered_map<uint8_t, IWMStatusHandlers> status_handlers;
 
-    QRManager _qrManager = QRManager();
-
 protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
@@ -71,12 +67,6 @@ protected:
     void send_stat_get_enable();                  // 0xD1
 
     void iwm_stat_get_heap();                     // 0xC1
-
-    void iwm_ctrl_qrcode_input(const iwm_decoded_cmd_t &cmd);                 // 0xBC
-    void iwm_ctrl_qrcode_encode(const iwm_decoded_cmd_t &cmd);                // 0xBD
-    void iwm_stat_qrcode_length();                // 0xBE
-    void iwm_ctrl_qrcode_output(const iwm_decoded_cmd_t &cmd);                // 0xBF
-    void iwm_stat_qrcode_output();                // 0xBF
 
     void iwm_ctrl(const iwm_decoded_cmd_t &cmd) override;
     void iwm_open(const iwm_decoded_cmd_t &cmd) override;

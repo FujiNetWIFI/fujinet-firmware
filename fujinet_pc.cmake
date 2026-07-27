@@ -292,6 +292,7 @@ set(SOURCES src/main.cpp
     lib/device/FujiDeviceMixin.h
     lib/device/Base64Mixin.h lib/device/Base64Mixin.cpp
     lib/device/HashMixin.h lib/device/HashMixin.cpp
+    lib/device/QRMixin.h lib/device/QRMixin.cpp
     lib/device/network.h
     lib/device/netstream.h
     lib/device/siocpm.h
