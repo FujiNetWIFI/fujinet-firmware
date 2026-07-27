@@ -1,12 +1,10 @@
 #ifdef BUILD_ATARI
 
 #include "sioFuji.h"
-#include "httpService.h"
 #include "fsFlash.h"
 #include "fnFsSD.h"
 #include "utils.h"
 #include "base64.h"
-#include "../../qrcode/qrmanager.h"
 #include "compat_string.h"
 #include "fuji_endian.h"
 #include "siocpm.h"
@@ -666,132 +664,6 @@ void sioFuji::sio_enable_netstream(const FujiSIOPacket &packet)
                                         has_audf3);
 }
 
-void sioFuji::sio_qrcode_input(const FujiSIOPacket &packet)
-{
-    transaction_begin(TRANS_STATE::WILL_GET);
-
-    uint16_t len = packet.param(0);
-
-    Debug_printf("FUJI: QRCODE INPUT (len: %d)\n", len);
-
-    if (!len)
-    {
-        Debug_printf("Invalid length. Aborting");
-        transaction_error();
-        return;
-    }
-
-    std::vector<unsigned char> p(len);
-    transaction_get(p.data(), len);
-    _qrManager.data += std::string((const char *)p.data(), len);
-    transaction_complete();
-}
-
-void sioFuji::sio_qrcode_encode(const FujiSIOPacket &packet)
-{
-    uint16_t aux = packet.param(0);
-    uint8_t version = aux & 0b01111111;
-    uint8_t ecc_mode = ((aux >> 8) & 0b00000011);
-    bool shorten = (aux >> 12) & 0b00000001;
-
-    /* ACK before CPU work (matches sio_base64_encode_compute); encoding and the
-     * optional URL shorten can otherwise leave the host waiting past dtimlo. */
-    transaction_begin(TRANS_STATE::NO_GET);
-
-    Debug_printf("FUJI: QRCODE ENCODE\n");
-    Debug_printf("QR Version: %d, ECC: %d, Shorten: %s\n", version, ecc_mode, shorten ? "Y" : "N");
-
-    if (shorten) {
-        _qrManager.data = fnHTTPD.shorten_url(_qrManager.data);
-    }
-
-    _qrManager.version(version);
-    _qrManager.ecc((qr_ecc_t)ecc_mode);
-    _qrManager.output_mode = QR_OUTPUT_MODE_ATASCII;
-    _qrManager.encode();
-
-    _qrManager.data.clear();
-
-    if (!_qrManager.code.size())
-    {
-        Debug_printf("QR code encoding failed\n");
-        transaction_error();
-        return;
-    }
-
-    Debug_printf("Resulting QR code is: %u modules\n", _qrManager.code.size());
-    transaction_complete();
-}
-
-void sioFuji::sio_qrcode_length(const FujiSIOPacket &packet)
-{
-    transaction_begin(TRANS_STATE::NO_GET);
-
-    Debug_printf("FUJI: QRCODE LENGTH\n");
-    uint16_t output_mode = packet.param(0);
-    Debug_printf("Output mode: %i\n", output_mode);
-
-    size_t len = _qrManager.code.size();
-
-    // A bit gross to have a side effect from length command, but not enough aux bytes
-    // to specify version, ecc, *and* output mode for the encode command. Also can't
-    // just wait for output command, because output mode determines buffer length,
-    if (len && (output_mode != _qrManager.output_mode)) {
-        _qrManager.output_mode = (ouput_mode_t)output_mode;
-        _qrManager.render();
-        len = _qrManager.code.size();
-    }
-
-    uint8_t response[4] = {
-        (uint8_t)(len >> 0),
-        (uint8_t)(len >> 8),
-        (uint8_t)(len >> 16),
-        (uint8_t)(len >> 24)
-    };
-
-    if (!len)
-    {
-        Debug_printf("QR code buffer is 0 bytes, sending error.\n");
-        transaction_put(response, sizeof(response), true);
-        return;
-    }
-
-    Debug_printf("QR code buffer length: %u bytes\n", len);
-
-    transaction_put(response, sizeof(response), false);
-}
-
-void sioFuji::sio_qrcode_output(const FujiSIOPacket &packet)
-{
-    transaction_begin(TRANS_STATE::NO_GET);
-
-    Debug_printf("FUJI: QRCODE OUTPUT\n");
-
-    size_t len = packet.param16(0);
-
-    if (!len)
-    {
-        Debug_printf("Refusing to send a zero byte buffer. Aborting\n");
-        transaction_error();
-        return;
-    }
-    else if (len > _qrManager.code.size())
-    {
-        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n", len, _qrManager.code.size());
-        transaction_error();
-        return;
-    }
-    else
-    {
-        Debug_printf("Requested %u bytes\n", len);
-    }
-
-    transaction_put(&_qrManager.code[0], len, false);
-
-    _qrManager.code.clear();
-    _qrManager.code.shrink_to_fit();
-}
-
 void sioFuji::sio_random_number()
 {
     transaction_begin(TRANS_STATE::NO_GET);
@@ -942,18 +814,6 @@ void sioFuji::sio_process(const FujiSIOPacket &packet)
         break;
     case FUJICMD_ENABLE_UDPSTREAM:
         sio_enable_netstream(packet);
-        break;
-    case FUJICMD_QRCODE_INPUT:
-        sio_qrcode_input(packet);
-        break;
-    case FUJICMD_QRCODE_ENCODE:
-        sio_qrcode_encode(packet);
-        break;
-    case FUJICMD_QRCODE_LENGTH:
-        sio_qrcode_length(packet);
-        break;
-    case FUJICMD_QRCODE_OUTPUT:
-        sio_qrcode_output(packet);
         break;
     case FUJICMD_RANDOM_NUMBER:
         sio_random_number();

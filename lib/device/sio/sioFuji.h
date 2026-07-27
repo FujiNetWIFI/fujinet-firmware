@@ -5,7 +5,6 @@
 #include "cassette.h"
 #include "netstream.h"
 #include "hash.h"
-#include "../../qrcode/qrmanager.h"
 
 #include <cassert>
 
@@ -14,7 +13,6 @@ class sioFuji : public fujiDevice
 private:
     sioCassette _cassetteDev;
     sioNetStream _streamDev;
-    QRManager _qrManager = QRManager();
 
 protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
@@ -29,12 +27,6 @@ protected:
     void sio_enable_netstream(const FujiSIOPacket &packet);              // 0xF0
 
     void sio_random_number();                                         // 0xD3
-
-    // FIXME - move to fujiDevice mixin
-    void sio_qrcode_input(const FujiSIOPacket &packet);                  // 0xBC
-    void sio_qrcode_encode(const FujiSIOPacket &packet);                 // 0xBD
-    void sio_qrcode_length(const FujiSIOPacket &packet);                 // OxBE
-    void sio_qrcode_output(const FujiSIOPacket &packet);                 // 0xBF
 
     void sio_status(const FujiSIOPacket &packet) override { fujicmd_status(); }
     void sio_process(const FujiSIOPacket &packet) override;
