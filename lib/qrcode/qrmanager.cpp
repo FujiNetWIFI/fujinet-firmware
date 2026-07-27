@@ -112,7 +112,8 @@ std::vector<uint8_t> QRManager::to_ansi() {
         out_str << ANSI_RESET "\n";
     }
 
-    out = std::vector<uint8_t>(out_str.str().begin(), out_str.str().end());
+    std::string rendered = out_str.str();
+    out = std::vector<uint8_t>(rendered.begin(), rendered.end());
     return out;
 }
 
@@ -203,7 +204,8 @@ std::vector<uint8_t> QRManager::to_svg(uint8_t scale, uint8_t padding) {
     //puts("</svg>");
     out_str << "</svg>";
 
-    out = std::vector<uint8_t>(out_str.str().begin(), out_str.str().end());
+    std::string rendered = out_str.str();
+    out = std::vector<uint8_t>(rendered.begin(), rendered.end());
     return out;
 }
 
