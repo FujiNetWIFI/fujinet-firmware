@@ -124,7 +124,7 @@ void lynxPrinter::comlynx_control_ready()
 }
 */
 
-void lynxPrinter::comlynx_process()
+void lynxPrinter::comlynx_process(const FujiLynxPacket &packet)
 {
 
 }

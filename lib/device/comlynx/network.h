@@ -51,7 +51,7 @@ public:
      * Called for LYNX Command 'O' to open a connection to a network protocol, allocate all buffers,
      * and start the receive PROCEED interrupt.
      */
-    void open(unsigned short s);
+    void open(const FujiLynxPacket &packet);
 
     /**
      * Called for LYNX Command 'C' to close a connection to a network protocol, de-allocate all buffers,
@@ -65,7 +65,7 @@ public:
      * Write # of bytes specified by aux1/aux2 from tx_buffer out to LYNX. If protocol is unable to return requested
      * number of bytes, return ERROR.
      */
-    void write(uint16_t num_bytes);
+    void write(const FujiLynxPacket &packet);
 
     /**
      * LYNX Special, called as a default for any other LYNX command not processed by the other comlynx_ functions.
@@ -83,7 +83,7 @@ public:
     /**
      * @brief Called to set prefix
      */
-    void set_prefix(unsigned short len);
+    void set_prefix(const FujiLynxPacket &packet);
 
     /**
      * @brief Called to get prefix
@@ -93,17 +93,17 @@ public:
     /**
      * @brief called to set login
      */
-    void set_login(uint16_t len);
+    void set_login(const FujiLynxPacket &packet);
 
     /**
      * @brief called to set password
      */
-    void set_password(uint16_t len);
+    void set_password(const FujiLynxPacket &packet);
 
     /**
      * @brief set channel mode
      */
-    void set_channel_mode();
+    void set_channel_mode(const FujiLynxPacket &packet);
 
     /**
      * @brief parse incoming data
@@ -114,7 +114,7 @@ public:
      * @brief JSON Query
      * @param s size of query
      */
-    void json_query(unsigned short len);
+    void json_query(const FujiLynxPacket &packet);
 
     /**
      * Check to see if PROCEED needs to be asserted.
@@ -125,23 +125,13 @@ public:
      * Process incoming LYNX command for device 0x7X
      * @param b The incoming command byte
      */
-    void comlynx_process() override;
-    void process_fs(fujiCommandID_t cmd, unsigned pkt_len);
-    void process_tcp(fujiCommandID_t cmd);
-    void process_http(fujiCommandID_t cmd);
-    void process_udp(fujiCommandID_t cmd);
+    void comlynx_process(const FujiLynxPacket &packet) override;
+    void process_fs(const FujiLynxPacket &packet);
+    void process_tcp(const FujiLynxPacket &packet);
+    void process_http(const FujiLynxPacket &packet);
+    void process_udp(const FujiLynxPacket &packet);
 
 private:
-    /**
-     * LynxNet Response Buffer
-     */
-    uint8_t response[1024];
-
-    /**
-     * LynxNet Response Length
-     */
-    uint16_t response_len=0;
-
     /**
      * JSON Object
      */
@@ -209,22 +199,6 @@ private:
     std::string prefix;
 
     /**
-     * The AUX1 value used for OPEN.
-     */
-    uint8_t open_aux1 = 0;
-
-    /**
-     * The AUX2 value used for OPEN.
-     */
-    uint8_t open_aux2 = 0;
-
-    /**
-     * The Translation mode ORed into AUX2 for READ/WRITE/STATUS operations.
-     * 0 = No Translation, 1 = CR<->EOL (Macintosh), 2 = LF<->EOL (UNIX), 3 = CR/LF<->EOL (PC/Windows)
-     */
-    uint8_t trans_aux2 = 0;
-
-    /**
      * The login to use for a protocol action
      */
     std::string login;
@@ -272,7 +246,7 @@ private:
     /**
      * Create the deviceSpec and fix it for parsing
      */
-    void create_devicespec(std::string d);
+    void create_devicespec(std::string d, bool is_dir);
 
     /**
      * Create a urlParser from deviceSpec
@@ -330,7 +304,7 @@ private:
      * @brief parse URL and instantiate protocol
      * @param db pointer to devicespecbuf 256 chars
      */
-    void parse_and_instantiate_protocol(std::string d);
+    void parse_and_instantiate_protocol(std::string d, bool is_dir);
 };
 
 #endif /* NETWORK_H */
