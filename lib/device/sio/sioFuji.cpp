@@ -672,6 +672,27 @@ void sioFuji::sio_random_number()
     transaction_put(&r,sizeof(int),false);
 }
 
+// Set an external clock rate in kHz defined by speed in steps of 2kHz.
+void sioFuji::fujicmd_set_sio_external_clock(uint16_t speed)
+{
+    transaction_begin(TRANS_STATE::NO_GET);
+
+    int baudRate = speed * 1000;
+
+    Debug_printf("sioFuji::fujicmd_set_external_clock(%u)\n", baudRate);
+
+    if (speed == 0)
+    {
+        SYSTEM_BUS.setUltraHigh(false, 0);
+    }
+    else
+    {
+        SYSTEM_BUS.setUltraHigh(true, baudRate);
+    }
+
+    transaction_complete();
+}
+
 void sioFuji::sio_process(const FujiSIOPacket &packet)
 {
     Debug_printf("sioFuji::fujicmd_process() called, baud: %d\n", SYSTEM_BUS.getBaudrate());
