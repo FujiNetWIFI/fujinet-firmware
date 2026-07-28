@@ -94,7 +94,7 @@ public:
      * process the special command. Otherwise, the command is handled locally. In either case, either sio_complete()
      * or sio_error() is called.
      */
-    virtual void sio_status(const FujiSIOPacket &packet);
+    void sio_status(const FujiSIOPacket &packet) override;
 
     /**
      * @brief set channel mode, JSON or PROTOCOL

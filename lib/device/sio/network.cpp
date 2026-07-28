@@ -1,3 +1,4 @@
+#include <cstdint>
 #ifdef BUILD_ATARI
 
 /**
@@ -169,7 +170,7 @@ void sioNetwork::sio_open(const FujiSIOPacket &packet)
     netProtoTranslation_t open_trans = (netProtoTranslation_t) packet.param8(1);
 
     // Ignore aux2 value if NTRANS set 0xFF, for ACTION!
-    if (trans_aux2 == 0xFF)
+    if ((uint8_t)trans_aux2 == 0xFF)
         open_trans = NETPROTO_TRANS_NONE;
     else if (open_mode != ACCESS_MODE::DIRECTORY) // don't xlate dir listings.
     {
@@ -707,7 +708,7 @@ void sioNetwork::sio_set_channel_mode(const FujiSIOPacket &packet)
         break;
     case 2:
         channelMode = SGML;
-        transaction_complete();
+        SYSTEM_BUS.transaction_success();
         break;
     default:
         SYSTEM_BUS.transaction_error();
@@ -890,7 +891,7 @@ void sioNetwork::sio_process(const FujiSIOPacket &packet)
         return;
     case NETCMD_QUERY:
         if (channelMode == SGML)
-            sio_set_sgml_query();
+            sio_set_sgml_query(packet);
         else
             sio_set_json_query(packet);
         return;
@@ -1309,20 +1310,20 @@ void sioNetwork::sio_set_json_query(const FujiSIOPacket &packet)
 
 void sioNetwork::sio_parse_sgml()
 {
-    transaction_begin(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     sgml->parse();
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 }
 
 void sioNetwork::sio_set_sgml_query(const FujiSIOPacket &packet)
 {
     uint8_t in[256];
 
-    transaction_begin(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
 
     memset(in, 0, sizeof(in));
 
-    transaction_get(in, sizeof(in)); // TODO test checksum
+    SYSTEM_BUS.transaction_get(in, sizeof(in)); // TODO test checksum
 
     // strip away line endings from input spec.
     for (int i = 0; i < 256; i++)
@@ -1356,7 +1357,7 @@ void sioNetwork::sio_set_sgml_query(const FujiSIOPacket &packet)
 
     Debug_printf("SGML query set to >%s< (buf_size=%d, sgml_remaining=%d)\r\n",
                  inp_string.c_str(), (int)receiveBuffer->size(), sgml_bytes_remaining);
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 }
 
 void sioNetwork::sio_set_json_parameters(const FujiSIOPacket &packet)
