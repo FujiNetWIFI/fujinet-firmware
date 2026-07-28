@@ -1,8 +1,9 @@
+#ifndef FUJIDWPACKET_H
+#define FUJIDWPACKET_H
+
 #ifdef BUILD_COCO
 
-#ifndef DRIVEWIREPACKET_H
-#define DRIVEWIREPACKET_H
-
+#include "PacketParamProxy.h"
 #include "opcode.h"
 #include "fujiCommandID.h"
 #include "global_types.h"
@@ -43,74 +44,8 @@ private:
     mutable unsigned _paramSize;
     mutable std::optional<ByteBuffer> _data;
 
-    struct PacketParamProxy
-    {
-        /**
-         * Proxy object returned by param().
-         *
-         * The proxy exists because parameter decoding requires two pieces of
-         * information that are not available at the same time:
-         *
-         *   - param(index) knows which parameter is being requested, but not
-         *     the integer width the caller expects.
-         *   - The conversion operator knows the requested integer width, but
-         *     would otherwise have no way to identify which parameter to decode.
-         *
-         * The proxy preserves the parameter index until the compiler selects
-         * the appropriate conversion operator. At that point the packet knows
-         * both the parameter index and the requested width, allowing it to:
-         *
-         *   - Read the correct number of bytes from the bus.
-         *   - Convert DriveWire's big-endian encoding to native byte order.
-         *   - Cache the decoded value for subsequent accesses.
-         *
-         * Example:
-         *
-         *   uint16_t length = packet.param(0);
-         *   uint8_t  mode   = packet.param(1);
-         *
-         * The compiler selects the conversion operator based on the destination
-         * type (or an explicit cast). Subsequent accesses return the cached
-         * value rather than reading from the bus again.
-         *
-         * The param8(), param16(), and param32() methods provide explicit
-         * alternatives when the implicit conversion is undesirable or the
-         * destination type is not obvious.
-         */
-
-        size_t index;
-        const FujiDWPacket *packet;
-
-        // These tell the compiler: "Run this code if the destination matches my type"
-        operator bool() const {
-            return static_cast<uint8_t>(*this) != 0;
-        }
-
-        // These tell the compiler exactly how to handle direct equality checks
-        // against any integer type without triggering conversion rule debates.
-
-        bool operator==(uint8_t val) const {
-            return static_cast<uint8_t>(*this) == val;
-        }
-
-        bool operator==(uint16_t val) const {
-            return static_cast<uint16_t>(*this) == val;
-        }
-
-        inline operator uint8_t() const {
-            return packet->getParam(index, sizeof(uint8_t));
-        }
-
-        inline operator uint16_t() const {
-            return packet->getParam(index, sizeof(uint16_t));
-        }
-
-        inline operator uint32_t() const {
-            return packet->getParam(index, sizeof(uint32_t));
-        }
-    };
-
-    friend PacketParamProxy;
+    using ParamProxy = PacketParamProxy<FujiDWPacket>;
+    friend ParamProxy;
 
     uint32_t getParam(size_t index, size_t psize) const;
     void fillParams(size_t count, size_t psize) const;
@@ -129,7 +64,7 @@ public:
 
     uint8_t unit() const;
 
-    PacketParamProxy param(size_t index) const { return PacketParamProxy{ index, this }; }
+    ParamProxy param(size_t index) const { return ParamProxy{ index, this }; }
 
     // Completes deserialization by reading the trailing data field once its
     // length has been determined from command-specific context.
@@ -146,7 +81,7 @@ public:
         return std::string(_data->begin(), _data->end());
     }
 
-    // Explicit alternatives to the implicit PacketParamProxy conversions.
+    // Explicit alternatives to the implicit ParamProxy conversions.
     // These may be preferred where the destination type is not obvious.
     uint8_t  param8(int idx)  const { return (uint8_t)param(idx); }
     uint16_t param16(int idx) const { return (uint16_t)param(idx); }
@@ -183,6 +118,6 @@ public:
  *   big-endian encoding to the native host byte order.
  */
 
-#endif /* DRIVEWIREPACKET_H */
-
 #endif /* BUILD_COCO */
+
+#endif /* FUJIDWPACKET_H */

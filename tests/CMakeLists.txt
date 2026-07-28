@@ -8,6 +8,7 @@ add_executable(fujibuspacket_tests
 target_include_directories(fujibuspacket_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/include/      # for debug.h, etc.
     ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/bus/
     ${CMAKE_SOURCE_DIR}/components_pc/
 )
 
