@@ -14,14 +14,6 @@
 #include <map>
 #include <atomic>
 
-#if defined(BUILD_ATARI) || defined(BUILD_LYNX)
-#define SYSTEM_BUS_IS_UDP 1
-#endif /* BUILD_ATARI || BUILD_LYNX */
-
-#ifdef BUILD_ATARI
-#define SYSTEM_BUS_IS_SERIAL 1
-#endif /* BUILD_ATARI */
-
 #define MAX_HOSTS MAX_HOST_SLOTS
 #define MAX_DISK_DEVICES MAX_MOUNT_SLOTS
 #define MAX_NETWORK_DEVICES 8
@@ -266,10 +258,6 @@ public:
     void fujicmd_read_device_slots();
     void fujicmd_write_device_slots();
     void fujicmd_status();
-    void fujicmd_set_sio_external_clock(uint16_t speed);
-#ifdef SYSTEM_BUS_IS_UDP
-    void fujicmd_enable_netstream(int port);
-#endif /* SYSTEM_BUS_IS_UDP */
 
     // Move appkey stuff to its own file?
     virtual void fujicmd_open_app_key();

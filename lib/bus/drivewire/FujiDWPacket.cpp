@@ -1,7 +1,6 @@
 #ifdef BUILD_COCO
 
 #include "FujiDWPacket.h"
-
 #include "bus.h"
 
 uint32_t FujiDWPacket::getParam(size_t index, size_t psize) const
