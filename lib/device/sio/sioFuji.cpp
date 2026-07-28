@@ -634,7 +634,8 @@ void sioFuji::sio_enable_netstream(const FujiSIOPacket &packet)
     memcpy(host_out, host, copy_len);
     host_out[copy_len] = '\0';
 
-    uint16_t port = packet.param(0);
+    uint16_t port = (static_cast<uint16_t>(packet.param8(0)) << 8) |
+                    packet.param8(1);
 
     Debug_printf("Fuji cmd ENABLE NETSTREAM: HOST:%s PORT: %d\n", host_out, port);
 #ifdef DEBUG_NETSTREAM

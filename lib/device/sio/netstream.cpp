@@ -6,6 +6,7 @@
 #include "../../include/pinmap.h"
 
 #include "cassette.h"
+#include "compat_inet.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "utils.h"
@@ -371,8 +372,11 @@ void sioNetStream::sio_enable_netstream()
 
     if (netstreamMode == NetStreamMode::UDP)
     {
-        // Open the UDP connection
-        netStreamUdp.begin(netstream_port);
+        // Open the UDP connection. Use ephemeral port when targeting localhost.
+        uint32_t host_ip = ntohl((uint32_t)netstream_host_ip);
+        bool is_loopback = (host_ip & 0xFF000000u) == 0x7F000000u;
+        uint16_t local_port = is_loopback ? 0 : (uint16_t)netstream_port;
+        netStreamUdp.begin(local_port);
         if (netstreamRegisterEnabled)
         {
             const char* str = "REGISTER";
