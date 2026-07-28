@@ -31,6 +31,8 @@ protected:
     void sio_status(const FujiSIOPacket &packet) override { fujicmd_status(); }
     void sio_process(const FujiSIOPacket &packet) override;
 
+    void fujicmd_set_sio_external_clock(uint16_t speed);
+
 public:
     sioFuji();
     void setup() override;
