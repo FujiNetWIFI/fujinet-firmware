@@ -1314,7 +1314,7 @@ void sioNetwork::sio_parse_sgml()
     transaction_complete();
 }
 
-void sioNetwork::sio_set_sgml_query()
+void sioNetwork::sio_set_sgml_query(const FujiSIOPacket &packet)
 {
     uint8_t in[256];
 
@@ -1343,7 +1343,7 @@ void sioNetwork::sio_set_sgml_query()
             inp_string.erase(0, p + 1);
     }
 
-    sgml->setReadQuery(inp_string, cmdFrame.aux2);
+    sgml->setReadQuery(inp_string, packet.param(1));
     int query_bytes = sgml->available();
     sgml_bytes_remaining += query_bytes;
 

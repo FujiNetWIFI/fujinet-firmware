@@ -47,6 +47,7 @@ adamNetwork::adamNetwork()
     protocol = nullptr;
 
     json.setLineEnding("\x00");
+    sgml.setLineEnding("\x00");
 }
 
 /**
@@ -186,6 +187,7 @@ void adamNetwork::open(unsigned short s)
 
     // Associate channel mode
     json.setProtocol(protocol);
+    sgml.setProtocol(protocol);
 
     // Clear response
     memset(response, 0, sizeof(response));
@@ -250,6 +252,10 @@ fujiError_t adamNetwork::read_channel(unsigned short num_bytes)
         Debug_printf("JSON Not Handled.\n");
         _err = FUJI_ERROR::UNSPECIFIED;
         break;
+    case SGML:
+        Debug_printf("SGML Not Handled.\n");
+        _err = FUJI_ERROR::UNSPECIFIED;
+        break;
     }
     return _err;
 }
@@ -296,6 +302,10 @@ fujiError_t adamNetwork::adamnet_write_channel(unsigned short num_bytes)
         Debug_printf("JSON Not Handled.\n");
         err_net = FUJI_ERROR::UNSPECIFIED;
         break;
+    case SGML:
+        Debug_printf("SGML Not Handled.\n");
+        err_net = FUJI_ERROR::UNSPECIFIED;
+        break;
     }
     return err_net;
 }
@@ -329,6 +339,9 @@ void adamNetwork::status()
         break;
     case JSON:
         // err = json.status(&status);
+        break;
+    case SGML:
+        // err = sgml.status(&status);
         break;
     }
 
@@ -481,6 +494,11 @@ void adamNetwork::channel_mode()
         SYSTEM_BUS.start_time = GET_TIMESTAMP();
         adamnet_response_ack();
         break;
+    case 2:
+        channelMode = SGML;
+        SYSTEM_BUS.start_time = GET_TIMESTAMP();
+        adamnet_response_ack();
+        break;
     default:
         SYSTEM_BUS.start_time = GET_TIMESTAMP();
         adamnet_response_nack();
@@ -519,6 +537,51 @@ void adamNetwork::json_parse()
     bool ok = json.parse();
     if (protocol != nullptr)
         protocol->error = ok ? NDEV_STATUS::SUCCESS : NDEV_STATUS::COULD_NOT_PARSE_JSON;
+    memset(response, 0, sizeof(response));
+    response_len = 0;
+}
+
+void adamNetwork::sgml_query(unsigned short s)
+{
+    if (s > sizeof(response)) // clamp wire length to buffer
+        s = sizeof(response);
+
+    memset(response, 0, sizeof(response));
+    response_len = 0;
+
+    adamnet_recv_buffer(response, s);
+    adamnet_recv(); // CK
+
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
+    adamnet_response_ack();
+
+    std::string query((char *)response, s);
+    query.resize(strlen(query.c_str())); // Truncate to null terminator
+
+    // Unlike JSON, a CSS selector can contain colons (e.g. div:first-child), so
+    // only strip a leading "N:"/"N#:" device prefix rather than splitting on a colon.
+    if (query.size() >= 2 && (query[0] == 'N' || query[0] == 'n'))
+    {
+        size_t p = 1;
+        if (p < query.size() && query[p] >= '0' && query[p] <= '9')
+            p++;
+        if (p < query.size() && query[p] == ':')
+            query.erase(0, p + 1);
+    }
+
+    sgml.setReadQuery(query, 0);
+
+    Debug_printv("adamNetwork::sgml_query(%s)\n", query.c_str());
+}
+
+void adamNetwork::sgml_parse()
+{
+    adamnet_recv(); // CK
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
+    adamnet_response_ack();
+    bool ok = sgml.parse();
+    if (protocol != nullptr)
+        protocol->error = ok ? NDEV_STATUS::SUCCESS : NDEV_STATUS::GENERAL;
     memset(response, 0, sizeof(response));
     response_len = 0;
 }
@@ -597,10 +660,16 @@ void adamNetwork::adamnet_control_send()
         break;
 
     case NETCMD_PARSE:
-        json_parse();
+        if (channelMode == SGML)
+            sgml_parse();
+        else
+            json_parse();
         break;
     case NETCMD_QUERY:
-        json_query(pkt_len);
+        if (channelMode == SGML)
+            sgml_query(pkt_len);
+        else
+            json_query(pkt_len);
         break;
 
     case NETCMD_RENAME:
@@ -638,6 +707,8 @@ void adamNetwork::adamnet_control_clr()
 
     if (channelMode == JSON)
         jsonRecvd = false;
+    else if (channelMode == SGML)
+        sgmlRecvd = false;
 }
 
 void adamNetwork::adamnet_control_receive_channel_json()
@@ -652,6 +723,30 @@ void adamNetwork::adamnet_control_receive_channel_json()
         response_len = json.readValueLen();
         json.readValue(response, response_len);
         jsonRecvd = true;
+        adamnet_response_ack();
+    }
+    else
+    {
+        SYSTEM_BUS.start_time = GET_TIMESTAMP();
+        if (response_len > 0)
+            adamnet_response_ack();
+        else
+            adamnet_response_nack();
+    }
+}
+
+void adamNetwork::adamnet_control_receive_channel_sgml()
+{
+    NetworkStatus ns;
+
+    if ((protocol == nullptr) || (receiveBuffer == nullptr))
+        return; // Punch out.
+
+    if (sgmlRecvd == false)
+    {
+        response_len = sgml.readValueLen();
+        sgml.readValue(response, response_len);
+        sgmlRecvd = true;
         adamnet_response_ack();
     }
     else
@@ -724,6 +819,9 @@ inline void adamNetwork::adamnet_control_receive()
     {
     case JSON:
         adamnet_control_receive_channel_json();
+        break;
+    case SGML:
+        adamnet_control_receive_channel_sgml();
         break;
     case PROTOCOL:
         adamnet_control_receive_channel_protocol();

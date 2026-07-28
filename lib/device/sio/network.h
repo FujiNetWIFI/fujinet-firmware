@@ -435,7 +435,7 @@ private:
     /**
      * @brief Set SGML CSS selector query string. (must be in SGML channelMode)
      */
-    void sio_set_sgml_query();
+    void sio_set_sgml_query(const FujiSIOPacket &packet);
 
     /**
      * @brief Set timer rate for PROCEED timer in ms
