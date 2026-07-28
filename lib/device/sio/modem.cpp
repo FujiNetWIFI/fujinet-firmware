@@ -84,6 +84,7 @@ modem::modem(FileSystem *_fs, bool snifferEnable)
     activeFS = _fs;
     modemSniffer = new ModemSniffer(activeFS, snifferEnable);
     set_term_type("dumb");
+    load_connect_delay_ms();
     telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
 }
 
@@ -99,6 +100,11 @@ modem::~modem()
     {
         telnet_free(telnet);
     }
+}
+
+void modem::load_connect_delay_ms()
+{
+    answerDelayMs = Config.get_modem_connect_delay_ms();
 }
 
 // 0x40 / '@' - TYPE 3 POLL
@@ -361,6 +367,7 @@ void modem::sio_status(const FujiSIOPacket &packet)
     if (autoAnswer == true && tcpServer.hasClient())
     {
         modemActive = true;
+        load_connect_delay_ms();
         answered = false;
         answerTimer = fnSystem.millis();
     }
@@ -1044,6 +1051,7 @@ void modem::at_handle_answer()
         tcpClient = tcpServer.client();
         tcpClient.setNoDelay(true); // try to disable naggle
                                     //        tcpServer.stop();
+        load_connect_delay_ms();
         answerTimer = fnSystem.millis();
         answered = false;
         CRX = true;
@@ -1090,11 +1098,12 @@ void modem::at_handle_dial()
 
     if (host == "5551234") // Fake it for BobTerm
     {
+        load_connect_delay_ms();
         CRX = true;
         answered = false;
         answerTimer = fnSystem.millis();
         // This is so macros in Bobterm can do the actual connect.
-        fnSystem.delay(ANSWER_TIMER_MS);
+        fnSystem.delay(answerDelayMs);
         at_cmd_println("CONNECT ", false);
         at_cmd_println(modemBaud);
     }
@@ -1110,6 +1119,7 @@ void modem::at_handle_dial()
         if (tcpClient.connect(host.c_str(), portInt))
         {
             tcpClient.setNoDelay(true); // Try to disable naggle
+            load_connect_delay_ms();
             answered = false;
             answerTimer = fnSystem.millis();
             cmdMode = false;
@@ -1529,7 +1539,7 @@ void modem::modemCommand()
         {
             if (numericResultCode == true)
             {
-                at_cmd_resultCode(modemBaud);
+                at_connect_resultCode(modemBaud);
             }
             else
             {
@@ -1703,13 +1713,13 @@ void modem::sio_handle_modem()
         }
 
         // Emit a CONNECT if we're connected, and a few seconds have passed.
-        if ((answered == false) && (answerTimer > 0) && ((fnSystem.millis() - answerTimer) > ANSWER_TIMER_MS))
+        if ((answered == false) && (answerTimer > 0) && ((fnSystem.millis() - answerTimer) > answerDelayMs))
         {
             answered = true;
             answerTimer = 0;
             if (numericResultCode == true)
             {
-                at_cmd_resultCode(modemBaud);
+                at_connect_resultCode(modemBaud);
             }
             else
             {

@@ -239,6 +239,8 @@ public:
     bool get_modem_enabled() { return _modem.modem_enabled; };
     void store_modem_sniffer_enabled(bool modem_sniffer_enabled);
     bool get_modem_sniffer_enabled() { return _modem.sniffer_enabled; };
+    void store_modem_connect_delay_ms(uint32_t modem_connect_delay_ms);
+    uint32_t get_modem_connect_delay_ms() { return _modem.connect_delay_ms; };
 
     // CASSETTE
     bool get_cassette_buttons();
@@ -530,6 +532,7 @@ private:
     {
         bool modem_enabled = true;
         bool sniffer_enabled = false;
+        uint32_t connect_delay_ms = 2000;
     };
 
     struct cassette_info
