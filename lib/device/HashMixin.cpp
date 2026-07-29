@@ -6,8 +6,10 @@
 
 constexpr uint8_t MODE_HEX = 1;
 
-void HashMixin::hash_input(uint16_t len)
+void HashMixin::hash_input(const FUJI_COMMAND_PACKET &packet)
 {
+    uint16_t len = packet.param(0);
+
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
 
     Debug_printf("HashMixin: INPUT\n");
@@ -25,8 +27,11 @@ void HashMixin::hash_input(uint16_t len)
     SYSTEM_BUS.transaction_success();
 }
 
-void HashMixin::hash_compute(bool clear_data, Hash::Algorithm algo)
+void HashMixin::hash_compute(const FUJI_COMMAND_PACKET &packet)
 {
+    Hash::Algorithm algo = Hash::to_algorithm(packet.param(0));
+    bool clear_data = packet.command() == FUJICMD_HASH_COMPUTE;
+
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_printf("HashMixin: COMPUTE\n");
     _algorithm = algo;
@@ -34,16 +39,20 @@ void HashMixin::hash_compute(bool clear_data, Hash::Algorithm algo)
     SYSTEM_BUS.transaction_success();
 }
 
-void HashMixin::hash_length(bool as_hex)
+void HashMixin::hash_length(const FUJI_COMMAND_PACKET &packet)
 {
+    bool as_hex = packet.param(0) == MODE_HEX;
+
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_printf("HashMixin: LENGTH\n");
     uint8_t r = hasher.hash_length(_algorithm, as_hex);
     SYSTEM_BUS.transaction_send(&r, 1, false);
 }
 
-void HashMixin::hash_output(bool as_hex)
+void HashMixin::hash_output(const FUJI_COMMAND_PACKET &packet)
 {
+    bool as_hex = packet.param(0) == MODE_HEX;
+
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_printf("HashMixin: OUTPUT\n");
 
@@ -58,42 +67,12 @@ void HashMixin::hash_output(bool as_hex)
     SYSTEM_BUS.transaction_send(hashed_data.data(), hashed_data.size(), false);
 }
 
-void HashMixin::hash_clear()
+void HashMixin::hash_clear(const FUJI_COMMAND_PACKET &packet)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_printf("HashMixin: CLEAR\n");
     hasher.clear();
     SYSTEM_BUS.transaction_success();
-}
-
-bool HashMixin::processCommand(const FUJI_COMMAND_PACKET &packet)
-{
-    switch (packet.command())
-    {
-    case FUJICMD_HASH_INPUT:
-        hash_input(packet.param(0));
-        break;
-    case FUJICMD_HASH_COMPUTE:
-        hash_compute(true, Hash::to_algorithm(packet.param(0)));
-        break;
-    case FUJICMD_HASH_COMPUTE_NO_CLEAR:
-        hash_compute(false, Hash::to_algorithm(packet.param(0)));
-        break;
-    case FUJICMD_HASH_LENGTH:
-        hash_length(packet.param(0) == MODE_HEX);
-        break;
-    case FUJICMD_HASH_OUTPUT:
-        hash_output(packet.param(0) == MODE_HEX);
-        break;
-    case FUJICMD_HASH_CLEAR:
-        hash_clear();
-        break;
-
-    default:
-        return false;
-    }
-
-    return true;
 }
 
 #endif // FUJI_HASH_MIXIN_ENABLED
