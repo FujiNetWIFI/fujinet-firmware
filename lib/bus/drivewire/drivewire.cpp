@@ -178,7 +178,7 @@ void systemBus::op_readex()
         if (true == bDragon && drive_num >= 5)
             drive_num = drive_num - 5;
 
-        Debug_printf("OP_READ: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
+        Debug_printf("OP_READ: DRIVE %3u - SECTOR %8lu, bDragon %d\n", drive_num, lsn, bDragon);
 
         d = &theFuji->get_disk(drive_num)->disk_dev;
         if (!d)
@@ -602,7 +602,7 @@ void systemBus::_drivewire_process_cmd()
         Debug_println("Failed to read cmd!");
         return;
     }
-
+    Debug_printf("_drivewire_process_cmd: cmd 0x%02x\r\n", c);
     fnLedManager.set(eLed::LED_BUS, true);
 
     dwOpcode_t opcode = static_cast<dwOpcode_t>(val);
@@ -824,7 +824,12 @@ void systemBus::configureGPIO()
 
 int systemBus::readBaudSwitch()
 {
-#ifdef PIN_EPROM_A14
+#ifdef COCO_HS_UART
+    int baud = 921600; // No A14/A15 switches on this board; fixed high-speed link to the RP2040/RP2350
+    Debug_printv("COCO_HS_UART build, defaulting to %d baud", baud);
+    bDragon = false;
+    return baud;
+#elif defined(PIN_EPROM_A14)
     if (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_LOW
         && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_LOW)
     {
@@ -852,7 +857,7 @@ int systemBus::readBaudSwitch()
     return 57600; // Default or no switch
 #else             /* ! PIN_EPROM_A14 */
     return 921600;
-#endif /* PIN_EPROM_A14 */
+#endif /* COCO_HS_UART / PIN_EPROM_A14 */
 }
 #endif /* ESP_PLATFORM */
 
@@ -863,6 +868,7 @@ void systemBus::setup()
     // Create a queue to handle parallel event from ISR
     drivewire_evt_queue = xQueueCreate(10, sizeof(uint32_t));
     bDragon = false;
+    szNamedMount[0] = (uint8_t)0;
 
 #ifdef CONFIG_IDF_TARGET_ESP32S3
     // Configure UART to RP2040
@@ -907,8 +913,14 @@ void systemBus::setup()
                       .deviceID(DW_UART_DEVICE)
                       .readTimeout(500)
 #ifdef ESP_PLATFORM
-                          .txInverted(DW_UART_DEVICE == UART_NUM_2 && !bDragon)
-                          .rxInverted(DW_UART_DEVICE == UART_NUM_2)
+                      .txInverted(DW_UART_DEVICE == UART_NUM_2 && !bDragon)
+                      .rxInverted(DW_UART_DEVICE == UART_NUM_2)
+#ifdef COCO_HS_UART
+                      // Hardware flow control parked for now - not yet validated on this board.
+                      //.flowControl(UART_HW_FLOWCTRL_CTS_RTS)
+                      //.rtsPin(PIN_UART1_RTS)
+                      //.ctsPin(PIN_UART1_CTS)
+#endif /* COCO_HS_UART */
 #endif /* ESP_PLATFORM */
                       );
 #endif /* FUJINET_OVER_USB */
@@ -930,7 +942,6 @@ void systemBus::setup()
     //     }
     // }
     // end jeff hack
-
 }
 
 // Give devices an opportunity to clean up before a reboot
