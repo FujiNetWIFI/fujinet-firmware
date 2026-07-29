@@ -8,18 +8,34 @@
 
 class Base64Mixin : public FujiDeviceMixin
 {
-protected:
-    void encode_input(uint16_t len);
-    void encode_compute();
-    void encode_length();
-    void encode_output(uint16_t len);
-    void decode_input(uint16_t len);
-    void decode_compute();
-    void decode_length();
-    void decode_output(uint16_t len);
+private:
+    FujiMixinCommandHandlers handlers;
 
- public:
-    bool processCommand(const FUJI_COMMAND_PACKET &packet) override;
+protected:
+    FujiMixinCommandHandlers commandHandlers() override { return handlers; }
+
+    void encode_input(const FUJI_COMMAND_PACKET &packet);
+    void encode_compute(const FUJI_COMMAND_PACKET &packet);
+    void encode_length(const FUJI_COMMAND_PACKET &packet);
+    void encode_output(const FUJI_COMMAND_PACKET &packet);
+    void decode_input(const FUJI_COMMAND_PACKET &packet);
+    void decode_compute(const FUJI_COMMAND_PACKET &packet);
+    void decode_length(const FUJI_COMMAND_PACKET &packet);
+    void decode_output(const FUJI_COMMAND_PACKET &packet);
+
+public:
+    Base64Mixin() {
+        handlers = {
+            { FUJICMD_BASE64_ENCODE_INPUT,   FM_CMD_HANDLER(encode_input)   },
+            { FUJICMD_BASE64_ENCODE_COMPUTE, FM_CMD_HANDLER(encode_compute) },
+            { FUJICMD_BASE64_ENCODE_LENGTH,  FM_CMD_HANDLER(encode_length)  },
+            { FUJICMD_BASE64_ENCODE_OUTPUT,  FM_CMD_HANDLER(encode_output)  },
+            { FUJICMD_BASE64_DECODE_INPUT,   FM_CMD_HANDLER(decode_input)   },
+            { FUJICMD_BASE64_DECODE_COMPUTE, FM_CMD_HANDLER(decode_compute) },
+            { FUJICMD_BASE64_DECODE_LENGTH,  FM_CMD_HANDLER(decode_length)  },
+            { FUJICMD_BASE64_DECODE_OUTPUT,  FM_CMD_HANDLER(decode_output)  },
+        };
+    }
 };
 
 #endif // FUJI_MIXINS_ENABLED

@@ -8,14 +8,32 @@
 
 class QRMixin : public FujiDeviceMixin
 {
+private:
+    FujiMixinCommandHandlers handlers = {
+    };
+
 protected:
-    void qr_input(uint16_t len);
-    void qr_encode(uint8_t version, uint8_t ecc_raw, uint8_t shorten_raw);
-    void qr_length(uint8_t output_mode);
-    void qr_output(uint16_t len);
+    FujiMixinCommandHandlers commandHandlers() override { return handlers; }
+
+    void qr_input(const FUJI_COMMAND_PACKET &packet);
+    void qr_encode(const FUJI_COMMAND_PACKET &packet);
+    void qr_length(const FUJI_COMMAND_PACKET &packet);
+    void qr_output(const FUJI_COMMAND_PACKET &packet);
 
 public:
-    bool processCommand(const FUJI_COMMAND_PACKET &packet) override;
+    QRMixin() {
+        handlers = {
+            { FUJICMD_QRCODE_INPUT,            FM_CMD_HANDLER(qr_input)   },
+            { FUJICMD_QRCODE_ENCODE,          FM_CMD_HANDLER(qr_encode) },
+            { FUJICMD_QRCODE_LENGTH,           FM_CMD_HANDLER(qr_length)  },
+            { FUJICMD_QRCODE_OUTPUT,           FM_CMD_HANDLER(qr_output)  },
+
+#if 0
+            // FIXME - this is missing
+            { FUJICMD_QRCODE_CLEAR,            FM_CMD_HANDLER(qr_clear)   },
+#endif
+        };
+    }
 };
 
 #endif // FUJI_MIXINS_ENABLED

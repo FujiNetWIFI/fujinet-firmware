@@ -6,8 +6,10 @@
 #include "debug.h"
 #include "../qrcode/qrmanager.h"
 
-void QRMixin::qr_input(uint16_t len)
+void QRMixin::qr_input(const FUJI_COMMAND_PACKET &packet)
 {
+    uint16_t len = packet.param(0);
+
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
 
     Debug_printf("QRMixin: INPUT (len: %d)\n", len);
@@ -25,16 +27,18 @@ void QRMixin::qr_input(uint16_t len)
     SYSTEM_BUS.transaction_success();
 }
 
-void QRMixin::qr_encode(uint8_t version, uint8_t ecc_raw, uint8_t shorten_raw)
+void QRMixin::qr_encode(const FUJI_COMMAND_PACKET &packet)
 {
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    uint8_t version = ((uint8_t) packet.param(0)) & 0x7f;
+    qr_ecc_t ecc = (qr_ecc_t) (((uint8_t) packet.param(1)) & 0x03);
+#ifdef BUILD_ATARI
+    // SIO only has aux1/aux2 so shorten is store in high nybble of 2nd param
+    bool shorten = (uint8_t) packet.param(1) >> 4;
+#else
+    bool shorten = (uint8_t) packet.param(2);
+#endif
 
-    // Platforms with 3 free params send ecc and shorten as separate bytes; those
-    // limited to 2 params merge shorten into the high nibble of the ecc byte.
-    // Accept either so every bus's client encoding works.
-    version &= 0x7f;
-    uint8_t ecc = ecc_raw & 0x03;
-    bool shorten = (shorten_raw & 0x01) || ((ecc_raw >> 4) & 0x01);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     Debug_printf("QRMixin: ENCODE (version: %d, ecc: %d, shorten: %s)\n", version, ecc, shorten ? "Y" : "N");
 
@@ -42,7 +46,7 @@ void QRMixin::qr_encode(uint8_t version, uint8_t ecc_raw, uint8_t shorten_raw)
         qrManager.data = fnHTTPD.shorten_url(qrManager.data);
 
     qrManager.version(version);
-    qrManager.ecc((qr_ecc_t)ecc);
+    qrManager.ecc(ecc);
     qrManager.output_mode = QR_OUTPUT_MODE_BINARY;
     qrManager.encode();
 
@@ -61,8 +65,10 @@ void QRMixin::qr_encode(uint8_t version, uint8_t ecc_raw, uint8_t shorten_raw)
     SYSTEM_BUS.transaction_success();
 }
 
-void QRMixin::qr_length(uint8_t output_mode)
+void QRMixin::qr_length(const FUJI_COMMAND_PACKET &packet)
 {
+    uint8_t output_mode = packet.param(0);
+
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_printf("QRMixin: LENGTH (output mode: %d)\n", output_mode);
 
@@ -85,8 +91,10 @@ void QRMixin::qr_length(uint8_t output_mode)
     SYSTEM_BUS.transaction_send(&response, sizeof(response), false);
 }
 
-void QRMixin::qr_output(uint16_t len)
+void QRMixin::qr_output(const FUJI_COMMAND_PACKET &packet)
 {
+    uint16_t len = packet.param(0);
+
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_printf("QRMixin: OUTPUT (len: %d)\n", len);
 
@@ -106,35 +114,6 @@ void QRMixin::qr_output(uint16_t len)
     SYSTEM_BUS.transaction_send(qrManager.code.data(), len, false);
     qrManager.code.erase(qrManager.code.begin(), qrManager.code.begin() + len);
     qrManager.code.shrink_to_fit();
-}
-
-bool QRMixin::processCommand(const FUJI_COMMAND_PACKET &packet)
-{
-    switch (packet.command())
-    {
-    case FUJICMD_QRCODE_INPUT:
-        qr_input(packet.param(0));
-        break;
-    case FUJICMD_QRCODE_ENCODE:
-#ifdef BUILD_ATARI
-        // SIO only has aux1/aux2 so shorten is store in high nybble of 2nd param
-        qr_encode(packet.param(0), packet.param(1), (uint8_t)packet.param(1)>>4);
-#else
-        qr_encode(packet.param(0), packet.param(1), packet.param(2));
-#endif
-        break;
-    case FUJICMD_QRCODE_LENGTH:
-        qr_length(packet.param(0));
-        break;
-    case FUJICMD_QRCODE_OUTPUT:
-        qr_output(packet.param(0));
-        break;
-
-    default:
-        return false;
-    }
-
-    return true;
 }
 
 #endif // FUJI_QR_MIXIN_ENABLED

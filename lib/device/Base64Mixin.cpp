@@ -4,8 +4,10 @@
 
 #ifdef FUJI_BASE64_MIXIN_ENABLED
 
-void Base64Mixin::encode_input(uint16_t len)
+void Base64Mixin::encode_input(const FUJI_COMMAND_PACKET &packet)
 {
+    uint16_t len = packet.param(0);
+
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
 
     Debug_printf("Base64Mixin: enode_input\n");
@@ -23,7 +25,7 @@ void Base64Mixin::encode_input(uint16_t len)
     SYSTEM_BUS.transaction_success();
 }
 
-void Base64Mixin::encode_compute()
+void Base64Mixin::encode_compute(const FUJI_COMMAND_PACKET &packet)
 {
     size_t out_len;
 
@@ -48,7 +50,7 @@ void Base64Mixin::encode_compute()
     SYSTEM_BUS.transaction_success();
 }
 
-void Base64Mixin::encode_length()
+void Base64Mixin::encode_length(const FUJI_COMMAND_PACKET &packet)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_printf("Base64Mixin: ENCODE LENGTH\n");
@@ -64,8 +66,10 @@ void Base64Mixin::encode_length()
     SYSTEM_BUS.transaction_send(&response, sizeof(response), false);
 }
 
-void Base64Mixin::encode_output(uint16_t len)
+void Base64Mixin::encode_output(const FUJI_COMMAND_PACKET &packet)
 {
+    uint16_t len = packet.param(0);
+
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_printf("Base64Mixin: ENCODE OUTPUT\n");
 
@@ -92,8 +96,10 @@ void Base64Mixin::encode_output(uint16_t len)
     base64.base64_buffer.shrink_to_fit();
 }
 
-void Base64Mixin::decode_input(uint16_t len)
+void Base64Mixin::decode_input(const FUJI_COMMAND_PACKET &packet)
 {
+    uint16_t len = packet.param(0);
+
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
 
     Debug_printf("Base64Mixin: DECODE INPUT\n");
@@ -111,7 +117,7 @@ void Base64Mixin::decode_input(uint16_t len)
     SYSTEM_BUS.transaction_success();
 }
 
-void Base64Mixin::decode_compute()
+void Base64Mixin::decode_compute(const FUJI_COMMAND_PACKET &packet)
 {
     size_t out_len;
 
@@ -134,7 +140,7 @@ void Base64Mixin::decode_compute()
     SYSTEM_BUS.transaction_success();
 }
 
-void Base64Mixin::decode_length()
+void Base64Mixin::decode_length(const FUJI_COMMAND_PACKET &packet)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_printf("Base64Mixin: DECODE LENGTH\n");
@@ -150,8 +156,10 @@ void Base64Mixin::decode_length()
     SYSTEM_BUS.transaction_send(&response, sizeof(response), false);
 }
 
-void Base64Mixin::decode_output(uint16_t len)
+void Base64Mixin::decode_output(const FUJI_COMMAND_PACKET &packet)
 {
+    uint16_t len = packet.param(0);
+
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_printf("Base64Mixin: DECODE OUTPUT\n");
 
@@ -177,42 +185,6 @@ void Base64Mixin::decode_output(uint16_t len)
     base64.base64_buffer.erase(0, len);
     base64.base64_buffer.shrink_to_fit();
     SYSTEM_BUS.transaction_send(p.data(), len, false);
-}
-
-bool Base64Mixin::processCommand(const FUJI_COMMAND_PACKET &packet)
-{
-    switch (packet.command())
-    {
-    case FUJICMD_BASE64_ENCODE_INPUT:
-        encode_input(packet.param(0));
-        break;
-    case FUJICMD_BASE64_ENCODE_COMPUTE:
-        encode_compute();
-        break;
-    case FUJICMD_BASE64_ENCODE_LENGTH:
-        encode_length();
-        break;
-    case FUJICMD_BASE64_ENCODE_OUTPUT:
-        encode_output(packet.param(0));
-        break;
-    case FUJICMD_BASE64_DECODE_INPUT:
-        decode_input(packet.param(0));
-        break;
-    case FUJICMD_BASE64_DECODE_COMPUTE:
-        decode_compute();
-        break;
-    case FUJICMD_BASE64_DECODE_LENGTH:
-        decode_length();
-        break;
-    case FUJICMD_BASE64_DECODE_OUTPUT:
-        decode_output(packet.param(0));
-        break;
-
-    default:
-        return false;
-    }
-
-    return true;
 }
 
 #endif // FUJI_BASE64_MIXIN_ENABLED
