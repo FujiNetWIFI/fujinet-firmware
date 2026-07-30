@@ -60,6 +60,7 @@ void HashMixin::hash_output(const FUJI_COMMAND_PACKET &packet)
     if (as_hex)
     {
         std::string hex = hasher.output_hex();
+        hex = SYSTEM_BUS.unicodeTextToNative(hex);
         hashed_data.insert(hashed_data.end(), hex.begin(), hex.end());
     }
     else
