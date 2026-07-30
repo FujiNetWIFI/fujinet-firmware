@@ -50,15 +50,33 @@ public:
     // the response represents a protocol-defined error.
     virtual void transaction_send(const void *data, size_t len, bool is_error=false) = 0;
 
-    inline void transaction_send(std::string data, bool is_error=false) {
+    inline void transaction_send(const std::string data, bool is_error=false) {
         transaction_send(data.data(), data.size(), is_error);
     }
-    inline void transaction_send(ByteBuffer data, bool is_error=false) {
+    inline void transaction_send(const ByteBuffer data, bool is_error=false) {
         transaction_send(data.data(), data.size(), is_error);
     }
-    inline void transaction_send(int val) {
+    inline void transaction_send(const int val) {
         uint8_t c = val;
         transaction_send(&c, sizeof(c));
+    }
+
+    enum class NativeEncoding {
+        ASCII,
+        PETSCII_Lower,
+        PETSCII_Graphics,
+        ATASCII,
+        CP437,
+        MSX_International,
+        MSX_Japanese,
+    };
+
+    // Base: ASCII-compatible, no conversion needed.
+    virtual std::string nativeTextToUnicode(const std::string &native) {
+        return native;
+    }
+    virtual std::string unicodeTextToNative(const std::string &unicode) {
+        return unicode;
     }
 };
 
