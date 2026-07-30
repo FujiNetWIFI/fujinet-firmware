@@ -244,6 +244,7 @@ set(SOURCES src/main.cpp
     lib/fnxml/fnxml.h lib/fnxml/fnxml.cpp
     lib/fnxml/fnxml_query.h lib/fnxml/fnxml_query.cpp
     lib/tinyxml2/tinyxml2.h lib/tinyxml2/tinyxml2.cpp
+    lib/fnpretty/fnpretty.h lib/fnpretty/fnpretty.cpp
     components/gumbo-query/Document.cpp components/gumbo-query/Node.cpp components/gumbo-query/Object.cpp
     components/gumbo-query/Parser.cpp components/gumbo-query/QueryUtil.cpp components/gumbo-query/Selection.cpp
     components/gumbo-query/Selector.cpp
