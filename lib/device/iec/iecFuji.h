@@ -38,46 +38,8 @@ protected:
     // is the cmd supported by RAW?
     bool is_supported(const FujiIECPacket &packet);
 
-    void net_get_ssid_raw();
-    void net_scan_networks_raw();
-    void net_scan_result_raw(const FujiIECPacket &packet);
-    void net_set_ssid_raw(bool store = true);
-    void net_get_wifi_status_raw();
-    void mount_host_raw(const FujiIECPacket &packet);
-    void mount_disk_image_raw(const FujiIECPacket &packet);
-    void open_directory_raw(const FujiIECPacket &packet);
-    void read_directory_entry_raw(const FujiIECPacket &packet);
-    void close_directory_raw();
-    void read_host_slots_raw();
-    void write_host_slots_raw();
-    void read_device_slots_raw();
-    void write_device_slots_raw();
-    void net_get_wifi_enabled_raw();
-    void unmount_disk_image_raw(const FujiIECPacket &packet);
-    void get_adapter_config_raw();
-    void get_adapter_config_extended_raw();
-    void new_disk();
-    void unmount_host_raw(const FujiIECPacket &packet);
-    void get_directory_position_raw();
-    void set_directory_position_raw(const FujiIECPacket &packet);
-    void set_device_filename_raw(const FujiIECPacket &packet);
-    void get_device_filename_raw(const FujiIECPacket &packet);
-    void set_boot_config_raw(const FujiIECPacket &packet);
-    void copy_file(std::string source, std::string destination);
-    void set_boot_mode_raw(const FujiIECPacket &packet);
-    void get_status_raw();
-
     // Commodore specific
     void update_firmware();
-
-    // Commodore specific
-    void local_ip();
-    void netmask();
-    void gateway();
-    void dns_ip();
-    void mac_address();
-    void bssid();
-    void fn_version();
 
     void set_fuji_iec_status(int8_t error, const std::string msg) {
         set_iec_status(error, _activePacket->command(), msg, fnWiFi.connected(), 15);
