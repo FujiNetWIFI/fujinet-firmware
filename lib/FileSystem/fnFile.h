@@ -23,6 +23,9 @@ public:
     virtual size_t write(const void *ptr, size_t size, size_t n) = 0;
     virtual int flush() = 0;
     virtual int eof() {return 0;}; // TODO!
+
+    // Drop cached content after the file was modified via another handle
+    virtual void invalidate_cache() {};
 };
 
 #endif // FN_FILE_H

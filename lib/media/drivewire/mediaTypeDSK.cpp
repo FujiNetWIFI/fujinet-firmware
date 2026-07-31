@@ -35,7 +35,8 @@ error_is_true MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
 
     bool err = false;
     // Perform a seek if we're not reading the sector after the last one we read
-    if (blockNum != _media_last_block + 1)
+    // (INVALID_SECTOR_VALUE + 1 wraps to 0, which would skip the seek for block 0)
+    if (_media_last_block == INVALID_SECTOR_VALUE || blockNum != _media_last_block + 1)
     {
         uint32_t offset = _block_to_offset(blockNum);
         err = fnio::fseek(_media_fileh, offset, SEEK_SET) != 0;
@@ -119,6 +120,7 @@ error_is_true MediaTypeDSK::write(uint32_t blockNum, bool verify)
     {
         fnio::fclose(hsFileh);
         _media_fileh = oldFileh;
+        fnio::finvalidate_cache(_media_fileh); // write went via hsFileh, not this handle
     }
 
     _media_last_block = INVALID_SECTOR_VALUE;
