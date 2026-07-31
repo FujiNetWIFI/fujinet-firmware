@@ -43,6 +43,7 @@ set(INCLUDES
     ${CMAKE_SOURCE_DIR}/lib/device/rs232
     ${CMAKE_SOURCE_DIR}/lib/device/s100spi
     ${CMAKE_SOURCE_DIR}/lib/device/sio
+    ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice
 
     ${CMAKE_SOURCE_DIR}/lib/devrelay
     ${CMAKE_SOURCE_DIR}/lib/devrelay/commands
