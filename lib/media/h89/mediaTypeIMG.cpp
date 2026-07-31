@@ -171,7 +171,7 @@ bool MediaTypeIMG::read(uint16_t sectornum, uint16_t *readcount)
 
     bool err = false;
     // Perform a seek if we're not reading the sector after the last one we read
-    if (sectornum != _media_last_sector + 1)
+    if (_media_last_sector == INVALID_SECTOR_VALUE || sectornum != _media_last_sector + 1)
     {
         uint32_t offset = _sector_to_offset(sectornum);
         err = fseek(_media_fileh, offset, SEEK_SET) != 0;
@@ -209,7 +209,7 @@ bool MediaTypeIMG::write(uint16_t sectornum, bool verify)
 
     // Perform a seek if we're writing to the sector after the last one
     int e;
-    if (sectornum != _media_last_sector + 1)
+    if (_media_last_sector == INVALID_SECTOR_VALUE || sectornum != _media_last_sector + 1)
     {
         e = fseek(_media_fileh, offset, SEEK_SET);
         if (e != 0)
