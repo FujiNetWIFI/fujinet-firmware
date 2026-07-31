@@ -155,6 +155,17 @@ size_t FileHandlerTNFS::write(const void *ptr, size_t size, size_t count)
 }
 
 
+void FileHandlerTNFS::invalidate_cache()
+{
+    Debug_println("FileHandlerTNFS::invalidate_cache");
+    tnfsFileHandleInfo *pFileInf = _mountinfo == nullptr
+                                 ? nullptr : _mountinfo->get_filehandleinfo(_handle);
+    if (pFileInf == nullptr)
+        return;
+    tnfs_lseek(_mountinfo, _handle, pFileInf->cached_pos, SEEK_SET, nullptr, true); // skip_cache
+}
+
+
 int FileHandlerTNFS::flush()
 {
     Debug_println("FileHandlerTNFS::flush");

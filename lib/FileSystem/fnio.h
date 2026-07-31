@@ -60,6 +60,9 @@ namespace fnio
     static inline int fclose(fnFile *f)
     { return std::fclose(f); }
 
+    static inline void finvalidate_cache(fnFile *f)
+    { (void)f; }
+
 #else
     static inline size_t fread(void *ptr, size_t size, size_t n, fnFile *f) 
     { return f->read(ptr, size, n); }
@@ -81,6 +84,9 @@ namespace fnio
 
     static inline int fclose(fnFile *f)
     { return f->close(); }
+
+    static inline void finvalidate_cache(fnFile *f)
+    { f->invalidate_cache(); }
 
 #endif
 

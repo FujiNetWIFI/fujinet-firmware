@@ -34,7 +34,7 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
 
     bool err = false;
     // Perform a seek if we're not reading the sector after the last one we read
-    if (blockNum != _media_last_block + 1)
+    if (_media_last_block == INVALID_SECTOR_VALUE || blockNum != _media_last_block + 1)
     {
         uint32_t offset = _block_to_offset(blockNum);
         err = fseek(_media_fileh, offset, SEEK_SET) != 0;
@@ -64,7 +64,7 @@ bool MediaTypeDDP::write(uint32_t blockNum, bool verify)
 
     // Perform a seek if we're writing to the sector after the last one
     int e;
-//    if (blockNum != _media_last_block + 1)
+//    if (_media_last_block == INVALID_SECTOR_VALUE || blockNum != _media_last_block + 1)
 //    {
         e = fseek(_media_fileh, offset, SEEK_SET);
         if (e != 0)

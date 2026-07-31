@@ -26,6 +26,7 @@ public:
     virtual size_t read(void *ptr, size_t size, size_t count) override;
     virtual size_t write(const void *ptr, size_t size, size_t count) override;
     virtual int flush() override;
+    virtual void invalidate_cache() override;
 };
 
 
