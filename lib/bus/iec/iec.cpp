@@ -2,6 +2,7 @@
 
 #include "iec.h"
 #include "fujiDevice.h"
+#include "iecFuji.h"
 
 #include <cstring>
 #include <memory>
@@ -123,6 +124,41 @@ void systemBus::service()
 
 void systemBus::shutdown()
 {
+}
+
+void systemBus::transaction_accept(transState_t expectMoreData)
+{
+  assert(_transaction_state == TRANS_STATE::INVALID);
+  _transaction_state = expectMoreData;
+}
+
+void systemBus::transaction_success()
+{
+  assert(_transaction_state == TRANS_STATE::NO_GET
+         || _transaction_state == TRANS_STATE::DID_GET);
+  _transaction_state = TRANS_STATE::INVALID;
+}
+
+void systemBus::transaction_error()
+{
+  _transaction_state = TRANS_STATE::INVALID;
+}
+
+success_is_true systemBus::transaction_get(void *data, size_t len)
+{
+    assert(_transaction_state == TRANS_STATE::WILL_GET);
+    _transaction_state = TRANS_STATE::DID_GET;
+    RETURN_ERROR_AS_FALSE();
+}
+
+void systemBus::transaction_send(const void *data, size_t len, bool err)
+{
+    iecFuji *vdev = dynamic_cast<iecFuji *>(_activeDev);
+    assert(vdev);
+    assert(_transaction_state == TRANS_STATE::NO_GET);
+    const uint8_t *ptr = static_cast<const uint8_t *>(data);
+    vdev->responseV.insert(vdev->responseV.end(), ptr, ptr + len);
+    _transaction_state = TRANS_STATE::INVALID;
 }
 
 #endif /* BUILD_IEC */

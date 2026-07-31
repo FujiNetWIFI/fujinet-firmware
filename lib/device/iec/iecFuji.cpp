@@ -286,13 +286,13 @@ void iecFuji::process_cmd()
   } else {
     // we're in the middle of some data, let's continue
     // Debug_printf("IN CMD, processing data\r\n");
-    Debug_printv("RAW data: %s", dataToHexString((uint8_t *) payload.data(), payload.size()).c_str());
+    Debug_printv("RAW data:\%s", util_hexdump((uint8_t *) payload.data(), payload.size()).c_str());
     process_raw_cmd_data();
   }
 
   if (!responseV.empty() && is_raw_command) {
     // only send raw back for a raw command, thus code can set "response", but we won't send it back as that's BASIC response
-    Debug_printv("RAW response: %s", dataToHexString(responseV.data(), responseV.size()).c_str());
+    Debug_printv("RAW response:\n%s", util_hexdump(responseV.data(), responseV.size()).c_str());
   }
   else if(!response.empty() && !is_raw_command) {
     // only send string response back for basic command
@@ -1571,7 +1571,6 @@ void iecFuji::get_adapter_config_basic()
 void iecFuji::get_adapter_config_raw()
 {
     fujicmd_get_adapter_config();
-    responseV.assign(reinterpret_cast<const uint8_t*>(&cfg), reinterpret_cast<const uint8_t*>(&cfg) + sizeof(AdapterConfig));
     set_fuji_iec_status(0, "");
 }
 

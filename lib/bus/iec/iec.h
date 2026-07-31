@@ -1,7 +1,6 @@
 #ifndef IEC_H
 #define IEC_H
 
-#include "cmdFrame.h"
 #include <cstdint>
 #include <forward_list>
 #include <freertos/FreeRTOS.h>
@@ -35,7 +34,7 @@ class iecDrive;
  * @class systemBus
  * @brief the system bus that all virtualDevices attach to.
  */
-class systemBus : public IECBusHandler
+class systemBus : public IECBusHandler, public SystemBusBase
 {
 public:
     systemBus();
@@ -63,6 +62,13 @@ public:
 
     // needed for fujiDevice compatibility
     void changeDeviceId(iecDrive *pDevice, int device_id);
+
+    void transaction_accept(transState_t expectMoreData) override;
+    void transaction_success() override;
+    void transaction_error() override;
+    success_is_true transaction_get(void *data, size_t len) override;
+    using SystemBusBase::transaction_send;
+    void transaction_send(const void *data, size_t len, bool is_error=false) override;
 
  private:
     /**

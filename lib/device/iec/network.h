@@ -15,6 +15,9 @@
 #include "string_utils.h"
 #include "../../bus/iec/IECFileDevice.h"
 
+// FIXME - Pretty sure this isn't being used anymore
+#include "cmdFrame.h"
+
 using namespace std;
 
 /**
