@@ -292,12 +292,6 @@ bool iecFuji::processCommand(const FUJI_COMMAND_PACKET &packet)
   case FUJICMD_SET_DEVICE_FULLPATH:
     set_device_filename_raw(packet);
     break;
-  case FUJICMD_WRITE_APPKEY:
-    write_app_key_raw(packet);
-    break;
-  case FUJICMD_OPEN_APPKEY:
-    open_app_key_raw();
-    break;
   case FUJICMD_GET_DEVICE_FULLPATH:
     get_device_filename_raw(packet);
     break;
@@ -350,12 +344,6 @@ bool iecFuji::processCommand(const FUJI_COMMAND_PACKET &packet)
   case FUJICMD_GET_DIRECTORY_POSITION:
     get_directory_position_raw();
     break;
-  case FUJICMD_READ_APPKEY:
-    read_app_key_raw();
-    break;
-  case FUJICMD_CLOSE_APPKEY:
-    close_app_key_raw();
-    break;
   case FUJICMD_STATUS:
     get_status_raw();
     break;
@@ -390,7 +378,6 @@ bool iecFuji::is_supported(const FujiIECPacket &packet)
 
     switch (packet.command())
     {
-    case FUJICMD_CLOSE_APPKEY:
     case FUJICMD_CLOSE_DIRECTORY:
     case FUJICMD_CONFIG_BOOT:
     case FUJICMD_GET_ADAPTERCONFIG_EXTENDED:
@@ -405,9 +392,7 @@ bool iecFuji::is_supported(const FujiIECPacket &packet)
     case FUJICMD_MOUNT_ALL:
     case FUJICMD_MOUNT_HOST:
     case FUJICMD_MOUNT_IMAGE:
-    case FUJICMD_OPEN_APPKEY:
     case FUJICMD_OPEN_DIRECTORY:
-    case FUJICMD_READ_APPKEY:
     case FUJICMD_READ_DEVICE_SLOTS:
     case FUJICMD_READ_DIR_ENTRY:
     case FUJICMD_READ_HOST_SLOTS:
@@ -420,7 +405,6 @@ bool iecFuji::is_supported(const FujiIECPacket &packet)
     case FUJICMD_STATUS:
     case FUJICMD_UNMOUNT_HOST:
     case FUJICMD_UNMOUNT_IMAGE:
-    case FUJICMD_WRITE_APPKEY:
     case FUJICMD_WRITE_DEVICE_SLOTS:
     case FUJICMD_WRITE_HOST_SLOTS:
     case FUJICMD_COPY_FILE:
@@ -536,50 +520,6 @@ void iecFuji::set_boot_config_raw(const FujiIECPacket &packet)
 void iecFuji::set_boot_mode_raw(const FujiIECPacket &packet)
 {
     fujicmd_set_boot_mode(packet.param(0), MEDIATYPE_UNKNOWN, &bootdisk);
-    set_fuji_iec_status(0, "");
-}
-
-void iecFuji::open_app_key_raw()
-{
-    fujicmd_open_app_key();
-    set_fuji_iec_status(0, "");
-}
-
-void iecFuji::close_app_key_raw()
-{
-    fujicmd_close_app_key();
-    set_fuji_iec_status(0, "");
-}
-
-success_is_true iecFuji::check_appkey_creator(bool check_is_write)
-{
-    RETURN_SUCCESS_IF(!(_current_appkey.creator == 0 || (check_is_write && _current_appkey.mode != APPKEYMODE_WRITE)));
-}
-
-void iecFuji::write_app_key_raw(const FujiIECPacket &packet)
-{
-    fujicmd_write_app_key(packet.data()->size());
-    set_fuji_iec_status(0, "");
-}
-
-void iecFuji::read_app_key_raw()
-{
-    auto response_data = fujicore_read_app_key();
-    if (response_data == std::nullopt)
-    {
-        Debug_println("Failed to read appkey file");
-        set_fuji_iec_status(DEVICE_ERROR, "failed to read appkey file");
-        return;
-    }
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    SYSTEM_BUS.transaction_send(*response_data);
-
-    // use ifdef to guard against calling hexdump if we're not using debug
-#ifdef DEBUG
-    Debug_printf("appkey data:\r\n%s\r\n", util_hexdump(response_data->data(),
-                                                        response_data->size()).c_str());
-#endif
-
     set_fuji_iec_status(0, "");
 }
 

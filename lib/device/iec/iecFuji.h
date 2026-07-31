@@ -61,10 +61,6 @@ protected:
     void get_directory_position_raw();
     void set_directory_position_raw(const FujiIECPacket &packet);
     void set_device_filename_raw(const FujiIECPacket &packet);
-    void write_app_key_raw(const FujiIECPacket &packet);
-    void read_app_key_raw();
-    void open_app_key_raw();
-    void close_app_key_raw();
     void get_device_filename_raw(const FujiIECPacket &packet);
     void set_boot_config_raw(const FujiIECPacket &packet);
     void copy_file(std::string source, std::string destination);
@@ -82,8 +78,6 @@ protected:
     void mac_address();
     void bssid();
     void fn_version();
-
-    success_is_true check_appkey_creator(bool check_is_write);
 
     void set_fuji_iec_status(int8_t error, const std::string msg) {
         set_iec_status(error, _activePacket->command(), msg, fnWiFi.connected(), 15);
