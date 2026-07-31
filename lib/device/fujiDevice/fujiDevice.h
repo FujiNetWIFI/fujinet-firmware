@@ -5,6 +5,7 @@
 #include "Base64Mixin.h"
 #include "HashMixin.h"
 #include "QRMixin.h"
+#include "AppKeyMixin.h"
 
 #include "../fuji/fujiHost.h"
 #include "../fuji/fujiDisk.h"
@@ -20,8 +21,6 @@
 
 #define MAX_SSID_LEN 32
 #define MAX_WIFI_PASS_LEN 64
-
-#define MAX_APPKEY_LEN 64
 
 #define READ_DEVICE_SLOTS_DISKS1 0x00
 #define READ_DEVICE_SLOTS_TAPE 0x10
@@ -66,23 +65,6 @@ typedef struct
     char ssid[MAX_SSID_LEN + 1];
     char password[MAX_WIFI_PASS_LEN];
 } SSIDConfig;
-
-enum appkey_mode : int8_t
-{
-    APPKEYMODE_INVALID = -1,
-    APPKEYMODE_READ = 0,
-    APPKEYMODE_WRITE,
-    APPKEYMODE_READ_256
-};
-
-struct appkey
-{
-    uint16_t creator = 0;
-    uint8_t app = 0;
-    uint8_t key = 0;
-    appkey_mode mode = APPKEYMODE_INVALID;
-    uint8_t reserved = 0;
-} __attribute__((packed));
 
 struct disk_slot
 {
@@ -156,7 +138,7 @@ class FujiDeviceChain : public FujiDeviceMixins...
 
 class fujiDevice : public virtual virtualDevice, public VDevMigrationWrapper
 #ifdef FUJI_MIXINS_ENABLED
-                 , public FujiDeviceChain<Base64Mixin, HashMixin, QRMixin>
+                 , public FujiDeviceChain<Base64Mixin, HashMixin, QRMixin, AppKeyMixin>
 #endif // FUJI_MIXINS_ENABLED
 {
 private:
@@ -176,7 +158,6 @@ protected:
         {2, 256}
     };
 
-    appkey _current_appkey;
     int _current_open_directory_slot = -1;
     uint8_t _countScannedSSIDs = 0;
 
@@ -267,25 +248,15 @@ public:
     void fujicmd_write_device_slots();
     void fujicmd_status();
 
-    // Move appkey stuff to its own file?
-    virtual void fujicmd_open_app_key();
-    void fujicmd_close_app_key();
-    void fujicmd_write_app_key(uint16_t keylen, uint16_t readlen=0);
-    void fujicmd_read_app_key();
-
     void fujicmd_generate_guid();
 
     // ============ Implementations by fujicmd_ methods ============
     // These are safe to call directly if the bus abstraction
     // (transaction_) doesn't suit the platform.
-    success_is_true fujicore_open_app_key(uint16_t creator, uint8_t app, uint8_t key,
-                                          appkey_mode mode, uint8_t reserved);
     SSIDInfo fujicore_net_scan_result(uint8_t index, bool *err=nullptr);
     SSIDConfig fujicore_net_get_ssid();
     uint8_t fujicore_net_get_wifi_status();
     uint8_t fujicore_net_get_wifi_enabled();
-    int fujicore_write_app_key(std::vector<uint8_t>&& value, int *err=nullptr);
-    virtual std::optional<std::vector<uint8_t>> fujicore_read_app_key();
     success_is_true fujicore_open_directory_success(uint8_t hostSlot, const std::string &dirpath);
     success_is_true fujicore_open_directory_success(uint8_t hostSlot, const std::string &dirpath,
                                                     const std::optional<std::string> &pattern);

@@ -154,22 +154,6 @@ protected:
     void set_device_filename_basic();
     void set_device_filename_raw();
 
-    // 0xDE
-    void write_app_key_basic();
-    void write_app_key_raw();
-
-    // 0xDD
-    void read_app_key_basic();
-    void read_app_key_raw();
-
-    // 0xDC
-    void open_app_key_basic();
-    void open_app_key_raw();
-
-    // 0xDB
-    void close_app_key_basic();
-    void close_app_key_raw();
-
     // 0xDA
     void get_device_filename_basic();
     void get_device_filename_raw();
@@ -225,8 +209,6 @@ protected:
 
     void enable_device_basic(std::string ids = "");
     void disable_device_basic(std::string ids = "");
-
-    success_is_true check_appkey_creator(bool check_is_write);
 
     void set_fuji_iec_status(int8_t error, const std::string msg) {
         set_iec_status(error, last_command, msg, fnWiFi.connected(), 15);

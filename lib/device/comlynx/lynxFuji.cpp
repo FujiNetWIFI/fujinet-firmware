@@ -103,43 +103,6 @@ lynxFuji::lynxFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, std::nullop
     #endif
 }
 
-/*
- Write an "app key" to SD (ONLY!) storage.
-*/
-/*void lynxFuji::comlynx_write_app_key()
-{
-    uint16_t creator = comlynx_recv_length();
-    uint8_t app = comlynx_recv();
-    uint8_t key = comlynx_recv();
-    uint8_t data[64];
-    char appkeyfilename[30];
-    FILE *fp;
-
-    Debug_printf("Fuji Cmd: WRITE APPKEY %s\n", appkeyfilename);
-
-    snprintf(appkeyfilename, sizeof(appkeyfilename), "/FujiNet/%04hx%02hhx%02hhx.key", creator, app, key);
-
-    comlynx_recv_buffer(data, 64);
-
-    // Get packet checksum
-    if (!comlynx_recv_ck()) {
-        comlynx_response_nack();
-        return;
-    }
-
-    fp = fnSDFAT.file_open(appkeyfilename, "w");
-    if (fp == nullptr)
-    {
-        Debug_printf("Could not open.\n");
-        return;
-    }
-
-    fwrite(data, sizeof(uint8_t), sizeof(data), fp);
-    fclose(fp);
-
-    comlynx_response_ack();
-}*/
-
 // This gets called when we're about to shutdown/reboot
 void lynxFuji::shutdown()
 {
@@ -227,7 +190,7 @@ void lynxFuji::setup()
 
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
         SYSTEM_BUS.addDevice(&_fnDisks[i].disk_dev, (fujiDeviceID_t) (FUJI_DEVICEID_DISK + i));
-    
+
     for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
         SYSTEM_BUS.addDevice(lynxNetDevs[i].get(), (fujiDeviceID_t) (FUJI_DEVICEID_NETWORK + i));
 
@@ -321,7 +284,7 @@ void lynxFuji::comlynx_process()
 {
     uint8_t c;
     uint8_t slot;
-    
+
     // Get the entire payload from Lynx
     uint16_t len = comlynx_recv_length();
     Debug_printf("lynxFuji::comlynx_process - len: %ld, ", (long int)len);
@@ -367,7 +330,7 @@ void lynxFuji::comlynx_process()
     case FUJICMD_GET_WIFISTATUS:
         fujicmd_net_get_wifi_status();
         break;
-    case FUJICMD_MOUNT_HOST:   
+    case FUJICMD_MOUNT_HOST:
         transaction_get(&slot, sizeof(slot));
         fujicmd_mount_host_success(slot);
         break;
@@ -450,6 +413,8 @@ void lynxFuji::comlynx_process()
     case FUJICMD_MOUNT_ALL:
         fujicmd_mount_all_success();
         break;
+#ifdef OBSOLETE
+    // You'll get these back when the bus is upgraded to use mixins
     case FUJICMD_OPEN_APPKEY:
         fujicmd_open_app_key();
         break;
@@ -462,6 +427,7 @@ void lynxFuji::comlynx_process()
     case FUJICMD_READ_APPKEY:
         fujicmd_read_app_key();
         break;
+#endif /* OBSOLETE */
     case FUJICMD_RANDOM_NUMBER:
         fujicmd_random_number();
         break;

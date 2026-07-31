@@ -496,18 +496,6 @@ void adamFuji::adamnet_control_send(const FujiAdamPacket &packet)
     case FUJICMD_SET_BOOT_MODE:
         fujicmd_set_boot_mode(packet.param(0), MEDIATYPE_UNKNOWN, &bootdisk);
         break;
-    case FUJICMD_OPEN_APPKEY:
-        fujicmd_open_app_key();
-        break;
-    case FUJICMD_CLOSE_APPKEY:
-        fujicmd_close_app_key();
-        break;
-    case FUJICMD_WRITE_APPKEY:
-        fujicmd_write_app_key(packet.data()->size(), packet.data()->size());
-        break;
-    case FUJICMD_READ_APPKEY:
-        fujicmd_read_app_key();
-        break;
     case FUJICMD_RANDOM_NUMBER:
         adamnet_random_number();
         break;
