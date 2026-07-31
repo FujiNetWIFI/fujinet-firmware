@@ -3045,8 +3045,10 @@ void IECBusHandler::task()
   if( m_atnInterrupt!=NOT_AN_INTERRUPT && !readPinATN() && !(m_flags & P_ATN) ) { noInterrupts(); atnRequest(); interrupts(); }
 
   // call "task" function for attached devices
-  for(uint8_t i=0; i<m_numDevices; i++)
-    m_devices[i]->task();
+  for(uint8_t i=0; i<m_numDevices; i++) {
+      _activeDev = m_devices[i];
+      _activeDev->task();
+  }
 }
 
 #endif /* BUILD_IEC */
