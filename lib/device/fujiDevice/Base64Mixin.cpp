@@ -55,15 +55,11 @@ void Base64Mixin::encode_length(const FUJI_COMMAND_PACKET &packet)
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_printf("Base64Mixin: ENCODE LENGTH\n");
 
-    size_t len = base64.base64_buffer.length();
-    Debug_printf("base64 buffer length: %u bytes\n", len);
+    u32ne_t len;
+    len = base64.base64_buffer.length();
+    Debug_printf("base64 buffer length: %u bytes\n", (size_t) len);
 
-#ifdef BUILD_COCO
-    uint32_t response = htobe32(len);
-#else
-    uint32_t response = htole32(len);
-#endif
-    SYSTEM_BUS.transaction_send(&response, sizeof(response), false);
+    SYSTEM_BUS.transaction_send(&len, sizeof(len), false);
 }
 
 void Base64Mixin::encode_output(const FUJI_COMMAND_PACKET &packet)
@@ -147,15 +143,11 @@ void Base64Mixin::decode_length(const FUJI_COMMAND_PACKET &packet)
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_printf("Base64Mixin: DECODE LENGTH\n");
 
-    size_t len = base64.base64_buffer.length();
-    Debug_printf("base64 buffer length: %u bytes\n", len);
+    u32ne_t len;
+    len = base64.base64_buffer.length();
+    Debug_printf("base64 buffer length: %u bytes\n", (size_t) len);
 
-#ifdef BUILD_COCO
-    uint32_t response = htobe32(len);
-#else
-    uint32_t response = htole32(len);
-#endif
-    SYSTEM_BUS.transaction_send(&response, sizeof(response), false);
+    SYSTEM_BUS.transaction_send(&len, sizeof(len), false);
 }
 
 void Base64Mixin::decode_output(const FUJI_COMMAND_PACKET &packet)

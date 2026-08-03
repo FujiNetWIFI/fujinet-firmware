@@ -57,14 +57,16 @@
     #define HEAP_CHECK(x) Debug_printf("HEAP CHECK %s " x "\r\n", heap_caps_check_integrity_all(true) ? "PASSED":"FAILED")
 #endif // ESP_PLATFORM
 
-#ifdef ESP_PLATFORM
-    #include <esp_heap_caps.h>
-    #define Debug_memory() Debug_printf("Free heap: %u bytes (min free: %u bytes)\r\n", \
-                                        (unsigned) heap_caps_get_free_size(MALLOC_CAP_INTERNAL), \
-                                        (unsigned) heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL))
-#else
-    #define Debug_memory()
-#endif // ESP_PLATFORM
+#ifndef Debug_memory
+    #ifdef ESP_PLATFORM
+        #include <esp_heap_caps.h>
+        #define Debug_memory() Debug_printf("Free heap: %u bytes (min free: %u bytes)\r\n", \
+                                            (unsigned) heap_caps_get_free_size(MALLOC_CAP_INTERNAL), \
+                                            (unsigned) heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL))
+    #else
+        #define Debug_memory()
+    #endif // ESP_PLATFORM
+#endif // Debug_memory
 #endif // DEBUG
 
 #ifndef DEBUG
