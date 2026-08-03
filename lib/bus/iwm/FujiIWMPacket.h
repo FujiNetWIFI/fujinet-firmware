@@ -9,7 +9,6 @@
 
 #include <optional>
 #include <cassert>
-#include <span>
 #include <string>
 
 struct SmartPortFrame
@@ -52,7 +51,7 @@ private:
   mutable std::vector<uint32_t> _params;
   mutable unsigned _paramSize;
   mutable ByteBuffer _decoded;
-  mutable std::optional<std::span<const uint8_t>> _data;
+  mutable std::optional<ByteBuffer> _data;
 
   using ParamProxy = PacketParamProxy<FujiIWMPacket>;
   friend ParamProxy;
@@ -72,7 +71,7 @@ public:
 
   ParamProxy param(size_t index) const { return ParamProxy{ index, this }; }
 
-  const std::optional<std::span<const std::uint8_t>>& data() const;
+  const std::optional<ByteBuffer>& data() const;
   const std::optional<const std::string> dataAsString() const {
     auto d = data();
     return std::string(reinterpret_cast<const char *>(d->data()), d->size());

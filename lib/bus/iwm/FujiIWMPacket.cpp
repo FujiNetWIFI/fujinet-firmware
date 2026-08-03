@@ -73,7 +73,7 @@ void FujiIWMPacket::fillParams(size_t count, size_t psize) const
   }
 }
 
-const std::optional<std::span<const std::uint8_t>>& FujiIWMPacket::data() const
+const std::optional<ByteBuffer>& FujiIWMPacket::data() const
 {
   if (!_data.has_value())
     _data = _decoded;
