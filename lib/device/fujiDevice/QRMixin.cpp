@@ -4,7 +4,6 @@
 
 #include "httpService.h"
 #include "debug.h"
-#include "../qrcode/qrmanager.h"
 
 void QRMixin::qr_input(const FUJI_COMMAND_PACKET &packet)
 {
@@ -27,17 +26,8 @@ void QRMixin::qr_input(const FUJI_COMMAND_PACKET &packet)
     SYSTEM_BUS.transaction_success();
 }
 
-void QRMixin::qr_encode(const FUJI_COMMAND_PACKET &packet)
+void QRMixin::qr_encode(uint8_t version, qr_ecc_t ecc, bool shorten)
 {
-    uint8_t version = ((uint8_t) packet.param(0)) & 0x7f;
-    qr_ecc_t ecc = (qr_ecc_t) (((uint8_t) packet.param(1)) & 0x03);
-#ifdef BUILD_ATARI
-    // SIO only has aux1/aux2 so shorten is store in high nybble of 2nd param
-    bool shorten = (uint8_t) packet.param(1) >> 4;
-#else
-    bool shorten = (uint8_t) packet.param(2);
-#endif
-
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     Debug_printf("QRMixin: ENCODE (version: %d, ecc: %d, shorten: %s)\n", version, ecc, shorten ? "Y" : "N");
@@ -72,7 +62,8 @@ void QRMixin::qr_length(const FUJI_COMMAND_PACKET &packet)
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_printf("QRMixin: LENGTH (output mode: %d)\n", output_mode);
 
-    size_t len = qrManager.code.size();
+    u32ne_t len;
+    len = qrManager.code.size();
 
     // Changing output mode re-renders the existing matrix into the new format.
     if (len && (output_mode != qrManager.output_mode)) {
@@ -81,14 +72,9 @@ void QRMixin::qr_length(const FUJI_COMMAND_PACKET &packet)
         len = qrManager.code.size();
     }
 
-    Debug_printf("QR code buffer length: %u bytes\n", len);
+    Debug_printf("QR code buffer length: %u bytes\n", (size_t) len);
 
-#ifdef BUILD_COCO
-    uint32_t response = htobe32(len);
-#else
-    uint32_t response = htole32(len);
-#endif
-    SYSTEM_BUS.transaction_send(&response, sizeof(response), false);
+    SYSTEM_BUS.transaction_send(&len, sizeof(len), false);
 }
 
 void QRMixin::qr_output(const FUJI_COMMAND_PACKET &packet)
