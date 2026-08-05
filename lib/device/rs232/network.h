@@ -13,6 +13,7 @@
 #include "status_error_codes.h"
 #include "network_data.h"
 #include "fnjson.h"
+#include "fnsgml.h"
 
 #include "ProtocolParser.h"
 
@@ -256,6 +257,16 @@ private:
     uint16_t json_bytes_remaining = 0;
 
     /**
+     * The fnSGML parser wrapper object (HTML/XML via CSS selector)
+     */
+    FNSGML sgml;
+
+    /**
+     * Bytes remaining of current SGML query result.
+     */
+    uint16_t sgml_bytes_remaining = 0;
+
+    /**
      * Instantiate protocol object
      * @return bool TRUE if protocol successfully called open(), FALSE if protocol could not open
      */
@@ -309,6 +320,12 @@ private:
     fujiError_t rs232_read_channel_json(uint16_t num_bytes);
 
     /**
+     * @brief Perform read of the current SGML channel
+     * @param num_bytes Number of bytes to read
+     */
+    fujiError_t rs232_read_channel_sgml(uint16_t num_bytes);
+
+    /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
      * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Used to emit rs232_error or rs232_complete().
@@ -330,6 +347,11 @@ private:
      * @brief get JSON status (# of bytes in receive channel)
      */
     fujiError_t rs232_status_channel_json(NetworkStatus *ns);
+
+    /**
+     * @brief get SGML status (# of bytes in receive channel)
+     */
+    fujiError_t rs232_status_channel_sgml(NetworkStatus *ns);
 
     /**
      * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
@@ -355,6 +377,16 @@ private:
      * @brief Set JSON query std::string. (must be in JSON channelMode)
      */
     void rs232_set_json_query();
+
+    /**
+     * @brief Parse incoming SGML/HTML/XML. (must be in SGML channelMode)
+     */
+    void rs232_parse_sgml();
+
+    /**
+     * @brief Set SGML CSS selector query std::string. (must be in SGML channelMode)
+     */
+    void rs232_set_sgml_query();
 
     /**
      * @brief Set timer rate for PROCEED timer in ms

@@ -1,3 +1,4 @@
+#include <cstdint>
 #ifdef BUILD_ATARI
 
 /**
@@ -136,6 +137,11 @@ void sioNetwork::sio_open(const FujiSIOPacket &packet)
         json = nullptr;
     }
 
+    if (sgml != nullptr) {
+        delete sgml;
+        sgml = nullptr;
+    }
+
     if (urlParser != nullptr) {
         urlParser = nullptr;
     }
@@ -164,7 +170,7 @@ void sioNetwork::sio_open(const FujiSIOPacket &packet)
     netProtoTranslation_t open_trans = (netProtoTranslation_t) packet.param8(1);
 
     // Ignore aux2 value if NTRANS set 0xFF, for ACTION!
-    if (trans_aux2 == 0xFF)
+    if ((uint8_t)trans_aux2 == 0xFF)
         open_trans = NETPROTO_TRANS_NONE;
     else if (open_mode != ACCESS_MODE::DIRECTORY) // don't xlate dir listings.
     {
@@ -199,6 +205,12 @@ void sioNetwork::sio_open(const FujiSIOPacket &packet)
     json = new FNJSON();
     json->setLineEnding("\x9b");
     json->setProtocol(protocol);
+
+    sgml = new FNSGML();
+    sgml->setLineEnding("\x9b");
+    sgml->setProtocol(protocol);
+    sgml_bytes_remaining = 0; // reset per-open so a prior session's count doesn't leak
+
     channelMode = PROTOCOL;
 
     // And signal complete!
@@ -247,6 +259,12 @@ void sioNetwork::sio_close()
     {
         delete json;
         json = nullptr;
+    }
+
+    if (sgml != nullptr)
+    {
+        delete sgml;
+        sgml = nullptr;
     }
 
 #ifdef ESP_PLATFORM
@@ -319,6 +337,20 @@ fujiError_t sioNetwork::sio_read_channel_json(unsigned short num_bytes)
 }
 
 /**
+ * @brief Perform read of the current SGML channel
+ * @param num_bytes Number of bytes to read
+ */
+fujiError_t sioNetwork::sio_read_channel_sgml(unsigned short num_bytes)
+{
+    if (num_bytes > sgml_bytes_remaining)
+        sgml_bytes_remaining=0;
+    else
+        sgml_bytes_remaining-=num_bytes;
+
+    return FUJI_ERROR::NONE;
+}
+
+/**
  * Perform the channel read based on the channelMode
  * @param num_bytes - number of bytes to read from channel.
  * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Passed directly to SYSTEM_BUS.transaction_send().
@@ -334,6 +366,9 @@ fujiError_t sioNetwork::sio_read_channel(unsigned short num_bytes)
         break;
     case JSON:
         err = sio_read_channel_json(num_bytes);
+        break;
+    case SGML:
+        err = sio_read_channel_sgml(num_bytes);
         break;
     }
     return err;
@@ -404,6 +439,10 @@ fujiError_t sioNetwork::sio_write_channel(unsigned short num_bytes)
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
+        err = FUJI_ERROR::UNSPECIFIED;
+        break;
+    case SGML:
+        Debug_printf("SGML Not Handled.\n");
         err = FUJI_ERROR::UNSPECIFIED;
         break;
     }
@@ -485,6 +524,13 @@ error_is_true sioNetwork::sio_status_channel_json(NetworkStatus *ns)
     RETURN_SUCCESS_AS_FALSE(); // for now
 }
 
+error_is_true sioNetwork::sio_status_channel_sgml(NetworkStatus *ns)
+{
+    ns->connected = sgml_bytes_remaining > 0;
+    ns->error = sgml_bytes_remaining > 0 ? NDEV_STATUS::SUCCESS : NDEV_STATUS::END_OF_FILE;
+    RETURN_SUCCESS_AS_FALSE(); // for now
+}
+
 /**
  * @brief perform channel status commands, if there is a protocol bound.
  */
@@ -518,6 +564,10 @@ void sioNetwork::sio_status_channel()
     case JSON:
         sio_status_channel_json(&status);
         avail = json_bytes_remaining;
+        break;
+    case SGML:
+        sio_status_channel_sgml(&status);
+        avail = sgml_bytes_remaining;
         break;
     }
     // clear forced flag (first status after open)
@@ -654,6 +704,10 @@ void sioNetwork::sio_set_channel_mode(const FujiSIOPacket &packet)
         break;
     case 1:
         channelMode = JSON;
+        SYSTEM_BUS.transaction_success();
+        break;
+    case 2:
+        channelMode = SGML;
         SYSTEM_BUS.transaction_success();
         break;
     default:
@@ -807,7 +861,10 @@ void sioNetwork::sio_process(const FujiSIOPacket &packet)
         break;
 
     case NETCMD_PARSE:
-        sio_parse_json();
+        if (channelMode == SGML)
+            sio_parse_sgml();
+        else
+            sio_parse_json();
         break;
     case NETCMD_TRANSLATION:
         sio_set_translation(packet);
@@ -833,7 +890,10 @@ void sioNetwork::sio_process(const FujiSIOPacket &packet)
         sio_set_prefix();
         return;
     case NETCMD_QUERY:
-        sio_set_json_query(packet);
+        if (channelMode == SGML)
+            sio_set_sgml_query(packet);
+        else
+            sio_set_json_query(packet);
         return;
     case NETCMD_USERNAME:
         sio_set_login();
@@ -1245,6 +1305,58 @@ void sioNetwork::sio_set_json_query(const FujiSIOPacket &packet)
 
     Debug_printf("Query set to >%s< (buf_size=%d, json_remaining=%d)\r\n",
                  inp_string.c_str(), (int)receiveBuffer->size(), json_bytes_remaining);
+    SYSTEM_BUS.transaction_success();
+}
+
+void sioNetwork::sio_parse_sgml()
+{
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    sgml->parse();
+    SYSTEM_BUS.transaction_success();
+}
+
+void sioNetwork::sio_set_sgml_query(const FujiSIOPacket &packet)
+{
+    uint8_t in[256];
+
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+
+    memset(in, 0, sizeof(in));
+
+    SYSTEM_BUS.transaction_get(in, sizeof(in)); // TODO test checksum
+
+    // strip away line endings from input spec.
+    for (int i = 0; i < 256; i++)
+    {
+        if (in[i] == 0x0A || in[i] == 0x0D || in[i] == 0x9b)
+            in[i] = 0x00;
+    }
+
+    // Unlike JSON, a CSS selector can contain colons (e.g. div:first-child), so
+    // only strip a leading "N:"/"N#:" device prefix rather than splitting on a colon.
+    std::string inp_string(reinterpret_cast<char*>(in));
+    if (inp_string.size() >= 2 && (inp_string[0] == 'N' || inp_string[0] == 'n'))
+    {
+        size_t p = 1;
+        if (p < inp_string.size() && inp_string[p] >= '0' && inp_string[p] <= '9')
+            p++;
+        if (p < inp_string.size() && inp_string[p] == ':')
+            inp_string.erase(0, p + 1);
+    }
+
+    sgml->setReadQuery(inp_string, packet.param(1));
+    int query_bytes = sgml->available();
+    sgml_bytes_remaining += query_bytes;
+
+    std::vector<uint8_t> tmp(query_bytes);
+    sgml->readValue(tmp.data(), query_bytes);
+
+    // don't copy past first nul char in tmp
+    auto null_pos = std::find(tmp.begin(), tmp.end(), 0);
+    *receiveBuffer += std::string(tmp.begin(), null_pos);
+
+    Debug_printf("SGML query set to >%s< (buf_size=%d, sgml_remaining=%d)\r\n",
+                 inp_string.c_str(), (int)receiveBuffer->size(), sgml_bytes_remaining);
     SYSTEM_BUS.transaction_success();
 }
 

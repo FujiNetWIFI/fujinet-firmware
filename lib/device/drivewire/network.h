@@ -12,6 +12,7 @@
 #include "networkStatus.h"
 #include "status_error_codes.h"
 #include "fnjson.h"
+#include "fnsgml.h"
 #include "ProtocolParser.h"
 
 /**
@@ -181,7 +182,8 @@ private:
     enum _channel_mode
     {
         PROTOCOL,
-        JSON
+        JSON,
+        SGML
     } channelMode;
 
     /**
@@ -200,6 +202,16 @@ private:
      */
     // FIXME - don't cache this, ask the fnJSON parser!
     unsigned short json_bytes_remaining = 0;
+
+    /**
+     * The fnSGML parser wrapper object (HTML/XML via CSS selector)
+     */
+    FNSGML *sgml = nullptr;
+
+    /**
+     * Bytes remaining of current SGML query result.
+     */
+    unsigned short sgml_bytes_remaining = 0;
 
     uint32_t readAck = 0;
 
@@ -238,6 +250,12 @@ private:
     fujiError_t read_channel_json(unsigned short num_bytes);
 
     /**
+     * @brief Perform read of the current SGML channel
+     * @param num_bytes Number of bytes to read
+     */
+    fujiError_t read_channel_sgml(unsigned short num_bytes);
+
+    /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
      * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Used to emit drivewire_error or drivewire_complete().
@@ -261,6 +279,11 @@ private:
     bool status_channel_json(NetworkStatus *ns);
 
     /**
+     * @brief get SGML status (# of bytes in receive channel)
+     */
+    bool status_channel_sgml(NetworkStatus *ns);
+
+    /**
      * @brief Parse incoming JSON. (must be in JSON channelMode)
      */
     void parse_json();
@@ -269,6 +292,16 @@ private:
      * @brief Set JSON query std::string. (must be in JSON channelMode)
      */
     void json_query();
+
+    /**
+     * @brief Parse incoming SGML/HTML/XML. (must be in SGML channelMode)
+     */
+    void parse_sgml();
+
+    /**
+     * @brief Set SGML CSS selector query std::string. (must be in SGML channelMode)
+     */
+    void sgml_query();
 
     /**
      * @brief parse URL and instantiate protocol

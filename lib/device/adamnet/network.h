@@ -11,6 +11,7 @@
 #include "Protocol.h"
 
 #include "fnjson.h"
+#include "fnsgml.h"
 
 #include "ProtocolParser.h"
 
@@ -83,6 +84,7 @@ public:
     void adamnet_control_clr();
     void adamnet_control_receive();
     void adamnet_control_receive_channel_json();
+    void adamnet_control_receive_channel_sgml();
     void adamnet_control_receive_channel_protocol();
     void adamnet_control_send();
 
@@ -126,6 +128,17 @@ public:
     void json_query(unsigned short s);
 
     /**
+     * @brief parse incoming SGML/HTML/XML
+     */
+    void sgml_parse();
+
+    /**
+     * @brief SGML CSS selector Query
+     * @param s size of query
+     */
+    void sgml_query(unsigned short s);
+
+    /**
      * Check to see if PROCEED needs to be asserted.
      */
     void adamnet_poll_interrupt();
@@ -160,6 +173,16 @@ private:
      * Has JSON been sent via CLR?
      */
     bool jsonRecvd = false;
+
+    /**
+     * SGML Object (HTML/XML via CSS selector)
+     */
+    FNSGML sgml;
+
+    /**
+     * Has SGML been sent via CLR?
+     */
+    bool sgmlRecvd = false;
 
     /**
      * The Receive buffer for this N: device
@@ -249,7 +272,8 @@ private:
     enum _channel_mode
     {
         PROTOCOL,
-        JSON
+        JSON,
+        SGML
     } channelMode;
 
     /**

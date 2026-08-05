@@ -9,6 +9,7 @@
 
 #include "bus.h"
 #include "fnjson.h"
+#include "fnsgml.h"
 #include "network_data.h"
 #include "peoples_url_parser.h"
 #include "Protocol.h"

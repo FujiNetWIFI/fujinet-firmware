@@ -145,6 +145,10 @@ void drivewireNetwork::open(fileAccessMode_t access, netProtoTranslation_t trans
     json = new FNJSON();
     json->setLineEnding("\x0a");
     json->setProtocol(protocol);
+    sgml = new FNSGML();
+    sgml->setLineEnding("\x0a");
+    sgml->setProtocol(protocol);
+    sgml_bytes_remaining = 0; // reset per-open so a prior session's count doesn't leak
     channelMode = PROTOCOL;
 
     SYSTEM_BUS.transaction_success();
@@ -186,6 +190,12 @@ void drivewireNetwork::close()
     {
         delete json;
         json = nullptr;
+    }
+
+    if (sgml != nullptr)
+    {
+        delete sgml;
+        sgml = nullptr;
     }
 
 #ifdef ESP_PLATFORM
@@ -264,6 +274,20 @@ fujiError_t drivewireNetwork::read_channel_json(unsigned short num_bytes)
 }
 
 /**
+ * @brief Perform read of the current SGML channel
+ * @param num_bytes Number of bytes to read
+ */
+fujiError_t drivewireNetwork::read_channel_sgml(unsigned short num_bytes)
+{
+    if (num_bytes > sgml_bytes_remaining)
+        sgml_bytes_remaining = 0;
+    else
+        sgml_bytes_remaining -= num_bytes;
+
+    return FUJI_ERROR::NONE;
+}
+
+/**
  * Perform the channel read based on the channelMode
  * @param num_bytes - number of bytes to read from channel.
  * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Passed directly to bus_to_computer().
@@ -279,6 +303,9 @@ fujiError_t drivewireNetwork::read_channel(unsigned short num_bytes)
         break;
     case JSON:
         err = read_channel_json(num_bytes);
+        break;
+    case SGML:
+        err = read_channel_sgml(num_bytes);
         break;
     }
     return err;
@@ -363,6 +390,10 @@ fujiError_t drivewireNetwork::write_channel(unsigned short num_bytes)
         Debug_printf("JSON Not Handled.\n");
         err = FUJI_ERROR::UNSPECIFIED;
         break;
+    case SGML:
+        Debug_printf("SGML Not Handled.\n");
+        err = FUJI_ERROR::UNSPECIFIED;
+        break;
     }
     return err;
 }
@@ -434,6 +465,13 @@ bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
     return false; // for now
 }
 
+bool drivewireNetwork::status_channel_sgml(NetworkStatus *ns)
+{
+    ns->connected = sgml_bytes_remaining > 0;
+    ns->error = sgml_bytes_remaining > 0 ? NDEV_STATUS::SUCCESS : NDEV_STATUS::END_OF_FILE;
+    return false; // for now
+}
+
 /**
  * @brief perform channel status commands, if there is a protocol bound.
  */
@@ -463,6 +501,10 @@ void drivewireNetwork::status_channel()
     case JSON:
         status_channel_json(&ns);
         avail = json_bytes_remaining;
+        break;
+    case SGML:
+        status_channel_sgml(&ns);
+        avail = sgml_bytes_remaining;
         break;
     }
 
@@ -581,6 +623,9 @@ void drivewireNetwork::set_channel_mode(uint8_t mode)
         break;
     case 1:
         channelMode = JSON;
+        break;
+    case 2:
+        channelMode = SGML;
         break;
     default:
         break;
@@ -800,6 +845,68 @@ void drivewireNetwork::json_query()
     SYSTEM_BUS.transaction_success();
 }
 
+void drivewireNetwork::parse_sgml()
+{
+    sgml->parse();
+
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    _errorCode = NDEV_STATUS::SUCCESS;
+    SYSTEM_BUS.transaction_success();
+}
+
+void drivewireNetwork::sgml_query()
+{
+    std::string in_string;
+    char tmpq[256];
+
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+
+    if (SYSTEM_BUS.transaction_get(tmpq, sizeof(tmpq)).is_error())
+    {
+        Debug_printf("Short read. Exiting\n");
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
+    in_string = std::string(tmpq);
+
+    // strip away line endings from input spec.
+    for (int i = 0; i < in_string.size(); i++)
+    {
+        unsigned char currentChar = static_cast<unsigned char>(in_string[i]);
+        if (currentChar == 0x0A || currentChar == 0x0D || currentChar == 0x9b)
+        {
+            in_string.resize(i);
+            break;
+        }
+    }
+
+    // Unlike JSON, a CSS selector can contain colons (e.g. div:first-child), so
+    // only strip a leading "N:"/"N#:" device prefix rather than splitting on a colon.
+    if (in_string.size() >= 2 && (in_string[0] == 'N' || in_string[0] == 'n'))
+    {
+        size_t p = 1;
+        if (p < in_string.size() && in_string[p] >= '0' && in_string[p] <= '9')
+            p++;
+        if (p < in_string.size() && in_string[p] == ':')
+            in_string.erase(0, p + 1);
+    }
+
+    sgml->setReadQuery(in_string, 0);
+    int query_bytes = sgml->available();
+    sgml_bytes_remaining += query_bytes;
+
+    std::vector<uint8_t> tmp(query_bytes);
+    sgml->readValue(tmp.data(), query_bytes);
+
+    // don't copy past first nul char in tmp
+    auto null_pos = std::find(tmp.begin(), tmp.end(), 0);
+    *receiveBuffer += std::string(tmp.begin(), null_pos);
+
+    Debug_printf("SGML query set to >%s<\r\n", in_string.c_str());
+    SYSTEM_BUS.transaction_success();
+}
+
 bool drivewireNetwork::processCommand(const FujiDWPacket &packet)
 {
     Debug_printf("comnd: '%c' %u\n", packet.command(), packet.command());
@@ -824,7 +931,10 @@ bool drivewireNetwork::processCommand(const FujiDWPacket &packet)
         break;
 
     case NETCMD_PARSE:
-        parse_json();
+        if (channelMode == SGML)
+            parse_sgml();
+        else
+            parse_json();
         break;
     case NETCMD_CHANNEL_MODE:
         set_channel_mode(packet.param(0));
@@ -838,7 +948,10 @@ bool drivewireNetwork::processCommand(const FujiDWPacket &packet)
         set_prefix();
         break;
     case NETCMD_QUERY:
-        json_query();
+        if (channelMode == SGML)
+            sgml_query();
+        else
+            json_query();
         break;
     case NETCMD_USERNAME:
         set_login();

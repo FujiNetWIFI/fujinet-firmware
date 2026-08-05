@@ -11,16 +11,19 @@
 
 class NetworkProtocol;
 class FNJSON;
+class FNSGML;
 class PeoplesUrlParser;
 
 typedef enum class CHANNEL_MODE {
     PROTOCOL = 0,
     JSON     = 1,
+    SGML     = 2,
 } channelMode_t;
 
 struct NetworkData {
     std::unique_ptr<NetworkProtocol> protocol;
     std::unique_ptr<FNJSON> json;
+    std::unique_ptr<FNSGML> sgml;
     std::string receiveBuffer;
     std::string transmitBuffer;
     std::string specialBuffer;
