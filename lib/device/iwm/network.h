@@ -13,6 +13,7 @@
 
 #include "bus.h"
 #include "fnjson.h"
+#include "fnsgml.h"
 #include "network_data.h"
 #include "peoples_url_parser.h"
 #include "Protocol.h"
@@ -147,6 +148,16 @@ public:
      */
     void json_query(const iwm_decoded_cmd_t &cmd);
 
+    /**
+     * @brief parse incoming SGML/HTML/XML
+     */
+    void sgml_parse();
+
+    /**
+     * @brief SGML CSS selector Query
+     */
+    void sgml_query(const iwm_decoded_cmd_t &cmd);
+
     std::unordered_map<uint8_t, NetworkData> network_data_map;
     uint8_t current_network_unit = 1;
 
@@ -229,6 +240,13 @@ private:
      * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
      */
     error_is_true read_channel_json(const iwm_decoded_cmd_t &cmd);
+
+    /**
+     * Perform read of the current SGML channel
+     * @param num_bytes Number of bytes to read.
+     * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
+     */
+    error_is_true read_channel_sgml(const iwm_decoded_cmd_t &cmd);
 
     /**
      * Perform the correct write based on value of channelMode

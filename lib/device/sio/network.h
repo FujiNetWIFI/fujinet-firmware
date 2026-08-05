@@ -16,6 +16,7 @@
 #include "networkStatus.h"
 #include "status_error_codes.h"
 #include "fnjson.h"
+#include "fnsgml.h"
 #include "ProtocolParser.h"
 
 /**
@@ -93,7 +94,7 @@ public:
      * process the special command. Otherwise, the command is handled locally. In either case, either sio_complete()
      * or sio_error() is called.
      */
-    virtual void sio_status(const FujiSIOPacket &packet);
+    void sio_status(const FujiSIOPacket &packet) override;
 
     /**
      * @brief set channel mode, JSON or PROTOCOL
@@ -255,11 +256,13 @@ private:
      *
      * @enum PROTOCOL Send to protocol
      * @enum JSON Send to JSON parser.
+     * @enum SGML Send to SGML/HTML/XML parser.
      */
     enum _channel_mode
     {
         PROTOCOL,
-        JSON
+        JSON,
+        SGML
     } channelMode;
 
     /**
@@ -278,6 +281,16 @@ private:
      */
     // FIXME - don't cache this, ask the fnJSON parser!
     unsigned short json_bytes_remaining = 0;
+
+    /**
+     * The fnSGML parser wrapper object (HTML/XML via CSS selector)
+     */
+    FNSGML *sgml = nullptr;
+
+    /**
+     * Bytes remaining of current SGML query result.
+     */
+    unsigned short sgml_bytes_remaining = 0;
 
     /**
      * @brief the write buffer
@@ -343,6 +356,12 @@ private:
     fujiError_t sio_read_channel_json(unsigned short num_bytes);
 
     /**
+     * @brief Perform read of the current SGML channel
+     * @param num_bytes Number of bytes to read
+     */
+    fujiError_t sio_read_channel_sgml(unsigned short num_bytes);
+
+    /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
      * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Used to emit sio_error or sio_complete().
@@ -364,6 +383,11 @@ private:
      * @brief get JSON status (# of bytes in receive channel)
      */
     error_is_true sio_status_channel_json(NetworkStatus *ns);
+
+    /**
+     * @brief get SGML status (# of bytes in receive channel)
+     */
+    error_is_true sio_status_channel_sgml(NetworkStatus *ns);
 
     /**
      * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
@@ -402,6 +426,16 @@ private:
      * Used to affect values on the JSON object
      */
     void sio_set_json_parameters(const FujiSIOPacket &packet);
+
+    /**
+     * @brief Parse incoming SGML/HTML/XML. (must be in SGML channelMode)
+     */
+    void sio_parse_sgml();
+
+    /**
+     * @brief Set SGML CSS selector query string. (must be in SGML channelMode)
+     */
+    void sio_set_sgml_query(const FujiSIOPacket &packet);
 
     /**
      * @brief Set timer rate for PROCEED timer in ms
