@@ -13,8 +13,6 @@
 #include "fnjson.h"
 #include "fnsgml.h"
 
-#include "ProtocolParser.h"
-
 /**
  * Number of devices to expose via ADAM, becomes 0x71 to 0x70 + NUM_DEVICES - 1
  */
@@ -207,18 +205,13 @@ private:
     /**
      * Instance of currently open network protocol
      */
-    NetworkProtocol *protocol = nullptr;
+    std::unique_ptr<NetworkProtocol> protocol = nullptr;
 
     /**
      * Error from the last failed open, reported by get_error() while no
      * protocol is instantiated
      */
     nDevStatus_t err_open = NDEV_STATUS::NOT_CONNECTED;
-
-    /**
-     * @brief Factory that creates protocol from urls
-    */
-    ProtocolParser *protocolParser = nullptr;
 
     /**
      * Network Status object

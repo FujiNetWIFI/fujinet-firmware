@@ -10,67 +10,18 @@
 
 #include "network_data.h"
 
-#include "Protocol.h"
-#include "CPM.h"
-#include "FTP.h"
-#include "GDRIVE.h"
-#include "GMAIL.h"
-#include "IMAPS.h"
-#include "ONEDRIVE.h"
-#include "HTTP.h"
-#include "WS.h"
-#include "WSS.h"
-#include "SSH.h"
-#include "SFTP.h"
-#include "SMB.h"
-#include "NFS.h"
-#include "S3.h"
-#include "TCP.h"
-#include "Telnet.h"
-#include "Test.h"
-#include "TNFS.h"
-#include "UDP.h"
+#include "ProtocolParser.h"
 
 class NetworkProtocolFactory
 {
 public:
-	static std::unique_ptr<NetworkProtocol> createProtocol(const std::string &scheme, NetworkData &data)
-	{
-		static const std::unordered_map<std::string, std::function<std::unique_ptr<NetworkProtocol>(NetworkData &)>> constructors = {
-			{"CPM",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolCPM>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"FTP",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolFTP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"GDRIVE", [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolGDRIVE>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"GMAIL",  [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolGMAIL>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"IMAPS",  [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolIMAPS>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"ONEDRIVE", [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolONEDRIVE>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"HTTP",   [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolHTTP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"HTTPS",  [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolHTTP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"WS",     [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolWS>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"WSS",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolWSS>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"SSH",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolSSH>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"SFTP",   [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolSFTP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"SMB",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolSMB>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"NFS",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolNFS>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"S3",     [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolS3>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"TCP",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolTCP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"TELNET", [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolTELNET>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"TEST",   [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolTest>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"TNFS",   [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolTNFS>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"UDP",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolUDP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-		};
-
-		std::string scheme_upper = scheme;
-		std::transform(scheme_upper.begin(), scheme_upper.end(), scheme_upper.begin(), [](unsigned char c){ return std::toupper(c); });
-
-		auto it = constructors.find(scheme_upper);
-		if (it != constructors.end())
-		{
-			auto p = it->second(data);
-			p->name = scheme_upper;
-			return p;
-		}
-		return nullptr;
-	}
+    static std::unique_ptr<NetworkProtocol> createProtocol(const std::string &scheme, NetworkData &data)
+    {
+        return ProtocolParser::createProtocol(scheme, &data.receiveBuffer,
+                                              &data.transmitBuffer,
+                                              &data.specialBuffer,
+                                              &data.login, &data.password);
+    }
 };
 
 #endif // NETWORK_PROTOCOL_FACTORY_H

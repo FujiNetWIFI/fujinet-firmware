@@ -1,4 +1,3 @@
-#include <cstdint>
 #ifdef BUILD_ATARI
 
 /**
@@ -7,27 +6,12 @@
 
 #include "network.h"
 #include "../network.h"
-
-#include <cstring>
-#include <string>
-#include <algorithm>
-#include <vector>
-#include <memory>
-#include <sstream>
-
-#include "../../include/debug.h"
-#include "../../include/pinmap.h"
-
+#include "ProtocolParser.h"
 #include "fnSystem.h"
 #include "utils.h"
-#include "fuji_endian.h"
+#include "debug.h"
 
-#include "status_error_codes.h"
-
-#include "TCP.h"
-#include "UDP.h"
-#include "HTTP.h"
-#include "FS.h"
+#include <sstream>
 
 using namespace std;
 
@@ -74,9 +58,7 @@ sioNetwork::~sioNetwork()
 #endif
 
     // first, delete protocol instance
-    if (protocol != nullptr)
-        delete protocol;
-    protocol = nullptr;
+    protocol.reset();
 
     // then delete all buffers
     receiveBuffer->clear();
@@ -122,14 +104,7 @@ void sioNetwork::sio_open(const FujiSIOPacket &packet)
     if (protocol != nullptr)
     {
         protocol->close();
-        delete protocol;
-        protocol = nullptr;
-    }
-
-    if (protocolParser != nullptr)
-    {
-        delete protocolParser;
-        protocolParser = nullptr;
+        protocol.reset();
     }
 
     if (json != nullptr) {
@@ -155,13 +130,6 @@ void sioNetwork::sio_open(const FujiSIOPacket &packet)
 
     if (protocol == nullptr)
     {
-        // invalid devicespec error already passed in.
-        if (protocolParser != nullptr)
-        {
-            delete protocolParser;
-            protocolParser = nullptr;
-        }
-
         // SYSTEM_BUS.transaction_error() - was already called from parse_and_instantiate_protocol()
         return;
     }
@@ -183,14 +151,7 @@ void sioNetwork::sio_open(const FujiSIOPacket &packet)
     {
         status.error = protocol->error;
         Debug_printf("Protocol unable to make connection. Error: %d\n", status.error);
-        delete protocol;
-        protocol = nullptr;
-        if (protocolParser != nullptr)
-        {
-            delete protocolParser;
-            protocolParser = nullptr;
-        }
-
+        protocol.reset();
         SYSTEM_BUS.transaction_error();
         return;
     }
@@ -204,11 +165,11 @@ void sioNetwork::sio_open(const FujiSIOPacket &packet)
     // TODO: Finally, go ahead and let the parsers know
     json = new FNJSON();
     json->setLineEnding("\x9b");
-    json->setProtocol(protocol);
+    json->setProtocol(protocol.get());
 
     sgml = new FNSGML();
     sgml->setLineEnding("\x9b");
-    sgml->setProtocol(protocol);
+    sgml->setProtocol(protocol.get());
     sgml_bytes_remaining = 0; // reset per-open so a prior session's count doesn't leak
 
     channelMode = PROTOCOL;
@@ -232,12 +193,6 @@ void sioNetwork::sio_close()
 
     status.reset();
 
-    if (protocolParser != nullptr)
-    {
-        delete protocolParser;
-        protocolParser = nullptr;
-    }
-
     // If no protocol enabled, we just signal complete, and return.
     if (protocol == nullptr)
     {
@@ -252,8 +207,7 @@ void sioNetwork::sio_close()
         SYSTEM_BUS.transaction_success();
 
     // Delete the protocol object
-    delete protocol;
-    protocol = nullptr;
+    protocol.reset();
 
     if (json != nullptr)
     {
@@ -302,12 +256,6 @@ void sioNetwork::sio_read(const FujiSIOPacket &packet)
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
     {
-        if (protocolParser != nullptr)
-        {
-            delete protocolParser;
-            protocolParser = nullptr;
-        }
-
         status.error = NDEV_STATUS::NOT_CONNECTED;
         SYSTEM_BUS.transaction_error();
         return;
@@ -393,11 +341,6 @@ void sioNetwork::sio_write(const FujiSIOPacket &packet)
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
     {
-        if (protocolParser != nullptr)
-        {
-            delete protocolParser;
-            protocolParser = nullptr;
-        }
         status.error = NDEV_STATUS::NOT_CONNECTED;
         SYSTEM_BUS.transaction_error();
         return;
@@ -1040,12 +983,7 @@ uint8_t sioNetwork::get_dstats_for_command(uint8_t command)
  */
 success_is_true sioNetwork::instantiate_protocol()
 {
-    if (!protocolParser)
-    {
-        protocolParser = new ProtocolParser();
-    }
-
-    protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
+    protocol = ProtocolParser::createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
     {
@@ -1424,12 +1362,11 @@ void sioNetwork::process_fs(const FujiSIOPacket &packet)
     }
 
     // Make sure this is really a FS protocol instance
-    NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol);
+    NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol.get());
     if (!fs)
     {
         SYSTEM_BUS.transaction_error(); // ACK already sent; host expects C or E, not N
-        delete protocol;
-        protocol = nullptr;
+        protocol.reset();
         return;
     }
 
@@ -1457,19 +1394,12 @@ void sioNetwork::process_fs(const FujiSIOPacket &packet)
         break;
     default:
         SYSTEM_BUS.transaction_error(); // ACK already sent; host expects C or E, not N
-        delete protocol;
-        protocol = nullptr;
+        protocol.reset();
         return;
     }
 
     // Clean up the one-shot protocol created for this fs operation
-    delete protocol;
-    protocol = nullptr;
-    if (protocolParser != nullptr)
-    {
-        delete protocolParser;
-        protocolParser = nullptr;
-    }
+    protocol.reset();
 
     if (err != FUJI_ERROR::NONE)
     {
@@ -1483,7 +1413,7 @@ void sioNetwork::process_fs(const FujiSIOPacket &packet)
 void sioNetwork::process_tcp(const FujiSIOPacket &packet)
 {
     // Make sure this is really a TCP protocol instance
-    NetworkProtocolTCP *tcp = dynamic_cast<NetworkProtocolTCP *>(protocol);
+    NetworkProtocolTCP *tcp = dynamic_cast<NetworkProtocolTCP *>(protocol.get());
     if (!tcp)
     {
         SYSTEM_BUS.transaction_error();
@@ -1518,7 +1448,7 @@ void sioNetwork::process_tcp(const FujiSIOPacket &packet)
 void sioNetwork::process_http(const FujiSIOPacket &packet)
 {
     // Make sure this is really an HTTP protocol instance
-    NetworkProtocolHTTP *http = dynamic_cast<NetworkProtocolHTTP *>(protocol);
+    NetworkProtocolHTTP *http = dynamic_cast<NetworkProtocolHTTP *>(protocol.get());
     if (!http)
     {
         SYSTEM_BUS.transaction_error();
@@ -1549,7 +1479,7 @@ void sioNetwork::process_http(const FujiSIOPacket &packet)
 void sioNetwork::process_udp(const FujiSIOPacket &packet)
 {
     // Make sure this is really a UDP protocol instance
-    NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(protocol);
+    NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(protocol.get());
     if (!udp)
     {
         SYSTEM_BUS.transaction_error();
