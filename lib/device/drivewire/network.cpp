@@ -6,23 +6,10 @@
 
 #include "network.h"
 #include "../network.h"
-#include "fuji_endian.h"
-
-#include <cstring>
-#include <algorithm>
-
-#include "../../include/debug.h"
-#include "../../include/pinmap.h"
-
+#include "ProtocolParser.h"
 #include "fnSystem.h"
 #include "utils.h"
-
-#include "status_error_codes.h"
-#include "Protocol.h"
-#include "TCP.h"
-#include "UDP.h"
-#include "HTTP.h"
-#include "FS.h"
+#include "debug.h"
 
 using namespace std;
 
@@ -57,7 +44,7 @@ drivewireNetwork::~drivewireNetwork()
     specialBuffer = nullptr;
 
     if (protocol != nullptr)
-        delete protocol;
+        protocol.reset();
 
     protocol = nullptr;
 }
@@ -94,14 +81,7 @@ void drivewireNetwork::open(fileAccessMode_t access, netProtoTranslation_t trans
     if (protocol != nullptr)
     {
         protocol->close();
-        delete protocol;
-        protocol = nullptr;
-    }
-
-    if (protocolParser != nullptr)
-    {
-        delete protocolParser;
-        protocolParser = nullptr;
+        protocol.reset();
     }
 
     // Parse and instantiate protocol
@@ -110,11 +90,6 @@ void drivewireNetwork::open(fileAccessMode_t access, netProtoTranslation_t trans
     if (protocol == nullptr)
     {
         // invalid devicespec error already passed in.
-        if (protocolParser != nullptr)
-        {
-            delete protocolParser;
-            protocolParser = nullptr;
-        }
         SYSTEM_BUS.transaction_error();
         return;
     }
@@ -130,13 +105,7 @@ void drivewireNetwork::open(fileAccessMode_t access, netProtoTranslation_t trans
     {
         _errorCode = protocol->error;
         Debug_printf("Protocol unable to make connection. Error: %d\n", _errorCode);
-        delete protocol;
-        protocol = nullptr;
-        if (protocolParser != nullptr)
-        {
-            delete protocolParser;
-            protocolParser = nullptr;
-        }
+        protocol.reset();
         SYSTEM_BUS.transaction_error();
         return;
     }
@@ -144,10 +113,10 @@ void drivewireNetwork::open(fileAccessMode_t access, netProtoTranslation_t trans
     // TODO: Finally, go ahead and let the parsers know
     json = new FNJSON();
     json->setLineEnding("\x0a");
-    json->setProtocol(protocol);
+    json->setProtocol(protocol.get());
     sgml = new FNSGML();
     sgml->setLineEnding("\x0a");
-    sgml->setProtocol(protocol);
+    sgml->setProtocol(protocol.get());
     sgml_bytes_remaining = 0; // reset per-open so a prior session's count doesn't leak
     channelMode = PROTOCOL;
 
@@ -164,12 +133,6 @@ void drivewireNetwork::close()
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
-    if (protocolParser != nullptr)
-    {
-        delete protocolParser;
-        protocolParser = nullptr;
-    }
-
     // If no protocol enabled, we just signal complete, and return.
     if (protocol == nullptr)
     {
@@ -183,8 +146,7 @@ void drivewireNetwork::close()
     Debug_printv("Before protocol delete %lu\n",esp_get_free_internal_heap_size());
 #endif
     // Delete the protocol object
-    delete protocol;
-    protocol = nullptr;
+    protocol.reset();
 
     if (json != nullptr)
     {
@@ -238,12 +200,6 @@ void drivewireNetwork::read(uint16_t num_bytes)
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
     {
-        if (protocolParser != nullptr)
-        {
-            delete protocolParser;
-            protocolParser = nullptr;
-        }
-
         SYSTEM_BUS.transaction_error();
         _errorCode = NDEV_STATUS::NOT_CONNECTED;
         return;
@@ -351,11 +307,6 @@ void drivewireNetwork::write(uint16_t num_bytes)
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
     {
-        if (protocolParser != nullptr)
-        {
-            delete protocolParser;
-            protocolParser = nullptr;
-        }
         SYSTEM_BUS.transaction_error();
         _errorCode = NDEV_STATUS::NOT_CONNECTED;
         return;
@@ -684,12 +635,7 @@ void drivewireNetwork::set_password()
  */
 bool drivewireNetwork::instantiate_protocol()
 {
-    if (!protocolParser)
-    {
-        protocolParser = new ProtocolParser();
-    }
-
-    protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
+    protocol = ProtocolParser::createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
     {
@@ -997,7 +943,7 @@ void drivewireNetwork::process_fs(const FujiDWPacket &packet)
                                    == ACCESS_MODE::DIRECTORY);
 
     // Make sure this is really a FS protocol instance
-    NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol);
+    NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol.get());
     if (!fs)
     {
         SYSTEM_BUS.transaction_error();
@@ -1040,7 +986,7 @@ void drivewireNetwork::process_fs(const FujiDWPacket &packet)
 void drivewireNetwork::process_tcp(const FujiDWPacket &packet)
 {
     // Make sure this is really a TCP protocol instance
-    NetworkProtocolTCP *tcp = dynamic_cast<NetworkProtocolTCP *>(protocol);
+    NetworkProtocolTCP *tcp = dynamic_cast<NetworkProtocolTCP *>(protocol.get());
     if (!tcp)
     {
         SYSTEM_BUS.transaction_error();
@@ -1070,7 +1016,7 @@ void drivewireNetwork::process_tcp(const FujiDWPacket &packet)
 void drivewireNetwork::process_http(const FujiDWPacket &packet)
 {
     // Make sure this is really an HTTP protocol instance
-    NetworkProtocolHTTP *http = dynamic_cast<NetworkProtocolHTTP *>(protocol);
+    NetworkProtocolHTTP *http = dynamic_cast<NetworkProtocolHTTP *>(protocol.get());
     if (!http)
     {
         SYSTEM_BUS.transaction_error();
@@ -1102,7 +1048,7 @@ void drivewireNetwork::process_http(const FujiDWPacket &packet)
 void drivewireNetwork::process_udp(const FujiDWPacket &packet)
 {
     // Make sure this is really a UDP protocol instance
-    NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(protocol);
+    NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(protocol.get());
     if (!udp)
     {
         SYSTEM_BUS.transaction_error();

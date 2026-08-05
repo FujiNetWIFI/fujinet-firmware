@@ -10,7 +10,6 @@
 #include "Protocol.h"
 #include "fnjson.h"
 #include "fnsgml.h"
-#include "ProtocolParser.h"
 
 /**
  * Number of devices to expose via LYNX, becomes 0x71 to 0x70 + NUM_DEVICES - 1
@@ -176,12 +175,7 @@ private:
     /**
      * Instance of currently open network protocol
      */
-    NetworkProtocol *protocol = nullptr;
-
-    /**
-     * @brief Factory that creates protocol from urls
-    */
-    ProtocolParser *protocolParser = nullptr;
+    std::unique_ptr<NetworkProtocol> protocol = nullptr;
 
     /**
      * Network Status object
