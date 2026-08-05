@@ -47,7 +47,7 @@ lynxNetwork::~lynxNetwork()
 {
     // delete protocol instance
     if (protocol != nullptr)
-        delete protocol;
+        protocol.reset();
     protocol = nullptr;
 
     // delete all buffers
@@ -93,14 +93,7 @@ void lynxNetwork::open(unsigned short len)
     if (protocol != nullptr)
     {
         protocol->close();
-        delete protocol;
-        protocol = nullptr;
-
-        if (protocolParser != nullptr)
-        {
-            delete protocolParser;
-            protocolParser = nullptr;
-        }
+        protocol.reset();
     }
 
     // Reset status buffer
@@ -123,13 +116,7 @@ void lynxNetwork::open(unsigned short len)
     {
         statusByte.bits.client_error = true;
         Debug_printf("Protocol unable to make connection. Error: %d\n", (int)err);
-        delete protocol;
-        protocol = nullptr;
-        if (protocolParser != nullptr)
-        {
-            delete protocolParser;
-            protocolParser = nullptr;
-        }
+        protocol.reset();
         transaction_error();
         return;
     }
@@ -137,7 +124,7 @@ void lynxNetwork::open(unsigned short len)
     // setup JSON
     json = new FNJSON();
     json->setLineEnding("\x00");        // null terminate json values always
-    json->setProtocol(protocol);
+    json->setProtocol(protocol.get());
     channelMode = PROTOCOL;
 
     transaction_complete();
@@ -153,12 +140,6 @@ void lynxNetwork::close()
 
      statusByte.byte = 0x00;
 
-    if (protocolParser != nullptr)
-    {
-        delete protocolParser;
-        protocolParser = nullptr;
-    }
-
     // If no protocol enabled, we just signal complete, and return.
     if (protocol == nullptr)
     {
@@ -170,8 +151,7 @@ void lynxNetwork::close()
     protocol->close();
 
     // Delete the protocol object
-    delete protocol;
-    protocol = nullptr;
+    protocol.reset();
 
     // delete the json object
     if (json != nullptr)
@@ -700,12 +680,7 @@ void lynxNetwork::comlynx_process()
  */
 bool lynxNetwork::instantiate_protocol()
 {
-    if (!protocolParser)
-    {
-        protocolParser = new ProtocolParser();
-    }
-
-    protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
+    protocol = ProtocolParser::createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
     {
@@ -777,7 +752,7 @@ void lynxNetwork::process_fs(fujiCommandID_t cmd, unsigned pkt_len)
     parse_and_instantiate_protocol(string((char *)response, pkt_len));
 
     // Make sure this is really a FS protocol instance
-    NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol);
+    NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol.get());
     if (!fs)
     {
         statusByte.bits.client_error = true;
@@ -825,7 +800,7 @@ void lynxNetwork::process_tcp(fujiCommandID_t cmd)
     statusByte.byte = 0x00;
 
     // Make sure this is really a TCP protocol instance
-    NetworkProtocolTCP *tcp = dynamic_cast<NetworkProtocolTCP *>(protocol);
+    NetworkProtocolTCP *tcp = dynamic_cast<NetworkProtocolTCP *>(protocol.get());
     if (!tcp)
     {
         statusByte.bits.client_error = true;
@@ -874,7 +849,7 @@ void lynxNetwork::process_http(fujiCommandID_t cmd)
     statusByte.byte = 0x00;
 
     // Make sure this is really a HTTP protocol instance
-    NetworkProtocolHTTP *http = dynamic_cast<NetworkProtocolHTTP *>(protocol);
+    NetworkProtocolHTTP *http = dynamic_cast<NetworkProtocolHTTP *>(protocol.get());
     if (!http)
     {
         statusByte.bits.client_error = true;
@@ -906,7 +881,7 @@ void lynxNetwork::process_udp(fujiCommandID_t cmd)
     statusByte.byte = 0x00;
 
     // Make sure this is really a UDP protocol instance
-    NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(protocol);
+    NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(protocol.get());
     if (!udp)
     {
         statusByte.bits.client_error = true;

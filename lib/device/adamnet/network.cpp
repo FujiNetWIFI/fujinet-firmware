@@ -6,21 +6,9 @@
 
 #include "network.h"
 #include "../network.h"
-
-#include <cstring>
-#include <algorithm>
-
-#include "../../include/debug.h"
-
-#include "utils.h"
-#include "fuji_endian.h"
-
-#include "status_error_codes.h"
 #include "ProtocolParser.h"
-#include "TCP.h"
-#include "UDP.h"
-#include "HTTP.h"
-#include "FS.h"
+#include "utils.h"
+#include "debug.h"
 
 using namespace std;
 
@@ -66,7 +54,7 @@ adamNetwork::~adamNetwork()
     specialBuffer = nullptr;
 
     if (protocol != nullptr)
-        delete protocol;
+        protocol.reset();
 
     protocol = nullptr;
 }
@@ -134,14 +122,7 @@ void adamNetwork::open(unsigned short s)
     if (protocol != nullptr)
     {
         protocol->close();
-        delete protocol;
-        protocol = nullptr;
-    }
-
-    if (protocolParser != nullptr)
-    {
-        delete protocolParser;
-        protocolParser = nullptr;
+        protocol.reset();
     }
 
     // Reset status buffer
@@ -154,14 +135,7 @@ void adamNetwork::open(unsigned short s)
     parse_and_instantiate_protocol(d, (fileAccessMode_t) _aux1 == ACCESS_MODE::DIRECTORY);
 
     if (protocol == nullptr)
-    {
-        if (protocolParser != nullptr)
-        {
-            delete protocolParser;
-            protocolParser = nullptr;
-        }
         return;
-    }
 
     // Set the human-readable line ending for this platform (Adam: CR).
     protocol->setLineEnding("\x0d");
@@ -175,19 +149,13 @@ void adamNetwork::open(unsigned short s)
         statusByte.bits.client_error = true;
         err_open = protocol->error; // keep the reason for get_error()
         Debug_printf("Protocol unable to make connection.\n");
-        delete protocol;
-        protocol = nullptr;
-        if (protocolParser != nullptr)
-        {
-            delete protocolParser;
-            protocolParser = nullptr;
-        }
+        protocol.reset();
         return;
     }
 
     // Associate channel mode
-    json.setProtocol(protocol);
-    sgml.setProtocol(protocol);
+    json.setProtocol(protocol.get());
+    sgml.setProtocol(protocol.get());
 
     // Clear response
     memset(response, 0, sizeof(response));
@@ -211,12 +179,6 @@ void adamNetwork::close()
     statusByte.byte = 0x00;
     err_open = NDEV_STATUS::NOT_CONNECTED;
 
-    if (protocolParser != nullptr)
-    {
-        delete protocolParser;
-        protocolParser = nullptr;
-    }
-
     // If no protocol enabled, we just signal complete, and return.
     if (protocol == nullptr)
     {
@@ -227,8 +189,7 @@ void adamNetwork::close()
     protocol->close();
 
     // Delete the protocol object
-    delete protocol;
-    protocol = nullptr;
+    protocol.reset();
 
     memset(response, 0, sizeof(response));
     response_len = 0;
@@ -893,12 +854,7 @@ void adamNetwork::adamnet_process(const FujiAdamPacket &packet)
  */
 bool adamNetwork::instantiate_protocol()
 {
-    if (!protocolParser)
-    {
-        protocolParser = new ProtocolParser();
-    }
-
-    protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
+    protocol = ProtocolParser::createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
     {
@@ -992,7 +948,7 @@ void adamNetwork::process_fs(fujiCommandID_t cmd, unsigned pkt_len)
     parse_and_instantiate_protocol(data, false);
 
     // Make sure this is really a FS protocol instance
-    NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol);
+    NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol.get());
     if (!fs)
     {
         statusByte.bits.client_error = true;
@@ -1038,7 +994,7 @@ void adamNetwork::process_tcp(fujiCommandID_t cmd)
     statusByte.byte = 0x00;
 
     // Make sure this is really a TCP protocol instance
-    NetworkProtocolTCP *tcp = dynamic_cast<NetworkProtocolTCP *>(protocol);
+    NetworkProtocolTCP *tcp = dynamic_cast<NetworkProtocolTCP *>(protocol.get());
     if (!tcp)
     {
         statusByte.bits.client_error = true;
@@ -1085,7 +1041,7 @@ void adamNetwork::process_http(fujiCommandID_t cmd)
     statusByte.byte = 0x00;
 
     // Make sure this is really a HTTP protocol instance
-    NetworkProtocolHTTP *http = dynamic_cast<NetworkProtocolHTTP *>(protocol);
+    NetworkProtocolHTTP *http = dynamic_cast<NetworkProtocolHTTP *>(protocol.get());
     if (!http)
     {
         statusByte.bits.client_error = true;
@@ -1114,7 +1070,7 @@ void adamNetwork::process_udp(fujiCommandID_t cmd)
     statusByte.byte = 0x00;
 
     // Make sure this is really a UDP protocol instance
-    NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(protocol);
+    NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(protocol.get());
     if (!udp)
     {
         statusByte.bits.client_error = true;

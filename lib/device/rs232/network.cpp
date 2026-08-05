@@ -6,30 +6,10 @@
 
 #include "network.h"
 #include "../network.h"
-#include "fuji_endian.h"
-#include "fujiCommandID.h"
-
-#include <cstring>
-#include <algorithm>
-
-#include "../../include/debug.h"
-#include "../../include/pinmap.h"
-
+#include "ProtocolParser.h"
 #include "fnSystem.h"
 #include "utils.h"
-
-#include "status_error_codes.h"
-#include "TCP.h"
-#include "UDP.h"
-#include "Test.h"
-#include "Telnet.h"
-#include "TNFS.h"
-#include "FTP.h"
-#include "HTTP.h"
-#include "SSH.h"
-#include "SMB.h"
-
-#include "ProtocolParser.h"
+#include "debug.h"
 
 #define DEFAULT_LINE_ENDING "\n"
 
@@ -82,10 +62,7 @@ rs232Network::~rs232Network()
     transmitBuffer = nullptr;
     specialBuffer = nullptr;
 
-    if (protocol != nullptr)
-        delete protocol;
-
-    protocol = nullptr;
+    protocol.reset();
 }
 
 /** RS232 COMMANDS ***************************************************************/
@@ -114,13 +91,7 @@ void rs232Network::rs232_open(fileAccessMode_t access, netProtoTranslation_t tra
     if (protocol != nullptr)
     {
         protocol->close();
-        delete protocol;
-        protocol = nullptr;
-    }
-    if (protocolParser != nullptr)
-    {
-        delete protocolParser;
-        protocolParser = nullptr;
+        protocol.reset();
     }
 
     // Reset status buffer
@@ -141,13 +112,7 @@ void rs232Network::rs232_open(fileAccessMode_t access, netProtoTranslation_t tra
     {
         status.error = protocol->error;
         Debug_printf("Protocol unable to make connection. Error: %d\n", (int) status.error);
-        delete protocol;
-        protocol = nullptr;
-        if (protocolParser != nullptr)
-        {
-            delete protocolParser;
-            protocolParser = nullptr;
-        }
+        protocol.reset();
         SYSTEM_BUS.transaction_error();
         return;
     }
@@ -161,9 +126,9 @@ void rs232Network::rs232_open(fileAccessMode_t access, netProtoTranslation_t tra
     rs232_assert_interrupt();
 
     // TODO: Finally, go ahead and let the parsers know
-    json.setProtocol(protocol);
+    json.setProtocol(protocol.get());
     json.setLineEnding(DEFAULT_LINE_ENDING);
-    sgml.setProtocol(protocol);
+    sgml.setProtocol(protocol.get());
     sgml.setLineEnding(DEFAULT_LINE_ENDING);
     sgml_bytes_remaining = 0; // reset per-open so a prior session's count doesn't leak
     protocol->setLineEnding(DEFAULT_LINE_ENDING);
@@ -185,11 +150,6 @@ void rs232Network::rs232_close()
 
     status.reset();
 
-    if (protocolParser != nullptr)
-    {
-        delete protocolParser;
-        protocolParser = nullptr;
-    }
     // If no protocol enabled, we just signal complete, and return.
     if (protocol == nullptr)
     {
@@ -204,8 +164,7 @@ void rs232Network::rs232_close()
         SYSTEM_BUS.transaction_success();
 
     // Delete the protocol object
-    delete protocol;
-    protocol = nullptr;
+    protocol.reset();
 }
 
 /**
@@ -639,7 +598,7 @@ void rs232Network::rs232_set_password()
 void rs232Network::process_tcp(const FujiBusPacket &packet)
 {
     // Make sure this is really a TCP protocol instance
-    NetworkProtocolTCP *tcp = dynamic_cast<NetworkProtocolTCP *>(protocol);
+    NetworkProtocolTCP *tcp = dynamic_cast<NetworkProtocolTCP *>(protocol.get());
     if (!tcp)
     {
         SYSTEM_BUS.transaction_error();
@@ -671,7 +630,7 @@ void rs232Network::process_tcp(const FujiBusPacket &packet)
 void rs232Network::process_http(const FujiBusPacket &packet)
 {
     // Make sure this is really an HTTP protocol instance
-    NetworkProtocolHTTP *http = dynamic_cast<NetworkProtocolHTTP *>(protocol);
+    NetworkProtocolHTTP *http = dynamic_cast<NetworkProtocolHTTP *>(protocol.get());
     if (!http)
     {
         SYSTEM_BUS.transaction_error();
@@ -699,7 +658,7 @@ void rs232Network::process_http(const FujiBusPacket &packet)
 void rs232Network::process_udp(const FujiBusPacket &packet)
 {
     // Make sure this is really a UDP protocol instance
-    NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(protocol);
+    NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(protocol.get());
     if (!udp)
     {
         SYSTEM_BUS.transaction_error();
@@ -954,12 +913,7 @@ void rs232Network::rs232_poll_interrupt()
  */
 success_is_true rs232Network::instantiate_protocol()
 {
-    if (!protocolParser)
-    {
-        protocolParser = new ProtocolParser();
-    }
-
-    protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
+    protocol = ProtocolParser::createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
     {
@@ -1231,7 +1185,7 @@ void rs232Network::rs232_set_timer_rate(int newRate)
 void rs232Network::process_fs(const FujiBusPacket &packet)
 {
     // Make sure this is really a FS protocol instance
-    NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol);
+    NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol.get());
     if (!fs)
     {
         SYSTEM_BUS.transaction_error();
