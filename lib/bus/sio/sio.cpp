@@ -369,6 +369,13 @@ void systemBus::service()
     bool is_motor_asserted = false;
     is_motor_asserted = motor_asserted();
 
+    if (_streamDev != nullptr && _streamDev->netstreamActive && !is_motor_asserted
+        && getCurrentBaudrate() != getBaudrate())
+    {
+        Debug_printf("NETSTREAM: MOTOR de-assert, restoring baud %d\n", getBaudrate());
+        setBaudrate(getBaudrate());
+    }
+
     if (_streamDev != nullptr && _streamDev->netstreamActive && is_motor_asserted)
     {
         if (commandAsserted())
