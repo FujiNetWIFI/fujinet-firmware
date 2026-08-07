@@ -1058,8 +1058,6 @@ static void fuji_mailbox_service(void)
         RAM[FUJI_MB_LINK] = tud_cdc_connected() ? 1 : 0;
     }
 
-    printf("fuji_mailbox_service: seq=%u link=%u\n", seq, RAM[FUJI_MB_LINK]);
-
     uint8_t device = (uint8_t)RAM[FUJI_MB_DEVICE];
     uint8_t command = (uint8_t)RAM[FUJI_MB_CMD];
     unsigned nparam = RAM[FUJI_MB_NPARAM];
@@ -1088,7 +1086,6 @@ static void fuji_mailbox_service(void)
                                        rxbuf, sizeof(rxbuf), &reply, 5000);
 
     RAM[FUJI_MB_ERR] = (uint16_t)st;
-    printf("fuji_mailbox_service: fujibus_transact returned %d (0=OK 1=ENOLINK 2=ETIMEOUT 3=EBADFRAME 4=ETOOBIG)\n", (int)st);
     if (st == FB_OK) {
         uint16_t rxlen = reply.data_len; // already bounded by rx_cap == sizeof(rxbuf)
         for (uint16_t i = 0; i < rxlen; i++)
