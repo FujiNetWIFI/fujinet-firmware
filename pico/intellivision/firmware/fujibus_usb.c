@@ -35,6 +35,8 @@ fb_status_t fujibus_transact(uint8_t device, uint8_t command,
         sent += w;
         tud_cdc_write_flush();
         tud_task();
+        if (sent < txlen)
+            busy_wait_us(500); // see rationale in the RX wait loop below
     }
     tud_cdc_write_flush();
 
@@ -50,6 +52,16 @@ fb_status_t fujibus_transact(uint8_t device, uint8_t command,
             if (b == 0xC0 && ++seen_end == 2)
                 goto got_frame;
         }
+        // core1's CP-1610 bus loop shares the SRAM fabric with core0 and
+        // runs with only ~300 clock cycles of slack per bus phase. Calling
+        // tud_task() back-to-back with no gap turns what would otherwise be
+        // a brief contention burst (e.g. enumeration) into continuous
+        // contention for the full length of this wait -- worst case 5s.
+        // Sustained contention is far likelier to catch core1 mid-phase at
+        // least once than a one-shot burst is. A short gap here costs
+        // nothing against a multi-second timeout budget but gives core1
+        // real idle windows between polls.
+        busy_wait_us(500);
     }
     return FB_ETIMEOUT;
 

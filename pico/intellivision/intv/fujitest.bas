@@ -20,6 +20,7 @@
     CONST FN_TXLEN_LO=$9808
     CONST FN_TXLEN_HI=$9809
     CONST FN_REPLY_CMD=$980E
+    CONST FN_ERR=$980B
     CONST FN_RX=$9940
 
     CONST FUJI_DEVICEID_FUJINET=$70
@@ -57,24 +58,36 @@
     poke (FN_TXLEN_LO),0
     poke (FN_TXLEN_HI),0
 
-    seq=seq+1
-    if seq=0 then seq=1 ' skip 0: ACKSEQ starts at 0, so SEQ=0 would look pre-acked
+    ' Must be derived from the RP2040's own persisted FN_ACKSEQ, not from a
+    ' local variable -- a console reset re-zeroes every IntyBASIC variable
+    ' but does NOT reset the RP2040, so a locally-incrementing seq recomputes
+    ' the exact same value on every single reset (0+1=1, forever), which
+    ' then already matches whatever FN_ACKSEQ was left at from the previous
+    ' run. fuji_mailbox_service() sees seq==ACKSEQ and never runs again --
+    ' no new request is ever sent after the very first boot.
+    seq=peek(FN_ACKSEQ)+1
+    if seq=0 then seq=1 ' skip 0: wrapping 255->0 would look pre-acked
     poke (FN_SEQ),seq
 
-    ' Bounded wait for the reply. 600 frames = 10s at NTSC, comfortably
-    ' longer than the RP2040 side's own 5s per-transaction budget.
+    ' Bounded wait for the reply. 900 frames = 15s at NTSC -- the RP2040
+    ' side's own worst case is now up to 3s waiting for the USB link to
+    ' come up plus 5s waiting for a reply, so this needs real headroom
+    ' above 8s, not just above the old 5s transaction-only budget.
     #t=0
-    while (peek(FN_ACKSEQ)<>seq) and (#t<600)
+    while (peek(FN_ACKSEQ)<>seq) and (#t<900)
         #t=#t+1
         wait
     wend
-    if #t>=600 then
+    if #t>=900 then
         print at ROW*3,"TIMEOUT - NO FUJINET"
+        print at ROW*3+21,"ERR="
+        print at ROW*3+25,<1>peek(FN_ERR)
         goto halt
     end if
 
     if peek(FN_REPLY_CMD)<>FUJICMD_ACK then
-        print at ROW*3,"FUJINET RETURNED ERROR"
+        print at ROW*3,"FUJINET ERROR "
+        print at ROW*3+14,<1>peek(FN_ERR)
         goto halt
     end if
 

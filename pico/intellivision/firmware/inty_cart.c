@@ -1042,6 +1042,24 @@ static void fuji_mailbox_service(void)
 
     RAM[FUJI_MB_STATUS] = FUJI_MB_STATUS_BUSY;
 
+    // The Intellivision boots (and so bumps FUJI_MB_SEQ) far faster than the
+    // ESP32-S3 boots and enumerates over USB -- observed ~650ms from ESP32
+    // power-on to RS232 setup completing, vs. a couple of seconds at most
+    // for fujitest.bas to reach this point. fujibus_transact() only checks
+    // tud_cdc_connected() once and fails immediately if it's not up yet, so
+    // without this wait, the very first transaction after both power on
+    // together would almost always see FB_ENOLINK even though the ESP32
+    // would have been ready moments later -- and fuji_mailbox_service()
+    // only runs once per SEQ bump, there's no retry above this.
+    {
+        absolute_time_t link_deadline = make_timeout_time_ms(3000);
+        while (!tud_cdc_connected() && !time_reached(link_deadline))
+            tud_task();
+        RAM[FUJI_MB_LINK] = tud_cdc_connected() ? 1 : 0;
+    }
+
+    printf("fuji_mailbox_service: seq=%u link=%u\n", seq, RAM[FUJI_MB_LINK]);
+
     uint8_t device = (uint8_t)RAM[FUJI_MB_DEVICE];
     uint8_t command = (uint8_t)RAM[FUJI_MB_CMD];
     unsigned nparam = RAM[FUJI_MB_NPARAM];
@@ -1070,6 +1088,7 @@ static void fuji_mailbox_service(void)
                                        rxbuf, sizeof(rxbuf), &reply, 5000);
 
     RAM[FUJI_MB_ERR] = (uint16_t)st;
+    printf("fuji_mailbox_service: fujibus_transact returned %d (0=OK 1=ENOLINK 2=ETIMEOUT 3=EBADFRAME 4=ETOOBIG)\n", (int)st);
     if (st == FB_OK) {
         uint16_t rxlen = reply.data_len; // already bounded by rx_cap == sizeof(rxbuf)
         for (uint16_t i = 0; i < rxlen; i++)
