@@ -293,11 +293,6 @@ void systemBus::drain_echo(size_t n)
     }
 }
 
-void virtualDevice::adamnet_process(const FujiAdamPacket &packet)
-{
-    Debug_printf("adamnet_process() not implemented yet for this device: 0x%02x  type: 0x%02x\n", packet.device(), packet.type());
-}
-
 void virtualDevice::adamnet_control_status()
 {
     SYSTEM_BUS.start_time=GET_TIMESTAMP();
@@ -362,7 +357,7 @@ void systemBus::_adamnet_process_cmd()
         fnLedManager.set(eLed::LED_BUS, true);
         _activeDev = _daisyChain[tmpPacket.device()];
         _activePacket = &tmpPacket;
-        _activeDev->adamnet_process(tmpPacket);
+        _adamnet_dispatch(tmpPacket);
         // turn off AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, false);
     }
@@ -380,6 +375,33 @@ void systemBus::_adamnet_process_cmd()
         drain_echo(_tx_count);
     else
         wait_for_idle();
+}
+
+void systemBus::_adamnet_dispatch(const FujiAdamPacket &packet)
+{
+    switch (packet.type())
+    {
+    case APT::MN_STATUS:
+        _activeDev->adamnet_control_status();
+        break;
+    case APT::MN_CLR:
+        _activeDev->adamnet_control_clr();
+        break;
+    case APT::MN_RECEIVE:
+        _activeDev->adamnet_control_receive();
+        break;
+    case APT::MN_SEND:
+        _activeDev->adamnet_control_send(packet);
+        break;
+    case APT::MN_READY:
+        _activeDev->adamnet_control_ready();
+        break;
+    case APT::MN_RESET:
+        _activeDev->reset();
+        break;
+    default:
+        break;
+    }
 }
 
 #ifdef ESP_PLATFORM

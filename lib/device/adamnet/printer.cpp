@@ -104,7 +104,7 @@ void adamPrinter::adamnet_control_status()
 }
 
 #ifdef ESP_PLATFORM
-void adamPrinter::adamnet_control_send()
+void adamPrinter::adamnet_control_send(const FujiAdamPacket &packet)
 {
     PrintItem pi;
 
@@ -122,7 +122,7 @@ void adamPrinter::adamnet_control_send()
     _last_ms = fnSystem.millis();
 }
 #else
-void adamPrinter::adamnet_control_send()
+void adamPrinter::adamnet_control_send(const FujiAdamPacket &packet)
 {
     size_t len = adamnet_recv_length();
     uint8_t *pbuf = _pptr->provideBuffer();
@@ -152,24 +152,6 @@ void adamPrinter::adamnet_control_ready()
 #endif /* ESP_PLATFORM */
     else
         adamnet_response_ack();
-}
-
-void adamPrinter::adamnet_process(const FujiAdamPacket &packet)
-{
-    switch (packet.type())
-    {
-    case APT::MN_STATUS:
-        adamnet_control_status();
-        break;
-    case APT::MN_SEND:
-        adamnet_control_send();
-        break;
-    case APT::MN_READY:
-        adamnet_control_ready();
-        break;
-    default:
-        break;
-    }
 }
 
 void adamPrinter::shutdown()

@@ -237,7 +237,7 @@ void adamDisk::adamnet_control_send_block_data()
     _media->_media_last_block = 0xFFFFFFFE;
 }
 
-void adamDisk::adamnet_control_send()
+void adamDisk::adamnet_control_send(const FujiAdamPacket &packet)
 {
     uint16_t s = adamnet_recv_length();
 
@@ -287,34 +287,6 @@ void adamDisk::adamnet_response_send()
     SYSTEM_BUS.quiet_rx_for_send(true);
     adamnet_send_buffer(b, sizeof(b));
     SYSTEM_BUS.quiet_rx_for_send(false);
-}
-
-void adamDisk::adamnet_process(const FujiAdamPacket &packet)
-{
-    switch (packet.type())
-    {
-    case APT::MN_RESET:
-        reset();
-        break;
-    case APT::MN_STATUS:
-        adamnet_control_status();
-        break;
-    case APT::MN_CLR:
-        adamnet_control_clr();
-        break;
-    case APT::MN_RECEIVE:
-        adamnet_control_receive();
-        break;
-    case APT::MN_SEND:
-        adamnet_control_send();
-        break;
-    case APT::MN_READY:
-        adamnet_control_ready();
-        break;
-    default:
-        break;
-    }
-
 }
 
 #endif /* BUILD_ADAM */

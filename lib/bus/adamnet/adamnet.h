@@ -166,10 +166,12 @@ protected:
      */
     virtual void adamnet_response_nack(bool doNotWaitForIdle=false);
 
-    /**
-     * @brief acknowledge if device is ready, but not if cmd took too long.
-     */
-    virtual void adamnet_control_ready();
+    /*** The five stages of AdamNet protocol ***/
+    virtual void adamnet_control_status();      // Get device capabilities/check if online
+    virtual void adamnet_control_ready();       // Check if device is ready for command
+    virtual void adamnet_control_receive() = 0; // Tell device to queue up data
+    virtual void adamnet_control_clr();         // Send queued up data
+    virtual void adamnet_control_send(const FujiAdamPacket &packet) = 0; // Send data to device
 
     /**
      * @brief Device Number: 0-15
@@ -183,25 +185,9 @@ protected:
     virtual void shutdown() {}
 
     /**
-     * @brief process the next packet with the active device.
-     * @param b first byte of packet.
-     */
-    virtual void adamnet_process(const FujiAdamPacket &packet);
-
-    /**
      * @brief Do any tasks that can only be done when the bus is quiet
      */
     virtual void adamnet_idle();
-
-    /**
-     * @brief send current status of device
-     */
-    virtual void adamnet_control_status();
-
-    /**
-     * @brief adam says clear to send!
-     */
-    virtual void adamnet_control_clr();
 
     /**
      * @brief send status response
@@ -271,6 +257,7 @@ private:
 #ifdef ESP_PLATFORM
     void _adamnet_process_queue();
 #endif /* ESP_PLATFORM */
+    void _adamnet_dispatch(const FujiAdamPacket &packet);
 
 public:
     void setup();
