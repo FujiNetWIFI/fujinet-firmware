@@ -1191,13 +1191,16 @@ void Inty_cart_main()
   slot=1; // 2 slots per splash
 
   //  [mapping]
-  //$0000 - $0dFF = $5000
+  // 5card.cfg: $0000-$0FFF = $5000, $1000-$19F4 = $6000 -- contiguous in
+  // the .bin (word offset == cart addr - $5000 throughout), so one segment
+  // covering the whole span works instead of the two the .cfg lists.
+  //$0000 - $19F4 = $5000
   mapfrom[0]=0x0;
-  mapto[0]=0xdff;
+  mapto[0]=0x19f4;
   maprom[0]=0x5000;
   tipo[0]=0;
   page[0]=0;
-  addrto[0]=0x5dff;
+  addrto[0]=0x69f4;
   mapdelta[0]=maprom[0] - mapfrom[0];
   mapsize[0]=mapto[0] - mapfrom[0];
     
