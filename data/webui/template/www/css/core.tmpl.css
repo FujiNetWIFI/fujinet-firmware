@@ -517,6 +517,81 @@ select:focus+.focus {
     font-weight: bolder;
 }
 
+/* Clipboard */
+
+.clipboard-body,
+.clipboard-history {
+    padding: 0 0.5rem;
+}
+
+.clipboard-text {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 8rem;
+    resize: vertical;
+    font-family: Inconsolata, monospace;
+    font-size: small;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 0.25rem;
+    padding: 0.25rem;
+}
+
+.clipboard-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.settings .clipboard-actions input[type=file] {
+    width: auto;
+    flex: 1 1 10rem;
+    min-width: 0;
+    font-size: smaller;
+}
+
+.clipboard-link {
+    color: #000;
+    font-weight: bolder;
+}
+
+.clipboard-note {
+    font-size: smaller;
+    color: #666;
+    margin-top: 0.5rem;
+}
+
+.clipboard-history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.clipboard-snippet {
+    border-bottom: 1px solid #ddd;
+    padding: 0.25rem 0;
+    font-size: smaller;
+}
+
+.clipboard-snippet summary {
+    cursor: pointer;
+}
+
+.clipboard-preview {
+    font-family: Inconsolata, monospace;
+    font-size: x-small;
+    background: #f0f0f0;
+    border-radius: 0.25rem;
+    padding: 0.25rem;
+    margin: 0.25rem 0 0;
+    max-height: 8rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
 @media only screen and (min-width: 500px) {
     .radio-container .r-pr-activate {
         width: 4rem;

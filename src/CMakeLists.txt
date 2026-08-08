@@ -19,6 +19,7 @@ set(INCLUDES
     ${CMAKE_SOURCE_DIR}/lib/bus/s100spi
     ${CMAKE_SOURCE_DIR}/lib/bus/sio
 
+    ${CMAKE_SOURCE_DIR}/lib/clipboard
     ${CMAKE_SOURCE_DIR}/lib/clock
     ${CMAKE_SOURCE_DIR}/lib/compat
     ${CMAKE_SOURCE_DIR}/lib/config
@@ -98,6 +99,7 @@ FILE(GLOB_RECURSE SOURCES
     ${CMAKE_SOURCE_DIR}/lib/bus/s100spi/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/sio/*.cpp
 
+    ${CMAKE_SOURCE_DIR}/lib/clipboard/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/clock/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/compat/*.c
     ${CMAKE_SOURCE_DIR}/lib/config/*.cpp

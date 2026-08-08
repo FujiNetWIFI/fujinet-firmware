@@ -873,6 +873,256 @@
 				</div>
 			</div>
 			{% endif %}
+			{% if components.clipboard %}
+			<div class="module" {% if components.clipboard == "experimental" %}data-experimental{% endif %}>
+				<div class="settings">
+					<div class="settings-header">
+						Clip<span class="logowob"></span>board
+					</div>
+					<div class="settings-left">
+						<div class="svgicon">
+							<svg width="100%" height="100%" viewBox="0 0 128 160" version="1.1" xmlns="http://www.w3.org/2000/svg">
+								<g style="fill:none;stroke:#000;stroke-width:7;stroke-linejoin:round">
+									<path d="M40,16 L20,16 C15,16 12,19 12,24 L12,144 C12,149 15,152 20,152 L108,152 C113,152 116,149 116,144 L116,24 C116,19 113,16 108,16 L88,16" />
+									<path d="M48,8 L80,8 C83,8 84,10 84,13 L84,26 C84,29 83,31 80,31 L48,31 C45,31 44,29 44,26 L44,13 C44,10 45,8 48,8 Z" style="fill:#fff" />
+									<path d="M34,60 L94,60 M34,84 L94,84 M34,108 L72,108" style="stroke-linecap:round" />
+								</g>
+							</svg>
+						</div>
+					</div>
+					<div class="settings-content settings-45-55">
+						<div class="set-info">
+							<div class="settings-label"><label>Contents</label></div>
+							<div class="settings-value"><span id="clipboard-summary">&hellip;</span></div>
+						</div>
+						<div class="set">
+							<div class="settings-label">
+								<label for="select_clipboard_translation">
+									EOL translation
+									<div class="tooltip">&#9432;
+										<span class="tooltiptext small-text">
+											How line endings are converted between the computer
+											and the clipboard, using the same modes as the N:
+											device. Binary snippets are never translated.
+										</span>
+									</div>
+								</label>
+							</div>
+							<div class="settings-value select">
+								<select id="select_clipboard_translation" onchange="clipboardSetTranslation()">
+									<option value="0">None (binary)</option>
+									<option value="1">CR</option>
+									<option value="2">LF</option>
+									<option value="3">CR/LF</option>
+									<option value="4">PETSCII</option>
+								</select>
+							</div>
+						</div>
+						<hr>
+						<div class="clipboard-body">
+							<textarea id="clipboard-text" class="clipboard-text" spellcheck="false"
+								placeholder="The clipboard is empty. Type or paste text here, then press Replace."></textarea>
+							<div id="clipboard-binary-note" class="clipboard-note" hidden></div>
+							<div class="clipboard-actions">
+								<button type="button" onclick="clipboardReplace()">Replace</button>
+								<button type="button" onclick="clipboardRefresh()">Reload</button>
+								<a id="clipboard-download" class="clipboard-link" href="/clipboard/data?index=0" download>Download</a>
+								<button type="button" onclick="clipboardClear()">Clear</button>
+							</div>
+							<div class="clipboard-actions">
+								<input type="file" id="clipboard-file">
+								<button type="button" onclick="clipboardUpload()">Send file</button>
+							</div>
+							<div id="clipboard-status" class="clipboard-note"></div>
+						</div>
+						<hr>
+						<div class="clipboard-history">
+							<div class="clipboard-history-header">
+								<strong id="clipboard-history-title">Recent snippets</strong>
+								<button type="button" onclick="clipboardClearAll()">Forget all</button>
+							</div>
+							<div id="clipboard-history"></div>
+						</div>
+						<script>
+							function clipboardStatus(msg) {
+								document.getElementById("clipboard-status").textContent = msg || "";
+							}
+
+							function clipboardSize(bytes) {
+								return bytes < 1024 ? bytes + " bytes" : (bytes / 1024).toFixed(1) + " KB";
+							}
+
+							function clipboardWhen(created) {
+								if (!created) return "";
+								return new Date(created * 1000).toLocaleString();
+							}
+
+							function clipboardRender(state) {
+								var summary = document.getElementById("clipboard-summary");
+								var textarea = document.getElementById("clipboard-text");
+								var note = document.getElementById("clipboard-binary-note");
+								var download = document.getElementById("clipboard-download");
+
+								summary.textContent = state.size
+									? clipboardSize(state.size) + (state.binary ? " of binary data" : " of text")
+									: "empty";
+
+								document.getElementById("select_clipboard_translation").value = state.translation;
+
+								download.hidden = !state.size;
+								note.hidden = !state.binary;
+								textarea.hidden = state.binary;
+
+								if (state.binary) {
+									note.textContent = "Binary contents are shown only as a download. " +
+										"Replacing them with text or another file is still possible.";
+									textarea.value = "";
+								} else if (state.size) {
+									fetch("/clipboard/data?index=0")
+										.then(function (r) { return r.text(); })
+										.then(function (t) { textarea.value = t; });
+								} else {
+									textarea.value = "";
+								}
+
+								clipboardRenderHistory(state);
+							}
+
+							function clipboardRenderHistory(state) {
+								var container = document.getElementById("clipboard-history");
+								var title = document.getElementById("clipboard-history-title");
+
+								container.textContent = "";
+								title.textContent = "Recent snippets (" + state.history.length +
+									" of " + state.max_snippets + ")";
+
+								if (!state.history.length) {
+									var empty = document.createElement("div");
+									empty.className = "clipboard-note";
+									empty.textContent = "Nothing here yet. Whatever the clipboard held before " +
+										"it was last replaced shows up in this list.";
+									container.appendChild(empty);
+									return;
+								}
+
+								state.history.forEach(function (entry) {
+									var details = document.createElement("details");
+									details.className = "clipboard-snippet";
+
+									var summary = document.createElement("summary");
+									summary.textContent = entry.index + ". " + clipboardSize(entry.size) +
+										" from " + entry.source +
+										(entry.binary ? " (binary)" : "") +
+										(entry.name ? " - " + entry.name : "");
+									details.appendChild(summary);
+
+									var meta = document.createElement("div");
+									meta.className = "clipboard-note";
+									meta.textContent = clipboardWhen(entry.created);
+									details.appendChild(meta);
+
+									var preview = document.createElement("pre");
+									preview.className = "clipboard-preview";
+									preview.textContent = entry.preview;
+									details.appendChild(preview);
+
+									var actions = document.createElement("div");
+									actions.className = "clipboard-actions";
+
+									var restore = document.createElement("button");
+									restore.type = "button";
+									restore.textContent = "Restore";
+									restore.onclick = function () { clipboardRestore(entry.index); };
+									actions.appendChild(restore);
+
+									var link = document.createElement("a");
+									link.className = "clipboard-link";
+									link.href = "/clipboard/data?index=" + entry.index;
+									link.textContent = "Download";
+									link.setAttribute("download", "");
+									actions.appendChild(link);
+
+									details.appendChild(actions);
+									container.appendChild(details);
+								});
+							}
+
+							function clipboardPost(url, options) {
+								// The body is always set, even when empty: without a
+								// Content-Length the server answers 411.
+								return fetch(url, Object.assign({ method: "POST", body: "" }, options || {}))
+									.then(function (r) {
+										if (!r.ok) throw new Error("Request failed (" + r.status + ")");
+										return r.json();
+									})
+									.then(function (state) {
+										clipboardRender(state);
+										return state;
+									})
+									.catch(function (e) { clipboardStatus(e.message); });
+							}
+
+							function clipboardRefresh() {
+								clipboardStatus("");
+								return fetch("/clipboard")
+									.then(function (r) { return r.json(); })
+									.then(clipboardRender)
+									.catch(function (e) { clipboardStatus(e.message); });
+							}
+
+							function clipboardReplace() {
+								var text = document.getElementById("clipboard-text").value;
+								clipboardStatus("Sending...");
+								return clipboardPost("/clipboard", {
+									headers: { "Content-Type": "text/plain; charset=utf-8" },
+									body: text
+								}).then(function () { clipboardStatus("Clipboard updated."); });
+							}
+
+							function clipboardUpload() {
+								var input = document.getElementById("clipboard-file");
+								var file = input.files && input.files[0];
+								if (!file) {
+									clipboardStatus("Choose a file first.");
+									return;
+								}
+								clipboardStatus("Sending " + file.name + "...");
+								return clipboardPost("/clipboard?binary=1&name=" + encodeURIComponent(file.name), {
+									headers: { "Content-Type": "application/octet-stream" },
+									body: file
+								}).then(function () {
+									input.value = "";
+									clipboardStatus(file.name + " is on the clipboard.");
+								});
+							}
+
+							function clipboardClear() {
+								return clipboardPost("/clipboard/clear")
+									.then(function () { clipboardStatus("Clipboard cleared."); });
+							}
+
+							function clipboardClearAll() {
+								return clipboardPost("/clipboard/clear?all=1")
+									.then(function () { clipboardStatus("Clipboard and history cleared."); });
+							}
+
+							function clipboardRestore(index) {
+								return clipboardPost("/clipboard/restore?index=" + index)
+									.then(function () { clipboardStatus("Snippet restored."); });
+							}
+
+							function clipboardSetTranslation() {
+								var mode = document.getElementById("select_clipboard_translation").value;
+								return clipboardPost("/clipboard/translation?mode=" + mode)
+									.then(function () { clipboardStatus("Translation mode saved."); });
+							}
+
+							clipboardRefresh();
+						</script>
+					</div>
+				</div>
+			</div>
+			{% endif %}
 			{% if components.program_recorder %}
 			<div class="module" {% if components.program_recorder == "experimental" %}data-experimental{% endif %}>
 				<div class="settings">

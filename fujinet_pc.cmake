@@ -140,7 +140,7 @@ if(DEFINED DEBUG_NO_REBOOT)
 endif()
 
 set(INCLUDE_DIRS include
-    lib/compat lib/config lib/utils lib/hardware lib/clock
+    lib/compat lib/config lib/utils lib/hardware lib/clock lib/clipboard
     lib/FileSystem
     lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson lib/fnsgml
     lib/webdav lib/http lib/sam lib/task
@@ -183,6 +183,7 @@ set(SOURCES src/main.cpp
     lib/config/fnc_wifi.cpp
     include/debug.h
     lib/clock/Clock.h lib/clock/Clock.cpp
+    lib/clipboard/clipboardManager.h lib/clipboard/clipboardManager.cpp
     lib/utils/utils.h lib/utils/utils.cpp
     lib/utils/cbuf.h lib/utils/cbuf.cpp
     lib/utils/string_utils.h lib/utils/string_utils.cpp
@@ -297,6 +298,7 @@ set(SOURCES src/main.cpp
     lib/device/fujiDevice/fujiDevice.h lib/device/fujiDevice/fujiDevice.cpp
     lib/device/fujiDevice/FujiDeviceMixin.h
     lib/device/fujiDevice/Base64Mixin.h lib/device/fujiDevice/Base64Mixin.cpp
+    lib/device/fujiDevice/ClipboardMixin.h lib/device/fujiDevice/ClipboardMixin.cpp
     lib/device/fujiDevice/HashMixin.h lib/device/fujiDevice/HashMixin.cpp
     lib/device/fujiDevice/QRMixin.h lib/device/fujiDevice/QRMixin.cpp
     lib/device/network.h

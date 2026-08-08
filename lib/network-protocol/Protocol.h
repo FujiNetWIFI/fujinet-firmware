@@ -35,6 +35,27 @@ enum netProtoTranslation_t {
 #define STR_ASCII_CRLF  "\x0d\x0a"
 #define STR_ATASCII_EOL "\x9b"
 
+/**
+ * @brief Translate a buffer coming from FujiNet towards the computer.
+ * Folds the network side line ending (and any control codes that differ on
+ * the computer) into the computer's native representation.
+ * @param buf buffer to translate in place
+ * @param mode translation mode
+ * @param native_eol the computer's native end of line sequence
+ */
+void netproto_translate_to_computer(std::string &buf, netProtoTranslation_t mode,
+                                    const std::string &native_eol);
+
+/**
+ * @brief Translate a buffer coming from the computer towards FujiNet.
+ * The inverse of netproto_translate_to_computer().
+ * @param buf buffer to translate in place
+ * @param mode translation mode
+ * @param native_eol the computer's native end of line sequence
+ */
+void netproto_translate_from_computer(std::string &buf, netProtoTranslation_t mode,
+                                      const std::string &native_eol);
+
 class NetworkProtocol
 {
 public:
