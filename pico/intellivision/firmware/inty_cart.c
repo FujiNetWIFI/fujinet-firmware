@@ -1657,34 +1657,60 @@ void Inty_cart_main()
   HACK_CODE[i]=0;
  }
 
-  slot=1; // 2 slots per splash
+  slot=2; // 3 slots per splash
 
-  //  [mapping]
-  // 5card.cfg: $0000-$0FFF = $5000, $1000-$19F4 = $6000 -- contiguous in
-  // the .bin (word offset == cart addr - $5000 throughout), so one segment
-  // covering the whole span works instead of the two the .cfg lists.
-  //$0000 - $19F4 = $5000
+  //  [mapping] (fujinet-config/intv/config.cfg)
+  // $0000-$0FFF = $5000, $1000-$1B14 = $6000 -- contiguous in the .bin
+  // (word offset == cart addr - $5000 throughout that span), so one
+  // segment covers both .cfg lines, same as the old 5cardstud layout did.
+  //$0000 - $1B14 = $5000
   mapfrom[0]=0x0;
-  mapto[0]=0x19f4;
+  mapto[0]=0x1b14;
   maprom[0]=0x5000;
   tipo[0]=0;
   page[0]=0;
-  addrto[0]=0x69f4;
+  addrto[0]=0x6b14;
   mapdelta[0]=maprom[0] - mapfrom[0];
   mapsize[0]=mapto[0] - mapfrom[0];
-    
- //[memattr]
- //$8000 - $9FFF = RAM 16
-  RAMused=1;
-  ramfrom=0x8000;
-  mapfrom[1]=0x8000;
-  mapto[1]=0x9fff;
-  maprom[1]=0x8000;
-  tipo[1]=2;
+
+  // config.bas's st_boot.bas pushed the compiled size past the first
+  // $5000-$6FFF segment, so config.bas gives it an explicit second ASM ORG
+  // segment (see config.bas's comment) -- config.cfg's third [mapping]
+  // line, a separate non-contiguous ROM segment.
+  //$1B15 - $2058 = $D000
+  mapfrom[1]=0x1b15;
+  mapto[1]=0x2058;
+  maprom[1]=0xd000;
+  tipo[1]=0;
   page[1]=0;
-  addrto[1]=0x9fff;
+  addrto[1]=0xd543;
   mapdelta[1]=maprom[1] - mapfrom[1];
   mapsize[1]=mapto[1] - mapfrom[1];
+
+ //[memattr]
+ //$8000 - $9FFF = RAM 16
+ // On real hardware there is no separate mailbox device -- core1_main()'s
+ // BAR/ADAR/DWS bus decode ONLY responds to an address if it falls inside
+ // one of these mapped segments (see the mapfrom/maprom/mapsize loop a
+ // few hundred lines below); fuji_mailbox_service() is a pure software
+ // read/write against the shared RAM[] array with no bus-decode awareness
+ // of its own. So the mailbox window ($9800-$9FFF, FUJI_MB_BASE) MUST be
+ // included in this segment or the Inty-side CPU can never see it on the
+ // physical bus at all -- config.cfg's own MEMATTR only declaring RAM
+ // through $97FF is a compile-time/jzIntv-emulation detail (jzIntv models
+ // the mailbox as a separate peripheral object, so its .cfg-driven RAM
+ // device must stop short to avoid conflicting with it) and does not
+ // apply to this real-hardware static segment table.
+  RAMused=1;
+  ramfrom=0x8000;
+  mapfrom[2]=0x8000;
+  mapto[2]=0x9fff;
+  maprom[2]=0x8000;
+  tipo[2]=2;
+  page[2]=0;
+  addrto[2]=0x9fff;
+  mapdelta[2]=maprom[2] - mapfrom[2];
+  mapsize[2]=mapto[2] - mapfrom[2];
   
   //sleep_ms(200);
   //resetCart();
