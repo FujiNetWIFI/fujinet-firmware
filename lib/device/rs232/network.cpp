@@ -936,6 +936,7 @@ success_is_true rs232Network::instantiate_protocol()
 void rs232Network::create_devicespec(fileAccessMode_t access)
 {
     // Get Devicespec from buffer, and put into primary devicespec string
+    memset(devicespecBuf, 0, sizeof(devicespecBuf));
     SYSTEM_BUS.transaction_get(devicespecBuf, sizeof(devicespecBuf));
     util_devicespec_fix_9b(devicespecBuf, sizeof(devicespecBuf));
     deviceSpec = string((char *)devicespecBuf);
