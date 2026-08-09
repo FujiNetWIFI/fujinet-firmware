@@ -1146,10 +1146,10 @@ static void dbc_send_frame(uint8_t command)
 
 // segment_hits_mailbox: true if the console-visible range [from, from+len]
 // (inclusive) overlaps the $8000-$9FFF mailbox/RAM window. Applied to
-// every segment before a mapping is committed -- a game that wants that
-// window is not bootable this way (and the mailbox is dead after boot
-// regardless, so there is nothing to gain by allowing it to fight the
-// menu's own RAM slot).
+// every segment before a mapping is committed -- a game ROM segment can't
+// be mapped on top of that window, since apply_boot_mapping() always
+// re-reserves it as a RAM segment (same as the boot menu's own mapfrom[2])
+// so a loaded game can still reach fuji_mailbox_service() post-boot.
 static bool segment_hits_mailbox(unsigned int from, unsigned int len)
 {
     unsigned int to = from + len;
@@ -1382,6 +1382,27 @@ static bool apply_boot_mapping(void)
         mapsize[slot] = mapto[slot] - mapfrom[slot];
         slot++;
     }
+
+    // Re-establish the mailbox/RAM window ($8000-$9FFF) as its own segment,
+    // same as the static boot-menu table (Inty_cart_main()'s mapfrom[2])
+    // does. segment_hits_mailbox() already rejected any game ROM segment
+    // that overlaps this range, so it's always free here. Without this, a
+    // loaded game has no RAM segment at all covering $8000-$9FFF -- the
+    // window is unreachable on the physical bus post-boot, so a game that
+    // (like 5card) wants to talk to fuji_mailbox_service() after loading
+    // can never see the 'F'/'N' magic bytes.
+    mapfrom[slot] = 0x8000;
+    mapto[slot] = 0x9fff;
+    maprom[slot] = 0x8000;
+    tipo[slot] = 2; // RAM
+    page[slot] = 0;
+    addrto[slot] = maprom[slot] + (mapto[slot] - mapfrom[slot]);
+    mapdelta[slot] = maprom[slot] - mapfrom[slot];
+    mapsize[slot] = mapto[slot] - mapfrom[slot];
+    slot++;
+    RAMused = 1;
+    ramfrom = 0x8000;
+
     slot--; // core1_main() walks 0..slot inclusive, matching load_cfg()'s own convention
     hacks = 0;
 
@@ -1457,12 +1478,24 @@ static bool dbc_inbound_handler(const fb_reply_t *req)
                 fuji_wait_ms_pumped(200);
                 resetCart();
                 memset(RAM, 0, sizeof(RAM));
-                while (1) {
-                    gpio_put(LED_PIN, true);
-                    sleep_ms(2000);
-                    gpio_put(LED_PIN, false);
-                    sleep_ms(2000);
-                }
+                // The memset above wipes the mailbox header cells this same
+                // window holds ($9800-$9802, re-mapped in as RAM by
+                // apply_boot_mapping() above) along with the rest of RAM --
+                // restore them so a mailbox-aware game (e.g. 5card) can
+                // still find its 'F'/'N' magic once it starts running.
+                RAM[FUJI_MB_MAGIC0] = 'F';
+                RAM[FUJI_MB_MAGIC1] = 'N';
+                RAM[FUJI_MB_PROTO_VER] = 1;
+                // Return (frame consumed) instead of halting here: the real
+                // MOUNT_IMAGE reply still hasn't arrived from the ESP32, so
+                // fujibus_transact()'s wait loop needs control back to keep
+                // reading -- and once that completes, Inty_cart_main()'s own
+                // while(1) resumes, which is what keeps tud_task() and
+                // fuji_mailbox_service() alive for the loaded game to use.
+                // (A plain ROM that never bumps FUJI_MB_SEQ again just never
+                // exercises that path -- no different from before.)
+                RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_IDLE;
+                return true;
             }
             // apply_boot_mapping() already set FUJI_MB_BOOT_ERR to a
             // specific reason code. NAK (not ACK) so push_stream() on the
