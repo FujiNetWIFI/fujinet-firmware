@@ -6,6 +6,8 @@
 #include "bus.h"
 #include "../media/media.h"
 
+class fujiHost;
+
 class iwmDisk : public virtualDevice
 {
 private:
@@ -43,7 +45,8 @@ public:
     iwmDisk();
     mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize,
                       disk_access_flags_t access_mode,
-                      mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+                      mediatype_t disk_type = MEDIATYPE_UNKNOWN,
+                      fujiHost *host = nullptr);
     virtual mediatype_t mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_type);
     void unmount();
     error_is_true write_blank(fnFile *f, uint16_t numBlocks, uint8_t blank_header_type);

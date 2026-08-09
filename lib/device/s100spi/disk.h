@@ -10,6 +10,8 @@
 #define STATUS_NO_MEDIA  3
 #define STATUS_NO_DRIVE  4
 
+class fujiHost;
+
 class s100spiDisk : public virtualDevice
 {
 private:
@@ -33,7 +35,8 @@ public:
     s100spiDisk();
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize,
                       disk_access_flags_t access_mode,
-                      mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+                      mediatype_t disk_type = MEDIATYPE_UNKNOWN,
+                      fujiHost *host = nullptr);
     void unmount();
     bool write_blank(FILE *f, uint32_t numBlocks);
     virtual void reset();

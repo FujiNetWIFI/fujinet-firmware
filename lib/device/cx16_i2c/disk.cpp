@@ -59,7 +59,7 @@ void cx16Disk::sio_format()
    Return value is MEDIATYPE_UNKNOWN in case of failure.
 */
 mediatype_t cx16Disk::mount(FILE *f, const char *filename, uint32_t disksize,
-                            disk_access_flags_t access_mode, mediatype_t disk_type)
+                            disk_access_flags_t access_mode, mediatype_t disk_type, fujiHost *host)
 {
     return MEDIATYPE_UNKNOWN;
 }

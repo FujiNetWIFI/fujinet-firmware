@@ -241,7 +241,7 @@ iwmDisk::iwmDisk()
 }
 
 mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
-                           disk_access_flags_t access_mode, mediatype_t disk_type)
+                           disk_access_flags_t access_mode, mediatype_t disk_type, fujiHost *host)
 {
   Debug_printf("disk MOUNT %s\n", filename);
 

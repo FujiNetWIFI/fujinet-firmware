@@ -4,6 +4,8 @@
 #include "bus.h"
 #include "media.h"
 
+class fujiHost;
+
 class cx16Disk : public virtualDevice
 {
 private:
@@ -19,7 +21,8 @@ public:
     cx16Disk();
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize,
                       disk_access_flags_t access_mode,
-                      mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+                      mediatype_t disk_type = MEDIATYPE_UNKNOWN,
+                      fujiHost *host = nullptr);
     void unmount();
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
 

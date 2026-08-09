@@ -10,6 +10,8 @@
 #define STATUS_NO_MEDIA  3
 #define STATUS_NO_DRIVE  4
 
+class fujiHost;
+
 class H89Disk : public virtualDevice
 {
 private:
@@ -21,7 +23,8 @@ public:
 
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize,
                       disk_access_flags_t access_mode,
-                      mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+                      mediatype_t disk_type = MEDIATYPE_UNKNOWN,
+                      fujiHost *host = nullptr);
     void unmount();
 
     bool device_active = false;

@@ -517,16 +517,15 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
     // We need the file size for loading XEX files and for CASSETTE, so get that too
     disk.disk_size = host.file_size(disk.fileh);
     DISK_DEVICE *disk_dev = get_disk_dev(deviceSlot);
-#ifdef BUILD_RS232
-    // rs232Disk::mount() takes an extra `host` argument so MediaTypeROM can
-    // open a same-named .cfg sibling through the same host the ROM itself
-    // came from -- see lib/media/rs232/diskTypeROM.cpp. Every other
-    // DISK_DEVICE::mount() keeps its original signature.
+    // Every DISK_DEVICE::mount() takes an optional trailing `host` argument
+    // (default nullptr, ignored by all but rs232Disk) so this call site
+    // stays uniform across platforms -- no BUILD_* branching here, per this
+    // directory's rule (enforced by tests/check_no_build_ifdefs.py).
+    // rs232Disk's MediaTypeROM uses it to open a same-named .cfg sibling
+    // through the same host the ROM itself came from; see
+    // lib/media/rs232/diskTypeROM.cpp.
     disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size, access_mode,
                                      MEDIATYPE_UNKNOWN, &host);
-#else
-    disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size, access_mode);
-#endif
     disk_dev->is_config_device = false;
 
     RETURN_SUCCESS_AS_TRUE();

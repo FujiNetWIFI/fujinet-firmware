@@ -45,7 +45,7 @@ void adamDisk::reset()
 }
 
 mediatype_t adamDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
-                            disk_access_flags_t access_mode, mediatype_t disk_type)
+                            disk_access_flags_t access_mode, mediatype_t disk_type, fujiHost *host)
 {
     mediatype_t mt = MEDIATYPE_UNKNOWN;
 

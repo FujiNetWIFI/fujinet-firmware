@@ -16,6 +16,8 @@ typedef enum
 #define BLOCK_COMPRESS_CUTOFF   950
 
 
+class fujiHost;
+
 class lynxDisk : public virtualDevice
 {
 private:
@@ -31,7 +33,8 @@ public:
     lynxDisk();
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize,
                       disk_access_flags_t access_mode,
-                      mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+                      mediatype_t disk_type = MEDIATYPE_UNKNOWN,
+                      fujiHost *host = nullptr);
     void unmount();
     error_is_true write_blank(FILE *f, uint32_t numBlocks);
     virtual void reset() override;

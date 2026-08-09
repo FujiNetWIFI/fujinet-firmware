@@ -221,7 +221,7 @@ void sioDisk::sio_write_percom_block()
    Return value is MEDIATYPE_UNKNOWN in case of failure.
 */
 mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
-                           disk_access_flags_t access_mode, mediatype_t disk_type)
+                           disk_access_flags_t access_mode, mediatype_t disk_type, fujiHost *host)
 {
     // TAPE or CASSETTE: use this function to send file info to cassette device
     //  MediaType::discover_mediatype(filename) can detect CAS and WAV files

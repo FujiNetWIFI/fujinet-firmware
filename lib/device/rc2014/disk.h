@@ -13,6 +13,8 @@
 
 #define DISKCMD_SIZE     0x47 // G - RC2014 specific: get disk size
 
+class fujiHost;
+
 class rc2014Disk : public virtualDevice
 {
 private:
@@ -35,7 +37,8 @@ public:
     rc2014Disk();
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize,
                       disk_access_flags_t access_mode,
-                      mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+                      mediatype_t disk_type = MEDIATYPE_UNKNOWN,
+                      fujiHost *host = nullptr);
     void unmount();
     bool write_blank(FILE *f, uint32_t numBlocks);
 

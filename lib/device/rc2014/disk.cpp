@@ -163,7 +163,7 @@ void rc2014Disk::format()
 }
 
 mediatype_t rc2014Disk::mount(FILE *f, const char *filename, uint32_t disksize,
-                              disk_access_flags_t access_mode, mediatype_t disk_type)
+                              disk_access_flags_t access_mode, mediatype_t disk_type, fujiHost *host)
 {
     mediatype_t mt = MEDIATYPE_UNKNOWN;
 
