@@ -528,6 +528,12 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
                                      MEDIATYPE_UNKNOWN, &host);
     disk_dev->is_config_device = false;
 
+    // mount() returns MEDIATYPE_UNKNOWN on failure (e.g. MediaTypeROM's push
+    // to the RP2040 didn't complete) -- without this check that failure was
+    // silently swallowed and MOUNT_IMAGE ACKed as if it had succeeded.
+    if (disk.disk_type == MEDIATYPE_UNKNOWN)
+        RETURN_ERROR_AS_FALSE();
+
     RETURN_SUCCESS_AS_TRUE();
 }
 

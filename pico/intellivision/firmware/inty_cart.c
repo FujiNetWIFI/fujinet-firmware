@@ -1322,12 +1322,16 @@ static void feed_rom_byte(uint8_t b)
 // exactly as load_file() does.
 static bool apply_boot_mapping(void)
 {
-    if (rom_fmt == ROMFMT_UNKNOWN || rom_fmt == ROMFMT_REJECTED)
+    if (rom_fmt == ROMFMT_UNKNOWN || rom_fmt == ROMFMT_REJECTED) {
+        RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_REJECTED;
         return false;
+    }
 
     if (rom_fmt == ROMFMT_HDR) {
-        if (rh_seg_i != rh_nseg || boot_nsegs == 0)
+        if (rh_seg_i != rh_nseg || boot_nsegs == 0) {
+            RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_TRUNCATED;
             return false; // stream ended mid-segment or before any completed
+        }
     } else if (have_cfg && parse_cfg_mapping()) {
         // boot_* already populated by parse_cfg_mapping().
     } else {
@@ -1352,14 +1356,17 @@ static bool apply_boot_mapping(void)
             boot_mapfrom[2] = 0x3000; boot_mapto[2] = 0x3FFF; boot_maprom[2] = 0xF000;
             break;
         default:
+            RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_NOMAP;
             return false; // no mapping source at all -- refuse to guess
         }
     }
 
     for (int i = 0; i < boot_nsegs; i++) {
         unsigned int len = boot_mapto[i] - boot_mapfrom[i];
-        if (segment_hits_mailbox(boot_maprom[i], len))
+        if (segment_hits_mailbox(boot_maprom[i], len)) {
+            RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_MAILBOX;
             return false;
+        }
     }
 
     slot = 0;
@@ -1457,9 +1464,13 @@ static bool dbc_inbound_handler(const fb_reply_t *req)
                     sleep_ms(2000);
                 }
             }
+            // apply_boot_mapping() already set FUJI_MB_BOOT_ERR to a
+            // specific reason code. NAK (not ACK) so push_stream() on the
+            // ESP32 side sees the CLOSE fail and MediaTypeROM::mount()
+            // reports failure up to fujicore_mount_disk_image_success(),
+            // instead of the ESP32 believing the push succeeded.
             RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_FAILED;
-            RAM[FUJI_MB_BOOT_ERR] = 1;
-            dbc_send_frame(FUJICMD_ACK);
+            dbc_send_frame(FUJICMD_NAK);
         } else {
             dbc_send_frame(FUJICMD_ACK);
         }

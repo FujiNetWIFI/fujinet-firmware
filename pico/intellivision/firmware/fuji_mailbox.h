@@ -63,6 +63,13 @@
 #define FUJI_BOOT_MAPPING  3
 #define FUJI_BOOT_FAILED   0x80
 
+// FUJI_MB_BOOT_ERR reason codes, valid only when BOOT_STATE == FUJI_BOOT_FAILED.
+#define FUJI_BOOT_ERR_REJECTED  1 // header magic present but malformed (bad addr range)
+#define FUJI_BOOT_ERR_TRUNCATED 2 // Intellicart-header stream ended mid-segment
+#define FUJI_BOOT_ERR_NOMAP     3 // no .cfg/header, and byte count matches no known size
+#define FUJI_BOOT_ERR_MAILBOX   4 // a segment would overlap the $8000-$9FFF mailbox window
+#define FUJI_BOOT_ERR_CFGBAD    5 // a .cfg stream arrived but had no parseable mapping line
+
 #define FUJI_MB_TX         (FUJI_MB_BASE + 0x40)  // Inty: request payload
 #define FUJI_MB_TX_MAX     256
 

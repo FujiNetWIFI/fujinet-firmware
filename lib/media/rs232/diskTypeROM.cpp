@@ -13,6 +13,7 @@
 
 #include "bus.h"
 #include "compat_string.h"
+#include "fujiCommandID.h"
 
 #define ROM_PUSH_STREAM_CFG 1
 #define ROM_PUSH_STREAM_ROM 0
@@ -56,8 +57,9 @@ static bool push_stream(fnFile *f, uint16_t stream_id)
     uint8_t buf[DISK_SECTORBUF_SIZE];
 
     uint8_t open_payload = (uint8_t)stream_id;
-    if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_OPEN,
-                                std::string(1, (char)open_payload)))
+    auto reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_OPEN,
+                                        std::string(1, (char)open_payload));
+    if (!reply || reply->command() != FUJICMD_ACK)
     {
         Debug_printv("MediaTypeROM: failed to open DBC stream %u\n", stream_id);
         return false;
@@ -67,8 +69,9 @@ static bool push_stream(fnFile *f, uint16_t stream_id)
     size_t got;
     while ((got = fnio::fread(buf, 1, sizeof(buf), f)) > 0)
     {
-        if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_WRITE,
-                                    std::string((char *)buf, got)))
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_WRITE,
+                                       std::string((char *)buf, got));
+        if (!reply || reply->command() != FUJICMD_ACK)
         {
             Debug_printv("MediaTypeROM: failed to send stream %u block\n", stream_id);
             ok = false;
@@ -76,7 +79,12 @@ static bool push_stream(fnFile *f, uint16_t stream_id)
         }
     }
 
-    SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_CLOSE);
+    reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_CLOSE);
+    if (!reply || reply->command() != FUJICMD_ACK)
+    {
+        Debug_printv("MediaTypeROM: stream %u close failed/rejected\n", stream_id);
+        ok = false;
+    }
     return ok;
 }
 
