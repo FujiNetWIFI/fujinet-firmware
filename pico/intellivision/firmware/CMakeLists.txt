@@ -28,23 +28,21 @@ target_compile_definitions(fuji_intv PRIVATE
 
 target_compile_options(fuji_intv PRIVATE "-Os")
 
+# msc_disk.c/fatfs_disk.c/flash_fs.c/fatfs/ (USB-MSC ROM loading + the local
+# flash filesystem browser) were removed with the PiRTOII-Fuji board: with no
+# external RP2040 USB port, there's no way to write into that filesystem
+# anymore, and dropping it frees ~66KB of SRAM (see the SCOPE NOTE in
+# inty_cart.c). ROMs now arrive only over the network FujiBus link.
 target_sources(fuji_intv PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/main.c
     ${CMAKE_CURRENT_LIST_DIR}/inty_cart.c
     ${CMAKE_CURRENT_LIST_DIR}/fujibus.c
     ${CMAKE_CURRENT_LIST_DIR}/fujibus_usb.c
-    ${CMAKE_CURRENT_LIST_DIR}/msc_disk.c
     ${CMAKE_CURRENT_LIST_DIR}/usb_descriptors.c
-    ${CMAKE_CURRENT_LIST_DIR}/fatfs_disk.c
-    ${CMAKE_CURRENT_LIST_DIR}/flash_fs.c
-    ${CMAKE_CURRENT_LIST_DIR}/fatfs/ff.c
-    ${CMAKE_CURRENT_LIST_DIR}/fatfs/ffunicode.c
-    ${CMAKE_CURRENT_LIST_DIR}/fatfs/diskio.c
 )
 
 target_include_directories(fuji_intv PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
-    ${CMAKE_CURRENT_LIST_DIR}/fatfs
 )
 
 # Debug console goes out over UART0/GPIO28 (see myboard.h). stdio must NOT go
@@ -56,7 +54,7 @@ pico_enable_stdio_uart(fuji_intv 1)
 
 # In addition to pico_stdlib required for common PicoSDK functionality, add dependency on tinyusb_device
 # for TinyUSB device support
-target_link_libraries(fuji_intv PUBLIC pico_stdlib hardware_flash tinyusb_device pico_multicore)
+target_link_libraries(fuji_intv PUBLIC pico_stdlib tinyusb_device pico_multicore)
 
 # create map/bin/hex/uf2 file in addition to ELF.
 pico_add_extra_outputs(fuji_intv)

@@ -25,7 +25,6 @@
 #include "tusb.h"
 
 #include "inty_cart.h"
-#include "fatfs_disk.h"
 #include "fujibus_usb.h"
 
 //void cdc_task(void);
@@ -203,9 +202,7 @@ int main(void)
 // Invoked when device is mounted
 void tud_mount_cb(void)
 {
-  printf("Device mounted\n"); 
-  if (!mount_fatfs_disk())
-    create_fatfs_disk();
+  printf("Device mounted\n");
 }
 
 // Invoked when device is unmounted

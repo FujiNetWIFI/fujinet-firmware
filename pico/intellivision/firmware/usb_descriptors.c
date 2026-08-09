@@ -81,7 +81,6 @@ enum
 {
   ITF_NUM_CDC = 0,
   ITF_NUM_CDC_DATA,
-  ITF_NUM_MSC,
   ITF_NUM_TOTAL
 };
 
@@ -137,7 +136,7 @@ enum
 
 #endif
 
-#define CONFIG_TOTAL_LEN    (TUD_CONFIG_DESC_LEN + TUD_CDC_DESC_LEN + TUD_MSC_DESC_LEN)
+#define CONFIG_TOTAL_LEN    (TUD_CONFIG_DESC_LEN + TUD_CDC_DESC_LEN)
 
 // full speed configuration
 uint8_t const desc_fs_configuration[] =
@@ -147,9 +146,6 @@ uint8_t const desc_fs_configuration[] =
 
   // Interface number, string index, EP notification address and size, EP data address (out, in) and size.
   TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, 4, EPNUM_CDC_NOTIF, 8, EPNUM_CDC_OUT, EPNUM_CDC_IN, 64),
-
-  // Interface number, string index, EP Out & EP In address, EP size
-  TUD_MSC_DESCRIPTOR(ITF_NUM_MSC, 5, EPNUM_MSC_OUT, EPNUM_MSC_IN, 64),
 };
 
 #if TUD_OPT_HIGH_SPEED
@@ -163,9 +159,6 @@ uint8_t const desc_hs_configuration[] =
 
   // Interface number, string index, EP notification address and size, EP data address (out, in) and size.
   TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, 4, EPNUM_CDC_NOTIF, 8, EPNUM_CDC_OUT, EPNUM_CDC_IN, 512),
-
-  // Interface number, string index, EP Out & EP In address, EP size
-  TUD_MSC_DESCRIPTOR(ITF_NUM_MSC, 5, EPNUM_MSC_OUT, EPNUM_MSC_IN, 512),
 };
 
 // other speed configuration
@@ -244,7 +237,6 @@ char const* string_desc_arr [] =
   "SDPicoCart",                    // 2: Product
   "123456789012",                  // 3: Serials, should use chip ID
   "SDPicoCart CDC",                // 4: CDC Interface
-  "SDPicoCart MSC",                // 5: MSC Interface
 };
 
 static uint16_t _desc_str[32];

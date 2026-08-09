@@ -26,17 +26,15 @@
 #include "pico/stdlib.h"
 #include "hardware/vreg.h"
 #include "pico/divider.h"
-#include "hardware/flash.h"
 #include "hardware/sync.h"
 #include "hardware/irq.h"
 #include "hardware/clocks.h"
+#include "pico/bootrom.h"
 
 
 #include "rom.h"
 
 #include "tusb.h"
-#include "ff.h"
-#include "fatfs_disk.h"
 #include "fuji_mailbox.h"
 #include "fujibus_usb.h"
 
@@ -133,15 +131,6 @@ uint16_t RAM[RAMSIZE];
 #define maxHacks 32
 uint16_t HACK[maxHacks];
 uint16_t HACK_CODE[maxHacks];
-
-char curPath[256] = "";
-char path[256];
-unsigned char files[256*64] = {0};
-unsigned char nomefiles[32*25] = {0};
-int fileda=0,filea=0;
-volatile char cmd=0;
-char errorBuf[40];
-bool cmd_executing=false;
 
 unsigned int parallelBus2;
   
@@ -427,589 +416,14 @@ void printInty(char *temp) {
 } 
 
 ////////////////////////////////////////////////////////////////////////////////////
-typedef struct {
-	char isDir;
-	char filename[13];
-	char long_filename[32];
-	char full_path[210];
-} DIR_ENTRY;	// 256 bytes = 256 entries in 64k
-
-int num_dir_entries = 0; // how many entries in the current directory
-
-int entry_compare(const void* p1, const void* p2)
-{
-	DIR_ENTRY* e1 = (DIR_ENTRY*)p1;
-	DIR_ENTRY* e2 = (DIR_ENTRY*)p2;
-	if (e1->isDir && !e2->isDir) return -1;
-	else if (!e1->isDir && e2->isDir) return 1;
-	else return strcasecmp(e1->long_filename, e2->long_filename);
-}
-
-char *get_filename_ext(char *filename) {
-    char *dot = strrchr(filename, '.');
-    if(!dot || dot == filename) return "";
-    return dot + 1;
-}
-
-int is_valid_file(char *filename) {
-	char *ext = get_filename_ext(filename);
-	if (strcasecmp(ext, "BIN") == 0 ) 
-		return 1;
-	return 0;
-}
-
-FILINFO fno;
-char search_fname[FF_LFN_BUF + 1];
-
-// polyfill :-)
-char *stristr(const char *str, const char *strSearch) {
-    char *sors, *subs, *res = NULL;
-    if ((sors = strdup (str)) != NULL) {
-        if ((subs = strdup (strSearch)) != NULL) {
-            res = strstr (strlwr (sors), strlwr (subs));
-            if (res != NULL)
-                res = (char*)str + (res - sors);
-            free (subs);
-        }
-        free (sors);
-    }
-    return res;
-}
-
-int scan_files(char *path, char *search)
-{
-    FRESULT res;
-    DIR dir;
-    UINT i;
-
-	res = f_opendir(&dir, path);
-	if (res == FR_OK) {
-		for (;;) {
-			if (num_dir_entries == 63) break;
-			res = f_readdir(&dir, &fno);
-			if (res != FR_OK || fno.fname[0] == 0) break;
-			if (fno.fattrib & (AM_HID | AM_SYS)) continue;
-			if (fno.fattrib & AM_DIR) {
-				i = strlen(path);
-				strcat(path, "/");
-				if (fno.altname[0])	// no altname when lfn is 8.3
-					strcat(path, fno.altname);
-				else
-					strcat(path, fno.fname);
-				if (strlen(path) >= 210) continue;	// no more room for path in DIR_ENTRY
-				res = scan_files(path, search);
-				if (res != FR_OK) break;
-				path[i] = 0;
-			}
-			else if (is_valid_file(fno.fname))
-			{
-				char *match = stristr(fno.fname, search);
-				if (match) {
-					DIR_ENTRY *dst = (DIR_ENTRY *)&files[0];
-					dst += num_dir_entries;
-					// fill out a record
-					dst->isDir = (match == fno.fname) ? 1 : 0;	// use this for a "score"
-					strncpy(dst->long_filename, fno.fname, 31);
-					dst->long_filename[31] = 0;
-					// 8.3 name
-					if (fno.altname[0])
-						strcpy(dst->filename, fno.altname);
-					else {	// no altname when lfn is 8.3
-						strncpy(dst->filename, fno.fname, 12);
-						dst->filename[12] = 0;
-					}
-					// full path for search results
-					strcpy(dst->full_path, path);
-
-					num_dir_entries++;
-				}
-			}
-		}
-		f_closedir(&dir);
-	}
-	return res;
-}
-
-int search_directory(char *path, char *search) {
-	char pathBuf[256];
-	strcpy(pathBuf, path);
-	num_dir_entries = 0;
-	int i;
-	FATFS FatFs;
-	if (f_mount(&FatFs, "", 1) == FR_OK) {
-		if (scan_files(pathBuf, search) == FR_OK) {
-			// sort by score, name
-			qsort((DIR_ENTRY *)&files[0], num_dir_entries, sizeof(DIR_ENTRY), entry_compare);
-			DIR_ENTRY *dst = (DIR_ENTRY *)&files[0];
-			// re-set the pointer back to 0
-			for (i=0; i<num_dir_entries; i++)
-				dst[i].isDir = 0;
-			return 1;
-		}
-	}
-	strcpy(errorBuf, "Problem searching flash");
-	return 0;
-}
-
-int read_directory(char *path) {
-	int ret = 0;
-	num_dir_entries = 0;
-	DIR_ENTRY *dst = (DIR_ENTRY *)&files[0];
-
-    if (!fatfs_is_mounted())
-       mount_fatfs_disk();
-
-	FATFS FatFs;
-	if (f_mount(&FatFs, "", 1) == FR_OK) {
-		DIR dir;
-		if (f_opendir(&dir, path) == FR_OK) {
-			while (num_dir_entries < 64) {
-				if (f_readdir(&dir, &fno) != FR_OK || fno.fname[0] == 0)
-					break;
-				if (fno.fattrib & (AM_HID | AM_SYS))
-					continue;
-				dst->isDir = fno.fattrib & AM_DIR ? 1 : 0;
-				if (!dst->isDir)
-					if (!is_valid_file(fno.fname)) continue;
-				// copy file record to first ram block
-				// long file name
-				strncpy(dst->long_filename, fno.fname, 31);
-				dst->long_filename[31] = 0;
-				// 8.3 name
-				if (fno.altname[0])
-		            strcpy(dst->filename, fno.altname);
-				else {	// no altname when lfn is 8.3
-					strncpy(dst->filename, fno.fname, 12);
-					dst->filename[12] = 0;
-				}
-				dst->full_path[0] = 0; // path only for search results
-	            dst++;
-				num_dir_entries++;
-			}
-			f_closedir(&dir);
-		}
-		else
-			strcpy(errorBuf, "Can't read directory");
-		f_mount(0, "", 1);
-		qsort((DIR_ENTRY *)&files[0], num_dir_entries, sizeof(DIR_ENTRY), entry_compare);
-		ret = 1;
-	}
-	else
-		strcpy(errorBuf, "Can't read flash memory");
-	return ret;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////* load file in  ROM */////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////
-
-int load_file(char *filename) {
-	FATFS FatFs;
-	int car_file = 0;
-	UINT br, size = 0;
-	unsigned char byteread[2];
-	
-  //printInty("loadfile");
-  //printInty(filename);
-  if (f_mount(&FatFs, "", 1) != FR_OK) {
-		strcpy(errorBuf, "Can't read flash memory");
-    error(1);
-		return 0;
-	}
-	FIL fil;
- 
- 
-	if (f_open(&fil, filename, FA_READ) != FR_OK) {
-		strcpy(errorBuf, "Can't open file");
-    error(2);
-		goto cleanup;
-	}
-
-	
-	int bytes_to_read = 2;
-	// read the file to SRAM
- 
- //printInty("inizio");
- size=0;
- while (!(f_eof(&fil))) {
-   
-  	f_read(&fil, byteread, bytes_to_read, &br);
-    RBHi = byteread[0];
-    //f_read(&fil, dst, bytes_to_read, &br);
-    RBLo = byteread[1];
-   
-    ROM[size]= RBLo | (RBHi << 8);
-	  size++;
-   
-  }
-
-closefile:
-  romLen=size;
-  RAM[base+202]=romLen;
-  //printInty("romLen");
- 	f_close(&fil);
-
-cleanup:
-	f_mount(0, "", 1);
-
-	return br;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////* load .cfg file */////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////
-
-int load_cfg(char *filename) {
-	FATFS FatFs;
-	int car_file = 0;
-	UINT br, size = 0;
-  unsigned char byteread=0;
-  char riga[80];
-  char tmp[80];
-  int linepos;     
-
-  memset(tmp,0,sizeof(tmp));
-  int j=40;
-  int dot=0;
-  while ((filename[j]!='.')&&(j>0)) {
-    dot=j;
-    j--;
-  }
-  for (int i=0;i<j;i++) tmp[i]=filename[i];
-  tmp[j]=0;
-  
-   strcat(tmp,".cfg");
-  
-   memcpy(filename,tmp,sizeof(tmp));
-   
-	  
-  if (f_mount(&FatFs, "", 1) != FR_OK) {
-		strcpy(errorBuf, "Can't read flash memory");
-		error(8);
-    return 0;
-	}
-	FIL fil;
-  
-   
-	if (f_open(&fil, filename, FA_READ) != FR_OK) {
-		strcpy(errorBuf, "cfg not found");
-    //printInty("using 0.cfg");
-    filename="/0.cfg";  
-    if (f_open(&fil, filename, FA_READ) != FR_OK) {
-		  strcpy(errorBuf, "Can't find 0.cfg");
-      error(3);
-    }
-  } else {
-    //printInty("cfg found");
-  }
- 
-	unsigned char *dst = &byteread;
-	int bytes_to_read = 1;
-	// read the file to SRAM
-  #ifdef debug
-  int slot1=0;  // poi TOGLIERE DOPO IL DEBUG -----------------------
-  #else
-    slot=0;  // poi rimettere dopo il debug!!! ------------------------------
-  #endif
-
-  hacks=0;
-  #ifndef debug
-  RAMused=0; // poi rimettere dopo il debug!!!  --------------------------------
-  #endif
-
-  while (!(f_eof(&fil))) {
-    memset(riga,0,sizeof(riga));
-    f_gets(riga,79,&fil);
-    //printInty(riga);
-    if (riga[0]>=32) {
-      //printInty("riga0>32");
-      memset(tmp,0,sizeof(tmp));
-      memcpy(tmp,riga,9);
-  #ifdef debug
-      if (slot1==0) {
-  #else
-      if (slot==0) {
-  #endif      
-        if (!(strcmp(tmp,"[mapping]"))) {
-          memset(riga,0,sizeof(riga));
-          f_gets(riga,79,&fil);
-          //printInty(riga);
-         } else {
-          printf("[mapping] not found");
-           error(4); // 3 error [mapping] section not found
-        }
-      }
-      if (!(strcmp(tmp,"[memattr]"))) {
-        memset(riga,0,sizeof(riga));
-        f_gets(riga,79,&fil);
-        memset(tmp,0,sizeof(tmp)); 
-        memcpy(tmp,riga+1,5);
-        ramfrom=strtoul(tmp,NULL,16);
-        #ifndef debug 
-        mapfrom[slot]=ramfrom;
-        #endif
-        memset(tmp,0,sizeof(tmp));
-        memcpy(tmp,riga+9,5);
-        #ifndef debug 
-          ramto=strtoul(tmp,NULL,16);
-          mapto[slot]=ramto; 
-          maprom[slot]=ramfrom;
-          addrto[slot]=maprom[slot]+(mapto[slot]-mapfrom[slot]);
-        #else
-          ramto=strtoul(tmp,NULL,16);
-          mapto[slot1]=ramto; 
-          maprom[slot1]=ramfrom;
-          addrto[slot1]=maprom[slot1]+(mapto[slot1]-mapfrom[slot1]);
-        #endif
-        #ifndef debug
-        tipo[slot]=2; // RAM
-        RAMused=1;
-        mapdelta[slot]=maprom[slot] - mapfrom[slot]; //poi rimettere  --------------------------------
-        mapsize[slot]=mapto[slot] - mapfrom[slot];  //poi rimettere  --------------------------------
-        //printInty("slot++");
-        slot++;
-        #else
-        slot1++;
-        #endif  
-      } else {   
-        memset(tmp,0,sizeof(tmp));
-        memcpy(tmp,riga,1);
-        if (!strcmp(tmp,"p")) {
-          // [MACRO]
-          memset(tmp,0,sizeof(tmp));
-          memcpy(tmp,riga+2,4);
-          HACK[hacks]=strtoul(tmp,NULL,16);
-          memset(tmp,0,sizeof(tmp));
-          memcpy(tmp,riga+7,4);
-          HACK_CODE[hacks]=strtoul(tmp,NULL,16);
-          hacks++;
-        } else {
-          //mapping
-          linepos=strcspn(riga,"-");
-          if ((linepos>=0) && (riga[linepos]=='-')) {
-            //printInty("line>0");
-            memset(tmp,0,sizeof(tmp));
-            memcpy(tmp,riga+1,4);
-            #ifndef debu
-            mapfrom[slot]=strtoul(tmp,NULL,16);  // poi rimettere --------------------------------
-            #endif
-            if (linepos==6) {
-              memset(tmp,0,sizeof(tmp));
-              memcpy(tmp,riga+(linepos+3),4);
-              #ifndef debug
-              mapto[slot]=strtoul(tmp,NULL,16);  // poi rimettere --------------------------------
-              #endif
-              memset(tmp,0,sizeof(tmp));
-              memcpy(tmp,riga+(linepos+11),4);  
-              #ifndef debug
-              maprom[slot]=strtoul(tmp,NULL,16);  // poi rimettere --------------------------------
-              #endif
-            } else {
-              memset(tmp,0,sizeof(tmp));
-              memcpy(tmp,riga+(linepos+3),5);
-              #ifndef debug
-              mapto[slot]=strtoul(tmp,NULL,16); // poi rimettere --------------------------------
-              #endif
-              memset(tmp,0,sizeof(tmp));
-              memcpy(tmp,riga+(linepos+12),5);  
-              #ifndef debug     
-              maprom[slot]=strtoul(tmp,NULL,16);  // poi rimettere ---------------------------
-              #endif
-              }   
-            #ifndef debug
-            addrto[slot]=maprom[slot]+(mapto[slot]-mapfrom[slot]); // poi rimettere ------------------
-            #endif
-            linepos=strcspn(riga,"P");
-            if ((linepos>0)&&(riga[linepos]!=0)) {
-              #ifndef debug
-              tipo[slot]=1;   //poi rimettere -------------------------------- 
-              #endif
-              memset(tmp,0,sizeof(tmp));
-              memcpy(tmp,riga+(linepos+5),2);
-              #ifndef debug
-              page[slot]=strtoul(tmp,NULL,16); //poi rimettere  --------------------------------
-              #endif
-
-            } else {
-              #ifndef debug
-              tipo[slot]=0;  // poi rimettere -------------------------
-              #endif
-            }
-            #ifndef debug
-            slot++;
-            #else
-            slot1++;
-            #endif
-            //printInty("slot++");
-          } 
-        }
-      }
-      #ifndef debug
-      mapdelta[slot-1]=maprom[slot-1] - mapfrom[slot-1]; //poi rimettere  --------------------------------
-      mapsize[slot-1]=mapto[slot-1] - mapfrom[slot-1];  //poi rimettere  --------------------------------
-      #endif
-    }
-  }
-    slot=slot-1;
-
-closefile:
-	f_close(&fil);
-  
-cleanup:
-	f_mount(0, "", 1);
-
-	return br;
-}
-
-
-////////////////////////////////////////////////////////////////////////////////////
-//                     filelist
-////////////////////////////////////////////////////////////////////////////////////
-
-void filelist(DIR_ENTRY* en,int da, int a)
-{
-  char longfilename[32];
-  char tmp[32];
-
-  int base=0x17f;
-  for(int i=0;i<20*20;i++) RAM[base+i*2]=0;
-    for(int n = 0;n<(a-da);n++) {
-		memset(longfilename,0,32);
-	
-	 	if (en[n+da].isDir) {
-			//strcpy(longfilename,"DIR->");
-			RAM[0x1000+n]=1;
-			strcat(longfilename, en[n+da].long_filename);
-	 	} else {
-			RAM[0x1000+n]=0;
-			strcpy(longfilename, en[n+da].long_filename);
-      /// rimuovo il .bin
-      memset(tmp,0,sizeof(tmp));
-      int j=32;
-      int dot=0;
-      while ((longfilename[j]!='.')&&(j>0)) {
-      dot=j;
-      j--;
-      }
-      for (int i=0;i<j;i++) tmp[i]=longfilename[i];
-      tmp[j]=0;      
-      memcpy(longfilename,tmp,sizeof(tmp));
-	 	}
-  
-	 	for(int i=0;i<20;i++) {
-      		RAM[base+i*2+(n*40)]=longfilename[i];
-	  		if ((RAM[base+i*2+(n*40)])<=20) RAM[base+i*2+(n*40)]=32;
-     	}
-		strcpy((char*)&nomefiles[40*n], longfilename);
-	}
-	RAM[0x1030]=da;RAM[0x1031]=a;RAM[0x1032]=num_dir_entries;
-  }
-
-////////////////////////////////////////////////////////////////////////////////////
-//                     IntyMenu
-////////////////////////////////////////////////////////////////////////////////////
-void IntyMenu(int tipo) { // 1=start,2=next page, 3=prev page, 4=dir up
-  int numfile=0;
-  int maxfile=0;
-  int ret=0;
-  int rootpos[255];
-  int lastpos;
-  	
-  switch (tipo) {
-    case 1:
-    /////////////////// TIPO 1 /////////////////// 
-      ret = read_directory(curPath);
-		  if (!(ret)) error(1);
-		  maxfile=10;
-		  fileda=0;
-		  if (maxfile>num_dir_entries) maxfile=num_dir_entries;
-		  filea=fileda+maxfile;
-		  filelist((DIR_ENTRY *)&files[0],fileda,filea);
-		  //sleep_ms(1400);
-      break;
-    case 2:
-    /////////////////// TIPO 2 /////////////////// 
-   	  if (filea<num_dir_entries) {
-        maxfile=10;
-		    if ((filea+maxfile)>num_dir_entries) maxfile=num_dir_entries-filea;
-   	    fileda=filea;
-		    filea=fileda+maxfile;
-    		filelist((DIR_ENTRY *)&files[0],fileda,filea); 
-      }
-      break;
-    case 3:    
-    /////////////////// TIPO 3 /////////////////// 
-   	  if (fileda>=10) {
-  	    fileda=fileda-10;
-		    filea=fileda+10;
-		    filelist((DIR_ENTRY *)&files[0],fileda,filea);	
-	    }
-    break;
-  }
-   
-
-}
-////////////////////////////////////////////////////////////////////////////////////
-//                     Directory Up
-////////////////////////////////////////////////////////////////////////////////////
-void DirUp() {
-	int len = strlen(curPath);
-	if (len>0) {
-		while (len && curPath[--len] != '/');
-		curPath[len] = 0;
-	}
-}
-////////////////////////////////////////////////////////////////////////////////////
-//                     LOAD Game
-////////////////////////////////////////////////////////////////////////////////////
+// The local flash/FatFs ROM browser (directory scan, IntyMenu, LoadGame,
+// load_file()/load_cfg() reading from the RP2040's internal flash filesystem)
+// was removed along with flash_fs/fatfs_disk/msc_disk -- see HARDWARE.md in
+// PiRTOII-Fuji and the design plan. ROMs now arrive only over the network
+// FujiBus link (dbc_inbound_handler() / feed_rom_byte() below), which was
+// always a separate, independent implementation from this removed code.
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
-void LoadGame(){ 
-  int numfile=0;
-  int numErr=0;
-  char longfilename[32];
-  char firstbyte=0x0;
-
-   numfile=RAM[0x899]+fileda-1;
-   //numfile=3;  //poivia
-   
-   DIR_ENTRY *entry = (DIR_ENTRY *)&files[0];
-   strcpy(longfilename,entry[numfile].long_filename);
-  
-  if (entry[numfile].isDir)
-	{	// directory
-    strcat(curPath, "/");
-		strcat(curPath, entry[numfile].filename);
-		IntyMenu(1);
-	} else {
-		memset(path,0,sizeof(path));
-		strcat(path,curPath);
-		strcat(path, "/");
-		strcat(path,longfilename);
-  
-    char savepath[256];
-    memcpy(savepath,path,sizeof(path)); // preserve path
-  	load_cfg(path);
-    
-    
-    load_file(savepath);  // load rom in files[]
-    
-    
-  gpio_put(LED_PIN,false);
-   	
-    sleep_ms(200);
-    resetCart(); // inizia con il gioco!
-    sleep_ms(200);
-    resetCart(); // inizia con il gioco!
-    memset(RAM,0,sizeof(RAM));
-    while(1) {
-        gpio_put(LED_PIN,true);
-        sleep_ms(2000);
-        gpio_put(LED_PIN,false);
-        sleep_ms(2000);
-    }
-  }
-}
 ////////////////////////////////////////////////////////////////////////////////////
 //                     FujiNet mailbox
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1526,6 +940,15 @@ static void fuji_mailbox_service(void)
     static uint8_t rxbuf[FUJI_MB_RX_MAX];
     static uint8_t txbuf[FUJI_MB_TX_MAX];
 
+    // BOOTSEL doorbell -- see fuji_mailbox.h. Checked every call, independent
+    // of the SEQ/ACKSEQ interlock below. reset_usb_boot() is noreturn: it
+    // reboots straight into BOOTSEL/PICOBOOT over the same internal USB link
+    // the ESP32-S3 already uses, so the cart hangs (from the Inty's point of
+    // view) until either reflashed or power-cycled -- expected for a
+    // deliberate "go flash me" request.
+    if ((uint8_t)RAM[FUJI_MB_BOOTSEL_DOORBELL] == FUJI_MB_BOOTSEL_MAGIC)
+        reset_usb_boot(1u << LED_PIN, 0);
+
     RAM[FUJI_MB_LINK] = tud_cdc_connected() ? 1 : 0;
 
     uint8_t seq = (uint8_t)RAM[FUJI_MB_SEQ];
@@ -1751,71 +1174,19 @@ void Inty_cart_main()
   resetCart();
   fuji_wait_ms_pumped(1200);
 
-  RAM[0x889]=0;
-  IntyMenu(1);
-	RAM[0x119]=1;
-  fuji_wait_ms_pumped(800);
-	 	 
-  RAM[0x119]=123;
-   gpio_put(LED_PIN,true);
-  
-  // Initial conditions 
-  curPath[0]=0;
-  IntyMenu(1);
+  // The legacy PiRTO II menu protocol (RAM[0x889] cmd / RAM[0x119] ack,
+  // IntyMenu()/LoadGame()/DirUp() driving the local flash browser) was
+  // removed along with flash_fs/fatfs -- see the removal note above. The
+  // FujiNet mailbox (fuji_mailbox_service(), $9800-$9FFF) is the only
+  // command channel now; core0's job past this point is just to keep
+  // pumping it and the USB device stack.
+  gpio_put(LED_PIN,true);
 
-  printf("START %u\n",cmd);
-  
+  printf("START\n");
+
   while (1) {
      tud_task();
      fuji_mailbox_service();
-
-     cmd_executing=false;
-     cmd=RAM[0x889];
-     RAM[0x119]=0;
-
-     if ((cmd>0)&&!(cmd_executing)) {
-
-       printf("%u\n",cmd);
-
-      switch (cmd) {
-      case 1:  // read file list
-        cmd_executing=true;
-        RAM[0x889]=0;
-    	  IntyMenu(1);
-	 	    RAM[0x119]=1;
-      	fuji_wait_ms_pumped(800);
-      	break;
-      case 2:  // run file list
-        cmd_executing=true;
-    	  RAM[0x889]=0;
-	 	    LoadGame();
-		    RAM[0x119]=1;
-      	fuji_wait_ms_pumped(800);
-      	break;
-      case 3:  // next page
-	      cmd_executing=true;
-        RAM[0x889]=0;
-        IntyMenu(2);
-		    RAM[0x119]=1;
-        fuji_wait_ms_pumped(800);
-      	break;
-      case 4:  // prev page
-        cmd_executing=true;
-        RAM[0x889]=0;
-     	  IntyMenu(3);
-		    RAM[0x119]=1;
-        fuji_wait_ms_pumped(800);
-	 	    break;
-	    case 5:  // up dir
-        cmd_executing=true;
-        RAM[0x889]=0;
-     	  DirUp();
-		    IntyMenu(1);
-		    RAM[0x119]=1;
-        fuji_wait_ms_pumped(800);
-	 	    break;
-    }
-   }
   }
 }
  	

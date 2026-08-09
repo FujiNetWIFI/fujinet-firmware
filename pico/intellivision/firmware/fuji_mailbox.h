@@ -57,6 +57,17 @@
 #define FUJI_MB_BOOT_PCT   (FUJI_MB_BASE + 0x19) // RP2040: 0-100
 #define FUJI_MB_BOOT_ERR   (FUJI_MB_BASE + 0x1A) // RP2040: reason FUJI_BOOT_FAILED, if it is
 
+// BOOTSEL doorbell: on the single-USB-port board (no external RP2040 flash
+// port), this is how the console side asks the RP2040 to reboot into
+// BOOTSEL/PICOBOOT mode over the internal USB link to the ESP32-S3, which
+// then reflashes it. Independent of the SEQ/ACKSEQ transaction interlock
+// above -- write the exact magic byte to ring the doorbell; anything else
+// is ignored, so a stray write elsewhere in the mailbox can't accidentally
+// reboot the cart mid-game. Serviced by fuji_mailbox_service(); the RP2040
+// does not return from this, so there is no ack to poll for.
+#define FUJI_MB_BOOTSEL_DOORBELL  (FUJI_MB_BASE + 0x1B) // Inty: write FUJI_MB_BOOTSEL_MAGIC to request BOOTSEL
+#define FUJI_MB_BOOTSEL_MAGIC     0xB5
+
 #define FUJI_BOOT_IDLE     0
 #define FUJI_BOOT_OPENING  1
 #define FUJI_BOOT_XFER     2

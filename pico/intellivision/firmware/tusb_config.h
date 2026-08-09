@@ -97,8 +97,14 @@
 #endif
 
 //------------- CLASS -------------//
+// MSC was removed (PiRTOII-Fuji board has no external RP2040 USB port for
+// UF2/drag-and-drop flashing -- see main.c/HARDWARE.md; the RP2040 is
+// reflashed over its internal USB link to the ESP32-S3 via PICOBOOT
+// instead). This drops the RP2040's USB PID from 0x4003 to 0x4001 via the
+// _PID_MAP() macro in usb_descriptors.c -- desirable, since that file's own
+// comment warns against reusing a VID/PID across different interface sets.
 #define CFG_TUD_CDC              1
-#define CFG_TUD_MSC              1
+#define CFG_TUD_MSC              0
 #define CFG_TUD_HID              0
 #define CFG_TUD_MIDI             0
 #define CFG_TUD_VENDOR           0
@@ -110,9 +116,6 @@
 
 // CDC Endpoint transfer buffer size, more is faster
 #define CFG_TUD_CDC_EP_BUFSIZE   (TUD_OPT_HIGH_SPEED ? 512 : 64)
-
-// MSC Buffer size of Device Mass storage
-#define CFG_TUD_MSC_EP_BUFSIZE   512
 
 #ifdef __cplusplus
  }

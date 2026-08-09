@@ -23,6 +23,12 @@
     CONST FN_ERR=$980B
     CONST FN_RX=$9940
 
+    ' Not exercised by this demo -- poke FN_BOOTSEL_MAGIC here to ask the
+    ' RP2040 to reboot into BOOTSEL/PICOBOOT over its internal USB link to
+    ' the ESP32-S3 (single-USB-port board; see HARDWARE.md in PiRTOII-Fuji).
+    CONST FN_BOOTSEL_DOORBELL=$981B
+    CONST FN_BOOTSEL_MAGIC=$B5
+
     CONST FUJI_DEVICEID_FUJINET=$70
     CONST FUJICMD_GET_ADAPTERCONFIG_EXTENDED=$C4
     CONST FUJICMD_ACK=$06
