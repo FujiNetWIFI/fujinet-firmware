@@ -520,6 +520,12 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
     disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size, access_mode);
     disk_dev->is_config_device = false;
 
+    // mount() returns MEDIATYPE_UNKNOWN on failure -- without this check that
+    // failure was silently swallowed and MOUNT_IMAGE ACKed as if it had
+    // succeeded.
+    if (disk.disk_type == MEDIATYPE_UNKNOWN)
+        RETURN_ERROR_AS_FALSE();
+
     RETURN_SUCCESS_AS_TRUE();
 }
 
