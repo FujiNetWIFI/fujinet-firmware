@@ -3,7 +3,6 @@
 
 #include "fnConfig.h"
 #include "Base64Mixin.h"
-#include "ClipboardMixin.h"
 #include "HashMixin.h"
 #include "QRMixin.h"
 
@@ -157,7 +156,7 @@ class FujiDeviceChain : public FujiDeviceMixins...
 
 class fujiDevice : public virtual virtualDevice, public VDevMigrationWrapper
 #ifdef FUJI_MIXINS_ENABLED
-                 , public FujiDeviceChain<Base64Mixin, ClipboardMixin, HashMixin, QRMixin>
+                 , public FujiDeviceChain<Base64Mixin, HashMixin, QRMixin>
 #endif // FUJI_MIXINS_ENABLED
 {
 private:

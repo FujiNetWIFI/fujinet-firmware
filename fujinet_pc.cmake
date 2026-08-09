@@ -262,6 +262,7 @@ set(SOURCES src/main.cpp
     lib/network-protocol/networkStatus.h lib/network-protocol/status_error_codes.h
     lib/network-protocol/Protocol.h lib/network-protocol/Protocol.cpp
     lib/network-protocol/ProtocolParser.h lib/network-protocol/ProtocolParser.cpp
+    lib/network-protocol/CLIPBOARD.h lib/network-protocol/CLIPBOARD.cpp
     lib/network-protocol/CPM.h lib/network-protocol/CPM.cpp
     lib/network-protocol/GDRIVE.h lib/network-protocol/GDRIVE.cpp
     lib/network-protocol/ONEDRIVE.h lib/network-protocol/ONEDRIVE.cpp
@@ -298,7 +299,6 @@ set(SOURCES src/main.cpp
     lib/device/fujiDevice/fujiDevice.h lib/device/fujiDevice/fujiDevice.cpp
     lib/device/fujiDevice/FujiDeviceMixin.h
     lib/device/fujiDevice/Base64Mixin.h lib/device/fujiDevice/Base64Mixin.cpp
-    lib/device/fujiDevice/ClipboardMixin.h lib/device/fujiDevice/ClipboardMixin.cpp
     lib/device/fujiDevice/HashMixin.h lib/device/fujiDevice/HashMixin.cpp
     lib/device/fujiDevice/QRMixin.h lib/device/fujiDevice/QRMixin.cpp
     lib/device/network.h

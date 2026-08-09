@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include "CLIPBOARD.h"
 #include "CPM.h"
 #include "GDRIVE.h"
 #include "GMAIL.h"
@@ -36,6 +37,9 @@ std::unique_ptr<NetworkProtocol> ProtocolParser::createProtocol(std::string sche
 
     switch (hash_djb2a(scheme))
     {
+    case "CLIPBOARD"_sh:
+        protocol = std::make_unique<NetworkProtocolClipboard>(receiveBuffer, transmitBuffer, specialBuffer);
+        break;
     case "CPM"_sh:
         protocol = std::make_unique<NetworkProtocolCPM>(receiveBuffer, transmitBuffer, specialBuffer);
         break;

@@ -3,21 +3,18 @@
  *
  * Holds a single "current" clipboard entry plus a short history of the
  * snippets that preceded it. Content can be placed on the clipboard by the
- * attached computer (over the bus, via the Fuji device clipboard commands) or
+ * attached computer (over the bus, via the CLIPBOARD: network protocol) or
  * from the web interface, and read back by either side.
  *
- * Text is stored in its host-side representation: the line endings the
- * computer uses are folded to the ones selected by the translation mode on the
- * way in, and expanded back again on the way out. This is the same model the
- * Network device uses (see lib/network-protocol/Protocol.cpp) and the
- * translation modes are the same values. Snippets flagged as binary are never
+ * Text is stored with LF line endings, whatever the side that wrote it uses:
+ * the CLIPBOARD: protocol adapter translates on the way in and out for the
+ * computer (see lib/network-protocol/CLIPBOARD.cpp), and the web interface
+ * normalizes what the browser posts. Snippets flagged as binary are never
  * translated.
  */
 
 #ifndef CLIPBOARD_MANAGER_H
 #define CLIPBOARD_MANAGER_H
-
-#include "../network-protocol/Protocol.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -28,7 +25,8 @@
 // Largest snippet we will hold, in bytes.
 #define CLIPBOARD_MAX_SIZE (64 * 1024)
 
-// How many previous snippets are remembered.
+// How many snippets are addressable, counting the clipboard itself: indexes
+// 0 (the clipboard) through CLIPBOARD_MAX_SNIPPETS - 1 (the oldest).
 #define CLIPBOARD_MAX_SNIPPETS 10
 
 // Where a snippet came from.
@@ -50,8 +48,6 @@ struct ClipboardSnippet
 class ClipboardManager
 {
 public:
-    ClipboardManager();
-
     // ============ Contents ============
 
     const ClipboardSnippet &current() const { return _current; }
@@ -80,38 +76,9 @@ public:
 
     // ============ Translation ============
 
-    netProtoTranslation_t translation() const { return _translation; }
-    void set_translation(netProtoTranslation_t mode) { _translation = mode; }
-
-    // The attached computer's native end of line sequence.
-    const std::string &native_eol() const { return _native_eol; }
-    void set_native_eol(const std::string &eol) { _native_eol = eol; }
-
     // Normalize host supplied text (which arrives with whatever line endings
-    // the browser sent) to the line ending the current translation mode uses.
+    // the browser sent) to the LF endings snippets are stored with.
     std::string normalize_host_text(const std::string &text) const;
-
-    // ============ Bus side staging ============
-    // Reads and writes over the bus are chunked, so a transfer in either
-    // direction is staged here until it completes. Character set conversion is
-    // the caller's job, since only the device knows which bus it is talking to.
-
-    // A copy of a snippet with its line endings translated for the computer.
-    std::string snapshot_for_computer(size_t index) const;
-    // Translate content received from the computer and make it the clipboard.
-    void set_from_computer(std::string data, bool binary);
-
-    void read_stage(std::string data) { _read_buffer = std::move(data); }
-    size_t read_available() const { return _read_buffer.size(); }
-    // Consume len bytes from the front of the staged read.
-    bool read_take(void *dest, size_t len);
-
-    // Append to the staged write. Fails if the result would be over the limit.
-    bool write_append(const void *data, size_t len);
-    size_t write_pending() const { return _write_buffer.size(); }
-    void write_abort() { _write_buffer.clear(); }
-    // Hand over the staged write, leaving the staging buffer empty.
-    std::string write_take();
 
     // ============ Presentation ============
 
@@ -126,12 +93,6 @@ private:
 
     ClipboardSnippet _current;
     std::deque<ClipboardSnippet> _history; // newest first
-
-    netProtoTranslation_t _translation = NETPROTO_TRANS_LF;
-    std::string _native_eol;
-
-    std::string _read_buffer;
-    std::string _write_buffer;
 };
 
 extern ClipboardManager fnClipboard;

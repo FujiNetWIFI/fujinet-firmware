@@ -1443,30 +1443,6 @@ esp_err_t fnHttpService::post_handler_clipboard_restore(httpd_req_t *req)
     return ESP_OK;
 }
 
-// POST /clipboard/translation?mode=N - set the end of line translation mode
-esp_err_t fnHttpService::post_handler_clipboard_translation(httpd_req_t *req)
-{
-    queryparts qp;
-    parse_query(req, &qp);
-
-    int mode = atoi(qp.query_parsed["mode"].c_str());
-
-    if (mode < NETPROTO_TRANS_NONE || mode > NETPROTO_TRANS_PETSCII)
-    {
-        httpd_resp_set_status(req, "400 Bad Request");
-        httpd_resp_send(req, NULL, 0);
-        return ESP_OK;
-    }
-
-    fnClipboard.set_translation((netProtoTranslation_t)mode);
-
-    std::string json = fnClipboard.to_json();
-    httpd_resp_set_type(req, "application/json");
-    httpd_resp_send(req, json.c_str(), json.length());
-
-    return ESP_OK;
-}
-
 // ─── end clipboard handlers ──────────────────────────────────────────────────
 
 // ─── Google Drive OAuth2 relay-based authorization-code-flow handlers ────────
@@ -2558,13 +2534,6 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
         {.uri = "/clipboard/restore",
          .method = HTTP_POST,
          .handler = post_handler_clipboard_restore,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/clipboard/translation",
-         .method = HTTP_POST,
-         .handler = post_handler_clipboard_translation,
          .user_ctx = NULL,
          .is_websocket = false,
          .handle_ws_control_frames = false,

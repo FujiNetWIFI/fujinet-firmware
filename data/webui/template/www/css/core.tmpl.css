@@ -556,6 +556,10 @@ select:focus+.focus {
     font-weight: bolder;
 }
 
+.clipboard-devicespec {
+    font-family: Inconsolata, monospace;
+}
+
 .clipboard-note {
     font-size: smaller;
     color: #666;

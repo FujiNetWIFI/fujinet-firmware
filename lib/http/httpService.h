@@ -160,7 +160,6 @@ public:
     static esp_err_t post_handler_clipboard(httpd_req_t *req);
     static esp_err_t post_handler_clipboard_clear(httpd_req_t *req);
     static esp_err_t post_handler_clipboard_restore(httpd_req_t *req);
-    static esp_err_t post_handler_clipboard_translation(httpd_req_t *req);
 
     // Google Drive OAuth2 relay-based endpoints
     static esp_err_t get_handler_gdrive_auth(httpd_req_t *req);
@@ -203,7 +202,6 @@ public:
     static int post_handler_clipboard(struct mg_connection *c, struct mg_http_message *hm);
     static int post_handler_clipboard_clear(struct mg_connection *c, struct mg_http_message *hm);
     static int post_handler_clipboard_restore(struct mg_connection *c, struct mg_http_message *hm);
-    static int post_handler_clipboard_translation(struct mg_connection *c, struct mg_http_message *hm);
 
     static int get_handler_browse(mg_connection *c, mg_http_message *hm);
     static int get_handler_shorturl(mg_connection *c, mg_http_message *hm);

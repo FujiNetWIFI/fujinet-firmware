@@ -3,6 +3,7 @@
 
 #include <string>
 #include "Protocol.h"
+#include "CLIPBOARD.h"
 #include "CPM.h"
 #include "FTP.h"
 #include "GDRIVE.h"

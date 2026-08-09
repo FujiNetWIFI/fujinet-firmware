@@ -895,36 +895,30 @@
 							<div class="settings-label"><label>Contents</label></div>
 							<div class="settings-value"><span id="clipboard-summary">&hellip;</span></div>
 						</div>
-						<div class="set">
+						<div class="set-info">
 							<div class="settings-label">
-								<label for="select_clipboard_translation">
-									EOL translation
+								<label>
+									From the computer
 									<div class="tooltip">&#9432;
 										<span class="tooltiptext small-text">
-											How line endings are converted between the computer
-											and the clipboard, using the same modes as the N:
-											device. Binary snippets are never translated.
+											Open it like any other N: device: reading returns what
+											the clipboard holds, writing replaces it, and the usual
+											end of line translation modes (aux2) apply. Add an index
+											to reach the snippets below, N:CLIPBOARD:///1 being the
+											most recent and N:CLIPBOARD:///9 the oldest.
 										</span>
 									</div>
 								</label>
 							</div>
-							<div class="settings-value select">
-								<select id="select_clipboard_translation" onchange="clipboardSetTranslation()">
-									<option value="0">None (binary)</option>
-									<option value="1">CR</option>
-									<option value="2">LF</option>
-									<option value="3">CR/LF</option>
-									<option value="4">PETSCII</option>
-								</select>
-							</div>
+							<div class="settings-value"><span class="clipboard-devicespec">N:CLIPBOARD:///</span></div>
 						</div>
 						<hr>
 						<div class="clipboard-body">
 							<textarea id="clipboard-text" class="clipboard-text" spellcheck="false"
-								placeholder="The clipboard is empty. Type or paste text here, then press Replace."></textarea>
+								placeholder="Type or paste text here, then press Paste to put it on the clipboard."></textarea>
 							<div id="clipboard-binary-note" class="clipboard-note" hidden></div>
 							<div class="clipboard-actions">
-								<button type="button" onclick="clipboardReplace()">Replace</button>
+								<button type="button" onclick="clipboardPaste()">Paste</button>
 								<button type="button" onclick="clipboardRefresh()">Reload</button>
 								<a id="clipboard-download" class="clipboard-link" href="/clipboard/data?index=0" download>Download</a>
 								<button type="button" onclick="clipboardClear()">Clear</button>
@@ -967,15 +961,12 @@
 									? clipboardSize(state.size) + (state.binary ? " of binary data" : " of text")
 									: "empty";
 
-								document.getElementById("select_clipboard_translation").value = state.translation;
-
 								download.hidden = !state.size;
 								note.hidden = !state.binary;
-								textarea.hidden = state.binary;
 
 								if (state.binary) {
 									note.textContent = "Binary contents are shown only as a download. " +
-										"Replacing them with text or another file is still possible.";
+										"Pasting text or sending another file replaces them.";
 									textarea.value = "";
 								} else if (state.size) {
 									fetch("/clipboard/data?index=0")
@@ -994,7 +985,7 @@
 
 								container.textContent = "";
 								title.textContent = "Recent snippets (" + state.history.length +
-									" of " + state.max_snippets + ")";
+									" of " + state.max_history + ")";
 
 								if (!state.history.length) {
 									var empty = document.createElement("div");
@@ -1070,7 +1061,7 @@
 									.catch(function (e) { clipboardStatus(e.message); });
 							}
 
-							function clipboardReplace() {
+							function clipboardPaste() {
 								var text = document.getElementById("clipboard-text").value;
 								clipboardStatus("Sending...");
 								return clipboardPost("/clipboard", {
@@ -1109,12 +1100,6 @@
 							function clipboardRestore(index) {
 								return clipboardPost("/clipboard/restore?index=" + index)
 									.then(function () { clipboardStatus("Snippet restored."); });
-							}
-
-							function clipboardSetTranslation() {
-								var mode = document.getElementById("select_clipboard_translation").value;
-								return clipboardPost("/clipboard/translation?mode=" + mode)
-									.then(function () { clipboardStatus("Translation mode saved."); });
 							}
 
 							clipboardRefresh();

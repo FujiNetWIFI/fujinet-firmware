@@ -1032,25 +1032,6 @@ int fnHttpService::post_handler_clipboard_restore(struct mg_connection *c, struc
     return 0;
 }
 
-// POST /clipboard/translation?mode=N - set the end of line translation mode
-int fnHttpService::post_handler_clipboard_translation(struct mg_connection *c, struct mg_http_message *hm)
-{
-    char mode_str[8] = "";
-    mg_http_get_var(&hm->query, "mode", mode_str, sizeof(mode_str));
-
-    int mode = atoi(mode_str);
-    if (mode < NETPROTO_TRANS_NONE || mode > NETPROTO_TRANS_PETSCII)
-    {
-        mg_http_reply(c, 400, "", "Bad translation mode\n");
-        return -1;
-    }
-
-    fnClipboard.set_translation((netProtoTranslation_t)mode);
-
-    clipboard_send_json(c);
-    return 0;
-}
-
 // ─── end clipboard handlers ──────────────────────────────────────────────────
 
 void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
@@ -1187,13 +1168,6 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
         {
             if (http_method_is(hm, "POST"))
                 post_handler_clipboard_restore(c, hm);
-            else
-                mg_http_reply(c, 405, "", "Method Not Allowed\n");
-        }
-        else if (mg_match(hm->uri, mg_str("/clipboard/translation"), NULL))
-        {
-            if (http_method_is(hm, "POST"))
-                post_handler_clipboard_translation(c, hm);
             else
                 mg_http_reply(c, 405, "", "Method Not Allowed\n");
         }
