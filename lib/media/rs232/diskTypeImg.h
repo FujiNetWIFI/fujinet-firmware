@@ -14,7 +14,8 @@ public:
 
     error_is_true format(uint32_t *responsesize) override;
 
-    mediatype_t mount(fnFile *f, uint32_t disksize) override;
+    mediatype_t mount(fnFile *f, uint32_t disksize, fujiHost *host = nullptr,
+                      const char *filename = nullptr) override;
 
     void status(uint8_t statusbuff[4]) override;
 

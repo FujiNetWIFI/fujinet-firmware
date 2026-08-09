@@ -43,6 +43,26 @@
 #define FUJI_MB_PARAM_SIZE (FUJI_MB_BASE + 0x10) // Inty: 8 entries, 1 word each -- size in bytes (1/2/4)
 #define FUJI_MB_PARAM_VAL  (FUJI_MB_BASE + 0x20) // Inty: 8 entries x 4 words, little-endian
 
+// Boot progress, published out-of-band from the ACKSEQ handshake: a
+// MOUNT_IMAGE transaction for a ROM+.cfg pair can run far longer than an
+// ordinary mailbox round trip (the ESP32 pushes the file(s) to us over the
+// same USB-CDC link that mailbox transactions use, mid-transaction -- see
+// the "ROM boot receiver" section and dbc_inbound_handler() in
+// inty_cart.c). The Inty's own transact loop can PEEK these cells while
+// it waits on ACKSEQ, so it can draw a progress bar instead of just
+// sitting on a blank "BOOTING" screen. They live in the gap between
+// PARAM_SIZE (8 words, ends at +0x18) and PARAM_VAL (starts at +0x20)
+// that was otherwise unused.
+#define FUJI_MB_BOOT_STATE (FUJI_MB_BASE + 0x18) // RP2040: FUJI_BOOT_* below
+#define FUJI_MB_BOOT_PCT   (FUJI_MB_BASE + 0x19) // RP2040: 0-100
+#define FUJI_MB_BOOT_ERR   (FUJI_MB_BASE + 0x1A) // RP2040: reason FUJI_BOOT_FAILED, if it is
+
+#define FUJI_BOOT_IDLE     0
+#define FUJI_BOOT_OPENING  1
+#define FUJI_BOOT_XFER     2
+#define FUJI_BOOT_MAPPING  3
+#define FUJI_BOOT_FAILED   0x80
+
 #define FUJI_MB_TX         (FUJI_MB_BASE + 0x40)  // Inty: request payload
 #define FUJI_MB_TX_MAX     256
 

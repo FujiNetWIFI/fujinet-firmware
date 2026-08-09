@@ -14,7 +14,23 @@
 
 #define FUJI_DEVICEID_FUJINET 0x70
 
+// FUJI_DEVICEID_DBC: the ESP32-S3 addresses this device, not us, when it
+// pushes a ROM (and an optional .cfg sibling) to the RP2040 mid-
+// MOUNT_IMAGE-transaction -- see the inbound-frame demux in
+// fujibus_usb.c and its handler, dbc_inbound_handler(), in inty_cart.c.
+// Matches FUJI_DEVICEID_DBC in the main tree's include/fujiDeviceID.h.
+#define FUJI_DEVICEID_DBC 0xFF
+
+// NETCMD_*: matches include/fujiCommandID.h in the main tree. Reused here
+// (rather than FUJICMD_*) because that's what the ESP32-S3 side's
+// MediaTypeROM::mount() actually sends -- see
+// lib/media/rs232/diskTypeROM.cpp's push_stream().
+#define NETCMD_OPEN  0x4F
+#define NETCMD_WRITE 0x57
+#define NETCMD_CLOSE 0x43
+
 #define FUJICMD_GET_ADAPTERCONFIG_EXTENDED 0xC4
+#define FUJICMD_MOUNT_IMAGE 0xF8
 #define FUJICMD_ACK 0x06
 #define FUJICMD_NAK 0x15
 

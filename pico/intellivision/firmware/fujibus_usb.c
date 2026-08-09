@@ -2,6 +2,13 @@
 #include "tusb.h"
 #include "pico/time.h"
 
+static fujibus_inbound_fn s_inbound_handler = NULL;
+
+void fujibus_set_inbound_handler(fujibus_inbound_fn handler)
+{
+    s_inbound_handler = handler;
+}
+
 fb_status_t fujibus_transact(uint8_t device, uint8_t command,
                               const fb_param_t *params, unsigned nparams,
                               const uint8_t *payload, uint16_t payload_len,
@@ -19,7 +26,7 @@ fb_status_t fujibus_transact(uint8_t device, uint8_t command,
         tud_task();
     }
 
-    uint8_t txbuf[384];
+    uint8_t txbuf[640];
     size_t txlen = fujibus_build_request(device, command, params, nparams,
                                           payload, payload_len,
                                           txbuf, sizeof(txbuf));
@@ -49,8 +56,28 @@ fb_status_t fujibus_transact(uint8_t device, uint8_t command,
             uint8_t b;
             tud_cdc_read(&b, 1);
             rx_buf[rxlen++] = b;
-            if (b == 0xC0 && ++seen_end == 2)
-                goto got_frame;
+            if (b == 0xC0 && ++seen_end == 2) {
+                // A complete frame -- but it might be an inbound request
+                // (the ESP32 pushing a ROM to FUJI_DEVICEID_DBC mid-
+                // transaction) rather than the reply we're actually
+                // waiting for. Let the registered handler have first
+                // look; if it consumes the frame, reset and keep waiting,
+                // with a fresh deadline (the frame itself proves the link
+                // is alive and busy, not stalled).
+                fb_reply_t maybe;
+                if (!fujibus_parse_reply(rx_buf, rxlen, &maybe))
+                    return FB_EBADFRAME;
+
+                if (s_inbound_handler != NULL && s_inbound_handler(&maybe)) {
+                    rxlen = 0;
+                    seen_end = 0;
+                    deadline = make_timeout_time_ms(timeout_ms);
+                    break; // out of the inner while; outer while re-checks time_reached
+                }
+
+                *reply = maybe;
+                return FB_OK;
+            }
         }
         // core1's CP-1610 bus loop shares the SRAM fabric with core0 and
         // runs with only ~300 clock cycles of slack per bus phase. Calling
@@ -64,9 +91,4 @@ fb_status_t fujibus_transact(uint8_t device, uint8_t command,
         busy_wait_us(500);
     }
     return FB_ETIMEOUT;
-
-got_frame:
-    if (!fujibus_parse_reply(rx_buf, rxlen, reply))
-        return FB_EBADFRAME;
-    return FB_OK;
 }

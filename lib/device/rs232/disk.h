@@ -7,6 +7,8 @@
 #include "bus.h"
 #include "media.h"
 
+class fujiHost;
+
 class rs232Disk : public virtualDevice
 {
 private:
@@ -28,11 +30,10 @@ public:
     rs232Disk();
     mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize,
                       disk_access_flags_t access_mode,
-                      mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+                      mediatype_t disk_type = MEDIATYPE_UNKNOWN,
+                      fujiHost *host = nullptr);
     mediatype_t mount_disk_media(fnFile *f, const char *filename, uint32_t disksize,
                                  mediatype_t disk_type);
-    mediatype_t mountROM(fnFile *f, const char *filename, uint32_t disksize,
-                         mediatype_t disk_type);
     void unmount();
     success_is_true write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors);
 

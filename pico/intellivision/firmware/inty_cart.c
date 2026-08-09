@@ -1024,6 +1024,454 @@ static void fuji_wait_ms_pumped(uint32_t ms)
     while (!time_reached(deadline))
         tud_task();
 }
+////////////////////////////////////////////////////////////////////////////////////
+//                     ROM boot receiver (FUJI_DEVICEID_DBC)
+////////////////////////////////////////////////////////////////////////////////////
+//
+// The ESP32-S3's MediaTypeROM::mount() (lib/media/rs232/diskTypeROM.cpp in
+// the main fujinet-firmware tree) pushes a ROM -- and, if one exists, a
+// same-named .cfg sibling -- to us over the same USB-CDC link ordinary
+// mailbox transactions use, addressed to FUJI_DEVICEID_DBC, WHILE the
+// Intellivision's own MOUNT_IMAGE mailbox transaction is still outstanding
+// in fuji_mailbox_service()'s fujibus_transact() call below. There is no
+// separate boot command anywhere in this protocol -- MOUNT_IMAGE is
+// forwarded to the ESP32 exactly like any other Fuji-device command, and
+// the ROM push rides the SAME link, mid-transaction. dbc_inbound_handler()
+// is registered as fujibus_transact()'s inbound-frame handler (see
+// fujibus_set_inbound_handler() in Inty_cart_main()): it intercepts these
+// DBC frames and ACKs each one individually -- the ESP32 side's
+// sendCommand() is a per-frame round trip (one OPEN, then one WRITE per
+// ~512-byte chunk, then CLOSE), not one call for the whole transfer.
+//
+// SCOPE NOTE, established the hard way: the original design staged the
+// whole transfer into a buffer separate from ROM[], committing (copying
+// into ROM[], updating the mapping tables, calling resetCart()) only once
+// it fully succeeded -- so a network hiccup partway through would leave
+// the still-running config program untouched and able to report the
+// error. A real build against this board (a classic RP2040, 264KB SRAM)
+// showed that plan doesn't fit: even a 64KB scratch buffer overflowed
+// `.bss` by 54KB, meaning well under 16KB of SRAM is actually free once
+// ROM[]/RAM[]/the existing FatFs and USB buffers/etc. are accounted for.
+// So ROM data is instead decoded and written DIRECTLY into the live
+// ROM[] as it streams in (feed_rom_byte()), the same way load_file()
+// already does for the local-SD path. This means a transfer that fails
+// or is interrupted partway leaves the console needing a power cycle,
+// same as that existing local-SD path already accepts -- not the
+// cleaner "config keeps running and shows an error" behavior originally
+// intended. The one piece that IS still fully buffered before anything
+// commits is the (small, <=2KB) .cfg sibling: a failed .cfg fetch just
+// means "no cfg", handled before any ROM bytes have been touched.
+//
+// Mapping precedence, decided in apply_boot_mapping() once CLOSE arrives
+// on the ROM stream: a received .cfg sibling's [mapping] segments
+// (address-translation only -- no [memattr] RAM segments or `p`-prefixed
+// HACK/MACRO lines; see parse_cfg_mapping()) if one was pushed, else
+// whatever feed_rom_byte() detected and decoded live -- a self-describing
+// non-bankswitched Intellicart/CC3 .rom header, or (if the first bytes
+// didn't match one) a same-file-order size table for a bare .bin.
+//
+// NETCMD_OPEN's payload byte selects the stream: 1 = the .cfg sibling
+// (pushed first, so its mapping is known before the ROM's own CLOSE
+// triggers the boot), 0 = the ROM itself.
+
+#define CFG_BUF_MAX 2048
+static char cfg_buf[CFG_BUF_MAX];
+static uint32_t cfg_wp = 0;
+static bool cfg_open = false;
+static bool have_cfg = false;
+
+#define BOOT_MAX_SEGS 8
+static unsigned int boot_mapfrom[BOOT_MAX_SEGS];
+static unsigned int boot_mapto[BOOT_MAX_SEGS];
+static unsigned int boot_maprom[BOOT_MAX_SEGS];
+static int boot_nsegs = 0;
+
+// ROM-stream decode state -- see feed_rom_byte(). Format is detected from
+// the first 3 bytes received; everything after that is interpreted
+// incrementally, one byte at a time, writing words straight into their
+// final ROM[] destination as soon as each is complete.
+typedef enum { ROMFMT_UNKNOWN, ROMFMT_FLAT, ROMFMT_HDR, ROMFMT_REJECTED } romfmt_t;
+static romfmt_t rom_fmt;
+static uint8_t rom_hdrbuf[3];
+static unsigned rom_hdrlen;
+static uint32_t rom_total_bytes;
+static bool rom_open = false;
+
+// ROMFMT_FLAT: sequential big-endian word packing straight into ROM[0..),
+// exactly like load_file() does for a local-SD .bin.
+static uint32_t flat_wp;
+static bool flat_have_hi;
+static uint8_t flat_hi;
+
+// ROMFMT_HDR: incremental Intellicart/CC3 .rom decode, one segment at a
+// time. Reference: jzIntv's src/icart/icartrom.c icartrom_decode(), which
+// this is a byte-for-byte port of the relevant (non-bankswitched) subset
+// of. Layout per segment: 2 bytes (lo, hi) giving an inclusive page range
+// (word address = page<<8, hi's page is the start of its last 256-word
+// block), then 2*(wordcount) bytes of big-endian ROM data for that exact
+// range, then a 2-byte CRC-16 (received but not validated).
+typedef enum { RH_SEG_ADDR, RH_SEG_DATA, RH_SEG_CRC } rh_state_t;
+static rh_state_t rh_state;
+static uint8_t rh_nseg, rh_seg_i;
+static uint8_t rh_addrbuf[2];
+static unsigned rh_addrlen;
+static unsigned int rh_lo, rh_hi;
+static uint32_t rh_words_left;
+static uint32_t rh_cur_addr;
+static bool rh_have_hi;
+static uint8_t rh_hi_byte;
+static unsigned rh_crclen;
+
+// Sends a bare ACK reply frame for one DBC command, over the same tud_cdc
+// link fujibus_transact() itself uses to send requests. This runs from
+// inside fujibus_transact()'s own RX wait (via the inbound-handler
+// callback), not through fujibus_transact() itself, so it duplicates that
+// function's small send loop rather than calling it.
+static void dbc_send_frame(uint8_t command)
+{
+    uint8_t buf[16];
+    size_t len = fujibus_build_request(FUJI_DEVICEID_DBC, command, NULL, 0, NULL, 0,
+                                        buf, sizeof(buf));
+    if (!len)
+        return;
+    size_t sent = 0;
+    while (sent < len) {
+        uint32_t w = tud_cdc_write(&buf[sent], (uint32_t)(len - sent));
+        sent += w;
+        tud_cdc_write_flush();
+        tud_task();
+    }
+    tud_cdc_write_flush();
+}
+
+// segment_hits_mailbox: true if the console-visible range [from, from+len]
+// (inclusive) overlaps the $8000-$9FFF mailbox/RAM window. Applied to
+// every segment before a mapping is committed -- a game that wants that
+// window is not bootable this way (and the mailbox is dead after boot
+// regardless, so there is nothing to gain by allowing it to fight the
+// menu's own RAM slot).
+static bool segment_hits_mailbox(unsigned int from, unsigned int len)
+{
+    unsigned int to = from + len;
+    return !(to < 0x8000 || from > 0x9FFF);
+}
+
+// parse_cfg_mapping: minimal in-memory .cfg parser covering [mapping]
+// lines only (`$xxxx - $yyyy = $zzzz`, whitespace-tolerant). Unlike
+// load_cfg() (the PiRTO menu's own parser, for local flash via a FatFs FIL
+// handle), this does NOT support [memattr] RAM segments or `p`-prefixed
+// HACK/MACRO lines -- a network-pushed mapping is limited to plain ROM
+// address-translation segments for now. Operates on the in-memory cfg_buf
+// filled by dbc_inbound_handler(), not a file handle.
+static bool parse_cfg_mapping(void)
+{
+    boot_nsegs = 0;
+    const char *p = cfg_buf;
+    const char *end = cfg_buf + cfg_wp;
+
+    while (p < end && boot_nsegs < BOOT_MAX_SEGS) {
+        const char *nl = memchr(p, '\n', (size_t)(end - p));
+        const char *line_end = nl ? nl : end;
+        size_t linelen = (size_t)(line_end - p);
+
+        if (linelen > 0 && p[0] == '$') {
+            unsigned int from = 0, to = 0, rom = 0;
+            char tmp[80];
+            size_t copylen = linelen < sizeof(tmp) - 1 ? linelen : sizeof(tmp) - 1;
+            memcpy(tmp, p, copylen);
+            tmp[copylen] = 0;
+            if (sscanf(tmp, " $%x - $%x = $%x", &from, &to, &rom) == 3) {
+                boot_mapfrom[boot_nsegs] = from;
+                boot_mapto[boot_nsegs] = to;
+                boot_maprom[boot_nsegs] = rom;
+                boot_nsegs++;
+            }
+        }
+
+        p = nl ? nl + 1 : end;
+    }
+
+    return boot_nsegs > 0;
+}
+
+// rom_start_segment_slot: called the instant a ROMFMT_HDR segment's
+// address range is known, registering it as a boot_* mapping entry right
+// away -- there's no separate buffer holding decoded segments to batch
+// this from later.
+static void rom_start_segment_slot(void)
+{
+    if (boot_nsegs < BOOT_MAX_SEGS) {
+        boot_mapfrom[boot_nsegs] = rh_lo;
+        boot_mapto[boot_nsegs] = rh_hi - 1;
+        boot_maprom[boot_nsegs] = rh_lo; // direct-mapped: identity
+        boot_nsegs++;
+    }
+}
+
+// feed_rom_byte: the incremental ROM-stream decoder. Called once per byte
+// of every NETCMD_WRITE payload on the ROM stream (stream 0). See the
+// section banner for the RAM-budget reasoning behind writing straight
+// into ROM[] rather than a scratch buffer.
+//
+// KNOWN LIMITATION: bank-switched .rom images (which encode their live
+// page tables in the 48-byte attribute/fine-address table following the
+// segments) are not handled -- decode succeeds and the direct-mapped
+// segments boot, but a title that relies on bank-switching to reach code
+// outside its listed segments will not run correctly.
+static void feed_rom_byte(uint8_t b)
+{
+    rom_total_bytes++;
+
+    if (rom_fmt == ROMFMT_UNKNOWN) {
+        rom_hdrbuf[rom_hdrlen++] = b;
+        if (rom_hdrlen < 3)
+            return;
+        if ((rom_hdrbuf[0] == 0xA8 || rom_hdrbuf[0] == 0x41 || rom_hdrbuf[0] == 0x61) &&
+            rom_hdrbuf[1] > 0 && (uint8_t)(rom_hdrbuf[1] ^ rom_hdrbuf[2]) == 0xFF) {
+            rom_fmt = ROMFMT_HDR;
+            rh_nseg = rom_hdrbuf[1];
+            rh_seg_i = 0;
+            rh_state = RH_SEG_ADDR;
+            rh_addrlen = 0;
+            boot_nsegs = 0;
+        } else {
+            rom_fmt = ROMFMT_FLAT;
+            flat_wp = 0;
+            flat_have_hi = false;
+            // The 3 header-probe bytes are real file data in flat mode --
+            // replay them now that the format is known. All 3 bytes were
+            // already counted by the natural calls that got us here, and
+            // each replay call will count itself again, so back out all 3
+            // (not just this call's own +1) first.
+            rom_total_bytes -= 3;
+            feed_rom_byte(rom_hdrbuf[0]);
+            feed_rom_byte(rom_hdrbuf[1]);
+            feed_rom_byte(rom_hdrbuf[2]);
+        }
+        return;
+    }
+
+    if (rom_fmt == ROMFMT_REJECTED)
+        return;
+
+    if (rom_fmt == ROMFMT_FLAT) {
+        if (!flat_have_hi) {
+            flat_hi = b;
+            flat_have_hi = true;
+        } else {
+            if (flat_wp < (uint32_t)BINLENGTH)
+                ROM[flat_wp++] = ((uint16_t)flat_hi << 8) | b;
+            flat_have_hi = false;
+        }
+        return;
+    }
+
+    // ROMFMT_HDR
+    if (rh_seg_i >= rh_nseg)
+        return; // trailing attribute/fine-address table -- not needed, ignored
+
+    switch (rh_state) {
+    case RH_SEG_ADDR:
+        rh_addrbuf[rh_addrlen++] = b;
+        if (rh_addrlen < 2)
+            return;
+        rh_lo = ((unsigned int)rh_addrbuf[0]) << 8;
+        rh_hi = (((unsigned int)rh_addrbuf[1]) << 8) + 0x100;
+        rh_addrlen = 0;
+        if (rh_hi <= rh_lo || rh_hi > (unsigned int)BINLENGTH) {
+            rom_fmt = ROMFMT_REJECTED;
+            return;
+        }
+        rom_start_segment_slot();
+        rh_words_left = rh_hi - rh_lo;
+        rh_cur_addr = rh_lo;
+        rh_have_hi = false;
+        rh_state = RH_SEG_DATA;
+        return;
+    case RH_SEG_DATA:
+        if (!rh_have_hi) {
+            rh_hi_byte = b;
+            rh_have_hi = true;
+        } else {
+            ROM[rh_cur_addr++] = ((uint16_t)rh_hi_byte << 8) | b;
+            rh_have_hi = false;
+            rh_words_left--;
+            if (rh_words_left == 0) {
+                rh_state = RH_SEG_CRC;
+                rh_crclen = 0;
+            }
+        }
+        return;
+    case RH_SEG_CRC:
+        rh_crclen++; // received but not validated
+        if (rh_crclen < 2)
+            return;
+        rh_seg_i++;
+        rh_state = RH_SEG_ADDR;
+        rh_addrlen = 0;
+        return;
+    }
+}
+
+// apply_boot_mapping: called once the ROM stream's CLOSE arrives.
+// ROM[]'s final bytes are already in place by now (feed_rom_byte() wrote
+// them there live); this only decides and validates the address-
+// translation tables, then commits them into the SAME mapfrom/mapto/
+// maprom/mapdelta/mapsize/tipo/page/slot/RAMused globals core1's live bus
+// dispatch and load_cfg()/load_file() already use, and sets romLen
+// exactly as load_file() does.
+static bool apply_boot_mapping(void)
+{
+    if (rom_fmt == ROMFMT_UNKNOWN || rom_fmt == ROMFMT_REJECTED)
+        return false;
+
+    if (rom_fmt == ROMFMT_HDR) {
+        if (rh_seg_i != rh_nseg || boot_nsegs == 0)
+            return false; // stream ended mid-segment or before any completed
+    } else if (have_cfg && parse_cfg_mapping()) {
+        // boot_* already populated by parse_cfg_mapping().
+    } else {
+        uint32_t words = rom_total_bytes / 2;
+        boot_nsegs = 1;
+        boot_mapfrom[0] = 0;
+        boot_mapto[0] = words > 0 ? words - 1 : 0;
+        switch (rom_total_bytes) {
+        case 4096:  boot_maprom[0] = 0x5000; break;
+        case 8192:  boot_maprom[0] = 0x5000; break;
+        case 12288: boot_maprom[0] = 0x5000; break;
+        case 16384: boot_maprom[0] = 0x5000; break;
+        case 24576:
+            boot_nsegs = 2;
+            boot_mapfrom[0] = 0;      boot_mapto[0] = 0x1FFF; boot_maprom[0] = 0x5000;
+            boot_mapfrom[1] = 0x2000; boot_mapto[1] = 0x2FFF; boot_maprom[1] = 0xD000;
+            break;
+        case 32768:
+            boot_nsegs = 3;
+            boot_mapfrom[0] = 0;      boot_mapto[0] = 0x1FFF; boot_maprom[0] = 0x5000;
+            boot_mapfrom[1] = 0x2000; boot_mapto[1] = 0x2FFF; boot_maprom[1] = 0xD000;
+            boot_mapfrom[2] = 0x3000; boot_mapto[2] = 0x3FFF; boot_maprom[2] = 0xF000;
+            break;
+        default:
+            return false; // no mapping source at all -- refuse to guess
+        }
+    }
+
+    for (int i = 0; i < boot_nsegs; i++) {
+        unsigned int len = boot_mapto[i] - boot_mapfrom[i];
+        if (segment_hits_mailbox(boot_maprom[i], len))
+            return false;
+    }
+
+    slot = 0;
+    RAMused = 0;
+    for (int i = 0; i < boot_nsegs; i++) {
+        mapfrom[slot] = boot_mapfrom[i];
+        mapto[slot] = boot_mapto[i];
+        maprom[slot] = boot_maprom[i];
+        tipo[slot] = 0; // plain ROM, direct-mapped -- see feed_rom_byte()'s bank-switch note
+        page[slot] = 0;
+        addrto[slot] = maprom[slot] + (mapto[slot] - mapfrom[slot]);
+        mapdelta[slot] = maprom[slot] - mapfrom[slot];
+        mapsize[slot] = mapto[slot] - mapfrom[slot];
+        slot++;
+    }
+    slot--; // core1_main() walks 0..slot inclusive, matching load_cfg()'s own convention
+    hacks = 0;
+
+    romLen = rom_total_bytes / 2;
+    RAM[base + 202] = romLen;
+
+    return true;
+}
+
+// dbc_inbound_handler: registered with fujibus_set_inbound_handler().
+// Returns true (frame consumed, keep waiting for the real MOUNT_IMAGE
+// reply) for every FUJI_DEVICEID_DBC frame; false (treat as the actual
+// reply) for anything else, which normally never happens mid-MOUNT_IMAGE
+// but keeps this safe to register unconditionally.
+static bool dbc_inbound_handler(const fb_reply_t *req)
+{
+    if (req->device != FUJI_DEVICEID_DBC)
+        return false;
+
+    if (req->command == NETCMD_OPEN) {
+        unsigned stream = (req->data_len > 0) ? req->data[0] : 0;
+        if (stream == 1) {
+            cfg_wp = 0;
+            cfg_open = true;
+            have_cfg = false;
+            RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_OPENING;
+        } else {
+            rom_fmt = ROMFMT_UNKNOWN;
+            rom_hdrlen = 0;
+            rom_total_bytes = 0;
+            rom_open = true;
+            RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_XFER;
+            RAM[FUJI_MB_BOOT_PCT] = 0;
+            RAM[FUJI_MB_BOOT_ERR] = 0;
+        }
+        dbc_send_frame(FUJICMD_ACK);
+        return true;
+    }
+
+    if (req->command == NETCMD_WRITE) {
+        if (cfg_open) {
+            uint32_t room = CFG_BUF_MAX - cfg_wp;
+            uint32_t n = req->data_len < room ? req->data_len : room;
+            memcpy(cfg_buf + cfg_wp, req->data, n);
+            cfg_wp += n;
+        } else if (rom_open) {
+            for (uint16_t i = 0; i < req->data_len; i++)
+                feed_rom_byte(req->data[i]);
+            // Coarse progress: total size isn't known in advance, so this
+            // saturates near 100% rather than reaching it exactly until
+            // CLOSE -- good enough for a moving progress bar.
+            uint32_t pct = (rom_total_bytes * 100) / 32768;
+            RAM[FUJI_MB_BOOT_PCT] = pct > 99 ? 99 : pct;
+        }
+        dbc_send_frame(FUJICMD_ACK);
+        return true;
+    }
+
+    if (req->command == NETCMD_CLOSE) {
+        if (cfg_open) {
+            cfg_open = false;
+            have_cfg = (cfg_wp > 0);
+            dbc_send_frame(FUJICMD_ACK);
+        } else if (rom_open) {
+            rom_open = false;
+            RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_MAPPING;
+            if (apply_boot_mapping()) {
+                RAM[FUJI_MB_BOOT_PCT] = 100;
+                dbc_send_frame(FUJICMD_ACK); // must go out before resetCart() tears down the link
+                gpio_put(LED_PIN, false);
+                fuji_wait_ms_pumped(200);
+                resetCart();
+                fuji_wait_ms_pumped(200);
+                resetCart();
+                memset(RAM, 0, sizeof(RAM));
+                while (1) {
+                    gpio_put(LED_PIN, true);
+                    sleep_ms(2000);
+                    gpio_put(LED_PIN, false);
+                    sleep_ms(2000);
+                }
+            }
+            RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_FAILED;
+            RAM[FUJI_MB_BOOT_ERR] = 1;
+            dbc_send_frame(FUJICMD_ACK);
+        } else {
+            dbc_send_frame(FUJICMD_ACK);
+        }
+        return true;
+    }
+
+    // Unrecognized DBC command -- consume it anyway (NAK) rather than
+    // falling through and being mistaken for the MOUNT_IMAGE reply.
+    dbc_send_frame(FUJICMD_NAK);
+    return true;
+}
+
 
 // Services at most one FujiNet transaction per call: if the Intellivision
 // has bumped FUJI_MB_SEQ since our last reply, run it and publish the
@@ -1080,10 +1528,18 @@ static void fuji_mailbox_service(void)
     for (uint16_t i = 0; i < txlen; i++)
         txbuf[i] = (uint8_t)RAM[FUJI_MB_TX + i];
 
+    // MOUNT_IMAGE can trigger a ROM(+.cfg) push over the same link mid-
+    // transaction (see the "ROM boot receiver" section above) -- a real
+    // transfer over TNFS can easily run past the ordinary 5s budget every
+    // other command gets.
+    uint32_t timeout_ms = 5000;
+    if (device == FUJI_DEVICEID_FUJINET && command == FUJICMD_MOUNT_IMAGE)
+        timeout_ms = 60000;
+
     fb_reply_t reply;
     fb_status_t st = fujibus_transact(device, command, nparam ? params : NULL, nparam,
                                        txlen ? txbuf : NULL, txlen,
-                                       rxbuf, sizeof(rxbuf), &reply, 5000);
+                                       rxbuf, sizeof(rxbuf), &reply, timeout_ms);
 
     RAM[FUJI_MB_ERR] = (uint16_t)st;
     if (st == FB_OK) {
@@ -1116,6 +1572,8 @@ void Inty_cart_main()
     uint16_t dataWrite=0;
  
  printf("Inty_cart_main\n");
+
+  fujibus_set_inbound_handler(dbc_inbound_handler);
 
 	// overclocking isn't necessary for most functions - but XEGS carts weren't working without it
 	// I guess we might as well have it on all the time.
