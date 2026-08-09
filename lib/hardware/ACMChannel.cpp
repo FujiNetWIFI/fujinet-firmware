@@ -108,6 +108,14 @@ void ACMChannel::newDevice(usb_device_handle_t usb_dev)
         if (iad->bFunctionClass == USB_CLASS_COMM &&
             iad->bFunctionSubClass == USB_CDC_SUBCLASS_ACM)
         {
+            if ((_expected_vid || _expected_pid) &&
+                (dev_desc->idVendor != _expected_vid || dev_desc->idProduct != _expected_pid))
+            {
+                ESP_LOGW(DEBUG_TAG, "Ignoring CDC-ACM device %04X:%04X, expected %04X:%04X",
+                         dev_desc->idVendor, dev_desc->idProduct, _expected_vid, _expected_pid);
+                return;
+            }
+
             found_vid = dev_desc->idVendor;
             found_pid = dev_desc->idProduct;
             found_interface = iad->bFirstInterface;
@@ -123,6 +131,48 @@ static void newDevForwarder(usb_device_handle_t usb_dev)
 {
     ndc_instance->newDevice(usb_dev);
     return;
+}
+
+bool ACMChannel::openDevice()
+{
+    esp_err_t err = cdc_acm_host_open_vendor_specific(found_vid, found_pid,
+                                                      found_interface,
+                                                      &dev_config, &cdc_dev);
+    if (err != ESP_OK)
+        return false;
+
+    //cdc_acm_host_desc_print(cdc_dev);
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    // Test Line Coding commands: Get current line coding, change
+    // it 9600 7N1 and read again
+
+    cdc_acm_line_coding_t line_coding;
+    ESP_ERROR_CHECK(cdc_acm_host_line_coding_get(cdc_dev, &line_coding));
+
+    line_coding.dwDTERate = 9600;
+    line_coding.bDataBits = 7;
+    line_coding.bParityType = 1;
+    line_coding.bCharFormat = 1;
+    ESP_ERROR_CHECK(cdc_acm_host_line_coding_set(cdc_dev, &line_coding));
+    ESP_ERROR_CHECK(cdc_acm_host_line_coding_get(cdc_dev, &line_coding));
+    ESP_ERROR_CHECK(cdc_acm_host_set_control_line_state(cdc_dev, true, false));
+    return true;
+}
+
+void ACMChannel::reconnectTask()
+{
+    while (true) {
+        xSemaphoreTake(device_connected_sem, portMAX_DELAY);
+        openDevice();
+        // If this failed, we just go back to waiting -- another
+        // device_connected_sem will arrive if/when something reattaches.
+    }
+}
+
+static void reconnectTaskForwarder(void *arg)
+{
+    ((ACMChannel *)arg)->reconnectTask();
 }
 
 void ACMChannel::begin()
@@ -154,7 +204,7 @@ void ACMChannel::begin()
     driver_config.new_dev_cb = newDevForwarder;
     ESP_ERROR_CHECK(cdc_acm_host_install(&driver_config));
 
-    cdc_acm_host_device_config_t dev_config = {};
+    dev_config = {};
     dev_config.connection_timeout_ms = 1000;
     dev_config.out_buffer_size = 512;
     dev_config.in_buffer_size = 512;
@@ -166,31 +216,21 @@ void ACMChannel::begin()
         // Wait for newDevCallback to find a CDC-ACM device
         xSemaphoreTake(device_connected_sem, portMAX_DELAY);
 
-        esp_err_t err = cdc_acm_host_open_vendor_specific(found_vid, found_pid,
-                                                          found_interface,
-                                                          &dev_config, &cdc_dev);
-
-        if (err != ESP_OK) {
+        if (!openDevice())
             continue;
-        }
-        //cdc_acm_host_desc_print(cdc_dev);
-        vTaskDelay(pdMS_TO_TICKS(100));
-
-        // Test Line Coding commands: Get current line coding, change
-        // it 9600 7N1 and read again
-
-        cdc_acm_line_coding_t line_coding;
-        ESP_ERROR_CHECK(cdc_acm_host_line_coding_get(cdc_dev, &line_coding));
-
-        line_coding.dwDTERate = 9600;
-        line_coding.bDataBits = 7;
-        line_coding.bParityType = 1;
-        line_coding.bCharFormat = 1;
-        ESP_ERROR_CHECK(cdc_acm_host_line_coding_set(cdc_dev, &line_coding));
-        ESP_ERROR_CHECK(cdc_acm_host_line_coding_get(cdc_dev, &line_coding));
-        ESP_ERROR_CHECK(cdc_acm_host_set_control_line_state(cdc_dev, true, false));
         break;
     }
+
+    // begin() only blocks for this first connection -- callers
+    // (systemBus::setup()) depend on it not returning until a device is
+    // actually up. From here on, keep watching for (re)connect events on a
+    // background task so a disconnect/replug (e.g. the RP2040 resetting)
+    // can recover without a full ESP32 reboot. Previously nothing ever
+    // consumed device_connected_sem again after this point, so a
+    // reattach was silently never noticed.
+    BaseType_t reconnect_task_created = xTaskCreate(reconnectTaskForwarder, "ACM-reconnect", 4096,
+                                                     this, _service_priority, NULL);
+    assert(reconnect_task_created == pdTRUE);
 
     return;
 }

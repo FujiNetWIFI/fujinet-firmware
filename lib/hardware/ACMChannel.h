@@ -21,10 +21,20 @@ private:
     QueueHandle_t rxQueue;
     cdc_acm_uart_state_t _serial_state;
     bool _dsr, _cts;
+    cdc_acm_host_device_config_t dev_config = {};
 
     // FreeRTOS priority for the USB worker tasks; the owner may override it
     // (e.g. to win CPU against WiFi during startup) via setServicePriority().
     UBaseType_t _service_priority = 20;
+
+    // Optional VID/PID filter, see setExpectedDevice(). 0/0 means "accept
+    // any CDC-ACM function", the historical behavior.
+    uint16_t _expected_vid = 0, _expected_pid = 0;
+
+    // Opens cdc_dev for found_vid/found_pid/found_interface and negotiates
+    // line coding. Returns false if the open itself failed (nothing else to
+    // clean up); does not touch device_connected_sem.
+    bool openDevice();
 
 protected:
     void updateFIFO() override;
@@ -38,6 +48,15 @@ public:
     // next begin(), and is applied immediately if they are already running.
     void setServicePriority(UBaseType_t priority);
 
+    // Restrict newDevice() to a known VID/PID, e.g. the RP2040's own
+    // (0xCafe/0x4001 for fuji_intv with MSC removed) on boards where the far
+    // end of the link is a specific, soldered-down chip -- so a device in
+    // BOOTSEL/PICOBOOT mode (a different PID) or anything else stray on the
+    // bus can never be mistaken for the real link. Call before begin().
+    // Leave unset (default) for boards where the far end is any generic
+    // USB-serial adapter, e.g. plain rs232/drivewire.
+    void setExpectedDevice(uint16_t vid, uint16_t pid) { _expected_vid = vid; _expected_pid = pid; }
+
     void flushOutput() override;
 
     uint32_t getBaudrate() override { return 0; }
@@ -47,6 +66,14 @@ public:
     void eventReceived(const cdc_acm_host_dev_event_data_t *event);
     void dataReceived(const uint8_t *data, size_t length);
     void newDevice(usb_device_handle_t usb_dev);
+
+    // Runs for the life of the program on its own task: reopens the device
+    // whenever newDevice() signals device_connected_sem again after the
+    // first connection. Without this, a disconnect/replug (e.g. the RP2040
+    // resetting) is never noticed -- begin()'s one-shot wait loop stops
+    // listening the moment it succeeds once. Public for the same reason as
+    // the callbacks above: reconnectTaskForwarder() needs it.
+    void reconnectTask();
 
     // FujiNet acts as modem (DCE), computer serial ports are DTE.
     // API names follow the modem (DCE) view, but the actual RS-232 pin differs.
