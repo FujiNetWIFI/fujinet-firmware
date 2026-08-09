@@ -1492,7 +1492,7 @@ void iecDrive::set_cwd(std::string path)
    Return value is MEDIATYPE_UNKNOWN in case of failure.
 */
 mediatype_t iecDrive::mount(FILE *f, const char *filename, uint32_t disksize,
-                            disk_access_flags_t access_mode, mediatype_t disk_type)
+                            disk_access_flags_t access_mode, mediatype_t disk_type, fujiHost *host)
 {
   Debug_printv("filename[%s], disksize[%lu] disktype[%d]", filename, disksize, disk_type);
   std::string url = this->m_host->get_basepath();
