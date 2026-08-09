@@ -27,6 +27,10 @@ private:
     // (e.g. to win CPU against WiFi during startup) via setServicePriority().
     UBaseType_t _service_priority = 20;
 
+    // Optional VID/PID filter, see setExpectedDevice(). 0/0 means "accept
+    // any CDC-ACM function", the historical behavior.
+    uint16_t _expected_vid = 0, _expected_pid = 0;
+
     // Opens cdc_dev for found_vid/found_pid/found_interface and negotiates
     // line coding. Returns false if the open itself failed (nothing else to
     // clean up); does not touch device_connected_sem.
@@ -43,6 +47,15 @@ public:
     // Set the FreeRTOS priority of the USB worker tasks. Takes effect at the
     // next begin(), and is applied immediately if they are already running.
     void setServicePriority(UBaseType_t priority);
+
+    // Restrict newDevice() to a known VID/PID, e.g. the RP2040's own
+    // (0xCafe/0x4001 for fuji_intv with MSC removed) on boards where the far
+    // end of the link is a specific, soldered-down chip -- so a device in
+    // BOOTSEL/PICOBOOT mode (a different PID) or anything else stray on the
+    // bus can never be mistaken for the real link. Call before begin().
+    // Leave unset (default) for boards where the far end is any generic
+    // USB-serial adapter, e.g. plain rs232/drivewire.
+    void setExpectedDevice(uint16_t vid, uint16_t pid) { _expected_vid = vid; _expected_pid = pid; }
 
     void flushOutput() override;
 

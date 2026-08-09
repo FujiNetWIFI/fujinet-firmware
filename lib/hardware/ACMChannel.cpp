@@ -108,6 +108,14 @@ void ACMChannel::newDevice(usb_device_handle_t usb_dev)
         if (iad->bFunctionClass == USB_CLASS_COMM &&
             iad->bFunctionSubClass == USB_CDC_SUBCLASS_ACM)
         {
+            if ((_expected_vid || _expected_pid) &&
+                (dev_desc->idVendor != _expected_vid || dev_desc->idProduct != _expected_pid))
+            {
+                ESP_LOGW(DEBUG_TAG, "Ignoring CDC-ACM device %04X:%04X, expected %04X:%04X",
+                         dev_desc->idVendor, dev_desc->idProduct, _expected_vid, _expected_pid);
+                return;
+            }
+
             found_vid = dev_desc->idVendor;
             found_pid = dev_desc->idProduct;
             found_interface = iad->bFirstInterface;
