@@ -180,7 +180,8 @@ void rs232Disk::rs232_write_percom_block()
    Return value is MEDIATYPE_UNKNOWN in case of failure.
 */
 mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
-                             disk_access_flags_t access_mode, mediatype_t disk_type)
+                             disk_access_flags_t access_mode, mediatype_t disk_type,
+                             fujiHost *host)
 {
     // TAPE or CASSETTE: use this function to send file info to cassette device
     //  MediaType::discover_mediatype(filename) can detect CAS and WAV files
@@ -197,29 +198,14 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
     if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
         disk_type = MediaType::discover_mediatype(filename);
 
-    // Intellivision cartridge dumps (.bin/.rom) are not fixed-power-of-two sized
-    // (e.g. battleship.bin is 17730 bytes), so route them to the ROM path by
-    // extension rather than relying solely on the legacy size heuristic below.
-    bool is_cart_extension = false;
-    if (filename != nullptr)
-    {
-        int l = strlen(filename);
-        if (l > 4 && filename[l - 4] == '.')
-        {
-            const char *ext = filename + l - 3;
-            if (strcasecmp(ext, "BIN") == 0 || strcasecmp(ext, "ROM") == 0)
-                is_cart_extension = true;
-        }
-    }
-
-    // TODO: Stupid hack to treat ROM-sized files as ROMs and not disks. Should be
-    // replaced with proper ROM-handling logic
-    if (is_cart_extension || disksize == 8192 || disksize == 16384 || disksize == 32768)
-        return mountROM(f, filename, disksize, disk_type);
-
     // Now mount based on MediaType
     switch (disk_type)
     {
+    case MEDIATYPE_ROM:
+        device_active = true;
+        _mount_time = time(NULL);
+        _disk = new MediaTypeROM();
+        return _disk->mount(f, disksize, host, filename);
     case MEDIATYPE_IMG:
     case MEDIATYPE_UNKNOWN:
     default:
@@ -234,38 +220,6 @@ mediatype_t rs232Disk::mount_disk_media(fnFile *f, const char *filename, uint32_
                                          mediatype_t disk_type)
 {
     return mount(f, filename, disksize, DISK_ACCESS_MODE_READ, disk_type);
-}
-
-mediatype_t rs232Disk::mountROM(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
-{
-    uint32_t offset, rlen, sectorNum;
-    MediaTypeImg romImage;
-
-
-    romImage.mount(f, disksize);
-
-    Debug_printv("Attempting to send ROM contents to pico");
-    // "open" RAM in bank
-    if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_OPEN, (uint16_t) 0)) {
-        Debug_printv("Failed to open pico");
-        return (mediatype_t) -1;
-    }
-
-    for (offset = sectorNum = 0; offset < disksize; offset += rlen, sectorNum++)
-    {
-        if (romImage.read(sectorNum, &rlen) != 0)
-            break;
-        if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_WRITE,
-                                    std::string((char *) romImage._disk_sectorbuff, rlen))) {
-            Debug_printv("Failed to send block");
-            break;
-        }
-    }
-
-    // "closing" RAM will make the bank active
-    SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_CLOSE);
-
-    return disk_type;
 }
 
 // Destructor

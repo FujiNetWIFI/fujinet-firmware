@@ -192,6 +192,20 @@ protected:
                                                    uint8_t maxlen) = 0;
     dirEntryDetails _additional_direntry_details(fsdir_entry_t *f);
 
+    // Platform hook for fujicore_mount_disk_image_success(): the base
+    // implementation calls DISK_DEVICE::mount() with its original 5-arg
+    // signature, so this stays the only call site that needs a
+    // platform-specific override rather than a #ifdef BUILD_* (banned here,
+    // see tests/check_no_build_ifdefs.py). rs232Fuji overrides this to pass
+    // `host` through to rs232Disk::mount(), which MediaTypeROM needs to open
+    // a same-named .cfg sibling through the same fujiHost the ROM itself
+    // came from -- see lib/media/rs232/diskTypeROM.cpp.
+    virtual mediatype_t mount_media(DISK_DEVICE *disk_dev, fujiDisk &disk, fujiHost &host,
+                                    disk_access_flags_t mode)
+    {
+        return disk_dev->mount(disk.fileh, disk.filename, disk.disk_size, mode);
+    }
+
     // ============ Validation of inputs ============
     success_is_true validate_host_slot(uint8_t slot, const char *dmsg=nullptr);
     success_is_true validate_device_slot(uint8_t slot, const char *dmsg = nullptr);

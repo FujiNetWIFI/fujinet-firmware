@@ -517,7 +517,7 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
     // We need the file size for loading XEX files and for CASSETTE, so get that too
     disk.disk_size = host.file_size(disk.fileh);
     DISK_DEVICE *disk_dev = get_disk_dev(deviceSlot);
-    disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size, access_mode);
+    disk.disk_type = mount_media(disk_dev, disk, host, access_mode);
     disk_dev->is_config_device = false;
 
     // mount() returns MEDIATYPE_UNKNOWN on failure -- without this check that

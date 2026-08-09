@@ -152,7 +152,7 @@ error_is_true MediaTypeImg::format(uint32_t *responsesize)
  
  07-0F have two possible interpretations but are no critical for our use
 */
-mediatype_t MediaTypeImg::mount(fnFile *f, uint32_t disksize)
+mediatype_t MediaTypeImg::mount(fnFile *f, uint32_t disksize, fujiHost *host, const char *filename)
 {
     Debug_print("IMG MOUNT\r\n");
 
