@@ -16,6 +16,10 @@
 #include "led.h"
 #include "utils.h"
 #include "fuji_endian.h"
+#include "PicobootClient.h"
+#ifdef CONFIG_USB_PICOBOOT_HOST_ENABLED
+#include <freertos/task.h>
+#endif
 
 #ifdef ESP_PLATFORM
 #define SERIAL_DEVICE FN_UART_BUS
@@ -194,6 +198,22 @@ void systemBus::service()
     }
 }
 
+#ifdef CONFIG_USB_PICOBOOT_HOST_ENABLED
+// Fires once, right after ACMChannel first connects to the RP2040 (see the
+// call site in setup() below) -- since ACMChannel can only ever connect to
+// a CDC-ACM function, and the RP2040 only presents one when it's running
+// normal fuji_intv firmware (BOOTSEL mode is PICOBOOT+MSC, no CDC at all),
+// a successful connect unambiguously means "normal firmware is up." Runs
+// on its own task, not inline in setup(), since forceReflash() can take
+// several seconds (touch + re-enumerate + erase/write the whole image) and
+// setup() shouldn't block on that.
+static void autoForceReflashTask(void *arg)
+{
+    picobootClient.forceReflash(0x10000000, 10000);
+    vTaskDelete(NULL);
+}
+#endif
+
 // Setup RS232 bus
 void systemBus::setup()
 {
@@ -224,8 +244,38 @@ void systemBus::setup()
     }
 
 #else /* FUJINET_OVER_USB */
+#ifdef CONFIG_USB_PICOBOOT_HOST_ENABLED
+    // MUST run before _serial.begin() below, not after: that call blocks
+    // until a CDC-ACM device attaches, and an RP2040 sitting in BOOTSEL
+    // (e.g. for a first-ever flash, or after a botched one) never presents
+    // one -- it's PICOBOOT (vendor-specific) + MSC, no CDC interface at all.
+    // If PicobootClient registers first, it can catch that device and
+    // reflash it while ACMChannel is still (correctly) waiting for the real
+    // fuji_intv firmware to come up. See PicobootClient.h /
+    // usbHostEnsureInstalled() in ACMChannel.h for the shared-install story.
+    picobootClient.begin();
+#endif
+#ifdef PINMAP_FUJIVERSAL_INTV
+    // The far end of this link is always the same soldered-down RP2040
+    // (fuji_intv, VID 0xCafe, PID 0x4001 now that MSC is removed -- see
+    // usb_descriptors.c/tusb_config.h in pico/intellivision/firmware) --
+    // never a generic USB-serial adapter. Restrict newDevice() to it so a
+    // device sitting in BOOTSEL/PICOBOOT mode (VID 0x2E8A/PID 0x0003) can
+    // never be mistaken for the FujiBus link.
+    _serial.setExpectedDevice(0xCafe, 0x4001);
+#endif
     _serial.begin();
     _port = &_serial;
+#ifdef CONFIG_USB_PICOBOOT_HOST_ENABLED
+    // See autoForceReflashTask()'s comment above: this always fires once
+    // per boot, since _serial.begin() only returns after ACMChannel
+    // connects to the RP2040's normal firmware. Makes reflashing fully
+    // automatic -- every ESP32-S3 boot verifies (and re-flashes) the RP2040
+    // with whatever image is embedded in this build, no physical BOOTSEL
+    // button press needed at all.
+    picobootClient.setAcmChannel(&_serial);
+    xTaskCreate(autoForceReflashTask, "picoboot-autotouch", 4096, NULL, 10, NULL);
+#endif
 #endif /* FUJINET_OVER_USB */
 
     Debug_println("RS232 Setup Flush");

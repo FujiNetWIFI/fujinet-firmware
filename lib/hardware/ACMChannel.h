@@ -10,6 +10,17 @@
 #include <freertos/semphr.h>
 #include <usb/cdc_acm_host.h>
 
+// Installs the USB host library (usb_host_install() + its event-pump task)
+// exactly once, however many of ACMChannel/PicobootClient/etc call it. Only
+// one caller may ever call usb_host_install() directly -- a second call
+// asserts. Whichever of ACMChannel::begin() / PicobootClient::begin() runs
+// first does the real install; callers must invoke this BEFORE registering
+// their own usb_host_client, and should do so as early as possible (ideally
+// before systemBus::setup() blocks on anything), since a USB device already
+// attached at boot can finish enumerating -- and its NEW_DEV event go out --
+// before a late-registering client is listening for it.
+void usbHostEnsureInstalled();
+
 class ACMChannel : public IOChannel, public RS232ChannelProtocol
 {
 private:
@@ -56,6 +67,18 @@ public:
     // Leave unset (default) for boards where the far end is any generic
     // USB-serial adapter, e.g. plain rs232/drivewire.
     void setExpectedDevice(uint16_t vid, uint16_t pid) { _expected_vid = vid; _expected_pid = pid; }
+
+    // "1200 baud touch": briefly asks the attached CDC-ACM device to switch
+    // to 1200 baud, which fuji_intv's tud_cdc_line_coding_cb()
+    // (pico/intellivision/firmware/main.c) treats as a request to reboot
+    // into BOOTSEL/PICOBOOT -- see PicobootClient::forceReflash(), the
+    // actual consumer. Rides the same internal USB link FujiBus already
+    // uses; no new hardware, no mailbox/Intellivision involvement. False if
+    // nothing is currently attached (nothing to touch) or the line-coding
+    // request itself fails; true just means the request was sent, not that
+    // the device actually rebooted -- the caller has to watch for the
+    // resulting disconnect/BOOTSEL-reattach separately.
+    bool triggerBootselTouch();
 
     void flushOutput() override;
 
