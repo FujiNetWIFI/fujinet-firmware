@@ -25,8 +25,19 @@ extern "C" {
 }
 
 #include "../../include/debug.h"
-#include "fnFsSD.h"
 #include "ACMChannel.h" // usbHostEnsureInstalled()
+
+// The RP2040 firmware, compiled directly into this binary. build_pico_intv.py
+// (a "pre:" extra_script, fujiversal-intv board only) builds fuji_intv.bin
+// and generates lib/hardware/fuji_intv_bin_data.cpp -- a real, gitignored
+// source file defining these two symbols as an actual byte array + its
+// size, picked up by PlatformIO's normal source discovery like any other
+// file in this directory. (An ESP-IDF EMBED_FILES / hand-rolled objcopy
+// wrapper-object approach was tried first; neither one's linker inputs ever
+// reached PlatformIO's own separate SCons-driven final link -- see
+// build_pico_intv.py's header comment for why.)
+extern "C" const uint8_t fuji_intv_bin_data[];
+extern "C" const size_t fuji_intv_bin_size;
 
 #define DEBUG_TAG "Picoboot"
 
@@ -50,11 +61,10 @@ PicobootClient picobootClient;
 
 // See the comment in newDevice() for why this exists and runs on its own
 // task rather than being called directly.
-#define PICOBOOT_AUTOFLASH_PATH "/fuji_intv.bin"
 static void autoFlashTask(void *arg)
 {
     PicobootClient *self = (PicobootClient *)arg;
-    self->flashBin(PICOBOOT_AUTOFLASH_PATH, 0x10000000, 1000);
+    self->flashEmbedded(0x10000000, 1000);
     vTaskDelete(NULL);
 }
 
@@ -360,42 +370,58 @@ bool PicobootClient::reboot(uint32_t pc, uint32_t sp, uint32_t delay_ms)
     return true;
 }
 
-bool PicobootClient::flashBin(const char *raw_bin_path, uint32_t flash_addr, uint32_t wait_ms)
+bool PicobootClient::forceReflash(uint32_t flash_addr, uint32_t wait_ms)
+{
+    // Drain any stale give from a previous attach -- otherwise a leftover
+    // signal could make the flashEmbedded() call below think a BOOTSEL
+    // device is already present when it's actually the *old* attach event.
+    xSemaphoreTake(_device_ready_sem, 0);
+
+    if (_acm) {
+        if (_acm->triggerBootselTouch()) {
+            Debug_printv("Picoboot: BOOTSEL touch sent, waiting for RP2040 to re-attach");
+        } else {
+            Debug_printv("Picoboot: BOOTSEL touch request failed (nothing attached to ACMChannel right now?) "
+                         "-- proceeding to wait anyway, in case the RP2040 is already in BOOTSEL");
+        }
+    } else {
+        Debug_printv("Picoboot: no ACMChannel set (setAcmChannel() never called) -- "
+                     "can only catch an RP2040 already in BOOTSEL, not force one into it");
+    }
+
+    return flashEmbedded(flash_addr, wait_ms);
+}
+
+bool PicobootClient::flashEmbedded(uint32_t flash_addr, uint32_t wait_ms)
 {
     if (xSemaphoreTake(_device_ready_sem, pdMS_TO_TICKS(wait_ms)) != pdTRUE) {
         Debug_printv("Picoboot: no RP2040-in-BOOTSEL attached within %ums", wait_ms);
         return false;
     }
 
-    // autoFlashTask fires the instant newDevice() finishes claiming the USB
-    // interface -- observed on real hardware to race the ESP32-S3's own USB
-    // host interrupt/enumeration activity settling down, causing the SPI-based
-    // SD card read to time out (sdmmc_send_cmd 0x107/ESP_ERR_TIMEOUT) even
-    // though SD reads are otherwise fine (e.g. fnconfig.ini at boot). Give it
-    // a moment to quiet down before touching SD.
-    vTaskDelay(pdMS_TO_TICKS(300));
-
-    FILE *f = fnSDFAT.file_open(raw_bin_path, FILE_READ);
-    if (!f) {
-        Debug_printv("Picoboot: can't open %s", raw_bin_path);
-        return false;
-    }
+    const uint8_t *image = fuji_intv_bin_data;
+    size_t image_len = fuji_intv_bin_size;
+    Debug_printv("Picoboot: flashing embedded fuji_intv.bin (%u bytes)", (unsigned)image_len);
 
     bool ok = exclusiveAccess(EXCLUSIVE) && exitXip();
 
     static uint8_t sector[PICOBOOT_FLASH_SECTOR_SIZE];
     uint32_t addr = flash_addr;
-    size_t n;
-    while (ok && (n = fread(sector, 1, sizeof(sector), f)) > 0) {
+    size_t remaining = image_len;
+    const uint8_t *src = image;
+    while (ok && remaining > 0) {
+        size_t n = remaining < sizeof(sector) ? remaining : sizeof(sector);
+        memcpy(sector, src, n);
         if (n < sizeof(sector))
             memset(sector + n, 0xFF, sizeof(sector) - n); // pad final sector
         ok = flashErase(addr, sizeof(sector)) && flashWrite(addr, sector, sizeof(sector));
         addr += sizeof(sector);
+        src += n;
+        remaining -= n;
     }
-    fclose(f);
 
     if (ok) {
-        Debug_printv("Picoboot: flashed %s, rebooting RP2040", raw_bin_path);
+        Debug_printv("Picoboot: flashed embedded fuji_intv.bin, rebooting RP2040");
         reboot(0, 0, 500); // dPC=0 -> normal boot path, not a RAM image
     } else {
         Debug_printv("Picoboot: flash failed partway through -- RP2040 needs hardware BOOTSEL forcing to recover");

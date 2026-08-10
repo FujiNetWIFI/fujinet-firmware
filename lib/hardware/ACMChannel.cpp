@@ -182,6 +182,35 @@ bool ACMChannel::openDevice()
     return true;
 }
 
+bool ACMChannel::triggerBootselTouch()
+{
+    if (!cdc_dev)
+        return false;
+
+    cdc_acm_line_coding_t line_coding = {};
+    line_coding.dwDTERate = 1200;
+    line_coding.bDataBits = 8;
+    line_coding.bParityType = 0;
+    line_coding.bCharFormat = 0;
+    esp_err_t err = cdc_acm_host_line_coding_set(cdc_dev, &line_coding);
+    if (err != ESP_OK) {
+        ESP_LOGW(DEBUG_TAG, "triggerBootselTouch: line_coding_set failed: %s", esp_err_to_name(err));
+        return false;
+    }
+
+    // Don't wait for a CDC_ACM_HOST_DEVICE_DISCONNECTED event to close our
+    // side -- reset_usb_boot() on the RP2040 is a soft reset (VBUS stays
+    // up), and this host controller has already shown (see the bootsel+RUN
+    // reset test) that it doesn't reliably notice that as a clean
+    // disconnect on its own. Proactively releasing our handle at least
+    // stops us holding a stale reference to whatever's left of the old
+    // enumeration, on the chance that's part of what's suppressing the
+    // port from being re-scanned.
+    cdc_acm_host_close(cdc_dev);
+    cdc_dev = NULL;
+    return true;
+}
+
 void ACMChannel::reconnectTask()
 {
     while (true) {

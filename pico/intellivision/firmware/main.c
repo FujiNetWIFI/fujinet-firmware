@@ -22,6 +22,7 @@
 
 #include "pico/stdlib.h"
 #include "pico/time.h"
+#include "pico/bootrom.h"
 #include "tusb.h"
 
 #include "inty_cart.h"
@@ -149,6 +150,24 @@ void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts)
 void tud_cdc_rx_cb(uint8_t itf)
 {
   (void) itf;
+}
+
+// "1200 baud touch": a convention originating with Arduino-core RP2040
+// boards, where a host asking for 1200 baud specifically over USB CDC (not
+// a real UART speed -- this link has no physical UART on the other end) is
+// treated as a request to reboot into BOOTSEL/PICOBOOT, same destination as
+// the mailbox doorbell (FUJI_MB_BOOTSEL_DOORBELL in fuji_mailbox.h) but
+// triggerable directly from the ESP32-S3 over the existing internal USB
+// link with no new hardware and no Intellivision/mailbox involvement at
+// all -- see ACMChannel::triggerBootselTouch() in the main fujinet-firmware
+// tree for the S3 side. Only 1200 exactly; every other rate this firmware
+// is ever actually asked for (9600, matching ACMChannel::openDevice()) is
+// ignored here.
+void tud_cdc_line_coding_cb(uint8_t itf, cdc_line_coding_t const *p_line_coding)
+{
+  (void) itf;
+  if (p_line_coding->bit_rate == 1200)
+    reset_usb_boot(1u << LED_PIN, 0);
 }
 
 

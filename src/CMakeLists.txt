@@ -165,6 +165,18 @@ idf_component_register(
     PRIV_REQUIRES esp_driver_uart esp_netif esp_driver_gpio fatfs vfs json esp_wifi mbedtls console app_update spi_flash mlff esp_driver_ledc expat gumbo gumbo-query http_parser esp-tls tcp_transport esp_driver_gptimer esp_driver_tsens esp_http_client esp_websocket_client libssh
 )
 
+# NOTE on embedding the RP2040 firmware (fujiversal-intv board only): this
+# does NOT happen here. PlatformIO's espidf integration only uses this
+# CMakeLists.txt to *discover* the source/include/flags graph -- it does its
+# own separate SCons-driven compile and link, which never sees CMake-level
+# target_link_libraries()/EMBED_FILES calls added here (confirmed: no
+# firmware.elf link rule appears anywhere in the generated build.ninja).
+# Instead, build_pico_intv.py (a "pre:" extra_script, see
+# build-platforms/platformio-fujiversal-intv.ini) generates a real source
+# file, lib/hardware/fuji_intv_bin_data.cpp, which PlatformIO's normal
+# source-discovery picks up via the lib/hardware/*.cpp glob below like any
+# other file -- see PicobootClient.cpp's flashEmbedded() for the consumer.
+
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-unused-value)
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-unused-variable)
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-unused-but-set-variable)

@@ -68,6 +68,18 @@ public:
     // USB-serial adapter, e.g. plain rs232/drivewire.
     void setExpectedDevice(uint16_t vid, uint16_t pid) { _expected_vid = vid; _expected_pid = pid; }
 
+    // "1200 baud touch": briefly asks the attached CDC-ACM device to switch
+    // to 1200 baud, which fuji_intv's tud_cdc_line_coding_cb()
+    // (pico/intellivision/firmware/main.c) treats as a request to reboot
+    // into BOOTSEL/PICOBOOT -- see PicobootClient::forceReflash(), the
+    // actual consumer. Rides the same internal USB link FujiBus already
+    // uses; no new hardware, no mailbox/Intellivision involvement. False if
+    // nothing is currently attached (nothing to touch) or the line-coding
+    // request itself fails; true just means the request was sent, not that
+    // the device actually rebooted -- the caller has to watch for the
+    // resulting disconnect/BOOTSEL-reattach separately.
+    bool triggerBootselTouch();
+
     void flushOutput() override;
 
     uint32_t getBaudrate() override { return 0; }

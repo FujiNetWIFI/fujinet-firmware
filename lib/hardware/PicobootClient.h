@@ -23,14 +23,10 @@
 // opposite direction" sequencing are all taken from that source, not
 // reverse-engineered -- see boot/picoboot.h for the exact struct layouts.
 //
-// NOT YET VALIDATED AGAINST REAL HARDWARE. Wire-format correctness rests on
-// the picoboot.h headers matching what a real RP2040 bootrom expects (they
-// should -- same header the SDK/picotool ship), but the ESP-IDF usb_host
-// transfer sequencing here has only been reviewed against the ACMChannel/
-// cdc_acm_host reference patterns, not exercised on a board. Test order per
-// the design plan: (1) hardware BOOTSEL forcing brings up a 2E8A:0003
-// device the host stack can see at all, before trusting any of the command
-// logic below.
+// Validated end-to-end on real hardware: a manually-BOOTSEL'd RP2040
+// attaches, gets erased/written/rebooted, and comes back up running the
+// flashed image. forceReflash() below extends that to RP2040s currently
+// running normal firmware, with no physical BOOTSEL button press needed.
 
 #ifdef CONFIG_USB_PICOBOOT_HOST_ENABLED
 
@@ -40,6 +36,8 @@
 #include <cstdint>
 #include <cstddef>
 
+class ACMChannel; // lib/hardware/ACMChannel.h -- only used as a pointer here
+
 class PicobootClient
 {
 public:
@@ -48,15 +46,41 @@ public:
     // is what actually waits for one.
     void begin();
 
-    // High-level: erase and write raw_bin_path (a raw .bin image, no UF2
-    // wrapper) starting at flash_addr (normally 0x10000000, RP2040 XIP
-    // flash base) via the FileSystem abstraction (SD or TNFS both work --
-    // see fnSDFAT.file_open() pattern in fujiDevice.cpp), then reboot the
-    // RP2040 back into its normal boot path. Blocks until the device
-    // attaches (wait_ms timeout) and the whole transfer completes. Returns
-    // false on any failure; a partial/failed flash is expected to be
-    // recoverable via hardware BOOTSEL forcing (see pinmap), never fatal.
-    bool flashBin(const char *raw_bin_path, uint32_t flash_addr, uint32_t wait_ms);
+    // Gives forceReflash() below a way to ask the RP2040 (while it's running
+    // normal firmware) to reboot into BOOTSEL, via ACMChannel's
+    // triggerBootselTouch(). Set once from rs232.cpp's systemBus::setup(),
+    // which owns the ACMChannel instance (_serial) this needs a pointer to.
+    void setAcmChannel(ACMChannel *acm) { _acm = acm; }
+
+    // Full automatic reflash cycle, no physical BOOTSEL button needed: asks
+    // the RP2040 (assumed currently running normal fuji_intv firmware, via
+    // ACMChannel's 1200-baud touch -- see setAcmChannel()) to reboot into
+    // BOOTSEL, then flashEmbedded()'s normal wait-for-attach-and-flash
+    // takes over. If no ACMChannel was set, or the touch request itself
+    // fails (e.g. nothing currently attached), still falls through to
+    // flashEmbedded()'s wait -- covers the case where the RP2040 was
+    // already sitting in BOOTSEL (physical button, hardware forcing, or a
+    // previous mailbox doorbell) when this is called.
+    bool forceReflash(uint32_t flash_addr, uint32_t wait_ms);
+
+    // High-level: erase and write the RP2040 firmware that's linked directly
+    // into this ESP32-S3 binary (see build_pico_intv.py + src/CMakeLists.txt
+    // -- fuji_intv.bin, wrapped by objcopy into a .o and linked in, exposing
+    // _binary_fuji_intv_bin_start/_end/_size) starting at flash_addr
+    // (normally 0x10000000, RP2040 XIP flash base), then reboot the RP2040
+    // back into its normal boot path. Blocks until the device attaches
+    // (wait_ms timeout) and the whole transfer completes. Returns false on
+    // any failure; a partial/failed flash is expected to be recoverable via
+    // hardware BOOTSEL forcing (see pinmap), never fatal.
+    //
+    // Deliberately not filesystem-based (an earlier SD-card-backed flashBin()
+    // was replaced by this): the SD read intermittently timed out
+    // (sdmmc_send_cmd ESP_ERR_TIMEOUT) right at BOOTSEL attach, almost
+    // certainly racing the USB host's own enumeration interrupt activity.
+    // Reading the image out of this binary's own .rodata sidesteps that
+    // whole class of problem -- no filesystem, no SPI transaction, nothing
+    // to race, at the moment of flashing.
+    bool flashEmbedded(uint32_t flash_addr, uint32_t wait_ms);
 
     // Public because the C-linkage forwarder functions need them.
     void clientEvent(const usb_host_client_event_msg_t *event_msg);
@@ -71,6 +95,7 @@ private:
                               // always 64 by spec; captured from the endpoint
                               // descriptor anyway rather than assumed outright.
     SemaphoreHandle_t _device_ready_sem = nullptr;
+    ACMChannel *_acm = nullptr; // see setAcmChannel()/forceReflash()
 
     usb_transfer_t *_cmd_xfer = nullptr;   // 32B picoboot_cmd
     usb_transfer_t *_data_xfer = nullptr;  // up to one flash sector (4096B)

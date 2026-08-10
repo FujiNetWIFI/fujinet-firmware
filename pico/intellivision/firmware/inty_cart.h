@@ -21,6 +21,7 @@
 
 #define MSYNC_PIN 19
 #define RST_PIN   20
+#define LED_PIN   25
 
 void Inty_cart_main();
 void resetCart();
