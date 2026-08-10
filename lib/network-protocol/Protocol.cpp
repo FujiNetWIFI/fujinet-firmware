@@ -173,6 +173,60 @@ fujiError_t NetworkProtocol::status(NetworkStatus *status)
 }
 
 /**
+ * Translate a buffer being handed to the computer, based on mode.
+ * See the translation model note above.
+ */
+void netproto_translate_to_computer(std::string &buf, netProtoTranslation_t mode,
+                                    const std::string &native_eol)
+{
+    if (mode == NETPROTO_TRANS_NONE)
+        return;
+
+    if (mode == NETPROTO_TRANS_PETSCII)
+    {
+        buf = mstr::toUTF8(buf);
+        return;
+    }
+
+#ifdef BUILD_ATARI
+    // ATASCII uses different codes for these controls; substitute them.
+    replace(buf.begin(), buf.end(), ASCII_BELL, ATASCII_BUZZER);
+    replace(buf.begin(), buf.end(), ASCII_BACKSPACE, ATASCII_DEL);
+    replace(buf.begin(), buf.end(), ASCII_TAB, ATASCII_TAB);
+#endif
+
+    // Fold the network line ending into the computer's native EOL.
+    util_replaceAll(buf, network_line_ending(mode), native_eol);
+}
+
+/**
+ * Translate a buffer received from the computer, based on mode.
+ * The inverse of netproto_translate_to_computer().
+ */
+void netproto_translate_from_computer(std::string &buf, netProtoTranslation_t mode,
+                                      const std::string &native_eol)
+{
+    if (mode == NETPROTO_TRANS_NONE)
+        return;
+
+    if (mode == NETPROTO_TRANS_PETSCII)
+    {
+        buf = mstr::toUTF8(buf);
+        return;
+    }
+
+#ifdef BUILD_ATARI
+    // Substitute ATASCII control codes back to their ASCII equivalents.
+    util_replaceAll(buf, STR_ATASCII_BUZZER, STR_ASCII_BELL);
+    util_replaceAll(buf, STR_ATASCII_DEL, STR_ASCII_BACKSPACE);
+    util_replaceAll(buf, STR_ATASCII_TAB, STR_ASCII_TAB);
+#endif
+
+    // Expand the computer's native EOL out to the network line ending.
+    util_replaceAll(buf, native_eol, network_line_ending(mode));
+}
+
+/**
  * Perform end of line translation on receiveBuffer (FujiNet -> computer),
  * based on translation_mode. See the translation model note above.
  */
@@ -181,24 +235,7 @@ void NetworkProtocol::translate_receive_buffer()
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("#### Translating receive buffer, mode: %u\r\n", translation_mode);
 #endif
-    if (translation_mode == NETPROTO_TRANS_NONE)
-        return;
-
-    if (translation_mode == NETPROTO_TRANS_PETSCII)
-    {
-        *receiveBuffer = mstr::toUTF8(*receiveBuffer);
-        return;
-    }
-
-#ifdef BUILD_ATARI
-    // ATASCII uses different codes for these controls; substitute them.
-    replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_BELL, ATASCII_BUZZER);
-    replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_BACKSPACE, ATASCII_DEL);
-    replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_TAB, ATASCII_TAB);
-#endif
-
-    // Fold the network line ending into the computer's native EOL.
-    util_replaceAll(*receiveBuffer, network_line_ending(translation_mode), native_eol);
+    netproto_translate_to_computer(*receiveBuffer, translation_mode, native_eol);
 }
 
 /**
@@ -210,24 +247,7 @@ unsigned short NetworkProtocol::translate_transmit_buffer()
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("#### Translating transmit buffer, mode: %u\r\n", translation_mode);
 #endif
-    if (translation_mode == NETPROTO_TRANS_NONE)
-        return transmitBuffer->length();
-
-    if (translation_mode == NETPROTO_TRANS_PETSCII)
-    {
-        *transmitBuffer = mstr::toUTF8(*transmitBuffer);
-        return transmitBuffer->length();
-    }
-
-#ifdef BUILD_ATARI
-    // Substitute ATASCII control codes back to their ASCII equivalents.
-    util_replaceAll(*transmitBuffer, STR_ATASCII_BUZZER, STR_ASCII_BELL);
-    util_replaceAll(*transmitBuffer, STR_ATASCII_DEL, STR_ASCII_BACKSPACE);
-    util_replaceAll(*transmitBuffer, STR_ATASCII_TAB, STR_ASCII_TAB);
-#endif
-
-    // Expand the computer's native EOL out to the network line ending.
-    util_replaceAll(*transmitBuffer, native_eol, network_line_ending(translation_mode));
+    netproto_translate_from_computer(*transmitBuffer, translation_mode, native_eol);
 
     return transmitBuffer->length();
 }

@@ -140,7 +140,7 @@ if(DEFINED DEBUG_NO_REBOOT)
 endif()
 
 set(INCLUDE_DIRS include
-    lib/compat lib/config lib/utils lib/hardware lib/clock
+    lib/compat lib/config lib/utils lib/hardware lib/clock lib/clipboard
     lib/FileSystem
     lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson lib/fnsgml
     lib/webdav lib/http lib/sam lib/task
@@ -184,6 +184,7 @@ set(SOURCES src/main.cpp
     lib/config/fnc_wifi.cpp
     include/debug.h
     lib/clock/Clock.h lib/clock/Clock.cpp
+    lib/clipboard/clipboardManager.h lib/clipboard/clipboardManager.cpp
     lib/utils/utils.h lib/utils/utils.cpp
     lib/utils/cbuf.h lib/utils/cbuf.cpp
     lib/utils/string_utils.h lib/utils/string_utils.cpp
@@ -263,6 +264,7 @@ set(SOURCES src/main.cpp
     lib/network-protocol/networkStatus.h lib/network-protocol/status_error_codes.h
     lib/network-protocol/Protocol.h lib/network-protocol/Protocol.cpp
     lib/network-protocol/ProtocolParser.h lib/network-protocol/ProtocolParser.cpp
+    lib/network-protocol/CLIPBOARD.h lib/network-protocol/CLIPBOARD.cpp
     lib/network-protocol/CPM.h lib/network-protocol/CPM.cpp
     lib/network-protocol/GDRIVE.h lib/network-protocol/GDRIVE.cpp
     lib/network-protocol/ONEDRIVE.h lib/network-protocol/ONEDRIVE.cpp
