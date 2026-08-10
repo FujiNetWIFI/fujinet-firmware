@@ -157,6 +157,8 @@ public:
     // Device password management and password-protected pages
     static esp_err_t post_handler_password(httpd_req_t *req);
     static esp_err_t get_handler_private(httpd_req_t *req);
+    static esp_err_t get_handler_appkeys(httpd_req_t *req);
+    static esp_err_t post_handler_appkeys(httpd_req_t *req);
 
     // Google Drive OAuth2 relay-based endpoints
     static esp_err_t get_handler_gdrive_auth(httpd_req_t *req);
@@ -196,6 +198,7 @@ public:
     // Device password management and password-protected pages
     static int post_handler_password(struct mg_connection *c, struct mg_http_message *hm);
     static int get_handler_private(struct mg_connection *c, struct mg_http_message *hm);
+    static int handler_appkeys(struct mg_connection *c, struct mg_http_message *hm);
 
     static int get_handler_browse(mg_connection *c, mg_http_message *hm);
     static int get_handler_shorturl(mg_connection *c, mg_http_message *hm);
