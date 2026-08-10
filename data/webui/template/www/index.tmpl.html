@@ -1887,10 +1887,62 @@
 			</div>
 			{% endif %}
 			<div class="module" data-experimental>
+				<div class="settings">
+					<div class="settings-header">
+						APP<span class="logowob"></span>KEYS
+					</div>
+					<div class="settings-left">
+						<div class="svgicon">
+							<svg width="90%" height="90%" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+								<circle cx="20" cy="32" r="11" fill="none" stroke="#000" stroke-width="5"/>
+								<circle cx="20" cy="32" r="3.5" fill="#000"/>
+								<path d="M31 32h24" fill="none" stroke="#000" stroke-width="5"/>
+								<path d="M46 32v9" fill="none" stroke="#000" stroke-width="5"/>
+								<path d="M55 32v13" fill="none" stroke="#000" stroke-width="5"/>
+							</svg>
+						</div>
+					</div>
+					<div class="settings-content settings-45-55">
+						<div class="set">
+							<div class="settings-label">
+								<label>App keys stored</label>
+							</div>
+							<div class="settings-value">
+								<span id="appkey-count"><%FN_APPKEY_COUNT%></span>
+							</div>
+						</div>
+						<hr>
+						<div class="settings-text">
+							<div>
+								App keys are the settings that programs store on the FujiNet. They live on the
+								SD card under /FujiNet/.
+							</div>
+							<div id="appkey-password-note"></div>
+						</div>
+					</div>
+					<div class="settings-footer">
+						<div class="save-button">
+							<button type="button" onclick="window.location.href='/appkeys'">Manage</button>
+						</div>
+					</div>
+				</div>
+				<script>
+					(function() {
+						var note = document.getElementById("appkey-password-note");
+						if ("<%FN_PASSWORD_SET%>" === "1") {
+							note.textContent = "The App Key manager asks for the device password.";
+						} else {
+							note.textContent = "Set a device password below to unlock the App Key manager.";
+							note.style.color = "red";
+						}
+					})();
+				</script>
+			</div>
+			<div class="module" data-experimental>
 				<form id="password-form" action="/password" method="post">
 				<div class="settings">
 					<div class="settings-header">
-						SEC<span class="logowob"></span>URITY
+						DEVICE<span class="logowob"></span>PASSWORD
 					</div>
 					<div class="settings-left">
 						<div class="svgicon">
@@ -1939,7 +1991,7 @@
 						<div class="settings-text">
 							<div>
 								The password is kept in flash, never on the SD card, and guards sensitive
-								operations such as the <a href="/private">Private</a> page.<br>
+								pages.<br>
 								Re-flashing the firmware clears it.<br>
 								<span id="password-remove-hint">To remove the password, leave the new password blank.</span>
 							</div>
