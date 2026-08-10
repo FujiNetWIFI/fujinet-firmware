@@ -26,6 +26,8 @@
 #include "httpServiceParser.h"
 #include "clipboardManager.h"
 #include "appKeyManager.h"
+#include "fileManager.h"
+#include "fnFsSD.h"
 #include "privatePage.h"
 #include "fujiDevice.h"
 #ifdef BUILD_ATARI
@@ -1457,6 +1459,133 @@ esp_err_t fnHttpService::post_handler_appkeys(httpd_req_t *req)
     return ESP_OK;
 }
 
+// ─── SD card file manager ────────────────────────────────────────────────────
+
+/* Value of one query string variable, url-decoded. Empty when not present. */
+static std::string files_query_value(httpd_req_t *req, const char *key)
+{
+    size_t qlen = httpd_req_get_url_query_len(req);
+    if (qlen == 0 || qlen > 1024)
+        return std::string();
+
+    std::vector<char> query(qlen + 1);
+    if (httpd_req_get_url_query_str(req, query.data(), query.size()) != ESP_OK)
+        return std::string();
+
+    std::vector<char> value(qlen + 1);
+    if (httpd_query_key_value(query.data(), key, value.data(), value.size()) != ESP_OK)
+        return std::string();
+
+    // httpd_query_key_value does not url-decode
+    std::vector<char> decoded(strlen(value.data()) + 1);
+    fnHttpServiceConfigurator::url_decode(decoded.data(), value.data(), strlen(value.data()));
+    return std::string(decoded.data());
+}
+
+static void files_send_page(httpd_req_t *req, const std::string &dir, const std::string &message)
+{
+    std::string page = FileManager::render_page(dir, message);
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_send(req, page.c_str(), page.size());
+}
+
+esp_err_t fnHttpService::get_handler_files(httpd_req_t *req)
+{
+    if (!require_device_password(req))
+        return ESP_OK;
+
+    std::string dir;
+    if (!FileManager::normalize_path(files_query_value(req, "path"), dir))
+    {
+        files_send_page(req, "/", "Invalid path.");
+        return ESP_OK;
+    }
+
+    files_send_page(req, dir, "");
+    return ESP_OK;
+}
+
+esp_err_t fnHttpService::get_handler_files_download(httpd_req_t *req)
+{
+    if (!require_device_password(req))
+        return ESP_OK;
+
+    std::string path;
+    if (!FileManager::normalize_path(files_query_value(req, "path"), path) || path == "/")
+    {
+        return_http_error(req, fnwserr_fileopen);
+        return ESP_FAIL;
+    }
+
+    FILE *fin = fnSDFAT.file_open(path.c_str(), FILE_READ);
+    if (fin == nullptr)
+    {
+        return_http_error(req, fnwserr_fileopen);
+        return ESP_FAIL;
+    }
+
+    set_file_content_type(req, path.c_str());
+
+    char hdrval[16];
+    snprintf(hdrval, sizeof(hdrval), "%ld", FileSystem::filesize(fin));
+    httpd_resp_set_hdr(req, "Content-Length", hdrval);
+
+    std::string disposition =
+        "attachment; filename=\"" + path.substr(path.find_last_of('/') + 1) + "\"";
+    httpd_resp_set_hdr(req, "Content-Disposition", disposition.c_str());
+
+    char *buf = (char *)malloc(FNWS_SEND_BUFF_SIZE);
+    if (buf == nullptr)
+    {
+        fclose(fin);
+        return_http_error(req, fnwserr_memory);
+        return ESP_FAIL;
+    }
+    size_t count;
+    do
+    {
+        count = fread(buf, 1, FNWS_SEND_BUFF_SIZE, fin);
+        httpd_resp_send_chunk(req, buf, count);
+    } while (count > 0);
+
+    free(buf);
+    fclose(fin);
+    return ESP_OK;
+}
+
+esp_err_t fnHttpService::post_handler_files_action(httpd_req_t *req)
+{
+    if (!require_device_password(req))
+        return ESP_OK;
+
+    if (req->content_len == 0 || req->content_len > FILEMANAGER_MAX_POST_SIZE)
+    {
+        return_http_error(req, fnwserr_post_fail);
+        return ESP_FAIL;
+    }
+
+    std::vector<char> buf(req->content_len);
+    size_t received = 0;
+    while (received < buf.size())
+    {
+        int ret = httpd_req_recv(req, buf.data() + received, buf.size() - received);
+        if (ret <= 0)
+        {
+            Debug_printf("Error (%d) receiving posted file action\n", ret);
+            return_http_error(req, fnwserr_post_fail);
+            return ESP_FAIL;
+        }
+        received += ret;
+    }
+
+    std::string dir = "/";
+    std::string message = FileManager::handle_action(
+        fnHttpServiceConfigurator::parse_postdata_decoded(buf.data(), received), dir);
+
+    files_send_page(req, dir, message);
+    return ESP_OK;
+}
+
 // ─── Clipboard handlers ──────────────────────────────────────────────────────
 
 // Read the whole posted body, up to the clipboard size limit.
@@ -1485,6 +1614,69 @@ static bool clipboard_recv_body(httpd_req_t *req, std::string &body)
     }
 
     return true;
+}
+
+esp_err_t fnHttpService::post_handler_files_upload(httpd_req_t *req)
+{
+    if (!require_device_password(req))
+        return ESP_OK;
+
+    std::string dir;
+    if (!FileManager::normalize_path(files_query_value(req, "path"), dir))
+    {
+        files_send_page(req, "/", "Invalid path.");
+        return ESP_OK;
+    }
+
+    if (!fnSDFAT.running())
+    {
+        files_send_page(req, dir, "No SD card is mounted.");
+        return ESP_OK;
+    }
+
+    char content_type[128] = {0};
+    httpd_req_get_hdr_value_str(req, "Content-Type", content_type, sizeof(content_type));
+
+    MultipartFileWriter writer;
+    std::string error;
+    if (!writer.begin(content_type, dir, error))
+    {
+        files_send_page(req, dir, FileManager::html_escape(error) + ".");
+        return ESP_OK;
+    }
+
+    // Stream the body to the SD card so an upload never has to fit in RAM
+    std::vector<char> buf(FNWS_RECV_BUFF_SIZE);
+    size_t remaining = req->content_len;
+    bool ok = true;
+    while (remaining > 0 && ok)
+    {
+        size_t want = remaining < buf.size() ? remaining : buf.size();
+        int ret = httpd_req_recv(req, buf.data(), want);
+        if (ret <= 0)
+        {
+            Debug_printf("Error (%d) receiving uploaded file\n", ret);
+            error = "Upload was interrupted";
+            ok = false;
+            break;
+        }
+        remaining -= ret;
+        ok = writer.feed(buf.data(), ret, error);
+    }
+
+    if (ok)
+        ok = writer.finish(error);
+
+    if (!ok)
+    {
+        files_send_page(req, dir, FileManager::html_escape(error) + ".");
+        return ESP_OK;
+    }
+
+    files_send_page(req, dir,
+                    "Uploaded " + FileManager::html_escape(writer.filename()) + " (" +
+                        std::to_string(writer.bytes_written()) + " bytes).");
+    return ESP_OK;
 }
 
 // GET /clipboard - clipboard state and the remembered snippets
@@ -2720,6 +2912,34 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
         {.uri = "/appkeys",
          .method = HTTP_POST,
          .handler = post_handler_appkeys,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/files",
+         .method = HTTP_GET,
+         .handler = get_handler_files,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/files/download",
+         .method = HTTP_GET,
+         .handler = get_handler_files_download,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/files/action",
+         .method = HTTP_POST,
+         .handler = post_handler_files_action,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/files/upload",
+         .method = HTTP_POST,
+         .handler = post_handler_files_upload,
          .user_ctx = NULL,
          .is_websocket = false,
          .handle_ws_control_frames = false,
