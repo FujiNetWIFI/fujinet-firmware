@@ -3,6 +3,7 @@ paths:
   css_path: /file?css
   js_path: /file?js
 components:
+  clipboard: true
   network: true
   hardware: true
   hosts_list: true

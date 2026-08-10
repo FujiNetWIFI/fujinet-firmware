@@ -10,6 +10,7 @@
 #include <ctime>
 #include <cstdlib>
 
+#include "clipboardManager.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnPassword.h"
@@ -1030,6 +1031,119 @@ int fnHttpService::get_handler_onedrive_poll(mg_connection *c, mg_http_message *
 
 // ─── end OneDrive handlers ────────────────────────────────────────────────────
 
+// ─── Clipboard handlers ──────────────────────────────────────────────────────
+
+// hm->method points into the request line and is not NUL terminated, so it has
+// to be compared by length rather than as a C string.
+static bool http_method_is(struct mg_http_message *hm, const char *method)
+{
+    size_t len = strlen(method);
+    return hm->method.len == len && strncasecmp(hm->method.buf, method, len) == 0;
+}
+
+static void clipboard_send_json(struct mg_connection *c)
+{
+    std::string json = fnClipboard.to_json();
+    mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\n", json.c_str());
+}
+
+// GET /clipboard - clipboard state and the remembered snippets
+int fnHttpService::get_handler_clipboard(struct mg_connection *c)
+{
+    clipboard_send_json(c);
+    return 0;
+}
+
+// GET /clipboard/data?index=N - the contents of a snippet, as-is
+int fnHttpService::get_handler_clipboard_data(struct mg_connection *c, struct mg_http_message *hm)
+{
+    char index_str[8] = "";
+    mg_http_get_var(&hm->query, "index", index_str, sizeof(index_str));
+
+    const ClipboardSnippet *snippet = fnClipboard.snippet(atoi(index_str));
+    if (snippet == nullptr)
+    {
+        mg_http_reply(c, 404, "", "Not Found\n");
+        return -1;
+    }
+
+    mg_printf(c, "HTTP/1.1 200 OK\r\n");
+    if (snippet->binary)
+    {
+        mg_printf(c, "Content-Type: application/octet-stream\r\n");
+        mg_printf(c, "Content-Disposition: attachment; filename=\"%s\"\r\n",
+                  snippet->name.empty() ? "clipboard.bin" : snippet->name.c_str());
+    }
+    else
+    {
+        mg_printf(c, "Content-Type: text/plain; charset=utf-8\r\n");
+    }
+    mg_printf(c, "Content-Length: %lu\r\n\r\n", (unsigned long)snippet->data.size());
+    mg_send(c, snippet->data.data(), snippet->data.size());
+
+    return 0;
+}
+
+// POST /clipboard?binary=1&name=... - replace the clipboard with the posted body
+int fnHttpService::post_handler_clipboard(struct mg_connection *c, struct mg_http_message *hm)
+{
+    char binary_str[4] = "";
+    char name[64] = "";
+    mg_http_get_var(&hm->query, "binary", binary_str, sizeof(binary_str));
+    mg_http_get_var(&hm->query, "name", name, sizeof(name));
+
+    if (hm->body.len > CLIPBOARD_MAX_SIZE)
+    {
+        Debug_printf("Clipboard: rejecting %u byte upload\n", (unsigned)hm->body.len);
+        mg_http_reply(c, 400, "", "Content too large\n");
+        return -1;
+    }
+
+    bool binary = atoi(binary_str) != 0;
+    std::string body(hm->body.buf, hm->body.len);
+
+    if (!binary)
+        body = fnClipboard.normalize_host_text(body);
+
+    fnClipboard.set(std::move(body), CLIPBOARD_SOURCE_WEBUI, binary, name);
+
+    clipboard_send_json(c);
+    return 0;
+}
+
+// POST /clipboard/clear?all=1 - empty the clipboard, optionally the history too
+int fnHttpService::post_handler_clipboard_clear(struct mg_connection *c, struct mg_http_message *hm)
+{
+    char all[4] = "";
+    mg_http_get_var(&hm->query, "all", all, sizeof(all));
+
+    if (atoi(all))
+        fnClipboard.clear_all();
+    else
+        fnClipboard.clear();
+
+    clipboard_send_json(c);
+    return 0;
+}
+
+// POST /clipboard/restore?index=N - make a remembered snippet current again
+int fnHttpService::post_handler_clipboard_restore(struct mg_connection *c, struct mg_http_message *hm)
+{
+    char index_str[8] = "";
+    mg_http_get_var(&hm->query, "index", index_str, sizeof(index_str));
+
+    if (!fnClipboard.restore(atoi(index_str)))
+    {
+        mg_http_reply(c, 404, "", "Not Found\n");
+        return -1;
+    }
+
+    clipboard_send_json(c);
+    return 0;
+}
+
+// ─── end clipboard handlers ──────────────────────────────────────────────────
+
 void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
 {
     static const char *s_root_dir = "data/www";
@@ -1159,6 +1273,31 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
         else if (mg_match(hm->uri, mg_str("/url/*"), NULL))
         {
             get_handler_shorturl(c, hm);
+        }
+        else if (mg_match(hm->uri, mg_str("/clipboard"), NULL))
+        {
+            if (http_method_is(hm, "POST"))
+                post_handler_clipboard(c, hm);
+            else
+                get_handler_clipboard(c);
+        }
+        else if (mg_match(hm->uri, mg_str("/clipboard/data"), NULL))
+        {
+            get_handler_clipboard_data(c, hm);
+        }
+        else if (mg_match(hm->uri, mg_str("/clipboard/clear"), NULL))
+        {
+            if (http_method_is(hm, "POST"))
+                post_handler_clipboard_clear(c, hm);
+            else
+                mg_http_reply(c, 405, "", "Method Not Allowed\n");
+        }
+        else if (mg_match(hm->uri, mg_str("/clipboard/restore"), NULL))
+        {
+            if (http_method_is(hm, "POST"))
+                post_handler_clipboard_restore(c, hm);
+            else
+                mg_http_reply(c, 405, "", "Method Not Allowed\n");
         }
         else if (mg_match(hm->uri, mg_str("/gdrive-auth"), NULL))
         {

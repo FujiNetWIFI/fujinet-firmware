@@ -24,6 +24,7 @@
 #include "printer.h"
 #include "httpServiceConfigurator.h"
 #include "httpServiceParser.h"
+#include "clipboardManager.h"
 #include "appKeyManager.h"
 #include "privatePage.h"
 #include "fujiDevice.h"
@@ -1456,6 +1457,152 @@ esp_err_t fnHttpService::post_handler_appkeys(httpd_req_t *req)
     return ESP_OK;
 }
 
+// ─── Clipboard handlers ──────────────────────────────────────────────────────
+
+// Read the whole posted body, up to the clipboard size limit.
+static bool clipboard_recv_body(httpd_req_t *req, std::string &body)
+{
+    if (req->content_len > CLIPBOARD_MAX_SIZE)
+    {
+        Debug_printf("Clipboard: rejecting %u byte upload\n", (unsigned)req->content_len);
+        return false;
+    }
+
+    body.resize(req->content_len);
+
+    size_t received = 0;
+    while (received < req->content_len)
+    {
+        int ret = httpd_req_recv(req, &body[received], req->content_len - received);
+        if (ret == HTTPD_SOCK_ERR_TIMEOUT)
+            continue;
+        if (ret <= 0)
+        {
+            Debug_printf("Clipboard: error (%d) receiving posted data\n", ret);
+            return false;
+        }
+        received += ret;
+    }
+
+    return true;
+}
+
+// GET /clipboard - clipboard state and the remembered snippets
+esp_err_t fnHttpService::get_handler_clipboard(httpd_req_t *req)
+{
+    std::string json = fnClipboard.to_json();
+
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, json.c_str(), json.length());
+
+    return ESP_OK;
+}
+
+// GET /clipboard/data?index=N - the contents of a snippet, as-is
+esp_err_t fnHttpService::get_handler_clipboard_data(httpd_req_t *req)
+{
+    queryparts qp;
+    parse_query(req, &qp);
+
+    size_t index = atoi(qp.query_parsed["index"].c_str());
+
+    const ClipboardSnippet *snippet = fnClipboard.snippet(index);
+    if (snippet == nullptr)
+    {
+        httpd_resp_set_status(req, "404 Not Found");
+        httpd_resp_send(req, NULL, 0);
+        return ESP_OK;
+    }
+
+    if (snippet->binary)
+    {
+        std::string disposition = "attachment; filename=\"" +
+            (snippet->name.empty() ? std::string("clipboard.bin") : snippet->name) + "\"";
+
+        httpd_resp_set_type(req, "application/octet-stream");
+        httpd_resp_set_hdr(req, "Content-Disposition", disposition.c_str());
+    }
+    else
+    {
+        httpd_resp_set_type(req, "text/plain; charset=utf-8");
+    }
+
+    httpd_resp_send(req, snippet->data.data(), snippet->data.size());
+
+    return ESP_OK;
+}
+
+// POST /clipboard?binary=1&name=... - replace the clipboard with the posted body
+esp_err_t fnHttpService::post_handler_clipboard(httpd_req_t *req)
+{
+    queryparts qp;
+    parse_query(req, &qp);
+
+    bool binary = qp.query_parsed["binary"] == "1";
+    std::string name = qp.query_parsed["name"];
+
+    std::string body;
+    if (!clipboard_recv_body(req, body))
+    {
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_send(req, NULL, 0);
+        return ESP_OK;
+    }
+
+    if (!binary)
+        body = fnClipboard.normalize_host_text(body);
+
+    fnClipboard.set(std::move(body), CLIPBOARD_SOURCE_WEBUI, binary, name);
+
+    std::string json = fnClipboard.to_json();
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, json.c_str(), json.length());
+
+    return ESP_OK;
+}
+
+// POST /clipboard/clear?all=1 - empty the clipboard, optionally the history too
+esp_err_t fnHttpService::post_handler_clipboard_clear(httpd_req_t *req)
+{
+    queryparts qp;
+    parse_query(req, &qp);
+
+    if (qp.query_parsed["all"] == "1")
+        fnClipboard.clear_all();
+    else
+        fnClipboard.clear();
+
+    std::string json = fnClipboard.to_json();
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, json.c_str(), json.length());
+
+    return ESP_OK;
+}
+
+// POST /clipboard/restore?index=N - make a remembered snippet current again
+esp_err_t fnHttpService::post_handler_clipboard_restore(httpd_req_t *req)
+{
+    queryparts qp;
+    parse_query(req, &qp);
+
+    size_t index = atoi(qp.query_parsed["index"].c_str());
+
+    if (!fnClipboard.restore(index))
+    {
+        httpd_resp_set_status(req, "404 Not Found");
+        httpd_resp_send(req, NULL, 0);
+        return ESP_OK;
+    }
+
+    std::string json = fnClipboard.to_json();
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, json.c_str(), json.length());
+
+    return ESP_OK;
+}
+
+// ─── end clipboard handlers ──────────────────────────────────────────────────
+
 // ─── Google Drive OAuth2 relay-based authorization-code-flow handlers ────────
 //
 // The FujiNet project registers ONE Google OAuth2 "Desktop application" client.
@@ -2514,9 +2661,30 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
          .is_websocket = false,
          .handle_ws_control_frames = false,
          .supported_subprotocol = nullptr},
+        {.uri = "/clipboard",
+         .method = HTTP_GET,
+         .handler = get_handler_clipboard,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/clipboard",
+         .method = HTTP_POST,
+         .handler = post_handler_clipboard,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
         {.uri = "/password",
          .method = HTTP_POST,
          .handler = post_handler_password,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/clipboard/data",
+         .method = HTTP_GET,
+         .handler = get_handler_clipboard_data,
          .user_ctx = NULL,
          .is_websocket = false,
          .handle_ws_control_frames = false,
@@ -2528,9 +2696,23 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
          .is_websocket = false,
          .handle_ws_control_frames = false,
          .supported_subprotocol = nullptr},
+        {.uri = "/clipboard/clear",
+         .method = HTTP_POST,
+         .handler = post_handler_clipboard_clear,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
         {.uri = "/appkeys",
          .method = HTTP_GET,
          .handler = get_handler_appkeys,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/clipboard/restore",
+         .method = HTTP_POST,
+         .handler = post_handler_clipboard_restore,
          .user_ctx = NULL,
          .is_websocket = false,
          .handle_ws_control_frames = false,
