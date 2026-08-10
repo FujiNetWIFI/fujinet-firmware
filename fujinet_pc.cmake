@@ -236,10 +236,10 @@ set(SOURCES src/main.cpp
     lib/http/httpService.h lib/http/mgHttpService.cpp
     lib/http/httpServiceParser.h lib/http/httpServiceParser.cpp
     lib/http/httpServiceConfigurator.h lib/http/httpServiceConfigurator.cpp
-    lib/http/httpServiceBrowser.h lib/http/httpServiceBrowser.cpp
     lib/http/appKeyManager.h lib/http/appKeyManager.cpp
     lib/http/fileManager.h lib/http/fileManager.cpp
     lib/http/fnSession.h lib/http/fnSession.cpp
+    lib/http/httpServiceBrowse.h lib/http/httpServiceBrowse.cpp
     lib/http/mgHttpClient.h lib/http/mgHttpClient.cpp
     lib/task/fnTask.h lib/task/fnTask.cpp
     lib/task/fnTaskManager.h lib/task/fnTaskManager.cpp
