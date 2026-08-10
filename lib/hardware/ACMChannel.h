@@ -10,6 +10,17 @@
 #include <freertos/semphr.h>
 #include <usb/cdc_acm_host.h>
 
+// Installs the USB host library (usb_host_install() + its event-pump task)
+// exactly once, however many of ACMChannel/PicobootClient/etc call it. Only
+// one caller may ever call usb_host_install() directly -- a second call
+// asserts. Whichever of ACMChannel::begin() / PicobootClient::begin() runs
+// first does the real install; callers must invoke this BEFORE registering
+// their own usb_host_client, and should do so as early as possible (ideally
+// before systemBus::setup() blocks on anything), since a USB device already
+// attached at boot can finish enumerating -- and its NEW_DEV event go out --
+// before a late-registering client is listening for it.
+void usbHostEnsureInstalled();
+
 class ACMChannel : public IOChannel, public RS232ChannelProtocol
 {
 private:

@@ -48,6 +48,16 @@ extern "C" {
 
 PicobootClient picobootClient;
 
+// See the comment in newDevice() for why this exists and runs on its own
+// task rather than being called directly.
+#define PICOBOOT_AUTOFLASH_PATH "/fuji_intv.bin"
+static void autoFlashTask(void *arg)
+{
+    PicobootClient *self = (PicobootClient *)arg;
+    self->flashBin(PICOBOOT_AUTOFLASH_PATH, 0x10000000, 1000);
+    vTaskDelete(NULL);
+}
+
 static void clientEventForwarder(const usb_host_client_event_msg_t *event_msg, void *arg)
 {
     ((PicobootClient *)arg)->clientEvent(event_msg);
@@ -155,16 +165,19 @@ void PicobootClient::newDevice(uint8_t dev_addr)
     }
 
     uint8_t out_ep = 0, in_ep = 0;
+    uint16_t in_ep_mps = 64;
     for (int i = 0; i < 2; i++) {
         int ep_offset = offset;
         const usb_ep_desc_t *ep_desc =
             usb_parse_endpoint_descriptor_by_index(intf_desc, i, config_desc->wTotalLength, &ep_offset);
         if (!ep_desc)
             continue;
-        if (USB_EP_DESC_GET_EP_DIR(ep_desc))
+        if (USB_EP_DESC_GET_EP_DIR(ep_desc)) {
             in_ep = ep_desc->bEndpointAddress;
-        else
+            in_ep_mps = ep_desc->wMaxPacketSize;
+        } else {
             out_ep = ep_desc->bEndpointAddress;
+        }
     }
     if (!out_ep || !in_ep) {
         Debug_printv("Picoboot: PICOBOOT interface missing bulk IN/OUT endpoints");
@@ -182,6 +195,7 @@ void PicobootClient::newDevice(uint8_t dev_addr)
     _interface = interface;
     _out_ep = out_ep;
     _in_ep = in_ep;
+    _in_ep_mps = in_ep_mps ? in_ep_mps : 64;
     _cmd_xfer->device_handle = dev_hdl;
     _data_xfer->device_handle = dev_hdl;
     _ack_xfer->device_handle = dev_hdl;
@@ -189,6 +203,21 @@ void PicobootClient::newDevice(uint8_t dev_addr)
     Debug_printv("Picoboot: RP2040 in BOOTSEL attached (interface %d, out=%02x in=%02x)",
                  interface, out_ep, in_ep);
     xSemaphoreGive(_device_ready_sem);
+
+    // Auto-flash, since "picoboot-flash" (the intended real trigger, see
+    // PicobootCommands.cpp) is unreachable right now: ENABLE_CONSOLE (which
+    // Console::begin() -- and so the whole command REPL -- requires) doesn't
+    // build cleanly anywhere else in this tree (Console/`console` is a
+    // main.cpp-local global with no extern declaration, so every other TU
+    // that includes debug.h with ENABLE_CONSOLE set fails to find it). This
+    // is a temporary bring-up hook, not the intended interface -- swap for
+    // the console command (or a mailbox-driven trigger) once that's fixed.
+    // MUST run on a different task than this one: newDevice() executes on
+    // the "picoboot" client task, which is also what pumps
+    // usb_host_client_handle_events() -- and that's what delivers the
+    // transfer-complete callbacks flashBin() blocks on. Calling it directly
+    // from here would deadlock the very task that has to service it.
+    xTaskCreate(autoFlashTask, "picoboot-autoflash", 4096, this, 10, NULL);
 }
 
 void PicobootClient::deviceGone()
@@ -256,7 +285,15 @@ bool PicobootClient::cmd(uint8_t cmd_id, uint8_t cmd_size, const void *args, uin
         // never ask for more than one flash sector at a time.
         assert(transfer_length <= 4096);
         if (is_in) {
-            _data_xfer->num_bytes = transfer_length;
+            // ESP-IDF's usb_host requires non-control IN requests to be an
+            // exact multiple of the endpoint's MPS (libusb has no such
+            // restriction, which is why picotool can just ask for exactly
+            // transfer_length bytes). Round the USB-level request up; the
+            // device only ever sends the real transfer_length bytes
+            // (short packet), so this doesn't change what's read.
+            uint32_t req = ((transfer_length + _in_ep_mps - 1) / _in_ep_mps) * _in_ep_mps;
+            assert(req <= 4096);
+            _data_xfer->num_bytes = req;
             _data_xfer->bEndpointAddress = _in_ep;
             if (submitAndWait(_data_xfer, 10000) != USB_TRANSFER_STATUS_COMPLETED)
                 return false;
@@ -275,9 +312,15 @@ bool PicobootClient::cmd(uint8_t cmd_id, uint8_t cmd_size, const void *args, uin
     // ACK is a zero-length packet in the OPPOSITE direction from the data
     // phase (or from the command itself, if there was no data phase) --
     // see boot/picoboot.h's picoboot_cmd comment and picoboot_connection.c's
-    // picoboot_cmd(). _ack_xfer's buffer capacity (64B) is just headroom;
-    // the device actually sends/expects 0 bytes.
-    _ack_xfer->num_bytes = 1;
+    // picoboot_cmd(). The device actually sends/expects 0 bytes; picotool
+    // (libusb) just requests 1 byte and gets a 0-byte completion back. On
+    // ESP-IDF a non-control IN request must be an exact multiple of the
+    // endpoint's MPS (OUT has no such restriction), so when the ACK is IN
+    // (is_in false -> ack via _in_ep) request a full MPS -- the device still
+    // only sends the ZLP it always sends, this is purely about satisfying
+    // usb_host's request-size validation.
+    bool ack_is_in = !is_in;
+    _ack_xfer->num_bytes = ack_is_in ? _in_ep_mps : 1;
     _ack_xfer->bEndpointAddress = is_in ? _out_ep : _in_ep;
     if (submitAndWait(_ack_xfer, transfer_length == 0 ? 10000 : 3000) != USB_TRANSFER_STATUS_COMPLETED)
         return false;
@@ -323,6 +366,14 @@ bool PicobootClient::flashBin(const char *raw_bin_path, uint32_t flash_addr, uin
         Debug_printv("Picoboot: no RP2040-in-BOOTSEL attached within %ums", wait_ms);
         return false;
     }
+
+    // autoFlashTask fires the instant newDevice() finishes claiming the USB
+    // interface -- observed on real hardware to race the ESP32-S3's own USB
+    // host interrupt/enumeration activity settling down, causing the SPI-based
+    // SD card read to time out (sdmmc_send_cmd 0x107/ESP_ERR_TIMEOUT) even
+    // though SD reads are otherwise fine (e.g. fnconfig.ini at boot). Give it
+    // a moment to quiet down before touching SD.
+    vTaskDelay(pdMS_TO_TICKS(300));
 
     FILE *f = fnSDFAT.file_open(raw_bin_path, FILE_READ);
     if (!f) {

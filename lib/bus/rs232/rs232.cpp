@@ -16,6 +16,7 @@
 #include "led.h"
 #include "utils.h"
 #include "fuji_endian.h"
+#include "PicobootClient.h"
 
 #ifdef ESP_PLATFORM
 #define SERIAL_DEVICE FN_UART_BUS
@@ -224,6 +225,26 @@ void systemBus::setup()
     }
 
 #else /* FUJINET_OVER_USB */
+#ifdef CONFIG_USB_PICOBOOT_HOST_ENABLED
+    // MUST run before _serial.begin() below, not after: that call blocks
+    // until a CDC-ACM device attaches, and an RP2040 sitting in BOOTSEL
+    // (e.g. for a first-ever flash, or after a botched one) never presents
+    // one -- it's PICOBOOT (vendor-specific) + MSC, no CDC interface at all.
+    // If PicobootClient registers first, it can catch that device and
+    // reflash it while ACMChannel is still (correctly) waiting for the real
+    // fuji_intv firmware to come up. See PicobootClient.h /
+    // usbHostEnsureInstalled() in ACMChannel.h for the shared-install story.
+    picobootClient.begin();
+#endif
+#ifdef PINMAP_FUJIVERSAL_INTV
+    // The far end of this link is always the same soldered-down RP2040
+    // (fuji_intv, VID 0xCafe, PID 0x4001 now that MSC is removed -- see
+    // usb_descriptors.c/tusb_config.h in pico/intellivision/firmware) --
+    // never a generic USB-serial adapter. Restrict newDevice() to it so a
+    // device sitting in BOOTSEL/PICOBOOT mode (VID 0x2E8A/PID 0x0003) can
+    // never be mistaken for the FujiBus link.
+    _serial.setExpectedDevice(0xCafe, 0x4001);
+#endif
     _serial.begin();
     _port = &_serial;
 #endif /* FUJINET_OVER_USB */

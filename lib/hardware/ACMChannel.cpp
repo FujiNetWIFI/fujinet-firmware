@@ -19,6 +19,27 @@ typedef struct {
     uint8_t data[MAX_FIFO_PAYLOAD];
 } FIFOPacket;
 
+static void usb_lib_task(void *arg);
+
+static bool s_usb_host_installed = false;
+
+void usbHostEnsureInstalled()
+{
+    if (s_usb_host_installed)
+        return;
+    s_usb_host_installed = true;
+
+    usb_host_config_t host_config = {};
+    host_config.skip_phy_setup = false;
+    host_config.intr_flags = ESP_INTR_FLAG_LEVEL1;
+    ESP_ERROR_CHECK(usb_host_install(&host_config));
+
+    BaseType_t task_created = xTaskCreate(usb_lib_task, "usb_lib", 4096,
+                                          xTaskGetCurrentTaskHandle(),
+                                          20, NULL);
+    assert(task_created == pdTRUE);
+}
+
 static void usb_lib_task(void *arg)
 {
     while (1) {
@@ -26,6 +47,7 @@ static void usb_lib_task(void *arg)
         uint32_t event_flags;
         usb_host_lib_handle_events(portMAX_DELAY, &event_flags);
         if (event_flags & USB_HOST_LIB_EVENT_FLAGS_NO_CLIENTS) {
+            Debug_printv("USB: No clients (unexpected once ACMChannel/PicobootClient are registered)");
             ESP_ERROR_CHECK(usb_host_device_free_all());
         }
         if (event_flags & USB_HOST_LIB_EVENT_FLAGS_ALL_FREE) {
@@ -183,15 +205,7 @@ void ACMChannel::begin()
     assert(device_disconnected_sem);
     assert(device_connected_sem);
 
-    usb_host_config_t host_config = {};
-    host_config.skip_phy_setup = false;
-    host_config.intr_flags = ESP_INTR_FLAG_LEVEL1;
-    ESP_ERROR_CHECK(usb_host_install(&host_config));
-
-    BaseType_t task_created = xTaskCreate(usb_lib_task, "usb_lib", 4096,
-                                          xTaskGetCurrentTaskHandle(),
-                                          _service_priority, NULL);
-    assert(task_created == pdTRUE);
+    usbHostEnsureInstalled();
 
     ndc_instance = this;
 

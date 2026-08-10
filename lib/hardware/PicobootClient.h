@@ -67,11 +67,18 @@ private:
     usb_device_handle_t _dev_hdl = nullptr;
     uint8_t _interface = 0;
     uint8_t _out_ep = 0, _in_ep = 0;
+    uint16_t _in_ep_mps = 64; // RP2040 BOOTSEL is full-speed only -> bulk MPS is
+                              // always 64 by spec; captured from the endpoint
+                              // descriptor anyway rather than assumed outright.
     SemaphoreHandle_t _device_ready_sem = nullptr;
 
     usb_transfer_t *_cmd_xfer = nullptr;   // 32B picoboot_cmd
     usb_transfer_t *_data_xfer = nullptr;  // up to one flash sector (4096B)
-    usb_transfer_t *_ack_xfer = nullptr;   // 1B capacity, device sends a ZLP
+    usb_transfer_t *_ack_xfer = nullptr;   // capacity 64B; device sends a ZLP, but
+                                            // ESP-IDF's usb_host requires non-control
+                                            // IN requests to be an exact multiple of
+                                            // the endpoint's MPS -- unlike libusb,
+                                            // which tolerates a 1-byte ACK request.
     SemaphoreHandle_t _xfer_done_sem = nullptr;
 
     void newDevice(uint8_t dev_addr);

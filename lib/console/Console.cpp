@@ -13,6 +13,7 @@
 #include "Commands/VFSCommands.h"
 #include "Commands/GPIOCommands.h"
 #include "Commands/XFERCommands.h"
+#include "Commands/PicobootCommands.h"
 #include "driver/uart.h"
 #include "esp_vfs_dev.h"
 #include "linenoise/linenoise.h"
@@ -48,6 +49,9 @@ namespace ESP32Console
         registerCommand(getMemInfoCommand());
         registerCommand(getTaskInfoCommand());
         registerCommand(getDateCommand());
+#ifdef CONFIG_USB_PICOBOOT_HOST_ENABLED
+        registerCommand(getPicobootFlashCommand());
+#endif
     }
 
     void ESP32Console::Console::registerNetworkCommands()
