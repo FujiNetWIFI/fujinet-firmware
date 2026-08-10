@@ -7,6 +7,7 @@
 
 #include "fnSystem.h"
 #include "fnConfig.h"
+#include "fnPassword.h"
 #include "fnWiFi.h"
 #include "fsFlash.h"
 #include "httpService.h"
@@ -155,6 +156,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_PCLINK_ENABLED,
         FN_GDRIVE_CONNECTED,
         FN_ONEDRIVE_CONNECTED,
+        FN_PASSWORD_SET,
         FN_LASTTAG
     };
 
@@ -292,6 +294,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_PCLINK_ENABLED",
         "FN_GDRIVE_CONNECTED",
         "FN_ONEDRIVE_CONNECTED",
+        "FN_PASSWORD_SET",
     };
 
     stringstream resultstream;
@@ -687,6 +690,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_ONEDRIVE_CONNECTED:
         resultstream << (Config.get_onedrive_refresh_token().empty() ? "0" : "1");
+        break;
+    case FN_PASSWORD_SET:
+        resultstream << (fnPassword.is_set() ? "1" : "0");
         break;
     default:
         resultstream << tag;

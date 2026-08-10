@@ -1,5 +1,7 @@
 #include "httpServiceConfigurator.h"
 
+#include <cstring>
+
 #include "../../include/debug.h"
 
 #include "printer.h"
@@ -124,6 +126,27 @@ std::map<std::string, std::string> fnHttpServiceConfigurator::parse_postdata(con
             break;
         }
     }
+
+    return results;
+}
+
+static std::string url_decode_string(const std::string &encoded)
+{
+    if (encoded.empty())
+        return encoded;
+
+    std::string decoded(encoded.size() + 1, '\0');
+    fnHttpServiceConfigurator::url_decode(&decoded[0], encoded.c_str(), encoded.size());
+    decoded.resize(strlen(decoded.c_str()));
+    return decoded;
+}
+
+std::map<std::string, std::string> fnHttpServiceConfigurator::parse_postdata_decoded(const char *postdata, size_t postlen)
+{
+    std::map<std::string, std::string> results;
+
+    for (std::pair<const std::string, std::string> &kv : parse_postdata(postdata, postlen))
+        results[url_decode_string(kv.first)] = url_decode_string(kv.second);
 
     return results;
 }

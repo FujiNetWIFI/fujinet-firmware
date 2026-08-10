@@ -46,6 +46,9 @@ class fnHttpServiceConfigurator
 public:
     static char * url_decode(char * dst, const char * src, size_t dstsize);
     static std::map<std::string, std::string> parse_postdata(const char * postdata, size_t postlen);
+    // Like parse_postdata(), but url-decodes each key and value after splitting
+    // rather than before, so values may legitimately contain '&' and '='.
+    static std::map<std::string, std::string> parse_postdata_decoded(const char * postdata, size_t postlen);
     static int process_config_post(const char * postdata, size_t postlen);
 };
 

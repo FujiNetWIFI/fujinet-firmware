@@ -162,6 +162,7 @@ set(INCLUDE_DIRS include
 
 set(SOURCES src/main.cpp
     lib/config/fnConfig.h lib/config/fnConfig.cpp
+    lib/config/fnPassword.h lib/config/fnPassword.cpp
     lib/config/fnc_bt.cpp
     lib/config/fnc_cassette.cpp
     lib/config/fnc_cpm.cpp

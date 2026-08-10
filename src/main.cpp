@@ -22,6 +22,7 @@
 
 #include "fnSystem.h"
 #include "fnConfig.h"
+#include "fnPassword.h"
 #include "fnWiFi.h"
 
 #include "fsFlash.h"
@@ -232,6 +233,9 @@ void main_setup(int argc, char *argv[])
 
     // Load our stored configuration
     Config.load();
+
+    // Load the device password (kept in flash, separate from the config file)
+    fnPassword.setup();
 
     // WiFi/BT auto connect moved to app_main()
 
