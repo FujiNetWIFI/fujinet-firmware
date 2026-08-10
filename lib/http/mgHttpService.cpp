@@ -29,6 +29,7 @@
 #include "httpServiceConfigurator.h"
 #include "httpServiceParser.h"
 #include "httpServiceBrowser.h"
+#include "appKeyManager.h"
 #include "privatePage.h"
 
 #include "../../include/debug.h"
@@ -595,6 +596,28 @@ int fnHttpService::get_handler_private(struct mg_connection *c, struct mg_http_m
     return 0;
 }
 
+int fnHttpService::handler_appkeys(struct mg_connection *c, struct mg_http_message *hm)
+{
+    if (!require_device_password(c, hm))
+        return -1;
+
+    std::string message;
+    if (hm->method.len == 4 && strncasecmp(hm->method.buf, "POST", 4) == 0)
+    {
+        if (hm->body.len > APPKEYS_MAX_POST_SIZE)
+        {
+            mg_http_reply(c, 413, "", "Posted app key data too large\n");
+            return -1;
+        }
+        message = AppKeyManager::handle_post(
+            fnHttpServiceConfigurator::parse_postdata_decoded(hm->body.buf, hm->body.len));
+    }
+
+    std::string page = AppKeyManager::render_page(message);
+    mg_http_reply(c, 200, "Content-Type: text/html\r\n", "%s", page.c_str());
+    return 0;
+}
+
 
 int fnHttpService::get_handler_browse(mg_connection *c, mg_http_message *hm)
 {
@@ -1063,6 +1086,11 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
         {
             // password-protected page
             get_handler_private(c, hm);
+        }
+        else if (mg_match(hm->uri, mg_str("/appkeys"), NULL))
+        {
+            // password-protected app key manager
+            handler_appkeys(c, hm);
         }
         else if (mg_match(hm->uri, mg_str("/print"), NULL))
         {

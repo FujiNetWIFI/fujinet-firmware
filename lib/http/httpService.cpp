@@ -24,6 +24,7 @@
 #include "printer.h"
 #include "httpServiceConfigurator.h"
 #include "httpServiceParser.h"
+#include "appKeyManager.h"
 #include "privatePage.h"
 #include "fujiDevice.h"
 #ifdef BUILD_ATARI
@@ -1408,6 +1409,53 @@ esp_err_t fnHttpService::get_handler_private(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t fnHttpService::get_handler_appkeys(httpd_req_t *req)
+{
+    if (!require_device_password(req))
+        return ESP_OK;
+
+    std::string page = AppKeyManager::render_page("");
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_send(req, page.c_str(), page.size());
+    return ESP_OK;
+}
+
+esp_err_t fnHttpService::post_handler_appkeys(httpd_req_t *req)
+{
+    if (!require_device_password(req))
+        return ESP_OK;
+
+    // A full table of MAX_APPKEY_LEN values can be considerably larger than the
+    // shared receive buffer, so size the read to the posted content.
+    if (req->content_len == 0 || req->content_len > APPKEYS_MAX_POST_SIZE)
+    {
+        return_http_error(req, fnwserr_post_fail);
+        return ESP_FAIL;
+    }
+
+    std::vector<char> buf(req->content_len);
+    size_t received = 0;
+    while (received < buf.size())
+    {
+        int ret = httpd_req_recv(req, buf.data() + received, buf.size() - received);
+        if (ret <= 0)
+        {
+            Debug_printf("Error (%d) receiving posted appkey data\n", ret);
+            return_http_error(req, fnwserr_post_fail);
+            return ESP_FAIL;
+        }
+        received += ret;
+    }
+
+    std::string message = AppKeyManager::handle_post(
+        fnHttpServiceConfigurator::parse_postdata_decoded(buf.data(), received));
+
+    std::string page = AppKeyManager::render_page(message);
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_send(req, page.c_str(), page.size());
+    return ESP_OK;
+}
+
 // ─── Google Drive OAuth2 relay-based authorization-code-flow handlers ────────
 //
 // The FujiNet project registers ONE Google OAuth2 "Desktop application" client.
@@ -2476,6 +2524,20 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
         {.uri = "/private",
          .method = HTTP_GET,
          .handler = get_handler_private,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/appkeys",
+         .method = HTTP_GET,
+         .handler = get_handler_appkeys,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/appkeys",
+         .method = HTTP_POST,
+         .handler = post_handler_appkeys,
          .user_ctx = NULL,
          .is_websocket = false,
          .handle_ws_control_frames = false,
