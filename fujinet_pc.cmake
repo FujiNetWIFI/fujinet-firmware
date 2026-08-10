@@ -162,6 +162,7 @@ set(INCLUDE_DIRS include
 
 set(SOURCES src/main.cpp
     lib/config/fnConfig.h lib/config/fnConfig.cpp
+    lib/config/fnPassword.h lib/config/fnPassword.cpp
     lib/config/fnc_bt.cpp
     lib/config/fnc_cassette.cpp
     lib/config/fnc_cpm.cpp
@@ -236,6 +237,7 @@ set(SOURCES src/main.cpp
     lib/http/httpServiceParser.h lib/http/httpServiceParser.cpp
     lib/http/httpServiceConfigurator.h lib/http/httpServiceConfigurator.cpp
     lib/http/httpServiceBrowser.h lib/http/httpServiceBrowser.cpp
+    lib/http/appKeyManager.h lib/http/appKeyManager.cpp
     lib/http/mgHttpClient.h lib/http/mgHttpClient.cpp
     lib/task/fnTask.h lib/task/fnTask.cpp
     lib/task/fnTaskManager.h lib/task/fnTaskManager.cpp

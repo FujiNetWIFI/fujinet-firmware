@@ -17,6 +17,7 @@
 
 #include "fnSystem.h"
 #include "fnConfig.h"
+#include "fnPassword.h"
 #include "fnWiFi.h"
 #include "fsFlash.h"
 #include "../device/modem.h"
@@ -24,6 +25,8 @@
 #include "httpServiceConfigurator.h"
 #include "httpServiceParser.h"
 #include "clipboardManager.h"
+#include "appKeyManager.h"
+#include "privatePage.h"
 #include "fujiDevice.h"
 #ifdef BUILD_ATARI
 #include "sio/sioFuji.h"
@@ -1297,7 +1300,162 @@ esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
     return ESP_OK;
 }
 
+// ─── Device password ─────────────────────────────────────────────────────────
 
+static void password_send_json(httpd_req_t *req, const char *status_line, cJSON *body)
+{
+    char *json = cJSON_PrintUnformatted(body);
+    httpd_resp_set_status(req, status_line);
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, json != nullptr ? json : "{}");
+    if (json != nullptr)
+        cJSON_free(json);
+    cJSON_Delete(body);
+}
+
+static void password_send_error(httpd_req_t *req, const char *status_line, const std::string &message)
+{
+    cJSON *out = cJSON_CreateObject();
+    cJSON_AddStringToObject(out, "status", "error");
+    cJSON_AddStringToObject(out, "message", message.c_str());
+    password_send_json(req, status_line, out);
+}
+
+esp_err_t fnHttpService::post_handler_password(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len > FNWS_RECV_BUFF_SIZE)
+    {
+        password_send_error(req, "400 Bad Request", "Bad password request");
+        return ESP_OK;
+    }
+
+    std::vector<char> buf(req->content_len);
+    int ret = httpd_req_recv(req, buf.data(), buf.size());
+    if (ret <= 0)
+    {
+        Debug_printf("Error (%d) receiving posted password data\n", ret);
+        password_send_error(req, "400 Bad Request", MSG_ERR_RECEIVE_FAILURE);
+        return ESP_OK;
+    }
+
+    std::map<std::string, std::string> postvals =
+        fnHttpServiceConfigurator::parse_postdata_decoded(buf.data(), (size_t)ret);
+    // Don't leave the plaintext password sitting in the receive buffer
+    memset(buf.data(), 0, buf.size());
+
+    std::string error;
+    bool ok;
+    if (postvals["action"] == "clear")
+    {
+        ok = fnPassword.remove(postvals["current"], error);
+    }
+    else if (postvals["new"] != postvals["confirm"])
+    {
+        ok = false;
+        error = "New password and confirmation do not match";
+    }
+    else
+    {
+        ok = fnPassword.change(postvals["current"], postvals["new"], error);
+    }
+
+    if (!ok)
+    {
+        password_send_error(req, "400 Bad Request", error);
+        return ESP_OK;
+    }
+
+    cJSON *out = cJSON_CreateObject();
+    cJSON_AddStringToObject(out, "status", "ok");
+    cJSON_AddBoolToObject(out, "password_set", fnPassword.is_set());
+    password_send_json(req, "200 OK", out);
+    return ESP_OK;
+}
+
+/* Returns true when the request may proceed. Otherwise a challenge or an
+   explanatory page has already been sent and the handler should return. */
+static bool require_device_password(httpd_req_t *req)
+{
+    if (!fnPassword.is_set())
+    {
+        httpd_resp_set_status(req, "403 Forbidden");
+        httpd_resp_set_type(req, "text/html");
+        httpd_resp_sendstr(req, PRIVATE_NO_PASSWORD_HTML);
+        return false;
+    }
+
+    size_t hdrlen = httpd_req_get_hdr_value_len(req, "Authorization");
+    if (hdrlen > 0 && hdrlen < 1024)
+    {
+        std::vector<char> hdr(hdrlen + 1);
+        if (httpd_req_get_hdr_value_str(req, "Authorization", hdr.data(), hdr.size()) == ESP_OK &&
+            fnPassword.check_basic_auth(hdr.data()))
+            return true;
+    }
+
+    httpd_resp_set_status(req, "401 Unauthorized");
+    httpd_resp_set_hdr(req, "WWW-Authenticate", PRIVATE_AUTH_REALM);
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_sendstr(req, PRIVATE_UNAUTHORIZED_HTML);
+    return false;
+}
+
+esp_err_t fnHttpService::get_handler_private(httpd_req_t *req)
+{
+    if (!require_device_password(req))
+        return ESP_OK;
+
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_sendstr(req, PRIVATE_PAGE_HTML);
+    return ESP_OK;
+}
+
+esp_err_t fnHttpService::get_handler_appkeys(httpd_req_t *req)
+{
+    if (!require_device_password(req))
+        return ESP_OK;
+
+    std::string page = AppKeyManager::render_page("");
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_send(req, page.c_str(), page.size());
+    return ESP_OK;
+}
+
+esp_err_t fnHttpService::post_handler_appkeys(httpd_req_t *req)
+{
+    if (!require_device_password(req))
+        return ESP_OK;
+
+    // A full table of MAX_APPKEY_LEN values can be considerably larger than the
+    // shared receive buffer, so size the read to the posted content.
+    if (req->content_len == 0 || req->content_len > APPKEYS_MAX_POST_SIZE)
+    {
+        return_http_error(req, fnwserr_post_fail);
+        return ESP_FAIL;
+    }
+
+    std::vector<char> buf(req->content_len);
+    size_t received = 0;
+    while (received < buf.size())
+    {
+        int ret = httpd_req_recv(req, buf.data() + received, buf.size() - received);
+        if (ret <= 0)
+        {
+            Debug_printf("Error (%d) receiving posted appkey data\n", ret);
+            return_http_error(req, fnwserr_post_fail);
+            return ESP_FAIL;
+        }
+        received += ret;
+    }
+
+    std::string message = AppKeyManager::handle_post(
+        fnHttpServiceConfigurator::parse_postdata_decoded(buf.data(), received));
+
+    std::string page = AppKeyManager::render_page(message);
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_send(req, page.c_str(), page.size());
+    return ESP_OK;
+}
 
 // ─── Clipboard handlers ──────────────────────────────────────────────────────
 
@@ -2513,6 +2671,9 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
         {.uri = "/clipboard",
          .method = HTTP_POST,
          .handler = post_handler_clipboard,
+        {.uri = "/password",
+         .method = HTTP_POST,
+         .handler = post_handler_password,
          .user_ctx = NULL,
          .is_websocket = false,
          .handle_ws_control_frames = false,
@@ -2520,6 +2681,9 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
         {.uri = "/clipboard/data",
          .method = HTTP_GET,
          .handler = get_handler_clipboard_data,
+        {.uri = "/private",
+         .method = HTTP_GET,
+         .handler = get_handler_private,
          .user_ctx = NULL,
          .is_websocket = false,
          .handle_ws_control_frames = false,
@@ -2527,6 +2691,9 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
         {.uri = "/clipboard/clear",
          .method = HTTP_POST,
          .handler = post_handler_clipboard_clear,
+        {.uri = "/appkeys",
+         .method = HTTP_GET,
+         .handler = get_handler_appkeys,
          .user_ctx = NULL,
          .is_websocket = false,
          .handle_ws_control_frames = false,
@@ -2534,6 +2701,9 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
         {.uri = "/clipboard/restore",
          .method = HTTP_POST,
          .handler = post_handler_clipboard_restore,
+        {.uri = "/appkeys",
+         .method = HTTP_POST,
+         .handler = post_handler_appkeys,
          .user_ctx = NULL,
          .is_websocket = false,
          .handle_ws_control_frames = false,

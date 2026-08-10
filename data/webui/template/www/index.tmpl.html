@@ -2121,6 +2121,181 @@
 				</form>
 			</div>
 			{% endif %}
+			<div class="module" data-experimental>
+				<div class="settings">
+					<div class="settings-header">
+						APP<span class="logowob"></span>KEYS
+					</div>
+					<div class="settings-left">
+						<div class="svgicon">
+							<svg width="90%" height="90%" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+								<circle cx="20" cy="32" r="11" fill="none" stroke="#000" stroke-width="5"/>
+								<circle cx="20" cy="32" r="3.5" fill="#000"/>
+								<path d="M31 32h24" fill="none" stroke="#000" stroke-width="5"/>
+								<path d="M46 32v9" fill="none" stroke="#000" stroke-width="5"/>
+								<path d="M55 32v13" fill="none" stroke="#000" stroke-width="5"/>
+							</svg>
+						</div>
+					</div>
+					<div class="settings-content settings-45-55">
+						<div class="set">
+							<div class="settings-label">
+								<label>App keys stored</label>
+							</div>
+							<div class="settings-value">
+								<span id="appkey-count"><%FN_APPKEY_COUNT%></span>
+							</div>
+						</div>
+						<hr>
+						<div class="settings-text">
+							<div>
+								App keys are the settings that programs store on the FujiNet. They live on the
+								SD card under /FujiNet/.
+							</div>
+							<div id="appkey-password-note"></div>
+						</div>
+					</div>
+					<div class="settings-footer">
+						<div class="save-button">
+							<button type="button" onclick="window.location.href='/appkeys'">Manage</button>
+						</div>
+					</div>
+				</div>
+				<script>
+					(function() {
+						var note = document.getElementById("appkey-password-note");
+						if ("<%FN_PASSWORD_SET%>" === "1") {
+							note.textContent = "The App Key manager asks for the device password.";
+						} else {
+							note.textContent = "Set a device password below to unlock the App Key manager.";
+							note.style.color = "red";
+						}
+					})();
+				</script>
+			</div>
+			<div class="module" data-experimental>
+				<form id="password-form" action="/password" method="post">
+				<div class="settings">
+					<div class="settings-header">
+						DEVICE<span class="logowob"></span>PASSWORD
+					</div>
+					<div class="settings-left">
+						<div class="svgicon">
+							<svg width="90%" height="90%" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+								<rect x="12" y="28" width="40" height="30" rx="4" fill="#f3a933" stroke="#000" stroke-width="3"/>
+								<path d="M22 28v-8a10 10 0 0 1 20 0v8" fill="none" stroke="#000" stroke-width="5"/>
+								<circle cx="32" cy="41" r="4.5"/>
+								<rect x="30" y="43" width="4" height="9"/>
+							</svg>
+						</div>
+					</div>
+					<div class="settings-content settings-45-55">
+						<div class="set">
+							<div class="settings-label">
+								<label>Device password</label>
+							</div>
+							<div class="settings-value">
+								<span id="password-state-indicator"></span>
+							</div>
+						</div>
+						<div class="set" id="password-current-row">
+							<div class="settings-label">
+								<label for="password_current">Current password</label>
+							</div>
+							<div class="settings-value">
+								<input type="password" name="current" id="password_current" autocomplete="current-password">
+							</div>
+						</div>
+						<div class="set">
+							<div class="settings-label">
+								<label for="password_new">New password</label>
+							</div>
+							<div class="settings-value">
+								<input type="password" name="new" id="password_new" autocomplete="new-password">
+							</div>
+						</div>
+						<div class="set">
+							<div class="settings-label">
+								<label for="password_confirm">Confirm new password</label>
+							</div>
+							<div class="settings-value">
+								<input type="password" name="confirm" id="password_confirm" autocomplete="new-password">
+							</div>
+						</div>
+						<hr>
+						<div class="settings-text">
+							<div>
+								The password is kept in flash, never on the SD card, and guards sensitive
+								pages.<br>
+								Re-flashing the firmware clears it.<br>
+								<span id="password-remove-hint">To remove the password, leave the new password blank.</span>
+							</div>
+							<div id="password-status"></div>
+						</div>
+					</div>
+					<div class="settings-footer">
+						<div class="save-button">
+							<button type="submit" value="Update">Update</button>
+						</div>
+					</div>
+				</div>
+				</form>
+				<script>
+					(function() {
+						var isSet = "<%FN_PASSWORD_SET%>" === "1";
+						var form = document.getElementById("password-form");
+						var statusEl = document.getElementById("password-status");
+						var indicator = document.getElementById("password-state-indicator");
+						var currentRow = document.getElementById("password-current-row");
+						var removeHint = document.getElementById("password-remove-hint");
+						var newInput = document.getElementById("password_new");
+						var confirmInput = document.getElementById("password_confirm");
+
+						function render() {
+							indicator.textContent = isSet ? "Set" : "Not set";
+							indicator.style.color = isSet ? "green" : "red";
+							currentRow.style.display = isSet ? "" : "none";
+							removeHint.style.display = isSet ? "" : "none";
+						}
+
+						form.addEventListener("submit", function(e) {
+							e.preventDefault();
+
+							// A blank new password on a device that has one means "remove it"
+							var clearing = isSet && newInput.value === "" && confirmInput.value === "";
+							var body = new URLSearchParams();
+							body.append("action", clearing ? "clear" : "set");
+							body.append("current", document.getElementById("password_current").value);
+							body.append("new", newInput.value);
+							body.append("confirm", confirmInput.value);
+							statusEl.textContent = "Saving...";
+							statusEl.style.color = "";
+							fetch("/password", {
+								method: "POST",
+								headers: {"Content-Type": "application/x-www-form-urlencoded"},
+								body: body.toString()
+							}).then(function(r) {
+								return r.json();
+							}).then(function(d) {
+								if (d.status === "ok") {
+									isSet = !!d.password_set;
+									form.reset();
+									render();
+									statusEl.style.color = "green";
+									statusEl.textContent = isSet ? "Password saved." : "Password removed.";
+								} else {
+									statusEl.style.color = "red";
+									statusEl.textContent = d.message || "Could not save the password.";
+								}
+							}).catch(function() {
+								statusEl.style.color = "red";
+								statusEl.textContent = "Could not reach FujiNet.";
+							});
+						});
+						render();
+					})();
+				</script>
+			</div>
 		</div>
 	</div>
 

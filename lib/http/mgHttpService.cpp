@@ -13,6 +13,7 @@
 #include "clipboardManager.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
+#include "fnPassword.h"
 #include "fnWiFi.h"
 #include "fsFlash.h"
 #include "modem.h"
@@ -29,6 +30,8 @@
 #include "httpServiceConfigurator.h"
 #include "httpServiceParser.h"
 #include "httpServiceBrowser.h"
+#include "appKeyManager.h"
+#include "privatePage.h"
 
 #include "../../include/debug.h"
 
@@ -507,6 +510,113 @@ int fnHttpService::post_handler_config(struct mg_connection *c, struct mg_http_m
     mg_printf(c, "HTTP/1.1 303 See Other\r\nLocation: /\r\nContent-Length: 0\r\n\r\n");
 
     return 0; //ESP_OK;
+}
+
+// ─── Device password ─────────────────────────────────────────────────────────
+
+static void password_send_error(struct mg_connection *c, int code, const std::string &message)
+{
+    cJSON *out = cJSON_CreateObject();
+    cJSON_AddStringToObject(out, "status", "error");
+    cJSON_AddStringToObject(out, "message", message.c_str());
+    char *json = cJSON_PrintUnformatted(out);
+    mg_http_reply(c, code, "Content-Type: application/json\r\n", "%s", json != nullptr ? json : "{}");
+    if (json != nullptr) cJSON_free(json);
+    cJSON_Delete(out);
+}
+
+int fnHttpService::post_handler_password(struct mg_connection *c, struct mg_http_message *hm)
+{
+    Debug_println("Post_password request handler");
+
+    std::map<std::string, std::string> postvals =
+        fnHttpServiceConfigurator::parse_postdata_decoded(hm->body.buf, hm->body.len);
+
+    std::string error;
+    bool ok;
+    if (postvals["action"] == "clear")
+    {
+        ok = fnPassword.remove(postvals["current"], error);
+    }
+    else if (postvals["new"] != postvals["confirm"])
+    {
+        ok = false;
+        error = "New password and confirmation do not match";
+    }
+    else
+    {
+        ok = fnPassword.change(postvals["current"], postvals["new"], error);
+    }
+
+    if (!ok)
+    {
+        password_send_error(c, 400, error);
+        return -1;
+    }
+
+    cJSON *out = cJSON_CreateObject();
+    cJSON_AddStringToObject(out, "status", "ok");
+    cJSON_AddBoolToObject(out, "password_set", fnPassword.is_set());
+    char *json = cJSON_PrintUnformatted(out);
+    mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s", json != nullptr ? json : "{}");
+    if (json != nullptr) cJSON_free(json);
+    cJSON_Delete(out);
+    return 0;
+}
+
+/* Returns true when the request may proceed. Otherwise a challenge or an
+   explanatory page has already been sent and the handler should return. */
+static bool require_device_password(struct mg_connection *c, struct mg_http_message *hm)
+{
+    if (!fnPassword.is_set())
+    {
+        mg_http_reply(c, 403, "Content-Type: text/html\r\n", "%s", PRIVATE_NO_PASSWORD_HTML);
+        return false;
+    }
+
+    struct mg_str *auth = mg_http_get_header(hm, "Authorization");
+    if (auth != nullptr && auth->len > 0 && auth->len < 1024)
+    {
+        std::string header(auth->buf, auth->len);
+        if (fnPassword.check_basic_auth(header.c_str()))
+            return true;
+    }
+
+    mg_http_reply(c, 401,
+                  "WWW-Authenticate: " PRIVATE_AUTH_REALM "\r\nContent-Type: text/html\r\n",
+                  "%s", PRIVATE_UNAUTHORIZED_HTML);
+    return false;
+}
+
+int fnHttpService::get_handler_private(struct mg_connection *c, struct mg_http_message *hm)
+{
+    if (!require_device_password(c, hm))
+        return -1;
+
+    mg_http_reply(c, 200, "Content-Type: text/html\r\n", "%s", PRIVATE_PAGE_HTML);
+    return 0;
+}
+
+int fnHttpService::handler_appkeys(struct mg_connection *c, struct mg_http_message *hm)
+{
+    if (!require_device_password(c, hm))
+        return -1;
+
+    std::string message;
+    if (hm->method.len == 4 && strncasecmp(hm->method.buf, "POST", 4) == 0)
+    {
+        if (hm->body.len > APPKEYS_MAX_POST_SIZE)
+        {
+            mg_http_reply(c, 413, "", "Posted app key data too large\n");
+            return -1;
+        }
+        message = AppKeyManager::handle_post(
+            fnHttpServiceConfigurator::parse_postdata_decoded(hm->body.buf, hm->body.len));
+    }
+
+    std::string page = AppKeyManager::render_page(message);
+    mg_http_reply(c, 200, "Content-Type: text/html\r\n", "%s", page.c_str());
+    return 0;
 }
 
 
@@ -1077,6 +1187,24 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
             {
                 mg_http_reply(c, 400, "", "Bad config request\n");
             }
+        }
+        else if (mg_match(hm->uri, mg_str("/password"), NULL))
+        {
+            // device password change/clear handler
+            if (hm->method.len == 4 && strncasecmp(hm->method.buf, "POST", 4) == 0)
+                post_handler_password(c, hm);
+            else
+                mg_http_reply(c, 405, "", "Method Not Allowed\n");
+        }
+        else if (mg_match(hm->uri, mg_str("/private"), NULL))
+        {
+            // password-protected page
+            get_handler_private(c, hm);
+        }
+        else if (mg_match(hm->uri, mg_str("/appkeys"), NULL))
+        {
+            // password-protected app key manager
+            handler_appkeys(c, hm);
         }
         else if (mg_match(hm->uri, mg_str("/print"), NULL))
         {
