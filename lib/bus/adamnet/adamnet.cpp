@@ -104,12 +104,6 @@ uint8_t adamnet_checksum(uint8_t *buf, unsigned short len)
 void systemBus::transaction_accept(transState_t expectMoreData)
 {
     assert(_transaction_state == TRANS_STATE::INVALID);
-
-    // By the time we get to transaction_accept the payload has been
-    // read by FujiAdamPacket and needs to be acked.
-    start_time = GET_TIMESTAMP();
-    _activeDev->adamnet_response_ack();
-
     _transaction_state = expectMoreData;
 }
 

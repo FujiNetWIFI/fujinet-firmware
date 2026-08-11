@@ -76,6 +76,9 @@ void FujiAdamPacket::setPayloadLength(const size_t len) const
         _payload->resize(rlen);
     _payload_checksum = SYSTEM_BUS.read();
     // FIXME - do something if checksum mismatch?
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
+    SYSTEM_BUS.write((((unsigned) APT::NM_ACK) << 4) | _device);
+    SYSTEM_BUS.flush();
 }
 
 const std::optional<ByteBuffer>& FujiAdamPacket::data() const
