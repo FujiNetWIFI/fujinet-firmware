@@ -197,9 +197,24 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
     if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
         disk_type = MediaType::discover_mediatype(filename);
 
+    // Intellivision cartridge dumps (.bin/.rom) are not fixed-power-of-two sized
+    // (e.g. battleship.bin is 17730 bytes), so route them to the ROM path by
+    // extension rather than relying solely on the legacy size heuristic below.
+    bool is_cart_extension = false;
+    if (filename != nullptr)
+    {
+        int l = strlen(filename);
+        if (l > 4 && filename[l - 4] == '.')
+        {
+            const char *ext = filename + l - 3;
+            if (strcasecmp(ext, "BIN") == 0 || strcasecmp(ext, "ROM") == 0)
+                is_cart_extension = true;
+        }
+    }
+
     // TODO: Stupid hack to treat ROM-sized files as ROMs and not disks. Should be
     // replaced with proper ROM-handling logic
-    if (disksize == 8192 || disksize == 16384 || disksize == 32768)
+    if (is_cart_extension || disksize == 8192 || disksize == 16384 || disksize == 32768)
         return mountROM(f, filename, disksize, disk_type);
 
     // Now mount based on MediaType
