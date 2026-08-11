@@ -260,39 +260,6 @@ void systemBus::min_turnaround()
     wait_turnaround(ADAMNET_TURNAROUND_US);
 }
 
-void systemBus::drain_echo(size_t n)
-{
-    // Because: Everything we transmit on the one-wire bus echoes back into our own RX.
-    if (n == 0)
-        return;
-    if (n > ECHO_DRAIN_MAX)
-    {
-        wait_for_idle();
-        return;
-    }
-
-    uint8_t scratch[ECHO_DRAIN_MAX];
-    size_t got = 0;
-    int64_t last = GET_TIMESTAMP();
-
-    while (got < n)
-    {
-        size_t avail = _port->available();
-        if (avail)
-        {
-            size_t take = n - got;
-            if (take > avail)
-                take = avail;
-            got += _port->read(scratch, take);
-            last = GET_TIMESTAMP();
-        }
-        else if (GET_TIMESTAMP() - last > ECHO_SETTLE_US)
-        {
-            break; // straggler window elapsed; don't wait for a lost echo byte
-        }
-    }
-}
-
 void virtualDevice::adamnet_control_status()
 {
     SYSTEM_BUS.start_time=GET_TIMESTAMP();
@@ -342,7 +309,6 @@ void systemBus::_adamnet_process_cmd()
     int64_t cmd_start = GET_TIMESTAMP();
     start_time = cmd_start;
     frame_error = false;
-    _tx_count = 0;
     stall_silent = false;
 
     auto tmpPacket = FujiAdamPacket(dest);
@@ -371,8 +337,6 @@ void systemBus::_adamnet_process_cmd()
     }
     else if (GET_TIMESTAMP() - cmd_start > ADAMNET_LONG_CMD_US)
         wait_for_idle();
-    else if (_tx_count > 0 && !frame_error)
-        drain_echo(_tx_count);
     else
         wait_for_idle();
 }
@@ -458,14 +422,15 @@ void systemBus::setup()
 
     // Set up UART
     _serial.begin(ChannelConfig()
-                .deviceID(FN_UART_BUS)
-                .baud(ADAMNET_BAUDRATE)
-                .inverted(true)
-                .readTimeout(2.0)
-                .discardTimeout(0.180)
-                .rxThreshold(1)
-                .txBuffer(2048)
-                );
+                  .deviceID(FN_UART_BUS)
+                  .baud(ADAMNET_BAUDRATE)
+                  .inverted(true)
+                  .readTimeout(2.0)
+                  .discardTimeout(0.180)
+                  .rxThreshold(1)
+                  .txBuffer(2048)
+                  .halfDuplex(true)
+                  );
     _port = &_serial;
 #else
     // PC build: carry AdamNet over a TCP socket (Bus over IP) when enabled,
@@ -476,7 +441,6 @@ void systemBus::setup()
                        .hostName(Config.get_boip_host())
                        .portNum(Config.get_boip_port())
                        .client()
-                       .localEcho(true)
                        .nonBlocking()  // recv path can't absorb a blocking poll; idle is throttled by poll(1) in service()
                        .noDelay()      // disable Nagle: tiny request/response packets
                        .readTimeout(1000)
