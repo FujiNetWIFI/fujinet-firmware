@@ -61,8 +61,7 @@ void adamFuji::adamnet_set_boot_config(const FujiAdamPacket &packet)
 {
     boot_config = packet.param(0);
 
-    SYSTEM_BUS.start_time = GET_TIMESTAMP();
-    adamnet_response_ack();
+    transaction_begin(TRANS_STATE::NO_GET);
 
     Debug_printf("Boot config is now %d\n", boot_config);
 
@@ -73,6 +72,8 @@ void adamFuji::adamnet_set_boot_config(const FujiAdamPacket &packet)
         _fnDisks[0].reset();
         Debug_printf("Boot config unmounted slot 0\n");
     }
+
+    transaction_complete();
 }
 
 // DEBUG TAPE
@@ -124,6 +125,8 @@ void adamFuji::adamnet_new_disk(const FujiAdamPacket &packet)
     u32le_t numBlocks;
     const char *ptr;
 
+    transaction_begin(TRANS_STATE::NO_GET);
+
     ptr = packet.dataAsString()->c_str();
     memcpy(&numBlocks, ptr, sizeof(numBlocks));
     ptr += sizeof(numBlocks);
@@ -135,7 +138,7 @@ void adamFuji::adamnet_new_disk(const FujiAdamPacket &packet)
     {
         new_disk_completed = false;
         SYSTEM_BUS.start_time = GET_TIMESTAMP();
-        adamnet_response_ack();
+        transaction_error();
         return;
     }
 
@@ -152,6 +155,7 @@ void adamFuji::adamnet_new_disk(const FujiAdamPacket &packet)
     fnio::fclose(disk.fileh);
 
     new_disk_completed = true;
+    transaction_complete();
 }
 
 // Mounts the desired boot disk number
