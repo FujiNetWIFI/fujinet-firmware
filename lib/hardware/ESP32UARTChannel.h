@@ -39,6 +39,7 @@ struct ChannelConfig
     };
     bool isRxInverted = false;
     bool isTxInverted = false;
+    bool isHalfDuplex = false;
     uart_port_t device;
     double read_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
     double discard_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
@@ -108,6 +109,9 @@ struct ChannelConfig
         isTxInverted = inv;
         return *this;
     }
+    ChannelConfig& halfDuplex(bool flag) {
+        isHalfDuplex = flag; return *this;
+    }
     ChannelConfig& deviceID(uart_port_t num) {
         device = num; return *this;
     }
@@ -149,6 +153,7 @@ private:
     uart_port_t _uart_num;
     QueueHandle_t _uart_q;
     RS232ControlPins controlPins;
+    bool _halfDuplex;
 
 protected:
     bool getPin(int pin);
