@@ -1260,12 +1260,4 @@ void adamModem::shutdown()
             modemSniffer->closeOutput();
 }
 
-/*
-  Process command
-*/
-void adamModem::adamnet_process(const FujiAdamPacket &packet)
-{
-
-}
-
 #endif /* BUILD_ADAM */

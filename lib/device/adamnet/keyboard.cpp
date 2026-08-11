@@ -75,27 +75,6 @@ void adamKeyboard::adamnet_control_ready()
     adamnet_send(0x91); // Ack
 }
 
-void adamKeyboard::adamnet_process(const FujiAdamPacket &packet)
-{
-    switch (packet.type())
-    {
-    case APT::MN_STATUS:
-        adamnet_control_status();
-        break;
-    case APT::MN_RECEIVE:
-        adamnet_control_receive();
-        break;
-    case APT::MN_CLR:
-        adamnet_control_clr();
-        break;
-    case APT::MN_READY:
-        adamnet_control_ready();
-        break;
-    default:
-        break;
-    }
-}
-
 void adamKeyboard::shutdown()
 {
 }

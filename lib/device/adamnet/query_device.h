@@ -13,12 +13,11 @@
 class adamQueryDevice : public virtualDevice
 {
 protected:
-    virtual void adamnet_control_status() override;
-    virtual void adamnet_control_receive();
-    virtual void adamnet_control_clr();
-    virtual void adamnet_control_ready() override;
+    void adamnet_control_status() override;
+    void adamnet_control_receive();
+    void adamnet_control_clr();
+    void adamnet_control_ready() override;
 
-    void adamnet_process(const FujiAdamPacket &packet) override;
     void shutdown() override;
 
 public:

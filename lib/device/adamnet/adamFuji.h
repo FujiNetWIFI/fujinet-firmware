@@ -32,10 +32,9 @@ protected:
     void adamnet_test_command();
 
     void adamnet_control_status() override;
-    void adamnet_control_send(const FujiAdamPacket &packet);
-    void adamnet_control_clr();
-
-    void adamnet_process(const FujiAdamPacket &packet) override;
+    void adamnet_control_send(const FujiAdamPacket &packet) override;
+    void adamnet_control_receive() override { adamnet_response_ack(); }
+    void adamnet_control_clr() override;
 
     void shutdown() override;
 

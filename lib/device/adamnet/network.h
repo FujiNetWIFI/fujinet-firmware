@@ -78,13 +78,13 @@ public:
      */
     void status();
 
-    void adamnet_control_ack();
-    void adamnet_control_clr();
-    void adamnet_control_receive();
+    void adamnet_control_send(const FujiAdamPacket &packet) override;
+    void adamnet_control_receive() override;
+    void adamnet_control_clr() override;
+
     void adamnet_control_receive_channel_json();
     void adamnet_control_receive_channel_sgml();
     void adamnet_control_receive_channel_protocol();
-    void adamnet_control_send();
 
     void adamnet_response_status() override;
     void adamnet_response_send();
@@ -145,23 +145,12 @@ public:
      * Process incoming ADAM command for device 0x7X
      * @param b The incoming command byte
      */
-    void adamnet_process(const FujiAdamPacket &packet) override;
     void process_fs(fujiCommandID_t cmd, unsigned pkt_len);
     void process_tcp(fujiCommandID_t cmd);
     void process_http(fujiCommandID_t cmd);
     void process_udp(fujiCommandID_t cmd);
 
 private:
-    /**
-     * AdamNet Response Buffer
-     */
-    uint8_t response[1024];
-
-    /**
-     * AdamNet Response Length
-     */
-    uint16_t response_len=0;
-
     /**
      * JSON Object
      */

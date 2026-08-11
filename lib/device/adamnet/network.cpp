@@ -10,6 +10,8 @@
 #include "utils.h"
 #include "debug.h"
 
+#define MAX_ADAM_PACKET_LEN sizeof(response)
+
 using namespace std;
 
 /**
@@ -17,7 +19,7 @@ using namespace std;
  */
 adamNetwork::adamNetwork()
 {
-    status_response.length = htole16(1024);
+    status_response.length = htole16(MAX_ADAM_PACKET_LEN);
     status_response.devtype = ADAMNET_DEVTYPE_CHAR;
 #ifndef ESP_PLATFORM
     // BoIP: N: ops block on a remote host; send past the 300us window.
@@ -572,11 +574,7 @@ void adamNetwork::adamnet_response_status()
         virtualDevice::adamnet_response_status();
 }
 
-void adamNetwork::adamnet_control_ack()
-{
-}
-
-void adamNetwork::adamnet_control_send()
+void adamNetwork::adamnet_control_send(const FujiAdamPacket &packet)
 {
     uint16_t pkt_len = adamnet_recv_length(); // receive length
 
@@ -747,7 +745,7 @@ inline void adamNetwork::adamnet_control_receive_channel_protocol()
     }
 
     // Truncate bytes waiting to response size
-    avail = avail > 1024 ? 1024 : avail;
+    avail = std::min(avail, MAX_ADAM_PACKET_LEN);
     response_len = avail;
 
     if (protocol->read(response_len) != FUJI_ERROR::NONE) // protocol adapter returned error
@@ -765,7 +763,7 @@ inline void adamNetwork::adamnet_control_receive_channel_protocol()
     }
 }
 
-inline void adamNetwork::adamnet_control_receive()
+void adamNetwork::adamnet_control_receive()
 {
     SYSTEM_BUS.start_time = GET_TIMESTAMP();
 
@@ -812,38 +810,6 @@ void adamNetwork::adamnet_response_send()
 
     memset(response, 0, response_len);
     response_len = 0;
-}
-
-/**
- * Process incoming ADAM command
- * @param comanddata incoming 4 bytes containing command and aux bytes
- * @param checksum 8 bit checksum
- */
-void adamNetwork::adamnet_process(const FujiAdamPacket &packet)
-{
-    switch (packet.type())
-    {
-    case APT::MN_STATUS:
-        adamnet_control_status();
-        break;
-    case APT::MN_ACK:
-        adamnet_control_ack();
-        break;
-    case APT::MN_CLR:
-        adamnet_control_clr();
-        break;
-    case APT::MN_RECEIVE:
-        adamnet_control_receive();
-        break;
-    case APT::MN_SEND:
-        adamnet_control_send();
-        break;
-    case APT::MN_READY:
-        adamnet_control_ready();
-        break;
-    default:
-        break;
-    }
 }
 
 /** PRIVATE METHODS ************************************************************/

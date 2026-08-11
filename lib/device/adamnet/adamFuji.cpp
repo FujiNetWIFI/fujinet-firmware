@@ -555,30 +555,6 @@ void adamFuji::adamnet_control_clr()
     response_len = 0;
 }
 
-void adamFuji::adamnet_process(const FujiAdamPacket &packet)
-{
-    switch (packet.type())
-    {
-    case APT::MN_STATUS:
-        adamnet_control_status();
-        break;
-    case APT::MN_CLR:
-        adamnet_control_clr();
-        break;
-    case APT::MN_RECEIVE:
-        adamnet_response_ack();
-        break;
-    case APT::MN_SEND:
-        adamnet_control_send(packet);
-        break;
-    case APT::MN_READY:
-        adamnet_control_ready();
-        break;
-    default:
-        break;
-    }
-}
-
 void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
 {
     if (response[0])

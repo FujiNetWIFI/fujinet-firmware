@@ -29,15 +29,14 @@ private:
     // block are stale re-polls to ignore. Cleared on a new block number / reset.
     bool _receive_acked = false;
 
-    void adamnet_control_clr();
-    void adamnet_control_receive();
-    void adamnet_control_send();
+    void adamnet_control_send(const FujiAdamPacket &packet) override;
+    void adamnet_control_receive() override;
+    void adamnet_control_clr() override;
+
     void adamnet_control_send_block_num();
     void adamnet_control_send_block_data();
-    virtual void adamnet_response_status() override;
+    void adamnet_response_status() override;
     void adamnet_response_send();
-
-    void adamnet_process(const FujiAdamPacket &packet) override;
 
 public:
     adamDisk();
@@ -46,7 +45,7 @@ public:
                       mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
     error_is_true write_blank(fnFile *f, uint32_t numBlocks);
-    virtual void reset() override;
+    void reset() override;
     MediaType *get_media() { return  _media; }
     void set_media(MediaType *__media) { _media = __media; }
 
