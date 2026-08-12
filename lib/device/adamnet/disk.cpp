@@ -109,98 +109,37 @@ error_is_true adamDisk::write_blank(fnFile *fileh, uint32_t numBlocks)
     RETURN_SUCCESS_AS_FALSE();
 }
 
-void adamDisk::adamnet_control_clr()
+void adamDisk::adamnet_control_send_block_num(const FujiAdamPacket &packet)
 {
-#ifdef ESP_PLATFORM
-    // Real bus only: stream the block only inside the master's window.
-    if (GET_TIMESTAMP() - SYSTEM_BUS.start_time >= 1500)
-        return;
-#endif
-    adamnet_response_send();
-}
+    u32le_t num;
 
-void adamDisk::adamnet_control_receive()
-{
-    if (_media == nullptr)
-        return;
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    memcpy(&num, packet.data()->data(), sizeof(num));
+    blockNum = num;
 
-    // Already ACKed this block's RECEIVE. The master re-polls RECEIVE while we
-    // read; a second ACK would desync the next block, so stay silent until a new
-    // block number resets us. (stall_silent: yield without discardInput().)
-    if (_receive_acked)
-    {
-        SYSTEM_BUS.stall_silent = true;
+    if (_media == nullptr) {
+        SYSTEM_BUS.transaction_error();
         return;
     }
-
-    // Seek emulation.
-    if (GET_TIMESTAMP() < _seek_deadline)
-    {
-        _seek_is_read = true;
-        _media->read(blockNum, nullptr);
-        SYSTEM_BUS.stall_silent = true;
-        return;
-    }
-
-    bool err = _media->read(blockNum, nullptr);
-
-    // Match a real drive's RECEIVE->ACK turnaround so the master masks
-    // interrupts for the coming block before we answer.
-    SYSTEM_BUS.wait_turnaround(ADAMNET_DISK_RECV_TURNAROUND_US);
-
-    if (err)
-        adamnet_response_nack(true);
-    else
-        adamnet_response_ack(true);
-
-    // Exactly one ACK per block: suppress the master's surplus re-poll RECEIVEs.
-    _receive_acked = true;
-}
-
-void adamDisk::adamnet_control_send_block_num()
-{
-    uint8_t x[8];
-
-    for (uint16_t i = 0; i < 5; i++)
-        x[i] = adamnet_recv();
-
-    adamnet_recv(); // CK -- consume the trailing checksum so the packet is fully read
-
-    blockNum = x[3] << 24 | x[2] << 16 | x[1] << 8 | x[0];
-
-    if (_media == nullptr)
-        return;
 
     if (_media->num_blocks() < 0x10000UL) // Smaller than 64MB?
     {
         blockNum &= 0xFFFF; // Mask off upper bits
     }
 
+    Debug_printf("BLOCK: %lu\n", blockNum);
+
     if (blockNum == 0xFACE)
     {
         _media->format(NULL);
     }
 
-    SYSTEM_BUS.start_time=GET_TIMESTAMP();
-
-    adamnet_response_ack();
-
-    Debug_printf("BLOCK: %lu\n", blockNum);
-
-    int64_t now = GET_TIMESTAMP();
-    // Each new block# starts unclassified; a following RECEIVE marks it a read.
-    _seek_is_read = false;
-    // New block operation: allow exactly one ACK for its RECEIVE sequence again.
-    _receive_acked = false;
-
-    bool already_cached = (_media->_media_last_block == blockNum);
-    if (blockNum != _seek_block ||
-        (now - _last_blocknum_us > ADAMNET_DISK_SEEK_NEWOP_US && !already_cached))
+    if (_media->read(blockNum, nullptr).is_error())
     {
-        _seek_block = blockNum;
-        _seek_deadline = now + ADAMNET_DISK_SEEK_US;
+        SYSTEM_BUS.transaction_error();
+        return;
     }
-    _last_blocknum_us = now;
+    SYSTEM_BUS.transaction_send(_media->_media_blockbuff, DDP_BLOCK_SIZE);
 }
 
 void adamDisk::adamnet_control_send_block_data()
@@ -208,16 +147,15 @@ void adamDisk::adamnet_control_send_block_data()
     if (_media == nullptr)
         return;
 
-    adamnet_recv_buffer(_media->_media_blockbuff, DDP_BLOCK_SIZE);
-    adamnet_recv(); // CK -- consume the trailing checksum so the packet is fully read
-    SYSTEM_BUS.start_time = GET_TIMESTAMP();
-    adamnet_response_ack();
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_get(_media->_media_blockbuff, DDP_BLOCK_SIZE);
 
     if (is_config_device)
     {
         Debug_printf("Refusing spurious write to read-only config device, block %lu\n", blockNum);
         blockNum = 0xFFFFFFFF;
         _media->_media_last_block = 0xFFFFFFFE;
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
@@ -227,15 +165,14 @@ void adamDisk::adamnet_control_send_block_data()
 
     blockNum = 0xFFFFFFFF;
     _media->_media_last_block = 0xFFFFFFFE;
+    SYSTEM_BUS.transaction_success();
 }
 
 void adamDisk::adamnet_control_send(const FujiAdamPacket &packet)
 {
-    uint16_t s = adamnet_recv_length();
-
-    if (s == 5)
-        adamnet_control_send_block_num();
-    else if (s == DDP_BLOCK_SIZE)
+    if (packet.data()->size() == 5)
+        adamnet_control_send_block_num(packet);
+    else if (packet.data()->size() == DDP_BLOCK_SIZE)
         adamnet_control_send_block_data();
 }
 
@@ -253,22 +190,6 @@ AdamNetStatus adamDisk::deviceStatus()
         status.status |= _media->_media_controller_status;
 
     return status;
-}
-
-void adamDisk::adamnet_response_send()
-{
-    if (_media == nullptr)
-        return;
-
-    FujiAdamPacket packet(_devnum, APT::NM_SEND,
-                          ByteBuffer(_media->_media_blockbuff,
-                                     _media->_media_blockbuff + DDP_BLOCK_SIZE));
-    auto encoded = packet.serialize();
-
-    SYSTEM_BUS.wait_turnaround(ADAMNET_DISK_SEND_TURNAROUND_US);
-    SYSTEM_BUS.quiet_rx_for_send(true);
-    adamnet_send_buffer(encoded.data(), encoded.size());
-    SYSTEM_BUS.quiet_rx_for_send(false);
 }
 
 #endif /* BUILD_ADAM */

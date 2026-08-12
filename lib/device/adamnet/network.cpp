@@ -513,44 +513,24 @@ void adamNetwork::adamnet_control_send(const FujiAdamPacket &packet)
     }
 }
 
-void adamNetwork::adamnet_control_clr()
-{
-    adamnet_response_send();
-
-    if (channelMode == CHANNEL_MODE::JSON)
-        jsonRecvd = false;
-    else if (channelMode == CHANNEL_MODE::SGML)
-        sgmlRecvd = false;
-}
-
 std::optional<ByteBuffer> adamNetwork::adamnet_control_receive_channel_json()
 {
     NetworkStatus ns;
 
-    if (jsonRecvd == false)
-    {
-        auto len = json.readValueLen();
-        ByteBuffer buffer(len);
-        json.readValue(buffer.data(), buffer.size());
-        jsonRecvd = true;
-        return buffer;
-    }
-    return std::nullopt;
+    auto len = json.readValueLen();
+    ByteBuffer buffer(len);
+    json.readValue(buffer.data(), buffer.size());
+    return buffer;
 }
 
 std::optional<ByteBuffer> adamNetwork::adamnet_control_receive_channel_sgml()
 {
     NetworkStatus ns;
 
-    if (sgmlRecvd == false)
-    {
-        auto len = sgml.readValueLen();
-        ByteBuffer buffer(len);
-        sgml.readValue(buffer.data(), buffer.size());
-        sgmlRecvd = true;
-        return buffer;
-    }
-    return std::nullopt;
+    auto len = sgml.readValueLen();
+    ByteBuffer buffer(len);
+    sgml.readValue(buffer.data(), buffer.size());
+    return buffer;
 }
 
 std::optional<ByteBuffer> adamNetwork::adamnet_control_receive_channel_protocol()
@@ -606,42 +586,17 @@ inline void adamNetwork::adamnet_control_receive()
 
     if (buffer.has_value())
     {
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
         if (buffer->size())
-        {
-            SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             SYSTEM_BUS.transaction_send(buffer.value());
-        }
         else
-            SYSTEM_BUS.stall_silent = true;
+            SYSTEM_BUS.transaction_success();
     }
     else
     {
         Debug_printf("No data\n");
         SYSTEM_BUS.transaction_error();
     }
-}
-
-void adamNetwork::adamnet_response_send()
-{
-    if (response_len)
-    {
-        // response_len can be a full 1024 bytes; on the half-duplex bus that whole
-        // burst echoes back into our own RX and, at rxThreshold=1, storms the shared
-        // UART ISR enough to jitter the outgoing bytes. Coalesce the echo for the
-        // duration of the send (same fix as the disk block stream).
-        SYSTEM_BUS.quiet_rx_for_send(true);
-        FujiAdamPacket packet(_devnum, APT::NM_SEND,
-                              ByteBuffer(response, response + response_len));
-        auto encoded = packet.serialize();
-        adamnet_send_buffer(encoded.data(), encoded.size());
-        response_len = 0;
-        SYSTEM_BUS.quiet_rx_for_send(false);
-    }
-    else
-        adamnet_send(0xC0 | _devnum); // NAK!
-
-    memset(response, 0, response_len);
-    response_len = 0;
 }
 
 /** PRIVATE METHODS ************************************************************/
