@@ -11,6 +11,7 @@
 #ifdef BUILD_RS232
 # include "rs232/diskType.h"
 # include "rs232/diskTypeImg.h"
+# include "rs232/diskTypeROM.h"
 #endif
 
 #ifdef BUILD_IEC
