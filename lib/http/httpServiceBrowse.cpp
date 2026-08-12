@@ -179,7 +179,7 @@ fnHttpBrowse::slot_result fnHttpBrowse::render_slotpicker(int host_slot, const s
     if (host_slot < 0 || host_slot >= MAX_HOSTS)
     {
         Debug_printf("render_slotpicker bad host slot %d\n", host_slot);
-        return slot_result::ERROR;
+        return slot_result::RENDER_ERROR;
     }
 
     // Cassette images always go to their own slot - no picker to show.
