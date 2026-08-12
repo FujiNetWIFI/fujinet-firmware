@@ -47,12 +47,6 @@ struct adamnet_message_t
 #define ADAMNET_DISK_SEEK_US 22000
 #define ADAMNET_DISK_SEEK_NEWOP_US 130000
 
-// Largest response whose half-duplex echo still fits the RX ring
-#define ECHO_DRAIN_MAX 64
-
-// How long to wait for a straggler echo byte to land before giving up.
-#define ECHO_SETTLE_US 50
-
 // A handler that blocked the bus task longer than this leaves a backlog of the
 // master's CONTROL.RECEIVE retries piled up in RX (it retries every ~2ms once it
 // has ACKed our command and is waiting on the response).
@@ -249,10 +243,6 @@ private:
 #endif
     IOChannel *_port = nullptr;
 
-    // Bytes transmitted while handling the current command; lets us drain
-    // exactly our own half-duplex bus echo afterward.
-    size_t _tx_count = 0;
-
     void _adamnet_process_cmd();
 #ifdef ESP_PLATFORM
     void _adamnet_process_queue();
@@ -286,14 +276,6 @@ public:
      *        its response to match real hardware's turnaround.
      */
     void wait_turnaround(uint32_t us);
-
-    /**
-     * @brief Consume the half-duplex echo of a response we just transmitted.
-     *        @p n is the number of bytes sent; exactly that many are read back
-     *        and discarded so a following master command is left intact. A
-     *        response too large for the RX ring is drained by idle detection.
-     */
-    void drain_echo(size_t n);
 
     /**
      * stopwatch
@@ -344,8 +326,8 @@ public:
     // access it directly and bypass the bus!" ಠ_ಠ
     size_t read(void *buffer, size_t length) { return _port->read(buffer, length); }
     size_t read() { return _port->read(); }
-    size_t write(const void *buffer, size_t length) { _tx_count += length; return _port->write(buffer, length); }
-    size_t write(int n) { _tx_count += 1; return _port->write(n); }
+    size_t write(const void *buffer, size_t length) { return _port->write(buffer, length); }
+    size_t write(int n) { return _port->write(n); }
     size_t available() { return _port->available(); }
     void flush() { _port->flushOutput(); }
 
