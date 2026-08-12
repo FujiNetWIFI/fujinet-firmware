@@ -101,7 +101,6 @@ void lynxNetStream::process_net_packet(const uint8_t *buf, size_t len)
     Debug_print(netstreamMode == NetStreamMode::UDP ? "UDP-IN: " : "TCP-IN: ");
     util_dump_bytes(buf, len);
 #endif
-    SYSTEM_BUS.read(buf_stream, len); // Trash what we just sent over serial
 }
 
 void lynxNetStream::drain_tcp_to_lynx()

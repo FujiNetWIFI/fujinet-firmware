@@ -500,7 +500,6 @@ if(FUJINET_TARGET STREQUAL "LYNX")
     list(APPEND SOURCES
 
     lib/bus/comlynx/comlynx.h lib/bus/comlynx/comlynx.cpp
-    lib/bus/comlynx/FujiLynxPacket.h lib/bus/comlynx/FujiLynxPacket.cpp
     lib/hardware/BoIPChannel.h lib/hardware/BoIPChannel.cpp
 
     lib/media/lynx/mediaType.h lib/media/lynx/mediaType.cpp

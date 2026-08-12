@@ -154,20 +154,20 @@ void lynxNetStream::comlynx_handle_redeye_netstream() {
 	// serial collect loop, waiting until the serial has been idle for IDLE_TIME (2-3 char time at 62500 baud)
 	buf_stream_index = 0;
  	if (SYSTEM_BUS.available() > 0) {											// is there something availabe in FIFO
- 		uint64_t last_rx = esp_timer_get_time();
+ 		uint64_t last_rx = GET_TIMESTAMP();
  		while (true) {
 			while (SYSTEM_BUS.available() > 0) { 								// got all data in FIFO
 				if (buf_stream_index >= NETSTREAM_BUFFER_SIZE)					// too much data for buffer, just exit (should never hit this)
 					break;
 
 				buf_stream[buf_stream_index++] = SYSTEM_BUS.read();				// get byte from FIFO
-				last_rx = esp_timer_get_time();									// reset idle timer
+				last_rx = GET_TIMESTAMP();									// reset idle timer
  			}
 
 			if (buf_stream_index >= NETSTREAM_BUFFER_SIZE)						// too much data for buffer, just exit (should never hit this)
 				break;
 
-			if ((esp_timer_get_time() - last_rx) > COMLYNX_IDLE_TIME)			// data has paused for 2-3 bytes at 62500 baud, end of packet
+			if ((GET_TIMESTAMP() - last_rx) > COMLYNX_IDLE_TIME)			// data has paused for 2-3 bytes at 62500 baud, end of packet
 				break;
  		}
  	}
@@ -404,7 +404,7 @@ void lynxNetStream::redeye_process_logon_packet_from_net(uint8_t *buf)
 			Debug_printf("NETSTREAM IN redeye game %04X %s --> Game starting in %d\n", game.game_id, *game.name, countdown);
 
             if (game.state.logon_timer == 0)
-				game.state.logon_timer = esp_timer_get_time();
+				game.state.logon_timer = GET_TIMESTAMP();
 			break;
 	}
 
@@ -566,7 +566,7 @@ void lynxNetStream::redeye_process_logon_packet_from_lynx(uint8_t *buf)
 			Debug_printf("NETSTREAM OUT redeye %04X %s --> Game starting in %d\n", game.game_id, *game.name, countdown);
 
             if (game.state.logon_timer == 0)
-				game.state.logon_timer = esp_timer_get_time();
+				game.state.logon_timer = GET_TIMESTAMP();
 			break;
 	}
 
@@ -728,7 +728,7 @@ bool lynxNetStream::redeye_check_logon_state()
 {
 	// Are we in logon timer countdown mode?
 	if (game.state.logon_timer > 0) {
-		uint64_t now = esp_timer_get_time();
+		uint64_t now = GET_TIMESTAMP();
 		#ifdef REDEYE_DEBUG
 		Debug_printf("NETSTREAM GAME %04X %s --> game start countdown: %d\n", game.game_id, *game.name, (now - game.state.logon_timer));
 		#endif

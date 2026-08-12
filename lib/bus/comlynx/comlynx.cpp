@@ -153,10 +153,10 @@ bool systemBus::wait_for_idle()
     //
     // Check that the bus is truly idle for the whole duration, and then we can start sending?
 
-    start = esp_timer_get_time();
+    start = GET_TIMESTAMP();
 
     do {
-        current = esp_timer_get_time();
+        current = GET_TIMESTAMP();
         dur = current - start;
 
         // Did we get any data in the FIFO while waiting?
@@ -178,7 +178,7 @@ bool systemBus::netstreamActive() const
 
 void virtualDevice::comlynx_process()
 {
-    fnDebugConsole.printf("comlynx_process() not implemented yet for this device.\n");
+    Debug_printf("comlynx_process() not implemented yet for this device.\n");
 }
 
 void systemBus::_comlynx_process_cmd()
