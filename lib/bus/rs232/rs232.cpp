@@ -224,6 +224,13 @@ void systemBus::setup()
     }
 
 #else /* FUJINET_OVER_USB */
+#ifdef PINMAP_FUJIVERSAL_INTV
+    // The far end of this link is always the same soldered-down Minty build
+    // (fujicard, VID 0xCafe PID 0x4001) -- never a generic USB-serial
+    // adapter. Restrict newDevice() to it so a device sitting in BOOTSEL
+    // (VID 0x2E8A, PID 0x0003/0x000F) can't be mistaken for the FujiBus link.
+    _serial.setExpectedDevice(0xCafe, 0x4001);
+#endif
     _serial.begin();
     _port = &_serial;
 #endif /* FUJINET_OVER_USB */
