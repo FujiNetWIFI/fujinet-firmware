@@ -427,6 +427,38 @@ fi
 
 BUILD_BOARD=$(grep '^build_board = ' $INI_FILE | cut -d" " -f 3)
 
+# $INI_FILE can have more than one section defining the same key (e.g. a
+# generic default [env] alongside a board-specific [env:<board>]) -- a
+# plain "grep ^key $INI_FILE" matches every occurrence and silently
+# produces a broken multi-value string (space-joined by command
+# substitution). Scope the lookup to one section instead, falling back to
+# the generic [env] section (PlatformIO's own inheritance base) if the
+# board-specific section doesn't redefine the key -- e.g. monitor_speed is
+# only ever set once, at [env] level, and inherited by every board. Usage:
+#   read_ini_value "[env:fujiversal-intv]" upload_port
+read_ini_value() {
+  local section="$1" key="$2" value
+  value=$(_read_ini_value_from_section "$section" "$key")
+  if [ -z "$value" ] && [ "$section" != "[env]" ]; then
+    value=$(_read_ini_value_from_section "[env]" "$key")
+  fi
+  echo "$value"
+}
+
+_read_ini_value_from_section() {
+  local section="$1" key="$2"
+  awk -v section="$section" -v key="$key" '
+    $0 == section { in_section=1; next }
+    /^\[/ { in_section=0 }
+    in_section && $0 ~ "^"key"[ \t]*=" {
+      sub("^"key"[ \t]*=[ \t]*", "");
+      sub(/[ \t]*;.*$/, "");
+      print;
+      exit
+    }
+  ' "$INI_FILE"
+}
+
 ##############################################################
 # ZIP MODE for building firmware zip file.
 # This is Separate from the main build, and if chosen exits after running
@@ -486,19 +518,72 @@ if [ ${UPLOAD_FS} -eq 1 ] ; then
 fi
 
 if [ ${UPLOAD_IMAGE} -eq 1 ] ; then
-  pio run -c $INI_FILE ${DEV_MODE_ARG} -t upload 2>&1
+  if [ "${BUILD_BOARD}" = "fujiversal-intv" ] ; then
+    # fujiversal-intv carries a second firmware (Minty/fujicard's, embedded
+    # at build time -- see build_pico_intv.py / build_merge_intv.py) inside
+    # its own app image, and build_merge_intv.py's post-action already
+    # folded bootloader+partition-table+app into one file after the build
+    # above. Flash that single merged file directly with esptool.py instead
+    # of `pio run -t upload`'s normal three-piece upload, so "one file, one
+    # command" holds all the way through to the flashing step too.
+    MERGED_BIN="$SCRIPT_DIR/.pio/build/fujiversal-intv/fujiversal-intv-merged.bin"
+    if [ ! -f "$MERGED_BIN" ] ; then
+      echo "Error: expected merged image not found: $MERGED_BIN"
+      echo "(build_merge_intv.py should have produced this during the build step above)"
+      exit 1
+    fi
+
+    ESPTOOL_PY=$(compgen -G "${PIO_VENV_ROOT}/../packages/tool-esptoolpy*/esptool.py" | head -1)
+    if [ -z "$ESPTOOL_PY" ] ; then
+      echo "Error: esptool.py not found under ~/.platformio/packages/tool-esptoolpy*"
+      exit 1
+    fi
+
+    UPLOAD_PORT=$(read_ini_value "[env:fujiversal-intv]" upload_port)
+    UPLOAD_SPEED=$(read_ini_value "[env:fujiversal-intv]" upload_speed)
+    UPLOAD_SPEED="${UPLOAD_SPEED:-460800}"
+
+    echo "=============================================================="
+    echo "Flashing merged fujiversal-intv image (ESP32-S3 + embedded RP2040/RP2350 firmware)"
+    echo "  port:  ${UPLOAD_PORT:-<auto>}"
+    echo "  speed: ${UPLOAD_SPEED}"
+    PORT_ARG=""
+    if [ -n "${UPLOAD_PORT}" ] ; then
+      PORT_ARG="--port ${UPLOAD_PORT}"
+    fi
+    python3 "$ESPTOOL_PY" --chip esp32s3 ${PORT_ARG} --baud "${UPLOAD_SPEED}" \
+      --before default_reset --after hard_reset \
+      write_flash 0x0 "$MERGED_BIN"
+
+    echo ""
+    echo "ESP32-S3 flashed. The RP2040/RP2350 firmware embedded in that image is not"
+    echo "yet auto-pushed to the cart -- flash it separately for now (see"
+    echo "pico/intellivision/README.md); automatic reflash is coming in a later change."
+  else
+    pio run -c $INI_FILE ${DEV_MODE_ARG} -t upload 2>&1
+  fi
 fi
 
 if [ ${SHOW_MONITOR} -eq 1 ] ; then
   # device monitor hard codes to using platformio.ini, let's grab all the data it would use directly from our generated ini.
-  MONITOR_PORT=$(grep ^monitor_port $INI_FILE | cut -d= -f2 | cut -d\; -f1 | awk '{print $1}')
-  MONITOR_SPEED=$(grep ^monitor_speed $INI_FILE | cut -d= -f2 | cut -d\; -f1 | awk '{print $1}')
-  MONITOR_FILTERS=$(grep ^monitor_filters $INI_FILE | cut -d= -f2 | cut -d\; -f1 | tr ',' '\n' | sed 's/^ *//; s/ *$//' | awk '{printf("-f %s ", $1)}')
+  # Scoped to the actual target board's section: $INI_FILE can have more
+  # than one section defining monitor_port/monitor_speed/monitor_filters
+  # (e.g. a generic default [env] alongside [env:<board>]), and a plain
+  # "grep ^monitor_port" matches every occurrence, silently producing a
+  # broken multi-value string (this is exactly what broke `-m` -- pio saw
+  # two space-joined ports and rejected the second as an extra argument).
+  MONITOR_PORT=$(read_ini_value "[env:${BUILD_BOARD}]" monitor_port)
+  MONITOR_SPEED=$(read_ini_value "[env:${BUILD_BOARD}]" monitor_speed)
+  MONITOR_FILTERS=$(read_ini_value "[env:${BUILD_BOARD}]" monitor_filters | tr ',' '\n' | sed 's/^ *//; s/ *$//' | awk '{printf("-f %s ", $1)}')
 
   # warn the user if the build_board in platformio.ini (if exists) is not the same as INI_FILE version, as that means stacktrace will not work correctly
   # because the monitor does not allow an INI file to be set!!
-  PIO_BOARD=$(grep "build_board *=" platformio.ini | awk '{print $3}')
-  INI_BOARD=$(grep "build_board *=" ${INI_FILE} | awk '{print $3}')
+  # Anchored to line-start and excluding comments: the unanchored version
+  # also matched every "1;build_board = ..." commented-out alternative in
+  # platformio.ini, producing a garbled multi-name list instead of the one
+  # active value.
+  PIO_BOARD=$(grep "^build_board *=" platformio.ini | awk '{print $3}')
+  INI_BOARD=$(grep "^build_board *=" ${INI_FILE} | awk '{print $3}')
   if [ "${PIO_BOARD}" != "${INI_BOARD}" ]; then
     echo "╔═════════════════════════════════════════╗"
     echo "║                WARNING                  ║"
