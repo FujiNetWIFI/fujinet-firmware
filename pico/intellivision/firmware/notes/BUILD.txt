@@ -1,0 +1,3 @@
+
+cmake -B build/release -DPICO_BOARD=pintycard -DCMAKE_BUILD_TYPE=Release
+cmake -B build/debug -DPICO_BOARD=pintycard -DCMAKE_BUILD_TYPE=Debug

@@ -1,0 +1,8 @@
+build/
+build-debug/
+build-release/
+lib/
+!spikes/*/build/*
+data/
+littlefs.bin
+include/version.h

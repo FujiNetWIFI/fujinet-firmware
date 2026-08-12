@@ -1,0 +1,40 @@
+
+name: Build Minty
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        board: [pintycard, pirto_ii_default, pirto_ii_duo, pirto_ii_sd, pirto]
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            git cmake ninja-build build-essential \
+            gcc-arm-none-eabi libnewlib-arm-none-eabi
+
+      - name: Clone pico-sdk
+        run: |
+          git clone https://github.com/raspberrypi/pico-sdk.git
+          cd pico-sdk
+          git submodule update --init
+
+      - name: Set PICO_SDK_PATH
+        run: echo "PICO_SDK_PATH=$GITHUB_WORKSPACE/pico-sdk" >> $GITHUB_ENV
+
+      - name: Make script executable
+        run: chmod +x scripts/build-all.sh
+
+      - name: Run build script
+        run: ./scripts/build-board.sh ${{ matrix.board }} 
