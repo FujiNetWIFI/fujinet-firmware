@@ -1,0 +1,9 @@
+#pragma once
+
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
+#define VERSION_MAJOR @VERSION_MAJOR@
+#define VERSION_MINOR @VERSION_MINOR@
+#define VERSION STR(VERSION_MAJOR) "." STR(VERSION_MINOR)
+
