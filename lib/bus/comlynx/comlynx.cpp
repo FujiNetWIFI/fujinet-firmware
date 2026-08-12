@@ -36,7 +36,6 @@ void virtualDevice::comlynx_send(uint8_t b)
 
     // Write the byte
     SYSTEM_BUS.write(b);
-    SYSTEM_BUS.read();
 }
 
 void virtualDevice::comlynx_send_buffer(uint8_t *buf, unsigned short len)
@@ -48,7 +47,6 @@ void virtualDevice::comlynx_send_buffer(uint8_t *buf, unsigned short len)
         SYSTEM_BUS.wait_for_idle();
 
     SYSTEM_BUS.write(buf, len);
-    SYSTEM_BUS.read(buf, len);
 }
 
 bool virtualDevice::comlynx_recv_ck()
@@ -86,32 +84,6 @@ uint8_t virtualDevice::comlynx_recv()
     //Debug_printf("comlynx_recv: %x\n", b);
     return b;
 }
-
-/*bool virtualDevice::comlynx_recv_timeout(uint8_t *b, uint64_t dur)
-{
-    uint64_t start, current, elapsed;
-    bool timeout = true;
-
-    start = current = esp_timer_get_time();
-    elapsed = 0;
-
-    while (SYSTEM_BUS.available() <= 0)
-    {
-        current = esp_timer_get_time();
-        elapsed = current - start;
-        if (elapsed > dur)
-            break;
-    }
-
-    if (SYSTEM_BUS.available() > 0)
-    {
-        *b = (uint8_t)SYSTEM_BUS.read();
-        timeout = false;
-    } // else
-      //   Debug_printf("duration: %llu\n", elapsed);
-
-    return timeout;
-}*/
 
 uint16_t virtualDevice::comlynx_recv_length()
 {
@@ -263,7 +235,7 @@ void systemBus::service()
     // Handle NetStream if active
     if (_streamDev != nullptr && _streamDev->netstreamActive) {
         if (_streamDev->redeye_mode)
-            _streamDev->comlynx_handle_redeye_netstream();    
+            _streamDev->comlynx_handle_redeye_netstream();
         else
             _streamDev->comlynx_handle_netstream();
     }
@@ -284,6 +256,7 @@ void systemBus::setup()
                 .deviceID(FN_UART_BUS)
                 .baud(COMLYNX_BAUDRATE)
                 .parity(UART_PARITY_ODD)
+                .halfDuplex(true)
                 );
 }
 
@@ -464,7 +437,7 @@ void systemBus::setRedeyeGameRemap(uint32_t remap)
 }
 
 void virtualDevice::transaction_begin(transState_t expectMoreData)
-{    
+{
 }
 
 void virtualDevice::transaction_complete()
@@ -477,13 +450,13 @@ void virtualDevice::transaction_error()
 {
     Debug_println("transaction_error - send NAK");
     comlynx_response_nack();
-    
+
     // throw away any waiting bytes
     while (SYSTEM_BUS.available() > 0)
         SYSTEM_BUS.read();
 }
-    
-success_is_true virtualDevice::transaction_get(void *data, size_t len) 
+
+success_is_true virtualDevice::transaction_get(void *data, size_t len)
 {
     size_t remaining = recvbuffer_len - (recvbuf_pos - recvbuffer);
     size_t to_copy = (len > remaining) ? remaining : len;
@@ -529,7 +502,7 @@ void systemBus::change_baud(int32_t baud)
                 .baud(baud)
                 .parity(UART_PARITY_ODD)
                 );
-    
+
     vTaskDelay(pdMS_TO_TICKS(10));
 
     //uart_set_baudrate(FN_UART_BUS, baud);
