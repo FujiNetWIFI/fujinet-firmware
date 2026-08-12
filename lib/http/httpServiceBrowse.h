@@ -38,7 +38,7 @@ namespace fnHttpBrowse
     {
         OK,       // picker was rendered
         CASSETTE, // a cassette image - caller redirects to the cassette slot
-        ERROR     // nothing was emitted; caller sends error_page.html
+        RENDER_ERROR // nothing was emitted; caller sends error_page.html
     };
 
     // Device slot a cassette image is mounted into, and the mode used for it.

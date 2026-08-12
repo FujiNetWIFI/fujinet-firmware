@@ -980,7 +980,7 @@ int fnHttpService::get_handler_slot(mg_connection *c, mg_http_message *hm)
         return 0;
     }
 
-    if (result == fnHttpBrowse::slot_result::ERROR)
+    if (result == fnHttpBrowse::slot_result::RENDER_ERROR)
     {
         fnHTTPD.addToErrMsg("<li>Could not list drive slots</li>");
         send_file(c, "error_page.html");
