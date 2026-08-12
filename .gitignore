@@ -17,6 +17,7 @@ platformio-device-monitor-*.log
 
 # ESP-IDF SDK configuration file
 sdkconfig.*
+!sdkconfig.defaults.psram_octal
 
 include/ssid.h
 /*.log
