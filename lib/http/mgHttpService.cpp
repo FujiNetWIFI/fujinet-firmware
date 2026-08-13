@@ -31,6 +31,8 @@
 #include "httpServiceParser.h"
 #include "httpServiceBrowser.h"
 #include "appKeyManager.h"
+#include "fileManager.h"
+#include "fnFsSD.h"
 #include "privatePage.h"
 
 #include "../../include/debug.h"
@@ -616,6 +618,147 @@ int fnHttpService::handler_appkeys(struct mg_connection *c, struct mg_http_messa
 
     std::string page = AppKeyManager::render_page(message);
     mg_http_reply(c, 200, "Content-Type: text/html\r\n", "%s", page.c_str());
+    return 0;
+}
+
+// ─── SD card file manager ────────────────────────────────────────────────────
+
+static std::string files_query_value(struct mg_http_message *hm, const char *key)
+{
+    if (hm->query.len == 0 || hm->query.len > 1024)
+        return std::string();
+
+    std::vector<char> value(hm->query.len + 1);
+    int len = mg_http_get_var(&hm->query, key, value.data(), value.size());
+    if (len <= 0)
+        return std::string(); // mg_http_get_var url-decodes for us
+    return std::string(value.data(), len);
+}
+
+static void files_send_page(struct mg_connection *c, const std::string &dir,
+                            const std::string &message)
+{
+    std::string page = FileManager::render_page(dir, message);
+    mg_http_reply(c, 200, "Content-Type: text/html\r\n", "%s", page.c_str());
+}
+
+int fnHttpService::get_handler_files(struct mg_connection *c, struct mg_http_message *hm)
+{
+    if (!require_device_password(c, hm))
+        return -1;
+
+    std::string dir;
+    if (!FileManager::normalize_path(files_query_value(hm, "path"), dir))
+    {
+        files_send_page(c, "/", "Invalid path.");
+        return -1;
+    }
+
+    files_send_page(c, dir, "");
+    return 0;
+}
+
+int fnHttpService::get_handler_files_download(struct mg_connection *c, struct mg_http_message *hm)
+{
+    if (!require_device_password(c, hm))
+        return -1;
+
+    std::string path;
+    if (!FileManager::normalize_path(files_query_value(hm, "path"), path) || path == "/")
+    {
+        mg_http_reply(c, 400, "", "Bad path\n");
+        return -1;
+    }
+
+    if (!fnSDFAT.running())
+    {
+        mg_http_reply(c, 404, "", "No SD card is mounted\n");
+        return -1;
+    }
+
+    // The SD "card" is a real directory on FujiNet-PC, so mongoose can serve
+    // the file itself - that gets us range requests and content types for free.
+    std::string full = std::string(fnSDFAT.basepath()) + path;
+    std::string name = path.substr(path.find_last_of('/') + 1);
+    std::string headers = "Content-Disposition: attachment; filename=\"" + name + "\"\r\n";
+
+    struct mg_http_serve_opts opts = {};
+    opts.extra_headers = headers.c_str();
+    mg_http_serve_file(c, hm, full.c_str(), &opts);
+    return 0;
+}
+
+int fnHttpService::post_handler_files_action(struct mg_connection *c, struct mg_http_message *hm)
+{
+    if (!require_device_password(c, hm))
+        return -1;
+
+    if (hm->body.len > FILEMANAGER_MAX_POST_SIZE)
+    {
+        mg_http_reply(c, 413, "", "Posted data too large\n");
+        return -1;
+    }
+
+    std::string dir = "/";
+    std::string message = FileManager::handle_action(
+        fnHttpServiceConfigurator::parse_postdata_decoded(hm->body.buf, hm->body.len), dir);
+
+    files_send_page(c, dir, message);
+    return 0;
+}
+
+int fnHttpService::post_handler_files_upload(struct mg_connection *c, struct mg_http_message *hm)
+{
+    if (!require_device_password(c, hm))
+        return -1;
+
+    std::string dir;
+    if (!FileManager::normalize_path(files_query_value(hm, "path"), dir))
+    {
+        files_send_page(c, "/", "Invalid path.");
+        return -1;
+    }
+
+    if (!fnSDFAT.running())
+    {
+        files_send_page(c, dir, "No SD card is mounted.");
+        return -1;
+    }
+
+    struct mg_str *ct = mg_http_get_header(hm, "Content-Type");
+    std::string content_type = (ct != nullptr) ? std::string(ct->buf, ct->len) : std::string();
+
+    MultipartFileWriter writer;
+    std::string error;
+    if (!writer.begin(content_type, dir, error))
+    {
+        files_send_page(c, dir, FileManager::html_escape(error) + ".");
+        return -1;
+    }
+
+    // Mongoose has already buffered the body, but push it through the same
+    // chunked path the ESP32 uses so both platforms exercise one parser.
+    bool ok = true;
+    for (size_t off = 0; ok && off < hm->body.len; off += FNWS_RECV_BUFF_SIZE)
+    {
+        size_t len = hm->body.len - off;
+        if (len > FNWS_RECV_BUFF_SIZE)
+            len = FNWS_RECV_BUFF_SIZE;
+        ok = writer.feed(hm->body.buf + off, len, error);
+    }
+
+    if (ok)
+        ok = writer.finish(error);
+
+    if (!ok)
+    {
+        files_send_page(c, dir, FileManager::html_escape(error) + ".");
+        return -1;
+    }
+
+    files_send_page(c, dir,
+                    "Uploaded " + FileManager::html_escape(writer.filename()) + " (" +
+                        std::to_string(writer.bytes_written()) + " bytes).");
     return 0;
 }
 
@@ -1205,6 +1348,29 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
         {
             // password-protected app key manager
             handler_appkeys(c, hm);
+        }
+        else if (mg_match(hm->uri, mg_str("/files"), NULL))
+        {
+            // password-protected SD card file manager
+            get_handler_files(c, hm);
+        }
+        else if (mg_match(hm->uri, mg_str("/files/download"), NULL))
+        {
+            get_handler_files_download(c, hm);
+        }
+        else if (mg_match(hm->uri, mg_str("/files/action"), NULL))
+        {
+            if (hm->method.len == 4 && strncasecmp(hm->method.buf, "POST", 4) == 0)
+                post_handler_files_action(c, hm);
+            else
+                mg_http_reply(c, 405, "", "Method Not Allowed\n");
+        }
+        else if (mg_match(hm->uri, mg_str("/files/upload"), NULL))
+        {
+            if (hm->method.len == 4 && strncasecmp(hm->method.buf, "POST", 4) == 0)
+                post_handler_files_upload(c, hm);
+            else
+                mg_http_reply(c, 405, "", "Method Not Allowed\n");
         }
         else if (mg_match(hm->uri, mg_str("/print"), NULL))
         {

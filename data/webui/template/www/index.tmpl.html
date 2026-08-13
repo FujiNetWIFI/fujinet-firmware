@@ -2174,6 +2174,45 @@
 				</script>
 			</div>
 			<div class="module" data-experimental>
+				<div class="settings">
+					<div class="settings-header">
+						FILE<span class="logowob"></span>MANAGER
+					</div>
+					<div class="settings-left">
+						<div class="svgicon">
+							<svg width="90%" height="90%" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+								<path d="M6 16h20l5 6h27a3 3 0 0 1 3 3v25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V19a3 3 0 0 1 3-3z" fill="#f3a933" stroke="#000" stroke-width="3"/>
+								<path d="M3 28h58v25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" fill="#ffcd60" stroke="#000" stroke-width="3"/>
+							</svg>
+						</div>
+					</div>
+					<div class="settings-content settings-45-55">
+						<div class="settings-text">
+							<div>
+								Browse, upload, rename and delete the files on the SD card.
+							</div>
+							<div id="filemanager-password-note"></div>
+						</div>
+					</div>
+					<div class="settings-footer">
+						<div class="save-button">
+							<button type="button" onclick="window.location.href='/files'">Browse</button>
+						</div>
+					</div>
+				</div>
+				<script>
+					(function() {
+						var note = document.getElementById("filemanager-password-note");
+						if ("<%FN_PASSWORD_SET%>" === "1") {
+							note.textContent = "The File Manager asks for the device password.";
+						} else {
+							note.textContent = "Set a device password below to unlock the File Manager.";
+							note.style.color = "red";
+						}
+					})();
+				</script>
+			</div>
+			<div class="module" data-experimental>
 				<form id="password-form" action="/password" method="post">
 				<div class="settings">
 					<div class="settings-header">

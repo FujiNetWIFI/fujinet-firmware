@@ -238,6 +238,7 @@ set(SOURCES src/main.cpp
     lib/http/httpServiceConfigurator.h lib/http/httpServiceConfigurator.cpp
     lib/http/httpServiceBrowser.h lib/http/httpServiceBrowser.cpp
     lib/http/appKeyManager.h lib/http/appKeyManager.cpp
+    lib/http/fileManager.h lib/http/fileManager.cpp
     lib/http/mgHttpClient.h lib/http/mgHttpClient.cpp
     lib/task/fnTask.h lib/task/fnTask.cpp
     lib/task/fnTaskManager.h lib/task/fnTaskManager.cpp
@@ -621,17 +622,32 @@ target_include_directories(fujinet PRIVATE "${CMAKE_BINARY_DIR}/include")
 
 # WebUI
 # "build_webui" target
+# Everything build_webui.py reads
+file(GLOB_RECURSE WEBUI_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/data/webui/common/*"
+    "${CMAKE_SOURCE_DIR}/data/webui/template/*"
+    "${CMAKE_SOURCE_DIR}/data/webui/device_specific/${FUJINET_BUILD_PLATFORM}/*"
+)
+# Stamp, not BUILD_DATA_DIR, as OUTPUT: editing a file does not change its
+# directory's timestamp, and the script wipes BUILD_DATA_DIR on every run.
+set(WEBUI_STAMP "${CMAKE_BINARY_DIR}/build_webui.stamp")
 add_custom_command(
-    OUTPUT "${BUILD_DATA_DIR}"
+    OUTPUT "${WEBUI_STAMP}"
     DEPENDS build_webui.py
+      "${CMAKE_SOURCE_DIR}/data/webui/config/${FUJINET_BUILD_BOARD}.yaml"
+      ${WEBUI_SOURCES}
+      # Touched by each re-configure, so a deleted file also triggers a rebuild
+      "${CMAKE_BINARY_DIR}/CMakeFiles/cmake.verify_globs"
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMAND ${CMAKE_COMMAND} -E env
       FUJINET_BUILD_BOARD=${FUJINET_BUILD_BOARD}
       FUJINET_BUILD_PLATFORM=${FUJINET_BUILD_PLATFORM}
       BUILD_DATA_DIR=${BUILD_DATA_DIR}
       python3 build_webui.py
+    COMMAND ${CMAKE_COMMAND} -E touch "${WEBUI_STAMP}"
+    COMMENT "Generating web UI"
 )
-add_custom_target(build_webui DEPENDS "${BUILD_DATA_DIR}")
+add_custom_target(build_webui DEPENDS "${WEBUI_STAMP}")
 
 # "dist" target
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -666,6 +682,9 @@ set_property(
 # include data cleanup in "clean" target
 set_property(
     DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES ${BUILD_DATA_DIR}
+)
+set_property(
+    DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES "${WEBUI_STAMP}"
 )
 set_property(
     DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_BINARY_DIR}/include"
