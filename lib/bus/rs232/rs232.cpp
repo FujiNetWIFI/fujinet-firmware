@@ -197,6 +197,10 @@ void systemBus::service()
 // Setup RS232 bus
 void systemBus::setup()
 {
+    // shutdown() latches this true; left set across an in-process restart,
+    // TNFS's poll loop bails out on its first check and fakes success.
+    shuttingDown = false;
+
     Debug_printf("RS232 SETUP: Baud rate: %u\n",Config.get_serial_baud());
 
     // Set up UART
