@@ -1,22 +1,14 @@
 #ifdef BUILD_ADAM
 
 #include "disk.h"
+#include "debug.h"
 
-#include <memory.h>
-#include <string.h>
-
-#include "../../include/debug.h"
-
-#include "media.h"
-#include "utils.h"
-#include "fuji_endian.h"
+#define DDP_BLOCK_SIZE 1024
 
 adamDisk::adamDisk()
 {
     device_active = false;
     blockNum = 0;
-    status_response.length = htole16(1024);
-    status_response.devtype = ADAMNET_DEVTYPE_BLOCK;
 #ifndef ESP_PLATFORM
     _pc_no_response_deadline = true;
 #endif
@@ -216,7 +208,7 @@ void adamDisk::adamnet_control_send_block_data()
     if (_media == nullptr)
         return;
 
-    adamnet_recv_buffer(_media->_media_blockbuff, 1024);
+    adamnet_recv_buffer(_media->_media_blockbuff, DDP_BLOCK_SIZE);
     adamnet_recv(); // CK -- consume the trailing checksum so the packet is fully read
     SYSTEM_BUS.start_time = GET_TIMESTAMP();
     adamnet_response_ack();
@@ -243,29 +235,24 @@ void adamDisk::adamnet_control_send(const FujiAdamPacket &packet)
 
     if (s == 5)
         adamnet_control_send_block_num();
-    else if (s == 1024)
+    else if (s == DDP_BLOCK_SIZE)
         adamnet_control_send_block_data();
 }
 
-void adamDisk::adamnet_response_status()
+AdamNetStatus adamDisk::deviceStatus()
 {
-    if (_media != nullptr && _seek_is_read && GET_TIMESTAMP() < _seek_deadline)
-    {
-        SYSTEM_BUS.stall_silent = true;
-        return;
-    }
+    AdamNetStatus status;
 
+    status.length = DDP_BLOCK_SIZE;
+    status.devtype = ADAMNET_DEVTYPE::BLOCK;
+
+    status.status = 0x40;
     if (_media == nullptr)
-        status_response.status = 0x40 | STATUS_NO_MEDIA;
+        status.status |= STATUS_NO_MEDIA;
     else
-        status_response.status = 0x40 | _media->_media_controller_status;
+        status.status |= _media->_media_controller_status;
 
-#ifdef ESP_PLATFORM
-    // Real bus only: answer only inside the master's status window.
-    if (GET_TIMESTAMP() - SYSTEM_BUS.start_time >= 300)
-        return;
-#endif
-    virtualDevice::adamnet_response_status();
+    return status;
 }
 
 void adamDisk::adamnet_response_send()
@@ -273,10 +260,10 @@ void adamDisk::adamnet_response_send()
     if (_media == nullptr)
         return;
 
-    uint8_t c = adamnet_checksum(_media->_media_blockbuff, 1024);
+    uint8_t c = adamnet_checksum(_media->_media_blockbuff, DDP_BLOCK_SIZE);
     uint8_t b[1028];
 
-    memcpy(&b[3], _media->_media_blockbuff, 1024);
+    memcpy(&b[3], _media->_media_blockbuff, DDP_BLOCK_SIZE);
 
     b[0] = 0xB0 | _devnum;
     b[1] = 0x04;

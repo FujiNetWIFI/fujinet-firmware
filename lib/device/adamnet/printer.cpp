@@ -96,11 +96,15 @@ adamPrinter::printer_type adamPrinter::match_modelname(std::string model_name)
     return (printer_type)i;
 }
 
-void adamPrinter::adamnet_control_status()
+AdamNetStatus adamPrinter::deviceStatus()
 {
-    uint8_t c[6] = {0x82, 0x10, 0x00, 0x00, 0x00, 0x10};
+    AdamNetStatus status;
 
-    adamnet_send_buffer(c, sizeof(c));
+    status.length = 16;
+    status.devtype = ADAMNET_DEVTYPE::CHAR;
+    status.status = 0;
+
+    return status;
 }
 
 #ifdef ESP_PLATFORM

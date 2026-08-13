@@ -13,7 +13,6 @@
 class adamQueryDevice : public virtualDevice
 {
 protected:
-    void adamnet_control_status() override;
     void adamnet_control_receive();
     void adamnet_control_clr();
     void adamnet_control_ready() override;

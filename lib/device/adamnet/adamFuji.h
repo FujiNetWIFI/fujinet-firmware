@@ -31,10 +31,11 @@ protected:
 
     void adamnet_test_command();
 
-    void adamnet_control_status() override;
     void adamnet_control_send(const FujiAdamPacket &packet) override;
     void adamnet_control_receive() override { adamnet_response_ack(); }
     void adamnet_control_clr() override;
+
+    AdamNetStatus deviceStatus() override;
 
     void shutdown() override;
 

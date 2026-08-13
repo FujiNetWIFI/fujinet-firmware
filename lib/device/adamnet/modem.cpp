@@ -95,11 +95,6 @@ adamModem::~adamModem()
     }
 }
 
-void adamModem::adamnet_control_status()
-{
-
-}
-
 void adamModem::at_connect_resultCode(int modemBaud)
 {
     int resultCode = 0;

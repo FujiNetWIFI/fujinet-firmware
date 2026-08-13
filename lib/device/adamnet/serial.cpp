@@ -13,8 +13,6 @@ adamSerial::adamSerial()
 {
     Debug_printf("Serial Start\n");
     response_len = 0;
-    status_response.length = htole16(SERIAL_BUF_SIZE);
-    status_response.devtype = ADAMNET_DEVTYPE_CHAR;
 #ifdef ESP_PLATFORM
     serial_out_queue = xQueueCreate(16, sizeof(SendData));
 #endif /* ESP_PLATFORM */
@@ -31,10 +29,15 @@ void adamSerial::adamnet_control_receive()
 {
 }
 
-void adamSerial::adamnet_response_status()
+AdamNetStatus adamSerial::deviceStatus()
 {
-    status_response.status = 1;
-    virtualDevice::adamnet_response_status();
+    AdamNetStatus status;
+
+    status.length = SERIAL_BUF_SIZE;
+    status.devtype = ADAMNET_DEVTYPE::CHAR;
+    status.status = 1;
+
+    return status;
 }
 
 void adamSerial::adamnet_control_ready()

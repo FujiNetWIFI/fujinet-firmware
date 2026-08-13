@@ -19,8 +19,6 @@ using namespace std;
  */
 adamNetwork::adamNetwork()
 {
-    status_response.length = htole16(MAX_ADAM_PACKET_LEN);
-    status_response.devtype = ADAMNET_DEVTYPE_CHAR;
 #ifndef ESP_PLATFORM
     // BoIP: N: ops block on a remote host; send past the 300us window.
     _pc_no_response_deadline = true;
@@ -549,8 +547,9 @@ void adamNetwork::sgml_parse()
     response_len = 0;
 }
 
-void adamNetwork::adamnet_response_status()
+AdamNetStatus adamNetwork::deviceStatus()
 {
+    AdamNetStatus status;
     NetworkStatus s;
 
     if (protocol != nullptr)
@@ -565,13 +564,11 @@ void adamNetwork::adamnet_response_status()
         statusByte.bits.client_error = s.error != NDEV_STATUS::SUCCESS;
     }
 
-    status_response.length = htole16(1026); // max packet size 1026 bytes, maybe larger?
-    status_response.status = statusByte.byte;
+    status.length = MAX_ADAM_PACKET_LEN;
+    status.devtype = ADAMNET_DEVTYPE::CHAR;
+    status.status = statusByte.byte;
 
-    int64_t t = GET_TIMESTAMP() - SYSTEM_BUS.start_time;
-
-    if (t < 300)
-        virtualDevice::adamnet_response_status();
+    return status;
 }
 
 void adamNetwork::adamnet_control_send(const FujiAdamPacket &packet)

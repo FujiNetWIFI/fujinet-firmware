@@ -35,8 +35,9 @@ private:
 
     void adamnet_control_send_block_num();
     void adamnet_control_send_block_data();
-    void adamnet_response_status() override;
     void adamnet_response_send();
+
+    AdamNetStatus deviceStatus() override;
 
 public:
     adamDisk();
