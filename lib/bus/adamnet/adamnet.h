@@ -61,18 +61,18 @@ struct adamnet_message_t
 
 #define ADAMNET_RESET_DEBOUNCE_PERIOD 100 // in ms
 
-#define ADAMNET_DEVTYPE_BLOCK 0x01
-#define ADAMNET_DEVTYPE_CHAR 0x00
+enum class ADAMNET_DEVTYPE : uint8_t {
+    CHAR = 0x00,
+    BLOCK = 0x01,
+};
 
-struct AdamNetPacket
+struct AdamNetStatus
 {
-    uint8_t cmd_dev;
-    uint16_t length;
-    uint8_t devtype;
+    u16le_t length;
+    ADAMNET_DEVTYPE devtype;
     uint8_t status;
-    uint8_t checksum;
 } __attribute__((packed));
-static_assert(sizeof(AdamNetPacket) == 6, "AdamNetPacket must be 6 bytes");
+static_assert(sizeof(AdamNetStatus) == 4, "AdamNetStatus must be 4 bytes");
 
 class systemBus;
 class adamFuji;     // declare here so can reference it, but define in fuji.h
@@ -85,7 +85,7 @@ class fujiDevice;
  * @param len length of buffer
  * @return checksum value (0x00 - 0xFF)
  */
-uint8_t adamnet_checksum(uint8_t *buf, unsigned short len);
+uint8_t adamnet_checksum(const void *buf, unsigned short len);
 
 /**
  * @brief An AdamNet Device
@@ -109,7 +109,7 @@ protected:
      * @param len Length of buffer
      * @return number of bytes sent.
      */
-    void adamnet_send_buffer(uint8_t *buf, unsigned short len);
+    void adamnet_send_buffer(const void *buf, unsigned short len);
 
     /**
      * @brief Receive byte from AdamNet
@@ -160,12 +160,12 @@ protected:
      */
     virtual void adamnet_response_nack(bool doNotWaitForIdle=false);
 
-    /*** The five stages of AdamNet protocol ***/
-    virtual void adamnet_control_status();      // Get device capabilities/check if online
     virtual void adamnet_control_ready();       // Check if device is ready for command
     virtual void adamnet_control_receive() = 0; // Tell device to queue up data
     virtual void adamnet_control_clr();         // Send queued up data
     virtual void adamnet_control_send(const FujiAdamPacket &packet) = 0; // Send data to device
+
+    virtual AdamNetStatus deviceStatus() = 0;
 
     /**
      * @brief Device Number: 0-15
@@ -182,16 +182,6 @@ protected:
      * @brief Do any tasks that can only be done when the bus is quiet
      */
     virtual void adamnet_idle();
-
-    /**
-     * @brief send status response
-     */
-    virtual void adamnet_response_status();
-
-    /**
-     * The response sent in adamnet_response_status()
-     */
-    AdamNetPacket status_response;
 
     /**
      * Response buffer

@@ -22,11 +22,15 @@ adamKeyboard::~adamKeyboard()
     server = nullptr;
 }
 
-void adamKeyboard::adamnet_control_status()
+AdamNetStatus deviceStatus()
 {
-    uint8_t r[6] = {0x81, 0x01, 0x00, 0x00, 0x00, 0x01};
-    SYSTEM_BUS.wait_for_idle();
-    adamnet_send_buffer(r, sizeof(r));
+    AdamNetStatus status;
+
+    status.length = 1;
+    status.devtype = ADAMNET_DEVTYPE::CHAR;
+    status.status = 0;
+
+    return status;
 }
 
 void adamKeyboard::adamnet_control_receive()
