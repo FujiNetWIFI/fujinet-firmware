@@ -129,9 +129,12 @@ bool FileSystemSDFAT::is_dir(const char *path)
 {
     char * fpath = _make_fullpath(path);
     struct stat info;
-    stat(fpath, &info);
+    // st_mode carries the permission bits too, so compare the file type field
+    // rather than the whole word - a plain "== S_IFDIR" is never true on hosts
+    // whose stat() fills those in.
+    bool result = (stat(fpath, &info) == 0) && S_ISDIR(info.st_mode);
     free(fpath);
-    return (info.st_mode == S_IFDIR) ? true: false;
+    return result;
 }
 
 success_is_true FileSystemSDFAT::mkdir(const char* path)
