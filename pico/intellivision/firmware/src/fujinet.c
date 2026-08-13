@@ -596,7 +596,7 @@ bool dbc_inbound_handler(const fb_reply_t *req)
 // full interlock rationale.
 void fuji_mailbox_service(void)
 {
-    static uint8_t rxbuf[FUJI_MB_RX_MAX];
+    static uint8_t rxbuf[FUJIBUS_RAW_RX_MAX];
     static uint8_t txbuf[FUJI_MB_TX_MAX];
 
     // BOOTSEL doorbell -- see fuji_mailbox.h. Checked every call, independent
@@ -675,7 +675,14 @@ void fuji_mailbox_service(void)
 
     cart.RAM[FUJI_MB_ERR] = (uint16_t)st;
     if (st == FB_OK) {
-        uint16_t rxlen = reply.data_len; // already bounded by rx_cap == sizeof(rxbuf)
+        // reply.data_len is bounded by sizeof(rxbuf) (FUJIBUS_RAW_RX_MAX),
+        // which is now larger than the mailbox's own RX window -- clamp
+        // before copying into cart.RAM so an oversized reply can't overrun
+        // FUJI_MB_RX_MAX. Real mailbox replies never exceed FUJI_MB_RX_MAX
+        // today; this only guards the address space.
+        uint16_t rxlen = reply.data_len;
+        if (rxlen > FUJI_MB_RX_MAX)
+            rxlen = FUJI_MB_RX_MAX;
         for (uint16_t i = 0; i < rxlen; i++)
             cart.RAM[FUJI_MB_RX + i] = reply.data[i];
         cart.RAM[FUJI_MB_RXLEN_LO] = rxlen & 0xFF;
