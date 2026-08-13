@@ -27,7 +27,7 @@ class adamSerial : public virtualDevice
     void adamnet_control_receive() override;
 
     void adamnet_idle();
-    void adamnet_response_status();
+    AdamNetStatus deviceStatus() override;
 
 #ifdef ESP_PLATFORM
     /**

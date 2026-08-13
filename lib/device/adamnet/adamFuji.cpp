@@ -49,11 +49,15 @@ adamFuji::adamFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, std::nullop
 #endif
 }
 
-// Status
-void adamFuji::adamnet_control_status()
+AdamNetStatus adamFuji::deviceStatus()
 {
-    uint8_t r[6] = {0x8F, 0x00, 0x04, 0x00, 0x00, 0x04};
-    adamnet_send_buffer(r, 6);
+    AdamNetStatus status;
+
+    status.length = 1024;
+    status.devtype = ADAMNET_DEVTYPE::CHAR;
+    status.status = 0;
+
+    return status;
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled

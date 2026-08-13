@@ -86,8 +86,9 @@ public:
     void adamnet_control_receive_channel_sgml();
     void adamnet_control_receive_channel_protocol();
 
-    void adamnet_response_status() override;
     void adamnet_response_send();
+
+    AdamNetStatus deviceStatus() override;
 
     /**
      * @brief Called to set prefix

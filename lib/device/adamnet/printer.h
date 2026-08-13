@@ -31,12 +31,12 @@ protected:
 
     void sio_write(uint8_t aux1, uint8_t aux2);
 
-    /*** The five stages of AdamNet protocol ***/
-    void adamnet_control_status() override;
     void adamnet_control_send(const FujiAdamPacket &packet) override;
     void adamnet_control_ready() override;
     void adamnet_control_receive() override {}
     void adamnet_control_clr() override {}
+
+    AdamNetStatus deviceStatus() override;
 
     void shutdown() override;
 

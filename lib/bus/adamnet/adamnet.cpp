@@ -91,12 +91,13 @@ static void adamnet_bus_task(void *arg)
 }
 #endif // ESP_PLATFORM
 
-uint8_t adamnet_checksum(uint8_t *buf, unsigned short len)
+uint8_t adamnet_checksum(const void *buf, unsigned short len)
 {
     uint8_t checksum = 0x00;
+    const uint8_t *ptr = reinterpret_cast<const uint8_t *>(buf);
 
     for (unsigned short i = 0; i < len; i++)
-        checksum ^= buf[i];
+        checksum ^= ptr[i];
 
     return checksum;
 }
@@ -145,7 +146,7 @@ void virtualDevice::adamnet_send(uint8_t b)
     SYSTEM_BUS.flush();
 }
 
-void virtualDevice::adamnet_send_buffer(uint8_t *buf, unsigned short len)
+void virtualDevice::adamnet_send_buffer(const void *buf, unsigned short len)
 {
     SYSTEM_BUS.write(buf, len);
     SYSTEM_BUS.flush();
@@ -260,22 +261,6 @@ void systemBus::min_turnaround()
     wait_turnaround(ADAMNET_TURNAROUND_US);
 }
 
-void virtualDevice::adamnet_control_status()
-{
-    SYSTEM_BUS.start_time=GET_TIMESTAMP();
-   adamnet_response_status();
-}
-
-void virtualDevice::adamnet_response_status()
-{
-    status_response.cmd_dev = (static_cast<uint8_t>(APT::NM_STATUS) << 4) | _devnum;
-
-    status_response.checksum = adamnet_checksum((uint8_t *) &status_response.length, 4);
-
-    SYSTEM_BUS.min_turnaround();
-    adamnet_send_buffer((uint8_t *) &status_response, sizeof(status_response));
-}
-
 void virtualDevice::adamnet_control_clr()
 {
     if (response_len == 0)
@@ -328,38 +313,51 @@ void systemBus::_adamnet_process_cmd()
         fnLedManager.set(eLed::LED_BUS, false);
     }
 
-    if (stall_silent)
-    {
-        if (GET_TIMESTAMP() - cmd_start > ADAMNET_LONG_CMD_US)
-            wait_for_idle();
-        else
-            fnSystem.yield();
-    }
-    else if (GET_TIMESTAMP() - cmd_start > ADAMNET_LONG_CMD_US)
-        wait_for_idle();
+    if (stall_silent && (GET_TIMESTAMP() - cmd_start <= ADAMNET_LONG_CMD_US))
+        fnSystem.yield();
     else
         wait_for_idle();
 }
 
+// Handle the five stages of AdamNet bus protocol
 void systemBus::_adamnet_dispatch(const FujiAdamPacket &packet)
 {
     switch (packet.type())
     {
     case APT::MN_STATUS:
-        _activeDev->adamnet_control_status();
+        // Get device capablities/check if it is alive
+        {
+            AdamNetStatus status = _activeDev->deviceStatus();
+            uint8_t source = (static_cast<uint8_t>(APT::NM_STATUS) << 4) | _activeDev->id();
+            uint8_t checksum = adamnet_checksum(&status, sizeof(status));
+
+            SYSTEM_BUS.start_time=GET_TIMESTAMP();
+            _activeDev->adamnet_send(source);
+            _activeDev->adamnet_send_buffer(&status, sizeof(status));
+            _activeDev->adamnet_send(checksum);
+        }
         break;
+
     case APT::MN_CLR:
+        // Fetch the data from a previous read()/readBlock() request
         _activeDev->adamnet_control_clr();
         break;
+
     case APT::MN_RECEIVE:
+        // read() or readBlock()
         _activeDev->adamnet_control_receive();
         break;
+
     case APT::MN_SEND:
+        // write() or writeBlock()
         _activeDev->adamnet_control_send(packet);
         break;
+
     case APT::MN_READY:
+        // Check if device is ready for a command
         _activeDev->adamnet_control_ready();
         break;
+
     case APT::MN_RESET:
         _activeDev->reset();
         break;
