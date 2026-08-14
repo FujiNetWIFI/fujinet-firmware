@@ -6,25 +6,11 @@
 
 #include "network.h"
 #include "../network.h"
-
-#include <cstring>
-#include <algorithm>
-
-#include "../../include/debug.h"
-
-#include "utils.h"
-
-#include "status_error_codes.h"
 #include "ProtocolParser.h"
-#include "TCP.h"
-#include "UDP.h"
-#include "HTTP.h"
-#include "FS.h"
+#include "utils.h"
+#include "debug.h"
 
 using namespace std;
-
-
-
 
 /**
  * Constructor
@@ -894,9 +880,12 @@ void lynxNetwork::process_udp(fujiCommandID_t cmd)
     {
 #ifndef ESP_PLATFORM
     case NETCMD_GET_REMOTE:
-        receiveBuffer->resize(SPECIAL_BUFFER_SIZE);
-        cmd_err = udp->get_remote(receiveBuffer->data(), receiveBuffer->size());
-        response += *receiveBuffer;
+        {
+            receiveBuffer->resize(SPECIAL_BUFFER_SIZE);
+            cmd_err = udp->get_remote(receiveBuffer->data(), receiveBuffer->size());
+            size_t len = std::min(sizeof(response) - response_len, receiveBuffer->size());
+            memcpy(&response[response_len], receiveBuffer->data(), len);
+        }
         break;
 #endif /* ESP_PLATFORM */
     case NETCMD_SET_DESTINATION:

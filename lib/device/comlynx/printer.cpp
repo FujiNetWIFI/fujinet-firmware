@@ -46,8 +46,7 @@ void printerTask(void *param)
             need_print=false;
         }
 
-    vTaskDelay(1);
-
+        fnSystem.yield();
     }
 }
 
