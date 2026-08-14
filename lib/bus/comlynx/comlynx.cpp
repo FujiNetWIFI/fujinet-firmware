@@ -5,13 +5,16 @@
  */
 #include "comlynx.h"
 #include "netstream.h"
-
-#include "../../include/debug.h"
-
 #include "fnSystem.h"
-#include "fnDNS.h"
+#include "fnConfig.h"
 #include "led.h"
-#include <cstring>
+#include "debug.h"
+
+#ifdef ESP_PLATFORM
+#define SERIAL_DEVICE FN_UART_BUS
+#else /* !ESP_PLATFORM */
+#define SERIAL_DEVICE Config.get_serial_port()
+#endif /* ESP_PLATFORM */
 
 //#define IDLE_TIME 500 // Idle tolerance in microseconds (roughly three characters at 62500 baud)
 
@@ -150,10 +153,10 @@ bool systemBus::wait_for_idle()
     //
     // Check that the bus is truly idle for the whole duration, and then we can start sending?
 
-    start = esp_timer_get_time();
+    start = GET_TIMESTAMP();
 
     do {
-        current = esp_timer_get_time();
+        current = GET_TIMESTAMP();
         dur = current - start;
 
         // Did we get any data in the FIFO while waiting?
@@ -175,7 +178,7 @@ bool systemBus::netstreamActive() const
 
 void virtualDevice::comlynx_process()
 {
-    fnDebugConsole.printf("comlynx_process() not implemented yet for this device.\n");
+    Debug_printf("comlynx_process() not implemented yet for this device.\n");
 }
 
 void systemBus::_comlynx_process_cmd()
@@ -240,7 +243,7 @@ void systemBus::service()
             _streamDev->comlynx_handle_netstream();
     }
     // Process anything waiting
-    else if (SYSTEM_BUS.available() > 0)
+    else if (_port->available() > 0)
         _comlynx_process_cmd();
 }
 
@@ -251,13 +254,27 @@ void systemBus::setup()
     // Set up NetStream device
     //_streamDev = new lynxnetstream();
 
-    // Set up UART
-    _port.begin(ChannelConfig()
-                .deviceID(FN_UART_BUS)
-                .baud(COMLYNX_BAUDRATE)
-                .parity(UART_PARITY_ODD)
-                .halfDuplex(true)
-                );
+    if (Config.get_boip_enabled())
+    {
+        Debug_printf("RS232 SETUP: BOIP host: %s\n", Config.get_boip_host().c_str());
+        _boip.begin(BoIPConfig()
+                    .hostName(Config.get_boip_host())
+                    .portNum(Config.get_boip_port())
+                    );
+        _port = &_boip;
+    }
+    else {
+        // Set up UART
+        _serial.begin(ChannelConfig()
+                      .deviceID(SERIAL_DEVICE)
+                      .baud(COMLYNX_BAUDRATE)
+#ifdef ESP_PLATFORM
+                      .parity(UART_PARITY_ODD)
+                      .halfDuplex(true)
+#endif /* ESP_PLATFORM */
+                      );
+        _port = &_serial;
+    }
 }
 
 void systemBus::shutdown()
@@ -496,17 +513,24 @@ void virtualDevice::transaction_put(const void *data, size_t len, bool err)
 
 void systemBus::change_baud(int32_t baud)
 {
-    _port.flushOutput();
-    _port.begin(ChannelConfig()
-                .deviceID(FN_UART_BUS)
-                .baud(baud)
-                .parity(UART_PARITY_ODD)
-                );
+    _port->flushOutput();
+    if (_port == &_serial)
+    {
+        _serial.begin(ChannelConfig()
+                      .deviceID(SERIAL_DEVICE)
+                      .baud(baud)
+#ifdef ESP_PLATFORM
+                      .parity(UART_PARITY_ODD)
+#endif /* ESP_PLATFORM */
+                      );
+    }
 
+#ifdef ESP_PLATFORM
     vTaskDelay(pdMS_TO_TICKS(10));
+#endif /* ESP_PLATFORM */
 
     //uart_set_baudrate(FN_UART_BUS, baud);
-    //_port.setBaudrate(baud);
+    //_port->setBaudrate(baud);
 }
 
 #endif /* BUILD_LYNX */

@@ -1,22 +1,10 @@
 #ifdef BUILD_LYNX
 
 #include "lynxFuji.h"
-
-#include <cstring>
+#include "compat_string.h"
+#ifdef ESP_PLATFORM
 #include <PSRAMAllocator.h>
-
-#include "../../include/debug.h"
-
-//#include "serial.h"
-
-#include "fnSystem.h"
-#include "fnConfig.h"
-#include "fnWiFi.h"
-#include "fsFlash.h"
-
-#include "utils.h"
-#include "string_utils.h"
-#include "fuji_endian.h"
+#endif /* ESP_PLATFORM */
 
 #define IMAGE_EXTENSION ".lnx"
 #define COPY_SIZE 532
@@ -227,7 +215,7 @@ void lynxFuji::setup()
 
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
         SYSTEM_BUS.addDevice(&_fnDisks[i].disk_dev, (fujiDeviceID_t) (FUJI_DEVICEID_DISK + i));
-    
+
     for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
         SYSTEM_BUS.addDevice(lynxNetDevs[i].get(), (fujiDeviceID_t) (FUJI_DEVICEID_NETWORK + i));
 
@@ -321,7 +309,7 @@ void lynxFuji::comlynx_process()
 {
     uint8_t c;
     uint8_t slot;
-    
+
     // Get the entire payload from Lynx
     uint16_t len = comlynx_recv_length();
     Debug_printf("lynxFuji::comlynx_process - len: %ld, ", (long int)len);
@@ -367,7 +355,7 @@ void lynxFuji::comlynx_process()
     case FUJICMD_GET_WIFISTATUS:
         fujicmd_net_get_wifi_status();
         break;
-    case FUJICMD_MOUNT_HOST:   
+    case FUJICMD_MOUNT_HOST:
         transaction_get(&slot, sizeof(slot));
         fujicmd_mount_host_success(slot);
         break;
