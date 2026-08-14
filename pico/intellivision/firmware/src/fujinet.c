@@ -149,6 +149,17 @@ static bool rh_have_hi;
 static uint8_t rh_hi_byte;
 static unsigned rh_crclen;
 
+// Trailing attribute/fine-address ("enable") tables: 16 attribute bytes +
+// 32 fine-address bytes, collected once the last segment's CRC is consumed
+// (their own CRC-16, like the segment CRCs, is received but not
+// validated). decode_enable_tables() turns these into boot_ram* entries at
+// CLOSE time -- this is the only place a .rom declares its RAM (e.g. cart
+// scratch at $8000-$9BFF), so ignoring them boots a game whose RAM
+// silently reads/writes nothing.
+#define RH_TBL_LEN 48
+static uint8_t rh_tbl[RH_TBL_LEN];
+static unsigned rh_tbl_len;
+
 // Sends a bare ACK/NAK reply frame for one DBC command, over the same
 // tud_cdc link fujibus_transact() itself uses to send requests. This runs
 // from inside fujibus_transact()'s own RX wait (via the inbound-handler
@@ -277,11 +288,11 @@ static void rom_start_segment_slot(void)
 // feed_rom_byte: the incremental ROM-stream decoder. Called once per byte
 // of every NETCMD_WRITE payload on the ROM stream (stream 0).
 //
-// KNOWN LIMITATION: bank-switched .rom images (which encode their live page
-// tables in the 48-byte attribute/fine-address table following the
-// segments) are not handled -- decode succeeds and the direct-mapped
-// segments boot, but a title that relies on bank-switching to reach code
-// outside its listed segments will not run correctly.
+// KNOWN LIMITATION: bank-switched .rom images are not handled -- the
+// attribute/fine-address tables are decoded (writable ranges become RAM,
+// see decode_enable_tables()), but banks flagged bank-switched there are
+// skipped, so a title that relies on bank-switching to reach code outside
+// its listed segments will not run correctly.
 static void feed_rom_byte(uint8_t b)
 {
     rom_total_bytes++;
@@ -297,6 +308,7 @@ static void feed_rom_byte(uint8_t b)
             rh_seg_i = 0;
             rh_state = RH_SEG_ADDR;
             rh_addrlen = 0;
+            rh_tbl_len = 0;
             boot_nsegs = 0;
         } else {
             rom_fmt = ROMFMT_FLAT;
@@ -331,8 +343,13 @@ static void feed_rom_byte(uint8_t b)
     }
 
     // ROMFMT_HDR
-    if (rh_seg_i >= rh_nseg)
-        return; // trailing attribute/fine-address table -- not needed, ignored
+    if (rh_seg_i >= rh_nseg) {
+        // Collect the enable tables for decode_enable_tables(); their
+        // CRC-16 and any metadata tags after them are ignored.
+        if (rh_tbl_len < RH_TBL_LEN)
+            rh_tbl[rh_tbl_len++] = b;
+        return;
+    }
 
     switch (rh_state) {
     case RH_SEG_ADDR:
@@ -377,6 +394,50 @@ static void feed_rom_byte(uint8_t b)
     }
 }
 
+// decode_enable_tables: translate the .rom's attribute/fine-address tables
+// (rh_tbl) into boot_ram* entries. Layout, per jzIntv's icartrom_decode()
+// (the reference this decoder is ported from): for 2K bank i (bus address
+// i<<11), the attribute nibble is rh_tbl[i>>1] (low nibble = even bank,
+// high = odd), and the fine-address byte is rh_tbl[16 + ((i>>1) |
+// ((i&1)<<4))] -- even banks in bytes 16-31's first half, odd banks in the
+// second -- whose high nibble is the bank's first active 256-word block
+// and low nibble its last. Attribute bits: 1 = readable, 2 = writable,
+// 4 = narrow (8-bit), 8 = bank-switched.
+//
+// Writable, non-bank-switched ranges become RAM (8-bit when narrow, else
+// 16-bit); read-only ranges are already covered by the preloaded segments,
+// and bank-switched banks stay unsupported (see feed_rom_byte()'s KNOWN
+// LIMITATION). Adjacent same-width ranges are merged so a typical game's
+// whole scratch window costs one boot_ram slot; ranges past BOOT_MAX_RAM
+// are dropped, matching parse_pushed_cfg()'s own silent cap.
+static void decode_enable_tables(void)
+{
+    for (unsigned i = 0; i < 32; i++) {
+        unsigned attr = 0xF & (rh_tbl[i >> 1] >> ((i & 1) * 4));
+        uint8_t lohi = rh_tbl[16 + ((i >> 1) | ((i & 1) << 4))];
+        unsigned lo = (lohi >> 4) & 0x7;
+        unsigned hi = (lohi & 0x7) + 1;
+
+        if (!(attr & 0x2) || (attr & 0x8) || hi <= lo)
+            continue;
+
+        unsigned int from = (i << 11) + (lo << 8);
+        unsigned int to = (i << 11) + (hi << 8) - 1;
+        uint8_t width = (attr & 0x4) ? 8 : 16;
+
+        if (boot_nram > 0 &&
+            boot_ramto[boot_nram - 1] + 1 == from &&
+            boot_ramwidth[boot_nram - 1] == width) {
+            boot_ramto[boot_nram - 1] = to;
+        } else if (boot_nram < BOOT_MAX_RAM) {
+            boot_ramfrom[boot_nram] = from;
+            boot_ramto[boot_nram] = to;
+            boot_ramwidth[boot_nram] = width;
+            boot_nram++;
+        }
+    }
+}
+
 // apply_boot_mapping: called once the ROM stream's CLOSE arrives.
 // cart.ROM[]'s final bytes are already in place by now (feed_rom_byte()
 // wrote them there live). Decides the mapping source, validates every
@@ -398,11 +459,16 @@ static bool apply_boot_mapping(void)
             cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_TRUNCATED;
             return false; // stream ended mid-segment or before any completed
         }
-        // No .cfg on this path -- boot_nram/boot_jlp_value already zeroed
-        // by the last parse_pushed_cfg() call (or never set, if none ran).
+        // A header-format image is self-describing: RAM comes from its own
+        // enable tables, and a .cfg sibling is neither needed nor
+        // consulted. The tables are formally optional, so a stream that
+        // ended without them simply boots with no RAM (the pre-decode
+        // behavior for every .rom).
         boot_nram = 0;
         boot_jlp_value = 0;
         boot_jlpflash_value = 0;
+        if (rh_tbl_len >= RH_TBL_LEN)
+            decode_enable_tables();
     } else if (have_cfg && parse_pushed_cfg()) {
         // boot_mapfrom/mapto/maprom/ramfrom/ramto/ramwidth/jlp_value/
         // jlpflash_value already populated by parse_pushed_cfg().
