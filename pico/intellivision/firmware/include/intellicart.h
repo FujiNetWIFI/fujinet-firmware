@@ -35,6 +35,8 @@ typedef struct {
 #if CONFIG_FUJINET
    bool FujiSupport;   // this board serves the FujiNet mailbox; set once by
                         // RunFujiConfig() and never cleared
+   bool MailboxActive; // session flag: cleared when a game's map overlaps
+                        // the mailbox; restored by RunFujiConfig()
 #endif
 
 #if CONFIG_ECS_AUDIO || CONFIG_INTELLIVOICE
