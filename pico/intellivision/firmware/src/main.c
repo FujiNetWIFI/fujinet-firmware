@@ -38,6 +38,7 @@ int main(void) {
 
    gpio_init(MSYNC);
    gpio_set_dir(MSYNC, false);
+   gpio_pull_down(MSYNC);
    gpio_init(RESET);
    gpio_set_dir(RESET, true);
 
@@ -60,9 +61,10 @@ int main(void) {
 #endif
 
    // reset interval in ms
-   int t = 100;
+   uint32_t t = 100;
 
-   while (gpio_get(MSYNC) == 0 && to_ms_since_boot(get_absolute_time()) < 2000) {   // wait for Inty powerup
+   // no deadline: on FujiNet boards VBUS powers us up long before the console
+   while (gpio_get(MSYNC) == 0) {
       if (to_ms_since_boot(get_absolute_time()) > t) {
          t += 100;
          resetHigh();
@@ -71,24 +73,17 @@ int main(void) {
          sleep_ms(1);
          resetHigh();
       }
+#if CONFIG_USB_DEVICE
+      tud_task();
+#if !CONFIG_FUJINET
+      cdc_task();  // debug echo; never against the FujiBus link
+#endif
+#endif
    }
 
    printf("START - Minty v%s\n", VERSION);
 
-   // check why loop is ended...
-   if (gpio_get(MSYNC) == 1) {
-
-      Inty_cart_main();
-
-   } else {
-      // board not plugged in Intellivision - start USB tasks
-      while(1) {
-#if CONFIG_USB_DEVICE
-         tud_task();
-         cdc_task();
-#endif
-      }
-   }
+   Inty_cart_main();
 
    return 0;
 }
