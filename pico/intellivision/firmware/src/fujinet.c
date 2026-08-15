@@ -27,6 +27,7 @@
 #include "fuji_mailbox.h"
 #include "fujibus.h"
 #include "fujibus_usb.h"
+#include "fujiboot.h"
 #include "fujinet.h"
 
 extern Cartridge cart;
@@ -59,13 +60,8 @@ void fuji_wait_ms_pumped(uint32_t ms)
 // each one individually -- the ESP32 side's sendCommand() is a per-frame
 // round trip (one OPEN, then one WRITE per ~512-byte chunk, then CLOSE).
 //
-// SCOPE NOTE, inherited from the original PiRTO II port: a real build's SRAM
-// budget doesn't leave room to stage a whole transfer in a scratch buffer
-// separately from the live cart.ROM[] -- so ROM data is decoded and written
-// DIRECTLY into cart.ROM[] as it streams in (feed_rom_byte()). A transfer
-// that fails or is interrupted partway leaves the console needing a power
-// cycle -- the same tradeoff the pre-FujiNet local-storage path already
-// accepted.
+// SCOPE NOTE: no staging buffer -- data decodes into cart.ROM[] as it
+// streams, above CONFIG's live offsets so a failed push can't hang CONFIG.
 //
 // Mapping precedence, decided in apply_boot_mapping() once CLOSE arrives on
 // the ROM stream: a self-describing non-bankswitched Intellicart/CC3 .rom
@@ -81,11 +77,17 @@ void fuji_wait_ms_pumped(uint32_t ms)
 // (pushed first, so its mapping/JLP settings are known before the ROM's own
 // CLOSE triggers the boot), 0 = the ROM itself.
 
-#define CFG_BUF_MAX 2048
+#define CFG_BUF_MAX 4096
 static char cfg_buf[CFG_BUF_MAX];
 static uint32_t cfg_wp = 0;
 static bool cfg_open = false;
 static bool have_cfg = false;
+
+// a receiver limit dropped data -- fail TRUNCATED, never boot a partial map
+static bool boot_truncated = false;
+
+// failed commit rebuilt CONFIG's map; handler must reset the console into it
+static bool need_config_reset = false;
 
 // Snapshot of the most recent FUJICMD_SET_DEVICE_FULLPATH payload CONFIG
 // sent through the ordinary mailbox (st_boot.bas always sends this
@@ -96,14 +98,14 @@ static bool have_cfg = false;
 // Populated in fuji_mailbox_service(), consumed in apply_boot_mapping().
 static char last_boot_path[256];
 
-#define BOOT_MAX_SEGS 8
+#define BOOT_MAX_SEGS 16
 static unsigned int boot_mapfrom[BOOT_MAX_SEGS]; // ROM word offset, inclusive
 static unsigned int boot_mapto[BOOT_MAX_SEGS];   // ROM word offset, inclusive
 static unsigned int boot_maprom[BOOT_MAX_SEGS];  // destination bus address
 static int boot_nsegs = 0;
 
 // [memattr] RAM lines from a pushed .cfg, applied after the ROM segments.
-#define BOOT_MAX_RAM 4
+#define BOOT_MAX_RAM 8
 static unsigned int boot_ramfrom[BOOT_MAX_RAM];
 static unsigned int boot_ramto[BOOT_MAX_RAM];
 static uint8_t boot_ramwidth[BOOT_MAX_RAM];
@@ -124,8 +126,12 @@ static unsigned rom_hdrlen;
 static uint32_t rom_total_bytes;
 static bool rom_open = false;
 
-// ROMFMT_FLAT: sequential big-endian word packing straight into
-// cart.ROM[0..), exactly like the local-storage loader does for a .bin.
+// ROMFMT_FLAT: big-endian words staged at FLAT_STAGE_BASE (mapping offsets
+// biased at commit) -- offset 0 would clobber the CONFIG image the console
+// is still executing. HDR streams land identity-mapped >= $4000, no staging.
+#define FLAT_STAGE_BASE 0x4000u
+_Static_assert(MAX_ROM_SIZE >= FLAT_STAGE_BASE + 0x8000,
+               "cart.ROM[] too small to stage a 32K-word flat image");
 static uint32_t flat_wp;
 static bool flat_have_hi;
 static uint8_t flat_hi;
@@ -184,11 +190,9 @@ static void dbc_send_frame(uint8_t command)
     tud_cdc_write_flush();
 }
 
-// mailbox_overlap: true if [from, to] (inclusive, bus addresses) overlaps
-// the RAM window that will be active once this boot completes. jlp_pending
-// mirrors update_ram_window()'s own logic (intellicart.c) without touching
-// cart.JLP* yet -- called before anything is committed, so a rejected push
-// never mutates a currently-running game's state.
+// mailbox_overlap: [from, to] (inclusive bus addresses) vs the RAM window
+// this boot would want. Hard rejection only for JLP; otherwise the boot
+// proceeds with the mailbox disabled.
 static bool mailbox_overlap(unsigned int from, unsigned int to, bool jlp_pending)
 {
     unsigned int lo = jlp_pending ? 0x8000 : FUJI_MB_ADDR_LO;
@@ -237,22 +241,29 @@ static bool parse_pushed_cfg(void)
             section = SEC_NONE; // [macro] or anything else -- not supported over the network
         } else if (section == SEC_MAPPING && linelen > 0 && tmp[0] == '$') {
             unsigned int from = 0, to = 0, rom = 0;
-            if (sscanf(tmp, " $%x - $%x = $%x", &from, &to, &rom) == 3 &&
-                boot_nsegs < BOOT_MAX_SEGS) {
-                boot_mapfrom[boot_nsegs] = from;
-                boot_mapto[boot_nsegs] = to;
-                boot_maprom[boot_nsegs] = rom;
-                boot_nsegs++;
+            if (sscanf(tmp, " $%x - $%x = $%x", &from, &to, &rom) == 3) {
+                if (boot_nsegs < BOOT_MAX_SEGS) {
+                    boot_mapfrom[boot_nsegs] = from;
+                    boot_mapto[boot_nsegs] = to;
+                    boot_maprom[boot_nsegs] = rom;
+                    boot_nsegs++;
+                } else {
+                    boot_truncated = true;
+                }
             }
         } else if (section == SEC_MEMATTR && linelen > 0 && tmp[0] == '$') {
             unsigned int from = 0, to = 0, width = 0;
             char type[4];
             if (sscanf(tmp, " $%x - $%x = %3s %u", &from, &to, type, &width) == 4 &&
-                (width == 8 || width == 16) && boot_nram < BOOT_MAX_RAM) {
-                boot_ramfrom[boot_nram] = from;
-                boot_ramto[boot_nram] = to;
-                boot_ramwidth[boot_nram] = (uint8_t)width;
-                boot_nram++;
+                (width == 8 || width == 16)) {
+                if (boot_nram < BOOT_MAX_RAM) {
+                    boot_ramfrom[boot_nram] = from;
+                    boot_ramto[boot_nram] = to;
+                    boot_ramwidth[boot_nram] = (uint8_t)width;
+                    boot_nram++;
+                } else {
+                    boot_truncated = true;
+                }
             }
         } else if (section == SEC_VARS) {
             int v;
@@ -337,8 +348,10 @@ static void feed_rom_byte(uint8_t b)
             flat_hi = b;
             flat_have_hi = true;
         } else {
-            if (flat_wp < (uint32_t)MAX_ROM_SIZE)
-                cart.ROM[flat_wp++] = ((uint16_t)flat_hi << 8) | b;
+            if (FLAT_STAGE_BASE + flat_wp < (uint32_t)MAX_ROM_SIZE)
+                cart.ROM[FLAT_STAGE_BASE + flat_wp++] = ((uint16_t)flat_hi << 8) | b;
+            else
+                rom_fmt = ROMFMT_REJECTED; // oversized stream, don't wrap silently
             flat_have_hi = false;
         }
         return;
@@ -361,7 +374,8 @@ static void feed_rom_byte(uint8_t b)
         rh_lo = ((unsigned int)rh_addrbuf[0]) << 8;
         rh_hi = (((unsigned int)rh_addrbuf[1]) << 8) + 0x100;
         rh_addrlen = 0;
-        if (rh_hi <= rh_lo || rh_hi > (unsigned int)MAX_ROM_SIZE) {
+        // < $4000 is console space and would overwrite CONFIG's live image
+        if (rh_hi <= rh_lo || rh_lo < 0x4000 || rh_hi > (unsigned int)MAX_ROM_SIZE) {
             rom_fmt = ROMFMT_REJECTED;
             return;
         }
@@ -427,6 +441,12 @@ static void decode_enable_tables(void)
         unsigned int to = (i << 11) + (hi << 8) - 1;
         uint8_t width = (attr & 0x4) ? 8 : 16;
 
+        // never serve RAM over console space -- bus contention
+        if (to < 0x4000)
+            continue;
+        if (from < 0x4000)
+            from = 0x4000;
+
         if (boot_nram > 0 &&
             boot_ramto[boot_nram - 1] + 1 == from &&
             boot_ramwidth[boot_nram - 1] == width) {
@@ -436,6 +456,8 @@ static void decode_enable_tables(void)
             boot_ramto[boot_nram] = to;
             boot_ramwidth[boot_nram] = width;
             boot_nram++;
+        } else {
+            boot_truncated = true;
         }
     }
 }
@@ -503,36 +525,130 @@ static bool apply_boot_mapping(void)
             boot_mapfrom[1] = 0x2000; boot_mapto[1] = 0x2FFF; boot_maprom[1] = 0xD000;
             boot_mapfrom[2] = 0x3000; boot_mapto[2] = 0x3FFF; boot_maprom[2] = 0xF000;
             break;
+        case 40960: // 20K words: 8K at $5000, 12K contiguous at $D000
+            boot_nsegs = 2;
+            boot_mapfrom[0] = 0;      boot_mapto[0] = 0x1FFF; boot_maprom[0] = 0x5000;
+            boot_mapfrom[1] = 0x2000; boot_mapto[1] = 0x4FFF; boot_maprom[1] = 0xD000;
+            break;
+        case 49152: // 24K words: the common INTV shape, 8K/12K/4K
+            boot_nsegs = 3;
+            boot_mapfrom[0] = 0;      boot_mapto[0] = 0x1FFF; boot_maprom[0] = 0x5000;
+            boot_mapfrom[1] = 0x2000; boot_mapto[1] = 0x4FFF; boot_maprom[1] = 0x9000;
+            boot_mapfrom[2] = 0x5000; boot_mapto[2] = 0x5FFF; boot_maprom[2] = 0xD000;
+            break;
         default:
             cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_NOMAP;
             return false; // no mapping source at all -- refuse to guess
         }
     }
 
-    for (int i = 0; i < boot_nsegs; i++) {
-        unsigned int len = boot_mapto[i] - boot_mapfrom[i];
-        if (mailbox_overlap(boot_maprom[i], boot_maprom[i] + len, jlp_pending)) {
-            cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_MAILBOX;
-            return false;
-        }
+    if (boot_truncated) {
+        cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_TRUNCATED;
+        return false;
     }
-    for (int i = 0; i < boot_nram; i++) {
-        if (mailbox_overlap(boot_ramfrom[i], boot_ramto[i], jlp_pending)) {
-            cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_MAILBOX;
+
+    // Clamp mappings at EOF (bin2rom semantics) -- collection cfgs describe
+    // each title's largest layout and expect ranges past EOF to fall away.
+    uint32_t bias = 0;
+    if (rom_fmt == ROMFMT_FLAT) {
+        uint32_t words = rom_total_bytes / 2;
+        int kept = 0;
+        bias = FLAT_STAGE_BASE;
+        for (int i = 0; i < boot_nsegs; i++) {
+            if (boot_mapfrom[i] >= words)
+                continue; // wholly past EOF -- drop
+            if (boot_mapto[i] >= words)
+                boot_mapto[i] = words - 1;
+            boot_mapfrom[kept] = boot_mapfrom[i];
+            boot_mapto[kept] = boot_mapto[i];
+            boot_maprom[kept] = boot_maprom[i];
+            kept++;
+        }
+        boot_nsegs = kept;
+        if (boot_nsegs == 0) {
+            cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_CFGBAD;
             return false;
         }
     }
 
-    // Validated -- commit. mm_init() discards CONFIG's own map (or
-    // whatever game was previously running); nothing below can fail.
+    // RAM sanitation: nothing below $4000 (bus contention), total within RAMSIZE
+    unsigned int total_ram = 0;
+    {
+        int kept = 0;
+        for (int i = 0; i < boot_nram; i++) {
+            if (boot_ramto[i] < 0x4000)
+                continue;
+            if (boot_ramfrom[i] < 0x4000)
+                boot_ramfrom[i] = 0x4000;
+            if (boot_ramto[i] < boot_ramfrom[i])
+                continue;
+            total_ram += boot_ramto[i] - boot_ramfrom[i] + 1;
+            boot_ramfrom[kept] = boot_ramfrom[i];
+            boot_ramto[kept] = boot_ramto[i];
+            boot_ramwidth[kept] = boot_ramwidth[i];
+            kept++;
+        }
+        boot_nram = kept;
+    }
+    if (total_ram > RAMSIZE) {
+        cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_RAM;
+        return false;
+    }
+
+    // Mailbox policy: JLP overlap is a genuine conflict (reject); anything
+    // else boots with the mailbox disabled for the session. Also disable if
+    // the game's RAM allocation would alias the mailbox cells' storage.
+    bool disable_mb = false;
+    if (jlp_pending) {
+        for (int i = 0; i < boot_nsegs; i++) {
+            unsigned int len = boot_mapto[i] - boot_mapfrom[i];
+            if (mailbox_overlap(boot_maprom[i], boot_maprom[i] + len, true)) {
+                cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_MAILBOX;
+                return false;
+            }
+        }
+        for (int i = 0; i < boot_nram; i++) {
+            if (mailbox_overlap(boot_ramfrom[i], boot_ramto[i], true)) {
+                cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_MAILBOX;
+                return false;
+            }
+        }
+    } else {
+        for (int i = 0; i < boot_nsegs; i++) {
+            unsigned int len = boot_mapto[i] - boot_mapfrom[i];
+            if (mailbox_overlap(boot_maprom[i], boot_maprom[i] + len, false))
+                disable_mb = true;
+        }
+        for (int i = 0; i < boot_nram; i++) {
+            if (mailbox_overlap(boot_ramfrom[i], boot_ramto[i], false))
+                disable_mb = true;
+        }
+        if (total_ram > FUJI_MB_BASE)
+            disable_mb = true;
+    }
+
+    // Commit. mm_init() discards the live map; a pathologically fragmented
+    // map can still fail -- recover by rebuilding CONFIG's map and resetting.
+    bool commit_ok = true;
     mm_init(&m);
     for (int i = 0; i < boot_nsegs; i++)
-        mm_add(&m, boot_mapfrom[i], boot_mapto[i], boot_maprom[i], MM_NO_PAGE);
+        if (mm_add(&m, bias + boot_mapfrom[i], bias + boot_mapto[i],
+                   boot_maprom[i], MM_NO_PAGE) < 0)
+            commit_ok = false;
     for (int i = 0; i < boot_nram; i++)
-        mm_add_ram(&m, boot_ramfrom[i], boot_ramto[i], boot_ramwidth[i]);
-    mm_finalize(&m);
+        if (mm_add_ram(&m, boot_ramfrom[i], boot_ramto[i], boot_ramwidth[i]) < 0)
+            commit_ok = false;
+    if (mm_finalize(&m) < 0)
+        commit_ok = false;
+    if (!commit_ok) {
+        fuji_config_map();
+        cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_REJECTED;
+        need_config_reset = true;
+        return false;
+    }
 
     cart.len = rom_total_bytes;
+    cart.MailboxActive = !disable_mb;
 
 #if CONFIG_JLP
     if (jlp_pending) {
@@ -576,6 +692,9 @@ bool dbc_inbound_handler(const fb_reply_t *req)
             rom_hdrlen = 0;
             rom_total_bytes = 0;
             rom_open = true;
+            boot_truncated = false;
+            need_config_reset = false;
+            // have_cfg/cfg_wp survive -- this mount's cfg; consumed at CLOSE
             cart.RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_XFER;
             cart.RAM[FUJI_MB_BOOT_PCT] = 0;
             cart.RAM[FUJI_MB_BOOT_ERR] = 0;
@@ -588,6 +707,8 @@ bool dbc_inbound_handler(const fb_reply_t *req)
         if (cfg_open) {
             uint32_t room = CFG_BUF_MAX - cfg_wp;
             uint32_t n = req->data_len < room ? req->data_len : room;
+            if (req->data_len > room)
+                boot_truncated = true; // cfg didn't fit -- don't boot a partial map
             memcpy(cfg_buf + cfg_wp, req->data, n);
             cfg_wp += n;
         } else if (rom_open) {
@@ -604,14 +725,31 @@ bool dbc_inbound_handler(const fb_reply_t *req)
     }
 
     if (req->command == NETCMD_CLOSE) {
+        // Abort-CLOSE (payload 0x01): unwedge the stream without booting
+        // partial data. Bare CLOSE = commit, so old peers stay compatible.
+        bool aborted = (req->data_len > 0 && req->data[0] == 0x01);
         if (cfg_open) {
             cfg_open = false;
-            have_cfg = (cfg_wp > 0);
+            have_cfg = !aborted && (cfg_wp > 0);
+            if (aborted)
+                cfg_wp = 0;
             dbc_send_frame(FUJICMD_ACK);
         } else if (rom_open) {
             rom_open = false;
+            if (aborted) {
+                cart.RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_FAILED;
+                cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_TRUNCATED;
+                have_cfg = false;
+                cfg_wp = 0;
+                dbc_send_frame(FUJICMD_ACK); // the abort itself succeeded
+                return true;
+            }
             cart.RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_MAPPING;
-            if (apply_boot_mapping()) {
+            bool boot_ok = apply_boot_mapping();
+            // consume the cfg so the next push starts clean
+            have_cfg = false;
+            cfg_wp = 0;
+            if (boot_ok) {
                 cart.RAM[FUJI_MB_BOOT_PCT] = 100;
                 dbc_send_frame(FUJICMD_ACK); // must go out before resetCart() tears down the link
                 gpio_put(LED, false);
@@ -620,20 +758,20 @@ bool dbc_inbound_handler(const fb_reply_t *req)
                 fuji_wait_ms_pumped(200);
                 resetCart();
                 memset((uint16_t *)cart.RAM, 0, sizeof(cart.RAM));
-                // The memset above wipes the mailbox header cells this same
-                // window holds along with the rest of RAM -- restore them
-                // so a mailbox-aware game can still find its 'F'/'N' magic
-                // once it starts running.
-                cart.RAM[FUJI_MB_MAGIC0] = 'F';
-                cart.RAM[FUJI_MB_MAGIC1] = 'N';
-                cart.RAM[FUJI_MB_PROTO_VER] = 1;
+                // restore the magic the memset wiped, unless this boot
+                // disabled the mailbox
+                if (cart.MailboxActive) {
+                    cart.RAM[FUJI_MB_MAGIC0] = 'F';
+                    cart.RAM[FUJI_MB_MAGIC1] = 'N';
+                    cart.RAM[FUJI_MB_PROTO_VER] = 1;
+                    cart.RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_IDLE;
+                }
                 // Return (frame consumed) instead of halting here: the real
                 // MOUNT_IMAGE reply still hasn't arrived from the ESP32, so
                 // fujibus_transact()'s wait loop needs control back to keep
                 // reading -- and once that completes, RunGame()'s own
                 // while(1) resumes, which is what keeps tud_task() and
                 // fuji_mailbox_service() alive for the loaded game to use.
-                cart.RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_IDLE;
                 return true;
             }
             // apply_boot_mapping() already set FUJI_MB_BOOT_ERR to a
@@ -642,6 +780,19 @@ bool dbc_inbound_handler(const fb_reply_t *req)
             // reports failure, instead of believing the push succeeded.
             cart.RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_FAILED;
             dbc_send_frame(FUJICMD_NAK);
+            if (need_config_reset) {
+                // failed commit destroyed the live map; reset into the
+                // rebuilt CONFIG
+                need_config_reset = false;
+                fuji_wait_ms_pumped(200);
+                resetCart();
+                fuji_wait_ms_pumped(200);
+                resetCart();
+                memset((uint16_t *)cart.RAM, 0, sizeof(cart.RAM));
+                cart.RAM[FUJI_MB_MAGIC0] = 'F';
+                cart.RAM[FUJI_MB_MAGIC1] = 'N';
+                cart.RAM[FUJI_MB_PROTO_VER] = 1;
+            }
         } else {
             dbc_send_frame(FUJICMD_ACK);
         }
@@ -666,6 +817,10 @@ void fuji_mailbox_service(void)
 {
     static uint8_t rxbuf[FUJIBUS_RAW_RX_MAX];
     static uint8_t txbuf[FUJI_MB_TX_MAX];
+
+    // mailbox disabled this session -- cells may be aliased by game RAM
+    if (!cart.MailboxActive)
+        return;
 
     // BOOTSEL doorbell -- see fuji_mailbox.h. Checked every call, independent
     // of the SEQ/ACKSEQ interlock below. reset_usb_boot() is noreturn: it
@@ -742,6 +897,11 @@ void fuji_mailbox_service(void)
     fb_status_t st = fujibus_transact(device, command, nparam ? params : NULL, nparam,
                                        txlen ? txbuf : NULL, txlen,
                                        rxbuf, sizeof(rxbuf), &reply, timeout_ms);
+
+    // MOUNT_IMAGE may have booted a mailbox-disabled game mid-transact --
+    // drop the reply rather than corrupt what is now game RAM
+    if (!cart.MailboxActive)
+        return;
 
     cart.RAM[FUJI_MB_ERR] = (uint16_t)st;
     if (st == FB_OK) {

@@ -82,10 +82,11 @@
 
 // FUJI_MB_BOOT_ERR reason codes, valid only when BOOT_STATE == FUJI_BOOT_FAILED.
 #define FUJI_BOOT_ERR_REJECTED  1 // header magic present but malformed (bad addr range)
-#define FUJI_BOOT_ERR_TRUNCATED 2 // Intellicart-header stream ended mid-segment
+#define FUJI_BOOT_ERR_TRUNCATED 2 // stream short/aborted, or tables exceeded receiver limits
 #define FUJI_BOOT_ERR_NOMAP     3 // no .cfg/header, and byte count matches no known size
-#define FUJI_BOOT_ERR_MAILBOX   4 // a segment would overlap the $9C00-$9F3F mailbox window
-#define FUJI_BOOT_ERR_CFGBAD    5 // a .cfg stream arrived but had no parseable mapping line
+#define FUJI_BOOT_ERR_MAILBOX   4 // a JLP game's segment/RAM overlaps its own $8000-$9FFF window
+#define FUJI_BOOT_ERR_CFGBAD    5 // a .cfg stream arrived but had no usable mapping line
+#define FUJI_BOOT_ERR_RAM       6 // declared RAM exceeds the cart's RAMSIZE budget
 
 #define FUJI_MB_TX         (FUJI_MB_BASE + 0x40)  // Inty: request payload
 #define FUJI_MB_TX_MAX     256                    // fujicmd.bas sends fixed 256-byte

@@ -1,4 +1,5 @@
 build/
+build-*/
 build-debug/
 build-release/
 lib/

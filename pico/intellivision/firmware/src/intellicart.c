@@ -67,7 +67,7 @@ void update_ram_window(void) {
       cart.ramLo = 0x8000;
       cart.ramHi = 0x9FFF;
       cart.ramWindow = true;
-   } else if (cart.FujiSupport) {
+   } else if (cart.FujiSupport && cart.MailboxActive) {
       cart.ramLo = FUJI_MB_ADDR_LO;
       cart.ramHi = FUJI_MB_ADDR_HI;
       cart.ramWindow = true;

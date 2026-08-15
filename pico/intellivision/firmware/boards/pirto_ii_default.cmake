@@ -10,11 +10,12 @@ option(CONFIG_JLP "Enable JLP" ON)
 option(CONFIG_ECS_AUDIO "Enable ECS audio" OFF)
 option(CONFIG_INTELLIVOICE "Enable Intellivoice" OFF)
 
+# 98K words: trimmed from 100K to fit the FujiNet cfg buffer (CONFIG_FUJINET=ON)
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-   set(MAX_ROM_SIZE 1024*100)  # ~200 kb 
+   set(MAX_ROM_SIZE 1024*98)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-   set(MAX_ROM_SIZE 1024*100)  # ~200 kb
+   set(MAX_ROM_SIZE 1024*98)
 endif()
 
