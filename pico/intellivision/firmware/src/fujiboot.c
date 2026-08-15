@@ -20,17 +20,15 @@
 extern Cartridge cart;
 extern mm_map_t m;
 
-void RunFujiConfig(void)
+// fuji_config_map: (re)build CONFIG's map and mailbox ident; also the
+// network boot path's recovery after a failed mm commit.
+void fuji_config_map(void)
 {
-    memset((uint16_t *)cart.ROM, 0, sizeof(cart.ROM));
-    for (unsigned i = 0; i < sizeof(_bootrom) / 2; i++)
-        cart.ROM[i] = _bootrom[(i * 2) + 1] | (_bootrom[i * 2] << 8);
-
     // [mapping] -- see fujinet-config/intv/config.cfg
     mm_init(&m);
     mm_add(&m, 0x0000, 0x0FFF, 0x5000, MM_NO_PAGE);
     mm_add(&m, 0x1000, 0x1D42, 0x6000, MM_NO_PAGE);
-    mm_add(&m, 0x1D43, 0x23C6, 0xD000, MM_NO_PAGE);
+    mm_add(&m, 0x1D43, 0x2537, 0xD000, MM_NO_PAGE);
 
     // [memattr] -- CONFIG's own scratch RAM, $8000-$9BFF. Deliberately
     // short of $9C00: the mailbox range is NOT part of this game map at
@@ -46,8 +44,18 @@ void RunFujiConfig(void)
     cart.RAM[FUJI_MB_MAGIC0] = 'F';
     cart.RAM[FUJI_MB_MAGIC1] = 'N';
     cart.RAM[FUJI_MB_PROTO_VER] = 1;
+}
+
+void RunFujiConfig(void)
+{
+    memset((uint16_t *)cart.ROM, 0, sizeof(cart.ROM));
+    for (unsigned i = 0; i < sizeof(_bootrom) / 2; i++)
+        cart.ROM[i] = _bootrom[(i * 2) + 1] | (_bootrom[i * 2] << 8);
+
+    fuji_config_map();
 
     cart.FujiSupport = true;
+    cart.MailboxActive = true;
 #if CONFIG_JLP
     // The mailbox RAM-window claim lives in the CONFIG_JLP-gated section of
     // cartridge.c (it shares the JLP window logic) -- CONFIG_FUJINET boards
