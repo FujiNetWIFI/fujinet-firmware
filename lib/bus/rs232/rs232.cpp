@@ -12,6 +12,7 @@
 
 #include "fnSystem.h"
 #include "fnConfig.h"
+#include "fnWiFi.h"
 #include "fnDNS.h"
 #include "led.h"
 #include "utils.h"
@@ -22,6 +23,12 @@
 #else /* !ESP_PLATFORM */
 #define SERIAL_DEVICE Config.get_serial_port()
 #endif /* ESP_PLATFORM */
+
+#if FUJINET_OVER_USB
+// run USB just above the WiFi task (prio 23) until association, per drivewire.cpp
+#define RS232_USB_BOOT_PRIORITY 24
+#define RS232_USB_RUN_PRIORITY  20
+#endif
 
 // Helper functions outside the class defintions
 
@@ -166,6 +173,15 @@ void systemBus::_rs232_process_cmd()
  */
 void systemBus::service()
 {
+#if FUJINET_OVER_USB
+    // one-shot: drop USB back to normal priority once WiFi is up
+    if (_usb_boot_priority && fnWiFi.connected())
+    {
+        _serial.setServicePriority(RS232_USB_RUN_PRIORITY);
+        _usb_boot_priority = false;
+    }
+#endif
+
     // Check for any messages in our queue (this should always happen, even if any other special
     // modes disrupt normal RS232 handling - should probably make a separate task for this)
     /*_rs232_process_queue();*/
@@ -229,12 +245,11 @@ void systemBus::setup()
 
 #else /* FUJINET_OVER_USB */
 #ifdef PINMAP_FUJIVERSAL_INTV
-    // The far end of this link is always the same soldered-down Minty build
-    // (fujicard, VID 0xCafe PID 0x4001) -- never a generic USB-serial
-    // adapter. Restrict newDevice() to it so a device sitting in BOOTSEL
-    // (VID 0x2E8A, PID 0x0003/0x000F) can't be mistaken for the FujiBus link.
-    _serial.setExpectedDevice(0xCafe, 0x4001);
+    // VID-only: any Minty build (PID varies with MSC), still rejects BOOTSEL
+    _serial.setExpectedDevice(0xCafe, 0);
 #endif
+    _serial.setServicePriority(RS232_USB_BOOT_PRIORITY);
+    _usb_boot_priority = true;
     _serial.begin();
     _port = &_serial;
 #endif /* FUJINET_OVER_USB */

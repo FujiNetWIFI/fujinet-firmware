@@ -570,6 +570,9 @@ void __time_critical_func(RunGame)() {
 #endif
 
    uint64_t resetTimeout = 0;
+#if CONFIG_FUJINET
+   uint64_t msyncLowTimeout = 0;
+#endif
 
    resetCart();              // start game !
 
@@ -612,12 +615,18 @@ void __time_critical_func(RunGame)() {
 #endif
 
 #if CONFIG_FUJINET
-      // Services the TinyUSB device stack and, at most once per call, one
-      // FujiNet mailbox transaction. Nothing else in this build pumps
-      // tud_task() once a cartridge is running (main.c's loop only does
-      // that in the no-cart-attached standalone mode) -- without this, the
-      // CDC link to the ESP32-S3 would never make progress while a game
-      // (including CONFIG itself) is live.
+      // console power-cycle = back to CONFIG (RESET button never drops MSYNC)
+      if (gpio_get(MSYNC) == 0) {
+         if (msyncLowTimeout == 0)
+            msyncLowTimeout = make_timeout_time_ms(250);
+         else if (get_absolute_time() >= msyncLowTimeout) {
+            watchdog_enable(1, 1);
+            while(1);
+         }
+      } else
+         msyncLowTimeout = 0;
+
+      // nothing else pumps tud_task() while a cartridge is running
       tud_task();
       fuji_mailbox_service();
 #endif
@@ -643,7 +652,11 @@ void Inty_cart_main() {
    gpio_set_dir(MSYNC, GPIO_IN);
    gpio_pull_down(MSYNC);
 
+#if CONFIG_FUJINET
+   fuji_wait_ms_pumped(800);   // keep USB alive for enumeration
+#else
    sleep_ms(800);
+#endif
 
    printf("Inty Pow-ON\n");
 

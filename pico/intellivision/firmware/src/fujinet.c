@@ -32,12 +32,14 @@
 extern Cartridge cart;
 extern mm_map_t m;
 
-// Same delay as sleep_ms(), but keeps USB alive during it.
-static void fuji_wait_ms_pumped(uint32_t ms)
+// sleep_ms() that keeps USB alive; gapped per fujibus_usb.c so core1 isn't starved.
+void fuji_wait_ms_pumped(uint32_t ms)
 {
     absolute_time_t deadline = make_timeout_time_ms(ms);
-    while (!time_reached(deadline))
+    while (!time_reached(deadline)) {
         tud_task();
+        busy_wait_us(500);
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -691,8 +693,10 @@ void fuji_mailbox_service(void)
     // only runs once per SEQ bump, there's no retry above this.
     {
         absolute_time_t link_deadline = make_timeout_time_ms(3000);
-        while (!tud_cdc_connected() && !time_reached(link_deadline))
+        while (!tud_cdc_connected() && !time_reached(link_deadline)) {
             tud_task();
+            busy_wait_us(500); // gap per fujibus_usb.c
+        }
         cart.RAM[FUJI_MB_LINK] = tud_cdc_connected() ? 1 : 0;
     }
 

@@ -76,6 +76,7 @@ void ACMChannel::eventReceived(const cdc_acm_host_dev_event_data_t *event)
     case CDC_ACM_HOST_DEVICE_DISCONNECTED:
         Debug_printv("Device suddenly disconnected");
         ESP_ERROR_CHECK(cdc_acm_host_close(event->data.cdc_hdl));
+        cdc_dev = NULL;
         xSemaphoreGive(device_disconnected_sem);
         break;
     case CDC_ACM_HOST_SERIAL_STATE:
@@ -108,8 +109,8 @@ void ACMChannel::newDevice(usb_device_handle_t usb_dev)
         if (iad->bFunctionClass == USB_CLASS_COMM &&
             iad->bFunctionSubClass == USB_CDC_SUBCLASS_ACM)
         {
-            if ((_expected_vid || _expected_pid) &&
-                (dev_desc->idVendor != _expected_vid || dev_desc->idProduct != _expected_pid))
+            if ((_expected_vid && dev_desc->idVendor != _expected_vid) ||
+                (_expected_pid && dev_desc->idProduct != _expected_pid))
             {
                 ESP_LOGW(DEBUG_TAG, "Ignoring CDC-ACM device %04X:%04X, expected %04X:%04X",
                          dev_desc->idVendor, dev_desc->idProduct, _expected_vid, _expected_pid);
@@ -256,6 +257,8 @@ void ACMChannel::updateFIFO()
 
 size_t ACMChannel::dataOut(const void *buffer, size_t length)
 {
+    if (!cdc_dev)
+        return 0; // link down
     cdc_acm_host_data_tx_blocking(cdc_dev,
                                   (const uint8_t *) buffer,
                                   length,
@@ -276,7 +279,8 @@ bool ACMChannel::getDTR()
 void ACMChannel::setDSR(bool state)
 {
     _dsr = state;
-    cdc_acm_host_set_control_line_state(cdc_dev, _dsr, _cts);
+    if (cdc_dev)
+        cdc_acm_host_set_control_line_state(cdc_dev, _dsr, _cts);
 }
 
 bool ACMChannel::getRTS()
@@ -287,7 +291,8 @@ bool ACMChannel::getRTS()
 void ACMChannel::setCTS(bool state)
 {
     _cts = state;
-    cdc_acm_host_set_control_line_state(cdc_dev, _dsr, _cts);
+    if (cdc_dev)
+        cdc_acm_host_set_control_line_state(cdc_dev, _dsr, _cts);
 }
 
 bool ACMChannel::getDCD()
