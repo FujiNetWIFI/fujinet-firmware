@@ -136,8 +136,7 @@ private:
     IOChannel *_port;
 #if FUJINET_OVER_USB
     ACMChannel _serial;
-    // true from setup() until the first service() pass after WiFi connects
-    bool _usb_boot_priority = false;
+    bool _usb_boot_priority = false;  // boosted until WiFi connects
 #else /* ! FUJINET_OVER_USB */
     UARTChannel _serial;
 #endif /* FUJINET_OVER_USB */

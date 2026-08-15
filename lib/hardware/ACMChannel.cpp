@@ -76,7 +76,7 @@ void ACMChannel::eventReceived(const cdc_acm_host_dev_event_data_t *event)
     case CDC_ACM_HOST_DEVICE_DISCONNECTED:
         Debug_printv("Device suddenly disconnected");
         ESP_ERROR_CHECK(cdc_acm_host_close(event->data.cdc_hdl));
-        cdc_dev = NULL; // stale-handle guard: dataOut() etc. check this
+        cdc_dev = NULL;
         xSemaphoreGive(device_disconnected_sem);
         break;
     case CDC_ACM_HOST_SERIAL_STATE:
@@ -258,7 +258,7 @@ void ACMChannel::updateFIFO()
 size_t ACMChannel::dataOut(const void *buffer, size_t length)
 {
     if (!cdc_dev)
-        return 0; // link down (disconnect seen, reopen pending)
+        return 0; // link down
     cdc_acm_host_data_tx_blocking(cdc_dev,
                                   (const uint8_t *) buffer,
                                   length,

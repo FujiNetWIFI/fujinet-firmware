@@ -42,8 +42,7 @@ void RunFujiConfig(void)
     mm_add_ram(&m, 0x9000, 0x9BFF, 8);
     mm_finalize(&m);
 
-    // CONFIG's fn_wait_mailbox gates on this ident at power-on -- the
-    // pushed-ROM boot path (fujinet.c) paints its own copy after resetCart.
+    // fn_wait_mailbox gates on this ident at power-on
     cart.RAM[FUJI_MB_MAGIC0] = 'F';
     cart.RAM[FUJI_MB_MAGIC1] = 'N';
     cart.RAM[FUJI_MB_PROTO_VER] = 1;

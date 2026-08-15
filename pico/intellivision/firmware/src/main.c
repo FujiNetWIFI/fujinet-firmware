@@ -38,7 +38,7 @@ int main(void) {
 
    gpio_init(MSYNC);
    gpio_set_dir(MSYNC, false);
-   gpio_pull_down(MSYNC);       // don't rely on the pad-reset default pull
+   gpio_pull_down(MSYNC);
    gpio_init(RESET);
    gpio_set_dir(RESET, true);
 
@@ -63,11 +63,7 @@ int main(void) {
    // reset interval in ms
    uint32_t t = 100;
 
-   // Wait for Inty powerup with no deadline: on FujiNet boards the cart is
-   // VBUS-powered by the ESP32-S3 host, so we may be up long before the
-   // console is switched on. Service USB meanwhile (the ESP32 enumerates us,
-   // bench MSC access still works); core1 isn't launched yet, so pumping
-   // gaplessly here can't disturb the CP-1610 bus loop.
+   // no deadline: on FujiNet boards VBUS powers us up long before the console
    while (gpio_get(MSYNC) == 0) {
       if (to_ms_since_boot(get_absolute_time()) > t) {
          t += 100;
@@ -80,7 +76,7 @@ int main(void) {
 #if CONFIG_USB_DEVICE
       tud_task();
 #if !CONFIG_FUJINET
-      cdc_task();  // debug echo -- never against the FujiBus CDC link
+      cdc_task();  // debug echo; never against the FujiBus link
 #endif
 #endif
    }

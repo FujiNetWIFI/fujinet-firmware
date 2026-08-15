@@ -25,10 +25,7 @@
 #endif /* ESP_PLATFORM */
 
 #if FUJINET_OVER_USB
-// Cold-boot mitigation, same as drivewire.cpp: the WiFi association storm
-// (prio 23) can preempt the USB host tasks that carry the FujiBus link to
-// the RP2040. Run them just above WiFi until the station associates, then
-// return them to normal so interactive use is unaffected.
+// run USB just above the WiFi task (prio 23) until association, per drivewire.cpp
 #define RS232_USB_BOOT_PRIORITY 24
 #define RS232_USB_RUN_PRIORITY  20
 #endif
@@ -177,8 +174,7 @@ void systemBus::_rs232_process_cmd()
 void systemBus::service()
 {
 #if FUJINET_OVER_USB
-    // Cold-boot association is over once the station has an IP; drop USB
-    // servicing back to normal priority (one-shot).
+    // one-shot: drop USB back to normal priority once WiFi is up
     if (_usb_boot_priority && fnWiFi.connected())
     {
         _serial.setServicePriority(RS232_USB_RUN_PRIORITY);
@@ -249,11 +245,7 @@ void systemBus::setup()
 
 #else /* FUJINET_OVER_USB */
 #ifdef PINMAP_FUJIVERSAL_INTV
-    // The far end of this link is always a Minty build (VID 0xCafe; PID
-    // varies by board: 0x4001 without MSC, 0x4003 with) -- never a generic
-    // USB-serial adapter. Match on VID only so any Minty board is accepted
-    // while a device sitting in BOOTSEL (VID 0x2E8A) can't be mistaken for
-    // the FujiBus link.
+    // VID-only: any Minty build (PID varies with MSC), still rejects BOOTSEL
     _serial.setExpectedDevice(0xCafe, 0);
 #endif
     _serial.setServicePriority(RS232_USB_BOOT_PRIORITY);
