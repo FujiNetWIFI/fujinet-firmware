@@ -40,23 +40,52 @@ public:
     // Remove the password. Requires the current one.
     bool remove(const std::string &old_password, std::string &error);
 
-    // Check the value of an HTTP "Authorization" header (e.g. "Basic dTpw").
-    // The username is not checked - any value, including an empty one, is
-    // accepted - so only the password matters. False when no password is set.
+    // Verify 'password' and start a new session. Returns the new session token,
+    // or an empty string when the password is wrong or no password is set.
+    // Any previously issued token is invalidated.
+    std::string login(const std::string &password);
+
+    // True only when a session token exists and 'token' matches it.
+    bool check_session(const std::string &token) const;
+
+    // Invalidate the current session token.
+    void logout();
+
+    // Check an HTTP "Authorization" header carrying Basic credentials
+    // (e.g. "Basic dTpw"). The username is not checked - any value, including
+    // an empty one, is accepted - so only the password matters. False when no
+    // password is set.
+    //
+    // This exists solely for WebDAV: a DAV client cannot run the cookie login
+    // flow, so /dav/* accepts Basic as an alternative. Nothing else should use
+    // it - the rest of the web UI is cookie-only.
+    //
+    // DAV clients re-authenticate on every request, so a successful check is
+    // remembered briefly to avoid running the 4096-round derivation per
+    // PROPFIND. Only a salted fingerprint of the header is retained, never the
+    // credential itself.
     bool check_basic_auth(const char *header_value) const;
 
 private:
-    std::string _fwid; // firmware image the stored record belongs to
-    std::string _salt; // hex
-    std::string _hash; // hex
+    std::string _fwid;    // firmware image the stored record belongs to
+    std::string _salt;    // hex
+    std::string _hash;    // hex
+    std::string _token;   // hex, empty when no active session
+
+    // Cache of the last accepted Basic header, as a per-boot-salted digest.
+    mutable std::string _basic_fp;
+    mutable long long _basic_fp_at = 0; // seconds, 0 when empty
 
     void load();
     bool store();
     void wipe();
+    void forget_basic_auth();
 
     static std::string firmware_id();
     static std::string make_salt();
+    static std::string make_token();
     static std::string derive(const std::string &salt_hex, const std::string &password);
+    static std::string basic_fingerprint(const char *header_value);
 };
 
 extern FNPassword fnPassword;

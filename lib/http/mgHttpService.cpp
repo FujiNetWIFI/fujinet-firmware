@@ -14,6 +14,7 @@
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnPassword.h"
+#include "fnSession.h"
 #include "fnWiFi.h"
 #include "fsFlash.h"
 #include "modem.h"
@@ -33,7 +34,6 @@
 #include "appKeyManager.h"
 #include "fileManager.h"
 #include "fnFsSD.h"
-#include "privatePage.h"
 
 #include "../../include/debug.h"
 
@@ -566,44 +566,49 @@ int fnHttpService::post_handler_password(struct mg_connection *c, struct mg_http
     return 0;
 }
 
-/* Returns true when the request may proceed. Otherwise a challenge or an
-   explanatory page has already been sent and the handler should return. */
-static bool require_device_password(struct mg_connection *c, struct mg_http_message *hm)
+/* Returns true when the request may proceed. Otherwise a redirect or a 401 has
+   already been sent and the caller should stop.
+
+   With no device password set the whole web UI is open; once one is set every
+   route needs a session cookie except the login page and its static assets. */
+static bool require_session(struct mg_connection *c, struct mg_http_message *hm)
 {
     if (!fnPassword.is_set())
-    {
-        mg_http_reply(c, 403, "Content-Type: text/html\r\n", "%s", PRIVATE_NO_PASSWORD_HTML);
-        return false;
-    }
+        return true;
 
-    struct mg_str *auth = mg_http_get_header(hm, "Authorization");
-    if (auth != nullptr && auth->len > 0 && auth->len < 1024)
+    std::string uri(hm->uri.buf, hm->uri.len);
+    std::string query(hm->query.buf, hm->query.len);
+
+    if (fnSession::is_public(uri.c_str(), query.c_str()))
+        return true;
+
+    struct mg_str *cookie = mg_http_get_header(hm, "Cookie");
+    if (cookie != nullptr && cookie->len > 0 && cookie->len < 2048)
     {
-        std::string header(auth->buf, auth->len);
-        if (fnPassword.check_basic_auth(header.c_str()))
+        std::string header(cookie->buf, cookie->len);
+        if (fnPassword.check_session(fnSession::cookie_value(header.c_str(), FN_SESSION_COOKIE)))
             return true;
     }
 
-    mg_http_reply(c, 401,
-                  "WWW-Authenticate: " PRIVATE_AUTH_REALM "\r\nContent-Type: text/html\r\n",
-                  "%s", PRIVATE_UNAUTHORIZED_HTML);
+    // XHR/JSON callers get a 401 they can react to; page loads get redirected.
+    struct mg_str *accept = mg_http_get_header(hm, "Accept");
+    struct mg_str *requested_with = mg_http_get_header(hm, "X-Requested-With");
+    struct mg_str *content_type = mg_http_get_header(hm, "Content-Type");
+
+    std::string accept_str = (accept != nullptr) ? std::string(accept->buf, accept->len) : std::string();
+    std::string requested_with_str = (requested_with != nullptr) ? std::string(requested_with->buf, requested_with->len) : std::string();
+    std::string content_type_str = (content_type != nullptr) ? std::string(content_type->buf, content_type->len) : std::string();
+
+    if (fnSession::wants_json(accept_str.c_str(), requested_with_str.c_str(), content_type_str.c_str()))
+        mg_http_reply(c, 401, "Content-Type: application/json\r\n", "%s", fnSession::json_unauthorized());
+    else
+        mg_printf(c, "HTTP/1.1 303 See Other\r\nLocation: %s\r\nContent-Length: 0\r\n\r\n",
+                  fnSession::login_url(uri, query).c_str());
     return false;
-}
-
-int fnHttpService::get_handler_private(struct mg_connection *c, struct mg_http_message *hm)
-{
-    if (!require_device_password(c, hm))
-        return -1;
-
-    mg_http_reply(c, 200, "Content-Type: text/html\r\n", "%s", PRIVATE_PAGE_HTML);
-    return 0;
 }
 
 int fnHttpService::handler_appkeys(struct mg_connection *c, struct mg_http_message *hm)
 {
-    if (!require_device_password(c, hm))
-        return -1;
-
     std::string message;
     if (hm->method.len == 4 && strncasecmp(hm->method.buf, "POST", 4) == 0)
     {
@@ -644,9 +649,6 @@ static void files_send_page(struct mg_connection *c, const std::string &dir,
 
 int fnHttpService::get_handler_files(struct mg_connection *c, struct mg_http_message *hm)
 {
-    if (!require_device_password(c, hm))
-        return -1;
-
     std::string dir;
     if (!FileManager::normalize_path(files_query_value(hm, "path"), dir))
     {
@@ -660,9 +662,6 @@ int fnHttpService::get_handler_files(struct mg_connection *c, struct mg_http_mes
 
 int fnHttpService::get_handler_files_download(struct mg_connection *c, struct mg_http_message *hm)
 {
-    if (!require_device_password(c, hm))
-        return -1;
-
     std::string path;
     if (!FileManager::normalize_path(files_query_value(hm, "path"), path) || path == "/")
     {
@@ -690,9 +689,6 @@ int fnHttpService::get_handler_files_download(struct mg_connection *c, struct mg
 
 int fnHttpService::post_handler_files_action(struct mg_connection *c, struct mg_http_message *hm)
 {
-    if (!require_device_password(c, hm))
-        return -1;
-
     if (hm->body.len > FILEMANAGER_MAX_POST_SIZE)
     {
         mg_http_reply(c, 413, "", "Posted data too large\n");
@@ -709,9 +705,6 @@ int fnHttpService::post_handler_files_action(struct mg_connection *c, struct mg_
 
 int fnHttpService::post_handler_files_upload(struct mg_connection *c, struct mg_http_message *hm)
 {
-    if (!require_device_password(c, hm))
-        return -1;
-
     std::string dir;
     if (!FileManager::normalize_path(files_query_value(hm, "path"), dir))
     {
@@ -1287,6 +1280,76 @@ int fnHttpService::post_handler_clipboard_restore(struct mg_connection *c, struc
 
 // ─── end clipboard handlers ──────────────────────────────────────────────────
 
+// ─── Login / logout handlers ─────────────────────────────────────────────────
+
+int fnHttpService::get_handler_login(struct mg_connection *c, struct mg_http_message *hm)
+{
+    std::string next;
+    char next_buf[256] = "";
+    int len = mg_http_get_var(&hm->query, "next", next_buf, sizeof(next_buf));
+    if (len > 0)
+        next = fnSession::sanitize_next(std::string(next_buf, len));
+    else
+        next = fnSession::sanitize_next("");
+
+    if (!fnPassword.is_set())
+    {
+        // No password set, redirect to the sanitized next URL
+        mg_printf(c, "HTTP/1.1 303 See Other\r\nLocation: %s\r\nContent-Length: 0\r\n\r\n", next.c_str());
+        return 0;
+    }
+
+    struct mg_str *cookie = mg_http_get_header(hm, "Cookie");
+    if (cookie != nullptr && cookie->len > 0 && cookie->len < 2048)
+    {
+        std::string header(cookie->buf, cookie->len);
+        if (fnPassword.check_session(fnSession::cookie_value(header.c_str(), FN_SESSION_COOKIE)))
+        {
+            // Already have a valid session, redirect to the sanitized next URL
+            mg_printf(c, "HTTP/1.1 303 See Other\r\nLocation: %s\r\nContent-Length: 0\r\n\r\n", next.c_str());
+            return 0;
+        }
+    }
+
+    // Render the login page
+    mg_http_reply(c, 200, "Content-Type: text/html\r\n", "%s", fnSession::render_login_page(next, "").c_str());
+    return 0;
+}
+
+int fnHttpService::post_handler_login(struct mg_connection *c, struct mg_http_message *hm)
+{
+    std::map<std::string, std::string> postvals =
+        fnHttpServiceConfigurator::parse_postdata_decoded(hm->body.buf, hm->body.len);
+
+    std::string next = fnSession::sanitize_next(postvals["next"]);
+    std::string token = fnPassword.login(postvals["password"]);
+
+    if (!token.empty())
+    {
+        // Success: set cookie and redirect
+        std::string cookie_header = fnSession::set_cookie(token);
+        mg_printf(c, "HTTP/1.1 303 See Other\r\nSet-Cookie: %s\r\nLocation: %s\r\nContent-Length: 0\r\n\r\n",
+                  cookie_header.c_str(), next.c_str());
+        return 0;
+    }
+
+    // Failure: re-render with error
+    mg_http_reply(c, 401, "Content-Type: text/html\r\n", "%s",
+                  fnSession::render_login_page(next, "Incorrect password").c_str());
+    return 0;
+}
+
+int fnHttpService::post_handler_logout(struct mg_connection *c, struct mg_http_message *hm)
+{
+    fnPassword.logout();
+    std::string clear_cookie = fnSession::clear_cookie();
+    mg_printf(c, "HTTP/1.1 303 See Other\r\nSet-Cookie: %s\r\nLocation: /login\r\nContent-Length: 0\r\n\r\n",
+              clear_cookie.c_str());
+    return 0;
+}
+
+// ─── end login/logout handlers ───────────────────────────────────────────────
+
 void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
 {
     static const char *s_root_dir = "data/www";
@@ -1294,6 +1357,11 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
     if (ev == MG_EV_HTTP_MSG)
     {
         struct mg_http_message *hm = (struct mg_http_message *) ev_data;
+        if (!require_session(c, hm))
+        {
+            c->is_resp = 0;
+            return;
+        }
         if (mg_match(hm->uri, mg_str("/test"), NULL))
         {
             // test handler
@@ -1339,10 +1407,23 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
             else
                 mg_http_reply(c, 405, "", "Method Not Allowed\n");
         }
-        else if (mg_match(hm->uri, mg_str("/private"), NULL))
+        else if (mg_match(hm->uri, mg_str("/login"), NULL))
         {
-            // password-protected page
-            get_handler_private(c, hm);
+            // login page and handler
+            if (http_method_is(hm, "GET"))
+                get_handler_login(c, hm);
+            else if (http_method_is(hm, "POST"))
+                post_handler_login(c, hm);
+            else
+                mg_http_reply(c, 405, "", "Method Not Allowed\n");
+        }
+        else if (mg_match(hm->uri, mg_str("/logout"), NULL))
+        {
+            // logout handler
+            if (http_method_is(hm, "POST"))
+                post_handler_logout(c, hm);
+            else
+                mg_http_reply(c, 405, "", "Method Not Allowed\n");
         }
         else if (mg_match(hm->uri, mg_str("/appkeys"), NULL))
         {

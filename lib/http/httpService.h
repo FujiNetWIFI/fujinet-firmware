@@ -161,9 +161,11 @@ public:
     static esp_err_t post_handler_clipboard_clear(httpd_req_t *req);
     static esp_err_t post_handler_clipboard_restore(httpd_req_t *req);
   
-    // Device password management and password-protected pages
+    // Device password management and the session login flow
     static esp_err_t post_handler_password(httpd_req_t *req);
-    static esp_err_t get_handler_private(httpd_req_t *req);
+    static esp_err_t get_handler_login(httpd_req_t *req);
+    static esp_err_t post_handler_login(httpd_req_t *req);
+    static esp_err_t post_handler_logout(httpd_req_t *req);
     static esp_err_t get_handler_appkeys(httpd_req_t *req);
     static esp_err_t post_handler_appkeys(httpd_req_t *req);
     static esp_err_t get_handler_files(httpd_req_t *req);
@@ -213,9 +215,11 @@ public:
     static int post_handler_clipboard_clear(struct mg_connection *c, struct mg_http_message *hm);
     static int post_handler_clipboard_restore(struct mg_connection *c, struct mg_http_message *hm);
   
-    // Device password management and password-protected pages
+    // Device password management and the session login flow
     static int post_handler_password(struct mg_connection *c, struct mg_http_message *hm);
-    static int get_handler_private(struct mg_connection *c, struct mg_http_message *hm);
+    static int get_handler_login(struct mg_connection *c, struct mg_http_message *hm);
+    static int post_handler_login(struct mg_connection *c, struct mg_http_message *hm);
+    static int post_handler_logout(struct mg_connection *c, struct mg_http_message *hm);
     static int handler_appkeys(struct mg_connection *c, struct mg_http_message *hm);
     static int get_handler_files(struct mg_connection *c, struct mg_http_message *hm);
     static int get_handler_files_download(struct mg_connection *c, struct mg_http_message *hm);

@@ -18,6 +18,7 @@
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnPassword.h"
+#include "fnSession.h"
 #include "fnWiFi.h"
 #include "fsFlash.h"
 #include "../device/modem.h"
@@ -28,7 +29,6 @@
 #include "appKeyManager.h"
 #include "fileManager.h"
 #include "fnFsSD.h"
-#include "privatePage.h"
 #include "fujiDevice.h"
 #ifdef BUILD_ATARI
 #include "sio/sioFuji.h"
@@ -1374,49 +1374,201 @@ esp_err_t fnHttpService::post_handler_password(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* Returns true when the request may proceed. Otherwise a challenge or an
-   explanatory page has already been sent and the handler should return. */
-static bool require_device_password(httpd_req_t *req)
+// ─── Login / Logout handlers ─────────────────────────────────────────────────
+
+// Defined further down with the file manager handlers; reads and url-decodes a
+// single query-string value.
+static std::string files_query_value(httpd_req_t *req, const char *key);
+
+esp_err_t fnHttpService::get_handler_login(httpd_req_t *req)
 {
+    std::string next = files_query_value(req, "next");
+    next = fnSession::sanitize_next(next);
+
     if (!fnPassword.is_set())
     {
-        httpd_resp_set_status(req, "403 Forbidden");
-        httpd_resp_set_type(req, "text/html");
-        httpd_resp_sendstr(req, PRIVATE_NO_PASSWORD_HTML);
-        return false;
+        httpd_resp_set_status(req, "303 See Other");
+        httpd_resp_set_hdr(req, "Location", next.c_str());
+        httpd_resp_send(req, NULL, 0);
+        return ESP_OK;
     }
 
-    size_t hdrlen = httpd_req_get_hdr_value_len(req, "Authorization");
-    if (hdrlen > 0 && hdrlen < 1024)
+    // Check if already logged in
+    size_t hdrlen = httpd_req_get_hdr_value_len(req, "Cookie");
+    if (hdrlen > 0 && hdrlen < 2048)
     {
-        std::vector<char> hdr(hdrlen + 1);
-        if (httpd_req_get_hdr_value_str(req, "Authorization", hdr.data(), hdr.size()) == ESP_OK &&
-            fnPassword.check_basic_auth(hdr.data()))
-            return true;
+        std::vector<char> buf(hdrlen + 1);
+        if (httpd_req_get_hdr_value_str(req, "Cookie", buf.data(), buf.size()) == ESP_OK)
+        {
+            std::string token = fnSession::cookie_value(buf.data(), FN_SESSION_COOKIE);
+            if (fnPassword.check_session(token))
+            {
+                httpd_resp_set_status(req, "303 See Other");
+                httpd_resp_set_hdr(req, "Location", next.c_str());
+                httpd_resp_send(req, NULL, 0);
+                return ESP_OK;
+            }
+        }
     }
 
-    httpd_resp_set_status(req, "401 Unauthorized");
-    httpd_resp_set_hdr(req, "WWW-Authenticate", PRIVATE_AUTH_REALM);
+    // Render login page
+    std::string page = fnSession::render_login_page(next, "");
     httpd_resp_set_type(req, "text/html");
-    httpd_resp_sendstr(req, PRIVATE_UNAUTHORIZED_HTML);
+    httpd_resp_send(req, page.c_str(), page.size());
+    return ESP_OK;
+}
+
+esp_err_t fnHttpService::post_handler_login(httpd_req_t *req)
+{
+    if (req->content_len == 0 || req->content_len > FNWS_RECV_BUFF_SIZE)
+    {
+        std::string page = fnSession::render_login_page("/", "Bad login request");
+        httpd_resp_set_type(req, "text/html");
+        httpd_resp_send(req, page.c_str(), page.size());
+        return ESP_OK;
+    }
+
+    std::vector<char> buf(req->content_len);
+    int ret = httpd_req_recv(req, buf.data(), buf.size());
+    if (ret <= 0)
+    {
+        Debug_printf("Error (%d) receiving posted login data\n", ret);
+        std::string page = fnSession::render_login_page("/", "Bad login request");
+        httpd_resp_set_type(req, "text/html");
+        httpd_resp_send(req, page.c_str(), page.size());
+        return ESP_OK;
+    }
+
+    std::map<std::string, std::string> postvals =
+        fnHttpServiceConfigurator::parse_postdata_decoded(buf.data(), (size_t)ret);
+    memset(buf.data(), 0, buf.size());
+
+    std::string next = fnSession::sanitize_next(postvals["next"]);
+    std::string token = fnPassword.login(postvals["password"]);
+
+    if (token.empty())
+    {
+        httpd_resp_set_status(req, "401 Unauthorized");
+        std::string page = fnSession::render_login_page(next, "Incorrect password");
+        httpd_resp_set_type(req, "text/html");
+        httpd_resp_send(req, page.c_str(), page.size());
+        return ESP_OK;
+    }
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", next.c_str());
+    std::string cookie = fnSession::set_cookie(token);
+    httpd_resp_set_hdr(req, "Set-Cookie", cookie.c_str());
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+esp_err_t fnHttpService::post_handler_logout(httpd_req_t *req)
+{
+    fnPassword.logout();
+
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/login");
+    std::string cookie = fnSession::clear_cookie();
+    httpd_resp_set_hdr(req, "Set-Cookie", cookie.c_str());
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* Returns true when the request may proceed. Otherwise a redirect or a 401 has
+   already been sent and the handler should return ESP_OK.
+
+   With no device password set the whole web UI is open; once one is set every
+   route needs a session cookie except the login page and its static assets. */
+static bool require_session(httpd_req_t *req)
+{
+    if (!fnPassword.is_set())
+        return true;
+
+    // Split req->uri into path and query
+    const char *query_start = strchr(req->uri, '?');
+    std::string path = query_start ? std::string(req->uri, query_start - req->uri) : std::string(req->uri);
+    std::string query = query_start ? std::string(query_start + 1) : std::string();
+
+    if (fnSession::is_public(path.c_str(), query.c_str()))
+        return true;
+
+    // Read the Cookie header
+    size_t hdrlen = httpd_req_get_hdr_value_len(req, "Cookie");
+    if (hdrlen > 0 && hdrlen < 2048)
+    {
+        std::vector<char> buf(hdrlen + 1);
+        if (httpd_req_get_hdr_value_str(req, "Cookie", buf.data(), buf.size()) == ESP_OK)
+        {
+            std::string token = fnSession::cookie_value(buf.data(), FN_SESSION_COOKIE);
+            if (fnPassword.check_session(token))
+                return true;
+        }
+    }
+
+    // Deny the request
+    size_t accept_len = httpd_req_get_hdr_value_len(req, "Accept");
+    std::string accept_hdr;
+    if (accept_len > 0 && accept_len < 1024)
+    {
+        std::vector<char> buf(accept_len + 1);
+        if (httpd_req_get_hdr_value_str(req, "Accept", buf.data(), buf.size()) == ESP_OK)
+            accept_hdr = std::string(buf.data());
+    }
+
+    size_t xrw_len = httpd_req_get_hdr_value_len(req, "X-Requested-With");
+    std::string xrw_hdr;
+    if (xrw_len > 0 && xrw_len < 1024)
+    {
+        std::vector<char> buf(xrw_len + 1);
+        if (httpd_req_get_hdr_value_str(req, "X-Requested-With", buf.data(), buf.size()) == ESP_OK)
+            xrw_hdr = std::string(buf.data());
+    }
+
+    size_t ct_len = httpd_req_get_hdr_value_len(req, "Content-Type");
+    std::string ct_hdr;
+    if (ct_len > 0 && ct_len < 1024)
+    {
+        std::vector<char> buf(ct_len + 1);
+        if (httpd_req_get_hdr_value_str(req, "Content-Type", buf.data(), buf.size()) == ESP_OK)
+            ct_hdr = std::string(buf.data());
+    }
+
+    if (fnSession::wants_json(accept_hdr.empty() ? nullptr : accept_hdr.c_str(),
+                             xrw_hdr.empty() ? nullptr : xrw_hdr.c_str(),
+                             ct_hdr.empty() ? nullptr : ct_hdr.c_str()))
+    {
+        httpd_resp_set_status(req, "401 Unauthorized");
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_sendstr(req, fnSession::json_unauthorized());
+    }
+    else
+    {
+        std::string login_url = fnSession::login_url(path, query);
+        httpd_resp_set_status(req, "303 See Other");
+        httpd_resp_set_hdr(req, "Location", login_url.c_str());
+        httpd_resp_send(req, NULL, 0);
+    }
     return false;
 }
 
-esp_err_t fnHttpService::get_handler_private(httpd_req_t *req)
-{
-    if (!require_device_password(req))
-        return ESP_OK;
+// ─── Authentication dispatch trampoline ──────────────────────────────────────
 
-    httpd_resp_set_type(req, "text/html");
-    httpd_resp_sendstr(req, PRIVATE_PAGE_HTML);
-    return ESP_OK;
+typedef esp_err_t (*fn_uri_handler)(httpd_req_t *);
+
+// esp_http_server has no pre-dispatch hook, so every route is registered
+// against this trampoline with its real handler carried in user_ctx.
+static fn_uri_handler s_real_handlers[64];
+
+static esp_err_t auth_dispatch(httpd_req_t *req)
+{
+    if (!require_session(req))
+        return ESP_OK;
+    return (*(fn_uri_handler *)req->user_ctx)(req);
 }
 
 esp_err_t fnHttpService::get_handler_appkeys(httpd_req_t *req)
 {
-    if (!require_device_password(req))
-        return ESP_OK;
-
     std::string page = AppKeyManager::render_page("");
     httpd_resp_set_type(req, "text/html");
     httpd_resp_send(req, page.c_str(), page.size());
@@ -1425,9 +1577,6 @@ esp_err_t fnHttpService::get_handler_appkeys(httpd_req_t *req)
 
 esp_err_t fnHttpService::post_handler_appkeys(httpd_req_t *req)
 {
-    if (!require_device_password(req))
-        return ESP_OK;
-
     // A full table of MAX_APPKEY_LEN values can be considerably larger than the
     // shared receive buffer, so size the read to the posted content.
     if (req->content_len == 0 || req->content_len > APPKEYS_MAX_POST_SIZE)
@@ -1491,9 +1640,6 @@ static void files_send_page(httpd_req_t *req, const std::string &dir, const std:
 
 esp_err_t fnHttpService::get_handler_files(httpd_req_t *req)
 {
-    if (!require_device_password(req))
-        return ESP_OK;
-
     std::string dir;
     if (!FileManager::normalize_path(files_query_value(req, "path"), dir))
     {
@@ -1507,9 +1653,6 @@ esp_err_t fnHttpService::get_handler_files(httpd_req_t *req)
 
 esp_err_t fnHttpService::get_handler_files_download(httpd_req_t *req)
 {
-    if (!require_device_password(req))
-        return ESP_OK;
-
     std::string path;
     if (!FileManager::normalize_path(files_query_value(req, "path"), path) || path == "/")
     {
@@ -1555,9 +1698,6 @@ esp_err_t fnHttpService::get_handler_files_download(httpd_req_t *req)
 
 esp_err_t fnHttpService::post_handler_files_action(httpd_req_t *req)
 {
-    if (!require_device_password(req))
-        return ESP_OK;
-
     if (req->content_len == 0 || req->content_len > FILEMANAGER_MAX_POST_SIZE)
     {
         return_http_error(req, fnwserr_post_fail);
@@ -1618,9 +1758,6 @@ static bool clipboard_recv_body(httpd_req_t *req, std::string &body)
 
 esp_err_t fnHttpService::post_handler_files_upload(httpd_req_t *req)
 {
-    if (!require_device_password(req))
-        return ESP_OK;
-
     std::string dir;
     if (!FileManager::normalize_path(files_query_value(req, "path"), dir))
     {
@@ -2881,13 +3018,6 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
          .is_websocket = false,
          .handle_ws_control_frames = false,
          .supported_subprotocol = nullptr},
-        {.uri = "/private",
-         .method = HTTP_GET,
-         .handler = get_handler_private,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
         {.uri = "/clipboard/clear",
          .method = HTTP_POST,
          .handler = post_handler_clipboard_clear,
@@ -3056,6 +3186,27 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
          .user_ctx = NULL,
          .is_websocket = false,
          .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/login",
+         .method = HTTP_GET,
+         .handler = get_handler_login,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/login",
+         .method = HTTP_POST,
+         .handler = post_handler_login,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/logout",
+         .method = HTTP_POST,
+         .handler = post_handler_logout,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
          .supported_subprotocol = nullptr}};
 
     if (!fnWiFi.connected())
@@ -3071,7 +3222,8 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
     config.task_priority = 12; // Bump this higher than fnService loop
     config.core_id = 0; // Pin to CPU core 0
     config.stack_size = 12288;
-    config.max_uri_handlers = 48;
+    // Budget: 43 base routes + 3 login/logout - 1 removed /private + 11 WebDAV = 56 handlers
+    config.max_uri_handlers = 64;
     config.max_resp_headers = 16;
     config.keep_alive_enable = true;
     config.uri_match_fn = httpd_uri_match_wildcard;
@@ -3086,9 +3238,23 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
 
     if (httpd_start(&(state.hServer), &config) == ESP_OK)
     {
-        // Register URI handlers
-        for (const httpd_uri_t uridef : uris)
-            httpd_register_uri_handler(state.hServer, &uridef);
+        // Register URI handlers with authentication dispatch trampoline
+        size_t i = 0;
+        for (httpd_uri_t uridef : uris)   // note: a copy, so it can be modified
+        {
+            if (i >= sizeof(s_real_handlers) / sizeof(s_real_handlers[0]))
+            {
+                Debug_println("httpServiceInit: too many URI handlers - route dropped");
+                break;
+            }
+            s_real_handlers[i] = uridef.handler;
+            uridef.handler = auth_dispatch;
+            uridef.user_ctx = &s_real_handlers[i];
+            esp_err_t e = httpd_register_uri_handler(state.hServer, &uridef);
+            if (e != ESP_OK)
+                Debug_printf("httpServiceInit: failed to register %s (%d)\r\n", uridef.uri, (int)e);
+            i++;
+        }
 
         // Register WebDAV handlers
         webdav_register(state.hServer, "/dav", "/sd");
