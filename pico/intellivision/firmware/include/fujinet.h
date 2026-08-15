@@ -8,6 +8,9 @@
 // checks the BOOTSEL doorbell. Call from the core0 loop alongside tud_task().
 void fuji_mailbox_service(void);
 
+// sleep_ms() that keeps USB alive, gapped so core1's bus loop isn't starved.
+void fuji_wait_ms_pumped(uint32_t ms);
+
 // Registered with fujibus_set_inbound_handler() in Inty_cart_main(): handles
 // the ESP32-S3 pushing a ROM (and optional .cfg sibling) to
 // FUJI_DEVICEID_DBC mid-MOUNT_IMAGE-transaction. See fujinet.c for the full

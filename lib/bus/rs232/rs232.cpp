@@ -12,6 +12,7 @@
 
 #include "fnSystem.h"
 #include "fnConfig.h"
+#include "fnWiFi.h"
 #include "fnDNS.h"
 #include "led.h"
 #include "utils.h"
@@ -22,6 +23,15 @@
 #else /* !ESP_PLATFORM */
 #define SERIAL_DEVICE Config.get_serial_port()
 #endif /* ESP_PLATFORM */
+
+#if FUJINET_OVER_USB
+// Cold-boot mitigation, same as drivewire.cpp: the WiFi association storm
+// (prio 23) can preempt the USB host tasks that carry the FujiBus link to
+// the RP2040. Run them just above WiFi until the station associates, then
+// return them to normal so interactive use is unaffected.
+#define RS232_USB_BOOT_PRIORITY 24
+#define RS232_USB_RUN_PRIORITY  20
+#endif
 
 // Helper functions outside the class defintions
 
@@ -166,6 +176,16 @@ void systemBus::_rs232_process_cmd()
  */
 void systemBus::service()
 {
+#if FUJINET_OVER_USB
+    // Cold-boot association is over once the station has an IP; drop USB
+    // servicing back to normal priority (one-shot).
+    if (_usb_boot_priority && fnWiFi.connected())
+    {
+        _serial.setServicePriority(RS232_USB_RUN_PRIORITY);
+        _usb_boot_priority = false;
+    }
+#endif
+
     // Check for any messages in our queue (this should always happen, even if any other special
     // modes disrupt normal RS232 handling - should probably make a separate task for this)
     /*_rs232_process_queue();*/
@@ -229,12 +249,15 @@ void systemBus::setup()
 
 #else /* FUJINET_OVER_USB */
 #ifdef PINMAP_FUJIVERSAL_INTV
-    // The far end of this link is always the same soldered-down Minty build
-    // (fujicard, VID 0xCafe PID 0x4001) -- never a generic USB-serial
-    // adapter. Restrict newDevice() to it so a device sitting in BOOTSEL
-    // (VID 0x2E8A, PID 0x0003/0x000F) can't be mistaken for the FujiBus link.
-    _serial.setExpectedDevice(0xCafe, 0x4001);
+    // The far end of this link is always a Minty build (VID 0xCafe; PID
+    // varies by board: 0x4001 without MSC, 0x4003 with) -- never a generic
+    // USB-serial adapter. Match on VID only so any Minty board is accepted
+    // while a device sitting in BOOTSEL (VID 0x2E8A) can't be mistaken for
+    // the FujiBus link.
+    _serial.setExpectedDevice(0xCafe, 0);
 #endif
+    _serial.setServicePriority(RS232_USB_BOOT_PRIORITY);
+    _usb_boot_priority = true;
     _serial.begin();
     _port = &_serial;
 #endif /* FUJINET_OVER_USB */

@@ -48,13 +48,13 @@ public:
     // next begin(), and is applied immediately if they are already running.
     void setServicePriority(UBaseType_t priority);
 
-    // Restrict newDevice() to a known VID/PID, e.g. the RP2040's own
-    // (0xCafe/0x4001 for fuji_intv with MSC removed) on boards where the far
-    // end of the link is a specific, soldered-down chip -- so a device in
-    // BOOTSEL/PICOBOOT mode (a different PID) or anything else stray on the
-    // bus can never be mistaken for the real link. Call before begin().
-    // Leave unset (default) for boards where the far end is any generic
-    // USB-serial adapter, e.g. plain rs232/drivewire.
+    // Restrict newDevice() to a known VID and/or PID; 0 for either means
+    // "don't check that field". E.g. VID 0xCafe alone matches every Minty
+    // board (PID varies with MSC: 0x4001 without, 0x4003 with) while still
+    // rejecting BOOTSEL/PICOBOOT mode (VID 0x2E8A) or anything else stray
+    // on the bus. Call before begin(). Leave unset (default) for boards
+    // where the far end is any generic USB-serial adapter, e.g. plain
+    // rs232/drivewire.
     void setExpectedDevice(uint16_t vid, uint16_t pid) { _expected_vid = vid; _expected_pid = pid; }
 
     void flushOutput() override;

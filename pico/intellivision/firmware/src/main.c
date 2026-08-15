@@ -38,6 +38,7 @@ int main(void) {
 
    gpio_init(MSYNC);
    gpio_set_dir(MSYNC, false);
+   gpio_pull_down(MSYNC);       // don't rely on the pad-reset default pull
    gpio_init(RESET);
    gpio_set_dir(RESET, true);
 
@@ -60,9 +61,14 @@ int main(void) {
 #endif
 
    // reset interval in ms
-   int t = 100;
+   uint32_t t = 100;
 
-   while (gpio_get(MSYNC) == 0 && to_ms_since_boot(get_absolute_time()) < 2000) {   // wait for Inty powerup
+   // Wait for Inty powerup with no deadline: on FujiNet boards the cart is
+   // VBUS-powered by the ESP32-S3 host, so we may be up long before the
+   // console is switched on. Service USB meanwhile (the ESP32 enumerates us,
+   // bench MSC access still works); core1 isn't launched yet, so pumping
+   // gaplessly here can't disturb the CP-1610 bus loop.
+   while (gpio_get(MSYNC) == 0) {
       if (to_ms_since_boot(get_absolute_time()) > t) {
          t += 100;
          resetHigh();
@@ -71,24 +77,17 @@ int main(void) {
          sleep_ms(1);
          resetHigh();
       }
+#if CONFIG_USB_DEVICE
+      tud_task();
+#if !CONFIG_FUJINET
+      cdc_task();  // debug echo -- never against the FujiBus CDC link
+#endif
+#endif
    }
 
    printf("START - Minty v%s\n", VERSION);
 
-   // check why loop is ended...
-   if (gpio_get(MSYNC) == 1) {
-
-      Inty_cart_main();
-
-   } else {
-      // board not plugged in Intellivision - start USB tasks
-      while(1) {
-#if CONFIG_USB_DEVICE
-         tud_task();
-         cdc_task();
-#endif
-      }
-   }
+   Inty_cart_main();
 
    return 0;
 }

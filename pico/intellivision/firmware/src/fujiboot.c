@@ -13,6 +13,7 @@
 
 #include "fujiboot.h"
 #include "fujiconfigrom.h"
+#include "fuji_mailbox.h"
 #include "memory.h"
 #include "intellicart.h"
 
@@ -28,8 +29,8 @@ void RunFujiConfig(void)
     // [mapping] -- see fujinet-config/intv/config.cfg
     mm_init(&m);
     mm_add(&m, 0x0000, 0x0FFF, 0x5000, MM_NO_PAGE);
-    mm_add(&m, 0x1000, 0x1B14, 0x6000, MM_NO_PAGE);
-    mm_add(&m, 0x1B15, 0x2058, 0xD000, MM_NO_PAGE);
+    mm_add(&m, 0x1000, 0x1D42, 0x6000, MM_NO_PAGE);
+    mm_add(&m, 0x1D43, 0x23C6, 0xD000, MM_NO_PAGE);
 
     // [memattr] -- CONFIG's own scratch RAM, $8000-$9BFF. Deliberately
     // short of $9C00: the mailbox range is NOT part of this game map at
@@ -40,6 +41,12 @@ void RunFujiConfig(void)
     mm_add_ram(&m, 0x8000, 0x8FFF, 8);
     mm_add_ram(&m, 0x9000, 0x9BFF, 8);
     mm_finalize(&m);
+
+    // CONFIG's fn_wait_mailbox gates on this ident at power-on -- the
+    // pushed-ROM boot path (fujinet.c) paints its own copy after resetCart.
+    cart.RAM[FUJI_MB_MAGIC0] = 'F';
+    cart.RAM[FUJI_MB_MAGIC1] = 'N';
+    cart.RAM[FUJI_MB_PROTO_VER] = 1;
 
     cart.FujiSupport = true;
 #if CONFIG_JLP
