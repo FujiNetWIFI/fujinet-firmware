@@ -216,9 +216,6 @@ class IECBusHandler
 
   static IECBusHandler *s_bushandler;
   static void atnInterruptFcn(INTERRUPT_FCN_ARG);
-
- protected:
-  IECDevice *_activeDev;
 };
 
 #endif

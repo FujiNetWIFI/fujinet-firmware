@@ -3,21 +3,14 @@
  * N: Firmware
  */
 
-#include <algorithm>
-#include <cstring>
-#include <cstdint>
-
 #include "network.h"
-#include "../network.h"
-#include "../../include/cbm_defines.h"
-
-#include "../../include/debug.h"
-#include "../../hardware/led.h"
-
-#include "utils.h"
-
-#include "status_error_codes.h"
 #include "NetworkProtocolFactory.h"
+#include "fnjson.h"
+#include "fnSystem.h"
+#include "cbm_defines.h"
+#include "utils.h"
+#include "debug.h"
+#include "string_utils.h"
 
 iecNetwork::iecNetwork(uint8_t devnr) : IECFileDevice(devnr)
 {
@@ -85,9 +78,6 @@ void iecNetwork::iec_open()
 
     channel_data.channelMode = CHANNEL_MODE::PROTOCOL;
 
-    cmdFrame.aux1 = (channelId == CHANNEL_LOAD) ? 4 : (channelId == CHANNEL_SAVE) ? 8 : channel_aux1;
-    cmdFrame.aux2 = (channelId == CHANNEL_LOAD || channelId == CHANNEL_SAVE) ? 0 : channel_aux2;
-
     // Reset protocol if it exists
     channel_data.protocol.reset();
     channel_data.urlParser = std::move(PeoplesUrlParser::parseURL(channel_data.deviceSpec));
@@ -121,7 +111,14 @@ void iecNetwork::iec_open()
 
     Debug_printv("Protocol %s opened.", channel_data.urlParser->scheme.c_str());
 
-    if (channel_data.protocol->open(channel_data.urlParser.get(), (fileAccessMode_t) cmdFrame.aux1, (netProtoTranslation_t) cmdFrame.aux2) != FUJI_ERROR::NONE) {
+    fileAccessMode_t open_mode = (channelId == CHANNEL_LOAD)
+        ? ACCESS_MODE::READ : ((channelId == CHANNEL_SAVE) ? ACCESS_MODE::WRITE
+                               : (fileAccessMode_t) channel_aux1);
+    netProtoTranslation_t open_trans = (channelId == CHANNEL_LOAD
+                                        || channelId == CHANNEL_SAVE)
+        ? NETPROTO_TRANS_NONE : (netProtoTranslation_t) channel_aux2;
+
+    if (channel_data.protocol->open(channel_data.urlParser.get(), open_mode, open_trans) != FUJI_ERROR::NONE) {
         Debug_printv("Protocol unable to make connection.");
         channel_data.protocol.reset(); // Clean up the protocol
 
@@ -743,7 +740,7 @@ void iecNetwork::fsop(fujiCommandID_t comnd)
 
     fujiError_t err;
     auto url = channel_data.urlParser.get();
-    switch (cmdFrame.comnd)
+    switch (comnd)
     {
     case NETCMD_RENAME:
         err = fs->rename(url);
