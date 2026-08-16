@@ -236,7 +236,7 @@ bool drivewireFuji::processCommand(const FujiDWPacket &packet)
     case FUJICMD_SET_SSID:
         {
             SSIDConfig cfg;
-            // Handler owns the transaction because it must SYSTEM_BUS.transaction_get the
+            // Handler owns the transaction because it must transaction_get the
             // payload first, so call the core (not fujicmd_) set-ssid helper.
             SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
             if (!SYSTEM_BUS.transaction_get(&cfg, sizeof(cfg)))
@@ -303,21 +303,6 @@ bool drivewireFuji::processCommand(const FujiDWPacket &packet)
     case FUJICMD_NEW_DISK:
         new_disk();
         break;
-    case FUJICMD_OPEN_APPKEY:
-        fujicmd_open_app_key();
-        break;
-    case FUJICMD_CLOSE_APPKEY:
-        fujicmd_close_app_key();
-        break;
-    case FUJICMD_READ_APPKEY:
-        fujicmd_read_app_key();
-        break;
-    case FUJICMD_WRITE_APPKEY:
-        // fujinet-lib always sends MAX_APPKEY_LEN data bytes
-        // regardless of len. Drain the full payload so leftover
-        // bytes don't get interpreted as bus opcodes.
-        fujicmd_write_app_key(packet.param(0), MAX_APPKEY_LEN);
-        break;
     case FUJICMD_RANDOM_NUMBER:
         random();
         break;
@@ -375,43 +360,33 @@ success_is_true drivewireFuji::fujicore_mount_disk_image_success(uint8_t deviceS
     RETURN_SUCCESS_AS_TRUE();
 }
 
-std::optional<std::vector<uint8_t>> drivewireFuji::fujicore_read_app_key()
+ByteBuffer drivewireFuji::appkey_read()
 {
-    auto result = fujiDevice::fujicore_read_app_key();
-
-    if (result)
-    {
-        uint16_t len = htobe16(result->size());
-        result->resize(MAX_APPKEY_LEN, 0);
-        const uint8_t *len_bytes = reinterpret_cast<const uint8_t*>(&len);
-        result->insert(result->begin(), len_bytes, len_bytes + sizeof(len));
-    }
-
+    u16ne_t len;
+    auto result = fujiDevice::appkey_read();
+    len = htole16(result.size());
+    result.resize(MAX_APPKEY_LEN, 0);
+    const uint8_t *len_bytes = reinterpret_cast<const uint8_t*>(&len);
+    result.insert(result.begin(), len_bytes, len_bytes + sizeof(len));
     return result;
 }
 
-void drivewireFuji::fujicmd_open_app_key()
+void drivewireFuji::appkey_write(const FUJI_COMMAND_PACKET &packet)
 {
-    // fujinet-lib for coco sends appkey creator with backwards
-    // endianness, we'll fix it here
-
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    Debug_print("Fuji cmd: OPEN APPKEY\n");
 
-    appkey key;
+    uint16_t keylen = packet.param(0);
 
-    // The data expected for this command
-    if (!SYSTEM_BUS.transaction_get(&key, sizeof(key)))
+    // Size the buffer to keylen (controller-supplied) so the stream stays in
+    // sync; a fixed MAX_APPKEY_LEN buffer overflowed the stack when keylen > 64.
+    ByteBuffer keydata(keylen);
+    if (!SYSTEM_BUS.transaction_get(keydata.data(), keydata.size()) ||
+        fujiDevice::appkey_write(keydata).is_error())
     {
         SYSTEM_BUS.transaction_error();
         return;
     }
 
-    if (!fujicore_open_app_key(be16toh(key.creator), key.app, key.key, key.mode, key.reserved))
-    {
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
     SYSTEM_BUS.transaction_success();
 }
 

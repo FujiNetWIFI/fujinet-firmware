@@ -354,18 +354,6 @@ void rs232Fuji::rs232_process(const FujiBusPacket &packet)
         else
             fujicmd_get_host_prefix(packet.param(0));
         break;
-    case FUJICMD_WRITE_APPKEY:
-        fujicmd_write_app_key(packet.data() ? packet.data()->size() : 0);
-        break;
-    case FUJICMD_READ_APPKEY:
-        fujicmd_read_app_key();
-        break;
-    case FUJICMD_OPEN_APPKEY:
-        fujicmd_open_app_key();
-        break;
-    case FUJICMD_CLOSE_APPKEY:
-        fujicmd_close_app_key();
-        break;
     case FUJICMD_GET_DEVICE_FULLPATH:
         if (packet.paramCount() < 1) {
             Debug_printv("Insufficient get device fullpath paramaters: %d", packet.paramCount());
@@ -414,17 +402,13 @@ void rs232Fuji::rs232_process(const FujiBusPacket &packet)
     }
 }
 
-std::optional<std::vector<uint8_t>> rs232Fuji::fujicore_read_app_key()
+ByteBuffer rs232Fuji::appkey_read()
 {
-    auto result = fujiDevice::fujicore_read_app_key();
-
-    if (result)
-    {
-        uint16_t len = htole16(result->size());
-        const uint8_t *len_bytes = reinterpret_cast<const uint8_t*>(&len);
-        result->insert(result->begin(), len_bytes, len_bytes + sizeof(len));
-    }
-
+    u16ne_t len;
+    auto result = fujiDevice::appkey_read();
+    len = result.size();
+    const uint8_t *len_bytes = reinterpret_cast<const uint8_t*>(&len);
+    result.insert(result.begin(), len_bytes, len_bytes + sizeof(len));
     return result;
 }
 

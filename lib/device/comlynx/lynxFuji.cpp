@@ -357,18 +357,6 @@ void lynxFuji::comlynx_process(const FujiLynxPacket &packet)
     case FUJICMD_MOUNT_ALL:
         fujicmd_mount_all_success();
         break;
-    case FUJICMD_OPEN_APPKEY:
-        fujicmd_open_app_key();
-        break;
-    case FUJICMD_CLOSE_APPKEY:
-        fujicmd_close_app_key();
-        break;
-    case FUJICMD_WRITE_APPKEY:
-        fujicmd_write_app_key(packet.param(0));
-        break;
-    case FUJICMD_READ_APPKEY:
-        fujicmd_read_app_key();
-        break;
     case FUJICMD_RANDOM_NUMBER:
         fujicmd_random_number();
         break;

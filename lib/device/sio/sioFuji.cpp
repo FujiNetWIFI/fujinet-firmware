@@ -806,19 +806,6 @@ void sioFuji::sio_process(const FujiSIOPacket &packet)
     case FUJICMD_SET_SIO_EXTERNAL_CLOCK:
         fujicmd_set_sio_external_clock(packet.param(0));
         break;
-    case FUJICMD_WRITE_APPKEY:
-        fujicmd_write_app_key(packet.param(0),
-                              get_value_or_default(mode_to_keysize, _current_appkey.mode, 64));
-        break;
-    case FUJICMD_READ_APPKEY:
-        fujicmd_read_app_key();
-        break;
-    case FUJICMD_OPEN_APPKEY:
-        fujicmd_open_app_key();
-        break;
-    case FUJICMD_CLOSE_APPKEY:
-        fujicmd_close_app_key();
-        break;
     case FUJICMD_GET_DEVICE_FULLPATH:
         fujicmd_get_device_filename(packet.param(0));
         break;
@@ -871,19 +858,34 @@ void sioFuji::fujicmd_net_scan_networks()
     SYSTEM_BUS.transaction_send((uint8_t *)ret, 4, false);
 }
 
-std::optional<std::vector<uint8_t>> sioFuji::fujicore_read_app_key()
+ByteBuffer sioFuji::appkey_read()
 {
-    auto result = fujiDevice::fujicore_read_app_key();
+    u16ne_t len;
+    auto result = fujiDevice::appkey_read();
+    len = htole16(result.size());
+    result.resize(MAX_APPKEY_LEN, 0);
+    const uint8_t *len_bytes = reinterpret_cast<const uint8_t*>(&len);
+    result.insert(result.begin(), len_bytes, len_bytes + sizeof(len));
+    return result;
+}
 
-    if (result)
+void sioFuji::appkey_write(const FUJI_COMMAND_PACKET &packet)
+{
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+
+    uint16_t keylen = packet.param(0);
+
+    // Size the buffer to keylen (controller-supplied) so the stream stays in
+    // sync; a fixed MAX_APPKEY_LEN buffer overflowed the stack when keylen > 64.
+    ByteBuffer keydata(keylen);
+    if (!SYSTEM_BUS.transaction_get(keydata.data(), keydata.size()) ||
+        fujiDevice::appkey_write(keydata).is_error())
     {
-        uint16_t len = htole16(result->size());
-        result->resize(MAX_APPKEY_LEN, 0);
-        const uint8_t *len_bytes = reinterpret_cast<const uint8_t*>(&len);
-        result->insert(result->begin(), len_bytes, len_bytes + sizeof(len));
+        SYSTEM_BUS.transaction_error();
+        return;
     }
 
-    return result;
+    SYSTEM_BUS.transaction_success();
 }
 
 #endif /* BUILD_ATARI */

@@ -50,7 +50,8 @@ public:
     // ============ Wrapped Fuji commands ============
     success_is_true fujicore_mount_disk_image_success(uint8_t deviceSlot,
                                                       disk_access_flags_t access_mode) override;
-    std::optional<std::vector<uint8_t>> fujicore_read_app_key() override;
+    ByteBuffer appkey_read() override;
+    void appkey_write(const FUJI_COMMAND_PACKET &packet) override;
     void fujicmd_net_scan_networks() override;
     void qr_encode(const FUJI_COMMAND_PACKET &packet) override {
         fujiDevice::qr_encode(((uint8_t) packet.param(0)) & 0x7f,

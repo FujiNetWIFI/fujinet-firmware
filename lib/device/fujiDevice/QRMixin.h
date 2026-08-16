@@ -2,7 +2,6 @@
 #define QRMIXIN_H
 
 #include "FujiDeviceMixin.h"
-
 #include "../qrcode/qrmanager.h"
 
 class QRMixin : public FujiDeviceMixin
