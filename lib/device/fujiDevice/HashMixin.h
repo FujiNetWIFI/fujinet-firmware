@@ -4,9 +4,6 @@
 #include "FujiDeviceMixin.h"
 #include "hash.h"
 
-#ifdef FUJI_MIXINS_ENABLED
-#define FUJI_HASH_MIXIN_ENABLED
-
 class HashMixin : public FujiDeviceMixin
 {
 private:
@@ -36,7 +33,5 @@ public:
         };
     }
 };
-
-#endif // FUJI_MIXINS_ENABLED
 
 #endif /* HASHMIXIN_H */

@@ -3,9 +3,6 @@
 
 #include "FujiDeviceMixin.h"
 
-#ifdef FUJI_MIXINS_ENABLED
-#define FUJI_BASE64_MIXIN_ENABLED
-
 class Base64Mixin : public FujiDeviceMixin
 {
 private:
@@ -37,7 +34,5 @@ public:
         };
     }
 };
-
-#endif // FUJI_MIXINS_ENABLED
 
 #endif /* BASE64MIXIN_H */

@@ -2,14 +2,9 @@
 #define FUJIDEVICEMIXIN_H
 
 #include "bus.h"
+#include "fujiCommandID.h"
 
 #include <unordered_map>
-
-#ifdef FUJI_COMMAND_PACKET
-#define FUJI_MIXINS_ENABLED
-#endif
-
-#ifdef FUJI_MIXINS_ENABLED
 
 class FujiDeviceMixin;
 using FujiMixinCommandHandlers = std::unordered_map<
@@ -41,7 +36,5 @@ public:
         return true;
     }
 };
-
-#endif // FUJI_MIXINS_ENABLED
 
 #endif /* FUJIDEVICEMIXIN_H */

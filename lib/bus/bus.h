@@ -80,41 +80,6 @@ public:
     }
 };
 
-// Temporary migration wrappers. Remove after all buses have been
-// converted to inherit from SystemBusBase.
-#if defined(BUILD_RS232) \
- || defined(BUILD_COCO) \
- || defined(BUILD_APPLE) \
- || defined(BUILD_ADAM) \
- || defined(BUILD_ATARI) \
- || defined(BUILD_IEC) \
- || defined(BUILD_LYNX)
-#define NEED_VDEV_MIGRATION
-#else
-#undef NEED_VDEV_MIGRATION
-#endif
-class VDevMigrationWrapper
-{
-#ifdef NEED_VDEV_MIGRATION
-protected:
-    void transaction_begin(transState_t expectMoreData);
-    void transaction_complete();
-    void transaction_error();
-    success_is_true transaction_get(void *data, size_t len);
-    void transaction_put(const void *data, size_t len, bool is_error=false);
-    inline void transaction_put(std::string data) {
-        transaction_put(data.data(), data.size());
-    }
-    inline void transaction_put(ByteBuffer data) {
-        transaction_put(data.data(), data.size());
-    }
-    void transaction_put(int val) {
-        uint8_t c = val;
-        transaction_put(&c, sizeof(c));
-    }
-#endif
-};
-
 #ifdef BUILD_ATARI
 #include "sio/sio.h"
 #ifdef ESP_PLATFORM

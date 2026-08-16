@@ -135,7 +135,7 @@ void lynxFuji::comlynx_new_disk(const FujiLynxPacket &packet)
     u32le_t numBlocks;
     const char *ptr;
 
-    transaction_begin(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     ptr = packet.dataAsString()->c_str();
     memcpy(&numBlocks, ptr, sizeof(numBlocks));
@@ -146,7 +146,7 @@ void lynxFuji::comlynx_new_disk(const FujiLynxPacket &packet)
 
     if (host.file_exists((const char *)ptr))
     {
-        transaction_complete();
+        SYSTEM_BUS.transaction_success();
         return;
     }
 
@@ -161,7 +161,7 @@ void lynxFuji::comlynx_new_disk(const FujiLynxPacket &packet)
     disk.disk_dev.write_blank(disk.fileh, numBlocks);
     fclose(disk.fileh);
 
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 }
 
 // Initializes base settings and adds our devices to the SIO bus
@@ -188,7 +188,7 @@ void lynxFuji::fujicmd_random_number()
 {
     int p;
     p = rand();
-    transaction_put(&p, sizeof(p));
+    SYSTEM_BUS.transaction_send(&p, sizeof(p));
 }
 
 void lynxFuji::fujicmd_get_time()
@@ -214,7 +214,7 @@ void lynxFuji::fujicmd_get_time()
     time_resp[4] = now->tm_min;
     time_resp[5] = now->tm_sec;
 
-    transaction_put(time_resp, sizeof(time_resp));
+    SYSTEM_BUS.transaction_send(time_resp, sizeof(time_resp));
     Debug_printf("comlynx_get_time - Sending %02d/%02d/%02d %02d:%02d:%02d\n",now->tm_mon, now->tm_mday, now->tm_year, now->tm_hour, now->tm_min, now->tm_sec);
 }
 
@@ -222,10 +222,10 @@ void lynxFuji::fujicmd_enable_netstream(int port, size_t host_payload_len)
 {
     char host[64] = {};
 
-    transaction_begin(TRANS_STATE::WILL_GET);
-    if (!transaction_get(&host, sizeof(host)))
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    if (!SYSTEM_BUS.transaction_get(&host, sizeof(host)))
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
@@ -262,7 +262,7 @@ void lynxFuji::fujicmd_enable_netstream(int port, size_t host_payload_len)
     Config.store_netstream_register(register_enabled);
     Config.save();
 
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 
     SYSTEM_BUS.setStreamHostWithOptions(host_out, port, stream_mode, register_enabled, redeye_enabled);
 }
@@ -292,8 +292,8 @@ void lynxFuji::comlynx_process(const FujiLynxPacket &packet)
     case FUJICMD_SET_SSID:
         {
             SSIDConfig cfg;
-            transaction_begin(TRANS_STATE::WILL_GET);
-            transaction_get(&cfg, sizeof(cfg));
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+            SYSTEM_BUS.transaction_get(&cfg, sizeof(cfg));
             fujicmd_net_set_ssid_success(cfg.ssid, cfg.password, false);
         }
         break;
@@ -390,7 +390,7 @@ void lynxFuji::comlynx_process(const FujiLynxPacket &packet)
         break;
     default:
         Debug_printf("lynxFuji::process - unknown command: %02X\n", packet.command());
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         break;
     }
 }

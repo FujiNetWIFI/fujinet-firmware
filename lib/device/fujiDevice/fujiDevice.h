@@ -114,7 +114,6 @@ enum DET_file_flags_t {
     DET_FF_TRUNC = 0x02,
 };
 
-#ifdef FUJI_MIXINS_ENABLED
 /* Mixin handling. This allows adding additional commands to a
    fujiDevice without having to mess around with the command handling
    in each subclass. Just add a mixin and add more commands.
@@ -152,12 +151,9 @@ class FujiDeviceChain : public FujiDeviceMixins...
         return (FujiDeviceMixins::processCommand(packet) || ...);
     }
 };
-#endif // FUJI_MIXINS_ENABLED
 
-class fujiDevice : public virtual virtualDevice, public VDevMigrationWrapper
-#ifdef FUJI_MIXINS_ENABLED
+class fujiDevice : public virtual virtualDevice
                  , public FujiDeviceChain<Base64Mixin, HashMixin, QRMixin>
-#endif // FUJI_MIXINS_ENABLED
 {
 private:
     bool hostMounted[MAX_HOSTS];
@@ -182,11 +178,6 @@ protected:
 
     std::atomic<bool> _startup_mount_lock{false};
     unsigned char _active_rotate_slot = 0;
-
-#ifndef FUJI_HASH_MIXIN_ENABLED
-    // FIXME - remove when mixins enabled for all buses
-    Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
-#endif // FUJI_HASH_MIXIN_ENABLED
 
     virtual size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                                    uint8_t maxlen) = 0;
@@ -219,7 +210,6 @@ public:
     virtual void setup() = 0;
     void shutdown() override;
 
-#ifdef FUJI_MIXINS_ENABLED
     // Return true if command was handled here
     bool processCommand(const FUJI_COMMAND_PACKET &packet) {
         return tryAllMixins(packet);
@@ -228,7 +218,6 @@ public:
     bool recognizesCommand(const FUJI_COMMAND_PACKET &packet) {
         return checkAllMixins(packet);
     }
-#endif // FUJI_MIXINS_ENABLED
 
     fujiHost *get_host(int i) { return &_fnHosts[i]; }
     std::string get_host_prefix(int host_slot) { return _fnHosts[host_slot].get_prefix(); }
