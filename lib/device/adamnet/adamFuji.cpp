@@ -65,7 +65,7 @@ void adamFuji::adamnet_set_boot_config(const FujiAdamPacket &packet)
 {
     boot_config = packet.param(0);
 
-    transaction_begin(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     Debug_printf("Boot config is now %d\n", boot_config);
 
@@ -77,7 +77,7 @@ void adamFuji::adamnet_set_boot_config(const FujiAdamPacket &packet)
         Debug_printf("Boot config unmounted slot 0\n");
     }
 
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 }
 
 // DEBUG TAPE
@@ -129,7 +129,7 @@ void adamFuji::adamnet_new_disk(const FujiAdamPacket &packet)
     u32le_t numBlocks;
     const char *ptr;
 
-    transaction_begin(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     ptr = packet.dataAsString()->c_str();
     memcpy(&numBlocks, ptr, sizeof(numBlocks));
@@ -142,7 +142,7 @@ void adamFuji::adamnet_new_disk(const FujiAdamPacket &packet)
     {
         new_disk_completed = false;
         SYSTEM_BUS.start_time = GET_TIMESTAMP();
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
@@ -159,7 +159,7 @@ void adamFuji::adamnet_new_disk(const FujiAdamPacket &packet)
     fnio::fclose(disk.fileh);
 
     new_disk_completed = true;
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 }
 
 // Mounts the desired boot disk number
@@ -476,14 +476,14 @@ void adamFuji::adamnet_control_send(const FujiAdamPacket &packet)
     case FUJICMD_SET_DEVICE_FULLPATH:
         {
             uint8_t deviceSlot = packet.param(0);
-            transaction_begin(TRANS_STATE::NO_GET);
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             if (fujicore_set_device_filename_success(deviceSlot,
                                                      _fnDisks[deviceSlot].host_slot,
                                                      _fnDisks[deviceSlot].access_mode,
                                                      packet.dataAsString().value()).is_error())
-                transaction_error();
+                SYSTEM_BUS.transaction_error();
             else
-                transaction_complete();
+                SYSTEM_BUS.transaction_success();
         }
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
@@ -530,13 +530,13 @@ void adamFuji::adamnet_control_send(const FujiAdamPacket &packet)
             uint8_t source = packet.param(0);
             uint8_t dest = packet.param(1);
             char dirpath[256];
-            transaction_begin(TRANS_STATE::WILL_GET);
-            if (!transaction_get(dirpath, sizeof(dirpath)))
-                transaction_error();
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+            if (!SYSTEM_BUS.transaction_get(dirpath, sizeof(dirpath)))
+                SYSTEM_BUS.transaction_error();
             else if (!fujicore_copy_file_success(source, dest, dirpath))
-                transaction_error();
+                SYSTEM_BUS.transaction_error();
             else
-                transaction_complete();
+                SYSTEM_BUS.transaction_success();
         }
         break;
     case FUJICMD_GENERATE_GUID:
@@ -564,18 +564,18 @@ void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
     if (response[0])
     {
         Debug_printv("No soup for you!");
-        transaction_begin(TRANS_STATE::NO_GET);
-        transaction_complete();
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_success();
         return;
     }
 
-    transaction_begin(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu) (addtl=%02x)\n", maxlen, addtl);
 
     auto current_entry = fujicore_read_directory_entry(maxlen, addtl);
     if (!current_entry)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
@@ -626,7 +626,7 @@ void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
         current_entry->resize(maxlen, '\0');
 
     Debug_printf("%s\n", util_hexdump(current_entry->data(), maxlen).c_str());
-    transaction_put(current_entry->data(), maxlen);
+    SYSTEM_BUS.transaction_send(current_entry->data(), maxlen);
 }
 
 #if 0
@@ -636,14 +636,14 @@ bool adamFuji::fujicmd_mount_disk_image_success(uint8_t deviceSlot,
     Debug_println("Fuji cmd: MOUNT IMAGE");
 
     // Adam needs ACK before we even determine if the disk can be mounted
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
     return fujicore_mount_disk_image_success(deviceSlot, access_mode);
 }
 
 void adamFuji::fujicmd_get_adapter_config()
 {
     // Adam needs ACK ASAP
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 
     // also return string versions of the data to save the host some computing
     Debug_printf("Fuji cmd: GET ADAPTER CONFIG\r\n");
@@ -659,7 +659,7 @@ void adamFuji::fujicmd_get_adapter_config()
 void adamFuji::fujicmd_get_adapter_config_extended()
 {
     // Adam needs ACK ASAP
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 
     // also return string versions of the data to save the host some computing
     Debug_printf("Fuji cmd: GET ADAPTER CONFIG EXTENDED\r\n");

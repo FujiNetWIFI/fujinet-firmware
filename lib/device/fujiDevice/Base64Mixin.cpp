@@ -2,8 +2,6 @@
 #include "base64.h"
 #include "debug.h"
 
-#ifdef FUJI_BASE64_MIXIN_ENABLED
-
 void Base64Mixin::encode_input(const FUJI_COMMAND_PACKET &packet)
 {
     uint16_t len = packet.param(0);
@@ -180,5 +178,3 @@ void Base64Mixin::decode_output(const FUJI_COMMAND_PACKET &packet)
     base64.base64_buffer.shrink_to_fit();
     SYSTEM_BUS.transaction_send(p.data(), len, false);
 }
-
-#endif // FUJI_BASE64_MIXIN_ENABLED

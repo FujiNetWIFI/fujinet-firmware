@@ -144,14 +144,14 @@ sioFuji::sioFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
 void sioFuji::sio_net_set_ssid(const FujiSIOPacket &packet)
 {
     SSIDConfig cfg;
-    transaction_begin(TRANS_STATE::WILL_GET);
-    if (!transaction_get(&cfg, sizeof(cfg))) {
-        transaction_error();
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    if (!SYSTEM_BUS.transaction_get(&cfg, sizeof(cfg))) {
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
     fujicore_net_set_ssid_success(cfg.ssid, cfg.password, packet.param(0));
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 }
 
 // Set SIO baudrate
@@ -191,12 +191,12 @@ void sioFuji::sio_set_baudrate(const FujiSIOPacket &packet)
             break;
 
         default:
-            transaction_error();
+            SYSTEM_BUS.transaction_error();
             return;
     }
 
     // send complete with current baudrate
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 
 #ifndef ESP_PLATFORM
     fnSystem.delay_microseconds(2000);
@@ -225,16 +225,16 @@ void sioFuji::sio_copy_file(const FujiSIOPacket &packet)
 
     if (dataBuf == nullptr)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
     memset(&csBuf, 0, sizeof(csBuf));
 
-    transaction_begin(TRANS_STATE::WILL_GET); // quick fix to permit copy to work again
-    if (!transaction_get(csBuf, sizeof(csBuf)))
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET); // quick fix to permit copy to work again
+    if (!SYSTEM_BUS.transaction_get(csBuf, sizeof(csBuf)))
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         free(dataBuf);
         return;
     }
@@ -246,7 +246,7 @@ void sioFuji::sio_copy_file(const FujiSIOPacket &packet)
     // Check for malformed copyspec.
     if (copySpec.empty() || copySpec.find_first_of("|") == std::string::npos)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         free(dataBuf);
         return;
     }
@@ -258,7 +258,7 @@ void sioFuji::sio_copy_file(const FujiSIOPacket &packet)
 
     if (!validate_host_slot(sourceSlot) || !validate_host_slot(destSlot))
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         free(dataBuf);
         return;
     }
@@ -286,7 +286,7 @@ void sioFuji::sio_copy_file(const FujiSIOPacket &packet)
 
     if (sourceFile == nullptr)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         free(dataBuf);
         return;
     }
@@ -295,7 +295,7 @@ void sioFuji::sio_copy_file(const FujiSIOPacket &packet)
 
     if (destFile == nullptr)
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         fnio::fclose(sourceFile);
         free(dataBuf);
         return;
@@ -330,12 +330,12 @@ void sioFuji::sio_copy_file(const FujiSIOPacket &packet)
     {
         // Remove the destination file and error
         _fnHosts[destSlot].file_remove((char *)destPath.c_str());
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         Debug_printf("Copy File Error! wCount: %d, rCount: %d, rTotal: %d, Expect: %d\n", writeCount, readCount, readTotal, expected);
     }
     else
     {
-        transaction_complete();
+        SYSTEM_BUS.transaction_success();
     }
 
     // copyEnd:
@@ -414,7 +414,7 @@ size_t sioFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
 //  Make new disk and shove into device slot
 void sioFuji::sio_new_disk()
 {
-    transaction_begin(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
     Debug_println("Fuji cmd: NEW DISK");
 
     struct
@@ -427,16 +427,16 @@ void sioFuji::sio_new_disk()
     } newDisk;
 
     // Ask for details on the new disk to create
-    if (!transaction_get(&newDisk, sizeof(newDisk)))
+    if (!SYSTEM_BUS.transaction_get(&newDisk, sizeof(newDisk)))
     {
         Debug_print("sio_new_disk Bad checksum\n");
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
     if (newDisk.deviceSlot >= MAX_DISK_DEVICES || newDisk.hostSlot >= MAX_HOSTS)
     {
         Debug_print("sio_new_disk Bad disk or host slot parameter\n");
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
     // A couple of reference variables to make things much easier to read...
@@ -450,7 +450,7 @@ void sioFuji::sio_new_disk()
     if (host.file_exists(disk.filename))
     {
         Debug_printf("sio_new_disk File exists: \"%s\"\n", disk.filename);
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
@@ -458,7 +458,7 @@ void sioFuji::sio_new_disk()
     if (disk.fileh == nullptr)
     {
         Debug_printf("sio_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
@@ -468,12 +468,12 @@ void sioFuji::sio_new_disk()
     if (ok == false)
     {
         Debug_print("sio_new_disk Data write failed\n");
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
     Debug_print("sio_new_disk succeeded\n");
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 }
 
 // AUX1 is our index value (from 0 to SIO_HISPEED_LOWEST_INDEX, for FN-PC 0 .. 10, 16)
@@ -492,7 +492,7 @@ void sioFuji::sio_set_hsio_index(const FujiSIOPacket &packet)
     if (index > SIO_HISPEED_LOWEST_INDEX && index != SIO_HISPEED_x2_INDEX) // accept 0 .. 10, 16
 #endif
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
@@ -505,7 +505,7 @@ void sioFuji::sio_set_hsio_index(const FujiSIOPacket &packet)
         Config.save();
     }
 
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 }
 
 // Mounts the desired boot disk, honoring alternate SD config and CONFIG-NG settings.
@@ -594,10 +594,10 @@ void sioFuji::sio_enable_netstream(const FujiSIOPacket &packet)
 {
     char host[64];
 
-    transaction_begin(TRANS_STATE::WILL_GET);
-    if (!transaction_get(&host, sizeof(host)))
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    if (!SYSTEM_BUS.transaction_get(&host, sizeof(host)))
     {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
@@ -652,7 +652,7 @@ void sioFuji::sio_enable_netstream(const FujiSIOPacket &packet)
     Config.store_netstream_register(register_enabled);
     Config.save();
 
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 
     SYSTEM_BUS.setStreamHostWithOptions(host_out,
                                         port,
@@ -667,15 +667,15 @@ void sioFuji::sio_enable_netstream(const FujiSIOPacket &packet)
 
 void sioFuji::sio_random_number()
 {
-    transaction_begin(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     int r = rand();
-    transaction_put(&r,sizeof(int),false);
+    SYSTEM_BUS.transaction_send(&r,sizeof(int),false);
 }
 
 // Set an external clock rate in kHz defined by speed in steps of 2kHz.
 void sioFuji::fujicmd_set_sio_external_clock(uint16_t speed)
 {
-    transaction_begin(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     int baudRate = speed * 1000;
 
@@ -690,7 +690,7 @@ void sioFuji::fujicmd_set_sio_external_clock(uint16_t speed)
         SYSTEM_BUS.setUltraHigh(true, baudRate);
     }
 
-    transaction_complete();
+    SYSTEM_BUS.transaction_success();
 }
 
 void sioFuji::sio_process(const FujiSIOPacket &packet)
@@ -844,7 +844,7 @@ void sioFuji::sio_process(const FujiSIOPacket &packet)
         fujicmd_generate_guid();
         break;
     default:
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
     }
 }
 
@@ -862,13 +862,13 @@ success_is_true sioFuji::fujicore_mount_disk_image_success(uint8_t deviceSlot,
 // we override it here to pad/encode the same computed value as LE32.
 void sioFuji::fujicmd_net_scan_networks()
 {
-    transaction_begin(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_println("Fuji cmd: SCAN NETWORKS");
 
     char ret[4] = {0};
     fujicore_net_scan_networks();
     ret[0] = _countScannedSSIDs;
-    transaction_put((uint8_t *)ret, 4, false);
+    SYSTEM_BUS.transaction_send((uint8_t *)ret, 4, false);
 }
 
 std::optional<std::vector<uint8_t>> sioFuji::fujicore_read_app_key()

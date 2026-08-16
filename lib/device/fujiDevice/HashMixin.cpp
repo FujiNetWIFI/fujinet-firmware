@@ -2,8 +2,6 @@
 #include "debug.h"
 #include "utils.h"
 
-#ifdef FUJI_HASH_MIXIN_ENABLED
-
 constexpr uint8_t MODE_HEX = 1;
 
 void HashMixin::hash_input(const FUJI_COMMAND_PACKET &packet)
@@ -75,5 +73,3 @@ void HashMixin::hash_clear(const FUJI_COMMAND_PACKET &packet)
     hasher.clear();
     SYSTEM_BUS.transaction_success();
 }
-
-#endif // FUJI_HASH_MIXIN_ENABLED
