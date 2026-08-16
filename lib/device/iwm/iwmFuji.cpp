@@ -88,8 +88,8 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
 
 #ifndef DEV_RELAY_SLIP
         { SP_STAT_GET_DISKII_SEEN, [this](const iwm_decoded_cmd_t &cmd)                  {
-            transaction_begin(TRANS_STATE::NO_GET);
-            transaction_put(diskii_xface.d2_enable_seen);
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+            SYSTEM_BUS.transaction_send(diskii_xface.d2_enable_seen);
         }},
 #endif
 
@@ -130,14 +130,14 @@ void iwmFuji::iwm_dummy_command(const iwm_decoded_cmd_t &cmd) // SP CTRL command
         Debug_printf("\r\nData Received: ");
         for (uint8_t byte : cmd.data().value())
             Debug_printf(" %02x", byte);
-        transaction_complete();
+        SYSTEM_BUS.transaction_success();
 }
 
 void iwmFuji::iwm_hello_world()
 {
         Debug_printf("\r\nFuji cmd: HELLO WORLD");
-        transaction_begin(TRANS_STATE::NO_GET);
-        transaction_put("HELLO WORLD", 11);
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_send("HELLO WORLD", 11);
 }
 
 //==============================================================================================================================
@@ -158,8 +158,8 @@ void iwmFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
         && (*result)[0] != 0x7F && (*result)[1] != 0x7F && maxlen == DIR_MAX_LEN)
         result->insert(0, "  ");
 
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_put(result->data(), result->size());
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_send(result->data(), result->size());
 }
 
 void iwmFuji::iwm_stat_get_heap()
@@ -171,8 +171,8 @@ void iwmFuji::iwm_stat_get_heap()
     avail = 0;
 #endif
 
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_put(&avail, sizeof(avail));
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_send(&avail, sizeof(avail));
     return;
 }
 
@@ -219,8 +219,8 @@ void iwmFuji::iwm_stat_get_wifi_enabled()
 {
         uint8_t e = Config.get_wifi_enabled() ? 1 : 0;
         Debug_printf("\nFuji cmd: GET WIFI ENABLED: %d", e);
-        transaction_begin(TRANS_STATE::NO_GET);
-        transaction_put(e);
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_send(e);
 }
 
 void iwmFuji::iwm_ctrl_enable_device(const iwm_decoded_cmd_t &cmd)
@@ -308,8 +308,8 @@ iwm_device_info_block_t iwmFuji::create_dib_reply_packet()
 
 void iwmFuji::send_stat_get_enable()
 {
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_put(1);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_send(1);
 }
 
 void iwmFuji::iwm_open(const iwm_decoded_cmd_t &cmd) {}
@@ -329,7 +329,7 @@ void iwmFuji::iwm_status(const iwm_decoded_cmd_t &cmd)
         it->second(cmd);
     } else {
         Debug_printf("ERROR: Unhandled status code: %02X\n", cmd.command());
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
     }
 }
 

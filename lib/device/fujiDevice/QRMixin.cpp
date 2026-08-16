@@ -1,7 +1,5 @@
 #include "QRMixin.h"
 
-#ifdef FUJI_QR_MIXIN_ENABLED
-
 #include "httpService.h"
 #include "debug.h"
 
@@ -101,5 +99,3 @@ void QRMixin::qr_output(const FUJI_COMMAND_PACKET &packet)
     qrManager.code.erase(qrManager.code.begin(), qrManager.code.begin() + len);
     qrManager.code.shrink_to_fit();
 }
-
-#endif // FUJI_QR_MIXIN_ENABLED

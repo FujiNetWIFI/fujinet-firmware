@@ -442,8 +442,8 @@ bool iecFuji::is_supported(const FujiIECPacket &packet)
 void iecFuji::get_status_raw()
 {
     // convert iecStatus to a responseV for the host to read
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_put(iec_status_to_vector());
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_send(iec_status_to_vector());
     // don't set the status!!
     // set_fuji_iec_status(0, "");
 }
@@ -451,8 +451,8 @@ void iecFuji::get_status_raw()
 void iecFuji::net_scan_networks_raw()
 {
     fujicmd_net_scan_networks();
-    transaction_begin(TRANS_STATE::NO_GET);
-    transaction_put(_countScannedSSIDs);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_send(_countScannedSSIDs);
     set_fuji_iec_status(0, "");
 }
 

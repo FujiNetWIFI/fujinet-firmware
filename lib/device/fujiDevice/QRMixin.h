@@ -3,9 +3,6 @@
 
 #include "FujiDeviceMixin.h"
 
-#ifdef FUJI_MIXINS_ENABLED
-#define FUJI_QR_MIXIN_ENABLED
-
 #include "../qrcode/qrmanager.h"
 
 class QRMixin : public FujiDeviceMixin
@@ -42,7 +39,5 @@ public:
         };
     }
 };
-
-#endif // FUJI_MIXINS_ENABLED
 
 #endif /* QRMIXIN_H */
