@@ -30,7 +30,7 @@ protected:
     //virtual void comlynx_control_send();
     //virtual void comlynx_control_ready() override;
 
-    void comlynx_process() override;
+    void comlynx_process(const FujiLynxPacket &packet) override;
     void shutdown() override;
 
     printer_emu *_pptr = nullptr;

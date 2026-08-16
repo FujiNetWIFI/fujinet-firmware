@@ -87,7 +87,8 @@ public:
  || defined(BUILD_APPLE) \
  || defined(BUILD_ADAM) \
  || defined(BUILD_ATARI) \
- || defined(BUILD_IEC)
+ || defined(BUILD_IEC) \
+ || defined(BUILD_LYNX)
 #define NEED_VDEV_MIGRATION
 #else
 #undef NEED_VDEV_MIGRATION
