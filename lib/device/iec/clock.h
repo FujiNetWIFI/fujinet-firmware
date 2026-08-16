@@ -3,6 +3,7 @@
 
 #include "bus.h"
 #include "../../bus/iec/IECFileDevice.h"
+#include <ctime>
 
 #define TC_SIZE 256 // size of returned time string.
 

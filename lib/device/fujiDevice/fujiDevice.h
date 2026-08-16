@@ -226,7 +226,7 @@ public:
     }
     // Return true if command is one that can be handled
     bool recognizesCommand(const FUJI_COMMAND_PACKET &packet) {
-        return tryAllMixins(packet);
+        return checkAllMixins(packet);
     }
 #endif // FUJI_MIXINS_ENABLED
 

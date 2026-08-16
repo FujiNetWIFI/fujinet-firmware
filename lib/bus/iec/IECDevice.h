@@ -197,13 +197,9 @@ class IECDevice
   IECBusHandler *m_handler;
 };
 
-class systemBus;
 class virtualDevice : public IECDevice
 {
 protected:
-    friend systemBus;
-    std::string response;
-
     virtual void shutdown() {};
 };
 

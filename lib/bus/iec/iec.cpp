@@ -2,18 +2,9 @@
 
 #include "iec.h"
 #include "fujiDevice.h"
-#include "iecFuji.h"
-
-#include <cstring>
-#include <memory>
-
-#include "soc/io_mux_reg.h"
-#include "driver/gpio.h"
-#include "hal/gpio_hal.h"
-
-#include "../../include/debug.h"
-#include "../../include/pinmap.h"
-#include "../../hardware/led.h"
+#include "fnSystem.h"
+#include "led.h"
+#include "debug.h"
 
 #define MAIN_STACKSIZE   32768
 #define MAIN_PRIORITY    17
@@ -38,25 +29,6 @@ systemBus::systemBus() : IECBusHandler(PIN_IEC_ATN, PIN_IEC_CLK_OUT, PIN_IEC_DAT
 #endif
 }
 
-// static void ml_iec_intr_task(void* arg)
-// {
-//     while ( true )
-//     {
-//       IEC.service();
-//       taskYIELD(); // Allow other tasks to run
-//     }
-// }
-
-// void init_gpio(gpio_num_t _pin)
-// {
-//     PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[_pin], PIN_FUNC_GPIO);
-//     gpio_set_direction(_pin, GPIO_MODE_INPUT);
-//     gpio_pullup_en(_pin);
-//     gpio_set_pull_mode(_pin, GPIO_PULLUP_ONLY);
-//     gpio_set_level(_pin, 0);
-//     return;
-// }
-
 void systemBus::setup()
 {
   Debug_printf("IEC systemBus::setup()\r\n");
@@ -70,17 +42,6 @@ void systemBus::setup()
 #ifdef SUPPORT_DOLPHIN
   Debug_printf("DolphinDOS protocol supported\r\n");
 #endif
-
-//     // initial pin modes in GPIO
-//     init_gpio(PIN_IEC_ATN);
-//     init_gpio(PIN_IEC_CLK_IN);
-//     init_gpio(PIN_IEC_CLK_OUT);
-//     init_gpio(PIN_IEC_DATA_IN);
-//     init_gpio(PIN_IEC_DATA_OUT);
-//     init_gpio(PIN_IEC_SRQ);
-// #ifdef IEC_HAS_RESET
-//     init_gpio(PIN_IEC_RESET);
-// #endif
 
 #ifdef IEC_INVERTED_LINES
 #warning intr_type likely needs to be fixed!
@@ -142,22 +103,30 @@ void systemBus::transaction_success()
 void systemBus::transaction_error()
 {
   _transaction_state = TRANS_STATE::INVALID;
+  Debug_printf("transaction error\n");
+  abort();
 }
 
 success_is_true systemBus::transaction_get(void *data, size_t len)
 {
     assert(_transaction_state == TRANS_STATE::WILL_GET);
+    assert(_activePacket);
+    assert(data);
     _transaction_state = TRANS_STATE::DID_GET;
-    RETURN_ERROR_AS_FALSE();
+    len = std::min(len, _activePacket->data()->size());
+    std::copy(_activePacket->data()->begin(), _activePacket->data()->begin() + len,
+              static_cast<uint8_t *>(data));
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 void systemBus::transaction_send(const void *data, size_t len, bool err)
 {
-    iecFuji *vdev = dynamic_cast<iecFuji *>(_activeDev);
-    assert(vdev);
     assert(_transaction_state == TRANS_STATE::NO_GET);
-    const uint8_t *ptr = static_cast<const uint8_t *>(data);
-    vdev->responseV.insert(vdev->responseV.end(), ptr, ptr + len);
+    const uint8_t *ptr = reinterpret_cast<const uint8_t*>(data);
+    _transaction_response.assign(ptr, ptr + len);
+    Debug_printv("response:\r\n%s",
+                 util_hexdump(_transaction_response.data(),
+                              _transaction_response.size()).c_str());
     _transaction_state = TRANS_STATE::INVALID;
 }
 

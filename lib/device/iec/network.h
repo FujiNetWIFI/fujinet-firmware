@@ -1,23 +1,14 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
-#include <array>
-#include <cstdint>
-#include <esp_timer.h>
-#include <memory>
-#include <string>
-
-#include "bus.h"
-#include "fnjson.h"
-#include "fnsgml.h"
+#include "../network.h"
+#include "IECFileDevice.h"
 #include "network_data.h"
-#include "peoples_url_parser.h"
-#include "Protocol.h"
-#include "string_utils.h"
-#include "../../bus/iec/IECFileDevice.h"
+#include "fnsgml.h"
 
-// FIXME - Pretty sure this isn't being used anymore
-#include "cmdFrame.h"
+#include <string>
+#include <vector>
+#include <unordered_map>
 
 using namespace std;
 
@@ -210,7 +201,6 @@ private:
     std::vector<std::string> pt;
     IECData commanddata;
     std::string payload;
-    cmdFrame_t cmdFrame;
 };
 
 #endif /* NETWORK_H */

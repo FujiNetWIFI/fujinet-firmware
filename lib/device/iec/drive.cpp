@@ -1,23 +1,9 @@
 #ifdef BUILD_IEC
 
 #include "drive.h"
-
-#include <cstring>
-#include <sstream>
-#include <unordered_map>
-
-//#include "../../include/global_defines.h"
-#include "../../include/debug.h"
-#include "../../include/cbm_defines.h"
-
-#include "make_unique.h"
-
-#include "fujiDevice.h"
+#include "fnSystem.h"
 #include "fnFsSD.h"
-#include "led.h"
-#include "utils.h"
-#include "display.h"
-
+#include "cbm_defines.h"
 #include "meat_media.h"
 
 using namespace std;

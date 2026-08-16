@@ -2,6 +2,7 @@
 
 #include "clock.h"
 #include "string_utils.h"
+#include "debug.h"
 
 iecClock::iecClock(uint8_t devnr) : IECDevice(devnr)
 {

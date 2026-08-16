@@ -3,213 +3,73 @@
 #define IECFUJI_H
 
 #include "fujiDevice.h"
+#include "FujiIECPacket.h"
 #include "fnWiFi.h"
-
-// Isn't this something global to all IEC devices and should be part of the bus?
-typedef enum
-{
-    DEVICE_ERROR = -1,
-    DEVICE_IDLE = 0,      // Ready and waiting
-    DEVICE_ACTIVE = 1,
-    DEVICE_LISTEN = 2,    // A command is recieved and data is coming to us
-    DEVICE_TALK = 3,      // A command is recieved and we must talk now
-    DEVICE_PAUSED = 4,    // Execute device command
-} device_state_t;
-
 
 class iecFuji : public fujiDevice
 {
-    friend systemBus;
-
 protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
 
     AdapterConfig cfg;
 
-    std::vector<std::string> pt;
-    std::string payloadRaw, payload;
-    std::vector<uint8_t> responseV;
-    size_t responsePtr;
+    ByteBuffer _payload;
     bool is_raw_command;
 
     void process_cmd();
-    void process_raw_cmd_data();
-    void process_immediate_raw_cmds();
+    bool processCommand(const FUJI_COMMAND_PACKET &packet) override;
 
-    void process_basic_commands();
     std::vector<std::string> tokenize_basic_command(std::string command);
 
-    success_is_true validate_parameters_and_setup(uint8_t& maxlen, uint8_t& addtlopts);
     success_is_true validate_directory_slot();
 
-    // track what our current command is, -1 is none being processed.
-    int current_fuji_cmd = -1;
-    // track the last command for the status
-    int last_command = -1;
-
-    virtual void talk(uint8_t secondary) override;
-    virtual void listen(uint8_t secondary) override;
-    virtual void untalk() override;
-    virtual void unlisten() override;
-    virtual int8_t canWrite() override;
-    virtual int8_t canRead() override;
-    virtual void write(uint8_t data, bool eoi) override;
-    virtual uint8_t read() override;
-    virtual void task() override;
-    virtual void reset() override;
+    void talk(uint8_t secondary) override;
+    void listen(uint8_t secondary) override;
+    void untalk() override;
+    void unlisten() override;
+    int8_t canWrite() override;
+    int8_t canRead() override;
+    void write(uint8_t data, bool eoi) override;
+    uint8_t read() override;
+    void task() override;
+    void reset() override;
 
     // is the cmd supported by RAW?
-    bool is_supported(uint8_t cmd);
+    bool is_supported(const FujiIECPacket &packet);
 
-    // 0xFE
-    void net_get_ssid_basic();
     void net_get_ssid_raw();
-
-    // 0xFD
-    void net_scan_networks_basic();
     void net_scan_networks_raw();
-
-    // 0xFC
-    void net_scan_result_basic();
-    void net_scan_result_raw();
-
-    // 0xFB
-    void net_set_ssid_basic(bool store = true);
+    void net_scan_result_raw(const FujiIECPacket &packet);
     void net_set_ssid_raw(bool store = true);
-
-    // 0xFA
-    void net_get_wifi_status_basic();
     void net_get_wifi_status_raw();
-
-    // 0xF9
-    void mount_host_basic();
-    void mount_host_raw();
-
-    // 0xF8
-    void mount_disk_image_basic();
-    void mount_disk_image_raw();
-
-    // 0xF7
-    void open_directory_basic();
-    void open_directory_raw();
-
-    // 0xF6
-    void read_directory_entry_basic();
-    void read_directory_entry_raw();
-
-    // 0xF5
-    void close_directory_basic();
+    void mount_host_raw(const FujiIECPacket &packet);
+    void mount_disk_image_raw(const FujiIECPacket &packet);
+    void open_directory_raw(const FujiIECPacket &packet);
+    void read_directory_entry_raw(const FujiIECPacket &packet);
     void close_directory_raw();
-
-    // 0xF4
-    void read_host_slots_basic();
     void read_host_slots_raw();
-
-    // 0xF3
-    void write_host_slots_basic();
     void write_host_slots_raw();
-
-    // 0xF2
-    void read_device_slots_basic();
     void read_device_slots_raw();
-
-    // 0xF1
-    void write_device_slots_basic();
     void write_device_slots_raw();
-
-    // 0xEA
     void net_get_wifi_enabled_raw();
-
-    // 0xE9
-    void unmount_disk_image_basic();
-    void unmount_disk_image_raw();
-
-    // 0xE8
-    void get_adapter_config_basic();
+    void unmount_disk_image_raw(const FujiIECPacket &packet);
     void get_adapter_config_raw();
-
-    // 0xC4
     void get_adapter_config_extended_raw();
-
-    // 0xE7
     void new_disk();
-
-    // 0xE6
-    void unmount_host_basic();
-    void unmount_host_raw();
-
-    // 0xE5
-    void get_directory_position_basic();
+    void unmount_host_raw(const FujiIECPacket &packet);
     void get_directory_position_raw();
-
-    // 0xE4
-    void set_directory_position_basic();
-    void set_directory_position_raw();
-
-    // 0xE3
-    void set_hindex();
-
-    // 0xE2
-    void set_device_filename_basic();
-    void set_device_filename_raw();
-
-    // 0xDE
-    void write_app_key_basic();
-    void write_app_key_raw();
-
-    // 0xDD
-    void read_app_key_basic();
+    void set_directory_position_raw(const FujiIECPacket &packet);
+    void set_device_filename_raw(const FujiIECPacket &packet);
+    void write_app_key_raw(const FujiIECPacket &packet);
     void read_app_key_raw();
-
-    // 0xDC
-    void open_app_key_basic();
     void open_app_key_raw();
-
-    // 0xDB
-    void close_app_key_basic();
     void close_app_key_raw();
-
-    // 0xDA
-    void get_device_filename_basic();
-    void get_device_filename_raw();
-
-    // 0xD9
-    void set_boot_config_basic();
-    void set_boot_config_raw();
-
-    // 0xD8
+    void get_device_filename_raw(const FujiIECPacket &packet);
+    void set_boot_config_raw(const FujiIECPacket &packet);
     void copy_file(std::string source, std::string destination);
-    void copy_file_basic();
-    void copy_file_raw();
-
-    // 0xD6
-    void set_boot_mode_basic();
-    void set_boot_mode_raw();
-
-    // 0x53 'S' Status
+    void set_boot_mode_raw(const FujiIECPacket &packet);
     void get_status_raw();
-    void get_status_basic();
-
-    // 0xC8
-    void hash_input(std::string input);
-    void hash_input_raw();
-
-    // 0xC7, 0xC3
-    void hash_compute(bool clear_data, Hash::Algorithm alg);
-    void hash_compute_raw(bool clear_data);
-
-    // 0xC6
-    uint8_t hash_length(bool is_hex);
-    void hash_length_raw();
-
-    // 0xC5
-    std::vector<uint8_t> hash_output(bool is_hex);
-    void hash_output_raw();
-
-    // 0xC2
-    void hash_clear();
-    void hash_clear_raw();
 
     // Commodore specific
     void update_firmware();
@@ -223,13 +83,10 @@ protected:
     void bssid();
     void fn_version();
 
-    void enable_device_basic(std::string ids = "");
-    void disable_device_basic(std::string ids = "");
-
     success_is_true check_appkey_creator(bool check_is_write);
 
     void set_fuji_iec_status(int8_t error, const std::string msg) {
-        set_iec_status(error, last_command, msg, fnWiFi.connected(), 15);
+        set_iec_status(error, _activePacket->command(), msg, fnWiFi.connected(), 15);
     }
 
     void set_iec_status(int8_t error, uint8_t cmd, const std::string msg, bool connected, int channel) {
@@ -275,6 +132,7 @@ protected:
     } iecStatus;
 
     device_state_t state;
+    std::unique_ptr<FujiIECPacket> _activePacket;
 
 public:
     void setup();
