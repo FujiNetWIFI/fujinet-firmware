@@ -2268,31 +2268,27 @@
 								<input type="password" name="confirm" id="password_confirm" autocomplete="new-password">
 							</div>
 						</div>
-						<div class="set" id="password-remove-row">
-							<div class="settings-label">
-								<label>Disable password</label>
-							</div>
+						<div class="set">
+							<div class="settings-label"></div>
 							<div class="settings-value">
-								<button type="button" id="password-remove">Remove password</button>
+								<div class="save-button">
+									<button type="submit" value="Update">Update</button>
+								</div>
 							</div>
 						</div>
 						<hr>
 						<div class="settings-text">
-							<div>
-								The password is kept in flash, never on the SD card, and guards the
-								whole web interface.<br>
-								Re-flashing the firmware clears it.<br>
-								<span id="password-remove-hint">Removing the password reopens the web interface to anyone on the network.<br></span>
-								Forgotten it? Put a file named <b>password</b> in the root of the SD card:
-								its first line becomes the new password, and an empty file clears the
-								password. It is applied and then deleted on the next boot.
-							</div>
-							<div id="password-status"></div>
+							<p>
+								Set a password to protect the entire web UI. Password is stored hashed in flash (not SD).
+								Forgotten it? Re-flash, or put a file named <code>password</code> at the root of the SD card
+								containing only the new password. Empty to clear password. The file will be deleted after it's read.
+							</p>
 						</div>
-					</div>
-					<div class="settings-footer">
-						<div class="save-button">
-							<button type="submit" value="Update">Update</button>
+
+						<div class="settings-footer" id="password-remove-row">
+							<div class="save-button">
+								<button type="button" id="password-remove">Disable Password</button>
+							</div>
 						</div>
 					</div>
 				</div>
