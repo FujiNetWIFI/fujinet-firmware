@@ -187,8 +187,6 @@ private:
     bool _command_processed = false;
 #endif
 
-    transState_t _transaction_state = TRANS_STATE::INVALID;
-
     void _sio_process_cmd();
     void _sio_process_queue();
 

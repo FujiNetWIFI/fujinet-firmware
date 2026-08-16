@@ -105,7 +105,7 @@ void lynxDisk::read_block(uint32_t block)
 
     if (_media == nullptr) {
         Debug_println("lynxdisk::read_block - _media is null");
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
@@ -115,7 +115,7 @@ void lynxDisk::read_block(uint32_t block)
     Debug_printf("lynxdisk::read_block - block: %lu\n", block);
     if (_media->read(block, nullptr)) {         // returns TRUE if error occurred
         Debug_println("lynxdisk::read_block - media->read returned false");
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
     }
 
     // Try compressing the block
@@ -128,24 +128,25 @@ void lynxDisk::read_block(uint32_t block)
     if ((c_size <= BLOCK_COMPRESS_CUTOFF) && (c_size > 0)) {
         Debug_printf("lynxdisk::read_block - sending compressed LZ4, size:%d\n", c_size);
         compressed_block[0] = BLOCK_LZ4;
-        transaction_put(compressed_block, c_size+1);
+        SYSTEM_BUS.transaction_send(compressed_block, c_size+1);
     }
     else {
         Debug_printf("lynxdisk::read_block - sending raw 1024 bytes, compressed size was: %d\n", c_size);
         compressed_block[0] = BLOCK_RAW;
         memcpy(&compressed_block[1], _media->_media_blockbuff, MEDIA_BLOCK_SIZE);
-        transaction_put(&compressed_block, MEDIA_BLOCK_SIZE+1);
+        SYSTEM_BUS.transaction_send(&compressed_block, MEDIA_BLOCK_SIZE+1);
     }
 }
 
 void lynxDisk::write_block(uint32_t block)
 {
     if (_media == nullptr) {
-        transaction_error();
+        SYSTEM_BUS.transaction_error();
         return;
     }
 
-    transaction_get(_media->_media_blockbuff, MEDIA_BLOCK_SIZE);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_get(_media->_media_blockbuff, MEDIA_BLOCK_SIZE);
     //memcpy(_media->_media_blockbuff, data, MEDIA_BLOCK_SIZE);
     _media->write(block, false);
 
@@ -153,44 +154,23 @@ void lynxDisk::write_block(uint32_t block)
 
     blockNum = 0xFFFFFFFF;
     _media->_media_last_block = 0xFFFFFFFE;
-    
-    transaction_complete();
+
+    SYSTEM_BUS.transaction_success();
 }
 
-void lynxDisk::comlynx_process()
+void lynxDisk::comlynx_process(const FujiLynxPacket &packet)
 {
-    unsigned char c;
-    int32_t block;
+    Debug_printf("lynxDisk::comlynx_process - command: %02X\n", packet.command());
 
- 
-     // Get the entire payload from Lynx
-    uint16_t len = comlynx_recv_length();
-    Debug_printf("lynxDisk::comlynx_process - len: %ld, ", (long int)len);
-
-    comlynx_recv_buffer(recvbuffer, len);
-    if (comlynx_recv_ck()) {
-        Debug_printf("checksum good\n");
-        comlynx_response_ack();        // good checksum
-    }
-    else {
-        Debug_printf(" checksum bad\n");
-        comlynx_response_nack();       // good checksum
-        return;
-    }
-
-    // get command
-    transaction_get(&c, sizeof(c));
-    Debug_printf("lynxDisk::comlynx_process - command: %02X\n", c);
-
-    switch (c)
+    switch (packet.command())
     {
     case DISKCMD_READ:
-        transaction_get(&block, sizeof(block));
-        read_block(block);
+        read_block(packet.param(0));
         break;
     case DISKCMD_WRITE:
-        transaction_get(&block, sizeof(block));
-        write_block(block);
+        write_block(packet.param(0));
+        break;
+    default:
         break;
     }
 }

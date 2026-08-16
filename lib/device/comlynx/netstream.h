@@ -34,7 +34,7 @@ private:
     void process_net_packet(const uint8_t *buf, size_t len);
     void process_redeye_net_packet(uint8_t *buf, size_t len);
     void drain_tcp_to_lynx();
-    void comlynx_process() override;
+    void comlynx_process(const FujiLynxPacket &packet) override;
 
 public:
     enum class NetStreamMode : uint8_t

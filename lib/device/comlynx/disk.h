@@ -23,7 +23,7 @@ private:
   
     unsigned long blockNum=INVALID_SECTOR_VALUE;
     
-    void comlynx_process() override;
+    void comlynx_process(const FujiLynxPacket &packet) override;
     void read_block(uint32_t block);
     void write_block(uint32_t block);
 

@@ -184,7 +184,7 @@ void lynxNetStream::comlynx_handle_netstream()
     }
 }
 
-void lynxNetStream::comlynx_process()
+void lynxNetStream::comlynx_process(const FujiLynxPacket &packet)
 {
     // Nothing to do here
     return;
