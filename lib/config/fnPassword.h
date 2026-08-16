@@ -11,6 +11,9 @@ Each stored record is stamped with the identity of the firmware that wrote it
 (the app image's ELF SHA-256 on ESP32). On startup a record written by a
 different firmware image is discarded, so re-flashing the firmware clears any
 previously set password.
+
+A forgotten password can also be recovered without re-flashing: see
+apply_sd_file() below.
 */
 #ifndef FNPASSWORD_H
 #define FNPASSWORD_H
@@ -24,8 +27,12 @@ public:
     static const size_t MIN_LENGTH = 4;
     static const size_t MAX_LENGTH = 64;
 
+    // Name of the recovery file looked for in the root of the SD card.
+    static const char *const SD_FILENAME;
+
     // Load the stored password record, discarding it if it belongs to a
-    // different firmware image. Call once at startup, after fsFlash.start().
+    // different firmware image, then apply any SD recovery file. Call once at
+    // startup, after fsFlash.start() and fnSDFAT.start().
     void setup();
 
     bool is_set() const { return !_hash.empty(); }
@@ -39,6 +46,17 @@ public:
 
     // Remove the password. Requires the current one.
     bool remove(const std::string &old_password, std::string &error);
+
+    // Apply a recovery file named SD_FILENAME left in the root of the SD card,
+    // if there is one. Its first line becomes the password, replacing any
+    // existing one; an empty file clears the password instead. The file is
+    // deleted once it has been read, so the credential does not linger on
+    // removable media and the change is not re-applied on every boot.
+    //
+    // This is a deliberate physical-access escape hatch for a forgotten
+    // password. It grants nothing that pulling the card and re-flashing the
+    // firmware would not already grant.
+    void apply_sd_file();
 
     // Verify 'password' and start a new session. Returns the new session token,
     // or an empty string when the password is wrong or no password is set.
@@ -80,6 +98,10 @@ private:
     bool store();
     void wipe();
     void forget_basic_auth();
+
+    // Store 'new_password' without checking the current one. Length is still
+    // validated. Callers are responsible for authorizing the change.
+    bool set_unchecked(const std::string &new_password, std::string &error);
 
     static std::string firmware_id();
     static std::string make_salt();

@@ -2268,13 +2268,24 @@
 								<input type="password" name="confirm" id="password_confirm" autocomplete="new-password">
 							</div>
 						</div>
+						<div class="set" id="password-remove-row">
+							<div class="settings-label">
+								<label>Disable password</label>
+							</div>
+							<div class="settings-value">
+								<button type="button" id="password-remove">Remove password</button>
+							</div>
+						</div>
 						<hr>
 						<div class="settings-text">
 							<div>
-								The password is kept in flash, never on the SD card, and guards sensitive
-								pages.<br>
+								The password is kept in flash, never on the SD card, and guards the
+								whole web interface.<br>
 								Re-flashing the firmware clears it.<br>
-								<span id="password-remove-hint">To remove the password, leave the new password blank.</span>
+								<span id="password-remove-hint">Removing the password reopens the web interface to anyone on the network.<br></span>
+								Forgotten it? Put a file named <b>password</b> in the root of the SD card:
+								its first line becomes the new password, and an empty file clears the
+								password. It is applied and then deleted on the next boot.
 							</div>
 							<div id="password-status"></div>
 						</div>
@@ -2293,29 +2304,30 @@
 						var statusEl = document.getElementById("password-status");
 						var indicator = document.getElementById("password-state-indicator");
 						var currentRow = document.getElementById("password-current-row");
+						var removeRow = document.getElementById("password-remove-row");
+						var removeButton = document.getElementById("password-remove");
 						var removeHint = document.getElementById("password-remove-hint");
+						var currentInput = document.getElementById("password_current");
 						var newInput = document.getElementById("password_new");
 						var confirmInput = document.getElementById("password_confirm");
+						var logoutControl = document.getElementById("logout-control");
 
 						function render() {
 							indicator.textContent = isSet ? "Set" : "Not set";
 							indicator.style.color = isSet ? "green" : "red";
 							currentRow.style.display = isSet ? "" : "none";
+							removeRow.style.display = isSet ? "" : "none";
 							removeHint.style.display = isSet ? "" : "none";
 						}
 
-						form.addEventListener("submit", function(e) {
-							e.preventDefault();
+						function fail(message) {
+							statusEl.style.color = "red";
+							statusEl.textContent = message;
+						}
 
-							// A blank new password on a device that has one means "remove it"
-							var clearing = isSet && newInput.value === "" && confirmInput.value === "";
-							var body = new URLSearchParams();
-							body.append("action", clearing ? "clear" : "set");
-							body.append("current", document.getElementById("password_current").value);
-							body.append("new", newInput.value);
-							body.append("confirm", confirmInput.value);
-							statusEl.textContent = "Saving...";
+						function post(body, busyText) {
 							statusEl.style.color = "";
+							statusEl.textContent = busyText;
 							fetch("/password", {
 								method: "POST",
 								headers: {"Content-Type": "application/x-www-form-urlencoded"},
@@ -2323,26 +2335,62 @@
 							}).then(function(r) {
 								return r.json();
 							}).then(function(d) {
-								if (d.status === "ok") {
-									isSet = !!d.password_set;
-									// If password was just set, redirect to login page
-									if (d.password_set) {
-										window.location.href = "/login?next=%2F";
-										return;
-									}
-									form.reset();
-									render();
-									statusEl.style.color = "green";
-									statusEl.textContent = isSet ? "Password saved." : "Password removed.";
-								} else {
-									statusEl.style.color = "red";
-									statusEl.textContent = d.message || "Could not save the password.";
+								if (d.status !== "ok") {
+									fail(d.message || "Could not save the password.");
+									return;
 								}
+								// Setting or changing the password ends this session
+								if (d.password_set) {
+									window.location.href = "/login?next=%2F";
+									return;
+								}
+								// Nothing is protected any more
+								isSet = false;
+								form.reset();
+								render();
+								if (logoutControl) {
+									logoutControl.style.display = "none";
+								}
+								statusEl.style.color = "green";
+								statusEl.textContent = "Password removed. The web interface is now open.";
 							}).catch(function() {
-								statusEl.style.color = "red";
-								statusEl.textContent = "Could not reach FujiNet.";
+								fail("Could not reach FujiNet.");
 							});
+						}
+
+						form.addEventListener("submit", function(e) {
+							e.preventDefault();
+
+							if (newInput.value === "") {
+								fail(isSet
+									? "Enter a new password, or use Remove password to disable it."
+									: "Enter a new password.");
+								return;
+							}
+
+							var body = new URLSearchParams();
+							body.append("action", "set");
+							body.append("current", currentInput.value);
+							body.append("new", newInput.value);
+							body.append("confirm", confirmInput.value);
+							post(body, "Saving...");
 						});
+
+						removeButton.addEventListener("click", function() {
+							if (currentInput.value === "") {
+								fail("Enter the current password to remove it.");
+								return;
+							}
+							if (!confirm("Remove the device password? The web interface will be open to anyone on the network.")) {
+								return;
+							}
+
+							var body = new URLSearchParams();
+							body.append("action", "clear");
+							body.append("current", currentInput.value);
+							post(body, "Removing...");
+						});
+
 						render();
 					})();
 				</script>

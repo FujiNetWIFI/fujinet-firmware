@@ -11,6 +11,7 @@
 #include "../../include/debug.h"
 #include "../../include/version.h"
 #include "base64.h"
+#include "fnFsSD.h"
 
 #ifdef ESP_PLATFORM
 #include <esp_app_desc.h>
@@ -47,6 +48,13 @@
 #else
 #define PASSWORD_FILENAME "/fnpassword"
 #endif
+
+// Recovery file in the root of the SD card. Only its first line is read, and
+// the buffer is sized so an over-long password is truncated rather than
+// silently accepted in part - it fails the length check below instead.
+#define PASSWORD_SD_LINE_MAX (FNPassword::MAX_LENGTH + 8)
+
+const char *const FNPassword::SD_FILENAME = "/password";
 
 FNPassword fnPassword;
 
@@ -156,18 +164,22 @@ void FNPassword::setup()
 {
     load();
 
-    if (_hash.empty())
-        return;
-
-    std::string current = firmware_id();
-    if (_fwid != current)
+    if (!_hash.empty())
     {
-        Debug_println("Device password was set by different firmware - clearing");
-        wipe();
-        return;
+        std::string current = firmware_id();
+        if (_fwid != current)
+        {
+            Debug_println("Device password was set by different firmware - clearing");
+            wipe();
+        }
+        else
+        {
+            Debug_println("Device password is set");
+        }
     }
 
-    Debug_println("Device password is set");
+    // A recovery file on the SD card overrides whatever was just loaded.
+    apply_sd_file();
 }
 
 bool FNPassword::verify(const std::string &password) const
@@ -184,6 +196,11 @@ bool FNPassword::change(const std::string &old_password, const std::string &new_
         error = "Current password is incorrect";
         return false;
     }
+    return set_unchecked(new_password, error);
+}
+
+bool FNPassword::set_unchecked(const std::string &new_password, std::string &error)
+{
     if (new_password.size() < MIN_LENGTH)
     {
         error = "New password must be at least " + std::to_string(MIN_LENGTH) + " characters";
@@ -233,9 +250,64 @@ bool FNPassword::remove(const std::string &old_password, std::string &error)
     }
 
     wipe();
-    _token.clear();
     Debug_println("Device password removed");
     return true;
+}
+
+void FNPassword::apply_sd_file()
+{
+    if (!fnSDFAT.running() || !fnSDFAT.exists(SD_FILENAME))
+        return;
+
+    Debug_printf("Found %s on the SD card\r\n", SD_FILENAME);
+
+    FILE *fin = fnSDFAT.file_open(SD_FILENAME, FILE_READ);
+    if (fin == nullptr)
+    {
+        Debug_println("fnPassword: could not open the SD password file - leaving it in place");
+        return;
+    }
+
+    char line[PASSWORD_SD_LINE_MAX] = {0};
+    std::string password;
+    if (fgets(line, sizeof(line), fin) != nullptr)
+        password = line;
+    fclose(fin);
+    memset(line, 0, sizeof(line));
+
+    // A text editor will have left a line ending behind, and a stray space is
+    // easy to add and impossible to see. Trim both ends.
+    size_t begin = password.find_first_not_of(" \t\r\n");
+    size_t end = password.find_last_not_of(" \t\r\n");
+    password = (begin == std::string::npos) ? "" : password.substr(begin, end - begin + 1);
+
+    if (password.empty())
+    {
+        if (is_set())
+        {
+            wipe();
+            Debug_println("Device password cleared by the SD password file");
+        }
+        else
+        {
+            Debug_println("SD password file is empty and no password is set - nothing to do");
+        }
+    }
+    else
+    {
+        std::string error;
+        if (set_unchecked(password, error))
+            Debug_println("Device password set from the SD password file");
+        else
+            Debug_printf("SD password file rejected: %s\r\n", error.c_str());
+    }
+
+    // Whatever the outcome, do not leave the credential on removable media,
+    // and do not re-apply it on the next boot.
+    if (fnSDFAT.remove(SD_FILENAME))
+        Debug_printf("Deleted %s from the SD card\r\n", SD_FILENAME);
+    else
+        Debug_printf("fnPassword: could not delete %s - DELETE IT MANUALLY\r\n", SD_FILENAME);
 }
 
 std::string FNPassword::login(const std::string &password)
