@@ -1556,11 +1556,11 @@ void fujiDevice::fujicmd_generate_guid()
 
         case 19:
             /* UUID variant: 8, 9, a, or b */
-            uuid_str[i] = hex[(rand() & 0x3) | 0x8];
+            uuid_str[i] = hex[(fnSystem.random() & 0x3) | 0x8];
             break;
 
         default:
-            uuid_str[i] = hex[rand() & 0xF];
+            uuid_str[i] = hex[fnSystem.random() & 0xF];
             break;
         }
     }

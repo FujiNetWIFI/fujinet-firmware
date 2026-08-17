@@ -16,6 +16,7 @@
 #include <esp_idf_version.h>
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
 #include <esp_chip_info.h>
+#include <esp_random.h>
 #include <hal/gpio_ll.h>
 #include "esp_adc/adc_oneshot.h"
 #include "esp_adc/adc_cali.h"
@@ -249,6 +250,11 @@ int IRAM_ATTR SystemManager::digital_read(uint8_t pin)
 }
 
 #ifdef ESP_PLATFORM
+uint32_t SystemManager::random()
+{
+    return esp_random();
+}
+
 // from esp32-hal-misc.c
 unsigned long IRAM_ATTR SystemManager::micros()
 {
@@ -267,6 +273,20 @@ void SystemManager::delay(uint32_t ms)
     vTaskDelay(ms / portTICK_PERIOD_MS);
 }
 #else
+uint32_t SystemManager::random()
+{
+    /* rand() repeats the same sequence from process start unless seeded */
+    static bool seeded = false;
+
+    if (!seeded)
+    {
+        srand((unsigned)time(NULL));
+        seeded = true;
+    }
+
+    return (uint32_t)rand();
+}
+
 uint64_t SystemManager::micros()
 {
     struct timeval tv;
