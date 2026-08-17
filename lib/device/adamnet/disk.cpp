@@ -260,19 +260,14 @@ void adamDisk::adamnet_response_send()
     if (_media == nullptr)
         return;
 
-    uint8_t c = adamnet_checksum(_media->_media_blockbuff, DDP_BLOCK_SIZE);
-    uint8_t b[1028];
-
-    memcpy(&b[3], _media->_media_blockbuff, DDP_BLOCK_SIZE);
-
-    b[0] = 0xB0 | _devnum;
-    b[1] = 0x04;
-    b[2] = 0x00;
-    b[1027] = c;
+    FujiAdamPacket packet(_devnum, APT::NM_SEND,
+                          ByteBuffer(_media->_media_blockbuff,
+                                     _media->_media_blockbuff + DDP_BLOCK_SIZE));
+    auto encoded = packet.serialize();
 
     SYSTEM_BUS.wait_turnaround(ADAMNET_DISK_SEND_TURNAROUND_US);
     SYSTEM_BUS.quiet_rx_for_send(true);
-    adamnet_send_buffer(b, sizeof(b));
+    adamnet_send_buffer(encoded.data(), encoded.size());
     SYSTEM_BUS.quiet_rx_for_send(false);
 }
 

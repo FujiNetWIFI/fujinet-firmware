@@ -787,8 +787,6 @@ void adamNetwork::adamnet_control_receive()
 
 void adamNetwork::adamnet_response_send()
 {
-    uint8_t c = adamnet_checksum(response, response_len);
-
     if (response_len)
     {
         // response_len can be a full 1024 bytes; on the half-duplex bus that whole
@@ -796,10 +794,11 @@ void adamNetwork::adamnet_response_send()
         // UART ISR enough to jitter the outgoing bytes. Coalesce the echo for the
         // duration of the send (same fix as the disk block stream).
         SYSTEM_BUS.quiet_rx_for_send(true);
-        adamnet_send(0xB0 | _devnum);
-        adamnet_send_length(response_len);
-        adamnet_send_buffer(response, response_len);
-        adamnet_send(c);
+        FujiAdamPacket packet(_devnum, APT::NM_SEND,
+                              ByteBuffer(response, response + response_len));
+        auto encoded = packet.serialize();
+        adamnet_send_buffer(encoded.data(), encoded.size());
+        response_len = 0;
         SYSTEM_BUS.quiet_rx_for_send(false);
     }
     else

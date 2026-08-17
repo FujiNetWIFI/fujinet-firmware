@@ -272,9 +272,9 @@ void adamFuji::setup()
     status_wait_enabled = false;
 
     SYSTEM_BUS.addDevice(&_fnDisks[0].disk_dev, FUJI_DEVICEID_DISK);
-    SYSTEM_BUS.addDevice(&_fnDisks[1].disk_dev, FUJI_DEVICEID_DISK + 1);
-    SYSTEM_BUS.addDevice(&_fnDisks[2].disk_dev, FUJI_DEVICEID_DISK + 2);
-    SYSTEM_BUS.addDevice(&_fnDisks[3].disk_dev, FUJI_DEVICEID_DISK + 3);
+    SYSTEM_BUS.addDevice(&_fnDisks[1].disk_dev, FUJI_DEVICEID_DISK2);
+    SYSTEM_BUS.addDevice(&_fnDisks[2].disk_dev, FUJI_DEVICEID_DISK3);
+    SYSTEM_BUS.addDevice(&_fnDisks[3].disk_dev, FUJI_DEVICEID_DISK4);
 
     // Read and enable devices
     _fnDisks[0].disk_dev.device_active = Config.get_device_slot_enable_1();
@@ -310,7 +310,7 @@ void adamFuji::setup()
         theNetwork2 = new adamNetwork();
         theSerial = new adamSerial();
         SYSTEM_BUS.addDevice(theNetwork, FUJI_DEVICEID_NETWORK);  // temporary.
-        SYSTEM_BUS.addDevice(theNetwork2, FUJI_DEVICEID_NETWORK + 1); // temporary
+        SYSTEM_BUS.addDevice(theNetwork2, static_cast<fujiDeviceID_t>(FUJI_DEVICEID_NETWORK + 1)); // temporary
         SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET);    // Fuji becomes the gateway device.
     }
 }
@@ -538,20 +538,18 @@ void adamFuji::adamnet_control_send(const FujiAdamPacket &packet)
 
 void adamFuji::adamnet_control_clr()
 {
-    adamnet_send(0xBF);
-    adamnet_send_length(response_len);
-    adamnet_send_buffer(response, response_len);
-    adamnet_send(adamnet_checksum(response, response_len));
-    adamnet_recv(); // get the ack.
-    memset(response, 0, sizeof(response));
+    FujiAdamPacket packet(_devnum, APT::NM_SEND,
+                          ByteBuffer(response, response + response_len));
+    auto encoded = packet.serialize();
+    adamnet_send_buffer(encoded.data(), encoded.size());
     response_len = 0;
 }
 
 void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
 {
-    if (response[0])
+    if (response_len)
     {
-        Debug_printv("No soup for you!");
+        // Still have queued up data that needs to be read, ignore this request
         SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
         SYSTEM_BUS.transaction_success();
         return;
@@ -616,46 +614,5 @@ void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
     Debug_printf("%s\n", util_hexdump(current_entry->data(), maxlen).c_str());
     SYSTEM_BUS.transaction_send(current_entry->data(), maxlen);
 }
-
-#if 0
-bool adamFuji::fujicmd_mount_disk_image_success(uint8_t deviceSlot,
-                                                disk_access_flags_t access_mode)
-{
-    Debug_println("Fuji cmd: MOUNT IMAGE");
-
-    // Adam needs ACK before we even determine if the disk can be mounted
-    SYSTEM_BUS.transaction_success();
-    return fujicore_mount_disk_image_success(deviceSlot, access_mode);
-}
-
-void adamFuji::fujicmd_get_adapter_config()
-{
-    // Adam needs ACK ASAP
-    SYSTEM_BUS.transaction_success();
-
-    // also return string versions of the data to save the host some computing
-    Debug_printf("Fuji cmd: GET ADAPTER CONFIG\r\n");
-
-    // AdapterConfigExtended contains AdapterConfig so just get Extended
-    AdapterConfigExtended cfg = fujicore_get_adapter_config_extended();
-
-    // Only write out the AdapterConfig part
-    response_len = sizeof(AdapterConfig);
-    memcpy(response, &cfg, response_len);
-}
-
-void adamFuji::fujicmd_get_adapter_config_extended()
-{
-    // Adam needs ACK ASAP
-    SYSTEM_BUS.transaction_success();
-
-    // also return string versions of the data to save the host some computing
-    Debug_printf("Fuji cmd: GET ADAPTER CONFIG EXTENDED\r\n");
-
-    AdapterConfigExtended cfg = fujicore_get_adapter_config_extended();
-    response_len = sizeof(cfg);
-    memcpy(response, &cfg, response_len);
-}
-#endif
 
 #endif /* BUILD_ADAM */

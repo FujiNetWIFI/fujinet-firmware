@@ -183,8 +183,6 @@ private:
     long answerTimer;
     bool answered=false;
 
-    AdamNetStatus deviceStatus() override;
-
     void crx_toggle(bool toggle);                // CRX active/inactive?
 
     void modemCommand(); // Execute modem AT command

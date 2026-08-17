@@ -3,6 +3,7 @@
 
 #ifdef BUILD_ADAM
 
+#include "PacketParam.h"
 #include "PacketParamProxy.h"
 #include "fujiDeviceID.h"
 #include "fujiCommandID.h"
@@ -61,7 +62,7 @@ private:
     mutable uint8_t _payload_checksum;
     mutable std::optional<uint8_t> _unit;
     mutable std::optional<fujiCommandID_t> _command;
-    mutable std::vector<uint32_t> _params;
+    mutable std::vector<PacketParam> _params;
     mutable unsigned _paramSize;
     mutable std::optional<ByteBuffer> _data;
 
@@ -70,10 +71,35 @@ private:
 
     uint32_t getParam(size_t index, size_t psize) const;
     void fillParams(size_t count, size_t psize) const;
+    std::uint8_t calcChecksum(const ByteBuffer& buf) const;
+
+    // Variadic constructor helpers for parameters
+    void processArg(std::uint8_t v)  { _params.emplace_back(v); }
+    void processArg(std::uint16_t v) { _params.emplace_back(v); }
+    void processArg(std::uint32_t v) { _params.emplace_back(v); }
+
+    // Payload helpers
+    void processArg(const ByteBuffer& buf) { _data = buf; }
+    void processArg(ByteBuffer&& buf)      { _data = std::move(buf); }
+
+    // Convenience: allow passing a std::string payload; it’s treated as raw bytes
+    void processArg(const std::string& s) {
+        ByteBuffer buf(s.begin(), s.end());
+        _data = std::move(buf);
+    }
 
 public:
     FujiAdamPacket(uint8_t dest) : _device(static_cast<fujiDeviceID_t>(dest & 0x0F)),
                                    _type(static_cast<adamPacketType_t>(dest >> 4)) {};
+    template<typename... Args>
+    FujiAdamPacket(fujiDeviceID_t source, adamPacketType_t type, Args&&... args)
+        : _device(source)
+        , _type(type)
+    {
+        (processArg(std::forward<Args>(args)), ...);  // fold expression
+    }
+
+    ByteBuffer serialize() const;
 
     fujiDeviceID_t device() const { return _device; }
     adamPacketType_t type() const { return _type; }
