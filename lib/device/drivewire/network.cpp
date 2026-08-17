@@ -939,8 +939,24 @@ bool drivewireNetwork::processCommand(const FujiDWPacket &packet)
 
 void drivewireNetwork::process_fs(const FujiDWPacket &packet)
 {
-    parse_and_instantiate_protocol(static_cast<fileAccessMode_t>(packet.param8(0))
-                                   == ACCESS_MODE::DIRECTORY);
+    char tmp[256];
+    bool is_dir;
+
+    // Params must be read before the payload; the packet fills from the stream on demand.
+    is_dir = static_cast<fileAccessMode_t>(packet.param8(0)) == ACCESS_MODE::DIRECTORY;
+
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    if (SYSTEM_BUS.transaction_get(tmp, sizeof(tmp)).is_error())
+    {
+        Debug_printf("Short read. Exiting.");
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
+    tmp[sizeof(tmp)-1] = '\0';
+    deviceSpec = std::string(tmp);
+
+    parse_and_instantiate_protocol(is_dir);
 
     // Make sure this is really a FS protocol instance
     NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol.get());
@@ -980,7 +996,10 @@ void drivewireNetwork::process_fs(const FujiDWPacket &packet)
     if (err != FUJI_ERROR::NONE)
     {
         SYSTEM_BUS.transaction_error();
+        return;
     }
+
+    SYSTEM_BUS.transaction_success();
 }
 
 void drivewireNetwork::process_tcp(const FujiDWPacket &packet)
