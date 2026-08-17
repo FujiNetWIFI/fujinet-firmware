@@ -133,6 +133,7 @@ public:
     uint64_t millis();
     uint64_t micros();
 #endif
+    uint32_t random();
     void delay_microseconds(uint32_t us);
     void delay(uint32_t ms);
 
