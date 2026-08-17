@@ -16,6 +16,7 @@
 #include <esp_idf_version.h>
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
 #include <esp_chip_info.h>
+#include <esp_random.h>
 #include <hal/gpio_ll.h>
 #include "esp_adc/adc_oneshot.h"
 #include "esp_adc/adc_cali.h"
