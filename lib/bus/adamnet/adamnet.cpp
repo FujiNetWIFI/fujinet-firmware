@@ -91,17 +91,6 @@ static void adamnet_bus_task(void *arg)
 }
 #endif // ESP_PLATFORM
 
-uint8_t adamnet_checksum(const void *buf, unsigned short len)
-{
-    uint8_t checksum = 0x00;
-    const uint8_t *ptr = reinterpret_cast<const uint8_t *>(buf);
-
-    for (unsigned short i = 0; i < len; i++)
-        checksum ^= ptr[i];
-
-    return checksum;
-}
-
 void systemBus::transaction_accept(transState_t expectMoreData)
 {
     assert(_transaction_state == TRANS_STATE::INVALID);
@@ -269,11 +258,10 @@ void virtualDevice::adamnet_control_clr()
     }
     else
     {
-        adamnet_send(0xB0 | _devnum);
-        adamnet_send_length(response_len);
-        adamnet_send_buffer(response, response_len);
-        adamnet_send(adamnet_checksum(response, response_len));
-        memset(response, 0, sizeof(response));
+        FujiAdamPacket packet(_devnum, APT::NM_SEND,
+                              ByteBuffer(response, response + response_len));
+        auto encoded = packet.serialize();
+        adamnet_send_buffer(encoded.data(), encoded.size());
         response_len = 0;
     }
 }
@@ -328,13 +316,12 @@ void systemBus::_adamnet_dispatch(const FujiAdamPacket &packet)
         // Get device capablities/check if it is alive
         {
             AdamNetStatus status = _activeDev->deviceStatus();
-            uint8_t source = (static_cast<uint8_t>(APT::NM_STATUS) << 4) | _activeDev->id();
-            uint8_t checksum = adamnet_checksum(&status, sizeof(status));
-
+            const uint8_t *ptr = (const uint8_t *) &status;
+            FujiAdamPacket packet(_activeDev->id(), APT::NM_STATUS,
+                                  ByteBuffer(ptr, ptr + sizeof(status)));
+            auto encoded = packet.serialize();
             SYSTEM_BUS.start_time=GET_TIMESTAMP();
-            _activeDev->adamnet_send(source);
-            _activeDev->adamnet_send_buffer(&status, sizeof(status));
-            _activeDev->adamnet_send(checksum);
+            _activeDev->adamnet_send_buffer(encoded.data(), encoded.size());
         }
         break;
 
@@ -482,7 +469,7 @@ void systemBus::shutdown()
     Debug_printf("All devices shut down.\n");
 }
 
-void systemBus::addDevice(virtualDevice *pDevice, uint8_t device_id)
+void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
 {
     Debug_printf("Adding device: %02X\n", device_id);
     pDevice->_devnum = device_id;
@@ -490,11 +477,14 @@ void systemBus::addDevice(virtualDevice *pDevice, uint8_t device_id)
 
     switch (device_id)
     {
-    case 0x02:
+    case FUJI_DEVICEID_PRINTER:
         _printerDev = (adamPrinter *)pDevice;
         break;
-    case 0x0f:
+    case FUJI_DEVICEID_FUJINET:
         _fujiDev = dynamic_cast<adamFuji*>(pDevice);
+        break;
+
+    default:
         break;
     }
 }
@@ -529,7 +519,7 @@ int systemBus::numDevices()
     return _daisyChain.size();
 }
 
-void systemBus::changeDeviceId(virtualDevice *p, uint8_t device_id)
+void systemBus::changeDeviceId(virtualDevice *p, fujiDeviceID_t device_id)
 {
     for (auto it = _daisyChain.begin(); it != _daisyChain.end(); ++it)
     {

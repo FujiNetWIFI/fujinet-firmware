@@ -80,14 +80,6 @@ class adamPrinter;
 class fujiDevice;
 
 /**
- * @brief Calculate checksum for AdamNet packets. Uses a simple 8-bit XOR of each successive byte.
- * @param buf pointer to buffer
- * @param len length of buffer
- * @return checksum value (0x00 - 0xFF)
- */
-uint8_t adamnet_checksum(const void *buf, unsigned short len);
-
-/**
  * @brief An AdamNet Device
  */
 class virtualDevice
@@ -170,7 +162,7 @@ protected:
     /**
      * @brief Device Number: 0-15
      */
-    uint8_t _devnum;
+    fujiDeviceID_t _devnum;
 
     // PC/BoIP: bypass the 300us response window (a slow host can blow it). Only
     // for re-polled block devices; single-shot devices keep it.
@@ -209,7 +201,7 @@ public:
      * @brief return the device number (0-15) of this device
      * @return the device # (0-15) of this device
      */
-    uint8_t id() { return _devnum; }
+    fujiDeviceID_t id() { return _devnum; }
 
 
 };
@@ -289,14 +281,14 @@ public:
     bool stall_silent = false;
 
     int numDevices();
-    void addDevice(virtualDevice *pDevice, uint8_t device_id);
+    void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id);
     void remDevice(virtualDevice *pDevice);
     void remDevice(uint8_t device_id);
     bool deviceExists(uint8_t device_id);
     void enableDevice(uint8_t device_id);
     void disableDevice(uint8_t device_id);
     virtualDevice *deviceById(uint8_t device_id);
-    void changeDeviceId(virtualDevice *pDevice, uint8_t device_id);
+    void changeDeviceId(virtualDevice *pDevice, fujiDeviceID_t device_id);
     bool deviceEnabled(uint8_t device_id);
 #ifdef ESP_PLATFORM
     QueueHandle_t qAdamNetMessages = nullptr;
