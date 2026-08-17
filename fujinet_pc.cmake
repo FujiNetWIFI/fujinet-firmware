@@ -606,16 +606,14 @@ endif()
 
 # Version file
 # run build_version_pc.py to generate ${CMAKE_BINARY_DIR}/include/build_version.h
-add_custom_command(
-  OUTPUT  "${CMAKE_BINARY_DIR}/include/build_version.h"
-  DEPENDS build_version_pc.py "${CMAKE_SOURCE_DIR}/include/version.h"
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/include"
-  COMMAND python build_version_pc.py "${CMAKE_SOURCE_DIR}/include/version.h" "${CMAKE_BINARY_DIR}/include/build_version.h"
-  COMMENT "Create build_version.h file"
-  VERBATIM
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/include")
+add_custom_target(build_version
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMAND python build_version_pc.py "${CMAKE_SOURCE_DIR}/include/version.h" "${CMAKE_BINARY_DIR}/include/build_version.h"
+    BYPRODUCTS "${CMAKE_BINARY_DIR}/include/build_version.h"
+    COMMENT "Create build_version.h file"
+    VERBATIM
 )
-add_custom_target(build_version DEPENDS "${CMAKE_BINARY_DIR}/include/build_version.h")
 add_dependencies(fujinet build_version)
 target_include_directories(fujinet PRIVATE "${CMAKE_BINARY_DIR}/include")
 
