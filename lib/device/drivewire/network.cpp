@@ -136,6 +136,7 @@ void drivewireNetwork::close()
     // If no protocol enabled, we just signal complete, and return.
     if (protocol == nullptr)
     {
+        SYSTEM_BUS.transaction_success();
         return;
     }
 
