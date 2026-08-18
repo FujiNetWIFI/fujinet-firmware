@@ -22,6 +22,11 @@
 #include "fuji_endian.h"
 #include "compat_string.h"
 
+#ifdef _WIN32
+#define setenv(name, value, overwrite) _putenv_s(name, value)
+#define unsetenv(name) _putenv_s(name, "")
+#endif /* _WIN32 */
+
 #define IMAGE_EXTENSION ".ddp"
 #define COPY_SIZE 532
 

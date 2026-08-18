@@ -6,6 +6,11 @@
 #include <PSRAMAllocator.h>
 #endif /* ESP_PLATFORM */
 
+#ifdef _WIN32
+#define setenv(name, value, overwrite) _putenv_s(name, value)
+#define unsetenv(name) _putenv_s(name, "")
+#endif /* _WIN32 */
+
 #define IMAGE_EXTENSION ".lnx"
 #define COPY_SIZE 532
 
