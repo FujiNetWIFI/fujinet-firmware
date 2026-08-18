@@ -16,11 +16,6 @@
   extern iecModem *sioR;
 #endif
 
-#ifdef BUILD_ADAM
-# include "adamnet/modem.h"
-  extern adamModem *sioR;
-#endif
-
 #ifdef BUILD_LYNX
 //# include "comlynx/modem.h"
 //  extern lynxModem *sioR;

@@ -68,14 +68,12 @@
 
 #ifdef BUILD_ADAM
 # include "adamnet/keyboard.h"
-# include "adamnet/modem.h"
 # include "adamnet/printer.h"
 # include "adamnet/printerlist.h"
 # include "adamnet/query_device.h"
 # include "adamnet/adamFuji.h"
 
 //# define NO_VIRTUAL_KEYBOARD
-    adamModem *sioR;
     adamKeyboard *sioK;
     adamQueryDevice *sioQ;
     bool exists = false;

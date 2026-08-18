@@ -34,7 +34,7 @@
 #include "sio/sioFuji.h"
 #endif /* BUILD_ATARI */
 
-#ifdef BUILD_LYNX
+#if defined(BUILD_LYNX) || defined(BUILD_ADAM)
 #define NO_MODEM_DEVICE         // doesn't have a modem device
 #endif
 
