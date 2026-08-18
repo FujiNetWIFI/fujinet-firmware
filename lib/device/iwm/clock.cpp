@@ -154,13 +154,13 @@ void iwmClock::iwm_status(const iwm_decoded_cmd_t &cmd)
 void iwmClock::iwm_open(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\r\nClock: Open\n");
-    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_success();
 }
 
 void iwmClock::iwm_close(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\r\nClock: Close\n");
-    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_success();
 }
 
 void iwmClock::shutdown()

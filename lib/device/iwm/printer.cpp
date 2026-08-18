@@ -48,13 +48,13 @@ iwm_device_info_block_t iwmPrinter::create_dib_reply_packet()
 void iwmPrinter::iwm_open(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\nPrinter: Open\n");
-    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_success();
 }
 
 void iwmPrinter::iwm_close(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\nPrinter: Close\n");
-    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_success();
 }
 
 void iwmPrinter::iwm_write(const iwm_decoded_cmd_t &cmd)
@@ -77,7 +77,7 @@ void iwmPrinter::iwm_write(const iwm_decoded_cmd_t &cmd)
     SYSTEM_BUS.transaction_success();
 
     _last_ms = fnSystem.millis();
-    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_success();
 }
 
 /**
