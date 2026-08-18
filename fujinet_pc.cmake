@@ -142,7 +142,7 @@ endif()
 set(INCLUDE_DIRS include
     lib/compat lib/config lib/utils lib/hardware lib/clock lib/clipboard
     lib/FileSystem
-    lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson lib/fnsgml lib/fnxml
+    lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson lib/fnhtml lib/fnxml
     lib/tinyxml2
     lib/webdav lib/http lib/sam lib/task
     lib/modem-sniffer lib/printer-emulator
@@ -227,7 +227,7 @@ set(SOURCES src/main.cpp
     lib/TNFSlib/tnfslib_udp.h lib/TNFSlib/tnfslib_udp_testing.cpp
     lib/telnet/libtelnet.h lib/telnet/libtelnet.c
     lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
-    lib/fnsgml/fnsgml.h lib/fnsgml/fnsgml.cpp
+    lib/fnhtml/fnhtml.h lib/fnhtml/fnhtml.cpp
     lib/fnxml/fnxml.h lib/fnxml/fnxml.cpp
     lib/fnxml/fnxml_query.h lib/fnxml/fnxml_query.cpp
     lib/tinyxml2/tinyxml2.h lib/tinyxml2/tinyxml2.cpp
@@ -626,7 +626,7 @@ add_subdirectory(components_pc/libssh)
 # https://github.com/sahlberg/libnfs
 add_subdirectory(components_pc/libnfs)
 
-# Gumbo (pure-C HTML5 parser) backing components/gumbo-query (CSS selectors) for FNSGML.
+# Gumbo (pure-C HTML5 parser) backing components/gumbo-query (CSS selectors) for FNHTML.
 file(GLOB GUMBO_SOURCES ${CMAKE_SOURCE_DIR}/components/gumbo/*.c)
 add_library(gumbo_fn STATIC ${GUMBO_SOURCES})
 target_include_directories(gumbo_fn PUBLIC ${CMAKE_SOURCE_DIR}/components/gumbo)

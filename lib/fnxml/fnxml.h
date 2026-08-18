@@ -4,10 +4,10 @@
  * Parses a well-formed XML document with tinyxml2 and resolves an XPath-subset
  * query, returning the text (or an attribute) of the match(es).
  *
- * This is the strict-XML counterpart to FNSGML: Gumbo/gumbo-query does HTML5
+ * This is the strict-XML counterpart to FNHTML: Gumbo/gumbo-query does HTML5
  * tree construction with error recovery and CSS selectors, which is the wrong
  * model for XML (namespaced/mixed-case element names, no implied tags, no HTML
- * element vocabulary). FNXML deliberately mirrors the FNSGML/FNJSON interface
+ * element vocabulary). FNXML deliberately mirrors the FNHTML/FNJSON interface
  * so device network handlers can drive it the same way.
  */
 

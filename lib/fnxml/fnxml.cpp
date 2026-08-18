@@ -107,7 +107,7 @@ void FNXML::resolveQuery()
 }
 
 /**
- * Character remapping for target platforms (mirrors FNSGML).
+ * Character remapping for target platforms (mirrors FNHTML).
  */
 std::string FNXML::processString(std::string in)
 {

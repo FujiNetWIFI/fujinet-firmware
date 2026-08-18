@@ -43,7 +43,7 @@ rs232Network::rs232Network()
     specialBuffer->clear();
 
     json.setLineEnding(DEFAULT_LINE_ENDING);
-    sgml.setLineEnding(DEFAULT_LINE_ENDING);
+    html.setLineEnding(DEFAULT_LINE_ENDING);
     xml.setLineEnding(DEFAULT_LINE_ENDING);
 }
 
@@ -129,9 +129,9 @@ void rs232Network::rs232_open(fileAccessMode_t access, netProtoTranslation_t tra
     // TODO: Finally, go ahead and let the parsers know
     json.setProtocol(protocol.get());
     json.setLineEnding(DEFAULT_LINE_ENDING);
-    sgml.setProtocol(protocol.get());
-    sgml.setLineEnding(DEFAULT_LINE_ENDING);
-    sgml_bytes_remaining = 0; // reset per-open so a prior session's count doesn't leak
+    html.setProtocol(protocol.get());
+    html.setLineEnding(DEFAULT_LINE_ENDING);
+    html_bytes_remaining = 0; // reset per-open so a prior session's count doesn't leak
     xml.setProtocol(protocol.get());
     xml.setLineEnding(DEFAULT_LINE_ENDING);
     xml_bytes_remaining = 0; // reset per-open so a prior session's count doesn't leak
@@ -225,15 +225,15 @@ fujiError_t rs232Network::rs232_read_channel_json(uint16_t num_bytes)
 }
 
 /**
- * @brief Perform read of the current SGML channel
+ * @brief Perform read of the current HTML channel
  * @param num_bytes Number of bytes to read
  */
-fujiError_t rs232Network::rs232_read_channel_sgml(uint16_t num_bytes)
+fujiError_t rs232Network::rs232_read_channel_html(uint16_t num_bytes)
 {
-    if (num_bytes > sgml_bytes_remaining)
-        sgml_bytes_remaining=0;
+    if (num_bytes > html_bytes_remaining)
+        html_bytes_remaining=0;
     else
-        sgml_bytes_remaining-=num_bytes;
+        html_bytes_remaining-=num_bytes;
 
     return FUJI_ERROR::NONE;
 }
@@ -269,8 +269,8 @@ fujiError_t rs232Network::rs232_read_channel(uint16_t num_bytes)
     case CHANNEL_MODE::JSON:
         err = rs232_read_channel_json(num_bytes);
         break;
-    case CHANNEL_MODE::SGML:
-        err = rs232_read_channel_sgml(num_bytes);
+    case CHANNEL_MODE::HTML:
+        err = rs232_read_channel_html(num_bytes);
         break;
     case CHANNEL_MODE::XML:
         err = rs232_read_channel_xml(num_bytes);
@@ -345,8 +345,8 @@ fujiError_t rs232Network::rs232_write_channel(uint16_t num_bytes)
         Debug_printf("JSON Not Handled.\n");
         err = FUJI_ERROR::UNSPECIFIED;
         break;
-    case CHANNEL_MODE::SGML:
-        Debug_printf("SGML Not Handled.\n");
+    case CHANNEL_MODE::HTML:
+        Debug_printf("HTML Not Handled.\n");
         err = FUJI_ERROR::UNSPECIFIED;
         break;
     case CHANNEL_MODE::XML:
@@ -422,10 +422,10 @@ fujiError_t rs232Network::rs232_status_channel_json(NetworkStatus *ns)
     return FUJI_ERROR::NONE; // for now
 }
 
-fujiError_t rs232Network::rs232_status_channel_sgml(NetworkStatus *ns)
+fujiError_t rs232Network::rs232_status_channel_html(NetworkStatus *ns)
 {
-    ns->connected = sgml_bytes_remaining > 0;
-    ns->error = sgml_bytes_remaining > 0 ? NDEV_STATUS::SUCCESS : NDEV_STATUS::END_OF_FILE;
+    ns->connected = html_bytes_remaining > 0;
+    ns->error = html_bytes_remaining > 0 ? NDEV_STATUS::SUCCESS : NDEV_STATUS::END_OF_FILE;
     return FUJI_ERROR::NONE; // for now
 }
 
@@ -463,9 +463,9 @@ void rs232Network::rs232_status_channel()
         rs232_status_channel_json(&status);
         avail = json_bytes_remaining;
         break;
-    case CHANNEL_MODE::SGML:
-        rs232_status_channel_sgml(&status);
-        avail = sgml_bytes_remaining;
+    case CHANNEL_MODE::HTML:
+        rs232_status_channel_html(&status);
+        avail = html_bytes_remaining;
         break;
     case CHANNEL_MODE::XML:
         rs232_status_channel_xml(&status);
@@ -592,7 +592,7 @@ void rs232Network::rs232_set_channel_mode(channelMode_t newMode) // was aux2
     {
     case CHANNEL_MODE::PROTOCOL:
     case CHANNEL_MODE::JSON:
-    case CHANNEL_MODE::SGML:
+    case CHANNEL_MODE::HTML:
     case CHANNEL_MODE::XML:
         channelMode = newMode;
         SYSTEM_BUS.transaction_success();
@@ -807,16 +807,16 @@ void rs232Network::rs232_process(const FujiBusPacket &packet)
         break;
     case NETCMD_PARSE:
         SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-        if (channelMode == CHANNEL_MODE::SGML)
-            rs232_parse_sgml();
+        if (channelMode == CHANNEL_MODE::HTML)
+            rs232_parse_html();
         else if (channelMode == CHANNEL_MODE::XML)
             rs232_parse_xml();
         else
             rs232_parse_json();
         break;
     case NETCMD_QUERY:
-        if (channelMode == CHANNEL_MODE::SGML)
-            rs232_set_sgml_query();
+        if (channelMode == CHANNEL_MODE::HTML)
+            rs232_set_html_query();
         else if (channelMode == CHANNEL_MODE::XML)
             rs232_set_xml_query();
         else
@@ -1164,13 +1164,13 @@ void rs232Network::rs232_set_json_query()
     SYSTEM_BUS.transaction_success();
 }
 
-void rs232Network::rs232_parse_sgml()
+void rs232Network::rs232_parse_html()
 {
-    sgml.parse();
+    html.parse();
     SYSTEM_BUS.transaction_success();
 }
 
-void rs232Network::rs232_set_sgml_query()
+void rs232Network::rs232_set_html_query()
 {
     uint8_t in[256];
     uint8_t *tmp;
@@ -1197,14 +1197,14 @@ void rs232Network::rs232_set_sgml_query()
             inp_string.erase(0, p + 1);
     }
 
-    sgml.setReadQuery(inp_string, 0);
-    int query_bytes = sgml.available();
-    sgml_bytes_remaining += query_bytes;
+    html.setReadQuery(inp_string, 0);
+    int query_bytes = html.available();
+    html_bytes_remaining += query_bytes;
     tmp = (uint8_t *)malloc(query_bytes);
-    sgml.readValue(tmp, query_bytes);
+    html.readValue(tmp, query_bytes);
     *receiveBuffer += string((const char *)tmp, query_bytes);
     free(tmp);
-    Debug_printf("SGML query set to %s\n", inp_string.c_str());
+    Debug_printf("HTML query set to %s\n", inp_string.c_str());
     SYSTEM_BUS.transaction_success();
 }
 

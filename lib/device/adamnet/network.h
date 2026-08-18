@@ -11,7 +11,7 @@
 #include "Protocol.h"
 
 #include "fnjson.h"
-#include "fnsgml.h"
+#include "fnhtml.h"
 #include "fnxml.h"
 
 /**
@@ -84,7 +84,7 @@ public:
     void adamnet_control_clr() override;
 
     void adamnet_control_receive_channel_json();
-    void adamnet_control_receive_channel_sgml();
+    void adamnet_control_receive_channel_html();
     void adamnet_control_receive_channel_xml();
     void adamnet_control_receive_channel_protocol();
 
@@ -129,15 +129,15 @@ public:
     void json_query(unsigned short s);
 
     /**
-     * @brief parse incoming SGML/HTML/XML
+     * @brief parse incoming HTML
      */
-    void sgml_parse();
+    void html_parse();
 
     /**
-     * @brief SGML CSS selector Query
+     * @brief HTML CSS selector Query
      * @param s size of query
      */
-    void sgml_query(unsigned short s);
+    void html_query(unsigned short s);
 
     /**
      * @brief parse incoming XML
@@ -176,14 +176,14 @@ private:
     bool jsonRecvd = false;
 
     /**
-     * SGML Object (HTML/XML via CSS selector)
+     * HTML Object (HTML via CSS selector)
      */
-    FNSGML sgml;
+    FNHTML html;
 
     /**
-     * Has SGML been sent via CLR?
+     * Has HTML been sent via CLR?
      */
-    bool sgmlRecvd = false;
+    bool htmlRecvd = false;
 
     /**
      * XML Object (XML via XPath)
@@ -274,14 +274,14 @@ private:
      *
      * @enum PROTOCOL Send to protocol
      * @enum JSON Send to JSON parser.
-     * @enum SGML Send to SGML parser.
+     * @enum HTML Send to HTML parser.
      * @enum XML Send to XML parser.
      */
     enum _channel_mode
     {
         PROTOCOL,
         JSON,
-        SGML,
+        HTML,
         XML
     } channelMode;
 

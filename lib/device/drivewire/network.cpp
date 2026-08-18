@@ -114,10 +114,10 @@ void drivewireNetwork::open(fileAccessMode_t access, netProtoTranslation_t trans
     json = new FNJSON();
     json->setLineEnding("\x0a");
     json->setProtocol(protocol.get());
-    sgml = new FNSGML();
-    sgml->setLineEnding("\x0a");
-    sgml->setProtocol(protocol.get());
-    sgml_bytes_remaining = 0; // reset per-open so a prior session's count doesn't leak
+    html = new FNHTML();
+    html->setLineEnding("\x0a");
+    html->setProtocol(protocol.get());
+    html_bytes_remaining = 0; // reset per-open so a prior session's count doesn't leak
     xml = new FNXML();
     xml->setLineEnding("\x0a");
     xml->setProtocol(protocol.get());
@@ -159,10 +159,10 @@ void drivewireNetwork::close()
         json = nullptr;
     }
 
-    if (sgml != nullptr)
+    if (html != nullptr)
     {
-        delete sgml;
-        sgml = nullptr;
+        delete html;
+        html = nullptr;
     }
 
     if (xml != nullptr)
@@ -241,15 +241,15 @@ fujiError_t drivewireNetwork::read_channel_json(unsigned short num_bytes)
 }
 
 /**
- * @brief Perform read of the current SGML channel
+ * @brief Perform read of the current HTML channel
  * @param num_bytes Number of bytes to read
  */
-fujiError_t drivewireNetwork::read_channel_sgml(unsigned short num_bytes)
+fujiError_t drivewireNetwork::read_channel_html(unsigned short num_bytes)
 {
-    if (num_bytes > sgml_bytes_remaining)
-        sgml_bytes_remaining = 0;
+    if (num_bytes > html_bytes_remaining)
+        html_bytes_remaining = 0;
     else
-        sgml_bytes_remaining -= num_bytes;
+        html_bytes_remaining -= num_bytes;
 
     return FUJI_ERROR::NONE;
 }
@@ -285,8 +285,8 @@ fujiError_t drivewireNetwork::read_channel(unsigned short num_bytes)
     case JSON:
         err = read_channel_json(num_bytes);
         break;
-    case SGML:
-        err = read_channel_sgml(num_bytes);
+    case HTML:
+        err = read_channel_html(num_bytes);
         break;
     case XML:
         err = read_channel_xml(num_bytes);
@@ -369,8 +369,8 @@ fujiError_t drivewireNetwork::write_channel(unsigned short num_bytes)
         Debug_printf("JSON Not Handled.\n");
         err = FUJI_ERROR::UNSPECIFIED;
         break;
-    case SGML:
-        Debug_printf("SGML Not Handled.\n");
+    case HTML:
+        Debug_printf("HTML Not Handled.\n");
         err = FUJI_ERROR::UNSPECIFIED;
         break;
     case XML:
@@ -448,10 +448,10 @@ bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
     return false; // for now
 }
 
-bool drivewireNetwork::status_channel_sgml(NetworkStatus *ns)
+bool drivewireNetwork::status_channel_html(NetworkStatus *ns)
 {
-    ns->connected = sgml_bytes_remaining > 0;
-    ns->error = sgml_bytes_remaining > 0 ? NDEV_STATUS::SUCCESS : NDEV_STATUS::END_OF_FILE;
+    ns->connected = html_bytes_remaining > 0;
+    ns->error = html_bytes_remaining > 0 ? NDEV_STATUS::SUCCESS : NDEV_STATUS::END_OF_FILE;
     return false; // for now
 }
 
@@ -492,9 +492,9 @@ void drivewireNetwork::status_channel()
         status_channel_json(&ns);
         avail = json_bytes_remaining;
         break;
-    case SGML:
-        status_channel_sgml(&ns);
-        avail = sgml_bytes_remaining;
+    case HTML:
+        status_channel_html(&ns);
+        avail = html_bytes_remaining;
         break;
     case XML:
         status_channel_xml(&ns);
@@ -619,7 +619,7 @@ void drivewireNetwork::set_channel_mode(uint8_t mode)
         channelMode = JSON;
         break;
     case 2:
-        channelMode = SGML;
+        channelMode = HTML;
         break;
     case 3:
         channelMode = XML;
@@ -837,16 +837,16 @@ void drivewireNetwork::json_query()
     SYSTEM_BUS.transaction_success();
 }
 
-void drivewireNetwork::parse_sgml()
+void drivewireNetwork::parse_html()
 {
-    sgml->parse();
+    html->parse();
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     _errorCode = NDEV_STATUS::SUCCESS;
     SYSTEM_BUS.transaction_success();
 }
 
-void drivewireNetwork::sgml_query()
+void drivewireNetwork::html_query()
 {
     std::string in_string;
     char tmpq[256];
@@ -884,18 +884,18 @@ void drivewireNetwork::sgml_query()
             in_string.erase(0, p + 1);
     }
 
-    sgml->setReadQuery(in_string, 0);
-    int query_bytes = sgml->available();
-    sgml_bytes_remaining += query_bytes;
+    html->setReadQuery(in_string, 0);
+    int query_bytes = html->available();
+    html_bytes_remaining += query_bytes;
 
     std::vector<uint8_t> tmp(query_bytes);
-    sgml->readValue(tmp.data(), query_bytes);
+    html->readValue(tmp.data(), query_bytes);
 
     // don't copy past first nul char in tmp
     auto null_pos = std::find(tmp.begin(), tmp.end(), 0);
     *receiveBuffer += std::string(tmp.begin(), null_pos);
 
-    Debug_printf("SGML query set to >%s<\r\n", in_string.c_str());
+    Debug_printf("HTML query set to >%s<\r\n", in_string.c_str());
     SYSTEM_BUS.transaction_success();
 }
 
@@ -985,8 +985,8 @@ bool drivewireNetwork::processCommand(const FujiDWPacket &packet)
         break;
 
     case NETCMD_PARSE:
-        if (channelMode == SGML)
-            parse_sgml();
+        if (channelMode == HTML)
+            parse_html();
         else if (channelMode == XML)
             parse_xml();
         else
@@ -1004,8 +1004,8 @@ bool drivewireNetwork::processCommand(const FujiDWPacket &packet)
         set_prefix();
         break;
     case NETCMD_QUERY:
-        if (channelMode == SGML)
-            sgml_query();
+        if (channelMode == HTML)
+            html_query();
         else if (channelMode == XML)
             xml_query();
         else

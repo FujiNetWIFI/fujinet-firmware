@@ -13,7 +13,7 @@
 
 #include "bus.h"
 #include "fnjson.h"
-#include "fnsgml.h"
+#include "fnhtml.h"
 #include "fnxml.h"
 #include "network_data.h"
 #include "peoples_url_parser.h"
@@ -150,14 +150,14 @@ public:
     void json_query(const iwm_decoded_cmd_t &cmd);
 
     /**
-     * @brief parse incoming SGML/HTML/XML
+     * @brief parse incoming HTML
      */
-    void sgml_parse();
+    void html_parse();
 
     /**
-     * @brief SGML CSS selector Query
+     * @brief HTML CSS selector Query
      */
-    void sgml_query(const iwm_decoded_cmd_t &cmd);
+    void html_query(const iwm_decoded_cmd_t &cmd);
 
     /**
      * @brief parse incoming XML
@@ -253,11 +253,11 @@ private:
     error_is_true read_channel_json(const iwm_decoded_cmd_t &cmd);
 
     /**
-     * Perform read of the current SGML channel
+     * Perform read of the current HTML channel
      * @param num_bytes Number of bytes to read.
      * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
      */
-    error_is_true read_channel_sgml(const iwm_decoded_cmd_t &cmd);
+    error_is_true read_channel_html(const iwm_decoded_cmd_t &cmd);
 
     /**
      * Perform read of the current XML channel

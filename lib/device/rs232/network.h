@@ -13,7 +13,7 @@
 #include "status_error_codes.h"
 #include "network_data.h"
 #include "fnjson.h"
-#include "fnsgml.h"
+#include "fnhtml.h"
 #include "fnxml.h"
 
 /**
@@ -251,14 +251,14 @@ private:
     uint16_t json_bytes_remaining = 0;
 
     /**
-     * The fnSGML parser wrapper object (HTML/XML via CSS selector)
+     * The fnHTML parser wrapper object (HTML via CSS selector)
      */
-    FNSGML sgml;
+    FNHTML html;
 
     /**
-     * Bytes remaining of current SGML query result.
+     * Bytes remaining of current HTML query result.
      */
-    uint16_t sgml_bytes_remaining = 0;
+    uint16_t html_bytes_remaining = 0;
 
     /**
      * The fnXML parser wrapper object (XML via XPath)
@@ -324,10 +324,10 @@ private:
     fujiError_t rs232_read_channel_json(uint16_t num_bytes);
 
     /**
-     * @brief Perform read of the current SGML channel
+     * @brief Perform read of the current HTML channel
      * @param num_bytes Number of bytes to read
      */
-    fujiError_t rs232_read_channel_sgml(uint16_t num_bytes);
+    fujiError_t rs232_read_channel_html(uint16_t num_bytes);
 
     /**
      * @brief Perform read of the current XML channel
@@ -359,9 +359,9 @@ private:
     fujiError_t rs232_status_channel_json(NetworkStatus *ns);
 
     /**
-     * @brief get SGML status (# of bytes in receive channel)
+     * @brief get HTML status (# of bytes in receive channel)
      */
-    fujiError_t rs232_status_channel_sgml(NetworkStatus *ns);
+    fujiError_t rs232_status_channel_html(NetworkStatus *ns);
 
     /**
      * @brief get XML status (# of bytes in receive channel)
@@ -394,14 +394,14 @@ private:
     void rs232_set_json_query();
 
     /**
-     * @brief Parse incoming SGML/HTML/XML. (must be in SGML channelMode)
+     * @brief Parse incoming HTML. (must be in HTML channelMode)
      */
-    void rs232_parse_sgml();
+    void rs232_parse_html();
 
     /**
-     * @brief Set SGML CSS selector query std::string. (must be in SGML channelMode)
+     * @brief Set HTML CSS selector query std::string. (must be in HTML channelMode)
      */
-    void rs232_set_sgml_query();
+    void rs232_set_html_query();
 
     /**
      * @brief Parse incoming XML. (must be in XML channelMode)
