@@ -109,7 +109,7 @@ void iwmCPM::iwm_open(const iwm_decoded_cmd_t &cmd)
 void iwmCPM::iwm_close(const iwm_decoded_cmd_t &cmd)
 {
     Debug_printf("\r\nCP/M: Close\n");
-    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_success();
 }
 
 void iwmCPM::iwm_status(const iwm_decoded_cmd_t &cmd)
@@ -193,7 +193,7 @@ void iwmCPM::iwm_write(const iwm_decoded_cmd_t &cmd)
 #endif
     }
 
-    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_success();
 }
 
 void iwmCPM::iwm_ctrl(const iwm_decoded_cmd_t &cmd)

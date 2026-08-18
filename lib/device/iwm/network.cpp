@@ -348,13 +348,13 @@ void iwmNetwork::sgml_parse()
 void iwmNetwork::iwm_open(const iwm_decoded_cmd_t &cmd)
 {
     // nothing in fujinet-lib calls this, it does a control with open command. This is used only by the Apple/// as it has no fn-lib support yet
-    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_success();
 }
 
 void iwmNetwork::iwm_close(const iwm_decoded_cmd_t &cmd)
 {
     // nothing in fujinet-lib calls this, it does a control with close command. This is used only by the Apple/// as it has no fn-lib support yet
-    SYSTEM_BUS.transaction_error(SP_ERR::NOERROR);
+    SYSTEM_BUS.transaction_success();
     close();
 }
 
