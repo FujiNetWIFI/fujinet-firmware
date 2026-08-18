@@ -1185,11 +1185,31 @@ void rs232Network::rs232_set_timer_rate(int newRate)
 
 void rs232Network::process_fs(const FujiBusPacket &packet)
 {
+    /* The FS commands are sent without aux bytes, so there may be no
+     * parameter to read. param() throws when the index is absent. */
+    fileAccessMode_t access = static_cast<fileAccessMode_t>(
+        packet.paramCount() > 0 ? packet.param(0) : 0);
+
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+
+    /* The FS commands carry their own devicespec, so this operation gets its
+     * own protocol rather than whatever an earlier open left behind. */
+    if (protocol != nullptr)
+    {
+        protocol->close();
+        protocol.reset();
+    }
+
+    parse_and_instantiate_protocol(access);
+
     // Make sure this is really a FS protocol instance
     NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol.get());
     if (!fs)
     {
-        SYSTEM_BUS.transaction_error();
+        // transaction_error() was already called from
+        // parse_and_instantiate_protocol()
+        if (protocol != nullptr)
+            SYSTEM_BUS.transaction_error();
         return;
     }
 
