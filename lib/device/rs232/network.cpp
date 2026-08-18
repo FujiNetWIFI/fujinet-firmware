@@ -1206,8 +1206,8 @@ void rs232Network::process_fs(const FujiBusPacket &packet)
     NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol.get());
     if (!fs)
     {
-        // transaction_error() was already called from
-        // parse_and_instantiate_protocol()
+        /* protocol is null if parse_and_instantiate_protocol() failed,
+         * and it signalled the error itself. */
         if (protocol != nullptr)
             SYSTEM_BUS.transaction_error();
         return;
