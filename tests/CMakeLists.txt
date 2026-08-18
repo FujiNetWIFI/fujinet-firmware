@@ -17,6 +17,20 @@ target_link_libraries(fujibuspacket_tests PRIVATE
 
 add_test(NAME fujibuspacket_tests COMMAND fujibuspacket_tests)
 
+add_executable(fnxml_query_tests
+    FnxmlQueryTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/fnxml/fnxml_query.cpp
+    ${CMAKE_SOURCE_DIR}/lib/tinyxml2/tinyxml2.cpp
+)
+
+target_include_directories(fnxml_query_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/tinyxml2/
+    ${CMAKE_SOURCE_DIR}/components_pc/
+)
+
+add_test(NAME fnxml_query_tests COMMAND fnxml_query_tests)
+
 # ------------------------------------------------------------------------------
 # Policy check: no platform-specific BUILD_* ifdefs in lib/device/fujiDevice.
 # Customization there must go through a subclass override, never a #ifdef.

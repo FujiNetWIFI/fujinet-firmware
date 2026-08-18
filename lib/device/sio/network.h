@@ -17,6 +17,7 @@
 #include "status_error_codes.h"
 #include "fnjson.h"
 #include "fnsgml.h"
+#include "fnxml.h"
 
 /**
  * Number of devices to expose via SIO, becomes 0x71 to 0x70 + NUM_DEVICES - 1
@@ -251,12 +252,14 @@ private:
      * @enum PROTOCOL Send to protocol
      * @enum JSON Send to JSON parser.
      * @enum SGML Send to SGML/HTML/XML parser.
+     * @enum XML Send to XML parser.
      */
     enum _channel_mode
     {
         PROTOCOL,
         JSON,
-        SGML
+        SGML,
+        XML
     } channelMode;
 
     /**
@@ -285,6 +288,16 @@ private:
      * Bytes remaining of current SGML query result.
      */
     unsigned short sgml_bytes_remaining = 0;
+
+    /**
+     * The fnXML parser wrapper object (XML via XPath)
+     */
+    FNXML *xml = nullptr;
+
+    /**
+     * Bytes remaining of current XML query result.
+     */
+    unsigned short xml_bytes_remaining = 0;
 
     /**
      * @brief the write buffer
@@ -356,6 +369,12 @@ private:
     fujiError_t sio_read_channel_sgml(unsigned short num_bytes);
 
     /**
+     * @brief Perform read of the current XML channel
+     * @param num_bytes Number of bytes to read
+     */
+    fujiError_t sio_read_channel_xml(unsigned short num_bytes);
+
+    /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
      * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Used to emit sio_error or sio_complete().
@@ -382,6 +401,11 @@ private:
      * @brief get SGML status (# of bytes in receive channel)
      */
     error_is_true sio_status_channel_sgml(NetworkStatus *ns);
+
+    /**
+     * @brief get XML status (# of bytes in receive channel)
+     */
+    error_is_true sio_status_channel_xml(NetworkStatus *ns);
 
     /**
      * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
@@ -430,6 +454,16 @@ private:
      * @brief Set SGML CSS selector query string. (must be in SGML channelMode)
      */
     void sio_set_sgml_query(const FujiSIOPacket &packet);
+
+    /**
+     * @brief Parse incoming XML. (must be in XML channelMode)
+     */
+    void sio_parse_xml();
+
+    /**
+     * @brief Set XML XPath query string. (must be in XML channelMode)
+     */
+    void sio_set_xml_query(const FujiSIOPacket &packet);
 
     /**
      * @brief Set timer rate for PROCEED timer in ms

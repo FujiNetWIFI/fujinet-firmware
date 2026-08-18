@@ -84,6 +84,7 @@ void iwmNetwork::open(const iwm_decoded_cmd_t &cmd)
         current_network_data.protocol.reset();
         current_network_data.json.reset();
         current_network_data.sgml.reset();
+        current_network_data.xml.reset();
         current_network_data.urlParser.reset();
     }
 
@@ -135,6 +136,9 @@ void iwmNetwork::open(const iwm_decoded_cmd_t &cmd)
     current_network_data.sgml = std::make_unique<FNSGML>();
     current_network_data.sgml->setProtocol(current_network_data.protocol.get());
     current_network_data.sgml->setLineEnding("\x0a");
+    current_network_data.xml = std::make_unique<FNXML>();
+    current_network_data.xml->setProtocol(current_network_data.protocol.get());
+    current_network_data.xml->setLineEnding("\x0a");
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     SYSTEM_BUS.transaction_success();
@@ -169,6 +173,7 @@ void iwmNetwork::close()
     if (current_network_data.protocol) current_network_data.protocol.reset();
     if (current_network_data.json) current_network_data.json.reset();
     if (current_network_data.sgml) current_network_data.sgml.reset();
+    if (current_network_data.xml) current_network_data.xml.reset();
     if (current_network_data.urlParser) current_network_data.urlParser.reset();
 
     network_data_map.erase(current_network_unit);
@@ -286,6 +291,10 @@ void iwmNetwork::channel_mode(const iwm_decoded_cmd_t &cmd)
         Debug_printf("channelMode = SGML\n");
         current_network_data.channelMode = mode;
         break;
+    case CHANNEL_MODE::XML:
+        Debug_printf("channelMode = XML\n");
+        current_network_data.channelMode = mode;
+        break;
     default:
         Debug_printf("INVALID MODE = %02x\r\n", mode);
         SYSTEM_BUS.transaction_error();
@@ -345,6 +354,37 @@ void iwmNetwork::sgml_parse()
     SYSTEM_BUS.transaction_success();
 }
 
+void iwmNetwork::xml_query(const iwm_decoded_cmd_t &cmd)
+{
+    auto& current_network_data = network_data_map[current_network_unit];
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    std::string buffer = cmd.dataAsString().value();
+    buffer.resize(strlen(buffer.c_str())); // Truncate to null terminator
+
+    // Unlike JSON, an XPath can contain colons (e.g. div:first-child), so
+    // only strip a leading "N:"/"N#:" device prefix rather than splitting on a colon.
+    if (buffer.size() >= 2 && (buffer[0] == 'N' || buffer[0] == 'n'))
+    {
+        size_t p = 1;
+        if (p < buffer.size() && buffer[p] >= '0' && buffer[p] <= '9')
+            p++;
+        if (p < buffer.size() && buffer[p] == ':')
+            buffer.erase(0, p + 1);
+    }
+
+    Debug_printf("\r\nXML query set to: %s, data_len: %d\r\n", buffer.c_str(), buffer.size());
+    current_network_data.xml->setReadQuery(buffer, 0);
+    SYSTEM_BUS.transaction_success();
+}
+
+void iwmNetwork::xml_parse()
+{
+    auto& current_network_data = network_data_map[current_network_unit];
+    current_network_data.xml->parse();
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_success();
+}
+
 void iwmNetwork::iwm_open(const iwm_decoded_cmd_t &cmd)
 {
     // nothing in fujinet-lib calls this, it does a control with open command. This is used only by the Apple/// as it has no fn-lib support yet
@@ -388,6 +428,10 @@ void iwmNetwork::status()
     case CHANNEL_MODE::SGML:
         current_network_data.sgml->status(&s);
         avail = current_network_data.sgml->available();
+        break;
+    case CHANNEL_MODE::XML:
+        current_network_data.xml->status(&s);
+        avail = current_network_data.xml->available();
         break;
     }
 
@@ -478,6 +522,27 @@ error_is_true iwmNetwork::read_channel_sgml(const iwm_decoded_cmd_t &cmd)
     RETURN_SUCCESS_AS_FALSE();
 }
 
+error_is_true iwmNetwork::read_channel_xml(const iwm_decoded_cmd_t &cmd)
+{
+    auto& current_network_data = network_data_map[current_network_unit];
+    Debug_printf("read_channel_xml - num_bytes: %02x, xml_bytes_remaining: %02x\n",
+                 cmd.frame.char_rw.length, current_network_data.xml->available());
+    if (current_network_data.xml->available() == 0) // if no bytes, we just return with no data
+    {
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_success();
+        RETURN_ERROR_AS_TRUE();
+    }
+
+    auto rlen = std::min<uint16_t>(cmd.frame.char_rw.length,
+                                   current_network_data.xml->readValueLen());
+    ByteBuffer buffer(rlen, 0);
+    current_network_data.xml->readValue(buffer.data(), buffer.size());
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_send(buffer);
+    RETURN_SUCCESS_AS_FALSE();
+}
+
 error_is_true iwmNetwork::read_channel(const iwm_decoded_cmd_t &cmd)
 {
     NetworkStatus ns;
@@ -509,6 +574,7 @@ error_is_true iwmNetwork::write_channel(unsigned short num_bytes)
         current_network_data.protocol->write(num_bytes);
     case CHANNEL_MODE::JSON:
     case CHANNEL_MODE::SGML:
+    case CHANNEL_MODE::XML:
         break;
     }
     RETURN_SUCCESS_AS_FALSE();
@@ -539,6 +605,9 @@ void iwmNetwork::iwm_read(const iwm_decoded_cmd_t &cmd)
         break;
     case CHANNEL_MODE::SGML:
         read_channel_sgml(cmd);
+        break;
+    case CHANNEL_MODE::XML:
+        read_channel_xml(cmd);
         break;
     }
 }
@@ -648,12 +717,16 @@ void iwmNetwork::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
     case NETCMD_PARSE:
         if (current_network_data.channelMode == CHANNEL_MODE::SGML)
             sgml_parse();
+        else if (current_network_data.channelMode == CHANNEL_MODE::XML)
+            xml_parse();
         else
             json_parse();
         break;
     case NETCMD_QUERY:
         if (current_network_data.channelMode == CHANNEL_MODE::SGML)
             sgml_query(cmd);
+        else if (current_network_data.channelMode == CHANNEL_MODE::XML)
+            xml_query(cmd);
         else
             json_query(cmd);
         break;

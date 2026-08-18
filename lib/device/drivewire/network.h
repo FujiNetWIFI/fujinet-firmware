@@ -13,6 +13,7 @@
 #include "status_error_codes.h"
 #include "fnjson.h"
 #include "fnsgml.h"
+#include "fnxml.h"
 
 /**
  * Number of devices to expose via DRIVEWIRE, becomes 0x71 to 0x70 + NUM_DEVICES - 1
@@ -172,12 +173,15 @@ private:
      *
      * @enum PROTOCOL Send to protocol
      * @enum JSON Send to JSON parser.
+     * @enum SGML Send to SGML/HTML/XML parser.
+     * @enum XML Send to XML parser.
      */
     enum _channel_mode
     {
         PROTOCOL,
         JSON,
-        SGML
+        SGML,
+        XML
     } channelMode;
 
     /**
@@ -206,6 +210,16 @@ private:
      * Bytes remaining of current SGML query result.
      */
     unsigned short sgml_bytes_remaining = 0;
+
+    /**
+     * The fnXML parser wrapper object (XML via XPath)
+     */
+    FNXML *xml = nullptr;
+
+    /**
+     * Bytes remaining of current XML query result.
+     */
+    unsigned short xml_bytes_remaining = 0;
 
     uint32_t readAck = 0;
 
@@ -250,6 +264,12 @@ private:
     fujiError_t read_channel_sgml(unsigned short num_bytes);
 
     /**
+     * @brief Perform read of the current XML channel
+     * @param num_bytes Number of bytes to read
+     */
+    fujiError_t read_channel_xml(unsigned short num_bytes);
+
+    /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
      * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Used to emit drivewire_error or drivewire_complete().
@@ -278,6 +298,11 @@ private:
     bool status_channel_sgml(NetworkStatus *ns);
 
     /**
+     * @brief get XML status (# of bytes in receive channel)
+     */
+    bool status_channel_xml(NetworkStatus *ns);
+
+    /**
      * @brief Parse incoming JSON. (must be in JSON channelMode)
      */
     void parse_json();
@@ -296,6 +321,16 @@ private:
      * @brief Set SGML CSS selector query std::string. (must be in SGML channelMode)
      */
     void sgml_query();
+
+    /**
+     * @brief Parse incoming XML. (must be in XML channelMode)
+     */
+    void parse_xml();
+
+    /**
+     * @brief Set XML XPath query std::string. (must be in XML channelMode)
+     */
+    void xml_query();
 
     /**
      * @brief parse URL and instantiate protocol

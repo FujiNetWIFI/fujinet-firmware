@@ -36,6 +36,7 @@ adamNetwork::adamNetwork()
 
     json.setLineEnding("\x00");
     sgml.setLineEnding("\x00");
+    xml.setLineEnding("\x00");
 }
 
 /**
@@ -156,6 +157,7 @@ void adamNetwork::open(unsigned short s)
     // Associate channel mode
     json.setProtocol(protocol.get());
     sgml.setProtocol(protocol.get());
+    xml.setProtocol(protocol.get());
 
     // Clear response
     memset(response, 0, sizeof(response));
@@ -217,6 +219,10 @@ fujiError_t adamNetwork::read_channel(unsigned short num_bytes)
         Debug_printf("SGML Not Handled.\n");
         _err = FUJI_ERROR::UNSPECIFIED;
         break;
+    case XML:
+        Debug_printf("XML Not Handled.\n");
+        _err = FUJI_ERROR::UNSPECIFIED;
+        break;
     }
     return _err;
 }
@@ -267,6 +273,10 @@ fujiError_t adamNetwork::adamnet_write_channel(unsigned short num_bytes)
         Debug_printf("SGML Not Handled.\n");
         err_net = FUJI_ERROR::UNSPECIFIED;
         break;
+    case XML:
+        Debug_printf("XML Not Handled.\n");
+        err_net = FUJI_ERROR::UNSPECIFIED;
+        break;
     }
     return err_net;
 }
@@ -303,6 +313,9 @@ void adamNetwork::status()
         break;
     case SGML:
         // err = sgml.status(&status);
+        break;
+    case XML:
+        // err = xml.status(&status);
         break;
     }
 
@@ -460,6 +473,11 @@ void adamNetwork::channel_mode()
         SYSTEM_BUS.start_time = GET_TIMESTAMP();
         adamnet_response_ack();
         break;
+    case 3:
+        channelMode = XML;
+        SYSTEM_BUS.start_time = GET_TIMESTAMP();
+        adamnet_response_ack();
+        break;
     default:
         SYSTEM_BUS.start_time = GET_TIMESTAMP();
         adamnet_response_nack();
@@ -547,6 +565,51 @@ void adamNetwork::sgml_parse()
     response_len = 0;
 }
 
+void adamNetwork::xml_query(unsigned short s)
+{
+    if (s > sizeof(response)) // clamp wire length to buffer
+        s = sizeof(response);
+
+    memset(response, 0, sizeof(response));
+    response_len = 0;
+
+    adamnet_recv_buffer(response, s);
+    adamnet_recv(); // CK
+
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
+    adamnet_response_ack();
+
+    std::string query((char *)response, s);
+    query.resize(strlen(query.c_str())); // Truncate to null terminator
+
+    // Unlike JSON, an XPath can contain colons (e.g. div:first-child), so
+    // only strip a leading "N:"/"N#:" device prefix rather than splitting on a colon.
+    if (query.size() >= 2 && (query[0] == 'N' || query[0] == 'n'))
+    {
+        size_t p = 1;
+        if (p < query.size() && query[p] >= '0' && query[p] <= '9')
+            p++;
+        if (p < query.size() && query[p] == ':')
+            query.erase(0, p + 1);
+    }
+
+    xml.setReadQuery(query, 0);
+
+    Debug_printv("adamNetwork::xml_query(%s)\n", query.c_str());
+}
+
+void adamNetwork::xml_parse()
+{
+    adamnet_recv(); // CK
+    SYSTEM_BUS.start_time = GET_TIMESTAMP();
+    adamnet_response_ack();
+    bool ok = xml.parse();
+    if (protocol != nullptr)
+        protocol->error = ok ? NDEV_STATUS::SUCCESS : NDEV_STATUS::GENERAL;
+    memset(response, 0, sizeof(response));
+    response_len = 0;
+}
+
 AdamNetStatus adamNetwork::deviceStatus()
 {
     AdamNetStatus status;
@@ -618,12 +681,16 @@ void adamNetwork::adamnet_control_send(const FujiAdamPacket &packet)
     case NETCMD_PARSE:
         if (channelMode == SGML)
             sgml_parse();
+        else if (channelMode == XML)
+            xml_parse();
         else
             json_parse();
         break;
     case NETCMD_QUERY:
         if (channelMode == SGML)
             sgml_query(pkt_len);
+        else if (channelMode == XML)
+            xml_query(pkt_len);
         else
             json_query(pkt_len);
         break;
@@ -665,6 +732,8 @@ void adamNetwork::adamnet_control_clr()
         jsonRecvd = false;
     else if (channelMode == SGML)
         sgmlRecvd = false;
+    else if (channelMode == XML)
+        xmlRecvd = false;
 }
 
 void adamNetwork::adamnet_control_receive_channel_json()
@@ -703,6 +772,30 @@ void adamNetwork::adamnet_control_receive_channel_sgml()
         response_len = sgml.readValueLen();
         sgml.readValue(response, response_len);
         sgmlRecvd = true;
+        adamnet_response_ack();
+    }
+    else
+    {
+        SYSTEM_BUS.start_time = GET_TIMESTAMP();
+        if (response_len > 0)
+            adamnet_response_ack();
+        else
+            adamnet_response_nack();
+    }
+}
+
+void adamNetwork::adamnet_control_receive_channel_xml()
+{
+    NetworkStatus ns;
+
+    if ((protocol == nullptr) || (receiveBuffer == nullptr))
+        return; // Punch out.
+
+    if (xmlRecvd == false)
+    {
+        response_len = xml.readValueLen();
+        xml.readValue(response, response_len);
+        xmlRecvd = true;
         adamnet_response_ack();
     }
     else
@@ -778,6 +871,9 @@ void adamNetwork::adamnet_control_receive()
         break;
     case SGML:
         adamnet_control_receive_channel_sgml();
+        break;
+    case XML:
+        adamnet_control_receive_channel_xml();
         break;
     case PROTOCOL:
         adamnet_control_receive_channel_protocol();

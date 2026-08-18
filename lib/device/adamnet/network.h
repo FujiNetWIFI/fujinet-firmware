@@ -12,6 +12,7 @@
 
 #include "fnjson.h"
 #include "fnsgml.h"
+#include "fnxml.h"
 
 /**
  * Number of devices to expose via ADAM, becomes 0x71 to 0x70 + NUM_DEVICES - 1
@@ -84,6 +85,7 @@ public:
 
     void adamnet_control_receive_channel_json();
     void adamnet_control_receive_channel_sgml();
+    void adamnet_control_receive_channel_xml();
     void adamnet_control_receive_channel_protocol();
 
     void adamnet_response_send();
@@ -138,6 +140,17 @@ public:
     void sgml_query(unsigned short s);
 
     /**
+     * @brief parse incoming XML
+     */
+    void xml_parse();
+
+    /**
+     * @brief XML XPath Query
+     * @param s size of query
+     */
+    void xml_query(unsigned short s);
+
+    /**
      * Check to see if PROCEED needs to be asserted.
      */
     void adamnet_poll_interrupt();
@@ -171,6 +184,16 @@ private:
      * Has SGML been sent via CLR?
      */
     bool sgmlRecvd = false;
+
+    /**
+     * XML Object (XML via XPath)
+     */
+    FNXML xml;
+
+    /**
+     * Has XML been sent via CLR?
+     */
+    bool xmlRecvd = false;
 
     /**
      * The Receive buffer for this N: device
@@ -251,12 +274,15 @@ private:
      *
      * @enum PROTOCOL Send to protocol
      * @enum JSON Send to JSON parser.
+     * @enum SGML Send to SGML parser.
+     * @enum XML Send to XML parser.
      */
     enum _channel_mode
     {
         PROTOCOL,
         JSON,
-        SGML
+        SGML,
+        XML
     } channelMode;
 
     /**

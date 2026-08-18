@@ -14,6 +14,7 @@
 #include "network_data.h"
 #include "fnjson.h"
 #include "fnsgml.h"
+#include "fnxml.h"
 
 /**
  * Number of devices to expose via RS232, becomes 0x71 to 0x70 + NUM_DEVICES - 1
@@ -260,6 +261,16 @@ private:
     uint16_t sgml_bytes_remaining = 0;
 
     /**
+     * The fnXML parser wrapper object (XML via XPath)
+     */
+    FNXML xml;
+
+    /**
+     * Bytes remaining of current XML query result.
+     */
+    uint16_t xml_bytes_remaining = 0;
+
+    /**
      * Instantiate protocol object
      * @return bool TRUE if protocol successfully called open(), FALSE if protocol could not open
      */
@@ -319,6 +330,12 @@ private:
     fujiError_t rs232_read_channel_sgml(uint16_t num_bytes);
 
     /**
+     * @brief Perform read of the current XML channel
+     * @param num_bytes Number of bytes to read
+     */
+    fujiError_t rs232_read_channel_xml(uint16_t num_bytes);
+
+    /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
      * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Used to emit rs232_error or rs232_complete().
@@ -345,6 +362,11 @@ private:
      * @brief get SGML status (# of bytes in receive channel)
      */
     fujiError_t rs232_status_channel_sgml(NetworkStatus *ns);
+
+    /**
+     * @brief get XML status (# of bytes in receive channel)
+     */
+    fujiError_t rs232_status_channel_xml(NetworkStatus *ns);
 
     /**
      * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
@@ -380,6 +402,16 @@ private:
      * @brief Set SGML CSS selector query std::string. (must be in SGML channelMode)
      */
     void rs232_set_sgml_query();
+
+    /**
+     * @brief Parse incoming XML. (must be in XML channelMode)
+     */
+    void rs232_parse_xml();
+
+    /**
+     * @brief Set XML XPath query std::string. (must be in XML channelMode)
+     */
+    void rs232_set_xml_query();
 
     /**
      * @brief Set timer rate for PROCEED timer in ms

@@ -142,7 +142,8 @@ endif()
 set(INCLUDE_DIRS include
     lib/compat lib/config lib/utils lib/hardware lib/clock lib/clipboard
     lib/FileSystem
-    lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson lib/fnsgml
+    lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson lib/fnsgml lib/fnxml
+    lib/tinyxml2
     lib/webdav lib/http lib/sam lib/task
     lib/modem-sniffer lib/printer-emulator
     lib/network-protocol
@@ -227,6 +228,9 @@ set(SOURCES src/main.cpp
     lib/telnet/libtelnet.h lib/telnet/libtelnet.c
     lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
     lib/fnsgml/fnsgml.h lib/fnsgml/fnsgml.cpp
+    lib/fnxml/fnxml.h lib/fnxml/fnxml.cpp
+    lib/fnxml/fnxml_query.h lib/fnxml/fnxml_query.cpp
+    lib/tinyxml2/tinyxml2.h lib/tinyxml2/tinyxml2.cpp
     components/gumbo-query/Document.cpp components/gumbo-query/Node.cpp components/gumbo-query/Object.cpp
     components/gumbo-query/Parser.cpp components/gumbo-query/QueryUtil.cpp components/gumbo-query/Selection.cpp
     components/gumbo-query/Selector.cpp
