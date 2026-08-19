@@ -64,15 +64,13 @@ static bool push_stream(fnFile *f, uint16_t stream_id, uint32_t expected_size)
 {
     uint8_t buf[DISK_SECTORBUF_SIZE];
 
-    char open_payload[5] = {
-        (char)(uint8_t)stream_id,
-        (char)(uint8_t)(expected_size & 0xFF),
-        (char)(uint8_t)((expected_size >> 8) & 0xFF),
-        (char)(uint8_t)((expected_size >> 16) & 0xFF),
-        (char)(uint8_t)((expected_size >> 24) & 0xFF),
-    };
+    struct { uint8_t id; u32le_t size; } open_hdr;
+    static_assert(sizeof(open_hdr) == 5, "OPEN header must not be padded");
+    open_hdr.id = (uint8_t)stream_id;
+    open_hdr.size = expected_size;
+
     auto reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_OPEN,
-                                        std::string(open_payload, sizeof(open_payload)));
+                                        std::string((const char *)&open_hdr, sizeof(open_hdr)));
     if (!reply || reply->command() != FUJICMD_ACK)
     {
         Debug_printv("MediaTypeROM: failed to open DBC stream %u (%lu bytes)\n",
