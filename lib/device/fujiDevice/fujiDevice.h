@@ -207,6 +207,10 @@ public:
     virtual DISK_DEVICE *get_disk_dev(int i) { return &_fnDisks[i].disk_dev; }
     int get_disk_id(int drive_slot) { return _fnDisks[drive_slot].disk_dev.id(); }
 
+    // Slot holding the disk that currently answers as drive 1, or -1 when
+    // fewer than two disks are mounted and rotation is a no-op.
+    int get_rotate_slot();
+
     void populate_slots_from_config();
     void populate_config_from_slots();
     fujiHost *set_slot_hostname(int host_slot, char *hostname);
@@ -226,7 +230,7 @@ public:
     void fujicmd_net_get_wifi_enabled();
     virtual success_is_true fujicmd_mount_disk_image_success(uint8_t deviceSlot, disk_access_flags_t access_mode);
     success_is_true fujicmd_unmount_disk_image_success(uint8_t deviceSlot);
-    void fujicmd_image_rotate();
+    virtual void fujicmd_image_rotate();
     success_is_true fujicmd_open_directory_success(uint8_t hostSlot);
     virtual void fujicmd_close_directory();
     virtual void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl);

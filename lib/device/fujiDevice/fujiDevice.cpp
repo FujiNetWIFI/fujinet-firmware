@@ -213,6 +213,24 @@ void fujiDevice::shutdown()
     _startup_mount_lock.store(false);
 }
 
+// Derived from the device IDs rather than tracked separately, so it stays
+// correct across mounts and unmounts between rotations.
+int fujiDevice::get_rotate_slot()
+{
+    int count = 0;
+    while (count < (int)_totalDiskDevices && _fnDisks[count].fileh != nullptr)
+        count++;
+
+    if (count < 2)
+        return -1;
+
+    for (int i = 0; i < count; i++)
+        if (get_disk_dev(i)->id() == FUJI_DEVICEID_DISK)
+            return i;
+
+    return -1;
+}
+
 // Disk Image Rotate
 /*
   We rotate disks my changing their disk device ID's. That prevents
@@ -228,9 +246,6 @@ void fujiDevice::fujicmd_image_rotate()
 
     if (count > 1)
     {
-        _active_rotate_slot = (_active_rotate_slot + 1) % count;
-        fnLedManager.blink(LED_BUS, _active_rotate_slot + 1);
-
         count--;
 
         // Save the device ID of the disk in the last slot
@@ -246,22 +261,13 @@ void fujiDevice::fujicmd_image_rotate()
         // The first slot gets the device ID of the last slot
         SYSTEM_BUS.changeDeviceId(get_disk_dev(0), last_id);
 
-#if ENABLE_SPEECH
-        // FIXME - make this work
-
-        // Say whatever disk is in D1:
-        if (Config.get_general_rotation_sounds())
+        // Blink out which slot is now drive 1
+        int rotate_slot = get_rotate_slot();
+        if (rotate_slot >= 0)
         {
-            for (int i = 0; i <= count; i++)
-            {
-                if (_fnDisks[i].disk_dev.id() == 0x31)
-                {
-                    say_swap_label();
-                    say_number(i + 1); // because i starts from 0
-                }
-            }
+            _active_rotate_slot = rotate_slot;
+            fnLedManager.blink(LED_BUS, rotate_slot + 1);
         }
-#endif /* ENABLE_SPEECH */
     }
 }
 
