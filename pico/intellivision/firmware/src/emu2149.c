@@ -14,6 +14,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include "pico.h"
 #include "emu2149.h"
 
 static uint32_t voltbl[2][32] = {
@@ -184,7 +185,7 @@ void PSG_writeIO (PSG * psg, uint32_t adr, uint32_t val) {
       psg->adr = val & 0x1f;
 }
 
-static inline void update_output (PSG * psg) {
+static inline void __not_in_flash_func(update_output)(PSG * psg) {
    int i, noise;
    uint8_t incr;
    
@@ -280,11 +281,11 @@ static inline void update_output (PSG * psg) {
    }
 }
 
-static inline int16_t mix_output(PSG *psg)  {
+static inline int16_t __not_in_flash_func(mix_output)(PSG *psg)  {
    return (int16_t)(psg->ch_out[0] + psg->ch_out[1] + psg->ch_out[2]);
 }
 
-int16_t PSG_calc (PSG * psg) {
+int16_t __not_in_flash_func(PSG_calc)(PSG * psg) {
    if (!psg->quality) {
       update_output(psg);
       psg->out = mix_output(psg);
