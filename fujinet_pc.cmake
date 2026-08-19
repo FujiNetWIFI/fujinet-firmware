@@ -142,7 +142,7 @@ endif()
 set(INCLUDE_DIRS include
     lib/compat lib/config lib/utils lib/hardware lib/clock lib/clipboard
     lib/FileSystem
-    lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson lib/fnhtml lib/fnxml
+    lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson lib/fnhtml lib/fnxml lib/fntext
     lib/tinyxml2
     lib/webdav lib/http lib/sam lib/task
     lib/modem-sniffer lib/printer-emulator
@@ -228,6 +228,7 @@ set(SOURCES src/main.cpp
     lib/telnet/libtelnet.h lib/telnet/libtelnet.c
     lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
     lib/fnhtml/fnhtml.h lib/fnhtml/fnhtml.cpp
+    lib/fntext/fn_sanitize.h lib/fntext/fn_sanitize.cpp
     lib/fnxml/fnxml.h lib/fnxml/fnxml.cpp
     lib/fnxml/fnxml_query.h lib/fnxml/fnxml_query.cpp
     lib/tinyxml2/tinyxml2.h lib/tinyxml2/tinyxml2.cpp

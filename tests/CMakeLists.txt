@@ -31,6 +31,18 @@ target_include_directories(fnxml_query_tests PRIVATE
 
 add_test(NAME fnxml_query_tests COMMAND fnxml_query_tests)
 
+add_executable(fn_sanitize_tests
+    FnSanitizeTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/fntext/fn_sanitize.cpp
+)
+
+target_include_directories(fn_sanitize_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/components_pc/
+)
+
+add_test(NAME fn_sanitize_tests COMMAND fn_sanitize_tests)
+
 # ------------------------------------------------------------------------------
 # Policy check: no platform-specific BUILD_* ifdefs in lib/device/fujiDevice.
 # Customization there must go through a subclass override, never a #ifdef.

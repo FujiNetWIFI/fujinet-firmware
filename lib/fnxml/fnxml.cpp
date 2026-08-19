@@ -4,6 +4,8 @@
 
 #include "fnxml.h"
 
+#include "../fntext/fn_sanitize.h"
+
 #include <string.h>
 #include <vector>
 #include <cstdlib>
@@ -111,6 +113,12 @@ void FNXML::resolveQuery()
  */
 std::string FNXML::processString(std::string in)
 {
+    // Output mode runs first: entity decoding and the ASCII fold are
+    // platform-neutral, and folding to ASCII leaves the Atari remap below
+    // nothing to do (the two are alternatives, not a pipeline).
+    if ((_queryParam & XML_OUTPUT_MASK) == XML_OUTPUT_ASCII)
+        return fn_sanitize_ascii(in);
+
 #ifdef BUILD_ATARI
     if (_queryParam & XML_REMAP_CHARS)
     {

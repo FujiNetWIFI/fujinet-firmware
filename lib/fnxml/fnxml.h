@@ -22,8 +22,18 @@
 namespace tinyxml2 { class XMLDocument; class XMLElement; }
 
 enum XMLQueryFlags_t {
+    // Low nibble: character-remapping flags (unchanged).
     XML_REMAP_CHARS = 0x01,
     XML_REMAP_ATASCII_INTERNATIONAL = 0x02,
+
+    // Bits 4-5: how a queried value is post-processed before it is returned.
+    // A field rather than a single flag so further modes can be added without
+    // disturbing the low-nibble flags. VERBATIM is 0, so a client that sends
+    // no output mode keeps the historical behavior exactly.
+    XML_OUTPUT_MASK = 0x30,
+    XML_OUTPUT_VERBATIM = 0x00, // bytes exactly as the document had them
+    XML_OUTPUT_ASCII = 0x10,    // decode entities, transliterate, strip non-ASCII
+    // 0x20 and 0x30 are reserved for future output modes.
 };
 
 class FNXML
