@@ -185,12 +185,6 @@ protected:
     // Platform hook for fujicmd_image_rotate(): announce the newly selected
     // drive 1. Atari speaks it through SAM; everyone else stays quiet.
     //
-    // This is a hook rather than an override of fujicmd_image_rotate() itself
-    // so that method can stay non-virtual. IEC declares
-    // systemBus::changeDeviceId() without ever defining it, and only survives
-    // linking because --gc-sections drops fujicmd_image_rotate() -- nothing on
-    // that target calls it. Making it virtual pins it into the vtable and the
-    // undefined reference comes back.
     virtual void announce_rotation(int drive_slot) {}
 
     // ============ Validation of inputs ============
