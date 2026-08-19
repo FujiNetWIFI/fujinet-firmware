@@ -43,13 +43,20 @@ void MediaTypeROM::status(uint8_t statusbuff[4])
 // push_stream: reads `f` from its current position in DISK_SECTORBUF_SIZE
 // chunks and relays each one to the RP2040 as NETCMD_WRITE frames on DBC
 // stream `stream_id` (0 = ROM, 1 = a .cfg sibling -- the RP2040's
-// dbc_inbound_handler() demuxes on this same id). Sent as one PAYLOAD byte,
-// not a param: FujiBusPacket::processArg(uint16_t) encodes bare integer
+// dbc_inbound_handler() demuxes on this same id). Sent as PAYLOAD bytes,
+// not params: FujiBusPacket::processArg(uint16_t) encodes bare integer
 // arguments as wire params, but the RP2040's minimal fujibus.c client
 // parses the descriptor chain only far enough to skip past it to find the
 // payload -- it never surfaces decoded param values. The payload path is
 // the one it actually exposes to callers (fb_reply_t.data/data_len), so
-// that's what carries the stream id here.
+// that's what carries the OPEN header here.
+//
+// OPEN payload is the stream id followed by the stream's total size as 4
+// little-endian bytes. The RP2040 uses the size to refuse a ROM too large
+// for its cart.ROM[] before we drag the whole thing over TNFS, and to draw
+// an exact progress bar; an older RP2040 build reads data[0] and ignores
+// the rest, so this stays compatible in both directions.
+//
 // Always sends NETCMD_CLOSE so the RP2040's stream state doesn't wedge; a
 // failed transfer's CLOSE carries a 0x01 abort payload so partial data
 // isn't booted.
@@ -57,12 +64,17 @@ static bool push_stream(fnFile *f, uint16_t stream_id, uint32_t expected_size)
 {
     uint8_t buf[DISK_SECTORBUF_SIZE];
 
-    uint8_t open_payload = (uint8_t)stream_id;
+    struct { uint8_t id; u32le_t size; } open_hdr;
+    static_assert(sizeof(open_hdr) == 5, "OPEN header must not be padded");
+    open_hdr.id = (uint8_t)stream_id;
+    open_hdr.size = expected_size;
+
     auto reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_OPEN,
-                                        std::string(1, (char)open_payload));
+                                        std::string((const char *)&open_hdr, sizeof(open_hdr)));
     if (!reply || reply->command() != FUJICMD_ACK)
     {
-        Debug_printv("MediaTypeROM: failed to open DBC stream %u\n", stream_id);
+        Debug_printv("MediaTypeROM: failed to open DBC stream %u (%lu bytes)\n",
+                     stream_id, (unsigned long)expected_size);
         return false;
     }
 

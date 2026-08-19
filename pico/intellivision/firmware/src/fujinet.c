@@ -8,10 +8,11 @@
 // cartridge's memory map with mm_map_t (memory.c) -- mm_init()/mm_add()/
 // mm_add_ram() -- rather than PiRTO II's flat mapfrom/mapto/maprom arrays.
 // apply_boot_mapping() below builds an mm_map_t the same way load_cfg()
-// does for a local file. The mailbox's own RAM claim is NOT part of that
-// map -- see cartridge.c's window branch, driven by cart.FujiSupport --
-// so, unlike the original, this never needs to re-add the mailbox as its
-// own RAM segment after loading a game.
+// does for a local file, from the bm_plan_t bootmap.c hands it. The
+// mailbox's own RAM claim is NOT part of that map -- see cartridge.c's
+// window branch, driven by cart.FujiSupport -- so, unlike the original,
+// this never needs to re-add the mailbox as its own RAM segment after
+// loading a game.
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -24,6 +25,7 @@
 #include "interface.h"
 #include "memory.h"
 #include "intellicart.h"
+#include "bootmap.h"
 #include "fuji_mailbox.h"
 #include "fujibus.h"
 #include "fujibus_usb.h"
@@ -32,6 +34,10 @@
 
 extern Cartridge cart;
 extern mm_map_t m;
+#if CONFIG_ECS_AUDIO || CONFIG_INTELLIVOICE
+extern uint8_t ecs_present;
+extern uint8_t voice_present;
+#endif
 
 // sleep_ms() that keeps USB alive; gapped per fujibus_usb.c so core1 isn't starved.
 void fuji_wait_ms_pumped(uint32_t ms)
@@ -60,31 +66,31 @@ void fuji_wait_ms_pumped(uint32_t ms)
 // each one individually -- the ESP32 side's sendCommand() is a per-frame
 // round trip (one OPEN, then one WRITE per ~512-byte chunk, then CLOSE).
 //
-// SCOPE NOTE: no staging buffer -- data decodes into cart.ROM[] as it
-// streams, above CONFIG's live offsets so a failed push can't hang CONFIG.
+// SCOPE NOTE: no staging buffer -- bootmap.c decodes into cart.ROM[] as the
+// data streams, above CONFIG's live offsets (FUJI_STAGE_BASE) so a failed
+// push can't hang the CONFIG image the console is executing meanwhile.
 //
-// Mapping precedence, decided in apply_boot_mapping() once CLOSE arrives on
-// the ROM stream: a self-describing non-bankswitched Intellicart/CC3 .rom
-// header (feed_rom_byte() detects and decodes this live) takes priority; if
-// the stream isn't that format, a pushed .cfg sibling's [mapping] and
-// [memattr] lines and VARS jlp/jlp_flash settings, if one was pushed; else
-// a same-file-order size table for a bare .bin. Only the .cfg path can
-// enable JLP -- a self-describing .rom or a bare-size-guessed .bin never
-// carries VARS, matching the local-storage load_cfg() precedent where JLP
-// is only ever turned on by an explicit .cfg.
+// All parsing lives in bootmap.c, which knows nothing about USB, the
+// mailbox or the Cartridge: it turns the two streams into a bm_plan_t.
+// This file owns everything around that -- framing and ACK/NAK below,
+// mapping precedence being bootmap_rom_end()'s business, and the mailbox/
+// JLP policy plus the mm_*() commit in apply_boot_mapping().
 //
-// NETCMD_OPEN's payload byte selects the stream: 1 = the .cfg sibling
-// (pushed first, so its mapping/JLP settings are known before the ROM's own
-// CLOSE triggers the boot), 0 = the ROM itself.
+// NETCMD_OPEN's payload selects the stream: 1 = the .cfg sibling (pushed
+// first, so its mapping/JLP settings are known before the ROM's own CLOSE
+// triggers the boot), 0 = the ROM itself. Peers from this revision on
+// append the stream's total size as 4 little-endian bytes, which lets an
+// oversized ROM be refused before it's pulled over TNFS and makes the
+// progress bar exact; older peers send the id alone and everything still
+// works, just blind.
 
-#define CFG_BUF_MAX 4096
-static char cfg_buf[CFG_BUF_MAX];
-static uint32_t cfg_wp = 0;
-static bool cfg_open = false;
-static bool have_cfg = false;
+#define DBC_STREAM_ROM 0
+#define DBC_STREAM_CFG 1
+static int dbc_stream = -1; // stream id currently open, -1 for none
 
-// a receiver limit dropped data -- fail TRUNCATED, never boot a partial map
-static bool boot_truncated = false;
+// the plan bootmap_rom_end() produced for this mount -- points into
+// bootmap.c's own storage, valid until the next push starts
+static bm_plan_t *boot_plan;
 
 // failed commit rebuilt CONFIG's map; handler must reset the console into it
 static bool need_config_reset = false;
@@ -97,76 +103,6 @@ static bool need_config_reset = false;
 // from, since a network push otherwise has no filesystem path of its own.
 // Populated in fuji_mailbox_service(), consumed in apply_boot_mapping().
 static char last_boot_path[256];
-
-#define BOOT_MAX_SEGS 16
-static unsigned int boot_mapfrom[BOOT_MAX_SEGS]; // ROM word offset, inclusive
-static unsigned int boot_mapto[BOOT_MAX_SEGS];   // ROM word offset, inclusive
-static unsigned int boot_maprom[BOOT_MAX_SEGS];  // destination bus address
-static int boot_nsegs = 0;
-
-// [memattr] RAM lines from a pushed .cfg, applied after the ROM segments.
-#define BOOT_MAX_RAM 8
-static unsigned int boot_ramfrom[BOOT_MAX_RAM];
-static unsigned int boot_ramto[BOOT_MAX_RAM];
-static uint8_t boot_ramwidth[BOOT_MAX_RAM];
-static int boot_nram = 0;
-
-// [vars] jlp/jlp_flash from a pushed .cfg. 0 = not requested.
-static int boot_jlp_value = 0;
-static int boot_jlpflash_value = 0;
-
-// ROM-stream decode state -- see feed_rom_byte(). Format is detected from
-// the first 3 bytes received; everything after that is interpreted
-// incrementally, one byte at a time, writing words straight into their
-// final cart.ROM[] destination as soon as each is complete.
-typedef enum { ROMFMT_UNKNOWN, ROMFMT_FLAT, ROMFMT_HDR, ROMFMT_REJECTED } romfmt_t;
-static romfmt_t rom_fmt;
-static uint8_t rom_hdrbuf[3];
-static unsigned rom_hdrlen;
-static uint32_t rom_total_bytes;
-static bool rom_open = false;
-
-// ROMFMT_FLAT: big-endian words staged at FLAT_STAGE_BASE (mapping offsets
-// biased at commit) -- offset 0 would clobber the CONFIG image the console
-// is still executing. HDR streams land identity-mapped >= $4000, no staging.
-#define FLAT_STAGE_BASE 0x4000u
-_Static_assert(MAX_ROM_SIZE >= FLAT_STAGE_BASE + 0x8000,
-               "cart.ROM[] too small to stage a 32K-word flat image");
-static uint32_t flat_wp;
-static bool flat_have_hi;
-static uint8_t flat_hi;
-
-// ROMFMT_HDR: incremental Intellicart/CC3 .rom decode, one segment at a
-// time. Reference: jzIntv's src/icart/icartrom.c icartrom_decode(), which
-// this is a byte-for-byte port of the relevant (non-bankswitched) subset
-// of. Layout per segment: 2 bytes (lo, hi) giving an inclusive page range
-// (word address = page<<8, hi's page is the start of its last 256-word
-// block), then 2*(wordcount) bytes of big-endian ROM data for that exact
-// range (written directly at that bus address -- identity mapped, see
-// rom_start_segment_slot()), then a 2-byte CRC-16 (received but not
-// validated).
-typedef enum { RH_SEG_ADDR, RH_SEG_DATA, RH_SEG_CRC } rh_state_t;
-static rh_state_t rh_state;
-static uint8_t rh_nseg, rh_seg_i;
-static uint8_t rh_addrbuf[2];
-static unsigned rh_addrlen;
-static unsigned int rh_lo, rh_hi;
-static uint32_t rh_words_left;
-static uint32_t rh_cur_addr;
-static bool rh_have_hi;
-static uint8_t rh_hi_byte;
-static unsigned rh_crclen;
-
-// Trailing attribute/fine-address ("enable") tables: 16 attribute bytes +
-// 32 fine-address bytes, collected once the last segment's CRC is consumed
-// (their own CRC-16, like the segment CRCs, is received but not
-// validated). decode_enable_tables() turns these into boot_ram* entries at
-// CLOSE time -- this is the only place a .rom declares its RAM (e.g. cart
-// scratch at $8000-$9BFF), so ignoring them boots a game whose RAM
-// silently reads/writes nothing.
-#define RH_TBL_LEN 48
-static uint8_t rh_tbl[RH_TBL_LEN];
-static unsigned rh_tbl_len;
 
 // Sends a bare ACK/NAK reply frame for one DBC command, over the same
 // tud_cdc link fujibus_transact() itself uses to send requests. This runs
@@ -200,429 +136,63 @@ static bool mailbox_overlap(unsigned int from, unsigned int to, bool jlp_pending
     return !(to < lo || from > hi);
 }
 
-// parse_pushed_cfg: minimal in-memory .cfg parser over cfg_buf, covering
-// [mapping] (`$xxxx - $yyyy = $zzzz`), [memattr] (`$xxxx - $yyyy = RAM w`)
-// and [vars] (`jlp = N` / `jlp_accel = N` / `jlpaccel = N`, `jlp_flash = N`
-// / `jlpflash = N`) lines, whitespace-tolerant. Unlike load_cfg() (the
-// local-storage parser, which reads from a FatFs/LittleFS FIL handle), this
-// operates on the buffer dbc_inbound_handler() already filled. No paging
-// support (`p`-suffixed mapping lines) and no MACRO/poke lines -- a
-// network-pushed mapping is limited to what a game actually needs to run.
-static bool parse_pushed_cfg(void)
-{
-    boot_nsegs = 0;
-    boot_nram = 0;
-    boot_jlp_value = 0;
-    boot_jlpflash_value = 0;
-
-    typedef enum { SEC_NONE, SEC_MAPPING, SEC_MEMATTR, SEC_VARS } section_t;
-    section_t section = SEC_NONE;
-
-    const char *p = cfg_buf;
-    const char *end = cfg_buf + cfg_wp;
-
-    while (p < end) {
-        const char *nl = memchr(p, '\n', (size_t)(end - p));
-        const char *line_end = nl ? nl : end;
-        size_t linelen = (size_t)(line_end - p);
-
-        char tmp[96];
-        size_t copylen = linelen < sizeof(tmp) - 1 ? linelen : sizeof(tmp) - 1;
-        memcpy(tmp, p, copylen);
-        tmp[copylen] = 0;
-
-        if (strstr(tmp, "[mapping]") != NULL) {
-            section = SEC_MAPPING;
-        } else if (strstr(tmp, "[memattr]") != NULL) {
-            section = SEC_MEMATTR;
-        } else if (strstr(tmp, "[vars]") != NULL) {
-            section = SEC_VARS;
-        } else if (linelen > 0 && tmp[0] == '[') {
-            section = SEC_NONE; // [macro] or anything else -- not supported over the network
-        } else if (section == SEC_MAPPING && linelen > 0 && tmp[0] == '$') {
-            unsigned int from = 0, to = 0, rom = 0;
-            if (sscanf(tmp, " $%x - $%x = $%x", &from, &to, &rom) == 3) {
-                if (boot_nsegs < BOOT_MAX_SEGS) {
-                    boot_mapfrom[boot_nsegs] = from;
-                    boot_mapto[boot_nsegs] = to;
-                    boot_maprom[boot_nsegs] = rom;
-                    boot_nsegs++;
-                } else {
-                    boot_truncated = true;
-                }
-            }
-        } else if (section == SEC_MEMATTR && linelen > 0 && tmp[0] == '$') {
-            unsigned int from = 0, to = 0, width = 0;
-            char type[4];
-            if (sscanf(tmp, " $%x - $%x = %3s %u", &from, &to, type, &width) == 4 &&
-                (width == 8 || width == 16)) {
-                if (boot_nram < BOOT_MAX_RAM) {
-                    boot_ramfrom[boot_nram] = from;
-                    boot_ramto[boot_nram] = to;
-                    boot_ramwidth[boot_nram] = (uint8_t)width;
-                    boot_nram++;
-                } else {
-                    boot_truncated = true;
-                }
-            }
-        } else if (section == SEC_VARS) {
-            int v;
-            if (sscanf(tmp, " jlp = %d", &v) == 1 ||
-                sscanf(tmp, " jlp_accel = %d", &v) == 1 ||
-                sscanf(tmp, " jlpaccel = %d", &v) == 1) {
-                boot_jlp_value = v;
-            } else if (sscanf(tmp, " jlp_flash = %d", &v) == 1 ||
-                       sscanf(tmp, " jlpflash = %d", &v) == 1) {
-                boot_jlpflash_value = v;
-            }
-        }
-
-        p = nl ? nl + 1 : end;
-    }
-
-    return boot_nsegs > 0;
-}
-
-// rom_start_segment_slot: called the instant a ROMFMT_HDR segment's
-// address range is known, registering it as a boot_* mapping entry right
-// away -- there's no separate buffer holding decoded segments to batch
-// this from later. Identity mapped (rom offset == bus address): see the
-// section banner.
-static void rom_start_segment_slot(void)
-{
-    if (boot_nsegs < BOOT_MAX_SEGS) {
-        boot_mapfrom[boot_nsegs] = rh_lo;
-        boot_mapto[boot_nsegs] = rh_hi - 1;
-        boot_maprom[boot_nsegs] = rh_lo;
-        boot_nsegs++;
-    }
-}
-
-// feed_rom_byte: the incremental ROM-stream decoder. Called once per byte
-// of every NETCMD_WRITE payload on the ROM stream (stream 0).
-//
-// KNOWN LIMITATION: bank-switched .rom images are not handled -- the
-// attribute/fine-address tables are decoded (writable ranges become RAM,
-// see decode_enable_tables()), but banks flagged bank-switched there are
-// skipped, so a title that relies on bank-switching to reach code outside
-// its listed segments will not run correctly.
-static void feed_rom_byte(uint8_t b)
-{
-    rom_total_bytes++;
-
-    if (rom_fmt == ROMFMT_UNKNOWN) {
-        rom_hdrbuf[rom_hdrlen++] = b;
-        if (rom_hdrlen < 3)
-            return;
-        if ((rom_hdrbuf[0] == 0xA8 || rom_hdrbuf[0] == 0x41 || rom_hdrbuf[0] == 0x61) &&
-            rom_hdrbuf[1] > 0 && (uint8_t)(rom_hdrbuf[1] ^ rom_hdrbuf[2]) == 0xFF) {
-            rom_fmt = ROMFMT_HDR;
-            rh_nseg = rom_hdrbuf[1];
-            rh_seg_i = 0;
-            rh_state = RH_SEG_ADDR;
-            rh_addrlen = 0;
-            rh_tbl_len = 0;
-            boot_nsegs = 0;
-        } else {
-            rom_fmt = ROMFMT_FLAT;
-            flat_wp = 0;
-            flat_have_hi = false;
-            // The 3 header-probe bytes are real file data in flat mode --
-            // replay them now that the format is known. All 3 bytes were
-            // already counted by the natural calls that got us here, and
-            // each replay call will count itself again, so back out all 3
-            // (not just this call's own +1) first.
-            rom_total_bytes -= 3;
-            feed_rom_byte(rom_hdrbuf[0]);
-            feed_rom_byte(rom_hdrbuf[1]);
-            feed_rom_byte(rom_hdrbuf[2]);
-        }
-        return;
-    }
-
-    if (rom_fmt == ROMFMT_REJECTED)
-        return;
-
-    if (rom_fmt == ROMFMT_FLAT) {
-        if (!flat_have_hi) {
-            flat_hi = b;
-            flat_have_hi = true;
-        } else {
-            if (FLAT_STAGE_BASE + flat_wp < (uint32_t)MAX_ROM_SIZE)
-                cart.ROM[FLAT_STAGE_BASE + flat_wp++] = ((uint16_t)flat_hi << 8) | b;
-            else
-                rom_fmt = ROMFMT_REJECTED; // oversized stream, don't wrap silently
-            flat_have_hi = false;
-        }
-        return;
-    }
-
-    // ROMFMT_HDR
-    if (rh_seg_i >= rh_nseg) {
-        // Collect the enable tables for decode_enable_tables(); their
-        // CRC-16 and any metadata tags after them are ignored.
-        if (rh_tbl_len < RH_TBL_LEN)
-            rh_tbl[rh_tbl_len++] = b;
-        return;
-    }
-
-    switch (rh_state) {
-    case RH_SEG_ADDR:
-        rh_addrbuf[rh_addrlen++] = b;
-        if (rh_addrlen < 2)
-            return;
-        rh_lo = ((unsigned int)rh_addrbuf[0]) << 8;
-        rh_hi = (((unsigned int)rh_addrbuf[1]) << 8) + 0x100;
-        rh_addrlen = 0;
-        // < $4000 is console space and would overwrite CONFIG's live image
-        if (rh_hi <= rh_lo || rh_lo < 0x4000 || rh_hi > (unsigned int)MAX_ROM_SIZE) {
-            rom_fmt = ROMFMT_REJECTED;
-            return;
-        }
-        rom_start_segment_slot();
-        rh_words_left = rh_hi - rh_lo;
-        rh_cur_addr = rh_lo;
-        rh_have_hi = false;
-        rh_state = RH_SEG_DATA;
-        return;
-    case RH_SEG_DATA:
-        if (!rh_have_hi) {
-            rh_hi_byte = b;
-            rh_have_hi = true;
-        } else {
-            cart.ROM[rh_cur_addr++] = ((uint16_t)rh_hi_byte << 8) | b;
-            rh_have_hi = false;
-            rh_words_left--;
-            if (rh_words_left == 0) {
-                rh_state = RH_SEG_CRC;
-                rh_crclen = 0;
-            }
-        }
-        return;
-    case RH_SEG_CRC:
-        rh_crclen++; // received but not validated
-        if (rh_crclen < 2)
-            return;
-        rh_seg_i++;
-        rh_state = RH_SEG_ADDR;
-        rh_addrlen = 0;
-        return;
-    }
-}
-
-// decode_enable_tables: translate the .rom's attribute/fine-address tables
-// (rh_tbl) into boot_ram* entries. Layout, per jzIntv's icartrom_decode()
-// (the reference this decoder is ported from): for 2K bank i (bus address
-// i<<11), the attribute nibble is rh_tbl[i>>1] (low nibble = even bank,
-// high = odd), and the fine-address byte is rh_tbl[16 + ((i>>1) |
-// ((i&1)<<4))] -- even banks in bytes 16-31's first half, odd banks in the
-// second -- whose high nibble is the bank's first active 256-word block
-// and low nibble its last. Attribute bits: 1 = readable, 2 = writable,
-// 4 = narrow (8-bit), 8 = bank-switched.
-//
-// Writable, non-bank-switched ranges become RAM (8-bit when narrow, else
-// 16-bit); read-only ranges are already covered by the preloaded segments,
-// and bank-switched banks stay unsupported (see feed_rom_byte()'s KNOWN
-// LIMITATION). Adjacent same-width ranges are merged so a typical game's
-// whole scratch window costs one boot_ram slot; ranges past BOOT_MAX_RAM
-// are dropped, matching parse_pushed_cfg()'s own silent cap.
-static void decode_enable_tables(void)
-{
-    for (unsigned i = 0; i < 32; i++) {
-        unsigned attr = 0xF & (rh_tbl[i >> 1] >> ((i & 1) * 4));
-        uint8_t lohi = rh_tbl[16 + ((i >> 1) | ((i & 1) << 4))];
-        unsigned lo = (lohi >> 4) & 0x7;
-        unsigned hi = (lohi & 0x7) + 1;
-
-        if (!(attr & 0x2) || (attr & 0x8) || hi <= lo)
-            continue;
-
-        unsigned int from = (i << 11) + (lo << 8);
-        unsigned int to = (i << 11) + (hi << 8) - 1;
-        uint8_t width = (attr & 0x4) ? 8 : 16;
-
-        // never serve RAM over console space -- bus contention
-        if (to < 0x4000)
-            continue;
-        if (from < 0x4000)
-            from = 0x4000;
-
-        if (boot_nram > 0 &&
-            boot_ramto[boot_nram - 1] + 1 == from &&
-            boot_ramwidth[boot_nram - 1] == width) {
-            boot_ramto[boot_nram - 1] = to;
-        } else if (boot_nram < BOOT_MAX_RAM) {
-            boot_ramfrom[boot_nram] = from;
-            boot_ramto[boot_nram] = to;
-            boot_ramwidth[boot_nram] = width;
-            boot_nram++;
-        } else {
-            boot_truncated = true;
-        }
-    }
-}
-
 // apply_boot_mapping: called once the ROM stream's CLOSE arrives.
-// cart.ROM[]'s final bytes are already in place by now (feed_rom_byte()
-// wrote them there live). Decides the mapping source, validates every
-// segment against the RAM window that would be active once this boot
-// completes, and only then commits: builds a fresh mm_map_t and, if a
-// pushed .cfg requested it, turns on JLP (which also updates the window --
-// see update_ram_window() in intellicart.c).
+// cart.ROM[]'s final bytes are already in place by now (bootmap.c wrote
+// them there live). bootmap_rom_end() picks the mapping source and hands
+// back a finished plan; what's left here is the part that needs to know
+// about this cartridge -- reconciling the plan with the RAM window that
+// will be active once the boot completes, committing an mm_map_t, and
+// turning on JLP (which also moves the window -- see update_ram_window()
+// in intellicart.c).
 static bool apply_boot_mapping(void)
 {
-    if (rom_fmt == ROMFMT_UNKNOWN || rom_fmt == ROMFMT_REJECTED) {
-        cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_REJECTED;
+    int err = bootmap_rom_end(&boot_plan);
+    if (err) {
+        cart.RAM[FUJI_MB_BOOT_ERR] = (uint16_t)err;
         return false;
     }
 
-    bool jlp_pending = false;
-
-    if (rom_fmt == ROMFMT_HDR) {
-        if (rh_seg_i != rh_nseg || boot_nsegs == 0) {
-            cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_TRUNCATED;
-            return false; // stream ended mid-segment or before any completed
-        }
-        // A header-format image is self-describing: RAM comes from its own
-        // enable tables, and a .cfg sibling is neither needed nor
-        // consulted. The tables are formally optional, so a stream that
-        // ended without them simply boots with no RAM (the pre-decode
-        // behavior for every .rom).
-        boot_nram = 0;
-        boot_jlp_value = 0;
-        boot_jlpflash_value = 0;
-        if (rh_tbl_len >= RH_TBL_LEN)
-            decode_enable_tables();
-    } else if (have_cfg && parse_pushed_cfg()) {
-        // boot_mapfrom/mapto/maprom/ramfrom/ramto/ramwidth/jlp_value/
-        // jlpflash_value already populated by parse_pushed_cfg().
-        jlp_pending = (boot_jlp_value != 0) || (boot_jlpflash_value != 0);
-        if (boot_nsegs == 0) {
-            cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_CFGBAD;
-            return false;
-        }
-    } else {
-        uint32_t words = rom_total_bytes / 2;
-        boot_nsegs = 1;
-        boot_nram = 0;
-        boot_jlp_value = 0;
-        boot_jlpflash_value = 0;
-        boot_mapfrom[0] = 0;
-        boot_mapto[0] = words > 0 ? words - 1 : 0;
-        switch (rom_total_bytes) {
-        case 4096:  boot_maprom[0] = 0x5000; break;
-        case 8192:  boot_maprom[0] = 0x5000; break;
-        case 12288: boot_maprom[0] = 0x5000; break;
-        case 16384: boot_maprom[0] = 0x5000; break;
-        case 24576:
-            boot_nsegs = 2;
-            boot_mapfrom[0] = 0;      boot_mapto[0] = 0x1FFF; boot_maprom[0] = 0x5000;
-            boot_mapfrom[1] = 0x2000; boot_mapto[1] = 0x2FFF; boot_maprom[1] = 0xD000;
-            break;
-        case 32768:
-            boot_nsegs = 3;
-            boot_mapfrom[0] = 0;      boot_mapto[0] = 0x1FFF; boot_maprom[0] = 0x5000;
-            boot_mapfrom[1] = 0x2000; boot_mapto[1] = 0x2FFF; boot_maprom[1] = 0xD000;
-            boot_mapfrom[2] = 0x3000; boot_mapto[2] = 0x3FFF; boot_maprom[2] = 0xF000;
-            break;
-        case 40960: // 20K words: 8K at $5000, 12K contiguous at $D000
-            boot_nsegs = 2;
-            boot_mapfrom[0] = 0;      boot_mapto[0] = 0x1FFF; boot_maprom[0] = 0x5000;
-            boot_mapfrom[1] = 0x2000; boot_mapto[1] = 0x4FFF; boot_maprom[1] = 0xD000;
-            break;
-        case 49152: // 24K words: the common INTV shape, 8K/12K/4K
-            boot_nsegs = 3;
-            boot_mapfrom[0] = 0;      boot_mapto[0] = 0x1FFF; boot_maprom[0] = 0x5000;
-            boot_mapfrom[1] = 0x2000; boot_mapto[1] = 0x4FFF; boot_maprom[1] = 0x9000;
-            boot_mapfrom[2] = 0x5000; boot_mapto[2] = 0x5FFF; boot_maprom[2] = 0xD000;
-            break;
-        default:
-            cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_NOMAP;
-            return false; // no mapping source at all -- refuse to guess
-        }
-    }
-
-    if (boot_truncated) {
-        cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_TRUNCATED;
-        return false;
-    }
-
-    // Clamp mappings at EOF (bin2rom semantics) -- collection cfgs describe
-    // each title's largest layout and expect ranges past EOF to fall away.
-    uint32_t bias = 0;
-    if (rom_fmt == ROMFMT_FLAT) {
-        uint32_t words = rom_total_bytes / 2;
-        int kept = 0;
-        bias = FLAT_STAGE_BASE;
-        for (int i = 0; i < boot_nsegs; i++) {
-            if (boot_mapfrom[i] >= words)
-                continue; // wholly past EOF -- drop
-            if (boot_mapto[i] >= words)
-                boot_mapto[i] = words - 1;
-            boot_mapfrom[kept] = boot_mapfrom[i];
-            boot_mapto[kept] = boot_mapto[i];
-            boot_maprom[kept] = boot_maprom[i];
-            kept++;
-        }
-        boot_nsegs = kept;
-        if (boot_nsegs == 0) {
-            cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_CFGBAD;
-            return false;
-        }
-    }
-
-    // RAM sanitation: nothing below $4000 (bus contention), total within RAMSIZE
-    unsigned int total_ram = 0;
-    {
-        int kept = 0;
-        for (int i = 0; i < boot_nram; i++) {
-            if (boot_ramto[i] < 0x4000)
-                continue;
-            if (boot_ramfrom[i] < 0x4000)
-                boot_ramfrom[i] = 0x4000;
-            if (boot_ramto[i] < boot_ramfrom[i])
-                continue;
-            total_ram += boot_ramto[i] - boot_ramfrom[i] + 1;
-            boot_ramfrom[kept] = boot_ramfrom[i];
-            boot_ramto[kept] = boot_ramto[i];
-            boot_ramwidth[kept] = boot_ramwidth[i];
-            kept++;
-        }
-        boot_nram = kept;
-    }
-    if (total_ram > RAMSIZE) {
-        cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_RAM;
-        return false;
-    }
-
-    // Mailbox policy: JLP overlap is a genuine conflict (reject); anything
-    // else boots with the mailbox disabled for the session. Also disable if
-    // the game's RAM allocation would alias the mailbox cells' storage.
+    bool jlp_pending = (boot_plan->jlp != 0) || (boot_plan->jlpflash != 0);
     bool disable_mb = false;
+
     if (jlp_pending) {
-        for (int i = 0; i < boot_nsegs; i++) {
-            unsigned int len = boot_mapto[i] - boot_mapfrom[i];
-            if (mailbox_overlap(boot_maprom[i], boot_maprom[i] + len, true)) {
-                cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_MAILBOX;
-                return false;
-            }
+        // JLP claims all of $8000-$9FFF in cartridge.c's RAM-window branch,
+        // ahead of mm_lookup(), so cartridge ROM mapped under it can never
+        // be read. That's also what happens under jzintv, where the JLP
+        // peripheral outranks the cartridge mapping -- so drop the shadowed
+        // segments and boot, rather than refusing a .cfg that pairs `jlp`
+        // with a full-image [mapping] (Pacmanthology does exactly this).
+        bootmap_shadow_range(boot_plan, 0x8000, 0x9FFF);
+        if (boot_plan->nseg == 0) {
+            cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_CFGBAD;
+            return false;
         }
-        for (int i = 0; i < boot_nram; i++) {
-            if (mailbox_overlap(boot_ramfrom[i], boot_ramto[i], true)) {
+        // A [memattr] area under the window is a genuine collision, not
+        // shadowing: mm_add_ram() packs it into the same cart.RAM[] indices
+        // the window branch addresses directly as addr-0x8000. See the
+        // KNOWN LIMITATION note on cartridge.c's write path.
+        for (int i = 0; i < boot_plan->nram; i++) {
+            if (mailbox_overlap(boot_plan->ram[i].lo, boot_plan->ram[i].hi, true)) {
                 cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_MAILBOX;
                 return false;
             }
         }
     } else {
-        for (int i = 0; i < boot_nsegs; i++) {
-            unsigned int len = boot_mapto[i] - boot_mapfrom[i];
-            if (mailbox_overlap(boot_maprom[i], boot_maprom[i] + len, false))
+        // Anything overlapping the mailbox cells boots with the mailbox
+        // disabled for the session rather than failing.
+        unsigned int total_ram = 0;
+        for (int i = 0; i < boot_plan->nseg; i++) {
+            unsigned int len = boot_plan->seg[i].rom_end - boot_plan->seg[i].rom_off;
+            if (mailbox_overlap(boot_plan->seg[i].cpu, boot_plan->seg[i].cpu + len, false))
                 disable_mb = true;
         }
-        for (int i = 0; i < boot_nram; i++) {
-            if (mailbox_overlap(boot_ramfrom[i], boot_ramto[i], false))
+        for (int i = 0; i < boot_plan->nram; i++) {
+            if (mailbox_overlap(boot_plan->ram[i].lo, boot_plan->ram[i].hi, false))
                 disable_mb = true;
+            total_ram += boot_plan->ram[i].hi - boot_plan->ram[i].lo + 1;
         }
+        // mm_add_ram() allocates from cart.RAM[0] upward; past FUJI_MB_BASE
+        // it would alias the mailbox cells' own storage.
         if (total_ram > FUJI_MB_BASE)
             disable_mb = true;
     }
@@ -631,12 +201,13 @@ static bool apply_boot_mapping(void)
     // map can still fail -- recover by rebuilding CONFIG's map and resetting.
     bool commit_ok = true;
     mm_init(&m);
-    for (int i = 0; i < boot_nsegs; i++)
-        if (mm_add(&m, bias + boot_mapfrom[i], bias + boot_mapto[i],
-                   boot_maprom[i], MM_NO_PAGE) < 0)
+    for (int i = 0; i < boot_plan->nseg; i++)
+        if (mm_add(&m, boot_plan->seg[i].rom_off, boot_plan->seg[i].rom_end,
+                   boot_plan->seg[i].cpu, boot_plan->seg[i].page) < 0)
             commit_ok = false;
-    for (int i = 0; i < boot_nram; i++)
-        if (mm_add_ram(&m, boot_ramfrom[i], boot_ramto[i], boot_ramwidth[i]) < 0)
+    for (int i = 0; i < boot_plan->nram; i++)
+        if (mm_add_ram(&m, boot_plan->ram[i].lo, boot_plan->ram[i].hi,
+                       boot_plan->ram[i].width) < 0)
             commit_ok = false;
     if (mm_finalize(&m) < 0)
         commit_ok = false;
@@ -647,8 +218,20 @@ static bool apply_boot_mapping(void)
         return false;
     }
 
-    cart.len = rom_total_bytes;
+    cart.len = boot_plan->rom_bytes;
     cart.MailboxActive = !disable_mb;
+    // Set both ways: the page-select decode in cartridge.c's write path is
+    // gated on this, and it is otherwise only ever touched by load_cfg().
+    cart.pagingSupport = boot_plan->paging;
+
+#if CONFIG_ECS_AUDIO || CONFIG_INTELLIVOICE
+    // Same precedence load_cfg() uses: emulate only what the hardware
+    // itself isn't already providing.
+    if (ecs_present == 0)
+        cart.ECSSupport = (boot_plan->ecs != 0);
+    if (voice_present == 0)
+        cart.IntellivoiceSupport = (boot_plan->voice != 0);
+#endif
 
 #if CONFIG_JLP
     if (jlp_pending) {
@@ -657,7 +240,7 @@ static bool apply_boot_mapping(void)
         // last_boot_path's own comment. Fall back to a fixed name (must
         // contain a '.': config_jlp() does strrchr(filename,'.') with no
         // NULL check) if MOUNT_IMAGE somehow arrived without one.
-        config_jlp(boot_jlp_value, boot_jlpflash_value,
+        config_jlp(boot_plan->jlp, boot_plan->jlpflash,
                    last_boot_path[0] ? last_boot_path : "network.rom");
     } else {
         cart.JLPSupport = false;
@@ -681,44 +264,49 @@ bool dbc_inbound_handler(const fb_reply_t *req)
         return false;
 
     if (req->command == NETCMD_OPEN) {
+        // Payload: stream id, optionally followed by the stream's total
+        // size as 4 little-endian bytes (see this section's banner).
         unsigned stream = (req->data_len > 0) ? req->data[0] : 0;
-        if (stream == 1) {
-            cfg_wp = 0;
-            cfg_open = true;
-            have_cfg = false;
+        uint32_t total = 0;
+        if (req->data_len >= 5)
+            total = (uint32_t)req->data[1] | ((uint32_t)req->data[2] << 8) |
+                    ((uint32_t)req->data[3] << 16) | ((uint32_t)req->data[4] << 24);
+
+        dbc_stream = (stream == DBC_STREAM_CFG) ? DBC_STREAM_CFG : DBC_STREAM_ROM;
+
+        if (dbc_stream == DBC_STREAM_CFG) {
+            bootmap_cfg_begin();
             cart.RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_OPENING;
         } else {
-            rom_fmt = ROMFMT_UNKNOWN;
-            rom_hdrlen = 0;
-            rom_total_bytes = 0;
-            rom_open = true;
-            boot_truncated = false;
             need_config_reset = false;
-            // have_cfg/cfg_wp survive -- this mount's cfg; consumed at CLOSE
+            // the pushed cfg survives -- this mount's, consumed at CLOSE
             cart.RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_XFER;
             cart.RAM[FUJI_MB_BOOT_PCT] = 0;
             cart.RAM[FUJI_MB_BOOT_ERR] = 0;
+            int err = bootmap_rom_begin(total);
+            if (err) {
+                // Won't fit this board however it's laid out -- say so now
+                // rather than after the ESP32 drags the whole file over
+                // TNFS. push_stream() abandons a failed OPEN without ever
+                // sending CLOSE, so tear the stream down from this side.
+                bootmap_rom_abort();
+                dbc_stream = -1;
+                cart.RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_FAILED;
+                cart.RAM[FUJI_MB_BOOT_ERR] = (uint16_t)err;
+                dbc_send_frame(FUJICMD_NAK);
+                return true;
+            }
         }
         dbc_send_frame(FUJICMD_ACK);
         return true;
     }
 
     if (req->command == NETCMD_WRITE) {
-        if (cfg_open) {
-            uint32_t room = CFG_BUF_MAX - cfg_wp;
-            uint32_t n = req->data_len < room ? req->data_len : room;
-            if (req->data_len > room)
-                boot_truncated = true; // cfg didn't fit -- don't boot a partial map
-            memcpy(cfg_buf + cfg_wp, req->data, n);
-            cfg_wp += n;
-        } else if (rom_open) {
-            for (uint16_t i = 0; i < req->data_len; i++)
-                feed_rom_byte(req->data[i]);
-            // Coarse progress: total size isn't known in advance, so this
-            // saturates near 100% rather than reaching it exactly until
-            // CLOSE -- good enough for a moving progress bar.
-            uint32_t pct = (rom_total_bytes * 100) / 32768;
-            cart.RAM[FUJI_MB_BOOT_PCT] = pct > 99 ? 99 : pct;
+        if (dbc_stream == DBC_STREAM_CFG) {
+            bootmap_cfg_data(req->data, req->data_len);
+        } else if (dbc_stream == DBC_STREAM_ROM) {
+            bootmap_rom_data(req->data, req->data_len);
+            cart.RAM[FUJI_MB_BOOT_PCT] = bootmap_pct();
         }
         dbc_send_frame(FUJICMD_ACK);
         return true;
@@ -728,27 +316,24 @@ bool dbc_inbound_handler(const fb_reply_t *req)
         // Abort-CLOSE (payload 0x01): unwedge the stream without booting
         // partial data. Bare CLOSE = commit, so old peers stay compatible.
         bool aborted = (req->data_len > 0 && req->data[0] == 0x01);
-        if (cfg_open) {
-            cfg_open = false;
-            have_cfg = !aborted && (cfg_wp > 0);
-            if (aborted)
-                cfg_wp = 0;
+        int stream = dbc_stream;
+        dbc_stream = -1;
+
+        if (stream == DBC_STREAM_CFG) {
+            bootmap_cfg_end(aborted);
             dbc_send_frame(FUJICMD_ACK);
-        } else if (rom_open) {
-            rom_open = false;
+        } else if (stream == DBC_STREAM_ROM) {
             if (aborted) {
+                bootmap_rom_abort();
                 cart.RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_FAILED;
                 cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_TRUNCATED;
-                have_cfg = false;
-                cfg_wp = 0;
                 dbc_send_frame(FUJICMD_ACK); // the abort itself succeeded
                 return true;
             }
             cart.RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_MAPPING;
+            // apply_boot_mapping() calls bootmap_rom_end(), which also
+            // consumes the pushed cfg so the next push starts clean.
             bool boot_ok = apply_boot_mapping();
-            // consume the cfg so the next push starts clean
-            have_cfg = false;
-            cfg_wp = 0;
             if (boot_ok) {
                 cart.RAM[FUJI_MB_BOOT_PCT] = 100;
                 dbc_send_frame(FUJICMD_ACK); // must go out before resetCart() tears down the link
