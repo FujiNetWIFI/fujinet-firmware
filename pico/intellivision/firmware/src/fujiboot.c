@@ -11,6 +11,7 @@
 // .bas sources), not something to parse at boot time.
 #include <string.h>
 
+#include "bootmap.h"
 #include "fujiboot.h"
 #include "fujiconfigrom.h"
 #include "fuji_mailbox.h"
@@ -19,6 +20,11 @@
 
 extern Cartridge cart;
 extern mm_map_t m;
+
+// A network push stages above CONFIG so it can't clobber the image the
+// console is executing while the transfer runs -- see FUJI_STAGE_BASE.
+_Static_assert(sizeof(_bootrom) / 2 <= FUJI_STAGE_BASE,
+               "CONFIG ROM outgrew FUJI_STAGE_BASE -- raise it");
 
 // fuji_config_map: (re)build CONFIG's map and mailbox ident; also the
 // network boot path's recovery after a failed mm commit.
@@ -53,6 +59,13 @@ void RunFujiConfig(void)
         cart.ROM[i] = _bootrom[(i * 2) + 1] | (_bootrom[i * 2] << 8);
 
     fuji_config_map();
+
+    // Hand bootmap.c the buffer a network push decodes into, and the floor
+    // it must stay above so a transfer can't disturb the CONFIG image the
+    // console runs out of while the transfer is happening. The cast drops
+    // volatile: staged words are written once here and only read back after
+    // resetCart() swaps in the new map, so core1 never sees them in flight.
+    bootmap_init((uint16_t *)cart.ROM, MAX_ROM_SIZE, FUJI_STAGE_BASE, RAMSIZE);
 
     cart.FujiSupport = true;
     cart.MailboxActive = true;

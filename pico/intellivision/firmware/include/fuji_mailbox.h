@@ -87,6 +87,8 @@
 #define FUJI_BOOT_ERR_MAILBOX   4 // a JLP game's segment/RAM overlaps its own $8000-$9FFF window
 #define FUJI_BOOT_ERR_CFGBAD    5 // a .cfg stream arrived but had no usable mapping line
 #define FUJI_BOOT_ERR_RAM       6 // declared RAM exceeds the cart's RAMSIZE budget
+#define FUJI_BOOT_ERR_TOOBIG    7 // ROM larger than this board's cart.ROM[] can stage
+#define FUJI_BOOT_ERR_BANKSW    8 // .rom enable tables flag bank-switched banks (unsupported)
 
 #define FUJI_MB_TX         (FUJI_MB_BASE + 0x40)  // Inty: request payload
 #define FUJI_MB_TX_MAX     256                    // fujicmd.bas sends fixed 256-byte
