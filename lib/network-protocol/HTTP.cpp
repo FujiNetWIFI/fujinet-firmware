@@ -652,7 +652,7 @@ fujiError_t NetworkProtocolHTTP::write_file_handle_set_header(uint8_t *buf, unsi
 
 fujiError_t NetworkProtocolHTTP::write_file_handle_send_post_data(uint8_t *buf, unsigned short len)
 {
-    if (httpMethod != HTTP_METHOD::POST)
+    if (httpMethod != HTTP_METHOD::POST && httpMethod != HTTP_METHOD::PUT)
     {
         error = NDEV_STATUS::INVALID_COMMAND;
         return FUJI_ERROR::UNSPECIFIED;
