@@ -33,6 +33,8 @@ protected:
 
     void fujicmd_set_sio_external_clock(uint16_t speed);
 
+    void announce_rotation(int drive_slot) override;
+
 public:
     sioFuji();
     void setup() override;
@@ -53,7 +55,6 @@ public:
     ByteBuffer appkey_read() override;
     void appkey_write(const FUJI_COMMAND_PACKET &packet) override;
     void fujicmd_net_scan_networks() override;
-    void fujicmd_image_rotate() override;
     void qr_encode(const FUJI_COMMAND_PACKET &packet) override {
         fujiDevice::qr_encode(((uint8_t) packet.param(0)) & 0x7f,
                               (qr_ecc_t) (((uint8_t) packet.param(1)) & 0x03),

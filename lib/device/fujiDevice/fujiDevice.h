@@ -178,6 +178,21 @@ protected:
         return disk_dev->mount(disk.fileh, disk.filename, disk.disk_size, mode);
     }
 
+    // Slot holding the disk that currently answers as drive 1, or -1 when
+    // fewer than two disks are mounted and rotation is a no-op.
+    int get_rotate_slot();
+
+    // Platform hook for fujicmd_image_rotate(): announce the newly selected
+    // drive 1. Atari speaks it through SAM; everyone else stays quiet.
+    //
+    // This is a hook rather than an override of fujicmd_image_rotate() itself
+    // so that method can stay non-virtual. IEC declares
+    // systemBus::changeDeviceId() without ever defining it, and only survives
+    // linking because --gc-sections drops fujicmd_image_rotate() -- nothing on
+    // that target calls it. Making it virtual pins it into the vtable and the
+    // undefined reference comes back.
+    virtual void announce_rotation(int drive_slot) {}
+
     // ============ Validation of inputs ============
     success_is_true validate_host_slot(uint8_t slot, const char *dmsg=nullptr);
     success_is_true validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
@@ -207,10 +222,6 @@ public:
     virtual DISK_DEVICE *get_disk_dev(int i) { return &_fnDisks[i].disk_dev; }
     int get_disk_id(int drive_slot) { return _fnDisks[drive_slot].disk_dev.id(); }
 
-    // Slot holding the disk that currently answers as drive 1, or -1 when
-    // fewer than two disks are mounted and rotation is a no-op.
-    int get_rotate_slot();
-
     void populate_slots_from_config();
     void populate_config_from_slots();
     fujiHost *set_slot_hostname(int host_slot, char *hostname);
@@ -230,7 +241,7 @@ public:
     void fujicmd_net_get_wifi_enabled();
     virtual success_is_true fujicmd_mount_disk_image_success(uint8_t deviceSlot, disk_access_flags_t access_mode);
     success_is_true fujicmd_unmount_disk_image_success(uint8_t deviceSlot);
-    virtual void fujicmd_image_rotate();
+    void fujicmd_image_rotate();
     success_is_true fujicmd_open_directory_success(uint8_t hostSlot);
     virtual void fujicmd_close_directory();
     virtual void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl);
