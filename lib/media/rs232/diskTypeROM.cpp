@@ -159,7 +159,17 @@ mediatype_t MediaTypeROM::mount(fnFile *f, uint32_t disksize, fujiHost *host, co
             cfg_found = host->file_exists(cfgpath);
         }
 
-        if (cfg_found)
+        if (!cfg_found)
+        {
+            // Not an error -- a .bin with no memory map boots against the
+            // emulator's size-guess table -- but for the titles that need one
+            // the result is a wrong map, i.e. a game that boots to garbage
+            // with nothing anywhere saying why. Say it here.
+            Debug_printv("MediaTypeROM: no .cfg sibling for %s (tried \"%s\" in both "
+                         "casings) -- booting with a default memory map\n",
+                         filename, cfgpath);
+        }
+        else
         {
             char resolved[MAX_FILENAME_LEN];
             strlcpy(resolved, cfgpath, sizeof(resolved));

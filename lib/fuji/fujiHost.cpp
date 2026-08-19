@@ -216,9 +216,11 @@ bool fujiHost::file_exists(const char *path)
     if( false == util_concat_paths(realpath, _prefix, path, sizeof(realpath)) )
         return false;
 
-    Debug_printf("::file_exists actual path = \"%s\"\n", realpath);
+    bool found = _fs->exists(realpath);
+    Debug_printf("::file_exists actual path = \"%s\" -> %s\n", realpath,
+                 found ? "found" : "not found");
 
-    return _fs->exists(realpath);
+    return found;
 }
 
 long fujiHost::file_size(fnFile *filehandle)

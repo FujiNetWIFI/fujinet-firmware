@@ -31,12 +31,24 @@ struct FileManagerEntry
     long size = 0;
 };
 
+struct UploadedFile
+{
+    std::string name;
+    size_t bytes = 0;
+};
+
 // Streams one multipart/form-data upload straight to the SD card.
 //
 // feed() may be called with the whole request body or with arbitrary chunks of
 // it; the part boundary is matched across calls, so nothing larger than a
 // single chunk is ever held in memory. Both web servers push data through this
 // same parser, in chunks, so the two platforms share one code path.
+//
+// Every part carrying a filename is stored, not just the first: a request can
+// upload several files at once. That matters for the formats that come as a
+// set - an Intellivision cartridge is a .bin plus a same-named .cfg memory map,
+// and a .bin that arrives without its .cfg boots against a guessed map - so
+// storing only the first file of a selection would silently break the pair.
 class MultipartFileWriter
 {
 public:
@@ -48,8 +60,9 @@ public:
     bool feed(const char *data, size_t len, std::string &error);
     bool finish(std::string &error);
 
-    const std::string &filename() const { return _filename; }
-    size_t bytes_written() const { return _written; }
+    const std::vector<UploadedFile> &files() const { return _files; }
+    // "a.bin (16384 bytes), a.cfg (155 bytes)" - what the page reports back.
+    std::string summary() const;
 
 private:
     enum State
@@ -62,15 +75,16 @@ private:
     bool open_output(std::string &error);
     bool consume_headers(std::string &error);
     void flush_body();
+    void close_part();
 
     State _state = WANT_PART_HEADERS;
     std::string _boundary;   // "--<boundary>"
     std::string _dir;
-    std::string _filename;
+    std::string _filename;   // name of the part being written right now
     std::string _pending;    // bytes not yet classified as body or boundary
     FILE *_out = nullptr;
-    size_t _written = 0;
-    bool _found_file = false;
+    size_t _part_written = 0;
+    std::vector<UploadedFile> _files;
 };
 
 class FileManager
