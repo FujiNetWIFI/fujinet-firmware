@@ -10,6 +10,8 @@
 #include <ctime>
 #include <cstdlib>
 
+#include "compat_string.h"
+
 #include "clipboardManager.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
