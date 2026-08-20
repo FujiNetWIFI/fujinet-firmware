@@ -7,6 +7,8 @@
 
 #include "fnjson.h"
 
+#include "../fntext/fn_sanitize.h"
+
 #include <string.h>
 #include <sstream>
 #include <algorithm>
@@ -141,6 +143,12 @@ std::string FNJSON::processString(std::string in)
             }
         }
     }
+
+    // After tag removal, so markup is gone before entities are decoded. The
+    // ASCII fold is platform-neutral and leaves the Atari remap below nothing
+    // to do, so the two are alternatives rather than a pipeline.
+    if ((_queryParam & JSON_OUTPUT_MASK) == JSON_OUTPUT_ASCII)
+        return fn_sanitize_ascii(in);
 
 #ifdef BUILD_IEC
     // TODO: fix translations. There needs to be the ability to decide if we translate the TRANSMIT to internet and RECEIVE back to the host separately.

@@ -9,7 +9,7 @@
 #include "peoples_url_parser.h"
 #include "Protocol.h"
 #include "fnjson.h"
-#include "fnsgml.h"
+#include "fnhtml.h"
 
 /**
  * Number of devices to expose via LYNX, becomes 0x71 to 0x70 + NUM_DEVICES - 1

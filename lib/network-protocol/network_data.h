@@ -11,19 +11,26 @@
 
 class NetworkProtocol;
 class FNJSON;
-class FNSGML;
+class FNHTML;
+class FNXML;
 class PeoplesUrlParser;
 
+// These values are the wire protocol: an 8-bit host sends them verbatim in the
+// set-channel-mode command, so they are append-only.
+// NOTE: the unmerged feat/html-renderer branch also assigns 3 (to PRETTY); that
+// branch renumbers PRETTY to 4 when it merges.
 typedef enum class CHANNEL_MODE {
     PROTOCOL = 0,
     JSON     = 1,
-    SGML     = 2,
+    HTML     = 2, // HTML via CSS selector (FNHTML, Gumbo)
+    XML      = 3, // XML via XPath subset  (FNXML, tinyxml2)
 } channelMode_t;
 
 struct NetworkData {
     std::unique_ptr<NetworkProtocol> protocol;
     std::unique_ptr<FNJSON> json;
-    std::unique_ptr<FNSGML> sgml;
+    std::unique_ptr<FNHTML> html;
+    std::unique_ptr<FNXML> xml;
     std::string receiveBuffer;
     std::string transmitBuffer;
     std::string specialBuffer;

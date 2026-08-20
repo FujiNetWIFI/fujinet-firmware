@@ -4,7 +4,7 @@
 #include "../network.h"
 #include "IECFileDevice.h"
 #include "network_data.h"
-#include "fnsgml.h"
+#include "fnhtml.h"
 
 #include <string>
 #include <vector>

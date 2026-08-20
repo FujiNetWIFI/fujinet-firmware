@@ -112,9 +112,14 @@ void sioNetwork::sio_open(const FujiSIOPacket &packet)
         json = nullptr;
     }
 
-    if (sgml != nullptr) {
-        delete sgml;
-        sgml = nullptr;
+    if (html != nullptr) {
+        delete html;
+        html = nullptr;
+    }
+
+    if (xml != nullptr) {
+        delete xml;
+        xml = nullptr;
     }
 
     if (urlParser != nullptr) {
@@ -167,10 +172,15 @@ void sioNetwork::sio_open(const FujiSIOPacket &packet)
     json->setLineEnding("\x9b");
     json->setProtocol(protocol.get());
 
-    sgml = new FNSGML();
-    sgml->setLineEnding("\x9b");
-    sgml->setProtocol(protocol.get());
-    sgml_bytes_remaining = 0; // reset per-open so a prior session's count doesn't leak
+    html = new FNHTML();
+    html->setLineEnding("\x9b");
+    html->setProtocol(protocol.get());
+    html_bytes_remaining = 0; // reset per-open so a prior session's count doesn't leak
+
+    xml = new FNXML();
+    xml->setLineEnding("\x9b");
+    xml->setProtocol(protocol.get());
+    xml_bytes_remaining = 0; // reset per-open so a prior session's count doesn't leak
 
     channelMode = PROTOCOL;
 
@@ -215,10 +225,16 @@ void sioNetwork::sio_close()
         json = nullptr;
     }
 
-    if (sgml != nullptr)
+    if (html != nullptr)
     {
-        delete sgml;
-        sgml = nullptr;
+        delete html;
+        html = nullptr;
+    }
+
+    if (xml != nullptr)
+    {
+        delete xml;
+        xml = nullptr;
     }
 
 #ifdef ESP_PLATFORM
@@ -285,15 +301,29 @@ fujiError_t sioNetwork::sio_read_channel_json(unsigned short num_bytes)
 }
 
 /**
- * @brief Perform read of the current SGML channel
+ * @brief Perform read of the current HTML channel
  * @param num_bytes Number of bytes to read
  */
-fujiError_t sioNetwork::sio_read_channel_sgml(unsigned short num_bytes)
+fujiError_t sioNetwork::sio_read_channel_html(unsigned short num_bytes)
 {
-    if (num_bytes > sgml_bytes_remaining)
-        sgml_bytes_remaining=0;
+    if (num_bytes > html_bytes_remaining)
+        html_bytes_remaining=0;
     else
-        sgml_bytes_remaining-=num_bytes;
+        html_bytes_remaining-=num_bytes;
+
+    return FUJI_ERROR::NONE;
+}
+
+/**
+ * @brief Perform read of the current XML channel
+ * @param num_bytes Number of bytes to read
+ */
+fujiError_t sioNetwork::sio_read_channel_xml(unsigned short num_bytes)
+{
+    if (num_bytes > xml_bytes_remaining)
+        xml_bytes_remaining=0;
+    else
+        xml_bytes_remaining-=num_bytes;
 
     return FUJI_ERROR::NONE;
 }
@@ -315,8 +345,11 @@ fujiError_t sioNetwork::sio_read_channel(unsigned short num_bytes)
     case JSON:
         err = sio_read_channel_json(num_bytes);
         break;
-    case SGML:
-        err = sio_read_channel_sgml(num_bytes);
+    case HTML:
+        err = sio_read_channel_html(num_bytes);
+        break;
+    case XML:
+        err = sio_read_channel_xml(num_bytes);
         break;
     }
     return err;
@@ -384,8 +417,12 @@ fujiError_t sioNetwork::sio_write_channel(unsigned short num_bytes)
         Debug_printf("JSON Not Handled.\n");
         err = FUJI_ERROR::UNSPECIFIED;
         break;
-    case SGML:
-        Debug_printf("SGML Not Handled.\n");
+    case HTML:
+        Debug_printf("HTML Not Handled.\n");
+        err = FUJI_ERROR::UNSPECIFIED;
+        break;
+    case XML:
+        Debug_printf("XML Not Handled.\n");
         err = FUJI_ERROR::UNSPECIFIED;
         break;
     }
@@ -467,10 +504,17 @@ error_is_true sioNetwork::sio_status_channel_json(NetworkStatus *ns)
     RETURN_SUCCESS_AS_FALSE(); // for now
 }
 
-error_is_true sioNetwork::sio_status_channel_sgml(NetworkStatus *ns)
+error_is_true sioNetwork::sio_status_channel_html(NetworkStatus *ns)
 {
-    ns->connected = sgml_bytes_remaining > 0;
-    ns->error = sgml_bytes_remaining > 0 ? NDEV_STATUS::SUCCESS : NDEV_STATUS::END_OF_FILE;
+    ns->connected = html_bytes_remaining > 0;
+    ns->error = html_bytes_remaining > 0 ? NDEV_STATUS::SUCCESS : NDEV_STATUS::END_OF_FILE;
+    RETURN_SUCCESS_AS_FALSE(); // for now
+}
+
+error_is_true sioNetwork::sio_status_channel_xml(NetworkStatus *ns)
+{
+    ns->connected = xml_bytes_remaining > 0;
+    ns->error = xml_bytes_remaining > 0 ? NDEV_STATUS::SUCCESS : NDEV_STATUS::END_OF_FILE;
     RETURN_SUCCESS_AS_FALSE(); // for now
 }
 
@@ -508,9 +552,13 @@ void sioNetwork::sio_status_channel()
         sio_status_channel_json(&status);
         avail = json_bytes_remaining;
         break;
-    case SGML:
-        sio_status_channel_sgml(&status);
-        avail = sgml_bytes_remaining;
+    case HTML:
+        sio_status_channel_html(&status);
+        avail = html_bytes_remaining;
+        break;
+    case XML:
+        sio_status_channel_xml(&status);
+        avail = xml_bytes_remaining;
         break;
     }
     // clear forced flag (first status after open)
@@ -650,7 +698,11 @@ void sioNetwork::sio_set_channel_mode(const FujiSIOPacket &packet)
         SYSTEM_BUS.transaction_success();
         break;
     case 2:
-        channelMode = SGML;
+        channelMode = HTML;
+        SYSTEM_BUS.transaction_success();
+        break;
+    case 3:
+        channelMode = XML;
         SYSTEM_BUS.transaction_success();
         break;
     default:
@@ -804,8 +856,10 @@ void sioNetwork::sio_process(const FujiSIOPacket &packet)
         break;
 
     case NETCMD_PARSE:
-        if (channelMode == SGML)
-            sio_parse_sgml();
+        if (channelMode == HTML)
+            sio_parse_html();
+        else if (channelMode == XML)
+            sio_parse_xml();
         else
             sio_parse_json();
         break;
@@ -833,8 +887,10 @@ void sioNetwork::sio_process(const FujiSIOPacket &packet)
         sio_set_prefix();
         return;
     case NETCMD_QUERY:
-        if (channelMode == SGML)
-            sio_set_sgml_query(packet);
+        if (channelMode == HTML)
+            sio_set_html_query(packet);
+        else if (channelMode == XML)
+            sio_set_xml_query(packet);
         else
             sio_set_json_query(packet);
         return;
@@ -1246,14 +1302,14 @@ void sioNetwork::sio_set_json_query(const FujiSIOPacket &packet)
     SYSTEM_BUS.transaction_success();
 }
 
-void sioNetwork::sio_parse_sgml()
+void sioNetwork::sio_parse_html()
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    sgml->parse();
+    html->parse();
     SYSTEM_BUS.transaction_success();
 }
 
-void sioNetwork::sio_set_sgml_query(const FujiSIOPacket &packet)
+void sioNetwork::sio_set_html_query(const FujiSIOPacket &packet)
 {
     uint8_t in[256];
 
@@ -1282,19 +1338,71 @@ void sioNetwork::sio_set_sgml_query(const FujiSIOPacket &packet)
             inp_string.erase(0, p + 1);
     }
 
-    sgml->setReadQuery(inp_string, packet.param(1));
-    int query_bytes = sgml->available();
-    sgml_bytes_remaining += query_bytes;
+    html->setReadQuery(inp_string, packet.param(1));
+    int query_bytes = html->available();
+    html_bytes_remaining += query_bytes;
 
     std::vector<uint8_t> tmp(query_bytes);
-    sgml->readValue(tmp.data(), query_bytes);
+    html->readValue(tmp.data(), query_bytes);
 
     // don't copy past first nul char in tmp
     auto null_pos = std::find(tmp.begin(), tmp.end(), 0);
     *receiveBuffer += std::string(tmp.begin(), null_pos);
 
-    Debug_printf("SGML query set to >%s< (buf_size=%d, sgml_remaining=%d)\r\n",
-                 inp_string.c_str(), (int)receiveBuffer->size(), sgml_bytes_remaining);
+    Debug_printf("HTML query set to >%s< (buf_size=%d, html_remaining=%d)\r\n",
+                 inp_string.c_str(), (int)receiveBuffer->size(), html_bytes_remaining);
+    SYSTEM_BUS.transaction_success();
+}
+
+void sioNetwork::sio_parse_xml()
+{
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    xml->parse();
+    SYSTEM_BUS.transaction_success();
+}
+
+void sioNetwork::sio_set_xml_query(const FujiSIOPacket &packet)
+{
+    uint8_t in[256];
+
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+
+    memset(in, 0, sizeof(in));
+
+    SYSTEM_BUS.transaction_get(in, sizeof(in)); // TODO test checksum
+
+    // strip away line endings from input spec.
+    for (int i = 0; i < 256; i++)
+    {
+        if (in[i] == 0x0A || in[i] == 0x0D || in[i] == 0x9b)
+            in[i] = 0x00;
+    }
+
+    // Unlike JSON, an XPath path can contain colons (namespace prefixes like dc:creator), so
+    // only strip a leading "N:"/"N#:" device prefix rather than splitting on a colon.
+    std::string inp_string(reinterpret_cast<char*>(in));
+    if (inp_string.size() >= 2 && (inp_string[0] == 'N' || inp_string[0] == 'n'))
+    {
+        size_t p = 1;
+        if (p < inp_string.size() && inp_string[p] >= '0' && inp_string[p] <= '9')
+            p++;
+        if (p < inp_string.size() && inp_string[p] == ':')
+            inp_string.erase(0, p + 1);
+    }
+
+    xml->setReadQuery(inp_string, packet.param(1));
+    int query_bytes = xml->available();
+    xml_bytes_remaining += query_bytes;
+
+    std::vector<uint8_t> tmp(query_bytes);
+    xml->readValue(tmp.data(), query_bytes);
+
+    // don't copy past first nul char in tmp
+    auto null_pos = std::find(tmp.begin(), tmp.end(), 0);
+    *receiveBuffer += std::string(tmp.begin(), null_pos);
+
+    Debug_printf("XML query set to >%s< (buf_size=%d, xml_remaining=%d)\r\n",
+                 inp_string.c_str(), (int)receiveBuffer->size(), xml_bytes_remaining);
     SYSTEM_BUS.transaction_success();
 }
 

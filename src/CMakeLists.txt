@@ -58,7 +58,9 @@ set(INCLUDES
     ${CMAKE_SOURCE_DIR}/lib/FileSystem
     ${CMAKE_SOURCE_DIR}/lib/fn_esp_http_client
     ${CMAKE_SOURCE_DIR}/lib/fnjson
-    ${CMAKE_SOURCE_DIR}/lib/fnsgml
+    ${CMAKE_SOURCE_DIR}/lib/fnhtml
+    ${CMAKE_SOURCE_DIR}/lib/fntext
+    ${CMAKE_SOURCE_DIR}/lib/fnxml
     ${CMAKE_SOURCE_DIR}/lib/ftp
     ${CMAKE_SOURCE_DIR}/lib/fuji
     ${CMAKE_SOURCE_DIR}/lib/hardware
@@ -136,7 +138,9 @@ FILE(GLOB_RECURSE SOURCES
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/fn_esp_http_client/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/fnjson/*.cpp
-    ${CMAKE_SOURCE_DIR}/lib/fnsgml/*.cpp
+    ${CMAKE_SOURCE_DIR}/lib/fnhtml/*.cpp
+    ${CMAKE_SOURCE_DIR}/lib/fntext/*.cpp
+    ${CMAKE_SOURCE_DIR}/lib/fnxml/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/ftp/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/fuji/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/gpiox/*.cpp

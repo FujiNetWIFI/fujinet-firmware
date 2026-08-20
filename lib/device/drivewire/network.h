@@ -12,7 +12,8 @@
 #include "networkStatus.h"
 #include "status_error_codes.h"
 #include "fnjson.h"
-#include "fnsgml.h"
+#include "fnhtml.h"
+#include "fnxml.h"
 
 /**
  * Number of devices to expose via DRIVEWIRE, becomes 0x71 to 0x70 + NUM_DEVICES - 1
@@ -172,12 +173,15 @@ private:
      *
      * @enum PROTOCOL Send to protocol
      * @enum JSON Send to JSON parser.
+     * @enum HTML Send to HTML parser.
+     * @enum XML Send to XML parser.
      */
     enum _channel_mode
     {
         PROTOCOL,
         JSON,
-        SGML
+        HTML,
+        XML
     } channelMode;
 
     /**
@@ -198,14 +202,24 @@ private:
     unsigned short json_bytes_remaining = 0;
 
     /**
-     * The fnSGML parser wrapper object (HTML/XML via CSS selector)
+     * The fnHTML parser wrapper object (HTML via CSS selector)
      */
-    FNSGML *sgml = nullptr;
+    FNHTML *html = nullptr;
 
     /**
-     * Bytes remaining of current SGML query result.
+     * Bytes remaining of current HTML query result.
      */
-    unsigned short sgml_bytes_remaining = 0;
+    unsigned short html_bytes_remaining = 0;
+
+    /**
+     * The fnXML parser wrapper object (XML via XPath)
+     */
+    FNXML *xml = nullptr;
+
+    /**
+     * Bytes remaining of current XML query result.
+     */
+    unsigned short xml_bytes_remaining = 0;
 
     uint32_t readAck = 0;
 
@@ -244,10 +258,16 @@ private:
     fujiError_t read_channel_json(unsigned short num_bytes);
 
     /**
-     * @brief Perform read of the current SGML channel
+     * @brief Perform read of the current HTML channel
      * @param num_bytes Number of bytes to read
      */
-    fujiError_t read_channel_sgml(unsigned short num_bytes);
+    fujiError_t read_channel_html(unsigned short num_bytes);
+
+    /**
+     * @brief Perform read of the current XML channel
+     * @param num_bytes Number of bytes to read
+     */
+    fujiError_t read_channel_xml(unsigned short num_bytes);
 
     /**
      * Perform the correct write based on value of channelMode
@@ -273,9 +293,14 @@ private:
     bool status_channel_json(NetworkStatus *ns);
 
     /**
-     * @brief get SGML status (# of bytes in receive channel)
+     * @brief get HTML status (# of bytes in receive channel)
      */
-    bool status_channel_sgml(NetworkStatus *ns);
+    bool status_channel_html(NetworkStatus *ns);
+
+    /**
+     * @brief get XML status (# of bytes in receive channel)
+     */
+    bool status_channel_xml(NetworkStatus *ns);
 
     /**
      * @brief Parse incoming JSON. (must be in JSON channelMode)
@@ -288,14 +313,24 @@ private:
     void json_query();
 
     /**
-     * @brief Parse incoming SGML/HTML/XML. (must be in SGML channelMode)
+     * @brief Parse incoming HTML. (must be in HTML channelMode)
      */
-    void parse_sgml();
+    void parse_html();
 
     /**
-     * @brief Set SGML CSS selector query std::string. (must be in SGML channelMode)
+     * @brief Set HTML CSS selector query std::string. (must be in HTML channelMode)
      */
-    void sgml_query();
+    void html_query();
+
+    /**
+     * @brief Parse incoming XML. (must be in XML channelMode)
+     */
+    void parse_xml();
+
+    /**
+     * @brief Set XML XPath query std::string. (must be in XML channelMode)
+     */
+    void xml_query();
 
     /**
      * @brief parse URL and instantiate protocol

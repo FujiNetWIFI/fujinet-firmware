@@ -1,6 +1,6 @@
 # gumbo-query — CSS selector engine over Gumbo (patched exception-free and to
 # route the DOM to PSRAM; see the FujiNet: comments in the sources). Used by
-# lib/fnsgml (FNSGML).
+# lib/fnhtml (FNHTML).
 file(GLOB GUMBO_QUERY_SRCS ${COMPONENT_DIR}/*.cpp)
 
 idf_component_register(
