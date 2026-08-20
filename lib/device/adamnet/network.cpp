@@ -994,6 +994,15 @@ void adamNetwork::process_tcp(fujiCommandID_t cmd)
 
 void adamNetwork::process_http(fujiCommandID_t cmd)
 {
+    /* The HTTP channel mode arrives in aux2, as on every other bus (sio,
+     * iwm and rs232 all read param(1)); aux1 is padding. Reading a single
+     * byte here took the padding as the mode and consumed the real mode
+     * byte as the checksum, leaving the mode stuck at DATA.
+     *
+     * Only reachable via NETCMD_SET_CHANNEL_MODE (0x4D). The JSON/SGML
+     * mode is NETCMD_CHANNEL_MODE (0xFC), handled by channel_mode(),
+     * which does take a single byte and is unchanged. */
+    adamnet_recv();                     // aux1, unused
     unsigned char m = adamnet_recv();
     adamnet_recv(); // CK
 
