@@ -466,7 +466,6 @@ if(FUJINET_TARGET STREQUAL "ADAM")
     lib/device/adamnet/network.h lib/device/adamnet/network.cpp
     lib/device/adamnet/printer.h lib/device/adamnet/printer.cpp
     lib/device/adamnet/printerlist.h lib/device/adamnet/printerlist.cpp
-    lib/device/adamnet/query_device.h lib/device/adamnet/query_device.cpp
     lib/device/adamnet/serial.h lib/device/adamnet/serial.cpp
 
     )
