@@ -1674,8 +1674,7 @@ esp_err_t fnHttpService::post_handler_files_upload(httpd_req_t *req)
     }
 
     files_send_page(req, dir,
-                    "Uploaded " + FileManager::html_escape(writer.filename()) + " (" +
-                        std::to_string(writer.bytes_written()) + " bytes).");
+                    "Uploaded " + writer.summary() + ".");
     return ESP_OK;
 }
 
