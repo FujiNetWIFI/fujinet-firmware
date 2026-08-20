@@ -9,6 +9,7 @@
 #include "peoples_url_parser.h"
 
 #include "Protocol.h"
+#include "network_data.h"
 
 #include "fnjson.h"
 #include "fnsgml.h"
@@ -54,7 +55,7 @@ public:
      * Called for ADAM Command 'O' to open a connection to a network protocol, allocate all buffers,
      * and start the receive PROCEED interrupt.
      */
-    void open(unsigned short s);
+    void open(const FujiAdamPacket &packet);
 
     /**
      * Called for ADAM Command 'C' to close a connection to a network protocol, de-allocate all buffers,
@@ -68,7 +69,7 @@ public:
      * Write # of bytes specified by aux1/aux2 from tx_buffer out to ADAM. If protocol is unable to return requested
      * number of bytes, return ERROR.
      */
-    void write(uint16_t num_bytes);
+    void write(const FujiAdamPacket &packet);
 
     /**
      * ADAM Special, called as a default for any other ADAM command not processed by the other adamnet_ functions.
@@ -82,18 +83,17 @@ public:
     void adamnet_control_receive() override;
     void adamnet_control_clr() override;
 
-    void adamnet_control_receive_channel_json();
-    void adamnet_control_receive_channel_sgml();
-    void adamnet_control_receive_channel_protocol();
-
     void adamnet_response_send();
 
     AdamNetStatus deviceStatus() override;
+    std::optional<ByteBuffer> adamnet_control_receive_channel_json();
+    std::optional<ByteBuffer> adamnet_control_receive_channel_sgml();
+    std::optional<ByteBuffer> adamnet_control_receive_channel_protocol();
 
     /**
      * @brief Called to set prefix
      */
-    void set_prefix(unsigned short s);
+    void set_prefix(const FujiAdamPacket &packet);
 
     /**
      * @brief Called to get prefix
@@ -103,17 +103,17 @@ public:
     /**
      * @brief called to set login
      */
-    void set_login(uint16_t s);
+    void set_login(const FujiAdamPacket &packet);
 
     /**
      * @brief called to set password
      */
-    void set_password(uint16_t s);
+    void set_password(const FujiAdamPacket &packet);
 
     /**
      * @brief set channel mode
      */
-    void channel_mode();
+    void channel_mode(const FujiAdamPacket &packet);
 
     /**
      * @brief parse incoming data
@@ -124,7 +124,7 @@ public:
      * @brief JSON Query
      * @param s size of query
      */
-    void json_query(unsigned short s);
+    void json_query(const FujiAdamPacket &packet);
 
     /**
      * @brief parse incoming SGML/HTML/XML
@@ -135,7 +135,7 @@ public:
      * @brief SGML CSS selector Query
      * @param s size of query
      */
-    void sgml_query(unsigned short s);
+    void sgml_query(const FujiAdamPacket &packet);
 
     /**
      * Check to see if PROCEED needs to be asserted.
@@ -146,10 +146,10 @@ public:
      * Process incoming ADAM command for device 0x7X
      * @param b The incoming command byte
      */
-    void process_fs(fujiCommandID_t cmd, unsigned pkt_len);
-    void process_tcp(fujiCommandID_t cmd);
-    void process_http(fujiCommandID_t cmd);
-    void process_udp(fujiCommandID_t cmd);
+    void process_fs(const FujiAdamPacket &packet);
+    void process_tcp(const FujiAdamPacket &packet);
+    void process_http(const FujiAdamPacket &packet);
+    void process_udp(const FujiAdamPacket &packet);
 
 private:
     /**
@@ -252,21 +252,7 @@ private:
      * @enum PROTOCOL Send to protocol
      * @enum JSON Send to JSON parser.
      */
-    enum _channel_mode
-    {
-        PROTOCOL,
-        JSON,
-        SGML
-    } channelMode;
-
-    /**
-     * The current receive state, are we sending channel or status data?
-     */
-    enum _receive_mode
-    {
-        CHANNEL,
-        STATUS
-    } receiveMode = CHANNEL;
+    channelMode_t channelMode = CHANNEL_MODE::PROTOCOL;
 
     /**
      * saved NetworkStatus items
