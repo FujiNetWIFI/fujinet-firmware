@@ -1,7 +1,8 @@
 # Provenance and licensing status
 
 `firmware/` is a vendored fork of **Minty** by Gennaro Tortone
-(https://github.com/gtortone/Minty), forked at commit `29ba4608abcd4cdb2cb292f5c673ce0f2a078481`.
+(https://github.com/gtortone/Minty), forked at release **2.4**
+(`887840e8ac84a0ebeaef843dbff55768f50be564`).
 It is an RP2040/RP2350-based Intellivision cartridge that emulates ROM/RAM on the CP-1610
 bus, with FAT/LittleFS storage, ROM fingerprinting, and JLP accelerator/flash emulation.
 Minty is itself a refactor of **PiRTO II** by Andrea Ottaviani
