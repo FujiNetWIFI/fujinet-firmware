@@ -757,8 +757,7 @@ int fnHttpService::post_handler_files_upload(struct mg_connection *c, struct mg_
     }
 
     files_send_page(c, dir,
-                    "Uploaded " + FileManager::html_escape(writer.filename()) + " (" +
-                        std::to_string(writer.bytes_written()) + " bytes).");
+                    "Uploaded " + writer.summary() + ".");
     return 0;
 }
 

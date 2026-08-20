@@ -271,10 +271,10 @@ bool MultipartFileWriter::consume_headers(std::string &error)
     std::string headers = _pending.substr(0, end);
     _pending.erase(0, end + 4);
 
-    // Only the first part carrying a filename is written out; any other field
-    // (a stray text input, say) is skipped.
+    // Every part carrying a filename is written out; any other field (a stray
+    // text input, say) is skipped.
     size_t fn = headers.find("filename=\"");
-    if (fn == std::string::npos || _found_file)
+    if (fn == std::string::npos)
     {
         // Skip to the next boundary without writing anything
         _state = WANT_BODY;
@@ -302,12 +302,29 @@ bool MultipartFileWriter::consume_headers(std::string &error)
     }
 
     _filename = name;
+    _part_written = 0;
     if (!open_output(error))
         return false;
 
-    _found_file = true;
     _state = WANT_BODY;
     return true;
+}
+
+/* Finish the part currently being written, if any, and record what it stored.
+   Safe to call more than once for the same part: _out is the "still open"
+   flag, so a re-entry after a "need more data" return does nothing. */
+void MultipartFileWriter::close_part()
+{
+    if (_out == nullptr)
+        return;
+
+    fclose(_out);
+    _out = nullptr;
+
+    UploadedFile stored;
+    stored.name = _filename;
+    stored.bytes = _part_written;
+    _files.push_back(stored);
 }
 
 /* Write everything in _pending that cannot be the start of a boundary. */
@@ -323,7 +340,7 @@ void MultipartFileWriter::flush_body()
     if (_out != nullptr)
     {
         size_t n = fwrite(_pending.data(), 1, writable, _out);
-        _written += n;
+        _part_written += n;
     }
     _pending.erase(0, writable);
 }
@@ -358,14 +375,11 @@ bool MultipartFileWriter::feed(const char *data, size_t len, std::string &error)
         }
 
         // Everything before the boundary is the last of this part's content.
-        // Closing the file here is safe to reach twice: _out is cleared, so a
-        // re-entry after "need more data" below writes nothing.
         if (_out != nullptr)
         {
             size_t n = fwrite(_pending.data(), 1, at, _out);
-            _written += n;
-            fclose(_out);
-            _out = nullptr;
+            _part_written += n;
+            close_part();
         }
         if (at > 0)
             _pending.erase(0, at); // _pending now starts at the boundary
@@ -394,13 +408,12 @@ bool MultipartFileWriter::feed(const char *data, size_t len, std::string &error)
 
 bool MultipartFileWriter::finish(std::string &error)
 {
-    if (_out != nullptr)
-    {
-        fclose(_out);
-        _out = nullptr;
-    }
+    // A part still open here never reached its closing boundary, so the upload
+    // was cut short: record it anyway (the bytes are on the card) and let the
+    // _state check below report the failure.
+    close_part();
 
-    if (!_found_file)
+    if (_files.empty())
     {
         error = "No file was selected";
         return false;
@@ -411,6 +424,19 @@ bool MultipartFileWriter::finish(std::string &error)
         return false;
     }
     return true;
+}
+
+std::string MultipartFileWriter::summary() const
+{
+    std::string out;
+    for (const UploadedFile &file : _files)
+    {
+        if (!out.empty())
+            out += ", ";
+        out += FileManager::html_escape(file.name) + " (" +
+               std::to_string(file.bytes) + " bytes)";
+    }
+    return out;
 }
 
 // ─── page ────────────────────────────────────────────────────────────────────
@@ -607,7 +633,7 @@ std::string FileManager::render_page(const std::string &dir, const std::string &
     page += "<form id=\"fmupform\" class=\"fmupload\" method=\"post\" enctype=\"multipart/form-data\""
             " action=\"/files/upload?path=" + enc_dir + "\""
             " onsubmit=\"return fmCheckUpload(this)\">"
-            "<input id=\"fmupfile\" type=\"file\" name=\"file\" required> "
+            "<input id=\"fmupfile\" type=\"file\" name=\"file\" multiple required> "
             "<button class=\"fmbutton\" type=\"submit\">Upload</button></form>";
 
     // Hidden form used by the rename and delete buttons
@@ -618,7 +644,8 @@ std::string FileManager::render_page(const std::string &dir, const std::string &
             "<input type=\"hidden\" name=\"newname\" id=\"fmaction-newname\">"
             "</form>";
 
-    page += "<div class=\"fmnote\">Uploads go into the folder shown above. Dotfiles and the "
+    page += "<div class=\"fmnote\">Uploads go into the folder shown above; several files can be "
+            "sent at once (a cartridge and its .cfg, say). Dotfiles and the "
             "FujiNet's own working files are not listed.</div>";
 
     // Names already in this folder, so an upload that would replace one can ask first
@@ -639,13 +666,18 @@ std::string FileManager::render_page(const std::string &dir, const std::string &
             "function fmCheckUpload(form){"
             "var input=form.querySelector('input[type=file]');"
             "if(!input||!input.files||!input.files.length)return true;"
+            "var clash=[];"
+            "for(var i=0;i<input.files.length;i++){"
             // File.name is always the bare filename, never a path, so it must
             // not be split on separators - names may legitimately contain them
-            "var name=input.files[0].name;"
+            "var name=input.files[i].name;"
             "var lower=name.toLowerCase();"
             "for(var j=0;j<fmExisting.length;j++){"
-            "if(fmExisting[j].toLowerCase()===lower)"
-            "return confirm('A file named '+name+' already exists here. Replace it?');}"
+            "if(fmExisting[j].toLowerCase()===lower){clash.push(name);break;}}}"
+            "if(clash.length)"
+            "return confirm((clash.length>1?'These files already exist here: ':"
+            "'A file named ')+clash.join(', ')+"
+            "(clash.length>1?'. Replace them?':' already exists here. Replace it?'));"
             "return true;}"
             "</script>";
 
@@ -677,15 +709,15 @@ std::string FileManager::render_page(const std::string &dir, const std::string &
             "cnt=0;"
             "document.body.classList.remove('fmdrag');"
             "if(!e.dataTransfer||!e.dataTransfer.files||!e.dataTransfer.files.length)return;"
-            "var file=e.dataTransfer.files[0];"
+            // Everything dropped goes up, so dragging a cartridge and its .cfg
+            // together sends both rather than silently keeping only the first
             "try{"
             "var dt=new DataTransfer();"
-            "dt.items.add(file);"
+            "for(var i=0;i<e.dataTransfer.files.length;i++)"
+            "dt.items.add(e.dataTransfer.files[i]);"
             "input.files=dt.files;"
             "}catch(err){"
-            "if(e.dataTransfer&&e.dataTransfer.files){"
             "input.files=e.dataTransfer.files;"
-            "}"
             "}"
             "if(fmCheckUpload(f))f.submit();"
             "});"
