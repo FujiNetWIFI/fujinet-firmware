@@ -741,23 +741,10 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
     return ESP_OK;
 }
 
-esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
+// Take the disk out of a drive slot: stop the device, clear the slot and the
+// config, and give the config device its slot back once nothing is mounted.
+static void eject_drive_slot(int ds)
 {
-    queryparts qp;
-    parse_query(req, &qp);
-    unsigned char ds;
-
-    if (qp.query_parsed.find("deviceslot") == qp.query_parsed.end())
-    {
-        fnHTTPD.addToErrMsg("<li>deviceslot is empty</li>");
-    }
-
-    ds = atoi(qp.query_parsed["deviceslot"].c_str());
-
-    if (ds > MAX_DISK_DEVICES)
-    {
-        fnHTTPD.addToErrMsg("<li>deviceslot should be between 0 and 7</li>");
-    }
 #ifdef BUILD_APPLE
     DISK_DEVICE *disk_dev = theFuji->get_disk_dev(ds);
     if(disk_dev->device_active) //set disk switched only if device was previosly mounted.
@@ -798,6 +785,27 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
             theFuji->device_active = true;
         }
     }
+}
+
+esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
+{
+    queryparts qp;
+    parse_query(req, &qp);
+    unsigned char ds;
+
+    if (qp.query_parsed.find("deviceslot") == qp.query_parsed.end())
+    {
+        fnHTTPD.addToErrMsg("<li>deviceslot is empty</li>");
+    }
+
+    ds = atoi(qp.query_parsed["deviceslot"].c_str());
+
+    if (ds > MAX_DISK_DEVICES)
+    {
+        fnHTTPD.addToErrMsg("<li>deviceslot should be between 0 and 7</li>");
+    }
+
+    eject_drive_slot(ds);
 
     if (!fnHTTPD.errMsgEmpty())
     {
@@ -2370,6 +2378,10 @@ esp_err_t fnHttpService::api_handler_status(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "free_heap", fnSystem.get_free_heap_size());
     cJSON_AddNumberToObject(root, "cpu_freq_mhz", fnSystem.get_cpu_frequency());
     cJSON_AddStringToObject(root, "sdk_version", fnSystem.get_sdk_version());
+    // What the REST handlers do, not just that they are here: 1 was the
+    // original host and mount handlers, which wrote the config file and left
+    // the live slots alone; 2 acts on the live slots.
+    cJSON_AddNumberToObject(root, "api_version", 2);
 
     // WiFi info
     cJSON *wifi = cJSON_AddObjectToObject(root, "wifi");
@@ -2530,7 +2542,44 @@ esp_err_t fnHttpService::api_handler_drive_mount(httpd_req_t *req)
         ? fnConfig::MOUNTMODE_WRITE
         : fnConfig::MOUNTMODE_READ;
 
+    // Recording the mount is not mounting it: the host has to be up and the
+    // image opened before the slot is live. Same sequence the web UI runs.
+    if (!theFuji->get_host(host_slot)->mount())
+    {
+        cJSON_Delete(body);
+        api_send_json(req, "{\"error\":\"could not mount host slot\"}", 500);
+        return ESP_OK;
+    }
+
+    fujiDisk *disk = theFuji->get_disk(slot);
+    // Remember what the slot held. An image that fails to open must not be
+    // left sitting in the live slot, where the next config sync would write it
+    // out as a mount that never happened.
+    uint8_t prev_host_slot = disk->host_slot;
+    disk_access_flags_t prev_access_mode = disk->access_mode;
+    char prev_filename[sizeof(disk->filename)];
+    strlcpy(prev_filename, disk->filename, sizeof(prev_filename));
+
+    disk->host_slot = host_slot;
+    strlcpy(disk->filename, path, sizeof(disk->filename));
+
+    disk_access_flags_t access_mode = (mount_mode == fnConfig::MOUNTMODE_WRITE)
+        ? DISK_ACCESS_MODE_WRITE
+        : DISK_ACCESS_MODE_READ;
+
+    if (!theFuji->fujicore_mount_disk_image_success(slot, access_mode))
+    {
+        disk->host_slot = prev_host_slot;
+        disk->access_mode = prev_access_mode;
+        strlcpy(disk->filename, prev_filename, sizeof(disk->filename));
+        cJSON_Delete(body);
+        api_send_json(req, "{\"error\":\"could not mount disk image\"}", 500);
+        return ESP_OK;
+    }
+
     Config.store_mount(slot, host_slot, path, mount_mode);
+    Config.save();
+    theFuji->populate_slots_from_config();
 
     cJSON *resp = cJSON_CreateObject();
     cJSON_AddStringToObject(resp, "status", "success");
@@ -2556,7 +2605,7 @@ esp_err_t fnHttpService::api_handler_drive_eject(httpd_req_t *req)
     }
     slot--; // Convert to 0-based
 
-    Config.clear_mount(slot);
+    eject_drive_slot(slot);
 
     cJSON *resp = cJSON_CreateObject();
     cJSON_AddStringToObject(resp, "status", "success");
@@ -2587,7 +2636,9 @@ esp_err_t fnHttpService::api_handler_hosts(httpd_req_t *req)
 
         cJSON_AddNumberToObject(slot, "slot", i + 1);
 
-        std::string name = Config.get_host_name(i);
+        // Hostname comes from the live slot because that is what the rest of
+        // the firmware runs on; type still has to come from the config.
+        std::string name = theFuji->get_host(i)->get_hostname();
         cJSON_AddStringToObject(slot, "hostname", name.c_str());
         cJSON_AddBoolToObject(slot, "configured", !name.empty());
 
@@ -2628,7 +2679,9 @@ esp_err_t fnHttpService::api_handler_host_slot(httpd_req_t *req)
 
         cJSON_AddNumberToObject(root, "slot", slot + 1);
 
-        std::string name = Config.get_host_name(slot);
+        // Hostname comes from the live slot because that is what the rest of
+        // the firmware runs on; type still has to come from the config.
+        std::string name = theFuji->get_host(slot)->get_hostname();
         cJSON_AddStringToObject(root, "hostname", name.c_str());
         cJSON_AddBoolToObject(root, "configured", !name.empty());
 
@@ -2694,7 +2747,16 @@ esp_err_t fnHttpService::api_handler_host_slot(httpd_req_t *req)
             }
         }
 
-        Config.store_host(slot, hostname, host_type);
+        // Config alone is not enough: the web UI, the drive chooser and the bus
+        // all read theFuji's live slots, and set_slot_hostname() syncs the
+        // config back from them.
+        theFuji->set_slot_hostname(slot, (char *)hostname);
+        // populate_config_from_slots() cannot know the type the caller asked
+        // for — the live host works the protocol out from the name when it
+        // mounts — so put an explicitly requested one back afterwards.
+        if (type_json != nullptr && hostname[0] != '\0')
+            Config.store_host(slot, hostname, host_type);
+        Config.save();
 
         cJSON *resp = cJSON_CreateObject();
         cJSON_AddStringToObject(resp, "status", "success");
