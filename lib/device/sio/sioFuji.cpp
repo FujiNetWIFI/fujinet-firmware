@@ -108,6 +108,16 @@ void say_swap_label()
     util_sam_say("DIHSK7Q ", true);
 }
 
+// Announce the new D1: through SAM, out SIO pin 11
+void sioFuji::announce_rotation(int drive_slot)
+{
+    if (!Config.get_general_rotation_sounds())
+        return;
+
+    say_swap_label();
+    say_number(drive_slot + 1); // because slots start from 0
+}
+
 // Constructor
 sioFuji::sioFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
 {

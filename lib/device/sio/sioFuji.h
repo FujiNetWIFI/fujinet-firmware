@@ -33,6 +33,8 @@ protected:
 
     void fujicmd_set_sio_external_clock(uint16_t speed);
 
+    void announce_rotation(int drive_slot) override;
+
 public:
     sioFuji();
     void setup() override;
