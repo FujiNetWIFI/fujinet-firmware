@@ -240,6 +240,7 @@ set(SOURCES src/main.cpp
     lib/http/fileManager.h lib/http/fileManager.cpp
     lib/http/fnSession.h lib/http/fnSession.cpp
     lib/http/httpServiceBrowse.h lib/http/httpServiceBrowse.cpp
+    lib/http/httpServiceApi.h lib/http/httpServiceApi.cpp
     lib/http/mgHttpClient.h lib/http/mgHttpClient.cpp
     lib/task/fnTask.h lib/task/fnTask.cpp
     lib/task/fnTaskManager.h lib/task/fnTaskManager.cpp

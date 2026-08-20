@@ -180,18 +180,8 @@ public:
     static esp_err_t get_handler_onedrive_auth(httpd_req_t *req);
     static esp_err_t get_handler_onedrive_poll(httpd_req_t *req);
 
-    // REST API handlers
-    static esp_err_t api_handler_status(httpd_req_t *req);
-    static esp_err_t api_handler_drives(httpd_req_t *req);
-    static esp_err_t api_handler_drive_slot(httpd_req_t *req);
-    static esp_err_t api_handler_drive_mount(httpd_req_t *req);
-    static esp_err_t api_handler_drive_eject(httpd_req_t *req);
-    static esp_err_t api_handler_hosts(httpd_req_t *req);
-    static esp_err_t api_handler_host_slot(httpd_req_t *req);
-    static esp_err_t api_handler_printer_status(httpd_req_t *req);
-    static esp_err_t api_handler_printer_clear(httpd_req_t *req);
-    static esp_err_t api_handler_wifi_scan(httpd_req_t *req);
-    static esp_err_t api_handler_wifi_status(httpd_req_t *req);
+    // REST API handler - routing and logic live in httpServiceApi.cpp
+    static esp_err_t api_handler(httpd_req_t *req);
 #else
 // !ESP_PLATFORM
     static int get_handler_print(struct mg_connection *c);
@@ -240,18 +230,8 @@ public:
     static int get_handler_onedrive_auth(struct mg_connection *c, struct mg_http_message *hm);
     static int get_handler_onedrive_poll(struct mg_connection *c, struct mg_http_message *hm);
 
-    // REST API handlers
-    static int api_handler_status(struct mg_connection *c);
-    static int api_handler_drives(struct mg_connection *c);
-    static int api_handler_drive_slot(struct mg_connection *c, struct mg_http_message *hm);
-    static int api_handler_drive_mount(struct mg_connection *c, struct mg_http_message *hm);
-    static int api_handler_drive_eject(struct mg_connection *c, struct mg_http_message *hm);
-    static int api_handler_hosts(struct mg_connection *c);
-    static int api_handler_host_slot(struct mg_connection *c, struct mg_http_message *hm);
-    static int api_handler_printer_status(struct mg_connection *c);
-    static int api_handler_printer_clear(struct mg_connection *c);
-    static int api_handler_wifi_scan(struct mg_connection *c);
-    static int api_handler_wifi_status(struct mg_connection *c);
+    // REST API handler - routing and logic live in httpServiceApi.cpp
+    static int api_handler(struct mg_connection *c, struct mg_http_message *hm);
 
     static std::vector<struct mg_connection*> m_sseClients;
     static size_t m_lastOutputSize;
