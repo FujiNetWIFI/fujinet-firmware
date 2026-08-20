@@ -57,6 +57,23 @@ hr {
     text-align: center;
 }
 
+/* Sign-out control, shown only when a device password is set */
+.logout-control {
+    text-align: right;
+    margin: 0 0.5rem 0.5rem 0;
+}
+
+.logout-control button {
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    height: 2rem;
+    line-height: 1.9rem;
+    border-radius: 0.5rem;
+    background: #999;
+    color: #fff;
+    padding: 0 1rem;
+    cursor: pointer;
+}
+
 .module-container {
     display: flex;
     flex-wrap: wrap;

@@ -27,11 +27,57 @@
 #include "request.h"
 #include "response.h"
 
+#include "../../config/fnPassword.h"
+#include "../fnSession.h"
+
 #include <cstring>
+#include <string>
+#include <vector>
+
+#define WEBDAV_AUTH_REALM "Basic realm=\"FujiNet\", charset=\"UTF-8\""
 
 
 esp_err_t webdav_handler(httpd_req_t *httpd_req)
 {
+    /* WebDAV cannot use the redirect-to-login flow the rest of the web UI uses:
+       a DAV client has no browser to render the form. So this handler accepts
+       HTTP Basic in addition to the session cookie, and challenges for it. A
+       browser pointed at /dav/ still gets in on its existing cookie. */
+    if (fnPassword.is_set())
+    {
+        bool authorized = false;
+
+        size_t hdrlen = httpd_req_get_hdr_value_len(httpd_req, "Cookie");
+        if (hdrlen > 0 && hdrlen < 2048)
+        {
+            std::vector<char> buf(hdrlen + 1);
+            if (httpd_req_get_hdr_value_str(httpd_req, "Cookie", buf.data(), buf.size()) == ESP_OK)
+            {
+                std::string token = fnSession::cookie_value(buf.data(), FN_SESSION_COOKIE);
+                authorized = fnPassword.check_session(token);
+            }
+        }
+
+        if (!authorized)
+        {
+            hdrlen = httpd_req_get_hdr_value_len(httpd_req, "Authorization");
+            if (hdrlen > 0 && hdrlen < 1024)
+            {
+                std::vector<char> buf(hdrlen + 1);
+                if (httpd_req_get_hdr_value_str(httpd_req, "Authorization", buf.data(), buf.size()) == ESP_OK)
+                    authorized = fnPassword.check_basic_auth(buf.data());
+            }
+        }
+
+        if (!authorized)
+        {
+            httpd_resp_set_status(httpd_req, "401 Unauthorized");
+            httpd_resp_set_hdr(httpd_req, "WWW-Authenticate", WEBDAV_AUTH_REALM);
+            httpd_resp_sendstr(httpd_req, "");
+            return ESP_OK;
+        }
+    }
+
     WebDav::Server *server = (WebDav::Server *)httpd_req->user_ctx;
     WebDav::Request req(httpd_req);
     WebDav::Response resp(httpd_req);

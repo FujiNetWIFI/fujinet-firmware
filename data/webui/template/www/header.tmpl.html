@@ -234,6 +234,26 @@
             {
                 text-align: right;
             }
+
+            .logout-control {
+                position: absolute;
+                top: 1rem;
+                right: 1rem;
+            }
+
+            .logout-button {
+                background-color: #999;
+                color: #fff;
+                border: 1px solid rgba(0,0,0,0.2);
+                border-radius: 0.5rem;
+                padding: 0.5rem 1rem;
+                font-size: 1rem;
+                cursor: pointer;
+            }
+
+            .logout-button:hover {
+                background-color: #777;
+            }
         </style>
     </head>
     <body>
@@ -304,3 +324,11 @@
 				</svg>
 			</a>
 		</div>
+		<form id="logout-control" class="logout-control" method="post" action="/logout" style="display:none;">
+			<button type="submit" class="logout-button">Log Out</button>
+		</form>
+		<script>
+			if ("<%FN_PASSWORD_SET%>" === "1") {
+				document.getElementById("logout-control").style.display = "";
+			}
+		</script>

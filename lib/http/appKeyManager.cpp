@@ -7,6 +7,7 @@
 
 #include "../../include/debug.h"
 #include "fnFsSD.h"
+#include "fnPassword.h"
 #include "fujiDevice.h" // MAX_APPKEY_LEN
 
 #define APPKEY_ID_LEN 8 // 4 hex creator + 2 hex app + 2 hex key
@@ -390,6 +391,11 @@ std::string AppKeyManager::render_page(const std::string &message)
         " style=\"width:100%\"></a></div>"
         "<div class=\"module-container\"><div class=\"module\">"
         "<header class=\"module-header\">APP<span class=\"logowob\"></span>KEYS</header>";
+
+    if (fnPassword.is_set())
+        page += "<form method=\"post\" action=\"/logout\" style=\"margin:0.5rem;\">"
+                "<button type=\"submit\" class=\"akbutton\">Log Out</button>"
+                "</form>";
 
     if (!message.empty())
         page += "<div class=\"akmsg\">" + message + "</div>";

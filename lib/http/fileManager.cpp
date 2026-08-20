@@ -4,6 +4,7 @@
 
 #include "../../include/debug.h"
 #include "fnFsSD.h"
+#include "fnPassword.h"
 
 #define FM_MAX_PATH 255
 
@@ -536,6 +537,11 @@ std::string FileManager::render_page(const std::string &dir, const std::string &
         " style=\"width:100%\"></a></div>"
         "<div class=\"module-container\"><div class=\"module\">"
         "<header class=\"module-header\">FILE<span class=\"logowob\"></span>MANAGER</header>";
+
+    if (fnPassword.is_set())
+        page += "<form method=\"post\" action=\"/logout\" style=\"margin:0.5rem;\">"
+                "<button type=\"submit\" class=\"fmbutton\">Log Out</button>"
+                "</form>";
 
     if (!message.empty())
         page += "<div class=\"fmmsg\">" + message + "</div>";

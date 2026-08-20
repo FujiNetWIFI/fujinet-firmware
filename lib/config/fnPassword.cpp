@@ -3,6 +3,7 @@
 #include <cctype>
 #include <cstdio>
 #include <cstring>
+#include <ctime>
 
 #include <mbedtls/sha256.h>
 #include <mbedtls/version.h>
@@ -10,6 +11,7 @@
 #include "../../include/debug.h"
 #include "../../include/version.h"
 #include "base64.h"
+#include "fnFsSD.h"
 
 #ifdef ESP_PLATFORM
 #include <esp_app_desc.h>
@@ -32,15 +34,27 @@
 #define PASSWORD_HASH_ROUNDS 4096
 
 #define PASSWORD_SALT_BYTES 16
+#define PASSWORD_TOKEN_BYTES 32
+
+// How long a successful WebDAV Basic check is remembered, in seconds.
+#define PASSWORD_BASIC_CACHE_SECONDS 60
 
 #ifdef ESP_PLATFORM
 #define PASSWORD_NVS_NAMESPACE "fnpassword"
 #define PASSWORD_NVS_KEY_FWID "fwid"
 #define PASSWORD_NVS_KEY_SALT "salt"
 #define PASSWORD_NVS_KEY_HASH "hash"
+#define PASSWORD_NVS_KEY_TOKEN "token"
 #else
 #define PASSWORD_FILENAME "/fnpassword"
 #endif
+
+// Recovery file in the root of the SD card. Only its first line is read, and
+// the buffer is sized so an over-long password is truncated rather than
+// silently accepted in part - it fails the length check below instead.
+#define PASSWORD_SD_LINE_MAX (FNPassword::MAX_LENGTH + 8)
+
+const char *const FNPassword::SD_FILENAME = "/password";
 
 FNPassword fnPassword;
 
@@ -111,6 +125,19 @@ std::string FNPassword::make_salt()
     return bytes_to_hex(salt, sizeof(salt));
 }
 
+std::string FNPassword::make_token()
+{
+    uint8_t token[PASSWORD_TOKEN_BYTES];
+#ifdef ESP_PLATFORM
+    esp_fill_random(token, sizeof(token));
+#else
+    std::random_device rd;
+    for (size_t i = 0; i < sizeof(token); i++)
+        token[i] = (uint8_t)(rd() & 0xFF);
+#endif
+    return bytes_to_hex(token, sizeof(token));
+}
+
 std::string FNPassword::derive(const std::string &salt_hex, const std::string &password)
 {
     uint8_t salt[PASSWORD_SALT_BYTES] = {0};
@@ -137,18 +164,22 @@ void FNPassword::setup()
 {
     load();
 
-    if (_hash.empty())
-        return;
-
-    std::string current = firmware_id();
-    if (_fwid != current)
+    if (!_hash.empty())
     {
-        Debug_println("Device password was set by different firmware - clearing");
-        wipe();
-        return;
+        std::string current = firmware_id();
+        if (_fwid != current)
+        {
+            Debug_println("Device password was set by different firmware - clearing");
+            wipe();
+        }
+        else
+        {
+            Debug_println("Device password is set");
+        }
     }
 
-    Debug_println("Device password is set");
+    // A recovery file on the SD card overrides whatever was just loaded.
+    apply_sd_file();
 }
 
 bool FNPassword::verify(const std::string &password) const
@@ -165,6 +196,11 @@ bool FNPassword::change(const std::string &old_password, const std::string &new_
         error = "Current password is incorrect";
         return false;
     }
+    return set_unchecked(new_password, error);
+}
+
+bool FNPassword::set_unchecked(const std::string &new_password, std::string &error)
+{
     if (new_password.size() < MIN_LENGTH)
     {
         error = "New password must be at least " + std::to_string(MIN_LENGTH) + " characters";
@@ -179,20 +215,23 @@ bool FNPassword::change(const std::string &old_password, const std::string &new_
     std::string salt = make_salt();
     std::string hash = derive(salt, new_password);
 
-    std::string prev_fwid = _fwid, prev_salt = _salt, prev_hash = _hash;
+    std::string prev_fwid = _fwid, prev_salt = _salt, prev_hash = _hash, prev_token = _token;
     _fwid = firmware_id();
     _salt = salt;
     _hash = hash;
+    _token.clear();
 
     if (!store())
     {
         _fwid = prev_fwid;
         _salt = prev_salt;
         _hash = prev_hash;
+        _token = prev_token;
         error = "Could not save the new password to flash";
         return false;
     }
 
+    forget_basic_auth();
     Debug_println("Device password changed");
     return true;
 }
@@ -215,10 +254,127 @@ bool FNPassword::remove(const std::string &old_password, std::string &error)
     return true;
 }
 
+void FNPassword::apply_sd_file()
+{
+    if (!fnSDFAT.running() || !fnSDFAT.exists(SD_FILENAME))
+        return;
+
+    Debug_printf("Found %s on the SD card\r\n", SD_FILENAME);
+
+    FILE *fin = fnSDFAT.file_open(SD_FILENAME, FILE_READ);
+    if (fin == nullptr)
+    {
+        Debug_println("fnPassword: could not open the SD password file - leaving it in place");
+        return;
+    }
+
+    char line[PASSWORD_SD_LINE_MAX] = {0};
+    std::string password;
+    if (fgets(line, sizeof(line), fin) != nullptr)
+        password = line;
+    fclose(fin);
+    memset(line, 0, sizeof(line));
+
+    // A text editor will have left a line ending behind, and a stray space is
+    // easy to add and impossible to see. Trim both ends.
+    size_t begin = password.find_first_not_of(" \t\r\n");
+    size_t end = password.find_last_not_of(" \t\r\n");
+    password = (begin == std::string::npos) ? "" : password.substr(begin, end - begin + 1);
+
+    if (password.empty())
+    {
+        if (is_set())
+        {
+            wipe();
+            Debug_println("Device password cleared by the SD password file");
+        }
+        else
+        {
+            Debug_println("SD password file is empty and no password is set - nothing to do");
+        }
+    }
+    else
+    {
+        std::string error;
+        if (set_unchecked(password, error))
+            Debug_println("Device password set from the SD password file");
+        else
+            Debug_printf("SD password file rejected: %s\r\n", error.c_str());
+    }
+
+    // Whatever the outcome, do not leave the credential on removable media,
+    // and do not re-apply it on the next boot.
+    if (fnSDFAT.remove(SD_FILENAME))
+        Debug_printf("Deleted %s from the SD card\r\n", SD_FILENAME);
+    else
+        Debug_printf("fnPassword: could not delete %s - DELETE IT MANUALLY\r\n", SD_FILENAME);
+}
+
+std::string FNPassword::login(const std::string &password)
+{
+    if (!verify(password))
+        return "";
+
+    _token = make_token();
+    if (!store())
+    {
+        _token.clear();
+        return "";
+    }
+    return _token;
+}
+
+bool FNPassword::check_session(const std::string &token) const
+{
+    if (_token.empty())
+        return false;
+    return constant_time_equals(_token, token);
+}
+
+void FNPassword::logout()
+{
+    if (_token.empty())
+        return;
+    _token.clear();
+    store();
+}
+
+/* Digest of a Basic header, salted with a value regenerated every boot so the
+   cache is useless to anything that reads it out of RAM later. One SHA-256
+   round, versus the 4096 that verifying the password properly costs. */
+std::string FNPassword::basic_fingerprint(const char *header_value)
+{
+    static std::string boot_salt = make_token();
+
+    std::string seed = boot_salt;
+    seed += header_value;
+
+    uint8_t digest[32];
+    COMPAT_MBEDTLS_SHA256((const unsigned char *)seed.data(), seed.size(), digest, 0);
+    return bytes_to_hex(digest, sizeof(digest));
+}
+
+void FNPassword::forget_basic_auth()
+{
+    _basic_fp.clear();
+    _basic_fp_at = 0;
+}
+
 bool FNPassword::check_basic_auth(const char *header_value) const
 {
     if (!is_set() || header_value == nullptr)
         return false;
+
+    // A WebDAV client re-sends these credentials on every request, so check the
+    // recent-success cache before paying for the full derivation.
+    long long now = (long long)time(nullptr);
+    std::string fp = basic_fingerprint(header_value);
+    if (!_basic_fp.empty())
+    {
+        long long age = now - _basic_fp_at;
+        if (age >= 0 && age < PASSWORD_BASIC_CACHE_SECONDS && constant_time_equals(_basic_fp, fp))
+            return true;
+    }
 
     // Expect: Basic <base64 of "username:password">
     while (*header_value == ' ')
@@ -251,7 +407,12 @@ bool FNPassword::check_basic_auth(const char *header_value) const
         return false;
 
     // Username is deliberately not checked - only the password matters.
-    return verify(creds.substr(colon + 1));
+    if (!verify(creds.substr(colon + 1)))
+        return false;
+
+    _basic_fp = fp;
+    _basic_fp_at = now;
+    return true;
 }
 
 #ifdef ESP_PLATFORM
@@ -274,6 +435,7 @@ void FNPassword::load()
     _fwid.clear();
     _salt.clear();
     _hash.clear();
+    _token.clear();
 
     nvs_handle_t handle;
     if (nvs_open(PASSWORD_NVS_NAMESPACE, NVS_READONLY, &handle) != ESP_OK)
@@ -287,6 +449,10 @@ void FNPassword::load()
         _salt.clear();
         _hash.clear();
     }
+
+    // Token is read separately - a missing token key means no active session,
+    // not a corrupt record. This allows existing installs to upgrade.
+    nvs_read_str(handle, PASSWORD_NVS_KEY_TOKEN, _token);
 
     nvs_close(handle);
 }
@@ -304,6 +470,7 @@ bool FNPassword::store()
     bool ok = nvs_set_str(handle, PASSWORD_NVS_KEY_FWID, _fwid.c_str()) == ESP_OK &&
               nvs_set_str(handle, PASSWORD_NVS_KEY_SALT, _salt.c_str()) == ESP_OK &&
               nvs_set_str(handle, PASSWORD_NVS_KEY_HASH, _hash.c_str()) == ESP_OK &&
+              nvs_set_str(handle, PASSWORD_NVS_KEY_TOKEN, _token.c_str()) == ESP_OK &&
               nvs_commit(handle) == ESP_OK;
     if (!ok)
         Debug_println("fnPassword: failed to write password to NVS");
@@ -317,6 +484,8 @@ void FNPassword::wipe()
     _fwid.clear();
     _salt.clear();
     _hash.clear();
+    _token.clear();
+    forget_basic_auth();
 
     nvs_handle_t handle;
     if (nvs_open(PASSWORD_NVS_NAMESPACE, NVS_READWRITE, &handle) != ESP_OK)
@@ -333,6 +502,7 @@ void FNPassword::load()
     _fwid.clear();
     _salt.clear();
     _hash.clear();
+    _token.clear();
 
     if (!fsFlash.exists(PASSWORD_FILENAME))
         return;
@@ -361,6 +531,8 @@ void FNPassword::load()
             _salt = value;
         else if (key == "hash")
             _hash = value;
+        else if (key == "token")
+            _token = value;
     }
     fclose(fin);
 
@@ -369,6 +541,7 @@ void FNPassword::load()
         _fwid.clear();
         _salt.clear();
         _hash.clear();
+        _token.clear();
     }
 }
 
@@ -380,7 +553,7 @@ bool FNPassword::store()
         Debug_println("fnPassword: could not write password file");
         return false;
     }
-    fprintf(fout, "fwid=%s\nsalt=%s\nhash=%s\n", _fwid.c_str(), _salt.c_str(), _hash.c_str());
+    fprintf(fout, "fwid=%s\nsalt=%s\nhash=%s\ntoken=%s\n", _fwid.c_str(), _salt.c_str(), _hash.c_str(), _token.c_str());
     fclose(fout);
     return true;
 }
@@ -390,6 +563,8 @@ void FNPassword::wipe()
     _fwid.clear();
     _salt.clear();
     _hash.clear();
+    _token.clear();
+    forget_basic_auth();
 
     if (fsFlash.exists(PASSWORD_FILENAME))
         fsFlash.remove(PASSWORD_FILENAME);
