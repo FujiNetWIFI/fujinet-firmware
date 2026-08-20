@@ -237,6 +237,19 @@ public:
     static int get_handler_onedrive_auth(struct mg_connection *c, struct mg_http_message *hm);
     static int get_handler_onedrive_poll(struct mg_connection *c, struct mg_http_message *hm);
 
+    // REST API handlers
+    static int api_handler_status(struct mg_connection *c);
+    static int api_handler_drives(struct mg_connection *c);
+    static int api_handler_drive_slot(struct mg_connection *c, struct mg_http_message *hm);
+    static int api_handler_drive_mount(struct mg_connection *c, struct mg_http_message *hm);
+    static int api_handler_drive_eject(struct mg_connection *c, struct mg_http_message *hm);
+    static int api_handler_hosts(struct mg_connection *c);
+    static int api_handler_host_slot(struct mg_connection *c, struct mg_http_message *hm);
+    static int api_handler_printer_status(struct mg_connection *c);
+    static int api_handler_printer_clear(struct mg_connection *c);
+    static int api_handler_wifi_scan(struct mg_connection *c);
+    static int api_handler_wifi_status(struct mg_connection *c);
+
     static std::vector<struct mg_connection*> m_sseClients;
     static size_t m_lastOutputSize;
     static uint64_t m_lastPrinterCheckTime;

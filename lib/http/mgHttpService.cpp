@@ -1349,6 +1349,521 @@ int fnHttpService::post_handler_logout(struct mg_connection *c, struct mg_http_m
 
 // ─── end login/logout handlers ───────────────────────────────────────────────
 
+// ─── REST API handlers ───────────────────────────────────────────────────────
+
+// Send a JSON body with the CORS header the API clients expect.
+static void api_send_json(struct mg_connection *c, const char *json, int status_code = 200)
+{
+    mg_http_reply(c, status_code,
+                  "Content-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\n",
+                  "%s", json);
+}
+
+// Print a cJSON tree, send it, and free everything.
+static void api_send_cjson(struct mg_connection *c, cJSON *root, int status_code = 200)
+{
+    if (root == nullptr)
+    {
+        api_send_json(c, "{\"error\":\"out of memory\"}", 500);
+        return;
+    }
+    char *json = cJSON_PrintUnformatted(root);
+    api_send_json(c, json, status_code);
+    cJSON_free(json);
+    cJSON_Delete(root);
+}
+
+// Pull the numeric slot out of a URI like /api/v1/drives/3/mount. Returns -1 if
+// the pattern does not match or the captured segment is not a number.
+static int api_slot_from_uri(struct mg_http_message *hm, const char *pattern)
+{
+    struct mg_str caps[3] = {};
+    if (!mg_match(hm->uri, mg_str(pattern), caps))
+        return -1;
+    if (caps[0].buf == nullptr || caps[0].len == 0 || caps[0].len > 3)
+        return -1;
+    for (size_t i = 0; i < caps[0].len; i++)
+        if (!isdigit((unsigned char)caps[0].buf[i]))
+            return -1;
+    return atoi(std::string(caps[0].buf, caps[0].len).c_str());
+}
+
+// Parse a JSON request body. Sends the error response itself and returns
+// nullptr when the body is missing, oversized, or not valid JSON.
+static cJSON *api_parse_body(struct mg_connection *c, struct mg_http_message *hm)
+{
+    if (hm->body.len == 0 || hm->body.len > FNWS_RECV_BUFF_SIZE)
+    {
+        api_send_json(c, "{\"error\":\"failed to read request body\"}", 400);
+        return nullptr;
+    }
+    cJSON *body = cJSON_ParseWithLength(hm->body.buf, hm->body.len);
+    if (body == nullptr)
+        api_send_json(c, "{\"error\":\"invalid JSON\"}", 400);
+    return body;
+}
+
+// GET /api/v1/status - System status information
+int fnHttpService::api_handler_status(struct mg_connection *c)
+{
+    cJSON *root = cJSON_CreateObject();
+    if (root == nullptr)
+    {
+        api_send_json(c, "{\"error\":\"out of memory\"}", 500);
+        return -1;
+    }
+
+    cJSON_AddStringToObject(root, "version", fnSystem.get_fujinet_version(true));
+    cJSON_AddStringToObject(root, "ip", fnSystem.Net.get_ip4_address_str().c_str());
+    cJSON_AddStringToObject(root, "hostname", fnSystem.Net.get_hostname().c_str());
+    cJSON_AddNumberToObject(root, "uptime_s", fnSystem.get_uptime() / 1000000);
+    cJSON_AddNumberToObject(root, "free_heap", fnSystem.get_free_heap_size());
+    cJSON_AddNumberToObject(root, "cpu_freq_mhz", fnSystem.get_cpu_frequency());
+    cJSON_AddStringToObject(root, "sdk_version", fnSystem.get_sdk_version());
+
+    // WiFi info
+    cJSON *wifi = cJSON_AddObjectToObject(root, "wifi");
+    if (wifi)
+    {
+        cJSON_AddBoolToObject(wifi, "connected", fnWiFi.connected());
+        cJSON_AddStringToObject(wifi, "ssid", fnWiFi.get_current_ssid().c_str());
+        cJSON_AddStringToObject(wifi, "ip", fnSystem.Net.get_ip4_address_str().c_str());
+    }
+
+    // On PC there's no separate flash filesystem to check for presence, so use
+    // whether the SD card filesystem is actually mounted/running instead of the
+    // ESP behavior (fsFlash.exists("/")), which would always report true here.
+    cJSON_AddBoolToObject(root, "sd_present", fnSDFAT.running());
+
+    api_send_cjson(c, root);
+    return 0;
+}
+
+// GET /api/v1/drives - List all drive slots
+int fnHttpService::api_handler_drives(struct mg_connection *c)
+{
+    cJSON *root = cJSON_CreateArray();
+    if (root == nullptr)
+    {
+        api_send_json(c, "{\"error\":\"out of memory\"}", 500);
+        return -1;
+    }
+
+    for (int i = 0; i < MAX_MOUNT_SLOTS; i++)
+    {
+        cJSON *slot = cJSON_CreateObject();
+        if (slot == nullptr)
+            continue;
+
+        cJSON_AddNumberToObject(slot, "slot", i + 1);
+
+        std::string path = Config.get_mount_path(i);
+        cJSON_AddStringToObject(slot, "path", path.c_str());
+        cJSON_AddBoolToObject(slot, "mounted", !path.empty());
+
+        fnConfig::mount_mode_t mode = Config.get_mount_mode(i);
+        cJSON_AddStringToObject(slot, "mode", mode == fnConfig::MOUNTMODE_WRITE ? "w" : "r");
+
+        int host_slot = Config.get_mount_host_slot(i);
+        cJSON_AddNumberToObject(slot, "host_slot", host_slot);
+
+        if (host_slot >= 0 && host_slot < MAX_HOST_SLOTS)
+        {
+            cJSON_AddStringToObject(slot, "host", Config.get_host_name(host_slot).c_str());
+        }
+
+        cJSON_AddItemToArray(root, slot);
+    }
+
+    api_send_cjson(c, root);
+    return 0;
+}
+
+// GET /api/v1/drives/{slot} - Get specific drive slot
+int fnHttpService::api_handler_drive_slot(struct mg_connection *c, struct mg_http_message *hm)
+{
+    int slot = api_slot_from_uri(hm, "/api/v1/drives/*");
+    if (slot < 1 || slot > MAX_MOUNT_SLOTS)
+    {
+        api_send_json(c, "{\"error\":\"invalid slot\"}", 400);
+        return -1;
+    }
+    slot--; // Convert to 0-based
+
+    cJSON *root = cJSON_CreateObject();
+    if (root == nullptr)
+    {
+        api_send_json(c, "{\"error\":\"out of memory\"}", 500);
+        return -1;
+    }
+
+    cJSON_AddNumberToObject(root, "slot", slot + 1);
+
+    std::string path = Config.get_mount_path(slot);
+    cJSON_AddStringToObject(root, "path", path.c_str());
+    cJSON_AddBoolToObject(root, "mounted", !path.empty());
+
+    fnConfig::mount_mode_t mode = Config.get_mount_mode(slot);
+    cJSON_AddStringToObject(root, "mode", mode == fnConfig::MOUNTMODE_WRITE ? "w" : "r");
+
+    int host_slot = Config.get_mount_host_slot(slot);
+    cJSON_AddNumberToObject(root, "host_slot", host_slot);
+
+    if (host_slot >= 0 && host_slot < MAX_HOST_SLOTS)
+    {
+        cJSON_AddStringToObject(root, "host", Config.get_host_name(host_slot).c_str());
+    }
+
+    api_send_cjson(c, root);
+    return 0;
+}
+
+// POST /api/v1/drives/{slot}/mount - Mount a disk image
+int fnHttpService::api_handler_drive_mount(struct mg_connection *c, struct mg_http_message *hm)
+{
+    int slot = api_slot_from_uri(hm, "/api/v1/drives/*/mount");
+    if (slot < 1 || slot > MAX_MOUNT_SLOTS)
+    {
+        api_send_json(c, "{\"error\":\"invalid slot\"}", 400);
+        return -1;
+    }
+    slot--; // Convert to 0-based
+
+    cJSON *body = api_parse_body(c, hm);
+    if (body == nullptr)
+        return -1;
+
+    cJSON *path_json = cJSON_GetObjectItem(body, "path");
+    cJSON *host_slot_json = cJSON_GetObjectItem(body, "host_slot");
+    cJSON *mode_json = cJSON_GetObjectItem(body, "mode");
+
+    if (path_json == nullptr || host_slot_json == nullptr)
+    {
+        cJSON_Delete(body);
+        api_send_json(c, "{\"error\":\"missing path or host_slot\"}", 400);
+        return -1;
+    }
+
+    const char *path = cJSON_GetStringValue(path_json);
+    int host_slot = cJSON_GetNumberValue(host_slot_json);
+    const char *mode_str = mode_json ? cJSON_GetStringValue(mode_json) : "r";
+
+    if (path == nullptr || host_slot < 0 || host_slot >= MAX_HOST_SLOTS)
+    {
+        cJSON_Delete(body);
+        api_send_json(c, "{\"error\":\"invalid parameters\"}", 400);
+        return -1;
+    }
+
+    fnConfig::mount_mode_t mount_mode = (strcmp(mode_str, "w") == 0)
+        ? fnConfig::MOUNTMODE_WRITE
+        : fnConfig::MOUNTMODE_READ;
+
+    Config.store_mount(slot, host_slot, path, mount_mode);
+
+    cJSON *resp = cJSON_CreateObject();
+    cJSON_AddStringToObject(resp, "status", "success");
+    cJSON_AddNumberToObject(resp, "slot", slot + 1);
+    cJSON_AddStringToObject(resp, "path", path);
+
+    api_send_cjson(c, resp);
+    cJSON_Delete(body);
+    return 0;
+}
+
+// POST /api/v1/drives/{slot}/eject - Eject disk from slot
+int fnHttpService::api_handler_drive_eject(struct mg_connection *c, struct mg_http_message *hm)
+{
+    int slot = api_slot_from_uri(hm, "/api/v1/drives/*/eject");
+    if (slot < 1 || slot > MAX_MOUNT_SLOTS)
+    {
+        api_send_json(c, "{\"error\":\"invalid slot\"}", 400);
+        return -1;
+    }
+    slot--; // Convert to 0-based
+
+    Config.clear_mount(slot);
+
+    cJSON *resp = cJSON_CreateObject();
+    cJSON_AddStringToObject(resp, "status", "success");
+    cJSON_AddNumberToObject(resp, "slot", slot + 1);
+
+    api_send_cjson(c, resp);
+    return 0;
+}
+
+// GET /api/v1/hosts - List all host slots
+int fnHttpService::api_handler_hosts(struct mg_connection *c)
+{
+    cJSON *root = cJSON_CreateArray();
+    if (root == nullptr)
+    {
+        api_send_json(c, "{\"error\":\"out of memory\"}", 500);
+        return -1;
+    }
+
+    for (int i = 0; i < MAX_HOST_SLOTS; i++)
+    {
+        cJSON *slot = cJSON_CreateObject();
+        if (slot == nullptr)
+            continue;
+
+        cJSON_AddNumberToObject(slot, "slot", i + 1);
+
+        std::string name = Config.get_host_name(i);
+        cJSON_AddStringToObject(slot, "hostname", name.c_str());
+        cJSON_AddBoolToObject(slot, "configured", !name.empty());
+
+        fnConfig::host_type_t type = Config.get_host_type(i);
+        cJSON_AddStringToObject(slot, "type",
+            type == fnConfig::HOSTTYPE_SD ? "SD" :
+            type == fnConfig::HOSTTYPE_TNFS ? "TNFS" : "unknown");
+
+        cJSON_AddItemToArray(root, slot);
+    }
+
+    api_send_cjson(c, root);
+    return 0;
+}
+
+// GET/POST /api/v1/hosts/{slot} - Get or update host slot
+int fnHttpService::api_handler_host_slot(struct mg_connection *c, struct mg_http_message *hm)
+{
+    int slot = api_slot_from_uri(hm, "/api/v1/hosts/*");
+    if (slot < 1 || slot > MAX_HOST_SLOTS)
+    {
+        api_send_json(c, "{\"error\":\"invalid slot\"}", 400);
+        return -1;
+    }
+    slot--; // Convert to 0-based
+
+    if (http_method_is(hm, "GET"))
+    {
+        cJSON *root = cJSON_CreateObject();
+        if (root == nullptr)
+        {
+            api_send_json(c, "{\"error\":\"out of memory\"}", 500);
+            return -1;
+        }
+
+        cJSON_AddNumberToObject(root, "slot", slot + 1);
+
+        std::string name = Config.get_host_name(slot);
+        cJSON_AddStringToObject(root, "hostname", name.c_str());
+        cJSON_AddBoolToObject(root, "configured", !name.empty());
+
+        fnConfig::host_type_t type = Config.get_host_type(slot);
+        cJSON_AddStringToObject(root, "type",
+            type == fnConfig::HOSTTYPE_SD ? "SD" :
+            type == fnConfig::HOSTTYPE_TNFS ? "TNFS" : "unknown");
+
+        api_send_cjson(c, root);
+        return 0;
+    }
+    else if (http_method_is(hm, "POST"))
+    {
+        cJSON *body = api_parse_body(c, hm);
+        if (body == nullptr)
+            return -1;
+
+        cJSON *hostname_json = cJSON_GetObjectItem(body, "hostname");
+        cJSON *type_json = cJSON_GetObjectItem(body, "type");
+
+        if (hostname_json == nullptr)
+        {
+            cJSON_Delete(body);
+            api_send_json(c, "{\"error\":\"missing hostname\"}", 400);
+            return -1;
+        }
+
+        const char *hostname = cJSON_GetStringValue(hostname_json);
+        if (hostname == nullptr)
+        {
+            cJSON_Delete(body);
+            api_send_json(c, "{\"error\":\"invalid hostname\"}", 400);
+            return -1;
+        }
+
+        fnConfig::host_type_t host_type = fnConfig::HOSTTYPE_SD;
+        if (type_json != nullptr)
+        {
+            const char *type_str = cJSON_GetStringValue(type_json);
+            if (type_str != nullptr)
+            {
+                if (strcasecmp(type_str, "TNFS") == 0)
+                    host_type = fnConfig::HOSTTYPE_TNFS;
+                else
+                    host_type = fnConfig::HOSTTYPE_SD;
+            }
+        }
+
+        Config.store_host(slot, hostname, host_type);
+
+        cJSON *resp = cJSON_CreateObject();
+        cJSON_AddStringToObject(resp, "status", "success");
+        cJSON_AddNumberToObject(resp, "slot", slot + 1);
+        cJSON_AddStringToObject(resp, "hostname", hostname);
+
+        api_send_cjson(c, resp);
+        cJSON_Delete(body);
+        return 0;
+    }
+
+    api_send_json(c, "{\"error\":\"method not allowed\"}", 405);
+    return -1;
+}
+
+// GET /api/v1/printer/status - Printer status
+int fnHttpService::api_handler_printer_status(struct mg_connection *c)
+{
+    PRINTER_CLASS *printer = (PRINTER_CLASS *)fnPrinters.get_ptr(0);
+    if (printer == nullptr)
+    {
+        api_send_json(c, "{\"enabled\":false}");
+        return 0;
+    }
+
+    printer_emu *emu = printer->getPrinterPtr();
+    if (emu == nullptr)
+    {
+        api_send_json(c, "{\"enabled\":false}");
+        return 0;
+    }
+
+    uint64_t now = fnSystem.millis();
+    bool ready = (now - printer->lastPrintTime() >= PRINTER_BUSY_TIME);
+    size_t sz = emu->getOutputSize();
+
+    const char *ct;
+    switch (emu->getPaperType())
+    {
+    case RAW:
+    case TRIM:
+    case ASCII:
+        ct = "text/plain";
+        break;
+    case PDF:
+        ct = "application/pdf";
+        break;
+    case SVG:
+        ct = "image/svg+xml";
+        break;
+    case PNG:
+        ct = "image/png";
+        break;
+    case HTML:
+    case HTML_ATASCII:
+        ct = "text/html";
+        break;
+    default:
+        ct = "application/octet-stream";
+    }
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddBoolToObject(root, "enabled", true);
+    cJSON_AddStringToObject(root, "model", emu->modelname());
+    cJSON_AddBoolToObject(root, "ready", ready);
+    cJSON_AddBoolToObject(root, "has_output", sz > 0);
+    cJSON_AddNumberToObject(root, "output_size", sz);
+    cJSON_AddStringToObject(root, "content_type", ct);
+    cJSON_AddNumberToObject(root, "last_print_time", printer->lastPrintTime());
+
+    api_send_cjson(c, root);
+    return 0;
+}
+
+// POST /api/v1/printer/clear - Clear printer output
+int fnHttpService::api_handler_printer_clear(struct mg_connection *c)
+{
+    PRINTER_CLASS *printer = (PRINTER_CLASS *)fnPrinters.get_ptr(0);
+    if (printer == nullptr || printer->getPrinterPtr() == nullptr)
+    {
+        api_send_json(c, "{\"error\":\"printer not available\"}", 400);
+        return -1;
+    }
+
+    printer_emu *emu = printer->getPrinterPtr();
+    emu->closeOutput();
+    printer->reset_printer();
+
+    // Try to remove the file (may fail on some filesystems)
+    int remove_result = fsFlash.remove("/paper");
+    Debug_printf("Attempting to remove /paper, result: %d\n", remove_result);
+
+    cJSON *resp = cJSON_CreateObject();
+    cJSON_AddStringToObject(resp, "status", "success");
+
+    api_send_cjson(c, resp);
+    return 0;
+}
+
+// POST /api/v1/wifi/scan - Scan WiFi networks
+int fnHttpService::api_handler_wifi_scan(struct mg_connection *c)
+{
+    uint8_t count = fnWiFi.scan_networks();
+    cJSON *root = cJSON_CreateArray();
+
+    for (int i = 0; i < count; i++)
+    {
+        char ssid[33] = {0};
+        uint8_t rssi = 0;
+        uint8_t channel = 0;
+        char bssid[18] = {0};
+        uint8_t encryption = 0;
+
+        fnWiFi.get_scan_result(i, ssid, &rssi, &channel, bssid, &encryption);
+
+        cJSON *network = cJSON_CreateObject();
+        cJSON_AddStringToObject(network, "ssid", ssid);
+        cJSON_AddNumberToObject(network, "rssi", rssi);
+        cJSON_AddNumberToObject(network, "channel", channel);
+        cJSON_AddStringToObject(network, "bssid", bssid);
+        cJSON_AddNumberToObject(network, "encryption", encryption);
+        cJSON_AddItemToArray(root, network);
+    }
+
+    api_send_cjson(c, root);
+    return 0;
+}
+
+// GET /api/v1/wifi/status - Current WiFi connection info
+int fnHttpService::api_handler_wifi_status(struct mg_connection *c)
+{
+    cJSON *root = cJSON_CreateObject();
+    if (root == nullptr)
+    {
+        api_send_json(c, "{\"error\":\"out of memory\"}", 500);
+        return -1;
+    }
+
+    cJSON_AddBoolToObject(root, "connected", fnWiFi.connected());
+    cJSON_AddStringToObject(root, "ssid", fnWiFi.get_current_ssid().c_str());
+    cJSON_AddStringToObject(root, "detail", fnWiFi.get_current_detail_str());
+
+    uint8_t bssid[6] = {0};
+    fnWiFi.get_current_bssid(bssid);
+    char bssid_str[18];
+    snprintf(bssid_str, sizeof(bssid_str), "%02X:%02X:%02X:%02X:%02X:%02X",
+             bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5]);
+    cJSON_AddStringToObject(root, "bssid", bssid_str);
+
+    cJSON_AddStringToObject(root, "ip", fnSystem.Net.get_ip4_address_str().c_str());
+    cJSON_AddStringToObject(root, "gateway", fnSystem.Net.get_ip4_gateway_str().c_str());
+    cJSON_AddStringToObject(root, "dns", fnSystem.Net.get_ip4_dns_str().c_str());
+
+    char mac_str[18];
+    uint8_t mac[6];
+    fnWiFi.get_mac(mac);
+    snprintf(mac_str, sizeof(mac_str), "%02X:%02X:%02X:%02X:%02X:%02X",
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    cJSON_AddStringToObject(root, "mac", mac_str);
+
+    api_send_cjson(c, root);
+    return 0;
+}
+
+// ─── end REST API handlers ───────────────────────────────────────────────────
+
 void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
 {
     static const char *s_root_dir = "data/www";
@@ -1560,6 +2075,85 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
         else if (mg_match(hm->uri, mg_str("/onedrive-poll"), NULL))
         {
             get_handler_onedrive_poll(c, hm);
+        }
+        // REST API endpoints
+        else if (mg_match(hm->uri, mg_str("/api/v1/status"), NULL))
+        {
+            if (http_method_is(hm, "GET"))
+                api_handler_status(c);
+            else
+                api_send_json(c, "{\"error\":\"method not allowed\"}", 405);
+        }
+        else if (mg_match(hm->uri, mg_str("/api/v1/drives/*/mount"), NULL))
+        {
+            if (http_method_is(hm, "POST"))
+                api_handler_drive_mount(c, hm);
+            else
+                api_send_json(c, "{\"error\":\"method not allowed\"}", 405);
+        }
+        else if (mg_match(hm->uri, mg_str("/api/v1/drives/*/eject"), NULL))
+        {
+            if (http_method_is(hm, "POST"))
+                api_handler_drive_eject(c, hm);
+            else
+                api_send_json(c, "{\"error\":\"method not allowed\"}", 405);
+        }
+        else if (mg_match(hm->uri, mg_str("/api/v1/drives"), NULL))
+        {
+            if (http_method_is(hm, "GET"))
+                api_handler_drives(c);
+            else
+                api_send_json(c, "{\"error\":\"method not allowed\"}", 405);
+        }
+        else if (mg_match(hm->uri, mg_str("/api/v1/drives/*"), NULL))
+        {
+            if (http_method_is(hm, "GET"))
+                api_handler_drive_slot(c, hm);
+            else
+                api_send_json(c, "{\"error\":\"method not allowed\"}", 405);
+        }
+        else if (mg_match(hm->uri, mg_str("/api/v1/hosts"), NULL))
+        {
+            if (http_method_is(hm, "GET"))
+                api_handler_hosts(c);
+            else
+                api_send_json(c, "{\"error\":\"method not allowed\"}", 405);
+        }
+        else if (mg_match(hm->uri, mg_str("/api/v1/hosts/*"), NULL))
+        {
+            // dispatches internally on GET vs POST
+            if (http_method_is(hm, "GET") || http_method_is(hm, "POST"))
+                api_handler_host_slot(c, hm);
+            else
+                api_send_json(c, "{\"error\":\"method not allowed\"}", 405);
+        }
+        else if (mg_match(hm->uri, mg_str("/api/v1/printer/status"), NULL))
+        {
+            if (http_method_is(hm, "GET"))
+                api_handler_printer_status(c);
+            else
+                api_send_json(c, "{\"error\":\"method not allowed\"}", 405);
+        }
+        else if (mg_match(hm->uri, mg_str("/api/v1/printer/clear"), NULL))
+        {
+            if (http_method_is(hm, "POST"))
+                api_handler_printer_clear(c);
+            else
+                api_send_json(c, "{\"error\":\"method not allowed\"}", 405);
+        }
+        else if (mg_match(hm->uri, mg_str("/api/v1/wifi/scan"), NULL))
+        {
+            if (http_method_is(hm, "POST"))
+                api_handler_wifi_scan(c);
+            else
+                api_send_json(c, "{\"error\":\"method not allowed\"}", 405);
+        }
+        else if (mg_match(hm->uri, mg_str("/api/v1/wifi/status"), NULL))
+        {
+            if (http_method_is(hm, "GET"))
+                api_handler_wifi_status(c);
+            else
+                api_send_json(c, "{\"error\":\"method not allowed\"}", 405);
         }
         else
         // default handler, serve static content of www firectory
