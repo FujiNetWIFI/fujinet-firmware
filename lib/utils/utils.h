@@ -120,6 +120,12 @@ bool isApproximatelyInteger(double value, double tolerance = 1e-6);
 // ensure string starts with a "/"
 std::string prependSlash(const std::string& str);
 
+// percent-encode for a URL query value (space -> '+')
+std::string util_url_encode(const std::string &s);
+
+// escape for HTML text or a double-quoted attribute value
+std::string util_html_escape(const std::string &s);
+
 #ifndef ESP_PLATFORM
 // helper function for Debug_print* macros on fujinet-pc
 void util_debug_printf(const char *fmt, ...);

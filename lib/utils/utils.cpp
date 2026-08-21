@@ -1258,6 +1258,55 @@ std::string prependSlash(const std::string& str) {
     return str;
 }
 
+/* Percent-encode a string for use in a URL query value.
+   Spaces become '+', matching the decoder used by the web server's query parser.
+*/
+std::string util_url_encode(const std::string &s)
+{
+    static const char hex[] = "0123456789abcdef";
+    std::string out;
+    out.reserve(s.length());
+
+    for (unsigned char c : s)
+    {
+        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~')
+            out += (char)c;
+        else if (c == ' ')
+            out += '+';
+        else
+        {
+            out += '%';
+            out += hex[c >> 4];
+            out += hex[c & 15];
+        }
+    }
+
+    return out;
+}
+
+/* Escape a string for inclusion in HTML text or a double-quoted attribute value.
+*/
+std::string util_html_escape(const std::string &s)
+{
+    std::string out;
+    out.reserve(s.length());
+
+    for (char c : s)
+    {
+        switch (c)
+        {
+        case '&': out += "&amp;"; break;
+        case '<': out += "&lt;"; break;
+        case '>': out += "&gt;"; break;
+        case '"': out += "&quot;"; break;
+        case '\'': out += "&#39;"; break;
+        default: out += c; break;
+        }
+    }
+
+    return out;
+}
+
 #ifndef ESP_PLATFORM
 // helper function for Debug_print* macros on fujinet-pc
 void util_debug_printf(const char *fmt, ...)

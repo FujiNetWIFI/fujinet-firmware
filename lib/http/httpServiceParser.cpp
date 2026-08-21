@@ -96,16 +96,6 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_DRIVE9HOST,
         FN_DRIVE10HOST,
 #endif
-#ifndef ESP_PLATFORM
-        FN_DRIVE1BROWSER,
-        FN_DRIVE2BROWSER,
-        FN_DRIVE3BROWSER,
-        FN_DRIVE4BROWSER,
-        FN_DRIVE5BROWSER,
-        FN_DRIVE6BROWSER,
-        FN_DRIVE7BROWSER,
-        FN_DRIVE8BROWSER,
-#endif
         FN_DRIVE1MOUNT,
         FN_DRIVE2MOUNT,
         FN_DRIVE3MOUNT,
@@ -234,16 +224,6 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 #if defined(BUILD_APPLE) && defined(ESP_PLATFORM)
         "FN_DRIVE9HOST",
         "FN_DRIVE10HOST",
-#endif
-#ifndef ESP_PLATFORM
-        "FN_DRIVE1BROWSER",
-        "FN_DRIVE2BROWSER",
-        "FN_DRIVE3BROWSER",
-        "FN_DRIVE4BROWSER",
-        "FN_DRIVE5BROWSER",
-        "FN_DRIVE6BROWSER",
-        "FN_DRIVE7BROWSER",
-        "FN_DRIVE8BROWSER",
 #endif
         "FN_DRIVE1MOUNT",
         "FN_DRIVE2MOUNT",
@@ -555,25 +535,6 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
             resultstream << "";
         }
         break;
-#ifndef ESP_PLATFORM
-    case FN_DRIVE1BROWSER:
-    case FN_DRIVE2BROWSER:
-    case FN_DRIVE3BROWSER:
-    case FN_DRIVE4BROWSER:
-    case FN_DRIVE5BROWSER:
-    case FN_DRIVE6BROWSER:
-    case FN_DRIVE7BROWSER:
-    case FN_DRIVE8BROWSER:
-        /* Link to browse the files */
-        drive_slot = tagid - FN_DRIVE1BROWSER;
-        host_slot = Config.get_mount_host_slot(drive_slot);
-        if (host_slot != HOST_SLOT_INVALID) {
-            resultstream << "/browse/host/" << host_slot+1 << Config.get_mount_path(drive_slot) << "?action=slotlist";
-        } else {
-            resultstream << "#";
-        }
-        break;
-#endif
     case FN_DRIVE1MOUNT:
     case FN_DRIVE2MOUNT:
     case FN_DRIVE3MOUNT:
