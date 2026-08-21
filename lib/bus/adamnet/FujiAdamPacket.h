@@ -22,14 +22,14 @@ typedef enum class APT {
     MN_RECEIVE = 0x04,  // command.control  (receive)
     MN_CANCEL  = 0x05,  // command.control  (cancel)
     MN_SEND    = 0x06,  // command.control  (send)
-    MN_NACK    = 0x07,  // command.control  (nack)
+    MN_NAK     = 0x07,  // command.control  (nak)
     MN_READY   = 0x0D,  // command.control  (ready)
 
     NM_STATUS  = 0x08,  // response.control (status)
     NM_ACK     = 0x09,  // response.control (ack)
     NM_CANCEL  = 0x0A,  // response.control (cancel)
     NM_SEND    = 0x0B,  // response.data    (send)
-    NM_NACK    = 0x0C,  // response.control (nack)
+    NM_NAK     = 0x0C,  // response.control (nak)
 } adamPacketType_t;
 
 /**
@@ -45,12 +45,6 @@ typedef enum class APT {
  * Parameters and data are therefore deserialized lazily as they are
  * requested. Parameter values are read from the bus on first access
  * and cached for subsequent accesses.
- *
- * The only API difference from FujiBusPacket is setPayloadLength(). The
- * trailing data field has no self-describing length, so its size must
- * be supplied before data() or dataAsString() can be used. Code using
- * the transaction_* helpers does not need to call setPayloadLength()
- * directly, as those helpers determine the length automatically.
  */
 
 class FujiAdamPacket
@@ -59,8 +53,8 @@ private:
     fujiDeviceID_t _device;
     adamPacketType_t _type;
     mutable std::optional<ByteBuffer> _payload;
-    mutable uint8_t _payload_checksum;
-    mutable std::optional<uint8_t> _unit;
+    mutable std::uint8_t _payload_checksum;
+    mutable std::optional<std::uint8_t> _unit;
     mutable std::optional<fujiCommandID_t> _command;
     mutable std::vector<PacketParam> _params;
     mutable unsigned _paramSize;
@@ -69,7 +63,7 @@ private:
     using ParamProxy = PacketParamProxy<FujiAdamPacket>;
     friend ParamProxy;
 
-    uint32_t getParam(size_t index, size_t psize) const;
+    std::uint32_t getParam(size_t index, size_t psize) const;
     void fillParams(size_t count, size_t psize) const;
     std::uint8_t calcChecksum(const ByteBuffer& buf) const;
 
@@ -81,6 +75,7 @@ private:
     // Payload helpers
     void processArg(const ByteBuffer& buf) { _data = buf; }
     void processArg(ByteBuffer&& buf)      { _data = std::move(buf); }
+    void processArg(fujiCommandID_t cmd)   { _command = cmd; }
 
     // Convenience: allow passing a std::string payload; it’s treated as raw bytes
     void processArg(const std::string& s) {
@@ -89,7 +84,7 @@ private:
     }
 
 public:
-    FujiAdamPacket(uint8_t dest) : _device(static_cast<fujiDeviceID_t>(dest & 0x0F)),
+    FujiAdamPacket(std::uint8_t dest) : _device(static_cast<fujiDeviceID_t>(dest & 0x0F)),
                                    _type(static_cast<adamPacketType_t>(dest >> 4)) {};
     template<typename... Args>
     FujiAdamPacket(fujiDeviceID_t source, adamPacketType_t type, Args&&... args)
@@ -97,6 +92,21 @@ public:
         , _type(type)
     {
         (processArg(std::forward<Args>(args)), ...);  // fold expression
+    }
+
+    bool isReply(void) const {
+        switch (_type)
+        {
+        case APT::NM_STATUS:  // 0x08
+        case APT::NM_ACK:     // 0x09
+        case APT::NM_CANCEL:  // 0x0a
+        case APT::NM_SEND:    // 0x0b
+        case APT::NM_NAK:     // 0x0c
+            return true;
+
+        default:
+            return false;
+        }
     }
 
     ByteBuffer serialize() const;
@@ -107,9 +117,7 @@ public:
 
     ParamProxy param(size_t index) const { return ParamProxy{ index, this }; }
 
-    // Completes deserialization by reading the trailing data field once its
-    // length has been determined from command-specific context.
-    void setPayloadLength(const size_t len) const;
+    error_is_true setPayload(ByteBuffer &payload, std::uint8_t checksum);
 
     const std::optional<ByteBuffer>& data() const;
     const std::optional<const std::string> dataAsString() const {
@@ -119,9 +127,9 @@ public:
 
     // Explicit alternatives to the implicit ParamProxy conversions.
     // These may be preferred where the destination type is not obvious.
-    uint8_t  param8(int idx)  const { return (uint8_t)param(idx); }
-    uint16_t param16(int idx) const { return (uint16_t)param(idx); }
-    uint32_t param32(int idx) const { return (uint32_t)param(idx); }
+    std::uint8_t  param8(int idx)  const { return (std::uint8_t)param(idx); }
+    std::uint16_t param16(int idx) const { return (std::uint16_t)param(idx); }
+    std::uint32_t param32(int idx) const { return (std::uint32_t)param(idx); }
 
     // Delete copy semantics to prevent pass-by-value bugs
     FujiAdamPacket(const FujiAdamPacket&) = delete;

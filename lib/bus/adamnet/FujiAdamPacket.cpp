@@ -1,7 +1,6 @@
 #ifdef BUILD_ADAM
 
 #include "FujiAdamPacket.h"
-#include "bus.h"
 
 namespace {
     // write `size` bytes of `value` (1,2,4) in little-endian
@@ -65,32 +64,21 @@ void FujiAdamPacket::fillParams(size_t count, size_t psize) const
 fujiCommandID_t FujiAdamPacket::command() const
 {
     if (!_command.has_value()) {
-        u16be_t len;
-        SYSTEM_BUS.read(&len, sizeof(len));
-        _command = static_cast<fujiCommandID_t>(SYSTEM_BUS.read());
-        setPayloadLength(len - 1);
+        _command = static_cast<fujiCommandID_t>((*_payload)[0]);
+        _payload->erase(_payload->begin(), _payload->begin() + 1);
     }
     return *_command;
 }
 
-void FujiAdamPacket::setPayloadLength(const size_t len) const
+error_is_true FujiAdamPacket::setPayload(ByteBuffer &payload, uint8_t checksum)
 {
-    size_t rlen;
-
-
+    assert(_type == APT::MN_SEND);
     assert(!_payload.has_value());
 
-    _payload.emplace(len, 0);
-    rlen = SYSTEM_BUS.read(_payload->data(), _payload->size());
-    if (rlen != len)
-        _payload->resize(rlen);
-    _payload_checksum = SYSTEM_BUS.read();
-    // FIXME - do something if checksum mismatch?
-    SYSTEM_BUS.start_time = GET_TIMESTAMP();
-    SYSTEM_BUS.write((((unsigned) APT::NM_ACK) << 4) | _device);
-    SYSTEM_BUS.flush();
+    _payload = payload;
+    _payload_checksum = checksum;
+    RETURN_ERROR_IF(_payload_checksum != calcChecksum(_payload.value()));
 }
-
 const std::optional<ByteBuffer>& FujiAdamPacket::data() const
 {
     if (!_data.has_value())
@@ -106,12 +94,14 @@ ByteBuffer FujiAdamPacket::serialize() const
 
     size_t dataSize = _data ? _data->size() : 0;
     size_t payloadSize = paramsSize + dataSize;
+    if (_command.has_value())
+        payloadSize++;
     bool hasPayload = payloadSize > 0;
     bool hasLen = hasPayload && (_type != APT::NM_STATUS);
 
     size_t totalSize = 1 /*dest*/
         + (hasLen ? 2 : 0)
-                + payloadSize
+        + payloadSize
         + (hasPayload ? 1 : 0 /*checksum*/);
 
     ByteBuffer output;
@@ -126,23 +116,22 @@ ByteBuffer FujiAdamPacket::serialize() const
         output.insert(output.end(), ptr, ptr + sizeof(len));
     }
 
-    size_t payloadStart = output.size();
+    ByteBuffer payload;
+    payload.reserve(payloadSize);
+
+    if (_command.has_value())
+        payload.push_back(static_cast<uint8_t>(*_command));
 
     for (const auto& p : _params)
-        write_le(output, p.value, p.size);
+        write_le(payload, p.value, p.size);
 
     if (_data)
-    {
-        output.insert(output.end(), _data->begin(), _data->end());
-    }
+        payload.insert(payload.end(), _data->begin(), _data->end());
 
     if (hasPayload)
     {
-        uint8_t ck = 0;
-        size_t idx, end;
-        for (idx = payloadStart, end = output.size(); idx < end; idx++)
-            ck ^= output[idx];
-        output.push_back(ck);
+        output.insert(output.end(), payload.begin(), payload.end());
+        output.push_back(calcChecksum(payload));
     }
 
     return output;

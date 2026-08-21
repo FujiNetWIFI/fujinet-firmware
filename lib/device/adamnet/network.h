@@ -81,9 +81,6 @@ public:
 
     void adamnet_control_send(const FujiAdamPacket &packet) override;
     void adamnet_control_receive() override;
-    void adamnet_control_clr() override;
-
-    void adamnet_response_send();
 
     AdamNetStatus deviceStatus() override;
     std::optional<ByteBuffer> adamnet_control_receive_channel_json();
@@ -158,19 +155,9 @@ private:
     FNJSON json;
 
     /**
-     * Has JSON been sent via CLR?
-     */
-    bool jsonRecvd = false;
-
-    /**
      * SGML Object (HTML/XML via CSS selector)
      */
     FNSGML sgml;
-
-    /**
-     * Has SGML been sent via CLR?
-     */
-    bool sgmlRecvd = false;
 
     /**
      * The Receive buffer for this N: device

@@ -30,12 +30,9 @@ private:
     bool _receive_acked = false;
 
     void adamnet_control_send(const FujiAdamPacket &packet) override;
-    void adamnet_control_receive() override;
-    void adamnet_control_clr() override;
 
-    void adamnet_control_send_block_num();
+    void adamnet_control_send_block_num(const FujiAdamPacket &packet);
     void adamnet_control_send_block_data();
-    void adamnet_response_send();
 
     AdamNetStatus deviceStatus() override;
 
