@@ -23,6 +23,8 @@
 #include "fsFlash.h"
 #include "../device/modem.h"
 #include "printer.h"
+#include "httpServiceBrowse.h"
+#include "httpServiceApi.h"
 #include "httpServiceConfigurator.h"
 #include "httpServiceParser.h"
 #include "clipboardManager.h"
@@ -30,6 +32,7 @@
 #include "fileManager.h"
 #include "fnFsSD.h"
 #include "fujiDevice.h"
+#include "utils.h"
 #ifdef BUILD_ATARI
 #include "sio/sioFuji.h"
 #endif /* BUILD_ATARI */
@@ -56,32 +59,6 @@ fnHttpService fnHTTPD;
 char from_hex(char ch)
 {
     return isdigit(ch) ? ch - '0' : tolower(ch) - 'a' + 10;
-}
-
-/* Converts an integer value to its hex character*/
-char to_hex(char code)
-{
-    static char hex[] = "0123456789abcdef";
-    return hex[code & 15];
-}
-
-/* Returns a url-encoded version of str */
-/* IMPORTANT: be sure to free() the returned string after use */
-char *url_encode(char *str)
-{
-    char *pstr = str, *buf = (char *)malloc(strlen(str) * 3 + 1), *pbuf = buf;
-    while (*pstr)
-    {
-        if (isalnum(*pstr) || *pstr == '-' || *pstr == '_' || *pstr == '.' || *pstr == '~')
-            *pbuf++ = *pstr;
-        else if (*pstr == ' ')
-            *pbuf++ = '+';
-        else
-            *pbuf++ = '%', *pbuf++ = to_hex(*pstr >> 4), *pbuf++ = to_hex(*pstr & 15);
-        pstr++;
-    }
-    *pbuf = '\0';
-    return buf;
 }
 
 /* Returns a url-decoded version of str */
@@ -645,88 +622,44 @@ esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
 
 }
 
+/* Look up an optional integer query parameter, returning -1 when it is absent
+*/
+static int query_int(std::map<std::string, std::string> &query, const char *key)
+{
+    auto it = query.find(key);
+    return it == query.end() ? -1 : atoi(it->second.c_str());
+}
+
 esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 {
     queryparts qp;
-    unsigned char hs, ds;
 
     fnHTTPD.clearErrMsg();
 
     parse_query(req, &qp);
 
     // if request contains 'mountall=1' skip to mounting all disks
-    if ((qp.query_parsed.find("mountall") == qp.query_parsed.end()) && (qp.query_parsed["mountall"] != "1"))
-    {
-        if (qp.query_parsed.find("hostslot") == qp.query_parsed.end())
-        {
-            fnHTTPD.addToErrMsg("<li>hostslot is empty</li>");
-        }
-
-        if (qp.query_parsed.find("deviceslot") == qp.query_parsed.end())
-        {
-            fnHTTPD.addToErrMsg("<li>deviceslot is empty</li>");
-        }
-
-        if (qp.query_parsed.find("mode") == qp.query_parsed.end())
-        {
-            fnHTTPD.addToErrMsg("<li>mode is empty</li>");
-        }
-
-        if (qp.query_parsed.find("filename") == qp.query_parsed.end())
-        {
-            fnHTTPD.addToErrMsg("<li>filename is empty</li>");
-        }
-
-        hs = atoi(qp.query_parsed["hostslot"].c_str());
-        ds = atoi(qp.query_parsed["deviceslot"].c_str());
-
-        if (hs > MAX_HOSTS)
-        {
-            fnHTTPD.addToErrMsg("<li>hostslot must be between 0 and 8</li>");
-        }
-
-        if (ds > MAX_DISK_DEVICES)
-        {
-            fnHTTPD.addToErrMsg("<li>deviceslot must be between 0 and 8</li>");
-        }
-
-        if ((qp.query_parsed["mode"] != "1") && (qp.query_parsed["mode"] != "2"))
-        {
-            fnHTTPD.addToErrMsg("<li>mode should be either 1 for read, or 2 for write.</li>");
-        }
-
-        if (theFuji->get_host(hs)->mount() == true)
-        {
-            fujiDisk *disk = theFuji->get_disk(ds);
-            disk_access_flags_t mode = qp.query_parsed["mode"] == "2" ?
-                DISK_ACCESS_MODE_WRITE : DISK_ACCESS_MODE_READ;
-            disk->host_slot = hs;
-            strcpy(disk->filename,qp.query_parsed["filename"].c_str());
-
-            if (!theFuji->fujicore_mount_disk_image_success(ds, mode))
-            {
-                fnHTTPD.addToErrMsg("<li>Could not mount disk: " + qp.query_parsed["filename"] + "</li>");
-            }
-            else
-            {
-                Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(),
-                                   mode == DISK_ACCESS_MODE_WRITE ?
-                                   fnConfig::mount_modes::MOUNTMODE_WRITE :
-                                   fnConfig::mount_modes::MOUNTMODE_READ);
-                Config.save();
-                theFuji->populate_slots_from_config(); // otherwise they don't show up in config.
-            }
-        }
-        else
-        {
-            fnHTTPD.addToErrMsg("<li>Could not mount host slot " + qp.query_parsed["hostslot"] + "</li>");
-        }
-    }
-    else
+    if (qp.query_parsed.find("mountall") != qp.query_parsed.end())
     {
         // Mount all the things
         Debug_printf("Mount all slots from webui\n");
         theFuji->fujicore_mount_all_success();
+    }
+    else
+    {
+        fnHttpBrowse::mount_params params;
+        params.host_slot = query_int(qp.query_parsed, "hostslot");
+        params.device_slot = query_int(qp.query_parsed, "deviceslot");
+        params.mode = query_int(qp.query_parsed, "mode");
+
+        auto fn = qp.query_parsed.find("filename");
+        if (fn != qp.query_parsed.end())
+        {
+            params.filename = fn->second;
+            params.filename_given = true;
+        }
+
+        fnHttpBrowse::mount_file(params);
     }
 
     if (!fnHTTPD.errMsgEmpty())
@@ -744,60 +677,12 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
 {
     queryparts qp;
+
+    fnHTTPD.clearErrMsg();
+
     parse_query(req, &qp);
-    unsigned char ds;
 
-    if (qp.query_parsed.find("deviceslot") == qp.query_parsed.end())
-    {
-        fnHTTPD.addToErrMsg("<li>deviceslot is empty</li>");
-    }
-
-    ds = atoi(qp.query_parsed["deviceslot"].c_str());
-
-    if (ds > MAX_DISK_DEVICES)
-    {
-        fnHTTPD.addToErrMsg("<li>deviceslot should be between 0 and 7</li>");
-    }
-#ifdef BUILD_APPLE
-    DISK_DEVICE *disk_dev = theFuji->get_disk_dev(ds);
-    if(disk_dev->device_active) //set disk switched only if device was previosly mounted.
-        disk_dev->switched = true;
-#else
-    DISK_DEVICE *disk_dev = &theFuji->get_disk(ds)->disk_dev;
-#endif
-    disk_dev->unmount();
-#ifdef BUILD_ATARI
-    if (theFuji->get_disk(ds)->disk_type == MEDIATYPE_CAS || theFuji->get_disk(ds)->disk_type == MEDIATYPE_WAV)
-    {
-        platformFuji.cassette()->umount_cassette_file();
-        platformFuji.cassette()->sio_disable_cassette();
-    }
-#endif
-    theFuji->get_disk(ds)->reset();
-    Config.clear_mount(ds);
-    Config.save();
-    theFuji->populate_slots_from_config(); // otherwise they don't show up in config.
-    disk_dev->device_active = false;
-
-    // Finally, scan all device slots, if all empty, and config enabled, enable the config device.
-    if (Config.get_general_config_enabled())
-    {
-        if ((theFuji->get_disk(0)->host_slot == 0xFF) &&
-            (theFuji->get_disk(1)->host_slot == 0xFF) &&
-            (theFuji->get_disk(2)->host_slot == 0xFF) &&
-            (theFuji->get_disk(3)->host_slot == 0xFF) &&
-            (theFuji->get_disk(4)->host_slot == 0xFF) &&
-            (theFuji->get_disk(5)->host_slot == 0xFF) &&
-            (theFuji->get_disk(6)->host_slot == 0xFF) &&
-            (theFuji->get_disk(7)->host_slot == 0xFF))
-        {
-            theFuji->boot_config = true;
-#ifdef BUILD_ATARI
-            theFuji->status_wait_count = 5;
-#endif
-            theFuji->device_active = true;
-        }
-    }
+    fnHttpBrowse::eject_slot(query_int(qp.query_parsed, "deviceslot"));
 
     if (!fnHTTPD.errMsgEmpty())
     {
@@ -912,10 +797,9 @@ esp_err_t fnHttpService::get_handler_kybd(httpd_req_t *req)
 esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
 {
     queryparts qp;
-    unsigned char hs;
-    string pattern;
-    string chunk;
-    char *free_me; //return string from url_encode which must be freed.
+
+    fnHTTPD.clearErrMsg();
+
     parse_query(req, &qp);
 
     if (qp.query_parsed.find("hostslot") == qp.query_parsed.end())
@@ -923,155 +807,42 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
         fnHTTPD.addToErrMsg("<li>hostslot is empty</li>");
     }
 
-    if (qp.query_parsed.find("path") == qp.query_parsed.end())
-    {
-        qp.query_parsed["path"] = "";
-    }
+    auto path = qp.query_parsed.find("path");
+    auto pattern = qp.query_parsed.find("pattern");
 
-    hs = atoi(qp.query_parsed["hostslot"].c_str());
+    fnHttpBrowse::render_opts opts; // no /download route on the ESP32
 
-    if (qp.query_parsed.find("pattern") == qp.query_parsed.end())
-    {
-        pattern = "*";
-    }
-    else
-    {
-        pattern = qp.query_parsed["pattern"];
-    }
-
-    chunk.clear();
+    // The listing is streamed, but a host that won't open has to be answered
+    // with the error page instead - so hold the header back until there is
+    // something to send.
+    bool header_sent = false;
+    auto emit = [req, &header_sent](const std::string &chunk) {
+        if (!header_sent)
+        {
+            send_header_footer(req, 0); // header
+            header_sent = true;
+        }
+        httpd_resp_sendstr_chunk(req, chunk.c_str());
+    };
 
     httpd_resp_set_type(req, "text/html");
 
-    send_header_footer(req, 0); // header
+    bool ok = fnHttpBrowse::render_hostdir(
+        query_int(qp.query_parsed, "hostslot"),
+        path == qp.query_parsed.end() ? "" : path->second,
+        pattern == qp.query_parsed.end() ? "*" : pattern->second,
+        opts, emit);
 
-    chunk +=
-        "        <div class=\"fileflex\">\n"
-        "            <div class=\"filechild\">\n"
-        "               <header>SELECT DISK TO MOUNT<span class=\"logowob\"></span>" +
-        string(theFuji->get_host(hs)->get_hostname()) +
-        qp.query_parsed["path"] +
-        "</header>\n"
-        "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
-        "               <div class=\"fileline\">\n"
-        "                   <ul>\n";
-
-    httpd_resp_sendstr_chunk(req, chunk.c_str());
-    chunk.clear();
-
-    theFuji->populate_slots_from_config();
-
-    if ((theFuji->get_host(hs)->mount() == true) && (theFuji->get_host(hs)->dir_open(qp.query_parsed["path"].c_str(), pattern.c_str())))
-    {
-        fsdir_entry_t *f;
-        string parent;
-
-        // Create link to parent
-        if (!qp.query_parsed["path"].empty())
-        {
-            parent = qp.query_parsed["path"].substr(0, qp.query_parsed["path"].find_last_of("/"));
-            free_me = url_encode((char *)parent.c_str());
-            chunk += "<a href=\"/hsdir?hostslot=" + qp.query_parsed["hostslot"] + "&path=" + string(free_me) + "\"><li>&#8617; Parent</li></a>";
-            free(free_me);
-        }
-
-        while ((f = theFuji->get_host(hs)->dir_nextfile()) != nullptr)
-        {
-            chunk += "                          <li>";
-
-            if (f->isDir == true)
-            {
-                free_me = url_encode((char *)qp.query_parsed["path"].c_str());
-                chunk += "<a href=\"/hsdir?hostslot=" + qp.query_parsed["hostslot"] + "&path=" + string(free_me);
-                free(free_me);
-                free_me = url_encode(f->filename);
-                chunk += "%2F" + string(free_me) + "&parent_path=";
-                free(free_me);
-                free_me = url_encode((char *)qp.query_parsed["path"].c_str());
-                chunk += string(free_me) + "\">";
-                chunk += "&#128193; "; // file folder
-                free(free_me);
-            }
-            else
-            {
-                free_me = url_encode((char *)qp.query_parsed["path"].c_str());
-                chunk += "<a href=\"/dslot?hostslot=" + qp.query_parsed["hostslot"] + "&filename=" + string(free_me);
-                free(free_me);
-                free_me = url_encode(f->filename);
-                chunk += "%2F" + string(free_me) + "\">";
-                free(free_me);
-
-                if ( // Atari
-                    (string(f->filename).find(".atr") != string::npos) ||
-                    (string(f->filename).find(".ATR") != string::npos) ||
-                    (string(f->filename).find(".atx") != string::npos) ||
-                    (string(f->filename).find(".ATX") != string::npos) ||
-                    // Apple II
-                    (string(f->filename).find(".po") != string::npos) ||
-                    (string(f->filename).find(".PO") != string::npos) ||
-                    (string(f->filename).find(".woz") != string::npos) ||
-                    (string(f->filename).find(".WOZ") != string::npos) ||
-                    (string(f->filename).find(".hdv") != string::npos) || // Hard Disk emoji not implemented
-                    (string(f->filename).find(".HDV") != string::npos) || // Hard Disk emoji not implemented
-                    // ADAM
-                    (string(f->filename).find(".dsk") != string::npos) ||
-                    (string(f->filename).find(".DSK") != string::npos) ||
-                    // Commodore
-                    (string(f->filename).find(".prg") != string::npos) ||
-                    (string(f->filename).find(".PRG") != string::npos) ||
-                    (string(f->filename).find(".d64") != string::npos) ||
-                    (string(f->filename).find(".D64") != string::npos)
-                    )
-                {
-                    chunk += "&#128190; "; // floppy disk
-                }
-                else if ( // ATARI
-                    (string(f->filename).find(".cas") != string::npos) ||
-                    (string(f->filename).find(".CAS") != string::npos) ||
-                    // ADAM
-                    (string(f->filename).find(".ddp") != string::npos) ||
-                    (string(f->filename).find(".DDP") != string::npos)
-                    )
-                {
-                    chunk += "&#10175; "; // cassette tape (double curly loop)
-                }
-                else
-                {
-                    chunk += "&#128196; "; // std document (page facing up)
-                }
-            }
-
-            chunk += string(f->filename);
-
-            chunk += "</a>";
-
-            chunk += "                          </li>\r\n";
-
-            httpd_resp_sendstr_chunk(req, chunk.c_str());
-            chunk.clear();
-        }
-
-        theFuji->get_host(hs)->dir_close();
-
-        chunk +=
-            "                      </ul>\r\n"
-            "               </div>\n"
-            "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
-            "           </div>\n"
-            "        </div>\n";
-        httpd_resp_sendstr_chunk(req, chunk.c_str());
-        chunk.clear();
-
-        // Send HTML footer
-        send_header_footer(req, 1);
-
-        httpd_resp_send_chunk(req, NULL, 0); // end of response.
-    }
-    else
+    if (!ok)
     {
         fnHTTPD.addToErrMsg("<li>Could not open directory</li>");
         send_file(req, "error_page.html");
+        return ESP_OK;
     }
+
+    send_header_footer(req, 1); // footer
+
+    httpd_resp_send_chunk(req, NULL, 0); // end of response.
 
     return ESP_OK;
 }
@@ -1079,10 +850,9 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
 esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
 {
     queryparts qp;
-    string chunk;
-    unsigned char hs;
-    char *free_me; // return string from url_encode that must be freed.
-    chunk.clear();
+
+    fnHTTPD.clearErrMsg();
+
     parse_query(req, &qp);
 
     if ((qp.query_parsed.find("hostslot") == qp.query_parsed.end()) ||
@@ -1092,25 +862,39 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
         return ESP_OK;
     }
 
-    hs = atoi(qp.query_parsed["hostslot"].c_str());
+    int hs = query_int(qp.query_parsed, "hostslot");
+    const string &filename = qp.query_parsed["filename"];
 
     httpd_resp_set_type(req, "text/html");
 
-    if ((qp.query_parsed["filename"].find(".cas") != string::npos) ||
-        qp.query_parsed["filename"].find(".CAS") != string::npos)
+    auto emit = [req](const std::string &chunk) {
+        httpd_resp_sendstr_chunk(req, chunk.c_str());
+    };
+
+    // Render into a buffer first: a cassette image needs a redirect instead of
+    // a picker, and by then the page header would already have gone out.
+    string body;
+    auto buffer = [&body](const std::string &chunk) { body += chunk; };
+
+    fnHttpBrowse::slot_result result = fnHttpBrowse::render_slotpicker(hs, filename, buffer);
+
+    if (result == fnHttpBrowse::slot_result::CASSETTE)
     {
-        // .CAS file passed in, put in slot 8, and redirect
+        // Cassette image passed in, put it in the cassette slot and redirect
+        string chunk;
         chunk += "<?xml version=\"1.0\" encoding=\"utf-8\"?>";
         chunk += "<!doctype html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"DTD/xhtml1-strict.dtd\">\r\n";
         chunk += "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\">\r\n";
         chunk += " <head>\r\n";
         chunk += "  <title>Redirecting to cassette mount</title>";
-        free_me = url_encode((char *)qp.query_parsed["filename"].c_str());
-        chunk += "  <meta http-equiv=\"refresh\" content=\"0; url=/mount?hostslot=" + qp.query_parsed["hostslot"] + "&deviceslot=7&mode=1&filename=" + string(free_me) + "\" />";
-        free(free_me);
+        chunk += "  <meta http-equiv=\"refresh\" content=\"0; url=/mount?hostslot=" + to_string(hs) +
+                 "&deviceslot=" + to_string(fnHttpBrowse::CASSETTE_DEVICE_SLOT) +
+                 "&mode=" + to_string(fnHttpBrowse::CASSETTE_MOUNT_MODE) +
+                 "&filename=" + util_url_encode(filename) + "\" />";
         chunk += " </head>\r\n";
         chunk += " <body>\r\n";
-        chunk += "  <h1>Cassette detected. Mounting in slot 8.</h1>\r\n";
+        chunk += "  <h1>Cassette detected. Mounting in slot " +
+                 to_string(fnHttpBrowse::CASSETTE_DEVICE_SLOT + 1) + ".</h1>\r\n";
         chunk += " </body>\r\n";
         chunk += "</html>\r\n";
 
@@ -1119,67 +903,15 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
         return ESP_OK;
     }
 
-    send_header_footer(req, 0); // header
-
-    // chunk += "  <h1></h1>\r\n";
-    chunk +=
-        "        <div class=\"fileflex\">\n"
-        "            <div class=\"filechild\">\n"
-        "               <header>SELECT DRIVE SLOT<span class=\"logowob\"></span>" +
-        string(theFuji->get_host(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] +
-        "</header>\n"
-        "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
-        "               <div class=\"fileline\">\n"
-        "                      <ul>\n";
-
-    httpd_resp_sendstr_chunk(req, chunk.c_str());
-    chunk.clear();
-
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    if (result == fnHttpBrowse::slot_result::RENDER_ERROR)
     {
-        stringstream ss;
-        stringstream ss2;
-        ss << i;
-        ss2 << i + 1;
-
-        chunk += "<li>&#128190; <a href=\"/mount?hostslot=" + qp.query_parsed["hostslot"] + "&deviceslot=" + ss.str() + "&mode=1&filename=" + qp.query_parsed["filename"] + "\">READ</a> or ";
-        chunk += "<a href=\"/mount?hostslot=" + qp.query_parsed["hostslot"] + "&deviceslot=" + ss.str() + "&mode=2&filename=" + qp.query_parsed["filename"] + "\">R/W</a> ";
-
-        chunk += "<strong>" + ss2.str() + "</strong>: ";
-
-        if (theFuji->get_disk(i)->host_slot == 0xFF)
-        {
-            chunk += " :: (Empty)";
-        }
-        else
-        {
-            chunk += string(theFuji->get_host(theFuji->get_disk(i)->host_slot)->get_hostname());
-            chunk += " :: ";
-            chunk += string(theFuji->get_disk(i)->filename);
-            chunk += " (";
-            if (theFuji->get_disk(i)->access_mode == 2)
-            {
-                chunk += "W";
-            }
-            else
-            {
-                chunk += "R";
-            }
-            chunk += ") ";
-        }
-
-        chunk += "</li>";
-        httpd_resp_sendstr_chunk(req, chunk.c_str());
-        chunk.clear();
+        fnHTTPD.addToErrMsg("<li>Could not list drive slots</li>");
+        send_file(req, "error_page.html");
+        return ESP_OK;
     }
 
-    chunk +=
-        "                      </ul>\r\n"
-        "               </div>\n"
-        "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
-        "           </div>\n"
-        "        </div>\n";
-
+    send_header_footer(req, 0); // header
+    emit(body);
     send_header_footer(req, 1);          // footer
     httpd_resp_send_chunk(req, NULL, 0); // end response.
 
@@ -2318,559 +2050,54 @@ esp_err_t fnHttpService::get_handler_onedrive_poll(httpd_req_t *req)
 // ─── end OneDrive handlers ────────────────────────────────────────────────────
 
 /*
- * REST API Handlers
- * JSON API endpoints for programmatic access to FujiNet
+ * REST API - single catch-all handler
+ * Routing and logic live in httpServiceApi.cpp, shared with the mongoose
+ * server; this is only the esp_http_server plumbing.
  */
 
-// Helper: Send JSON response with proper headers
-static void api_send_json(httpd_req_t *req, const char *json, int status_code = 200)
+// Map a status code to the string esp_http_server wants.
+static const char *api_status_str(int status_code)
 {
-    const char *status_str;
     switch (status_code)
     {
-    case 200: status_str = "200 OK"; break;
-    case 201: status_str = "201 Created"; break;
-    case 400: status_str = "400 Bad Request"; break;
-    case 404: status_str = "404 Not Found"; break;
-    case 500: status_str = "500 Internal Server Error"; break;
-    default: status_str = "200 OK"; break;
+    case 200: return "200 OK";
+    case 201: return "201 Created";
+    case 400: return "400 Bad Request";
+    case 404: return "404 Not Found";
+    case 405: return "405 Method Not Allowed";
+    case 500: return "500 Internal Server Error";
+    default:  return "200 OK";
     }
-    httpd_resp_set_status(req, status_str);
+}
+
+esp_err_t fnHttpService::api_handler(httpd_req_t *req)
+{
+    fnHttpApi::method m = fnHttpApi::method::OTHER;
+    if (req->method == HTTP_GET)
+        m = fnHttpApi::method::GET;
+    else if (req->method == HTTP_POST)
+        m = fnHttpApi::method::POST;
+
+    char buf[FNWS_RECV_BUFF_SIZE];
+    int received = 0;
+    if (m == fnHttpApi::method::POST && req->content_len > 0)
+    {
+        int ret = httpd_req_recv(req, buf, sizeof(buf) - 1);
+        if (ret > 0)
+        {
+            buf[ret] = '\0';
+            received = ret;
+        }
+    }
+
+    fnHttpApi::response r = fnHttpApi::handle(req->uri, m,
+                                              received > 0 ? buf : nullptr,
+                                              (size_t)received);
+
+    httpd_resp_set_status(req, api_status_str(r.status));
     httpd_resp_set_type(req, "application/json");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
-    httpd_resp_send(req, json, strlen(json));
-}
-
-// Helper: Extract slot number from URI path like /api/v1/drives/3
-static int api_extract_slot_from_uri(const char *uri, const char *prefix)
-{
-    const char *slot_str = strstr(uri, prefix);
-    if (slot_str == nullptr)
-        return -1;
-    slot_str += strlen(prefix);
-    if (*slot_str == '\0' || !isdigit(*slot_str))
-        return -1;
-    return atoi(slot_str);
-}
-
-// GET /api/v1/status - System status information
-esp_err_t fnHttpService::api_handler_status(httpd_req_t *req)
-{
-    cJSON *root = cJSON_CreateObject();
-    if (root == nullptr)
-    {
-        api_send_json(req, "{\"error\":\"out of memory\"}", 500);
-        return ESP_OK;
-    }
-
-    cJSON_AddStringToObject(root, "version", fnSystem.get_fujinet_version(true));
-    cJSON_AddStringToObject(root, "ip", fnSystem.Net.get_ip4_address_str().c_str());
-    cJSON_AddStringToObject(root, "hostname", fnSystem.Net.get_hostname().c_str());
-    cJSON_AddNumberToObject(root, "uptime_s", fnSystem.get_uptime() / 1000000);
-    cJSON_AddNumberToObject(root, "free_heap", fnSystem.get_free_heap_size());
-    cJSON_AddNumberToObject(root, "cpu_freq_mhz", fnSystem.get_cpu_frequency());
-    cJSON_AddStringToObject(root, "sdk_version", fnSystem.get_sdk_version());
-
-    // WiFi info
-    cJSON *wifi = cJSON_AddObjectToObject(root, "wifi");
-    if (wifi)
-    {
-        cJSON_AddBoolToObject(wifi, "connected", fnWiFi.connected());
-        cJSON_AddStringToObject(wifi, "ssid", fnWiFi.get_current_ssid().c_str());
-        cJSON_AddStringToObject(wifi, "ip", fnSystem.Net.get_ip4_address_str().c_str());
-    }
-
-    // SD card info
-    cJSON_AddBoolToObject(root, "sd_present", fsFlash.exists("/"));
-
-    char *json = cJSON_PrintUnformatted(root);
-    api_send_json(req, json);
-    cJSON_free(json);
-    cJSON_Delete(root);
-    return ESP_OK;
-}
-
-// GET /api/v1/drives - List all drive slots
-esp_err_t fnHttpService::api_handler_drives(httpd_req_t *req)
-{
-    cJSON *root = cJSON_CreateArray();
-    if (root == nullptr)
-    {
-        api_send_json(req, "{\"error\":\"out of memory\"}", 500);
-        return ESP_OK;
-    }
-
-    for (int i = 0; i < MAX_MOUNT_SLOTS; i++)
-    {
-        cJSON *slot = cJSON_CreateObject();
-        if (slot == nullptr)
-            continue;
-
-        cJSON_AddNumberToObject(slot, "slot", i + 1);
-
-        std::string path = Config.get_mount_path(i);
-        cJSON_AddStringToObject(slot, "path", path.c_str());
-        cJSON_AddBoolToObject(slot, "mounted", !path.empty());
-
-        fnConfig::mount_mode_t mode = Config.get_mount_mode(i);
-        cJSON_AddStringToObject(slot, "mode", mode == fnConfig::MOUNTMODE_WRITE ? "w" : "r");
-
-        int host_slot = Config.get_mount_host_slot(i);
-        cJSON_AddNumberToObject(slot, "host_slot", host_slot);
-
-        if (host_slot >= 0 && host_slot < MAX_HOST_SLOTS)
-        {
-            cJSON_AddStringToObject(slot, "host", Config.get_host_name(host_slot).c_str());
-        }
-
-        cJSON_AddItemToArray(root, slot);
-    }
-
-    char *json = cJSON_PrintUnformatted(root);
-    api_send_json(req, json);
-    cJSON_free(json);
-    cJSON_Delete(root);
-    return ESP_OK;
-}
-
-// GET /api/v1/drives/{slot} - Get specific drive slot
-esp_err_t fnHttpService::api_handler_drive_slot(httpd_req_t *req)
-{
-    int slot = api_extract_slot_from_uri(req->uri, "/drives/");
-    if (slot < 1 || slot > MAX_MOUNT_SLOTS)
-    {
-        api_send_json(req, "{\"error\":\"invalid slot\"}", 400);
-        return ESP_OK;
-    }
-    slot--; // Convert to 0-based
-
-    cJSON *root = cJSON_CreateObject();
-    if (root == nullptr)
-    {
-        api_send_json(req, "{\"error\":\"out of memory\"}", 500);
-        return ESP_OK;
-    }
-
-    cJSON_AddNumberToObject(root, "slot", slot + 1);
-
-    std::string path = Config.get_mount_path(slot);
-    cJSON_AddStringToObject(root, "path", path.c_str());
-    cJSON_AddBoolToObject(root, "mounted", !path.empty());
-
-    fnConfig::mount_mode_t mode = Config.get_mount_mode(slot);
-    cJSON_AddStringToObject(root, "mode", mode == fnConfig::MOUNTMODE_WRITE ? "w" : "r");
-
-    int host_slot = Config.get_mount_host_slot(slot);
-    cJSON_AddNumberToObject(root, "host_slot", host_slot);
-
-    if (host_slot >= 0 && host_slot < MAX_HOST_SLOTS)
-    {
-        cJSON_AddStringToObject(root, "host", Config.get_host_name(host_slot).c_str());
-    }
-
-    char *json = cJSON_PrintUnformatted(root);
-    api_send_json(req, json);
-    cJSON_free(json);
-    cJSON_Delete(root);
-    return ESP_OK;
-}
-
-// POST /api/v1/drives/{slot}/mount - Mount a disk image
-esp_err_t fnHttpService::api_handler_drive_mount(httpd_req_t *req)
-{
-    int slot = api_extract_slot_from_uri(req->uri, "/drives/");
-    if (slot < 1 || slot > MAX_MOUNT_SLOTS)
-    {
-        api_send_json(req, "{\"error\":\"invalid slot\"}", 400);
-        return ESP_OK;
-    }
-    slot--; // Convert to 0-based
-
-    // Read POST body
-    char buf[FNWS_RECV_BUFF_SIZE];
-    int ret = httpd_req_recv(req, buf, sizeof(buf) - 1);
-    if (ret <= 0)
-    {
-        api_send_json(req, "{\"error\":\"failed to read request body\"}", 400);
-        return ESP_OK;
-    }
-    buf[ret] = '\0';
-
-    // Parse JSON body
-    cJSON *body = cJSON_Parse(buf);
-    if (body == nullptr)
-    {
-        api_send_json(req, "{\"error\":\"invalid JSON\"}", 400);
-        return ESP_OK;
-    }
-
-    cJSON *path_json = cJSON_GetObjectItem(body, "path");
-    cJSON *host_slot_json = cJSON_GetObjectItem(body, "host_slot");
-    cJSON *mode_json = cJSON_GetObjectItem(body, "mode");
-
-    if (path_json == nullptr || host_slot_json == nullptr)
-    {
-        cJSON_Delete(body);
-        api_send_json(req, "{\"error\":\"missing path or host_slot\"}", 400);
-        return ESP_OK;
-    }
-
-    const char *path = cJSON_GetStringValue(path_json);
-    int host_slot = cJSON_GetNumberValue(host_slot_json);
-    const char *mode_str = mode_json ? cJSON_GetStringValue(mode_json) : "r";
-
-    if (path == nullptr || host_slot < 0 || host_slot >= MAX_HOST_SLOTS)
-    {
-        cJSON_Delete(body);
-        api_send_json(req, "{\"error\":\"invalid parameters\"}", 400);
-        return ESP_OK;
-    }
-
-    fnConfig::mount_mode_t mount_mode = (strcmp(mode_str, "w") == 0)
-        ? fnConfig::MOUNTMODE_WRITE
-        : fnConfig::MOUNTMODE_READ;
-
-    Config.store_mount(slot, host_slot, path, mount_mode);
-
-    cJSON *resp = cJSON_CreateObject();
-    cJSON_AddStringToObject(resp, "status", "success");
-    cJSON_AddNumberToObject(resp, "slot", slot + 1);
-    cJSON_AddStringToObject(resp, "path", path);
-
-    char *json = cJSON_PrintUnformatted(resp);
-    api_send_json(req, json);
-    cJSON_free(json);
-    cJSON_Delete(resp);
-    cJSON_Delete(body);
-    return ESP_OK;
-}
-
-// POST /api/v1/drives/{slot}/eject - Eject disk from slot
-esp_err_t fnHttpService::api_handler_drive_eject(httpd_req_t *req)
-{
-    int slot = api_extract_slot_from_uri(req->uri, "/drives/");
-    if (slot < 1 || slot > MAX_MOUNT_SLOTS)
-    {
-        api_send_json(req, "{\"error\":\"invalid slot\"}", 400);
-        return ESP_OK;
-    }
-    slot--; // Convert to 0-based
-
-    Config.clear_mount(slot);
-
-    cJSON *resp = cJSON_CreateObject();
-    cJSON_AddStringToObject(resp, "status", "success");
-    cJSON_AddNumberToObject(resp, "slot", slot + 1);
-
-    char *json = cJSON_PrintUnformatted(resp);
-    api_send_json(req, json);
-    cJSON_free(json);
-    cJSON_Delete(resp);
-    return ESP_OK;
-}
-
-// GET /api/v1/hosts - List all host slots
-esp_err_t fnHttpService::api_handler_hosts(httpd_req_t *req)
-{
-    cJSON *root = cJSON_CreateArray();
-    if (root == nullptr)
-    {
-        api_send_json(req, "{\"error\":\"out of memory\"}", 500);
-        return ESP_OK;
-    }
-
-    for (int i = 0; i < MAX_HOST_SLOTS; i++)
-    {
-        cJSON *slot = cJSON_CreateObject();
-        if (slot == nullptr)
-            continue;
-
-        cJSON_AddNumberToObject(slot, "slot", i + 1);
-
-        std::string name = Config.get_host_name(i);
-        cJSON_AddStringToObject(slot, "hostname", name.c_str());
-        cJSON_AddBoolToObject(slot, "configured", !name.empty());
-
-        fnConfig::host_type_t type = Config.get_host_type(i);
-        cJSON_AddStringToObject(slot, "type",
-            type == fnConfig::HOSTTYPE_SD ? "SD" :
-            type == fnConfig::HOSTTYPE_TNFS ? "TNFS" : "unknown");
-
-        cJSON_AddItemToArray(root, slot);
-    }
-
-    char *json = cJSON_PrintUnformatted(root);
-    api_send_json(req, json);
-    cJSON_free(json);
-    cJSON_Delete(root);
-    return ESP_OK;
-}
-
-// GET/POST /api/v1/hosts/{slot} - Get or update host slot
-esp_err_t fnHttpService::api_handler_host_slot(httpd_req_t *req)
-{
-    int slot = api_extract_slot_from_uri(req->uri, "/hosts/");
-    if (slot < 1 || slot > MAX_HOST_SLOTS)
-    {
-        api_send_json(req, "{\"error\":\"invalid slot\"}", 400);
-        return ESP_OK;
-    }
-    slot--; // Convert to 0-based
-
-    if (req->method == HTTP_GET)
-    {
-        cJSON *root = cJSON_CreateObject();
-        if (root == nullptr)
-        {
-            api_send_json(req, "{\"error\":\"out of memory\"}", 500);
-            return ESP_OK;
-        }
-
-        cJSON_AddNumberToObject(root, "slot", slot + 1);
-
-        std::string name = Config.get_host_name(slot);
-        cJSON_AddStringToObject(root, "hostname", name.c_str());
-        cJSON_AddBoolToObject(root, "configured", !name.empty());
-
-        fnConfig::host_type_t type = Config.get_host_type(slot);
-        cJSON_AddStringToObject(root, "type",
-            type == fnConfig::HOSTTYPE_SD ? "SD" :
-            type == fnConfig::HOSTTYPE_TNFS ? "TNFS" : "unknown");
-
-        char *json = cJSON_PrintUnformatted(root);
-        api_send_json(req, json);
-        cJSON_free(json);
-        cJSON_Delete(root);
-        return ESP_OK;
-    }
-    else if (req->method == HTTP_POST)
-    {
-        // Read POST body
-        char buf[FNWS_RECV_BUFF_SIZE];
-        int ret = httpd_req_recv(req, buf, sizeof(buf) - 1);
-        if (ret <= 0)
-        {
-            api_send_json(req, "{\"error\":\"failed to read request body\"}", 400);
-            return ESP_OK;
-        }
-        buf[ret] = '\0';
-
-        // Parse JSON body
-        cJSON *body = cJSON_Parse(buf);
-        if (body == nullptr)
-        {
-            api_send_json(req, "{\"error\":\"invalid JSON\"}", 400);
-            return ESP_OK;
-        }
-
-        cJSON *hostname_json = cJSON_GetObjectItem(body, "hostname");
-        cJSON *type_json = cJSON_GetObjectItem(body, "type");
-
-        if (hostname_json == nullptr)
-        {
-            cJSON_Delete(body);
-            api_send_json(req, "{\"error\":\"missing hostname\"}", 400);
-            return ESP_OK;
-        }
-
-        const char *hostname = cJSON_GetStringValue(hostname_json);
-        if (hostname == nullptr)
-        {
-            cJSON_Delete(body);
-            api_send_json(req, "{\"error\":\"invalid hostname\"}", 400);
-            return ESP_OK;
-        }
-
-        fnConfig::host_type_t host_type = fnConfig::HOSTTYPE_SD;
-        if (type_json != nullptr)
-        {
-            const char *type_str = cJSON_GetStringValue(type_json);
-            if (type_str != nullptr)
-            {
-                if (strcasecmp(type_str, "TNFS") == 0)
-                    host_type = fnConfig::HOSTTYPE_TNFS;
-                else
-                    host_type = fnConfig::HOSTTYPE_SD;
-            }
-        }
-
-        Config.store_host(slot, hostname, host_type);
-
-        cJSON *resp = cJSON_CreateObject();
-        cJSON_AddStringToObject(resp, "status", "success");
-        cJSON_AddNumberToObject(resp, "slot", slot + 1);
-        cJSON_AddStringToObject(resp, "hostname", hostname);
-
-        char *json = cJSON_PrintUnformatted(resp);
-        api_send_json(req, json);
-        cJSON_free(json);
-        cJSON_Delete(resp);
-        cJSON_Delete(body);
-        return ESP_OK;
-    }
-
-    api_send_json(req, "{\"error\":\"method not allowed\"}", 400);
-    return ESP_OK;
-}
-
-// GET /api/v1/printer/status - Printer status
-esp_err_t fnHttpService::api_handler_printer_status(httpd_req_t *req)
-{
-    PRINTER_CLASS *printer = (PRINTER_CLASS *)fnPrinters.get_ptr(0);
-    if (printer == nullptr)
-    {
-        api_send_json(req, "{\"enabled\":false}");
-        return ESP_OK;
-    }
-
-    printer_emu *emu = printer->getPrinterPtr();
-    if (emu == nullptr)
-    {
-        api_send_json(req, "{\"enabled\":false}");
-        return ESP_OK;
-    }
-
-    uint64_t now = fnSystem.millis();
-    bool ready = (now - printer->lastPrintTime() >= PRINTER_BUSY_TIME);
-    size_t sz = emu->getOutputSize();
-
-    const char *ct;
-    switch (emu->getPaperType())
-    {
-    case RAW:
-    case TRIM:
-    case ASCII:
-        ct = "text/plain";
-        break;
-    case PDF:
-        ct = "application/pdf";
-        break;
-    case SVG:
-        ct = "image/svg+xml";
-        break;
-    case PNG:
-        ct = "image/png";
-        break;
-    case HTML:
-    case HTML_ATASCII:
-        ct = "text/html";
-        break;
-    default:
-        ct = "application/octet-stream";
-    }
-
-    cJSON *root = cJSON_CreateObject();
-    cJSON_AddBoolToObject(root, "enabled", true);
-    cJSON_AddStringToObject(root, "model", emu->modelname());
-    cJSON_AddBoolToObject(root, "ready", ready);
-    cJSON_AddBoolToObject(root, "has_output", sz > 0);
-    cJSON_AddNumberToObject(root, "output_size", sz);
-    cJSON_AddStringToObject(root, "content_type", ct);
-    cJSON_AddNumberToObject(root, "last_print_time", printer->lastPrintTime());
-
-    char *json = cJSON_PrintUnformatted(root);
-    api_send_json(req, json);
-    cJSON_free(json);
-    cJSON_Delete(root);
-    return ESP_OK;
-}
-
-// POST /api/v1/printer/clear - Clear printer output
-esp_err_t fnHttpService::api_handler_printer_clear(httpd_req_t *req)
-{
-    PRINTER_CLASS *printer = (PRINTER_CLASS *)fnPrinters.get_ptr(0);
-    if (printer == nullptr || printer->getPrinterPtr() == nullptr)
-    {
-        api_send_json(req, "{\"error\":\"printer not available\"}", 400);
-        return ESP_OK;
-    }
-
-    printer_emu *emu = printer->getPrinterPtr();
-    emu->closeOutput();
-    printer->reset_printer();
-
-    // Try to remove the file (may fail on some filesystems)
-    int remove_result = fsFlash.remove("/paper");
-    Debug_printf("Attempting to remove /paper, result: %d\n", remove_result);
-
-    cJSON *resp = cJSON_CreateObject();
-    cJSON_AddStringToObject(resp, "status", "success");
-
-    char *json = cJSON_PrintUnformatted(resp);
-    api_send_json(req, json);
-    cJSON_free(json);
-    cJSON_Delete(resp);
-    return ESP_OK;
-}
-
-// POST /api/v1/wifi/scan - Scan WiFi networks
-esp_err_t fnHttpService::api_handler_wifi_scan(httpd_req_t *req)
-{
-    uint8_t count = fnWiFi.scan_networks();
-    cJSON *root = cJSON_CreateArray();
-
-    for (int i = 0; i < count; i++)
-    {
-        char ssid[33] = {0};
-        uint8_t rssi = 0;
-        uint8_t channel = 0;
-        char bssid[18] = {0};
-        uint8_t encryption = 0;
-
-        fnWiFi.get_scan_result(i, ssid, &rssi, &channel, bssid, &encryption);
-
-        cJSON *network = cJSON_CreateObject();
-        cJSON_AddStringToObject(network, "ssid", ssid);
-        cJSON_AddNumberToObject(network, "rssi", rssi);
-        cJSON_AddNumberToObject(network, "channel", channel);
-        cJSON_AddStringToObject(network, "bssid", bssid);
-        cJSON_AddNumberToObject(network, "encryption", encryption);
-        cJSON_AddItemToArray(root, network);
-    }
-
-    char *json = cJSON_PrintUnformatted(root);
-    api_send_json(req, json);
-    cJSON_free(json);
-    cJSON_Delete(root);
-    return ESP_OK;
-}
-
-// GET /api/v1/wifi/status - Current WiFi connection info
-esp_err_t fnHttpService::api_handler_wifi_status(httpd_req_t *req)
-{
-    cJSON *root = cJSON_CreateObject();
-    if (root == nullptr)
-    {
-        api_send_json(req, "{\"error\":\"out of memory\"}", 500);
-        return ESP_OK;
-    }
-
-    cJSON_AddBoolToObject(root, "connected", fnWiFi.connected());
-    cJSON_AddStringToObject(root, "ssid", fnWiFi.get_current_ssid().c_str());
-    cJSON_AddStringToObject(root, "detail", fnWiFi.get_current_detail_str());
-
-    uint8_t bssid[6] = {0};
-    fnWiFi.get_current_bssid(bssid);
-    char bssid_str[18];
-    snprintf(bssid_str, sizeof(bssid_str), "%02X:%02X:%02X:%02X:%02X:%02X",
-             bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5]);
-    cJSON_AddStringToObject(root, "bssid", bssid_str);
-
-    cJSON_AddStringToObject(root, "ip", fnSystem.Net.get_ip4_address_str().c_str());
-    cJSON_AddStringToObject(root, "gateway", fnSystem.Net.get_ip4_gateway_str().c_str());
-    cJSON_AddStringToObject(root, "dns", fnSystem.Net.get_ip4_dns_str().c_str());
-
-    char mac_str[18];
-    uint8_t mac[6];
-    fnWiFi.get_mac(mac);
-    snprintf(mac_str, sizeof(mac_str), "%02X:%02X:%02X:%02X:%02X:%02X",
-             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    cJSON_AddStringToObject(root, "mac", mac_str);
-
-    char *json = cJSON_PrintUnformatted(root);
-    api_send_json(req, json);
-    cJSON_free(json);
-    cJSON_Delete(root);
+    httpd_resp_send(req, r.body.c_str(), r.body.size());
     return ESP_OK;
 }
 
@@ -3101,87 +2328,20 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
          .is_websocket = false,
          .handle_ws_control_frames = false,
          .supported_subprotocol = nullptr},
-        // REST API endpoints
-        {.uri = "/api/v1/status",
+        // REST API - one catch-all per method; routing lives in httpServiceApi.cpp.
+        // It has to be a catch-all: httpd_uri_match_wildcard only treats a
+        // trailing '*' as a wildcard, so a template with a wildcard mid-path is
+        // compared literally and never matches a real request.
+        {.uri = FN_API_ROOT "/*",
          .method = HTTP_GET,
-         .handler = api_handler_status,
+         .handler = api_handler,
          .user_ctx = NULL,
          .is_websocket = false,
          .handle_ws_control_frames = false,
          .supported_subprotocol = nullptr},
-        {.uri = "/api/v1/drives",
-         .method = HTTP_GET,
-         .handler = api_handler_drives,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/api/v1/drives/*",
-         .method = HTTP_GET,
-         .handler = api_handler_drive_slot,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/api/v1/drives/*/mount",
+        {.uri = FN_API_ROOT "/*",
          .method = HTTP_POST,
-         .handler = api_handler_drive_mount,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/api/v1/drives/*/eject",
-         .method = HTTP_POST,
-         .handler = api_handler_drive_eject,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/api/v1/hosts",
-         .method = HTTP_GET,
-         .handler = api_handler_hosts,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/api/v1/hosts/*",
-         .method = HTTP_GET,
-         .handler = api_handler_host_slot,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/api/v1/hosts/*",
-         .method = HTTP_POST,
-         .handler = api_handler_host_slot,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/api/v1/printer/status",
-         .method = HTTP_GET,
-         .handler = api_handler_printer_status,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/api/v1/printer/clear",
-         .method = HTTP_POST,
-         .handler = api_handler_printer_clear,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/api/v1/wifi/scan",
-         .method = HTTP_POST,
-         .handler = api_handler_wifi_scan,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/api/v1/wifi/status",
-         .method = HTTP_GET,
-         .handler = api_handler_wifi_status,
+         .handler = api_handler,
          .user_ctx = NULL,
          .is_websocket = false,
          .handle_ws_control_frames = false,
@@ -3221,7 +2381,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
     config.task_priority = 12; // Bump this higher than fnService loop
     config.core_id = 0; // Pin to CPU core 0
     config.stack_size = 12288;
-    // Budget: 43 base routes + 3 login/logout - 1 removed /private + 11 WebDAV = 56 handlers
+    // Budget: 35 routes registered here + 11 WebDAV = 46 handlers
     config.max_uri_handlers = 64;
     config.max_resp_headers = 16;
     config.keep_alive_enable = true;

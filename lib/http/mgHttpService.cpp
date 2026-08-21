@@ -10,7 +10,11 @@
 #include <ctime>
 #include <cstdlib>
 
+#include "compat_string.h"
+
 #include "clipboardManager.h"
+#include "compat_string.h"
+
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnPassword.h"
@@ -20,6 +24,9 @@
 #include "modem.h"
 #include "printer.h"
 #include "fujiDevice.h"
+#include "fnTaskManager.h"
+#include "fnio.h"
+#include "utils.h"
 #ifdef BUILD_ATARI
 #include "sio/sioFuji.h"
 #endif /* BUILD_ATARI */
@@ -30,7 +37,8 @@
 #include "httpService.h"
 #include "httpServiceConfigurator.h"
 #include "httpServiceParser.h"
-#include "httpServiceBrowser.h"
+#include "httpServiceBrowse.h"
+#include "httpServiceApi.h"
 #include "appKeyManager.h"
 #include "fileManager.h"
 #include "fnFsSD.h"
@@ -244,6 +252,84 @@ void fnHttpService::send_file(struct mg_connection *c, const char *filename)
         free(buf);
         fclose(fInput);
     }
+}
+
+/* Sends header.html or footer.html. 0 for header, 1 for footer.
+   Assumes the response line and headers have already gone out and the body is
+   being sent as chunks.
+*/
+void fnHttpService::send_header_footer(struct mg_connection *c, int headfoot)
+{
+    // Build the full file path
+    string fpath = FNWS_FILE_ROOT;
+    switch (headfoot)
+    {
+    case 0:
+        fpath += "header.html";
+        break;
+    case 1:
+        fpath += "footer.html";
+        break;
+    default:
+        Debug_println("Header / Footer choice invalid");
+        return;
+    }
+
+    // Retrieve server state
+    serverstate *pState = &fnHTTPD.state;
+    FILE *fInput = pState->_FS->file_open(fpath.c_str());
+
+    if (fInput == nullptr)
+    {
+        Debug_printf("Failed to open '%s' for parsing\n", fpath.c_str());
+        return;
+    }
+
+    size_t sz = FileSystem::filesize(fInput) + 1;
+    char *buf = (char *)calloc(sz, 1);
+    if (buf == NULL)
+    {
+        Debug_printf("Couldn't allocate %u bytes to load file contents!\n", (unsigned)sz);
+    }
+    else
+    {
+        fread(buf, 1, sz - 1, fInput);
+        string contents = fnHttpServiceParser::parse_contents(string(buf));
+        free(buf);
+        mg_http_write_chunk(c, contents.data(), contents.length());
+    }
+
+    fclose(fInput);
+}
+
+/* Fetch a query variable as a string. Returns false if it isn't present.
+*/
+static bool query_str(mg_http_message *hm, const char *key, string &out)
+{
+    char buf[MAX_FILENAME_LEN * 2];
+    int len = mg_http_get_var(&hm->query, key, buf, sizeof(buf));
+    if (len < 0)
+        return false;
+    out.assign(buf, len);
+    return true;
+}
+
+/* Fetch a query variable as an integer, returning -1 when it is absent or empty.
+*/
+static int query_int(mg_http_message *hm, const char *key)
+{
+    char buf[12];
+    int len = mg_http_get_var(&hm->query, key, buf, sizeof(buf));
+    if (len <= 0)
+        return -1;
+    return atoi(buf);
+}
+
+/* Start a chunked text/html response.
+*/
+static void begin_chunked_html(mg_connection *c)
+{
+    mg_printf(c, "%s\r\n", "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nTransfer-Encoding: chunked\r\n");
 }
 
 int fnHttpService::redirect_or_result(mg_connection *c, mg_http_message *hm, int result)
@@ -755,33 +841,204 @@ int fnHttpService::post_handler_files_upload(struct mg_connection *c, struct mg_
 }
 
 
-int fnHttpService::get_handler_browse(mg_connection *c, mg_http_message *hm)
+/* Streams a host file to the client without blocking the mongoose event loop.
+   The FileSystem belongs to the fujiHost and outlives the task, so only the
+   file handle is closed here.
+*/
+class fnHttpSendFileTask : public fnTask
 {
-    const char prefix[] = "/browse/host/";
-    int prefixlen = sizeof(prefix) - 1;
-    int pathlen = hm->uri.len - prefixlen -1;
+public:
+    fnHttpSendFileTask(fnFile *fh, mg_connection *c);
+protected:
+    virtual int start() override;
+    virtual int abort() override;
+    virtual int step() override;
+private:
+    char buf[FNWS_SEND_BUFF_SIZE];
+    fnFile * _fh;
+    mg_connection * _c;
+    size_t _filesize;
+    size_t _total;
+};
 
-    Debug_println("Browse request handler");
-    if (pathlen >= 0 && strncmp(hm->uri.buf, prefix, hm->uri.len))
-    {
-        const char *s = hm->uri.buf + prefixlen;
-        // /browse/host/{1..8}[/path/on/host...]
-        if (*s >= '1' && *s <= '8' && (pathlen == 0 || s[1] == '/'))
+fnHttpSendFileTask::fnHttpSendFileTask(fnFile *fh, mg_connection *c)
+{
+    _fh = fh;
+    _c = c;
+    _filesize = 0;
+    _total = 0;
+}
+
+int fnHttpSendFileTask::start()
+{
+    _filesize = FileSystem::filesize(_fh);
+    Debug_printf("fnHttpSendFileTask started #%d\n", _id);
+    return 0;
+}
+
+int fnHttpSendFileTask::abort()
+{
+    _c->is_draining = 1;
+    fnio::fclose(_fh); // close (and delete _fh)
+    Debug_printf("fnHttpSendFileTask aborted #%d\n", _id);
+    return 0;
+}
+
+int fnHttpSendFileTask::step()
+{
+    // Send the file content out in chunks
+    size_t count = fnio::fread((uint8_t *)buf, 1, FNWS_SEND_BUFF_SIZE, _fh);
+    _total += count;
+    mg_send(_c, buf, count);
+
+    if (count)
+        return 0; // continue
+
+    // done
+    _c->is_resp = 0;
+    fnio::fclose(_fh); // close (and delete _fh)
+    Debug_printf("Sent %lu of %lu bytes\n", (unsigned long)_total, (unsigned long)_filesize);
+
+    return 1; // task has completed
+}
+
+int fnHttpService::get_handler_dir(mg_connection *c, mg_http_message *hm)
+{
+    Debug_println("Host directory request handler");
+
+    fnHTTPD.clearErrMsg();
+
+    int hs = query_int(hm, "hostslot");
+    if (hs < 0)
+        fnHTTPD.addToErrMsg("<li>hostslot is empty</li>");
+
+    string path, pattern;
+    if (!query_str(hm, "path", path))
+        path.clear();
+    if (!query_str(hm, "pattern", pattern) || pattern.empty())
+        pattern = "*";
+
+    fnHttpBrowse::render_opts opts;
+    opts.download_links = true; // FujiNet-PC serves /download
+
+    // The listing is streamed, but a host that won't open has to be answered
+    // with the error page instead - so hold the response back until there is
+    // something to send.
+    bool header_sent = false;
+    auto emit = [c, &header_sent](const string &chunk) {
+        if (!header_sent)
         {
-            int host_slot = *s - '1';
-            fnHttpServiceBrowser::process_browse_get(c, hm, host_slot, s+1, pathlen);
+            begin_chunked_html(c);
+            send_header_footer(c, 0); // header
+            header_sent = true;
         }
-        else
-        {
-            mg_http_reply(c, 403, "", "Bad host slot\n");
-        }
-    }
-    else
+        mg_http_write_chunk(c, chunk.data(), chunk.length());
+    };
+
+    if (!fnHttpBrowse::render_hostdir(hs, path, pattern, opts, emit))
     {
-        mg_http_reply(c, 403, "", "Bad browse request\n");
+        fnHTTPD.addToErrMsg("<li>Could not open directory</li>");
+        send_file(c, "error_page.html");
+        return -1;
     }
+
+    send_header_footer(c, 1);     // footer
+    mg_http_write_chunk(c, "", 0); // end of response
 
     return 0;
+}
+
+int fnHttpService::get_handler_slot(mg_connection *c, mg_http_message *hm)
+{
+    Debug_println("Drive slot request handler");
+
+    fnHTTPD.clearErrMsg();
+
+    int hs = query_int(hm, "hostslot");
+    string filename;
+
+    if (hs < 0 || !query_str(hm, "filename", filename))
+    {
+        mg_http_reply(c, 400, "", "Bad drive slot request\n");
+        return -1;
+    }
+
+    // Render into a buffer first: a cassette image needs a redirect instead of
+    // a picker, and by then the page header would already have gone out.
+    string body;
+    auto buffer = [&body](const string &chunk) { body += chunk; };
+
+    fnHttpBrowse::slot_result result = fnHttpBrowse::render_slotpicker(hs, filename, buffer);
+
+    if (result == fnHttpBrowse::slot_result::CASSETTE)
+    {
+        // Cassette image passed in, put it in the cassette slot and redirect
+        string url = "/mount?hostslot=" + to_string(hs) +
+                     "&deviceslot=" + to_string(fnHttpBrowse::CASSETTE_DEVICE_SLOT) +
+                     "&mode=" + to_string(fnHttpBrowse::CASSETTE_MOUNT_MODE) +
+                     "&filename=" + util_url_encode(filename);
+        mg_printf(c, "HTTP/1.1 303 See Other\r\nLocation: %s\r\nContent-Length: 0\r\n\r\n", url.c_str());
+        return 0;
+    }
+
+    if (result == fnHttpBrowse::slot_result::RENDER_ERROR)
+    {
+        fnHTTPD.addToErrMsg("<li>Could not list drive slots</li>");
+        send_file(c, "error_page.html");
+        return -1;
+    }
+
+    begin_chunked_html(c);
+    send_header_footer(c, 0); // header
+    mg_http_write_chunk(c, body.data(), body.length());
+    send_header_footer(c, 1);      // footer
+    mg_http_write_chunk(c, "", 0); // end of response
+
+    return 0;
+}
+
+int fnHttpService::get_handler_download(mg_connection *c, mg_http_message *hm)
+{
+    Debug_println("Download request handler");
+
+    int hs = query_int(hm, "hostslot");
+    string filename;
+
+    if (hs < 0 || hs >= MAX_HOSTS || !query_str(hm, "filename", filename))
+    {
+        mg_http_reply(c, 400, "", "Bad download request\n");
+        return -1;
+    }
+
+    fujiHost *host = theFuji->get_host(hs);
+
+    char fullpath[MAX_FILENAME_LEN];
+    fnFile *fh = host->mount()
+        ? host->fnfile_open(filename.c_str(), fullpath, sizeof(fullpath), FILE_READ)
+        : nullptr;
+
+    if (fh == nullptr)
+    {
+        Debug_printf("Couldn't open host file: %s\n", filename.c_str());
+        mg_http_reply(c, 400, "", "Failed to open file.\n");
+        return -1;
+    }
+
+    mg_printf(c, "HTTP/1.1 200 OK\r\n");
+    set_file_content_type(c, filename.c_str());
+    mg_printf(c, "Content-Length: %lu\r\n\r\n", (unsigned long)FileSystem::filesize(fh));
+
+    // Hand the transfer off so mongoose isn't blocked while it runs
+    fnTask *task = new fnHttpSendFileTask(fh, c);
+    if (task == nullptr)
+    {
+        Debug_println("Failed to create fnHttpSendFileTask");
+        mg_http_reply(c, 400, "", "Failed to create a task\n");
+        fnio::fclose(fh);
+        return -1;
+    }
+
+    return taskMgr.submit_task(task) > 0 ? 0 : -1;
 }
 
 int fnHttpService::get_handler_swap(mg_connection *c, mg_http_message *hm)
@@ -794,70 +1051,45 @@ int fnHttpService::get_handler_swap(mg_connection *c, mg_http_message *hm)
 
 int fnHttpService::get_handler_mount(mg_connection *c, mg_http_message *hm)
 {
+    fnHTTPD.clearErrMsg();
+
     char mountall[10] = "";
     mg_http_get_var(&hm->query, "mountall", mountall, sizeof(mountall));
+
     if (atoi(mountall))
     {
         // Mount all the things
         Debug_printf("Mount all from webui\n");
         theFuji->fujicore_mount_all_success();
+        return redirect_or_result(c, hm, 0);
     }
-    return redirect_or_result(c, hm, 0);
+
+    fnHttpBrowse::mount_params params;
+    params.host_slot = query_int(hm, "hostslot");
+    params.device_slot = query_int(hm, "deviceslot");
+    params.mode = query_int(hm, "mode");
+    params.filename_given = query_str(hm, "filename", params.filename);
+
+    fnHttpBrowse::mount_file(params);
+
+    if (!fnHTTPD.errMsgEmpty())
+    {
+        send_file(c, "error_page.html");
+    }
+    else
+    {
+        send_file(c, "redirect_to_index.html");
+    }
+
+    return 0;
 }
 
 int fnHttpService::get_handler_eject(mg_connection *c, mg_http_message *hm)
 {
-    // get "deviceslot" query variable
-    char slot_str[3] = "", mode_str[3] = "";
-    mg_http_get_var(&hm->query, "deviceslot", slot_str, sizeof(slot_str));
-    unsigned char ds = atoi(slot_str);
-
     fnHTTPD.clearErrMsg();
 
-    if (ds > MAX_DISK_DEVICES)
-    {
-        fnHTTPD.addToErrMsg("<li>deviceslot should be between 0 and 7</li>");
-    }
-    else
-    {
-#ifdef BUILD_APPLE
-        if(theFuji->get_disk(ds)->disk_dev.device_active) //set disk switched only if device was previosly mounted.
-            theFuji->get_disk(ds)->disk_dev.switched = true;
-#endif
-        theFuji->get_disk(ds)->disk_dev.unmount();
-#ifdef BUILD_ATARI
-        if (theFuji->get_disk(ds)->disk_type == MEDIATYPE_CAS || theFuji->get_disk(ds)->disk_type == MEDIATYPE_WAV)
-        {
-            platformFuji.cassette()->umount_cassette_file();
-            platformFuji.cassette()->sio_disable_cassette();
-        }
-#endif
-        theFuji->get_disk(ds)->reset();
-        Config.clear_mount(ds);
-        Config.save();
-        theFuji->populate_slots_from_config(); // otherwise they don't show up in config.
-        theFuji->get_disk(ds)->disk_dev.device_active = false;
+    fnHttpBrowse::eject_slot(query_int(hm, "deviceslot"));
 
-        // Finally, scan all device slots, if all empty, and config enabled, enable the config device.
-        if (Config.get_general_config_enabled())
-        {
-            if ((theFuji->get_disk(0)->host_slot == 0xFF) &&
-                (theFuji->get_disk(1)->host_slot == 0xFF) &&
-                (theFuji->get_disk(2)->host_slot == 0xFF) &&
-                (theFuji->get_disk(3)->host_slot == 0xFF) &&
-                (theFuji->get_disk(4)->host_slot == 0xFF) &&
-                (theFuji->get_disk(5)->host_slot == 0xFF) &&
-                (theFuji->get_disk(6)->host_slot == 0xFF) &&
-                (theFuji->get_disk(7)->host_slot == 0xFF))
-            {
-                theFuji->boot_config = true;
-#ifdef BUILD_ATARI
-                theFuji->status_wait_count = 5;
-#endif
-                theFuji->device_active = true;
-            }
-        }
-    }
     if (!fnHTTPD.errMsgEmpty())
     {
         send_file(c, "error_page.html");
@@ -1349,6 +1581,37 @@ int fnHttpService::post_handler_logout(struct mg_connection *c, struct mg_http_m
 
 // ─── end login/logout handlers ───────────────────────────────────────────────
 
+// ─── REST API ────────────────────────────────────────────────────────────────
+// Routing and the handlers live in httpServiceApi.cpp, shared with the ESP32
+// server; this is only the mongoose plumbing.
+
+int fnHttpService::api_handler(struct mg_connection *c, struct mg_http_message *hm)
+{
+    fnHttpApi::method m = fnHttpApi::method::OTHER;
+    if (http_method_is(hm, "GET"))
+        m = fnHttpApi::method::GET;
+    else if (http_method_is(hm, "POST"))
+        m = fnHttpApi::method::POST;
+
+    // An oversized body is passed as none, so the shared code answers 400
+    // rather than this server trying to parse an unbounded request.
+    const char *body = nullptr;
+    size_t body_len = 0;
+    if (hm->body.len > 0 && hm->body.len <= FNWS_RECV_BUFF_SIZE)
+    {
+        body = hm->body.buf;
+        body_len = hm->body.len;
+    }
+
+    fnHttpApi::response r = fnHttpApi::handle(string(hm->uri.buf, hm->uri.len), m, body, body_len);
+    mg_http_reply(c, r.status,
+                  "Content-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\n",
+                  "%s", r.body.c_str());
+    return r.status < 400 ? 0 : -1;
+}
+
+// ─── end REST API ────────────────────────────────────────────────────────────
+
 void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
 {
     static const char *s_root_dir = "data/www";
@@ -1472,19 +1735,42 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
         {
             get_handler_printer_events(c);
         }
+        else if (mg_match(hm->uri, mg_str("/hsdir"), NULL))
+        {
+            // host directory listing handler
+            get_handler_dir(c, hm);
+        }
+        else if (mg_match(hm->uri, mg_str("/dslot"), NULL))
+        {
+            // drive slot picker handler
+            get_handler_slot(c, hm);
+        }
+        else if (mg_match(hm->uri, mg_str("/download"), NULL))
+        {
+            // host file download handler
+            get_handler_download(c, hm);
+        }
         else if (mg_match(hm->uri, mg_str("/browse/#"), NULL))
         {
-            // browse handler
-            get_handler_browse(c, hm);
+            // the host browser moved to /hsdir - keep old links working
+            const char prefix[] = "/browse/host/";
+            const size_t prefixlen = sizeof(prefix) - 1;
+            const char *s = hm->uri.buf + prefixlen;
+
+            if (hm->uri.len > prefixlen && *s >= '1' && *s <= '8')
+                mg_printf(c, "HTTP/1.1 303 See Other\r\nLocation: /hsdir?hostslot=%d\r\n"
+                             "Content-Length: 0\r\n\r\n", *s - '1');
+            else
+                mg_http_reply(c, 403, "", "Bad browse request\n");
         }
         else if (mg_match(hm->uri, mg_str("/swap"), NULL))
         {
-            // browse handler
+            // disk rotation handler
             get_handler_swap(c, hm);
         }
         else if (mg_match(hm->uri, mg_str("/mount"), NULL))
         {
-            // browse handler
+            // mount handler
             get_handler_mount(c, hm);
         }
         else if (mg_match(hm->uri, mg_str("/unmount"), NULL))
@@ -1511,7 +1797,7 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
             }
         }
         else if (mg_match(hm->uri, mg_str("/hosts"), NULL)) {
-            if (mg_casecmp(hm->method.buf, "POST") == 0)
+            if (http_method_is(hm, "POST"))
                 post_handler_hosts(c, hm);
             else
                 get_handler_hosts(c, hm);
@@ -1560,6 +1846,11 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
         else if (mg_match(hm->uri, mg_str("/onedrive-poll"), NULL))
         {
             get_handler_onedrive_poll(c, hm);
+        }
+        // REST API - one catch-all; routing lives in httpServiceApi.cpp
+        else if (mg_match(hm->uri, mg_str(FN_API_ROOT "/#"), NULL))
+        {
+            api_handler(c, hm);
         }
         else
         // default handler, serve static content of www firectory
