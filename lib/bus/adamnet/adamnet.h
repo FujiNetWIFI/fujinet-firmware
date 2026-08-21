@@ -6,6 +6,7 @@
  */
 
 #include "bus.h"
+#include "AdamNetPhase.h"
 #include "FujiAdamPacket.h"
 #include "UARTChannel.h"
 #include "BoIPChannel.h"
@@ -89,72 +90,12 @@ class virtualDevice
 
 protected:
     /**
-     * @brief Send Byte to AdamNet
-     * @param b Byte to send via AdamNet
-     * @return was byte sent?
-     */
-    void adamnet_send(uint8_t b);
-
-    /**
-     * @brief Send buffer to AdamNet
-     * @param buf Buffer to send to AdamNet
-     * @param len Length of buffer
-     * @return number of bytes sent.
-     */
-    void adamnet_send_buffer(const void *buf, unsigned short len);
-
-    /**
-     * @brief Receive byte from AdamNet
-     * @return byte received
-     */
-    uint8_t adamnet_recv();
-
-    /**
-     * @brief convenience function to recieve length
-     * @return short containing length.
-     */
-    uint16_t adamnet_recv_length();
-
-    /**
-     * @brief convenience function to receive block number
-     * @return ulong containing block num.
-     */
-    uint32_t adamnet_recv_blockno();
-
-    /**
-     * @brief covenience function to send length
-     * @param l Length.
-     */
-    void adamnet_send_length(uint16_t l);
-
-    /**
-     * @brief Receive desired # of bytes into buffer from AdamNet
-     * @param buf Buffer in which to receive
-     * @param len length of buffer
-     * @return # of bytes received.
-     */
-    unsigned short adamnet_recv_buffer(uint8_t *buf, unsigned short len);
-
-    /**
      * @brief Perform reset of device
      */
     virtual void reset();
 
-    /**
-     * @brief acknowledge, but not if cmd took too long.
-     * @param doNotWaitForIdle do not wait for idle if true.
-     */
-    virtual void adamnet_response_ack(bool doNotWaitForIdle=false);
-
-    /**
-     * @brief non-acknowledge, but not if cmd took too long
-     * param doNotWaitForIdle do not wait for idle if true.
-     */
-    virtual void adamnet_response_nack(bool doNotWaitForIdle=false);
-
-    virtual void adamnet_control_ready();       // Check if device is ready for command
-    virtual void adamnet_control_receive() = 0; // Tell device to queue up data
-    virtual void adamnet_control_clr();         // Send queued up data
+    virtual void adamnet_control_ready();   // Check if device is ready for command
+    virtual void adamnet_control_receive(); // Tell device to queue up data
     virtual void adamnet_control_send(const FujiAdamPacket &packet) = 0; // Send data to device
 
     virtual AdamNetStatus deviceStatus() = 0;
@@ -174,16 +115,6 @@ protected:
      * @brief Do any tasks that can only be done when the bus is quiet
      */
     virtual void adamnet_idle();
-
-    /**
-     * Response buffer
-     */
-    uint8_t response[1024];
-
-    /**
-     * Response length
-     */
-    uint16_t response_len;
 
 public:
 
@@ -216,7 +147,6 @@ private:
     virtualDevice *_activeDev = nullptr;
     const FujiAdamPacket *_activePacket;
     adamFuji *_fujiDev = nullptr;
-    adamPrinter *_printerDev = nullptr;
 
     // _port = UART on hardware, or a TCP socket to an emulator on PC (Bus over IP).
     UARTChannel _serial;
@@ -231,6 +161,26 @@ private:
 #endif /* ESP_PLATFORM */
     void _adamnet_dispatch(const FujiAdamPacket &packet);
 
+    std::optional<ByteBuffer> _transaction_reply_encoded;
+    bool _stall_silent = false;
+    AdamNetPhase busPhase;
+
+    /**
+     * @brief Wait for AdamNet bus to become idle.
+     */
+    void wait_for_idle();
+
+    bool sendReplyPacket(bool ack, const void *data, size_t length);
+    inline bool sendReplyPacket(bool ack, const ByteBuffer &data) {
+        return sendReplyPacket(ack, data.data(), data.size());
+    }
+    inline bool sendReplyPacket(bool ack) {
+        return sendReplyPacket(ack, NULL, 0);
+    }
+    void sendStatusPacket(const AdamNetStatus &status);
+    void sendResponsePacket(void);
+    bool writeBusPacket(const FujiAdamPacket &packet);
+
 public:
     void setup();
     void service();
@@ -241,28 +191,9 @@ public:
     void reset();
 
     /**
-     * @brief Wait for AdamNet bus to become idle.
-     */
-    void wait_for_idle();
-
-    /**
-     * @brief Hold off driving the shared one-wire bus until at least
-     *        ADAMNET_TURNAROUND_US after the current command, so the response
-     *        doesn't collide with the master still releasing the line.
-     */
-    void min_turnaround();
-
-    /**
-     * @brief Hold off driving the wire until at least @p us microseconds after
-     *        the current command (measured from start_time). Lets a device pace
-     *        its response to match real hardware's turnaround.
-     */
-    void wait_turnaround(uint32_t us);
-
-    /**
      * stopwatch
      */
-    int64_t start_time;
+    int64_t _start_time;
 
     /**
      * @brief Set true when a multi-byte receive times out mid-packet, so a
@@ -278,7 +209,10 @@ public:
      *        to drain, and it must NOT discardInput() (that 180us FIFO-clear eats
      *        the master's re-poll). Cleared at the start of each command.
      */
-    bool stall_silent = false;
+    void stall_silent() {
+        _stall_silent = false;
+        busPhase.didIgnore();
+    }
 
     int numDevices();
     void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id);
@@ -304,24 +238,13 @@ public:
     using SystemBusBase::transaction_send;
     void transaction_send(const void *data, size_t len, bool is_error=false) override;
 
-    // Everybody thinks "oh I know how a serial port works, I'll just
-    // access it directly and bypass the bus!" ಠ_ಠ
-    size_t read(void *buffer, size_t length) { return _port->read(buffer, length); }
-    size_t read() { return _port->read(); }
-    size_t write(const void *buffer, size_t length) { return _port->write(buffer, length); }
-    size_t write(int n) { return _port->write(n); }
-    size_t available() { return _port->available(); }
-    void flush() { _port->flushOutput(); }
+    void sendAckPacket();
+    void sendNakPacket();
 
-    // Protect a large response (a 1028-byte disk block) while it streams.
-    void quiet_rx_for_send(bool on) {
 #ifdef ESP_PLATFORM
-        _serial.setRXThreshold(on ? 120 : 1);
-#endif
-    }
-    size_t print(int n, int base = 10) { return _port->print(n, base); }
-    size_t print(const char *str) { return _port->print(str); }
-    size_t print(const std::string &str) { return _port->print(str); }
+    void adamnet_handle_bus_task();
+#endif /* ESP_PLATFORM */
+
 };
 
 extern systemBus SYSTEM_BUS;

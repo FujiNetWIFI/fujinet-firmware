@@ -112,50 +112,40 @@ void adamPrinter::adamnet_control_send(const FujiAdamPacket &packet)
 {
     PrintItem pi;
 
-    pi.len = adamnet_recv_length();
-    if (pi.len > sizeof(pi.buf)) // clamp wire length to buffer
-        pi.len = sizeof(pi.buf);
-    adamnet_recv_buffer(pi.buf, pi.len);
-    adamnet_recv(); // ck
-
-    // AdamNet.start_time = GET_TIMESTAMP();
-    adamnet_response_ack();
-
+    pi.len = std::min(packet.data()->size(), sizeof(pi.buf));
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_get(pi.buf, pi.len);
     xQueueSend(pxq, &pi, portMAX_DELAY);
 
     _last_ms = fnSystem.millis();
+    SYSTEM_BUS.transaction_success();
 }
 #else
 void adamPrinter::adamnet_control_send(const FujiAdamPacket &packet)
 {
-    size_t len = adamnet_recv_length();
+    size_t len = packet.data()->size();
     uint8_t *pbuf = _pptr->provideBuffer();
 
-    adamnet_recv_buffer(pbuf, len);
-    adamnet_recv(); // ck
-
-    // AdamNet.start_time = GET_TIMESTAMP();
-    adamnet_response_ack();
-
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    SYSTEM_BUS.transaction_get(pbuf, len);
     if (len)
         _pptr->process(len,0,0);
 
     _last_ms = fnSystem.millis();
+    SYSTEM_BUS.transaction_success();
 }
 #endif /* ESP_PLATFORM */
 
 void adamPrinter::adamnet_control_ready()
 {
-    SYSTEM_BUS.start_time = GET_TIMESTAMP();
-
     if (getPrinterPtr()->is_printing)
-        adamnet_response_nack();
+        SYSTEM_BUS.sendNakPacket();
 #ifdef ESP_PLATFORM
     else if (!uxQueueSpacesAvailable(pxq))
-        adamnet_response_nack();
+        SYSTEM_BUS.sendNakPacket();
 #endif /* ESP_PLATFORM */
     else
-        adamnet_response_ack();
+        SYSTEM_BUS.sendAckPacket();
 }
 
 void adamPrinter::shutdown()

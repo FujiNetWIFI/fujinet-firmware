@@ -146,7 +146,6 @@ void adamFuji::adamnet_new_disk(const FujiAdamPacket &packet)
     if (new_disk_completed)
     {
         new_disk_completed = false;
-        SYSTEM_BUS.start_time = GET_TIMESTAMP();
         SYSTEM_BUS.transaction_error();
         return;
     }
@@ -197,8 +196,6 @@ void adamFuji::adamnet_enable_device(const FujiAdamPacket &packet)
 
     Debug_printf("FUJI ENABLE DEVICE %02x\n", d);
 
-    SYSTEM_BUS.start_time = GET_TIMESTAMP();
-
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     switch (d)
@@ -234,7 +231,6 @@ void adamFuji::adamnet_disable_device(const FujiAdamPacket &packet)
 
     Debug_printf("FUJI DISABLE DEVICE %02x\n", d);
 
-    SYSTEM_BUS.start_time = GET_TIMESTAMP();
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     switch (d)
@@ -322,22 +318,16 @@ void adamFuji::setup()
 
 void adamFuji::adamnet_random_number()
 {
-    int *p = (int *)&response[0];
+    int val = rand();
 
-
-    SYSTEM_BUS.start_time = GET_TIMESTAMP();
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-
-    response_len = sizeof(int);
-    *p = rand();
-    SYSTEM_BUS.transaction_success();
+    SYSTEM_BUS.transaction_send(&val, sizeof(val));
 }
 
 void adamFuji::adamnet_get_time()
 {
     Debug_println("FUJI GET TIME");
 
-    SYSTEM_BUS.start_time = GET_TIMESTAMP();
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     time_t tt = time(nullptr);
@@ -346,37 +336,38 @@ void adamFuji::adamnet_get_time()
     tzset();
 
     struct tm *now = localtime(&tt);
+    struct {
+        uint8_t century;
+        uint8_t year;
+        uint8_t month;
+        uint8_t day;
+        uint8_t hour;
+        uint8_t minute;
+        uint8_t second;
+    } cur_time;
+    cur_time.century = (now->tm_year) / 100 + 19;
+    cur_time.year = now->tm_year % 100;
+    cur_time.month = now->tm_mon + 1;
+    cur_time.day = now->tm_mday;
+    cur_time.hour = now->tm_hour;
+    cur_time.minute = now->tm_min;
+    cur_time.second = now->tm_sec;
 
-        /*
-     NWD order has changed to match apple format
-     Previously:
-        response[0] = now->tm_mday;
-        response[1] = now->tm_mon;
-        response[2] = now->tm_year;
-        response[3] = now->tm_hour;
-        response[4] = now->tm_min;
-        response[5] = now->tm_sec;
-    */
-
-        response[0] = (now->tm_year) / 100 + 19;
-        response[1] = now->tm_year % 100;
-        response[2] = now->tm_mon + 1;
-        response[3] = now->tm_mday;
-        response[4] = now->tm_hour;
-        response[5] = now->tm_min;
-        response[6] = now->tm_sec;
-
-        response_len = 7;
-
-    Debug_printf("Sending %02X %02X %02X %02X %02X %02X %02X\n", response[0], response[1], response[2], response[3], response[4], response[5], response[6]);
-    SYSTEM_BUS.transaction_success();
+    Debug_printf("Sending %02X %02X %02X %02X %02X %02X %02X\n",
+                 cur_time.century,
+                 cur_time.year,
+                 cur_time.month,
+                 cur_time.day,
+                 cur_time.hour,
+                 cur_time.minute,
+                 cur_time.second);
+    SYSTEM_BUS.transaction_send(&cur_time, sizeof(cur_time));
 }
 
 void adamFuji::adamnet_device_enable_status(const FujiAdamPacket &packet)
 {
     uint8_t d = packet.param(0);
 
-    SYSTEM_BUS.start_time = GET_TIMESTAMP();
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     if (SYSTEM_BUS.deviceExists(d))
@@ -384,8 +375,7 @@ void adamFuji::adamnet_device_enable_status(const FujiAdamPacket &packet)
     else
         SYSTEM_BUS.transaction_error();
 
-    response_len = 1;
-    response[0] = SYSTEM_BUS.deviceEnabled(d);
+    SYSTEM_BUS.transaction_send(SYSTEM_BUS.deviceEnabled(d));
 }
 
 void adamFuji::adamnet_control_send(const FujiAdamPacket &packet)
@@ -537,29 +527,13 @@ void adamFuji::adamnet_control_send(const FujiAdamPacket &packet)
         break;
     default:
         Debug_printv("Unknown command: %02x\n", packet.command());
+        SYSTEM_BUS.transaction_error();
         break;
     }
 }
 
-void adamFuji::adamnet_control_clr()
-{
-    FujiAdamPacket packet(_devnum, APT::NM_SEND,
-                          ByteBuffer(response, response + response_len));
-    auto encoded = packet.serialize();
-    adamnet_send_buffer(encoded.data(), encoded.size());
-    response_len = 0;
-}
-
 void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
 {
-    if (response_len)
-    {
-        // Still have queued up data that needs to be read, ignore this request
-        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-        SYSTEM_BUS.transaction_success();
-        return;
-    }
-
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu) (addtl=%02x)\n", maxlen, addtl);
 
@@ -616,7 +590,7 @@ void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
     if (current_entry->size() < maxlen)
         current_entry->resize(maxlen, '\0');
 
-    Debug_printf("%s\n", util_hexdump(current_entry->data(), maxlen).c_str());
+    Debug_printf("\n%s", util_hexdump(current_entry->data(), maxlen).c_str());
     SYSTEM_BUS.transaction_send(current_entry->data(), maxlen);
 }
 

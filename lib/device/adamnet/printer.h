@@ -33,8 +33,6 @@ protected:
 
     void adamnet_control_send(const FujiAdamPacket &packet) override;
     void adamnet_control_ready() override;
-    void adamnet_control_receive() override {}
-    void adamnet_control_clr() override {}
 
     AdamNetStatus deviceStatus() override;
 

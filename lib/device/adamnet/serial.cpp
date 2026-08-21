@@ -12,7 +12,6 @@
 adamSerial::adamSerial()
 {
     Debug_printf("Serial Start\n");
-    response_len = 0;
 #ifdef ESP_PLATFORM
     serial_out_queue = xQueueCreate(16, sizeof(SendData));
 #endif /* ESP_PLATFORM */
@@ -42,14 +41,12 @@ AdamNetStatus adamSerial::deviceStatus()
 
 void adamSerial::adamnet_control_ready()
 {
-    SYSTEM_BUS.start_time=GET_TIMESTAMP();
-
 #ifdef ESP_PLATFORM
     if (uxQueueMessagesWaiting(serial_out_queue))
-        adamnet_response_nack();
+        SYSTEM_BUS.sendNakPacket();
     else
 #endif /* ESP_PLATFORM */
-        adamnet_response_ack();
+        SYSTEM_BUS.sendAckPacket();
 }
 
 void adamSerial::adamnet_idle()
@@ -58,16 +55,8 @@ void adamSerial::adamnet_idle()
 
 void adamSerial::adamnet_control_send(const FujiAdamPacket &packet)
 {
-    next.len = adamnet_recv_length();
-
-    if (next.len > sizeof(next.data)) // clamp wire length to buffer
-        next.len = sizeof(next.data);
-
-    adamnet_recv_buffer(next.data, next.len);
-    adamnet_recv();
-
-    SYSTEM_BUS.start_time = GET_TIMESTAMP();
-    adamnet_response_ack();
+    memcpy(next.data, packet.data()->data(),
+           std::min(sizeof(next.data), packet.data()->size()));
 
 #ifdef UNUSED
     // There is no matching xQueueReceive()
