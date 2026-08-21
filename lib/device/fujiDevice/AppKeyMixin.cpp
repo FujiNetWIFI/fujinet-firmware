@@ -182,12 +182,9 @@ success_is_true AppKeyMixin::appkey_write(const ByteBuffer &keydata)
 
 void AppKeyMixin::appkey_write(const FUJI_COMMAND_PACKET &packet)
 {
-    static const ByteBuffer no_data;
-
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
-    const std::optional<ByteBuffer> &keydata = packet.data();
-    if (!appkey_write(keydata.has_value() ? *keydata : no_data))
+    if (!appkey_write(packet.data().value_or(ByteBuffer{})))
     {
         SYSTEM_BUS.transaction_error();
         return;
