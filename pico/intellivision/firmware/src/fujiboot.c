@@ -33,8 +33,8 @@ void fuji_config_map(void)
     // [mapping] -- see fujinet-config/intv/config.cfg
     mm_init(&m);
     mm_add(&m, 0x0000, 0x0FFF, 0x5000, MM_NO_PAGE);
-    mm_add(&m, 0x1000, 0x1D42, 0x6000, MM_NO_PAGE);
-    mm_add(&m, 0x1D43, 0x2537, 0xD000, MM_NO_PAGE);
+    mm_add(&m, 0x1000, 0x1E0E, 0x6000, MM_NO_PAGE);
+    mm_add(&m, 0x1E0F, 0x2BF8, 0xD000, MM_NO_PAGE);
 
     // [memattr] -- CONFIG's own scratch RAM, $8000-$9BFF. Deliberately
     // short of $9C00: the mailbox range is NOT part of this game map at
