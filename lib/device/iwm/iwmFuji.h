@@ -60,19 +60,17 @@ protected:
 
     void iwm_dummy_command(const iwm_decoded_cmd_t &cmd);                     // control 0xAA
     void iwm_hello_world();                       // status 0xAA
-    void iwm_stat_get_wifi_enabled();             // 0xEA
     void iwm_ctrl_new_disk(const iwm_decoded_cmd_t &cmd);                     // 0xE7
     void iwm_ctrl_enable_device(const iwm_decoded_cmd_t &cmd);                // 0xD5
     void iwm_ctrl_disable_device(const iwm_decoded_cmd_t &cmd);               // 0xD4
-    void send_stat_get_enable();                  // 0xD1
 
     void iwm_stat_get_heap();                     // 0xC1
 
     void iwm_ctrl(const iwm_decoded_cmd_t &cmd) override;
-    void iwm_open(const iwm_decoded_cmd_t &cmd) override;
-    void iwm_close(const iwm_decoded_cmd_t &cmd) override;
-    void iwm_read(const iwm_decoded_cmd_t &cmd) override;
     void iwm_status(const iwm_decoded_cmd_t &cmd) override;
+    void iwm_open(const iwm_decoded_cmd_t &cmd) override {}
+    void iwm_close(const iwm_decoded_cmd_t &cmd) override {}
+    void iwm_read(const iwm_decoded_cmd_t &cmd) override {}
 
     iwm_device_info_block_t create_dib_reply_packet() override;
     iwm_device_status_block_t create_status_reply_packet() override;

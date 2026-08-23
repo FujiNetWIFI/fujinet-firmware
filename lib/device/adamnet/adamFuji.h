@@ -22,10 +22,8 @@ protected:
                                            uint8_t maxlen) override;
 
     void adamnet_new_disk(const FujiAdamPacket &packet);               // 0xE7
-    void adamnet_set_boot_config(const FujiAdamPacket &packet);        // 0xD9
     void adamnet_enable_device(const FujiAdamPacket &packet);          // 0xD5
     void adamnet_disable_device(const FujiAdamPacket &packet);         // 0xD4
-    void adamnet_random_number();          // 0xD3
     void adamnet_get_time();               // 0xD2
     void adamnet_device_enable_status(const FujiAdamPacket &packet);   // 0xD1
 
@@ -35,11 +33,11 @@ protected:
 
     AdamNetStatus deviceStatus() override;
 
+    void fujidev_set_device_fullpath(const FUJI_COMMAND_PACKET &packet) override;
+
     void shutdown() override;
 
 public:
-    bool boot_config = true;
-
     bool status_wait_enabled = true;
 
     adamDisk *bootDisk = nullptr; // special disk drive just for configuration

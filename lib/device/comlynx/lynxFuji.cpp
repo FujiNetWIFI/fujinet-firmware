@@ -189,13 +189,6 @@ void lynxFuji::setup()
     SYSTEM_BUS.addDevice(&_streamDev, FUJI_DEVICEID_MIDI);
 }
 
-void lynxFuji::fujicmd_random_number()
-{
-    int p;
-    p = rand();
-    SYSTEM_BUS.transaction_send(&p, sizeof(p));
-}
-
 void lynxFuji::fujicmd_get_time()
 {
     uint8_t time_resp[6];
@@ -282,99 +275,6 @@ void lynxFuji::comlynx_process(const FujiLynxPacket &packet)
 
     switch (packet.command())
     {
-    case FUJICMD_RESET:
-        fujicmd_reset();
-        break;
-    case FUJICMD_GET_SSID:
-        fujicmd_net_get_ssid();
-        break;
-    case FUJICMD_SCAN_NETWORKS:
-        fujicmd_net_scan_networks();
-        break;
-    case FUJICMD_GET_SCAN_RESULT:
-        fujicmd_net_scan_result(packet.param(0));
-        break;
-    case FUJICMD_SET_SSID:
-        {
-            SSIDConfig cfg;
-            SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-            SYSTEM_BUS.transaction_get(&cfg, sizeof(cfg));
-            fujicmd_net_set_ssid_success(cfg.ssid, cfg.password, false);
-        }
-        break;
-    case FUJICMD_GET_WIFISTATUS:
-        fujicmd_net_get_wifi_status();
-        break;
-    case FUJICMD_MOUNT_HOST:
-        fujicmd_mount_host_success(packet.param(0));
-        break;
-    case FUJICMD_UNMOUNT_HOST:
-        fujicmd_unmount_host_success(packet.param(0));
-        break;
-    case FUJICMD_MOUNT_IMAGE:
-        fujicmd_mount_disk_image_success(packet.param(0), (disk_access_flags_t) packet.param8(1));
-        break;
-    case FUJICMD_OPEN_DIRECTORY:
-        fujicmd_open_directory_success(packet.param(0));
-        break;
-    case FUJICMD_READ_DIR_ENTRY:
-        fujicmd_read_directory_entry(packet.param8(0), packet.param(1));
-        break;
-    case FUJICMD_CLOSE_DIRECTORY:
-        fujicmd_close_directory();
-        break;
-    case FUJICMD_READ_HOST_SLOTS:
-        fujicmd_read_host_slots();
-        break;
-    case FUJICMD_WRITE_HOST_SLOTS:
-        fujicmd_write_host_slots();
-        break;
-    case FUJICMD_READ_DEVICE_SLOTS:
-        fujicmd_read_device_slots();
-        break;
-    case FUJICMD_WRITE_DEVICE_SLOTS:
-        fujicmd_write_device_slots();
-        break;
-    case FUJICMD_UNMOUNT_IMAGE:
-        fujicmd_unmount_disk_image_success(packet.param(0));
-        break;
-    case FUJICMD_GET_ADAPTERCONFIG:
-        fujicmd_get_adapter_config();
-        break;
-    case FUJICMD_NEW_DISK:
-        comlynx_new_disk(packet);
-        break;
-    case FUJICMD_GET_DIRECTORY_POSITION:
-        fujicmd_get_directory_position();
-        break;
-    case FUJICMD_SET_DIRECTORY_POSITION:
-        fujicmd_set_directory_position(packet.param(0));
-        break;
-    case FUJICMD_SET_DEVICE_FULLPATH:
-        {
-            uint8_t deviceSlot = packet.param(0);
-            fujicmd_set_device_filename_success(deviceSlot, _fnDisks[deviceSlot].host_slot, _fnDisks[deviceSlot].access_mode);
-        }
-        break;
-    case FUJICMD_GET_DEVICE_FULLPATH:
-        fujicmd_get_device_filename(packet.param(0));
-        break;
-    case FUJICMD_MOUNT_ALL:
-        fujicmd_mount_all_success();
-        break;
-    case FUJICMD_RANDOM_NUMBER:
-        fujicmd_random_number();
-        break;
-    case FUJICMD_GET_TIME:
-        fujicmd_get_time();
-        break;
-    case FUJICMD_COPY_FILE:
-        {
-            uint8_t source = packet.param(0);
-            uint8_t dest = packet.param(1);
-            fujicmd_copy_file_success(source, dest, packet.dataAsString()->c_str());
-        }
-        break;
     case FUJICMD_ENABLE_UDPSTREAM:
         {
             uint16_t port = packet.param(0);
