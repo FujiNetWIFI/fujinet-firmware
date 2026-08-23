@@ -18,15 +18,11 @@ protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
 
-    void sio_net_set_ssid(const FujiSIOPacket &packet);                  // 0xFB
-    void sio_read_directory_block();                                  // 0xF6
-    void sio_set_baudrate(const FujiSIOPacket &packet);                  // 0xEB
-    void sio_new_disk();                                              // 0xE7
-    void sio_set_hsio_index(const FujiSIOPacket &packet);                // 0xE3
-    void sio_copy_file(const FujiSIOPacket &packet);                     // 0xD8
-    void sio_enable_netstream(const FujiSIOPacket &packet);              // 0xF0
-
-    void sio_random_number();                                         // 0xD3
+    void sio_set_baudrate(const FujiSIOPacket &packet);
+    void sio_new_disk();
+    void sio_set_hsio_index(const FujiSIOPacket &packet);
+    void sio_copy_file(const FujiSIOPacket &packet);
+    void sio_enable_netstream(const FujiSIOPacket &packet);
 
     void sio_status(const FujiSIOPacket &packet) override { fujicmd_status(); }
     void sio_process(const FujiSIOPacket &packet) override;
@@ -52,6 +48,10 @@ public:
     // ============ Wrapped Fuji commands ============
     success_is_true fujicore_mount_disk_image_success(uint8_t deviceSlot,
                                                       disk_access_flags_t access_mode) override;
+    void fujidev_set_device_fullpath(const FUJI_COMMAND_PACKET &packet) override {
+        fujicmd_set_device_filename_success(packet.param(0), packet.param8(1) >> 4,
+                                            (disk_access_flags_t) (packet.param8(1) & 0x0F));
+    }
     ByteBuffer appkey_read() override;
     void appkey_write(const FUJI_COMMAND_PACKET &packet) override;
     void fujicmd_net_scan_networks() override;

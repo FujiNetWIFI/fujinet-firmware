@@ -25,60 +25,16 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
         { SP_CTRL_SET_DCB, [this](const iwm_decoded_cmd_t &cmd)                   { this->iwm_dummy_command(cmd); }},                 // 0x01
         { SP_CTRL_SET_NEWLINE, [this](const iwm_decoded_cmd_t &cmd)               { this->iwm_dummy_command(cmd); }},                 // 0x02
 
-        { FUJICMD_CLOSE_DIRECTORY, [this](const iwm_decoded_cmd_t &cmd)            { this->fujicmd_close_directory(); }},          // 0xF5
-        { FUJICMD_GET_HOST_PREFIX, [this](const iwm_decoded_cmd_t &cmd)            { this->fujicmd_get_host_prefix(cmd.param(0)); }},                  // 0xE0
-        { FUJICMD_CONFIG_BOOT, [this](const iwm_decoded_cmd_t &cmd)                { this->fujicmd_set_boot_config(cmd.param(0)); }},          // 0xD9
-        { FUJICMD_COPY_FILE, [this](const iwm_decoded_cmd_t &cmd)                  {
-            uint8_t source = cmd.param(0), dest = cmd.param(1);
-            this->fujicmd_copy_file_success(source, dest, cmd.dataAsString()->data());
-        }},                // 0xD8
         { FUJICMD_DISABLE_DEVICE, [this](const iwm_decoded_cmd_t &cmd)             { this->iwm_ctrl_disable_device(cmd); }},           // 0xD4
         { FUJICMD_ENABLE_DEVICE, [this](const iwm_decoded_cmd_t &cmd)              { this->iwm_ctrl_enable_device(cmd); }},            // 0xD5
-        { FUJICMD_GET_SCAN_RESULT, [this](const iwm_decoded_cmd_t &cmd)            { this->fujicmd_net_scan_result(cmd.param(0)); }},          // 0xFC
 
-
-        { FUJICMD_MOUNT_HOST, [this](const iwm_decoded_cmd_t &cmd)                 { this->fujicmd_mount_host_success(cmd.param8(0)); }},               // 0xF9
         { FUJICMD_NEW_DISK, [this](const iwm_decoded_cmd_t &cmd)                   { this->iwm_ctrl_new_disk(cmd); }},                 // 0xE7
-        { FUJICMD_READ_DIR_ENTRY, [this](const iwm_decoded_cmd_t &cmd)             { this->fujicmd_read_directory_entry(cmd.param8(0), cmd.param(1)); }},     // 0xF6
-        { FUJICMD_SET_BOOT_MODE, [this](const iwm_decoded_cmd_t &cmd)              { this->fujicmd_set_boot_mode(cmd.param(0), MEDIATYPE_PO, get_disk_dev(0)); }},            // 0xD6
-        { FUJICMD_SET_DEVICE_FULLPATH, [this](const iwm_decoded_cmd_t &cmd)        { this->fujicmd_set_device_filename_success(cmd.param(0), cmd.param(1), (disk_access_flags_t) cmd.param8(2)); }},      // 0xE2
-        { FUJICMD_SET_DIRECTORY_POSITION, [this](const iwm_decoded_cmd_t &cmd)     { this->fujicmd_set_directory_position(cmd.param(0)); }},   // 0xE4
-        { FUJICMD_SET_HOST_PREFIX, [this](const iwm_decoded_cmd_t &cmd)            {
-            uint8_t slot = cmd.param(0);
-            this->fujicmd_set_host_prefix(slot, cmd.dataAsString()->data());
-        }},          // 0xE1
-        { FUJICMD_SET_SSID, [this](const iwm_decoded_cmd_t &cmd)                   {
-            this->fujicmd_net_set_ssid_success(cmd.dataAsString()->c_str(),
-                                               cmd.dataAsString()->c_str() + MAX_SSID_LEN + 1,
-                                               true);
-        }},             // 0xFB
-        { FUJICMD_UNMOUNT_HOST, [this](const iwm_decoded_cmd_t &cmd)               { this->fujicmd_unmount_host_success(cmd.param(0)); }},             // 0xE6
-        { FUJICMD_UNMOUNT_IMAGE, [this](const iwm_decoded_cmd_t &cmd)              { this->fujicmd_unmount_disk_image_success(cmd.param(0)); }},        // 0xE9
-        { FUJICMD_WRITE_DEVICE_SLOTS, [this](const iwm_decoded_cmd_t &cmd)         { this->fujicmd_write_device_slots(); }},       // 0xF1
-        { FUJICMD_WRITE_HOST_SLOTS, [this](const iwm_decoded_cmd_t &cmd)           { this->fujicmd_write_host_slots(); }},         // 0xF3
 
-        { FUJICMD_RESET,  [this](const iwm_decoded_cmd_t &cmd)                     {
-             this->fujicmd_reset();
-         }},   // 0xFF
-        { SP_CTRL_RESET, [this](const iwm_decoded_cmd_t &cmd)                     {
-             this->fujicmd_reset();
-         }},   // 0x00
 #ifdef DEV_RELAY_SLIP
         { SP_CTRL_CLEAR_DISKII_SEEN, [this](const iwm_decoded_cmd_t &cmd)              { SYSTEM_BUS.transaction_error(SP_ERR::NODRIVE); }},
 #else
         { SP_CTRL_CLEAR_DISKII_SEEN, [this](const iwm_decoded_cmd_t &cmd)              { diskii_xface.d2_enable_seen = 0; SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET); SYSTEM_BUS.transaction_success(); }},
 #endif
-
-        { FUJICMD_MOUNT_ALL, [this](const iwm_decoded_cmd_t &cmd)                     { fujicmd_mount_all_success(); }},          // 0xD7
-        { FUJICMD_MOUNT_IMAGE, [this](const iwm_decoded_cmd_t &cmd)                   { fujicmd_mount_disk_image_success(cmd.param(0), (disk_access_flags_t) cmd.param8(1)); }},  // 0xF8
-        { FUJICMD_OPEN_DIRECTORY, [this](const iwm_decoded_cmd_t &cmd)                {
-            SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-            uint8_t slot = cmd.param(0);
-            if (fujicore_open_directory_success(slot, cmd.dataAsString().value()).is_error())
-                SYSTEM_BUS.transaction_error(SP_ERR::IOERROR);
-            else
-                SYSTEM_BUS.transaction_success();
-        }}     // 0xF7
     };
 
     status_handlers = {
@@ -91,33 +47,7 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
         }},
 #endif
 
-        { FUJICMD_DEVICE_ENABLE_STATUS, [this](const iwm_decoded_cmd_t &cmd)       { this->send_stat_get_enable(); }},                      // 0xD1
-        { FUJICMD_GET_ADAPTERCONFIG_EXTENDED, [this](const iwm_decoded_cmd_t &cmd) { this->fujicmd_get_adapter_config_extended(); }},      // 0xC4
-        { FUJICMD_GET_ADAPTERCONFIG, [this](const iwm_decoded_cmd_t &cmd)          { this->fujicmd_get_adapter_config(); }},               // 0xE8
-        { FUJICMD_GET_DEVICE_FULLPATH, [this](const iwm_decoded_cmd_t &cmd)        { this->fujicmd_get_device_filename(cmd.param(0)); }},   // 0xDA
-        { FUJICMD_GET_DEVICE1_FULLPATH, [this](const iwm_decoded_cmd_t &cmd)       { this->fujicmd_get_device_filename(cmd.command() - 160); }},   // 0xA0
-        { FUJICMD_GET_DEVICE2_FULLPATH, [this](const iwm_decoded_cmd_t &cmd)       { this->fujicmd_get_device_filename(cmd.command() - 160); }},   // 0xA1
-        { FUJICMD_GET_DEVICE3_FULLPATH, [this](const iwm_decoded_cmd_t &cmd)       { this->fujicmd_get_device_filename(cmd.command() - 160); }},   // 0xA2
-        { FUJICMD_GET_DEVICE4_FULLPATH, [this](const iwm_decoded_cmd_t &cmd)       { this->fujicmd_get_device_filename(cmd.command() - 160); }},   // 0xA3
-        { FUJICMD_GET_DEVICE5_FULLPATH, [this](const iwm_decoded_cmd_t &cmd)       { this->fujicmd_get_device_filename(cmd.command() - 160); }},   // 0xA4
-        { FUJICMD_GET_DEVICE6_FULLPATH, [this](const iwm_decoded_cmd_t &cmd)       { this->fujicmd_get_device_filename(cmd.command() - 160); }},   // 0xA5
-        { FUJICMD_GET_DEVICE7_FULLPATH, [this](const iwm_decoded_cmd_t &cmd)       { this->fujicmd_get_device_filename(cmd.command() - 160); }},   // 0xA6
-        { FUJICMD_GET_DEVICE8_FULLPATH, [this](const iwm_decoded_cmd_t &cmd)       { this->fujicmd_get_device_filename(cmd.command() - 160); }},   // 0xA7
-        { FUJICMD_GET_DEVICE9_FULLPATH, [this](const iwm_decoded_cmd_t &cmd)       { this->fujicmd_get_device_filename(cmd.command() - 160); }},   // 0xA8
-        { FUJICMD_GET_DEVICE10_FULLPATH, [this](const iwm_decoded_cmd_t &cmd)      { this->fujicmd_get_device_filename(cmd.command() - 160); }},   // 0xA9
-        { FUJICMD_GET_DIRECTORY_POSITION, [this](const iwm_decoded_cmd_t &cmd)     { this->fujicmd_get_directory_position(); }},           // 0xE5
-        { FUJICMD_GET_HOST_PREFIX, [this](const iwm_decoded_cmd_t &cmd)            { }},                  // 0xE0
-        { FUJICMD_GET_SCAN_RESULT, [this](const iwm_decoded_cmd_t &cmd)            { }},                  // 0xFC
-        { FUJICMD_GET_SSID, [this](const iwm_decoded_cmd_t &cmd)                   { this->fujicmd_net_get_ssid(); }},                     // 0xFE
-        { FUJICMD_GET_WIFI_ENABLED, [this](const iwm_decoded_cmd_t &cmd)           { this->iwm_stat_get_wifi_enabled(); }},                 // 0xEA
-        { FUJICMD_GET_WIFISTATUS, [this](const iwm_decoded_cmd_t &cmd)             { this->fujicmd_net_get_wifi_status(); }},              // 0xFA
-        { FUJICMD_READ_DEVICE_SLOTS, [this](const iwm_decoded_cmd_t &cmd)          { this->fujicmd_read_device_slots(); }},                // 0xF2
-        { FUJICMD_READ_DIR_ENTRY, [this](const iwm_decoded_cmd_t &cmd)             { }},             // 0xF6
-        { FUJICMD_READ_HOST_SLOTS, [this](const iwm_decoded_cmd_t &cmd)            { this->fujicmd_read_host_slots(); }},                  // 0xF4
-        { FUJICMD_SCAN_NETWORKS, [this](const iwm_decoded_cmd_t &cmd)              { this->fujicmd_net_scan_networks(); }},                // 0xFD
-        { FUJICMD_STATUS, [this](const iwm_decoded_cmd_t &cmd)                     { this->fujicmd_status(); }},                      // 0x53
         { FUJICMD_GET_HEAP, [this](const iwm_decoded_cmd_t &cmd)                   { this->iwm_stat_get_heap(); }},                         // 0xC1
-        { FUJICMD_GENERATE_GUID, [this](const iwm_decoded_cmd_t &cmd)              { this->fujicmd_generate_guid(); }},                     // 0xBB
     };
 
 }
@@ -211,15 +141,6 @@ void iwmFuji::iwm_ctrl_new_disk(const iwm_decoded_cmd_t &cmd)
     Config.save();
 }
 
-// Get the wifi enabled value
-void iwmFuji::iwm_stat_get_wifi_enabled()
-{
-        uint8_t e = Config.get_wifi_enabled() ? 1 : 0;
-        Debug_printf("\nFuji cmd: GET WIFI ENABLED: %d", e);
-        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-        SYSTEM_BUS.transaction_send(e);
-}
-
 void iwmFuji::iwm_ctrl_enable_device(const iwm_decoded_cmd_t &cmd)
 {
         unsigned char d = cmd.param(0);
@@ -302,16 +223,6 @@ iwm_device_info_block_t iwmFuji::create_dib_reply_packet()
 
   return dib;
 }
-
-void iwmFuji::send_stat_get_enable()
-{
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    SYSTEM_BUS.transaction_send(1);
-}
-
-void iwmFuji::iwm_open(const iwm_decoded_cmd_t &cmd) {}
-void iwmFuji::iwm_close(const iwm_decoded_cmd_t &cmd) {}
-void iwmFuji::iwm_read(const iwm_decoded_cmd_t &cmd) {}
 
 void iwmFuji::iwm_status(const iwm_decoded_cmd_t &cmd)
 {

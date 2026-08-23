@@ -50,6 +50,112 @@ fujiDevice::fujiDevice(unsigned int numDisk, std::string extension,
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].slotid = i;
+
+    handlers = {
+        { FUJICMD_RESET, [this](const FUJI_COMMAND_PACKET &packet) {
+            fnSystem.reboot();
+        } },
+        { FUJICMD_GET_ADAPTERCONFIG, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_get_adapter_config();
+        } },
+        { FUJICMD_GET_ADAPTERCONFIG_EXTENDED, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_get_adapter_config_extended();
+        } },
+        { FUJICMD_GET_SCAN_RESULT, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_net_scan_result(packet.param(0));
+        } },
+        { FUJICMD_SCAN_NETWORKS, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_net_scan_networks();
+        } },
+        { FUJICMD_SET_SSID, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_net_set_ssid_success();
+        } },
+        { FUJICMD_GET_SSID, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_net_get_ssid();
+        } },
+        { FUJICMD_READ_HOST_SLOTS, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_read_host_slots();
+        } },
+        { FUJICMD_READ_DEVICE_SLOTS, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_read_device_slots();
+        } },
+        { FUJICMD_WRITE_DEVICE_SLOTS, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_write_device_slots();
+        } },
+        { FUJICMD_WRITE_HOST_SLOTS, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_write_host_slots();
+        } },
+        { FUJICMD_GET_WIFI_ENABLED, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_net_get_wifi_enabled();
+        } },
+        { FUJICMD_GET_WIFISTATUS, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_net_get_wifi_status();
+        } },
+        { FUJICMD_MOUNT_HOST, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_mount_host_success(packet.param(0));
+        } },
+        { FUJICMD_OPEN_DIRECTORY, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_open_directory_success(packet.param(0));
+        } },
+        { FUJICMD_CLOSE_DIRECTORY, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_close_directory();
+        } },
+        { FUJICMD_READ_DIR_ENTRY, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_read_directory_entry((uint8_t) packet.param(0), packet.param(1));
+        } },
+        { FUJICMD_SET_DIRECTORY_POSITION, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_set_directory_position(packet.param(0));
+        } },
+        { FUJICMD_SET_DEVICE_FULLPATH, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujidev_set_device_fullpath(packet);
+        } },
+        { FUJICMD_GET_DEVICE_FULLPATH, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_get_device_filename(packet.param(0));
+        } },
+        { FUJICMD_MOUNT_IMAGE, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_mount_disk_image_success(packet.param(0),
+                                             (disk_access_flags_t) ((uint8_t)
+                                                                    packet.param(1)));
+        } },
+        { FUJICMD_UNMOUNT_HOST, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_unmount_host_success(packet.param(0));
+        } },
+        { FUJICMD_UNMOUNT_IMAGE, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_unmount_disk_image_success(packet.param(0));
+        } },
+        { FUJICMD_RANDOM_NUMBER, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_random();
+        } },
+        { FUJICMD_SET_BOOT_MODE, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_set_boot_mode(packet.param(0), MEDIATYPE_UNKNOWN, &bootdisk);
+        } },
+        { FUJICMD_MOUNT_ALL, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_mount_all_success();
+        } },
+        { FUJICMD_GET_HOST_PREFIX, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_get_host_prefix(packet.param(0));
+        } },
+        { FUJICMD_SET_HOST_PREFIX, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_set_host_prefix(packet.param(0));
+        } },
+        { FUJICMD_COPY_FILE, [this](const FUJI_COMMAND_PACKET &packet) {
+            uint8_t source = packet.param(0);
+            uint8_t dest = packet.param(1);
+            fujicmd_copy_file_success(source, dest, packet.dataAsString().value_or(""));
+        } },
+        { FUJICMD_GENERATE_GUID, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_generate_guid();
+        } },
+        { FUJICMD_STATUS, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_status();
+        } },
+        { FUJICMD_GET_DIRECTORY_POSITION, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_get_directory_position();
+        } },
+        { FUJICMD_CONFIG_BOOT, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujicmd_set_boot_config(packet.param(0));
+        } },
+    };
 }
 
 // Public method to update host in specific slot
@@ -461,13 +567,20 @@ success_is_true fujiDevice::fujicore_net_set_ssid_success(const char *ssid,
 }
 
 // Set SSID
-success_is_true fujiDevice::fujicmd_net_set_ssid_success(const char *ssid,
-                                                         const char *password, bool save)
+success_is_true fujiDevice::fujicmd_net_set_ssid_success()
 {
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
     Debug_println("Fuji cmd: SET SSID");
 
-    if (!fujicore_net_set_ssid_success(ssid, password, save)) {
+    SSIDConfig cfg;
+    if (!SYSTEM_BUS.transaction_get(&cfg, sizeof(cfg)))
+    {
+        SYSTEM_BUS.transaction_error();
+        RETURN_ERROR_AS_FALSE();
+    }
+
+    if (fujicore_net_set_ssid_success(cfg.ssid, cfg.password, true).is_error())
+    {
         SYSTEM_BUS.transaction_error();
         RETURN_ERROR_AS_FALSE();
     }
@@ -1197,9 +1310,15 @@ success_is_true fujiDevice::fujicore_set_device_filename_success(uint8_t deviceS
                                                                  std::string filename)
 {
     // Handle DISK slots
-    if (deviceSlot >= _totalDiskDevices)
+    if (!validate_device_slot(deviceSlot))
     {
         Debug_println("BAD DEVICE SLOT");
+        RETURN_ERROR_AS_FALSE();
+    }
+
+    if (!validate_host_slot(host))
+    {
+        Debug_println("BAD HOST SLOT");
         RETURN_ERROR_AS_FALSE();
     }
 
@@ -1223,20 +1342,20 @@ success_is_true fujiDevice::fujicmd_set_device_filename_success(uint8_t deviceSl
                                                                 uint8_t host,
                                                                 disk_access_flags_t mode)
 {
-    char tmp[MAX_FILENAME_LEN];
+    std::string tmp(MAX_FILENAME_LEN, 0);
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    if (!SYSTEM_BUS.transaction_get(tmp, sizeof(tmp)))
+    if (SYSTEM_BUS.transaction_get(tmp.data(), tmp.size()).is_error())
     {
         SYSTEM_BUS.transaction_error();
         RETURN_ERROR_AS_FALSE();
     }
+    tmp.resize(strlen(tmp.c_str()));
 
     Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n",
-                 deviceSlot, host, mode, tmp);
+                 deviceSlot, host, mode, tmp.c_str());
 
-    if (!fujicore_set_device_filename_success(deviceSlot, host, mode,
-                                              std::string(tmp, strnlen(tmp, sizeof(tmp)))))
+    if (fujicore_set_device_filename_success(deviceSlot, host, mode, tmp).is_error())
     {
         SYSTEM_BUS.transaction_error();
         RETURN_ERROR_AS_FALSE();
@@ -1577,4 +1696,33 @@ void fujiDevice::fujicmd_generate_guid()
     Debug_printf("GUID: %s\n", uuid_str);
 
     SYSTEM_BUS.transaction_send(uuid_str, sizeof(uuid_str));
+}
+
+void fujiDevice::fujicmd_random()
+{
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    uint32_t r = fnSystem.random();
+    Debug_printf("drivewireFuji::random(%lu)\n",r);
+    SYSTEM_BUS.transaction_send(&r, sizeof(r));
+}
+
+bool fujiDevice::processCommand(const FUJI_COMMAND_PACKET &packet)
+{
+    if (tryAllMixins(packet))
+        return true;
+
+    auto cmdHandler = handlers.find(packet.command());
+    if (cmdHandler == handlers.end())
+        return false;
+
+    auto cmdMethod = cmdHandler->second;
+    cmdMethod(packet);
+    return true;
+}
+
+bool fujiDevice::recognizesCommand(const FUJI_COMMAND_PACKET &packet)
+{
+    if (checkAllMixins(packet))
+        return true;
+    return handlers.find(packet.command()) != handlers.end();
 }

@@ -337,7 +337,6 @@ void systemBus::_adamnet_process_cmd()
         // turn off AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, false);
 
-
 #ifdef DEBUG_FINAL_PACKET_STATE
         Debug_printf("packet complete device=0x%x type=0x%x phase=%d\n",
                      tmpPacket.device(), tmpPacket.type(), busPhase.phase());
@@ -368,14 +367,12 @@ void systemBus::_adamnet_dispatch(const FujiAdamPacket &packet)
     {
     case APT::MN_STATUS:
         // Get device capablities/check if it is alive
-        {
-            sendStatusPacket(_activeDev->deviceStatus());
-        }
+        sendStatusPacket(_activeDev->deviceStatus());
         break;
 
     case APT::MN_CLR:
         // Fetch the data from a previous read()/readBlock() request
-        SYSTEM_BUS.sendResponsePacket();
+        sendResponsePacket();
         break;
 
     case APT::MN_RECEIVE:
