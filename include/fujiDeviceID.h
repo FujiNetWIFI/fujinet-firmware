@@ -9,6 +9,7 @@ enum fujiDeviceID_t : uint8_t {
 
   FUJI_DEVICEID_KEYBOARD     = 0x01,
   FUJI_DEVICEID_PRINTER      = 0x02,
+  FUJI_DEVICEID_CLOCK        = 0x03,
   FUJI_DEVICEID_DISK         = 0x04,
   FUJI_DEVICEID_DISK2        = 0x05,
   FUJI_DEVICEID_DISK3        = 0x06,

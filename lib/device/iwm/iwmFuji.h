@@ -9,7 +9,7 @@
 #include "iwm/disk2.h"
 #include "iwm/network.h"
 #include "iwm/cpm.h"
-#include "iwm/clock.h"
+#include "iwm/iwmClock.h"
 
 #define MAX_SPDISK_DEVICES 8
 #define MAX_DISK2_DEVICES 2 // for now until we add 3.5" disks
@@ -40,8 +40,6 @@ private:
     iwmNetwork *theNetwork;
 
     iwmCPM *theCPM;
-
-    iwmClock *theClock;
 
     char _appkeyfilename[30]; // Temp storage for appkey filename, populated by open and read by read/write
     // map appkey open modes to key sizes. The open will set the appkey_size to correct value for subsequent reads to ensure the returned block is the correct size
