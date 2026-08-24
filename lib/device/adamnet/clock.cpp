@@ -21,8 +21,12 @@ std::optional<std::string> adamClock::read_tz()
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
+    // Params and payload share one buffer here, so the length prefix must be
+    // read off before data() to leave just the timezone behind.
+    _packet->param16(0);
+
     const auto &d = _packet->data();
-    if (!d.has_value())
+    if (!d.has_value() || d->empty())
     {
         Debug_printv("ERROR: No timezone sent");
         SYSTEM_BUS.transaction_error();
