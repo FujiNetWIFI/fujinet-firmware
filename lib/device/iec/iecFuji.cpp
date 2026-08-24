@@ -2,7 +2,7 @@
 
 #include "iecFuji.h"
 #include "network.h"
-#include "clock.h"
+#include "iecClock.h"
 #include "fsFlash.h"
 #include "fnSystem.h"
 

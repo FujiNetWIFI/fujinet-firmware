@@ -1,7 +1,7 @@
 #ifdef BUILD_APPLE
 #define CCP_INTERNAL
 
-#include "clock.h"
+#include "iwmClock.h"
 
 #include "fujiCommandID.h"
 #include "../../include/debug.h"

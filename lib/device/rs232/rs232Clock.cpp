@@ -1,6 +1,6 @@
 #ifdef BUILD_RS232
 
-#include "clock.h"
+#include "rs232Clock.h"
 
 #include "../../include/debug.h"
 

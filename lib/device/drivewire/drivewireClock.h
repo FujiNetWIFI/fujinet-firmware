@@ -1,5 +1,5 @@
-#ifndef DRIVEWIRE_CLOCK_H
-#define DRIVEWIRE_CLOCK_H
+#ifndef DRIVEWIRECLOCK_H
+#define DRIVEWIRECLOCK_H
 
 #include <optional>
 #include <string>
@@ -15,4 +15,4 @@ protected:
 
 extern drivewireClock platformClock;
 
-#endif // DRIVEWIRE_CLOCK_H
+#endif // DRIVEWIRECLOCK_H

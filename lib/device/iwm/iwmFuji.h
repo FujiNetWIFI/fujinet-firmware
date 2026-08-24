@@ -9,7 +9,7 @@
 #include "iwm/disk2.h"
 #include "iwm/network.h"
 #include "iwm/cpm.h"
-#include "iwm/clock.h"
+#include "iwm/iwmClock.h"
 
 #define MAX_SPDISK_DEVICES 8
 #define MAX_DISK2_DEVICES 2 // for now until we add 3.5" disks

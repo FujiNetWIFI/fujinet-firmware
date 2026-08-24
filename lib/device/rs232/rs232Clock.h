@@ -1,5 +1,5 @@
-#ifndef RS232_CLOCK_H
-#define RS232_CLOCK_H
+#ifndef RS232CLOCK_H
+#define RS232CLOCK_H
 
 #include <optional>
 #include <string>
@@ -19,4 +19,4 @@ public:
 
 extern rs232Clock platformClock;
 
-#endif // RS232_CLOCK_H
+#endif // RS232CLOCK_H

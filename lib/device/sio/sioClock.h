@@ -1,5 +1,5 @@
-#ifndef SIO_CLOCK_H
-#define SIO_CLOCK_H
+#ifndef SIOCLOCK_H
+#define SIOCLOCK_H
 
 #include <optional>
 #include <string>
@@ -19,4 +19,4 @@ public:
 
 extern sioClock platformClock;
 
-#endif // SIO_CLOCK_H
+#endif // SIOCLOCK_H

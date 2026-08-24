@@ -1,6 +1,6 @@
 #ifdef BUILD_IEC
 
-#include "clock.h"
+#include "iecClock.h"
 #include "string_utils.h"
 #include "debug.h"
 

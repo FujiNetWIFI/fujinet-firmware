@@ -1,6 +1,6 @@
 #ifdef BUILD_ATARI
 
-#include "clock.h"
+#include "sioClock.h"
 
 #include <optional>
 

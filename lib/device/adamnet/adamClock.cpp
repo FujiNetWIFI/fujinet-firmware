@@ -1,6 +1,6 @@
 #ifdef BUILD_ADAM
 
-#include "clock.h"
+#include "adamClock.h"
 
 #include "../../include/debug.h"
 
@@ -21,8 +21,8 @@ std::optional<std::string> adamClock::read_tz()
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
-    // Params and payload share one buffer here, so the length prefix must be
-    // read off before data() to leave just the timezone behind.
+    // Params and payload share one buffer; reading the length prefix off
+    // leaves data() holding just the timezone.
     _packet->param16(0);
 
     const auto &d = _packet->data();

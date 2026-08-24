@@ -340,7 +340,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     lib/device/sio/network.h lib/device/sio/network.cpp
     lib/device/sio/netstream.h lib/device/sio/netstream.cpp
     lib/device/sio/voice.h lib/device/sio/voice.cpp
-    lib/device/sio/clock.h lib/device/sio/clock.cpp
+    lib/device/sio/sioClock.h lib/device/sio/sioClock.cpp
     lib/device/sio/siocpm.h lib/device/sio/siocpm.cpp
     lib/device/sio/pclink.h lib/device/sio/pclink.cpp
     lib/device/sio/modem.h lib/device/sio/modem.cpp
@@ -399,7 +399,7 @@ if(FUJINET_TARGET STREQUAL "APPLE")
     lib/device/iwm/modem.h lib/device/iwm/modem.cpp
     lib/device/iwm/iwmFuji.h lib/device/iwm/iwmFuji.cpp
     lib/device/iwm/network.h lib/device/iwm/network.cpp
-    lib/device/iwm/clock.h lib/device/iwm/clock.cpp
+    lib/device/iwm/iwmClock.h lib/device/iwm/iwmClock.cpp
     lib/device/iwm/cpm.h lib/device/iwm/cpm.cpp
 
     )
@@ -436,7 +436,7 @@ if(FUJINET_TARGET STREQUAL "COCO")
     lib/device/drivewire/disk.h lib/device/drivewire/disk.cpp
     lib/device/drivewire/printer.h lib/device/drivewire/printer.cpp
     lib/device/drivewire/printerlist.h lib/device/drivewire/printerlist.cpp
-    lib/device/drivewire/clock.h lib/device/drivewire/clock.cpp
+    lib/device/drivewire/drivewireClock.h lib/device/drivewire/drivewireClock.cpp
 
     )
 endif()
@@ -463,7 +463,7 @@ if(FUJINET_TARGET STREQUAL "ADAM")
     lib/media/adam/mediaTypeROM.h lib/media/adam/mediaTypeROM.cpp
 
     lib/device/adamnet/adamFuji.h lib/device/adamnet/adamFuji.cpp
-    lib/device/adamnet/clock.h lib/device/adamnet/clock.cpp
+    lib/device/adamnet/adamClock.h lib/device/adamnet/adamClock.cpp
     lib/device/adamnet/disk.h lib/device/adamnet/disk.cpp
     lib/device/adamnet/keyboard.h lib/device/adamnet/keyboard.cpp
     lib/device/adamnet/network.h lib/device/adamnet/network.cpp
@@ -485,7 +485,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
     lib/media/rs232/diskTypeImg.h lib/media/rs232/diskTypeImg.cpp
     lib/media/rs232/diskTypeROM.h lib/media/rs232/diskTypeROM.cpp
 
-    lib/device/rs232/clock.cpp lib/device/rs232/clock.h
+    lib/device/rs232/rs232Clock.cpp lib/device/rs232/rs232Clock.h
     lib/device/rs232/disk.cpp lib/device/rs232/disk.h
     lib/device/rs232/modem.cpp lib/device/rs232/modem.h
     lib/device/rs232/network.cpp lib/device/rs232/network.h

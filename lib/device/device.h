@@ -2,7 +2,7 @@
 #define DEVICE_H
 
 #ifdef BUILD_ATARI
-# include "sio/clock.h"
+# include "sio/sioClock.h"
 # include "sio/cassette.h"
 # include "sio/disk.h"
 # include "sio/pclink.h"
@@ -25,7 +25,7 @@
 
 #ifdef BUILD_COCO
 # include "drivewire/cassette.h"
-# include "drivewire/clock.h"
+# include "drivewire/drivewireClock.h"
 # include "drivewire/disk.h"
 # include "drivewire/modem.h"
 # include "drivewire/network.h"
@@ -37,7 +37,7 @@
 #endif
 
 #ifdef BUILD_RS232
-# include "rs232/clock.h"
+# include "rs232/rs232Clock.h"
 # include "rs232/disk.h"
 # include "rs232/modem.h"
 # include "rs232/network.h"
@@ -51,7 +51,7 @@
 #endif
 
 #ifdef BUILD_IEC
-# include "iec/clock.h"
+# include "iec/iecClock.h"
 # include "iec/cpm.h"
 # include "iec/drive.h"
 # include "iec/modem.h"
@@ -64,7 +64,7 @@
 #endif
 
 #ifdef BUILD_ADAM
-# include "adamnet/clock.h"
+# include "adamnet/adamClock.h"
 # include "adamnet/keyboard.h"
 # include "adamnet/printer.h"
 # include "adamnet/printerlist.h"

@@ -1,5 +1,5 @@
-#ifndef ADAM_CLOCK_H
-#define ADAM_CLOCK_H
+#ifndef ADAMCLOCK_H
+#define ADAMCLOCK_H
 
 #include <optional>
 #include <string>
@@ -19,4 +19,4 @@ public:
 
 extern adamClock platformClock;
 
-#endif // ADAM_CLOCK_H
+#endif // ADAMCLOCK_H
