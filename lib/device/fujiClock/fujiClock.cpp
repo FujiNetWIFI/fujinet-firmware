@@ -148,9 +148,27 @@ std::string fujiClock::get_current_time_sos(const std::string& posixTimeZone) {
     return std::string(buffer);
 }
 
+bool fujiClock::valid_timezone(const std::string &tz)
+{
+    if (tz.empty())
+        return false;
+
+    for (char c : tz)
+        if (c < 0x20 || c > 0x7E)
+            return false;
+
+    return true;
+}
+
+std::string fujiClock::system_tz()
+{
+    std::string tz = Config.get_general_timezone();
+    return valid_timezone(tz) ? tz : "UTC";
+}
+
 std::string fujiClock::tz_for(bool use_alt) const
 {
-    return tz_to_use(use_alt, alternate_tz, Config.get_general_timezone());
+    return tz_to_use(use_alt, alternate_tz, system_tz());
 }
 
 void fujiClock::send_bytes(const std::vector<uint8_t> &b)
@@ -202,12 +220,12 @@ void fujiClock::get_iso_utc()
 
 void fujiClock::get_general_tz()
 {
-    send_string(Config.get_general_timezone());
+    send_string(system_tz());
 }
 
 void fujiClock::get_general_tz_len()
 {
-    send_bytes({ (uint8_t)(Config.get_general_timezone().size() + 1) });
+    send_bytes({ (uint8_t)(system_tz().size() + 1) });
 }
 
 void fujiClock::set_fn_tz()
@@ -215,6 +233,12 @@ void fujiClock::set_fn_tz()
     auto tz = read_tz();
     if (!tz)
         return;
+
+    if (!valid_timezone(*tz))
+    {
+        Debug_printv("Rejecting malformed timezone");
+        return;
+    }
 
     Config.store_general_timezone(tz->c_str());
     Config.save();
@@ -226,6 +250,12 @@ void fujiClock::set_alternate_tz()
     auto tz = read_tz();
     if (!tz)
         return;
+
+    if (!valid_timezone(*tz))
+    {
+        Debug_printv("Rejecting malformed alternate timezone");
+        return;
+    }
 
     alternate_tz = tz.value();
     Debug_printf("fujiClock: alternate tz set to <%s>\n", alternate_tz.c_str());

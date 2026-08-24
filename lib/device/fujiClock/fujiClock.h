@@ -19,6 +19,13 @@ public:
     static std::vector<uint8_t> get_current_time_simple_hundredths(const std::string &posixTimeZone);
     static std::string get_current_time_sos(const std::string &posixTimeZone);
 
+    // Timezones are printable ASCII; anything else is a malformed host write.
+    static bool valid_timezone(const std::string &tz);
+
+    // Stored config can hold garbage from an older firmware; never hand
+    // that to the host.
+    static std::string system_tz();
+
     static std::string tz_to_use(bool use_alternate_tz, const std::string &alternate_tz, const std::string &default_tz)
     {
         return use_alternate_tz ? (alternate_tz.empty() ? default_tz : alternate_tz) : default_tz;
