@@ -1,15 +1,20 @@
 #ifndef IWMCLOCK_H
 #define IWMCLOCK_H
 
-#include "bus.h"
-#include "../../clock/Clock.h"
+#include <optional>
+#include <string>
 
-class iwmClock : public virtualDevice
+#include "../fujiClock/fujiClock.h"
+
+class iwmClock : public fujiClock
 {
-private:
-    void set_tz(const iwm_decoded_cmd_t &cmd);
-    void set_alternate_tz(const iwm_decoded_cmd_t &cmd);
-    std::string alternate_tz = "";
+protected:
+    std::optional<std::string> read_tz() override;
+    bool alt_requested() override;
+
+    // SmartPort replies carry their own length, so no trailing null.
+    void send_string(const std::string &s) override;
+
 public:
     iwmClock();
 
@@ -22,5 +27,7 @@ public:
     iwm_device_info_block_t create_dib_reply_packet() override;
     iwm_device_status_block_t create_status_reply_packet() override;
 };
+
+extern iwmClock platformClock;
 
 #endif /* IWMCLOCK_H */

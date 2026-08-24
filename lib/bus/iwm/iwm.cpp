@@ -23,7 +23,7 @@
 #include "../device/iwm/disk2.h"
 #include "../device/iwm/iwmFuji.h"
 #include "../device/iwm/cpm.h"
-#include "../device/iwm/clock.h"
+#include "../device/iwm/iwmClock.h"
 
 #include "compat_esp.h" // empty IRAM_ATTR macro for FujiNet-PC
 

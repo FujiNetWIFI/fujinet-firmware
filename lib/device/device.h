@@ -2,7 +2,7 @@
 #define DEVICE_H
 
 #ifdef BUILD_ATARI
-# include "sio/clock.h"
+# include "sio/sioClock.h"
 # include "sio/cassette.h"
 # include "sio/disk.h"
 # include "sio/pclink.h"
@@ -15,7 +15,6 @@
 # include "sio/voice.h"
 # include "sio/sioFuji.h"
 
-    sioClock clockDevice;
     sioVoice sioV;
     sioNetStream streamDev;
     // sioCassette sioC; // now part of sioFuji theFuji object
@@ -26,7 +25,7 @@
 
 #ifdef BUILD_COCO
 # include "drivewire/cassette.h"
-# include "drivewire/clock.h"
+# include "drivewire/drivewireClock.h"
 # include "drivewire/disk.h"
 # include "drivewire/modem.h"
 # include "drivewire/network.h"
@@ -34,12 +33,11 @@
 # include "drivewire/printerlist.h"
 # include "drivewire/drivewireFuji.h"
 
-    drivewireClock dwClock;
     drivewireModem *sioR;
 #endif
 
 #ifdef BUILD_RS232
-# include "rs232/apetime.h"
+# include "rs232/rs232Clock.h"
 # include "rs232/disk.h"
 # include "rs232/modem.h"
 # include "rs232/network.h"
@@ -48,13 +46,12 @@
 # include "rs232/rs232cpm.h"
 # include "rs232/rs232Fuji.h"
 
-    rs232ApeTime apeTime;
     rs232Modem *sioR;
     rs232CPM sioZ;
 #endif
 
 #ifdef BUILD_IEC
-# include "iec/clock.h"
+# include "iec/iecClock.h"
 # include "iec/cpm.h"
 # include "iec/drive.h"
 # include "iec/modem.h"
@@ -67,6 +64,7 @@
 #endif
 
 #ifdef BUILD_ADAM
+# include "adamnet/adamClock.h"
 # include "adamnet/keyboard.h"
 # include "adamnet/printer.h"
 # include "adamnet/printerlist.h"

@@ -244,7 +244,7 @@ void main_setup(int argc, char *argv[])
     SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET); // the FUJINET!
 
     if (Config.get_apetime_enabled() == true)
-        SYSTEM_BUS.addDevice(&clockDevice, FUJI_DEVICEID_CLOCK); // Clock for Atari, APETime compatible, but extended for additional return types
+        SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID_CLOCK); // APETime compatible, extended for additional return types
 
 #ifdef ESP_PLATFORM
     SYSTEM_BUS.addDevice(&streamDev, FUJI_DEVICEID_MIDI); // UDP/MIDI device
@@ -325,7 +325,7 @@ void main_setup(int argc, char *argv[])
     SYSTEM_BUS.setup();
     SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET);
     if (Config.get_apetime_enabled() == true)
-        SYSTEM_BUS.addDevice(&apeTime, FUJI_DEVICEID_CLOCK); // Clock for Atari, APETime compatible, but extended for additional return types
+        SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID_CLOCK); // APETime compatible, extended for additional return types
 
     // Create a new printer object, setting its output depending on whether we have SD or not
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
@@ -401,6 +401,9 @@ void main_setup(int argc, char *argv[])
         SYSTEM_BUS.enableDevice(FUJI_DEVICEID_PRINTER);
     else
         SYSTEM_BUS.disableDevice(FUJI_DEVICEID_PRINTER);
+
+    if (Config.get_apetime_enabled() == true)
+        SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID_CLOCK); // APETime compatible, extended for additional return types
 
 #ifdef VIRTUAL_ADAM_DEVICES
     Debug_printf("Physical Device Scanning...\r\n");

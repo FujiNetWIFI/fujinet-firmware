@@ -13,7 +13,7 @@
 // #include "mac/network.h"
 #include "mac/printer.h"
 // #include "iwm/cpm.h"
-// #include "iwm/clock.h"
+// #include "iwm/iwmClock.h"
 #include "mac/modem.h"
 
 #include "../fuji/fujiHost.h"
@@ -192,7 +192,7 @@ extern macFuji *theFuji;
 #include "iwm/network.h"
 #include "iwm/printer.h"
 #include "iwm/cpm.h"
-#include "iwm/clock.h"
+#include "iwm/iwmClock.h"
 #include "iwm/modem.h"
 
 

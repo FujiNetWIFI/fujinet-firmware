@@ -4,7 +4,7 @@
 
 #include "drivewire.h"
 #include "drivewire/drivewireFuji.h"
-#include "drivewire/clock.h"
+#include "drivewire/drivewireClock.h"
 
 #include "../../include/debug.h"
 

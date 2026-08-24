@@ -18,7 +18,7 @@ target_link_libraries(fujibuspacket_tests PRIVATE
 add_test(NAME fujibuspacket_tests COMMAND fujibuspacket_tests)
 
 # ------------------------------------------------------------------------------
-# Policy check: no platform-specific BUILD_* ifdefs in lib/device/fujiDevice.
+# Policy check: no platform-specific BUILD_* ifdefs in the shared device bases.
 # Customization there must go through a subclass override, never a #ifdef.
 # This is a script, not a compiled test, so it's wired in directly via
 # add_test rather than as a doctest executable.
@@ -30,4 +30,5 @@ add_test(
     COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_CURRENT_SOURCE_DIR}/check_no_build_ifdefs.py
             ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice
+            ${CMAKE_SOURCE_DIR}/lib/device/fujiClock
 )
