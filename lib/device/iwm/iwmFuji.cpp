@@ -254,8 +254,7 @@ void iwmFuji::setup()
                 theNetwork = new iwmNetwork();
                 SYSTEM_BUS.addDevice(theNetwork, iwm_fujinet_type_t::Network);
 
-                theClock = new iwmClock();
-                SYSTEM_BUS.addDevice(theClock, iwm_fujinet_type_t::Clock);
+                SYSTEM_BUS.addDevice(&platformClock, iwm_fujinet_type_t::Clock);
 
                 theCPM = new iwmCPM();
                 SYSTEM_BUS.addDevice(theCPM, iwm_fujinet_type_t::CPM);

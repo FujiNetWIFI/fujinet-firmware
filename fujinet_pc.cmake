@@ -140,13 +140,13 @@ if(DEFINED DEBUG_NO_REBOOT)
 endif()
 
 set(INCLUDE_DIRS include
-    lib/compat lib/config lib/utils lib/hardware lib/clock lib/clipboard
+    lib/compat lib/config lib/utils lib/hardware lib/clipboard
     lib/FileSystem
     lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson lib/fnsgml
     lib/webdav lib/http lib/sam lib/task
     lib/modem-sniffer lib/printer-emulator
     lib/network-protocol
-    lib/fuji lib/bus lib/device lib/device/fujiDevice lib/media
+    lib/fuji lib/bus lib/device lib/device/fujiDevice lib/device/fujiClock lib/media
     lib/encrypt lib/base64
     lib/devrelay/commands lib/devrelay/service lib/devrelay/slip lib/devrelay/types
     lib/encoding
@@ -183,7 +183,7 @@ set(SOURCES src/main.cpp
     lib/config/fnc_util.cpp
     lib/config/fnc_wifi.cpp
     include/debug.h
-    lib/clock/Clock.h lib/clock/Clock.cpp
+    lib/device/fujiClock/fujiClock.h lib/device/fujiClock/fujiClock.cpp
     lib/clipboard/clipboardManager.h lib/clipboard/clipboardManager.cpp
     lib/utils/utils.h lib/utils/utils.cpp
     lib/utils/cbuf.h lib/utils/cbuf.cpp
@@ -463,6 +463,7 @@ if(FUJINET_TARGET STREQUAL "ADAM")
     lib/media/adam/mediaTypeROM.h lib/media/adam/mediaTypeROM.cpp
 
     lib/device/adamnet/adamFuji.h lib/device/adamnet/adamFuji.cpp
+    lib/device/adamnet/clock.h lib/device/adamnet/clock.cpp
     lib/device/adamnet/disk.h lib/device/adamnet/disk.cpp
     lib/device/adamnet/keyboard.h lib/device/adamnet/keyboard.cpp
     lib/device/adamnet/network.h lib/device/adamnet/network.cpp
@@ -484,7 +485,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
     lib/media/rs232/diskTypeImg.h lib/media/rs232/diskTypeImg.cpp
     lib/media/rs232/diskTypeROM.h lib/media/rs232/diskTypeROM.cpp
 
-    lib/device/rs232/apetime.cpp lib/device/rs232/apetime.h
+    lib/device/rs232/clock.cpp lib/device/rs232/clock.h
     lib/device/rs232/disk.cpp lib/device/rs232/disk.h
     lib/device/rs232/modem.cpp lib/device/rs232/modem.h
     lib/device/rs232/network.cpp lib/device/rs232/network.h

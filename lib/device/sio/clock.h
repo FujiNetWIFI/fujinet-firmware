@@ -4,22 +4,19 @@
 #include <optional>
 #include <string>
 
-#include "bus.h"
-#include "../../clock/Clock.h"
+#include "../fujiClock/fujiClock.h"
 
-class sioClock : public virtualDevice
+class sioClock : public fujiClock
 {
-private:
-    std::string alternate_tz = "";
-    std::optional<std::string> read_tz_from_host(const FujiSIOPacket &packet);
-
-    // set the Config timezone for the whole FujiNet (as in WebUI)
-    void set_fn_tz(const FujiSIOPacket &packet);
-    void set_alternate_tz(const FujiSIOPacket &packet);
+protected:
+    std::optional<std::string> read_tz() override;
+    bool alt_requested() override;
 
 public:
     void sio_process(const FujiSIOPacket &packet) override;
     void sio_status(const FujiSIOPacket &packet) override {};
 };
+
+extern sioClock platformClock;
 
 #endif // SIO_CLOCK_H

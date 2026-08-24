@@ -2,7 +2,11 @@
 #define CCP_INTERNAL
 
 #include "clock.h"
-#include "fnConfig.h"
+
+#include "fujiCommandID.h"
+#include "../../include/debug.h"
+
+iwmClock platformClock;
 
 iwmClock::iwmClock()
 {
@@ -31,21 +35,33 @@ iwm_device_info_block_t iwmClock::create_dib_reply_packet()
   return dib;
 }
 
-void iwmClock::set_tz(const iwm_decoded_cmd_t &cmd)
+std::optional<std::string> iwmClock::read_tz()
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    Config.store_general_timezone(cmd.dataAsString()->c_str());
-    Config.save();
-    Debug_printf("sys_tz set to: >%s<\n", Config.get_general_timezone().c_str());
+
+    const auto &d = _packet->data();
+    if (!d.has_value())
+    {
+        Debug_printv("ERROR: No timezone sent");
+        SYSTEM_BUS.transaction_error(SP_ERR::BADCTL);
+        return std::nullopt;
+    }
+
+    std::string tz(reinterpret_cast<const char *>(d->data()), d->size());
     SYSTEM_BUS.transaction_success();
+    return tz;
 }
 
-void iwmClock::set_alternate_tz(const iwm_decoded_cmd_t &cmd)
+// Alternate timezone is selected by command byte case, never by parameter.
+bool iwmClock::alt_requested()
+{
+    return false;
+}
+
+void iwmClock::send_string(const std::string &s)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    alternate_tz = cmd.dataAsString().value();
-    Debug_printf("alt_tz set to: >%s<\n", alternate_tz.c_str());
-    SYSTEM_BUS.transaction_success();
+    SYSTEM_BUS.transaction_send(s);
 }
 
 void iwmClock::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
@@ -54,101 +70,78 @@ void iwmClock::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
     Debug_printf("[CLOCK] Device %02x Control Code %02x('%c')\r\n", id(), cmd.command(), isprint(cmd.command()) ? (char) cmd.command() : '.');
 #endif
 
+    _packet = &cmd;
+
     switch (cmd.command())
     {
     case APETIMECMD_SETTZ_ALT2:
-        set_tz(cmd);
+        set_fn_tz();
         break;
     case APETIMECMD_SETTZ_ALT:
-        set_alternate_tz(cmd);
+        set_alternate_tz();
         break;
     default:
         SYSTEM_BUS.transaction_error(SP_ERR::BADCTL);
         break;
     }
+
+    _packet = nullptr;
 }
 
 void iwmClock::iwm_status(const iwm_decoded_cmd_t &cmd)
 {
-    bool use_alternate_tz = false;
+    bool use_alt = false;
 
 #ifdef DEBUG
     Debug_printf("[CLOCK] Device %02x Status Code %02x('%c')\r\n", id(), cmd.command(), isprint(cmd.command()) ? (char)cmd.command() : '.');
 #endif
+
+    _packet = &cmd;
+
+    // Uppercase = system timezone, lowercase = alternate.
     switch (cmd.command())
     {
-    // Uppercase = use FN tz, otherwise use alt tz
     case APETIMECMD_SETTZ_ALT2:
-    case APETIMECMD_SETTZ_ALT: {
-        use_alternate_tz = cmd.command() == APETIMECMD_SETTZ_ALT;
-        // Date and time, easy to be used by general programs
-        auto simpleTime = Clock::get_current_time_simple(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
-        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-        SYSTEM_BUS.transaction_send(simpleTime);
+    case APETIMECMD_SETTZ_ALT:
+        use_alt = cmd.command() == APETIMECMD_SETTZ_ALT;
+        get_simple(use_alt);
         break;
-    }
-    case APETIMECMD_GET_SIMPLE_HUNDREDTHS: {
-        auto milliTime = Clock::get_current_time_simple_hundredths(Clock::tz_to_use(false, alternate_tz, Config.get_general_timezone()));
-        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-        SYSTEM_BUS.transaction_send(milliTime);
+    case APETIMECMD_GET_SIMPLE_HUNDREDTHS:
+        get_simple_hundredths(false);
         break;
-    }
     case APETIMECMD_GET_PRODOS:
-    case APETIMECMD_GET_PRODOS_ALT: {
-        use_alternate_tz = cmd.command() == APETIMECMD_GET_PRODOS_ALT;
-        // Date and time, to be used by a ProDOS driver
-        auto prodosTime = Clock::get_current_time_prodos(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
-        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-        SYSTEM_BUS.transaction_send(prodosTime);
+    case APETIMECMD_GET_PRODOS_ALT:
+        use_alt = cmd.command() == APETIMECMD_GET_PRODOS_ALT;
+        get_prodos(use_alt);
         break;
-    }
     case APETIMECMD_GET_SOS:
-    case APETIMECMD_GET_SOS_ALT: {
-        use_alternate_tz = cmd.command() == APETIMECMD_GET_SOS_ALT;
-        // Date and time, ASCII string in Apple /// SOS format: YYYYMMDD0HHMMSS000
-        std::string sosTime = Clock::get_current_time_sos(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
-        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-        SYSTEM_BUS.transaction_send(sosTime);
+    case APETIMECMD_GET_SOS_ALT:
+        use_alt = cmd.command() == APETIMECMD_GET_SOS_ALT;
+        get_sos(use_alt);
         break;
-    }
     case APETIMECMD_GET_ISO_LOCAL:
-    case APETIMECMD_GET_ISO_LOCAL_ALT: {
-        use_alternate_tz = cmd.command() == APETIMECMD_GET_ISO_LOCAL_ALT;
-        // Date and time, ASCII string in ISO format
-        std::string utcTime = Clock::get_current_time_iso(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
-        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-        SYSTEM_BUS.transaction_send(utcTime);
+    case APETIMECMD_GET_ISO_LOCAL_ALT:
+        use_alt = cmd.command() == APETIMECMD_GET_ISO_LOCAL_ALT;
+        get_iso_local(use_alt);
         break;
-    }
     case APETIMECMD_GET_ISO_UTC:
-    case APETIMECMD_GET_ISO_UTC_ALT: {
-        use_alternate_tz = cmd.command() == APETIMECMD_GET_ISO_UTC_ALT;
-        // utc (zulu)
-        std::string isoTime = Clock::get_current_time_iso("UTC+0");
-        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-        SYSTEM_BUS.transaction_send(isoTime);
+    case APETIMECMD_GET_ISO_UTC_ALT:
+        get_iso_utc();
         break;
-    }
     case APETIMECMD_GET_ATARI:
-    case APETIMECMD_GET_ATARI_ALT: {
-        use_alternate_tz = cmd.command() == APETIMECMD_GET_ATARI_ALT;
-        // Apetime (Atari, but why not eh?) with TZ
-        auto apeTime = Clock::get_current_time_apetime(Clock::tz_to_use(use_alternate_tz, alternate_tz, Config.get_general_timezone()));
-        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-        SYSTEM_BUS.transaction_send(apeTime);
+    case APETIMECMD_GET_ATARI_ALT:
+        use_alt = cmd.command() == APETIMECMD_GET_ATARI_ALT;
+        get_apetime(use_alt);
         break;
-    }
-    case APETIMECMD_GET_GENERAL: {
-        // Get current system timezone
-        std::string curr = Config.get_general_timezone();
-        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-        SYSTEM_BUS.transaction_send(curr);
+    case APETIMECMD_GET_GENERAL:
+        get_general_tz();
         break;
-    }
     default:
         SYSTEM_BUS.transaction_error(SP_ERR::BADCTL);
-        return;
+        break;
     }
+
+    _packet = nullptr;
 }
 
 void iwmClock::iwm_open(const iwm_decoded_cmd_t &cmd)

@@ -4,19 +4,13 @@
 #include <optional>
 #include <string>
 
-#include "bus.h"
-#include "../../clock/Clock.h"
+#include "../fujiClock/fujiClock.h"
 
-class drivewireClock : public virtualDevice
+class drivewireClock : public fujiClock
 {
-private:
-    std::string alternate_tz = "";
-    std::optional<std::string> read_tz_from_host(uint16_t bufsz);
-    void set_fn_tz(uint16_t bufsz);
-    void set_alternate_tz(uint16_t bufsz);
-
-public:
-    bool processCommand(const FujiDWPacket &packet) override;
+protected:
+    std::optional<std::string> read_tz() override;
+    bool alt_requested() override;
 };
 
 extern drivewireClock platformClock;

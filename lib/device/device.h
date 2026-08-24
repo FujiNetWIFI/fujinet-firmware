@@ -15,7 +15,6 @@
 # include "sio/voice.h"
 # include "sio/sioFuji.h"
 
-    sioClock clockDevice;
     sioVoice sioV;
     sioNetStream streamDev;
     // sioCassette sioC; // now part of sioFuji theFuji object
@@ -34,12 +33,11 @@
 # include "drivewire/printerlist.h"
 # include "drivewire/drivewireFuji.h"
 
-    drivewireClock dwClock;
     drivewireModem *sioR;
 #endif
 
 #ifdef BUILD_RS232
-# include "rs232/apetime.h"
+# include "rs232/clock.h"
 # include "rs232/disk.h"
 # include "rs232/modem.h"
 # include "rs232/network.h"
@@ -48,7 +46,6 @@
 # include "rs232/rs232cpm.h"
 # include "rs232/rs232Fuji.h"
 
-    rs232ApeTime apeTime;
     rs232Modem *sioR;
     rs232CPM sioZ;
 #endif
@@ -67,6 +64,7 @@
 #endif
 
 #ifdef BUILD_ADAM
+# include "adamnet/clock.h"
 # include "adamnet/keyboard.h"
 # include "adamnet/printer.h"
 # include "adamnet/printerlist.h"

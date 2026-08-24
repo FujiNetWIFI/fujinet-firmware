@@ -3,6 +3,7 @@
 #include "adamFuji.h"
 #include "fujiCommandID.h"
 #include "fujiDeviceID.h"
+#include "../fujiClock/fujiClock.h"
 
 #include <cstring>
 
@@ -329,39 +330,7 @@ void adamFuji::adamnet_get_time()
     Debug_println("FUJI GET TIME");
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-
-    time_t tt = time(nullptr);
-
-    setenv("TZ", Config.get_general_timezone().c_str(), 1);
-    tzset();
-
-    struct tm *now = localtime(&tt);
-    struct {
-        uint8_t century;
-        uint8_t year;
-        uint8_t month;
-        uint8_t day;
-        uint8_t hour;
-        uint8_t minute;
-        uint8_t second;
-    } cur_time;
-    cur_time.century = (now->tm_year) / 100 + 19;
-    cur_time.year = now->tm_year % 100;
-    cur_time.month = now->tm_mon + 1;
-    cur_time.day = now->tm_mday;
-    cur_time.hour = now->tm_hour;
-    cur_time.minute = now->tm_min;
-    cur_time.second = now->tm_sec;
-
-    Debug_printf("Sending %02X %02X %02X %02X %02X %02X %02X\n",
-                 cur_time.century,
-                 cur_time.year,
-                 cur_time.month,
-                 cur_time.day,
-                 cur_time.hour,
-                 cur_time.minute,
-                 cur_time.second);
-    SYSTEM_BUS.transaction_send(&cur_time, sizeof(cur_time));
+    SYSTEM_BUS.transaction_send(fujiClock::get_current_time_simple(Config.get_general_timezone()));
 }
 
 void adamFuji::adamnet_device_enable_status(const FujiAdamPacket &packet)
