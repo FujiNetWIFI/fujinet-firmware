@@ -763,11 +763,21 @@ void sioFuji::appkey_write(const FUJI_COMMAND_PACKET &packet)
 
     uint16_t keylen = packet.param(0);
 
-    // Size the buffer to keylen (controller-supplied) so the stream stays in
-    // sync; a fixed MAX_APPKEY_LEN buffer overflowed the stack when keylen > 64.
-    ByteBuffer keydata(keylen);
-    if (!SYSTEM_BUS.transaction_get(keydata.data(), keydata.size()) ||
-        fujiDevice::appkey_write(keydata).is_error())
+    // The controller always sends a fixed MAX_APPKEY_LEN payload with the real
+    // length in the params. Draining fewer bytes leaves the rest in the stream
+    // and desyncs the bus, so always read the full block and keep only keylen.
+    ByteBuffer keydata(MAX_APPKEY_LEN);
+    if (!SYSTEM_BUS.transaction_get(keydata.data(), keydata.size()))
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
+    if (keylen > MAX_APPKEY_LEN)
+        keylen = MAX_APPKEY_LEN;
+    keydata.resize(keylen);
+
+    if (fujiDevice::appkey_write(keydata).is_error())
     {
         SYSTEM_BUS.transaction_error();
         return;
