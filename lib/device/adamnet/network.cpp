@@ -42,6 +42,10 @@ adamNetwork::adamNetwork()
  */
 adamNetwork::~adamNetwork()
 {
+    // First the protocol: ~NetworkProtocol() still touches the buffers below.
+    protocol.reset();
+
+    // Then the buffers we own.
     receiveBuffer->clear();
     transmitBuffer->clear();
     specialBuffer->clear();
@@ -52,11 +56,6 @@ adamNetwork::~adamNetwork()
     receiveBuffer = nullptr;
     transmitBuffer = nullptr;
     specialBuffer = nullptr;
-
-    if (protocol != nullptr)
-        protocol.reset();
-
-    protocol = nullptr;
 }
 
 /** ADAM COMMANDS ***************************************************************/
@@ -99,6 +98,8 @@ void adamNetwork::open(const FujiAdamPacket &packet)
     {
         protocol->close();
         protocol.reset();
+        json.setProtocol(nullptr);
+        sgml.setProtocol(nullptr);
     }
 
     // Reset status buffer
@@ -129,6 +130,8 @@ void adamNetwork::open(const FujiAdamPacket &packet)
         err_open = protocol->error; // keep the reason for get_error()
         Debug_printf("Protocol unable to make connection.\n");
         protocol.reset();
+        json.setProtocol(nullptr);
+        sgml.setProtocol(nullptr);
         SYSTEM_BUS.transaction_error();
         return;
     }
@@ -165,32 +168,10 @@ void adamNetwork::close()
 
     // Delete the protocol object
     protocol.reset();
-}
 
-/**
- * Perform the channel read based on the channelMode
- * @param num_bytes - number of bytes to read from channel.
- * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Passed directly to bus_to_computer().
- */
-fujiError_t adamNetwork::read_channel(unsigned short num_bytes)
-{
-    fujiError_t _err = FUJI_ERROR::NONE;
-
-    switch (channelMode)
-    {
-    case CHANNEL_MODE::PROTOCOL:
-        _err = protocol->read(num_bytes);
-        break;
-    case CHANNEL_MODE::JSON:
-        Debug_printf("JSON Not Handled.\n");
-        _err = FUJI_ERROR::UNSPECIFIED;
-        break;
-    case CHANNEL_MODE::SGML:
-        Debug_printf("SGML Not Handled.\n");
-        _err = FUJI_ERROR::UNSPECIFIED;
-        break;
-    }
-    return _err;
+    // Don't leave json/sgml holding a dangling protocol pointer
+    json.setProtocol(nullptr);
+    sgml.setProtocol(nullptr);
 }
 
 /**
@@ -200,10 +181,22 @@ fujiError_t adamNetwork::read_channel(unsigned short num_bytes)
  */
 void adamNetwork::write(const FujiAdamPacket &packet)
 {
-    Debug_printf("!!! WRITE\n");
+    // Nothing open to write to, e.g. a WRITE following a failed OPEN.
+    if ((protocol == nullptr) || (transmitBuffer == nullptr))
+    {
+        statusByte.bits.client_error = true;
+        SYSTEM_BUS.transaction_error();
+        return; // Punch out.
+    }
+
     auto data = packet.dataAsString().value();
+    Debug_printf("adamNetwork::write(%u)\n", (unsigned) data.size());
     *transmitBuffer += data;
-    adamnet_write_channel(data.size());
+
+    // Surface a protocol failure via status(), not a bus NAK.
+    if (adamnet_write_channel(data.size()) != FUJI_ERROR::NONE)
+        statusByte.bits.client_error = true;
+
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     SYSTEM_BUS.transaction_success();
 }
@@ -216,6 +209,10 @@ void adamNetwork::write(const FujiAdamPacket &packet)
 fujiError_t adamNetwork::adamnet_write_channel(unsigned short num_bytes)
 {
     fujiError_t err_net = FUJI_ERROR::NONE;
+
+    // Caller owns the bus reply, so just report the error here.
+    if (protocol == nullptr)
+        return FUJI_ERROR::UNSPECIFIED;
 
     switch (channelMode)
     {
@@ -242,15 +239,15 @@ fujiError_t adamNetwork::adamnet_write_channel(unsigned short num_bytes)
 void adamNetwork::status()
 {
     NetworkStatus ns;
-    NDeviceStatus status;
+    NDeviceStatus status{};
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     if (protocol == nullptr)
     {
+        // No protocol: report the reason the last open failed.
         status.avail = 0;
         status.conn = 0;
         status.err = err_open;
-        return;
     }
     else
     {
