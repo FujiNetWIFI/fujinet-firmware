@@ -286,13 +286,6 @@ private:
     void processCommaFromDevicespec();
 
     /**
-     * Perform the correct read based on value of channelMode
-     * @param num_bytes Number of bytes to read.
-     * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Passed directly to bus_to_computer().
-     */
-    fujiError_t read_channel(unsigned short num_bytes);
-
-    /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
      * @return FUJI_ERROR::UNSPECIFIED on error, FUJI_ERROR::NONE on success. Used to emit adamnet_error or adamnet_complete().
