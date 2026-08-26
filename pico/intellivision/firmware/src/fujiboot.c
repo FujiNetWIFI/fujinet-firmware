@@ -30,11 +30,16 @@ _Static_assert(sizeof(_bootrom) / 2 <= FUJI_STAGE_BASE,
 // network boot path's recovery after a failed mm commit.
 void fuji_config_map(void)
 {
-    // [mapping] -- see fujinet-config/intv/config.cfg
+    // [mapping] -- see fujinet-config/intv/config.cfg. Keep this chain in
+    // lockstep with that file: a stale entry maps a segment short and the
+    // code past it is simply unreachable, with no error anywhere. CONFIG
+    // gained a fourth segment when it outgrew $D000-$DFFF and took $F000
+    // (the compiler's own silent choice, $E000, is not a cart area).
     mm_init(&m);
     mm_add(&m, 0x0000, 0x0FFF, 0x5000, MM_NO_PAGE);
-    mm_add(&m, 0x1000, 0x1E0E, 0x6000, MM_NO_PAGE);
-    mm_add(&m, 0x1E0F, 0x2BF8, 0xD000, MM_NO_PAGE);
+    mm_add(&m, 0x1000, 0x1F9C, 0x6000, MM_NO_PAGE);
+    mm_add(&m, 0x1F9D, 0x2B49, 0xD000, MM_NO_PAGE);
+    mm_add(&m, 0x2B4A, 0x3036, 0xF000, MM_NO_PAGE);
 
     // [memattr] -- CONFIG's own scratch RAM, $8000-$9BFF. Deliberately
     // short of $9C00: the mailbox range is NOT part of this game map at
