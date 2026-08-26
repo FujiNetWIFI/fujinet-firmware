@@ -150,7 +150,7 @@ endif()
 set(INCLUDE_DIRS include
     lib/compat lib/config lib/utils lib/hardware lib/clipboard
     lib/FileSystem
-    lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson lib/fnhtml lib/fntext lib/fnxml
+    lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson lib/fnhtml lib/fntext lib/fnxml lib/fnpretty
     lib/tinyxml2
     lib/webdav lib/http lib/sam lib/task
     lib/modem-sniffer lib/printer-emulator

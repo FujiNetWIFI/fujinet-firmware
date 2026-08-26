@@ -1471,7 +1471,15 @@ set_source_files_properties(${GUMBO_TEST_SOURCES} PROPERTIES COMPILE_OPTIONS -w)
 add_executable(fnpretty_tests
     FnPrettyRenderTests.cpp
     ${CMAKE_SOURCE_DIR}/lib/fnpretty/fnpretty.cpp
+    ${CMAKE_SOURCE_DIR}/lib/fntext/fn_sanitize.cpp
     ${GUMBO_TEST_SOURCES}
+    ${CMAKE_SOURCE_DIR}/components/gumbo-query/Document.cpp
+    ${CMAKE_SOURCE_DIR}/components/gumbo-query/Node.cpp
+    ${CMAKE_SOURCE_DIR}/components/gumbo-query/Object.cpp
+    ${CMAKE_SOURCE_DIR}/components/gumbo-query/Parser.cpp
+    ${CMAKE_SOURCE_DIR}/components/gumbo-query/QueryUtil.cpp
+    ${CMAKE_SOURCE_DIR}/components/gumbo-query/Selection.cpp
+    ${CMAKE_SOURCE_DIR}/components/gumbo-query/Selector.cpp
 )
 
 # fnpretty.cpp reaches NetworkProtocol, which pulls in the bus headers for the
@@ -1488,4 +1496,3 @@ target_include_directories(fnpretty_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/components_pc/
 )
 
-add_test(NAME fnpretty_tests COMMAND fnpretty_tests)
