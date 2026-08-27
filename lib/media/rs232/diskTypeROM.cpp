@@ -41,7 +41,7 @@ void MediaTypeROM::status(uint8_t statusbuff[4])
 }
 
 // push_stream: reads `f` from its current position in DISK_SECTORBUF_SIZE
-// chunks and relays each one to the RP2040 as NETCMD_WRITE frames on DBC
+// chunks and relays each one to the RP2040 as CMD::NET_WRITE frames on DBC
 // stream `stream_id` (0 = ROM, 1 = a .cfg sibling -- the RP2040's
 // dbc_inbound_handler() demuxes on this same id). Sent as PAYLOAD bytes,
 // not params: FujiBusPacket::processArg(uint16_t) encodes bare integer
@@ -57,7 +57,7 @@ void MediaTypeROM::status(uint8_t statusbuff[4])
 // an exact progress bar; an older RP2040 build reads data[0] and ignores
 // the rest, so this stays compatible in both directions.
 //
-// Always sends NETCMD_CLOSE so the RP2040's stream state doesn't wedge; a
+// Always sends CMD::NET_CLOSE so the RP2040's stream state doesn't wedge; a
 // failed transfer's CLOSE carries a 0x01 abort payload so partial data
 // isn't booted.
 static bool push_stream(fnFile *f, uint16_t stream_id, uint32_t expected_size)
@@ -69,9 +69,9 @@ static bool push_stream(fnFile *f, uint16_t stream_id, uint32_t expected_size)
     open_hdr.id = (uint8_t)stream_id;
     open_hdr.size = expected_size;
 
-    auto reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_OPEN,
+    auto reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_OPEN,
                                         std::string((const char *)&open_hdr, sizeof(open_hdr)));
-    if (!reply || reply->command() != FUJICMD_ACK)
+    if (!reply || reply->command() != CMD::FUJI_ACK)
     {
         Debug_printv("MediaTypeROM: failed to open DBC stream %u (%lu bytes)\n",
                      stream_id, (unsigned long)expected_size);
@@ -83,9 +83,9 @@ static bool push_stream(fnFile *f, uint16_t stream_id, uint32_t expected_size)
     size_t got;
     while ((got = fnio::fread(buf, 1, sizeof(buf), f)) > 0)
     {
-        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_WRITE,
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_WRITE,
                                        std::string((char *)buf, got));
-        if (!reply || reply->command() != FUJICMD_ACK)
+        if (!reply || reply->command() != CMD::FUJI_ACK)
         {
             Debug_printv("MediaTypeROM: failed to send stream %u block\n", stream_id);
             ok = false;
@@ -103,11 +103,11 @@ static bool push_stream(fnFile *f, uint16_t stream_id, uint32_t expected_size)
     }
 
     if (ok)
-        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_CLOSE);
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE);
     else
-        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_CLOSE,
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE,
                                        std::string(1, '\x01'));
-    if (!reply || reply->command() != FUJICMD_ACK)
+    if (!reply || reply->command() != CMD::FUJI_ACK)
     {
         Debug_printv("MediaTypeROM: stream %u close failed/rejected\n", stream_id);
         ok = false;

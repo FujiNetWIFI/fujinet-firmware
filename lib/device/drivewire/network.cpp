@@ -860,73 +860,73 @@ bool drivewireNetwork::processCommand(const FujiDWPacket &packet)
 
     switch (packet.command())
     {
-    case NETCMD_OPEN:
+    case CMD::NET_OPEN:
         open(static_cast<fileAccessMode_t>(packet.param8(0)),
              static_cast<netProtoTranslation_t>(packet.param8(1)));
         break;
-    case NETCMD_CLOSE:
+    case CMD::NET_CLOSE:
         close();
         break;
-    case NETCMD_READ:
+    case CMD::NET_READ:
         read(packet.param(0));
         break;
-    case NETCMD_WRITE:
+    case CMD::NET_WRITE:
         write(packet.param(0));
         break;
-    case NETCMD_STATUS:
+    case CMD::NET_STATUS:
         status(packet.param(1));
         break;
 
-    case NETCMD_PARSE:
+    case CMD::NET_PARSE:
         if (channelMode == SGML)
             parse_sgml();
         else
             parse_json();
         break;
-    case NETCMD_CHANNEL_MODE:
+    case CMD::NET_CHANNEL_MODE:
         set_channel_mode(packet.param(0));
         break;
 
-    case NETCMD_GETCWD:
+    case CMD::NET_GETCWD:
         get_prefix();
         break;
 
-    case NETCMD_CHDIR:
+    case CMD::NET_CHDIR:
         set_prefix();
         break;
-    case NETCMD_QUERY:
+    case CMD::NET_QUERY:
         if (channelMode == SGML)
             sgml_query();
         else
             json_query();
         break;
-    case NETCMD_USERNAME:
+    case CMD::NET_USERNAME:
         set_login();
         break;
-    case NETCMD_PASSWORD:
+    case CMD::NET_PASSWORD:
         set_password();
         break;
 
-    case NETCMD_RENAME:
-    case NETCMD_DELETE:
-    case NETCMD_LOCK:
-    case NETCMD_UNLOCK:
-    case NETCMD_MKDIR:
-    case NETCMD_RMDIR:
+    case CMD::NET_RENAME:
+    case CMD::NET_DELETE:
+    case CMD::NET_LOCK:
+    case CMD::NET_UNLOCK:
+    case CMD::NET_MKDIR:
+    case CMD::NET_RMDIR:
         process_fs(packet);
         break;
 
-    case NETCMD_CONTROL:
-    case NETCMD_CLOSE_CLIENT:
+    case CMD::NET_CONTROL:
+    case CMD::NET_CLOSE_CLIENT:
         process_tcp(packet);
         break;
 
-    case NETCMD_SET_CHANNEL_MODE:
+    case CMD::NET_SET_CHANNEL_MODE:
         process_http(packet);
         break;
 
-    case NETCMD_GET_REMOTE:
-    case NETCMD_SET_DESTINATION:
+    case CMD::NET_GET_REMOTE:
+    case CMD::NET_SET_DESTINATION:
         process_udp(packet);
         break;
 
@@ -971,22 +971,22 @@ void drivewireNetwork::process_fs(const FujiDWPacket &packet)
     auto url = urlParser.get();
     switch (packet.command())
     {
-    case NETCMD_RENAME:
+    case CMD::NET_RENAME:
         err = fs->rename(url);
         break;
-    case NETCMD_DELETE:
+    case CMD::NET_DELETE:
         err = fs->del(url);
         break;
-    case NETCMD_LOCK:
+    case CMD::NET_LOCK:
         err = fs->lock(url);
         break;
-    case NETCMD_UNLOCK:
+    case CMD::NET_UNLOCK:
         err = fs->unlock(url);
         break;
-    case NETCMD_MKDIR:
+    case CMD::NET_MKDIR:
         err = fs->mkdir(url);
         break;
-    case NETCMD_RMDIR:
+    case CMD::NET_RMDIR:
         err = fs->rmdir(url);
         break;
     default:
@@ -1016,10 +1016,10 @@ void drivewireNetwork::process_tcp(const FujiDWPacket &packet)
     fujiError_t err;
     switch (packet.command())
     {
-    case NETCMD_CONTROL:
+    case CMD::NET_CONTROL:
         err = tcp->accept_connection();
         break;
-    case NETCMD_CLOSE_CLIENT:
+    case CMD::NET_CLOSE_CLIENT:
         err = tcp->close_client_connection();
         break;
     default:
@@ -1048,7 +1048,7 @@ void drivewireNetwork::process_http(const FujiDWPacket &packet)
     fujiError_t err;
     switch (packet.command())
     {
-    case NETCMD_SET_CHANNEL_MODE:
+    case CMD::NET_SET_CHANNEL_MODE:
         err = http->set_channel_mode((netProtoHTTPChannelMode_t) packet.param8(1));
         break;
     default:
@@ -1079,14 +1079,14 @@ void drivewireNetwork::process_udp(const FujiDWPacket &packet)
     switch (packet.command())
     {
 #ifndef ESP_PLATFORM
-    case NETCMD_GET_REMOTE:
+    case CMD::NET_GET_REMOTE:
         receiveBuffer->resize(SPECIAL_BUFFER_SIZE);
         err = udp->get_remote(receiveBuffer->data(), receiveBuffer->size());
         SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
         SYSTEM_BUS.transaction_send(*receiveBuffer);
         break;
 #endif /* ESP_PLATFORM */
-    case NETCMD_SET_DESTINATION:
+    case CMD::NET_SET_DESTINATION:
         {
             uint8_t spData[SPECIAL_BUFFER_SIZE];
             SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);

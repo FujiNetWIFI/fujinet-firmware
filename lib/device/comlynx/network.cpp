@@ -533,75 +533,75 @@ void lynxNetwork::read_channel_protocol()
  */
 void lynxNetwork::comlynx_process(const FujiLynxPacket &packet)
 {
-    Debug_printf("lynxNetwork::comlynx_process - command: %02X\n", packet.command());
+    Debug_printf("lynxNetwork::comlynx_process - command: %02X\n", (uint8_t) packet.command());
 
     switch (packet.command())
     {
-    case NETCMD_CHDIR:
+    case CMD::NET_CHDIR:
         set_prefix(packet);
         break;
-    case NETCMD_GETCWD:
+    case CMD::NET_GETCWD:
         get_prefix();
         break;
-    case NETCMD_OPEN:
+    case CMD::NET_OPEN:
         open(packet);
         break;
-    case NETCMD_CLOSE:
+    case CMD::NET_CLOSE:
         close();
         break;
-    case NETCMD_STATUS:
+    case CMD::NET_STATUS:
         status();
         break;
-    case NETCMD_READ:
+    case CMD::NET_READ:
         read();
         break;
-    case NETCMD_WRITE:
+    case CMD::NET_WRITE:
         write(packet);
         break;
-    case NETCMD_CHANNEL_MODE:
+    case CMD::NET_CHANNEL_MODE:
         set_channel_mode(packet);
         break;
-    case NETCMD_PARSE:
-    case NETCMD_PARSE_ALT:
+    case CMD::NET_PARSE:
+    case CMD::NET_PARSE_ALT:
         json_parse();
         break;
-    case NETCMD_QUERY:
-    case NETCMD_QUERY_ALT:
+    case CMD::NET_QUERY:
+    case CMD::NET_QUERY_ALT:
         json_query(packet);
         break;
-    case NETCMD_USERNAME: // login
+    case CMD::NET_USERNAME: // login
         set_login(packet);
         break;
-    case NETCMD_PASSWORD: // password
+    case CMD::NET_PASSWORD: // password
         set_password(packet);
         break;
 
-    case NETCMD_RENAME:
-    case NETCMD_DELETE:
-    case NETCMD_LOCK:
-    case NETCMD_UNLOCK:
-    case NETCMD_MKDIR:
-    case NETCMD_RMDIR:
+    case CMD::NET_RENAME:
+    case CMD::NET_DELETE:
+    case CMD::NET_LOCK:
+    case CMD::NET_UNLOCK:
+    case CMD::NET_MKDIR:
+    case CMD::NET_RMDIR:
         process_fs(packet);
         break;
 
-    case NETCMD_CONTROL:
-    case NETCMD_CLOSE_CLIENT:
+    case CMD::NET_CONTROL:
+    case CMD::NET_CLOSE_CLIENT:
         process_tcp(packet);
         break;
 
-    case NETCMD_SET_CHANNEL_MODE:
+    case CMD::NET_SET_CHANNEL_MODE:
         process_http(packet);
         break;
 
-    case NETCMD_GET_REMOTE:
-    case NETCMD_SET_DESTINATION:
+    case CMD::NET_GET_REMOTE:
+    case CMD::NET_SET_DESTINATION:
         process_udp(packet);
         break;
 
     default:
         statusByte.bits.client_error = true;
-        Debug_printf("lynxnetwork::comlynx_process - unknown command: %02X", packet.command());
+        Debug_printf("lynxnetwork::comlynx_process - unknown command: %02X", (uint8_t) packet.command());
         SYSTEM_BUS.transaction_error();
         break;
     }
@@ -699,22 +699,22 @@ void lynxNetwork::process_fs(const FujiLynxPacket &packet)
     auto url = urlParser.get();
     switch (packet.command())
     {
-    case NETCMD_RENAME:
+    case CMD::NET_RENAME:
         cmd_err = fs->rename(url);
         break;
-    case NETCMD_DELETE:
+    case CMD::NET_DELETE:
         cmd_err = fs->del(url);
         break;
-    case NETCMD_LOCK:
+    case CMD::NET_LOCK:
         cmd_err = fs->lock(url);
         break;
-    case NETCMD_UNLOCK:
+    case CMD::NET_UNLOCK:
         cmd_err = fs->unlock(url);
         break;
-    case NETCMD_MKDIR:
+    case CMD::NET_MKDIR:
         cmd_err = fs->mkdir(url);
         break;
-    case NETCMD_RMDIR:
+    case CMD::NET_RMDIR:
         cmd_err = fs->rmdir(url);
         break;
     default:
@@ -747,7 +747,7 @@ void lynxNetwork::process_tcp(const FujiLynxPacket &packet)
     fujiError_t cmd_err;
     switch (packet.command())
     {
-    case NETCMD_CONTROL:
+    case CMD::NET_CONTROL:
         cmd_err = FUJI_ERROR::NONE;
 
         // Because we're not handling Adam bus very well, sometimes it
@@ -764,7 +764,7 @@ void lynxNetwork::process_tcp(const FujiLynxPacket &packet)
             }
         }
         break;
-    case NETCMD_CLOSE_CLIENT:
+    case CMD::NET_CLOSE_CLIENT:
         cmd_err = tcp->close_client_connection();
         break;
     default:
@@ -797,7 +797,7 @@ void lynxNetwork::process_http(const FujiLynxPacket &packet)
     fujiError_t cmd_err;
     switch (packet.command())
     {
-    case NETCMD_SET_CHANNEL_MODE:
+    case CMD::NET_SET_CHANNEL_MODE:
         cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) packet.param8(1));
         break;
     default:
@@ -831,14 +831,14 @@ void lynxNetwork::process_udp(const FujiLynxPacket &packet)
     switch (packet.command())
     {
 #ifndef ESP_PLATFORM
-    case NETCMD_GET_REMOTE:
+    case CMD::NET_GET_REMOTE:
         receiveBuffer->resize(SPECIAL_BUFFER_SIZE);
         cmd_err = udp->get_remote(receiveBuffer->data(), receiveBuffer->size());
         SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
         SYSTEM_BUS.transaction_send(*receiveBuffer);
         break;
 #endif /* ESP_PLATFORM */
-    case NETCMD_SET_DESTINATION:
+    case CMD::NET_SET_DESTINATION:
         {
             uint8_t spData[SPECIAL_BUFFER_SIZE];
             size_t bytes_read = SYSTEM_BUS.read(spData, sizeof(spData));

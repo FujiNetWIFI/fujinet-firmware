@@ -188,19 +188,19 @@ void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
 {
     Debug_printf("Adding device: %02X\n", device_id);
 
-    if (device_id == FUJI_DEVICEID_FUJINET)
+    if (device_id == FUJI_DEVICEID::FUJINET)
     {
         _fujiDev = (lynxFuji *)pDevice;
     }
-    else if (device_id >= FUJI_DEVICEID_NETWORK && device_id <= FUJI_DEVICEID_NETWORK_LAST)
+    else if (device_id >= FUJI_DEVICEID::NETWORK && device_id <= FUJI_DEVICEID::NETWORK_LAST)
     {
-        _netDev[device_id - FUJI_DEVICEID_NETWORK] = (lynxNetwork*)pDevice;
+        _netDev[device_id - FUJI_DEVICEID::NETWORK] = (lynxNetwork*)pDevice;
     }
-    else if (device_id == FUJI_DEVICEID_PRINTER)
+    else if (device_id == FUJI_DEVICEID::PRINTER)
     {
         _printerDev = (lynxPrinter *)pDevice;
     }
-    else if (device_id == FUJI_DEVICEID_MIDI)
+    else if (device_id == FUJI_DEVICEID::MIDI)
     {
         _streamDev = (lynxNetStream *)pDevice;
     }
@@ -391,7 +391,7 @@ void systemBus::transaction_send(const void *data, size_t len, bool err)
     assert(_transaction_state == TRANS_STATE::NO_GET);
 
     // send all data back to Lynx
-    FujiLynxPacket packet(FUJICMD_SEND_RESPONSE, ByteBuffer(ptr, ptr + len));
+    FujiLynxPacket packet(CMD::FUJI_SEND_RESPONSE, ByteBuffer(ptr, ptr + len));
     writeBusPacket(packet);
     _transaction_state = TRANS_STATE::INVALID;
     return;
@@ -405,15 +405,15 @@ void systemBus::writeBusPacket(const FujiLynxPacket &packet)
 #endif // DEBUG_RAW_PACKET
     _port->write(encoded.data(), encoded.size());
 
-    if (packet.command() == FUJICMD_SEND_RESPONSE)
+    if (packet.command() == CMD::FUJI_SEND_RESPONSE)
     {
         // get ACK or NACK from Lynx, we're ignoring currently
-        uint8_t r = _port->read();
+        fujiCommandID_t r = (fujiCommandID_t) _port->read();
 #ifdef DEBUG
-        if (r == FUJICMD_ACK)
+        if (r == CMD::FUJI_ACK)
             Debug_println("writeBusPacket - Lynx ACKed");
         else
-            Debug_printf("writeBusPacket - Lynx NAKed 0x%02x\n", r);
+            Debug_printf("writeBusPacket - Lynx NAKed 0x%02x\n", (uint8_t) r);
 #endif
     }
 
@@ -422,12 +422,12 @@ void systemBus::writeBusPacket(const FujiLynxPacket &packet)
 
 void systemBus::sendAckPacket()
 {
-    writeBusPacket(FujiLynxPacket(FUJICMD_ACK));
+    writeBusPacket(FujiLynxPacket(CMD::FUJI_ACK));
 }
 
 void systemBus::sendNakPacket()
 {
-    writeBusPacket(FujiLynxPacket(FUJICMD_NAK));
+    writeBusPacket(FujiLynxPacket(CMD::FUJI_NAK));
 }
 
 void systemBus::change_baud(int32_t baud)

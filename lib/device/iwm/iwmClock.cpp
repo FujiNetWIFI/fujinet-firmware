@@ -67,17 +67,18 @@ void iwmClock::send_string(const std::string &s)
 void iwmClock::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
 {
 #ifdef DEBUG
-    Debug_printf("[CLOCK] Device %02x Control Code %02x('%c')\r\n", id(), cmd.command(), isprint(cmd.command()) ? (char) cmd.command() : '.');
+    uint8_t u_cmd = (uint8_t) cmd.command();
+    Debug_printf("[CLOCK] Device %02x Control Code %02x('%c')\r\n", id(), u_cmd, isprint(u_cmd) ? (char) u_cmd : '.');
 #endif
 
     _packet = &cmd;
 
     switch (cmd.command())
     {
-    case APETIMECMD_SETTZ_ALT2:
+    case CMD::APETIME_SETTZ_ALT2:
         set_fn_tz();
         break;
-    case APETIMECMD_SETTZ_ALT:
+    case CMD::APETIME_SETTZ_ALT:
         set_alternate_tz();
         break;
     default:
@@ -93,7 +94,8 @@ void iwmClock::iwm_status(const iwm_decoded_cmd_t &cmd)
     bool use_alt = false;
 
 #ifdef DEBUG
-    Debug_printf("[CLOCK] Device %02x Status Code %02x('%c')\r\n", id(), cmd.command(), isprint(cmd.command()) ? (char)cmd.command() : '.');
+    uint8_t u_cmd = (uint8_t) cmd.command();
+    Debug_printf("[CLOCK] Device %02x Status Code %02x('%c')\r\n", id(), u_cmd, isprint(u_cmd) ? (char)u_cmd : '.');
 #endif
 
     _packet = &cmd;
@@ -101,39 +103,39 @@ void iwmClock::iwm_status(const iwm_decoded_cmd_t &cmd)
     // Uppercase = system timezone, lowercase = alternate.
     switch (cmd.command())
     {
-    case APETIMECMD_SETTZ_ALT2:
-    case APETIMECMD_SETTZ_ALT:
-        use_alt = cmd.command() == APETIMECMD_SETTZ_ALT;
+    case CMD::APETIME_SETTZ_ALT2:
+    case CMD::APETIME_SETTZ_ALT:
+        use_alt = cmd.command() == CMD::APETIME_SETTZ_ALT;
         get_simple(use_alt);
         break;
-    case APETIMECMD_GET_SIMPLE_HUNDREDTHS:
+    case CMD::APETIME_GET_SIMPLE_HUNDREDTHS:
         get_simple_hundredths(false);
         break;
-    case APETIMECMD_GET_PRODOS:
-    case APETIMECMD_GET_PRODOS_ALT:
-        use_alt = cmd.command() == APETIMECMD_GET_PRODOS_ALT;
+    case CMD::APETIME_GET_PRODOS:
+    case CMD::APETIME_GET_PRODOS_ALT:
+        use_alt = cmd.command() == CMD::APETIME_GET_PRODOS_ALT;
         get_prodos(use_alt);
         break;
-    case APETIMECMD_GET_SOS:
-    case APETIMECMD_GET_SOS_ALT:
-        use_alt = cmd.command() == APETIMECMD_GET_SOS_ALT;
+    case CMD::APETIME_GET_SOS:
+    case CMD::APETIME_GET_SOS_ALT:
+        use_alt = cmd.command() == CMD::APETIME_GET_SOS_ALT;
         get_sos(use_alt);
         break;
-    case APETIMECMD_GET_ISO_LOCAL:
-    case APETIMECMD_GET_ISO_LOCAL_ALT:
-        use_alt = cmd.command() == APETIMECMD_GET_ISO_LOCAL_ALT;
+    case CMD::APETIME_GET_ISO_LOCAL:
+    case CMD::APETIME_GET_ISO_LOCAL_ALT:
+        use_alt = cmd.command() == CMD::APETIME_GET_ISO_LOCAL_ALT;
         get_iso_local(use_alt);
         break;
-    case APETIMECMD_GET_ISO_UTC:
-    case APETIMECMD_GET_ISO_UTC_ALT:
+    case CMD::APETIME_GET_ISO_UTC:
+    case CMD::APETIME_GET_ISO_UTC_ALT:
         get_iso_utc();
         break;
-    case APETIMECMD_GET_ATARI:
-    case APETIMECMD_GET_ATARI_ALT:
-        use_alt = cmd.command() == APETIMECMD_GET_ATARI_ALT;
+    case CMD::APETIME_GET_ATARI:
+    case CMD::APETIME_GET_ATARI_ALT:
+        use_alt = cmd.command() == CMD::APETIME_GET_ATARI_ALT;
         get_apetime(use_alt);
         break;
-    case APETIMECMD_GET_GENERAL:
+    case CMD::APETIME_GET_GENERAL:
         get_general_tz();
         break;
     default:

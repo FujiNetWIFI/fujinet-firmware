@@ -27,7 +27,7 @@ private:
     void prodos_write_directory_sectors(fnFile *f);
     void prodos_write_bitmap(fnFile *f, uint32_t numBlocks);
 
-    // Response to SIO_FUJICMD_GET_SCAN_RESULT
+    // Response to SIO_CMD::FUJI_GET_SCAN_RESULT
     struct
     {
         char ssid[MAX_SSID_LEN + 1];
@@ -49,8 +49,8 @@ private:
         {2, 256}
     };
 
-    std::unordered_map<uint8_t, IWMControlHandlers> control_handlers;
-    std::unordered_map<uint8_t, IWMStatusHandlers> status_handlers;
+    std::unordered_map<fujiCommandID_t, IWMControlHandlers> control_handlers;
+    std::unordered_map<fujiCommandID_t, IWMStatusHandlers> status_handlers;
 
 protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,

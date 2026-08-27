@@ -219,7 +219,7 @@ bool drivewireFuji::processCommand(const FujiDWPacket &packet)
 
     switch (packet.command())
     {
-    case FUJICMD_NEW_DISK:
+    case CMD::FUJI_NEW_DISK:
         new_disk();
         break;
     default:

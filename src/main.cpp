@@ -241,13 +241,13 @@ void main_setup(int argc, char *argv[])
 
 #ifdef BUILD_ATARI
     theFuji->setup();
-    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET); // the FUJINET!
+    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID::FUJINET); // the FUJINET!
 
     if (Config.get_apetime_enabled() == true)
-        SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID_CLOCK); // APETime compatible, extended for additional return types
+        SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID::CLOCK); // APETime compatible, extended for additional return types
 
 #ifdef ESP_PLATFORM
-    SYSTEM_BUS.addDevice(&streamDev, FUJI_DEVICEID_MIDI); // UDP/MIDI device
+    SYSTEM_BUS.addDevice(&streamDev, FUJI_DEVICEID::MIDI); // UDP/MIDI device
 #endif
 
     // add PCLink device only if we have SD card
@@ -259,7 +259,7 @@ void main_setup(int argc, char *argv[])
 #else
         pcLink.mount(1, Config.get_general_SD_path().c_str()); // mount SD as PCL1:
 #endif
-        SYSTEM_BUS.addDevice(&pcLink, FUJI_DEVICEID_PCLINK); // PCLink
+        SYSTEM_BUS.addDevice(&pcLink, FUJI_DEVICEID::PCLINK); // PCLink
     }
 
     // Create a new printer object, setting its output depending on whether we have SD or not
@@ -273,16 +273,16 @@ void main_setup(int argc, char *argv[])
     sioPrinter *ptr = new sioPrinter(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
 
-    SYSTEM_BUS.addDevice(ptr, (fujiDeviceID_t) (FUJI_DEVICEID_PRINTER
+    SYSTEM_BUS.addDevice(ptr, (fujiDeviceID_t) (FUJI_DEVICEID::PRINTER
                                                 + fnPrinters.get_port(0))); // P:
 
     sioR = new modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
 
-    SYSTEM_BUS.addDevice(sioR, FUJI_DEVICEID_SERIAL); // R:
+    SYSTEM_BUS.addDevice(sioR, FUJI_DEVICEID::SERIAL); // R:
 
-    SYSTEM_BUS.addDevice(&sioV, FUJI_DEVICEID_VOICE); // P3:
+    SYSTEM_BUS.addDevice(&sioV, FUJI_DEVICEID::VOICE); // P3:
 
-    SYSTEM_BUS.addDevice(&sioZ, FUJI_DEVICEID_CPM); // (ATR8000 CPM)
+    SYSTEM_BUS.addDevice(&sioZ, FUJI_DEVICEID::CPM); // (ATR8000 CPM)
 
     // Go setup SIO
     SYSTEM_BUS.setup();
@@ -323,9 +323,9 @@ void main_setup(int argc, char *argv[])
 #ifdef BUILD_RS232
     theFuji->setup();
     SYSTEM_BUS.setup();
-    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET);
+    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID::FUJINET);
     if (Config.get_apetime_enabled() == true)
-        SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID_CLOCK); // APETime compatible, extended for additional return types
+        SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID::CLOCK); // APETime compatible, extended for additional return types
 
     // Create a new printer object, setting its output depending on whether we have SD or not
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
@@ -337,10 +337,10 @@ void main_setup(int argc, char *argv[])
 
     rs232Printer *ptr = new rs232Printer(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, 0);
-    SYSTEM_BUS.addDevice(ptr, FUJI_DEVICEID_PRINTER); // P:
+    SYSTEM_BUS.addDevice(ptr, FUJI_DEVICEID::PRINTER); // P:
 
     rs232Modem *mdm = new rs232Modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
-    SYSTEM_BUS.addDevice(mdm, FUJI_DEVICEID_SERIAL); // R:
+    SYSTEM_BUS.addDevice(mdm, FUJI_DEVICEID::SERIAL); // R:
 #endif
 
 #ifdef BUILD_RC2014
@@ -357,10 +357,10 @@ void main_setup(int argc, char *argv[])
     rc2014Printer *ptr = new rc2014Printer(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
 
-    SYSTEM_BUS.addDevice(ptr, (fujiDeviceID_t)(FUJI_DEVICEID_PRINTER + fnPrinters.get_port(0))); // P:
+    SYSTEM_BUS.addDevice(ptr, (fujiDeviceID_t)(FUJI_DEVICEID::PRINTER + fnPrinters.get_port(0))); // P:
 
     sioR = new rc2014Modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
-    SYSTEM_BUS.addDevice(sioR, FUJI_DEVICEID_SERIAL); // R:
+    SYSTEM_BUS.addDevice(sioR, FUJI_DEVICEID::SERIAL); // R:
 
 #endif
 
@@ -395,27 +395,27 @@ void main_setup(int argc, char *argv[])
     adamPrinter::printer_type printer = Config.get_printer_type(0);
     adamPrinter *ptr = new adamPrinter(ptrfs, printer);
     fnPrinters.set_entry(0, ptr, printer, 0);
-    SYSTEM_BUS.addDevice(ptr, FUJI_DEVICEID_PRINTER);
+    SYSTEM_BUS.addDevice(ptr, FUJI_DEVICEID::PRINTER);
 
     if (Config.get_printer_enabled())
-        SYSTEM_BUS.enableDevice(FUJI_DEVICEID_PRINTER);
+        SYSTEM_BUS.enableDevice(FUJI_DEVICEID::PRINTER);
     else
-        SYSTEM_BUS.disableDevice(FUJI_DEVICEID_PRINTER);
+        SYSTEM_BUS.disableDevice(FUJI_DEVICEID::PRINTER);
 
     if (Config.get_apetime_enabled() == true)
-        SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID_CLOCK); // APETime compatible, extended for additional return types
+        SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID::CLOCK); // APETime compatible, extended for additional return types
 
 #ifdef VIRTUAL_ADAM_DEVICES
     Debug_printf("Physical Device Scanning...\r\n");
     sioQ = new adamQueryDevice();
 
 #ifndef NO_VIRTUAL_KEYBOARD
-    exists = sioQ->adamDeviceExists(FUJI_DEVICEID_KEYBOARD);
+    exists = sioQ->adamDeviceExists(FUJI_DEVICEID::KEYBOARD);
     if (!exists)
     {
         Debug_printf("Adding virtual keyboard\r\n");
         sioK = new adamKeyboard();
-        SYSTEM_BUS.addDevice(sioK, FUJI_DEVICEID_KEYBOARD);
+        SYSTEM_BUS.addDevice(sioK, FUJI_DEVICEID::KEYBOARD);
     }
     else
         Debug_printf("Physical keyboard found\r\n");

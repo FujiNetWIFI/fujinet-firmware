@@ -412,18 +412,19 @@ void iwmNetwork::iwm_status(const iwm_decoded_cmd_t &cmd)
     }
 
 #ifdef DEBUG
-    Debug_printf("\r\n[NETWORK] Device %02x Status Code %02x('%c') net_unit %02x\r\n", id(), cmd.command(), isprint(cmd.command()) ? (char) cmd.command() : '.', current_network_unit);
+    uint8_t u_cmd = (uint8_t) cmd.command();
+    Debug_printf("\r\n[NETWORK] Device %02x Status Code %02x('%c') net_unit %02x\r\n", id(), u_cmd, isprint(u_cmd) ? (char) u_cmd : '.', current_network_unit);
 #endif
 
     switch (cmd.command())
     {
-    case NETCMD_GETCWD:
+    case CMD::NET_GETCWD:
         get_prefix();
         break;
-    case NETCMD_READ:
+    case CMD::NET_READ:
         net_read();
         break;
-    case NETCMD_STATUS:
+    case CMD::NET_STATUS:
         status();
         break;
     default:
@@ -600,84 +601,85 @@ void iwmNetwork::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
     auto& current_network_data = network_data_map[current_network_unit];
 
 #ifdef DEBUG
-    if (cmd.command() == NETCMD_SET_CHANNEL)
-        Debug_printf("\r\nNet Device %02x Control Code %02x('%c') net_unit %02x", id(), cmd.command(), isprint(cmd.command()) ? (char)cmd.command() : '.', cmd.param(0));
+    uint8_t u_cmd = (uint8_t) cmd.command();
+    if (cmd.command() == CMD::NET_SET_CHANNEL)
+        Debug_printf("\r\nNet Device %02x Control Code %02x('%c') net_unit %02x", id(), u_cmd, isprint(u_cmd) ? (char)u_cmd : '.', cmd.param(0));
     else
-        Debug_printf("\r\nNet Device %02x Control Code %02x('%c') net_unit %02x", id(), cmd.command(), isprint(cmd.command()) ? (char)cmd.command() : '.', current_network_unit);
+        Debug_printf("\r\nNet Device %02x Control Code %02x('%c') net_unit %02x", id(), u_cmd, isprint(u_cmd) ? (char)u_cmd : '.', current_network_unit);
 #endif
 
     // Debug_printv("cmd (looking for network_unit in byte 6, i.e. hex[5]):\r\n%s\r\n", mstr::toHex(cmd.frame.decoded, 9).c_str());
 
-    if (cmd.command() != NETCMD_OPEN && current_network_data.json == nullptr) {
+    if (cmd.command() != CMD::NET_OPEN && current_network_data.json == nullptr) {
         Debug_printv("control should not be called on a non-open channel - FN was probably reset");
     }
 
     switch (cmd.command())
     {
-    case NETCMD_SET_CHANNEL:
+    case CMD::NET_SET_CHANNEL:
         current_network_unit = cmd.param(0);
         // control command still needs a bus reply or the host times out
         SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
         SYSTEM_BUS.transaction_success();
         break;
-    case NETCMD_CHDIR:
+    case CMD::NET_CHDIR:
         set_prefix(cmd);
         break;
-    case NETCMD_GETCWD:
+    case CMD::NET_GETCWD:
         get_prefix();
         break;
-    case NETCMD_OPEN:
+    case CMD::NET_OPEN:
         open(cmd);
         break;
-    case NETCMD_CLOSE:
+    case CMD::NET_CLOSE:
         close();
         break;
-    case NETCMD_WRITE:
+    case CMD::NET_WRITE:
         net_write(cmd);
         break;
-    case NETCMD_CHANNEL_MODE:
+    case CMD::NET_CHANNEL_MODE:
         channel_mode(cmd);
         break;
-    case NETCMD_USERNAME: // login
+    case CMD::NET_USERNAME: // login
         set_login(cmd);
         break;
-    case NETCMD_PASSWORD: // password
+    case CMD::NET_PASSWORD: // password
         set_password(cmd);
         break;
 
-    case NETCMD_PARSE:
+    case CMD::NET_PARSE:
         if (current_network_data.channelMode == CHANNEL_MODE::SGML)
             sgml_parse();
         else
             json_parse();
         break;
-    case NETCMD_QUERY:
+    case CMD::NET_QUERY:
         if (current_network_data.channelMode == CHANNEL_MODE::SGML)
             sgml_query(cmd);
         else
             json_query(cmd);
         break;
 
-    case NETCMD_RENAME:
-    case NETCMD_DELETE:
-    case NETCMD_LOCK:
-    case NETCMD_UNLOCK:
-    case NETCMD_MKDIR:
-    case NETCMD_RMDIR:
+    case CMD::NET_RENAME:
+    case CMD::NET_DELETE:
+    case CMD::NET_LOCK:
+    case CMD::NET_UNLOCK:
+    case CMD::NET_MKDIR:
+    case CMD::NET_RMDIR:
         process_fs(cmd);
         break;
 
-    case NETCMD_CONTROL:
-    case NETCMD_CLOSE_CLIENT:
+    case CMD::NET_CONTROL:
+    case CMD::NET_CLOSE_CLIENT:
         process_tcp(cmd);
         break;
 
-    case NETCMD_SET_CHANNEL_MODE:
+    case CMD::NET_SET_CHANNEL_MODE:
         process_http(cmd);
         break;
 
-    case NETCMD_GET_REMOTE:
-    case NETCMD_SET_DESTINATION:
+    case CMD::NET_GET_REMOTE:
+    case CMD::NET_SET_DESTINATION:
         process_udp(cmd);
         break;
 
@@ -790,22 +792,22 @@ void iwmNetwork::process_fs(const iwm_decoded_cmd_t &cmd)
     auto url = current_network_data.urlParser.get();
     switch (cmd.command())
     {
-    case NETCMD_RENAME:
+    case CMD::NET_RENAME:
         cmd_err = fs->rename(url);
         break;
-    case NETCMD_DELETE:
+    case CMD::NET_DELETE:
         cmd_err = fs->del(url);
         break;
-    case NETCMD_LOCK:
+    case CMD::NET_LOCK:
         cmd_err = fs->lock(url);
         break;
-    case NETCMD_UNLOCK:
+    case CMD::NET_UNLOCK:
         cmd_err = fs->unlock(url);
         break;
-    case NETCMD_MKDIR:
+    case CMD::NET_MKDIR:
         cmd_err = fs->mkdir(url);
         break;
-    case NETCMD_RMDIR:
+    case CMD::NET_RMDIR:
         cmd_err = fs->rmdir(url);
         break;
     default:
@@ -838,10 +840,10 @@ void iwmNetwork::process_tcp(const iwm_decoded_cmd_t &cmd)
     fujiError_t cmd_err;
     switch (cmd.command())
     {
-    case NETCMD_CONTROL:
+    case CMD::NET_CONTROL:
         cmd_err = tcp->accept_connection();
         break;
-    case NETCMD_CLOSE_CLIENT:
+    case CMD::NET_CLOSE_CLIENT:
         cmd_err = tcp->close_client_connection();
         break;
     default:
@@ -874,7 +876,7 @@ void iwmNetwork::process_http(const iwm_decoded_cmd_t &cmd)
     fujiError_t cmd_err;
     switch (cmd.command())
     {
-    case NETCMD_SET_CHANNEL_MODE:
+    case CMD::NET_SET_CHANNEL_MODE:
         cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) cmd.param8(1));
         break;
     default:
@@ -906,7 +908,7 @@ void iwmNetwork::process_udp(const iwm_decoded_cmd_t &cmd)
     switch (cmd.command())
     {
 #ifndef ESP_PLATFORM
-    case NETCMD_GET_REMOTE:
+    case CMD::NET_GET_REMOTE:
         {
             ByteBuffer buffer(SPECIAL_BUFFER_SIZE, 0);
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
@@ -915,7 +917,7 @@ void iwmNetwork::process_udp(const iwm_decoded_cmd_t &cmd)
         }
         break;
 #endif /* ESP_PLATFORM */
-    case NETCMD_SET_DESTINATION:
+    case CMD::NET_SET_DESTINATION:
         {
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             auto data = cmd.data().value();

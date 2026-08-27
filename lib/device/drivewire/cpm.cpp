@@ -121,16 +121,16 @@ bool drivewireCPM::processCommand(const FujiDWPacket &packet)
 {
     switch(packet.command())
     {
-    case CPMCMD_BOOT:
+    case CMD::CPM_BOOT:
         boot();
         break;
-    case CPMCMD_READ:
+    case CMD::CPM_READ:
         read(packet.param(0));
         break;
-    case CPMCMD_WRITE:
+    case CMD::CPM_WRITE:
         write(packet.param(0));
         break;
-    case CPMCMD_STATUS:
+    case CMD::CPM_STATUS:
         status();
         break;
     default:

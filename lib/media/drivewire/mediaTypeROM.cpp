@@ -48,7 +48,7 @@ mediatype_t MediaTypeROM::mount(fnFile *f, uint32_t disksize)
         return MEDIATYPE_UNKNOWN;
     }
 
-    if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_OPEN, (uint16_t)0))
+    if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_OPEN, (uint16_t)0))
     {
         Debug_printv("Failed to open pico bank");
         return MEDIATYPE_UNKNOWN;
@@ -66,7 +66,7 @@ mediatype_t MediaTypeROM::mount(fnFile *f, uint32_t disksize)
             Debug_printv("ROM read short: sent %lu of %lu bytes", (unsigned long)sent, (unsigned long)disksize);
             break;
         }
-        if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_WRITE,
+        if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_WRITE,
                                     std::string((char *)_media_blockbuff, got)))
         {
             Debug_printv("Failed to send ROM block at %lu of %lu bytes", (unsigned long)sent, (unsigned long)disksize);
@@ -75,7 +75,7 @@ mediatype_t MediaTypeROM::mount(fnFile *f, uint32_t disksize)
         sent += got;
     }
 
-    SYSTEM_BUS.sendCommand(FUJI_DEVICEID_DBC, NETCMD_CLOSE);
+    SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE);
     Debug_printv("ROM transfer complete: %lu / %lu bytes", (unsigned long)sent, (unsigned long)disksize);
 
     return _mediatype;

@@ -260,24 +260,24 @@ void rs232Disk::rs232_process(const FujiBusPacket &packet)
 
     switch (packet.command())
     {
-    case DISKCMD_READ:
+    case CMD::DISK_READ:
         rs232_read(packet.param(0));
         return;
-    case DISKCMD_PUT:
+    case CMD::DISK_PUT:
         rs232_write(packet.param(0), false);
         return;
-    case DISKCMD_STATUS:
-    case DISKCMD_WRITE:
+    case CMD::DISK_STATUS:
+    case CMD::DISK_WRITE:
         rs232_write(packet.param(0), true);
         return;
-    case DISKCMD_FORMAT:
-    case DISKCMD_FORMAT_MEDIUM:
+    case CMD::DISK_FORMAT:
+    case CMD::DISK_FORMAT_MEDIUM:
         rs232_format();
         return;
-    case DISKCMD_PERCOM_READ:
+    case CMD::DISK_PERCOM_READ:
         rs232_read_percom_block();
         return;
-    case DISKCMD_PERCOM_WRITE:
+    case CMD::DISK_PERCOM_WRITE:
         rs232_write_percom_block();
         return;
     default:

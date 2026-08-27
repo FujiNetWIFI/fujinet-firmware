@@ -118,7 +118,7 @@ void iwmCPM::iwm_status(const iwm_decoded_cmd_t &cmd)
 
     switch (cmd.command())
     {
-    case CPMCMD_STATUS:
+    case CMD::CPM_STATUS:
         {
             u16le_t mw;
 #ifdef ESP_PLATFORM // OS
@@ -131,7 +131,7 @@ void iwmCPM::iwm_status(const iwm_decoded_cmd_t &cmd)
             Debug_printf("%u bytes waiting\n", mw);
         }
         break;
-    case 'B':
+    case CMD::CPM_BOOT:
         {
             uint8_t booted = false;
 #ifdef ESP_PLATFORM // OS
@@ -205,7 +205,7 @@ void iwmCPM::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
     if (cmd.data()->size() > 0)
       switch (cmd.command())
         {
-        case CPMCMD_BOOT:
+        case CMD::CPM_BOOT:
 #ifdef ESP_PLATFORM // OS
             if (!fnSystem.hasbuffer())
             {

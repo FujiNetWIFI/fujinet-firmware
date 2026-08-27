@@ -166,7 +166,7 @@ static DEVICE device[16];       /* one PCLINK device with 16 units */
 #  define COM_COMD 0
 #  define COM_DATA 1
 
-static void pclink_ack(ushort devno, ushort d, uchar what);
+static void pclink_ack(uchar devno, ushort d, uchar what);
 static uint8_t pclink_read(uint8_t *buf, int len);
 static void pclink_write(uint8_t *buf, int len);
 
@@ -710,7 +710,7 @@ do_pclink_init(int server_cold_start)
                         device[unit].status.stat = 0;
                         device[unit].status.err = 1;
                         device[unit].status.tmot = 0;
-                        device[unit].status.none = FUJI_DEVICEID_PCLINK;
+                        device[unit].status.none = FUJI_DEVICEID::PCLINK;
                 }
         }
 }
@@ -905,14 +905,14 @@ timestamp2mtime(uchar *stamp)
  */
 
 static void
-do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
+do_pclink(uchar devno, fujiCommandID_t ccom, uchar caux1, uchar caux2)
 {
         uchar ck, sck, fno, ob[7], handle;
         ushort cunit = caux2 & 0x0f, parsize;
         ulong faux;
         struct stat sb;
         struct dirent *dp;
-        static uchar old_ccom = 0;
+        static fujiCommandID_t old_ccom = (fujiCommandID_t) 0;
 
         if (caux2 & 0xf0)       /* protocol version number must be 0 */
         {
@@ -928,7 +928,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
                 return;
         }
 
-        if (ccom == 'P')
+        if (ccom == CMD::PCLINK_PARBLK)
         {
                 PARBUF pbuf;
 
@@ -1009,7 +1009,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
                 uchar *mem;
                 ulong blk_size = (faux & 0x0000FFFFL), buffer;
 
-                if (ccom == 'P')
+                if (ccom == CMD::PCLINK_PARBLK)
                 {
                         if ((handle > 15) || (iodesc[handle].fps.file == NULL))
                         {
@@ -1047,7 +1047,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
                         goto complete;
                 }
 
-                if ((ccom == 'R') && (old_ccom == 'R'))
+                if ((ccom == CMD::PCLINK_EXEC) && (old_ccom == CMD::PCLINK_EXEC))
                 {
                         pclink_ack(devno, cunit, 'N');
                         Debug_printf("serial communication error, abort\n");
@@ -1147,7 +1147,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
                 uchar *mem;
                 ulong blk_size = (faux & 0x0000FFFFL);
 
-                if (ccom == 'P')
+                if (ccom == CMD::PCLINK_PARBLK)
                 {
                         if ((handle > 15) || (iodesc[handle].fps.file == NULL))
                         {
@@ -1171,7 +1171,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
                         goto complete;
                 }
 
-                if ((ccom == 'R') && (old_ccom == 'R'))
+                if ((ccom == CMD::PCLINK_EXEC) && (old_ccom == CMD::PCLINK_EXEC))
                 {
                         pclink_ack(devno, cunit, 'N');
                         Debug_printf("serial communication error, abort\n");
@@ -1251,7 +1251,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
                         goto complete;
                 }
 
-                if (ccom == 'R')
+                if (ccom == CMD::PCLINK_EXEC)
                 {
                         pclink_ack(devno, cunit, 'A');  /* ack the command */
                         Debug_printf("bad exec\n");
@@ -1282,7 +1282,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
                 //uchar out[4];
                 uchar out[3];
 
-                if (ccom == 'P')
+                if (ccom == CMD::PCLINK_PARBLK)
                 {
                         if ((handle > 15) || (iodesc[handle].fps.file == NULL))
                         {
@@ -1320,7 +1320,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 
         if (fno == 0x06)        /* FNEXT */
         {
-                if (ccom == 'P')
+            if (ccom == CMD::PCLINK_PARBLK)
                 {
                         device[cunit].status.err = 1;
 
@@ -1328,7 +1328,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
                         goto complete;
                 }
 
-                if ((ccom == 'R') && (old_ccom == 'R'))
+            if ((ccom == CMD::PCLINK_EXEC) && (old_ccom == CMD::PCLINK_EXEC))
                 {
                         pclink_ack(devno, cunit, 'N');
                         Debug_printf("serial communication error, abort\n");
@@ -1411,7 +1411,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
                 time_t mtime;
                 char pathname[1024];
 
-                if (ccom == 'R')
+                if (ccom == CMD::PCLINK_EXEC)
                 {
                         pclink_ack(devno, cunit, 'A');  /* ack the command */
                         device[cunit].status.err = 176;
@@ -1456,7 +1456,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 
         if (fno == 0x08)        /* INIT */
         {
-                if (ccom == 'R')
+            if (ccom == CMD::PCLINK_EXEC)
                 {
                         pclink_ack(devno, cunit, 'A');  /* ack the command */
                         device[cunit].status.err = 176;
@@ -1467,14 +1467,14 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
                 do_pclink_init(0);
 
                 device[cunit].parbuf.handle = 0xff;
-                device[cunit].status.none = FUJI_DEVICEID_PCLINK;
+                device[cunit].status.none = FUJI_DEVICEID::PCLINK;
                 device[cunit].status.err = 1;
                 goto complete;
         }
 
         if ((fno == 0x09) || (fno == 0x0a))     /* FOPEN/FFIRST */
         {
-                if (ccom == 'P')
+            if (ccom == CMD::PCLINK_PARBLK)
                 {
                         Debug_printf("mode: $%02x, atr1: $%02x, atr2: $%02x, path: '%s', name: '%s'\n", \
                                 device[cunit].parbuf.fmode, device[cunit].parbuf.fatr1, \
@@ -1501,7 +1501,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
                         struct stat tempstat;
                         char newpath[1024], raw_name[12];
 
-                        if ((ccom == 'R') && (old_ccom == 'R'))
+                        if ((ccom == CMD::PCLINK_EXEC) && (old_ccom == CMD::PCLINK_EXEC))
                         {
                                 pclink_ack(devno, cunit, 'N');
                                 Debug_printf("serial communication error, abort\n");
@@ -1821,7 +1821,7 @@ complete_fopen:
                 DIR *renamedir;
                 ulong fcnt = 0;
 
-                if (ccom == 'R')
+                if (ccom == CMD::PCLINK_EXEC)
                 {
                         pclink_ack(devno, cunit, 'A');  /* ack the command */
                         device[cunit].status.err = 176;
@@ -1921,7 +1921,7 @@ complete_fopen:
                 DIR *deldir;
                 ulong delcnt = 0;
 
-                if (ccom == 'R')
+                if (ccom == CMD::PCLINK_EXEC)
                 {
                         pclink_ack(devno, cunit, 'A');  /* ack the command */
                         device[cunit].status.err = 176;
@@ -1996,7 +1996,7 @@ complete_fopen:
                 ulong fcnt = 0;
                 uchar fatr2 = device[cunit].parbuf.fatr2;
 
-                if (ccom == 'R')
+                if (ccom == CMD::PCLINK_EXEC)
                 {
                         pclink_ack(devno, cunit, 'A');  /* ack the command */
                         device[cunit].status.err = 176;
@@ -2085,7 +2085,7 @@ complete_fopen:
                 uchar dt[6];
                 struct stat dummy;
 
-                if (ccom == 'R')
+                if (ccom == CMD::PCLINK_EXEC)
                 {
                         pclink_ack(devno, cunit, 'A');  /* ack the command */
                         device[cunit].status.err = 176;
@@ -2157,7 +2157,7 @@ complete_fopen:
         {
                 char newpath[1024], fname[12];
 
-                if (ccom == 'R')
+                if (ccom == CMD::PCLINK_EXEC)
                 {
                         pclink_ack(devno, cunit, 'A');  /* ack the command */
                         device[cunit].status.err = 176;
@@ -2234,7 +2234,7 @@ complete_fopen:
                 ulong i;
                 char newpath[1024];
 
-                if (ccom == 'R')
+                if (ccom == CMD::PCLINK_EXEC)
                 {
                         pclink_ack(devno, cunit, 'A');  /* ack the command */
                         device[cunit].status.err = 176;
@@ -2274,7 +2274,7 @@ complete_fopen:
 
                 device[cunit].status.err = 1;
 
-                if (ccom == 'P')
+                if (ccom == CMD::PCLINK_PARBLK)
                 {
                         Debug_printf("device $%02x\n", cunit);
                         goto complete;
@@ -2343,7 +2343,7 @@ complete_fopen:
 
                 device[cunit].status.err = 1;
 
-                if (ccom == 'P')
+                if (ccom == CMD::PCLINK_PARBLK)
                 {
                         Debug_printf("device $%02x\n", cunit);
                         goto complete;
@@ -2428,7 +2428,7 @@ complete_fopen:
 
                 device[cunit].status.err = 1;
 
-                if (ccom == 'R')
+                if (ccom == CMD::PCLINK_EXEC)
                 {
                         pclink_ack(devno, cunit, 'A');  /* ack the command */
                         device[cunit].status.err = 176;
@@ -2557,7 +2557,7 @@ get_device_status(ushort devno, ushort d, uchar *st)
 }
 
 static void
-pclink_ack(ushort devno, ushort d, uchar what)
+pclink_ack(uchar devno, ushort d, uchar what)
 {
     fnSystem.delay_microseconds(DELAY_T4);
 
@@ -2664,7 +2664,7 @@ void sioPCLink::sio_status(const FujiSIOPacket &packet)
 void sioPCLink::sio_process(const FujiSIOPacket &packet)
 {
     uchar cunit = packet.param8(1) & 0x0f; /* PCLink ignores DUNIT */
-    uchar cdev = FUJI_DEVICEID_PCLINK;
+    uchar cdev = FUJI_DEVICEID::PCLINK;
     uchar devno = cdev >> 4; // ??? magical 6
 
     if (!Config.get_pclink_enabled())
@@ -2680,21 +2680,21 @@ void sioPCLink::sio_process(const FujiSIOPacket &packet)
     {
         switch (packet.command())
         {
-        case 'P':
+        case CMD::PCLINK_PARBLK:
             Debug_println("PARBLK");
             do_pclink(devno, packet.command(), packet.param(0), packet.param(1));
             break;
-        case 'R':
+        case CMD::PCLINK_EXEC:
             Debug_println("EXEC");
             do_pclink(devno, packet.command(), packet.param(0), packet.param(1));
             break;
-        case 'S':       /* status */
+        case CMD::PCLINK_STATUS:
             Debug_println("STATUS");
             pclink_ack(devno, cunit, 'A');
             get_device_status(devno, cunit, status);
             sio_status(packet);
             break;
-        case '?':       /* send hi-speed index */
+        case CMD::PCLINK_HSI:       /* send hi-speed index */
             Debug_println("HIGH SPEED INDEX");
             pclink_ack(devno, cunit, 'A');
             sio_high_speed();
