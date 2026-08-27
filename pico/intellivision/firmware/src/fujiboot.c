@@ -37,9 +37,9 @@ void fuji_config_map(void)
     // (the compiler's own silent choice, $E000, is not a cart area).
     mm_init(&m);
     mm_add(&m, 0x0000, 0x0FFF, 0x5000, MM_NO_PAGE);
-    mm_add(&m, 0x1000, 0x1F9C, 0x6000, MM_NO_PAGE);
-    mm_add(&m, 0x1F9D, 0x2B49, 0xD000, MM_NO_PAGE);
-    mm_add(&m, 0x2B4A, 0x3036, 0xF000, MM_NO_PAGE);
+    mm_add(&m, 0x1000, 0x1ECA, 0x6000, MM_NO_PAGE);
+    mm_add(&m, 0x1ECB, 0x2BC2, 0xD000, MM_NO_PAGE);
+    mm_add(&m, 0x2BC3, 0x30AF, 0xF000, MM_NO_PAGE);
 
     // [memattr] -- CONFIG's own scratch RAM, $8000-$9BFF. Deliberately
     // short of $9C00: the mailbox range is NOT part of this game map at
