@@ -31,11 +31,12 @@ std::string fn_decode_entities(const std::string &in);
  * Fold UTF-8 text down to printable ASCII (0x20-0x7E).
  *
  * Characters with a reasonable ASCII spelling are transliterated (em dash ->
- * "--", curly quotes -> "\"" and "'", ellipsis -> "...", accented Latin
- * letters -> their base letter, "(c)" / "(R)" / "(tm)", ...). Tab, CR and LF
- * become a single space so words cannot run together when the newlines are
- * stripped. Everything else outside printable ASCII -- including invalid or
- * truncated UTF-8 -- is removed.
+ * "--", curly quotes -> "\"" and "'", ellipsis -> "...", German umlauts ->
+ * "Ae"/"Oe"/"Ue" and eszett -> "ss" (the conventional German spelling), other
+ * accented Latin letters -> their base letter, "(c)" / "(R)" / "(tm)", ...).
+ * Tab, CR and LF become a single space so words cannot run together when
+ * the newlines are stripped. Everything else outside printable ASCII --
+ * including invalid or truncated UTF-8 -- is removed.
  */
 std::string fn_utf8_to_ascii(const std::string &in);
 

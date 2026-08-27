@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cerrno>
 #include <cstdlib>
 #include <string.h>
 
@@ -44,6 +45,11 @@ constexpr size_t kListIndent = 2;
 // Columns of text we always keep to the right of the indent; nesting stops
 // deepening rather than squeezing content down to a letter per line.
 constexpr size_t kMinTextWidth = 8;
+
+// At or above this width a table is drawn with full outer borders; below it
+// the left/right borders are dropped, buying back 4 columns of content on
+// 32- and 40-column displays where that matters most.
+constexpr uint8_t kOuterBorderMinWidth = 80;
 
 /**
  * Elements whose contents are not page text at all.
@@ -125,6 +131,111 @@ bool isBlockTag(GumboTag tag)
     default:
         return false;
     }
+}
+
+// Bound on how deep renderTable()'s layout-vs-data classification will
+// recurse (through tbody/thead/tfoot wrappers, and down into a cell looking
+// for a nested <table>), so a pathologically deep/malformed document cannot
+// make classification recurse without bound.
+constexpr int kMaxTableClassifyDepth = 32;
+
+/**
+ * True if a <table> anywhere in node's subtree - used to decide whether a
+ * cell of the table being classified contains a nested table.
+ */
+bool cellContainsTable(const GumboNode *node, int depth)
+{
+    if (node == nullptr || depth <= 0)
+        return false;
+    if (node->type != GUMBO_NODE_ELEMENT && node->type != GUMBO_NODE_TEMPLATE)
+        return false;
+    if (node->v.element.tag == GUMBO_TAG_TABLE)
+        return true;
+
+    const GumboVector *children = &node->v.element.children;
+    for (unsigned int i = 0; i < children->length; i++)
+    {
+        if (cellContainsTable(static_cast<const GumboNode *>(children->data[i]), depth - 1))
+            return true;
+    }
+    return false;
+}
+
+/**
+ * Walk node's rows the same way collectTableRows() does (through any
+ * tbody/thead/tfoot wrapper, not descending into a nested <table>'s own
+ * rows), counting this table's own cells and checking each one for a nested
+ * <table> anywhere below it. Deliberately does not call captureInline() -
+ * classification only needs cell counts and a yes/no nested-table check, so
+ * touching _pending here would be wasted work and an unwanted side effect.
+ */
+void classifyTableWalk(const GumboNode *node, size_t &cellCount, bool &hasNestedTable, int depth)
+{
+    if (node == nullptr || depth <= 0 || hasNestedTable)
+        return;
+    if (node->type != GUMBO_NODE_ELEMENT && node->type != GUMBO_NODE_TEMPLATE)
+        return;
+
+    const GumboVector *children = &node->v.element.children;
+    for (unsigned int i = 0; i < children->length && !hasNestedTable; i++)
+    {
+        const GumboNode *child = static_cast<const GumboNode *>(children->data[i]);
+        if (child->type != GUMBO_NODE_ELEMENT)
+            continue;
+
+        GumboTag tag = child->v.element.tag;
+        if (tag == GUMBO_TAG_TABLE)
+            continue; // a nested table's rows are its own, not this scan's
+
+        if (tag == GUMBO_TAG_TR)
+        {
+            const GumboVector *cells = &child->v.element.children;
+            for (unsigned int j = 0; j < cells->length && !hasNestedTable; j++)
+            {
+                const GumboNode *cell = static_cast<const GumboNode *>(cells->data[j]);
+                if (cell->type != GUMBO_NODE_ELEMENT)
+                    continue;
+                GumboTag ctag = cell->v.element.tag;
+                if (ctag != GUMBO_TAG_TD && ctag != GUMBO_TAG_TH)
+                    continue;
+                cellCount++;
+                if (cellContainsTable(cell, depth - 1))
+                    hasNestedTable = true;
+            }
+        }
+        else
+        {
+            classifyTableWalk(child, cellCount, hasNestedTable, depth - 1);
+        }
+    }
+}
+
+/**
+ * 2000s-era sites routinely use a <table> purely for page layout rather than
+ * tabular data, nested several deep (a one-cell wrapper containing the "real"
+ * content table, itself sometimes containing more layout tables). Drawing a
+ * grid around every level of that produces a handful of giant boxes of
+ * run-together text instead of a readable page.
+ *
+ * Heuristic: a table is layout, not data, if it has one cell or fewer in
+ * total (nothing to tabulate, or a single wrapper cell), or if any of its
+ * cells contains a descendant <table> (a data table's cells hold data, not
+ * more markup for a whole other table). A layout table is rendered
+ * transparently - as ordinary blocks in document order - rather than as a
+ * grid; renderTable() recurses through it via the plain isBlockTag() path,
+ * so a nested table is re-classified by this same predicate on the way down.
+ *
+ * The one trade-off: a genuine data table whose cell happens to embed a
+ * nested table (e.g. a sortable widget dropped into one cell) degrades to
+ * linear text instead of a grid. That's an acceptable price for making
+ * layout-table sites readable at all.
+ */
+bool isLayoutTable(const GumboNode *table)
+{
+    size_t cellCount = 0;
+    bool hasNestedTable = false;
+    classifyTableWalk(table, cellCount, hasNestedTable, kMaxTableClassifyDepth);
+    return cellCount <= 1 || hasNestedTable;
 }
 
 std::string spaces(size_t n)
@@ -428,6 +539,61 @@ void FNPretty::setRenderLinks(bool on)
 void FNPretty::setQuery(const std::string &selector)
 {
     _query = selector;
+}
+
+/**
+ * "!key=value" option assignment, as an alternative to a query selector for
+ * buses with no spare command byte to carry width/links/eol. See the header
+ * for the recognized keys.
+ */
+PrettyOption FNPretty::setOption(const std::string &s)
+{
+    if (s.empty() || s[0] != '!')
+        return PrettyOption::NotAnOption;
+
+    size_t eq = s.find('=', 1);
+    if (eq == std::string::npos)
+        return PrettyOption::Invalid;
+
+    std::string key = trimAscii(s.substr(1, eq - 1));
+    std::string value = trimAscii(s.substr(eq + 1));
+    if (key.empty() || value.empty())
+        return PrettyOption::Invalid;
+
+    for (char &c : key)
+        c = (char)std::tolower(static_cast<unsigned char>(c));
+
+    for (char c : value)
+    {
+        if (c < '0' || c > '9')
+            return PrettyOption::Invalid;
+    }
+
+    errno = 0;
+    char *end = nullptr;
+    unsigned long parsed = strtoul(value.c_str(), &end, 10);
+    if (errno == ERANGE || end == value.c_str())
+        return PrettyOption::Invalid;
+
+    if (key == "links")
+    {
+        setRenderLinks(parsed != 0);
+        return PrettyOption::Applied;
+    }
+    else if (key == "width")
+    {
+        setScreenWidth((uint8_t)(parsed > 255 ? 255 : parsed));
+        return PrettyOption::Applied;
+    }
+    else if (key == "eol")
+    {
+        if (parsed == 0 || parsed > 255)
+            return PrettyOption::Invalid;
+        setLineEnding(std::string(1, (char)parsed));
+        return PrettyOption::Applied;
+    }
+
+    return PrettyOption::Invalid;
 }
 
 /**
@@ -1460,6 +1626,17 @@ void FNPretty::collectTableRows(const GumboNode *node, std::vector<std::vector<s
 
 void FNPretty::renderTable(const GumboNode *node)
 {
+    if (isLayoutTable(node))
+    {
+        // Not a data table - render its contents transparently as ordinary
+        // blocks (see isLayoutTable()'s comment). table/tbody/thead/tfoot/tr/
+        // td/th are all in isBlockTag(), so the plain margin-0/0 generic path
+        // below gives each cell its own block and re-runs this same
+        // classification on any table nested inside it.
+        renderMarginBlock(node, 0, 0);
+        return;
+    }
+
     flushBlock();
     requestBlank(1);
 
@@ -1481,7 +1658,10 @@ void FNPretty::renderTable(const GumboNode *node)
         for (size_t c = 0; c < row.size(); c++)
             natural[c] = std::max(natural[c], row[c].size());
 
-    size_t overhead = 3 * ncols + 1;
+    // Below kOuterBorderMinWidth the table drops its left/right border,
+    // trading 4 columns of frame for 4 columns of content.
+    bool bordered = _screenWidth >= kOuterBorderMinWidth;
+    size_t overhead = bordered ? (3 * ncols + 1) : (3 * ncols - 3);
     size_t avail = _screenWidth > _indent + overhead ? (size_t)_screenWidth - _indent - overhead : 0;
 
     if (avail < ncols)
@@ -1556,9 +1736,25 @@ void FNPretty::renderTable(const GumboNode *node)
         }
     }
 
-    std::string separator = spaces(_indent) + "+";
-    for (size_t c = 0; c < ncols; c++)
-        separator += std::string(w[c] + 2, '-') + "+";
+    std::string separator;
+    if (bordered)
+    {
+        separator = spaces(_indent) + "+";
+        for (size_t c = 0; c < ncols; c++)
+            separator += std::string(w[c] + 2, '-') + "+";
+    }
+    else
+    {
+        // No outer frame: columns are joined by "-+-", with no leading or
+        // trailing border character.
+        separator = spaces(_indent);
+        for (size_t c = 0; c < ncols; c++)
+        {
+            if (c > 0)
+                separator += "-+-";
+            separator += std::string(w[c], '-');
+        }
+    }
 
     emitRaw(separator);
     for (const auto &row : rows)
@@ -1576,14 +1772,37 @@ void FNPretty::renderTable(const GumboNode *node)
 
         for (size_t k = 0; k < height; k++)
         {
-            std::string line = spaces(_indent) + "|";
+            std::string line = spaces(_indent);
+            if (bordered)
+                line += "|";
             for (size_t c = 0; c < ncols; c++)
             {
                 std::string cell = k < cellLines[c].size() ? cellLines[c][k] : "";
-                if (cell.size() < w[c])
+                // The last column of a borderless row is left unpadded; any
+                // whitespace it would have contributed is trimmed below.
+                bool padCell = bordered || c + 1 < ncols;
+                if (padCell && cell.size() < w[c])
                     cell += spaces(w[c] - cell.size());
-                line += " " + cell + " |";
+
+                if (bordered)
+                    line += " " + cell + " |";
+                else
+                {
+                    if (c > 0)
+                        line += " | ";
+                    line += cell;
+                }
             }
+
+            if (!bordered)
+            {
+                // Strip trailing whitespace: besides the unpadded last
+                // column, a wrapped continuation line can leave trailing
+                // columns empty.
+                size_t last = line.find_last_not_of(' ');
+                line = last == std::string::npos ? std::string() : line.substr(0, last + 1);
+            }
+
             emitRaw(line);
         }
         emitRaw(separator);

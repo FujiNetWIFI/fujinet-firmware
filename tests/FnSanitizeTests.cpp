@@ -256,8 +256,16 @@ TEST_CASE("fn_sanitize text transformation functions")
         // naïve -> naive
         CHECK(fn_utf8_to_ascii("na\xC3\xAF" "ve") == "naive");
 
-        // Zürich -> Zurich
-        CHECK(fn_utf8_to_ascii("Z\xC3\xBCrich") == "Zurich");
+        // Zürich -> Zuerich (German convention: umlauts fold to ae/oe/ue)
+        CHECK(fn_utf8_to_ascii("Z\xC3\xBCrich") == "Zuerich");
+
+        // Beiträge -> Beitraege, Lösungen -> Loesungen, Gäste -> Gaeste
+        CHECK(fn_utf8_to_ascii("Beitr\xC3\xA4ge") == "Beitraege");
+        CHECK(fn_utf8_to_ascii("L\xC3\xB6sungen") == "Loesungen");
+        CHECK(fn_utf8_to_ascii("\xC3\x9C" "ber") == "Ueber");
+
+        // Non-German diacritics keep their bare base letter
+        CHECK(fn_utf8_to_ascii("caf\xC3\xA9") == "cafe");
 
         // German ß (U+00DF) -> "ss"
         CHECK(fn_utf8_to_ascii("\xC3\x9F") == "ss");
@@ -268,8 +276,10 @@ TEST_CASE("fn_sanitize text transformation functions")
         // Ø (U+00D8) -> "O"
         CHECK(fn_utf8_to_ascii("\xC3\x98") == "O");
 
-        // Comprehensive accented letter test
-        CHECK(fn_utf8_to_ascii("\xC3\xA0\xC3\xA1\xC3\xA2\xC3\xA3\xC3\xA4\xC3\xA5") == "aaaaaa");
+        // Comprehensive accented letter test: a-grave/acute/circ/tilde and
+        // a-ring keep the bare base letter, but a-umlaut folds to "ae" (the
+        // German convention - see the transliteration table's note).
+        CHECK(fn_utf8_to_ascii("\xC3\xA0\xC3\xA1\xC3\xA2\xC3\xA3\xC3\xA4\xC3\xA5") == "aaaaaea");
     }
 
     SUBCASE("fn_utf8_to_ascii: Characters with no ASCII equivalent are dropped")

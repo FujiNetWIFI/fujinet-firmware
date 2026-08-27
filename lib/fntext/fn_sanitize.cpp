@@ -297,12 +297,19 @@ static const Transliteration kTransliterations[] = {
     {0x00B4, "'"},     // acute accent
     {0x00B8, ","},     // cedilla
 
+    // The German vowels A/O/U-umlaut fold to the two-letter forms Ae/Oe/Ue
+    // (and eszett to "ss") rather than to a bare base letter: that is the
+    // conventional German ASCII spelling, and it keeps words legible -
+    // "Beitraege" reads, "Beitrage" does not. Other languages' diacritics
+    // (French e-acute, Scandinavian a-ring, ...) keep the base letter, which
+    // is the right answer for them. This matches the remap table FNJSON and
+    // FNSGML already use for their *_REMAP_CHARS option.
     // Latin-1 uppercase accents (0x00C0-0x00D6, 0x00D8)
     {0x00C0, "A"},     // Agrave
     {0x00C1, "A"},     // Aacute
     {0x00C2, "A"},     // Acirc
     {0x00C3, "A"},     // Atilde
-    {0x00C4, "A"},     // Auml
+    {0x00C4, "Ae"},    // Auml - German convention (see note above)
     {0x00C5, "A"},     // Aring
     {0x00C6, "AE"},    // AElig
     {0x00C7, "C"},     // Ccedil
@@ -320,12 +327,12 @@ static const Transliteration kTransliterations[] = {
     {0x00D3, "O"},     // Oacute
     {0x00D4, "O"},     // Ocirc
     {0x00D5, "O"},     // Otilde
-    {0x00D6, "O"},     // Ouml
+    {0x00D6, "Oe"},    // Ouml - German convention (see note above)
     {0x00D8, "O"},     // Oslash
     {0x00D9, "U"},     // Ugrave
     {0x00DA, "U"},     // Uacute
     {0x00DB, "U"},     // Ucirc
-    {0x00DC, "U"},     // Uuml
+    {0x00DC, "Ue"},    // Uuml - German convention (see note above)
     {0x00DD, "Y"},     // Yacute
     {0x00DE, "Th"},    // THORN
 
@@ -335,7 +342,7 @@ static const Transliteration kTransliterations[] = {
     {0x00E1, "a"},     // aacute
     {0x00E2, "a"},     // acirc
     {0x00E3, "a"},     // atilde
-    {0x00E4, "a"},     // auml
+    {0x00E4, "ae"},    // auml - German convention (see note above)
     {0x00E5, "a"},     // aring
     {0x00E6, "ae"},    // aelig
     {0x00E7, "c"},     // ccedil
@@ -353,12 +360,12 @@ static const Transliteration kTransliterations[] = {
     {0x00F3, "o"},     // oacute
     {0x00F4, "o"},     // ocirc
     {0x00F5, "o"},     // otilde
-    {0x00F6, "o"},     // ouml
+    {0x00F6, "oe"},    // ouml - German convention (see note above)
     {0x00F8, "o"},     // oslash
     {0x00F9, "u"},     // ugrave
     {0x00FA, "u"},     // uacute
     {0x00FB, "u"},     // ucirc
-    {0x00FC, "u"},     // uuml
+    {0x00FC, "ue"},    // uuml - German convention (see note above)
     {0x00FD, "y"},     // yacute
     {0x00FE, "th"},    // thorn
     {0x00FF, "y"},     // yuml

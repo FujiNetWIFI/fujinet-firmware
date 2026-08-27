@@ -45,6 +45,8 @@ their original behavior.
 #include "errno.h"
 
 #include "fn_esp_http_client.h"
+
+#include "fnUserAgent.h"
 #include "fn_http_header.h"
 #include "fn_http_utils.h"
 #include "fn_http_auth.h"
@@ -69,7 +71,11 @@ static esp_err_t _clear_connection_info(esp_http_client_handle_t client);
 #define ASYNC_TRANS_CONNECTING 0
 #define ASYNC_TRANS_CONNECT_PASS 1
 
-static const char *DEFAULT_HTTP_USER_AGENT = "ESP32 HTTP Client/1.0";
+/* Was "ESP32 HTTP Client/1.0". Generic agents are discouraged by
+   Wikipedia's User-Agent policy and say nothing useful about who is
+   asking; FN_USER_AGENT names the product, version and client platform.
+   See include/fnUserAgent.h. */
+static const char *DEFAULT_HTTP_USER_AGENT = FN_USER_AGENT;
 static const char *DEFAULT_HTTP_PROTOCOL = "HTTP/1.1";
 static const char *DEFAULT_HTTP_PATH = "/";
 static int DEFAULT_MAX_REDIRECT = 10;

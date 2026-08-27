@@ -376,10 +376,10 @@ TEST_CASE("pre preserves internal line breaks")
 // Tables
 // ---------------------------------------------------------------------------
 
-TEST_CASE("table renders a full grid when the natural widths fit")
+TEST_CASE("table renders a full grid with outer borders at 80 columns")
 {
     auto lines = render_lines(
-        "<table><tr><th>Name</th><th>Qty</th></tr><tr><td>Widget</td><td>12</td></tr></table>", 40);
+        "<table><tr><th>Name</th><th>Qty</th></tr><tr><td>Widget</td><td>12</td></tr></table>", 80);
 
     REQUIRE(lines.size() == 5);
     CHECK(lines[0] == "+--------+-----+");
@@ -389,6 +389,28 @@ TEST_CASE("table renders a full grid when the natural widths fit")
     CHECK(lines[4] == "+--------+-----+");
 }
 
+TEST_CASE("table below kOuterBorderMinWidth drops its outer left/right borders")
+{
+    // Same table as the 80-column case above, rendered at 40 columns: no
+    // leading "|", no trailing "|", junctions are "-+-" instead of "+".
+    auto lines = render_lines(
+        "<table><tr><th>Name</th><th>Qty</th></tr><tr><td>Widget</td><td>12</td></tr></table>", 40);
+
+    REQUIRE(lines.size() == 5);
+    CHECK(lines[0] == "-------+----");
+    CHECK(lines[1] == "Name   | Qty");
+    CHECK(lines[2] == "-------+----");
+    CHECK(lines[3] == "Widget | 12");
+    CHECK(lines[4] == "-------+----");
+
+    for (const auto &line : lines)
+    {
+        CHECK(line.front() != '|');
+        CHECK(line.back() != '|');
+        CHECK((line.empty() || line.back() != ' ')); // no trailing whitespace
+    }
+}
+
 TEST_CASE("table shrinks columns and wraps cells to multiple lines at a narrow width")
 {
     auto lines = render_lines(
@@ -396,19 +418,237 @@ TEST_CASE("table shrinks columns and wraps cells to multiple lines at a narrow w
         "<tr><td>Widget</td><td>a rather long description that needs wrapping</td></tr></table>",
         24);
 
-    REQUIRE(lines.size() == 9);
-    CHECK(lines[0] == "+----+-----------------+");
-    CHECK(lines[1] == "| Na | Description     |");
-    CHECK(lines[2] == "| me |                 |");
-    CHECK(lines[3] == "+----+-----------------+");
-    CHECK(lines[4] == "| Wi | a rather long   |");
-    CHECK(lines[5] == "| dg | description     |");
-    CHECK(lines[6] == "| et | that needs      |");
-    CHECK(lines[7] == "|    | wrapping        |");
-    CHECK(lines[8] == "+----+-----------------+");
+    // Below kOuterBorderMinWidth: no outer "|" borders, junctions are "-+-",
+    // and every line has its trailing whitespace stripped. The reclaimed
+    // border columns widen the description column enough that its content
+    // now wraps to 3 lines instead of the bordered form's 4.
+    REQUIRE(lines.size() == 8);
+    CHECK(lines[0] == "---+--------------------");
+    CHECK(lines[1] == "Na | Description");
+    CHECK(lines[2] == "me |");
+    CHECK(lines[3] == "---+--------------------");
+    CHECK(lines[4] == "Wi | a rather long");
+    CHECK(lines[5] == "dg | description that");
+    CHECK(lines[6] == "et | needs wrapping");
+    CHECK(lines[7] == "---+--------------------");
 
     for (const auto &line : lines)
+    {
         CHECK(line.size() <= 24);
+        CHECK((line.empty() || line.back() != ' ')); // no trailing whitespace
+    }
+}
+
+TEST_CASE("narrow-form separator rows use -+- junctions and no leading or trailing +")
+{
+    auto lines = render_lines(
+        "<table><tr><th>A</th><th>BB</th><th>CCC</th></tr>"
+        "<tr><td>1</td><td>22</td><td>333</td></tr></table>",
+        40);
+
+    REQUIRE(lines.size() == 5);
+    CHECK(lines[0] == "--+----+----");
+    CHECK(lines[1] == "A | BB | CCC");
+    CHECK(lines[2] == "--+----+----");
+    CHECK(lines[3] == "1 | 22 | 333");
+    CHECK(lines[4] == "--+----+----");
+
+    // Every separator row: junctions are "-+-", and neither end is "+".
+    for (size_t i : {0u, 2u, 4u})
+    {
+        const std::string &sep = lines[i];
+        CHECK(sep.find("-+-") != std::string::npos);
+        CHECK(sep.front() == '-');
+        CHECK(sep.back() == '-');
+    }
+}
+
+TEST_CASE("narrow-form column separators stay vertically aligned across every row")
+{
+    auto lines = render_lines(
+        "<table><tr><th>A</th><th>BB</th><th>CCC</th></tr>"
+        "<tr><td>1</td><td>22</td><td>333</td></tr>"
+        "<tr><td>x</td><td>yy</td><td>zzz</td></tr></table>",
+        40);
+
+    REQUIRE(lines.size() == 7);
+
+    // Collect the "|" offsets of every non-separator (data/header) row and
+    // require them to be identical, regardless of each row's own content.
+    std::vector<size_t> firstPipeOffsets;
+    for (const auto &line : lines)
+    {
+        if (line.find('|') == std::string::npos)
+            continue; // separator row - checked separately above
+
+        std::vector<size_t> offsets;
+        for (size_t pos = line.find('|'); pos != std::string::npos; pos = line.find('|', pos + 1))
+            offsets.push_back(pos);
+
+        if (firstPipeOffsets.empty())
+            firstPipeOffsets = offsets;
+        else
+            CHECK(offsets == firstPipeOffsets);
+    }
+    CHECK(firstPipeOffsets.size() == 2); // two junctions for a 3-column table
+}
+
+TEST_CASE("reclaimed border width goes to table content below kOuterBorderMinWidth")
+{
+    // A single, unbreakably long line of text forces the column to shrink to
+    // exactly the available width, so the rendered column width is a direct
+    // readout of how much space the layout math handed to content.
+    const std::string html =
+        "<table><tr><td>this row holds a very long single line of unbroken text used only to "
+        "force the column to shrink to the available width for measurement purposes</td></tr>"
+        "<tr><td>x</td></tr></table>";
+    const uint8_t width = 40;
+
+    auto lines = render_lines(html, width);
+    REQUIRE(!lines.empty());
+
+    // With one column, the narrow form's separator is pure dashes at the
+    // measured content width; no "+" or "|" appears anywhere in the table.
+    const std::string &separator = lines[0];
+    CHECK(separator.find_first_not_of('-') == std::string::npos);
+    size_t measuredWidth = separator.size();
+
+    // A bordered table (kOuterBorderMinWidth is 80) reserves 3*ncols+1 = 4
+    // columns of frame for a single column, versus 3*ncols-3 = 0 in the
+    // narrow form - so at this same screen width, the content column the
+    // bordered form would have produced is exactly 4 columns narrower.
+    size_t borderedOverhead = 3 * 1 + 1;
+    size_t hypotheticalBorderedWidth = width - borderedOverhead;
+    CHECK(measuredWidth == hypotheticalBorderedWidth + 4);
+}
+
+TEST_CASE("a single-column table in narrow form has zero border overhead")
+{
+    // Two rows (cellCount == 2) keep this classified as a data table rather
+    // than a one-cell layout wrapper (see isLayoutTable()).
+    auto lines = render_lines("<table><tr><td>Alpha</td></tr><tr><td>Beta</td></tr></table>", 40);
+
+    REQUIRE(lines.size() == 5);
+    CHECK(lines[0] == "-----"); // dashes(w[0]) only - no "+" junction to drop
+    CHECK(lines[1] == "Alpha");
+    CHECK(lines[2] == "-----");
+    CHECK(lines[3] == "Beta");
+    CHECK(lines[4] == "-----");
+
+    for (const auto &line : lines)
+    {
+        CHECK(line.find('|') == std::string::npos);
+        CHECK(line.find('+') == std::string::npos);
+    }
+
+    // Content starts at column 0 (no indent at the top level, and no border
+    // column consumed ahead of it).
+    CHECK(lines[1][0] == 'A');
+}
+
+// ---------------------------------------------------------------------------
+// Layout tables vs. data tables (isLayoutTable())
+// ---------------------------------------------------------------------------
+
+TEST_CASE("a single-cell wrapper table renders its contents as plain blocks, not a grid")
+{
+    auto lines = render_lines(
+        "<table><tr><td><h3>Title</h3><p>Body text</p></td></tr></table>", 40);
+
+    // One cell total -> layout table: no grid at all, just the heading and
+    // paragraph rendered the same as if the <table>/<tr>/<td> weren't there.
+    REQUIRE(lines.size() == 4);
+    CHECK(lines[0] == "Title");
+    CHECK(lines[1] == "=====");
+    CHECK(lines[2] == "");
+    CHECK(lines[3] == "Body text");
+
+    for (const auto &line : lines)
+    {
+        CHECK(line.find('|') == std::string::npos);
+        CHECK(line.find('+') == std::string::npos);
+    }
+}
+
+TEST_CASE("a plain multi-cell table with no nested tables still renders as a grid")
+{
+    auto lines = render_lines(
+        "<table><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></table>", 40);
+
+    // 40 columns is below kOuterBorderMinWidth, so the grid has no outer
+    // "|" borders and "-+-" junctions.
+    REQUIRE(lines.size() == 5);
+    CHECK(lines[0] == "--+--");
+    CHECK(lines[1] == "A | B");
+    CHECK(lines[2] == "--+--");
+    CHECK(lines[3] == "C | D");
+    CHECK(lines[4] == "--+--");
+}
+
+TEST_CASE("a single-cell layout table wrapping a genuine data table renders only the inner grid")
+{
+    auto lines = render_lines(
+        "<table><tr><td>outer"
+        "<table><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></table>"
+        "</td></tr></table>",
+        40);
+
+    // The outer table has one cell -> layout, rendered transparently; the
+    // inner table has four -> data, rendered as its own grid. The outer
+    // table contributes no borders of its own. 40 columns is below
+    // kOuterBorderMinWidth, so the inner grid has no outer "|" borders.
+    REQUIRE(lines.size() == 7);
+    CHECK(lines[0] == "outer");
+    CHECK(lines[1] == "");
+    CHECK(lines[2] == "--+--");
+    CHECK(lines[3] == "A | B");
+    CHECK(lines[4] == "--+--");
+    CHECK(lines[5] == "C | D");
+    CHECK(lines[6] == "--+--");
+}
+
+TEST_CASE("a data table whose cell contains a nested table renders linearly, not as a grid")
+{
+    auto lines = render_lines(
+        "<table><tr><td>left<table><tr><td>nested</td></tr></table></td><td>right</td></tr></table>",
+        40);
+
+    // One of the two top-level cells contains a descendant <table>, so the
+    // whole table degrades to a layout table (see isLayoutTable()): no grid,
+    // but "left" and the nested table's "nested" must still land on separate
+    // lines rather than running together as "leftnested".
+    REQUIRE(lines.size() == 3);
+    CHECK(lines[0] == "left");
+    CHECK(lines[1] == "nested");
+    CHECK(lines[2] == "right");
+
+    for (const auto &line : lines)
+    {
+        CHECK(line.find('|') == std::string::npos);
+        CHECK(line.find('+') == std::string::npos);
+    }
+}
+
+TEST_CASE("deeply nested layout tables terminate and render sane linear output")
+{
+    auto lines = render_lines(
+        "<table><tr><td>L1"
+        "<table><tr><td>L2"
+        "<table><tr><td>L3"
+        "<table><tr><td>L4"
+        "<table><tr><td>L5</td></tr></table>"
+        "</td></tr></table>"
+        "</td></tr></table>"
+        "</td></tr></table>"
+        "</td></tr></table>",
+        40);
+
+    REQUIRE(lines.size() == 5);
+    CHECK(lines[0] == "L1");
+    CHECK(lines[1] == "L2");
+    CHECK(lines[2] == "L3");
+    CHECK(lines[3] == "L4");
+    CHECK(lines[4] == "L5");
 }
 
 // ---------------------------------------------------------------------------
@@ -574,10 +814,11 @@ TEST_CASE("a heading inside a table cell is separated from following text")
     auto lines = render_lines(
         "<table><tr><td><h3>Head</h3>body</td><td>b</td></tr></table>", 40);
 
+    // 40 columns is below kOuterBorderMinWidth: no outer "|" borders.
     REQUIRE(lines.size() == 3);
-    CHECK(lines[0] == "+-----------+---+");
-    CHECK(lines[1] == "| Head body | b |");
-    CHECK(lines[2] == "+-----------+---+");
+    CHECK(lines[0] == "----------+--");
+    CHECK(lines[1] == "Head body | b");
+    CHECK(lines[2] == "----------+--");
 }
 
 TEST_CASE("a nested table's text is separated from its parent cell's text")
@@ -585,12 +826,13 @@ TEST_CASE("a nested table's text is separated from its parent cell's text")
     auto lines = render_lines(
         "<table><tr><td>outer<table><tr><td>inner</td></tr></table></td></tr></table>", 40);
 
-    // The nested table is not drawn as its own grid - it's captured as plain
-    // text - but its content must not run into the surrounding cell text.
-    REQUIRE(lines.size() == 3);
-    CHECK(lines[0] == "+-------------+");
-    CHECK(lines[1] == "| outer inner |");
-    CHECK(lines[2] == "+-------------+");
+    // Both tables have a single cell, so both are layout tables (see
+    // isLayoutTable()): no grid at any level, just each td as its own block
+    // in document order - "outer" and "inner" land on separate lines rather
+    // than running together.
+    REQUIRE(lines.size() == 2);
+    CHECK(lines[0] == "outer");
+    CHECK(lines[1] == "inner");
 }
 
 TEST_CASE("block children inside link text are separated")
@@ -696,6 +938,11 @@ TEST_CASE("table column alignment survives multi-byte cell content")
     // disagreed and the grid's "|" borders no longer lined up. Folding to
     // ASCII first means every byte in a cell is exactly one display column,
     // so the grid stays rectangular.
+    // 40 columns is below kOuterBorderMinWidth, so this table renders
+    // borderless: no outer "|", junctions are "-+-", and the second (last)
+    // column is left unpadded - so unlike the bordered form, rows are no
+    // longer all the same length (the point of the regression guard is the
+    // "|" alignment, not the overall line length).
     auto lines = render_lines(
         "<table><tr><td>1979&ndash;1984</td><td>ok</td></tr>"
         "<tr><td>x</td><td>y</td></tr></table>",
@@ -703,17 +950,17 @@ TEST_CASE("table column alignment survives multi-byte cell content")
 
     REQUIRE(lines.size() == 5);
 
-    const std::string separator = "+" + std::string(11, '-') + "+" + std::string(4, '-') + "+";
+    const std::string separator = std::string(9, '-') + "-+-" + std::string(2, '-');
     CHECK(lines[0] == separator);
-    CHECK(lines[1] == "| 1979-1984 | ok |");
+    CHECK(lines[1] == "1979-1984 | ok");
     CHECK(lines[2] == separator);
-    CHECK(lines[3] == "| x" + std::string(9, ' ') + "| y" + std::string(2, ' ') + "|");
+    CHECK(lines[3] == "x" + std::string(9, ' ') + "| y");
     CHECK(lines[4] == separator);
 
-    // The point of the regression: every line in the grid is the same length,
-    // so the borders line up column-for-column.
-    for (const auto &line : lines)
-        CHECK(line.size() == lines[0].size());
+    // The point of the regression: every data row's "|" lands at the same
+    // column offset, so the grid's first column stays rectangular even
+    // though the unpadded last column makes the rows different lengths.
+    CHECK(lines[1].find('|') == lines[3].find('|'));
 }
 
 TEST_CASE("entities are not double-decoded")
@@ -815,10 +1062,11 @@ TEST_CASE("an image inside a table cell appears in that cell's text")
     auto lines = render_lines(
         "<table><tr><td><img alt=\"pic\"></td><td>b</td></tr></table>", 40);
 
+    // 40 columns is below kOuterBorderMinWidth: no outer "|" borders.
     REQUIRE(lines.size() == 3);
-    CHECK(lines[0] == "+-----------+---+");
-    CHECK(lines[1] == "| [IMG pic] | b |");
-    CHECK(lines[2] == "+-----------+---+");
+    CHECK(lines[0] == "----------+--");
+    CHECK(lines[1] == "[IMG pic] | b");
+    CHECK(lines[2] == "----------+--");
 }
 
 TEST_CASE("img placeholder spacing is faithful to the surrounding markup")
@@ -838,4 +1086,92 @@ TEST_CASE("img alt text is ASCII-folded like other text")
 
     REQUIRE(lines.size() == 1);
     CHECK(lines[0] == "[IMG cafe]");
+}
+
+// ---------------------------------------------------------------------------
+// setOption() - "!key=value" query payload
+// ---------------------------------------------------------------------------
+
+TEST_CASE("setOption: links=1/0 toggles renderLinks")
+{
+    FNPretty renderer;
+    CHECK(renderer.renderLinks() == false);
+
+    CHECK(renderer.setOption("!links=1") == PrettyOption::Applied);
+    CHECK(renderer.renderLinks() == true);
+
+    CHECK(renderer.setOption("!links=0") == PrettyOption::Applied);
+    CHECK(renderer.renderLinks() == false);
+}
+
+TEST_CASE("setOption: width sets screenWidth; 0 leaves it unchanged")
+{
+    FNPretty renderer;
+    CHECK(renderer.setOption("!width=80") == PrettyOption::Applied);
+    CHECK(renderer.screenWidth() == 80);
+
+    CHECK(renderer.setOption("!width=0") == PrettyOption::Applied);
+    CHECK(renderer.screenWidth() == 80);
+}
+
+TEST_CASE("setOption: eol changes the line ending used by a following rerender; 0 is invalid")
+{
+    FNPretty renderer;
+    renderer.setLineEnding("\n");
+    REQUIRE(renderer.renderDocument("<p>a</p><p>b</p>"));
+    CHECK(renderer.rendered().find('\r') == std::string::npos);
+
+    CHECK(renderer.setOption("!eol=13") == PrettyOption::Applied);
+    CHECK(renderer.rerender());
+    CHECK(renderer.rendered().find('\r') != std::string::npos);
+
+    CHECK(renderer.setOption("!eol=0") == PrettyOption::Invalid);
+}
+
+TEST_CASE("setOption: keys are matched case-insensitively")
+{
+    FNPretty renderer;
+    CHECK(renderer.setOption("!LINKS=1") == PrettyOption::Applied);
+    CHECK(renderer.renderLinks() == true);
+
+    CHECK(renderer.setOption("!Width=32") == PrettyOption::Applied);
+    CHECK(renderer.screenWidth() == 32);
+}
+
+TEST_CASE("setOption: whitespace around key and value is tolerated")
+{
+    FNPretty renderer;
+    CHECK(renderer.setOption("! links = 1 ") == PrettyOption::Applied);
+    CHECK(renderer.renderLinks() == true);
+}
+
+TEST_CASE("setOption: invalid forms")
+{
+    FNPretty renderer;
+    CHECK(renderer.setOption("!bogus=1") == PrettyOption::Invalid);   // unknown key
+    CHECK(renderer.setOption("!links") == PrettyOption::Invalid);     // no '='
+    CHECK(renderer.setOption("!links=") == PrettyOption::Invalid);    // empty value
+    CHECK(renderer.setOption("!width=abc") == PrettyOption::Invalid); // non-numeric value
+    CHECK(renderer.setOption("!=1") == PrettyOption::Invalid);        // empty key
+}
+
+TEST_CASE("setOption: NotAnOption for selectors and link indices, which fall through unchanged")
+{
+    FNPretty renderer;
+    CHECK(renderer.setOption("") == PrettyOption::NotAnOption);
+    CHECK(renderer.setOption("div.content") == PrettyOption::NotAnOption);
+    CHECK(renderer.setOption("#main") == PrettyOption::NotAnOption);
+    CHECK(renderer.setOption("42") == PrettyOption::NotAnOption);
+}
+
+TEST_CASE("setOption: !links=1 followed by rerender makes [n] markers appear")
+{
+    FNPretty renderer;
+    renderer.setLineEnding("\n");
+    REQUIRE(renderer.renderDocument("<p>See <a href=\"/more\">more</a>.</p>"));
+    CHECK(renderer.rendered().find('[') == std::string::npos);
+
+    CHECK(renderer.setOption("!links=1") == PrettyOption::Applied);
+    CHECK(renderer.rerender());
+    CHECK(renderer.rendered().find("[1]") != std::string::npos);
 }

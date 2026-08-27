@@ -42,6 +42,15 @@ enum PrettyFlags_t {
     PRETTY_RENDER_LINKS = 0x01,
 };
 
+/**
+ * Outcome of interpreting a query payload as an option assignment.
+ */
+enum class PrettyOption {
+    NotAnOption, // payload is not the "!key=value" form; treat it as a selector
+    Applied,     // recognized and applied
+    Invalid,     // "!..." form, but the key or value is not usable
+};
+
 class FNPretty
 {
 public:
@@ -81,6 +90,20 @@ public:
      */
     void setQuery(const std::string &selector);
     const std::string &query() const { return _query; }
+
+    /**
+     * @brief Apply an option assignment sent in place of a query selector:
+     * "!links=1", "!width=80", "!eol=13".
+     *
+     * Gives buses whose command set has no spare parameter byte a way to reach
+     * these settings. A CSS selector can never begin with '!', so this cannot
+     * collide with a section query. Keys are matched case-insensitively, since
+     * 8-bit hosts commonly send uppercase.
+     *
+     * Recognized: links=0|1, width=<columns>, eol=<decimal byte>.
+     * Stores only - the caller re-renders.
+     */
+    PrettyOption setOption(const std::string &s);
 
     /**
      * @brief Fetch the document from the protocol and render it to text.

@@ -16,6 +16,8 @@
 #undef mkdir
 #include "compat_string.h"
 
+#include "fnUserAgent.h"
+
 #if defined(_WIN32)
 
 #if MG_TLS == MG_TLS_OPENSSL
@@ -449,6 +451,14 @@ void mgHttpClient::send_request(struct mg_connection *c)
                             "Host: %.*s\r\n"
                             "Connection: %s\r\n",
                             method_str, mg_url_uri(url), (int)host.len, host.buf, conn_hdr);
+
+            // Identify ourselves. This is not cosmetic: a request carrying no
+            // User-Agent at all is refused with 403 by some origins (Wikipedia
+            // among them). A caller-supplied User-Agent wins - it is emitted by
+            // the custom-header loop below, so only send the default when the
+            // caller has not set one.
+            if (_request_headers.find("User-Agent") == _request_headers.end())
+                mg_printf(c, "User-Agent: %s\r\n", FN_USER_AGENT);
 
             // send auth header
             if (!_username.empty())

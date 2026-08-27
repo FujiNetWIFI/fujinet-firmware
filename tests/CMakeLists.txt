@@ -1496,3 +1496,5 @@ target_include_directories(fnpretty_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/components_pc/
 )
 
+
+add_test(NAME fnpretty_tests COMMAND fnpretty_tests)
