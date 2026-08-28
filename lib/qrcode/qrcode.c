@@ -163,6 +163,37 @@ static char getModeBits(uint8_t version, uint8_t mode) {
     return result;
 }
 
+// Total bits a segment occupies once encoded: the 4-bit mode indicator, the
+// character count indicator (whose width getModeBits() gives, and which widens
+// at versions 10 and 27), and the packed payload.
+//
+// This mirrors encodeDataCodewords() exactly and is the only correct way to ask
+// "does this fit?". Note getModeBits() returns the width of the count
+// *indicator*, not bits per character -- conflating the two overestimates
+// alphanumeric data by roughly 60%.
+static uint16_t getEncodedBits(uint8_t version, uint8_t mode, uint16_t length) {
+    uint16_t bits = 4 + getModeBits(version, mode);
+
+    switch (mode) {
+        case MODE_NUMERIC:
+            // Groups of 3 digits in 10 bits; a trailing 1 or 2 digits in 4 or 7.
+            bits += 10 * (length / 3);
+            if (length % 3) { bits += 3 * (length % 3) + 1; }
+            break;
+
+        case MODE_ALPHANUMERIC:
+            // Pairs of characters in 11 bits; a trailing single in 6.
+            bits += 11 * (length / 2);
+            if (length % 2) { bits += 6; }
+            break;
+
+        default: // MODE_BYTE
+            bits += 8 * length;
+            break;
+    }
+
+    return bits;
+}
 
 
 typedef struct BitBucket {
@@ -772,14 +803,25 @@ uint8_t qrcode_initBytes(QRCode *qrcode, uint8_t *data, uint16_t length) {
     // If Version is 0, choose the smallest version that can hold the data
     if (qrcode->version == VERSION_AUTO) {
         qrcode->version = qrcode_minVersion(qrcode, (char*)data, length);
+
+        // Nothing from version 1 to 40 could hold it. Bail out before the
+        // capacity lookup below, whose tables are only indexed to 40.
+        if (qrcode->version > 40) {
+            return 3; // Bad Length
+        }
     }
     else if (qrcode->version > 40 || qrcode->ecc > 3)
     {
         return 2; // Bad Version
     }
 
-    // If length is too big, return error
-    if (length > (qrcode_dataCapacity(qrcode->version, qrcode->ecc) - 2)) {
+    // If the encoded data will not fit the chosen version and ECC, return an
+    // error. This has to be measured in bits, for the mode actually selected:
+    // comparing a raw character count against the byte-mode codeword capacity
+    // rejects data that fits comfortably. A version 1 / ECC LOW symbol holds 25
+    // alphanumeric characters, but the old check capped it at 17.
+    if (getEncodedBits(qrcode->version, qrcode->mode, length) >
+        (uint16_t)(qrcode_dataCapacity(qrcode->version, qrcode->ecc) * 8)) {
         return 3; // Bad Length
     }
 
@@ -903,15 +945,18 @@ uint8_t qrcode_minVersion(QRCode *qrcode, const char *data, uint16_t length) {
 
     uint8_t version = 1;
     uint8_t ecc = ECC_HIGH;
-    uint8_t lengthMode = getModeBits(version, qrcode->mode);
-    uint16_t lengthMax;
 
-    uint16_t lengthEncoded = (length * lengthMode) / 8;
+    // Walk versions upward, and within each version try the strongest error
+    // correction first, dropping it until the data fits. That yields the
+    // smallest symbol, with the best ECC that symbol can carry.
+    //
+    // Both sides must be measured in bits: getEncodedBits() also depends on
+    // version, because the character count indicator widens at versions 10
+    // and 27, so it cannot be hoisted out of the loop.
     do {
-        lengthMax = qrcode_dataCapacity(version, ecc) - 2;
-        //printf("Testing version[%d] ecc[%d] len[%d] lengthMode[%d] encoded[%d] max[%d]\n", version, ecc, length, lengthMode, lengthEncoded, lengthMax);
-        if (lengthEncoded > lengthMax) {
-            if (ecc == 0)
+        if (getEncodedBits(version, qrcode->mode, length) >
+            (uint16_t)(qrcode_dataCapacity(version, ecc) * 8)) {
+            if (ecc == ECC_LOW)
             {
                 version++;
                 ecc = ECC_HIGH;
@@ -923,7 +968,8 @@ uint8_t qrcode_minVersion(QRCode *qrcode, const char *data, uint16_t length) {
         }
     } while (version <= 40);
 
-    //printf("Set version[%d] ecc[%d] len[%d] lengthMode[%d] encoded[%d] max[%d]\n", version, ecc, length, lengthMode, lengthEncoded, lengthMax);
+    // Callers must treat a return of 41 as "does not fit any version"; the
+    // capacity tables are only indexed to 40.
     qrcode->ecc = ecc;
     return version;
 }
