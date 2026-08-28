@@ -35,6 +35,7 @@ struct RenderOptions
     uint8_t flags = 0;
     std::string query;
     std::string baseUrl;
+    PrettyCharset charset = PrettyCharset::Ascii;
 };
 
 // Applies opts to renderer (caller-owned, so tests can inspect it afterwards
@@ -46,6 +47,7 @@ static std::vector<std::string> render_lines(FNPretty &renderer, const std::stri
     renderer.setLineEnding("\n");
     renderer.setScreenWidth(opts.width);
     renderer.setFlags(opts.flags);
+    renderer.setCharset(opts.charset);
     if (!opts.query.empty())
         renderer.setQuery(opts.query);
     if (!opts.baseUrl.empty())
@@ -389,25 +391,25 @@ TEST_CASE("table renders a full grid with outer borders at 80 columns")
     CHECK(lines[4] == "+--------+-----+");
 }
 
-TEST_CASE("table below kOuterBorderMinWidth drops its outer left/right borders")
+TEST_CASE("a narrow table keeps its borders and collapses the cell padding")
 {
-    // Same table as the 80-column case above, rendered at 40 columns: no
-    // leading "|", no trailing "|", junctions are "-+-" instead of "+".
     auto lines = render_lines(
         "<table><tr><th>Name</th><th>Qty</th></tr><tr><td>Widget</td><td>12</td></tr></table>", 40);
 
     REQUIRE(lines.size() == 5);
-    CHECK(lines[0] == "-------+----");
-    CHECK(lines[1] == "Name   | Qty");
-    CHECK(lines[2] == "-------+----");
-    CHECK(lines[3] == "Widget | 12");
-    CHECK(lines[4] == "-------+----");
+    CHECK(lines[0] == "+------+---+");
+    CHECK(lines[1] == "|Name  |Qty|");
+    CHECK(lines[2] == "+------+---+");
+    CHECK(lines[3] == "|Widget|12 |");
+    CHECK(lines[4] == "+------+---+");
 
+    // Every row is the same length and framed at both ends, so the grid is
+    // rectangular at any width - only the padding inside the cells is gone.
     for (const auto &line : lines)
     {
-        CHECK(line.front() != '|');
-        CHECK(line.back() != '|');
-        CHECK((line.empty() || line.back() != ' ')); // no trailing whitespace
+        CHECK((line.front() == '+' || line.front() == '|'));
+        CHECK((line.back() == '+' || line.back() == '|'));
+        CHECK(line.size() == lines[0].size());
     }
 }
 
@@ -418,28 +420,23 @@ TEST_CASE("table shrinks columns and wraps cells to multiple lines at a narrow w
         "<tr><td>Widget</td><td>a rather long description that needs wrapping</td></tr></table>",
         24);
 
-    // Below kOuterBorderMinWidth: no outer "|" borders, junctions are "-+-",
-    // and every line has its trailing whitespace stripped. The reclaimed
-    // border columns widen the description column enough that its content
-    // now wraps to 3 lines instead of the bordered form's 4.
+    // Column widths are [2, 19]: collapsing the cell padding leaves more for
+    // content than the padded form would at this width.
     REQUIRE(lines.size() == 8);
-    CHECK(lines[0] == "---+--------------------");
-    CHECK(lines[1] == "Na | Description");
-    CHECK(lines[2] == "me |");
-    CHECK(lines[3] == "---+--------------------");
-    CHECK(lines[4] == "Wi | a rather long");
-    CHECK(lines[5] == "dg | description that");
-    CHECK(lines[6] == "et | needs wrapping");
-    CHECK(lines[7] == "---+--------------------");
+    CHECK(lines[0] == "+--+-------------------+");
+    CHECK(lines[1] == "|Na|Description        |");
+    CHECK(lines[2] == "|me|                   |");
+    CHECK(lines[3] == "+--+-------------------+");
+    CHECK(lines[4] == "|Wi|a rather long      |");
+    CHECK(lines[5] == "|dg|description that   |");
+    CHECK(lines[6] == "|et|needs wrapping     |");
+    CHECK(lines[7] == "+--+-------------------+");
 
     for (const auto &line : lines)
-    {
-        CHECK(line.size() <= 24);
-        CHECK((line.empty() || line.back() != ' ')); // no trailing whitespace
-    }
+        CHECK(line.size() == 24);
 }
 
-TEST_CASE("narrow-form separator rows use -+- junctions and no leading or trailing +")
+TEST_CASE("a narrow table's junctions line up with its column borders")
 {
     auto lines = render_lines(
         "<table><tr><th>A</th><th>BB</th><th>CCC</th></tr>"
@@ -447,23 +444,25 @@ TEST_CASE("narrow-form separator rows use -+- junctions and no leading or traili
         40);
 
     REQUIRE(lines.size() == 5);
-    CHECK(lines[0] == "--+----+----");
-    CHECK(lines[1] == "A | BB | CCC");
-    CHECK(lines[2] == "--+----+----");
-    CHECK(lines[3] == "1 | 22 | 333");
-    CHECK(lines[4] == "--+----+----");
+    CHECK(lines[0] == "+-+--+---+");
+    CHECK(lines[1] == "|A|BB|CCC|");
+    CHECK(lines[2] == "+-+--+---+");
+    CHECK(lines[3] == "|1|22|333|");
+    CHECK(lines[4] == "+-+--+---+");
 
-    // Every separator row: junctions are "-+-", and neither end is "+".
+    // Every rule begins and ends with a corner, and its interior junctions
+    // fall on the same columns as the data rows' borders.
     for (size_t i : {0u, 2u, 4u})
     {
         const std::string &sep = lines[i];
-        CHECK(sep.find("-+-") != std::string::npos);
-        CHECK(sep.front() == '-');
-        CHECK(sep.back() == '-');
+        CHECK(sep.front() == '+');
+        CHECK(sep.back() == '+');
+        for (size_t pos = 0; pos < sep.size(); pos++)
+            CHECK((sep[pos] == '+') == (lines[1][pos] == '|'));
     }
 }
 
-TEST_CASE("narrow-form column separators stay vertically aligned across every row")
+TEST_CASE("table column borders stay vertically aligned across every row")
 {
     auto lines = render_lines(
         "<table><tr><th>A</th><th>BB</th><th>CCC</th></tr>"
@@ -479,7 +478,7 @@ TEST_CASE("narrow-form column separators stay vertically aligned across every ro
     for (const auto &line : lines)
     {
         if (line.find('|') == std::string::npos)
-            continue; // separator row - checked separately above
+            continue; // separator row - contains '+', not '|'
 
         std::vector<size_t> offsets;
         for (size_t pos = line.find('|'); pos != std::string::npos; pos = line.find('|', pos + 1))
@@ -490,10 +489,10 @@ TEST_CASE("narrow-form column separators stay vertically aligned across every ro
         else
             CHECK(offsets == firstPipeOffsets);
     }
-    CHECK(firstPipeOffsets.size() == 2); // two junctions for a 3-column table
+    CHECK(firstPipeOffsets.size() == 4); // two outer borders plus two junctions
 }
 
-TEST_CASE("reclaimed border width goes to table content below kOuterBorderMinWidth")
+TEST_CASE("collapsing the cell padding hands the reclaimed columns to content")
 {
     // A single, unbreakably long line of text forces the column to shrink to
     // exactly the available width, so the rendered column width is a direct
@@ -507,43 +506,37 @@ TEST_CASE("reclaimed border width goes to table content below kOuterBorderMinWid
     auto lines = render_lines(html, width);
     REQUIRE(!lines.empty());
 
-    // With one column, the narrow form's separator is pure dashes at the
-    // measured content width; no "+" or "|" appears anywhere in the table.
-    const std::string &separator = lines[0];
-    CHECK(separator.find_first_not_of('-') == std::string::npos);
-    size_t measuredWidth = separator.size();
+    // The rule is the frame plus the content column, so its dash run is a
+    // direct readout of the width the layout math handed to content.
+    const std::string &rule = lines[0];
+    CHECK(rule.front() == '+');
+    CHECK(rule.back() == '+');
+    size_t measuredWidth = rule.size() - 2;
+    CHECK(rule.substr(1, measuredWidth).find_first_not_of('-') == std::string::npos);
 
-    // A bordered table (kOuterBorderMinWidth is 80) reserves 3*ncols+1 = 4
-    // columns of frame for a single column, versus 3*ncols-3 = 0 in the
-    // narrow form - so at this same screen width, the content column the
-    // bordered form would have produced is exactly 4 columns narrower.
-    size_t borderedOverhead = 3 * 1 + 1;
-    size_t hypotheticalBorderedWidth = width - borderedOverhead;
-    CHECK(measuredWidth == hypotheticalBorderedWidth + 4);
+    // A padded table (kCellPaddingMinWidth is 80) reserves 3*ncols+1 = 4
+    // columns of frame for a single column, versus ncols+1 = 2 once the
+    // padding is collapsed - so the content column is exactly 2 wider here.
+    size_t paddedOverhead = 3 * 1 + 1;
+    size_t hypotheticalPaddedWidth = width - paddedOverhead;
+    CHECK(measuredWidth == hypotheticalPaddedWidth + 2);
 }
 
-TEST_CASE("a single-column table in narrow form has zero border overhead")
+TEST_CASE("a single-column narrow table is framed with no inner padding")
 {
     // Two rows (cellCount == 2) keep this classified as a data table rather
     // than a one-cell layout wrapper (see isLayoutTable()).
     auto lines = render_lines("<table><tr><td>Alpha</td></tr><tr><td>Beta</td></tr></table>", 40);
 
     REQUIRE(lines.size() == 5);
-    CHECK(lines[0] == "-----"); // dashes(w[0]) only - no "+" junction to drop
-    CHECK(lines[1] == "Alpha");
-    CHECK(lines[2] == "-----");
-    CHECK(lines[3] == "Beta");
-    CHECK(lines[4] == "-----");
+    CHECK(lines[0] == "+-----+");
+    CHECK(lines[1] == "|Alpha|");
+    CHECK(lines[2] == "+-----+");
+    CHECK(lines[3] == "|Beta |");
+    CHECK(lines[4] == "+-----+");
 
-    for (const auto &line : lines)
-    {
-        CHECK(line.find('|') == std::string::npos);
-        CHECK(line.find('+') == std::string::npos);
-    }
-
-    // Content starts at column 0 (no indent at the top level, and no border
-    // column consumed ahead of it).
-    CHECK(lines[1][0] == 'A');
+    // Content starts immediately after the border, with no padding column.
+    CHECK(lines[1][1] == 'A');
 }
 
 // ---------------------------------------------------------------------------
@@ -575,14 +568,14 @@ TEST_CASE("a plain multi-cell table with no nested tables still renders as a gri
     auto lines = render_lines(
         "<table><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></table>", 40);
 
-    // 40 columns is below kOuterBorderMinWidth, so the grid has no outer
-    // "|" borders and "-+-" junctions.
+    // The grid keeps its frame; at narrow widths the only difference from wider
+    // tables is that cells have no padding inside the frame.
     REQUIRE(lines.size() == 5);
-    CHECK(lines[0] == "--+--");
-    CHECK(lines[1] == "A | B");
-    CHECK(lines[2] == "--+--");
-    CHECK(lines[3] == "C | D");
-    CHECK(lines[4] == "--+--");
+    CHECK(lines[0] == "+-+-+");
+    CHECK(lines[1] == "|A|B|");
+    CHECK(lines[2] == "+-+-+");
+    CHECK(lines[3] == "|C|D|");
+    CHECK(lines[4] == "+-+-+");
 }
 
 TEST_CASE("a single-cell layout table wrapping a genuine data table renders only the inner grid")
@@ -595,16 +588,16 @@ TEST_CASE("a single-cell layout table wrapping a genuine data table renders only
 
     // The outer table has one cell -> layout, rendered transparently; the
     // inner table has four -> data, rendered as its own grid. The outer
-    // table contributes no borders of its own. 40 columns is below
-    // kOuterBorderMinWidth, so the inner grid has no outer "|" borders.
+    // table contributes no borders of its own. The inner grid keeps its frame
+    // with collapsed inner padding.
     REQUIRE(lines.size() == 7);
     CHECK(lines[0] == "outer");
     CHECK(lines[1] == "");
-    CHECK(lines[2] == "--+--");
-    CHECK(lines[3] == "A | B");
-    CHECK(lines[4] == "--+--");
-    CHECK(lines[5] == "C | D");
-    CHECK(lines[6] == "--+--");
+    CHECK(lines[2] == "+-+-+");
+    CHECK(lines[3] == "|A|B|");
+    CHECK(lines[4] == "+-+-+");
+    CHECK(lines[5] == "|C|D|");
+    CHECK(lines[6] == "+-+-+");
 }
 
 TEST_CASE("a data table whose cell contains a nested table renders linearly, not as a grid")
@@ -814,11 +807,13 @@ TEST_CASE("a heading inside a table cell is separated from following text")
     auto lines = render_lines(
         "<table><tr><td><h3>Head</h3>body</td><td>b</td></tr></table>", 40);
 
-    // 40 columns is below kOuterBorderMinWidth: no outer "|" borders.
+    // A heading inside a cell is separated from following text by a block
+    // boundary (space in the cell's text); at narrow widths the frame is kept
+    // with collapsed inner padding.
     REQUIRE(lines.size() == 3);
-    CHECK(lines[0] == "----------+--");
-    CHECK(lines[1] == "Head body | b");
-    CHECK(lines[2] == "----------+--");
+    CHECK(lines[0] == "+---------+-+");
+    CHECK(lines[1] == "|Head body|b|");
+    CHECK(lines[2] == "+---------+-+");
 }
 
 TEST_CASE("a nested table's text is separated from its parent cell's text")
@@ -937,30 +932,20 @@ TEST_CASE("table column alignment survives multi-byte cell content")
     // the table's column-width math and a plain-ASCII row's padding
     // disagreed and the grid's "|" borders no longer lined up. Folding to
     // ASCII first means every byte in a cell is exactly one display column,
-    // so the grid stays rectangular.
-    // 40 columns is below kOuterBorderMinWidth, so this table renders
-    // borderless: no outer "|", junctions are "-+-", and the second (last)
-    // column is left unpadded - so unlike the bordered form, rows are no
-    // longer all the same length (the point of the regression guard is the
-    // "|" alignment, not the overall line length).
+    // so the grid stays rectangular. At 40 columns the cell padding is
+    // collapsed but the frame remains, so every row is the same length.
     auto lines = render_lines(
         "<table><tr><td>1979&ndash;1984</td><td>ok</td></tr>"
         "<tr><td>x</td><td>y</td></tr></table>",
         40);
 
     REQUIRE(lines.size() == 5);
-
-    const std::string separator = std::string(9, '-') + "-+-" + std::string(2, '-');
-    CHECK(lines[0] == separator);
-    CHECK(lines[1] == "1979-1984 | ok");
-    CHECK(lines[2] == separator);
-    CHECK(lines[3] == "x" + std::string(9, ' ') + "| y");
-    CHECK(lines[4] == separator);
-
-    // The point of the regression: every data row's "|" lands at the same
-    // column offset, so the grid's first column stays rectangular even
-    // though the unpadded last column makes the rows different lengths.
-    CHECK(lines[1].find('|') == lines[3].find('|'));
+    const std::string rule = "+---------+--+";
+    CHECK(lines[0] == rule);
+    CHECK(lines[1] == "|1979-1984|ok|");
+    CHECK(lines[2] == rule);
+    CHECK(lines[3] == "|x        |y |");
+    CHECK(lines[4] == rule);
 }
 
 TEST_CASE("entities are not double-decoded")
@@ -1062,11 +1047,10 @@ TEST_CASE("an image inside a table cell appears in that cell's text")
     auto lines = render_lines(
         "<table><tr><td><img alt=\"pic\"></td><td>b</td></tr></table>", 40);
 
-    // 40 columns is below kOuterBorderMinWidth: no outer "|" borders.
     REQUIRE(lines.size() == 3);
-    CHECK(lines[0] == "----------+--");
-    CHECK(lines[1] == "[IMG pic] | b");
-    CHECK(lines[2] == "----------+--");
+    CHECK(lines[0] == "+---------+-+");
+    CHECK(lines[1] == "|[IMG pic]|b|");
+    CHECK(lines[2] == "+---------+-+");
 }
 
 TEST_CASE("img placeholder spacing is faithful to the surrounding markup")
@@ -1175,3 +1159,268 @@ TEST_CASE("setOption: !links=1 followed by rerender makes [n] markers appear")
     CHECK(renderer.rerender());
     CHECK(renderer.rendered().find("[1]") != std::string::npos);
 }
+
+
+// ============================================================================
+// Native (ATASCII) graphics
+//
+// Expectations are written as raw byte values rather than escapes in string
+// literals: "\x12A" is a single (overflowing) hex escape in C++, not "\x12"
+// followed by 'A', so every glyph goes through gl()/rep() instead.
+// ============================================================================
+
+// One glyph, as a string that can be concatenated safely.
+static std::string gl(unsigned char c)
+{
+    return std::string(1, (char)c);
+}
+
+// n copies of one glyph.
+static std::string rep(unsigned char c, size_t n)
+{
+    return std::string(n, (char)c);
+}
+
+// The renderer's inverse-video transform, spelled out independently here so a
+// bug in FNPretty::inverseText() cannot make its own expectations agree with
+// it. The '}' / '~' fold is deliberately NOT reproduced - the one test that
+// exercises it writes the folded text out by hand.
+static std::string inv(const std::string &s)
+{
+    std::string out;
+    for (char c : s)
+        out += (char)((unsigned char)c | 0x80);
+    return out;
+}
+
+// Codes the Atari screen editor acts on instead of printing.
+static bool is_e_control(unsigned char c)
+{
+    return c == 0x1B || (c >= 0x1C && c <= 0x1F) || c == 0x7D || c == 0x7E ||
+           c == 0x7F || c == 0x9B || (c >= 0x9C && c <= 0x9F) || c >= 0xFD;
+}
+
+static std::vector<std::string> render_atascii(const std::string &html, uint8_t width)
+{
+    FNPretty renderer;
+    RenderOptions opts;
+    opts.width = width;
+    opts.charset = PrettyCharset::Atascii;
+    return render_lines(renderer, html, opts);
+}
+
+TEST_CASE("ATASCII h1 is a solid inverse block")
+{
+    auto lines = render_atascii("<h1>Title</h1>", 40);
+
+    // Same geometry as the ASCII h1 (boxInner 7, boxWidth 9, centered at
+    // column 15) - only the frame is gone, replaced by inverse-video fill.
+    REQUIRE(lines.size() == 3);
+    std::string pad(15, ' ');
+    CHECK(lines[0] == pad + inv(std::string(9, ' ')));
+    CHECK(lines[1] == pad + inv("  Title  "));
+    CHECK(lines[2] == pad + inv(std::string(9, ' ')));
+}
+
+TEST_CASE("a wrapped ATASCII h1 fills the block out to the box width")
+{
+    // 36 columns of text is exactly the wrap width at 40 columns, so the box
+    // grows to the full screen and every row must still be boxWidth long.
+    auto lines = render_atascii("<h1>A rather long heading that must wrap</h1>", 40);
+
+    REQUIRE(lines.size() == 3);
+    CHECK(lines[0] == inv(std::string(40, ' ')));
+    // boxInner is 38, the text is 36, so the 2 columns of slack split evenly
+    // and each side then gets the extra border column: 2 + 36 + 2.
+    CHECK(lines[1] == inv("  A rather long heading that must wrap  "));
+    CHECK(lines[2] == inv(std::string(40, ' ')));
+    CHECK(lines[1].size() == 40);
+}
+
+TEST_CASE("ATASCII h2 is an outlined box")
+{
+    auto lines = render_atascii("<h2>Title</h2>", 40);
+
+    REQUIRE(lines.size() == 3);
+    std::string pad(15, ' ');
+    CHECK(lines[0] == pad + gl(0x11) + rep(0x12, 7) + gl(0x05));
+    CHECK(lines[1] == pad + gl(0x7C) + " Title " + gl(0x7C));
+    CHECK(lines[2] == pad + gl(0x1A) + rep(0x12, 7) + gl(0x03));
+}
+
+TEST_CASE("ATASCII h3 is inverse video; h4-h6 keep an underline, in box glyphs")
+{
+    auto lines = render_atascii("<h3>Three</h3><h4>Four</h4>"
+                                "<h5>Five</h5><h6>Six</h6>", 40);
+
+    REQUIRE(lines.size() == 10);
+    CHECK(lines[0] == inv("Three")); // no underline row of its own
+    CHECK(lines[1] == "");
+    CHECK(lines[2] == "Four");
+    CHECK(lines[3] == rep(0x12, 4));
+    CHECK(lines[4] == "");
+    CHECK(lines[5] == "Five");
+    CHECK(lines[6] == rep(0x0E, 4));
+    CHECK(lines[7] == "");
+    CHECK(lines[8] == "Six");
+    CHECK(lines[9] == rep(0x0E, 3));
+}
+
+TEST_CASE("ATASCII unordered lists use the ball glyph")
+{
+    auto lines = render_atascii("<ul><li>one</li><li>two</li></ul>", 40);
+
+    REQUIRE(lines.size() == 2);
+    CHECK(lines[0] == "  " + gl(0x14) + " one");
+    CHECK(lines[1] == "  " + gl(0x14) + " two");
+}
+
+TEST_CASE("ATASCII ordered lists keep their ASCII numbering")
+{
+    // Only the furniture is platform-specific; digits are digits.
+    auto lines = render_atascii("<ol><li>one</li><li>two</li></ol>", 40);
+
+    REQUIRE(lines.size() == 2);
+    CHECK(lines[0] == "  1. one");
+    CHECK(lines[1] == "  2. two");
+}
+
+TEST_CASE("a padded ATASCII table draws a real grid")
+{
+    // 80 columns is at kCellPaddingMinWidth, so cells keep their padding.
+    auto lines = render_atascii("<table><tr><th>A</th><th>B</th></tr>"
+                                "<tr><td>1</td><td>2</td></tr></table>", 80);
+
+    REQUIRE(lines.size() == 5);
+    CHECK(lines[0] == gl(0x11) + rep(0x12, 3) + gl(0x17) + rep(0x12, 3) + gl(0x05));
+    CHECK(lines[1] == gl(0x7C) + " A " + gl(0x7C) + " B " + gl(0x7C));
+    CHECK(lines[2] == gl(0x01) + rep(0x12, 3) + gl(0x13) + rep(0x12, 3) + gl(0x04));
+    CHECK(lines[3] == gl(0x7C) + " 1 " + gl(0x7C) + " 2 " + gl(0x7C));
+    CHECK(lines[4] == gl(0x1A) + rep(0x12, 3) + gl(0x18) + rep(0x12, 3) + gl(0x03));
+}
+
+TEST_CASE("a narrow ATASCII table keeps its box frame with no inner padding")
+{
+    auto lines = render_atascii("<table><tr><th>A</th><th>B</th></tr>"
+                                "<tr><td>1</td><td>2</td></tr></table>", 40);
+
+    REQUIRE(lines.size() == 5);
+    CHECK(lines[0] == gl(0x11) + rep(0x12, 1) + gl(0x17) + rep(0x12, 1) + gl(0x05));
+    CHECK(lines[1] == gl(0x7C) + "A" + gl(0x7C) + "B" + gl(0x7C));
+    CHECK(lines[2] == gl(0x01) + rep(0x12, 1) + gl(0x13) + rep(0x12, 1) + gl(0x04));
+    CHECK(lines[3] == gl(0x7C) + "1" + gl(0x7C) + "2" + gl(0x7C));
+    CHECK(lines[4] == gl(0x1A) + rep(0x12, 1) + gl(0x18) + rep(0x12, 1) + gl(0x03));
+}
+
+TEST_CASE("ATASCII hr is a run of the box-drawing horizontal")
+{
+    auto lines = render_atascii("<p>x</p><hr><p>y</p>", 40);
+
+    REQUIRE(lines.size() == 5);
+    CHECK(lines[0] == "x");
+    CHECK(lines[1] == "");
+    CHECK(lines[2] == rep(0x12, 40));
+    CHECK(lines[3] == "");
+    CHECK(lines[4] == "y");
+}
+
+TEST_CASE("inverse video folds the two codes the screen editor would eat")
+{
+    // Inverting '}' and '~' would give 0xFD (bell) and 0xFE (delete char);
+    // the delete would swallow a column and skew everything drawn around it.
+    auto lines = render_atascii("<h3>a}b~c</h3>", 40);
+
+    REQUIRE(lines.size() == 1);
+    CHECK(lines[0] == inv("a]b-c"));
+    CHECK(lines[0].find((char)0xFD) == std::string::npos);
+    CHECK(lines[0].find((char)0xFE) == std::string::npos);
+}
+
+TEST_CASE("nothing ATASCII renders is a code the screen editor acts on")
+{
+    auto lines = render_atascii("<h1>Head</h1><h2>Sub</h2><h3>Three</h3>"
+                                "<h4>Four</h4><ul><li>item</li></ul><hr>"
+                                "<table><tr><th>A</th><th>B</th></tr>"
+                                "<tr><td>1</td><td>2</td></tr></table>", 40);
+
+    REQUIRE(!lines.empty());
+    for (const std::string &line : lines)
+        for (unsigned char c : line)
+            CHECK_FALSE(is_e_control(c));
+}
+
+TEST_CASE("ASCII stays the default until a client asks for native graphics")
+{
+    const std::string html = "<h1>Title</h1><ul><li>one</li></ul>";
+
+    // A renderer nobody has told anything about character sets: exactly the
+    // rendering every bus produced before native graphics existed.
+    FNPretty def;
+    def.setLineEnding("\n");
+    def.setScreenWidth(40);
+    REQUIRE(def.renderDocument(html));
+    auto lines = split_lines(def.rendered());
+
+    REQUIRE(lines.size() == 6);
+    CHECK(lines[0] == "               +-------+");
+    CHECK(lines[1] == "               | Title |");
+    CHECK(lines[2] == "               +-------+");
+    CHECK(lines[3] == "");
+    CHECK(lines[4] == "");
+    CHECK(lines[5] == "  * one");
+
+    // Declaring the platform is not the same as selecting it - the SIO device
+    // declares ATASCII at open, and until a client asks for it the output is
+    // byte-for-byte the ASCII rendering above.
+    FNPretty declared;
+    declared.setLineEnding("\n");
+    declared.setScreenWidth(40);
+    declared.setNativeCharset(PrettyCharset::Atascii);
+    REQUIRE(declared.renderDocument(html));
+    CHECK(declared.rendered() == def.rendered());
+}
+
+TEST_CASE("setOption: !gfx selects and clears the platform's native graphics")
+{
+    FNPretty renderer;
+    renderer.setNativeCharset(PrettyCharset::Atascii);
+    CHECK(renderer.charset() == PrettyCharset::Ascii); // declared, not selected
+
+    CHECK(renderer.setOption("!gfx=1") == PrettyOption::Applied);
+    CHECK(renderer.charset() == PrettyCharset::Atascii);
+    CHECK(renderer.nativeGraphics());
+
+    // Keys are matched case-insensitively; 8-bit hosts commonly send caps.
+    CHECK(renderer.setOption("!GFX=0") == PrettyOption::Applied);
+    CHECK(renderer.charset() == PrettyCharset::Ascii);
+    CHECK_FALSE(renderer.nativeGraphics());
+
+    // gfx is a flag, not a charset id - a client cannot name a foreign set.
+    CHECK(renderer.setOption("!gfx=2") == PrettyOption::Invalid);
+    CHECK(renderer.charset() == PrettyCharset::Ascii);
+}
+
+TEST_CASE("setOption: !gfx=1 is a harmless no-op on a bus with no native set")
+{
+    // rs232/iwm/adamnet/drivewire never declare one, so asking for native
+    // graphics there leaves the ASCII rendering alone rather than failing.
+    FNPretty renderer;
+    CHECK(renderer.nativeCharset() == PrettyCharset::Ascii);
+    CHECK(renderer.setOption("!gfx=1") == PrettyOption::Applied);
+    CHECK(renderer.charset() == PrettyCharset::Ascii);
+}
+
+TEST_CASE("setOption: !gfx=1 followed by rerender switches an existing page")
+{
+    FNPretty renderer;
+    renderer.setLineEnding("\n");
+    renderer.setScreenWidth(40);
+    renderer.setNativeCharset(PrettyCharset::Atascii);
+    REQUIRE(renderer.renderDocument("<ul><li>one</li></ul>"));
+    CHECK(renderer.rendered() == "  * one"); // the final EOL is trimmed
+
+    CHECK(renderer.setOption("!gfx=1") == PrettyOption::Applied);
+    CHECK(renderer.rerender());
+    CHECK(renderer.rendered() == "  " + gl(0x14) + " one");
+}
+

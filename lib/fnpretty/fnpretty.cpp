@@ -46,10 +46,50 @@ constexpr size_t kListIndent = 2;
 // deepening rather than squeezing content down to a letter per line.
 constexpr size_t kMinTextWidth = 8;
 
-// At or above this width a table is drawn with full outer borders; below it
-// the left/right borders are dropped, buying back 4 columns of content on
-// 32- and 40-column displays where that matters most.
-constexpr uint8_t kOuterBorderMinWidth = 80;
+// At or above this width every table cell gets a space of padding on each
+// side. Below it the padding is collapsed - the frame stays, but a cell sits
+// directly against its borders, which costs a table of n columns n+1 frame
+// columns instead of 3n+1 and keeps 32- and 40-column displays readable.
+constexpr uint8_t kCellPaddingMinWidth = 80;
+
+// Plain 7-bit ASCII: the portable default, and what every bus renders with
+// until a client asks for native graphics.
+constexpr PrettyGlyphs kAsciiGlyphs = {
+    '-',  // horiz
+    '|',  // vert
+    '+', '+', '+', '+',      // cornerTL, cornerTR, cornerBR, cornerBL
+    '+', '+', '+', '+', '+', // teeTop, teeBottom, teeLeft, teeRight, cross
+    '*',  // bullet
+    '=',  // underline
+    '-',  // underlineThin
+    false, // boxed
+    false, // inverse
+};
+
+/**
+ * Atari ATASCII. Codes below 0x20 are printable graphics glyphs there, not
+ * control codes - the Atari screen editor E: acts on only 0x1B, 0x1C-0x1F,
+ * 0x7D, 0x7E, 0x7F, 0x9B, 0x9C-0x9F and 0xFD-0xFF, none of which appear
+ * below, so every glyph here reaches the screen as a glyph.
+ */
+constexpr PrettyGlyphs kAtasciiGlyphs = {
+    '\x12', // horiz          U+2500
+    '\x7C', // vert           U+2503 (ATASCII shares ASCII's code point here)
+    '\x11', // cornerTL       U+250C
+    '\x05', // cornerTR       U+2510
+    '\x03', // cornerBR       U+2518
+    '\x1A', // cornerBL       U+2514
+    '\x17', // teeTop         U+252C
+    '\x18', // teeBottom      U+2534
+    '\x01', // teeLeft        U+251C
+    '\x04', // teeRight       U+2524
+    '\x13', // cross          U+253C
+    '\x14', // bullet         U+2B24 (the Atari "ball")
+    '\x12', // underline      U+2500
+    '\x0E', // underlineThin  U+2581
+    true,   // boxed
+    true,   // inverse
+};
 
 /**
  * Elements whose contents are not page text at all.
@@ -536,6 +576,21 @@ void FNPretty::setRenderLinks(bool on)
         _flags &= ~PRETTY_RENDER_LINKS;
 }
 
+void FNPretty::setNativeCharset(PrettyCharset cs)
+{
+    _nativeCharset = cs;
+}
+
+void FNPretty::setCharset(PrettyCharset cs)
+{
+    _charset = cs;
+}
+
+void FNPretty::setNativeGraphics(bool on)
+{
+    _charset = on ? _nativeCharset : PrettyCharset::Ascii;
+}
+
 void FNPretty::setQuery(const std::string &selector)
 {
     _query = selector;
@@ -590,6 +645,13 @@ PrettyOption FNPretty::setOption(const std::string &s)
         if (parsed == 0 || parsed > 255)
             return PrettyOption::Invalid;
         setLineEnding(std::string(1, (char)parsed));
+        return PrettyOption::Applied;
+    }
+    else if (key == "gfx")
+    {
+        if (parsed > 1)
+            return PrettyOption::Invalid;
+        setNativeGraphics(parsed != 0);
         return PrettyOption::Applied;
     }
 
@@ -1217,6 +1279,41 @@ size_t FNPretty::clampIndent(size_t want, size_t extra) const
     return want < budget ? want : budget;
 }
 
+const PrettyGlyphs &FNPretty::glyphs() const
+{
+    switch (_charset)
+    {
+    case PrettyCharset::Atascii:
+        return kAtasciiGlyphs;
+    default:
+        return kAsciiGlyphs;
+    }
+}
+
+/**
+ * Copy of s in inverse video (bit 7 set on every byte). Folding } (0x7D) and ~
+ * (0x7E) to ] and - respectively before setting bit 7 avoids producing 0xFD
+ * and 0xFE, which the Atari screen editor interprets as bell and delete-
+ * character, eating a column and breaking surrounding box alignment. Every
+ * other byte the sanitizer can produce (0x20-0x7C) inverts to 0xA0-0xFC, all
+ * of which print.
+ */
+std::string FNPretty::inverseText(const std::string &s) const
+{
+    std::string out;
+    out.reserve(s.size());
+    for (char c : s)
+    {
+        unsigned char u = (unsigned char)c;
+        if (u == 0x7D)
+            u = ']';
+        else if (u == 0x7E)
+            u = '-';
+        out += (char)(u | 0x80);
+    }
+    return out;
+}
+
 // ---------------------------------------------------------------------------
 // Per-element rendering
 // ---------------------------------------------------------------------------
@@ -1277,7 +1374,7 @@ void FNPretty::renderHr()
     requestBlank(1);
 
     size_t width = _screenWidth > _indent ? (size_t)_screenWidth - _indent : 1;
-    emitRaw(spaces(_indent) + std::string(width, '-'));
+    emitRaw(spaces(_indent) + std::string(width, glyphs().horiz));
 
     requestBlank(1);
 }
@@ -1379,21 +1476,56 @@ void FNPretty::renderHeading(const GumboNode *node, int level)
         renderH2(text);
         break;
     case 3:
+        // With inverse video available an h3 reads as a heading on its own,
+        // so it gets the inverse run rather than an underline.
+        if (glyphs().inverse)
+            renderHeadingInverse(text);
+        else
+            renderHeadingUnderline(text, glyphs().underline);
+        break;
     case 4:
-        renderHeadingUnderline(text, '=');
+        renderHeadingUnderline(text, glyphs().underline);
         break;
     default: // 5, 6
-        renderHeadingUnderline(text, '-');
+        renderHeadingUnderline(text, glyphs().underlineThin);
         break;
     }
 }
 
 /**
- * h1/h2 centering ignores _indent - they're always relative to the full
- * screen width.
+ * h1/h2 framing ignores _indent - they're always centered on the full screen
+ * width. A charset with inverse video draws the h1 as a solid inverse block;
+ * otherwise it is an outlined frame, as it has always been.
  */
 void FNPretty::renderH1(const std::string &text)
 {
+    renderBoxedHeading(text, glyphs().inverse);
+}
+
+void FNPretty::renderH2(const std::string &text)
+{
+    // Real box-drawing glyphs are cheap enough to spend on an h2; the ASCII
+    // set would just make it look like another h1, so there it stays centered
+    // bare text.
+    if (glyphs().boxed)
+    {
+        renderBoxedHeading(text, false);
+        return;
+    }
+
+    requestBlank(2);
+
+    std::vector<std::string> lines = wrapText(text, _screenWidth);
+    for (const std::string &l : lines)
+        emitCentered(l, _screenWidth);
+
+    requestBlank(2);
+}
+
+void FNPretty::renderBoxedHeading(const std::string &text, bool solid)
+{
+    const PrettyGlyphs &g = glyphs();
+
     requestBlank(2);
 
     size_t wrapWidth = _screenWidth > 4 ? (size_t)_screenWidth - 4 : 1;
@@ -1406,29 +1538,54 @@ void FNPretty::renderH1(const std::string &text)
     size_t boxInner = std::min((size_t)(_screenWidth > 2 ? _screenWidth - 2 : 1), maxLen + 2);
     size_t boxWidth = boxInner + 2;
     size_t leftPad = _screenWidth > boxWidth ? ((size_t)_screenWidth - boxWidth) / 2 : 0;
+    std::string pad = spaces(leftPad);
 
-    emitRaw(spaces(leftPad) + "+" + std::string(boxInner, '-') + "+");
-    for (const std::string &l : lines)
+    if (solid)
     {
-        size_t pad = boxInner > l.size() ? boxInner - l.size() : 0;
-        size_t left = pad / 2;
-        size_t right = pad - left;
-        emitRaw(spaces(leftPad) + "|" + spaces(left) + l + spaces(right) + "|");
+        // No frame characters at all: the whole rectangle, border columns
+        // included, is inverse-video space with the text inverted inside it.
+        std::string filler = inverseText(spaces(boxWidth));
+        emitRaw(pad + filler);
+        for (const std::string &l : lines)
+        {
+            size_t slack = boxInner > l.size() ? boxInner - l.size() : 0;
+            size_t left = slack / 2;
+            size_t right = slack - left;
+            emitRaw(pad + inverseText(spaces(left + 1) + l + spaces(right + 1)));
+        }
+        emitRaw(pad + filler);
     }
-    emitRaw(spaces(leftPad) + "+" + std::string(boxInner, '-') + "+");
+    else
+    {
+        emitRaw(pad + g.cornerTL + std::string(boxInner, g.horiz) + g.cornerTR);
+        for (const std::string &l : lines)
+        {
+            size_t slack = boxInner > l.size() ? boxInner - l.size() : 0;
+            size_t left = slack / 2;
+            size_t right = slack - left;
+            emitRaw(pad + g.vert + spaces(left) + l + spaces(right) + g.vert);
+        }
+        emitRaw(pad + g.cornerBL + std::string(boxInner, g.horiz) + g.cornerBR);
+    }
 
     requestBlank(2);
 }
 
-void FNPretty::renderH2(const std::string &text)
+/**
+ * An inverse-video run at the current indent - the h3 style on a charset that
+ * has inverse video. Wrapped like body text, not centered.
+ */
+void FNPretty::renderHeadingInverse(const std::string &text)
 {
-    requestBlank(2);
+    requestBlank(1);
 
-    std::vector<std::string> lines = wrapText(text, _screenWidth);
+    size_t width = _screenWidth > _indent ? (size_t)_screenWidth - _indent : 1;
+    std::vector<std::string> lines = wrapText(text, width);
+
     for (const std::string &l : lines)
-        emitCentered(l, _screenWidth);
+        emitRaw(spaces(_indent) + inverseText(l));
 
-    requestBlank(2);
+    requestBlank(1);
 }
 
 void FNPretty::renderHeadingUnderline(const std::string &text, char ch)
@@ -1545,7 +1702,7 @@ void FNPretty::renderListItem(const GumboNode *node)
     }
     else
     {
-        marker = "* ";
+        marker = std::string(1, glyphs().bullet) + " ";
         markerWidth = 2;
     }
 
@@ -1578,6 +1735,28 @@ void FNPretty::renderListItem(const GumboNode *node)
                 _rendered[startPos + i] = firstPrefix[i];
         }
     }
+}
+
+/**
+ * One horizontal rule across a table: the top, the row separator and the
+ * bottom differ only in which junction glyphs they use, so they share this.
+ * With the ASCII glyph set every junction is '+', so all three come out
+ * identical - which is exactly the single separator this used to draw.
+ */
+std::string FNPretty::tableRule(const std::vector<size_t> &w, bool padded,
+                                char left, char mid, char right) const
+{
+    const PrettyGlyphs &g = glyphs();
+    std::string out = spaces(_indent);
+
+    out += left;
+    for (size_t c = 0; c < w.size(); c++)
+    {
+        out += std::string(padded ? w[c] + 2 : w[c], g.horiz);
+        out += (c + 1 < w.size()) ? mid : right;
+    }
+
+    return out;
 }
 
 /**
@@ -1640,6 +1819,8 @@ void FNPretty::renderTable(const GumboNode *node)
     flushBlock();
     requestBlank(1);
 
+    const PrettyGlyphs &g = glyphs();
+
     std::vector<std::vector<std::string>> rows;
     collectTableRows(node, rows);
 
@@ -1658,10 +1839,10 @@ void FNPretty::renderTable(const GumboNode *node)
         for (size_t c = 0; c < row.size(); c++)
             natural[c] = std::max(natural[c], row[c].size());
 
-    // Below kOuterBorderMinWidth the table drops its left/right border,
-    // trading 4 columns of frame for 4 columns of content.
-    bool bordered = _screenWidth >= kOuterBorderMinWidth;
-    size_t overhead = bordered ? (3 * ncols + 1) : (3 * ncols - 3);
+    // Frame cost: one border column per column plus the closing one, and two
+    // more per column when cells are padded.
+    bool padded = _screenWidth >= kCellPaddingMinWidth;
+    size_t overhead = padded ? (3 * ncols + 1) : (ncols + 1);
     size_t avail = _screenWidth > _indent + overhead ? (size_t)_screenWidth - _indent - overhead : 0;
 
     if (avail < ncols)
@@ -1673,7 +1854,7 @@ void FNPretty::renderTable(const GumboNode *node)
             for (size_t c = 0; c < row.size(); c++)
             {
                 if (c > 0)
-                    line += " | ";
+                    line += std::string(" ") + g.vert + " ";
                 line += row[c];
             }
             emitWrapped(line, spaces(_indent), _indent);
@@ -1736,29 +1917,14 @@ void FNPretty::renderTable(const GumboNode *node)
         }
     }
 
-    std::string separator;
-    if (bordered)
-    {
-        separator = spaces(_indent) + "+";
-        for (size_t c = 0; c < ncols; c++)
-            separator += std::string(w[c] + 2, '-') + "+";
-    }
-    else
-    {
-        // No outer frame: columns are joined by "-+-", with no leading or
-        // trailing border character.
-        separator = spaces(_indent);
-        for (size_t c = 0; c < ncols; c++)
-        {
-            if (c > 0)
-                separator += "-+-";
-            separator += std::string(w[c], '-');
-        }
-    }
+    std::string ruleTop = tableRule(w, padded, g.cornerTL, g.teeTop, g.cornerTR);
+    std::string ruleMid = tableRule(w, padded, g.teeLeft, g.cross, g.teeRight);
+    std::string ruleBottom = tableRule(w, padded, g.cornerBL, g.teeBottom, g.cornerBR);
 
-    emitRaw(separator);
-    for (const auto &row : rows)
+    emitRaw(ruleTop);
+    for (size_t r = 0; r < rows.size(); r++)
     {
+        const auto &row = rows[r];
         std::vector<std::vector<std::string>> cellLines(ncols);
         size_t height = 1;
         for (size_t c = 0; c < ncols; c++)
@@ -1773,39 +1939,23 @@ void FNPretty::renderTable(const GumboNode *node)
         for (size_t k = 0; k < height; k++)
         {
             std::string line = spaces(_indent);
-            if (bordered)
-                line += "|";
+            line += g.vert;
             for (size_t c = 0; c < ncols; c++)
             {
                 std::string cell = k < cellLines[c].size() ? cellLines[c][k] : "";
-                // The last column of a borderless row is left unpadded; any
-                // whitespace it would have contributed is trimmed below.
-                bool padCell = bordered || c + 1 < ncols;
-                if (padCell && cell.size() < w[c])
+                if (cell.size() < w[c])
                     cell += spaces(w[c] - cell.size());
 
-                if (bordered)
-                    line += " " + cell + " |";
+                if (padded)
+                    line += " " + cell + " ";
                 else
-                {
-                    if (c > 0)
-                        line += " | ";
                     line += cell;
-                }
-            }
-
-            if (!bordered)
-            {
-                // Strip trailing whitespace: besides the unpadded last
-                // column, a wrapped continuation line can leave trailing
-                // columns empty.
-                size_t last = line.find_last_not_of(' ');
-                line = last == std::string::npos ? std::string() : line.substr(0, last + 1);
+                line += g.vert;
             }
 
             emitRaw(line);
         }
-        emitRaw(separator);
+        emitRaw(r + 1 < rows.size() ? ruleMid : ruleBottom);
     }
 
     requestBlank(1);
