@@ -24,13 +24,17 @@ add_test(NAME fujibuspacket_tests COMMAND fujibuspacket_tests)
 # UNIT_TESTS is required - fujinet_pc.cmake puts -DDBUG2 on CMAKE_CXX_FLAGS,
 # which turns on DEBUG, which makes debug.h pull in <utils.h> that we do not
 # link here. debug.h undefines DEBUG when UNIT_TESTS is set.
+# FNIO_IS_STDIO pins fnFile to std::FILE: we inherit -D${FUJINET_BUILD_PLATFORM}
+# from CMAKE_CXX_FLAGS, which would otherwise select FileHandler and drag the
+# whole FileSystem stack in. The FileHandler path is covered by the ESP builds,
+# which glob lib/media/*.cpp into every target.
 # ------------------------------------------------------------------------------
 add_executable(imdimage_tests
-    ImdImageTests.cpp
+    IMDImageTests.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/imdImage.cpp
 )
 
-target_compile_definitions(imdimage_tests PRIVATE UNIT_TESTS)
+target_compile_definitions(imdimage_tests PRIVATE UNIT_TESTS FNIO_IS_STDIO)
 
 target_include_directories(imdimage_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/include/      # debug.h, global_types.h

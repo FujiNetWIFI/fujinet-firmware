@@ -15,6 +15,8 @@
 #include <string>
 #include <vector>
 
+#include "fnio.h"
+
 #ifdef ESP_PLATFORM
 #include "PSRAMAllocator.h"
 #endif
@@ -51,10 +53,10 @@
 #define IMD_REC_DELETED     0x02
 #define IMD_REC_ERROR       0x04
 
-enum class ImdStatus : uint8_t
+enum class IMDStatus : uint8_t
 {
     Ok = 0,
-    NotImd,          // no comment terminator, or no parsable track at all
+    NotIMD,          // no comment terminator, or no parsable track at all
     Truncated,       // ran out of bytes mid-structure
     BadRecordType,   // sector record type > 0x08; length is type-derived so no resync
     BadSizeCode,     // size code 7..0xFE
@@ -67,7 +69,7 @@ enum class ImdStatus : uint8_t
     TooLarge,        // more than IMD_MAX_SECTORS sectors
 };
 
-const char *imd_status_str(ImdStatus s);
+const char *imd_status_str(IMDStatus s);
 
 // Track recording mode (IMD.TXT 6.1). The rate is the controller transfer rate;
 // FM carries half that as data. 6 and 9 are a libdsk extension for 1Mbps that we
@@ -76,7 +78,7 @@ uint16_t imd_mode_rate_kbps(uint8_t mode);
 bool     imd_mode_is_mfm(uint8_t mode);
 bool     imd_mode_is_valid(uint8_t mode);
 
-struct ImdSectorInfo
+struct IMDSectorInfo
 {
     uint16_t size;
     uint8_t  id;          // physical ID from the sector numbering map
@@ -89,7 +91,7 @@ struct ImdSectorInfo
     bool     unavailable;
 };
 
-struct ImdTrackInfo
+struct IMDTrackInfo
 {
     uint32_t first_lba;
     uint16_t nsec;
@@ -101,34 +103,20 @@ struct ImdTrackInfo
     bool     has_head_map;
 };
 
-// Byte source. Deliberately not fnFile*: fnFile is FileHandler on some targets
-// and std::FILE on others, which would make any caller (including tests)
-// target-specific. ImdFnFileSource below is the fnFile binding.
-class ImdSource
+class IMDCursor;
+
+class IMDImage
 {
 public:
-    virtual ~ImdSource() = default;
-    virtual bool     read_at(uint32_t off, void *dst, uint32_t len) = 0;
-    virtual bool     write_at(uint32_t off, const void *src, uint32_t len) { (void)off; (void)src; (void)len; return false; }
-    virtual uint32_t size() = 0;
-    virtual bool     flush() { return true; }
-    virtual bool     writable() const { return false; }
-};
+    IMDImage() = default;
+    ~IMDImage();
+    IMDImage(const IMDImage &) = delete;
+    IMDImage &operator=(const IMDImage &) = delete;
 
-class ImdCursor;
-
-class ImdImage
-{
-public:
-    ImdImage() = default;
-    ~ImdImage();
-    ImdImage(const ImdImage &) = delete;
-    ImdImage &operator=(const ImdImage &) = delete;
-
-    // Indexes the whole image; src must outlive the ImdImage.
-    ImdStatus open(ImdSource *src, bool writable);
+    // Indexes the whole image; f must outlive the IMDImage, which never closes it.
+    IMDStatus open(fnFile *f, uint32_t disksize, bool writable);
     void      close();
-    bool      is_open() const { return _src != nullptr; }
+    bool      is_open() const { return _f != nullptr; }
 
     uint32_t lba_count() const { return (uint32_t)_sectors.size(); }
     uint32_t track_count() const { return (uint32_t)_tracks.size(); }
@@ -136,25 +124,25 @@ public:
     uint16_t max_sector_size() const { return _max_sector_size; }
     bool     uniform_sector_size() const { return _uniform_size; }
 
-    bool track_info(uint32_t track, ImdTrackInfo &out) const;
-    bool sector_info(uint32_t lba, ImdSectorInfo &out) const;
+    bool track_info(uint32_t track, IMDTrackInfo &out) const;
+    bool sector_info(uint32_t lba, IMDSectorInfo &out) const;
 
     // Matches the track's *physical* cyl/head and the sector's physical ID.
     bool find_lba(uint8_t cyl, uint8_t head, uint8_t id, uint32_t &lba) const;
 
     // Data-error records still return Ok with their recovered contents; check
     // sector_info().had_error. out_len may be null.
-    ImdStatus read_sector(uint32_t lba, uint8_t *buf, uint32_t buflen, uint16_t *out_len);
+    IMDStatus read_sector(uint32_t lba, uint8_t *buf, uint32_t buflen, uint16_t *out_len);
 
     // len must equal sector_size(lba). Writes are in place only: a compressed
     // record can only absorb a uniform buffer, and an unavailable record cannot
     // absorb anything. Expand the image first (IMDU /E) if that is a problem.
-    ImdStatus write_sector(uint32_t lba, const uint8_t *buf, uint16_t len);
+    IMDStatus write_sector(uint32_t lba, const uint8_t *buf, uint16_t len);
 
     // Flat byte view over the sectors in LBA order, for fixed-block hosts.
     uint32_t  linear_size() const { return _linear_size; }
-    ImdStatus read_linear(uint32_t byte_off, uint8_t *buf, uint32_t len);
-    ImdStatus write_linear(uint32_t byte_off, const uint8_t *buf, uint32_t len);
+    IMDStatus read_linear(uint32_t byte_off, uint8_t *buf, uint32_t len);
+    IMDStatus write_linear(uint32_t byte_off, const uint8_t *buf, uint32_t len);
 
     // Bytes after the last good track, e.g. XMODEM packet padding.
     uint32_t    trailing_garbage() const { return _trailing; }
@@ -194,7 +182,8 @@ private:
     std::vector<TrackRef> _tracks;
 #endif
 
-    ImdSource  *_src = nullptr;
+    fnFile     *_f = nullptr;
+    uint32_t    _size = 0;
     bool        _writable = false;
     uint32_t    _trailing = 0;
     uint32_t    _linear_size = 0;
@@ -205,14 +194,14 @@ private:
     // Sized once at open() so the linear path does not allocate per call
     std::vector<uint8_t> _scratch;
 
-    ImdStatus _parse();
-    ImdStatus _read_comment(uint32_t &data_start);
+    IMDStatus _parse();
+    IMDStatus _read_comment(uint32_t &data_start);
     // header_ok distinguishes a bad track header (likely transport padding)
     // from a failure inside an otherwise valid track (a real error).
-    ImdStatus _parse_track(ImdCursor &cur, bool &header_ok);
+    IMDStatus _parse_track(IMDCursor &cur, bool &header_ok);
     bool      _tail_is_padding(uint32_t from);
     bool      _locate_linear(uint32_t byte_off, uint32_t &lba, uint32_t &sec_off) const;
-    ImdStatus _materialize(uint32_t lba, uint32_t sec_off, const uint8_t *src,
+    IMDStatus _materialize(uint32_t lba, uint32_t sec_off, const uint8_t *src,
                            uint32_t n, uint8_t *out);
 };
 
