@@ -521,30 +521,30 @@ void s100spiNetwork::do_inquiry(unsigned char inq_cmd)
     // {
     //     switch (inq_cmd)
     //     {
-    //     case NETCMD__RENAME:
-    //     case NETCMD__FORMAT:
-    //     case NETCMD__LOCK:
-    //     case NETCMD__UNLOCK:
-    //     case NETCMD__MKDIR:
-    //     case NETCMD__RMDIR:
-    //     case NETCMD__CHDIR:
-    //     case NETCMD__USERNAME:
-    //     case NETCMD__PASSWORD:
+    //     case CMD::NET__RENAME:
+    //     case CMD::NET__FORMAT:
+    //     case CMD::NET__LOCK:
+    //     case CMD::NET__UNLOCK:
+    //     case CMD::NET__MKDIR:
+    //     case CMD::NET__RMDIR:
+    //     case CMD::NET__CHDIR:
+    //     case CMD::NET__USERNAME:
+    //     case CMD::NET__PASSWORD:
     //         inq_dstats = SIO_DIRECTION_WRITE;
     //         break;
-    //     case NETCMD_GETCWD:
+    //     case CMD::NET_GETCWD:
     //         inq_dstats = SIO_DIRECTION_READ;
     //         break;
-    //     case NETCMD_SET_INT_RATE:
+    //     case CMD::NET_SET_INT_RATE:
     //         inq_dstats = SIO_DIRECTION_NONE;
     //         break;
-    //     case NETCMD__TRANSLATION:
+    //     case CMD::NET__TRANSLATION:
     //         inq_dstats = SIO_DIRECTION_NONE;
     //         break;
-    //     case NETCMD__JSON_PARSE:
+    //     case CMD::NET__JSON_PARSE:
     //         inq_dstats = SIO_DIRECTION_NONE;
     //         break;
-    //     case NETCMD__JSON_QUERY:
+    //     case CMD::NET__JSON_QUERY:
     //         inq_dstats = SIO_DIRECTION_WRITE;
     //         break;
     //     default:

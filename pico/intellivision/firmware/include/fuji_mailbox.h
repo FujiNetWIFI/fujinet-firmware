@@ -43,7 +43,7 @@
 #define FUJI_MB_ERR        (FUJI_MB_BASE + 0x0B) // RP2040: fb_status_t of the last transaction
 #define FUJI_MB_RXLEN_LO   (FUJI_MB_BASE + 0x0C) // RP2040: reply payload length, LE
 #define FUJI_MB_RXLEN_HI   (FUJI_MB_BASE + 0x0D)
-#define FUJI_MB_REPLY_CMD  (FUJI_MB_BASE + 0x0E) // RP2040: FUJICMD_ACK (0x06) or FUJICMD_NAK (0x15)
+#define FUJI_MB_REPLY_CMD  (FUJI_MB_BASE + 0x0E) // RP2040: CMD::FUJI_ACK (0x06) or CMD::FUJI_NAK (0x15)
 #define FUJI_MB_LINK       (FUJI_MB_BASE + 0x0F) // RP2040: 1 if the ESP32-S3 is enumerated (tud_cdc_connected())
 
 #define FUJI_MB_PARAM_SIZE (FUJI_MB_BASE + 0x10) // Inty: 8 entries, 1 word each -- size in bytes (1/2/4)
@@ -109,7 +109,7 @@
 // budget), but the same buffer also has to hold every complete SLIP-encoded
 // frame the ESP32 pushes to FUJI_DEVICEID_DBC mid-MOUNT_IMAGE --
 // MediaTypeROM::push_stream() (rs232/diskTypeROM.cpp) streams ROM/.cfg data
-// in DISK_SECTORBUF_SIZE (512) byte NETCMD_WRITE chunks. Decoded that's a
+// in DISK_SECTORBUF_SIZE (512) byte CMD::NET_WRITE chunks. Decoded that's a
 // 6-byte header + 512 bytes of payload = 518, and SLIP escaping can double
 // that worst-case plus the two frame-delimiter bytes -- 1038 minimum.
 // Undersizing this silently truncates every ROM push's WRITE frames, which

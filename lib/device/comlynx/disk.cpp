@@ -160,14 +160,14 @@ void lynxDisk::write_block(uint32_t block)
 
 void lynxDisk::comlynx_process(const FujiLynxPacket &packet)
 {
-    Debug_printf("lynxDisk::comlynx_process - command: %02X\n", packet.command());
+    Debug_printf("lynxDisk::comlynx_process - command: %02X\n", (uint8_t) packet.command());
 
     switch (packet.command())
     {
-    case DISKCMD_READ:
+    case CMD::DISK_READ:
         read_block(packet.param(0));
         break;
-    case DISKCMD_WRITE:
+    case CMD::DISK_WRITE:
         write_block(packet.param(0));
         break;
     default:

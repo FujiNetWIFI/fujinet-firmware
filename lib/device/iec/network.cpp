@@ -468,17 +468,17 @@ void iecNetwork::iec_command()
     else if (pt[0] == "login")
         set_login_password();
     else if (pt[0] == "rename" || pt[0] == "ren")
-        fsop(NETCMD_RENAME);
+        fsop(CMD::NET_RENAME);
     else if (pt[0] == "delete" || pt[0] == "del" || pt[0] == "rm")
-        fsop(NETCMD_DELETE);
+        fsop(CMD::NET_DELETE);
     else if (pt[0] == "lock")
-        fsop(NETCMD_LOCK);
+        fsop(CMD::NET_LOCK);
     else if (pt[0] == "unlock")
-        fsop(NETCMD_UNLOCK);
+        fsop(CMD::NET_UNLOCK);
     else if (pt[0] == "mkdir")
-        fsop(NETCMD_MKDIR);
+        fsop(CMD::NET_MKDIR);
     else if (pt[0] == "rmdir")
-        fsop(NETCMD_RMDIR);
+        fsop(CMD::NET_RMDIR);
 }
 
 void iecNetwork::set_channel_mode()
@@ -742,22 +742,22 @@ void iecNetwork::fsop(fujiCommandID_t comnd)
     auto url = channel_data.urlParser.get();
     switch (comnd)
     {
-    case NETCMD_RENAME:
+    case CMD::NET_RENAME:
         err = fs->rename(url);
         break;
-    case NETCMD_DELETE:
+    case CMD::NET_DELETE:
         err = fs->del(url);
         break;
-    case NETCMD_LOCK:
+    case CMD::NET_LOCK:
         err = fs->lock(url);
         break;
-    case NETCMD_UNLOCK:
+    case CMD::NET_UNLOCK:
         err = fs->unlock(url);
         break;
-    case NETCMD_MKDIR:
+    case CMD::NET_MKDIR:
         err = fs->mkdir(url);
         break;
-    case NETCMD_RMDIR:
+    case CMD::NET_RMDIR:
         err = fs->rmdir(url);
         break;
     default:

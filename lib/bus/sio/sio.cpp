@@ -253,7 +253,7 @@ void systemBus::_sio_process_cmd()
         // reset counter if checksum was correct
         _command_frame_counter = 0;
 #endif
-        if (tmpFrame.device() == FUJI_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
+        if (tmpFrame.device() == FUJI_DEVICEID::DISK && _fujiDev != nullptr && _fujiDev->boot_config)
         {
             _activeDev = &_fujiDev->bootdisk;
 
@@ -261,7 +261,7 @@ void systemBus::_sio_process_cmd()
             // SIO status calls (of the 26 Atari sends) so a real D1:
             // can take over. Once status_waint_count expires, respond
             // normally; if disabled, respond immediately.
-            if (_activeDev->status_wait_count > 0 && tmpFrame.command() == DISKCMD_READ && _fujiDev->status_wait_enabled)
+            if (_activeDev->status_wait_count > 0 && tmpFrame.command() == CMD::DISK_READ && _fujiDev->status_wait_enabled)
             {
                 Debug_printf("Disabling CONFIG boot.\n");
                 _fujiDev->boot_config = false;
@@ -276,8 +276,8 @@ void systemBus::_sio_process_cmd()
         }
         else
         {
-            // Command FUJI_DEVICEID_TYPE3POLL is a Type3 poll - send it to every device that cares
-            if (tmpFrame.device() == FUJI_DEVICEID_TYPE3POLL)
+            // Command FUJI_DEVICEID::TYPE3POLL is a Type3 poll - send it to every device that cares
+            if (tmpFrame.device() == FUJI_DEVICEID::TYPE3POLL)
             {
                 Debug_println("SIO TYPE3 POLL");
                 for (auto devicep : _daisyChain)
@@ -551,31 +551,31 @@ void systemBus::setup()
 // Add device to SIO bus
 void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
 {
-    if (device_id == FUJI_DEVICEID_FUJINET)
+    if (device_id == FUJI_DEVICEID::FUJINET)
     {
         _fujiDev = dynamic_cast<sioFuji*>(pDevice);
     }
-    else if (device_id == FUJI_DEVICEID_SERIAL)
+    else if (device_id == FUJI_DEVICEID::SERIAL)
     {
         _modemDev = (modem *)pDevice;
     }
-    else if (device_id >= FUJI_DEVICEID_NETWORK && device_id <= FUJI_DEVICEID_NETWORK_LAST)
+    else if (device_id >= FUJI_DEVICEID::NETWORK && device_id <= FUJI_DEVICEID::NETWORK_LAST)
     {
-        _netDev[device_id - FUJI_DEVICEID_NETWORK] = (sioNetwork *)pDevice;
+        _netDev[device_id - FUJI_DEVICEID::NETWORK] = (sioNetwork *)pDevice;
     }
-    else if (device_id == FUJI_DEVICEID_MIDI)
+    else if (device_id == FUJI_DEVICEID::MIDI)
     {
         _streamDev = (sioNetStream *)pDevice;
     }
-    else if (device_id == FUJI_DEVICEID_CASSETTE)
+    else if (device_id == FUJI_DEVICEID::CASSETTE)
     {
         _cassetteDev = (sioCassette *)pDevice;
     }
-    else if (device_id == FUJI_DEVICEID_CPM)
+    else if (device_id == FUJI_DEVICEID::CPM)
     {
         _cpmDev = (sioCPM *)pDevice;
     }
-    else if (device_id == FUJI_DEVICEID_PRINTER)
+    else if (device_id == FUJI_DEVICEID::PRINTER)
     {
         _printerdev = (sioPrinter *)pDevice;
     }

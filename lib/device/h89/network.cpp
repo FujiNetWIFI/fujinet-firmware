@@ -553,36 +553,36 @@ void H89Network::process(uint32_t commanddata, uint8_t checksum)
 
     switch (cmdFrame.comnd)
     {
-    case NETCMD_OPEN:
+    case CMD::NET_OPEN:
         open();
         break;
-    case NETCMD_CLOSE:
+    case CMD::NET_CLOSE:
         close();
         break;
-    case NETCMD_READ:
+    case CMD::NET_READ:
         read();
         break;
-    case NETCMD_WRITE:
+    case CMD::NET_WRITE:
         write();
         break;
-    case NETCMD_PARSE:
+    case CMD::NET_PARSE:
         if (channelMode == JSON)
             H89_parse_json();
         break;
-    case NETCMD_QUERY:
+    case CMD::NET_QUERY:
         if (channelMode == JSON)
             H89_set_json_query();
         break;
-    case NETCMD_STATUS:
+    case CMD::NET_STATUS:
         status();
         break;
-    case NETCMD_CHANNEL_MODE:
+    case CMD::NET_CHANNEL_MODE:
         H89_set_channel_mode();
         break;
-    case NETCMD_USERNAME:
+    case CMD::NET_USERNAME:
         set_login();
         break;
-    case NETCMD_PASSWORD:
+    case CMD::NET_PASSWORD:
         set_password();
         break;
     default:

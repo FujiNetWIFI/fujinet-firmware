@@ -1619,40 +1619,40 @@ void rs232Modem::rs232_process(const FujiBusPacket &packet)
 
         switch (packet.command())
         {
-        case MODEMCMD_CONTROL:
+        case CMD::MODEM_CONTROL:
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             rs232_control();
             break;
-        case MODEMCMD_CONFIGURE:
+        case CMD::MODEM_CONFIGURE:
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             rs232_config();
             break;
-        case MODEMCMD_SET_DUMP:
+        case CMD::MODEM_SET_DUMP:
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             rs232_set_dump(packet.param(0));
             break;
-        case MODEMCMD_LISTEN:
+        case CMD::MODEM_LISTEN:
             rs232_listen(packet.param(0));
             break;
-        case MODEMCMD_UNLISTEN:
+        case CMD::MODEM_UNLISTEN:
             rs232_unlisten();
             break;
-        case MODEMCMD_BAUDRATELOCK:
+        case CMD::MODEM_BAUDRATELOCK:
             rs232_baudlock(packet.param(0), packet.param(1));
             break;
-        case MODEMCMD_AUTOANSWER:
+        case CMD::MODEM_AUTOANSWER:
             rs232_autoanswer(packet.param(0));
             break;
-        case MODEMCMD_STATUS:
+        case CMD::MODEM_STATUS:
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             rs232_status(static_cast<FujiStatusReq>(packet.param(0)));
             break;
-        case MODEMCMD_WRITE:
+        case CMD::MODEM_WRITE:
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             rs232_write(packet.data());
             SYSTEM_BUS.transaction_success();
             break;
-        case MODEMCMD_STREAM:
+        case CMD::MODEM_STREAM:
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             rs232_stream();
             break;

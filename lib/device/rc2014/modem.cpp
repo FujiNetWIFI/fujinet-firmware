@@ -1305,13 +1305,13 @@ void rc2014Modem::rc2014_process(uint32_t commanddata, uint8_t checksum)
 
     switch (cmdFrame.comnd)
     {
-    case MODEMCMD_READ:
+    case CMD::MODEM_READ:
         read();
         break;
-    case MODEMCMD_WRITE:
+    case CMD::MODEM_WRITE:
         write();
         break;
-    case MODEMCMD_STATUS:
+    case CMD::MODEM_STATUS:
         status();
         break;
     default:

@@ -250,13 +250,13 @@ void sioVoice::sio_process(const FujiSIOPacket &packet)
     // act like a printer for POC
     switch (packet.command())
     {
-    case 'P': // 0x50
-    case 'W': // 0x57
+    case CMD::PRINTER_PUT: // 0x50
+    case CMD::PRINTER_WRITE: // 0x57
         SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
         sio_write();
         lastAux1 = packet.param(0);
         break;
-    case 'S': // 0x53
+    case CMD::PRINTER_STATUS: // 0x53
         SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
         sio_status(packet);
         break;

@@ -320,7 +320,7 @@ static void rom_start_segment(void)
     stage_wp += words;
 }
 
-// feed_rom_byte: one byte of a NETCMD_WRITE payload on the ROM stream.
+// feed_rom_byte: one byte of a CMD::NET_WRITE payload on the ROM stream.
 // Format is decided from the first 3 bytes; everything after is interpreted
 // incrementally, writing each completed word straight to its staged home.
 static void feed_rom_byte(uint8_t b)

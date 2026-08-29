@@ -25,12 +25,6 @@
 #include "okimate_10.h"
 #include "png_printer.h"
 
-
-
-#define RS232_PRINTERCMD_PUT 0x50
-#define RS232_PRINTERCMD_WRITE 0x57
-#define RS232_PRINTERCMD_STATUS 0x53
-
 constexpr const char * const rs232Printer::printer_model_str[PRINTER_INVALID];
 
 rs232Printer::~rs232Printer()
@@ -237,13 +231,13 @@ void rs232Printer::rs232_process(const FujiBusPacket &packet)
     {
         switch (packet.command())
         {
-        case RS232_PRINTERCMD_PUT: // Needed by A822 for graphics mode printing
-        case RS232_PRINTERCMD_WRITE:
+        case CMD::PRINTER_PUT: // Needed by A822 for graphics mode printing
+        case CMD::PRINTER_WRITE:
             _last_ms = fnSystem.millis();
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             rs232_write(packet.data());
             break;
-        case RS232_PRINTERCMD_STATUS:
+        case CMD::PRINTER_STATUS:
             if (packet.paramCount() < 1) {
                 Debug_printv("Insufficient status paramaters: %d", packet.paramCount());
                 SYSTEM_BUS.transaction_error();

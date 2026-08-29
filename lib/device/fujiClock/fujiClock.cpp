@@ -261,44 +261,44 @@ void fujiClock::set_alternate_tz()
     Debug_printf("fujiClock: alternate tz set to <%s>\n", alternate_tz.c_str());
 }
 
-bool fujiClock::run_command(uint8_t command, bool use_alt)
+bool fujiClock::run_command(fujiCommandID_t command, bool use_alt)
 {
     switch (command)
     {
-    case APETIMECMD_GETTZTIME:
+    case CMD::APETIME_GETTZTIME:
         get_apetime(true);
         break;
-    case APETIMECMD_GETTIME:
+    case CMD::APETIME_GETTIME:
         get_apetime(use_alt);
         break;
-    case APETIMECMD_SETTZ_ALT2:
+    case CMD::APETIME_SETTZ_ALT2:
         get_simple(use_alt);
         break;
-    case APETIMECMD_GET_SIMPLE_HUNDREDTHS:
+    case CMD::APETIME_GET_SIMPLE_HUNDREDTHS:
         get_simple_hundredths(use_alt);
         break;
-    case APETIMECMD_GET_PRODOS:
+    case CMD::APETIME_GET_PRODOS:
         get_prodos(use_alt);
         break;
-    case APETIMECMD_GET_SOS:
+    case CMD::APETIME_GET_SOS:
         get_sos(use_alt);
         break;
-    case APETIMECMD_GET_ISO_LOCAL:
+    case CMD::APETIME_GET_ISO_LOCAL:
         get_iso_local(use_alt);
         break;
-    case APETIMECMD_GET_ISO_UTC:
+    case CMD::APETIME_GET_ISO_UTC:
         get_iso_utc();
         break;
-    case APETIMECMD_GET_GENERAL:
+    case CMD::APETIME_GET_GENERAL:
         get_general_tz();
         break;
-    case APETIMECMD_GETTZ_LEN:
+    case CMD::APETIME_GETTZ_LEN:
         get_general_tz_len();
         break;
-    case APETIMECMD_SETTZ:
+    case CMD::APETIME_SETTZ:
         set_alternate_tz();
         break;
-    case APETIMECMD_SETTZ_ALT:
+    case CMD::APETIME_SETTZ_ALT:
         set_fn_tz();
         break;
     default:
@@ -308,18 +308,18 @@ bool fujiClock::run_command(uint8_t command, bool use_alt)
     return true;
 }
 
-bool fujiClock::command_takes_alt(uint8_t command)
+bool fujiClock::command_takes_alt(fujiCommandID_t command)
 {
     switch (command)
     {
-    case APETIMECMD_GETTZTIME:
-    case APETIMECMD_GETTIME:
-    case APETIMECMD_SETTZ_ALT2:
-    case APETIMECMD_GET_SIMPLE_HUNDREDTHS:
-    case APETIMECMD_GET_PRODOS:
-    case APETIMECMD_GET_SOS:
-    case APETIMECMD_GET_ISO_LOCAL:
-    case APETIMECMD_GET_ISO_UTC:
+    case CMD::APETIME_GETTZTIME:
+    case CMD::APETIME_GETTIME:
+    case CMD::APETIME_SETTZ_ALT2:
+    case CMD::APETIME_GET_SIMPLE_HUNDREDTHS:
+    case CMD::APETIME_GET_PRODOS:
+    case CMD::APETIME_GET_SOS:
+    case CMD::APETIME_GET_ISO_LOCAL:
+    case CMD::APETIME_GET_ISO_UTC:
         return true;
     default:
         return false;
@@ -336,7 +336,7 @@ bool fujiClock::processCommand(const FUJI_COMMAND_PACKET &packet)
     _packet = nullptr;
 
     if (!handled)
-        Debug_printv("Unknown clock cmd: %02x", packet.command());
+        Debug_printv("Unknown clock cmd: %02x", (uint8_t) packet.command());
 
     return handled;
 }

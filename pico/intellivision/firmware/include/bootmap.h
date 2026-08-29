@@ -8,7 +8,7 @@
 // ACK/NAK, the mailbox progress cells, the mailbox/JLP overlap policy, and
 // the mm_init()/mm_add()/mm_finalize() commit.
 //
-// Streams arrive incrementally, one NETCMD_WRITE payload at a time, and are
+// Streams arrive incrementally, one CMD::NET_WRITE payload at a time, and are
 // decoded straight into their staging destination -- there is no buffer
 // holding a whole ROM anywhere. Call order per mount:
 //

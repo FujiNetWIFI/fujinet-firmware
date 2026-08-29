@@ -260,7 +260,7 @@ public:
     bool isDragon() { return bDragon; }
 
     // When true, op_readex()'s named-object fallback opens /DGNLOBBY.DWL
-    // instead of /AUTOLOAD.DWL. Set via FUJICMD_SET_BOOT_MODE mode 2 on Dragon.
+    // instead of /AUTOLOAD.DWL. Set via CMD::FUJI_SET_BOOT_MODE mode 2 on Dragon.
     bool useLobbyDwl = false;
 
     drivewireCassette *getCassette() { return _cassetteDev; }

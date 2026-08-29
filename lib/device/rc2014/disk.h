@@ -11,7 +11,7 @@
 #define STATUS_NO_MEDIA  3
 #define STATUS_NO_DRIVE  4
 
-#define DISKCMD_SIZE     0x47 // G - RC2014 specific: get disk size
+#define CMD::DISK_SIZE     0x47 // G - RC2014 specific: get disk size
 
 class rc2014Disk : public virtualDevice
 {
