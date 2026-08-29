@@ -4,8 +4,10 @@
 
 #include "CLIPBOARD.h"
 #include "CPM.h"
+#include "GCAL.h"
 #include "GDRIVE.h"
 #include "GMAIL.h"
+#include "ICAL.h"
 #include "IMAPS.h"
 #include "ONEDRIVE.h"
 #include "TCP.h"
@@ -43,11 +45,20 @@ std::unique_ptr<NetworkProtocol> ProtocolParser::createProtocol(std::string sche
     case "CPM"_sh:
         protocol = std::make_unique<NetworkProtocolCPM>(receiveBuffer, transmitBuffer, specialBuffer);
         break;
+    case "GCAL"_sh:
+        protocol = std::make_unique<NetworkProtocolGCAL>(receiveBuffer, transmitBuffer, specialBuffer);
+        break;
     case "GDRIVE"_sh:
         protocol = std::make_unique<NetworkProtocolGDRIVE>(receiveBuffer, transmitBuffer, specialBuffer);
         break;
     case "GMAIL"_sh:
         protocol = std::make_unique<NetworkProtocolGMAIL>(receiveBuffer, transmitBuffer, specialBuffer);
+        break;
+    // ICAL/WEBCAL fetch over https, ICALH over http; the class reads the scheme.
+    case "ICAL"_sh:
+    case "WEBCAL"_sh:
+    case "ICALH"_sh:
+        protocol = std::make_unique<NetworkProtocolICAL>(receiveBuffer, transmitBuffer, specialBuffer);
         break;
     case "IMAPS"_sh:
         protocol = std::make_unique<NetworkProtocolIMAPS>(receiveBuffer, transmitBuffer, specialBuffer);
