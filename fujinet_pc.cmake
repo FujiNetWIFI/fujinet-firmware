@@ -187,6 +187,7 @@ set(SOURCES src/main.cpp
     lib/clipboard/clipboardManager.h lib/clipboard/clipboardManager.cpp
     lib/utils/utils.h lib/utils/utils.cpp
     lib/utils/cbuf.h lib/utils/cbuf.cpp
+    lib/utils/fn_time.h lib/utils/fn_time.cpp
     lib/utils/string_utils.h lib/utils/string_utils.cpp
     lib/utils/peoples_url_parser.h lib/utils/peoples_url_parser.cpp
     lib/utils/punycode.h lib/utils/punycode.cpp
@@ -234,6 +235,7 @@ set(SOURCES src/main.cpp
     lib/webdav/WebDAV.h lib/webdav/WebDAV.cpp
     lib/webdav/IndexParser.h lib/webdav/IndexParser.cpp
     lib/http/httpService.h lib/http/mgHttpService.cpp
+    lib/http/google_scopes.h
     lib/http/httpServiceParser.h lib/http/httpServiceParser.cpp
     lib/http/httpServiceConfigurator.h lib/http/httpServiceConfigurator.cpp
     lib/http/appKeyManager.h lib/http/appKeyManager.cpp
@@ -271,8 +273,12 @@ set(SOURCES src/main.cpp
     lib/network-protocol/CPM.h lib/network-protocol/CPM.cpp
     lib/network-protocol/GDRIVE.h lib/network-protocol/GDRIVE.cpp
     lib/network-protocol/ONEDRIVE.h lib/network-protocol/ONEDRIVE.cpp
+    lib/network-protocol/text_format.h
     lib/network-protocol/Mailbox.h lib/network-protocol/Mailbox.cpp
     lib/network-protocol/GMAIL.h lib/network-protocol/GMAIL.cpp
+    lib/network-protocol/Calendar.h lib/network-protocol/Calendar.cpp
+    lib/network-protocol/GCAL.h lib/network-protocol/GCAL.cpp
+    lib/network-protocol/ICAL.h lib/network-protocol/ICAL.cpp
     lib/network-protocol/IMAPS.h lib/network-protocol/IMAPS.cpp
     lib/network-protocol/Test.h lib/network-protocol/Test.cpp
     lib/network-protocol/TCP.h lib/network-protocol/TCP.cpp

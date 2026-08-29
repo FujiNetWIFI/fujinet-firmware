@@ -4,7 +4,6 @@
 
 #include "Mailbox.h"
 
-#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -13,6 +12,9 @@
 
 #include "../../include/debug.h"
 #include "status_error_codes.h"
+#include "text_format.h"
+
+using namespace fnfmt;
 
 // The human-readable index/count lines are terminated with `lineEnding`, the
 // per-device end-of-line set by the network.cpp layer (via setLineEnding(),
@@ -23,85 +25,7 @@
 // Upper bound on messages fetched for one index, to bound work and memory.
 #define MB_MAX_RANGE 200
 
-// ─── small string/byte helpers ────────────────────────────────────────────────
-
-namespace {
-
-std::string ellipsize(const std::string &s, int w)
-{
-    if (w <= 0) return "";
-    if ((int)s.size() <= w) return s;
-    if (w <= 3) return s.substr(0, w);
-    return s.substr(0, w - 3) + "...";
-}
-
-std::string ljust(const std::string &s, int w)
-{
-    if ((int)s.size() >= w) return s.substr(0, w);
-    return s + std::string(w - s.size(), ' ');
-}
-
-std::string rjust(const std::string &s, int w)
-{
-    if ((int)s.size() >= w) return s.substr(0, w);
-    return std::string(w - s.size(), ' ') + s;
-}
-
-// Append `n` little-endian bytes of `v`.
-void append_le(std::string &b, uint64_t v, int n)
-{
-    for (int i = 0; i < n; i++)
-    {
-        b += (char)(v & 0xFF);
-        v >>= 8;
-    }
-}
-
-// Append a fixed-width, NUL-terminated, NUL-padded char field.
-void append_fixed(std::string &b, const std::string &s, size_t n)
-{
-    size_t c = (n > 0) ? std::min(s.size(), n - 1) : 0;
-    b.append(s.data(), c);
-    b.append(n - c, '\0');
-}
-
-std::string humanize_date(uint64_t ts)
-{
-    time_t t = (time_t)ts;
-    time_t now = time(nullptr);
-    struct tm tmv;
-    struct tm nowv;
-#if defined(_WIN32)
-    localtime_s(&tmv, &t);
-    localtime_s(&nowv, &now);
-#else
-    localtime_r(&t, &tmv);
-    localtime_r(&now, &nowv);
-#endif
-
-    char buf[16];
-    if (tmv.tm_year == nowv.tm_year)
-        strftime(buf, sizeof(buf), "%d %b", &tmv); // e.g. "31 Jul"
-    else
-        strftime(buf, sizeof(buf), "%m/%d/%y", &tmv); // e.g. "07/31/23"
-    return buf;
-}
-
-std::string humanize_size(uint64_t n)
-{
-    char buf[16];
-    if (n < 1024ULL)
-        snprintf(buf, sizeof(buf), "%uB", (unsigned)n);
-    else if (n < 1024ULL * 1024)
-        snprintf(buf, sizeof(buf), "%.1fK", n / 1024.0);
-    else if (n < 1024ULL * 1024 * 1024)
-        snprintf(buf, sizeof(buf), "%.1fM", n / (1024.0 * 1024));
-    else
-        snprintf(buf, sizeof(buf), "%.1fG", n / (1024.0 * 1024 * 1024));
-    return buf;
-}
-
-} // namespace
+// Column and wire-field helpers live in text_format.h, shared with Calendar.
 
 // ─── construction ─────────────────────────────────────────────────────────────
 

@@ -140,7 +140,10 @@ void sioNetwork::sio_open(const FujiSIOPacket &packet)
     // Ignore aux2 value if NTRANS set 0xFF, for ACTION!
     if ((uint8_t)trans_aux2 == 0xFF)
         open_trans = NETPROTO_TRANS_NONE;
-    else if (open_mode != ACCESS_MODE::DIRECTORY) // don't xlate dir listings.
+    // Don't xlate dir listings. DIRECTORY_ALT counts too: protocols that read
+    // aux2 as a width or format (Mailbox, Calendar) would see it corrupted by a
+    // sticky NTRANS value ORed in here.
+    else if (open_mode != ACCESS_MODE::DIRECTORY && open_mode != ACCESS_MODE::DIRECTORY_ALT)
     {
         unsigned flags = (unsigned) open_trans | trans_aux2;
         open_trans = (netProtoTranslation_t) flags;
