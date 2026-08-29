@@ -42,7 +42,7 @@ protected:
     void update_firmware();
 
     void set_fuji_iec_status(int8_t error, const std::string msg) {
-        set_iec_status(error, _activePacket->command(), msg, fnWiFi.connected(), 15);
+        set_iec_status(error, (uint8_t) _activePacket->command(), msg, fnWiFi.connected(), 15);
     }
 
     void set_iec_status(int8_t error, uint8_t cmd, const std::string msg, bool connected, int channel) {

@@ -356,22 +356,22 @@ bool systemBus::_transaction_handle_command(const FujiDWPacket &packet, virtualD
     _activeFrame = &packet;
 
     if (packet.device() == OP::CLOCK)
-        cmd = FUJICMD_SEND_RESPONSE;
+        cmd = CMD::FUJI_SEND_RESPONSE;
 
     switch (cmd)
     {
-    case FUJICMD_DEVICE_READY:
+    case CMD::FUJI_DEVICE_READY:
         write(0x01); // yes, ready.
         return true;
 
-    case FUJICMD_SEND_ERROR:
+    case CMD::FUJI_SEND_ERROR:
         Debug_printf("drivewire device error = %s\n",
                      device._errorCode == NDEV_STATUS::SUCCESS
                      ? "NONE" : std::to_string(static_cast<int>(device._errorCode)).c_str());
         write(static_cast<uint8_t>(device._errorCode));
         return true;
 
-    case FUJICMD_SEND_RESPONSE:
+    case CMD::FUJI_SEND_RESPONSE:
         len = 0;
         if (packet.device() == OP::NET)
             len = packet.param(0);

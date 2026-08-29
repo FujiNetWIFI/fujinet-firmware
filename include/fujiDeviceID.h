@@ -3,45 +3,43 @@
 
 #include <stdint.h>
 
+typedef enum FUJI_DEVICEID : uint8_t {
 #if defined(BUILD_ADAM)
-enum fujiDeviceID_t : uint8_t {
-  FUJI_DEVICEID_FUJINET      = 0x0F,
+  FUJINET      = 0x0F,
 
-  FUJI_DEVICEID_KEYBOARD     = 0x01,
-  FUJI_DEVICEID_PRINTER      = 0x02,
-  FUJI_DEVICEID_CLOCK        = 0x03,
-  FUJI_DEVICEID_DISK         = 0x04,
-  FUJI_DEVICEID_DISK2        = 0x05,
-  FUJI_DEVICEID_DISK3        = 0x06,
-  FUJI_DEVICEID_DISK4        = 0x07,
-  FUJI_DEVICEID_TAPE         = 0x08,
-  FUJI_DEVICEID_NETWORK      = 0x09,
-  FUJI_DEVICEID_NETWORK_LAST = 0x0E,
-};
+  KEYBOARD     = 0x01,
+  PRINTER      = 0x02,
+  CLOCK        = 0x03,
+  DISK         = 0x04,
+  DISK2        = 0x05,
+  DISK3        = 0x06,
+  DISK4        = 0x07,
+  TAPE         = 0x08,
+  NETWORK      = 0x09,
+  NETWORK_LAST = 0x0E,
 #else
-enum fujiDeviceID_t : uint8_t {
-  FUJI_DEVICEID_FUJINET      = 0x70,
+  FUJINET      = 0x70,
 
-  FUJI_DEVICEID_DISK         = 0x31,
-  FUJI_DEVICEID_DISK_LAST    = 0x3F,
-  FUJI_DEVICEID_PRINTER      = 0x40,
-  FUJI_DEVICEID_PRINTER_LAST = 0x43,
-  FUJI_DEVICEID_VOICE        = 0x43,
-  FUJI_DEVICEID_CLOCK        = 0x45,
-  FUJI_DEVICEID_SIO2BT_SMART = 0x45, // Doubles as APETime and "High Score Submission" to URL
-  FUJI_DEVICEID_ASPEQT       = 0x46,
-  FUJI_DEVICEID_SIO2BT_NET   = 0x4E,
-  FUJI_DEVICEID_TYPE3POLL    = 0x4F,
-  FUJI_DEVICEID_SERIAL       = 0x50,
-  FUJI_DEVICEID_SERIAL_LAST  = 0x53,
-  FUJI_DEVICEID_CPM          = 0x5A,
-  FUJI_DEVICEID_CASSETTE     = 0x5F,
-  FUJI_DEVICEID_PCLINK       = 0x6F,
-  FUJI_DEVICEID_NETWORK      = 0x71,
-  FUJI_DEVICEID_NETWORK_LAST = 0x78,
-  FUJI_DEVICEID_MIDI         = 0x99,
-  FUJI_DEVICEID_DBC          = 0xFF,
-};
+  DISK         = 0x31,
+  DISK_LAST    = 0x3F,
+  PRINTER      = 0x40,
+  PRINTER_LAST = 0x43,
+  VOICE        = 0x43,
+  CLOCK        = 0x45,
+  SIO2BT_SMART = 0x45, // Doubles as APETime and "High Score Submission" to URL
+  ASPEQT       = 0x46,
+  SIO2BT_NET   = 0x4E,
+  TYPE3POLL    = 0x4F,
+  SERIAL       = 0x50,
+  SERIAL_LAST  = 0x53,
+  CPM          = 0x5A,
+  CASSETTE     = 0x5F,
+  PCLINK       = 0x6F,
+  NETWORK      = 0x71,
+  NETWORK_LAST = 0x78,
+  MIDI         = 0x99,
+  DBC          = 0xFF,
 #endif /* BUILD_ADAM */
+} fujiDeviceID_t;
 
 #endif /* FUJI_DEVICES_H */

@@ -6,7 +6,7 @@
 // Pushes a ROM-shaped file (Intellivision .bin+.cfg pair, Intellicart
 // .rom, Atari 2600 .bin, CoCo cartridge image, ...) to the RP2040 over the
 // same USB-CDC/FujiBus link used for ordinary mailbox transactions,
-// addressed to FUJI_DEVICEID_DBC. See diskTypeROM.cpp for the wire
+// addressed to FUJI_DEVICEID::DBC. See diskTypeROM.cpp for the wire
 // sequence.
 class MediaTypeROM : public MediaType
 {

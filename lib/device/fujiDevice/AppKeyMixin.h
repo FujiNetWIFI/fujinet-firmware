@@ -44,10 +44,10 @@ protected:
  public:
     AppKeyMixin() {
         handlers = {
-          { FUJICMD_OPEN_APPKEY,  FM_CMD_HANDLER(appkey_open)  },
-          { FUJICMD_CLOSE_APPKEY, FM_CMD_HANDLER(appkey_close) },
-          { FUJICMD_READ_APPKEY,  FM_CMD_HANDLER(appkey_read)  },
-          { FUJICMD_WRITE_APPKEY, FM_CMD_HANDLER(appkey_write) },
+          { CMD::FUJI_OPEN_APPKEY,  FM_CMD_HANDLER(appkey_open)  },
+          { CMD::FUJI_CLOSE_APPKEY, FM_CMD_HANDLER(appkey_close) },
+          { CMD::FUJI_READ_APPKEY,  FM_CMD_HANDLER(appkey_read)  },
+          { CMD::FUJI_WRITE_APPKEY, FM_CMD_HANDLER(appkey_write) },
         };
     }
 };

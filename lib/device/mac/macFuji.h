@@ -32,7 +32,7 @@ private:
     //uint8_t response[1024]; // use packet_buffer instead
     //uint16_t response_len;
 
-    // Response to FUJICMD_GET_SCAN_RESULT
+    // Response to CMD::FUJI_GET_SCAN_RESULT
     struct
     {
         char ssid[MAX_SSID_LEN + 1];

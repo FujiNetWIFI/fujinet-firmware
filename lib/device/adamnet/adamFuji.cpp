@@ -181,19 +181,19 @@ void adamFuji::adamnet_enable_device(const FujiAdamPacket &packet)
 
     switch (d)
     {
-    case FUJI_DEVICEID_PRINTER:
+    case FUJI_DEVICEID::PRINTER:
         Config.store_printer_enabled(true);
         break;
-    case FUJI_DEVICEID_DISK:
+    case FUJI_DEVICEID::DISK:
         Config.store_device_slot_enable_1(true);
         break;
-    case FUJI_DEVICEID_DISK2:
+    case FUJI_DEVICEID::DISK2:
         Config.store_device_slot_enable_2(true);
         break;
-    case FUJI_DEVICEID_DISK3:
+    case FUJI_DEVICEID::DISK3:
         Config.store_device_slot_enable_3(true);
         break;
-    case FUJI_DEVICEID_DISK4:
+    case FUJI_DEVICEID::DISK4:
         Config.store_device_slot_enable_4(true);
         break;
     default:
@@ -216,19 +216,19 @@ void adamFuji::adamnet_disable_device(const FujiAdamPacket &packet)
 
     switch (d)
     {
-    case FUJI_DEVICEID_PRINTER:
+    case FUJI_DEVICEID::PRINTER:
         Config.store_printer_enabled(false);
         break;
-    case FUJI_DEVICEID_DISK:
+    case FUJI_DEVICEID::DISK:
         Config.store_device_slot_enable_1(false);
         break;
-    case FUJI_DEVICEID_DISK2:
+    case FUJI_DEVICEID::DISK2:
         Config.store_device_slot_enable_2(false);
         break;
-    case FUJI_DEVICEID_DISK3:
+    case FUJI_DEVICEID::DISK3:
         Config.store_device_slot_enable_3(false);
         break;
-    case FUJI_DEVICEID_DISK4:
+    case FUJI_DEVICEID::DISK4:
         Config.store_device_slot_enable_4(false);
         break;
     default:
@@ -253,10 +253,10 @@ void adamFuji::setup()
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = false;
 
-    SYSTEM_BUS.addDevice(&_fnDisks[0].disk_dev, FUJI_DEVICEID_DISK);
-    SYSTEM_BUS.addDevice(&_fnDisks[1].disk_dev, FUJI_DEVICEID_DISK2);
-    SYSTEM_BUS.addDevice(&_fnDisks[2].disk_dev, FUJI_DEVICEID_DISK3);
-    SYSTEM_BUS.addDevice(&_fnDisks[3].disk_dev, FUJI_DEVICEID_DISK4);
+    SYSTEM_BUS.addDevice(&_fnDisks[0].disk_dev, FUJI_DEVICEID::DISK);
+    SYSTEM_BUS.addDevice(&_fnDisks[1].disk_dev, FUJI_DEVICEID::DISK2);
+    SYSTEM_BUS.addDevice(&_fnDisks[2].disk_dev, FUJI_DEVICEID::DISK3);
+    SYSTEM_BUS.addDevice(&_fnDisks[3].disk_dev, FUJI_DEVICEID::DISK4);
 
     // Read and enable devices
     _fnDisks[0].disk_dev.device_active = Config.get_device_slot_enable_1();
@@ -291,9 +291,9 @@ void adamFuji::setup()
         theNetwork = new adamNetwork();
         theNetwork2 = new adamNetwork();
         theSerial = new adamSerial();
-        SYSTEM_BUS.addDevice(theNetwork, FUJI_DEVICEID_NETWORK);  // temporary.
-        SYSTEM_BUS.addDevice(theNetwork2, static_cast<fujiDeviceID_t>(FUJI_DEVICEID_NETWORK + 1)); // temporary
-        SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET);    // Fuji becomes the gateway device.
+        SYSTEM_BUS.addDevice(theNetwork, FUJI_DEVICEID::NETWORK);  // temporary.
+        SYSTEM_BUS.addDevice(theNetwork2, static_cast<fujiDeviceID_t>(FUJI_DEVICEID::NETWORK + 1)); // temporary
+        SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID::FUJINET);    // Fuji becomes the gateway device.
     }
 }
 
@@ -335,19 +335,19 @@ void adamFuji::adamnet_control_send(const FujiAdamPacket &packet)
 
     switch (packet.command())
     {
-    case FUJICMD_NEW_DISK:
+    case CMD::FUJI_NEW_DISK:
         adamnet_new_disk(packet);
         break;
-    case FUJICMD_ENABLE_DEVICE:
+    case CMD::FUJI_ENABLE_DEVICE:
         adamnet_enable_device(packet);
         break;
-    case FUJICMD_DISABLE_DEVICE:
+    case CMD::FUJI_DISABLE_DEVICE:
         adamnet_disable_device(packet);
         break;
-    case FUJICMD_GET_TIME:
+    case CMD::FUJI_GET_TIME:
         adamnet_get_time();
         break;
-    case FUJICMD_DEVICE_ENABLE_STATUS:
+    case CMD::FUJI_DEVICE_ENABLE_STATUS:
         adamnet_device_enable_status(packet);
         break;
     default:

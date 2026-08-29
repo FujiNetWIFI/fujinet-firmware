@@ -21,33 +21,33 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
                 _fnHosts[i].slotid = i;
 
     control_handlers = {
-        { 0xAA, [this](const iwm_decoded_cmd_t &cmd)                               { this->iwm_dummy_command(cmd); }},
-        { SP_CTRL_SET_DCB, [this](const iwm_decoded_cmd_t &cmd)                   { this->iwm_dummy_command(cmd); }},                 // 0x01
-        { SP_CTRL_SET_NEWLINE, [this](const iwm_decoded_cmd_t &cmd)               { this->iwm_dummy_command(cmd); }},                 // 0x02
+        { (fujiCommandID_t) 0xAA, [this](const iwm_decoded_cmd_t &cmd)                               { this->iwm_dummy_command(cmd); }},
+        { (fujiCommandID_t) SP_CTRL_SET_DCB, [this](const iwm_decoded_cmd_t &cmd)                   { this->iwm_dummy_command(cmd); }},
+        { (fujiCommandID_t) SP_CTRL_SET_NEWLINE, [this](const iwm_decoded_cmd_t &cmd)               { this->iwm_dummy_command(cmd); }},
 
-        { FUJICMD_DISABLE_DEVICE, [this](const iwm_decoded_cmd_t &cmd)             { this->iwm_ctrl_disable_device(cmd); }},           // 0xD4
-        { FUJICMD_ENABLE_DEVICE, [this](const iwm_decoded_cmd_t &cmd)              { this->iwm_ctrl_enable_device(cmd); }},            // 0xD5
+        { CMD::FUJI_DISABLE_DEVICE, [this](const iwm_decoded_cmd_t &cmd)             { this->iwm_ctrl_disable_device(cmd); }},
+        { CMD::FUJI_ENABLE_DEVICE, [this](const iwm_decoded_cmd_t &cmd)              { this->iwm_ctrl_enable_device(cmd); }},
 
-        { FUJICMD_NEW_DISK, [this](const iwm_decoded_cmd_t &cmd)                   { this->iwm_ctrl_new_disk(cmd); }},                 // 0xE7
+        { CMD::FUJI_NEW_DISK, [this](const iwm_decoded_cmd_t &cmd)                   { this->iwm_ctrl_new_disk(cmd); }},
 
 #ifdef DEV_RELAY_SLIP
-        { SP_CTRL_CLEAR_DISKII_SEEN, [this](const iwm_decoded_cmd_t &cmd)              { SYSTEM_BUS.transaction_error(SP_ERR::NODRIVE); }},
+        { (fujiCommandID_t) SP_CTRL_CLEAR_DISKII_SEEN, [this](const iwm_decoded_cmd_t &cmd)              { SYSTEM_BUS.transaction_error(SP_ERR::NODRIVE); }},
 #else
-        { SP_CTRL_CLEAR_DISKII_SEEN, [this](const iwm_decoded_cmd_t &cmd)              { diskii_xface.d2_enable_seen = 0; SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET); SYSTEM_BUS.transaction_success(); }},
+        { (fujiCommandID_t) SP_CTRL_CLEAR_DISKII_SEEN, [this](const iwm_decoded_cmd_t &cmd)              { diskii_xface.d2_enable_seen = 0; SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET); SYSTEM_BUS.transaction_success(); }},
 #endif
     };
 
     status_handlers = {
-        { 0xAA, [this](const iwm_decoded_cmd_t &cmd)                               { this->iwm_hello_world(); }},
+        { (fujiCommandID_t) 0xAA, [this](const iwm_decoded_cmd_t &cmd)                               { this->iwm_hello_world(); }},
 
 #ifndef DEV_RELAY_SLIP
-        { SP_STAT_GET_DISKII_SEEN, [this](const iwm_decoded_cmd_t &cmd)                  {
+        { (fujiCommandID_t) SP_STAT_GET_DISKII_SEEN, [this](const iwm_decoded_cmd_t &cmd)                  {
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             SYSTEM_BUS.transaction_send(diskii_xface.d2_enable_seen);
         }},
 #endif
 
-        { FUJICMD_GET_HEAP, [this](const iwm_decoded_cmd_t &cmd)                   { this->iwm_stat_get_heap(); }},                         // 0xC1
+        { CMD::FUJI_GET_HEAP, [this](const iwm_decoded_cmd_t &cmd)                   { this->iwm_stat_get_heap(); }},
     };
 
 }

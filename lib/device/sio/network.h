@@ -312,7 +312,7 @@ private:
      * @param command The network command code
      * @return The DSTATS byte value (0x00, 0x40, 0x80, or 0xFF for invalid)
      */
-    uint8_t get_dstats_for_command(uint8_t command);
+    uint8_t get_dstats_for_command(fujiCommandID_t command);
 
     /**
      * Start the Interrupt rate limiting timer

@@ -178,15 +178,15 @@ void lynxFuji::setup()
     boot_config = false;
 
     // Add our devices to the bus
-    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET);   // Fuji becomes the gateway device.
+    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID::FUJINET);   // Fuji becomes the gateway device.
 
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        SYSTEM_BUS.addDevice(&_fnDisks[i].disk_dev, (fujiDeviceID_t) (FUJI_DEVICEID_DISK + i));
+        SYSTEM_BUS.addDevice(&_fnDisks[i].disk_dev, (fujiDeviceID_t) (FUJI_DEVICEID::DISK + i));
 
     for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-        SYSTEM_BUS.addDevice(lynxNetDevs[i].get(), (fujiDeviceID_t) (FUJI_DEVICEID_NETWORK + i));
+        SYSTEM_BUS.addDevice(lynxNetDevs[i].get(), (fujiDeviceID_t) (FUJI_DEVICEID::NETWORK + i));
 
-    SYSTEM_BUS.addDevice(&_streamDev, FUJI_DEVICEID_MIDI);
+    SYSTEM_BUS.addDevice(&_streamDev, FUJI_DEVICEID::MIDI);
 }
 
 void lynxFuji::fujicmd_get_time()
@@ -267,7 +267,7 @@ void lynxFuji::fujicmd_enable_netstream(int port, size_t host_payload_len)
 
 void lynxFuji::comlynx_process(const FujiLynxPacket &packet)
 {
-    Debug_printf("lynxFuji::process - command: %02X\n", packet.command());
+    Debug_printf("lynxFuji::process - command: %02X\n", (uint8_t) packet.command());
 
     // Let the base class handle standard commands
     if (fujiDevice::processCommand(packet))
@@ -275,14 +275,14 @@ void lynxFuji::comlynx_process(const FujiLynxPacket &packet)
 
     switch (packet.command())
     {
-    case FUJICMD_ENABLE_UDPSTREAM:
+    case CMD::FUJI_ENABLE_UDPSTREAM:
         {
             uint16_t port = packet.param(0);
             fujicmd_enable_netstream(port, packet.data()->size());
         }
         break;
     default:
-        Debug_printf("lynxFuji::process - unknown command: %02X\n", packet.command());
+        Debug_printf("lynxFuji::process - unknown command: %02X\n", (uint8_t) packet.command());
         SYSTEM_BUS.transaction_error();
         break;
     }

@@ -566,7 +566,7 @@ void _clrscr(void)
 
 uint8_t bdos_networkConfig(uint16_t addr)
 {
-        // Response to FUJICMD_GET_ADAPTERCONFIG
+        // Response to CMD::FUJI_GET_ADAPTERCONFIG
         struct
         {
                 char ssid[32];

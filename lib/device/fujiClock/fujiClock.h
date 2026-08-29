@@ -39,7 +39,7 @@ protected:
 
     std::string tz_for(bool use_alt) const;
 
-    static bool command_takes_alt(uint8_t command);
+    static bool command_takes_alt(fujiCommandID_t command);
 
     // Only called for commands command_takes_alt() accepts; on some buses
     // reading a parameter consumes bus bytes.
@@ -61,7 +61,7 @@ protected:
     void set_fn_tz();
     void set_alternate_tz();
 
-    bool run_command(uint8_t command, bool use_alt);
+    bool run_command(fujiCommandID_t command, bool use_alt);
 
 private:
     static std::vector<uint8_t> build_simple(const std::chrono::system_clock::time_point &now,

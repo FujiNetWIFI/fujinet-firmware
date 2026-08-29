@@ -117,7 +117,7 @@ void s100spiFuji::s100spi_net_scan_result()
 
     s100spi_recv(); // get CK
 
-    // Response to FUJICMD_GET_SCAN_RESULT
+    // Response to CMD::FUJI_GET_SCAN_RESULT
     struct
     {
         char ssid[MAX_SSID_LEN];
@@ -146,7 +146,7 @@ void s100spiFuji::s100spi_net_get_ssid()
 
     s100spi_recv(); // get CK
 
-    // Response to FUJICMD_GET_SSID
+    // Response to CMD::FUJI_GET_SSID
     struct
     {
         char ssid[MAX_SSID_LEN];
@@ -185,7 +185,7 @@ void s100spiFuji::s100spi_net_set_ssid(uint16_t s)
 
         s--;
 
-        // Data for FUJICMD_SET_SSID
+        // Data for CMD::FUJI_SET_SSID
         struct
         {
             char ssid[MAX_SSID_LEN];
@@ -620,7 +620,7 @@ void s100spiFuji::s100spi_get_adapter_config()
 
     s100spi_response_ack();
 
-    // Response to FUJICMD_GET_ADAPTERCONFIG
+    // Response to CMD::FUJI_GET_ADAPTERCONFIG
     AdapterConfig cfg;
 
     memset(&cfg, 0, sizeof(cfg));
@@ -1054,79 +1054,79 @@ void s100spiFuji::s100spi_control_send()
 
     switch (c)
     {
-    case FUJICMD_RESET:
+    case CMD::FUJI_RESET:
         s100spi_reset_fujinet();
         break;
-    case FUJICMD_GET_SSID:
+    case CMD::FUJI_GET_SSID:
         s100spi_net_get_ssid();
         break;
-    case FUJICMD_SCAN_NETWORKS:
+    case CMD::FUJI_SCAN_NETWORKS:
         s100spi_net_scan_networks();
         break;
-    case FUJICMD_GET_SCAN_RESULT:
+    case CMD::FUJI_GET_SCAN_RESULT:
         s100spi_net_scan_result();
         break;
-    case FUJICMD_SET_SSID:
+    case CMD::FUJI_SET_SSID:
         s100spi_net_set_ssid(s);
         break;
-    case FUJICMD_GET_WIFISTATUS:
+    case CMD::FUJI_GET_WIFISTATUS:
         s100spi_net_get_wifi_status();
         break;
-    case FUJICMD_MOUNT_HOST:
+    case CMD::FUJI_MOUNT_HOST:
         s100spi_mount_host();
         break;
-    case FUJICMD_MOUNT_IMAGE:
+    case CMD::FUJI_MOUNT_IMAGE:
         s100spi_disk_image_mount();
         break;
-    case FUJICMD_OPEN_DIRECTORY:
+    case CMD::FUJI_OPEN_DIRECTORY:
         s100spi_open_directory(s);
         break;
-    case FUJICMD_READ_DIR_ENTRY:
+    case CMD::FUJI_READ_DIR_ENTRY:
         s100spi_read_directory_entry();
         break;
-    case FUJICMD_CLOSE_DIRECTORY:
+    case CMD::FUJI_CLOSE_DIRECTORY:
         s100spi_close_directory();
         break;
-    case FUJICMD_READ_HOST_SLOTS:
+    case CMD::FUJI_READ_HOST_SLOTS:
         s100spi_read_host_slots();
         break;
-    case FUJICMD_WRITE_HOST_SLOTS:
+    case CMD::FUJI_WRITE_HOST_SLOTS:
         s100spi_write_host_slots();
         break;
-    case FUJICMD_READ_DEVICE_SLOTS:
+    case CMD::FUJI_READ_DEVICE_SLOTS:
         s100spi_read_device_slots();
         break;
-    case FUJICMD_WRITE_DEVICE_SLOTS:
+    case CMD::FUJI_WRITE_DEVICE_SLOTS:
         s100spi_write_device_slots();
         break;
-    case FUJICMD_UNMOUNT_IMAGE:
+    case CMD::FUJI_UNMOUNT_IMAGE:
         s100spi_disk_image_umount();
         break;
-    case FUJICMD_GET_ADAPTERCONFIG:
+    case CMD::FUJI_GET_ADAPTERCONFIG:
         s100spi_get_adapter_config();
         break;
-    case FUJICMD_NEW_DISK:
+    case CMD::FUJI_NEW_DISK:
         s100spi_new_disk();
         break;
-    case FUJICMD_GET_DIRECTORY_POSITION:
+    case CMD::FUJI_GET_DIRECTORY_POSITION:
         s100spi_get_directory_position();
         break;
-    case FUJICMD_SET_DIRECTORY_POSITION:
+    case CMD::FUJI_SET_DIRECTORY_POSITION:
         s100spi_set_directory_position();
         break;
-    case FUJICMD_SET_DEVICE_FULLPATH:
+    case CMD::FUJI_SET_DEVICE_FULLPATH:
         s100spi_set_device_filename(s);
         break;
-    case FUJICMD_GET_DEVICE_FULLPATH:
+    case CMD::FUJI_GET_DEVICE_FULLPATH:
         s100spi_get_device_filename();
         break;
-    case FUJICMD_CONFIG_BOOT:
+    case CMD::FUJI_CONFIG_BOOT:
         s100spi_set_boot_config();
         break;
-    case FUJICMD_ENABLE_DEVICE:
+    case CMD::FUJI_ENABLE_DEVICE:
         s100spi_enable_device();
         break;
-    case FUJICMD_DISABLE_DEVICE:
+    case CMD::FUJI_DISABLE_DEVICE:
         s100spi_disable_device();
         break;
     }

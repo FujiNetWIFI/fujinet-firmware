@@ -243,23 +243,23 @@ void rc2014Disk::rc2014_process(uint32_t commanddata, uint8_t checksum)
         return;
 
     switch (cmdFrame.comnd) {
-    case DISKCMD_READ:
+    case CMD::DISK_READ:
         read();
         return;
-    case DISKCMD_PUT:
+    case CMD::DISK_PUT:
         write(false);
         return;
-    case DISKCMD_STATUS:
+    case CMD::DISK_STATUS:
         status();
         return;
-    case DISKCMD_WRITE:
+    case CMD::DISK_WRITE:
         write(true);
         return;
-    case DISKCMD_FORMAT:
-    case DISKCMD_FORMAT_MEDIUM:
+    case CMD::DISK_FORMAT:
+    case CMD::DISK_FORMAT_MEDIUM:
         format();
         return;
-    case DISKCMD_SIZE:
+    case CMD::DISK_SIZE:
         get_size();
         return;
     default:

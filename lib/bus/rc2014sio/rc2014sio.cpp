@@ -12,7 +12,7 @@
 #include "fnSystem.h"
 
 #include "led.h"
-#include "modem.h" 
+#include "modem.h"
 
 
 uint8_t rc2014_checksum(uint8_t *buf, unsigned short len)
@@ -219,7 +219,7 @@ void systemBus::_rc2014_process_cmd()
     if (ck == tempFrame.checksum)
     {
 #if 0
-        if (tempFrame.device == FUJI_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
+        if (tempFrame.device == FUJI_DEVICEID::DISK && _fujiDev != nullptr && _fujiDev->boot_config)
         {
             _activeDev = _fujiDev->bootdisk();
             if (_activeDev->status_wait_count > 0 && tempFrame.comnd == 'R' && _fujiDev->status_wait_enabled)
@@ -269,7 +269,7 @@ void systemBus::service()
     {
         _cpmDev->rc2014_handle_cpm();
         return; // break!
-    }    
+    }
 #endif
     // Go process a command frame if the RS232 CMD line is asserted
     if (fnSystem.digital_read(PIN_CMD_REQ) == DIGI_LOW)

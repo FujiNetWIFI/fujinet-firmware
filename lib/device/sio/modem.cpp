@@ -142,7 +142,7 @@ void modem::sio_poll_3(const FujiSIOPacket &packet)
         return;
     }
     // When packet.param8(0) = 0x52 'R' and packet.param8(1) == 1 or DEVICE == x050, it's a directed poll to "R1:"
-    if ((packet.param8(0) == 0x52 && packet.param8(1) == 0x01) || packet.device() == FUJI_DEVICEID_SERIAL)
+    if ((packet.param8(0) == 0x52 && packet.param8(1) == 0x01) || packet.device() == FUJI_DEVICEID::SERIAL)
     {
         Debug_print("MODEM TYPE 4 \"R1:\" DIRECTED POLL\n");
         respond = true;
@@ -167,7 +167,7 @@ void modem::sio_poll_3(const FujiSIOPacket &packet)
     uint8_t type4response[4];
     type4response[0] = LOBYTE_FROM_UINT16(fsize);
     type4response[1] = HIBYTE_FROM_UINT16(fsize);
-    type4response[2] = FUJI_DEVICEID_SERIAL;
+    type4response[2] = FUJI_DEVICEID::SERIAL;
     type4response[3] = 0;
 
     fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY);
@@ -232,19 +232,19 @@ void modem::sio_poll_1()
 
 // 0x21 / '!' - RELOCATOR DOWNLOAD
 // 0x26 / '&' - HANDLER DOWNLOAD
-void modem::sio_send_firmware(uint8_t loadcommand)
+void modem::sio_send_firmware(fujiCommandID_t loadcommand)
 {
     const char *firmware;
     int firmware_size = 0;
 
-    if (loadcommand == MODEMCMD_LOAD_RELOCATOR)
+    if (loadcommand == CMD::MODEM_LOAD_RELOCATOR)
     {
         firmware = FIRMWARE_850RELOCATOR;
         firmware_size = fnSystem.load_firmware(firmware, NULL);
     }
     else
     {
-        if (loadcommand == MODEMCMD_LOAD_HANDLER)
+        if (loadcommand == CMD::MODEM_LOAD_HANDLER)
         {
             firmware = FIRMWARE_850HANDLER;
             firmware_size = fnSystem.load_firmware(firmware, NULL);
@@ -274,7 +274,7 @@ void modem::sio_send_firmware(uint8_t loadcommand)
     // Send it
 
     Debug_printf("Modem sending %d bytes of %s code\n", codesize,
-                 loadcommand == MODEMCMD_LOAD_RELOCATOR ? "relocator" : "handler");
+                 loadcommand == CMD::MODEM_LOAD_RELOCATOR ? "relocator" : "handler");
 
     SYSTEM_BUS.transaction_send(code, codesize, false);
 
@@ -1890,17 +1890,17 @@ void modem::sio_process(const FujiSIOPacket &packet)
 
         switch (packet.command())
         {
-        case MODEMCMD_LOAD_RELOCATOR:
+        case CMD::MODEM_LOAD_RELOCATOR:
             Debug_printf("MODEM $21 RELOCATOR #%d\n", ++count_ReqRelocator);
             sio_send_firmware(packet.command());
             break;
 
-        case MODEMCMD_LOAD_HANDLER:
+        case CMD::MODEM_LOAD_HANDLER:
             Debug_printf("MODEM $26 HANDLER DL #%d\n", ++count_ReqHandler);
             sio_send_firmware(packet.command());
             break;
 
-        case MODEMCMD_TYPE1_POLL:
+        case CMD::MODEM_TYPE1_POLL:
             Debug_printf("MODEM TYPE 1 POLL #%d\n", ++count_PollType1);
             // The 850 is only supposed to respond to this if AUX1 = 1 or on the 26th poll attempt
             if (packet.param8(0) == 1 || count_PollType1 == 16)
@@ -1910,42 +1910,42 @@ void modem::sio_process(const FujiSIOPacket &packet)
             }
             break;
 
-        case MODEMCMD_TYPE3_POLL:
+        case CMD::MODEM_TYPE3_POLL:
             sio_poll_3(packet);
             break;
 
-        case MODEMCMD_CONTROL:
+        case CMD::MODEM_CONTROL:
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             sio_control(packet);
             break;
-        case MODEMCMD_CONFIGURE:
+        case CMD::MODEM_CONFIGURE:
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             sio_config(packet);
             break;
-        case MODEMCMD_SET_DUMP:
+        case CMD::MODEM_SET_DUMP:
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             sio_set_dump(packet);
             break;
-        case MODEMCMD_LISTEN:
+        case CMD::MODEM_LISTEN:
             sio_listen(packet);
             break;
-        case MODEMCMD_UNLISTEN:
+        case CMD::MODEM_UNLISTEN:
             sio_unlisten();
             break;
-        case MODEMCMD_BAUDRATELOCK:
+        case CMD::MODEM_BAUDRATELOCK:
             sio_baudlock(packet);
             break;
-        case MODEMCMD_AUTOANSWER:
+        case CMD::MODEM_AUTOANSWER:
             sio_autoanswer(packet);
             break;
-        case MODEMCMD_STATUS:
+        case CMD::MODEM_STATUS:
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             sio_status(packet);
             break;
-        case MODEMCMD_WRITE:
+        case CMD::MODEM_WRITE:
             sio_write(packet);
             break;
-        case MODEMCMD_STREAM:
+        case CMD::MODEM_STREAM:
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             sio_stream();
             break;

@@ -358,7 +358,7 @@ void systemBus::_adamnet_dispatch(const FujiAdamPacket &packet)
     Debug_printf("Dispatching device: %s (0x%02x)  type: %s (0x%02x)\n",
                  AdamNetPhase::device_to_string(packet.device()), packet.device(),
                  AdamNetPhase::type_to_string(packet.type()), packet.type());
-    if ((packet.device() == FUJI_DEVICEID_FUJINET || packet.device() == FUJI_DEVICEID_NETWORK)
+    if ((packet.device() == FUJI_DEVICEID::FUJINET || packet.device() == FUJI_DEVICEID::NETWORK)
         && packet.type() == APT::MN_SEND)
         Debug_printf("Fuji command: 0x%02x\n", packet.command());
 #endif // DEBUG_DISPATCH
@@ -526,7 +526,7 @@ void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
 
     switch (device_id)
     {
-    case FUJI_DEVICEID_FUJINET:
+    case FUJI_DEVICEID::FUJINET:
         _fujiDev = dynamic_cast<adamFuji*>(pDevice);
         break;
     default:

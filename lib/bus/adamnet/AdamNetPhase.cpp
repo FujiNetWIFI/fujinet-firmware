@@ -49,16 +49,16 @@ const char* AdamNetPhase::device_to_string(fujiDeviceID_t device)
 {
     switch (device)
     {
-    case FUJI_DEVICEID_FUJINET:      return "FUJINET";
-    case FUJI_DEVICEID_KEYBOARD:     return "KEYBOARD";
-    case FUJI_DEVICEID_PRINTER:      return "PRINTER";
-    case FUJI_DEVICEID_DISK:         return "DISK";
-    case FUJI_DEVICEID_DISK2:        return "DISK2";
-    case FUJI_DEVICEID_DISK3:        return "DISK3";
-    case FUJI_DEVICEID_DISK4:        return "DISK4";
-    case FUJI_DEVICEID_TAPE:         return "TAPE";
-    case FUJI_DEVICEID_NETWORK:      return "NETWORK";
-    case FUJI_DEVICEID_NETWORK_LAST: return "NETWORK_LAST";
+    case FUJI_DEVICEID::FUJINET:      return "FUJINET";
+    case FUJI_DEVICEID::KEYBOARD:     return "KEYBOARD";
+    case FUJI_DEVICEID::PRINTER:      return "PRINTER";
+    case FUJI_DEVICEID::DISK:         return "DISK";
+    case FUJI_DEVICEID::DISK2:        return "DISK2";
+    case FUJI_DEVICEID::DISK3:        return "DISK3";
+    case FUJI_DEVICEID::DISK4:        return "DISK4";
+    case FUJI_DEVICEID::TAPE:         return "TAPE";
+    case FUJI_DEVICEID::NETWORK:      return "NETWORK";
+    case FUJI_DEVICEID::NETWORK_LAST: return "NETWORK_LAST";
     default:                return "UNKNOWN_DEVICE";
     }
 }
@@ -87,7 +87,7 @@ inline bool AdamNetPhase::bus_expected_state(const FujiAdamPacket &packet, PHASE
     Debug_printf("Packet device: %s (0x%02x)  type: %s (0x%02x)\n",
                  device_to_string(packet.device()), packet.device(),
                  type_to_string(packet.type()), packet.type());
-    if ((packet.device() == FUJI_DEVICEID_FUJINET || packet.device() == FUJI_DEVICEID_NETWORK)
+    if ((packet.device() == FUJI_DEVICEID::FUJINET || packet.device() == FUJI_DEVICEID::NETWORK)
         && packet.type() == APT::MN_SEND)
         Debug_printf("Fuji command: 0x%02x\n", packet.command());
 

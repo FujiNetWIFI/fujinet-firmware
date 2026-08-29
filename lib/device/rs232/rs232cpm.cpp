@@ -74,7 +74,7 @@ void rs232CPM::rs232_process(const FujiBusPacket &packet)
 {
     switch (packet.command())
     {
-    case CPMCMD_INIT:
+    case CMD::CPM_INIT:
         SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
         fnSystem.delay(10);
         SYSTEM_BUS.transaction_success();

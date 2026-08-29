@@ -21,19 +21,19 @@
 // Matches FUJI_DEVICEID_DBC in the main tree's include/fujiDeviceID.h.
 #define FUJI_DEVICEID_DBC 0xFF
 
-// NETCMD_*: matches include/fujiCommandID.h in the main tree. Reused here
-// (rather than FUJICMD_*) because that's what the ESP32-S3 side's
+// CMD::NET_*: matches include/fujiCommandID.h in the main tree. Reused here
+// (rather than CMD::FUJI_*) because that's what the ESP32-S3 side's
 // MediaTypeROM::mount() actually sends -- see
 // lib/media/rs232/diskTypeROM.cpp's push_stream().
-#define NETCMD_OPEN  0x4F
-#define NETCMD_WRITE 0x57
-#define NETCMD_CLOSE 0x43
+#define CMD::NET_OPEN  0x4F
+#define CMD::NET_WRITE 0x57
+#define CMD::NET_CLOSE 0x43
 
-#define FUJICMD_GET_ADAPTERCONFIG_EXTENDED 0xC4
-#define FUJICMD_MOUNT_IMAGE 0xF8
-#define FUJICMD_SET_DEVICE_FULLPATH 0xE2
-#define FUJICMD_ACK 0x06
-#define FUJICMD_NAK 0x15
+#define CMD::FUJI_GET_ADAPTERCONFIG_EXTENDED 0xC4
+#define CMD::FUJI_MOUNT_IMAGE 0xF8
+#define CMD::FUJI_SET_DEVICE_FULLPATH 0xE2
+#define CMD::FUJI_ACK 0x06
+#define CMD::FUJI_NAK 0x15
 
 // AdapterConfigExtended, packed layout matching lib/device/fujiDevice.h.
 #define FUJI_ADAPTERCONFIG_EXTENDED_SIZE 240
@@ -55,7 +55,7 @@ typedef struct {
 
 typedef struct {
     uint8_t device;
-    uint8_t command;   // FUJICMD_ACK or FUJICMD_NAK
+    uint8_t command;   // CMD::FUJI_ACK or CMD::FUJI_NAK
     const uint8_t *data;
     uint16_t data_len;
 } fb_reply_t;

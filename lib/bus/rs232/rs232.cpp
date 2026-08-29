@@ -130,14 +130,14 @@ void systemBus::_rs232_process_cmd()
     fnLedManager.set(eLed::LED_BUS, true);
 
     Debug_printf("\nCF: dev:%02x cmd:%02x dlen:%d\n",
-                 tempFrame->device(), tempFrame->command(),
+                 tempFrame->device(), (uint8_t) tempFrame->command(),
                  tempFrame->data() ? tempFrame->data()->size() : -1);
 
 
     _activePacket = tempFrame.get();
     _activeDev = nullptr;
 
-    if (tempFrame->device() == FUJI_DEVICEID_DISK && _fujiDev != nullptr
+    if (tempFrame->device() == FUJI_DEVICEID::DISK && _fujiDev != nullptr
         && _fujiDev->boot_config)
     {
         _activeDev = &_fujiDev->bootdisk;
@@ -261,27 +261,27 @@ void systemBus::setup()
 // Add device to RS232 bus
 void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
 {
-    if (device_id == FUJI_DEVICEID_FUJINET)
+    if (device_id == FUJI_DEVICEID::FUJINET)
     {
         _fujiDev = dynamic_cast<rs232Fuji *>(pDevice);
     }
-    else if (device_id == FUJI_DEVICEID_SERIAL)
+    else if (device_id == FUJI_DEVICEID::SERIAL)
     {
         _modemDev = (rs232Modem *)pDevice;
     }
-    else if (device_id >= FUJI_DEVICEID_NETWORK && device_id <= FUJI_DEVICEID_NETWORK_LAST)
+    else if (device_id >= FUJI_DEVICEID::NETWORK && device_id <= FUJI_DEVICEID::NETWORK_LAST)
     {
-        _netDev[device_id - FUJI_DEVICEID_NETWORK] = (rs232Network *)pDevice;
+        _netDev[device_id - FUJI_DEVICEID::NETWORK] = (rs232Network *)pDevice;
     }
-    else if (device_id == FUJI_DEVICEID_MIDI)
+    else if (device_id == FUJI_DEVICEID::MIDI)
     {
         _streamDev = (rs232NetStream *)pDevice;
     }
-    else if (device_id == FUJI_DEVICEID_CPM)
+    else if (device_id == FUJI_DEVICEID::CPM)
     {
         _cpmDev = (rs232CPM *)pDevice;
     }
-    else if (device_id == FUJI_DEVICEID_PRINTER)
+    else if (device_id == FUJI_DEVICEID::PRINTER)
     {
         _printerdev = (rs232Printer *)pDevice;
     }
@@ -418,7 +418,7 @@ void systemBus::sendReplyPacket(fujiDeviceID_t source, bool ack, const void *dat
         bb.assign(start, start + length);
     }
 
-    FujiBusPacket packet(source, ack ? FUJICMD_ACK : FUJICMD_NAK, bb);
+    FujiBusPacket packet(source, ack ? CMD::FUJI_ACK : CMD::FUJI_NAK, bb);
     writeBusPacket(packet);
     return;
 }

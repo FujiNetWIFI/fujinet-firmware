@@ -18,7 +18,7 @@ sioDisk::sioDisk()
 // Read disk data and send to computer
 void sioDisk::sio_read(const FujiSIOPacket &packet)
 {
-    if (packet.command() == DISKCMD_HSIO_READ && !_disk->_allow_hsio)
+    if (packet.command() == CMD::DISK_HSIO_READ && !_disk->_allow_hsio)
         return;
 
     uint16_t sectorNum = packet.param(0);
@@ -52,13 +52,13 @@ void sioDisk::sio_read(const FujiSIOPacket &packet)
 // Write disk data from computer
 void sioDisk::sio_write(const FujiSIOPacket &packet)
 {
-    if ((packet.command() == DISKCMD_HSIO_PUT || packet.command() == DISKCMD_HSIO_WRITE)
+    if ((packet.command() == CMD::DISK_HSIO_PUT || packet.command() == CMD::DISK_HSIO_WRITE)
         && !_disk->_allow_hsio)
         return;
 
     uint16_t sectorNum = packet.param(0);
     bool verify = true;
-    if (packet.command() == DISKCMD_PUT || packet.command() == DISKCMD_HSIO_PUT)
+    if (packet.command() == CMD::DISK_PUT || packet.command() == CMD::DISK_HSIO_PUT)
         verify = false;
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
@@ -325,7 +325,7 @@ void sioDisk::sio_process(const FujiSIOPacket &packet)
     if (_disk == nullptr || _disk->_disktype == MEDIATYPE_UNKNOWN)
         return;
 
-    if ((device_active == false && packet.device() != FUJI_DEVICEID_DISK) || // not active and not D1
+    if ((device_active == false && packet.device() != FUJI_DEVICEID::DISK) || // not active and not D1
         (device_active == false && theFuji->boot_config == false)) // not active and not config boot
         return;
 
@@ -333,18 +333,18 @@ void sioDisk::sio_process(const FujiSIOPacket &packet)
 
     switch (packet.command())
     {
-    case DISKCMD_READ:
-    case DISKCMD_HSIO_READ:
+    case CMD::DISK_READ:
+    case CMD::DISK_HSIO_READ:
         sio_read(packet);
         break;
-    case DISKCMD_PUT:
-    case DISKCMD_HSIO_PUT:
-    case DISKCMD_WRITE:
-    case DISKCMD_HSIO_WRITE:
+    case CMD::DISK_PUT:
+    case CMD::DISK_HSIO_PUT:
+    case CMD::DISK_WRITE:
+    case CMD::DISK_HSIO_WRITE:
         sio_write(packet);
         break;
-    case DISKCMD_STATUS:
-    case DISKCMD_HSIO_STATUS:
+    case CMD::DISK_STATUS:
+    case CMD::DISK_HSIO_STATUS:
         if (is_config_device == true)
         {
             if (theFuji->boot_config == true)
@@ -363,30 +363,30 @@ void sioDisk::sio_process(const FujiSIOPacket &packet)
         }
         else
         {
-            if (packet.command() == DISKCMD_HSIO_STATUS && _disk->_allow_hsio == false)
+            if (packet.command() == CMD::DISK_HSIO_STATUS && _disk->_allow_hsio == false)
                 break;
             sio_status(packet);
         }
         return;
-    case DISKCMD_FORMAT:
-    case DISKCMD_FORMAT_MEDIUM:
+    case CMD::DISK_FORMAT:
+    case CMD::DISK_FORMAT_MEDIUM:
         sio_format();
         return;
-    case DISKCMD_HSIO_FORMAT:
-    case DISKCMD_HSIO_FORMAT_MEDIUM:
+    case CMD::DISK_HSIO_FORMAT:
+    case CMD::DISK_HSIO_FORMAT_MEDIUM:
         if (_disk->_allow_hsio)
         {
             sio_format();
             return;
         }
         break;
-    case DISKCMD_PERCOM_READ:
+    case CMD::DISK_PERCOM_READ:
         sio_read_percom_block();
         return;
-    case DISKCMD_PERCOM_WRITE:
+    case CMD::DISK_PERCOM_WRITE:
         sio_write_percom_block();
         return;
-    case DISKCMD_HSIO_INDEX:
+    case CMD::DISK_HSIO_INDEX:
         if (_disk->_allow_hsio)
         {
             sio_high_speed();

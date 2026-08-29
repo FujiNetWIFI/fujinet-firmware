@@ -28,7 +28,7 @@ void HashMixin::hash_input(const FUJI_COMMAND_PACKET &packet)
 void HashMixin::hash_compute(const FUJI_COMMAND_PACKET &packet)
 {
     Hash::Algorithm algo = Hash::to_algorithm(packet.param(0));
-    bool clear_data = packet.command() == FUJICMD_HASH_COMPUTE;
+    bool clear_data = packet.command() == CMD::FUJI_HASH_COMPUTE;
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_printf("HashMixin: COMPUTE\n");

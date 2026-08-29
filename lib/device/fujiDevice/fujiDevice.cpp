@@ -46,113 +46,113 @@ fujiDevice::fujiDevice(unsigned int numDisk, std::string extension,
                        std::optional<std::string> lobbyURL)
     : _totalDiskDevices(numDisk), _diskImageExtension(extension), _lobbyDiskURL(lobbyURL)
 {
-    bootdisk._devnum = FUJI_DEVICEID_DISK;
+    bootdisk._devnum = FUJI_DEVICEID::DISK;
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].slotid = i;
 
     handlers = {
-        { FUJICMD_RESET, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_RESET, [this](const FUJI_COMMAND_PACKET &packet) {
             fnSystem.reboot();
         } },
-        { FUJICMD_GET_ADAPTERCONFIG, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_GET_ADAPTERCONFIG, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_get_adapter_config();
         } },
-        { FUJICMD_GET_ADAPTERCONFIG_EXTENDED, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_GET_ADAPTERCONFIG_EXTENDED, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_get_adapter_config_extended();
         } },
-        { FUJICMD_GET_SCAN_RESULT, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_GET_SCAN_RESULT, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_net_scan_result(packet.param(0));
         } },
-        { FUJICMD_SCAN_NETWORKS, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_SCAN_NETWORKS, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_net_scan_networks();
         } },
-        { FUJICMD_SET_SSID, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_SET_SSID, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_net_set_ssid_success();
         } },
-        { FUJICMD_GET_SSID, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_GET_SSID, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_net_get_ssid();
         } },
-        { FUJICMD_READ_HOST_SLOTS, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_READ_HOST_SLOTS, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_read_host_slots();
         } },
-        { FUJICMD_READ_DEVICE_SLOTS, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_READ_DEVICE_SLOTS, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_read_device_slots();
         } },
-        { FUJICMD_WRITE_DEVICE_SLOTS, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_WRITE_DEVICE_SLOTS, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_write_device_slots();
         } },
-        { FUJICMD_WRITE_HOST_SLOTS, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_WRITE_HOST_SLOTS, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_write_host_slots();
         } },
-        { FUJICMD_GET_WIFI_ENABLED, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_GET_WIFI_ENABLED, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_net_get_wifi_enabled();
         } },
-        { FUJICMD_GET_WIFISTATUS, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_GET_WIFISTATUS, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_net_get_wifi_status();
         } },
-        { FUJICMD_MOUNT_HOST, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_MOUNT_HOST, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_mount_host_success(packet.param(0));
         } },
-        { FUJICMD_OPEN_DIRECTORY, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_OPEN_DIRECTORY, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_open_directory_success(packet.param(0));
         } },
-        { FUJICMD_CLOSE_DIRECTORY, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_CLOSE_DIRECTORY, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_close_directory();
         } },
-        { FUJICMD_READ_DIR_ENTRY, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_READ_DIR_ENTRY, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_read_directory_entry((uint8_t) packet.param(0), packet.param(1));
         } },
-        { FUJICMD_SET_DIRECTORY_POSITION, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_SET_DIRECTORY_POSITION, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_set_directory_position(packet.param(0));
         } },
-        { FUJICMD_SET_DEVICE_FULLPATH, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_SET_DEVICE_FULLPATH, [this](const FUJI_COMMAND_PACKET &packet) {
             fujidev_set_device_fullpath(packet);
         } },
-        { FUJICMD_GET_DEVICE_FULLPATH, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_GET_DEVICE_FULLPATH, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_get_device_filename(packet.param(0));
         } },
-        { FUJICMD_MOUNT_IMAGE, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_MOUNT_IMAGE, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_mount_disk_image_success(packet.param(0),
                                              (disk_access_flags_t) ((uint8_t)
                                                                     packet.param(1)));
         } },
-        { FUJICMD_UNMOUNT_HOST, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_UNMOUNT_HOST, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_unmount_host_success(packet.param(0));
         } },
-        { FUJICMD_UNMOUNT_IMAGE, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_UNMOUNT_IMAGE, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_unmount_disk_image_success(packet.param(0));
         } },
-        { FUJICMD_RANDOM_NUMBER, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_RANDOM_NUMBER, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_random();
         } },
-        { FUJICMD_SET_BOOT_MODE, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_SET_BOOT_MODE, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_set_boot_mode(packet.param(0), MEDIATYPE_UNKNOWN, &bootdisk);
         } },
-        { FUJICMD_MOUNT_ALL, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_MOUNT_ALL, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_mount_all_success();
         } },
-        { FUJICMD_GET_HOST_PREFIX, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_GET_HOST_PREFIX, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_get_host_prefix(packet.param(0));
         } },
-        { FUJICMD_SET_HOST_PREFIX, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_SET_HOST_PREFIX, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_set_host_prefix(packet.param(0));
         } },
-        { FUJICMD_COPY_FILE, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_COPY_FILE, [this](const FUJI_COMMAND_PACKET &packet) {
             uint8_t source = packet.param(0);
             uint8_t dest = packet.param(1);
             fujicmd_copy_file_success(source, dest, packet.dataAsString().value_or(""));
         } },
-        { FUJICMD_GENERATE_GUID, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_GENERATE_GUID, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_generate_guid();
         } },
-        { FUJICMD_STATUS, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_STATUS, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_status();
         } },
-        { FUJICMD_GET_DIRECTORY_POSITION, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_GET_DIRECTORY_POSITION, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_get_directory_position();
         } },
-        { FUJICMD_CONFIG_BOOT, [this](const FUJI_COMMAND_PACKET &packet) {
+        { CMD::FUJI_CONFIG_BOOT, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_set_boot_config(packet.param(0));
         } },
     };
@@ -331,7 +331,7 @@ int fujiDevice::get_rotate_slot()
         return -1;
 
     for (int i = 0; i < count; i++)
-        if (get_disk_dev(i)->id() == FUJI_DEVICEID_DISK)
+        if (get_disk_dev(i)->id() == FUJI_DEVICEID::DISK)
             return i;
 
     return -1;

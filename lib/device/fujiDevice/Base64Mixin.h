@@ -23,14 +23,14 @@ protected:
 public:
     Base64Mixin() {
         handlers = {
-            { FUJICMD_BASE64_ENCODE_INPUT,   FM_CMD_HANDLER(encode_input)   },
-            { FUJICMD_BASE64_ENCODE_COMPUTE, FM_CMD_HANDLER(encode_compute) },
-            { FUJICMD_BASE64_ENCODE_LENGTH,  FM_CMD_HANDLER(encode_length)  },
-            { FUJICMD_BASE64_ENCODE_OUTPUT,  FM_CMD_HANDLER(encode_output)  },
-            { FUJICMD_BASE64_DECODE_INPUT,   FM_CMD_HANDLER(decode_input)   },
-            { FUJICMD_BASE64_DECODE_COMPUTE, FM_CMD_HANDLER(decode_compute) },
-            { FUJICMD_BASE64_DECODE_LENGTH,  FM_CMD_HANDLER(decode_length)  },
-            { FUJICMD_BASE64_DECODE_OUTPUT,  FM_CMD_HANDLER(decode_output)  },
+            { CMD::FUJI_BASE64_ENCODE_INPUT,   FM_CMD_HANDLER(encode_input)   },
+            { CMD::FUJI_BASE64_ENCODE_COMPUTE, FM_CMD_HANDLER(encode_compute) },
+            { CMD::FUJI_BASE64_ENCODE_LENGTH,  FM_CMD_HANDLER(encode_length)  },
+            { CMD::FUJI_BASE64_ENCODE_OUTPUT,  FM_CMD_HANDLER(encode_output)  },
+            { CMD::FUJI_BASE64_DECODE_INPUT,   FM_CMD_HANDLER(decode_input)   },
+            { CMD::FUJI_BASE64_DECODE_COMPUTE, FM_CMD_HANDLER(decode_compute) },
+            { CMD::FUJI_BASE64_DECODE_LENGTH,  FM_CMD_HANDLER(decode_length)  },
+            { CMD::FUJI_BASE64_DECODE_OUTPUT,  FM_CMD_HANDLER(decode_output)  },
         };
     }
 };

@@ -107,7 +107,7 @@ ByteBuffer FujiLynxPacket::serialize() const
 {
     ByteBuffer output;
 
-    if (_command == FUJICMD_SEND_RESPONSE)
+    if (_command == CMD::FUJI_SEND_RESPONSE)
     {
         for (const auto& p : _params)
             write_le(output, p.value, p.size);

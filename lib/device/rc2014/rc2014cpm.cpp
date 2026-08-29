@@ -75,7 +75,7 @@ void rc2014CPM::rc2014_process(uint32_t commanddata, uint8_t checksum)
 
     switch (cmdFrame.comnd)
     {
-    case CPMCMD_INIT:
+    case CMD::CPM_INIT:
         rc2014_send_ack();
         fnSystem.delay(10);
         rc2014_send_complete();

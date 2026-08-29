@@ -102,14 +102,14 @@ void cx16Disk::process(uint32_t commanddata, uint8_t checksum)
         return;
 
     if (device_active == false &&
-        (cmdFrame.comnd != DISKCMD_STATUS && cmdFrame.comnd != DISKCMD_HSIO_INDEX))
+        (cmdFrame.comnd != CMD::DISK_STATUS && cmdFrame.comnd != CMD::DISK_HSIO_INDEX))
         return;
 
     Debug_print("disk cx16Disk::process()\n");
 
     switch (cmdFrame.comnd)
     {
-    case DISKCMD_READ:
+    case CMD::DISK_READ:
         if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_media_last_block)
         {
             cx16_nak();
@@ -126,7 +126,7 @@ void cx16Disk::process(uint32_t commanddata, uint8_t checksum)
             sio_read();
         }
         return;
-    case DISKCMD_HSIO_READ:
+    case CMD::DISK_HSIO_READ:
         if (_disk->_allow_hsio)
         {
             cx16_ack();
@@ -134,7 +134,7 @@ void cx16Disk::process(uint32_t commanddata, uint8_t checksum)
             return;
         }
         break;
-    case DISKCMD_PUT:
+    case CMD::DISK_PUT:
         if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_media_last_block)
         {
             cx16_nak();
@@ -151,7 +151,7 @@ void cx16Disk::process(uint32_t commanddata, uint8_t checksum)
             sio_write(false);
         }
         return;
-    case DISKCMD_HSIO_PUT:
+    case CMD::DISK_HSIO_PUT:
         if (_disk->_allow_hsio)
         {
             if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_media_last_block)
@@ -171,8 +171,8 @@ void cx16Disk::process(uint32_t commanddata, uint8_t checksum)
             }
         }
         break;
-    case DISKCMD_STATUS:
-    case DISKCMD_HSIO_STATUS:
+    case CMD::DISK_STATUS:
+    case CMD::DISK_HSIO_STATUS:
         if (is_config_device == true)
         {
             if (theFuji->boot_config == true)
@@ -181,13 +181,13 @@ void cx16Disk::process(uint32_t commanddata, uint8_t checksum)
         }
         else
         {
-            if (cmdFrame.comnd == DISKCMD_HSIO_STATUS && _disk->_allow_hsio == false)
+            if (cmdFrame.comnd == CMD::DISK_HSIO_STATUS && _disk->_allow_hsio == false)
                 break;
             cx16_ack();
             status();
         }
         return;
-    case DISKCMD_WRITE:
+    case CMD::DISK_WRITE:
         if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_media_last_block)
         {
             cx16_nak();
@@ -204,7 +204,7 @@ void cx16Disk::process(uint32_t commanddata, uint8_t checksum)
             sio_write(true);
         }
         return;
-    case DISKCMD_HSIO_WRITE:
+    case CMD::DISK_HSIO_WRITE:
         if (_disk->_allow_hsio)
         {
             if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_media_last_block)
@@ -225,13 +225,13 @@ void cx16Disk::process(uint32_t commanddata, uint8_t checksum)
             return;
         }
         break;
-    case DISKCMD_FORMAT:
-    case DISKCMD_FORMAT_MEDIUM:
+    case CMD::DISK_FORMAT:
+    case CMD::DISK_FORMAT_MEDIUM:
         cx16_ack();
         sio_format();
         return;
-    case DISKCMD_HSIO_FORMAT:
-    case DISKCMD_HSIO_FORMAT_MEDIUM:
+    case CMD::DISK_HSIO_FORMAT:
+    case CMD::DISK_HSIO_FORMAT_MEDIUM:
         if (_disk->_allow_hsio)
         {
             cx16_ack();

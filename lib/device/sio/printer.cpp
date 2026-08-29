@@ -27,12 +27,6 @@
 #include "okimate_10.h"
 #include "png_printer.h"
 
-
-
-#define SIO_PRINTERCMD_PUT 0x50
-#define SIO_PRINTERCMD_WRITE 0x57
-#define SIO_PRINTERCMD_STATUS 0x53
-
 constexpr const char * const sioPrinter::printer_model_str[PRINTER_INVALID];
 
 sioPrinter::~sioPrinter()
@@ -285,15 +279,15 @@ void sioPrinter::sio_process(const FujiSIOPacket &packet)
     {
         switch (packet.command())
         {
-        case SIO_PRINTERCMD_PUT: // Needed by A822 for graphics mode printing
-        case SIO_PRINTERCMD_WRITE:
+        case CMD::PRINTER_PUT: // Needed by A822 for graphics mode printing
+        case CMD::PRINTER_WRITE:
             _lastaux1 = packet.param(0);
             _lastaux2 = packet.param(1);
             _last_ms = fnSystem.millis();
             SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
             sio_write(_lastaux1, _lastaux2);
             break;
-        case SIO_PRINTERCMD_STATUS:
+        case CMD::PRINTER_STATUS:
             _last_ms = fnSystem.millis();
             SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
             sio_status(packet);

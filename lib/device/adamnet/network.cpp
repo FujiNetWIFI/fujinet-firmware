@@ -437,70 +437,70 @@ void adamNetwork::adamnet_control_send(const FujiAdamPacket &packet)
     Debug_printf("Network command 0x%02x\n", packet.command());
     switch (packet.command())
     {
-    case NETCMD_CHDIR:
+    case CMD::NET_CHDIR:
         set_prefix(packet);
         break;
-    case NETCMD_GETCWD:
+    case CMD::NET_GETCWD:
         get_prefix();
         break;
-    case NETCMD_GET_ERROR:
+    case CMD::NET_GET_ERROR:
         get_error();
         break;
-    case NETCMD_OPEN:
+    case CMD::NET_OPEN:
         open(packet);
         break;
-    case NETCMD_CLOSE:
+    case CMD::NET_CLOSE:
         close();
         break;
-    case NETCMD_STATUS:
+    case CMD::NET_STATUS:
         status();
         break;
-    case NETCMD_WRITE:
+    case CMD::NET_WRITE:
         write(packet);
         break;
-    case NETCMD_CHANNEL_MODE:
+    case CMD::NET_CHANNEL_MODE:
         channel_mode(packet);
         break;
-    case NETCMD_USERNAME: // login
+    case CMD::NET_USERNAME: // login
         set_login(packet);
         break;
-    case NETCMD_PASSWORD: // password
+    case CMD::NET_PASSWORD: // password
         set_password(packet);
         break;
 
-    case NETCMD_PARSE:
+    case CMD::NET_PARSE:
         if (channelMode == CHANNEL_MODE::SGML)
             sgml_parse();
         else
             json_parse();
         break;
-    case NETCMD_QUERY:
+    case CMD::NET_QUERY:
         if (channelMode == CHANNEL_MODE::SGML)
             sgml_query(packet);
         else
             json_query(packet);
         break;
 
-    case NETCMD_RENAME:
-    case NETCMD_DELETE:
-    case NETCMD_LOCK:
-    case NETCMD_UNLOCK:
-    case NETCMD_MKDIR:
-    case NETCMD_RMDIR:
+    case CMD::NET_RENAME:
+    case CMD::NET_DELETE:
+    case CMD::NET_LOCK:
+    case CMD::NET_UNLOCK:
+    case CMD::NET_MKDIR:
+    case CMD::NET_RMDIR:
         process_fs(packet);
         break;
 
-    case NETCMD_CONTROL:
-    case NETCMD_CLOSE_CLIENT:
+    case CMD::NET_CONTROL:
+    case CMD::NET_CLOSE_CLIENT:
         process_tcp(packet);
         break;
 
-    case NETCMD_SET_CHANNEL_MODE:
+    case CMD::NET_SET_CHANNEL_MODE:
         process_http(packet);
         break;
 
-    case NETCMD_GET_REMOTE:
-    case NETCMD_SET_DESTINATION:
+    case CMD::NET_GET_REMOTE:
+    case CMD::NET_SET_DESTINATION:
         process_udp(packet);
         break;
 
@@ -699,22 +699,22 @@ void adamNetwork::process_fs(const FujiAdamPacket &packet)
     auto url = urlParser.get();
     switch (packet.command())
     {
-    case NETCMD_RENAME:
+    case CMD::NET_RENAME:
         cmd_err = fs->rename(url);
         break;
-    case NETCMD_DELETE:
+    case CMD::NET_DELETE:
         cmd_err = fs->del(url);
         break;
-    case NETCMD_LOCK:
+    case CMD::NET_LOCK:
         cmd_err = fs->lock(url);
         break;
-    case NETCMD_UNLOCK:
+    case CMD::NET_UNLOCK:
         cmd_err = fs->unlock(url);
         break;
-    case NETCMD_MKDIR:
+    case CMD::NET_MKDIR:
         cmd_err = fs->mkdir(url);
         break;
-    case NETCMD_RMDIR:
+    case CMD::NET_RMDIR:
         cmd_err = fs->rmdir(url);
         break;
     default:
@@ -741,7 +741,7 @@ void adamNetwork::process_tcp(const FujiAdamPacket &packet)
     fujiError_t cmd_err;
     switch (packet.command())
     {
-    case NETCMD_CONTROL:
+    case CMD::NET_CONTROL:
         cmd_err = FUJI_ERROR::NONE;
 
         {
@@ -755,7 +755,7 @@ void adamNetwork::process_tcp(const FujiAdamPacket &packet)
             statusByte.bits.client_error = false;
         }
         break;
-    case NETCMD_CLOSE_CLIENT:
+    case CMD::NET_CLOSE_CLIENT:
         cmd_err = tcp->close_client_connection();
         break;
     default:
@@ -784,7 +784,7 @@ void adamNetwork::process_http(const FujiAdamPacket &packet)
     fujiError_t cmd_err;
     switch (packet.command())
     {
-    case NETCMD_SET_CHANNEL_MODE:
+    case CMD::NET_SET_CHANNEL_MODE:
         cmd_err = http->set_channel_mode((netProtoHTTPChannelMode_t) packet.param8(0));
         break;
     default:
@@ -812,7 +812,7 @@ void adamNetwork::process_udp(const FujiAdamPacket &packet)
     switch (packet.command())
     {
 #ifndef ESP_PLATFORM
-    case NETCMD_GET_REMOTE:
+    case CMD::NET_GET_REMOTE:
     {
         receiveBuffer->resize(SPECIAL_BUFFER_SIZE);
         cmd_err = udp->get_remote(receiveBuffer->data(), receiveBuffer->size());
@@ -823,7 +823,7 @@ void adamNetwork::process_udp(const FujiAdamPacket &packet)
         break;
     }
 #endif /* ESP_PLATFORM */
-    case NETCMD_SET_DESTINATION:
+    case CMD::NET_SET_DESTINATION:
         {
             cmd_err = udp->set_destination(packet.data()->data(), packet.data()->size());
             if (cmd_err != FUJI_ERROR::NONE)

@@ -232,7 +232,7 @@ bool fujibus_selftest(void)
         0xC0, 0x70, 0xC4, 0x06, 0x00, 0x3B, 0x00, 0xC0,
     };
     size_t n = fujibus_build_request(FUJI_DEVICEID_FUJINET,
-                                      FUJICMD_GET_ADAPTERCONFIG_EXTENDED,
+                                      CMD::FUJI_GET_ADAPTERCONFIG_EXTENDED,
                                       NULL, 0, NULL, 0, buf, sizeof(buf));
     if (n != sizeof(want_getcfg) || !fb_bytes_eq(buf, want_getcfg, n))
         return false;
@@ -243,7 +243,7 @@ bool fujibus_selftest(void)
         fb_reply_t reply;
         if (!fujibus_parse_reply(frame, sizeof(frame), &reply))
             return false;
-        if (reply.device != FUJI_DEVICEID_FUJINET || reply.command != FUJICMD_ACK)
+        if (reply.device != FUJI_DEVICEID_FUJINET || reply.command != CMD::FUJI_ACK)
             return false;
         if (reply.data_len != 0)
             return false;
@@ -255,7 +255,7 @@ bool fujibus_selftest(void)
         fb_reply_t reply;
         if (!fujibus_parse_reply(frame, sizeof(frame), &reply))
             return false;
-        if (reply.command != FUJICMD_NAK)
+        if (reply.command != CMD::FUJI_NAK)
             return false;
     }
 
@@ -266,7 +266,7 @@ bool fujibus_selftest(void)
     {
         uint8_t decoded[6 + FUJI_ADAPTERCONFIG_EXTENDED_SIZE];
         decoded[0] = FUJI_DEVICEID_FUJINET;
-        decoded[1] = FUJICMD_ACK;
+        decoded[1] = CMD::FUJI_ACK;
         uint16_t len = sizeof(decoded);
         decoded[2] = (uint8_t)(len & 0xFF);
         decoded[3] = (uint8_t)(len >> 8);

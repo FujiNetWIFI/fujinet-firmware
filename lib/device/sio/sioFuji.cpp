@@ -571,18 +571,18 @@ void sioFuji::setup()
 
     // Add our devices to the SIO bus
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        SYSTEM_BUS.addDevice(&_fnDisks[i].disk_dev, (fujiDeviceID_t) (FUJI_DEVICEID_DISK + i));
+        SYSTEM_BUS.addDevice(&_fnDisks[i].disk_dev, (fujiDeviceID_t) (FUJI_DEVICEID::DISK + i));
 
     for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
         SYSTEM_BUS.addDevice(sioNetDevs[i].get(),
-                             (fujiDeviceID_t) (FUJI_DEVICEID_NETWORK + i));
+                             (fujiDeviceID_t) (FUJI_DEVICEID::NETWORK + i));
 
-    SYSTEM_BUS.addDevice(&_cassetteDev, FUJI_DEVICEID_CASSETTE);
-    SYSTEM_BUS.addDevice(&sioZ, FUJI_DEVICEID_CPM);
+    SYSTEM_BUS.addDevice(&_cassetteDev, FUJI_DEVICEID::CASSETTE);
+    SYSTEM_BUS.addDevice(&sioZ, FUJI_DEVICEID::CPM);
     cassette()->set_buttons(Config.get_cassette_buttons());
     cassette()->set_pulldown(Config.get_cassette_pulldown());
 
-    SYSTEM_BUS.addDevice(&_streamDev, FUJI_DEVICEID_MIDI);
+    SYSTEM_BUS.addDevice(&_streamDev, FUJI_DEVICEID::MIDI);
 }
 
 // Set NetStream HOST, PORT, and options, then start it.
@@ -692,29 +692,29 @@ void sioFuji::sio_process(const FujiSIOPacket &packet)
 
     switch (packet.command())
     {
-    case FUJICMD_HSIO_INDEX:
+    case CMD::FUJI_HSIO_INDEX:
         /* ACK is required here since it's not done elsewhere for this device/command. The bus should probably
         * handle this instead. Disk and network devices currently send their own ACK for this
         */
         sio_high_speed();
         break;
-    case FUJICMD_SET_HSIO_INDEX:
+    case CMD::FUJI_SET_HSIO_INDEX:
         sio_set_hsio_index(packet);
         break;
         break;
-    case FUJICMD_SET_BAUDRATE:
+    case CMD::FUJI_SET_BAUDRATE:
         sio_set_baudrate(packet);
         break;
-    case FUJICMD_NEW_DISK:
+    case CMD::FUJI_NEW_DISK:
         sio_new_disk();
         break;
-    case FUJICMD_COPY_FILE:
+    case CMD::FUJI_COPY_FILE:
         sio_copy_file(packet);
         break;
-    case FUJICMD_ENABLE_UDPSTREAM:
+    case CMD::FUJI_ENABLE_UDPSTREAM:
         sio_enable_netstream(packet);
         break;
-    case FUJICMD_SET_SIO_EXTERNAL_CLOCK:
+    case CMD::FUJI_SET_SIO_EXTERNAL_CLOCK:
         fujicmd_set_sio_external_clock(packet.param(0));
         break;
 
