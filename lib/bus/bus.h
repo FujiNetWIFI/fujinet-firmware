@@ -1,6 +1,7 @@
 #ifndef BUS_H
 #define BUS_H
 
+#include "DaisyChain.h"
 #include "global_types.h"
 
 #include <string>
@@ -30,8 +31,29 @@ class SystemBusBase
 {
 protected:
     transState_t _transaction_state = TRANS_STATE::INVALID;
+    DaisyChain _daisyChain;
 
 public:
+    virtual void addDevice(virtualDevice *device, fujiDeviceID_t deviceType) {
+        _daisyChain.addDevice(device, deviceType);
+    }
+    fujiDeviceID_t fujiIDForDevice(virtualDevice *device) {
+        return _daisyChain.fujiIDForDevice(device).value_or((fujiDeviceID_t) 0);
+    }
+    virtual void assignFujiIDToDevice(virtualDevice *device, fujiDeviceID_t fujiID) {
+        _daisyChain.assignFujiIDToDevice(device, fujiID);
+    }
+    void setDeviceEnabled(fujiDeviceID_t device_id, bool enabled);
+
+    // Rotate the specified devices by the given index offset.
+    // Positive values increase each device's index; negative values decrease it.
+    // Indices wrap around within the supplied device sequence.
+    template <typename T>
+    requires std::derived_from<T, virtualDevice>
+    void rotateDevices(const std::vector<T *> &devices, int amount) {
+        _daisyChain.rotateDevices(devices, amount);
+    }
+
     // Accept the current transaction and perform any protocol-specific setup
     // required before data transfer.
     virtual void transaction_accept(transState_t expectMoreData) = 0;

@@ -302,6 +302,7 @@ set(SOURCES src/main.cpp
     lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
     lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
     lib/bus/bus.h lib/bus/bus.cpp
+    lib/bus/DaisyChain.h lib/bus/DaisyChain.cpp
     lib/device/device.h
     lib/device/disk.h
     lib/device/printer.h
@@ -373,6 +374,7 @@ if(FUJINET_TARGET STREQUAL "APPLE")
     lib/bus/iwm/connector.h
     lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
     lib/bus/iwm/FujiIWMPacket.h lib/bus/iwm/FujiIWMPacket.cpp
+    lib/bus/iwm/IWMBusIDMap.h lib/bus/iwm/IWMBusIDMap.cpp
 
     lib/devrelay/util.h lib/devrelay/util.cpp
     lib/devrelay/types/Request.h lib/devrelay/types/Request.cpp

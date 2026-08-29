@@ -319,6 +319,11 @@ void systemBus::send_status_dib_reply_packet()
                   &dib_packet, sizeof(dib_packet));
 }
 
+IWMBusIDMap::busDeviceID_t virtualDevice::id()
+{
+  return SYSTEM_BUS.busIDForDevice(this).value_or(0);
+}
+
 void virtualDevice::iwm_return_badcmd(const iwm_decoded_cmd_t &cmd)
 {
   //Handle possible data packet to avoid crash extended and non-extended
@@ -546,8 +551,7 @@ bool IRAM_ATTR systemBus::serviceSmartPort()
     Debug_printf("\r\nReset");
 
     // clear all the device addresses
-    for (auto devicep : _daisyChain)
-      devicep->_devnum = 0;
+    resetAllBusIDs();
 
 #ifndef DEV_RELAY_SLIP
     while (iwm_phases() == iwm_phases_t::reset)
@@ -601,31 +605,24 @@ bool IRAM_ATTR systemBus::serviceSmartPort()
     }
     else
     {
-      for (auto devicep : _daisyChain)
+      command.decode(command_packet.data);
+      auto devID = remapDeviceAddress(command_packet.dest, command);
+      _activeDev = _daisyChain.deviceWithFujiID(devID);
+      if (_activeDev)
       {
-        // This could be a map of _devnum to devicep, then wouldn't have to loop.
-        if (command_packet.dest == devicep->_devnum)
+        if (iwm_req_deassert_timeout(50000))
         {
-          // wait for REQ to go low
-          if (iwm_req_deassert_timeout(50000))
-          {
-            Debug_printf("\nREQ timeout in command processing");
-            iwm_ack_deassert(); // go hi-Z
-            return true;
-          }
-#ifndef DEV_RELAY_SLIP
-          // need to take time here to service other ESP processes so they can catch up
-          taskYIELD(); // Allow other tasks to run
-#endif
-          // Debug_printf("\r\nCommand Packet:");
-          // print_packet(command_packet.data);
-
-          _activeDev = devicep;
-          // handle command
-          command.decode(command_packet.data);
-          iwm_process(command);
-          break; // we don't need to needlessly keep looping once we find it
+          Debug_printf("\nREQ timeout in command processing");
+          iwm_ack_deassert(); // go hi-Z
+          return true;
         }
+
+#ifndef DEV_RELAY_SLIP
+        // need to take time here to service other ESP processes so they can catch up
+        taskYIELD(); // Allow other tasks to run
+#endif
+
+        iwm_process(command);
       }
     }
 
@@ -636,6 +633,24 @@ bool IRAM_ATTR systemBus::serviceSmartPort()
   }                     // switch (phasestate)
 
   return true;
+}
+
+fujiDeviceID_t systemBus::remapDeviceAddress(uint8_t address, iwm_decoded_cmd_t &cmd)
+{
+  virtualDevice *devicep = deviceWithBusID(address);
+  fujiDeviceID_t devID = _daisyChain.fujiIDForDevice(devicep).value_or((fujiDeviceID_t) 0);
+
+#ifdef UNUSED
+  if (devID >= FUJI_DEVICEID::NETWORK && devID <= FUJI_DEVICEID::NETWORK_LAST)
+  {
+    unsigned unit = cmd.unit();
+    if (!unit)
+      unit = _defaultNetworkUnit;
+    devID = (fujiDeviceID_t) (((unsigned) FUJI_DEVICEID::NETWORK) + unit - 1);
+  }
+#endif /* UNUSED */
+
+  return devID;
 }
 
 #ifndef DEV_RELAY_SLIP
@@ -837,36 +852,22 @@ void systemBus::handle_init()
 
   // iwm_rddata_clr();
 
-  // to do - get the next device in the daisy chain and assign ID
-  for (auto it = _daisyChain.begin(); it != _daisyChain.end(); ++it)
-  {
-    // assign dev numbers
-    pDevice = (*it);
+  pDevice = firstDeviceWithNoBusID();
+  if (pDevice) {
     pDevice->switched = false; //reset switched condition on init
-    if (pDevice->id() == 0)
-    {
-      _activeDev = pDevice;
-      _activeDev->_devnum = command_packet.dest; // assign address
-      if (++it == _daisyChain.end())
-        err = SP_ERR::ENDOFCHAIN; // end of the line, so status=non zero - to do: check GPIO for another device in the physical daisy chain
-      Debug_printf("\r\nSending INIT Response Packet...");
-      send_init_reply_packet(command_packet.dest, err);
-
-      // smartport.iwm_send_packet_spi((uint8_t *)_activeDev->packet_buffer); // timeout error return is not handled here (yet?)
-
-      // print_packet ((uint8_t*) packet_buffer,get_packet_length());
-
-      Debug_printf("\r\nDrive: %02x\r\n", _activeDev->id());
-      fnLedManager.set(LED_BUS, false);
-      return;
-    }
+    fujiDeviceID_t fujiID = _daisyChain.fujiIDForDevice(pDevice).value();
+    _busMap.assignBusIDToFujiID(command_packet.dest, fujiID);
+    if (firstDeviceWithNoBusID() == nullptr)
+      err = SP_ERR::ENDOFCHAIN;
+    send_init_reply_packet(command_packet.dest, err);
+    Debug_printf("\r\nDrive: %02x\r\n", pDevice->id());
   }
 
   fnLedManager.set(LED_BUS, false);
 }
 
-// Add device to SIO bus
-void systemBus::addDevice(virtualDevice *pDevice, iwm_fujinet_type_t deviceType)
+// Add device to IWM bus
+void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t deviceType)
 {
   // SmartPort interface assigns device numbers to the devices in the daisy chain one at a time
   // as opposed to using standard or fixed device ID's like Atari SIO. Therefore, an emulated
@@ -898,70 +899,62 @@ void systemBus::addDevice(virtualDevice *pDevice, iwm_fujinet_type_t deviceType)
   // assign dedicated pointers to certain devices
   switch (deviceType)
   {
-  case iwm_fujinet_type_t::CPM:
+  case FUJI_DEVICEID::CPM:
     if ( !Config.get_cpm_enabled() )
       return;
-    break;
-  case iwm_fujinet_type_t::Printer:
-    _printerdev = (iwmPrinter *)pDevice;
     break;
   default:
       break;
   }
 
-  pDevice->_devnum = 0;
+  _daisyChain.addDevice(pDevice, deviceType);
+  _busMap.addFujiID(deviceType, true);
+
   pDevice->_initialized = false;
-
-  _daisyChain.push_front(pDevice);
 }
 
-// Removes device from the SIO bus.
-// Note that the destructor is called on the device!
-void systemBus::remDevice(virtualDevice *p)
+std::optional<IWMBusIDMap::busDeviceID_t> systemBus::busIDForDevice(virtualDevice *device)
 {
-  _daisyChain.remove(p);
+  auto fujiID = _daisyChain.fujiIDForDevice(device);
+
+  if (fujiID.has_value())
+    return _busMap.busIDForFujiID(fujiID.value());
+  return std::nullopt;
 }
 
-// Should avoid using this as it requires counting through the list
-int systemBus::numDevices()
+virtualDevice *systemBus::deviceWithBusID(IWMBusIDMap::busDeviceID_t busID)
 {
-  int i = 0;
-  __BEGIN_IGNORE_UNUSEDVARS
-  for (auto devicep : _daisyChain)
-    i++;
-  return i;
-  __END_IGNORE_UNUSEDVARS
-}
+  auto fujiID = _busMap.fujiIDForBusID(busID);
 
-void systemBus::changeDeviceId(virtualDevice *p, int device_id)
-{
-  for (auto devicep : _daisyChain)
-  {
-    if (devicep == p)
-      devicep->_devnum = device_id;
-  }
-}
-
-virtualDevice *systemBus::deviceById(int device_id)
-{
-  for (auto devicep : _daisyChain)
-  {
-    if (devicep->_devnum == device_id)
-      return devicep;
-  }
+  if (fujiID.has_value())
+    return _daisyChain.deviceWithFujiID(fujiID.value());
   return nullptr;
 }
 
-void systemBus::enableDevice(uint8_t device_id)
+virtualDevice *systemBus::firstDeviceWithNoBusID()
 {
-  virtualDevice *p = deviceById(device_id);
-  p->device_active = true;
+  for (auto devicep : _daisyChain)
+  {
+    auto fujiID = _daisyChain.fujiIDForDevice(devicep);
+    if (fujiID.has_value()
+        && _busMap.participatesInBusIDAssignment(fujiID.value())
+        && !_busMap.busIDForFujiID(fujiID.value()).has_value())
+      return devicep;
+  }
+
+  return nullptr;
 }
 
-void systemBus::disableDevice(uint8_t device_id)
+void systemBus::assignFujiIDToDevice(virtualDevice *device, fujiDeviceID_t fujiID)
 {
-  virtualDevice *p = deviceById(device_id);
-  p->device_active = false;
+  auto oldID = _daisyChain.fujiIDForDevice(device);
+  SystemBusBase::assignFujiIDToDevice(device, fujiID);
+  _busMap.changeFujiID(oldID.value(), fujiID);
+}
+
+iwmPrinter *systemBus::getPrinter()
+{
+  return dynamic_cast<iwmPrinter*>(_daisyChain.deviceWithFujiID(FUJI_DEVICEID::PRINTER));
 }
 
 // Give devices an opportunity to clean up before a reboot

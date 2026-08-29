@@ -746,7 +746,7 @@ void adamNetwork::process_tcp(const FujiAdamPacket &packet)
 
         {
             cmd_err = tcp->accept_connection();
-            Debug_printf("ACCEPT %x CHANMODE %d ERR: %d\n", _devnum, channelMode, cmd_err);
+            Debug_printf("ACCEPT %x CHANMODE %d ERR: %d\n", id(), channelMode, cmd_err);
 
             // Because we're not handling Adam bus very well, sometimes it
             // retries and we've already accepted which will return an

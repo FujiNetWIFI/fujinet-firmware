@@ -178,7 +178,7 @@ void adamFuji::adamnet_enable_device(const FujiAdamPacket &packet)
 
     Config.save();
 
-    SYSTEM_BUS.enableDevice(d);
+    SYSTEM_BUS.setDeviceEnabled(d, true);
     SYSTEM_BUS.transaction_success();
 }
 
@@ -213,7 +213,7 @@ void adamFuji::adamnet_disable_device(const FujiAdamPacket &packet)
 
     Config.save();
 
-    SYSTEM_BUS.disableDevice(d);
+    SYSTEM_BUS.setDeviceEnabled(d, false);
     SYSTEM_BUS.transaction_success();
 }
 
@@ -283,7 +283,7 @@ void adamFuji::adamnet_get_time()
 
 void adamFuji::adamnet_device_enable_status(const FujiAdamPacket &packet)
 {
-    uint8_t d = packet.param(0);
+    fujiDeviceID_t d = (fujiDeviceID_t) packet.param8(0);
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
