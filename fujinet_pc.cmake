@@ -312,6 +312,9 @@ set(SOURCES src/main.cpp
     lib/device/siocpm.h
     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
     lib/media/media.h
+    # lib/media/imdImage.cpp is intentionally absent: no PC target has an IMD
+    # adapter yet, and tests/ compiles it directly. Add it here alongside the
+    # adapter when a PC target starts using it.
     lib/encoding/base64.h lib/encoding/base64.cpp
     lib/encoding/hash.h lib/encoding/hash.cpp
     lib/qrcode/qrcode.h lib/qrcode/qrcode.c
