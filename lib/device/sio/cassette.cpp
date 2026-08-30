@@ -82,6 +82,114 @@ size_t IRAM_ATTR t2k_encode_cb(const void *data, size_t data_size,
     *done = (symbols_written + num >= total_needed);
     return num;
 }
+
+// Simple encoder callback for A8CAS raw "fsk " chunks — generates RMT symbols
+// on the fly from the single pre-read FSK data buffer plus O(1) encoder state
+// carried on the sioCassette object. Runs in ISR context (RMT ping-pong
+// refill), so it MUST be in IRAM and may inline ONLY the static-inline pure
+// rules from fsk_plan.h: NO file I/O, NO heap allocation, NO logging.
+//
+// Each FSK value V is scaled to V*100 ticks (1/10 ms = 100 us = 100 ticks at
+// 1 us/tick) and split into consecutive same-level portions of at most
+// FSK_MAX_PORTION_TICKS (32767) ticks. The logical level of a value comes from
+// its ORIGINAL value-index parity (fsk_level_for_index); zero-duration values
+// consume an index (parity) but emit no portion. HIGH (level 1) = mark =
+// logical 1, matching the T2K/QROS mark convention. Values are emitted in
+// original order; *done is set true only after the final portion of the final
+// value has been emitted.
+size_t IRAM_ATTR sioCassette::fsk_encode_cb(const void *data, size_t data_size,
+                                            size_t symbols_written, size_t symbols_free,
+                                            rmt_symbol_word_t *symbols, bool *done, void *arg)
+{
+    sioCassette *self = (sioCassette *)arg;
+    const uint8_t *buf = (const uint8_t *)data; // == _fsk_buf, data_size == _fsk_data_avail
+    size_t num = 0;
+
+    // Do NOT rely on the RMT framework to initialize or preserve *done. Assume
+    // more waveform remains until we prove otherwise; every early return below
+    // that leaves waveform pending keeps this false, and *done is set true ONLY
+    // after the last portion of the last value has been emitted.
+    *done = false;
+
+    while (num < symbols_free)
+    {
+        // Fill both level/duration halves of one rmt_symbol_word_t.
+        uint16_t levels[2] = {0, 0};
+        uint16_t durs[2] = {0, 0};
+        int half = 0;
+
+        while (half < 2)
+        {
+            // Load the next value if the current one is exhausted.
+            if (self->_fsk_remaining_ticks == 0)
+            {
+                // Skip zero-duration values: each consumes an index (parity)
+                // but emits nothing.
+                while (self->_fsk_value_index < self->_fsk_value_count)
+                {
+                    uint16_t v = fsk_decode_le16(buf + self->_fsk_byte_pos);
+                    bool lvl = fsk_level_for_index(self->_fsk_value_index);
+                    self->_fsk_value_index++;
+                    self->_fsk_byte_pos += 2;
+                    if (v != 0)
+                    {
+                        self->_fsk_remaining_ticks = fsk_ticks_for_value(v);
+                        self->_fsk_level_high = lvl;
+                        break;
+                    }
+                    // v == 0: parity index consumed, no portion emitted; keep scanning.
+                }
+                if (self->_fsk_remaining_ticks == 0) // no more values remain
+                {
+                    if (half == 0)
+                    {
+                        // Nothing more to emit and we are on a clean symbol
+                        // boundary: the whole waveform is complete.
+                        *done = true;
+                        (void)symbols_written;
+                        (void)data_size;
+                        return num;
+                    }
+                    // The value stream is exhausted mid-symbol; pad the unused
+                    // second half with a 0-duration same-level entry, which
+                    // completes the waveform.
+                    levels[half] = levels[half - 1];
+                    durs[half] = 0;
+                    half++;
+                    break;
+                }
+            }
+
+            uint32_t portion = fsk_next_portion(self->_fsk_remaining_ticks);
+            self->_fsk_remaining_ticks -= portion;
+            levels[half] = self->_fsk_level_high ? 1 : 0;
+            durs[half] = (uint16_t)portion;
+            half++;
+        }
+
+        symbols[num].level0 = levels[0];
+        symbols[num].duration0 = durs[0];
+        symbols[num].level1 = levels[1];
+        symbols[num].duration1 = durs[1];
+        num++;
+
+        // Last portion of the last value emitted -> the waveform is complete.
+        if (self->_fsk_remaining_ticks == 0 &&
+            self->_fsk_value_index >= self->_fsk_value_count)
+        {
+            *done = true; // set true ONLY here on full completion
+            (void)symbols_written;
+            (void)data_size;
+            return num;
+        }
+    }
+
+    // Buffer full but waveform not finished: *done remains false so RMT calls
+    // this callback again to emit the remaining portions.
+    (void)symbols_written;
+    (void)data_size;
+    return num;
+}
 #endif
 
 /** thinking about state machine
@@ -1427,6 +1535,184 @@ void sioCassette::turbo2000_flush_rmt()
 void sioCassette::turbo2000_send_pilot(uint16_t count)
 {
     turbo2000_send_pulses(t2k_pilot_half, count);
+}
+
+// Allocate the RMT TX channel + stateful simple encoder for raw A8CAS "fsk "
+// signal emission, and take control of PIN_UART2_TX away from the UART.
+// Mirrors the Turbo 2000 turbo2000_init_rmt() lifecycle exactly, but uses the
+// simple encoder ONLY (no copy encoder — FSK never sends pilot pulses) and,
+// unlike T2K, returns cleanly on any failure and fully undoes partial setup so
+// the UART TX routing and RMT resources are left intact. Does NOT touch the
+// UART baud divisor (Req 5.3-5.5). Returns true on success, false on failure.
+bool sioCassette::fsk_signal_begin()
+{
+    if (_fsk_signal_active)
+        return true;
+
+    // Fail cleanly if the cassette TX pin is not connected on this target.
+    if ((gpio_num_t)PIN_UART2_TX == GPIO_NUM_NC)
+    {
+        Debug_println("FSK: PIN_UART2_TX not connected (GPIO_NUM_NC), skipping raw signal");
+        return false;
+    }
+
+    // Flush any pending UART output before detaching the TX pin.
+    SYSTEM_BUS.flushOutput();
+
+    // Detach UART2 TX from GPIO and hold the line idle HIGH (mark) before RMT
+    // takes over — identical to turbo2000_init_rmt().
+    esp_rom_gpio_connect_out_signal(PIN_UART2_TX, SIG_GPIO_OUT_IDX, false, false);
+    gpio_set_level((gpio_num_t)PIN_UART2_TX, 1);
+
+    // Configure RMT TX at 1 MHz (1 µs per tick), identical to T2K.
+    rmt_tx_channel_config_t tx_cfg = {};
+    tx_cfg.gpio_num = (gpio_num_t)PIN_UART2_TX;
+    tx_cfg.clk_src = RMT_CLK_SRC_DEFAULT;
+    tx_cfg.resolution_hz = T2K_RMT_RESOLUTION_HZ; // 1 µs per tick
+    tx_cfg.mem_block_symbols = 64 * 8; // 512 symbols for gapless ping-pong
+    tx_cfg.trans_queue_depth = 4;
+    tx_cfg.intr_priority = 0;
+    tx_cfg.flags.invert_out = false;
+    tx_cfg.flags.with_dma = false;
+    tx_cfg.flags.io_loop_back = false;
+    tx_cfg.flags.io_od_mode = false;
+    tx_cfg.flags.allow_pd = false;
+
+    rmt_channel_handle_t channel = nullptr;
+    esp_err_t err = rmt_new_tx_channel(&tx_cfg, &channel);
+    if (err != ESP_OK)
+    {
+        Debug_printf("FSK: rmt_new_tx_channel failed: %s\n", esp_err_to_name(err));
+        // Reattach UART2 TX to its normal signal; no RMT resources were created.
+        esp_rom_gpio_connect_out_signal(PIN_UART2_TX,
+            uart_periph_signal[2].pins[SOC_UART_TX_PIN_IDX].signal, false, false);
+        return false;
+    }
+
+    // Stateful simple encoder — generates rmt_symbol_word_t on the fly in the
+    // IRAM callback from the pre-read buffer plus O(1) encoder state.
+    rmt_simple_encoder_config_t simple_cfg = {};
+    simple_cfg.callback = fsk_encode_cb;
+    simple_cfg.arg = (void *)this;
+    simple_cfg.min_chunk_size = 0;
+    rmt_encoder_handle_t simple_enc = nullptr;
+    err = rmt_new_simple_encoder(&simple_cfg, &simple_enc);
+    if (err != ESP_OK)
+    {
+        Debug_printf("FSK: rmt_new_simple_encoder failed: %s\n", esp_err_to_name(err));
+        rmt_del_channel(channel);
+        esp_rom_gpio_connect_out_signal(PIN_UART2_TX,
+            uart_periph_signal[2].pins[SOC_UART_TX_PIN_IDX].signal, false, false);
+        return false;
+    }
+
+    err = rmt_enable(channel);
+    if (err != ESP_OK)
+    {
+        Debug_printf("FSK: rmt_enable failed: %s\n", esp_err_to_name(err));
+        rmt_del_encoder(simple_enc);
+        rmt_del_channel(channel);
+        esp_rom_gpio_connect_out_signal(PIN_UART2_TX,
+            uart_periph_signal[2].pins[SOC_UART_TX_PIN_IDX].signal, false, false);
+        return false;
+    }
+
+    _fsk_rmt_channel = channel;
+    _fsk_rmt_encoder = simple_enc;
+    _fsk_signal_active = true;
+    Debug_printf("FSK: RMT initialized on SIO DATA IN pin (GPIO %d) at 1 MHz\n",
+                 PIN_UART2_TX);
+    return true;
+}
+
+// Emit the whole pre-read A8CAS "fsk " payload as ONE continuous, gapless RMT
+// transaction and block until it has fully drained. A single rmt_transmit hands
+// the entire pre-read buffer (_fsk_buf / _fsk_data_avail) to the stateful simple
+// encoder; fsk_encode_cb fills the RMT ping-pong memory on demand from that
+// buffer plus O(1) encoder state, so there is no reused stack payload of ours
+// and no per-batch queuing gap (unlike the repeated-batch T2K data path). The
+// caller has already initialized the encoder state (value index, byte pos,
+// remaining ticks, level) before calling this. rmt_tx_wait_all_done blocks so
+// the pre-read buffer stays valid for the whole transaction and is only freed
+// (in fsk_signal_end / the caller's cleanup) after transmission has finished.
+void sioCassette::fsk_signal_emit()
+{
+    // Nothing to drive: no RMT channel, no buffer, or zero complete values.
+    if (!_fsk_signal_active || _fsk_buf == nullptr || _fsk_value_count == 0)
+        return;
+
+    rmt_channel_handle_t channel = (rmt_channel_handle_t)_fsk_rmt_channel;
+    rmt_encoder_handle_t encoder = (rmt_encoder_handle_t)_fsk_rmt_encoder;
+
+    rmt_transmit_config_t tx_cfg = {};
+    tx_cfg.loop_count = 0;
+    tx_cfg.flags.eot_level = 0;
+    tx_cfg.flags.queue_nonblocking = false;
+
+    // ONE continuous transaction for the complete payload — NOT repeated batches.
+    // The simple encoder writes directly into RMT-provided ping-pong memory, so
+    // the only buffer we own (_fsk_buf) must stay valid until the transaction
+    // completes; rmt_tx_wait_all_done below guarantees that before any teardown.
+    esp_err_t err = rmt_transmit(channel, encoder, _fsk_buf, _fsk_data_avail, &tx_cfg);
+    if (err != ESP_OK)
+    {
+        // Log the error but do NOT return early. The approved design requires
+        // rmt_tx_wait_all_done() to be reached after the single transmit
+        // attempt in all cases, so buffer/channel teardown is always gated on
+        // the channel being idle (a partially queued transaction may still be
+        // draining even when rmt_transmit reports an error).
+        Debug_printf("FSK: rmt_transmit error: %s\n", esp_err_to_name(err));
+    }
+
+    // Wait for the whole waveform to finish before the buffer/channel teardown.
+    // Always reached, even on transmit error.
+    rmt_tx_wait_all_done(channel, -1);
+}
+
+// Tear down the RMT raw-signal path and hand PIN_UART2_TX back to the UART so
+// normal cassette data playback resumes. Mirrors turbo2000_deinit_rmt() exactly.
+// IDEMPOTENT (Req 5.1): safe to call multiple times and safe to call even if
+// fsk_signal_begin() was never called or failed — the _fsk_signal_active guard
+// makes every call after the first a no-op. Does NOT touch the UART baud divisor
+// (no SYSTEM_BUS.setBaudrate); only the TX pin routing is reattached so the
+// existing baud rate is preserved (Req 5.3-5.5).
+void sioCassette::fsk_signal_end()
+{
+    if (!_fsk_signal_active)
+        return;
+
+    rmt_channel_handle_t channel = (rmt_channel_handle_t)_fsk_rmt_channel;
+
+    // Safely wait for any in-flight transmission to finish before teardown, so
+    // the pre-read buffer is not reclaimed while the peripheral is still draining
+    // it (Req 4.3). channel may be null only if state is inconsistent; guard it.
+    if (channel)
+        rmt_tx_wait_all_done(channel, -1);
+
+    // Disable and delete the RMT channel, then delete the simple encoder.
+    if (channel)
+    {
+        rmt_disable(channel);
+        rmt_del_channel(channel);
+    }
+    if (_fsk_rmt_encoder)
+        rmt_del_encoder((rmt_encoder_handle_t)_fsk_rmt_encoder);
+
+    // Clear RMT handles so a subsequent call is a no-op.
+    _fsk_rmt_channel = nullptr;
+    _fsk_rmt_encoder = nullptr;
+
+    // Reattach UART2 TX to its normal signal on PIN_UART2_TX. This restores
+    // normal data playback routing WITHOUT altering the baud divisor.
+    // UART2 TX signal index = uart_periph_signal[2].pins[SOC_UART_TX_PIN_IDX].signal
+    esp_rom_gpio_connect_out_signal(PIN_UART2_TX,
+        uart_periph_signal[2].pins[SOC_UART_TX_PIN_IDX].signal, false, false);
+
+    // Per approved design, remain active until UART2 TX has actually been
+    // reattached; only now is teardown fully complete.
+    _fsk_signal_active = false;
+
+    Debug_println("FSK: UART restored on SIO DATA IN pin");
 }
 
 void sioCassette::turbo2000_send_byte(uint8_t byte)

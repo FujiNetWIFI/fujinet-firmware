@@ -79,8 +79,8 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - Keep ESP-specific declarations behind `#ifdef ESP_PLATFORM`.
     - _Requirements: 4.1-4.6, 5.1-5.5, 8.1_
 
-- [ ] 4. Implement the ESP RMT FSK encoder
-  - [ ] 4.1 Implement `fsk_encode_cb`
+- [x] 4. Implement the ESP RMT FSK encoder
+  - [x] 4.1 Implement `fsk_encode_cb`
     - Mirror the existing Turbo 2000 simple-encoder callback pattern.
     - Set `*done = false` at the beginning of every callback invocation.
     - Decode values from the already preloaded payload only.
@@ -91,7 +91,7 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - Set `*done = true` only after the final portion of the final value is emitted.
     - Perform no file I/O, heap allocation, or logging from the callback.
     - _Requirements: 2.1, 2.4, 2.5, 4.1, 4.2, 4.6_
-  - [ ] 4.2 Implement `fsk_signal_begin`
+  - [x] 4.2 Implement `fsk_signal_begin`
     - Flush pending UART output before taking control of the TX pin.
     - Use `PIN_UART2_TX` and the same detach/reattach routing approach as the existing cassette RMT/QROS code.
     - Configure RMT TX at 1 MHz using `RMT_CLK_SRC_DEFAULT`.
@@ -100,12 +100,12 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - Return failure cleanly for `GPIO_NUM_NC` or any RMT setup failure.
     - Fully undo partial setup on failure.
     - _Requirements: 4.1, 4.3, 4.5, 5.3-5.5_
-  - [ ] 4.3 Implement `fsk_signal_emit`
+  - [x] 4.3 Implement `fsk_signal_emit`
     - Issue exactly one `rmt_transmit` for the complete preloaded FSK payload.
     - Wait for completion before buffer teardown.
     - Do not use repeated transmit batches.
     - _Requirements: 4.1, 4.2_
-  - [ ] 4.4 Implement idempotent `fsk_signal_end`
+  - [x] 4.4 Implement idempotent `fsk_signal_end`
     - Safely wait for any in-flight transmission.
     - Disable/delete the RMT channel and encoder.
     - Reattach UART2 TX routing.
