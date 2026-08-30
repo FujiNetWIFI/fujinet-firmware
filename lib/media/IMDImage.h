@@ -10,6 +10,11 @@
 // Platform independent on purpose: this lives at the root of lib/media and must
 // never include a platform mediaType.h, so any target can adapt it. The ESP
 // build globs lib/media/*.cpp, so this compiles into every target.
+//
+// Deliberately not a MediaType: every platform declares its own incompatible
+// MediaType (divergent read/write/mount signatures, clashing header guards), so
+// each platform's adapter (e.g. rs232/diskTypeIMD) subclasses its own and
+// forwards here.
 
 #include <cstdint>
 #include <string>
