@@ -35,7 +35,7 @@ void rs232Fuji::setup()
 
     populate_slots_from_config();
 
-    insert_boot_device(Config.get_general_boot_mode(), MEDIATYPE_UNKNOWN, &bootdisk);
+    insert_boot_device(Config.get_general_boot_mode(), MEDIATYPE_UNKNOWN, FUJI_BOOTDISK);
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
@@ -71,9 +71,6 @@ void rs232Fuji::rs232_status(FujiStatusReq reqType)
 
         for (idx = 0; idx < MAX_DISK_DEVICES; idx++)
             mount_status[idx] = _fnDisks[idx].disk_dev.mount_time();
-
-        if (boot_config)
-            mount_status[0] = bootdisk.mount_time();
 
         SYSTEM_BUS.transaction_send((uint8_t *) mount_status, sizeof(mount_status), false);
     }
@@ -388,7 +385,7 @@ void rs232Fuji::rs232_process(const FujiBusPacket &packet)
             SYSTEM_BUS.transaction_error();
         }
         else
-            fujicmd_set_boot_mode(packet.param(0), MEDIATYPE_UNKNOWN, &bootdisk);
+            fujicmd_set_boot_mode(packet.param(0), MEDIATYPE_UNKNOWN, FUJI_BOOTDISK);
         break;
     case CMD::FUJI_DEVICE_READY:
         Debug_printf("FUJICMD DEVICE TEST\n");

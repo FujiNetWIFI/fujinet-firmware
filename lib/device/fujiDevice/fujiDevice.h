@@ -28,6 +28,8 @@
 
 #define STATUS_MOUNT_TIME       0x01
 
+#define FUJI_BOOTDISK get_disk_dev(0)
+
 #define ADAPTER_CONFIG_FIELDS \
     char ssid[33]; \
     char hostname[64]; \
@@ -206,7 +208,6 @@ protected:
 
 public:
     bool boot_config = true;
-    DISK_DEVICE bootdisk; // special disk drive just for configuration
 
     fujiDevice(unsigned int numDisk, std::string extension,
                std::optional<std::string> lobbyURL);

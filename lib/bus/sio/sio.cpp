@@ -255,7 +255,7 @@ void systemBus::_sio_process_cmd()
 #endif
         if (tmpFrame.device() == FUJI_DEVICEID::DISK && _fujiDev != nullptr && _fujiDev->boot_config)
         {
-            _activeDev = &_fujiDev->bootdisk;
+            _activeDev = _fujiDev->FUJI_BOOTDISK;
 
             // Boot-priority logic: if enabled, ignore the first few
             // SIO status calls (of the 26 Atari sends) so a real D1:
