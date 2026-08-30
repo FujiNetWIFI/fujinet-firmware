@@ -107,6 +107,7 @@ typedef enum class CMD : uint8_t {
     DISK_PUT                        = 0x50, // P
     DISK_PERCOM_WRITE               = 0x4F, // O
     DISK_PERCOM_READ                = 0x4E, // N
+    DISK_SET_GEOMETRY               = 0x47, // G (RS232 MediaTypeDSK: FMT_CUSTOM)
     DISK_HSIO_INDEX                 = 0x3F, // ?
     DISK_FORMAT_MEDIUM              = 0x22, // "
     DISK_FORMAT                     = 0x21, // !

@@ -16,6 +16,19 @@ rs232Disk::rs232Disk()
     _mount_time = 0;
 }
 
+// Extract a command packet's typed params into a bus-agnostic array so the media
+// layer never sees a FujiBusPacket. `max` caps the copy at the caller's buffer
+// (8 -- the largest CMD::DISK_SET_GEOMETRY uses); returns how many were copied.
+static unsigned packet_params(const FujiBusPacket &packet, uint32_t *out, unsigned max)
+{
+    unsigned n = packet.paramCount();
+    if (n > max)
+        n = max;
+    for (unsigned i = 0; i < n; i++)
+        out[i] = packet.param(i);
+    return n;
+}
+
 // Read disk data and send to computer
 void rs232Disk::rs232_read(uint32_t sector)
 {
@@ -37,6 +50,35 @@ void rs232Disk::rs232_read(uint32_t sector)
     SYSTEM_BUS.transaction_send(_disk->_disk_sectorbuff, readcount, err);
 }
 
+// Read disk data addressed by a command packet. The device extracts the packet's
+// params and the media type decodes the address from them: MediaTypeImg reads
+// params[0] as a linear sector (LBA); MediaTypeDSK decodes
+// head/track/sector/fmttype into a byte offset. sector_buffer() lets a type stage
+// a larger transfer (MediaTypeDSK's whole-track reads, up to 6656 bytes) than
+// the flat 512-byte default.
+void rs232Disk::rs232_read(const FujiBusPacket &packet)
+{
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+
+    if (_disk == nullptr)
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
+    uint32_t params[8];
+    unsigned nparams = packet_params(packet, params, 8);
+    uint32_t sector  = _disk->decode_sector(params, nparams);
+
+    Debug_printf("disk READ %lu\n", sector);
+
+    uint32_t readcount;
+
+    bool err = _disk->read(sector, &readcount);
+
+    SYSTEM_BUS.transaction_send(_disk->sector_buffer(), readcount, err);
+}
+
 // Write disk data from computer
 void rs232Disk::rs232_write(uint32_t sector, bool verify)
 {
@@ -51,6 +93,35 @@ void rs232Disk::rs232_write(uint32_t sector, bool verify)
         memset(_disk->_disk_sectorbuff, 0, DISK_SECTORBUF_SIZE);
 
         if (SYSTEM_BUS.transaction_get(_disk->_disk_sectorbuff, sectorSize))
+        {
+            if (_disk->write(sector, verify) == false)
+            {
+                SYSTEM_BUS.transaction_success();
+                return;
+            }
+        }
+    }
+
+    SYSTEM_BUS.transaction_error();
+}
+
+// Write disk data addressed by a command packet. decode_sector() runs before
+// sector_size() so MediaTypeDSK has stashed the per-access sector size that
+// sector_size() then returns.
+void rs232Disk::rs232_write(const FujiBusPacket &packet, bool verify)
+{
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+
+    if (_disk != nullptr)
+    {
+        uint32_t params[8];
+        unsigned nparams    = packet_params(packet, params, 8);
+        uint32_t sector     = _disk->decode_sector(params, nparams);
+        uint16_t sectorSize = _disk->sector_size(sector);
+
+        memset(_disk->sector_buffer(), 0, _disk->sector_buffer_size());
+
+        if (SYSTEM_BUS.transaction_get(_disk->sector_buffer(), sectorSize))
         {
             if (_disk->write(sector, verify) == false)
             {
@@ -206,6 +277,11 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
         _mount_time = time(NULL);
         _disk = new MediaTypeROM();
         return _disk->mount(f, disksize, host, filename);
+    case MEDIATYPE_DSK:
+        device_active = true;
+        _mount_time = time(NULL);
+        _disk = new MediaTypeDSK();
+        return _disk->mount(f, disksize); // host/filename unused (no sidecar)
     case MEDIATYPE_IMG:
     case MEDIATYPE_UNKNOWN:
     default:
@@ -261,14 +337,14 @@ void rs232Disk::rs232_process(const FujiBusPacket &packet)
     switch (packet.command())
     {
     case CMD::DISK_READ:
-        rs232_read(packet.param(0));
+        rs232_read(packet);
         return;
     case CMD::DISK_PUT:
-        rs232_write(packet.param(0), false);
+        rs232_write(packet, false);
         return;
     case CMD::DISK_STATUS:
     case CMD::DISK_WRITE:
-        rs232_write(packet.param(0), true);
+        rs232_write(packet, true);
         return;
     case CMD::DISK_FORMAT:
     case CMD::DISK_FORMAT_MEDIUM:
@@ -279,6 +355,21 @@ void rs232Disk::rs232_process(const FujiBusPacket &packet)
         return;
     case CMD::DISK_PERCOM_WRITE:
         rs232_write_percom_block();
+        return;
+    case CMD::DISK_SET_GEOMETRY:
+        // Declare a runtime custom geometry (RS232 MediaTypeDSK, FMT_CUSTOM).
+        // A control command: no payload back, just ACK. No-op for Img/ROM via
+        // the base virtual.
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        if (_disk != nullptr)
+        {
+            uint32_t params[8];
+            unsigned nparams = packet_params(packet, params, 8);
+            _disk->set_geometry(params, nparams);
+            SYSTEM_BUS.transaction_success();
+        }
+        else
+            SYSTEM_BUS.transaction_error();
         return;
     default:
         break;

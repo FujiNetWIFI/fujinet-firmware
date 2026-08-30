@@ -82,6 +82,13 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
         {
             return MEDIATYPE_ROM;
         }
+        // .DSK is a bit-exact raw dump of a floppy disk served by
+        // MediaTypeDSK. The host supplies head/track/sector/fmttype on
+        // every access; geometry is never inferred from the image.
+        if (strcasecmp(ext, "DSK") == 0)
+        {
+            return MEDIATYPE_DSK;
+        }
     }
     return MEDIATYPE_UNKNOWN;
 }

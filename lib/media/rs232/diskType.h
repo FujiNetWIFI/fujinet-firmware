@@ -39,6 +39,7 @@ enum mediatype_t
     MEDIATYPE_UNKNOWN = 0,
     MEDIATYPE_IMG,
     MEDIATYPE_ROM,
+    MEDIATYPE_DSK,
     MEDIATYPE_COUNT
 };
 
@@ -93,6 +94,32 @@ public:
 
     // Always returns 128 for the first 3 sectors, otherwise _sectorSize
     virtual uint16_t sector_size(uint32_t sectornum);
+
+    // Resolve an addressed sector from bus-agnostic parameters (the device
+    // layer extracts these from its command packet). Default: params[0] is a
+    // linear sector (LBA), matching every existing flat image. MediaTypeDSK
+    // overrides this to decode head/track/sector/fmttype into a byte offset.
+    virtual uint32_t decode_sector(const uint32_t *params, unsigned count)
+    {
+        return count ? params[0] : 0;
+    }
+
+    // Declare a geometry from bus-agnostic parameters. Default: ignore -- Img/ROM
+    // have fixed geometry. MediaTypeDSK overrides this to build a runtime
+    // custom format (FMT_CUSTOM) from host-supplied regions.
+    virtual void set_geometry(const uint32_t *params, unsigned count)
+    {
+        (void)params;
+        (void)count;
+    }
+
+    // Staging buffer the device reads into / writes out of. Default: the existing
+    // 512-byte base member. A type whose transfers can exceed that (MediaTypeDSK,
+    // whose track-mode reads move a whole track -- up to 6656 bytes for an IBM 8"
+    // DD track) overrides these to supply its own larger buffer, so
+    // MediaTypeImg/MediaTypeROM never carry the cost.
+    virtual uint8_t *sector_buffer() { return _disk_sectorbuff; }
+    virtual uint32_t sector_buffer_size() { return DISK_SECTORBUF_SIZE; }
 
     virtual void status(uint8_t statusbuff[4]) = 0;
 

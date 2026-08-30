@@ -490,6 +490,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
     lib/media/rs232/diskType.h lib/media/rs232/diskType.cpp
     lib/media/rs232/diskTypeImg.h lib/media/rs232/diskTypeImg.cpp
     lib/media/rs232/diskTypeROM.h lib/media/rs232/diskTypeROM.cpp
+    lib/media/rs232/diskTypeDSK.h lib/media/rs232/diskTypeDSK.cpp
 
     lib/device/rs232/rs232Clock.cpp lib/device/rs232/rs232Clock.h
     lib/device/rs232/disk.cpp lib/device/rs232/disk.h

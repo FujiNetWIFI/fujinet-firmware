@@ -16,7 +16,9 @@ private:
     time_t _mount_time = 0;
 
     void rs232_read(uint32_t sector);
+    void rs232_read(const FujiBusPacket &packet);
     void rs232_write(uint32_t sector, bool verify);
+    void rs232_write(const FujiBusPacket &packet, bool verify);
     void rs232_format();
     void rs232_status(FujiStatusReq reqType) override;
     void rs232_process(const FujiBusPacket &packet) override;
