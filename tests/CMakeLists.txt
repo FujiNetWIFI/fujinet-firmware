@@ -92,7 +92,7 @@ add_test(NAME mail_tests COMMAND mail_tests)
 
 # ------------------------------------------------------------------------------
 # IMD (ImageDisk) core media type. This also serves as the compile check for
-# lib/media/imdImage.cpp on the PC side: no PC target links it yet, since no
+# lib/media/IMDImage.cpp on the PC side: no PC target links it yet, since no
 # platform adapter exists.
 # UNIT_TESTS is required - fujinet_pc.cmake puts -DDBUG2 on CMAKE_CXX_FLAGS,
 # which turns on DEBUG, which makes debug.h pull in <utils.h> that we do not
@@ -104,7 +104,7 @@ add_test(NAME mail_tests COMMAND mail_tests)
 # ------------------------------------------------------------------------------
 add_executable(imdimage_tests
     IMDImageTests.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/imdImage.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/IMDImage.cpp
 )
 
 target_compile_definitions(imdimage_tests PRIVATE UNIT_TESTS FNIO_IS_STDIO)
