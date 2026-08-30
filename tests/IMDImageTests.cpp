@@ -5,7 +5,7 @@
 #include <cstring>
 #include <vector>
 
-#include "imdImage.h"
+#include "IMDImage.h"
 
 namespace
 {

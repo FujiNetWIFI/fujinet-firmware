@@ -1,9 +1,9 @@
-// IMD (ImageDisk) disk image reader/writer. See imdImage.h.
+// IMD (ImageDisk) disk image reader/writer. See IMDImage.h.
 //
 // No BUILD_* guard: the ESP build globs lib/media/*.cpp, so this is compiled
 // into every target and must stay free of platform dependencies.
 
-#include "imdImage.h"
+#include "IMDImage.h"
 
 #include <algorithm>
 #include <cstring>
