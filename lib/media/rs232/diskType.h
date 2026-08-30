@@ -34,11 +34,17 @@ class fujiHost;
 #define DISK_DRIVE_STATUS_DOUBLE_SIDED 0x40
 #define DISK_DRIVE_STATUS_ENHANCED_DENSITY 0x80
 
+#define DENSITY_FM 0
+#define DENSITY_MFM 4
+
+// Wire-visible: emitted as the mediatype byte of directory entries, so append
+// only.
 enum mediatype_t
 {
     MEDIATYPE_UNKNOWN = 0,
     MEDIATYPE_IMG,
     MEDIATYPE_ROM,
+    MEDIATYPE_IMD,
     MEDIATYPE_COUNT
 };
 
@@ -67,7 +73,7 @@ public:
         uint8_t reserved1;
         uint8_t reserved2;
         uint8_t reserved3;
-    } _percomBlock;
+    } _percomBlock = {};
 
     uint8_t _disk_sectorbuff[DISK_SECTORBUF_SIZE];
 

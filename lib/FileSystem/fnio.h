@@ -38,7 +38,7 @@ namespace fnio
 {
 
 #ifdef FNIO_IS_STDIO
-    static inline size_t fread(void *ptr, size_t size, size_t n, fnFile *f) 
+    static inline size_t fread(void *ptr, size_t size, size_t n, fnFile *f)
     { return std::fread(ptr, size, n, f); }
 
     static inline size_t fwrite(const void *ptr, size_t size, size_t n, fnFile *f)
@@ -69,7 +69,7 @@ namespace fnio
     { (void)f; }
 
 #else
-    static inline size_t fread(void *ptr, size_t size, size_t n, fnFile *f) 
+    static inline size_t fread(void *ptr, size_t size, size_t n, fnFile *f)
     { return f->read(ptr, size, n); }
 
     static inline size_t fwrite(const void *ptr, size_t size, size_t n, fnFile *f)
