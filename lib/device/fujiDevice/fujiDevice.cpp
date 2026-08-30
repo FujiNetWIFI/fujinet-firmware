@@ -46,7 +46,6 @@ fujiDevice::fujiDevice(unsigned int numDisk, std::string extension,
                        std::optional<std::string> lobbyURL)
     : _totalDiskDevices(numDisk), _diskImageExtension(extension), _lobbyDiskURL(lobbyURL)
 {
-    bootdisk._devnum = FUJI_DEVICEID::DISK;
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].slotid = i;
@@ -127,7 +126,7 @@ fujiDevice::fujiDevice(unsigned int numDisk, std::string extension,
             fujicmd_random();
         } },
         { CMD::FUJI_SET_BOOT_MODE, [this](const FUJI_COMMAND_PACKET &packet) {
-            fujicmd_set_boot_mode(packet.param(0), MEDIATYPE_UNKNOWN, &bootdisk);
+            fujicmd_set_boot_mode(packet.param(0), MEDIATYPE_UNKNOWN, FUJI_BOOTDISK);
         } },
         { CMD::FUJI_MOUNT_ALL, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_mount_all_success();

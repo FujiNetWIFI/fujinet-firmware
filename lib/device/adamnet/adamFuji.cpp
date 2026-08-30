@@ -147,30 +147,6 @@ void adamFuji::adamnet_new_disk(const FujiAdamPacket &packet)
     SYSTEM_BUS.transaction_success();
 }
 
-// Mounts the desired boot disk number
-void adamFuji::insert_boot_device(uint8_t d)
-{
-    const char *config_atr = "/autorun.ddp";
-    const char *mount_all_atr = "/mount-and-boot.ddp";
-    fnFile *fBoot;
-
-    switch (d)
-    {
-    case 0:
-        fBoot = fsFlash.fnfile_open(config_atr);
-        _fnDisks[0].disk_dev.mount(fBoot, config_atr, 262144, DISK_ACCESS_MODE_READ, MEDIATYPE_DDP);
-        break;
-    case 1:
-
-        fBoot = fsFlash.fnfile_open(mount_all_atr);
-        _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 262144, DISK_ACCESS_MODE_READ, MEDIATYPE_DDP);
-        break;
-    }
-
-    _fnDisks[0].disk_dev.is_config_device = true;
-    _fnDisks[0].disk_dev.device_active = true;
-}
-
 void adamFuji::adamnet_enable_device(const FujiAdamPacket &packet)
 {
     fujiDeviceID_t d = static_cast<fujiDeviceID_t>(packet.param8(0));
