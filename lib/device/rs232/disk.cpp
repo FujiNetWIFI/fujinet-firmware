@@ -206,6 +206,11 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
         _mount_time = time(NULL);
         _disk = new MediaTypeROM();
         return _disk->mount(f, disksize, host, filename);
+    case MEDIATYPE_IMD:
+        device_active = true;
+        _mount_time = time(NULL);
+        _disk = new MediaTypeIMD((access_mode & DISK_ACCESS_MODE_WRITE) != 0);
+        return _disk->mount(f, disksize, host, filename);
     case MEDIATYPE_IMG:
     case MEDIATYPE_UNKNOWN:
     default:
