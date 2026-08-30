@@ -125,6 +125,12 @@ public:
         return std::string(reinterpret_cast<const char *>(d->data()), d->size());
     }
 
+    // A C string field arrives padded out to the driver's fixed buffer size.
+    const std::optional<const std::string> dataAsCString() const {
+        auto s = dataAsString();
+        return s->substr(0, s->find('\0'));
+    }
+
     // Explicit alternatives to the implicit ParamProxy conversions.
     // These may be preferred where the destination type is not obvious.
     std::uint8_t  param8(int idx)  const { return (std::uint8_t)param(idx); }

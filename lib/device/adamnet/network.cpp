@@ -15,17 +15,6 @@
 using namespace std;
 
 /**
- * The devicespec (and every other C string) as the client meant it, without
- * the padding that follows it on the wire.
- */
-static string packet_string(const FujiAdamPacket &packet)
-{
-    string s = packet.dataAsString().value();
-    return s.substr(0, s.find('\0'));
-}
-
-
-/**
  * Constructor
  */
 adamNetwork::adamNetwork()
@@ -120,7 +109,7 @@ void adamNetwork::open(const FujiAdamPacket &packet)
 
     // Parse and instantiate protocol
     bool is_dir = (fileAccessMode_t) packet.param8(0) == ACCESS_MODE::DIRECTORY;
-    parse_and_instantiate_protocol(packet_string(packet), is_dir);
+    parse_and_instantiate_protocol(packet.dataAsCString().value(), is_dir);
 
     if (protocol == nullptr)
     {
@@ -302,7 +291,7 @@ void adamNetwork::get_prefix()
  */
 void adamNetwork::set_prefix(const FujiAdamPacket &packet)
 {
-    auto prefixSpec_str = packet_string(packet);
+    auto prefixSpec_str = packet.dataAsCString().value();
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
     Debug_printf("adamNetwork::adamnet_set_prefix(%s)\n", prefixSpec_str.c_str());
 
@@ -354,7 +343,7 @@ void adamNetwork::set_prefix(const FujiAdamPacket &packet)
  */
 void adamNetwork::set_login(const FujiAdamPacket &packet)
 {
-    login = packet_string(packet);
+    login = packet.dataAsCString().value();
 }
 
 /**
@@ -362,7 +351,7 @@ void adamNetwork::set_login(const FujiAdamPacket &packet)
  */
 void adamNetwork::set_password(const FujiAdamPacket &packet)
 {
-    password = packet_string(packet);
+    password = packet.dataAsCString().value();
 }
 
 void adamNetwork::channel_mode(const FujiAdamPacket &packet)
@@ -385,7 +374,7 @@ void adamNetwork::channel_mode(const FujiAdamPacket &packet)
 
 void adamNetwork::json_query(const FujiAdamPacket &packet)
 {
-    std::string query = packet_string(packet);
+    std::string query = packet.dataAsCString().value();
     json.setReadQuery(query, 0);
     Debug_printv("adamNetwork::json_query(%s)\n", query.c_str());
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
@@ -403,7 +392,7 @@ void adamNetwork::json_parse()
 
 void adamNetwork::sgml_query(const FujiAdamPacket &packet)
 {
-    std::string query = packet_string(packet);
+    std::string query = packet.dataAsCString().value();
     sgml.setReadQuery(query, 0);
     Debug_printv("adamNetwork::json_query(%s)\n", query.c_str());
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
@@ -696,7 +685,7 @@ void adamNetwork::adamnet_set_timer_rate()
 
 void adamNetwork::process_fs(const FujiAdamPacket &packet)
 {
-    parse_and_instantiate_protocol(packet_string(packet), false);
+    parse_and_instantiate_protocol(packet.dataAsCString().value(), false);
 
     // Make sure this is really a FS protocol instance
     NetworkProtocolFS *fs = dynamic_cast<NetworkProtocolFS *>(protocol.get());
