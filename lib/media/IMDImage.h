@@ -24,7 +24,8 @@
 // ASCII SUB, terminates the header/comment block
 #define IMD_EOF_MARKER 0x1A
 
-// Platform MediaType classes address sectors with uint16_t
+// Bounds the per-mount sector table; also fits platforms that address sectors
+// with uint16_t
 #define IMD_MAX_SECTORS 65535
 
 // Largest size code (6) is 8192 bytes; the 0xFF table can name anything
