@@ -137,23 +137,14 @@ void systemBus::_rs232_process_cmd()
     _activePacket = tempFrame.get();
     _activeDev = nullptr;
 
-    if (tempFrame->device() == FUJI_DEVICEID::DISK && _fujiDev != nullptr
-        && _fujiDev->boot_config)
+    // find device, ack and pass control
+    // or go back to WAIT
+    for (auto devicep : _daisyChain)
     {
-        _activeDev = &_fujiDev->bootdisk;
-        Debug_println("FujiNet CONFIG boot");
-    }
-    else
-    {
-        // find device, ack and pass control
-        // or go back to WAIT
-        for (auto devicep : _daisyChain)
+        if (tempFrame->device() == devicep->_devnum)
         {
-            if (tempFrame->device() == devicep->_devnum)
-            {
-                _activeDev = devicep;
-                break;
-            }
+            _activeDev = devicep;
+            break;
         }
     }
 
