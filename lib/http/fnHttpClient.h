@@ -29,6 +29,10 @@ private:
     bool _ignore_response_body = false;
     bool _transaction_begin = false;
     bool _transaction_done = false;
+    // Set by the subtask just before its goodbye notification. _transaction_done
+    // can't stand in for it: that's already true while the last chunk is still
+    // being handed over.
+    volatile bool _subtask_exiting = false;
     bool _keep_alive = false;
     int _redirect_count = 0;
     int _max_redirects = 0;
