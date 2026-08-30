@@ -20,7 +20,13 @@ FskStep fsk_view_step(FskChunkView &view)
     {
         uint32_t portion = fsk_next_portion(view.remaining_ticks);
         view.remaining_ticks -= portion;
-        return FskStep{ true, view.remaining_level_high, portion, false };
+
+        // Approved contract: the LAST emitted portion carries done=true in the
+        // SAME call. More work remains iff this value still has ticks left or
+        // another value is still to be loaded.
+        bool more = view.remaining_ticks != 0 ||
+                    view.value_index < fsk_value_count(view.data_len_available);
+        return FskStep{ true, view.remaining_level_high, portion, !more };
     }
 
     // Case 2: load the next value. Skip leading zero-duration values, which
@@ -53,7 +59,14 @@ FskStep fsk_view_step(FskChunkView &view)
 
         uint32_t portion = fsk_next_portion(view.remaining_ticks);
         view.remaining_ticks -= portion;
-        return FskStep{ true, level, portion, false };
+
+        // Approved contract: this may be the LAST emitted portion (single-portion
+        // final value), in which case done=true is returned in the SAME call.
+        // More work remains iff this value still has ticks left or another value
+        // is still to be loaded (value_index already advanced past this one).
+        bool more = view.remaining_ticks != 0 ||
+                    view.value_index < value_count;
+        return FskStep{ true, level, portion, !more };
     }
 
     // Case 3: all values exhausted and nothing left to split.

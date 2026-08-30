@@ -35,8 +35,8 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - Confirm `fsk_plan.cpp` has no FujiNet hardware, filesystem, GPIO, RMT, or global-state dependency.
     - _Requirements: 8.1_
 
-- [ ] 2. Add automated doctest coverage for the pure FSK rules
-  - [ ] 2.1 Create `tests/FskPlanTests.cpp`
+- [x] 2. Add automated doctest coverage for the pure FSK rules
+  - [x] 2.1 Create `tests/FskPlanTests.cpp`
     - Add the A8CAS worked example from Requirement 2.7.
     - Test zero-length payload behavior.
     - Test odd-length payload handling.
@@ -45,7 +45,7 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - Verify 6818 maps to 681,800 ticks and 21 portions.
     - Verify 65535 maps to 6,553,500 ticks and 201 portions.
     - _Requirements: 2.7, 2.8, 4.6, 6.4_
-  - [ ] 2.2 Implement deterministic generated-loop tests for correctness properties
+  - [x] 2.2 Implement deterministic generated-loop tests for correctness properties
     - Property 1: `fsk_value_count(len) == len / 2`.
     - Property 2: emitted portion ticks for each value sum to `fsk_ticks_for_value(fsk_decode_le16(pair))`.
     - Property 3: every emitted portion level follows original value-index parity.
@@ -54,12 +54,12 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - Include the full uint16 value range for split arithmetic where practical.
     - Use deterministic/fixed-seed inputs only.
     - _Requirements: 2.1, 2.3, 2.4, 2.5, 4.1, 4.6, 6.2, 6.4_
-  - [ ] 2.3 Add synthetic FSK payload fixtures
+  - [x] 2.3 Add synthetic FSK payload fixtures
     - Build test byte arrays in source; do not add copyrighted `.cas` files.
     - Include representative short, long, zero, and odd-tail values.
     - Keep the tests generic and independent of filenames.
     - _Requirements: 9.4, 9.8_
-  - [ ] 2.4 Register `fsk_plan_tests` in `tests/CMakeLists.txt`
+  - [x] 2.4 Register `fsk_plan_tests` in `tests/CMakeLists.txt`
     - Follow the existing standalone doctest executable pattern.
     - Link only `FskPlanTests.cpp`, `fsk_plan.cpp`, and the required include paths.
     - _Requirements: 8.1_

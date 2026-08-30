@@ -38,6 +38,24 @@ target_include_directories(calendar_tests PRIVATE
 add_test(NAME calendar_tests COMMAND calendar_tests)
 
 # ------------------------------------------------------------------------------
+# A8CAS FSK chunk playback rules. fsk_plan is a pure, host-buildable module: it
+# models the FSK decode/parity/scale/split contract with no hardware, I/O, or
+# FujiNet globals, so it links on its own - which is what lets these decode and
+# split edge cases be pinned down here instead of on device.
+# ------------------------------------------------------------------------------
+add_executable(fsk_plan_tests
+    FskPlanTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/sio/fsk_plan.cpp
+)
+
+target_include_directories(fsk_plan_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/device/      # for "sio/fsk_plan.h"
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+
+add_test(NAME fsk_plan_tests COMMAND fsk_plan_tests)
+
+# ------------------------------------------------------------------------------
 # Mail draft parsing and RFC822 assembly (compose / reply). mail_draft depends
 # only on the standard library, so the EOL and threading edge cases are pinned
 # here rather than on hardware.
