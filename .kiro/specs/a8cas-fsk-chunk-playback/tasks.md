@@ -12,8 +12,8 @@ Tasks should be completed in order. Each task includes the requirements it trace
 
 ## Tasks
 
-- [ ] 1. Add the pure FSK parsing/timing module
-  - [ ] 1.1 Create `lib/device/sio/fsk_plan.h`
+- [x] 1. Add the pure FSK parsing/timing module
+  - [x] 1.1 Create `lib/device/sio/fsk_plan.h`
     - Define `FSK_MAX_PORTION_TICKS = 32767`.
     - Define `FSK_RMT_TICKS_PER_A8CAS_UNIT = 100`.
     - Implement `static inline uint32_t fsk_ticks_for_value(uint16_t value)`.
@@ -24,14 +24,14 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - Define `FskChunkView`, `FskStep`, and `fsk_view_init`.
     - Keep ISR-used helpers allocation-free, I/O-free, logging-free, and safe to inline into the RMT callback.
     - _Requirements: 2.1, 2.3, 2.4, 2.5, 4.1, 4.2, 4.6, 6.2, 6.4_
-  - [ ] 1.2 Create `lib/device/sio/fsk_plan.cpp`
+  - [x] 1.2 Create `lib/device/sio/fsk_plan.cpp`
     - Implement host-test-only `fsk_view_step(FskChunkView &view)`.
     - Use the shared decode/parity/scale/split helpers from `fsk_plan.h`.
     - Skip zero-duration values while preserving original value-index parity.
     - Never read outside `data_len_available`.
     - Never allocate or materialize the complete waveform.
     - _Requirements: 2.1, 2.3, 2.4, 2.5, 4.6, 6.2, 6.4_
-  - [ ] 1.3 Compile the pure module independently on the host
+  - [x] 1.3 Compile the pure module independently on the host
     - Confirm `fsk_plan.cpp` has no FujiNet hardware, filesystem, GPIO, RMT, or global-state dependency.
     - _Requirements: 8.1_
 
