@@ -569,13 +569,22 @@ option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 # - to use library package (Ubuntu deb package is old, does not support cmake/find_package)
 # find_package(MbedTLS)
 # - try to find necessary files in system ...
+# Mbed TLS 4.x removed the legacy crypto headers (mbedtls/sha256.h, md5.h, ...)
+# this code and the bundled libraries still use, so probe for sha256.h instead
+# of ssl.h: that skips a 4.x install in favour of a side-by-side 3.x package
+# (e.g. Arch's mbedtls3, in /usr/include/mbedtls3 and /usr/lib/mbedtls3).
 set(_MBEDTLS_ROOT_HINTS $ENV{MBEDTLS_ROOT_DIR} ${MBEDTLS_ROOT_DIR})
 set(_MBEDTLS_ROOT_PATHS "$ENV{PROGRAMFILES}/libmbedtls")
-set(_MBEDTLS_ROOT_HINTS_AND_PATHS HINTS ${_MBEDTLS_ROOT_HINTS} PATHS ${_MBEDTLS_ROOT_PATHS})
-find_library(MBEDTLS_STATIC_LIB libmbedtls.a HINTS ${_MBEDTLS_ROOT_HINTS_AND_PATHS})
-find_library(MBEDX509_STATIC_LIB libmbedx509.a HINTS ${_MBEDTLS_ROOT_HINTS_AND_PATHS})
-find_library(MBEDCRYPTO_STATIC_LIB libmbedcrypto.a HINTS ${_MBEDTLS_ROOT_HINTS_AND_PATHS})
-find_path(MBEDTLS_INCLUDE_DIR mbedtls/ssl.h HINTS ${_MBEDTLS_ROOT_HINTS_AND_PATHS} PATH_SUFFIXES include)
+set(_MBEDTLS_LIB_HINTS ${_MBEDTLS_ROOT_HINTS} /usr/lib/mbedtls3 /usr/lib64/mbedtls3 /usr/local/lib/mbedtls3)
+set(_MBEDTLS_INC_HINTS ${_MBEDTLS_ROOT_HINTS} /usr/include/mbedtls3 /usr/local/include/mbedtls3)
+find_library(MBEDTLS_STATIC_LIB libmbedtls.a HINTS ${_MBEDTLS_LIB_HINTS} PATHS ${_MBEDTLS_ROOT_PATHS})
+find_library(MBEDX509_STATIC_LIB libmbedx509.a HINTS ${_MBEDTLS_LIB_HINTS} PATHS ${_MBEDTLS_ROOT_PATHS})
+find_library(MBEDCRYPTO_STATIC_LIB libmbedcrypto.a HINTS ${_MBEDTLS_LIB_HINTS} PATHS ${_MBEDTLS_ROOT_PATHS})
+find_path(MBEDTLS_INCLUDE_DIR mbedtls/sha256.h HINTS ${_MBEDTLS_INC_HINTS} PATHS ${_MBEDTLS_ROOT_PATHS} PATH_SUFFIXES include)
+
+if(NOT MBEDTLS_INCLUDE_DIR)
+    message(FATAL_ERROR "Mbed TLS headers not found (mbedtls/sha256.h). Mbed TLS 4.x is not supported - install a 2.x/3.x package (e.g. 'mbedtls3' on Arch) or set MBEDTLS_ROOT_DIR.")
+endif()
 
 set(CRYPTO_LIBS ${MBEDTLS_STATIC_LIB} ${MBEDX509_STATIC_LIB} ${MBEDCRYPTO_STATIC_LIB})
 
