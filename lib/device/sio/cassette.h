@@ -5,11 +5,16 @@
 
 #ifdef ESP_PLATFORM
 #include <driver/rmt_types.h>
+#include <esp_attr.h> // IRAM_ATTR for the FSK RMT encoder callback declaration
 #endif
 
 #include "bus.h"
 #include "fnSystem.h"
 #include "fnio.h"
+
+// Pure, host-buildable A8CAS FSK parsing/timing rules (decode/parity/scale/split).
+// Shared by the cross-platform play_fsk_chunk and the ESP RMT encoder callback.
+#include "fsk_plan.h"
 
 #define CASSETTE_BAUDRATE 600
 #define BLOCK_LEN 128
@@ -192,6 +197,43 @@ private:
     rmt_symbol_word_t _t2k_sync_syms[16];
     size_t _t2k_sync_count = 0;
     size_t _t2k_pilot_pending = 0; // pilot symbols to generate before sync+data
+#endif
+
+    // FSK chunk playback (A8CAS "fsk " chunks) — cross-platform entry point.
+    // Pre-reads the clamped data region into RAM ONCE, honors the IRG, reproduces
+    // the raw FSK signal via the RMT stateful simple encoder driven directly from
+    // that buffer (ESP) or safely skips (PC), and returns the next read offset.
+    // Never changes the active baud. Holds NO full-waveform buffer.
+    size_t play_fsk_chunk(size_t offset, uint16_t chunk_length, uint16_t irg_ms);
+
+#ifdef ESP_PLATFORM
+    // Raw FSK signal helpers built on the ESP RMT peripheral (same PIN_UART2_TX
+    // and detach/reattach approach as Turbo 2000, and the same stateful simple
+    // encoder pattern as t2k_encode_cb / rmt_new_simple_encoder).
+    bool fsk_signal_begin();   // alloc RMT channel + simple encoder (callback=fsk_encode_cb, arg=this), detach UART TX; false on failure
+    void fsk_signal_emit();    // ONE rmt_transmit of the whole pre-read buffer, then rmt_tx_wait_all_done
+    void fsk_signal_end();     // idempotent: teardown RMT + encoder, reattach UART TX
+
+    // The stateful RMT simple-encoder callback (same 7-arg signature as
+    // t2k_encode_cb). Generates rmt_symbol_word_t on demand from _fsk_buf plus
+    // the encoder state below. NO file I/O, NO heap allocation.
+    static size_t IRAM_ATTR fsk_encode_cb(const void *data, size_t data_size,
+                                          size_t symbols_written, size_t symbols_free,
+                                          rmt_symbol_word_t *symbols, bool *done, void *arg);
+
+    void       *_fsk_rmt_channel = nullptr;
+    void       *_fsk_rmt_encoder = nullptr;
+    bool        _fsk_signal_active = false;
+
+    // Preloaded source + encoder state read by fsk_encode_cb (set before
+    // rmt_transmit, read in the ISR callback). All O(1); no waveform buffer.
+    const uint8_t *_fsk_buf         = nullptr; // pre-read data region
+    size_t   _fsk_data_avail        = 0;       // clamped bytes present
+    size_t   _fsk_value_count       = 0;       // floor(_fsk_data_avail / 2); done when index reaches this
+    size_t   _fsk_value_index       = 0;       // current original FSK value index (for parity)
+    size_t   _fsk_byte_pos          = 0;       // current byte position in _fsk_buf
+    uint32_t _fsk_remaining_ticks   = 0;       // ticks left for the value being split (15-bit carry)
+    bool     _fsk_level_high        = false;   // logical level of the value being split (index parity)
 #endif
 };
 

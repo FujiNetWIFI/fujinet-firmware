@@ -64,8 +64,8 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - Link only `FskPlanTests.cpp`, `fsk_plan.cpp`, and the required include paths.
     - _Requirements: 8.1_
 
-- [ ] 3. Extend `sioCassette` declarations for FSK playback
-  - [ ] 3.1 Update `lib/device/sio/cassette.h`
+- [x] 3. Extend `sioCassette` declarations for FSK playback
+  - [x] 3.1 Update `lib/device/sio/cassette.h`
     - Include or otherwise expose the pure FSK helper declarations where needed.
     - Add cross-platform `play_fsk_chunk(size_t offset, uint16_t chunk_length, uint16_t irg_ms)`.
     - Under `ESP_PLATFORM`, add:
