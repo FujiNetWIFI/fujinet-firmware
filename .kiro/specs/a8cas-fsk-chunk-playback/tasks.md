@@ -113,40 +113,40 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - Preserve the existing UART baud divisor.
     - _Requirements: 4.3, 4.5, 5.1, 5.3-5.5_
 
-- [ ] 5. Implement cross-platform `play_fsk_chunk`
-  - [ ] 5.1 Implement file-boundary validation
+- [x] 5. Implement cross-platform `play_fsk_chunk`
+  - [x] 5.1 Implement file-boundary validation
     - Treat fewer than 8 bytes of remaining header as end-of-tape.
     - Compute available payload bytes using the declared length clamped to EOF.
     - Never read beyond the CAS image.
     - For overrun/truncated payloads, reproduce only complete values present and return the established end-of-tape result afterward.
     - For odd lengths, ignore the trailing unpaired byte.
     - _Requirements: 1.4, 6.1-6.6, 8.3, 8.4_
-  - [ ] 5.2 Implement one-time payload pre-read
+  - [x] 5.2 Implement one-time payload pre-read
     - Allocate only `data_avail` bytes.
     - Read the clamped payload in one file read before waveform emission starts.
     - Never perform file I/O between FSK transitions.
     - On allocation failure, skip raw signal emission safely, preserve baud/UART state, and continue using the designed offset behavior.
     - Ensure the buffer is freed on every exit path.
     - _Requirements: 4.5, 5.4, 5.5, 6.2, 6.6_
-  - [ ] 5.3 Implement FSK IRG handling
+  - [x] 5.3 Implement FSK IRG handling
     - Honor `irg_ms` before raw signal emission.
     - Preserve the existing cassette gap/motor behavior.
     - If the pulldown is present and the motor line is de-asserted while more than 1000 ms remains, abort safely and return `starting_offset`.
     - Ensure LED state is restored on abort and normal completion.
     - _Requirements: 2.2, 2.8, 3.1-3.4_
-  - [ ] 5.4 Implement ESP raw signal playback inside `play_fsk_chunk`
+  - [x] 5.4 Implement ESP raw signal playback inside `play_fsk_chunk`
     - Initialize the encoder state only after `fsk_signal_begin()` succeeds.
     - Set `_fsk_buf`, data length/value count, byte position, value index, remaining ticks, and current level.
     - Call `fsk_signal_emit()` only when complete FSK values exist.
     - Ensure every success/failure path reaches the common cleanup.
     - _Requirements: 4.1-4.6, 5.1-5.5_
-  - [ ] 5.5 Implement deterministic PC-build behavior
+  - [x] 5.5 Implement deterministic PC-build behavior
     - Use the same pre-read and bounds logic.
     - Honor the IRG through `SYSTEM_BUS.bus_idle`.
     - Do not invoke RMT, GPIO, or raw hardware signal-generation APIs.
     - Advance to the next well-formed chunk or terminate at EOT for an overrun/truncated chunk.
     - _Requirements: 8.1-8.4_
-  - [ ] 5.6 Preserve Active_Baud_Rate through all paths
+  - [x] 5.6 Preserve Active_Baud_Rate through all paths
     - Do not call `SYSTEM_BUS.setBaudrate` from FSK processing.
     - Confirm success, motor abort, allocation failure, and RMT setup/transmit failure leave the active baud unchanged.
     - _Requirements: 5.1-5.5_

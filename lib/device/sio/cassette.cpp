@@ -3,6 +3,7 @@
 #include "cassette.h"
 
 #include <cstring>
+#include <cstdlib>
 
 #include "../../include/debug.h"
 
@@ -1778,6 +1779,274 @@ void sioCassette::turbo2000_send_bytes(const uint8_t *data, size_t length)
 }
 
 #endif // ESP_PLATFORM
+
+// Reproduce a single A8CAS "fsk " chunk end to end. Cross-platform entry point
+// called from the FUJI chunk walker (wired up in task 6). `offset` points at the
+// chunk header start; `chunk_length` and `irg_ms` are the already-decoded header
+// fields. Returns the read offset the walker should continue from: the advance
+// past a well-formed chunk, or the end-of-tape result (0) for a malformed /
+// truncated / overrun chunk (matching the surrounding "return 0 == EOT"
+// convention). Never changes the active baud.
+//
+// TASK 5.1 SCOPE: file-boundary / bounds validation only. Pre-read (5.2), IRG
+// handling (5.3), ESP raw RMT playback (5.4), PC-build behavior (5.5), and baud
+// preservation verification (5.6) are added by later tasks; their insertion
+// points are marked with TODO below. The bounds logic here is fully
+// cross-platform and compiles on both ESP_PLATFORM and PC builds.
+size_t sioCassette::play_fsk_chunk(size_t offset, uint16_t chunk_length, uint16_t irg_ms)
+{
+    // Bounds derivation (design: "Bounds derivation (in the caller,
+    // play_fsk_chunk)"). All arithmetic is done in size_t so nothing underflows
+    // or reads past the CAS image.
+
+    // Bytes from the chunk header start to EOF.
+    // Req 6.1 / 8.4: fewer than 8 header bytes remaining => treat as end-of-tape
+    // and never touch the (incomplete) header fields.
+    if (offset >= filesize || (filesize - offset) < sizeof(struct tape_FUJI_hdr))
+    {
+        Debug_printf("FSK: truncated header at offset %u (filesize %u) - end of tape\r\n",
+                     (unsigned)offset, (unsigned)filesize);
+        return 0; // established end-of-tape result
+    }
+
+    size_t remaining = filesize - offset;
+
+    // Declared payload length from the header (0..65535).
+    uint16_t declared_len = chunk_length;
+
+    // Bytes actually available after the 8-byte header, clamped to EOF. This is
+    // the number of payload bytes we may ever read (Req 6.2 / 6.3 / 8.3): never
+    // beyond filesize.
+    size_t bytes_after_header = remaining - sizeof(struct tape_FUJI_hdr);
+    size_t data_avail = (size_t)declared_len < bytes_after_header
+                            ? (size_t)declared_len
+                            : bytes_after_header;
+
+    // A truncated / overrun chunk is one whose declared length runs past the
+    // bytes actually present after the header (Req 1.4 / 6.3 / 6.5). Only the
+    // complete FSK values present may be reproduced, and afterward the chunk
+    // terminates at the real data boundary via the end-of-tape result.
+    bool truncated = (size_t)declared_len > bytes_after_header;
+
+    // Number of complete little-endian FSK_Signal_Values available. floor(/2)
+    // via the pure helper drops any trailing unpaired byte for an odd data_avail
+    // (Req 6.4). value_count feeds the pre-read / emission tasks below.
+    size_t value_count = fsk_value_count(data_avail);
+    (void)value_count; // consumed by tasks 5.3-5.4 (emission)
+
+    Debug_printf("FSK: offset %u declared_len %u irg %u ms | remaining %u data_avail %u value_count %u%s\r\n",
+                 (unsigned)offset, (unsigned)declared_len, (unsigned)irg_ms,
+                 (unsigned)remaining, (unsigned)data_avail, (unsigned)value_count,
+                 truncated ? " (TRUNCATED)" : "");
+
+    // TASK 5.2: one-time payload pre-read.
+    // Read the entire clamped data region into a heap buffer in ONE fnio::fread
+    // BEFORE any waveform emission begins, so the emitted signal never depends
+    // on SD/TNFS/network latency and no file I/O ever happens between FSK
+    // transitions (Req 4.5 / 5.4 / 5.5 / 6.2 / 6.6). Mirrors the Turbo 2000
+    // all_data / _t2k_pending_buf malloc/free precedent in this same file.
+    //
+    // Kept as a LOCAL buffer for now: tasks 5.3/5.4/5.5 consume it for IRG and
+    // emission, and on ESP task 5.4 explicitly assigns it to _fsk_buf and sets
+    // up the encoder state (_fsk_data_avail, _fsk_value_count, byte pos, value
+    // index, remaining ticks, level). Until then this task only guarantees the
+    // single pre-read and that the buffer is freed on every exit path.
+    uint8_t *fsk_buf = nullptr;
+    if (data_avail > 0)
+    {
+        fsk_buf = (uint8_t *)malloc(data_avail);
+        if (fsk_buf == nullptr)
+        {
+            // Accepted resource limitation (design: "Pre-read RAM budget"): a
+            // max-size (~64 KB) chunk can fail to allocate on a no-PSRAM target.
+            // Degrade safely: skip raw signal emission (a null buffer means "no
+            // emission" for tasks 5.3-5.5), leave the baud/UART state untouched
+            // (do NOT call SYSTEM_BUS.setBaudrate), and still return the designed
+            // advance/EOT offset below (Req 4.5 / 5.5 / 6.6).
+            Debug_printf("FSK: malloc(%u) failed - skipping signal emission, preserving baud/UART\r\n",
+                         (unsigned)data_avail);
+        }
+        else
+        {
+            // ONE seek + ONE read of the clamped payload region. data_avail is
+            // already clamped to EOF by the bounds derivation above, so this
+            // read never passes the end of the CAS image (Req 6.2).
+            fnio::fseek(_file, offset + sizeof(struct tape_FUJI_hdr), SEEK_SET);
+            size_t got = fnio::fread(fsk_buf, 1, data_avail, _file);
+            if (got != data_avail)
+            {
+                // Short read (unexpected given the EOF clamp): treat as "no
+                // emission" and free the partial buffer. Baud/UART untouched.
+                Debug_printf("FSK: pre-read short (%u of %u bytes) - skipping emission\r\n",
+                             (unsigned)got, (unsigned)data_avail);
+                free(fsk_buf);
+                fsk_buf = nullptr;
+            }
+        }
+    }
+
+    // TASK 5.3: honor irg_ms before raw signal emission.
+    // The current record began at `offset`; the motor-line abort path returns
+    // this so the walker retries the same record (Req 3.3).
+    size_t starting_offset = offset;
+
+    // Mirror the existing data-path gap loop (send_FUJI_tape_block) exactly, but
+    // drive it from irg_ms interpreted as milliseconds (Req 2.2 / 3.1). Use a
+    // local countdown so irg_ms itself is left intact for any later use. When
+    // irg_ms is 0 the `while (gap)` guard skips the body entirely, so no delay
+    // is applied (Req 3.2 / 2.8).
+    uint16_t gap = irg_ms;
+    fnLedManager.set(eLed::LED_BUS, true);
+    while (gap)
+    {
+#ifdef ESP_PLATFORM
+        gap--;
+        fnSystem.delay_microseconds(999); // shave off a usec for the MOTOR pin check
+#else
+        int step;
+        // SYSTEM_BUS is fnSioCom
+        if (SYSTEM_BUS.isBoIP())
+            step = gap > 1000 ? 1000 : gap; // step is 1000 ms (NetSIO)
+        else
+            step = gap > 20 ? 20 : gap; // step is 20 ms (SerialSIO)
+        gap -= step;
+        SYSTEM_BUS.bus_idle(step); // idle bus (i.e. delay for SerialSIO, BUS_IDLE message for NetSIO)
+#endif
+        // While more than 1000 ms of gap remains, a de-asserted motor line (with
+        // pulldown present) aborts this record safely: restore the LED, free the
+        // pre-read buffer, and return the record start so the walker retries.
+        // Baud/UART state is left untouched (no setBaudrate) (Req 3.3 / 3.4).
+        if (has_pulldown() && !motor_line() && gap > 1000)
+        {
+            Debug_printf("FSK: motor line de-asserted during IRG (%u ms left) - aborting, returning to record start %u\r\n",
+                         (unsigned)gap, (unsigned)starting_offset);
+            fnLedManager.set(eLed::LED_BUS, false);
+            free(fsk_buf); // safe on nullptr; do not leak the pre-read buffer
+            return starting_offset;
+        }
+    }
+    fnLedManager.set(eLed::LED_BUS, false);
+
+#ifdef ESP_PLATFORM
+    // TASK 5.4: ESP raw FSK signal playback.
+    //
+    // Only reproduce a signal when there is a valid pre-read buffer AND at least
+    // one complete little-endian FSK_Signal_Value present. A null buffer means
+    // "no emission" — the pre-read either had nothing to read (data_avail == 0),
+    // failed to allocate, or short-read (all handled in task 5.2). In every such
+    // case we fall straight through to the common cleanup/return paths below
+    // with the baud/UART left untouched (Req 4.5 / 5.4 / 5.5 / 6.6). value_count
+    // == 0 (e.g. a single trailing odd byte) likewise emits nothing (Req 6.4).
+    if (fsk_buf != nullptr && value_count > 0)
+    {
+        // Bring up the RMT raw-signal path FIRST. fsk_signal_begin() flushes and
+        // detaches UART2 TX, allocates the RMT channel + stateful simple encoder
+        // (callback = fsk_encode_cb, arg = this), and fully undoes any partial
+        // setup on failure (Req 4.3 / 4.5 / 5.3-5.5). It does NOT touch the baud
+        // divisor. Only if it succeeds do we publish the encoder state that the
+        // IRAM callback reads.
+        if (fsk_signal_begin())
+        {
+            // Initialize the encoder state consumed by fsk_encode_cb ONLY after
+            // begin() succeeded, so the ISR callback never observes state that
+            // points at a half-configured channel. The member _fsk_buf aliases
+            // the LOCAL fsk_buf; the buffer stays owned by fsk_buf for the free
+            // on the common cleanup paths below (Req 4.1 / 4.2 / 4.6).
+            _fsk_buf = fsk_buf;              // pre-read data region (source of truth for the ISR)
+            _fsk_data_avail = data_avail;    // clamped bytes present
+            _fsk_value_count = value_count;  // floor(data_avail / 2); done when index reaches this
+            _fsk_value_index = 0;            // start at FSK_Signal_Index 0 (parity anchor)
+            _fsk_byte_pos = 0;               // first byte of the first value
+            _fsk_remaining_ticks = 0;        // no value being split yet
+            _fsk_level_high = false;         // index-0 parity is logical 0 (updated per value)
+
+            // Emit the whole payload as ONE continuous, gapless RMT transaction.
+            // fsk_signal_emit() also guards internally (active + buffer + count),
+            // but we gate here too so the caller's intent is explicit. It blocks
+            // on rmt_tx_wait_all_done, so the pre-read buffer stays valid for the
+            // entire transaction (Req 4.1 / 4.2).
+            fsk_signal_emit();
+
+            // Tear down the RMT path and hand PIN_UART2_TX back to the UART so
+            // normal data playback resumes at the unchanged baud (idempotent,
+            // preserves the baud divisor). fsk_signal_end() also waits for any
+            // in-flight transmission, guaranteeing the peripheral is fully done
+            // reading the pre-read buffer BEFORE the local free() below (Req 4.3
+            // / 5.1 / 5.3-5.5).
+            fsk_signal_end();
+
+            // Defensive: drop the member alias now that the transaction has
+            // completed and the channel is torn down. The LOCAL fsk_buf still
+            // holds the pointer for the free() on the common cleanup paths, so
+            // this leaves no dangling member pointer without double-freeing.
+            _fsk_buf = nullptr;
+        }
+        else
+        {
+            // RMT/UART setup failed (e.g. GPIO_NUM_NC or an RMT alloc error).
+            // fsk_signal_begin() already undid any partial setup and left the
+            // UART TX routing and baud divisor intact. Degrade safely: no
+            // emission, fall through to the common cleanup below (Req 4.5 / 5.5).
+            Debug_printf("FSK: signal setup failed - skipping emission, preserving baud/UART\r\n");
+        }
+    }
+#else
+    // TASK 5.5: deterministic PC-build behavior (Req 8.1-8.4).
+    //
+    // On the PC build (ESP_PLATFORM not defined) raw hardware Data_Line signal
+    // generation is unavailable, so the PC build intentionally performs NO raw
+    // signal emission: none of the ESP-only RMT/GPIO paths (fsk_signal_begin /
+    // fsk_signal_emit / fsk_signal_end, rmt_*, or PIN_UART2_TX routing) exist
+    // outside the #ifdef ESP_PLATFORM guard above, and none are called here
+    // (Req 8.1: compile/operate without unsupported hardware; Req 8.2: no raw
+    // Data_Line signal generation).
+    //
+    // The full deterministic PC behavior is already produced by the shared,
+    // cross-platform code surrounding this block, so this branch adds no logic:
+    //   * Bounds + pre-read (tasks 5.1/5.2, above the IRG loop) clamp every read
+    //     to `data_avail` (declared_len clamped to EOF) using only fnio::* and
+    //     malloc/free, never reading past the CAS image (Req 8.3).
+    //   * The IRG has ALREADY been honored deterministically before this block:
+    //     the gap loop above takes its non-ESP branch, stepping via
+    //     SYSTEM_BUS.isBoIP() sizing and idling the bus with SYSTEM_BUS.bus_idle
+    //     (a PC-only member), so the IRG is always honored on the PC build. It
+    //     is NOT duplicated here (Req 8.2).
+    //   * The common cleanup/return paths below the #endif free the pre-read
+    //     buffer and either advance past a well-formed chunk (offset + header +
+    //     declared_len) or return 0 (end-of-tape) for a truncated/overrun chunk,
+    //     letting the walker continue with subsequent chunks without crashing or
+    //     hanging (Req 8.4). No path calls SYSTEM_BUS.setBaudrate, so the active
+    //     baud is preserved.
+    //
+    // The pre-read buffer is unused for emission on PC; keep it referenced so an
+    // -Werror=unused-variable build stays clean while it is still freed exactly
+    // once below.
+    (void)fsk_buf;
+    (void)value_count;
+#endif // ESP_PLATFORM
+
+    // Common cleanup / return paths. Every success and failure path above funnels
+    // through exactly one of the two free()+return statements below, so the
+    // pre-read buffer is freed exactly once and no path double-frees. No path
+    // here calls SYSTEM_BUS.setBaudrate, so the active baud is preserved (Req
+    // 5.1-5.5). On ESP, fsk_signal_end() has already completed (blocking on the
+    // channel) before we reach the free(), so the buffer is never reclaimed
+    // while the RMT peripheral is still reading it.
+    if (truncated)
+    {
+        // Overrun / truncated payload: after reproducing the complete values
+        // present (added by later tasks), terminate at the real boundary
+        // (Req 1.4 / 6.3). Signal end-of-tape to the walker.
+        free(fsk_buf); // safe on nullptr; freed on every exit path
+        return 0;
+    }
+
+    // Well-formed chunk: advance past the full declared chunk (8-byte header +
+    // declared_len payload) so the walker continues with the next chunk
+    // (Req 1.2). Payload emission is added by tasks 5.3-5.5.
+    free(fsk_buf); // safe on nullptr; freed on every exit path
+    return offset + sizeof(struct tape_FUJI_hdr) + (size_t)declared_len;
+}
 
 size_t sioCassette::send_turbo2000_tape_block(size_t offset)
 {
