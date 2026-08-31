@@ -182,11 +182,11 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - _Requirements: 7.2-7.6_
 
 - [ ] 8. Run automated and build verification
-  - [ ] 8.1 Configure and run `fsk_plan_tests`
+  - [x] 8.1 Configure and run `fsk_plan_tests`
     - Run the new doctest executable.
     - Confirm all example and generated-loop tests pass.
     - _Requirements: 2.1-2.8, 4.6, 6.2, 6.4_
-  - [ ] 8.2 Build fujinet-pc
+  - [x] 8.2 Build fujinet-pc
     - Confirm the new shared code compiles without ESP-only APIs leaking into the PC build.
     - Exercise a synthetic/interleaved CAS image where possible and verify safe FSK skipping plus IRG handling.
     - _Requirements: 8.1-8.4_
