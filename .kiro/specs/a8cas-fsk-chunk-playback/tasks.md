@@ -208,7 +208,7 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - Confirm the baud transition 600 → 790.
     - Confirm the first FSK value is 6818 = 681.8 ms.
     - _Requirements: 9.5-9.7_
-  - [ ] 9.3 Load `Night Knight.cas` on a physical Atari through FujiNet
+  - [x] 9.3 Load `Night Knight.cas` on a physical Atari through FujiNet
     - Confirm the title loads successfully.
     - Confirm playback proceeds through interleaved `baud`, `data`, and `fsk ` chunks.
     - Confirm data following FSK playback continues at the active baud.
