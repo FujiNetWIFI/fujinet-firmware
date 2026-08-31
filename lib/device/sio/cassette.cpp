@@ -721,7 +721,16 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
         // looking for a data header while handling baud changes along the way
         Debug_printf("Offset: %u\r\n", offset);
         fnio::fseek(_file, offset, SEEK_SET);
-        fnio::fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
+        size_t hdr_read = fnio::fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
+        if (hdr_read < sizeof(struct tape_FUJI_hdr))
+        {
+            // Truncated header: fewer than the 8 required header bytes remain
+            // before the end of the CAS image. Do NOT use any header fields
+            // (chunk_type, chunk_length, irg_length) that were not fully read.
+            // Treat this as end-of-tape following the same convention used
+            // elsewhere in this walk (return 0). (Req 6.1, 8.4)
+            return 0;
+        }
         len = hdr->chunk_length;
 
         if (p[0] == 'd' && //is a data header?
@@ -741,6 +750,42 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
                 continue;
             baud = hdr->irg_length;
             SYSTEM_BUS.setBaudrate(baud);
+        }
+        else if (p[0] == 'f' && //is a raw A8CAS FSK header? ('f','s','k',' ')
+                 p[1] == 's' &&
+                 p[2] == 'k' &&
+                 p[3] == ' ')
+        {
+            // Delegate the whole FSK chunk (IRG + raw signal) to play_fsk_chunk.
+            // FSK is NOT a terminating "data" record: after reproducing the
+            // chunk the walk continues so a following "data"/"baud" chunk is
+            // still reached and emitted at the current baud. The active baud is
+            // preserved here (no setBaudrate) until an actual "baud" chunk
+            // changes it (Req 1.1-1.5, 5.1, 9.1-9.4).
+            size_t next = play_fsk_chunk(offset, hdr->chunk_length, hdr->irg_length);
+            if (next == offset)
+            {
+                // MOTOR-line abort during the IRG: play_fsk_chunk returns the
+                // offset it was called with (the current FSK chunk start) to
+                // request a retry, NOT a successful advance. Compare against the
+                // CURRENT offset (the walker may already have advanced through
+                // preceding baud/other chunks). Continuing with the same offset
+                // would reprocess this same chunk while MOTOR stays de-asserted.
+                // Return the OUTER starting_offset so the walker retries this
+                // record, matching the existing data-record motor-abort path.
+                return starting_offset;
+            }
+            if (next == 0)
+            {
+                // End-of-tape result from play_fsk_chunk (truncated header or
+                // overrun/truncated chunk). Follow the existing FUJI-path
+                // convention for reaching the end of the tape: return 0 so the
+                // dispatcher disables the cassette.
+                return 0;
+            }
+            // Successfully handled: advance past the chunk and keep walking.
+            offset = next;
+            continue;
         }
         offset += sizeof(struct tape_FUJI_hdr) + len;
     }

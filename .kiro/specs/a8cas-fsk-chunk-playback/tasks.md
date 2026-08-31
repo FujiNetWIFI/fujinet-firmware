@@ -151,19 +151,19 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - Confirm success, motor abort, allocation failure, and RMT setup/transmit failure leave the active baud unchanged.
     - _Requirements: 5.1-5.5_
 
-- [ ] 6. Integrate `fsk ` chunk handling into normal FUJI playback
-  - [ ] 6.1 Update the chunk walker in `send_FUJI_tape_block`
+- [x] 6. Integrate `fsk ` chunk handling into normal FUJI playback
+  - [x] 6.1 Update the chunk walker in `send_FUJI_tape_block`
     - Detect exactly the four bytes `'f','s','k',' '`.
     - Add the branch before the existing unknown-chunk catch-all.
     - Delegate the chunk to `play_fsk_chunk`.
     - Continue walking after a successfully handled FSK chunk rather than treating it as a terminating `data` record.
     - Preserve the current baud until an actual `baud` chunk changes it.
     - _Requirements: 1.1-1.7, 5.1, 9.1-9.4_
-  - [ ] 6.2 Add truncated-header protection to the FUJI chunk walk
+  - [x] 6.2 Add truncated-header protection to the FUJI chunk walk
     - Check the number of header bytes actually read before using the header.
     - Return end-of-tape without reading invalid header fields when fewer than 8 bytes are available.
     - _Requirements: 6.1, 8.4_
-  - [ ] 6.3 Preserve unknown-chunk behavior
+  - [x] 6.3 Preserve unknown-chunk behavior
     - Keep the existing `chunk_length + 8` skip for chunk types other than `data`, `baud`, and `fsk `.
     - Do not add any filename/game/country-specific handling.
     - _Requirements: 1.6, 1.7, 9.3, 9.4, 9.8_
