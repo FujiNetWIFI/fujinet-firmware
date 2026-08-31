@@ -221,7 +221,7 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - On a configuration/target without a valid cassette TX pin, confirm raw signal output is skipped without breaking subsequent data playback.
     - _Requirements: 4.5, 5.5_
 
-- [ ] 10. Final review and pull-request readiness
+- [x] 10. Final review and pull-request readiness
   - [x] 10.1 Review the diff for scope discipline
     - Confirm changes are limited to generic A8CAS FSK support, tests, and required build wiring.
     - Confirm there is no Night Knight/game/country-specific code.
@@ -234,10 +234,10 @@ Tasks should be completed in order. Each task includes the requirements it trace
   - [x] 10.3 Verify working tree contents before commit
     - Ensure `Night Knight.cas` is untracked/ignored and not staged.
     - Ensure no generated binaries or temporary test artifacts are staged.
-  - [-] 10.4 Prepare implementation commits
+  - [x] 10.4 Prepare implementation commits
     - Keep commits logically grouped (pure parser/tests, cassette integration/RMT, final fixes) where practical.
     - Do not modify `master`; commit only on `feature/a8cas-fsk-playback`.
-  - [ ] 10.5 Prepare the future Pull Request description
+  - [x] 10.5 Prepare the future Pull Request description
     - Summarize the standards-based A8CAS `fsk ` support.
     - Explain the RMT 1 MHz implementation and preservation of existing formats.
     - Include automated-test/build results and manual hardware validation.
