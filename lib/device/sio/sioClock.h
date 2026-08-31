@@ -9,11 +9,9 @@
 class sioClock : public fujiClock
 {
 protected:
-    std::optional<std::string> read_tz() override;
-    bool alt_requested() override;
-
+    std::optional<std::string> fujidev_read_tz() override;
 public:
-    void sio_process(const FujiSIOPacket &packet) override;
+    void sio_process(const FujiSIOPacket &packet) override { dispatch(packet); }
     void sio_status(const FujiSIOPacket &packet) override {};
 };
 

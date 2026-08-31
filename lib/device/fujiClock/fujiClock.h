@@ -12,12 +12,13 @@
 class fujiClock : public virtual virtualDevice
 {
 public:
-    static std::string get_current_time_iso(const std::string &posixTimeZone);
-    static std::vector<uint8_t> get_current_time_simple(const std::string &posixTimeZone);
-    static std::vector<uint8_t> get_current_time_prodos(const std::string &posixTimeZone);
-    static std::vector<uint8_t> get_current_time_apetime(const std::string &posixTimeZone);
-    static std::vector<uint8_t> get_current_time_simple_hundredths(const std::string &posixTimeZone);
-    static std::string get_current_time_sos(const std::string &posixTimeZone);
+    // ============ Time formatting ============
+    static std::string fujicore_time_iso(const std::string &posixTimeZone);
+    static std::vector<uint8_t> fujicore_time_simple(const std::string &posixTimeZone);
+    static std::vector<uint8_t> fujicore_time_prodos(const std::string &posixTimeZone);
+    static std::vector<uint8_t> fujicore_time_apetime(const std::string &posixTimeZone);
+    static std::vector<uint8_t> fujicore_time_simple_hundredths(const std::string &posixTimeZone);
+    static std::string fujicore_time_sos(const std::string &posixTimeZone);
 
     // Timezones are printable ASCII; anything else is a malformed host write.
     static bool valid_timezone(const std::string &tz);
@@ -33,6 +34,11 @@ public:
 
     virtual bool processCommand(const FUJI_COMMAND_PACKET &packet);
 
+    // For buses with a separate read and write namespace; a flat bus uses
+    // processCommand().
+    bool processReadCommand(const FUJI_COMMAND_PACKET &packet);
+    bool processWriteCommand(const FUJI_COMMAND_PACKET &packet);
+
 protected:
     std::string alternate_tz;
     const FUJI_COMMAND_PACKET *_packet = nullptr;
@@ -41,26 +47,48 @@ protected:
 
     static bool command_takes_alt(fujiCommandID_t command);
 
+    // Bus entry points; each refuses a command the table doesn't handle.
+    void dispatch(const FUJI_COMMAND_PACKET &packet);
+    void dispatch_read(const FUJI_COMMAND_PACKET &packet);
+    void dispatch_write(const FUJI_COMMAND_PACKET &packet);
+
+    // SmartPort picks its refusal code per command type.
+    virtual void reject_command(const FUJI_COMMAND_PACKET &packet);
+
+    // Accept and complete a command that sends no reply.
+    void send_ok();
+
     // Only called for commands command_takes_alt() accepts; on some buses
     // reading a parameter consumes bus bytes.
-    virtual bool alt_requested() = 0;
+    virtual bool fujidev_alt_requested();
 
-    virtual std::optional<std::string> read_tz() = 0;
-    virtual void send_bytes(const std::vector<uint8_t> &b);
-    virtual void send_string(const std::string &s);
+    // Maps a bus's spelling of a command onto the shared one.
+    virtual fujiCommandID_t fujidev_canonical_command(fujiCommandID_t command, bool &use_alt);
 
-    void get_apetime(bool use_alt);
-    void get_simple(bool use_alt);
-    void get_simple_hundredths(bool use_alt);
-    void get_prodos(bool use_alt);
-    void get_sos(bool use_alt);
-    void get_iso_local(bool use_alt);
-    void get_iso_utc();
-    void get_general_tz();
-    void get_general_tz_len();
-    void set_fn_tz();
-    void set_alternate_tz();
+    virtual std::optional<std::string> fujidev_read_tz() = 0;
 
+    std::optional<std::string> read_tz_from_payload();
+    std::optional<std::string> read_tz_by_length(size_t len);
+
+    void send_bytes(const std::vector<uint8_t> &b);
+    void send_string(const std::string &s);
+
+    virtual bool string_needs_null() const { return true; }
+
+    void fujicmd_get_apetime(bool use_alt);
+    void fujicmd_get_simple(bool use_alt);
+    void fujicmd_get_simple_hundredths(bool use_alt);
+    void fujicmd_get_prodos(bool use_alt);
+    void fujicmd_get_sos(bool use_alt);
+    void fujicmd_get_iso_local(bool use_alt);
+    void fujicmd_get_iso_utc();
+    void fujicmd_get_general_tz();
+    void fujicmd_get_general_tz_len();
+    void fujicmd_set_fn_tz(const std::string &tz);
+    void fujicmd_set_alternate_tz(const std::string &tz);
+
+    bool run_read_command(fujiCommandID_t command, bool use_alt);
+    bool run_write_command(fujiCommandID_t command, bool use_alt);
     bool run_command(fujiCommandID_t command, bool use_alt);
 
 private:

@@ -1,5 +1,6 @@
 #include "fujiClock.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -65,7 +66,7 @@ static std::tm get_local_time(const std::string& posixTimeZone) {
     return *std::localtime(&tt);
 }
 
-std::string fujiClock::get_current_time_iso(const std::string& posixTimeZone) {
+std::string fujiClock::fujicore_time_iso(const std::string& posixTimeZone) {
     return format_iso8601(std::chrono::system_clock::now(), posixTimeZone);
 }
 
@@ -86,11 +87,11 @@ std::vector<uint8_t> fujiClock::build_simple(const std::chrono::system_clock::ti
     return result;
 }
 
-std::vector<uint8_t> fujiClock::get_current_time_simple(const std::string& posixTimeZone) {
+std::vector<uint8_t> fujiClock::fujicore_time_simple(const std::string& posixTimeZone) {
     return build_simple(std::chrono::system_clock::now(), posixTimeZone);
 }
 
-std::vector<uint8_t> fujiClock::get_current_time_prodos(const std::string& posixTimeZone) {
+std::vector<uint8_t> fujiClock::fujicore_time_prodos(const std::string& posixTimeZone) {
     auto localTime = get_local_time(posixTimeZone);
 
     // ProDOS time uses 4 bytes, see https://prodos8.com/docs/techref/adding-routines-to-prodos/
@@ -113,7 +114,7 @@ std::vector<uint8_t> fujiClock::get_current_time_prodos(const std::string& posix
     return prodosTime;
 }
 
-std::vector<uint8_t> fujiClock::get_current_time_apetime(const std::string& posixTimeZone) {
+std::vector<uint8_t> fujiClock::fujicore_time_apetime(const std::string& posixTimeZone) {
     auto localTime = get_local_time(posixTimeZone);
 
     // Format the time into ApeTime Atari format
@@ -128,7 +129,7 @@ std::vector<uint8_t> fujiClock::get_current_time_apetime(const std::string& posi
     return apeTime;
 }
 
-std::vector<uint8_t> fujiClock::get_current_time_simple_hundredths(const std::string& posixTimeZone) {
+std::vector<uint8_t> fujiClock::fujicore_time_simple_hundredths(const std::string& posixTimeZone) {
     auto now = std::chrono::system_clock::now();
     uint8_t hundredths = static_cast<uint8_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -138,7 +139,7 @@ std::vector<uint8_t> fujiClock::get_current_time_simple_hundredths(const std::st
     return result;
 }
 
-std::string fujiClock::get_current_time_sos(const std::string& posixTimeZone) {
+std::string fujiClock::fujicore_time_sos(const std::string& posixTimeZone) {
     auto localTime = get_local_time(posixTimeZone);
 
     // Format: YYYYMMDD0HHMMSS000 - raw time, no timezone info supported
@@ -171,6 +172,89 @@ std::string fujiClock::tz_for(bool use_alt) const
     return tz_to_use(use_alt, alternate_tz, system_tz());
 }
 
+bool fujiClock::fujidev_alt_requested()
+{
+    return (uint8_t) _packet->param(0) == 0x01;
+}
+
+void fujiClock::reject_command(const FUJI_COMMAND_PACKET &packet)
+{
+    SYSTEM_BUS.transaction_error();
+}
+
+void fujiClock::send_ok()
+{
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_success();
+}
+
+// Hosts pad the string out to a fixed buffer, so it ends at the first NUL.
+static void trim_tz(std::string &tz)
+{
+    tz.resize(std::min(tz.find('\0'), tz.size()));
+}
+
+std::optional<std::string> fujiClock::read_tz_from_payload()
+{
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+
+    const auto &d = _packet->data();
+    if (!d.has_value() || d->empty())
+    {
+        Debug_printv("ERROR: No timezone sent");
+        reject_command(*_packet);
+        return std::nullopt;
+    }
+
+    std::string tz(reinterpret_cast<const char *>(d->data()), d->size());
+    trim_tz(tz);
+
+    SYSTEM_BUS.transaction_success();
+    return tz;
+}
+
+std::optional<std::string> fujiClock::read_tz_by_length(size_t len)
+{
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+
+    if (len == 0)
+    {
+        Debug_printv("ERROR: No timezone sent");
+        reject_command(*_packet);
+        return std::nullopt;
+    }
+
+    std::string tz(len, '\0');
+    if (!SYSTEM_BUS.transaction_get(&tz[0], len))
+    {
+        SYSTEM_BUS.transaction_error();
+        return std::nullopt;
+    }
+
+    trim_tz(tz);
+
+    SYSTEM_BUS.transaction_success();
+    return tz;
+}
+
+void fujiClock::dispatch(const FUJI_COMMAND_PACKET &packet)
+{
+    if (!processCommand(packet))
+        reject_command(packet);
+}
+
+void fujiClock::dispatch_read(const FUJI_COMMAND_PACKET &packet)
+{
+    if (!processReadCommand(packet))
+        reject_command(packet);
+}
+
+void fujiClock::dispatch_write(const FUJI_COMMAND_PACKET &packet)
+{
+    if (!processWriteCommand(packet))
+        reject_command(packet);
+}
+
 void fujiClock::send_bytes(const std::vector<uint8_t> &b)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
@@ -180,132 +264,148 @@ void fujiClock::send_bytes(const std::vector<uint8_t> &b)
 void fujiClock::send_string(const std::string &s)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    SYSTEM_BUS.transaction_send(s + '\0');
+    SYSTEM_BUS.transaction_send(string_needs_null() ? s + '\0' : s);
 }
 
-void fujiClock::get_apetime(bool use_alt)
+void fujiClock::fujicmd_get_apetime(bool use_alt)
 {
-    send_bytes(get_current_time_apetime(tz_for(use_alt)));
+    send_bytes(fujicore_time_apetime(tz_for(use_alt)));
 }
 
-void fujiClock::get_simple(bool use_alt)
+void fujiClock::fujicmd_get_simple(bool use_alt)
 {
-    send_bytes(get_current_time_simple(tz_for(use_alt)));
+    send_bytes(fujicore_time_simple(tz_for(use_alt)));
 }
 
-void fujiClock::get_simple_hundredths(bool use_alt)
+void fujiClock::fujicmd_get_simple_hundredths(bool use_alt)
 {
-    send_bytes(get_current_time_simple_hundredths(tz_for(use_alt)));
+    send_bytes(fujicore_time_simple_hundredths(tz_for(use_alt)));
 }
 
-void fujiClock::get_prodos(bool use_alt)
+void fujiClock::fujicmd_get_prodos(bool use_alt)
 {
-    send_bytes(get_current_time_prodos(tz_for(use_alt)));
+    send_bytes(fujicore_time_prodos(tz_for(use_alt)));
 }
 
-void fujiClock::get_sos(bool use_alt)
+void fujiClock::fujicmd_get_sos(bool use_alt)
 {
-    send_string(get_current_time_sos(tz_for(use_alt)));
+    send_string(fujicore_time_sos(tz_for(use_alt)));
 }
 
-void fujiClock::get_iso_local(bool use_alt)
+void fujiClock::fujicmd_get_iso_local(bool use_alt)
 {
-    send_string(get_current_time_iso(tz_for(use_alt)));
+    send_string(fujicore_time_iso(tz_for(use_alt)));
 }
 
-void fujiClock::get_iso_utc()
+void fujiClock::fujicmd_get_iso_utc()
 {
-    send_string(get_current_time_iso("UTC+0"));
+    send_string(fujicore_time_iso("UTC+0"));
 }
 
-void fujiClock::get_general_tz()
+void fujiClock::fujicmd_get_general_tz()
 {
     send_string(system_tz());
 }
 
-void fujiClock::get_general_tz_len()
+void fujiClock::fujicmd_get_general_tz_len()
 {
     send_bytes({ (uint8_t)(system_tz().size() + 1) });
 }
 
-void fujiClock::set_fn_tz()
+void fujiClock::fujicmd_set_fn_tz(const std::string &tz)
 {
-    auto tz = read_tz();
-    if (!tz)
-        return;
-
-    if (!valid_timezone(*tz))
+    if (!valid_timezone(tz))
     {
         Debug_printv("Rejecting malformed timezone");
         return;
     }
 
-    Config.store_general_timezone(tz->c_str());
+    Config.store_general_timezone(tz.c_str());
     Config.save();
-    Debug_printf("fujiClock: system tz set to <%s>\n", tz->c_str());
+    Debug_printf("fujiClock: system tz set to <%s>\n", tz.c_str());
 }
 
-void fujiClock::set_alternate_tz()
+void fujiClock::fujicmd_set_alternate_tz(const std::string &tz)
 {
-    auto tz = read_tz();
-    if (!tz)
-        return;
-
-    if (!valid_timezone(*tz))
+    if (!valid_timezone(tz))
     {
         Debug_printv("Rejecting malformed alternate timezone");
         return;
     }
 
-    alternate_tz = tz.value();
+    alternate_tz = tz;
     Debug_printf("fujiClock: alternate tz set to <%s>\n", alternate_tz.c_str());
 }
 
-bool fujiClock::run_command(fujiCommandID_t command, bool use_alt)
+bool fujiClock::run_read_command(fujiCommandID_t command, bool use_alt)
 {
     switch (command)
     {
     case CMD::APETIME_GETTZTIME:
-        get_apetime(true);
+        fujicmd_get_apetime(true);
         break;
     case CMD::APETIME_GETTIME:
-        get_apetime(use_alt);
+        fujicmd_get_apetime(use_alt);
         break;
     case CMD::APETIME_SETTZ_ALT2:
-        get_simple(use_alt);
+        fujicmd_get_simple(use_alt);
         break;
     case CMD::APETIME_GET_SIMPLE_HUNDREDTHS:
-        get_simple_hundredths(use_alt);
+        fujicmd_get_simple_hundredths(use_alt);
         break;
     case CMD::APETIME_GET_PRODOS:
-        get_prodos(use_alt);
+        fujicmd_get_prodos(use_alt);
         break;
     case CMD::APETIME_GET_SOS:
-        get_sos(use_alt);
+        fujicmd_get_sos(use_alt);
         break;
     case CMD::APETIME_GET_ISO_LOCAL:
-        get_iso_local(use_alt);
+        fujicmd_get_iso_local(use_alt);
         break;
     case CMD::APETIME_GET_ISO_UTC:
-        get_iso_utc();
+        fujicmd_get_iso_utc();
         break;
     case CMD::APETIME_GET_GENERAL:
-        get_general_tz();
+        fujicmd_get_general_tz();
         break;
     case CMD::APETIME_GETTZ_LEN:
-        get_general_tz_len();
-        break;
-    case CMD::APETIME_SETTZ:
-        set_alternate_tz();
-        break;
-    case CMD::APETIME_SETTZ_ALT:
-        set_fn_tz();
+        fujicmd_get_general_tz_len();
         break;
     default:
         return false;
     }
 
     return true;
+}
+
+bool fujiClock::run_write_command(fujiCommandID_t command, bool use_alt)
+{
+    switch (command)
+    {
+    // Reachable only where writes have their own namespace; on a flat bus
+    // this is the simple-time getter and the read table claims it first.
+    case CMD::APETIME_SETTZ_ALT2:
+        if (auto tz = fujidev_read_tz())
+            use_alt ? fujicmd_set_alternate_tz(*tz) : fujicmd_set_fn_tz(*tz);
+        break;
+    case CMD::APETIME_SETTZ:
+        if (auto tz = fujidev_read_tz())
+            fujicmd_set_alternate_tz(*tz);
+        break;
+    case CMD::APETIME_SETTZ_ALT:
+        if (auto tz = fujidev_read_tz())
+            fujicmd_set_fn_tz(*tz);
+        break;
+    default:
+        return false;
+    }
+
+    return true;
+}
+
+bool fujiClock::run_command(fujiCommandID_t command, bool use_alt)
+{
+    return run_read_command(command, use_alt) || run_write_command(command, use_alt);
 }
 
 bool fujiClock::command_takes_alt(fujiCommandID_t command)
@@ -326,12 +426,51 @@ bool fujiClock::command_takes_alt(fujiCommandID_t command)
     }
 }
 
+fujiCommandID_t fujiClock::fujidev_canonical_command(fujiCommandID_t command, bool &use_alt)
+{
+    use_alt = command_takes_alt(command) && fujidev_alt_requested();
+    return command;
+}
+
 bool fujiClock::processCommand(const FUJI_COMMAND_PACKET &packet)
 {
     _packet = &packet;
 
-    bool use_alt = command_takes_alt(packet.command()) && alt_requested();
-    bool handled = run_command(packet.command(), use_alt);
+    bool use_alt;
+    fujiCommandID_t command = fujidev_canonical_command(packet.command(), use_alt);
+    bool handled = run_command(command, use_alt);
+
+    _packet = nullptr;
+
+    if (!handled)
+        Debug_printv("Unknown clock cmd: %02x", (uint8_t) packet.command());
+
+    return handled;
+}
+
+bool fujiClock::processReadCommand(const FUJI_COMMAND_PACKET &packet)
+{
+    _packet = &packet;
+
+    bool use_alt;
+    fujiCommandID_t command = fujidev_canonical_command(packet.command(), use_alt);
+    bool handled = run_read_command(command, use_alt);
+
+    _packet = nullptr;
+
+    if (!handled)
+        Debug_printv("Unknown clock cmd: %02x", (uint8_t) packet.command());
+
+    return handled;
+}
+
+bool fujiClock::processWriteCommand(const FUJI_COMMAND_PACKET &packet)
+{
+    _packet = &packet;
+
+    bool use_alt;
+    fujiCommandID_t command = fujidev_canonical_command(packet.command(), use_alt);
+    bool handled = run_write_command(command, use_alt);
 
     _packet = nullptr;
 

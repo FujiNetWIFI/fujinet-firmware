@@ -278,7 +278,7 @@ void adamFuji::adamnet_get_time()
     Debug_println("FUJI GET TIME");
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    SYSTEM_BUS.transaction_send(fujiClock::get_current_time_simple(Config.get_general_timezone()));
+    SYSTEM_BUS.transaction_send(fujiClock::fujicore_time_simple(Config.get_general_timezone()));
 }
 
 void adamFuji::adamnet_device_enable_status(const FujiAdamPacket &packet)
