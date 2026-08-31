@@ -222,19 +222,19 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - _Requirements: 4.5, 5.5_
 
 - [ ] 10. Final review and pull-request readiness
-  - [ ] 10.1 Review the diff for scope discipline
+  - [x] 10.1 Review the diff for scope discipline
     - Confirm changes are limited to generic A8CAS FSK support, tests, and required build wiring.
     - Confirm there is no Night Knight/game/country-specific code.
     - Confirm no unrelated cassette behavior was modified.
     - _Requirements: 1.7, 7.1-7.6, 9.4, 9.8_
-  - [ ] 10.2 Re-run tests/builds after final cleanup
+  - [x] 10.2 Re-run tests/builds after final cleanup
     - Run `fsk_plan_tests`.
     - Rebuild fujinet-pc.
     - Rebuild the selected ESP32 Atari target(s).
-  - [ ] 10.3 Verify working tree contents before commit
+  - [x] 10.3 Verify working tree contents before commit
     - Ensure `Night Knight.cas` is untracked/ignored and not staged.
     - Ensure no generated binaries or temporary test artifacts are staged.
-  - [ ] 10.4 Prepare implementation commits
+  - [-] 10.4 Prepare implementation commits
     - Keep commits logically grouped (pure parser/tests, cassette integration/RMT, final fixes) where practical.
     - Do not modify `master`; commit only on `feature/a8cas-fsk-playback`.
   - [ ] 10.5 Prepare the future Pull Request description
