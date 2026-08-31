@@ -203,7 +203,7 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - Do not add the file to Git, tests, fixtures, or the PR.
     - Use it only for local/manual acceptance unless redistribution rights are established.
     - _Requirements: 9.4, 9.8_
-  - [ ] 9.2 Verify the known fixture structure before hardware playback
+  - [x] 9.2 Verify the known fixture structure before hardware playback
     - Confirm locally: 36,785 bytes, 259 total chunks, 1 `FUJI`, 2 `baud`, 249 `data`, 7 `fsk `.
     - Confirm the baud transition 600 → 790.
     - Confirm the first FSK value is 6818 = 681.8 ms.
