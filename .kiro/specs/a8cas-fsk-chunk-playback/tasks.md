@@ -190,7 +190,7 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - Confirm the new shared code compiles without ESP-only APIs leaking into the PC build.
     - Exercise a synthetic/interleaved CAS image where possible and verify safe FSK skipping plus IRG handling.
     - _Requirements: 8.1-8.4_
-  - [ ] 8.3 Build at least one classic ESP32 Atari FujiNet target
+  - [x] 8.3 Build at least one classic ESP32 Atari FujiNet target
     - Verify the RMT API/configuration compiles at 1 MHz.
     - Check for warnings around IRAM, callback signatures, pin routing, and RMT handles.
     - _Requirements: 4.1-4.5, 7.1_
