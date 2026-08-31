@@ -199,7 +199,7 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - _Requirements: 4.1-4.5, 7.1_
 
 - [ ] 9. Perform local real-hardware acceptance with `Night Knight.cas`
-  - [ ] 9.1 Keep `Night Knight.cas` outside the repository
+  - [x] 9.1 Keep `Night Knight.cas` outside the repository
     - Do not add the file to Git, tests, fixtures, or the PR.
     - Use it only for local/manual acceptance unless redistribution rights are established.
     - _Requirements: 9.4, 9.8_
