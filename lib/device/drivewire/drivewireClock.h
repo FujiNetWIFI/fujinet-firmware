@@ -9,9 +9,7 @@
 class drivewireClock : public fujiClock
 {
 protected:
-    std::optional<std::string> read_tz() override;
-    bool alt_requested() override;
-};
+    std::optional<std::string> fujidev_read_tz() override;};
 
 extern drivewireClock platformClock;
 

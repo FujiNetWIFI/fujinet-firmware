@@ -9,11 +9,15 @@
 class rs232Clock : public fujiClock
 {
 protected:
-    std::optional<std::string> read_tz() override;
-    bool alt_requested() override;
+    std::optional<std::string> fujidev_read_tz() override;
+    // Unlike the other buses, param() throws when the parameter is absent.
+    bool fujidev_alt_requested() override
+    {
+        return _packet->paramCount() > 0 && _packet->param(0) == 0x01;
+    }
 
 public:
-    void rs232_process(const FujiBusPacket &packet) override;
+    void rs232_process(const FujiBusPacket &packet) override { dispatch(packet); }
     void rs232_status(FujiStatusReq reqType) override {}
 };
 
