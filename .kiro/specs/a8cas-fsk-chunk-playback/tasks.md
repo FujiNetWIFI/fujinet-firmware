@@ -181,7 +181,7 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - Do not modify detection unless required for compilation; if refactoring occurs, prove equivalent outcomes.
     - _Requirements: 7.2-7.6_
 
-- [ ] 8. Run automated and build verification
+- [x] 8. Run automated and build verification
   - [x] 8.1 Configure and run `fsk_plan_tests`
     - Run the new doctest executable.
     - Confirm all example and generated-loop tests pass.
@@ -194,7 +194,7 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - Verify the RMT API/configuration compiles at 1 MHz.
     - Check for warnings around IRAM, callback signatures, pin routing, and RMT handles.
     - _Requirements: 4.1-4.5, 7.1_
-  - [ ] 8.4 Build at least one ESP32-S3 Atari FujiNet target if supported by the normal project build matrix
+  - [x] 8.4 Build at least one ESP32-S3 Atari FujiNet target if supported by the normal project build matrix
     - Confirm the implementation remains portable across the supported ESP target family.
     - _Requirements: 4.1-4.5, 7.1_
 
