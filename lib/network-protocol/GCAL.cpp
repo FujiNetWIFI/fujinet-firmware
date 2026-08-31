@@ -23,7 +23,7 @@ using namespace fn_time;
 
 // Token refresh goes through the same relay as Google Drive; the shared grant
 // must carry the calendar.readonly scope for the returned token to reach the
-// Calendar API.
+// Calendar API, plus calendar.events for compose/edit.
 #define GCAL_RELAY_REFRESH_URL "https://auth.fujinet.online/gdrive-refresh"
 
 // Bound the work when a selector names every calendar in an account.
@@ -101,6 +101,17 @@ std::string NetworkProtocolGCAL::json_str(cJSON *obj, const char *key)
     cJSON *item = cJSON_GetObjectItemCaseSensitive(obj, key);
     if (!item || !cJSON_IsString(item)) return "";
     return item->valuestring ? item->valuestring : "";
+}
+
+std::string NetworkProtocolGCAL::civil_date_str(int64_t dayNum)
+{
+    int y;
+    unsigned mo, d;
+    civil_from_days(dayNum, y, mo, d);
+
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%04d-%02u-%02u", y, mo, d);
+    return buf;
 }
 
 std::string NetworkProtocolGCAL::rfc3339_utc(uint64_t t)
@@ -190,25 +201,34 @@ std::string NetworkProtocolGCAL::api_get(const std::string &url)
     {
         Debug_printf("GCAL api_get: HTTP %d for %s: %s\r\n", _last_http, url.c_str(), body.c_str());
         if (_last_http == 401 || _last_http == 403)
-        {
-            std::string b = body;
-            mstr::toLower(b);
-            if (b.find("insufficient") != std::string::npos ||
-                b.find("service_disabled") != std::string::npos ||
-                b.find("accessnotconfigured") != std::string::npos)
-            {
-                _scope_problem = true;
-                Debug_printf("GCAL: the Google grant is missing calendar.readonly — "
-                             "re-authorize Google in the web UI\r\n");
-            }
-        }
+            sniff_auth_body(body);
         return "";
     }
     return body;
 }
 
+void NetworkProtocolGCAL::sniff_auth_body(const std::string &body)
+{
+    std::string b = body;
+    mstr::toLower(b);
+    if (b.find("insufficient") != std::string::npos ||
+        b.find("service_disabled") != std::string::npos ||
+        b.find("accessnotconfigured") != std::string::npos)
+    {
+        _scope_problem = true;
+        Debug_printf("GCAL: the Google grant is missing a calendar scope "
+                     "(calendar.readonly / calendar.events) — re-authorize Google in the web UI\r\n");
+    }
+}
+
 std::string NetworkProtocolGCAL::api_post(const std::string &url, const std::string &body,
                                           const std::string &content_type)
+{
+    return api_send(false, url, body, content_type);
+}
+
+std::string NetworkProtocolGCAL::api_send(bool patch, const std::string &url,
+                                          const std::string &body, const std::string &content_type)
 {
     GCAL_HTTP_CLIENT_CLASS http;
     if (!http.begin(url))
@@ -220,7 +240,8 @@ std::string NetworkProtocolGCAL::api_post(const std::string &url, const std::str
         http.set_header("Authorization", ("Bearer " + _access_token).c_str());
     http.set_header("Content-Type", content_type.c_str());
 
-    _last_http = http.POST(body.c_str(), (int)body.size());
+    _last_http = patch ? http.PATCH(body.c_str(), (int)body.size())
+                       : http.POST(body.c_str(), (int)body.size());
 
     std::string resp;
     uint8_t buf[512];
@@ -229,7 +250,13 @@ std::string NetworkProtocolGCAL::api_post(const std::string &url, const std::str
         resp.append((char *)buf, n);
     http.close();
 
-    if (_last_http < 200 || _last_http >= 300) return "";
+    if (_last_http < 200 || _last_http >= 300)
+    {
+        Debug_printf("GCAL api_send: HTTP %d for %s: %s\r\n", _last_http, url.c_str(), resp.c_str());
+        if (_last_http == 401 || _last_http == 403)
+            sniff_auth_body(resp);
+        return "";
+    }
     return resp;
 }
 
@@ -537,5 +564,107 @@ fujiError_t NetworkProtocolGCAL::event_detail(const std::string &selector,
     }
     description = json_str(j, "description");
     cJSON_Delete(j);
+    return FUJI_ERROR::NONE;
+}
+
+// ─── compose / edit ───────────────────────────────────────────────────────────
+
+std::string NetworkProtocolGCAL::build_event_json(const CalendarEventDraft &d, bool forPatch)
+{
+    cJSON *j = cJSON_CreateObject();
+
+    if (d.has_summary) cJSON_AddStringToObject(j, "summary", d.summary.c_str());
+    if (d.has_location) cJSON_AddStringToObject(j, "location", d.location.c_str());
+    if (d.has_description) cJSON_AddStringToObject(j, "description", d.description.c_str());
+    if (d.has_category)
+    {
+        // Where the read side's category precedence looks first.
+        cJSON *ep = cJSON_AddObjectToObject(j, "extendedProperties");
+        cJSON *priv = cJSON_AddObjectToObject(ep, "private");
+        cJSON_AddStringToObject(priv, "categories", d.category.c_str());
+    }
+    if (d.timesValid)
+    {
+        cJSON *start = cJSON_AddObjectToObject(j, "start");
+        cJSON *end = cJSON_AddObjectToObject(j, "end");
+        if (d.times.allDay)
+        {
+            cJSON_AddStringToObject(start, "date", civil_date_str(d.times.startDay).c_str());
+            cJSON_AddStringToObject(end, "date", civil_date_str(d.times.endDayExcl).c_str());
+            if (forPatch)
+            {
+                // A PATCH switching representations must null the unused member.
+                cJSON_AddNullToObject(start, "dateTime");
+                cJSON_AddNullToObject(end, "dateTime");
+            }
+        }
+        else
+        {
+            cJSON_AddStringToObject(start, "dateTime",
+                                    rfc3339_utc((uint64_t)d.times.startEpoch).c_str());
+            cJSON_AddStringToObject(end, "dateTime",
+                                    rfc3339_utc((uint64_t)d.times.endEpoch).c_str());
+            if (forPatch)
+            {
+                cJSON_AddNullToObject(start, "date");
+                cJSON_AddNullToObject(end, "date");
+            }
+        }
+    }
+
+    char *printed = cJSON_PrintUnformatted(j);
+    std::string out = printed ? printed : "";
+    cJSON_free(printed);
+    cJSON_Delete(j);
+    return out;
+}
+
+fujiError_t NetworkProtocolGCAL::event_create(const std::string &selector,
+                                              const CalendarEventDraft &d)
+{
+    const std::string sel = selector_decoded();
+    std::string calId;
+    if (sel == "*")
+    {
+        // "Every calendar" cannot be a compose target.
+        error = NDEV_STATUS::INVALID_DEVICESPEC;
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+    if (sel.empty())
+        calId = "primary";
+    else
+    {
+        std::vector<CalendarListEntry> cals;
+        resolve_calendars(selector, cals);
+        if (cals.empty())
+        {
+            error = NDEV_STATUS::FILE_NOT_FOUND;
+            return FUJI_ERROR::UNSPECIFIED;
+        }
+        calId = cals[0].id;
+    }
+
+    api_send(false, std::string(GCAL_BASE) + "/calendars/" + url_encode(calId) + "/events",
+             build_event_json(d, false), "application/json");
+    if (_last_http < 200 || _last_http >= 300) return FUJI_ERROR::UNSPECIFIED;
+    return FUJI_ERROR::NONE;
+}
+
+fujiError_t NetworkProtocolGCAL::event_update(const CalendarEventEntry &ev,
+                                              const CalendarEventDraft &d)
+{
+    // Both providerId halves are percent-encoded already; use them verbatim.
+    size_t slash = ev.providerId.find('/');
+    if (slash == std::string::npos)
+    {
+        error = NDEV_STATUS::FILE_NOT_FOUND;
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+    const std::string calId = ev.providerId.substr(0, slash);
+    const std::string evId = ev.providerId.substr(slash + 1);
+
+    api_send(true, std::string(GCAL_BASE) + "/calendars/" + calId + "/events/" + evId,
+             build_event_json(d, true), "application/json");
+    if (_last_http < 200 || _last_http >= 300) return FUJI_ERROR::UNSPECIFIED;
     return FUJI_ERROR::NONE;
 }

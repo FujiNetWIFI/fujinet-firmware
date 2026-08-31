@@ -203,9 +203,13 @@ void sioNetwork::sio_close()
         return;
     }
 
-    // Ask the protocol to close
+    // Ask the protocol to close. Latch its error so the STATUS that follows a
+    // failed commit-on-close (e.g. a calendar compose) can still report it.
     if (protocol->close() != FUJI_ERROR::NONE)
+    {
+        status.error = protocol->error;
         SYSTEM_BUS.transaction_error();
+    }
     else
         SYSTEM_BUS.transaction_success();
 
