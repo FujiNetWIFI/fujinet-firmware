@@ -8,10 +8,6 @@
 
 iwmClock platformClock;
 
-iwmClock::iwmClock()
-{
-}
-
 iwm_device_status_block_t iwmClock::create_status_reply_packet()
 {
   iwm_device_status_block_t status;
@@ -35,131 +31,17 @@ iwm_device_info_block_t iwmClock::create_dib_reply_packet()
   return dib;
 }
 
-std::optional<std::string> iwmClock::read_tz()
+// Lowercase asks for the alternate timezone, and ApeTime is 'A' rather than
+// the legacy opcode the shared table indexes it by.
+fujiCommandID_t iwmClock::fujidev_canonical_command(fujiCommandID_t command, bool &use_alt)
 {
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    uint8_t c = (uint8_t) command;
 
-    const auto &d = _packet->data();
-    if (!d.has_value())
-    {
-        Debug_printv("ERROR: No timezone sent");
-        SYSTEM_BUS.transaction_error(SP_ERR::BADCTL);
-        return std::nullopt;
-    }
+    use_alt = c >= 'a' && c <= 'z';
+    if (use_alt)
+        c -= 'a' - 'A';
 
-    std::string tz(reinterpret_cast<const char *>(d->data()), d->size());
-    SYSTEM_BUS.transaction_success();
-    return tz;
-}
-
-// Alternate timezone is selected by command byte case, never by parameter.
-bool iwmClock::alt_requested()
-{
-    return false;
-}
-
-void iwmClock::send_string(const std::string &s)
-{
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    SYSTEM_BUS.transaction_send(s);
-}
-
-void iwmClock::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
-{
-#ifdef DEBUG
-    uint8_t u_cmd = (uint8_t) cmd.command();
-    Debug_printf("[CLOCK] Device %02x Control Code %02x('%c')\r\n", id(), u_cmd, isprint(u_cmd) ? (char) u_cmd : '.');
-#endif
-
-    _packet = &cmd;
-
-    switch (cmd.command())
-    {
-    case CMD::APETIME_SETTZ_ALT2:
-        set_fn_tz();
-        break;
-    case CMD::APETIME_SETTZ_ALT:
-        set_alternate_tz();
-        break;
-    default:
-        SYSTEM_BUS.transaction_error(SP_ERR::BADCTL);
-        break;
-    }
-
-    _packet = nullptr;
-}
-
-void iwmClock::iwm_status(const iwm_decoded_cmd_t &cmd)
-{
-    bool use_alt = false;
-
-#ifdef DEBUG
-    uint8_t u_cmd = (uint8_t) cmd.command();
-    Debug_printf("[CLOCK] Device %02x Status Code %02x('%c')\r\n", id(), u_cmd, isprint(u_cmd) ? (char)u_cmd : '.');
-#endif
-
-    _packet = &cmd;
-
-    // Uppercase = system timezone, lowercase = alternate.
-    switch (cmd.command())
-    {
-    case CMD::APETIME_SETTZ_ALT2:
-    case CMD::APETIME_SETTZ_ALT:
-        use_alt = cmd.command() == CMD::APETIME_SETTZ_ALT;
-        get_simple(use_alt);
-        break;
-    case CMD::APETIME_GET_SIMPLE_HUNDREDTHS:
-        get_simple_hundredths(false);
-        break;
-    case CMD::APETIME_GET_PRODOS:
-    case CMD::APETIME_GET_PRODOS_ALT:
-        use_alt = cmd.command() == CMD::APETIME_GET_PRODOS_ALT;
-        get_prodos(use_alt);
-        break;
-    case CMD::APETIME_GET_SOS:
-    case CMD::APETIME_GET_SOS_ALT:
-        use_alt = cmd.command() == CMD::APETIME_GET_SOS_ALT;
-        get_sos(use_alt);
-        break;
-    case CMD::APETIME_GET_ISO_LOCAL:
-    case CMD::APETIME_GET_ISO_LOCAL_ALT:
-        use_alt = cmd.command() == CMD::APETIME_GET_ISO_LOCAL_ALT;
-        get_iso_local(use_alt);
-        break;
-    case CMD::APETIME_GET_ISO_UTC:
-    case CMD::APETIME_GET_ISO_UTC_ALT:
-        get_iso_utc();
-        break;
-    case CMD::APETIME_GET_ATARI:
-    case CMD::APETIME_GET_ATARI_ALT:
-        use_alt = cmd.command() == CMD::APETIME_GET_ATARI_ALT;
-        get_apetime(use_alt);
-        break;
-    case CMD::APETIME_GET_GENERAL:
-        get_general_tz();
-        break;
-    default:
-        SYSTEM_BUS.transaction_error(SP_ERR::BADCTL);
-        break;
-    }
-
-    _packet = nullptr;
-}
-
-void iwmClock::iwm_open(const iwm_decoded_cmd_t &cmd)
-{
-    Debug_printf("\r\nClock: Open\n");
-    SYSTEM_BUS.transaction_success();
-}
-
-void iwmClock::iwm_close(const iwm_decoded_cmd_t &cmd)
-{
-    Debug_printf("\r\nClock: Close\n");
-    SYSTEM_BUS.transaction_success();
-}
-
-void iwmClock::shutdown()
-{
+    return c == (uint8_t) CMD::APETIME_GET_ATARI ? CMD::APETIME_GETTIME : (fujiCommandID_t) c;
 }
 
 #endif /* BUILD_APPLE */
