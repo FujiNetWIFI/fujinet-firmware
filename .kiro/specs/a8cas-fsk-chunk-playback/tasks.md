@@ -198,7 +198,7 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - Confirm the implementation remains portable across the supported ESP target family.
     - _Requirements: 4.1-4.5, 7.1_
 
-- [ ] 9. Perform local real-hardware acceptance with `Night Knight.cas`
+- [-] 9. Perform local real-hardware acceptance with `Night Knight.cas`
   - [x] 9.1 Keep `Night Knight.cas` outside the repository
     - Do not add the file to Git, tests, fixtures, or the PR.
     - Use it only for local/manual acceptance unless redistribution rights are established.
@@ -213,11 +213,11 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - Confirm playback proceeds through interleaved `baud`, `data`, and `fsk ` chunks.
     - Confirm data following FSK playback continues at the active baud.
     - _Requirements: 5.2, 5.3, 9.1-9.8_
-  - [ ] 9.4 Verify motor-line abort and recovery
+  - [-] 9.4 Verify motor-line abort and recovery
     - During a long IRG, de-assert the motor line where practical.
     - Confirm safe abort/retry behavior, UART restoration, and baud preservation.
     - _Requirements: 3.3, 3.4, 5.4_
-  - [ ] 9.5 Verify FSK setup failure degrades safely where practical
+  - [x] 9.5 Verify FSK setup failure degrades safely where practical
     - On a configuration/target without a valid cassette TX pin, confirm raw signal output is skipped without breaking subsequent data playback.
     - _Requirements: 4.5, 5.5_
 
