@@ -67,6 +67,7 @@ bool fnHttpClient::begin(const std::string &url)
     _buffer_total_read = 0;
     _transaction_begin = false;
     _transaction_done = false;
+    _subtask_exiting = false;
     _redirect_count = 0;
 
     esp_http_client_config_t cfg;
@@ -191,6 +192,10 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
 
     while (bytes_copied < dest_bufflen)
     {
+        // The subtask nulls its own handle on the way out - notifying a dead one asserts
+        if (_taskh_subtask == nullptr)
+            return bytes_copied;
+
         // Let the HTTP process task know to fill the buffer
         // Debug_println("::read notifyGive");
         xTaskNotifyGive(_taskh_subtask);
@@ -205,7 +210,9 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
             return -1;
         }
         // Debug_println("::read got notification");
-        if (_buffer_len <= 0)
+        // That was the exiting subtask, not a buffer fill - _buffer still holds the
+        // chunk we already copied, so going on would hand it back a second time
+        if (_subtask_exiting || _buffer_len <= 0)
         {
             // Debug_println("::read download done");
             return bytes_copied;
@@ -249,6 +256,10 @@ void fnHttpClient::_flush_response()
     _taskh_consumer = xTaskGetCurrentTaskHandle();
     do
     {
+        // The subtask nulls its own handle on the way out - notifying a dead one asserts
+        if (_taskh_subtask == nullptr)
+            break;
+
         // Let the HTTP process task know to fill the buffer
         // Debug_println("::flush_response notifyGive");
         xTaskNotifyGive(_taskh_subtask);
@@ -256,7 +267,7 @@ void fnHttpClient::_flush_response()
         // Debug_println("::flush_response notifyTake...");
         ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_HTTP_TASK));
 
-    } while (!_transaction_done);
+    } while (!_transaction_done && !_subtask_exiting);
     // Debug_println("fnHttpClient::flush_response done");
 }
 
@@ -450,6 +461,9 @@ void fnHttpClient::_perform_subtask(void *param)
          If we didn't handle that event, then _perform() is waiting for a notification.
          Notify whichever of the two that they can continue.
         */
+        // Flag before notifying: this notification carries no new data, and read()
+        // has no other way to tell it apart from a buffer fill
+        parent->_subtask_exiting = true;
         xTaskNotifyGive(parent->_taskh_consumer);
     }
 
@@ -489,6 +503,10 @@ int fnHttpClient::_perform()
 
     // Handle the that HTTP task will use to notify us
     _taskh_consumer = xTaskGetCurrentTaskHandle();
+
+    // Clear here rather than in the subtask, so it's already false by the time we
+    // block below however late the subtask gets scheduled
+    _subtask_exiting = false;
 
     // Start a new task to perform the http client work
     _delete_subtask_if_running();
