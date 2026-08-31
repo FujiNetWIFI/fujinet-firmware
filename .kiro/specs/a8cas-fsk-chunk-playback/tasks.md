@@ -168,16 +168,16 @@ Tasks should be completed in order. Each task includes the requirements it trace
     - Do not add any filename/game/country-specific handling.
     - _Requirements: 1.6, 1.7, 9.3, 9.4, 9.8_
 
-- [ ] 7. Verify no regression in existing cassette paths
-  - [ ] 7.1 Confirm dispatcher behavior is unchanged
+- [x] 7. Verify no regression in existing cassette paths
+  - [x] 7.1 Confirm dispatcher behavior is unchanged
     - Turbo 2000 continues to use `send_turbo2000_tape_block`.
     - QROS continues to use `send_QROS_tape_block`.
     - Only normal FUJI playback enters the new FSK path.
     - _Requirements: 7.2-7.6_
-  - [ ] 7.2 Confirm no FSK code executes for standard `baud`/`data`-only images
+  - [x] 7.2 Confirm no FSK code executes for standard `baud`/`data`-only images
     - Compare normal standard playback behavior before/after the feature where practical.
     - _Requirements: 7.1_
-  - [ ] 7.3 Confirm Turbo 2000 and QROS detection outcomes remain unchanged
+  - [x] 7.3 Confirm Turbo 2000 and QROS detection outcomes remain unchanged
     - Do not modify detection unless required for compilation; if refactoring occurs, prove equivalent outcomes.
     - _Requirements: 7.2-7.6_
 
