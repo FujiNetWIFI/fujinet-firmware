@@ -69,6 +69,8 @@ public:
   uint8_t device() const { return frame.sp_dev_id; }
   fujiCommandID_t command() const { return frame.control_status.fuji.command; }
 
+  uint8_t unit() const;
+
   ParamProxy param(size_t index) const { return ParamProxy{ index, this }; }
 
   const std::optional<ByteBuffer>& data() const;

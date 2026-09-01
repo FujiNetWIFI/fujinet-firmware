@@ -354,3 +354,238 @@ TEST_CASE("resolve honours Z, explicit offsets, and floating local time")
         CHECK(z.local_day(t) == days_from_civil(2026, 8, 28));
     }
 }
+
+// ─── event draft parsing (compose / edit field lines) ─────────────────────────
+
+#include "network-protocol/calendar_draft.h"
+
+TEST_CASE("draft parsing accepts every platform EOL")
+{
+    const char *eols[] = {"\n", "\r\n", "\r", "\x9b"};
+    for (const char *eol : eols)
+    {
+        std::string raw = std::string("SUMMARY: Lunch") + eol + "START: 2026-09-01 12:00" + eol +
+                          "LOCATION: Cafe" + eol;
+        CalendarEventDraft d;
+        REQUIRE(cal_draft_parse(raw, d) == CalDraftError::NONE);
+        CHECK(d.summary == "Lunch");
+        CHECK(d.location == "Cafe");
+        CHECK(d.has_start);
+        CHECK(d.start.hour == 12);
+    }
+
+    // Mixed EOLs in one draft still parse.
+    CalendarEventDraft d;
+    REQUIRE(cal_draft_parse("SUMMARY: A\r\nSTART: 2026-09-01\x9bLOCATION: B\n", d) ==
+            CalDraftError::NONE);
+    CHECK(d.summary == "A");
+    CHECK(d.location == "B");
+}
+
+TEST_CASE("draft parsing keys and values")
+{
+    SUBCASE("keys are case-insensitive and whitespace is trimmed")
+    {
+        CalendarEventDraft d;
+        REQUIRE(cal_draft_parse("summary :  Dentist  \nStArT: 2026-09-01\n", d) ==
+                CalDraftError::NONE);
+        CHECK(d.summary == "Dentist");
+        CHECK(d.has_start);
+    }
+
+    SUBCASE("DESCRIPTION accumulates, everything else is last-wins")
+    {
+        CalendarEventDraft d;
+        REQUIRE(cal_draft_parse("SUMMARY: one\nSUMMARY: two\n"
+                                "DESCRIPTION: line1\nDESCRIPTION: line2\n",
+                                d) == CalDraftError::NONE);
+        CHECK(d.summary == "two");
+        CHECK(d.description == "line1\nline2");
+    }
+
+    SUBCASE("blank lines are skipped")
+    {
+        CalendarEventDraft d;
+        CHECK(cal_draft_parse("\n  \nSUMMARY: x\n\n", d) == CalDraftError::NONE);
+        CHECK(d.has_summary);
+    }
+
+    SUBCASE("errors")
+    {
+        CalendarEventDraft d;
+        CHECK(cal_draft_parse("SUMARY: typo\n", d) == CalDraftError::BAD_KEY);
+        CHECK(cal_draft_parse("no colon here\n", d) == CalDraftError::BAD_LINE);
+        CHECK(cal_draft_parse("START: not-a-date\n", d) == CalDraftError::BAD_TIME);
+    }
+}
+
+TEST_CASE("draft finalize: compose")
+{
+    PosixTz z;
+    REQUIRE(z.parse("CST+6CDT,M3.2.0/2,M11.1.0/2"));
+
+    SUBCASE("timed default END is one hour")
+    {
+        CalendarEventDraft d;
+        REQUIRE(cal_draft_parse("SUMMARY: x\nSTART: 2026-09-01 14:00\n", d) == CalDraftError::NONE);
+        REQUIRE(cal_draft_finalize(d, z, nullptr) == CalDraftError::NONE);
+        CHECK(d.timesValid);
+        CHECK_FALSE(d.times.allDay);
+        CHECK(d.times.startEpoch == fn_timegm(2026, 9, 1, 19, 0, 0)); // CDT, UTC-5
+        CHECK(d.times.endEpoch == d.times.startEpoch + 3600);
+    }
+
+    SUBCASE("date-only START makes a one-day all-day event")
+    {
+        CalendarEventDraft d;
+        REQUIRE(cal_draft_parse("SUMMARY: x\nSTART: 2026-09-01\n", d) == CalDraftError::NONE);
+        REQUIRE(cal_draft_finalize(d, z, nullptr) == CalDraftError::NONE);
+        CHECK(d.times.allDay);
+        CHECK(d.times.startDay == days_from_civil(2026, 9, 1));
+        CHECK(d.times.endDayExcl == d.times.startDay + 1);
+        CHECK(d.times.startEpoch == fn_timegm(2026, 9, 1, 5, 0, 0)); // local midnight
+    }
+
+    SUBCASE("all-day END names the last covered day, inclusive")
+    {
+        CalendarEventDraft d;
+        REQUIRE(cal_draft_parse("SUMMARY: x\nSTART: 2026-09-01\nEND: 2026-09-02\n", d) ==
+                CalDraftError::NONE);
+        REQUIRE(cal_draft_finalize(d, z, nullptr) == CalDraftError::NONE);
+        CHECK(d.times.endDayExcl == days_from_civil(2026, 9, 3));
+    }
+
+    SUBCASE("an all-day span across spring-forward is not a multiple of 86400")
+    {
+        // 2026-03-08 02:00 is the US transition; the two-day event 03-07..03-08
+        // is 47 wall-clock hours.
+        CalendarEventDraft d;
+        REQUIRE(cal_draft_parse("SUMMARY: x\nSTART: 2026-03-07\nEND: 2026-03-08\n", d) ==
+                CalDraftError::NONE);
+        REQUIRE(cal_draft_finalize(d, z, nullptr) == CalDraftError::NONE);
+        CHECK(d.times.endEpoch - d.times.startEpoch == 2 * 86400 - 3600);
+    }
+
+    SUBCASE("an explicit Z resolves absolutely")
+    {
+        CalendarEventDraft d;
+        REQUIRE(cal_draft_parse("SUMMARY: x\nSTART: 2026-09-01T14:00Z\n", d) == CalDraftError::NONE);
+        REQUIRE(cal_draft_finalize(d, z, nullptr) == CalDraftError::NONE);
+        CHECK(d.times.startEpoch == fn_timegm(2026, 9, 1, 14, 0, 0));
+    }
+
+    SUBCASE("rejections")
+    {
+        CalendarEventDraft d;
+        REQUIRE(cal_draft_parse("", d) == CalDraftError::NONE);
+        CHECK(cal_draft_finalize(d, z, nullptr) == CalDraftError::EMPTY);
+
+        d = {};
+        REQUIRE(cal_draft_parse("START: 2026-09-01\n", d) == CalDraftError::NONE);
+        CHECK(cal_draft_finalize(d, z, nullptr) == CalDraftError::MISSING_SUMMARY);
+
+        d = {};
+        REQUIRE(cal_draft_parse("SUMMARY: x\n", d) == CalDraftError::NONE);
+        CHECK(cal_draft_finalize(d, z, nullptr) == CalDraftError::MISSING_START);
+
+        d = {};
+        REQUIRE(cal_draft_parse("SUMMARY: x\nSTART: 2026-09-01 15:00\nEND: 2026-09-01 14:00\n",
+                                d) == CalDraftError::NONE);
+        CHECK(cal_draft_finalize(d, z, nullptr) == CalDraftError::END_BEFORE_START);
+
+        d = {};
+        REQUIRE(cal_draft_parse("SUMMARY: x\nSTART: 2026-09-02\nEND: 2026-09-01\n", d) ==
+                CalDraftError::NONE);
+        CHECK(cal_draft_finalize(d, z, nullptr) == CalDraftError::END_BEFORE_START);
+
+        d = {};
+        REQUIRE(cal_draft_parse("SUMMARY: x\nSTART: 2026-09-01 14:00\nEND: 2026-09-02\n", d) ==
+                CalDraftError::NONE);
+        CHECK(cal_draft_finalize(d, z, nullptr) == CalDraftError::MIXED_FORMS);
+    }
+}
+
+TEST_CASE("draft finalize: edit")
+{
+    PosixTz z;
+    REQUIRE(z.parse("CST+6CDT,M3.2.0/2,M11.1.0/2"));
+
+    // A 90-minute timed event on 2026-09-01, 14:00 local.
+    CalendarDraftTimes timed;
+    timed.allDay = false;
+    timed.startEpoch = fn_timegm(2026, 9, 1, 19, 0, 0);
+    timed.endEpoch = timed.startEpoch + 5400;
+    timed.startDay = days_from_civil(2026, 9, 1);
+    timed.endDayExcl = timed.startDay;
+
+    // A two-day all-day event 2026-09-01..09-02.
+    CalendarDraftTimes allday;
+    allday.allDay = true;
+    allday.startDay = days_from_civil(2026, 9, 1);
+    allday.endDayExcl = allday.startDay + 2;
+    allday.startEpoch = z.from_local_days(allday.startDay, 0, 0, 0);
+    allday.endEpoch = z.from_local_days(allday.endDayExcl, 0, 0, 0);
+
+    SUBCASE("START alone preserves the duration")
+    {
+        CalendarEventDraft d;
+        REQUIRE(cal_draft_parse("START: 2026-09-02 09:00\n", d) == CalDraftError::NONE);
+        REQUIRE(cal_draft_finalize(d, z, &timed) == CalDraftError::NONE);
+        CHECK(d.times.startEpoch == fn_timegm(2026, 9, 2, 14, 0, 0));
+        CHECK(d.times.endEpoch == d.times.startEpoch + 5400);
+    }
+
+    SUBCASE("START alone preserves an all-day span")
+    {
+        CalendarEventDraft d;
+        REQUIRE(cal_draft_parse("START: 2026-09-10\n", d) == CalDraftError::NONE);
+        REQUIRE(cal_draft_finalize(d, z, &allday) == CalDraftError::NONE);
+        CHECK(d.times.allDay);
+        CHECK(d.times.startDay == days_from_civil(2026, 9, 10));
+        CHECK(d.times.endDayExcl == d.times.startDay + 2);
+    }
+
+    SUBCASE("a form-changing START falls back to compose defaults")
+    {
+        CalendarEventDraft d;
+        REQUIRE(cal_draft_parse("START: 2026-09-10\n", d) == CalDraftError::NONE);
+        REQUIRE(cal_draft_finalize(d, z, &timed) == CalDraftError::NONE);
+        CHECK(d.times.allDay);
+        CHECK(d.times.endDayExcl == d.times.startDay + 1);
+    }
+
+    SUBCASE("END alone keeps the start")
+    {
+        CalendarEventDraft d;
+        REQUIRE(cal_draft_parse("END: 2026-09-01 16:00\n", d) == CalDraftError::NONE);
+        REQUIRE(cal_draft_finalize(d, z, &timed) == CalDraftError::NONE);
+        CHECK(d.times.startEpoch == timed.startEpoch);
+        CHECK(d.times.endEpoch == fn_timegm(2026, 9, 1, 21, 0, 0));
+    }
+
+    SUBCASE("END alone cannot precede the start or change forms")
+    {
+        CalendarEventDraft d;
+        REQUIRE(cal_draft_parse("END: 2026-09-01 13:00\n", d) == CalDraftError::NONE);
+        CHECK(cal_draft_finalize(d, z, &timed) == CalDraftError::END_BEFORE_START);
+
+        d = {};
+        REQUIRE(cal_draft_parse("END: 2026-09-03\n", d) == CalDraftError::NONE);
+        CHECK(cal_draft_finalize(d, z, &timed) == CalDraftError::MIXED_FORMS);
+    }
+
+    SUBCASE("a time-less edit leaves the times alone")
+    {
+        CalendarEventDraft d;
+        REQUIRE(cal_draft_parse("SUMMARY: renamed\n", d) == CalDraftError::NONE);
+        REQUIRE(cal_draft_finalize(d, z, &timed) == CalDraftError::NONE);
+        CHECK_FALSE(d.timesValid);
+    }
+
+    SUBCASE("an empty edit is EMPTY")
+    {
+        CalendarEventDraft d;
+        REQUIRE(cal_draft_parse("", d) == CalDraftError::NONE);
+        CHECK(cal_draft_finalize(d, z, &timed) == CalDraftError::EMPTY);
+    }
+}
