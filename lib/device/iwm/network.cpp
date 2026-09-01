@@ -725,8 +725,7 @@ void iwmNetwork::create_devicespec(string d, bool is_dir)
 void iwmNetwork::create_url_parser()
 {
     auto& current_network_data = network_data_map[current_network_unit];
-    std::string url = current_network_data.deviceSpec.substr(current_network_data.deviceSpec.find(":") + 1);
-    current_network_data.urlParser = std::move(PeoplesUrlParser::parseURL(url));
+    current_network_data.urlParser = std::move(PeoplesUrlParser::parseURL(current_network_data.deviceSpec));
 }
 
 error_is_true iwmNetwork::parse_and_instantiate_protocol(string d, bool is_dir)
