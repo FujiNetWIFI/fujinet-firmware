@@ -563,7 +563,7 @@ void sioNetwork::sio_set_prefix()
     uint8_t prefixSpec[256];
     string prefixSpec_str;
 
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
 
     memset(prefixSpec, 0, sizeof(prefixSpec));
 

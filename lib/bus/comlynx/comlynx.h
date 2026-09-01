@@ -46,11 +46,6 @@ protected:
     virtual void shutdown() {}
     virtual void comlynx_process(const FujiLynxPacket &packet);
 
-    /**
-     * @brief Device Number: 0-15
-     */
-    fujiDeviceID_t _devnum;
-
 public:
 
     /**
@@ -67,7 +62,7 @@ public:
      * @brief return the device number (0-15) of this device
      * @return the device # (0-15) of this device
      */
-    fujiDeviceID_t id() { return _devnum; }
+    fujiDeviceID_t id();
 };
 
 /**
@@ -76,12 +71,8 @@ public:
 class systemBus : public SystemBusBase
 {
 private:
-    std::forward_list<virtualDevice *> _daisyChain;
     virtualDevice *_activeDev = nullptr;
     const FujiLynxPacket *_activePacket;
-    lynxFuji *_fujiDev = nullptr;
-    lynxPrinter *_printerDev = nullptr;
-    lynxNetwork *_netDev[8] = {nullptr};
     lynxNetStream *_streamDev = nullptr;
 
     IOChannel *_port;
@@ -105,16 +96,8 @@ public:
     bool wait_for_idle();
     bool netstreamActive() const;
 
-    int numDevices();
-    void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id);
-    void remDevice(virtualDevice *pDevice);
-    void remDevice(fujiDeviceID_t device_id);
-    bool deviceExists(fujiDeviceID_t device_id);
-    void enableDevice(fujiDeviceID_t device_id);
-    void disableDevice(fujiDeviceID_t device_id);
-    virtualDevice *deviceById(fujiDeviceID_t device_id);
-    void changeDeviceId(virtualDevice *pDevice, int device_id);
-    bool deviceEnabled(fujiDeviceID_t device_id);
+    void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id) override;
+
     void setStreamHost(const char *newhost, int port);
     void setStreamHostWithOptions(const char *newhost, int port, int mode, bool register_enabled, bool redeye_enabled);
 
