@@ -67,6 +67,10 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
         {
             return MEDIATYPE_ROM;
         }
+        else if (strcasecmp(ext, "CAS") == 0)
+        {
+            return MEDIATYPE_CAS;
+        }
     }
     return MEDIATYPE_UNKNOWN;
 }

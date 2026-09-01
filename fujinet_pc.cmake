@@ -440,6 +440,11 @@ if(FUJINET_TARGET STREQUAL "COCO")
     lib/media/drivewire/mediaTypeMRM.h lib/media/drivewire/mediaTypeMRM.cpp
     lib/media/drivewire/mediaTypeVDK.h lib/media/drivewire/mediaTypeVDK.cpp
     lib/media/drivewire/mediaTypeROM.h lib/media/drivewire/mediaTypeROM.cpp
+    lib/media/drivewire/mediaTypeCASDSK.h lib/media/drivewire/mediaTypeCASDSK.cpp
+    lib/media/drivewire/casSource.h lib/media/drivewire/casSourceFile.h
+    lib/media/drivewire/casReader.h lib/media/drivewire/casReader.cpp
+    lib/media/drivewire/casIndex.h lib/media/drivewire/casIndex.cpp
+    lib/media/drivewire/decbLayout.h lib/media/drivewire/decbLayout.cpp
 
     lib/device/drivewire/drivewireFuji.h lib/device/drivewire/drivewireFuji.cpp
     lib/device/drivewire/network.h lib/device/drivewire/network.cpp

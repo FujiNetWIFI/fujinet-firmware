@@ -51,6 +51,9 @@ mediatype_t drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disks
     case MEDIATYPE_ROM:
         _media = new MediaTypeROM();
         break;
+    case MEDIATYPE_CAS:
+        _media = new MediaTypeCASDSK();
+        break;
     default:
         device_active = false;
         break;

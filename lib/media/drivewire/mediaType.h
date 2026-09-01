@@ -17,6 +17,7 @@ enum mediatype_t
     MEDIATYPE_MRM,
     MEDIATYPE_VDK,
     MEDIATYPE_ROM,
+    MEDIATYPE_CAS,
     MEDIATYPE_COUNT
 };
 
