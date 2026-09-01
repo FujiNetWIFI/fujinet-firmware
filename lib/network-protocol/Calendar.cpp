@@ -32,6 +32,8 @@ using namespace fn_time;
 // window is kept, and only when it is small enough to be cheap on ESP32.
 #define CAL_CACHE_TTL 120
 #define CAL_CACHE_MAX_EVENTS 150
+// Upper bound on a composed/edited event draft.
+#define CAL_MAX_WRITE 16384
 
 namespace {
 
@@ -65,6 +67,22 @@ struct CalCache
     int64_t     stamp = 0;
     std::vector<CalendarEventEntry> items;
 };
+
+CalCache &window_cache()
+{
+    static CalCache cache;
+    return cache;
+}
+
+// A committed create/edit changes the provider's data; a stale window would
+// otherwise be served for up to CAL_CACHE_TTL afterwards.
+void clear_window_cache()
+{
+    CalCache &c = window_cache();
+    c.key.clear();
+    c.items.clear();
+    c.items.shrink_to_fit();
+}
 
 } // namespace
 
@@ -332,9 +350,15 @@ fujiError_t NetworkProtocolCalendar::open(PeoplesUrlParser *urlParser, fileAcces
     // IEC leaves channel_aux1 at READWRITE by default (iec/network.cpp), so a
     // plain C64 LOAD arrives as 12. Treat it as a read rather than erroring.
     bool isRead = (access == ACCESS_MODE::READ || access == ACCESS_MODE::READWRITE);
-    if (!isDir && !isRead)
+    bool isWrite = (access == ACCESS_MODE::WRITE);
+    if (!isDir && !isRead && !isWrite)
     {
-        // Calendars are read-only.
+        // APPEND (and anything else) makes no sense here.
+        error = NDEV_STATUS::READ_ONLY;
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+    if (isWrite && !can_write())
+    {
         error = NDEV_STATUS::READ_ONLY;
         return FUJI_ERROR::UNSPECIFIED;
     }
@@ -354,7 +378,33 @@ fujiError_t NetworkProtocolCalendar::open(PeoplesUrlParser *urlParser, fileAcces
     }
 
     fujiError_t res;
-    if (!_haveView && _selector.empty())
+    if (isWrite)
+    {
+        if (_eventNum >= 0)
+        {
+            // Edit: resolve N now, so a provider change between open and the
+            // commit at close cannot renumber the events underneath it.
+            std::vector<CalendarEventEntry> items;
+            res = fetch_events(items);
+            if (res != FUJI_ERROR::NONE) return res;
+            if (_eventNum < 1 || (size_t)_eventNum > items.size())
+            {
+                error = NDEV_STATUS::FILE_NOT_FOUND;
+                return FUJI_ERROR::UNSPECIFIED;
+            }
+            _editTarget = items[(size_t)_eventNum - 1];
+            _isEdit = true;
+        }
+        else if (_haveView)
+        {
+            // A period without an event number is nothing writable.
+            error = NDEV_STATUS::INVALID_DEVICESPEC;
+            return FUJI_ERROR::UNSPECIFIED;
+        }
+        _writeMode = true;
+        res = FUJI_ERROR::NONE;
+    }
+    else if (!_haveView && _selector.empty())
     {
         res = do_calendar_list((uint8_t)translate, isDir);
     }
@@ -455,7 +505,7 @@ fujiError_t NetworkProtocolCalendar::do_event_detail()
 
 fujiError_t NetworkProtocolCalendar::fetch_events(std::vector<CalendarEventEntry> &out)
 {
-    static CalCache cache;
+    CalCache &cache = window_cache();
 
     const std::string key = opened_url->scheme + "|" + _selector + "|" +
                             std::to_string(_winStart) + "|" + std::to_string(_winEnd) + "|" +
@@ -887,10 +937,127 @@ std::string NetworkProtocolCalendar::format_detail(const CalendarEventEntry &ev,
     return out;
 }
 
+// ─── write channel (compose / edit) ───────────────────────────────────────────
+
+fujiError_t NetworkProtocolCalendar::event_create(const std::string &, const CalendarEventDraft &)
+{
+    error = NDEV_STATUS::READ_ONLY;
+    return FUJI_ERROR::UNSPECIFIED;
+}
+
+fujiError_t NetworkProtocolCalendar::event_update(const CalendarEventEntry &, const CalendarEventDraft &)
+{
+    error = NDEV_STATUS::READ_ONLY;
+    return FUJI_ERROR::UNSPECIFIED;
+}
+
+fujiError_t NetworkProtocolCalendar::write(unsigned short len)
+{
+    was_write = true;
+
+    size_t n = len;
+    if (n > transmitBuffer->length()) n = transmitBuffer->length();
+
+    if (!_writeMode)
+    {
+        transmitBuffer->erase(0, n);
+        error = NDEV_STATUS::READ_ONLY;
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+    if (_writeBuf.size() + n > CAL_MAX_WRITE)
+    {
+        transmitBuffer->erase(0, n);
+        _writeFailed = true;
+        error = NDEV_STATUS::NO_SPACE_ON_DEVICE;
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+
+    _writeBuf.append(*transmitBuffer, 0, n);
+    transmitBuffer->erase(0, n);
+    error = NDEV_STATUS::SUCCESS;
+    return FUJI_ERROR::NONE;
+}
+
+fujiError_t NetworkProtocolCalendar::close()
+{
+    fujiError_t res = FUJI_ERROR::NONE;
+    if (_writeMode && !_committed)
+    {
+        _committed = true;
+        if (!transmitBuffer->empty())
+            write((unsigned short)std::min(transmitBuffer->length(), (size_t)0xFFFF));
+        res = commit_write();
+    }
+
+    // The base close resets `error`; keep the commit result visible so the bus
+    // layer can latch it into the STATUS that follows the close.
+    nDevStatus_t saved = error;
+    NetworkProtocol::close();
+    error = saved;
+    return res;
+}
+
+fujiError_t NetworkProtocolCalendar::commit_write()
+{
+    if (_writeBuf.empty())
+    {
+        // Opened for write, closed without writing: an abort, not an error.
+        error = NDEV_STATUS::SUCCESS;
+        return FUJI_ERROR::NONE;
+    }
+    if (_writeFailed)
+    {
+        error = NDEV_STATUS::NO_SPACE_ON_DEVICE;
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+
+    CalendarEventDraft draft;
+    CalDraftError derr = cal_draft_parse(_writeBuf, draft);
+    if (derr == CalDraftError::NONE)
+    {
+        if (_isEdit)
+        {
+            CalendarDraftTimes existing;
+            existing.allDay = _editTarget.allDay;
+            existing.startEpoch = (int64_t)_editTarget.start;
+            existing.endEpoch = (int64_t)_editTarget.end;
+            existing.startDay = _tz.local_day(existing.startEpoch);
+            // An all-day end is an exclusive local midnight already.
+            existing.endDayExcl = _tz.local_day(existing.endEpoch);
+            derr = cal_draft_finalize(draft, _tz, &existing);
+        }
+        else
+            derr = cal_draft_finalize(draft, _tz, nullptr);
+    }
+    if (derr != CalDraftError::NONE)
+    {
+        Debug_printf("Calendar: draft rejected (%d)\r\n", (int)derr);
+        error = NDEV_STATUS::INVALID_COMMAND;
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+
+    fujiError_t res = _isEdit ? event_update(_editTarget, draft)
+                              : event_create(_selector, draft);
+    if (res != FUJI_ERROR::NONE)
+    {
+        calendar_error_to_error();
+        return res;
+    }
+
+    clear_window_cache();
+    error = NDEV_STATUS::SUCCESS;
+    return FUJI_ERROR::NONE;
+}
+
 // ─── read / status / available ────────────────────────────────────────────────
 
 fujiError_t NetworkProtocolCalendar::read(unsigned short len)
 {
+    if (_writeMode)
+    {
+        error = NDEV_STATUS::WRITE_ONLY;
+        return FUJI_ERROR::UNSPECIFIED;
+    }
     // All content is staged into receiveBuffer at open(); the device drains it.
     error = NDEV_STATUS::SUCCESS;
     return FUJI_ERROR::NONE;
@@ -898,6 +1065,13 @@ fujiError_t NetworkProtocolCalendar::read(unsigned short len)
 
 fujiError_t NetworkProtocolCalendar::status(NetworkStatus *status)
 {
+    if (_writeMode)
+    {
+        // A write channel is never at EOF; report health, not drain state.
+        status->error = error;
+        status->connected = 1;
+        return FUJI_ERROR::NONE;
+    }
     if (error == NDEV_STATUS::SUCCESS && receiveBuffer->empty())
         status->error = NDEV_STATUS::END_OF_FILE;
     else

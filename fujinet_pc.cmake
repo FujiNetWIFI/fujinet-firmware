@@ -277,6 +277,7 @@ set(SOURCES src/main.cpp
     lib/network-protocol/Mailbox.h lib/network-protocol/Mailbox.cpp
     lib/network-protocol/GMAIL.h lib/network-protocol/GMAIL.cpp
     lib/network-protocol/Calendar.h lib/network-protocol/Calendar.cpp
+    lib/network-protocol/calendar_draft.h lib/network-protocol/calendar_draft.cpp
     lib/network-protocol/GCAL.h lib/network-protocol/GCAL.cpp
     lib/network-protocol/ICAL.h lib/network-protocol/ICAL.cpp
     lib/network-protocol/IMAPS.h lib/network-protocol/IMAPS.cpp
