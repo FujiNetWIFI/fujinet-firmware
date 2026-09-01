@@ -396,11 +396,7 @@ void main_setup(int argc, char *argv[])
     adamPrinter *ptr = new adamPrinter(ptrfs, printer);
     fnPrinters.set_entry(0, ptr, printer, 0);
     SYSTEM_BUS.addDevice(ptr, FUJI_DEVICEID::PRINTER);
-
-    if (Config.get_printer_enabled())
-        SYSTEM_BUS.enableDevice(FUJI_DEVICEID::PRINTER);
-    else
-        SYSTEM_BUS.disableDevice(FUJI_DEVICEID::PRINTER);
+    SYSTEM_BUS.setDeviceEnabled(FUJI_DEVICEID::PRINTER, Config.get_printer_enabled());
 
     if (Config.get_apetime_enabled() == true)
         SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID::CLOCK); // APETime compatible, extended for additional return types
@@ -430,11 +426,11 @@ void main_setup(int argc, char *argv[])
     iwmModem *sioR;
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
     sioR = new iwmModem(ptrfs, Config.get_modem_sniffer_enabled());
-    SYSTEM_BUS.addDevice(sioR,iwm_fujinet_type_t::Modem);
+    SYSTEM_BUS.addDevice(sioR, FUJI_DEVICEID::SERIAL);
     iwmPrinter::printer_type ptype = Config.get_printer_type(0);
     iwmPrinter *ptr = new iwmPrinter(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
-    SYSTEM_BUS.addDevice(ptr, iwm_fujinet_type_t::Printer);
+    SYSTEM_BUS.addDevice(ptr, FUJI_DEVICEID::PRINTER);
 
     theFuji->setup();
     SYSTEM_BUS.setup(); // save device unit SP address somewhere and restore it after reboot?

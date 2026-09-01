@@ -345,35 +345,23 @@ void fujiDevice::fujicmd_image_rotate()
 {
     Debug_println("Fuji cmd: IMAGE ROTATE");
 
-    int count = 0;
-    while (count < (int)_totalDiskDevices && _fnDisks[count].fileh != nullptr)
-        count++;
-
-    if (count > 1)
+    std::vector<DISK_DEVICE *> mounted;
+    for (size_t idx = 0; idx < _totalDiskDevices; idx++)
     {
-        count--;
+        if (_fnDisks[idx].fileh != nullptr)
+            mounted.push_back(get_disk_dev(idx));
+    }
 
-        // Save the device ID of the disk in the last slot
-        fujiDeviceID_t last_id = (fujiDeviceID_t)get_disk_dev(count)->id();
+    // The first slot gets the device ID of the last slot
+    SYSTEM_BUS.rotateDevices(mounted, -1);
 
-        for (int n = count; n > 0; n--)
-        {
-            fujiDeviceID_t swap = (fujiDeviceID_t)get_disk_dev(n - 1)->id();
-            Debug_printf("setting slot %d to ID %hx\n", n, swap);
-            SYSTEM_BUS.changeDeviceId(get_disk_dev(n), swap);
-        }
-
-        // The first slot gets the device ID of the last slot
-        SYSTEM_BUS.changeDeviceId(get_disk_dev(0), last_id);
-
-        // Blink out which slot is now drive 1, then let the platform announce it
-        int rotate_slot = get_rotate_slot();
-        if (rotate_slot >= 0)
-        {
-            _active_rotate_slot = rotate_slot;
-            fnLedManager.blink(LED_BUS, rotate_slot + 1);
-            announce_rotation(rotate_slot);
-        }
+    // Blink out which slot is now drive 1, then let the platform announce it
+    int rotate_slot = get_rotate_slot();
+    if (rotate_slot >= 0)
+    {
+        _active_rotate_slot = rotate_slot;
+        fnLedManager.blink(LED_BUS, rotate_slot + 1);
+        announce_rotation(rotate_slot);
     }
 }
 

@@ -89,7 +89,6 @@ class virtualDevice
     friend fujiDevice;
 
 protected:
-    fujiDeviceID_t _devnum;
     bool listen_to_type3_polls = false;
 
     /**
@@ -112,7 +111,7 @@ public:
      * @brief get the SIO device Number (1-255)
      * @return The device number registered for this device
      */
-    fujiDeviceID_t id() { return _devnum; };
+    fujiDeviceID_t id();
 
     /**
      * @brief Command 0x3F '?' intended to return a single byte to the atari via bus_to_computer(), which
@@ -157,8 +156,6 @@ class systemBus : public SystemBusBase
     friend FujiSIOPacket;
 
 private:
-    std::forward_list<virtualDevice *> _daisyChain;
-
     int _command_frame_counter = 0;
 
     virtualDevice *_activeDev = nullptr;
@@ -169,7 +166,7 @@ private:
     sioNetStream *_streamDev = nullptr;
     sioCassette *_cassetteDev = nullptr;
     sioCPM *_cpmDev = nullptr;
-    sioPrinter *_printerdev = nullptr;
+    sioPrinter *_printerDev = nullptr;
 
     sioSpeedMode_t _sioBaud = SIO_SPEED::STANDARD;
     int _sioHighSpeedIndex = SIO_HISPEED_INDEX;
@@ -238,11 +235,7 @@ public:
     void service();
     void shutdown();
 
-    int numDevices();
-    void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id);
-    void remDevice(virtualDevice *pDevice);
-    virtualDevice *deviceById(fujiDeviceID_t device_id);
-    void changeDeviceId(virtualDevice *pDevice, int device_id);
+    void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id) override;
 
     int getBaudrate();                                          // Gets current SIO baud rate setting
     int getCurrentBaudrate();                                   // Gets current I/O channel baud rate
@@ -271,11 +264,9 @@ public:
     bool getShuttingDown() { return shuttingDown; };
 
     sioCassette *getCassette() { return _cassetteDev; }
-    sioPrinter *getPrinter() { return _printerdev; }
+    sioPrinter *getPrinter() { return _printerDev; }
     sioCPM *getCPM() { return _cpmDev; }
 
-    // I wish this codebase would make up its mind to use camel or snake casing.
-    modem *get_modem() { return _modemDev; }
     bool commandAsserted();
 
 #ifdef ESP_PLATFORM

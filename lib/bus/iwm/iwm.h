@@ -4,7 +4,8 @@
 
 #include "bus.h"
 #include "FujiIWMPacket.h"
-#include "../../include/debug.h"
+#include "IWMBusIDMap.h"
+#include "debug.h"
 
 // for ESP IWM-SLIP build, DEV_RELAY_SLIP should be defined in platformio.ini
 // for PC IWM-SLIP build DEV_RELAY_SLIP should be defined in fujinet_pc.cmake
@@ -105,25 +106,6 @@ class fujiDevice;
 #define BLOCK_DATA_LEN      512
 #define MAX_DATA_LEN        767
 
-enum class iwm_smartport_type_t
-{
-  Block_Device,
-  Character_Device
-};
-
-enum class iwm_fujinet_type_t
-{
-  BlockDisk,
-  FujiNet,
-  Modem,
-  Network,
-  CPM,
-  Printer,
-  Voice,
-  Clock,
-  Other
-};
-
 enum class iwm_enable_state_t
 {
   off,
@@ -159,9 +141,6 @@ class virtualDevice
 
 protected:
   // set these things in constructor or initializer?
-  iwm_smartport_type_t device_type;
-  iwm_fujinet_type_t internal_type;
-  uint8_t _devnum; // assigned by Apple II during INIT
   bool _initialized;
 
   virtual void shutdown() = 0;
@@ -192,8 +171,7 @@ public:
    * @brief get the IWM device Number (1-255)
    * @return The device number registered for this device
    */
-  void set_id(uint8_t dn) { _devnum=dn; };
-  int id() { return _devnum; };
+  IWMBusIDMap::busDeviceID_t id();
 };
 
 class systemBus : public SystemBusBase
@@ -201,8 +179,6 @@ class systemBus : public SystemBusBase
 private:
   virtualDevice *_activeDev = nullptr;
   ByteBuffer _transaction_response;
-
-  iwmPrinter *_printerdev = nullptr;
 
   #ifndef DEV_RELAY_SLIP
   bool iwm_phase_val(uint8_t p);
@@ -244,7 +220,7 @@ private:
   int new_track = -1;
 
 public:
-  std::forward_list<virtualDevice *> _daisyChain;
+  IWMBusIDMap _busMap;
 
   cmdPacket_t command_packet;
   bool iwm_decode_data_packet(uint8_t *a, int &n);
@@ -267,15 +243,20 @@ public:
   using SystemBusBase::transaction_send;
   void transaction_send(const void *data, size_t len, bool is_error=false) override;
 
-  int numDevices();
-  void addDevice(virtualDevice *pDevice, iwm_fujinet_type_t deviceType); // todo: probably get called by handle_init()
-  void remDevice(virtualDevice *pDevice);
-  virtualDevice *deviceById(int device_id);
-  virtualDevice *firstDev() {return _daisyChain.front();}
-  void enableDevice(uint8_t device_id);
-  void disableDevice(uint8_t device_id);
-  void changeDeviceId(virtualDevice *p, int device_id);
-  iwmPrinter *getPrinter() { return _printerdev; }
+  void setDeviceEnabled(fujiDeviceID_t device_id, bool enabled) {
+    virtualDevice *device = _daisyChain.deviceWithFujiID(device_id);
+    if (device)
+      device->device_active = enabled;
+  }
+  fujiDeviceID_t remapDeviceAddress(uint8_t address, iwm_decoded_cmd_t &cmd);
+  void addDevice(virtualDevice *device, fujiDeviceID_t deviceType) override;
+  void assignFujiIDToDevice(virtualDevice *device, fujiDeviceID_t fujiID) override;
+  std::optional<IWMBusIDMap::busDeviceID_t> busIDForDevice(virtualDevice *device);
+  virtualDevice *deviceWithBusID(IWMBusIDMap::busDeviceID_t busID);
+  virtualDevice *firstDeviceWithNoBusID();
+  void resetAllBusIDs() { _busMap.resetAllBusIDs(); }
+  iwmPrinter *getPrinter();
+
   bool shuttingDown = false;                                  // TRUE if we are in shutdown process
   bool getShuttingDown() { return shuttingDown; };
   bool en35Host = false; // TRUE if we are connected to a host that supports the /EN35 signal

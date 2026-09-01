@@ -71,33 +71,31 @@ void IRAM_ATTR phi_isr_handler(void *arg)
         }
         else
         {
-          for (auto devicep : SYSTEM_BUS._daisyChain)
+          auto devicep = SYSTEM_BUS.deviceWithBusID(SYSTEM_BUS.command_packet.dest);
+          if (devicep != nullptr)
           {
-            if (SYSTEM_BUS.command_packet.dest == devicep->id())
-            {
-              smartport.iwm_ack_clr();
-              // look for CTRL command
-              //  Debug_printf("\nhello from ISR - looking for control command!");
+            smartport.iwm_ack_clr();
+            // look for CTRL command
+            //  Debug_printf("\nhello from ISR - looking for control command!");
 
-              if ((c == SP_CMD_WRITEBLOCK) ||
-                  (c == SP_CMD_CONTROL) ||
-                  (c == SP_CMD_WRITE))
+            if ((c == SP_CMD_WRITEBLOCK) ||
+                (c == SP_CMD_CONTROL) ||
+                (c == SP_CMD_WRITE))
+            {
+              // Debug_printf("\nhello from ISR - control command!");
+              if (smartport.req_wait_for_falling_timeout(5500))
               {
-                // Debug_printf("\nhello from ISR - control command!");
-                if (smartport.req_wait_for_falling_timeout(5500))
-                {
-                  Debug_printf("\nWRITE/CTRL received\nREQ timeout in ISR");
-                  return;
-                }
-                memset(smartport.packet_buffer, 0, sizeof(smartport.packet_buffer));
-                smartport.iwm_ack_set();
-                sp_command_mode = sp_cmd_state_t::rxdata;
-                // Debug_printf("\nWRITE/CTRL received\nACK set in ISR!");
+                Debug_printf("\nWRITE/CTRL received\nREQ timeout in ISR");
+                return;
               }
-              else
-              {
-                sp_command_mode = sp_cmd_state_t::command;
-              }
+              memset(smartport.packet_buffer, 0, sizeof(smartport.packet_buffer));
+              smartport.iwm_ack_set();
+              sp_command_mode = sp_cmd_state_t::rxdata;
+              // Debug_printf("\nWRITE/CTRL received\nACK set in ISR!");
+            }
+            else
+            {
+              sp_command_mode = sp_cmd_state_t::command;
             }
           }
         }

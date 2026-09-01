@@ -57,8 +57,6 @@ class virtualDevice
     friend fujiDevice;
 
 protected:
-    fujiDeviceID_t _devnum;
-
     bool listen_to_type3_polls = false;
 
     /**
@@ -81,7 +79,7 @@ public:
      * @brief get the RS232 device Number (1-255)
      * @return The device number registered for this device
      */
-    fujiDeviceID_t id() { return _devnum; };
+    fujiDeviceID_t id();
 
     /**
      * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?
@@ -119,8 +117,6 @@ private:
     FujiBusPacket *_activePacket;
     size_t _activePacketDataPosition;
 
-    std::forward_list<virtualDevice *> _daisyChain;
-
     int _command_frame_counter = 0;
 
     virtualDevice *_activeDev = nullptr;
@@ -150,11 +146,7 @@ public:
     void service();
     void shutdown();
 
-    int numDevices();
-    void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id);
-    void remDevice(virtualDevice *pDevice);
-    virtualDevice *deviceById(fujiDeviceID_t device_id);
-    void changeDeviceId(virtualDevice *pDevice, int device_id);
+    void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id) override;
 
     int getBaudrate();                                          // Gets current RS232 baud rate setting
     void setBaudrate(int baud);                                 // Sets RS232 to specific baud rate

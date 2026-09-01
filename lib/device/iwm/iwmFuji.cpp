@@ -143,61 +143,62 @@ void iwmFuji::iwm_ctrl_new_disk(const iwm_decoded_cmd_t &cmd)
 
 void iwmFuji::iwm_ctrl_enable_device(const iwm_decoded_cmd_t &cmd)
 {
-        unsigned char d = cmd.param(0);
+  fujiDeviceID_t d = (fujiDeviceID_t) cmd.param8(0);
 
-        Debug_printf("\nFuji cmd: ENABLE DEVICE");
-        SYSTEM_BUS.enableDevice(d);
+  Debug_printf("\nFuji cmd: ENABLE DEVICE");
+  SYSTEM_BUS.setDeviceEnabled(d, true);
 }
 
 void iwmFuji::iwm_ctrl_disable_device(const iwm_decoded_cmd_t &cmd)
 {
-        unsigned char d = cmd.param(0);
+  fujiDeviceID_t d = (fujiDeviceID_t) cmd.param8(0);
 
-        Debug_printf("\nFuji cmd: DISABLE DEVICE");
-        SYSTEM_BUS.disableDevice(d);
+  Debug_printf("\nFuji cmd: DISABLE DEVICE");
+  SYSTEM_BUS.setDeviceEnabled(d, false);
 }
 
 // Initializes base settings and adds our devices to the SIO bus
 void iwmFuji::setup()
 {
-        populate_slots_from_config();
+  populate_slots_from_config();
 
-        // Disable booting from CONFIG if our settings say to turn it off
-        boot_config = Config.get_general_config_enabled();
+  // Disable booting from CONFIG if our settings say to turn it off
+  boot_config = Config.get_general_config_enabled();
 
-        // Build the device topology once, to avoid duplicating the daisy chain
-        // and leaking the devices when setup() re-runs on an in-process restart.
-        if (theNetwork == nullptr)
-        {
-                // add ourselves as a device
-                SYSTEM_BUS.addDevice(this, iwm_fujinet_type_t::FujiNet);
+  // Build the device topology once, to avoid duplicating the daisy chain
+  // and leaking the devices when setup() re-runs on an in-process restart.
+  if (theNetwork == nullptr)
+  {
+    // add ourselves as a device
+    SYSTEM_BUS.addDevice(this, FUJI_DEVICEID::FUJINET);
 
-                theNetwork = new iwmNetwork();
-                SYSTEM_BUS.addDevice(theNetwork, iwm_fujinet_type_t::Network);
+    theNetwork = new iwmNetwork();
+    SYSTEM_BUS.addDevice(theNetwork, FUJI_DEVICEID::NETWORK);
 
-                SYSTEM_BUS.addDevice(&platformClock, iwm_fujinet_type_t::Clock);
+    SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID::CLOCK);
 
-                theCPM = new iwmCPM();
-                SYSTEM_BUS.addDevice(theCPM, iwm_fujinet_type_t::CPM);
+    theCPM = new iwmCPM();
+    SYSTEM_BUS.addDevice(theCPM, FUJI_DEVICEID::CPM);
 
-                for (int i = MAX_SPDISK_DEVICES - 1; i >= 0; i--)
-                {
-                        DISK_DEVICE *disk_dev = get_disk_dev(i);
-                        disk_dev->set_disk_number('0' + i);
-                        SYSTEM_BUS.addDevice(disk_dev, iwm_fujinet_type_t::BlockDisk);
-                }
-        }
+    for (int idx = MAX_SPDISK_DEVICES - 1; idx >= 0; idx--)
+    {
+      DISK_DEVICE *disk_dev = get_disk_dev(idx);
+      disk_dev->set_disk_number('0' + idx);
+      SYSTEM_BUS.addDevice(disk_dev,
+                           (fujiDeviceID_t) (((unsigned) FUJI_DEVICEID::DISK) + idx));
+    }
+  }
 
-        if (boot_config)
-        {
-            Debug_printf("\nConfig General Boot Mode: %u\n", Config.get_general_boot_mode());
-            insert_boot_device(Config.get_general_boot_mode(), MEDIATYPE_PO, get_disk_dev(0));
-        }
-        else if (!Config.get_config_filename().empty())
-        {
-            Debug_printf("\nInsert Alternate Config Disk: %s\n", Config.get_config_filename().c_str());
-            insert_boot_device(Config.get_config_filename(), MEDIATYPE_PO, get_disk_dev(0));
-        }
+  if (boot_config)
+  {
+    Debug_printf("\nConfig General Boot Mode: %u\n", Config.get_general_boot_mode());
+    insert_boot_device(Config.get_general_boot_mode(), MEDIATYPE_PO, get_disk_dev(0));
+  }
+  else if (!Config.get_config_filename().empty())
+  {
+    Debug_printf("\nInsert Alternate Config Disk: %s\n", Config.get_config_filename().c_str());
+    insert_boot_device(Config.get_config_filename(), MEDIATYPE_PO, get_disk_dev(0));
+  }
 }
 
 iwm_device_status_block_t iwmFuji::create_status_reply_packet()

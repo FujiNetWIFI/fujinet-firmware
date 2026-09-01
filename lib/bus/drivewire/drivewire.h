@@ -77,6 +77,7 @@ class drivewireNetStream; // declare here so can reference it, but define in net
 class drivewireCassette;  // Cassette forward-declaration.
 class drivewireCPM;       // CPM device.
 class drivewirePrinter;   // Printer device
+class drivewireDisk;      // See if you can guess what kind of device it is
 class fujiDevice;
 
 class drivewireDevice
@@ -310,7 +311,7 @@ public:
     }
 
     // For compatibility with fujiDevice.cpp
-    void changeDeviceId(void *pDevice, int device_id) {};
+    void rotateDevices(const std::vector<drivewireDisk *> &disks, int amount) {}
 };
 
 extern systemBus SYSTEM_BUS;

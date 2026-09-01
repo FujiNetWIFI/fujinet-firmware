@@ -100,11 +100,6 @@ protected:
 
     virtual AdamNetStatus deviceStatus() = 0;
 
-    /**
-     * @brief Device Number: 0-15
-     */
-    fujiDeviceID_t _devnum;
-
     // PC/BoIP: bypass the 300us response window (a slow host can blow it). Only
     // for re-polled block devices; single-shot devices keep it.
     bool _pc_no_response_deadline = false;
@@ -132,9 +127,7 @@ public:
      * @brief return the device number (0-15) of this device
      * @return the device # (0-15) of this device
      */
-    fujiDeviceID_t id() { return _devnum; }
-
-
+    fujiDeviceID_t id();
 };
 
 /**
@@ -143,10 +136,8 @@ public:
 class systemBus : public SystemBusBase
 {
 private:
-    std::map<uint8_t, virtualDevice *> _daisyChain;
     virtualDevice *_activeDev = nullptr;
     const FujiAdamPacket *_activePacket;
-    adamFuji *_fujiDev = nullptr;
 
     // _port = UART on hardware, or a TCP socket to an emulator on PC (Bus over IP).
     UARTChannel _serial;
@@ -214,16 +205,16 @@ public:
         busPhase.didIgnore();
     }
 
-    int numDevices();
-    void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id);
-    void remDevice(virtualDevice *pDevice);
-    void remDevice(uint8_t device_id);
-    bool deviceExists(uint8_t device_id);
-    void enableDevice(uint8_t device_id);
-    void disableDevice(uint8_t device_id);
-    virtualDevice *deviceById(uint8_t device_id);
-    void changeDeviceId(virtualDevice *pDevice, fujiDeviceID_t device_id);
-    bool deviceEnabled(uint8_t device_id);
+    bool deviceExists(fujiDeviceID_t device_id) {
+        return _daisyChain.deviceWithFujiID(device_id) != nullptr;
+    }
+    bool deviceEnabled(fujiDeviceID_t device_id) {
+        auto device = _daisyChain.deviceWithFujiID(device_id);
+        if (device)
+            return device->device_active;
+        return false;
+    }
+
 #ifdef ESP_PLATFORM
     QueueHandle_t qAdamNetMessages = nullptr;
 #endif /* ESP_PLATFORM */

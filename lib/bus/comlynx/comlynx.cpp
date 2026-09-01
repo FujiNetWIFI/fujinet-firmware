@@ -22,7 +22,12 @@
 
 void virtualDevice::reset()
 {
-    Debug_printf("No Reset implemented for device %u\n", _devnum);
+    Debug_printf("No Reset implemented for device %u\n", id());
+}
+
+fujiDeviceID_t virtualDevice::id()
+{
+    return SYSTEM_BUS.fujiIDForDevice(this);
 }
 
 bool systemBus::wait_for_idle()
@@ -103,7 +108,7 @@ void systemBus::_comlynx_process_cmd()
 
     for (auto devicep : _daisyChain)
     {
-        if (tmpPacket->device() == devicep->_devnum)
+        if (tmpPacket->device() == devicep->id())
         {
             _activeDev = devicep;
             _activePacket = tmpPacket.get();
@@ -188,77 +193,17 @@ void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
 {
     Debug_printf("Adding device: %02X\n", device_id);
 
-    if (device_id == FUJI_DEVICEID::FUJINET)
-    {
-        _fujiDev = (lynxFuji *)pDevice;
-    }
-    else if (device_id >= FUJI_DEVICEID::NETWORK && device_id <= FUJI_DEVICEID::NETWORK_LAST)
-    {
-        _netDev[device_id - FUJI_DEVICEID::NETWORK] = (lynxNetwork*)pDevice;
-    }
-    else if (device_id == FUJI_DEVICEID::PRINTER)
-    {
-        _printerDev = (lynxPrinter *)pDevice;
-    }
-    else if (device_id == FUJI_DEVICEID::MIDI)
+    if (device_id == FUJI_DEVICEID::MIDI)
     {
         _streamDev = (lynxNetStream *)pDevice;
     }
-
-    pDevice->_devnum = device_id;
-    _daisyChain.push_front(pDevice);
-}
-
-void systemBus::remDevice(virtualDevice *pDevice)
-{
-    _daisyChain.remove(pDevice);
-}
-
-void systemBus::remDevice(fujiDeviceID_t device_id)
-{
-}
-
-int systemBus::numDevices()
-{
-      int i = 0;
-    //__BEGIN_IGNORE_UNUSEDVARS
-    for (auto devicep : _daisyChain)
-        i++;
-    return i;
-    //__END_IGNORE_UNUSEDVARS
-}
-
-void systemBus::changeDeviceId(virtualDevice *p, int device_id)
-{
-    for (auto devicep : _daisyChain)
-    {
-        if (devicep == p)
-            devicep->_devnum = (fujiDeviceID_t) device_id;
-    }
-}
-
-virtualDevice *systemBus::deviceById(fujiDeviceID_t device_id)
-{
-    for (auto devicep : _daisyChain)
-    {
-        if (devicep->_devnum == device_id)
-            return devicep;
-    }
-    return nullptr;
+    _daisyChain.addDevice(pDevice, device_id);
 }
 
 void systemBus::reset()
 {
     for (auto devicep : _daisyChain)
         devicep->reset();
-}
-
-void systemBus::enableDevice(fujiDeviceID_t device_id)
-{
-}
-
-void systemBus::disableDevice(fujiDeviceID_t device_id)
-{
 }
 
 void systemBus::setStreamHost(const char *hostname, int port)

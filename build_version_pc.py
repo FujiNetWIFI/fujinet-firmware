@@ -57,6 +57,7 @@ class Version:
         describe = vc.get_commit_version()
         version, *_rest = vc.parse_describe(describe, ver_major, ver_minor)
         if vc.get_modified_files():
+            version = version[:13]
             version += "*"
         return version
 

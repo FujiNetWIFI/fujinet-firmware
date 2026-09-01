@@ -53,13 +53,13 @@ void systemBus::transaction_accept(transState_t expectMoreData)
 void systemBus::transaction_success()
 {
     assert(_transaction_state == TRANS_STATE::NO_GET || _transaction_state == TRANS_STATE::DID_GET);
-    sendReplyPacket(_activeDev->_devnum, true, nullptr, 0);
+    sendReplyPacket(_activeDev->id(), true, nullptr, 0);
     _transaction_state = TRANS_STATE::INVALID;
 }
 
 void systemBus::transaction_error()
 {
-    sendReplyPacket(_activeDev->_devnum, false, nullptr, 0);
+    sendReplyPacket(_activeDev->id(), false, nullptr, 0);
     _transaction_state = TRANS_STATE::INVALID;
 }
 
@@ -87,7 +87,7 @@ success_is_true systemBus::transaction_get(void *data, size_t len)
 void systemBus::transaction_send(const void *data, size_t len, bool is_error)
 {
     assert(_transaction_state == TRANS_STATE::NO_GET);
-    sendReplyPacket(_activeDev->_devnum, !is_error, data, len);
+    sendReplyPacket(_activeDev->id(), !is_error, data, len);
     _transaction_state = TRANS_STATE::INVALID;
 }
 
@@ -95,14 +95,6 @@ void systemBus::transaction_send(const void *data, size_t len, bool is_error)
 void systemBus::_rs232_process_cmd()
 {
     Debug_printf("rs232_process_cmd()\n");
-#ifdef OBSOLETE
-    if (_modemDev != nullptr && _modemDev->modemActive && Config.get_modem_enabled())
-    {
-        _modemDev->modemActive = false;
-        Debug_println("Modem was active - resetting RS232 baud");
-        _serial.setBaudrate(_rs232Baud);
-    }
-#endif /* OBSOLETE */
 
     ByteBuffer packet;
     int val, count;
@@ -135,19 +127,7 @@ void systemBus::_rs232_process_cmd()
 
 
     _activePacket = tempFrame.get();
-    _activeDev = nullptr;
-
-    // find device, ack and pass control
-    // or go back to WAIT
-    for (auto devicep : _daisyChain)
-    {
-        if (tempFrame->device() == devicep->_devnum)
-        {
-            _activeDev = devicep;
-            break;
-        }
-    }
-
+    _activeDev = _daisyChain.deviceWithFujiID(tempFrame->device());
     if (_activeDev != nullptr)
         _activeDev->rs232_process(*tempFrame);
 
@@ -277,46 +257,7 @@ void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
         _printerdev = (rs232Printer *)pDevice;
     }
 
-    pDevice->_devnum = device_id;
-
-    _daisyChain.push_front(pDevice);
-}
-
-// Removes device from the RS232 bus.
-// Note that the destructor is called on the device!
-void systemBus::remDevice(virtualDevice *p)
-{
-    _daisyChain.remove(p);
-}
-
-// Should avoid using this as it requires counting through the list
-int systemBus::numDevices()
-{
-    int i = 0;
-    __BEGIN_IGNORE_UNUSEDVARS
-    for (auto devicep : _daisyChain)
-        i++;
-    return i;
-    __END_IGNORE_UNUSEDVARS
-}
-
-void systemBus::changeDeviceId(virtualDevice *p, int device_id)
-{
-    for (auto devicep : _daisyChain)
-    {
-        if (devicep == p)
-            devicep->_devnum = (fujiDeviceID_t) device_id;
-    }
-}
-
-virtualDevice *systemBus::deviceById(fujiDeviceID_t device_id)
-{
-    for (auto devicep : _daisyChain)
-    {
-        if (devicep->_devnum == device_id)
-            return devicep;
-    }
-    return nullptr;
+    _daisyChain.addDevice(pDevice, device_id);
 }
 
 // Give devices an opportunity to clean up before a reboot
@@ -395,7 +336,7 @@ void systemBus::writeBusPacket(FujiBusPacket &packet)
 void systemBus::sendReplyPacket(fujiDeviceID_t source, bool ack, const void *data, size_t length)
 {
     // FIXME - check to make sure this wasn't through a bus call
-    if (source == _modemDev->_devnum)
+    if (source == _modemDev->id())
     {
         _port->write(data, length);
         return;
@@ -412,6 +353,11 @@ void systemBus::sendReplyPacket(fujiDeviceID_t source, bool ack, const void *dat
     FujiBusPacket packet(source, ack ? CMD::FUJI_ACK : CMD::FUJI_NAK, bb);
     writeBusPacket(packet);
     return;
+}
+
+fujiDeviceID_t virtualDevice::id()
+{
+    return SYSTEM_BUS.fujiIDForDevice(this);
 }
 
 #endif /* BUILD_RS232 */

@@ -80,4 +80,16 @@ const std::optional<ByteBuffer>& FujiIWMPacket::data() const
   return _data;
 }
 
+uint8_t FujiIWMPacket::unit() const
+{
+  if ((frame.sp_command == SP_CMD_STATUS || frame.sp_command == SP_CMD_CONTROL)
+      && frame.param_count == 4)
+    return frame.control_status.fuji.network_unit;
+  if ((frame.sp_command == SP_CMD_READ || frame.sp_command == SP_CMD_WRITE)
+      && frame.param_count == 5)
+    return frame.char_rw.fuji.network_unit;
+
+  return 0;
+}
+
 #endif /* BUILD_APPLE */

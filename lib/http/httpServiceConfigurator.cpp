@@ -494,8 +494,8 @@ void fnHttpServiceConfigurator::config_printer_port(std::string printernumber, s
     fnPrinters.set_port(0, port);
 #ifdef BUILD_ATARI
     // Tell the SIO daisy chain to change the device ID for this printer
-    SYSTEM_BUS.changeDeviceId(fnPrinters.get_ptr(0),
-                              (fujiDeviceID_t) (FUJI_DEVICEID::PRINTER + port));
+    SYSTEM_BUS.assignFujiIDToDevice(fnPrinters.get_ptr(0),
+                                    (fujiDeviceID_t) (FUJI_DEVICEID::PRINTER + port));
 #endif
 
     Config.save();

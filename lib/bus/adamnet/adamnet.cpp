@@ -224,9 +224,14 @@ bool systemBus::writeBusPacket(const FujiAdamPacket &packet)
     return true;
 }
 
+fujiDeviceID_t virtualDevice::id()
+{
+    return SYSTEM_BUS.fujiIDForDevice(this);
+}
+
 void virtualDevice::reset()
 {
-    Debug_printf("No Reset implemented for device %u\n", _devnum);
+    Debug_printf("No Reset implemented for device %u\n", id());
 }
 
 void virtualDevice::adamnet_control_ready()
@@ -293,15 +298,14 @@ void systemBus::_adamnet_process_cmd()
     _stall_silent = false;
 
     auto tmpPacket = FujiAdamPacket(_port->read());
-    auto it = _daisyChain.find(tmpPacket.device());
-    if (it != _daisyChain.end() && it->second->device_active == true)
+    _activeDev = _daisyChain.deviceWithFujiID(tmpPacket.device());
+    if (_activeDev && _activeDev->device_active == true)
     {
         busPhase.begin(tmpPacket);
 
         // turn on AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, true);
 
-        _activeDev = it->second;
         _activePacket = &tmpPacket;
 
         if (tmpPacket.type() == APT::MN_SEND)
@@ -411,8 +415,9 @@ void systemBus::_adamnet_process_queue()
         switch (msg.message_id)
         {
         case ADAMNETMSG_DISKSWAP:
-            if (_fujiDev != nullptr)
-                _fujiDev->fujicmd_image_rotate();
+            auto fujiDev = dynamic_cast<adamFuji *>(_daisyChain.deviceWithFujiID(FUJI_DEVICEID::FUJINET));
+            if (fujiDev != nullptr)
+                fujiDev->fujicmd_image_rotate();
             break;
         }
     }
@@ -512,101 +517,16 @@ void systemBus::shutdown()
 
     for (auto devicep : _daisyChain)
     {
-        Debug_printf("Shutting down device %02x\n", devicep.second->id());
-        devicep.second->shutdown();
+        Debug_printf("Shutting down device %02x\n", devicep->id());
+        devicep->shutdown();
     }
     Debug_printf("All devices shut down.\n");
-}
-
-void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
-{
-    Debug_printf("Adding device: %02X\n", device_id);
-    pDevice->_devnum = device_id;
-    _daisyChain[device_id] = pDevice;
-
-    switch (device_id)
-    {
-    case FUJI_DEVICEID::FUJINET:
-        _fujiDev = dynamic_cast<adamFuji*>(pDevice);
-        break;
-    default:
-        break;
-    }
-}
-
-bool systemBus::deviceExists(uint8_t device_id)
-{
-    return _daisyChain.find(device_id) != _daisyChain.end();
-}
-
-bool systemBus::deviceEnabled(uint8_t device_id)
-{
-    if (deviceExists(device_id))
-        return _daisyChain[device_id]->device_active;
-    else
-        return false;
-}
-
-void systemBus::remDevice(virtualDevice *pDevice)
-{
-}
-
-void systemBus::remDevice(uint8_t device_id)
-{
-    if (deviceExists(device_id))
-    {
-        _daisyChain.erase(device_id);
-    }
-}
-
-int systemBus::numDevices()
-{
-    return _daisyChain.size();
-}
-
-void systemBus::changeDeviceId(virtualDevice *p, fujiDeviceID_t device_id)
-{
-    for (auto it = _daisyChain.begin(); it != _daisyChain.end(); ++it)
-    {
-        if (it->second == p)
-        {
-            _daisyChain.erase(it);
-            break;
-        }
-    }
-    p->_devnum = device_id;
-    _daisyChain[device_id] = p;
-}
-
-virtualDevice *systemBus::deviceById(uint8_t device_id)
-{
-    for (auto devicep : _daisyChain)
-    {
-        if (devicep.second->_devnum == device_id)
-            return devicep.second;
-    }
-    return nullptr;
 }
 
 void systemBus::reset()
 {
     for (auto devicep : _daisyChain)
-        devicep.second->reset();
+        devicep->reset();
 }
 
-void systemBus::enableDevice(uint8_t device_id)
-{
-    Debug_printf("Enabling AdamNet Device %d\n",device_id);
-
-    if (_daisyChain.find(device_id) != _daisyChain.end())
-        _daisyChain[device_id]->device_active = true;
-}
-
-void systemBus::disableDevice(uint8_t device_id)
-{
-    Debug_printf("Disabling AdamNet Device %d\n",device_id);
-
-    if (_daisyChain.find(device_id) != _daisyChain.end())
-        _daisyChain[device_id]->device_active = false;
-}
 #endif /* BUILD_ADAM */
