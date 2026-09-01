@@ -573,26 +573,159 @@ option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
 # Mbed TLS
 # https://github.com/Mbed-TLS/mbedtls
-# - to build from source (failed on Windows/MSYS2)
-# add_subdirectory(components_pc/mbedtls)
-# - to use library package (Ubuntu deb package is old, does not support cmake/find_package)
-# find_package(MbedTLS)
-# - try to find necessary files in system ...
-set(_MBEDTLS_ROOT_HINTS $ENV{MBEDTLS_ROOT_DIR} ${MBEDTLS_ROOT_DIR})
-set(_MBEDTLS_ROOT_PATHS "$ENV{PROGRAMFILES}/libmbedtls")
-set(_MBEDTLS_ROOT_HINTS_AND_PATHS HINTS ${_MBEDTLS_ROOT_HINTS} PATHS ${_MBEDTLS_ROOT_PATHS})
-find_library(MBEDTLS_STATIC_LIB libmbedtls.a HINTS ${_MBEDTLS_ROOT_HINTS_AND_PATHS})
-find_library(MBEDX509_STATIC_LIB libmbedx509.a HINTS ${_MBEDTLS_ROOT_HINTS_AND_PATHS})
-find_library(MBEDCRYPTO_STATIC_LIB libmbedcrypto.a HINTS ${_MBEDTLS_ROOT_HINTS_AND_PATHS})
-find_path(MBEDTLS_INCLUDE_DIR mbedtls/ssl.h HINTS ${_MBEDTLS_ROOT_HINTS_AND_PATHS} PATH_SUFFIXES include)
+# Prefer 3.x and accept 2.x, but reject 4.x: it removed the low-level headers (entropy.h,
+# ctr_drbg.h, sha256.h, ...) that mongoose's MG_TLS=1 backend needs, split crypto out into
+# TF-PSA-Crypto that CRYPTO_LIBS below does not model, and is not a CI-tested configuration.
+
+# 3.x/4.x keep the version macros in build_info.h, 2.x in version.h.
+function(_fn_mbedtls_version _inc _out_major _out_ver)
+    set(_ver "")
+    foreach(_hdr build_info.h version.h)
+        if(NOT _ver AND EXISTS "${_inc}/mbedtls/${_hdr}")
+            file(STRINGS "${_inc}/mbedtls/${_hdr}" _lines
+                 REGEX "^[ \t]*#[ \t]*define[ \t]+MBEDTLS_VERSION_STRING[ \t]+\"[0-9]")
+            if(_lines)
+                list(GET _lines 0 _line)
+                string(REGEX REPLACE "^[^\"]*\"([0-9.]+)\".*$" "\\1" _ver "${_line}")
+            endif()
+        endif()
+    endforeach()
+    string(REGEX MATCH "^[0-9]+" _major "${_ver}")
+    set(${_out_major} "${_major}" PARENT_SCOPE)
+    set(${_out_ver} "${_ver}" PARENT_SCOPE)
+endfunction()
+
+# Candidate "include|lib" pairs, most preferred first. Pairs rather than one root because
+# distros ship the side-by-side 3.x with split prefixes (Arch: /usr/include/mbedtls3 + /usr/lib/mbedtls3).
+set(_MBEDTLS_CANDIDATES "")
+if(MBEDTLS_INCLUDE_DIR AND MBEDTLS_LIBRARY_DIR)
+    list(APPEND _MBEDTLS_CANDIDATES "${MBEDTLS_INCLUDE_DIR}|${MBEDTLS_LIBRARY_DIR}")
+endif()
+foreach(_root ${MBEDTLS_ROOT_DIR} $ENV{MBEDTLS_ROOT_DIR})
+    if(_root)
+        list(APPEND _MBEDTLS_CANDIDATES "${_root}/include|${_root}/lib" "${_root}|${_root}")
+    endif()
+endforeach()
+
+# An explicit override is authoritative - do not silently fall through to another install.
+set(_MBEDTLS_EXPLICIT "${_MBEDTLS_CANDIDATES}")
+
+if(DEFINED ENV{PROGRAMFILES})
+    list(APPEND _MBEDTLS_CANDIDATES "$ENV{PROGRAMFILES}/libmbedtls/include|$ENV{PROGRAMFILES}/libmbedtls/lib")
+endif()
+foreach(_prefix /usr /usr/local)
+    list(APPEND _MBEDTLS_CANDIDATES "${_prefix}/include/mbedtls3|${_prefix}/lib/mbedtls3")
+    if(CMAKE_LIBRARY_ARCHITECTURE)
+        list(APPEND _MBEDTLS_CANDIDATES
+             "${_prefix}/include/mbedtls3|${_prefix}/lib/${CMAKE_LIBRARY_ARCHITECTURE}/mbedtls3")
+    endif()
+endforeach()
+foreach(_brew $ENV{HOMEBREW_PREFIX} /opt/homebrew /usr/local)
+    if(_brew)
+        list(APPEND _MBEDTLS_CANDIDATES "${_brew}/opt/mbedtls@3/include|${_brew}/opt/mbedtls@3/lib")
+    endif()
+endforeach()
+
+if(_MBEDTLS_EXPLICIT)
+    set(_MBEDTLS_CANDIDATES "${_MBEDTLS_EXPLICIT}")
+endif()
+
+# Probe into plain variables so a warm build/ cache cannot pin a previously found version.
+set(_MBEDTLS_MAJOR "")
+set(_MBEDTLS_VER "")
+set(_MBEDTLS_INC "")
+set(_MBEDTLS_LIB "")
+foreach(_cand ${_MBEDTLS_CANDIDATES})
+    string(REPLACE "|" ";" _pair "${_cand}")
+    list(GET _pair 0 _inc)
+    list(GET _pair 1 _lib)
+    if(EXISTS "${_inc}/mbedtls/ssl.h" AND EXISTS "${_lib}/libmbedtls.a")
+        _fn_mbedtls_version("${_inc}" _major _ver)
+        if(_major STREQUAL "3")
+            set(_MBEDTLS_MAJOR 3)
+            set(_MBEDTLS_VER "${_ver}")
+            set(_MBEDTLS_INC "${_inc}")
+            set(_MBEDTLS_LIB "${_lib}")
+            break()
+        elseif(_major STREQUAL "2" AND NOT _MBEDTLS_MAJOR)
+            set(_MBEDTLS_MAJOR 2)   # usable, but keep looking for a 3.x
+            set(_MBEDTLS_VER "${_ver}")
+            set(_MBEDTLS_INC "${_inc}")
+            set(_MBEDTLS_LIB "${_lib}")
+        elseif(_major AND NOT _MBEDTLS_REJECTED)
+            set(_MBEDTLS_REJECTED "${_ver}")   # remembered only to report it accurately
+            set(_MBEDTLS_REJECTED_INC "${_inc}")
+        endif()
+    endif()
+endforeach()
+
+# No side-by-side package matched: fall back to the default system search paths.
+if(NOT _MBEDTLS_MAJOR AND NOT _MBEDTLS_EXPLICIT)
+    find_path(_MBEDTLS_SYS_INC mbedtls/ssl.h PATH_SUFFIXES include)
+    find_library(_MBEDTLS_SYS_LIB libmbedtls.a)
+    if(_MBEDTLS_SYS_INC AND _MBEDTLS_SYS_LIB)
+        _fn_mbedtls_version("${_MBEDTLS_SYS_INC}" _MBEDTLS_MAJOR _MBEDTLS_VER)
+        set(_MBEDTLS_INC "${_MBEDTLS_SYS_INC}")
+        get_filename_component(_MBEDTLS_LIB "${_MBEDTLS_SYS_LIB}" PATH)
+    endif()
+endif()
+
+# Nothing usable, but we saw an unsupported version - report that instead of "not found".
+if(NOT _MBEDTLS_MAJOR AND _MBEDTLS_REJECTED)
+    set(_MBEDTLS_VER "${_MBEDTLS_REJECTED}")
+    string(REGEX MATCH "^[0-9]+" _MBEDTLS_MAJOR "${_MBEDTLS_REJECTED}")
+    set(_MBEDTLS_INC "${_MBEDTLS_REJECTED_INC}")
+endif()
+
+if(NOT _MBEDTLS_MAJOR)
+    message(FATAL_ERROR
+        "Mbed TLS not found. Install the 3.x development package:\n"
+        "    Arch:   pacman -S mbedtls3\n"
+        "    Debian: apt install libmbedtls-dev\n"
+        "    macOS:  brew install mbedtls@3\n"
+        "  or point the build at it with -DMBEDTLS_ROOT_DIR=<prefix>")
+elseif(_MBEDTLS_MAJOR GREATER 3)
+    message(FATAL_ERROR
+        "Found unsupported Mbed TLS ${_MBEDTLS_VER} in ${_MBEDTLS_INC}.\n"
+        "  4.x removed the headers mongoose (MG_TLS=1) needs and split crypto into TF-PSA-Crypto.\n"
+        "  Install 3.x alongside it - it is then picked up automatically:\n"
+        "    Arch:   pacman -S mbedtls3\n"
+        "    macOS:  brew install mbedtls@3\n"
+        "  or point the build at a 3.x prefix with -DMBEDTLS_ROOT_DIR=<prefix>")
+elseif(_MBEDTLS_MAJOR EQUAL 2)
+    message(WARNING "Using Mbed TLS ${_MBEDTLS_VER} from ${_MBEDTLS_INC}; 3.x is preferred.")
+endif()
+
+foreach(_l mbedx509 mbedcrypto)
+    if(NOT EXISTS "${_MBEDTLS_LIB}/lib${_l}.a")
+        message(FATAL_ERROR "Mbed TLS in ${_MBEDTLS_LIB} is missing lib${_l}.a")
+    endif()
+endforeach()
+
+set(MBEDTLS_VERSION "${_MBEDTLS_VER}" CACHE INTERNAL "Detected Mbed TLS version" FORCE)
+set(MBEDTLS_VERSION_MAJOR "${_MBEDTLS_MAJOR}" CACHE INTERNAL "Detected Mbed TLS major version" FORCE)
+# Plain variables, not cache: publishing these would look like a user override on the next
+# configure and would pin the build to whatever was found first.
+set(MBEDTLS_INCLUDE_DIR "${_MBEDTLS_INC}")
+set(MBEDTLS_LIBRARY_DIR "${_MBEDTLS_LIB}")
+set(MBEDTLS_STATIC_LIB    "${_MBEDTLS_LIB}/libmbedtls.a"    CACHE FILEPATH "Mbed TLS libmbedtls.a" FORCE)
+set(MBEDX509_STATIC_LIB   "${_MBEDTLS_LIB}/libmbedx509.a"   CACHE FILEPATH "Mbed TLS libmbedx509.a" FORCE)
+set(MBEDCRYPTO_STATIC_LIB "${_MBEDTLS_LIB}/libmbedcrypto.a" CACHE FILEPATH "Mbed TLS libmbedcrypto.a" FORCE)
 
 set(CRYPTO_LIBS ${MBEDTLS_STATIC_LIB} ${MBEDX509_STATIC_LIB} ${MBEDCRYPTO_STATIC_LIB})
+# Empty stubs in distro packages, but real code in a source build with Everest/p256-m enabled.
+foreach(_extra libeverest.a libp256m.a)
+    if(EXISTS "${_MBEDTLS_LIB}/${_extra}")
+        list(APPEND CRYPTO_LIBS "${_MBEDTLS_LIB}/${_extra}")
+    endif()
+endforeach()
 
 message("***************** Mbed TLS *****************")
+message("MBEDTLS_VERSION=${MBEDTLS_VERSION}")
+message("MBEDTLS_INCLUDE_DIR=${MBEDTLS_INCLUDE_DIR}")
 message("MBEDTLS_STATIC_LIB=${MBEDTLS_STATIC_LIB}")
 message("MBEDX509_STATIC_LIB=${MBEDX509_STATIC_LIB}")
 message("MBEDCRYPTO_STATIC_LIB=${MBEDCRYPTO_STATIC_LIB}")
-message("MBEDTLS_INCLUDE_DIR=${MBEDTLS_INCLUDE_DIR}")
 message("********************************************")
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
