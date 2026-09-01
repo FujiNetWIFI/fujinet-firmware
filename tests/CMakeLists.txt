@@ -18,13 +18,15 @@ target_link_libraries(fujibuspacket_tests PRIVATE
 add_test(NAME fujibuspacket_tests COMMAND fujibuspacket_tests)
 
 # ------------------------------------------------------------------------------
-# Calendar date arithmetic. fn_time is deliberately free of libc time functions
-# and of any FujiNet dependency, so it links on its own - which is what makes the
-# DST and parsing edge cases cheap to pin down here rather than on hardware.
+# Calendar date arithmetic and event-draft parsing. fn_time and calendar_draft
+# are deliberately free of libc time functions and of any FujiNet dependency, so
+# they link on their own - which is what makes the DST and parsing edge cases
+# cheap to pin down here rather than on hardware.
 # ------------------------------------------------------------------------------
 add_executable(calendar_tests
     CalendarTests.cpp
     ${CMAKE_SOURCE_DIR}/lib/utils/fn_time.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/calendar_draft.cpp
 )
 
 target_include_directories(calendar_tests PRIVATE

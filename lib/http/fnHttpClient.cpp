@@ -663,6 +663,31 @@ int fnHttpClient::PUT(const char *put_data, int put_datalen)
     return _perform();
 }
 
+int fnHttpClient::PATCH(const char *patch_data, int patch_datalen)
+{
+#ifdef VERBOSE_HTTP
+    Debug_println("fnHttpClient::PATCH");
+#endif
+    if (_handle == nullptr || patch_data == nullptr || patch_datalen < 1)
+        return -1;
+
+    // Get rid of any pending data
+    _flush_response();
+
+    // Set method
+    esp_http_client_set_method(_handle, esp_http_client_method_t::HTTP_METHOD_PATCH);
+    // See if a content-type has been set and set a default one if not
+    // Call this before esp_http_client_set_post_field() otherwise that function will definitely set the content type to form
+    char *value = nullptr;
+    esp_http_client_get_header(_handle, "Content-Type", &value);
+    if (value == nullptr)
+        esp_http_client_set_header(_handle, "Content-Type", "application/octet-stream");
+    // esp_http_client_set_post_field() sets the content of the body of the transaction
+    esp_http_client_set_post_field(_handle, patch_data, patch_datalen);
+
+    return _perform();
+}
+
 int fnHttpClient::PROPFIND(webdav_depth depth, const char *properties_xml)
 {
 #ifdef VERBOSE_HTTP

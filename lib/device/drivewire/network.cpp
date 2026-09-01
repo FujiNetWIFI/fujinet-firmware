@@ -140,8 +140,10 @@ void drivewireNetwork::close()
         return;
     }
 
-    // Ask the protocol to close
-    protocol->close();
+    // Ask the protocol to close. Latch its error so the STATUS that follows a
+    // failed commit-on-close (e.g. a calendar compose) can still report it.
+    if (protocol->close() != FUJI_ERROR::NONE)
+        _errorCode = protocol->error;
 
 #ifdef ESP_PLATFORM
     Debug_printv("Before protocol delete %lu\n",esp_get_free_internal_heap_size());

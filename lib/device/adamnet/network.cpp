@@ -163,8 +163,10 @@ void adamNetwork::close()
         return;
     }
 
-    // Ask the protocol to close
-    protocol->close();
+    // Ask the protocol to close. Latch its error so the STATUS that follows a
+    // failed commit-on-close (e.g. a calendar compose) can still report it.
+    if (protocol->close() != FUJI_ERROR::NONE)
+        err_open = protocol->error;
 
     // Delete the protocol object
     protocol.reset();

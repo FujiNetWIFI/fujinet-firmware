@@ -74,6 +74,7 @@ public:
     int HEAD();
     int POST(const char *post_data, int post_datalen);
     int PUT(const char *put_data, int put_datalen);
+    int PATCH(const char *patch_data, int patch_datalen);
     int PROPFIND(webdav_depth depth, const char *properties_xml);
     int DELETE();
     int MKCOL();
