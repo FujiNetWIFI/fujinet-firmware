@@ -38,6 +38,24 @@ target_include_directories(calendar_tests PRIVATE
 add_test(NAME calendar_tests COMMAND calendar_tests)
 
 # ------------------------------------------------------------------------------
+# Mail draft parsing and RFC822 assembly (compose / reply). mail_draft depends
+# only on the standard library, so the EOL and threading edge cases are pinned
+# here rather than on hardware.
+# ------------------------------------------------------------------------------
+add_executable(mail_tests
+    MailDraftTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/mail_draft.cpp
+)
+
+target_include_directories(mail_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+
+add_test(NAME mail_tests COMMAND mail_tests)
+
+# ------------------------------------------------------------------------------
 # Policy check: no platform-specific BUILD_* ifdefs in the shared device bases.
 # Customization there must go through a subclass override, never a #ifdef.
 # This is a script, not a compiled test, so it's wired in directly via
