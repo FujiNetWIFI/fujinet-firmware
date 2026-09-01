@@ -17,8 +17,20 @@
  *   /FOLDER/N         mode 4 (READ)  -> message body (primary text part)
  *   /FOLDER/N         mode 6 (DIR)   -> attachment index (human or raw)
  *   /FOLDER/N/A       mode 4 (READ)  -> attachment data (A=0 -> primary body)
+ *   /                 mode 8 (WRITE) -> compose a new message
+ *   /FOLDER/N         mode 8 (WRITE) -> reply to message N (target resolved at open)
  *
  * N is the message's sequence position within the folder.
+ *
+ * Write model: the host writes a message RFC822-style -- TO/CC/BCC/SUBJECT
+ * header lines (case-insensitive keys; TO/CC/BCC append on repeat, SUBJECT is
+ * last-wins; an unknown key or a colon-less header line is an error), then the
+ * first blank line ends the headers and everything after it is body, verbatim.
+ * Lines end with any mix of 0x9B/CR/LF/CRLF. CLOSE commits the send; closing
+ * without writing aborts, and re-opening the unit without a close discards the
+ * draft. A reply defaults TO (target's Reply-To, else From) and SUBJECT
+ * ("Re: ...", never doubled) when the host omits them. Providers that cannot
+ * send leave can_write() false and a WRITE open fails READ_ONLY.
  *
  * Query params on a folder index: range=START-END (absolute, inclusive,
  * 0-based; default first 20) and newest=1 (default, descending; 0 ascending).
@@ -34,6 +46,7 @@
 #define NETWORKPROTOCOL_MAILBOX
 
 #include "Protocol.h"
+#include "mail_draft.h"
 
 #include <cstdint>
 #include <string>
@@ -94,7 +107,9 @@ public:
     fujiError_t open(PeoplesUrlParser *urlParser, fileAccessMode_t access,
                      netProtoTranslation_t translate) override;
     fujiError_t read(unsigned short len) override;
+    fujiError_t write(unsigned short len) override;
     fujiError_t status(NetworkStatus *status) override;
+    fujiError_t close() override;
     size_t      available() override;
 
     // Default human-readable line width, used when the width parameter (aux2
@@ -129,6 +144,16 @@ protected:
     // Map the last provider error into `error` (nDevStatus_t).
     virtual void mailbox_error_to_error() = 0;
 
+    // Whether this provider can send mail. Gates WRITE opens. (IMAPS: cannot.)
+    virtual bool can_write() const { return false; }
+
+    // Snapshot the reply target for /FOLDER/N at open. Default: read-only.
+    virtual fujiError_t reply_target(const std::string &folder, uint32_t seq,
+                                     MailReplyTarget &out);
+
+    // Send a finalized draft. reply == nullptr for compose. Default: read-only.
+    virtual fujiError_t message_send(const MailDraft &d, const MailReplyTarget *reply);
+
     // ---- parsed request state (populated by open) ----
     std::string _folder;
     uint32_t    _seq = 0;
@@ -152,6 +177,16 @@ private:
     void format_attachment_index_raw(const std::vector<MailboxAttachmentEntry> &items);
 
     static std::vector<std::string> split_path(const std::string &path);
+
+    // ---- write channel (compose / reply) ----
+    bool _writeMode = false;
+    bool _isReply = false;      // reply target resolved at open
+    bool _committed = false;    // commit runs once even if close() re-enters
+    bool _writeFailed = false;  // an overflowed write must not commit truncated data
+    MailReplyTarget _replyTarget;
+    std::string _writeBuf;
+
+    fujiError_t commit_write();
 };
 
 #endif /* NETWORKPROTOCOL_MAILBOX */

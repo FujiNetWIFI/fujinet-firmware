@@ -15,10 +15,18 @@
  * URL format:  GMAIL:///FOLDER            (message count / index)
  *              GMAIL:///FOLDER/N          (message body / attachment index)
  *              GMAIL:///FOLDER/N/A        (attachment data; A=0 -> body)
+ *              GMAIL:///                  (mode 8: compose; see Mailbox.h)
+ *              GMAIL:///FOLDER/N          (mode 8: reply to message N)
  *
  * Authentication reuses the existing Google Drive OAuth grant stored in
- * fnConfig [GoogleDrive]; the grant's scope must include gmail.readonly.
+ * fnConfig [GoogleDrive]; the grant's scope must include gmail.readonly, plus
+ * gmail.send to compose or reply. A grant issued before a scope was added
+ * never gains it -- re-authorize Google in the web UI.
  * Tokens are refreshed automatically via the relay, exactly like GDRIVE.
+ *
+ * A reply threads via the target's threadId and Message-ID; note Gmail only
+ * groups it visually when the subject still matches, so a host-overridden
+ * SUBJECT may appear outside the conversation.
  *
  * A folder maps to a Gmail label (case-insensitive, e.g. "Inbox" -> INBOX).
  * The message sequence number N is the message's position within the folder:
@@ -44,6 +52,11 @@ protected:
     fujiError_t attachment_data(const std::string &folder, uint32_t seq, uint8_t attach,
                                 std::string &out) override;
     void mailbox_error_to_error() override;
+
+    bool can_write() const override { return true; }
+    fujiError_t reply_target(const std::string &folder, uint32_t seq,
+                             MailReplyTarget &out) override;
+    fujiError_t message_send(const MailDraft &d, const MailReplyTarget *reply) override;
 
 private:
     std::string _access_token;

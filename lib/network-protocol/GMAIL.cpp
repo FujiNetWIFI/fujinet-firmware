@@ -25,7 +25,8 @@
 #include "status_error_codes.h"
 
 // Token refresh goes through the same relay as Google Drive; the shared grant
-// must carry the gmail.readonly scope for the returned token to reach Gmail.
+// must carry the gmail.readonly scope for the returned token to reach Gmail,
+// and gmail.send for compose/reply.
 #define GMAIL_RELAY_REFRESH_URL "https://auth.fujinet.online/gdrive-refresh"
 
 // ─── file-local helpers ───────────────────────────────────────────────────────
@@ -231,12 +232,6 @@ std::string NetworkProtocolGMAIL::api_post(const std::string &url, const std::st
     esp_http_client_fetch_headers(h);
 
     _last_http = esp_http_client_get_status_code(h);
-    if (_last_http < 200 || _last_http >= 300)
-    {
-        esp_http_client_close(h);
-        esp_http_client_cleanup(h);
-        return "";
-    }
 
     std::string resp;
     char buf[512];
@@ -246,6 +241,13 @@ std::string NetworkProtocolGMAIL::api_post(const std::string &url, const std::st
 
     esp_http_client_close(h);
     esp_http_client_cleanup(h);
+
+    // A 2xx body can be empty, so callers judge success by _last_http.
+    if (_last_http < 200 || _last_http >= 300)
+    {
+        Debug_printf("GMAIL api_post: HTTP %d for %s: %s\r\n", _last_http, url.c_str(), resp.c_str());
+        return "";
+    }
     return resp;
 }
 
@@ -280,13 +282,17 @@ std::string NetworkProtocolGMAIL::api_post(const std::string &url, const std::st
         http.set_header("Authorization", ("Bearer " + _access_token).c_str());
     http.set_header("Content-Type", content_type.c_str());
     _last_http = http.POST(body.c_str(), (int)body.size());
-    if (_last_http < 200 || _last_http >= 300)
-        return "";
     std::string resp;
     uint8_t buf[512];
     int n;
     while ((n = http.read(buf, sizeof(buf))) > 0)
         resp.append((char *)buf, n);
+    // A 2xx body can be empty, so callers judge success by _last_http.
+    if (_last_http < 200 || _last_http >= 300)
+    {
+        Debug_printf("GMAIL api_post: HTTP %d for %s: %s\r\n", _last_http, url.c_str(), resp.c_str());
+        return "";
+    }
     return resp;
 }
 
@@ -667,6 +673,80 @@ fujiError_t NetworkProtocolGMAIL::attachment_data(const std::string &folder, uin
     std::string d = json_str(aj, "data");
     cJSON_Delete(aj);
     out = decode_b64url(d);
+    return FUJI_ERROR::NONE;
+}
+
+// ─── write channel (compose / reply) ──────────────────────────────────────────
+
+fujiError_t NetworkProtocolGMAIL::reply_target(const std::string &folder, uint32_t seq,
+                                               MailReplyTarget &out)
+{
+    bool ok = false;
+    std::string id = message_id_for_seq(folder, seq, ok);
+    if (!ok)
+    {
+        _last_http = 404;
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+
+    std::string resp = api_get(std::string(GMAIL_BASE) + "/messages/" + id +
+                               "?format=metadata&metadataHeaders=Subject&metadataHeaders=From"
+                               "&metadataHeaders=Reply-To&metadataHeaders=Message-ID"
+                               "&metadataHeaders=References");
+    if (resp.empty())
+        return FUJI_ERROR::UNSPECIFIED;
+
+    cJSON *j = cJSON_Parse(resp.c_str());
+    if (!j)
+        return FUJI_ERROR::UNSPECIFIED;
+
+    out.threadId = json_str(j, "threadId");
+
+    cJSON *payload = cJSON_GetObjectItemCaseSensitive(j, "payload");
+    cJSON *headers = payload ? cJSON_GetObjectItemCaseSensitive(payload, "headers") : nullptr;
+    if (cJSON_IsArray(headers))
+    {
+        cJSON *h = nullptr;
+        cJSON_ArrayForEach(h, headers)
+        {
+            std::string hn = json_str(h, "name"); // ci_equal: Gmail also emits "Message-Id"
+            if (ci_equal(hn, "Subject")) out.subject = json_str(h, "value");
+            else if (ci_equal(hn, "From")) out.from = json_str(h, "value");
+            else if (ci_equal(hn, "Reply-To")) out.replyTo = json_str(h, "value");
+            else if (ci_equal(hn, "Message-ID")) out.messageId = json_str(h, "value");
+            else if (ci_equal(hn, "References")) out.references = json_str(h, "value");
+        }
+    }
+    cJSON_Delete(j);
+    return FUJI_ERROR::NONE;
+}
+
+fujiError_t NetworkProtocolGMAIL::message_send(const MailDraft &d, const MailReplyTarget *reply)
+{
+    std::string raw = mail_draft_rfc822(d, reply);
+
+    // messages.send wants unpadded, unwrapped base64url in "raw"; the plain
+    // encoder line-wraps at 72 chars and would corrupt the payload.
+    size_t b64len = 0;
+    auto b64 = Base64::url_encode(raw.data(), raw.size(), &b64len);
+    if (!b64)
+    {
+        _last_http = 0;
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+
+    cJSON *j = cJSON_CreateObject();
+    cJSON_AddStringToObject(j, "raw", std::string(b64.get(), b64len).c_str());
+    if (reply && !reply->threadId.empty())
+        cJSON_AddStringToObject(j, "threadId", reply->threadId.c_str());
+    char *printed = cJSON_PrintUnformatted(j);
+    std::string body = printed ? printed : "";
+    cJSON_free(printed);
+    cJSON_Delete(j);
+
+    api_post(std::string(GMAIL_BASE) + "/messages/send", body, "application/json");
+    if (_last_http < 200 || _last_http >= 300)
+        return FUJI_ERROR::UNSPECIFIED;
     return FUJI_ERROR::NONE;
 }
 

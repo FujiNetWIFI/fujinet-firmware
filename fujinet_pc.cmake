@@ -275,6 +275,7 @@ set(SOURCES src/main.cpp
     lib/network-protocol/ONEDRIVE.h lib/network-protocol/ONEDRIVE.cpp
     lib/network-protocol/text_format.h
     lib/network-protocol/Mailbox.h lib/network-protocol/Mailbox.cpp
+    lib/network-protocol/mail_draft.h lib/network-protocol/mail_draft.cpp
     lib/network-protocol/GMAIL.h lib/network-protocol/GMAIL.cpp
     lib/network-protocol/Calendar.h lib/network-protocol/Calendar.cpp
     lib/network-protocol/calendar_draft.h lib/network-protocol/calendar_draft.cpp
