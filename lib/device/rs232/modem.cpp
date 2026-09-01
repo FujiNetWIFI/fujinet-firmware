@@ -1578,7 +1578,7 @@ void rs232Modem::tx(ByteBuffer data)
 
 void rs232Modem::rx(const void *buffer, size_t length)
 {
-    SYSTEM_BUS.sendReplyPacket(_devnum, true, buffer, length);
+    SYSTEM_BUS.sendReplyPacket(id(), true, buffer, length);
 }
 
 void rs232Modem::rx(ByteBuffer data)

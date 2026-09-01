@@ -34,6 +34,11 @@ uint8_t sio_checksum(uint8_t *buf, unsigned short len)
     return chk;
 }
 
+fujiDeviceID_t virtualDevice::id()
+{
+    return SYSTEM_BUS.fujiIDForDevice(this);
+}
+
 // SIO NAK
 void systemBus::_sio_nak()
 {
@@ -255,7 +260,7 @@ void systemBus::_sio_process_cmd()
 #endif
         if (tmpFrame.device() == FUJI_DEVICEID::DISK && _fujiDev != nullptr && _fujiDev->boot_config)
         {
-            _activeDev = &_fujiDev->bootdisk;
+            _activeDev = _fujiDev->FUJI_BOOTDISK;
 
             // Boot-priority logic: if enabled, ignore the first few
             // SIO status calls (of the 26 Atari sends) so a real D1:
@@ -284,7 +289,7 @@ void systemBus::_sio_process_cmd()
                 {
                     if (devicep->listen_to_type3_polls)
                     {
-                        Debug_printf("Sending TYPE3 poll to dev %x\n", devicep->_devnum);
+                        Debug_printf("Sending TYPE3 poll to dev %x\n", devicep->id());
                         _activeDev = devicep;
                         // handle command
                         _activeDev->sio_process(tmpFrame);
@@ -295,15 +300,9 @@ void systemBus::_sio_process_cmd()
             {
                 // find device, ack and pass control
                 // or go back to WAIT
-                for (auto devicep : _daisyChain)
-                {
-                    if (tmpFrame.device() == devicep->_devnum)
-                    {
-                        _activeDev = devicep;
-                        // handle command
-                        _activeDev->sio_process(tmpFrame);
-                    }
-                }
+                _activeDev = _daisyChain.deviceWithFujiID(tmpFrame.device());
+                if (_activeDev)
+                    _activeDev->sio_process(tmpFrame);
             }
         }
     } // valid checksum
@@ -577,49 +576,10 @@ void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
     }
     else if (device_id == FUJI_DEVICEID::PRINTER)
     {
-        _printerdev = (sioPrinter *)pDevice;
+        _printerDev = (sioPrinter *)pDevice;
     }
 
-    pDevice->_devnum = device_id;
-
-    _daisyChain.push_front(pDevice);
-}
-
-// Removes device from the SIO bus.
-// Note that the destructor is called on the device!
-void systemBus::remDevice(virtualDevice *p)
-{
-    _daisyChain.remove(p);
-}
-
-// Should avoid using this as it requires counting through the list
-int systemBus::numDevices()
-{
-    int i = 0;
-    __BEGIN_IGNORE_UNUSEDVARS
-    for (auto devicep : _daisyChain)
-        i++;
-    return i;
-    __END_IGNORE_UNUSEDVARS
-}
-
-void systemBus::changeDeviceId(virtualDevice *p, int device_id)
-{
-    for (auto devicep : _daisyChain)
-    {
-        if (devicep == p)
-            devicep->_devnum = (fujiDeviceID_t) device_id;
-    }
-}
-
-virtualDevice *systemBus::deviceById(fujiDeviceID_t device_id)
-{
-    for (auto devicep : _daisyChain)
-    {
-        if (devicep->_devnum == device_id)
-            return devicep;
-    }
-    return nullptr;
+    SystemBusBase::addDevice(pDevice, device_id);
 }
 
 // Give devices an opportunity to clean up before a reboot

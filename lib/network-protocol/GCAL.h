@@ -33,8 +33,19 @@
  * calendars marked "selected" in the Google UI, each event carrying its
  * calendar's name as its category.
  *
+ * Write support (see Calendar.h for the field-line format): a WRITE open of
+ * GCAL://<selector>/ composes a new event, POSTed on close into the one
+ * calendar the selector names (empty selector -> "primary"; the merge
+ * selectors "" -with-a-view and [star] are not compose targets). A WRITE open
+ * of an event's /<VIEW>/<DATE>/<N> address PATCHes only the written fields.
+ * Because the index expands recurrences, editing such an event modifies that
+ * occurrence only. A written CATEGORY lands in
+ * extendedProperties.private.categories, where the read side looks first.
+ *
  * Authentication reuses the existing Google Drive OAuth grant stored in
- * fnConfig [GoogleDrive]; the grant's scope must include calendar.readonly.
+ * fnConfig [GoogleDrive]; the grant's scope must include calendar.readonly,
+ * plus calendar.events to compose or edit. A grant issued before a scope was
+ * added never gains it - re-authorize Google in the web UI.
  * Tokens are refreshed automatically via the relay, exactly like GDRIVE/GMAIL.
  *
  * Recurrences are expanded by Google (singleEvents=true), so no client-side
@@ -60,6 +71,10 @@ protected:
                              std::string &description) override;
     void calendar_error_to_error() override;
 
+    bool can_write() const override { return true; }
+    fujiError_t event_create(const std::string &selector, const CalendarEventDraft &d) override;
+    fujiError_t event_update(const CalendarEventEntry &ev, const CalendarEventDraft &d) override;
+
 private:
     std::string _access_token;
     int  _last_http = 0;
@@ -73,8 +88,18 @@ private:
     std::string api_get(const std::string &url);
     std::string api_post(const std::string &url, const std::string &body,
                          const std::string &content_type);
+    // POST or PATCH a body. Returns "" on any non-2xx; because a 2xx body can
+    // also be empty, callers must judge success by _last_http.
+    std::string api_send(bool patch, const std::string &url, const std::string &body,
+                         const std::string &content_type);
+    // Detect a 401/403 body that reads like a missing scope or disabled API.
+    void sniff_auth_body(const std::string &body);
+    // Event resource for a finalized draft; forPatch nulls the unused start/end
+    // member so a PATCH can switch between date and dateTime representations.
+    std::string build_event_json(const CalendarEventDraft &d, bool forPatch);
     static std::string url_encode(const std::string &s);
     static std::string json_str(cJSON *obj, const char *key);
+    static std::string civil_date_str(int64_t dayNum);
 
     // ---- Calendar helpers ----
     // Fetch the account's calendar list. `selectedOnly` keeps just the ones the

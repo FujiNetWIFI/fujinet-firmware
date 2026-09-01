@@ -163,8 +163,10 @@ void adamNetwork::close()
         return;
     }
 
-    // Ask the protocol to close
-    protocol->close();
+    // Ask the protocol to close. Latch its error so the STATUS that follows a
+    // failed commit-on-close (e.g. a calendar compose) can still report it.
+    if (protocol->close() != FUJI_ERROR::NONE)
+        err_open = protocol->error;
 
     // Delete the protocol object
     protocol.reset();
@@ -746,7 +748,7 @@ void adamNetwork::process_tcp(const FujiAdamPacket &packet)
 
         {
             cmd_err = tcp->accept_connection();
-            Debug_printf("ACCEPT %x CHANMODE %d ERR: %d\n", _devnum, channelMode, cmd_err);
+            Debug_printf("ACCEPT %x CHANMODE %d ERR: %d\n", id(), channelMode, cmd_err);
 
             // Because we're not handling Adam bus very well, sometimes it
             // retries and we've already accepted which will return an

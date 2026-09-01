@@ -97,6 +97,8 @@ public:
         return val;
     }
 
+    void rotateDevices(const std::vector<iecDrive *> &devices, int amount) {}
+
  private:
     /**
      * @brief is device shutting down?

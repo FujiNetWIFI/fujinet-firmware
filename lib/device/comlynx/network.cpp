@@ -760,7 +760,7 @@ void lynxNetwork::process_tcp(const FujiLynxPacket &packet)
             if (!status.connected)
             {
                 cmd_err = tcp->accept_connection();
-                Debug_printf("ACCEPT %x CHANMODE %d ERR: %d\n", _devnum, channelMode, (int)cmd_err);
+                Debug_printf("ACCEPT %x CHANMODE %d ERR: %d\n", id(), channelMode, (int)cmd_err);
             }
         }
         break;

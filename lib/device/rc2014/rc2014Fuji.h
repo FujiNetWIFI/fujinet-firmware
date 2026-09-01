@@ -6,11 +6,6 @@
 
 #include <cstdint>
 
-#include "mbedtls/sha1.h"
-#include "mbedtls/sha256.h"
-#include "mbedtls/sha512.h"
-#include "mbedtls/md5.h"
-
 #include "network.h"
 #include "disk.h"
 
@@ -26,11 +21,6 @@ private:
     uint16_t response_len;
 
     uint8_t bootMode = 0;
-
-    mbedtls_md5_context _md5;
-    mbedtls_sha1_context _sha1;
-    mbedtls_sha256_context _sha256;
-    mbedtls_sha512_context _sha512;
 
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
 

@@ -1,5 +1,5 @@
 /**
- * Base interface for Protocol adapters that read calendars.
+ * Base interface for Protocol adapters that read and write calendars.
  *
  * A sibling of NetworkProtocolFS and NetworkProtocolMailbox: it abstracts
  * reading a day, week, month or agenda view of a calendar and emits
@@ -19,6 +19,8 @@
  *   /<sel>/<VIEW>[/<DATE>]     mode 6 (DIR)   -> event index for the period
  *   /<sel>/<VIEW>[/<DATE>]     mode 4 (READ)  -> event count for the period
  *   /<sel>/<VIEW>/<DATE>/<N>   mode 4 (READ)  -> detail of event N
+ *   /<sel>                     mode 8 (WRITE) -> compose a new event
+ *   /<sel>/<VIEW>/<DATE>/<N>   mode 8 (WRITE) -> edit event N of the period
  *
  * VIEW is DAY, WEEK, MONTH or AGENDA. DATE is YYYY-MM-DD (or YYYY-MM for
  * MONTH); omitting it means today. N is the event's 1-based position in the
@@ -43,12 +45,31 @@
  * default width. Unlike Mailbox, which streams a message body through the aux2
  * EOL translation, every byte here is composed by this class with `lineEnding`
  * already applied - translating on top of that would double-apply the EOL.
+ *
+ * Write model: the host writes text field lines - "SUMMARY: Lunch",
+ * "START: 2026-09-01 12:00", END, LOCATION, DESCRIPTION (repeatable),
+ * CATEGORY - and CLOSE commits through the event_create / event_update hooks.
+ * Keys are case-insensitive; lines may end with 0x9B, CR, LF or CRLF; parsing
+ * and validation live in calendar_draft.{h,cpp}. A date-only START makes an
+ * all-day event; a missing END defaults to one hour (timed) or one day
+ * (all-day); an all-day END names the last covered day, inclusive. An edit
+ * changes only the fields written; START alone moves the event, preserving
+ * its duration. Providers that cannot write (ICAL) leave can_write() false
+ * and a WRITE open fails with READ_ONLY.
+ *
+ * Write caveats: a calendar literally NAMED day/week/month/agenda cannot be
+ * compose-targeted by name (the view scan claims the segment) - use its id.
+ * Indexes expand recurring events, so editing N edits that occurrence only.
+ * A raw-struct write form (aux2=255) is not implemented; it would decode into
+ * the same CalendarEventDraft ahead of the same hooks.
  */
 
 #ifndef NETWORKPROTOCOL_CALENDAR
 #define NETWORKPROTOCOL_CALENDAR
 
 #include "Protocol.h"
+
+#include "calendar_draft.h"
 
 #include "../utils/fn_time.h"
 
@@ -130,6 +151,8 @@ public:
     fujiError_t open(PeoplesUrlParser *urlParser, fileAccessMode_t access,
                      netProtoTranslation_t translate) override;
     fujiError_t read(unsigned short len) override;
+    fujiError_t write(unsigned short len) override;
+    fujiError_t close() override;
     fujiError_t status(NetworkStatus *status) override;
     size_t      available() override;
 
@@ -160,6 +183,16 @@ protected:
 
     // Map the last provider error into `error` (nDevStatus_t).
     virtual void calendar_error_to_error() = 0;
+
+    // Whether this provider can create and modify events. Gates WRITE opens.
+    virtual bool can_write() const { return false; }
+
+    // Create a new event in the calendar named by `selector`. The draft is
+    // validated and its times finalized. Default: calendars are read-only.
+    virtual fujiError_t event_create(const std::string &selector, const CalendarEventDraft &d);
+
+    // Apply the draft's fields to the existing event `ev`. Default: read-only.
+    virtual fujiError_t event_update(const CalendarEventEntry &ev, const CalendarEventDraft &d);
 
     // ---- parsed request state (populated by open) ----
 
@@ -211,6 +244,18 @@ private:
     // Fetch + sort + number, with a small single-window cache so that a DIR
     // followed by a /N detail open does not re-query the provider.
     fujiError_t fetch_events(std::vector<CalendarEventEntry> &out);
+
+    // ---- write channel (compose / edit) ----
+
+    bool _writeMode = false;
+    bool _isEdit = false;      // edit target resolved at open
+    bool _committed = false;   // commit runs once even if close() re-enters
+    bool _writeFailed = false; // an overflowed write must not commit truncated data
+    CalendarEventEntry _editTarget;
+    std::string _writeBuf;
+
+    // Parse + validate the accumulated draft and dispatch to the provider hook.
+    fujiError_t commit_write();
 
     // Shared formatting.
     void format_index_human(const std::vector<CalendarEventEntry> &items, int width);

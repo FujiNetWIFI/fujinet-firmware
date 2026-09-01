@@ -140,8 +140,10 @@ void drivewireNetwork::close()
         return;
     }
 
-    // Ask the protocol to close
-    protocol->close();
+    // Ask the protocol to close. Latch its error so the STATUS that follows a
+    // failed commit-on-close (e.g. a calendar compose) can still report it.
+    if (protocol->close() != FUJI_ERROR::NONE)
+        _errorCode = protocol->error;
 
 #ifdef ESP_PLATFORM
     Debug_printv("Before protocol delete %lu\n",esp_get_free_internal_heap_size());
@@ -482,6 +484,7 @@ void drivewireNetwork::get_prefix()
     Debug_printf("drivewireNetwork::get_prefix(%s)\n",prefix.c_str());
     memset(out,0,sizeof(out));
     strcpy(out,prefix.c_str());
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     SYSTEM_BUS.transaction_send(out, sizeof(out));
 }
 

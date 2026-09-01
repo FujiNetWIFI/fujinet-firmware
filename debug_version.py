@@ -113,6 +113,7 @@ def main():
       ver_patch = macros['FN_VERSION_PATCH'] = parsed_patch
 
   if modified and not args.set_version:
+    version = version[:13]
     version += "*"
   macros['FN_VERSION_FULL'] = version
   macros['FN_VERSION_DATE'] = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")

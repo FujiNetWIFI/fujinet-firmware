@@ -275,8 +275,10 @@ set(SOURCES src/main.cpp
     lib/network-protocol/ONEDRIVE.h lib/network-protocol/ONEDRIVE.cpp
     lib/network-protocol/text_format.h
     lib/network-protocol/Mailbox.h lib/network-protocol/Mailbox.cpp
+    lib/network-protocol/mail_draft.h lib/network-protocol/mail_draft.cpp
     lib/network-protocol/GMAIL.h lib/network-protocol/GMAIL.cpp
     lib/network-protocol/Calendar.h lib/network-protocol/Calendar.cpp
+    lib/network-protocol/calendar_draft.h lib/network-protocol/calendar_draft.cpp
     lib/network-protocol/GCAL.h lib/network-protocol/GCAL.cpp
     lib/network-protocol/ICAL.h lib/network-protocol/ICAL.cpp
     lib/network-protocol/IMAPS.h lib/network-protocol/IMAPS.cpp
@@ -302,6 +304,7 @@ set(SOURCES src/main.cpp
     lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
     lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
     lib/bus/bus.h lib/bus/bus.cpp
+    lib/bus/DaisyChain.h lib/bus/DaisyChain.cpp
     lib/device/device.h
     lib/device/disk.h
     lib/device/printer.h
@@ -373,6 +376,7 @@ if(FUJINET_TARGET STREQUAL "APPLE")
     lib/bus/iwm/connector.h
     lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
     lib/bus/iwm/FujiIWMPacket.h lib/bus/iwm/FujiIWMPacket.cpp
+    lib/bus/iwm/IWMBusIDMap.h lib/bus/iwm/IWMBusIDMap.cpp
 
     lib/devrelay/util.h lib/devrelay/util.cpp
     lib/devrelay/types/Request.h lib/devrelay/types/Request.cpp

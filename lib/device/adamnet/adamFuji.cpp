@@ -147,30 +147,6 @@ void adamFuji::adamnet_new_disk(const FujiAdamPacket &packet)
     SYSTEM_BUS.transaction_success();
 }
 
-// Mounts the desired boot disk number
-void adamFuji::insert_boot_device(uint8_t d)
-{
-    const char *config_atr = "/autorun.ddp";
-    const char *mount_all_atr = "/mount-and-boot.ddp";
-    fnFile *fBoot;
-
-    switch (d)
-    {
-    case 0:
-        fBoot = fsFlash.fnfile_open(config_atr);
-        _fnDisks[0].disk_dev.mount(fBoot, config_atr, 262144, DISK_ACCESS_MODE_READ, MEDIATYPE_DDP);
-        break;
-    case 1:
-
-        fBoot = fsFlash.fnfile_open(mount_all_atr);
-        _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 262144, DISK_ACCESS_MODE_READ, MEDIATYPE_DDP);
-        break;
-    }
-
-    _fnDisks[0].disk_dev.is_config_device = true;
-    _fnDisks[0].disk_dev.device_active = true;
-}
-
 void adamFuji::adamnet_enable_device(const FujiAdamPacket &packet)
 {
     fujiDeviceID_t d = static_cast<fujiDeviceID_t>(packet.param8(0));
@@ -202,7 +178,7 @@ void adamFuji::adamnet_enable_device(const FujiAdamPacket &packet)
 
     Config.save();
 
-    SYSTEM_BUS.enableDevice(d);
+    SYSTEM_BUS.setDeviceEnabled(d, true);
     SYSTEM_BUS.transaction_success();
 }
 
@@ -237,7 +213,7 @@ void adamFuji::adamnet_disable_device(const FujiAdamPacket &packet)
 
     Config.save();
 
-    SYSTEM_BUS.disableDevice(d);
+    SYSTEM_BUS.setDeviceEnabled(d, false);
     SYSTEM_BUS.transaction_success();
 }
 
@@ -302,12 +278,12 @@ void adamFuji::adamnet_get_time()
     Debug_println("FUJI GET TIME");
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    SYSTEM_BUS.transaction_send(fujiClock::get_current_time_simple(Config.get_general_timezone()));
+    SYSTEM_BUS.transaction_send(fujiClock::fujicore_time_simple(Config.get_general_timezone()));
 }
 
 void adamFuji::adamnet_device_enable_status(const FujiAdamPacket &packet)
 {
-    uint8_t d = packet.param(0);
+    fujiDeviceID_t d = (fujiDeviceID_t) packet.param8(0);
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
