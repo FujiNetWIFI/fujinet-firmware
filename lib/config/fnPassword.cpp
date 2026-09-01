@@ -5,13 +5,11 @@
 #include <cstring>
 #include <ctime>
 
-#include <mbedtls/sha256.h>
-#include <mbedtls/version.h>
-
 #include "../../include/debug.h"
 #include "../../include/version.h"
 #include "base64.h"
 #include "fnFsSD.h"
+#include "hash.h"
 
 #ifdef ESP_PLATFORM
 #include <esp_app_desc.h>
@@ -20,12 +18,6 @@
 #else
 #include <random>
 #include "fsFlash.h"
-#endif
-
-#if MBEDTLS_VERSION_NUMBER >= 0x03000000 || MBEDTLS_VERSION_NUMBER < 0x02070000
-#define COMPAT_MBEDTLS_SHA256 mbedtls_sha256
-#else
-#define COMPAT_MBEDTLS_SHA256 mbedtls_sha256_ret
 #endif
 
 // Number of SHA-256 rounds used to derive the stored digest. High enough to
@@ -147,14 +139,14 @@ std::string FNPassword::derive(const std::string &salt_hex, const std::string &p
     uint8_t digest[32];
     std::string seed(reinterpret_cast<const char *>(salt), saltlen);
     seed += password;
-    COMPAT_MBEDTLS_SHA256(reinterpret_cast<const uint8_t *>(seed.data()), seed.size(), digest, 0);
+    Hash::compute(Hash::Algorithm::SHA256, seed.data(), seed.size(), digest, sizeof(digest));
 
     uint8_t block[PASSWORD_SALT_BYTES + sizeof(digest)];
     memcpy(block, salt, saltlen);
     for (int i = 1; i < PASSWORD_HASH_ROUNDS; i++)
     {
         memcpy(block + saltlen, digest, sizeof(digest));
-        COMPAT_MBEDTLS_SHA256(block, saltlen + sizeof(digest), digest, 0);
+        Hash::compute(Hash::Algorithm::SHA256, block, saltlen + sizeof(digest), digest, sizeof(digest));
     }
 
     return bytes_to_hex(digest, sizeof(digest));
@@ -350,7 +342,7 @@ std::string FNPassword::basic_fingerprint(const char *header_value)
     seed += header_value;
 
     uint8_t digest[32];
-    COMPAT_MBEDTLS_SHA256((const unsigned char *)seed.data(), seed.size(), digest, 0);
+    Hash::compute(Hash::Algorithm::SHA256, seed.data(), seed.size(), digest, sizeof(digest));
     return bytes_to_hex(digest, sizeof(digest));
 }
 

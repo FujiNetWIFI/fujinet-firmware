@@ -2,13 +2,18 @@
 
 #include <sstream>
 #include <iomanip>
+
+#include <mbedtls/version.h>
+
+// mbedtls 4.x moved the low-level hash API into TF-PSA-Crypto; only PSA remains public.
+#if MBEDTLS_VERSION_MAJOR >= 4
+#include <psa/crypto.h>
+#else
 #include <mbedtls/md.h>
 #include <mbedtls/md5.h>
 #include <mbedtls/sha1.h>
 #include <mbedtls/sha256.h>
 #include <mbedtls/sha512.h>
-
-#include "mbedtls/version.h"
 
 #if MBEDTLS_VERSION_NUMBER >= 0x03000000 || MBEDTLS_VERSION_NUMBER < 0x02070000
 #define COMPAT_MBEDTLS_MD5 mbedtls_md5
@@ -20,6 +25,33 @@
 #define COMPAT_MBEDTLS_SHA1 mbedtls_sha1_ret
 #define COMPAT_MBEDTLS_SHA256 mbedtls_sha256_ret
 #define COMPAT_MBEDTLS_SHA512 mbedtls_sha512_ret
+#endif
+#endif // MBEDTLS_VERSION_MAJOR >= 4
+
+#if MBEDTLS_VERSION_MAJOR >= 4
+static psa_algorithm_t to_psa_alg(Hash::Algorithm algorithm) {
+    switch (algorithm) {
+        case Hash::Algorithm::MD5:    return PSA_ALG_MD5;
+        case Hash::Algorithm::SHA1:   return PSA_ALG_SHA_1;
+        case Hash::Algorithm::SHA224: return PSA_ALG_SHA_224;
+        case Hash::Algorithm::SHA256: return PSA_ALG_SHA_256;
+        case Hash::Algorithm::SHA384: return PSA_ALG_SHA_384;
+        case Hash::Algorithm::SHA512: return PSA_ALG_SHA_512;
+        default:                      return PSA_ALG_NONE;
+    }
+}
+#else
+static mbedtls_md_type_t to_md_type(Hash::Algorithm algorithm) {
+    switch (algorithm) {
+        case Hash::Algorithm::MD5:    return MBEDTLS_MD_MD5;
+        case Hash::Algorithm::SHA1:   return MBEDTLS_MD_SHA1;
+        case Hash::Algorithm::SHA224: return MBEDTLS_MD_SHA224;
+        case Hash::Algorithm::SHA256: return MBEDTLS_MD_SHA256;
+        case Hash::Algorithm::SHA384: return MBEDTLS_MD_SHA384;
+        case Hash::Algorithm::SHA512: return MBEDTLS_MD_SHA512;
+        default:                      return MBEDTLS_MD_NONE;
+    }
+}
 #endif
 
 // TODO: Add support for other algorithms and hardware acceleration
@@ -79,7 +111,7 @@ void Hash::clear() {
     accumulated_data.shrink_to_fit();
 }
 
-size_t Hash::hash_length(Algorithm algorithm, bool is_hex) const {
+size_t Hash::hash_length(Algorithm algorithm, bool is_hex) {
     size_t length = 0;
     switch (algorithm) {
         case Algorithm::MD5:
@@ -144,72 +176,109 @@ std::string Hash::output_hex() const {
     return bytes_to_hex(hash_output);
 }
 
+int Hash::compute(Algorithm algorithm, const void *data, size_t len, uint8_t *output, size_t output_size) {
+    size_t needed = hash_length(algorithm, false);
+    if (needed == 0 || output_size < needed)
+        return -1;
+
+#if MBEDTLS_VERSION_MAJOR >= 4
+    size_t out_len = 0;
+    psa_crypto_init();
+    psa_status_t status = psa_hash_compute(to_psa_alg(algorithm), (const uint8_t *)data, len, output, output_size, &out_len);
+    return (status == PSA_SUCCESS && out_len == needed) ? 0 : -1;
+#else
+    const unsigned char *in = (const unsigned char *)data;
+    switch (algorithm) {
+        case Algorithm::MD5:
+            COMPAT_MBEDTLS_MD5(in, len, output);
+            break;
+        case Algorithm::SHA1:
+            COMPAT_MBEDTLS_SHA1(in, len, output);
+            break;
+        case Algorithm::SHA224:
+            COMPAT_MBEDTLS_SHA256(in, len, output, 1);
+            break;
+        case Algorithm::SHA256:
+            COMPAT_MBEDTLS_SHA256(in, len, output, 0);
+            break;
+        case Algorithm::SHA384:
+            COMPAT_MBEDTLS_SHA512(in, len, output, 1);
+            break;
+        case Algorithm::SHA512:
+            COMPAT_MBEDTLS_SHA512(in, len, output, 0);
+            break;
+        default:
+            return -1;
+    }
+    return 0;
+#endif
+}
+
 void Hash::compute_md5() {
-    //printf("md5\n");
     if (!key.empty()) {
-        compute_md(MBEDTLS_MD_MD5, 16);
+        compute_hmac(Algorithm::MD5, 16);
         return;
     }
 
     hash_output.resize(16);
-    COMPAT_MBEDTLS_MD5((const unsigned char *)accumulated_data.data(), accumulated_data.size(), hash_output.data());
+    compute(Algorithm::MD5, accumulated_data.data(), accumulated_data.size(), hash_output.data(), hash_output.size());
 }
 
 void Hash::compute_sha1() {
-    //printf("sha1\n");
     if (!key.empty()) {
-        compute_md(MBEDTLS_MD_SHA1, 20);
+        compute_hmac(Algorithm::SHA1, 20);
         return;
     }
 
     hash_output.resize(20);
-    COMPAT_MBEDTLS_SHA1((const unsigned char *)accumulated_data.data(), accumulated_data.size(), hash_output.data());
+    compute(Algorithm::SHA1, accumulated_data.data(), accumulated_data.size(), hash_output.data(), hash_output.size());
 }
 
 void Hash::compute_sha256(int is224) {
-    //printf("sha256\n");
+    Algorithm algorithm = is224 ? Algorithm::SHA224 : Algorithm::SHA256;
     if (!key.empty()) {
-        if (is224)
-            compute_md(MBEDTLS_MD_SHA224, 28);
-        else
-            compute_md(MBEDTLS_MD_SHA256, 32);
+        compute_hmac(algorithm, is224 ? 28 : 32);
         return;
     }
 
-    if (is224)
-        hash_output.resize(28);
-    else
-        hash_output.resize(32);
-    COMPAT_MBEDTLS_SHA256((const unsigned char *)accumulated_data.data(), accumulated_data.size(), hash_output.data(), is224);
+    hash_output.resize(is224 ? 28 : 32);
+    compute(algorithm, accumulated_data.data(), accumulated_data.size(), hash_output.data(), hash_output.size());
 }
 
 void Hash::compute_sha512(int is384) {
-    //printf("sha512\n");
+    Algorithm algorithm = is384 ? Algorithm::SHA384 : Algorithm::SHA512;
     if (!key.empty()) {
-        if (is384)
-            compute_md(MBEDTLS_MD_SHA384, 48);
-        else
-            compute_md(MBEDTLS_MD_SHA512, 64);
+        compute_hmac(algorithm, is384 ? 48 : 64);
         return;
     }
 
-    if (is384)
-        hash_output.resize(48);
-    else
-        hash_output.resize(64);
-    COMPAT_MBEDTLS_SHA512((const unsigned char *)accumulated_data.data(), accumulated_data.size(), hash_output.data(), is384);
+    hash_output.resize(is384 ? 48 : 64);
+    compute(algorithm, accumulated_data.data(), accumulated_data.size(), hash_output.data(), hash_output.size());
 }
 
-void Hash::compute_md(mbedtls_md_type_t md_type, uint8_t size) {
-    //printf("hmac\n");
-
+void Hash::compute_hmac(Algorithm algorithm, uint8_t size) {
     hash_output.resize(size);
+#if MBEDTLS_VERSION_MAJOR >= 4
+    psa_crypto_init();
+    psa_algorithm_t alg = PSA_ALG_HMAC(to_psa_alg(algorithm));
+    psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
+    psa_set_key_type(&attributes, PSA_KEY_TYPE_HMAC);
+    psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_SIGN_MESSAGE);
+    psa_set_key_algorithm(&attributes, alg);
+    psa_key_id_t key_id = 0;
+    if (psa_import_key(&attributes, (const uint8_t *)key.data(), key.size(), &key_id) != PSA_SUCCESS)
+        return;
+    size_t out_len = 0;
+    psa_mac_compute(key_id, alg, accumulated_data.data(), accumulated_data.size(), hash_output.data(), hash_output.size(), &out_len);
+    psa_destroy_key(key_id);
+#else
     mbedtls_md_hmac(
-        mbedtls_md_info_from_type(md_type),
+        mbedtls_md_info_from_type(to_md_type(algorithm)),
         (const unsigned char *)key.data(), key.size(),
         (const unsigned char *)accumulated_data.data(), accumulated_data.size(),
         hash_output.data()
     );
+#endif
 }
 
 std::string Hash::bytes_to_hex(const std::vector<uint8_t>& bytes) const {
