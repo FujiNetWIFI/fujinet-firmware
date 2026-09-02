@@ -23,3 +23,9 @@ P1_LUM      equ 080h    ; P17 1 = VDC luminance to the video mixer
 ; VDC selected: P13 low, everything else parked. Copy mode MUST stay low or the
 ; cartridge write strobe is disabled.
 P1_SEL_VDC  equ P1_BANK0|P1_BANK1|P1_KBD|P1_XRAM|P1_NC|P1_LUM
+
+; Joysticks and keyboard: VDC and external RAM both OFF the bus (P13, P14 high)
+; and the scanner enabled (P12 low). Getting this wrong is not a quiet failure --
+; with the VDC still selected the bus read never reaches the joystick path at
+; all and returns 0, which is every direction pressed at once.
+P1_SEL_JOY  equ P1_BANK0|P1_BANK1|P1_VDC|P1_XRAM|P1_NC|P1_LUM

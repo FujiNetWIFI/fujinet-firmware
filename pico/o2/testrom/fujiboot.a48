@@ -138,7 +138,7 @@ ppput:
     djnz r2,ppl
     ret
 
-    include "fujilib.inc"
+    include "fujilib.inc"       ; self-pinned to $4D0
 
     org 0D02h
 msg_ok:    db "PRESS RESET",0
