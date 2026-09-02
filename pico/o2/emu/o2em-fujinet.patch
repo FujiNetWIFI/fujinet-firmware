@@ -1,5 +1,5 @@
 diff --git a/Makefile b/Makefile
-index 2314944..9381729 100644
+index 2314944..7a466f0 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -11,11 +11,11 @@ ARCH=`uname -i`
@@ -7,22 +7,25 @@ index 2314944..9381729 100644
  
  clean:
 -	rm -f audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o dis48.o
-+	rm -f audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o fujinet.o fujibus.o dis48.o
++	rm -f audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o fujinet.o fujibus.o o2map.o dis48.o
  
  
 -o2em:	audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o
 -	$(CC) $(LFLAGS) audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o -o o2em $(LIBS)
-+o2em:	audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o fujinet.o fujibus.o
-+	$(CC) $(LFLAGS) audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o fujinet.o fujibus.o -o o2em $(LIBS)
++o2em:	audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o fujinet.o fujibus.o o2map.o
++	$(CC) $(LFLAGS) audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o fujinet.o fujibus.o o2map.o -o o2em $(LIBS)
  
  dis48:	dis48.o table.o
  	$(CC) $(LFLAGS) dis48.o table.o -o dis48
-@@ -66,6 +66,12 @@ vpp_cset.o: vpp_cset.c vpp_cset.h
+@@ -66,6 +66,15 @@ vpp_cset.o: vpp_cset.c vpp_cset.h
  vpp.o: vpp.c vpp.h types.h vpp_cset.h vmachine.h vdc.h
  	$(CC) $(CFLAGS) -c vpp.c -o vpp.o
  
-+fujinet.o:	fujinet.c fujinet.h fujibus.h fuji_mailbox.h types.h vmachine.h
++fujinet.o:	fujinet.c fujinet.h fujibus.h fuji_mailbox.h o2map.h types.h vmachine.h
 +	$(CC) $(CFLAGS) -c fujinet.c -o fujinet.o
++
++o2map.o:	o2map.c o2map.h fuji_mailbox.h
++	$(CC) $(CFLAGS) -c o2map.c -o o2map.o
 +
 +fujibus.o:	fujibus.c fujibus.h
 +	$(CC) $(CFLAGS) -c fujibus.c -o fujibus.o
@@ -32,10 +35,10 @@ index 2314944..9381729 100644
  
 diff --git a/fujinet.c b/fujinet.c
 new file mode 100644
-index 0000000..03fd3dc
+index 0000000..b4c6ad9
 --- /dev/null
 +++ b/fujinet.c
-@@ -0,0 +1,490 @@
+@@ -0,0 +1,476 @@
 +/* fujinet.c -- o2em model of the FujiNet RP2040 cartridge.
 + *
 + * Stands in for the cart firmware so the 8048 client can be developed and
@@ -70,6 +73,7 @@ index 0000000..03fd3dc
 +#include "fujinet.h"
 +#include "fujibus.h"
 +#include "fuji_mailbox.h"
++#include "o2map.h"
 +
 +#define FUJI_DEVICEID_DBC 0xFF
 +
@@ -267,44 +271,29 @@ index 0000000..03fd3dc
 +    fprintf(stderr, "fujinet: bootdump %s (%u bytes)\n", path, stage_len);
 +}
 +
-+/* Lay a raw cart image into the 8 ROM banks the way o2em's own load_cart does:
-+ * every bank is 4K with the console's internal BIOS occupying the low 1K, so a
-+ * cart's bytes start at offset 1024. A 2K bank leaves A10 unconnected, hence
-+ * the $C00-$FFF mirror of $800-$BFF.
-+ *
-+ * Banks are stored in REVERSE file order -- load_cart() reads them with
-+ * `for (i = nb-1; i >= 0; i--)`. That is not an o2em quirk: bank select is
-+ * `rom_table[~p1 & 3]`, so P10/P11 high at reset selects bank 0, which has to
-+ * be the boot bank, and the boot bank is the LAST chunk of the file. Getting
-+ * this backwards boots a cart into the middle of its own data. */
++/* Install a committed image. The layout decision lives in o2map.c, which the
++ * cartridge firmware uses too -- so this model and the real cart cannot drift
++ * on bank ordering or the A10 mirror, the two things most likely to be got
++ * wrong and least likely to look like a mapping bug when they are. */
 +static void install_image(const Byte *img, unsigned len)
 +{
-+    unsigned nb, i, per;
++    o2map_plan_t plan;
++    o2map_err_t err = o2map_plan(len, &plan);
 +
-+    if (len % 3072 == 0) {
-+        per = 3072;
-+        nb = len / 3072;
-+    } else {
-+        per = 2048;
-+        nb = len / 2048;
-+    }
-+    if (nb == 0 || nb > 8) {
-+        fprintf(stderr, "fujinet: %u bytes is not a cart image this model maps\n",
-+                len);
++    if (err != O2MAP_OK) {
++        fprintf(stderr, "fujinet: %u bytes: %s\n", len, o2map_strerror(err));
 +        return;
 +    }
-+    for (i = 0; i < 8; i++) {
-+        unsigned b = (i < nb) ? i : nb - 1;
-+        memcpy(&rom_table[i][1024], img + (nb - 1 - b) * per, per);
-+        if (per == 2048)
-+            memcpy(&rom_table[i][3072], &rom_table[i][2048], 1024);
-+    }
-+    /* The mailbox lives at $F20-$FFF of the program window, which a real game
-+     * uses for its own code. Same call the Intellivision cart makes: keep the
-+     * game, drop the mailbox for the session rather than refusing to boot. */
-+    mailbox_active = 0;
++    o2map_apply(img, &plan, rom_table);
++
++    /* The mailbox lives in the program window a real game needs for its own
++     * code. Same call the Intellivision cart makes: keep the game and drop the
++     * mailbox for the session rather than refusing to boot. */
++    mailbox_active = plan.mailbox_ok;
 +    fprintf(stderr, "fujinet: booted %u bytes as %u x %uK bank(s);"
-+                    " mailbox disabled for this session\n", len, nb, per / 1024);
++                    " mailbox %s for this session\n",
++            len, plan.nbanks, plan.bank_bytes / 1024,
++            plan.mailbox_ok ? "kept" : "disabled");
 +}
 +
 +/* Returns true if the frame was a push frame and has been consumed. */

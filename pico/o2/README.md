@@ -33,7 +33,9 @@ the table.
 
 | Path | What it is |
 |---|---|
+| `firmware/` | the RP2040 cartridge: mailbox map, FujiBus codec, image mapper, host tests |
 | `firmware/include/fuji_mailbox.h` | the mailbox address map — single source of truth for all three sides |
+| `firmware/src/o2map.c` | how a raw cart image maps into the program window; linked by the emulator too |
 | `testrom/fujitest.a48` | milestone-1 client: one mailbox round trip |
 | `testrom/fujiboot.a48` | milestone-2 client: mount a network image and boot it |
 | `testrom/fujicfg.a48` | milestone-3 client: the browser |
