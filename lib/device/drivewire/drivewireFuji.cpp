@@ -2,7 +2,7 @@
 
 #include "drivewireFuji.h"
 #include "fujiCommandID.h"
-#include "network.h"
+#include "drivewireNetwork.h"
 #include "fnWiFi.h"
 #include "utils.h"
 #include "compat_string.h"

@@ -1,7 +1,7 @@
 #ifdef BUILD_IEC
 
 #include "iecFuji.h"
-#include "network.h"
+#include "iecNetwork.h"
 #include "iecClock.h"
 #include "fsFlash.h"
 #include "fnSystem.h"

@@ -4,7 +4,7 @@
  * N: Firmware
  */
 
-#include "network.h"
+#include "rs232Network.h"
 #include "../network.h"
 #include "NetworkProtocolFactory.h"
 #include "fnSystem.h"

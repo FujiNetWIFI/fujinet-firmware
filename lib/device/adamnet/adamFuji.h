@@ -5,7 +5,7 @@
 
 #include <cstdint>
 
-#include "network.h"
+#include "adamNetwork.h"
 #include "disk.h"
 #include "serial.h"
 

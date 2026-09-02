@@ -11,43 +11,43 @@ typedef struct {
 static_assert(sizeof(NDeviceStatus) == 4, "NDeviceStatus must be 4 bytes");
 
 #ifdef BUILD_ATARI
-# include "sio/network.h"
+# include "sio/sioNetwork.h"
 #endif
 
 #ifdef BUILD_RS232
-# include "rs232/network.h"
+# include "rs232/rs232Network.h"
 #endif
 
 #ifdef BUILD_IEC
-# include "iec/network.h"
+# include "iec/iecNetwork.h"
 #endif
 
 #ifdef BUILD_ADAM
-# include "adamnet/network.h"
+# include "adamnet/adamNetwork.h"
 #endif
 
 #ifdef BUILD_LYNX
-# include "comlynx/network.h"
+# include "comlynx/lynxNetwork.h"
 #endif
 
 #ifdef BUILD_APPLE
-# include "iwm/network.h"
+# include "iwm/iwmNetwork.h"
 #endif
 
 #ifdef BUILD_S100
-# include "s100spi/network.h"
+# include "s100spi/s100spiNetwork.h"
 #endif
 
 #ifdef BUILD_RC2014
-# include "rc2014/network.h"
+# include "rc2014/rc2014Network.h"
 #endif
 
 #ifdef BUILD_H89
-# include "h89/network.h"
+# include "h89/H89Network.h"
 #endif
 
 #ifdef BUILD_COCO
-# include "drivewire/network.h"
+# include "drivewire/drivewireNetwork.h"
 #endif
 
 #ifdef NEW_TARGET

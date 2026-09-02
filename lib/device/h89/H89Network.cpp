@@ -4,7 +4,7 @@
  * N: Firmware
  */
 
-#include "network.h"
+#include "H89Network.h"
 
 #include <cstring>
 #include <algorithm>
