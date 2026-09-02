@@ -49,6 +49,7 @@ target_sources(PicoPAC_cart PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/src/fujibus.c
     ${CMAKE_CURRENT_LIST_DIR}/src/fujibus_usb.c
     ${CMAKE_CURRENT_LIST_DIR}/src/fuji_cart.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/fujimail.c
     ${CMAKE_CURRENT_LIST_DIR}/src/fujinet.c
     ${CMAKE_CURRENT_LIST_DIR}/src/fujiboot.c
     ${CMAKE_CURRENT_LIST_DIR}/src/o2map.c

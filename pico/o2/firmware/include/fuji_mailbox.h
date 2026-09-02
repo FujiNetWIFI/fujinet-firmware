@@ -82,6 +82,17 @@
 #define FN_R_STATUS_BUSY 0x02
 
 /* FN_R_ERR values; mirrors fb_status_t in fujibus.h. */
+/* FN_R_BOOT_STATE values. */
+#define FN_BOOT_IDLE     0
+#define FN_BOOT_XFER     1
+#define FN_BOOT_READY    2      /* image staged; takes over on the next reset */
+#define FN_BOOT_FAILED   0x80
+
+/* FN_R_BOOT_ERR values. */
+#define FN_BOOT_ERR_TOOBIG    1
+#define FN_BOOT_ERR_TRUNCATED 2
+#define FN_BOOT_ERR_NOMAP     3
+
 #define FN_ERR_OK        0
 #define FN_ERR_NOLINK    1
 #define FN_ERR_TIMEOUT   2

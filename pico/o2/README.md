@@ -203,6 +203,25 @@ fujinet: dev=70 ... seq=2 -> err=0 reply=06 rxlen=240   <- fresh, not a replay
   `FN_R_ACKSEQ` already updated on its first poll. Real hardware makes it wait.
   The client must poll regardless, but this model will not catch one that forgets.
 
+## CI
+
+`.github/workflows/pico-carts.yml` covers this tree and `pico/intellivision`,
+which previously had none at all — which is exactly how a repo-wide rename of
+`fujiCommandID_t` reached the Intellivision cartridge and left
+`#define CMD::NET_OPEN 0x4F` sitting in the tree. Nothing built it, so nothing
+noticed. Three jobs:
+
+| Job | What it catches |
+|---|---|
+| host tests | wire-codec and image-mapper regressions, with no SDK and no hardware |
+| 8048 client | assembly errors, page-layout overlaps (`tools/checklayout.py`), and any code that drifts above `$7FF` into the MB-flag hazard |
+| cartridge firmware | RP2040 builds, both FujiNet and stock PicoPAC, plus the Intellivision `fujicard` |
+
+The 8048 job installs Debian's `asl` package; `build.sh` prefers a native
+assembler and falls back to the wine copies under `~/Workspace/o2workspace/bin`.
+Only the wine path is exercised on the author's machine — AS is not packaged for
+Arch — so CI is what first proves the native one.
+
 ## Reference documentation
 
 Not vendored here; fetch as needed.

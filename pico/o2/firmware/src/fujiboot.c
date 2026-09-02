@@ -34,5 +34,4 @@ void fuji_config_boot(void)
     fuji_cart_init();
 
     fuji_service_init();
-    fujibus_set_inbound_handler(dbc_inbound_handler);
 }
