@@ -35,8 +35,13 @@ FN_R_DATA       equ 0F30h
 
 FUJI_DEVICEID   equ 070h
 FUJICMD_GET_ADAPTERCONFIG_EXTENDED equ 0C4h
+FUJICMD_MOUNT_HOST                 equ 0F9h
+FUJICMD_MOUNT_IMAGE                equ 0F8h
+FUJICMD_SET_DEVICE_FULLPATH        equ 0E2h
 FUJICMD_ACK     equ 006h
 FUJICMD_NAK     equ 015h
+
+MODE_READ       equ 1
 
 ; External-data window selected: P13 high (VDC off the bus), P14 low, and P16
 ; MUST stay low or the cartridge write strobe is gated off.
