@@ -32,10 +32,10 @@ index 2314944..9381729 100644
  
 diff --git a/fujinet.c b/fujinet.c
 new file mode 100644
-index 0000000..8b65a45
+index 0000000..85e879c
 --- /dev/null
 +++ b/fujinet.c
-@@ -0,0 +1,288 @@
+@@ -0,0 +1,479 @@
 +/* fujinet.c -- o2em model of the FujiNet RP2040 cartridge.
 + *
 + * Stands in for the cart firmware so the 8048 client can be developed and
@@ -71,6 +71,8 @@ index 0000000..8b65a45
 +#include "fujibus.h"
 +#include "fuji_mailbox.h"
 +
++#define FUJI_DEVICEID_DBC 0xFF
++
 +#define RX_RAW_MAX 1088   /* must hold a SLIP-encoded 512-byte DBC push frame */
 +#define RX_MAX     1024
 +
@@ -90,15 +92,35 @@ index 0000000..8b65a45
 +static unsigned rxlen;
 +static Byte rxslice;
 +
++/* DBC push state. MediaTypeROM::mount() streams the cart image to device $FF
++ * while our MOUNT_IMAGE is still outstanding, so these frames arrive
++ * unsolicited in the middle of a transaction and each needs its own ACK. */
++#define DBC_STREAM_ROM 0
++#define DBC_STREAM_CFG 1
++#define STAGE_MAX      (64 * 1024)
++
++static int dbc_stream = -1;
++static Byte stage[STAGE_MAX];
++static unsigned stage_len;
++static uint32_t stage_expect;
++static Byte pending[STAGE_MAX];      /* committed image, installed on reset */
++static unsigned pending_len;
++static int mailbox_active = 1;
++static const char *bootdump;
++
 +extern Byte rom_table[8][4096];
 +
 +int fujinet_active(void) { return fd >= 0; }
++
++void fujinet_set_bootdump(const char *prefix) { bootdump = prefix; }
 +
 +/* ---- the cart owns $F20-$FFF of the program window, in every bank ---- */
 +
 +static void poke(unsigned addr, Byte v)
 +{
 +    int b;
++    if (!mailbox_active)
++        return;   /* a booted game owns this page now */
 +    for (b = 0; b < 8; b++)
 +        rom_table[b][addr & 0xFFF] = v;
 +}
@@ -114,6 +136,8 @@ index 0000000..8b65a45
 +void fujinet_paint(void)
 +{
 +    unsigned a;
++    if (!mailbox_active)
++        return;   /* a booted game owns $F00-$FFF; painting would corrupt it */
 +    for (a = FN_R_ACKSEQ; a <= 0xFFF; a++)
 +        poke(a, 0);
 +    poke(FN_R_MAGIC0, 'F');
@@ -177,14 +201,14 @@ index 0000000..8b65a45
 +}
 +
 +/* Read one complete SLIP frame (two 0xC0 delimiters) or time out. */
-+static fb_status_t read_frame(Byte *buf, size_t cap, size_t *out_len)
++static fb_status_t read_frame(Byte *buf, size_t cap, size_t *out_len, int secs)
 +{
 +    size_t n = 0;
 +    int ends = 0;
 +    struct timeval deadline, now;
 +
 +    gettimeofday(&deadline, NULL);
-+    deadline.tv_sec += 5;
++    deadline.tv_sec += secs;
 +
 +    for (;;) {
 +        fd_set rf;
@@ -213,6 +237,151 @@ index 0000000..8b65a45
 +        if (n >= cap)
 +            return FB_ETOOBIG;
 +    }
++}
++
++/* ---- the DBC ROM push ---- */
++
++static void dbc_send(Byte cmd)
++{
++    Byte frame[16];
++    size_t n = fujibus_build_request(FUJI_DEVICEID_DBC, cmd, NULL, 0, NULL, 0,
++                                     frame, sizeof frame);
++    if (n)
++        send(fd, frame, n, MSG_NOSIGNAL);
++}
++
++static void dump_stream(const char *suffix)
++{
++    char path[512];
++    FILE *f;
++    if (bootdump == NULL)
++        return;
++    snprintf(path, sizeof path, "%s%s", bootdump, suffix);
++    f = fopen(path, "wb");
++    if (f == NULL) {
++        fprintf(stderr, "fujinet: cannot write %s\n", path);
++        return;
++    }
++    fwrite(stage, 1, stage_len, f);
++    fclose(f);
++    fprintf(stderr, "fujinet: bootdump %s (%u bytes)\n", path, stage_len);
++}
++
++/* Lay a raw cart image into the 8 ROM banks the way o2em's own load_cart does:
++ * every bank is 4K with the console's internal BIOS occupying the low 1K, so a
++ * cart's bytes start at offset 1024. A 2K bank leaves A10 unconnected, hence
++ * the $C00-$FFF mirror of $800-$BFF.
++ *
++ * Banks are stored in REVERSE file order -- load_cart() reads them with
++ * `for (i = nb-1; i >= 0; i--)`. That is not an o2em quirk: bank select is
++ * `rom_table[~p1 & 3]`, so P10/P11 high at reset selects bank 0, which has to
++ * be the boot bank, and the boot bank is the LAST chunk of the file. Getting
++ * this backwards boots a cart into the middle of its own data. */
++static void install_image(const Byte *img, unsigned len)
++{
++    unsigned nb, i, per;
++
++    if (len % 3072 == 0) {
++        per = 3072;
++        nb = len / 3072;
++    } else {
++        per = 2048;
++        nb = len / 2048;
++    }
++    if (nb == 0 || nb > 8) {
++        fprintf(stderr, "fujinet: %u bytes is not a cart image this model maps\n",
++                len);
++        return;
++    }
++    for (i = 0; i < 8; i++) {
++        unsigned b = (i < nb) ? i : nb - 1;
++        memcpy(&rom_table[i][1024], img + (nb - 1 - b) * per, per);
++        if (per == 2048)
++            memcpy(&rom_table[i][3072], &rom_table[i][2048], 1024);
++    }
++    /* The mailbox lives at $F20-$FFF of the program window, which a real game
++     * uses for its own code. Same call the Intellivision cart makes: keep the
++     * game, drop the mailbox for the session rather than refusing to boot. */
++    mailbox_active = 0;
++    fprintf(stderr, "fujinet: booted %u bytes as %u x %uK bank(s);"
++                    " mailbox disabled for this session\n", len, nb, per / 1024);
++}
++
++/* Returns true if the frame was a push frame and has been consumed. */
++static int dbc_handle(const fb_reply_t *req)
++{
++    if (req->device != FUJI_DEVICEID_DBC)
++        return 0;
++
++    if (req->command == CMD_NET_OPEN) {
++        unsigned stream = (req->data_len > 0) ? req->data[0] : 0;
++        stage_expect = 0;
++        if (req->data_len >= 5)
++            stage_expect = (uint32_t) req->data[1]
++                         | ((uint32_t) req->data[2] << 8)
++                         | ((uint32_t) req->data[3] << 16)
++                         | ((uint32_t) req->data[4] << 24);
++        dbc_stream = (stream == DBC_STREAM_CFG) ? DBC_STREAM_CFG : DBC_STREAM_ROM;
++        stage_len = 0;
++        if (dbg)
++            fprintf(stderr, "fujinet: DBC open stream=%u size=%u\n",
++                    stream, stage_expect);
++        dbc_send(CMD_FUJI_ACK);
++        return 1;
++    }
++
++    if (req->command == CMD_NET_WRITE) {
++        if (stage_len + req->data_len <= sizeof stage) {
++            memcpy(stage + stage_len, req->data, req->data_len);
++            stage_len += req->data_len;
++        }
++        if (stage_expect)
++            poke(FN_R_BOOT_PCT,
++                 (Byte)((stage_len * 100) / stage_expect));
++        dbc_send(CMD_FUJI_ACK);
++        return 1;
++    }
++
++    if (req->command == CMD_NET_CLOSE) {
++        /* Bare CLOSE commits; payload 0x01 is an abort, so partial data is
++         * never booted and older peers stay compatible. */
++        int aborted = (req->data_len > 0 && req->data[0] == 0x01);
++        int stream = dbc_stream;
++        dbc_stream = -1;
++
++        if (dbg)
++            fprintf(stderr, "fujinet: DBC close stream=%d got=%u%s\n",
++                    stream, stage_len, aborted ? " ABORTED" : "");
++
++        if (!aborted && stream == DBC_STREAM_CFG)
++            dump_stream(".cfg");
++
++        if (!aborted && stream == DBC_STREAM_ROM) {
++            dump_stream(".rom");
++            /* Staged, not installed: the console is still executing the client
++             * out of this same window. The swap happens on the next reset,
++             * which is what the RP2040 does on the next $400 fetch. */
++            memcpy(pending, stage, stage_len);
++            pending_len = stage_len;
++            poke(FN_R_BOOT_PCT, 100);
++            poke(FN_R_BOOT_STATE, 1);
++        } else if (aborted) {
++            poke(FN_R_BOOT_STATE, 0x80);
++        }
++        dbc_send(CMD_FUJI_ACK);
++        return 1;
++    }
++
++    return 0;
++}
++
++/* Called when the console is reset: this is where a staged image takes over. */
++void fujinet_on_reset(void)
++{
++    if (pending_len == 0)
++        return;
++    install_image(pending, pending_len);
++    pending_len = 0;
 +}
 +
 +/* ---- the transaction ---- */
@@ -250,9 +419,22 @@ index 0000000..8b65a45
 +            } else if (send(fd, req, reqlen, MSG_NOSIGNAL) != (ssize_t) reqlen) {
 +                st = FB_ENOLINK;
 +            } else {
-+                st = read_frame(raw, sizeof raw, &rawlen);
-+                if (st == FB_OK && !fujibus_parse_reply(raw, rawlen, &reply))
-+                    st = FB_EBADFRAME;
++                /* MOUNT_IMAGE can take a TNFS fetch plus a whole ROM push. */
++                int secs = (mb_cmd == CMD_FUJI_MOUNT_IMAGE) ? 60 : 5;
++                for (;;) {
++                    st = read_frame(raw, sizeof raw, &rawlen, secs);
++                    if (st != FB_OK)
++                        break;
++                    if (!fujibus_parse_reply(raw, rawlen, &reply)) {
++                        st = FB_EBADFRAME;
++                        break;
++                    }
++                    /* Push frames arrive interleaved with the reply we are
++                     * waiting for; consuming one proves the link is alive, so
++                     * the deadline restarts rather than counting down. */
++                    if (!dbc_handle(&reply))
++                        break;
++                }
 +            }
 +        }
 +    }
@@ -284,6 +466,15 @@ index 0000000..8b65a45
 +
 +void fujinet_ext_write(Byte adr, Byte dat)
 +{
++    /* Once a game has booted, the mailbox is disabled for the session and the
++     * register file must go deaf: $E0-$E3 is inside the range The Voice decodes,
++     * so ordinary games do write there, and a stray write would otherwise fire a
++     * transaction with whatever command was left in the registers -- and publish
++     * its reply over the running game's code. Same session flag the
++     * Intellivision cart keeps for the identical reason. */
++    if (!mailbox_active)
++        return;
++
 +    switch (adr) {
 +    case FN_W_REGSEL:
 +        regsel = dat;
@@ -326,10 +517,10 @@ index 0000000..8b65a45
 +}
 diff --git a/fujinet.h b/fujinet.h
 new file mode 100644
-index 0000000..86ad430
+index 0000000..51922e3
 --- /dev/null
 +++ b/fujinet.h
-@@ -0,0 +1,21 @@
+@@ -0,0 +1,29 @@
 +/* fujinet.h -- o2em model of the FujiNet RP2040 cartridge. */
 +#ifndef FUJINET_H
 +#define FUJINET_H
@@ -350,9 +541,17 @@ index 0000000..86ad430
 + * after the cart image is loaded so the magic bytes are live from reset. */
 +void fujinet_paint(void);
 +
++/* Write each pushed stream to PREFIX.rom / PREFIX.cfg, to validate the ESP32
++ * media path byte-for-byte with no cartridge in the loop. */
++void fujinet_set_bootdump(const char *prefix);
++
++/* Install a staged cart image. Called when the console is reset -- the cart
++ * cannot reset the O2 itself, so a booted game takes over on the next $400. */
++void fujinet_on_reset(void);
++
 +#endif /* FUJINET_H */
 diff --git a/main.c b/main.c
-index ddd3c5a..ad1cfbe 100644
+index ddd3c5a..272aa06 100644
 --- a/main.c
 +++ b/main.c
 @@ -18,6 +18,7 @@
@@ -363,30 +562,32 @@ index ddd3c5a..ad1cfbe 100644
  #include "config.h"
  #include "vdc.h"
  #include "cpu.h"
-@@ -116,6 +117,12 @@ int main(int argc, char *argv[])
+@@ -116,6 +117,13 @@ int main(int argc, char *argv[])
      app_data.default_highscore = 0;
      app_data.breakpoint = 65535;
      app_data.megaxrom = 0;
 +    app_data.run_frames = 0;
 +    app_data.fujinet = NULL;
 +    app_data.fujinet_debug = 0;
++    app_data.fujinet_bootdump = NULL;
 +    app_data.reset_at = 0;
 +    app_data.dumpscr = NULL;
 +    app_data.dumptxt = 0;
      strcpy(file, "");
      strcpy(file_l, "");
      strcpy(bios_l, "");
-@@ -298,6 +305,9 @@ int main(int argc, char *argv[])
+@@ -298,6 +306,10 @@ int main(int argc, char *argv[])
          load_cart(file);
          if (app_data.voice)
              load_voice_samples(path);
 +        if (app_data.fujinet != NULL)
 +            fujinet_init(app_data.fujinet, app_data.fujinet_debug);
++        fujinet_set_bootdump(app_data.fujinet_bootdump);
 +        fujinet_paint();   /* magic bytes live from reset, link bit reflects state */
          init_display();
          init_cpu();
          init_system();
-@@ -507,6 +517,20 @@ int parse_option(char *attr, char *val)
+@@ -507,6 +519,22 @@ int parse_option(char *attr, char *val)
          app_data.fullscreen = (val[0] != '0');
      } else if (!strcmp(attr, "scanlines")) {
          app_data.scanlines = (val[0] != '0');
@@ -394,6 +595,8 @@ index ddd3c5a..ad1cfbe 100644
 +        /* attr/val are fixed buffers reused for every option, so a stored
 +         * pointer would alias whatever option is parsed next. */
 +        app_data.fujinet = strdup(val);
++    } else if (!strcmp(attr, "fujinet-bootdump")) {
++        app_data.fujinet_bootdump = strdup(val);
 +    } else if (!strcmp(attr, "fujinet-debug")) {
 +        app_data.fujinet_debug = (val[0] != '0');
 +    } else if (!strcmp(attr, "resetat")) {
@@ -509,7 +712,7 @@ index d94460d..2dade56 100644
  #define BMPH 250
  #define WNDW 320
 diff --git a/vmachine.c b/vmachine.c
-index 39f0dad..d648b04 100644
+index 39f0dad..d7ae529 100644
 --- a/vmachine.c
 +++ b/vmachine.c
 @@ -22,7 +22,10 @@
@@ -534,7 +737,7 @@ index 39f0dad..d648b04 100644
      while (!key_done) {
          if (key_debug) {
              app_data.debug = 1;
-@@ -106,6 +112,28 @@ void run(void)
+@@ -106,6 +112,29 @@ void run(void)
  
  void handle_vbl(void)
  {
@@ -550,6 +753,7 @@ index 39f0dad..d648b04 100644
 +             * here while its screen keeps showing the previous reply. */
 +            fprintf(stderr, "reset: pulsing console RESET at frame %d\n",
 +                    app_data.reset_at);
++            fujinet_on_reset();   /* a staged cart image takes over here */
 +            init_cpu();
 +        }
 +    }
@@ -563,7 +767,7 @@ index 39f0dad..d648b04 100644
      if (!app_data.debug) {
          handle_key();
          update_audio();
-@@ -514,7 +542,12 @@ void ext_write(Byte dat, ADDRESS adr)
+@@ -514,7 +543,12 @@ void ext_write(Byte dat, ADDRESS adr)
      } else if (!(p1 & 0x10) && !(p1 & 0x40)) {
          adr = adr & 0xFF;
  
@@ -578,10 +782,10 @@ index 39f0dad..d648b04 100644
              extRAM[adr] = dat;
  
 diff --git a/vmachine.h b/vmachine.h
-index 50ce8a3..9da91cd 100644
+index 50ce8a3..62eeb24 100644
 --- a/vmachine.h
 +++ b/vmachine.h
-@@ -94,6 +94,13 @@ extern struct resource {
+@@ -94,6 +94,14 @@ extern struct resource {
  	int default_highscore;
  	int breakpoint;
  	char *statefile;
@@ -591,6 +795,7 @@ index 50ce8a3..9da91cd 100644
 +	int dumptxt;         /* also print an ASCII rendering to stdout */
 +	char *fujinet;       /* "host:port" of a fujinet-pc-rs232 BoIP listener */
 +	int fujinet_debug;   /* log every mailbox transaction to stderr */
++	char *fujinet_bootdump; /* write each pushed stream to PREFIX.rom/.cfg */
 +	int reset_at;        /* pulse the console RESET button at this frame */
  } app_data;
  
