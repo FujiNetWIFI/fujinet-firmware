@@ -143,7 +143,7 @@ spin:
     jmp spin
 
 ; ---------------------------------------------------------------- helpers
-    include "fujilib.inc"
+    include "fujilib.inc"   ; self-pinned to $4D0
 
     org 0D02h
 msg_nc:  db "NO CART E",0

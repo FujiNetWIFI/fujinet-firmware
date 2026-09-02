@@ -28,5 +28,6 @@ for src in "$@"; do
   b=$(basename "$src" .a48)
   run_as asw.exe -q -L "$b.a48"
   run_as p2bin.exe "$b.p" "$b.bin" -r 0x400-0xFFF -l 0
+  python3 tools/checklayout.py "$OUT/$b.lst"
 done
 ls -l "$OUT"/*.bin
