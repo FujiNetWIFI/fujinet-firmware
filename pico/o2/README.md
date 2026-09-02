@@ -217,10 +217,27 @@ noticed. Three jobs:
 | 8048 client | assembly errors, page-layout overlaps (`tools/checklayout.py`), and any code that drifts above `$7FF` into the MB-flag hazard |
 | cartridge firmware | RP2040 builds, both FujiNet and stock PicoPAC, plus the Intellivision `fujicard` |
 
-The 8048 job installs Debian's `asl` package; `build.sh` prefers a native
-assembler and falls back to the wine copies under `~/Workspace/o2workspace/bin`.
-Only the wine path is exercised on the author's machine — AS is not packaged for
-Arch — so CI is what first proves the native one.
+There is **no distro package** for Macro Assembler AS — Debian's and Ubuntu's
+`asl`/`asl-*` are the Advanced Simulation Library, something else entirely — so
+CI builds it from
+[the release-tracking mirror](https://github.com/Macroassembler-AS/asl-releases)
+of Alfred Arnold's source and caches the result. `build.sh` prefers a native
+`asl` on `PATH` and falls back to the wine copies under
+`~/Workspace/o2workspace/bin`; both were checked to produce byte-identical
+images.
+
+Building AS yourself, if you would rather not use wine:
+
+```sh
+git clone --depth 1 --branch upstream \
+  https://github.com/Macroassembler-AS/asl-releases.git
+cd asl-releases
+cp Makefile.def-samples/Makefile.def-i386-unknown-linux2.x.x Makefile.def
+sed -i 's|^CFLAGS.*|CFLAGS = -O2 -w|' Makefile.def   # the sample pins -march=i586
+make -j"$(nproc)"
+# copy asl and p2bin somewhere on PATH; the message catalogues are compiled in,
+# so nothing else needs to travel with them
+```
 
 ## Reference documentation
 

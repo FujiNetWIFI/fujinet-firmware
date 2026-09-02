@@ -69,8 +69,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Macro Assembler AS. build.sh prefers this over the wine fallback.
-      - run: sudo apt-get update && sudo apt-get install -y asl
+      # Macro Assembler AS. There is NO distro package for it -- Debian's and
+      # Ubuntu's "asl"/"asl-*" are the Advanced Simulation Library, something
+      # else entirely -- so it is built from the release-tracking mirror of
+      # Alfred Arnold's source. build.sh picks a native asl up from PATH in
+      # preference to its wine fallback.
+      - name: Cache Macro Assembler AS
+        id: cache-asl
+        uses: actions/cache@v4
+        with:
+          path: ~/asl
+          key: asl-upstream-${{ runner.os }}-v1
+
+      - name: Build Macro Assembler AS
+        if: steps.cache-asl.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch upstream \
+            https://github.com/Macroassembler-AS/asl-releases.git /tmp/asl-src
+          cd /tmp/asl-src
+          cp Makefile.def-samples/Makefile.def-i386-unknown-linux2.x.x Makefile.def
+          # The sample pins -march=i586, which will not build on x86-64.
+          sed -i 's|^CFLAGS.*|CFLAGS = -O2 -w|' Makefile.def
+          make -j"$(nproc)"
+          mkdir -p ~/asl
+          # Just the two binaries build.sh uses. `make install` is not run: it
+          # wants system directories, and the message catalogues are compiled
+          # into the binaries, so nothing else has to travel with them.
+          cp asl p2bin ~/asl/
+
+      - name: Put AS on PATH
+        run: echo "$HOME/asl" >> "$GITHUB_PATH"
 
       # Assembles all four carts. tools/checklayout.py runs on each and fails
       # the build if two pinned routines have grown into each other -- p2bin
@@ -116,15 +144,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Pinned, not master: an SDK that moves under CI turns an unrelated
+      # upstream change into a red build on this branch. 2.3.0 is what these
+      # firmwares are built against locally.
       - uses: actions/checkout@v4
         with:
           repository: raspberrypi/pico-sdk
-          ref: master
+          ref: "2.3.0"
           path: pico-sdk
           submodules: true
 
+      # build-essential, pkg-config and libusb are for picotool, not for our
+      # firmware: the SDK generates the .uf2 with it, and when no compatible
+      # picotool is installed the SDK fetches and builds it from source. Those
+      # three are exactly what picotool's own BUILDING.md asks for. Without them
+      # the failure lands in the middle of an ExternalProject, which is a
+      # confusing place to learn about a missing host library.
       - run: sudo apt-get update && sudo apt-get install -y
-               cmake ninja-build gcc-arm-none-eabi libnewlib-arm-none-eabi
+               build-essential cmake ninja-build
+               gcc-arm-none-eabi libnewlib-arm-none-eabi
+               pkg-config libusb-1.0-0-dev
 
       # Both configurations: the FujiNet build is what ships, and the stock one
       # proves the vendored PicoPAC still builds with our changes applied.
@@ -140,6 +179,9 @@ jobs:
           PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: ./build-cart.sh --stock
 
+      # Pulls no-OS-FatFS-SD (v3.6.2) and littlefs (master) over the network via
+      # FetchContent. Its `git describe --tags` falls back to version 0.0 on a
+      # shallow checkout, which is fine here.
       - name: Intellivision cartridge (fujicard)
         working-directory: pico/intellivision/firmware
         env:
