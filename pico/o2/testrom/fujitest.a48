@@ -1,0 +1,265 @@
+; fujitest.a48 -- FujiNet Odyssey 2 mailbox smoke test.
+;
+; One round trip: ask the FujiNet for its adapter config and print the SSID.
+; Deliberately uses no BIOS routines -- it drives the VDC itself -- so what it
+; proves is the mailbox and nothing else.
+;
+; Reads out of the cartridge program window with MOVP, writes into the
+; external-data window with MOVX. See firmware/include/fuji_mailbox.h for why
+; the two directions differ.
+
+    cpu 8048
+    org 400h
+    include "g7000.h"
+    include "vdctext.inc"
+    include "o2fuji.inc"
+
+XP      equ 32                  ; left edge of the text row
+
+; ---------------------------------------------------------------- vectors
+    jmp start                   ; $400 reset
+    jmp irqret                  ; $402 external IRQ
+    jmp irqret                  ; $404 timer IRQ
+    jmp irqret                  ; $406 vblank
+    jmp start                   ; $408 after BIOS "select game"
+    jmp irqret                  ; $40A vblank continuation
+irqret:
+    retr
+
+; ---------------------------------------------------------------- main
+start:
+    dis i
+    dis tcnti
+    call vdc_init
+
+    mov a,#FN_R_MAGIC0&0FFh     ; is a FujiNet cartridge actually answering?
+    call fn_read
+    xrl a,#'F'
+    jnz nocart
+    mov a,#FN_R_MAGIC1&0FFh
+    call fn_read
+    xrl a,#'N'
+    jnz nocart
+
+; Next sequence number comes from the CART's persisted ACKSEQ, never from a
+; local counter: a console RESET restarts this program but not the cartridge,
+; and a local counter would recompute a value the cart has already acked --
+; no further request would ever be sent, while the screen kept showing the
+; previous reply. Sequence 0 is reserved.
+    mov a,#FN_R_ACKSEQ&0FFh
+    call fn_read
+    inc a
+    jnz seqok
+    inc a
+seqok:
+    mov r5,a
+
+    mov a,#P1_SEL_XRAM          ; external-data window on the bus
+    outl p1,a
+
+    clr a                       ; rewind the TX stream
+    mov r7,#FN_REG_DATA_RST
+    call fn_reg
+    mov a,#FUJI_DEVICEID
+    mov r7,#FN_REG_DEVICE
+    call fn_reg
+    mov a,#FUJICMD_GET_ADAPTERCONFIG_EXTENDED
+    mov r7,#FN_REG_CMD
+    call fn_reg
+    clr a                       ; no params, no payload
+    mov r7,#FN_REG_NPARAM
+    call fn_reg
+    clr a
+    mov r7,#FN_REG_TXLEN_LO
+    call fn_reg
+    clr a
+    mov r7,#FN_REG_TXLEN_HI
+    call fn_reg
+
+    mov r0,#FN_W_SEQ            ; written last: this launches the transaction
+    mov a,r5
+    movx @r0,a
+
+    mov r2,#0                   ; poll ACKSEQ (256 tries)
+poll:
+    mov a,#FN_R_ACKSEQ&0FFh
+    call fn_read
+    xrl a,r5
+    jz gotreply
+    djnz r2,poll
+    mov a,#msg_to&0FFh
+    jmp fail
+
+gotreply:
+    mov a,#FN_R_REPLY_CMD&0FFh
+    call fn_read
+    xrl a,#FUJICMD_ACK
+    jz  showssid
+    mov a,#msg_nak&0FFh
+    jmp fail
+
+nocart:
+    mov a,#msg_nc&0FFh
+    jmp fail
+
+; ---- print the SSID, which is the first field of AdapterConfigExtended ----
+showssid:
+    mov a,#P1_SEL_VDC
+    outl p1,a
+    mov r0,#vdc_char0
+    mov r3,#XP
+    mov r1,#FN_R_DATA&0FFh
+    mov r2,#12
+ssidloop:
+    mov a,r1
+    call fn_read
+    jnz notnul
+    mov a,#' '                  ; the SSID is NUL-padded
+notnul:
+    call show_char
+    inc r1
+    djnz r2,ssidloop
+    jmp done
+
+; ---- failure: print the message at offset A of page $E00, then the error code
+fail:
+    mov r4,a
+    mov a,#P1_SEL_VDC
+    outl p1,a
+    mov r0,#vdc_char0
+    mov r3,#XP
+    mov a,r4
+    call puts_e
+    mov a,#FN_R_ERR&0FFh        ; append the cart's fb_status_t as a digit
+    call fn_read
+    add a,#'0'
+    call show_char
+
+done:
+    mov r0,#vdc_control         ; foreground on
+    mov a,#vdc_ctrl_fore
+    movx @r0,a
+spin:
+    jmp spin
+
+; ---------------------------------------------------------------- helpers
+
+; vdc_init: blank the display, clear the power-on sprite/character garbage.
+vdc_init:
+    mov a,#P1_SEL_VDC
+    outl p1,a
+    mov r0,#vdc_control
+    clr a
+    movx @r0,a
+    mov r0,#vdc_spr0_ctrl       ; 4 sprite control blocks
+    mov r2,#16
+    call vfill
+    mov r0,#vdc_spr0_shape      ; and their shapes -- zeroing Y alone does not
+    mov r2,#32                  ; blank a sprite, the pattern still draws
+    call vfill
+    mov r0,#vdc_char0           ; 12 single characters ($10-$3F)
+    mov r2,#48
+    call vfill
+    mov r0,#vdc_quad0           ; 4 quad groups ($40-$7F) -- power-on garbage
+    mov r2,#64                  ; shows up as bars in the top-left otherwise
+    call vfill
+    mov r0,#vdc_color
+    mov a,#col_bck_blue|col_grd_black
+    movx @r0,a
+    ret
+vfill:
+    clr a
+vfl:
+    movx @r0,a
+    inc r0
+    djnz r2,vfl
+    ret
+
+; fn_reg: write A into the mailbox register named by r7.
+; Requires P1 = P1_SEL_XRAM.
+fn_reg:
+    mov r6,a
+    mov r0,#FN_W_REGSEL
+    mov a,r7
+    movx @r0,a
+    mov r0,#FN_W_REGDATA
+    mov a,r6
+    movx @r0,a
+    ret
+
+; fn_read: A = offset within the cart's mailbox page -> A = byte there.
+; MOVP reads the page the PC is in, so the actual load lives at $F00 and MB1
+; has to be selected across the call.
+fn_read:
+    sel mb1
+    call fn_get
+    sel mb0
+    ret
+
+; The rest of the helpers are pinned to page $500. Conditional jumps on the 8048
+; are page-relative (the target's high nibbles come from the incremented PC), so
+; a routine that straddles a 256-byte boundary silently becomes unassemblable --
+; pinning is cheaper than discovering that again after every edit.
+    org 500h
+
+; show_char: draw ASCII in A at VDC register r0, X position r3; advances both.
+; Requires P1 = P1_SEL_VDC.
+show_char:
+    mov r4,a
+    mov a,#CMAP_YP
+    movx @r0,a
+    inc r0
+    mov a,r3
+    movx @r0,a
+    inc r0
+    sel mb1
+    mov a,r4
+    add a,#(cm_lo-20h)&0FFh
+    call cm_get
+    sel mb0
+    movx @r0,a
+    inc r0
+    sel mb1
+    mov a,r4
+    add a,#(cm_hi-20h)&0FFh
+    call cm_get
+    sel mb0
+    movx @r0,a
+    inc r0
+    mov a,r3
+    add a,#8
+    mov r3,a
+    ret
+
+; puts_e: print the NUL-terminated string at offset A of page $E00.
+puts_e:
+    mov r1,a
+psl:
+    sel mb1
+    mov a,r1
+    call cm_get
+    sel mb0
+    jz psdone
+    call show_char
+    inc r1
+    jmp psl
+psdone:
+    ret
+
+; ---------------------------------------------------------------- page $E00
+    include "charmap.inc"
+
+    org 0EC2h                   ; just past cm_hi
+msg_nc:  db "NO CART E",0
+msg_to:  db "TIMEOUT E",0
+msg_nak: db "NAK E",0
+
+; ---------------------------------------------------------------- page $F00
+; $F00-$F1F belongs to the cartridge client; $F20-$FFF is written by the cart.
+    org 0F00h
+fn_get:
+    movp a,@a
+    ret
+
+    org 0FFFh
+    db 0

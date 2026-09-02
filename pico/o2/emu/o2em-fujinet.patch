@@ -1,0 +1,597 @@
+diff --git a/Makefile b/Makefile
+index 2314944..9381729 100644
+--- a/Makefile
++++ b/Makefile
+@@ -11,11 +11,11 @@ ARCH=`uname -i`
+ all: o2em dis48
+ 
+ clean:
+-	rm -f audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o dis48.o
++	rm -f audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o fujinet.o fujibus.o dis48.o
+ 
+ 
+-o2em:	audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o
+-	$(CC) $(LFLAGS) audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o -o o2em $(LIBS)
++o2em:	audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o fujinet.o fujibus.o
++	$(CC) $(LFLAGS) audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o fujinet.o fujibus.o -o o2em $(LIBS)
+ 
+ dis48:	dis48.o table.o
+ 	$(CC) $(LFLAGS) dis48.o table.o -o dis48
+@@ -66,6 +66,12 @@ vpp_cset.o: vpp_cset.c vpp_cset.h
+ vpp.o: vpp.c vpp.h types.h vpp_cset.h vmachine.h vdc.h
+ 	$(CC) $(CFLAGS) -c vpp.c -o vpp.o
+ 
++fujinet.o:	fujinet.c fujinet.h fujibus.h fuji_mailbox.h types.h vmachine.h
++	$(CC) $(CFLAGS) -c fujinet.c -o fujinet.o
++
++fujibus.o:	fujibus.c fujibus.h
++	$(CC) $(CFLAGS) -c fujibus.c -o fujibus.o
++
+ score.o: score.c score.h vmachine.h types.h
+ 	$(CC) $(CFLAGS) -c score.c -o score.o
+ 
+diff --git a/fujinet.c b/fujinet.c
+new file mode 100644
+index 0000000..8b65a45
+--- /dev/null
++++ b/fujinet.c
+@@ -0,0 +1,288 @@
++/* fujinet.c -- o2em model of the FujiNet RP2040 cartridge.
++ *
++ * Stands in for the cart firmware so the 8048 client can be developed and
++ * regression-tested with no hardware: it decodes the console's MOVX writes into
++ * the mailbox register file, speaks FujiBus over a TCP socket to a real
++ * fujinet-pc-rs232 (its BoIP channel is a plain serial-over-TCP listener), and
++ * publishes the reply into the cartridge program window at $F20-$FFF.
++ *
++ * The codec is fujibus.c copied verbatim from the Intellivision cart firmware --
++ * it has no pico-sdk and no TinyUSB, precisely so both the cart and this model
++ * can share it and stay bit-identical by construction.
++ *
++ * Fidelity note: the socket round-trip here is synchronous, so the emulated
++ * console sees ACKSEQ already updated on its first poll. Real hardware makes it
++ * wait. The client code is identical either way -- it must poll regardless --
++ * but this model will not catch a client that forgets to.
++ */
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <errno.h>
++#include <unistd.h>
++#include <netdb.h>
++#include <sys/socket.h>
++#include <sys/time.h>
++#include <netinet/in.h>
++#include <netinet/tcp.h>
++
++#include "types.h"
++#include "vmachine.h"
++#include "fujinet.h"
++#include "fujibus.h"
++#include "fuji_mailbox.h"
++
++#define RX_RAW_MAX 1088   /* must hold a SLIP-encoded 512-byte DBC push frame */
++#define RX_MAX     1024
++
++static int fd = -1;
++static int dbg = 0;
++
++/* mailbox write-side state */
++static Byte regsel;
++static Byte mb_device, mb_cmd, mb_nparam;
++static unsigned mb_txlen;
++static Byte txbuf[FN_TX_MAX];
++static unsigned txptr;
++static Byte lastseq;
++
++/* mailbox read-side state */
++static Byte rxbuf[RX_MAX];
++static unsigned rxlen;
++static Byte rxslice;
++
++extern Byte rom_table[8][4096];
++
++int fujinet_active(void) { return fd >= 0; }
++
++/* ---- the cart owns $F20-$FFF of the program window, in every bank ---- */
++
++static void poke(unsigned addr, Byte v)
++{
++    int b;
++    for (b = 0; b < 8; b++)
++        rom_table[b][addr & 0xFFF] = v;
++}
++
++static void publish_slice(void)
++{
++    unsigned base = (unsigned) rxslice * FN_R_SLICE_LEN;
++    unsigned i;
++    for (i = 0; i < FN_R_SLICE_LEN; i++)
++        poke(FN_R_DATA + i, (base + i < rxlen) ? rxbuf[base + i] : 0);
++}
++
++void fujinet_paint(void)
++{
++    unsigned a;
++    for (a = FN_R_ACKSEQ; a <= 0xFFF; a++)
++        poke(a, 0);
++    poke(FN_R_MAGIC0, 'F');
++    poke(FN_R_MAGIC1, 'N');
++    poke(FN_R_PROTO_VER, 1);
++    poke(FN_R_STATUS, fujinet_active() ? FN_R_STATUS_LINK : 0);
++}
++
++/* ---- transport ---- */
++
++int fujinet_init(const char *hostport, int debug)
++{
++    char host[256], *colon;
++    int port = 9995, one = 1;
++    struct addrinfo hints, *res = NULL;
++    char portstr[16];
++
++    dbg = debug;
++    snprintf(host, sizeof host, "%s", hostport ? hostport : "localhost:9995");
++    colon = strrchr(host, ':');
++    if (colon) { *colon = '\0'; port = atoi(colon + 1); }
++    if (host[0] == '\0') snprintf(host, sizeof host, "localhost");
++    snprintf(portstr, sizeof portstr, "%d", port);
++
++    memset(&hints, 0, sizeof hints);
++    hints.ai_family = AF_UNSPEC;
++    hints.ai_socktype = SOCK_STREAM;
++    if (getaddrinfo(host, portstr, &hints, &res) != 0 || res == NULL) {
++        fprintf(stderr, "fujinet: cannot resolve %s:%d\n", host, port);
++        return -1;
++    }
++    /* Walk every result: "localhost" usually resolves to ::1 first, while
++     * fujinet-pc's BoIP listener binds 127.0.0.1 only. */
++    {
++        struct addrinfo *ai;
++        for (ai = res; ai != NULL; ai = ai->ai_next) {
++            fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
++            if (fd < 0)
++                continue;
++            if (connect(fd, ai->ai_addr, ai->ai_addrlen) == 0)
++                break;
++            close(fd);
++            fd = -1;
++        }
++    }
++    if (fd < 0) {
++        fprintf(stderr, "fujinet: cannot connect to %s:%d (%s)\n",
++                host, port, strerror(errno));
++        freeaddrinfo(res);
++        return -1;
++    }
++    freeaddrinfo(res);
++    setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof one);
++    fprintf(stderr, "fujinet: connected to %s:%d\n", host, port);
++    return 0;
++}
++
++void fujinet_close(void)
++{
++    if (fd >= 0) { close(fd); fd = -1; }
++}
++
++/* Read one complete SLIP frame (two 0xC0 delimiters) or time out. */
++static fb_status_t read_frame(Byte *buf, size_t cap, size_t *out_len)
++{
++    size_t n = 0;
++    int ends = 0;
++    struct timeval deadline, now;
++
++    gettimeofday(&deadline, NULL);
++    deadline.tv_sec += 5;
++
++    for (;;) {
++        fd_set rf;
++        struct timeval tv;
++        long remain;
++
++        gettimeofday(&now, NULL);
++        remain = (deadline.tv_sec - now.tv_sec) * 1000000L
++               + (deadline.tv_usec - now.tv_usec);
++        if (remain <= 0)
++            return FB_ETIMEOUT;
++        tv.tv_sec = remain / 1000000L;
++        tv.tv_usec = remain % 1000000L;
++
++        FD_ZERO(&rf); FD_SET(fd, &rf);
++        if (select(fd + 1, &rf, NULL, NULL, &tv) <= 0)
++            return FB_ETIMEOUT;
++
++        while (n < cap) {
++            unsigned char c;
++            ssize_t r = recv(fd, &c, 1, MSG_DONTWAIT);
++            if (r <= 0) break;
++            buf[n++] = c;
++            if (c == 0xC0 && ++ends == 2) { *out_len = n; return FB_OK; }
++        }
++        if (n >= cap)
++            return FB_ETOOBIG;
++    }
++}
++
++/* ---- the transaction ---- */
++
++static void run_transaction(Byte seq)
++{
++    Byte req[FN_TX_MAX + 64];
++    Byte raw[RX_RAW_MAX];
++    fb_param_t params[8];
++    unsigned nparam = mb_nparam > 8 ? 8 : mb_nparam;
++    unsigned i, p = 0;
++    size_t reqlen, rawlen = 0;
++    fb_reply_t reply;
++    fb_status_t st = FB_OK;
++
++    /* Unpack the FN_W_DATA stream: NPARAM x {size, value LE}, then payload. */
++    for (i = 0; i < nparam && p < txptr; i++) {
++        unsigned sz = txbuf[p++], k;
++        if (sz != 1 && sz != 2 && sz != 4) { st = FB_EBADFRAME; break; }
++        params[i].size = (uint8_t) sz;
++        params[i].value = 0;
++        for (k = 0; k < sz && p < txptr; k++)
++            params[i].value |= (uint32_t) txbuf[p++] << (8 * k);
++    }
++
++    if (st == FB_OK) {
++        if (!fujinet_active()) {
++            st = FB_ENOLINK;
++        } else {
++            reqlen = fujibus_build_request(mb_device, mb_cmd, params, nparam,
++                                           txbuf + p, (uint16_t)(txptr - p),
++                                           req, sizeof req);
++            if (reqlen == 0) {
++                st = FB_ETOOBIG;
++            } else if (send(fd, req, reqlen, MSG_NOSIGNAL) != (ssize_t) reqlen) {
++                st = FB_ENOLINK;
++            } else {
++                st = read_frame(raw, sizeof raw, &rawlen);
++                if (st == FB_OK && !fujibus_parse_reply(raw, rawlen, &reply))
++                    st = FB_EBADFRAME;
++            }
++        }
++    }
++
++    rxlen = 0;
++    if (st == FB_OK) {
++        rxlen = reply.data_len > RX_MAX ? RX_MAX : reply.data_len;
++        memcpy(rxbuf, reply.data, rxlen);
++        poke(FN_R_REPLY_CMD, reply.command);
++    } else {
++        poke(FN_R_REPLY_CMD, 0);
++    }
++
++    poke(FN_R_ERR, (Byte) st);
++    poke(FN_R_RXLEN_LO, (Byte)(rxlen & 0xFF));
++    poke(FN_R_RXLEN_HI, (Byte)(rxlen >> 8));
++    poke(FN_R_STATUS, fujinet_active() ? FN_R_STATUS_LINK : 0);
++    rxslice = 0;
++    publish_slice();
++    poke(FN_R_ACKSEQ, seq);      /* published LAST -- this is the interlock */
++
++    if (dbg)
++        fprintf(stderr,
++                "fujinet: dev=%02X cmd=%02X nparam=%u txlen=%u seq=%u"
++                " -> err=%d reply=%02X rxlen=%u\n",
++                mb_device, mb_cmd, nparam, (unsigned)(txptr - p), seq,
++                (int) st, rom_table[0][FN_R_REPLY_CMD & 0xFFF], rxlen);
++}
++
++void fujinet_ext_write(Byte adr, Byte dat)
++{
++    switch (adr) {
++    case FN_W_REGSEL:
++        regsel = dat;
++        break;
++
++    case FN_W_REGDATA:
++        switch (regsel) {
++        case FN_REG_DEVICE:   mb_device = dat; break;
++        case FN_REG_CMD:      mb_cmd = dat; break;
++        case FN_REG_NPARAM:   mb_nparam = dat; break;
++        case FN_REG_TXLEN_LO: mb_txlen = (mb_txlen & 0xFF00) | dat; break;
++        case FN_REG_TXLEN_HI: mb_txlen = (mb_txlen & 0x00FF) | (dat << 8); break;
++        case FN_REG_DATA_RST: txptr = 0; break;
++        case FN_REG_RXSLICE:  rxslice = dat; publish_slice(); break;
++        case FN_REG_BOOTSEL:
++            if (dat == FN_BOOTSEL_MAGIC)
++                fprintf(stderr, "fujinet: BOOTSEL requested (no-op under o2em)\n");
++            break;
++        default: break;   /* code/data bank: no effect on a single-bank image */
++        }
++        break;
++
++    case FN_W_DATA:
++        if (txptr < sizeof txbuf)
++            txbuf[txptr++] = dat;
++        break;
++
++    case FN_W_SEQ:
++        /* Same interlock as the Intellivision: an unchanged sequence number is
++         * a no-op, so a timed-out client retry can never replay a command. */
++        if (dat != lastseq) {
++            lastseq = dat;
++            run_transaction(dat);
++        }
++        break;
++
++    default:
++        break;
++    }
++}
+diff --git a/fujinet.h b/fujinet.h
+new file mode 100644
+index 0000000..86ad430
+--- /dev/null
++++ b/fujinet.h
+@@ -0,0 +1,21 @@
++/* fujinet.h -- o2em model of the FujiNet RP2040 cartridge. */
++#ifndef FUJINET_H
++#define FUJINET_H
++
++#include "types.h"
++
++/* Connect to a fujinet-pc-rs232 BoIP listener, "host:port". Returns 0 on ok. */
++int fujinet_init(const char *hostport, int debug);
++void fujinet_close(void);
++
++/* True once fujinet_init has succeeded; ext_write only forwards if so. */
++int fujinet_active(void);
++
++/* Called from ext_write() for external-data-window writes in $E0-$E3. */
++void fujinet_ext_write(Byte adr, Byte dat);
++
++/* Paint the cart-owned reply page ($F20-$FFF) into every ROM bank. Called once
++ * after the cart image is loaded so the magic bytes are live from reset. */
++void fujinet_paint(void);
++
++#endif /* FUJINET_H */
+diff --git a/main.c b/main.c
+index ddd3c5a..ad1cfbe 100644
+--- a/main.c
++++ b/main.c
+@@ -18,6 +18,7 @@
+ #include "crc32.h"
+ #include "audio.h"
+ #include "vmachine.h"
++#include "fujinet.h"
+ #include "config.h"
+ #include "vdc.h"
+ #include "cpu.h"
+@@ -116,6 +117,12 @@ int main(int argc, char *argv[])
+     app_data.default_highscore = 0;
+     app_data.breakpoint = 65535;
+     app_data.megaxrom = 0;
++    app_data.run_frames = 0;
++    app_data.fujinet = NULL;
++    app_data.fujinet_debug = 0;
++    app_data.reset_at = 0;
++    app_data.dumpscr = NULL;
++    app_data.dumptxt = 0;
+     strcpy(file, "");
+     strcpy(file_l, "");
+     strcpy(bios_l, "");
+@@ -298,6 +305,9 @@ int main(int argc, char *argv[])
+         load_cart(file);
+         if (app_data.voice)
+             load_voice_samples(path);
++        if (app_data.fujinet != NULL)
++            fujinet_init(app_data.fujinet, app_data.fujinet_debug);
++        fujinet_paint();   /* magic bytes live from reset, link bit reflects state */
+         init_display();
+         init_cpu();
+         init_system();
+@@ -507,6 +517,20 @@ int parse_option(char *attr, char *val)
+         app_data.fullscreen = (val[0] != '0');
+     } else if (!strcmp(attr, "scanlines")) {
+         app_data.scanlines = (val[0] != '0');
++    } else if (!strcmp(attr, "fujinet")) {
++        /* attr/val are fixed buffers reused for every option, so a stored
++         * pointer would alias whatever option is parsed next. */
++        app_data.fujinet = strdup(val);
++    } else if (!strcmp(attr, "fujinet-debug")) {
++        app_data.fujinet_debug = (val[0] != '0');
++    } else if (!strcmp(attr, "resetat")) {
++        app_data.reset_at = atoi(val);
++    } else if (!strcmp(attr, "frames")) {
++        app_data.run_frames = atoi(val);
++    } else if (!strcmp(attr, "dumpscr")) {
++        app_data.dumpscr = strdup(val);
++    } else if (!strcmp(attr, "dumptxt")) {
++        app_data.dumptxt = (val[0] != '0');
+     } else if (!strcmp(attr, "scshot")) {
+         strcpy(scshot, val);
+     } else if (!strcmp(attr, "savefile")) {
+diff --git a/vdc.c b/vdc.c
+index 57d7a99..9babd84 100644
+--- a/vdc.c
++++ b/vdc.c
+@@ -828,3 +828,83 @@ void help(void)
+     return;
+ }
+ 
++
++/* ------------------------------------------------------------------------
++ * FujiNet headless harness: dump the emulated framebuffer without needing
++ * anyone to look at the window. vscreen holds BMPW*BMPH palette indices and
++ * `colors` is the 6-bit Allegro palette, so neither the display driver nor
++ * the Allegro BITMAP is involved -- this works even when the window is
++ * offscreen or the run is scripted.
++ * ------------------------------------------------------------------------ */
++void dump_screen(const char *path, int astext)
++{
++    /* The visible picture sits inside the 340x250 working buffer at the same
++     * offset finish_display() blits from (vdc.c:401, `bitmap, 7, 2+y`). */
++    const int x0 = 7, y0 = 2, w = WNDW, h = WNDH;
++    int x, y;
++
++    if (vscreen == NULL)
++        return;
++
++    if (path != NULL) {
++        FILE *f = fopen(path, "wb");
++        if (f == NULL) {
++            fprintf(stderr, "dump_screen: cannot write %s\n", path);
++        } else {
++            fprintf(f, "P6\n%d %d\n255\n", w, h);
++            for (y = 0; y < h; y++) {
++                for (x = 0; x < w; x++) {
++                    Byte c = vscreen[(y + y0) * BMPW + (x + x0)];
++                    /* Allegro palettes are 6-bit per channel */
++                    fputc(colors[c].r << 2, f);
++                    fputc(colors[c].g << 2, f);
++                    fputc(colors[c].b << 2, f);
++                }
++            }
++            fclose(f);
++            fprintf(stderr, "dump_screen: wrote %s (%dx%d)\n", path, w, h);
++        }
++    }
++
++    if (astext) {
++        /* VDC register state, so a wrong picture can be traced to the registers
++         * that produced it rather than guessed at. */
++        int r;
++        printf("VDC ctrl=%02X status=%02X color=%02X\n",
++               VDCwrite[0xA0], VDCwrite[0xA1], VDCwrite[0xA3]);
++        for (r = 0; r < 4; r++)
++            printf("  spr%d: y=%02X x=%02X attr=%02X\n", r,
++                   VDCwrite[r*4], VDCwrite[r*4+1], VDCwrite[r*4+2]);
++        for (r = 0; r < 12; r++)
++            printf("  chr%-2d: y=%02X x=%02X ptr=%02X ctl=%02X\n", r,
++                   VDCwrite[0x10+r*4], VDCwrite[0x11+r*4],
++                   VDCwrite[0x12+r*4], VDCwrite[0x13+r*4]);
++    }
++
++    if (astext) {
++        /* Coarse luminance rendering, 2x8 source pixels per cell, so a 320x240
++         * frame lands in 160x30 characters -- readable in a terminal. */
++        static const char ramp[] = " .:-=+*#%@";
++        for (y = 0; y < h; y += 8) {
++            char line[WNDW / 2 + 1];
++            int cx = 0;
++            for (x = 0; x < w; x += 2, cx++) {
++                long lum = 0;
++                int sx, sy, n = 0;
++                for (sy = 0; sy < 8 && y + sy < h; sy++) {
++                    for (sx = 0; sx < 2 && x + sx < w; sx++) {
++                        Byte c = vscreen[(y + sy + y0) * BMPW + (x + sx + x0)];
++                        lum += colors[c].r + colors[c].g + colors[c].b;
++                        n++;
++                    }
++                }
++                lum = n ? (lum * 9) / (n * 189) : 0;   /* 3*63 = 189 -> 0..9 */
++                if (lum > 9) lum = 9;
++                line[cx] = ramp[lum];
++            }
++            line[cx] = '\0';
++            printf("|%s|\n", line);
++        }
++        fflush(stdout);
++    }
++}
+diff --git a/vdc.h b/vdc.h
+index d94460d..2dade56 100644
+--- a/vdc.h
++++ b/vdc.h
+@@ -1,6 +1,8 @@
+ #ifndef __VDC_H
+ #define __VDC_H
+ 
++void dump_screen(const char *path, int astext);
++
+ #define BMPW 340
+ #define BMPH 250
+ #define WNDW 320
+diff --git a/vmachine.c b/vmachine.c
+index 39f0dad..d648b04 100644
+--- a/vmachine.c
++++ b/vmachine.c
+@@ -22,7 +22,10 @@
+ #include "keyboard.h"
+ #include "config.h"
+ #include "debug.h" 
+-#include "vdc.h" 
++#include "vdc.h"
++#include "fujinet.h"
++#include "cpu.h"
++#include "fuji_mailbox.h" 
+ #include "vpp.h"
+ #include "timefunc.h"
+ #include "voice.h"
+@@ -85,6 +88,9 @@ static void setvideomode(int t);
+ 
+ void run(void)
+ {
++    fprintf(stderr, "DBG run(): run_frames=%d dumptxt=%d dumpscr=%s\n",
++            app_data.run_frames, app_data.dumptxt,
++            app_data.dumpscr ? app_data.dumpscr : "(null)");
+     while (!key_done) {
+         if (key_debug) {
+             app_data.debug = 1;
+@@ -106,6 +112,28 @@ void run(void)
+ 
+ void handle_vbl(void)
+ {
++    /* FujiNet headless harness: bail out after a fixed number of frames so a
++     * run can be scripted. Counted here rather than in the CPU loop because a
++     * vblank is the only place the picture is guaranteed complete. */
++    if (app_data.reset_at > 0) {
++        static int reset_frames = 0;
++        if (++reset_frames == app_data.reset_at) {
++            /* The front-panel RESET button restarts the 8048 and nothing else --
++             * the cartridge keeps its state, including FN_R_ACKSEQ. A client
++             * that counts sequence numbers locally silently stops transacting
++             * here while its screen keeps showing the previous reply. */
++            fprintf(stderr, "reset: pulsing console RESET at frame %d\n",
++                    app_data.reset_at);
++            init_cpu();
++        }
++    }
++    if (app_data.run_frames > 0) {
++        static int frames_done = 0;
++        if (++frames_done >= app_data.run_frames) {
++            dump_screen(app_data.dumpscr, app_data.dumptxt);
++            key_done = 1;
++        }
++    }
+     if (!app_data.debug) {
+         handle_key();
+         update_audio();
+@@ -514,7 +542,12 @@ void ext_write(Byte dat, ADDRESS adr)
+     } else if (!(p1 & 0x10) && !(p1 & 0x40)) {
+         adr = adr & 0xFF;
+ 
+-        if (adr < 0x80) {
++        if (adr >= FN_W_REGSEL && adr <= FN_W_SEQ && fujinet_active()) {
++            /* FujiNet mailbox register file. Deliberately $E0-$E3: the only
++             * addresses in this window The Voice does not decode. */
++            fujinet_ext_write(adr, dat);
++
++        } else if (adr < 0x80) {
+             /* Handle ext RAM Write */
+             extRAM[adr] = dat;
+ 
+diff --git a/vmachine.h b/vmachine.h
+index 50ce8a3..9da91cd 100644
+--- a/vmachine.h
++++ b/vmachine.h
+@@ -94,6 +94,13 @@ extern struct resource {
+ 	int default_highscore;
+ 	int breakpoint;
+ 	char *statefile;
++	/* FujiNet headless harness */
++	int run_frames;      /* exit after this many vblanks (0 = run forever) */
++	char *dumpscr;       /* write the framebuffer here as PPM on exit */
++	int dumptxt;         /* also print an ASCII rendering to stdout */
++	char *fujinet;       /* "host:port" of a fujinet-pc-rs232 BoIP listener */
++	int fujinet_debug;   /* log every mailbox transaction to stderr */
++	int reset_at;        /* pulse the console RESET button at this frame */
+ } app_data;
+ 
+ 
