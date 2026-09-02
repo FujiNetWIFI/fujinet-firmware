@@ -6,7 +6,7 @@
 
 #include "network.h"
 #include "../network.h"
-#include "ProtocolParser.h"
+#include "NetworkProtocolFactory.h"
 #include "fnSystem.h"
 #include "utils.h"
 #include "debug.h"
@@ -990,7 +990,7 @@ uint8_t sioNetwork::get_dstats_for_command(fujiCommandID_t command)
  */
 success_is_true sioNetwork::instantiate_protocol()
 {
-    protocol = ProtocolParser::createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
+    protocol = NetworkProtocolFactory::createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
     {

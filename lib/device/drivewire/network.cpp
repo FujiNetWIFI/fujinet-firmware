@@ -6,7 +6,7 @@
 
 #include "network.h"
 #include "../network.h"
-#include "ProtocolParser.h"
+#include "NetworkProtocolFactory.h"
 #include "fnSystem.h"
 #include "utils.h"
 #include "debug.h"
@@ -639,7 +639,7 @@ void drivewireNetwork::set_password()
  */
 bool drivewireNetwork::instantiate_protocol()
 {
-    protocol = ProtocolParser::createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
+    protocol = NetworkProtocolFactory::createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
     {

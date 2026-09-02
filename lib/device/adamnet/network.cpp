@@ -6,7 +6,7 @@
 
 #include "network.h"
 #include "../network.h"
-#include "ProtocolParser.h"
+#include "NetworkProtocolFactory.h"
 #include "utils.h"
 #include "debug.h"
 
@@ -606,7 +606,7 @@ inline void adamNetwork::adamnet_control_receive()
  */
 bool adamNetwork::instantiate_protocol()
 {
-    protocol = ProtocolParser::createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
+    protocol = NetworkProtocolFactory::createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
     {
