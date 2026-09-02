@@ -25,15 +25,16 @@
 // (rather than CMD::FUJI_*) because that's what the ESP32-S3 side's
 // MediaTypeROM::mount() actually sends -- see
 // lib/media/rs232/diskTypeROM.cpp's push_stream().
-#define CMD::NET_OPEN  0x4F
-#define CMD::NET_WRITE 0x57
-#define CMD::NET_CLOSE 0x43
+// CMD_* here mirrors the main tree's C++ `enum class CMD`; this tree is plain C.
+#define CMD_NET_OPEN  0x4F
+#define CMD_NET_WRITE 0x57
+#define CMD_NET_CLOSE 0x43
 
-#define CMD::FUJI_GET_ADAPTERCONFIG_EXTENDED 0xC4
-#define CMD::FUJI_MOUNT_IMAGE 0xF8
-#define CMD::FUJI_SET_DEVICE_FULLPATH 0xE2
-#define CMD::FUJI_ACK 0x06
-#define CMD::FUJI_NAK 0x15
+#define CMD_FUJI_GET_ADAPTERCONFIG_EXTENDED 0xC4
+#define CMD_FUJI_MOUNT_IMAGE 0xF8
+#define CMD_FUJI_SET_DEVICE_FULLPATH 0xE2
+#define CMD_FUJI_ACK 0x06
+#define CMD_FUJI_NAK 0x15
 
 // AdapterConfigExtended, packed layout matching lib/device/fujiDevice.h.
 #define FUJI_ADAPTERCONFIG_EXTENDED_SIZE 240
