@@ -1,26 +1,39 @@
 #ifndef NETWORK_PROTOCOL_FACTORY_H
 #define NETWORK_PROTOCOL_FACTORY_H
 
-#include <algorithm>
-#include <cctype>
-#include <functional>
-#include <memory>
-#include <string>
-#include <unordered_map>
-
+#include "Protocol.h"
 #include "network_data.h"
+#include "CPM.h"
+#include "FTP.h"
+#include "GDRIVE.h"
+#include "GMAIL.h"
+#include "IMAPS.h"
+#include "ONEDRIVE.h"
+#include "HTTP.h"
+#include "WS.h"
+#include "WSS.h"
+#include "SSH.h"
+#include "SFTP.h"
+#include "SMB.h"
+#include "NFS.h"
+#include "S3.h"
+#include "TCP.h"
+#include "Telnet.h"
+#include "Test.h"
+#include "TNFS.h"
+#include "UDP.h"
 
-#include "ProtocolParser.h"
+#include <string>
 
 class NetworkProtocolFactory
 {
 public:
+    static std::unique_ptr<NetworkProtocol> createProtocol(std::string scheme, std::string *receiveBuffer, std::string *transmitBuffer, std::string *specialBuffer, std::string *login, std::string *password);
+
     static std::unique_ptr<NetworkProtocol> createProtocol(const std::string &scheme, NetworkData &data)
     {
-        return ProtocolParser::createProtocol(scheme, &data.receiveBuffer,
-                                              &data.transmitBuffer,
-                                              &data.specialBuffer,
-                                              &data.login, &data.password);
+        return createProtocol(scheme, &data.receiveBuffer, &data.transmitBuffer,
+                              &data.specialBuffer, &data.login, &data.password);
     }
 };
 

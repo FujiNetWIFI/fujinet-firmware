@@ -6,7 +6,7 @@
 
 #include "network.h"
 #include "../network.h"
-#include "ProtocolParser.h"
+#include "NetworkProtocolFactory.h"
 #include "fnSystem.h"
 #include "utils.h"
 #include "debug.h"
@@ -917,7 +917,7 @@ void rs232Network::rs232_poll_interrupt()
  */
 success_is_true rs232Network::instantiate_protocol()
 {
-    protocol = ProtocolParser::createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
+    protocol = NetworkProtocolFactory::createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
     {

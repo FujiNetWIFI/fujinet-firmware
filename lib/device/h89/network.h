@@ -13,7 +13,7 @@
 #include "fnjson.h"
 #include "fnsgml.h"
 
-#include "ProtocolParser.h"
+#include "NetworkProtocolFactory.h"
 
 /**
  * Number of devices to expose via H89, becomes 0x71 to 0x70 + NUM_DEVICES - 1
