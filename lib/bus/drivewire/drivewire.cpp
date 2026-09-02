@@ -1,33 +1,15 @@
 #ifdef BUILD_COCO
 
-#include <queue>
-
 #include "drivewire.h"
 #include "drivewire/drivewireFuji.h"
 #include "drivewire/drivewireClock.h"
-
-#include "../../include/debug.h"
-
-#include "modem.h"
-#include "cassette.h"
-#include "printer.h"
-#include "network.h"
-#include "../../lib/device/drivewire/cpm.h"
-
-#include "fnSystem.h"
-#include "fnConfig.h"
+#include "drivewire/cpm.h"
+#include "NDevice.h"
 #include "fnWiFi.h"
-#include "fnDNS.h"
 #include "led.h"
-#include "utils.h"
+#include "debug.h"
 
-#ifdef ESP_PLATFORM
-#include <freertos/queue.h>
-#include <freertos/task.h>
-#endif
-
-#include "../../include/pinmap.h"
-#include "../../include/debug.h"
+#include <queue>
 
 #ifdef ESP_PLATFORM
 static QueueHandle_t drivewire_evt_queue = NULL;
@@ -362,9 +344,10 @@ bool systemBus::_transaction_handle_command(const FujiDWPacket &packet, virtualD
 
     case CMD::FUJI_SEND_ERROR:
         Debug_printf("drivewire device error = %s\n",
-                     device._errorCode == NDEV_STATUS::SUCCESS
-                     ? "NONE" : std::to_string(static_cast<int>(device._errorCode)).c_str());
-        write(static_cast<uint8_t>(device._errorCode));
+                     device.getErrorCode() == NDEV_STATUS::SUCCESS
+                     ? "NONE"
+                     : std::to_string(static_cast<int>(device.getErrorCode())).c_str());
+        write(static_cast<uint8_t>(device.getErrorCode()));
         return true;
 
     case CMD::FUJI_SEND_RESPONSE:
@@ -1021,9 +1004,11 @@ void systemBus::transaction_accept(transState_t expectMoreData)
 
 void systemBus::transaction_success()
 {
+    virtualDevice *fujiDev = dynamic_cast<virtualDevice *>(_activeDev);
+
     assert(_transaction_state == TRANS_STATE::NO_GET
            || _transaction_state == TRANS_STATE::DID_GET);
-    _activeDev->_errorCode = NDEV_STATUS::SUCCESS;
+    fujiDev->setErrorCode(NDEV_STATUS::SUCCESS);
     _transaction_response.clear();
     _transaction_response.shrink_to_fit();
     _transaction_state = TRANS_STATE::INVALID;
@@ -1031,7 +1016,9 @@ void systemBus::transaction_success()
 
 void systemBus::transaction_error()
 {
-    _activeDev->_errorCode = NDEV_STATUS::GENERAL;
+    virtualDevice *fujiDev = dynamic_cast<virtualDevice *>(_activeDev);
+
+    fujiDev->setErrorCode(NDEV_STATUS::GENERAL);
     _transaction_state = TRANS_STATE::INVALID;
 }
 

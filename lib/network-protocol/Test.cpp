@@ -35,19 +35,19 @@ fujiError_t NetworkProtocolTest::open(PeoplesUrlParser *urlParser,
 
     switch (translation_mode)
     {
-    case NETPROTO_TRANS_NONE:
+    case NETPROTO_TRANS::NONE:
         Debug_printf("Atari Translation\r\n");
         test_data += "\x9b";
         break;
-    case NETPROTO_TRANS_CR:
+    case NETPROTO_TRANS::CR:
         Debug_printf("CR Translation\r\n");
         test_data += "\x0d";
         break;
-    case NETPROTO_TRANS_LF:
+    case NETPROTO_TRANS::LF:
         Debug_printf("LF Translation\r\n");
         test_data += "\x0a";
         break;
-    case NETPROTO_TRANS_CRLF:
+    case NETPROTO_TRANS::CRLF:
         Debug_printf("CRLF Translation\r\n");
         test_data += "\x0d\x0a";
         break;

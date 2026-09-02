@@ -181,7 +181,7 @@ fujiError_t NetworkProtocolMailbox::do_folder_count()
         return FUJI_ERROR::UNSPECIFIED;
     }
     *receiveBuffer = std::to_string(count) + lineEnding;
-    translation_mode = NETPROTO_TRANS_NONE; // already terminated with native EOL
+    translation_mode = NETPROTO_TRANS::NONE; // already terminated with native EOL
     return FUJI_ERROR::NONE;
 }
 
@@ -226,7 +226,7 @@ fujiError_t NetworkProtocolMailbox::do_folder_index(uint8_t transByte)
     else
         format_index_human(items, width);
 
-    translation_mode = NETPROTO_TRANS_NONE;
+    translation_mode = NETPROTO_TRANS::NONE;
     return FUJI_ERROR::NONE;
 }
 
@@ -264,7 +264,7 @@ fujiError_t NetworkProtocolMailbox::do_attachment_index(uint8_t transByte)
     else
         format_attachment_index_human(items, width);
 
-    translation_mode = NETPROTO_TRANS_NONE;
+    translation_mode = NETPROTO_TRANS::NONE;
     return FUJI_ERROR::NONE;
 }
 

@@ -73,8 +73,6 @@ iecFuji::iecFuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, std::nullopt)
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].slotid = i;
-
-    state = DEVICE_IDLE;
 }
 
 // Initializes base settings and adds our devices to the SIO bus
@@ -144,110 +142,6 @@ void logResponse(const void* data, size_t length)
 }
 
 
-void iecFuji::talk(uint8_t secondary)
-{
-  // only talk on channel 15
-  if( (secondary & 0x0F)==15 )
-    {
-      state = DEVICE_TALK;
-    }
-}
-
-
-void iecFuji::listen(uint8_t secondary)
-{
-  // only listen on channel 15
-  if( (secondary & 0x0F)==15 )
-    {
-      state = DEVICE_LISTEN;
-      _payload.clear();
-    }
-}
-
-
-void iecFuji::untalk()
-{
-  state = DEVICE_IDLE;
-}
-
-
-void iecFuji::unlisten()
-{
-  if( state == DEVICE_LISTEN )
-    state = DEVICE_ACTIVE;
-}
-
-
-int8_t iecFuji::canWrite()
-{
-  return state==DEVICE_LISTEN ? 1 : 0;
-}
-
-
-int8_t iecFuji::canRead()
-{
-  return SYSTEM_BUS.iecCanRead(state);
-}
-
-
-void iecFuji::write(uint8_t data, bool eoi)
-{
-  _payload.push_back(data);
-}
-
-
-uint8_t iecFuji::read()
-{
-    return SYSTEM_BUS.iecRead();
-}
-
-
-void iecFuji::task()
-{
-  // this gets called whenever the IEC bus is NOT in a time-sensitive state.
-  // Any possibly time-comsuming tasks should be processed within here.
-
-  // first call the underlying class task function
-  IECDevice::task();
-
-  if( state==DEVICE_ACTIVE )
-    {
-      if( _payload.size()>0 ) process_cmd();
-      state = DEVICE_IDLE;
-    }
-}
-
-
-void iecFuji::reset()
-{
-  IECDevice::reset();
-  state = DEVICE_IDLE;
-}
-
-void iecFuji::process_cmd()
-{
-  if (!_activePacket) {
-    if (_payload.size() != 2
-        || (_payload[0] == OPCODE_NO_PAYLOAD && _payload[0] == OPCODE_HAS_PAYLOAD))
-      return;
-
-    Debug_printv("RAW command: %s",
-                 dataToHexString((uint8_t *) _payload.data(), _payload.size()).c_str());
-
-    auto packet = std::make_unique<FujiIECPacket>(m_devnr, (fujiCommandID_t) _payload[1]);
-    _activePacket = std::move(packet);
-
-    if (_payload[0] == OPCODE_HAS_PAYLOAD)
-      return;
-  }
-  else
-    _activePacket->setPayload(_payload);
-
-  SYSTEM_BUS._activePacket = _activePacket.get();
-  processCommand(*_activePacket);
-  _activePacket = NULL;
-}
-
 bool iecFuji::processCommand(const FUJI_COMMAND_PACKET &packet)
 {
   bool handled = false;
@@ -275,7 +169,7 @@ bool iecFuji::is_supported(const FujiIECPacket &packet)
     bool result = true;
 
     // Let the base class validate standard commands
-    if (!fujiDevice::recognizesCommand(packet))
+    if (!fujiDevice::recognizesCommand(packet.command()))
       switch (packet.command())
       {
       default:

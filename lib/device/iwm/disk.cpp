@@ -230,10 +230,6 @@ void iwmDisk::iwm_format(const iwm_decoded_cmd_t &cmd)
   SYSTEM_BUS.transaction_success();
 }
 
-void iwmDisk::shutdown()
-{
-}
-
 iwmDisk::iwmDisk()
 {
   Debug_printf("iwmDisk::iwmDisk()\n");

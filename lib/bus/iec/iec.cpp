@@ -103,8 +103,7 @@ void systemBus::transaction_success()
 void systemBus::transaction_error()
 {
   _transaction_state = TRANS_STATE::INVALID;
-  Debug_printf("transaction error\n");
-  abort();
+  // FIXME - signal error somehow
 }
 
 success_is_true systemBus::transaction_get(void *data, size_t len)
