@@ -31,6 +31,10 @@
 #define IMAGE_EXTENSION ".ddp"
 #define COPY_SIZE 532
 
+// deviceStatus() advertises a 1024 byte maximum message size, and a directory
+// block reply is 256 bytes per requested page.
+#define ADAM_MAX_DIR_BLOCK_PAGES 4
+
 adamFuji platformFuji;
 fujiDevice *theFuji = &platformFuji;         // global fuji device object
 adamNetwork *theNetwork;  // global network device object (temporary)
@@ -335,8 +339,35 @@ void adamFuji::adamnet_control_send(const FujiAdamPacket &packet)
     return; // true;
 }
 
+// The bus only calls this when no reply is staged (see _adamnet_dispatch), i.e.
+// the master is soliciting data we don't have. NAK so it stops asking; the
+// inherited ACK would make it send a CONTROL.CLR we can only answer with
+// silence, costing a full master timeout on every command.
+void adamFuji::adamnet_control_receive()
+{
+    SYSTEM_BUS.sendNakPacket();
+}
+
 void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
 {
+    // Block mode ($C0-$FF) returns a whole page of entries in one transaction.
+    // It owns the transaction itself, so it must be reached before
+    // transaction_accept(). Mirrors fujiDevice::fujicmd_read_directory_entry().
+    if ((addtl & 0xC0) == 0xC0)
+    {
+        // AdamNet caps a char message at deviceStatus().length (1024), and the
+        // block reply is always num_pages * 256 bytes, padded to full size.
+        if (maxlen > ADAM_MAX_DIR_BLOCK_PAGES)
+        {
+            SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+            SYSTEM_BUS.transaction_error();
+            return;
+        }
+
+        fujicmd_read_directory_block((uint8_t) maxlen, addtl & 0x3F);
+        return;
+    }
+
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu) (addtl=%02x)\n", maxlen, addtl);
 
@@ -352,15 +383,21 @@ void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
     // Hack-o-rama to add file type character to beginning of path.
     if (maxlen == 31)
     {
-        dirpath.resize(dirpath.size() + 2);
-        memmove(&dirpath[2], &dirpath[0], dirpath.size() - 2);
-        dirpath[0] = dirpath[1] = 0x20;
+        uint8_t icon0 = 0x20, icon1 = 0x20;
+
+        // fujicore_read_directory_entry() terminates the entry with a NUL, and
+        // an ellipsized name is zero padded on top of that. Strip the lot
+        // before classifying: with them in place back() was a NUL rather than
+        // a directory's '/', and rfind('.') yielded "ddp\0" which never
+        // matched "DDP" - so every entry came out as two spaces.
+        while (!dirpath.empty() && dirpath.back() == '\0')
+            dirpath.pop_back();
 
         // Check if it's a directory first
-        if (dirpath.back() == '/')
+        if (!dirpath.empty() && dirpath.back() == '/')
         {
-            dirpath[0] = 0x83;
-            dirpath[1] = 0x84;
+            icon0 = 0x83;
+            icon1 = 0x84;
         }
         else
         {
@@ -373,21 +410,25 @@ void adamFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
 
                 if (ext == "DDP")
                 {
-                    dirpath[0] = 0x85;
-                    dirpath[1] = 0x86;
+                    icon0 = 0x85;
+                    icon1 = 0x86;
                 }
                 else if (ext == "DSK")
                 {
-                    dirpath[0] = 0x87;
-                    dirpath[1] = 0x88;
+                    icon0 = 0x87;
+                    icon1 = 0x88;
                 }
                 else if (ext == "ROM")
                 {
-                    dirpath[0] = 0x89;
-                    dirpath[1] = 0x8a;
+                    icon0 = 0x89;
+                    icon1 = 0x8a;
                 }
             }
         }
+
+        dirpath.insert(0, 1, (char) icon1);
+        dirpath.insert(0, 1, (char) icon0);
+        dirpath.push_back('\0');
     }
 
     if (current_entry->size() < maxlen)

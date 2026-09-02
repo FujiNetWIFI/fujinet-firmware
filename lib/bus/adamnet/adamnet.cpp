@@ -189,7 +189,18 @@ bool systemBus::sendReplyPacket(bool ack, const void *data, size_t length)
 void systemBus::sendResponsePacket(void)
 {
     if (!_transaction_reply_encoded.has_value())
+    {
+        // Nothing staged: refuse the CLR outright. Silence here makes the
+        // master re-poll until its DCB times out, so a device with no data
+        // costs a fixed stall on every command. sendReplyPacket() maps MN_CLR
+        // to NM_SEND whatever the ack flag says, so build the NAK by hand.
+        FujiAdamPacket nak(_activeDev->id(), APT::NM_NAK);
+        if (writeBusPacket(nak))
+            busPhase.didNak();
+        else
+            busPhase.didIgnore();
         return;
+    }
 
 #ifdef ESP_PLATFORM
     // Real bus only: answer only inside the window of opportunity

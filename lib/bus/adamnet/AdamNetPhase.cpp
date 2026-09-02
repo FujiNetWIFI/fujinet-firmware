@@ -169,7 +169,11 @@ void AdamNetPhase::finish()
         break;
 
     case APT::MN_CLR:     // 0x03
-        assert(bus_expected_state(*_packet, _busPhase, {PHASE::BEEN_FED}));
+        // BEEN_FED is the normal path; DID_NAK is a CLR we refused because
+        // nothing was staged, DID_IGNORE a reply that missed its window.
+        assert(bus_expected_state(*_packet, _busPhase, {PHASE::BEEN_FED,
+                                                        PHASE::DID_NAK,
+                                                        PHASE::DID_IGNORE}));
         _busPhase = PHASE::IDLE;
         break;
 
@@ -206,14 +210,17 @@ void AdamNetPhase::didAck()
 
 void AdamNetPhase::didNak()
 {
-    assert(bus_expected_state(*_packet, _busPhase, {PHASE::NEED_ACK, PHASE::GOT_PAYLOAD}));
+    // FEED_ME: a CONTROL.CLR refused because there is nothing staged to send.
+    assert(bus_expected_state(*_packet, _busPhase, {PHASE::NEED_ACK, PHASE::GOT_PAYLOAD,
+                                                    PHASE::FEED_ME}));
     _busPhase = PHASE::DID_NAK;
     return;
 }
 
 void AdamNetPhase::didIgnore()
 {
-    assert(bus_expected_state(*_packet, _busPhase, {PHASE::NEED_ACK, PHASE::NEED_STATUS}));
+    assert(bus_expected_state(*_packet, _busPhase, {PHASE::NEED_ACK, PHASE::NEED_STATUS,
+                                                    PHASE::FEED_ME}));
     _busPhase = PHASE::DID_IGNORE;
     return;
 }

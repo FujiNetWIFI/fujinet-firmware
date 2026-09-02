@@ -40,6 +40,8 @@
 #endif /* ESP_PLATFORM */
 
 #define DIR_BLOCK_SIZE 256
+// 'M', 'F', header size, group count
+#define DIR_BLOCK_HEADER_SIZE 4
 
 // Constructor
 fujiDevice::fujiDevice(unsigned int numDisk, std::string extension,
@@ -866,7 +868,23 @@ void fujiDevice::fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_s
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_println("Fuji cmd: READ DIRECTORY BLOCK");
 
+    // group_size 0 would divide by zero building the group index below.
+    if (group_size == 0 || num_pages == 0)
+    {
+        Debug_printf("Bad block request: pages=%u group_size=%u\n", num_pages, group_size);
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
     size_t max_block_size = num_pages * DIR_BLOCK_SIZE;
+
+    // The 'M','F',hdrsize,count header shares the block with the groups, so the
+    // groups only get what is left. Sizing them against the whole block let a
+    // set of groups that exactly filled it get past the fit check and then be
+    // silently dropped by the copy loop below - the entries were consumed from
+    // the directory but never sent.
+    size_t max_group_bytes = max_block_size > DIR_BLOCK_HEADER_SIZE
+                             ? max_block_size - DIR_BLOCK_HEADER_SIZE : 0;
 
     // Debug_printf("Parameters: aux1=$%02X (pages=%d), aux2=$%02X (group_size=%d), max_block_size=%d\n",
     //              cmdFrame.aux1, num_pages, cmdFrame.aux2, group_size, max_block_size);
@@ -881,64 +899,83 @@ void fujiDevice::fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_s
     size_t total_size = 0;
     bool is_last_entry = false;
 
-    while (!is_last_entry) {
-        // Create a new page group
-        DirectoryPageGroup group;
-        uint16_t group_start_pos = _fnHosts[_current_open_directory_slot].dir_tell();
+    // A group is only emitted if it fits whole. With long filenames even the
+    // first group can overflow max_block_size, which used to fail the entire
+    // request; halve the group size and retry so such a directory still lists.
+    const uint16_t block_start_pos = _fnHosts[_current_open_directory_slot].dir_tell();
 
-        // Calculate group index (0-based)
-        group.index = group_start_pos / group_size;
+    while (true) {
+        page_groups.clear();
+        total_size = 0;
+        is_last_entry = false;
 
-        // Debug_printf("Starting new group at directory position: %d (index=%d)\n",
-        //              group_start_pos, group.index);
+        while (!is_last_entry) {
+            // Create a new page group
+            DirectoryPageGroup group;
+            uint16_t group_start_pos = _fnHosts[_current_open_directory_slot].dir_tell();
 
-        // Fill the group with entries
-        for (int i = 0; i < group_size && !is_last_entry; i++) {
-            fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
+            // Calculate group index (0-based)
+            group.index = group_start_pos / group_size;
 
-            if (f == nullptr) {
-                // Debug_println("Reached end of directory");
-                is_last_entry = true;
+            // Debug_printf("Starting new group at directory position: %d (index=%d)\n",
+            //              group_start_pos, group.index);
+
+            // Fill the group with entries
+            for (int i = 0; i < group_size && !is_last_entry; i++) {
+                fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
+
+                if (f == nullptr) {
+                    // Debug_println("Reached end of directory");
+                    is_last_entry = true;
+                    group.is_last_group = true;
+                    break;
+                }
+
+                // Debug_printf("Adding entry %d: \"%s\" (size=%lu)\n",
+                //             i, f->filename, f->size);
+
+                if (!group.add_entry(f)) {
+                    // Debug_println("Failed to add entry to group");
+                    break;
+                }
+            }
+
+            // If this is the last group, mark its last entry as the last one
+            if (is_last_entry) {
+                Debug_println("This is the last group in the directory");
                 group.is_last_group = true;
+            }
+
+            // this sets all the data for the group up correctly for us to insert into the block
+            group.finalize();
+
+            // Check if adding this group would exceed max_block_size
+            size_t new_total = total_size + group.data.size();
+            // Debug_printf("Group stats: entries=%d, size=%d, new_total=%d/%d\n",
+            //             group.entry_count, group.data.size(), new_total, max_block_size);
+
+            if (new_total > max_group_bytes) {
+                // Debug_printf("Group would exceed max_block_size (%d > %d), rewinding to pos %d\n",
+                //            new_total, max_block_size, group_start_pos);
+                // Rewind to start of this group and break
+                _fnHosts[_current_open_directory_slot].dir_seek(group_start_pos);
                 break;
             }
 
-            // Debug_printf("Adding entry %d: \"%s\" (size=%lu)\n",
-            //             i, f->filename, f->size);
-
-            if (!group.add_entry(f)) {
-                // Debug_println("Failed to add entry to group");
-                break;
-            }
+            // Add group to our collection
+            total_size = new_total;
+            page_groups.push_back(std::move(group));
+            // Debug_printf("Added group %d, total_size now %d\n",
+            //             page_groups.size(), total_size);
         }
 
-        // If this is the last group, mark its last entry as the last one
-        if (is_last_entry) {
-            Debug_println("This is the last group in the directory");
-            group.is_last_group = true;
-        }
-
-        // this sets all the data for the group up correctly for us to insert into the block
-        group.finalize();
-
-        // Check if adding this group would exceed max_block_size
-        size_t new_total = total_size + group.data.size();
-        // Debug_printf("Group stats: entries=%d, size=%d, new_total=%d/%d\n",
-        //             group.entry_count, group.data.size(), new_total, max_block_size);
-
-        if (new_total > max_block_size) {
-            // Debug_printf("Group would exceed max_block_size (%d > %d), rewinding to pos %d\n",
-            //            new_total, max_block_size, group_start_pos);
-            // Rewind to start of this group and break
-            _fnHosts[_current_open_directory_slot].dir_seek(group_start_pos);
+        if (!page_groups.empty() || group_size <= 1)
             break;
-        }
 
-        // Add group to our collection
-        total_size = new_total;
-        page_groups.push_back(std::move(group));
-        // Debug_printf("Added group %d, total_size now %d\n",
-        //             page_groups.size(), total_size);
+        group_size /= 2;
+        Debug_printf("No page group fit in %d bytes; retrying with group_size=%u\n",
+                     (int) max_block_size, group_size);
+        _fnHosts[_current_open_directory_slot].dir_seek(block_start_pos);
     }
 
     // If we couldn't fit any groups, return error
@@ -956,16 +993,22 @@ void fujiDevice::fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_s
     // Add response header
     response[0] = 'M';  // Magic byte 1
     response[1] = 'F';  // Magic byte 2
-    response[2] = 4;    // Header size (magic + size + count)
+    response[2] = DIR_BLOCK_HEADER_SIZE; // Header size (magic + size + count)
     response[3] = page_groups.size(); // Number of page groups that follow
 
-    // Copy all page groups to response
-    size_t current_pos = 4;  // Start after header
+    // Copy all page groups to response. max_group_bytes guarantees they fit;
+    // the check is a backstop, and a miss would mean the count in the header
+    // promised more groups than the block carries.
+    size_t current_pos = DIR_BLOCK_HEADER_SIZE;
     for (const auto& group : page_groups) {
-        if (current_pos + group.data.size() <= max_block_size) {
-            std::copy(group.data.begin(), group.data.end(), response.begin() + current_pos);
-            current_pos += group.data.size();
+        if (current_pos + group.data.size() > max_block_size) {
+            Debug_printf("Group %d does not fit at %d/%d - dropping it from the count\n",
+                         (int) group.index, (int) current_pos, (int) max_block_size);
+            response[3] = (uint8_t) (&group - page_groups.data());
+            break;
         }
+        std::copy(group.data.begin(), group.data.end(), response.begin() + current_pos);
+        current_pos += group.data.size();
     }
 
     // Debug_printf("Directory block stats:\n");

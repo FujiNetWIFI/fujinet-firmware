@@ -149,9 +149,11 @@ private:
     FujiCommandHandlers handlers;
     bool hostMounted[MAX_HOSTS];
 
+protected:
+    // Batched directory read; platform overrides of fujicmd_read_directory_entry()
+    // delegate here for addtl $C0-$FF.
     void fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_size);
 
-protected:
     fujiHost _fnHosts[MAX_HOSTS];
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
     const unsigned int _totalDiskDevices;
