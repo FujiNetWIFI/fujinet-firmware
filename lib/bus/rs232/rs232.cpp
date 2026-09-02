@@ -122,7 +122,7 @@ void systemBus::_rs232_process_cmd()
     fnLedManager.set(eLed::LED_BUS, true);
 
     Debug_printf("\nCF: dev:%02x cmd:%02x dlen:%d\n",
-                 tempFrame->device(), (uint8_t) tempFrame->command(),
+                 (uint8_t) tempFrame->device(), (uint8_t) tempFrame->command(),
                  tempFrame->data() ? tempFrame->data()->size() : -1);
 
 
@@ -267,7 +267,7 @@ void systemBus::shutdown()
 
     for (auto devicep : _daisyChain)
     {
-        Debug_printf("Shutting down device %02x\n",devicep->id());
+        Debug_printf("Shutting down device %02x\n", (uint8_t) devicep->id());
         devicep->shutdown();
     }
     Debug_printf("All devices shut down.\n");

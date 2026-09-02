@@ -312,6 +312,7 @@ public:
 
     // For compatibility with fujiDevice.cpp
     void rotateDevices(const std::vector<drivewireDisk *> &disks, int amount) {}
+    fujiDeviceID_t fujiIDForDevice(drivewireDisk *device);
 };
 
 extern systemBus SYSTEM_BUS;
