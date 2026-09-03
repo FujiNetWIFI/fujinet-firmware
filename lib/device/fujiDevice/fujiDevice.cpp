@@ -330,7 +330,7 @@ int fujiDevice::get_rotate_slot()
         return -1;
 
     for (int i = 0; i < count; i++)
-        if (get_disk_dev(i)->id() == FUJI_DEVICEID::DISK)
+        if (get_disk_id(i) == FUJI_DEVICEID::DISK)
             return i;
 
     return -1;
