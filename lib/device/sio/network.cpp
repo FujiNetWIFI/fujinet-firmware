@@ -1029,8 +1029,7 @@ void sioNetwork::create_devicespec(bool is_dir)
 */
 void sioNetwork::create_url_parser()
 {
-    std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
-    urlParser = PeoplesUrlParser::parseURL(url);
+    urlParser = PeoplesUrlParser::parseURL(deviceSpec);
 }
 
 void sioNetwork::parse_and_instantiate_protocol(bool is_dir)
