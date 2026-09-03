@@ -3,7 +3,7 @@
 #include "o2map.h"
 #include "fuji_mailbox.h"
 
-o2map_err_t o2map_plan(uint32_t size, o2map_plan_t *out)
+o2map_err_t o2map_plan(const uint8_t *image, uint32_t size, o2map_plan_t *out)
 {
     unsigned nbanks, bank_bytes;
 
@@ -34,13 +34,28 @@ o2map_err_t o2map_plan(uint32_t size, o2map_plan_t *out)
 
     /* The mailbox lives at $F20-$FFF of the program window. A 3K bank reaches
      * $FFF outright; a 2K bank stops at $BFF but the missing A10 mirrors
-     * $800-$BFF into $C00-$FFF, so it lands there too. In practice every real
-     * cartridge claims the page, which is why booting a game disables the
-     * mailbox for the session rather than refusing the boot -- same call the
-     * Intellivision cart makes with cart.MailboxActive. */
-    out->mailbox_ok = false;
+     * $800-$BFF into $C00-$FFF, so it lands there too. Either way the image
+     * owns the page unless it says otherwise, which is why booting a game
+     * disables the mailbox for the session rather than refusing the boot --
+     * the same call the Intellivision cart makes with cart.MailboxActive. */
+    out->mailbox_ok = image != NULL && o2map_claims_mailbox(image, out);
 
     return O2MAP_OK;
+}
+
+bool o2map_claims_mailbox(const uint8_t *image, const o2map_plan_t *plan)
+{
+    unsigned off = FN_R_CLAIM - O2MAP_CART_BASE;
+
+    /* Bank 0 is the boot bank and holds the LAST chunk of the file. In a 2K
+     * bank $F2C is not in the image at all: it is the missing-A10 reflection of
+     * $B2C, one 1K page lower, so look where the image actually keeps it. */
+    if (off >= plan->bank_bytes)
+        off -= 1024;
+
+    return memcmp(image + (size_t) o2map_file_chunk(plan, 0) * plan->bank_bytes
+                        + off,
+                  FN_R_CLAIM_SIG, FN_R_CLAIM_LEN) == 0;
 }
 
 unsigned o2map_file_chunk(const o2map_plan_t *plan, unsigned bank)

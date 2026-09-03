@@ -30,11 +30,15 @@ typedef struct {
     uint32_t size;        /* image size in bytes                              */
     unsigned nbanks;      /* 1, 2, 4 or 8                                     */
     unsigned bank_bytes;  /* 2048 or 3072                                     */
-    bool mailbox_ok;      /* false if the image itself claims the mailbox page*/
+    bool mailbox_ok;      /* image reserves $F20-$FFF, so the mailbox survives*/
 } o2map_plan_t;
 
-/* Decide the layout for an image of `size` bytes. */
-o2map_err_t o2map_plan(uint32_t size, o2map_plan_t *out);
+/* Decide the layout for an image of `size` bytes. `image` may be NULL when only
+ * the layout is wanted; mailbox_ok then reads false, the safe answer. */
+o2map_err_t o2map_plan(const uint8_t *image, uint32_t size, o2map_plan_t *out);
+
+/* Does the image reserve the mailbox page? See FN_R_CLAIM in fuji_mailbox.h. */
+bool o2map_claims_mailbox(const uint8_t *image, const o2map_plan_t *plan);
 
 /* Lay `image` into `banks` exactly as the console will see it. */
 void o2map_apply(const uint8_t *image, const o2map_plan_t *plan,

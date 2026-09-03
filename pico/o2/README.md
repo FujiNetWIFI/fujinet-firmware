@@ -158,6 +158,19 @@ fujinet: dev=70 ... seq=2 -> err=0 reply=06 rxlen=240   <- fresh, not a replay
 | `-resetat=N` | pulse the console RESET button at frame N |
 | `-input=F:C,...` | replay controller input (`u`/`d`/`l`/`r`/`f`) at frame F |
 
+Interactively, **F5 is the console RESET button** — the one a mounted cartridge
+means when it puts `PRESS RESET` on screen. Stock o2em's F5 only restarts the
+CPU; `keyboard.c` now calls `fujinet_on_reset()` first, so the staged image is
+swapped into the ROM banks and `init_roms()` selects bank 0, which o2map
+guarantees is the boot bank. Without that, the key resets straight back into the
+browser and a perfectly good mount looks like it silently failed.
+
+`-resetat=N` is the scripted equivalent and installs a staged image the same
+way, which is what reproduces the sequence-counter trap below. It is narrower
+than F5 in one respect: it restarts the 8048 without `init_roms()`, so the bank
+selected before the reset stays selected until the program writes P1 again.
+Trust F5 for judging what a real mount looks like.
+
 ## Notes and gotchas
 
 - **ALL CODE MUST STAY BELOW `$800`.** `CALL` and `JMP` carry 11 address bits;
@@ -199,6 +212,19 @@ fujinet: dev=70 ... seq=2 -> err=0 reply=06 rxlen=240   <- fresh, not a replay
   with whatever command was left in the registers and publishes the reply over the
   running game's code. Same session flag the Intellivision cart keeps, for the same
   reason.
+- **A booted *client* has to opt out of that**, or it comes up reading `NO CART`.
+  An image declares itself FujiNet-aware by carrying `FUJI` at `$F2C-$F2F` — the
+  only four bytes of the mailbox page the cartridge never publishes over, so the
+  signature survives being published into. It is a promise about two things at
+  once: `$F20-$FFF` is reserved for the mailbox, and `$E0-$E3` is not used to
+  drive The Voice. `testrom/fujistub.inc` emits it, so a client that includes the
+  stub gets it by rebuilding.
+- **The image lands on top of the mailbox page, so a surviving mailbox has to be
+  published again** before the 8048 restarts and looks for the magic at `$F29`.
+  Repainting republishes `FN_R_ACKSEQ` as 0, which means the service's own
+  `lastseq` has to be reset with it — otherwise the client's first request
+  (`ACKSEQ + 1`, per the rule below) can collide with a sequence already answered
+  and be dropped in silence, which is trap 1 wearing a different hat.
 - The o2em model's socket round trip is **synchronous**, so the client sees
   `FN_R_ACKSEQ` already updated on its first poll. Real hardware makes it wait.
   The client must poll regardless, but this model will not catch one that forgets.

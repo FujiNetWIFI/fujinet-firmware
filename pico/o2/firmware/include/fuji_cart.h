@@ -47,6 +47,7 @@ static inline void fuji_cart_note_write(uint8_t addr, uint8_t data)
 bool fuji_cart_next_write(uint8_t *addr, uint8_t *data);
 void fuji_cart_poke(unsigned prog_addr, uint8_t value);
 void fuji_cart_paint(void);
+void fuji_cart_stage_boot(void);
 void fuji_cart_init(void);
 
 #endif /* FUJI_CART_H */

@@ -36,7 +36,7 @@ static void port_stream_end(int stream, const uint8_t *data, unsigned len,
     if (aborted || stream != 0 || len == 0)
         return;                 /* the .cfg sibling means nothing to an O2 cart */
 
-    if (o2map_plan(len, &plan) != O2MAP_OK) {
+    if (o2map_plan(data, len, &plan) != O2MAP_OK) {
         fuji_cart_poke(FN_R_BOOT_STATE, FN_BOOT_FAILED);
         fuji_cart_poke(FN_R_BOOT_ERR, FN_BOOT_ERR_NOMAP);
         return;
@@ -44,9 +44,17 @@ static void port_stream_end(int stream, const uint8_t *data, unsigned len,
     o2map_apply(data, &plan, new_rom_table);
     /* The mailbox lives in the program window a real game needs for its own
      * code. Keep the game, drop the mailbox for the session -- the same call
-     * the Intellivision cart makes with cart.MailboxActive. */
+     * the Intellivision cart makes with cart.MailboxActive -- unless the image
+     * reserved the page and said so. */
     fuji_mailbox_active = plan.mailbox_ok;
+    fuji_cart_stage_boot();
     fuji_boot_armed = true;
+
+    /* o2map_apply has just written the image over the staged table's mailbox
+     * page. A mailbox that survives the boot has to be published into it again
+     * before the console fetches $400 and the client looks for the magic. */
+    if (fuji_mailbox_active)
+        fujimail_paint();
 }
 
 static void port_bootsel(void)

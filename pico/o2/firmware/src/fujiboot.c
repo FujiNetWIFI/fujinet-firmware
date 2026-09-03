@@ -24,7 +24,7 @@ void fuji_config_boot(void)
 
     /* The client is a 3K single-bank image, so it lands in every bank and the
      * console sees it whichever way P10/P11 happen to sit. */
-    if (o2map_plan(FUJI_CONFIGROM_SIZE, &plan) == O2MAP_OK)
+    if (o2map_plan(_configrom, FUJI_CONFIGROM_SIZE, &plan) == O2MAP_OK)
         o2map_apply(_configrom, &plan, rom_table);
 
     /* The client owns only $F00-$F1F of the mailbox page; everything from
