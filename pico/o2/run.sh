@@ -10,5 +10,5 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 O2EM="${O2EM:-$HOME/Workspace/o2em/o2em}"
 FUJI="${FUJI:-127.0.0.1:9995}"
 CART="${1:-fujitest}"; shift || true
-exec "$O2EM" -romdir="$HERE/build/" -biosdir="$HERE/bios/" -nosound \
+exec "$O2EM" -wsize=4 -romdir="$HERE/build/" -biosdir="$HERE/bios/" -nosound \
      -fujinet="$FUJI" -fujinet-debug=1 "$@" "$CART.bin"

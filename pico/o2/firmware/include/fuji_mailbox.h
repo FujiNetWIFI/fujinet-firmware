@@ -75,6 +75,16 @@
 #define FN_R_MAGIC1     0xF2A /* 'N'                                             */
 #define FN_R_PROTO_VER  0xF2B
 
+/* $F2C-$F2F is the only part of the page the cart never publishes over, so it
+ * is where a cartridge image declares itself. An image carrying FN_R_CLAIM_SIG
+ * there promises two things: $F20-$FFF is reserved for the mailbox, and $E0-$E3
+ * is not used to drive The Voice. Both have to hold before the mailbox can
+ * survive a boot -- an ordinary game keeps its code in this page and does write
+ * The Voice, which is why booting one disables the mailbox for the session. */
+#define FN_R_CLAIM      0xF2C
+#define FN_R_CLAIM_LEN  4
+#define FN_R_CLAIM_SIG  "FUJI"
+
 #define FN_R_DATA       0xF30 /* reply slice selected by FN_REG_RXSLICE          */
 #define FN_R_SLICE_LEN  0xD0  /* 208 bytes: $F30..$FFF                           */
 

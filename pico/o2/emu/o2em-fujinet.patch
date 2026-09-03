@@ -38,10 +38,10 @@ index 2314944..0cd8344 100644
  
 diff --git a/fujinet.c b/fujinet.c
 new file mode 100644
-index 0000000..62c01a7
+index 0000000..4095752
 --- /dev/null
 +++ b/fujinet.c
-@@ -0,0 +1,345 @@
+@@ -0,0 +1,350 @@
 +/* fujinet.c -- o2em model of the FujiNet RP2040 cartridge.
 + *
 + * Stands in for the cartridge so the 8048 client can be developed and
@@ -364,16 +364,21 @@ index 0000000..62c01a7
 +
 +    if (pending_len == 0)
 +        return;
-+    if (o2map_plan(pending_len, &plan) == O2MAP_OK) {
++    if (o2map_plan(pending, pending_len, &plan) == O2MAP_OK) {
 +        o2map_apply(pending, &plan, rom_table);
 +        mailbox_active = plan.mailbox_ok;
++        /* The image has just been laid over the mailbox page, so a mailbox that
++         * survives the boot has to be published into it again before the 8048
++         * restarts and looks for the magic. */
++        if (mailbox_active)
++            fujimail_paint();
 +        fprintf(stderr, "fujinet: booted %u bytes as %u x %uK bank(s);"
 +                        " mailbox %s for this session\n",
 +                pending_len, plan.nbanks, plan.bank_bytes / 1024,
 +                plan.mailbox_ok ? "kept" : "disabled");
 +    } else {
 +        fprintf(stderr, "fujinet: %u bytes: %s\n", pending_len,
-+                o2map_strerror(o2map_plan(pending_len, &plan)));
++                o2map_strerror(o2map_plan(pending, pending_len, &plan)));
 +    }
 +    pending_len = 0;
 +}
@@ -422,6 +427,32 @@ index 0000000..51922e3
 +void fujinet_on_reset(void);
 +
 +#endif /* FUJINET_H */
+diff --git a/keyboard.c b/keyboard.c
+index 4ded317..9a383b7 100644
+--- a/keyboard.c
++++ b/keyboard.c
+@@ -27,6 +27,7 @@
+ #include "keyboard.h"
+ #include "allegro.h"
+ #include "score.h"
++#include "fujinet.h"
+ 
+ int NeedsPoll = 0;
+ 
+@@ -288,6 +289,13 @@ void handle_key(void){
+     if (key[syskeys[2]]) key_debug=1;
+ 
+     if (key[syskeys[3]]) {
++        /* This is the button a mounted cartridge means by "PRESS RESET". On the
++         * console, RESET restarts the 8048 and leaves the cartridge alone, so a
++         * staged image has to be swapped into rom_table here -- init_roms()
++         * below then selects bank 0, which o2map guarantees is the boot bank.
++         * Without this the key resets the CPU back into the browser and the
++         * mount looks like it silently failed. */
++        fujinet_on_reset();
+         init_cpu();
+         init_roms();
+         init_vpp();
 diff --git a/main.c b/main.c
 index ddd3c5a..3bcb6c3 100644
 --- a/main.c

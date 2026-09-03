@@ -52,6 +52,11 @@ void fujimail_paint(void)
 {
     unsigned a;
 
+    /* Painting republishes FN_R_ACKSEQ as 0, so the interlock has to start over
+     * with it. Leaving lastseq behind would make the client's first request --
+     * ACKSEQ + 1, per the rule in fuji_mailbox.h -- collide with a sequence
+     * already answered, and run_transaction would drop it in silence. */
+    lastseq = 0;
     for (a = FN_R_ACKSEQ; a <= 0xFFF; a++)
         poke(a, 0);
     poke(FN_R_MAGIC0, 'F');
