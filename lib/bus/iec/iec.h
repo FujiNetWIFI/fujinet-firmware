@@ -98,6 +98,7 @@ public:
     }
 
     void rotateDevices(const std::vector<iecDrive *> &devices, int amount) {}
+    fujiDeviceID_t fujiIDForDevice(iecDrive *device);
 
  private:
     /**

@@ -1058,4 +1058,16 @@ void systemBus::transaction_send(const void *data, size_t len, bool is_error)
     _transaction_state = TRANS_STATE::INVALID;
 }
 
+fujiDeviceID_t systemBus::fujiIDForDevice(drivewireDisk *device)
+{
+    for (uint8_t idx = 0; idx < MAX_DISK_DEVICES; idx++)
+    {
+        auto drv = &theFuji->get_disk(idx)->disk_dev;
+        if (drv == device)
+            return FUJI_DEVICEID::DISK + idx;
+    }
+
+    return (fujiDeviceID_t) 0;
+}
+
 #endif               /* BUILD_COCO */

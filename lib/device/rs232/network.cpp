@@ -1034,7 +1034,7 @@ void rs232Network::timer_stop()
  *
  * DeviceSpec will be transformed to only contain the relevant part of the deviceSpec, sans comma.
  */
-void rs232Network::processCommaFromDevicespec(unsigned int dev)
+void rs232Network::processCommaFromDevicespec(fujiDeviceID_t dev)
 {
     size_t comma_pos = deviceSpec.find(",");
     vector<string> tokens;

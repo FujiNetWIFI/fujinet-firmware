@@ -297,7 +297,7 @@ private:
      *
      * DeviceSpec will be transformed to only contain the relevant part of the deviceSpec, sans comma.
      */
-    void processCommaFromDevicespec(unsigned int dev);
+    void processCommaFromDevicespec(fujiDeviceID_t dev);
 
     /**
      * Perform the correct read based on value of channelMode

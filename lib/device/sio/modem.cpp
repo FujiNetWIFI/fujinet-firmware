@@ -167,7 +167,7 @@ void modem::sio_poll_3(const FujiSIOPacket &packet)
     uint8_t type4response[4];
     type4response[0] = LOBYTE_FROM_UINT16(fsize);
     type4response[1] = HIBYTE_FROM_UINT16(fsize);
-    type4response[2] = FUJI_DEVICEID::SERIAL;
+    type4response[2] = (uint8_t) FUJI_DEVICEID::SERIAL;
     type4response[3] = 0;
 
     fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY);
