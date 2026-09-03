@@ -63,6 +63,31 @@ jobs:
           gcc -Wall -Wextra -I../include -o test_bootmap \
               test_bootmap.c ../src/bootmap.c ../src/memory.c ../src/utils.c
 
+      - name: Astrocade -- FujiBus codec
+        working-directory: pico/astrocade/firmware/host_test
+        run: |
+          gcc -Wall -Wextra -Werror -I.. -I../include \
+              -o test_fujibus test_fujibus.c ../src/fujibus.c
+          ./test_fujibus
+
+      - name: Astrocade -- cartridge image mapper
+        working-directory: pico/astrocade/firmware/host_test
+        run: |
+          gcc -Wall -Wextra -Werror -I../include \
+              -o test_astromap test_astromap.c ../src/astromap.c
+          ./test_astromap
+
+      # The hotspot mailbox: read-pair register decode, the SEQ/ACKSEQ and
+      # SLICE_ECHO interlocks, the DBC push receiver, and the refresh-sweep
+      # fuzz. MAME cannot model Z80 refresh and its socket transport is
+      # synchronous, so this is the only place those cases run.
+      - name: Astrocade -- hotspot mailbox service
+        working-directory: pico/astrocade/firmware/host_test
+        run: |
+          gcc -Wall -Wextra -Werror -I../include \
+              -o test_fujimail test_fujimail.c ../src/fujimail.c
+          ./test_fujimail
+
   o2-console-client:
     name: "Odyssey 2 8048 client"
     runs-on: ubuntu-latest
@@ -138,6 +163,21 @@ jobs:
           /tmp/test_o2map build/hello.bin build/fujitest.bin \
                           build/fujiboot.bin build/fujicfg.bin
 
+  astrocade-console-client:
+    name: "Astrocade Z80 clients"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # zmac is vendored (tools/zmac, public domain -- see its PROVENANCE.md)
+      # because no distro packages it and there is no release mirror to pin.
+      # build.sh compiles it on demand; tools/checkrom.py then enforces the
+      # fuji_mailbox.h layout on every image: 0x55 sentinel, exactly 8K, the
+      # claim signature, and nothing above the 0x1AFF ROM top.
+      - name: Assemble and validate
+        working-directory: pico/astrocade
+        run: ./build.sh fujitest fujiboot fujicfg
+
   cartridge-firmware:
     name: "RP2040 cartridge firmware"
     runs-on: ubuntu-latest
@@ -189,3 +229,14 @@ jobs:
         run: |
           cmake -B build -DPICO_BOARD=fujicard -DCMAKE_BUILD_TYPE=Release -G Ninja
           ninja -C build
+
+      # build-cart.sh regenerates fujiconfigrom.h from the baked-in client,
+      # so the Z80 side has to assemble first (the vendored zmac needs no
+      # cross-tools beyond gcc).
+      - name: Astrocade cartridge (fujicade)
+        working-directory: pico/astrocade
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: |
+          ./build.sh fujitest fujiboot fujicfg
+          ./build-cart.sh
