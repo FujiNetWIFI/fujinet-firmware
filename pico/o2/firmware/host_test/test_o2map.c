@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "o2map.h"
+#include "fuji_mailbox.h"
 
 static int failures;
 
@@ -26,7 +27,7 @@ static void plan_case(uint32_t size, o2map_err_t want_err,
                       unsigned want_banks, unsigned want_bytes)
 {
     o2map_plan_t p;
-    o2map_err_t e = o2map_plan(size, &p);
+    o2map_err_t e = o2map_plan(NULL, size, &p);
     char buf[96];
 
     snprintf(buf, sizeof buf, "%6u bytes -> %s", size, o2map_strerror(want_err));
@@ -63,12 +64,12 @@ int main(int argc, char **argv)
     plan_case(32768, O2MAP_ETOOBIG,  0, 0);   /* 16 x 2K: more than we select*/
 
     puts("o2map: bank ordering");
-    o2map_plan(4096, &p);
+    o2map_plan(NULL, 4096, &p);
     check("bank 0 comes from the LAST chunk of the file",
           o2map_file_chunk(&p, 0) == 1);
     check("bank 1 comes from the first chunk",
           o2map_file_chunk(&p, 1) == 0);
-    o2map_plan(3072, &p);
+    o2map_plan(NULL, 3072, &p);
     check("a single-bank image maps chunk 0 to bank 0",
           o2map_file_chunk(&p, 0) == 0);
 
@@ -77,7 +78,7 @@ int main(int argc, char **argv)
         static uint8_t img[4096];
         memset(img, 0xAA, 2048);          /* chunk 0 */
         memset(img + 2048, 0x55, 2048);   /* chunk 1 -> must become bank 0 */
-        o2map_plan(4096, &p);
+        o2map_plan(img, 4096, &p);
         o2map_apply(img, &p, banks);
         check("bank 0 holds the boot chunk at $400",
               banks[0][O2MAP_CART_BASE] == 0x55);
@@ -92,10 +93,46 @@ int main(int argc, char **argv)
     }
 
     puts("o2map: the mailbox page");
-    o2map_plan(2048, &p);
-    check("a 2K image still claims $F00 through the A10 mirror", !p.mailbox_ok);
-    o2map_plan(3072, &p);
-    check("a 3K image claims $F00 outright", !p.mailbox_ok);
+    {
+        static uint8_t img[6144];
+
+        /* An ordinary game: whatever it keeps at $F2C, it is not the
+         * signature, so the mailbox goes away for the session. */
+        memset(img, 0xAA, sizeof img);
+        o2map_plan(img, 3072, &p);
+        check("a 3K game claims $F00 outright", !p.mailbox_ok);
+        o2map_plan(img, 2048, &p);
+        check("a 2K game claims it too, through the A10 mirror",
+              !p.mailbox_ok);
+        o2map_plan(NULL, 3072, &p);
+        check("no image to inspect reads as claimed", !p.mailbox_ok);
+
+        /* A client that reserved the page says so at $F2C. In a 3K bank that
+         * is image offset $B2C; in a 2K bank the byte lives at $72C and
+         * reaches $F2C only through the mirror. */
+        memcpy(img + 0xB2C, FN_R_CLAIM_SIG, FN_R_CLAIM_LEN);
+        o2map_plan(img, 3072, &p);
+        check("a 3K client that reserves the page keeps the mailbox",
+              p.mailbox_ok);
+
+        memset(img, 0xAA, sizeof img);
+        memcpy(img + 0x72C, FN_R_CLAIM_SIG, FN_R_CLAIM_LEN);
+        o2map_plan(img, 2048, &p);
+        check("a 2K client signs at $72C, one page below the mirror",
+              p.mailbox_ok);
+
+        /* Only the boot bank is asked, and that is the LAST chunk of the
+         * file -- a signature in any other chunk is not a declaration. */
+        memset(img, 0xAA, sizeof img);
+        memcpy(img + 0xB2C, FN_R_CLAIM_SIG, FN_R_CLAIM_LEN);
+        o2map_plan(img, 6144, &p);
+        check("a signature outside the boot bank does not count",
+              !p.mailbox_ok);
+        memcpy(img + 3072 + 0xB2C, FN_R_CLAIM_SIG, FN_R_CLAIM_LEN);
+        o2map_plan(img, 6144, &p);
+        check("a signature in the boot bank of a 2-bank image counts",
+              p.mailbox_ok);
+    }
 
     for (i = 1; i < argc; i++) {
         FILE *f = fopen(argv[i], "rb");
@@ -121,7 +158,7 @@ int main(int argc, char **argv)
         }
         fclose(f);
 
-        e = o2map_plan((uint32_t) size, &p);
+        e = o2map_plan(img, (uint32_t) size, &p);
         if (e != O2MAP_OK) {
             printf("  %-52s %s\n", argv[i], o2map_strerror(e));
             failures++;
