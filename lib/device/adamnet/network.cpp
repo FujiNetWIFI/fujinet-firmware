@@ -633,8 +633,7 @@ void adamNetwork::create_devicespec(string d, bool is_dir)
  */
 void adamNetwork::create_url_parser()
 {
-    std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
-    urlParser = PeoplesUrlParser::parseURL(url);
+    urlParser = PeoplesUrlParser::parseURL(deviceSpec);
 }
 
 void adamNetwork::parse_and_instantiate_protocol(string d, bool is_dir)

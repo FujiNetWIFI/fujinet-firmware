@@ -642,8 +642,7 @@ void lynxNetwork::create_devicespec(string d, bool is_dir)
 */
 void lynxNetwork::create_url_parser()
 {
-    std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
-    urlParser = PeoplesUrlParser::parseURL(url);
+    urlParser = PeoplesUrlParser::parseURL(deviceSpec);
 }
 
 void lynxNetwork::parse_and_instantiate_protocol(string d, bool is_dir)

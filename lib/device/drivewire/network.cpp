@@ -687,8 +687,7 @@ void drivewireNetwork::create_devicespec(bool is_dir)
 */
 void drivewireNetwork::create_url_parser()
 {
-    std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
-    urlParser = PeoplesUrlParser::parseURL(url);
+    urlParser = PeoplesUrlParser::parseURL(deviceSpec);
 }
 
 void drivewireNetwork::parse_and_instantiate_protocol(bool is_dir)

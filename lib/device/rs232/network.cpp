@@ -961,8 +961,7 @@ void rs232Network::create_devicespec(fileAccessMode_t access)
 */
 void rs232Network::create_url_parser()
 {
-    std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
-    urlParser = PeoplesUrlParser::parseURL(url);
+    urlParser = PeoplesUrlParser::parseURL(deviceSpec);
 }
 
 void rs232Network::parse_and_instantiate_protocol(fileAccessMode_t access)
