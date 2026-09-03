@@ -1,0 +1,191 @@
+# Build coverage for the RP2040 cartridge trees under pico/.
+#
+# These trees had none, which is exactly how a repo-wide rename of
+# fujiCommandID_t reached pico/intellivision/firmware/include/fujibus.h and left
+# `#define CMD::NET_OPEN 0x4F` -- not a valid macro name -- sitting in the tree
+# for days. Nothing built it, so nothing noticed.
+
+name: "pico cartridges"
+
+on:
+  push:
+    branches:
+      - "**"
+      - "!release"
+    paths:
+      - "pico/**"
+      - ".github/workflows/pico-carts.yml"
+  pull_request:
+    branches:
+      - "**"
+      - "!release"
+    paths:
+      - "pico/**"
+      - ".github/workflows/pico-carts.yml"
+  workflow_dispatch:
+
+jobs:
+  host-tests:
+    name: "host tests (no hardware, no SDK)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The wire codec and the cartridge-image mapper are deliberately free of
+      # pico-sdk and TinyUSB so they can be tested here rather than on a console.
+      - name: Odyssey 2 -- FujiBus codec
+        working-directory: pico/o2/firmware/host_test
+        run: |
+          gcc -Wall -Wextra -Werror -I.. -I../include \
+              -o test_fujibus test_fujibus.c ../src/fujibus.c
+          ./test_fujibus
+
+      - name: Odyssey 2 -- cartridge image mapper
+        working-directory: pico/o2/firmware/host_test
+        run: |
+          gcc -Wall -Wextra -Werror -I../include \
+              -o test_o2map test_o2map.c ../src/o2map.c
+          ./test_o2map
+
+      - name: Intellivision -- FujiBus codec
+        working-directory: pico/intellivision/firmware/host_test
+        run: |
+          gcc -Wall -Wextra -I.. -I../include \
+              -o test_fujibus test_fujibus.c ../src/fujibus.c
+          ./test_fujibus
+
+      # Compile-only: this one is driven by a corpus of real Intellivision ROM
+      # files, which are not in the repo. Running it needs `test_bootmap
+      # <rom>...` against a local collection.
+      - name: Intellivision -- boot map (compiles)
+        working-directory: pico/intellivision/firmware/host_test
+        run: |
+          gcc -Wall -Wextra -I../include -o test_bootmap \
+              test_bootmap.c ../src/bootmap.c ../src/memory.c ../src/utils.c
+
+  o2-console-client:
+    name: "Odyssey 2 8048 client"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Macro Assembler AS. There is NO distro package for it -- Debian's and
+      # Ubuntu's "asl"/"asl-*" are the Advanced Simulation Library, something
+      # else entirely -- so it is built from the release-tracking mirror of
+      # Alfred Arnold's source. build.sh picks a native asl up from PATH in
+      # preference to its wine fallback.
+      - name: Cache Macro Assembler AS
+        id: cache-asl
+        uses: actions/cache@v4
+        with:
+          path: ~/asl
+          key: asl-upstream-${{ runner.os }}-v1
+
+      - name: Build Macro Assembler AS
+        if: steps.cache-asl.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch upstream \
+            https://github.com/Macroassembler-AS/asl-releases.git /tmp/asl-src
+          cd /tmp/asl-src
+          cp Makefile.def-samples/Makefile.def-i386-unknown-linux2.x.x Makefile.def
+          # The sample pins -march=i586, which will not build on x86-64.
+          sed -i 's|^CFLAGS.*|CFLAGS = -O2 -w|' Makefile.def
+          make -j"$(nproc)"
+          mkdir -p ~/asl
+          # Just the two binaries build.sh uses. `make install` is not run: it
+          # wants system directories, and the message catalogues are compiled
+          # into the binaries, so nothing else has to travel with them.
+          cp asl p2bin ~/asl/
+
+      - name: Put AS on PATH
+        run: echo "$HOME/asl" >> "$GITHUB_PATH"
+
+      # Assembles all four carts. tools/checklayout.py runs on each and fails
+      # the build if two pinned routines have grown into each other -- p2bin
+      # only says "overlapping memory allocation!" with no location, and every
+      # routine here is placed with an explicit org because conditional jumps on
+      # the 8048 are page-relative.
+      - name: Assemble
+        working-directory: pico/o2
+        run: ./build.sh hello fujitest fujiboot fujicfg
+
+      # No code may live above $7FF. CALL and JMP carry 11 address bits and the
+      # twelfth comes from the MB flag, which the assembler sets on the
+      # assumption that MB tracks the PC's own A11 -- an assumption a call from
+      # the high bank into the low one silently breaks, sending the next call
+      # 2K lower, into the console BIOS.
+      - name: Check no code in the high bank
+        working-directory: pico/o2
+        run: |
+          python3 - <<'PY'
+          import re, sys
+          bad = 0
+          for cart in ("fujitest", "fujiboot", "fujicfg"):
+              hi = [int(m.group(1), 16)
+                    for line in open("build/%s.lst" % cart, errors="ignore")
+                    for m in [re.match(r"^(?:\(\d+\))?\s*\d+/\s*([0-9A-F]{3,4}) : (?:[0-9A-F]{2} )+", line)]
+                    if m and 0x800 <= int(m.group(1), 16) < 0xD00]
+              print("%-10s code bytes in the high bank: %d" % (cart, len(hi)))
+              bad += len(hi)
+          sys.exit(1 if bad else 0)
+          PY
+
+      - name: Decode every built cart with the image mapper
+        working-directory: pico/o2
+        run: |
+          gcc -Wall -Wextra -Werror -Ifirmware/include -o /tmp/test_o2map \
+              firmware/host_test/test_o2map.c firmware/src/o2map.c
+          /tmp/test_o2map build/hello.bin build/fujitest.bin \
+                          build/fujiboot.bin build/fujicfg.bin
+
+  cartridge-firmware:
+    name: "RP2040 cartridge firmware"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned, not master: an SDK that moves under CI turns an unrelated
+      # upstream change into a red build on this branch. 2.3.0 is what these
+      # firmwares are built against locally.
+      - uses: actions/checkout@v4
+        with:
+          repository: raspberrypi/pico-sdk
+          ref: "2.3.0"
+          path: pico-sdk
+          submodules: true
+
+      # build-essential, pkg-config and libusb are for picotool, not for our
+      # firmware: the SDK generates the .uf2 with it, and when no compatible
+      # picotool is installed the SDK fetches and builds it from source. Those
+      # three are exactly what picotool's own BUILDING.md asks for. Without them
+      # the failure lands in the middle of an ExternalProject, which is a
+      # confusing place to learn about a missing host library.
+      - run: sudo apt-get update && sudo apt-get install -y
+               build-essential cmake ninja-build
+               gcc-arm-none-eabi libnewlib-arm-none-eabi
+               pkg-config libusb-1.0-0-dev
+
+      # Both configurations: the FujiNet build is what ships, and the stock one
+      # proves the vendored PicoPAC still builds with our changes applied.
+      - name: Odyssey 2 cartridge (FujiNet)
+        working-directory: pico/o2
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: ./build-cart.sh
+
+      - name: Odyssey 2 cartridge (stock PicoPAC)
+        working-directory: pico/o2
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: ./build-cart.sh --stock
+
+      # Pulls no-OS-FatFS-SD (v3.6.2) and littlefs (master) over the network via
+      # FetchContent. Its `git describe --tags` falls back to version 0.0 on a
+      # shallow checkout, which is fine here.
+      - name: Intellivision cartridge (fujicard)
+        working-directory: pico/intellivision/firmware
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: |
+          cmake -B build -DPICO_BOARD=fujicard -DCMAKE_BUILD_TYPE=Release -G Ninja
+          ninja -C build

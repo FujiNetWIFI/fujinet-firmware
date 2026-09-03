@@ -1,0 +1,79 @@
+; hello.a48 -- toolchain/emulator smoke test: draw a word with no BIOS calls.
+; Proves the assembler, the stub BIOS handoff at $400, and the VDC character
+; encoding before any mailbox code exists.
+
+    cpu 8048
+    org 400h
+    include "g7000.h"
+    include "vdctext.inc"
+
+YP      equ 24              ; row for the whole string
+XP      equ 40              ; left edge
+COL     equ col_chr_white
+
+    jmp start               ; $400 reset
+    jmp irqret              ; $402 external IRQ
+    jmp irqret              ; $404 timer IRQ
+    jmp irqret              ; $406 vblank
+    jmp start               ; $408 after BIOS "select game"
+    jmp irqret              ; $40A vblank continuation
+irqret:
+    retr
+
+start:
+    dis i
+    dis tcnti
+    mov a,#P1_SEL_VDC
+    outl p1,a
+
+    mov r0,#vdc_control     ; foreground off while we program the registers
+    clr a
+    movx @r0,a
+
+    mov r0,#vdc_color
+    mov a,#col_bck_blue|col_grd_black
+    movx @r0,a
+
+    mov r0,#vdc_char0       ; VDC char register walker
+    mov r1,#str&0FFh        ; table pointer (must share this 256-byte page)
+    mov r3,#XP              ; running X
+    mov r2,#7               ; glyph count
+next:
+    mov a,#YP               ; byte 0: Y
+    movx @r0,a
+    inc r0
+    mov a,r3                ; byte 1: X
+    movx @r0,a
+    inc r0
+    mov a,r1                ; byte 2: char pointer low
+    movp a,@a
+    movx @r0,a
+    inc r0
+    inc r1
+    mov a,r1                ; byte 3: colour + 9th pointer bit
+    movp a,@a
+    movx @r0,a
+    inc r0
+    inc r1
+    mov a,r3                ; advance X one glyph
+    add a,#8
+    mov r3,a
+    djnz r2,next
+
+    mov r0,#vdc_control     ; foreground on
+    mov a,#vdc_ctrl_fore
+    movx @r0,a
+spin:
+    jmp spin
+
+str:
+    db CHRPTR(_F,YP), CHRCTL(_F,YP,COL)
+    db CHRPTR(_U,YP), CHRCTL(_U,YP,COL)
+    db CHRPTR(_J,YP), CHRCTL(_J,YP,COL)
+    db CHRPTR(_I,YP), CHRCTL(_I,YP,COL)
+    db CHRPTR(_N,YP), CHRCTL(_N,YP,COL)
+    db CHRPTR(_E,YP), CHRCTL(_E,YP,COL)
+    db CHRPTR(_T,YP), CHRCTL(_T,YP,COL)
+
+    org 0FFFh               ; pad to a full 3K cart image
+    db 0
