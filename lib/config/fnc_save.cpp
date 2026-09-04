@@ -54,6 +54,7 @@ void fnConfig::save()
     ss << "enabled=" << _wifi.enabled << LINETERM;
     ss << "SSID=" << _wifi.ssid << LINETERM;
     ss << "passphrase=" << _wifi.passphrase << LINETERM;
+    ss << "multi_ap=" << _wifi.multi_ap << LINETERM;
 
     // WIFI STORED
     for (i = 0; i < MAX_WIFI_STORED; i++)
