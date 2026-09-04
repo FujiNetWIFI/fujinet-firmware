@@ -155,6 +155,9 @@ public:
 
     rs232Printer *getPrinter() { return _printerdev; }
     rs232CPM *getCPM() { return _cpmDev; }
+    // The raw channel, for callers that must adjust its read timeout around
+    // a long operation (diskTypeROM's flash-erasing push).
+    IOChannel *ioChannel() { return _port; }
 
 
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process

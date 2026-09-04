@@ -57,6 +57,12 @@ public:
     size_t available();
     void discardInput();
 
+    // The per-byte inactivity window dataIn() enforces. Public so a caller
+    // whose peer can legitimately stall (a flash-erasing ROM push) can widen
+    // it for the duration and put it back.
+    double readTimeout() const { return read_timeout_ms; }
+    void setReadTimeout(double millis) { read_timeout_ms = millis; }
+
     /* Convenience methods, just wrappers for dataIn()/dataOut() methods above */
     size_t read(void *buffer, size_t length);
     int read(void);
