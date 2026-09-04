@@ -35,9 +35,9 @@ RP2040 firmware, the MAME device, and (hand-mirrored in
 | 0x1B00-0x1BFF | 0x3B00 | reply slice (256 of up to 1024 bytes) |
 | 0x1C00-0x1C0C | 0x3C00 | status: ACKSEQ, ERR, RXLEN, BOOT_*, magic 'F' 'N', SLICE_ECHO |
 | 0x1CFC | 0x3CFC | "FUJI" claim signature (an image carrying it keeps the mailbox after boot) |
-| 0x1D00-0x1DFF | 0x3D00 | hotspot: REGSEL (0xFE = armed-only ROM swap) |
+| 0x1D00-0x1DFF | 0x3D00 | hotspot: REGSEL (0x80+page = APPBANK low-half select; 0xF0-0xFF reserved, 0xFE = armed-only ROM swap) |
 | 0x1E00-0x1EFF | 0x3E00 | hotspot: REGDATA (inert without an immediately-preceding REGSEL) |
-| 0x1F00-0x1FFF | 0x3F00 | hotspot: TX byte stream |
+| 0x1F00-0x1FFF | 0x3F00 | hotspot: TX byte stream (and, mailbox-dead only, the game mapper's bank selects) |
 
 Stray reads are the hazard on a port like this (Z80 refresh cycles, the
 MAME debugger, the OS walking the menu chain). Three independent gates keep
@@ -56,17 +56,55 @@ read and the next; nothing fetches from cart space meanwhile) and does
 `JP 0`. The OS cold-starts, walks the new image's 0x55 sentinel, and the
 game is one keypress away. Faithful to a physical cart swap plus RESET.
 
+## Banked images (protocol v2)
+
+Two schemes cover carts bigger than the 8K window, mutually exclusive by
+construction (spec prose in `fuji_mailbox.h`, mapping authority in
+`astromap.c`):
+
+- **GAME** -- an exact 256K/512K image with no claim boots onto the
+  established homebrew mapper, byte-compatible with MAME's
+  `rom_256k`/`rom_512k`: 0x2000-0x2FFF fixed to the LAST 4K bank, a
+  switched 4K bank above it, and a read at 0x3FC0-0x3FFF (256K) /
+  0x3F80-0x3FFF (512K) that selects `addr & mask` AND returns the bank
+  number as the data byte. Those hotspots sit inside the TX page, which is
+  why game banking exists only with the mailbox dead -- and why the mailbox
+  pages never moved: every ported app streams server-chosen bytes across
+  the whole TX page.
+- **APPBANK** -- a claimed image of 8K + k*4K keeps the mailbox fully
+  live. The image is flat 4K pages; page 0 boots at 0x2000-0x2FFF (the LOW
+  half is what banks), page 1 is the fixed high half, always served from
+  the RAM window so repaints stay visible. One read at 0x3D80+page switches
+  instantly (core1 handles it inline, like the swap). Console RESET cannot
+  restore page 0, so every page opens with a stamped sentinel header whose
+  start vector re-selects page 0 from high-half code -- `tools/mkbanked.py`
+  stamps it, reset entry 0x3000 by convention.
+
+Storage is tiered (`fuji_store.c`): the classic 8K stage, a 128K RAM store,
+and the top 512K of flash (erased and programmed on core0 while core1 keeps
+serving from SRAM; `FN_BOOT_ERR_STOREBUSY` when the only fitting store is
+the one being served from). The serve loop itself is a bank-pointer pair --
+`bank[a >> 12][a & 0xFFF]` -- so the flat path is byte-identical to v1.
+
 ## Layout
 
 ```
 build.sh                assemble the Z80 clients (vendored zmac; checkrom.py
-                        enforces the fuji_mailbox.h layout on every image)
-build-cart.sh           RP2040 firmware (pico-sdk; bakes the CONFIG client in)
+                        enforces the fuji_mailbox.h layout on every image;
+                        fujibank/gamebank build banked images via the packers)
+build-cart.sh           RP2040 firmware (pico-sdk; bakes the CONFIG client in --
+                        the real fujinet-config build when build/config.bin
+                        is present, testrom stand-ins otherwise)
 run.sh                  run a client in MAME against a live fujinet-pc
-emu/                    MAME cart device + apply.sh + SLIP-over-TCP transport
+emu/                    MAME cart device + apply.sh + SLIP-over-TCP transport;
+                        drive.lua/abcheck.lua/soak.lua headless helpers
 firmware/               RP2040 firmware; include/fuji_mailbox.h is the spec
-testrom/                Z80 clients: fujitest, fujiboot, fujicfg + HVGLIB.H
-tools/                  vendored zmac (PD, see PROVENANCE.md), mkromh, checkrom
+testrom/                Z80 clients: fujitest, fujiboot, fujicfg, and the
+                        banked self-tests fujibank (APPBANK) and gamebank
+                        (256K/512K mapper, FujiNet-free) + HVGLIB.H
+tools/                  vendored zmac (PD, see PROVENANCE.md), mkromh, checkrom,
+                        mkbanked/mkgame (banked-image packers, self-verifying),
+                        soak.sh (stream-and-boot an entire ROM corpus)
 ```
 
 The shared protocol sources -- `fujimail.c` (hotspot decode, SEQ/ACKSEQ and
@@ -83,12 +121,16 @@ stay identical by construction, not by discipline.
 cd firmware/host_test
 gcc -Wall -Wextra -Werror -I.. -I../include -o test_fujibus  test_fujibus.c  ../src/fujibus.c  && ./test_fujibus
 gcc -Wall -Wextra -Werror -I../include      -o test_astromap test_astromap.c ../src/astromap.c && ./test_astromap
-gcc -Wall -Wextra -Werror -I../include      -o test_fujimail test_fujimail.c ../src/fujimail.c && ./test_fujimail
+gcc -Wall -Wextra -Werror -I../include      -o test_bankserve test_bankserve.c ../src/astromap.c && ./test_bankserve
+gcc -Wall -Wextra -Werror -I../include      -o test_fujimail test_fujimail.c ../src/fujimail.c ../src/astromap.c && ./test_fujimail
 
-# 2. Clients
+# 2. Clients (fujibank/gamebank also run the packers' self-verification)
 ./build.sh                      # fujitest fujiboot fujicfg -> build/*.bin
+./build.sh fujibank gamebank    # banked self-tests -> fujibank.bin, gamebank{256,512}.bin
 
-# 3. The MAME model (a tree with the astrocde BIOS in roms/)
+# 3. The MAME model (a tree with the astrocde BIOS in roms/). REGENIE=1 is
+#    needed only the FIRST time (bus.lua changed); re-run apply.sh after
+#    EVERY shared-source edit -- MAME builds the copies, not this tree.
 ./emu/apply.sh ~/Workspace/mame
 make -C ~/Workspace/mame -j$(nproc) NOWERROR=1 REGENIE=1
 
@@ -96,7 +138,18 @@ make -C ~/Workspace/mame -j$(nproc) NOWERROR=1 REGENIE=1
 ./run.sh fujitest               # SSID/version/IP on the console screen
 ./run.sh fujicfg                # hosts -> browse -> boot over the network
 
-# 5. RP2040 firmware
+# 5. Banking, headless: the game A/B (our device vs MAME's own mappers --
+#    omit -cartslot for the reference run; exact size auto-selects it) and
+#    the APPBANK self-test, verdicts printed by emu/abcheck.lua
+mame astrocde -cartslot fujinet -cart build/gamebank256.bin -autoboot_script emu/abcheck.lua -video none -sound none
+mame astrocde                   -cart build/gamebank256.bin -autoboot_script emu/abcheck.lua -video none -sound none
+mame astrocde -cartslot fujinet -cart build/fujibank.bin    -autoboot_script emu/abcheck.lua -video none -sound none
+
+# 6. The soak: DBC-stream and boot EVERY image in a ROM corpus, comparing
+#    the served window byte-for-byte against the astromap mapping
+tools/soak.sh ~/Workspace/mame/roms/astrocde
+
+# 7. RP2040 firmware
 PICO_SDK_PATH=/usr/share/pico-sdk ./build-cart.sh    # -> fujicade.uf2
 ```
 
@@ -128,6 +181,21 @@ Verified in emulation against a real fujinet-pc-rs232 (2026-09):
   selection, then the fujiboot path. Root listing only for now, the o2
   CONFIG's proven scope; subdirectory descent is the obvious next step.
 - A commercial 8K dump runs standalone through the device, mailbox dead.
+
+Banking (protocol v2), verified the same way (2026-09):
+
+- **Game mapper A/B**: synthetic 256K and 512K images (gamebank walks every
+  bank, checks every hotspot read returns its bank number, verifies every
+  stamp) PASS identically on this device and on MAME's own
+  rom_256k/rom_512k.
+- **fujibank end-to-end**: a 32K APPBANK image DBC-streams via fujiboot,
+  boots, verifies all 8 pages, and runs a live mailbox transaction WHILE a
+  non-zero page is banked in.
+- **The soak**: all 133 images in the MAME astrocde ROM corpus (2K-8K,
+  mirrored and odd sizes included) stream, boot, and serve a byte-exact
+  window (`tools/soak.sh`: 133/133, stream dumps byte-identical).
+- The baked-in client is the real fujinet-config CONFIG (5501 bytes), no
+  longer the fujicfg testrom stand-in.
 
 NOT YET RUN ON HARDWARE: there is no cartridge board. The EPROM check runs
 first: `build/fujitest.bin` is exactly 8192 bytes -- burn it to a 27C64 in

@@ -77,15 +77,27 @@ jobs:
               -o test_astromap test_astromap.c ../src/astromap.c
           ./test_astromap
 
+      # The v2 banking serve model vs MAME's rom_256k/rom_512k handlers,
+      # transcribed verbatim as the reference: 2M fuzzed reads must match
+      # byte-for-byte, bank state included, plus the exact hotspot
+      # boundaries and the debugger's no-commit read.
+      - name: Astrocade -- banked serve model
+        working-directory: pico/astrocade/firmware/host_test
+        run: |
+          gcc -Wall -Wextra -Werror -I../include \
+              -o test_bankserve test_bankserve.c ../src/astromap.c
+          ./test_bankserve
+
       # The hotspot mailbox: read-pair register decode, the SEQ/ACKSEQ and
-      # SLICE_ECHO interlocks, the DBC push receiver, and the refresh-sweep
-      # fuzz. MAME cannot model Z80 refresh and its socket transport is
-      # synchronous, so this is the only place those cases run.
+      # SLICE_ECHO interlocks, the DBC push receiver (through the port-owned
+      # store, astromap-gated), and the refresh-sweep fuzz. MAME cannot
+      # model Z80 refresh and its socket transport is synchronous, so this
+      # is the only place those cases run.
       - name: Astrocade -- hotspot mailbox service
         working-directory: pico/astrocade/firmware/host_test
         run: |
           gcc -Wall -Wextra -Werror -I../include \
-              -o test_fujimail test_fujimail.c ../src/fujimail.c
+              -o test_fujimail test_fujimail.c ../src/fujimail.c ../src/astromap.c
           ./test_fujimail
 
   o2-console-client:
@@ -173,10 +185,14 @@ jobs:
       # because no distro packages it and there is no release mirror to pin.
       # build.sh compiles it on demand; tools/checkrom.py then enforces the
       # fuji_mailbox.h layout on every image: 0x55 sentinel, exactly 8K, the
-      # claim signature, and nothing above the 0x1AFF ROM top.
+      # claim signature, and nothing above the 0x1AFF ROM top. The banked
+      # clients also run the packers' self-verification: mkbanked re-parses
+      # its own output, and mkgame walks every bank of the synthetic
+      # 256K/512K images with a pure-python transcription of the MAME read
+      # handlers.
       - name: Assemble and validate
         working-directory: pico/astrocade
-        run: ./build.sh fujitest fujiboot fujicfg
+        run: ./build.sh fujitest fujiboot fujicfg fujibank gamebank
 
   cartridge-firmware:
     name: "RP2040 cartridge firmware"
@@ -240,3 +256,8 @@ jobs:
         run: |
           ./build.sh fujitest fujiboot fujicfg
           ./build-cart.sh
+          # The serve loop must live in SRAM: flash streaming suspends XIP
+          # while core1 keeps serving the bus, so any flash-resident code on
+          # that path is a live-lock on real hardware.
+          grep -E '0x2000[0-9a-f]+\s+astrocade_core1_main$' \
+              firmware/build-fujicade/fujicade.elf.map
