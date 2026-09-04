@@ -40,6 +40,28 @@ FNRSELP EQU     3DH             ; page bytes of the above (zmac 1.3 has no
 FNRDATP EQU     3EH             ; HIGH operator)
 FNDATAP EQU     3FH
 
+; ---- bank switching (protocol v2) -------------------------------------
+; A banked app image is the ordinary 8K window plus 4K pages appended; one
+; read maps image page 0-111 into 2000H-2FFFH (the high half never moves --
+; client code and the mailbox live there; page 1 IS the high half). The
+; select is complete before the next read; the byte the select read returns
+; is undefined. Do not execute from 2000H-2FFFH while switching away from
+; the page the PC is in. On a cart serving a plain 8K image these reads are
+; no-ops, so probing is safe.
+FNBKSEL EQU     3D80H           ; read +page: map image page into 2000H-2FFFH
+FNBKMAX EQU     112             ; pages 0..111; 3DF0H+ stays reserved
+                                ; (3DFEH = FNSWAP)
+
+; Selecting a page is one instruction, no helper needed (a macro here would
+; be useless anyway: this file is included after its callers, and zmac
+; resolves forward EQUs but not forward macros). Constant page n:
+;       LD      A,(FNBKSEL+n)
+; Runtime page number in A:
+;       LD      D,FNRSELP
+;       ADD     A,80H
+;       LD      E,A
+;       LD      A,(DE)
+
 ; ---- register numbers -------------------------------------------------
 FRDEVIC EQU     00H
 FRCMD   EQU     01H

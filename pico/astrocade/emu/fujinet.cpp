@@ -31,6 +31,18 @@ DEFINE_DEVICE_TYPE(ASTROCADE_ROM_FUJINET, astrocade_rom_fujinet_device, "astroca
 // cart: the constraint is real hardware's too.
 static astrocade_rom_fujinet_device *s_fujinet = nullptr;
 
+static const char *kind_name(astromap_kind_t kind)
+{
+	switch (kind)
+	{
+	case ASTROMAP_FLAT:    return "flat";
+	case ASTROMAP_GAME256: return "256K game mapper";
+	case ASTROMAP_GAME512: return "512K game mapper";
+	case ASTROMAP_APPBANK: return "banked app";
+	default:               return "?";
+	}
+}
+
 /*-------------------------------------------------
     C port callbacks
 -------------------------------------------------*/
@@ -45,9 +57,19 @@ static bool c_link_up()
 	return fujitcp_active();
 }
 
-static void c_stream_end(int stream, const uint8_t *data, unsigned len, bool aborted)
+static uint8_t c_stream_open(int stream, uint32_t size)
 {
-	s_fujinet->stream_end(stream, data, len, aborted);
+	return s_fujinet->stream_open(stream, size);
+}
+
+static void c_stream_write(int stream, const uint8_t *chunk, unsigned len)
+{
+	s_fujinet->stream_write(stream, chunk, len);
+}
+
+static uint8_t c_stream_close(int stream, uint32_t got, bool aborted)
+{
+	return s_fujinet->stream_close(stream, got, aborted);
 }
 
 static void c_arm_swap()
@@ -90,7 +112,9 @@ static const fujimail_port_t mame_port = {
 	c_link_up,
 	fujitcp_transact,
 	fujitcp_send_bare,
-	c_stream_end,
+	c_stream_open,
+	c_stream_write,
+	c_stream_close,
 	c_arm_swap,
 	nullptr,        // wait_link_ms: the socket round trip is synchronous
 	nullptr,        // bootsel: nothing to reboot into under emulation
@@ -103,7 +127,9 @@ static const fujimail_port_t mame_port_quiet = {
 	c_link_up,
 	fujitcp_transact,
 	fujitcp_send_bare,
-	c_stream_end,
+	c_stream_open,
+	c_stream_write,
+	c_stream_close,
 	c_arm_swap,
 	nullptr,
 	nullptr,
@@ -137,10 +163,55 @@ void astrocade_rom_fujinet_device::device_start()
 	m_bootdump = getenv("FUJINET_BOOTDUMP");
 	std::memset(m_window, 0xff, sizeof m_window);
 	std::memset(m_staged, 0xff, sizeof m_staged);
+	m_bank[0] = m_window;
+	m_bank[1] = m_window + 0x1000;
 
 	// No save_item for the mailbox: the protocol state lives in the shared C
 	// service's globals, which a save state cannot capture. Plain-ROM mode
 	// saves fine; a live mailbox across save/load is not supported.
+}
+
+// Point the serve state at the live image, the emulator's copy of core1's
+// swap: m_image must already hold the full image for the banked kinds, and
+// m_window the (first) 8K.
+void astrocade_rom_fujinet_device::apply_serving(const astromap_plan_t &plan)
+{
+	astromap_serve_t s;
+
+	astromap_serve_reset(&plan, &s);
+	switch (plan.kind)
+	{
+	case ASTROMAP_APPBANK:
+		m_bank[0] = m_image.data() + s.bank_off[0];
+		// The high half serves from the RAM window so mailbox repaints stay
+		// visible; the low half banks out of the image store.
+		m_bank[1] = m_window + 0x1000;
+		m_hot_base = ASTROMAP_HOT_OFF;
+		m_hot_mask = 0;
+		m_hot_image = nullptr;
+		m_app_store = m_image.data();
+		m_app_npages = plan.npages;
+		break;
+	case ASTROMAP_GAME256:
+	case ASTROMAP_GAME512:
+		m_bank[0] = m_image.data() + s.bank_off[0];
+		m_bank[1] = m_image.data() + s.bank_off[1];
+		m_hot_base = s.hot_base;
+		m_hot_mask = s.hot_mask;
+		m_hot_image = m_image.data();
+		m_app_store = nullptr;
+		m_app_npages = 0;
+		break;
+	default:
+		m_bank[0] = m_window;
+		m_bank[1] = m_window + 0x1000;
+		m_hot_base = ASTROMAP_HOT_OFF;
+		m_hot_mask = 0;
+		m_hot_image = nullptr;
+		m_app_store = nullptr;
+		m_app_npages = 0;
+		break;
+	}
 }
 
 void astrocade_rom_fujinet_device::device_reset()
@@ -156,8 +227,18 @@ void astrocade_rom_fujinet_device::device_reset()
 
 	if (m_rom && astromap_plan(m_rom, m_rom_size, &plan) == ASTROMAP_OK)
 	{
-		astromap_apply(m_rom, &plan, m_window);
+		if (plan.kind == ASTROMAP_FLAT)
+			astromap_apply(m_rom, &plan, m_window);
+		else
+		{
+			m_image.assign(m_rom, m_rom + m_rom_size);
+			std::memcpy(m_window, m_rom, sizeof m_window);
+		}
+		apply_serving(plan);
 		m_mailbox_live = plan.mailbox_ok;
+		if (plan.kind != ASTROMAP_FLAT)
+			fprintf(stderr, "fujinet: %u-byte image loaded as %s\n",
+					unsigned(m_rom_size), kind_name(plan.kind));
 	}
 	else
 		m_mailbox_live = false;
@@ -169,27 +250,45 @@ void astrocade_rom_fujinet_device::device_reset()
 		fujimail_paint();
 	}
 	else
-		fprintf(stderr, "fujinet: image carries no claim signature; running as a plain ROM\n");
+		fprintf(stderr, "fujinet: image carries no claim signature; running with the mailbox dead\n");
 }
 
 uint8_t astrocade_rom_fujinet_device::read_rom(offs_t offset)
 {
 	offset &= 0x1fff;
 
-	uint8_t data = m_window[offset];
+	if (offset >= m_hot_base)
+	{
+		// Game bank hotspot: the read RETURNS the new bank number, exactly
+		// as rom_256k/rom_512k. The debugger sees the value but must not
+		// switch (stricter than MAME's own mappers, which commit).
+		uint8_t data = offset & m_hot_mask;
+		if (!machine().side_effects_disabled())
+			m_bank[1] = m_hot_image + (uint32_t(data) << 12);
+		return data;
+	}
+
+	uint8_t data = m_bank[offset >> 12][offset & 0xfff];
 
 	// Hotspot side effects: never for the debugger, never once the mailbox
-	// is dead. The swap is handled here rather than in fujimail because it
-	// must happen inline in whatever serves the bus (the RP2040 does it in
-	// core1's loop for the same reason).
-	if (!machine().side_effects_disabled() && m_mailbox_live && offset >= FN_H_REGSEL)
+	// is dead. The swap and the bank selects are handled here rather than in
+	// fujimail because they must happen inline in whatever serves the bus
+	// (the RP2040 does both in core1's loop for the same reason).
+	if (!machine().side_effects_disabled() && offset >= FN_H_REGSEL)
 	{
 		if (offset == FN_H_REGSEL + FN_HOT_SWAP)
 		{
 			if (m_swap_armed)
 				do_swap();
 		}
-		else
+		else if ((offset & FN_H_PAGE_MASK) == FN_H_REGSEL
+				 && (offset & 0xff) >= FN_HOT_BANK)
+		{
+			unsigned page = (offset & 0xff) - FN_HOT_BANK;
+			if (page < m_app_npages)
+				m_bank[0] = m_app_store + (uint32_t(page) << 12);
+		}
+		else if (m_mailbox_live)
 			fujimail_read_hotspot(uint16_t(offset));
 	}
 	return data;
@@ -203,42 +302,80 @@ void astrocade_rom_fujinet_device::poke(unsigned offset, uint8_t value)
 	// does not claim it keeps its bytes pristine -- and the mailbox stays
 	// live on the *current* window until the swap actually happens, so the
 	// client still sees BOOT_READY (deactivating at stage time is a latent
-	// bug in the o2 firmware port).
+	// bug in the o2 firmware port). Every mailbox offset is >= 0x1B00, the
+	// high half, which an APPBANK image always serves from m_window.
 	if (m_have_staged && m_staged_claims)
 		m_staged[offset & 0x1fff] = value;
 }
 
-void astrocade_rom_fujinet_device::stream_end(int stream, const uint8_t *data, unsigned len, bool aborted)
+uint8_t astrocade_rom_fujinet_device::stream_open(int stream, uint32_t size)
 {
+	uint8_t err = (stream == 0) ? astromap_gate(size) : 0;
+
+	if (err != 0)
+		return err;
+	std::vector<uint8_t> &v = m_rx[stream & 1];
+	v.clear();
+	if (size)
+		v.reserve(size);
+	return 0;
+}
+
+void astrocade_rom_fujinet_device::stream_write(int stream, const uint8_t *chunk, unsigned len)
+{
+	std::vector<uint8_t> &v = m_rx[stream & 1];
+
+	v.insert(v.end(), chunk, chunk + len);
+}
+
+uint8_t astrocade_rom_fujinet_device::stream_close(int stream, uint32_t got, bool aborted)
+{
+	std::vector<uint8_t> &v = m_rx[stream & 1];
 	astromap_plan_t plan;
 
-	if (m_bootdump)
+	(void) got;         // v.size() is the byte count that actually landed
+
+	if (m_bootdump && !v.empty())
 	{
 		char path[512];
 		snprintf(path, sizeof path, "%s%s", m_bootdump, stream ? ".cfg" : ".rom");
 		FILE *f = fopen(path, "wb");
 		if (f)
 		{
-			fwrite(data, 1, len, f);
+			fwrite(v.data(), 1, v.size(), f);
 			fclose(f);
-			fprintf(stderr, "fujinet: bootdump %s (%u bytes)\n", path, len);
+			fprintf(stderr, "fujinet: bootdump %s (%u bytes)\n", path, unsigned(v.size()));
 		}
 		else
 			fprintf(stderr, "fujinet: cannot write %s\n", path);
 	}
 
-	if (aborted || stream != 0 || len == 0)
-		return;         // the .cfg sibling means nothing to this cartridge
-
-	if (astromap_plan(data, len, &plan) != ASTROMAP_OK)
+	if (aborted || stream != 0)
 	{
-		poke(FN_R_BOOT_STATE, FN_BOOT_FAILED);
-		poke(FN_R_BOOT_ERR, FN_BOOT_ERR_NOMAP);
-		return;
+		v.clear();      // the .cfg sibling means nothing to this cartridge
+		return 0;
 	}
-	astromap_apply(data, &plan, m_staged);
+
+	if (v.empty() || astromap_plan(v.data(), uint32_t(v.size()), &plan) != ASTROMAP_OK)
+	{
+		v.clear();
+		return FN_BOOT_ERR_NOMAP;
+	}
+	if (plan.kind == ASTROMAP_FLAT)
+	{
+		astromap_apply(v.data(), &plan, m_staged);
+		m_staged_image.clear();
+		v.clear();
+	}
+	else
+	{
+		m_staged_image = std::move(v);
+		std::memcpy(m_staged, m_staged_image.data(), sizeof m_staged);
+	}
+	m_staged_plan = plan;
 	m_staged_claims = plan.mailbox_ok;
 	m_have_staged = true;
+	return 0;
 }
 
 void astrocade_rom_fujinet_device::arm_swap()
@@ -250,11 +387,13 @@ void astrocade_rom_fujinet_device::arm_swap()
 void astrocade_rom_fujinet_device::do_swap()
 {
 	std::memcpy(m_window, m_staged, sizeof m_window);
+	m_image = std::move(m_staged_image);
+	apply_serving(m_staged_plan);
 	m_swap_armed = false;
 	m_have_staged = false;
 	m_mailbox_live = m_staged_claims;
 	if (m_mailbox_live)
 		fujimail_paint();
-	fprintf(stderr, "fujinet: swapped in the staged image; mailbox %s for this session\n",
-			m_mailbox_live ? "kept" : "disabled");
+	fprintf(stderr, "fujinet: swapped in the staged image (%s); mailbox %s for this session\n",
+			kind_name(m_staged_plan.kind), m_mailbox_live ? "kept" : "disabled");
 }

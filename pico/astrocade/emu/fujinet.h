@@ -6,6 +6,9 @@
 #pragma once
 
 #include "slot.h"
+#include "astromap.h"
+
+#include <vector>
 
 // ======================> astrocade_rom_fujinet_device
 //
@@ -18,9 +21,15 @@
 // served window, frames go over a TCP socket to fujinet-pc ($FUJINET_TCP,
 // default 127.0.0.1:9995).
 //
-// An image that does not carry the "FUJI" claim signature runs as a plain
-// 8K ROM with the mailbox dead -- which is also how a network-booted
-// ordinary game behaves after the swap.
+// Protocol v2 banking is modeled the way core1 serves it: a bank-pointer
+// pair indexed by offset>>12, game hotspots (exact MAME rom_256k/rom_512k
+// semantics) live only with the mailbox dead, and APPBANK low-half selects
+// ride the REGSEL special-op page with the high half always served from the
+// RAM window so repaints stay visible.
+//
+// An image that does not carry the "FUJI" claim signature runs with the
+// mailbox dead -- a plain 8K ROM, or a 256K/512K game on its own mapper --
+// which is also how a network-booted one behaves after the swap.
 
 class astrocade_rom_fujinet_device : public device_t,
 							public device_astrocade_cart_interface
@@ -33,7 +42,9 @@ public:
 
 	// fujimail port plumbing, called from the C callbacks
 	void poke(unsigned offset, uint8_t value);
-	void stream_end(int stream, const uint8_t *data, unsigned len, bool aborted);
+	uint8_t stream_open(int stream, uint32_t size);
+	void stream_write(int stream, const uint8_t *chunk, unsigned len);
+	uint8_t stream_close(int stream, uint32_t got, bool aborted);
 	void arm_swap();
 
 protected:
@@ -44,10 +55,25 @@ protected:
 	virtual void device_reset() override;
 
 private:
+	void apply_serving(const astromap_plan_t &plan);
 	void do_swap();
 
 	uint8_t m_window[0x2000];
 	uint8_t m_staged[0x2000];
+	// The full image for the banked kinds (the firmware's RAM/flash store);
+	// FLAT images live wholly in the windows above.
+	std::vector<uint8_t> m_image, m_staged_image;
+	std::vector<uint8_t> m_rx[2];           // per-stream push buffers
+	astromap_plan_t m_staged_plan{};
+
+	// What read_rom serves: the emulator's copy of core1's fuji_live.
+	const uint8_t *m_bank[2] = { nullptr, nullptr };
+	uint16_t m_hot_base = ASTROMAP_HOT_OFF;
+	uint8_t m_hot_mask = 0;
+	const uint8_t *m_hot_image = nullptr;
+	const uint8_t *m_app_store = nullptr;
+	unsigned m_app_npages = 0;
+
 	bool m_init_done = false;
 	bool m_mailbox_live = false;
 	bool m_have_staged = false;
