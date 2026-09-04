@@ -23,10 +23,9 @@ static uint8_t rxbuf[FUJIMAIL_RX_MAX];
 static unsigned rxlen;
 static uint8_t rxslice;
 
-/* DBC push state. */
+/* DBC push state; the bytes themselves live in the port's store. */
 static int dbc_stream = -1;
-static uint8_t stage[FUJIMAIL_STAGE_MAX];
-static unsigned stage_len;
+static uint32_t stream_got;
 static uint32_t stage_expect;
 static bool boot_ready;
 
@@ -46,7 +45,7 @@ void fujimail_init(const fujimail_port_t *p)
     rxlen = 0;
     rxslice = 0;
     dbc_stream = -1;
-    stage_len = 0;
+    stream_got = 0;
     stage_expect = 0;
     boot_ready = false;
 }
@@ -77,7 +76,7 @@ void fujimail_paint(void)
         poke(a, 0);
     poke(FN_R_MAGIC0, 'F');
     poke(FN_R_MAGIC1, 'N');
-    poke(FN_R_PROTO_VER, 1);
+    poke(FN_R_PROTO_VER, FN_PROTO_VER);
     poke(FN_R_STATUS, port->link_up() ? FN_R_STATUS_LINK : 0);
 }
 
@@ -95,6 +94,7 @@ bool fujimail_inbound(const fb_reply_t *req)
 
     if (req->command == CMD_NET_OPEN) {
         unsigned stream = (req->data_len > 0) ? req->data[0] : 0;
+        uint8_t err;
 
         stage_expect = 0;
         if (req->data_len >= 5)
@@ -103,36 +103,44 @@ bool fujimail_inbound(const fb_reply_t *req)
                          | ((uint32_t) req->data[3] << 16)
                          | ((uint32_t) req->data[4] << 24);
         dbc_stream = (stream == 1) ? 1 : 0;
-        stage_len = 0;
+        stream_got = 0;
 
         if (port->on_dbc)
             port->on_dbc(FUJIMAIL_DBC_OPEN, dbc_stream, stage_expect, 0, false);
 
-        if (dbc_stream == 0 && stage_expect > FUJIMAIL_STAGE_MAX) {
+        err = port->stream_open(dbc_stream, stage_expect);
+        if (err != 0) {
             /* Say so now rather than after the ESP32 has dragged the whole
              * file over TNFS -- and refusing is the only way to avoid
              * silently booting a truncated image. */
+            if (dbc_stream == 0) {
+                boot_ready = false;
+                poke(FN_R_BOOT_STATE, FN_BOOT_FAILED);
+                poke(FN_R_BOOT_ERR, err);
+            }
             dbc_stream = -1;
-            boot_ready = false;
-            poke(FN_R_BOOT_STATE, FN_BOOT_FAILED);
-            poke(FN_R_BOOT_ERR, FN_BOOT_ERR_TOOBIG);
             port->send_bare(FUJI_DEVICEID_DBC, CMD_FUJI_NAK, NULL, 0);
             return true;
         }
-        poke(FN_R_BOOT_STATE, FN_BOOT_XFER);
-        poke(FN_R_BOOT_PCT, 0);
-        poke(FN_R_BOOT_ERR, 0);
+        if (dbc_stream == 0) {
+            /* Stream 1 (the .cfg sibling, pushed first) never touches the
+             * boot state: only the ROM stream's progress is the client's. */
+            poke(FN_R_BOOT_STATE, FN_BOOT_XFER);
+            poke(FN_R_BOOT_PCT, 0);
+            poke(FN_R_BOOT_ERR, 0);
+        }
         port->send_bare(FUJI_DEVICEID_DBC, CMD_FUJI_ACK, NULL, 0);
         return true;
     }
 
     if (req->command == CMD_NET_WRITE) {
-        if (stage_len + req->data_len <= sizeof stage) {
-            memcpy(stage + stage_len, req->data, req->data_len);
-            stage_len += req->data_len;
+        if (dbc_stream >= 0) {
+            port->stream_write(dbc_stream, req->data, req->data_len);
+            stream_got += req->data_len;
+            if (dbc_stream == 0 && stage_expect)
+                poke(FN_R_BOOT_PCT,
+                     (uint8_t)((stream_got * 100u) / stage_expect));
         }
-        if (stage_expect)
-            poke(FN_R_BOOT_PCT, (uint8_t)((stage_len * 100u) / stage_expect));
         port->send_bare(FUJI_DEVICEID_DBC, CMD_FUJI_ACK, NULL, 0);
         return true;
     }
@@ -142,25 +150,33 @@ bool fujimail_inbound(const fb_reply_t *req)
          * booted and older peers stay compatible. */
         bool aborted = (req->data_len > 0 && req->data[0] == 0x01);
         int stream = dbc_stream;
+        uint8_t err = 0;
 
         dbc_stream = -1;
         if (port->on_dbc)
-            port->on_dbc(FUJIMAIL_DBC_CLOSE, stream, stage_expect, stage_len,
+            port->on_dbc(FUJIMAIL_DBC_CLOSE, stream, stage_expect, stream_got,
                          aborted);
 
         if (stream >= 0)
-            port->stream_end(stream, stage, stage_len, aborted);
+            err = port->stream_close(stream, stream_got, aborted);
 
         if (aborted) {
             boot_ready = false;
             poke(FN_R_BOOT_STATE, FN_BOOT_FAILED);
             poke(FN_R_BOOT_ERR, FN_BOOT_ERR_TRUNCATED);
         } else if (stream == 0) {
-            boot_ready = true;
-            poke(FN_R_BOOT_PCT, 100);
-            poke(FN_R_BOOT_STATE, FN_BOOT_READY);
+            if (err != 0) {
+                /* Mapping failed at commit: never publish READY over it. */
+                boot_ready = false;
+                poke(FN_R_BOOT_STATE, FN_BOOT_FAILED);
+                poke(FN_R_BOOT_ERR, err);
+            } else {
+                boot_ready = true;
+                poke(FN_R_BOOT_PCT, 100);
+                poke(FN_R_BOOT_STATE, FN_BOOT_READY);
+            }
         }
-        stage_len = 0;
+        stream_got = 0;
         port->send_bare(FUJI_DEVICEID_DBC, CMD_FUJI_ACK, NULL, 0);
         return true;
     }
@@ -301,10 +317,12 @@ void fujimail_read_hotspot(uint16_t offset)
     case (FN_H_REGSEL >> 8):
         if (low < 0x80)
             regsel = low;
-        /* 0x80-0xFF: special ops. FN_HOT_SWAP is handled by the bus-serving
-         * layer, inline; nothing else is defined, so they are no-ops here --
-         * and they deliberately do NOT disturb an armed regsel, so a stray
-         * in this page cannot break up a legitimate pair in the other. */
+        /* 0x80-0xFF: special ops, and every defined one belongs to the
+         * bus-serving layer, inline -- FN_HOT_SWAP and the FN_HOT_BANK page
+         * selects (which must take effect before the next read). They are
+         * no-ops here, and they deliberately do NOT disturb an armed regsel,
+         * so a stray in this page cannot break up a legitimate pair in the
+         * other. */
         break;
 
     case (FN_H_REGDATA >> 8):

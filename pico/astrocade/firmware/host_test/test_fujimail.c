@@ -7,7 +7,7 @@
  * so this is the only place those cases run.
  *
  * Build: gcc -Wall -Wextra -Werror -I../include -o test_fujimail \
- *            test_fujimail.c ../src/fujimail.c
+ *            test_fujimail.c ../src/fujimail.c ../src/astromap.c
  */
 
 #include <assert.h>
@@ -17,6 +17,7 @@
 
 #include "fujimail.h"
 #include "fuji_mailbox.h"
+#include "astromap.h"
 
 /* ---- the stub port ---- */
 
@@ -42,13 +43,20 @@ static fb_status_t reply_status = FB_OK;
 
 static unsigned armed_calls;
 static unsigned bootsel_calls;
+
+/* Port-owned stream storage, big enough for a 512K game image, with
+ * scriptable failures: this is the fixture the hardware store and the MAME
+ * device both mirror. */
+static uint8_t store[ASTROMAP_GAME512_SIZE];
 static struct {
-    unsigned calls;
+    unsigned opens, writes, closes;
     int stream;
-    unsigned len;
+    uint32_t open_size;
+    uint32_t len;
     int aborted;
-    uint8_t first, last;
-} ended;
+    uint8_t open_err;       /* scripted refusal on top of the gate */
+    uint8_t close_err;      /* scripted commit failure (a NOMAP etc.) */
+} pushed;
 
 static void stub_poke(unsigned offset, uint8_t v)
 {
@@ -86,17 +94,34 @@ static void stub_send_bare(uint8_t device, uint8_t command,
     (void) device; (void) command; (void) payload; (void) payload_len;
 }
 
-static void stub_stream_end(int stream, const uint8_t *data, unsigned len,
-                            bool aborted)
+static uint8_t stub_stream_open(int stream, uint32_t size)
 {
-    ended.calls++;
-    ended.stream = stream;
-    ended.len = len;
-    ended.aborted = aborted;
-    if (len) {
-        ended.first = data[0];
-        ended.last = data[len - 1];
+    pushed.opens++;
+    pushed.stream = stream;
+    pushed.open_size = size;
+    pushed.len = 0;
+    if (pushed.open_err)
+        return pushed.open_err;
+    return (stream == 0) ? astromap_gate(size) : 0;
+}
+
+static void stub_stream_write(int stream, const uint8_t *chunk, unsigned len)
+{
+    (void) stream;
+    pushed.writes++;
+    if (pushed.len + len <= sizeof store) {
+        memcpy(store + pushed.len, chunk, len);
+        pushed.len += len;
     }
+}
+
+static uint8_t stub_stream_close(int stream, uint32_t got, bool aborted)
+{
+    (void) got;
+    pushed.closes++;
+    pushed.stream = stream;
+    pushed.aborted = aborted;
+    return aborted ? 0 : pushed.close_err;
 }
 
 static void stub_arm_swap(void) { armed_calls++; }
@@ -107,7 +132,9 @@ static const fujimail_port_t stub_port = {
     .link_up      = stub_link_up,
     .transact     = stub_transact,
     .send_bare    = stub_send_bare,
-    .stream_end   = stub_stream_end,
+    .stream_open  = stub_stream_open,
+    .stream_write = stub_stream_write,
+    .stream_close = stub_stream_close,
     .arm_swap     = stub_arm_swap,
     .wait_link_ms = NULL,
     .bootsel      = stub_bootsel,
@@ -134,7 +161,7 @@ static void fresh(void)
     memset(poke_when, 0, sizeof poke_when);
     poke_clock = 0;
     memset(&txn, 0, sizeof txn);
-    memset(&ended, 0, sizeof ended);
+    memset(&pushed, 0, sizeof pushed);
     armed_calls = 0;
     bootsel_calls = 0;
     reply_len = 0;
@@ -157,23 +184,34 @@ static void dbc_frame(uint8_t command, const uint8_t *data, uint16_t len)
     assert(fujimail_inbound(&f));
 }
 
-static void dbc_push(const uint8_t *image, unsigned len)
+static void dbc_open(unsigned stream, uint32_t len)
 {
     uint8_t open[5];
-    unsigned off;
 
-    open[0] = 0;
+    open[0] = (uint8_t) stream;
     open[1] = (uint8_t)(len & 0xFF);
     open[2] = (uint8_t)(len >> 8);
-    open[3] = 0;
-    open[4] = 0;
+    open[3] = (uint8_t)(len >> 16);
+    open[4] = (uint8_t)(len >> 24);
     dbc_frame(CMD_NET_OPEN, open, 5);
-    assert(window[FN_R_BOOT_STATE] == FN_BOOT_XFER);
+}
+
+static void dbc_write_all(const uint8_t *image, uint32_t len)
+{
+    uint32_t off;
+
     for (off = 0; off < len; off += 512) {
-        unsigned n = len - off > 512 ? 512 : len - off;
+        uint32_t n = len - off > 512 ? 512 : len - off;
 
         dbc_frame(CMD_NET_WRITE, image + off, (uint16_t) n);
     }
+}
+
+static void dbc_push(const uint8_t *image, uint32_t len)
+{
+    dbc_open(0, len);
+    assert(window[FN_R_BOOT_STATE] == FN_BOOT_XFER);
+    dbc_write_all(image, len);
     dbc_frame(CMD_NET_CLOSE, NULL, 0);
 }
 
@@ -184,7 +222,7 @@ static void test_paint(void)
     fresh();
     assert(window[FN_R_MAGIC0] == 'F');
     assert(window[FN_R_MAGIC1] == 'N');
-    assert(window[FN_R_PROTO_VER] == 1);
+    assert(window[FN_R_PROTO_VER] == FN_PROTO_VER);
     assert(window[FN_R_ACKSEQ] == 0);
     assert(window[FN_R_STATUS] & FN_R_STATUS_LINK);
 }
@@ -288,11 +326,23 @@ static void test_unpaired_regdata(void)
     reg_write(FN_REG_CMD, 0x01);
     reg_write(FN_REG_SEQ, 2);
     assert(txn.calls == 2 && txn.device == 0x99);
+
+    /* Bank selects belong to the bus-serving layer; reaching this decoder
+     * (as a stray, or a port that forwards them anyway) they are no-ops and
+     * leave an armed regsel alone, same as every special op. */
+    fujimail_read_hotspot(FN_H_REGSEL + FN_REG_DEVICE);
+    fujimail_read_hotspot(FN_H_REGSEL + FN_HOT_BANK);
+    fujimail_read_hotspot(FN_H_REGSEL + FN_HOT_BANK_LAST);
+    fujimail_read_hotspot(FN_H_REGDATA + 0x33);
+    reg_write(FN_REG_CMD, 0x01);
+    reg_write(FN_REG_SEQ, 3);
+    assert(txn.calls == 3 && txn.device == 0x33);
 }
 
 /* A refresh sweep: the R register walks 0x00-0x7F (bit 7 never counts) over
  * whatever page the I register selects. The sweep must not mutate anything
- * observable: no transaction, no swap arm, no reboot, no register change. */
+ * observable: no transaction, no swap arm, no reboot, no register change.
+ * The bank-select ops live at 0x80+ precisely so no sweep can reach them. */
 static void sweep(uint16_t page_base)
 {
     unsigned r, lap;
@@ -368,9 +418,11 @@ static void test_dbc_push_and_bootlock(void)
     assert(armed_calls == 0);
 
     dbc_push(image, sizeof image);
-    assert(ended.calls == 1 && ended.stream == 0 && !ended.aborted);
-    assert(ended.len == sizeof image);
-    assert(ended.first == image[0] && ended.last == image[sizeof image - 1]);
+    assert(pushed.opens == 1 && pushed.closes == 1);
+    assert(pushed.stream == 0 && !pushed.aborted);
+    assert(pushed.open_size == sizeof image && pushed.len == sizeof image);
+    assert(store[0] == image[0]
+           && store[sizeof image - 1] == image[sizeof image - 1]);
     assert(window[FN_R_BOOT_STATE] == FN_BOOT_READY);
     assert(window[FN_R_BOOT_PCT] == 100);
 
@@ -385,26 +437,112 @@ static void test_dbc_push_and_bootlock(void)
 static void test_dbc_abort_and_toobig(void)
 {
     static const uint8_t junk[100] = { 1, 2, 3 };
-    uint8_t open[5], abortbyte = 0x01;
+    uint8_t abortbyte = 0x01;
 
     fresh();
-    open[0] = 0; open[1] = 100; open[2] = 0; open[3] = 0; open[4] = 0;
-    dbc_frame(CMD_NET_OPEN, open, 5);
+    dbc_open(0, 100);
     dbc_frame(CMD_NET_WRITE, junk, 50);
     dbc_frame(CMD_NET_CLOSE, &abortbyte, 1);
-    assert(ended.calls == 1 && ended.aborted);
+    assert(pushed.closes == 1 && pushed.aborted);
     assert(window[FN_R_BOOT_STATE] == FN_BOOT_FAILED);
     assert(window[FN_R_BOOT_ERR] == FN_BOOT_ERR_TRUNCATED);
     reg_write(FN_REG_BOOTLOCK, FN_BOOTLOCK_MAGIC);
     assert(armed_calls == 0);
 
-    /* An image the stage cannot hold is refused at OPEN, before the ESP32
+    /* An image no scheme could hold is refused at OPEN, before the ESP32
      * drags the whole file over TNFS. */
     fresh();
-    open[0] = 0; open[1] = 1; open[2] = 0; open[3] = 1; open[4] = 0;
-    dbc_frame(CMD_NET_OPEN, open, 5);
+    dbc_open(0, 0x10001);
+    assert(pushed.opens == 1 && pushed.closes == 0);
     assert(window[FN_R_BOOT_STATE] == FN_BOOT_FAILED);
     assert(window[FN_R_BOOT_ERR] == FN_BOOT_ERR_TOOBIG);
+
+    /* Store contention is the port's verdict, surfaced the same way. */
+    fresh();
+    pushed.open_err = FN_BOOT_ERR_STOREBUSY;
+    dbc_open(0, 4096);
+    assert(window[FN_R_BOOT_STATE] == FN_BOOT_FAILED);
+    assert(window[FN_R_BOOT_ERR] == FN_BOOT_ERR_STOREBUSY);
+    reg_write(FN_REG_BOOTLOCK, FN_BOOTLOCK_MAGIC);
+    assert(armed_calls == 0);
+}
+
+/* A 256K game image streams through in 512-byte chunks with monotonic
+ * progress; the gate that used to stop at 8K now stops at "no scheme". */
+static void test_dbc_game_push(void)
+{
+    uint32_t off;
+    uint8_t last_pct = 0;
+
+    fresh();
+    dbc_open(0, ASTROMAP_GAME256_SIZE);
+    assert(window[FN_R_BOOT_STATE] == FN_BOOT_XFER);
+    for (off = 0; off < ASTROMAP_GAME256_SIZE; off += 512) {
+        uint8_t chunk[512];
+        unsigned i;
+
+        for (i = 0; i < sizeof chunk; i++)
+            chunk[i] = (uint8_t)((off >> 12) + i);
+        dbc_frame(CMD_NET_WRITE, chunk, sizeof chunk);
+        assert(window[FN_R_BOOT_PCT] >= last_pct);
+        last_pct = window[FN_R_BOOT_PCT];
+    }
+    dbc_frame(CMD_NET_CLOSE, NULL, 0);
+    assert(pushed.len == ASTROMAP_GAME256_SIZE);
+    assert(store[0] == 0 && store[ASTROMAP_GAME256_SIZE - 1]
+           == (uint8_t)(((ASTROMAP_GAME256_SIZE - 512) >> 12) + 511));
+    assert(window[FN_R_BOOT_STATE] == FN_BOOT_READY);
+    assert(window[FN_R_BOOT_PCT] == 100);
+    reg_write(FN_REG_BOOTLOCK, FN_BOOTLOCK_MAGIC);
+    assert(armed_calls == 1);
+}
+
+/* F2: a commit-time mapping failure must never read as READY, and BOOTLOCK
+ * must stay refused. (An app-shaped size passes the OPEN gate; only the
+ * claim check at close can fail it.) */
+static void test_dbc_close_nomap(void)
+{
+    static uint8_t image[ASTROMAP_WINDOW + FN_APP_PAGE_SIZE];
+
+    fresh();
+    pushed.close_err = FN_BOOT_ERR_NOMAP;
+    memset(image, 0x5A, sizeof image);
+    dbc_push(image, sizeof image);
+    assert(pushed.closes == 1 && !pushed.aborted);
+    assert(window[FN_R_BOOT_STATE] == FN_BOOT_FAILED);
+    assert(window[FN_R_BOOT_ERR] == FN_BOOT_ERR_NOMAP);
+    reg_write(FN_REG_BOOTLOCK, FN_BOOTLOCK_MAGIC);
+    assert(armed_calls == 0);
+}
+
+/* The .cfg sibling (stream 1, pushed before the ROM) must never touch the
+ * boot state -- neither before the ROM push nor after READY. */
+static void test_dbc_stream1_isolation(void)
+{
+    static uint8_t image[ASTROMAP_WINDOW];
+    static const uint8_t cfg[64] = { 'c', 'f', 'g' };
+
+    fresh();
+    dbc_open(1, sizeof cfg);
+    assert(window[FN_R_BOOT_STATE] == FN_BOOT_IDLE);
+    dbc_frame(CMD_NET_WRITE, cfg, sizeof cfg);
+    assert(window[FN_R_BOOT_PCT] == 0);
+    dbc_frame(CMD_NET_CLOSE, NULL, 0);
+    assert(pushed.stream == 1);
+    assert(window[FN_R_BOOT_STATE] == FN_BOOT_IDLE);
+
+    memset(image, 0xC3, sizeof image);
+    dbc_push(image, sizeof image);
+    assert(window[FN_R_BOOT_STATE] == FN_BOOT_READY);
+
+    /* Out-of-order sibling after READY: still isolated. */
+    dbc_open(1, sizeof cfg);
+    dbc_frame(CMD_NET_WRITE, cfg, sizeof cfg);
+    dbc_frame(CMD_NET_CLOSE, NULL, 0);
+    assert(window[FN_R_BOOT_STATE] == FN_BOOT_READY);
+    assert(window[FN_R_BOOT_PCT] == 100);
+    reg_write(FN_REG_BOOTLOCK, FN_BOOTLOCK_MAGIC);
+    assert(armed_calls == 1);
 }
 
 static void test_error_path(void)
@@ -428,6 +566,9 @@ int main(void)
     test_bootsel_pairing();
     test_dbc_push_and_bootlock();
     test_dbc_abort_and_toobig();
+    test_dbc_game_push();
+    test_dbc_close_nomap();
+    test_dbc_stream1_isolation();
     test_error_path();
     printf("test_fujimail: all tests passed\n");
     return 0;

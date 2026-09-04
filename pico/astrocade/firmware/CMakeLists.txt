@@ -32,6 +32,7 @@ if(CONFIG_FUJINET)
         src/fujimail.c
         src/fujinet.c
         src/fujiboot.c
+        src/fuji_store.c
         src/astromap.c
     )
 endif()
@@ -45,6 +46,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     pico_stdlib
     pico_multicore
     hardware_vreg
+    hardware_flash
+    hardware_sync
     tinyusb_device
 )
 

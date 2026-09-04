@@ -21,7 +21,6 @@
 
 #include "fujibus.h"
 
-#define FUJIMAIL_STAGE_MAX 8192
 #define FUJIMAIL_RX_MAX    1024
 
 /* Reported to the port purely so it can log; nothing depends on it. */
@@ -52,11 +51,19 @@ typedef struct {
     void (*send_bare)(uint8_t device, uint8_t command,
                       const uint8_t *payload, uint16_t payload_len);
 
-    /* A push stream has finished. `stream` is 0 for the ROM image and 1 for
-     * the .cfg sibling. The receiver stages the image; it must NOT serve it
-     * yet -- the console is still executing the client out of the window. */
-    void (*stream_end)(int stream, const uint8_t *data, unsigned len,
-                       bool aborted);
+    /* A push stream is open(size) -> write* -> close, and its storage lives
+     * in the port (a banked image can be far bigger than any buffer this
+     * service could own). `stream` is 0 for the ROM image and 1 for the
+     * .cfg sibling. open returns 0 to accept or the FN_BOOT_ERR_* to refuse
+     * -- refusal happens HERE, before the ESP32 drags the file over TNFS.
+     * close returns 0 when a committed stream-0 image was mapped and staged,
+     * else the FN_BOOT_ERR_* to report; READY is published only on 0, so a
+     * close-time failure can never read as bootable. The staged image must
+     * NOT be served yet -- the console is still executing the client out of
+     * the window. */
+    uint8_t (*stream_open)(int stream, uint32_t size);
+    void (*stream_write)(int stream, const uint8_t *chunk, unsigned len);
+    uint8_t (*stream_close)(int stream, uint32_t got, bool aborted);
 
     /* The client wrote FN_REG_BOOTLOCK = FN_BOOTLOCK_MAGIC: from now on a
      * read of the FN_HOT_SWAP hotspot serves the staged image. */

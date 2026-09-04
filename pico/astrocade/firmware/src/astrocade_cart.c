@@ -43,20 +43,44 @@ void __not_in_flash_func(astrocade_core1_main)(void)
              * a straggling address line still settling through its buffer. */
             pins = sio_hw->gpio_in;
             uint32_t a = pins & ADDR_MASK;
+            uint32_t data;
 
-            gpio_put_masked(DATA_MASK, (uint32_t)fuji_rom[a] << D0_PIN);
+            if (a >= fuji_live.hot_base) {
+                /* Game bank hotspot (never true outside GAME mode: the base
+                 * parks at 0x2000). The read RETURNS the new bank number,
+                 * exactly as the homebrew mapper's latch does. */
+                data = a & fuji_live.hot_mask;
+                fuji_live.bank[1] = fuji_live.hot_image + (data << 12);
+            } else {
+                data = fuji_live.bank[a >> 12][a & 0xFFF];
+            }
+            gpio_put_masked(DATA_MASK, data << D0_PIN);
             gpio_set_dir_out_masked(DATA_MASK);
 
-            if (a >= FN_H_REGSEL) {
+            if (a >= FN_H_REGSEL && a < fuji_live.hot_base) {
                 if (a == swap_off) {
                     if (fuji_boot_armed) {
                         /* The stub runs from screen RAM; nothing fetches
                          * from the cart between this read and the next, so
-                         * three plain stores are the whole swap. */
-                        fuji_rom = fuji_staged;
+                         * plain field-wise stores are the whole swap. */
+                        fuji_live.bank[0] = fuji_next.bank[0];
+                        fuji_live.bank[1] = fuji_next.bank[1];
+                        fuji_live.hot_mask = fuji_next.hot_mask;
+                        fuji_live.hot_image = fuji_next.hot_image;
+                        fuji_live.app_store = fuji_next.app_store;
+                        fuji_live.app_npages = fuji_next.app_npages;
+                        fuji_live.hot_base = fuji_next.hot_base;
                         fuji_boot_armed = false;
                         fuji_mailbox_active = fuji_staged_claims;
                     }
+                } else if ((a & FN_H_PAGE_MASK) == FN_H_REGSEL
+                           && (a & 0xFF) >= FN_HOT_BANK) {
+                    /* Special ops are core1's, never queued: the APPBANK
+                     * low-half select must land before the next read. */
+                    uint32_t page = (a & 0xFF) - FN_HOT_BANK;
+
+                    if (page < fuji_live.app_npages)
+                        fuji_live.bank[0] = fuji_live.app_store + (page << 12);
                 } else if (fuji_mailbox_active) {
                     fuji_cart_note_read((uint16_t)a);
                 }

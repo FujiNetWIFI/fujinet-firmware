@@ -63,6 +63,7 @@
 #define FN_R_MAGIC0      0x1C09   /* 'F' -- cart presence check              */
 #define FN_R_MAGIC1      0x1C0A   /* 'N'                                     */
 #define FN_R_PROTO_VER   0x1C0B
+#define FN_PROTO_VER     2        /* the value painted there; 2 = banking    */
 /* Published LAST after every slice repaint, with the slice number just
  * painted. The repaint is asynchronous on real hardware (core0 does it while
  * the Z80 keeps running), so the client selects a slice and polls this until
@@ -91,12 +92,44 @@
 #define FN_H_REGDATA     0x1E00   /* read +n: armed register = n, disarm     */
 #define FN_H_DATA        0x1F00   /* read +n: append n to the TX stream      */
 
-#define FN_H_PAGE_MASK   0x1F00   /* offset >= FN_H_REGSEL is a hotspot      */
+#define FN_H_PAGE_MASK   0x1F00   /* offset & this == FN_H_REGSEL: REGSEL page */
 
 /* FN_H_REGSEL offsets 0x80-0xFF are one-shot special operations, not
  * register numbers. Placed in the bit7-set half so default-R-register
  * refresh strays (R bit 7 does not count) can never reach them. */
 #define FN_HOT_SWAP      0xFE     /* serve the staged image; armed-only      */
+
+/* ---------------- banked images (protocol v2) ----------------
+ *
+ * Two schemes, mutually exclusive by construction.
+ *
+ * GAME (mailbox dead): an image of exactly 256K or 512K with no claim uses
+ * the established homebrew mapper, byte-compatible with MAME's rom_256k /
+ * rom_512k. Console 0x2000-0x2FFF is fixed to the LAST 4K bank of the image;
+ * 0x3000 up to the hotspot base is the switched 4K bank; a read anywhere in
+ * 0x3FC0-0x3FFF (256K) / 0x3F80-0x3FFF (512K) sets bank = address & mask AND
+ * returns the new bank number as the data byte. Those hotspots sit inside
+ * the FN_H_DATA page, which is exactly why game banking exists only with the
+ * mailbox dead -- a claim-less boot already guarantees that. Bank state is
+ * NOT reset by console RESET (the cart edge carries no reset line); the
+ * fixed low half holds the 0x55 sentinel, so restarts still work.
+ *
+ * APPBANK (mailbox fully live): a claimed image of 8192 + k*4096 bytes,
+ * k >= 1. Image page N = bytes [N*4096, (N+1)*4096). Boot state: page 0 at
+ * console 0x2000-0x2FFF (the LOW half is what banks), page 1 fixed at
+ * 0x3000-0x3FFF and always served from the RAM window so mailbox repaints
+ * stay visible. Bank select is ONE read at FN_H_REGSEL + FN_HOT_BANK + page,
+ * handled inline by the bus-serving layer like the swap, so the very next
+ * read sees the new page; the data byte the select read returns is
+ * undefined. Selecting page 1 low is legal and harmless. A console RESET
+ * does not restore page 0, so every selectable page should begin with the
+ * 7-byte sentinel header (0x55, DW menu-link, DW name, DW start) whose start
+ * vector points at high-half code that re-selects page 0 --
+ * tools/mkbanked.py stamps this. */
+#define FN_HOT_BANK      0x80     /* + page: map image page into the low 4K  */
+#define FN_HOT_BANK_LAST 0xEF     /* 0xF0-0xFF stay reserved for special ops */
+#define FN_APP_PAGE_SIZE 0x1000
+#define FN_APP_MAX_PAGES 112      /* pages 0..111 = ops 0x80..0xEF           */
 
 /* Registers reached through an FN_H_REGSEL / FN_H_REGDATA read pair.
  * 0x00-0x0F mirrors the O2 numbering where the meaning matches. */
@@ -133,6 +166,7 @@
 #define FN_BOOT_ERR_TOOBIG    1
 #define FN_BOOT_ERR_TRUNCATED 2
 #define FN_BOOT_ERR_NOMAP     3
+#define FN_BOOT_ERR_STOREBUSY 4   /* only fitting store is being served from */
 
 /* FN_R_ERR values; mirrors fb_status_t in fujibus.h. */
 #define FN_ERR_OK        0
@@ -151,6 +185,9 @@
  *      sentinel menu, and the game is one keypress away.
  * The stub must run from RAM: the swap replaces every byte of the cart
  * window, including whatever code triggered it.
+ *
+ * After the swap: an APPBANK image keeps the mailbox live with page 0 in the
+ * low half; a GAME image kills the mailbox and its own hotspots take over.
  *
  * CRITICAL, inherited from the Intellivision/O2 bring-ups: the client derives
  * its next sequence number from the cart's own persisted FN_R_ACKSEQ + 1

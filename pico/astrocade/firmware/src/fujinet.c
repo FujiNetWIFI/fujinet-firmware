@@ -18,30 +18,47 @@
 #include "fujimail.h"
 #include "fujibus_usb.h"
 #include "fuji_cart.h"
+#include "fuji_store.h"
 #include "fuji_mailbox.h"
 #include "astromap.h"
 
-/* Lay a committed image into the staging window. The swap itself is
- * core1's, on the client's armed FN_HOT_SWAP read, so nothing is
- * overwritten under the client while it is still executing -- and the
- * mailbox stays live until then, so the BOOT_READY publish that follows
- * this call is seen. */
-static void port_stream_end(int stream, const uint8_t *data, unsigned len,
-                            bool aborted)
+/* The push stream's bytes land in the store; a committed image is staged
+ * for core1's armed FN_HOT_SWAP swap, so nothing is overwritten under the
+ * client while it is still executing -- and the mailbox stays live until
+ * then, so the BOOT_READY publish that follows the close is seen. */
+static uint8_t port_stream_open(int stream, uint32_t size)
 {
-    static uint8_t mapped[ASTROMAP_WINDOW];
+    uint8_t err;
+
+    if (stream != 0)
+        return 0;       /* the .cfg sibling means nothing to this cartridge */
+    err = astromap_gate(size);
+    if (err != 0)
+        return err;
+    return fuji_store_open(size);
+}
+
+static void port_stream_write(int stream, const uint8_t *chunk, unsigned len)
+{
+    if (stream == 0)
+        fuji_store_write(chunk, len);
+}
+
+static uint8_t port_stream_close(int stream, uint32_t got, bool aborted)
+{
+    const uint8_t *image;
     astromap_plan_t plan;
 
-    if (aborted || stream != 0 || len == 0)
-        return;         /* the .cfg sibling means nothing to this cartridge */
-
-    if (astromap_plan(data, len, &plan) != ASTROMAP_OK) {
-        fuji_cart_poke(FN_R_BOOT_STATE, FN_BOOT_FAILED);
-        fuji_cart_poke(FN_R_BOOT_ERR, FN_BOOT_ERR_NOMAP);
-        return;
-    }
-    astromap_apply(data, &plan, mapped);
-    fuji_cart_stage(mapped, plan.mailbox_ok);
+    if (stream != 0)
+        return 0;
+    image = fuji_store_close(aborted);
+    if (aborted)
+        return 0;
+    if (image == NULL || got == 0
+        || astromap_plan(image, got, &plan) != ASTROMAP_OK)
+        return FN_BOOT_ERR_NOMAP;
+    fuji_cart_stage(image, &plan);
+    return 0;
 }
 
 static void port_arm_swap(void)
@@ -59,7 +76,9 @@ static const fujimail_port_t cart_port = {
     .link_up      = fujibus_link_up,
     .transact     = fujibus_transact,
     .send_bare    = fujibus_send_bare,
-    .stream_end   = port_stream_end,
+    .stream_open  = port_stream_open,
+    .stream_write = port_stream_write,
+    .stream_close = port_stream_close,
     .arm_swap     = port_arm_swap,
     .wait_link_ms = fuji_wait_ms_pumped,
     .bootsel      = port_bootsel,

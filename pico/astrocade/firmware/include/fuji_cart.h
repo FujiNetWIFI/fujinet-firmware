@@ -13,7 +13,9 @@
  *     Enable deasserts before looking again), because a ~500ns Z80 read
  *     spans many polling-loop iterations and recording each one would
  *     append duplicate TX bytes;
- *   - the ROM swap is core1's, triggered by the armed FN_HOT_SWAP read.
+ *   - the ROM swap and both bank-select flavors are core1's, inline: a
+ *     switch must be complete before the next read can begin, and the loop's
+ *     spin-until-deassert guarantees exactly that.
  */
 
 #ifndef FUJI_CART_H
@@ -21,6 +23,8 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+
+#include "astromap.h"
 
 /* One transaction is a dozen paired reads plus at most a 320-byte stream,
  * and the console cannot start another until it sees ACKSEQ, so the ring
@@ -37,11 +41,23 @@ typedef struct {
 extern fuji_ring_t fuji_ring;
 extern volatile bool fuji_mailbox_active;
 
-/* The served window: core1 reads through fuji_rom, which flips to
- * fuji_staged_rom on the armed swap read. */
+/* What core1 serves: bank[a >> 12][a & 0xFFF], plus the game hotspot tail
+ * when hot_base is below ASTROMAP_HOT_OFF (a read there returns a & hot_mask
+ * and retargets bank[1] into hot_image). app_store/app_npages arm the
+ * APPBANK low-half selects. core0 builds fuji_next at stage time; core1
+ * copies it into fuji_live field-by-field on the armed swap read. */
+typedef struct {
+    const uint8_t *volatile bank[2];
+    volatile uint16_t hot_base;
+    volatile uint8_t  hot_mask;
+    const uint8_t *volatile hot_image;
+    const uint8_t *volatile app_store;
+    volatile uint8_t  app_npages;
+} fuji_serve_t;
+
+extern fuji_serve_t fuji_live, fuji_next;
 extern uint8_t fuji_window[0x2000];
 extern uint8_t fuji_staged[0x2000];
-extern uint8_t *volatile fuji_rom;
 extern volatile bool fuji_boot_armed;
 extern volatile bool fuji_staged_claims;
 
@@ -63,7 +79,11 @@ static inline void fuji_cart_note_read(uint16_t offset)
 /* core0 */
 bool fuji_cart_next_read(uint16_t *offset);
 void fuji_cart_poke(unsigned offset, uint8_t value);
-void fuji_cart_stage(const uint8_t window[0x2000], bool claims);
+/* Stage a committed image for the armed swap. `image` is the full raw
+ * image; for the banked kinds it must be persistent storage (the serve
+ * pointers point into it for as long as it is live) -- a FLAT image is
+ * copied and may be transient. */
+void fuji_cart_stage(const uint8_t *image, const astromap_plan_t *plan);
 void fuji_cart_init(void);
 
 #endif /* FUJI_CART_H */
