@@ -1,0 +1,5 @@
+build/
+firmware/build-*/
+cfg/
+snap/
+nvram/
