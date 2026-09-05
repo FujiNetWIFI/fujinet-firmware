@@ -18,6 +18,24 @@
 #define ROM_PUSH_STREAM_CFG 1
 #define ROM_PUSH_STREAM_ROM 0
 
+// A chunk's ACK can legitimately trail a worst-case 4K flash sector erase
+// on the cart (~400 ms on W25Q parts) -- far past the default 100 ms
+// per-byte window, so widen it for the push and put it back after.
+#define ROM_PUSH_ACK_TIMEOUT_MS 2000
+
+namespace {
+struct ReadTimeoutGuard
+{
+    IOChannel *ch;
+    double saved;
+    ReadTimeoutGuard(IOChannel *c, double ms) : ch(c), saved(c->readTimeout())
+    {
+        ch->setReadTimeout(ms);
+    }
+    ~ReadTimeoutGuard() { ch->setReadTimeout(saved); }
+};
+} // namespace
+
 error_is_true MediaTypeROM::read(uint32_t sectornum, uint32_t *readcount)
 {
     Debug_print("ROM READ not supported\r\n");
@@ -63,6 +81,7 @@ void MediaTypeROM::status(uint8_t statusbuff[4])
 static bool push_stream(fnFile *f, uint16_t stream_id, uint32_t expected_size)
 {
     uint8_t buf[DISK_SECTORBUF_SIZE];
+    ReadTimeoutGuard timeout_guard(SYSTEM_BUS.ioChannel(), ROM_PUSH_ACK_TIMEOUT_MS);
 
     struct { uint8_t id; u32le_t size; } open_hdr;
     static_assert(sizeof(open_hdr) == 5, "OPEN header must not be padded");

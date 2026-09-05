@@ -215,9 +215,18 @@ void systemBus::setup()
     }
 
 #else /* FUJINET_OVER_USB */
-#ifdef PINMAP_FUJIVERSAL_INTV
-    // VID-only: any Minty build (PID varies with MSC), still rejects BOOTSEL
-    _serial.setExpectedDevice(0xCafe, 0);
+    // Which USB device to accept is a property of the board, not of this bus,
+    // so the pinmap supplies it: FN_USB_EXPECTED_VID / _PID, either of which may
+    // be omitted to mean "don't check that field". Keeps lib/bus board-agnostic
+    // instead of accumulating one #ifdef per co-processor board.
+#if defined(FN_USB_EXPECTED_VID) || defined(FN_USB_EXPECTED_PID)
+#ifndef FN_USB_EXPECTED_VID
+#define FN_USB_EXPECTED_VID 0
+#endif
+#ifndef FN_USB_EXPECTED_PID
+#define FN_USB_EXPECTED_PID 0
+#endif
+    _serial.setExpectedDevice(FN_USB_EXPECTED_VID, FN_USB_EXPECTED_PID);
 #endif
     _serial.setServicePriority(RS232_USB_BOOT_PRIORITY);
     _usb_boot_priority = true;
