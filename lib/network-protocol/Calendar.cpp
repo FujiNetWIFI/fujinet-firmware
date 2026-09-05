@@ -608,9 +608,9 @@ std::string NetworkProtocolCalendar::event_date_column(uint64_t t) const
     case CalendarView::DAY:
         return "";
     case CalendarView::WEEK:
-        return DOW3[wd & 7];
+        return DOW3[wd % 7];
     case CalendarView::MONTH:
-        snprintf(buf, sizeof(buf), "%s %02u", DOW2[wd & 7], d);
+        snprintf(buf, sizeof(buf), "%s %02u", DOW2[wd % 7], d);
         return buf;
     case CalendarView::AGENDA:
     default:
@@ -651,10 +651,10 @@ std::string NetworkProtocolCalendar::window_title() const
     switch (_view)
     {
     case CalendarView::DAY:
-        snprintf(buf, sizeof(buf), "%s %02u %s %04d", DOW3[wd & 7], d, MON3[mo], y);
+        snprintf(buf, sizeof(buf), "%s %02u %s %04d", DOW3[wd % 7], d, MON3[mo], y);
         break;
     case CalendarView::WEEK:
-        snprintf(buf, sizeof(buf), "Week of %s %02u %s %04d", DOW3[wd & 7], d, MON3[mo], y);
+        snprintf(buf, sizeof(buf), "Week of %s %02u %s %04d", DOW3[wd % 7], d, MON3[mo], y);
         break;
     case CalendarView::MONTH:
         snprintf(buf, sizeof(buf), "%s %04d", MONFULL[mo], y);
@@ -899,7 +899,7 @@ std::string NetworkProtocolCalendar::format_detail(const CalendarEventEntry &ev,
         unsigned emo, ed;
         civil_from_days(lastDay, ey, emo, ed);
         if (ey == y && emo == mo && ed == d)
-            snprintf(when, sizeof(when), "%s %02u %s %04d - all day", DOW3[wd & 7], d, MON3[mo], y);
+            snprintf(when, sizeof(when), "%s %02u %s %04d - all day", DOW3[wd % 7], d, MON3[mo], y);
         else
             snprintf(when, sizeof(when), "%02u %s %04d - %02u %s %04d, all day",
                      d, MON3[mo], y, ed, MON3[emo], ey);
@@ -911,7 +911,7 @@ std::string NetworkProtocolCalendar::format_detail(const CalendarEventEntry &ev,
         _tz.to_local((int64_t)ev.end, ey, emo, ed, eh, emi, es, ewd);
         if (ey == y && emo == mo && ed == d)
             snprintf(when, sizeof(when), "%s %02u %s %04d %02d:%02d-%02d:%02d",
-                     DOW3[wd & 7], d, MON3[mo], y, h, mi, eh, emi);
+                     DOW3[wd % 7], d, MON3[mo], y, h, mi, eh, emi);
         else
             snprintf(when, sizeof(when), "%02u %s %04d %02d:%02d - %02u %s %04d %02d:%02d",
                      d, MON3[mo], y, h, mi, ed, MON3[emo], ey, eh, emi);
