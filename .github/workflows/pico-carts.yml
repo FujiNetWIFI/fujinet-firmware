@@ -100,6 +100,45 @@ jobs:
               -o test_fujimail test_fujimail.c ../src/fujimail.c ../src/astromap.c
           ./test_fujimail
 
+      - name: Arcadia -- FujiBus codec
+        working-directory: pico/arcadia/firmware/host_test
+        run: |
+          gcc -Wall -Wextra -Werror -I.. -I../include \
+              -o test_fujibus test_fujibus.c ../src/fujibus.c
+          ./test_fujibus
+
+      # The connector decode is the one thing the RP2040 serve loop and the
+      # MAME device MUST agree on byte-for-byte (A12 = chip select, A13 =
+      # block, A14 not wired -> $6000 aliases the hotspots): swept exhaustively.
+      - name: Arcadia -- cartridge image mapper
+        working-directory: pico/arcadia/firmware/host_test
+        run: |
+          gcc -Wall -Wextra -Werror -I../include \
+              -o test_arcmap test_arcmap.c ../src/arcmap.c
+          ./test_arcmap
+
+      # The hotspot mailbox: read-pair register decode, the SEQ/ACKSEQ and
+      # SLICE_ECHO interlocks, the DBC push receiver, and the stray-read
+      # fuzz. MAME cannot model bus strays and its socket transport is
+      # synchronous, so this is the only place those cases run.
+      - name: Arcadia -- hotspot mailbox service
+        working-directory: pico/arcadia/firmware/host_test
+        run: |
+          gcc -Wall -Wextra -Werror -I../include \
+              -o test_fujimail test_fujimail.c ../src/fujimail.c ../src/arcmap.c
+          ./test_fujimail
+
+      # The Emerson connector has no read strobe, so core1 de-duplicates
+      # hotspot events on a pin-state change rather than an Enable edge. That
+      # decision (arcadia_bus_observe) is fuzzed here with synthetic 2650 bus
+      # traces -- the one thing MAME's edge-free access model cannot exercise.
+      - name: Arcadia -- bus edge dedupe
+        working-directory: pico/arcadia/firmware/host_test
+        run: |
+          gcc -Wall -Wextra -Werror -I../include \
+              -o test_busedge test_busedge.c
+          ./test_busedge
+
   o2-console-client:
     name: "Odyssey 2 8048 client"
     runs-on: ubuntu-latest
@@ -194,6 +233,56 @@ jobs:
         working-directory: pico/astrocade
         run: ./build.sh fujitest fujiboot fujicfg fujibank gamebank
 
+  arcadia-console-client:
+    name: "Arcadia 2001 2650 clients"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Macro Assembler AS again (2650 target this time). Same cache and
+      # build recipe as the o2 job; build.sh prefers a native asl on PATH.
+      - name: Cache Macro Assembler AS
+        id: cache-asl
+        uses: actions/cache@v4
+        with:
+          path: ~/asl
+          key: asl-upstream-${{ runner.os }}-v1
+
+      - name: Build Macro Assembler AS
+        if: steps.cache-asl.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch upstream \
+            https://github.com/Macroassembler-AS/asl-releases.git /tmp/asl-src
+          cd /tmp/asl-src
+          cp Makefile.def-samples/Makefile.def-i386-unknown-linux2.x.x Makefile.def
+          sed -i 's|^CFLAGS.*|CFLAGS = -O2 -w|' Makefile.def
+          make -j"$(nproc)"
+          mkdir -p ~/asl
+          cp asl p2bin ~/asl/
+
+      - name: Put AS on PATH
+        run: echo "$HOME/asl" >> "$GITHUB_PATH"
+
+      # Assembles the three clients. tools/mkimage.py folds each $0000-$2FFF
+      # flat into the 8K cart image and rejects code in the $1000-$1FFF
+      # console-RAM hole or the mailbox pages; tools/checkrom.py then enforces
+      # the fuji_mailbox.h layout (BCTA/RETC header, the claim, nothing above
+      # the 0x1AFF ROM top).
+      - name: Assemble
+        working-directory: pico/arcadia
+        run: ./build.sh fujitest fujiboot fujicfg
+
+      # The 2650's return stack is 8 entries deep and on chip -- a call graph
+      # deeper than that silently corrupts returns. Every client must stay
+      # within it.
+      - name: Check the 8-deep call stack
+        working-directory: pico/arcadia
+        run: |
+          for c in fujitest fujiboot fujicfg; do
+              python3 tools/checkdepth.py \
+                  testrom/$c.asm testrom/fujilib.inc testrom/fujidisp.inc
+          done
+
   cartridge-firmware:
     name: "RP2040 cartridge firmware"
     runs-on: ubuntu-latest
@@ -261,3 +350,15 @@ jobs:
           # that path is a live-lock on real hardware.
           grep -E '0x2000[0-9a-f]+\s+astrocade_core1_main$' \
               firmware/build-fujicade/fujicade.elf.map
+
+      - name: Arcadia cartridge (fujiarcadia)
+        working-directory: pico/arcadia
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: |
+          ./build.sh fujitest fujiboot fujicfg
+          ./build-cart.sh
+          # Same SRAM-residency rule as the Astrocade: the serve loop cannot
+          # live in flash, or an XIP stall would freeze the bus.
+          grep -E '0x2000[0-9a-f]+\s+arcadia_core1_main$' \
+              firmware/build-fujiarcadia/fujiarcadia.elf.map
