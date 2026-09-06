@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "fujidisp.h"
+#include "fujisnd.h"
 #include "fujilib.h"
 
 #define CMD_GET_ADAPTERCONFIG_EXTENDED 0xC4
@@ -53,7 +54,8 @@ void main(void)
 {
     unsigned char err;
 
-    disp_init(BLACK);
+    snd_init();     /* the PSG powers up buzzing; see fujisnd.h */
+    disp_init();
     disp_at(4, 1, "FUJINET COLECOVISION TEST");
 
     if (!fn_present()) {

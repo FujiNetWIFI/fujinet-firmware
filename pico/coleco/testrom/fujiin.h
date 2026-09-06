@@ -24,7 +24,8 @@
 #define IN_KEYSTAR 0x1A
 #define IN_KEYHASH 0x1B
 
-/* Install the NMI handler (which calls poller()) and enable both controllers.
+/* Install the NMI handler (which calls poller() and decays the sound click)
+ * and enable both controllers.
  * The handler touches only the BIOS, the VDP ports and RAM -- never the
  * mailbox pages -- which is what makes the vblank NMI safe to leave running
  * through a transaction. */

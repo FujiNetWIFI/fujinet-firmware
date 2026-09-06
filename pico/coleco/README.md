@@ -158,6 +158,23 @@ Things that cost real time here, kept so they cost it only once.
   returns a subscription that unsubscribes at the next garbage collection if you
   drop it — so a callback scheduled two seconds out fires and one scheduled ten
   seconds out silently never does. `emu/screen.lua` keeps it in `_G`.
+- **The sound chip powers up buzzing.** All four SN76489 channels come up at
+  attenuation 0 with their frequency registers at zero, and the BIOS title
+  screen is what normally silences them — which a `$55AA` client skips. Every
+  client calls `snd_init()` first; `fujisnd.h` says why that is mandatory rather
+  than tidy.
+- **`machine.time.seconds` is the whole-seconds FIELD, not the time.** Use
+  `machine.time:as_double()`. Comparing against `.seconds` quantises every
+  interval to a full second, which held `drive.lua`'s 0.30 s presses for a whole
+  one and let auto-repeat walk the cursor several rows per press — so
+  `DRIVE_DOWN=9` was landing on the right file only because the cursor was
+  pinned at the bottom of the list.
+- **Pace auto-repeat by vblanks, not by `in_read()` calls.** The main loop polls
+  input thousands of times a second, so a per-call counter runs the repeat at
+  loop speed and throws the cursor across a page in one press. The NMI bumps a
+  frame counter and `in_read()` ages the delay only when it changes. Both of
+  these only became visible once cursor movement had a click — the bug was
+  audible before it was ever noticed on screen.
 - **MAME re-executes the autoboot script on every soft reset** — so harness
   state that must survive a reset lives in `_G` too — but the emulated clock
   keeps running across one. A sample scheduled at `SCREEN_AT` after a reset at

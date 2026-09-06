@@ -73,7 +73,7 @@ EOF
 
 # Shared client sources. Kept as one list rather than a library because the
 # whole set is a few hundred lines and every client wants all of it.
-SHARED="fujidisp.c fujilib.c fujiin.c"
+SHARED="fujidisp.c fujilib.c fujiin.c fujisnd.c"
 
 build_one() {
     local name=$1

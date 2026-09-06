@@ -14,6 +14,7 @@
 #include <os7.h>
 
 #include "fujidisp.h"
+#include "fujisnd.h"
 #include "fujilib.h"
 #include "bootcfg.h"
 
@@ -59,7 +60,8 @@ void main(void)
 {
     unsigned char pct = 0xFF;
 
-    disp_init(BLACK);
+    snd_init();     /* the PSG powers up buzzing; see fujisnd.h */
+    disp_init();
     disp_at(4, 1, "FUJINET COLECOVISION BOOT");
 
     if (!fn_present())

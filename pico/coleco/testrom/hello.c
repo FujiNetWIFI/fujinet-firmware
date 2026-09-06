@@ -9,10 +9,12 @@
 #include <os7.h>
 
 #include "fujidisp.h"
+#include "fujisnd.h"
 
 void main(void)
 {
-    disp_init(BLACK);
+    snd_init();     /* the PSG powers up buzzing; see fujisnd.h */
+    disp_init();
     disp_at(6, 8,  "FUJINET COLECOVISION");
     disp_at(6, 10, "HELLO FROM OS7");
     disp_at(6, 12, "MILESTONE 0");

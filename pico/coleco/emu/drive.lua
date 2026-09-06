@@ -6,9 +6,14 @@
 --   DRIVE_DOWN     cursor presses before booting (default 0)
 --   DRIVE_TIMEOUT  emulated seconds to give up after (default 60)
 --
--- Timing is in EMULATED seconds so any throttle setting works. Presses are
--- held for a beat and released, because OS7's POLLER debounces: a press that
--- never lets go is one event, not many.
+-- Timing is in EMULATED seconds so any throttle setting works, and it is read
+-- with attotime:as_double() -- NOT machine.time.seconds, which is the whole
+-- seconds FIELD. Comparing against that quantises every interval to a full
+-- second, so a press meant to last 0.30s was held for a whole one and OS7's
+-- auto-repeat walked the cursor several rows per "press". Presses are held for
+-- a beat and released because POLLER debounces: a press that never lets go is
+-- one event, not many -- but a press held long enough still repeats, and that
+-- is exactly what a driver must not do by accident.
 
 local HOST    = tonumber(os.getenv("DRIVE_HOST") or "1")
 local DOWN    = tonumber(os.getenv("DRIVE_DOWN") or "0")
@@ -68,7 +73,7 @@ end
 _G.drive_sub = emu.add_machine_frame_notifier(function ()
     if d.done then return end
 
-    local t = manager.machine.time.seconds
+    local t = manager.machine.time:as_double()
     local sp = manager.machine.devices[":maincpu"].spaces["program"]
 
     -- Did the swap happen? $FC09/$FC0A are 'F','N' only while the mailbox is

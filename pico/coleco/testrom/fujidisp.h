@@ -17,7 +17,8 @@
 #define DISP_COLS 32
 #define DISP_ROWS 24
 
-void disp_init(unsigned char backdrop);
+/* Graphics 1, the BIOS ASCII charset, white on dark blue. */
+void disp_init(void);
 void disp_cls(void);
 /* Write `s` at (col,row), clipped to the row. Not NUL-padded: whatever was
  * there stays, so callers that need a clean row call disp_row_clear first. */

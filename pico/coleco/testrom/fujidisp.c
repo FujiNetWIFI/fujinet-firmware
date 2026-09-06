@@ -2,7 +2,7 @@
 
 #include "fujidisp.h"
 
-void disp_init(unsigned char backdrop)
+void disp_init(void)
 {
     /* Clear OS7's own RAM variables before calling into it.
      *
@@ -21,9 +21,14 @@ void disp_init(unsigned char backdrop)
 
     mode_1();
     load_ascii();
-    /* Colour table: white on transparent for every pattern group. */
-    fill_vram(0x2000, 32, 0xF0);
-    write_register(REGISTER_BACKGROUND, backdrop);
+    /* White on dark blue, for every pattern group and the border alike --
+     * the same palette OS7 paints its own skill/players select screen in.
+     * Verified rather than guessed: GAME_OPT's colour table reads 0xF4 in
+     * all 32 entries (foreground 15 white, background 4 dark blue), so a
+     * FujiNet client looks like it belongs on the machine instead of
+     * announcing itself. */
+    fill_vram(0x2000, 32, 0xF4);
+    write_register(REGISTER_BACKGROUND, DARK_BLUE);
     disp_cls();
 }
 

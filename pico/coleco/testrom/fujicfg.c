@@ -19,6 +19,7 @@
 #include <os7.h>
 
 #include "fujidisp.h"
+#include "fujisnd.h"
 #include "fujiin.h"
 #include "fujilib.h"
 
@@ -330,6 +331,9 @@ static void boot_selected(void)
 
 /* ---- main ---- */
 
+/* Every accepted move clicks; a move that goes nowhere -- the top of the first
+ * page, the bottom of the last -- stays silent, so the sound says whether the
+ * cursor actually went anywhere rather than just that a direction was held. */
 static void move_cursor(signed char delta)
 {
     if (nrows == 0)
@@ -340,9 +344,11 @@ static void move_cursor(signed char delta)
             draw_cursor(cur, false);
             cur--;
             draw_cursor(cur, true);
+            snd_click();
         } else if (page == PAGE_FILES && top >= LIST_ROWS) {
             top -= LIST_ROWS;
             cur = LIST_ROWS - 1;
+            snd_click();
             file_page();
         }
     } else {
@@ -350,9 +356,11 @@ static void move_cursor(signed char delta)
             draw_cursor(cur, false);
             cur++;
             draw_cursor(cur, true);
+            snd_click();
         } else if (page == PAGE_FILES && !at_end) {
             top += LIST_ROWS;
             cur = 0;
+            snd_click();
             file_page();
         }
     }
@@ -360,7 +368,8 @@ static void move_cursor(signed char delta)
 
 void main(void)
 {
-    disp_init(BLACK);
+    snd_init();     /* the PSG powers up buzzing; see fujisnd.h */
+    disp_init();
     in_init();
 
     if (!fn_present()) {
@@ -388,6 +397,7 @@ void main(void)
             if (page == PAGE_FILES && top >= LIST_ROWS) {
                 top -= LIST_ROWS;
                 cur = 0;
+                snd_click();
                 file_page();
             }
             break;
@@ -395,6 +405,7 @@ void main(void)
             if (page == PAGE_FILES && !at_end) {
                 top += LIST_ROWS;
                 cur = 0;
+                snd_click();
                 file_page();
             }
             break;
@@ -415,6 +426,7 @@ void main(void)
                 draw_cursor(cur, false);
                 cur = (unsigned char)(ev - IN_KEY0 - 1);
                 draw_cursor(cur, true);
+                snd_click();
                 enter_host();
             }
             break;

@@ -3,6 +3,7 @@
 #include <arch/coleco.h>
 
 #include "fujiin.h"
+#include "fujisnd.h"
 
 #define JOY_UP    0x01
 #define JOY_RIGHT 0x02
@@ -13,8 +14,8 @@
 /* OS7 reports "no key" as a value outside the keypad's own 0-9, *, # range. */
 #define KEY_NONE_MIN 0x0C
 
-#define REPEAT_FIRST 18     /* vblanks before a held direction repeats */
-#define REPEAT_NEXT  4
+#define REPEAT_FIRST 20     /* vblanks before a held direction repeats */
+#define REPEAT_NEXT  6      /* vblanks between repeats after that */
 
 static ControllerData *ctl = (ControllerData *)os7_bios_controller;
 
@@ -23,6 +24,15 @@ static unsigned char last_fire;
 static unsigned char last_key;
 static unsigned char hold;
 
+/* Bumped by the NMI, read by in_read(). The repeat delay has to be counted in
+ * VBLANKS, not in calls: the main loop polls in_read() thousands of times a
+ * second, so ageing the counter per call would run the auto-repeat at loop
+ * speed and fire the cursor across a whole page in one press. (Audible the
+ * moment cursor movement got a click -- a single held direction produced a
+ * burst of them.) */
+static volatile unsigned char frames;
+static unsigned char last_frame;
+
 /* The vblank handler. Reading the VDP status register is what clears the
  * interrupt; poller() is what makes the controller struct mean anything. Both
  * live in the BIOS, so this never touches $F800 and up -- the one rule the
@@ -30,7 +40,9 @@ static unsigned char hold;
 static void nmi(void)
 {
     M_PRESERVE_ALL;
+    frames++;
     poller();
+    snd_tick();
     VDP_STATUS_BYTE = read_register();
     M_RESTORE_ALL;
 }
@@ -46,12 +58,16 @@ void in_init(void)
 
 unsigned char in_read(void)
 {
+    unsigned char now = frames;
+    bool vblank = (now != last_frame);
     unsigned char joy = ctl->player1.joystick;
     unsigned char fire = (unsigned char)((ctl->player1.left_button
                                           | ctl->player1.right_button)
                                          & BTN_FIRE);
     unsigned char key = ctl->player1.keyboard;
     unsigned char dir = 0;
+
+    last_frame = now;
 
     if (joy & JOY_UP)         dir = IN_UP;
     else if (joy & JOY_DOWN)  dir = IN_DOWN;
@@ -64,7 +80,7 @@ unsigned char in_read(void)
             hold = REPEAT_FIRST;
             return dir;
         }
-        if (hold != 0 && --hold == 0) {
+        if (vblank && hold != 0 && --hold == 0) {
             hold = REPEAT_NEXT;
             return dir;
         }
