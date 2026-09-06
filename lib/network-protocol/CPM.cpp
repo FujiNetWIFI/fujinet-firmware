@@ -14,6 +14,10 @@
 #include "../../include/debug.h"
 #include "status_error_codes.h"
 
+#ifdef ESP_PLATFORM
+#include <esp_system.h>
+#endif
+
 /* The network-protocol abstraction defines the static queue variables
  * (_cpm_rxq / _cpm_txq) and the _kbhit / _getch / _putch / _clrscr
  * functions.  It must come before the RunCPM headers that use them. */
@@ -112,17 +116,28 @@ fujiError_t NetworkProtocolCPM::open(PeoplesUrlParser *urlParser,
 #ifdef ESP_PLATFORM
     _cpm_rxq = xQueueCreate(2048, sizeof(uint8_t));
     _cpm_txq = xQueueCreate(2048, sizeof(uint8_t));
-    xTaskCreatePinnedToCore(_cpm_task_entry,
-                            "cpmnet",
+    if (_cpm_rxq == nullptr || _cpm_txq == nullptr
+        || xTaskCreatePinnedToCore(_cpm_task_entry,
+                                   "cpmnet",
 #ifdef BUILD_APPLE
-                            4096,
+                                   4096,
 #else
-                            32768,
+                                   32768,
 #endif
-                            nullptr,
-                            20,
-                            &cpmTaskHandle,
-                            1);
+                                   nullptr,
+                                   20,
+                                   &cpmTaskHandle,
+                                   1) != pdPASS)
+    {
+        // Don't report a live session when nothing will ever service the queues.
+        Debug_printv("could not create CP/M queues/task, free internal/total heap: %lu/%lu",
+                     esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+        if (_cpm_rxq != nullptr) { vQueueDelete(_cpm_rxq); _cpm_rxq = nullptr; }
+        if (_cpm_txq != nullptr) { vQueueDelete(_cpm_txq); _cpm_txq = nullptr; }
+        cpmTaskHandle = nullptr;
+        error = NDEV_STATUS::GENERAL;
+        return FUJI_ERROR::UNSPECIFIED;
+    }
 #else
     cpmStopped.store(false);
     cpmThread = std::thread(_cpm_run);

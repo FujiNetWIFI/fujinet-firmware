@@ -410,7 +410,7 @@ void systemBus::_adamnet_dispatch(const FujiAdamPacket &packet)
 void systemBus::_adamnet_process_queue()
 {
     adamnet_message_t msg;
-    if (xQueueReceive(qAdamNetMessages, &msg, 0) == pdTRUE)
+    if (qAdamNetMessages != nullptr && xQueueReceive(qAdamNetMessages, &msg, 0) == pdTRUE)
     {
         switch (msg.message_id)
         {
@@ -448,16 +448,26 @@ void systemBus::setup()
 #ifdef ESP_PLATFORM
     // Set up event queue (disk swap messages)
     qAdamNetMessages = xQueueCreate(4, sizeof(adamnet_message_t));
+    if (qAdamNetMessages == nullptr)
+        Debug_printv("could not create AdamNet message queue, free internal/total heap: %lu/%lu",
+                     esp_get_free_internal_heap_size(), esp_get_free_heap_size());
 
     // Set up interrupt for RESET line
     reset_evt_queue = xQueueCreate(10, sizeof(uint32_t));
-
-    // Start card detect task
-    xTaskCreate(adamnet_reset_intr_task, "adamnet_reset_intr_task", 2048, this, 10, NULL);
-    // Enable interrupt for card detection
-    fnSystem.set_pin_mode(PIN_ADAMNET_RESET, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP, GPIO_INTR_NEGEDGE);
-    // Add the card detect handler
-    gpio_isr_handler_add((gpio_num_t)PIN_ADAMNET_RESET, adamnet_reset_isr_handler, (void *)PIN_CARD_DETECT_FIX);
+    if (reset_evt_queue != nullptr)
+    {
+        // Task-create failure alone is survivable: the ISR fills the queue and
+        // further sends fail harmlessly. A NULL queue would crash the ISR, so
+        // skip the ISR install entirely without it.
+        if (xTaskCreate(adamnet_reset_intr_task, "adamnet_reset_intr_task", 2048, this, 10, NULL) != pdPASS)
+            Debug_printv("could not create adamnet_reset_intr_task, RESET line will be ignored");
+        // Enable interrupt for card detection
+        fnSystem.set_pin_mode(PIN_ADAMNET_RESET, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP, GPIO_INTR_NEGEDGE);
+        // Add the card detect handler
+        gpio_isr_handler_add((gpio_num_t)PIN_ADAMNET_RESET, adamnet_reset_isr_handler, (void *)PIN_CARD_DETECT_FIX);
+    }
+    else
+        Debug_printv("could not create RESET event queue, RESET line will be ignored");
 
     // Set up UART
     _serial.begin(ChannelConfig()
@@ -502,8 +512,15 @@ void systemBus::setup()
 void systemBus::start_bus_task()
 {
 #ifdef ESP_PLATFORM
-    xTaskCreatePinnedToCore(adamnet_bus_task, "adamnet_bus", ADAMNET_BUS_TASK_STACK,
-                            this, ADAMNET_BUS_TASK_PRIORITY, NULL, ADAMNET_BUS_TASK_CORE);
+    // Without this task the device's whole purpose is gone; a clean panic-reboot
+    // self-heals a transient OOM where silence would leave a dead bus.
+    if (xTaskCreatePinnedToCore(adamnet_bus_task, "adamnet_bus", ADAMNET_BUS_TASK_STACK,
+                                this, ADAMNET_BUS_TASK_PRIORITY, NULL, ADAMNET_BUS_TASK_CORE) != pdPASS)
+    {
+        Debug_printv("could not create adamnet_bus task (%u byte stack), free internal/total heap: %lu/%lu",
+                     ADAMNET_BUS_TASK_STACK, esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+        abort();
+    }
 
     gpio_set_drive_capability((gpio_num_t)PIN_UART2_TX, GPIO_DRIVE_CAP_3);
     Debug_printf("AdamNet TX (GPIO%d) drive strength set to MAX\n", PIN_UART2_TX);

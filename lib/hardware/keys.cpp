@@ -108,7 +108,8 @@ void KeyManager::setup()
     // Start a new task to check the status of the buttons
     #define KEYS_STACKSIZE 4096
     #define KEYS_PRIORITY 1
-    xTaskCreate(_keystate_task, "fnKeys", KEYS_STACKSIZE, this, KEYS_PRIORITY, nullptr);
+    if (xTaskCreate(_keystate_task, "fnKeys", KEYS_STACKSIZE, this, KEYS_PRIORITY, nullptr) != pdPASS)
+        Debug_printv("could not create fnKeys task, buttons disabled");
 }
 
 
@@ -300,14 +301,16 @@ void KeyManager::_keystate_task(void *param)
                 Debug_println("ACTION: Send image_rotate message to SIO queue");
                 sio_message_t msg;
                 msg.message_id = SIOMSG_DISKSWAP;
-                xQueueSend(SYSTEM_BUS.qSioMessages, &msg, 0);
+                if (SYSTEM_BUS.qSioMessages != nullptr)
+                    xQueueSend(SYSTEM_BUS.qSioMessages, &msg, 0);
                 fnLedManager.blink(BLUETOOTH_LED, 2); // blink to confirm a button press
 #endif /* BUILD_ATARI */
 #ifdef BUILD_ADAM
                 Debug_println("ACTION: Send image_rotate message to SIO queue");
                 adamnet_message_t msg;
                 msg.message_id = ADAMNETMSG_DISKSWAP;
-                xQueueSend(SYSTEM_BUS.qAdamNetMessages, &msg, 0);
+                if (SYSTEM_BUS.qAdamNetMessages != nullptr)
+                    xQueueSend(SYSTEM_BUS.qAdamNetMessages, &msg, 0);
 #endif /* BUILD_ADAM*/
             }
             break;

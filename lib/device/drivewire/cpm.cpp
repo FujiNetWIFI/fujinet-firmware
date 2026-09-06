@@ -60,24 +60,43 @@ drivewireCPM::drivewireCPM()
 {
     rxq = xQueueCreate(2048, sizeof(char));
     txq = xQueueCreate(2048, sizeof(char));
+    if (rxq == nullptr || txq == nullptr)
+    {
+        Debug_printv("could not create CP/M queues, free internal/total heap: %lu/%lu",
+                     esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+        if (rxq != nullptr)
+            vQueueDelete(rxq);
+        if (txq != nullptr)
+            vQueueDelete(txq);
+        rxq = txq = nullptr;
+    }
 }
 
 void drivewireCPM::boot()
 {
 #ifdef ESP_PLATFORM
+    if (rxq == nullptr || txq == nullptr)
+        return;
+
     if (cpmTaskHandle != NULL)
     {
         vTaskDelete(cpmTaskHandle);
         cpmTaskHandle = NULL;
     }
 
-    xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, 20, &cpmTaskHandle, 1);
+    // boot() has no error channel to the host; the CoCo just retries.
+    if (xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, 20, &cpmTaskHandle, 1) != pdPASS)
+    {
+        cpmTaskHandle = NULL;
+        Debug_printv("could not create cpmtask (32K stack), free internal/total heap: %lu/%lu",
+                     esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+    }
 #endif /* ESP_PLATFORM */
 }
 
 void drivewireCPM::read(uint16_t len)
 {
-    uint16_t mw = uxQueueMessagesWaiting(rxq);
+    uint16_t mw = rxq != nullptr ? uxQueueMessagesWaiting(rxq) : 0;
 
     if (!len)
         return;
@@ -107,17 +126,16 @@ void drivewireCPM::write(uint16_t len)
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
     ByteBuffer data(len, 0);
     SYSTEM_BUS.transaction_get(data.data(), data.size());
-    for (uint16_t i=0;i<data.size();i++)
-    {
 #ifdef ESP_PLATFORM
-        xQueueSend(txq, &data[i], portMAX_DELAY);
+    if (txq != nullptr)
+        for (uint16_t i=0;i<data.size();i++)
+            xQueueSend(txq, &data[i], portMAX_DELAY);
 #endif /* ESP_PLATFORM */
-    }
 }
 
 void drivewireCPM::status()
 {
-    unsigned short mw = uxQueueMessagesWaiting(rxq);
+    unsigned short mw = rxq != nullptr ? uxQueueMessagesWaiting(rxq) : 0;
     unsigned char status_response[2] = {0,0};
 
     status_response[0] = mw >> 8;

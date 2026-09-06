@@ -1003,8 +1003,13 @@ void rs232Network::timer_start()
     tcfg.callback = onTimer;
     tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
     tcfg.name = nullptr;
-    esp_timer_create(&tcfg, &rateTimerHandle);
-    esp_timer_start_periodic(rateTimerHandle, timerRate * 1000);
+    if (esp_timer_create(&tcfg, &rateTimerHandle) == ESP_OK)
+        esp_timer_start_periodic(rateTimerHandle, timerRate * 1000);
+    else
+    {
+        rateTimerHandle = nullptr;
+        Debug_printv("could not create network rate timer");
+    }
 }
 
 /**

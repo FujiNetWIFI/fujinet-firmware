@@ -334,7 +334,7 @@ void systemBus::_sio_process_queue()
 {
 #ifdef ESP_PLATFORM
     sio_message_t msg;
-    if (xQueueReceive(qSioMessages, &msg, 0) == pdTRUE)
+    if (qSioMessages != nullptr && xQueueReceive(qSioMessages, &msg, 0) == pdTRUE)
     {
         switch (msg.message_id)
         {
