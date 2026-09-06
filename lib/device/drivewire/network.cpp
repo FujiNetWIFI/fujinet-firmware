@@ -359,6 +359,8 @@ fujiError_t drivewireNetwork::write_channel(unsigned short num_bytes)
  */
 void drivewireNetwork::status(uint8_t mode)
 {
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+
     if (protocol == nullptr)
         status_local(mode);
     else
@@ -438,8 +440,6 @@ void drivewireNetwork::status_channel()
 #ifdef TOO_MUCH_DEBUG
     Debug_printf("drivewireNetwork::status_channel(%u)\n", channelMode);
 #endif /* TOO_MUCH_DEBUG */
-
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     switch (channelMode)
     {
