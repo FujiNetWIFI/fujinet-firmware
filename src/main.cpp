@@ -1,5 +1,7 @@
 #ifdef ESP_PLATFORM
   #include <esp_system.h>
+  #include <esp_heap_caps.h>
+  #include <esp_rom_sys.h>
   #include <nvs_flash.h>
   #ifdef ATARI
     #include <esp32/himem.h>
@@ -106,6 +108,18 @@ void main_shutdown_handler()
     SYSTEM_BUS.shutdown();
 }
 
+#if defined(ESP_PLATFORM) && defined(DEBUG)
+// Names an OOM at the point it happens; internal-DRAM exhaustion otherwise surfaces
+// far away as a timeout or a silently degraded service. esp_rom_printf because the
+// allocator calls this, possibly from an ISR - Debug_printv would allocate.
+static void heap_alloc_failed_hook(size_t size, uint32_t caps, const char *function_name)
+{
+    esp_rom_printf("ALLOC FAILED: %u bytes caps 0x%x in %s, free internal/total heap: %u/%u\r\n",
+                   (unsigned)size, (unsigned)caps, function_name ? function_name : "?",
+                   (unsigned)esp_get_free_internal_heap_size(), (unsigned)esp_get_free_heap_size());
+}
+#endif
+
 // Initial setup
 #ifdef ESP_PLATFORM
 void main_setup()
@@ -157,6 +171,7 @@ void main_setup(int argc, char *argv[])
     Debug_printf("\r\n\r\n--~--~--~--\nFujiNet %s Started @ %lu\r\n", fnSystem.get_fujinet_version(), startms);
     Debug_printf("Starting heap: %lu\r\n", fnSystem.get_free_heap_size());
     Debug_printv("Heap: %lu\r\n",esp_get_free_internal_heap_size());
+    heap_caps_register_failed_alloc_callback(heap_alloc_failed_hook);
     #ifdef ATARI
     Debug_printf("PsramSize %u\r\n", fnSystem.get_psram_size());
     Debug_printf("himem phys %u\r\n", esp_himem_get_phys_size());
@@ -579,6 +594,21 @@ void fn_service_loop(void *param)
         // ESP ADAM services the bus in its own core-1 task; every other build
         // (including ADAM PC) services it here from the main loop.
         SYSTEM_BUS.service();
+#endif
+
+#if defined(ESP_PLATFORM) && defined(DEBUG)
+        // Internal DRAM every 10s: flat is a fixed cost, falling is a leak. The loop has
+        // no delay, so anything per-iteration is unreadable at bus rates.
+        {
+            static unsigned long last_heap_report = 0;
+            unsigned long now = fnSystem.millis();
+            if (now - last_heap_report >= 10000)
+            {
+                last_heap_report = now;
+                Debug_printv("Low Heap: %lu Heap: %lu",
+                             esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+            }
+        }
 #endif
 
 #ifdef ESP_PLATFORM

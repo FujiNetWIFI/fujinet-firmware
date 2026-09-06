@@ -510,7 +510,15 @@ int fnHttpClient::_perform()
 
     // Start a new task to perform the http client work
     _delete_subtask_if_running();
-    xTaskCreate(_perform_subtask, "perform_subtask", 4096, this, 5, &_taskh_subtask);
+    // Task stacks come from internal DRAM only, so this fails under internal-heap
+    // pressure. Unchecked, that surfaces 20s later as an indistinguishable timeout.
+    if (xTaskCreate(_perform_subtask, "perform_subtask", 4096, this, 5, &_taskh_subtask) != pdPASS)
+    {
+        _taskh_subtask = nullptr;
+        Debug_printv("could not create perform_subtask (4096 byte stack), free internal/total heap: %lu/%lu",
+                     esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+        return -1;
+    }
 #ifdef VERBOSE_HTTP
     // Debug_printf("%08lx _perform subtask created\r\n", fnSystem.millis());
 #endif
