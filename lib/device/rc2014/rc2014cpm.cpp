@@ -9,6 +9,7 @@
 #include "fujiDevice.h"
 #include "fnFS.h"
 #include "fnFsSD.h"
+#include "debug.h"
 
 #include "../runcpm/globals.h"
 #include "../runcpm/abstraction_fujinet.h"
@@ -52,20 +53,29 @@ void rc2014CPM::rc2014_handle_cpm()
     {
         cpmActive = false;
         free(RAM);
+        RAM = NULL;
     }
 }
 
-void rc2014CPM::init_cpm(int baud)
+bool rc2014CPM::init_cpm(int baud)
 {
     // fnUartBUS.set_baudrate(baud); // RC2014 SPI bus does not use UART
     Status = Debug = 0;
     Break = Step = -1;
+    // A repeated CPM_INIT without a BIOS-0 exit would otherwise leak the old 64K.
+    free(RAM);
     RAM = (uint8_t *)malloc(MEMSIZE);
+    if (RAM == NULL)
+    {
+        Debug_printv("could not allocate 64K CP/M RAM, free heap: %lu", fnSystem.get_free_heap_size());
+        return false;
+    }
     memset(RAM, 0, MEMSIZE);
     memset(filename, 0, sizeof(filename));
     memset(newname, 0, sizeof(newname));
     memset(fcbname, 0, sizeof(fcbname));
     memset(pattern, 0, sizeof(pattern));
+    return true;
 }
 
 void rc2014CPM::rc2014_process(uint32_t commanddata, uint8_t checksum)
@@ -80,8 +90,7 @@ void rc2014CPM::rc2014_process(uint32_t commanddata, uint8_t checksum)
         fnSystem.delay(10);
         rc2014_send_complete();
         fnSystem.delay(5000);
-        init_cpm(115200);
-        cpmActive = true;
+        cpmActive = init_cpm(115200);
         break;
     default:
         rc2014_send_nak();
