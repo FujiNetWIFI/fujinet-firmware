@@ -34,6 +34,8 @@
 #include "pinmap/fujiversal-drivewire.h"
 #include "pinmap/fujiversal-rs232.h"
 #include "pinmap/fujiversal-intv.h"
+#include "pinmap/fujiversal-o2.h"
+#include "pinmap/fujiversal-astrocade.h"
 
 
 #include "pinmap_defaults.h"

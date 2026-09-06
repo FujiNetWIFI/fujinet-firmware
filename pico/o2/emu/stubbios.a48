@@ -1,0 +1,22 @@
+; stubbios.a48 -- minimal stand-in for the O2's 1K internal BIOS.
+;
+; Written from scratch so the emulator can run a cartridge without a copyrighted
+; Magnavox BIOS dump. It does exactly one thing: jump to the cartridge reset
+; vector at $400. Carts built against it must not call BIOS routines and must
+; drive the VDC themselves -- which is what we want for a mailbox smoke test,
+; since it keeps the test measuring the mailbox and nothing else.
+
+    cpu 8048
+    org 0
+
+reset:
+    jmp 400h        ; the real BIOS lands here on power-up/reset
+
+    org 3           ; external interrupt vector
+    retr
+
+    org 7           ; timer interrupt vector
+    retr
+
+    org 3FFh        ; pad the image out to a full 1K
+    db 0

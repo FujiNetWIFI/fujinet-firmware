@@ -1,0 +1,178 @@
+; fujicfg.a48 -- FujiNet browser for the Odyssey 2.
+;
+; Pick a host, browse it, boot a cartridge. Joystick up/down moves, the action
+; button selects.
+;
+; The display is the binding constraint: the VDC can show 12 single characters
+; and 4 quad groups of 4, and the screen is only 20 glyphs wide, so the two
+; cannot share a row. That gives exactly two lines -- a 16-character name built
+; from the quad groups, and a 12-character status line from the singles. A
+; scrolling list is not on the table; this browses one entry at a time.
+
+    cpu 8048
+    org 400h
+    include "g7000.h"
+    include "vdctext.inc"
+    include "o2fuji.inc"
+    include "bootcfg.inc"       ; HOSTSLOT (the initially highlighted slot)
+
+DEVSLOT  equ 0
+SX       equ 40               ; status row, drawn on the 12 single characters
+MAXHOST  equ 8
+
+    jmp start                   ; $400 reset
+    jmp irqret                  ; $402 external IRQ
+    jmp irqret                  ; $404 timer IRQ
+    jmp irqret                  ; $406 vblank
+    jmp start                   ; $408 after BIOS "select game"
+    jmp irqret                  ; $40A vblank continuation
+irqret:
+    retr
+
+start:
+    dis i
+    dis tcnti
+    call vdc_init
+    mov r0,#V_SLICE             ; the cart publishes slice 0 after every reply
+    clr a
+    mov @r0,a
+    mov r0,#V_HOST
+    mov a,#HOSTSLOT
+    mov @r0,a
+
+    mov a,#FN_R_MAGIC0&0FFh
+    call fn_read
+    xrl a,#'F'
+    jnz fail_nc
+
+; ---------------------------------------------------------------- host picker
+    call get_hosts              ; one READ_HOST_SLOTS covers all eight
+    xrl a,#FUJICMD_ACK
+    jnz fail_host
+host_loop:
+    call show_host
+    call wait_input
+    mov r0,#V_HOST
+    dec a
+    jz host_up
+    dec a
+    jz host_down
+    dec a
+    jz host_go
+    jmp host_loop               ; left/right mean nothing here
+host_up:
+    mov a,@r0
+    jz host_loop                ; already at slot 0
+    dec a
+    mov @r0,a
+    jmp host_loop
+host_down:
+    mov a,@r0
+    inc a
+    xrl a,#MAXHOST
+    jz host_loop                ; already at the last slot
+    xrl a,#MAXHOST
+    mov @r0,a
+    jmp host_loop
+
+host_go:
+    call mount_host
+    xrl a,#FUJICMD_ACK
+    jnz fail_host
+    call open_dir
+    xrl a,#FUJICMD_ACK
+    jnz fail_dir
+    mov r0,#V_POS
+    clr a
+    mov @r0,a
+
+; ---------------------------------------------------------------- file browser
+file_loop:
+    call read_entry             ; leaves the name in V_NAME, A = 1 if EOF
+    jz file_show
+    mov r0,#V_POS               ; walked off the end -- back up until we land
+    mov a,@r0                   ; on a real entry, which a page jump may take
+    jz file_show                ; several steps
+    dec a
+    mov @r0,a
+    jmp file_loop
+file_show:
+    call show_file
+    call wait_input
+    mov r0,#V_POS
+    dec a
+    jz file_up
+    dec a
+    jz file_down
+    dec a
+    jz file_go
+    dec a
+    jz file_pgup
+file_pgdn:                      ; left/right page by ten -- one entry at a time
+    mov a,@r0                   ; is too slow to cross a real directory
+    add a,#10
+    mov @r0,a
+    jmp file_loop
+file_pgup:
+    mov a,@r0
+    add a,#0F6h                 ; -10, clamped at the top
+    jc fp_set
+    clr a
+fp_set:
+    mov @r0,a
+    jmp file_loop
+file_up:
+    mov a,@r0
+    jz file_loop
+    dec a
+    mov @r0,a
+    jmp file_loop
+file_down:
+    mov a,@r0
+    inc a
+    mov @r0,a
+    jmp file_loop
+
+file_go:
+    call boot_entry
+    xrl a,#FUJICMD_ACK
+    jnz fail_mount
+    mov a,#msg_reset&0FFh
+    jmp report
+
+fail_nc:
+    mov a,#msg_nc&0FFh
+    jmp report
+fail_host:
+    mov a,#msg_host&0FFh
+    jmp report
+fail_dir:
+    mov a,#msg_dir&0FFh
+    jmp report
+fail_mount:
+    mov a,#msg_mount&0FFh
+    jmp report
+
+report:
+    mov r4,a
+    mov a,#P1_SEL_VDC
+    outl p1,a
+    mov r0,#vdc_char0
+    mov r3,#SX
+    mov a,r4
+    call puts_e
+    call gfx_on
+spin:
+    jmp spin
+
+    include "fujilib.inc"       ; self-pinned to $4D0
+    include "fujicfg2.inc"      ; the browser's own transaction/drawing helpers
+
+    org 0D02h
+msg_nc:    db "NO CART",0
+msg_host:  db "HOST ERR",0
+msg_dir:   db "DIR ERR",0
+msg_mount: db "MNT ERR",0
+msg_reset: db "PRESS RESET",0
+
+    include "fujistub.inc"
