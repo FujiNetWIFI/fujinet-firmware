@@ -50,8 +50,10 @@ decode for the session.
   RAM that reads the swap hotspot, and the game boots. Jungler plays.
 - **M3 — `fujicfg` (CONFIG).** Pick a host (`READ_HOST_SLOTS`), browse it
   (`OPEN_DIRECTORY` / `READ_DIR_ENTRY` with a cursor and paging), boot what
-  you land on. The real full-feature CONFIG (wifi / hosts / rename / browse
-  / info / boot) lives in `fujinet-config/arcadia/`.
+  you land on. Drive it with the **disc** (up/down) and **fire** (select),
+  or the keypad (`8` down, `4`/`6` page, `Enter` select, `Clear` back). The
+  real full-feature CONFIG (wifi / hosts / rename / browse / info / boot)
+  lives in `fujinet-config/arcadia/`.
 - **M5 — soak.** All 48 carts in the ROM library stream through byte-for-byte
   and boot: `tools/soak.sh` → **48/48**.
 
@@ -124,6 +126,14 @@ baked-in client (the real `fujinet-config/arcadia` CONFIG if its
   characters (all 8 are free; the clients use no sprites).
 - **Frame sync is the SENSE pin** (`TPSU $80`) — the UVI's vertical retrace.
   There are no interrupts.
+- **The fire button is keypad '2'.** Both are `controller1_col2` bit 3
+  (`$1901` bit 3) — electrically one wire — so the client treats that bit as
+  *select*, not as the digit. **The disc is an analog pot** digitised by the
+  2637 and valid only during vblank: P1 vertical is `$19FF` with the mux
+  (`$19F9` bit 6) clear — up `0x00`, down `0xFF`, centre `~0x6F`; read
+  outside vblank it returns `0xFF`, which reads as "down", so `SCAN` syncs to
+  vblank before reading it. In MAME the keypad maps to the PC numeric keypad
+  (`Clear` = numpad `-`, `Enter` = numpad `+`).
 - **The connector has no read strobe**, so `core1` cannot spin until an
   Enable drops as the Astrocade loop does (A12 stays low across consecutive
   instruction fetches). It serves combinationally and de-duplicates hotspot

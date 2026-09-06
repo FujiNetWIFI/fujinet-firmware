@@ -1,10 +1,12 @@
 ; fujicfg.asm -- FujiNet CONFIG for the Emerson Arcadia 2001.
 ;
 ; Milestone 3: pick a host slot, browse the root of its tree, pick an image,
-; boot it. Navigation is the P1 keypad: 2/8 move, 4/6 page, Enter selects,
-; Clear steps back to the host page. The console RESET button restarts the
-; client; the cart keeps its state, so sequence numbers derive from ACKSEQ
-; (see fujilib.inc).
+; boot it. Controls (see fujidisp.inc SCAN): the P1 disc moves up/down and
+; the FIRE button selects; the keypad is the alternative -- 8 down, 4/6
+; page, Enter select, Clear back. (FIRE and keypad '2' are the same wire, so
+; that bit selects rather than moving.) The console RESET button restarts
+; the client; the cart keeps its state, so sequence numbers derive from
+; ACKSEQ (see fujilib.inc).
 ;
 ; Root listing only (the o2/astrocade testrom scope). Display names are
 ; crunched to the row width, so the boot path re-reads the selected entry
