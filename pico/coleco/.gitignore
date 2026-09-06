@@ -1,0 +1,15 @@
+build/
+firmware/build-*/
+# z88dk leaves per-source symbol/listing files next to the sources
+testrom/*.sym
+testrom/*.asm
+testrom/*.o
+# compiled host tests (the .c files are the deliverable)
+firmware/host_test/test_busedge
+firmware/host_test/test_colmap
+firmware/host_test/test_fujibus
+firmware/host_test/test_fujimail
+# MAME writes these into whatever directory it is pointed at
+cfg/
+snap/
+nvram/
