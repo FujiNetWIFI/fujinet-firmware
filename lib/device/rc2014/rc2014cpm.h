@@ -16,7 +16,7 @@ private:
 
 public:
     bool cpmActive = false;
-    void init_cpm(int baud);
+    bool init_cpm(int baud);
     void rc2014_handle_cpm();
 
 };

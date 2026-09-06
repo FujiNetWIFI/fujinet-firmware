@@ -310,6 +310,7 @@ void drivewireNetwork::write(uint16_t num_bytes)
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
     {
+        free(txbuf);
         SYSTEM_BUS.transaction_error();
         _errorCode = NDEV_STATUS::NOT_CONNECTED;
         return;
