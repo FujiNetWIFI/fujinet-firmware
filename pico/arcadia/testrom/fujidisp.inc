@@ -106,13 +106,22 @@ DHEX:   STRZ    R1
         STRA,R0 SCREEN,R2,+
         RETC,UN
 
-; ---- keypad --------------------------------------------------------
-; P1 keypad, active high, masked $0F, one column per address:
-;   $1900 b3=1 b2=4 b1=7 b0=Clear
-;   $1901 b3=2 b2=5 b1=8 b0=0
+; ---- input: joystick disc + keypad ---------------------------------
+; The hand controller's primary control is the self-centring disc and the
+; side FIRE button; the 12-key keypad is secondary. Two hardware facts
+; shape this:
+;   - FIRE is wired to the SAME line as keypad '2' (controller col 2 bit 3,
+;     $1901 b3). They are electrically indistinguishable, so that bit is
+;     SELECT (fire-to-confirm), and up/down live on the disc.
+;   - The disc is read as an analog pot digitised by the 2637, valid ONLY
+;     during vertical blank. P1 vertical is $19FF with the pot mux ($19F9
+;     bit 6) clear (DINIT leaves it clear): up reads 0x00, down 0xFF, centre
+;     ~0x6F. Read outside vblank it returns 0xFF -- which looks like "down"
+;     -- so SCAN syncs to vblank (TPSU $80) before reading it.
+; Keypad, active high, masked $0F, one column per address:
+;   $1900 b3=1 b2=4 b1=7 b0=Clear     $1901 b3=2/FIRE b2=5 b1=8 b0=0
 ;   $1902 b3=3 b2=6 b1=9 b0=Enter
-; The CONFIG UI uses: 2 up, 8 down, 4 page-up, 6 page-down, Enter select,
-; Clear back.
+; UI: disc up/down move; FIRE or Enter select; Clear back; 4/6 page; 8 down.
 KUP     EQU     1
 KDOWN   EQU     2
 KPGUP   EQU     3
@@ -120,25 +129,39 @@ KPGDN   EQU     4
 KSEL    EQU     5
 KBACK   EQU     6
 
-; SCAN: R0 = code of the first key found (0 if none). Leaf. Clobbers R0.
-SCAN:   LODA,R0 $1901           ; '2' up  (b3)
-        ANDI,R0 $08
-        BCFR,EQ SCU
+JOYP1   EQU     $19FF           ; P1 vertical pot (mux clear): up 00, down FF
+JOYUP   EQU     $40             ; < this = up
+JOYDN   EQU     $C0             ; > this = down
+
+; SCAN: R0 = code of the first control found (0 if none). Syncs to vblank so
+; the disc pot read is valid. Calls nothing. Clobbers R0,R1.
+SCAN:   TPSU    $80             ; wait for vertical blank (pot A/D valid there)
+        BCFR,EQ SCAN
+        LODA,R0 JOYP1           ; disc up/down first
+        STRZ    R1
+        COMI,R0 JOYUP
+        BCTA,LT SCU             ; < 0x40 -> up
+        LODZ    R1
+        COMI,R0 JOYDN
+        BCTA,GT SCD             ; > 0xC0 -> down
         LODA,R0 $1901           ; '8' down (b1)
         ANDI,R0 $02
-        BCFR,EQ SCD
+        BCFA,EQ SCD
+        LODA,R0 $1901           ; '2'/FIRE select (b3)
+        ANDI,R0 $08
+        BCFA,EQ SCS
         LODA,R0 $1902           ; Enter select (b0)
         ANDI,R0 $01
-        BCFR,EQ SCS
+        BCFA,EQ SCS
         LODA,R0 $1900           ; Clear back (b0)
         ANDI,R0 $01
-        BCFR,EQ SCB
+        BCFA,EQ SCB
         LODA,R0 $1900           ; '4' page up (b2)
         ANDI,R0 $04
-        BCFR,EQ SCPU
+        BCFA,EQ SCPU
         LODA,R0 $1902           ; '6' page down (b2)
         ANDI,R0 $04
-        BCFR,EQ SCPD
+        BCFA,EQ SCPD
         EORZ    R0
         RETC,UN
 SCU:    LODI,R0 KUP
@@ -154,14 +177,14 @@ SCPU:   LODI,R0 KPGUP
 SCPD:   LODI,R0 KPGDN
         RETC,UN
 
-; GETKEY: block for a fresh keypress; R0 = key code. Waits for full release
-; first so a held key steps once per press. Calls one down (SCAN).
+; GETKEY: block for a fresh control; R0 = code. Waits for full release first
+; so a held key/disc steps once per push. Calls one down (SCAN).
 GETKEY: BSTA,UN SCAN            ; wait for release
         COMI,R0 0
-        BCFR,EQ GETKEY
+        BCFA,EQ GETKEY
 GKW:    BSTA,UN SCAN            ; wait for a press
         COMI,R0 0
-        BCTR,EQ GKW
+        BCTA,EQ GKW
         RETC,UN
 
 ; ---- ASCII $20-$7F -> glyph, 96 entries -------------------------------
