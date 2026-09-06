@@ -274,7 +274,6 @@ void sioNetwork::sio_read(const FujiSIOPacket &packet)
     // And send off to the computer
     SYSTEM_BUS.transaction_send((uint8_t *)receiveBuffer->data(), num_bytes, err != FUJI_ERROR::NONE);
     receiveBuffer->erase(0, num_bytes);
-    receiveBuffer->shrink_to_fit();
 }
 
 /**

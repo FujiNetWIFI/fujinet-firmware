@@ -143,9 +143,26 @@ iwmModem::iwmModem(FileSystem *_fs, bool snifferEnable)
     modemSniffer = new ModemSniffer(activeFS, snifferEnable);
     set_term_type("dumb");
     telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
-    mrxq = xQueueCreate(16384, sizeof(char));
-    mtxq = xQueueCreate(16384, sizeof(char));
-    xTaskCreatePinnedToCore(_modem_task, "modemTask", 4096, this, MODEM_TASK_PRIORITY, &modemTask, MODEM_TASK_CPU);
+    // Task-to-task byte FIFOs with no ISR access - keep ~32K of queue storage
+    // out of internal DRAM (pvPortMalloc is hard-wired to MALLOC_CAP_INTERNAL).
+    mrxq = xQueueCreateWithCaps(16384, sizeof(char), MALLOC_CAP_SPIRAM);
+    mtxq = xQueueCreateWithCaps(16384, sizeof(char), MALLOC_CAP_SPIRAM);
+    if (mrxq == nullptr || mtxq == nullptr)
+    {
+        Debug_printv("could not create modem queues, free internal/total heap: %lu/%lu",
+                     esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+        if (mrxq != nullptr)
+            vQueueDeleteWithCaps(mrxq);
+        if (mtxq != nullptr)
+            vQueueDeleteWithCaps(mtxq);
+        mrxq = mtxq = nullptr;
+    }
+    else if (xTaskCreatePinnedToCore(_modem_task, "modemTask", 4096, this, MODEM_TASK_PRIORITY, &modemTask, MODEM_TASK_CPU) != pdPASS)
+    {
+        modemTask = nullptr;
+        Debug_printv("could not create modemTask, free internal/total heap: %lu/%lu",
+                     esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+    }
 }
 
 iwmModem::~iwmModem()
@@ -161,15 +178,20 @@ iwmModem::~iwmModem()
         telnet_free(telnet);
     }
 
-    vTaskDelete(modemTask);
-    vQueueDelete(mrxq);
-    vQueueDelete(mtxq);
+    if (modemTask != nullptr)
+        vTaskDelete(modemTask);
+    if (mrxq != nullptr)
+        vQueueDeleteWithCaps(mrxq);
+    if (mtxq != nullptr)
+        vQueueDeleteWithCaps(mtxq);
 }
 
 unsigned short iwmModem::modem_write(uint8_t *buf, unsigned short len)
 {
     unsigned short l = 0;
 
+    if (mrxq == nullptr)
+        return 0;
     while (len > 0)
     {
         xQueueSend(mrxq, &buf[l++], portMAX_DELAY);
@@ -181,6 +203,8 @@ unsigned short iwmModem::modem_write(uint8_t *buf, unsigned short len)
 
 unsigned short iwmModem::modem_write(char c)
 {
+    if (mrxq == nullptr)
+        return 0;
     xQueueSend(mrxq, &c, portMAX_DELAY);
     return 1;
 }
@@ -189,6 +213,8 @@ unsigned short iwmModem::modem_print(const char *s)
 {
     unsigned short l = 0;
 
+    if (mrxq == nullptr)
+        return 0;
     while (*s != 0x00)
     {
         xQueueSend(mrxq, s++, portMAX_DELAY);
@@ -216,6 +242,8 @@ unsigned short iwmModem::modem_read(uint8_t *buf, unsigned short len)
 {
     unsigned short i, l = 0;
 
+    if (mtxq == nullptr)
+        return 0;
     for (i = 0; i < len; i++)
         l += xQueueReceive(mtxq, &buf[i], portMAX_DELAY);
 
@@ -1450,7 +1478,7 @@ void iwmModem::iwm_read(iwm_decoded_cmd_t cmd)
 {
     uint16_t numbytes = get_numbytes(cmd); // cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
     uint32_t addy = get_address(cmd);      // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
-    unsigned short mw = uxQueueMessagesWaiting(mrxq);
+    unsigned short mw = mrxq != nullptr ? uxQueueMessagesWaiting(mrxq) : 0;
 
     Debug_printf("\r\nDevice %02x READ %04x bytes from address %06x\n", id(), numbytes, addy);
 
@@ -1502,8 +1530,9 @@ void iwmModem::iwm_write(iwm_decoded_cmd_t cmd)
 
     {
         // DO write
-        for (int i = 0; i < num_bytes; i++)
-            xQueueSend(mtxq, &data_buffer[i], portMAX_DELAY);
+        if (mtxq != nullptr)
+            for (int i = 0; i < num_bytes; i++)
+                xQueueSend(mtxq, &data_buffer[i], portMAX_DELAY);
     }
 
     send_reply_packet(SP_ERR_NOERROR);
@@ -1532,7 +1561,7 @@ void iwmModem::iwm_ctrl(iwm_decoded_cmd_t cmd)
 
 void iwmModem::iwm_modem_status()
 {
-    unsigned short mw = uxQueueMessagesWaiting(mrxq);
+    unsigned short mw = mrxq != nullptr ? uxQueueMessagesWaiting(mrxq) : 0;
 
     //if (mw > 512)
     //    mw = 512;

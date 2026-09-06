@@ -95,9 +95,27 @@ iwmModem::iwmModem(FileSystem *_fs, bool snifferEnable)
     set_term_type("dumb");
     telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
 #ifdef ESP_PLATFORM // OS
-    mrxq = xQueueCreate(32770, sizeof(char));
-    mtxq = xQueueCreate(32770, sizeof(char));
-    xTaskCreatePinnedToCore(_modem_task, "modemTask", 4096, this, MODEM_TASK_PRIORITY, &modemTask, MODEM_TASK_CPU);
+    // Task-to-task byte FIFOs with no ISR access, so the ~64K of queue storage
+    // can live in PSRAM. FreeRTOS pvPortMalloc is hard-wired to internal DRAM,
+    // and on a plain ESP32 this pair was most of the free internal heap at boot.
+    mrxq = xQueueCreateWithCaps(32770, sizeof(char), MALLOC_CAP_SPIRAM);
+    mtxq = xQueueCreateWithCaps(32770, sizeof(char), MALLOC_CAP_SPIRAM);
+    if (mrxq == nullptr || mtxq == nullptr)
+    {
+        Debug_printv("could not create modem queues, free internal/total heap: %lu/%lu",
+                     esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+        if (mrxq != nullptr)
+            vQueueDeleteWithCaps(mrxq);
+        if (mtxq != nullptr)
+            vQueueDeleteWithCaps(mtxq);
+        mrxq = mtxq = nullptr;
+    }
+    else if (xTaskCreatePinnedToCore(_modem_task, "modemTask", 4096, this, MODEM_TASK_PRIORITY, &modemTask, MODEM_TASK_CPU) != pdPASS)
+    {
+        modemTask = nullptr;
+        Debug_printv("could not create modemTask, free internal/total heap: %lu/%lu",
+                     esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+    }
 #endif
 }
 
@@ -115,9 +133,12 @@ iwmModem::~iwmModem()
     }
 
 #ifdef ESP_PLATFORM // OS
-    vTaskDelete(modemTask);
-    vQueueDelete(mrxq);
-    vQueueDelete(mtxq);
+    if (modemTask != nullptr)
+        vTaskDelete(modemTask);
+    if (mrxq != nullptr)
+        vQueueDeleteWithCaps(mrxq);
+    if (mtxq != nullptr)
+        vQueueDeleteWithCaps(mtxq);
 #endif
 }
 
@@ -125,6 +146,10 @@ unsigned short iwmModem::modem_write(uint8_t *buf, unsigned short len)
 {
     unsigned short l = 0;
 
+#ifdef ESP_PLATFORM // OS
+    if (mrxq == nullptr)
+        return 0;
+#endif
     while (len > 0)
     {
 #ifdef ESP_PLATFORM // OS
@@ -139,6 +164,8 @@ unsigned short iwmModem::modem_write(uint8_t *buf, unsigned short len)
 unsigned short iwmModem::modem_write(char c)
 {
 #ifdef ESP_PLATFORM // OS
+    if (mrxq == nullptr)
+        return 0;
     xQueueSend(mrxq, &c, portMAX_DELAY);
 #endif
     return 1;
@@ -148,6 +175,10 @@ unsigned short iwmModem::modem_print(const char *s)
 {
     unsigned short l = 0;
 
+#ifdef ESP_PLATFORM // OS
+    if (mrxq == nullptr)
+        return 0;
+#endif
     while (*s != 0x00)
     {
 #ifdef ESP_PLATFORM // OS
@@ -182,6 +213,8 @@ unsigned short iwmModem::modem_read(uint8_t *buf, unsigned short len)
     unsigned short i, l = 0;
 
 #ifdef ESP_PLATFORM // OS
+    if (mtxq == nullptr)
+        return 0;
     for (i = 0; i < len; i++)
         l += xQueueReceive(mtxq, &buf[i], portMAX_DELAY);
 #endif
@@ -1392,9 +1425,9 @@ void iwmModem::iwm_close(const iwm_decoded_cmd_t &cmd)
 void iwmModem::iwm_read(const iwm_decoded_cmd_t &cmd)
 {
 #ifdef ESP_PLATFORM // OS
-    unsigned short mw = uxQueueMessagesWaiting(mrxq);
+    unsigned short mw = mrxq != nullptr ? uxQueueMessagesWaiting(mrxq) : 0;
 #else
-    unsigned short mw;
+    unsigned short mw = 0;
 #endif
 
     Debug_printf("\r\nDevice %02x READ %04x bytes from address %06lx\n", id(), cmd.frame.char_rw.length, cmd.frame.char_rw.address);
@@ -1405,6 +1438,7 @@ void iwmModem::iwm_read(const iwm_decoded_cmd_t &cmd)
     {
         size_t numbytes = std::min<uint16_t>(mw, cmd.frame.char_rw.length);
 
+        buffer.resize(numbytes); // operator[] below was writing past an empty vector
         for (size_t i = 0; i < numbytes; i++)
         {
             uint8_t b;
@@ -1431,8 +1465,9 @@ void iwmModem::iwm_write(const iwm_decoded_cmd_t &cmd)
         auto buffer = cmd.data().value();
         // DO write
 #ifdef ESP_PLATFORM // OS
-        for (int i = 0; i < cmd.frame.char_rw.length; i++)
-            xQueueSend(mtxq, &buffer[i], portMAX_DELAY);
+        if (mtxq != nullptr)
+            for (int i = 0; i < cmd.frame.char_rw.length; i++)
+                xQueueSend(mtxq, &buffer[i], portMAX_DELAY);
 #endif
     }
 
@@ -1451,7 +1486,7 @@ void iwmModem::iwm_modem_status()
 {
     u16le_t mw;
 #ifdef ESP_PLATFORM // OS
-    mw = uxQueueMessagesWaiting(mrxq);
+    mw = mrxq != nullptr ? uxQueueMessagesWaiting(mrxq) : 0;
 #endif
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);

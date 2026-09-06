@@ -156,9 +156,9 @@ private:
     bool firmware_sent = false;
 
 #ifdef ESP_PLATFORM // OS
-    QueueHandle_t mrxq;
-    QueueHandle_t mtxq;
-    TaskHandle_t modemTask;
+    QueueHandle_t mrxq = nullptr;
+    QueueHandle_t mtxq = nullptr;
+    TaskHandle_t modemTask = nullptr;
 #endif
 
     /* Modem Active Variables */
