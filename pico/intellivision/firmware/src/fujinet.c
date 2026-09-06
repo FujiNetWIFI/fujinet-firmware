@@ -263,7 +263,7 @@ bool dbc_inbound_handler(const fb_reply_t *req)
     if (req->device != FUJI_DEVICEID_DBC)
         return false;
 
-    if (req->command == CMD::NET_OPEN) {
+    if (req->command == CMD_NET_OPEN) {
         // Payload: stream id, optionally followed by the stream's total
         // size as 4 little-endian bytes (see this section's banner).
         unsigned stream = (req->data_len > 0) ? req->data[0] : 0;
@@ -293,26 +293,26 @@ bool dbc_inbound_handler(const fb_reply_t *req)
                 dbc_stream = -1;
                 cart.RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_FAILED;
                 cart.RAM[FUJI_MB_BOOT_ERR] = (uint16_t)err;
-                dbc_send_frame(CMD::FUJI_NAK);
+                dbc_send_frame(CMD_FUJI_NAK);
                 return true;
             }
         }
-        dbc_send_frame(CMD::FUJI_ACK);
+        dbc_send_frame(CMD_FUJI_ACK);
         return true;
     }
 
-    if (req->command == CMD::NET_WRITE) {
+    if (req->command == CMD_NET_WRITE) {
         if (dbc_stream == DBC_STREAM_CFG) {
             bootmap_cfg_data(req->data, req->data_len);
         } else if (dbc_stream == DBC_STREAM_ROM) {
             bootmap_rom_data(req->data, req->data_len);
             cart.RAM[FUJI_MB_BOOT_PCT] = bootmap_pct();
         }
-        dbc_send_frame(CMD::FUJI_ACK);
+        dbc_send_frame(CMD_FUJI_ACK);
         return true;
     }
 
-    if (req->command == CMD::NET_CLOSE) {
+    if (req->command == CMD_NET_CLOSE) {
         // Abort-CLOSE (payload 0x01): unwedge the stream without booting
         // partial data. Bare CLOSE = commit, so old peers stay compatible.
         bool aborted = (req->data_len > 0 && req->data[0] == 0x01);
@@ -321,13 +321,13 @@ bool dbc_inbound_handler(const fb_reply_t *req)
 
         if (stream == DBC_STREAM_CFG) {
             bootmap_cfg_end(aborted);
-            dbc_send_frame(CMD::FUJI_ACK);
+            dbc_send_frame(CMD_FUJI_ACK);
         } else if (stream == DBC_STREAM_ROM) {
             if (aborted) {
                 bootmap_rom_abort();
                 cart.RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_FAILED;
                 cart.RAM[FUJI_MB_BOOT_ERR] = FUJI_BOOT_ERR_TRUNCATED;
-                dbc_send_frame(CMD::FUJI_ACK); // the abort itself succeeded
+                dbc_send_frame(CMD_FUJI_ACK); // the abort itself succeeded
                 return true;
             }
             cart.RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_MAPPING;
@@ -336,7 +336,7 @@ bool dbc_inbound_handler(const fb_reply_t *req)
             bool boot_ok = apply_boot_mapping();
             if (boot_ok) {
                 cart.RAM[FUJI_MB_BOOT_PCT] = 100;
-                dbc_send_frame(CMD::FUJI_ACK); // must go out before resetCart() tears down the link
+                dbc_send_frame(CMD_FUJI_ACK); // must go out before resetCart() tears down the link
                 gpio_put(LED, false);
                 fuji_wait_ms_pumped(200);
                 resetCart();
@@ -364,7 +364,7 @@ bool dbc_inbound_handler(const fb_reply_t *req)
             // ESP32 side sees the CLOSE fail and MediaTypeROM::mount()
             // reports failure, instead of believing the push succeeded.
             cart.RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_FAILED;
-            dbc_send_frame(CMD::FUJI_NAK);
+            dbc_send_frame(CMD_FUJI_NAK);
             if (need_config_reset) {
                 // failed commit destroyed the live map; reset into the
                 // rebuilt CONFIG
@@ -379,14 +379,14 @@ bool dbc_inbound_handler(const fb_reply_t *req)
                 cart.RAM[FUJI_MB_PROTO_VER] = 1;
             }
         } else {
-            dbc_send_frame(CMD::FUJI_ACK);
+            dbc_send_frame(CMD_FUJI_ACK);
         }
         return true;
     }
 
     // Unrecognized DBC command -- consume it anyway (NAK) rather than
     // falling through and being mistaken for the MOUNT_IMAGE reply.
-    dbc_send_frame(CMD::FUJI_NAK);
+    dbc_send_frame(CMD_FUJI_NAK);
     return true;
 }
 
@@ -464,7 +464,7 @@ void fuji_mailbox_service(void)
 
     // See last_boot_path's comment: this is the only source of a filename
     // for a JLP flash .save path on a network-pushed ROM.
-    if (device == FUJI_DEVICEID_FUJINET && command == CMD::FUJI_SET_DEVICE_FULLPATH) {
+    if (device == FUJI_DEVICEID_FUJINET && command == CMD_FUJI_SET_DEVICE_FULLPATH) {
         uint16_t n = txlen < sizeof(last_boot_path) - 1 ? txlen : sizeof(last_boot_path) - 1;
         memcpy(last_boot_path, txbuf, n);
         last_boot_path[n] = 0;
@@ -475,7 +475,7 @@ void fuji_mailbox_service(void)
     // transfer over TNFS can easily run past the ordinary 5s budget every
     // other command gets.
     uint32_t timeout_ms = 5000;
-    if (device == FUJI_DEVICEID_FUJINET && command == CMD::FUJI_MOUNT_IMAGE)
+    if (device == FUJI_DEVICEID_FUJINET && command == CMD_FUJI_MOUNT_IMAGE)
         timeout_ms = 60000;
 
     fb_reply_t reply;
@@ -503,7 +503,7 @@ void fuji_mailbox_service(void)
         cart.RAM[FUJI_MB_RXLEN_LO] = rxlen & 0xFF;
         cart.RAM[FUJI_MB_RXLEN_HI] = (rxlen >> 8) & 0xFF;
         cart.RAM[FUJI_MB_REPLY_CMD] = reply.command;
-        cart.RAM[FUJI_MB_STATUS] = (reply.command == CMD::FUJI_ACK) ? FUJI_MB_STATUS_OK : FUJI_MB_STATUS_ERR;
+        cart.RAM[FUJI_MB_STATUS] = (reply.command == CMD_FUJI_ACK) ? FUJI_MB_STATUS_OK : FUJI_MB_STATUS_ERR;
     } else {
         cart.RAM[FUJI_MB_RXLEN_LO] = 0;
         cart.RAM[FUJI_MB_RXLEN_HI] = 0;
