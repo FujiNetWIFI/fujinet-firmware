@@ -127,9 +127,15 @@ MediaTypeATX::MediaTypeATX()
     tcfg.callback = on_timer;
     tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
     tcfg.name = nullptr;
-    esp_timer_create(&tcfg, &_atx_timer);
-    ESP_ERROR_CHECK(esp_timer_start_periodic(_atx_timer,
-        US_ANGULAR_UNIT_TIME * ANGULAR_POSITION_UPDATE_FREQ));
+    if (esp_timer_create(&tcfg, &_atx_timer) == ESP_OK)
+        ESP_ERROR_CHECK(esp_timer_start_periodic(_atx_timer,
+            US_ANGULAR_UNIT_TIME * ANGULAR_POSITION_UPDATE_FREQ));
+    else
+    {
+        // Don't abort the whole device over a disk mount; rotation timing degrades.
+        _atx_timer = nullptr;
+        Debug_printv("could not create ATX rotation timer");
+    }
 #else
     srand((unsigned)time(0));
     __atx_position_time = fnSystem.micros();

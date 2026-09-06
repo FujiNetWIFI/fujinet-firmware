@@ -58,6 +58,16 @@ iwmCPM::iwmCPM()
 #ifdef ESP_PLATFORM // OS
     rxq = xQueueCreate(2048, sizeof(char));
     txq = xQueueCreate(2048, sizeof(char));
+    if (rxq == nullptr || txq == nullptr)
+    {
+        Debug_printv("could not create CP/M queues, free internal/total heap: %lu/%lu",
+                     esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+        if (rxq != nullptr)
+            vQueueDelete(rxq);
+        if (txq != nullptr)
+            vQueueDelete(txq);
+        rxq = txq = nullptr;
+    }
 #endif
 }
 
@@ -96,7 +106,7 @@ void iwmCPM::iwm_open(const iwm_decoded_cmd_t &cmd)
 
     Debug_printf("\r\nCP/M: Open\n");
 #ifdef ESP_PLATFORM // OS
-    if (!fnSystem.hasbuffer())
+    if (!fnSystem.hasbuffer() || rxq == nullptr || txq == nullptr)
     {
         err_result = SP_ERR::OFFLINE;
     Debug_printf("FujiApple HASBUFFER Missing, not starting CP/M\n");
@@ -106,12 +116,25 @@ void iwmCPM::iwm_open(const iwm_decoded_cmd_t &cmd)
         if (cpmTaskHandle == NULL)
         {
             Debug_printf("!!! STARTING CP/M TASK!!!\n");
-            xTaskCreatePinnedToCore(cpmTask, "cpmtask", 4096, this, CPM_TASK_PRIORITY, &cpmTaskHandle, 0);
+            if (xTaskCreatePinnedToCore(cpmTask, "cpmtask", 4096, this, CPM_TASK_PRIORITY, &cpmTaskHandle, 0) != pdPASS)
+            {
+                cpmTaskHandle = NULL;
+                Debug_printv("could not create cpmtask, free internal/total heap: %lu/%lu",
+                             esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+                err_result = SP_ERR::IOERROR;
+            }
         }
     }
 #endif
 
-    SYSTEM_BUS.transaction_error(err_result);
+    // transaction_error() asserts on NOERROR - success must go through transaction_success()
+    if (err_result == SP_ERR::NOERROR)
+    {
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_success();
+    }
+    else
+        SYSTEM_BUS.transaction_error(err_result);
 }
 
 void iwmCPM::iwm_close(const iwm_decoded_cmd_t &cmd)
@@ -130,7 +153,7 @@ void iwmCPM::iwm_status(const iwm_decoded_cmd_t &cmd)
         {
             u16le_t mw;
 #ifdef ESP_PLATFORM // OS
-            mw = uxQueueMessagesWaiting(rxq);
+            mw = rxq != nullptr ? uxQueueMessagesWaiting(rxq) : 0;
 #endif
 
             mw = std::min<uint16_t>(512, mw);
@@ -161,9 +184,9 @@ void iwmCPM::iwm_status(const iwm_decoded_cmd_t &cmd)
 void iwmCPM::iwm_read(const iwm_decoded_cmd_t &cmd)
 {
 #ifdef ESP_PLATFORM // OS
-    unsigned short mw = uxQueueMessagesWaiting(rxq);
+    unsigned short mw = rxq != nullptr ? uxQueueMessagesWaiting(rxq) : 0;
 #else
-    unsigned short mw;
+    unsigned short mw = 0;
 #endif
 
     Debug_printf("\r\nDevice %02x READ %04x bytes from address %06lx\n", id(), cmd.frame.char_rw.length, cmd.frame.char_rw.address);
@@ -173,6 +196,7 @@ void iwmCPM::iwm_read(const iwm_decoded_cmd_t &cmd)
     {
         size_t numbytes = std::min<uint16_t>(mw, cmd.frame.char_rw.length);
 
+        buffer.resize(numbytes); // operator[] below was writing past an empty vector
         for (size_t i = 0; i < numbytes; i++)
         {
             uint8_t b;
@@ -196,8 +220,9 @@ void iwmCPM::iwm_write(const iwm_decoded_cmd_t &cmd)
         auto buffer = cmd.data().value();
         // DO write
 #ifdef ESP_PLATFORM // OS
-        for (int i = 0; i < cmd.frame.char_rw.length; i++)
-            xQueueSend(txq, &buffer[i], portMAX_DELAY);
+        if (txq != nullptr)
+            for (int i = 0; i < cmd.frame.char_rw.length; i++)
+                xQueueSend(txq, &buffer[i], portMAX_DELAY);
 #endif
     }
 
@@ -215,7 +240,7 @@ void iwmCPM::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
         {
         case CMD::CPM_BOOT:
 #ifdef ESP_PLATFORM // OS
-            if (!fnSystem.hasbuffer())
+            if (!fnSystem.hasbuffer() || rxq == nullptr || txq == nullptr)
             {
                 err_result = SP_ERR::OFFLINE;
                 Debug_printf("FujiApple HASBUFFER Missing, not starting CP/M\n");
@@ -229,7 +254,13 @@ void iwmCPM::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
                 {
                         break;
                 }
-                xTaskCreatePinnedToCore(cpmTask, "cpmtask", 8192, this, CPM_TASK_PRIORITY, &cpmTaskHandle, 0);
+                if (xTaskCreatePinnedToCore(cpmTask, "cpmtask", 8192, this, CPM_TASK_PRIORITY, &cpmTaskHandle, 0) != pdPASS)
+                {
+                    cpmTaskHandle = NULL;
+                    Debug_printv("could not create cpmtask, free internal/total heap: %lu/%lu",
+                                 esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+                    err_result = SP_ERR::IOERROR;
+                }
 #endif
             }
             break;
@@ -240,7 +271,14 @@ void iwmCPM::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
     else
         err_result = SP_ERR::IOERROR;
 
-    SYSTEM_BUS.transaction_error(err_result);
+    // transaction_error() asserts on NOERROR - success must go through transaction_success()
+    if (err_result == SP_ERR::NOERROR)
+    {
+        SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+        SYSTEM_BUS.transaction_success();
+    }
+    else
+        SYSTEM_BUS.transaction_error(err_result);
 }
 
 void iwmCPM::shutdown()

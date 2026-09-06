@@ -657,8 +657,15 @@ extern "C"
 #endif
 #define MAIN_CPUAFFINITY 1
 
-        xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
-                                MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
+        // Without this task there is no bus service at all; app_main deletes itself
+        // next, so a silent failure here would leave a booted-looking brick.
+        if (xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
+                                    MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY) != pdPASS)
+        {
+            Debug_printv("could not create fnLoop task (%u byte stack), free internal/total heap: %lu/%lu",
+                         MAIN_STACKSIZE, esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+            abort();
+        }
 
         // Delete app_main() task since we no longer need it
         vTaskDelete(NULL);
