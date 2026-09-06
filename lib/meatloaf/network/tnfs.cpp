@@ -410,8 +410,8 @@ void TNFSHandle::obtain(std::string m_path, std::string mode) {
         // For file creation, silently make subdirs as needed.  If any fail,
         // it will be caught by the real file open later on
 
-        char *pathStr = new char[m_path.length()];
-        strncpy(pathStr, m_path.data(), m_path.length());
+        char *pathStr = new char[m_path.length() + 1];
+        strcpy(pathStr, m_path.c_str());
 
         if (pathStr) {
             // Make dirs up to the final fnamepart
