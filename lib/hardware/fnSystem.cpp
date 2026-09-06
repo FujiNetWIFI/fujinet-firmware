@@ -146,8 +146,18 @@ static void setup_card_detect(gpio_num_t pin)
 {
     // Create a queue to handle card detect event from ISR
     card_detect_evt_queue = xQueueCreate(10, sizeof(gpio_num_t));
+    if (card_detect_evt_queue == NULL)
+    {
+        // The ISR would crash sending to a NULL queue - skip the whole feature.
+        Debug_printv("could not create card detect queue, SD hot-swap disabled");
+        return;
+    }
     // Start card detect task
-    xTaskCreate(card_detect_intr_task, "card_detect_intr_task", 6144, (void *)pin, 10, NULL);
+    if (xTaskCreate(card_detect_intr_task, "card_detect_intr_task", 6144, (void *)pin, 10, NULL) != pdPASS)
+    {
+        Debug_printv("could not create card detect task, SD hot-swap disabled");
+        return;
+    }
     // Enable interrupt for card detection
     fnSystem.set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_ANYEDGE);
     // Add the card detect handler
