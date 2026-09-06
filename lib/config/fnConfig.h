@@ -183,9 +183,11 @@ public:
     }
     void store_wifi_ssid(const char *ssid_octets, int num_octets);
     void store_wifi_passphrase(const char *passphrase_octets, int num_octets);
-    void reset_wifi() { _wifi.ssid.clear(); _wifi.passphrase.clear(); };
+    void reset_wifi() { _wifi.ssid.clear(); _wifi.passphrase.clear(); _wifi.multi_ap = false; };
     void store_wifi_enabled(bool status);
     bool get_wifi_enabled() { return _wifi.enabled; };
+    void store_wifi_multi_ap(bool status);
+    bool get_wifi_multi_ap() { return _wifi.multi_ap; };
 
     std::string get_wifi_stored_ssid(int index) { return _wifi_stored[index].ssid; }
     std::string get_wifi_stored_passphrase(int index) { return _wifi_stored[index].passphrase; }
@@ -447,6 +449,7 @@ private:
         std::string ssid;
         std::string passphrase;
         bool enabled = true;
+        bool multi_ap = false; // scan all channels and pick the strongest AP for the SSID
     };
 
     struct bt_info
