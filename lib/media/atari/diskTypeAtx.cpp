@@ -4,6 +4,7 @@
 
 #include <memory.h>
 #include <string.h>
+#include <new>
 #ifdef ESP_PLATFORM
   #include <esp_timer.h>
   #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
@@ -525,11 +526,14 @@ success_is_true MediaTypeATX::_load_atx_chunk_sector_data(chunk_header_t &chunk_
         RETURN_SUCCESS_AS_TRUE();
     
     // Attempt to the sector data
-#ifdef ESP_PLATFORM
-    track.data = (uint8_t *)heap_caps_malloc(data_size * sizeof(uint8_t), MALLOC_CAP_DEFAULT);
-#else
-    track.data = new uint8_t[data_size];
-#endif
+    // new[] on both platforms - every free of this buffer is delete[], and the
+    // old ESP heap_caps_malloc branch paired with those was allocator-mismatch UB.
+    track.data = new (std::nothrow) uint8_t[data_size];
+    if (track.data == nullptr)
+    {
+        Debug_printf("failed to allocate %d byte ATX sector data chunk\r\n", data_size);
+        RETURN_ERROR_AS_FALSE();
+    }
 
     int i;
     if ((i = fnio::fread(track.data, 1, data_size, _disk_fileh)) != data_size)
@@ -575,11 +579,12 @@ success_is_true MediaTypeATX::_load_atx_chunk_sector_list(chunk_header_t &chunk_
     }
 
     // Attempt to read sector_header * sector_count
-#ifdef ESP_PLATFORM
-    sector_header_t *sector_list = (sector_header_t *)heap_caps_malloc(track.sector_count * sizeof(sector_header_t), MALLOC_CAP_DEFAULT);
-#else
-    sector_header_t *sector_list = new sector_header_t[track.sector_count];
-#endif
+    sector_header_t *sector_list = new (std::nothrow) sector_header_t[track.sector_count];
+    if (sector_list == nullptr)
+    {
+        Debug_printf("failed to allocate ATX sector list (%hu sectors)\r\n", track.sector_count);
+        RETURN_ERROR_AS_FALSE();
+    }
     int i;
 
     if ((i = fnio::fread(sector_list, 1, readz, _disk_fileh)) != readz)
