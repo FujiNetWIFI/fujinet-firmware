@@ -732,6 +732,13 @@ bool IRAM_ATTR systemBus::serviceDiskIIWrite()
   if (!xQueueReceive(diskii_xface.iwm_write_queue, &item, 0))
     return false;
 
+  if (diskii_xface.iwm_write_drops)
+  {
+    Debug_printf("\r\nDisk II write items dropped (queue full): %u",
+                 (unsigned)diskii_xface.iwm_write_drops);
+    diskii_xface.iwm_write_drops = 0;
+  }
+
   Debug_printf("\r\nDisk II iwm queue receive %u %u %u %u",
                item.length, item.track_begin, item.track_end, item.track_numbits);
   // gap 1            = 16 * 10
@@ -750,6 +757,13 @@ bool IRAM_ATTR systemBus::serviceDiskIIWrite()
                item.quarter_track, sector_num, bitlen);
   if (bitlen) {
     decoded = (uint8_t *) malloc(item.length);
+    if (!decoded)
+    {
+      Debug_printv("could not allocate %u byte Disk II decode buffer, free heap: %lu",
+                   item.length, fnSystem.get_free_heap_size());
+      free(item.buffer);
+      return true;
+    }
     decode_len = diskii_xface.iwm_decode_buffer(item.buffer, item.length,
                                                 smartport.f_spirx, D2W_CHUNK_SIZE * 2 * 8,
                                                 decoded, &used);

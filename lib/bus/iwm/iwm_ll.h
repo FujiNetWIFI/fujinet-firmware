@@ -292,6 +292,9 @@ private:
 
 public:
   QueueHandle_t iwm_write_queue;
+  // Write items dropped in the ISR because the queue was full; drained and
+  // reported by the consumer in task context.
+  volatile uint32_t iwm_write_drops = 0;
   uint8_t d2_enable_seen = 0;
 
   // Phase lines and ACK handshaking
@@ -326,6 +329,7 @@ typedef struct {
 } iwm_write_data;
 
 #define D2W_CHUNK_SIZE 128
+#define IWM_WRITE_QUEUE_DEPTH 10
 
 #endif // IWM_LL_H
 #endif // BUILD_APPLE

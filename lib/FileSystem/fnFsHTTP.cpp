@@ -153,6 +153,7 @@ FileHandler *FileSystemHTTP::cache_file(const char *path, const char *mode)
     if (_http == nullptr)
     {
         Debug_println("FileSystemHTTP::cache_file() - failed to create HTTP client\n");
+        FileCache::remove(fc);
         return nullptr;
     }
     // url + '/' + path
@@ -160,6 +161,7 @@ FileHandler *FileSystemHTTP::cache_file(const char *path, const char *mode)
     if (!_http->begin(url_str))
     {
         Debug_println("FileSystemHTTP::cache_file - failed to start HTTP client");
+        FileCache::remove(fc);
         return nullptr;
 	}
 
@@ -168,6 +170,7 @@ FileHandler *FileSystemHTTP::cache_file(const char *path, const char *mode)
     if (_http->GET() > 399)
     {
         Debug_println("FileSystemHTTP::cache_file - GET failed");
+        FileCache::remove(fc);
         return nullptr;
     }
 
@@ -185,6 +188,7 @@ FileHandler *FileSystemHTTP::cache_file(const char *path, const char *mode)
     if (buf == nullptr)
     {
         Debug_println("FileSystemHTTP::cache_file - failed to allocate buffer");
+        FileCache::remove(fc);
         return nullptr;
     }
 
