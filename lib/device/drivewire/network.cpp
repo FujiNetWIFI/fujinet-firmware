@@ -213,9 +213,8 @@ void drivewireNetwork::read(uint16_t num_bytes)
 
     SYSTEM_BUS.transaction_send((uint8_t *)receiveBuffer->data(), num_bytes, err != FUJI_ERROR::NONE);
 
-    // Remove from receive buffer and shrink.
+    // Remove from receive buffer.
     receiveBuffer->erase(0, num_bytes);
-    receiveBuffer->shrink_to_fit();
 }
 
 /**

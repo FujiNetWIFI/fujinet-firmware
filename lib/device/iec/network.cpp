@@ -844,7 +844,6 @@ bool iecNetwork::transmit(NetworkData &channel_data)
 
   channel_data.protocol->write(channel_data.transmitBuffer.length());
   channel_data.transmitBuffer.clear();
-  channel_data.transmitBuffer.shrink_to_fit();
   return true;
 }
 
