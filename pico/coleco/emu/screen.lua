@@ -60,17 +60,28 @@ local function read_screen()
         return nil, "no VRAM space (have: " .. table.concat(names, ",") .. ")"
     end
 
+    -- A selected row is drawn from the inverse charset at +0x60 (see
+    -- disp_row_invert), so decode that range back to readable text or the dump
+    -- shows a blank line exactly where the cursor is. Inverse rows are marked
+    -- so a verdict can assert WHERE the bar is, not just what the text says.
     local lines = {}
+    local marks = {}
     for row = 0, ROWS - 1 do
         local chars = {}
+        local inverse = false
         for col = 0, COLS - 1 do
             local b = vram:read_u8(PNT + row * COLS + col)
+            if b >= 0x80 and b <= 0xDF then
+                b = b - 0x60
+                inverse = true
+            end
             if b < 32 or b > 126 then b = 32 end
             chars[#chars + 1] = string.char(b)
         end
         lines[#lines + 1] = table.concat(chars)
+        marks[#marks + 1] = inverse
     end
-    return lines
+    return lines, nil, marks
 end
 
 -- The subscription MUST be kept in a live global. add_machine_frame_notifier
@@ -93,7 +104,7 @@ _G.screen_sub = emu.add_machine_frame_notifier(function ()
     if st.fired or manager.machine.time.seconds < due then return end
     st.fired = true
 
-    local lines, err = read_screen()
+    local lines, err, marks = read_screen()
     if lines == nil then
         emu.print_info("screen: FAIL " .. err)
         manager.machine:exit()
@@ -102,7 +113,11 @@ _G.screen_sub = emu.add_machine_frame_notifier(function ()
 
     if not QUIET then
         emu.print_info("+--------------------------------+")
-        for _, l in ipairs(lines) do emu.print_info("|" .. l .. "|") end
+        for i, l in ipairs(lines) do
+            -- '#' marks the selection bar, '|' an ordinary row.
+            local edge = marks[i] and "#" or "|"
+            emu.print_info(edge .. l .. edge)
+        end
         emu.print_info("+--------------------------------+")
     end
 

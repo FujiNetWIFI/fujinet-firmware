@@ -129,3 +129,10 @@ void fn_boot_swap(void);
  */
 void fn_tx_path(const char *prefix, volatile unsigned char *name,
                 unsigned int total);
+
+/* Stream `n` bytes of the reply window, starting at `off`, into the outgoing
+ * payload. This is what lets WRITE_HOST_SLOTS -- which takes all eight 32-byte
+ * slots in one 256-byte payload, with no per-slot form -- be answered without a
+ * 256-byte mirror in a machine that has under a kilobyte of RAM: read the eight
+ * slots, then stream them straight back with the edited one substituted. */
+void fn_tx_from_reply(unsigned int off, unsigned int n);

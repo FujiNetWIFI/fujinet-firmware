@@ -56,6 +56,11 @@ void in_init(void)
     write_register(0x01, 0xE0);
 }
 
+unsigned char in_frames(void)
+{
+    return frames;
+}
+
 unsigned char in_read(void)
 {
     unsigned char now = frames;

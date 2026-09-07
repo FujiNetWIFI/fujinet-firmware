@@ -21,9 +21,12 @@
 #include "fujidisp.h"
 #include "fujisnd.h"
 #include "fujiin.h"
+#include "fujisplash.h"
+#include "fujiedit.h"
 #include "fujilib.h"
 
 #define CMD_READ_HOST_SLOTS         0xF4
+#define CMD_WRITE_HOST_SLOTS        0xF3
 #define CMD_MOUNT_HOST              0xF9
 #define CMD_OPEN_DIRECTORY          0xF7
 #define CMD_READ_DIR_ENTRY          0xF6
@@ -31,6 +34,10 @@
 #define CMD_SET_DIRECTORY_POSITION  0xE4
 #define CMD_SET_DEVICE_FULLPATH     0xE2
 #define CMD_MOUNT_IMAGE             0xF8
+#define CMD_ADAPTERCONFIG_EXT       0xC4
+#define CMD_SCAN_NETWORKS           0xFD
+#define CMD_GET_SCAN_RESULT         0xFC
+#define CMD_SET_SSID                0xFB
 
 #define HOST_SLOTS  8
 #define HOST_STRIDE 32          /* READ_HOST_SLOTS: 8 x 32 bytes */
@@ -46,6 +53,21 @@
 
 #define PAGE_HOSTS  0
 #define PAGE_FILES  1
+#define PAGE_CONFIG 2
+
+/* AdapterConfigExtended field offsets, from lib/device/fujiDevice/fujiDevice.h */
+#define ACX_SSID      0
+#define ACX_VERSION   125
+#define ACX_SLOCALIP  140
+#define ACX_SMAC      204
+
+/* SSIDInfo: char ssid[33]; uint8_t rssi -- 34 bytes, one per GET_SCAN_RESULT */
+#define SSID_LEN      33
+#define SSID_STRIDE   34
+
+#define CFG_TOP     11          /* first network row */
+#define CFG_ROWS    8
+#define PASS_MAX    63
 
 static unsigned char page;
 static unsigned char host;      /* selected host slot */
@@ -90,9 +112,13 @@ static void draw_frame(void)
     disp_at(1, 1, "FUJINET   C O N F I G");
 }
 
+/* The selection bar. Always applied AFTER a row's text is drawn, because it
+ * works by re-pointing the characters already in the name table. */
 static void draw_cursor(unsigned char row, bool on)
 {
-    disp_at(0, (unsigned char)(LIST_TOP + row), on ? ">" : " ");
+    unsigned char top = (page == PAGE_CONFIG) ? CFG_TOP : LIST_TOP;
+
+    disp_row_invert((unsigned char)(top + row), on);
 }
 
 /* ---- host page ---- */
@@ -103,7 +129,7 @@ static void host_page(void)
 
     draw_frame();
     disp_at(1, 3, "SELECT A HOST");
-    status("JOY MOVE   FIRE SELECT");
+    status("FIRE OPEN  9 RENAME  # CONFIG");
 
     fn_start(FN_DEV_FUJINET, CMD_READ_HOST_SLOTS);
     if (need_ack("EHOSTS") != 0) {
@@ -132,8 +158,169 @@ static void host_page(void)
     if (nrows == 0)
         nrows = HOST_SLOTS;     /* still navigable, just all empty */
     at_end = 1;
-    cur = host < nrows ? host : 0;
+    if (cur >= nrows)
+        cur = 0;
     draw_cursor(cur, true);
+}
+
+/* ---- configuration page ---- */
+
+/* Draw a label and a NUL-terminated field out of the reply window. Always via
+ * a local pointer -- sccz80 mis-indexes the FN_REPLY macro's cast constant. */
+static void draw_field(unsigned char row, const char *label,
+                       unsigned int off, unsigned int max)
+{
+    volatile unsigned char *r = FN_REPLY + off;
+    unsigned int i;
+
+    disp_row_clear(row);
+    disp_at(1, row, label);
+    for (i = 0; i < max; i++) {
+        char c = (char)r[i];
+
+        if (c == '\0')
+            break;
+        disp_char((unsigned char)(10 + i), row, c);
+    }
+}
+
+/* RSSI arrives as a uint8_t but means dBm, so it has to be read back as
+ * signed or every network looks like a very strong +200. */
+static void draw_rssi(unsigned char row, unsigned char raw)
+{
+    signed char dbm = (signed char)raw;
+    unsigned int mag = (unsigned int)(dbm < 0 ? -dbm : dbm);
+
+    disp_at(26, row, dbm < 0 ? "-" : " ");
+    disp_at_u16(27, row, mag);
+}
+
+static void config_page(void)
+{
+    volatile unsigned char *r;
+    unsigned char i;
+
+    draw_frame();
+    status("SCANNING...");
+
+    /* Adapter info first, and drawn completely before anything else runs: the
+     * scan below repaints the reply window this is being read out of. */
+    fn_start(FN_DEV_FUJINET, CMD_ADAPTERCONFIG_EXT);
+    if (need_ack("EINFO") != 0) {
+        nrows = 0;
+        return;
+    }
+    draw_field(3, "SSID", ACX_SSID, 32);
+    draw_field(4, "IP", ACX_SLOCALIP, 15);
+    draw_field(5, "MAC", ACX_SMAC, 17);
+    draw_field(6, "FW", ACX_VERSION, 14);
+
+    disp_at(1, 9, "NETWORKS");
+
+    fn_start(FN_DEV_FUJINET, CMD_SCAN_NETWORKS);
+    if (need_ack("ESCAN") != 0) {
+        nrows = 0;
+        return;
+    }
+    r = FN_REPLY;
+    nrows = r[0] > CFG_ROWS ? CFG_ROWS : r[0];
+
+    for (i = 0; i < nrows; i++) {
+        unsigned char row = (unsigned char)(CFG_TOP + i);
+        unsigned char col;
+
+        fn_start(FN_DEV_FUJINET, CMD_GET_SCAN_RESULT);
+        fn_param8(i);
+        if (fn_commit() != FN_OK || !fn_acked())
+            break;
+        r = FN_REPLY;
+        disp_row_clear(row);
+        for (col = 0; col < 24 && r[col] != 0; col++)
+            disp_char((unsigned char)(2 + col), row, (char)r[col]);
+        draw_rssi(row, r[SSID_LEN]);
+    }
+
+    status("FIRE CONNECT   * BACK");
+    if (nrows == 0) {
+        disp_at(2, CFG_TOP, "(none found)");
+        return;
+    }
+    cur = 0;
+    at_end = 1;
+    draw_cursor(cur, true);
+}
+
+/* Join the highlighted network. SET_SSID wants nparam >= 1 (the value is
+ * ignored) and a payload of exactly ssid[33] + password[64]. The SSID is
+ * re-fetched so it is sitting in the reply window, and the editor runs no
+ * transactions, so it is still there afterwards to stream straight back. */
+static void connect_network(void)
+{
+    fn_start(FN_DEV_FUJINET, CMD_GET_SCAN_RESULT);
+    fn_param8(cur);
+    if (need_ack("ESCAN") != 0)
+        return;
+
+    fn_entry[0] = '\0';
+    if (!fn_edit("WIFI PASSWORD", PASS_MAX)) {
+        config_page();
+        return;
+    }
+
+    status("CONNECTING...");
+    fn_start(FN_DEV_FUJINET, CMD_SET_SSID);
+    fn_param8(0);
+    fn_tx_from_reply(0, SSID_LEN);
+    fn_tx_padded(fn_entry, 64);
+    if (need_ack("ESSID") != 0)
+        return;
+
+    config_page();
+}
+
+/* Rename the highlighted host slot.
+ *
+ * WRITE_HOST_SLOTS takes no parameters and one 256-byte payload -- all eight
+ * 32-byte slots, every time; there is no per-slot write. Rather than mirror
+ * 256 bytes into a machine with under a kilobyte of RAM, re-read the slots and
+ * stream them straight back out of the reply window with the edited one
+ * substituted. The editor runs no transactions, so the window it was called
+ * with would still be intact; the re-read is one round trip that removes the
+ * need to reason about that at all. */
+static void rename_host(void)
+{
+    volatile unsigned char *name;
+    unsigned char i;
+
+    fn_start(FN_DEV_FUJINET, CMD_READ_HOST_SLOTS);
+    if (need_ack("EHOSTS") != 0)
+        return;
+
+    name = FN_REPLY + (unsigned int)cur * HOST_STRIDE;
+    for (i = 0; i < HOST_STRIDE - 1 && name[i] != 0; i++)
+        fn_entry[i] = (char)name[i];
+    fn_entry[i] = '\0';
+
+    if (!fn_edit("EDIT HOST NAME", HOST_STRIDE - 1)) {
+        host_page();            /* cancel leaves the slot untouched */
+        return;
+    }
+
+    fn_start(FN_DEV_FUJINET, CMD_READ_HOST_SLOTS);
+    if (need_ack("EHOSTS") != 0)
+        return;
+
+    fn_start(FN_DEV_FUJINET, CMD_WRITE_HOST_SLOTS);
+    for (i = 0; i < HOST_SLOTS; i++) {
+        if (i == cur)
+            fn_tx_padded(fn_entry, HOST_STRIDE);
+        else
+            fn_tx_from_reply((unsigned int)i * HOST_STRIDE, HOST_STRIDE);
+    }
+    if (need_ack("EWRITE") != 0)
+        return;
+
+    host_page();
 }
 
 /* ---- file page ---- */
@@ -258,6 +445,9 @@ static void leave_host(void)
     fn_start(FN_DEV_FUJINET, CMD_CLOSE_DIRECTORY);
     (void)fn_commit();          /* best effort: the host page redraws anyway */
     page = PAGE_HOSTS;
+    /* `cur` is the file cursor right now; put it back on the host we came
+     * from, or coming back from a long listing lands on an arbitrary slot. */
+    cur = host;
     host_page();
 }
 
@@ -369,8 +559,21 @@ static void move_cursor(signed char delta)
 void main(void)
 {
     snd_init();     /* the PSG powers up buzzing; see fujisnd.h */
-    disp_init();
+
+    /* Splash first: it owns the VDP, loading the logo glyphs over the pattern
+     * range disp_init() wants for its inverse charset. disp_init() afterwards
+     * puts both back. */
+    splash_show();
     in_init();
+    {
+        unsigned char start = in_frames();
+
+        while ((unsigned char)(in_frames() - start) < 120)
+            if (in_read() == IN_FIRE)
+                break;
+    }
+
+    disp_init();
 
     if (!fn_present()) {
         disp_at(4, 8, "NO FUJINET CART");
@@ -412,13 +615,33 @@ void main(void)
         case IN_FIRE:
             if (page == PAGE_HOSTS)
                 enter_host();
+            else if (page == PAGE_CONFIG)
+                connect_network();
             else
                 boot_selected();
             break;
         case IN_KEYSTAR:
-            if (page == PAGE_FILES)
+            if (page == PAGE_FILES) {
                 leave_host();
+            } else if (page == PAGE_CONFIG) {
+                page = PAGE_HOSTS;
+                cur = host;
+                host_page();
+            }
             break;
+        case IN_KEYHASH:
+            /* # opens the configuration screen. */
+            if (page == PAGE_HOSTS) {
+                page = PAGE_CONFIG;
+                config_page();
+            }
+            break;
+        case IN_KEY0 + 9:
+            /* 9 renames the highlighted host slot. */
+            if (page == PAGE_HOSTS)
+                rename_host();
+            break;
+
         default:
             /* Keypad 1-8 jumps straight to a host slot. */
             if (page == PAGE_HOSTS && ev >= IN_KEY0 + 1

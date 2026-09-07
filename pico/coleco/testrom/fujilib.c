@@ -58,6 +58,14 @@ void fn_tx_path(const char *prefix, volatile unsigned char *name,
         FN_TOUCH(FN_TXPAGE);
 }
 
+void fn_tx_from_reply(unsigned int off, unsigned int n)
+{
+    volatile unsigned char *r = FN_REPLY + off;
+
+    while (n--)
+        FN_TOUCH(FN_TXPAGE + *r++);
+}
+
 /* Parameters ride the same stream, each as {size, value...} little-endian,
  * with NPARAM counting them. Interleaving the count update with the stream is
  * safe: the register pages and the TX page are decoded separately, so a

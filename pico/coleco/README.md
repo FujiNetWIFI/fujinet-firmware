@@ -69,7 +69,7 @@ browser fitting and not.
 | **M0** | toolchain, header, display | `hello` — 32×24 text through OS7 (`mode_1`, `load_ascii`, `put_vram`) |
 | **M1** | one real round trip | `fujitest` — live SSID, IP and firmware version from `GET_ADAPTERCONFIG_EXTENDED`; reset survival proven (a soft reset produces `seq=2`, not a replay of `seq=1`) |
 | **M2** | network boot | `fujiboot` — MOUNT_HOST → SET_DEVICE_FULLPATH → MOUNT_IMAGE → DBC push → swap → *Carnival* boots and runs its own OS7 options screen |
-| **M3** | CONFIG | `fujicfg` — pick a host, walk its root, boot what the cursor is on; input entirely through OS7's POLLER, driven headlessly by `emu/drive.lua` |
+| **M3** | CONFIG | `fujicfg` — splash, host list with renaming, file browser, boot, and a configuration screen; input entirely through OS7's POLLER, driven headlessly by `emu/drive.lua` |
 | **M5** | mappers | all five implemented in `colmap.c` and checked byte-for-byte over the whole 32K window against verbatim transcriptions of MAME's own handlers; the live A/B run against MAME's stock devices is not yet wired up |
 | **M7** | soak | **192/192** — every cartridge in the No-Intro set pushed, swapped, and byte-compared, window and stream both |
 
@@ -102,6 +102,53 @@ DRIVE_DOWN=9 ./run.sh fujicfg --drive                # browse and boot, headless
 # 5. Firmware
 ./build-cart.sh fujicoleco        # -> firmware/build-fujicoleco/fujicoleco.uf2
 ```
+
+## The client's screens
+
+```
+splash          FujiNet wordmark on black, ~2s or FIRE
+  |
+hosts  ---9---> edit host name (on-screen keyboard) --OK--> WRITE_HOST_SLOTS
+  |    ---#---> config: adapter info + network scan --FIRE--> password --> SET_SSID
+  |
+ FIRE
+  |
+files  --FIRE-> boot
+```
+
+| | joystick | FIRE | `*` | `#` | digits |
+|---|---|---|---|---|---|
+| hosts | move | open host | — | config screen | `1`-`8` jump, `9` rename |
+| files | move, left/right page | boot | back to hosts | — | — |
+| config | move | connect (asks for a password) | back to hosts | — | — |
+| editor | move | type the cell / action | backspace | accept | type a digit |
+
+Every screen's footer lists its own keys; there is no help screen. Two rules are
+inherited deliberately from the Intellivision and Astrocade clients: **the CASE
+toggle redraws the letter rows in real lowercase** rather than acting as a shift,
+and **cancel is the ESC cell and nothing else** — the backspace key must never
+discard an edit, because reaching for it repeatedly is exactly when a reflexive
+extra press happens.
+
+### Why Graphics 1, when the ADAM CONFIG uses Graphics 2
+
+The ADAM client — the closest relative, same VDP, same 32x24 — runs in Graphics 2,
+where the colour table is one byte per scanline per cell. That is what makes its
+selection bar two `vdp_vfill`s and its coloured gutters free, and `src/adam/bar.c`
+would port here almost unchanged.
+
+We stay in Graphics 1 because Mode 2 means giving up `mode_1()` / `load_ascii()` /
+`put_vram()` for z88dk's console layer, and using OS7 for everything is the point of
+this client. The selection bar is instead a **second copy of the charset**: OS7's
+`LOAD_ASCII` puts 96 patterns at index `0x1D`, so pattern index == ASCII code and
+everything from `0x7D` up is free. Copy `0x20`-`0x7F` verbatim to `0x80`-`0xDF` and
+give those colour groups `0x4F` instead of `0xF4`, and a row is highlighted by adding
+`0x60` to its 32 name-table bytes.
+
+The glyphs are copied **unmodified** — inverting the bits *and* swapping the colours
+would cancel out. And the row is read back out of the name table rather than redrawn,
+because there is nothing to redraw it from: the browser paints filenames straight out
+of the mailbox reply window and never keeps a copy.
 
 ## Notes and gotchas
 
@@ -158,6 +205,16 @@ Things that cost real time here, kept so they cost it only once.
   returns a subscription that unsubscribes at the next garbage collection if you
   drop it — so a callback scheduled two seconds out fires and one scheduled ten
   seconds out silently never does. `emu/screen.lua` keeps it in `_G`.
+- **`put_vram` truncates its count to 8 bits.** Writing the splash's 320-byte name
+  table in one call writes `320 & 0xFF` = 64 bytes — two rows — and returns as though
+  it worked. Nothing warns. Keep every count under 256; the splash writes row by row.
+  (The 96-pattern generator write is safe because 96 is a count of *entries*, which
+  OS7 scales to 768 bytes internally.)
+- **`mode_1()` resets VDP register 1, including the vblank interrupt enable.** So
+  anything that re-runs it after `in_init()` silently kills the NMI that OS7's POLLER
+  rides on, and the client stays alive but deaf to the controller. `disp_init()` ends
+  with `blank(true)` so it is safe to call in any order; adding the splash is what
+  moved `in_init()` earlier and exposed this.
 - **The sound chip powers up buzzing.** All four SN76489 channels come up at
   attenuation 0 with their frequency registers at zero, and the BIOS title
   screen is what normally silences them — which a `$55AA` client skips. Every

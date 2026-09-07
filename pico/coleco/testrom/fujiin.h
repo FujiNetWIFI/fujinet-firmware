@@ -31,6 +31,10 @@
  * through a transaction. */
 void in_init(void);
 
+/* Vblanks since in_init(). Wraps at 256, which is fine for the short waits it
+ * is used for -- the splash's minimum hold. */
+unsigned char in_frames(void);
+
 /* One event, or IN_NONE. Auto-repeats a held direction so paging a long
  * directory does not need 40 separate pushes. */
 unsigned char in_read(void);
