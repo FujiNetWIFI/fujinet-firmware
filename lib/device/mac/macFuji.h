@@ -10,7 +10,7 @@
 #include "bus.h"
 
 #include "mac/floppy.h"
-// #include "mac/network.h"
+// #include "mac/macNetwork.h"
 #include "mac/printer.h"
 // #include "iwm/cpm.h"
 // #include "iwm/iwmClock.h"
@@ -189,7 +189,7 @@ extern macFuji *theFuji;
 #include "../../include/debug.h"
 #include "bus.h"
 #include "iwm/disk2.h"
-#include "iwm/network.h"
+#include "iwm/iwmNetwork.h"
 #include "iwm/printer.h"
 #include "iwm/cpm.h"
 #include "iwm/iwmClock.h"
