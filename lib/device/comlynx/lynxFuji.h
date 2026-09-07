@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <cassert>
 
-#include "network.h"
+#include "lynxNetwork.h"
 #include "disk.h"
 #include "netstream.h"
 

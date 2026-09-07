@@ -4,7 +4,7 @@
  * Network Firmware
  */
 
-#include "network.h"
+#include "drivewireNetwork.h"
 #include "../network.h"
 #include "NetworkProtocolFactory.h"
 #include "fnSystem.h"

@@ -3,7 +3,7 @@
  * N: Firmware
  */
 
-#include "network.h"
+#include "iecNetwork.h"
 #include "NetworkProtocolFactory.h"
 #include "fnjson.h"
 #include "fnSystem.h"

@@ -7,7 +7,7 @@
 #include <map>
 
 #include "iwm/disk2.h"
-#include "iwm/network.h"
+#include "iwm/iwmNetwork.h"
 #include "iwm/cpm.h"
 #include "iwm/iwmClock.h"
 

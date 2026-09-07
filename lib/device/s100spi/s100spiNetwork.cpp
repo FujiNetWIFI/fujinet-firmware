@@ -4,7 +4,7 @@
  * N: Firmware
  */
 
-#include "network.h"
+#include "s100spiNetwork.h"
 
 #include <cstring>
 #include <algorithm>

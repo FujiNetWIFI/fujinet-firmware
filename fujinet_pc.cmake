@@ -345,7 +345,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     lib/device/sio/printerlist.h lib/device/sio/printerlist.cpp
     lib/device/sio/cassette.h lib/device/sio/cassette.cpp
     lib/device/sio/sioFuji.h lib/device/sio/sioFuji.cpp
-    lib/device/sio/network.h lib/device/sio/network.cpp
+    lib/device/sio/sioNetwork.h lib/device/sio/sioNetwork.cpp
     lib/device/sio/netstream.h lib/device/sio/netstream.cpp
     lib/device/sio/voice.h lib/device/sio/voice.cpp
     lib/device/sio/sioClock.h lib/device/sio/sioClock.cpp
@@ -407,7 +407,7 @@ if(FUJINET_TARGET STREQUAL "APPLE")
     lib/device/iwm/printerlist.h lib/device/iwm/printerlist.cpp
     lib/device/iwm/modem.h lib/device/iwm/modem.cpp
     lib/device/iwm/iwmFuji.h lib/device/iwm/iwmFuji.cpp
-    lib/device/iwm/network.h lib/device/iwm/network.cpp
+    lib/device/iwm/iwmNetwork.h lib/device/iwm/iwmNetwork.cpp
     lib/device/iwm/iwmClock.h lib/device/iwm/iwmClock.cpp
     lib/device/iwm/cpm.h lib/device/iwm/cpm.cpp
 
@@ -446,7 +446,7 @@ if(FUJINET_TARGET STREQUAL "COCO")
     lib/media/drivewire/decbLayout.h lib/media/drivewire/decbLayout.cpp
 
     lib/device/drivewire/drivewireFuji.h lib/device/drivewire/drivewireFuji.cpp
-    lib/device/drivewire/network.h lib/device/drivewire/network.cpp
+    lib/device/drivewire/drivewireNetwork.h lib/device/drivewire/drivewireNetwork.cpp
     lib/device/drivewire/disk.h lib/device/drivewire/disk.cpp
     lib/device/drivewire/printer.h lib/device/drivewire/printer.cpp
     lib/device/drivewire/printerlist.h lib/device/drivewire/printerlist.cpp
@@ -480,7 +480,7 @@ if(FUJINET_TARGET STREQUAL "ADAM")
     lib/device/adamnet/adamClock.h lib/device/adamnet/adamClock.cpp
     lib/device/adamnet/disk.h lib/device/adamnet/disk.cpp
     lib/device/adamnet/keyboard.h lib/device/adamnet/keyboard.cpp
-    lib/device/adamnet/network.h lib/device/adamnet/network.cpp
+    lib/device/adamnet/adamNetwork.h lib/device/adamnet/adamNetwork.cpp
     lib/device/adamnet/printer.h lib/device/adamnet/printer.cpp
     lib/device/adamnet/printerlist.h lib/device/adamnet/printerlist.cpp
     lib/device/adamnet/serial.h lib/device/adamnet/serial.cpp
@@ -502,7 +502,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
     lib/device/rs232/rs232Clock.cpp lib/device/rs232/rs232Clock.h
     lib/device/rs232/disk.cpp lib/device/rs232/disk.h
     lib/device/rs232/modem.cpp lib/device/rs232/modem.h
-    lib/device/rs232/network.cpp lib/device/rs232/network.h
+    lib/device/rs232/rs232Network.cpp lib/device/rs232/rs232Network.h
     lib/device/rs232/printer.cpp lib/device/rs232/printer.h
     lib/device/rs232/printerlist.cpp lib/device/rs232/printerlist.h
     lib/device/rs232/rs232Fuji.cpp lib/device/rs232/rs232Fuji.h
@@ -528,7 +528,7 @@ if(FUJINET_TARGET STREQUAL "LYNX")
     lib/device/comlynx/disk.cpp lib/device/comlynx/disk.h
     lib/device/comlynx/lynxFuji.cpp lib/device/comlynx/lynxFuji.h
     lib/device/comlynx/netstream.cpp lib/device/comlynx/netstream.h
-    lib/device/comlynx/network.cpp lib/device/comlynx/network.h
+    lib/device/comlynx/lynxNetwork.cpp lib/device/comlynx/lynxNetwork.h
     lib/device/comlynx/printer.cpp lib/device/comlynx/printer.h
     lib/device/comlynx/printerlist.cpp lib/device/comlynx/printerlist.h
     lib/device/comlynx/redeye.cpp lib/device/comlynx/redeye.h

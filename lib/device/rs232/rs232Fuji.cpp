@@ -1,6 +1,6 @@
 #ifdef BUILD_RS232
 #include "rs232Fuji.h"
-#include "network.h"
+#include "rs232Network.h"
 
 #include "fnSystem.h"
 #include "fnConfig.h"

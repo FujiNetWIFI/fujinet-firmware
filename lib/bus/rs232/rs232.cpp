@@ -6,7 +6,7 @@
 #include "../../include/debug.h"
 
 #include "rs232/rs232Fuji.h"
-#include "rs232/network.h"
+#include "rs232/rs232Network.h"
 #include "modem.h"
 #include "siocpm.h"
 

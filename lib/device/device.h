@@ -8,7 +8,7 @@
 # include "sio/pclink.h"
 # include "sio/netstream.h"
 # include "sio/modem.h"
-# include "sio/network.h"
+# include "sio/sioNetwork.h"
 # include "sio/printer.h"
 # include "sio/printerlist.h"
 # include "sio/siocpm.h"
@@ -28,7 +28,7 @@
 # include "drivewire/drivewireClock.h"
 # include "drivewire/disk.h"
 # include "drivewire/modem.h"
-# include "drivewire/network.h"
+# include "drivewire/drivewireNetwork.h"
 # include "drivewire/printer.h"
 # include "drivewire/printerlist.h"
 # include "drivewire/drivewireFuji.h"
@@ -40,7 +40,7 @@
 # include "rs232/rs232Clock.h"
 # include "rs232/disk.h"
 # include "rs232/modem.h"
-# include "rs232/network.h"
+# include "rs232/rs232Network.h"
 # include "rs232/printer.h"
 # include "rs232/printerlist.h"
 # include "rs232/rs232cpm.h"
@@ -55,7 +55,7 @@
 # include "iec/cpm.h"
 # include "iec/drive.h"
 # include "iec/modem.h"
-# include "iec/network.h"
+# include "iec/iecNetwork.h"
 # include "iec/printer.h"
 # include "iec/printerlist.h"
 # include "iec/iecFuji.h"
@@ -106,7 +106,7 @@ lynxNetStream streamDev;
 
 #ifdef BUILD_S100
 #include "s100spi/disk.h"
-#include "s100spi/network.h"
+#include "s100spi/s100spiNetwork.h"
 #include "s100spi/modem.h"
 #include "s100spi/printer.h"
 #include "s100spi/printerlist.h"
@@ -117,7 +117,7 @@ lynxNetStream streamDev;
 #ifdef BUILD_CX16
 # include "cx16_i2c/disk.h"
 # include "cx16_i2c/modem.h"
-//# include "cx16_i2c/network.h"
+//# include "cx16_i2c/cx16Network.h"
 # include "cx16_i2c/printer.h"
 # include "cx16_i2c/printerlist.h"
 # include "cx16_i2c/cx16Fuji.h"
@@ -127,7 +127,7 @@ lynxNetStream streamDev;
 
 #ifdef BUILD_RC2014
 # include "rc2014/disk.h"
-# include "rc2014/network.h"
+# include "rc2014/rc2014Network.h"
 # include "rc2014/modem.h"
 # include "rc2014/printer.h"
 # include "rc2014/printerlist.h"
@@ -137,7 +137,7 @@ lynxNetStream streamDev;
 
 #ifdef BUILD_H89
 # include "h89/disk.h"
-# include "h89/network.h"
+# include "h89/H89Network.h"
 # include "h89/modem.h"
 # include "h89/printer.h"
 # include "h89/printerlist.h"

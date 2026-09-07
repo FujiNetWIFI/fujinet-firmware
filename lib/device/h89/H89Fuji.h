@@ -5,7 +5,7 @@
 
 #include <cstdint>
 
-#include "network.h"
+#include "H89Network.h"
 #include "disk.h"
 
 #include "fujiHost.h"
