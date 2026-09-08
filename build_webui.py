@@ -16,10 +16,12 @@ def prep_dst(fname, build_platform, prefix, data_dir=None):
     return destination
 
 
-def process_template(fname, build_platform, template_env, config, prefix, build_data_dir=None):
+def process_template(fname, build_platform, template_env, config, prefix, build_data_dir=None, loader_prefix=None):
+    if loader_prefix is None:
+        loader_prefix = prefix
     print(f"processing template file {fname}")
     # jinja2 insists on '/' as the path separator even on windows. see https://github.com/pallets/jinja/issues/767
-    template = template_env.get_template(fname.replace(prefix, '').replace('\\', '/'))
+    template = template_env.get_template(fname.replace(loader_prefix, '').replace('\\', '/'))
     r = template.render(config)
     destination = prep_dst(fname, build_platform, prefix, build_data_dir).replace('.tmpl.', '.')
     with open(destination, 'w') as f:
@@ -72,7 +74,7 @@ print(f"  build_platform: {build_platform}")
 print(f"  build_board: {build_board}")
 print(f"  config file: {ini_file}")
 
-template_env = Environment(loader=FileSystemLoader("data/webui/template"))
+template_env = Environment(loader=FileSystemLoader(["data/webui/template", "data/webui/device_specific"]))
 config = load(open(os.path.join('data', 'webui', 'config', f'{build_board}.yaml')), Loader=Loader)
 
 if not build_platform.startswith('BUILD_'):
@@ -102,6 +104,10 @@ for filename in glob.iglob(f'{webui_template_prefix}**', recursive=True):
 # if there are file clashes, these will override the above, so it allows for device specific overrides
 
 dev_specific_prefix = os.path.join('data', 'webui', 'device_specific', build_platform, '')
+dev_specific_loader_prefix = os.path.join('data', 'webui', 'device_specific', '')
 for filename in glob.iglob(f"{dev_specific_prefix}**", recursive=True):
     if os.path.isfile(filename) and filename != '.keep':
-        copy_file(filename, build_platform, dev_specific_prefix, build_data_dir)
+        if (template_matcher.search(filename)):
+            process_template(filename, build_platform, template_env, config, dev_specific_prefix, build_data_dir, dev_specific_loader_prefix)
+        else:
+            copy_file(filename, build_platform, dev_specific_prefix, build_data_dir)
