@@ -216,10 +216,14 @@ static void run_transaction(uint8_t seq)
         if (port->wait_link_ms && !port->link_up())
             port->wait_link_ms(LINK_WAIT_MS);
 
+        /* COPY_FILE gets the mount budget too: its ACK arrives only when the
+         * host-side copy finishes, which for a big file over TNFS is far
+         * past the ordinary window. */
         st = port->transact(mb_device, mb_cmd, params, nparam,
                             txbuf + p, (uint16_t)(txptr - p),
-                            (mb_cmd == CMD_FUJI_MOUNT_IMAGE) ? TIMEOUT_MOUNT_MS
-                                                             : TIMEOUT_MS,
+                            (mb_cmd == CMD_FUJI_MOUNT_IMAGE
+                             || mb_cmd == CMD_FUJI_COPY_FILE) ? TIMEOUT_MOUNT_MS
+                                                              : TIMEOUT_MS,
                             &reply);
     }
 
