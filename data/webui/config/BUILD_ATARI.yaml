@@ -1,0 +1,12 @@
+extends: base
+components:
+  hsio_settings: true
+  apetime: true
+  net_stream: true
+  program_recorder: true
+  cpm_settings: true
+  pclink: true
+  emulator_settings: true
+tweaks:
+  platform: ATARI
+  config_ng: true
