@@ -37,6 +37,7 @@
 #include "pinmap/fujiversal-o2.h"
 #include "pinmap/fujiversal-astrocade.h"
 #include "pinmap/fujiversal-arcadia.h"
+#include "pinmap/fujiversal-coleco.h"
 
 
 #include "pinmap_defaults.h"
