@@ -1,0 +1,10 @@
+extends: base
+components:
+  printer_settings: true
+  modem_settings: true
+  hsio_settings: true
+  apetime: true
+  program_recorder: true
+  disk_swap: true
+  boot_settings: true
+  pclink: true

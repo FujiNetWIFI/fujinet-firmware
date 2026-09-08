@@ -1,3 +1,4 @@
+extends: BUILD_LYNX
 paths:
   font_path: /file?
   css_path: /file?css

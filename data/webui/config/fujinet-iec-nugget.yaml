@@ -1,3 +1,4 @@
+extends: BUILD_IEC
 paths:
   font_path: /file?
   css_path: /file?css

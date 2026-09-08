@@ -1,3 +1,4 @@
+extends: BUILD_MAC
 paths:
   font_path: /file?
   css_path: /file?css

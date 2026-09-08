@@ -1,3 +1,4 @@
+extends: BUILD_ADAM
 paths:
   font_path: /file?
   css_path: /file?css

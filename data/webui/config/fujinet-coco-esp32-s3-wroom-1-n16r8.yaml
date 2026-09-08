@@ -1,3 +1,4 @@
+extends: BUILD_COCO
 paths:
   # fonts in the root dir because of file name length issues
   font_path: /file?

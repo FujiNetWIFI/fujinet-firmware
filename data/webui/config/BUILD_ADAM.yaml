@@ -1,0 +1,7 @@
+extends: base
+components:
+  printer_settings: true
+  modem_settings: true
+  disk_swap: true
+  boot_settings: true
+  emulator_settings: true

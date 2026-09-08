@@ -1,4 +1,3 @@
-extends: BUILD_H89
 paths:
   font_path: /file?
   css_path: /file?css
@@ -9,15 +8,17 @@ components:
   hardware: true
   hosts_list: true
   mount_list: true
-  printer_settings: true
-  modem_settings: true
+  printer_settings: false
+  modem_settings: false
   hsio_settings: false
   timezone: true
+  apetime: false
   net_stream: false
   program_recorder: false
-  disk_swap: true
-  boot_settings: true
-  apetime: false
+  disk_swap: false
+  boot_settings: false
+  cpm_settings: false
   pclink: false
+  emulator_settings: false
+  serial_port: false
 tweaks:
-  # webui tweaks, if any

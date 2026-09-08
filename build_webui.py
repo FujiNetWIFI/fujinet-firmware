@@ -4,6 +4,36 @@ import os, glob, re, shutil, configparser
 from jinja2 import Environment, FileSystemLoader
 from yaml import load, Loader
 
+def deep_merge(base, override):
+    """Recursively merge override dict into base dict, with override taking precedence."""
+    for key, value in override.items():
+        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+            deep_merge(base[key], value)
+        else:
+            base[key] = value
+
+def load_board_config(build_board, build_platform):
+    """Load board yaml with fallback to platform default, applying extends/inheritance."""
+    # Try board-specific config first, fall back to platform default
+    board_path = os.path.join('data', 'webui', 'config', f'{build_board}.yaml')
+    platform_path = os.path.join('data', 'webui', 'config', f'{build_platform}.yaml')
+
+    config_path = board_path if os.path.exists(board_path) else platform_path
+
+    with open(config_path) as f:
+        config = load(f, Loader=Loader)
+
+    # Apply extends/inheritance if present
+    while 'extends' in config:
+        parent_name = config.pop('extends')
+        parent_path = os.path.join('data', 'webui', 'config', f'{parent_name}.yaml')
+        with open(parent_path) as f:
+            parent = load(f, Loader=Loader)
+        deep_merge(parent, config)
+        config = parent
+
+    return config
+
 def prep_dst(fname, build_platform, prefix, data_dir=None):
     rel_path = fname.replace(prefix, '')
     if data_dir is None:
@@ -75,7 +105,7 @@ print(f"  build_board: {build_board}")
 print(f"  config file: {ini_file}")
 
 template_env = Environment(loader=FileSystemLoader(["data/webui/template", "data/webui/device_specific"]))
-config = load(open(os.path.join('data', 'webui', 'config', f'{build_board}.yaml')), Loader=Loader)
+config = load_board_config(build_board, build_platform)
 
 if not build_platform.startswith('BUILD_'):
     raise Exception(f"build_platform does not match BUILD_*, aborting")
