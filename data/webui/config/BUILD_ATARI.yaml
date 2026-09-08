@@ -1,16 +1,11 @@
 extends: base
 components:
-  printer_settings: true
-  modem_settings: true
   hsio_settings: true
   apetime: true
   net_stream: true
   program_recorder: true
-  disk_swap: true
-  boot_settings: true
   cpm_settings: true
   pclink: true
   emulator_settings: true
 tweaks:
   platform: ATARI
-  config_ng: true

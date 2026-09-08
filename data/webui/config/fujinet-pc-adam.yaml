@@ -1,7 +1,0 @@
-extends: BUILD_ADAM
-components:
-  modem_settings: experimental
-  serial_port: true
-  cpm_settings: experimental
-tweaks:
-  fujinet_pc: true

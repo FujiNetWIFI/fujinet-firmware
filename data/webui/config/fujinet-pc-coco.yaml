@@ -1,6 +1,0 @@
-extends: BUILD_COCO
-components:
-  timezone: true
-  serial_port: true
-tweaks:
-  fujinet_pc: true

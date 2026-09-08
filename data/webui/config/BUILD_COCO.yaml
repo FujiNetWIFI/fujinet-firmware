@@ -3,7 +3,6 @@ components:
   printer_settings: experimental
   modem_settings: experimental
   program_recorder: experimental
-  boot_settings: true
   cpm_settings: experimental
   emulator_settings: true
 tweaks:

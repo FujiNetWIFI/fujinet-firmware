@@ -1,5 +1,0 @@
-extends: BUILD_APPLE
-components:
-  timezone: true
-tweaks:
-  fujinet_pc: true

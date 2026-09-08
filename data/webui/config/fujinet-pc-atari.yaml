@@ -1,5 +1,0 @@
-extends: BUILD_ATARI
-components:
-  serial_port: true
-tweaks:
-  fujinet_pc: true
