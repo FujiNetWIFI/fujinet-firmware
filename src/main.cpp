@@ -339,8 +339,7 @@ void main_setup(int argc, char *argv[])
     theFuji->setup();
     SYSTEM_BUS.setup();
     SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID::FUJINET);
-    if (Config.get_apetime_enabled() == true)
-        SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID::CLOCK); // APETime compatible, extended for additional return types
+    SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID::CLOCK); // APETime compatible, extended for additional return types
 
     // Create a new printer object, setting its output depending on whether we have SD or not
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
@@ -412,9 +411,7 @@ void main_setup(int argc, char *argv[])
     fnPrinters.set_entry(0, ptr, printer, 0);
     SYSTEM_BUS.addDevice(ptr, FUJI_DEVICEID::PRINTER);
     SYSTEM_BUS.setDeviceEnabled(FUJI_DEVICEID::PRINTER, Config.get_printer_enabled());
-
-    if (Config.get_apetime_enabled() == true)
-        SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID::CLOCK); // APETime compatible, extended for additional return types
+    SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID::CLOCK); // APETime compatible, extended for additional return types
 
 #ifdef VIRTUAL_ADAM_DEVICES
     Debug_printf("Physical Device Scanning...\r\n");
