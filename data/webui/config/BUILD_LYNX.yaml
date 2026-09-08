@@ -1,8 +1,6 @@
 extends: base
-paths:
-  font_path: ./fonts
-  css_path: ./css
-  js_path: ./js
 components:
   hsio_settings: true
+  net_stream: true
   program_recorder: true
+  emulator_settings: true

@@ -1,0 +1,5 @@
+extends: BUILD_RS232
+components:
+  udp_stream: true
+tweaks:
+  fujinet_pc: true

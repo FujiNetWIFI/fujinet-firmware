@@ -1,0 +1,9 @@
+extends: base
+components:
+  printer_settings: experimental
+  modem_settings: experimental
+  boot_settings: experimental
+  cpm_settings: true
+  emulator_settings: true
+tweaks:
+  fujiapple: true
