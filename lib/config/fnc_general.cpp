@@ -1,9 +1,7 @@
 #include "fnConfig.h"
 #include <cstring>
 #include "utils.h"
-#ifndef ESP_PLATFORM
 #include "fnSystem.h"
-#endif
 
 #include "../../include/debug.h"
 
@@ -134,6 +132,7 @@ std::string fnConfig::get_general_label()
     return _general.devicename;
 }
 
+#ifndef ESP_PLATFORM
 void fnConfig::store_general_interface_url(const char *url)
 {
     if (_general.interface_url.compare(url) == 0)
