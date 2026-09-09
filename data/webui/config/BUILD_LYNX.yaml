@@ -1,6 +1,5 @@
 extends: base
 components:
-  hsio_settings: true
+  modem_settings: false
   net_stream: true
-  program_recorder: true
   emulator_settings: true

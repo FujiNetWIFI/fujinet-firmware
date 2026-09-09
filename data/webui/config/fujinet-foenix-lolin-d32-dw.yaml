@@ -1,0 +1,6 @@
+extends: BUILD_COCO
+components:
+  printer_settings: false
+  modem_settings: false
+  program_recorder: false
+  cpm_settings: false

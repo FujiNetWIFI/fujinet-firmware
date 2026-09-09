@@ -1,6 +1,0 @@
-extends: base
-components:
-  hsio_settings: true
-  apetime: true
-  program_recorder: true
-  pclink: true

@@ -1,0 +1,3 @@
+extends: BUILD_LYNX
+components:
+  boot_settings: false

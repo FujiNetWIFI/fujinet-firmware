@@ -1,6 +1,7 @@
 extends: base
 components:
-  hsio_settings: true
   serial_port: true
-  program_recorder: true
   emulator_settings: true
+  cpm_settings: true
+tweaks:
+  platform: RS232
