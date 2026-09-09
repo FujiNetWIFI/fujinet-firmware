@@ -63,7 +63,7 @@ void rs232Fuji::rs232_status(FujiStatusReq reqType)
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     Debug_println("Fuji cmd: STATUS");
 
-    if (reqType == STATUS_MOUNT_TIME)
+    if (reqType == STATREQ::MOUNT_TIME)
     {
         // Return drive slot mount status: 0 if unmounted, otherwise time when mounted
         time_t mount_status[MAX_DISK_DEVICES];
@@ -78,7 +78,7 @@ void rs232Fuji::rs232_status(FujiStatusReq reqType)
     {
         char ret[4] = {0};
 
-        Debug_printf("Status for what? %08x\n", reqType);
+        Debug_printf("Status for what? %08x\n", (unsigned) reqType);
         SYSTEM_BUS.transaction_send((uint8_t *)ret, sizeof(ret), false);
     }
     return;

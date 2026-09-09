@@ -114,9 +114,9 @@ typedef enum class CMD : uint8_t {
     NET_GET_DSTATS_VALUE            = 0xFF,
     NET_PASSWORD                    = 0xFE,
     NET_USERNAME                    = 0xFD,
-    NET_CHANNEL_MODE                = 0xFC,
-    NET_SET_PARAMETERS              = 0xFB,
-    NET_SET_CHANNEL                 = 0xFA,
+    NET_SET_PARSER                  = 0xFC,
+    NET_SET_PARAMETER               = 0xFB,
+    NET_SET_UNIT                    = 0xFA,
     NET_SET_HSIO_INDEX              = 0xE3,
     NET_QUERY_ALT                   = 0x81,
     NET_PARSE_ALT                   = 0x80,
@@ -130,12 +130,12 @@ typedef enum class CMD : uint8_t {
     NET_QUERY                       = 0x51, // Q
     NET_PARSE                       = 0x50, // P
     NET_OPEN                        = 0x4F, // O
-    NET_SET_CHANNEL_MODE            = 0x4D, // M
+    NET_SET_HTTP_MODE               = 0x4D, // M
     NET_SET_EOL                     = 0x4C, // L
     NET_GET_ERROR                   = 0x45, // E
     NET_SET_DESTINATION             = 0x44, // D
     NET_CLOSE                       = 0x43, // C
-    NET_CONTROL                     = 0x41, // A
+    NET_ACCEPT                      = 0x41, // A
     NET_HSIO_INDEX                  = 0x3F, // ?
     NET_GETCWD                      = 0x30, // 0
     NET_CHDIR                       = 0x2C, // ,

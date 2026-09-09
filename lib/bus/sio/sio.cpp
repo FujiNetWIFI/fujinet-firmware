@@ -1,19 +1,14 @@
 #ifdef BUILD_ATARI
 
 #include "sio.h"
-
-#include "../../include/debug.h"
-
 #include "sio/sioFuji.h"
-#include "netstream.h"
+#include "sio/sioNetwork.h"
 #include "modem.h"
 #include "siocpm.h"
-
 #include "fnSystem.h"
 #include "fnConfig.h"
-#include "fnDNS.h"
 #include "led.h"
-#include "utils.h"
+#include "debug.h"
 
 #ifdef ESP_PLATFORM
 #define SIO_UART_DEVICE FN_UART_BUS
@@ -145,10 +140,13 @@ success_is_true systemBus::transaction_get(void *data, size_t len)
     assert(_transaction_state == TRANS_STATE::WILL_GET);
     _transaction_state = TRANS_STATE::DID_GET;
 
-    if (_activeFrame->setDataLength(len).is_error())
-        RETURN_ERROR_AS_FALSE();
-    std::copy(_activeFrame->data()->begin(), _activeFrame->data()->end(),
-              static_cast<uint8_t *>(data));
+    if (len)
+    {
+        if (_activeFrame->setDataLength(len).is_error())
+            RETURN_ERROR_AS_FALSE();
+        std::copy(_activeFrame->data()->begin(), _activeFrame->data()->end(),
+                  static_cast<uint8_t *>(data));
+    }
     RETURN_SUCCESS_AS_TRUE();
 }
 
@@ -472,11 +470,16 @@ void systemBus::service()
     }
 
     // Handle interrupts from network protocols
-    for (int i = 0; i < 8; i++)
+    bool hasUpdate = false;
+    for (int i = 0; i < 1; i++)
     {
-        if (_netDev[i] != nullptr)
-            _netDev[i]->sio_poll_interrupt();
+        if (_netDev[i] != nullptr && _netDev[i]->poll_interrupt())
+        {
+            hasUpdate = true;
+            break;
+        }
     }
+    set_proceed(!hasUpdate);
 }
 
 #ifdef ESP_PLATFORM
@@ -778,6 +781,11 @@ void systemBus::sio_empty_ack()
     {
         netsio_empty_sync();
     }
+}
+#else
+void systemBus::set_proceed(bool level)
+{
+    fnSystem.digital_write(PIN_PROC, level == true ? DIGI_HIGH : DIGI_LOW);
 }
 #endif
 

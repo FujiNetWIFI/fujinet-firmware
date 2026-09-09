@@ -1,14 +1,8 @@
 #ifdef BUILD_COCO
 
 #include "drivewireFuji.h"
-#include "fujiCommandID.h"
-#include "drivewireNetwork.h"
-#include "fnWiFi.h"
-#include "utils.h"
+#include "NDevice.h"
 #include "compat_string.h"
-#include "endianness.h"
-#include "fuji_endian.h"
-#include "../../bus/drivewire/drivewire.h"
 
 #define IMAGE_EXTENSION ".dsk"
 #define LOBBY_URL       "tnfs://tnfs.fujinet.online/COCO/lobby.dsk"
@@ -17,7 +11,7 @@ drivewireFuji platformFuji;
 fujiDevice *theFuji = &platformFuji; // Global fuji object.
 
 // drivewireDisk drivewireDiskDevs[MAX_HOSTS];
-drivewireNetwork drivewireNetDevs[MAX_NETWORK_DEVICES];
+NDevice drivewireNetDevs[MAX_NETWORK_DEVICES];
 
 /**
  * Say the numbers 1-8 using phonetic tweaks.
@@ -179,11 +173,6 @@ void drivewireFuji::setup()
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
-
-#ifdef OBSOLETE
-    // Disable status_wait if our settings say to turn it off
-    status_wait_enabled = Config.get_general_status_wait_enabled();
-#endif /* OBSOLETE */
 }
 
 // On Dragon, boot mode 2 additionally switches the named-object fallback

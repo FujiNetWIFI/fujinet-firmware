@@ -28,7 +28,6 @@
 # include "drivewire/drivewireClock.h"
 # include "drivewire/disk.h"
 # include "drivewire/modem.h"
-# include "drivewire/drivewireNetwork.h"
 # include "drivewire/printer.h"
 # include "drivewire/printerlist.h"
 # include "drivewire/drivewireFuji.h"

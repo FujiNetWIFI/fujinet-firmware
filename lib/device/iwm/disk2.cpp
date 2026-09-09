@@ -21,10 +21,6 @@ iwmDisk2::~iwmDisk2()
 {
 }
 
-void iwmDisk2::shutdown()
-{
-}
-
 iwmDisk2::iwmDisk2()
 {
   track_pos = 80;

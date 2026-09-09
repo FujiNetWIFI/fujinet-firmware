@@ -19,13 +19,13 @@
 #undef DELETE
 #endif
 
-enum netProtoHTTPChannelMode_t {
-    HTTP_CHANMODE_BODY            = 0,
-    HTTP_CHANMODE_COLLECT_HEADERS = 1,
-    HTTP_CHANMODE_GET_HEADERS     = 2,
-    HTTP_CHANMODE_SET_HEADERS     = 3,
-    HTTP_CHANMODE_SET_POST_DATA   = 4,
-};
+typedef enum class HTTP_CHANMODE : uint8_t {
+    BODY            = 0,
+    COLLECT_HEADERS = 1,
+    GET_HEADERS     = 2,
+    SET_HEADERS     = 3,
+    SET_POST_DATA   = 4,
+} netProtoHTTPChannelMode_t;
 
 typedef enum class HTTP_METHOD {
     GET      = 4,

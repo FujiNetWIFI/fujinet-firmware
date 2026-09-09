@@ -640,7 +640,9 @@ fujiDeviceID_t systemBus::remapDeviceAddress(uint8_t address, iwm_decoded_cmd_t 
   virtualDevice *devicep = deviceWithBusID(address);
   fujiDeviceID_t devID = _daisyChain.fujiIDForDevice(devicep).value_or((fujiDeviceID_t) 0);
 
-#ifdef UNUSED
+#ifdef DEBUG_REMAP
+  Debug_printf("ADDRESS=%d INPUT DEV=0x%02x\n", address, devID);
+#endif // DEBUG_REMAP
   if (devID >= FUJI_DEVICEID::NETWORK && devID <= FUJI_DEVICEID::NETWORK_LAST)
   {
     unsigned unit = cmd.unit();
@@ -648,8 +650,10 @@ fujiDeviceID_t systemBus::remapDeviceAddress(uint8_t address, iwm_decoded_cmd_t 
       unit = _defaultNetworkUnit;
     devID = (fujiDeviceID_t) (((unsigned) FUJI_DEVICEID::NETWORK) + unit - 1);
   }
-#endif /* UNUSED */
 
+#ifdef DEBUG_REMAP
+  Debug_printf("PACKET FOR FUJI_DEVICE 0x%02x\n", devID);
+#endif // DEBUG_REMAP
   return devID;
 }
 
@@ -867,14 +871,18 @@ void systemBus::handle_init()
 }
 
 // Add device to IWM bus
-void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t deviceType)
+void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t deviceType,
+                          bool participatesInBusIDAssignment=true)
 {
-  // SmartPort interface assigns device numbers to the devices in the daisy chain one at a time
-  // as opposed to using standard or fixed device ID's like Atari SIO. Therefore, an emulated
-  // device cannot rely on knowing its device number until it is assigned.
-  // Instead of using device_id's to know what kind a specific device is, smartport
-  // uses a Device Information Block (DIB) that is returned in a status call for DIB. The
-  // DIB includes a 16-character string, Device type byte, and Device subtype byte.
+  // SmartPort interface assigns device numbers to the devices in the
+  // daisy chain one at a time as opposed to using standard or fixed
+  // device ID's like Atari SIO. Therefore, an emulated device cannot
+  // rely on knowing its device number until it is assigned.  Instead
+  // of using device_id's to know what kind a specific device is,
+  // smartport uses a Device Information Block (DIB) that is returned
+  // in a status call for DIB. The DIB includes a 16-character string,
+  // Device type byte, and Device subtype byte.
+
   // In the IIgs firmware reference, the following device types are defined:
   // 0 - memory cards (internal to the machine)
   // 1 - Apple and Uni 3.5 drives
@@ -886,15 +894,20 @@ void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t deviceType)
   // 0x20 == 0 -> removable media (1 means non removable)
 
   // todo: work out how to use addDevice
-  // we can add devices and indicate they are not initialized and have no device ID - call it a value of 0
-  // when the SP bus goes into RESET, we would rip through the list setting initialized to false and
-  // setting device id's to 0. Then on each INIT command, we iterate through the list, setting
-  // initialized to true and assigning device numbers as assigned by the smartport controller in the A2.
-  // so I need "reset()" and "initialize()" functions.
 
-  // todo: I need a way to internally keep track of what kind of device each one is. I'm thinking an
-  // enumerated class type might work well here. It can be expanded as needed and an extra case added
-  // below. I can also make this a switch case structure to ensure each case of the class is handled.
+  // we can add devices and indicate they are not initialized and have
+  // no device ID - call it a value of 0 when the SP bus goes into
+  // RESET, we would rip through the list setting initialized to false
+  // and setting device id's to 0. Then on each INIT command, we
+  // iterate through the list, setting initialized to true and
+  // assigning device numbers as assigned by the smartport controller
+  // in the A2.  so I need "reset()" and "initialize()" functions.
+
+  // todo: I need a way to internally keep track of what kind of
+  // device each one is. I'm thinking an enumerated class type might
+  // work well here. It can be expanded as needed and an extra case
+  // added below. I can also make this a switch case structure to
+  // ensure each case of the class is handled.
 
   // assign dedicated pointers to certain devices
   switch (deviceType)
@@ -908,7 +921,7 @@ void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t deviceType)
   }
 
   _daisyChain.addDevice(pDevice, deviceType);
-  _busMap.addFujiID(deviceType, true);
+  _busMap.addFujiID(deviceType, participatesInBusIDAssignment);
 
   pDevice->_initialized = false;
 }
@@ -955,6 +968,14 @@ void systemBus::assignFujiIDToDevice(virtualDevice *device, fujiDeviceID_t fujiI
 iwmPrinter *systemBus::getPrinter()
 {
   return dynamic_cast<iwmPrinter*>(_daisyChain.deviceWithFujiID(FUJI_DEVICEID::PRINTER));
+}
+
+void systemBus::setDefaultNetworkUnit(uint8_t unit)
+{
+  const unsigned NET_HIGHEST =
+    ((unsigned) FUJI_DEVICEID::NETWORK_LAST) - ((unsigned) FUJI_DEVICEID::NETWORK);
+  if (unit > 0 && unit <= NET_HIGHEST)
+    _defaultNetworkUnit = unit;
 }
 
 // Give devices an opportunity to clean up before a reboot

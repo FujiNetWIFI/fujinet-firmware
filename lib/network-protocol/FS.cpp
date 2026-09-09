@@ -208,7 +208,7 @@ void NetworkProtocolFS::update_dir_filename(PeoplesUrlParser *url)
 void NetworkProtocolFS::set_open_params(fileAccessMode_t access, netProtoTranslation_t translate)
 {
     streamMode = (fileAccessMode_t) access;
-    translation_mode = (netProtoTranslation_t) (translate & 0x7F);
+    translation_mode = (netProtoTranslation_t) (((uint8_t) translate) & 0x7F);
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("Changed open params to streamMode = %d, a2flags = %d. Set translation_mode to %d\r\n", p1, p2, translation_mode);
 #endif

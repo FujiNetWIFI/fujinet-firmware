@@ -1,9 +1,10 @@
 #ifndef IEC_H
 #define IEC_H
 
-#include "FujiIECPacket.h"
-#include "IECDevice.h"
+#include "bus.h"
 #include "IECBusHandler.h"
+#include "FujiIECPacket.h"
+#include "virtualDevice.h"
 #include "string_utils.h"
 
 #define FUJI_COMMAND_PACKET FujiIECPacket
@@ -11,17 +12,6 @@
 #define BUS_DEVICEID_PRINTER 4
 #define BUS_DEVICEID_DISK 8
 #define BUS_DEVICEID_NETWORK 16
-
-// FIXME - belongs in IECBusHandler
-typedef enum
-{
-    DEVICE_ERROR = -1,
-    DEVICE_IDLE = 0,      // Ready and waiting
-    DEVICE_ACTIVE = 1,
-    DEVICE_LISTEN = 2,    // A command is recieved and data is coming to us
-    DEVICE_TALK = 3,      // A command is recieved and we must talk now
-    DEVICE_PAUSED = 4,    // Execute device command
-} device_state_t;
 
 enum {
   OPCODE_NO_PAYLOAD  = 0x01,
@@ -74,6 +64,7 @@ public:
     void transaction_accept(transState_t expectMoreData) override;
     void transaction_success() override;
     void transaction_error() override;
+    using SystemBusBase::transaction_get;
     success_is_true transaction_get(void *data, size_t len) override;
     using SystemBusBase::transaction_send;
     void transaction_send(const void *data, size_t len, bool is_error=false) override;
