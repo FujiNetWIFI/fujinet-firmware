@@ -34,7 +34,7 @@ elseif(FUJINET_TARGET STREQUAL "RS232")
     # fujinet.build_platform
     set(FUJINET_BUILD_PLATFORM BUILD_RS232)
     # fujinet.build_board (used by build_webui.py)
-    set(FUJINET_BUILD_BOARD fujinet-lwm-rs232)
+    set(FUJINET_BUILD_BOARD fujinet-pc-rs232)
     # fujinet.build_bus
     set(FUJINET_BUILD_BUS RS232)
 elseif(FUJINET_TARGET STREQUAL "LYNX")
@@ -809,10 +809,18 @@ file(GLOB_RECURSE WEBUI_SOURCES CONFIGURE_DEPENDS
 # Stamp, not BUILD_DATA_DIR, as OUTPUT: editing a file does not change its
 # directory's timestamp, and the script wipes BUILD_DATA_DIR on every run.
 set(WEBUI_STAMP "${CMAKE_BINARY_DIR}/build_webui.stamp")
+
+# WebUI config dependency: prefer board-specific yaml if it exists, otherwise use platform default
+# FUJINET_BUILD_PLATFORM is already "BUILD_APPLE" etc., not just "APPLE"
+set(WEBUI_CONFIG_DEPENDS "${CMAKE_SOURCE_DIR}/data/webui/config/${FUJINET_BUILD_PLATFORM}.yaml")
+if(EXISTS "${CMAKE_SOURCE_DIR}/data/webui/config/${FUJINET_BUILD_BOARD}.yaml")
+    set(WEBUI_CONFIG_DEPENDS "${CMAKE_SOURCE_DIR}/data/webui/config/${FUJINET_BUILD_BOARD}.yaml")
+endif()
+
 add_custom_command(
     OUTPUT "${WEBUI_STAMP}"
     DEPENDS build_webui.py
-      "${CMAKE_SOURCE_DIR}/data/webui/config/${FUJINET_BUILD_BOARD}.yaml"
+      ${WEBUI_CONFIG_DEPENDS}
       ${WEBUI_SOURCES}
       # Touched by each re-configure, so a deleted file also triggers a rebuild
       "${CMAKE_BINARY_DIR}/CMakeFiles/cmake.verify_globs"

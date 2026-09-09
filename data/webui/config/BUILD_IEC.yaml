@@ -1,0 +1,4 @@
+extends: base
+components:
+  emulator_settings: true
+  cpm_settings: true
