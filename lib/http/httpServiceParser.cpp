@@ -26,10 +26,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     enum tagids
     {
         FN_HOSTNAME = 0,
-#ifndef ESP_PLATFORM
         FN_DEVICE_NAME,
         FN_LABEL,
-#endif
         FN_VERSION,
         FN_IPADDRESS,
         FN_IPMASK,
@@ -155,10 +153,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     const char *tagids[FN_LASTTAG] =
     {
         "FN_HOSTNAME",
-#ifndef ESP_PLATFORM
         "FN_DEVICE_NAME",
         "FN_LABEL",
-#endif
         "FN_VERSION",
         "FN_IPADDRESS",
         "FN_IPMASK",
