@@ -126,13 +126,12 @@ void fnConfig::store_general_fnconfig_spifs(bool fnconfig_spifs)
     _dirty = true;
 }
 
-#ifndef ESP_PLATFORM
 std::string fnConfig::get_general_label()
 {
     // TODO html escape - label goes into <title>
     if (_general.devicename.empty())
         return fnSystem.Net.get_hostname();
-    return _general.devicename; 
+    return _general.devicename;
 }
 
 void fnConfig::store_general_interface_url(const char *url)
