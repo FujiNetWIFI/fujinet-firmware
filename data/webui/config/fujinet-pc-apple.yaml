@@ -1,3 +1,0 @@
-extends: BUILD_APPLE
-tweaks:
-  fujinet_pc: true

@@ -1,3 +1,0 @@
-extends: BUILD_RS232
-tweaks:
-  fujinet_pc: true

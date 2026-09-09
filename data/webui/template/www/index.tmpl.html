@@ -102,7 +102,6 @@
 					<div class="det detlinecol"><%FN_VERSION%></div>
 				</div>
 				<div class="detline alt">
-					{% if tweaks.fujinet_pc %}
 					<div class="deth detlinecol">Device name</div>
 					<div class="det detlinecol">
 						<form action="/config" method="post">
@@ -110,24 +109,10 @@
 							<input type="submit" value="Save">
 						</form>
 					</div>
-					{% else %}
-					<div class="deth detlinecol">Host name</div>
-					<div class="det detlinecol">
-						<form action="/config" method="post">
-							<input type="text" name="hostname" id="txt_hostname" value="<%FN_HOSTNAME%>" />
-							<input type="submit" value="Save">
-						</form>
-					</div>
-					{% endif %}
 				</div>
 				<div class="detline">
-					{% if tweaks.fujinet_pc %}
 					<div class="deth detlinecol">Host name</div>
 					<div class="det detlinecol"><%FN_HOSTNAME%></div>
-					{% else %}
-					<div class="deth detlinecol">IP address</div>
-					<div class="det detlinecol"><%FN_IPADDRESS%> / <%FN_IPMASK%></div>
-					{% endif %}
 				</div>
 				{% if tweaks.fujinet_pc %}
 				<div class="detline alt">
@@ -615,7 +600,6 @@
 								<label>Current Setting</label>
 							</div>
 							<div class="settings-value">
-								{% if tweaks.fujinet_pc %}<%FN_SIO_HSTEXT%>{% else %}<%FN_SIO_HSINDEX%>{% endif %}
 							</div>
 						</div>
 						<hr>
@@ -635,7 +619,6 @@
 									<option value="7">7: 63Kb</option>
 									<option value="8">8: 58Kb</option>
 									<option value="9">9: 55Kb</option>
-									{% if tweaks.fujinet_pc %}
 									<option value="10">10: 52 Kb</option>
 									<option value="16">16: 38 Kb</option>
 									<option value="-1">HSIO Disabled</option>

@@ -113,6 +113,12 @@ print(f"  config file: {ini_file}")
 template_env = Environment(loader=FileSystemLoader(["data/webui/template", "data/webui/device_specific"]))
 config = load_board_config(build_board, build_platform)
 
+# Auto-set fujinet_pc flag for PC builds (allows eliminating redundant board files)
+if build_board.startswith('fujinet-pc-'):
+    if 'tweaks' not in config:
+        config['tweaks'] = {}
+    config['tweaks']['fujinet_pc'] = True
+
 if not build_platform.startswith('BUILD_'):
     raise Exception(f"build_platform does not match BUILD_*, aborting")
 
