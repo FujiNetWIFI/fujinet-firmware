@@ -811,7 +811,8 @@ file(GLOB_RECURSE WEBUI_SOURCES CONFIGURE_DEPENDS
 set(WEBUI_STAMP "${CMAKE_BINARY_DIR}/build_webui.stamp")
 
 # WebUI config dependency: prefer board-specific yaml if it exists, otherwise use platform default
-set(WEBUI_CONFIG_DEPENDS "${CMAKE_SOURCE_DIR}/data/webui/config/BUILD_${FUJINET_BUILD_PLATFORM}.yaml")
+# FUJINET_BUILD_PLATFORM is already "BUILD_APPLE" etc., not just "APPLE"
+set(WEBUI_CONFIG_DEPENDS "${CMAKE_SOURCE_DIR}/data/webui/config/${FUJINET_BUILD_PLATFORM}.yaml")
 if(EXISTS "${CMAKE_SOURCE_DIR}/data/webui/config/${FUJINET_BUILD_BOARD}.yaml")
     set(WEBUI_CONFIG_DEPENDS "${CMAKE_SOURCE_DIR}/data/webui/config/${FUJINET_BUILD_BOARD}.yaml")
 endif()
