@@ -1,0 +1,4 @@
+extends: base
+components:
+  hsio_settings: true
+  disk_swap: true
