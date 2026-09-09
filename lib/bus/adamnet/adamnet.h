@@ -225,6 +225,7 @@ public:
     void transaction_accept(transState_t expectMoreData) override;
     void transaction_success() override;
     void transaction_error() override;
+    using SystemBusBase::transaction_get;
     success_is_true transaction_get(void *data, size_t len) override;
     using SystemBusBase::transaction_send;
     void transaction_send(const void *data, size_t len, bool is_error=false) override;

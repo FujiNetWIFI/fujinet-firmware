@@ -78,9 +78,6 @@ success_is_true systemBus::transaction_get(void *data, size_t len)
     avail = std::min(avail, (size_t) len);
     memcpy(data, optional_data.value().data() + _activePacketDataPosition, avail);
     _activePacketDataPosition += avail;
-
-    if (avail != len)
-        RETURN_ERROR_AS_FALSE();
     RETURN_SUCCESS_AS_TRUE();
 }
 
@@ -125,11 +122,15 @@ void systemBus::_rs232_process_cmd()
                  (uint8_t) tempFrame->device(), (uint8_t) tempFrame->command(),
                  tempFrame->data() ? tempFrame->data()->size() : -1);
 
-
     _activePacket = tempFrame.get();
     _activeDev = _daisyChain.deviceWithFujiID(tempFrame->device());
     if (_activeDev != nullptr)
         _activeDev->rs232_process(*tempFrame);
+    else
+    {
+        Debug_printf("No such device 0x%02x\n", (uint8_t) tempFrame->device());
+        transaction_error();
+    }
 
     fnLedManager.set(eLed::LED_BUS, false);
 }
@@ -174,10 +175,35 @@ void systemBus::service()
     }
 
     // Handle interrupts from network protocols
-    for (int i = 0; i < 8; i++)
+    if (!_netDev.empty())
     {
-        if (_netDev[i] != nullptr)
-            _netDev[i]->rs232_poll_interrupt();
+        bool hasUpdate = false;
+        for (auto it=_netDev.begin(); it != _netDev.end(); ++it)
+        {
+            if (it->second->poll_interrupt())
+            {
+                hasUpdate = true;
+                break;
+            }
+        }
+        if (!isBoIP())
+        {
+#ifdef ESP_PLATFORM
+            _serial.setRI(!hasUpdate);
+#else /* ! ESP_PLATFORM */
+            switch (Config.get_serial_proceed())
+            {
+            case fnConfig::SERIAL_PROCEED_DTR:
+                _serial.setDSR(!hasUpdate); // drives RS-232 DTR
+                break;
+            case fnConfig::SERIAL_PROCEED_RTS:
+                _serial.setCTS(!hasUpdate); // drives RS-232 RTS
+                break;
+            default:
+                break; // SERIAL_PROCEED_NONE / invalid
+            }
+#endif /* ESP_PLATFORM */
+        }
     }
 }
 

@@ -22,8 +22,6 @@
 #ifdef BUILD_IEC
 
 #include "IECConfig.h"
-#include "bus.h"
-#include "global_types.h"
 #include <stdint.h>
 
 class IECBusHandler;
@@ -195,12 +193,6 @@ class IECDevice
   uint8_t    m_devnr;
   uint16_t m_sflags;
   IECBusHandler *m_handler;
-};
-
-class virtualDevice : public IECDevice
-{
-protected:
-    virtual void shutdown() {};
 };
 
 #endif /* BUILD_IEC */

@@ -425,7 +425,7 @@ fujiError_t NetworkProtocolCalendar::open(PeoplesUrlParser *urlParser, fileAcces
 
     // Every path above emits `lineEnding` itself, so translating again would
     // double-apply the EOL.
-    translation_mode = NETPROTO_TRANS_NONE;
+    translation_mode = NETPROTO_TRANS::NONE;
     forceStatus = true;
     return res;
 }

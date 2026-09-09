@@ -146,7 +146,8 @@ set(INCLUDE_DIRS include
     lib/webdav lib/http lib/sam lib/task
     lib/modem-sniffer lib/printer-emulator
     lib/network-protocol
-    lib/fuji lib/bus lib/device lib/device/fujiDevice lib/device/fujiClock lib/media
+    lib/fuji lib/bus lib/device lib/media
+    lib/device/fujiDevice lib/device/fujiClock lib/device/NDevice
     lib/encrypt lib/base64
     lib/devrelay/commands lib/devrelay/service lib/devrelay/slip lib/devrelay/types
     lib/encoding
@@ -315,7 +316,10 @@ set(SOURCES src/main.cpp
     lib/device/fujiDevice/HashMixin.h lib/device/fujiDevice/HashMixin.cpp
     lib/device/fujiDevice/QRMixin.h lib/device/fujiDevice/QRMixin.cpp
     lib/device/fujiDevice/AppKeyMixin.h lib/device/fujiDevice/AppKeyMixin.cpp
-    lib/device/network.h
+    lib/device/NDevice/NDevice.h lib/device/NDevice/NDevice.cpp
+    lib/device/NDevice/NParser.h lib/device/NDevice/NParser.cpp
+    lib/device/NDevice/JSONParser.h lib/device/NDevice/JSONParser.cpp
+    lib/device/NDevice/SGMLParser.h lib/device/NDevice/SGMLParser.cpp
     lib/device/netstream.h
     lib/device/siocpm.h
     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
@@ -446,7 +450,6 @@ if(FUJINET_TARGET STREQUAL "COCO")
     lib/media/drivewire/decbLayout.h lib/media/drivewire/decbLayout.cpp
 
     lib/device/drivewire/drivewireFuji.h lib/device/drivewire/drivewireFuji.cpp
-    lib/device/drivewire/drivewireNetwork.h lib/device/drivewire/drivewireNetwork.cpp
     lib/device/drivewire/disk.h lib/device/drivewire/disk.cpp
     lib/device/drivewire/printer.h lib/device/drivewire/printer.cpp
     lib/device/drivewire/printerlist.h lib/device/drivewire/printerlist.cpp
