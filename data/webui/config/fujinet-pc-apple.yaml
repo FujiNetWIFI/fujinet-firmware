@@ -1,5 +1,3 @@
 extends: BUILD_APPLE
-components:
-  disk_swap: false
 tweaks:
   fujinet_pc: true

@@ -667,7 +667,7 @@
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">
-						Time<span class="logowob"></span>{% if tweaks.fujinet_pc %}Settings{% else %}Zone{% endif %}
+						Time<span class="logowob"></span>Zone
 					</div>
 					<script>
 						{% if components.apetime %}
@@ -1865,7 +1865,7 @@
 							{% elif tweaks.platform == "COCO" %}
 								When enabled, FujiNet will not use the serial port for DriveWire
 								communication. Instead, it will use TCP to communicate with
-								a CoCo emulator.{% if tweaks.fujinet_pc %} Port is optional (defaults to 65504).{% endif %}
+								a CoCo emulator. Port is optional (defaults to 65504).
 							{% else %}
 								When enabled, FujiNet will communicate with an emulator over network.
 							{% endif %}

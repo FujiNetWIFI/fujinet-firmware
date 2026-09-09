@@ -1,6 +1,5 @@
 extends: BUILD_COCO
 components:
-  disk_swap: false
   serial_port: true
 tweaks:
   fujinet_pc: true

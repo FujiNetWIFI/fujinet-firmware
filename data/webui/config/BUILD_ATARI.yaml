@@ -7,6 +7,7 @@ components:
   cpm_settings: true
   pclink: true
   emulator_settings: true
+  disk_swap: true
 tweaks:
   platform: ATARI
   config_ng: true

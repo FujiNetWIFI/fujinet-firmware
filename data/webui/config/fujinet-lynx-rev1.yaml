@@ -1,0 +1,7 @@
+extends: BUILD_LYNX
+components:
+  printer_settings: false
+  modem_settings: false
+  hsio_settings: false
+  program_recorder: false
+  boot_settings: false

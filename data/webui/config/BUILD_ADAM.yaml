@@ -1,3 +1,4 @@
 extends: base
 components:
+  modem_settings: false
   emulator_settings: true

@@ -34,7 +34,7 @@ elseif(FUJINET_TARGET STREQUAL "RS232")
     # fujinet.build_platform
     set(FUJINET_BUILD_PLATFORM BUILD_RS232)
     # fujinet.build_board (used by build_webui.py)
-    set(FUJINET_BUILD_BOARD fujinet-lwm-rs232)
+    set(FUJINET_BUILD_BOARD fujinet-pc-rs232)
     # fujinet.build_bus
     set(FUJINET_BUILD_BUS RS232)
 elseif(FUJINET_TARGET STREQUAL "LYNX")

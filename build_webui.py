@@ -13,12 +13,18 @@ def deep_merge(base, override):
             base[key] = value
 
 def load_board_config(build_board, build_platform):
-    """Load board yaml with fallback to platform default, applying extends/inheritance."""
-    # Try board-specific config first, fall back to platform default
+    """Load board yaml with fallback to platform default, then base, applying extends/inheritance."""
+    # Try board-specific config first, then platform default, then base
     board_path = os.path.join('data', 'webui', 'config', f'{build_board}.yaml')
     platform_path = os.path.join('data', 'webui', 'config', f'{build_platform}.yaml')
+    base_path = os.path.join('data', 'webui', 'config', 'base.yaml')
 
-    config_path = board_path if os.path.exists(board_path) else platform_path
+    if os.path.exists(board_path):
+        config_path = board_path
+    elif os.path.exists(platform_path):
+        config_path = platform_path
+    else:
+        config_path = base_path
 
     with open(config_path) as f:
         config = load(f, Loader=Loader)
