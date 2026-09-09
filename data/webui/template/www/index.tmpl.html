@@ -2,7 +2,7 @@
 <html>
 
 <head>
-	<title>FujiNet - {% if tweaks.fujinet_pc %}<%FN_LABEL%>{% else %}<%FN_HOSTNAME%>{% endif %}</title>
+	<title>FujiNet - <%FN_LABEL%></title>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<script type="text/javascript" src="{{ paths.js_path }}/utils.js"></script>
@@ -300,12 +300,6 @@
 			{% if components.mount_list %}
 			<div class="module" {% if components.mount_list == "experimental" %}data-experimental{% endif %}>
 				<header class="module-header">MOUNT<span class="logowob"></span>LIST</header>
-				{% if not tweaks.fujinet_pc %}
-				<div class="detline alt">
-					<div class="deth detlinecol"><a href="/mount?mountall=1"> MOUNT ALL DISKS</a></div>
-					<div class="det detlinecol">&nbsp;</div>
-				</div>
-				{% endif %}
 				{% if tweaks.fujiapple %}
 				{# MAX_MOUNT_SLOTS is only 10 for the ESP32 Apple build; FujiNet-PC has 8 #}
 				{% for ds in range(1, 9 if tweaks.fujinet_pc else 11) %}
@@ -335,7 +329,6 @@
 				</div>
 				{% endfor %}
 				{% endif %}
-				{% if tweaks.fujinet_pc %}
 				<div class="detline">
 					<div class="deth detlinecol">Drive Slots</div>
 					<div class="det detlinecol">
@@ -343,7 +336,6 @@
 						<input type="button" id="swapButton" value="Swap" onclick="swapButton()">
 					</div>
 				</div>
-				{% endif %}
 			</div>
 			{% endif %}
 			{% if components.printer_settings %}
