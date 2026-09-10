@@ -80,10 +80,11 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
         // and missed every other ROM size.
         //
         // COL is the extension the No-Intro ColecoVision set uses throughout,
-        // so without it not one cartridge in that collection would mount.
+        // so without it not one cartridge in that collection would mount. CHF
+        // is the Channel F cartridge extension MAME accepts alongside .bin.
         if (strcasecmp(ext, "ROM") == 0 || strcasecmp(ext, "BIN") == 0 ||
             strcasecmp(ext, "INT") == 0 || strcasecmp(ext, "ITV") == 0 ||
-            strcasecmp(ext, "COL") == 0)
+            strcasecmp(ext, "COL") == 0 || strcasecmp(ext, "CHF") == 0)
         {
             return MEDIATYPE_ROM;
         }

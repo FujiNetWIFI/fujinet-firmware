@@ -146,6 +146,15 @@ jobs:
         working-directory: pico/coleco/firmware/host_test
         run: make
 
+      # The Channel F tests are the only ones in the family that cover a BUS
+      # PROTOCOL rather than an address decode: the F8 has no address bus, so
+      # the cart has to run a 32-state ROMC machine and track PC0/PC1/DC0/DC1
+      # itself. test_romc replays golden traces captured from MAME's own F8
+      # core; without traces present it skips, and test_busio still runs.
+      - name: Channel F -- ROMC conformance and bus decode
+        working-directory: pico/channelf/firmware/host_test
+        run: make
+
   o2-console-client:
     name: "Odyssey 2 8048 client"
     runs-on: ubuntu-latest
@@ -290,6 +299,47 @@ jobs:
                   testrom/$c.asm testrom/fujilib.inc testrom/fujidisp.inc
           done
 
+  channelf-console-client:
+    name: "Channel F F8 clients"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Macro Assembler AS again, F3850 target this time. Same cache and build
+      # recipe as the o2 and arcadia jobs -- one AS build serves all three.
+      - name: Cache Macro Assembler AS
+        id: cache-asl
+        uses: actions/cache@v4
+        with:
+          path: ~/asl
+          key: asl-upstream-${{ runner.os }}-v1
+
+      - name: Build Macro Assembler AS
+        if: steps.cache-asl.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch upstream \
+            https://github.com/Macroassembler-AS/asl-releases.git /tmp/asl-src
+          cd /tmp/asl-src
+          cp Makefile.def-samples/Makefile.def-i386-unknown-linux2.x.x Makefile.def
+          sed -i 's|^CFLAGS.*|CFLAGS = -O2 -w|' Makefile.def
+          make -j"$(nproc)"
+          mkdir -p ~/asl
+          cp asl p2bin ~/asl/
+
+      - name: Put AS on PATH
+        run: echo "$HOME/asl" >> "$GITHUB_PATH"
+
+      # hello and romctest are plain 2K Videocarts; the rest are FujiNet
+      # clients and must come out at exactly 16K with the "FUJI" claim at
+      # $47FC, which tools/checkrom.py --claim enforces. A client that is short
+      # -- or that lost the ORG -- would otherwise boot with the mailbox
+      # silently dead.
+      - name: Assemble the F8 clients
+        working-directory: pico/channelf
+        run: |
+          ASL=$HOME/asl/asl P2BIN=$HOME/asl/p2bin \
+            ./build.sh hello romctest fujitest fujiboot fujicfg
+
   cartridge-firmware:
     name: "RP2040 cartridge firmware"
     runs-on: ubuntu-latest
@@ -403,3 +453,29 @@ jobs:
           # data-required, and a single XIP cache miss is most of that.
           grep -E '0x2000[0-9a-f]+ +coleco_core1_main$' \
               firmware/build-fujicoleco/fujicoleco.elf.map
+
+      - name: Channel F Videocart (fujichannelf)
+        working-directory: pico/channelf
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: |
+          # A placeholder client, so build-cart.sh has something to bake. The
+          # real one comes from ./build.sh with Macro Assembler AS; this job
+          # deliberately does not install it, so the firmware build stays
+          # independent of the cross-assembler.
+          mkdir -p build
+          python3 - <<'PY'
+          import pathlib
+          img = bytearray(b'\xff' * 0x4000)
+          img[0:2] = b'\x55\x00'
+          img[0x3FFC:0x4000] = b'FUJI'
+          pathlib.Path('build/fujitest.bin').write_bytes(img)
+          PY
+          ./build-cart.sh
+          # The serve loop must live in SRAM. Here the reason is not latency --
+          # a bus cycle is 2.2 us, six times the ColecoVision's budget -- but
+          # that the loop may never miss a cycle: with no address bus, a
+          # stalled cart has nothing to resynchronise its shadow PC0/DC0
+          # against and stays wrong for the rest of the session.
+          grep -E '0x2000[0-9a-f]+ +channelf_core1_main$' \
+              firmware/build-fujichannelf/fujichannelf.elf.map

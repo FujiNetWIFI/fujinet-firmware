@@ -33,11 +33,37 @@ cycle corrupts its shadow registers permanently.
 | M1 | mailbox round trip + reset survival | **done** |
 | M2 | network boot, byte-identical | **done** |
 | M3 | directory browser: cursor, descend, boot | **done** |
-| M4, M6, M7 | firmware, soak, CONFIG + 5 Card Stud | not started |
+| M4 | RP2040 firmware, core1 SRAM-resident | **done** |
+| M6, M7 | soak, CONFIG + 5 Card Stud | not started |
 
 M5 was pulled ahead of the rest deliberately. It is the only genuinely novel
 component and the only one with no template in the sibling ports, so it is the
 thing worth failing early.
+
+## The cartridge firmware
+
+`./build-cart.sh` produces `firmware/build-fujichannelf/fujichannelf.uf2`.
+core1 runs the F8 bus loop out of SRAM (`channelf_core1_main` at `0x200000c0`,
+which CI greps the linker map for); core0 does USB and the mailbox service.
+
+Residency matters here for a different reason than on the ColecoVision. There
+it was latency: 373 ns from address-valid to data-required, and one XIP cache
+miss is most of that. Here a bus cycle is 2.2 us and latency is not the
+problem -- but with **no address bus**, a cart that stalls for one cycle has
+nothing to resynchronise its shadow PC0/DC0 against, and is wrong for the rest
+of the session. The loop may never miss a cycle, so it may never fault to
+flash.
+
+Memory: two 16K ROM windows (ping-ponged, so a booted client can push again
+without overwriting the code it is executing from) plus one 32K arena, 16K of
+push buffer and the ring -- 133K of the RP2040's 264K. No image store, no flash
+tier: every Videocart ever made is 6K or less.
+
+The bus **timing** is the one thing that is provisional and cannot be settled
+without a board: which edge of WRITE marks a cycle, and when the CPU's write
+data is valid. The ROMC *decode* is proven against MAME's own F8 core; the
+edges are marked PROVISIONAL in `channelf_cart.c` and are the first thing to
+put a scope on.
 
 ## Verification
 
