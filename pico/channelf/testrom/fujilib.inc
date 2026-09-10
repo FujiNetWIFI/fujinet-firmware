@@ -179,3 +179,64 @@ FNRXL:	DCI FNRXLO
 	LM
 	LR 1,A
 	POP
+
+; ---------------------------------------------------------------------------
+; FNPB -- append a one-byte parameter: the size byte 1, then the value in r0.
+;   DC0 must already be inside the TX page.
+;   Takes its value in r0, not A: A does not survive a PI (see DHEXS).
+;   Clobbers A.
+; ---------------------------------------------------------------------------
+FNPB:	LIS 1
+	ST			; parameter size
+	LR A,0
+	ST			; parameter value, little-endian
+	POP
+
+; ---------------------------------------------------------------------------
+; FNPATH -- append the NUL-terminated string at DC1 to the TX stream, padded
+;   with NULs to exactly 256 bytes. OPEN_DIRECTORY and SET_DEVICE_FULLPATH both
+;   require the full 256; a short one fails the server's read.
+;
+;   Caller: DCI <path>, XDC, PI FNPATH. This re-points DC0 at the TX page
+;   itself, which is also what keeps the 256-store run legal after the
+;   parameter bytes -- see the DC0 rule at the top of this file. The TX write
+;   pointer lives in the cart and keeps advancing, so re-pointing DC0 does not
+;   rewind the stream.
+;
+;   Clobbers A, r0, DC0, DC1.
+; ---------------------------------------------------------------------------
+FNPATH:	DCI FNTX
+	CLR
+	LR 0,A			; 256 iterations, counted by DS wrapping 0 -> 0
+FNPA1:	XDC			; DC0 = path, DC1 = TX
+	LM
+	XDC			; DC0 = TX, DC1 = path+1
+	CI 0
+	BZ FNPA2		; terminator: stop copying, start padding
+	ST
+	DS 0
+	BNZ FNPA1
+	POP			; exactly 256 path bytes; no padding needed
+FNPA2:	CLR
+FNPA3:	ST
+	DS 0
+	BNZ FNPA3
+	POP
+
+; ---------------------------------------------------------------------------
+; FNACK -- did the last transaction both succeed and get an ACK?
+;   Returns A = 0 on success, or the FN_ERR_* code, or $EE for a NAK.
+;   Clobbers A, DC0.
+; ---------------------------------------------------------------------------
+FNACK:	DCI FNERR
+	LM
+	CI 0
+	BNZ FNACKX		; a transport error: report it as-is
+	DCI FNRCMD
+	LM
+	CI 006H			; ACK
+	BZ FNACKO
+	LI 0EEH			; the server said NAK
+	POP
+FNACKO:	CLR
+FNACKX:	POP

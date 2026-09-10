@@ -62,6 +62,22 @@ typedef struct {
     uint8_t *ram; /* the arena: ram_base .. +ram_size-1, may be NULL */
     uint16_t ram_base;
     uint32_t ram_size;
+    /* False once a booted image has declined the mailbox: the arena stays,
+     * but its top becomes plain RAM instead of registers and painted pages.
+     *
+     * The arena has to survive, because the swap stub runs out of it. Every
+     * sibling port puts that stub in console RAM -- the ColecoVision has 1K at
+     * $6000, the Astrocade has screen RAM -- but the Channel F has NO RAM of
+     * its own at all, so the cart's arena is the only memory the stub can
+     * execute from. Tearing it down at swap time would pull the ground out
+     * from under the instruction that triggered the swap.
+     *
+     * Killing the DECODE is what actually matters: it stops a booted game's
+     * stray stores from writing registers or triggering another swap. The
+     * side effect is that a booted Videocart inherits 32K of RAM it would not
+     * have on a real cart -- which is accurate for THIS cart, and which no
+     * commercial Videocart looks for. */
+    bool mailbox;
 } chf_mem_t;
 
 /* What a write into the mailbox pages meant. The caller drains this after each
@@ -89,7 +105,7 @@ static inline uint8_t chf_read(const chf_mem_t *m, uint16_t a)
             /* The register and TX pages are write-only. Reading them is inert
              * -- no armed register, no TX byte, nothing. That is what deletes
              * the whole stray-read hazard class the read-hotspot ports carry. */
-            if (off >= FN_H_REGSEL)
+            if (m->mailbox && off >= FN_H_REGSEL)
                 return 0xFF;
             return m->ram[off];
         }
@@ -108,6 +124,12 @@ static inline chf_ev_t chf_write(chf_mem_t *m, uint16_t a, uint8_t v,
     uint32_t off = (uint32_t)(a - m->ram_base);
     if (off >= m->ram_size)
         return CHF_EV_NONE;
+
+    if (!m->mailbox) {
+        /* Decode is dead: the whole arena is plain RAM. */
+        m->ram[off] = v;
+        return CHF_EV_NONE;
+    }
 
     if (off < FN_RAM_TOP) {
         m->ram[off] = v;

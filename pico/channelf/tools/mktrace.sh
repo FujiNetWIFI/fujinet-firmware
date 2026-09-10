@@ -28,6 +28,11 @@ for c in hello romctest; do
           -autoboot_script "$OLDPWD/emu/shot.lua" \
           -snapshot_directory "$OLDPWD/build/snap" \
           -video none -sound none -nothrottle -seconds_to_run 30 >/dev/null 2>&1 )
+    # Stamp the image the trace was captured from. A trace is only meaningful
+    # against the exact bytes that produced it -- edit a shared include and
+    # every client shifts, and the replay then fails deep in the run with a
+    # register divergence that looks like an observer bug.
+    sha256sum "build/$c.bin" | cut -d" " -f1 > "$OUT/$c.sha"
     n=$(( $(stat -c%s "$OUT/$c.trace") / 10 ))
     echo "mktrace: $c.trace: $n bus cycles"
 done
