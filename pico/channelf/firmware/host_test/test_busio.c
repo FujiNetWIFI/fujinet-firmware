@@ -1,11 +1,16 @@
 /* test_busio.c -- the parts of the bus observer no golden trace can reach.
  *
  * test_romc.c replays traces from MAME running a STANDARD Videocart, which has
- * neither RAM nor cart I/O ports. So two things it can never exercise:
+ * neither RAM nor cart I/O ports nor a mailbox. So nothing there exercises:
  *   - the ROMC 05 write path and reading that data back through ROMC 02,
- *     which is the whole basis for handing the console 30K of real RAM
- *   - the ROMC 03 -> 1A/1B I/O port latch
- * Both are checked here against hand-computed expectations.
+ *     which is the basis for handing the console 30K of real RAM;
+ *   - the mailbox write decode: which store means a register write, which
+ *     means a TX append, which means the ROM swap, and which is simply
+ *     dropped;
+ *   - that the register and TX pages are INERT on reads, the property that
+ *     deletes the stray-read hazard the sibling ports defend against;
+ *   - the ROMC 03 -> 1A/1B I/O port latch.
+ * All checked here against hand-computed expectations.
  *
  * Compiled with the cart claiming ports $20-$27, the historic Videocart PSU
  * range, so the claim logic is live.
@@ -15,6 +20,7 @@
 #include <string.h>
 
 #include "channelf_cart.h"
+#include "fuji_mailbox.h"
 
 static int fails;
 
@@ -28,26 +34,23 @@ static int fails;
         }                                                                    \
     } while (0)
 
-#define RAM_BASE 0x8000u
-#define RAM_SIZE 0x7800u /* $8000-$F7FF, the plan's 30K window */
+static uint8_t rom[FN_ROM_SIZE];
 
-static uint8_t rom[0x4000];
-
-/* RAM with guard bands either side: an observer that loses a bounds check
- * writes just past the window, which a plain array would turn into undetected
- * UB rather than a failing assertion. */
+/* The arena with guard bands either side: an observer that loses a bounds
+ * check writes just past the window, which a plain array would turn into
+ * undetected UB rather than a failing assertion. */
 #define GUARD 64
 static struct {
     uint8_t lo[GUARD];
-    uint8_t ram[RAM_SIZE];
+    uint8_t arena[FN_ARENA_SIZE];
     uint8_t hi[GUARD];
-} arena;
-static uint8_t *const ram = arena.ram;
+} a;
+static uint8_t *const arena = a.arena;
 
 static int guards_clean(void)
 {
     for (unsigned i = 0; i < GUARD; i++)
-        if (arena.lo[i] || arena.hi[i])
+        if (a.lo[i] || a.hi[i])
             return 0;
     return 1;
 }
@@ -65,17 +68,37 @@ static uint8_t run(uint8_t romc, uint8_t dbus, bool *drive, uint8_t *dval)
     return eff;
 }
 
+/* Store `v` at console address `addr` through a ROMC 05 cycle. */
+static void store(uint16_t addr, uint8_t v)
+{
+    bus.dc0 = addr;
+    run(0x05, v, NULL, NULL);
+}
+
+/* Read the byte at console address `addr` through a ROMC 02 cycle. */
+static uint8_t load(uint16_t addr, bool *drive)
+{
+    uint8_t dval = 0;
+    bus.dc0 = addr;
+    run(0x02, 0x00, drive, &dval);
+    return dval;
+}
+
 int main(void)
 {
     memset(&mem, 0, sizeof mem);
+    memset(&a, 0, sizeof a);
     mem.rom = rom;
     mem.rom_size = sizeof rom;
-    mem.ram = arena.ram;
-    mem.ram_base = RAM_BASE;
-    mem.ram_size = RAM_SIZE;
+    mem.ram = arena;
+    mem.ram_base = FN_ARENA_BASE;
+    mem.ram_size = FN_ARENA_SIZE;
     for (unsigned i = 0; i < sizeof rom; i++)
         rom[i] = (uint8_t)(i ^ 0x5A);
-    memset(&arena, 0, sizeof arena);
+    memset(&bus, 0, sizeof bus);
+
+    bool drive;
+    uint8_t dval;
 
     /* --- ownership boundary is exactly $0800 --- */
     CHECK(!chf_owns(0x0000), "$0000 must belong to the BIOS");
@@ -83,73 +106,131 @@ int main(void)
     CHECK(chf_owns(0x0800), "$0800 is the first cart byte");
     CHECK(chf_owns(0xFFFF), "$FFFF is ours");
 
-    /* --- reads out of the cart's ROM window --- */
-    memset(&bus, 0, sizeof bus);
-    bus.pc0 = 0x0800;
-    bool drive;
-    uint8_t dval;
+    /* --- the ROM window at $0800 --- */
+    bus.pc0 = FN_ROM_BASE;
     run(0x00, 0xFF, &drive, &dval);
     CHECK(drive, "must drive an instruction fetch from $0800");
     CHECK(dval == rom[0], "fetch at $0800 gave $%02X, want $%02X", dval, rom[0]);
-    CHECK(bus.pc0 == 0x0801, "PC0 must post-increment, got $%04X", bus.pc0);
+    CHECK(bus.pc0 == FN_ROM_BASE + 1, "PC0 must post-increment, got $%04X", bus.pc0);
 
-    /* the BIOS window is not ours */
-    bus.pc0 = 0x0400;
+    bus.pc0 = 0x0400; /* BIOS window is not ours */
     run(0x00, 0x42, &drive, &dval);
     CHECK(!drive, "must not drive a fetch from BIOS space");
     CHECK(bus.pc0 == 0x0401, "PC0 still increments for other devices' cycles");
 
-    /* unpopulated cart space floats high */
-    bus.dc0 = 0x7000; /* past rom_size, below RAM */
-    run(0x02, 0x00, &drive, &dval);
-    CHECK(drive, "unpopulated cart space is still ours to answer");
-    CHECK(dval == 0xFF, "unpopulated space must read $FF, got $%02X", dval);
+    /* the gap between the ROM window and the arena is unpopulated */
+    dval = load(0x5000, &drive);
+    CHECK(drive && dval == 0xFF, "$5000 is unpopulated, must read $FF, got $%02X", dval);
 
-    /* --- ROMC 05: the write cycle, and reading it back --- */
-    bus.dc0 = RAM_BASE + 0x10;
-    run(0x05, 0xA5, &drive, &dval);
+    /* --- the RAM arena: store, auto-increment, read back --- */
+    bus.dc0 = FN_ARENA_BASE + 0x10;
+    run(0x05, 0xA5, &drive, NULL);
     CHECK(!drive, "the CPU sources a store; the cart must not drive");
-    CHECK(bus.dc0 == RAM_BASE + 0x11, "DC0 must post-increment on a store");
-    CHECK(ram[0x10] == 0xA5, "store did not land in RAM (got $%02X)", ram[0x10]);
-
+    CHECK(bus.dc0 == FN_ARENA_BASE + 0x11, "DC0 must post-increment on a store");
+    CHECK(bus.ev == CHF_EV_NONE, "a plain RAM store raises no mailbox event");
     run(0x05, 0x5A, NULL, NULL); /* consecutive stores walk DC0 */
-    CHECK(ram[0x11] == 0x5A, "second store landed wrong (got $%02X)", ram[0x11]);
-    CHECK(bus.dc0 == RAM_BASE + 0x12, "DC0 after two stores");
+    CHECK(arena[0x10] == 0xA5 && arena[0x11] == 0x5A, "consecutive stores");
 
-    bus.dc0 = RAM_BASE + 0x10;
+    bus.dc0 = FN_ARENA_BASE + 0x10;
     run(0x02, 0x00, &drive, &dval);
     CHECK(drive && dval == 0xA5, "read back $%02X, want $A5", dval);
     run(0x02, 0x00, &drive, &dval);
     CHECK(drive && dval == 0x5A, "read back $%02X, want $5A", dval);
 
-    /* a store into the ROM window must be swallowed, not aliased into RAM */
+    /* the top of RAM is the last plain byte */
+    store((uint16_t)(FN_ARENA_BASE + FN_RAM_TOP - 1), 0x77);
+    CHECK(arena[FN_RAM_TOP - 1] == 0x77, "$F7FF is the last RAM byte");
+    CHECK(guards_clean(), "a store at the top of RAM ran past the arena");
+
+    /* a store into the ROM window is swallowed, not aliased into the arena */
     uint8_t before = rom[0x100];
-    bus.dc0 = 0x0900;
+    store(0x0900, 0x99);
+    CHECK(rom[0x100] == before, "a store to the ROM window must not modify it");
+    CHECK(guards_clean(), "a store to the ROM window reached the arena");
+
+    /* --- the painted pages: readable, but console stores are dropped --- */
+    arena[FN_R_DATA] = 0x11;
+    arena[FN_R_MAGIC0] = 'F';
+    dval = load((uint16_t)(FN_ARENA_BASE + FN_R_DATA), &drive);
+    CHECK(drive && dval == 0x11, "the reply window must be readable, got $%02X", dval);
+    dval = load((uint16_t)(FN_ARENA_BASE + FN_R_MAGIC0), &drive);
+    CHECK(drive && dval == 'F', "the status page must be readable, got $%02X", dval);
+
+    store((uint16_t)(FN_ARENA_BASE + FN_R_DATA), 0xEE);
+    CHECK(arena[FN_R_DATA] == 0x11, "a console store must not corrupt a reply");
+    CHECK(bus.ev == CHF_EV_NONE, "a store into the reply window raises no event");
+
+    /* --- the register and TX pages are write-only: reads are inert --- */
+    dval = load((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL), &drive);
+    CHECK(drive && dval == 0xFF, "the REGSEL page must read $FF, got $%02X", dval);
+    CHECK(bus.ev == CHF_EV_NONE, "reading the REGSEL page must raise no event");
+    dval = load((uint16_t)(FN_ARENA_BASE + FN_H_DATA + 0x42), &drive);
+    CHECK(drive && dval == 0xFF, "the TX page must read $FF, got $%02X", dval);
+    CHECK(bus.ev == CHF_EV_NONE, "reading the TX page must append nothing");
+
+    /* --- one store is one whole register write --- */
+    store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + FN_REG_CMD), 0xF9);
+    CHECK(bus.ev == CHF_EV_REG, "a REGSEL store must raise CHF_EV_REG");
+    CHECK(bus.ev_reg == FN_REG_CMD && bus.ev_val == 0xF9,
+          "register write gave reg $%02X = $%02X, want $%02X = $F9",
+          bus.ev_reg, bus.ev_val, FN_REG_CMD);
+    CHECK(arena[FN_H_REGSEL + FN_REG_CMD] == 0x00,
+          "a register store must not also land in the arena");
+
+    store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + FN_REG_SEQ), 0x01);
+    CHECK(bus.ev == CHF_EV_REG && bus.ev_reg == FN_REG_SEQ && bus.ev_val == 0x01,
+          "SEQ register write");
+
+    /* the raw REGDATA half still decodes, for a sibling-shaped client */
+    store((uint16_t)(FN_ARENA_BASE + FN_H_REGDATA + FN_REG_NPARAM), 0x03);
+    CHECK(bus.ev == CHF_EV_REG && bus.ev_reg == FN_REG_NPARAM && bus.ev_val == 0x03,
+          "raw REGDATA write");
+
+    /* --- special ops live in the bit7-set half --- */
+    store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + FN_HOT_SWAP), 0x00);
+    CHECK(bus.ev == CHF_EV_SWAP, "a store to $FDFE must raise CHF_EV_SWAP");
+
+    store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + 0x80), 0x00);
+    CHECK(bus.ev == CHF_EV_NONE, "an undefined special op must be a no-op");
+    store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + 0x7F), 0x5A);
+    CHECK(bus.ev == CHF_EV_REG && bus.ev_reg == 0x7F,
+          "register $7F is the last real register, not a special op");
+
+    /* --- the TX page appends anywhere in the page, so one DCI covers a run --- */
+    bus.dc0 = (uint16_t)(FN_ARENA_BASE + FN_H_DATA);
+    static const uint8_t msg[] = { 'N', ':', 'T', 'C', 'P', 0 };
+    for (unsigned i = 0; i < sizeof msg; i++) {
+        run(0x05, msg[i], NULL, NULL);
+        CHECK(bus.ev == CHF_EV_TX, "TX byte %u must raise CHF_EV_TX", i);
+        CHECK(bus.ev_val == msg[i], "TX byte %u was $%02X, want $%02X",
+              i, bus.ev_val, msg[i]);
+    }
+    CHECK(bus.dc0 == FN_ARENA_BASE + FN_H_DATA + sizeof msg,
+          "DC0 walks the TX page as the client stores");
+    CHECK(guards_clean(), "TX stores reached the arena");
+
+    /* the last byte of the page still appends; the next store wraps to $0000,
+     * which is BIOS ROM and inert */
+    bus.dc0 = 0xFFFF;
+    run(0x05, 0x5A, NULL, NULL);
+    CHECK(bus.ev == CHF_EV_TX && bus.ev_val == 0x5A, "$FFFF still appends");
+    CHECK(bus.dc0 == 0x0000, "DC0 wraps past $FFFF");
     run(0x05, 0x99, NULL, NULL);
-    CHECK(rom[0x100] == before, "a store to ROM space must not modify it");
+    CHECK(bus.ev == CHF_EV_NONE, "a store into BIOS space is inert");
 
-    /* stores outside the RAM window must land nowhere at all -- not wrapped
-     * to its base, and not one byte past either end */
-    bus.dc0 = (uint16_t)(RAM_BASE + RAM_SIZE); /* $F800, the reply window */
-    run(0x05, 0x77, NULL, NULL);
-    CHECK(ram[0] == 0x00, "a store past the RAM window must not wrap to its base");
-    CHECK(guards_clean(), "a store at $F800 ran off the top of the RAM window");
+    /* --- a booted Videocart has no arena at all --- */
+    mem.ram = NULL;
+    dval = load(0x9000, &drive);
+    CHECK(drive && dval == 0xFF, "with no arena, $9000 is open bus, got $%02X", dval);
+    store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + FN_REG_SEQ), 0x02);
+    CHECK(bus.ev == CHF_EV_NONE, "with the mailbox dead, a register store is inert");
+    bus.pc0 = FN_ROM_BASE;
+    run(0x00, 0xFF, &drive, &dval);
+    CHECK(drive && dval == rom[0], "the ROM window still answers with no arena");
+    mem.ram = arena;
 
-    bus.dc0 = RAM_BASE - 1; /* $7FFF, just below */
-    run(0x05, 0x66, NULL, NULL);
-    CHECK(guards_clean(), "a store at $7FFF ran off the bottom of the RAM window");
-
-    bus.dc0 = 0xFFFF; /* the TX page */
-    run(0x05, 0x55, NULL, NULL);
-    CHECK(guards_clean(), "a store at $FFFF reached the RAM window");
-
-    /* and the same for reads */
-    bus.dc0 = (uint16_t)(RAM_BASE + RAM_SIZE);
-    run(0x02, 0x00, &drive, &dval);
-    CHECK(drive && dval == 0xFF, "$F800 is unpopulated for now, must read $FF");
-
-    /* --- the cart must stay off the bus whenever the naming register points
-     * into BIOS space, or two devices drive it at once on real hardware --- */
+    /* --- the cart stays off the bus when the naming register points at the
+     * BIOS, or two devices drive it at once on real hardware --- */
     bus.dc0 = 0x0400;
     run(0x02, 0x11, &drive, NULL);
     CHECK(!drive, "ROMC 02 with DC0 in BIOS space must not drive");
@@ -169,7 +250,6 @@ int main(void)
     run(0x1F, 0x11, &drive, NULL);
     CHECK(!drive, "ROMC 1F with PC0 in BIOS space must not drive");
 
-    /* and it must drive when they point at cart space */
     bus.dc0 = 0x9000;
     run(0x06, 0x11, &drive, &dval);
     CHECK(drive && dval == 0x90, "ROMC 06 must drive DC0 high ($90), got $%02X", dval);
@@ -183,22 +263,18 @@ int main(void)
     CHECK(drive && dval == 0xCD, "ROMC 0B must drive PC1 low ($CD), got $%02X", dval);
 
     /* --- ROMC 03 latches an I/O port; 1A/1B use it --- */
-    bus.pc0 = 0x0810;
+    bus.pc0 = FN_ROM_BASE + 0x10;
     run(0x03, 0x00, &drive, &dval);
     CHECK(drive, "ROMC 03 is an operand fetch and is ours at $0810");
     CHECK(bus.io == rom[0x10], "ROMC 03 must latch the bus value as the port");
 
-    /* claimed port: the cart answers an IN */
     bus.io = 0x24;
     run(0x1B, 0x00, &drive, &dval);
     CHECK(drive, "port $24 is claimed, the cart must answer IN");
-
-    /* unclaimed port: stay off the bus */
     bus.io = 0x05;
     run(0x1B, 0x00, &drive, &dval);
     CHECK(!drive, "port $05 is the console's; the cart must not answer");
 
-    /* an OUT is CPU-sourced whether or not we claim the port */
     bus.io = 0x24;
     uint16_t pc0 = bus.pc0, dc0 = bus.dc0;
     run(0x1A, 0x33, &drive, &dval);
@@ -214,6 +290,8 @@ int main(void)
     CHECK(!drive, "the CPU drives zero during ROMC 08");
     CHECK(bus.pc1 == 0x1234, "ROMC 08 copies PC0 into PC1");
     CHECK(bus.pc0 == 0x0000, "ROMC 08 clears PC0");
+
+    CHECK(guards_clean(), "something ran off the end of the arena");
 
     if (fails) {
         fprintf(stderr, "test_busio: FAIL, %d checks\n", fails);

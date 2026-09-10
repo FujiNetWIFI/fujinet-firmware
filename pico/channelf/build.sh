@@ -9,7 +9,6 @@ cd "$(dirname "$0")"
 ASL="${ASL:-$HOME/asl/asl}"
 P2BIN="${P2BIN:-$HOME/asl/p2bin}"
 ROM_BASE=0x800
-ROM_END="${ROM_END:-0xfff}"          # 2K default; larger clients override
 
 [ -x "$ASL" ]   || { echo "build.sh: no assembler at $ASL" >&2; exit 1; }
 [ -x "$P2BIN" ] || { echo "build.sh: no p2bin at $P2BIN" >&2; exit 1; }
@@ -22,11 +21,19 @@ clients=("$@")
 
 for c in "${clients[@]}"; do
     echo "=== $c ==="
+    # A FujiNet client must be exactly 16K, because the "FUJI" claim sits at the
+    # very top of the window ($47FC) and that is what tells the cart to keep the
+    # mailbox alive after a boot. hello and romctest are plain 2K Videocarts
+    # that never touch the mailbox, so they stay the size a real cart would be.
+    case "$c" in
+        hello|romctest) rom_end=0x0fff; claim="" ;;
+        *)              rom_end=0x47ff; claim="--claim" ;;
+    esac
     ( cd testrom && "$ASL" "$c.asm" -L -i . -q )
     # -l 0xff fills the gaps; note p2bin's -f FILTERS records out and would
     # silently produce an empty image, and -s would append a checksum byte.
-    "$P2BIN" "testrom/$c.p" "build/$c.bin" -r "$ROM_BASE-$ROM_END" -l 0xff -q
+    "$P2BIN" "testrom/$c.p" "build/$c.bin" -r "$ROM_BASE-$rom_end" -l 0xff -q
     mv -f "testrom/$c.lst" "build/$c.lst" 2>/dev/null || true
     rm -f "testrom/$c.p"
-    python3 tools/checkrom.py "build/$c.bin"
+    python3 tools/checkrom.py "build/$c.bin" $claim
 done

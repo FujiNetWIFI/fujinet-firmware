@@ -239,3 +239,33 @@ DSSKIP:	LR A,5
 	BR DSTRLP
 
 DSTRZ:	POP
+
+; ---------------------------------------------------------------------------
+; DHEXS -- format r0 as two hex digits plus a NUL, at DC0.
+;   The caller then points DC0 at the same buffer and calls DSTR. Split in two
+;   rather than drawing directly because the F8 keeps exactly one return
+;   address, so a routine reached by PI cannot itself PI into DSTR.
+;
+;   Takes its byte in r0, NOT in the accumulator: PI and JMP both load the
+;   target address's high byte into A as scratch storage, so A DOES NOT SURVIVE
+;   A CALL on this CPU. Nothing here may take or return an argument in A across
+;   one. (Returning a value in A is fine -- POP does not touch it.)
+;   Clobbers A, DC0.
+; ---------------------------------------------------------------------------
+DHEXS:	LR A,0
+	SR 4
+	AI 030H			; '0'
+	CI 039H
+	BP DHEXS1		; $39 >= A: it is a digit
+	AI 007H			; otherwise skip ':' .. '@' to reach 'A'
+DHEXS1:	ST
+	LR A,0
+	NI 0FH
+	AI 030H
+	CI 039H
+	BP DHEXS2
+	AI 007H
+DHEXS2:	ST
+	CLR
+	ST
+	POP

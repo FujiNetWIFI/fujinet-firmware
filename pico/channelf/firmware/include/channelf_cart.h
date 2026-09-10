@@ -25,6 +25,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "fuji_mailbox.h"
+
 /* The console BIOS owns $0000-$07FF; everything at or above this is ours. */
 #define CHF_ROM_BASE 0x0800u
 
@@ -42,18 +44,35 @@
 typedef struct {
     uint16_t pc0, pc1, dc0, dc1;
     uint8_t io; /* port address latched by the preceding ROMC 03 */
+    /* Set by the cycle just run; the caller drains them. Kept in the state
+     * struct rather than added as out-parameters so chf_bus_cycle's signature
+     * stays the one test_romc.c replays golden traces through. */
+    uint8_t ev;     /* chf_ev_t */
+    uint8_t ev_reg;
+    uint8_t ev_val;
 } chf_bus_t;
 
-/* Flat view of what the cart answers with. The mailbox layers on top of this
- * at M1; keeping it a plain span here lets test_romc.c exercise the state
- * machine on its own. */
+/* What the cart answers with: a ROM window at $0800 and, when the mailbox is
+ * live, a 32K arena at $8000 that is part RAM and part painted mailbox.
+ * `ram` NULL models a booted Videocart -- no arena fitted, so $8000 up reads
+ * as open bus, exactly as a real cart with no RAM behaves. */
 typedef struct {
     const uint8_t *rom; /* covers CHF_ROM_BASE .. +rom_size-1 */
     uint32_t rom_size;
-    uint8_t *ram; /* covers ram_base .. +ram_size-1, may be NULL */
+    uint8_t *ram; /* the arena: ram_base .. +ram_size-1, may be NULL */
     uint16_t ram_base;
     uint32_t ram_size;
 } chf_mem_t;
+
+/* What a write into the mailbox pages meant. The caller drains this after each
+ * cycle; on the cartridge core1 pushes it into a ring and core0 replays it
+ * into fujimail.c, and in MAME it is dispatched inline. */
+typedef enum {
+    CHF_EV_NONE = 0,
+    CHF_EV_REG,  /* register ev_reg = ev_val */
+    CHF_EV_TX,   /* append ev_val to the TX stream */
+    CHF_EV_SWAP, /* the armed ROM-window swap hotspot */
+} chf_ev_t;
 
 static inline bool chf_owns(uint16_t a)
 {
@@ -62,17 +81,70 @@ static inline bool chf_owns(uint16_t a)
 
 static inline uint8_t chf_read(const chf_mem_t *m, uint16_t a)
 {
-    if (m->ram && a >= m->ram_base && (uint32_t)(a - m->ram_base) < m->ram_size)
-        return m->ram[a - m->ram_base];
     if (m->rom && a >= CHF_ROM_BASE && (uint32_t)(a - CHF_ROM_BASE) < m->rom_size)
         return m->rom[a - CHF_ROM_BASE];
+    if (m->ram && a >= m->ram_base) {
+        uint32_t off = (uint32_t)(a - m->ram_base);
+        if (off < m->ram_size) {
+            /* The register and TX pages are write-only. Reading them is inert
+             * -- no armed register, no TX byte, nothing. That is what deletes
+             * the whole stray-read hazard class the read-hotspot ports carry. */
+            if (off >= FN_H_REGSEL)
+                return 0xFF;
+            return m->ram[off];
+        }
+    }
     return 0xFF; /* unpopulated cart space floats high */
 }
 
-static inline void chf_write(chf_mem_t *m, uint16_t a, uint8_t v)
+/* A store into the cart's space. Returns the mailbox event it meant, if any;
+ * plain RAM and ignored writes return CHF_EV_NONE. */
+static inline chf_ev_t chf_write(chf_mem_t *m, uint16_t a, uint8_t v,
+                                 uint8_t *ev_reg, uint8_t *ev_val)
 {
-    if (m->ram && a >= m->ram_base && (uint32_t)(a - m->ram_base) < m->ram_size)
-        m->ram[a - m->ram_base] = v;
+    if (!m->ram || a < m->ram_base)
+        return CHF_EV_NONE; /* ROM window and open bus swallow stores */
+
+    uint32_t off = (uint32_t)(a - m->ram_base);
+    if (off >= m->ram_size)
+        return CHF_EV_NONE;
+
+    if (off < FN_RAM_TOP) {
+        m->ram[off] = v;
+        return CHF_EV_NONE;
+    }
+
+    switch (off & 0xFF00u) {
+    case FN_H_REGSEL: {
+        uint8_t n = (uint8_t)(off & 0xFFu);
+        if (n < 0x80) {
+            /* One store is a whole register write. The cart synthesises the
+             * REGSEL/REGDATA pair that fujimail.c decodes, so that file stays
+             * byte-identical to the sibling ports. */
+            *ev_reg = n;
+            *ev_val = v;
+            return CHF_EV_REG;
+        }
+        if (n == FN_HOT_SWAP)
+            return CHF_EV_SWAP;
+        return CHF_EV_NONE; /* other special ops are undefined, not errors */
+    }
+    case FN_H_REGDATA:
+        /* The raw REGDATA half. Nothing on this console needs it -- a REGSEL
+         * store already carries the value -- but it is decoded so a client
+         * written to the sibling ports' two-step shape still works. */
+        *ev_reg = (uint8_t)(off & 0xFFu);
+        *ev_val = v;
+        return CHF_EV_REG;
+    case FN_H_DATA:
+        /* Anywhere in the page, so a client sets DC0 once and runs STs. */
+        *ev_val = v;
+        return CHF_EV_TX;
+    default:
+        /* $F800-$FCFF: the painted reply and status. Cart-owned; a console
+         * store here is dropped rather than allowed to corrupt a reply. */
+        return CHF_EV_NONE;
+    }
 }
 
 static inline bool chf_owns_io(uint8_t port)
@@ -97,6 +169,8 @@ static inline uint8_t chf_bus_cycle(chf_bus_t *b, chf_mem_t *m, uint8_t romc,
 {
     bool dr = false;
     uint8_t out = 0xFF;
+
+    b->ev = CHF_EV_NONE;
 
     /* Phase 1: decide whether we source the bus, and with what. */
     switch (romc) {
@@ -140,7 +214,10 @@ static inline uint8_t chf_bus_cycle(chf_bus_t *b, chf_mem_t *m, uint8_t romc,
     case 0x02: b->dc0++; break;
     case 0x03: b->pc0++; b->io = eff; break; /* also latches an I/O address */
     case 0x04: b->pc0 = b->pc1; break;
-    case 0x05: if (chf_owns(b->dc0)) chf_write(m, b->dc0, eff); b->dc0++; break;
+    case 0x05:
+        b->ev = (uint8_t)chf_write(m, b->dc0, eff, &b->ev_reg, &b->ev_val);
+        b->dc0++;
+        break;
     case 0x06: case 0x07: case 0x09: case 0x0B: case 0x1E: case 0x1F: break;
     case 0x08: b->pc1 = b->pc0; b->pc0 = (uint16_t)(eff * 0x0101u); break;
     case 0x0A: b->dc0 = (uint16_t)(b->dc0 + (int8_t)eff); break;
