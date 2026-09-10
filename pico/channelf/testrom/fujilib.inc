@@ -182,11 +182,18 @@ FNRXL:	DCI FNRXLO
 
 ; ---------------------------------------------------------------------------
 ; FNPB -- append a one-byte parameter: the size byte 1, then the value in r0.
-;   DC0 must already be inside the TX page.
 ;   Takes its value in r0, not A: A does not survive a PI (see DHEXS).
-;   Clobbers A.
+;
+;   Points DC0 at the TX page itself rather than trusting the caller to have
+;   left it there. A write ANYWHERE in that page appends, so re-pointing costs
+;   nothing and cannot rewind the stream -- the write cursor lives in the cart.
+;   Without this, any DCI between FNBEG and here (reading a variable, say)
+;   silently redirects the parameter bytes into RAM: the command then goes out
+;   with no parameters at all AND scribbles over whatever it pointed at.
+;   Clobbers A, DC0.
 ; ---------------------------------------------------------------------------
-FNPB:	LIS 1
+FNPB:	DCI FNTX
+	LIS 1
 	ST			; parameter size
 	LR A,0
 	ST			; parameter value, little-endian
@@ -240,3 +247,35 @@ FNACK:	DCI FNERR
 	POP
 FNACKO:	CLR
 FNACKX:	POP
+
+; ---------------------------------------------------------------------------
+; FNPW -- append a two-byte parameter: the size byte 2, then r0 (low) and
+;   r1 (high), little-endian. Points DC0 at the TX page itself; see FNPB.
+;   Clobbers A, DC0.
+; ---------------------------------------------------------------------------
+FNPW:	DCI FNTX
+	LIS 2
+	ST
+	LR A,0
+	ST
+	LR A,1
+	ST
+	POP
+
+; ---------------------------------------------------------------------------
+; FNEOF -- is the reply the two-byte $7F,$7F end-of-directory marker?
+;   Returns with Z set at end of directory.
+;
+;   Never read past it. A fujinet-pc SD host answers a position past the end by
+;   returning ".." over and over rather than the marker, and once that has
+;   happened every later SET_DIRECTORY_POSITION NAKs for the rest of the
+;   session -- a trap the ColecoVision port paid for.
+;   Clobbers A, DC0.
+; ---------------------------------------------------------------------------
+FNEOF:	DCI FNREPLY
+	LM
+	CI 07FH
+	BNZ FNEOFX
+	LM
+	CI 07FH
+FNEOFX:	POP
