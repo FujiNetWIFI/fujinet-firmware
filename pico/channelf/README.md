@@ -34,7 +34,8 @@ cycle corrupts its shadow registers permanently.
 | M2 | network boot, byte-identical | **done** |
 | M3 | directory browser: cursor, descend, boot | **done** |
 | M4 | RP2040 firmware, core1 SRAM-resident | **done** |
-| M6, M7 | soak, CONFIG + 5 Card Stud | not started |
+| M6 | soak: 20/20 images pushed, booted, byte-compared | **done** |
+| M7 | full CONFIG + 5 Card Stud | not started |
 
 M5 was pulled ahead of the rest deliberately. It is the only genuinely novel
 component and the only one with no template in the sibling ports, so it is the
@@ -68,7 +69,7 @@ put a scope on.
 ## Verification
 
 ```
-cd firmware/host_test && make          # test_busio + test_romc
+cd firmware/host_test && make          # test_busio + test_chfmap + test_romc
 ./build.sh hello romctest              # console clients
 tools/mktrace.sh ~/Workspace/mame      # regenerate golden ROMC traces
 ```
@@ -86,8 +87,20 @@ device asserting `/INTREQ` and the console wires no interrupt source, and
 `1E`/`1F` are emitted by no F8 instruction at all. A 30-mutation sweep against
 the observer is caught 30/30.
 
-`test_busio` covers what no trace can: the RAM data path and the I/O port
-latch, neither of which exists on the standard Videocart MAME runs.
+`test_busio` covers what no trace can: the RAM data path, the mailbox write
+decode and the I/O port latch, none of which exists on the standard Videocart
+MAME runs. `test_chfmap` checks the image mapper against an expectation written
+out separately from the implementation, plus a fuzz over every size.
+
+`tools/soak.sh` pushes a corpus over the network, boots each image and compares
+the whole served window against the file on disk -- including that everything
+past the image reads `$FF`, which is what MAME's own stock Videocart device
+answers past its ROM size. **20/20**, from a 1-byte image to a full 16K window.
+There is no Channel F ROM set on this machine (MAME ships only the BIOS), so
+`tools/mkcorpus.py` generates the images; the sizes are every real Videocart
+size plus every boundary, and two full-window images differing only in the
+claim confirm that one keeps the mailbox alive across the boot and the other
+does not.
 
 ## Platform facts, each verified against a source rather than recalled
 
