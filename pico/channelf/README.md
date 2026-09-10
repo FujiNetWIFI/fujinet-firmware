@@ -35,11 +35,21 @@ cycle corrupts its shadow registers permanently.
 | M3 | directory browser: cursor, descend, boot | **done** |
 | M4 | RP2040 firmware, core1 SRAM-resident | **done** |
 | M6 | soak: 20/20 images pushed, booted, byte-compared | **done** |
-| M7 | full CONFIG + 5 Card Stud | not started |
+| M7 | full CONFIG + 5 Card Stud | **done** |
 
 M5 was pulled ahead of the rest deliberately. It is the only genuinely novel
 component and the only one with no template in the sibling ports, so it is the
 thing worth failing early.
+
+The two applications live in their own repositories:
+`fujinet-config/channelf` (5,875 bytes, Astrocade parity) and
+`fujinet-5cardstud/channelf` (4,767 bytes). Both are driven headless from here
+-- `emu/cfgdrive.lua` takes CONFIG from power-on to a byte-identical booted
+cartridge, and `emu/5carddrive.lua` types a name, lists the real tables and
+renders a live seven-player hand.
+
+Not done: hardware. That was the agreed stopping point, and the bus **timing**
+is the one thing emulation cannot settle -- see below.
 
 ## The cartridge firmware
 
