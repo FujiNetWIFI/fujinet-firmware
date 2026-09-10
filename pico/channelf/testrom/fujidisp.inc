@@ -147,7 +147,8 @@ DPDLY:	DS 8
 ; than called, because the F8 keeps exactly one return address (PC1) and
 ; nesting would need the BIOS K-stack in the inner loop.
 ;
-; Lowercase folds to uppercase and anything outside $20-$5F becomes '?'.
+; Anything outside $20-$7F becomes '?'. Nothing is case-folded: the font covers
+; full ASCII, and the on-screen keyboard needs the case it typed to show.
 ; ---------------------------------------------------------------------------
 DSTR:	LR A,3
 	COM
@@ -157,15 +158,10 @@ DSTRLP:	LM			; A = char, DC0++
 	CI 0
 	BZ DSTRZ
 
-	CI 60H
-	BP DSNOLC		; $60 >= A: not lowercase
-	CI 7AH
-	BM DSNOLC		; A > $7A: not lowercase
-	AI 0E0H			; -$20, fold to uppercase
-DSNOLC:	CI 1FH
+	CI 1FH
 	BP DSBAD		; A <= $1F
-	CI 5FH
-	BM DSBAD		; A > $5F
+	CI FNTLST
+	BM DSBAD		; A > $7F
 	BR DSOK
 DSBAD:	LI 3FH			; '?'
 DSOK:	AI 0E0H			; -FNTFST: glyph index 0..63
@@ -184,8 +180,8 @@ DSROW:	LM			; A = this row's 3 bits; DC0++
 	SL 4
 	SL 1			; bit 2 -> bit 7
 	LR 5,A
-	LI 63
-	ADC			; DC0 += 63: same glyph, next row table
+	LI FNTCNT-1
+	ADC			; same glyph, next row table (LM already stepped one)
 
 	LR A,2
 	AS 6

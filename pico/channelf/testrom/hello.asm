@@ -85,8 +85,8 @@ ENTRY:	DI
 HALT:	BR HALT
 
 MSG1:	DB "FUJINET CHANNEL F",0
-MSG2:	DB "M0 DISPLAY TEST",0
-MSG3:	DB "abc lowercase folds",0
+MSG2:	DB "M0 Display Test",0
+MSG3:	DB "abcdefg lower + UPPER",0
 MSG4:	DB "01234567890123456789012",0
 MSG5:	DB "!\"#$%&'()*+,-./:;<=>?@",0
 MSG6:	DB "ROW 9 OF 9 -- 23 COLS",0

@@ -41,13 +41,26 @@ GLYPHS = {
     'Y': "#.#;#.#;###;.#.;.#.",   'Z': "###;..#;.#.;#..;###",
     '[': ".##;.#.;.#.;.#.;.##",   '\\': "#..;#..;.#.;..#;..#",
     ']': "##.;.#.;.#.;.#.;##.",   '^': ".#.;#.#;...;...;...",
-    '_': "...;...;...;...;###",
+    '_': "...;...;...;...;###",   '`': "#..;.#.;...;...;...",
+    '{': "..#;.#.;##.;.#.;..#",   '|': ".#.;.#.;.#.;.#.;.#.",
+    '}': "#..;.#.;.##;.#.;#..",   '~': "...;.##;###;##.;...",
+    '\x7f': "###;#.#;#.#;#.#;###",
 }
 
-FIRST, LAST = 0x20, 0x5F
+FIRST, LAST = 0x20, 0x7F
 
 
 def rows_for(ch):
+    # Lowercase is derived, not drawn. Three pixels wide leaves no room for
+    # real letterforms, so a-z are the uppercase glyph squashed into four rows
+    # -- the top two OR'd together -- which reads as "the same letter, shorter".
+    # An x-height difference is what the on-screen keyboard actually needs:
+    # SSIDs and passwords are case-sensitive, so the user has to be able to see
+    # which case they just typed, and only the height has to be unambiguous.
+    if 'a' <= ch <= 'z':
+        up = rows_for(ch.upper())
+        return [0, up[0] | up[1], up[2], up[3], up[4]]
+
     art = GLYPHS.get(ch)
     if art is None:
         art = GLYPHS['?']
@@ -78,6 +91,10 @@ def main():
     L.append("; so one signed ADC reaches any glyph. Bit 2 = leftmost pixel.")
     L.append("FNTFST\tEQU %02XH" % FIRST)
     L.append("FNTLST\tEQU %02XH" % LAST)
+    L.append("; Glyphs per row table. DSTR steps between tables by FNTCNT-1")
+    L.append("; (LM has already advanced DC0 by one), so this MUST stay under")
+    L.append("; 128: ADC treats the accumulator as signed.")
+    L.append("FNTCNT\tEQU %d" % (LAST - FIRST + 1))
     for r in range(5):
         L.append("")
         L.append("FNTR%d:" % r)
