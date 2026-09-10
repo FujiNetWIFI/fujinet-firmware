@@ -5,3 +5,4 @@ firmware/host_test/test_busio
 testrom/*.p
 testrom/*.lst
 testrom/font.inc
+testrom/bootcfg.inc

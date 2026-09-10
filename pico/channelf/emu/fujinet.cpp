@@ -155,22 +155,25 @@ void channelf_fujinet_cartridge_device::device_start()
 
 	m_mem.rom = m_window;
 	m_mem.rom_size = sizeof m_window;
-	m_mem.ram = nullptr;            // no arena until an image claims the mailbox
+	m_mem.ram = m_arena;
 	m_mem.ram_base = FN_ARENA_BASE;
 	m_mem.ram_size = sizeof m_arena;
+	m_mem.mailbox = false;          // until an image claims it
 
 	// No save_item for the mailbox: the protocol state lives in the shared C
 	// service's globals, which a save state cannot capture. Plain-Videocart
 	// mode saves fine; a live mailbox across save/load is not supported.
 }
 
-// The arena exists only while the mailbox is live. A booted Videocart carries
-// no claim, and a real cart with no RAM fitted leaves $8000-$FFFF undriven --
-// so dropping the pointer is not a shortcut, it is the accurate model.
+// The arena always answers; only the DECODE comes and goes. See chf_mem_t:
+// the swap stub executes out of the arena, and this console has no RAM of its
+// own to put it in, so tearing the arena down at swap time would kill the
+// instruction stream that triggered the swap.
 void channelf_fujinet_cartridge_device::set_mailbox(bool live)
 {
 	m_mailbox_live = live;
-	m_mem.ram = live ? m_arena : nullptr;
+	m_mem.ram = m_arena;
+	m_mem.mailbox = live;
 }
 
 void channelf_fujinet_cartridge_device::device_reset()

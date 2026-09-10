@@ -93,6 +93,7 @@ int main(void)
     mem.ram = arena;
     mem.ram_base = FN_ARENA_BASE;
     mem.ram_size = FN_ARENA_SIZE;
+    mem.mailbox = true;
     for (unsigned i = 0; i < sizeof rom; i++)
         rom[i] = (uint8_t)(i ^ 0x5A);
     memset(&bus, 0, sizeof bus);
@@ -218,16 +219,24 @@ int main(void)
     run(0x05, 0x99, NULL, NULL);
     CHECK(bus.ev == CHF_EV_NONE, "a store into BIOS space is inert");
 
-    /* --- a booted Videocart has no arena at all --- */
-    mem.ram = NULL;
-    dval = load(0x9000, &drive);
-    CHECK(drive && dval == 0xFF, "with no arena, $9000 is open bus, got $%02X", dval);
+    /* --- after booting a Videocart the decode dies but the arena does NOT.
+     * The swap stub runs out of the arena and this console has no RAM of its
+     * own, so tearing it down would kill the code that triggered the swap. --- */
+    mem.mailbox = false;
     store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + FN_REG_SEQ), 0x02);
-    CHECK(bus.ev == CHF_EV_NONE, "with the mailbox dead, a register store is inert");
+    CHECK(bus.ev == CHF_EV_NONE, "with the decode dead, a register store is inert");
+    CHECK(arena[FN_H_REGSEL + FN_REG_SEQ] == 0x02,
+          "...and lands as plain RAM instead");
+    dval = load((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + FN_REG_SEQ), &drive);
+    CHECK(drive && dval == 0x02, "the register page reads back as RAM, got $%02X", dval);
+    store((uint16_t)(FN_ARENA_BASE + FN_H_DATA), 0x5A);
+    CHECK(bus.ev == CHF_EV_NONE, "with the decode dead, a TX store is inert");
+    store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + FN_HOT_SWAP), 0x00);
+    CHECK(bus.ev == CHF_EV_NONE, "a booted game cannot trigger another swap");
     bus.pc0 = FN_ROM_BASE;
     run(0x00, 0xFF, &drive, &dval);
-    CHECK(drive && dval == rom[0], "the ROM window still answers with no arena");
-    mem.ram = arena;
+    CHECK(drive && dval == rom[0], "the ROM window still answers");
+    mem.mailbox = true;
 
     /* --- the cart stays off the bus when the naming register points at the
      * BIOS, or two devices drive it at once on real hardware --- */
