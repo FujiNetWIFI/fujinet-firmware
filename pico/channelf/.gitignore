@@ -1,0 +1,7 @@
+build/
+firmware/build-*/
+firmware/host_test/test_romc
+firmware/host_test/test_busio
+testrom/*.p
+testrom/*.lst
+testrom/font.inc
