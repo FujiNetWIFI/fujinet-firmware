@@ -186,15 +186,17 @@ static inline bool chf_owns_io(uint8_t port)
  * place a byte that every device -- including the one that placed it -- then
  * consumes (ROMC 01 and 0C are the clearest cases).
  */
-static inline uint8_t chf_bus_cycle(chf_bus_t *b, chf_mem_t *m, uint8_t romc,
-                                    uint8_t dbus_in, bool *drive, uint8_t *dval)
+/* Phase 1, on its own: does the cart source the bus this cycle, and with what?
+ * Mutates nothing, so the cartridge can call it the instant ROMC is stable,
+ * drive the buffer, and only then sample what the CPU put there for the cycles
+ * it owns. The combined chf_bus_cycle below is what the tests and the MAME
+ * device use. */
+static inline bool chf_bus_source(const chf_bus_t *b, const chf_mem_t *m,
+                                  uint8_t romc, uint8_t *dval)
 {
     bool dr = false;
     uint8_t out = 0xFF;
 
-    b->ev = CHF_EV_NONE;
-
-    /* Phase 1: decide whether we source the bus, and with what. */
     switch (romc) {
     case 0x00: case 0x01: case 0x03: case 0x0C: case 0x0E: case 0x11:
         if (chf_owns(b->pc0)) { dr = true; out = chf_read(m, b->pc0); }
@@ -227,9 +229,17 @@ static inline uint8_t chf_bus_cycle(chf_bus_t *b, chf_mem_t *m, uint8_t romc,
         break; /* 0x0F/0x13 are interrupt vectors; we never request one */
     }
 
-    const uint8_t eff = dr ? out : dbus_in;
+    *dval = out;
+    return dr;
+}
 
-    /* Phase 2: the register updates every device performs. */
+/* Phase 2, on its own: the register updates every device performs, given the
+ * value that actually ended up on the bus. */
+static inline void chf_bus_commit(chf_bus_t *b, chf_mem_t *m, uint8_t romc,
+                                  uint8_t eff)
+{
+    b->ev = CHF_EV_NONE;
+
     switch (romc) {
     case 0x00: b->pc0++; break;
     case 0x01: b->pc0 = (uint16_t)(b->pc0 + (int8_t)eff); break;
@@ -263,7 +273,18 @@ static inline uint8_t chf_bus_cycle(chf_bus_t *b, chf_mem_t *m, uint8_t romc,
     case 0x1D: { uint16_t t = b->dc0; b->dc0 = b->dc1; b->dc1 = t; } break;
     default: break;
     }
+}
 
+/* The two phases together: what the host tests replay and what the MAME device
+ * calls, where reads and writes arrive already separated. */
+static inline uint8_t chf_bus_cycle(chf_bus_t *b, chf_mem_t *m, uint8_t romc,
+                                    uint8_t dbus_in, bool *drive, uint8_t *dval)
+{
+    uint8_t out = 0xFF;
+    bool dr = chf_bus_source(b, m, romc, &out);
+    uint8_t eff = dr ? out : dbus_in;
+
+    chf_bus_commit(b, m, romc, eff);
     *drive = dr;
     *dval = out;
     return eff;
@@ -277,5 +298,41 @@ static inline bool chf_is_reset(uint8_t romc)
 {
     return romc == 0x08;
 }
+
+
+/* --------------------------------------------------------------------------
+ * The cartridge connector, as GPIO.
+ *
+ * 22 pins, of which 16 matter: D0-D7, ROMC0-4, PHI (13), WRITE (15) and
+ * /INTREQ (5). +12V on pin 22 goes nowhere -- it fed the 3851's Vgg and we
+ * have no use for it. There is no RESET pin at all; a console reset is
+ * observed on the bus as ROMC 08.
+ *
+ * That leaves a stock Pico with ten GPIOs spare, which is the roomiest of any
+ * cart in this family -- the ColecoVision port needed all 26.
+ *
+ * PROVISIONAL, and the one thing here that hardware will have to settle: which
+ * edge of WRITE to sample on, and how long the cart may hold the bus. The F8
+ * User's Guide gives "WRITE to DB stable = 2P(phi) to 2P(phi) + 1.0us" and
+ * says ROMC0-4 "assume a state early in each machine cycle and hold that state
+ * for the duration of the cycle". The decode itself is proven against MAME's
+ * own F8 core (test_romc.c); the timing is not, and cannot be without a board.
+ * -------------------------------------------------------------------------- */
+#define D0_PIN      0u      /* D0-D7 on GP0-GP7, through a '245 transceiver */
+#define ROMC0_PIN   8u      /* ROMC0-4 on GP8-GP12, inputs                  */
+#define WRITE_PIN   13u     /* the WRITE clock: one cycle per pulse         */
+#define PHI_PIN     14u     /* the master clock, for reference              */
+#define DIR_PIN     15u     /* '245 direction: 0 = cart drives the console  */
+#define INTREQ_PIN  16u     /* /INTREQ, declared and unused                 */
+
+#define DATA_MASK   (0xFFu << D0_PIN)
+#define ROMC_MASK   (0x1Fu << ROMC0_PIN)
+#define WRITE_MASK  (1u << WRITE_PIN)
+#define PHI_MASK    (1u << PHI_PIN)
+#define DIR_MASK    (1u << DIR_PIN)
+#define BUS_GPIO_MASK (DATA_MASK | ROMC_MASK | WRITE_MASK | PHI_MASK)
+
+/* core1's entry point; SRAM-resident, see channelf_cart.c. */
+void channelf_core1_main(void);
 
 #endif /* CHANNELF_CART_H */

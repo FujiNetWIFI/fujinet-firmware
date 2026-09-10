@@ -6,3 +6,4 @@ testrom/*.p
 testrom/*.lst
 testrom/font.inc
 testrom/bootcfg.inc
+firmware/include/fujiconfigrom.h
