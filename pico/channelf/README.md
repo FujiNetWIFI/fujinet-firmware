@@ -31,7 +31,9 @@ cycle corrupts its shadow registers permanently.
 | M0 | toolchain, cart header, text renderer | **done** |
 | M5 | ROMC conformance vs MAME's F8 core | **done** |
 | M1 | mailbox round trip + reset survival | **done** |
-| M2-M4, M6, M7 | boot, browse, firmware, soak, CONFIG + 5 Card Stud | not started |
+| M2 | network boot, byte-identical | **done** |
+| M3 | directory browser: cursor, descend, boot | **done** |
+| M4, M6, M7 | firmware, soak, CONFIG + 5 Card Stud | not started |
 
 M5 was pulled ahead of the rest deliberately. It is the only genuinely novel
 component and the only one with no template in the sibling ports, so it is the
@@ -124,6 +126,24 @@ its own deeper stack through DC1 instead.
 
 **Scratchpad** — 64 registers, but only r0-r11 are directly addressable; the
 rest go through ISAR. BIOS reserves r5-r8, r31, r40-r58, r59, r52-r54.
+
+**A drawing primitive eats most of the register file.** `DCLRR` clobbers r0,
+r2 and r4-r8, so a loop that calls it cannot keep its counter in a register --
+an early `SCUR` kept one in r7 and never terminated. Loop state goes in RAM;
+this is the one console in the family where that costs nothing.
+
+**Point DC0 at the TX page in the helper, not the caller.** A write anywhere in
+that page appends, so re-pointing is free and cannot rewind the stream. Without
+it, any `DCI` between `FNBEG` and a parameter append silently redirects the
+parameter bytes into RAM -- the command then goes out with no parameters at all
+*and* scribbles over whatever the pointer was aimed at, which is how a page
+counter and a "more entries" flag got corrupted at the same time.
+
+**Do not seek to directory position 0.** A freshly opened directory is already
+there, and `dir_seek(0)` fails outright on an empty one (`fnFsSD.cpp` requires
+`pos < _dir_entries.size()`), which reads as an error rather than as the empty
+listing it is. Seeking once per page instead of once per row also costs one
+round trip per page rather than seven.
 
 ## Toolchain
 

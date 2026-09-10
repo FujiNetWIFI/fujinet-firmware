@@ -269,3 +269,59 @@ DHEXS2:	ST
 	CLR
 	ST
 	POP
+
+; ---------------------------------------------------------------------------
+; DCLRR -- clear a band of cells to the background value.
+;   r0 = cells wide, r1 = left pixel column, r2 = top pixel row.
+;   Clears DCELLH pixel rows.
+;
+;   Needed because DSTR only ever SETS pixels: drawing spaces over old text
+;   erases nothing, since a blank glyph has no lit pixels. And VRAM cannot be
+;   read back, so there is no read-modify-write shortcut either.
+;   Clobbers A, r0, r2 (it walks down the rows), r4, r5, r6, r7, r8.
+;   Anything a caller needs across a DCLRR must live somewhere else -- this
+;   eats most of the directly-addressable file.
+; ---------------------------------------------------------------------------
+DCLRR:	LI CVAL0
+	COM
+	OUTS 1			; background, constant for the whole fill
+	LR A,0
+	SL 1
+	SL 1			; cells * DCELLW = pixels wide
+	LR 4,A
+	LIS DCELLH
+	LR 7,A
+DCLR1:	LR A,2
+	COM
+	NI 3FH
+	LR 8,A
+	INS 5
+	NI 0C0H
+	AS 8
+	OUTS 5			; VRAM row, sound bits preserved
+	LR A,1
+	LR 5,A			; running column
+	LR A,4
+	LR 6,A			; pixels left in this row
+DCLR2:	LR A,5
+	COM
+	OUTS 4
+	LI 60H
+	OUTS 0
+	LI 50H
+	OUTS 0
+	LIS 4
+	LR 0,A
+DCLR3:	DS 0
+	BNZ DCLR3
+	LR A,5
+	INC
+	LR 5,A
+	DS 6
+	BNZ DCLR2
+	LR A,2
+	INC
+	LR 2,A
+	DS 7
+	BNZ DCLR1
+	POP
