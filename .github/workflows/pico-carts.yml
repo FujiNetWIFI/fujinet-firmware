@@ -388,10 +388,17 @@ jobs:
 
       # build.sh runs tools/checkrom.py on every image, which is where the
       # layout contract is enforced: the size has to be (N+1) * 2K AND on
-      # MAME's cartridge whitelist, the claim has to be at $1F10, and no
+      # MAME's cartridge whitelist, the claim has to be at $1F10, no
       # read-modify-write instruction may target the write-only pages -- an RMW
       # is three bus cycles at one address and the cartridge cannot recover a
-      # defined byte from it.
+      # defined byte from it -- and no indirect store may appear at all, since
+      # STA (zp),Y performs a read at the address it writes and on those pages
+      # that read is decoded as a stray access.
+      #
+      # With no arguments it builds all five, including the banked CONFIG,
+      # whose per-bank end addresses are checked against $1800: p2bin pads to
+      # its range, so an over-long bank is truncated silently and everything
+      # downstream still passes.
       - name: Assemble the 6502 clients
         working-directory: pico/atari-2600
         run: ./build.sh

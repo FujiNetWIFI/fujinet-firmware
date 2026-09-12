@@ -111,14 +111,29 @@ screen decodes to, because decoding is lossy at this size and always will be.
 | **M3** | directory browser | **done** — navigates to a file **by name**, boots it, 4096/4096 match |
 | **M4** | RP2040 firmware, ESP32 board, CI | **done** — `fujivcs.uf2` builds, core1 SRAM-resident, three CI jobs |
 | **M5** | `vcsmap`: the real cartridge mappers | **done** — 9 schemes vs verbatim MAME handlers, 200k fuzzed accesses each |
-| M6 | soak | |
-| M7 | CONFIG and fujinet-battleship | |
+| **M6** | soak | **done** — 13 synthetic cartridges across all 9 schemes, every bank byte-compared: 13/13 |
+| **M7** | CONFIG and fujinet-battleship | **done** — CONFIG browses and boots through a subfolder; Battleship plays a real game against the live server |
 
 M0 was pulled forward deliberately: every sibling console had a character
 generator or a framebuffer, so the cart-composed display is the one component
 with no template anywhere in the family. M-novel came with it because MAME
 *structurally cannot* test the write sampling — its cart device is handed a
 clean data byte — so it had to be proven before anything depended on it.
+
+M6 found two things no host test could reach. An 8K F8, E0, UA and FE are all
+8192 bytes and nothing inside the file tells them apart, so size detection was
+serving three of the four as F8 — the `.cfg` sibling the DBC push already
+carries had to be read, as the ColecoVision port does. And UA and FE switch on
+addresses **below A12**, where the cartridge is not selected at all and is only
+watching the bus; neither core1 nor the MAME device was looking there.
+
+M7 needed one protocol addition each. CONFIG needed somewhere to keep a
+working directory — a path is 256 bytes and this console has 128 of RAM — so
+the cartridge keeps it: `FN_HOT_PATH_CH` builds it, `FN_PATH_POP` drops a
+component, and `FN_PATH_TX` emits it straight into the transaction. Battleship
+needed a board, and `FN_BLIT_FIELD` had been reserved for it in
+`fuji_mailbox.h` since the first commit; twelve columns turns out to be exactly
+enough for a 10×10 grid plus a row-digit gutter.
 
 ## Building and running
 
@@ -137,7 +152,15 @@ SLOT=fujinet ./run.sh fujitest resettest
 
 BOOT_IMAGE=.../SD/vcsgame.bin \
   SLOT=fujinet ./run.sh fujiboot boottest  # M2
+SLOT=fujinet ./run.sh fujidir dirtest      # M3
+
+./tools/soak.sh                            # M6: the whole mapper corpus
+BOOT_IMAGE=.../SD/VCS/DEEP.BIN \
+  SLOT=fujinet SECS=90 ./run.sh fujicfg cfgtest   # M7
 ```
+
+Battleship lives in its own repository, next to the Arcadia and Channel F
+clients: `fujinet-battleship/atari2600`, `./run.sh bsplay`.
 
 The M2 boot target is deliberately an image with **no** `"FUJI"` claim, so the
 run also proves the mailbox goes dead for a cartridge that does not claim it --
