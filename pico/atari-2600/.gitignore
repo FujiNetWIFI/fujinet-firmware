@@ -1,2 +1,18 @@
 .vscode/*
 build/*
+# FujiNet bring-up: generated and transient
+build/
+testrom/screen.inc
+testrom/bootcfg.inc
+__pycache__/
+firmware/build-fujivcs/
+firmware/include/fujiconfigrom.h
+firmware/host_test/render_gold.h
+firmware/include/vcs_font.h
+firmware/build-*/
+firmware/host_test/test_render
+firmware/host_test/test_fujibus
+firmware/host_test/test_busio
+firmware/host_test/test_vcsmap
+testrom/*.p
+testrom/*.lst
