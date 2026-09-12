@@ -11,7 +11,7 @@
 #include <hal/uart_types.h>
 
 #define FN_UART_DEBUG   UART_NUM_0
-#if defined(BUILD_RS232) || defined(PINMAP_COCO_ESP32S3) || defined(PINMAP_COCO_RS232)
+#if defined(BUILD_RS232) || defined(PINMAP_COCO_ESP32S3) || defined(PINMAP_COCO_RS232) || defined(COCO_HS_UART)
 #  define FN_UART_BUS   UART_NUM_1
 #else
 #  define FN_UART_BUS   UART_NUM_2

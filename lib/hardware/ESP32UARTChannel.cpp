@@ -73,12 +73,18 @@ void ESP32UARTChannel::begin(const ChannelConfig& conf)
 
     _halfDuplex = conf.isHalfDuplex;
 
+    // set RTS pin mode
     if (controlPins.rts >= 0)
         fnSystem.set_pin_mode(controlPins.rts, gpio_mode_t::GPIO_MODE_INPUT);
     if (controlPins.cts >= 0)
     {
         fnSystem.set_pin_mode(controlPins.cts, gpio_mode_t::GPIO_MODE_OUTPUT);
         fnSystem.digital_write(controlPins.cts, DIGI_LOW);
+    }
+    if (controlPins.rts >= 0 && controlPins.cts >= 0)
+    {
+        uart_set_hw_flow_ctrl(_uart_num, UART_HW_FLOWCTRL_CTS_RTS, 0);
+        Debug_printv("RTS/CTS flow control enabled");
     }
 
     if (controlPins.dtr >= 0)
