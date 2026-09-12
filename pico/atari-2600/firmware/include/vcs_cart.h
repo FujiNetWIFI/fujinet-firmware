@@ -78,6 +78,11 @@ typedef struct {
      * then -- the image did not claim it -- so the two paths never overlap. */
     vcsmap_t map;
 
+    /* The Battleship board being composed. FN_BLIT_HULLS overlays onto what
+     * FN_BLIT_FIELD left here, and the text planes are packed glyph pairs
+     * that cannot be read back as characters. */
+    uint8_t board[FN_BOARD_CELLS];
+
     /* The working directory, held here because the console has nowhere to
      * put it. See FN_HOT_PATH_CH in fuji_mailbox.h. */
     uint8_t path[FN_PATH_MAX];

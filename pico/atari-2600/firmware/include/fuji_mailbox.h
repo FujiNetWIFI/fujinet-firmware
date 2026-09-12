@@ -242,7 +242,36 @@
 #define FN_HOT_BLIT_GO   0xFA     /* data = transform; fire                  */
 #define FN_BLIT_RAW      0        /* copy bytes unchanged                    */
 #define FN_BLIT_TEXT     1        /* ASCII -> packed glyph pairs             */
-#define FN_BLIT_FIELD    2        /* a game field -> playfield bits          */
+#define FN_BLIT_FIELD    2        /* a 10x10 game field -> ten text rows      */
+#define FN_BLIT_HULLS    3        /* five ship placements -> a hull overlay   */
+#define FN_BLIT_SEA      4        /* fill the composed board with open sea    */
+#define FN_BLIT_CELL     5        /* board[cnt] = the low byte of src         */
+#define FN_BLIT_PAINT    6        /* paint the composed board into ten rows   */
+#define FN_BOARD_DIM     10
+#define FN_BOARD_CELLS   100
+#define FN_BLIT_NOCUR    0xFF     /* FIELD: cnt = the cursor cell, or this    */
+
+/* What FN_BLIT_FIELD paints. A Battleship gamefield is 100 bytes at y*10+x
+ * in the reply window, and turning it into ten rows of text is 100 reads,
+ * 100 compares and a 16-bit reply cursor -- about 250 bytes of 6502 in a bank
+ * that has under a thousand to spare. Doing it here costs the client six
+ * stores.
+ *
+ * Column 0 of each row is the row digit, columns 1-10 the cells, and the
+ * cursor cell is drawn as FN_CELL_CUR so a client can blink it by simply
+ * re-issuing the blit with cnt = FN_BLIT_NOCUR.
+ *
+ * FIELD and HULLS compose AND paint, which is the common case. SEA, CELL and
+ * PAINT split the two so a client can build a board that is not in the reply
+ * window at all -- which is exactly the ship-placement screen, where the five
+ * placements are still in console RAM because the server has not been told
+ * about them yet. Ten rows are painted once at the end rather than after
+ * every cell. */
+#define FN_CELL_SEA      '.'      /* 0: unknown water                        */
+#define FN_CELL_HIT      'X'      /* 1                                       */
+#define FN_CELL_MISS     'O'      /* 2                                       */
+#define FN_CELL_HULL     '#'      /* painted by FN_BLIT_HULLS                */
+#define FN_CELL_CUR      '+'      /* the cursor, over whatever was there     */
 
 /* The path buffer. SET_DEVICE_FULLPATH and OPEN_DIRECTORY both read EXACTLY
  * 256 bytes, and a directory browser has to remember which directory it is

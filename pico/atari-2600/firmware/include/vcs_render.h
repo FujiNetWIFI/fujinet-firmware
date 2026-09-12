@@ -35,9 +35,18 @@ void vcs_render_clear(uint8_t *win);
  *
  * This is what lets a client turn a server reply into a display without ever
  * holding it in the console's 128 bytes of RAM -- six stores set it up and the
- * cartridge does the move. For FN_BLIT_TEXT the destination is a text ROW, not
- * a byte offset. Returns false for a transform it does not implement. */
-bool vcs_blit(uint8_t *win, uint16_t src, uint16_t dst, uint8_t cnt,
-              uint8_t transform);
+ * cartridge does the move. For FN_BLIT_TEXT, FN_BLIT_FIELD and FN_BLIT_HULLS
+ * the destination is a text ROW, not a byte offset.
+ *
+ * `board` is FN_BOARD_CELLS bytes of cartridge scratch holding the glyph
+ * currently in each cell of the board being composed. FN_BLIT_FIELD fills it
+ * from the reply and FN_BLIT_HULLS overlays onto it, which is what lets your
+ * own ships show through where nothing has been fired at them yet -- an
+ * overlay needs to know what is already there, and the text planes are packed
+ * glyph pairs that cannot be read back as characters.
+ *
+ * Returns false for a transform it does not implement. */
+bool vcs_blit(uint8_t *win, uint8_t *board, uint16_t src, uint16_t dst,
+              uint8_t cnt, uint8_t transform);
 
 #endif /* VCS_RENDER_H */

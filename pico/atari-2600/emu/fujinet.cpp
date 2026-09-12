@@ -304,7 +304,7 @@ void a26_rom_fujinet_device::write(offs_t offset, uint8_t data)
 		break;
 
 	case VCS_EV_BLIT:
-		if (!vcs_blit(m_mem.win, m_mem.blit_src, m_mem.blit_dst,
+		if (!vcs_blit(m_mem.win, m_mem.board, m_mem.blit_src, m_mem.blit_dst,
 					  m_mem.blit_cnt, b) && m_debug)
 			fprintf(stderr, "fujinet: blit transform %u not implemented\n", b);
 		break;

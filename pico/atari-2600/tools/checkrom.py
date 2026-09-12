@@ -48,6 +48,18 @@ RMW = {
 # Indirect JMP, for the page-wrap bug.
 JMP_IND = 0x6C
 
+# STA (zp),Y and STA (zp,X). Banned for the same reason RMW is, and a much
+# easier mistake to make: STA (zp),Y ALWAYS performs an internal read at the
+# address it is about to write, which on a page the cartridge does not drive
+# is decoded as an access carrying whatever the floating bus held. A routine
+# that dispatched between the TX page and the text port through
+# `sta (ptr),y` would append a garbage byte before every real one.
+#
+# The scan cannot know what a zero-page pointer holds, so the addressing mode
+# is reported wherever it appears, with the fix being an indirect JMP to a
+# stub that does the store absolutely. No client here uses one.
+STA_IND = {0x91: "STA (zp),Y", 0x81: "STA (zp,X)"}
+
 # Instruction lengths by opcode, for a linear scan. Undocumented opcodes are
 # treated as 1 byte, which can desynchronise the scan -- so a hit is reported
 # as an error but the scan itself is a guard, not a disassembler.
@@ -124,6 +136,13 @@ def check(path):
                 if op == JMP_IND and (tgt & 0xFF) == 0xFF:
                     bad.append("%s $%04X: JMP ($%04X) hits the 6502 "
                                "page-wrap bug" % (label, base + pc, tgt))
+            if op in STA_IND:
+                bad.append(
+                    "%s $%04X: %s -- an indirect store performs a read at the "
+                    "address it writes, and on the control or TX page that "
+                    "read is decoded as a stray access. Dispatch through an "
+                    "indirect JMP to an absolute store instead"
+                    % (label, base + pc, STA_IND[op]))
             pc += n
     return bad
 

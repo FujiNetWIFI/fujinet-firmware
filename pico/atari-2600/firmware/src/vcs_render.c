@@ -53,8 +53,28 @@ void vcs_render_clear(uint8_t *win)
         memset(win + (FN_T_PLANE(g) - FN_WINDOW_BASE), 0, FN_T_PLANE_LEN);
 }
 
-bool vcs_blit(uint8_t *win, uint16_t src, uint16_t dst, uint8_t cnt,
-              uint8_t transform)
+/* Ship lengths, longest first, matching the server's myShips[] order. */
+static const uint8_t ship_len[5] = { 5, 4, 3, 3, 2 };
+
+/* Paint the composed board into ten text rows starting at `row`: the row
+ * digit, then the ten cells. */
+static void board_rows(uint8_t *win, const uint8_t *board, uint8_t row)
+{
+    unsigned y;
+
+    for (y = 0; y < FN_BOARD_DIM; y++) {
+        uint8_t line[FN_BOARD_DIM + 1];
+        unsigned x;
+
+        line[0] = (uint8_t)('0' + y);
+        for (x = 0; x < FN_BOARD_DIM; x++)
+            line[x + 1] = board[y * FN_BOARD_DIM + x];
+        vcs_render_row(win, (uint8_t)(row + y), line, FN_BOARD_DIM + 1);
+    }
+}
+
+bool vcs_blit(uint8_t *win, uint8_t *board, uint16_t src, uint16_t dst,
+              uint8_t cnt, uint8_t transform)
 {
     unsigned i;
 
@@ -79,8 +99,75 @@ bool vcs_blit(uint8_t *win, uint16_t src, uint16_t dst, uint8_t cnt,
         return true;
     }
 
-    /* FN_BLIT_FIELD converts a game field into playfield bits and lands with
-     * the Battleship client. Reserved, not implemented -- and saying so is
-     * better than a half-right conversion nothing can see is wrong. */
+    if (transform == FN_BLIT_FIELD) {
+        /* 100 bytes of gamefield at y*10+x, straight into the composed board
+         * and then into ten rows. cnt is the cursor cell, or FN_BLIT_NOCUR. */
+        for (i = 0; i < FN_BOARD_CELLS; i++) {
+            unsigned s = (FN_R_DATA - FN_WINDOW_BASE) + src + i;
+            uint8_t v = (s < FN_WINDOW_SIZE) ? win[s] : 0u;
+
+            board[i] = (v == 1u) ? (uint8_t)FN_CELL_HIT
+                     : (v == 2u) ? (uint8_t)FN_CELL_MISS
+                                 : (uint8_t)FN_CELL_SEA;
+        }
+        if (cnt < FN_BOARD_CELLS)
+            board[cnt] = FN_CELL_CUR;
+        board_rows(win, board, (uint8_t)dst);
+        return true;
+    }
+
+    if (transform == FN_BLIT_SEA) {
+        memset(board, FN_CELL_SEA, FN_BOARD_CELLS);
+        return true;
+    }
+
+    if (transform == FN_BLIT_CELL) {
+        /* One cell, no repaint. The placement screen sets seventeen of these
+         * between two paints; repainting ten rows after each would be
+         * seventeen times the work for the same picture. */
+        if (cnt < FN_BOARD_CELLS)
+            board[cnt] = (uint8_t)(src & 0xFFu);
+        return true;
+    }
+
+    if (transform == FN_BLIT_PAINT) {
+        board_rows(win, board, (uint8_t)dst);
+        return true;
+    }
+
+    if (transform == FN_BLIT_HULLS) {
+        /* Five placement bytes: pos + 100 * dir, pos = y*10 + x, dir 0
+         * horizontal and 1 vertical -- the server's encoding, unchanged.
+         *
+         * Hulls go on ONLY where the sea still shows. A hit or a miss on your
+         * own hull is the thing you most need to see, and painting the hull
+         * over it would hide exactly that. */
+        for (i = 0; i < cnt && i < 5u; i++) {
+            unsigned s = (FN_R_DATA - FN_WINDOW_BASE) + src + i;
+            unsigned pos, dir, x, y, seg;
+
+            if (s >= FN_WINDOW_SIZE)
+                break;
+            pos = win[s];
+            dir = (pos >= FN_BOARD_CELLS) ? 1u : 0u;
+            if (dir)
+                pos -= FN_BOARD_CELLS;
+            if (pos >= FN_BOARD_CELLS)
+                continue;              /* not placed, or nonsense */
+            x = pos % FN_BOARD_DIM;
+            y = pos / FN_BOARD_DIM;
+
+            for (seg = 0; seg < ship_len[i]; seg++) {
+                if (x >= FN_BOARD_DIM || y >= FN_BOARD_DIM)
+                    break;             /* a placement running off the edge */
+                if (board[y * FN_BOARD_DIM + x] == (uint8_t)FN_CELL_SEA)
+                    board[y * FN_BOARD_DIM + x] = FN_CELL_HULL;
+                if (dir) y++; else x++;
+            }
+        }
+        board_rows(win, board, (uint8_t)dst);
+        return true;
+    }
+
     return false;
 }

@@ -95,7 +95,7 @@ void fuji_cart_service_deferred(void)
 
     if (fuji_blit_req) {
         fuji_blit_req = false;
-        vcs_blit(fuji_mem.win, fuji_mem.blit_src, fuji_mem.blit_dst,
+        vcs_blit(fuji_mem.win, fuji_mem.board, fuji_mem.blit_src, fuji_mem.blit_dst,
                  fuji_mem.blit_cnt, fuji_blit_xform);
     }
 }
