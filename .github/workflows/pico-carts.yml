@@ -230,6 +230,20 @@ jobs:
           /tmp/test_o2map build/hello.bin build/fujitest.bin \
                           build/fujiboot.bin build/fujicfg.bin
 
+      # Atari 2600. The interesting one is test_busio: MAME's VCS cart device
+      # is handed a clean data byte on a write, so the data_prev sampling the
+      # real cartridge depends on NEVER runs there. This is the only place the
+      # arming gate, the arm/commit interlock and the sampling model are
+      # exercised at all. test_render checks the cartridge's glyph compositor
+      # against tools/vcsfont.py, which was written first and independently,
+      # and test_vcsmap checks nine cartridge mappers against VERBATIM
+      # transcriptions of MAME's own handlers in src/devices/bus/vcs/rom.cpp --
+      # including the ordering that decides whether a bankswitch hotspot
+      # returns the old bank's byte or the new one.
+      - name: Atari 2600 -- bus decode, mappers, glyph compositor, FujiBus codec
+        working-directory: pico/atari-2600/firmware/host_test
+        run: make
+
   astrocade-console-client:
     name: "Astrocade Z80 clients"
     runs-on: ubuntu-latest
@@ -339,6 +353,48 @@ jobs:
         run: |
           ASL=$HOME/asl/asl P2BIN=$HOME/asl/p2bin \
             ./build.sh hello romctest fujitest fujiboot fujicfg
+
+  atari2600-console-client:
+    name: "Atari 2600 6502 clients"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Macro Assembler AS again, 6502 this time -- dasm is the 2600 world's
+      # usual assembler but AS already serves the o2, arcadia and channelf jobs
+      # and this cache is already warm, so the port joins them rather than
+      # adding a seventh toolchain.
+      - name: Cache Macro Assembler AS
+        id: cache-asl
+        uses: actions/cache@v4
+        with:
+          path: ~/asl
+          key: asl-upstream-${{ runner.os }}-v1
+
+      - name: Build Macro Assembler AS
+        if: steps.cache-asl.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch upstream \
+            https://github.com/Macroassembler-AS/asl-releases.git /tmp/asl-src
+          cd /tmp/asl-src
+          cp Makefile.def-samples/Makefile.def-i386-unknown-linux2.x.x Makefile.def
+          sed -i 's|^CFLAGS.*|CFLAGS = -O2 -w|' Makefile.def
+          make -j"$(nproc)"
+          mkdir -p ~/asl
+          cp asl p2bin ~/asl/
+
+      - name: Put AS on PATH
+        run: echo "$HOME/asl" >> "$GITHUB_PATH"
+
+      # build.sh runs tools/checkrom.py on every image, which is where the
+      # layout contract is enforced: the size has to be (N+1) * 2K AND on
+      # MAME's cartridge whitelist, the claim has to be at $1F10, and no
+      # read-modify-write instruction may target the write-only pages -- an RMW
+      # is three bus cycles at one address and the cartridge cannot recover a
+      # defined byte from it.
+      - name: Assemble the 6502 clients
+        working-directory: pico/atari-2600
+        run: ./build.sh
 
   cartridge-firmware:
     name: "RP2040 cartridge firmware"
@@ -453,6 +509,21 @@ jobs:
           # data-required, and a single XIP cache miss is most of that.
           grep -E '0x2000[0-9a-f]+ +coleco_core1_main$' \
               firmware/build-fujicoleco/fujicoleco.elf.map
+
+      # Atari 2600 cartridge. The interesting assertion is checksram.py: the
+      # serve path has about 500 ns from address to data and one XIP cache
+      # miss is most of it, so core1 and everything it reaches must be in
+      # SRAM. A missed bus cycle here does not slow the console down, it
+      # serves the wrong byte.
+      - name: Atari 2600 cartridge (fujivcs)
+        working-directory: pico/atari-2600
+        run: |
+          ./build.sh fujidir
+          python3 tools/mkromh.py build/fujidir.bin > firmware/include/fujiconfigrom.h
+          cmake -S firmware -B firmware/build-fujivcs -DPICO_BOARD=fujivcs
+          cmake --build firmware/build-fujivcs -j"$(nproc)"
+          python3 tools/checksram.py firmware/build-fujivcs/fujivcs.elf
+          arm-none-eabi-size firmware/build-fujivcs/fujivcs.elf
 
       - name: Channel F Videocart (fujichannelf)
         working-directory: pico/channelf
