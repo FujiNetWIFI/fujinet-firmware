@@ -61,9 +61,9 @@ static const char *network_line_ending(netProtoTranslation_t mode)
 {
     switch (mode)
     {
-    case NETPROTO_TRANS_CR:   return STR_ASCII_CR;
-    case NETPROTO_TRANS_LF:   return STR_ASCII_LF;
-    case NETPROTO_TRANS_CRLF: return STR_ASCII_CRLF;
+    case NETPROTO_TRANS::CR:   return STR_ASCII_CR;
+    case NETPROTO_TRANS::LF:   return STR_ASCII_LF;
+    case NETPROTO_TRANS::CRLF: return STR_ASCII_CRLF;
     default:                  return "";
     }
 }
@@ -179,10 +179,10 @@ fujiError_t NetworkProtocol::status(NetworkStatus *status)
 void netproto_translate_to_computer(std::string &buf, netProtoTranslation_t mode,
                                     const std::string &native_eol)
 {
-    if (mode == NETPROTO_TRANS_NONE)
+    if (mode == NETPROTO_TRANS::NONE)
         return;
 
-    if (mode == NETPROTO_TRANS_PETSCII)
+    if (mode == NETPROTO_TRANS::PETSCII)
     {
         buf = mstr::toUTF8(buf);
         return;
@@ -206,10 +206,10 @@ void netproto_translate_to_computer(std::string &buf, netProtoTranslation_t mode
 void netproto_translate_from_computer(std::string &buf, netProtoTranslation_t mode,
                                       const std::string &native_eol)
 {
-    if (mode == NETPROTO_TRANS_NONE)
+    if (mode == NETPROTO_TRANS::NONE)
         return;
 
-    if (mode == NETPROTO_TRANS_PETSCII)
+    if (mode == NETPROTO_TRANS::PETSCII)
     {
         buf = mstr::toUTF8(buf);
         return;

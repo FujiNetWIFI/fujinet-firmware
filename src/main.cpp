@@ -339,8 +339,7 @@ void main_setup(int argc, char *argv[])
     theFuji->setup();
     SYSTEM_BUS.setup();
     SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID::FUJINET);
-    if (Config.get_apetime_enabled() == true)
-        SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID::CLOCK); // APETime compatible, extended for additional return types
+    SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID::CLOCK); // APETime compatible, extended for additional return types
 
     // Create a new printer object, setting its output depending on whether we have SD or not
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
@@ -412,9 +411,7 @@ void main_setup(int argc, char *argv[])
     fnPrinters.set_entry(0, ptr, printer, 0);
     SYSTEM_BUS.addDevice(ptr, FUJI_DEVICEID::PRINTER);
     SYSTEM_BUS.setDeviceEnabled(FUJI_DEVICEID::PRINTER, Config.get_printer_enabled());
-
-    if (Config.get_apetime_enabled() == true)
-        SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID::CLOCK); // APETime compatible, extended for additional return types
+    SYSTEM_BUS.addDevice(&platformClock, FUJI_DEVICEID::CLOCK); // APETime compatible, extended for additional return types
 
 #ifdef VIRTUAL_ADAM_DEVICES
     Debug_printf("Physical Device Scanning...\r\n");
@@ -597,16 +594,18 @@ void fn_service_loop(void *param)
 #endif
 
 #if defined(ESP_PLATFORM) && defined(DEBUG)
-        // Internal DRAM every 10s: flat is a fixed cost, falling is a leak. The loop has
-        // no delay, so anything per-iteration is unreadable at bus rates.
+        // Internal DRAM every 10s: flat is a fixed cost, falling is a leak. Flat free
+        // with a decaying largest block is fragmentation. The loop has no delay, so
+        // anything per-iteration is unreadable at bus rates.
         {
             static unsigned long last_heap_report = 0;
             unsigned long now = fnSystem.millis();
             if (now - last_heap_report >= 10000)
             {
                 last_heap_report = now;
-                Debug_printv("Low Heap: %lu Heap: %lu",
-                             esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+                Debug_printv("Low Heap: %lu Heap: %lu MaxIntBlk: %u",
+                             esp_get_free_internal_heap_size(), esp_get_free_heap_size(),
+                             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
             }
         }
 #endif

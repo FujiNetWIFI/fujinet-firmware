@@ -4,11 +4,12 @@
 #ifdef ESP_PLATFORM
 #include <esp_timer.h>
 #include "../../include/PSRAMAllocator.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #endif
 
 #include <vector>
 
-#include "network.h"
 #include "diskType.h"
 
 
@@ -119,16 +120,16 @@ typedef struct sector_header sector_header_t;
 class AtxSector
 {
 public:
-    // 1-based and possible to have duplicates    
+    // 1-based and possible to have duplicates
     uint8_t number = 0;
-    // ATX_SECTOR_STATUS bit flags     
+    // ATX_SECTOR_STATUS bit flags
     uint8_t status = 0;
-    // 0-based starting angular position of sector in 8us intervals (1/26042th of a rotation or ~0.0138238 degrees). Nominally 0-26042    
+    // 0-based starting angular position of sector in 8us intervals (1/26042th of a rotation or ~0.0138238 degrees). Nominally 0-26042
     uint16_t position = 0;
     // Byte offset from start of track data record to first byte of sector data within the sector data chunk. No data is present when sector status bit 4 set
     uint32_t start_data = 0;
 
-    // Byte offset within sector at which weak (random) data should be returned    
+    // Byte offset within sector at which weak (random) data should be returned
     uint16_t weakoffset = ATX_WEAKOFFSET_NONE;
     // Physical size of long sector (one of ATX_EXTENDESIZE)
     uint16_t extendedsize = 0;

@@ -71,21 +71,21 @@ fujiError_t NetworkProtocolHTTP::set_channel_mode(netProtoHTTPChannelMode_t newM
 
     switch (newMode)
     {
-    case HTTP_CHANMODE_BODY:
+    case HTTP_CHANMODE::BODY:
         httpChannelMode = DATA;
         fileSize = bodySize;
         break;
-    case HTTP_CHANMODE_COLLECT_HEADERS:
+    case HTTP_CHANMODE::COLLECT_HEADERS:
         httpChannelMode = COLLECT_HEADERS;
         break;
-    case HTTP_CHANMODE_GET_HEADERS:
+    case HTTP_CHANMODE::GET_HEADERS:
         returned_header_cursor = 0;
         httpChannelMode = GET_HEADERS;
         break;
-    case HTTP_CHANMODE_SET_HEADERS:
+    case HTTP_CHANMODE::SET_HEADERS:
         httpChannelMode = SET_HEADERS;
         break;
-    case HTTP_CHANMODE_SET_POST_DATA:
+    case HTTP_CHANMODE::SET_POST_DATA:
         httpChannelMode = SEND_POST_DATA;
         break;
     default:
