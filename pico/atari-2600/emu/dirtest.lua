@@ -70,6 +70,7 @@ local function press(field, on)
 end
 
 _G._dirtest = emu.add_machine_frame_notifier(function()
+    if phase == "done" then return end
     sp = sp or manager.machine.devices[":maincpu"].spaces["program"]
     waited = waited + 1
     if waited > 3600 then
@@ -106,12 +107,22 @@ _G._dirtest = emu.add_machine_frame_notifier(function()
             if ok then target = r end
         end
         if not target then
+            -- The dump used a `rows` table that was never built, so this path
+            -- threw inside the notifier instead of reporting -- and a throw in
+            -- a frame notifier is swallowed, so it simply fired again next
+            -- frame, forever. Read the rows here, and latch so the exit that
+            -- follows is not raced by another frame.
             print("FAIL: " .. want_name .. " is not in the listing:")
             for r = 0, NROWS - 1 do
-                if rows[r]:gsub("%s", "") ~= "" then
-                    print(string.format("  row %2d %q", r, rows[r]))
+                local line = ""
+                for col = 0, T_COLS - 1 do
+                    line = line .. (font.glyph[keys[r][col]] or "?")
+                end
+                if line:gsub("%s", "") ~= "" then
+                    print(string.format("  row %2d %q", r, line))
                 end
             end
+            phase = "done"
             manager.machine:exit()
             return
         end

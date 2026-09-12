@@ -13,11 +13,16 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
+# A subdirectory, not the SD root. Thirteen images plus thirteen .cfg siblings
+# is thirty files, and fujidir shows fourteen at a time with no paging -- so
+# dropping them in the root pushes every other test's target off the first
+# page and turns an unrelated harness red.
 SD=${1:-$HOME/Workspace/fujinet-pc-rs232/build/dist/SD}
+CORPUS=$SD/SOAK
 RES=build/soak
 mkdir -p "$RES"
 
-python3 tools/mkcorpus.py "$SD" >/dev/null
+python3 tools/mkcorpus.py "$CORPUS" >/dev/null
 
 declare -A SCHEME=(
   [soak2k]=FLAT [soak4k]=FLAT
@@ -34,9 +39,9 @@ for name in soak2k soak4k soakf8 soakf8sc soakfa soakf6 soakf6sc \
     if grep -q PASS "$RES/$name" 2>/dev/null; then
         skip=$((skip+1)); continue
     fi
-    BOOT_PATH="/$name.bin" ./build.sh fujiboot >/dev/null 2>&1 || {
+    BOOT_PATH="/SOAK/$name.bin" ./build.sh fujiboot >/dev/null 2>&1 || {
         echo "FAIL $name (client build)" | tee "$RES/$name"; fail=$((fail+1)); continue; }
-    log=$(BOOT_IMAGE="$SD/$name.bin" SOAK_SCHEME="${SCHEME[$name]}" \
+    log=$(BOOT_IMAGE="$CORPUS/$name.bin" SOAK_SCHEME="${SCHEME[$name]}" \
           FUJINET_DEBUG=1 SLOT=fujinet SECS=60 ./run.sh fujiboot soaktest 2>&1)
     out=$(printf '%s\n' "$log" | grep -E "^(PASS|FAIL)" | head -1)
     [ -z "$out" ] && out="FAIL $name: no verdict (timeout?)"
