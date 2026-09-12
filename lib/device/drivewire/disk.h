@@ -34,6 +34,13 @@ public:
 
     void get_media_buffer(uint8_t **p_buffer, uint16_t *p_blk_size);
     uint8_t get_media_status();
+
+#ifdef COCO_HS_UART
+    // Pushes an already-mounted MEDIATYPE_ROM image to the DBC device, for the
+    // on-demand FUJI_PULL_ROM command (see drivewireFuji::fujicmd_pull_rom()).
+    // Fails if this slot isn't holding a ROM image.
+    success_is_true pull_rom_stream();
+#endif
 };
 
 #endif

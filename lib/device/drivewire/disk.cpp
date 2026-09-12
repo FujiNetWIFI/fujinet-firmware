@@ -17,7 +17,7 @@
 // as cartridge ROM. Nothing reads it back through the media object afterwards.
 static bool push_rom_image(MediaTypeROM *rom)
 {
-#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+#if defined(PINMAP_FUJIVERSAL_DRIVEWIRE) || defined(COCO_HS_UART)
     if (SYSTEM_BUS.isBoIP())
     {
         Debug_printv("ROM media requires a real pico; not supported over BoIP");
@@ -114,8 +114,14 @@ mediatype_t drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disks
         strcpy(_media->_disk_filename, filename);
         _media->_media_read_only = !(access_mode & DISK_ACCESS_MODE_WRITE);
         mt = _media->mount(f, disksize);
+#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+        // Boards without a real pico companion pull the image themselves, on
+        // demand, via FUJI_PULL_ROM (see drivewireFuji::fujicmd_pull_rom() /
+        // drivewireDisk::pull_rom_stream()) - pushing it again here would talk
+        // to the DBC side channel before the companion's own handshake for it.
         if (mt == MEDIATYPE_ROM && !push_rom_image(rom))
             mt = MEDIATYPE_UNKNOWN;
+#endif
         if (mt == MEDIATYPE_UNKNOWN)
         {
             delete _media;
@@ -211,6 +217,19 @@ uint8_t drivewireDisk::get_media_status()
         return 3; // ? NO MEDIA
     return _media->status();
 }
+
+#ifdef COCO_HS_UART
+success_is_true drivewireDisk::pull_rom_stream()
+{
+    if (!_media || _media->_mediatype != MEDIATYPE_ROM)
+        RETURN_ERROR_AS_FALSE();
+
+    if (!push_rom_image(static_cast<MediaTypeROM *>(_media)))
+        RETURN_ERROR_AS_FALSE();
+
+    RETURN_SUCCESS_AS_TRUE();
+}
+#endif
 
 success_is_true drivewireDisk::write_blank(fnFile *f, uint8_t numDisks)
 {
