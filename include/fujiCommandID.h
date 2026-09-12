@@ -28,6 +28,7 @@ typedef enum class CMD : uint8_t {
     FUJI_READ_DEVICE_SLOTS          = 0xF2,
     FUJI_WRITE_DEVICE_SLOTS         = 0xF1,
     FUJI_ENABLE_UDPSTREAM           = 0xF0,
+    FUJI_PULL_ROM                   = 0xEC, // request a DBC push of an already-mounted MEDIATYPE_ROM device slot
     FUJI_SET_BAUDRATE               = 0xEB,
     FUJI_GET_WIFI_ENABLED           = 0xEA,
     FUJI_UNMOUNT_IMAGE              = 0xE9,

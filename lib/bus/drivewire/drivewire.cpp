@@ -220,7 +220,6 @@ void systemBus::op_readex()
             }
             else
             {
-                Debug_printf("non-dragon read\n");
                 if (d->read(lsn, use_media_buffer ? nullptr : sector_data))
                 {
                     if (d->get_media_status() == 2)
@@ -602,7 +601,6 @@ void systemBus::_drivewire_process_cmd()
         Debug_println("Failed to read cmd!");
         return;
     }
-    Debug_printf("_drivewire_process_cmd: cmd 0x%02x\r\n", c);
     fnLedManager.set(eLed::LED_BUS, true);
 
     dwOpcode_t opcode = static_cast<dwOpcode_t>(val);
@@ -913,9 +911,11 @@ void systemBus::setup()
                       .deviceID(DW_UART_DEVICE)
                       .readTimeout(500)
 #ifdef ESP_PLATFORM
+#ifndef COCO_HS_UART
                       .txInverted(DW_UART_DEVICE == UART_NUM_2 && !bDragon)
                       .rxInverted(DW_UART_DEVICE == UART_NUM_2)
-#ifdef COCO_HS_UART
+#else
+                      // No line inversion on this board's direct link to the RP2040/RP2350.
                       // Hardware flow control parked for now - not yet validated on this board.
                       //.flowControl(UART_HW_FLOWCTRL_CTS_RTS)
                       //.rtsPin(PIN_UART1_RTS)
@@ -967,7 +967,7 @@ void systemBus::shutdown()
     Debug_printf("All devices shut down.\n");
 }
 
-#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+#ifdef DRIVEWIRE_DBC_SUPPORTED
 std::unique_ptr<FujiBusPacket> systemBus::readBusPacket(int first)
 {
     ByteBuffer packet;
@@ -1005,7 +1005,7 @@ void systemBus::writeBusPacket(FujiBusPacket &packet)
     ByteBuffer encoded = packet.serialize();
     _port->write(encoded.data(), encoded.size());
 }
-#endif /* PINMAP_FUJIVERSAL_DRIVEWIRE */
+#endif /* DRIVEWIRE_DBC_SUPPORTED */
 
 void systemBus::transaction_accept(transState_t expectMoreData)
 {

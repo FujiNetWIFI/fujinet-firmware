@@ -780,15 +780,21 @@ success_is_true fujiDevice::fujicmd_open_directory_success(uint8_t hostSlot)
 
     if (!validate_host_slot(hostSlot))
     {
+        Debug_printf("%s(%d): failed validate host\r\n",
+                 __FUNCTION__, __LINE__);
         SYSTEM_BUS.transaction_error();
         RETURN_ERROR_AS_FALSE();
     }
 
     std::string dirpath(256, 0);
     if (!SYSTEM_BUS.transaction_get(dirpath.data(), dirpath.size())) {
+        Debug_printf("%s(%d): failed get path\r\n",
+            __FUNCTION__, __LINE__);
         SYSTEM_BUS.transaction_error();
         RETURN_ERROR_AS_FALSE();
     }
+    Debug_printf("Opening directory: \"%s\"\r\n",
+                 dirpath.c_str());
 
     if (_current_open_directory_slot != -1)
     {
@@ -799,11 +805,16 @@ success_is_true fujiDevice::fujicmd_open_directory_success(uint8_t hostSlot)
 
     if (!fujicore_open_directory_success(hostSlot, dirpath))
     {
+        Debug_printf("%s(%d): failed open path\r\n",
+            __FUNCTION__, __LINE__);
         SYSTEM_BUS.transaction_error();
         RETURN_ERROR_AS_FALSE();
     }
 
     SYSTEM_BUS.transaction_success();
+    Debug_printf("%s(%d): success\r\n",
+        __FUNCTION__, __LINE__);
+
     RETURN_SUCCESS_AS_TRUE();
 }
 

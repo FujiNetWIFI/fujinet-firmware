@@ -33,6 +33,70 @@ uint8_t MediaTypeROM::status()
     return 2;
 }
 
+#ifdef DRIVEWIRE_DBC_SUPPORTED
+#define DBC_STREAM_ROM 0
+
+// Pushes this object's already-mounted file (_media_fileh, _media_image_size)
+// to the DBC device (the RP2040/RP2350 companion) as one
+// NET_OPEN/NET_WRITE.../NET_CLOSE stream. Shared by mount() (automatic push,
+// for boards wired that way) and fujiDevice's on-demand FUJI_PULL_ROM handler
+// (push triggered later, e.g. by a One ROM-style companion's own knock/ack
+// handshake) - see lib/media/rs232/diskTypeROM.cpp's push_stream() for the
+// sibling implementation this mirrors.
+bool MediaTypeROM::push_stream()
+{
+    struct { uint8_t id; u32le_t size; } open_hdr;
+    static_assert(sizeof(open_hdr) == 5, "OPEN header must not be padded");
+    open_hdr.id = DBC_STREAM_ROM;
+    open_hdr.size = _media_image_size;
+
+    auto reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_OPEN,
+                                        std::string((const char *)&open_hdr, sizeof(open_hdr)));
+    if (!reply || reply->command() != CMD::FUJI_ACK)
+    {
+        Debug_printv("MediaTypeROM: failed to open DBC stream (%lu bytes)", (unsigned long)_media_image_size);
+        return false;
+    }
+
+    fnio::fseek(_media_fileh, 0, SEEK_SET);
+
+    bool ok = true;
+    uint32_t sent = 0;
+    size_t got;
+    while ((got = fnio::fread(_media_blockbuff, 1, MEDIA_BLOCK_SIZE, _media_fileh)) > 0)
+    {
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_WRITE,
+                                       std::string((char *)_media_blockbuff, got));
+        if (!reply || reply->command() != CMD::FUJI_ACK)
+        {
+            Debug_printv("MediaTypeROM: failed to send DBC block at %lu of %lu bytes",
+                         (unsigned long)sent, (unsigned long)_media_image_size);
+            ok = false;
+            break;
+        }
+        sent += got;
+    }
+
+    if (ok && sent != _media_image_size)
+    {
+        Debug_printv("MediaTypeROM: DBC stream short transfer: %lu of %lu bytes",
+                     (unsigned long)sent, (unsigned long)_media_image_size);
+        ok = false;
+    }
+
+    reply = ok ? SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE)
+               : SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE, std::string(1, '\x01'));
+    if (!reply || reply->command() != CMD::FUJI_ACK)
+    {
+        Debug_printv("MediaTypeROM: DBC close failed");
+        return false;
+    }
+
+    Debug_printv("DBC stream complete: %lu / %lu bytes", (unsigned long)sent, (unsigned long)_media_image_size);
+    return ok;
+}
+#endif /* DRIVEWIRE_DBC_SUPPORTED */
+
 mediatype_t MediaTypeROM::mount(fnFile *f, uint32_t disksize)
 {
     Debug_printf("DW ROM MOUNT %s (%lu bytes)\n", _disk_filename, (unsigned long)disksize);
@@ -48,36 +112,18 @@ mediatype_t MediaTypeROM::mount(fnFile *f, uint32_t disksize)
         return MEDIATYPE_UNKNOWN;
     }
 
-    if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_OPEN, (uint16_t)0))
-    {
-        Debug_printv("Failed to open pico bank");
+    if (!push_stream())
         return MEDIATYPE_UNKNOWN;
-    }
 
-    fnio::fseek(_media_fileh, 0, SEEK_SET);
-
-    uint32_t sent = 0;
-    while (sent < disksize)
-    {
-        size_t want = (disksize - sent) > MEDIA_BLOCK_SIZE ? MEDIA_BLOCK_SIZE : (disksize - sent);
-        size_t got = fnio::fread(_media_blockbuff, 1, want, _media_fileh);
-        if (got == 0)
-        {
-            Debug_printv("ROM read short: sent %lu of %lu bytes", (unsigned long)sent, (unsigned long)disksize);
-            break;
-        }
-        if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_WRITE,
-                                    std::string((char *)_media_blockbuff, got)))
-        {
-            Debug_printv("Failed to send ROM block at %lu of %lu bytes", (unsigned long)sent, (unsigned long)disksize);
-            break;
-        }
-        sent += got;
-    }
-
-    SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE);
-    Debug_printv("ROM transfer complete: %lu / %lu bytes", (unsigned long)sent, (unsigned long)disksize);
-
+    return _mediatype;
+#elif defined(COCO_HS_UART)
+    // No auto-push here - a One ROM-style companion pulls the image itself,
+    // on demand, via FUJI_PULL_ROM (drivewireFuji.cpp's fujicmd_pull_rom(),
+    // which calls push_stream() directly) once its own knock/ack handshake
+    // asks for it. The mount itself still succeeds: _mediatype is already
+    // set above, which is what fujicmd_pull_rom() (and
+    // fujicore_mount_disk_image_success()'s own MEDIATYPE_UNKNOWN-means-
+    // failure check) actually key off.
     return _mediatype;
 #else
     Debug_printv("ROM mount not supported on this FujiNet hardware.");
