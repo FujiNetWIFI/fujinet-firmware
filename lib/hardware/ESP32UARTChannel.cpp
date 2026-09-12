@@ -22,6 +22,7 @@ void ESP32UARTChannel::begin(const ChannelConfig& conf)
     read_timeout_ms = conf.read_timeout_ms;
     discard_timeout_ms = conf.discard_timeout_ms;
     Debug_printv("speed: %i", conf.uart_config.baud_rate);
+    Debug_printv("port: %i", _uart_num);
     uart_param_config(_uart_num, &conf.uart_config);
 
     controlPins = conf.pins;
@@ -53,6 +54,8 @@ void ESP32UARTChannel::begin(const ChannelConfig& conf)
         return;
     }
 
+    Debug_printv("pins: TX=%i, RX=%i, RTS=%i, CTS=%i", controlPins.tx, controlPins.rx,
+                controlPins.rts, controlPins.cts);
     uart_set_pin(_uart_num, controlPins.tx, controlPins.rx,
                  UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
@@ -68,17 +71,28 @@ void ESP32UARTChannel::begin(const ChannelConfig& conf)
     int uart_queue_size = 20;
     int intr_alloc_flags = ESP_INTR_FLAG_IRAM;
 
+    Debug_printv("uart_buffer_size: %i", uart_buffer_size);
     uart_driver_install(_uart_num, uart_buffer_size, conf.tx_buffer_size, uart_queue_size, &_uart_q,
                         intr_alloc_flags);
 
     _halfDuplex = conf.isHalfDuplex;
 
+    // set RTS pin mode
     if (controlPins.rts >= 0)
+    {
+        Debug_printv("setting RTS on pin: RTS=%i", controlPins.rts);
         fnSystem.set_pin_mode(controlPins.rts, gpio_mode_t::GPIO_MODE_INPUT);
+    }
     if (controlPins.cts >= 0)
     {
+        Debug_printv("setting CTS on pin: CTS=%i", controlPins.cts);
         fnSystem.set_pin_mode(controlPins.cts, gpio_mode_t::GPIO_MODE_OUTPUT);
         fnSystem.digital_write(controlPins.cts, DIGI_LOW);
+    }
+    if (controlPins.rts >= 0 && controlPins.cts >= 0)
+    {
+        // uart_set_hw_flow_ctrl(_uart_num, UART_HW_FLOWCTRL_CTS_RTS, 0);
+        Debug_printv("RTS/CTS flow control enabled");
     }
 
     if (controlPins.dtr >= 0)
@@ -126,7 +140,7 @@ void ESP32UARTChannel::updateFIFO()
         {
             size_t old_len = _fifo.size();
             _fifo.resize(old_len + event.size);
-            int result = uart_read_bytes(_uart_num, &_fifo[old_len], event.size, 0);
+            int result = uart_read_bytes(_uart_num, &_fifo[old_len], event.size, 1);
             if (result < 0)
                 result = 0;
             _fifo.resize(old_len + result);
@@ -144,7 +158,7 @@ void ESP32UARTChannel::updateFIFO()
 
     size_t old_len = _fifo.size();
     _fifo.resize(old_len + avail);
-    int result = uart_read_bytes(_uart_num, &_fifo[old_len], avail, 0);
+    int result = uart_read_bytes(_uart_num, &_fifo[old_len], avail, 1);
     if (result < 0)
         result = 0;
     _fifo.resize(old_len + result);
@@ -241,11 +255,14 @@ void ESP32UARTChannel::setDSR(bool state)
 
 bool ESP32UARTChannel::getRTS()
 {
-    return getPin(controlPins.rts);
+    bool state = getPin(controlPins.rts);
+    Debug_printf("getRTS %d\r\n", state);
+    return state;
 }
 
 void ESP32UARTChannel::setCTS(bool state)
 {
+    Debug_printf("setCTS %d\r\n", state);
     setPin(controlPins.cts, state);
 }
 

@@ -1,0 +1,24 @@
+paths:
+  font_path: /file?
+  css_path: /file?css
+  js_path: /file?js
+components:
+  network: true
+  hardware: true
+  hosts_list: true
+  mount_list: true
+  printer_settings: experimental
+  modem_settings: experimental
+  hsio_settings: false
+  timezone: true
+  apetime: false
+  net_stream: false
+  program_recorder: experimental
+  disk_swap: false
+  emulator_settings: true
+  boot_settings: true
+  cpm_settings: experimental
+  pclink: false
+tweaks:
+  # webui tweaks, if any
+  platform: COCO

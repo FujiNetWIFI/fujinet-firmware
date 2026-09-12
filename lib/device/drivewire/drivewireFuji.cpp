@@ -3,6 +3,10 @@
 #include "drivewireFuji.h"
 #include "NDevice.h"
 #include "compat_string.h"
+#include "endianness.h"
+#include "fuji_endian.h"
+#include "../../bus/drivewire/drivewire.h"
+#include "../../media/drivewire/mediaTypeROM.h"
 
 #define IMAGE_EXTENSION ".dsk"
 #define LOBBY_URL       "tnfs://tnfs.fujinet.online/COCO/lobby.dsk"
@@ -198,6 +202,61 @@ void drivewireFuji::random()
     SYSTEM_BUS.transaction_send(&r, sizeof(r));
 }
 
+// FUJI_PULL_ROM: on-demand DBC push of device slot's MEDIATYPE_ROM image to
+// the RP2040/RP2350 companion, for boards (COCO_HS_UART) that don't want the
+// push happening automatically at mount time - see mediaTypeROM.cpp's
+// push_stream(). The command's own reply is a plain success/error, sent (and
+// the DBC exchange itself completed) before this returns, so the caller sees
+// no interleaving with the DBC side channel.
+//
+// Selecting a file in the config app's browser only records its path (see
+// FUJI_SET_DEVICE_FULLPATH) - it does not itself mount anything, and nothing
+// else mounts device slots ahead of a normal DECB cold boot (FUJI_MOUNT_ALL).
+// A "!LDCART!" boot can be triggered directly from the browser/config app
+// without ever going through that boot path, so this mounts the slot itself
+// (read-only - a cartridge image is inherently read-only anyway) rather than
+// assuming it already happened. Idempotent if it's already mounted.
+void drivewireFuji::fujicmd_pull_rom(uint8_t deviceSlot)
+{
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    Debug_printf("Fuji cmd: PULL ROM, device slot %u\r\n", deviceSlot);
+
+#ifdef DRIVEWIRE_DBC_SUPPORTED
+    if (!validate_device_slot(deviceSlot, "pull_rom"))
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
+    if (!fujicore_mount_disk_image_success(deviceSlot, DISK_ACCESS_MODE_READ))
+    {
+        Debug_printf("PULL ROM: failed to mount device slot %u\r\n", deviceSlot);
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
+    MediaType *media = get_disk_dev(deviceSlot)->media();
+    if (!media || media->_mediatype != MEDIATYPE_ROM)
+    {
+        Debug_printf("PULL ROM: device slot %u is not a ROM image\r\n", deviceSlot);
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
+    if (!static_cast<MediaTypeROM *>(media)->push_stream())
+    {
+        Debug_printf("PULL ROM: DBC push failed for device slot %u\r\n", deviceSlot);
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
+    SYSTEM_BUS.transaction_success();
+#else
+    Debug_println("PULL ROM: not supported on this FujiNet hardware");
+    SYSTEM_BUS.transaction_error();
+#endif
+}
+
 bool drivewireFuji::processCommand(const FujiDWPacket &packet)
 {
     _errorCode = NDEV_STATUS::SUCCESS;
@@ -210,6 +269,9 @@ bool drivewireFuji::processCommand(const FujiDWPacket &packet)
     {
     case CMD::FUJI_NEW_DISK:
         new_disk();
+        break;
+    case CMD::FUJI_PULL_ROM:
+        fujicmd_pull_rom(packet.param(0));
         break;
     default:
         return false;
