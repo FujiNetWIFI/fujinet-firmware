@@ -42,10 +42,10 @@ gen_screen() {
 }
 
 # The claim. An image carrying "FUJI" at FN_R_CLAIM promises the mailbox pages
-# are not its own code, so the cartridge keeps decoding after it boots. For a
-# 4K image the window maps linearly, so the image offset is the console address
-# minus $1000.
-CLAIM_OFF=$((0x0F10))
+# are not its own code, so the cartridge keeps decoding after it boots. The
+# fixed half is the LAST 2K of the image whatever its size, so the offset is
+# (size - 2048) + (FN_R_CLAIM - $1800).
+claim_off() { echo $(( $1 - 0x800 + 0x0710 )); }
 
 # fujiboot's target, regenerated every run so a stale value cannot survive an
 # environment change.
@@ -72,14 +72,53 @@ build_one() {
     mv -f "testrom/$name.lst" "build/$name.lst" 2>/dev/null || true
     $P2BIN "build/$name.p" "build/$name.bin" -r '$1000-$1FFF' -l 0
     rm -f "build/$name.p"
-    printf 'FUJI' | dd of="build/$name.bin" bs=1 seek=$CLAIM_OFF \
+    stamp_and_check "$name"
+}
+
+stamp_and_check() {
+    local name=$1 size
+    size=$(stat -c%s "build/$name.bin")
+    printf 'FUJI' | dd of="build/$name.bin" bs=1 seek="$(claim_off "$size")" \
         conv=notrunc status=none
     python3 tools/checkrom.py "build/$name.bin"
-    echo "build/$name.bin: $(stat -c%s "build/$name.bin") bytes"
+    echo "build/$name.bin: $size bytes"
+}
+
+# A BANKED client: N sources each assembled at $1000-$17FF, then the fixed
+# tail at $1800-$1FFF, concatenated in that order. That is the image layout
+# vcs_set_image expects -- N banks then the fixed half -- and (N+1)*2048 lands
+# on MAME's whitelist for N in {1,3,7,15}.
+#
+# Each bank carries its OWN copy of fujilib and fujidisp, about 600 bytes.
+# There is nowhere else to put them: the high 2K is the mailbox in its
+# entirety, and the fixed tail carved out of the status page is 220 bytes.
+# Duplicating them is what F8 games have always done.
+build_banked() {
+    local name=$1 tail=$2; shift 2
+    local parts=() b
+    for b in "$@"; do
+        (cd testrom && $AS -q -L "$b.asm")
+        mv "testrom/$b.p" "build/$b.p"
+        mv -f "testrom/$b.lst" "build/$b.lst" 2>/dev/null || true
+        $P2BIN "build/$b.p" "build/$b.bin" -r '$1000-$17FF' -l 0
+        rm -f "build/$b.p"
+        parts+=("build/$b.bin")
+    done
+    (cd testrom && $AS -q -L "$tail.asm")
+    mv "testrom/$tail.p" "build/$tail.p"
+    mv -f "testrom/$tail.lst" "build/$tail.lst" 2>/dev/null || true
+    $P2BIN "build/$tail.p" "build/$tail.bin" -r '$1800-$1FFF' -l 0
+    rm -f "build/$tail.p"
+    cat "${parts[@]}" "build/$tail.bin" > "build/$name.bin"
+    rm -f "${parts[@]}" "build/$tail.bin"
+    stamp_and_check "$name"
 }
 
 clients=("$@")
-[ ${#clients[@]} -eq 0 ] && clients=(hello fujitest fujiboot fujidir)
+[ ${#clients[@]} -eq 0 ] && clients=(hello fujitest fujiboot fujidir fujicfg)
 for client in "${clients[@]}"; do
-    build_one "$client"
+    case "$client" in
+    fujicfg) build_banked fujicfg cfgtail cfghost cfgdir cfginfo ;;
+    *)       build_one "$client" ;;
+    esac
 done

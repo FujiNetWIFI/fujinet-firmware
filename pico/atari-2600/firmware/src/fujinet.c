@@ -141,8 +141,24 @@ void fuji_mailbox_service(void)
 {
     uint16_t offset;
 
-    while (fuji_cart_next_event(&offset))
+    while (fuji_cart_next_event(&offset)) {
+        if (offset == FN_H_PATHTX || offset == FN_H_PATHRAW) {
+            /* One ring entry expands into 256 stream bytes. core1 cannot do
+             * this itself -- 256 ring pushes inside the bus loop would miss
+             * cycles, and a missed cycle here serves the console a wrong byte
+             * rather than merely slowing it down. Order is preserved because
+             * the ring is FIFO: the path lands exactly where the client put
+             * it in the stream. */
+            unsigned n = (offset == FN_H_PATHTX) ? FN_PATH_MAX
+                                                 : fuji_mem.path_len;
+            unsigned i;
+
+            for (i = 0; i < n; i++)
+                fujimail_read_hotspot(FN_H_DATA + vcs_path_byte(&fuji_mem, i));
+            continue;
+        }
         fujimail_read_hotspot(offset);
+    }
 
     fuji_cart_service_deferred();
 }

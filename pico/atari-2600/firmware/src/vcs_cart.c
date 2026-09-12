@@ -95,6 +95,16 @@ void __not_in_flash_func(vcs_core1_main)(void)
                 fuji_cart_note((uint16_t)(FN_H_DATA + ev_b));
                 break;
 
+            case VCS_EV_PATHTX:
+                /* One marker, expanded by core0 into 256 stream bytes. Doing
+                 * it here would cost microseconds against an 838 ns budget. */
+                fuji_cart_note(FN_H_PATHTX);
+                break;
+
+            case VCS_EV_PATHRAW:
+                fuji_cart_note(FN_H_PATHRAW);
+                break;
+
             case VCS_EV_BANK:
                 /* Inline, never queued: the next fetch may already be from
                  * the new bank. */

@@ -82,6 +82,20 @@ FNPB:   pha
         sta     FNTX
         rts
 
+; FNPW -- append a two-byte little-endian parameter. A = low, X = high.
+;
+; SET_DIRECTORY_POSITION takes ONE parameter of TWO bytes -- fujiDevice reads
+; it as packet.param(0) declared uint16_t -- not two one-byte parameters, and
+; getting that wrong produces a NAK with nothing to point at.
+FNPW:   pha
+        lda     #2
+        sta     FNTX
+        pla
+        sta     FNTX
+        txa
+        sta     FNTX
+        rts
+
 ; FNGO -- commit and wait. Returns A = FNE* (0 = the transaction completed).
 ;
 ; THE RULE THAT EVERY PORT IN THIS FAMILY LEARNED THE HARD WAY: the next
@@ -309,6 +323,78 @@ FNPE1:  ldx     FNPCNT
         inc     FNPCNT
         bne     FNPE1
 FNPE2:  rts
+
+; ---------------------------------------------------------------------------
+; The working directory, held in the CARTRIDGE.
+;
+; A browser has to remember which directory it is in. This console has 128
+; bytes of RAM, the stack owns the top of them and the swap stub the bottom,
+; and a path is 256 bytes. So the path lives in the cartridge: built a
+; character at a time, popped a component at a time, and emitted straight into
+; the TX stream when a transaction needs it. It never occupies console RAM.
+;
+; A directory is held WITH its trailing "/", so appending a filename to it is
+; just FNWRPL and needs no separator logic here.
+;
+; IT SURVIVES A CONSOLE RESET, because there is no reset line on this
+; connector and the cartridge never sees the switch. That is the behaviour you
+; want from a browser -- but it means a client must not assume the buffer is
+; empty at startup. Call FNWRST.
+
+; FNWRST -- empty it.
+FNWRST: lda     #FP_RST
+        sta     FNRSEL+FH_PATHO
+        rts
+
+; FNWCH -- append A. Preserves X and Y.
+FNWCH:  sta     FNRSEL+FH_PATHC
+        rts
+
+; FNWPOP -- drop the last component. "/a/b/c/" becomes "/a/b/", and "/"
+; stays "/", so walking up from the root is harmless.
+FNWPOP: lda     #FP_POP
+        sta     FNRSEL+FH_PATHO
+        rts
+
+; FNWTX -- emit the path into the TX stream as EXACTLY 256 bytes, padded.
+; One store; the cartridge does the other 255.
+FNWTX:  lda     #FP_TX
+        sta     FNRSEL+FH_PATHO
+        rts
+
+; FNPWD -- append the working directory to the payload being built, WITHOUT
+; padding, and advance the payload counter past it.
+;
+; This is the half of the path buffer that SET_DEVICE_FULLPATH needs: the
+; directory and the filename go into ONE 256-byte payload, so the cartridge
+; emits its buffer raw and FNPEND pads what is left. The console cannot know
+; how many bytes that was, so the cartridge publishes it at FNPLNL.
+FNPWD:  lda     #FP_TXRAW
+        sta     FNRSEL+FH_PATHO
+        lda     FNPCNT
+        clc
+        adc     FNPLNL
+        sta     FNPCNT
+        rts
+
+; FNWSTR -- append the NUL-terminated string at FNPTRL/H.
+FNWSTR: ldy     #0
+FNWS1:  lda     (FNPTRL),y
+        beq     FNWS2
+        sta     FNRSEL+FH_PATHC
+        iny
+        bne     FNWS1
+FNWS2:  rts
+
+; FNWRPL -- append up to Y bytes of the reply window at offset X, stopping at
+; NUL. Cartridge to cartridge: the name never lands in console RAM.
+FNWRPL: lda     FNRPLY,x
+        beq     FNWR2
+        sta     FNRSEL+FH_PATHC
+        inx
+        dey
+        bne     FNWRPL
+FNWR2:  rts
 
 ; FNEOF -- Z set if the reply is the $7F,$7F end-of-directory marker.
 ;

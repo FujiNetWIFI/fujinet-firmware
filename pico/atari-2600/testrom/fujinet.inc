@@ -27,6 +27,8 @@ FNSECH  EQU     $1F0C           ; slice echo, published last after a repaint
 FNBTXG  EQU     $1F0D           ; last text row rendered, plus a toggle
 FNBBNK  EQU     $1F0E           ; the live bank
 FNBFLG  EQU     $1F0F           ; bit0 armed, bit1 claim honoured
+FNPLNL  EQU     $1F17           ; path buffer length, little-endian
+FNPLNH  EQU     $1F18
 
 ; ---------------- console -> cart, write-only ----------------
 ; NEVER READ THESE PAGES. The cart does not drive them -- not driving them is
@@ -50,6 +52,12 @@ FH_BANK EQU     $80
 FH_TROW EQU     $F0
 FH_TCHR EQU     $F1
 FH_TEND EQU     $F2
+FH_PATHC EQU    $F3             ; append A to the cartridge path buffer
+FH_PATHO EQU    $F4             ; act on it: FP_* below
+FP_RST  EQU     0
+FP_POP  EQU     1
+FP_TX   EQU     2
+FP_TXRAW EQU    3
 FH_ARM1 EQU     $FC
 FH_ARM2 EQU     $FD
 FH_SWAP EQU     $FE
@@ -59,6 +67,10 @@ FNAM2   EQU     $4A
 FNBLKM  EQU     $B5             ; bootlock
 
 FNTCOL  EQU     12              ; text columns
+
+; $1F20-$1FFB is the client's fixed tail: the cold stub, the bank trampolines,
+; and anything else that must be at the same address from every bank.
+FNTAIL  EQU     $1F20
 
 ; Devices and commands, from include/fujiCommandID.h and fujiDeviceID.h.
 FNDEVF  EQU     $70             ; the FUJI device

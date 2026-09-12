@@ -374,6 +374,105 @@ static void test_booted_game(void)
     CHECK(vcs_read(&m, 0x1E00) == 1, "a booted game was denied its own $1E00");
 }
 
+/* The working directory lives in the cartridge because the console has 128
+ * bytes of RAM and a path is 256. Nothing about it is visible to MAME -- the
+ * emulator sees the same stores the hardware does and gets the same answer --
+ * so the pop and pad rules are checked here or nowhere. */
+static void push_path(const char *s)
+{
+    for (; *s; s++)
+        wr(FN_H_REGSEL + FN_HOT_PATH_CH, (uint8_t)*s, 0, 0);
+}
+
+static void path_op(uint8_t op)
+{
+    wr(FN_H_REGSEL + FN_HOT_PATH_OP, op, 0, 0);
+}
+
+static void expect_path(const char *want, const char *what)
+{
+    unsigned n = (unsigned)strlen(want);
+
+    if (m.path_len != n || memcmp(m.path, want, n) != 0) {
+        fprintf(stderr, "FAIL: %s: path is \"%.*s\" (%u), want \"%s\"\n",
+                what, (int)m.path_len, (const char *)m.path,
+                (unsigned)m.path_len, want);
+        fails++;
+    }
+}
+
+static void test_path_buffer(void)
+{
+    unsigned i;
+
+    reset_image(1);
+    arm();
+
+    /* Nothing reaches the buffer before the gate opens -- it is one-shot
+     * territory like every other op in the bit7-set half. */
+    memset(&m, 0, sizeof m);
+    vcs_set_image(&m, image, sizeof image);
+    push_path("/hack");
+    if (m.path_len != 0) {
+        fprintf(stderr, "FAIL: the path buffer took bytes before arming\n");
+        fails++;
+    }
+
+    arm();
+    path_op(FN_PATH_RST);
+    push_path("/games/atari/");
+    expect_path("/games/atari/", "after building it");
+
+    path_op(FN_PATH_POP);
+    expect_path("/games/", "popping a directory with its trailing slash");
+    path_op(FN_PATH_POP);
+    expect_path("/", "popping back to the root");
+
+    /* Walking up from the root is harmless: a browser at the top with the
+     * stick pushed left must not underflow into something unmountable. */
+    path_op(FN_PATH_POP);
+    path_op(FN_PATH_POP);
+    expect_path("/", "popping past the root");
+
+    /* A component with no trailing slash -- a FILE -- pops too. */
+    path_op(FN_PATH_RST);
+    push_path("/a/b/game.bin");
+    path_op(FN_PATH_POP);
+    expect_path("/a/b/", "popping a filename");
+
+    /* Saturates rather than wrapping. An over-long path is truncated; it
+     * never corrupts whatever follows the buffer. */
+    path_op(FN_PATH_RST);
+    for (i = 0; i < FN_PATH_MAX + 64u; i++)
+        wr(FN_H_REGSEL + FN_HOT_PATH_CH, (uint8_t)'x', 0, 0);
+    if (m.path_len != FN_PATH_MAX) {
+        fprintf(stderr, "FAIL: the path buffer did not saturate at %u "
+                        "(got %u)\n", (unsigned)FN_PATH_MAX,
+                (unsigned)m.path_len);
+        fails++;
+    }
+
+    /* The payload is EXACTLY 256 bytes: the path, then NUL padding.
+     * OPEN_DIRECTORY and SET_DEVICE_FULLPATH both read exactly that many and
+     * a short one fails the server's read. */
+    path_op(FN_PATH_RST);
+    push_path("/games/");
+    if (wr(FN_H_REGSEL + FN_HOT_PATH_OP, FN_PATH_TX, 0, 0)
+        != VCS_EV_PATHTX) {
+        fprintf(stderr, "FAIL: FN_PATH_TX did not ask for the stream\n");
+        fails++;
+    }
+    for (i = 0; i < FN_PATH_MAX; i++) {
+        uint8_t want = (i < 7u) ? (uint8_t)"/games/"[i] : 0u;
+        if (vcs_path_byte(&m, i) != want) {
+            fprintf(stderr, "FAIL: path payload byte %u is $%02X, want $%02X\n",
+                    i, vcs_path_byte(&m, i), want);
+            fails++;
+            break;
+        }
+    }
+}
+
 int main(void)
 {
     test_geometry();
@@ -384,12 +483,14 @@ int main(void)
     test_claim_and_banking();
     test_sampling();
     test_booted_game();
+    test_path_buffer();
 
     if (fails) {
         printf("test_busio: %d failures\n", fails);
         return 1;
     }
     printf("test_busio: PASS (decode, arming gate, arm/commit interlock, "
-           "banking, claim, booted games, and the write-sampling model)\n");
+           "banking, claim, booted games, the cartridge-held working directory, "
+           "and the write-sampling model)\n");
     return 0;
 }

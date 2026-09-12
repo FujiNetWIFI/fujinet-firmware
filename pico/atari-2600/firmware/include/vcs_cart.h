@@ -55,6 +55,8 @@ typedef enum {
     VCS_EV_TEND,     /* render the composed row, attribute ev_b                   */
     VCS_EV_BLIT,     /* run the staged blit, transform ev_b                       */
     VCS_EV_ARMED,    /* the decode gate just opened                               */
+    VCS_EV_PATHTX,   /* emit the path buffer into the TX stream, padded to 256     */
+    VCS_EV_PATHRAW,  /* emit just the path buffer's own bytes                      */
 } vcs_ev_t;
 
 typedef struct {
@@ -75,6 +77,11 @@ typedef struct {
      * whichever real cartridge board it shipped on. The mailbox is dead by
      * then -- the image did not claim it -- so the two paths never overlap. */
     vcsmap_t map;
+
+    /* The working directory, held here because the console has nowhere to
+     * put it. See FN_HOT_PATH_CH in fuji_mailbox.h. */
+    uint8_t path[FN_PATH_MAX];
+    uint16_t path_len;
 
     /* A scheme named by the pushed image's .cfg sibling, if it had one. */
     vcsmap_kind_t hint;
@@ -176,6 +183,26 @@ static inline uint8_t vcs_read_ex(const vcs_mem_t *m, uint16_t a, bool commit)
 static inline uint8_t vcs_read(const vcs_mem_t *m, uint16_t a)
 {
     return vcs_read_ex(m, a, true);
+}
+
+/* Republish the path length where the console can read it. Two stores in the
+ * bus loop, and they buy the client the one thing it cannot work out for
+ * itself: how much of a 256-byte payload the cartridge just filled. */
+static inline void vcs_publish_pathlen(vcs_mem_t *m)
+{
+    m->win[FN_B_PATHLEN - FN_WINDOW_BASE] = (uint8_t)(m->path_len & 0xFFu);
+    m->win[FN_B_PATHLEN + 1 - FN_WINDOW_BASE] = (uint8_t)(m->path_len >> 8);
+}
+
+/* Byte i of the path payload: the buffer, then NUL padding to exactly 256.
+ *
+ * The padding is not a rounding. OPEN_DIRECTORY and SET_DEVICE_FULLPATH both
+ * read exactly 256 bytes and a short payload fails the server's read; every
+ * port in this family has paid for that once. It lives here so core0 and the
+ * MAME model cannot disagree about it. */
+static inline uint8_t vcs_path_byte(const vcs_mem_t *m, unsigned i)
+{
+    return (i < m->path_len) ? m->path[i] : 0u;
 }
 
 /* An access the cartridge does NOT answer -- A12 is low, so something else on
@@ -281,6 +308,33 @@ static inline vcs_ev_t vcs_write(vcs_mem_t *m, uint16_t a, uint8_t v,
         *ev_b = v;
         return VCS_EV_TCHR;
     case FN_HOT_TEND:  *ev_b = v; return VCS_EV_TEND;
+
+    case FN_HOT_PATH_CH:
+        /* Saturates rather than wrapping, for the same reason FN_HOT_TCHR
+         * does: an over-long path is truncated, never a buffer corrupted. */
+        if (m->path_len < FN_PATH_MAX)
+            m->path[m->path_len++] = v;
+        vcs_publish_pathlen(m);
+        return VCS_EV_NONE;
+
+    case FN_HOT_PATH_OP:
+        if (v == FN_PATH_RST) {
+            m->path_len = 0;
+        } else if (v == FN_PATH_POP) {
+            /* "/a/b/c/" -> "/a/b/", "/a/" -> "/", "/" -> "/". A directory is
+             * held WITH its trailing separator, so appending a name to it is
+             * one store and needs no separator logic on the console. */
+            if (m->path_len > 1u && m->path[m->path_len - 1u] == (uint8_t)'/')
+                m->path_len--;
+            while (m->path_len > 1u && m->path[m->path_len - 1u] != (uint8_t)'/')
+                m->path_len--;
+        } else if (v == FN_PATH_TX) {
+            return VCS_EV_PATHTX;
+        } else if (v == FN_PATH_TXRAW) {
+            return VCS_EV_PATHRAW;
+        }
+        vcs_publish_pathlen(m);
+        return VCS_EV_NONE;
     case FN_HOT_BLIT_SL: m->blit_src = (uint16_t)((m->blit_src & 0xFF00u) | v); return VCS_EV_NONE;
     case FN_HOT_BLIT_SH: m->blit_src = (uint16_t)((m->blit_src & 0x00FFu) | ((uint16_t)v << 8)); return VCS_EV_NONE;
     case FN_HOT_BLIT_DL: m->blit_dst = (uint16_t)((m->blit_dst & 0xFF00u) | v); return VCS_EV_NONE;

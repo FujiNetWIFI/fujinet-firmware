@@ -172,6 +172,13 @@
 #define FN_R_CLAIM_SIG   "FUJI"
 #define FN_R_HDR         0x1F14   /* bank count, cell height, layout rev     */
 
+/* How many bytes the path buffer holds, little-endian, republished on every
+ * change. A client needs it for exactly one thing: SET_DEVICE_FULLPATH takes
+ * the directory AND the filename in one 256-byte payload, so after the
+ * cartridge has emitted the directory the client must know how much of the
+ * payload is left to pad. Past the paint span, like the other FN_B_*. */
+#define FN_B_PATHLEN     0x1F17   /* 2 bytes, little-endian                  */
+
 /* $1F20-$1FFB is the client's fixed tail: the cold stub, the bank
  * trampolines, and whatever else must be reachable from every bank.
  * $1FFC-$1FFD is the RESET vector and $1FFE-$1FFF the BRK vector. */
@@ -205,6 +212,8 @@
  * out of $1000-$1FFF is worth two pages of a sixteen-page machine. */
 #define FN_H_REGDATA     0x2E00   /* synthesised by a store to FN_H_COMMIT   */
 #define FN_H_DATA        0x2F00   /* synthesised by a store anywhere in $1E  */
+#define FN_H_PATHTX      0x3000   /* the path buffer, expanded into FN_H_DATA*/
+#define FN_H_PATHRAW     0x3100   /* the same, without the padding           */
 
 #define FN_TX_BASE       0x1E00   /* the real console page behind FN_H_DATA  */
 
@@ -234,6 +243,28 @@
 #define FN_BLIT_RAW      0        /* copy bytes unchanged                    */
 #define FN_BLIT_TEXT     1        /* ASCII -> packed glyph pairs             */
 #define FN_BLIT_FIELD    2        /* a game field -> playfield bits          */
+
+/* The path buffer. SET_DEVICE_FULLPATH and OPEN_DIRECTORY both read EXACTLY
+ * 256 bytes, and a directory browser has to remember which directory it is
+ * in -- which on this console is impossible, because there are 128 bytes of
+ * RAM and the stack owns the top of them. So the working directory lives in
+ * the CARTRIDGE, built a character at a time and emitted straight into the TX
+ * stream when a transaction needs it. It never occupies console RAM at all.
+ *
+ * FN_PATH_POP is what makes ".." cost nothing: the client does not have to
+ * know where the last separator was, because the cartridge does.
+ *
+ * The buffer is cartridge state, so it SURVIVES A CONSOLE RESET -- there is no
+ * reset line on this connector. A browser restarted by the RESET switch comes
+ * back in the directory it was in, which is the behaviour you want, but a
+ * client that assumes an empty buffer at startup is wrong. Reset it. */
+#define FN_HOT_PATH_CH   0xF3     /* data = char: append to the path buffer  */
+#define FN_HOT_PATH_OP   0xF4     /* data = FN_PATH_*: act on the buffer     */
+#define FN_PATH_RST      0        /* empty it                                */
+#define FN_PATH_POP      1        /* drop the last component, keeping "/"    */
+#define FN_PATH_TX       2        /* emit it into TX, NUL-padded to 256      */
+#define FN_PATH_TXRAW    3        /* emit just its bytes; the client pads    */
+#define FN_PATH_MAX      256
 
 #define FN_HOT_ARM1      0xFC     /* data must be FN_ARM_MAGIC1, then...     */
 #define FN_HOT_ARM2      0xFD     /* ...FN_ARM_MAGIC2: decode goes live      */

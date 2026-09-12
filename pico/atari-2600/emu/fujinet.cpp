@@ -261,6 +261,27 @@ void a26_rom_fujinet_device::write(offs_t offset, uint8_t data)
 		fujimail_read_hotspot((uint16_t)(FN_H_DATA + b));
 		break;
 
+	case VCS_EV_PATHTX:
+	case VCS_EV_PATHRAW:
+	{
+		// The cartridge holds the working directory because the console has
+		// nowhere to put it, and emits it straight into the stream. On the
+		// RP2040 this is deferred to core0 -- 256 pushes would miss bus
+		// cycles -- but here there is no bus to miss.
+		//
+		// Padded for a payload that is nothing but the path; raw when the
+		// client is going to append a filename and pad it itself.
+		unsigned n = (ev == VCS_EV_PATHTX) ? FN_PATH_MAX : m_mem.path_len;
+		if (m_debug)
+			fprintf(stderr, "fujinet: path -> \"%.*s\" (%u bytes, %s)\n",
+					(int)m_mem.path_len, (const char *)m_mem.path,
+					m_mem.path_len,
+					(ev == VCS_EV_PATHTX) ? "padded to 256" : "raw");
+		for (unsigned i = 0; i < n; i++)
+			fujimail_read_hotspot((uint16_t)(FN_H_DATA + vcs_path_byte(&m_mem, i)));
+		break;
+	}
+
 	case VCS_EV_BANK:
 		vcs_set_bank(&m_mem, b);
 		break;

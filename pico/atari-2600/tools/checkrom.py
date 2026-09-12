@@ -101,11 +101,13 @@ def check(path):
     # and any client that puts the word FujiNet on screen has one in its
     # strings, which made this a pure false positive.
 
-    # The scan. Only the fixed half and bank 0 are scanned as code; a linear
-    # walk through arbitrary data produces noise, and the banked halves of a
-    # multi-bank client are walked from their own entry points, which this
-    # does not know.
-    for start, label in ((0, "bank 0"), (fixed, "fixed half")):
+    # The scan. Every bank is entered at $1000 by the trampoline in the fixed
+    # tail, so every bank is code and every bank is scanned. A linear walk
+    # through the strings and tables at the end of each one produces noise, but
+    # noise here means a false RMW report on a write-only page, which is a
+    # thing worth looking at rather than a thing worth suppressing.
+    banks = [(b * BANK, "bank %d" % b) for b in range(fixed // BANK)]
+    for start, label in banks + [(fixed, "fixed half")]:
         pc = 0
         base = BASE if start == 0 else 0x1800
         while pc < BANK - 2:
