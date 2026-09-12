@@ -1,0 +1,3 @@
+-I/home/thomc/Workspace/fujinet-firmware/pico/atari-2600/firmware/include
+-I/home/thomc/Workspace/fujinet-firmware/pico/atari-2600/firmware/host_test
+-std=c11
