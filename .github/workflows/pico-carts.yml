@@ -526,8 +526,21 @@ jobs:
       # serves the wrong byte.
       - name: Atari 2600 cartridge (fujivcs)
         working-directory: pico/atari-2600
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: |
-          ./build.sh fujidir
+          # A placeholder client, so there is something to bake. The real one
+          # needs Macro Assembler AS, which this job deliberately does not
+          # install -- the atari2600-console-client job builds and checks the
+          # real clients. 4K of open bus with the claim where the fixed half
+          # puts it: (size - 2048) + ($1F10 - $1800).
+          mkdir -p build
+          python3 - <<'PY'
+          import pathlib
+          img = bytearray(b'\xff' * 0x1000)
+          img[0x0F10:0x0F14] = b'FUJI'
+          pathlib.Path('build/fujidir.bin').write_bytes(img)
+          PY
           python3 tools/mkromh.py build/fujidir.bin > firmware/include/fujiconfigrom.h
           cmake -S firmware -B firmware/build-fujivcs -DPICO_BOARD=fujivcs
           cmake --build firmware/build-fujivcs -j"$(nproc)"
