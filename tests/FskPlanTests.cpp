@@ -1087,6 +1087,200 @@ TEST_CASE("Task 3.4 want == 0 loads nothing and calls no reader")
     CHECK(rd.call_count == 0);
 }
 
+// ─── Authentic corpus block-planning (Task 10.6 / large-chunk architecture) ─────
+//
+// The real Real_World_Acceptance_Corpus member turbo_software_missile_command.cas
+// begins with an authentic raw-FSK chunk whose declared length is 65532 bytes
+// (value_count 32766), followed by a second 45920-byte chunk. These lengths — not
+// only the synthetic 65535 max — are what production must plan and fully preload.
+// This proves, at the block-planning/read seam, that the real lengths map to the
+// expected block counts, load fully through <=512-byte reads, and reassemble
+// byte-for-byte. Storage capability (INTERNAL vs PSRAM) is a production heap
+// concern only; the pure planning/read logic is identical and hardware-free here.
+TEST_CASE("Authentic corpus chunk lengths plan and preload fully (<=512 reads)")
+{
+    const size_t block_size = 512;
+    const size_t read_max = 512; // production FSK_PRELOAD_READ_MAX
+
+    struct Case { size_t len; size_t expect_blocks; size_t expect_values; };
+    const Case cases[] = {
+        { 65532, 128, 32766 }, // Missile Command chunk 1 (real)
+        { 45920, 90,  22960 }, // Missile Command chunk 2 (real)
+        { 65534, 128, 32767 }, // even max within 128 blocks
+        { 65535, 128, 32767 }, // A8CAS absolute max (odd trailing byte)
+    };
+
+    for (const Case &c : cases)
+    {
+        CAPTURE(c.len);
+        // Block planning matches production ceil(len / 512).
+        CHECK((c.len + block_size - 1) / block_size == c.expect_blocks);
+        // value_count is floor(len / 2), the same pure helper production uses.
+        CHECK(fsk_value_count(c.len) == c.expect_values);
+
+        std::vector<uint8_t> src = make_source(c.len);
+        PreloadBuffers bufs(c.len, block_size);
+        ScriptedReader rd(src.data(), src.size());
+        rd.deliver_pattern = { 100, 512, 7, 250, 1, 300 }; // force partial reads
+
+        size_t loaded = fsk_preload_into_blocks(bufs.blocks(), bufs.block_count(),
+                                                block_size, c.len, read_max,
+                                                &ScriptedReader::read, &rd);
+
+        CHECK(loaded == c.len);                 // whole payload resident
+        CHECK(bufs.block_count() == c.expect_blocks);
+        CHECK(rd.max_requested <= read_max);    // never asked for > 512
+        CHECK(bufs.red_zones_intact());         // no out-of-bounds write
+        CHECK(bufs.logical(c.len) == src);      // reassembled byte-for-byte
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Contiguous zero-IRG FSK RUN planning + boundary semantics.
+//
+// Authentic raw-FSK corpus images split ONE continuous tape signal across
+// consecutive `fsk ` chunks where only the first carries a non-zero IRG and all
+// following carry IRG == 0. Production must reproduce such a run as ONE
+// continuous waveform (no per-chunk RMT teardown/gap). These tests exercise the
+// PURE run-membership predicate fsk_run_should_join() driven by fsk_compute_bounds
+// over synthetic chunk layouts, plus per-chunk parity/zero-duration semantics via
+// the pure cursor. No hardware, no PSRAM, no ESP-IDF.
+// ════════════════════════════════════════════════════════════════════════════
+namespace {
+
+// Plan a run over a chunk layout: {is_fsk, len, irg}. Returns the run as a list
+// of (payload_offset, data_avail, value_count) chunk descriptors, mirroring the
+// production scan (start at chunk 0; join following chunks while
+// fsk_run_should_join holds; cap at FSK_RUN_MAX_CHUNKS).
+struct RunChunk { size_t payload_off; size_t data_avail; size_t value_count; };
+struct LayoutChunk { bool is_fsk; uint16_t len; uint16_t irg; };
+
+std::vector<RunChunk> plan_run(const std::vector<LayoutChunk> &layout,
+                               size_t filesize)
+{
+    std::vector<RunChunk> run;
+    // Build absolute offsets by walking the layout with 8-byte headers.
+    std::vector<size_t> offs(layout.size());
+    size_t o = 0;
+    for (size_t i = 0; i < layout.size(); ++i) { offs[i] = o; o += 8 + layout[i].len; }
+
+    // Chunk 0 is always the run start (assume caller entered on an fsk chunk).
+    size_t i = 0;
+    FskBounds b0 = fsk_compute_bounds(filesize, offs[0], layout[0].len);
+    run.push_back({ offs[0] + 8, b0.data_avail, b0.value_count });
+    size_t next = b0.next_offset;
+    i = 1;
+    while (i < layout.size() && next != 0 && run.size() < FSK_RUN_MAX_CHUNKS)
+    {
+        FskBounds cb = fsk_compute_bounds(filesize, offs[i], layout[i].len);
+        if (!fsk_run_should_join(layout[i].is_fsk, layout[i].irg,
+                                 cb.header_complete, cb.structurally_truncated))
+            break;
+        run.push_back({ offs[i] + 8, cb.data_avail, cb.value_count });
+        next = cb.next_offset;
+        ++i;
+    }
+    return run;
+}
+
+size_t layout_filesize(const std::vector<LayoutChunk> &layout)
+{
+    size_t o = 0;
+    for (const auto &c : layout) o += 8 + c.len;
+    return o;
+}
+
+} // namespace
+
+TEST_CASE("FSK run: Missile Command layout is one run of two chunks")
+{
+    std::vector<LayoutChunk> mc = { {true,65532,999}, {true,45920,0} };
+    auto run = plan_run(mc, layout_filesize(mc));
+    REQUIRE(run.size() == 2);
+    CHECK(run[0].value_count == 32766);
+    CHECK(run[1].value_count == 22960);
+}
+
+TEST_CASE("FSK run: River Raid layout is one run of three chunks")
+{
+    std::vector<LayoutChunk> rr = { {true,65532,999}, {true,65532,0}, {true,712,0} };
+    auto run = plan_run(rr, layout_filesize(rr));
+    REQUIRE(run.size() == 3);
+    CHECK(run[0].value_count == 32766);
+    CHECK(run[1].value_count == 32766);
+    CHECK(run[2].value_count == 356);
+}
+
+TEST_CASE("FSK run: International layout is one run of seven chunks")
+{
+    std::vector<LayoutChunk> intl = {
+        {true,65532,999}, {true,65532,0}, {true,65532,0}, {true,65532,0},
+        {true,65532,0},   {true,65532,0}, {true,53072,0}
+    };
+    auto run = plan_run(intl, layout_filesize(intl));
+    REQUIRE(run.size() == 7);
+    for (size_t i = 0; i < 6; ++i) CHECK(run[i].value_count == 32766);
+    CHECK(run[6].value_count == 26536);
+}
+
+TEST_CASE("FSK run: a following FSK with IRG>0 starts a NEW run")
+{
+    // Chunk 1 (IRG999) then chunk 2 (IRG500): the run must stop before chunk 2.
+    std::vector<LayoutChunk> lay = { {true,1000,999}, {true,1000,500} };
+    auto run = plan_run(lay, layout_filesize(lay));
+    REQUIRE(run.size() == 1);
+    CHECK(run[0].value_count == 500);
+
+    // A non-FSK following chunk also ends the run.
+    std::vector<LayoutChunk> lay2 = { {true,1000,999}, {false,1000,0} };
+    auto run2 = plan_run(lay2, layout_filesize(lay2));
+    REQUIRE(run2.size() == 1);
+}
+
+TEST_CASE("FSK run: odd-length first chunk ignores its tail; next chunk parity resets")
+{
+    // Chunk A: odd length 7 -> value_count floor(7/2)=3, trailing byte ignored.
+    // Chunk B: length 4 -> value_count 2, its own parity starts at index 0.
+    const size_t bs = 512; // both chunks fit one block each (block-aligned)
+    // Build chunk A payload: values 0x0001,0x0001,0x0001 + odd tail 0x7F.
+    std::vector<uint8_t> a = { 1,0, 1,0, 1,0, 0x7F };
+    std::vector<uint8_t> b = { 5,0, 9,0 }; // two values 5,9
+
+    // value_count per chunk from the pure helper.
+    CHECK(fsk_value_count(a.size()) == 3); // odd tail ignored
+    CHECK(fsk_value_count(b.size()) == 2);
+
+    // Per-chunk parity is by LOCAL index: chunk B value index 0 -> level LOW,
+    // index 1 -> HIGH, regardless of chunk A's (odd count) ending parity.
+    CHECK(fsk_level_for_index(0) == false); // chunk B first value: LOW
+    CHECK(fsk_level_for_index(1) == true);  // chunk B second value: HIGH
+    // Chunk A ended at local index 3 (odd) but that does NOT carry into B.
+}
+
+TEST_CASE("FSK run: zero-duration value at a boundary consumes local index, no portion")
+{
+    // A single chunk whose values are {0 (zero duration), 3}: the zero value
+    // consumes index 0 (parity) but emits no portion; the next value uses index 1.
+    std::vector<uint8_t> data = { 0,0, 3,0 };
+    PreloadBuffers bufs(data.size(), 512);
+    // Load the bytes into the block table via a full-delivery reader.
+    ScriptedReader rd(data.data(), data.size());
+    rd.deliver_pattern = { 0 };
+    size_t loaded = fsk_preload_into_blocks(bufs.blocks(), bufs.block_count(),
+                                            512, data.size(), 512,
+                                            &ScriptedReader::read, &rd);
+    REQUIRE(loaded == data.size());
+
+    FskChunkView v = fsk_view_init(bufs.blocks(), 512, data.size());
+    // First step: value index 0 is zero-duration -> skipped; value index 1 (=3)
+    // is emitted with parity of index 1 (HIGH) in a single portion, done.
+    FskStep s = fsk_view_step(v);
+    CHECK(s.produced == true);
+    CHECK(s.level_high == true);   // index 1 -> odd -> HIGH
+    CHECK(s.ticks == 300);         // 3 * 100 ticks
+    CHECK(s.done == true);         // only value left
+}
+
 // ─── Defensive guards: positive want but a degenerate parameter -> 0 ────────────
 //
 // Each case has a genuinely positive `want` (so the "nothing requested" fast

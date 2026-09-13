@@ -92,3 +92,25 @@ target_include_directories(fsk_plan_tests PRIVATE
 )
 
 add_test(NAME fsk_plan_tests COMMAND fsk_plan_tests)
+
+# ------------------------------------------------------------------------------
+# Pure Custom Rewind time-model module (lib/device/sio/cassette_time_plan). Same
+# host-buildable discipline as fsk_plan above (no FujiNet/ESP-IDF/hardware
+# dependency) and reuses fsk_plan.cpp directly for the FSK duration primitives,
+# so the two modules can never diverge on FSK timing.
+# ------------------------------------------------------------------------------
+add_executable(cassette_time_plan_tests
+    CassetteTimePlanTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/sio/cassette_time_plan.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/sio/fsk_plan.cpp
+)
+
+target_include_directories(cassette_time_plan_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/device/
+    ${CMAKE_SOURCE_DIR}/lib/device/sio/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+
+add_test(NAME cassette_time_plan_tests COMMAND cassette_time_plan_tests)

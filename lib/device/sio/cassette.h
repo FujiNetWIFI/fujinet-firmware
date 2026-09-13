@@ -5,12 +5,16 @@
 
 #ifdef ESP_PLATFORM
 #include <driver/rmt_types.h>
-#include <esp_heap_caps.h> // ESP-only: force ISR-visible FSK payload into internal 8-bit DRAM
+#include <esp_heap_caps.h> // ESP-only: FSK pointer table in internal 8-bit DRAM; payload blocks in 8-bit PSRAM
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h> // SemaphoreHandle_t for _cassette_lock
+#include "fsk_plan.h"      // FSK_RUN_MAX_CHUNKS for the run descriptors below
 #endif
 
 #include "bus.h"
 #include "fnSystem.h"
 #include "fnio.h"
+#include "cassette_time_plan.h" // CassetteWalkState, cas_walk_tape_time() — pure, host-testable
 
 #define CASSETTE_BAUDRATE 600
 #define BLOCK_LEN 128
@@ -68,6 +72,11 @@ public:
 
 class sioCassette : public virtualDevice
 {
+public:
+#ifdef ESP_PLATFORM
+    sioCassette();  // creates _cassette_lock once, for the lifetime of this (singleton) object
+#endif
+
 protected:
     // FileSystem *_FS = nullptr;
     fnFile *_file = nullptr;
@@ -105,7 +114,8 @@ public:
     void sio_disable_cassette(); // stop cassette
     void sio_handle_cassette();  // Handle incoming & outgoing data for cassette
 
-    void rewind(); // rewind cassette
+    void rewind(); // rewind cassette to start (offset 0) — independent of the time walker
+    bool rewind_seconds(uint32_t seconds); // rewind by N seconds using the real per-chunk duration model
 
     bool is_mounted() { return _mounted; };
     bool is_active() { return cassetteActive; };
@@ -139,6 +149,41 @@ private:
 
     unsigned short block;
     unsigned short baud;
+
+    // ----------------------------------------------------------------------
+    // Custom Rewind: real per-chunk time model (walker) + safe reposition
+    // ----------------------------------------------------------------------
+#ifdef ESP_PLATFORM
+    // Created once in the constructor, for the lifetime of this (singleton)
+    // object; never recreated. Guards tape_offset, _file, and every format
+    // state field (baud/t2k_*/qros_turbo_baud) against the cross-task race
+    // between the HTTP server task (rewind()/rewind_seconds()) and the
+    // fnService loop task (sio_handle_cassette()). sio_handle_cassette()
+    // holds this for its whole dispatch, including any in-flight
+    // rmt_tx_wait_all_done() — a Custom Rewind requested mid-waveform waits
+    // for that transaction to finish before it can proceed. No cancellation.
+    SemaphoreHandle_t _cassette_lock = nullptr;
+#endif
+
+    // Walks A8CAS/FUJI chunk headers (or, for a non-FUJI file, fixed 128-byte
+    // legacy blocks) from file offset 0, accumulating the exact real playback
+    // duration using only on-disk fields, and reports the format state that
+    // would be active at the resulting offset. Used both to resolve the
+    // CURRENT position's elapsed time (stop_at_offset = tape_offset,
+    // stop_at_time_us = UINT64_MAX) and to resolve a TARGET time back to a
+    // chunk-boundary offset (stop_at_offset = SIZE_MAX). Caller must hold
+    // _cassette_lock — this function seeks/reads the shared _file handle and
+    // restores its original position before returning. Returns false only on
+    // a structural walk failure (not a valid FUJI/legacy file at offset 0).
+    bool walk_tape_time(size_t stop_at_offset, uint64_t stop_at_time_us,
+                        CassetteWalkState &out) const;
+
+    // Single choke point called before ANY tape_offset write from rewind()/
+    // rewind_seconds(): stops any in-flight FSK/Turbo2000/QROS waveform,
+    // frees the FSK preload block table, and frees the Turbo 2000 pending
+    // buffer. Caller must hold _cassette_lock. Idempotent — safe to call when
+    // nothing is active.
+    void stop_and_reset_for_reposition();
 
     size_t send_tape_block(size_t offset);
     void check_for_FUJI_file();
@@ -183,6 +228,7 @@ private:
     void turbo2000_send_bytes(const uint8_t *data, size_t length);
     void turbo2000_send_pilot(uint16_t count);
     void turbo2000_flush_rmt();
+    void turbo2000_free_pending_buf(); // frees + nulls _t2k_pending_buf; idempotent
     void *_rmt_channel = nullptr;        // rmt_channel_handle_t
     void *_rmt_copy_encoder = nullptr;   // copy encoder for pilot tone
     void *_rmt_simple_encoder = nullptr; // simple encoder for data (gapless)
@@ -229,7 +275,17 @@ private:
     bool fsk_signal_begin();   // alloc RMT channel + simple encoder (callback=fsk_encode_cb, arg=this), detach UART TX; false on failure
     void fsk_signal_emit();    // ONE rmt_transmit using the immutable pointer table as transaction payload; then wait-done
     void fsk_signal_end();     // idempotent: teardown RMT + encoder, reattach UART TX
+
     void fsk_free_blocks();    // free every preloaded block + the pointer table; idempotent, safe after partial preload
+
+    // Preload a contiguous zero-IRG FSK run into ONE PSRAM block table with each
+    // chunk aligned to its own block boundary, filling the run descriptors
+    // (_fsk_run_*). run_offsets/run_data_avail hold each chunk's payload start
+    // offset and clamped byte count; count is the number of chunks (1..MAX).
+    // Returns true with the whole run resident + immutable; on ANY failure frees
+    // everything and returns false (no partial waveform). Reads stay <=512 bytes.
+    bool fsk_preload_run(const size_t *run_offsets, const size_t *run_data_avail,
+                         size_t count);
 
     // The stateful RMT simple-encoder callback (same 7-arg signature as
     // t2k_encode_cb). Generates rmt_symbol_word_t on demand from the IMMUTABLE
@@ -262,7 +318,23 @@ private:
     size_t   _fsk_payload_pos       = 0;       // logical payload byte position consumed by the encoder (== value_index*2)
     uint32_t _fsk_remaining_ticks   = 0;       // ticks left for the value being split (15-bit carry)
     bool     _fsk_level_high        = false;   // logical level of the value being split (index parity)
-#endif
+
+    // --- Contiguous zero-IRG FSK RUN descriptors ---
+    // A run is a maximal sequence of consecutive `fsk ` chunks where only the
+    // first carries a non-zero IRG and every following chunk carries IRG == 0.
+    // The whole run is preloaded into ONE PSRAM block table and reproduced with
+    // ONE RMT begin/emit/end lifecycle so no gap is inserted at A8CAS container
+    // boundaries. Each chunk keeps its OWN value_count (floor(len/2), odd tail
+    // ignored per chunk) and starts on its OWN block boundary so per-chunk index
+    // parity resets cleanly at each boundary. These small descriptors are
+    // INTERNAL; only the payload blocks live in PSRAM.
+    size_t   _fsk_run_chunk_count   = 0;       // number of chunks in the current run (>=1)
+    size_t   _fsk_run_value_counts[FSK_RUN_MAX_CHUNKS] = {}; // per-chunk value_count
+    size_t   _fsk_run_block_base[FSK_RUN_MAX_CHUNKS]   = {}; // per-chunk first block index
+    // Encoder-cursor position within the run (ISR-only, set before rmt_transmit):
+    size_t   _fsk_run_chunk_index   = 0;       // which run chunk the cursor is in
+
+#endif // ESP_PLATFORM
 };
 
 #endif

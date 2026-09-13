@@ -267,6 +267,47 @@ struct FskStep
 // It is intended for host tests and is NOT called from the RMT ISR.
 FskStep fsk_view_step(FskChunkView &view);
 
+// -----------------------------------------------------------------------------
+// Contiguous zero-IRG FSK "run" membership (pure, host-testable)
+// -----------------------------------------------------------------------------
+//
+// Authentic A8CAS raw-FSK images encode a continuous tape signal as consecutive
+// `fsk ` chunks where only the FIRST carries a non-zero Inter-Record Gap and all
+// following chunks carry IRG == 0. Reproducing each chunk with its own RMT
+// begin/emit/end lifecycle would insert a real-time gap (teardown + file I/O +
+// re-allocation + restart) at every A8CAS container boundary, which breaks the
+// continuity the original loader expects. The fix reproduces a maximal run of
+// consecutive FSK chunks as ONE continuous RMT lifecycle.
+//
+// This pure predicate decides whether the NEXT candidate chunk should JOIN the
+// run already in progress (the first chunk of a run is always included by the
+// caller). A candidate joins iff it is a `fsk ` chunk, its IRG is exactly 0,
+// and it is structurally valid (a complete 8-byte header is present and the
+// declared body does not overrun EOF). A non-FSK chunk, an FSK chunk with a
+// non-zero IRG, EOF, or a truncated/overrun boundary ends the run (the caller
+// stops BEFORE such a chunk; a non-zero-IRG FSK chunk starts a NEW run later).
+//
+// No I/O, no hardware, no globals. `candidate_is_fsk` and the other fields are
+// derived by the caller from the on-file header + fsk_compute_bounds().
+FSK_FORCE_INLINE bool fsk_run_should_join(bool candidate_is_fsk,
+                                          uint16_t candidate_irg,
+                                          bool candidate_header_complete,
+                                          bool candidate_structurally_truncated)
+{
+    return candidate_is_fsk &&
+           candidate_irg == 0 &&
+           candidate_header_complete &&
+           !candidate_structurally_truncated;
+}
+
+// Upper bound on chunks reproduced as ONE continuous FSK run. The largest known
+// authentic corpus run is 7 chunks; this cap is generous. A run that would grow
+// beyond the cap simply ends at the cap boundary — correct because the walker's
+// next call resumes at the following chunk (its own IRG is 0, so no gap is
+// introduced by the split other than the same boundary cost that already exists
+// for the rare >cap case, which no real corpus member hits).
+static constexpr size_t FSK_RUN_MAX_CHUNKS = 16;
+
 #undef FSK_FORCE_INLINE
 
 #endif // FSK_PLAN_H

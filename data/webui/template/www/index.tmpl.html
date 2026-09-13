@@ -1196,6 +1196,28 @@
 							</div>
 						</div>
 						</form>
+
+						<form action="/config" method="post" class="settings-45-55">
+						<div class="set">
+							<div class="settings-label">Custom rewind</div>
+							<div class="settings-value">
+								<button type="submit" name="rewind_seconds" value="5">-5s</button>
+								<button type="submit" name="rewind_seconds" value="10">-10s</button>
+								<button type="submit" name="rewind_seconds" value="30">-30s</button>
+								<button type="submit" name="rewind_seconds" value="60">-60s</button>
+							</div>
+						</div>
+						</form>
+
+						<form action="/config" method="post" class="settings-45-55">
+						<div class="set">
+							<div class="settings-label">Rewind by N seconds</div>
+							<div class="settings-value">
+								<input type="number" name="rewind_seconds" min="1" step="1" required>
+								<button type="submit">Rewind</button>
+							</div>
+						</div>
+						</form>
 					</div>
 					<div class="settings-footer">
 						<div class="save-button">

@@ -1,6 +1,9 @@
 #include "httpServiceConfigurator.h"
 
 #include <cstring>
+#include <cstdlib>
+#include <cerrno>
+#include <cstdint>
 
 #include "../../include/debug.h"
 
@@ -351,6 +354,40 @@ void fnHttpServiceConfigurator::config_cassette_rewind()
 #ifdef BUILD_ATARI
     Debug_printf("Rewinding cassette.\n");
     SYSTEM_BUS.getCassette()->rewind();
+
+    Config.save();
+#endif /* ATARI */
+}
+
+// Custom Rewind: rewind by N real seconds (quick buttons -5s/-10s/-30s/-60s,
+// or a manual value), using sioCassette::rewind_seconds()'s real per-chunk
+// duration model. Accepts ONLY a positive integer — no leading '-', no
+// leading/trailing garbage, no empty string, no 0, no value that overflows
+// uint32_t. Any invalid input performs no action. All time arithmetic and
+// the clamp-to-zero policy live inside sioCassette::rewind_seconds(), not
+// here.
+void fnHttpServiceConfigurator::config_cassette_rewind_seconds(std::string seconds)
+{
+#ifdef BUILD_ATARI
+    if (seconds.empty() || seconds[0] == '-')
+    {
+        Debug_printf("rewind_seconds: invalid value '%s', ignored\n", seconds.c_str());
+        return;
+    }
+
+    errno = 0;
+    char *end = nullptr;
+    unsigned long v = strtoul(seconds.c_str(), &end, 10);
+
+    if (end == seconds.c_str() || *end != '\0' || errno == ERANGE ||
+        v == 0 || v > UINT32_MAX)
+    {
+        Debug_printf("rewind_seconds: invalid value '%s', ignored\n", seconds.c_str());
+        return;
+    }
+
+    Debug_printf("Rewinding cassette by %lu second(s).\n", v);
+    SYSTEM_BUS.getCassette()->rewind_seconds((uint32_t)v);
 
     Config.save();
 #endif /* ATARI */
@@ -749,6 +786,10 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         else if (i->first.compare("rew") == 0)
         {
             config_cassette_rewind();
+        }
+        else if (i->first.compare("rewind_seconds") == 0)
+        {
+            config_cassette_rewind_seconds(i->second);
         }
         else if (i->first.compare("cassette_enabled") == 0)
         {
