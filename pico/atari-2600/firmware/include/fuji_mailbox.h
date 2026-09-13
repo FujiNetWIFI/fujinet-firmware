@@ -61,9 +61,9 @@
  *
  * WHY THE REPLY IS 512 AND NOT 256 OR 1024. 1K would be four of sixteen
  * pages, which the map cannot afford. 256 would fit in one -- but
- * fujinet-battleship/arcadia's fujinet.inc pins GMAXLEN at 509 and TMAXLEN at
- * 361, so 512 is the number at which THE FLAGSHIP CLIENT NEVER PAGES A SLICE
- * AT ALL. Its whole reply lands in slice 0 with three bytes to spare, and the
+ * fujinet-5cardstud/arcadia's fujinet.inc pins GMAXLEN at 418 (a Game) and
+ * TMAXLEN at 361 (a Tables), so 512 is the number at which THE FLAGSHIP
+ * CLIENT NEVER PAGES A SLICE AT ALL. Its whole reply lands in slice 0 and the
  * slice-crossing cursor that port needed disappears. FN_R_NSLICES 2 keeps
  * FUJIMAIL_RX_MAX at 1024 for everything else.
  *
