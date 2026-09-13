@@ -131,9 +131,9 @@ class FujiDeviceChain : public FujiDeviceMixins...
         // Try each mixin's processCommand() until one returns true
         return (FujiDeviceMixins::processCommand(packet) || ...);
     }
-    bool checkAllMixins(const FUJI_COMMAND_PACKET &packet) {
+    bool checkAllMixins(fujiCommandID_t command) {
         // Try each mixin's processCommand() until one returns true
-        return (FujiDeviceMixins::recognizesCommand(packet) || ...);
+        return (FujiDeviceMixins::recognizesCommand(command) || ...);
     }
 
  public:
@@ -217,7 +217,7 @@ public:
     // Return true if command was handled here
     bool processCommand(const FUJI_COMMAND_PACKET &packet) override;
     // Return true if command is one that can be handled
-    bool recognizesCommand(const FUJI_COMMAND_PACKET &packet);
+    bool recognizesCommand(fujiCommandID_t command);
 
     fujiHost *get_host(int i) { return &_fnHosts[i]; }
     std::string get_host_prefix(int host_slot) { return _fnHosts[host_slot].get_prefix(); }

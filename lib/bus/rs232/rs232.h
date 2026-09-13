@@ -13,7 +13,7 @@
 #include <freertos/queue.h>
 #endif /* ESP_PLATFORM */
 
-#include <forward_list>
+#include <map>
 
 #define RS232_BAUDRATE 115200
 
@@ -27,15 +27,15 @@
 #define FUJINET_OVER_USB 1
 #endif
 
-enum FujiStatusReq {
-    STATUS_NETWORK_CONNERR = 0,
-    STATUS_NETWORK_IP      = 1,
-    STATUS_NETWORK_NETMASK = 2,
-    STATUS_NETWORK_GATEWAY = 3,
-    STATUS_NETWORK_DNS     = 4,
+typedef enum class STATREQ {
+    CONNERR    = 0,
+    IP         = 1,
+    NETMASK    = 2,
+    GATEWAY    = 3,
+    DNS        = 4,
 
-    STATUS_MOUNT_TIME      = 1,
-};
+    MOUNT_TIME = 1,
+} FujiStatusReq;
 
 // helper functions
 uint8_t rs232_checksum(uint8_t *buf, unsigned short len);
@@ -58,12 +58,6 @@ class virtualDevice
 
 protected:
     bool listen_to_type3_polls = false;
-
-    /**
-     * @brief All RS232 commands by convention should return a status command to return
-     * four bytes of status information to be put into DVSTAT ($02EA)
-     */
-    virtual void rs232_status(FujiStatusReq reqType) = 0;
 
     /**
      * @brief All RS232 devices repeatedly call this routine to fan out to other methods for each command.
@@ -122,7 +116,7 @@ private:
     virtualDevice *_activeDev = nullptr;
     rs232Modem *_modemDev = nullptr;
     rs232Fuji *_fujiDev = nullptr;
-    rs232Network *_netDev[8] = {nullptr};
+    std::map<uint8_t,rs232Network *> _netDev;
     rs232NetStream *_streamDev = nullptr;
     rs232CPM *_cpmDev = nullptr;
     rs232Printer *_printerdev = nullptr;
@@ -148,6 +142,8 @@ public:
 
     void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id) override;
 
+    bool isBoIP() { return _port == &_boip; }
+
     int getBaudrate();                                          // Gets current RS232 baud rate setting
     void setBaudrate(int baud);                                 // Sets RS232 to specific baud rate
 
@@ -160,9 +156,12 @@ public:
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
 
+    std::string nativeEOL() override { return "\r\n"; }
+
     void transaction_accept(transState_t expectMoreData) override;
     void transaction_success() override;
     void transaction_error() override;
+    using SystemBusBase::transaction_get;
     success_is_true transaction_get(void *data, size_t len) override;
     using SystemBusBase::transaction_send;
     void transaction_send(const void *data, size_t len, bool is_error=false) override;

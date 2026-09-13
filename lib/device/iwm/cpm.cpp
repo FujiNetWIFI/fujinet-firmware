@@ -235,9 +235,4 @@ void iwmCPM::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
     SYSTEM_BUS.transaction_error(err_result);
 }
 
-void iwmCPM::shutdown()
-{
-    // TODO: clean shutdown.
-}
-
 #endif /* BUILD_APPLE */

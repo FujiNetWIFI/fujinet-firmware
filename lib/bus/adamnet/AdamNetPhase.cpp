@@ -138,7 +138,7 @@ void AdamNetPhase::begin(const FujiAdamPacket &packet)
 
     case APT::MN_CANCEL:  // 0x05
         Debug_printf("PACKET device=0x%02x type=0x%02x\n", packet.device(), packet.type());
-        abort();
+        //abort();
         break;
 
     default:

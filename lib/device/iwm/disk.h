@@ -28,8 +28,6 @@ protected:
     void iwm_writeblock(const iwm_decoded_cmd_t &cmd) override;
     void iwm_format(const iwm_decoded_cmd_t &cmd) override;
 
-    void shutdown() override; //todo change back
-
     char disk_num;
 
     /* Determine smartport type based on # of blocks */

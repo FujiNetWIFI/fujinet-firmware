@@ -470,7 +470,7 @@ success_is_true fujiDevice::fujicore_mount_host_success(uint8_t hostSlot)
 success_is_true fujiDevice::fujicmd_mount_host_success(uint8_t hostSlot)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    if (hostSlot >= MAX_HOSTS)
+    if (!validate_host_slot(hostSlot))
     {
         SYSTEM_BUS.transaction_error();
         RETURN_ERROR_AS_FALSE();
@@ -1707,9 +1707,9 @@ bool fujiDevice::processCommand(const FUJI_COMMAND_PACKET &packet)
     return true;
 }
 
-bool fujiDevice::recognizesCommand(const FUJI_COMMAND_PACKET &packet)
+bool fujiDevice::recognizesCommand(fujiCommandID_t command)
 {
-    if (checkAllMixins(packet))
+    if (checkAllMixins(command))
         return true;
-    return handlers.find(packet.command()) != handlers.end();
+    return handlers.find(command) != handlers.end();
 }

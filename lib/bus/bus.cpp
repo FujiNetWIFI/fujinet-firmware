@@ -6,3 +6,4 @@ void SystemBusBase::setDeviceEnabled(fujiDeviceID_t device_id, bool enabled)
     if (device)
         device->device_active = enabled;
 }
+

@@ -22,9 +22,9 @@ protected:
     virtual FujiMixinCommandHandlers commandHandlers() = 0;
 
 public:
-    bool recognizesCommand(const FUJI_COMMAND_PACKET &packet) {
+    bool recognizesCommand(fujiCommandID_t command) {
         auto handlers = commandHandlers();
-        return handlers.find(packet.command()) != handlers.end();
+        return handlers.find(command) != handlers.end();
     }
     virtual bool processCommand(const FUJI_COMMAND_PACKET &packet) {
         auto handlers = commandHandlers();

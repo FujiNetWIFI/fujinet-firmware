@@ -92,16 +92,9 @@ typedef enum class SP_ERR {
 #define SP_SUBTYPE_BYTE_FUJINET_PRINTER 0x00
 #define SP_SUBTYPE_BYTE_FUJINET_MODEM 0x00
 
-// class def'ns
-class iwmFuji;     // declare here so can reference it, but define in fuji.h
-class iwmModem;    // declare here so can reference it, but define in modem.h
-class iwmNetwork;  // declare here so can reference it, but define in network.h
-class iwmPrinter;  // Printer device
-class iwmDisk;     // disk device cause I need to use "iwmDisk smort" for prototyping in systemBus::service()
-class iwmCPM;      // CPM Virtual Device
-class iwmClock;    // Real Time Clock Device
 class systemBus;      // forward declare bus so can be friend
 class fujiDevice;
+class iwmPrinter;  // Printer device
 
 #define BLOCK_DATA_LEN      512
 #define MAX_DATA_LEN        767
@@ -143,7 +136,7 @@ protected:
   // set these things in constructor or initializer?
   bool _initialized;
 
-  virtual void shutdown() = 0;
+  virtual void shutdown() {};
 
   // FIXME - these are all bus commands and belong in systemBus
   virtual void iwm_status(const iwm_decoded_cmd_t &cmd);
@@ -177,8 +170,10 @@ public:
 class systemBus : public SystemBusBase
 {
 private:
+  IWMBusIDMap _busMap;
   virtualDevice *_activeDev = nullptr;
   ByteBuffer _transaction_response;
+  unsigned _defaultNetworkUnit = 1;
 
   #ifndef DEV_RELAY_SLIP
   bool iwm_phase_val(uint8_t p);
@@ -220,8 +215,6 @@ private:
   int new_track = -1;
 
 public:
-  IWMBusIDMap _busMap;
-
   cmdPacket_t command_packet;
   bool iwm_decode_data_packet(uint8_t *a, int &n);
 
@@ -239,6 +232,7 @@ public:
   void transaction_success() override;
   void transaction_error(spError_t err);
   void transaction_error() override { transaction_error(SP_ERR::IOERROR); }
+  using SystemBusBase::transaction_get;
   success_is_true transaction_get(void *data, size_t len) override;
   using SystemBusBase::transaction_send;
   void transaction_send(const void *data, size_t len, bool is_error=false) override;
@@ -249,13 +243,19 @@ public:
       device->device_active = enabled;
   }
   fujiDeviceID_t remapDeviceAddress(uint8_t address, iwm_decoded_cmd_t &cmd);
-  void addDevice(virtualDevice *device, fujiDeviceID_t deviceType) override;
+  void addDevice(virtualDevice *device, fujiDeviceID_t deviceType) override {
+    addDevice(device, deviceType, true);
+  }
+  void addDevice(virtualDevice *pDevice, fujiDeviceID_t deviceType,
+                 bool participatesInBusIDAssignment);
   void assignFujiIDToDevice(virtualDevice *device, fujiDeviceID_t fujiID) override;
   std::optional<IWMBusIDMap::busDeviceID_t> busIDForDevice(virtualDevice *device);
   virtualDevice *deviceWithBusID(IWMBusIDMap::busDeviceID_t busID);
   virtualDevice *firstDeviceWithNoBusID();
   void resetAllBusIDs() { _busMap.resetAllBusIDs(); }
   iwmPrinter *getPrinter();
+
+  void setDefaultNetworkUnit(uint8_t unit);
 
   bool shuttingDown = false;                                  // TRUE if we are in shutdown process
   bool getShuttingDown() { return shuttingDown; };
