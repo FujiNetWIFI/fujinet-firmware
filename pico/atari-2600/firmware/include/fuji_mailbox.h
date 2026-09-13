@@ -251,6 +251,14 @@
                                      src, into text row dst                  */
 #define FN_BLIT_TCELL    8        /* ONE character (low byte of src) into ONE
                                      cell, dst = row * FN_T_COLS + col       */
+#define FN_BLIT_CARD     9        /* one seat's five cards, src = the reply
+                                     offset of hand[11], dst = the TOP text
+                                     row of the pair                         */
+#define FN_CARD_SLOTS    5        /* five cards in a stud hand               */
+#define FN_CARD_PITCH    6        /* pixels per card: 5 of art plus a gap    */
+#define FN_CARD_PLANES   4        /* planes 0-3 -- pixels 0-31, the card bed */
+#define FN_CARD_INK_W    5        /* pixels of art in a card                 */
+#define FN_CARD_HIDE0    0x01     /* cnt: draw card 0 face-down regardless   */
 #define FN_BOARD_DIM     10
 #define FN_BOARD_CELLS   100
 #define FN_BLIT_NOCUR    0xFF     /* FIELD: cnt = the cursor cell, or this    */
@@ -271,6 +279,40 @@
  * placements are still in console RAM because the server has not been told
  * about them yet. Ten rows are painted once at the end rather than after
  * every cell. */
+/* What FN_BLIT_CARD paints, and why a card is a TRANSFORM and not a glyph.
+ *
+ * A suit is not in ASCII, so the obvious move -- four new font entries -- was
+ * measured and rejected: a font cell is three pixels wide, and at three
+ * pixels a heart, a spade and a club are very nearly the same picture. The
+ * pips that ARE distinguishable are five wide (fujinet-5cardstud's Channel F
+ * port settled their shapes), and five does not fit a four-pixel cell.
+ *
+ * So a card ignores the cell grid entirely. Five cards sit on a SIX-pixel
+ * pitch -- five of art, one of gap -- filling pixels 0-28 of the 48-pixel
+ * span, which is planes 0-3. Planes 4 and 5 (columns 8-11) are never touched,
+ * so a seat row carries a name or a purse beside its hand and the two halves
+ * cannot collide.
+ *
+ * A card is TWO text rows tall: the rank on the upper row's five ink lines,
+ * the suit pip on the lower row's. The sixth line of a cell is blank leading
+ * and stays blank, which is what separates rank from pip for free -- and is
+ * also the line the console's kernel uses to reprogram colour, so a card must
+ * not write into it. This function writes whole plane bytes including that
+ * line, so the bed is cleared as a side effect and a stale hand cannot show
+ * through a shorter one.
+ *
+ * hand[11] is the wire format: five cards as two lowercase ASCII bytes each
+ * (rank in "23456789tjqka", suit in "hdcs"), then a NUL. It is a C STRING --
+ * bytes past the NUL are undefined -- so the first NUL rank ends the hand and
+ * every later slot is blank, not garbage. "??" is a hole card and draws as a
+ * hatched back; FN_CARD_HIDE0 forces slot 0 to that back whatever the wire
+ * says, which is how a client masks its own hole card before the showdown
+ * without the server having to lie to it.
+ *
+ * Ranks re-centre the cartridge's own 3x5 font glyph in the five-wide field
+ * rather than carrying a second alphabet, so a rank and a letter can never
+ * disagree. The ten is the single exception: "T" is poker shorthand, not a
+ * number, and five wide is exactly enough to spell it. */
 #define FN_CELL_SEA      '.'      /* 0: unknown water                        */
 #define FN_CELL_HIT      'X'      /* 1                                       */
 #define FN_CELL_MISS     'O'      /* 2                                       */

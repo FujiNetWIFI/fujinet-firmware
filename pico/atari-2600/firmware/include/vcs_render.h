@@ -71,4 +71,21 @@ void vcs_render_path_row(uint8_t *win, const uint8_t *path, uint16_t path_len,
  * bits, which is all this needs: the neighbour's bits are simply kept. */
 void vcs_render_cell(uint8_t *win, uint8_t row, uint8_t col, uint8_t c);
 
+/* FN_BLIT_CARD: paint one seat's five cards across text rows `row` and
+ * `row + 1`.
+ *
+ * `hand` is the eleven wire bytes -- five cards as two lowercase ASCII bytes
+ * each, then the NUL that ends them. `flags` takes FN_CARD_*.
+ *
+ * Cards ignore the cell grid: five of them sit on a six-pixel pitch across
+ * planes 0-3, so columns 8-11 stay free for the seat's name and purse. Whole
+ * plane bytes are written, so the card bed clears itself and a stale hand
+ * cannot show through a shorter one -- but the sixth line of each cell is
+ * left blank, because rank and pip are separated by it and the console's
+ * kernel reprograms colour there.
+ *
+ * Out-of-range rows draw nothing rather than writing past the planes. */
+void vcs_render_cards(uint8_t *win, uint8_t row, const uint8_t *hand,
+                      uint8_t flags);
+
 #endif /* VCS_RENDER_H */

@@ -14,7 +14,17 @@ and this is what drift looks like on this port:
 
 Nothing catches that except comparing the two files, so the build does.
 
+PAIRS below is the set every client mirrors. A client that uses more of the
+window than the testroms do -- the blit port, say, which none of them touch --
+names the extra equates itself:
+
+  checkdefs.py header client.inc --extra FB_CARD=FN_BLIT_CARD,FH_BGO=FN_HOT_BLIT_GO
+
+Keeping those out of PAIRS is deliberate: a name listed there and absent from
+the .inc is a failure, so a shared table can only hold what EVERY client has.
+
 Usage: checkdefs.py firmware/include/fuji_mailbox.h testrom/fujinet.inc
+                    [--extra ASMNAME=FN_NAME,...]
 """
 
 import re
@@ -94,12 +104,30 @@ def read_asm(path):
     return out
 
 
+def read_extra(argv):
+    """--extra ASMNAME=FN_NAME,... -- equates this client uses and the
+    testroms do not."""
+    out = {}
+    if "--extra" in argv:
+        for pair in argv[argv.index("--extra") + 1].split(","):
+            if not pair.strip():
+                continue
+            asm_name, _, c_name = pair.partition("=")
+            if not c_name:
+                sys.exit("checkdefs: --extra wants ASMNAME=FN_NAME, got %r"
+                         % pair)
+            out[asm_name.strip()] = c_name.strip()
+    return out
+
+
 def main():
     c = read_c(sys.argv[1])
     a = read_asm(sys.argv[2])
+    pairs = dict(PAIRS)
+    pairs.update(read_extra(sys.argv))
     bad = []
 
-    for asm_name, c_name in PAIRS.items():
+    for asm_name, c_name in pairs.items():
         if c_name not in c:
             bad.append("%s is not defined in the header" % c_name)
         elif asm_name not in a:
@@ -126,7 +154,8 @@ def main():
         print("checkdefs: the client's equates have drifted from the spec",
               file=sys.stderr)
         return 1
-    print("checkdefs: %d equates agree with fuji_mailbox.h" % (len(PAIRS) + len(DERIVED)))
+    print("checkdefs: %d equates agree with fuji_mailbox.h"
+          % (len(pairs) + len(DERIVED)))
     return 0
 
 

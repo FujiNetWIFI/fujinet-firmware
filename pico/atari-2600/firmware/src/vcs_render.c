@@ -114,6 +114,154 @@ void vcs_render_path_row(uint8_t *win, const uint8_t *path, uint16_t path_len,
     vcs_render_row(win, row, line, (uint8_t)n);
 }
 
+/* ------------------------------------------------------------------ cards --
+ * See the FN_BLIT_CARD block in fuji_mailbox.h for why a card is not a glyph.
+ * Every table below is five rows of five ink bits, bit 4 leftmost.
+ */
+
+/* The ten, the one rank the 3x5 font cannot spell. */
+static const uint8_t card_ten[VCS_FONT_INK_H] = {
+    0x17,       /* #.### */
+    0x15,       /* #.#.# */
+    0x15,       /* #.#.# */
+    0x15,       /* #.#.# */
+    0x17        /* #.### */
+};
+
+/* The pips: hearts, diamonds, spades, clubs -- and card_suits[] below MUST
+ * spell that same order. Five wide is the width at
+ * which all four are actually distinguishable; three is not. */
+static const uint8_t card_pip[4][VCS_FONT_INK_H] = {
+    { 0x0A,     /* .#.#. */
+      0x1F,     /* ##### */
+      0x1F,     /* ##### */
+      0x0E,     /* .###. */
+      0x04 },   /* ..#.. */   /* hearts   */
+    { 0x04,     /* ..#.. */
+      0x0E,     /* .###. */
+      0x1F,     /* ##### */
+      0x0E,     /* .###. */
+      0x04 },   /* ..#.. */   /* diamonds */
+    { 0x04,     /* ..#.. */
+      0x0E,     /* .###. */
+      0x1F,     /* ##### */
+      0x04,     /* ..#.. */
+      0x0E },   /* .###. */   /* spades   */
+    { 0x04,     /* ..#.. */
+      0x1B,     /* ##.## */
+      0x0E,     /* .###. */
+      0x04,     /* ..#.. */
+      0x0E }    /* .###. */   /* clubs    */
+};
+
+static const char card_suits[] = "hdsc";   /* the order of card_pip[] */
+
+/* A face-down card: a hatch capped top and bottom so it reads as a card back
+ * rather than as ink that failed to become a glyph. A 50% hatch is used
+ * rather than a sparser lattice because five pixels of width cannot carry a
+ * period-3 weave -- it comes out as one or two lit pixels a row, which reads
+ * as damage. [0] is the upper text row, [1] the lower. */
+static const uint8_t card_back[2][VCS_FONT_INK_H] = {
+    { 0x1F,     /* ##### */
+      0x15,     /* #.#.# */
+      0x0A,     /* .#.#. */
+      0x15,     /* #.#.# */
+      0x0A },   /* .#.#. */
+    { 0x15,     /* #.#.# */
+      0x0A,     /* .#.#. */
+      0x15,     /* #.#.# */
+      0x0A,     /* .#.#. */
+      0x1F }    /* ##### */
+};
+
+/* One scanline of the card bed: `ink` is one five-bit row per slot. Whole
+ * plane bytes are written, never merged, so the bed clears itself. */
+static void card_line(uint8_t *win, unsigned row, unsigned line,
+                      const uint8_t *ink)
+{
+    uint8_t b[FN_CARD_PLANES];
+    unsigned k, i;
+
+    for (k = 0; k < FN_CARD_PLANES; k++)
+        b[k] = 0u;
+
+    if (ink) {
+        for (k = 0; k < FN_CARD_SLOTS; k++) {
+            for (i = 0; i < FN_CARD_INK_W; i++) {
+                unsigned px = k * FN_CARD_PITCH + i;
+
+                if (ink[k] & (uint8_t)(1u << (FN_CARD_INK_W - 1 - i)))
+                    b[px >> 3] |= (uint8_t)(0x80u >> (px & 7u));
+            }
+        }
+    }
+
+    for (k = 0; k < FN_CARD_PLANES; k++)
+        win[(FN_T_PLANE(k) - FN_WINDOW_BASE) + row * FN_T_CELL_H + line] = b[k];
+}
+
+void vcs_render_cards(uint8_t *win, uint8_t row, const uint8_t *hand,
+                      uint8_t flags)
+{
+    uint8_t top[FN_CARD_SLOTS], bot[FN_CARD_SLOTS];
+    bool dealt = true;
+    unsigned k, line;
+
+    /* A card is two rows tall, so the pair must both exist. */
+    if ((unsigned)row + 1u >= FN_T_ROWS)
+        return;
+
+    for (line = 0; line < FN_T_CELL_H; line++) {
+        /* The sixth line of both cells is blank leading: it separates rank
+         * from pip, and the console's kernel reprograms colour there. */
+        if (line >= VCS_FONT_INK_H) {
+            card_line(win, row, line, NULL);
+            card_line(win, (unsigned)row + 1u, line, NULL);
+            continue;
+        }
+
+        for (k = 0; k < FN_CARD_SLOTS; k++) {
+            uint8_t r = hand[k * 2], s = hand[k * 2 + 1];
+            const char *f;
+
+            /* hand[] is a C string: the first NUL rank ends the hand and
+             * everything past it is undefined, not blank. */
+            if (r == 0u)
+                dealt = false;
+
+            if (!dealt) {
+                top[k] = 0u;
+                bot[k] = 0u;
+                continue;
+            }
+
+            if (r == '?' || s == '?' ||
+                (k == 0u && (flags & FN_CARD_HIDE0) != 0u)) {
+                top[k] = card_back[0][line];
+                bot[k] = card_back[1][line];
+                continue;
+            }
+
+            if (r == 't' || r == 'T') {
+                top[k] = card_ten[line];
+            } else {
+                /* Re-centre the font's own 3x5 glyph in the five-wide field,
+                 * so a rank and a letter can never disagree. */
+                top[k] = (uint8_t)(glyph(r)[line] << 1);
+            }
+
+            f = strchr(card_suits, (char)(s | 0x20));
+            bot[k] = (f != NULL && s != 0u)
+                       ? card_pip[(unsigned)(f - card_suits)][line]
+                       : 0u;
+        }
+
+        card_line(win, row, line, top);
+        card_line(win, (unsigned)row + 1u, line, bot);
+        dealt = true;              /* re-walk the hand on the next line */
+    }
+}
+
 bool vcs_blit(uint8_t *win, uint8_t *board, uint16_t src, uint16_t dst,
               uint8_t cnt, uint8_t transform)
 {
@@ -207,6 +355,21 @@ bool vcs_blit(uint8_t *win, uint8_t *board, uint16_t src, uint16_t dst,
             }
         }
         board_rows(win, board, (uint8_t)dst);
+        return true;
+    }
+
+    if (transform == FN_BLIT_CARD) {
+        /* hand[11] out of the reply window, bounds-checked, then rendered.
+         * The NUL is carried too: vcs_render_cards() needs it to know where
+         * the hand stops. */
+        uint8_t hand[FN_CARD_SLOTS * 2 + 1];
+
+        for (i = 0; i < sizeof hand; i++) {
+            unsigned o = (FN_R_DATA - FN_WINDOW_BASE) + src + i;
+
+            hand[i] = (o < FN_WINDOW_SIZE) ? win[o] : 0u;
+        }
+        vcs_render_cards(win, (uint8_t)dst, hand, cnt);
         return true;
     }
 

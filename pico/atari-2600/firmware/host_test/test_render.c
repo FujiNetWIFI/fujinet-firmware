@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "fuji_mailbox.h"
+#include "vcs_font.h"
 #include "vcs_render.h"
 #include "render_gold.h"
 
@@ -409,13 +410,162 @@ int main(void)
         vcs_render_cell(win, 0, FN_T_COLS, 'X');
     }
 
+    /* ---------------------------------------------------------- cards ---
+     * FN_BLIT_CARD is the one transform whose output no other test can
+     * describe, because a card ignores the cell grid: five of them on a
+     * six-pixel pitch across planes 0-3. So the expectation here is a
+     * PICTURE of the bed, 32 pixels wide, read left to right and packed by
+     * this test's own loop -- if the renderer's pitch, its plane split or
+     * its two-row split were wrong, the picture would not match.
+     *
+     * The hand exercises every path: a font-derived rank (A), the ten (the
+     * one rank 3x5 cannot spell), a digit (2), a second letter (K), all four
+     * pips, and a hole card.
+     */
+    {
+        /* "ah td 2s kc ??" */
+        static const char *const rank_pic[VCS_FONT_INK_H] = {
+            ".###..#.###..###...#.#..#####...",
+            ".#.#..#.#.#....#...#.#..#.#.#...",
+            ".###..#.#.#..###...##....#.#....",
+            ".#.#..#.#.#..#.....#.#..#.#.#...",
+            ".#.#..#.###..###...#.#...#.#...."
+        };
+        static const char *const pip_pic[VCS_FONT_INK_H] = {
+            ".#.#....#.....#.....#...#.#.#...",
+            "#####..###...###..##.##..#.#....",
+            "#####.#####.#####..###..#.#.#...",
+            ".###...###....#.....#....#.#....",
+            "..#.....#....###...###..#####..."
+        };
+        static const uint8_t hand[] = "ahtd2skc??";
+        const unsigned ROW = 3;         /* the pair is rows 3 and 4 */
+        const uint8_t SENTINEL = 0x5A;
+        unsigned line, pl;
+
+        /* Planes 4 and 5 are pre-filled: a card must never touch the columns
+         * a seat's name and purse live in. */
+        memset(win, 0, sizeof win);
+        memset(win + (FN_T_PLANE(4) - FN_WINDOW_BASE), SENTINEL,
+               2 * FN_T_PLANE_LEN);
+        memcpy(win + (FN_R_DATA - FN_WINDOW_BASE) + 64, hand, sizeof hand);
+
+        if (!vcs_blit(win, board, 64, ROW, 0, FN_BLIT_CARD))
+            fail("FN_BLIT_CARD was refused");
+
+        for (line = 0; line < FN_T_CELL_H; line++) {
+            uint8_t want_r[FN_CARD_PLANES] = { 0, 0, 0, 0 };
+            uint8_t want_p[FN_CARD_PLANES] = { 0, 0, 0, 0 };
+            unsigned px;
+
+            /* The sixth line of each cell stays blank: it is what separates
+             * rank from pip, and the console's kernel reprograms colour
+             * there. Both want[] arrays are already zero for it. */
+            if (line < VCS_FONT_INK_H) {
+                for (px = 0; px < FN_CARD_PLANES * 8; px++) {
+                    if (rank_pic[line][px] == '#')
+                        want_r[px / 8] |= (uint8_t)(0x80u >> (px % 8));
+                    if (pip_pic[line][px] == '#')
+                        want_p[px / 8] |= (uint8_t)(0x80u >> (px % 8));
+                }
+            }
+
+            for (pl = 0; pl < FN_CARD_PLANES; pl++) {
+                unsigned base = (FN_T_PLANE(pl) - FN_WINDOW_BASE);
+
+                if (win[base + ROW * FN_T_CELL_H + line] != want_r[pl])
+                    fail("FN_BLIT_CARD rank row differs from the picture");
+                if (win[base + (ROW + 1) * FN_T_CELL_H + line] != want_p[pl])
+                    fail("FN_BLIT_CARD pip row differs from the picture");
+            }
+        }
+
+        for (i = 0; i < 2 * (int)FN_T_PLANE_LEN; i++) {
+            if (win[(FN_T_PLANE(4) - FN_WINDOW_BASE) + i] != SENTINEL) {
+                fail("FN_BLIT_CARD wrote into planes 4-5, where the seat's "
+                     "name and purse live");
+                break;
+            }
+        }
+
+        /* A short hand. hand[] is a C string, so the first NUL rank ends it
+         * and every later slot must go blank -- and because whole plane
+         * bytes are written, the five-card bed above must not show through.
+         * Both halves of slots 1-4 are therefore zero. */
+        {
+            static const uint8_t one[] = "as";
+
+            memcpy(win + (FN_R_DATA - FN_WINDOW_BASE) + 64, one, sizeof one);
+            if (!vcs_blit(win, board, 64, ROW, 0, FN_BLIT_CARD))
+                fail("FN_BLIT_CARD was refused for a one-card hand");
+
+            for (line = 0; line < FN_T_CELL_H; line++) {
+                for (pl = 1; pl < FN_CARD_PLANES; pl++) {
+                    unsigned base = (FN_T_PLANE(pl) - FN_WINDOW_BASE);
+
+                    /* Slots 1-4 live in planes 1-3 entirely; plane 0 still
+                     * carries slot 0, so only its low two bits are theirs. */
+                    if (win[base + ROW * FN_T_CELL_H + line] != 0 ||
+                        win[base + (ROW + 1) * FN_T_CELL_H + line] != 0) {
+                        fail("a shorter hand left the previous hand's cards "
+                             "showing through");
+                        break;
+                    }
+                }
+                if (win[(FN_T_PLANE(0) - FN_WINDOW_BASE) +
+                        ROW * FN_T_CELL_H + line] & 0x03u) {
+                    fail("a shorter hand left debris in slot 1's first two "
+                         "pixels");
+                    break;
+                }
+            }
+        }
+
+        /* FN_CARD_HIDE0 is how a client masks its own hole card before the
+         * showdown: slot 0 draws as the back whatever the wire said. */
+        {
+            static const uint8_t open_hand[] = "ah";
+            uint8_t face0[FN_T_CELL_H];
+
+            memcpy(win + (FN_R_DATA - FN_WINDOW_BASE) + 64, open_hand,
+                   sizeof open_hand);
+            vcs_blit(win, board, 64, ROW, 0, FN_BLIT_CARD);
+            for (line = 0; line < FN_T_CELL_H; line++)
+                face0[line] = win[(FN_T_PLANE(0) - FN_WINDOW_BASE) +
+                                  ROW * FN_T_CELL_H + line];
+
+            vcs_blit(win, board, 64, ROW, FN_CARD_HIDE0, FN_BLIT_CARD);
+
+            if (!memcmp(face0, win + (FN_T_PLANE(0) - FN_WINDOW_BASE) +
+                                ROW * FN_T_CELL_H, FN_T_CELL_H))
+                fail("FN_CARD_HIDE0 left card 0 face up");
+            /* The back's first ink line is its top cap: all five pixels. */
+            if ((win[(FN_T_PLANE(0) - FN_WINDOW_BASE) + ROW * FN_T_CELL_H]
+                 & 0xF8u) != 0xF8u)
+                fail("FN_CARD_HIDE0 did not draw a card back");
+        }
+
+        /* A card needs BOTH rows, so the last row cannot start one. Out of
+         * range draws nothing rather than writing past the planes. */
+        {
+            uint8_t before[FN_WINDOW_SIZE];
+
+            memcpy(before, win, sizeof before);
+            vcs_render_cards(win, FN_T_ROWS - 1, hand, 0);
+            vcs_render_cards(win, FN_T_ROWS, hand, 0);
+            if (memcmp(before, win, sizeof before))
+                fail("a card on an out-of-range row wrote into the window");
+        }
+    }
+
     if (fails) {
         printf("test_render: %d failures\n", fails);
         return 1;
     }
     printf("test_render: PASS (%d strings, %d planes, %d rows x %d columns, "
-           "the blit port, FN_BLIT_PATH, FN_BLIT_TCELL, and a composed "
-           "Battleship board)\n",
-           GOLD_N, FN_T_PLANES, FN_T_ROWS, FN_T_COLS);
+           "the blit port, FN_BLIT_PATH, FN_BLIT_TCELL, a composed "
+           "Battleship board, and a %d-card bed on a %d-pixel pitch)\n",
+           GOLD_N, FN_T_PLANES, FN_T_ROWS, FN_T_COLS,
+           FN_CARD_SLOTS, FN_CARD_PITCH);
     return 0;
 }
