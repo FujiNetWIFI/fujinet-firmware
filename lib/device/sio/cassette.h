@@ -6,8 +6,9 @@
 #ifdef ESP_PLATFORM
 #include <driver/rmt_types.h>
 #include <esp_heap_caps.h> // ESP-only: FSK pointer table in internal 8-bit DRAM; payload blocks in 8-bit PSRAM
+#include <esp_timer.h>     // esp_timer_get_time() — Active FSK Rewind physical-position clock interpolation
 #include <freertos/FreeRTOS.h>
-#include <freertos/semphr.h> // SemaphoreHandle_t for _cassette_lock
+#include <freertos/semphr.h> // SemaphoreHandle_t for _cassette_lock / _fsk_channel_lock
 #include "fsk_plan.h"      // FSK_RUN_MAX_CHUNKS for the run descriptors below
 #endif
 
@@ -115,7 +116,9 @@ public:
     void sio_handle_cassette();  // Handle incoming & outgoing data for cassette
 
     void rewind(); // rewind cassette to start (offset 0) — independent of the time walker
-    bool rewind_seconds(uint32_t seconds); // rewind by N seconds using the real per-chunk duration model
+    bool rewind_seconds(uint32_t seconds); // rewind by N seconds using the real per-chunk duration model; when an
+                                            // FSK run is actively transmitting, interrupts it (Active FSK Rewind)
+                                            // instead of blocking for the whole run — see cassette.cpp for the design.
 
     bool is_mounted() { return _mounted; };
     bool is_active() { return cassetteActive; };
@@ -184,6 +187,29 @@ private:
     // buffer. Caller must hold _cassette_lock. Idempotent — safe to call when
     // nothing is active.
     void stop_and_reset_for_reposition();
+
+#ifdef ESP_PLATFORM
+    // Active FSK Rewind — cassette-task-side resolution of an interrupt that
+    // landed on the run starting at `run_chunk0_header_offset` (the offset
+    // play_fsk_chunk() was entered with for THIS run). Called from
+    // play_fsk_chunk(), still holding _cassette_lock, AFTER fsk_signal_end()
+    // has flagged _fsk_interrupted_pending and BEFORE fsk_free_blocks() runs
+    // (the resident run descriptors/blocks must still be valid). Resolves the
+    // target time using only resident data (falling back to the existing
+    // cas_walk_tape_time() walker, then to offset 0, per the approved 3-tier
+    // policy), sets _last_rewind_result, clears _fsk_rewind_state back to
+    // IDLE, and returns the offset play_fsk_chunk() should return (i.e. the
+    // new tape_offset).
+    size_t fsk_resolve_active_rewind(size_t run_chunk0_header_offset,
+                                     uint32_t seconds, int64_t stop_timestamp_us);
+
+    // fsk_run_value_fn adapter over the resident block table, for the pure
+    // cas_fsk_resolve_active_rewind() resolver (cassette_time_plan.h). `ctx`
+    // is `this`. Reads only already-resident PSRAM (_fsk_blocks) — no file
+    // I/O. chunk_index/value_index are relative to the CURRENT run.
+    static uint16_t fsk_resident_run_value_reader(void *ctx, size_t chunk_index,
+                                                  size_t value_index);
+#endif
 
     size_t send_tape_block(size_t offset);
     void check_for_FUJI_file();
@@ -272,9 +298,17 @@ private:
     // Raw FSK signal helpers built on the ESP RMT peripheral (same PIN_UART2_TX
     // and detach/reattach approach as Turbo 2000, and the same stateful simple
     // encoder pattern as t2k_encode_cb / rmt_new_simple_encoder).
-    bool fsk_signal_begin();   // alloc RMT channel + simple encoder (callback=fsk_encode_cb, arg=this), detach UART TX; false on failure
+    // resume_value_index: normally 0 (fresh start). Active FSK Rewind passes a
+    // non-zero one-shot value (captured as a LOCAL in play_fsk_chunk from
+    // _fsk_resume_pending/_fsk_resume_value_index, which is cleared at
+    // function entry) to seed the ISR cursor directly at that value index of
+    // run chunk 0, skipping the values before it. fsk_signal_begin() never
+    // reads the shared _fsk_resume_pending member itself.
+    bool fsk_signal_begin(size_t resume_value_index = 0);   // alloc RMT channel + simple encoder (callback=fsk_encode_cb, arg=this), detach UART TX; false on failure
     void fsk_signal_emit();    // ONE rmt_transmit using the immutable pointer table as transaction payload; then wait-done
-    void fsk_signal_end();     // idempotent: teardown RMT + encoder, reattach UART TX
+    void fsk_signal_end();     // idempotent: teardown RMT + encoder, reattach UART TX; also the single serialization
+                               // point (under _fsk_channel_lock) that decides whether this transmission's channel was
+                               // ever published and, if so, whether a rewind request claimed it — see cassette.cpp
 
     void fsk_free_blocks();    // free every preloaded block + the pointer table; idempotent, safe after partial preload
 
@@ -333,6 +367,91 @@ private:
     size_t   _fsk_run_block_base[FSK_RUN_MAX_CHUNKS]   = {}; // per-chunk first block index
     // Encoder-cursor position within the run (ISR-only, set before rmt_transmit):
     size_t   _fsk_run_chunk_index   = 0;       // which run chunk the cursor is in
+
+    // ----------------------------------------------------------------------
+    // Active FSK Rewind (Phase 8): interrupt + precise-resume extension.
+    // Design finalized across the a8cas-fsk-active-rewind audit (channel
+    // lifetime/ABA safety, encoded-vs-physical position, request handshake,
+    // resident-run resolution, physical-position clock interpolation). Only
+    // the "fsk " raw-FSK path is affected; legacy raw/Turbo 2000/QROS/FUJI
+    // 'data' never publish _fsk_active_channel and so always take the
+    // original, unchanged rewind_seconds() path.
+    // ----------------------------------------------------------------------
+
+    // Per-run resident metadata additional to _fsk_run_value_counts/_block_base
+    // above: each chunk's payload START file offset (chunk header offset is
+    // this minus 8), needed to translate a resolved (run_chunk_index,
+    // value_index) back into a real tape_offset without any TNFS re-read.
+    size_t   _fsk_run_file_offsets[FSK_RUN_MAX_CHUNKS] = {};
+    // This run's OWN leading IRG (the first chunk's on-disk irg_length; every
+    // following chunk in a joined run is guaranteed IRG==0 by the run-join
+    // contract in fsk_run_should_join(), so only chunk 0's matters). Set once
+    // when the run is entered, consumed by fsk_resolve_active_rewind().
+    uint16_t _fsk_run_leading_irg_ms = 0;
+
+    // Guards _fsk_active_channel and the tiny request/result handshake below.
+    // Deliberately separate from, and much more briefly held than,
+    // _cassette_lock: HTTP takes ONLY this lock (never _cassette_lock) to
+    // interrupt a live transmission, so it never has to wait for an entire
+    // FSK run to finish before it can act.
+    SemaphoreHandle_t _fsk_channel_lock = nullptr;
+
+    // Published (under _fsk_channel_lock) ONLY after rmt_transmit() has
+    // returned ESP_OK for the run currently playing — never merely after
+    // rmt_enable() — so any channel HTTP can ever observe here is guaranteed
+    // to already be genuinely transmitting. Unpublished exclusively inside
+    // fsk_signal_end(), under the same lock. Holds an rmt_channel_handle_t.
+    void *_fsk_active_channel = nullptr;
+
+    enum class FskRewindReq : uint8_t { IDLE, REQUESTED, PROCESSING };
+    // One active rewind request maximum; guarded by _fsk_channel_lock.
+    FskRewindReq _fsk_rewind_state = FskRewindReq::IDLE;
+    uint32_t     _fsk_rewind_seconds_req = 0;        // guarded by _fsk_channel_lock
+    int64_t      _fsk_rewind_stop_timestamp_us = 0;  // guarded by _fsk_channel_lock; esp_timer_get_time()
+                                                      // captured by HTTP immediately BEFORE rmt_disable()
+
+    enum class RewindResult : uint8_t { NONE, SUCCESS, FAILED, NATURAL_COMPLETION_FALLBACK, BUSY };
+    // Set by the cassette task only, guarded by _cassette_lock (already held
+    // for the cassette task's whole dispatch); HTTP's take() of _cassette_lock
+    // after issuing the request IS the happens-before edge that makes reading
+    // this safe without any polling.
+    RewindResult _last_rewind_result = RewindResult::NONE;
+
+    // Scratch handoff (task-local; no locking needed — written and read only
+    // by the cassette task, within one play_fsk_chunk() call) from
+    // fsk_signal_end()'s serialization point to play_fsk_chunk(): true iff a
+    // rewind request genuinely claimed THIS transmission's channel.
+    bool     _fsk_interrupted_pending = false;
+    uint32_t _fsk_interrupted_seconds = 0;
+    int64_t  _fsk_interrupted_stop_us = 0;
+
+    // --- Physical progress (functional bookkeeping only — no logging, no
+    //     diagnostics). Written by the ISR (fsk_encode_cb), read by the
+    //     cassette task only AFTER rmt_disable() has returned (which, on the
+    //     classic ESP32 non-async-stop path, busy-polls real TX_DONE hardware
+    //     state and so guarantees the ISR is no longer running) — plain
+    //     reads/writes are sufficient, no additional lock. ---
+    uint64_t _fsk_cumulative_ticks        = 0; // total ticks encoded into the run so far (monotonic, ISR-only)
+    uint64_t _fsk_prefill_half_ticks      = 0; // cumulative_ticks snapshotted the instant the PREFILL call (if any)
+                                                // reaches exactly 256 symbols — the exact boundary the FIRST
+                                                // hardware threshold refill will confirm; never the prefill total,
+                                                // since a single prefill call can produce up to 512 symbols (two
+                                                // threshold halves) while only proving the first 256 consumed.
+    uint64_t _fsk_pending_boundary_ticks  = 0; // cumulative_ticks as of the last confirmed 256-symbol boundary;
+                                                // credited to _fsk_confirmed_ticks the NEXT time a genuine
+                                                // threshold-triggered refill fires
+    uint64_t _fsk_confirmed_ticks         = 0; // last ticks count PROVEN physically emitted by real hardware
+    int64_t  _fsk_confirmed_timestamp_us  = 0; // esp_timer_get_time() at the _fsk_confirmed_ticks snapshot
+    bool     _fsk_transmission_started    = false; // true only strictly AFTER rmt_transmit() returns ESP_OK; gates
+                                                    // every ISR write above — prefill callbacks run before this is
+                                                    // set and so can NEVER update confirmed progress
+
+    // One-shot resume seed, guarded by nothing but the one-shot discipline
+    // itself: set only by fsk_resolve_active_rewind() (cassette task), read +
+    // cleared exactly once at the very top of the NEXT play_fsk_chunk() call
+    // (same task) into locals before anything else touches it.
+    bool   _fsk_resume_pending     = false;
+    size_t _fsk_resume_value_index = 0;
 
 #endif // ESP_PLATFORM
 };

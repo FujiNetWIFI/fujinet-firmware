@@ -149,4 +149,61 @@ bool cas_walk_tape_time(size_t filesize, cas_time_read_fn reader, void *ctx,
                         size_t stop_at_offset, uint64_t stop_at_time_us,
                         CassetteWalkState &out);
 
+// -----------------------------------------------------------------------------
+// Active FSK Rewind — pure resident-run target resolution.
+// -----------------------------------------------------------------------------
+//
+// Resolves a target absolute CAS time to a position WITHIN one already-resident
+// contiguous zero-IRG FSK run, using only the run's own per-chunk value counts
+// and an injected value accessor — no filesystem, no RMT/GPIO, no FujiNet
+// globals, same discipline as cas_walk_tape_time() above. The production caller
+// (sioCassette::fsk_resolve_active_rewind) supplies a reader over the resident
+// PSRAM block table; host tests supply a reader over an in-memory array decoded
+// once from a real .cas payload.
+//
+// Injected accessor: returns the FSK value (pre-tick-scaling, i.e. the raw
+// on-file uint16) at logical value index `value_index` within run chunk
+// `chunk_index` (both 0-based, relative to the CURRENT run — chunk_index 0 is
+// always the run's own first chunk, regardless of what real CAS chunk that
+// maps to). Caller guarantees value_index < run_value_counts[chunk_index].
+using fsk_run_value_fn = uint16_t (*)(void *ctx, size_t chunk_index, size_t value_index);
+
+struct FskActiveRewindResolution
+{
+    // false => target_us falls BEFORE this run entirely (run_chunk_count == 0
+    // or target_us < run_start_time_us); the caller must fall back to
+    // cas_walk_tape_time() against the same target_us. chunk_index/value_index
+    // are 0 and meaningless in this case.
+    bool resolved;
+
+    // true => target_us fell inside the run's own leading IRG
+    // (run_start_time_us <= target_us < run_start_time_us + leading_irg_us):
+    // resolve to this run's chunk 0 from scratch (replay the full IRG); no
+    // mid-payload resume. chunk_index/value_index are 0 and not a resume seed
+    // in this case (the caller must NOT treat value_index==0 here as "resume
+    // at value 0" — it means "restart the chunk normally").
+    bool inside_leading_irg;
+
+    // Valid only when resolved && !inside_leading_irg: the run chunk (0-based,
+    // within the CURRENT run) and the value index within it (0-based) whose
+    // START time is the greatest value <= target_us — i.e. the last value at
+    // or before the target, NEVER mid-value. value_index > 0, or chunk_index
+    // > 0, means a genuine resume mid-run is required; chunk_index == 0 &&
+    // value_index == 0 means the run's own chunk 0 needs no resume flag either
+    // (identical to entering it fresh).
+    size_t chunk_index;
+    size_t value_index;
+};
+
+// Pure resolver. Never resumes mid-value: for the returned (chunk_index,
+// value_index), the accumulated start time of that value is always
+// <= target_us, and (when not the very last value in the run) the NEXT
+// value's start time is always > target_us. `run_value_counts` must have at
+// least `run_chunk_count` entries. A run_chunk_count of 0 always yields
+// resolved == false (nothing resident to resolve against).
+FskActiveRewindResolution cas_fsk_resolve_active_rewind(
+    const size_t *run_value_counts, size_t run_chunk_count,
+    fsk_run_value_fn value_reader, void *ctx,
+    uint64_t run_start_time_us, uint64_t leading_irg_us, uint64_t target_us);
+
 #endif // CASSETTE_TIME_PLAN_H
