@@ -350,3 +350,52 @@ bool cas_walk_tape_time(size_t filesize, cas_time_read_fn reader, void *ctx,
 
     return true;
 }
+
+FskActiveRewindResolution cas_fsk_resolve_active_rewind(
+    const size_t *run_value_counts, size_t run_chunk_count,
+    fsk_run_value_fn value_reader, void *ctx,
+    uint64_t run_start_time_us, uint64_t leading_irg_us, uint64_t target_us)
+{
+    FskActiveRewindResolution r{};
+    r.resolved = false;
+    r.inside_leading_irg = false;
+    r.chunk_index = 0;
+    r.value_index = 0;
+
+    if (run_chunk_count == 0 || target_us < run_start_time_us)
+        return r; // target lies before this run entirely — caller falls back
+
+    if (target_us < run_start_time_us + leading_irg_us)
+    {
+        r.resolved = true;
+        r.inside_leading_irg = true;
+        return r;
+    }
+
+    uint64_t accum = run_start_time_us + leading_irg_us;
+    size_t best_chunk = 0, best_value = 0;
+    bool past_target = false;
+    for (size_t c = 0; c < run_chunk_count && !past_target; ++c)
+    {
+        const size_t vcount = run_value_counts[c];
+        for (size_t v = 0; v < vcount; ++v)
+        {
+            if (accum > target_us)
+            {
+                past_target = true; // best_chunk/best_value already hold the
+                                    // last value whose start time <= target_us
+                break;
+            }
+            best_chunk = c;
+            best_value = v;
+            const uint16_t val = value_reader(ctx, c, v);
+            accum += fsk_ticks_for_value(val); // ticks == microseconds, exact
+        }
+    }
+
+    r.resolved = true;
+    r.inside_leading_irg = false;
+    r.chunk_index = best_chunk;
+    r.value_index = best_value;
+    return r;
+}
