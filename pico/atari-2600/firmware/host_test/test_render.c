@@ -415,8 +415,14 @@ int main(void)
      * describe, because a card ignores the cell grid: five of them on a
      * six-pixel pitch across planes 0-3. So the expectation here is a
      * PICTURE of the bed, 32 pixels wide, read left to right and packed by
-     * this test's own loop -- if the renderer's pitch, its plane split or
-     * its two-row split were wrong, the picture would not match.
+     * this test's own loop -- if the renderer's pitch, its plane split, its
+     * left margin or its two-row split were wrong, the picture would not
+     * match.
+     *
+     * The pictures start two pixels in, and the loop below asserts that
+     * PIXEL 7 IS NEVER INKED: it is bit 0 of plane 0, the one pixel of the
+     * 48 that no console kernel can draw, and a bed flush to pixel 0 puts
+     * slot 1's left edge on it. See the FN_BLIT_CARD block in fuji_mailbox.h.
      *
      * The hand exercises every path: a font-derived rank (A), the ten (the
      * one rank 3x5 cannot spell), a digit (2), a second letter (K), all four
@@ -425,18 +431,18 @@ int main(void)
     {
         /* "ah td 2s kc ??" */
         static const char *const rank_pic[VCS_FONT_INK_H] = {
-            ".###..#.###..###...#.#..#####...",
-            ".#.#..#.#.#....#...#.#..#.#.#...",
-            ".###..#.#.#..###...##....#.#....",
-            ".#.#..#.#.#..#.....#.#..#.#.#...",
-            ".#.#..#.###..###...#.#...#.#...."
+            "...###..#.###..###...#.#..#####.",
+            "...#.#..#.#.#....#...#.#..#.#.#.",
+            "...###..#.#.#..###...##....#.#..",
+            "...#.#..#.#.#..#.....#.#..#.#.#.",
+            "...#.#..#.###..###...#.#...#.#.."
         };
         static const char *const pip_pic[VCS_FONT_INK_H] = {
-            ".#.#....#.....#.....#...#.#.#...",
-            "#####..###...###..##.##..#.#....",
-            "#####.#####.#####..###..#.#.#...",
-            ".###...###....#.....#....#.#....",
-            "..#.....#....###...###..#####..."
+            "...#.#....#.....#.....#...#.#.#.",
+            "..#####..###...###..##.##..#.#..",
+            "..#####.#####.#####..###..#.#.#.",
+            "...###...###....#.....#....#.#..",
+            "....#.....#....###...###..#####."
         };
         static const uint8_t hand[] = "ahtd2skc??";
         const unsigned ROW = 3;         /* the pair is rows 3 and 4 */
@@ -462,6 +468,9 @@ int main(void)
              * rank from pip, and the console's kernel reprograms colour
              * there. Both want[] arrays are already zero for it. */
             if (line < VCS_FONT_INK_H) {
+                if (rank_pic[line][7] != '.' || pip_pic[line][7] != '.')
+                    fail("the card bed's own picture inks pixel 7, which no "
+                         "console kernel can draw");
                 for (px = 0; px < FN_CARD_PLANES * 8; px++) {
                     if (rank_pic[line][px] == '#')
                         want_r[px / 8] |= (uint8_t)(0x80u >> (px % 8));
@@ -488,6 +497,48 @@ int main(void)
             }
         }
 
+        /* Pixel 7 -- bit 0 of plane 0 -- against EVERY card there is, not
+         * just the five in the picture above. It is the one pixel of the 48
+         * that no console kernel can reach (fuji_mailbox.h has the cycle
+         * count), so any card that inks it loses that column on a real
+         * screen and nothing in a host test would otherwise say so. */
+        {
+            static const char ranks[] = "23456789tjqka?";
+            static const char suits[] = "hdsc?";
+            unsigned r, s;
+            int bad = 0;
+
+            for (r = 0; ranks[r] != '\0' && !bad; r++) {
+                for (s = 0; suits[s] != '\0' && !bad; s++) {
+                    uint8_t every[FN_CARD_SLOTS * 2 + 1];
+                    unsigned k;
+
+                    for (k = 0; k < FN_CARD_SLOTS; k++) {
+                        every[k * 2] = (uint8_t)ranks[r];
+                        every[k * 2 + 1] = (uint8_t)suits[s];
+                    }
+                    every[FN_CARD_SLOTS * 2] = 0u;
+
+                    memcpy(win + (FN_R_DATA - FN_WINDOW_BASE) + 64, every,
+                           sizeof every);
+                    vcs_blit(win, board, 64, ROW, 0, FN_BLIT_CARD);
+
+                    for (line = 0; line < FN_T_CELL_H; line++) {
+                        unsigned base = (FN_T_PLANE(0) - FN_WINDOW_BASE);
+
+                        if ((win[base + ROW * FN_T_CELL_H + line] & 0x01u) ||
+                            (win[base + (ROW + 1) * FN_T_CELL_H + line]
+                             & 0x01u)) {
+                            fail("a card inked pixel 7, which no console "
+                                 "kernel can draw");
+                            bad = 1;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
         /* A short hand. hand[] is a C string, so the first NUL rank ends it
          * and every later slot must go blank -- and because whole plane
          * bytes are written, the five-card bed above must not show through.
@@ -503,8 +554,9 @@ int main(void)
                 for (pl = 1; pl < FN_CARD_PLANES; pl++) {
                     unsigned base = (FN_T_PLANE(pl) - FN_WINDOW_BASE);
 
-                    /* Slots 1-4 live in planes 1-3 entirely; plane 0 still
-                     * carries slot 0, so only its low two bits are theirs. */
+                    /* With the bed starting at pixel 2, slots 1-4 live in
+                     * planes 1-3 entirely and plane 0 carries nothing but
+                     * slot 0. */
                     if (win[base + ROW * FN_T_CELL_H + line] != 0 ||
                         win[base + (ROW + 1) * FN_T_CELL_H + line] != 0) {
                         fail("a shorter hand left the previous hand's cards "
@@ -512,10 +564,13 @@ int main(void)
                         break;
                     }
                 }
+                /* Slot 0 is pixels 2-6, so plane 0's top two bits are the
+                 * left margin and its bottom bit is the undrawable pixel 7.
+                 * All three stay clear whatever the hand. */
                 if (win[(FN_T_PLANE(0) - FN_WINDOW_BASE) +
-                        ROW * FN_T_CELL_H + line] & 0x03u) {
-                    fail("a shorter hand left debris in slot 1's first two "
-                         "pixels");
+                        ROW * FN_T_CELL_H + line] & 0xC1u) {
+                    fail("a card wrote outside slot 0 in plane 0 -- the left "
+                         "margin or pixel 7");
                     break;
                 }
             }
@@ -539,9 +594,10 @@ int main(void)
             if (!memcmp(face0, win + (FN_T_PLANE(0) - FN_WINDOW_BASE) +
                                 ROW * FN_T_CELL_H, FN_T_CELL_H))
                 fail("FN_CARD_HIDE0 left card 0 face up");
-            /* The back's first ink line is its top cap: all five pixels. */
+            /* The back's first ink line is its top cap: all five pixels.
+             * Slot 0 is pixels 2-6, so that is bits 5-1. */
             if ((win[(FN_T_PLANE(0) - FN_WINDOW_BASE) + ROW * FN_T_CELL_H]
-                 & 0xF8u) != 0xF8u)
+                 & 0x3Eu) != 0x3Eu)
                 fail("FN_CARD_HIDE0 did not draw a card back");
         }
 

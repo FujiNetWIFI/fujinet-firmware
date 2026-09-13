@@ -175,7 +175,10 @@ static const uint8_t card_back[2][VCS_FONT_INK_H] = {
 };
 
 /* One scanline of the card bed: `ink` is one five-bit row per slot. Whole
- * plane bytes are written, never merged, so the bed clears itself. */
+ * plane bytes are written, never merged, so the bed clears itself.
+ *
+ * The bed starts at FN_CARD_X0, not at zero: pixel 7 is bit 0 of plane 0 and
+ * no client can draw it -- see the FN_BLIT_CARD block in fuji_mailbox.h. */
 static void card_line(uint8_t *win, unsigned row, unsigned line,
                       const uint8_t *ink)
 {
@@ -188,7 +191,7 @@ static void card_line(uint8_t *win, unsigned row, unsigned line,
     if (ink) {
         for (k = 0; k < FN_CARD_SLOTS; k++) {
             for (i = 0; i < FN_CARD_INK_W; i++) {
-                unsigned px = k * FN_CARD_PITCH + i;
+                unsigned px = FN_CARD_X0 + k * FN_CARD_PITCH + i;
 
                 if (ink[k] & (uint8_t)(1u << (FN_CARD_INK_W - 1 - i)))
                     b[px >> 3] |= (uint8_t)(0x80u >> (px & 7u));

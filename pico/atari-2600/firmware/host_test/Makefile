@@ -15,6 +15,12 @@ TOOLS   := ../../tools
 
 TESTS   := test_render test_fujibus test_busio test_vcsmap
 
+# fuji_mailbox.h carries the geometry every test asserts against -- the text
+# planes, the card bed, the blit numbers -- so a test binary built against a
+# stale copy of it passes for the wrong reason. It is a dependency of anything
+# that includes it, not just of the .c files.
+MAILBOX := ../include/fuji_mailbox.h
+
 .PHONY: all clean
 all: $(TESTS)
 	@for t in $(TESTS); do ./$$t || exit 1; done
@@ -27,13 +33,14 @@ all: $(TESTS)
 render_gold.h: $(TOOLS)/vcsfont.py $(TOOLS)/mkrendergold.py
 	python3 $(TOOLS)/mkrendergold.py > $@
 
-test_render: test_render.c ../src/vcs_render.c ../include/vcs_font.h render_gold.h
+test_render: test_render.c ../src/vcs_render.c ../include/vcs_font.h \
+             ../include/vcs_render.h $(MAILBOX) render_gold.h
 	$(CC) $(CFLAGS) $(INC) -o $@ test_render.c ../src/vcs_render.c
 
-test_fujibus: test_fujibus.c ../src/fujibus.c
+test_fujibus: test_fujibus.c ../src/fujibus.c ../include/fujibus.h $(MAILBOX)
 	$(CC) $(CFLAGS) $(INC) -o $@ test_fujibus.c ../src/fujibus.c
 
-test_busio: test_busio.c
+test_busio: test_busio.c $(MAILBOX)
 	$(CC) $(CFLAGS) $(INC) -o $@ test_busio.c
 
 clean:

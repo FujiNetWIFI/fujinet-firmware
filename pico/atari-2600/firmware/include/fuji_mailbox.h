@@ -258,6 +258,8 @@
 #define FN_CARD_PITCH    6        /* pixels per card: 5 of art plus a gap    */
 #define FN_CARD_PLANES   4        /* planes 0-3 -- pixels 0-31, the card bed */
 #define FN_CARD_INK_W    5        /* pixels of art in a card                 */
+#define FN_CARD_X0       2        /* left margin -- keeps ink off pixel 7,
+                                     which no kernel can draw. See below.    */
 #define FN_CARD_HIDE0    0x01     /* cnt: draw card 0 face-down regardless   */
 #define FN_BOARD_DIM     10
 #define FN_BOARD_CELLS   100
@@ -288,10 +290,27 @@
  * port settled their shapes), and five does not fit a four-pixel cell.
  *
  * So a card ignores the cell grid entirely. Five cards sit on a SIX-pixel
- * pitch -- five of art, one of gap -- filling pixels 0-28 of the 48-pixel
+ * pitch -- five of art, one of gap -- filling pixels 2-30 of the 48-pixel
  * span, which is planes 0-3. Planes 4 and 5 (columns 8-11) are never touched,
  * so a seat row carries a name or a purse beside its hand and the two halves
  * cannot collide.
+ *
+ * FN_CARD_X0 -- the two blank pixels the bed starts with -- is NOT taste.
+ * PIXEL 7, BIT 0 OF PLANE 0, CANNOT BE DRAWN BY ANY CLIENT. The 48-pixel
+ * block is six player copies and the kernel's seven GRP writes; the four late
+ * ones span 33 pixels while the distance from the end of group 0 to the start
+ * of group 5 is 32, so no block position serves all 48. Every position loses
+ * exactly one pixel and the least bad one to lose is plane 0 bit 0 -- which
+ * vcs_render_row() already spends as column 1's inter-character gap, so text
+ * never notices and emu/dispcheck.py (text only) cannot see it.
+ *
+ * A bed at pixel 0 puts slot 1's LEFTMOST ink column on pixel 7, and slot 1
+ * then draws with its left edge shaved off on every real console: a K renders
+ * as a bare vertical bar, a heart as a lopsided blob. Starting at 2 moves the
+ * slots to 2-6, 8-12, 14-18, 20-24 and 26-30, which clears pixel 7 and still
+ * ends inside plane 3. Pixels 15 and 23 -- bit 0 of planes 1 and 2 -- ARE
+ * drawable and slots 2 and 3 use them; group 0 is the only group whose tail
+ * the schedule cannot reach.
  *
  * A card is TWO text rows tall: the rank on the upper row's five ink lines,
  * the suit pip on the lower row's. The sixth line of a cell is blank leading
