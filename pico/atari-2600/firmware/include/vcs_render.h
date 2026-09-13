@@ -49,4 +49,26 @@ void vcs_render_clear(uint8_t *win);
 bool vcs_blit(uint8_t *win, uint8_t *board, uint16_t src, uint16_t dst,
               uint8_t cnt, uint8_t transform);
 
+/* FN_BLIT_PATH: render `cnt` characters of a path buffer, starting at
+ * character `src`, into text row `row`.
+ *
+ * This is NOT part of vcs_blit() because vcs_blit()'s source is the reply
+ * window and this one's is the cartridge's own path buffer -- a different
+ * thing entirely, and widening that function's signature to carry it would
+ * make eight existing call sites pass an argument seven of them ignore.
+ * FN_BLIT_PATH is routed to here by the caller instead.
+ *
+ * Past the end of the buffer renders as spaces rather than stopping short, so
+ * a shrinking value leaves no debris behind it on the row. */
+void vcs_render_path_row(uint8_t *win, const uint8_t *path, uint16_t path_len,
+                         uint16_t src, uint8_t row, uint8_t cnt);
+
+/* FN_BLIT_TCELL: replace the single character at (row, col).
+ *
+ * A column shares its plane byte with its neighbour -- left in bits 7-5,
+ * right in bits 3-1 -- so this is a masked read-modify-write of six bytes.
+ * The planes cannot be read back as CHARACTERS, but they can be read back as
+ * bits, which is all this needs: the neighbour's bits are simply kept. */
+void vcs_render_cell(uint8_t *win, uint8_t row, uint8_t col, uint8_t c);
+
 #endif /* VCS_RENDER_H */

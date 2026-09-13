@@ -105,6 +105,7 @@ void __not_in_flash_func(vcs_core1_main)(void)
                 fuji_cart_note(FN_H_PATHRAW);
                 break;
 
+
             case VCS_EV_BANK:
                 /* Inline, never queued: the next fetch may already be from
                  * the new bank. */

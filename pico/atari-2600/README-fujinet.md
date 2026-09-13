@@ -156,7 +156,9 @@ SLOT=fujinet ./run.sh fujidir dirtest      # M3
 
 ./tools/soak.sh                            # M6: the whole mapper corpus
 BOOT_IMAGE=.../SD/VCS/DEEP.BIN \
-  SLOT=fujinet SECS=90 ./run.sh fujicfg cfgtest   # M7
+  # M7: CONFIG lives in fujinet-config/atari-2600 and builds there.
+  (cd ~/Workspace/fujinet-config/atari-2600 && make)
+  SLOT=fujinet SECS=120 ~/Workspace/fujinet-config/atari-2600/run.sh cfgtest
 ```
 
 Battleship lives in its own repository, next to the Arcadia and Channel F

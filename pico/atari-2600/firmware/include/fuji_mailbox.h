@@ -247,6 +247,10 @@
 #define FN_BLIT_SEA      4        /* fill the composed board with open sea    */
 #define FN_BLIT_CELL     5        /* board[cnt] = the low byte of src         */
 #define FN_BLIT_PAINT    6        /* paint the composed board into ten rows   */
+#define FN_BLIT_PATH     7        /* cnt chars of the active path buffer at
+                                     src, into text row dst                  */
+#define FN_BLIT_TCELL    8        /* ONE character (low byte of src) into ONE
+                                     cell, dst = row * FN_T_COLS + col       */
 #define FN_BOARD_DIM     10
 #define FN_BOARD_CELLS   100
 #define FN_BLIT_NOCUR    0xFF     /* FIELD: cnt = the cursor cell, or this    */
@@ -287,13 +291,67 @@
  * reset line on this connector. A browser restarted by the RESET switch comes
  * back in the directory it was in, which is the behaviour you want, but a
  * client that assumes an empty buffer at startup is wrong. Reset it. */
+/* FOUR BUFFERS, selected by FN_PATH_SEL0..SEL3, because CONFIG provably needs
+ * four 256-byte strings live at once and the console has 128 bytes of RAM:
+ *
+ *   0  the working directory   (and the SSID, during WiFi setup)
+ *   1  the directory filter    (and the passphrase, during WiFi setup)
+ *   2  a pending copy's source path
+ *   3  the edit scratch: what the on-screen keyboard is typing into
+ *
+ * Buffers 0 and 1 double up because WiFi setup happens before anything is
+ * mounted -- there is no working directory and no filter to lose.
+ *
+ * OPEN_DIRECTORY forces the split between 0 and 1: its payload is
+ * "path\0filter\0" in ONE 256-byte block, so both have to exist together. The
+ * copy source forces 2, because it has to survive the user browsing away to a
+ * destination. And 3 exists so that CANCELLING an edit is possible at all --
+ * the keyboard mutates as you type, so it must not type into the original.
+ *
+ * FN_PATH_COMMIT and FN_PATH_SEED are that last pair's whole API: SEED copies
+ * the selected buffer into the scratch to start editing it, COMMIT copies the
+ * scratch back on accept, and cancel is simply neither. Four ops became two by
+ * making the scratch implicit rather than naming a destination in each one.
+ *
+ * FN_PATH_POPCH is the text editor's backspace. FN_PATH_POP drops a whole
+ * component, which is right for ".." and useless for typing.
+ *
+ * There is deliberately no "emit just the basename" op. COPY_FILE's payload is
+ * "srcfullpath|destdir", and fujiDevice.cpp:1117 appends the source's basename
+ * ITSELF when the destination ends in '/' -- which a working directory always
+ * does, because FN_PATH_POP keeps the trailing separator. The Intellivision
+ * port does that work client-side; on this console it is free.
+ *
+ * The console cannot read either buffer back -- these pages are write-only.
+ * FN_BLIT_PATH is how a client SEES what it has typed: the cartridge renders
+ * the buffer into a text row. That is also what finally gives the browser a
+ * path row, which it could never draw before.
+ *
+ * FN_BLIT_TCELL is the other half of making these screens usable. There is no
+ * inverse video here, so a list marks its selection with a '>' in column 0,
+ * and moving the cursor changes exactly two characters. Recomposing a whole
+ * row to change one of them means having the row's TEXT -- and a scan list's
+ * text arrives one GET_SCAN_RESULT at a time, so every cursor step would cost
+ * two round trips. The Intellivision hit this and worked around it by
+ * recolouring; this console has no colour per cell either. Poking the one
+ * cell costs nothing, because the text planes CAN be read back as bits even
+ * though they cannot be read back as characters. */
 #define FN_HOT_PATH_CH   0xF3     /* data = char: append to the path buffer  */
 #define FN_HOT_PATH_OP   0xF4     /* data = FN_PATH_*: act on the buffer     */
 #define FN_PATH_RST      0        /* empty it                                */
 #define FN_PATH_POP      1        /* drop the last component, keeping "/"    */
 #define FN_PATH_TX       2        /* emit it into TX, NUL-padded to 256      */
 #define FN_PATH_TXRAW    3        /* emit just its bytes; the client pads    */
+#define FN_PATH_POPCH    4        /* drop ONE character                      */
+#define FN_PATH_SEL0     5        /* subsequent ops act on buffer 0          */
+#define FN_PATH_SEL1     6        /* ...on buffer 1                          */
+#define FN_PATH_SEL2     7        /* ...on buffer 2                          */
+#define FN_PATH_SEL3     8        /* ...on buffer 3, the edit scratch        */
+#define FN_PATH_COMMIT   9        /* selected <- the edit scratch            */
+#define FN_PATH_SEED     10       /* the edit scratch <- selected            */
 #define FN_PATH_MAX      256
+#define FN_PATH_BUFS     4
+#define FN_PATH_SCRATCH  3        /* the buffer COMMIT and SEED work through */
 
 #define FN_HOT_ARM1      0xFC     /* data must be FN_ARM_MAGIC1, then...     */
 #define FN_HOT_ARM2      0xFD     /* ...FN_ARM_MAGIC2: decode goes live      */

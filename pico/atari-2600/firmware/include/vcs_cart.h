@@ -83,10 +83,13 @@ typedef struct {
      * that cannot be read back as characters. */
     uint8_t board[FN_BOARD_CELLS];
 
-    /* The working directory, held here because the console has nowhere to
-     * put it. See FN_HOT_PATH_CH in fuji_mailbox.h. */
-    uint8_t path[FN_PATH_MAX];
-    uint16_t path_len;
+    /* Four 256-byte strings, held here because the console has nowhere to put
+     * them: the working directory, the filter, a pending copy's source, and
+     * the edit scratch. Selected by FN_PATH_SEL0..SEL3; see FN_HOT_PATH_CH in
+     * fuji_mailbox.h for why each one has to exist. */
+    uint8_t path[FN_PATH_BUFS][FN_PATH_MAX];
+    uint16_t path_len[FN_PATH_BUFS];
+    uint8_t path_sel;
 
     /* A scheme named by the pushed image's .cfg sibling, if it had one. */
     vcsmap_kind_t hint;
@@ -195,8 +198,10 @@ static inline uint8_t vcs_read(const vcs_mem_t *m, uint16_t a)
  * itself: how much of a 256-byte payload the cartridge just filled. */
 static inline void vcs_publish_pathlen(vcs_mem_t *m)
 {
-    m->win[FN_B_PATHLEN - FN_WINDOW_BASE] = (uint8_t)(m->path_len & 0xFFu);
-    m->win[FN_B_PATHLEN + 1 - FN_WINDOW_BASE] = (uint8_t)(m->path_len >> 8);
+    uint16_t n = m->path_len[m->path_sel];
+
+    m->win[FN_B_PATHLEN - FN_WINDOW_BASE] = (uint8_t)(n & 0xFFu);
+    m->win[FN_B_PATHLEN + 1 - FN_WINDOW_BASE] = (uint8_t)(n >> 8);
 }
 
 /* Byte i of the path payload: the buffer, then NUL padding to exactly 256.
@@ -207,7 +212,7 @@ static inline void vcs_publish_pathlen(vcs_mem_t *m)
  * MAME model cannot disagree about it. */
 static inline uint8_t vcs_path_byte(const vcs_mem_t *m, unsigned i)
 {
-    return (i < m->path_len) ? m->path[i] : 0u;
+    return (i < m->path_len[m->path_sel]) ? m->path[m->path_sel][i] : 0u;
 }
 
 /* An access the cartridge does NOT answer -- A12 is low, so something else on
@@ -317,27 +322,63 @@ static inline vcs_ev_t vcs_write(vcs_mem_t *m, uint16_t a, uint8_t v,
     case FN_HOT_PATH_CH:
         /* Saturates rather than wrapping, for the same reason FN_HOT_TCHR
          * does: an over-long path is truncated, never a buffer corrupted. */
-        if (m->path_len < FN_PATH_MAX)
-            m->path[m->path_len++] = v;
+        if (m->path_len[m->path_sel] < FN_PATH_MAX)
+            m->path[m->path_sel][m->path_len[m->path_sel]++] = v;
         vcs_publish_pathlen(m);
         return VCS_EV_NONE;
 
     case FN_HOT_PATH_OP:
         if (v == FN_PATH_RST) {
-            m->path_len = 0;
+            m->path_len[m->path_sel] = 0;
         } else if (v == FN_PATH_POP) {
             /* "/a/b/c/" -> "/a/b/", "/a/" -> "/", "/" -> "/". A directory is
              * held WITH its trailing separator, so appending a name to it is
              * one store and needs no separator logic on the console. */
-            if (m->path_len > 1u && m->path[m->path_len - 1u] == (uint8_t)'/')
-                m->path_len--;
-            while (m->path_len > 1u && m->path[m->path_len - 1u] != (uint8_t)'/')
-                m->path_len--;
+            uint16_t *n = &m->path_len[m->path_sel];
+            const uint8_t *b = m->path[m->path_sel];
+
+            if (*n > 1u && b[*n - 1u] == (uint8_t)'/')
+                (*n)--;
+            while (*n > 1u && b[*n - 1u] != (uint8_t)'/')
+                (*n)--;
+        } else if (v == FN_PATH_POPCH) {
+            /* The editor's backspace. Bottoms out at empty rather than
+             * wrapping to 65535 -- a client that backspaces one key too many
+             * is ordinary, not an error. */
+            if (m->path_len[m->path_sel] > 0u)
+                m->path_len[m->path_sel]--;
+        } else if (v >= FN_PATH_SEL0 && v <= FN_PATH_SEL3) {
+            m->path_sel = (uint8_t)(v - FN_PATH_SEL0);
+        } else if (v == FN_PATH_COMMIT) {
+            /* Accept an edit: the selected buffer becomes what was typed. */
+            if (m->path_sel != FN_PATH_SCRATCH) {
+                unsigned n = m->path_len[FN_PATH_SCRATCH];
+                unsigned i;
+
+                for (i = 0; i < n; i++)
+                    m->path[m->path_sel][i] = m->path[FN_PATH_SCRATCH][i];
+                m->path_len[m->path_sel] = (uint16_t)n;
+            }
+        } else if (v == FN_PATH_SEED) {
+            /* Begin editing the selected buffer's current value. Cancel is
+             * then simply never issuing COMMIT -- the original is untouched
+             * the whole time, which is what the Intellivision needed a
+             * separate 256-byte scratch copy in console RAM to achieve. */
+            if (m->path_sel != FN_PATH_SCRATCH) {
+                unsigned n = m->path_len[m->path_sel];
+                unsigned i;
+
+                for (i = 0; i < n; i++)
+                    m->path[FN_PATH_SCRATCH][i] = m->path[m->path_sel][i];
+                m->path_len[FN_PATH_SCRATCH] = (uint16_t)n;
+            }
         } else if (v == FN_PATH_TX) {
             return VCS_EV_PATHTX;
         } else if (v == FN_PATH_TXRAW) {
             return VCS_EV_PATHRAW;
         }
+        /* A select changes which length is published, so this has to run for
+         * every op, not just the mutating ones. */
         vcs_publish_pathlen(m);
         return VCS_EV_NONE;
     case FN_HOT_BLIT_SL: m->blit_src = (uint16_t)((m->blit_src & 0xFF00u) | v); return VCS_EV_NONE;

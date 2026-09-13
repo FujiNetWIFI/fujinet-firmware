@@ -85,7 +85,13 @@ stamp_and_check() {
 }
 
 # A BANKED client: N sources each assembled at $1000-$17FF, then the fixed
-# tail at $1800-$1FFF, concatenated in that order. That is the image layout
+# tail at $1800-$1FFF, concatenated in that order.
+#
+# NOTHING HERE USES THIS ANY MORE. CONFIG was the only banked client and it
+# now lives in fujinet-config/atari-2600, which has its own build.sh -- and a
+# per-bank overflow check this one never had. Kept because it is the reference
+# for the image layout vcs_set_image() expects, and the next banked client
+# will want it. That is the image layout
 # vcs_set_image expects -- N banks then the fixed half -- and (N+1)*2048 lands
 # on MAME's whitelist for N in {1,3,7,15}.
 #
@@ -115,10 +121,7 @@ build_banked() {
 }
 
 clients=("$@")
-[ ${#clients[@]} -eq 0 ] && clients=(hello fujitest fujiboot fujidir fujicfg)
+[ ${#clients[@]} -eq 0 ] && clients=(hello fujitest fujiboot fujidir)
 for client in "${clients[@]}"; do
-    case "$client" in
-    fujicfg) build_banked fujicfg cfgtail cfghost cfgdir cfginfo ;;
-    *)       build_one "$client" ;;
-    esac
+    build_one "$client"
 done

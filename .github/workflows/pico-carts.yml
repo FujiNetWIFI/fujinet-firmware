@@ -395,8 +395,10 @@ jobs:
       # STA (zp),Y performs a read at the address it writes and on those pages
       # that read is decoded as a stray access.
       #
-      # With no arguments it builds all five, including the banked CONFIG,
-      # whose per-bank end addresses are checked against $1800: p2bin pads to
+      # With no arguments it builds all four demos. CONFIG is no longer among
+      # them: it lives in fujinet-config/atari-2600 now, with its own build.sh
+      # and its own per-bank overflow check -- which this one never actually
+      # had, despite a comment here that once claimed it did. p2bin pads to
       # its range, so an over-long bank is truncated silently and everything
       # downstream still passes.
       - name: Assemble the 6502 clients

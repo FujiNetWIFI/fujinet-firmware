@@ -393,10 +393,12 @@ static void expect_path(const char *want, const char *what)
 {
     unsigned n = (unsigned)strlen(want);
 
-    if (m.path_len != n || memcmp(m.path, want, n) != 0) {
-        fprintf(stderr, "FAIL: %s: path is \"%.*s\" (%u), want \"%s\"\n",
-                what, (int)m.path_len, (const char *)m.path,
-                (unsigned)m.path_len, want);
+    if (m.path_len[m.path_sel] != n
+        || memcmp(m.path[m.path_sel], want, n) != 0) {
+        fprintf(stderr, "FAIL: %s: path[%u] is \"%.*s\" (%u), want \"%s\"\n",
+                what, m.path_sel, (int)m.path_len[m.path_sel],
+                (const char *)m.path[m.path_sel],
+                (unsigned)m.path_len[m.path_sel], want);
         fails++;
     }
 }
@@ -413,7 +415,7 @@ static void test_path_buffer(void)
     memset(&m, 0, sizeof m);
     vcs_set_image(&m, image, sizeof image);
     push_path("/hack");
-    if (m.path_len != 0) {
+    if (m.path_len[m.path_sel] != 0) {
         fprintf(stderr, "FAIL: the path buffer took bytes before arming\n");
         fails++;
     }
@@ -445,10 +447,10 @@ static void test_path_buffer(void)
     path_op(FN_PATH_RST);
     for (i = 0; i < FN_PATH_MAX + 64u; i++)
         wr(FN_H_REGSEL + FN_HOT_PATH_CH, (uint8_t)'x', 0, 0);
-    if (m.path_len != FN_PATH_MAX) {
+    if (m.path_len[m.path_sel] != FN_PATH_MAX) {
         fprintf(stderr, "FAIL: the path buffer did not saturate at %u "
                         "(got %u)\n", (unsigned)FN_PATH_MAX,
-                (unsigned)m.path_len);
+                (unsigned)m.path_len[m.path_sel]);
         fails++;
     }
 
@@ -473,6 +475,117 @@ static void test_path_buffer(void)
     }
 }
 
+/* The four ops CONFIG's text editor and its copy need. Each one exists
+ * because the console cannot do the job itself: it has 128 bytes of RAM, and
+ * it cannot read these pages back at all. */
+static void test_path_edit(void)
+{
+    reset_image(1);
+    arm();
+
+    /* FN_PATH_POPCH is a backspace, not FN_PATH_POP. Popping a COMPONENT is
+     * right for ".." and wrong for typing: one keystroke would eat the whole
+     * word. */
+    path_op(FN_PATH_SEL1);
+    path_op(FN_PATH_RST);
+    push_path("pass");
+    path_op(FN_PATH_POPCH);
+    expect_path("pas", "backspacing one character");
+
+    /* Bottoming out matters. A user who backspaces one key too many is
+     * ordinary, and an unsigned length that wrapped would then read 65535
+     * bytes of payload. */
+    path_op(FN_PATH_POPCH);
+    path_op(FN_PATH_POPCH);
+    path_op(FN_PATH_POPCH);
+    path_op(FN_PATH_POPCH);
+    path_op(FN_PATH_POPCH);
+    expect_path("", "backspacing past empty");
+
+    /* The buffers are genuinely separate. This is the whole reason there are
+     * four: OPEN_DIRECTORY carries a path AND a filter in one payload, a
+     * pending copy's source has to survive browsing away to a destination,
+     * and an edit has to be cancellable. */
+    path_op(FN_PATH_SEL0);
+    path_op(FN_PATH_RST);
+    push_path("/games/atari/");
+    path_op(FN_PATH_SEL1);
+    path_op(FN_PATH_RST);
+    push_path("*.bin");
+    path_op(FN_PATH_SEL2);
+    path_op(FN_PATH_RST);
+    push_path("/roms/a/game.bin");
+    expect_path("/roms/a/game.bin", "buffer 2 after writing three");
+    path_op(FN_PATH_SEL1);
+    expect_path("*.bin", "buffer 1 survived writing buffer 2");
+    path_op(FN_PATH_SEL0);
+    expect_path("/games/atari/", "buffer 0 survived writing buffers 1 and 2");
+
+    /* SEED then COMMIT is the edit cycle, and NOT committing is cancel. This
+     * is the pair that makes a cancellable text field possible with no
+     * console RAM at all -- the Intellivision needs a 256-byte scratch copy
+     * of its own to get the same guarantee. */
+    path_op(FN_PATH_SEL1);
+    path_op(FN_PATH_SEED);
+    path_op(FN_PATH_SEL3);
+    expect_path("*.bin", "SEED copied the filter into the scratch");
+    path_op(FN_PATH_POPCH);
+    path_op(FN_PATH_POPCH);
+    path_op(FN_PATH_POPCH);
+    push_path("rom");
+    expect_path("*.rom", "editing the scratch");
+    path_op(FN_PATH_SEL1);
+    expect_path("*.bin", "the original is untouched until COMMIT -- cancel");
+    path_op(FN_PATH_COMMIT);
+    expect_path("*.rom", "COMMIT accepted the edit");
+
+    /* COMMIT onto the scratch itself would be a self-copy; it must be inert
+     * rather than clever, because a client that selected slot 3 and committed
+     * has made a mistake and should not lose the buffer to it. */
+    path_op(FN_PATH_SEL3);
+    path_op(FN_PATH_COMMIT);
+    path_op(FN_PATH_SEED);
+    expect_path("*.rom", "COMMIT and SEED on the scratch are inert");
+
+    /* A shorter value must not leave the tail of the longer one behind: the
+     * length is what the payload is cut to, so a stale tail would be sent. */
+    path_op(FN_PATH_SEL3);
+    path_op(FN_PATH_RST);
+    push_path("ab");
+    path_op(FN_PATH_SEL0);
+    path_op(FN_PATH_COMMIT);
+    expect_path("ab", "COMMIT of a shorter value truncates the target");
+
+    path_op(FN_PATH_SEL0);
+    path_op(FN_PATH_RST);
+    push_path("/games/atari/");
+
+    /* The published length follows the selection, or a client reading
+     * FN_B_PATHLEN after a select would size its payload from the wrong
+     * string. A select is not a mutation, so it would be easy to skip the
+     * republish and never notice until a payload came out the wrong length. */
+    path_op(FN_PATH_SEL0);
+    if (m.win[FN_B_PATHLEN - FN_WINDOW_BASE] != 13u) {
+        fprintf(stderr, "FAIL: FN_B_PATHLEN is %u after SEL0, want 13\n",
+                m.win[FN_B_PATHLEN - FN_WINDOW_BASE]);
+        fails++;
+    }
+    path_op(FN_PATH_SEL1);
+    if (m.win[FN_B_PATHLEN - FN_WINDOW_BASE] != 5u) {
+        fprintf(stderr, "FAIL: FN_B_PATHLEN is %u after SEL1, want 5\n",
+                m.win[FN_B_PATHLEN - FN_WINDOW_BASE]);
+        fails++;
+    }
+    path_op(FN_PATH_SEL2);
+    if (m.win[FN_B_PATHLEN - FN_WINDOW_BASE] != 16u) {
+        fprintf(stderr, "FAIL: FN_B_PATHLEN is %u after SEL2, want 16\n",
+                m.win[FN_B_PATHLEN - FN_WINDOW_BASE]);
+        fails++;
+    }
+
+    path_op(FN_PATH_SEL0);
+}
+
 int main(void)
 {
     test_geometry();
@@ -484,6 +597,7 @@ int main(void)
     test_sampling();
     test_booted_game();
     test_path_buffer();
+    test_path_edit();
 
     if (fails) {
         printf("test_busio: %d failures\n", fails);

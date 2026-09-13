@@ -271,11 +271,12 @@ void a26_rom_fujinet_device::write(offs_t offset, uint8_t data)
 		//
 		// Padded for a payload that is nothing but the path; raw when the
 		// client is going to append a filename and pad it itself.
-		unsigned n = (ev == VCS_EV_PATHTX) ? FN_PATH_MAX : m_mem.path_len;
+		unsigned sel = m_mem.path_sel;
+		unsigned len = m_mem.path_len[sel];
+		unsigned n = (ev == VCS_EV_PATHTX) ? FN_PATH_MAX : len;
 		if (m_debug)
-			fprintf(stderr, "fujinet: path -> \"%.*s\" (%u bytes, %s)\n",
-					(int)m_mem.path_len, (const char *)m_mem.path,
-					m_mem.path_len,
+			fprintf(stderr, "fujinet: path[%u] -> \"%.*s\" (%u bytes, %s)\n",
+					sel, (int)len, (const char *)m_mem.path[sel], len,
 					(ev == VCS_EV_PATHTX) ? "padded to 256" : "raw");
 		for (unsigned i = 0; i < n; i++)
 			fujimail_read_hotspot((uint16_t)(FN_H_DATA + vcs_path_byte(&m_mem, i)));
@@ -304,7 +305,20 @@ void a26_rom_fujinet_device::write(offs_t offset, uint8_t data)
 		break;
 
 	case VCS_EV_BLIT:
-		if (!vcs_blit(m_mem.win, m_mem.board, m_mem.blit_src, m_mem.blit_dst,
+		// FN_BLIT_PATH's source is the cartridge's path buffer, not the reply
+		// window, so it is routed past vcs_blit() -- exactly as fuji_cart.c
+		// does it, because these two must not drift.
+		if (b == FN_BLIT_TCELL)
+			vcs_render_cell(m_mem.win,
+							(uint8_t)(m_mem.blit_dst / FN_T_COLS),
+							(uint8_t)(m_mem.blit_dst % FN_T_COLS),
+							(uint8_t)m_mem.blit_src);
+		else if (b == FN_BLIT_PATH)
+			vcs_render_path_row(m_mem.win, m_mem.path[m_mem.path_sel],
+								m_mem.path_len[m_mem.path_sel],
+								m_mem.blit_src, (uint8_t)m_mem.blit_dst,
+								m_mem.blit_cnt);
+		else if (!vcs_blit(m_mem.win, m_mem.board, m_mem.blit_src, m_mem.blit_dst,
 					  m_mem.blit_cnt, b) && m_debug)
 			fprintf(stderr, "fujinet: blit transform %u not implemented\n", b);
 		break;

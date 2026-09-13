@@ -73,6 +73,47 @@ static void board_rows(uint8_t *win, const uint8_t *board, uint8_t row)
     }
 }
 
+void vcs_render_cell(uint8_t *win, uint8_t row, uint8_t col, uint8_t c)
+{
+    const uint8_t *g;
+    uint8_t *p;
+    unsigned s;
+
+    if (row >= FN_T_ROWS || col >= FN_T_COLS)
+        return;
+
+    g = glyph(c);
+    p = win + (FN_T_PLANE(col / 2) - FN_WINDOW_BASE) + row * FN_T_CELL_H;
+
+    for (s = 0; s < FN_T_CELL_H; s++) {
+        uint8_t ink = (s < VCS_FONT_INK_H) ? g[s] : 0u;
+
+        /* Keep the neighbour's three ink bits and both gap bits; replace only
+         * this column's. The gap bits are always zero, so masking them into
+         * the kept half rather than the written one costs nothing and keeps
+         * the two cases symmetrical. */
+        p[s] = (col & 1) ? (uint8_t)((p[s] & 0xF0u) | (ink << 1))
+                         : (uint8_t)((p[s] & 0x0Fu) | (ink << 5));
+    }
+}
+
+/* The console cannot read the path buffer back -- the page it is written
+ * through is write-only -- so this is the only way a client sees what it has
+ * typed, or which directory it is standing in. A caller showing the tail of a
+ * long string passes src = len - FN_T_COLS. */
+void vcs_render_path_row(uint8_t *win, const uint8_t *path, uint16_t path_len,
+                         uint16_t src, uint8_t row, uint8_t cnt)
+{
+    uint8_t line[FN_T_COLS];
+    unsigned n = 0;
+
+    for (; n < cnt && n < FN_T_COLS; n++) {
+        unsigned s = src + n;
+        line[n] = (s < path_len) ? path[s] : (uint8_t)' ';
+    }
+    vcs_render_row(win, row, line, (uint8_t)n);
+}
+
 bool vcs_blit(uint8_t *win, uint8_t *board, uint16_t src, uint16_t dst,
               uint8_t cnt, uint8_t transform)
 {

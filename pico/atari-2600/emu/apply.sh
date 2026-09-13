@@ -78,7 +78,8 @@ for sym in fujimail_init fujimail_paint fujimail_read_hotspot fujimail_inbound \
            fujibus_build_request fujibus_parse_reply fujibus_selftest \
            fujitcp_init fujitcp_active fujitcp_close fujitcp_transact \
            fujitcp_send_bare \
-           vcs_render_row vcs_render_clear vcs_font; do
+           vcs_render_row vcs_render_clear vcs_render_path_row \
+           vcs_render_cell vcs_font; do
     echo "#define $sym a2600_$sym" >> "$BUSDIR/fujins.h"
 done
 echo "#endif" >> "$BUSDIR/fujins.h"

@@ -263,12 +263,159 @@ int main(void)
     if (vcs_blit(win, board, 0, 0, 1, 99))
         fail("an unknown blit transform claimed success");
 
+    /* FN_BLIT_PATH: the only way a client sees what it has typed, because the
+     * page it types through is write-only.
+     *
+     * The expectation is built here through vcs_render_row, which has already
+     * been byte-compared against tools/vcsfont.py -- not by calling the thing
+     * under test to work out what the thing under test should produce. */
+    {
+        static const uint8_t path[] = "/games/atari/rom.bin";
+        const uint16_t plen = (uint16_t)(sizeof path - 1u);
+        static uint8_t expect[FN_WINDOW_SIZE];
+        int i;
+
+        /* From offset 0, a full row: the head of the string, plain. */
+        memset(win, 0, sizeof win);
+        memset(expect, 0, sizeof expect);
+        vcs_render_path_row(win, path, plen, 0, 3, FN_T_COLS);
+        vcs_render_row(expect, 3, path, FN_T_COLS);
+        for (i = 0; i < FN_T_PLANES * (int)FN_T_PLANE_LEN; i++) {
+            unsigned o = (FN_T_BASE - FN_WINDOW_BASE) + i;
+            if (win[o] != expect[o]) {
+                fail("FN_BLIT_PATH from offset 0 differs from vcs_render_row "
+                     "of the same characters, at %d", i);
+                break;
+            }
+        }
+
+        /* Tail-anchored, which is how a 12-column screen shows a long path or
+         * a 63-character password: src = len - FN_T_COLS. */
+        memset(win, 0, sizeof win);
+        memset(expect, 0, sizeof expect);
+        vcs_render_path_row(win, path, plen, (uint16_t)(plen - FN_T_COLS), 3,
+                            FN_T_COLS);
+        vcs_render_row(expect, 3, path + (plen - FN_T_COLS), FN_T_COLS);
+        for (i = 0; i < FN_T_PLANES * (int)FN_T_PLANE_LEN; i++) {
+            unsigned o = (FN_T_BASE - FN_WINDOW_BASE) + i;
+            if (win[o] != expect[o]) {
+                fail("FN_BLIT_PATH tail-anchored differs from vcs_render_row "
+                     "of the last %d characters, at %d", FN_T_COLS, i);
+                break;
+            }
+        }
+
+        /* Past the end SPACE-fills. A value that just got shorter must not
+         * leave the characters it used to have sitting on the row. */
+        memset(win, 0, sizeof win);
+        memset(expect, 0, sizeof expect);
+        vcs_render_path_row(win, path, 3u, 0, 3, FN_T_COLS);
+        vcs_render_row(expect, 3, (const uint8_t *)"/ga         ", FN_T_COLS);
+        for (i = 0; i < FN_T_PLANES * (int)FN_T_PLANE_LEN; i++) {
+            unsigned o = (FN_T_BASE - FN_WINDOW_BASE) + i;
+            if (win[o] != expect[o]) {
+                fail("FN_BLIT_PATH did not space-fill past the end, at %d", i);
+                break;
+            }
+        }
+
+        /* An empty buffer is a blank row, not a crash and not stale ink. */
+        memset(win, 0, sizeof win);
+        memset(expect, 0, sizeof expect);
+        vcs_render_path_row(win, path, 0u, 0, 3, FN_T_COLS);
+        vcs_render_row(expect, 3, (const uint8_t *)"            ", FN_T_COLS);
+        for (i = 0; i < FN_T_PLANES * (int)FN_T_PLANE_LEN; i++) {
+            unsigned o = (FN_T_BASE - FN_WINDOW_BASE) + i;
+            if (win[o] != expect[o]) {
+                fail("FN_BLIT_PATH on an empty buffer is not a blank row, "
+                     "at %d", i);
+                break;
+            }
+        }
+
+        /* A count wider than the screen is clamped, never a plane overrun. */
+        vcs_render_path_row(win, path, plen, 0, 3, 255);
+        vcs_render_path_row(win, path, plen, 0xFFF0u, 3, FN_T_COLS);
+    }
+
+    /* FN_BLIT_TCELL: replacing one character must leave its neighbour alone.
+     *
+     * Two columns share a plane byte, so this is the test that a masked
+     * read-modify-write really is masked. Without it, moving a list cursor
+     * would cost two round trips a step -- with it, two stores. */
+    {
+        static const uint8_t before[] = "ABCDEFGHIJKL";
+        static const uint8_t after0[] = ">BCDEFGHIJKL";
+        static const uint8_t after1[] = ">*CDEFGHIJKL";
+        static const uint8_t afterB[] = ">*CDEFGHIJK#";
+        static uint8_t expect[FN_WINDOW_SIZE];
+        int i, col;
+
+        memset(win, 0, sizeof win);
+        memset(expect, 0, sizeof expect);
+        vcs_render_row(win, 7, before, FN_T_COLS);
+
+        /* An even column, then the odd one beside it, then the last column. */
+        vcs_render_cell(win, 7, 0, '>');
+        vcs_render_row(expect, 7, after0, FN_T_COLS);
+        for (i = 0; i < FN_T_PLANES * (int)FN_T_PLANE_LEN; i++) {
+            unsigned o = (FN_T_BASE - FN_WINDOW_BASE) + i;
+            if (win[o] != expect[o]) {
+                fail("poking an even column disturbed the row, at %d", i);
+                break;
+            }
+        }
+
+        vcs_render_cell(win, 7, 1, '*');
+        memset(expect, 0, sizeof expect);
+        vcs_render_row(expect, 7, after1, FN_T_COLS);
+        for (i = 0; i < FN_T_PLANES * (int)FN_T_PLANE_LEN; i++) {
+            unsigned o = (FN_T_BASE - FN_WINDOW_BASE) + i;
+            if (win[o] != expect[o]) {
+                fail("poking an odd column disturbed its neighbour, at %d", i);
+                break;
+            }
+        }
+
+        vcs_render_cell(win, 7, FN_T_COLS - 1, '#');
+        memset(expect, 0, sizeof expect);
+        vcs_render_row(expect, 7, afterB, FN_T_COLS);
+        for (i = 0; i < FN_T_PLANES * (int)FN_T_PLANE_LEN; i++) {
+            unsigned o = (FN_T_BASE - FN_WINDOW_BASE) + i;
+            if (win[o] != expect[o]) {
+                fail("poking the last column disturbed the row, at %d", i);
+                break;
+            }
+        }
+
+        /* Poking every cell of a row must reproduce the row exactly, which is
+         * the strongest statement of "the two halves do not interfere". */
+        memset(win, 0, sizeof win);
+        memset(expect, 0, sizeof expect);
+        vcs_render_row(expect, 9, before, FN_T_COLS);
+        for (col = 0; col < FN_T_COLS; col++)
+            vcs_render_cell(win, 9, (uint8_t)col, before[col]);
+        for (i = 0; i < FN_T_PLANES * (int)FN_T_PLANE_LEN; i++) {
+            unsigned o = (FN_T_BASE - FN_WINDOW_BASE) + i;
+            if (win[o] != expect[o]) {
+                fail("a row poked cell by cell differs from vcs_render_row, "
+                     "at %d", i);
+                break;
+            }
+        }
+
+        /* Out of range is a no-op, not a write past the planes. */
+        vcs_render_cell(win, FN_T_ROWS, 0, 'X');
+        vcs_render_cell(win, 0, FN_T_COLS, 'X');
+    }
+
     if (fails) {
         printf("test_render: %d failures\n", fails);
         return 1;
     }
     printf("test_render: PASS (%d strings, %d planes, %d rows x %d columns, "
-           "the blit port, and a composed Battleship board)\n",
+           "the blit port, FN_BLIT_PATH, FN_BLIT_TCELL, and a composed "
+           "Battleship board)\n",
            GOLD_N, FN_T_PLANES, FN_T_ROWS, FN_T_COLS);
     return 0;
 }

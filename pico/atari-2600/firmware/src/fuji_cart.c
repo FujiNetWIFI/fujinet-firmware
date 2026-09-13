@@ -95,7 +95,20 @@ void fuji_cart_service_deferred(void)
 
     if (fuji_blit_req) {
         fuji_blit_req = false;
-        vcs_blit(fuji_mem.win, fuji_mem.board, fuji_mem.blit_src, fuji_mem.blit_dst,
-                 fuji_mem.blit_cnt, fuji_blit_xform);
+        if (fuji_blit_xform == FN_BLIT_TCELL)
+            vcs_render_cell(fuji_mem.win,
+                            (uint8_t)(fuji_mem.blit_dst / FN_T_COLS),
+                            (uint8_t)(fuji_mem.blit_dst % FN_T_COLS),
+                            (uint8_t)fuji_mem.blit_src);
+        else if (fuji_blit_xform == FN_BLIT_PATH)
+            vcs_render_path_row(fuji_mem.win,
+                                fuji_mem.path[fuji_mem.path_sel],
+                                fuji_mem.path_len[fuji_mem.path_sel],
+                                fuji_mem.blit_src,
+                                (uint8_t)fuji_mem.blit_dst,
+                                fuji_mem.blit_cnt);
+        else
+            vcs_blit(fuji_mem.win, fuji_mem.board, fuji_mem.blit_src,
+                     fuji_mem.blit_dst, fuji_mem.blit_cnt, fuji_blit_xform);
     }
 }
