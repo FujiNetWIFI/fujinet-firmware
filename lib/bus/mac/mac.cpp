@@ -147,8 +147,9 @@ void systemBus::handle_dcd_command(int c)
   case 'C':
   case 'D':
   case 'E':
+    if (_active_DCD_disk != c - 'A')
+      Debug_printf("\nactive disk %d", c - 'A');
     _active_DCD_disk = c - 'A'; // 0, 1, 2, 3
-    Debug_printf("\nactive disk %d", _active_DCD_disk);
     break;
   case 'R':
   case 'T':
