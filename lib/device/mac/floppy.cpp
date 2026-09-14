@@ -81,7 +81,7 @@ mediatype_t macFloppy::mount(FILE *f, const char *filename, uint32_t disksize,
       Debug_printf("\nMounting Media Type DSK for DCD");
       _disk = new MediaTypeDCD();
     }
-    mt = ((MediaTypeDCD *)_disk)->mount(f);
+    mt = ((MediaTypeDCD *)_disk)->mount(f, disksize);
     if (mt == MEDIATYPE_UNKNOWN)
     {
       Debug_printf("\nDCD mount failed");
@@ -90,6 +90,9 @@ mediatype_t macFloppy::mount(FILE *f, const char *filename, uint32_t disksize,
       device_active = false;
       return MEDIATYPE_UNKNOWN;
     }
+    // the media decides how many blocks the Mac sees (drive images only
+    // expose their HFS partition, DC42 images strip their header)
+    _disk_size_in_blocks = _disk->num_blocks;
     device_active = true;
     SYSTEM_BUS.add_dcd_mount(id());
     break;

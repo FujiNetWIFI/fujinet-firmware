@@ -25,6 +25,36 @@ The firmware refuses to mount a `.moof` anywhere but slot 5 and refuses a
 DCD image outside slots 1–4, because the Pico protocol has no way to
 address them.
 
+### HD20 image formats
+
+Both kinds of hard-disk image found in the wild work in slots 1–4:
+
+* **Volume images** – a bare HFS (or MFS) volume, boot blocks in block 0
+  and the master directory block in block 2. The whole file is the disk.
+  This is what SavageTaylor calls a "volume" and what FloppyEmu uses.
+* **Drive images** – a whole-disk image with an Apple Driver Descriptor
+  Record (`ER`) in block 0 and an Apple partition map (`PM`) after it.
+  The firmware finds the first `Apple_HFS` partition and presents only
+  that partition to the Mac; the SCSI driver partitions are ignored
+  because the HD20 protocol has no use for them.
+* **DiskCopy 4.2** `.image` files – the 84-byte header is skipped.
+
+At mount time the console shows which kind was detected and compares the
+HFS header's idea of the volume size with the image size. A truncated
+image (volume claims more blocks than the file holds) is logged with a
+warning; the Mac will report such a disk as "damaged", which is correct.
+
+A real HD20 is about 20 MB (38,965 blocks). Images up to 32 MB (65,535
+blocks) are known to work on an SE/30; a 40 MB volume was rejected by
+the Mac without reading a block, so keep HD20 images at or below 32 MB.
+
+Mount a slot in write mode (mode "W" in the web UI) to let the Mac write.
+The file on the TNFS server must be writable by the user tnfsd runs as.
+
+Reference images that are known good with this firmware:
+<https://www.savagetaylor.com/downloads/downloads-macintosh/>
+(`320_32MB_volume.zip` and `320_32MB_drive.zip`).
+
 The Mac has no CONFIG program, so everything is driven from the web UI.
 Either press **Mount all slots** in the web UI after boot, or disable
 "Boot CONFIG" in the web UI's general settings so the firmware mounts the
@@ -67,6 +97,11 @@ volume that appears (or use `picotool load commands.uf2`).
 
 Note: newer versions of `pioasm` reserve the word `next`, so the DCD
 command program uses the label `changed` instead.
+
+The Pico must run firmware built from this tree (or later). Older builds
+wait forever for the Mac's LSTRB line when switching to floppy mode and
+wedge if the Mac is hung or idle with LSTRB high; the ESP32 cannot reset
+the Pico, so the symptom is "nothing happens until power cycle".
 
 ## Files
 
