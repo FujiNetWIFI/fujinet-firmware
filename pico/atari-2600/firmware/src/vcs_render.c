@@ -56,6 +56,59 @@ void vcs_render_clear(uint8_t *win)
 /* Ship lengths, longest first, matching the server's myShips[] order. */
 static const uint8_t ship_len[5] = { 5, 4, 3, 3, 2 };
 
+/* ---------------- the playfield board ----------------
+ *
+ * Where cell x of a half lands: which of PF0/PF1/PF2, and its two bits. PF0
+ * is drawn from bit 4 upward, PF1 from bit 7 downward, PF2 from bit 0
+ * upward -- the TIA's own order, which is why the masks are not monotonic. */
+static const uint8_t pf_reg[FN_BOARD_DIM]  = { 0, 0, 1, 1, 1, 1, 2, 2, 2, 2 };
+static const uint8_t pf_bits[FN_BOARD_DIM] = { 0x30, 0xC0,
+                                               0xC0, 0x30, 0x0C, 0x03,
+                                               0x03, 0x0C, 0x30, 0xC0 };
+
+/* The table byte for (slot, kind, register-within-half, cell row). */
+static uint8_t *pf_byte(uint8_t *win, unsigned slot, unsigned kind,
+                        unsigned reg, unsigned y)
+{
+    unsigned r = reg + 3u * (slot & 1u);
+    unsigned entry = (slot >> 1) * FN_BOARD_DIM + y;
+
+    return win + (FN_PF_TAB(r, kind) - FN_WINDOW_BASE) + entry;
+}
+
+/* Set or clear one cell's bits in every kind the mask names. */
+static void pf_cell(uint8_t *win, unsigned slot, unsigned cell, uint8_t mask,
+                    int set)
+{
+    unsigned x = cell % FN_BOARD_DIM, y = cell / FN_BOARD_DIM, k;
+
+    for (k = 0; k < FN_PF_KINDS; k++) {
+        uint8_t *b;
+
+        if (!(mask & (1u << k)))
+            continue;
+        b = pf_byte(win, slot, k, pf_reg[x], y);
+        if (set)
+            *b |= pf_bits[x];
+        else
+            *b &= (uint8_t)~pf_bits[x];
+    }
+}
+
+/* Zero every byte of the slot's half for the kinds the mask names. */
+static void pf_clear(uint8_t *win, unsigned slot, uint8_t mask)
+{
+    unsigned k, r, y;
+
+    for (k = 0; k < FN_PF_KINDS; k++) {
+        if (!(mask & (1u << k)))
+            continue;
+        for (r = 0; r < 3; r++)
+            for (y = 0; y < FN_BOARD_DIM; y++)
+                *pf_byte(win, slot, k, r, y) = 0;
+    }
+}
+
 /* Paint the composed board into ten text rows starting at `row`: the row
  * digit, then the ten cells. */
 static void board_rows(uint8_t *win, const uint8_t *board, uint8_t row)
@@ -373,6 +426,66 @@ bool vcs_blit(uint8_t *win, uint8_t *board, uint16_t src, uint16_t dst,
             hand[i] = (o < FN_WINDOW_SIZE) ? win[o] : 0u;
         }
         vcs_render_cards(win, (uint8_t)dst, hand, cnt);
+        return true;
+    }
+
+    /* The playfield board. dst is the SLOT for all four; see fuji_mailbox.h
+     * for the tables and the bit map. */
+    if (transform == FN_BLIT_PFCLR) {
+        pf_clear(win, dst & 3u, (uint8_t)src);
+        return true;
+    }
+
+    if (transform == FN_BLIT_PFIELD) {
+        /* HIT and MID are rewritten for the slot from the 100 wire cells;
+         * AUX is left alone, because the cursor and the hulls it carries are
+         * the client's business, not the wire's. */
+        pf_clear(win, dst & 3u, FN_PFM_HIT | FN_PFM_MID);
+        for (i = 0; i < FN_BOARD_CELLS; i++) {
+            unsigned s = (FN_R_DATA - FN_WINDOW_BASE) + src + i;
+            uint8_t v = (s < FN_WINDOW_SIZE) ? win[s] : 0u;
+
+            if (v == 1u)
+                pf_cell(win, dst & 3u, i, FN_PFM_HIT | FN_PFM_MID, 1);
+            else if (v == 2u)
+                pf_cell(win, dst & 3u, i, FN_PFM_MID, 1);
+        }
+        return true;
+    }
+
+    if (transform == FN_BLIT_PFHULL) {
+        /* The same placement bytes FN_BLIT_HULLS decodes, ORed into AUX.
+         * Never clears: a caller that wants a clean slate says PFCLR first,
+         * and one that is adding a cursor to a board with hulls on it does
+         * not. */
+        for (i = 0; i < cnt && i < 5u; i++) {
+            unsigned s = (FN_R_DATA - FN_WINDOW_BASE) + src + i;
+            unsigned pos, dir, x, y, seg;
+
+            if (s >= FN_WINDOW_SIZE)
+                break;
+            pos = win[s];
+            dir = (pos >= FN_BOARD_CELLS) ? 1u : 0u;
+            if (dir)
+                pos -= FN_BOARD_CELLS;
+            if (pos >= FN_BOARD_CELLS)
+                continue;
+            x = pos % FN_BOARD_DIM;
+            y = pos / FN_BOARD_DIM;
+            for (seg = 0; seg < ship_len[i]; seg++) {
+                if (x >= FN_BOARD_DIM || y >= FN_BOARD_DIM)
+                    break;
+                pf_cell(win, dst & 3u, y * FN_BOARD_DIM + x, FN_PFM_AUX, 1);
+                if (dir) y++; else x++;
+            }
+        }
+        return true;
+    }
+
+    if (transform == FN_BLIT_PFCELL) {
+        if (cnt < FN_BOARD_CELLS)
+            pf_cell(win, dst & 3u, cnt, (uint8_t)(src & FN_PFM_ALL),
+                    !(src & FN_PFM_CLEAR));
         return true;
     }
 

@@ -179,6 +179,14 @@
  * payload is left to pad. Past the paint span, like the other FN_B_*. */
 #define FN_B_PATHLEN     0x1F17   /* 2 bytes, little-endian                  */
 
+/* Bumped after every blit has actually landed on the planes. A blit is a
+ * single-slot request the bus core hands to core0 -- there is no queue -- so
+ * a client that fires a second one before the first has run loses the first
+ * on hardware and notices nothing in emulation, where the blit runs inside
+ * the store. Poll this for a change before the next blit; FN_B_TEXTGEN is the
+ * same thing for a text row. Past the paint span, like the other FN_B_*. */
+#define FN_B_BLITGEN     0x1F19
+
 /* $1F20-$1FFB is the client's fixed tail: the cold stub, the bank
  * trampolines, and whatever else must be reachable from every bank.
  * $1FFC-$1FFD is the RESET vector and $1FFE-$1FFF the BRK vector. */
@@ -264,6 +272,52 @@
 #define FN_BOARD_DIM     10
 #define FN_BOARD_CELLS   100
 #define FN_BLIT_NOCUR    0xFF     /* FIELD: cnt = the cursor cell, or this    */
+
+/* The PLAYFIELD board, for Battleship's four-quadrant client.
+ *
+ * Two 10x10 boards side by side fill a scanline exactly: a cell is two
+ * playfield bits, eight pixels, so a board pair is the whole 40-bit
+ * asymmetric playfield. The console rewrites PF0/PF1/PF2 twice a line out of
+ * six tables indexed by CELL ROW -- 0-9 the top pair, 10-19 the bottom pair --
+ * one table per register and per KIND of line: HIT (the cell has been hit),
+ * MID (hit OR miss: the white core of a hit and the whole of a miss) and AUX
+ * (your own hulls, and the cursor on the enemy boards). Each kind is drawn on
+ * different lines of the cell in a different colour, which is how a console
+ * with one playfield colour per line shows red, white and yellow cells on
+ * one board without flicker.
+ *
+ * The tables live in the text-plane region, which nothing but a text render
+ * ever writes: plane r holds REGISTER r's three tables at bytes 30-89 --
+ * after text rows 0-4 and before rows 15-20. A client in board mode must
+ * therefore never render rows 5-14. Register 0-2 is PF0/PF1/PF2 of the left
+ * half, 3-5 of the right. Bits, per half: cells 0-1 -> PF0 bits 4-5 / 6-7,
+ * cells 2-5 -> PF1 bits 7-6 / 5-4 / 3-2 / 1-0, cells 6-9 -> PF2 bits 0-1 /
+ * 2-3 / 4-5 / 6-7 (the TIA draws PF0 and PF2 low bit first and PF1 high bit
+ * first). A SLOT is pairrow * 2 + half: 0 top-left, 1 top-right, 2
+ * bottom-left, 3 bottom-right. Every table byte is written whole and in
+ * place, so the kernel's `lda table,y` never sees a half-composed byte. */
+#define FN_BLIT_PFCLR    10       /* dst = slot, src low byte = a kind mask:
+                                     clear those kinds' bits in the slot    */
+#define FN_BLIT_PFIELD   11       /* src = reply offset of gamefield[100],
+                                     dst = slot: HIT and MID from the cells
+                                     (0 sea, 1 hit, 2 miss); AUX untouched   */
+#define FN_BLIT_PFHULL   12       /* src = reply offset of cnt placements
+                                     (pos + 100*dir), dst = slot: OR into AUX */
+#define FN_BLIT_PFCELL   13       /* dst = slot, cnt = cell 0-99, src low
+                                     byte = a kind mask; bit 7 set clears    */
+#define FN_PF_ROW0       30       /* the first table byte of every plane     */
+#define FN_PF_KIND_LEN   20       /* entries per table: cell rows 0-19       */
+#define FN_PF_KINDS      3
+#define FN_PF_HIT        0
+#define FN_PF_MID        1
+#define FN_PF_AUX        2
+#define FN_PFM_HIT       0x01     /* the kind masks PFCLR and PFCELL take    */
+#define FN_PFM_MID       0x02
+#define FN_PFM_AUX       0x04
+#define FN_PFM_ALL       0x07
+#define FN_PFM_CLEAR     0x80     /* PFCELL: clear the bits instead of set   */
+#define FN_PF_SLOTS      4
+#define FN_PF_TAB(r, k)  (FN_T_PLANE(r) + FN_PF_ROW0 + (k) * FN_PF_KIND_LEN)
 
 /* What FN_BLIT_FIELD paints. A Battleship gamefield is 100 bytes at y*10+x
  * in the reply window, and turning it into ten rows of text is 100 reads,

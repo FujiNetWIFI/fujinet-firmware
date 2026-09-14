@@ -261,6 +261,174 @@ int main(void)
         vcs_blit(split, board, 'Z', 0, 255, FN_BLIT_CELL);
     }
 
+    /* The PLAYFIELD board: FN_BLIT_PFCLR / PFIELD / PFHULL / PFCELL.
+     *
+     * The expectation is a PICTURE, as it is for the cards: for one slot,
+     * each of the three kinds is drawn here as ten rows of ten cells from the
+     * rules in prose, packed into PF0/PF1/PF2 bytes by this test's own copy
+     * of the bit map the header states, and compared as whole plane bytes.
+     * Everything else in the plane region is poisoned and required
+     * untouched -- which is what proves a slot's writes stay inside its own
+     * sixty bytes and never reach a text row or another slot. */
+    {
+        /* the bit map, independently of vcs_render.c */
+        static const uint8_t reg_of[FN_BOARD_DIM] =
+            { 0, 0, 1, 1, 1, 1, 2, 2, 2, 2 };
+        static const uint8_t bits_of[FN_BOARD_DIM] =
+            { 0x30, 0xC0, 0xC0, 0x30, 0x0C, 0x03, 0x03, 0x0C, 0x30, 0xC0 };
+        static const uint8_t len[5] = { 5, 4, 3, 3, 2 };
+        static const uint8_t ships[5] = {
+            0,                  /* size 5, horizontal at (0,0): 0..4        */
+            100 + 12,           /* size 4, vertical at (2,1): 12,22,32,42   */
+            55,                 /* size 3, horizontal at (5,5): 55,56,57    */
+            100 + 97,           /* size 3, vertical at (7,9) -- RUNS OFF    */
+            88,                 /* size 2, horizontal at (8,8): 88,89       */
+        };
+        const uint8_t CUR = 34;                 /* the cursor, at (4,3)     */
+        uint8_t field[FN_BOARD_CELLS];
+        uint8_t pic[FN_PF_KINDS][FN_BOARD_CELLS];
+        unsigned slot, k, x, y, seg, r, cell;
+
+        for (i = 0; i < FN_BOARD_CELLS; i++)
+            field[i] = 0;
+        field[0] = 1;                   /* a hit on the hull at the corner  */
+        field[2] = 1;                   /* a hit on the size-5 hull         */
+        field[22] = 2;                  /* a miss on the size-4 hull        */
+        field[70] = 1;                  /* a hit in open water              */
+        field[99] = 2;                  /* a miss in the far corner         */
+        field[45] = 7;                  /* nonsense: open sea               */
+
+        /* What the tables must say, per kind: HIT where the wire says 1;
+         * MID where it says 1 or 2; AUX every in-bounds hull cell, plus the
+         * cursor, minus cell 0 which is cleared again below. */
+        memset(pic, 0, sizeof pic);
+        for (i = 0; i < FN_BOARD_CELLS; i++) {
+            if (field[i] == 1)
+                pic[FN_PF_HIT][i] = pic[FN_PF_MID][i] = 1;
+            if (field[i] == 2)
+                pic[FN_PF_MID][i] = 1;
+        }
+        for (k = 0; k < 5; k++) {
+            unsigned pos = ships[k], dir = 0, sx, sy;
+            if (pos >= FN_BOARD_CELLS) { dir = 1; pos -= FN_BOARD_CELLS; }
+            sx = pos % FN_BOARD_DIM;
+            sy = pos / FN_BOARD_DIM;
+            for (seg = 0; seg < len[k]; seg++) {
+                if (sx >= FN_BOARD_DIM || sy >= FN_BOARD_DIM)
+                    break;
+                pic[FN_PF_AUX][sy * FN_BOARD_DIM + sx] = 1;
+                if (dir) sy++; else sx++;
+            }
+        }
+        pic[FN_PF_AUX][CUR] = 1;
+        pic[FN_PF_AUX][0] = 0;
+
+        for (slot = 0; slot < FN_PF_SLOTS; slot++) {
+            unsigned half = slot & 1u, pair = slot >> 1;
+            int bad = 0;
+
+            memset(win, 0xAA, sizeof win);          /* poison everything */
+            memcpy(win + (FN_R_DATA - FN_WINDOW_BASE) + 8, field, sizeof field);
+            memcpy(win + (FN_R_DATA - FN_WINDOW_BASE) + 200, ships, sizeof ships);
+
+            /* The slot's own bytes start as junk too: PFCLR must clear them
+             * before anything is ORed in. */
+            if (!vcs_blit(win, board, FN_PFM_ALL, (uint16_t)slot, 0, FN_BLIT_PFCLR))
+                fail("FN_BLIT_PFCLR was refused");
+            if (!vcs_blit(win, board, 8, (uint16_t)slot, 0, FN_BLIT_PFIELD))
+                fail("FN_BLIT_PFIELD was refused");
+            if (!vcs_blit(win, board, 200, (uint16_t)slot, 5, FN_BLIT_PFHULL))
+                fail("FN_BLIT_PFHULL was refused");
+            if (!vcs_blit(win, board, FN_PFM_AUX, (uint16_t)slot, CUR, FN_BLIT_PFCELL))
+                fail("FN_BLIT_PFCELL was refused");
+            vcs_blit(win, board, FN_PFM_AUX | FN_PFM_CLEAR, (uint16_t)slot, 0,
+                     FN_BLIT_PFCELL);
+            /* out of range: nothing */
+            vcs_blit(win, board, FN_PFM_ALL, (uint16_t)slot, FN_BOARD_CELLS,
+                     FN_BLIT_PFCELL);
+            vcs_blit(win, board, FN_PFM_ALL, (uint16_t)slot, 255, FN_BLIT_PFCELL);
+
+            for (i = 0; i < FN_T_PLANES * (int)FN_T_PLANE_LEN && !bad; i++) {
+                unsigned plane = (unsigned)i / FN_T_PLANE_LEN;
+                unsigned off = (unsigned)i % FN_T_PLANE_LEN;
+                uint8_t want = 0xAA;
+
+                if (off >= FN_PF_ROW0
+                        && off < FN_PF_ROW0 + FN_PF_KINDS * FN_PF_KIND_LEN
+                        && plane / 3u == half) {
+                    unsigned kind = (off - FN_PF_ROW0) / FN_PF_KIND_LEN;
+                    unsigned entry = (off - FN_PF_ROW0) % FN_PF_KIND_LEN;
+                    unsigned reg = plane % 3u;
+
+                    if (entry / FN_BOARD_DIM == pair) {
+                        y = entry % FN_BOARD_DIM;
+                        want = 0;
+                        for (x = 0; x < FN_BOARD_DIM; x++)
+                            if (reg_of[x] == reg
+                                    && pic[kind][y * FN_BOARD_DIM + x])
+                                want |= bits_of[x];
+                    }
+                }
+                if (win[(FN_T_BASE - FN_WINDOW_BASE) + i] != want) {
+                    fail("playfield slot %u: plane byte %d is %02X, want %02X",
+                         slot, i, win[(FN_T_BASE - FN_WINDOW_BASE) + i], want);
+                    fprintf(stderr, "  slot %u plane %u byte %u: got %02X want %02X\n",
+                            slot, plane, off,
+                            win[(FN_T_BASE - FN_WINDOW_BASE) + i], want);
+                    bad = 1;
+                }
+            }
+        }
+
+        /* PFIELD must leave AUX alone: a recompose over a cursor keeps the
+         * cursor, and it must not disturb the other pair's rows either. */
+        {
+            uint8_t before[FN_WINDOW_SIZE];
+            uint8_t *aux = win + (FN_PF_TAB(4, FN_PF_AUX) - FN_WINDOW_BASE);
+
+            /* slot 3 is live from the loop above: its cursor is at CUR, row
+             * 3 of the bottom pair, cell x=4 -> PF1 bits 3-2 */
+            if ((aux[FN_BOARD_DIM + 3] & 0x0C) != 0x0C)
+                fail("the cursor did not land in AUX where the bit map says");
+            memcpy(before, win, sizeof before);
+            vcs_blit(win, board, 8, 3, 0, FN_BLIT_PFIELD);
+            for (r = 0; r < 6; r++) {
+                for (cell = 0; cell < FN_PF_KIND_LEN; cell++) {
+                    unsigned o = (FN_PF_TAB(r, FN_PF_AUX) - FN_WINDOW_BASE) + cell;
+                    if (win[o] != before[o]) {
+                        fail("FN_BLIT_PFIELD touched AUX");
+                        r = 6;
+                        break;
+                    }
+                }
+            }
+            /* the top pair's bytes belong to slots 0 and 1: untouched */
+            for (r = 0; r < 6; r++)
+                for (k = 0; k < FN_PF_KINDS; k++)
+                    for (y = 0; y < FN_BOARD_DIM; y++) {
+                        unsigned o = (FN_PF_TAB(r, k) - FN_WINDOW_BASE) + y;
+                        if (win[o] != before[o]) {
+                            fail("a bottom-pair blit wrote a top-pair row");
+                            r = 6; k = FN_PF_KINDS; break;
+                        }
+                    }
+        }
+
+        /* The geometry the kernel depends on: no table may cross a page for
+         * y in 0..19, and the region must stay clear of the text rows the
+         * client keeps (0-4 and 15-20) and of the reply window. */
+        for (r = 0; r < 6; r++)
+            for (k = 0; k < FN_PF_KINDS; k++) {
+                unsigned base = FN_PF_TAB(r, k);
+                if (((base & 0xFF) + FN_PF_KIND_LEN - 1) > 0xFF)
+                    fail("a playfield table page-crosses");
+                if (base + FN_PF_KIND_LEN > FN_T_PLANE(r) + 15 * FN_T_CELL_H)
+                    fail("a playfield table reaches text row 15");
+            }
+        if (FN_PF_ROW0 < 5 * FN_T_CELL_H)
+            fail("the playfield tables overlap text row 4");
+    }
+
     if (vcs_blit(win, board, 0, 0, 1, 99))
         fail("an unknown blit transform claimed success");
 
@@ -620,7 +788,8 @@ int main(void)
     }
     printf("test_render: PASS (%d strings, %d planes, %d rows x %d columns, "
            "the blit port, FN_BLIT_PATH, FN_BLIT_TCELL, a composed "
-           "Battleship board, and a %d-card bed on a %d-pixel pitch)\n",
+           "Battleship board, its playfield tables, and a %d-card bed on a "
+           "%d-pixel pitch)\n",
            GOLD_N, FN_T_PLANES, FN_T_ROWS, FN_T_COLS,
            FN_CARD_SLOTS, FN_CARD_PITCH);
     return 0;

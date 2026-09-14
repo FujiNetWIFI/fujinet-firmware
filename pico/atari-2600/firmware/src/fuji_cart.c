@@ -110,5 +110,9 @@ void fuji_cart_service_deferred(void)
         else
             vcs_blit(fuji_mem.win, fuji_mem.board, fuji_mem.blit_src,
                      fuji_mem.blit_dst, fuji_mem.blit_cnt, fuji_blit_xform);
+        /* Published AFTER the blit has landed, for the same reason as
+         * FN_B_TEXTGEN above: the request slot is single and a client that
+         * fires the next blit before this one ran has lost this one. */
+        fuji_mem.win[FN_B_BLITGEN - FN_WINDOW_BASE]++;
     }
 }

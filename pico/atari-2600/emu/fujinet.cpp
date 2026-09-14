@@ -321,6 +321,9 @@ void a26_rom_fujinet_device::write(offs_t offset, uint8_t data)
 		else if (!vcs_blit(m_mem.win, m_mem.board, m_mem.blit_src, m_mem.blit_dst,
 					  m_mem.blit_cnt, b) && m_debug)
 			fprintf(stderr, "fujinet: blit transform %u not implemented\n", b);
+		// Synchronous here, deferred on the RP2040: the generation byte is what
+		// lets a client written against the hardware's ordering also run here.
+		m_mem.win[FN_B_BLITGEN - FN_WINDOW_BASE]++;
 		break;
 
 	case VCS_EV_ARMED:

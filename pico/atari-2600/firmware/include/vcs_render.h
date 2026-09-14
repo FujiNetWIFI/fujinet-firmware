@@ -45,6 +45,13 @@ void vcs_render_clear(uint8_t *win);
  * overlay needs to know what is already there, and the text planes are packed
  * glyph pairs that cannot be read back as characters.
  *
+ * FN_BLIT_PFCLR / PFIELD / PFHULL / PFCELL compose the PLAYFIELD board --
+ * the four-quadrant Battleship display -- straight into the plane region's
+ * table bytes (fuji_mailbox.h has the layout and the bit map). They use no
+ * scratch: every write is a whole table byte, masked in place, so they need
+ * nothing from `board` and the kernel reading the tables never sees a
+ * half-composed byte.
+ *
  * Returns false for a transform it does not implement. */
 bool vcs_blit(uint8_t *win, uint8_t *board, uint16_t src, uint16_t dst,
               uint8_t cnt, uint8_t transform);
