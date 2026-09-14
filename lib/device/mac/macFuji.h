@@ -42,3 +42,23 @@ extern macFuji platformFuji;
 
 #endif // MACFUJI_H
 #endif // BUILD_MAC
+
+#if 0
+#ifndef MACFUJI_H
+#define MACFUJI_H
+#include <cstdint>
+
+#include "../../include/debug.h"
+#include "bus.h"
+#include "iwm/disk2.h"
+#include "iwm/iwmNetwork.h"
+#include "iwm/printer.h"
+#include "iwm/cpm.h"
+#include "iwm/iwmClock.h"
+#include "iwm/modem.h"
+
+
+
+
+#endif // MACFUJI_H
+#endif /* BUILD_APPLE */

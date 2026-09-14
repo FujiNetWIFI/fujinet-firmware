@@ -1,6 +1,6 @@
 #ifdef BUILD_MAC
-#ifndef MAC_PRINTER_H
-#define MAC_PRINTER_H
+#ifndef PRINTER_H
+#define PRINTER_H
 
 #include <string.h>
 
@@ -77,5 +77,5 @@ private:
 };
 
 
-#endif // MAC_PRINTER_H
-#endif // BUILD_MAC
+#endif // guard
+#endif // BUILD_APPLE
