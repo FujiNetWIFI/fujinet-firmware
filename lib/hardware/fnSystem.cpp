@@ -1248,7 +1248,10 @@ void SystemManager::check_hardware_ver()
     Only Rev0
 */
     _hardware_version = 1;
-    safe_reset_gpio = PIN_BUTTON_C;
+    // The Mac board has no safe-reset button. PIN_BUTTON_C (IO14) is a bus
+    // line here and reads as a permanently held button, and a "short press"
+    // reboots the ESP32, so leave it disconnected.
+    safe_reset_gpio = GPIO_NUM_NC;
     setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
 #elif defined(BUILD_IEC)
     /*  Commodore

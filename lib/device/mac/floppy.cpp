@@ -1,77 +1,101 @@
 #ifdef BUILD_MAC
 #include "floppy.h"
 #include "../bus/mac/mac_ll.h"
+#include "../../include/debug.h"
 #include <cstring>
 
 #define NS_PER_BIT_TIME 125
 #define BLANK_TRACK_LEN 6400
 
-mediatype_t macFloppy::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+mediatype_t macFloppy::mount(FILE *f, const char *filename, uint32_t disksize,
+                             disk_access_flags_t access_mode, mediatype_t disk_type)
 {
-
   mediatype_t mt = MEDIATYPE_UNKNOWN;
-  // mediatype_t disk_type = MEDIATYPE_WOZ;
-
-  // Debug_printf("disk MOUNT %s\n", filename);
 
   // Destroy any existing MediaType
   if (_disk != nullptr)
   {
-    delete _disk;
-    _disk = nullptr;
+    unmount();
   }
 
   if (disk_type == MEDIATYPE_UNKNOWN)
     disk_type = MediaType::discover_mediatype(filename);
 
-  _disk_size_in_blocks = disksize/512;
+  _disk_size_in_blocks = disksize / 512;
+  readonly = !(access_mode & DISK_ACCESS_MODE_WRITE);
 
   switch (disk_type)
   {
   case MEDIATYPE_MOOF:
+    if (!is_floppy_slot())
+    {
+      Debug_printf("\nMOOF images can only be mounted in slot %d (floppy), not slot %c\n",
+                   MAC_FLOPPY_SLOT + 1, disk_num + 1);
+      return MEDIATYPE_UNKNOWN;
+    }
     Debug_printf("\nMounting Media Type MOOF");
-    // init();
-    device_active = (id() == '4');
     _disk = new MediaTypeMOOF();
     mt = ((MediaTypeMOOF *)_disk)->mount(f);
+    if (mt == MEDIATYPE_UNKNOWN)
+    {
+      Debug_printf("\nMOOF mount failed");
+      delete _disk;
+      _disk = nullptr;
+      device_active = false;
+      return MEDIATYPE_UNKNOWN;
+    }
+    device_active = true;
     track_pos = 0;
-    old_pos = 2; // makde different to force change_track buffer copy
+    old_pos = 2;     // make different to force change_track buffer copy
     change_track(0); // initialize rmt buffer
     change_track(1); // initialize rmt buffer
     switch (_disk->num_sides)
     {
     case 1:
-      fnUartBUS.write('s');
-      fnUartBUS.write(track_pos | 128);
+      SYSTEM_BUS.write((uint8_t)'s');
+      SYSTEM_BUS.write((uint8_t)(track_pos | 128));
       break;
     case 2:
-      fnUartBUS.write('d');
-      fnUartBUS.write(track_pos | 128);
+      SYSTEM_BUS.write((uint8_t)'d');
+      SYSTEM_BUS.write((uint8_t)(track_pos | 128));
+      break;
     default:
       break;
     }
     break;
   case MEDIATYPE_DSK:
-    Debug_printf("\nMounting Media Type DSK for DCD");
-    device_active = true;
-    _disk = new MediaTypeDCD();
-    mt = ((MediaTypeDCD *)_disk)->mount(f);
-    MAC.add_dcd_mount(id());
-    break;
   case MEDIATYPE_DC42:
-    Debug_printf("\nMounting Media Type DC42 for DCD");
+    if (!is_dcd_slot())
+    {
+      Debug_printf("\nDCD (HD20) images can only be mounted in slots 1-%d, not slot %c\n",
+                   MAC_DCD_SLOTS, disk_num + 1);
+      return MEDIATYPE_UNKNOWN;
+    }
+    if (disk_type == MEDIATYPE_DC42)
+    {
+      Debug_printf("\nMounting Media Type DC42 for DCD");
+      _disk = new MediaTypeDCD(0x54); // offset of image data in Disk Copy 4.2 file
+    }
+    else
+    {
+      Debug_printf("\nMounting Media Type DSK for DCD");
+      _disk = new MediaTypeDCD();
+    }
+    mt = ((MediaTypeDCD *)_disk)->mount(f, disksize);
+    if (mt == MEDIATYPE_UNKNOWN)
+    {
+      Debug_printf("\nDCD mount failed");
+      delete _disk;
+      _disk = nullptr;
+      device_active = false;
+      return MEDIATYPE_UNKNOWN;
+    }
+    // the media decides how many blocks the Mac sees (drive images only
+    // expose their HFS partition, DC42 images strip their header)
+    _disk_size_in_blocks = _disk->num_blocks;
     device_active = true;
-    _disk = new MediaTypeDCD(0x54); // offset of image data in Disk Copy 4.2 file
-    mt = ((MediaTypeDCD *)_disk)->mount(f);
-    MAC.add_dcd_mount(id());
+    SYSTEM_BUS.add_dcd_mount(id());
     break;
-  // case MEDIATYPE_DSK:
-  //   Debug_printf("\nMounting Media Type DSK");
-  //   device_active = true;
-  //   _disk = new MediaTypeDSK();
-  //   mt = ((MediaTypeDSK *)_disk)->mount(f);
-  //   change_track(0); // initialize spi buffer
-  //   break;
   default:
     Debug_printf("\nMedia Type UNKNOWN - no mount in floppy.cpp");
     device_active = false;
@@ -137,18 +161,18 @@ DCDDATA       Communication channel from DCD device to Macintosh
 
 void macFloppy::unmount()
 {
-  // todo - check device type and call correct unmount()
-  // ((MediaTypeMOOF *)_disk)->unmount();
-  if (disktype() == mediatype_t::MEDIATYPE_MOOF)
-    ((MediaTypeMOOF *)_disk)->unmount();
-  else if (_disk != nullptr)
-    _disk->unmount();
+  bool was_dcd = (_disk != nullptr) &&
+                 (disktype() == MEDIATYPE_DSK || disktype() == MEDIATYPE_DC42 || disktype() == MEDIATYPE_DCD);
+
   if (_disk != nullptr)
-    free(_disk);
+  {
+    _disk->unmount();
+    delete _disk; // virtual destructor, handles MOOF track buffers
+    _disk = nullptr;
+  }
 
-  _disk = nullptr;
-
-  MAC.rem_dcd_mount(id());
+  if (was_dcd)
+    SYSTEM_BUS.rem_dcd_mount(id());
   device_active = false;
 }
 
@@ -325,7 +349,7 @@ void macFloppy::dcd_status(uint8_t* payload)
   memcpy(&payload[70], icon, sizeof(icon));
   for (int i = 0 ; i < 6 ; i++)
   {
-    payload[70+96+4*i]=~numset[get_disk_number()-'0'][i];
+    payload[70+96+4*i]=~numset[(get_disk_number()-'0') & 3][i];
   }
   memset(&payload[198], 0xff, 128);
   payload[326] = 10; // seems to be limited to 12 chars
@@ -337,24 +361,31 @@ void macFloppy::process(mac_cmd_t cmd)
 {
   uint32_t sector_num;
   uint8_t buffer[512];
-  char s[3];
+  uint8_t s[3];
 
   switch (cmd)
   {
   case 'R':
-    fnUartBUS.readBytes(s, 3);
+    SYSTEM_BUS.read_exact(s, 3);
+    if (_disk == nullptr)
+    {
+      Debug_printf("\nDCD read with no media mounted");
+      memset(buffer, 0, sizeof(buffer));
+      SYSTEM_BUS.write(buffer, sizeof(buffer));
+      break;
+    }
     sector_num = ((uint32_t)s[0] << 16) + ((uint32_t)s[1] << 8) + (uint32_t)s[2];
     Debug_printf("\nDCD sector request: %06lx", sector_num);
     if (_disk->read(sector_num, buffer))
       Debug_printf("\nError Reading Sector %06lx",sector_num);
     // todo: error handling
-    fnUartBUS.write(buffer, sizeof(buffer));
+    SYSTEM_BUS.write(buffer, sizeof(buffer));
     break;
   case 'T':
     memset(buffer,0,sizeof(buffer));
     dcd_status(buffer);
     Debug_printf("\nSending STATUS block");
-    fnUartBUS.write(&buffer[6], 336); // status info block is 336 char's without header and checksum
+    SYSTEM_BUS.write(&buffer[6], 336); // status info block is 336 char's without header and checksum
     break;
   case 'W':
     // code on PICO:
@@ -364,18 +395,18 @@ void macFloppy::process(mac_cmd_t cmd)
     // uart_putc_raw(UART_ID, sector & 0xff);
     // sector++;
     // uart_write_blocking(UART_ID, &payload[26], 512);
-    fnUartBUS.readBytes(s, 3);
-    fnUartBUS.readBytes(buffer, sizeof(buffer));
+    SYSTEM_BUS.read_exact(s, 3);
+    SYSTEM_BUS.read_exact(buffer, sizeof(buffer));
     sector_num = ((uint32_t)s[0] << 16) + ((uint32_t)s[1] << 8) + (uint32_t)s[2];
     Debug_printf("\nDCD sector write: %06lx", sector_num);
-    if (_disk->write(sector_num, buffer))
+    if (_disk == nullptr || readonly || _disk->write(sector_num, buffer))
     {
       Debug_printf("\nError Writing Sector %06lx", sector_num);
-      fnUartBUS.write('e');
+      SYSTEM_BUS.write((uint8_t)'e');
     }
     else
     {
-      fnUartBUS.write('w');
+      SYSTEM_BUS.write((uint8_t)'w');
     }
     break;
   default:

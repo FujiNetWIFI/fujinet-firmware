@@ -5,7 +5,6 @@
 
 #include "../../include/atascii.h"
 #include "modem.h"
-#include "../hardware/fnUART.h"
 #include "fnWiFi.h"
 #include "fnFsSPIFFS.h"
 #include "fnSystem.h"

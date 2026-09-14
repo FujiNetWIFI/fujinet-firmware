@@ -2,15 +2,43 @@
 #define _MEDIATYPE_DCD_
 
 #include <stdio.h>
+#include <stdint.h>
 
 #include "mediaType.h"
 
+/**
+ * HD20-style (DCD) block device backed by an image file.
+ *
+ * Three kinds of image are accepted; mount() works out which:
+ *
+ *   volume image  A bare HFS (or MFS) volume: block 0 is the boot block,
+ *                 block 2 the master directory block. The whole file is
+ *                 presented to the Mac as the disk.
+ *
+ *   drive image   A whole-disk image with an Apple Driver Descriptor
+ *                 Record ("ER") in block 0 and an Apple partition map
+ *                 ("PM") from block 1. The first Apple_HFS partition is
+ *                 located and only that partition is presented to the Mac
+ *                 as the disk. Drivers in the image are never used; the
+ *                 HD20 protocol has no place for them.
+ *
+ *   DiskCopy 4.2  An .image file with the 84-byte DC42 header; the data
+ *                 fork after the header is treated as a volume image.
+ */
 class MediaTypeDCD : public MediaType
 {
 private:
     uint32_t last_block_num = 0xFFFFFFFF;
-    uint32_t offset = 0;
+    uint32_t offset = 0;   // byte offset of block 0 of the presented volume
+
+    bool read_raw(uint32_t byte_offset, uint8_t *buffer, size_t len);
+    bool find_hfs_partition(uint32_t &start_block, uint32_t &block_count);
+    void check_hfs_volume();
+
 public:
+    enum class image_kind_t { UNKNOWN, VOLUME, DRIVE, DC42 };
+    image_kind_t image_kind = image_kind_t::UNKNOWN;
+
     virtual bool read(uint32_t blockNum, uint8_t* buffer) override;
     virtual bool write(uint32_t blockNum,  uint8_t* buffer) override;
 
@@ -18,16 +46,15 @@ public:
 
     virtual mediatype_t mount(FILE *f, uint32_t disksize) override;
     mediatype_t mount(FILE *f) { return mount(f, 0); };
-    
-    virtual bool status() override {return (_media_fileh != nullptr);}
 
-    // static bool create(FILE *f, uint32_t numBlock);
+    virtual bool status() override {return (_media_fileh != nullptr);}
 
     size_t size() {return _media_num_sectors;}
     size_t sectorsize() {return _media_sector_size;}
     void reset_seek_opto() {last_block_num = 0xFFFFFFFF;};
 
-    MediaTypeDCD(int x = 0) : offset(x) {}
+    // x != 0 forces a fixed data offset (used for DiskCopy 4.2 images)
+    MediaTypeDCD(int x = 0) : offset(x) { if (x) image_kind = image_kind_t::DC42; }
 };
 
 

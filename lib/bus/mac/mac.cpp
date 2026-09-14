@@ -2,13 +2,17 @@
 #include "mac.h"
 #include "mac_ll.h"
 #include "macFuji.h"
+#include "fnSystem.h"
 
 #include "../../include/debug.h"
 
 void systemBus::setup(void)
 {
-  Debug_printf(("\r\nMAC FujiNet based on FujiApple\r\n"));
-  fnUartBUS.begin(_mac_baud_rate);
+  Debug_printf("\r\nMAC FujiNet based on FujiApple\r\n");
+
+  _serial.begin(ChannelConfig()
+                    .deviceID(FN_UART_BUS)
+                    .baud(_mac_baud_rate));
 
   // GPIO needs to read Head Select (SEL)
   floppy_ll.setup_gpio();
@@ -48,106 +52,136 @@ void systemBus::setup(void)
  *
 */
 
-uint8_t sector_buffer[512];
+size_t systemBus::read_exact(void *buffer, size_t length, unsigned timeout_ms)
+{
+  uint8_t *p = (uint8_t *)buffer;
+  size_t got = 0;
+  unsigned long start = fnSystem.millis();
+
+  while (got < length)
+  {
+    size_t n = _serial.read(p + got, length - got);
+    if (n > 0)
+    {
+      got += n;
+      start = fnSystem.millis();
+      continue;
+    }
+    if (fnSystem.millis() - start > timeout_ms)
+    {
+      Debug_printf("\r\nMAC bus: read_exact timeout, got %u of %u bytes", (unsigned)got, (unsigned)length);
+      break;
+    }
+    vTaskDelay(1);
+  }
+  return got;
+}
+
+static inline macFloppy &floppy_dev()
+{
+  return theFuji->get_disk(MAC_FLOPPY_SLOT)->disk_dev;
+}
+
+void systemBus::handle_floppy_command(int c)
+{
+  switch (c - '0')
+  {
+  case 0:
+    // set direction to increase track number
+    Debug_printf("%c", 'I');
+    floppy_dev().set_dir(+1);
+    break;
+  case 4:
+    // set direction to decrease track number
+    Debug_printf("%c", 'D');
+    floppy_dev().set_dir(-1);
+    break;
+  case 1:
+    // step the head
+    Debug_printf("%c", 'S');
+    {
+      t0 = fnSystem.micros();
+      track_not_copied = true;
+      int track_position = floppy_dev().step();
+      if (track_position < 0)
+      {
+        write((uint8_t)'N');
+      }
+      else
+      {
+        write((uint8_t)(track_position | 128)); // send the track position(/2) back
+      }
+    }
+    break;
+  case 2:
+    // turn motor on
+    Debug_printf("\nMotor ON");
+    floppy_ll.start();
+    write((uint8_t)'M');
+    break;
+  case 6:
+    // turn motor off
+    Debug_printf("\nMotor OFF");
+    floppy_ll.stop();
+    write((uint8_t)'F');
+    break;
+  case 7:
+    // eject
+    Debug_printf("\neject - unmounting");
+    floppy_ll.stop();
+    floppy_dev().unmount();
+    write((uint8_t)'E');
+    break;
+  default:
+    write((uint8_t)'X');
+    break;
+  }
+}
+
+void systemBus::handle_dcd_command(int c)
+{
+  switch (c)
+  {
+  case 'A':
+  case 'B':
+  case 'C':
+  case 'D':
+  case 'E':
+    if (_active_DCD_disk != c - 'A')
+      Debug_printf("\nactive disk %d", c - 'A');
+    _active_DCD_disk = c - 'A'; // 0, 1, 2, 3
+    break;
+  case 'R':
+  case 'T':
+  case 'W':
+    if (_active_DCD_disk >= 0 && _active_DCD_disk < MAC_DCD_SLOTS)
+      theFuji->get_disk(_active_DCD_disk)->disk_dev.process((mac_cmd_t)c);
+    else
+      Debug_printf("\nDCD command %c for invalid disk %d", c, _active_DCD_disk);
+    break;
+  default:
+    break;
+  }
+}
 
 void systemBus::service(void)
 {
   // todo - figure out two floppies - either on RP2040 or ESP32 side. Use the two enable lines - get_disks(0 or 1)
-  if (fnUartBUS.available())
+  if (available())
   {
-    int c=fnUartBUS.read();
-    if (c==0) return;
+    int c = read();
+    if (c <= 0)
+      return;
     else if (c < 'A') // floppy
-    {
-      switch (c - '0')
-      {
-      case 0:
-        // set direction to increase track number
-        Debug_printf("%c", 'I');
-        theFuji->get_disk(4)->disk_dev.set_dir(+1);
-        // fnUartBUS.write('I');
-        // fnUartBUS.flush();
-        break;
-      case 4:
-        // set direction to decrease track number
-        Debug_printf("%c", 'D');
-        theFuji->get_disk(4)->disk_dev.set_dir(-1);
-        // fnUartBUS.write('D');
-        // fnUartBUS.flush();
-        break;
-      case 1:
-        // step the head
-        Debug_printf("%c", 'S');
-        {
-          t0 = fnSystem.micros();
-          track_not_copied = true;
-          int track_position = theFuji->get_disk(4)->disk_dev.step();
-          if (track_position < 0)
-          {
-            fnUartBUS.write('N');
-          }
-          else
-          {
-            fnUartBUS.write(track_position | 128); // send the track position(/2) back
-          }
-        }
-        break;
-      case 2:
-        // turn motor ons
-        Debug_printf("\nMotor ON");
-        floppy_ll.start();
-        fnUartBUS.write('M');
-        // fnUartBUS.flush();
-        break;
-      case 6:
-        // turn motor off
-        Debug_printf("\nMotor OFF");
-        floppy_ll.stop();
-        fnUartBUS.write('F');
-        // fnUartBUS.flush();
-        break;
-      case 7:
-        // eject
-        Debug_printf("\neject - unmounting");
-        floppy_ll.stop();
-        theFuji->get_disk(4)->disk_dev.unmount();
-        fnUartBUS.write('E');
-        // fnUartBUS.flush();
-        break;
-      default:
-        //Debug_printf("%03d");
-        fnUartBUS.write('X');
-        // fnUartBUS.flush();
-        break;
-      }
-    }
+      handle_floppy_command(c);
     else // DCD
-    {
-      switch (c)
-      {
-      case 'A':
-      case 'B':
-      case 'C':
-      case 'D':
-      case 'E':
-        _active_DCD_disk = c-'A'; // 0, 1, 2, 3
-        Debug_printf("\nactive disk %d", _active_DCD_disk);
-        break;
-      case 'R':
-      case 'T':
-      case 'W':
-        theFuji->get_disk(_active_DCD_disk)->disk_dev.process(c);
-        break;
-      default:
-        break;
-      }
-    }
+      handle_dcd_command(c);
   }
   if (track_not_copied && stepper_timeout())
   {
-    theFuji->get_disk(4)->disk_dev.update_track_buffers();
+    floppy_dev().update_track_buffers();
     track_not_copied = false;
-    fnUartBUS.write('S');
+    write((uint8_t)'S');
   }
 }
 
@@ -160,21 +194,24 @@ char systemBus::num_dcd_mounts()
   return d;
 }
 
+void systemBus::send_dcd_count()
+{
+  char d = num_dcd_mounts();
+  Debug_printf("\r\nMAC bus: %d DCD drive(s) in chain", d);
+  write((uint8_t)'h'); // harddisk
+  write((uint8_t)d);   // number of DCD's in a contiguous daisy chain
+}
+
 void systemBus::add_dcd_mount(char c)
 {
   _mounted_dcd_disks |= 1 << (c - '0');
-  // find maximum consecutively occupied disk slot
-  char d = num_dcd_mounts();
-  fnUartBUS.write('h'); // harddisk
-  fnUartBUS.write(d);   // number of DCD's in a contiguous daisy chain
+  send_dcd_count();
 }
 
 void systemBus::rem_dcd_mount(char c)
 {
   _mounted_dcd_disks &= ~(1 << (c - '0'));
-  char d = num_dcd_mounts();
-  fnUartBUS.write('h'); // harddisk
-  fnUartBUS.write(d);   // number of DCD's in a contiguous daisy chain
+  send_dcd_count();
 }
 
 bool systemBus::stepper_timeout()
@@ -189,15 +226,11 @@ void systemBus::shutdown(void)
 
   for (auto devicep : _daisyChain)
   {
-    // Debug_printf("Shutting down device %02x\n", devicep.second->id());
-    // devicep.second->shutdown();
     Debug_printf("Shutting down device %02x\n", devicep->id());
     devicep->shutdown();
   }
   Debug_printf("All devices shut down.\n");
 }
-
-macBus MAC; // global smartport bus variable
 
 #endif // BUILD_MAC
 

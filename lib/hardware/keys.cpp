@@ -260,7 +260,7 @@ void KeyManager::_keystate_task(void *param)
 #endif //BLUETOOTH_SUPPORT
 #ifdef BUILD_MAC
             Debug_println("ACTION: Mount all disks");
-            theFuji.mount_all();
+            theFuji->fujicore_mount_all_success();
 #endif /* BUILD_MAC */
 
             break;
