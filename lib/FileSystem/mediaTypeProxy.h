@@ -8,7 +8,7 @@
 #elif BUILD_APPLE
 #include "../media/apple/mediaType.h"
 #elif BUILD_MAC
-#include "../media/apple/mediaType.h"
+#include "../media/mac/mediaType.h"
 #elif BUILD_IEC
 #include "../media/cbm/mediaType.h"
 #elif BUILD_LYNX
