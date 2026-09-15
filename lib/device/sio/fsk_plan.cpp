@@ -1,47 +1,22 @@
-// fsk_plan.cpp — host-buildable pure implementation for the A8CAS FSK module.
+// fsk_plan.cpp — host-buildable pure implementation of the two non-inline
+// members: fsk_preload_into_blocks (bounded, injected-reader preload loop)
+// and fsk_view_step (host-test cursor over a segmented payload). No
+// FujiNet/ESP-IDF/filesystem dependency; no allocation or logging of its own.
 //
-// This file implements the two non-inline members of the pure module:
-//   - fsk_preload_into_blocks : the bounded, injected-reader preload loop
-//   - fsk_view_step           : the host-test cursor step over a segmented payload
-//
-// It is host-buildable and carries no FujiNet, ESP-IDF, GPIO, RMT, filesystem,
-// or global-state dependency. It does not allocate, log, or perform I/O of its
-// own (all I/O is delegated to the injected reader in fsk_preload_into_blocks),
-// and fsk_view_step performs only O(1) state transitions on the FskChunkView
-// cursor (it never materializes the full waveform). All logical reads stay
-// strictly within [0, data_len_available).
-//
-// fsk_view_step shares the SAME pure rule helpers (fsk_block_le16 /
-// fsk_decode_le16, fsk_level_for_index, fsk_ticks_for_value, fsk_next_portion,
-// fsk_value_count) declared in fsk_plan.h that the production IRAM RMT callback
-// (fsk_encode_cb) inlines, so host tests and production cannot diverge on the
-// modeled duration, parity, or split.
+// fsk_view_step shares the same pure rule helpers fsk_plan.h declares that
+// the production RMT callback (fsk_encode_cb) inlines, so host tests and
+// production can't diverge on duration, parity, or split.
 
 #include "fsk_plan.h"
 
-// -----------------------------------------------------------------------------
-// Bounded, injected-reader preload loop (design: "Payload Preload Strategy",
-// "Host-testable preload read-loop").
-// -----------------------------------------------------------------------------
-//
 // Fills an already-allocated block table with up to `want` logical payload
-// bytes. The loop:
-//   - never requests more than `read_max` bytes in one reader call (honors the
-//     TNFS <=525-byte per-read limit imposed by the production caller);
-//   - never writes beyond a single block (each request is also clamped to the
-//     bytes remaining in the current block, so a request never straddles the
-//     block boundary);
-//   - never writes beyond logical byte `want`;
-//   - accumulates positive short/partial reads;
-//   - stops as soon as the reader returns 0 before `want` is reached
-//     (EOF/failure), returning the number of bytes actually loaded.
+// bytes: never requests more than `read_max` per reader call, never writes
+// past a block boundary or past `want`, accumulates short reads, stops when
+// the reader returns 0. Returns bytes actually loaded (== want on success).
 //
-// Returns the total number of bytes loaded; equals `want` on full success and is
-// strictly less than `want` on a short read / EOF / reader failure.
-//
-// Preconditions (guaranteed by the caller): if want > 0 then blocks != nullptr,
-// block_size > 0, block_count >= ceil(want / block_size), and each blocks[i]
-// points to block_size writable bytes. read_max may be 0 only when want == 0.
+// Preconditions: if want > 0 then blocks != nullptr, block_size > 0,
+// block_count >= ceil(want / block_size), each blocks[i] has block_size
+// writable bytes; read_max may be 0 only when want == 0.
 size_t fsk_preload_into_blocks(uint8_t *const *blocks,
                                size_t block_count,
                                size_t block_size,
@@ -105,27 +80,21 @@ size_t fsk_preload_into_blocks(uint8_t *const *blocks,
     return loaded;
 }
 
-// -----------------------------------------------------------------------------
-// Host-test cursor step over a segmented (block-table) payload.
-// -----------------------------------------------------------------------------
-//
-// Advances the cursor by exactly one emitted RMT-sized portion (or reports
-// done). Values are read through fsk_block_le16(), so a 2-byte value whose bytes
-// straddle two preload blocks is reassembled correctly. Zero-duration values
-// still consume their original signal index (advancing parity) and byte
-// position, but emit no portion. Long values are split incrementally into
-// same-level portions of at most FSK_MAX_PORTION_TICKS using O(1) state.
+// Host-test cursor step over a segmented payload: advances by exactly one
+// emitted portion (or reports done). Values read via fsk_block_le16() so a
+// value straddling two blocks reassembles correctly. Zero-duration values
+// still consume their index (parity) but emit no portion; long values split
+// incrementally into <=FSK_MAX_PORTION_TICKS portions via O(1) state.
 FskStep fsk_view_step(FskChunkView &view)
 {
-    // Case 1: the current value is still being split. Emit its next portion.
+    // Case 1: current value still being split. Emit its next portion.
     if (view.remaining_ticks > 0)
     {
         uint32_t portion = fsk_next_portion(view.remaining_ticks);
         view.remaining_ticks -= portion;
 
-        // Approved contract: the LAST emitted portion carries done=true in the
-        // SAME call. More work remains iff this value still has ticks left or
-        // another value is still to be loaded.
+        // The LAST emitted portion carries done=true in the SAME call. More
+        // work remains iff this value has ticks left or another is queued.
         bool more = view.remaining_ticks != 0 ||
                     view.value_index < fsk_value_count(view.data_len_available);
         return FskStep{ true, view.remaining_level_high, portion, !more };
@@ -139,11 +108,6 @@ FskStep fsk_view_step(FskChunkView &view)
 
     while (view.value_index < value_count)
     {
-        // byte_pos == value_index * 2, and value_index < floor(len/2), so both
-        // logical positions byte_pos and byte_pos+1 are strictly within
-        // [0, data_len_available). fsk_block_le16 fetches each byte independently
-        // through the block table, so a value straddling a block boundary is
-        // reassembled correctly.
         uint16_t decoded = fsk_block_le16(view.blocks, view.block_size, view.byte_pos);
         bool     level   = fsk_level_for_index(view.value_index);
         uint32_t ticks   = fsk_ticks_for_value(decoded);
@@ -165,10 +129,8 @@ FskStep fsk_view_step(FskChunkView &view)
         uint32_t portion = fsk_next_portion(view.remaining_ticks);
         view.remaining_ticks -= portion;
 
-        // Approved contract: this may be the LAST emitted portion (single-portion
-        // final value), in which case done=true is returned in the SAME call.
-        // More work remains iff this value still has ticks left or another value
-        // is still to be loaded (value_index already advanced past this one).
+        // May be the LAST emitted portion (single-portion value), in which
+        // case done=true is returned in the SAME call.
         bool more = view.remaining_ticks != 0 ||
                     view.value_index < value_count;
         return FskStep{ true, level, portion, !more };
@@ -179,26 +141,20 @@ FskStep fsk_view_step(FskChunkView &view)
 }
 
 
-// -----------------------------------------------------------------------------
-// Structural chunk bounds + caller next-offset (pure)
-// -----------------------------------------------------------------------------
-//
-// This is the single source of truth for the structural bounds/next-offset rule.
-// The production caller (sioCassette::play_fsk_chunk) consumes this exact result;
-// there is no second O+8+L formula. The arithmetic mirrors the prior in-cassette
-// logic byte-for-byte: subtraction-guarded so it never underflows.
+// Single source of truth for the structural bounds/next-offset rule;
+// play_fsk_chunk() consumes this exact result — no second O+8+L formula.
+// Subtraction-guarded so it never underflows.
 FskBounds fsk_compute_bounds(size_t filesize, size_t offset,
                              uint16_t declared_len)
 {
-    // Deterministic zeroed result for every early-return path.
     FskBounds b{ 0, 0, 0, false, false };
 
     if (filesize < offset)
-        return b; // defensive: offset past EOF -> no complete header (next=0)
+        return b; // offset past EOF -> no complete header (next=0)
 
-    const size_t remaining = filesize - offset; // bytes from header start to EOF
+    const size_t remaining = filesize - offset;
     if (remaining < 8)
-        return b; // < 8 header bytes remain -> end-of-tape (Req 6.1); next=0
+        return b; // < 8 header bytes remain -> end-of-tape
 
     b.header_complete = true;
 
@@ -207,11 +163,10 @@ FskBounds fsk_compute_bounds(size_t filesize, size_t offset,
 
     b.structurally_truncated = (declared > after_header);
     b.data_avail = b.structurally_truncated ? after_header : declared;
-    b.value_count = fsk_value_count(b.data_avail); // floor(data_avail / 2), Req 6.4
+    b.value_count = fsk_value_count(b.data_avail);
 
-    // Well-formed chunk advances past its full declared extent (O + 8 + L);
-    // an overrun/truncated chunk terminates at EOT (next = 0), because
-    // offset + 8 + declared would point past the image.
+    // Well-formed -> advance past the full declared extent (O+8+L);
+    // overrun/truncated -> EOT (next=0), since O+8+declared would overrun.
     b.next_offset = b.structurally_truncated ? 0 : (offset + 8 + declared);
     return b;
 }

@@ -13,25 +13,18 @@
 #include <vector>
 
 // FskPlanTests.cpp — doctest coverage for the pure A8CAS FSK rules in
-// lib/device/sio/fsk_plan.{h,cpp}, reconciled to the approved V2 design's
-// SEGMENTED block-table payload model.
+// lib/device/sio/fsk_plan.{h,cpp}.
 //
-// The V2 FskChunkView addresses a payload through a table of fixed-size block
-// pointers (blocks + block_size) via fsk_block_byte / fsk_block_le16, not a flat
-// buffer. To keep the existing behavioral coverage while exercising the block
-// table, tests build a BlockTable helper that lays a contiguous logical payload
-// into fixed-size blocks and hands (blocks, block_size) to fsk_view_init. Cursor
-// tests are run over multiple block sizes so values that straddle a block
-// boundary are exercised on the same inputs.
+// FskChunkView addresses a payload through a table of fixed-size block
+// pointers (fsk_block_byte / fsk_block_le16), not a flat buffer, so tests
+// build a BlockTable helper that lays a payload into fixed-size blocks and
+// hands (blocks, block_size) to fsk_view_init. Cursor tests run over
+// multiple block sizes so cross-block-boundary values get exercised.
 //
-// This file also covers:
-//   - the shared pure helpers (decode / parity / scale / split, value count)
-//   - the host-test cursor fsk_view_step over the block table
-//   - the block-table logical-byte accessors (task 3.3)
-//   - the bounded injected-reader preload loop fsk_preload_into_blocks (task 3.4)
-//   - synthetic pure raw-FSK and interleaved logical CAS fixtures (tasks 3.5/3.6)
-//
-// It touches no hardware, filesystem, ESP-IDF, or globals.
+// Also covers: the shared pure helpers (decode/parity/scale/split, value
+// count), the block-table accessors, the bounded preload loop, and
+// synthetic pure raw-FSK / interleaved CAS fixtures. No hardware,
+// filesystem, ESP-IDF, or globals.
 
 namespace
 {
@@ -41,13 +34,11 @@ inline std::array<uint8_t, 2> le16_buf(uint16_t value)
     return { (uint8_t)(value & 0xFF), (uint8_t)((value >> 8) & 0xFF) };
 }
 
-// ─── BlockTable: model the V2 segmented payload for host tests ──────────────────
+// ─── BlockTable: models the segmented payload for host tests ────────────────────
 //
-// Owns a set of fixed-size blocks and a contiguous table of pointers into them,
-// filled from a contiguous logical payload. `blocks()` / `block_size()` feed
-// fsk_view_init and the block accessors exactly as the production preload would.
-// A block_size >= logical length yields a single-block (contiguous fast-path)
-// table; a smaller block_size forces multi-block layout and cross-block values.
+// Owns fixed-size blocks + a pointer table filled from a contiguous logical
+// payload. block_size >= length yields a single-block fast path; a smaller
+// block_size forces multi-block layout and cross-block values.
 class BlockTable
 {
 public:
@@ -1087,16 +1078,13 @@ TEST_CASE("Task 3.4 want == 0 loads nothing and calls no reader")
     CHECK(rd.call_count == 0);
 }
 
-// ─── Authentic corpus block-planning (Task 10.6 / large-chunk architecture) ─────
+// ─── Authentic corpus block-planning (large-chunk architecture) ─────────────────
 //
-// The real Real_World_Acceptance_Corpus member turbo_software_missile_command.cas
-// begins with an authentic raw-FSK chunk whose declared length is 65532 bytes
-// (value_count 32766), followed by a second 45920-byte chunk. These lengths — not
-// only the synthetic 65535 max — are what production must plan and fully preload.
-// This proves, at the block-planning/read seam, that the real lengths map to the
-// expected block counts, load fully through <=512-byte reads, and reassemble
-// byte-for-byte. Storage capability (INTERNAL vs PSRAM) is a production heap
-// concern only; the pure planning/read logic is identical and hardware-free here.
+// turbo_software_missile_command.cas has a real 65532-byte raw-FSK chunk
+// followed by a 45920-byte one — not just the synthetic 65535 max. Proves
+// these real lengths map to the expected block counts, load fully through
+// <=512-byte reads, and reassemble byte-for-byte (storage capability is a
+// production heap concern only, out of scope here).
 TEST_CASE("Authentic corpus chunk lengths plan and preload fully (<=512 reads)")
 {
     const size_t block_size = 512;
@@ -1623,9 +1611,9 @@ TEST_CASE("Task 3.6 interleaved image: fsk is non-terminating; baud governs data
     std::vector<fsk_cas::Chunk> chunks = fsk_cas::walk(img);
     REQUIRE(chunks.size() == 7);
 
-    // Model the walker's baud tracking: fsk NEVER changes the active baud, and a
-    // data chunk after an fsk uses the pre-fsk active baud until a baud chunk
-    // changes it. This models Req 5.1-5.3 / 9.3 at the fixture level.
+    // Models the walker's baud tracking: fsk never changes the active baud,
+    // so a data chunk after an fsk uses the pre-fsk baud until a baud chunk
+    // changes it.
     uint16_t active_baud = 0;
     std::vector<uint16_t> data_baud; // active baud at each data chunk
     int fsk_seen = 0;
@@ -1643,7 +1631,7 @@ TEST_CASE("Task 3.6 interleaved image: fsk is non-terminating; baud governs data
     CHECK(fsk_seen == 1);
     REQUIRE(data_baud.size() == 3);
     CHECK(data_baud[0] == 600); // before fsk
-    CHECK(data_baud[1] == 600); // AFTER fsk, no intervening baud -> still 600 (Req 5.2)
+    CHECK(data_baud[1] == 600); // AFTER fsk, no intervening baud -> still 600
     CHECK(data_baud[2] == 790); // after the 790 baud chunk
 
     // The single fsk chunk decodes generically: values [100, 200] -> 2 portions.

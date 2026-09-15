@@ -1,21 +1,14 @@
 #ifndef FSK_PLAN_H
 #define FSK_PLAN_H
 
-// fsk_plan.h — pure, host-buildable A8CAS FSK parsing/timing rules.
+// fsk_plan.h — pure, host-buildable A8CAS FSK parsing/timing rules. No
+// filesystem, RMT/GPIO, FujiNet globals, allocation, or logging. The rule
+// helpers the production RMT ISR callback uses live here so host tests and
+// production share exactly the same decode/parity/timing/split logic.
 //
-// No filesystem, no RMT/GPIO, no FujiNet globals, no allocation, no logging.
-//
-// The small rule helpers used by the production RMT ISR callback live here so
-// host tests and production share exactly the same decode/parity/timing/split
-// logic.
-//
-// The revised V2 design stores a preloaded FSK payload as a table of fixed-size
-// blocks rather than as one large contiguous allocation. The pure block-table
-// accessors below expose that logical payload without knowing anything about
-// ESP-IDF or the filesystem.
-//
-// fsk_view_step and fsk_preload_into_blocks are implemented in fsk_plan.cpp and
-// remain hardware/filesystem independent.
+// The preloaded FSK payload is stored as a table of fixed-size blocks rather
+// than one contiguous allocation; the block-table accessors below expose
+// that logical payload without any ESP-IDF/filesystem dependency.
 
 #include <cstddef>
 #include <cstdint>
@@ -79,19 +72,12 @@ FSK_FORCE_INLINE size_t fsk_value_count(size_t data_len_available)
 // Segmented payload logical-byte access
 // -----------------------------------------------------------------------------
 //
-// `blocks` points to a contiguous table of block pointers.
-// Every normal block has `block_size` bytes. The final block may be only partly
-// logically used; bounds are governed by the caller's logical payload length.
-//
-// These helpers perform no bounds checks themselves because the production ISR
-// path must remain tiny and deterministic. Callers guarantee that requested
-// logical positions are valid.
+// `blocks` is a contiguous table of block pointers, each `block_size` bytes
+// (the final block may be only partly used). No bounds checks here — the
+// production ISR path must stay tiny and deterministic; callers guarantee
+// requested logical positions are valid.
 
 // Return logical payload byte k from the segmented block table.
-// Preconditions:
-//   blocks != nullptr
-//   block_size > 0
-//   k is inside the caller's logical payload length
 FSK_FORCE_INLINE uint8_t fsk_block_byte(const uint8_t *const *blocks,
                                         size_t block_size,
                                         size_t k)
@@ -99,15 +85,8 @@ FSK_FORCE_INLINE uint8_t fsk_block_byte(const uint8_t *const *blocks,
     return blocks[k / block_size][k % block_size];
 }
 
-// Decode a little-endian FSK value from logical positions k and k+1.
-//
-// Fetching the two bytes independently is intentional: if k is the last byte of
-// one preload block, k+1 may reside in the following block.
-//
-// Preconditions:
-//   blocks != nullptr
-//   block_size > 0
-//   k and k+1 are inside the caller's logical payload length
+// Decode a little-endian FSK value from logical positions k and k+1, fetched
+// independently since k+1 may reside in the following block.
 FSK_FORCE_INLINE uint16_t fsk_block_le16(const uint8_t *const *blocks,
                                          size_t block_size,
                                          size_t k)
@@ -124,31 +103,16 @@ FSK_FORCE_INLINE uint16_t fsk_block_le16(const uint8_t *const *blocks,
 // Host-testable bounded preload helper
 // -----------------------------------------------------------------------------
 
-// Injected reader used by fsk_preload_into_blocks.
-//
-// The reader attempts to place up to `n` bytes into `dst` and returns the number
-// actually delivered.
-//
-// A positive short return is valid and must be accumulated by the preload loop.
-// Returning 0 before the requested payload is complete represents EOF/failure
-// for this pure helper.
+// Injected reader used by fsk_preload_into_blocks: places up to `n` bytes
+// into `dst`, returns the number delivered. A positive short return is
+// accumulated; 0 before `want` is reached means EOF/failure.
 using fsk_read_fn = size_t (*)(void *ctx, uint8_t *dst, size_t n);
 
-// Fill an already-allocated block table with exactly `want` logical bytes where
-// possible.
-//
-// The helper:
-//   - never requests more than `read_max` bytes in one reader call;
-//   - never writes beyond a block;
-//   - never writes beyond logical byte `want`;
-//   - accumulates positive short reads;
-//   - stops when `want` bytes have been loaded or reader returns 0.
-//
-// Returns total bytes actually loaded.
-// Success is indicated by return value == want.
-//
-// This function contains no filesystem dependency: production supplies an
-// fnio::fread adapter, while host tests supply deterministic stub readers.
+// Fills an already-allocated block table with up to `want` logical bytes:
+// never requests more than `read_max` per call, never writes past a block or
+// past `want`, accumulates short reads. Returns bytes actually loaded;
+// success is return value == want. No filesystem dependency — production
+// supplies an fnio::fread adapter, host tests supply stub readers.
 size_t fsk_preload_into_blocks(uint8_t *const *blocks,
                                size_t block_count,
                                size_t block_size,
@@ -161,39 +125,25 @@ size_t fsk_preload_into_blocks(uint8_t *const *blocks,
 // Structural chunk bounds + caller next-offset (pure, host-testable)
 // -----------------------------------------------------------------------------
 //
-// All derived structural state for one A8CAS chunk in ONE result, so the
-// production caller (sioCassette::play_fsk_chunk) and the host property tests
-// use the SAME next-offset rule — there is no second O+8+L formula anywhere.
-//
-// Integer widths mirror the production caller: file size / offsets / byte
-// counts are size_t; the declared chunk length is the on-file uint16.
-// Arithmetic is subtraction-guarded (offset-past-EOF and <8-remaining checked
-// before any subtraction) so it never underflows.
+// All derived structural state for one A8CAS chunk in ONE result, so
+// play_fsk_chunk() and the host tests share the same next-offset rule — no
+// second O+8+L formula anywhere. Arithmetic is subtraction-guarded so it
+// never underflows.
 struct FskBounds
 {
     size_t data_avail;            // min(declared_len, bytes after the 8-byte header)
-    size_t value_count;           // floor(data_avail / 2) (Req 6.4)
+    size_t value_count;           // floor(data_avail / 2)
     size_t next_offset;           // caller's next read offset: O+8+L when well-formed,
                                   //   0 for incomplete header or body overrun (EOT)
     bool   header_complete;       // false when < 8 header bytes remain (or offset > filesize)
     bool   structurally_truncated;// declared body would pass EOF (clamped to what exists)
 };
 
-// Compute the structural bounds + next offset for a chunk header at `offset`
-// within a file of `filesize` bytes declaring `declared_len` payload bytes.
-//
-// Rules (design "Malformed Chunk Policy" / Property 7):
-//   - offset > filesize OR remaining < 8  -> header_complete=false, everything 0,
-//                                            next_offset=0 (EOT)
-//   - declared_len > body_available       -> structurally_truncated=true,
-//                                            data_avail=body_available,
-//                                            next_offset=0 (EOT/overrun)
-//   - well-formed                         -> data_avail=declared_len,
-//                                            next_offset=offset+8+declared_len
-// value_count is always floor(data_avail/2).
-//
-// Pure: no I/O, no hardware, no globals. This is the single source of truth for
-// the production caller and the host tests.
+// Computes the structural bounds + next offset for a chunk header at
+// `offset`: incomplete header or overrun body -> next_offset=0 (EOT);
+// well-formed -> data_avail=declared_len, next_offset=offset+8+declared_len.
+// value_count is always floor(data_avail/2). Pure; single source of truth
+// for production and host tests.
 FskBounds fsk_compute_bounds(size_t filesize, size_t offset,
                              uint16_t declared_len);
 
@@ -224,12 +174,9 @@ struct FskChunkView
     bool remaining_level_high;
 };
 
-// Initialize a cursor over a caller-owned segmented payload.
-//
-// For an empty payload:
-//   blocks may be nullptr
-//   block_size may be 0
-// because fsk_view_step will have no complete values to read.
+// Initialize a cursor over a caller-owned segmented payload. For an empty
+// payload, blocks may be nullptr and block_size 0 — fsk_view_step will have
+// no complete values to read.
 FSK_FORCE_INLINE FskChunkView fsk_view_init(const uint8_t *const *blocks,
                                             size_t block_size,
                                             size_t data_len_available)
@@ -253,42 +200,27 @@ struct FskStep
     bool done;       // true when no waveform work remains
 };
 
-// Advance the pure cursor by one emitted portion.
-//
-// Behavior:
-//   - reads only complete 2-byte FSK values;
-//   - accesses bytes through fsk_block_le16();
-//   - skips zero-duration values while still consuming their original index;
-//   - splits long durations incrementally using O(1) state;
-//   - never materializes the waveform;
-//   - never performs allocation, I/O, logging, or hardware access.
-//
-// Defined in fsk_plan.cpp.
-// It is intended for host tests and is NOT called from the RMT ISR.
+// Advances the pure cursor by one emitted portion: reads only complete
+// 2-byte values via fsk_block_le16(), skips zero-duration values (still
+// consuming their index), splits long durations incrementally. Never
+// materializes the waveform or touches allocation/I/O/hardware. Host-test
+// only — not called from the RMT ISR.
 FskStep fsk_view_step(FskChunkView &view);
 
 // -----------------------------------------------------------------------------
 // Contiguous zero-IRG FSK "run" membership (pure, host-testable)
 // -----------------------------------------------------------------------------
 //
-// Authentic A8CAS raw-FSK images encode a continuous tape signal as consecutive
-// `fsk ` chunks where only the FIRST carries a non-zero Inter-Record Gap and all
-// following chunks carry IRG == 0. Reproducing each chunk with its own RMT
-// begin/emit/end lifecycle would insert a real-time gap (teardown + file I/O +
-// re-allocation + restart) at every A8CAS container boundary, which breaks the
-// continuity the original loader expects. The fix reproduces a maximal run of
-// consecutive FSK chunks as ONE continuous RMT lifecycle.
+// Authentic A8CAS raw-FSK images encode one continuous tape signal as
+// consecutive `fsk ` chunks where only the first carries a non-zero IRG.
+// Reproducing each with its own RMT lifecycle would insert a gap at every
+// container boundary, breaking loader continuity — so a maximal run of such
+// chunks is reproduced as ONE continuous RMT lifecycle instead.
 //
-// This pure predicate decides whether the NEXT candidate chunk should JOIN the
-// run already in progress (the first chunk of a run is always included by the
-// caller). A candidate joins iff it is a `fsk ` chunk, its IRG is exactly 0,
-// and it is structurally valid (a complete 8-byte header is present and the
-// declared body does not overrun EOF). A non-FSK chunk, an FSK chunk with a
-// non-zero IRG, EOF, or a truncated/overrun boundary ends the run (the caller
-// stops BEFORE such a chunk; a non-zero-IRG FSK chunk starts a NEW run later).
-//
-// No I/O, no hardware, no globals. `candidate_is_fsk` and the other fields are
-// derived by the caller from the on-file header + fsk_compute_bounds().
+// This predicate decides whether the next candidate chunk joins the
+// in-progress run (the first chunk is always included by the caller): it
+// must be `fsk `, IRG exactly 0, and structurally valid. Anything else ends
+// the run (a non-zero-IRG FSK chunk starts a new run later).
 FSK_FORCE_INLINE bool fsk_run_should_join(bool candidate_is_fsk,
                                           uint16_t candidate_irg,
                                           bool candidate_header_complete,
@@ -300,12 +232,10 @@ FSK_FORCE_INLINE bool fsk_run_should_join(bool candidate_is_fsk,
            !candidate_structurally_truncated;
 }
 
-// Upper bound on chunks reproduced as ONE continuous FSK run. The largest known
-// authentic corpus run is 7 chunks; this cap is generous. A run that would grow
-// beyond the cap simply ends at the cap boundary — correct because the walker's
-// next call resumes at the following chunk (its own IRG is 0, so no gap is
-// introduced by the split other than the same boundary cost that already exists
-// for the rare >cap case, which no real corpus member hits).
+// Upper bound on chunks reproduced as ONE continuous FSK run (largest known
+// authentic corpus run is 7). A run growing beyond this simply ends at the
+// cap; the walker's next call resumes at the following chunk with no extra
+// gap, since that chunk's own IRG is still 0.
 static constexpr size_t FSK_RUN_MAX_CHUNKS = 16;
 
 #undef FSK_FORCE_INLINE

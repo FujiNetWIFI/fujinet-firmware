@@ -1,9 +1,6 @@
 // cassette_time_plan.cpp — host-buildable pure implementation for the
-// Custom Rewind real-duration model + chunk boundary walker.
-//
-// Carries no FujiNet, ESP-IDF, GPIO, RMT, filesystem, or global-state
-// dependency. All I/O is delegated to the injected positional reader. No
-// allocation, no logging.
+// Custom Rewind real-duration model + chunk boundary walker. No FujiNet/
+// ESP-IDF/filesystem dependency; all I/O via the injected reader.
 
 #include "cassette_time_plan.h"
 #include "fsk_plan.h"
@@ -257,10 +254,9 @@ bool cas_walk_tape_time(size_t filesize, cas_time_read_fn reader, void *ctx,
         }
         else if (type_is(hdr, 'f', 's', 'k', ' '))
         {
-            // FSK is exempt from the truncation-terminates-immediately rule
-            // (Task 7 policy): a structurally truncated FSK chunk still
-            // clamps to its present bytes and contributes that much time,
-            // matching play_fsk_chunk()'s own clamped-payload behavior.
+            // FSK is exempt from the truncation-terminates-immediately rule:
+            // a truncated FSK chunk still clamps to its present bytes and
+            // contributes that much time, matching play_fsk_chunk().
             uint64_t fsk_us = 0;
             if (!cas_fsk_payload_duration_us(reader, ctx, state.offset + CAS_FUJI_HEADER_BYTES,
                                              bounds.data_avail, fsk_us))

@@ -359,13 +359,9 @@ void fnHttpServiceConfigurator::config_cassette_rewind()
 #endif /* ATARI */
 }
 
-// Custom Rewind: rewind by N real seconds (quick buttons -5s/-10s/-30s/-60s,
-// or a manual value), using sioCassette::rewind_seconds()'s real per-chunk
-// duration model. Accepts ONLY a positive integer — no leading '-', no
-// leading/trailing garbage, no empty string, no 0, no value that overflows
-// uint32_t. Any invalid input performs no action. All time arithmetic and
-// the clamp-to-zero policy live inside sioCassette::rewind_seconds(), not
-// here.
+// Custom Rewind: rewind by N real seconds (quick buttons or a manual value).
+// Accepts only a positive integer that fits uint32_t; any invalid input
+// performs no action. Time arithmetic lives in sioCassette::rewind_seconds().
 void fnHttpServiceConfigurator::config_cassette_rewind_seconds(std::string seconds)
 {
 #ifdef BUILD_ATARI

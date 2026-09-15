@@ -12,27 +12,16 @@
 // real-duration model + chunk-boundary walker in
 // lib/device/sio/cassette_time_plan.{h,cpp}.
 //
-// FIXTURE POLICY (explicit, per project decision): synthetic/fabricated .cas
-// fixtures are PROHIBITED. Every test that needs actual chunk content reads
-// the ONE authorized real CAS file, turbo_software_zorro.cas, from its local
-// path (NOT committed to this repo — see below). A structural-error case
-// with no naturally-occurring real-CAS example (truncated header, baud==0,
-// filesize==0) is tested ONLY at the pure scalar-function level, exactly as
-// the project's own fsk_compute_bounds() host tests already do in
-// FskPlanTests.cpp — no CAS file, real or fabricated, is constructed for
-// those cases.
+// FIXTURE POLICY: synthetic/fabricated .cas fixtures are prohibited. Tests
+// needing real chunk content read the one authorized real CAS file,
+// turbo_software_zorro.cas (SHA256
+// 982fbe1e7df44b426841ee879c8d0767ecec5900e730671f03473252db9a4562, 504316
+// bytes; NOT committed to this repo). A structural-error case with no
+// naturally-occurring real-CAS example is tested only at the pure
+// scalar-function level, as FskPlanTests.cpp already does.
 //
-// turbo_software_zorro.cas — authorized for LOCAL test runs only:
-//   SHA256 982fbe1e7df44b426841ee879c8d0767ecec5900e730671f03473252db9a4562
-//   size   504316 bytes
-//   path (this development machine): /tmp/zorro_sd.cas
-// This file is NOT copied into the repository (explicit instruction). Tests
-// that depend on it locate it via CASSETTE_TIME_TESTS_ZORRO_CAS_PATH (set by
-// the environment, defaulting to /tmp/zorro_sd.cas) and SKIP gracefully
-// (doctest MESSAGE + return, not a failure) when the file is absent — e.g.
-// on a CI machine that does not have this local reference file — verifying
-// its size as a lightweight integrity signal (the SHA256 above was verified
-// by hand against this exact file in the session that authorized it).
+// Tests locate the fixture via CASSETTE_TIME_TESTS_ZORRO_CAS_PATH (default
+// /tmp/zorro_sd.cas) and SKIP gracefully (not fail) when absent, e.g. on CI.
 
 namespace
 {
@@ -75,12 +64,9 @@ namespace
         return f;
     }
 
-    // doctest has no built-in way to distinguish a data-dependent RUNTIME skip
-    // (this fixture not present on this machine) from a genuine pass in its
-    // summary counts — "X passed | 0 failed | 0 skipped" prints identically
-    // either way. These counters + the custom main() below make that
-    // distinction explicit and impossible to miss, instead of letting a skip
-    // silently read as a pass.
+    // doctest can't distinguish a data-dependent runtime skip from a genuine
+    // pass in its summary counts; these + the custom main() below make that
+    // distinction explicit instead of letting a skip read as a pass.
     int g_real_cas_ran = 0;
     int g_real_cas_skipped = 0;
 
@@ -102,18 +88,12 @@ namespace
         return f;
     }
 
-    // ---------------------------------------------------------------------
-    // Active FSK Rewind fixture: scans the SAME contiguous zero-IRG FSK run
-    // sioCassette::play_fsk_chunk() would preload — starting at a given
-    // chunk-0 header offset — using the identical pure primitives production
-    // uses (fsk_compute_bounds / fsk_run_should_join), so run_value_counts[]
-    // here is exactly what sioCassette::_fsk_run_value_counts would hold.
-    // Reads real payload bytes on demand (no full preload needed for a host
-    // test) via a positional reader, mirroring
-    // sioCassette::fsk_resident_run_value_reader's contract exactly (returns
-    // the raw on-file uint16 at logical value_index within run chunk
-    // chunk_index) but sourced from the real file instead of resident PSRAM.
-    // ---------------------------------------------------------------------
+    // Active FSK Rewind fixture: scans the same contiguous zero-IRG FSK run
+    // sioCassette::play_fsk_chunk() would preload, using the same pure
+    // primitives, so value_counts[] matches production's _fsk_run_value_counts.
+    // Each chunk's payload is read fully into memory ONCE (mirroring the
+    // resident PSRAM block table), so the resolver reads only already-loaded
+    // bytes, no per-value file I/O — matching fsk_resident_run_value_reader.
     struct FskRunFixture
     {
         static constexpr size_t kMaxChunks = FSK_RUN_MAX_CHUNKS;
@@ -122,11 +102,6 @@ namespace
                                                   // resident-reader offset-translation checks
         size_t value_counts[kMaxChunks] = {};
         size_t count = 0;
-        // Chunk payloads read fully into memory ONCE here (mirrors sioCassette's
-        // resident PSRAM block table — a real host test cannot allocate PSRAM,
-        // but the point of this fixture is identical: the resolver reads ONLY
-        // already-in-memory bytes, no per-value file I/O, exactly matching
-        // fsk_resident_run_value_reader's contract).
         std::vector<uint8_t> payload[kMaxChunks];
     };
 
@@ -342,14 +317,10 @@ TEST_CASE("REAL CAS: clamp to zero when requested rewind exceeds total duration"
     std::fclose(f);
 
     REQUIRE(ok);
-    // Offset 8, not 0: the leading 8-byte "FUJI" container header is itself
-    // a ZERO-duration structural chunk, so its start time (0) TIES with the
-    // first real content chunk's start time (also 0). The walker's "advance
-    // while <= target" rule correctly resolves ties by preferring the LATEST
-    // boundary at that time — i.e. it skips the meaningless zero-length
-    // header and lands on the first real, resumable chunk. This is the same
-    // rule that (correctly) prevents it from stopping short inside a
-    // nonzero-duration chunk elsewhere in the walk.
+    // Offset 8, not 0: the leading "FUJI" header is a zero-duration chunk
+    // tied with the first real chunk's start time (both 0); the walker's
+    // "advance while <= target" rule resolves the tie toward the later,
+    // resumable boundary rather than the meaningless zero-length header.
     CHECK(out.offset == 8);
     CHECK(out.time_us == 0);
 }
@@ -575,13 +546,10 @@ TEST_CASE("REAL CAS Active FSK Rewind: fine resolution fails when target predate
     bool scanned = scan_fsk_run(f, filesize, 8, fx);
     REQUIRE(scanned);
 
-    // This run IS the whole tape (starts at offset 8, run_start_time_us==0),
-    // so there is no earlier position on this real file to target — the
-    // production caller only reaches this path for a LATER run. Prove the
-    // trigger condition itself here (run_start_time_us > target_us), then
-    // confirm the existing, unmodified coarse walker independently resolves
-    // the same target_us to a real, valid boundary (offset 8, time 0 — the
-    // same fact "REAL CAS: clamp to zero..." above already established).
+    // This run IS the whole tape, so there's no earlier real position to
+    // target the fallback trigger with — assert the trigger condition
+    // directly (run_start_time_us > target_us) instead, then confirm the
+    // existing coarse walker still resolves target_us on its own.
     FskActiveRewindResolution r = cas_fsk_resolve_active_rewind(
         fx.value_counts, fx.count, real_run_value_reader, &fx,
         /*run_start_time_us=*/1000000ULL, 999000ULL, /*target_us=*/500000ULL);
