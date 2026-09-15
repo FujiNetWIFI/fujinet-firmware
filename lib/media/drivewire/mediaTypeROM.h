@@ -16,6 +16,12 @@ public:
     mediatype_t mount(fnFile *f, uint32_t disksize) override;
 
     uint8_t status() override;
+
+#if defined(PINMAP_FUJIVERSAL_DRIVEWIRE) || defined(COCO_HS_UART)
+    // Pushes this object's already-mounted file to the DBC device over the
+    // FujiBusPacket/SLIP side channel - see mediaTypeROM.cpp.
+    bool push_stream();
+#endif
 };
 
 
