@@ -193,6 +193,14 @@ int http_header_generate_string(http_header_handle_t header, int index, char *bu
         idx ++;
 
         if (siz + 1 > *buffer_len - 2) {
+            if (idx - 1 == index) {
+                // This item alone does not fit, and an item is never split across
+                // buffers. Returning the caller's own index would look like "nothing
+                // left to write", so say so distinctly: emitting only what fits would
+                // drop the CRLF that terminates the header block.
+                *buffer_len = 0;
+                return -1;
+            }
             // if this item would not fit to the buffer, return the index of the last fitting one
             ret_idx = idx - 1;
             break;
@@ -223,6 +231,24 @@ int http_header_generate_string(http_header_handle_t header, int index, char *bu
     }
     *buffer_len = str_len;
     return ret_idx;
+}
+
+int http_header_longest_item_length(http_header_handle_t header)
+{
+    http_header_item_handle_t item;
+    int longest = 0;
+
+    // Same filter and accounting as http_header_generate_string, so the two
+    // cannot disagree about whether an item fits.
+    STAILQ_FOREACH(item, header, next) {
+        if (item->value) {
+            int siz = strlen(item->key) + strlen(item->value) + 4; //': ' and '\r\n'
+            if (siz > longest) {
+                longest = siz;
+            }
+        }
+    }
+    return longest;
 }
 
 esp_err_t http_header_clean(http_header_handle_t header)
