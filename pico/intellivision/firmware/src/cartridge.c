@@ -713,8 +713,7 @@ void Inty_cart_main() {
    fujibus_set_inbound_handler(dbc_inbound_handler);
    RunFujiConfig();
 #else
-   //  Run Minty game selection interface
-   RunLauncher();
+#error "CONFIG_FUJINET=OFF is unsupported: this fork removes Minty's launcher"
 #endif
 
    // Game selected and loaded => Run emulation
