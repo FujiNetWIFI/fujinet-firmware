@@ -25,8 +25,10 @@ error_is_true SGMLParser::setQuery(const std::string &query)
 
 error_is_true SGMLParser::parse()
 {
-    _sgml.parse();
-    RETURN_SUCCESS_AS_FALSE();
+    bool ok = _sgml.parse();
+
+    _parseError = ok ? NDEV_STATUS::SUCCESS : NDEV_STATUS::GENERAL;
+    RETURN_ERROR_IF(!ok);
 }
 
 error_is_true SGMLParser::setQueryParam(uint8_t param)
