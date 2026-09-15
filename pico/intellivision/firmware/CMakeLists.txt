@@ -26,6 +26,17 @@ set(PICO_BOARD_HEADER_DIRS ${CMAKE_CURRENT_LIST_DIR}/boards)
 # import board build options
 include(${CMAKE_SOURCE_DIR}/boards/${PICO_BOARD}.cmake)
 
+# This fork boots straight into FujiNet CONFIG; Minty's own launcher is gone
+# (see PROVENANCE.md), so CONFIG_FUJINET=OFF cannot build. Default it on for
+# every board -- a board .cmake that declares it first still wins.
+option(CONFIG_FUJINET "Enable FujiNet mailbox" ON)
+
+# The mailbox link is USB CDC, so a board that builds with the device stack
+# off has no way to reach the ESP32-S3 -- say so here rather than at tusb.h.
+if(CONFIG_FUJINET AND NOT CONFIG_USB_DEVICE)
+   message(FATAL_ERROR "board ${PICO_BOARD} (${CMAKE_BUILD_TYPE}) sets CONFIG_USB_DEVICE=0, which CONFIG_FUJINET needs")
+endif()
+
 if(DEFINED ENV{PICO_SDK_PATH})
    include($ENV{PICO_SDK_PATH}/pico_sdk_init.cmake)
 else()
