@@ -115,4 +115,47 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     )
   target_link_libraries(sio_dstats_tests PRIVATE)
   add_test(NAME sio_dstats_tests COMMAND sio_dstats_tests)
+	# ------------------------------------------------------------------------------
+	# Pure A8CAS FSK planning/preload module (lib/device/sio/fsk_plan). It is free of
+	# FujiNet hardware, ESP-IDF, RMT/GPIO, filesystem, and global state, so it links
+	# standalone on the host - which is what makes the decode/parity/scale/split,
+	# segmented block-table addressing, and bounded preload edge cases cheap to pin
+	# down here rather than on hardware.
+	# ------------------------------------------------------------------------------
+	add_executable(fsk_plan_tests
+		FskPlanTests.cpp
+		${CMAKE_SOURCE_DIR}/lib/device/sio/fsk_plan.cpp
+	)
+
+	target_include_directories(fsk_plan_tests PRIVATE
+		${CMAKE_SOURCE_DIR}/include/
+		${CMAKE_SOURCE_DIR}/lib/
+		${CMAKE_SOURCE_DIR}/lib/device/
+		${CMAKE_SOURCE_DIR}/lib/device/sio/
+		${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+	)
+
+	add_test(NAME fsk_plan_tests COMMAND fsk_plan_tests)
+
+	# ------------------------------------------------------------------------------
+	# Pure Custom Rewind time-model module (lib/device/sio/cassette_time_plan). Same
+	# host-buildable discipline as fsk_plan above (no FujiNet/ESP-IDF/hardware
+	# dependency) and reuses fsk_plan.cpp directly for the FSK duration primitives,
+	# so the two modules can never diverge on FSK timing.
+	# ------------------------------------------------------------------------------
+	add_executable(cassette_time_plan_tests
+		CassetteTimePlanTests.cpp
+		${CMAKE_SOURCE_DIR}/lib/device/sio/cassette_time_plan.cpp
+		${CMAKE_SOURCE_DIR}/lib/device/sio/fsk_plan.cpp
+	)
+
+	target_include_directories(cassette_time_plan_tests PRIVATE
+		${CMAKE_SOURCE_DIR}/include/
+		${CMAKE_SOURCE_DIR}/lib/
+		${CMAKE_SOURCE_DIR}/lib/device/
+		${CMAKE_SOURCE_DIR}/lib/device/sio/
+		${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+	)
+
+	add_test(NAME cassette_time_plan_tests COMMAND cassette_time_plan_tests)
 endif()

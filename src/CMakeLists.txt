@@ -164,7 +164,7 @@ FILE(GLOB_RECURSE SOURCES
 idf_component_register(
     INCLUDE_DIRS ${INCLUDES}
     SRCS ${SOURCES}
-    PRIV_REQUIRES esp_driver_uart esp_netif esp_driver_gpio fatfs vfs json esp_wifi mbedtls console app_update spi_flash mlff esp_driver_ledc expat gumbo gumbo-query http_parser esp-tls tcp_transport esp_driver_gptimer esp_driver_tsens esp_http_client esp_websocket_client libssh
+    PRIV_REQUIRES esp_driver_uart esp_netif esp_driver_gpio fatfs vfs json esp_wifi mbedtls console app_update spi_flash mlff esp_driver_ledc expat gumbo gumbo-query http_parser esp-tls tcp_transport esp_driver_gptimer esp_driver_tsens esp_http_client esp_websocket_client libssh esp_driver_pcnt esp_timer
 )
 
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-unused-value)
