@@ -16,7 +16,7 @@ protected:
     // RS232 THINGS
     uint8_t _buffer[40];
     void rs232_write(const std::optional<ByteBuffer>& data);
-    void rs232_status(FujiStatusReq reqType) override;
+    void rs232_status(FujiStatusReq reqType);
     void rs232_process(const FujiBusPacket &packet) override;
     void shutdown() override;
 

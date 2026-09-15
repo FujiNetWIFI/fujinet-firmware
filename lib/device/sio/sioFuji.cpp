@@ -1,15 +1,11 @@
 #ifdef BUILD_ATARI
 
 #include "sioFuji.h"
-#include "fsFlash.h"
-#include "fnFsSD.h"
-#include "utils.h"
-#include "base64.h"
-#include "compat_string.h"
-#include "fuji_endian.h"
+#include "sioNetwork.h"
 #include "siocpm.h"
-
-#include <cstring>
+#include "fsFlash.h"
+#include "compat_string.h"
+#include "utils.h"
 
 extern sioCPM sioZ;
 

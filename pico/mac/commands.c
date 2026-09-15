@@ -308,7 +308,12 @@ void set_tach_freq(char c, char wobble)
 void switch_to_floppy()
 {
   // commands
-  while (gpio_get(LSTRB));  
+  // Wait for the host's latch strobe to deassert so we don't swap command
+  // interpreters mid-strobe, but never wait forever: if the Mac is hung or
+  // idle with LSTRB high we would otherwise spin here and stop servicing
+  // the ESP32 UART until power cycle.
+  absolute_time_t deadline = make_timeout_time_ms(10);
+  while (gpio_get(LSTRB) && !time_reached(deadline));
   pio_sm_set_enabled(pioblk_read_only, SM_DCD_CMD, false); // stop the DCD command interpreter
   pio_commands(pioblk_read_only, SM_FPY_CMD, pio_floppy_cmd_offset, MCI_CA0); // read phases starting on pin 8
 }

@@ -108,9 +108,7 @@ public:
 
     // GENERAL
     std::string get_general_devicename() { return _general.devicename; };
-#ifndef ESP_PLATFORM
     std::string get_general_label();
-#endif
     int get_general_hsioindex() { return _general.hsio_index; };
     std::string get_general_timezone() { return _general.timezone.empty() ? "UTC" : _general.timezone; };
     bool get_general_rotation_sounds() { return _general.rotation_sounds; };
@@ -183,9 +181,11 @@ public:
     }
     void store_wifi_ssid(const char *ssid_octets, int num_octets);
     void store_wifi_passphrase(const char *passphrase_octets, int num_octets);
-    void reset_wifi() { _wifi.ssid.clear(); _wifi.passphrase.clear(); };
+    void reset_wifi() { _wifi.ssid.clear(); _wifi.passphrase.clear(); _wifi.multi_ap = false; };
     void store_wifi_enabled(bool status);
     bool get_wifi_enabled() { return _wifi.enabled; };
+    void store_wifi_multi_ap(bool status);
+    bool get_wifi_multi_ap() { return _wifi.multi_ap; };
 
     std::string get_wifi_stored_ssid(int index) { return _wifi_stored[index].ssid; }
     std::string get_wifi_stored_passphrase(int index) { return _wifi_stored[index].passphrase; }
@@ -447,6 +447,7 @@ private:
         std::string ssid;
         std::string passphrase;
         bool enabled = true;
+        bool multi_ap = false; // scan all channels and pick the strongest AP for the SSID
     };
 
     struct bt_info

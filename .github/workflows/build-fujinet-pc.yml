@@ -59,6 +59,24 @@ jobs:
             runner: ubuntu-24.04
             target: ubuntu-24.04-amd64
             default-shell: bash
+          - name: Ubuntu 24.04 ARM64
+            runner: ubuntu-24.04-arm
+            target: ubuntu-24.04-arm64
+            default-shell: bash
+          # 32-bit ARM (armhf) cross-build on the arm64 runner; its cores still
+          # execute AArch32, so the unit tests run natively under ctest
+          - name: Ubuntu 24.04 ARMv7
+            runner: ubuntu-24.04-arm
+            target: ubuntu-24.04-armhf
+            default-shell: bash
+            cmake-args: >-
+              -DCMAKE_C_COMPILER=arm-linux-gnueabihf-gcc
+              -DCMAKE_CXX_COMPILER=arm-linux-gnueabihf-g++
+              -DMBEDTLS_INCLUDE_DIR=/usr/include
+              -DMBEDTLS_LIBRARY_DIR=/usr/lib/arm-linux-gnueabihf
+              -DOPENSSL_INCLUDE_DIR=/usr/include
+              -DOPENSSL_CRYPTO_LIBRARY=/usr/lib/arm-linux-gnueabihf/libcrypto.so
+              -DOPENSSL_SSL_LIBRARY=/usr/lib/arm-linux-gnueabihf/libssl.so
           - name: macOS 15 ARM
             target: macos-15-arm64
             runner: macos-15
@@ -126,10 +144,19 @@ jobs:
         brew link --force --overwrite mbedtls@3
 
     - name: '[Ubuntu] Install MbedTLS'
-      if: ${{ startsWith(matrix.os.target, 'ubuntu') }}
+      if: ${{ startsWith(matrix.os.target, 'ubuntu') && !endsWith(matrix.os.target, 'armhf') }}
       run: |
         sudo apt-get update
         sudo apt-get install -y libmbedtls-dev
+
+    - name: '[Ubuntu armhf] Install cross toolchain and MbedTLS'
+      if: ${{ endsWith(matrix.os.target, 'armhf') }}
+      run: |
+        sudo dpkg --add-architecture armhf
+        sudo apt-get update
+        sudo apt-get install -y crossbuild-essential-armhf \
+          libmbedtls-dev:armhf libssl-dev:armhf libexpat1-dev:armhf zlib1g-dev:armhf \
+          libstdc++6:armhf
 
     - name: About ${{ matrix.os.name }}
       run: |
@@ -171,7 +198,7 @@ jobs:
     - name: '[regular OS] 🚧 Build FujiNet-PC (matrix.fujinet_target)'
       if: ${{ !startsWith(matrix.os.target, 'windows') }}
       run: |
-        ./build.sh -p ${{ matrix.fujinet_target }}
+        ./build.sh -p ${{ matrix.fujinet_target }} -- ${{ matrix.os.cmake-args }}
 
     # For MSYS tune PATH variable for PYTHON:
     # add 'C:\hostedtoolcache\windows\Python\3.10.11\x64' as '/c/hostedtoolcache/windows/Python/3.10.11/x64'

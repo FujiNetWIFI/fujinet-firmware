@@ -22,7 +22,7 @@
 
 void virtualDevice::reset()
 {
-    Debug_printf("No Reset implemented for device %u\n", id());
+    Debug_printf("No Reset implemented for device %u\n", (uint8_t) id());
 }
 
 fujiDeviceID_t virtualDevice::id()
@@ -115,7 +115,7 @@ void systemBus::_comlynx_process_cmd()
 
             #ifdef DEBUG
             Debug_println("---");
-            Debug_printf("comlynx_process_cmd - dev:%X\n", tmpPacket->device());
+            Debug_printf("comlynx_process_cmd - dev:%X\n", (uint8_t) tmpPacket->device());
             #endif
 
             // turn on Comlynx Indicator LED
@@ -183,7 +183,7 @@ void systemBus::shutdown()
 {
     for (auto devicep : _daisyChain)
     {
-        Debug_printf("Shutting down device %02x\n", devicep->id());
+        Debug_printf("Shutting down device %02x\n", (uint8_t) devicep->id());
         devicep->shutdown();
     }
     Debug_printf("All devices shut down.\n");
@@ -191,7 +191,7 @@ void systemBus::shutdown()
 
 void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
 {
-    Debug_printf("Adding device: %02X\n", device_id);
+    Debug_printf("Adding device: %02X\n", (uint8_t) device_id);
 
     if (device_id == FUJI_DEVICEID::MIDI)
     {

@@ -31,7 +31,6 @@ public:
     void iwm_write(const iwm_decoded_cmd_t &cmd) override;
     void iwm_status(const iwm_decoded_cmd_t &cmd) override;
 
-    void shutdown() override;
     iwm_device_info_block_t create_dib_reply_packet() override;
     iwm_device_status_block_t create_status_reply_packet() override;
     bool cpmActive = false;

@@ -2,7 +2,7 @@
 <html>
 
 <head>
-	<title>FujiNet - {% if tweaks.fujinet_pc %}<%FN_LABEL%>{% else %}<%FN_HOSTNAME%>{% endif %}</title>
+	<title>FujiNet - <%FN_LABEL%></title>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<script type="text/javascript" src="{{ paths.js_path }}/utils.js"></script>
@@ -102,7 +102,6 @@
 					<div class="det detlinecol"><%FN_VERSION%></div>
 				</div>
 				<div class="detline alt">
-					{% if tweaks.fujinet_pc %}
 					<div class="deth detlinecol">Device name</div>
 					<div class="det detlinecol">
 						<form action="/config" method="post">
@@ -110,24 +109,10 @@
 							<input type="submit" value="Save">
 						</form>
 					</div>
-					{% else %}
-					<div class="deth detlinecol">Host name</div>
-					<div class="det detlinecol">
-						<form action="/config" method="post">
-							<input type="text" name="hostname" id="txt_hostname" value="<%FN_HOSTNAME%>" />
-							<input type="submit" value="Save">
-						</form>
-					</div>
-					{% endif %}
 				</div>
 				<div class="detline">
-					{% if tweaks.fujinet_pc %}
 					<div class="deth detlinecol">Host name</div>
 					<div class="det detlinecol"><%FN_HOSTNAME%></div>
-					{% else %}
-					<div class="deth detlinecol">IP address</div>
-					<div class="det detlinecol"><%FN_IPADDRESS%> / <%FN_IPMASK%></div>
-					{% endif %}
 				</div>
 				{% if tweaks.fujinet_pc %}
 				<div class="detline alt">
@@ -144,26 +129,30 @@
 				</div>
 				{% else %}
 				<div class="detline alt">
+					<div class="deth detlinecol">IP address</div>
+					<div class="det detlinecol"><%FN_IPADDRESS%> / <%FN_IPMASK%></div>
+				</div>
+				<div class="detline">
 					<div class="deth detlinecol">Default gateway</div>
 					<div class="det detlinecol"><%FN_IPGATEWAY%></div>
 				</div>
-				<div class="detline">
+				<div class="detline alt">
 					<div class="deth detlinecol">DNS server</div>
 					<div class="det detlinecol"><%FN_IPDNS%></div>
 				</div>
-				<div class="detline alt">
+				<div class="detline">
 					<div class="deth detlinecol">WiFi SSID</div>
 					<div class="det detlinecol"><%FN_WIFISSID%></div>
 				</div>
-				<div class="detline">
+				<div class="detline alt">
 					<div class="deth detlinecol">WiFi BSSID</div>
 					<div class="det detlinecol"><%FN_WIFIBSSID%></div>
 				</div>
-				<div class="detline alt">
+				<div class="detline">
 					<div class="deth detlinecol">WiFi MAC address</div>
 					<div class="det detlinecol"><%FN_WIFIMAC%></div>
 				</div>
-				<div class="detline">
+				<div class="detline alt">
 					<div class="deth detlinecol">WiFi details</div>
 					<div class="det small detlinecol"><%FN_WIFIDETAIL%></div>
 				</div>
@@ -300,24 +289,18 @@
 			{% if components.mount_list %}
 			<div class="module" {% if components.mount_list == "experimental" %}data-experimental{% endif %}>
 				<header class="module-header">MOUNT<span class="logowob"></span>LIST</header>
-				{% if not tweaks.fujinet_pc %}
-				<div class="detline alt">
-					<div class="deth detlinecol"><a href="/mount?mountall=1"> MOUNT ALL DISKS</a></div>
-					<div class="det detlinecol">&nbsp;</div>
-				</div>
-				{% endif %}
 				{% if tweaks.fujiapple %}
-				{# MAX_MOUNT_SLOTS is only 10 for the ESP32 Apple build; FujiNet-PC has 8 #}
-				{% for ds in range(1, 9 if tweaks.fujinet_pc else 11) %}
+				{# 8 SmartPort + 2 Disk ][ on every Apple build, PC included #}
+				{% for ds in range(1, 11) %}
 				<div class="{{ loop.cycle('detline', 'detline alt') }}">
 					{% if ds < 9 %}
-					<div class="deth detlinecol" data-mountslot="{{ ds-1 }}" data-mountslotname="SmartPort Drive {{ ds }}" data-mount="<%FN_DRIVE{{ ds }}MOUNT%>>">
+					<div class="deth detlinecol" data-mountslot="{{ ds-1 }}" data-mountslotname="SmartPort Drive {{ ds }}" data-mount="<%FN_DRIVE{{ ds }}MOUNT%>">
 					    SmartPort Drive {{ ds }}<%FN_DRIVE{{ ds }}DEVICE%>
 						<a href="/unmount?deviceslot={{ ds-1 }}">[EJECT]</a>
 					</div>
 					{% else %}
-					<div class="deth detlinecol" data-mountslot="{{ ds-1 }}" data-mountslotname="Disk ][ Drive {{ ds - 9 }}" data-mount="<%FN_DRIVE{{ ds }}MOUNT%>>">
-					    Disk ][ Drive {{ ds - 9 }}<%FN_DRIVE{{ ds }}DEVICE%>
+					<div class="deth detlinecol" data-mountslot="{{ ds-1 }}" data-mountslotname="Disk ][ Drive {{ ds - 8 }}" data-mount="<%FN_DRIVE{{ ds }}MOUNT%>">
+					    Disk ][ Drive {{ ds - 8 }}<%FN_DRIVE{{ ds }}DEVICE%>
 						<a href="/unmount?deviceslot={{ ds-1 }}">[EJECT]</a>
 					</div>
 					{% endif %}
@@ -335,7 +318,6 @@
 				</div>
 				{% endfor %}
 				{% endif %}
-				{% if tweaks.fujinet_pc %}
 				<div class="detline">
 					<div class="deth detlinecol">Drive Slots</div>
 					<div class="det detlinecol">
@@ -343,7 +325,6 @@
 						<input type="button" id="swapButton" value="Swap" onclick="swapButton()">
 					</div>
 				</div>
-				{% endif %}
 			</div>
 			{% endif %}
 			{% if components.printer_settings %}
@@ -643,11 +624,9 @@
 									<option value="7">7: 63Kb</option>
 									<option value="8">8: 58Kb</option>
 									<option value="9">9: 55Kb</option>
-									{% if tweaks.fujinet_pc %}
 									<option value="10">10: 52 Kb</option>
 									<option value="16">16: 38 Kb</option>
 									<option value="-1">HSIO Disabled</option>
-									{% endif %}
 								</select>
 								<span class="focus"></span>
 							</div>
@@ -667,7 +646,7 @@
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">
-						Time<span class="logowob"></span>{% if tweaks.fujinet_pc %}Settings{% else %}Zone{% endif %}
+						Time<span class="logowob"></span>Zone
 					</div>
 					<script>
 						{% if components.apetime %}
@@ -693,7 +672,6 @@
 						</div>
 					</div>
 					<div class="settings-content settings-45-55">
-						{% if not tweaks.fujinet_pc %}
 						<div class="set">
 							<div class="settings-label">
 								<label for="select_tz">Timezone <a href="https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html" target="_new">?</a></label>
@@ -736,7 +714,6 @@
 								<input type="text" name="timezone" id="txt_timezone" value="<%FN_TIMEZONE%>">
 							</div>
 						</div>
-						{% endif %}
 						{% if components.apetime %}
 						<div class="set">
 							<div class="settings-label">
@@ -1867,7 +1844,7 @@
 							{% elif tweaks.platform == "COCO" %}
 								When enabled, FujiNet will not use the serial port for DriveWire
 								communication. Instead, it will use TCP to communicate with
-								a CoCo emulator.{% if tweaks.fujinet_pc %} Port is optional (defaults to 65504).{% endif %}
+								a CoCo emulator. Port is optional (defaults to 65504).
 							{% else %}
 								When enabled, FujiNet will communicate with an emulator over network.
 							{% endif %}

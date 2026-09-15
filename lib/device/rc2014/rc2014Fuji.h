@@ -6,7 +6,7 @@
 
 #include <cstdint>
 
-#include "network.h"
+#include "rc2014Network.h"
 #include "disk.h"
 
 class rc2014Fuji : public fujiDevice

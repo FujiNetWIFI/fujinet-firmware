@@ -184,7 +184,7 @@ private:
     void rs232_unlisten();                                   // $4D, 'M', Unlisten
     void rs232_baudlock(bool enable, unsigned int newBaud);  // $4E, 'N', Baud lock
     void rs232_autoanswer(bool enable);                      // $4F, 'O', auto answer
-    void rs232_status(FujiStatusReq reqType) override;       // $53, 'S', Status
+    void rs232_status(FujiStatusReq reqType);                // $53, 'S', Status
     void rs232_write(const std::optional<ByteBuffer>& data); // $57, 'W', Write
     void rs232_stream();                                     // $58, 'X', Concurrent/Stream
     void rs232_process(const FujiBusPacket &packet) override;

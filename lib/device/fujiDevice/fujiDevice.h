@@ -131,9 +131,9 @@ class FujiDeviceChain : public FujiDeviceMixins...
         // Try each mixin's processCommand() until one returns true
         return (FujiDeviceMixins::processCommand(packet) || ...);
     }
-    bool checkAllMixins(const FUJI_COMMAND_PACKET &packet) {
+    bool checkAllMixins(fujiCommandID_t command) {
         // Try each mixin's processCommand() until one returns true
-        return (FujiDeviceMixins::recognizesCommand(packet) || ...);
+        return (FujiDeviceMixins::recognizesCommand(command) || ...);
     }
 
  public:
@@ -217,14 +217,16 @@ public:
     // Return true if command was handled here
     bool processCommand(const FUJI_COMMAND_PACKET &packet) override;
     // Return true if command is one that can be handled
-    bool recognizesCommand(const FUJI_COMMAND_PACKET &packet);
+    bool recognizesCommand(fujiCommandID_t command);
 
     fujiHost *get_host(int i) { return &_fnHosts[i]; }
     std::string get_host_prefix(int host_slot) { return _fnHosts[host_slot].get_prefix(); }
 
     fujiDisk *get_disk(int i) { return &_fnDisks[i]; }
     virtual DISK_DEVICE *get_disk_dev(int i) { return &_fnDisks[i].disk_dev; }
-    int get_disk_id(int drive_slot) { return _fnDisks[drive_slot].disk_dev.id(); }
+    fujiDeviceID_t get_disk_id(int drive_slot) {
+        return SYSTEM_BUS.fujiIDForDevice(&_fnDisks[drive_slot].disk_dev);
+    }
 
     void populate_slots_from_config();
     void populate_config_from_slots();

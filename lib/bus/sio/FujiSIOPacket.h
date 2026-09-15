@@ -14,7 +14,7 @@ class FujiSIOPacket
 private:
     mutable std::vector<uint16_t> _params;
     mutable std::optional<ByteBuffer> _data;
-    mutable unsigned _paramSize;
+    mutable unsigned _paramSize = 0;
 
     using ParamProxy = PacketParamProxy<FujiSIOPacket>;
     friend ParamProxy;

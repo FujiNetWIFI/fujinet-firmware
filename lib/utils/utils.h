@@ -83,6 +83,7 @@ std::string util_remove_spaces(const std::string &s);
 
 void util_strip_nonascii(std::string &s);
 void util_devicespec_fix_9b(uint8_t* buf, unsigned short len);
+std::string util_remove_n_prefix(std::string url);
 std::string util_devicespec_fix_for_parsing(std::string deviceSpec, std::string prefix, bool is_directory_read, bool process_fs_dot);
 
 void clean_transform_petscii_to_ascii(std::string& data);

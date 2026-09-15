@@ -6,6 +6,7 @@
 #include "UARTChannel.h"
 #include "NetSIO.h"
 #include "global_types.h"
+#include "global_defines.h"
 #include <forward_list>
 #include <cassert>
 
@@ -56,12 +57,12 @@ FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
 #define SERIAL_TIMEOUT 300
 
-enum AtariSIODirection {
-    SIO_DIRECTION_NONE    = 0x00,
-    SIO_DIRECTION_READ    = 0x40,
-    SIO_DIRECTION_WRITE   = 0x80,
-    SIO_DIRECTION_INVALID = 0xFF,
-};
+typedef enum class SIO_DIRECTION {
+    NONE    = 0x00,
+    READ    = 0x40,
+    WRITE   = 0x80,
+    INVALID = 0xFF,
+} AtariSIODirection;
 
 typedef enum class SIO_SPEED {
     STANDARD,
@@ -117,7 +118,7 @@ public:
      * @brief Command 0x3F '?' intended to return a single byte to the atari via bus_to_computer(), which
      * signifies the high speed SIO divisor chosen by the user in their #FujiNet configuration.
      */
-    virtual void sio_high_speed();
+    void sio_high_speed();
 
     /**
      * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?
@@ -276,9 +277,11 @@ public:
     void transaction_accept(transState_t expectMoreData) override;
     void transaction_success() override;
     void transaction_error() override;
+    using SystemBusBase::transaction_get;
     success_is_true transaction_get(void *data, size_t len) override;
     using SystemBusBase::transaction_send;
     void transaction_send(const void *data, size_t len, bool is_error=false) override;
+    std::string nativeEOL() override { return STR_ATASCII_EOL; }
 
     // Everybody thinks "oh I know how a serial port works, I'll just
     // access it directly and bypass the bus!" ಠ_ಠ
@@ -302,9 +305,9 @@ public:
     void set_command_processed(bool processed);
     void sio_empty_ack();                                       // for NetSIO, notify hub we are not interested to handle the command
 
-    void set_proceed(bool level);
     void bus_idle(uint16_t ms) { _netsio.busIdle(ms); }
 #endif /* ESP_PLATFORM */
+    void set_proceed(bool level);
 
     bool motor_asserted();
 

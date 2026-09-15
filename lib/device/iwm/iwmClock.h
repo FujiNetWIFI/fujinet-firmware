@@ -29,7 +29,6 @@ public:
     void iwm_open(const iwm_decoded_cmd_t &cmd) override { send_ok(); }
     void iwm_close(const iwm_decoded_cmd_t &cmd) override { send_ok(); }
 
-    void shutdown() override {}
     iwm_device_info_block_t create_dib_reply_packet() override;
     iwm_device_status_block_t create_status_reply_packet() override;
 };

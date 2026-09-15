@@ -107,7 +107,8 @@ ByteBuffer FujiAdamPacket::serialize() const
 
     ByteBuffer output;
     output.reserve(totalSize);
-    output.push_back(static_cast<uint8_t>((static_cast<uint8_t>(_type) << 4) | _device));
+    output.push_back(static_cast<uint8_t>((static_cast<uint8_t>(_type) << 4)
+                                          | static_cast<uint8_t>(_device)));
 
     if (hasLen)
     {

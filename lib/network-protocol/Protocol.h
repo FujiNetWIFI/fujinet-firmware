@@ -6,34 +6,28 @@
 #include "networkStatus.h"
 #include "peoples_url_parser.h"
 #include "global_types.h"
+#include "global_defines.h"
 
 #include <string>
 
 // FIXME - only used by FS classes and doesn't belong here
-typedef enum class ACCESS_MODE {
+typedef enum class ACCESS_MODE : uint8_t {
     READ          = 0b0100,
     DIRECTORY     = 0b0110,
     DIRECTORY_ALT = 0b0111,
     WRITE         = 0b1000,
     APPEND        = 0b1001,
     READWRITE     = 0b1100,
-    INVALID       = -1,
+    INVALID       = 0xFF,
 } fileAccessMode_t;
 
-enum netProtoTranslation_t {
-    NETPROTO_TRANS_NONE     = 0,
-    NETPROTO_TRANS_CR       = 1,
-    NETPROTO_TRANS_LF       = 2,
-    NETPROTO_TRANS_CRLF     = 3,
-    NETPROTO_TRANS_PETSCII  = 4,
-};
-
-// End-of-line byte sequences shared by the translation code and the per-bus
-// network devices that assign native_eol.
-#define STR_ASCII_CR    "\x0d"
-#define STR_ASCII_LF    "\x0a"
-#define STR_ASCII_CRLF  "\x0d\x0a"
-#define STR_ATASCII_EOL "\x9b"
+typedef enum class NETPROTO_TRANS : uint8_t {
+    NONE     = 0,
+    CR       = 1,
+    LF       = 2,
+    CRLF     = 3,
+    PETSCII  = 4,
+} netProtoTranslation_t;
 
 /**
  * @brief Translate a buffer coming from FujiNet towards the computer.
@@ -116,7 +110,7 @@ public:
     /**
      * Translation mode: 0=NONE, 1=CR, 2=LF, 3=CR/LF, 4=PETSCII
      */
-    netProtoTranslation_t translation_mode = NETPROTO_TRANS_NONE;
+    netProtoTranslation_t translation_mode = NETPROTO_TRANS::NONE;
 
     /**
      * The target computer's native end-of-line sequence. Each bus's network

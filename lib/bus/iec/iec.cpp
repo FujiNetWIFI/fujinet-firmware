@@ -103,8 +103,7 @@ void systemBus::transaction_success()
 void systemBus::transaction_error()
 {
   _transaction_state = TRANS_STATE::INVALID;
-  Debug_printf("transaction error\n");
-  abort();
+  // FIXME - signal error somehow
 }
 
 success_is_true systemBus::transaction_get(void *data, size_t len)
@@ -128,6 +127,18 @@ void systemBus::transaction_send(const void *data, size_t len, bool err)
                  util_hexdump(_transaction_response.data(),
                               _transaction_response.size()).c_str());
     _transaction_state = TRANS_STATE::INVALID;
+}
+
+fujiDeviceID_t systemBus::fujiIDForDevice(iecDrive *device)
+{
+    for (uint8_t idx = 0; idx < MAX_DISK_DEVICES; idx++)
+    {
+        auto drv = &theFuji->get_disk(idx)->disk_dev;
+        if (drv == device)
+            return FUJI_DEVICEID::DISK + idx;
+    }
+
+    return (fujiDeviceID_t) 0;
 }
 
 #endif /* BUILD_IEC */

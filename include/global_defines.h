@@ -34,4 +34,11 @@
 #define SERVER_PORT 80   // HTTPd & WebDAV Server Port
 #define LISTEN_PORT 6400 // Listen to this if not connected. Set to zero to disable.
 
+// End-of-line byte sequences shared by the translation code and the per-bus
+// network devices that assign native_eol.
+#define STR_ASCII_CR    "\x0d"
+#define STR_ASCII_LF    "\x0a"
+#define STR_ASCII_CRLF  "\x0d\x0a"
+#define STR_ATASCII_EOL "\x9b"
+
 #endif // GLOBAL_DEFINES_H

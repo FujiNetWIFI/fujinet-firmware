@@ -2,106 +2,159 @@
 #ifndef MAC_H
 #define MAC_H
 
-#include "cmdFrame.h"
+/**
+ * Macintosh 68k floppy-port bus.
+ *
+ * The ESP32 does not talk to the Mac directly. A Raspberry Pi Pico
+ * (see pico/mac/commands.c) sits on the DB-19 floppy port and speaks
+ * the drive protocol (800K GCR floppy via MCI, HD20 hard disk via DCD)
+ * in PIO state machines. The Pico and the ESP32 are linked by a 2 Mbaud
+ * UART using a tiny single-character command protocol:
+ *
+ *   Pico -> ESP32
+ *     '0'..'7'  floppy control command (SEL/CA2/CA1/CA0 value, see mac.cpp)
+ *     'A'..'E'  select active DCD (HD20) drive
+ *     'R' n n n read DCD block n (24-bit big endian)
+ *     'W' n n n <512 bytes> write DCD block n
+ *     'T'       request DCD status block
+ *
+ *   ESP32 -> Pico
+ *     'h' n     n DCD drives are mounted in a contiguous chain
+ *     's' t     single-sided floppy mounted, head at track t|0x80
+ *     'd' t     double-sided floppy mounted, head at track t|0x80
+ *     'M'/'F'   motor on / off acknowledgement
+ *     'S'       track buffers updated after a step
+ *     'N'       step rejected (no disk)
+ *     'E'       eject acknowledgement
+ *     'w'/'e'   DCD write ok / error
+ *
+ * The floppy read data itself is streamed out on SP_WRDATA by the RMT
+ * peripheral (see mac_ll.cpp), not over the UART.
+ */
+
 #include "bus.h"
+#include "FujiBusPacket.h"
+#include "UARTChannel.h"
+#include "fujiDeviceID.h"
+#include "global_types.h"
+
 #include <cstdint>
-#include <forward_list>
-#include <string>
+#include <cstddef>
 
-#include "../../include/debug.h"
-#include "fnFS.h"
+// The Mac has no CONFIG program; everything is driven from the web UI.
+// fujiDevice still needs a packet type to instantiate its command table.
+#define FUJI_COMMAND_PACKET FujiBusPacket
 
-// class def'ns
-class systemBus;     // forward declare for macDevice
-class macFuji;    // declare here so can reference it, but define in fuji.h
+// Device slot layout (fujiDisk index):
+//   0..3  HD20 / DCD hard disks ('0'..'3' on the Pico side)
+//   4     800K GCR floppy
+#define MAC_DCD_SLOTS   4
+#define MAC_FLOPPY_SLOT 4
 
 typedef char mac_cmd_t;
 
-enum class mac_fujinet_type_t
-{
-  FujiNet,
-  Floppy,
-  HardDisk,
-  Modem,
-  Network,
-  CPM,
-  Printer,
-  Voice,
-  Clock,
-  Other
-};
+class systemBus;
+class fujiDevice;
 
-class macDevice
+/**
+ * @brief A device on the Mac bus
+ */
+class virtualDevice
 {
-  friend systemBus;
+    friend systemBus;
+    friend fujiDevice;
 
 protected:
-  char _devnum;
-  bool _initialized;
+    char _devnum = 0;
+
+    virtual void shutdown() {}
+
+    /**
+     * @brief Handle a command character forwarded by the bus.
+     */
+    virtual void process(mac_cmd_t cmd) {}
 
 public:
-  bool device_active;
+    /**
+     * @brief Is this device active (for disks: is media mounted)?
+     */
+    bool device_active = false;
 
-  virtual void shutdown() = 0;
-  virtual void process(mac_cmd_t cmd) = 0;
+    /**
+     * @brief Is this the virtual disk used to boot CONFIG? (unused on Mac)
+     */
+    bool is_config_device = false;
 
-  char id() { return _devnum; };
+    /**
+     * @brief Disk-switched flag (unused on Mac, kept for shared code)
+     */
+    bool switched = false;
+
+    char id() { return _devnum; }
 };
 
-class systemBus
+// Older Mac code used this name; keep it as an alias.
+using macDevice = virtualDevice;
+
+/**
+ * @brief The Mac bus: UART link to the Pico plus RMT floppy output
+ */
+class systemBus : public SystemBusBase
 {
 private:
-  macDevice *_activeDev = nullptr;
+    UARTChannel _serial;
 
-  macFuji *_fujiDev = nullptr;
+    static constexpr int _mac_baud_rate = 2000000;
 
-  // iwmModem *_modemDev = nullptr;
-  // iwmNetwork *_netDev[4] = {nullptr};
-  // // sioMIDIMaze *_midiDev = nullptr;
-  // // sioCassette *_cassetteDev = nullptr;
-  // iwmCPM *_cpmDev = nullptr;
-  // iwmPrinter *_printerdev = nullptr;
-  // iwmClock *_clockDev = nullptr;
+    int _active_DCD_disk = 0;
+    uint8_t _mounted_dcd_disks = 0;
 
-  const int _mac_baud_rate = 2000000; //230400; //was 115200;
+    unsigned long t0 = 0;
+    bool track_not_copied = false;
 
-  int _active_DCD_disk;
-  uint8_t _mounted_dcd_disks;
+    char num_dcd_mounts();
+    bool stepper_timeout();
+    void send_dcd_count();
 
-  char num_dcd_mounts();
+    void handle_floppy_command(int c);
+    void handle_dcd_command(int c);
 
 public:
-  std::forward_list<macDevice *> _daisyChain;
+    void setup();
+    void service();
+    void shutdown();
 
-  void setup();
-  void service();
-  void shutdown();
+    bool shuttingDown = false; // TRUE if we are in shutdown process
+    bool getShuttingDown() { return shuttingDown; };
 
-  int numDevices();
-  void addDevice(macDevice *pDevice, mac_fujinet_type_t deviceType); // todo: probably get called by handle_init()
-  void remDevice(macDevice *pDevice);
-  macDevice *deviceById(int device_id);
-  macDevice *firstDev() { return _daisyChain.front(); }
-  // uint8_t *devBuffer() { return (uint8_t *)iwmDevice::data_buffer; }
-  void enableDevice(uint8_t device_id);
-  void disableDevice(uint8_t device_id);
-  void changeDeviceId(macDevice *p, int device_id);
-  // iwmPrinter *getPrinter() { return _printerdev; }
-  bool shuttingDown = false; // TRUE if we are in shutdown process
-  bool getShuttingDown() { return shuttingDown; };
-  // bool en35Host = false; // TRUE if we are connected to a host that supports the /EN35 signal
+    void add_dcd_mount(char c);
+    void rem_dcd_mount(char c);
 
-  void add_dcd_mount(char c);
-  void rem_dcd_mount(char c);
+    // SystemBusBase transaction contract. Nothing on the Mac issues
+    // Fuji commands over the bus, so these are inert.
+    void transaction_accept(transState_t expectMoreData) override {}
+    void transaction_success() override {}
+    void transaction_error() override {}
+    using SystemBusBase::transaction_get;
+    success_is_true transaction_get(void *data, size_t len) override { RETURN_ERROR_AS_FALSE(); }
+    using SystemBusBase::transaction_send;
+    void transaction_send(const void *data, size_t len, bool is_error = false) override {}
 
-  bool stepper_timeout();
-  unsigned long t0;
-  bool track_not_copied;
+    // Pico UART link
+    size_t available() { return _serial.available(); }
+    int read() { return _serial.read(); }
+    size_t read(void *buffer, size_t length) { return _serial.read(buffer, length); }
+    // Block until exactly `length` bytes arrive or `timeout_ms` elapses.
+    // Returns the number of bytes actually read.
+    size_t read_exact(void *buffer, size_t length, unsigned timeout_ms = 1000);
+    size_t write(uint8_t c) { return _serial.write(c); }
+    size_t write(const void *buffer, size_t length) { return _serial.write(buffer, length); }
+    void flush() { _serial.flushOutput(); }
 };
 
 extern systemBus SYSTEM_BUS;
 
-#endif // guard
+#endif // MAC_H
 #endif // BUILD_MAC
 
 #if 0

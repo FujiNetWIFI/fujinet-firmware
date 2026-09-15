@@ -44,6 +44,7 @@ set(INCLUDES
     ${CMAKE_SOURCE_DIR}/lib/device/s100spi
     ${CMAKE_SOURCE_DIR}/lib/device/sio
     ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice
+    ${CMAKE_SOURCE_DIR}/lib/device/NDevice
     ${CMAKE_SOURCE_DIR}/lib/device/fujiClock
 
     ${CMAKE_SOURCE_DIR}/lib/devrelay
