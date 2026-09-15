@@ -172,6 +172,8 @@ bool NetworkProtocolONEDRIVE::ensure_access_token()
 
 std::string NetworkProtocolONEDRIVE::api_get(const std::string &url)
 {
+    _last_http = 0;
+
     esp_http_client_config_t cfg = {};
     cfg.url        = url.c_str();
     cfg.timeout_ms = 15000;
@@ -187,16 +189,17 @@ std::string NetworkProtocolONEDRIVE::api_get(const std::string &url)
         Debug_printf("ONEDRIVE api_get: open failed for %s\r\n", url.c_str());
         return "";
     }
-    esp_http_client_fetch_headers(h);
-
-    int status = esp_http_client_get_status_code(h);
-    if (status < 200 || status >= 300) {
-        Debug_printf("ONEDRIVE api_get: HTTP %d for %s\r\n", status, url.c_str());
+    if (esp_http_client_fetch_headers(h) < 0) {
+        Debug_printf("ONEDRIVE api_get: no response headers for %s\r\n", url.c_str());
         esp_http_client_close(h);
         esp_http_client_cleanup(h);
         return "";
     }
 
+    _last_http = esp_http_client_get_status_code(h);
+
+    // Drain before judging: Graph explains a rejection in the body, and closing
+    // the handle first threw that away.
     std::string body;
     char buf[512];
     int n;
@@ -205,6 +208,12 @@ std::string NetworkProtocolONEDRIVE::api_get(const std::string &url)
 
     esp_http_client_close(h);
     esp_http_client_cleanup(h);
+
+    if (_last_http < 200 || _last_http >= 300) {
+        Debug_printf("ONEDRIVE api_get: HTTP %d for %s: %s\r\n",
+                     _last_http, url.c_str(), body.c_str());
+        return "";
+    }
     return body;
 }
 
@@ -212,6 +221,8 @@ std::string NetworkProtocolONEDRIVE::api_post(const std::string &url,
                                               const std::string &body,
                                               const std::string &content_type)
 {
+    _last_http = 0;
+
     esp_http_client_config_t cfg = {};
     cfg.url        = url.c_str();
     cfg.timeout_ms = 15000;
@@ -232,16 +243,22 @@ std::string NetworkProtocolONEDRIVE::api_post(const std::string &url,
         Debug_printf("ONEDRIVE api_post: open failed for %s\r\n", url.c_str());
         return "";
     }
-    esp_http_client_write(h, body.c_str(), wlen);
-    esp_http_client_fetch_headers(h);
-
-    int status = esp_http_client_get_status_code(h);
-    if (status < 200 || status >= 300) {
-        Debug_printf("ONEDRIVE api_post: HTTP %d for %s\r\n", status, url.c_str());
+    if (wlen > 0 && esp_http_client_write(h, body.c_str(), wlen) != wlen) {
+        // Content-Length is already committed, so a short write leaves the server
+        // waiting for bytes that will never arrive.
+        Debug_printf("ONEDRIVE api_post: write failed for %s\r\n", url.c_str());
         esp_http_client_close(h);
         esp_http_client_cleanup(h);
         return "";
     }
+    if (esp_http_client_fetch_headers(h) < 0) {
+        Debug_printf("ONEDRIVE api_post: no response headers for %s\r\n", url.c_str());
+        esp_http_client_close(h);
+        esp_http_client_cleanup(h);
+        return "";
+    }
+
+    _last_http = esp_http_client_get_status_code(h);
 
     std::string resp;
     char buf[512];
@@ -251,6 +268,12 @@ std::string NetworkProtocolONEDRIVE::api_post(const std::string &url,
 
     esp_http_client_close(h);
     esp_http_client_cleanup(h);
+
+    if (_last_http < 200 || _last_http >= 300) {
+        Debug_printf("ONEDRIVE api_post: HTTP %d for %s: %s\r\n",
+                     _last_http, url.c_str(), resp.c_str());
+        return "";
+    }
     return resp;
 }
 
@@ -258,6 +281,8 @@ std::string NetworkProtocolONEDRIVE::api_put(const std::string &url,
                                              const uint8_t *data, size_t len,
                                              const std::string &content_type)
 {
+    _last_http = 0;
+
     esp_http_client_config_t cfg = {};
     cfg.url        = url.c_str();
     cfg.timeout_ms = 30000;
@@ -278,18 +303,26 @@ std::string NetworkProtocolONEDRIVE::api_put(const std::string &url,
     size_t off = 0;
     while (off < len) {
         int w = esp_http_client_write(h, (const char *)data + off, (int)(len - off));
-        if (w <= 0) break;
+        if (w <= 0) {
+            // Content-Length is already committed. Carrying on would send a body
+            // shorter than promised, which Graph answers with a 400 that looks
+            // like a request problem rather than a truncated upload.
+            Debug_printf("ONEDRIVE api_put: write failed at %u of %u for %s\r\n",
+                         (unsigned)off, (unsigned)len, url.c_str());
+            esp_http_client_close(h);
+            esp_http_client_cleanup(h);
+            return "";
+        }
         off += w;
     }
-    esp_http_client_fetch_headers(h);
-
-    int status = esp_http_client_get_status_code(h);
-    if (status < 200 || status >= 300) {
-        Debug_printf("ONEDRIVE api_put: HTTP %d for %s\r\n", status, url.c_str());
+    if (esp_http_client_fetch_headers(h) < 0) {
+        Debug_printf("ONEDRIVE api_put: no response headers for %s\r\n", url.c_str());
         esp_http_client_close(h);
         esp_http_client_cleanup(h);
         return "";
     }
+
+    _last_http = esp_http_client_get_status_code(h);
 
     std::string resp;
     char buf[512];
@@ -299,6 +332,12 @@ std::string NetworkProtocolONEDRIVE::api_put(const std::string &url,
 
     esp_http_client_close(h);
     esp_http_client_cleanup(h);
+
+    if (_last_http < 200 || _last_http >= 300) {
+        Debug_printf("ONEDRIVE api_put: HTTP %d for %s: %s\r\n",
+                     _last_http, url.c_str(), resp.c_str());
+        return "";
+    }
     return resp;
 }
 
@@ -306,6 +345,8 @@ std::string NetworkProtocolONEDRIVE::api_patch(const std::string &url,
                                                const std::string &body,
                                                const std::string &content_type)
 {
+    _last_http = 0;
+
     esp_http_client_config_t cfg = {};
     cfg.url        = url.c_str();
     cfg.timeout_ms = 15000;
@@ -324,16 +365,20 @@ std::string NetworkProtocolONEDRIVE::api_patch(const std::string &url,
         Debug_printf("ONEDRIVE api_patch: open failed for %s\r\n", url.c_str());
         return "";
     }
-    esp_http_client_write(h, body.c_str(), wlen);
-    esp_http_client_fetch_headers(h);
-
-    int status = esp_http_client_get_status_code(h);
-    if (status < 200 || status >= 300) {
-        Debug_printf("ONEDRIVE api_patch: HTTP %d for %s\r\n", status, url.c_str());
+    if (wlen > 0 && esp_http_client_write(h, body.c_str(), wlen) != wlen) {
+        Debug_printf("ONEDRIVE api_patch: write failed for %s\r\n", url.c_str());
         esp_http_client_close(h);
         esp_http_client_cleanup(h);
         return "";
     }
+    if (esp_http_client_fetch_headers(h) < 0) {
+        Debug_printf("ONEDRIVE api_patch: no response headers for %s\r\n", url.c_str());
+        esp_http_client_close(h);
+        esp_http_client_cleanup(h);
+        return "";
+    }
+
+    _last_http = esp_http_client_get_status_code(h);
 
     std::string resp;
     char buf[512];
@@ -343,11 +388,19 @@ std::string NetworkProtocolONEDRIVE::api_patch(const std::string &url,
 
     esp_http_client_close(h);
     esp_http_client_cleanup(h);
+
+    if (_last_http < 200 || _last_http >= 300) {
+        Debug_printf("ONEDRIVE api_patch: HTTP %d for %s: %s\r\n",
+                     _last_http, url.c_str(), resp.c_str());
+        return "";
+    }
     return resp;
 }
 
 bool NetworkProtocolONEDRIVE::api_delete(const std::string &url)
 {
+    _last_http = 0;
+
     esp_http_client_config_t cfg = {};
     cfg.url        = url.c_str();
     cfg.timeout_ms = 10000;
@@ -361,28 +414,52 @@ bool NetworkProtocolONEDRIVE::api_delete(const std::string &url)
 
     if (esp_http_client_open(h, 0) != ESP_OK) {
         esp_http_client_cleanup(h);
+        Debug_printf("ONEDRIVE api_delete: open failed for %s\r\n", url.c_str());
         return false;
     }
-    esp_http_client_fetch_headers(h);
-    int status = esp_http_client_get_status_code(h);
+    if (esp_http_client_fetch_headers(h) < 0) {
+        Debug_printf("ONEDRIVE api_delete: no response headers for %s\r\n", url.c_str());
+        esp_http_client_close(h);
+        esp_http_client_cleanup(h);
+        return false;
+    }
+    _last_http = esp_http_client_get_status_code(h);
+
+    std::string resp;
+    char buf[512];
+    int n;
+    while ((n = esp_http_client_read(h, buf, sizeof(buf))) > 0)
+        resp.append(buf, n);
+
     esp_http_client_close(h);
     esp_http_client_cleanup(h);
-    return (status == 200 || status == 204);
+
+    if (_last_http != 200 && _last_http != 204) {
+        Debug_printf("ONEDRIVE api_delete: HTTP %d for %s: %s\r\n",
+                     _last_http, url.c_str(), resp.c_str());
+        return false;
+    }
+    return true;
 }
 
 #else /* !ESP_PLATFORM */
 
 std::string NetworkProtocolONEDRIVE::api_get(const std::string &url)
 {
+    _last_http = 0;
     mgHttpClient http;
     if (!http.begin(url)) { Debug_printf("ONEDRIVE api_get: begin failed for %s\r\n", url.c_str()); return ""; }
     if (!_access_token.empty())
         http.set_header("Authorization", ("Bearer " + _access_token).c_str());
-    int status = http.GET();
-    if (status < 200 || status >= 300) { Debug_printf("ONEDRIVE api_get: HTTP %d for %s\r\n", status, url.c_str()); return ""; }
+    _last_http = http.GET();
+    // Read before judging: Graph explains a rejection in the body.
     std::string body;
     uint8_t buf[512]; int n;
     while ((n = http.read(buf, sizeof(buf))) > 0) body.append((char *)buf, n);
+    if (_last_http < 200 || _last_http >= 300) {
+        Debug_printf("ONEDRIVE api_get: HTTP %d for %s: %s\r\n", _last_http, url.c_str(), body.c_str());
+        return "";
+    }
     return body;
 }
 
@@ -390,16 +467,20 @@ std::string NetworkProtocolONEDRIVE::api_post(const std::string &url,
                                               const std::string &body,
                                               const std::string &content_type)
 {
+    _last_http = 0;
     mgHttpClient http;
     if (!http.begin(url)) { Debug_printf("ONEDRIVE api_post: begin failed for %s\r\n", url.c_str()); return ""; }
     if (!_access_token.empty())
         http.set_header("Authorization", ("Bearer " + _access_token).c_str());
     http.set_header("Content-Type", content_type.c_str());
-    int status = http.POST(body.c_str(), (int)body.size());
-    if (status < 200 || status >= 300) { Debug_printf("ONEDRIVE api_post: HTTP %d for %s\r\n", status, url.c_str()); return ""; }
+    _last_http = http.POST(body.c_str(), (int)body.size());
     std::string resp;
     uint8_t buf[512]; int n;
     while ((n = http.read(buf, sizeof(buf))) > 0) resp.append((char *)buf, n);
+    if (_last_http < 200 || _last_http >= 300) {
+        Debug_printf("ONEDRIVE api_post: HTTP %d for %s: %s\r\n", _last_http, url.c_str(), resp.c_str());
+        return "";
+    }
     return resp;
 }
 
@@ -407,15 +488,19 @@ std::string NetworkProtocolONEDRIVE::api_put(const std::string &url,
                                              const uint8_t *data, size_t len,
                                              const std::string &content_type)
 {
+    _last_http = 0;
     mgHttpClient http;
     if (!http.begin(url)) { Debug_printf("ONEDRIVE api_put: begin failed for %s\r\n", url.c_str()); return ""; }
     http.set_header("Authorization", ("Bearer " + _access_token).c_str());
     http.set_header("Content-Type", content_type.c_str());
-    int status = http.PUT((const char *)data, (int)len);
-    if (status < 200 || status >= 300) { Debug_printf("ONEDRIVE api_put: HTTP %d for %s\r\n", status, url.c_str()); return ""; }
+    _last_http = http.PUT((const char *)data, (int)len);
     std::string resp;
     uint8_t buf[512]; int n;
     while ((n = http.read(buf, sizeof(buf))) > 0) resp.append((char *)buf, n);
+    if (_last_http < 200 || _last_http >= 300) {
+        Debug_printf("ONEDRIVE api_put: HTTP %d for %s: %s\r\n", _last_http, url.c_str(), resp.c_str());
+        return "";
+    }
     return resp;
 }
 
@@ -423,25 +508,37 @@ std::string NetworkProtocolONEDRIVE::api_patch(const std::string &url,
                                                const std::string &body,
                                                const std::string &content_type)
 {
+    _last_http = 0;
     mgHttpClient http;
     if (!http.begin(url)) { Debug_printf("ONEDRIVE api_patch: begin failed for %s\r\n", url.c_str()); return ""; }
     http.set_header("Authorization", ("Bearer " + _access_token).c_str());
     http.set_header("Content-Type", content_type.c_str());
-    int status = http.PATCH(body.c_str(), (int)body.size());
-    if (status < 200 || status >= 300) { Debug_printf("ONEDRIVE api_patch: HTTP %d for %s\r\n", status, url.c_str()); return ""; }
+    _last_http = http.PATCH(body.c_str(), (int)body.size());
     std::string resp;
     uint8_t buf[512]; int n;
     while ((n = http.read(buf, sizeof(buf))) > 0) resp.append((char *)buf, n);
+    if (_last_http < 200 || _last_http >= 300) {
+        Debug_printf("ONEDRIVE api_patch: HTTP %d for %s: %s\r\n", _last_http, url.c_str(), resp.c_str());
+        return "";
+    }
     return resp;
 }
 
 bool NetworkProtocolONEDRIVE::api_delete(const std::string &url)
 {
+    _last_http = 0;
     mgHttpClient http;
-    if (!http.begin(url)) return false;
+    if (!http.begin(url)) { Debug_printf("ONEDRIVE api_delete: begin failed for %s\r\n", url.c_str()); return false; }
     http.set_header("Authorization", ("Bearer " + _access_token).c_str());
-    int status = http.DELETE();
-    return (status == 200 || status == 204);
+    _last_http = http.DELETE();
+    std::string resp;
+    uint8_t buf[512]; int n;
+    while ((n = http.read(buf, sizeof(buf))) > 0) resp.append((char *)buf, n);
+    if (_last_http != 200 && _last_http != 204) {
+        Debug_printf("ONEDRIVE api_delete: HTTP %d for %s: %s\r\n", _last_http, url.c_str(), resp.c_str());
+        return false;
+    }
+    return true;
 }
 
 #endif /* ESP_PLATFORM */
@@ -588,11 +685,18 @@ fujiError_t NetworkProtocolONEDRIVE::close_file_handle()
         if (_write_buf.empty())
             return FUJI_ERROR::NONE;
 
+        // The token was fetched at open; a long write session can outlive it.
+        if (!ensure_access_token())
+        {
+            error = NDEV_STATUS::NOT_CONNECTED;
+            return FUJI_ERROR::UNSPECIFIED;
+        }
+
         // Simple upload: PUT the buffered bytes to the item's content endpoint.
-        std::string resp = api_put(item_url(_item_path, "content"),
-                                   _write_buf.data(), _write_buf.size(),
-                                   "application/octet-stream");
-        if (resp.empty())
+        api_put(item_url(_item_path, "content"),
+                _write_buf.data(), _write_buf.size(),
+                "application/octet-stream");
+        if (_last_http < 200 || _last_http >= 300)
         {
             error = NDEV_STATUS::GENERAL;
             return FUJI_ERROR::UNSPECIFIED;
