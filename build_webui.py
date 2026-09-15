@@ -12,6 +12,13 @@ def deep_merge(base, override):
         else:
             base[key] = value
 
+def load_config_overlay(config_path):
+    """Load a yaml to merge over an already-resolved config; its extends is moot."""
+    with open(config_path) as f:
+        config = load(f, Loader=Loader)
+    config.pop('extends', None)
+    return config
+
 def load_board_config(build_board, build_platform):
     """Load board yaml with fallback to platform default, then base, applying extends/inheritance."""
     # Try board-specific config first, then platform default, then base
@@ -71,6 +78,7 @@ def copy_file(fname, build_platform, prefix, build_data_dir=None):
 build_board = os.environ.get("FUJINET_BUILD_BOARD")
 build_platform = os.environ.get("FUJINET_BUILD_PLATFORM")
 build_data_dir = os.environ.get("BUILD_DATA_DIR")
+dev_mode = False
 
 # PROJECT_CONFIG is set by pio when passed the -i param to choose a specific ini file, and also build.sh uses same variable name too for consistency
 ini_file = os.environ.get("PROJECT_CONFIG")
@@ -90,8 +98,9 @@ if env is not None:
     if build_board is None:
         build_board = env["PIOENV"]
     # PROGRAM_ARGS is a list of args provided by pio with "-a" switch
+    # dev overlays the board config rather than replacing it, to keep its tweaks
     if 'dev' in env["PROGRAM_ARGS"]:
-        build_board = "dev"
+        dev_mode = True
 
     # this is set by "pio" if it is running the build
     if env["PROJECT_CONFIG"] is not None:
@@ -109,9 +118,13 @@ print(f"Building webUI into {build_data_dir}")
 print(f"  build_platform: {build_platform}")
 print(f"  build_board: {build_board}")
 print(f"  config file: {ini_file}")
+print(f"  dev overlay: {dev_mode}")
 
 template_env = Environment(loader=FileSystemLoader(["data/webui/template", "data/webui/device_specific"]))
 config = load_board_config(build_board, build_platform)
+
+if dev_mode:
+    deep_merge(config, load_config_overlay(os.path.join('data', 'webui', 'config', 'dev.yaml')))
 
 # Auto-set fujinet_pc flag for PC builds (allows eliminating redundant board files)
 if build_board.startswith('fujinet-pc-'):
