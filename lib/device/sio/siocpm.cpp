@@ -9,6 +9,7 @@
 #include "fujiDevice.h"
 #include "fnFS.h"
 #include "fnFsSD.h"
+#include "debug.h"
 
 #include "../runcpm/globals.h"
 #include "../runcpm/abstraction_fujinet.h" // FN_CPM_LINK defined here (one of fnUartBUS, fnSioCom)
@@ -52,20 +53,29 @@ void sioCPM::sio_handle_cpm()
     {
         cpmActive = false;
         free(RAM);
+        RAM = NULL;
     }
 }
 
-void sioCPM::init_cpm(int baud)
+bool sioCPM::init_cpm(int baud)
 {
     SYSTEM_BUS.setBaudrate(baud);
     Status = Debug = 0;
     Break = Step = -1;
+    // A repeated CPM_INIT without a BIOS-0 exit would otherwise leak the old 64K.
+    free(RAM);
     RAM = (uint8_t *)malloc(MEMSIZE);
+    if (RAM == NULL)
+    {
+        Debug_printv("could not allocate 64K CP/M RAM, free heap: %lu", fnSystem.get_free_heap_size());
+        return false;
+    }
     memset(RAM, 0, MEMSIZE);
     memset(filename, 0, sizeof(filename));
     memset(newname, 0, sizeof(newname));
     memset(fcbname, 0, sizeof(fcbname));
     memset(pattern, 0, sizeof(pattern));
+    return true;
 }
 
 void sioCPM::sio_process(const FujiSIOPacket &packet)
@@ -77,8 +87,7 @@ void sioCPM::sio_process(const FujiSIOPacket &packet)
         fnSystem.delay(10);
         SYSTEM_BUS.transaction_success();
         fnSystem.delay(5000);
-        init_cpm(9600);
-        cpmActive = true;
+        cpmActive = init_cpm(9600);
         break;
     default:
         SYSTEM_BUS.transaction_error();
