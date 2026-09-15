@@ -180,6 +180,8 @@ fujiError_t NetworkProtocolTNFS::close_file_handle()
 {
     if (fd != 0)
         tnfs_error = tnfs_close(&mountInfo, fd);
+    else
+        tnfs_error = TNFS_RESULT_SUCCESS; // nothing open, so nothing failed to close
     fserror_to_error();
     Debug_printf("NetworkProtocolTNFS::close_file_handle(%u) - %d\r\n", fd, tnfs_error);
     return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
