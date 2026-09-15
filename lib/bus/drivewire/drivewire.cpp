@@ -220,7 +220,6 @@ void systemBus::op_readex()
             }
             else
             {
-                Debug_printf("non-dragon read\n");
                 if (d->read(lsn, use_media_buffer ? nullptr : sector_data))
                 {
                     if (d->get_media_status() == 2)
@@ -602,7 +601,6 @@ void systemBus::_drivewire_process_cmd()
         Debug_println("Failed to read cmd!");
         return;
     }
-
     fnLedManager.set(eLed::LED_BUS, true);
 
     dwOpcode_t opcode = static_cast<dwOpcode_t>(val);
@@ -863,6 +861,7 @@ void systemBus::setup()
     // Create a queue to handle parallel event from ISR
     drivewire_evt_queue = xQueueCreate(10, sizeof(uint32_t));
     bDragon = false;
+    szNamedMount[0] = (uint8_t)0;
 
 #ifdef CONFIG_IDF_TARGET_ESP32S3
     // Configure UART to RP2040
@@ -930,7 +929,6 @@ void systemBus::setup()
     //     }
     // }
     // end jeff hack
-
 }
 
 // Give devices an opportunity to clean up before a reboot
@@ -956,7 +954,7 @@ void systemBus::shutdown()
     Debug_printf("All devices shut down.\n");
 }
 
-#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+#ifdef DRIVEWIRE_DBC_SUPPORTED
 std::unique_ptr<FujiBusPacket> systemBus::readBusPacket(int first)
 {
     ByteBuffer packet;
@@ -994,7 +992,7 @@ void systemBus::writeBusPacket(FujiBusPacket &packet)
     ByteBuffer encoded = packet.serialize();
     _port->write(encoded.data(), encoded.size());
 }
-#endif /* PINMAP_FUJIVERSAL_DRIVEWIRE */
+#endif /* DRIVEWIRE_DBC_SUPPORTED */
 
 void systemBus::transaction_accept(transState_t expectMoreData)
 {
