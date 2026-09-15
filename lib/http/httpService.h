@@ -140,6 +140,7 @@ public:
     static esp_err_t get_handler_modem_sniffer(httpd_req_t *req);
     static esp_err_t get_handler_mount(httpd_req_t *req);
     static esp_err_t get_handler_eject(httpd_req_t *req);
+    static esp_err_t get_handler_swap(httpd_req_t *req);
     static esp_err_t get_handler_dir(httpd_req_t *req);
     static esp_err_t get_handler_slot(httpd_req_t *req);
     static esp_err_t get_handler_hosts(httpd_req_t *req);
@@ -159,7 +160,7 @@ public:
     static esp_err_t post_handler_clipboard(httpd_req_t *req);
     static esp_err_t post_handler_clipboard_clear(httpd_req_t *req);
     static esp_err_t post_handler_clipboard_restore(httpd_req_t *req);
-  
+
     // Device password management and the session login flow
     static esp_err_t post_handler_password(httpd_req_t *req);
     static esp_err_t get_handler_login(httpd_req_t *req);
@@ -208,7 +209,7 @@ public:
     static int post_handler_clipboard(struct mg_connection *c, struct mg_http_message *hm);
     static int post_handler_clipboard_clear(struct mg_connection *c, struct mg_http_message *hm);
     static int post_handler_clipboard_restore(struct mg_connection *c, struct mg_http_message *hm);
-  
+
     // Device password management and the session login flow
     static int post_handler_password(struct mg_connection *c, struct mg_http_message *hm);
     static int get_handler_login(struct mg_connection *c, struct mg_http_message *hm);

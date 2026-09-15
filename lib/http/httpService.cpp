@@ -697,6 +697,26 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t fnHttpService::get_handler_swap(httpd_req_t *req)
+{
+    fnHTTPD.clearErrMsg();
+
+    // rotate disk images
+    Debug_printf("Disk swap from webui\n");
+    theFuji->fujicmd_image_rotate();
+
+    if (!fnHTTPD.errMsgEmpty())
+    {
+        send_file(req, "error_page.html");
+    }
+    else
+    {
+        send_file(req, "redirect_to_index.html");
+    }
+
+    return ESP_OK;
+}
+
 #ifdef BUILD_ADAM
 esp_err_t fnHttpService::get_handler_term(httpd_req_t *req)
 {
@@ -2175,6 +2195,13 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
         {.uri = "/unmount",
          .method = HTTP_GET,
          .handler = get_handler_eject,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/swap",
+         .method = HTTP_GET,
+         .handler = get_handler_swap,
          .user_ctx = NULL,
          .is_websocket = false,
          .handle_ws_control_frames = false,

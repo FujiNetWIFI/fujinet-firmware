@@ -90,7 +90,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_DRIVE6HOST,
         FN_DRIVE7HOST,
         FN_DRIVE8HOST,
-#if defined(BUILD_APPLE) && defined(ESP_PLATFORM)
+#ifdef BUILD_APPLE
         FN_DRIVE9HOST,
         FN_DRIVE10HOST,
 #endif
@@ -102,7 +102,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_DRIVE6MOUNT,
         FN_DRIVE7MOUNT,
         FN_DRIVE8MOUNT,
-#if defined(BUILD_APPLE) && defined(ESP_PLATFORM)
+#ifdef BUILD_APPLE
         FN_DRIVE9MOUNT,
         FN_DRIVE10MOUNT,
 #endif
@@ -122,7 +122,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_DRIVE6DEVICE,
         FN_DRIVE7DEVICE,
         FN_DRIVE8DEVICE,
-#if defined(BUILD_APPLE) && defined(ESP_PLATFORM)
+#ifdef BUILD_APPLE
         FN_DRIVE9DEVICE,
         FN_DRIVE10DEVICE,
 #endif
@@ -217,7 +217,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_DRIVE6HOST",
         "FN_DRIVE7HOST",
         "FN_DRIVE8HOST",
-#if defined(BUILD_APPLE) && defined(ESP_PLATFORM)
+#ifdef BUILD_APPLE
         "FN_DRIVE9HOST",
         "FN_DRIVE10HOST",
 #endif
@@ -229,7 +229,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_DRIVE6MOUNT",
         "FN_DRIVE7MOUNT",
         "FN_DRIVE8MOUNT",
-#if defined(BUILD_APPLE) && defined(ESP_PLATFORM)
+#ifdef BUILD_APPLE
         "FN_DRIVE9MOUNT",
         "FN_DRIVE10MOUNT",
 #endif
@@ -249,7 +249,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_DRIVE6DEVICE",
         "FN_DRIVE7DEVICE",
         "FN_DRIVE8DEVICE",
-#if defined(BUILD_APPLE) && defined(ESP_PLATFORM)
+#ifdef BUILD_APPLE
         "FN_DRIVE9DEVICE",
         "FN_DRIVE10DEVICE",
 #endif
@@ -516,7 +516,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_DRIVE6HOST:
     case FN_DRIVE7HOST:
     case FN_DRIVE8HOST:
-#if defined(BUILD_APPLE) && defined(ESP_PLATFORM)
+#ifdef BUILD_APPLE
     case FN_DRIVE9HOST:
     case FN_DRIVE10HOST:
 #endif
@@ -537,7 +537,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_DRIVE6MOUNT:
     case FN_DRIVE7MOUNT:
     case FN_DRIVE8MOUNT:
-#if defined(BUILD_APPLE) && defined(ESP_PLATFORM)
+#ifdef BUILD_APPLE
     case FN_DRIVE9MOUNT:
     case FN_DRIVE10MOUNT:
 #endif
@@ -575,7 +575,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_DRIVE6DEVICE:
     case FN_DRIVE7DEVICE:
     case FN_DRIVE8DEVICE:
-#if defined(BUILD_APPLE) && defined(ESP_PLATFORM)
+#ifdef BUILD_APPLE
     case FN_DRIVE9DEVICE:
     case FN_DRIVE10DEVICE:
 #endif
