@@ -116,3 +116,25 @@ if(FUJINET_TARGET STREQUAL "ATARI")
   target_link_libraries(sio_dstats_tests PRIVATE)
   add_test(NAME sio_dstats_tests COMMAND sio_dstats_tests)
 endif()
+
+# ------------------------------------------------------------------------------
+# Request header serialisation in the vendored HTTP client. A single header is
+# never split across buffers, and getting that boundary wrong drops the blank
+# line that ends the header block - the server then reads the body as headers
+# (issue #1554, OneDrive's 2 KB bearer token vs the 512-byte default buffer).
+# fn_http_header.cpp needs only esp_log.h/esp_err.h, stubbed here, so the
+# boundary is cheap to pin down without hardware.
+# ------------------------------------------------------------------------------
+add_executable(http_header_tests
+    HttpHeaderTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/fn_esp_http_client/fn_http_header.cpp
+    ${CMAKE_SOURCE_DIR}/lib/fn_esp_http_client/fn_http_utils.cpp
+)
+
+target_include_directories(http_header_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/tests/esp_stubs/           # esp_log.h, esp_err.h
+    ${CMAKE_SOURCE_DIR}/lib/fn_esp_http_client/
+    ${CMAKE_SOURCE_DIR}/components_pc/             # doctest
+)
+
+add_test(NAME http_header_tests COMMAND http_header_tests)
