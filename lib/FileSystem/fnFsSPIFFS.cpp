@@ -16,6 +16,9 @@
 
 #define SPIFFS_MAXPATH 512
 
+// Must match the label esp_vfs_spiffs_register() mounts, or esp_spiffs_info() finds nothing
+#define SPIFFS_PARTITION_LABEL "storage"
+
 // Our global SPIFFS interface
 FileSystemSPIFFS fsFlash;
 
@@ -140,7 +143,7 @@ uint64_t FileSystemSPIFFS::total_bytes()
 {
     size_t total = 0, used = 0;
 #ifdef ESP_PLATFORM
-	esp_spiffs_info(NULL, &total, &used);
+	esp_spiffs_info(SPIFFS_PARTITION_LABEL, &total, &used);
 #endif
     return (uint64_t)total;
 }
@@ -149,7 +152,7 @@ uint64_t FileSystemSPIFFS::used_bytes()
 {
     size_t total = 0, used = 0;
 #ifdef ESP_PLATFORM
-	esp_spiffs_info(NULL, &total, &used);
+	esp_spiffs_info(SPIFFS_PARTITION_LABEL, &total, &used);
 #endif
     return (uint64_t)used;
 }
@@ -176,7 +179,7 @@ success_is_true FileSystemSPIFFS::start()
 #ifdef ESP_PLATFORM
     esp_vfs_spiffs_conf_t conf = {
         .base_path = _basepath,
-        .partition_label = "storage",
+        .partition_label = SPIFFS_PARTITION_LABEL,
         .max_files = 10, // from SPIFFS.h
         .format_if_mount_failed = false
     };
@@ -196,7 +199,7 @@ success_is_true FileSystemSPIFFS::start()
     #ifdef DEBUG
         /*
         size_t total = 0, used = 0;
-        esp_spiffs_info(NULL, &total, &used);
+        esp_spiffs_info(SPIFFS_PARTITION_LABEL, &total, &used);
         Debug_printf("  partition size: %u, used: %u, free: %u\r\n", total, used, total-used);
         */
     #endif
@@ -225,7 +228,7 @@ success_is_true FileSystemSPIFFS::stop()
     #ifdef DEBUG
         /*
         size_t total = 0, used = 0;
-        esp_spiffs_info(NULL, &total, &used);
+        esp_spiffs_info(SPIFFS_PARTITION_LABEL, &total, &used);
         Debug_printf("  partition size: %u, used: %u, free: %u\r\n", total, used, total-used);
         */
     #endif

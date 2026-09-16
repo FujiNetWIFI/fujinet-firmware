@@ -15,6 +15,9 @@
 
 #define LITTLEFS_MAXPATH 512
 
+// Must match the label esp_vfs_littlefs_register() mounts, or esp_littlefs_info() finds nothing
+#define LITTLEFS_PARTITION_LABEL "storage"
+
 // Our global LITTLEFS interface
 FileSystemLittleFS fsFlash;
 
@@ -203,14 +206,14 @@ success_is_true FileSystemLittleFS::rename(const char* pathFrom, const char* pat
 uint64_t FileSystemLittleFS::total_bytes()
 {
     size_t total = 0, used = 0;
-	esp_littlefs_info(NULL, &total, &used);
+	esp_littlefs_info(LITTLEFS_PARTITION_LABEL, &total, &used);
     return (uint64_t)total;
 }
 
 uint64_t FileSystemLittleFS::used_bytes()
 {
     size_t total = 0, used = 0;
-	esp_littlefs_info(NULL, &total, &used);
+	esp_littlefs_info(LITTLEFS_PARTITION_LABEL, &total, &used);
     return (uint64_t)used;
 }
 
@@ -224,7 +227,7 @@ success_is_true FileSystemLittleFS::start()
 
     esp_vfs_littlefs_conf_t conf = {
         .base_path = "",
-        .partition_label = "storage",
+        .partition_label = LITTLEFS_PARTITION_LABEL,
         .format_if_mount_failed = false,
         .dont_mount = false
     };
@@ -245,7 +248,7 @@ success_is_true FileSystemLittleFS::start()
         Debug_println("LittleFS mounted.");
         /*
         size_t total = 0, used = 0;
-        esp_littlefs_info(NULL, &total, &used);
+        esp_littlefs_info(LITTLEFS_PARTITION_LABEL, &total, &used);
         Debug_printv("  partition size: %u, used: %u, free: %u\r\n", total, used, total-used);
         */
     #endif
@@ -275,7 +278,7 @@ success_is_true FileSystemLittleFS::stop()
         Debug_println("LittleFS unmounted.");
         /*
         size_t total = 0, used = 0;
-        esp_littlefs_info(NULL, &total, &used);
+        esp_littlefs_info(LITTLEFS_PARTITION_LABEL, &total, &used);
         Debug_printv("  partition size: %u, used: %u, free: %u\r\n", total, used, total-used);
         */
     #endif
