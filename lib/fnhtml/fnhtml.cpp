@@ -1,8 +1,8 @@
 /**
- * SGML/HTML/XML Wrapper for #FujiNet
+ * HTML Wrapper for #FujiNet
  */
 
-#include "fnsgml.h"
+#include "fnhtml.h"
 
 #include <string.h>
 
@@ -23,19 +23,19 @@ constexpr size_t kReadChunkBytes = 32768;
 
 } // namespace
 
-FNSGML::FNSGML()
+FNHTML::FNHTML()
 {
 #ifdef VERBOSE_PROTOCOL
-    Debug_printf("FNSGML::ctor()\r\n");
+    Debug_printf("FNHTML::ctor()\r\n");
 #endif
     _protocol = nullptr;
     _doc = nullptr;
 }
 
-FNSGML::~FNSGML()
+FNHTML::~FNHTML()
 {
 #ifdef VERBOSE_PROTOCOL
-    Debug_printf("FNSGML::dtor()\r\n");
+    Debug_printf("FNHTML::dtor()\r\n");
 #endif
     _protocol = nullptr;
     if (_doc != nullptr)
@@ -43,20 +43,20 @@ FNSGML::~FNSGML()
     _doc = nullptr;
 }
 
-void FNSGML::setLineEnding(const std::string &_lineEnding)
+void FNHTML::setLineEnding(const std::string &_lineEnding)
 {
     lineEnding = _lineEnding;
 }
 
-void FNSGML::setProtocol(NetworkProtocol *newProtocol)
+void FNHTML::setProtocol(NetworkProtocol *newProtocol)
 {
 #ifdef VERBOSE_PROTOCOL
-    Debug_printf("FNSGML::setProtocol()\r\n");
+    Debug_printf("FNHTML::setProtocol()\r\n");
 #endif
     _protocol = newProtocol;
 }
 
-void FNSGML::setQueryParam(uint8_t qp)
+void FNHTML::setQueryParam(uint8_t qp)
 {
     _queryParam = qp;
 }
@@ -70,10 +70,10 @@ void FNSGML::setQueryParam(uint8_t qp)
  * next match (so an 8-bit host iterates by repeating the query until it gets an
  * empty result); a different selector restarts at the first match.
  */
-void FNSGML::setReadQuery(const std::string &queryString, uint8_t queryParam)
+void FNHTML::setReadQuery(const std::string &queryString, uint8_t queryParam)
 {
 #ifdef VERBOSE_PROTOCOL
-    Debug_printf("FNSGML::setReadQuery queryString: %s, queryParam: %d\r\n", queryString.c_str(), queryParam);
+    Debug_printf("FNHTML::setReadQuery queryString: %s, queryParam: %d\r\n", queryString.c_str(), queryParam);
 #endif
     if (queryString == _lastQuery)
     {
@@ -87,13 +87,13 @@ void FNSGML::setReadQuery(const std::string &queryString, uint8_t queryParam)
     _queryString = queryString;
     _queryParam = queryParam;
     resolveQuery();
-    _sgml_bytes_remaining = readValueLen();
+    _html_bytes_remaining = readValueLen();
 }
 
 /**
  * Run the CSS selector against the parsed document and build the result value.
  */
-void FNSGML::resolveQuery()
+void FNHTML::resolveQuery()
 {
     _value.clear();
 
@@ -132,12 +132,12 @@ void FNSGML::resolveQuery()
 /**
  * Character remapping for target platforms (mirrors FNJSON).
  */
-std::string FNSGML::processString(std::string in)
+std::string FNHTML::processString(std::string in)
 {
 #ifdef BUILD_ATARI
-    if (_queryParam & SGML_REMAP_CHARS)
+    if (_queryParam & HTML_REMAP_CHARS)
     {
-        if (_queryParam & SGML_REMAP_ATASCII_INTERNATIONAL)
+        if (_queryParam & HTML_REMAP_ATASCII_INTERNATIONAL)
         {
             std::string mapFrom[] = {"á", "ù", "Ñ", "É", "ç", "ô", "ò", "ì", "£", "ï", "ü", "ä", "Ö", "ú", "ó", "ö", "Ü", "â", "û", "î", "é", "è", "ñ", "ê", "å", "à", "Å", "¡", "Ä", "ß"};
             std::string mapTo[] = {"\x00", "\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07", "\x08", "\x09", "\x0a", "\x0b", "\x0c", "\x0d", "\x0e", "\x0f", "\x10", "\x11", "\x12", "\x13", "\x14", "\x15", "\x16", "\x17", "\x18", "\x19", "\x1a", "\x60", "\x7b", "ss"};
@@ -160,18 +160,18 @@ std::string FNSGML::processString(std::string in)
     return in;
 }
 
-bool FNSGML::readValue(uint8_t *rx_buf, unsigned short len)
+bool FNHTML::readValue(uint8_t *rx_buf, unsigned short len)
 {
     if (_value.empty())
         return true; // error
 
     memcpy(rx_buf, _value.data(), len);
-    _sgml_bytes_remaining -= len;
+    _html_bytes_remaining -= len;
 
     return false; // no error
 }
 
-int FNSGML::readValueLen()
+int FNHTML::readValueLen()
 {
     return _value.size();
 }
@@ -179,7 +179,7 @@ int FNSGML::readValueLen()
 /**
  * Parse document from protocol
  */
-bool FNSGML::parse()
+bool FNHTML::parse()
 {
     NetworkStatus ns;
 
@@ -212,7 +212,7 @@ bool FNSGML::parse()
             if (_parseBuffer.size() > kMaxBodyBytes)
             {
 #ifdef VERBOSE_PROTOCOL
-                Debug_printf("FNSGML::parse() - body exceeds %zu bytes, truncating\r\n", kMaxBodyBytes);
+                Debug_printf("FNHTML::parse() - body exceeds %zu bytes, truncating\r\n", kMaxBodyBytes);
 #endif
                 _parseBuffer.resize(kMaxBodyBytes);
                 break;
@@ -238,9 +238,9 @@ bool FNSGML::parse()
     return true;
 }
 
-bool FNSGML::status(NetworkStatus *s)
+bool FNHTML::status(NetworkStatus *s)
 {
     s->connected = true;
-    s->error = _sgml_bytes_remaining == 0 ? NDEV_STATUS::END_OF_FILE : NDEV_STATUS::SUCCESS;
+    s->error = _html_bytes_remaining == 0 ? NDEV_STATUS::END_OF_FILE : NDEV_STATUS::SUCCESS;
     return false;
 }

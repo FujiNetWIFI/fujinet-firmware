@@ -13,7 +13,7 @@
 #include "NetworkProtocolFactory.h"
 #include "NParser.h"
 #include "JSONParser.h"
-#include "SGMLParser.h"
+#include "HTMLParser.h"
 #include "IOChannel.h" // For GET_TIMESTAMP()
 #include "utils.h"
 #include "debug.h"
@@ -535,8 +535,8 @@ void NDevice::fujidev_set_parser(const FUJI_COMMAND_PACKET &packet)
         _parser = std::make_unique<JSONParser>(_protocol.get());
         break;
 
-    case PARSER::SGML:
-        _parser = std::make_unique<SGMLParser>(_protocol.get());
+    case PARSER::HTML:
+        _parser = std::make_unique<HTMLParser>(_protocol.get());
         break;
 
     default:
