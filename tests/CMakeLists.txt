@@ -212,3 +212,38 @@ if(FUJINET_TARGET STREQUAL "ATARI")
   target_link_libraries(nquery_output_mode_tests PRIVATE)
   add_test(NAME nquery_output_mode_tests COMMAND nquery_output_mode_tests)
 endif()
+
+# ------------------------------------------------------------------------------
+# Request header serialisation in the vendored HTTP client. A single header is
+# never split across buffers, and getting that boundary wrong drops the blank
+# line that ends the header block - the server then reads the body as headers
+# (issue #1554, OneDrive's 2 KB bearer token vs the 512-byte default buffer).
+# fn_http_header.cpp needs only esp_log.h/esp_err.h, stubbed here, so the
+# boundary is cheap to pin down without hardware.
+#
+# lib/fn_esp_http_client/ is ESP-only and is not part of the fujinet-pc build;
+# this target is the only thing that compiles it on a host. It needs BSD
+# sys/queue.h, which mingw-w64 does not ship, so skip the test where that header
+# is missing rather than vendor a copy - the code under test never runs there,
+# and the Linux and macOS jobs still gate it.
+# ------------------------------------------------------------------------------
+include(CheckIncludeFileCXX)
+check_include_file_cxx("sys/queue.h" HAVE_SYS_QUEUE_H)
+
+if(HAVE_SYS_QUEUE_H)
+  add_executable(http_header_tests
+      HttpHeaderTests.cpp
+      ${CMAKE_SOURCE_DIR}/lib/fn_esp_http_client/fn_http_header.cpp
+      ${CMAKE_SOURCE_DIR}/lib/fn_esp_http_client/fn_http_utils.cpp
+  )
+
+  target_include_directories(http_header_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/tests/esp_stubs/           # esp_log.h, esp_err.h
+      ${CMAKE_SOURCE_DIR}/lib/fn_esp_http_client/
+      ${CMAKE_SOURCE_DIR}/components_pc/             # doctest
+  )
+
+  add_test(NAME http_header_tests COMMAND http_header_tests)
+else()
+  message(STATUS "sys/queue.h not available - skipping http_header_tests")
+endif()

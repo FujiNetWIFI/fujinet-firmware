@@ -104,9 +104,24 @@ esp_err_t http_header_get(http_header_handle_t header, const char *key, char **v
  * @param      buffer      The buffer
  * @param      buffer_len  The buffer length
  *
- * @return     The last index of header was generated
+ * @return     The last index of header was generated, 0 when there is nothing
+ *             left to write, or -1 when the item at `index` is by itself too
+ *             large for the buffer. A single item is never split, so -1 means
+ *             the caller must grow the buffer rather than send what fits: the
+ *             terminating CRLF is only emitted once every item has been written.
  */
 int http_header_generate_string(http_header_handle_t header, int index, char *buffer, int *buffer_len);
+
+/**
+ * @brief      Length of the longest single header item as it appears on the
+ *             wire, i.e. strlen(key) + 2 (": ") + strlen(value) + 2 (CRLF).
+ *             Items with no value are skipped, as they are never emitted.
+ *
+ * @param[in]  header  The header
+ *
+ * @return     The length in bytes, or 0 if nothing would be emitted
+ */
+int http_header_longest_item_length(http_header_handle_t header);
 
 /**
  * @brief      Remove the header with key from the headers list

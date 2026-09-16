@@ -550,6 +550,15 @@ fujiError_t NetworkProtocolHTTP::close_file_handle()
         if (httpMethod == HTTP_METHOD::PUT)
             http_transaction();
         client->close();
+
+        // resultCode 0 means no transaction ever ran on this channel: the GET is
+        // deferred until the first read, so an opened-but-unread channel is normal.
+        // fserror_to_error() would map 0 to GENERAL and fail a clean close.
+        if (resultCode == 0)
+        {
+            error = NDEV_STATUS::SUCCESS;
+            return FUJI_ERROR::NONE;
+        }
         fserror_to_error();
     }
 

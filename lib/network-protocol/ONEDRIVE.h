@@ -67,6 +67,10 @@ private:
     // Full Graph path of the item this session is reading/writing
     std::string _item_path;
 
+    // Status of the last api_* call. A 2xx body may legitimately be empty, so
+    // callers judge success by this rather than by the returned string.
+    int _last_http = 0;
+
     // Directory listing state (Graph returns children in a "value" array)
     cJSON *_dir_json = nullptr;
     cJSON *_dir_items = nullptr;

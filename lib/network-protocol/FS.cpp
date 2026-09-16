@@ -235,10 +235,14 @@ fujiError_t NetworkProtocolFS::close()
     if (err != FUJI_ERROR::NONE)
         fserror_to_error();
 
+    // umount() runs even on a failed close, and its own failure still wins.
     if (umount() != FUJI_ERROR::NONE)
         return FUJI_ERROR::UNSPECIFIED;
 
-    return FUJI_ERROR::NONE;
+    // Report the close failure. Protocols that buffer a write and upload it here
+    // (HTTP PUT, S3, GDRIVE, ONEDRIVE) have no other way to tell the computer the
+    // data never landed.
+    return err;
 }
 
 fujiError_t NetworkProtocolFS::close_file()
