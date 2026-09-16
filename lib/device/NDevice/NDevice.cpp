@@ -430,6 +430,9 @@ error_is_true NDevice::fujicore_set_query(const std::string &query, uint8_t pars
 {
     error_is_true err = error_is_true(false);
 
+    if (_parser == nullptr)
+        RETURN_ERROR_AS_TRUE();
+
     // A flags byte on the command itself wins over one set earlier with
     // NET_SET_PARAMETER; 0 means the bus sent none, so leave the stored value.
     if (parseFlags != 0)
