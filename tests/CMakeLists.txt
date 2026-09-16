@@ -18,6 +18,23 @@ target_link_libraries(fujibuspacket_tests PRIVATE
 add_test(NAME fujibuspacket_tests COMMAND fujibuspacket_tests)
 
 # ------------------------------------------------------------------------------
+# UTF-8 / HTML-entity folding to ASCII. fn_sanitize is deliberately free of any
+# parser or protocol dependency, so the entity tables and the transliteration
+# edge cases are pinned here rather than on hardware.
+# ------------------------------------------------------------------------------
+add_executable(fn_sanitize_tests
+    FnSanitizeTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/fntext/fn_sanitize.cpp
+)
+
+target_include_directories(fn_sanitize_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+
+add_test(NAME fn_sanitize_tests COMMAND fn_sanitize_tests)
+
+# ------------------------------------------------------------------------------
 # Calendar date arithmetic and event-draft parsing. fn_time and calendar_draft
 # are deliberately free of libc time functions and of any FujiNet dependency, so
 # they link on their own - which is what makes the DST and parsing edge cases
