@@ -14,6 +14,7 @@
 #include "NParser.h"
 #include "JSONParser.h"
 #include "HTMLParser.h"
+#include "XMLParser.h"
 #include "fn_query_flags.h"
 #include "IOChannel.h" // For GET_TIMESTAMP()
 #include "utils.h"
@@ -546,6 +547,10 @@ void NDevice::fujidev_set_parser(const FUJI_COMMAND_PACKET &packet)
 
     case PARSER::HTML:
         _parser = std::make_unique<HTMLParser>(_protocol.get());
+        break;
+
+    case PARSER::XML:
+        _parser = std::make_unique<XMLParser>(_protocol.get());
         break;
 
     default:

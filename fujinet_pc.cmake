@@ -325,6 +325,7 @@ set(SOURCES src/main.cpp
     lib/device/NDevice/NParser.h lib/device/NDevice/NParser.cpp
     lib/device/NDevice/JSONParser.h lib/device/NDevice/JSONParser.cpp
     lib/device/NDevice/HTMLParser.h lib/device/NDevice/HTMLParser.cpp
+    lib/device/NDevice/XMLParser.h lib/device/NDevice/XMLParser.cpp
     lib/device/netstream.h
     lib/device/siocpm.h
     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
