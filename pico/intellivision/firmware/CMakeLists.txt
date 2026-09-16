@@ -27,7 +27,7 @@ set(PICO_BOARD_HEADER_DIRS ${CMAKE_CURRENT_LIST_DIR}/boards)
 include(${CMAKE_SOURCE_DIR}/boards/${PICO_BOARD}.cmake)
 
 # This fork boots straight into FujiNet CONFIG; Minty's own launcher is gone
-# (see PROVENANCE.md), so CONFIG_FUJINET=OFF cannot build. Default it on for
+# (see ../PROVENANCE.md), so CONFIG_FUJINET=OFF cannot build. Default it on for
 # every board -- a board .cmake that declares it first still wins.
 option(CONFIG_FUJINET "Enable FujiNet mailbox" ON)
 

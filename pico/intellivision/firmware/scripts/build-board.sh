@@ -1,6 +1,6 @@
 #!/bin/bash
 
-boards=("pintycard" "pirto_ii_default" "pirto_ii_duo" "pirto_ii_sd" "pirto")
+boards=("fujicard" "pintycard" "pirto_ii_default" "pirto_ii_duo" "pirto_ii_sd" "pirto")
 
 board=$1
 if [[ ! " ${boards[*]} " =~ " ${board} " ]]; then
