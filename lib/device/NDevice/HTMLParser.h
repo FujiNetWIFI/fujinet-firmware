@@ -1,19 +1,19 @@
-#ifndef SGMLPARSER_H
-#define SGMLPARSER_H
+#ifndef HTMLPARSER_H
+#define HTMLPARSER_H
 
 #include "NParser.h"
-#include "fnsgml.h" // FIXME - move all that in here
+#include "fnhtml.h" // FIXME - move all that in here
 
-class SGMLParser : public NParser
+class HTMLParser : public NParser
 {
 protected:
-    FNSGML _sgml;
+    FNHTML _html;
 
 public:
     using NParser::NParser;
-    SGMLParser(NetworkProtocol *protocol) : NParser(protocol) {
-        _sgml.setLineEnding("\x0a");
-        _sgml.setProtocol(_protocol);
+    HTMLParser(NetworkProtocol *protocol) : NParser(protocol) {
+        _html.setLineEnding("\x0a");
+        _html.setProtocol(_protocol);
     }
 
     fujiError_t write(std::string &buffer) override;
@@ -25,4 +25,4 @@ public:
     error_is_true setLineEnding(const std::string &eol) override;
 };
 
-#endif /* SGMLPARSER_H */
+#endif /* HTMLPARSER_H */

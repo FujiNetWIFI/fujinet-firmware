@@ -142,7 +142,7 @@ endif()
 set(INCLUDE_DIRS include
     lib/compat lib/config lib/utils lib/hardware lib/clipboard
     lib/FileSystem
-    lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson lib/fnsgml
+    lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson lib/fnhtml
     lib/webdav lib/http lib/sam lib/task
     lib/modem-sniffer lib/printer-emulator
     lib/network-protocol
@@ -228,7 +228,7 @@ set(SOURCES src/main.cpp
     lib/TNFSlib/tnfslib_udp.h lib/TNFSlib/tnfslib_udp_testing.cpp
     lib/telnet/libtelnet.h lib/telnet/libtelnet.c
     lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
-    lib/fnsgml/fnsgml.h lib/fnsgml/fnsgml.cpp
+    lib/fnhtml/fnhtml.h lib/fnhtml/fnhtml.cpp
     components/gumbo-query/Document.cpp components/gumbo-query/Node.cpp components/gumbo-query/Object.cpp
     components/gumbo-query/Parser.cpp components/gumbo-query/QueryUtil.cpp components/gumbo-query/Selection.cpp
     components/gumbo-query/Selector.cpp
@@ -318,7 +318,7 @@ set(SOURCES src/main.cpp
     lib/device/NDevice/NDevice.h lib/device/NDevice/NDevice.cpp
     lib/device/NDevice/NParser.h lib/device/NDevice/NParser.cpp
     lib/device/NDevice/JSONParser.h lib/device/NDevice/JSONParser.cpp
-    lib/device/NDevice/SGMLParser.h lib/device/NDevice/SGMLParser.cpp
+    lib/device/NDevice/HTMLParser.h lib/device/NDevice/HTMLParser.cpp
     lib/device/netstream.h
     lib/device/siocpm.h
     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
@@ -775,7 +775,7 @@ add_subdirectory(components_pc/libssh)
 # https://github.com/sahlberg/libnfs
 add_subdirectory(components_pc/libnfs)
 
-# Gumbo (pure-C HTML5 parser) backing components/gumbo-query (CSS selectors) for FNSGML.
+# Gumbo (pure-C HTML5 parser) backing components/gumbo-query (CSS selectors) for FNHTML.
 file(GLOB GUMBO_SOURCES ${CMAKE_SOURCE_DIR}/components/gumbo/*.c)
 add_library(gumbo_fn STATIC ${GUMBO_SOURCES})
 target_include_directories(gumbo_fn PUBLIC ${CMAKE_SOURCE_DIR}/components/gumbo)
