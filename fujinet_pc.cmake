@@ -266,7 +266,6 @@ set(SOURCES src/main.cpp
     lib/printer-emulator/printer_emulator.h lib/printer-emulator/printer_emulator.cpp
     lib/printer-emulator/svg_plotter.h lib/printer-emulator/svg_plotter.cpp
     lib/network-protocol/NetworkProtocolFactory.h lib/network-protocol/NetworkProtocolFactory.cpp
-    lib/network-protocol/network_data.h
     lib/network-protocol/networkStatus.h lib/network-protocol/status_error_codes.h
     lib/network-protocol/Protocol.h lib/network-protocol/Protocol.cpp
     lib/network-protocol/CLIPBOARD.h lib/network-protocol/CLIPBOARD.cpp
