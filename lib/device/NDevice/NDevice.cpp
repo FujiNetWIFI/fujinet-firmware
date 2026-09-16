@@ -428,6 +428,16 @@ void NDevice::fujidev_set_prefix(const FUJI_COMMAND_PACKET &packet)
 error_is_true NDevice::fujicore_set_query(const std::string &query, uint8_t parseFlags)
 {
     error_is_true err = error_is_true(false);
+
+    // A flags byte on the command itself wins over one set earlier with
+    // NET_SET_PARAMETER; 0 means the bus sent none, so leave the stored value.
+    if (parseFlags != 0)
+    {
+        if (!fn_query_param_is_valid(parseFlags))
+            RETURN_ERROR_AS_TRUE();
+        _parser->setQueryParam(parseFlags);
+    }
+
     err = _parser->setQuery(query);
     if (err.is_success())
         Debug_printf("Query set to >%s<\r\n", query.c_str());
@@ -436,8 +446,6 @@ error_is_true NDevice::fujicore_set_query(const std::string &query, uint8_t pars
 
 void NDevice::fujidev_set_query(const FUJI_COMMAND_PACKET &packet)
 {
-    uint8_t query_param = 0; //packet.param(1);
-
     std::string query(256, 0);
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
@@ -456,7 +464,7 @@ void NDevice::fujidev_set_query(const FUJI_COMMAND_PACKET &packet)
         return;
     }
 
-    if (fujicore_set_query(query, query_param).is_error())
+    if (fujicore_set_query(query, 0).is_error())
     {
         SYSTEM_BUS.transaction_error();
         return;

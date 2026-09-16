@@ -28,6 +28,7 @@ protected:
     void fujidev_set_prefix(const FUJI_COMMAND_PACKET &packet) override;
     void fujidev_seek(const FUJI_COMMAND_PACKET &packet) override;
     void fujidev_tell(const FUJI_COMMAND_PACKET &packet) override;
+    void fujidev_set_query(const FUJI_COMMAND_PACKET &packet) override;
 };
 
 #endif /* SIONETWORK_H */
