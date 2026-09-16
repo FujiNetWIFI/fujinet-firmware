@@ -59,11 +59,10 @@ public:
 
     virtual bool status() override { return (_media_fileh != nullptr); }
 
-    uint8_t trackmap(uint8_t t) { return tmap[t]; };
-    uint8_t *get_track(int t);
-    int track_len(int t) { return trks[tmap[t]].block_count * 512; };
-    int num_bits(int t) { return trks[tmap[t]].bit_count; };
-    uint8_t optimal_bit_timing;
+    uint8_t trackmap(uint8_t t) override { return tmap[t]; };
+    uint8_t *get_track(int t) override;
+    int track_len(int t) override { return trks[tmap[t]].block_count * 512; };
+    int num_bits(int t) override { return trks[tmap[t]].bit_count; };
     // static bool create(FILE *f, uint32_t numBlock);
 };
 

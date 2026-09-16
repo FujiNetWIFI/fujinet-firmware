@@ -39,8 +39,8 @@ protected:
   // void iwm_extra_clr();
   // void disable_output();
   // void enable_output();
-  bool mac_headsel_val() { return ((GPIO.in1.val) & (0x01U << (MCI_HDSEL-32))); }
 public:
+  bool mac_headsel_val() { return ((GPIO.in1.val) & (0x01U << (MCI_HDSEL-32))); }
   void setup_gpio();
 };
 
@@ -58,8 +58,11 @@ private:
   rmt_channel_handle_t RMT_TX_CHANNEL;
   rmt_encoder_handle_t tx_encoder;
 
-  // track bit information
-  uint8_t *track_buffer[2] = {nullptr, nullptr}; //
+  // track bit information. Two banks per side: copy_track() fills the
+  // idle bank and flips, so the bank being streamed is never written to.
+  uint8_t *track_bank[2][2] = {{nullptr, nullptr}, {nullptr, nullptr}};
+  volatile int active_bank[2] = {0, 0};
+  uint8_t *track_buffer[2] = {nullptr, nullptr}; // = track_bank[side][active_bank[side]]
   size_t track_numbits[2] = {TRACK_LEN * 8, TRACK_LEN * 8};
   size_t track_numbytes[2] = {TRACK_LEN, TRACK_LEN};
   size_t track_location[2] = {0, 0};
@@ -85,6 +88,10 @@ public:
 
   bool nextbit();
   bool fakebit();
+
+  // debug: bits streamed per side since the last report
+  volatile uint32_t bits_served[2] = {0, 0};
+  void report_served(const char *why);
   void copy_track(uint8_t *track, int side, size_t tracklen, size_t trackbits, int bitperiod);
 
   // void set_output_to_low();
