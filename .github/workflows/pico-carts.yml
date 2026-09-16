@@ -1,0 +1,88 @@
+# Build coverage for the RP2040 cartridge trees under pico/.
+#
+# These trees had none, which is exactly how a repo-wide rename of
+# fujiCommandID_t reached pico/intellivision/firmware/include/fujibus.h and left
+# `#define CMD::NET_OPEN 0x4F` -- not a valid macro name -- sitting in the tree
+# for weeks. Nothing built it, so nothing noticed.
+
+name: "pico cartridges"
+
+on:
+  push:
+    branches:
+      - "**"
+      - "!release"
+    paths:
+      - "pico/intellivision/**"
+      - ".github/workflows/pico-carts.yml"
+  pull_request:
+    branches:
+      - "**"
+      - "!release"
+    paths:
+      - "pico/intellivision/**"
+      - ".github/workflows/pico-carts.yml"
+  workflow_dispatch:
+
+jobs:
+  host-tests:
+    name: "host tests (no hardware, no SDK)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The wire codec is deliberately free of pico-sdk and TinyUSB so it can be
+      # tested here rather than on a console.
+      - name: Intellivision -- FujiBus codec
+        working-directory: pico/intellivision/firmware/host_test
+        run: |
+          gcc -Wall -Wextra -I.. -I../include \
+              -o test_fujibus test_fujibus.c ../src/fujibus.c
+          ./test_fujibus
+
+      # Compile-only: this one is driven by a corpus of real Intellivision ROM
+      # files, which are not in the repo. Running it needs `test_bootmap
+      # <rom>...` against a local collection.
+      - name: Intellivision -- boot map (compiles)
+        working-directory: pico/intellivision/firmware/host_test
+        run: |
+          gcc -Wall -Wextra -I../include -o test_bootmap \
+              test_bootmap.c ../src/bootmap.c ../src/memory.c ../src/utils.c
+
+  cartridge-firmware:
+    name: "RP2040 cartridge firmware"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned, not master: an SDK that moves under CI turns an unrelated
+      # upstream change into a red build on this branch. 2.3.0 is what this
+      # firmware is built against locally.
+      - uses: actions/checkout@v4
+        with:
+          repository: raspberrypi/pico-sdk
+          ref: "2.3.0"
+          path: pico-sdk
+          submodules: true
+
+      # build-essential, pkg-config and libusb are for picotool, not for our
+      # firmware: the SDK generates the .uf2 with it, and when no compatible
+      # picotool is installed the SDK fetches and builds it from source. Those
+      # three are exactly what picotool's own BUILDING.md asks for. Without them
+      # the failure lands in the middle of an ExternalProject, which is a
+      # confusing place to learn about a missing host library.
+      - run: sudo apt-get update && sudo apt-get install -y
+               build-essential cmake ninja-build
+               gcc-arm-none-eabi libnewlib-arm-none-eabi
+               pkg-config libusb-1.0-0-dev
+
+      # Pulls no-OS-FatFS-SD (v3.6.2) and littlefs (master) over the network via
+      # FetchContent. Its `git describe --tags` falls back to version 0.0 on a
+      # shallow checkout, which is fine here.
+      - name: Intellivision cartridge (fujicard)
+        working-directory: pico/intellivision/firmware
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: |
+          cmake -B build -DPICO_BOARD=fujicard -DCMAKE_BUILD_TYPE=Release -G Ninja
+          ninja -C build
