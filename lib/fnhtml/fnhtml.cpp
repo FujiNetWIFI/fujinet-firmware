@@ -4,6 +4,8 @@
 
 #include "fnhtml.h"
 
+#include "../fntext/fn_sanitize.h"
+
 #include <string.h>
 
 #include "Document.h"
@@ -134,6 +136,12 @@ void FNHTML::resolveQuery()
  */
 std::string FNHTML::processString(std::string in)
 {
+    // Output mode runs first: entity decoding and the ASCII fold are
+    // platform-neutral, and folding to ASCII leaves the remaps below nothing
+    // to do, so the two are alternatives rather than a pipeline.
+    if ((_queryParam & FN_QUERY_OUTPUT_MASK) == FN_QUERY_OUTPUT_ASCII)
+        return fn_sanitize_ascii(in);
+
 #ifdef BUILD_ATARI
     if (_queryParam & HTML_REMAP_CHARS)
     {

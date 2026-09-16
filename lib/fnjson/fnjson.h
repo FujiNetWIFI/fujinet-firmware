@@ -12,12 +12,13 @@
 #include <cJSON_Utils.h>
 #include <string.h>
 
+#include "../fntext/fn_query_flags.h"
 #include "../network-protocol/Protocol.h"
 
 enum JSONQueryFlags_t {
-    JSON_REMAP_CHARS = 0x01,
-    JSON_REMAP_ATASCII_INTERNATIONAL = 0x02,
-    JSON_DELETE_SGML_TAGS = 0x04,
+    JSON_REMAP_CHARS = FN_QUERY_REMAP_CHARS,
+    JSON_REMAP_ATASCII_INTERNATIONAL = FN_QUERY_REMAP_ATASCII_INTERNATIONAL,
+    JSON_DELETE_SGML_TAGS = FN_QUERY_DELETE_SGML_TAGS,
 };
 
 class FNJSON

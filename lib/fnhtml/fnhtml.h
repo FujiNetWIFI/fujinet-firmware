@@ -14,13 +14,14 @@
 #include <string.h>
 #include <string>
 
+#include "../fntext/fn_query_flags.h"
 #include "../network-protocol/Protocol.h"
 
 class CDocument; // gumbo-query
 
 enum HTMLQueryFlags_t {
-    HTML_REMAP_CHARS = 0x01,
-    HTML_REMAP_ATASCII_INTERNATIONAL = 0x02,
+    HTML_REMAP_CHARS = FN_QUERY_REMAP_CHARS,
+    HTML_REMAP_ATASCII_INTERNATIONAL = FN_QUERY_REMAP_ATASCII_INTERNATIONAL,
 };
 
 class FNHTML
