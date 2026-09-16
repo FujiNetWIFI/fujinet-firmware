@@ -35,6 +35,24 @@ target_include_directories(fn_sanitize_tests PRIVATE
 add_test(NAME fn_sanitize_tests COMMAND fn_sanitize_tests)
 
 # ------------------------------------------------------------------------------
+# The XPath-subset query engine. Split out of FNXML precisely so it can be
+# driven here with a literal document and no NetworkProtocol behind it.
+# ------------------------------------------------------------------------------
+add_executable(fnxml_query_tests
+    FnxmlQueryTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/fnxml/fnxml_query.cpp
+    ${CMAKE_SOURCE_DIR}/lib/tinyxml2/tinyxml2.cpp
+)
+
+target_include_directories(fnxml_query_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/tinyxml2/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+
+add_test(NAME fnxml_query_tests COMMAND fnxml_query_tests)
+
+# ------------------------------------------------------------------------------
 # Calendar date arithmetic and event-draft parsing. fn_time and calendar_draft
 # are deliberately free of libc time functions and of any FujiNet dependency, so
 # they link on their own - which is what makes the DST and parsing edge cases
