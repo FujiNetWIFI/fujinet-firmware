@@ -49,6 +49,8 @@ NetworkStatus NParser::status()
     NetworkStatus ns;
 
     _protocol->status(&ns);
+    if (_parseError != NDEV_STATUS::SUCCESS)
+        ns.error = _parseError;
     return ns;
 }
 

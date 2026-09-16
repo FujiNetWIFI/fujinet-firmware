@@ -25,8 +25,10 @@ error_is_true JSONParser::setQuery(const std::string &query)
 
 error_is_true JSONParser::parse()
 {
-    _json.parse();
-    RETURN_SUCCESS_AS_FALSE();
+    bool ok = _json.parse();
+
+    _parseError = ok ? NDEV_STATUS::SUCCESS : NDEV_STATUS::COULD_NOT_PARSE_JSON;
+    RETURN_ERROR_IF(!ok);
 }
 
 error_is_true JSONParser::setQueryParam(uint8_t param)

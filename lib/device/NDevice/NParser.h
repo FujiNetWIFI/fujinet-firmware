@@ -8,6 +8,9 @@ class NParser
 protected:
     NetworkProtocol *_protocol = nullptr;
 
+    // Last parse() result, so STATUS can say why the channel is empty. Set by each parse().
+    nDevStatus_t _parseError = NDEV_STATUS::SUCCESS;
+
 public:
     NParser(NetworkProtocol *protocol) : _protocol(protocol) {}
     virtual ~NParser() = default;
