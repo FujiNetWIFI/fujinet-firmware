@@ -7,6 +7,8 @@
 
 #include "fnjson.h"
 
+#include "../fntext/fn_sanitize.h"
+
 #include <string.h>
 #include <sstream>
 #include <algorithm>
@@ -141,6 +143,12 @@ std::string FNJSON::processString(std::string in)
             }
         }
     }
+
+    // Output mode runs first: entity decoding and the ASCII fold are
+    // platform-neutral, and folding to ASCII leaves the remaps below nothing
+    // to do, so the two are alternatives rather than a pipeline.
+    if ((_queryParam & FN_QUERY_OUTPUT_MASK) == FN_QUERY_OUTPUT_ASCII)
+        return fn_sanitize_ascii(in);
 
 #ifdef BUILD_IEC
     // TODO: fix translations. There needs to be the ability to decide if we translate the TRANSMIT to internet and RECEIVE back to the host separately.

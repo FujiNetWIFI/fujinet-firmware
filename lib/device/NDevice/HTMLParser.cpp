@@ -14,7 +14,7 @@ error_is_true HTMLParser::setQuery(const std::string &query)
 {
     std::string buffer;
 
-    _html.setReadQuery(query, 0);
+    _html.setReadQuery(query, _html.queryParam());
     buffer.resize(_html.available());
     _html.readValue(reinterpret_cast<uint8_t *>(buffer.data()), buffer.size());
     buffer.resize(strlen(buffer.c_str()));

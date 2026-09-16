@@ -20,6 +20,7 @@ typedef enum class PARSER : uint8_t {
     NONE = 0,
     JSON = 1,
     HTML = 2, // HTML via CSS selector (FNHTML, Gumbo)
+    XML  = 3, // XML via an XPath subset (FNXML, tinyxml2)
 } parserMode_t;
 
 typedef enum class PARSER_PARAM : uint8_t {

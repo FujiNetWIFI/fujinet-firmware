@@ -18,6 +18,41 @@ target_link_libraries(fujibuspacket_tests PRIVATE
 add_test(NAME fujibuspacket_tests COMMAND fujibuspacket_tests)
 
 # ------------------------------------------------------------------------------
+# UTF-8 / HTML-entity folding to ASCII. fn_sanitize is deliberately free of any
+# parser or protocol dependency, so the entity tables and the transliteration
+# edge cases are pinned here rather than on hardware.
+# ------------------------------------------------------------------------------
+add_executable(fn_sanitize_tests
+    FnSanitizeTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/fntext/fn_sanitize.cpp
+)
+
+target_include_directories(fn_sanitize_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+
+add_test(NAME fn_sanitize_tests COMMAND fn_sanitize_tests)
+
+# ------------------------------------------------------------------------------
+# The XPath-subset query engine. Split out of FNXML precisely so it can be
+# driven here with a literal document and no NetworkProtocol behind it.
+# ------------------------------------------------------------------------------
+add_executable(fnxml_query_tests
+    FnxmlQueryTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/fnxml/fnxml_query.cpp
+    ${CMAKE_SOURCE_DIR}/lib/tinyxml2/tinyxml2.cpp
+)
+
+target_include_directories(fnxml_query_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/tinyxml2/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+
+add_test(NAME fnxml_query_tests COMMAND fnxml_query_tests)
+
+# ------------------------------------------------------------------------------
 # Calendar date arithmetic and event-draft parsing. fn_time and calendar_draft
 # are deliberately free of libc time functions and of any FujiNet dependency, so
 # they link on their own - which is what makes the DST and parsing edge cases
@@ -105,6 +140,8 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     ${CMAKE_SOURCE_DIR}/lib/TNFSlib/
     ${CMAKE_SOURCE_DIR}/lib/fnjson/
     ${CMAKE_SOURCE_DIR}/lib/fnhtml/
+    ${CMAKE_SOURCE_DIR}/lib/fntext/
+    ${CMAKE_SOURCE_DIR}/lib/fnxml/
     ${CMAKE_SOURCE_DIR}/components_pc/
     ${CMAKE_SOURCE_DIR}/components_pc/libssh/include/
     ${CMAKE_SOURCE_DIR}/build/components_pc/libssh/include/
@@ -115,4 +152,63 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     )
   target_link_libraries(sio_dstats_tests PRIVATE)
   add_test(NAME sio_dstats_tests COMMAND sio_dstats_tests)
+
+  # ----------------------------------------------------------------------------
+  # The query output mode, end to end through a real parser: NET_SET_PARAMETER
+  # flags, NET_QUERY, and the bytes that come back. XMLParser stands in for all
+  # three modes - the flag plumbing and the ASCII fold are shared - and it is the
+  # one whose library (tinyxml2) links without Gumbo or cJSON behind it.
+  #
+  # ATARI-only for the same reason as sio_dstats_tests: the bus headers need a
+  # concrete systemBus.
+  # ----------------------------------------------------------------------------
+  add_executable(nquery_output_mode_tests
+    NQueryOutputModeTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/NDevice/NParser.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/NDevice/XMLParser.cpp
+    ${CMAKE_SOURCE_DIR}/lib/fntext/fn_sanitize.cpp
+    ${CMAKE_SOURCE_DIR}/lib/fnxml/fnxml.cpp
+    ${CMAKE_SOURCE_DIR}/lib/fnxml/fnxml_query.cpp
+    ${CMAKE_SOURCE_DIR}/lib/tinyxml2/tinyxml2.cpp
+    )
+  target_include_directories(nquery_output_mode_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/bus/
+    ${CMAKE_SOURCE_DIR}/lib/sam/
+    ${CMAKE_SOURCE_DIR}/lib/device/
+    ${CMAKE_SOURCE_DIR}/lib/config/
+    ${CMAKE_SOURCE_DIR}/lib/printer-emulator/
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/
+    ${CMAKE_SOURCE_DIR}/lib/encoding/
+    ${CMAKE_SOURCE_DIR}/lib/media/
+    ${CMAKE_SOURCE_DIR}/lib/fuji/
+    ${CMAKE_SOURCE_DIR}/lib/modem-sniffer/
+    ${CMAKE_SOURCE_DIR}/lib/telnet/
+    ${CMAKE_SOURCE_DIR}/lib/device/NDevice/
+    ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+    ${CMAKE_SOURCE_DIR}/lib/hardware/
+    ${CMAKE_SOURCE_DIR}/lib/tcpip/
+    ${CMAKE_SOURCE_DIR}/lib/compat/
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/
+    ${CMAKE_SOURCE_DIR}/lib/utils/
+    ${CMAKE_SOURCE_DIR}/lib/ftp/
+    ${CMAKE_SOURCE_DIR}/lib/webdav/
+    ${CMAKE_SOURCE_DIR}/lib/http/
+    ${CMAKE_SOURCE_DIR}/lib/TNFSlib/
+    ${CMAKE_SOURCE_DIR}/lib/fnjson/
+    ${CMAKE_SOURCE_DIR}/lib/fnhtml/
+    ${CMAKE_SOURCE_DIR}/lib/fntext/
+    ${CMAKE_SOURCE_DIR}/lib/fnxml/
+    ${CMAKE_SOURCE_DIR}/components_pc/
+    ${CMAKE_SOURCE_DIR}/components_pc/libssh/include/
+    ${CMAKE_SOURCE_DIR}/build/components_pc/libssh/include/
+    ${CMAKE_SOURCE_DIR}/components_pc/cJSON/
+    ${CMAKE_SOURCE_DIR}/components_pc/mongoose/
+    ${CMAKE_SOURCE_DIR}/components/gumbo-query/
+    ${MBEDTLS_INCLUDE_DIR}
+    ${CMAKE_SOURCE_DIR}/lib/tinyxml2/
+    )
+  target_link_libraries(nquery_output_mode_tests PRIVATE)
+  add_test(NAME nquery_output_mode_tests COMMAND nquery_output_mode_tests)
 endif()

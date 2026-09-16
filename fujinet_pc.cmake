@@ -142,7 +142,8 @@ endif()
 set(INCLUDE_DIRS include
     lib/compat lib/config lib/utils lib/hardware lib/clipboard
     lib/FileSystem
-    lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson lib/fnhtml
+    lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson lib/fnhtml lib/fntext lib/fnxml
+    lib/tinyxml2
     lib/webdav lib/http lib/sam lib/task
     lib/modem-sniffer lib/printer-emulator
     lib/network-protocol
@@ -229,6 +230,11 @@ set(SOURCES src/main.cpp
     lib/telnet/libtelnet.h lib/telnet/libtelnet.c
     lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
     lib/fnhtml/fnhtml.h lib/fnhtml/fnhtml.cpp
+    lib/fntext/fn_query_flags.h
+    lib/fntext/fn_sanitize.h lib/fntext/fn_sanitize.cpp
+    lib/fnxml/fnxml.h lib/fnxml/fnxml.cpp
+    lib/fnxml/fnxml_query.h lib/fnxml/fnxml_query.cpp
+    lib/tinyxml2/tinyxml2.h lib/tinyxml2/tinyxml2.cpp
     components/gumbo-query/Document.cpp components/gumbo-query/Node.cpp components/gumbo-query/Object.cpp
     components/gumbo-query/Parser.cpp components/gumbo-query/QueryUtil.cpp components/gumbo-query/Selection.cpp
     components/gumbo-query/Selector.cpp
@@ -319,6 +325,7 @@ set(SOURCES src/main.cpp
     lib/device/NDevice/NParser.h lib/device/NDevice/NParser.cpp
     lib/device/NDevice/JSONParser.h lib/device/NDevice/JSONParser.cpp
     lib/device/NDevice/HTMLParser.h lib/device/NDevice/HTMLParser.cpp
+    lib/device/NDevice/XMLParser.h lib/device/NDevice/XMLParser.cpp
     lib/device/netstream.h
     lib/device/siocpm.h
     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp

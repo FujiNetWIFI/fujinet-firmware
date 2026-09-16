@@ -14,6 +14,8 @@
 #include "NParser.h"
 #include "JSONParser.h"
 #include "HTMLParser.h"
+#include "XMLParser.h"
+#include "fn_query_flags.h"
 #include "IOChannel.h" // For GET_TIMESTAMP()
 #include "utils.h"
 #include "debug.h"
@@ -427,6 +429,19 @@ void NDevice::fujidev_set_prefix(const FUJI_COMMAND_PACKET &packet)
 error_is_true NDevice::fujicore_set_query(const std::string &query, uint8_t parseFlags)
 {
     error_is_true err = error_is_true(false);
+
+    if (_parser == nullptr)
+        RETURN_ERROR_AS_TRUE();
+
+    // A flags byte on the command itself wins over one set earlier with
+    // NET_SET_PARAMETER; 0 means the bus sent none, so leave the stored value.
+    if (parseFlags != 0)
+    {
+        if (!fn_query_param_is_valid(parseFlags))
+            RETURN_ERROR_AS_TRUE();
+        _parser->setQueryParam(parseFlags);
+    }
+
     err = _parser->setQuery(query);
     if (err.is_success())
         Debug_printf("Query set to >%s<\r\n", query.c_str());
@@ -435,8 +450,6 @@ error_is_true NDevice::fujicore_set_query(const std::string &query, uint8_t pars
 
 void NDevice::fujidev_set_query(const FUJI_COMMAND_PACKET &packet)
 {
-    uint8_t query_param = 0; //packet.param(1);
-
     std::string query(256, 0);
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
@@ -455,7 +468,7 @@ void NDevice::fujidev_set_query(const FUJI_COMMAND_PACKET &packet)
         return;
     }
 
-    if (fujicore_set_query(query, query_param).is_error())
+    if (fujicore_set_query(query, 0).is_error())
     {
         SYSTEM_BUS.transaction_error();
         return;
@@ -539,6 +552,10 @@ void NDevice::fujidev_set_parser(const FUJI_COMMAND_PACKET &packet)
         _parser = std::make_unique<HTMLParser>(_protocol.get());
         break;
 
+    case PARSER::XML:
+        _parser = std::make_unique<XMLParser>(_protocol.get());
+        break;
+
     default:
         Debug_printf("INVALID MODE = %02x\r\n", (unsigned) mode);
         SYSTEM_BUS.transaction_error();
@@ -602,23 +619,27 @@ void NDevice::fujidev_set_parameter(const FUJI_COMMAND_PACKET &packet)
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     // param(0) | param(1)  | meaning
-    // 0        | 0/1/2     | Set the json->_queryParam value, which is the
-    //                        translation value for string processing
-    // 1        | c         | Set the json->lineEnding = c, convert from char to
+    // 0        | flags     | Query flags for the active parser: low nibble
+    //                        remaps characters, bits 4-5 pick the output mode.
+    //                        See fntext/fn_query_flags.h.
+    // 1        | c         | Set the parser lineEnding = c, convert from char to
     //                        single byte string
 
     parserParam_t ptype = param_cast<parserParam_t>(packet, 0);
     switch (ptype)
     {
     case PARSER_PARAM::QUERY:
-        if (param_as<uint8_t>(packet, 1) > 2)
+    {
+        uint8_t qp = param_as<uint8_t>(packet, 1);
+        if (!fn_query_param_is_valid(qp))
         {
             SYSTEM_BUS.transaction_error();
             return;
         }
-        _parser->setQueryParam(packet.param(1));
+        _parser->setQueryParam(qp);
         SYSTEM_BUS.transaction_success();
         break;
+    }
     case PARSER_PARAM::EOL:
         {
             std::stringstream ss;

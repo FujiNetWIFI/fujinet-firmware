@@ -14,7 +14,7 @@ error_is_true JSONParser::setQuery(const std::string &query)
 {
     std::string buffer;
 
-    _json.setReadQuery(query, 0);
+    _json.setReadQuery(query, _json.queryParam());
     buffer.resize(_json.available());
     _json.readValue(reinterpret_cast<uint8_t *>(buffer.data()), buffer.size());
     buffer.resize(strlen(buffer.c_str()));

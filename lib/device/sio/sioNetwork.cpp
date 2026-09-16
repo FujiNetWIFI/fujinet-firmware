@@ -129,6 +129,38 @@ void sioNetwork::fujidev_set_prefix(const FUJI_COMMAND_PACKET &packet)
     SYSTEM_BUS.transaction_success();
 }
 
+/**
+ * NET_QUERY, with the query flags DAUX2 carries on SIO.
+ */
+void sioNetwork::fujidev_set_query(const FUJI_COMMAND_PACKET &packet)
+{
+    std::string query(256, 0);
+
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    if (SYSTEM_BUS.transaction_get(query).is_error())
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+    query.resize(strlen(query.c_str()));
+    query = SYSTEM_BUS.nativeTextToUnicode(query);
+
+    // Checked after the payload is drained, otherwise the bus desyncs.
+    if (_parser == nullptr)
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
+    if (fujicore_set_query(query, packet.param8(1)).is_error())
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
+    SYSTEM_BUS.transaction_success();
+}
+
 void sioNetwork::fujidev_seek(const FUJI_COMMAND_PACKET &packet)
 {
     u24le_t offset;

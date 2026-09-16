@@ -1,16 +1,19 @@
 /**
- * HTML Wrapper for #FujiNet
+ * XML Wrapper for #FujiNet
  */
 
-#include "fnhtml.h"
+#include "fnxml.h"
 
 #include "../fntext/fn_sanitize.h"
 
 #include <string.h>
+#include <vector>
+#include <cstdlib>
+#include <cctype>
 
-#include "Document.h"
-#include "Selection.h"
-#include "Node.h"
+#include "tinyxml2.h"
+
+#include "fnxml_query.h"
 
 #include "../../include/debug.h"
 
@@ -25,19 +28,19 @@ constexpr size_t kReadChunkBytes = 32768;
 
 } // namespace
 
-FNHTML::FNHTML()
+FNXML::FNXML()
 {
 #ifdef VERBOSE_PROTOCOL
-    Debug_printf("FNHTML::ctor()\r\n");
+    Debug_printf("FNXML::ctor()\r\n");
 #endif
     _protocol = nullptr;
     _doc = nullptr;
 }
 
-FNHTML::~FNHTML()
+FNXML::~FNXML()
 {
 #ifdef VERBOSE_PROTOCOL
-    Debug_printf("FNHTML::dtor()\r\n");
+    Debug_printf("FNXML::dtor()\r\n");
 #endif
     _protocol = nullptr;
     if (_doc != nullptr)
@@ -45,37 +48,37 @@ FNHTML::~FNHTML()
     _doc = nullptr;
 }
 
-void FNHTML::setLineEnding(const std::string &_lineEnding)
+void FNXML::setLineEnding(const std::string &_lineEnding)
 {
     lineEnding = _lineEnding;
 }
 
-void FNHTML::setProtocol(NetworkProtocol *newProtocol)
+void FNXML::setProtocol(NetworkProtocol *newProtocol)
 {
 #ifdef VERBOSE_PROTOCOL
-    Debug_printf("FNHTML::setProtocol()\r\n");
+    Debug_printf("FNXML::setProtocol()\r\n");
 #endif
     _protocol = newProtocol;
 }
 
-void FNHTML::setQueryParam(uint8_t qp)
+void FNXML::setQueryParam(uint8_t qp)
 {
     _queryParam = qp;
 }
 
 /**
- * Set read query. queryString is a CSS selector (e.g. ".nav-link",
- * ".wp-block-table tbody tr:nth-child(2) td"), optionally followed by "@attr"
- * to return an attribute value instead of the element's text.
+ * Set read query. queryString is an XPath-subset query (e.g. "/rss/channel/item",
+ * "//title", "item[@id='x']"), optionally followed by "@attr" to return an attribute
+ * value instead of the element's text.
  *
  * Returns a single match. Calling again with the same selector advances to the
  * next match (so an 8-bit host iterates by repeating the query until it gets an
  * empty result); a different selector restarts at the first match.
  */
-void FNHTML::setReadQuery(const std::string &queryString, uint8_t queryParam)
+void FNXML::setReadQuery(const std::string &queryString, uint8_t queryParam)
 {
 #ifdef VERBOSE_PROTOCOL
-    Debug_printf("FNHTML::setReadQuery queryString: %s, queryParam: %d\r\n", queryString.c_str(), queryParam);
+    Debug_printf("FNXML::setReadQuery queryString: %s, queryParam: %d\r\n", queryString.c_str(), queryParam);
 #endif
     if (queryString == _lastQuery)
     {
@@ -89,52 +92,26 @@ void FNHTML::setReadQuery(const std::string &queryString, uint8_t queryParam)
     _queryString = queryString;
     _queryParam = queryParam;
     resolveQuery();
-    _html_bytes_remaining = readValueLen();
+    _xml_bytes_remaining = readValueLen();
 }
 
 /**
- * Run the CSS selector against the parsed document and build the result value.
+ * Run the query (see fnxml_query.h for the supported XPath subset) and build the
+ * result value for the current match index.
  */
-void FNHTML::resolveQuery()
+void FNXML::resolveQuery()
 {
     _value.clear();
 
-    if (_doc == nullptr)
-        return;
-
-    // Split an optional "@attr" suffix off the selector.
-    std::string selector = _queryString;
-    std::string attr;
-    size_t at = _queryString.rfind('@');
-    if (at != std::string::npos)
-    {
-        selector = _queryString.substr(0, at);
-        attr = _queryString.substr(at + 1);
-        while (!selector.empty() && selector.back() == ' ')
-            selector.pop_back();
-    }
-    if (selector.empty())
-        return;
-
-    // gumbo-query is patched to be exception-free: a malformed selector yields
-    // an empty selection rather than throwing, so no try/catch is needed (the
-    // ESP firmware builds with C++ exceptions disabled).
-    CSelection sel = _doc->find(selector);
-
-    // Return only the current match; an out-of-range index (iteration finished)
-    // leaves _value empty so the caller sees 0 bytes available.
-    if (_matchIndex < sel.nodeNum())
-    {
-        CNode node = sel.nodeAt(_matchIndex);
-        std::string v = attr.empty() ? node.text() : node.attribute(attr);
+    std::string v;
+    if (fnxml_resolve_query(_doc, _queryString, _matchIndex, v))
         _value = processString(v) + lineEnding;
-    }
 }
 
 /**
- * Character remapping for target platforms (mirrors FNJSON).
+ * Character remapping for target platforms (mirrors FNHTML).
  */
-std::string FNHTML::processString(std::string in)
+std::string FNXML::processString(std::string in)
 {
     // Output mode runs first: entity decoding and the ASCII fold are
     // platform-neutral, and folding to ASCII leaves the remaps below nothing
@@ -143,9 +120,9 @@ std::string FNHTML::processString(std::string in)
         return fn_sanitize_ascii(in);
 
 #ifdef BUILD_ATARI
-    if (_queryParam & HTML_REMAP_CHARS)
+    if (_queryParam & XML_REMAP_CHARS)
     {
-        if (_queryParam & HTML_REMAP_ATASCII_INTERNATIONAL)
+        if (_queryParam & XML_REMAP_ATASCII_INTERNATIONAL)
         {
             std::string mapFrom[] = {"á", "ù", "Ñ", "É", "ç", "ô", "ò", "ì", "£", "ï", "ü", "ä", "Ö", "ú", "ó", "ö", "Ü", "â", "û", "î", "é", "è", "ñ", "ê", "å", "à", "Å", "¡", "Ä", "ß"};
             std::string mapTo[] = {"\x00", "\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07", "\x08", "\x09", "\x0a", "\x0b", "\x0c", "\x0d", "\x0e", "\x0f", "\x10", "\x11", "\x12", "\x13", "\x14", "\x15", "\x16", "\x17", "\x18", "\x19", "\x1a", "\x60", "\x7b", "ss"};
@@ -168,18 +145,18 @@ std::string FNHTML::processString(std::string in)
     return in;
 }
 
-bool FNHTML::readValue(uint8_t *rx_buf, unsigned short len)
+bool FNXML::readValue(uint8_t *rx_buf, unsigned short len)
 {
     if (_value.empty())
         return true; // error
 
     memcpy(rx_buf, _value.data(), len);
-    _html_bytes_remaining -= len;
+    _xml_bytes_remaining -= len;
 
     return false; // no error
 }
 
-int FNHTML::readValueLen()
+int FNXML::readValueLen()
 {
     return _value.size();
 }
@@ -187,7 +164,7 @@ int FNHTML::readValueLen()
 /**
  * Parse document from protocol
  */
-bool FNHTML::parse()
+bool FNXML::parse()
 {
     NetworkStatus ns;
 
@@ -220,7 +197,7 @@ bool FNHTML::parse()
             if (_parseBuffer.size() > kMaxBodyBytes)
             {
 #ifdef VERBOSE_PROTOCOL
-                Debug_printf("FNHTML::parse() - body exceeds %zu bytes, truncating\r\n", kMaxBodyBytes);
+                Debug_printf("FNXML::parse() - body exceeds %zu bytes, truncating\r\n", kMaxBodyBytes);
 #endif
                 _parseBuffer.resize(kMaxBodyBytes);
                 break;
@@ -235,10 +212,38 @@ bool FNHTML::parse()
     if (_parseBuffer.empty())
         return false;
 
-    // Gumbo does full HTML5 error-recovery, so the raw (malformed) body is fine.
-    CDocument *doc = new CDocument();
-    doc->parse(_parseBuffer);
-    _doc = doc;
+    // Strip UTF-8 BOM if present.
+    if (_parseBuffer.length() >= 3 &&
+        (unsigned char)_parseBuffer[0] == 0xEF &&
+        (unsigned char)_parseBuffer[1] == 0xBB &&
+        (unsigned char)_parseBuffer[2] == 0xBF)
+    {
+        _parseBuffer = _parseBuffer.substr(3);
+    }
+
+    // Strip leading whitespace (tinyxml2 is strict about declaration position).
+    size_t firstNonWs = 0;
+    while (firstNonWs < _parseBuffer.length() && isspace((unsigned char)_parseBuffer[firstNonWs]))
+        firstNonWs++;
+    if (firstNonWs > 0 && firstNonWs < _parseBuffer.length())
+        _parseBuffer = _parseBuffer.substr(firstNonWs);
+
+    if (_parseBuffer.empty())
+        return false;
+
+    // Parse with tinyxml2.
+    _doc = new tinyxml2::XMLDocument();
+    tinyxml2::XMLError err = _doc->Parse(_parseBuffer.c_str(), _parseBuffer.size());
+
+    if (err != tinyxml2::XML_SUCCESS)
+    {
+#ifdef VERBOSE_PROTOCOL
+        Debug_printf("FNXML::parse() - XML parse error: %s\r\n", _doc->ErrorStr());
+#endif
+        delete _doc;
+        _doc = nullptr;
+        return false;
+    }
 
     // Fresh document -> restart match iteration.
     _lastQuery.clear();
@@ -246,9 +251,9 @@ bool FNHTML::parse()
     return true;
 }
 
-bool FNHTML::status(NetworkStatus *s)
+bool FNXML::status(NetworkStatus *s)
 {
     s->connected = true;
-    s->error = _html_bytes_remaining == 0 ? NDEV_STATUS::END_OF_FILE : NDEV_STATUS::SUCCESS;
+    s->error = _xml_bytes_remaining == 0 ? NDEV_STATUS::END_OF_FILE : NDEV_STATUS::SUCCESS;
     return false;
 }

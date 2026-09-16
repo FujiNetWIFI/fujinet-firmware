@@ -14,13 +14,14 @@
 #include <string.h>
 #include <string>
 
+#include "../fntext/fn_query_flags.h"
 #include "../network-protocol/Protocol.h"
 
 class CDocument; // gumbo-query
 
 enum HTMLQueryFlags_t {
-    HTML_REMAP_CHARS = 0x01,
-    HTML_REMAP_ATASCII_INTERNATIONAL = 0x02,
+    HTML_REMAP_CHARS = FN_QUERY_REMAP_CHARS,
+    HTML_REMAP_ATASCII_INTERNATIONAL = FN_QUERY_REMAP_ATASCII_INTERNATIONAL,
 };
 
 class FNHTML
@@ -39,6 +40,7 @@ public:
     bool readValue(uint8_t *buf, unsigned short len);
     std::string processString(std::string in);
     void setQueryParam(uint8_t qp);
+    uint8_t queryParam() const { return _queryParam; }
     size_t available() { return _html_bytes_remaining; }
 
 private:
