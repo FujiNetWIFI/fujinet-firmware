@@ -39,6 +39,7 @@ public:
     bool readValue(uint8_t *buf, unsigned short len);
     std::string processString(std::string in);
     void setQueryParam(uint8_t qp);
+    uint8_t queryParam() const { return _queryParam; }
     size_t available() { return _html_bytes_remaining; }
 
 private:

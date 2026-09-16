@@ -14,6 +14,7 @@
 #include "NParser.h"
 #include "JSONParser.h"
 #include "HTMLParser.h"
+#include "fn_query_flags.h"
 #include "IOChannel.h" // For GET_TIMESTAMP()
 #include "utils.h"
 #include "debug.h"
@@ -602,23 +603,27 @@ void NDevice::fujidev_set_parameter(const FUJI_COMMAND_PACKET &packet)
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     // param(0) | param(1)  | meaning
-    // 0        | 0/1/2     | Set the json->_queryParam value, which is the
-    //                        translation value for string processing
-    // 1        | c         | Set the json->lineEnding = c, convert from char to
+    // 0        | flags     | Query flags for the active parser: low nibble
+    //                        remaps characters, bits 4-5 pick the output mode.
+    //                        See fntext/fn_query_flags.h.
+    // 1        | c         | Set the parser lineEnding = c, convert from char to
     //                        single byte string
 
     parserParam_t ptype = param_cast<parserParam_t>(packet, 0);
     switch (ptype)
     {
     case PARSER_PARAM::QUERY:
-        if (param_as<uint8_t>(packet, 1) > 2)
+    {
+        uint8_t qp = param_as<uint8_t>(packet, 1);
+        if (!fn_query_param_is_valid(qp))
         {
             SYSTEM_BUS.transaction_error();
             return;
         }
-        _parser->setQueryParam(packet.param(1));
+        _parser->setQueryParam(qp);
         SYSTEM_BUS.transaction_success();
         break;
+    }
     case PARSER_PARAM::EOL:
         {
             std::stringstream ss;

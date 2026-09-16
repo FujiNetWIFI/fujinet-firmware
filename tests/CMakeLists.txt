@@ -122,6 +122,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     ${CMAKE_SOURCE_DIR}/lib/TNFSlib/
     ${CMAKE_SOURCE_DIR}/lib/fnjson/
     ${CMAKE_SOURCE_DIR}/lib/fnhtml/
+    ${CMAKE_SOURCE_DIR}/lib/fntext/
     ${CMAKE_SOURCE_DIR}/components_pc/
     ${CMAKE_SOURCE_DIR}/components_pc/libssh/include/
     ${CMAKE_SOURCE_DIR}/build/components_pc/libssh/include/
