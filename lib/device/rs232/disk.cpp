@@ -4,11 +4,186 @@
 #include "fujiCommandID.h"
 
 #include <cstring>
+#include <string>
 
 #include "../../include/debug.h"
 
+#include "compat_string.h"
+#include "fujiHost.h"
 #include "fujiDevice.h"
 #include "utils.h"
+
+#define ROM_PUSH_STREAM_CFG 1
+#define ROM_PUSH_STREAM_ROM 0
+
+// push_stream: reads `f` from its current position in DISK_SECTORBUF_SIZE
+// chunks and relays each one to the RP2040 as CMD::NET_WRITE frames on DBC
+// stream `stream_id` (0 = ROM, 1 = a .cfg sibling -- the RP2040's
+// dbc_inbound_handler() demuxes on this same id). Sent as PAYLOAD bytes,
+// not params: FujiBusPacket::processArg(uint16_t) encodes bare integer
+// arguments as wire params, but the RP2040's minimal fujibus.c client
+// parses the descriptor chain only far enough to skip past it to find the
+// payload -- it never surfaces decoded param values. The payload path is
+// the one it actually exposes to callers (fb_reply_t.data/data_len), so
+// that's what carries the OPEN header here.
+//
+// OPEN payload is the stream id followed by the stream's total size as 4
+// little-endian bytes. The RP2040 uses the size to refuse a ROM too large
+// for its cart.ROM[] before we drag the whole thing over TNFS, and to draw
+// an exact progress bar; an older RP2040 build reads data[0] and ignores
+// the rest, so this stays compatible in both directions.
+//
+// Always sends CMD::NET_CLOSE so the RP2040's stream state doesn't wedge; a
+// failed transfer's CLOSE carries a 0x01 abort payload so partial data
+// isn't booted.
+static bool push_stream(fnFile *f, uint16_t stream_id, uint32_t expected_size)
+{
+    uint8_t buf[DISK_SECTORBUF_SIZE];
+
+    struct { uint8_t id; u32le_t size; } open_hdr;
+    static_assert(sizeof(open_hdr) == 5, "OPEN header must not be padded");
+    open_hdr.id = (uint8_t)stream_id;
+    open_hdr.size = expected_size;
+
+    auto reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_OPEN,
+                                        std::string((const char *)&open_hdr, sizeof(open_hdr)));
+    if (!reply || reply->command() != CMD::FUJI_ACK)
+    {
+        Debug_printv("ROM push: failed to open DBC stream %u (%lu bytes)\n",
+                     stream_id, (unsigned long)expected_size);
+        return false;
+    }
+
+    bool ok = true;
+    uint32_t sent = 0;
+    size_t got;
+    while ((got = fnio::fread(buf, 1, sizeof(buf), f)) > 0)
+    {
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_WRITE,
+                                       std::string((char *)buf, got));
+        if (!reply || reply->command() != CMD::FUJI_ACK)
+        {
+            Debug_printv("ROM push: failed to send stream %u block\n", stream_id);
+            ok = false;
+            break;
+        }
+        sent += got;
+    }
+
+    // fread() can't distinguish EOF from error -- the byte count is the signal
+    if (ok && sent != expected_size)
+    {
+        Debug_printv("ROM push: stream %u short transfer: %lu of %lu bytes\n",
+                     stream_id, (unsigned long)sent, (unsigned long)expected_size);
+        ok = false;
+    }
+
+    if (ok)
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE);
+    else
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE,
+                                       std::string(1, '\x01'));
+    if (!reply || reply->command() != CMD::FUJI_ACK)
+    {
+        Debug_printv("ROM push: stream %u close failed/rejected\n", stream_id);
+        ok = false;
+    }
+    return ok;
+}
+
+// rs232Disk::mount()'s `filename` arrives already host-prefixed (fnfile_open rewrites
+// disk.filename in place); fujiHost APIs prefix again, so strip it first.
+static const char *strip_host_prefix(fujiHost *host, const char *filename)
+{
+    const char *pfx = host->get_prefix();
+    if (pfx == nullptr || pfx[0] == '\0')
+        return filename;
+
+    size_t plen = strlen(pfx);
+    if (strncmp(filename, pfx, plen) != 0)
+        return filename; // not prefixed after all
+
+    const char *p = filename + plen;
+    // skip the separator util_concat_paths() inserted
+    if (pfx[plen - 1] != '/' && pfx[plen - 1] != '\\' && (*p == '/' || *p == '\\'))
+        p++;
+    return p;
+}
+
+// A ROM image isn't served sector by sector the way a disk is: the whole file
+// goes to the RP2040 at mount time, which presents it to the machine as
+// cartridge ROM. Nothing reads it back through the media object afterwards.
+static bool push_rom_streams(fnFile *f, uint32_t disksize, fujiHost *host, const char *filename)
+{
+    // Push the .cfg sibling first so the mapping is known before the ROM's
+    // CLOSE boots. Missing sibling: fine. Existing sibling that fails to
+    // open/push: fail the mount -- booting without it produces hangs.
+    if (host != nullptr && filename != nullptr)
+    {
+        char cfgpath[MAX_FILENAME_LEN];
+        strlcpy(cfgpath, strip_host_prefix(host, filename), sizeof(cfgpath));
+
+        // replace the basename's extension only
+        char *base = cfgpath;
+        for (char *p = cfgpath; *p != '\0'; p++)
+            if (*p == '/' || *p == '\\')
+                base = p + 1;
+        char *dot = strrchr(base, '.');
+        if (dot != nullptr)
+            strlcpy(dot, ".cfg", sizeof(cfgpath) - (dot - cfgpath));
+        else
+            strlcat(cfgpath, ".cfg", sizeof(cfgpath));
+
+        bool cfg_found = host->file_exists(cfgpath);
+        if (!cfg_found)
+        {
+            // case-sensitive hosts may carry the sibling as .CFG
+            size_t len = strlen(cfgpath);
+            memcpy(cfgpath + len - 4, ".CFG", 4);
+            cfg_found = host->file_exists(cfgpath);
+        }
+
+        if (!cfg_found)
+        {
+            // Not an error -- a .bin with no memory map boots against the
+            // emulator's size-guess table -- but for the titles that need one
+            // the result is a wrong map, i.e. a game that boots to garbage
+            // with nothing anywhere saying why. Say it here.
+            Debug_printv("ROM push: no .cfg sibling for %s (tried \"%s\" in both "
+                         "casings) -- booting with a default memory map\n",
+                         filename, cfgpath);
+        }
+        else
+        {
+            char resolved[MAX_FILENAME_LEN];
+            strlcpy(resolved, cfgpath, sizeof(resolved));
+            fnFile *cfgf = host->fnfile_open(cfgpath, resolved, sizeof(resolved), "rb");
+            if (cfgf == nullptr)
+            {
+                Debug_printv("ROM push: .cfg sibling exists but failed to open: %s\n", cfgpath);
+                return false;
+            }
+            long cfgsize = host->file_size(cfgf);
+            bool cfg_ok = cfgsize >= 0 &&
+                          push_stream(cfgf, ROM_PUSH_STREAM_CFG, (uint32_t)cfgsize);
+            fnio::fclose(cfgf);
+            if (!cfg_ok)
+            {
+                Debug_printv("ROM push: .cfg push failed: %s\n", cfgpath);
+                return false;
+            }
+        }
+    }
+
+    fnio::fseek(f, 0, SEEK_SET);
+    if (!push_stream(f, ROM_PUSH_STREAM_ROM, disksize))
+    {
+        Debug_printv("ROM push: ROM push failed\n");
+        return false;
+    }
+
+    return true;
+}
 
 rs232Disk::rs232Disk()
 {
@@ -205,7 +380,8 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
         device_active = true;
         _mount_time = time(NULL);
         _disk = new MediaTypeROM();
-        return _disk->mount(f, disksize, host, filename);
+        _disk->mount(f, disksize);
+        return push_rom_streams(f, disksize, host, filename) ? MEDIATYPE_ROM : MEDIATYPE_UNKNOWN;
     case MEDIATYPE_IMG:
     case MEDIATYPE_UNKNOWN:
     default:

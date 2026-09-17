@@ -5,8 +5,6 @@
 #include "fnio.h"
 #include "global_types.h"
 
-class fujiHost;
-
 #define INVALID_SECTOR_VALUE 65536
 
 #define DISK_SECTORBUF_SIZE 512
@@ -73,14 +71,7 @@ public:
 
     mediatype_t _disktype = MEDIATYPE_UNKNOWN;
 
-    // `host` and `filename` are only used by MediaTypeROM: `filename` to
-    // derive a same-named .cfg sibling's path, `host` to open it through
-    // the same fujiHost the ROM itself came from (so it works identically
-    // whether the ROM is on TNFS, SD, etc.). Every other mount() ignores
-    // both; they default so existing callers and overrides don't need to
-    // change.
-    virtual mediatype_t mount(fnFile *f, uint32_t disksize, fujiHost *host = nullptr,
-                              const char *filename = nullptr) = 0;
+    virtual mediatype_t mount(fnFile *f, uint32_t disksize) = 0;
     virtual void unmount();
 
     // Returns TRUE if an error condition occurred

@@ -3,11 +3,66 @@
 #include "disk.h"
 
 #include <cstring>
+#include <string>
 
 #include "../../include/debug.h"
 
+#include "bus.h"
+#include "fujiCommandID.h"
 #include "fujiDevice.h"
 #include "utils.h"
+
+// A ROM image isn't served block by block the way a disk is: the whole file
+// goes to the cartridge's RP2040 at mount time, which presents it to the CoCo
+// as cartridge ROM. Nothing reads it back through the media object afterwards.
+static bool push_rom_image(fnFile *f, uint32_t disksize)
+{
+#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+    if (SYSTEM_BUS.isBoIP())
+    {
+        Debug_printv("ROM media requires a real pico; not supported over BoIP");
+        return false;
+    }
+
+    if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_OPEN, (uint16_t)0))
+    {
+        Debug_printv("Failed to open pico bank");
+        return false;
+    }
+
+    fnio::fseek(f, 0, SEEK_SET);
+
+    uint8_t blockbuff[MEDIA_BLOCK_SIZE];
+    uint32_t sent = 0;
+    while (sent < disksize)
+    {
+        size_t want = (disksize - sent) > MEDIA_BLOCK_SIZE ? MEDIA_BLOCK_SIZE : (disksize - sent);
+        size_t got = fnio::fread(blockbuff, 1, want, f);
+        if (got == 0)
+        {
+            Debug_printv("ROM read short: sent %lu of %lu bytes", (unsigned long)sent, (unsigned long)disksize);
+            break;
+        }
+        if (!SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_WRITE,
+                                    std::string((char *)blockbuff, got)))
+        {
+            Debug_printv("Failed to send ROM block at %lu of %lu bytes", (unsigned long)sent, (unsigned long)disksize);
+            break;
+        }
+        sent += got;
+    }
+
+    SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE);
+    Debug_printv("ROM transfer complete: %lu / %lu bytes", (unsigned long)sent, (unsigned long)disksize);
+
+    return true;
+#else
+    (void)f;
+    (void)disksize;
+    Debug_printv("ROM mount not supported on this FujiNet hardware.");
+    return false;
+#endif
+}
 
 drivewireDisk::drivewireDisk()
 {
@@ -64,6 +119,8 @@ mediatype_t drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disks
         strcpy(_media->_disk_filename,filename);
         _media->_media_read_only = !(access_mode & DISK_ACCESS_MODE_WRITE);
         mt = _media->mount(f, disksize);
+        if (mt == MEDIATYPE_ROM && !push_rom_image(f, disksize))
+            mt = MEDIATYPE_UNKNOWN;
         if (mt == MEDIATYPE_UNKNOWN)
         {
             delete _media;

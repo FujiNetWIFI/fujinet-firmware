@@ -178,9 +178,9 @@ protected:
     // signature, so this stays the only call site that needs a
     // platform-specific override rather than a #ifdef BUILD_* (banned here,
     // see tests/check_no_build_ifdefs.py). rs232Fuji overrides this to pass
-    // `host` through to rs232Disk::mount(), which MediaTypeROM needs to open
-    // a same-named .cfg sibling through the same fujiHost the ROM itself
-    // came from -- see lib/media/rs232/diskTypeROM.cpp.
+    // `host` through to rs232Disk::mount(), which a ROM mount needs to open a
+    // same-named .cfg sibling through the same fujiHost the ROM itself came
+    // from -- see lib/device/rs232/disk.cpp.
     virtual mediatype_t mount_media(DISK_DEVICE *disk_dev, fujiDisk &disk, fujiHost &host,
                                     disk_access_flags_t mode)
     {
