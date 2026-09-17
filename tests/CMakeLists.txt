@@ -247,3 +247,15 @@ if(HAVE_SYS_QUEUE_H)
 else()
   message(STATUS "sys/queue.h not available - skipping http_header_tests")
 endif()
+
+# ------------------------------------------------------------------------------
+# Macintosh GCR floppy encoder. Pure C++, no platform dependencies. Encodes a
+# synthetic 800K disk and decodes every sector back with an independent
+# decoder. Pass a 400K/800K .dsk on the command line to test a real image.
+# ------------------------------------------------------------------------------
+add_executable(mac_gcr_tests
+    mac_gcr_test.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/mac/macGCR.cpp
+)
+target_include_directories(mac_gcr_tests PRIVATE ${CMAKE_SOURCE_DIR}/lib/)
+add_test(NAME mac_gcr_tests COMMAND mac_gcr_tests)

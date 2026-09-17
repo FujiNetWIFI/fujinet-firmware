@@ -147,6 +147,7 @@ public:
     // Block until exactly `length` bytes arrive or `timeout_ms` elapses.
     // Returns the number of bytes actually read.
     size_t read_exact(void *buffer, size_t length, unsigned timeout_ms = 1000);
+    void handle_write_frame();
     size_t write(uint8_t c) { return _serial.write(c); }
     size_t write(const void *buffer, size_t length) { return _serial.write(buffer, length); }
     void flush() { _serial.flushOutput(); }

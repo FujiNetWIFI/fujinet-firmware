@@ -3,6 +3,7 @@
 #include "mac_ll.h"
 #include "macFuji.h"
 #include "fnSystem.h"
+#include <cstdio>
 
 #include "../../include/debug.h"
 
@@ -13,6 +14,12 @@ void systemBus::setup(void)
   _serial.begin(ChannelConfig()
                     .deviceID(FN_UART_BUS)
                     .baud(_mac_baud_rate));
+
+  // The Pico keeps running across an ESP32 reset and still believes
+  // whatever was mounted before. Start both sides from "nothing mounted".
+  write((uint8_t)'r'); // floppy removed
+  write((uint8_t)'h'); // zero hard disks in the chain
+  write((uint8_t)0);
 
   // GPIO needs to read Head Select (SEL)
   floppy_ll.setup_gpio();
@@ -122,6 +129,7 @@ void systemBus::handle_floppy_command(int c)
   case 6:
     // turn motor off
     Debug_printf("\nMotor OFF");
+    floppy_ll.report_served("motor off");
     floppy_ll.stop();
     write((uint8_t)'F');
     break;
@@ -164,6 +172,39 @@ void systemBus::handle_dcd_command(int c)
   }
 }
 
+// 'w' <len> <len bytes>: a chunk of the Mac's write stream from the Pico;
+// 'w' 0 ends the write. The stream runs at 62.5 KB/s and the UART buffer
+// holds 2 KB, so keep draining until the end marker instead of returning
+// to the main loop between chunks.
+void systemBus::handle_write_frame()
+{
+  uint8_t buf[256];
+  unsigned long start = fnSystem.millis();
+
+  for (;;)
+  {
+    uint8_t len;
+    if (read_exact(&len, 1, 200) != 1)
+      break;
+    if (len == 0)
+    {
+      floppy_dev().write_capture_end();
+      break;
+    }
+    if (read_exact(buf, len, 200) != len)
+      break;
+    floppy_dev().write_capture_data(buf, len);
+
+    // next frame must be another 'w'; give up if the stream stalls
+    uint8_t c;
+    if (read_exact(&c, 1, 200) != 1 || c != 'w' || fnSystem.millis() - start > 2000)
+    {
+      floppy_dev().write_capture_end();
+      break;
+    }
+  }
+}
+
 void systemBus::service(void)
 {
   // todo - figure out two floppies - either on RP2040 or ESP32 side. Use the two enable lines - get_disks(0 or 1)
@@ -172,6 +213,8 @@ void systemBus::service(void)
     int c = read();
     if (c <= 0)
       return;
+    else if (c == 'w') // floppy write capture frame
+      handle_write_frame();
     else if (c < 'A') // floppy
       handle_floppy_command(c);
     else // DCD
@@ -179,6 +222,9 @@ void systemBus::service(void)
   }
   if (track_not_copied && stepper_timeout())
   {
+    char why[48];
+    snprintf(why, sizeof(why), "leaving cyl, now cyl %d", floppy_dev().get_track_pos() / 2);
+    floppy_ll.report_served(why);
     floppy_dev().update_track_buffers();
     track_not_copied = false;
     write((uint8_t)'S');
@@ -217,7 +263,7 @@ void systemBus::rem_dcd_mount(char c)
 bool systemBus::stepper_timeout()
 {
   unsigned long tn = fnSystem.micros();
-  return ((tn - t0) > 2000);
+  return ((tn - t0) > 2000); // us. Coalesce step bursts: copying tracks per step makes us lag a fast seek
 }
 
 void systemBus::shutdown(void)

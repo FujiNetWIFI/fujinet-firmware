@@ -76,6 +76,15 @@ public:
 
     virtual bool status() = 0;
 
+    // Floppy (MCI) track access, implemented by media that can be served
+    // as a 3.5" GCR floppy (MOOF flux images, sector images run through
+    // the GCR encoder). t is a track index: cylinder * 2 + side.
+    virtual uint8_t trackmap(uint8_t t) { return 255; }   // 255 = no such track
+    virtual uint8_t *get_track(int t) { return nullptr; }
+    virtual int track_len(int t) { return 0; }             // bytes
+    virtual int num_bits(int t) { return 0; }
+    uint8_t optimal_bit_timing = 16;                        // x 125 ns
+
     static mediatype_t discover_mediatype(const char *filename);
 
     // void dump_percom_block();
