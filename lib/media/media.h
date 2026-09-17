@@ -42,6 +42,7 @@
 #include "mac/mediaType.h"
 #include "mac/mediaTypeMOOF.h"
 #include "mac/mediaTypeDCD.h"
+#include "mac/mediaTypeFloppyImage.h"
 #endif
 
 #ifdef BUILD_S100
