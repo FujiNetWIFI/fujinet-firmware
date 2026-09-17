@@ -19,7 +19,8 @@ static_assert(sizeof(NDeviceStatus) == 4, "NDeviceStatus must be 4 bytes");
 typedef enum class PARSER : uint8_t {
     NONE = 0,
     JSON = 1,
-    SGML = 2,
+    HTML = 2, // HTML via CSS selector (FNHTML, Gumbo)
+    XML  = 3, // XML via an XPath subset (FNXML, tinyxml2)
 } parserMode_t;
 
 typedef enum class PARSER_PARAM : uint8_t {

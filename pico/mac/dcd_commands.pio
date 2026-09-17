@@ -13,9 +13,9 @@ start:
     wait 0 gpio ENABLE       ; are we enabled?
     mov osr, pins      ; get the phase values
     out x, 3            ; move 3 bits into X
-    jmp x!=y next       ; pins have changes
+    jmp x!=y changed       ; pins have changes
 .wrap    
-next:
+changed:
     in x, 3             ; send the phase values to fifo
     mov y, x            ; remember the current phase state
     jmp start

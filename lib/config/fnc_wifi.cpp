@@ -52,6 +52,13 @@ void fnConfig::store_wifi_enabled(bool status)
     _dirty = true;
 }
 
+/* Stores whether multi-AP (all-channel, strongest-signal) scan is enabled */
+void fnConfig::store_wifi_multi_ap(bool status)
+{
+    _wifi.multi_ap = status;
+    _dirty = true;
+}
+
 void fnConfig::_read_section_wifi(std::stringstream &ss)
 {
     Debug_println("Reading wifi section");
@@ -85,6 +92,10 @@ void fnConfig::_read_section_wifi(std::stringstream &ss)
                     _wifi.enabled = true;
                 else
                     _wifi.enabled = false;
+            }
+            else if (strcasecmp(name.c_str(), "multi_ap") == 0)
+            {
+                _wifi.multi_ap = (strcasecmp(value.c_str(), "1") == 0);
             }
         }
     }

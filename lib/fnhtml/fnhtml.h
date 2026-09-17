@@ -1,5 +1,5 @@
 /**
- * SGML/HTML/XML Wrapper for #FujiNet
+ * HTML Wrapper for #FujiNet
  *
  * Parses a (possibly malformed) HTML document with Gumbo (HTML5 tree
  * construction, robust error recovery) and resolves a CSS selector query via
@@ -8,26 +8,27 @@
  * drive it the same way they drive JSON.
  */
 
-#ifndef FNSGML_H
-#define FNSGML_H
+#ifndef FNHTML_H
+#define FNHTML_H
 
 #include <string.h>
 #include <string>
 
+#include "../fntext/fn_query_flags.h"
 #include "../network-protocol/Protocol.h"
 
 class CDocument; // gumbo-query
 
-enum SGMLQueryFlags_t {
-    SGML_REMAP_CHARS = 0x01,
-    SGML_REMAP_ATASCII_INTERNATIONAL = 0x02,
+enum HTMLQueryFlags_t {
+    HTML_REMAP_CHARS = FN_QUERY_REMAP_CHARS,
+    HTML_REMAP_ATASCII_INTERNATIONAL = FN_QUERY_REMAP_ATASCII_INTERNATIONAL,
 };
 
-class FNSGML
+class FNHTML
 {
 public:
-    FNSGML();
-    virtual ~FNSGML();
+    FNHTML();
+    virtual ~FNHTML();
 
     void setLineEnding(const std::string &_lineEnding);
     void setProtocol(NetworkProtocol *newProtocol);
@@ -39,7 +40,8 @@ public:
     bool readValue(uint8_t *buf, unsigned short len);
     std::string processString(std::string in);
     void setQueryParam(uint8_t qp);
-    size_t available() { return _sgml_bytes_remaining; }
+    uint8_t queryParam() const { return _queryParam; }
+    size_t available() { return _html_bytes_remaining; }
 
 private:
     CDocument *_doc = nullptr;
@@ -57,9 +59,9 @@ private:
     // Result of the last resolved query, plus how many of its bytes are still
     // to be handed to the client.
     std::string _value;
-    int _sgml_bytes_remaining = 0;
+    int _html_bytes_remaining = 0;
 
     void resolveQuery();
 };
 
-#endif /* FNSGML_H */
+#endif /* FNHTML_H */

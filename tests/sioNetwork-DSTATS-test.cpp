@@ -120,15 +120,25 @@ void FNJSON::setReadQuery(const std::string &queryString, uint8_t queryParam) {}
 bool FNJSON::readValue(uint8_t *buf, unsigned short len) { return false; }
 bool FNJSON::parse() { return false; }
 
-#include "fnsgml.h"
+#include "fnhtml.h"
 
-FNSGML::FNSGML() {}
-FNSGML::~FNSGML() {}
-void FNSGML::setLineEnding(const std::string &_lineEnding) {}
-void FNSGML::setProtocol(NetworkProtocol *newProtocol) {}
-void FNSGML::setReadQuery(const std::string &queryString, uint8_t queryParam) {}
-bool FNSGML::readValue(uint8_t *buf, unsigned short len) { return false; }
-bool FNSGML::parse() { return false; }
+FNHTML::FNHTML() {}
+FNHTML::~FNHTML() {}
+void FNHTML::setLineEnding(const std::string &_lineEnding) {}
+void FNHTML::setProtocol(NetworkProtocol *newProtocol) {}
+void FNHTML::setReadQuery(const std::string &queryString, uint8_t queryParam) {}
+bool FNHTML::readValue(uint8_t *buf, unsigned short len) { return false; }
+bool FNHTML::parse() { return false; }
+
+#include "fnxml.h"
+
+FNXML::FNXML() {}
+FNXML::~FNXML() {}
+void FNXML::setLineEnding(const std::string &_lineEnding) {}
+void FNXML::setProtocol(NetworkProtocol *newProtocol) {}
+void FNXML::setReadQuery(const std::string &queryString, uint8_t queryParam) {}
+bool FNXML::readValue(uint8_t *buf, unsigned short len) { return false; }
+bool FNXML::parse() { return false; }
 
 void util_debug_printf(const char *fmt, ...) {}
 std::string util_hexdump(const void *buf, size_t len) { return ""; }
@@ -256,7 +266,8 @@ void DaisyChain::assignFujiIDToDevice(virtualDevice *device, fujiDeviceID_t fuji
 
 #include "NParser.h"
 #include "JSONParser.h"
-#include "SGMLParser.h"
+#include "HTMLParser.h"
+#include "XMLParser.h"
 
 fujiError_t NParser::read(std::string &buffer, size_t length) { return FUJI_ERROR::UNSPECIFIED; }
 fujiError_t NParser::write(std::string &buffer) { return FUJI_ERROR::UNSPECIFIED; }
@@ -273,9 +284,15 @@ error_is_true JSONParser::setQuery(const std::string &query) { RETURN_ERROR_AS_T
 error_is_true JSONParser::parse() { RETURN_ERROR_AS_TRUE(); }
 error_is_true JSONParser::setQueryParam(uint8_t param) { RETURN_ERROR_AS_TRUE(); }
 error_is_true JSONParser::setLineEnding(const std::string &eol) { RETURN_ERROR_AS_TRUE(); }
-fujiError_t SGMLParser::write(std::string &buffer) { return FUJI_ERROR::UNSPECIFIED; }
-off_t SGMLParser::seek(off_t offset, int whence) { return -1; }
-error_is_true SGMLParser::setQuery(const std::string &query) { RETURN_ERROR_AS_TRUE(); }
-error_is_true SGMLParser::parse() { RETURN_ERROR_AS_TRUE(); }
-error_is_true SGMLParser::setQueryParam(uint8_t param) { RETURN_ERROR_AS_TRUE(); }
-error_is_true SGMLParser::setLineEnding(const std::string &eol) { RETURN_ERROR_AS_TRUE(); }
+fujiError_t HTMLParser::write(std::string &buffer) { return FUJI_ERROR::UNSPECIFIED; }
+off_t HTMLParser::seek(off_t offset, int whence) { return -1; }
+error_is_true HTMLParser::setQuery(const std::string &query) { RETURN_ERROR_AS_TRUE(); }
+error_is_true HTMLParser::parse() { RETURN_ERROR_AS_TRUE(); }
+error_is_true HTMLParser::setQueryParam(uint8_t param) { RETURN_ERROR_AS_TRUE(); }
+error_is_true HTMLParser::setLineEnding(const std::string &eol) { RETURN_ERROR_AS_TRUE(); }
+fujiError_t XMLParser::write(std::string &buffer) { return FUJI_ERROR::UNSPECIFIED; }
+off_t XMLParser::seek(off_t offset, int whence) { return -1; }
+error_is_true XMLParser::setQuery(const std::string &query) { RETURN_ERROR_AS_TRUE(); }
+error_is_true XMLParser::parse() { RETURN_ERROR_AS_TRUE(); }
+error_is_true XMLParser::setQueryParam(uint8_t param) { RETURN_ERROR_AS_TRUE(); }
+error_is_true XMLParser::setLineEnding(const std::string &eol) { RETURN_ERROR_AS_TRUE(); }
