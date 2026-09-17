@@ -121,6 +121,7 @@ New behavior: copy from SD first if available, then read FLASH.
     if (inibuffer == nullptr)
     {
         Debug_printf("Failed to allocate %u bytes to read config file\r\n", (unsigned)inbufsize);
+        fclose(fin);
         return;
     }
     int i = fread(inibuffer, 1, inbufsize - 1, fin);
@@ -220,6 +221,11 @@ New behavior: copy from SD first if available, then read FLASH.
         {
             Debug_println("FLASH Config Storage: Enabled");
             FILE *fin = fsFlash.file_open(CONFIG_FILENAME);
+            if (fin == nullptr)
+            {
+                Debug_println("Failed to open FLASH config file");
+                return;
+            }
             long ffs_insize = FileSystem::filesize(fin);
             size_t ffs_inbufsize = (ffs_insize > 0) ? (size_t)ffs_insize + 1 : CONFIG_FILEBUFFSIZE;
             if (ffs_inbufsize < CONFIG_FILEBUFFSIZE)
@@ -228,6 +234,7 @@ New behavior: copy from SD first if available, then read FLASH.
             if (inibuffer == nullptr)
             {
                 Debug_printf("Failed to allocate %u bytes to read config file from FLASH\r\n", (unsigned)ffs_inbufsize);
+                fclose(fin);
                 return;
             }
             int i = fread(inibuffer, 1, ffs_inbufsize - 1, fin);

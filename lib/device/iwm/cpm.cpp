@@ -29,11 +29,19 @@
 static void cpmTask(void *arg)
 {
     Debug_printf("cpmTask()\n");
+    // RAM survives CCP restarts; allocating per iteration leaked 64K each pass.
+    if (RAM == NULL)
+        RAM = (uint8_t *)malloc(MEMSIZE);
+    if (RAM == NULL)
+    {
+        Debug_printv("could not allocate 64K CP/M RAM, free heap: %lu", fnSystem.get_free_heap_size());
+        while (true)
+            fnSystem.delay(1000);
+    }
     while (1)
     {
         Status = Debug = 0;
         Break = Step = -1;
-        RAM = (uint8_t *)malloc(MEMSIZE);
         memset(RAM, 0, MEMSIZE);
         memset(filename, 0, sizeof(filename));
         memset(newname, 0, sizeof(newname));

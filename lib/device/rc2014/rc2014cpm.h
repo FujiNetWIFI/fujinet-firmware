@@ -3,6 +3,7 @@
 #define RC2014CPM_H
 
 #include "bus.h"
+#include "global_types.h"
 
 
 #define FOLDERCHAR '/'
@@ -16,7 +17,7 @@ private:
 
 public:
     bool cpmActive = false;
-    void init_cpm(int baud);
+    success_is_true init_cpm(int baud);
     void rc2014_handle_cpm();
 
 };
