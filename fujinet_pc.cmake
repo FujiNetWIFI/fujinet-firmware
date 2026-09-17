@@ -37,6 +37,14 @@ elseif(FUJINET_TARGET STREQUAL "RS232")
     set(FUJINET_BUILD_BOARD fujinet-pc-rs232)
     # fujinet.build_bus
     set(FUJINET_BUILD_BUS RS232)
+elseif(FUJINET_TARGET STREQUAL "MSX")
+    # The RS232 build plus BUILD_MSX for the MSX-specific behavior.
+    # fujinet.build_platform
+    set(FUJINET_BUILD_PLATFORM BUILD_RS232)
+    # fujinet.build_board (used by build_webui.py)
+    set(FUJINET_BUILD_BOARD fujinet-pc-msx)
+    # fujinet.build_bus
+    set(FUJINET_BUILD_BUS RS232)
 elseif(FUJINET_TARGET STREQUAL "LYNX")
     # fujinet.build_platform
     set(FUJINET_BUILD_PLATFORM BUILD_LYNX)
@@ -52,7 +60,12 @@ elseif(FUJINET_TARGET STREQUAL "ADAM")
     # fujinet.build_bus
     set(FUJINET_BUILD_BUS ADAMNET)
 else()
-    message(FATAL_ERROR "Invalid target: '${FUJINET_TARGET}'. Please choose from 'RS232', 'ATARI', 'APPLE', 'COCO', 'LYNX', or 'ADAM'.")
+    message(FATAL_ERROR "Invalid target: '${FUJINET_TARGET}'. Please choose from 'RS232', 'MSX', 'ATARI', 'APPLE', 'COCO', 'LYNX', or 'ADAM'.")
+endif()
+
+if(FUJINET_TARGET STREQUAL "MSX")
+    # Extra define on top of BUILD_RS232, not instead of it.
+    add_compile_definitions(BUILD_MSX)
 endif()
 
 if(FUJINET_TARGET STREQUAL "APPLE")
@@ -503,7 +516,7 @@ if(FUJINET_TARGET STREQUAL "ADAM")
     )
 endif()
 
-if(FUJINET_TARGET STREQUAL "RS232")
+if(FUJINET_TARGET STREQUAL "RS232" OR FUJINET_TARGET STREQUAL "MSX")
     list(APPEND SOURCES
 
     lib/bus/rs232/rs232.h lib/bus/rs232/rs232.cpp

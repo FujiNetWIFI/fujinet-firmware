@@ -80,6 +80,9 @@
     #define TARGET_PLATFORM_NAME "LYNX"
 #elif defined(BUILD_S100)
     #define TARGET_PLATFORM_NAME "S100"
+#elif defined(BUILD_MSX)
+    // Before BUILD_RS232, which an MSX build also defines.
+    #define TARGET_PLATFORM_NAME "MSX"
 #elif defined(BUILD_RS232)
     #define TARGET_PLATFORM_NAME "RS232"
 #elif defined(BUILD_CX16)
