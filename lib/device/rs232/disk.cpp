@@ -9,7 +9,6 @@
 #include "../../include/debug.h"
 
 #include "compat_string.h"
-#include "fujiHost.h"
 #include "fujiDevice.h"
 #include "utils.h"
 
@@ -18,7 +17,7 @@
 
 // push_stream: reads `f` from its current position in DISK_SECTORBUF_SIZE
 // chunks and relays each one to the RP2040 as CMD::NET_WRITE frames on DBC
-// stream `stream_id` (0 = ROM, 1 = a .cfg sibling -- the RP2040's
+// stream `stream_id` (0 = the ROM image, 1 = its memory map -- the RP2040's
 // dbc_inbound_handler() demuxes on this same id). Sent as PAYLOAD bytes,
 // not params: FujiBusPacket::processArg(uint16_t) encodes bare integer
 // arguments as wire params, but the RP2040's minimal fujibus.c client
@@ -91,87 +90,28 @@ static bool push_stream(fnFile *f, uint16_t stream_id, uint32_t expected_size)
     return ok;
 }
 
-// rs232Disk::mount()'s `filename` arrives already host-prefixed (fnfile_open rewrites
-// disk.filename in place); fujiHost APIs prefix again, so strip it first.
-static const char *strip_host_prefix(fujiHost *host, const char *filename)
-{
-    const char *pfx = host->get_prefix();
-    if (pfx == nullptr || pfx[0] == '\0')
-        return filename;
-
-    size_t plen = strlen(pfx);
-    if (strncmp(filename, pfx, plen) != 0)
-        return filename; // not prefixed after all
-
-    const char *p = filename + plen;
-    // skip the separator util_concat_paths() inserted
-    if (pfx[plen - 1] != '/' && pfx[plen - 1] != '\\' && (*p == '/' || *p == '\\'))
-        p++;
-    return p;
-}
-
 // A ROM image isn't served sector by sector the way a disk is: the whole file
 // goes to the RP2040 at mount time, which presents it to the machine as
 // cartridge ROM. Nothing reads it back through the media object afterwards.
-static bool push_rom_streams(fnFile *f, uint32_t disksize, fujiHost *host, const char *filename)
+//
+// The memory map, when the ROM has one, has to land before the image's CLOSE
+// triggers the boot. Finding it is MediaTypeROM's business; this only moves
+// the bytes.
+static bool push_rom_streams(MediaTypeROM *rom, fnFile *f, uint32_t disksize)
 {
-    // Push the .cfg sibling first so the mapping is known before the ROM's
-    // CLOSE boots. Missing sibling: fine. Existing sibling that fails to
-    // open/push: fail the mount -- booting without it produces hangs.
-    if (host != nullptr && filename != nullptr)
+    if (rom->has_cfg())
     {
-        char cfgpath[MAX_FILENAME_LEN];
-        strlcpy(cfgpath, strip_host_prefix(host, filename), sizeof(cfgpath));
+        uint32_t cfgsize = 0;
+        fnFile *cfgf = rom->cfg_open(&cfgsize);
+        if (cfgf == nullptr)
+            return false; // map is there but unreadable -- don't boot without it
 
-        // replace the basename's extension only
-        char *base = cfgpath;
-        for (char *p = cfgpath; *p != '\0'; p++)
-            if (*p == '/' || *p == '\\')
-                base = p + 1;
-        char *dot = strrchr(base, '.');
-        if (dot != nullptr)
-            strlcpy(dot, ".cfg", sizeof(cfgpath) - (dot - cfgpath));
-        else
-            strlcat(cfgpath, ".cfg", sizeof(cfgpath));
-
-        bool cfg_found = host->file_exists(cfgpath);
-        if (!cfg_found)
+        bool ok = push_stream(cfgf, ROM_PUSH_STREAM_CFG, cfgsize);
+        rom->cfg_close(cfgf);
+        if (!ok)
         {
-            // case-sensitive hosts may carry the sibling as .CFG
-            size_t len = strlen(cfgpath);
-            memcpy(cfgpath + len - 4, ".CFG", 4);
-            cfg_found = host->file_exists(cfgpath);
-        }
-
-        if (!cfg_found)
-        {
-            // Not an error -- a .bin with no memory map boots against the
-            // emulator's size-guess table -- but for the titles that need one
-            // the result is a wrong map, i.e. a game that boots to garbage
-            // with nothing anywhere saying why. Say it here.
-            Debug_printv("ROM push: no .cfg sibling for %s (tried \"%s\" in both "
-                         "casings) -- booting with a default memory map\n",
-                         filename, cfgpath);
-        }
-        else
-        {
-            char resolved[MAX_FILENAME_LEN];
-            strlcpy(resolved, cfgpath, sizeof(resolved));
-            fnFile *cfgf = host->fnfile_open(cfgpath, resolved, sizeof(resolved), "rb");
-            if (cfgf == nullptr)
-            {
-                Debug_printv("ROM push: .cfg sibling exists but failed to open: %s\n", cfgpath);
-                return false;
-            }
-            long cfgsize = host->file_size(cfgf);
-            bool cfg_ok = cfgsize >= 0 &&
-                          push_stream(cfgf, ROM_PUSH_STREAM_CFG, (uint32_t)cfgsize);
-            fnio::fclose(cfgf);
-            if (!cfg_ok)
-            {
-                Debug_printv("ROM push: .cfg push failed: %s\n", cfgpath);
-                return false;
-            }
+            Debug_printv("ROM push: memory map push failed\n");
+            return false;
         }
     }
 
@@ -377,11 +317,17 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
     switch (disk_type)
     {
     case MEDIATYPE_ROM:
+    {
         device_active = true;
         _mount_time = time(NULL);
-        _disk = new MediaTypeROM();
-        _disk->mount(f, disksize);
-        return push_rom_streams(f, disksize, host, filename) ? MEDIATYPE_ROM : MEDIATYPE_UNKNOWN;
+        MediaTypeROM *rom = new MediaTypeROM();
+        _disk = rom;
+        rom->_media_host = host;
+        if (filename != nullptr)
+            strlcpy(rom->_disk_filename, filename, sizeof(rom->_disk_filename));
+        rom->mount(f, disksize);
+        return push_rom_streams(rom, f, disksize) ? MEDIATYPE_ROM : MEDIATYPE_UNKNOWN;
+    }
     case MEDIATYPE_IMG:
     case MEDIATYPE_UNKNOWN:
     default:

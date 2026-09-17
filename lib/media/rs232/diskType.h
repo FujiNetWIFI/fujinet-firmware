@@ -5,6 +5,8 @@
 #include "fnio.h"
 #include "global_types.h"
 
+class fujiHost;
+
 #define INVALID_SECTOR_VALUE 65536
 
 #define DISK_SECTORBUF_SIZE 512
@@ -70,6 +72,12 @@ public:
     uint8_t _disk_sectorbuff[DISK_SECTORBUF_SIZE];
 
     mediatype_t _disktype = MEDIATYPE_UNKNOWN;
+
+    // Set by the device layer before mount(). A media type that has to reach
+    // sibling files on the same host -- MediaTypeROM and its .cfg -- resolves
+    // them from these, as the atari, adam, apple and drivewire MediaTypes do.
+    fujiHost *_media_host = nullptr;
+    char _disk_filename[256] = {0};
 
     virtual mediatype_t mount(fnFile *f, uint32_t disksize) = 0;
     virtual void unmount();

@@ -14,7 +14,7 @@ protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
 
-    // Passes `host` through so a ROM mount can open a same-named .cfg
+    // Passes `host` through so MediaTypeROM can open the ROM's memory-map
     // sibling through it -- see fujiDevice::mount_media().
     mediatype_t mount_media(DISK_DEVICE *disk_dev, fujiDisk &disk, fujiHost &host,
                             disk_access_flags_t mode) override
