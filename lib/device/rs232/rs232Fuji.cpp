@@ -10,7 +10,13 @@
 #include "compat_string.h"
 #include "fuji_endian.h"
 
+// An MSX boots CONFIG as a cartridge: ".rom" makes the boot image
+// MEDIATYPE_ROM, which streams it into the adapter's user ROM.
+#ifdef BUILD_MSX
+#define IMAGE_EXTENSION ".msx.rom"
+#else
 #define IMAGE_EXTENSION ".img"
+#endif
 #define LOBBY_URL       "tnfs://tnfs.fujinet.online/MSDOS/lobby.img"
 
 #ifndef ESP_PLATFORM // why ESP does not like it? it throws a linker error undefined reference to 'basename'
