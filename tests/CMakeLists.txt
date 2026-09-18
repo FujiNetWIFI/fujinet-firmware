@@ -211,6 +211,36 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     )
   target_link_libraries(nquery_output_mode_tests PRIVATE)
   add_test(NAME nquery_output_mode_tests COMMAND nquery_output_mode_tests)
+  add_executable(fsk_plan_tests
+    FskPlanTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/sio/fsk_plan.cpp
+  )
+
+  target_include_directories(fsk_plan_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/device/
+    ${CMAKE_SOURCE_DIR}/lib/device/sio/
+    ${CMAKE_SOURCE_DIR}/components_pc/
+  )
+
+  add_test(NAME fsk_plan_tests COMMAND fsk_plan_tests)
+
+  add_executable(cassette_time_plan_tests
+    CassetteTimePlanTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/sio/cassette_time_plan.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/sio/fsk_plan.cpp
+  )
+
+  target_include_directories(cassette_time_plan_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/device/
+    ${CMAKE_SOURCE_DIR}/lib/device/sio/
+    ${CMAKE_SOURCE_DIR}/components_pc/
+  )
+
+  add_test(NAME cassette_time_plan_tests COMMAND cassette_time_plan_tests)
 endif()
 
 # ------------------------------------------------------------------------------

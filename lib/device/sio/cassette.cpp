@@ -2,6 +2,8 @@
 
 #include "cassette.h"
 
+#include "fsk_plan.h"
+
 #include <cstring>
 
 #include "../../include/debug.h"
@@ -20,6 +22,8 @@
 #include <driver/rmt_tx.h>
 #include <driver/rmt_encoder.h>
 #include <soc/uart_periph.h>
+#include <esp_timer.h> // esp_timer_get_time() — Active FSK Rewind physical-position clock interpolation
+#endif
 
 // Turbo 2000: RMT clock = 1 MHz (1 µs per tick)
 #define T2K_RMT_RESOLUTION_HZ 1000000
@@ -28,6 +32,7 @@
 // Runs in ISR context (RMT ping-pong refill), MUST be in IRAM so it
 // executes instantly without flash cache misses.
 // Phases: pilot → sync → data bits (all gapless in one rmt_transmit).
+#ifdef ESP_PLATFORM
 size_t IRAM_ATTR t2k_encode_cb(const void *data, size_t data_size,
                                        size_t symbols_written, size_t symbols_free,
                                        rmt_symbol_word_t *symbols, bool *done, void *arg)
@@ -196,6 +201,25 @@ int8_t softUART::service(uint8_t b)
 
 //************************************************************************************************************
 // ***** nerd at work! ******
+
+#ifdef ESP_PLATFORM
+sioCassette::sioCassette()
+{
+    // Singleton lifetime; guards tape_offset/_file/format-state against the
+    // HTTP task (rewind()/rewind_seconds()) racing the fnService loop task
+    // (sio_handle_cassette()).
+    _cassette_lock = xSemaphoreCreateMutex();
+    if (_cassette_lock == nullptr)
+        Debug_println("sioCassette: FAILED to create _cassette_lock — rewind()/rewind_seconds() will refuse to run");
+
+    // Separate, briefly-held lock for _fsk_active_channel + the rewind
+    // request/result handshake. On creation failure, rewind_seconds() falls
+    // back to the original whole-run-blocking behavior.
+    _fsk_channel_lock = xSemaphoreCreateMutex();
+    if (_fsk_channel_lock == nullptr)
+        Debug_println("sioCassette: FAILED to create _fsk_channel_lock — Active FSK Rewind disabled, falling back to blocking rewind_seconds()");
+}
+#endif
 
 void sioCassette::close_cassette_file()
 {
@@ -368,6 +392,14 @@ void sioCassette::sio_disable_cassette()
 
 void sioCassette::sio_handle_cassette()
 {
+#ifdef ESP_PLATFORM
+    // Held for the WHOLE dispatch, including any in-flight
+    // rmt_tx_wait_all_done() — a concurrent rewind_seconds() call waits for
+    // the current waveform instead of racing it.
+    if (_cassette_lock != nullptr)
+        xSemaphoreTake(_cassette_lock, portMAX_DELAY);
+#endif
+
     if (cassetteMode == cassette_mode_t::playback)
     {
         if (tape_flags.turbo2000)
@@ -389,14 +421,187 @@ void sioCassette::sio_handle_cassette()
     {
         tape_offset = receive_FUJI_tape_block(tape_offset);
     }
+
+#ifdef ESP_PLATFORM
+    if (_cassette_lock != nullptr)
+        xSemaphoreGive(_cassette_lock);
+#endif
 }
 
 void sioCassette::rewind()
 {
-    // Is this all that's needed? -tschak
+    // Independent of the time walker so it keeps working even on a
+    // malformed CAS; always lands on offset 0.
+#ifdef ESP_PLATFORM
+    if (_cassette_lock != nullptr)
+        xSemaphoreTake(_cassette_lock, portMAX_DELAY);
+    stop_and_reset_for_reposition();
+#endif
     tape_offset = 0;
-    t2k_boot_sent = false;
-    qros_boot_sent = false;
+    // t2k_boot_sent / qros_boot_sent are session state (loader already
+    // mounted/booted), not tape-position state — resetting them here would
+    // re-trigger the boot sequence mid-load. The only legitimate reset for
+    // them is in sio_enable_cassette() on a genuinely fresh mount.
+#ifdef ESP_PLATFORM
+    if (_cassette_lock != nullptr)
+        xSemaphoreGive(_cassette_lock);
+#endif
+}
+
+bool sioCassette::rewind_seconds(uint32_t seconds)
+{
+#ifdef ESP_PLATFORM
+    if (!_mounted || _cassette_lock == nullptr)
+        return false;
+
+    // ---- Active FSK Rewind fast path -----------------------------------
+    // Engages only when an FSK run is genuinely mid-transmission (a channel
+    // is published in _fsk_active_channel — see fsk_signal_emit(), which
+    // publishes only after rmt_transmit() returns ESP_OK). All other formats,
+    // and FSK between chunks/idle, never publish it and fall through
+    // unchanged to the blocking path below.
+    if (_fsk_channel_lock != nullptr)
+    {
+        xSemaphoreTake(_fsk_channel_lock, portMAX_DELAY);
+
+        if (_fsk_rewind_state != FskRewindReq::IDLE)
+        {
+            xSemaphoreGive(_fsk_channel_lock);
+            Debug_printf("rewind_seconds: BUSY (a request is already being processed)\r\n");
+            return false;
+        }
+
+        rmt_channel_handle_t channel = (rmt_channel_handle_t)_fsk_active_channel;
+        if (channel != nullptr)
+        {
+            // Capture BEFORE rmt_disable(): the disable call may take up to
+            // nearly one RMT ping-pong cycle to return on classic ESP32, and
+            // crediting that tail to the physical-position estimate would
+            // overstate how much waveform was really emitted.
+            const int64_t stop_ts = esp_timer_get_time();
+
+            // Held across the disable call so fsk_signal_end() (blocked on
+            // the same lock) can't delete this channel underneath us.
+            // rmt_tx_disable()'s internals never touch our locks or wait on
+            // the cassette task, so this can't deadlock.
+            rmt_disable(channel);
+
+            // Publish the request in the same critical section: whichever of
+            // us and fsk_signal_end() runs first under this lock decides
+            // whether the channel completed naturally or is claimed here —
+            // see fsk_signal_end() for the other half.
+            _fsk_rewind_stop_timestamp_us = stop_ts;
+            _fsk_rewind_seconds_req = seconds;
+            _fsk_rewind_state = FskRewindReq::REQUESTED;
+            _fsk_active_channel = nullptr;
+
+            xSemaphoreGive(_fsk_channel_lock);
+
+            // No polling: this blocks on the same mutex the cassette task
+            // holds for its whole dispatch, released only after the
+            // interrupted play_fsk_chunk() has committed the new tape_offset
+            // and written _last_rewind_result.
+            xSemaphoreTake(_cassette_lock, portMAX_DELAY);
+            const RewindResult result = _last_rewind_result;
+            xSemaphoreGive(_cassette_lock);
+
+            Debug_printf("rewind_seconds: active-FSK interrupt result=%d\r\n", (int)result);
+            return result == RewindResult::SUCCESS ||
+                   result == RewindResult::NATURAL_COMPLETION_FALLBACK;
+        }
+
+        xSemaphoreGive(_fsk_channel_lock);
+    }
+    // ---- End Active FSK Rewind fast path --------------------------------
+
+    xSemaphoreTake(_cassette_lock, portMAX_DELAY); // first operation — before
+                                                    // reading any live state
+
+    size_t current_offset = tape_offset; // snapshot taken UNDER the lock
+
+    CassetteWalkState current{};
+    if (!walk_tape_time(current_offset, UINT64_MAX, current))
+    {
+        xSemaphoreGive(_cassette_lock);
+        return false; // no changes; cassette stays ready at its prior position
+    }
+
+    const uint64_t back_us = static_cast<uint64_t>(seconds) * 1000000ULL;
+    const uint64_t target_us =
+        (current.time_us > back_us) ? (current.time_us - back_us) : 0;
+
+    CassetteWalkState dest{};
+    if (!walk_tape_time(SIZE_MAX, target_us, dest))
+    {
+        xSemaphoreGive(_cassette_lock);
+        return false; // no changes
+    }
+
+    stop_and_reset_for_reposition(); // still under the lock: no waveform can
+                                      // be active here (sio_handle_cassette()
+                                      // needs this same lock to start one)
+
+    // Commit under the lock; t2k_boot_sent/qros_boot_sent are session state,
+    // not tape-position state (see rewind() above), so left untouched.
+    tape_offset      = dest.offset;
+    baud             = dest.baud;
+    t2k_samplerate   = dest.t2k_samplerate;
+    t2k_bit0_half    = dest.t2k_bit0_half;
+    t2k_bit1_half    = dest.t2k_bit1_half;
+    t2k_pilot_half   = dest.t2k_pilot_half;
+    t2k_pilot_count  = dest.t2k_pilot_count;
+    qros_turbo_baud  = dest.qros_turbo_baud;
+
+    xSemaphoreGive(_cassette_lock);
+    return true;
+#else
+    (void)seconds;
+    return false;
+#endif
+}
+
+// ESP-side adapter over cas_walk_tape_time(): a positional reader over the
+// shared _file, restoring the caller's cursor on return. Caller must already
+// hold _cassette_lock.
+bool sioCassette::walk_tape_time(size_t stop_at_offset, uint64_t stop_at_time_us,
+                                 CassetteWalkState &out) const
+{
+    if (_file == nullptr || filesize == 0)
+        return false;
+
+    const long saved_pos = fnio::ftell(_file);
+
+    fnFile *f = _file;
+    auto reader = [](void *ctx, size_t offset, uint8_t *dst, size_t n) -> size_t
+    {
+        fnFile *file = static_cast<fnFile *>(ctx);
+        if (fnio::fseek(file, static_cast<long int>(offset), SEEK_SET) != 0)
+            return 0;
+        return fnio::fread(dst, 1, n, file);
+    };
+
+    const bool ok = cas_walk_tape_time(filesize, reader, f, stop_at_offset,
+                                       stop_at_time_us, out);
+
+    fnio::fseek(_file, saved_pos, SEEK_SET); // restore the caller's cursor exactly
+
+    return ok;
+}
+
+// Choke point called before any tape_offset write from rewind()/
+// rewind_seconds(); every call here is already idempotent.
+void sioCassette::stop_and_reset_for_reposition()
+{
+#ifdef ESP_PLATFORM
+    fsk_signal_end();   // idempotent: stops RMT if active, reattaches UART TX,
+                        // unconditionally clears _fsk_signal_active
+    fsk_free_blocks();  // idempotent: frees the FSK preload block table +
+                        // run descriptors; safe if nothing was preloaded
+    if (_rmt_active)
+        turbo2000_deinit_rmt();
+    qros_pilot_off();   // self-guards on _qros_pilot_active internally
+    turbo2000_free_pending_buf();
+#endif
 }
 
 void sioCassette::set_buttons(bool play_record)
@@ -612,14 +817,31 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
         // looking for a data header while handling baud changes along the way
         Debug_printf("Offset: %u\r\n", offset);
         fnio::fseek(_file, offset, SEEK_SET);
-        fnio::fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
+        size_t hdr_read =
+            fnio::fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
+        // A complete 8-byte header must be present before any field is used;
+        // fewer bytes remaining is end-of-tape.
+        if (hdr_read < sizeof(struct tape_FUJI_hdr))
+            return 0; // EOT: no complete subsequent chunk
+
         len = hdr->chunk_length;
+
+        // A complete header does not guarantee the declared body fits in the
+        // remaining file. data/baud/unknown chunks terminate at EOT (return 0)
+        // if the body would overrun EOF. "fsk " is exempt: play_fsk_chunk()
+        // clamps a truncated FSK chunk to its present bytes instead.
+        const size_t header_size = sizeof(struct tape_FUJI_hdr);
+        const size_t bytes_after_header = filesize - offset - header_size;
+        const bool body_complete =
+            static_cast<size_t>(hdr->chunk_length) <= bytes_after_header;
 
         if (p[0] == 'd' && //is a data header?
             p[1] == 'a' &&
             p[2] == 't' &&
             p[3] == 'a')
         {
+            if (!body_complete)
+                return 0; // truncated data body -> EOT before any transmission
             block++;
             break;
         }
@@ -628,15 +850,45 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
                  p[2] == 'u' &&
                  p[3] == 'd')
         {
+            if (!body_complete)
+                return 0; // truncated baud body -> EOT before changing baud
             if (tape_flags.turbo) //ignore baud hdr
                 continue;
             baud = hdr->irg_length;
             SYSTEM_BUS.setBaudrate(baud);
         }
+        else if (p[0] == 'f' && //is a raw FSK header? ('f','s','k',' ')
+                 p[1] == 's' &&
+                 p[2] == 'k' &&
+                 p[3] == ' ')
+        {
+            // Delegate the whole chunk (IRG + signal) to play_fsk_chunk();
+            // its return offset is authoritative. Baud is unchanged.
+            size_t next = play_fsk_chunk(offset, hdr->chunk_length,
+                                         hdr->irg_length);
+            if (next == 0)
+                return 0; // EOT / no safe continuation
+            if (next == offset)
+                return offset; // motor-abort retry from this chunk
+            offset = next; // structural advance past the FSK chunk; keep walking
+            continue;
+        }
+        // Unknown/non-FSK chunk: skip 8+length only if the declared body is
+        // structurally complete; otherwise EOT (never advance past EOF).
+        if (!body_complete)
+            return 0;
         offset += sizeof(struct tape_FUJI_hdr) + len;
     }
 
     // TO DO : check that "data" record was actually found - not done by SDrive until after IRG by checking offset<filesize
+
+    // The gap loop + data transmit below must run ONLY when the search loop
+    // broke on a 'data' chunk. If it instead exited at filesize (a pure-FSK
+    // image), `hdr` still holds the last non-data header and its IRG was
+    // already honored inside play_fsk_chunk — terminate here to avoid a
+    // duplicate IRG / stale-header fallthrough.
+    if (offset >= filesize)
+        return 0; // end-of-tape
 
     gap = hdr->irg_length; //save GAP
     len = hdr->chunk_length;
@@ -1313,12 +1565,7 @@ void sioCassette::turbo2000_deinit_rmt()
     // Flush any pending RMT data before tearing down
     rmt_tx_wait_all_done(channel, -1);
 
-    // Free pending buffer now that RMT is done with it
-    if (_t2k_pending_buf)
-    {
-        free(_t2k_pending_buf);
-        _t2k_pending_buf = nullptr;
-    }
+    turbo2000_free_pending_buf(); // RMT is done with it now
 
     rmt_disable(channel);
     rmt_del_channel(channel);
@@ -1338,6 +1585,15 @@ void sioCassette::turbo2000_deinit_rmt()
         uart_periph_signal[2].pins[SOC_UART_TX_PIN_IDX].signal, false, false);
 
     Debug_println("Turbo 2000: UART restored on SIO DATA IN pin");
+}
+
+void sioCassette::turbo2000_free_pending_buf()
+{
+    if (_t2k_pending_buf)
+    {
+        free(_t2k_pending_buf);
+        _t2k_pending_buf = nullptr;
+    }
 }
 
 void sioCassette::turbo2000_send_pulses(uint16_t half_period_us, int count)
@@ -1416,12 +1672,7 @@ void sioCassette::turbo2000_flush_rmt()
         }
     }
 
-    // Free pending buffer now that RMT is done with it
-    if (_t2k_pending_buf)
-    {
-        free(_t2k_pending_buf);
-        _t2k_pending_buf = nullptr;
-    }
+    turbo2000_free_pending_buf(); // RMT is done with it now
 }
 
 void sioCassette::turbo2000_send_pilot(uint16_t count)
@@ -1752,12 +2003,7 @@ size_t sioCassette::send_turbo2000_tape_block(size_t offset)
                 tx_cfg.flags.eot_level = 0;
                 tx_cfg.flags.queue_nonblocking = false;
 
-                // Free any previous pending buffer
-                if (_t2k_pending_buf)
-                {
-                    free(_t2k_pending_buf);
-                    _t2k_pending_buf = nullptr;
-                }
+                turbo2000_free_pending_buf(); // free any previous pending buffer
 
                 // Store sync symbols in class for callback to access
                 memcpy(_t2k_sync_syms, sync_syms, sync_count * sizeof(rmt_symbol_word_t));
@@ -1936,6 +2182,1067 @@ size_t sioCassette::send_turbo2000_tape_block(size_t offset)
     return 0; // signal end of tape
 #else
     return 0;
+#endif
+}
+
+// =====================================================================
+// A8CAS raw FSK ("fsk ") chunk playback — segmented whole-payload preload
+// into internal RAM. This section only preloads (bounds, alloc, fill,
+// failure handling, cleanup); it does not emit any waveform or touch RMT.
+// =====================================================================
+
+// fsk_compute_bounds() (fsk_plan.h) is the single source of truth for
+// structural bounds/next-offset; play_fsk_chunk() consumes its result
+// directly rather than recomputing O+8+L.
+
+#ifdef ESP_PLATFORM
+
+// Reader adapter matching fsk_read_fn: `ctx` is the open fnFile*, already
+// positioned. Never requests more than FSK_PRELOAD_READ_MAX (512) bytes,
+// staying under the TNFS 525-byte per-read limit.
+static size_t fsk_fnio_reader(void *ctx, uint8_t *dst, size_t n)
+{
+    fnFile *f = static_cast<fnFile *>(ctx);
+    if (f == nullptr || dst == nullptr || n == 0)
+        return 0;
+    return fnio::fread(dst, 1, n, f);
+}
+
+#endif // ESP_PLATFORM
+
+#ifdef ESP_PLATFORM
+
+// Shared by fsk_free_blocks() and preload failure paths. Frees every
+// allocated block + the pointer table; safe after a partial allocation and
+// safe to call more than once.
+static void fsk_release_blocks(uint8_t **&blocks, size_t &block_size,
+                               size_t &block_count)
+{
+    if (blocks != nullptr)
+    {
+        for (size_t i = 0; i < block_count; ++i)
+        {
+            if (blocks[i] != nullptr)
+            {
+                heap_caps_free(blocks[i]);
+                blocks[i] = nullptr;
+            }
+        }
+        heap_caps_free(blocks);
+        blocks = nullptr;
+    }
+    block_size = 0;
+    block_count = 0;
+}
+
+
+// Idempotent cleanup (ESP-only): frees every payload block + the pointer
+// table, then resets all payload/ISR-cursor state.
+void sioCassette::fsk_free_blocks()
+{
+    fsk_release_blocks(_fsk_blocks, _fsk_block_size, _fsk_block_count);
+
+    _fsk_payload_len = 0;
+
+    // O(1) ISR-only encoder cursor — reset to a clean baseline.
+    _fsk_value_count = 0;
+    _fsk_value_index = 0;
+    _fsk_payload_pos = 0;
+    _fsk_remaining_ticks = 0;
+    _fsk_level_high = false;
+
+    // Run descriptors + run cursor — reset to a clean baseline.
+    _fsk_run_chunk_count = 0;
+    _fsk_run_chunk_index = 0;
+}
+
+// Allocates the segmented block table in internal DRAM, fills it from the
+// file, and fails safely (no partial waveform, everything freed) if the
+// runtime preload cannot complete. TU-local free function (not a member) so
+// the block-size/read-max class constants are passed in by the caller.
+// data_avail == 0 is a valid "no values" (IRG-only) result.
+[[maybe_unused]] static bool fsk_preload_payload(
+    fnFile *file, size_t payload_start, size_t data_avail,
+    size_t preload_block_bytes, size_t preload_read_max,
+    uint8_t **&blocks, size_t &block_size, size_t &block_count,
+    size_t &payload_len, size_t &value_count)
+{
+    // Start from a clean, idempotent baseline.
+    fsk_release_blocks(blocks, block_size, block_count);
+    payload_len = 0;
+    value_count = 0;
+
+    if (file == nullptr)
+    {
+        Debug_printf("FSK preload: no open file\r\n");
+        return false;
+    }
+
+    if (data_avail == 0)
+    {
+        // No payload to load; IRG-only case. Set block_size consistently from
+        // the configured block size (0 is acceptable here — nothing is read).
+        block_size = preload_block_bytes;
+        return true;
+    }
+
+    // Defensive validation: a non-empty payload needs valid, non-zero config.
+    if (preload_block_bytes == 0)
+    {
+        Debug_printf("FSK preload: invalid preload_block_bytes == 0\r\n");
+        return false;
+    }
+    if (preload_read_max == 0)
+    {
+        Debug_printf("FSK preload: invalid preload_read_max == 0\r\n");
+        return false;
+    }
+
+    const size_t bsize = preload_block_bytes; // e.g. 512 (from the class const)
+    const size_t bcount =
+        (data_avail + bsize - 1) / bsize; // ceil, <= 128 for a uint16 length
+
+    // Pointer table in internal DRAM, zeroed so partial-alloc cleanup can
+    // rely on nullptr entries.
+    uint8_t **tbl = static_cast<uint8_t **>(
+        heap_caps_calloc(bcount, sizeof(uint8_t *),
+                         MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+    if (tbl == nullptr)
+    {
+        Debug_printf("FSK preload: pointer table alloc failed (%u entries)\r\n",
+                     (unsigned)bcount);
+        return false;
+    }
+
+    // Publish the (still being filled) table so the failure paths can clean up
+    // every block allocated so far.
+    blocks = tbl;
+    block_size = bsize;
+    block_count = bcount;
+
+    // Payload blocks in EXTERNAL PSRAM, not internal RAM: a full-size chunk
+    // (up to 65535 bytes) can't coexist with the Wi-Fi/TLS stack in internal
+    // RAM. Safe for the ISR to read: the RMT ISR is not IRAM-registered, so
+    // it runs with cache enabled and can read PSRAM through it (same as the
+    // existing Turbo 2000 path). No PSRAM -> fail the preload safely rather
+    // than fall back to the known-broken internal-RAM strategy.
+    for (size_t i = 0; i < bcount; ++i)
+    {
+        blocks[i] = static_cast<uint8_t *>(
+            heap_caps_malloc(bsize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+        if (blocks[i] == nullptr)
+        {
+            Debug_printf("FSK preload: block %u/%u PSRAM alloc failed\r\n",
+                         (unsigned)i, (unsigned)bcount);
+            fsk_release_blocks(blocks, block_size, block_count);
+            return false;
+        }
+    }
+
+    if (fnio::fseek(file, static_cast<long int>(payload_start), SEEK_SET) != 0)
+    {
+        Debug_printf("FSK preload: fseek to %u failed\r\n",
+                     (unsigned)payload_start);
+        fsk_release_blocks(blocks, block_size, block_count);
+        return false;
+    }
+
+    const size_t loaded =
+        fsk_preload_into_blocks(blocks, bcount, bsize, data_avail,
+                                preload_read_max, fsk_fnio_reader, file);
+
+    // A short read here is a runtime preload failure (distinct from a
+    // structurally truncated CAS, whose already-clamped data_avail loads
+    // completely): free everything, emit no partial waveform.
+    if (loaded != data_avail)
+    {
+        Debug_printf("FSK preload: short read (%u of %u bytes)\r\n",
+                     (unsigned)loaded, (unsigned)data_avail);
+        fsk_release_blocks(blocks, block_size, block_count);
+        return false;
+    }
+
+    payload_len = data_avail;
+    value_count = fsk_value_count(data_avail);
+    return true;
+}
+
+// Preloads a contiguous zero-IRG FSK run into ONE PSRAM block table. Each
+// chunk starts on a fresh block boundary (so per-chunk odd-tail/parity reset
+// works generically) and fills the run descriptors (_fsk_run_*). On any
+// failure everything is freed and false is returned — no partial waveform.
+// A run whose chunks are all zero-length loads nothing and returns true.
+bool sioCassette::fsk_preload_run(const size_t *run_offsets,
+                                  const size_t *run_data_avail,
+                                  size_t count)
+{
+    // Clean, idempotent baseline.
+    fsk_free_blocks();
+    _fsk_run_chunk_count = 0;
+
+    if (_file == nullptr || count == 0 || count > FSK_RUN_MAX_CHUNKS)
+    {
+        Debug_printf("FSK run preload: bad args (count=%u)\r\n", (unsigned)count);
+        return false;
+    }
+
+    const size_t bsize = FSK_PRELOAD_BLOCK_BYTES; // 512
+
+    // Compute per-chunk block spans (each chunk block-aligned) and the total.
+    size_t base[FSK_RUN_MAX_CHUNKS] = {};
+    size_t total_blocks = 0;
+    size_t total_bytes = 0;
+    for (size_t c = 0; c < count; ++c)
+    {
+        base[c] = total_blocks;
+        const size_t da = run_data_avail[c];
+        const size_t nb = (da + bsize - 1) / bsize; // ceil; 0 -> 0 blocks
+        total_blocks += nb;
+        total_bytes += da;
+    }
+
+    // A run with zero total payload: nothing to allocate/read; IRG-only.
+    if (total_blocks == 0)
+    {
+        _fsk_block_size = bsize;
+        _fsk_run_chunk_count = count;
+        for (size_t c = 0; c < count; ++c)
+        {
+            _fsk_run_value_counts[c] = fsk_value_count(run_data_avail[c]);
+            _fsk_run_block_base[c] = 0;
+            _fsk_run_file_offsets[c] = run_offsets[c];
+        }
+        _fsk_payload_len = 0;
+        _fsk_value_count = _fsk_run_value_counts[0];
+        return true;
+    }
+
+    // Pointer table (INTERNAL, zeroed so partial-alloc cleanup sees nullptrs).
+    uint8_t **tbl = static_cast<uint8_t **>(
+        heap_caps_calloc(total_blocks, sizeof(uint8_t *),
+                         MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+    if (tbl == nullptr)
+    {
+        Debug_printf("FSK run preload: table alloc failed (%u blocks)\r\n",
+                     (unsigned)total_blocks);
+        return false;
+    }
+    _fsk_blocks = tbl;
+    _fsk_block_size = bsize;
+    _fsk_block_count = total_blocks;
+
+    // Payload blocks in PSRAM.
+    for (size_t i = 0; i < total_blocks; ++i)
+    {
+        _fsk_blocks[i] = static_cast<uint8_t *>(
+            heap_caps_malloc(bsize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+        if (_fsk_blocks[i] == nullptr)
+        {
+            Debug_printf("FSK run preload: block %u/%u PSRAM alloc failed\r\n",
+                         (unsigned)i, (unsigned)total_blocks);
+            fsk_free_blocks();
+            return false;
+        }
+    }
+
+    // Fill each chunk into its own block span via the bounded <=512 reader.
+    for (size_t c = 0; c < count; ++c)
+    {
+        const size_t da = run_data_avail[c];
+        if (da == 0)
+            continue;
+        if (fnio::fseek(_file, static_cast<long int>(run_offsets[c]),
+                        SEEK_SET) != 0)
+        {
+            Debug_printf("FSK run preload: fseek chunk %u failed\r\n",
+                         (unsigned)c);
+            fsk_free_blocks();
+            return false;
+        }
+        // Fill this chunk into its own contiguous block span (base[c]..).
+        const size_t nb = (da + bsize - 1) / bsize;
+        const size_t loaded =
+            fsk_preload_into_blocks(&_fsk_blocks[base[c]], nb, bsize, da,
+                                    FSK_PRELOAD_READ_MAX, fsk_fnio_reader,
+                                    _file);
+        if (loaded != da)
+        {
+            Debug_printf("FSK run preload: chunk %u short read (%u/%u)\r\n",
+                         (unsigned)c, (unsigned)loaded, (unsigned)da);
+            fsk_free_blocks();
+            return false;
+        }
+    }
+
+    // Publish descriptors.
+    _fsk_run_chunk_count = count;
+    for (size_t c = 0; c < count; ++c)
+    {
+        _fsk_run_value_counts[c] = fsk_value_count(run_data_avail[c]);
+        _fsk_run_block_base[c] = base[c];
+        _fsk_run_file_offsets[c] = run_offsets[c];
+    }
+    _fsk_payload_len = total_bytes;
+    _fsk_value_count = _fsk_run_value_counts[0]; // cursor starts in chunk 0
+    return true;
+}
+
+// =====================================================================
+// A8CAS raw FSK ("fsk ") chunk playback — RMT stateful simple-encoder
+// callback + one-transaction signal lifecycle (ESP-only). Reproduces the
+// resident segmented payload on PIN_UART2_TX at 1 MHz via ONE continuous
+// rmt_transmit, mirroring the Turbo 2000 RMT pattern. Does not preload,
+// honor the IRG, walk chunks, or change baud.
+// =====================================================================
+
+// RMT stateful simple-encoder callback. Runs in ISR context: no file I/O,
+// logging, allocation, or blocking calls. Reads the resident block table
+// (`data`) plus the O(1) cursor on `self`. Because every payload byte is
+// already resident, it always produces at least one symbol or sets *done —
+// it never returns 0 to wait for data (min_chunk_size = 1).
+//
+// Level follows ORIGINAL A8CAS value-index parity: even index -> logical 0,
+// odd -> logical 1. Zero-duration values still consume their index (parity)
+// but emit no portion. Long values split into <=32767-tick portions via
+// fsk_next_portion, carried across calls in O(1) cursor state.
+size_t IRAM_ATTR sioCassette::fsk_encode_cb(const void *data, size_t data_size,
+                                            size_t symbols_written,
+                                            size_t symbols_free,
+                                            rmt_symbol_word_t *symbols,
+                                            bool *done, void *arg)
+{
+    // Write a definite value first; don't rely on the RMT framework to
+    // initialize/preserve it. *done is set true only after the last portion
+    // of the last value has been emitted.
+    if (done == nullptr)
+        return 0;
+
+    *done = false;
+
+    sioCassette *self = static_cast<sioCassette *>(arg);
+    if (self == nullptr)
+    {
+        // Terminal invalid state: no source to decode. Signal completion so the
+        // framework does not interpret return 0 as lack of progress.
+        *done = true;
+        return 0;
+    }
+
+    // Guard: the only valid rmt_transmit payload is the contiguous POINTER
+    // TABLE itself (data == _fsk_blocks), not a single block. Terminates
+    // with *done=true on a mismatch — the one place this callback returns 0
+    // for a reason other than "waveform complete".
+    if (data != static_cast<const void *>(self->_fsk_blocks) ||
+        data_size != self->_fsk_block_count * sizeof(self->_fsk_blocks[0]))
+    {
+        *done = true;
+        return 0;
+    }
+
+    // Defensive: decoding requires a valid resident block table when there is
+    // waveform work to do. (A zero-value payload with a null table is handled by
+    // the loop below setting *done immediately with num == 0.)
+    if (self->_fsk_value_count > 0 &&
+        (self->_fsk_blocks == nullptr || self->_fsk_block_size == 0))
+    {
+        *done = true;
+        return 0;
+    }
+
+    // rmt_transmit passes the immutable contiguous pointer table as `data`.
+    // The pointed-to blocks are also immutable internal-RAM for the transaction.
+    const uint8_t *const *blocks = (const uint8_t *const *)data;
+    const size_t blk = self->_fsk_block_size; // bytes per block
+    size_t num = 0;
+
+    // Active FSK Rewind physical-progress bookkeeping (no effect on
+    // *done/level/duration/chunk logic below). is_prefill is true only for
+    // the one call synchronous inside rmt_transmit(); every later call is a
+    // real hardware-threshold refill of exactly one 256-symbol half, so its
+    // start-of-call tick count is an exact, never-overestimated boundary.
+    // Prefill can cover up to 512 symbols in one call, so its own total
+    // can't be used as that boundary — _fsk_prefill_half_ticks captures the
+    // exact first-256-symbol point instead (below).
+    const bool is_prefill = !self->_fsk_transmission_started;
+    if (!is_prefill)
+    {
+        self->_fsk_confirmed_ticks = self->_fsk_pending_boundary_ticks;
+        self->_fsk_confirmed_timestamp_us = esp_timer_get_time();
+    }
+
+    while (num < symbols_free)
+    {
+        // Fill both halves of one rmt_symbol_word_t.
+        uint16_t levels[2];
+        uint16_t durs[2];
+        int half = 0;
+
+        while (half < 2)
+        {
+            // Load next value if the current one is exhausted.
+            if (self->_fsk_remaining_ticks == 0)
+            {
+                // Skip zero-duration values; when the CURRENT chunk's values are
+                // exhausted, advance to the next chunk in the run (reset the
+                // per-chunk index/parity to 0, jump the logical byte position to
+                // that chunk's block base) so a contiguous zero-IRG FSK run plays
+                // as one continuous waveform. Each value consumes an index
+                // (parity) but a zero-duration value emits nothing.
+                bool got_value = false;
+                for (;;)
+                {
+                    // Current chunk still has values?
+                    if (self->_fsk_value_index < self->_fsk_value_count)
+                    {
+                        // Read the value at the current logical position through
+                        // the block accessor. fsk_block_le16 reassembles a value
+                        // that STRADDLES a block boundary WITHIN a chunk. Chunks
+                        // never straddle (each starts on a block boundary). The
+                        // payload is fully resident, so this always succeeds.
+                        uint16_t v = fsk_block_le16(blocks, blk, self->_fsk_payload_pos);
+                        bool lvl = fsk_level_for_index(self->_fsk_value_index); // per-chunk parity
+                        self->_fsk_value_index++;
+                        self->_fsk_payload_pos += 2;
+                        if (v != 0)
+                        {
+                            uint32_t vt = fsk_ticks_for_value(v);
+                            self->_fsk_remaining_ticks = vt;
+                            self->_fsk_level_high = lvl;
+                            got_value = true;
+                            break;
+                        }
+                        // v == 0: index consumed, no portion; keep scanning.
+                        continue;
+                    }
+                    // Current chunk exhausted -> advance to the next run chunk.
+                    if (self->_fsk_run_chunk_index + 1 < self->_fsk_run_chunk_count)
+                    {
+                        self->_fsk_run_chunk_index++;
+                        const size_t nb =
+                            self->_fsk_run_block_base[self->_fsk_run_chunk_index];
+                        self->_fsk_value_index = 0;              // per-chunk parity resets
+                        self->_fsk_value_count =
+                            self->_fsk_run_value_counts[self->_fsk_run_chunk_index];
+                        self->_fsk_payload_pos = nb * blk;       // chunk starts on a block boundary
+                        continue; // scan the next chunk's values
+                    }
+                    // No more chunks in the run -> the whole run is complete.
+                    break;
+                }
+                if (!got_value) // no more values remain in the entire run
+                {
+                    // All values consumed -> the whole waveform is complete.
+                    if (half == 0)
+                    {
+                        // Clean symbol boundary: complete.
+                        *done = true;
+                        (void)symbols_written;
+                        (void)data_size;
+                        return num;
+                    }
+                    // Pad the unused second half with a 0-duration same-level
+                    // entry; the value stream is exhausted -> waveform complete.
+                    levels[half] = levels[half - 1];
+                    durs[half] = 0;
+                    half++;
+                    break;
+                }
+            }
+            uint32_t portion = fsk_next_portion(self->_fsk_remaining_ticks);
+            self->_fsk_remaining_ticks -= portion;
+            levels[half] = self->_fsk_level_high ? 1 : 0;
+            durs[half] = (uint16_t)portion;
+            self->_fsk_cumulative_ticks += portion; // functional bookkeeping only
+            half++;
+        }
+
+        symbols[num].level0 = levels[0];
+        symbols[num].duration0 = durs[0];
+        symbols[num].level1 = levels[1];
+        symbols[num].duration1 = durs[1];
+        num++;
+
+        // Fires at most once per prefill call, exactly at the first
+        // 256-symbol (first hardware threshold) boundary.
+        if (is_prefill && num == 256)
+            self->_fsk_prefill_half_ticks = self->_fsk_cumulative_ticks;
+
+        // A chunk boundary alone is NOT completion — only the final run
+        // chunk's exhaustion is.
+        if (self->_fsk_remaining_ticks == 0 &&
+            self->_fsk_value_index >= self->_fsk_value_count &&
+            self->_fsk_run_chunk_index + 1 >= self->_fsk_run_chunk_count)
+        {
+            *done = true; // set true ONLY here on full run completion
+            (void)symbols_written;
+            (void)data_size;
+            return num;
+        }
+    }
+
+    // Buffer full, values remain; *done stays false so RMT calls again.
+    // Reaching here means this call filled its whole offered symbols_free,
+    // so its end-of-call cumulative total is the exact boundary the NEXT
+    // threshold event will confirm (for prefill, still only the first half).
+    self->_fsk_pending_boundary_ticks =
+        is_prefill ? self->_fsk_prefill_half_ticks : self->_fsk_cumulative_ticks;
+
+    (void)symbols_written;
+    (void)data_size;
+    return num; // more remains; *done == false; RMT will call again
+}
+
+// ---------------------------------------------------------------------
+// Allocates + enables the RMT TX channel and simple encoder for one FSK
+// transaction, taking ownership of PIN_UART2_TX. On any failure undoes
+// whatever partial setup was done and returns false, leaving
+// _fsk_signal_active == false. Baud/UART divisor untouched.
+bool sioCassette::fsk_signal_begin(size_t resume_value_index)
+{
+    if (_fsk_signal_active)
+        return true; // already own the signal path
+
+    if ((gpio_num_t)PIN_UART2_TX == GPIO_NUM_NC)
+    {
+        Debug_printf("FSK signal: PIN_UART2_TX is GPIO_NUM_NC\r\n");
+        return false;
+    }
+
+    // Flush pending UART output before detaching TX from the pin.
+    SYSTEM_BUS.flushOutput();
+
+    // Detach UART2 TX from GPIO — same pattern as turbo2000_init_rmt / qros_pilot_on.
+    esp_rom_gpio_connect_out_signal(PIN_UART2_TX, SIG_GPIO_OUT_IDX, false, false);
+    // Idle level HIGH (mark) before RMT takes over the pin.
+    gpio_set_direction((gpio_num_t)PIN_UART2_TX, GPIO_MODE_OUTPUT);
+    gpio_set_level((gpio_num_t)PIN_UART2_TX, 1);
+
+    // Configure the RMT TX channel at 1 MHz (1 us/tick), matching Turbo 2000.
+    rmt_tx_channel_config_t tx_cfg = {};
+    tx_cfg.gpio_num = (gpio_num_t)PIN_UART2_TX;
+    tx_cfg.clk_src = RMT_CLK_SRC_DEFAULT;
+    tx_cfg.resolution_hz = T2K_RMT_RESOLUTION_HZ; // 1 MHz -> 1 us/tick -> 1 A8CAS unit = 100 ticks
+    tx_cfg.mem_block_symbols = 64 * 8;            // ping-pong memory for gapless refill
+    tx_cfg.trans_queue_depth = 4;
+    tx_cfg.intr_priority = 0; // driver-chosen default
+    tx_cfg.flags.invert_out = false;
+    tx_cfg.flags.with_dma = false;
+    tx_cfg.flags.io_loop_back = false;
+    tx_cfg.flags.io_od_mode = false;
+    tx_cfg.flags.allow_pd = false;
+
+    rmt_channel_handle_t channel = nullptr;
+    esp_err_t err = rmt_new_tx_channel(&tx_cfg, &channel);
+    if (err != ESP_OK || channel == nullptr)
+    {
+        Debug_printf("FSK signal: rmt_new_tx_channel failed (%d)\r\n", (int)err);
+        // If the call reported failure but still handed back a channel, delete
+        // it before restoring UART so no channel is leaked.
+        if (channel != nullptr)
+            rmt_del_channel(channel);
+        esp_rom_gpio_connect_out_signal(
+            PIN_UART2_TX, uart_periph_signal[2].pins[SOC_UART_TX_PIN_IDX].signal,
+            false, false);
+        return false;
+    }
+
+    // Stateful simple encoder: generates symbols on the fly in the IRAM ISR from
+    // the resident payload. min_chunk_size = 1 so the callback is asked to make
+    // progress with as little as one free slot and never waits for source data.
+    rmt_simple_encoder_config_t simple_cfg = {};
+    simple_cfg.callback = fsk_encode_cb;
+    simple_cfg.arg = (void *)this;
+    simple_cfg.min_chunk_size = 1;
+    rmt_encoder_handle_t simple_enc = nullptr;
+    err = rmt_new_simple_encoder(&simple_cfg, &simple_enc);
+    if (err != ESP_OK || simple_enc == nullptr)
+    {
+        Debug_printf("FSK signal: rmt_new_simple_encoder failed (%d)\r\n", (int)err);
+        // If the call reported failure but still handed back an encoder, delete
+        // it too, then delete the already-created channel before restoring UART.
+        if (simple_enc != nullptr)
+            rmt_del_encoder(simple_enc);
+        rmt_del_channel(channel);
+        esp_rom_gpio_connect_out_signal(
+            PIN_UART2_TX, uart_periph_signal[2].pins[SOC_UART_TX_PIN_IDX].signal,
+            false, false);
+        return false;
+    }
+
+    err = rmt_enable(channel);
+    if (err != ESP_OK)
+    {
+        Debug_printf("FSK signal: rmt_enable failed (%d)\r\n", (int)err);
+        rmt_del_encoder(simple_enc);
+        rmt_del_channel(channel);
+        esp_rom_gpio_connect_out_signal(
+            PIN_UART2_TX, uart_periph_signal[2].pins[SOC_UART_TX_PIN_IDX].signal,
+            false, false);
+        return false;
+    }
+
+    _fsk_rmt_channel = channel;
+    _fsk_rmt_encoder = simple_enc;
+    _fsk_signal_active = true;
+
+    // Reset the ISR cursor to the start of run chunk 0 — unless
+    // resume_value_index seeds an Active FSK Rewind resume partway through
+    // it (clamped to that chunk's value_count). Only where the cursor
+    // STARTS changes; fsk_encode_cb's advance logic is untouched.
+    _fsk_run_chunk_index = 0;
+    _fsk_value_count = (_fsk_run_chunk_count > 0) ? _fsk_run_value_counts[0] : 0;
+    _fsk_value_index = (resume_value_index < _fsk_value_count) ? resume_value_index : 0;
+    _fsk_payload_pos = (_fsk_run_chunk_count > 0)
+                           ? _fsk_run_block_base[0] * _fsk_block_size + _fsk_value_index * 2
+                           : 0;
+    _fsk_remaining_ticks = 0;
+    _fsk_level_high = false;
+
+    return true;
+}
+
+// ---------------------------------------------------------------------
+// Issues exactly ONE continuous rmt_transmit for the whole preloaded
+// waveform, then waits for completion. The transaction payload is the
+// pointer table itself (`_fsk_blocks`), never `_fsk_blocks[0]` — the
+// segmented payload is not contiguous. Pointer table and blocks stay valid
+// until rmt_tx_wait_all_done returns.
+void sioCassette::fsk_signal_emit()
+{
+    if (!_fsk_signal_active || _fsk_rmt_channel == nullptr ||
+        _fsk_rmt_encoder == nullptr || _fsk_blocks == nullptr)
+        return;
+
+    rmt_channel_handle_t channel = (rmt_channel_handle_t)_fsk_rmt_channel;
+    rmt_encoder_handle_t encoder = (rmt_encoder_handle_t)_fsk_rmt_encoder;
+
+    rmt_transmit_config_t tx_cfg = {};
+    tx_cfg.loop_count = 0; // one-shot, single continuous transaction
+
+    // Stable contiguous descriptor: the pointer table itself.
+    const void *table = (const void *)_fsk_blocks;
+    const size_t table_bytes = _fsk_block_count * sizeof(uint8_t *);
+
+    // Reset physical-progress accounting; safe plain writes until
+    // _fsk_transmission_started is published below.
+    _fsk_cumulative_ticks = 0;
+    _fsk_prefill_half_ticks = 0;
+    _fsk_pending_boundary_ticks = 0;
+    _fsk_confirmed_ticks = 0;
+
+    esp_err_t err = rmt_transmit(channel, encoder, table, table_bytes, &tx_cfg);
+    if (err != ESP_OK)
+    {
+        Debug_printf("FSK signal: rmt_transmit failed (%d)\r\n", (int)err);
+        return; // never started; nothing published; teardown via fsk_signal_end
+    }
+
+    // rmt_transmit() only returns after the prefill encode has completed and
+    // rmt_ll_tx_start() has issued, so this instant is always genuinely
+    // mid-transmission. Capture the tx-start reference and gate ISR writes
+    // BEFORE publishing the channel, so a rewind can never observe or credit
+    // progress against a channel that hasn't truly started.
+    _fsk_confirmed_timestamp_us = esp_timer_get_time();
+    _fsk_transmission_started = true;
+
+    if (_fsk_channel_lock != nullptr)
+    {
+        xSemaphoreTake(_fsk_channel_lock, portMAX_DELAY);
+        _fsk_active_channel = (void *)channel;
+        xSemaphoreGive(_fsk_channel_lock);
+    }
+
+    // Returns on natural completion OR a forced rmt_disable() from HTTP —
+    // the driver's forced-stop path completes this same queue wait either way.
+    rmt_tx_wait_all_done(channel, -1);
+
+    // Stopped either way; fsk_signal_end() (called next) is the single
+    // serialization point that decides which one this was.
+    _fsk_transmission_started = false;
+}
+
+// ---------------------------------------------------------------------
+// Idempotent teardown of the RMT signal path: waits for any in-flight
+// transaction, deletes encoder + channel, reattaches UART2 TX. Does NOT
+// free the preloaded FSK blocks (fsk_free_blocks()'s job).
+void sioCassette::fsk_signal_end()
+{
+    bool had_channel = (_fsk_rmt_channel != nullptr);
+    _fsk_interrupted_pending = false; // clear scratch before (maybe) setting it below
+
+    if (_fsk_rmt_channel != nullptr)
+    {
+        rmt_channel_handle_t channel = (rmt_channel_handle_t)_fsk_rmt_channel;
+
+        // Single serialization point for Active FSK Rewind vs. this teardown.
+        // Lock held only for this compare-and-decide, never across the
+        // disable/delete below. If _fsk_active_channel still equals ours,
+        // nobody interrupted it — unpublish. Otherwise HTTP already claimed
+        // it; if a request is REQUESTED it must target THIS channel (only one
+        // request in flight — see the BUSY guard), so consume it atomically.
+        if (_fsk_channel_lock != nullptr)
+        {
+            xSemaphoreTake(_fsk_channel_lock, portMAX_DELAY);
+            if (_fsk_active_channel == (void *)channel)
+            {
+                _fsk_active_channel = nullptr;
+            }
+            else if (_fsk_rewind_state == FskRewindReq::REQUESTED)
+            {
+                _fsk_interrupted_pending = true;
+                _fsk_interrupted_seconds = _fsk_rewind_seconds_req;
+                _fsk_interrupted_stop_us = _fsk_rewind_stop_timestamp_us;
+                _fsk_rewind_state = FskRewindReq::PROCESSING;
+            }
+            xSemaphoreGive(_fsk_channel_lock);
+        }
+
+        // If HTTP already forced rmt_disable() on this channel, this call is
+        // the proven-safe ESP_ERR_INVALID_STATE no-op (FSM guard returns
+        // before touching hardware) — never a double-stop hazard.
+        rmt_tx_wait_all_done(channel, -1);
+        rmt_disable(channel);
+        rmt_del_channel(channel);
+        _fsk_rmt_channel = nullptr;
+    }
+
+    if (_fsk_rmt_encoder != nullptr)
+    {
+        rmt_del_encoder((rmt_encoder_handle_t)_fsk_rmt_encoder);
+        _fsk_rmt_encoder = nullptr;
+    }
+
+    // Reattach only if we ever took the pin this cycle.
+    if (had_channel || _fsk_signal_active)
+    {
+        esp_rom_gpio_connect_out_signal(
+            PIN_UART2_TX, uart_periph_signal[2].pins[SOC_UART_TX_PIN_IDX].signal,
+            false, false);
+    }
+
+    _fsk_signal_active = false;
+}
+
+// ---------------------------------------------------------------------
+// Cassette-task-side resolution of a genuine Active FSK Rewind interrupt.
+// Called from play_fsk_chunk(), holding _cassette_lock, right after
+// fsk_signal_end() flags _fsk_interrupted_pending and before
+// fsk_free_blocks() runs (resident run data is still valid).
+//
+// 3-tier resolution, resolved_time <= target_time guaranteed at every tier:
+//   1. fine: resident FSK data only, no file I/O — start of the value at or
+//      before target (a target inside the leading IRG restarts chunk 0);
+//   2. fallback: target before this run -> existing coarse walker;
+//   3. floor: walker also fails -> tape_offset = 0.
+//
+// Always clears _fsk_rewind_state back to IDLE before returning — no
+// request state is ever left stuck.
+uint16_t sioCassette::fsk_resident_run_value_reader(void *ctx, size_t chunk_index,
+                                                    size_t value_index)
+{
+    sioCassette *self = static_cast<sioCassette *>(ctx);
+    const size_t base_pos = self->_fsk_run_block_base[chunk_index] * self->_fsk_block_size;
+    return fsk_block_le16((const uint8_t *const *)self->_fsk_blocks, self->_fsk_block_size,
+                          base_pos + value_index * 2);
+}
+
+size_t sioCassette::fsk_resolve_active_rewind(size_t run_chunk0_header_offset,
+                                              uint32_t seconds,
+                                              int64_t stop_timestamp_us)
+{
+    size_t resolved_offset = 0;
+
+    CassetteWalkState run_start{};
+    if (!walk_tape_time(run_chunk0_header_offset, UINT64_MAX, run_start))
+    {
+        // Cannot even establish where this run began: always-safe floor.
+        _last_rewind_result = RewindResult::FAILED;
+        resolved_offset = 0;
+    }
+    else
+    {
+        const uint64_t run_start_time_us = run_start.time_us;
+        const uint64_t leading_irg_us =
+            static_cast<uint64_t>(_fsk_run_leading_irg_ms) * 1000ULL;
+
+        // Physical progress lower bound via clock interpolation. stop_timestamp_us
+        // was captured by HTTP BEFORE rmt_disable(), so the disable tail is
+        // never credited. _fsk_confirmed_ticks/_timestamp_us were last written
+        // by the ISR strictly before rmt_disable() could return (its busy-poll
+        // on real TX_DONE guarantees the ISR isn't concurrent), so this plain
+        // read needs no lock.
+        const int64_t elapsed_us = stop_timestamp_us - _fsk_confirmed_timestamp_us;
+        uint64_t candidate_physical_ticks = _fsk_confirmed_ticks;
+        if (elapsed_us > 0)
+            candidate_physical_ticks += static_cast<uint64_t>(elapsed_us);
+        if (candidate_physical_ticks > _fsk_cumulative_ticks)
+            candidate_physical_ticks = _fsk_cumulative_ticks; // never claim more than was ever encoded
+
+        const uint64_t current_cas_time_us =
+            run_start_time_us + leading_irg_us + candidate_physical_ticks;
+        const uint64_t back_us = static_cast<uint64_t>(seconds) * 1000000ULL;
+        const uint64_t target_us =
+            (current_cas_time_us > back_us) ? (current_cas_time_us - back_us) : 0;
+
+        // Tier 1 (fine): pure resident-run resolution (cassette_time_plan.h),
+        // shared verbatim with the host test suite via the same function.
+        const FskActiveRewindResolution res = cas_fsk_resolve_active_rewind(
+            _fsk_run_value_counts, _fsk_run_chunk_count,
+            &sioCassette::fsk_resident_run_value_reader, this,
+            run_start_time_us, leading_irg_us, target_us);
+
+        if (res.resolved)
+        {
+            if (res.inside_leading_irg)
+            {
+                // Target lands inside this run's own leading IRG: restart
+                // chunk 0 from scratch (replay the full IRG); no resume.
+                resolved_offset = run_chunk0_header_offset;
+                _fsk_resume_pending = false;
+            }
+            else
+            {
+                resolved_offset = _fsk_run_file_offsets[res.chunk_index] - 8; // chunk header
+                _fsk_resume_pending = (res.value_index > 0);
+                _fsk_resume_value_index = res.value_index;
+            }
+            _last_rewind_result = RewindResult::SUCCESS;
+        }
+        else
+        {
+            // Tier 2: existing coarse walker, unchanged, guarantees resolved <= target.
+            CassetteWalkState dest{};
+            if (walk_tape_time(SIZE_MAX, target_us, dest))
+            {
+                resolved_offset  = dest.offset;
+                baud             = dest.baud;
+                t2k_samplerate   = dest.t2k_samplerate;
+                t2k_bit0_half    = dest.t2k_bit0_half;
+                t2k_bit1_half    = dest.t2k_bit1_half;
+                t2k_pilot_half   = dest.t2k_pilot_half;
+                t2k_pilot_count  = dest.t2k_pilot_count;
+                qros_turbo_baud  = dest.qros_turbo_baud;
+                _fsk_resume_pending = false;
+                _last_rewind_result = RewindResult::NATURAL_COMPLETION_FALLBACK;
+            }
+            else
+            {
+                // Tier 3: always-safe floor, same as rewind()'s own behavior.
+                resolved_offset = 0;
+                _fsk_resume_pending = false;
+                _last_rewind_result = RewindResult::FAILED;
+            }
+        }
+    }
+
+    if (_fsk_channel_lock != nullptr)
+    {
+        xSemaphoreTake(_fsk_channel_lock, portMAX_DELAY);
+        _fsk_rewind_state = FskRewindReq::IDLE;
+        xSemaphoreGive(_fsk_channel_lock);
+    }
+
+    return resolved_offset;
+}
+
+#endif // ESP_PLATFORM
+
+// =====================================================================
+// Cross-platform play_fsk_chunk orchestration: owns ONE "fsk " chunk end to
+// end (structural bounds -> segmented preload -> IRG -> RMT begin/emit/end
+// -> cleanup -> next-offset). Does not recognize "fsk " in the walker or
+// touch baud. Return: 0 = EOT (truncated header or overrun body, after
+// reproducing the present prefix); offset+8+chunk_length = well-formed
+// advance; starting_offset = motor-abort retry. Based on structural
+// boundaries only, never on how much actually preloaded at runtime.
+// =====================================================================
+size_t sioCassette::play_fsk_chunk(size_t offset, uint16_t chunk_length,
+                                   uint16_t irg_ms)
+{
+    const size_t starting_offset = offset;
+
+    // fsk_compute_bounds() is the single source of truth for structural
+    // state, including next_offset — no second O+8+L formula here.
+    const FskBounds bounds = fsk_compute_bounds(filesize, offset, chunk_length);
+    if (!bounds.header_complete)
+    {
+        return 0; // < 8 header bytes remain: end-of-tape
+    }
+
+    const size_t data_avail = bounds.data_avail;
+    const size_t value_count = bounds.value_count;
+    const bool structurally_truncated = bounds.structurally_truncated;
+    // Consumed on the PC path only; avoid an unused-variable warning on ESP,
+    // which derives its own _fsk_value_count via the preload.
+    (void)value_count;
+    (void)structurally_truncated;
+
+    const size_t next_offset = bounds.next_offset;
+
+    // Assigned on entry to each terminal condition; every path funnels
+    // through the `done:` cleanup label below.
+    size_t result = next_offset;
+
+#ifdef ESP_PLATFORM
+    // One-shot Active FSK Rewind resume seed: captured into locals and
+    // cleared from the shared member immediately. Normal playback (the
+    // common case) leaves resume_this_run false, unchanged from before.
+    const bool resume_this_run = _fsk_resume_pending;
+    const size_t resume_value_index = _fsk_resume_value_index;
+    _fsk_resume_pending = false;
+
+    // Scan + preload the CONTIGUOUS zero-IRG FSK run: authentic A8CAS images
+    // split one continuous tape signal across consecutive `fsk ` chunks
+    // (only the first carries a non-zero IRG). Reproducing each with its own
+    // RMT lifecycle would insert a gap at every container boundary, so we
+    // preload the whole maximal run first and play it as ONE lifecycle.
+    // This chunk is always run chunk 0; following chunks join while
+    // fsk_run_should_join() holds.
+    size_t run_offsets[FSK_RUN_MAX_CHUNKS];
+    size_t run_data_avail[FSK_RUN_MAX_CHUNKS];
+    size_t run_count = 1;
+    run_offsets[0] = offset + 8;      // payload start of chunk 0
+    run_data_avail[0] = data_avail;   // clamped bytes of chunk 0
+    result = next_offset;             // next after chunk 0 (updated as the run grows)
+
+    {
+        size_t scan = next_offset; // structural offset of the next candidate
+        while (scan != 0 && run_count < FSK_RUN_MAX_CHUNKS)
+        {
+            // Read the candidate's 8-byte header (bounded, pre-waveform).
+            struct tape_FUJI_hdr chdr;
+            if (fnio::fseek(_file, static_cast<long int>(scan), SEEK_SET) != 0)
+                break;
+            if (fnio::fread(&chdr, 1, sizeof(chdr), _file) != sizeof(chdr))
+                break;
+            const uint8_t *cp = (const uint8_t *)&chdr;
+            const bool is_fsk = (cp[0] == 'f' && cp[1] == 's' &&
+                                 cp[2] == 'k' && cp[3] == ' ');
+            const uint16_t clen = chdr.chunk_length;
+            const uint16_t cirg = chdr.irg_length;
+            const FskBounds cb = fsk_compute_bounds(filesize, scan, clen);
+            if (!fsk_run_should_join(is_fsk, cirg, cb.header_complete,
+                                     cb.structurally_truncated))
+                break; // non-FSK / IRG>0 / EOF / truncated -> run ends here
+            run_offsets[run_count] = scan + 8;
+            run_data_avail[run_count] = cb.data_avail;
+            run_count++;
+            result = cb.next_offset; // advance the walker return past this chunk
+            scan = cb.next_offset;
+        }
+    }
+
+    // Preload the WHOLE run before the IRG/waveform; once RMT begins there is
+    // no file I/O. On failure, emit no partial waveform and fall through to
+    // the IRG + cleanup with the structural next-offset.
+    bool preload_ok = fsk_preload_run(run_offsets, run_data_avail, run_count);
+    if (!preload_ok)
+    {
+        Debug_printf("FSK: run preload failed at offset %u (%u chunks), "
+                     "skipping emission\r\n",
+                     (unsigned)offset, (unsigned)run_count);
+    }
+
+    // This run's leading IRG contribution to Active FSK Rewind's absolute-time
+    // formula. On a genuine resume the IRG below is skipped (never replayed),
+    // so the contribution is 0, not the on-disk irg_ms — otherwise a rewind
+    // landing inside a resumed sub-run would double-count time never spent.
+    _fsk_run_leading_irg_ms = resume_this_run ? 0 : irg_ms;
+
+    // Inter-Record Gap (mirrors the data-record gap loop); skipped on a
+    // resume, since we're reentering mid-tape, not starting a fresh chunk.
+    if (!resume_this_run)
+    {
+        uint32_t gap = irg_ms;
+        fnLedManager.set(eLed::LED_BUS, true);
+        while (gap)
+        {
+            gap--;
+            fnSystem.delay_microseconds(999); // shave a usec for the MOTOR check
+            if (has_pulldown() && !motor_line() && gap > 1000)
+            {
+                // Motor de-asserted mid-gap: abort for retry from chunk start.
+                fnLedManager.set(eLed::LED_BUS, false);
+                result = starting_offset;
+                goto done;
+            }
+        }
+        fnLedManager.set(eLed::LED_BUS, false);
+    }
+
+    // ESP raw signal: begin -> emit -> end, only if preload succeeded and at
+    // least one value exists anywhere in the run (else just honor the IRG).
+    {
+        size_t run_total_values = 0;
+        if (preload_ok)
+        {
+            for (size_t c = 0; c < _fsk_run_chunk_count; ++c)
+                run_total_values += _fsk_run_value_counts[c];
+        }
+        if (preload_ok && run_total_values > 0)
+        {
+            if (fsk_signal_begin(resume_this_run ? resume_value_index : 0))
+            {
+                fsk_signal_emit();   // ONE continuous rmt_transmit + wait-all-done
+                fsk_signal_end();    // teardown; also detects whether a rewind
+                                     // request claimed this channel (see fsk_signal_end())
+
+                // Must be consumed here, before falling through to `done:` —
+                // that label's own fsk_signal_end() call is a no-op that
+                // unconditionally clears this same scratch flag.
+                if (_fsk_interrupted_pending)
+                {
+                    result = fsk_resolve_active_rewind(starting_offset,
+                                                       _fsk_interrupted_seconds,
+                                                       _fsk_interrupted_stop_us);
+                    _fsk_interrupted_pending = false;
+                }
+            }
+            else
+            {
+                // begin() already undid any partial setup and reattached UART.
+                Debug_printf("FSK: signal begin failed at offset %u\r\n",
+                             (unsigned)offset);
+            }
+        } // if (preload_ok && run_total_values > 0)
+    } // scope for run_total_values
+
+done:
+    // Single idempotent cleanup path; blocks freed AFTER wait-done.
+    fsk_signal_end();
+
+    fsk_free_blocks();
+
+    return result;
+
+#else  // ---- PC build: structural bounds + IRG + safe skip, no raw signal ----
+    (void)data_avail;
+    (void)value_count;
+
+    // Honor the IRG deterministically via bus_idle (NetSIO/SerialSIO stepping),
+    // mirroring the data path. No payload preload, no RMT, no ESP-only state.
+    uint32_t gap = irg_ms;
+    fnLedManager.set(eLed::LED_BUS, true);
+    while (gap)
+    {
+        int step;
+        if (SYSTEM_BUS.isBoIP())
+            step = gap > 1000 ? 1000 : (int)gap; // 1000 ms step (NetSIO)
+        else
+            step = gap > 20 ? 20 : (int)gap;     // 20 ms step (SerialSIO)
+        gap -= step;
+        SYSTEM_BUS.bus_idle(step);
+        if (has_pulldown() && !motor_line() && gap > 1000)
+        {
+            fnLedManager.set(eLed::LED_BUS, false);
+            return starting_offset; // motor abort -> retry from chunk start
+        }
+    }
+    fnLedManager.set(eLed::LED_BUS, false);
+
+    // No raw signal on the PC build; advance by structural boundary (or EOT for
+    // the overrun/truncated case). No ESP-only members referenced.
+    return result;
 #endif
 }
 
