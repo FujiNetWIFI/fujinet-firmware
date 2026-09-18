@@ -50,4 +50,9 @@
 #define PIN_RP2040_RUN           GPIO_NUM_4
 #define PIN_RP2040_BOOTSEL       GPIO_NUM_5
 
+// USB device filter for the cartridge link, consumed by lib/bus/rs232.
+// VID-only: any Minty build (the PID varies with MSC), while still rejecting an
+// RP2040/RP2350 sitting in BOOTSEL, which enumerates as VID 0x2E8A.
+#define FN_USB_EXPECTED_VID      0xCafe
+
 #endif /* PINMAP_FUJIVERSAL_INTV */
