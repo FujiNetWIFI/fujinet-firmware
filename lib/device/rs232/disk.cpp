@@ -12,32 +12,29 @@
 #include "fujiDevice.h"
 #include "utils.h"
 
-#define ROM_PUSH_STREAM_CFG 1
-#define ROM_PUSH_STREAM_ROM 0
+#define ROM_PUSH_STREAM_MAP   1
+#define ROM_PUSH_STREAM_IMAGE 0
 
-// push_stream: reads `f` from its current position in DISK_SECTORBUF_SIZE
-// chunks and relays each one to the RP2040 as CMD::NET_WRITE frames on DBC
-// stream `stream_id` (0 = the ROM image, 1 = its memory map -- the RP2040's
-// dbc_inbound_handler() demuxes on this same id). Sent as PAYLOAD bytes,
-// not params: FujiBusPacket::processArg(uint16_t) encodes bare integer
-// arguments as wire params, but the RP2040's minimal fujibus.c client
-// parses the descriptor chain only far enough to skip past it to find the
-// payload -- it never surfaces decoded param values. The payload path is
-// the one it actually exposes to callers (fb_reply_t.data/data_len), so
-// that's what carries the OPEN header here.
+// Relays `source` as NET_WRITE frames on DBC stream `stream_id`, which the
+// RP2040's dbc_inbound_handler() demuxes on.
 //
-// OPEN payload is the stream id followed by the stream's total size as 4
-// little-endian bytes. The RP2040 uses the size to refuse a ROM too large
-// for its cart.ROM[] before we drag the whole thing over TNFS, and to draw
-// an exact progress bar; an older RP2040 build reads data[0] and ignores
-// the rest, so this stays compatible in both directions.
+// The OPEN header (stream id, then size as 4 LE bytes) travels as payload, not
+// params: the RP2040's fujibus.c skips the descriptor chain and exposes only
+// payload to callers. It uses the size to reject an oversized ROM before we
+// pull it over TNFS; older builds read data[0] and ignore the rest.
 //
-// Always sends CMD::NET_CLOSE so the RP2040's stream state doesn't wedge; a
-// failed transfer's CLOSE carries a 0x01 abort payload so partial data
-// isn't booted.
-static bool push_stream(fnFile *f, uint16_t stream_id, uint32_t expected_size)
+// CLOSE always goes out or the RP2040's stream state wedges; on failure it
+// carries a 0x01 abort so partial data isn't booted.
+static bool push_stream(MediaTypeROM *rom, RomStream source, uint16_t stream_id)
 {
-    uint8_t buf[DISK_SECTORBUF_SIZE];
+    uint8_t buffer[DISK_SECTORBUF_SIZE];
+    uint32_t expected_size = rom->stream_size(source);
+
+    if (expected_size == 0)
+    {
+        Debug_printv("ROM push: stream %u is empty or unreadable\n", stream_id);
+        return false;
+    }
 
     struct { uint8_t id; u32le_t size; } open_hdr;
     static_assert(sizeof(open_hdr) == 5, "OPEN header must not be padded");
@@ -55,11 +52,14 @@ static bool push_stream(fnFile *f, uint16_t stream_id, uint32_t expected_size)
 
     bool ok = true;
     uint32_t sent = 0;
-    size_t got;
-    while ((got = fnio::fread(buf, 1, sizeof(buf), f)) > 0)
+    while (sent < expected_size)
     {
+        size_t got = rom->stream_read(source, sent, buffer, sizeof(buffer));
+        if (got == 0)
+            break; // the size check below reports it
+
         reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_WRITE,
-                                       std::string((char *)buf, got));
+                                       std::string((char *)buffer, got));
         if (!reply || reply->command() != CMD::FUJI_ACK)
         {
             Debug_printv("ROM push: failed to send stream %u block\n", stream_id);
@@ -69,7 +69,6 @@ static bool push_stream(fnFile *f, uint16_t stream_id, uint32_t expected_size)
         sent += got;
     }
 
-    // fread() can't distinguish EOF from error -- the byte count is the signal
     if (ok && sent != expected_size)
     {
         Debug_printv("ROM push: stream %u short transfer: %lu of %lu bytes\n",
@@ -90,33 +89,18 @@ static bool push_stream(fnFile *f, uint16_t stream_id, uint32_t expected_size)
     return ok;
 }
 
-// A ROM image isn't served sector by sector the way a disk is: the whole file
-// goes to the RP2040 at mount time, which presents it to the machine as
-// cartridge ROM. Nothing reads it back through the media object afterwards.
-//
-// The memory map, when the ROM has one, has to land before the image's CLOSE
-// triggers the boot. Finding it is MediaTypeROM's business; this only moves
-// the bytes.
-static bool push_rom_streams(MediaTypeROM *rom, fnFile *f, uint32_t disksize)
+// The whole ROM goes over at mount time. The image's CLOSE triggers the boot,
+// so the map has to land first.
+static bool push_rom_streams(MediaTypeROM *rom)
 {
-    if (rom->has_cfg())
+    if (rom->has_memory_map() &&
+        !push_stream(rom, RomStream::MemoryMap, ROM_PUSH_STREAM_MAP))
     {
-        uint32_t cfgsize = 0;
-        fnFile *cfgf = rom->cfg_open(&cfgsize);
-        if (cfgf == nullptr)
-            return false; // map is there but unreadable -- don't boot without it
-
-        bool ok = push_stream(cfgf, ROM_PUSH_STREAM_CFG, cfgsize);
-        rom->cfg_close(cfgf);
-        if (!ok)
-        {
-            Debug_printv("ROM push: memory map push failed\n");
-            return false;
-        }
+        Debug_printv("ROM push: memory map push failed\n");
+        return false;
     }
 
-    fnio::fseek(f, 0, SEEK_SET);
-    if (!push_stream(f, ROM_PUSH_STREAM_ROM, disksize))
+    if (!push_stream(rom, RomStream::Image, ROM_PUSH_STREAM_IMAGE))
     {
         Debug_printv("ROM push: ROM push failed\n");
         return false;
@@ -326,7 +310,7 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
         if (filename != nullptr)
             strlcpy(rom->_disk_filename, filename, sizeof(rom->_disk_filename));
         rom->mount(f, disksize);
-        return push_rom_streams(rom, f, disksize) ? MEDIATYPE_ROM : MEDIATYPE_UNKNOWN;
+        return push_rom_streams(rom) ? MEDIATYPE_ROM : MEDIATYPE_UNKNOWN;
     }
     case MEDIATYPE_IMG:
     case MEDIATYPE_UNKNOWN:

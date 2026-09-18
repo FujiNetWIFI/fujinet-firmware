@@ -73,9 +73,8 @@ public:
 
     mediatype_t _disktype = MEDIATYPE_UNKNOWN;
 
-    // Set by the device layer before mount(). A media type that has to reach
-    // sibling files on the same host -- MediaTypeROM and its .cfg -- resolves
-    // them from these, as the atari, adam, apple and drivewire MediaTypes do.
+    // Set by the device layer before mount(), for media that must reach
+    // sibling files (MediaTypeROM and its .cfg).
     fujiHost *_media_host = nullptr;
     char _disk_filename[256] = {0};
 

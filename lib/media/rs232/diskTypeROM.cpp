@@ -9,23 +9,23 @@
 
 #include "compat_string.h"
 
-// _disk_filename arrives already host-prefixed (fnfile_open rewrites
-// disk.filename in place); fujiHost APIs prefix again, so strip it first.
+// _disk_filename is already host-prefixed; fujiHost APIs prefix again.
 static const char *strip_host_prefix(fujiHost *host, const char *filename)
 {
-    const char *pfx = host->get_prefix();
-    if (pfx == nullptr || pfx[0] == '\0')
+    const char *prefix = host->get_prefix();
+    if (prefix == nullptr || prefix[0] == '\0')
         return filename;
 
-    size_t plen = strlen(pfx);
-    if (strncmp(filename, pfx, plen) != 0)
+    size_t prefix_len = strlen(prefix);
+    if (strncmp(filename, prefix, prefix_len) != 0)
         return filename; // not prefixed after all
 
-    const char *p = filename + plen;
+    const char *stripped = filename + prefix_len;
     // skip the separator util_concat_paths() inserted
-    if (pfx[plen - 1] != '/' && pfx[plen - 1] != '\\' && (*p == '/' || *p == '\\'))
-        p++;
-    return p;
+    if (prefix[prefix_len - 1] != '/' && prefix[prefix_len - 1] != '\\' &&
+        (*stripped == '/' || *stripped == '\\'))
+        stripped++;
+    return stripped;
 }
 
 error_is_true MediaTypeROM::read(uint32_t sectornum, uint32_t *readcount)
@@ -50,16 +50,16 @@ void MediaTypeROM::status(uint8_t statusbuff[4])
     memset(statusbuff, 0, 4);
 }
 
-void MediaTypeROM::resolve_cfg()
+void MediaTypeROM::resolve_memory_map()
 {
-    char path[sizeof(_cfg_path)];
+    char path[sizeof(_map_path)];
     strlcpy(path, strip_host_prefix(_media_host, _disk_filename), sizeof(path));
 
     // replace the basename's extension only
     char *base = path;
-    for (char *p = path; *p != '\0'; p++)
-        if (*p == '/' || *p == '\\')
-            base = p + 1;
+    for (char *cursor = path; *cursor != '\0'; cursor++)
+        if (*cursor == '/' || *cursor == '\\')
+            base = cursor + 1;
     char *dot = strrchr(base, '.');
     if (dot != nullptr)
         strlcpy(dot, ".cfg", sizeof(path) - (dot - path));
@@ -69,14 +69,11 @@ void MediaTypeROM::resolve_cfg()
     if (!_media_host->file_exists(path))
     {
         // case-sensitive hosts may carry the sibling as .CFG
-        size_t len = strlen(path);
-        memcpy(path + len - 4, ".CFG", 4);
+        size_t path_len = strlen(path);
+        memcpy(path + path_len - 4, ".CFG", 4);
         if (!_media_host->file_exists(path))
         {
-            // Not an error -- a .bin with no memory map boots against the
-            // emulator's size-guess table -- but for the titles that need one
-            // the result is a wrong map, i.e. a game that boots to garbage
-            // with nothing anywhere saying why. Say it here.
+            // Not an error, but a wrong map boots to garbage with no clue why.
             Debug_printv("MediaTypeROM: no .cfg sibling for %s (tried \"%s\" in both "
                          "casings) -- booting with a default memory map\n",
                          _disk_filename, path);
@@ -84,57 +81,127 @@ void MediaTypeROM::resolve_cfg()
         }
     }
 
-    strlcpy(_cfg_path, path, sizeof(_cfg_path));
+    strlcpy(_map_path, path, sizeof(_map_path));
 }
 
-fnFile *MediaTypeROM::cfg_open(uint32_t *size)
+bool MediaTypeROM::open_memory_map()
 {
-    *size = 0;
-    if (_cfg_path[0] == '\0')
-        return nullptr;
+    if (_map_fileh != nullptr)
+        return true;
+    if (_map_path[0] == '\0')
+        return false;
 
-    char resolved[sizeof(_cfg_path)];
-    strlcpy(resolved, _cfg_path, sizeof(resolved));
+    char resolved[sizeof(_map_path)];
+    strlcpy(resolved, _map_path, sizeof(resolved));
 
-    fnFile *f = _media_host->fnfile_open(_cfg_path, resolved, sizeof(resolved), "rb");
-    if (f == nullptr)
+    _map_fileh = _media_host->fnfile_open(_map_path, resolved, sizeof(resolved), "rb");
+    if (_map_fileh == nullptr)
     {
-        Debug_printv("MediaTypeROM: .cfg sibling exists but failed to open: %s\n", _cfg_path);
-        return nullptr;
+        Debug_printv("MediaTypeROM: memory map exists but failed to open: %s\n", _map_path);
+        return false;
     }
 
-    long cfgsize = _media_host->file_size(f);
-    if (cfgsize < 0)
+    long map_size = _media_host->file_size(_map_fileh);
+    if (map_size < 0)
     {
-        Debug_printv("MediaTypeROM: .cfg sibling has no usable size: %s\n", _cfg_path);
-        fnio::fclose(f);
-        return nullptr;
+        Debug_printv("MediaTypeROM: memory map has no usable size: %s\n", _map_path);
+        close_memory_map();
+        return false;
     }
 
-    *size = (uint32_t)cfgsize;
-    return f;
+    _map_size = (uint32_t)map_size;
+    _map_pos = 0;
+    return true;
 }
 
-void MediaTypeROM::cfg_close(fnFile *f)
+void MediaTypeROM::close_memory_map()
 {
-    if (f != nullptr)
-        fnio::fclose(f);
+    if (_map_fileh != nullptr)
+    {
+        fnio::fclose(_map_fileh);
+        _map_fileh = nullptr;
+    }
+    _map_pos = 0;
 }
 
-mediatype_t MediaTypeROM::mount(fnFile *f, uint32_t disksize)
+uint32_t MediaTypeROM::stream_size(RomStream source)
+{
+    if (source == RomStream::Image)
+        return _disk_image_size;
+
+    return open_memory_map() ? _map_size : 0;
+}
+
+size_t MediaTypeROM::stream_read(RomStream source, uint32_t offset, uint8_t *buffer, size_t length)
+{
+    fnFile *fileh;
+    uint32_t *position;
+    uint32_t total;
+
+    if (source == RomStream::Image)
+    {
+        fileh = _disk_fileh;
+        position = &_image_pos;
+        total = _disk_image_size;
+    }
+    else
+    {
+        if (!open_memory_map())
+            return 0;
+        fileh = _map_fileh;
+        position = &_map_pos;
+        total = _map_size;
+    }
+
+    if (fileh == nullptr || offset >= total)
+        return 0;
+
+    if (length > total - offset)
+        length = total - offset;
+
+    if (*position != offset)
+    {
+        if (fnio::fseek(fileh, offset, SEEK_SET) != 0)
+            return 0;
+        *position = offset;
+    }
+
+    size_t got = fnio::fread(buffer, 1, length, fileh);
+    *position += got;
+
+    // the map is read once, by the mount that pushes it
+    if (source == RomStream::MemoryMap && *position >= total)
+        close_memory_map();
+
+    return got;
+}
+
+mediatype_t MediaTypeROM::mount(fnFile *fileh, uint32_t disksize)
 {
     Debug_printv("MediaTypeROM MOUNT %s (%lu bytes)\n",
                  _disk_filename[0] != '\0' ? _disk_filename : "?", (unsigned long)disksize);
 
-    _disk_fileh = f;
+    _disk_fileh = fileh;
     _disk_image_size = disksize;
     _disktype = MEDIATYPE_ROM;
-    _cfg_path[0] = '\0';
+    _map_path[0] = '\0';
+    _image_pos = UINT32_MAX;
 
     if (_media_host != nullptr && _disk_filename[0] != '\0')
-        resolve_cfg();
+        resolve_memory_map();
 
     return _disktype;
+}
+
+void MediaTypeROM::unmount()
+{
+    close_memory_map();
+    MediaType::unmount();
+}
+
+MediaTypeROM::~MediaTypeROM()
+{
+    close_memory_map();
 }
 
 #endif // BUILD_RS232
