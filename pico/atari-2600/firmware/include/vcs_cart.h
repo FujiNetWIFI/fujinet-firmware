@@ -41,7 +41,25 @@
 #include <string.h>
 
 #include "fuji_mailbox.h"
+
+/* VCS_CART_HOST_MAPPER: the HOST emulator owns a booted game's mapper.
+ *
+ * A cartridge has to be every board it might ever serve, so it carries
+ * vcsmap. An emulator already is: Stella has sixty-odd schemes where vcsmap
+ * has nine, and hands a pushed image to its own CartDetector/CartCreator.
+ * Under this define the decode below keeps only the FujiNet layout -- once
+ * the claim is absent the host has re-pointed its own bus at the real
+ * cartridge class and nothing here is consulted again.
+ *
+ * The struct members and the five call sites are the whole difference; the
+ * mailbox, the bus decode and the write sampling stay shared, which is the
+ * point of this header. */
+#ifdef VCS_CART_HOST_MAPPER
+/* Longest scheme name a .cfg sibling can carry, NUL included. */
+#define VCS_CART_CFG_MAX 16
+#else
 #include "vcsmap.h"
+#endif
 
 /* What a store meant, once decoded. */
 typedef enum {
@@ -76,7 +94,9 @@ typedef struct {
     /* A BOOTED GAME is not served from the window at all: it is served by
      * whichever real cartridge board it shipped on. The mailbox is dead by
      * then -- the image did not claim it -- so the two paths never overlap. */
+#ifndef VCS_CART_HOST_MAPPER
     vcsmap_t map;
+#endif
 
     /* The Battleship board being composed. FN_BLIT_HULLS overlays onto what
      * FN_BLIT_FIELD left here, and the text planes are packed glyph pairs
@@ -92,8 +112,14 @@ typedef struct {
     uint8_t path_sel;
 
     /* A scheme named by the pushed image's .cfg sibling, if it had one. */
+#ifdef VCS_CART_HOST_MAPPER
+    /* The name verbatim, for the host to map onto its own scheme enum.
+     * Spent by the next vcs_set_image() exactly as the typed hint is. */
+    char cfg_name[VCS_CART_CFG_MAX];
+#else
     vcsmap_kind_t hint;
     bool hint_sc;
+#endif
 
     const uint8_t *image;     /* client or booted game                          */
     uint32_t image_size;
@@ -174,6 +200,11 @@ static inline uint8_t vcs_read_ex(const vcs_mem_t *m, uint16_t a, bool commit)
 {
     if (!vcs_selected(a))
         return 0xFF;
+#ifdef VCS_CART_HOST_MAPPER
+    (void)commit;             /* no read here has a side effect; see below */
+    if (vcs_tristate(a))
+        return 0xFF;          /* open bus; nothing here is ours to drive */
+#else
     if (m->map.kind == VCSMAP_FUJI && vcs_tristate(a))
         return 0xFF;          /* open bus; nothing here is ours to drive */
 
@@ -181,6 +212,7 @@ static inline uint8_t vcs_read_ex(const vcs_mem_t *m, uint16_t a, bool commit)
         int b = vcsmap_serve((vcsmap_t *)&m->map, a, 0xFFu, commit);
         return (b >= 0) ? (uint8_t)b : 0xFFu;
     }
+#endif
 
     uint16_t off = vcs_off(a);
     if (off < FN_BANK_SIZE)
@@ -223,8 +255,15 @@ static inline uint8_t vcs_path_byte(const vcs_mem_t *m, unsigned i)
  * that here is paid on every zero-page access the game makes. */
 static inline void vcs_watch(vcs_mem_t *m, uint16_t a, uint8_t data)
 {
+#ifdef VCS_CART_HOST_MAPPER
+    /* The host's own cartridge class claims these addresses when it needs
+     * them -- Stella's CartridgeUA takes $0220/$0240 and CartridgeFE page
+     * $01C0 -- so there is nothing for us to watch. */
+    (void)m; (void)a; (void)data;
+#else
     if (m->map.watch_low)
         (void)vcsmap_serve(&m->map, a, data, true);
+#endif
 }
 
 /* A store into cart space. Returns what it meant; ev_a and ev_b carry the
@@ -233,6 +272,7 @@ static inline void vcs_watch(vcs_mem_t *m, uint16_t a, uint8_t data)
 static inline vcs_ev_t vcs_write(vcs_mem_t *m, uint16_t a, uint8_t v,
                                  uint8_t *ev_a, uint8_t *ev_b)
 {
+#ifndef VCS_CART_HOST_MAPPER
     if (m->map.kind != VCSMAP_FUJI) {
         /* A booted game. Its mapper decodes the store -- real hardware cannot
          * tell a store from a fetch, which is exactly why every classic scheme
@@ -240,6 +280,7 @@ static inline vcs_ev_t vcs_write(vcs_mem_t *m, uint16_t a, uint8_t v,
         vcsmap_write(&m->map, a, v, true);
         return VCS_EV_NONE;
     }
+#endif
 
     if (!vcs_selected(a) || !m->mailbox)
         return VCS_EV_NONE;
@@ -453,6 +494,7 @@ static inline void vcs_set_image(vcs_mem_t *m, const uint8_t *img, uint32_t len)
     /* The claim decides which world this image lives in. A client gets our
      * banked-low/fixed-high layout and a live mailbox; anything else is a
      * GAME and gets the real board it shipped on. */
+#ifndef VCS_CART_HOST_MAPPER
     if (m->mailbox) {
         vcsmap_init(&m->map, VCSMAP_FUJI, img, len, false);
     } else {
@@ -467,20 +509,39 @@ static inline void vcs_set_image(vcs_mem_t *m, const uint8_t *img, uint32_t len)
         }
         vcsmap_init(&m->map, k, img, len, sc);
     }
+#endif
     /* Spend the hint. The ESP32 sends a .cfg only when the file exists, so a
      * mount with no sibling sends nothing at all -- and a hint left standing
      * would be applied to the NEXT image, serving an E0 board for a plain F8
      * game. Coleco learned this one the same way. */
+#ifdef VCS_CART_HOST_MAPPER
+    m->cfg_name[0] = '\0';
+#else
     m->hint = VCSMAP_NONE;
     m->hint_sc = false;
+#endif
 }
 
 /* Take the scheme from a .cfg sibling. Applies to the next image served and
  * to that one only. */
 static inline void vcs_set_cfg(vcs_mem_t *m, const char *cfg, unsigned len)
 {
+#ifdef VCS_CART_HOST_MAPPER
+    unsigned n = 0;
+
+    if (cfg) {
+        /* Trim at the first control character: the sibling is a text file and
+         * arrives with whatever line ending it was written with. */
+        while (n < len && n + 1 < VCS_CART_CFG_MAX &&
+               (unsigned char)cfg[n] > 0x20u)
+            n++;
+        memcpy(m->cfg_name, cfg, n);
+    }
+    m->cfg_name[n] = '\0';
+#else
     m->hint = (cfg && len) ? vcsmap_from_name(cfg, len) : VCSMAP_NONE;
     m->hint_sc = (m->hint != VCSMAP_NONE) && vcsmap_name_is_sc(cfg, len);
+#endif
 }
 
 #endif /* VCS_CART_H */

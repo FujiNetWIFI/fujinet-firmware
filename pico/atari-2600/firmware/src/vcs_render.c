@@ -167,6 +167,28 @@ void vcs_render_path_row(uint8_t *win, const uint8_t *path, uint16_t path_len,
     vcs_render_row(win, row, line, (uint8_t)n);
 }
 
+/* The block escalation. See FN_BLIT_PATHPOKE in fuji_mailbox.h for why one
+ * byte per blit was not enough for a four-player game.
+ *
+ * Two bounds, and they answer different questions. `path_len` is how much the
+ * client has actually written: past it the buffer still holds whatever the
+ * last string left, and copying that would hand the client stale bytes that
+ * look exactly like its own. The plane bound is the safety one: past
+ * FN_T_BASE + 768 is the reply window and then the status page. */
+void vcs_render_path_poke(uint8_t *win, const uint8_t *path, uint16_t path_len,
+                          uint16_t src, uint16_t dst, uint8_t cnt)
+{
+    const unsigned lim = (unsigned)FN_T_PLANES * FN_T_PLANE_LEN;
+    unsigned n;
+
+    for (n = 0; n < cnt; n++) {
+        unsigned s = src + n, d = dst + n;
+        if (s >= path_len || d >= lim)
+            break;
+        win[(FN_T_BASE - FN_WINDOW_BASE) + d] = path[s];
+    }
+}
+
 /* ------------------------------------------------------------------ cards --
  * See the FN_BLIT_CARD block in fuji_mailbox.h for why a card is not a glyph.
  * Every table below is five rows of five ink bits, bit 4 leftmost.
@@ -479,6 +501,17 @@ bool vcs_blit(uint8_t *win, uint8_t *board, uint16_t src, uint16_t dst,
                 if (dir) y++; else x++;
             }
         }
+        return true;
+    }
+
+    if (transform == FN_BLIT_POKE) {
+        /* No composition: one byte, straight in. Bounded to the PLANES and
+         * not to the window, because past FN_T_BASE + 768 lies the reply
+         * window and then the client's own status page -- a stray dst there
+         * would let a client quietly corrupt the mailbox it is talking
+         * through, and the symptom would be a transaction, not a picture. */
+        if (dst < (unsigned)(FN_T_PLANES * FN_T_PLANE_LEN))
+            win[(FN_T_BASE - FN_WINDOW_BASE) + dst] = (uint8_t)(src & 0xFFu);
         return true;
     }
 

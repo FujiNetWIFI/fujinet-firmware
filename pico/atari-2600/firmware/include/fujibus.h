@@ -75,6 +75,11 @@ size_t fujibus_build_request(uint8_t device, uint8_t command,
 // On success, `reply->data` points into `in` (no copy) and remains valid
 // only as long as `in` does. Returns false on any framing/length/checksum
 // error.
+//
+// `in` IS MUTATED. Escape collapse only ever shortens, so the decode is done
+// in place and the const here is a convenience for callers holding a
+// `const uint8_t *`, not a promise. Passing genuinely read-only storage --
+// a string literal, a `static const` table -- faults.
 bool fujibus_parse_reply(const uint8_t *in, size_t in_len, fb_reply_t *reply);
 
 // Runs the codec's self-test (known-good request/reply vectors) purely in

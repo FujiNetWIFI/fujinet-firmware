@@ -319,6 +319,66 @@
 #define FN_PF_SLOTS      4
 #define FN_PF_TAB(r, k)  (FN_T_PLANE(r) + FN_PF_ROW0 + (k) * FN_PF_KIND_LEN)
 
+/* ONE RAW BYTE into the text planes, for a client with no RAM to keep it in.
+ *
+ * Every other transform here composes something -- a glyph, a card, a board.
+ * This one composes nothing: plane byte `dst` becomes the low byte of `src`.
+ * It exists because the planes are the only cartridge memory a 2600 client can
+ * both write and READ BACK (`lda $1800,y`), which makes them the only place a
+ * console that has run out of RAM can keep a variable.
+ *
+ * fujinet-2600-dodgem is why. Dodge 'Em (Atari 1980) uses all 128 bytes of the
+ * RIOT -- its own census puts 121 in the game and the remaining 6 under the
+ * stack -- so a netcode that needs sixteen bytes of state that outlives a
+ * frame has nowhere at all to put them. Moving sixteen bytes of the GAME's
+ * state out here frees exactly that much, and the two blocks it moves (a
+ * per-row dot bitmap and one player's saved state) are read in vblank and at
+ * round end, never by the display kernel, so nothing time-critical changes.
+ *
+ * FN_BLIT_CELL is the same shape aimed at the Battleship board; this is aimed
+ * at the planes, and is bounded to them rather than to the whole window --
+ * a client that can poke $1B00 or $1F00 can corrupt its own mailbox.
+ *
+ * Reading it back costs nothing and needs no transform: the planes are plain
+ * cartridge bytes at $1800-$1AFF, 128-byte aligned, so `lda $1A00,x` is always
+ * four cycles and never five. Writing costs four stores and a FN_B_BLITGEN
+ * poll, which is why this is for state that changes a few times a second and
+ * not for state that changes every frame. */
+#define FN_BLIT_POKE     14       /* plane[dst] = the low byte of src        */
+
+/* A BLOCK of raw bytes into the text planes, out of a path buffer.
+ *
+ * FN_BLIT_POKE moves one byte per blit, and a blit costs the client four
+ * stores and a FN_B_BLITGEN poll -- the cartridge has ONE blit slot and no
+ * queue, so the poll is not optional and it is the expensive half.
+ * fujinet-2600-dodgem measured nine blits in one frame as ninety-seven extra
+ * scanlines, which is about 760 cycles each.
+ *
+ * fujinet-2600-warlords is why one byte per blit is not enough. Warlords
+ * (Atari 1981) is a FOUR-player game, and its census comes back with TWO
+ * usable persistent RAM cells against a netcode that needs about seventeen
+ * that outlive a frame. Seventeen FN_BLIT_POKEs is around 13000 cycles a tick
+ * against roughly 10000 available, so the escalation that rescued Dodge 'Em
+ * does not reach: it is not slow, it does not fit.
+ *
+ * The cheap path in already exists and is not the blit port. FN_HOT_PATH_CH
+ * appends one byte to the selected path buffer in ONE store with no poll at
+ * all, because the path buffers are a stream and not a slot. So a client
+ * streams its block in with `cnt` stores and then spends ONE blit turning it
+ * into plane bytes it can read back with `lda $1A80,x`. Seventeen bytes go
+ * from seventeen polls to one.
+ *
+ * Bounded twice, and neither bound is the other's job: to path_len, because
+ * past it the buffer holds whatever the last string left; and to the PLANES,
+ * because past FN_T_BASE + 768 lies the reply window and then the status
+ * page, and a client that can write those corrupts the mailbox it is talking
+ * through -- a failed transaction, not a wrong picture.
+ *
+ * Like FN_BLIT_PATH and for the same reason, this is routed by the caller
+ * rather than living inside vcs_blit(): its source is the cartridge's own
+ * path buffer and not the reply window. */
+#define FN_BLIT_PATHPOKE 15       /* plane[dst..dst+cnt) = path[src..src+cnt) */
+
 /* What FN_BLIT_FIELD paints. A Battleship gamefield is 100 bytes at y*10+x
  * in the reply window, and turning it into ten rows of text is 100 reads,
  * 100 compares and a 16-bit reply cursor -- about 250 bytes of 6502 in a bank

@@ -432,6 +432,147 @@ int main(void)
     if (vcs_blit(win, board, 0, 0, 1, 99))
         fail("an unknown blit transform claimed success");
 
+    /* FN_BLIT_POKE: one raw byte into a plane, and the bound that keeps a
+     * client from writing past the planes into its own mailbox.
+     *
+     * This is the transform that lets a console with no RAM left keep a
+     * variable in the cartridge -- see the block comment in fuji_mailbox.h --
+     * so what matters is that it writes EXACTLY one byte, that the byte comes
+     * back unchanged, and that an out-of-range destination writes nothing at
+     * all rather than something one page further on. */
+    {
+        static uint8_t poke[FN_WINDOW_SIZE];
+        unsigned i;
+        const unsigned PLANES = FN_T_PLANES * FN_T_PLANE_LEN;
+
+        memset(poke, 0xA5, sizeof poke);
+        if (!vcs_blit(poke, board, 0x1234, 7, 0, FN_BLIT_POKE))
+            fail("FN_BLIT_POKE refused a legal destination");
+        if (poke[(FN_T_BASE - FN_WINDOW_BASE) + 7] != 0x34u)
+            fail("FN_BLIT_POKE wrote the wrong byte");
+        for (i = 0; i < sizeof poke; i++)
+            if (i != (FN_T_BASE - FN_WINDOW_BASE) + 7u && poke[i] != 0xA5u)
+                fail("FN_BLIT_POKE touched a byte it was not given");
+
+        /* Every byte of every plane, and nothing outside them. */
+        for (i = 0; i < PLANES; i++)
+            if (!vcs_blit(poke, board, (uint16_t)(i & 0xFFu), (uint16_t)i, 0,
+                          FN_BLIT_POKE))
+                fail("FN_BLIT_POKE refused a plane byte");
+        for (i = 0; i < PLANES; i++)
+            if (poke[(FN_T_BASE - FN_WINDOW_BASE) + i] != (uint8_t)(i & 0xFFu))
+                fail("FN_BLIT_POKE lost a plane byte");
+
+        /* Past the planes is the reply window, then the status page. A client
+         * that could reach either would corrupt the mailbox it is talking
+         * through, and the symptom would be a failed transaction rather than
+         * a wrong picture -- so this is checked, not assumed. */
+        memcpy(poke + PLANES + (FN_T_BASE - FN_WINDOW_BASE), "\xA5\xA5\xA5\xA5", 4);
+        vcs_blit(poke, board, 0xFF, (uint16_t)PLANES, 0, FN_BLIT_POKE);
+        vcs_blit(poke, board, 0xFF, (uint16_t)(FN_R_DATA - FN_T_BASE), 0,
+                 FN_BLIT_POKE);
+        vcs_blit(poke, board, 0xFF, 0xFFFF, 0, FN_BLIT_POKE);
+        for (i = 0; i < 4; i++)
+            if (poke[(FN_T_BASE - FN_WINDOW_BASE) + PLANES + i] != 0xA5u)
+                fail("FN_BLIT_POKE wrote past the text planes");
+    }
+
+    /* FN_BLIT_PATHPOKE: a BLOCK of raw bytes, out of a path buffer.
+     *
+     * The transform fujinet-2600-warlords needed, because seventeen
+     * FN_BLIT_POKEs is seventeen FN_B_BLITGEN polls and a four-player
+     * netcode does not have the cycles. The expectations below are written
+     * from the rules in fuji_mailbox.h -- copy cnt bytes, stop at path_len,
+     * stop at the end of the planes -- and not by asking the function what it
+     * does, which would prove only that it agrees with itself.
+     *
+     * The two bounds are exercised SEPARATELY. A test that trips both at once
+     * passes on an implementation that has only one of them. */
+    {
+        static uint8_t pp[FN_WINDOW_SIZE];
+        static uint8_t path[FN_PATH_MAX];
+        unsigned i;
+        const unsigned PLANES = FN_T_PLANES * FN_T_PLANE_LEN;
+        const unsigned PBASE  = FN_T_BASE - FN_WINDOW_BASE;
+
+        for (i = 0; i < FN_PATH_MAX; i++)
+            path[i] = (uint8_t)(0x40u + (i & 0x3Fu));
+
+        /* the ordinary case: seventeen bytes, the size that motivated it */
+        memset(pp, 0xA5, sizeof pp);
+        vcs_render_path_poke(pp, path, FN_PATH_MAX, 3, 0x80, 17);
+        for (i = 0; i < 17; i++)
+            if (pp[PBASE + 0x80 + i] != path[3 + i])
+                fail("FN_BLIT_PATHPOKE copied the wrong byte");
+        for (i = 0; i < sizeof pp; i++)
+            if ((i < PBASE + 0x80 || i >= PBASE + 0x80 + 17) && pp[i] != 0xA5u)
+                fail("FN_BLIT_PATHPOKE touched a byte outside its block");
+
+        /* cnt = 0 writes nothing. A block transform that treats 0 as 256 is a
+         * transform that clears a plane the first time a client has nothing
+         * to say. */
+        memset(pp, 0xA5, sizeof pp);
+        vcs_render_path_poke(pp, path, FN_PATH_MAX, 0, 0, 0);
+        for (i = 0; i < sizeof pp; i++)
+            if (pp[i] != 0xA5u)
+                fail("FN_BLIT_PATHPOKE wrote something for cnt = 0");
+
+        /* BOUND 1 -- path_len, alone. The destination is nowhere near the end
+         * of the planes, so only the source bound can stop this. Past
+         * path_len the buffer still holds whatever the last string left, and
+         * handing that back would give the client stale bytes that look
+         * exactly like its own. */
+        memset(pp, 0xA5, sizeof pp);
+        vcs_render_path_poke(pp, path, 5, 0, 0x100, 20);
+        for (i = 0; i < 5; i++)
+            if (pp[PBASE + 0x100 + i] != path[i])
+                fail("FN_BLIT_PATHPOKE stopped short of path_len");
+        for (i = 5; i < 20; i++)
+            if (pp[PBASE + 0x100 + i] != 0xA5u)
+                fail("FN_BLIT_PATHPOKE copied past path_len");
+
+        /* BOUND 2 -- the planes, alone. path_len is the whole buffer, so only
+         * the destination bound can stop this. Past the planes is the reply
+         * window and then the status page: a client that reached either would
+         * corrupt the mailbox it is talking through. */
+        memset(pp, 0xA5, sizeof pp);
+        vcs_render_path_poke(pp, path, FN_PATH_MAX, 0,
+                             (uint16_t)(PLANES - 4), 32);
+        for (i = 0; i < 4; i++)
+            if (pp[PBASE + PLANES - 4 + i] != path[i])
+                fail("FN_BLIT_PATHPOKE stopped short of the last plane byte");
+        for (i = 0; i < 64; i++)
+            if (pp[PBASE + PLANES + i] != 0xA5u)
+                fail("FN_BLIT_PATHPOKE wrote past the text planes");
+
+        /* A destination already past the end writes nothing at all, rather
+         * than wrapping to something one page further on. */
+        memset(pp, 0xA5, sizeof pp);
+        vcs_render_path_poke(pp, path, FN_PATH_MAX, 0, 0xFFFF, 8);
+        vcs_render_path_poke(pp, path, FN_PATH_MAX, 0, (uint16_t)PLANES, 8);
+        vcs_render_path_poke(pp, path, FN_PATH_MAX,
+                             (uint16_t)(FN_R_DATA - FN_T_BASE), 0, 0);
+        for (i = 0; i < sizeof pp; i++)
+            if (pp[i] != 0xA5u)
+                fail("FN_BLIT_PATHPOKE wrote from an out-of-range request");
+
+        /* And the round trip the client actually performs: stream a block in
+         * with FN_HOT_PATH_CH, poke it out, read it back as BYTES. This is
+         * the whole point -- the planes are the only cartridge memory a 2600
+         * client can both write and read. */
+        {
+            static const uint8_t state[17] = {
+                0x00, 0x2B, 0xFF, 0xFE, 0x80, 0x7F, 0x01, 0x10, 0xEF,
+                0xC3, 0x3C, 0x55, 0xAA, 0x0F, 0xF0, 0x99, 0x66 };
+            memset(pp, 0xA5, sizeof pp);
+            vcs_render_path_poke(pp, state, sizeof state, 0, 0x2A0,
+                                 (uint8_t)sizeof state);
+            for (i = 0; i < sizeof state; i++)
+                if (pp[PBASE + 0x2A0 + i] != state[i])
+                    fail("FN_BLIT_PATHPOKE did not round-trip a state block");
+        }
+    }
+
     /* FN_BLIT_PATH: the only way a client sees what it has typed, because the
      * page it types through is write-only.
      *
@@ -788,8 +929,8 @@ int main(void)
     }
     printf("test_render: PASS (%d strings, %d planes, %d rows x %d columns, "
            "the blit port, FN_BLIT_PATH, FN_BLIT_TCELL, a composed "
-           "Battleship board, its playfield tables, and a %d-card bed on a "
-           "%d-pixel pitch)\n",
+           "Battleship board, its playfield tables, a %d-card bed on a "
+           "%d-pixel pitch, and FN_BLIT_POKE with its bound, and FN_BLIT_PATHPOKE with both of its)\n",
            GOLD_N, FN_T_PLANES, FN_T_ROWS, FN_T_COLS,
            FN_CARD_SLOTS, FN_CARD_PITCH);
     return 0;
