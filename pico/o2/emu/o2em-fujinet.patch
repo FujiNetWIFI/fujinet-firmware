@@ -1,0 +1,796 @@
+diff --git a/Makefile b/Makefile
+index 2314944..0cd8344 100644
+--- a/Makefile
++++ b/Makefile
+@@ -11,11 +11,11 @@ ARCH=`uname -i`
+ all: o2em dis48
+ 
+ clean:
+-	rm -f audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o dis48.o
++	rm -f audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o fujinet.o fujibus.o o2map.o fujimail.o dis48.o
+ 
+ 
+-o2em:	audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o
+-	$(CC) $(LFLAGS) audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o -o o2em $(LIBS)
++o2em:	audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o fujinet.o fujibus.o o2map.o fujimail.o
++	$(CC) $(LFLAGS) audio.o cpu.o cset.o keyboard.o main.o table.o vdc.o vmachine.o debug.o timefunc.o voice.o crc32.o vpp_cset.o vpp.o score.o fujinet.o fujibus.o o2map.o fujimail.o -o o2em $(LIBS)
+ 
+ dis48:	dis48.o table.o
+ 	$(CC) $(LFLAGS) dis48.o table.o -o dis48
+@@ -66,6 +66,18 @@ vpp_cset.o: vpp_cset.c vpp_cset.h
+ vpp.o: vpp.c vpp.h types.h vpp_cset.h vmachine.h vdc.h
+ 	$(CC) $(CFLAGS) -c vpp.c -o vpp.o
+ 
++fujinet.o:	fujinet.c fujinet.h fujibus.h fujimail.h fuji_mailbox.h o2map.h types.h vmachine.h
++	$(CC) $(CFLAGS) -c fujinet.c -o fujinet.o
++
++fujimail.o:	fujimail.c fujimail.h fujibus.h fuji_mailbox.h o2map.h
++	$(CC) $(CFLAGS) -c fujimail.c -o fujimail.o
++
++o2map.o:	o2map.c o2map.h fuji_mailbox.h
++	$(CC) $(CFLAGS) -c o2map.c -o o2map.o
++
++fujibus.o:	fujibus.c fujibus.h
++	$(CC) $(CFLAGS) -c fujibus.c -o fujibus.o
++
+ score.o: score.c score.h vmachine.h types.h
+ 	$(CC) $(CFLAGS) -c score.c -o score.o
+ 
+diff --git a/fujinet.c b/fujinet.c
+new file mode 100644
+index 0000000..4095752
+--- /dev/null
++++ b/fujinet.c
+@@ -0,0 +1,350 @@
++/* fujinet.c -- o2em model of the FujiNet RP2040 cartridge.
++ *
++ * Stands in for the cartridge so the 8048 client can be developed and
++ * regression-tested with no hardware.
++ *
++ * It is NOT a reimplementation. The mailbox protocol -- register decode, the
++ * SEQ/ACKSEQ interlock, the DBC push receiver -- is fujimail.c, compiled
++ * straight out of the cartridge firmware, and fujibus.c and o2map.c likewise.
++ * What is left here is only the port: where a published byte goes (an emulator
++ * array rather than a live bus), how a frame reaches the ESP32-S3 (a TCP socket
++ * to fujinet-pc-rs232's BoIP listener rather than USB CDC), and what to do with
++ * a committed image.
++ *
++ * So every run of this model exercises the code the cartridge actually ships.
++ *
++ * Fidelity note: the socket round-trip here is synchronous, so the emulated
++ * console sees ACKSEQ already updated on its first poll. Real hardware makes it
++ * wait. The client code is identical either way -- it must poll regardless --
++ * but this model will not catch a client that forgets to.
++ */
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <errno.h>
++#include <unistd.h>
++#include <netdb.h>
++#include <sys/socket.h>
++#include <sys/time.h>
++#include <netinet/in.h>
++#include <netinet/tcp.h>
++
++#include "types.h"
++#include "vmachine.h"
++#include "fujinet.h"
++#include "fujibus.h"
++#include "fujimail.h"
++#include "fuji_mailbox.h"
++#include "o2map.h"
++
++#define FUJI_DEVICEID_DBC 0xFF
++
++#define RX_RAW_MAX 1088   /* must hold a SLIP-encoded 512-byte DBC push frame */
++
++static int fd = -1;
++static int dbg = 0;
++static const char *bootdump;
++static Byte pending[FUJIMAIL_STAGE_MAX];
++static unsigned pending_len;
++static int mailbox_active = 1;
++
++extern Byte rom_table[8][4096];
++
++int fujinet_active(void) { return fd >= 0; }
++
++void fujinet_set_bootdump(const char *prefix) { bootdump = prefix; }
++
++/* ---- the cart owns $F20-$FFF of the program window, in every bank ---- */
++
++static void poke(unsigned addr, Byte v)
++{
++    int b;
++    if (!mailbox_active)
++        return;   /* a booted game owns this page now */
++    for (b = 0; b < 8; b++)
++        rom_table[b][addr & 0xFFF] = v;
++}
++
++/* main.c paints unconditionally, including when no -fujinet was given, so the
++ * port has to be live before the socket is. */
++static void ensure_port(void);
++
++void fujinet_paint(void)
++{
++    ensure_port();
++    fujimail_paint();
++}
++
++/* ---- transport ---- */
++
++int fujinet_init(const char *hostport, int debug)
++{
++    ensure_port();
++    char host[256], *colon;
++    int port = 9995, one = 1;
++    struct addrinfo hints, *res = NULL;
++    char portstr[16];
++
++    dbg = debug;
++    snprintf(host, sizeof host, "%s", hostport ? hostport : "localhost:9995");
++    colon = strrchr(host, ':');
++    if (colon) { *colon = '\0'; port = atoi(colon + 1); }
++    if (host[0] == '\0') snprintf(host, sizeof host, "localhost");
++    snprintf(portstr, sizeof portstr, "%d", port);
++
++    memset(&hints, 0, sizeof hints);
++    hints.ai_family = AF_UNSPEC;
++    hints.ai_socktype = SOCK_STREAM;
++    if (getaddrinfo(host, portstr, &hints, &res) != 0 || res == NULL) {
++        fprintf(stderr, "fujinet: cannot resolve %s:%d\n", host, port);
++        return -1;
++    }
++    /* Walk every result: "localhost" usually resolves to ::1 first, while
++     * fujinet-pc's BoIP listener binds 127.0.0.1 only. */
++    {
++        struct addrinfo *ai;
++        for (ai = res; ai != NULL; ai = ai->ai_next) {
++            fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
++            if (fd < 0)
++                continue;
++            if (connect(fd, ai->ai_addr, ai->ai_addrlen) == 0)
++                break;
++            close(fd);
++            fd = -1;
++        }
++    }
++    if (fd < 0) {
++        fprintf(stderr, "fujinet: cannot connect to %s:%d (%s)\n",
++                host, port, strerror(errno));
++        freeaddrinfo(res);
++        return -1;
++    }
++    freeaddrinfo(res);
++    setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof one);
++    fprintf(stderr, "fujinet: connected to %s:%d\n", host, port);
++    return 0;
++}
++
++void fujinet_close(void)
++{
++    if (fd >= 0) { close(fd); fd = -1; }
++}
++
++/* Read one complete SLIP frame (two 0xC0 delimiters) or time out. */
++static fb_status_t read_frame(Byte *buf, size_t cap, size_t *out_len, int secs)
++{
++    size_t n = 0;
++    int ends = 0;
++    struct timeval deadline, now;
++
++    gettimeofday(&deadline, NULL);
++    deadline.tv_sec += secs;
++
++    for (;;) {
++        fd_set rf;
++        struct timeval tv;
++        long remain;
++
++        gettimeofday(&now, NULL);
++        remain = (deadline.tv_sec - now.tv_sec) * 1000000L
++               + (deadline.tv_usec - now.tv_usec);
++        if (remain <= 0)
++            return FB_ETIMEOUT;
++        tv.tv_sec = remain / 1000000L;
++        tv.tv_usec = remain % 1000000L;
++
++        FD_ZERO(&rf); FD_SET(fd, &rf);
++        if (select(fd + 1, &rf, NULL, NULL, &tv) <= 0)
++            return FB_ETIMEOUT;
++
++        while (n < cap) {
++            unsigned char c;
++            ssize_t r = recv(fd, &c, 1, MSG_DONTWAIT);
++            if (r <= 0) break;
++            buf[n++] = c;
++            if (c == 0xC0 && ++ends == 2) { *out_len = n; return FB_OK; }
++        }
++        if (n >= cap)
++            return FB_ETOOBIG;
++    }
++}
++
++/* ---- the port ---- */
++
++static bool port_link_up(void)
++{
++    return fujinet_active();
++}
++
++static fb_status_t port_transact(uint8_t device, uint8_t command,
++                                 const fb_param_t *params, unsigned nparams,
++                                 const uint8_t *payload, uint16_t payload_len,
++                                 uint32_t timeout_ms, fb_reply_t *reply)
++{
++    static Byte req[FN_TX_MAX + 64];
++    static Byte raw[RX_RAW_MAX];
++    size_t reqlen, rawlen;
++    fb_status_t st;
++    int secs = (int)((timeout_ms + 999) / 1000);
++
++    if (!fujinet_active())
++        return FB_ENOLINK;
++
++    reqlen = fujibus_build_request(device, command, params, nparams,
++                                   payload, payload_len, req, sizeof req);
++    if (reqlen == 0)
++        return FB_ETOOBIG;
++    if (send(fd, req, reqlen, MSG_NOSIGNAL) != (ssize_t) reqlen)
++        return FB_ENOLINK;
++
++    for (;;) {
++        st = read_frame(raw, sizeof raw, &rawlen, secs);
++        if (st != FB_OK)
++            return st;
++        if (!fujibus_parse_reply(raw, rawlen, reply))
++            return FB_EBADFRAME;
++        /* Push frames arrive interleaved with the reply we are waiting for;
++         * consuming one proves the link is alive, so the deadline restarts
++         * rather than counting down. */
++        if (!fujimail_inbound(reply))
++            return FB_OK;
++    }
++}
++
++static void port_send_bare(uint8_t device, uint8_t command,
++                           const uint8_t *payload, uint16_t payload_len)
++{
++    Byte frame[64];
++    size_t n = fujibus_build_request(device, command, NULL, 0,
++                                     payload, payload_len, frame, sizeof frame);
++    if (n)
++        send(fd, frame, n, MSG_NOSIGNAL);
++}
++
++static void dump_stream(int stream, const Byte *data, unsigned len)
++{
++    char path[512];
++    FILE *f;
++
++    if (bootdump == NULL)
++        return;
++    snprintf(path, sizeof path, "%s%s", bootdump, stream ? ".cfg" : ".rom");
++    f = fopen(path, "wb");
++    if (f == NULL) {
++        fprintf(stderr, "fujinet: cannot write %s\n", path);
++        return;
++    }
++    fwrite(data, 1, len, f);
++    fclose(f);
++    fprintf(stderr, "fujinet: bootdump %s (%u bytes)\n", path, len);
++}
++
++static void port_stream_end(int stream, const uint8_t *data, unsigned len,
++                            bool aborted)
++{
++    if (aborted)
++        return;
++    dump_stream(stream, data, len);
++    if (stream != 0)
++        return;
++    /* Staged, not installed: the console is still executing the client out of
++     * this same window. The swap happens on the next reset, which is what the
++     * cartridge does on the console's next $400 fetch. */
++    memcpy(pending, data, len);
++    pending_len = len;
++}
++
++static void port_on_txn(const fujimail_txn_t *t)
++{
++    char txt[40];
++    unsigned k, m = 0;
++
++    if (!dbg)
++        return;
++    for (k = 0; k < t->rxlen && m < sizeof txt - 1; k++) {
++        Byte c = t->rx[k];
++        if (c == 0)
++            break;
++        txt[m++] = (c >= 0x20 && c < 0x7F) ? (char) c : '.';
++    }
++    txt[m] = '\0';
++    fprintf(stderr,
++            "fujinet: dev=%02X cmd=%02X nparam=%u txlen=%u seq=%u"
++            " -> err=%d reply=%02X rxlen=%u%s%s%s\n",
++            t->device, t->command, t->nparam, t->txlen, t->seq,
++            t->status, t->reply_cmd, t->rxlen,
++            m ? " \"" : "", txt, m ? "\"" : "");
++}
++
++static void port_on_dbc(fujimail_dbc_ev_t ev, int stream, uint32_t expect,
++                        unsigned got, bool aborted)
++{
++    if (!dbg)
++        return;
++    if (ev == FUJIMAIL_DBC_OPEN)
++        fprintf(stderr, "fujinet: DBC open stream=%d size=%u\n", stream, expect);
++    else
++        fprintf(stderr, "fujinet: DBC close stream=%d got=%u%s\n",
++                stream, got, aborted ? " ABORTED" : "");
++}
++
++static const fujimail_port_t emu_port = {
++    .poke         = poke,
++    .link_up      = port_link_up,
++    .transact     = port_transact,
++    .send_bare    = port_send_bare,
++    .stream_end   = port_stream_end,
++    .wait_link_ms = NULL,       /* the socket round trip is synchronous */
++    .bootsel      = NULL,       /* nothing to reboot into under emulation */
++    .on_txn       = port_on_txn,
++    .on_dbc       = port_on_dbc,
++};
++
++void fujinet_ext_write(Byte adr, Byte dat)
++{
++    /* Once a game has booted the mailbox is disabled for the session and the
++     * register file must go deaf: $E0-$E3 is inside the range The Voice
++     * decodes, so ordinary games do write there, and a stray write would
++     * otherwise fire a transaction with whatever command was left in the
++     * registers -- and publish its reply over the running game's code. */
++    if (!mailbox_active)
++        return;
++    fujimail_write(adr, dat);
++}
++
++/* Called when the console is reset: this is where a staged image takes over. */
++void fujinet_on_reset(void)
++{
++    o2map_plan_t plan;
++
++    if (pending_len == 0)
++        return;
++    if (o2map_plan(pending, pending_len, &plan) == O2MAP_OK) {
++        o2map_apply(pending, &plan, rom_table);
++        mailbox_active = plan.mailbox_ok;
++        /* The image has just been laid over the mailbox page, so a mailbox that
++         * survives the boot has to be published into it again before the 8048
++         * restarts and looks for the magic. */
++        if (mailbox_active)
++            fujimail_paint();
++        fprintf(stderr, "fujinet: booted %u bytes as %u x %uK bank(s);"
++                        " mailbox %s for this session\n",
++                pending_len, plan.nbanks, plan.bank_bytes / 1024,
++                plan.mailbox_ok ? "kept" : "disabled");
++    } else {
++        fprintf(stderr, "fujinet: %u bytes: %s\n", pending_len,
++                o2map_strerror(o2map_plan(pending, pending_len, &plan)));
++    }
++    pending_len = 0;
++}
++
++static void ensure_port(void)
++{
++    static int done;
++
++    if (!done) {
++        done = 1;
++        fujimail_init(&emu_port);
++    }
++}
+diff --git a/fujinet.h b/fujinet.h
+new file mode 100644
+index 0000000..51922e3
+--- /dev/null
++++ b/fujinet.h
+@@ -0,0 +1,29 @@
++/* fujinet.h -- o2em model of the FujiNet RP2040 cartridge. */
++#ifndef FUJINET_H
++#define FUJINET_H
++
++#include "types.h"
++
++/* Connect to a fujinet-pc-rs232 BoIP listener, "host:port". Returns 0 on ok. */
++int fujinet_init(const char *hostport, int debug);
++void fujinet_close(void);
++
++/* True once fujinet_init has succeeded; ext_write only forwards if so. */
++int fujinet_active(void);
++
++/* Called from ext_write() for external-data-window writes in $E0-$E3. */
++void fujinet_ext_write(Byte adr, Byte dat);
++
++/* Paint the cart-owned reply page ($F20-$FFF) into every ROM bank. Called once
++ * after the cart image is loaded so the magic bytes are live from reset. */
++void fujinet_paint(void);
++
++/* Write each pushed stream to PREFIX.rom / PREFIX.cfg, to validate the ESP32
++ * media path byte-for-byte with no cartridge in the loop. */
++void fujinet_set_bootdump(const char *prefix);
++
++/* Install a staged cart image. Called when the console is reset -- the cart
++ * cannot reset the O2 itself, so a booted game takes over on the next $400. */
++void fujinet_on_reset(void);
++
++#endif /* FUJINET_H */
+diff --git a/keyboard.c b/keyboard.c
+index 4ded317..9a383b7 100644
+--- a/keyboard.c
++++ b/keyboard.c
+@@ -27,6 +27,7 @@
+ #include "keyboard.h"
+ #include "allegro.h"
+ #include "score.h"
++#include "fujinet.h"
+ 
+ int NeedsPoll = 0;
+ 
+@@ -288,6 +289,13 @@ void handle_key(void){
+     if (key[syskeys[2]]) key_debug=1;
+ 
+     if (key[syskeys[3]]) {
++        /* This is the button a mounted cartridge means by "PRESS RESET". On the
++         * console, RESET restarts the 8048 and leaves the cartridge alone, so a
++         * staged image has to be swapped into rom_table here -- init_roms()
++         * below then selects bank 0, which o2map guarantees is the boot bank.
++         * Without this the key resets the CPU back into the browser and the
++         * mount looks like it silently failed. */
++        fujinet_on_reset();
+         init_cpu();
+         init_roms();
+         init_vpp();
+diff --git a/main.c b/main.c
+index ddd3c5a..3bcb6c3 100644
+--- a/main.c
++++ b/main.c
+@@ -18,6 +18,7 @@
+ #include "crc32.h"
+ #include "audio.h"
+ #include "vmachine.h"
++#include "fujinet.h"
+ #include "config.h"
+ #include "vdc.h"
+ #include "cpu.h"
+@@ -116,6 +117,14 @@ int main(int argc, char *argv[])
+     app_data.default_highscore = 0;
+     app_data.breakpoint = 65535;
+     app_data.megaxrom = 0;
++    app_data.run_frames = 0;
++    app_data.fujinet = NULL;
++    app_data.fujinet_debug = 0;
++    app_data.fujinet_bootdump = NULL;
++    app_data.reset_at = 0;
++    app_data.input = NULL;
++    app_data.dumpscr = NULL;
++    app_data.dumptxt = 0;
+     strcpy(file, "");
+     strcpy(file_l, "");
+     strcpy(bios_l, "");
+@@ -298,6 +307,10 @@ int main(int argc, char *argv[])
+         load_cart(file);
+         if (app_data.voice)
+             load_voice_samples(path);
++        if (app_data.fujinet != NULL)
++            fujinet_init(app_data.fujinet, app_data.fujinet_debug);
++        fujinet_set_bootdump(app_data.fujinet_bootdump);
++        fujinet_paint();   /* magic bytes live from reset, link bit reflects state */
+         init_display();
+         init_cpu();
+         init_system();
+@@ -507,6 +520,24 @@ int parse_option(char *attr, char *val)
+         app_data.fullscreen = (val[0] != '0');
+     } else if (!strcmp(attr, "scanlines")) {
+         app_data.scanlines = (val[0] != '0');
++    } else if (!strcmp(attr, "fujinet")) {
++        /* attr/val are fixed buffers reused for every option, so a stored
++         * pointer would alias whatever option is parsed next. */
++        app_data.fujinet = strdup(val);
++    } else if (!strcmp(attr, "fujinet-bootdump")) {
++        app_data.fujinet_bootdump = strdup(val);
++    } else if (!strcmp(attr, "fujinet-debug")) {
++        app_data.fujinet_debug = (val[0] != '0');
++    } else if (!strcmp(attr, "input")) {
++        app_data.input = strdup(val);
++    } else if (!strcmp(attr, "resetat")) {
++        app_data.reset_at = atoi(val);
++    } else if (!strcmp(attr, "frames")) {
++        app_data.run_frames = atoi(val);
++    } else if (!strcmp(attr, "dumpscr")) {
++        app_data.dumpscr = strdup(val);
++    } else if (!strcmp(attr, "dumptxt")) {
++        app_data.dumptxt = (val[0] != '0');
+     } else if (!strcmp(attr, "scshot")) {
+         strcpy(scshot, val);
+     } else if (!strcmp(attr, "savefile")) {
+diff --git a/vdc.c b/vdc.c
+index 57d7a99..c39c54d 100644
+--- a/vdc.c
++++ b/vdc.c
+@@ -828,3 +828,90 @@ void help(void)
+     return;
+ }
+ 
++
++/* ------------------------------------------------------------------------
++ * FujiNet headless harness: dump the emulated framebuffer without needing
++ * anyone to look at the window. vscreen holds BMPW*BMPH palette indices and
++ * `colors` is the 6-bit Allegro palette, so neither the display driver nor
++ * the Allegro BITMAP is involved -- this works even when the window is
++ * offscreen or the run is scripted.
++ * ------------------------------------------------------------------------ */
++void dump_screen(const char *path, int astext)
++{
++    /* The visible picture sits inside the 340x250 working buffer at the same
++     * offset finish_display() blits from (vdc.c:401, `bitmap, 7, 2+y`). */
++    const int x0 = 7, y0 = 2, w = WNDW, h = WNDH;
++    int x, y;
++
++    if (vscreen == NULL)
++        return;
++
++    if (path != NULL) {
++        FILE *f = fopen(path, "wb");
++        if (f == NULL) {
++            fprintf(stderr, "dump_screen: cannot write %s\n", path);
++        } else {
++            fprintf(f, "P6\n%d %d\n255\n", w, h);
++            for (y = 0; y < h; y++) {
++                for (x = 0; x < w; x++) {
++                    Byte c = vscreen[(y + y0) * BMPW + (x + x0)];
++                    /* Allegro palettes are 6-bit per channel */
++                    fputc(colors[c].r << 2, f);
++                    fputc(colors[c].g << 2, f);
++                    fputc(colors[c].b << 2, f);
++                }
++            }
++            fclose(f);
++            fprintf(stderr, "dump_screen: wrote %s (%dx%d)\n", path, w, h);
++        }
++    }
++
++    if (astext) {
++        /* VDC register state, so a wrong picture can be traced to the registers
++         * that produced it rather than guessed at. */
++        int r;
++        printf("VDC ctrl=%02X status=%02X color=%02X\n",
++               VDCwrite[0xA0], VDCwrite[0xA1], VDCwrite[0xA3]);
++        for (r = 0; r < 4; r++)
++            printf("  spr%d: y=%02X x=%02X attr=%02X\n", r,
++                   VDCwrite[r*4], VDCwrite[r*4+1], VDCwrite[r*4+2]);
++        for (r = 0; r < 12; r++)
++            printf("  chr%-2d: y=%02X x=%02X ptr=%02X ctl=%02X\n", r,
++                   VDCwrite[0x10+r*4], VDCwrite[0x11+r*4],
++                   VDCwrite[0x12+r*4], VDCwrite[0x13+r*4]);
++        for (r = 0; r < 4; r++) {
++            int b = 0x40 + r * 0x10;
++            printf("  quad%d: y=%02X x=%02X  ptr %02X/%02X %02X/%02X %02X/%02X %02X/%02X\n",
++                   r, VDCwrite[b], VDCwrite[b+1],
++                   VDCwrite[b+2], VDCwrite[b+3], VDCwrite[b+6], VDCwrite[b+7],
++                   VDCwrite[b+10], VDCwrite[b+11], VDCwrite[b+14], VDCwrite[b+15]);
++        }
++    }
++
++    if (astext) {
++        /* Coarse luminance rendering, 2x8 source pixels per cell, so a 320x240
++         * frame lands in 160x30 characters -- readable in a terminal. */
++        static const char ramp[] = " .:-=+*#%@";
++        for (y = 0; y < h; y += 8) {
++            char line[WNDW / 2 + 1];
++            int cx = 0;
++            for (x = 0; x < w; x += 2, cx++) {
++                long lum = 0;
++                int sx, sy, n = 0;
++                for (sy = 0; sy < 8 && y + sy < h; sy++) {
++                    for (sx = 0; sx < 2 && x + sx < w; sx++) {
++                        Byte c = vscreen[(y + sy + y0) * BMPW + (x + sx + x0)];
++                        lum += colors[c].r + colors[c].g + colors[c].b;
++                        n++;
++                    }
++                }
++                lum = n ? (lum * 9) / (n * 189) : 0;   /* 3*63 = 189 -> 0..9 */
++                if (lum > 9) lum = 9;
++                line[cx] = ramp[lum];
++            }
++            line[cx] = '\0';
++            printf("|%s|\n", line);
++        }
++        fflush(stdout);
++    }
++}
+diff --git a/vdc.h b/vdc.h
+index d94460d..2dade56 100644
+--- a/vdc.h
++++ b/vdc.h
+@@ -1,6 +1,8 @@
+ #ifndef __VDC_H
+ #define __VDC_H
+ 
++void dump_screen(const char *path, int astext);
++
+ #define BMPW 340
+ #define BMPH 250
+ #define WNDW 320
+diff --git a/vmachine.c b/vmachine.c
+index 39f0dad..2134ba7 100644
+--- a/vmachine.c
++++ b/vmachine.c
+@@ -22,10 +22,15 @@
+ #include "keyboard.h"
+ #include "config.h"
+ #include "debug.h" 
+-#include "vdc.h" 
++#include "vdc.h"
++#include "fujinet.h"
++#include "cpu.h"
++#include "fuji_mailbox.h" 
+ #include "vpp.h"
+ #include "timefunc.h"
+ #include "voice.h"
++#include <string.h>
++#include <stdlib.h>
+ #include "vmachine.h"
+ #include "allegro.h"
+ 
+@@ -41,6 +46,11 @@ int evblclk = EVBLCLK_NTSC;
+ struct resource app_data;
+ int frame = 0;
+ Byte dbstick1, dbstick2;
++/* Scripted-input override. Deliberately NOT dbstick: handle_evbl() clears those
++ * every ten vblanks, which lands inside a held press and shows up to the guest
++ * as a release followed by a fresh press -- one scripted keystroke, two menu
++ * actions. This one is owned entirely by the harness. */
++Byte harness_stick = 0;
+ 
+ int int_clk; /* counter for length of /INT pulses */
+ int master_clk; /* Master clock */
+@@ -85,6 +95,9 @@ static void setvideomode(int t);
+ 
+ void run(void)
+ {
++    fprintf(stderr, "DBG run(): run_frames=%d dumptxt=%d dumpscr=%s\n",
++            app_data.run_frames, app_data.dumptxt,
++            app_data.dumpscr ? app_data.dumpscr : "(null)");
+     while (!key_done) {
+         if (key_debug) {
+             app_data.debug = 1;
+@@ -104,8 +117,83 @@ void run(void)
+     close_display();
+ }
+ 
++/* Scripted controller input: -input=FRAME:CODE[,FRAME:CODE...] with CODE one of
++ * u/d/l/r/f. Drives the same dbstick overrides the built-in debugger uses, so a
++ * browse-and-boot sequence can be replayed with nobody at the keyboard. Each
++ * press is held for a few frames so client-side edge detection actually sees
++ * it, then released. */
++static void harness_input(int frame)
++{
++    static int parsed = 0, n = 0, hold_until = 0;
++    static int fr[64];
++    static Byte val[64];
++    static Byte hold_val = 0xFF;
++    int i;
++
++    if (!parsed) {
++        const char *p = app_data.input;
++        parsed = 1;
++        while (p != NULL && *p != '\0' && n < 64) {
++            const char *c = strchr(p, ':');
++            Byte v = 0xFF;
++            if (c == NULL)
++                break;
++            switch (c[1]) {
++            case 'u': v &= (Byte)~0x01; break;
++            case 'r': v &= (Byte)~0x02; break;
++            case 'd': v &= (Byte)~0x04; break;
++            case 'l': v &= (Byte)~0x08; break;
++            case 'f': v &= (Byte)~0x10; break;
++            default: break;
++            }
++            fr[n] = atoi(p);
++            val[n] = v;
++            n++;
++            p = strchr(c, ',');
++            if (p != NULL)
++                p++;
++        }
++    }
++
++    for (i = 0; i < n; i++) {
++        if (fr[i] == frame) {
++            hold_val = val[i];
++            hold_until = frame + 8;
++            fprintf(stderr, "input: frame %d -> stick %02X\n", frame, hold_val);
++        }
++    }
++    harness_stick = (frame < hold_until) ? hold_val : 0;
++}
++
+ void handle_vbl(void)
+ {
++    /* FujiNet headless harness: bail out after a fixed number of frames so a
++     * run can be scripted. Counted here rather than in the CPU loop because a
++     * vblank is the only place the picture is guaranteed complete. */
++    static int frame_no = 0;
++    frame_no++;
++    if (app_data.input != NULL)
++        harness_input(frame_no);
++    if (app_data.reset_at > 0) {
++        static int reset_frames = 0;
++        if (++reset_frames == app_data.reset_at) {
++            /* The front-panel RESET button restarts the 8048 and nothing else --
++             * the cartridge keeps its state, including FN_R_ACKSEQ. A client
++             * that counts sequence numbers locally silently stops transacting
++             * here while its screen keeps showing the previous reply. */
++            fprintf(stderr, "reset: pulsing console RESET at frame %d\n",
++                    app_data.reset_at);
++            fujinet_on_reset();   /* a staged cart image takes over here */
++            init_cpu();
++        }
++    }
++    if (app_data.run_frames > 0) {
++        static int frames_done = 0;
++        if (++frames_done >= app_data.run_frames) {
++            dump_screen(app_data.dumpscr, app_data.dumptxt);
++            key_done = 1;
++        }
++    }
+     if (!app_data.debug) {
+         handle_key();
+         update_audio();
+@@ -471,6 +559,8 @@ Byte in_bus(void)
+             if (dbstick2)
+                 d = dbstick2;
+         }
++        if (harness_stick)
++            d = harness_stick;
+     }
+     return d;
+ }
+@@ -514,7 +604,12 @@ void ext_write(Byte dat, ADDRESS adr)
+     } else if (!(p1 & 0x10) && !(p1 & 0x40)) {
+         adr = adr & 0xFF;
+ 
+-        if (adr < 0x80) {
++        if (adr >= FN_W_REGSEL && adr <= FN_W_SEQ && fujinet_active()) {
++            /* FujiNet mailbox register file. Deliberately $E0-$E3: the only
++             * addresses in this window The Voice does not decode. */
++            fujinet_ext_write(adr, dat);
++
++        } else if (adr < 0x80) {
+             /* Handle ext RAM Write */
+             extRAM[adr] = dat;
+ 
+diff --git a/vmachine.h b/vmachine.h
+index 50ce8a3..ccb8ab9 100644
+--- a/vmachine.h
++++ b/vmachine.h
+@@ -94,6 +94,15 @@ extern struct resource {
+ 	int default_highscore;
+ 	int breakpoint;
+ 	char *statefile;
++	/* FujiNet headless harness */
++	int run_frames;      /* exit after this many vblanks (0 = run forever) */
++	char *dumpscr;       /* write the framebuffer here as PPM on exit */
++	int dumptxt;         /* also print an ASCII rendering to stdout */
++	char *fujinet;       /* "host:port" of a fujinet-pc-rs232 BoIP listener */
++	int fujinet_debug;   /* log every mailbox transaction to stderr */
++	char *fujinet_bootdump; /* write each pushed stream to PREFIX.rom/.cfg */
++	int reset_at;        /* pulse the console RESET button at this frame */
++	char *input;         /* scripted controller input, FRAME:CODE[,...] */
+ } app_data;
+ 
+ 
