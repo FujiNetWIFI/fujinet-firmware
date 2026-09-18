@@ -3,7 +3,7 @@
 # These trees had none, which is exactly how a repo-wide rename of
 # fujiCommandID_t reached pico/intellivision/firmware/include/fujibus.h and left
 # `#define CMD::NET_OPEN 0x4F` -- not a valid macro name -- sitting in the tree
-# for days. Nothing built it, so nothing noticed.
+# for weeks. Nothing built it, so nothing noticed.
 
 name: "pico cartridges"
 

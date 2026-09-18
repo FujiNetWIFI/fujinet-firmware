@@ -169,12 +169,19 @@ size_t IRAM_ATTR mac_floppy_ll::encode_rmt_bitstream(const void *src, size_t src
  */
 void mac_floppy_ll::setup_rmt() // TO UPDATE TO REV 5
 {
-  track_buffer[0] = (uint8_t *)heap_caps_malloc(TRACK_LEN, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  if (track_buffer[0] == NULL)
-    Debug_println("could not allocate track buffer 0");
-  track_buffer[1] = (uint8_t *)heap_caps_malloc(TRACK_LEN, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  if (track_buffer[1] == NULL)
-    Debug_println("could not allocate track buffer 1");
+  for (int side = 0; side < 2; side++)
+  {
+    for (int bank = 0; bank < 2; bank++)
+    {
+      track_bank[side][bank] = (uint8_t *)heap_caps_malloc(TRACK_LEN, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+      if (track_bank[side][bank] == NULL)
+        Debug_printf("could not allocate track buffer side %d bank %d\n", side, bank);
+      else
+        memset(track_bank[side][bank], 0, TRACK_LEN);
+    }
+    active_bank[side] = 0;
+    track_buffer[side] = track_bank[side][0];
+  }
 
   rmt_simple_encoder_config_t tx_encoder_config = {
     .callback = encode_rmt_bitstream_forwarder,
@@ -224,7 +231,18 @@ bool IRAM_ATTR mac_floppy_ll::nextbit() // TO UPDATE TO REV 5
   }
   // choose side based on HDSEL!
   bool side = mac_headsel_val();
+  bits_served[(int)side]++;
   return outbit[(int)side];
+}
+
+void mac_floppy_ll::report_served(const char *why)
+{
+  uint32_t s0 = bits_served[0], s1 = bits_served[1];
+  bits_served[0] = bits_served[1] = 0;
+  if (s0 || s1)
+    Debug_printf("\n[%s] streamed side0 %lu bits (%lu revs) side1 %lu bits (%lu revs)", why,
+                 (unsigned long)s0, (unsigned long)(track_numbits[0] ? s0 / track_numbits[0] : 0),
+                 (unsigned long)s1, (unsigned long)(track_numbits[1] ? s1 / track_numbits[1] : 0));
 }
 
 bool IRAM_ATTR mac_floppy_ll::fakebit() // TO UPDATE TO REV 5
@@ -268,26 +286,36 @@ void IRAM_ATTR mac_floppy_ll::copy_track(uint8_t *track, int side, size_t trackl
   // Debug_printf("\ncopying track:");
   // Debug_printf("\nside %d, length %d", side, tracklen);
   // side is 0 or 1
-  // copy track from SPIRAM to INTERNAL RAM
-  if (side == 0 || side == 1)
-  {
-    if (track != nullptr)
-      memcpy(track_buffer[side], track, tracklen);
-    else
-      memset(track_buffer[side], 0, tracklen);
-  }
-  else
+  if (side != 0 && side != 1)
   {
     Debug_printf("\nSide out of range in copy_track()");
     return;
   }
+  if (tracklen > TRACK_LEN)
+    tracklen = TRACK_LEN;
+
+  // fill the bank the RMT is NOT streaming from, then flip. The streamed
+  // bank is never written, so the Mac never sees a half-copied track.
+  int nb = active_bank[side] ^ 1;
+  uint8_t *dst = track_bank[side][nb];
+  if (track != nullptr)
+    memcpy(dst, track, tracklen);
+  else
+    memset(dst, 0, tracklen);
+
   // new_position = current_position * new_track_length / current_track_length
-  track_location[side] *= trackbits;
-  track_location[side] /= track_numbits[side];
-  // update track info
+  uint32_t loc = track_location[side];
+  loc = (uint32_t)(((uint64_t)loc * trackbits) / (track_numbits[side] ? track_numbits[side] : 1));
+  if (loc >= trackbits)
+    loc = 0;
+
+  // update track info and switch banks
   track_numbytes[side] = tracklen;
   track_numbits[side] = trackbits;
   track_bit_period = bitperiod;
+  track_buffer[side] = dst;
+  track_location[side] = loc;
+  active_bank[side] = nb;
 }
 
 mac_floppy_ll floppy_ll;

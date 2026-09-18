@@ -2,7 +2,6 @@
 #define NETWORK_PROTOCOL_FACTORY_H
 
 #include "Protocol.h"
-#include "network_data.h"
 #include "CPM.h"
 #include "FTP.h"
 #include "GDRIVE.h"
@@ -29,12 +28,6 @@ class NetworkProtocolFactory
 {
 public:
     static std::unique_ptr<NetworkProtocol> createProtocol(std::string scheme, std::string *receiveBuffer, std::string *transmitBuffer, std::string *specialBuffer, std::string *login, std::string *password);
-
-    static std::unique_ptr<NetworkProtocol> createProtocol(const std::string &scheme, NetworkData &data)
-    {
-        return createProtocol(scheme, &data.receiveBuffer, &data.transmitBuffer,
-                              &data.specialBuffer, &data.login, &data.password);
-    }
 };
 
 #endif // NETWORK_PROTOCOL_FACTORY_H

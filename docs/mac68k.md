@@ -18,7 +18,7 @@ over the UART.
 | Web UI slot | Pico drive | Emulates | Image types |
 |-------------|------------|----------|-------------|
 | 1 – 4       | `'0'`–`'3'` | HD20 (DCD) hard disk | `.dsk` (raw 512-byte blocks), `.image` (DiskCopy 4.2) |
-| 5           | `'4'`       | 800K GCR floppy      | `.moof` |
+| 5           | `'4'`       | 800K GCR floppy      | `.moof`, `.dsk`/`.img` (400K or 800K sector image), `.image` (DiskCopy 4.2) |
 | 6 – 8       | –           | unused               | mounting is refused |
 
 The firmware refuses to mount a `.moof` anywhere but slot 5 and refuses a
@@ -54,6 +54,94 @@ The file on the TNFS server must be writable by the user tnfsd runs as.
 Reference images that are known good with this firmware:
 <https://www.savagetaylor.com/downloads/downloads-macintosh/>
 (`320_32MB_volume.zip` and `320_32MB_drive.zip`).
+
+### Floppy images
+
+Slot 5 accepts flux-level MOOF images and plain sector images. A sector
+image (409600 or 819200 bytes, or a DiskCopy 4.2 file) is run through the
+GCR encoder in `lib/media/mac/macGCR.cpp` at mount time; all 80
+cylinders end up in PSRAM (about 620 KB for 400K, 1.2 MB for 800K) and are
+then streamed exactly like a MOOF. The encoder is verified by
+`tests/mac_gcr_test.cpp`, which round-trips every sector through an
+independent decoder; run it with a `.dsk`/`.img` as the argument to check
+a specific image. The encoder follows the layout in
+<https://github.com/lampmerchant/tashnotes/tree/main/macintosh/floppy>.
+
+Sector images mounted read/write can be written by the Mac (verified on a
+512Ke booting and running from a 400K MFS image, Finder writes included;
+see `mac68k-floppy-write.md` for how it works). MOOF images and read-only
+mounts are reported as write protected. Hard disks (slots 1-4) are
+read/write.
+
+The drive identifies itself from the disk: a 400K image makes it a
+single-sided 400K drive (the only kind the 64K-ROM 128K/512K know), an
+800K image a double-sided 800K drive.
+
+### Booting from an HD20
+
+With no floppy in slot 5 and a volume with a System in slot 1, a 512Ke,
+Plus, SE or SE/30 boots from the emulated HD20 (verified on a 512Ke with
+the 32 MB reference volume). The ROM's boot-time probe checks the device
+with DCD states 5, 6 and 7 and then asserts HOST by going straight to
+state 3; the Pico answers the handshake from any prior state for that
+reason. A plain 512K (64K ROM) has no HD20 driver and needs a floppy that
+carries the "Hard Disk 20" startup INIT.
+
+Verified on an SE/30 with System 6.0.8: 400K MFS and 800K HFS sector
+images and MOOFs boot, mount at the desktop and copy files.
+
+### Booting from a floppy
+
+The Mac behaves exactly as it would with a real external drive: **Restart
+and Shut Down eject every floppy** (motor on, wait for ready, seek to the
+middle cylinder, motor off, eject), so a disk that is mounted while the
+Mac is running is gone by the time the ROM looks for a boot disk. To boot
+from an image, either
+
+* power the Mac off, mount the image from the web UI, then power on, or
+* restart, and mount the image once the ROM is polling for a disk (the
+  blinking "?" / the SCSI wait).
+
+The ROM then reads the boot blocks, the catalog and the System file and
+boots. For that to work the Pico has to look like a real Sony drive in
+four places, all in `pico/mac/commands.c`:
+
+* `!READY` stays high for 350 ms after motor on (spin-up) and while the
+  head is settling after a step, until the ESP32 reports the new track
+  loaded (`'S'`). The ROM verifies the cylinder in the first address
+  field it reads after a seek and recalibrates when it sees the previous
+  cylinder's headers.
+* The "disk changed" status line (CA2:0 CA1:1 CA0:1 SEL:0) goes high on
+  insertion and is cleared by the Mac's clear command (CA2:1 CA1:0 CA0:0
+  SEL:1). Both the ROM and the System driver use it.
+* The motor stops when `!ENBL` goes high, so a reset always spins up
+  afresh.
+* An eject command that no motor activity preceded is ignored: the bus
+  floats while the Mac is switched off or on and can decode as an eject,
+  which used to unmount the image before the ROM ever saw it.
+
+Nothing in the ROM measures TACH; it only samples it as one status bit.
+
+### Swapping floppies
+
+Always eject on the Mac first (drag the disk to the Trash), then mount
+the next image from the web UI. Ejecting from the web UI while the Mac
+still shows the volume leaves the two sides out of step, and the Mac's
+later Trash-eject will unmount whatever was mounted next.
+
+### Pico console
+
+`pico_enable_stdio_usb` is on, so the Pico prints its debug output on its
+own USB port (it enumerates as a serial device on the host). Connect it
+when debugging the Mac side of the protocol. Typing `t` on that console
+toggles the status trace: the Pico records which status line the Mac
+selects (CA0-2/SEL), every phase command and every ESP32 event, and dumps
+the timeline at each motor off and eject. It is off by default because a
+full dump stalls the command loop. In the dump, each `+N` is how long the
+*previous* line's state lasted, in microseconds.
+
+`picotool load -f -x commands.uf2` reflashes a running Pico over USB
+without touching BOOTSEL.
 
 The Mac has no CONFIG program, so everything is driven from the web UI.
 Either press **Mount all slots** in the web UI after boot, or disable

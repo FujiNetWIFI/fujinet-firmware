@@ -46,6 +46,15 @@ protected:
 
     void dcd_status(uint8_t *buffer);
 
+    // write capture from the Pico: raw IWM write bits, one frame per write
+    bool _sector_image = false;   // slot 5 holds a sector image (writable kind)
+    uint8_t *_wcap = nullptr;
+    size_t _wcap_len = 0;
+    int _wcap_side = 0;
+    bool _wcap_active = false;
+    bool _wcap_overflow = false;
+    void reload_track_buffers();
+
     bool is_dcd_slot() { return disk_num >= '0' && disk_num < '0' + MAC_DCD_SLOTS; }
     bool is_floppy_slot() { return disk_num == '0' + MAC_FLOPPY_SLOT; }
 
@@ -65,6 +74,8 @@ public:
     int step();
     void change_track(int side);
     void update_track_buffers();
+    void write_capture_data(const uint8_t *p, size_t n);
+    void write_capture_end();
     void set_disk_number(char c) { disk_num = c; _devnum = c; }
     char get_disk_number() { return disk_num; };
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
