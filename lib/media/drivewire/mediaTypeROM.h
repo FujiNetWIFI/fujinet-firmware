@@ -16,6 +16,15 @@ public:
     mediatype_t mount(fnFile *f, uint32_t disksize) override;
 
     uint8_t status() override;
+
+    // Returns the size of the ROM image; 0 if unavailable.
+    uint32_t stream_size();
+
+    // Returns bytes copied; 0 at end of stream or on error.
+    size_t stream_read(uint32_t offset, uint8_t *buffer, size_t length);
+
+private:
+    uint32_t _image_pos = UINT32_MAX; // forces a seek on the first read
 };
 
 

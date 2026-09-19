@@ -2,21 +2,31 @@
 
 #include "diskTypeROM.h"
 
-#include <cstdio>
 #include <cstring>
-#include <string>
 
 #include "../../include/debug.h"
-#include "../../include/fujiCommandID.h"
-#include "../../fuji/fujiDisk.h"
 #include "../../fuji/fujiHost.h"
 
-#include "bus.h"
 #include "compat_string.h"
-#include "fujiCommandID.h"
 
-#define ROM_PUSH_STREAM_CFG 1
-#define ROM_PUSH_STREAM_ROM 0
+// _disk_filename is already host-prefixed; fujiHost APIs prefix again.
+static const char *strip_host_prefix(fujiHost *host, const char *filename)
+{
+    const char *prefix = host->get_prefix();
+    if (prefix == nullptr || prefix[0] == '\0')
+        return filename;
+
+    size_t prefix_len = strlen(prefix);
+    if (strncmp(filename, prefix, prefix_len) != 0)
+        return filename; // not prefixed after all
+
+    const char *stripped = filename + prefix_len;
+    // skip the separator util_concat_paths() inserted
+    if (prefix[prefix_len - 1] != '/' && prefix[prefix_len - 1] != '\\' &&
+        (*stripped == '/' || *stripped == '\\'))
+        stripped++;
+    return stripped;
+}
 
 error_is_true MediaTypeROM::read(uint32_t sectornum, uint32_t *readcount)
 {
@@ -40,177 +50,158 @@ void MediaTypeROM::status(uint8_t statusbuff[4])
     memset(statusbuff, 0, 4);
 }
 
-// push_stream: reads `f` from its current position in DISK_SECTORBUF_SIZE
-// chunks and relays each one to the RP2040 as CMD::NET_WRITE frames on DBC
-// stream `stream_id` (0 = ROM, 1 = a .cfg sibling -- the RP2040's
-// dbc_inbound_handler() demuxes on this same id). Sent as PAYLOAD bytes,
-// not params: FujiBusPacket::processArg(uint16_t) encodes bare integer
-// arguments as wire params, but the RP2040's minimal fujibus.c client
-// parses the descriptor chain only far enough to skip past it to find the
-// payload -- it never surfaces decoded param values. The payload path is
-// the one it actually exposes to callers (fb_reply_t.data/data_len), so
-// that's what carries the OPEN header here.
-//
-// OPEN payload is the stream id followed by the stream's total size as 4
-// little-endian bytes. The RP2040 uses the size to refuse a ROM too large
-// for its cart.ROM[] before we drag the whole thing over TNFS, and to draw
-// an exact progress bar; an older RP2040 build reads data[0] and ignores
-// the rest, so this stays compatible in both directions.
-//
-// Always sends CMD::NET_CLOSE so the RP2040's stream state doesn't wedge; a
-// failed transfer's CLOSE carries a 0x01 abort payload so partial data
-// isn't booted.
-static bool push_stream(fnFile *f, uint16_t stream_id, uint32_t expected_size)
+void MediaTypeROM::resolve_memory_map()
 {
-    uint8_t buf[DISK_SECTORBUF_SIZE];
+    char path[sizeof(_map_path)];
+    strlcpy(path, strip_host_prefix(_media_host, _disk_filename), sizeof(path));
 
-    struct { uint8_t id; u32le_t size; } open_hdr;
-    static_assert(sizeof(open_hdr) == 5, "OPEN header must not be padded");
-    open_hdr.id = (uint8_t)stream_id;
-    open_hdr.size = expected_size;
+    // replace the basename's extension only
+    char *base = path;
+    for (char *cursor = path; *cursor != '\0'; cursor++)
+        if (*cursor == '/' || *cursor == '\\')
+            base = cursor + 1;
+    char *dot = strrchr(base, '.');
+    if (dot != nullptr)
+        strlcpy(dot, ".cfg", sizeof(path) - (dot - path));
+    else
+        strlcat(path, ".cfg", sizeof(path));
 
-    auto reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_OPEN,
-                                        std::string((const char *)&open_hdr, sizeof(open_hdr)));
-    if (!reply || reply->command() != CMD::FUJI_ACK)
+    if (!_media_host->file_exists(path))
     {
-        Debug_printv("MediaTypeROM: failed to open DBC stream %u (%lu bytes)\n",
-                     stream_id, (unsigned long)expected_size);
+        // case-sensitive hosts may carry the sibling as .CFG
+        size_t path_len = strlen(path);
+        memcpy(path + path_len - 4, ".CFG", 4);
+        if (!_media_host->file_exists(path))
+        {
+            // Not an error, but a wrong map boots to garbage with no clue why.
+            Debug_printv("MediaTypeROM: no .cfg sibling for %s (tried \"%s\" in both "
+                         "casings) -- booting with a default memory map\n",
+                         _disk_filename, path);
+            return;
+        }
+    }
+
+    strlcpy(_map_path, path, sizeof(_map_path));
+}
+
+bool MediaTypeROM::open_memory_map()
+{
+    if (_map_fileh != nullptr)
+        return true;
+    if (_map_path[0] == '\0')
+        return false;
+
+    char resolved[sizeof(_map_path)];
+    strlcpy(resolved, _map_path, sizeof(resolved));
+
+    _map_fileh = _media_host->fnfile_open(_map_path, resolved, sizeof(resolved), "rb");
+    if (_map_fileh == nullptr)
+    {
+        Debug_printv("MediaTypeROM: memory map exists but failed to open: %s\n", _map_path);
         return false;
     }
 
-    bool ok = true;
-    uint32_t sent = 0;
-    size_t got;
-    while ((got = fnio::fread(buf, 1, sizeof(buf), f)) > 0)
+    long map_size = _media_host->file_size(_map_fileh);
+    if (map_size < 0)
     {
-        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_WRITE,
-                                       std::string((char *)buf, got));
-        if (!reply || reply->command() != CMD::FUJI_ACK)
-        {
-            Debug_printv("MediaTypeROM: failed to send stream %u block\n", stream_id);
-            ok = false;
-            break;
-        }
-        sent += got;
+        Debug_printv("MediaTypeROM: memory map has no usable size: %s\n", _map_path);
+        close_memory_map();
+        return false;
     }
 
-    // fread() can't distinguish EOF from error -- the byte count is the signal
-    if (ok && sent != expected_size)
-    {
-        Debug_printv("MediaTypeROM: stream %u short transfer: %lu of %lu bytes\n",
-                     stream_id, (unsigned long)sent, (unsigned long)expected_size);
-        ok = false;
-    }
-
-    if (ok)
-        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE);
-    else
-        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE,
-                                       std::string(1, '\x01'));
-    if (!reply || reply->command() != CMD::FUJI_ACK)
-    {
-        Debug_printv("MediaTypeROM: stream %u close failed/rejected\n", stream_id);
-        ok = false;
-    }
-    return ok;
+    _map_size = (uint32_t)map_size;
+    _map_pos = 0;
+    return true;
 }
 
-// mount()'s `filename` arrives already host-prefixed (fnfile_open rewrites
-// disk.filename in place); fujiHost APIs prefix again, so strip it first.
-static const char *strip_host_prefix(fujiHost *host, const char *filename)
+void MediaTypeROM::close_memory_map()
 {
-    const char *pfx = host->get_prefix();
-    if (pfx == nullptr || pfx[0] == '\0')
-        return filename;
-
-    size_t plen = strlen(pfx);
-    if (strncmp(filename, pfx, plen) != 0)
-        return filename; // not prefixed after all
-
-    const char *p = filename + plen;
-    // skip the separator util_concat_paths() inserted
-    if (pfx[plen - 1] != '/' && pfx[plen - 1] != '\\' && (*p == '/' || *p == '\\'))
-        p++;
-    return p;
+    if (_map_fileh != nullptr)
+    {
+        fnio::fclose(_map_fileh);
+        _map_fileh = nullptr;
+    }
+    _map_pos = 0;
 }
 
-mediatype_t MediaTypeROM::mount(fnFile *f, uint32_t disksize, fujiHost *host, const char *filename)
+uint32_t MediaTypeROM::stream_size(RomStream source)
+{
+    if (source == RomStream::Image)
+        return _disk_image_size;
+
+    return open_memory_map() ? _map_size : 0;
+}
+
+size_t MediaTypeROM::stream_read(RomStream source, uint32_t offset, uint8_t *buffer, size_t length)
+{
+    fnFile *fileh;
+    uint32_t *position;
+    uint32_t total;
+
+    if (source == RomStream::Image)
+    {
+        fileh = _disk_fileh;
+        position = &_image_pos;
+        total = _disk_image_size;
+    }
+    else
+    {
+        if (!open_memory_map())
+            return 0;
+        fileh = _map_fileh;
+        position = &_map_pos;
+        total = _map_size;
+    }
+
+    if (fileh == nullptr || offset >= total)
+        return 0;
+
+    if (length > total - offset)
+        length = total - offset;
+
+    if (*position != offset)
+    {
+        if (fnio::fseek(fileh, offset, SEEK_SET) != 0)
+            return 0;
+        *position = offset;
+    }
+
+    size_t got = fnio::fread(buffer, 1, length, fileh);
+    *position += got;
+
+    // the map is read once, by the mount that pushes it
+    if (source == RomStream::MemoryMap && *position >= total)
+        close_memory_map();
+
+    return got;
+}
+
+mediatype_t MediaTypeROM::mount(fnFile *fileh, uint32_t disksize)
 {
     Debug_printv("MediaTypeROM MOUNT %s (%lu bytes)\n",
-                 filename ? filename : "?", (unsigned long)disksize);
+                 _disk_filename[0] != '\0' ? _disk_filename : "?", (unsigned long)disksize);
 
-    _disk_fileh = f;
+    _disk_fileh = fileh;
     _disk_image_size = disksize;
     _disktype = MEDIATYPE_ROM;
+    _map_path[0] = '\0';
+    _image_pos = UINT32_MAX;
 
-    // Push the .cfg sibling first so the mapping is known before the ROM's
-    // CLOSE boots. Missing sibling: fine. Existing sibling that fails to
-    // open/push: fail the mount -- booting without it produces hangs.
-    if (host != nullptr && filename != nullptr)
-    {
-        char cfgpath[MAX_FILENAME_LEN];
-        strlcpy(cfgpath, strip_host_prefix(host, filename), sizeof(cfgpath));
-
-        // replace the basename's extension only
-        char *base = cfgpath;
-        for (char *p = cfgpath; *p != '\0'; p++)
-            if (*p == '/' || *p == '\\')
-                base = p + 1;
-        char *dot = strrchr(base, '.');
-        if (dot != nullptr)
-            strlcpy(dot, ".cfg", sizeof(cfgpath) - (dot - cfgpath));
-        else
-            strlcat(cfgpath, ".cfg", sizeof(cfgpath));
-
-        bool cfg_found = host->file_exists(cfgpath);
-        if (!cfg_found)
-        {
-            // case-sensitive hosts may carry the sibling as .CFG
-            size_t len = strlen(cfgpath);
-            memcpy(cfgpath + len - 4, ".CFG", 4);
-            cfg_found = host->file_exists(cfgpath);
-        }
-
-        if (!cfg_found)
-        {
-            // Not an error -- a .bin with no memory map boots against the
-            // emulator's size-guess table -- but for the titles that need one
-            // the result is a wrong map, i.e. a game that boots to garbage
-            // with nothing anywhere saying why. Say it here.
-            Debug_printv("MediaTypeROM: no .cfg sibling for %s (tried \"%s\" in both "
-                         "casings) -- booting with a default memory map\n",
-                         filename, cfgpath);
-        }
-        else
-        {
-            char resolved[MAX_FILENAME_LEN];
-            strlcpy(resolved, cfgpath, sizeof(resolved));
-            fnFile *cfgf = host->fnfile_open(cfgpath, resolved, sizeof(resolved), "rb");
-            if (cfgf == nullptr)
-            {
-                Debug_printv("MediaTypeROM: .cfg sibling exists but failed to open: %s\n", cfgpath);
-                return MEDIATYPE_UNKNOWN;
-            }
-            long cfgsize = host->file_size(cfgf);
-            bool cfg_ok = cfgsize >= 0 &&
-                          push_stream(cfgf, ROM_PUSH_STREAM_CFG, (uint32_t)cfgsize);
-            fnio::fclose(cfgf);
-            if (!cfg_ok)
-            {
-                Debug_printv("MediaTypeROM: .cfg push failed: %s\n", cfgpath);
-                return MEDIATYPE_UNKNOWN;
-            }
-        }
-    }
-
-    fnio::fseek(f, 0, SEEK_SET);
-    if (!push_stream(f, ROM_PUSH_STREAM_ROM, _disk_image_size))
-    {
-        Debug_printv("MediaTypeROM: ROM push failed\n");
-        return MEDIATYPE_UNKNOWN;
-    }
+    if (_media_host != nullptr && _disk_filename[0] != '\0')
+        resolve_memory_map();
 
     return _disktype;
+}
+
+void MediaTypeROM::unmount()
+{
+    close_memory_map();
+    MediaType::unmount();
+}
+
+MediaTypeROM::~MediaTypeROM()
+{
+    close_memory_map();
 }
 
 #endif // BUILD_RS232

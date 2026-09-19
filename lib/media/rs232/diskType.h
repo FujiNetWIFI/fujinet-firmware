@@ -73,14 +73,12 @@ public:
 
     mediatype_t _disktype = MEDIATYPE_UNKNOWN;
 
-    // `host` and `filename` are only used by MediaTypeROM: `filename` to
-    // derive a same-named .cfg sibling's path, `host` to open it through
-    // the same fujiHost the ROM itself came from (so it works identically
-    // whether the ROM is on TNFS, SD, etc.). Every other mount() ignores
-    // both; they default so existing callers and overrides don't need to
-    // change.
-    virtual mediatype_t mount(fnFile *f, uint32_t disksize, fujiHost *host = nullptr,
-                              const char *filename = nullptr) = 0;
+    // Set by the device layer before mount(), for media that must reach
+    // sibling files (MediaTypeROM and its .cfg).
+    fujiHost *_media_host = nullptr;
+    char _disk_filename[256] = {0};
+
+    virtual mediatype_t mount(fnFile *f, uint32_t disksize) = 0;
     virtual void unmount();
 
     // Returns TRUE if an error condition occurred
