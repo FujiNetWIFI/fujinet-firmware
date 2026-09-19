@@ -2818,6 +2818,7 @@ void sioCassette::fsk_signal_emit()
 
     rmt_transmit_config_t tx_cfg = {};
     tx_cfg.loop_count = 0; // one-shot, single continuous transaction
+    tx_cfg.flags.eot_level = 1; // end at MARK/HIGH, not the default LOW/SPACE
 
     // Stable contiguous descriptor: the pointer table itself.
     const void *table = (const void *)_fsk_blocks;
@@ -3181,7 +3182,37 @@ size_t sioCassette::play_fsk_chunk(size_t offset, uint16_t chunk_length,
         }
         if (preload_ok && run_total_values > 0)
         {
-            if (fsk_signal_begin(resume_this_run ? resume_value_index : 0))
+            const FskRunSummary run_shape =
+                fsk_run_summarize(_fsk_blocks, _fsk_block_size, _fsk_run_block_base,
+                                  _fsk_run_value_counts, _fsk_run_chunk_count);
+
+            if (!resume_this_run && !run_shape.has_space)
+            {
+                // No LOW time requested anywhere in the run: the UART already
+                // idles at MARK, so skip the RMT lifecycle (its channel
+                // create/teardown can drive LOW) and just consume the time.
+                // A resumed run always has SPACE overall, so it stays on RMT.
+                SYSTEM_BUS.flushOutput();
+                const int64_t hold_start_us = esp_timer_get_time();
+                const uint64_t hold_total_us = run_shape.total_ticks; // 1 tick = 1 us
+                for (;;)
+                {
+                    const uint64_t elapsed_us =
+                        static_cast<uint64_t>(esp_timer_get_time() - hold_start_us);
+                    if (elapsed_us >= hold_total_us)
+                        break;
+                    const uint64_t remaining_us = hold_total_us - elapsed_us;
+                    // Same abort rule as the IRG loop: only with > 1 s left.
+                    if (has_pulldown() && !motor_line() && remaining_us > 1000000)
+                    {
+                        result = starting_offset;
+                        goto done;
+                    }
+                    fnSystem.delay_microseconds(
+                        remaining_us > 999 ? 999 : static_cast<uint32_t>(remaining_us));
+                }
+            }
+            else if (fsk_signal_begin(resume_this_run ? resume_value_index : 0))
             {
                 fsk_signal_emit();   // ONE continuous rmt_transmit + wait-all-done
                 fsk_signal_end();    // teardown; also detects whether a rewind

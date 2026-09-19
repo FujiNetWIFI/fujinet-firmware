@@ -1990,3 +1990,197 @@ TEST_CASE("P9 zero-length chunk is IRG-only across generated offsets")
         CHECK(step.done == true);
     }
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// All-MARK run classification: a run whose every even-indexed (LOW) value is
+// zero requests no LOW time, so production holds MARK instead of starting RMT.
+// Parity restarts per chunk; zero values still consume their index.
+// ════════════════════════════════════════════════════════════════════════════
+namespace {
+
+// Lays chunks of uint16 values into a block table the way production does:
+// each chunk starts on a fresh block boundary.
+struct RunFixture
+{
+    size_t block_size;
+    std::vector<std::vector<uint8_t>> storage;
+    std::vector<const uint8_t *> table;
+    std::vector<size_t> base;
+    std::vector<size_t> counts;
+
+    RunFixture(size_t bs, const std::vector<std::vector<uint16_t>> &chunks)
+        : block_size(bs)
+    {
+        for (const auto &vals : chunks)
+        {
+            base.push_back(table.size());
+            counts.push_back(vals.size());
+
+            std::vector<uint8_t> bytes;
+            for (uint16_t v : vals)
+            {
+                bytes.push_back(static_cast<uint8_t>(v & 0xFF));
+                bytes.push_back(static_cast<uint8_t>(v >> 8));
+            }
+            const size_t nb = (bytes.size() + bs - 1) / bs;
+            for (size_t b = 0; b < nb; ++b)
+            {
+                storage.emplace_back(bs, 0);
+                const size_t from = b * bs;
+                for (size_t k = 0; k < bs && from + k < bytes.size(); ++k)
+                    storage.back()[k] = bytes[from + k];
+            }
+            for (size_t b = 0; b < nb; ++b)
+                table.push_back(nullptr); // filled below once storage is stable
+        }
+        size_t i = 0;
+        for (auto &blk : storage)
+            table[i++] = blk.data();
+    }
+
+    FskRunSummary summarize() const
+    {
+        return fsk_run_summarize(table.empty() ? nullptr : table.data(),
+                                 block_size, base.data(), counts.data(),
+                                 counts.size());
+    }
+};
+
+FskRunSummary summarize_one(const std::vector<uint16_t> &vals, size_t bs = 512)
+{
+    RunFixture f(bs, { vals });
+    return f.summarize();
+}
+
+} // namespace
+
+TEST_CASE("All-MARK: (0,N) is all MARK and lasts N*100 us")
+{
+    for (int n : { 1, 5, 10 })
+    {
+        FskRunSummary s = summarize_one({ 0, static_cast<uint16_t>(n) });
+        CHECK(s.has_space == false);
+        CHECK(s.total_ticks == static_cast<uint64_t>(n) * 100);
+    }
+}
+
+TEST_CASE("All-MARK: an all-zero value stream is all MARK with zero duration")
+{
+    FskRunSummary s = summarize_one({ 0, 0 });
+    CHECK(s.has_space == false);
+    CHECK(s.total_ticks == 0);
+}
+
+TEST_CASE("All-MARK: a non-zero LOW value is real SPACE")
+{
+    CHECK(summarize_one({ 5, 5 }).has_space == true);
+}
+
+TEST_CASE("All-MARK: a zero value consumes parity, so [0,0,3] has SPACE")
+{
+    CHECK(summarize_one({ 0, 0, 3 }).has_space == true);
+}
+
+TEST_CASE("All-MARK: alternating zero LOW and non-zero HIGH stays all MARK")
+{
+    FskRunSummary s = summarize_one({ 0, 3, 0, 4 });
+    CHECK(s.has_space == false);
+    CHECK(s.total_ticks == 700);
+}
+
+TEST_CASE("All-MARK: parity restarts at every chunk of a run")
+{
+    {
+        RunFixture f(512, { { 0, 3 }, { 0, 4 } });
+        FskRunSummary s = f.summarize();
+        CHECK(s.has_space == false);
+        CHECK(s.total_ticks == 700);
+    }
+    {
+        // Chunk 2 starts at index 0 again, so its leading 2 is a LOW value.
+        RunFixture f(512, { { 0, 3 }, { 2, 0 } });
+        CHECK(f.summarize().has_space == true);
+    }
+    {
+        // Odd-length chunk 1 must not shift chunk 2's parity.
+        RunFixture f(512, { { 0, 3, 0 }, { 0, 4 } });
+        FskRunSummary s = f.summarize();
+        CHECK(s.has_space == false);
+        CHECK(s.total_ticks == 700);
+    }
+}
+
+TEST_CASE("All-MARK: a long HIGH value keeps its full duration without truncation")
+{
+    FskRunSummary s = summarize_one({ 0, 65535 });
+    CHECK(s.has_space == false);
+    CHECK(s.total_ticks == static_cast<uint64_t>(65535) * 100);
+
+    // Many maximal HIGH values exceed 32 bits of ticks without wrapping.
+    std::vector<uint16_t> many;
+    for (int i = 0; i < 800; ++i) { many.push_back(0); many.push_back(65535); }
+    FskRunSummary m = summarize_one(many);
+    CHECK(m.has_space == false);
+    CHECK(m.total_ticks == static_cast<uint64_t>(800) * 65535 * 100);
+    CHECK(m.total_ticks > 0xFFFFFFFFull);
+}
+
+TEST_CASE("All-MARK: a normal waveform with a non-zero LOW is not classified MARK-only")
+{
+    // Head of a real tape image: LOW 0, HIGH 7, LOW 1 (non-zero), HIGH 65535.
+    FskRunSummary s = summarize_one({ 0, 7, 1, 65535 });
+    CHECK(s.has_space == true);
+
+    // A leading LOW value alone is enough.
+    CHECK(summarize_one({ 1, 65535 }).has_space == true);
+}
+
+TEST_CASE("All-MARK: values straddling a block boundary are classified correctly")
+{
+    // Block size 3 forces every second value across a block boundary.
+    CHECK(summarize_one({ 0, 3, 0, 4 }, 3).has_space == false);
+    CHECK(summarize_one({ 0, 3, 0, 4 }, 3).total_ticks == 700);
+    CHECK(summarize_one({ 0, 3, 0, 4, 0, 5, 9 }, 3).has_space == true);
+}
+
+TEST_CASE("All-MARK: empty run is all MARK with zero duration")
+{
+    const size_t no_base[1] = {};
+    const size_t no_counts[1] = {};
+    FskRunSummary s = fsk_run_summarize(nullptr, 512, no_base, no_counts, 1);
+    CHECK(s.has_space == false);
+    CHECK(s.total_ticks == 0);
+}
+
+TEST_CASE("All-MARK classification does not change run membership or splitting")
+{
+    // Zero-IRG (0,N) chunks still join one run exactly as before.
+    std::vector<LayoutChunk> lay = { {true,4,999}, {true,4,0}, {true,4,0} };
+    auto run = plan_run(lay, layout_filesize(lay));
+    CHECK(run.size() == 3);
+
+    // Long durations still split into <=32767-tick portions with no extra
+    // level change: 65535 units = 6553500 ticks of one HIGH level.
+    std::vector<uint8_t> payload = { 0,0, 0xFF,0xFF };
+    PreloadBuffers bufs(payload.size(), 512);
+    ScriptedReader rd(payload.data(), payload.size());
+    rd.deliver_pattern = { 0 };
+    REQUIRE(fsk_preload_into_blocks(bufs.blocks(), bufs.block_count(), 512,
+                                    payload.size(), 512,
+                                    &ScriptedReader::read, &rd) == payload.size());
+    FskChunkView v = fsk_view_init(bufs.blocks(), 512, payload.size());
+    uint64_t total = 0;
+    size_t portions = 0;
+    for (;;)
+    {
+        FskStep s = fsk_view_step(v);
+        if (!s.produced) break;
+        CHECK(s.level_high == true); // every portion is MARK, no added edge
+        CHECK(s.ticks <= FSK_MAX_PORTION_TICKS);
+        total += s.ticks;
+        ++portions;
+        if (s.done) break;
+    }
+    CHECK(total == static_cast<uint64_t>(65535) * 100);
+    CHECK(portions == 201); // ceil(6553500 / 32767)
+}

@@ -1,6 +1,7 @@
-// fsk_plan.cpp — host-buildable pure implementation of the two non-inline
-// members: fsk_preload_into_blocks (bounded, injected-reader preload loop)
-// and fsk_view_step (host-test cursor over a segmented payload). No
+// fsk_plan.cpp — host-buildable pure implementation of the non-inline
+// members: fsk_preload_into_blocks (bounded, injected-reader preload loop),
+// fsk_view_step (host-test cursor over a segmented payload) and
+// fsk_run_summarize (all-MARK run classification). No
 // FujiNet/ESP-IDF/filesystem dependency; no allocation or logging of its own.
 //
 // fsk_view_step shares the same pure rule helpers fsk_plan.h declares that
@@ -140,6 +141,36 @@ FskStep fsk_view_step(FskChunkView &view)
     return FskStep{ false, false, 0, true };
 }
 
+
+// Classifies a preloaded run as all-MARK or not. Reuses the production decode,
+// parity and tick-scaling rules; stops at the first non-zero LOW value.
+FskRunSummary fsk_run_summarize(const uint8_t *const *blocks,
+                                size_t block_size,
+                                const size_t *chunk_block_base,
+                                const size_t *chunk_value_counts,
+                                size_t chunk_count)
+{
+    FskRunSummary s{ false, 0 };
+
+    for (size_t c = 0; c < chunk_count; ++c)
+    {
+        const size_t count = chunk_value_counts[c];
+        const size_t base_pos = chunk_block_base[c] * block_size;
+
+        for (size_t i = 0; i < count; ++i)
+        {
+            const uint16_t v = fsk_block_le16(blocks, block_size, base_pos + i * 2);
+            if (!fsk_level_for_index(i) && v != 0)
+            {
+                s.has_space = true;
+                return s;
+            }
+            s.total_ticks += fsk_ticks_for_value(v);
+        }
+    }
+
+    return s;
+}
 
 // Single source of truth for the structural bounds/next-offset rule;
 // play_fsk_chunk() consumes this exact result — no second O+8+L formula.

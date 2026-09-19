@@ -238,6 +238,32 @@ FSK_FORCE_INLINE bool fsk_run_should_join(bool candidate_is_fsk,
 // gap, since that chunk's own IRG is still 0.
 static constexpr size_t FSK_RUN_MAX_CHUNKS = 16;
 
+// -----------------------------------------------------------------------------
+// All-MARK run classification (pure, host-testable)
+// -----------------------------------------------------------------------------
+//
+// An FSK run whose every even-indexed (LOW/SPACE) value is zero requests no
+// LOW time at all: the line is MARK for the whole run. Such a run needs no RMT
+// waveform, only a MARK-preserving wait of `total_ticks`.
+struct FskRunSummary
+{
+    bool     has_space;   // true when some even-indexed value is non-zero
+    uint64_t total_ticks; // whole-run duration in 1 MHz ticks (1 tick = 1 us);
+                          //   only complete when has_space == false, because the
+                          //   scan stops at the first SPACE
+};
+
+// Scans a preloaded run in the same per-chunk layout production uses: chunk c
+// starts at logical byte chunk_block_base[c] * block_size and holds
+// chunk_value_counts[c] values. Parity restarts at index 0 for every chunk;
+// zero-duration values still consume their index. `blocks` may be nullptr only
+// when every value count is zero.
+FskRunSummary fsk_run_summarize(const uint8_t *const *blocks,
+                                size_t block_size,
+                                const size_t *chunk_block_base,
+                                const size_t *chunk_value_counts,
+                                size_t chunk_count);
+
 #undef FSK_FORCE_INLINE
 
 #endif // FSK_PLAN_H
