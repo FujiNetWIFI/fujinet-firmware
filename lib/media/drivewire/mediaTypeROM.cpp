@@ -33,8 +33,35 @@ mediatype_t MediaTypeROM::mount(fnFile *f, uint32_t disksize)
     _media_fileh = f;
     _mediatype = MEDIATYPE_ROM;
     _media_image_size = disksize;
+    _image_pos = UINT32_MAX;
 
     return _mediatype;
+}
+
+uint32_t MediaTypeROM::stream_size()
+{
+    return _media_image_size;
+}
+
+size_t MediaTypeROM::stream_read(uint32_t offset, uint8_t *buffer, size_t length)
+{
+    if (_media_fileh == nullptr || offset >= _media_image_size)
+        return 0;
+
+    if (length > _media_image_size - offset)
+        length = _media_image_size - offset;
+
+    if (_image_pos != offset)
+    {
+        if (fnio::fseek(_media_fileh, offset, SEEK_SET) != 0)
+            return 0;
+        _image_pos = offset;
+    }
+
+    size_t got = fnio::fread(buffer, 1, length, _media_fileh);
+    _image_pos += got;
+
+    return got;
 }
 
 #endif // BUILD_COCO
