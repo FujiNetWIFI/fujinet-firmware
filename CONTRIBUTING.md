@@ -270,6 +270,9 @@ One concern per pull request. Large mixed diffs are the most common reason a cha
   `master`**, landing in order, as the `heap-02`..`heap-05` series did. Do not chain a PR onto
   another open branch — every PR targets `master` and must stand on its own.
 - When you find an unrelated problem mid-change, leave it and mention it. Do not fix it in passing.
+  Open a GitHub issue for it so it does not get lost — `gh issue create` is enough, a title and a
+  few lines of context. Do this even when you intend to fix it yourself later; an intention that
+  only exists in your head is the most common way a known bug survives for a year.
 
 ## Commits and pull requests
 
