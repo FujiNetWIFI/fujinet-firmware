@@ -20,6 +20,7 @@ protected:
 
     void new_disk();
     void random();
+    void fujicmd_pull_rom(uint8_t deviceSlot);
 
     void shutdown() override;
 

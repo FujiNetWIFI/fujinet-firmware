@@ -28,7 +28,15 @@
 #include "fujiDeviceID.h"
 #include "fujiCommandID.h"
 #include "status_error_codes.h"
-#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+
+// Boards where the ESP32 talks to a pico-class (RP2040/RP2350) companion over
+// this same UART, using the SLIP-framed FujiBusPacket/DBC side channel
+// alongside ordinary DriveWire traffic - see FujiBusPacket.h.
+#if defined(PINMAP_FUJIVERSAL_DRIVEWIRE) || defined(COCO_HS_UART)
+#define DRIVEWIRE_DBC_SUPPORTED
+#endif
+
+#ifdef DRIVEWIRE_DBC_SUPPORTED
 #include "../rs232/FujiBusPacket.h"
 #include <deque>
 #endif
@@ -137,7 +145,7 @@ private:
 #endif /* FUJINET_OVER_USB */
     BoIPChannel _becker;
 
-#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+#ifdef DRIVEWIRE_DBC_SUPPORTED
     std::deque<uint8_t> _dbc_pushback;
 #endif
 
@@ -218,7 +226,7 @@ private:
     void op_namedobj_mnt();
 
     size_t read(void *buffer, size_t length) {
-#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+#ifdef DRIVEWIRE_DBC_SUPPORTED
         size_t n = 0;
         while (!_dbc_pushback.empty() && n < length) {
             ((uint8_t *)buffer)[n++] = _dbc_pushback.front();
@@ -238,7 +246,7 @@ private:
     size_t write(const void *buffer, size_t length) { return _port->write(buffer, length); }
     size_t write(int n) { return _port->write(n); }
     size_t available() {
-#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+#ifdef DRIVEWIRE_DBC_SUPPORTED
         return _dbc_pushback.size() + _port->available();
 #else
         return _port->available();
@@ -277,7 +285,7 @@ public:
     // I wish this codebase would make up its mind to use camel or snake casing.
     drivewireModem *get_modem() { return _modemDev; }
 
-#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+#ifdef DRIVEWIRE_DBC_SUPPORTED
     std::unique_ptr<FujiBusPacket> readBusPacket(int first = -1);
     void writeBusPacket(FujiBusPacket &packet);
 
@@ -298,7 +306,7 @@ public:
         std::string data(reinterpret_cast<const char *>(buf), static_cast<size_t>(len));
         return sendCommand(device, command, std::move(data));
     }
-#endif /* PINMAP_FUJIVERSAL_DRIVEWIRE */
+#endif /* DRIVEWIRE_DBC_SUPPORTED */
 
 #ifdef ESP32_PLATFORM
     QueueHandle_t qDrivewireMessages = nullptr;
