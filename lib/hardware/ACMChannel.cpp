@@ -10,6 +10,7 @@
 
 #include <inttypes.h> // debug
 #include <esp_log.h>
+#include <esp_system.h>
 
 #define DEBUG_TAG "ACMChannel"
 
@@ -178,11 +179,17 @@ static void reconnectTaskForwarder(void *arg)
 
 void ACMChannel::begin()
 {
+    // The transport underpins the whole bus and begin() must not return without
+    // it; explicit checks instead of assert() so NDEBUG builds still stop here.
     rxQueue = xQueueCreate(1024 / MAX_FIFO_PAYLOAD, sizeof(FIFOPacket));
     device_disconnected_sem = xSemaphoreCreateBinary();
     device_connected_sem = xSemaphoreCreateBinary();  // <-- new
-    assert(device_disconnected_sem);
-    assert(device_connected_sem);
+    if (rxQueue == nullptr || device_disconnected_sem == nullptr || device_connected_sem == nullptr)
+    {
+        Debug_printv("could not create ACM queue/semaphores, free internal/total heap: %lu/%lu",
+                     esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+        abort();
+    }
 
     usb_host_config_t host_config = {};
     host_config.skip_phy_setup = false;
@@ -192,7 +199,12 @@ void ACMChannel::begin()
     BaseType_t task_created = xTaskCreate(usb_lib_task, "usb_lib", 4096,
                                           xTaskGetCurrentTaskHandle(),
                                           _service_priority, NULL);
-    assert(task_created == pdTRUE);
+    if (task_created != pdTRUE)
+    {
+        Debug_printv("could not create usb_lib task, free internal/total heap: %lu/%lu",
+                     esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+        abort();
+    }
 
     ndc_instance = this;
 
@@ -229,9 +241,11 @@ void ACMChannel::begin()
     // can recover without a full ESP32 reboot. Previously nothing ever
     // consumed device_connected_sem again after this point, so a
     // reattach was silently never noticed.
+    // Survivable: the bus is up, only replug recovery is lost.
     BaseType_t reconnect_task_created = xTaskCreate(reconnectTaskForwarder, "ACM-reconnect", 4096,
                                                      this, _service_priority, NULL);
-    assert(reconnect_task_created == pdTRUE);
+    if (reconnect_task_created != pdTRUE)
+        Debug_printv("could not create ACM-reconnect task, USB replug recovery disabled");
 
     return;
 }

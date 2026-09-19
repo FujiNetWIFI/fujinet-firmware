@@ -65,8 +65,18 @@ adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
 
 #ifdef ESP_PLATFORM
     pxq = xQueueCreate(160, sizeof(PrintItem));
-
-    xTaskCreatePinnedToCore(printerTask,"ptsk",4096,this,PRINTER_PRIORITY,&thPrinter,0);
+    if (pxq != nullptr)
+    {
+        if (xTaskCreatePinnedToCore(printerTask,"ptsk",4096,this,PRINTER_PRIORITY,&thPrinter,0) != pdPASS)
+        {
+            thPrinter = nullptr;
+            Debug_printv("could not create printer task, free internal/total heap: %lu/%lu",
+                         esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+        }
+    }
+    else
+        Debug_printv("could not create printer queue, free internal/total heap: %lu/%lu",
+                     esp_get_free_internal_heap_size(), esp_get_free_heap_size());
 #endif /* ESP_PLATFORM */
 }
 
@@ -76,7 +86,11 @@ adamPrinter::~adamPrinter()
     if (thPrinter != nullptr)
         vTaskDelete(thPrinter);
 
-    vQueueDelete(pxq);
+    if (pxq != nullptr)
+    {
+        vQueueDelete(pxq);
+        pxq = nullptr;
+    }
 #endif /* ESP_PLATFORM */
 
     if (_pptr != nullptr)
@@ -115,7 +129,8 @@ void adamPrinter::adamnet_control_send(const FujiAdamPacket &packet)
     pi.len = std::min(packet.data()->size(), sizeof(pi.buf));
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
     SYSTEM_BUS.transaction_get(pi.buf, pi.len);
-    xQueueSend(pxq, &pi, portMAX_DELAY);
+    if (pxq != nullptr)
+        xQueueSend(pxq, &pi, portMAX_DELAY);
 
     _last_ms = fnSystem.millis();
     SYSTEM_BUS.transaction_success();
@@ -141,7 +156,7 @@ void adamPrinter::adamnet_control_ready()
     if (getPrinterPtr()->is_printing)
         SYSTEM_BUS.sendNakPacket();
 #ifdef ESP_PLATFORM
-    else if (!uxQueueSpacesAvailable(pxq))
+    else if (pxq == nullptr || !uxQueueSpacesAvailable(pxq))
         SYSTEM_BUS.sendNakPacket();
 #endif /* ESP_PLATFORM */
     else
