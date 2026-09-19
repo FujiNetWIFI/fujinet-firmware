@@ -5,11 +5,39 @@ FujiNet firmware: one C++20 codebase that builds network-adapter firmware for ma
 ESP-IDF project driven by PlatformIO, plus a host "FujiNet-PC" binary built with CMake. These rules
 apply repo-wide unless a section names a narrower path.
 
+## Before you start
+
+This file cannot tell you what is planned. Work is often staged as a series of topic branches
+(`git branch -r` currently shows `heap-02-leaks` through `heap-05-internal-dram`, plus several
+`*-bringup` branches), so the area you are about to change may already be in flight.
+
+- Run `git log --oneline -20 -- <paths>` and `git branch -r` before touching an area. If recent work
+  or an open branch overlaps, say so and ask before proceeding rather than duplicating or conflicting.
+- For anything beyond a contained fix — a new abstraction, a new device or bus, a change to a shared
+  base, a pattern you intend to repeat across platforms — describe the approach and get agreement
+  before writing the code. A rejected design wastes far more of a reviewer's time than a question.
+- If a maintainer says to hold off because another change is coming, stop. Do not rework the change
+  to land it sooner.
+
 ## Build the firmware (ESP32)
 
-`./build.sh` is the only supported entry point. Every run regenerates `platformio-generated.ini` by
-merging `platformio-ini-files/platformio.common.ini` ->
-`build-platforms/platformio-<build_board>.ini` -> `platformio.local.ini`, then calls `pio`.
+There are two entry points: the `Makefile` for the common cases and `./build.sh` for the full flag
+set. The `Makefile` wraps `build.sh` and strips ANSI colour codes from the output, so prefer it when
+you need to read a build log.
+
+```sh
+make build        # == ./build.sh -b
+make upload       # == ./build.sh -u    (firmware)
+make uploadfs     # == ./build.sh -f    (LittleFS/webUI image)
+make zip          # == ./build.sh -z
+make clean        # == ./build.sh -c
+make all          # == ./build.sh -a    (every board)
+make pico-de-coco # builds pico/coco separately
+```
+
+Every `build.sh` run regenerates `platformio-generated.ini` by merging
+`platformio-ini-files/platformio.common.ini` -> `build-platforms/platformio-<build_board>.ini` ->
+`platformio.local.ini`, then calls `pio`.
 
 ```sh
 ./build.sh -y -s fujinet-atari-v1   # once per checkout: writes platformio.local.ini
@@ -31,10 +59,14 @@ merging `platformio-ini-files/platformio.common.ini` ->
 ## Build and test on the host (FujiNet-PC)
 
 ```sh
-./build.sh -p ATARI        # configure, build, build dist/, then run ctest -V --progress
-./build.sh -p ATARI -g     # same, debug build
+make coco-lwm             # == ./build.sh -p COCO -g : host debug build, colour codes stripped
+./build.sh -p ATARI       # configure, build, build dist/, then run ctest -V --progress
+./build.sh -p ATARI -g    # same, debug build
 (cd build/dist && ./run-fujinet)
 ```
+
+The `%-lwm` pattern rule uppercases the name and adds `-g`, so `make atari-lwm`, `make apple-lwm`,
+`make coco-lwm`, `make rs232-lwm`, `make lynx-lwm` and `make adam-lwm` are the six host builds.
 
 This is the fastest real feedback available without hardware and the only path that runs tests.
 Valid `-p` targets are exactly `ATARI`, `APPLE`, `COCO`, `RS232`, `LYNX`, `ADAM`; anything else is a
@@ -47,7 +79,8 @@ CI for the firmware is **build-only**: `autobuild.yml` compiles 10 ESP32 targets
 and the ctest suite runs in `build-fujinet-pc.yml` only because `build.sh -p` invokes it. No
 workflow runs a linter or a formatter. So:
 
-1. `./build.sh -p ATARI` — compiles host code and runs every ctest, including the policy check.
+1. `make atari-lwm` (or `./build.sh -p ATARI`) — compiles host code and runs every ctest,
+   including the policy check. Use the target matching the platform you changed.
 2. `./build.sh -b` for at least one board of each platform your change touches.
 3. `./build.sh -a` if you touched shared code under `lib/` or `src/main.cpp`.
 4. `git diff --stat` and confirm every listed file is one you meant to change.
@@ -74,6 +107,56 @@ first, so you cannot dodge it. Customize by overriding a virtual in the per-bus 
 The codebase is actively unifying per-platform code into these shared bases: `fujiDevice` (plus its
 mixins) and `NDevice` replaced the per-bus Fuji and network devices. Extend the shared layer rather
 than copying an existing device implementation into a new platform directory.
+
+## Design principles
+
+Reviewers hold changes to the direction below. A change that works but cuts against it will be sent
+back, so raise the design first when yours does not fit.
+
+- One implementation, many platforms. Behaviour common to two or more platforms belongs in the
+  shared base; platform difference is expressed by overriding a virtual in the per-bus subclass, not
+  by branching inside shared code. Duplicating a device into a new platform directory is the single
+  most common rejection.
+- Keep the layers apart: `lib/bus/<bus>/` owns wire protocol and timing, `lib/device/<bus>/` owns
+  device behaviour, `lib/media/<platform>/` owns image formats. Do not reach across them, and do not
+  put protocol details in a device or filesystem knowledge in a bus.
+- Go through the existing abstractions — `fnConfig`, `FileSystem`/`fnFS`, `IOChannel`, the
+  `network-protocol` adapters, `include/pinmap/` — rather than calling ESP-IDF or touching GPIO
+  directly from a device. If an abstraction does not fit, propose extending it; do not bypass it.
+- Adding a platform means a new bus/device directory plus a pinmap header, not edits scattered
+  through shared files.
+- Do not add global state or a new singleton. Hang state off the owning device or bus object.
+
+## Separation of concerns and readable code
+
+Read `lib/device/fujiDevice/` and `lib/device/NDevice/` before writing device-side code. They are
+the model the rest of the tree is being moved toward, and new code is reviewed against them.
+
+- **One feature per class, one class per file pair.** `Base64Mixin`, `HashMixin`, `QRMixin` and
+  `AppKeyMixin` each own one capability and nothing else. A new self-contained feature is a new
+  mixin, not more methods bolted onto `fujiDevice`.
+- **Dispatch through a table, not a switch.** Each mixin fills a `FujiMixinCommandHandlers` map of
+  command ID to member function and `FujiDeviceMixin::processCommand` looks the handler up. Adding a
+  command means one table entry plus one small handler; it never means growing a switch.
+- **One handler, one job, named for it.** `qr_input`, `qr_length`, `qr_output` — short methods whose
+  name states what they do, so the dispatch table reads as documentation.
+- **Vary behaviour by overriding a virtual.** `QRMixin::qr_encode(const FUJI_COMMAND_PACKET&)` is
+  virtual precisely so a platform can change how parameters are unpacked without touching shared
+  code. That override point is the intended extension mechanism.
+- **Use a strategy object for pluggable behaviour.** `NDevice` holds an `NParser` and
+  `JSONParser`/`XMLParser`/`HTMLParser` implement it; supporting another format is a new subclass,
+  not a branch in `NDevice`.
+
+Readability rules that follow from the above:
+
+- A function should do one thing and fit on a screen. If you need a comment to mark a section
+  inside a function, extract that section into a named method instead.
+- Return early on error rather than nesting the success path inside `if` blocks.
+- Name things for the domain — the command, the protocol field, the disk slot — not for their type
+  or for the loop they sit in. Avoid abbreviations that are not already used in the protocol docs.
+- Do not add a parameter, a flag, or a `bool` argument to steer an existing function down a second
+  path; add the second function or the override.
+- Keep header files to declarations and small inline accessors; put logic in the `.cpp`.
 
 ## Platform conditional compilation
 
@@ -124,6 +207,28 @@ tree does not conform.
 - Use `std::string`, not Arduino `String`. Prefix new private members with `_`. Use fixed-width
   types and `__attribute__((packed))` structs for wire formats, never `std::string`.
 
+## C++ practices
+
+C++20. Exceptions are **disabled** in firmware builds (`CONFIG_COMPILER_CXX_EXCEPTIONS` is unset), so
+a `throw` aborts the device at runtime: return status/error codes on firmware paths and do not add
+`try`/`catch` to them. The tree is long-lived and inconsistent — the rules below govern code you
+write; do not convert surrounding code to match as a side effect of an unrelated change.
+
+- Own every resource. Prefer a `std::unique_ptr`, a container, or a small RAII wrapper to a bare
+  `new`/`delete` pair, and never leave a raw owning pointer across an early return. Heap leaks on
+  error paths are a recurring bug class here (see `[all] fix heap leaks on error paths`).
+- Check every allocation and every fallible call before use, including on error and teardown paths.
+- Give a base class a `virtual` destructor; mark every derived function `override`; do not repeat
+  `virtual` on an override.
+- Use `nullptr`, not `NULL`. Use `static_cast`/`reinterpret_cast`, not C-style casts. Use
+  `enum class` for new enumerations.
+- Bounds-check all buffer work. Use `snprintf`, never `sprintf`, `strcpy` or `strcat`, and prefer
+  the existing `mstr::`/`util_` string helpers to hand-rolled buffer arithmetic.
+- Pass non-trivial parameters by `const&`; return by value. Mark methods `const` when they do not
+  mutate. Initialise every member at declaration or in the constructor's init list.
+- Keep functions short enough to read whole. If a switch on a device command grows a long inline
+  body, factor the body into a named method.
+
 ## Comments
 
 Keep comments short. One or two lines above the code, or a brief trailing `//`. A multi-paragraph
@@ -164,6 +269,19 @@ walks the whole heap and is a temporary diagnostic only.
 - Prefer static or pooled storage over new allocation in bus and device paths, and check every
   allocation result on error paths.
 
+## Scope of a change
+
+One concern per pull request. Large mixed diffs are the most common reason a change is sent back.
+
+- Do not combine a refactor with a behaviour change, a bug fix with a feature, or a rename with
+  either. Land the refactor first, then the change that needed it.
+- Keep formatting, whitespace and comment edits out of a functional diff entirely.
+- A change that touches a shared base and then rolls the result out to several platforms is at least
+  two pull requests: the base change, then the per-platform adoption.
+- If a change cannot be explained in a couple of sentences, it is probably more than one change.
+  Split it into a stacked series of small branches, as the `heap-02`..`heap-05` series did.
+- When you find an unrelated problem mid-change, leave it and mention it. Do not fix it in passing.
+
 ## Commits and pull requests
 
 - `master` is the main branch. Work on a topic branch; do not commit directly to `master`.
@@ -188,6 +306,11 @@ walks the whole heap and is a temporary diagnostic only.
 - **Bulk reformatting** a file because it does not match `.clang-format`.
 - **Over-commenting.** Long explanatory block comments and edit narration inflate the diff and go
   stale; see Comments above.
+- **One big diff.** Bundling a refactor, a fix and a rollout together; see Scope of a change.
+- **Growing a god class or a giant switch** instead of adding a mixin, a handler-table entry, or an
+  `NParser` subclass; see Separation of concerns and readable code.
+- **Building before asking.** Inventing an abstraction or a cross-platform pattern without agreeing
+  the design first, when a branch already in flight may change it.
 - **Assuming CI tests the firmware.** It only compiles it.
 
 ## Report what you did not do
