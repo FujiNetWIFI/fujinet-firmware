@@ -286,7 +286,10 @@ fujiError_t NetworkProtocolTCP::open_client(std::string hostname, unsigned short
         return FUJI_ERROR::UNSPECIFIED; // Error.
     }
     else
+    {
+        client.setNoDelay(true); // small interactive writes, no Nagle
         return FUJI_ERROR::NONE; // We're connected.
+    }
 }
 
 /**
@@ -311,6 +314,8 @@ fujiError_t NetworkProtocolTCP::accept_connection()
 
         if (client.connected())
         {
+            client.setNoDelay(true);
+
             remoteIP = client.remoteIP();
             remotePort = client.remotePort();
             remoteIPString = compat_inet_ntoa(remoteIP);
