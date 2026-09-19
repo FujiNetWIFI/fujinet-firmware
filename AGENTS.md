@@ -124,6 +124,20 @@ tree does not conform.
 - Use `std::string`, not Arduino `String`. Prefix new private members with `_`. Use fixed-width
   types and `__attribute__((packed))` structs for wire formats, never `std::string`.
 
+## Comments
+
+Keep comments short. One or two lines above the code, or a brief trailing `//`. A multi-paragraph
+block comment is almost always wrong here.
+
+- Comment the *why* of a non-obvious choice — a timing constraint, a hardware quirk, a protocol
+  requirement. Do not restate what the code already says.
+- Do not narrate your own edit. No "added to fix X", no change logs, no dated notes, no
+  before/after explanations, no `TODO` attributed to an agent. That belongs in the commit message
+  and the PR, which is where reviewers look for it.
+- Do not leave commented-out code. Delete it; git has it.
+- Match the density of the file you are editing. If the surrounding functions carry no comments,
+  adding a header block to yours makes the diff harder to review, not easier.
+
 ## Logging
 
 Use `Debug_print`, `Debug_printf`, `Debug_println`, `Debug_printv`, `Debug_memory()` and
@@ -172,6 +186,8 @@ walks the whole heap and is a temporary diagnostic only.
   is authored in `data/webui/{template,common,config}/` plus `lib/http/httpServiceParser.cpp`.
 - **Committing sdkconfig churn** produced by a local build.
 - **Bulk reformatting** a file because it does not match `.clang-format`.
+- **Over-commenting.** Long explanatory block comments and edit narration inflate the diff and go
+  stale; see Comments above.
 - **Assuming CI tests the firmware.** It only compiles it.
 
 ## Report what you did not do
