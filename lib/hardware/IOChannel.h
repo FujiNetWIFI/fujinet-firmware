@@ -57,6 +57,12 @@ public:
     size_t available();
     void discardInput();
 
+    // The per-byte inactivity window dataIn() enforces. The owning bus adjusts
+    // it around an exchange whose peer can legitimately stall; nothing above
+    // the bus layer should touch it.
+    double readTimeout() const { return read_timeout_ms; }
+    void setReadTimeout(double millis) { read_timeout_ms = millis; }
+
     /* Convenience methods, just wrappers for dataIn()/dataOut() methods above */
     size_t read(void *buffer, size_t length);
     int read(void);

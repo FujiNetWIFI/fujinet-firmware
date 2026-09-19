@@ -1,0 +1,462 @@
+
+
+
+zmac(1)                 Development Tools                 zmac(1)
+
+
+NAME
+       zmac - Z80 macro cross-assembler
+
+SYNOPSIS
+       zmac [--help] [--version] [-AbcdefghilLmnOpsStTz] [-o out-
+       file] [-x listfile] [filename]
+
+DESCRIPTION
+       zmac is a Z80 macro cross-assembler. It has all  the  fea-
+       tures  you'd expect. It assembles the specified input file
+       (with a `.z' extension if there is no pre-existing  exten-
+       sion and the file as given doesn't exist) and produces raw
+       binary output in a `.bin' file. (It can optionally produce
+       CP/M-style  Intel  hex  format - see below.) By default it
+       also produces a nicely-formatted listing of the m/c along-
+       side the source, in a `.lst' file.
+
+       As  well  as normal Z80 programs, zmac lets you write 8080
+       programs in Z80 assembly. (See the `-z' option below.)
+
+OPTIONS
+       Most of the options control aspects of the listing.
+
+       --help Display a list of options and a  terse  description
+              of what the options do.
+
+       --version
+              Print version number.
+
+       -A     Add  an  AMSDOS header to the generated binary file
+              (this option automatically disables  generation  of
+              hex output).
+
+       -b     Don't generate the m/c output at all.
+
+       -c     Make  the  listing  continuous, i.e. don't generate
+              any page breaks or page headers.  Can  make  things
+              less confusing if you're going to consult the list-
+              ing online rather than printing it.   This  is  the
+              default.
+
+       -d     Make the listing discontinuous.
+
+       -e     Omit the `error report' section in the listing.
+
+       -f     List instructions not assembled due to `if' expres-
+              sions being false. (Normally these are not shown in
+              the listing.)
+
+       -g     List  only  the  first line of equivalent hex for a
+              source line.
+
+       -h     Output CP/M-ish Intel hex format  (using  extension
+              `.hex')  rather than the default of a simple binary
+
+
+
+Version 1.3                 2000-07-02                          1
+
+
+
+
+
+zmac(1)                 Development Tools                 zmac(1)
+
+
+              file (extension `.bin').
+
+       -i     Don't list files included with `include'.
+
+       -l     Don't generate a listing at all.
+
+       -L     Generate listing no matter what. Overrides any con-
+              flicting options.
+
+       -m     List macro expansions.
+
+       -n     Omit line numbers from listing.
+
+       -o     Output assembled code to outfile.
+
+       -O     Suggest possible optimisations. (These are shown as
+              warnings.)
+
+       -p     Use a few  linefeeds  for  page  break  in  listing
+              rather than ^L.
+
+       -s     Omit the symbol table from the listing.
+
+       -S     When reporting an error, show the line which caused
+              it. Without this option zmac reports errors in  the
+              canonical  format,  one-per-line (but see the first
+              item in the BUGS section).
+
+       -t     Give terse (single-letter) error codes  in  listing
+              (with  a  key at the end). (Normally the full error
+              message is given.)
+
+       -T     Enable DDE throwback  for  reporting  warnings  and
+              errors.   This  option  only  exists  for  RISC  OS
+              builds.
+
+       -x     Output listing to listfile.  (It outputs to  stdout
+              if  you  specify  the  file  as  `-'.)  This has no
+              effect if used with -l.
+
+       -z     Accept 8080-compatible instructions only; flag  any
+              Z80-specific  ones  as  errors. This lets you write
+              8080 programs in Z80 assembly,  without  having  to
+              worry  about the deeply nasty 8080 assembly syntax.
+              :-)
+
+INPUT FORMAT
+       zmac uses the standard Zilog mnemonics, and the pseudo-ops
+       are also largely as you'd expect.
+
+       Input can be upper or lowercase.
+
+       Comments  start  with  `;'  and carry on to the end of the
+       line.
+
+
+
+Version 1.3                 2000-07-02                          2
+
+
+
+
+
+zmac(1)                 Development Tools                 zmac(1)
+
+
+       Labels are declared with `label:', `.label',  `:label'  or
+       just  `label' - indentation is unimportant. (Labels can be
+       up to 40 chars long.)
+
+       Number constants can take a trailing h or a leading  &,  $
+       or  #  for hex, a trailing b for binary, a trailing o or q
+       for octal, or a trailing d for decimal.
+
+       Here is how other things work:
+
+       defb 42
+              A byte.  `ascii', `byte', `db', `defm'  and  `text'
+              are synonyms.
+
+       defb 'foobar'
+              An  ASCII  character  string  (not NUL-terminated).
+              Double quotes can also be used.
+
+       defb 'Who needs MS-DOG when you have *CP/M*?', 13, 10, '$'
+              Strings, bytes, and comp.os.msdos.programmer troll.
+              :-)
+
+       defw 2112
+              A word (16 bits).  `word' and `dw' are synonyms.
+
+       defs 500
+              Insert 500 zero bytes.  `block',  `ds'  and  `rmem'
+              are synonyms.
+
+       org    Set the address to assemble to.
+
+       equ    Define  a symbol to have a fixed value.  The symbol
+              can be used before it is defined.  A symbol defined
+              with  `equ' or as a label can be defined only once,
+              except that a symbol  defined  with  `equ'  may  be
+              redefined to the same value.
+
+       defl   Define  a  symbol  to have a changeable value.  The
+              symbol cannot be used before it is defined, and  it
+              can  be  redefined  to a different value later with
+              another `defl'.
+
+       end    Ends the input.   Any  lines  after  an  `end'  are
+              silently  ignored.  If an arg is given, it declares
+              the entry address for the  program.   This  has  no
+              effect if zmac is writing a raw binary file.  In an
+              Intel hex file, it generates an S-record  directing
+              0  bytes of data to be loaded at the given address.
+
+       if ... [ else ... ] endif
+              For conditional assembly. If you do  `if  foo'  and
+              foo  evaluates  to zero, all the lines up until the
+              next corresponding `else' or `endif' are completely
+              ignored.  Conversely, if foo evaluates to non-zero,
+
+
+
+Version 1.3                 2000-07-02                          3
+
+
+
+
+
+zmac(1)                 Development Tools                 zmac(1)
+
+
+              any  lines  from  a  corresponding  `else'  to  the
+              `endif'   are   ignored.    Ifs   can   be  nested.
+              `cond'/`endc' are synonyms for `if'/`endif'.
+
+       rsym and wsym
+              Read/write a symbol file.  These  simply  load/save
+              the  currently  defined  symbols  from/to  the file
+              specified (in a non-portable format). `rsym'  takes
+              place  at  the  point it is encountered in the file
+              (on the first pass); `wsym' is delayed until assem-
+              bly has finished.
+
+       include
+              Include  a  file.  Like C's (well, cpp's) #include,
+              but the filename arg lacks the  angle  brackets  or
+              quotes  (though  quotes  may be used).  `read' is a
+              synonym.
+
+ODDITIES
+       There are the following oddities:
+
+       cmp    Same as `cp'.
+
+       jmp    Same as `jp'.
+
+       jp hl  Same as `jp (hl)'.  Ditto for ix and iy.
+
+       ld hl, 'LH'
+              Oh, yes!  Ditto for bc, de, sp, ix and iy.
+
+       min and max
+              Same as `defl' except that the symbol is defined as
+              the   smaller  or  bigger  of  two  comma-separated
+              expressions.
+
+       v and nv
+              These are alternatives to  `pe'  and  `po'  respec-
+              tively  in  `jp'  and  `call' instructions, meaning
+              that tests on the Z80's (parity/)overflow flag  can
+              be  written  in  the  same format (`x'/`nx') as for
+              those on the zero or carry flags.
+
+LISTING PSEUDO-OPS
+       There are several pseudo-ops for controlling the  listing.
+       None of these ops appear in the listing themselves:
+
+       eject  Start a new listing page.
+
+       nolist Do  nothing.  This can be used to have a comment in
+              the source but not the listing, I suppose.
+
+       elist, flist, glist, mlist
+              These have the same effect as  the  similarly-named
+              command-line  options,  though  possibly  with  the
+
+
+
+Version 1.3                 2000-07-02                          4
+
+
+
+
+
+zmac(1)                 Development Tools                 zmac(1)
+
+
+              sense reversed depending on the default. Use an arg
+              >0 (or no arg) to enable, and an arg <0 to disable.
+
+       list   Sets whether to list or not. You can  use  this  to
+              avoid  listing  certain  parts of the source. Takes
+              same optional arg as `elist', etc..
+
+       title  Set title (used in listing and symbol file).
+
+       space  Output arg blank lines in the listing, or one  line
+              if no arg is given.
+
+EXPRESSIONS
+       Expressions are reasonably full-featured; here is the com-
+       plete list of operators, highest-precedence first.  Opera-
+       tors  separated only by a space are synonyms; for example,
+       `~' is the same as `not'.
+
+              ! (logical), ~ not (bitwise), + (unary), - (unary)
+
+              *, /, % mod
+
+              +, -
+
+              << shl, >> shr
+
+              < lt, > gt, <= le, >= ge
+
+              == = eq, != <> ne
+
+              & and (bitwise)
+
+              ^ xor (bitwise)
+
+              | or (bitwise)
+
+       You can use normal parentheses or square brackets to over-
+       ride  the  precedence  rules;  use  square  brackets where
+       parentheses would conflict with Z80 mnemonic syntax.
+
+MACROS
+       The following defines a macro named m with  zero  or  more
+       formal parameters p1, p2, ..., pn, zero or more local sym-
+       bols ?s1, ?s2, ..., ?sm, and body b1, b2, ...:
+
+              m macro p1, p2, ..., pn, ?s1, ?s2, ..., ?sm
+
+                b1
+
+                b2
+
+                ...
+
+                endm
+
+
+
+Version 1.3                 2000-07-02                          5
+
+
+
+
+
+zmac(1)                 Development Tools                 zmac(1)
+
+
+       The macro is called by writing:
+
+              m v1, v2, ..., vn
+
+       A macro call expands to the text of the macro's body, with
+       each  occurrence  of a formal parameter pk replaced by the
+       corresponding value vk, and with  each  local  symbol  ?sk
+       replaced  by  a new, unique symbol invented for this call.
+       Invented symbols begin with `?', so you should avoid using
+       such symbols elsewhere in your program.
+
+       zmac  currently  does not check that you have provided the
+       right number of parameters when calling a macro.   If  you
+       provide  too  few, unmatched formals are replaced with the
+       empty string.  If you provide  too  many,  the  additional
+       values  begin  to  replace  local  symbols as if they were
+       ordinary parameters.  (This could  be  considered  a  fea-
+       ture.)   After  the  local symbols are all replaced, addi-
+       tional parameters are silently ignored.
+
+FILENAMES
+       To allow source files to be portable, a  canonical  format
+       should  be  used  for  filenames  in source files (i.e. in
+       include, rsym or wsym statements).  This canonical  format
+       is basically the Un*x format: `/' as the directory separa-
+       tor, `.' as the extension separator, ".."  as  the  parent
+       directory, "." as the current directory, and a leading `/'
+       as the root directory (this should be avoided as it  makes
+       moving the source non-trivial).
+
+       For  maximum  portability,  no  element of such a filename
+       should have more than 10  characters,  contain  characters
+       other  than  0-9, a-z, underscore and `.', or contain more
+       than one `.'.
+
+       Filenames passed as command-line arguments (i.e.  for  the
+       source  specification,  or for the -o or -x options), how-
+       ever, are assumed to be in the local (non-canonical)  for-
+       mat;  this  includes the extension separator (whether sup-
+       plied or added) and any drive specifiers.
+
+       The OSes which are currently supported are Un*x, BeOS, DOS
+       and RISC OS.
+
+MISCELLANEOUS
+       In  the  symbol table listing, the `=' prefix is given for
+       those symbols defined by `equ' or `defl', and the `+' suf-
+       fix is given for those which were not used.
+
+EXIT STATUS
+       0      No errors.
+
+       1      One  or  more errors were found during assembly, or
+              zmac exited with a fatal error.
+
+
+
+Version 1.3                 2000-07-02                          6
+
+
+
+
+
+zmac(1)                 Development Tools                 zmac(1)
+
+
+BUGS
+       zmac reports each error in  a  line  separately.  This  is
+       probably  a good thing, but tends to effectively result in
+       the same overall problem being reported twice (e.g. a ref-
+       erence  to  an  undefined symbol causes both an undeclared
+       error and a value error).
+
+       The  man  page  isn't  what  you'd  call  extensive.  This
+       shouldn't be too surprising as I had to RTFS to WTFM. :-)
+
+       What do phase/dephase do (they seem to be some way of tem-
+       porarily moving the program location -- for overlays?)?
+
+SEE ALSO
+       as(1)
+
+AUTHOR
+       Bruce Norskog (in 1978!).
+
+       Updates and bugfixes over the years  by  John  Providenza,
+       Colin  Kelley,  and  more  recently by Russell Marks, Mark
+       RISON, Chris Smith, Matthew Phillips and Tim Mann.
+
+       Russell Marks wrote most of the man page, with  tweaks  by
+       Mark RISON and Tim Mann.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Version 1.3                 2000-07-02                          7
+
+
