@@ -83,7 +83,8 @@ workflow runs a linter or a formatter. So:
    including the policy check. Use the target matching the platform you changed.
 2. `./build.sh -b` for at least one board of each platform your change touches.
 3. `./build.sh -a` if you touched shared code under `lib/` or `src/main.cpp`.
-4. `git diff --stat` and confirm every listed file is one you meant to change.
+4. `git diff` and re-read the comments in it: each must still be true of the code as changed.
+5. `git diff --stat` and confirm every listed file is one you meant to change.
 
 ## Tests
 
@@ -126,37 +127,6 @@ back, so raise the design first when yours does not fit.
 - Adding a platform means a new bus/device directory plus a pinmap header, not edits scattered
   through shared files.
 - Do not add global state or a new singleton. Hang state off the owning device or bus object.
-
-## Separation of concerns and readable code
-
-Read `lib/device/fujiDevice/` and `lib/device/NDevice/` before writing device-side code. They are
-the model the rest of the tree is being moved toward, and new code is reviewed against them.
-
-- **One feature per class, one class per file pair.** `Base64Mixin`, `HashMixin`, `QRMixin` and
-  `AppKeyMixin` each own one capability and nothing else. A new self-contained feature is a new
-  mixin, not more methods bolted onto `fujiDevice`.
-- **Dispatch through a table, not a switch.** Each mixin fills a `FujiMixinCommandHandlers` map of
-  command ID to member function and `FujiDeviceMixin::processCommand` looks the handler up. Adding a
-  command means one table entry plus one small handler; it never means growing a switch.
-- **One handler, one job, named for it.** `qr_input`, `qr_length`, `qr_output` — short methods whose
-  name states what they do, so the dispatch table reads as documentation.
-- **Vary behaviour by overriding a virtual.** `QRMixin::qr_encode(const FUJI_COMMAND_PACKET&)` is
-  virtual precisely so a platform can change how parameters are unpacked without touching shared
-  code. That override point is the intended extension mechanism.
-- **Use a strategy object for pluggable behaviour.** `NDevice` holds an `NParser` and
-  `JSONParser`/`XMLParser`/`HTMLParser` implement it; supporting another format is a new subclass,
-  not a branch in `NDevice`.
-
-Readability rules that follow from the above:
-
-- A function should do one thing and fit on a screen. If you need a comment to mark a section
-  inside a function, extract that section into a named method instead.
-- Return early on error rather than nesting the success path inside `if` blocks.
-- Name things for the domain — the command, the protocol field, the disk slot — not for their type
-  or for the loop they sit in. Avoid abbreviations that are not already used in the protocol docs.
-- Do not add a parameter, a flag, or a `bool` argument to steer an existing function down a second
-  path; add the second function or the override.
-- Keep header files to declarations and small inline accessors; put logic in the `.cpp`.
 
 ## Platform conditional compilation
 
@@ -207,27 +177,34 @@ tree does not conform.
 - Use `std::string`, not Arduino `String`. Prefix new private members with `_`. Use fixed-width
   types and `__attribute__((packed))` structs for wire formats, never `std::string`.
 
-## C++ practices
+## C++ and code structure
 
-C++20. Exceptions are **disabled** in firmware builds (`CONFIG_COMPILER_CXX_EXCEPTIONS` is unset), so
-a `throw` aborts the device at runtime: return status/error codes on firmware paths and do not add
-`try`/`catch` to them. The tree is long-lived and inconsistent — the rules below govern code you
-write; do not convert surrounding code to match as a side effect of an unrelated change.
+Full rules, with the worked `fujiDevice` example, are in **`docs/agent-cpp-style.md`**. Read it
+before writing device-side code or anything non-trivial. The rules broken most often:
 
-- Own every resource. Prefer a `std::unique_ptr`, a container, or a small RAII wrapper to a bare
-  `new`/`delete` pair, and never leave a raw owning pointer across an early return. Heap leaks on
-  error paths are a recurring bug class here (see `[all] fix heap leaks on error paths`).
-- Check every allocation and every fallible call before use, including on error and teardown paths.
-- Give a base class a `virtual` destructor; mark every derived function `override`; do not repeat
-  `virtual` on an override.
-- Use `nullptr`, not `NULL`. Use `static_cast`/`reinterpret_cast`, not C-style casts. Use
-  `enum class` for new enumerations.
-- Bounds-check all buffer work. Use `snprintf`, never `sprintf`, `strcpy` or `strcat`, and prefer
-  the existing `mstr::`/`util_` string helpers to hand-rolled buffer arithmetic.
-- Pass non-trivial parameters by `const&`; return by value. Mark methods `const` when they do not
-  mutate. Initialise every member at declaration or in the constructor's init list.
-- Keep functions short enough to read whole. If a switch on a device command grows a long inline
-  body, factor the body into a named method.
+- **Never return a bare `bool` for success or failure.** Return `success_is_true` or `error_is_true`
+  from `include/global_types.h`, whichever the file already uses, via `RETURN_SUCCESS_AS_TRUE()`,
+  `RETURN_ERROR_IF(expr)` and friends. Test the result only with `.is_success()` or `.is_error()` —
+  never against `true`/`false`/`0`/`1` and never by truthiness, since the two types carry opposite
+  polarity.
+- **Compare `fujiError_t` against `FUJI_ERROR::NONE`, never `FUJI_ERROR::UNSPECIFIED`.** Use
+  `if (err != FUJI_ERROR::NONE)` for failure and `== FUJI_ERROR::NONE` for success. `UNSPECIFIED` is
+  a placeholder that is expected to be replaced by a real list of error codes, so any test written
+  against it stops detecting failures the day the first new code lands.
+- **Use the endian-sized types for anything on the wire**: `u16le_t`, `u24le_t`, `u32le_t`,
+  `u16be_t`, `u24be_t`, `u32be_t`, and `u16ne_t`/`u24ne_t`/`u32ne_t` for native (all in
+  `include/global_types.h`). Embed them in packed structs and pass the address of one straight to a
+  read or write. No bit shifts over `uint8_t` arrays, no `htole*()`/`htobe*()`.
+- **One capability per class; dispatch through a table, not a switch.** `Base64Mixin`, `HashMixin`,
+  `QRMixin` and `AppKeyMixin` each own one feature and register their own commands. A new feature is
+  a new mixin; a new command is one table entry plus one short handler. Vary behaviour by overriding
+  a virtual, never by branching in shared code.
+- **Own every resource and check every allocation**, including on error and teardown paths. Prefer
+  `std::unique_ptr` or a container to a bare `new`/`delete` pair. Heap leaks on error paths are a
+  recurring bug class here.
+- **Exceptions are disabled in firmware builds** (`CONFIG_COMPILER_CXX_EXCEPTIONS` is unset), so a
+  `throw` aborts the device at runtime. Return error types instead; do not add `try`/`catch` to
+  firmware paths.
 
 ## Comments
 
@@ -242,6 +219,12 @@ block comment is almost always wrong here.
 - Do not leave commented-out code. Delete it; git has it.
 - Match the density of the file you are editing. If the surrounding functions carry no comments,
   adding a header block to yours makes the diff harder to review, not easier.
+
+Before every commit, re-read each comment that appears in `git diff` — including ones you did not
+write but whose code you changed. For each, confirm it is still **accurate** for the code as it now
+stands, then that it is still brief and still says something the code does not. Fix or delete any
+comment the change has falsified or made redundant. A comment that describes the old behaviour is
+worse than no comment, and this is the easiest defect to leave behind.
 
 ## Logging
 
@@ -307,8 +290,13 @@ One concern per pull request. Large mixed diffs are the most common reason a cha
 - **Over-commenting.** Long explanatory block comments and edit narration inflate the diff and go
   stale; see Comments above.
 - **One big diff.** Bundling a refactor, a fix and a rollout together; see Scope of a change.
+- **Returning a bare `bool`** for success/failure, or testing a result with `if (result)` or
+  `== true` instead of `.is_success()`/`.is_error()`.
+- **Testing a `fujiError_t` against `FUJI_ERROR::UNSPECIFIED`** instead of `FUJI_ERROR::NONE`.
+- **Hand-rolling endian conversion** with shifts or `htole*()` instead of the `u*le_t`/`u*be_t` types.
+- **Leaving a comment that the change made untrue.**
 - **Growing a god class or a giant switch** instead of adding a mixin, a handler-table entry, or an
-  `NParser` subclass; see Separation of concerns and readable code.
+  `NParser` subclass; see `docs/agent-cpp-style.md`.
 - **Building before asking.** Inventing an abstraction or a cross-platform pattern without agreeing
   the design first, when a branch already in flight may change it.
 - **Assuming CI tests the firmware.** It only compiles it.
@@ -333,7 +321,8 @@ not flash or run on hardware, that no test covers the change.
 
 ## Authoritative sources
 
-In-repo: `build-sh.md` (canonical build-configuration guide, linked from `README.md`),
+In-repo: `docs/agent-cpp-style.md` (C++ and code structure, the companion to this file),
+`build-sh.md` (canonical build-configuration guide, linked from `README.md`),
 `build-platforms/README.md` (board INI format), `data/webui/README.md` (web UI generation).
 `docs/build-sh-readme.md` duplicates `build-sh.md` and may drift; prefer `build-sh.md`. Off-repo:
 the GitHub wiki carries the contribution process, development guidelines, the definition of done,
