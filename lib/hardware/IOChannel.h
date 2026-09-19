@@ -57,9 +57,9 @@ public:
     size_t available();
     void discardInput();
 
-    // The per-byte inactivity window dataIn() enforces. Public so a caller
-    // whose peer can legitimately stall (a flash-erasing ROM push) can widen
-    // it for the duration and put it back.
+    // The per-byte inactivity window dataIn() enforces. The owning bus adjusts
+    // it around an exchange whose peer can legitimately stall; nothing above
+    // the bus layer should touch it.
     double readTimeout() const { return read_timeout_ms; }
     void setReadTimeout(double millis) { read_timeout_ms = millis; }
 

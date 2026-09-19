@@ -17,6 +17,12 @@
 
 #define RS232_BAUDRATE 115200
 
+// A co-processor may legitimately stall before it replies: a cart commits a
+// 4K flash sector (~400 ms on W25Q parts) before ACKing the chunk that filled
+// it, far past the inbound framing window. Scoped to the exchange so service()
+// keeps its short window for frame recovery.
+#define RS232_REPLY_TIMEOUT_MS 2000
+
 #define FUJI_COMMAND_PACKET FujiBusPacket
 
 #if !defined(ESP_PLATFORM) || \
@@ -135,6 +141,17 @@ private:
     void _rs232_process_cmd();
     /* void _rs232_process_queue(); */
 
+    struct ScopedReplyTimeout
+    {
+        IOChannel *ch;
+        double saved;
+        ScopedReplyTimeout(IOChannel *c) : ch(c), saved(c->readTimeout())
+        {
+            ch->setReadTimeout(RS232_REPLY_TIMEOUT_MS);
+        }
+        ~ScopedReplyTimeout() { ch->setReadTimeout(saved); }
+    };
+
 public:
     void setup();
     void service();
@@ -151,9 +168,6 @@ public:
 
     rs232Printer *getPrinter() { return _printerdev; }
     rs232CPM *getCPM() { return _cpmDev; }
-    // The raw channel, for callers that must adjust its read timeout around
-    // a long operation (diskTypeROM's flash-erasing push).
-    IOChannel *ioChannel() { return _port; }
 
 
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
@@ -178,6 +192,7 @@ public:
                                                Args&&... args)
     {
         FujiBusPacket packet(device, command, std::forward<Args>(args)...);
+        ScopedReplyTimeout reply_window(_port);
         writeBusPacket(packet);
         return readBusPacket();
     }
