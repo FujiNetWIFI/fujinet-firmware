@@ -1,4 +1,4 @@
-# Agent C++ and code-structure guide
+# FujiNet C++ and code-structure guide
 
 The detailed companion to `AGENTS.md`. Read this before writing device-side code, adding a command,
 or making any non-trivial change. `AGENTS.md` carries the short version; where the two disagree,

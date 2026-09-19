@@ -1,4 +1,4 @@
-# AGENTS.md
+# FujiNet development standards
 
 FujiNet firmware: one C++20 codebase that builds network-adapter firmware for many retro computers
 (Atari, Apple II, Coleco ADAM, CoCo, Commodore IEC, Lynx, RS232 and more) as an ESP32/ESP32-S3
@@ -179,7 +179,7 @@ tree does not conform.
 
 ## C++ and code structure
 
-Full rules, with the worked `fujiDevice` example, are in **`docs/agent-cpp-style.md`**. Read it
+Full rules, with the worked `fujiDevice` example, are in **`docs/cpp-style.md`**. Read it
 before writing device-side code or anything non-trivial. The rules broken most often:
 
 - **Never return a bare `bool` for success or failure.** Return `success_is_true` or `error_is_true`
@@ -214,7 +214,7 @@ block comment is almost always wrong here.
 - Comment the *why* of a non-obvious choice — a timing constraint, a hardware quirk, a protocol
   requirement. Do not restate what the code already says.
 - Do not narrate your own edit. No "added to fix X", no change logs, no dated notes, no
-  before/after explanations, no `TODO` attributed to an agent. That belongs in the commit message
+  before/after explanations, no `TODO` naming whoever wrote it. That belongs in the commit message
   and the PR, which is where reviewers look for it.
 - Do not leave commented-out code. Delete it; git has it.
 - Match the density of the file you are editing. If the surrounding functions carry no comments,
@@ -276,7 +276,7 @@ One concern per pull request. Large mixed diffs are the most common reason a cha
   `[network-protocol]`, `[fujiDevice]`, `[config]`, `[http]`, `[webui]`, `[all]`.
 - `include/version.h` is bumped by hand at release time only; do not touch it incidentally.
 
-## What agents get wrong here
+## Common mistakes
 
 - **Assuming Arduino.** This is ESP-IDF (`framework = espidf`). There is no `setup()`/`loop()`;
   the entry points are `app_main()` and `main()` in `src/main.cpp`. Arduino `String` is vestigial
@@ -296,7 +296,7 @@ One concern per pull request. Large mixed diffs are the most common reason a cha
 - **Hand-rolling endian conversion** with shifts or `htole*()` instead of the `u*le_t`/`u*be_t` types.
 - **Leaving a comment that the change made untrue.**
 - **Growing a god class or a giant switch** instead of adding a mixin, a handler-table entry, or an
-  `NParser` subclass; see `docs/agent-cpp-style.md`.
+  `NParser` subclass; see `docs/cpp-style.md`.
 - **Building before asking.** Inventing an abstraction or a cross-platform pattern without agreeing
   the design first, when a branch already in flight may change it.
 - **Assuming CI tests the firmware.** It only compiles it.
@@ -321,7 +321,7 @@ not flash or run on hardware, that no test covers the change.
 
 ## Authoritative sources
 
-In-repo: `docs/agent-cpp-style.md` (C++ and code structure, the companion to this file),
+In-repo: `docs/cpp-style.md` (C++ and code structure, the companion to this file),
 `build-sh.md` (canonical build-configuration guide, linked from `README.md`),
 `build-platforms/README.md` (board INI format), `data/webui/README.md` (web UI generation).
 `docs/build-sh-readme.md` duplicates `build-sh.md` and may drift; prefer `build-sh.md`. Off-repo:
