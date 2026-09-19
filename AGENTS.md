@@ -276,6 +276,17 @@ One concern per pull request. Large mixed diffs are the most common reason a cha
   `[network-protocol]`, `[fujiDevice]`, `[config]`, `[http]`, `[webui]`, `[all]`.
 - `include/version.h` is bumped by hand at release time only; do not touch it incidentally.
 
+When the change fixes a tracked issue, put `Fixes #NNNN` on its own line in the **pull request
+description**. GitHub links the two straight away and closes the issue automatically when the PR
+merges, so nobody has to go back and tidy up.
+
+- `Fixes`, `Closes` and `Resolves` all work, as do their `-es`/`-ed` forms. One keyword per issue:
+  `Fixes #1610, #1611` only closes the first, so write `Fixes #1610` and `Fixes #1611`.
+- It belongs in the PR description, not only in a commit message. The squash commit's body is
+  written from the PR, so that is the one place it reliably takes effect.
+- Only use a closing keyword when the PR actually finishes the issue. For partial work write
+  `Refs #NNNN` or `Part of #NNNN`, which links without closing.
+
 ## Common mistakes
 
 - **Assuming Arduino.** This is ESP-IDF (`framework = espidf`). There is no `setup()`/`loop()`;
@@ -295,6 +306,8 @@ One concern per pull request. Large mixed diffs are the most common reason a cha
 - **Testing a `fujiError_t` against `FUJI_ERROR::UNSPECIFIED`** instead of `FUJI_ERROR::NONE`.
 - **Hand-rolling endian conversion** with shifts or `htole*()` instead of the `u*le_t`/`u*be_t` types.
 - **Leaving a comment that the change made untrue.**
+- **Opening a PR that fixes a tracked issue without `Fixes #NNNN` in the description**, leaving the
+  issue to be closed by hand.
 - **Growing a god class or a giant switch** instead of adding a mixin, a handler-table entry, or an
   `NParser` subclass; see `docs/cpp-style.md`.
 - **Building before asking.** Inventing an abstraction or a cross-platform pattern without agreeing
