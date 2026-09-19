@@ -4,11 +4,110 @@
 #include "fujiCommandID.h"
 
 #include <cstring>
+#include <string>
 
 #include "../../include/debug.h"
 
+#include "compat_string.h"
 #include "fujiDevice.h"
 #include "utils.h"
+
+#define ROM_PUSH_STREAM_MAP   1
+#define ROM_PUSH_STREAM_IMAGE 0
+
+// Relays `source` as NET_WRITE frames on DBC stream `stream_id`, which the
+// RP2040's dbc_inbound_handler() demuxes on.
+//
+// The OPEN header (stream id, then size as 4 LE bytes) travels as payload, not
+// params: the RP2040's fujibus.c skips the descriptor chain and exposes only
+// payload to callers. It uses the size to reject an oversized ROM before we
+// pull it over TNFS; older builds read data[0] and ignore the rest.
+//
+// CLOSE always goes out or the RP2040's stream state wedges; on failure it
+// carries a 0x01 abort so partial data isn't booted.
+static bool push_stream(MediaTypeROM *rom, RomStream source, uint16_t stream_id)
+{
+    uint8_t buffer[DISK_SECTORBUF_SIZE];
+    uint32_t expected_size = rom->stream_size(source);
+
+    if (expected_size == 0)
+    {
+        Debug_printv("ROM push: stream %u is empty or unreadable\n", stream_id);
+        return false;
+    }
+
+    struct { uint8_t id; u32le_t size; } open_hdr;
+    static_assert(sizeof(open_hdr) == 5, "OPEN header must not be padded");
+    open_hdr.id = (uint8_t)stream_id;
+    open_hdr.size = expected_size;
+
+    auto reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_OPEN,
+                                        std::string((const char *)&open_hdr, sizeof(open_hdr)));
+    if (!reply || reply->command() != CMD::FUJI_ACK)
+    {
+        Debug_printv("ROM push: failed to open DBC stream %u (%lu bytes)\n",
+                     stream_id, (unsigned long)expected_size);
+        return false;
+    }
+
+    bool ok = true;
+    uint32_t sent = 0;
+    while (sent < expected_size)
+    {
+        size_t got = rom->stream_read(source, sent, buffer, sizeof(buffer));
+        if (got == 0)
+            break; // the size check below reports it
+
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_WRITE,
+                                       std::string((char *)buffer, got));
+        if (!reply || reply->command() != CMD::FUJI_ACK)
+        {
+            Debug_printv("ROM push: failed to send stream %u block\n", stream_id);
+            ok = false;
+            break;
+        }
+        sent += got;
+    }
+
+    if (ok && sent != expected_size)
+    {
+        Debug_printv("ROM push: stream %u short transfer: %lu of %lu bytes\n",
+                     stream_id, (unsigned long)sent, (unsigned long)expected_size);
+        ok = false;
+    }
+
+    if (ok)
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE);
+    else
+        reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_CLOSE,
+                                       std::string(1, '\x01'));
+    if (!reply || reply->command() != CMD::FUJI_ACK)
+    {
+        Debug_printv("ROM push: stream %u close failed/rejected\n", stream_id);
+        ok = false;
+    }
+    return ok;
+}
+
+// The whole ROM goes over at mount time. The image's CLOSE triggers the boot,
+// so the map has to land first.
+static bool push_rom_streams(MediaTypeROM *rom)
+{
+    if (rom->has_memory_map() &&
+        !push_stream(rom, RomStream::MemoryMap, ROM_PUSH_STREAM_MAP))
+    {
+        Debug_printv("ROM push: memory map push failed\n");
+        return false;
+    }
+
+    if (!push_stream(rom, RomStream::Image, ROM_PUSH_STREAM_IMAGE))
+    {
+        Debug_printv("ROM push: ROM push failed\n");
+        return false;
+    }
+
+    return true;
+}
 
 rs232Disk::rs232Disk()
 {
@@ -202,10 +301,17 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
     switch (disk_type)
     {
     case MEDIATYPE_ROM:
+    {
         device_active = true;
         _mount_time = time(NULL);
-        _disk = new MediaTypeROM();
-        return _disk->mount(f, disksize, host, filename);
+        MediaTypeROM *rom = new MediaTypeROM();
+        _disk = rom;
+        rom->_media_host = host;
+        if (filename != nullptr)
+            strlcpy(rom->_disk_filename, filename, sizeof(rom->_disk_filename));
+        rom->mount(f, disksize);
+        return push_rom_streams(rom) ? MEDIATYPE_ROM : MEDIATYPE_UNKNOWN;
+    }
     case MEDIATYPE_IMG:
     case MEDIATYPE_UNKNOWN:
     default:

@@ -107,6 +107,19 @@ add_test(
             ${CMAKE_SOURCE_DIR}/lib/device/NDevice
 )
 
+# ------------------------------------------------------------------------------
+# Policy check: media implementations must not access SYSTEM_BUS directly.
+# The media layer should provide operations on the media itself (open, read,
+# write, close, size, etc.) without knowing how those operations are requested.
+# Bus/protocol handling belongs to the code handling the bus request.
+# ------------------------------------------------------------------------------
+add_test(
+    NAME no_system_bus_in_media
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/check_no_system_bus.py
+            ${CMAKE_SOURCE_DIR}/lib/media
+)
+
 if(FUJINET_TARGET STREQUAL "ATARI")
   add_executable(sio_dstats_tests
     sioNetwork-DSTATS-test.cpp
