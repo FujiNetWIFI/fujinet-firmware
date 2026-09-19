@@ -266,7 +266,9 @@ One concern per pull request. Large mixed diffs are the most common reason a cha
 - A change that touches a shared base and then rolls the result out to several platforms is at least
   two pull requests: the base change, then the per-platform adoption.
 - If a change cannot be explained in a couple of sentences, it is probably more than one change.
-  Split it into a stacked series of small branches, as the `heap-02`..`heap-05` series did.
+  Split it into a series of small branches that each open their **own pull request against
+  `master`**, landing in order, as the `heap-02`..`heap-05` series did. Do not chain a PR onto
+  another open branch — every PR targets `master` and must stand on its own.
 - When you find an unrelated problem mid-change, leave it and mention it. Do not fix it in passing.
 
 ## Commits and pull requests
