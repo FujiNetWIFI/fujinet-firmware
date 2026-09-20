@@ -296,6 +296,32 @@ merges, so nobody has to go back and tidy up.
 - Only use a closing keyword when the PR actually finishes the issue. For partial work write
   `Refs #NNNN` or `Part of #NNNN`, which links without closing.
 
+## Write a short pull request description
+
+The description exists to tell a reviewer what the diff cannot: why the change exists, what to look
+at first, and what you did not verify. Anything else is text they have to read past to find those
+three things. `.github/PULL_REQUEST_TEMPLATE.md` has the shape. Treat it as a prompt sheet, not a form
+to complete — delete every section you have nothing to say in.
+
+- Aim for something that fits on one screen: a summary of one or two sentences, the changes as a
+  handful of bullets, then testing. Testing is the one section worth spending words on.
+- Say what changed and why. The diff already says how, and says it more accurately than a paragraph
+  of prose ever will.
+- One bullet per real change, not per file. A file-by-file walkthrough is the diff with worse
+  formatting.
+- Do not paste build output, test logs, file listings or diff excerpts. Quote the one line that
+  matters, if any line does.
+- Do not narrate the work — no "first I refactored X, then I updated Y", no summary of the commits.
+  The commit list is already on the page.
+- Cut the throat-clearing. No "This PR introduces a comprehensive...", no restating the title, no
+  concluding paragraph about how the change improves the codebase. Start with the thing itself.
+- If the description is long because the change is large, that is the change's problem, not the
+  description's; see Scope of a change above.
+
+This applies with particular force to descriptions written by an AI assistant, which by default run
+several times longer than a reviewer needs, restate the diff, and pad each section to look complete.
+Write the short version instead, and leave a section out rather than filling it with "N/A".
+
 ## Common mistakes
 
 - **Assuming Arduino.** This is ESP-IDF (`framework = espidf`). There is no `setup()`/`loop()`;
@@ -317,6 +343,9 @@ merges, so nobody has to go back and tidy up.
 - **Leaving a comment that the change made untrue.**
 - **Opening a PR that fixes a tracked issue without `Fixes #NNNN` in the description**, leaving the
   issue to be closed by hand.
+- **A PR description that restates the diff.** File-by-file walkthroughs, pasted build logs and
+  padded sections bury the two things a reviewer needs — why, and what you did not test; see
+  Write a short pull request description above.
 - **Growing a god class or a giant switch** instead of adding a mixin, a handler-table entry, or an
   `NParser` subclass; see `docs/cpp-style.md`.
 - **Building before asking.** Inventing an abstraction or a cross-platform pattern without agreeing
