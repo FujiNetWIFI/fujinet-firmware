@@ -620,6 +620,46 @@ const char * FileSystemSDFAT::partition_type()
 }
 
 #ifdef ESP_PLATFORM
+/*
+  Some SD cards answer CMD59 (CRC_ON_OFF) with the R1 illegal-command bit set, which the
+  sdspi layer reports as ESP_ERR_NOT_SUPPORTED (0x106). ESP-IDF runs that step
+  (sdmmc_init_spi_crc) unconditionally for every card brought up over SPI and treats a
+  failure as fatal, so sdmmc_card_init() aborts and the card never mounts:
+
+    E (xxxx) sdmmc_sd: sdmmc_init_spi_crc: sdmmc_send_cmd_crc_on_off returned 0x106
+    E (xxxx) vfs_fat_sdmmc: sdmmc_card_init failed (0x106).
+
+  CRC16 of data transfers is optional in SPI mode per the SD Physical Layer spec (it is only
+  mandatory in SD/native mode), which is why these cards work under the Arduino SD library -
+  its SPI diskio never sends CMD59 at all. IDF offers no Kconfig option or sdmmc_host_t flag
+  to skip the step, so it is redirected here with "-Wl,--wrap=sdmmc_init_spi_crc" (see the
+  build_flags in platformio-ini-files/platformio.common.ini) and made non-fatal: cards that
+  accept CMD59 keep CRC on, cards that reject it mount with CRC off instead of failing.
+
+  Only the SPI path reaches this step - in SD/4-bit mode CRC is mandatory and handled by the
+  hardware - so the SDMMC branch of start() below is unaffected.
+
+  See https://github.com/FujiNetWIFI/fujinet-firmware/issues/1625
+*/
+extern "C"
+{
+    // Exported by the sdmmc component, declared in its private header
+    // esp_private/sdmmc_common.h - declared here so we don't have to reach into that header.
+    esp_err_t sdmmc_send_cmd_crc_on_off(sdmmc_card_t *card, bool crc_enable);
+
+    esp_err_t __wrap_sdmmc_init_spi_crc(sdmmc_card_t *card)
+    {
+        // CMD59 is attempted directly rather than through __real_sdmmc_init_spi_crc(), which
+        // remains linked, because that one does an ESP_LOGE on failure - printing the alarming
+        // "returned 0x106" line on every boot with an affected card.
+        esp_err_t e = sdmmc_send_cmd_crc_on_off(card, true);
+        if(e != ESP_OK)
+            Debug_printf("SD card rejected CMD59/CRC_ON_OFF (%s), continuing with SPI CRC off\r\n", esp_err_to_name(e));
+
+        return ESP_OK; // never fatal
+    }
+}
+
 success_is_true FileSystemSDFAT::start()
 {
     if(_started)
