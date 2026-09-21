@@ -173,6 +173,7 @@ void iwmCPM::iwm_read(const iwm_decoded_cmd_t &cmd)
     {
         size_t numbytes = std::min<uint16_t>(mw, cmd.frame.char_rw.length);
 
+        buffer.resize(numbytes); // operator[] below needs the elements to exist
         for (size_t i = 0; i < numbytes; i++)
         {
             uint8_t b;
