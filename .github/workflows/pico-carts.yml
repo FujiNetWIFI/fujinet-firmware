@@ -8,10 +8,11 @@
 name: "pico cartridges"
 
 on:
+  # Only master builds on push; branch pushes are covered by pull_request, which
+  # used to run the identical SHA a second time.
   push:
     branches:
-      - "**"
-      - "!release"
+      - master
     paths:
       - "pico/**"
       - ".github/workflows/pico-carts.yml"
@@ -23,6 +24,10 @@ on:
       - "pico/**"
       - ".github/workflows/pico-carts.yml"
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
 
 jobs:
   host-tests:

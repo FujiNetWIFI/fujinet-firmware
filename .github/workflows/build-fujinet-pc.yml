@@ -3,11 +3,14 @@
 name: Build FujiNet-PC
 
 on:
+  # Only master builds on push. A branch push used to fire this matrix and the
+  # pull_request event fired it again on the identical SHA, so every commit on
+  # an open PR built twice. Branch work is covered by pull_request below; use
+  # the workflow_dispatch button for a branch that has no PR open yet.
   push:
     # Do not build tags. Do not build release branch
     branches:
-      - "**"
-      - "!release"
+      - master
     tags:
       - "!**"
 
@@ -40,6 +43,16 @@ on:
 
   schedule:
     - cron: '12 3 * * *'
+
+# This is an 8-runner x 6-target matrix: 48 jobs, 18 of them on macOS, where
+# GitHub-hosted concurrency is capped at 5. Superseded runs sat in that queue
+# for hours behind work nobody was waiting on any more.
+concurrency:
+  # Scheduled and manually dispatched runs publish releases, so they get their
+  # own group and are never cancelled. Push and pull_request runs collapse to
+  # the newest run for that PR (or for master).
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
 
 # env:
 #   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)

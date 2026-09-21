@@ -1,11 +1,13 @@
 name: "FujiNet CI"
 
 on:
+  # Only master builds on push; branch pushes are covered by pull_request, which
+  # used to run the identical SHA a second time. workflow_dispatch covers a
+  # branch that has no PR open yet.
   push:
     # Do not build tags. Do not build release branch
     branches:
-      - "**"
-      - "!release"
+      - master
     tags:
       - "!**"
   pull_request:
@@ -13,6 +15,11 @@ on:
     branches:
       - "**"
       - "!release"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
 
 jobs:
   tagged-release:
