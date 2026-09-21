@@ -17,6 +17,10 @@
 
 #define RS232_BAUDRATE 115200
 
+// A peer may legitimately stall before replying: an RP2040 cart commits a 4K
+// flash sector (~400 ms on W25Q parts) before ACKing the chunk that filled it.
+#define RS232_REPLY_TIMEOUT_MS 2000
+
 #define FUJI_COMMAND_PACKET FujiBusPacket
 
 #if !defined(ESP_PLATFORM) || \
@@ -176,7 +180,14 @@ public:
     {
         FujiBusPacket packet(device, command, std::forward<Args>(args)...);
         writeBusPacket(packet);
-        return readBusPacket();
+
+        // Widen the read window for the reply only, so service() keeps the
+        // short framing window.
+        double saved_timeout = _port->readTimeout();
+        _port->setReadTimeout(RS232_REPLY_TIMEOUT_MS);
+        std::unique_ptr<FujiBusPacket> reply = readBusPacket();
+        _port->setReadTimeout(saved_timeout);
+        return reply;
     }
 
     // Convenience wrapper: raw buffer
