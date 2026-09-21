@@ -360,7 +360,6 @@ bool systemBus::_transaction_handle_command(const FujiDWPacket &packet, virtualD
 
         write(_transaction_response.data(), _transaction_response.size());
         _transaction_response.clear();
-        _transaction_response.shrink_to_fit();
         return true;
 
     default:
@@ -1022,7 +1021,6 @@ void systemBus::transaction_success()
            || _transaction_state == TRANS_STATE::DID_GET);
     fujiDev->setErrorCode(NDEV_STATUS::SUCCESS);
     _transaction_response.clear();
-    _transaction_response.shrink_to_fit();
     _transaction_state = TRANS_STATE::INVALID;
 }
 
