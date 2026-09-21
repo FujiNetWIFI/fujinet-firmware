@@ -33,11 +33,36 @@
 #include <cstdint>
 #include <cstring>
 
+// Which companion chip an image is for. RP2040 and RP2350 differ in ways the
+// flashing code cannot paper over: they enumerate in BOOTSEL under different
+// USB product IDs, and they reboot with different PICOBOOT commands
+// (PC_REBOOT vs PC_REBOOT2). RP2354 is an RP2350 die with stacked flash and
+// is FN_PICO_CHIP_RP2350 here. Values must match PICO_CHIPS in build_pico.py.
+#define FN_PICO_CHIP_UNKNOWN 0
+#define FN_PICO_CHIP_RP2040  1
+#define FN_PICO_CHIP_RP2350  2
+
 struct fn_pico_blob
 {
-    const char *name;
+    const char *name;    // [fujinet] pico_artifacts name; also its NVS key, <= 15 chars
     const uint8_t *data;
     size_t size;
+
+    // Hex sha256 of data[0..size), computed at build time. The updater
+    // compares it against what it recorded in NVS after the last successful
+    // flash to decide whether the companion already runs this image, so it
+    // has to be a build-time constant -- hashing the rodata at every boot
+    // would spend time deriving something the build already knew.
+    const char *sha256;
+
+    // XIP address range the image occupies. flash_base is where it is
+    // written; flash_limit, when non-zero, is a hard ceiling the erase and
+    // write must stay below -- the Intellivision cart keeps a LittleFS of
+    // user ROMs and saves above its image, and overrunning it is data loss.
+    uint32_t flash_base;
+    uint32_t flash_limit;
+
+    uint8_t chip;        // FN_PICO_CHIP_*
 };
 
 #ifdef ESP_PLATFORM

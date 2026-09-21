@@ -43,6 +43,7 @@
 import argparse
 import configparser
 import hashlib
+import json
 import os
 import re
 import shlex
@@ -119,6 +120,39 @@ CMAKE_MODES = ("cmake-ninja", "cmake-make")
 BUILD_MODES = ("cmake-ninja", "cmake-make", "make", "command")
 
 BLOB_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+# A blob name doubles as its NVS key on the ESP32 side (namespace "picofw",
+# one entry per blob holding the sha256 last successfully flashed), and NVS
+# keys are capped at 15 characters plus a NUL. Enforced here so the failure
+# lands on whoever edits the ini, not at runtime on a device where the
+# nvs_set_str() would just return ESP_ERR_NVS_KEY_TOO_LONG and the updater
+# would reflash the companion on every single boot.
+BLOB_NAME_MAX = 15
+
+# Erase granularity of every RP-series flash part; also the write chunk the
+# ESP32 side uses. Only needed here to bounds-check against pico_flash_limit
+# the same way PicobootClient::flashImage() does at runtime.
+PICO_FLASH_SECTOR_SIZE = 4096
+
+# Companion chips the ESP32-side updater knows how to reboot. Kept in sync
+# with FN_PICO_CHIP_* in lib/hardware/fn_pico_blob.h: RP2040 takes PC_REBOOT,
+# RP2350/RP2354 take PC_REBOOT2, and they enumerate in BOOTSEL under
+# different USB PIDs -- so a wrong value here is not cosmetic.
+# RP2354 is an RP2350 die with stacked flash: same bootrom, same BOOTSEL USB
+# PID, same PC_REBOOT2 -- it is spelled "rp2350" here, not given its own value.
+PICO_CHIPS = {"rp2040": "FN_PICO_CHIP_RP2040", "rp2350": "FN_PICO_CHIP_RP2350"}
+
+# The ESP32-side build flag that compiles in the updater which consumes these
+# blobs. A board carrying a blob without it would embed a few hundred KB of
+# rodata that nothing reads, and the companion would silently never be
+# flashed -- so the two are required to agree. See _require_picoboot_define().
+PICOBOOT_DEFINE = "CONFIG_USB_PICOBOOT_HOST_ENABLED"
+
+# Written next to the ESP32 build outputs for build_firmwarezip.py to fold
+# into release.json's optional "companion" array, which is what tells the
+# FujiNet-Flasher to mention the second flashing step. Written for EVERY
+# board (an empty list when there is nothing to embed), same invariant as
+# GENERATED_CPP.
+BLOB_SIDECAR_JSON = "fn_pico_blobs.json"
 
 TRUE_WORDS = {"yes", "true", "1", "on"}
 FALSE_WORDS = {"no", "false", "0", "off"}
@@ -132,8 +166,9 @@ class PicoConfig:
     """Everything resolved from one board's [fujinet] pico_* ini keys."""
 
     def __init__(self, board, ini_path, src, build_mode, build_dir, build_type,
-                 pico_board, cmake_args, make_args, command_lines, toolchain,
-                 sdk_path, sdk_required, artifacts, repo, repo_ref, repo_dir):
+                 pico_board, cmake_args, make_args, command_lines, prebuild_lines,
+                 toolchain, sdk_path, sdk_required, artifacts, repo, repo_ref,
+                 repo_dir, chip, flash_base, flash_limit):
         self.board = board
         self.ini_path = ini_path
         self.src = src
@@ -144,6 +179,7 @@ class PicoConfig:
         self.cmake_args = cmake_args
         self.make_args = make_args
         self.command_lines = command_lines
+        self.prebuild_lines = prebuild_lines
         self.toolchain = toolchain
         self.sdk_path = sdk_path
         self.sdk_required = sdk_required
@@ -151,6 +187,9 @@ class PicoConfig:
         self.repo = repo
         self.repo_ref = repo_ref
         self.repo_dir = repo_dir
+        self.chip = chip                # "rp2040" | "rp2350"
+        self.flash_base = flash_base    # int, XIP address the image is written at
+        self.flash_limit = flash_limit  # int, 0 = no limit; erase/write never reaches it
 
     @property
     def build_dir_abs(self) -> str:
@@ -208,6 +247,12 @@ def parse_artifacts(raw: str, board: str) -> "Dict[str, str]":
             fail(board, "pico_artifacts",
                  f"invalid artifact name '{name}' (from line '{line}') -- "
                  f"must match {BLOB_NAME_RE.pattern}")
+        if len(name) > BLOB_NAME_MAX:
+            fail(board, "pico_artifacts",
+                 f"artifact name '{name}' is {len(name)} characters -- the "
+                 f"limit is {BLOB_NAME_MAX}, because the ESP32 side uses it "
+                 f"verbatim as an NVS key to remember which image it last "
+                 f"flashed, and NVS keys are capped at {BLOB_NAME_MAX} chars")
         if name in result:
             fail(board, "pico_artifacts", f"duplicate artifact name '{name}'")
         result[name] = path
@@ -275,6 +320,45 @@ def read_config(ini_path: str, board: str) -> Optional[PicoConfig]:
     pico_build_type = section.get("pico_build_type", "Release").strip() or "Release"
     pico_board = section.get("pico_board", "").strip() or None
 
+    # Which chip the artifact is for. No default: the ESP32 side reboots
+    # RP2040 and RP2350/RP2354 with different PICOBOOT commands and matches
+    # a different BOOTSEL USB PID, and guessing wrong fails on hardware
+    # rather than here. RP2354 is an RP2350 die -- spell it "rp2350".
+    pico_chip = section.get("pico_chip", "").strip().lower()
+    if not pico_chip:
+        fail(board, "pico_chip",
+             "[fujinet] pico_src is set but pico_chip is missing -- give the "
+             f"companion chip, one of {sorted(PICO_CHIPS)} (RP2354 counts as "
+             f"rp2350)")
+    if pico_chip not in PICO_CHIPS:
+        fail(board, "pico_chip",
+             f"unsupported chip '{pico_chip}' -- expected one of "
+             f"{sorted(PICO_CHIPS)} (RP2354 counts as rp2350)")
+
+    def get_addr(key: str, default: int) -> int:
+        raw = section.get(key, "").strip()
+        if raw == "":
+            return default
+        try:
+            return int(raw, 0)
+        except ValueError:
+            fail(board, key, f"'{raw}' is not an integer (use 0x... for hex)")
+            raise AssertionError("unreachable")
+
+    # Where the image is written. 0x10000000 is the XIP base on every
+    # RP-series part, so the default is right unless a board deliberately
+    # writes somewhere else (a second slot, say).
+    pico_flash_base = get_addr("pico_flash_base", 0x10000000)
+    # A hard ceiling the erase/write must stay below. The Intellivision cart
+    # is why this exists: its LittleFS lives at flash offset 0x100000 and
+    # holds user ROMs and saves, so an oversized image must fail the build
+    # here rather than eat the filesystem on the first boot after an update.
+    pico_flash_limit = get_addr("pico_flash_limit", 0)
+    if pico_flash_limit and pico_flash_limit <= pico_flash_base:
+        fail(board, "pico_flash_limit",
+             f"0x{pico_flash_limit:08x} is not above pico_flash_base "
+             f"0x{pico_flash_base:08x}")
+
     pico_sdk_path = section.get("pico_sdk_path", "").strip()
     if not pico_sdk_path:
         pico_sdk_path = os.environ.get("PICO_SDK_PATH", "").strip() or "/usr/share/pico-sdk"
@@ -291,8 +375,14 @@ def read_config(ini_path: str, board: str) -> Optional[PicoConfig]:
         "pico_board": pico_board or "",
         "build_type": pico_build_type,
         "src": pico_src,
+        # Repo-relative, NOT relative to the cwd a command runs in --
+        # pico_prebuild/pico_command lines run with cwd=pico_src, so use
+        # {repo} for anything outside the companion source tree.
         "build_dir": os.path.join(pico_src, pico_build_dir),
         "sdk": pico_sdk_path,
+        # Absolute project root. Both modes run with cwd = project root at
+        # this point (SCons by construction, CLI via main()'s chdir).
+        "repo": os.getcwd(),
     })
 
     def expand(key: str) -> str:
@@ -324,15 +414,26 @@ def read_config(ini_path: str, board: str) -> Optional[PicoConfig]:
     cmake_args = parse_multiline_args("pico_cmake_args")
     make_args = parse_multiline_args("pico_make_args")
 
-    command_lines: List[List[str]] = []
-    for line in expand("pico_command").splitlines():
-        line = line.strip()
-        if not line or line.startswith((";", "#")):
-            continue
-        command_lines.append(shlex.split(line))
+    def parse_command_lines(key: str) -> List[List[str]]:
+        lines: List[List[str]] = []
+        for line in expand(key).splitlines():
+            line = line.strip()
+            if not line or line.startswith((";", "#")):
+                continue
+            lines.append(shlex.split(line))
+        return lines
+
+    command_lines = parse_command_lines("pico_command")
     if pico_build == "command" and not command_lines:
         fail(board, "pico_command",
              "pico_build = command requires at least one pico_command line")
+
+    # Runs before the configure/build step in EVERY mode, with cwd=pico_src,
+    # after the build dir has been created. Exists for generated sources the
+    # companion build treats as inputs -- the fujiversal tree includes its
+    # cartridge ROM as build/<BOARD>/rom.h, which upstream's Makefile
+    # produces with xxd and this repo produces with pico/tools/rom2h.py.
+    prebuild_lines = parse_command_lines("pico_prebuild")
 
     artifacts = parse_artifacts(expand("pico_artifacts"), board)
 
@@ -340,10 +441,12 @@ def read_config(ini_path: str, board: str) -> Optional[PicoConfig]:
         board=board, ini_path=ini_path, src=pico_src, build_mode=pico_build,
         build_dir=pico_build_dir, build_type=pico_build_type,
         pico_board=pico_board, cmake_args=cmake_args, make_args=make_args,
-        command_lines=command_lines, toolchain=toolchain,
+        command_lines=command_lines, prebuild_lines=prebuild_lines,
+        toolchain=toolchain,
         sdk_path=pico_sdk_path, sdk_required=pico_sdk_required,
         artifacts=artifacts, repo=pico_repo, repo_ref=pico_repo_ref,
-        repo_dir=pico_repo_dir,
+        repo_dir=pico_repo_dir, chip=pico_chip, flash_base=pico_flash_base,
+        flash_limit=pico_flash_limit,
     )
 
 
@@ -470,9 +573,46 @@ def _ensure_remote_source(cfg: PicoConfig, force_external: bool, dry_run: bool) 
         f"-> {resolved} cloned into {repo_dir}")
 
 
+def _submodule_paths() -> List[str]:
+    """Paths listed in .gitmodules, normalised. Parsed directly rather than
+    shelled out to `git config -f`, so this works from a tarball export with
+    no git available."""
+    paths: List[str] = []
+    if not os.path.isfile(".gitmodules"):
+        return paths
+    parser = configparser.ConfigParser()
+    try:
+        # .gitmodules is INI-shaped but its section names are quoted
+        # ([submodule "pico/fujiversal"]), which configparser handles fine.
+        parser.read(".gitmodules")
+    except configparser.Error:
+        return paths
+    for sect in parser.sections():
+        path = parser[sect].get("path", "").strip()
+        if path:
+            paths.append(os.path.normpath(path))
+    return paths
+
+
+def _check_submodule_initialised(cfg: PicoConfig) -> None:
+    """An uninitialised submodule is an empty directory, so the CMakeLists.txt
+    check below would report 'no CMakeLists.txt found', which is true but
+    sends the reader looking for a broken ini key instead of a one-line fix."""
+    src = os.path.normpath(cfg.src)
+    for sub in _submodule_paths():
+        if src == sub or src.startswith(sub + os.sep):
+            if not os.path.isdir(sub) or not os.listdir(sub):
+                fail(cfg.board, "pico_src",
+                     f"{sub} is a git submodule that has not been checked "
+                     f"out -- run: git submodule update --init {sub}")
+            return
+
+
 def ensure_source(cfg: PicoConfig, force_external: bool = False, dry_run: bool = False) -> None:
     if cfg.repo:
         _ensure_remote_source(cfg, force_external=force_external, dry_run=dry_run)
+    else:
+        _check_submodule_initialised(cfg)
 
     if not os.path.isdir(cfg.src):
         fail(cfg.board, "pico_src", f"directory does not exist: {cfg.src}")
@@ -481,6 +621,20 @@ def ensure_source(cfg: PicoConfig, force_external: bool = False, dry_run: bool =
              f"no CMakeLists.txt found in {cfg.src} (pico_build={cfg.build_mode})")
     if cfg.build_mode == "make" and not os.path.isfile(os.path.join(cfg.src, "Makefile")):
         fail(cfg.board, "pico_src", f"no Makefile found in {cfg.src} (pico_build=make)")
+
+
+def source_revision(cfg: PicoConfig) -> str:
+    """Best-effort identity of the companion source tree, recorded in the
+    generated .cpp's comment header and the sidecar JSON so a firmware image
+    can be traced back to the commit its companion blob came from."""
+    if not os.path.isdir(os.path.join(cfg.src, ".git")):
+        return "in-tree"
+    result = subprocess.run(["git", "-C", cfg.src, "rev-parse", "HEAD"],
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.DEVNULL, text=True)
+    if result.returncode != 0:
+        return "unknown"
+    return result.stdout.strip() or "unknown"
 
 
 # ---------------------------------------------------------------------------
@@ -514,6 +668,14 @@ def build(cfg: PicoConfig, reconfigure: bool = False, dry_run: bool = False) -> 
         os.makedirs(build_dir_abs, exist_ok=True)
 
     extra_env = {"PICO_SDK_PATH": cfg.sdk_path} if cfg.sdk_required else None
+
+    # Generated inputs the companion build expects to already exist (e.g. a
+    # ROM rendered as a C header). After the build dir exists, since that is
+    # usually where they are written; before configure, since a cmake glob
+    # would otherwise miss them on a first build.
+    for line_tokens in cfg.prebuild_lines:
+        run(line_tokens, cwd=cfg.src, board=cfg.board, key="pico_prebuild",
+            extra_env=extra_env, dry_run=dry_run)
 
     if cfg.build_mode == "cmake-ninja":
         marker = os.path.join(build_dir_abs, "build.ninja")
@@ -598,7 +760,26 @@ def collect(cfg: PicoConfig, required: bool) -> Optional[List[Tuple[str, bytes, 
 _BYTES_PER_LINE = 20
 
 
-def render(board: str, artifacts: Optional[List[Tuple[str, bytes, str]]]) -> str:
+def check_flash_bounds(cfg: PicoConfig, artifacts: List[Tuple[str, bytes, str]]) -> None:
+    """Refuse to embed an image that the ESP32 side could not write without
+    running past pico_flash_limit. The runtime checks this too, but failing
+    the build is the only place it can be fixed, and a runtime failure would
+    otherwise only show up as a device that never finishes flashing."""
+    if not cfg.flash_limit:
+        return
+    for name, data, path in artifacts:
+        sectors = (len(data) + PICO_FLASH_SECTOR_SIZE - 1) // PICO_FLASH_SECTOR_SIZE
+        end = cfg.flash_base + sectors * PICO_FLASH_SECTOR_SIZE
+        if end > cfg.flash_limit:
+            fail(cfg.board, "pico_flash_limit",
+                 f"artifact '{name}' ({len(data)} bytes, {sectors} sectors "
+                 f"from 0x{cfg.flash_base:08x}) would be written up to "
+                 f"0x{end:08x}, past the limit 0x{cfg.flash_limit:08x} -- "
+                 f"{path}")
+
+
+def render(board: str, cfg: Optional[PicoConfig],
+           artifacts: Optional[List[Tuple[str, bytes, str]]]) -> str:
     if not artifacts:
         return (
             f"// AUTO-GENERATED by build_pico.py for board '{board}' -- do not edit, do not commit.\n"
@@ -612,13 +793,16 @@ def render(board: str, artifacts: Optional[List[Tuple[str, bytes, str]]]) -> str
             "// entry; fn_pico_blob_count stays 0 and no consumer should ever\n"
             "// index into it.\n"
             "const fn_pico_blob fn_pico_blobs[] = {\n"
-            "    { nullptr, nullptr, 0 },\n"
+            "    { nullptr, nullptr, 0, nullptr, 0, 0, FN_PICO_CHIP_UNKNOWN },\n"
             "};\n"
             "const size_t fn_pico_blob_count = 0;\n"
             "}\n"
         )
 
+    assert cfg is not None  # artifacts only ever come from a real config
+    rev = source_revision(cfg)
     out = [f"// AUTO-GENERATED by build_pico.py for board '{board}' -- do not edit, do not commit.\n",
+           f"// Companion source: {cfg.src} @ {rev}\n",
            "// Sources:\n"]
     for name, data, path in artifacts:
         sha = hashlib.sha256(data).hexdigest()
@@ -635,14 +819,45 @@ def render(board: str, artifacts: Optional[List[Tuple[str, bytes, str]]]) -> str
             row = data[i:i + _BYTES_PER_LINE]
             out.append("    " + ",".join(f"0x{b:02x}" for b in row) + ",\n")
         out.append("};\n")
+        # The sha256 is a build-time constant rather than something the
+        # ESP32 hashes at boot: it is compared against an NVS record on
+        # every boot to decide whether the companion already runs this
+        # image, and hashing ~113 KB of rodata each time to learn something
+        # the build already knows would just be a slower boot.
+        sha = hashlib.sha256(data).hexdigest()
+        out.append(f'static const char fn_pico_sha_{ident}[] = "{sha}";\n')
     out.append("const fn_pico_blob fn_pico_blobs[] = {\n")
     for name, _data, _path in artifacts:
         ident = sanitize_c_ident(name)
-        out.append(f'    {{ "{name}", fn_pico_blob_{ident}, sizeof(fn_pico_blob_{ident}) }},\n')
+        out.append(
+            f'    {{ "{name}", fn_pico_blob_{ident}, sizeof(fn_pico_blob_{ident}),\n'
+            f"      fn_pico_sha_{ident}, 0x{cfg.flash_base:08x}u, "
+            f"0x{cfg.flash_limit:08x}u, {PICO_CHIPS[cfg.chip]} }},\n")
     out.append("};\n")
     out.append(f"const size_t fn_pico_blob_count = {len(artifacts)};\n")
     out.append("}\n")
     return "".join(out)
+
+
+def render_sidecar(cfg: Optional[PicoConfig],
+                   artifacts: Optional[List[Tuple[str, bytes, str]]]) -> str:
+    """The same facts as the generated .cpp, as JSON, for build_firmwarezip.py
+    to copy into release.json. Always valid JSON, always a list."""
+    entries = []
+    if artifacts and cfg is not None:
+        rev = source_revision(cfg)
+        for name, data, _path in artifacts:
+            entries.append({
+                "name": name,
+                "chip": cfg.chip,
+                "size": len(data),
+                "sha256": hashlib.sha256(data).hexdigest(),
+                "flash_base": f"0x{cfg.flash_base:08x}",
+                "flash_limit": f"0x{cfg.flash_limit:08x}",
+                "source": cfg.src,
+                "source_rev": rev,
+            })
+    return json.dumps(entries, indent=4) + "\n"
 
 
 def write_if_changed(path: str, content: str) -> bool:
@@ -662,9 +877,21 @@ def write_if_changed(path: str, content: str) -> bool:
     return True
 
 
-def generate(board: str, ini_path: str, artifacts: Optional[List[Tuple[str, bytes, str]]]) -> None:
-    content = render(board, artifacts)
-    write_if_changed(GENERATED_CPP, content)
+def generate(board: str, ini_path: str, cfg: Optional[PicoConfig],
+             artifacts: Optional[List[Tuple[str, bytes, str]]],
+             sidecar_dir: Optional[str] = None) -> None:
+    if artifacts and cfg is not None:
+        check_flash_bounds(cfg, artifacts)
+
+    write_if_changed(GENERATED_CPP, render(board, cfg, artifacts))
+
+    # Written unconditionally (an empty list when there is nothing to
+    # embed) so build_firmwarezip.py can tell "this board has no companion"
+    # apart from "build_pico.py never ran".
+    if sidecar_dir:
+        write_if_changed(os.path.join(sidecar_dir, BLOB_SIDECAR_JSON),
+                          render_sidecar(cfg, artifacts))
+
     if artifacts:
         log(f"board '{board}': embedded {len(artifacts)} artifact(s) "
             f"(from {ini_path}) into {GENERATED_CPP}")
@@ -694,6 +921,44 @@ def _target_class(targets: List[str]) -> str:
     return "full"
 
 
+def _require_picoboot_define(cfg: PicoConfig, scons_env=None) -> None:
+    """A board that embeds a companion image must also compile in the code
+    that flashes it. Checked here because the two live in different ini
+    sections -- [fujinet] pico_* and [env:<board>] build_flags -- and
+    nothing else would notice them disagreeing: the image would be embedded,
+    the updater would not exist, and the companion would silently never be
+    flashed while the firmware still grew by the size of the image."""
+    # The ini text is the reliable source in both modes: in SCons mode
+    # PROJECT_CONFIG points at the merged ini, and in CLI mode this is the
+    # same ini the pico config was read from.
+    parser = configparser.ConfigParser(inline_comment_prefixes=(";", "#"))
+    try:
+        parser.read(cfg.ini_path)
+        flags = parser.get(f"env:{cfg.board}", "build_flags", fallback="")
+    except configparser.Error:
+        flags = ""
+    if PICOBOOT_DEFINE in flags:
+        return
+
+    # Fall back to what PlatformIO actually resolved, which also covers a
+    # board that inherits the flag from somewhere other than its own section.
+    if scons_env is not None:
+        try:
+            resolved = scons_env.GetProjectOption("build_flags") or []
+            if isinstance(resolved, str):
+                resolved = [resolved]
+            if any(PICOBOOT_DEFINE in str(f) for f in resolved):
+                return
+        except Exception:
+            pass
+
+    fail(cfg.board, "build_flags",
+         f"[fujinet] pico_src embeds a companion image for this board, but "
+         f"-D {PICOBOOT_DEFINE}=1 is not in [env:{cfg.board}] build_flags. "
+         f"Without it the ESP32 firmware carries the image but has no code "
+         f"to flash it. Add the define, or drop the pico_* keys.")
+
+
 def _skip_pico_requested(cli_flag: bool) -> bool:
     env_flag = os.environ.get("FUJINET_SKIP_PICO", "").strip().lower() in TRUE_WORDS
     if not (cli_flag or env_flag):
@@ -711,19 +976,26 @@ def _skip_pico_requested(cli_flag: bool) -> bool:
 
 def _dispatch(board: str, ini_path: str, cfg: Optional[PicoConfig],
                targets: List[str], *, dry_run: bool, reconfigure: bool,
-               force_external: bool, no_generate: bool, skip_pico: bool) -> int:
+               force_external: bool, no_generate: bool, skip_pico: bool,
+               sidecar_dir: Optional[str] = None, scons_env=None) -> int:
     tclass = _target_class(targets)
 
     if tclass == "clean":
         _remove_generated()
         return 0
 
+    # Checked before --skip-pico blanks the config: a misconfigured board
+    # should fail the same way on a CI runner without an ARM toolchain as
+    # it does on a developer's machine.
+    if cfg is not None:
+        _require_picoboot_define(cfg, scons_env)
+
     if skip_pico:
         cfg = None
 
     if cfg is None:
         if not no_generate:
-            generate(board, ini_path, None)
+            generate(board, ini_path, None, None, sidecar_dir)
         return 0
 
     if tclass == "no-build":
@@ -731,7 +1003,7 @@ def _dispatch(board: str, ini_path: str, cfg: Optional[PicoConfig],
         # just reflect whatever's already built (or a stub, if nothing is).
         artifacts = collect(cfg, required=False)
         if not no_generate:
-            generate(board, ini_path, artifacts)
+            generate(board, ini_path, cfg, artifacts, sidecar_dir)
         return 0
 
     # tclass == "full": the only path that actually needs a real build.
@@ -744,7 +1016,7 @@ def _dispatch(board: str, ini_path: str, cfg: Optional[PicoConfig],
         return 0
     artifacts = collect(cfg, required=True)
     if not no_generate:
-        generate(board, ini_path, artifacts)
+        generate(board, ini_path, cfg, artifacts, sidecar_dir)
     return 0
 
 
@@ -765,13 +1037,16 @@ def _scons_entry(env) -> None:
 
     skip_pico = _skip_pico_requested(False)
     cfg, resolved_ini = resolve_config(ini_path, board)
+    # $BUILD_DIR is where build_firmwarezip.py looks for the sidecar, next
+    # to the bootloader/partitions/firmware images it already reads.
+    sidecar_dir = env.subst("$BUILD_DIR")
     # Any PicoBuildError raised below propagates straight out of this
     # "pre:" extra_script's exec, which is exactly how build_pico_intv.py's
     # fail() aborted the build before it -- SCons treats an uncaught
     # exception during extra_script execution as a fatal build error.
     _dispatch(board, resolved_ini, cfg, targets, dry_run=False,
               reconfigure=False, force_external=False, no_generate=False,
-              skip_pico=skip_pico)
+              skip_pico=skip_pico, sidecar_dir=sidecar_dir, scons_env=env)
 
 
 # ---------------------------------------------------------------------------
@@ -793,10 +1068,15 @@ def _print_config(board: str, ini_path: str, cfg: Optional[PicoConfig]) -> None:
               "to build (a stub fn_pico_blob_data.cpp would be written)")
         return
     print(f"  pico_src         = {cfg.src}")
+    print(f"  pico_chip        = {cfg.chip}  ({PICO_CHIPS[cfg.chip]})")
     print(f"  pico_build       = {cfg.build_mode}")
     print(f"  pico_build_dir   = {cfg.build_dir}  (-> {cfg.build_dir_abs})")
     print(f"  pico_build_type  = {cfg.build_type}")
     print(f"  pico_board       = {cfg.pico_board or '(unset)'}")
+    print(f"  pico_flash_base  = 0x{cfg.flash_base:08x}")
+    print(f"  pico_flash_limit = 0x{cfg.flash_limit:08x}"
+          f"{'  (no limit)' if not cfg.flash_limit else ''}")
+    print(f"  pico_prebuild    = {cfg.prebuild_lines}")
     print(f"  pico_cmake_args  = {cfg.cmake_args}")
     print(f"  pico_make_args   = {cfg.make_args}")
     print(f"  pico_command     = {cfg.command_lines}")
@@ -886,23 +1166,34 @@ def main(argv=None) -> int:
         return 1
 
     ini_path = _resolve_ini_cli(args, board)
-    cfg, resolved_ini = resolve_config(ini_path, board)
 
-    if args.print_config:
-        # Must exit before any ensure_source()/preflight()/build() call --
-        # printing the config should never require a toolchain, network
-        # access, or a writable tree.
-        _print_config(board, resolved_ini, cfg)
-        return 0
-
-    skip_pico = _skip_pico_requested(args.skip_pico)
-    targets = args.pio_target or []
-
+    # resolve_config() is inside the handler too: a bad pico_chip / malformed
+    # pico_flash_limit / missing pico_repo_ref is an ordinary misconfiguration
+    # and deserves the same one-line message as a failed build, not a
+    # traceback -- and it must read that way under --print-config as well.
     try:
+        cfg, resolved_ini = resolve_config(ini_path, board)
+
+        if args.print_config:
+            # Must exit before any ensure_source()/preflight()/build() call
+            # -- printing the config should never require a toolchain,
+            # network access, or a writable tree.
+            _print_config(board, resolved_ini, cfg)
+            return 0
+
+        skip_pico = _skip_pico_requested(args.skip_pico)
+        targets = args.pio_target or []
+
+        # Mirror where PlatformIO would put it, so a CLI run leaves the same
+        # artifacts a `pio run` would and build_firmwarezip.py finds it
+        # either way.
+        sidecar_dir = os.path.join(".pio", "build", board)
+
         return _dispatch(board, resolved_ini, cfg, targets,
                           dry_run=args.dry_run, reconfigure=args.reconfigure,
                           force_external=args.force_external,
-                          no_generate=args.no_generate, skip_pico=skip_pico)
+                          no_generate=args.no_generate, skip_pico=skip_pico,
+                          sidecar_dir=sidecar_dir)
     except PicoBuildError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
