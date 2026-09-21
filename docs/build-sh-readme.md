@@ -130,7 +130,26 @@ entirely) while iterating on it. Set `FUJINET_SKIP_PICO=1` to do the opposite --
 companion firmware build during a normal ESP32 build and emit a stub instead. This matters
 because `./build.sh -a` (and `build-platforms/build-all.sh`) walks every board ini in one
 pass, and not every environment building "all boards" has the companion MCU toolchain (e.g.
-`arm-none-eabi-gcc`) installed.
+`arm-none-eabi-gcc`) installed. `build-all.sh` sets it for itself when no toolchain is
+present, so a sweep of every board still works without one.
+
+A board that sets `pico_src` must also put `-D CONFIG_USB_PICOBOOT_HOST_ENABLED=1` in its
+`[env:<board>]` `build_flags`: that is what compiles in the ESP32-side updater which pushes
+the image to the companion at boot. `build_pico.py` fails the build if the two disagree,
+because otherwise the firmware would carry the image and silently never flash it.
+
+Two of these boards build from **`pico/fujiversal`, a git submodule**. After a fresh clone:
+
+```
+git submodule update --init pico/fujiversal
+```
+
+`build_pico.py` says exactly that if the submodule is missing, rather than reporting an
+absent `CMakeLists.txt`.
+
+For how the embedded image actually reaches the companion MCU -- the boot sequence, the
+`PICOFW:` log lines, when a reflash happens, the BOOTSEL recovery paths, and what to touch
+when adding another Fujiversal board -- see [fujiversal-flashing.md](fujiversal-flashing.md).
 
 ## Supported Boards
 
