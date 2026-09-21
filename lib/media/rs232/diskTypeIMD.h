@@ -16,8 +16,7 @@ public:
     // whether the file was opened "rb" or "rb+", so the two must agree.
     explicit MediaTypeIMD(bool writable) : _writable(writable) {}
 
-    mediatype_t mount(fnFile *f, uint32_t disksize, fujiHost *host = nullptr,
-                      const char *filename = nullptr) override;
+    mediatype_t mount(fnFile *f, uint32_t disksize) override;
     void unmount() override;
 
     error_is_true read(uint32_t sectornum, uint32_t *readcount) override;

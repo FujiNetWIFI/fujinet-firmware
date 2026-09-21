@@ -45,7 +45,7 @@ void MediaTypeIMD::_derive_geometry()
 
     for (uint32_t i = 0; i < _imd.track_count(); i++)
     {
-        if (!_imd.track_info(i, t))
+        if (_imd.track_info(i, t).is_error())
             continue;
         if (t.cyl > maxcyl)
             maxcyl = t.cyl;
@@ -78,9 +78,9 @@ void MediaTypeIMD::_fill_percom()
     _percomBlock.drive_present = 0xFF;
 }
 
-mediatype_t MediaTypeIMD::mount(fnFile *f, uint32_t disksize, fujiHost *host, const char *filename)
+mediatype_t MediaTypeIMD::mount(fnFile *f, uint32_t disksize)
 {
-    Debug_printf("IMD MOUNT %s (%lu bytes, %s)\r\n", filename != nullptr ? filename : "?",
+    Debug_printf("IMD MOUNT %s (%lu bytes, %s)\r\n", _disk_filename,
                  (unsigned long)disksize, _writable ? "rw" : "ro");
 
     // Take the handle first: on a failed mount the caller leaves the file open
@@ -176,7 +176,7 @@ error_is_true MediaTypeIMD::read(uint32_t sectornum, uint32_t *readcount)
     // address mark is ordinary CP/M data. Deliver both and flag them in the
     // controller status: an error reply carries no payload at all.
     IMDSectorInfo si;
-    if (_imd.sector_info(sector_to_lba(sectornum), si))
+    if (_imd.sector_info(sector_to_lba(sectornum), si).is_success())
     {
         if (si.had_error)
             _disk_controller_status |= DISK_CTRL_STATUS_CRC_ERROR;
@@ -212,7 +212,7 @@ error_is_true MediaTypeIMD::write(uint32_t sectornum, bool verify)
 
     // Separate an unreadable sector from a record that cannot take the data
     IMDSectorInfo si;
-    if (_imd.sector_info(sector_to_lba(sectornum), si) && si.unavailable)
+    if (_imd.sector_info(sector_to_lba(sectornum), si).is_success() && si.unavailable)
     {
         Debug_printf("IMD::write lba %lu is unavailable\r\n", (unsigned long)sectornum);
         _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_MISSING;

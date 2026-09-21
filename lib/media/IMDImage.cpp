@@ -47,7 +47,7 @@ public:
 
     bool read(void *dst, uint32_t len)
     {
-        uint8_t *out = (uint8_t *)dst;
+        uint8_t *out = static_cast<uint8_t *>(dst);
         while (len > 0)
         {
             if (!_fill())
@@ -427,10 +427,10 @@ uint16_t IMDImage::sector_size(uint32_t lba) const
     return _sectors[lba].size;
 }
 
-bool IMDImage::track_info(uint32_t track, IMDTrackInfo &out) const
+success_is_true IMDImage::track_info(uint32_t track, IMDTrackInfo &out) const
 {
     if (track >= _tracks.size())
-        return false;
+        RETURN_ERROR_AS_FALSE();
     const TrackRef &t = _tracks[track];
     out.first_lba = t.first_lba;
     out.nsec = t.nsec;
@@ -440,13 +440,13 @@ bool IMDImage::track_info(uint32_t track, IMDTrackInfo &out) const
     out.size_code = t.size_code;
     out.has_cyl_map = (t.map_flags & IMD_HEAD_CYL_MAP) != 0;
     out.has_head_map = (t.map_flags & IMD_HEAD_HEAD_MAP) != 0;
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
-bool IMDImage::sector_info(uint32_t lba, IMDSectorInfo &out) const
+success_is_true IMDImage::sector_info(uint32_t lba, IMDSectorInfo &out) const
 {
     if (lba >= _sectors.size())
-        return false;
+        RETURN_ERROR_AS_FALSE();
     const SectorRef &s = _sectors[lba];
     out.size = s.size;
     out.id = s.id;
@@ -459,10 +459,10 @@ bool IMDImage::sector_info(uint32_t lba, IMDSectorInfo &out) const
     out.compressed = (f & IMD_REC_COMPRESSED) != 0;
     out.deleted = (f & IMD_REC_DELETED) != 0;
     out.had_error = (f & IMD_REC_ERROR) != 0;
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
-bool IMDImage::find_lba(uint8_t cyl, uint8_t head, uint8_t id, uint32_t &lba) const
+success_is_true IMDImage::find_lba(uint8_t cyl, uint8_t head, uint8_t id, uint32_t &lba) const
 {
     for (size_t t = 0; t < _tracks.size(); t++)
     {
@@ -474,11 +474,11 @@ bool IMDImage::find_lba(uint8_t cyl, uint8_t head, uint8_t id, uint32_t &lba) co
             if (_sectors[tr.first_lba + i].id == id)
             {
                 lba = tr.first_lba + i;
-                return true;
+                RETURN_SUCCESS_AS_TRUE();
             }
         }
     }
-    return false;
+    RETURN_ERROR_AS_FALSE();
 }
 
 IMDStatus IMDImage::read_sector(uint32_t lba, uint8_t *buf, uint32_t buflen, uint16_t *out_len)
@@ -567,10 +567,10 @@ IMDStatus IMDImage::write_sector(uint32_t lba, const uint8_t *buf, uint16_t len)
     return IMDStatus::Ok;
 }
 
-bool IMDImage::_locate_linear(uint32_t byte_off, uint32_t &lba, uint32_t &sec_off) const
+success_is_true IMDImage::_locate_linear(uint32_t byte_off, uint32_t &lba, uint32_t &sec_off) const
 {
     if (byte_off >= _linear_size || _tracks.empty())
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     size_t lo = 0, hi = _tracks.size() - 1;
     while (lo < hi)
@@ -590,7 +590,7 @@ bool IMDImage::_locate_linear(uint32_t byte_off, uint32_t &lba, uint32_t &sec_of
         uint32_t ss = (uint32_t)(128 << t.size_code);
         lba = t.first_lba + rel / ss;
         sec_off = rel % ss;
-        return lba < _sectors.size();
+        RETURN_SUCCESS_IF(lba < _sectors.size());
     }
 
     // Variable-size track: nsec is at most 255, so a scan is cheap enough
@@ -601,11 +601,11 @@ bool IMDImage::_locate_linear(uint32_t byte_off, uint32_t &lba, uint32_t &sec_of
         {
             lba = t.first_lba + i;
             sec_off = rel;
-            return true;
+            RETURN_SUCCESS_AS_TRUE();
         }
         rel -= sz;
     }
-    return false;
+    RETURN_ERROR_AS_FALSE();
 }
 
 IMDStatus IMDImage::read_linear(uint32_t byte_off, uint8_t *buf, uint32_t len)
@@ -622,7 +622,7 @@ IMDStatus IMDImage::read_linear(uint32_t byte_off, uint8_t *buf, uint32_t len)
     while (done < len)
     {
         uint32_t lba, sec_off;
-        if (!_locate_linear(byte_off + done, lba, sec_off))
+        if (_locate_linear(byte_off + done, lba, sec_off).is_error())
             return IMDStatus::NoSuchSector;
 
         uint16_t  ss = _sectors[lba].size;
@@ -677,7 +677,7 @@ IMDStatus IMDImage::write_linear(uint32_t byte_off, const uint8_t *buf, uint32_t
         while (done < len)
         {
             uint32_t lba, sec_off;
-            if (!_locate_linear(byte_off + done, lba, sec_off))
+            if (_locate_linear(byte_off + done, lba, sec_off).is_error())
                 return IMDStatus::NoSuchSector;
 
             uint16_t ss = _sectors[lba].size;

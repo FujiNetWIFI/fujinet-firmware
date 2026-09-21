@@ -20,6 +20,8 @@
 #include <string>
 #include <vector>
 
+#include "global_types.h"
+
 #include "fnio.h"
 
 #ifdef ESP_PLATFORM
@@ -130,11 +132,11 @@ public:
     uint16_t max_sector_size() const { return _max_sector_size; }
     bool     uniform_sector_size() const { return _uniform_size; }
 
-    bool track_info(uint32_t track, IMDTrackInfo &out) const;
-    bool sector_info(uint32_t lba, IMDSectorInfo &out) const;
+    success_is_true track_info(uint32_t track, IMDTrackInfo &out) const;
+    success_is_true sector_info(uint32_t lba, IMDSectorInfo &out) const;
 
     // Matches the track's *physical* cyl/head and the sector's physical ID.
-    bool find_lba(uint8_t cyl, uint8_t head, uint8_t id, uint32_t &lba) const;
+    success_is_true find_lba(uint8_t cyl, uint8_t head, uint8_t id, uint32_t &lba) const;
 
     // Data-error records still return Ok with their recovered contents; check
     // sector_info().had_error. out_len may be null.
@@ -206,7 +208,7 @@ private:
     // from a failure inside an otherwise valid track (a real error).
     IMDStatus _parse_track(IMDCursor &cur, bool &header_ok);
     bool      _tail_is_padding(uint32_t from);
-    bool      _locate_linear(uint32_t byte_off, uint32_t &lba, uint32_t &sec_off) const;
+    success_is_true _locate_linear(uint32_t byte_off, uint32_t &lba, uint32_t &sec_off) const;
     IMDStatus _materialize(uint32_t lba, uint32_t sec_off, const uint8_t *src,
                            uint32_t n, uint8_t *out);
 };

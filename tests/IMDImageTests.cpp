@@ -132,7 +132,7 @@ TEST_CASE("all nine sector record types")
 
     SUBCASE("unavailable sectors are never fabricated")
     {
-        REQUIRE(m.img.sector_info(0, si));
+        REQUIRE(m.img.sector_info(0, si).is_success());
         CHECK(si.unavailable);
         IMDStatus st;
         read_lba(m.img, 0, st);
@@ -149,7 +149,7 @@ TEST_CASE("all nine sector record types")
         };
         for (auto &e : expect)
         {
-            REQUIRE(m.img.sector_info(e.lba, si));
+            REQUIRE(m.img.sector_info(e.lba, si).is_success());
             CHECK(si.compressed == e.comp);
             CHECK(si.deleted == e.del);
             CHECK(si.had_error == e.err);
@@ -175,7 +175,7 @@ TEST_CASE("all nine sector record types")
         IMDStatus st;
         auto d = read_lba(m.img, 5, st);
         CHECK(st == IMDStatus::Ok);
-        REQUIRE(m.img.sector_info(5, si));
+        REQUIRE(m.img.sector_info(5, si).is_success());
         CHECK(si.had_error);
         CHECK(all_equal(d, 0x55));
     }
@@ -260,12 +260,12 @@ TEST_CASE("cylinder and head maps")
         Mounted m(IMD().header().simple_track(5, 3, 1, 2, 0xE5));
         REQUIRE(m.st == IMDStatus::Ok);
         IMDSectorInfo si;
-        REQUIRE(m.img.sector_info(0, si));
+        REQUIRE(m.img.sector_info(0, si).is_success());
         CHECK(si.cyl == 3);
         CHECK(si.head == 1);
 
         IMDTrackInfo ti;
-        REQUIRE(m.img.track_info(0, ti));
+        REQUIRE(m.img.track_info(0, ti).is_success());
         CHECK_FALSE(ti.has_cyl_map);
         CHECK_FALSE(ti.has_head_map);
     }
@@ -278,7 +278,7 @@ TEST_CASE("cylinder and head maps")
         Mounted m(b);
         REQUIRE(m.st == IMDStatus::Ok);
         IMDSectorInfo si;
-        REQUIRE(m.img.sector_info(0, si));
+        REQUIRE(m.img.sector_info(0, si).is_success());
         CHECK(si.cyl == 77);
         CHECK(si.head == 0);
     }
@@ -291,7 +291,7 @@ TEST_CASE("cylinder and head maps")
         Mounted m(b);
         REQUIRE(m.st == IMDStatus::Ok);
         IMDSectorInfo si;
-        REQUIRE(m.img.sector_info(0, si));
+        REQUIRE(m.img.sector_info(0, si).is_success());
         CHECK(si.cyl == 2);
         CHECK(si.head == 1);
     }
@@ -311,15 +311,15 @@ TEST_CASE("cylinder and head maps")
         REQUIRE(m.img.lba_count() == 2);
 
         IMDSectorInfo si;
-        REQUIRE(m.img.sector_info(0, si));
+        REQUIRE(m.img.sector_info(0, si).is_success());
         CHECK(si.cyl == 77);
         CHECK(si.head == 1);
         CHECK(si.size == 512);
-        REQUIRE(m.img.sector_info(1, si));
+        REQUIRE(m.img.sector_info(1, si).is_success());
         CHECK(si.unavailable);
 
         IMDTrackInfo ti;
-        REQUIRE(m.img.track_info(0, ti));
+        REQUIRE(m.img.track_info(0, ti).is_success());
         CHECK(ti.cyl == 0); // physical stays 0
         CHECK(ti.head == 0);
         CHECK(ti.has_cyl_map);
@@ -335,7 +335,7 @@ TEST_CASE("cylinder and head maps")
         Mounted m(b);
         REQUIRE(m.st == IMDStatus::Ok);
         IMDTrackInfo ti;
-        REQUIRE(m.img.track_info(0, ti));
+        REQUIRE(m.img.track_info(0, ti).is_success());
         CHECK(ti.head == 1);
     }
 }
@@ -417,7 +417,7 @@ TEST_CASE("sector ordering")
         for (uint32_t i = 0; i < 5; i++)
         {
             IMDSectorInfo si;
-            REQUIRE(m.img.sector_info(i, si));
+            REQUIRE(m.img.sector_info(i, si).is_success());
             CHECK(si.id == i + 1);
             IMDStatus st;
             CHECK(all_equal(read_lba(m.img, i, st), (uint8_t)((i + 1) * 0x10)));
@@ -432,9 +432,9 @@ TEST_CASE("sector ordering")
         Mounted m(b);
         REQUIRE(m.st == IMDStatus::Ok);
         IMDSectorInfo si;
-        REQUIRE(m.img.sector_info(0, si));
+        REQUIRE(m.img.sector_info(0, si).is_success());
         CHECK(si.id == 0);
-        REQUIRE(m.img.sector_info(1, si));
+        REQUIRE(m.img.sector_info(1, si).is_success());
         CHECK(si.id == 1);
     }
 
@@ -459,11 +459,11 @@ TEST_CASE("sector ordering")
         REQUIRE(m.st == IMDStatus::Ok);
 
         uint32_t lba = 0;
-        REQUIRE(m.img.find_lba(1, 0, 3, lba));
+        REQUIRE(m.img.find_lba(1, 0, 3, lba).is_success());
         CHECK(lba == 6);
         IMDStatus st;
         CHECK(all_equal(read_lba(m.img, lba, st), 0x22));
-        CHECK_FALSE(m.img.find_lba(9, 0, 1, lba));
+        CHECK(m.img.find_lba(9, 0, 1, lba).is_error());
     }
 }
 
@@ -478,8 +478,8 @@ TEST_CASE("mixed recording modes in one image")
     REQUIRE(m.img.track_count() == 2);
 
     IMDTrackInfo t0, t1;
-    REQUIRE(m.img.track_info(0, t0));
-    REQUIRE(m.img.track_info(1, t1));
+    REQUIRE(m.img.track_info(0, t0).is_success());
+    REQUIRE(m.img.track_info(1, t1).is_success());
 
     CHECK(t0.mode == 0);
     CHECK_FALSE(imd_mode_is_mfm(t0.mode));
@@ -528,7 +528,7 @@ TEST_CASE("in-place writes")
         REQUIRE(m.img.write_sector(0, d.data(), 128) == IMDStatus::Ok);
 
         IMDSectorInfo si;
-        REQUIRE(m.img.sector_info(0, si));
+        REQUIRE(m.img.sector_info(0, si).is_success());
         CHECK(si.rec_type == 0x03); // error cleared, deleted mark kept
         CHECK(si.deleted);
         CHECK_FALSE(si.had_error);
@@ -549,7 +549,7 @@ TEST_CASE("in-place writes")
         REQUIRE(m.img.write_sector(0, d.data(), 128) == IMDStatus::Ok);
 
         IMDSectorInfo si;
-        REQUIRE(m.img.sector_info(0, si));
+        REQUIRE(m.img.sector_info(0, si).is_success());
         CHECK(si.rec_type == 0x04); // still compressed, still deleted, no error
         CHECK(si.compressed);
         CHECK(si.deleted);
@@ -714,7 +714,7 @@ TEST_CASE("8 inch SSSD CP/M image - the most common IMD in existence")
     CHECK(m.img.trailing_garbage() == 0);
 
     IMDTrackInfo ti;
-    REQUIRE(m.img.track_info(76, ti));
+    REQUIRE(m.img.track_info(76, ti).is_success());
     CHECK(ti.cyl == 76);
     CHECK(ti.first_lba == 76 * 26);
 

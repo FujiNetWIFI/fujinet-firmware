@@ -313,10 +313,16 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
         return push_rom_streams(rom) ? MEDIATYPE_ROM : MEDIATYPE_UNKNOWN;
     }
     case MEDIATYPE_IMD:
+    {
         device_active = true;
         _mount_time = time(nullptr);
-        _disk = new MediaTypeIMD((access_mode & DISK_ACCESS_MODE_WRITE) != 0);
-        return _disk->mount(f, disksize, host, filename);
+        MediaTypeIMD *imd = new MediaTypeIMD((access_mode & DISK_ACCESS_MODE_WRITE) != 0);
+        _disk = imd;
+        imd->_media_host = host;
+        if (filename != nullptr)
+            strlcpy(imd->_disk_filename, filename, sizeof(imd->_disk_filename));
+        return imd->mount(f, disksize);
+    }
     case MEDIATYPE_IMG:
     case MEDIATYPE_UNKNOWN:
     default:
