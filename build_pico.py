@@ -627,7 +627,10 @@ def source_revision(cfg: PicoConfig) -> str:
     """Best-effort identity of the companion source tree, recorded in the
     generated .cpp's comment header and the sidecar JSON so a firmware image
     can be traced back to the commit its companion blob came from."""
-    if not os.path.isdir(os.path.join(cfg.src, ".git")):
+    # os.path.exists, not isdir: in a submodule checkout .git is a FILE
+    # holding a gitdir: pointer, so isdir() would report every submodule as
+    # in-tree and lose the very revision worth recording.
+    if not os.path.exists(os.path.join(cfg.src, ".git")):
         return "in-tree"
     result = subprocess.run(["git", "-C", cfg.src, "rev-parse", "HEAD"],
                              stdout=subprocess.PIPE,

@@ -271,6 +271,30 @@ def makezip(source, target, env):
                     "offset": "0x250000"
                 }
             ]            
+        # Companion-MCU firmware, if this board has any. These images are
+        # NOT separate entries in "files": they live inside firmware.bin as
+        # rodata and are pushed to the companion by the ESP32 itself on the
+        # first boot after flashing, so they have no flash offset of their
+        # own. Listing them here lets the FujiNet-Flasher tell the user a
+        # second chip is about to be flashed and that the board should stay
+        # powered until the PICOFW: log lines say it finished.
+        #
+        # build_pico.py writes this sidecar for every board -- an empty list
+        # when there is nothing to embed -- so a missing file means it never
+        # ran, and an empty one means the board simply has no companion.
+        # Either way the key is left out and release.json is unchanged from
+        # what it has always been.
+        sidecar = env.subst("$BUILD_DIR/fn_pico_blobs.json")
+        if os.path.isfile(sidecar):
+            try:
+                with open(sidecar) as f:
+                    companion = json.load(f)
+                if companion:
+                    json_contents['companion'] = companion
+                    print(f"Firmware embeds {len(companion)} companion-MCU image(s)")
+            except (ValueError, OSError) as e:
+                print(f"WARNING: could not read {sidecar}: {e}")
+
         # Save Release JSON
         with open('firmware/release.json', 'w') as f:
             f.write(json.dumps(json_contents, indent=4))

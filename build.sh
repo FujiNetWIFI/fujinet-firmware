@@ -602,9 +602,9 @@ if [ ${UPLOAD_IMAGE} -eq 1 ] ; then
     if [ -n "${PICO_SRC}" ] ; then
       echo ""
       echo "Flashed. This image embeds a companion-MCU firmware built from"
-      echo "${PICO_SRC} -- that firmware is not yet auto-pushed to the"
-      echo "companion device; flash it separately for now (see that tree's"
-      echo "own README). Automatic reflash is coming in a later change."
+      echo "${PICO_SRC}, which the FujiNet pushes to the companion itself on"
+      echo "the next boot -- watch the monitor for PICOFW: lines, and leave"
+      echo "the board powered until one says OK or 'up to date'."
     fi
   else
     pio run -c $INI_FILE ${DEV_MODE_ARG} -t upload 2>&1
