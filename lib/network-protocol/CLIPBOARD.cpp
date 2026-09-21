@@ -263,7 +263,6 @@ fujiError_t NetworkProtocolClipboard::write(unsigned short len)
 
     writeBuffer.append(*transmitBuffer, 0, len);
     transmitBuffer->erase(0, len);
-    transmitBuffer->shrink_to_fit();
 
     wrote = true;
     error = NDEV_STATUS::SUCCESS;
