@@ -455,24 +455,13 @@ void FlashHandle::obtain(std::string m_path, std::string mode) {
 
     //printf("*** Atempting opening flash  handle'%s'\r\n", m_path.c_str());
 
-    if ((mode[0] == 'w') && strchr(m_path.c_str(), '/')) {
+    if ((mode[0] == 'w') && m_path.find('/') != std::string::npos) {
         // For file creation, silently make subdirs as needed.  If any fail,
         // it will be caught by the real file open later on
 
-        char *pathStr = new char[m_path.length()];
-        strncpy(pathStr, m_path.data(), m_path.length());
-
-        if (pathStr) {
-            // Make dirs up to the final fnamepart
-            char *ptr = strchr(pathStr, '/');
-            while (ptr) {
-                *ptr = 0;
-                mkdir(pathStr, ALLPERMS);
-                *ptr = '/';
-                ptr = strchr(ptr+1, '/');
-            }
-        }
-        delete[] pathStr;
+        // Make dirs up to the final fnamepart
+        for (size_t pos = m_path.find('/'); pos != std::string::npos; pos = m_path.find('/', pos + 1))
+            mkdir(m_path.substr(0, pos).c_str(), ALLPERMS);
     }
 
     //Debug_printv("m_path[%s] mode[%s]", m_path.c_str(), mode.c_str());

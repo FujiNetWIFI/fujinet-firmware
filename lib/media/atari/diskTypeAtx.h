@@ -8,6 +8,7 @@
 #include <freertos/task.h>
 #endif
 
+#include <memory>
 #include <vector>
 
 #include "diskType.h"
@@ -155,7 +156,7 @@ public:
     uint32_t offset_to_data_start = 0;
 
     // Actual sector data
-    uint8_t * data = nullptr;
+    std::unique_ptr<uint8_t[]> data;
 
     // Actual sectors
 #ifdef ESP_PLATFORM
@@ -164,7 +165,6 @@ public:
     std::vector<AtxSector> sectors;
 #endif
 
-    ~AtxTrack();
     AtxTrack();
 };
 
