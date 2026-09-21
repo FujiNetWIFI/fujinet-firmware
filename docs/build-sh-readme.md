@@ -54,6 +54,12 @@ This bash script serves as an interface for running PlatformIO builds for the Fu
 - `-i FILE`: Use FILE as INI instead of platformio-generated.ini
 - `-l FILE`: Use FILE instead of 'platformio.local.ini'
 
+#### Companion MCU (RP2040/RP2350) Options
+
+- `-P`: Build ONLY the companion (pico) firmware for the target board, then exit (does not run the ESP32 build). Resolved right after the target board/INI are settled, so `-s`/`-l`/`-i` are honoured. Equivalent to running `./build_pico.py <board> --ini <ini file>` directly. A board with no `[fujinet] pico_src` key is a no-op that exits 0.
+
+See also the "Companion MCU (RP2040/RP2350) firmware" section below for the `[fujinet] pico_*` build keys and the `FUJINET_SKIP_PICO` environment variable.
+
 #### FujiNet PC (CMake) Options
 
 - `-c`: Run clean before build
@@ -99,6 +105,32 @@ The script uses two main configuration files:
 
 1. `platformio-generated.ini`: Generated INI file containing build configurations
 2. `platformio.local.ini`: Local INI file for user-specific settings
+
+## Companion MCU (RP2040/RP2350) firmware
+
+Some boards bundle a second, companion-MCU firmware image (e.g. `fujiversal-intv`, which
+embeds the RP2040/RP2350 Minty cartridge firmware) inside the ESP32 build. This is driven
+entirely by `[fujinet]` keys in that board's own `build-platforms/platformio-<board>.ini` --
+no board-specific build scripts are needed:
+
+- `pico_src` (and friends: `pico_repo`/`pico_repo_ref`, `pico_build`, `pico_board`,
+  `pico_artifacts`, etc.) tell the shared `build_pico.py` `pre:` extra_script where the
+  companion firmware's source lives, how to build it, and which output file(s) to bundle.
+  Presence of `pico_src` is what enables the feature; a board with no `pico_src` gets an
+  empty (stub) registry and pays no build cost. See the full key table and worked examples
+  as a comment block in `platformio-ini-files/platformio.common.ini`, and
+  `build-platforms/platformio-fujiversal-intv.ini` for a real one.
+- `merge_bin` (and `merge_bin_name`) opt a board into `build_merge.py`, which folds the
+  bootloader, partition table, and app image into a single flashable `<env>-merged.bin`.
+  When set, `./build.sh -u` flashes that single file with `esptool.py` directly instead of
+  PlatformIO's normal three-piece upload.
+
+Use `./build.sh -P` to build just the companion firmware (skipping the ESP32 build
+entirely) while iterating on it. Set `FUJINET_SKIP_PICO=1` to do the opposite -- skip the
+companion firmware build during a normal ESP32 build and emit a stub instead. This matters
+because `./build.sh -a` (and `build-platforms/build-all.sh`) walks every board ini in one
+pass, and not every environment building "all boards" has the companion MCU toolchain (e.g.
+`arm-none-eabi-gcc`) installed.
 
 ## Supported Boards
 
