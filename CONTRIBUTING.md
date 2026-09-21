@@ -93,8 +93,9 @@ workflow runs a linter or a formatter. So:
 ## Tests
 
 - The live suite is `tests/`, doctest-based, wired in only for the PC build. ctest names:
-  `fujibuspacket_tests`, `calendar_tests`, `mail_tests`, `no_build_ifdefs_in_fujidevice`, and
-  `sio_dstats_tests` (built only when `FUJINET_TARGET=ATARI`).
+  `fujibuspacket_tests`, `calendar_tests`, `mail_tests`, `ftp_directory_tests`,
+  `no_build_ifdefs_in_fujidevice`, and `sio_dstats_tests` (built only when
+  `FUJINET_TARGET=ATARI`).
 - Run them with `./build.sh -p ATARI`, or `ctest -V` from `build/` after a PC configure.
 - To add one, add an `add_executable` + `add_test` pair to `tests/CMakeLists.txt`; keep the unit
   under test free of hardware and FujiNet globals so it links alone, as `fn_time.cpp` does.

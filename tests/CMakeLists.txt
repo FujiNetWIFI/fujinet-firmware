@@ -91,6 +91,27 @@ target_include_directories(mail_tests PRIVATE
 add_test(NAME mail_tests COMMAND mail_tests)
 
 # ------------------------------------------------------------------------------
+# The FTP LIST entry loop (issue #1652). NDIR over FTP used to spin forever on a
+# listing that ended in a blank line, and drop the last entry when parsing it hit
+# EOF. ftp_dir_parse was split out of fnFTP.cpp so the loop can be driven from a
+# literal listing here -- fnFTP.h pulls in Protocol.h -> bus.h and will not
+# link alone.
+# ------------------------------------------------------------------------------
+add_executable(ftp_directory_tests
+    FtpDirectoryTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/ftp/ftp_dir_parse.cpp
+    ${CMAKE_SOURCE_DIR}/lib/ftp/ftpparse.cpp
+)
+
+target_include_directories(ftp_directory_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/         # global_types.h
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+
+add_test(NAME ftp_directory_tests COMMAND ftp_directory_tests)
+
+# ------------------------------------------------------------------------------
 # Policy check: no platform-specific BUILD_* ifdefs in the shared device bases.
 # Customization there must go through a subclass override, never a #ifdef.
 # This is a script, not a compiled test, so it's wired in directly via
