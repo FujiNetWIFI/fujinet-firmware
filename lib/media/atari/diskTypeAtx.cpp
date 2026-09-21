@@ -546,8 +546,6 @@ success_is_true MediaTypeATX::_load_atx_chunk_sector_data(chunk_header_t &chunk_
     // Keep a count of how many bytes we've read into the Track Record
     track.record_bytes_read += data_size;
 
-    //util_dump_bytes(track.data.get(), 64);
-
     RETURN_SUCCESS_AS_TRUE();
 }
 
