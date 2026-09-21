@@ -625,11 +625,6 @@ void iwm_sp_ll::setup_spi()
     esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, spi_periph_signal[HSPI_HOST].spid_out, false, false);
   }
 
-  if (smartport.spiMutex == NULL)
-  {
-    smartport.spiMutex = xSemaphoreCreateMutex();
-  }
-
 }
 
 void iwm_ll::setup_gpio()
