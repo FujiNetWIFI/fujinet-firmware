@@ -74,14 +74,6 @@
 #define MAX_RETRIES_1050 1
 #define MAX_RETRIES_810 4
 
-AtxTrack::~AtxTrack()
-{
-    if (data != nullptr)
-        delete[] data;
-
-    data = nullptr;
-};
-
 AtxTrack::AtxTrack(){
 
 };
@@ -259,12 +251,12 @@ void MediaTypeATX::_process_sector(AtxTrack &track, AtxSector *psector, uint16_t
         {
             // Adjust the start_data value by the number of bytes into the Track Record the data chunk started
             uint32_t data_offset = psector->start_data - track.offset_to_data_start;
-            memcpy(_disk_sectorbuff, track.data + data_offset, sectorsize);
+            memcpy(_disk_sectorbuff, track.data.get() + data_offset, sectorsize);
         }
         else
         {
             Debug_printf("## Invalid sector data offset (%lu < %lu) or track data buffer (%p)\r\n",
-                         psector->start_data, track.offset_to_data_start, track.data);
+                         psector->start_data, track.offset_to_data_start, track.data.get());
             // Act as if the ATX_SECTOR_STATUS_MISSING_DATA bit was set
             _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_MISSING;
         }
@@ -516,8 +508,7 @@ success_is_true MediaTypeATX::_load_atx_chunk_sector_data(chunk_header_t &chunk_
     #endif
 
     // Just in case we already read data for this track
-    if (track.data != nullptr)
-        delete[] track.data;
+    track.data.reset();
 
     // We take the number of bytes to read from the chunk length header value
     int data_size = chunk_hdr.length - sizeof(chunk_hdr);
@@ -527,8 +518,7 @@ success_is_true MediaTypeATX::_load_atx_chunk_sector_data(chunk_header_t &chunk_
         RETURN_SUCCESS_AS_TRUE();
     
     // Attempt to the sector data
-    // Every free of this buffer is delete[], so it must come from new[].
-    track.data = new (std::nothrow) uint8_t[data_size];
+    track.data.reset(new (std::nothrow) uint8_t[data_size]);
     if (track.data == nullptr)
     {
         Debug_printf("failed to allocate %d byte ATX sector data chunk\r\n", data_size);
@@ -536,11 +526,10 @@ success_is_true MediaTypeATX::_load_atx_chunk_sector_data(chunk_header_t &chunk_
     }
 
     int i;
-    if ((i = fnio::fread(track.data, 1, data_size, _disk_fileh)) != data_size)
+    if ((i = fnio::fread(track.data.get(), 1, data_size, _disk_fileh)) != data_size)
     {
         Debug_printf("failed reading %d sector data chunk bytes (%d, %d)\r\n", data_size, i, errno);
-        delete[] track.data;
-        track.data = nullptr;
+        track.data.reset();
         RETURN_ERROR_AS_FALSE();
     }
 
@@ -557,7 +546,7 @@ success_is_true MediaTypeATX::_load_atx_chunk_sector_data(chunk_header_t &chunk_
     // Keep a count of how many bytes we've read into the Track Record
     track.record_bytes_read += data_size;
 
-    //util_dump_bytes(track.data, 64);
+    //util_dump_bytes(track.data.get(), 64);
 
     RETURN_SUCCESS_AS_TRUE();
 }
@@ -579,7 +568,7 @@ success_is_true MediaTypeATX::_load_atx_chunk_sector_list(chunk_header_t &chunk_
     }
 
     // Attempt to read sector_header * sector_count
-    sector_header_t *sector_list = new (std::nothrow) sector_header_t[track.sector_count];
+    std::unique_ptr<sector_header_t[]> sector_list(new (std::nothrow) sector_header_t[track.sector_count]);
     if (sector_list == nullptr)
     {
         Debug_printf("failed to allocate ATX sector list (%hu sectors)\r\n", track.sector_count);
@@ -587,10 +576,9 @@ success_is_true MediaTypeATX::_load_atx_chunk_sector_list(chunk_header_t &chunk_
     }
     int i;
 
-    if ((i = fnio::fread(sector_list, 1, readz, _disk_fileh)) != readz)
+    if ((i = fnio::fread(sector_list.get(), 1, readz, _disk_fileh)) != readz)
     {
         Debug_printf("failed reading sector list chunk bytes (%d, %d)\r\n", i, errno);
-        delete[] sector_list;
         RETURN_ERROR_AS_FALSE();
     }
 
@@ -608,8 +596,6 @@ success_is_true MediaTypeATX::_load_atx_chunk_sector_list(chunk_header_t &chunk_
         }
         track.sectors.emplace_back(sector_list[i]);
     }
-
-    delete[] sector_list;
 
     RETURN_SUCCESS_AS_TRUE();
 }
