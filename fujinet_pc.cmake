@@ -224,6 +224,8 @@ set(SOURCES src/main.cpp
     lib/tcpip/fnTcpClientSecure.h lib/tcpip/fnTcpClientSecure.cpp
     lib/tcpip/fnTcpServer.h lib/tcpip/fnTcpServer.cpp
     lib/ftp/fnFTP.h lib/ftp/fnFTP.cpp
+    lib/ftp/ftpparse.h lib/ftp/ftpparse.cpp
+    lib/ftp/ftp_dir_parse.h lib/ftp/ftp_dir_parse.cpp
     lib/TNFSlib/tnfslibMountInfo.h lib/TNFSlib/tnfslibMountInfo.cpp
     lib/TNFSlib/tnfslib.h lib/TNFSlib/tnfslib.cpp
     lib/TNFSlib/tnfslib_udp.h lib/TNFSlib/tnfslib_udp_testing.cpp
