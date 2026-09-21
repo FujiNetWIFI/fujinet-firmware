@@ -680,6 +680,11 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
     Debug_printf("process_config_post: %s\n", postdata);
     // Create a new buffer for the url-decoded version of the data
     char *decoded_buf = (char *)malloc(postlen + 1);
+    if (decoded_buf == nullptr)
+    {
+        Debug_printf("process_config_post: could not allocate %u bytes\n", (unsigned)(postlen + 1));
+        return -1;
+    }
     url_decode(decoded_buf, postdata, postlen);
 
     std::map<std::string, std::string> postvals = parse_postdata(decoded_buf, postlen);
