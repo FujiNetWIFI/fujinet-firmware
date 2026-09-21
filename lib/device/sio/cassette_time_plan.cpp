@@ -347,51 +347,108 @@ bool cas_walk_tape_time(size_t filesize, cas_time_read_fn reader, void *ctx,
     return true;
 }
 
-FskActiveRewindResolution cas_fsk_resolve_active_rewind(
-    const size_t *run_value_counts, size_t run_chunk_count,
-    fsk_run_value_fn value_reader, void *ctx,
-    uint64_t run_start_time_us, uint64_t leading_irg_us, uint64_t target_us)
+CasRunPosSplit cas_run_pos_split(uint64_t irg_us, uint64_t q_us)
 {
-    FskActiveRewindResolution r{};
-    r.resolved = false;
-    r.inside_leading_irg = false;
-    r.chunk_index = 0;
-    r.value_index = 0;
-
-    if (run_chunk_count == 0 || target_us < run_start_time_us)
-        return r; // target lies before this run entirely — caller falls back
-
-    if (target_us < run_start_time_us + leading_irg_us)
+    CasRunPosSplit s{ false, 0, 0 };
+    if (q_us < irg_us)
     {
-        r.resolved = true;
-        r.inside_leading_irg = true;
-        return r;
+        s.in_irg = true;
+        s.irg_remaining_us = irg_us - q_us;
     }
-
-    uint64_t accum = run_start_time_us + leading_irg_us;
-    size_t best_chunk = 0, best_value = 0;
-    bool past_target = false;
-    for (size_t c = 0; c < run_chunk_count && !past_target; ++c)
+    else
     {
-        const size_t vcount = run_value_counts[c];
-        for (size_t v = 0; v < vcount; ++v)
+        s.wave_ticks = q_us - irg_us;
+    }
+    return s;
+}
+
+FskLocateResult cas_fsk_locate_ticks(const size_t *value_counts, size_t chunk_count,
+                                     fsk_run_value_fn value_reader, void *ctx,
+                                     uint64_t ticks)
+{
+    FskLocateResult r{ 0, 0, 0, false };
+    uint64_t accum = 0;
+
+    for (size_t c = 0; c < chunk_count; ++c)
+    {
+        for (size_t v = 0; v < value_counts[c]; ++v)
         {
-            if (accum > target_us)
+            const uint64_t t = fsk_ticks_for_value(value_reader(ctx, c, v));
+            if (accum + t > ticks)
             {
-                past_target = true; // best_chunk/best_value already hold the
-                                    // last value whose start time <= target_us
-                break;
+                // First value whose span contains `ticks` (a zero-duration
+                // value never satisfies this, so it is stepped over).
+                r.chunk_index = c;
+                r.value_index = v;
+                r.skip_ticks = ticks - accum;
+                return r;
             }
-            best_chunk = c;
-            best_value = v;
-            const uint16_t val = value_reader(ctx, c, v);
-            accum += fsk_ticks_for_value(val); // ticks == microseconds, exact
+            accum += t;
         }
     }
 
-    r.resolved = true;
-    r.inside_leading_irg = false;
-    r.chunk_index = best_chunk;
-    r.value_index = best_value;
+    r.at_end = true;
+    if (chunk_count > 0)
+    {
+        r.chunk_index = chunk_count - 1;
+        r.value_index = value_counts[chunk_count - 1];
+    }
     return r;
+}
+
+uint64_t cas_fsk_inert_ticks(const size_t *value_counts, size_t chunk_count,
+                             fsk_run_value_fn value_reader, void *ctx,
+                             uint64_t limit_ticks, uint64_t low_budget_ticks)
+{
+    uint64_t t = 0;   // waveform ticks scanned so far
+    uint64_t low = 0; // LOW ticks scanned so far
+
+    for (size_t c = 0; c < chunk_count; ++c)
+    {
+        for (size_t v = 0; v < value_counts[c]; ++v)
+        {
+            if (t >= limit_ticks)
+                return t; // the caller needs nothing beyond its limit
+            const uint64_t d = fsk_ticks_for_value(value_reader(ctx, c, v));
+            if (d == 0)
+                continue; // consumes a parity slot, no time
+            if (!fsk_level_for_index(v)) // even index = LOW
+            {
+                if (low + d > low_budget_ticks)
+                    return t; // a LOW that may be data starts here
+                low += d;
+            }
+            t += d;
+        }
+    }
+    return t; // inert to the end of the run
+}
+
+bool cas_resolve_target_time(size_t filesize, cas_time_read_fn reader, void *ctx,
+                             uint64_t target_us, CassetteTargetResolution &out)
+{
+    out = CassetteTargetResolution{};
+
+    if (!cas_walk_tape_time(filesize, reader, ctx, SIZE_MAX, target_us, out.walk))
+        return false;
+
+    // Only a FUJI image can hold `fsk ` chunks; never interpret legacy blocks.
+    uint8_t magic[4];
+    if (reader(ctx, 0, magic, 4) != 4 || magic[0] != 'F' || magic[1] != 'U' ||
+        magic[2] != 'J' || magic[3] != 'I')
+        return true;
+
+    RawChunkHeader hdr{};
+    if (!read_header(reader, ctx, out.walk.offset, hdr))
+        return true; // end-of-tape boundary: coarse
+
+    const FskBounds bounds =
+        fsk_compute_bounds(filesize, out.walk.offset, hdr.chunk_length);
+    if (!bounds.header_complete || !type_is(hdr, 'f', 's', 'k', ' '))
+        return true;
+
+    out.is_fsk = true;
+    out.irg_ms = hdr.irg_length;
+    out.q_us = (target_us > out.walk.time_us) ? (target_us - out.walk.time_us) : 0;
+    return true;
 }

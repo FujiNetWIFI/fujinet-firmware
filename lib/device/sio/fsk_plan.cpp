@@ -142,34 +142,52 @@ FskStep fsk_view_step(FskChunkView &view)
 }
 
 
-// Classifies a preloaded run as all-MARK or not. Reuses the production decode,
-// parity and tick-scaling rules; stops at the first non-zero LOW value.
+// Classifies a preloaded run (or its remainder after a resume) as all-MARK or
+// not. Reuses the production decode, parity and tick-scaling rules; stops at the
+// first non-zero LOW value.
+FskRunSummary fsk_run_summarize_from(const uint8_t *const *blocks,
+                                     size_t block_size,
+                                     const size_t *chunk_block_base,
+                                     const size_t *chunk_value_counts,
+                                     size_t chunk_count,
+                                     size_t start_chunk,
+                                     size_t start_value,
+                                     uint64_t skip_ticks)
+{
+    FskRunSummary s{ false, 0 };
+
+    for (size_t c = start_chunk; c < chunk_count; ++c)
+    {
+        const size_t count = chunk_value_counts[c];
+        const size_t base_pos = chunk_block_base[c] * block_size;
+
+        for (size_t i = (c == start_chunk) ? start_value : 0; i < count; ++i)
+        {
+            const uint16_t v = fsk_block_le16(blocks, block_size, base_pos + i * 2);
+            uint64_t t = fsk_ticks_for_value(v);
+            if (c == start_chunk && i == start_value)
+                t = (skip_ticks >= t) ? 0 : (t - skip_ticks);
+
+            if (!fsk_level_for_index(i) && t != 0)
+            {
+                s.has_space = true;
+                return s;
+            }
+            s.total_ticks += t;
+        }
+    }
+
+    return s;
+}
+
 FskRunSummary fsk_run_summarize(const uint8_t *const *blocks,
                                 size_t block_size,
                                 const size_t *chunk_block_base,
                                 const size_t *chunk_value_counts,
                                 size_t chunk_count)
 {
-    FskRunSummary s{ false, 0 };
-
-    for (size_t c = 0; c < chunk_count; ++c)
-    {
-        const size_t count = chunk_value_counts[c];
-        const size_t base_pos = chunk_block_base[c] * block_size;
-
-        for (size_t i = 0; i < count; ++i)
-        {
-            const uint16_t v = fsk_block_le16(blocks, block_size, base_pos + i * 2);
-            if (!fsk_level_for_index(i) && v != 0)
-            {
-                s.has_space = true;
-                return s;
-            }
-            s.total_ticks += fsk_ticks_for_value(v);
-        }
-    }
-
-    return s;
+    return fsk_run_summarize_from(blocks, block_size, chunk_block_base,
+                                  chunk_value_counts, chunk_count, 0, 0, 0);
 }
 
 // Single source of truth for the structural bounds/next-offset rule;

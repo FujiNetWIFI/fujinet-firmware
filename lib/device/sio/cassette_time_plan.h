@@ -103,44 +103,75 @@ bool cas_walk_tape_time(size_t filesize, cas_time_read_fn reader, void *ctx,
                         size_t stop_at_offset, uint64_t stop_at_time_us,
                         CassetteWalkState &out);
 
-// Active FSK Rewind — pure resident-run target resolution. Resolves a target
-// absolute CAS time to a position within one already-resident contiguous
-// zero-IRG FSK run, via an injected value accessor — same no-I/O discipline
-// as cas_walk_tape_time() above. Production supplies a reader over the
-// resident PSRAM block table; host tests read an in-memory array decoded
-// from a real .cas payload.
+// -----------------------------------------------------------------------------
+// Run-relative position (R, Q): the MOTOR-pause / paused-rewind timeline
+// -----------------------------------------------------------------------------
 //
-// Accessor: returns the raw on-file FSK value at value index `value_index`
-// within run chunk `chunk_index` (both 0-based, relative to the CURRENT
-// run). Caller guarantees value_index < run_value_counts[chunk_index].
-using fsk_run_value_fn = uint16_t (*)(void *ctx, size_t chunk_index, size_t value_index);
-
-struct FskActiveRewindResolution
+// A raw-FSK position is stored as R (header offset of the run's first chunk) and
+// Q, microseconds from cas_walk_tape_time's time at R — i.e. BEFORE R's own
+// leading IRG. One scalar covers both the IRG and the waveform:
+//   Q <  irg_us  -> inside the leading IRG (irg_us - Q of it remains)
+//   Q == irg_us  -> exactly at the waveform start
+//   Q >  irg_us  -> inside the waveform, Q - irg_us ticks after its first value
+struct CasRunPosSplit
 {
-    // false => target_us is before this run entirely (run_chunk_count==0 or
-    // target_us < run_start_time_us); caller must fall back to
-    // cas_walk_tape_time(). chunk_index/value_index are meaningless here.
-    bool resolved;
-
-    // true => target_us fell inside the run's own leading IRG: resolve to
-    // chunk 0 from scratch (replay the full IRG), not a resume — the caller
-    // must not treat value_index==0 here as "resume at value 0".
-    bool inside_leading_irg;
-
-    // Valid only when resolved && !inside_leading_irg: the run chunk/value
-    // whose START time is the greatest <= target_us — never mid-value.
-    // chunk_index==0 && value_index==0 needs no resume flag either (same as
-    // entering fresh); anything else requires a genuine resume.
-    size_t chunk_index;
-    size_t value_index;
+    bool     in_irg;            // Q is strictly inside the leading IRG
+    uint64_t irg_remaining_us;  // irg_us - Q while in_irg, else 0
+    uint64_t wave_ticks;        // Q - irg_us once the waveform has started, else 0
 };
 
-// Pure resolver; never resumes mid-value — the returned value's start time
-// is always <= target_us, and the next value's (if any) is always >
-// target_us. run_chunk_count==0 always yields resolved==false.
-FskActiveRewindResolution cas_fsk_resolve_active_rewind(
-    const size_t *run_value_counts, size_t run_chunk_count,
-    fsk_run_value_fn value_reader, void *ctx,
-    uint64_t run_start_time_us, uint64_t leading_irg_us, uint64_t target_us);
+CasRunPosSplit cas_run_pos_split(uint64_t irg_us, uint64_t q_us);
+
+// Accessor over a resident run: returns the raw on-file FSK value at
+// `value_index` within run chunk `chunk_index` (both 0-based, relative to the
+// CURRENT run). Caller guarantees value_index < value_counts[chunk_index].
+using fsk_run_value_fn = uint16_t (*)(void *ctx, size_t chunk_index, size_t value_index);
+
+// Where `ticks` (waveform ticks from the run's first value) falls inside a
+// resident run. chunk_index/value_index are chunk-local (parity comes from the
+// value index); skip_ticks is how far into that value the position is, so a
+// resume lands inside a long value without replaying it. Zero-duration values
+// are stepped over (they consume a parity slot but no time). `at_end` means
+// `ticks` is at or beyond the run's total duration.
+struct FskLocateResult
+{
+    size_t   chunk_index;
+    size_t   value_index;
+    uint64_t skip_ticks;
+    bool     at_end;
+};
+
+FskLocateResult cas_fsk_locate_ticks(const size_t *value_counts, size_t chunk_count,
+                                     fsk_run_value_fn value_reader, void *ctx,
+                                     uint64_t ticks);
+
+// How much of the waveform, from its first value, carries no data: MARK (HIGH)
+// except for at most `low_budget_ticks` of LOW time in total. The scan stops as
+// soon as a LOW value would exceed the budget (that is where data may start), or
+// once `limit_ticks` has been passed (the caller needs no more), so its cost is
+// bounded by the values before the first real signal. Uses the same value
+// accessor and parity rule (even index LOW, odd HIGH) as cas_fsk_locate_ticks.
+// The result is the waveform tick where the inert part ends (>= limit_ticks if
+// the scan was cut by the limit; the run's total ticks if it is inert throughout).
+uint64_t cas_fsk_inert_ticks(const size_t *value_counts, size_t chunk_count,
+                             fsk_run_value_fn value_reader, void *ctx,
+                             uint64_t limit_ticks, uint64_t low_budget_ticks);
+
+// Resolves an absolute target CAS time to the run-relative position (R', Q') the
+// paused-rewind / MOTOR-pause model stores. R' is the start of the chunk that
+// contains the target (the walker's boundary); Q' = target - that chunk's start
+// time, so a target inside a chunk's own IRG yields Q' < irg automatically.
+// `walk` carries the format state committed with the new offset. `is_fsk` is
+// false for any non-`fsk ` boundary (coarse reposition, Q' unused).
+struct CassetteTargetResolution
+{
+    CassetteWalkState walk;
+    bool              is_fsk;
+    uint16_t          irg_ms;
+    uint64_t          q_us;
+};
+
+bool cas_resolve_target_time(size_t filesize, cas_time_read_fn reader, void *ctx,
+                             uint64_t target_us, CassetteTargetResolution &out);
 
 #endif // CASSETTE_TIME_PLAN_H

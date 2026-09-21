@@ -2,12 +2,16 @@
 #include <doctest/doctest.h>
 
 #include "sio/fsk_plan.h"
+#include "FskRmtPingPongModel.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstddef>
+#include <fstream>
 #include <initializer_list>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -2183,4 +2187,1543 @@ TEST_CASE("All-MARK classification does not change run membership or splitting")
     }
     CHECK(total == static_cast<uint64_t>(65535) * 100);
     CHECK(portions == 201); // ceil(6553500 / 32767)
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// MOTOR pause: remainder classification after a resume, physical-position
+// accounting, natural-end classification and single-owner stop claims.
+// ════════════════════════════════════════════════════════════════════════════
+
+TEST_CASE("Resume remainder: fsk_run_summarize_from counts only what is left of the current value")
+{
+    RunFixture f(512, { { 0, 3, 0, 4 } }); // MARK-only: 300 + 400 us of HIGH
+    FskRunSummary all = f.summarize();
+    CHECK(all.has_space == false);
+    CHECK(all.total_ticks == 700);
+
+    // Paused 250 us into value 1 (300 us long): 50 + 400 = 450 = 700 - 250.
+    FskRunSummary r = fsk_run_summarize_from(f.table.data(), 512, f.base.data(),
+                                             f.counts.data(), f.counts.size(), 0, 1, 250);
+    CHECK(r.has_space == false);
+    CHECK(r.total_ticks == 450);
+
+    // Exactly at a value boundary: no skip.
+    r = fsk_run_summarize_from(f.table.data(), 512, f.base.data(), f.counts.data(),
+                               f.counts.size(), 0, 3, 0);
+    CHECK(r.total_ticks == 400);
+
+    // Past the end: empty, all MARK.
+    r = fsk_run_summarize_from(f.table.data(), 512, f.base.data(), f.counts.data(),
+                               f.counts.size(), 0, 4, 0);
+    CHECK(r.has_space == false);
+    CHECK(r.total_ticks == 0);
+    r = fsk_run_summarize_from(f.table.data(), 512, f.base.data(), f.counts.data(),
+                               f.counts.size(), 1, 0, 0);
+    CHECK(r.total_ticks == 0);
+}
+
+TEST_CASE("Resume remainder: a LOW value that is only partly consumed still counts as SPACE")
+{
+    RunFixture f(512, { { 5, 2, 6 } }); // LOW 500, HIGH 200, LOW 600
+    // Paused inside value 0 (LOW): its remainder is still real SPACE.
+    FskRunSummary r = fsk_run_summarize_from(f.table.data(), 512, f.base.data(),
+                                             f.counts.data(), f.counts.size(), 0, 0, 100);
+    CHECK(r.has_space == true);
+    // The first LOW is fully consumed, but value 2 is LOW again.
+    r = fsk_run_summarize_from(f.table.data(), 512, f.base.data(), f.counts.data(),
+                               f.counts.size(), 0, 0, 500);
+    CHECK(r.has_space == true);
+    r = fsk_run_summarize_from(f.table.data(), 512, f.base.data(), f.counts.data(),
+                               f.counts.size(), 0, 1, 0);
+    CHECK(r.has_space == true);
+}
+
+TEST_CASE("Resume remainder: a joined run whose tail is MARK-only becomes all-MARK once past its last SPACE")
+{
+    // chunk 0: LOW 4, HIGH 3 ; chunk 1: (parity restarts) LOW 0, HIGH 7
+    RunFixture f(512, { { 4, 3 }, { 0, 7 } });
+    CHECK(f.summarize().has_space == true);
+    // Resume inside chunk 0's HIGH value: everything left is MARK.
+    FskRunSummary r = fsk_run_summarize_from(f.table.data(), 512, f.base.data(),
+                                             f.counts.data(), f.counts.size(), 0, 1, 100);
+    CHECK(r.has_space == false);
+    CHECK(r.total_ticks == 200 + 700);
+    // Resume at chunk 1 start: LOW 0 then HIGH 7.
+    r = fsk_run_summarize_from(f.table.data(), 512, f.base.data(), f.counts.data(),
+                               f.counts.size(), 1, 0, 0);
+    CHECK(r.has_space == false);
+    CHECK(r.total_ticks == 700);
+}
+
+TEST_CASE("All-MARK hold: pause then resume consumes exactly the remaining duration")
+{
+    RunFixture f(512, { { 0, 1000 } }); // one 100 ms MARK-only run
+    const uint64_t total = f.summarize().total_ticks;
+    REQUIRE(total == 100000);
+
+    // Held 30 ms, paused: 70000 remain. Value 0 has 0 ticks, so the position is
+    // inside value 1 with 30000 already consumed.
+    const uint64_t elapsed1 = 30000;
+    FskRunSummary r = fsk_run_summarize_from(f.table.data(), 512, f.base.data(),
+                                             f.counts.data(), f.counts.size(), 0, 1, elapsed1);
+    CHECK(r.total_ticks == total - elapsed1);
+
+    // Resumed, held another 25 ms, paused again: 45000 remain.
+    const uint64_t elapsed2 = elapsed1 + 25000;
+    r = fsk_run_summarize_from(f.table.data(), 512, f.base.data(), f.counts.data(),
+                               f.counts.size(), 0, 1, elapsed2);
+    CHECK(r.total_ticks == total - elapsed2);
+}
+
+namespace {
+    // Build a reference log exactly the way production does: seed at transaction
+    // start, then one reference per refill callback.
+    FskRefLog make_log(uint64_t seed_ticks, int64_t seed_ts,
+                       std::initializer_list<FskConfirmRef> refs = {})
+    {
+        FskRefLog log;
+        fsk_ref_log_reset(log, seed_ticks);
+        fsk_ref_log_set_seed_ts(log, seed_ts);
+        for (const FskConfirmRef &r : refs)
+            fsk_ref_log_confirm(log, r.ticks, r.ts_us);
+        return log;
+    }
+}
+
+TEST_CASE("Physical position: interpolation from the newest reference not later than the stop")
+{
+    // Normal case: the newest reference is at or before the stop.
+    const FskRefLog log = make_log(0, 1000, {{1000, 5000}});
+    CHECK(fsk_physical_ticks_at(log, 100000, 5000) == 1000);   // stop at the reference
+    CHECK(fsk_physical_ticks_at(log, 100000, 7000) == 3000);   // +2000 us
+    CHECK(fsk_physical_ticks_at(log, 2500, 9000) == 2500);     // capped by what was encoded
+
+    // No refill yet: interpolated from the transaction start.
+    const FskRefLog seed_only = make_log(0, 1000);
+    CHECK(fsk_physical_ticks_at(seed_only, 1000000, 1000 + 250000) == 250000);
+}
+
+TEST_CASE("Physical position: a reference newer than the stop never moves the position forward")
+{
+    // The refill callback at t=5000 says the boundary (1000) was reached at some
+    // instant <= 5000. A stop at t=4000 must not be credited with it.
+    const FskRefLog log = make_log(0, 1000, {{1000, 5000}});
+    CHECK(fsk_physical_ticks_at(log, 100000, 4000) == 3000);   // from the seed: 0 + (4000 - 1000)
+    CHECK(fsk_physical_ticks_at(log, 100000, 4999) == 3999);   // one microsecond before the callback
+    CHECK(fsk_physical_ticks_at(log, 100000, 4999) < 5000);    // never a later position than the stop time allows
+    // Never before the transaction start, either.
+    CHECK(fsk_physical_ticks_at(log, 100000, 500) == 0);
+    CHECK(fsk_physical_ticks_at(log, 100000, 1000) == 0);
+}
+
+TEST_CASE("Physical position: reference log keeps the newest FSK_REF_RING references")
+{
+    FskRefLog log;
+    fsk_ref_log_reset(log, 0);
+    fsk_ref_log_set_seed_ts(log, 100);
+    CHECK(log.count == 0);
+    for (uint32_t i = 1; i <= 12; ++i)                // 12 refills, one every 1000 us
+        fsk_ref_log_confirm(log, i * 1000ULL, 100 + i * 1000LL);
+    CHECK(log.count == 12);
+
+    // Newest 8 (5..12) are retained. A stop between two retained references
+    // takes the earlier one, wherever the ring wrapped.
+    CHECK(fsk_ref_log_at(log, 100 + 12 * 1000).ticks == 12000);
+    CHECK(fsk_ref_log_at(log, 100 + 12 * 1000 - 1).ticks == 11000);
+    CHECK(fsk_ref_log_at(log, 100 + 5 * 1000).ticks == 5000);      // the oldest retained
+    CHECK(fsk_ref_log_at(log, 100 + 5 * 1000 + 500).ticks == 5000);
+    // Older than everything retained: the seed, never an overwritten or newer entry.
+    CHECK(fsk_ref_log_at(log, 100 + 5 * 1000 - 1).ticks == 0);
+    CHECK(fsk_ref_log_at(log, 100 + 5 * 1000 - 1).ts_us == 100);
+    CHECK(fsk_physical_ticks_at(log, 1000000, 100 + 5 * 1000 - 1) == 4999); // seed-based lower bound
+}
+
+TEST_CASE("Physical position: task delayed across refill boundaries after the stop")
+{
+    // Tape playing 1 tick per us from t=1'000'000; refills confirm every 2 s.
+    // The MOTOR stop is at t=6'500'000 but the task only wakes at t=9'100'000,
+    // after the refills at 7'000'000 and 9'000'000 already ran.
+    const FskRefLog log = make_log(0, 1000000,
+                                   {{2000000, 3000000}, {4000000, 5000000},
+                                    {6000000, 7000000}, {8000000, 9000000}});
+    const uint64_t at_stop = fsk_physical_ticks_at(log, 10000000, 6500000);
+    CHECK(at_stop == 5500000);                    // 4e6 @ 5e6 + 1.5e6
+    CHECK(at_stop < 6000000);                     // does not jump to the boundary confirmed at 7e6
+    CHECK(at_stop <= 6500000 - 1000000);          // never beyond real-time elapsed since the start
+
+    // Several refills late: all but the seed-side references are newer than the stop.
+    CHECK(fsk_physical_ticks_at(log, 10000000, 2500000) == 1500000); // seed: 0 + 1.5e6
+    CHECK(fsk_physical_ticks_at(log, 10000000, 3000000) == 2000000); // 2e6 @ 3e6
+}
+
+TEST_CASE("Physical position: a resumed run seeded at a non-zero position, with post-stop snapshots")
+{
+    // Resumed at waveform tick 3'000'000; transaction started at t=50 s. Refills
+    // then confirmed 5e6 @ 52 s and 7e6 @ 54 s; the run encoded 9e6 in total.
+    const FskRefLog log = make_log(3000000, 50000000,
+                                   {{5000000, 52000000}, {7000000, 54000000}});
+    CHECK(fsk_physical_ticks_at(log, 9000000, 53000000) == 6000000);  // 5e6 @ 52 s + 1 s
+    CHECK(fsk_physical_ticks_at(log, 9000000, 51000000) == 4000000);  // before the first refill: seed + 1 s
+    CHECK(fsk_physical_ticks_at(log, 9000000, 51999999) == 4999999);  // 1 us before a snapshot: not 5e6
+    CHECK(fsk_physical_ticks_at(log, 9000000, 49999999) == 3000000);  // before the start: the seed itself
+    CHECK(fsk_physical_ticks_at(log, 9000000, 54000000) == 7000000);  // exactly at the last snapshot
+    CHECK(fsk_physical_ticks_at(log, 9000000, 60000000) == 9000000);  // capped at the encoded total
+}
+
+TEST_CASE("Resumed-run accounting: pause -> resume -> pause again measures from the run position")
+{
+    // First play, waveform ticks counted from 0; the accepted stop is 2.5 s
+    // after the transaction start.
+    const uint64_t p1 = fsk_physical_ticks_at(make_log(0, 1000), 10000000, 1000 + 2500000);
+    CHECK(p1 == 2500000);
+
+    // Resume: the log is seeded with p1, the transaction starts at t=50 s and is
+    // stopped 700 ms later. The old defect (counters restarting at 0) reported 700 ms.
+    const uint64_t p2 = fsk_physical_ticks_at(make_log(p1, 50000000), p1 + 10000000,
+                                              50000000 + 700000);
+    CHECK(p2 == 3200000);
+    CHECK(fsk_physical_ticks_at(make_log(0, 50000000), 10000000, 50000000 + 700000) == 700000);
+
+    // Resume again from p2, stop after a single microsecond.
+    CHECK(fsk_physical_ticks_at(make_log(p2, 90000000), p2 + 10000000, 90000000 + 1) == p2 + 1);
+}
+
+TEST_CASE("Natural end classification: only a complete encode that the position has reached")
+{
+    CHECK(fsk_stop_is_natural_end(true, 100, 100) == true);
+    CHECK(fsk_stop_is_natural_end(true, 101, 100) == true);
+    CHECK(fsk_stop_is_natural_end(true, 99, 100) == false);
+    CHECK(fsk_stop_is_natural_end(false, 100, 100) == false);
+    CHECK(fsk_stop_is_natural_end(false, 0, 0) == false);
+}
+
+TEST_CASE("Stop claim: exactly one of MOTOR / HTTP / natural completion can own a transaction")
+{
+    // MOTOR first: HTTP loses.
+    {
+        FskStopReason slot = FskStopReason::NONE;
+        CHECK(fsk_stop_try_claim(slot, true, FskStopReason::MOTOR) == true);
+        CHECK(slot == FskStopReason::MOTOR);
+        CHECK(fsk_stop_try_claim(slot, true, FskStopReason::HTTP) == false);
+        CHECK(slot == FskStopReason::MOTOR);
+        CHECK(fsk_stop_try_claim(slot, true, FskStopReason::MOTOR) == false);
+    }
+    // HTTP first: MOTOR loses.
+    {
+        FskStopReason slot = FskStopReason::NONE;
+        CHECK(fsk_stop_try_claim(slot, true, FskStopReason::HTTP) == true);
+        CHECK(fsk_stop_try_claim(slot, true, FskStopReason::MOTOR) == false);
+        CHECK(slot == FskStopReason::HTTP);
+    }
+    // Natural completion has unpublished the channel: nobody can claim it.
+    {
+        FskStopReason slot = FskStopReason::NONE;
+        CHECK(fsk_stop_try_claim(slot, false, FskStopReason::MOTOR) == false);
+        CHECK(fsk_stop_try_claim(slot, false, FskStopReason::HTTP) == false);
+        CHECK(slot == FskStopReason::NONE);
+    }
+    // NONE is not a requester.
+    {
+        FskStopReason slot = FskStopReason::NONE;
+        CHECK(fsk_stop_try_claim(slot, true, FskStopReason::NONE) == false);
+        CHECK(slot == FskStopReason::NONE);
+    }
+    // A slot that was taken and cleared can be claimed again by the next run.
+    {
+        FskStopReason slot = FskStopReason::NONE;
+        REQUIRE(fsk_stop_try_claim(slot, true, FskStopReason::MOTOR));
+        slot = FskStopReason::NONE;
+        CHECK(fsk_stop_try_claim(slot, true, FskStopReason::HTTP) == true);
+    }
+}
+
+TEST_CASE("Alien-style (0,N) all-MARK runs are unchanged by the resume-aware classifier")
+{
+    for (int n = 1; n <= 10; ++n)
+    {
+        RunFixture f(512, { { 0, static_cast<uint16_t>(n) } });
+        FskRunSummary s = f.summarize();
+        CHECK(s.has_space == false);
+        CHECK(s.total_ticks == static_cast<uint64_t>(n) * 100);
+        // The remainder view from the start is identical.
+        FskRunSummary r = fsk_run_summarize_from(f.table.data(), 512, f.base.data(),
+                                                 f.counts.data(), f.counts.size(), 0, 0, 0);
+        CHECK(r.has_space == false);
+        CHECK(r.total_ticks == s.total_ticks);
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Emit decision by PHYSICAL ordering. Scenario used below: the run encodes 10 s
+// of waveform and starts at t = 1.000000 s (seed 0). Refill callbacks confirm the
+// 2 s / 4 s / 6 s / 8 s boundaries at t = 3 s / 5 s / 7 s / 9 s. The final refill
+// completes the encode and records nothing, so the last reference is 8 s @ 9 s and
+// the tape physically ends at t = 11.000000 s. The RMT reports done a moment
+// later, i.e. possibly before the task has looked at a MOTOR edge / HTTP claim
+// that was latched earlier.
+// ════════════════════════════════════════════════════════════════════════════
+
+namespace {
+    constexpr uint64_t kEncodedTotal  = 10000000; // ticks (10 s)
+    constexpr int64_t  kStartTs       = 1000000;  // us
+    constexpr int64_t  kPhysicalEndTs = 11000000; // us: 9 s + (10 s - 8 s)
+
+    FskRefLog scenario_log()
+    {
+        return make_log(0, kStartTs,
+                        {{2000000, 3000000}, {4000000, 5000000},
+                         {6000000, 7000000}, {8000000, 9000000}});
+    }
+
+    FskEmitDecision decide(bool hw_done, FskStopReason reason, int64_t stop_ts,
+                           bool encoding_complete = true)
+    {
+        const FskRefLog log = scenario_log();
+        return fsk_decide_emit(hw_done, reason, encoding_complete, &log, kEncodedTotal, stop_ts);
+    }
+}
+
+TEST_CASE("Emit decision: MOTOR stop before the physical end wins even though hw_done is already set")
+{
+    const FskEmitDecision d = decide(/*hw_done=*/true, FskStopReason::MOTOR, 10500000);
+    CHECK(d.outcome == FskEmitOutcome::FROZEN);
+    CHECK(d.physical_ticks == 9500000);          // 8 s + 1.5 s: the MOTOR timestamp position
+    CHECK(d.physical_ticks < kEncodedTotal);     // not the end of the run
+
+    // Scheduling order is irrelevant: the same stop with hw_done still false
+    // classifies identically.
+    const FskEmitDecision d2 = decide(false, FskStopReason::MOTOR, 10500000);
+    CHECK(d2.outcome == FskEmitOutcome::FROZEN);
+    CHECK(d2.physical_ticks == d.physical_ticks);
+}
+
+TEST_CASE("Emit decision: HTTP claim before the physical end rewinds from its own timestamp, not the end of run")
+{
+    const FskEmitDecision d = decide(true, FskStopReason::HTTP, 10500000);
+    CHECK(d.outcome == FskEmitOutcome::FROZEN);
+    CHECK(d.physical_ticks == 9500000);
+    // The frozen run-relative Q (irg + waveform) is 0.5 s short of the end.
+    const uint64_t irg_us = 1000000;
+    CHECK(irg_us + d.physical_ticks == irg_us + kEncodedTotal - 500000);
+}
+
+TEST_CASE("Emit decision: MOTOR stop before the newest snapshot does not advance to it")
+{
+    // The refill callback for 8 s ran at t = 9 s, but the MOTOR edge was at
+    // t = 8.7 s (the task only looked at it later). The frozen position is
+    // interpolated from 6 s @ 7 s, not credited with the 8 s boundary.
+    FskEmitDecision d = decide(false, FskStopReason::MOTOR, 8700000);
+    CHECK(d.outcome == FskEmitOutcome::FROZEN);
+    CHECK(d.physical_ticks == 7700000);          // 6e6 + 1.7e6
+    CHECK(d.physical_ticks < 8000000);
+
+    // One microsecond before the newest snapshot.
+    d = decide(true, FskStopReason::MOTOR, 8999999);
+    CHECK(d.outcome == FskEmitOutcome::FROZEN);
+    CHECK(d.physical_ticks == 7999999);
+
+    // Exactly at the snapshot: the boundary itself.
+    d = decide(true, FskStopReason::MOTOR, 9000000);
+    CHECK(d.physical_ticks == 8000000);
+}
+
+TEST_CASE("Emit decision: HTTP claim before the newest snapshot does not advance to it")
+{
+    FskEmitDecision d = decide(false, FskStopReason::HTTP, 8700000);
+    CHECK(d.outcome == FskEmitOutcome::FROZEN);
+    CHECK(d.physical_ticks == 7700000);
+    CHECK(1000000 + d.physical_ticks < 1000000 + 8000000);
+
+    d = decide(true, FskStopReason::HTTP, 8999999);
+    CHECK(d.outcome == FskEmitOutcome::FROZEN);
+    CHECK(d.physical_ticks == 7999999);
+}
+
+TEST_CASE("Emit decision: a stop one microsecond before the true end freezes even with a later snapshot and hw_done visible")
+{
+    FskEmitDecision d = decide(true, FskStopReason::MOTOR, kPhysicalEndTs - 1);
+    CHECK(d.outcome == FskEmitOutcome::FROZEN);
+    CHECK(d.physical_ticks == kEncodedTotal - 1);
+
+    // A snapshot that says the whole run was reached but is later than the stop
+    // (e.g. a callback delayed past the end) must not turn the stop natural.
+    FskRefLog log = scenario_log();
+    fsk_ref_log_confirm(log, kEncodedTotal, kPhysicalEndTs + 20);
+    d = fsk_decide_emit(true, FskStopReason::MOTOR, true, &log, kEncodedTotal, kPhysicalEndTs - 1);
+    CHECK(d.outcome == FskEmitOutcome::FROZEN);
+    CHECK(d.physical_ticks == kEncodedTotal - 1);
+    d = fsk_decide_emit(true, FskStopReason::HTTP, true, &log, kEncodedTotal, kPhysicalEndTs - 1);
+    CHECK(d.outcome == FskEmitOutcome::FROZEN);
+    CHECK(d.physical_ticks == kEncodedTotal - 1);
+}
+
+TEST_CASE("Emit decision: a stop exactly at or after the physical end is natural")
+{
+    FskEmitDecision d = decide(true, FskStopReason::MOTOR, kPhysicalEndTs);
+    CHECK(d.outcome == FskEmitOutcome::NATURAL);
+    CHECK(d.physical_ticks == kEncodedTotal);
+
+    d = decide(true, FskStopReason::MOTOR, kPhysicalEndTs + 1);
+    CHECK(d.outcome == FskEmitOutcome::NATURAL);
+
+    d = decide(true, FskStopReason::MOTOR, kPhysicalEndTs + 200000);
+    CHECK(d.outcome == FskEmitOutcome::NATURAL);
+    CHECK(d.physical_ticks == kEncodedTotal); // never past the encoded total
+}
+
+TEST_CASE("Emit decision: an HTTP claim at or after the true end keeps the end-position rewind semantics")
+{
+    for (int64_t ts : { kPhysicalEndTs, kPhysicalEndTs + 1, kPhysicalEndTs + 5000000 })
+    {
+        const FskEmitDecision d = decide(true, FskStopReason::HTTP, ts);
+        CHECK(d.outcome == FskEmitOutcome::NATURAL);
+        CHECK(d.physical_ticks == kEncodedTotal); // rewind is then measured from the end of the tape
+    }
+}
+
+TEST_CASE("Emit decision: task delayed across a refill boundary after the stop")
+{
+    // MOTOR at t = 6.5 s; the refills at 7 s and 9 s have both run before the
+    // task freezes. The position is still measured at 6.5 s from 4 s @ 5 s.
+    FskEmitDecision d = decide(false, FskStopReason::MOTOR, 6500000);
+    CHECK(d.outcome == FskEmitOutcome::FROZEN);
+    CHECK(d.physical_ticks == 5500000);
+
+    // Same for a run that has already been fully encoded and reported done.
+    d = decide(true, FskStopReason::MOTOR, 6500000);
+    CHECK(d.outcome == FskEmitOutcome::FROZEN);
+    CHECK(d.physical_ticks == 5500000);
+}
+
+TEST_CASE("Emit decision: with no stop request only the hardware can end the run")
+{
+    CHECK(decide(true, FskStopReason::NONE, 0).outcome == FskEmitOutcome::NATURAL);
+    CHECK(decide(false, FskStopReason::NONE, 0).outcome == FskEmitOutcome::KEEP_WAITING);
+    // A null log is valid when there is no stop to position.
+    CHECK(fsk_decide_emit(false, FskStopReason::NONE, false, nullptr, 0, 0).outcome ==
+          FskEmitOutcome::KEEP_WAITING);
+    CHECK(fsk_decide_emit(true, FskStopReason::NONE, false, nullptr, 0, 0).outcome ==
+          FskEmitOutcome::NATURAL);
+}
+
+TEST_CASE("Emit decision: a stop is never natural while the encoder has not finished")
+{
+    // Position estimate has caught up with the encoded total only because the
+    // encoder stalled: that is not the end of the tape.
+    const FskEmitDecision d = decide(false, FskStopReason::MOTOR, kPhysicalEndTs + 1000000,
+                                     /*encoding_complete=*/false);
+    CHECK(d.outcome == FskEmitOutcome::FROZEN);
+    CHECK(d.physical_ticks == kEncodedTotal);
+}
+
+TEST_CASE("Emit decision: a resumed run's seeded log gives the position from the run start")
+{
+    // Resumed at waveform tick 3'000'000, transaction started at t = 50 s. A
+    // refill callback confirmed 4e6 at t = 51 s, i.e. LATER than both stops below.
+    const FskRefLog log = make_log(3000000, 50000000, {{4000000, 51000000}});
+    FskEmitDecision d = fsk_decide_emit(false, FskStopReason::MOTOR, false, &log,
+                                        9000000, 50900000);
+    CHECK(d.outcome == FskEmitOutcome::FROZEN);
+    CHECK(d.physical_ticks == 3900000);          // seed 3e6 + 0.9 s, not the later snapshot's 4e6
+
+    d = fsk_decide_emit(false, FskStopReason::HTTP, false, &log, 9000000, 50999999);
+    CHECK(d.outcome == FskEmitOutcome::FROZEN);
+    CHECK(d.physical_ticks == 3999999);
+
+    d = fsk_decide_emit(false, FskStopReason::MOTOR, false, &log, 9000000, 51000000);
+    CHECK(d.physical_ticks == 4000000);          // at the snapshot itself
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Resume-setup failure: the frozen (R, Q) must survive a setup that fails before
+// any waveform is emitted (preload, RMT begin, rmt_transmit NOT_STARTED).
+// ════════════════════════════════════════════════════════════════════════════
+
+TEST_CASE("Setup failure: a run resumed from a frozen position re-arms the same position")
+{
+    // Resumed inside the waveform: Q = irg + 1.5 s. Nothing played, so the
+    // position is exactly Q again (the leading IRG has no bearing on it).
+    const uint64_t irg_us = 2000000;
+    const uint64_t q0 = irg_us + 1500000;
+    FskSetupRetry r = fsk_setup_failure_retry(true, q0, irg_us, 1500000, false);
+    CHECK(r.rearm == true);
+    CHECK(r.q_us == q0);
+
+    // Resumed exactly at the waveform start (Q == irg): identical.
+    r = fsk_setup_failure_retry(true, irg_us, irg_us, 0, false);
+    CHECK(r.rearm == true);
+    CHECK(r.q_us == irg_us);
+
+    // Resumed inside the IRG and failed BEFORE the IRG remainder was held (the
+    // preload failure path): still exactly Q.
+    r = fsk_setup_failure_retry(true, 700000, irg_us, 0, false);
+    CHECK(r.rearm == true);
+    CHECK(r.q_us == 700000);
+}
+
+TEST_CASE("Setup failure: an IRG remainder that already elapsed is not played twice")
+{
+    // Resumed inside the IRG (Q = 0.7 s of 2 s); the 1.3 s remainder was held
+    // in this dispatch, then rmt_transmit failed. The tape is at the waveform
+    // start now, and that is the position to retry from.
+    const uint64_t irg_us = 2000000;
+    const FskSetupRetry r = fsk_setup_failure_retry(true, 700000, irg_us, 0, true);
+    CHECK(r.rearm == true);
+    CHECK(r.q_us == irg_us);
+}
+
+TEST_CASE("Setup failure: a dispatch that did not resume keeps the structural next-offset behavior")
+{
+    FskSetupRetry r = fsk_setup_failure_retry(false, 0, 2000000, 0, false);
+    CHECK(r.rearm == false);
+    r = fsk_setup_failure_retry(false, 0, 2000000, 0, true);
+    CHECK(r.rearm == false);
+}
+
+// The hardware orchestration itself cannot run on the host, so this reads the
+// production source and pins the state transitions that matter: the frozen
+// position must be re-armed on every setup failure (preload failure, begin
+// failure, rmt_transmit NOT_STARTED) and never on the success path.
+namespace {
+    std::string read_play_fsk_chunk_esp_body()
+    {
+        // __FILE__ is <repo>/tests/FskPlanTests.cpp
+        std::string here = __FILE__;
+        std::replace(here.begin(), here.end(), '\\', '/');
+        const size_t slash = here.rfind('/');
+        const std::string path = here.substr(0, slash) + "/../lib/device/sio/cassette.cpp";
+        std::ifstream in(path, std::ios::binary);
+        if (!in)
+            return std::string();
+        std::stringstream ss;
+        ss << in.rdbuf();
+        std::string src = ss.str();
+        src.erase(std::remove(src.begin(), src.end(), '\r'), src.end());
+        const size_t a = src.find("size_t sioCassette::play_fsk_chunk(");
+        const size_t b = src.find("#else  // ---- PC build", a);
+        if (a == std::string::npos || b == std::string::npos)
+            return std::string();
+        return src.substr(a, b - a);
+    }
+
+    size_t count_of(const std::string &hay, const std::string &needle)
+    {
+        size_t n = 0;
+        for (size_t at = hay.find(needle); at != std::string::npos; at = hay.find(needle, at + 1))
+            ++n;
+        return n;
+    }
+}
+
+TEST_CASE("Setup failure (source-level): play_fsk_chunk re-arms the frozen position on every setup failure")
+{
+    const std::string body = read_play_fsk_chunk_esp_body();
+    REQUIRE_MESSAGE(!body.empty(), "could not read the play_fsk_chunk ESP body from cassette.cpp");
+
+    // The re-arm goes through the tested pure helper and freeze().
+    const size_t lambda = body.find("auto setup_failed = [&]()");
+    REQUIRE(lambda != std::string::npos);
+    const size_t lambda_end = body.find("};", lambda);
+    REQUIRE(lambda_end != std::string::npos);
+    const std::string lambda_body = body.substr(lambda, lambda_end - lambda);
+    CHECK(lambda_body.find("fsk_setup_failure_retry(resumed, q0, irg_us, p0, irg_held)") != std::string::npos);
+    CHECK(lambda_body.find("freeze(retry.q_us)") != std::string::npos);
+
+    // Exactly three call sites: preload failure, begin failure, NOT_STARTED.
+    CHECK(count_of(body, "setup_failed();") == 3);
+
+    // 1. Preload failure re-arms and leaves BEFORE the IRG hold, for a resumed run.
+    const size_t preload_fail = body.find("if (!preload_ok)");
+    const size_t in_irg = body.find("if (split.in_irg)");
+    REQUIRE(preload_fail != std::string::npos);
+    REQUIRE(in_irg != std::string::npos);
+    REQUIRE(preload_fail < in_irg);
+    const std::string preload_block = body.substr(preload_fail, in_irg - preload_fail);
+    CHECK(preload_block.find("if (resumed)") != std::string::npos);
+    CHECK(preload_block.find("setup_failed();") != std::string::npos);
+    CHECK(preload_block.find("goto done;") != std::string::npos);
+
+    // 2. rmt begin failure and 3. rmt_transmit NOT_STARTED re-arm after the begin call.
+    const size_t begin_at = body.find("fsk_signal_begin(seed_chunk, seed_value, seed_skip)");
+    const size_t done_at = body.find("\ndone:");
+    REQUIRE(begin_at != std::string::npos);
+    REQUIRE(done_at != std::string::npos);
+    const std::string after_begin = body.substr(begin_at, done_at - begin_at);
+    CHECK(count_of(after_begin, "setup_failed();") == 2);
+    const size_t not_started = after_begin.find("emit == FskEmit::NOT_STARTED");
+    REQUIRE(not_started != std::string::npos);
+    CHECK(after_begin.find("setup_failed();", not_started) != std::string::npos);
+    CHECK(after_begin.find("signal begin failed") != std::string::npos);
+
+    // The IRG remainder that has fully elapsed is recorded for the re-arm.
+    CHECK(body.find("irg_held = true;") != std::string::npos);
+    CHECK(body.find("irg_held = true;") < body.find("if (preload_ok && run_total_values > 0)"));
+
+    // The success/natural path never re-arms: the only unconditional consumption
+    // of the position stays at the top of the function, before preload.
+    const size_t consume = body.find("_fsk_pos_valid = false;");
+    REQUIRE(consume != std::string::npos);
+    CHECK(consume < preload_fail);
+    CHECK(count_of(body, "_fsk_pos_valid = false;") == 1);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Producer of the physical references: what does each RMT threshold callback
+// publish? Driven through the host ping-pong model (FskRmtPingPongModel.h)
+// against an independent oracle. ESP-IDF 5.4 non-DMA sequence being modelled:
+//   prefill (offered 512)  -> pending H0, cumulative H1
+//   threshold 1 (offered 256): the boundary H0; refill; cumulative H2; pending H1
+//   threshold 2 (offered 256): the boundary H1; refill; cumulative H3; pending H2
+// with Hk = duration of symbols 0 .. 256*(k+1)-1. The transmitter fetches ahead,
+// so at the threshold of half k the pin is still FSK_RMT_PREFETCH_ENTRIES (3)
+// entries short of Hk (b of the second-to-last symbol, then a and b of the last):
+// the published reference is Hk minus those entries, Dk.
+// ════════════════════════════════════════════════════════════════════════════
+
+namespace {
+    // Six halves whose durations all differ, so an off-by-one-half reference can
+    // never coincide with the right one. Each half is 512 values (256 symbols);
+    // a value of v units is one portion of v * 100 ticks, a symbol two portions.
+    //   half:      0      1       2       3       4       5
+    //   value v:   1      2       3       5       4       7
+    //   duration:  51200  102400  153600  256000  204800  358400
+    constexpr uint64_t kH[6] = { 51200, 153600, 307200, 563200, 768000, 1126400 };
+    // The last FSK_RMT_PREFETCH_ENTRIES (3) entries of each half: 3 * 100 * v.
+    constexpr uint64_t kD[6] = { 300, 600, 900, 1500, 1200, 2100 };
+
+    std::vector<uint16_t> six_halves()
+    {
+        const uint16_t v[6] = { 1, 2, 3, 5, 4, 7 };
+        std::vector<uint16_t> out;
+        for (uint16_t x : v)
+            out.insert(out.end(), 512, x);
+        return out;
+    }
+
+    constexpr int64_t kT0 = 1000000;   // transaction start (us)
+    constexpr int64_t kLat = 25;       // threshold ISR latency (us)
+}
+
+TEST_CASE("Boundary producer: non-uniform 4-half sequence publishes H0-D0, H1-D1, H2-D2, H3-D3")
+{
+    const std::vector<uint16_t> values = six_halves();
+    fskmodel::RmtPingPongModel m(values, 0, 0, kT0);
+    const fskmodel::Simulation sim = fskmodel::simulate(m, values, 0, 0, kT0, kLat, 10);
+
+    REQUIRE(sim.thresholds.size() == 4);
+    CHECK(sim.completed);
+    CHECK(sim.total_ticks == kH[5]);
+
+    for (size_t k = 0; k < 4; ++k)
+    {
+        const fskmodel::ThresholdRecord &r = sim.thresholds[k];
+        CHECK(r.expected == kH[k]);                        // the raw boundary this threshold proves
+        CHECK(r.confirmed == kH[k] - kD[k]);               // what the pin had reached: boundary - last 3 entries
+        CHECK(r.confirmed == r.expected_ref);
+        CHECK(r.confirmed < r.expected);                   // never the boundary itself (the old, ahead value)
+    }
+
+    // The old defect published the boundary itself, and before that one half ahead.
+    for (size_t k = 0; k < 4; ++k)
+    {
+        CHECK(sim.thresholds[k].confirmed != kH[k]);
+        CHECK(sim.thresholds[k].confirmed != kH[k + 1]);
+    }
+}
+
+TEST_CASE("Boundary producer: a 512-symbol prefill publishes only the first 256-symbol boundary")
+{
+    const std::vector<uint16_t> values = six_halves();
+    fskmodel::RmtPingPongModel m(values, 0, 0, kT0);
+    m.callback(512, kT0);
+
+    CHECK(m.bt.cumulative_ticks == kH[1]);    // both halves encoded ...
+    CHECK(m.bt.prefill_half_ticks == kH[0]);  // ... only the first will be proven
+    CHECK(m.bt.pending_ticks == kH[0]);       // first pending boundary: H0, not H1
+    CHECK(m.log.count == 0);                  // the prefill records no reference
+
+    // The durations that trail that boundary are the last entries of the FIRST
+    // half (100 ticks each), not the last entries of the whole prefill (200 each).
+    CHECK(m.bt.pending_tail[0] == 100);
+    CHECK(m.bt.pending_tail[1] == 100);
+    CHECK(m.bt.pending_tail[2] == 100);
+    CHECK(m.bt.tail[0] == 200);               // entries just encoded, end of the second half
+    CHECK(fsk_boundary_physical_ticks(m.bt.pending_ticks, m.bt.pending_tail) == kH[0] - kD[0]);
+}
+
+TEST_CASE("Boundary producer: first refill publishes H0-D0 and makes H1 pending, although the refill ends at H2")
+{
+    const std::vector<uint16_t> values = six_halves();
+    fskmodel::RmtPingPongModel m(values, 0, 0, kT0);
+    const fskmodel::Simulation sim = fskmodel::simulate(m, values, 0, 0, kT0, kLat, 1);
+
+    REQUIRE(sim.thresholds.size() == 1);
+    const fskmodel::ThresholdRecord &r = sim.thresholds[0];
+    CHECK(r.confirmed == kH[0] - kD[0]);
+    CHECK(r.cumulative_before == kH[1]);
+    CHECK(r.cumulative_after == kH[2]);       // end-of-callback total
+    CHECK(r.next_pending == kH[1]);           // NOT H2
+    CHECK(r.next_pending != r.cumulative_after);
+    // The tail that goes with the pending boundary is the last entries of the
+    // half that was resident before this refill (200 ticks each), not of H2's.
+    CHECK(m.bt.pending_tail[0] == 200);
+    CHECK(m.bt.pending_tail[1] == 200);
+}
+
+TEST_CASE("Boundary producer: second refill publishes H1-D1 and makes H2 pending, although the refill ends at H3")
+{
+    const std::vector<uint16_t> values = six_halves();
+    fskmodel::RmtPingPongModel m(values, 0, 0, kT0);
+    const fskmodel::Simulation sim = fskmodel::simulate(m, values, 0, 0, kT0, kLat, 2);
+
+    REQUIRE(sim.thresholds.size() == 2);
+    const fskmodel::ThresholdRecord &r = sim.thresholds[1];
+    CHECK(r.confirmed == kH[1] - kD[1]);
+    CHECK(r.cumulative_before == kH[2]);
+    CHECK(r.cumulative_after == kH[3]);
+    CHECK(r.next_pending == kH[2]);           // NOT H3
+    CHECK(r.next_pending != r.cumulative_after);
+    CHECK(m.bt.pending_tail[0] == 300);       // half 2: value 3 -> 300 ticks per entry
+}
+
+TEST_CASE("Boundary producer: the callback that finishes the waveform publishes no future boundary")
+{
+    const std::vector<uint16_t> values = six_halves();
+    fskmodel::RmtPingPongModel m(values, 0, 0, kT0);
+    const fskmodel::Simulation sim = fskmodel::simulate(m, values, 0, 0, kT0, kLat, 10);
+
+    // Threshold 3 refills half 4 (more remains); threshold 4 refills half 5 and
+    // completes: it still publishes H3-D3, but the pending value it leaves is the
+    // stale H3 from the previous refill, never the end-of-run total.
+    REQUIRE(sim.thresholds.size() == 4);
+    CHECK_FALSE(sim.thresholds[2].done_after);
+    CHECK(sim.thresholds[3].done_after);
+    CHECK(sim.thresholds[3].confirmed == kH[3] - kD[3]);
+    CHECK(m.bt.pending_ticks == kH[3]);
+    CHECK(m.bt.pending_ticks != sim.total_ticks);
+    CHECK(m.log.count == 4);                  // no fifth reference was invented
+}
+
+TEST_CASE("Boundary producer: a resumed run includes the seed exactly once in every reference")
+{
+    // Resumed at 3'000'000 ticks, inside a 400-unit value with 1500 ticks already
+    // played (the first value contributes only its remaining 2500).
+    const uint64_t seed = 3000000;
+    const uint64_t skip = 1500;
+    std::vector<uint16_t> values = { 40 };
+    const std::vector<uint16_t> tail = six_halves();
+    values.insert(values.end(), tail.begin(), tail.end());
+
+    fskmodel::RmtPingPongModel seeded(values, seed, skip, kT0);
+    const fskmodel::Simulation ss = fskmodel::simulate(seeded, values, seed, skip, kT0, kLat, 10);
+    fskmodel::RmtPingPongModel plain(values, 0, skip, kT0);
+    const fskmodel::Simulation sp = fskmodel::simulate(plain, values, 0, skip, kT0, kLat, 10);
+
+    REQUIRE(ss.thresholds.size() == sp.thresholds.size());
+    REQUIRE(ss.thresholds.size() >= 4);
+    for (size_t i = 0; i < ss.thresholds.size(); ++i)
+    {
+        CHECK(ss.thresholds[i].confirmed == ss.thresholds[i].expected_ref);
+        CHECK(ss.thresholds[i].confirmed == sp.thresholds[i].confirmed + seed);   // seed once
+        CHECK(ss.thresholds[i].cumulative_before == sp.thresholds[i].cumulative_before + seed);
+        CHECK(ss.thresholds[i].next_pending == sp.thresholds[i].next_pending + seed);
+    }
+    CHECK(ss.prefill_pending == sp.prefill_pending + seed);
+    CHECK(ss.total_ticks == sp.total_ticks + seed);
+}
+
+TEST_CASE("Boundary producer: variable durations and long values are accounted by ticks, not symbol counts")
+{
+    // A 65535-unit HIGH (6'553'500 ticks) splits into 201 portions of at most
+    // 32767 ticks, i.e. ~100 symbols; the rest is short values of unequal size.
+    std::vector<uint16_t> values;
+    for (int i = 0; i < 300; ++i) values.push_back(static_cast<uint16_t>(1 + (i % 7)));
+    values.push_back(65535);
+    for (int i = 0; i < 900; ++i) values.push_back(static_cast<uint16_t>(2 + (i % 5)));
+    values.push_back(40000);
+    for (int i = 0; i < 1200; ++i) values.push_back(static_cast<uint16_t>(1 + ((i * 7) % 11)));
+    values.push_back(0);                       // zero-duration values consume nothing
+    for (int i = 0; i < 500; ++i) values.push_back(static_cast<uint16_t>(3 + (i % 3)));
+
+    fskmodel::RmtPingPongModel m(values, 0, 0, kT0);
+    const fskmodel::Simulation sim = fskmodel::simulate(m, values, 0, 0, kT0, kLat, 100);
+    REQUIRE(sim.thresholds.size() >= 5);
+    CHECK(sim.completed);
+
+    std::vector<uint64_t> half_ticks;                   // duration of each proven half
+    uint64_t prev = 0;
+    for (const fskmodel::ThresholdRecord &r : sim.thresholds)
+    {
+        CHECK(r.confirmed == r.expected_ref);
+        if (!r.done_after)
+        {
+            CHECK(r.next_pending == r.cumulative_before);   // refill start total, not its end
+            CHECK(r.next_pending != r.cumulative_after);
+        }
+        half_ticks.push_back(r.expected - prev);
+        prev = r.expected;
+    }
+    bool durations_differ = false;
+    for (uint64_t h : half_ticks)
+        durations_differ = durations_differ || (h != half_ticks[0]);
+    CHECK(durations_differ);                            // halves are not equal-sized
+}
+
+TEST_CASE("Boundary producer: a MOTOR stop between thresholds gets no credit from the newly refilled half")
+{
+    const std::vector<uint16_t> values = six_halves();
+    fskmodel::RmtPingPongModel m(values, 0, 0, kT0);
+    const fskmodel::Simulation sim = fskmodel::simulate(m, values, 0, 0, kT0, kLat, 10);
+    REQUIRE(sim.thresholds.size() == 4);
+
+    // The pin reaches H0 at kT0 + H0. Its threshold event fires D0 earlier (the
+    // pin is then at H0 - D0, three entries short) and the callback 25 us after that. The MOTOR falls
+    // 10 ms after the boundary, well before threshold 2.
+    const int64_t stop = kT0 + static_cast<int64_t>(kH[0]) + 10000;
+    const uint64_t truth = kH[0] + 10000;           // physical position at the stop
+
+    const uint64_t pos = fsk_physical_ticks_at(m.log, sim.total_ticks, stop);
+    CHECK(pos == kH[0] + 10000 - kLat);             // reference H0-D0 @ +25 us, interpolated
+    CHECK(pos <= truth);                            // never ahead of the tape
+    CHECK(pos >= kH[0]);
+    CHECK(pos < kH[1]);                             // the resident second half is not credited
+    CHECK(pos < kH[2]);                             // nor the half refilled at threshold 1
+
+    // 10 us after the threshold event but before its callback (25 us) ran: the
+    // reference is not usable yet, the seed is: still exactly the true position.
+    const int64_t early = kT0 + static_cast<int64_t>(kH[0] - kD[0]) + 10;
+    CHECK(fsk_physical_ticks_at(m.log, sim.total_ticks, early) == kH[0] - kD[0] + 10);
+
+    // Between thresholds 2 and 3, and MOTOR after threshold 4's callback.
+    for (int k = 1; k <= 3; ++k)
+    {
+        const int64_t st = kT0 + static_cast<int64_t>(kH[k]) + 777;
+        const uint64_t p = fsk_physical_ticks_at(m.log, sim.total_ticks, st);
+        CHECK(p == kH[k] + 777 - kLat);
+        CHECK(p < kH[k + 1]);
+        CHECK(p <= kH[k] + 777);
+    }
+}
+
+TEST_CASE("Boundary producer: natural-end classification with corrected references")
+{
+    const std::vector<uint16_t> values = six_halves();
+    fskmodel::RmtPingPongModel m(values, 0, 0, kT0);
+    const fskmodel::Simulation sim = fskmodel::simulate(m, values, 0, 0, kT0, kLat, 10);
+    REQUIRE(sim.thresholds.size() == 4);
+    const uint64_t total = sim.total_ticks;                  // H5
+    const int64_t true_end = kT0 + static_cast<int64_t>(total);
+
+    // The last reference is (H3 - D3) @ its callback: the conservative end is
+    // exactly the callback latency late, and no earlier.
+    FskEmitDecision d = fsk_decide_emit(true, FskStopReason::MOTOR, true, &m.log, total, true_end - 1);
+    CHECK(d.outcome == FskEmitOutcome::FROZEN);              // 1 us before the true end
+    CHECK(d.physical_ticks == total - 1 - kLat);
+
+    d = fsk_decide_emit(true, FskStopReason::MOTOR, true, &m.log, total, true_end + kLat);
+    CHECK(d.outcome == FskEmitOutcome::NATURAL);             // at the conservative end
+    CHECK(d.physical_ticks == total);
+
+    d = fsk_decide_emit(true, FskStopReason::HTTP, true, &m.log, total, true_end + 5000000);
+    CHECK(d.outcome == FskEmitOutcome::NATURAL);
+
+    // A stop while half 4 plays (between H3 and H4) is a pause, positioned from the
+    // H3 reference: it never reaches H4 or H5.
+    const int64_t mid4 = kT0 + static_cast<int64_t>(kH[3]) + 50000;
+    d = fsk_decide_emit(true, FskStopReason::MOTOR, true, &m.log, total, mid4);
+    CHECK(d.outcome == FskEmitOutcome::FROZEN);
+    CHECK(d.physical_ticks == kH[3] + 50000 - kLat);
+    CHECK(d.physical_ticks < kH[4]);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// The frozen position must never be ahead of the tape (frozen <= true). These
+// sweep stops around every threshold event, callback and boundary, across
+// awkward duration patterns. They fail against a reference that pairs the raw
+// boundary with the callback time (FSK_RMT_PREFETCH_ENTRIES == 0), and against
+// the looser "two whole symbols" rule (== 4 entries), which is behind by more than
+// the callback latency.
+// ════════════════════════════════════════════════════════════════════════════
+
+namespace {
+    // A run whose halves end in symbols of very different lengths: `body` is
+    // the ordinary value, the last 8 values of every 512 are the ragged tail.
+    std::vector<uint16_t> ragged_run(size_t halves, uint16_t body,
+                                     const std::vector<uint16_t> &tail)
+    {
+        std::vector<uint16_t> v;
+        for (size_t h = 0; h < halves; ++h)
+        {
+            v.insert(v.end(), 512 - tail.size(), body);
+            v.insert(v.end(), tail.begin(), tail.end());
+        }
+        return v;
+    }
+
+    struct SweepRun
+    {
+        std::vector<uint16_t> values;
+        uint64_t seed, skip;
+        int64_t t0, lat;
+        fskmodel::RmtPingPongModel m;
+        fskmodel::Simulation sim;
+        SweepRun(std::vector<uint16_t> v, uint64_t seed_, uint64_t skip_, int64_t t0_, int64_t lat_,
+                 size_t hw_lead = fskmodel::kHwLeadEntries)
+            : values(std::move(v)), seed(seed_), skip(skip_), t0(t0_), lat(lat_),
+              m(values, seed_, skip_, t0_)
+        {
+            sim = fskmodel::simulate(m, values, seed, skip, t0, lat, 1000, hw_lead);
+        }
+        uint64_t truth(int64_t stop) const
+        {
+            const uint64_t t = seed + static_cast<uint64_t>(stop - t0);
+            return t > sim.total_ticks ? sim.total_ticks : t;
+        }
+    };
+
+    // Stops around every threshold: the event, its callback, the boundary and the middle of the next half.
+    // Returns how many stops were checked. `tight`: the error must be at most the callback latency.
+    size_t sweep_never_ahead(const SweepRun &r, bool tight)
+    {
+        size_t n = 0;
+        for (size_t i = 0; i < r.sim.thresholds.size(); ++i)
+        {
+            const fskmodel::ThresholdRecord &t = r.sim.thresholds[i];
+            const int64_t event = r.t0 + static_cast<int64_t>(t.hw_position - r.seed);
+            const int64_t boundary = r.t0 + static_cast<int64_t>(t.expected - r.seed);
+            int64_t stops[] = { event - 1, event, event + 1, t.ts_us - 1, t.ts_us, t.ts_us + 1,
+                                boundary - 1, boundary, boundary + 1, boundary + 12345 };
+            for (int64_t stop : stops)
+            {
+                if (stop <= r.t0)
+                    continue;
+                const uint64_t pos = fsk_physical_ticks_at(r.m.log, r.sim.total_ticks, stop);
+                const uint64_t tr = r.truth(stop);
+                CHECK(pos <= tr);                                   // never ahead of the tape
+                if (tight)
+                    CHECK(tr - pos <= static_cast<uint64_t>(r.lat)); // and behind by no more than the callback latency
+                ++n;
+            }
+        }
+        return n;
+    }
+}
+
+TEST_CASE("Threshold lead: a stop just before or just after a boundary is never ahead of the tape")
+{
+    SweepRun r(six_halves(), 0, 0, kT0, kLat);
+    REQUIRE(r.sim.thresholds.size() == 4);
+    // H0 is reached at kT0 + 51200.
+    const int64_t boundary = kT0 + static_cast<int64_t>(kH[0]);
+    const uint64_t before = fsk_physical_ticks_at(r.m.log, r.sim.total_ticks, boundary - 1);
+    const uint64_t after = fsk_physical_ticks_at(r.m.log, r.sim.total_ticks, boundary + 1);
+    CHECK(before == kH[0] - 1 - kLat);        // reference (H0-300 @ +25) + (51199 - 50925)
+    CHECK(after == kH[0] + 1 - kLat);
+    CHECK(before <= kH[0] - 1);               // the old rule gave H0 + 274: 275 us AHEAD of the tape
+    CHECK(after <= kH[0] + 1);
+    CHECK(sweep_never_ahead(r, true) > 30);
+}
+
+TEST_CASE("Threshold lead: very short symbols")
+{
+    // 100 us portions: 200 us symbols, 400 us of prefetch, half = 51.2 ms.
+    SweepRun r(std::vector<uint16_t>(3072, 1), 0, 0, kT0, kLat);
+    REQUIRE(r.sim.thresholds.size() >= 4);
+    CHECK(sweep_never_ahead(r, true) > 30);
+}
+
+TEST_CASE("Threshold lead: long symbols, including 40000 and 65535 unit values")
+{
+    // 40000 and 65535 units (4 s and 6.5535 s) are ~65.5 ms symbols: the prefetch
+    // is then 131 ms and the old rule was that far ahead of the tape.
+    SweepRun r(ragged_run(6, 2, { 65535, 3, 40000, 5, 65535, 1, 40000, 65535 }), 0, 0, kT0, kLat);
+    REQUIRE(r.sim.thresholds.size() >= 4);
+    CHECK(sweep_never_ahead(r, true) > 30);
+
+    // A boundary that falls in the middle of a long value.
+    SweepRun r2(ragged_run(5, 65535, { 4, 4, 4, 4 }), 0, 0, kT0, kLat);
+    REQUIRE(r2.sim.thresholds.size() >= 3);
+    CHECK(sweep_never_ahead(r2, true) > 20);
+}
+
+TEST_CASE("Threshold lead: different durations at the end of every half, over many thresholds")
+{
+    SweepRun r(ragged_run(20, 3, { 30, 2, 90, 7, 1, 55, 12, 120 }), 0, 0, kT0, kLat);
+    REQUIRE(r.sim.thresholds.size() >= 15);
+    CHECK(sweep_never_ahead(r, true) > 150);
+    // The reference is exactly the boundary minus the last three entries of its half.
+    for (const fskmodel::ThresholdRecord &t : r.sim.thresholds)
+        CHECK(t.confirmed == t.expected_ref);
+}
+
+TEST_CASE("Threshold lead: a resumed run with a non-zero seed and a partly consumed first value")
+{
+    SweepRun r(ragged_run(8, 20, { 1, 44, 2, 66, 3, 9, 80, 4 }), 9000000, 1500, kT0, kLat);
+    REQUIRE(r.sim.thresholds.size() >= 6);
+    CHECK(sweep_never_ahead(r, true) >= 50);
+}
+
+TEST_CASE("Threshold lead: a pipeline shallower than assumed only makes the reference more conservative")
+{
+    // If the hardware prefetched two entries instead of three, the reference is
+    // still never ahead of the tape (it is just further behind).
+    SweepRun r(ragged_run(10, 6, { 1, 44, 2, 66, 3, 9, 80, 4 }), 0, 0, kT0, kLat, 2);
+    REQUIRE(r.sim.thresholds.size() >= 8);
+    CHECK(sweep_never_ahead(r, false) > 60);
+}
+
+TEST_CASE("Threshold lead: random durations and random stops")
+{
+    uint32_t rng = 12345;
+    auto next = [&]() { rng = rng * 1664525u + 1013904223u; return rng >> 8; };
+    std::vector<uint16_t> values;
+    for (int i = 0; i < 9000; ++i)
+    {
+        const uint32_t r = next() % 100;
+        values.push_back(r < 3 ? 40000 : r < 5 ? 65535 : static_cast<uint16_t>(1 + next() % 300));
+    }
+    SweepRun r(values, 4000000, 700, kT0, kLat);
+    REQUIRE(r.sim.thresholds.size() >= 6);
+    const int64_t end = kT0 + static_cast<int64_t>(r.sim.total_ticks - r.seed);
+    size_t checked = 0;
+    for (int i = 0; i < 20000; ++i)
+    {
+        const int64_t stop = kT0 + 1 + static_cast<int64_t>(next() % static_cast<uint32_t>(end - kT0));
+        const uint64_t pos = fsk_physical_ticks_at(r.m.log, r.sim.total_ticks, stop);
+        CHECK(pos <= r.truth(stop));
+        ++checked;
+    }
+    CHECK(checked == 20000);
+}
+
+TEST_CASE("Threshold lead: natural end after a ragged tail, and a stop just before it is a pause")
+{
+    SweepRun r(ragged_run(4, 3, { 90, 2, 120, 7 }), 0, 0, kT0, kLat);
+    REQUIRE(r.sim.thresholds.size() >= 2);
+    REQUIRE(r.sim.completed);
+    const uint64_t total = r.sim.total_ticks;
+    const int64_t true_end = kT0 + static_cast<int64_t>(total);
+    // Every stop strictly before the end of the tape is a pause, however close.
+    for (int64_t off : { 1, 2, 25, 50, 400, 5000, 100000 })
+    {
+        const FskEmitDecision d = fsk_decide_emit(true, FskStopReason::MOTOR, true, &r.m.log, total,
+                                                  true_end - off);
+        CHECK(d.outcome == FskEmitOutcome::FROZEN);
+        CHECK(d.physical_ticks <= total - static_cast<uint64_t>(off));
+    }
+    // At or after it (plus the callback latency) it ended naturally.
+    for (int64_t off : { 0, 1, 1000, 5000000 })
+    {
+        const FskEmitDecision d = fsk_decide_emit(true, FskStopReason::MOTOR, true, &r.m.log, total,
+                                                  true_end + kLat + off);
+        CHECK(d.outcome == FskEmitOutcome::NATURAL);
+        CHECK(d.physical_ticks == total);
+    }
+}
+
+TEST_CASE("Threshold lead: the tracker keeps the last entries and clamps the reference at zero")
+{
+    FskBoundaryTracker t;
+    fsk_bounds_reset(t, 1000);
+    CHECK(t.tail[0] == 0);
+    for (uint32_t d : { 10u, 20u, 30u, 40u, 50u })
+        fsk_bounds_add_portion(t, d);
+    CHECK(t.cumulative_ticks == 1150);
+    CHECK(t.tail[0] == 50);                   // newest first
+    CHECK(t.tail[1] == 40);
+    CHECK(t.tail[2] == 30);
+    CHECK(t.tail[3] == 20);                   // only FSK_TAIL_ENTRIES are kept
+
+    const uint32_t tail[FSK_TAIL_ENTRIES] = { 500, 700, 900, 1100 };
+    CHECK(fsk_boundary_physical_ticks(10000, tail) == 10000 - 2100);   // the last 3 entries
+    CHECK(fsk_boundary_physical_ticks(2100, tail) == 0);               // never negative
+    CHECK(fsk_boundary_physical_ticks(1000, tail) == 0);
+    CHECK(FSK_RMT_PREFETCH_ENTRIES == 3);
+}
+
+TEST_CASE("Threshold lead: only the second entry of the second-to-last symbol trails the boundary")
+{
+    // Tail of every half (entries, newest last): a1=300 units, b1=2, a0=4, b0=6
+    // (each below 32767 ticks, so one entry per value). The pin trails the boundary
+    // by b1 + a0 + b0 = 1200 us; the first entry of the second-to-last symbol
+    // (30 ms) is NOT part of it. Subtracting whole symbols (a1 too) would put the
+    // frozen position 30 ms behind the tape for no reason.
+    SweepRun r(ragged_run(8, 3, { 300, 2, 4, 6, 300, 2, 4, 6 }), 0, 0, kT0, kLat);
+    REQUIRE(r.sim.thresholds.size() >= 6);
+    for (const fskmodel::ThresholdRecord &t : r.sim.thresholds)
+    {
+        CHECK(t.expected - t.expected_ref == 1200);
+        const int64_t stop = t.ts_us + 500;                     // just after the callback
+        const uint64_t pos = fsk_physical_ticks_at(r.m.log, r.sim.total_ticks, stop);
+        CHECK(pos == r.truth(stop) - static_cast<uint64_t>(kLat));   // behind by exactly the callback latency
+    }
+    CHECK(sweep_never_ahead(r, true) >= 50);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Fast MOTOR resume: abort the RMT in hardware at freeze, keep the run resident.
+// ════════════════════════════════════════════════════════════════════════════
+
+TEST_CASE("Fast resume: the hardware abort only applies to the single 512-symbol channel 0")
+{
+    CHECK(fsk_rmt_abort_applicable(8));       // channel 0 owns all 8 memory blocks
+    CHECK_FALSE(fsk_rmt_abort_applicable(0));
+    CHECK_FALSE(fsk_rmt_abort_applicable(1));
+    CHECK_FALSE(fsk_rmt_abort_applicable(4)); // any other layout: skip the abort, just drain
+    CHECK_FALSE(fsk_rmt_abort_applicable(9));
+}
+
+TEST_CASE("Fast resume: a resident run is reused only when every condition still holds")
+{
+    // resumed, resident_valid, same_offset, same_file, blocks_present, idle
+    CHECK(fsk_resident_reuse_ok(true, true, true, true, true, true));
+
+    CHECK_FALSE(fsk_resident_reuse_ok(false, true, true, true, true, true));  // not a resume
+    CHECK_FALSE(fsk_resident_reuse_ok(true, false, true, true, true, true));  // freed / rewound / remounted
+    CHECK_FALSE(fsk_resident_reuse_ok(true, true, false, true, true, true));  // another run (rewind target)
+    CHECK_FALSE(fsk_resident_reuse_ok(true, true, true, false, true, true));  // another image
+    CHECK_FALSE(fsk_resident_reuse_ok(true, true, true, true, false, true));  // blocks gone
+    CHECK_FALSE(fsk_resident_reuse_ok(true, true, true, true, true, false));  // a transmission still owns them
+}
+
+namespace {
+    // The whole source, CR removed.
+    std::string read_cassette_source()
+    {
+        std::string here = __FILE__;
+        std::replace(here.begin(), here.end(), '\\', '/');
+        const std::string path = here.substr(0, here.rfind('/')) + "/../lib/device/sio/cassette.cpp";
+        std::ifstream in(path, std::ios::binary);
+        if (!in)
+            return std::string();
+        std::stringstream ss;
+        ss << in.rdbuf();
+        std::string src = ss.str();
+        src.erase(std::remove(src.begin(), src.end(), '\r'), src.end());
+        return src;
+    }
+
+    // Text of the function that starts at `signature` up to its closing brace at column 0.
+    std::string function_body(const std::string &src, const std::string &signature)
+    {
+        const size_t a = src.find(signature);
+        if (a == std::string::npos)
+            return std::string();
+        const size_t b = src.find("\n}\n", a);
+        if (b == std::string::npos)
+            return std::string();
+        return src.substr(a, b + 3 - a);
+    }
+
+    // Position of `needle` in `hay` at or after `from`; npos if absent.
+    size_t find_from(const std::string &hay, const std::string &needle, size_t from)
+    {
+        return hay.find(needle, from);
+    }
+}
+
+TEST_CASE("Fast resume (source-level): the freeze aborts the RMT in hardware, muted, under the snapshot lock")
+{
+    const std::string src = read_cassette_source();
+    REQUIRE_MESSAGE(!src.empty(), "could not read cassette.cpp");
+
+    // The abort helper: layout guard, EOF into word 0, read-pointer reset - and it
+    // never forces a disable/destroy of the channel (that is what busy-waits).
+    const std::string abort_fn = function_body(src, "static bool fsk_rmt_fast_abort()");
+    REQUIRE_FALSE(abort_fn.empty());
+    const size_t guard = abort_fn.find("fsk_rmt_abort_applicable(rmt_ll_tx_get_mem_blocks(&RMT, 0))");
+    const size_t eof = abort_fn.find("RMTMEM[0] = 0;");
+    const size_t reset = abort_fn.find("rmt_ll_tx_reset_pointer(&RMT, 0);");
+    REQUIRE(guard != std::string::npos);
+    REQUIRE(eof != std::string::npos);
+    REQUIRE(reset != std::string::npos);
+    CHECK(guard < eof);
+    CHECK(eof < reset);
+    CHECK(abort_fn.find("rmt_disable(") == std::string::npos);
+    CHECK(abort_fn.find("rmt_del_channel(") == std::string::npos);
+    CHECK(abort_fn.find("rmt_tx_wait_all_done(") == std::string::npos);
+
+    // In the emit wait: mute -> abort under s_fsk_snap_mux -> DRAINING, all before returning FROZEN.
+    const std::string emit = function_body(src, "sioCassette::FskEmit sioCassette::fsk_signal_emit(");
+    REQUIRE_FALSE(emit.empty());
+    const size_t mute = emit.find("// Mute: DATA IN goes back to the UART's idle MARK right now.");
+    const size_t disarm = emit.find("fsk_motor_isr_disarm();", mute);
+    const size_t lock = emit.find("portENTER_CRITICAL(&s_fsk_snap_mux);", disarm);
+    const size_t call = emit.find("aborted = fsk_rmt_fast_abort();", disarm);
+    const size_t unlock = emit.find("portEXIT_CRITICAL(&s_fsk_snap_mux);", call);
+    const size_t draining = emit.find("_fsk_tx_state = FskTxState::DRAINING;", disarm);
+    const size_t frozen = emit.find("return FskEmit::FROZEN;", disarm);
+    REQUIRE(mute != std::string::npos);
+    REQUIRE(disarm != std::string::npos);
+    REQUIRE(lock != std::string::npos);
+    REQUIRE(call != std::string::npos);
+    REQUIRE(unlock != std::string::npos);
+    REQUIRE(draining != std::string::npos);
+    REQUIRE(frozen != std::string::npos);
+    CHECK(mute < disarm);
+    CHECK(disarm < lock);
+    CHECK(lock < call);
+    CHECK(call < unlock);
+    CHECK(unlock < draining);
+    CHECK(draining < frozen);
+
+    // The emit wait never destroys or force-disables the channel: only the
+    // synchronous teardown / drain cleanup do, after the hardware reported done.
+    CHECK(emit.find("rmt_disable(") == std::string::npos);
+    CHECK(emit.find("rmt_del_channel(") == std::string::npos);
+    CHECK(emit.find("rmt_del_encoder(") == std::string::npos);
+
+    // The RMT interrupt must be excluded while the two writes happen: the lock is
+    // the same one that guards the progress snapshot, held by the emit task only.
+    CHECK(count_of(emit, "portENTER_CRITICAL(&s_fsk_snap_mux);") == 3); // snapshot, re-read, abort
+}
+
+TEST_CASE("Fast resume (source-level): the loaded run stays resident across a freeze and every other exit frees it")
+{
+    const std::string src = read_cassette_source();
+    REQUIRE_MESSAGE(!src.empty(), "could not read cassette.cpp");
+
+    // The drain cleanup keeps the run only when the freeze asked for it.
+    const std::string cleanup = function_body(src, "void sioCassette::fsk_cleanup_drained()");
+    REQUIRE_FALSE(cleanup.empty());
+    const size_t keep = cleanup.find("if (!_fsk_keep_resident)");
+    const size_t free_call = cleanup.find("fsk_free_blocks();", keep);
+    REQUIRE(keep != std::string::npos);
+    REQUIRE(free_call != std::string::npos);
+    CHECK(count_of(cleanup, "fsk_free_blocks();") == 1);
+
+    // Any free of the blocks clears the resident marks (after the drain early-return).
+    const std::string freeb = function_body(src, "void sioCassette::fsk_free_blocks()");
+    REQUIRE_FALSE(freeb.empty());
+    const size_t early = freeb.find("return;");
+    const size_t clear1 = freeb.find("_fsk_resident_valid = false;");
+    const size_t release = freeb.find("fsk_release_blocks(");
+    REQUIRE(early != std::string::npos);
+    REQUIRE(clear1 != std::string::npos);
+    REQUIRE(release != std::string::npos);
+    CHECK(early < clear1);
+    CHECK(clear1 < release);
+
+    // Reposition, mount and unmount invalidate it. Unmount can run on the HTTP
+    // task while the service task plays, so it must invalidate but never free.
+    const std::string repos = function_body(src, "void sioCassette::stop_and_reset_for_reposition()");
+    REQUIRE_FALSE(repos.empty());
+    const size_t rv = repos.find("_fsk_resident_valid = false;");
+    const size_t rk = repos.find("_fsk_keep_resident = false;");
+    const size_t rf = repos.find("fsk_free_blocks();");
+    REQUIRE(rv != std::string::npos);
+    REQUIRE(rk != std::string::npos);
+    REQUIRE(rf != std::string::npos);
+    CHECK(rv < rf);
+    CHECK(rk < rf);           // so a draining transaction's cleanup frees the blocks
+    const std::string umount = function_body(src, "void sioCassette::umount_cassette_file()");
+    REQUIRE_FALSE(umount.empty());
+    CHECK(umount.find("_fsk_resident_valid = false;") != std::string::npos);
+    CHECK(umount.find("_fsk_keep_resident = false;") != std::string::npos);
+    CHECK(umount.find("fsk_free_blocks(") == std::string::npos);
+    const std::string mount = function_body(src, "void sioCassette::mount_cassette_file(");
+    REQUIRE_FALSE(mount.empty());
+    CHECK(mount.find("_fsk_resident_valid = false;") != std::string::npos);
+
+    // play_fsk_chunk: the freeze marks the run resident BEFORE it overwrites
+    // `result`, the resume gate is the tested predicate, the SD scan + preload
+    // live only in its else-branch, and the exit frees unless a freeze kept it.
+    const std::string play = read_play_fsk_chunk_esp_body();
+    REQUIRE_FALSE(play.empty());
+    const size_t fz = play.find("auto freeze = [&](uint64_t q)");
+    REQUIRE(fz != std::string::npos);
+    const size_t mark = play.find("_fsk_resident_valid = true;", fz);
+    const size_t next = play.find("_fsk_resident_next = result;", fz);
+    const size_t clobber = play.find("result = starting_offset;", fz);
+    REQUIRE(mark != std::string::npos);
+    REQUIRE(next != std::string::npos);
+    REQUIRE(clobber != std::string::npos);
+    CHECK(mark < clobber);
+    CHECK(next < clobber);
+    CHECK(play.find("_fsk_keep_resident = true;", fz) < clobber);
+
+    const size_t gate = play.find("const bool reuse = fsk_resident_reuse_ok(");
+    const size_t preload = play.find("fsk_preload_run(");
+    const size_t els = find_from(play, "    else\n    {", gate);
+    REQUIRE(gate != std::string::npos);
+    REQUIRE(preload != std::string::npos);
+    REQUIRE(els != std::string::npos);
+    CHECK(count_of(play, "fsk_preload_run(") == 1);
+    CHECK(gate < els);
+    CHECK(els < preload);                                   // the SD preload is only in the non-reuse branch
+    CHECK(play.find("if (reuse)") != std::string::npos);
+    CHECK(play.find("result = _fsk_resident_next;") != std::string::npos);
+
+    const size_t done = play.find("\ndone:");
+    REQUIRE(done != std::string::npos);
+    const std::string tail = play.substr(done);
+    const size_t tkeep = tail.find("if (!_fsk_keep_resident)");
+    const size_t tfree = tail.find("fsk_free_blocks();");
+    REQUIRE(tkeep != std::string::npos);
+    REQUIRE(tfree != std::string::npos);
+    CHECK(tkeep < tfree);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// DATA IN must never show the RMT channel's default LOW idle level.
+// ESP-IDF 5.4 rmt_new_tx_channel() forces idle = LOW and connects the pin; the
+// pin stays LOW until rmt_transmit() sets eot_level. An Atari already listening
+// for the leader takes that pulse for a start bit (BOOT ERROR on a slow preload).
+// ════════════════════════════════════════════════════════════════════════════
+
+TEST_CASE("Idle-LOW pulse: the channel idle level is MARK (HIGH)")
+{
+    CHECK((FSK_RMT_IDLE_LEVEL_MARK ^ FSK_RMT_OUT_INVERT) == 1); // the PAD level of the RMT idle is MARK
+}
+
+TEST_CASE("Idle-LOW pulse (source-level): the FSK channel idle level is raised to MARK right after creation")
+{
+    const std::string src = read_cassette_source();
+    REQUIRE_MESSAGE(!src.empty(), "could not read cassette.cpp");
+
+    // The helper: same channel-0 layout guard as the abort, then the idle level
+    // is forced to MARK with the idle output enabled.
+    const std::string hold = function_body(src, "static bool fsk_rmt_hold_idle_mark()");
+    REQUIRE_FALSE(hold.empty());
+    const size_t guard = hold.find("fsk_rmt_abort_applicable(rmt_ll_tx_get_mem_blocks(&RMT, 0))");
+    const size_t fix = hold.find("rmt_ll_tx_fix_idle_level(&RMT, 0, FSK_RMT_IDLE_LEVEL_MARK, true);");
+    REQUIRE(guard != std::string::npos);
+    REQUIRE(fix != std::string::npos);
+    CHECK(guard < fix);
+
+    // fsk_signal_begin(): create -> hold idle MARK, with nothing in between that
+    // could delay it (no logging, no encoder/enable work), and before everything else.
+    const std::string begin = function_body(src, "bool sioCassette::fsk_signal_begin(");
+    REQUIRE_FALSE(begin.empty());
+    const size_t create = begin.find("rmt_new_tx_channel(&tx_cfg, &channel);");
+    const size_t held = begin.find("fsk_rmt_hold_idle_mark();", create);
+    REQUIRE(create != std::string::npos);
+    REQUIRE(held != std::string::npos);
+    const std::string between = begin.substr(create, held - create);
+    CHECK(between.find("Debug_printf") == std::string::npos);
+    CHECK(between.find("rmt_new_simple_encoder") == std::string::npos);
+    CHECK(between.find("rmt_enable") == std::string::npos);
+    CHECK(between.find("esp_timer_get_time") == std::string::npos);
+    const size_t encoder = begin.find("rmt_new_simple_encoder(", create);
+    const size_t enable = begin.find("rmt_enable(channel)", create);
+    REQUIRE(encoder != std::string::npos);
+    REQUIRE(enable != std::string::npos);
+    CHECK(held < encoder);
+    CHECK(held < enable);
+
+    // The transmission itself still ends at MARK, and nothing else pushes the idle level down.
+    const std::string emit = function_body(src, "sioCassette::FskEmit sioCassette::fsk_signal_emit(");
+    REQUIRE_FALSE(emit.empty());
+    CHECK(emit.find("tx_cfg.flags.eot_level = FSK_RMT_IDLE_LEVEL_MARK;") != std::string::npos);
+    CHECK(src.find("rmt_ll_tx_fix_idle_level(&RMT, 0, 0") == std::string::npos);
+    // (rmt_tx_channel_config_t has no init_level member in ESP-IDF 5.4.0; using it would not compile.)
+    CHECK(src.find("init_level") == std::string::npos);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Tape time base: the tape has been running since MOTOR ON. Source-level wiring
+// checks (the arithmetic itself is covered in CassetteTimePlanTests.cpp).
+// ════════════════════════════════════════════════════════════════════════════
+
+TEST_CASE("Time base: the LOW budget stays below one 600-baud start bit")
+{
+    CHECK(FSK_TIMEBASE_LOW_BUDGET_US == 300);
+    CHECK(FSK_TIMEBASE_LOW_BUDGET_US < 1667);
+}
+
+TEST_CASE("Time base (source-level): armed only at MOTOR ON at the physical start of the tape, for one walk")
+{
+    const std::string src = read_cassette_source();
+    REQUIRE_MESSAGE(!src.empty(), "could not read cassette.cpp");
+
+    const std::string enable = function_body(src, "void sioCassette::sio_enable_cassette()");
+    REQUIRE_FALSE(enable.empty());
+    CHECK(enable.find("_fsk_motor_on_us = esp_timer_get_time();") != std::string::npos);
+    CHECK(enable.find("_fsk_timebase_pending = (cassetteMode == cassette_mode_t::playback && tape_offset == 0);") !=
+          std::string::npos);
+
+    const std::string disable = function_body(src, "void sioCassette::sio_disable_cassette()");
+    REQUIRE_FALSE(disable.empty());
+    CHECK(disable.find("_fsk_timebase_pending = false;") != std::string::npos);
+
+    // The walk takes the flag once, before it looks at any chunk.
+    const std::string walk = function_body(src, "size_t sioCassette::send_FUJI_tape_block(size_t offset)");
+    REQUIRE_FALSE(walk.empty());
+    const size_t take = walk.find("_fsk_timebase_walk = _fsk_timebase_pending;");
+    const size_t clear = walk.find("_fsk_timebase_pending = false;", take);
+    const size_t loop = walk.find("while (offset < filesize)");
+    REQUIRE(take != std::string::npos);
+    REQUIRE(clear != std::string::npos);
+    REQUIRE(loop != std::string::npos);
+    CHECK(take < clear);
+    CHECK(clear < loop);
+
+    // No other function - in particular not the Turbo 2000 / QROS paths - touches the time base.
+    size_t uses = 0;
+    for (size_t p = src.find("_fsk_timebase_"); p != std::string::npos; p = src.find("_fsk_timebase_", p + 1))
+        ++uses;
+    size_t in_allowed = 0;
+    const std::string play = function_body(src, "size_t sioCassette::play_fsk_chunk(");
+    REQUIRE_FALSE(play.empty());
+    for (const std::string *fn : { &enable, &disable, &walk, &play })
+        for (size_t p = fn->find("_fsk_timebase_"); p != std::string::npos; p = fn->find("_fsk_timebase_", p + 1))
+            ++in_allowed;
+    CHECK(uses == in_allowed);
+    CHECK(uses > 0);
+}
+
+TEST_CASE("Time base (source-level): play_fsk_chunk reuses the resume machinery and leaves resume/rewind alone")
+{
+    const std::string src = read_cassette_source();
+    REQUIRE_MESSAGE(!src.empty(), "could not read cassette.cpp");
+    const std::string play = function_body(src, "size_t sioCassette::play_fsk_chunk(");
+    REQUIRE_FALSE(play.empty());
+
+    // The flag is consumed once, before `resumed` is computed; `resumed` and q0 are exactly as before.
+    const size_t consume = play.find("const bool timebase_first = _fsk_timebase_walk;");
+    const size_t resumed_line = play.find("const bool resumed = _fsk_pos_valid && (starting_offset == tape_offset);");
+    const size_t q0_line = play.find("const uint64_t q0 = resumed ? _fsk_pos_us : 0;");
+    REQUIRE(consume != std::string::npos);
+    REQUIRE(resumed_line != std::string::npos);
+    REQUIRE(q0_line != std::string::npos);
+    CHECK(consume < resumed_line);
+    CHECK(resumed_line < q0_line);
+
+    // The compensation sits after the preload-failure handling and before the IRG, and only
+    // applies when the dispatch did not resume.
+    const size_t preload_fail = play.find("skipping emission");
+    const size_t apply = play.find("fsk_timebase_applies(resumed, timebase_first, _fsk_motor_on_us != 0,");
+    const size_t irg = play.find("// Leading IRG (or its remainder after a resume)");
+    REQUIRE(preload_fail != std::string::npos);
+    REQUIRE(apply != std::string::npos);
+    REQUIRE(irg != std::string::npos);
+    CHECK(preload_fail < apply);
+    CHECK(apply < irg);
+
+    const std::string block = play.substr(apply, irg - apply);
+    // Same position vocabulary as resume: q, the split and p0; the IRG is never added twice.
+    CHECK(block.find("cas_fsk_inert_ticks(") != std::string::npos);
+    CHECK(block.find("FSK_TIMEBASE_LOW_BUDGET_US") != std::string::npos);
+    CHECK(block.find("q_start = fsk_timebase_q(irg_us, q0, tb_elapsed_us, tb_inert);") != std::string::npos);
+    CHECK(block.find("split = cas_run_pos_split(irg_us, q_start);") != std::string::npos);
+    CHECK(block.find("p0 = split.wave_ticks;") != std::string::npos);
+    // No second search/skip: the one locate is the unchanged one that consumes p0.
+    CHECK(block.find("cas_fsk_locate_ticks") == std::string::npos);
+    size_t locates = 0;
+    for (size_t p = src.find("cas_fsk_locate_ticks("); p != std::string::npos; p = src.find("cas_fsk_locate_ticks(", p + 1))
+        ++locates;
+    CHECK(locates == 1);
+    // No title-specific logic anywhere in it.
+    std::string lower = block;
+    std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char ch) { return std::tolower(ch); });
+    for (const char *name : { "zorro", "mirax", "alien", "ambush", "bruce", "karate" })
+        CHECK(lower.find(name) == std::string::npos);
+
+    // MOTOR OFF during the IRG hold freezes from the (possibly advanced) start position;
+    // the setup-failure retry is exactly the resume-aware one it always was.
+    CHECK(play.find("freeze(q_start + elapsed_us);") != std::string::npos);
+    CHECK(play.find("freeze(q0 + elapsed_us);") == std::string::npos);
+    CHECK(play.find("fsk_setup_failure_retry(resumed, q0, irg_us, p0, irg_held)") != std::string::npos);
+    // The frozen positions after the preload still derive from p0 (now the advanced one).
+    CHECK(play.find("freeze(irg_us + p0);") != std::string::npos);
+    CHECK(play.find("freeze(irg_us + _fsk_frozen_wave_ticks);") != std::string::npos);
+    // The single place split/p0 are declared is the (now mutable) resume split.
+    CHECK(play.find("CasRunPosSplit split = cas_run_pos_split(irg_us, q0);") != std::string::npos);
+    CHECK(play.find("uint64_t p0 = split.wave_ticks;") != std::string::npos);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// DATA IN must not glitch LOW when the FSK path takes the pad from the UART.
+// While the UART owns GPIO21 the GPIO output register (GPIO_OUT) is 0 on the first handoff after boot, so
+// connecting SIG_GPIO_OUT_IDX BEFORE preloading HIGH drives the pad LOW until gpio_set_level(1): a pulse of
+// >= 12.7 us measured on GPIO21, which the Atari's ED3D baud acquisition (one sample per
+// ~13.4 us) takes for a start bit -> BOOT ERROR -> SELF TEST.
+// ════════════════════════════════════════════════════════════════════════════
+
+TEST_CASE("GPIO order (source-level): the FSK path preloads MARK before connecting SIG_GPIO_OUT_IDX")
+{
+    const std::string src = read_cassette_source();
+    REQUIRE_MESSAGE(!src.empty(), "could not read cassette.cpp");
+
+    const std::string begin = function_body(src, "bool sioCassette::fsk_signal_begin(");
+    REQUIRE_FALSE(begin.empty());
+
+    const std::string preload = "gpio_set_level((gpio_num_t)PIN_UART2_TX, 1);";
+    const std::string connect = "esp_rom_gpio_connect_out_signal(PIN_UART2_TX, SIG_GPIO_OUT_IDX";
+    const size_t first_preload = begin.find(preload);
+    REQUIRE(first_preload != std::string::npos);
+
+    // Every connection of the pad to the GPIO output register is preceded by a preload of HIGH.
+    size_t connects = 0;
+    for (size_t p = begin.find(connect); p != std::string::npos; p = begin.find(connect, p + 1))
+    {
+        ++connects;
+        CHECK_MESSAGE(first_preload < p,
+                      "SIG_GPIO_OUT_IDX is connected before MARK was preloaded into GPIO_OUT");
+    }
+    CHECK(connects >= 1);
+
+    // Nothing takes the pad away from the UART or changes its direction before the preload.
+    CHECK(begin.find("gpio_set_direction(") > first_preload);
+    // The RMT-idle fix is still there, right after the channel is created.
+    CHECK(begin.find("fsk_rmt_hold_idle_mark();") != std::string::npos);
+}
+
+TEST_CASE("GPIO order (source-level): the change is confined to the FSK path (T2K/QROS untouched)")
+{
+    const std::string src = read_cassette_source();
+    REQUIRE_MESSAGE(!src.empty(), "could not read cassette.cpp");
+    // The two other RAW-pin handoffs keep their original order for now (connect first, then set_level).
+    for (const char *sig : { "void sioCassette::qros_pilot_on()", "void sioCassette::turbo2000_init_rmt()" })
+    {
+        const std::string body = function_body(src, sig);
+        REQUIRE_FALSE(body.empty());
+        const size_t conn = body.find("esp_rom_gpio_connect_out_signal(PIN_UART2_TX, SIG_GPIO_OUT_IDX");
+        const size_t lvl = body.find("gpio_set_level((gpio_num_t)PIN_UART2_TX, 1);");
+        REQUIRE(conn != std::string::npos);
+        REQUIRE(lvl != std::string::npos);
+        CHECK(conn < lvl);
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// RMT creation must not glitch DATA IN. rmt_new_tx_channel() connects the pad inside the driver with the RMT
+// idle level forced to 0; with invert_out = 1 that idle 0 is MARK on the pad, so the pad stays HIGH from the
+// instant it is connected. The encoder levels and the eot/idle level are then RMT-side inverted.
+// ════════════════════════════════════════════════════════════════════════════
+
+TEST_CASE("RMT invert: the pad level of the RMT idle and eot level is MARK")
+{
+    CHECK(FSK_RMT_OUT_INVERT == 1);
+    CHECK((FSK_RMT_IDLE_LEVEL_MARK ^ FSK_RMT_OUT_INVERT) == 1); // idle level -> HIGH on the pad
+}
+
+TEST_CASE("RMT invert (source-level): channel, encoder and eot level agree, and T2K keeps its own")
+{
+    const std::string src = read_cassette_source();
+    REQUIRE_MESSAGE(!src.empty(), "could not read cassette.cpp");
+
+    const std::string begin = function_body(src, "bool sioCassette::fsk_signal_begin(");
+    REQUIRE_FALSE(begin.empty());
+    CHECK(begin.find("tx_cfg.flags.invert_out = FSK_RMT_OUT_INVERT;") != std::string::npos);
+    CHECK(begin.find("tx_cfg.flags.invert_out = false;") == std::string::npos);
+    // The channel is created with the pad-safe polarity BEFORE it is created (config precedes the call).
+    CHECK(begin.find("tx_cfg.flags.invert_out") < begin.find("rmt_new_tx_channel(&tx_cfg, &channel);"));
+
+    // Every level the FSK encoder writes is inverted with the same constant.
+    const std::string enc = function_body(src, "size_t IRAM_ATTR sioCassette::fsk_encode_cb(");
+    REQUIRE_FALSE(enc.empty());
+    CHECK(enc.find("levels[half] = (self->_fsk_level_high ? 1 : 0) ^ FSK_RMT_OUT_INVERT;") != std::string::npos);
+    CHECK(enc.find("levels[half] = self->_fsk_level_high ? 1 : 0;") == std::string::npos);
+
+    // The transaction ends at MARK on the pad.
+    const std::string emit = function_body(src, "sioCassette::FskEmit sioCassette::fsk_signal_emit(");
+    REQUIRE_FALSE(emit.empty());
+    CHECK(emit.find("tx_cfg.flags.eot_level = FSK_RMT_IDLE_LEVEL_MARK;") != std::string::npos);
+    CHECK(emit.find("tx_cfg.flags.eot_level = 1;") == std::string::npos);
+
+    // The Turbo 2000 channel is a different lifecycle and stays as it was.
+    const std::string t2k = function_body(src, "void sioCassette::turbo2000_init_rmt()");
+    REQUIRE_FALSE(t2k.empty());
+    CHECK(t2k.find("tx_cfg.flags.invert_out = false;") != std::string::npos);
 }
