@@ -228,7 +228,6 @@ public:
   uint16_t packet_len = 0;
 
 public:
-  SemaphoreHandle_t spiMutex;
   // Phase lines and ACK handshaking
   void iwm_ack_set() { IWM_BIT_INPUT(SP_ACK); }; // disable the line so it goes hi-z
   void iwm_ack_clr() { IWM_BIT_OUTPUT(SP_ACK); };  // enable the line already set to low
