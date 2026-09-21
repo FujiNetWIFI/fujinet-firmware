@@ -25,6 +25,10 @@
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnPassword.h"
+
+#ifdef CONFIG_USB_PICOBOOT_HOST_ENABLED
+#include "fnPicoUpdater.h"
+#endif
 #include "fnWiFi.h"
 
 #include "fsFlash.h"
@@ -251,6 +255,15 @@ void main_setup(int argc, char *argv[])
 
     // Load the device password (kept in flash, separate from the config file)
     fnPassword.setup();
+
+#ifdef CONFIG_USB_PICOBOOT_HOST_ENABLED
+    // Bring the companion MCU's firmware in step with this one before the
+    // bus starts. It has to be before: the bus blocks waiting for the
+    // companion's USB-CDC endpoint, which a companion sitting in BOOTSEL
+    // never presents, so a blank or half-flashed one would hang there.
+    // Bounded, and a no-op on a build with no companion image.
+    fnPicoUpdater.bootCheck();
+#endif
 
     // WiFi/BT auto connect moved to app_main()
 
