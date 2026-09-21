@@ -14,6 +14,8 @@ on:
       - "!release"
     paths:
       - "pico/**"
+      - "build_pico.py"
+      - "build-platforms/platformio-fujiversal-*.ini"
       - ".github/workflows/pico-carts.yml"
   pull_request:
     branches:
@@ -21,6 +23,8 @@ on:
       - "!release"
     paths:
       - "pico/**"
+      - "build_pico.py"
+      - "build-platforms/platformio-fujiversal-*.ini"
       - ".github/workflows/pico-carts.yml"
   workflow_dispatch:
 
@@ -30,6 +34,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       # The wire codec and the cartridge-image mapper are deliberately free of
       # pico-sdk and TinyUSB so they can be tested here rather than on a console.
@@ -68,6 +74,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       # Macro Assembler AS. There is NO distro package for it -- Debian's and
       # Ubuntu's "asl"/"asl-*" are the Advanced Simulation Library, something
@@ -143,6 +151,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       # Pinned, not master: an SDK that moves under CI turns an unrelated
       # upstream change into a red build on this branch. 2.3.0 is what these
@@ -189,3 +199,17 @@ jobs:
         run: |
           cmake -B build -DPICO_BOARD=fujicard -DCMAKE_BUILD_TYPE=Release -G Ninja
           ninja -C build
+
+      # Drives the same [fujinet] pico_* keys the ESP32 build uses, so a
+      # broken ini key, a missing ROM, or an uninitialised submodule fails
+      # here rather than halfway through an ESP-IDF build. --no-generate
+      # skips writing the embedded-blob source, which nothing here compiles.
+      - name: Fujiversal companion firmware (via build_pico.py)
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: |
+          for board in fujiversal-intv fujiversal-drivewire fujiversal-msx; do
+            echo "::group::$board"
+            python3 build_pico.py "$board" --no-generate
+            echo "::endgroup::"
+          done
