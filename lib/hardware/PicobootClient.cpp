@@ -248,6 +248,22 @@ int PicobootClient::submitAndWait(usb_transfer_t *transfer, uint32_t timeout_ms,
     }
 
     if (xSemaphoreTake(_xfer_done_sem, pdMS_TO_TICKS(timeout_ms)) != pdTRUE) {
+        // A timed-out transfer is still queued and still owned by the host
+        // stack, so it cannot simply be abandoned -- its completion callback
+        // would fire later, into a transfer this client may by then have
+        // unbound or freed. This is not a rare path: the acknowledgement of
+        // a reboot command times out on every successful flash, because the
+        // device reboots instead of answering.
+        //
+        // Halt, flush, clear is the documented way to reclaim it. The flush
+        // completes the transfer as cancelled, which fires the callback and
+        // gives the semaphore back; take it so the next submit does not see
+        // a stale completion.
+        usb_host_endpoint_halt(transfer->device_handle, transfer->bEndpointAddress);
+        usb_host_endpoint_flush(transfer->device_handle, transfer->bEndpointAddress);
+        usb_host_endpoint_clear(transfer->device_handle, transfer->bEndpointAddress);
+        xSemaphoreTake(_xfer_done_sem, pdMS_TO_TICKS(200));
+
         setError("transfer timed out after %ums", (unsigned)timeout_ms);
         return -1;
     }
