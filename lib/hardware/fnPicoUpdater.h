@@ -84,9 +84,16 @@ private:
     bool startClient();
     void scanExistingDevices();
 
-    // Waits for a device of the given kind, flushing others. Returns its
+    // Waits for a device of the given kind, discarding others. Returns its
     // address, or -1 on timeout.
     int waitForDevice(DeviceKind wanted, uint32_t timeout_ms);
+
+    // Waits for the first device that is either kind, so a healthy cartridge
+    // answering straight away is not made to wait out the whole timeout.
+    // Returns KIND_OTHER on timeout.
+    DeviceKind waitForAny(uint32_t timeout_ms, uint8_t *address_out,
+                          uint8_t *cdc_itf_out);
+
     DeviceKind classify(uint8_t address, uint8_t *chip_out, uint8_t *cdc_itf_out);
 
     // The whole erase/write/verify/reboot for one already-attached BOOTSEL

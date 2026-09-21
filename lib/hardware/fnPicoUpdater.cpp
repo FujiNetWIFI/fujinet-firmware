@@ -297,6 +297,32 @@ int PicoUpdater::waitForDevice(DeviceKind wanted, uint32_t timeout_ms)
     }
 }
 
+PicoUpdater::DeviceKind PicoUpdater::waitForAny(uint32_t timeout_ms,
+                                                 uint8_t *address_out,
+                                                 uint8_t *cdc_itf_out)
+{
+    TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(timeout_ms);
+    while (true) {
+        TickType_t now = xTaskGetTickCount();
+        if (now >= deadline)
+            return KIND_OTHER;
+
+        DeviceEvent ev;
+        if (xQueueReceive(_events, &ev, deadline - now) != pdTRUE)
+            return KIND_OTHER;
+        if (!ev.arrived)
+            continue;
+
+        uint8_t chip = FN_PICO_CHIP_UNKNOWN;
+        DeviceKind kind = classify(ev.address, &chip, cdc_itf_out);
+        if (kind != KIND_OTHER) {
+            if (address_out)
+                *address_out = ev.address;
+            return kind;
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Getting a running companion into BOOTSEL
 // ---------------------------------------------------------------------------
@@ -466,48 +492,25 @@ void PicoUpdater::handleCompanion(const fn_pico_blob &blob)
                  blob.chip == FN_PICO_CHIP_RP2350 ? "rp2350" : "rp2040",
                  (unsigned)blob.flash_base, (unsigned)blob.flash_limit);
 
-    // Anything already in BOOTSEL is flashed regardless of what NVS says:
-    // a chip sitting in BOOTSEL is either blank or was deliberately put
-    // there, and in both cases what it should get is this image.
-    int address = waitForDevice(KIND_BOOTSEL, WAIT_FIRST_DEVICE_MS);
-    if (address >= 0) {
-        if (flashAttached((uint8_t)address, blob))
-            _flashed_this_boot = true;
+    // Take whichever turns up first, rather than waiting out the whole
+    // timeout looking for one kind: a healthy cartridge answers at once, and
+    // that is the common case on every boot after the first.
+    uint8_t cdc_address = 0;
+    uint8_t cdc_itf = 0;
+    DeviceKind kind = waitForAny(WAIT_FIRST_DEVICE_MS, &cdc_address, &cdc_itf);
+
+    if (kind == KIND_OTHER) {
+        Debug_printf(PICOFW "no companion attached within %ums; continuing boot\r\n",
+                     (unsigned)WAIT_FIRST_DEVICE_MS);
         return;
     }
 
-    // Nothing in BOOTSEL. Is a running companion attached?
-    DeviceEvent ev;
-    uint8_t cdc_itf = 0;
-    bool have_cdc = false;
-    uint8_t cdc_address = 0;
-
-    // waitForDevice() consumed the queue looking for BOOTSEL; re-scan
-    // rather than assume, since a companion may have arrived meanwhile.
-    scanExistingDevices();
-    TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(500);
-    while (xTaskGetTickCount() < deadline) {
-        if (xQueueReceive(_events, &ev, pdMS_TO_TICKS(100)) != pdTRUE)
-            continue;
-        if (!ev.arrived)
-            continue;
-        uint8_t chip = FN_PICO_CHIP_UNKNOWN;
-        DeviceKind kind = classify(ev.address, &chip, &cdc_itf);
-        if (kind == KIND_BOOTSEL) {
-            if (flashAttached(ev.address, blob))
-                _flashed_this_boot = true;
-            return;
-        }
-        if (kind == KIND_CDC) {
-            have_cdc = true;
-            cdc_address = ev.address;
-            break;
-        }
-    }
-
-    if (!have_cdc) {
-        Debug_printf(PICOFW "no companion attached within %ums; continuing boot\r\n",
-                     (unsigned)WAIT_FIRST_DEVICE_MS);
+    if (kind == KIND_BOOTSEL) {
+        // Flashed regardless of what NVS says: a chip sitting in BOOTSEL is
+        // either blank or was deliberately put there, and in both cases what
+        // it should get is this image.
+        if (flashAttached(cdc_address, blob))
+            _flashed_this_boot = true;
         return;
     }
 
@@ -515,9 +518,11 @@ void PicoUpdater::handleCompanion(const fn_pico_blob &blob)
     char flashed[SHA_HEX_LEN + 1] = {0};
     bool known = readFlashedSha(blob.name, flashed, sizeof(flashed));
     if (known && blob.sha256 && strncmp(flashed, blob.sha256, SHA_HEX_LEN) == 0) {
+        // Deliberately does not set _flashed_this_boot: nothing was
+        // disturbed, so there is no reattach to wait for -- the cartridge is
+        // already up and the bus can have it immediately.
         Debug_printf(PICOFW "up to date (%s %.8s); no reflash needed\r\n",
                      blob.name, blob.sha256);
-        _flashed_this_boot = true;
         return;
     }
 
@@ -526,7 +531,7 @@ void PicoUpdater::handleCompanion(const fn_pico_blob &blob)
 
     requestBootsel(cdc_address, cdc_itf);
 
-    address = waitForDevice(KIND_BOOTSEL, WAIT_BOOTSEL_MS);
+    int address = waitForDevice(KIND_BOOTSEL, WAIT_BOOTSEL_MS);
     if (address < 0) {
         // The cooperative route did not work -- the firmware may be hung,
         // or may not implement the 1200 baud convention at all.
