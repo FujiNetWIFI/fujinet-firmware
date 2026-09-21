@@ -129,9 +129,14 @@ success_is_true FileSystemTNFS::start(const char *host, uint16_t port, const cha
         .name = "tnfs_keep_alive",
         .skip_unhandled_events = true,
     };
-    esp_timer_create(&tcfg, &keepAliveTimerHandle);
-    // Send a keep-alive message every 60s.
-    esp_timer_start_periodic(keepAliveTimerHandle, 60 * 1000000);
+    if (esp_timer_create(&tcfg, &keepAliveTimerHandle) == ESP_OK)
+        // Send a keep-alive message every 60s.
+        esp_timer_start_periodic(keepAliveTimerHandle, 60 * 1000000);
+    else
+    {
+        keepAliveTimerHandle = nullptr;
+        Debug_printv("could not create TNFS keep-alive timer, sessions may expire when idle");
+    }
 #endif
 
     _started = true;
