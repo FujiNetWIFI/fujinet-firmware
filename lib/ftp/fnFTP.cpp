@@ -985,28 +985,35 @@ fujiError_t fnFTP::read_directory(string &name, long &filesize, bool &is_dir)
     string line;
     struct ftpparse parse;
 
-    getline(dirBuffer, line);
-
-    if (line.empty())
-        return FUJI_ERROR::NONE; // no more entries
-
-    //Debug_printf("fnFTP::read_directory - %s\r\n",line.c_str());
-    line = line.substr(0, line.size() - 1);
-    ftpparse(&parse, (char *)line.c_str(), line.length());
-    name = string(parse.name ? parse.name : "???");
-
-    // Strip symlink target from name (e.g., "transfer -> crossplatform/transfer/" becomes "transfer")
-    size_t arrow_pos = name.find(" -> ");
-    if (arrow_pos != string::npos)
+    while (getline(dirBuffer, line))
     {
-        name = name.substr(0, arrow_pos);
+        // Strip trailing \r if present (CRLF normalization)
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+
+        if (line.empty())
+            continue;
+
+        if (ftpparse(&parse, (char *)line.c_str(), line.length()))
+        {
+            name = string(parse.name ? parse.name : "???");
+
+            // Strip symlink target from name (e.g., "transfer -> crossplatform/transfer/" becomes "transfer")
+            size_t arrow_pos = name.find(" -> ");
+            if (arrow_pos != string::npos)
+            {
+                name = name.substr(0, arrow_pos);
+            }
+
+            filesize = parse.size;
+            is_dir = (parse.flagtrycwd == 1);
+            return FUJI_ERROR::NONE; // Successfully parsed one entry
+        }
     }
 
-    filesize = parse.size;
-    is_dir = (parse.flagtrycwd == 1);
-    //Debug_printf("Name: \"%s\" size: %lu is_dir: %d\r\n", name.c_str(), filesize, is_dir);
-    return dirBuffer.eof() ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
+    return FUJI_ERROR::UNSPECIFIED; // End of directory (EOF)
 }
+
 
 fujiError_t fnFTP::read_file(uint8_t *buf, unsigned short len, unsigned long range_begin, unsigned long range_end)
 {
