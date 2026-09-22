@@ -408,13 +408,19 @@ void fuji_mailbox_service(void)
         return;
 
     // BOOTSEL doorbell -- see fuji_mailbox.h. Checked every call, independent
-    // of the SEQ/ACKSEQ interlock below. reset_usb_boot() is noreturn: it
-    // reboots straight into BOOTSEL/PICOBOOT over the same internal USB link
-    // the ESP32-S3 already uses, so the cart hangs (from the Inty's point of
+    // of the SEQ/ACKSEQ interlock below. The reset is noreturn: it reboots
+    // straight into BOOTSEL/PICOBOOT over the same internal USB link the
+    // ESP32-S3 already uses, so the cart hangs (from the Inty's point of
     // view) until either reflashed or power-cycled -- expected for a
     // deliberate "go flash me" request.
+    //
+    // No activity LED is requested (-1 rather than a pin mask): on RP2350
+    // the SDK works around an erratum by rebooting into RISC-V USB boot
+    // whenever an activity LED is specified, and this cart is an RP2354.
+    // PICOBOOT works either way, but there is no reason to take the
+    // different boot path just to blink.
     if ((uint8_t)cart.RAM[FUJI_MB_BOOTSEL_DOORBELL] == FUJI_MB_BOOTSEL_MAGIC)
-        reset_usb_boot(1u << LED, 0);
+        rom_reset_usb_boot_extra(-1, 0, false);
 
     cart.RAM[FUJI_MB_LINK] = tud_cdc_connected() ? 1 : 0;
 
