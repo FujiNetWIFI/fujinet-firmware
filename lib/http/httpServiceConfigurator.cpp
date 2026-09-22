@@ -2,6 +2,10 @@
 
 #include <cstring>
 
+#ifdef ESP_PLATFORM
+#include <esp_system.h>
+#endif
+
 #include "../../include/debug.h"
 
 #include "printer.h"
@@ -708,7 +712,15 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         {
         #ifdef ESP_PLATFORM
             // Start a new task to reboot or we get stuck in endless loop waiting for web service to end
-            xTaskCreate(reboot_task, "reboot_task", 2048, NULL, 15, NULL);
+            if (xTaskCreate(reboot_task, "reboot_task", 2048, nullptr, 15, nullptr) != pdPASS)
+            {
+                // Task creation fails exactly when memory is exhausted - the case the
+                // user is trying to reset out of. Reboot immediately; esp_restart()
+                // doesn't wait on the web service, so the endless-loop hazard of an
+                // orderly reboot doesn't apply.
+                Debug_printv("could not create reboot task, restarting immediately");
+                esp_restart();
+            }
         #endif
         }
         else if (i->first.compare("printermodel1") == 0)
