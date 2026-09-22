@@ -165,11 +165,26 @@ FILE(GLOB_RECURSE SOURCES
     ${CMAKE_SOURCE_DIR}/lib/webdav/*.cpp
 )
 
+# Written by build_pico.py except on clean; GENERATED lets CMake configure
+# without it.
+set(PICO_BLOB_SOURCE ${CMAKE_BINARY_DIR}/fn_pico_blob_data.cpp)
+if(NOT CMAKE_BUILD_EARLY_EXPANSION)
+    set_source_files_properties(${PICO_BLOB_SOURCE} PROPERTIES GENERATED TRUE)
+endif()
+list(APPEND SOURCES ${PICO_BLOB_SOURCE})
+
 idf_component_register(
     INCLUDE_DIRS ${INCLUDES}
     SRCS ${SOURCES}
     PRIV_REQUIRES esp_driver_uart esp_netif esp_driver_gpio fatfs vfs json esp_wifi mbedtls console app_update spi_flash mlff esp_driver_ledc expat gumbo gumbo-query http_parser esp-tls tcp_transport esp_driver_gptimer esp_driver_tsens esp_http_client esp_websocket_client libssh
 )
+
+# NOTE: embedding companion-MCU firmware does NOT happen here. PlatformIO's
+# espidf integration uses this CMakeLists.txt only to *discover* the
+# source/include/flags graph -- it links via its own SCons build, which
+# never sees target_link_libraries()/EMBED_FILES calls added here (the
+# generated build.ninja has no firmware.elf link rule at all). Instead
+# build_pico.py generates fn_pico_blob_data.cpp, added to SOURCES above.
 
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-unused-value)
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-unused-variable)

@@ -41,6 +41,25 @@ fi
 
 LOCAL_INI="$SCRIPT_DIR/local.ini"
 
+# Some boards build a companion RP2040/RP2350 firmware as part of their ESP32
+# build (see the [fujinet] pico_* keys). That needs an ARM cross-compiler, the
+# pico-sdk, and any submodule holding the companion source -- none of which a
+# machine doing a quick "does every board still compile?" sweep necessarily
+# has. Skip it unless everything needed is present; the ESP32 side still
+# builds, just with an empty companion image.
+#
+# Set FUJINET_SKIP_PICO yourself to force either answer.
+if [ -z "${FUJINET_SKIP_PICO}" ] ; then
+  PICO_SDK="${PICO_SDK_PATH:-/usr/share/pico-sdk}"
+  if ! command -v arm-none-eabi-gcc > /dev/null || [ ! -d "${PICO_SDK}" ] ; then
+    echo "Note: no ARM toolchain or pico-sdk found -- companion-MCU firmware"
+    echo "      will be skipped (FUJINET_SKIP_PICO=1). The ESP32 side of every"
+    echo "      board still gets built."
+    echo ""
+    export FUJINET_SKIP_PICO=1
+  fi
+fi
+
 # prevent realpath from erroring on some systems if file doesn't exist
 if [ ! -f "${RESULTS_OUTPUT_FILE}" ]; then
   touch "${RESULTS_OUTPUT_FILE}"

@@ -21,6 +21,7 @@ PC_TARGET=""
 DEBUG_PC_BUILD=0
 UPLOAD_IMAGE=0
 UPLOAD_FS=0
+PICO_ONLY=0
 DEV_MODE=0
 ZIP_MODE=0
 AUTOCLEAN=1
@@ -70,6 +71,13 @@ function show_help {
   echo "   -t TGT   # run target task (default of none means do build, but -b must be specified"
   echo "   -n       # do not autoclean"
   echo ""
+  echo "companion MCU (RP2040/RP2350) options:"
+  echo "   -P       # build ONLY the companion (pico) firmware for the target board, then exit"
+  echo "            # (see the [fujinet] pico_* keys documented in build-sh-readme.md)"
+  echo "            # env var FUJINET_SKIP_PICO=1 skips the companion firmware build entirely"
+  echo "            # during a normal -b build and emits a stub instead (used by -a/build-all.sh"
+  echo "            # on boards/runners that don't have the companion toolchain installed)"
+  echo ""
   echo "one-off firmware options"
   echo "   -a       # build ALL target platforms to test changes work on all platforms"
   echo "   -z       # build flashable zip"
@@ -110,7 +118,7 @@ if [ $# -eq 0 ] ; then
   show_help
 fi
 
-while getopts "abcde:fgG:hi:l:mnp:s:St:uyzV:" flag
+while getopts "abcde:fgG:hi:l:mnPp:s:St:uyzV:" flag
 do
   case "$flag" in
     a) BUILD_ALL=1 ;;
@@ -124,6 +132,7 @@ do
     l) LOCAL_INI_VALUES_FILE=${OPTARG} ;;
     m) SHOW_MONITOR=1 ;;
     n) AUTOCLEAN=0 ;;
+    P) PICO_ONLY=1 ;;
     p) PC_TARGET=${OPTARG} ;;
     t) TARGET_NAME=${OPTARG} ;;
     s) SETUP_NEW_BOARD=${OPTARG} ;;
@@ -427,6 +436,51 @@ fi
 
 BUILD_BOARD=$(grep '^build_board = ' $INI_FILE | cut -d" " -f 3)
 
+if [ ${PICO_ONLY} -eq 1 ] ; then
+  # Companion firmware only -- fast iteration without a full ESP-IDF build.
+  # Placed after BUILD_BOARD/INI_FILE are settled so -s/-l/-i apply, and
+  # honours -e (build_pico.py falls back to build-platforms/ when the
+  # generated ini names a different board). No-ops for a board with no
+  # [fujinet] pico_src.
+  PICO_ENV="${ENV_NAME:-$BUILD_BOARD}"
+  echo "=============================================================="
+  echo "Building companion (pico) firmware only for board: $PICO_ENV"
+  python3 "$SCRIPT_DIR/build_pico.py" "$PICO_ENV" --ini "$INI_FILE"
+  exit $?
+fi
+
+# $INI_FILE can have more than one section defining the same key (e.g. a
+# generic default [env] alongside a board-specific [env:<board>]) -- a
+# plain "grep ^key $INI_FILE" matches every occurrence and silently
+# produces a broken multi-value string (space-joined by command
+# substitution). Scope the lookup to one section instead, falling back to
+# the generic [env] section (PlatformIO's own inheritance base) if the
+# board-specific section doesn't redefine the key -- e.g. monitor_speed is
+# only ever set once, at [env] level, and inherited by every board. Usage:
+#   read_ini_value "[env:fujiversal-intv]" upload_port
+read_ini_value() {
+  local section="$1" key="$2" value
+  value=$(_read_ini_value_from_section "$section" "$key")
+  if [ -z "$value" ] && [ "$section" != "[env]" ]; then
+    value=$(_read_ini_value_from_section "[env]" "$key")
+  fi
+  echo "$value"
+}
+
+_read_ini_value_from_section() {
+  local section="$1" key="$2"
+  awk -v section="$section" -v key="$key" '
+    $0 == section { in_section=1; next }
+    /^\[/ { in_section=0 }
+    in_section && $0 ~ "^"key"[ \t]*=" {
+      sub("^"key"[ \t]*=[ \t]*", "");
+      sub(/[ \t]*;.*$/, "");
+      print;
+      exit
+    }
+  ' "$INI_FILE"
+}
+
 ##############################################################
 # ZIP MODE for building firmware zip file.
 # This is Separate from the main build, and if chosen exits after running
@@ -486,19 +540,97 @@ if [ ${UPLOAD_FS} -eq 1 ] ; then
 fi
 
 if [ ${UPLOAD_IMAGE} -eq 1 ] ; then
-  pio run -c $INI_FILE ${DEV_MODE_ARG} -t upload 2>&1
+  UPLOAD_ENV="${ENV_NAME:-$BUILD_BOARD}"
+  MERGE_BIN=$(read_ini_value "[fujinet]" merge_bin)
+  MERGED_NAME=$(read_ini_value "[fujinet]" merge_bin_name)
+  MERGED_NAME="${MERGED_NAME:-${UPLOAD_ENV}-merged.bin}"
+  MERGED_BIN="$SCRIPT_DIR/.pio/build/${UPLOAD_ENV}/${MERGED_NAME}"
+
+  # Anything other than yes/true/1/on falls through to `pio run -t upload`.
+  USE_MERGED=0
+  case "$(printf '%s' "${MERGE_BIN}" | tr '[:upper:]' '[:lower:]')" in
+    yes|true|1|on) USE_MERGED=1 ;;
+  esac
+
+  if [ ${USE_MERGED} -eq 1 ] ; then
+    # build_merge.py already folded bootloader+partition-table+app into one
+    # file during the build above, so flash that rather than pio's normal
+    # three-piece upload.
+    if [ ! -f "$MERGED_BIN" ] ; then
+      echo "Error: expected merged image not found: $MERGED_BIN"
+      echo "(build_merge.py should have produced this during the build step above)"
+      exit 1
+    fi
+
+    # Glob under PLATFORMIO_CORE_DIR, not PIO_VENV_ROOT/../packages -- the
+    # latter silently broke when PLATFORMIO_CORE_DIR pointed elsewhere.
+    ESPTOOL_PY=$(compgen -G "${PLATFORMIO_CORE_DIR:-${HOME}/.platformio}/packages/tool-esptoolpy*/esptool.py" | head -1)
+    if [ -z "$ESPTOOL_PY" ] ; then
+      echo "Error: esptool.py not found under ${PLATFORMIO_CORE_DIR:-${HOME}/.platformio}/packages/tool-esptoolpy*"
+      exit 1
+    fi
+
+    UPLOAD_PORT=$(read_ini_value "[env:${UPLOAD_ENV}]" upload_port)
+    UPLOAD_SPEED=$(read_ini_value "[env:${UPLOAD_ENV}]" upload_speed)
+    UPLOAD_SPEED="${UPLOAD_SPEED:-460800}"
+
+    # Always 0x0, on every chip -- NOT the lowest offset in
+    # flasher_args.json. merge_bin's --target-offset defaults to 0x0, so the
+    # image is zero-padded up from there. Those coincide on S3/C3 but not on
+    # ESP32-classic, where flashing at 0x1000 would shift everything 4K high.
+    FLASH_OFFSET="0x0"
+
+    echo "=============================================================="
+    echo "Flashing merged ${UPLOAD_ENV} image"
+    echo "  file:   ${MERGED_BIN}"
+    echo "  offset: ${FLASH_OFFSET}"
+    echo "  port:   ${UPLOAD_PORT:-<auto>}"
+    echo "  speed:  ${UPLOAD_SPEED}"
+    PORT_ARG=""
+    if [ -n "${UPLOAD_PORT}" ] ; then
+      PORT_ARG="--port ${UPLOAD_PORT}"
+    fi
+    # No --chip: esptool auto-detects it from the connected device, which
+    # for `write_flash` against real hardware is *more* correct than
+    # trusting the ini -- it catches the wrong board plugged in instead of
+    # silently flashing it with another chip's settings.
+    python3 "$ESPTOOL_PY" ${PORT_ARG} --baud "${UPLOAD_SPEED}" \
+      --before default_reset --after hard_reset \
+      write_flash "${FLASH_OFFSET}" "$MERGED_BIN"
+
+    PICO_SRC=$(read_ini_value "[fujinet]" pico_src)
+    if [ -n "${PICO_SRC}" ] ; then
+      echo ""
+      echo "Flashed. This image embeds a companion-MCU firmware built from"
+      echo "${PICO_SRC}, which the FujiNet pushes to the companion itself on"
+      echo "the next boot -- watch the monitor for PICOFW: lines, and leave"
+      echo "the board powered until one says OK or 'up to date'."
+    fi
+  else
+    pio run -c $INI_FILE ${DEV_MODE_ARG} -t upload 2>&1
+  fi
 fi
 
 if [ ${SHOW_MONITOR} -eq 1 ] ; then
   # device monitor hard codes to using platformio.ini, let's grab all the data it would use directly from our generated ini.
-  MONITOR_PORT=$(grep ^monitor_port $INI_FILE | cut -d= -f2 | cut -d\; -f1 | awk '{print $1}')
-  MONITOR_SPEED=$(grep ^monitor_speed $INI_FILE | cut -d= -f2 | cut -d\; -f1 | awk '{print $1}')
-  MONITOR_FILTERS=$(grep ^monitor_filters $INI_FILE | cut -d= -f2 | cut -d\; -f1 | tr ',' '\n' | sed 's/^ *//; s/ *$//' | awk '{printf("-f %s ", $1)}')
+  # Scoped to the actual target board's section: $INI_FILE can have more
+  # than one section defining monitor_port/monitor_speed/monitor_filters
+  # (e.g. a generic default [env] alongside [env:<board>]), and a plain
+  # "grep ^monitor_port" matches every occurrence, silently producing a
+  # broken multi-value string (this is exactly what broke `-m` -- pio saw
+  # two space-joined ports and rejected the second as an extra argument).
+  MONITOR_PORT=$(read_ini_value "[env:${BUILD_BOARD}]" monitor_port)
+  MONITOR_SPEED=$(read_ini_value "[env:${BUILD_BOARD}]" monitor_speed)
+  MONITOR_FILTERS=$(read_ini_value "[env:${BUILD_BOARD}]" monitor_filters | tr ',' '\n' | sed 's/^ *//; s/ *$//' | awk '{printf("-f %s ", $1)}')
 
   # warn the user if the build_board in platformio.ini (if exists) is not the same as INI_FILE version, as that means stacktrace will not work correctly
   # because the monitor does not allow an INI file to be set!!
-  PIO_BOARD=$(grep "build_board *=" platformio.ini | awk '{print $3}')
-  INI_BOARD=$(grep "build_board *=" ${INI_FILE} | awk '{print $3}')
+  # Anchored to line-start and excluding comments: the unanchored version
+  # also matched every "1;build_board = ..." commented-out alternative in
+  # platformio.ini, producing a garbled multi-name list instead of the one
+  # active value.
+  PIO_BOARD=$(grep "^build_board *=" platformio.ini | awk '{print $3}')
+  INI_BOARD=$(grep "^build_board *=" ${INI_FILE} | awk '{print $3}')
   if [ "${PIO_BOARD}" != "${INI_BOARD}" ]; then
     echo "╔═════════════════════════════════════════╗"
     echo "║                WARNING                  ║"
