@@ -198,6 +198,15 @@ void drivewireFuji::random()
     SYSTEM_BUS.transaction_send(&r, sizeof(r));
 }
 
+void drivewireFuji::fujidev_copy_file(const FUJI_COMMAND_PACKET &packet)
+{
+    uint8_t source = packet.param(0);
+    uint8_t dest = packet.param(1);
+
+    packet.setDataLength(MAX_FILENAME_LEN);
+    fujicmd_copy_file_success(source, dest, packet.dataAsString().value_or(""));
+}
+
 bool drivewireFuji::processCommand(const FujiDWPacket &packet)
 {
     _errorCode = NDEV_STATUS::SUCCESS;
