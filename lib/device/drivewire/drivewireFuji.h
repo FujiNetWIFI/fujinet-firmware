@@ -17,6 +17,7 @@ private:
 protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
+    void fujidev_copy_file(const FUJI_COMMAND_PACKET &packet) override;
 
     void new_disk();
     void random();

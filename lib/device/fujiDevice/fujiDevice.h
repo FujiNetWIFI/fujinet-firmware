@@ -205,6 +205,7 @@ protected:
                                             (disk_access_flags_t) ((uint8_t)
                                                                    packet.param(2)));
     }
+    virtual void fujidev_copy_file(const FUJI_COMMAND_PACKET &packet);
 
 public:
     bool boot_config = true;
