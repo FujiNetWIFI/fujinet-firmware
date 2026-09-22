@@ -81,10 +81,6 @@ jobs:
             target: macos-15-arm64
             runner: macos-15
             default-shell: bash
-          - name: macOS 15 Intel
-            target: macos-15-x64
-            runner: macos-15-intel
-            default-shell: bash
           - name: macOS 14 ARM
             target: macos-14-arm64
             runner: macos-14
