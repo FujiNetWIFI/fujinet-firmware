@@ -138,9 +138,7 @@ fujiDevice::fujiDevice(unsigned int numDisk, std::string extension,
             fujicmd_set_host_prefix(packet.param(0));
         } },
         { CMD::FUJI_COPY_FILE, [this](const FUJI_COMMAND_PACKET &packet) {
-            uint8_t source = packet.param(0);
-            uint8_t dest = packet.param(1);
-            fujicmd_copy_file_success(source, dest, packet.dataAsString().value_or(""));
+            fujidev_copy_file(packet);
         } },
         { CMD::FUJI_GENERATE_GUID, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_generate_guid();
@@ -1158,6 +1156,12 @@ success_is_true fujiDevice::fujicore_copy_file_success(uint8_t sourceSlot, uint8
     fnio::fclose(destFile);
     free(dataBuf);
     RETURN_SUCCESS_AS_TRUE();
+}
+
+void fujiDevice::fujidev_copy_file(const FUJI_COMMAND_PACKET &packet)
+{
+    fujicmd_copy_file_success(packet.param(0), packet.param(1),
+                              packet.dataAsString().value_or(""));
 }
 
 success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot,
