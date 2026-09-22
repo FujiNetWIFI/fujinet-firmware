@@ -946,7 +946,7 @@ void iwm_diskii_ll::start(uint8_t drive, bool write_protect)
       d2w_buflen = cspi_alloc_continuous(IWM_NUMBYTES_FOR_BITS(D2W_MAXBUF, d2w_buffer),
                                          D2W_CHUNK_SIZE, &d2w_buffer, &d2w_desc);
 #endif
-      if (d2w_desc) {
+      if (d2w_desc && iwm_write_queue != nullptr) {
         gpio_isr_handler_add(SP_WREQ, diskii_write_handler_forwarder, (void *) this);
         cspi_begin_continuous(smartport.spirx, d2w_desc);
         d2w_started = true;
@@ -1137,6 +1137,10 @@ void iwm_diskii_ll::setup_rmt()
 
   // SPI continuous
   iwm_write_queue = xQueueCreate(IWM_WRITE_QUEUE_DEPTH, sizeof(iwm_write_data));
+  if (iwm_write_queue == nullptr)
+    // start() refuses to install the write ISR without it - Disk II writes disabled.
+    Debug_printv("could not create Disk II write queue, free internal/total heap: %lu/%lu",
+                 esp_get_free_internal_heap_size(), esp_get_free_heap_size());
 
   track_buffer = (uint8_t *)heap_caps_malloc(TRACK_LEN, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   if (track_buffer == NULL)

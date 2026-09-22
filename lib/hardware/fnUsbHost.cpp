@@ -4,6 +4,7 @@
 
 #include <usb/usb_host.h>
 #include <esp_err.h>
+#include <esp_system.h>
 
 #include "../../include/debug.h"
 
@@ -41,7 +42,16 @@ bool usbHostEnsureInstalled(UBaseType_t event_task_priority)
     BaseType_t task_created = xTaskCreate(usb_lib_task, "usb_lib", 4096,
                                           xTaskGetCurrentTaskHandle(),
                                           event_task_priority, NULL);
-    assert(task_created == pdTRUE);
+    if (task_created != pdTRUE)
+    {
+        // Nothing on a USB-host board works without the event pump, and the
+        // host library is already installed by now, so there is no partial
+        // state worth returning to. abort() instead of assert(), which
+        // compiles out under NDEBUG.
+        Debug_printv("could not create usb_lib task, free internal/total heap: %lu/%lu",
+                     esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+        abort();
+    }
 
     s_installed = true;
     return true;
