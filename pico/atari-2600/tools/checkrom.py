@@ -18,7 +18,17 @@ every access a running client makes comes from its own instruction stream.
 That is what lets a static scan be a real proof here, where on a console with
 an unmaskable vblank interrupt it could only ever be a heuristic.
 
-Usage: checkrom.py image.bin [image2.bin ...]
+A client may declare DATA ranges with --data $LO-$HI (repeatable, console
+addresses). The scan skips them rather than disassembling them. That is not a
+way to silence a finding: it exists because a dispatch table is the one piece
+of data whose bytes are ADDRESSES, so sooner or later one of them is $81 or
+$91 and the linear walk reports a STA (zp,X) that no assembler ever emitted.
+Every client in this family has a jump table and the ones that build clean are
+lucky rather than correct. Code stays fully scanned; only the ranges a build
+can name are stepped over, and build.sh derives them from the assembler's own
+listing so they cannot drift from the source.
+
+Usage: checkrom.py [--data $LO-$HI]... image.bin [image2.bin ...]
 """
 
 import sys
@@ -80,7 +90,7 @@ for op in (0x6D, 0x2D, 0x0E, 0x2C, 0xCD, 0xEC, 0xCC, 0xCE, 0x4D, 0xEE, 0x4C,
     LEN[op] = 3
 
 
-def check(path):
+def check(path, data=()):
     img = open(path, "rb").read()
     bad = []
 
@@ -123,6 +133,12 @@ def check(path):
         pc = 0
         base = BASE if start == 0 else 0x1800
         while pc < BANK - 2:
+            addr = base + pc
+            skip = next((hi - addr + 1 for lo, hi in data if lo <= addr <= hi),
+                        0)
+            if skip:
+                pc += skip
+                continue
             op = img[start + pc]
             n = LEN[op]
             if n == 3:
@@ -147,10 +163,29 @@ def check(path):
     return bad
 
 
+def parse_data(spec):
+    """$1204-$1219, or 1204-1219. Console addresses, inclusive."""
+    lo, _, hi = spec.partition("-")
+    if not hi:
+        raise SystemExit("checkrom: --data wants LO-HI, got %r" % spec)
+    return (int(lo.lstrip("$"), 16), int(hi.lstrip("$"), 16))
+
+
 def main():
     rc = 0
-    for path in sys.argv[1:]:
-        problems = check(path)
+    data, paths, args = [], [], list(sys.argv[1:])
+    while args:
+        a = args.pop(0)
+        if a == "--data":
+            if not args:
+                raise SystemExit("checkrom: --data needs a range")
+            data.append(parse_data(args.pop(0)))
+        elif a.startswith("--data="):
+            data.append(parse_data(a.split("=", 1)[1]))
+        else:
+            paths.append(a)
+    for path in paths:
+        problems = check(path, data)
         for p in problems:
             print("checkrom: %s: %s" % (path, p), file=sys.stderr)
         if problems:

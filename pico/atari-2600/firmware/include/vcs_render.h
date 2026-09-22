@@ -84,6 +84,15 @@ void vcs_render_path_row(uint8_t *win, const uint8_t *path, uint16_t path_len,
 void vcs_render_path_poke(uint8_t *win, const uint8_t *path, uint16_t path_len,
                           uint16_t src, uint16_t dst, uint8_t cnt);
 
+/* FN_BLIT_PATHTILE: compose a packed tile bitset out of the selected path
+ * buffer at offset `src` into the playfield tables of the kinds `mask` names.
+ *
+ * Routed by the caller for FN_BLIT_PATH's reason. `cnt` is the row count, 0
+ * meaning FN_TILE_H. See fuji_mailbox.h for why a client keeps its grid in a
+ * path buffer rather than re-reading a reply it no longer has. */
+void vcs_render_path_tile(uint8_t *win, const uint8_t *path, uint16_t path_len,
+                          uint16_t src, uint8_t mask, uint8_t cnt);
+
 /* FN_BLIT_TCELL: replace the single character at (row, col).
  *
  * A column shares its plane byte with its neighbour -- left in bits 7-5,

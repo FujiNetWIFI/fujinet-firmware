@@ -923,6 +923,178 @@ int main(void)
         }
     }
 
+    /* ---------------- the maze grid, FN_BLIT_PFTILE ----------------
+     *
+     * The layout is fujinet-maze-war's server/brick_layout.txt, which is
+     * byte-identical to the MAZEDAT table in the 1985 ANALOG listing. It is
+     * embedded rather than read, because a host test that needs another
+     * repository checked out beside it is a test that gets deleted.
+     *
+     * The expectation is built the OTHER way round on purpose. vcs_render.c
+     * composes through pf_reg[]/pf_bits[], so recomputing with those would
+     * only prove the loop; instead this lays the 40 playfield pixels of a row
+     * out left to right and packs them using the TIA's own documented bit
+     * order -- PF0 from bit 4 upward, PF1 from bit 7 downward, PF2 from bit 0
+     * upward, twice across the line with reflection off. If the masks in
+     * vcs_render.c are wrong, these two disagree. */
+    {
+        static const char *const maze[FN_TILE_H] = {
+            "####################",
+            "#...##.............#",
+            "#.#..#.####.####.###",
+            "#.#.##...#...#...#.#",
+            "#.#....#...#...#.#.#",
+            "###.########.###.#.#",
+            "#...#......#.......#",
+            "#.###.##.#.#.#######",
+            "#......#.#...#.....#",
+            "###.##.#.#.###.#####",
+            "#..............#...#",
+            "#.###.####.###.###.#",
+            "#.#........#.....#.#",
+            "#.#.######...###...#",
+            "#.#..#...#.#.....###",
+            "#.#.##.#.#.#####...#",
+            "#.#..#.#.#.#...###.#",
+            "#............#.....#",
+            "####################",
+        };
+        /* Where each of the 20 playfield pixels of a half comes from: the
+         * register within the half, and the bit. Written from the TIA, not
+         * copied from vcs_render.c. */
+        static const uint8_t px_reg[20] = {
+            0, 0, 0, 0,                     /* PF0: pixels 0-3   */
+            1, 1, 1, 1, 1, 1, 1, 1,         /* PF1: pixels 4-11  */
+            2, 2, 2, 2, 2, 2, 2, 2,         /* PF2: pixels 12-19 */
+        };
+        static const uint8_t px_bit[20] = {
+            4, 5, 6, 7,                     /* PF0 low nibble unused, bit 4 up */
+            7, 6, 5, 4, 3, 2, 1, 0,         /* PF1 draws high bit first        */
+            0, 1, 2, 3, 4, 5, 6, 7,         /* PF2 low bit first               */
+        };
+        uint8_t want[6][FN_TILE_H];
+        uint8_t bits[FN_TILE_BYTES];
+        unsigned x, y, r, half, px;
+        const unsigned SRC = 7;             /* a non-zero offset, on purpose */
+
+        memset(want, 0, sizeof want);
+        memset(bits, 0, sizeof bits);
+        for (y = 0; y < FN_TILE_H; y++) {
+            for (x = 0; x < FN_TILE_W; x++) {
+                unsigned idx = y * FN_TILE_W + x;
+
+                if (maze[y][x] != '#')
+                    continue;
+                bits[idx >> 3] |= (uint8_t)(1u << (idx & 7u));
+                /* A cell is two playfield pixels wide. */
+                for (px = 2u * x; px < 2u * x + 2u; px++) {
+                    half = px / 20u;
+                    want[px_reg[px % 20u] + 3u * half][y] |=
+                        (uint8_t)(1u << px_bit[px % 20u]);
+                }
+            }
+        }
+
+        memset(win, 0xAA, sizeof win);
+        memcpy(win + (FN_R_DATA - FN_WINDOW_BASE) + SRC, bits, sizeof bits);
+        vcs_blit(win, board, SRC, FN_PFM_HIT, 0, FN_BLIT_PFTILE);
+
+        for (r = 0; r < 6; r++) {
+            const uint8_t *tab = win + (FN_PF_TAB(r, FN_PF_HIT)
+                                        - FN_WINDOW_BASE);
+            for (y = 0; y < FN_TILE_H; y++)
+                if (tab[y] != want[r][y]) {
+                    fprintf(stderr, "FAIL: PFTILE reg %u row %u: "
+                            "got %02X want %02X\n",
+                            r, y, tab[y], want[r][y]);
+                    fails++;
+                }
+        }
+
+        /* cnt = 0 means every row, so the twentieth entry -- the one the maze
+         * does not use -- must have been cleared and left alone. */
+        for (r = 0; r < 6; r++)
+            if (win[FN_PF_TAB(r, FN_PF_HIT) - FN_WINDOW_BASE + FN_TILE_H])
+                fail("PFTILE wrote past the last maze row");
+
+        /* The kinds it was not asked for are untouched poison. */
+        for (r = 0; r < 6; r++)
+            for (y = 0; y < FN_PF_KIND_LEN; y++)
+                if (win[FN_PF_TAB(r, FN_PF_MID) - FN_WINDOW_BASE + y] != 0xAA)
+                    fail("PFTILE wrote a kind its mask did not name");
+
+        /* FN_BLIT_PATHTILE composes the same grid from a path buffer
+         * instead of the reply window -- a different source, and it must
+         * produce the same picture to the byte. */
+        {
+            static uint8_t saved[FN_WINDOW_SIZE];
+            int differs = 0;
+
+            memcpy(saved, win, sizeof saved);
+            memset(win, 0xAA, sizeof win);
+            vcs_render_path_tile(win, bits, (uint16_t)sizeof bits, 0,
+                                 FN_PFM_HIT, 0);
+            for (r = 0; r < 6; r++)
+                for (y = 0; y < FN_TILE_H; y++)
+                    if (win[FN_PF_TAB(r, FN_PF_HIT) - FN_WINDOW_BASE + y]
+                        != want[r][y])
+                        differs = 1;
+            if (differs)
+                fail("PATHTILE does not agree with PFTILE");
+
+            /* An offset past what the client has written composes nothing,
+             * rather than a grid out of the buffer's previous tenant. */
+            {
+                static uint8_t before[FN_WINDOW_SIZE];
+
+                memcpy(before, win, sizeof before);
+                vcs_render_path_tile(win, bits, (uint16_t)sizeof bits,
+                                     (uint16_t)sizeof bits, FN_PFM_HIT, 0);
+                if (memcmp(before, win, sizeof before))
+                    fail("PATHTILE past path_len wrote into the window");
+            }
+            memcpy(win, saved, sizeof saved);
+        }
+
+        /* ---- FN_BLIT_PFTCELL: the brick that gets shot out ---- */
+        {
+            /* (1,1) is open floor in this layout and (4,1) is a brick, so one
+             * of each is reachable without picking a border cell. */
+            unsigned col = 4, row = 1;
+            uint8_t before = win[FN_PF_TAB(px_reg[(2u * col) % 20u]
+                                           + 3u * ((2u * col) / 20u),
+                                           FN_PF_HIT) - FN_WINDOW_BASE + row];
+
+            if (!before)
+                fail("the PFTCELL fixture is not a brick");
+
+            vcs_blit(win, board, col | FN_PFM_CLEAR, FN_PFM_HIT, row,
+                     FN_BLIT_PFTCELL);
+            if (win[FN_PF_TAB(0, FN_PF_HIT) - FN_WINDOW_BASE + row] == before
+                && win[FN_PF_TAB(1, FN_PF_HIT) - FN_WINDOW_BASE + row]
+                   == before)
+                fail("PFTCELL clear changed nothing");
+
+            vcs_blit(win, board, col, FN_PFM_HIT, row, FN_BLIT_PFTCELL);
+            for (r = 0; r < 6; r++)
+                if (win[FN_PF_TAB(r, FN_PF_HIT) - FN_WINDOW_BASE + row]
+                    != want[r][row])
+                    fail("PFTCELL set did not restore the brick");
+        }
+
+        /* Out of range draws nothing rather than writing past the tables. */
+        {
+            static uint8_t before[FN_WINDOW_SIZE];
+
+            memcpy(before, win, sizeof before);
+            vcs_blit(win, board, FN_TILE_W, FN_PFM_HIT, 0, FN_BLIT_PFTCELL);
+            vcs_blit(win, board, 0, FN_PFM_HIT, FN_PF_KIND_LEN,
+                     FN_BLIT_PFTCELL);
+            if (memcmp(before, win, sizeof before))
+                fail("an out-of-range PFTCELL wrote into the window");
+        }
+    }
+
     if (fails) {
         printf("test_render: %d failures\n", fails);
         return 1;
@@ -930,8 +1102,9 @@ int main(void)
     printf("test_render: PASS (%d strings, %d planes, %d rows x %d columns, "
            "the blit port, FN_BLIT_PATH, FN_BLIT_TCELL, a composed "
            "Battleship board, its playfield tables, a %d-card bed on a "
-           "%d-pixel pitch, and FN_BLIT_POKE with its bound, and FN_BLIT_PATHPOKE with both of its)\n",
+           "%d-pixel pitch, FN_BLIT_POKE with its bound, FN_BLIT_PATHPOKE with "
+           "both of its, and a %dx%d maze grid through FN_BLIT_PFTILE)\n",
            GOLD_N, FN_T_PLANES, FN_T_ROWS, FN_T_COLS,
-           FN_CARD_SLOTS, FN_CARD_PITCH);
+           FN_CARD_SLOTS, FN_CARD_PITCH, FN_TILE_W, FN_TILE_H);
     return 0;
 }

@@ -379,6 +379,59 @@
  * path buffer and not the reply window. */
 #define FN_BLIT_PATHPOKE 15       /* plane[dst..dst+cnt) = path[src..src+cnt) */
 
+/* A PACKED TILE BITSET into the playfield tables, for a maze.
+ *
+ * fujinet-maze-war is a 20 x 19 grid of cells, and the tables FN_BLIT_PFIELD
+ * already writes ARE a 20-column by 20-row playfield: registers 0-2 are the
+ * left half's PF0/PF1/PF2 and 3-5 the right half's, the entry index is the
+ * cell row, and Battleship merely happens to spend the space as two stacked
+ * 10x10 boards. A maze row is therefore the whole 40-bit asymmetric playfield
+ * in one pass and the grid drops in with one row to spare -- no new table
+ * geometry, no new bit map, and pf_byte() addresses it unchanged, because for
+ * slots 0 and 1 (slot >> 1) is zero and the entry is simply the row.
+ *
+ * What is new is the SOURCE. Battleship's wire format is one byte per cell:
+ * 100 bytes for a board, but 380 for this grid, which is most of the reply
+ * slice. Maze War's BRICK_FULL is already a packed bitset -- 380 bits in 48
+ * bytes, row-major at idx = y * FN_TILE_W + x, byte idx / 8, bit idx % 8,
+ * least significant first -- so the console hands that payload straight from
+ * the reply window to the cartridge and never holds a byte of it. It cannot:
+ * 128 bytes of RAM does not keep a 48-byte bitset AND the six 19-byte tables
+ * the kernel streams, let alone a game on top.
+ *
+ * dst is a KIND MASK and not a slot, because a tile row spans both halves and
+ * both are written. cnt is the row count, so a shorter grid does not pay for
+ * rows it does not have; 0 means FN_TILE_H.
+ *
+ * FN_BLIT_PFTCELL is the delta. A brick shot out mid-game is one cell, and
+ * re-sending 48 bytes to change one bit would cost a transaction a console
+ * running a 10 Hz game does not have spare -- so the cell is addressed
+ * directly, and FN_PFM_CLEAR chooses clear over set exactly as it does for
+ * FN_BLIT_PFCELL. The column is seven bits because bit 7 is that flag. */
+#define FN_BLIT_PFTILE   16       /* src = reply offset of a packed bitset,
+                                     dst = kind mask, cnt = rows (0 = all)   */
+#define FN_BLIT_PFTCELL  17       /* dst = kind mask, cnt = row, src low byte
+                                     = column; FN_PFM_CLEAR in it clears     */
+/* The same grid, out of a path buffer instead of the reply window.
+ *
+ * Routed by the caller for FN_BLIT_PATH's reason -- a different source, not a
+ * different composition -- and it exists for two that matter here.
+ *
+ * A reply is TRANSIENT: the window is repainted by the next SEQ commit, so a
+ * client that wants to recompose its grid later (after a bank switch, after a
+ * console RESET, after anything) no longer has the bytes and has no RAM to
+ * have kept them in. A path buffer is 256 bytes, survives RESET, and takes a
+ * byte per store with no poll -- so a client streams its bitset in once and
+ * owns it for the rest of the session.
+ *
+ * And it is how a grid gets on screen with no server at all: the layout ROM
+ * that proves the kernel before any network exists has its map in ROM. */
+#define FN_BLIT_PATHTILE 18       /* dst = kind mask, cnt = rows, src = byte
+                                     offset into the selected path buffer    */
+#define FN_TILE_W        20       /* cells across: the whole playfield       */
+#define FN_TILE_H        19       /* rows, of the 20 the tables hold         */
+#define FN_TILE_BYTES    48       /* (FN_TILE_W * FN_TILE_H + 7) / 8         */
+
 /* What FN_BLIT_FIELD paints. A Battleship gamefield is 100 bytes at y*10+x
  * in the reply window, and turning it into ten rows of text is 100 reads,
  * 100 compares and a 16-bit reply cursor -- about 250 bytes of 6502 in a bank

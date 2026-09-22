@@ -109,6 +109,65 @@ static void pf_clear(uint8_t *win, unsigned slot, uint8_t mask)
     }
 }
 
+/* Zero both halves' tables, whole, for the kinds the mask names.
+ *
+ * pf_clear() is the board version: one slot, and it stops at FN_BOARD_DIM
+ * because a board is ten rows. A tile grid is taller than that and spans both
+ * halves, so neither bound carries over.
+ *
+ * This clears all FN_PF_KIND_LEN entries and not just the `rows` the caller
+ * is about to compose, so that naming a kind in a PFTILE mask means OWNING
+ * it. A 19-row grid otherwise leaves the twentieth entry holding whatever was
+ * there -- a Battleship board's bottom pair, or power-on noise -- and the row
+ * that inherits it draws it. Six bytes of clearing against a class of bug
+ * that only shows up in the client that comes after this one. */
+static void pf_tile_clear(uint8_t *win, uint8_t mask)
+{
+    unsigned k, half, r, y;
+
+    for (k = 0; k < FN_PF_KINDS; k++) {
+        if (!(mask & (1u << k)))
+            continue;
+        for (half = 0; half < 2u; half++)
+            for (r = 0; r < 3u; r++)
+                for (y = 0; y < FN_PF_KIND_LEN; y++)
+                    *pf_byte(win, half, k, r, y) = 0;
+    }
+}
+
+/* Compose a packed tile bitset into the playfield tables.
+ *
+ * Shared by FN_BLIT_PFTILE and FN_BLIT_PATHTILE, which differ only in where
+ * the bits come from. `bits_len` is how many bytes are actually readable at
+ * `bits`; running off the end stops rather than composing a row out of
+ * whatever follows the source.
+ *
+ * Column x lives in half x / FN_BOARD_DIM, and pf_cell()'s cell number
+ * carries the rest -- it divides by FN_BOARD_DIM to recover (column within
+ * half, row), which is what y * FN_BOARD_DIM + x % FN_BOARD_DIM encodes.
+ * Rows above nine are fine there and only there: pf_byte() reads (slot >> 1),
+ * which is zero for both halves, so the entry index is the row itself. */
+static void pf_tile(uint8_t *win, const uint8_t *bits, unsigned bits_len,
+                    unsigned rows, uint8_t mask)
+{
+    unsigned x, y;
+
+    if (rows > FN_PF_KIND_LEN)
+        rows = FN_PF_KIND_LEN;
+    pf_tile_clear(win, mask);
+    for (y = 0; y < rows; y++) {
+        for (x = 0; x < (unsigned)FN_TILE_W; x++) {
+            unsigned idx = y * (unsigned)FN_TILE_W + x;
+
+            if ((idx >> 3) >= bits_len)
+                return;
+            if (bits[idx >> 3] & (uint8_t)(1u << (idx & 7u)))
+                pf_cell(win, x / FN_BOARD_DIM,
+                        y * FN_BOARD_DIM + (x % FN_BOARD_DIM), mask, 1);
+        }
+    }
+}
+
 /* Paint the composed board into ten text rows starting at `row`: the row
  * digit, then the ten cells. */
 static void board_rows(uint8_t *win, const uint8_t *board, uint8_t row)
@@ -187,6 +246,17 @@ void vcs_render_path_poke(uint8_t *win, const uint8_t *path, uint16_t path_len,
             break;
         win[(FN_T_BASE - FN_WINDOW_BASE) + d] = path[s];
     }
+}
+
+/* The same grid out of a path buffer. See FN_BLIT_PATHTILE in
+ * fuji_mailbox.h: a reply is transient and a path buffer is not. */
+void vcs_render_path_tile(uint8_t *win, const uint8_t *path, uint16_t path_len,
+                          uint16_t src, uint8_t mask, uint8_t cnt)
+{
+    if (src >= path_len)
+        return;
+    pf_tile(win, path + src, (unsigned)(path_len - src),
+            cnt ? cnt : (unsigned)FN_TILE_H, (uint8_t)(mask & FN_PFM_ALL));
 }
 
 /* ------------------------------------------------------------------ cards --
@@ -519,6 +589,33 @@ bool vcs_blit(uint8_t *win, uint8_t *board, uint16_t src, uint16_t dst,
         if (cnt < FN_BOARD_CELLS)
             pf_cell(win, dst & 3u, cnt, (uint8_t)(src & FN_PFM_ALL),
                     !(src & FN_PFM_CLEAR));
+        return true;
+    }
+
+    /* The maze grid. dst is a KIND MASK and not a slot: a tile row is the
+     * whole 40-bit playfield, so both halves are written.
+     *
+     * A source offset past the window leaves the tables alone rather than
+     * clearing them. Nothing composed and nothing destroyed is the kinder of
+     * the two failures: the client keeps the picture it had while whoever
+     * wrote the six setup stores finds the one that is wrong. */
+    if (transform == FN_BLIT_PFTILE) {
+        unsigned off = (FN_R_DATA - FN_WINDOW_BASE) + src;
+
+        if (off < FN_WINDOW_SIZE)
+            pf_tile(win, win + off, FN_WINDOW_SIZE - off,
+                    cnt ? cnt : (unsigned)FN_TILE_H,
+                    (uint8_t)(dst & FN_PFM_ALL));
+        return true;
+    }
+
+    if (transform == FN_BLIT_PFTCELL) {
+        unsigned x = src & 0x7Fu;
+
+        if (x < (unsigned)FN_TILE_W && cnt < FN_PF_KIND_LEN)
+            pf_cell(win, x / FN_BOARD_DIM,
+                    cnt * FN_BOARD_DIM + (x % FN_BOARD_DIM),
+                    (uint8_t)(dst & FN_PFM_ALL), !(src & FN_PFM_CLEAR));
         return true;
     }
 

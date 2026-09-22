@@ -305,9 +305,12 @@ void a26_rom_fujinet_device::write(offs_t offset, uint8_t data)
 		break;
 
 	case VCS_EV_BLIT:
-		// FN_BLIT_PATH's source is the cartridge's path buffer, not the reply
-		// window, so it is routed past vcs_blit() -- exactly as fuji_cart.c
-		// does it, because these two must not drift.
+		// FN_BLIT_PATH, PATHPOKE and PATHTILE take their source from the
+		// cartridge's path buffer and not the reply window, so all three are
+		// routed past vcs_blit() -- exactly as fuji_cart.c does it, because
+		// these two must not drift. They did: PATHPOKE reached the cartridge
+		// and not this device, and the only symptom was a picture that never
+		// changed -- the fallback reports it, but only under -debug.
 		if (b == FN_BLIT_TCELL)
 			vcs_render_cell(m_mem.win,
 							(uint8_t)(m_mem.blit_dst / FN_T_COLS),
@@ -318,6 +321,16 @@ void a26_rom_fujinet_device::write(offs_t offset, uint8_t data)
 								m_mem.path_len[m_mem.path_sel],
 								m_mem.blit_src, (uint8_t)m_mem.blit_dst,
 								m_mem.blit_cnt);
+		else if (b == FN_BLIT_PATHPOKE)
+			vcs_render_path_poke(m_mem.win, m_mem.path[m_mem.path_sel],
+								 m_mem.path_len[m_mem.path_sel],
+								 m_mem.blit_src, m_mem.blit_dst,
+								 m_mem.blit_cnt);
+		else if (b == FN_BLIT_PATHTILE)
+			vcs_render_path_tile(m_mem.win, m_mem.path[m_mem.path_sel],
+								 m_mem.path_len[m_mem.path_sel],
+								 m_mem.blit_src, (uint8_t)m_mem.blit_dst,
+								 m_mem.blit_cnt);
 		else if (!vcs_blit(m_mem.win, m_mem.board, m_mem.blit_src, m_mem.blit_dst,
 					  m_mem.blit_cnt, b) && m_debug)
 			fprintf(stderr, "fujinet: blit transform %u not implemented\n", b);

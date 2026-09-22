@@ -114,6 +114,13 @@ void fuji_cart_service_deferred(void)
                                  fuji_mem.blit_src,
                                  fuji_mem.blit_dst,
                                  fuji_mem.blit_cnt);
+        else if (fuji_blit_xform == FN_BLIT_PATHTILE)
+            vcs_render_path_tile(fuji_mem.win,
+                                 fuji_mem.path[fuji_mem.path_sel],
+                                 fuji_mem.path_len[fuji_mem.path_sel],
+                                 fuji_mem.blit_src,
+                                 (uint8_t)fuji_mem.blit_dst,
+                                 fuji_mem.blit_cnt);
         else
             vcs_blit(fuji_mem.win, fuji_mem.board, fuji_mem.blit_src,
                      fuji_mem.blit_dst, fuji_mem.blit_cnt, fuji_blit_xform);
