@@ -147,6 +147,21 @@ if(CONFIG_USB_DEVICE)
       ${CMAKE_CURRENT_LIST_DIR}/src/usb_tasks.c
       ${CMAKE_CURRENT_LIST_DIR}/src/usb_descriptors.c
    )
+
+   # Let the host reboot us into BOOTSEL by setting the USB serial line to
+   # 1200 baud -- the convention picotool and every other pico tool uses,
+   # and how the ESP32-S3 asks for BOOTSEL before reflashing us (see
+   # lib/hardware/fnPicoUpdater.cpp in the firmware repo). Without it the
+   # only ways in are the mailbox doorbell, which needs working firmware and
+   # a console to poke it, and the hardware RUN/BOOTSEL lines.
+   #
+   # The explicit =1 is load-bearing: pico_usb_reset defaults this OFF for a
+   # project that links tinyusb_device directly, as this one does, so
+   # linking the library alone compiles the callback out. Only the
+   # baud-rate path is enabled; the vendor reset interface would need
+   # descriptor changes and a new interface, and buys nothing here.
+   target_link_libraries(${PROJECT} pico_usb_reset)
+   target_compile_definitions(${PROJECT} PRIVATE PICO_ENABLE_USB_RESET_VIA_BAUD_RATE=1)
 endif()
 
 if(CONFIG_USB_DEVICE AND CONFIG_FLASH_FAT_STORAGE)
