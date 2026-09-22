@@ -171,6 +171,14 @@ idf_component_register(
     PRIV_REQUIRES esp_driver_uart esp_netif esp_driver_gpio fatfs vfs json esp_wifi mbedtls console app_update spi_flash mlff esp_driver_ledc expat gumbo gumbo-query http_parser esp-tls tcp_transport esp_driver_gptimer esp_driver_tsens esp_http_client esp_websocket_client libssh
 )
 
+# NOTE: embedding companion-MCU firmware does NOT happen here. PlatformIO's
+# espidf integration uses this CMakeLists.txt only to *discover* the
+# source/include/flags graph -- it links via its own SCons build, which
+# never sees target_link_libraries()/EMBED_FILES calls added here (the
+# generated build.ninja has no firmware.elf link rule at all). Instead
+# build_pico.py generates lib/hardware/fn_pico_blob_data.cpp, picked up by
+# the lib/hardware/*.cpp glob below like any other file.
+
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-unused-value)
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-unused-variable)
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-unused-but-set-variable)
