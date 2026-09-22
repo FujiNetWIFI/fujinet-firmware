@@ -81,10 +81,16 @@ construction (spec prose in `fuji_mailbox.h`, mapping authority in
   stamps it, reset entry 0x3000 by convention.
 
 Storage is tiered (`fuji_store.c`): the classic 8K stage, a 128K RAM store,
-and the top 512K of flash (erased and programmed on core0 while core1 keeps
-serving from SRAM; `FN_BOOT_ERR_STOREBUSY` when the only fitting store is
-the one being served from). The serve loop itself is a bank-pointer pair --
-`bank[a >> 12][a & 0xFFF]` -- so the flat path is byte-identical to v1.
+and the top 512K of flash (programmed on core0 while core1 keeps serving
+from SRAM; `FN_BOOT_ERR_STOREBUSY` when the only fitting store is being
+served or staged). The erase is swept out of the push path -- 45ms typical
+and 400ms worst case per 4K sector on a W25Q would put the chunk's ACK past
+the ESP32's read window -- so `fuji_store_idle()` blanks the store a sector
+at a time from the mailbox loop whenever the console is quiet, leaving a
+push to pay for a program alone. A mount that beats the sweep still erases
+in path, which is only as slow as it always was. The serve loop itself is a
+bank-pointer pair -- `bank[a >> 12][a & 0xFFF]` -- so the flat path is
+byte-identical to v1.
 
 ## Layout
 
@@ -123,6 +129,8 @@ gcc -Wall -Wextra -Werror -I.. -I../include -o test_fujibus  test_fujibus.c  ../
 gcc -Wall -Wextra -Werror -I../include      -o test_astromap test_astromap.c ../src/astromap.c && ./test_astromap
 gcc -Wall -Wextra -Werror -I../include      -o test_bankserve test_bankserve.c ../src/astromap.c && ./test_bankserve
 gcc -Wall -Wextra -Werror -I../include      -o test_fujimail test_fujimail.c ../src/fujimail.c ../src/astromap.c && ./test_fujimail
+gcc -Wall -Wextra -Werror -Istub -I../include -DFUJI_STORE_BINARY_END=0x1000u \
+    -o test_fujistore test_fujistore.c ../src/fuji_store.c && ./test_fujistore
 
 # 2. Clients (fujibank/gamebank also run the packers' self-verification)
 ./build.sh                      # fujitest fujiboot fujicfg -> build/*.bin

@@ -100,6 +100,19 @@ jobs:
               -o test_fujimail test_fujimail.c ../src/fujimail.c ../src/astromap.c
           ./test_fujimail
 
+      # The push store's flash bookkeeping: the idle erase sweep and its
+      # guards, and whether a chunk pays for an erase or only a program.
+      # stub/ models the part rather than faking it -- a program only clears
+      # bits -- so a wrongly skipped erase corrupts the image here instead of
+      # waiting for a cartridge that does not exist yet.
+      - name: Astrocade -- push store flash bookkeeping
+        working-directory: pico/astrocade/firmware/host_test
+        run: |
+          gcc -Wall -Wextra -Werror -Istub -I../include \
+              -DFUJI_STORE_BINARY_END=0x1000u \
+              -o test_fujistore test_fujistore.c ../src/fuji_store.c
+          ./test_fujistore
+
   o2-console-client:
     name: "Odyssey 2 8048 client"
     runs-on: ubuntu-latest
