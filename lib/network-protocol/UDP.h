@@ -71,7 +71,27 @@ public:
      */
     fujiError_t set_destination(const uint8_t *sp_buf, unsigned short len);
 
-    size_t available() override { return udp.available(); }
+    /* Mirror NetworkProtocolTCP::available(): the RECEIVE BUFFER first, and
+     * the socket only when that is empty.
+     *
+     * Returning udp.available() alone makes a datagram invisible the moment
+     * anything reads it. NetworkProtocol::status() does exactly that -- it
+     * drains the socket into receiveBuffer before the caller asks how much is
+     * waiting -- so rs232_status_channel()'s `avail = protocol->available()`
+     * then reports the empty socket, the client is told nothing arrived, and
+     * the bytes sit in the buffer until the next datagram displaces them.
+     *
+     * TCP has always had the two-line version and every shipping client in
+     * this family is TCP or HTTP, which is why this survived: the first UDP
+     * client found it, and what it looked like was a server that answered one
+     * packet in twenty-five. */
+    size_t available() override
+    {
+        size_t avail = receiveBuffer->size();
+        if (!avail)
+            avail = udp.available();
+        return avail;
+    }
 
 protected:
 
