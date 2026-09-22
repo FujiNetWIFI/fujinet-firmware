@@ -21,7 +21,7 @@ protected:
     void sio_set_baudrate(const FujiSIOPacket &packet);
     void sio_new_disk();
     void sio_set_hsio_index(const FujiSIOPacket &packet);
-    void sio_copy_file(const FujiSIOPacket &packet);
+    void fujidev_copy_file(const FUJI_COMMAND_PACKET &packet) override;
     void sio_enable_netstream(const FujiSIOPacket &packet);
 
     void sio_status(const FujiSIOPacket &packet) override { fujicmd_status(); }

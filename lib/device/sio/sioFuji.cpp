@@ -197,7 +197,7 @@ void sioFuji::sio_set_baudrate(const FujiSIOPacket &packet)
 }
 
 // Do SIO copy
-void sioFuji::sio_copy_file(const FujiSIOPacket &packet)
+void sioFuji::fujidev_copy_file(const FUJI_COMMAND_PACKET &packet)
 {
     uint8_t csBuf[256];
     std::string copySpec;
@@ -703,9 +703,6 @@ void sioFuji::sio_process(const FujiSIOPacket &packet)
         break;
     case CMD::FUJI_NEW_DISK:
         sio_new_disk();
-        break;
-    case CMD::FUJI_COPY_FILE:
-        sio_copy_file(packet);
         break;
     case CMD::FUJI_ENABLE_UDPSTREAM:
         sio_enable_netstream(packet);
