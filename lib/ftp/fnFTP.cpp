@@ -934,6 +934,7 @@ fujiError_t fnFTP::open_directory(string path, string pattern)
 
     int tmout_counter = 1 + FTP_TIMEOUT / 50;
     bool got_response = false;
+    fujiError_t resp_res = FUJI_ERROR::NONE;
 
     // Reset buffer
     dirBuffer.str("");
@@ -963,17 +964,37 @@ fujiError_t fnFTP::open_directory(string path, string pattern)
             }
             tmout_counter = 1 + FTP_TIMEOUT / 50; // reset timeout counter
         }
-        if (got_response == false && control->available())
+        if (!got_response && control->available())
         {
-            got_response = parse_response() == FUJI_ERROR::NONE;
+            resp_res = parse_response();
+            got_response = true;
         }
     } while (data->available() > 0 || data->connected());
 
     data->stop();
 
-    if (tmout_counter == 0 || (got_response == false && parse_response() != FUJI_ERROR::NONE))
+    if (!got_response && tmout_counter > 0)
+    {
+        resp_res = parse_response();
+        if (resp_res == FUJI_ERROR::NONE || _statusCode != 0)
+            got_response = true;
+    }
+
+    if (tmout_counter == 0 || !got_response || resp_res != FUJI_ERROR::NONE)
     {
         Debug_printf("fnFTP::open_directory(%s%s) Timed out waiting for 226 response.\r\n", path.c_str(), pattern.c_str());
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+
+    string lower_resp = controlResponse;
+    for (char &c : lower_resp)
+        c = tolower((unsigned char)c);
+    if (lower_resp.find("failed to open directory") != string::npos)
+    {
+        Debug_printf("fnFTP::open_directory(%s%s) - server failed to open directory: %s\r\n", path.c_str(), pattern.c_str(), controlResponse.c_str());
+        _statusCode = 550;
+        dirBuffer.str("");
+        dirBuffer.clear();
         return FUJI_ERROR::UNSPECIFIED;
     }
 
