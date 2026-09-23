@@ -89,6 +89,9 @@ public:
     char get_disk_number() { return disk_num; };
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
 
+    // Called from the bus service loop: flush an idle HD20 write cache
+    void flush_if_idle();
+
     // Archive-backed mount details, for the web UI and /sitdownload
     bool has_sit_source() { return _sit != nullptr; }
     const char *sit_inner_filename() { return (_sit != nullptr) ? _sit->inner_filename : ""; }

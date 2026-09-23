@@ -77,6 +77,16 @@ The drive identifies itself from the disk: a 400K image makes it a
 single-sided 400K drive (the only kind the 64K-ROM 128K/512K know), an
 800K image a double-sided 800K drive.
 
+#### Boot volumes
+
+`tools/mac68k/make_hd20_volume.py` turns any HFS volume image (the 2 GB
+SavageTaylor volumes, a 40 MB image) into a 32 MB HD20 volume: copies
+the files, keeps the boot blocks, blesses the system folder. Volumes
+must stay at or below 65,535 blocks (32 MB) or the Mac rejects them.
+The mount code checks the blessing (MDB drFndrInfo[0]) and fixes it on
+read/write mounts. On a 512Ke use System 5.1: System 6.0.8 does not run
+in 512 KB (the Mac reports the System file as damaged).
+
 ### Booting from an HD20
 
 With no floppy in slot 5 and a volume with a System in slot 1, a 512Ke,
@@ -121,6 +131,13 @@ four places, all in `pico/mac/commands.c`:
   which used to unmount the image before the ROM ever saw it.
 
 Nothing in the ROM measures TACH; it only samples it as one status bit.
+
+### Swapping HD20 images
+
+Never change an HD20 slot while the Mac is running with that volume
+mounted: the Mac caches the volume header and writes it back into
+whatever image is in the slot by then, which then shows up as damaged.
+Shut the Mac down first, or unmount the volume on the Mac.
 
 ### Swapping floppies
 

@@ -3,6 +3,8 @@
 #include "mediaTypeDCD.h"
 
 #include <cstring>
+#include <esp_heap_caps.h>
+#include "fnSystem.h"
 #include "utils.h"
 #include "../../include/debug.h"
 
@@ -35,6 +37,13 @@ bool MediaTypeDCD::read(uint32_t blockNum, uint8_t* buffer)
         return true;
     }
 
+    // the Mac reads a written block straight back to verify it
+    if (wcache_count > 0 && blockNum >= wcache_first && blockNum < wcache_first + wcache_count)
+    {
+        memcpy(buffer, wcache + (blockNum - wcache_first) * DCD_BLOCK_SIZE, DCD_BLOCK_SIZE);
+        return false;
+    }
+
     if ((blockNum == 0) || (blockNum != last_block_num + 1)) // only seek if not reading next block
     {
         if (fseek(_media_fileh, (blockNum * readsize) + offset, SEEK_SET))
@@ -52,10 +61,43 @@ bool MediaTypeDCD::read(uint32_t blockNum, uint8_t* buffer)
     return (readsize != _media_sector_size);
 }
 
-bool MediaTypeDCD::write(uint32_t blockNum, uint8_t* buffer)
+// Uncached single-sector write, used when the cache could not be allocated
+error_is_true MediaTypeDCD::write_direct(uint32_t blockNum, uint8_t *buffer)
 {
     size_t writesize = DCD_BLOCK_SIZE;
 
+    if (blockNum != last_block_num + 1) // only seek if not writing next block
+    {
+        if (fseek(_media_fileh, (blockNum * writesize) + offset, SEEK_SET))
+        {
+            reset_seek_opto();
+            RETURN_ERROR_AS_TRUE();
+        }
+    }
+    last_block_num = blockNum;
+    writesize = fwrite((unsigned char *)buffer, 1, writesize, _media_fileh);
+    if (writesize != _media_sector_size)
+    {
+        reset_seek_opto();
+        RETURN_ERROR_AS_TRUE();
+    }
+
+    RETURN_SUCCESS_AS_FALSE();
+}
+
+success_is_true MediaTypeDCD::wcache_alloc()
+{
+    if (wcache != nullptr)
+        RETURN_SUCCESS_AS_TRUE();
+
+    wcache = static_cast<uint8_t *>(heap_caps_malloc(WCACHE_BLOCKS * DCD_BLOCK_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+    if (wcache == nullptr)
+        Debug_printf("\r\nDCD: write-behind cache allocation failed, using direct writes");
+    RETURN_SUCCESS_IF(wcache != nullptr);
+}
+
+bool MediaTypeDCD::write(uint32_t blockNum, uint8_t* buffer)
+{
     if (blockNum >= _media_num_sectors)
     {
         Debug_printf("\r\nDCD write of block %lu beyond end of disk (%lu blocks)",
@@ -64,23 +106,106 @@ bool MediaTypeDCD::write(uint32_t blockNum, uint8_t* buffer)
         return true;
     }
 
-    if (blockNum != last_block_num + 1) // only seek if not writing next block
+    if (wcache_error)
     {
-        if (fseek(_media_fileh, (blockNum * writesize) + offset, SEEK_SET))
-        {
-            reset_seek_opto();
-            return true;
-        }
-    }
-    last_block_num = blockNum;
-    writesize = fwrite((unsigned char *)buffer, 1, writesize, _media_fileh);
-    if (writesize != _media_sector_size)
-    {
-        reset_seek_opto();
+        Debug_printf("\r\nDCD write of block %lu refused after earlier flush failure", (unsigned long)blockNum);
         return true;
     }
 
+    if (wcache == nullptr && wcache_alloc().is_error())
+        return write_direct(blockNum, buffer).is_error();
+
+    // overwrite a block already inside the cached run
+    if (wcache_count > 0 && blockNum >= wcache_first && blockNum < wcache_first + wcache_count)
+    {
+        memcpy(wcache + (blockNum - wcache_first) * DCD_BLOCK_SIZE, buffer, DCD_BLOCK_SIZE);
+        wcache_last_write_ms = fnSystem.millis();
+        return false;
+    }
+
+    // empty cache, or a sequential append onto the current run
+    if (wcache_count == 0 || (blockNum == wcache_first + wcache_count && wcache_count < WCACHE_BLOCKS))
+    {
+        if (wcache_count == 0)
+            wcache_first = blockNum;
+        memcpy(wcache + wcache_count * DCD_BLOCK_SIZE, buffer, DCD_BLOCK_SIZE);
+        wcache_count++;
+        wcache_last_write_ms = fnSystem.millis();
+        return false;
+    }
+
+    // non-sequential, or the run is full: write it out and start a new run
+    if (flush().is_error())
+    {
+        wcache_error = true;
+        return true;
+    }
+
+    wcache_first = blockNum;
+    memcpy(wcache, buffer, DCD_BLOCK_SIZE);
+    wcache_count = 1;
+    wcache_last_write_ms = fnSystem.millis();
     return false;
+}
+
+error_is_true MediaTypeDCD::flush()
+{
+    if (wcache_count == 0)
+        RETURN_SUCCESS_AS_FALSE();
+
+    unsigned long t0 = fnSystem.millis();
+    uint32_t first = wcache_first;
+    uint32_t count = wcache_count;
+    bool err = false;
+
+    if (fseek(_media_fileh, ((size_t)first * DCD_BLOCK_SIZE) + offset, SEEK_SET))
+        err = true;
+    else
+    {
+        // one seek, then one TNFS write per sector: fflush each, since TNFS
+        // rejects a write over 525 bytes and stdio would merge sectors
+        for (uint32_t i = 0; i < count && !err; i++)
+        {
+            if (fwrite(wcache + (size_t)i * DCD_BLOCK_SIZE, 1, DCD_BLOCK_SIZE, _media_fileh) != DCD_BLOCK_SIZE ||
+                fflush(_media_fileh) != 0)
+                err = true;
+        }
+        if (!err && fflush(_media_fileh) != 0)
+            err = true;
+    }
+
+    unsigned long elapsed = fnSystem.millis() - t0;
+    Debug_printf("\r\nDCD: flush blocks %lu..%lu (%lu bytes) took %lu ms%s",
+                 (unsigned long)first, (unsigned long)(first + count - 1),
+                 (unsigned long)count * DCD_BLOCK_SIZE, elapsed, err ? " FAILED" : "");
+
+    wcache_count = 0;
+    wcache_error = err;
+    reset_seek_opto(); // file position no longer matches last_block_num
+    RETURN_ERROR_IF(err);
+}
+
+void MediaTypeDCD::flush_if_idle()
+{
+    if (wcache_count == 0)
+        return;
+    if (fnSystem.millis() - wcache_last_write_ms >= WCACHE_IDLE_MS)
+        flush();
+}
+
+void MediaTypeDCD::unmount()
+{
+    flush();
+    MediaType::unmount();
+}
+
+MediaTypeDCD::~MediaTypeDCD()
+{
+    if (wcache != nullptr)
+    {
+        heap_caps_free(wcache);
+        wcache = nullptr;
+    }
 }
 
 bool MediaTypeDCD::format(uint16_t *responsesize)
@@ -175,6 +300,106 @@ void MediaTypeDCD::check_hfs_volume()
                      (unsigned long)(needed - _media_num_sectors));
 }
 
+// A Mac only boots a volume whose MDB drFndrInfo[0] names the System Folder;
+// image tools often leave it zero. Find the root "System Folder" in the
+// catalog and, on a writable mount, record it in both MDBs.
+void MediaTypeDCD::check_blessed()
+{
+    uint8_t blk[DCD_BLOCK_SIZE];
+
+    if (read_raw(offset + 2 * DCD_BLOCK_SIZE, blk, sizeof(blk)))
+        return;
+    if (be16(&blk[0]) != HFS_SIGNATURE)
+        return; // MFS or damaged; check_hfs_volume() already logged it
+
+    uint32_t fndr_info0 = be32(&blk[92]); // drFndrInfo[0], MDB offset 0x5C
+    if (fndr_info0 != 0)
+    {
+        Debug_printf("\r\nDCD: HFS volume blessed, System Folder id %lu", (unsigned long)fndr_info0);
+        return;
+    }
+
+    uint32_t al_blk_siz = be32(&blk[20]);            // drAlBlkSiz (bytes)
+    uint16_t al_bl_st = be16(&blk[28]);               // drAlBlSt
+    uint16_t ext_start = be16(&blk[150]);             // drCTExtRec[0].startBlock, MDB offset 0x96
+    uint16_t ext_count = be16(&blk[152]);             // drCTExtRec[0].blockCount, MDB offset 0x98
+    uint32_t blocks_per_alloc = al_blk_siz / DCD_BLOCK_SIZE;
+
+    uint32_t cat_block = al_bl_st + (uint32_t)ext_start * blocks_per_alloc;
+    uint32_t scan_blocks = ext_count;
+    uint32_t cap = (1024UL * 1024UL) / DCD_BLOCK_SIZE; // bound the scan to 1 MB
+    if (scan_blocks > cap)
+        scan_blocks = cap;
+
+    static const uint8_t key[5] = {0x00, 0x00, 0x00, 0x02, 0x0D}; // parent id 2 (root), name len 13
+    uint32_t sysfolder_id = 0;
+
+    for (uint32_t i = 0; i < scan_blocks && sysfolder_id == 0; i++)
+    {
+        if (read_raw(offset + (cat_block + i) * DCD_BLOCK_SIZE, blk, sizeof(blk)))
+            break;
+        for (uint32_t p = 2; p + 18 <= DCD_BLOCK_SIZE; p++) // 5-byte key + 13-byte "System Folder"
+        {
+            if (memcmp(&blk[p], key, sizeof(key)) != 0 || memcmp(&blk[p + 5], "System Folder", 13) != 0)
+                continue;
+
+            uint8_t key_len = blk[p - 2]; // key starts 2 bytes before p: keyLen byte, reserved byte
+            uint32_t rec = (p - 2) + 1 + key_len;
+            rec = (rec + 1) & ~1u; // record starts on an even offset
+            if (rec + 10 > DCD_BLOCK_SIZE)
+                continue;
+            if (blk[rec] != 1) // record type 1 = directory
+                continue;
+            sysfolder_id = be32(&blk[rec + 6]);
+            break;
+        }
+    }
+
+    if (sysfolder_id == 0)
+    {
+        Debug_printf("\r\nDCD: HFS volume has no System Folder at the root (not bootable)");
+        return;
+    }
+
+    if (readonly)
+    {
+        Debug_printf("\r\nDCD: HFS volume is not blessed (System Folder id %lu); mount read/write to fix",
+                     (unsigned long)sysfolder_id);
+        return;
+    }
+
+    auto set_finder_info = [sysfolder_id](uint8_t *b)
+    {
+        b[92] = (sysfolder_id >> 24) & 0xFF;
+        b[93] = (sysfolder_id >> 16) & 0xFF;
+        b[94] = (sysfolder_id >> 8) & 0xFF;
+        b[95] = sysfolder_id & 0xFF;
+        b[96] = 0; b[97] = 0; b[98] = 0; b[99] = 2; // drFndrInfo[2] = 2
+    };
+
+    if (read_raw(offset + 2 * DCD_BLOCK_SIZE, blk, sizeof(blk)))
+        return;
+    set_finder_info(blk);
+    if (write(2, blk))
+    {
+        Debug_printf("\r\nDCD: failed writing primary MDB while blessing volume");
+        return;
+    }
+
+    if (_media_num_sectors >= 2)
+    {
+        uint32_t alt_block = _media_num_sectors - 2;
+        if (!read(alt_block, blk))
+        {
+            set_finder_info(blk);
+            write(alt_block, blk);
+        }
+    }
+
+    flush();
+    Debug_printf("\r\nDCD: HFS volume was not blessed: blessed System Folder id %lu", (unsigned long)sysfolder_id);
+}
+
 mediatype_t MediaTypeDCD::mount(FILE *f, uint32_t disksize)
 {
     uint8_t blk0[DCD_BLOCK_SIZE];
@@ -233,6 +458,7 @@ mediatype_t MediaTypeDCD::mount(FILE *f, uint32_t disksize)
 
     num_blocks = _media_num_sectors;
     check_hfs_volume();
+    check_blessed();
     reset_seek_opto();
     return MEDIATYPE_DCD;
 }

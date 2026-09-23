@@ -1,6 +1,7 @@
 #ifdef BUILD_MAC
 #include "floppy.h"
 #include "../../media/mac/macGCR.h"
+#include "../../media/mac/mediaTypeDCD.h"
 #include <esp_heap_caps.h>
 #include "../bus/mac/mac_ll.h"
 #include "../../include/debug.h"
@@ -152,6 +153,7 @@ mediatype_t macFloppy::mount(FILE *f, const char *filename, uint32_t disksize,
       Debug_printf("\nMounting Media Type DSK for DCD");
       _disk = new MediaTypeDCD();
     }
+    static_cast<MediaTypeDCD *>(_disk)->set_readonly(readonly);
     mt = ((MediaTypeDCD *)_disk)->mount(f, disksize);
     if (mt == MEDIATYPE_UNKNOWN)
     {
@@ -258,6 +260,12 @@ void macFloppy::unmount()
     _disk_inserted = false;
   }
   device_active = false;
+}
+
+void macFloppy::flush_if_idle()
+{
+  if (_disk != nullptr && is_dcd_slot())
+    static_cast<MediaTypeDCD *>(_disk)->flush_if_idle();
 }
 
 int IRAM_ATTR macFloppy::step()
@@ -559,6 +567,9 @@ void macFloppy::process(mac_cmd_t cmd)
     SYSTEM_BUS.write(buffer, sizeof(buffer));
     break;
   case 'T':
+    // flush the write cache before the Mac looks at status
+    if (_disk != nullptr && is_dcd_slot())
+      static_cast<MediaTypeDCD *>(_disk)->flush();
     memset(buffer,0,sizeof(buffer));
     dcd_status(buffer);
     Debug_printf("\nSending STATUS block");
