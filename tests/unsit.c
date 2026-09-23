@@ -32,8 +32,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <errno.h>
+#ifdef _WIN32
+#include <direct.h> // _mkdir
+#define mkdir(dir, mode) _mkdir(dir)
+#else
+#include <sys/stat.h>
+#include <sys/types.h>
+#endif
 
 static const char *method_name(int m)
 {

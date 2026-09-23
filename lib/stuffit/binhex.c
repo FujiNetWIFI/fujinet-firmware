@@ -317,7 +317,19 @@ int hqx_open(FILE *f, const sit_allocator *a, hqx_file *h)
 FILE *hqx_data_fork(hqx_file *h)
 {
     if (!h || !h->data) return NULL;
+#ifdef _WIN32
+    /* no fmemopen() in the Windows C runtime: copy into a temporary file */
+    FILE *f = tmpfile();
+    if (f == NULL) return NULL;
+    if (fwrite(h->data, 1, h->data_len, f) != h->data_len) {
+        fclose(f);
+        return NULL;
+    }
+    rewind(f);
+    return f;
+#else
     return fmemopen(h->data, h->data_len, "rb");
+#endif
 }
 
 void hqx_close(hqx_file *h)

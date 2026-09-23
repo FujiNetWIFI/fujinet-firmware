@@ -64,10 +64,10 @@ typedef struct {
  * (hqx_open only needs it for the duration of this call). */
 int hqx_open(FILE *f, const sit_allocator *a, hqx_file *h);
 
-/* An in-memory FILE* over h->data (fmemopen), suitable for handing
- * straight to sit_open(). Caller fcloses the returned FILE* separately
- * from hqx_close(); h must outlive it (fmemopen does not copy the
- * buffer). Returns NULL on failure (see errno). */
+/* A read-only FILE* over h->data (fmemopen; a temporary file on Windows),
+ * suitable for handing straight to sit_open(). Caller fcloses it
+ * separately from hqx_close(); h must outlive it. Returns NULL on failure
+ * (see errno). */
 FILE *hqx_data_fork(hqx_file *h);
 
 /* Frees h->data through the allocator retained at hqx_open() time and
