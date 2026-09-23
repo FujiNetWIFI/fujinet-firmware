@@ -25,6 +25,10 @@
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnPassword.h"
+
+#ifdef CONFIG_USB_PICOBOOT_HOST_ENABLED
+#include "fnPicoUpdater.h"
+#endif
 #include "fnWiFi.h"
 
 #include "fsFlash.h"
@@ -251,6 +255,10 @@ void main_setup(int argc, char *argv[])
 
     // Load the device password (kept in flash, separate from the config file)
     fnPassword.setup();
+
+#ifdef CONFIG_USB_PICOBOOT_HOST_ENABLED
+    fnPicoUpdater.bootCheck();
+#endif
 
     // WiFi/BT auto connect moved to app_main()
 
