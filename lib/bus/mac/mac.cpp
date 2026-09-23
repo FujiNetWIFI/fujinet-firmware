@@ -3,6 +3,7 @@
 #include "mac_ll.h"
 #include "macFuji.h"
 #include "fnSystem.h"
+#include "fnConfig.h"
 #include <cstdio>
 
 #include "../../include/debug.h"
@@ -139,6 +140,10 @@ void systemBus::handle_floppy_command(int c)
     floppy_ll.stop();
     floppy_dev().unmount();
     write((uint8_t)'E');
+    // The Mac ejected it: clear the slot like the web UI's Eject does
+    theFuji->get_disk(MAC_FLOPPY_SLOT)->reset();
+    Config.clear_mount(MAC_FLOPPY_SLOT);
+    Config.save();
     break;
   default:
     write((uint8_t)'X');
