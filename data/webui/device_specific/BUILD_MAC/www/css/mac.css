@@ -1,0 +1,534 @@
+/* Mac 68k mount list: full width, first on the page; each slot is a System 6 window */
+
+.module.macm {
+    order: -1;
+}
+
+@media only screen and (min-width: 1024px) {
+    /* 97.5% lines its edges up with the two-column modules below */
+    .module.macm {
+        width: 97.5%;
+    }
+}
+
+.macm .module-header {
+    position: relative;
+}
+
+.macm-refresh {
+    position: absolute;
+    right: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #fff;
+    text-decoration: none;
+    font-size: 1.4rem;
+}
+
+.macm-lede {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.9rem 0.2rem;
+}
+
+.macm-lede p {
+    margin: 0;
+    line-height: 1.4;
+}
+
+.macm-mac {
+    flex: none;
+    width: 1.6rem;
+    height: 2rem;
+}
+
+.macm-hosts {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.9rem;
+}
+
+.macm-hosts-label {
+    font-size: 0.85rem;
+    color: #444;
+    margin-right: 0.2rem;
+}
+
+.macm-host {
+    font-family: Inconsolata, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    border: 1px solid #000;
+    border-radius: 0.3rem;
+    padding: 0.15rem 0.6rem;
+    color: #000;
+    text-decoration: none;
+    background: #fff;
+    box-shadow: 2px 2px 0 #000;
+}
+
+.macm-host::before {
+    content: "\1F4C1  ";
+}
+
+.macm-host:hover {
+    background: #000;
+    color: #fff;
+}
+
+.macm-bays {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    padding: 0.4rem 0.9rem 0.6rem;
+}
+
+@media only screen and (min-width: 1024px) {
+    .macm-bays {
+        grid-template-columns: minmax(0, 4fr) minmax(15rem, 1fr);
+    }
+}
+
+.macm-group h4 {
+    margin: 0.3rem 0 0.1rem;
+    font-size: 1.15rem;
+    border-bottom: 2px solid #000;
+    padding-bottom: 0.15rem;
+}
+
+.macm-group h4 span {
+    font-size: 0.8rem;
+    font-weight: normal;
+    color: #555;
+    margin-left: 0.4rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.macm-accepts {
+    font-size: 0.8rem;
+    color: #444;
+    margin: 0.3rem 0 0.6rem;
+    line-height: 1.5;
+}
+
+.macm-accepts code {
+    font-family: Inconsolata, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    background: #eee;
+    padding: 0 0.2rem;
+}
+
+.macm-slots {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(14.5rem, 100%), 1fr));
+    gap: 0.9rem;
+}
+
+/* the System 6 window */
+.macw {
+    border: 1px solid #000;
+    box-shadow: 2px 2px 0 #000;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.macw-title {
+    position: relative;
+    height: 1.25rem;
+    border-bottom: 1px solid #000;
+    background: repeating-linear-gradient(#000 0 1px, #fff 1px 2px) content-box;
+    padding: 0.2rem 0.15rem;
+    text-align: center;
+    font-weight: bold;
+    font-size: 0.85rem;
+    line-height: 0.85rem;
+}
+
+.macw-title span {
+    background: #fff;
+    padding: 0 0.45rem;
+    position: relative;
+    top: 0.02rem;
+}
+
+.macw-slotno {
+    position: absolute;
+    right: 0.35rem;
+    top: 0.2rem;
+    background: #fff;
+    padding: 0 0.3rem;
+    font-weight: normal;
+    font-style: normal;
+    font-size: 0.7rem;
+    line-height: 0.85rem;
+    color: #444;
+}
+
+.macw-close {
+    position: absolute;
+    left: 0.5rem;
+    top: 0.17rem;
+    width: 0.8rem;
+    height: 0.8rem;
+    border: 1px solid #000;
+    background: #fff;
+    box-shadow: 0 0 0 2px #fff;
+}
+
+.macw-close:hover {
+    background: #000;
+}
+
+.macw-body {
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.6rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.macw-icon svg {
+    width: 2.6rem;
+    height: 2.6rem;
+    shape-rendering: crispEdges;
+}
+
+.macw-empty .macw-icon {
+    opacity: 0.3;
+}
+
+.macw-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.macw-name {
+    font-weight: bold;
+    font-size: 1.05rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.macw-dim {
+    color: #888;
+    font-weight: normal;
+}
+
+.macw-hint {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 0.15rem;
+}
+
+.macw-file {
+    font-family: Inconsolata, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem;
+    color: #444;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin: 0.1rem 0 0.35rem;
+}
+
+.macw-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.macm-chip {
+    font-size: 0.72rem;
+    border: 1px solid #000;
+    border-radius: 0.7rem;
+    padding: 0.02rem 0.45rem;
+    white-space: nowrap;
+    cursor: default;
+}
+
+.macm-chip-good {
+    background: #000;
+    color: #fff;
+}
+
+.macm-chip-warn {
+    background: #fff4d6;
+    border-color: #b07a00;
+    color: #6b4a00;
+}
+
+.macm-chip-bad {
+    background: #c8102e;
+    border-color: #c8102e;
+    color: #fff;
+}
+
+.macm-chip-arc {
+    border-style: dashed;
+}
+
+.macw-meter {
+    height: 0.45rem;
+    border: 1px solid #000;
+    margin-top: 0.5rem;
+    background: #fff;
+}
+
+.macw-meter i {
+    display: block;
+    height: 100%;
+    background: repeating-linear-gradient(45deg, #000 0 2px, #fff 2px 4px);
+    border-right: 1px solid #000;
+}
+
+.macw-meter-over i {
+    background: #c8102e;
+}
+
+/* configured but not loaded: a 50% dither, like a disabled Finder icon */
+.macw-pending .macw-body {
+    background-image: radial-gradient(#bbb 0.6px, transparent 0.7px);
+    background-size: 3px 3px;
+}
+
+.macw-banner {
+    font-size: 0.78rem;
+    padding: 0.3rem 0.6rem;
+    border-top: 1px solid #000;
+    background: #fff4d6;
+}
+
+.macw-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding: 0 0.6rem 0.6rem;
+}
+
+.macm-btn {
+    font-size: 0.78rem;
+    color: #000;
+    text-decoration: none;
+    border: 1px solid #000;
+    border-radius: 0.45rem;
+    padding: 0.12rem 0.6rem;
+    background: #fff;
+}
+
+.macm-btn:hover {
+    background: #000;
+    color: #fff;
+}
+
+.macm-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem 1.5rem;
+    padding: 0.6rem 0.9rem;
+    border-top: 1px solid #ccc;
+}
+
+.macm-mountall {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex: 1 1 26rem;
+    min-width: 0;
+    font-size: 0.8rem;
+    color: #444;
+}
+
+.macm-mountall input {
+    flex: none;
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: #000;
+    padding: 0.3rem 1rem;
+    border: 2px solid #000;
+    border-radius: 0.6rem;
+    background: #fff;
+    box-shadow: 0 0 0 1px #fff, 0 0 0 3px #000; /* the default-button ring */
+    margin: 3px;
+    cursor: pointer;
+}
+
+.macm-mountall input:active {
+    background: #000;
+    color: #fff;
+}
+
+.macm-psram {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    flex: 0 1 18rem;
+}
+
+.macm-psram .macw-meter {
+    flex: 1;
+    margin: 0;
+    min-width: 5rem;
+}
+
+.macm-psram-label {
+    font-weight: bold;
+}
+
+.macm-unused {
+    font-size: 0.75rem;
+    color: #777;
+    margin: 0;
+    padding: 0 0.9rem 0.5rem;
+}
+
+.macm-unused-warn {
+    color: #c8102e;
+    font-weight: bold;
+}
+
+.macm-tips {
+    margin: 0 0.9rem 0.8rem;
+    border: 1px solid #000;
+    font-size: 0.85rem;
+}
+
+.macm-tips summary {
+    cursor: pointer;
+    padding: 0.35rem 0.6rem;
+    font-weight: bold;
+    background: #eee;
+}
+
+.macm-tips ol {
+    margin: 0.4rem 0;
+    padding: 0 1rem 0 2rem;
+    line-height: 1.45;
+}
+
+.macm-tips li {
+    margin-bottom: 0.3rem;
+}
+
+@media screen and (max-width: 600px) {
+    .macm-lede { padding: 0.5rem; }
+    .macm-hosts, .macm-bays, .macm-foot { padding-left: 0.5rem; padding-right: 0.5rem; }
+    .macm-slots { grid-template-columns: minmax(0, 1fr); }
+    .macm-mountall { flex-basis: 100%; }
+}
+/* ---- live activity: Mac -> cable -> FujiNet -> bus -> slots ---- */
+
+.macm-wire {
+    border-bottom: 1px solid #ccc;
+    background:
+        radial-gradient(#d6d6d6 0.7px, transparent 0.8px) 0 0 / 10px 10px,
+        #fafafa;
+    overflow: hidden;
+}
+
+.macm-wire-svg {
+    display: block;
+    font-family: Futura, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.macm-wire .wire-case,
+.macm-wire .wire-disk,
+.macm-wire .wire-fuji {
+    fill: #fff;
+    stroke: #000;
+    stroke-width: 1;
+}
+
+.macm-wire .wire-case { stroke-width: 1.5; }
+.macm-wire .wire-screen { fill: #fff; stroke: #000; stroke-width: 1.5; }
+.macm-wire .wire-face { fill: none; stroke: #000; stroke-width: 2; stroke-linecap: square; }
+.macm-wire .wire-line { fill: none; stroke: #000; stroke-width: 1; }
+.macm-wire .wire-fill,
+.macm-wire .wire-plug { fill: #000; }
+.macm-wire .wire-fuji { stroke-width: 2; }
+.macm-wire .wire-fuji-text { font-size: 14px; font-weight: bold; }
+
+.macm-wire .wire-cable {
+    stroke: #000;
+    stroke-width: 4;
+    fill: none;
+}
+
+.macm-wire .wire-bus,
+.macm-wire .wire-tap {
+    stroke: #000;
+    stroke-width: 2;
+    fill: none;
+}
+
+.macm-wire .wire-node { fill: #000; }
+
+.macm-wire .wire-label {
+    font-size: 11px;
+    fill: #333;
+}
+
+.macm-wire .wire-strong {
+    font-weight: bold;
+    fill: #000;
+}
+
+.macm-wire .wire-small { font-size: 10px; fill: #666; }
+.macm-wire .wire-stat.wire-busy { fill: #000; font-weight: bold; }
+
+/* nothing loaded: a ghost of the drive on a dashed tap */
+.macm-wire .wire-off { opacity: 0.35; }
+.macm-wire .wire-off .wire-tap { stroke-dasharray: 3 3; }
+
+.macm-wire .wire-led { fill: #d8d8d8; stroke: #000; stroke-width: 0.75; }
+.macm-wire .wire-led-r { animation: wire-led-r 0.45s ease-out; }
+.macm-wire .wire-led-w { animation: wire-led-w 0.45s ease-out; }
+.macm-wire .wire-led-e { animation: wire-led-e 1.2s ease-out; }
+
+/* lit LEDs glow */
+@keyframes wire-led-r { from { fill: #2fd05a; filter: drop-shadow(0 0 4px #2fd05a); } to { fill: #d8d8d8; } }
+@keyframes wire-led-w { from { fill: #ffb000; filter: drop-shadow(0 0 4px #ffb000); } to { fill: #d8d8d8; } }
+@keyframes wire-led-e { from { fill: #c8102e; filter: drop-shadow(0 0 5px #c8102e); } to { fill: #d8d8d8; } }
+
+.macm-wire .wire-spin { animation: wire-spin 0.2s linear infinite; }
+@keyframes wire-spin { to { transform: rotate(360deg); } }
+
+/* packets: reads black, writes white, errors red; two hex digits of "data" */
+.macm-wire .wire-pkt text {
+    font-family: Inconsolata, SFMono-Regular, Menlo, Monaco, monospace;
+    font-size: 8.5px;
+    font-weight: bold;
+}
+
+.macm-wire .wire-pkt-r rect { fill: #000; }
+.macm-wire .wire-pkt-r text { fill: #fff; }
+.macm-wire .wire-pkt-w rect { fill: #fff; stroke: #000; stroke-width: 1.2; }
+.macm-wire .wire-pkt-w text { fill: #000; }
+.macm-wire .wire-pkt-e rect { fill: #c8102e; }
+.macm-wire .wire-pkt-e text { fill: #fff; }
+.macm-wire .wire-pkt-q circle { fill: #fff; stroke: #000; stroke-width: 1.5; }
+.macm-wire .wire-pkt-s circle { fill: #888; }
+
+.macm-wire.wire-offline .macm-wire-svg { opacity: 0.4; }
+.macm-wire.wire-offline::after {
+    content: "FujiNet isn't answering \2014 retrying";
+    display: block;
+    text-align: center;
+    font-size: 0.8rem;
+    color: #c8102e;
+    padding-bottom: 0.3rem;
+}
+
+/* a slot that just changed on its own (e.g. the Mac ejected the floppy) */
+.macw-flash { animation: macw-flash 1.2s ease-out; }
+@keyframes macw-flash {
+    0%, 30% { box-shadow: 2px 2px 0 #000, 0 0 0 4px #ffb000; }
+    100% { box-shadow: 2px 2px 0 #000, 0 0 0 4px transparent; }
+}
+

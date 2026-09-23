@@ -199,6 +199,30 @@ fnHttpBrowse::slot_result fnHttpBrowse::render_slotpicker(int host_slot, const s
          "               <div class=\"fileline\">\n"
          "                      <ul>\n");
 
+#ifdef BUILD_MAC
+    // Slots 1-5 reach the Mac (four HD20s, the floppy); a MOOF only fits the floppy
+    const string lname = util_tolower(filename);
+    const bool moof = lname.size() > 5 && lname.compare(lname.size() - 5, 5, ".moof") == 0;
+    for (int i = 0; i <= MAC_FLOPPY_SLOT; i++)
+    {
+        const string ds = to_string(i);
+        const string mount_url = "/mount?hostslot=" + slot_str + "&deviceslot=" + ds +
+                                 "&filename=" + enc_filename + "&mode=";
+        const bool floppy = (i == MAC_FLOPPY_SLOT);
+        const string label = floppy ? "Floppy &middot; slot 5"
+                                    : "HD20 #" + to_string(i + 1) + " &middot; slot " + to_string(i + 1);
+
+        if (moof && !floppy)
+        {
+            emit("<li style=\"opacity:0.45\">&#128421; <strong>" + label +
+                 "</strong>: MOOF images only fit the floppy slot</li>");
+            continue;
+        }
+        emit(string("<li>") + (floppy ? "&#128190;" : "&#128421;") + " <a href=\"" + mount_url + "1\">READ</a> or " +
+             "<a href=\"" + mount_url + "2\">R/W</a> " +
+             "<strong>" + label + "</strong>: " + describe_slot(i) + "</li>");
+    }
+#else
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
     {
         const string ds = to_string(i);
@@ -209,6 +233,7 @@ fnHttpBrowse::slot_result fnHttpBrowse::render_slotpicker(int host_slot, const s
              "<a href=\"" + mount_url + "2\">R/W</a> " +
              "<strong>" + to_string(i + 1) + "</strong>: " + describe_slot(i) + "</li>");
     }
+#endif /* BUILD_MAC */
 
     emit("                      </ul>\r\n"
          "               </div>\n"

@@ -8,6 +8,7 @@
 #include "bus.h"
 #include "../media/media.h"
 #include "../../media/mac/sitMount.h"
+#include "../../media/mac/mediaTypeDCD.h"
 
 /*
 // drive state bits
@@ -100,6 +101,21 @@ public:
     const char *sit_archive_kind() { return (_sit != nullptr) ? _sit->archive_kind : ""; }
     const char *sit_method_name() { return (_sit != nullptr) ? _sit->method_name : ""; }
     bool sit_was_ndif() { return (_sit != nullptr) && _sit->was_ndif; }
+
+    // What is actually loaded, as opposed to what the config names (web UI)
+    bool is_loaded() { return _disk != nullptr; }
+    bool is_sector_image() { return _sector_image; }
+    int num_sides() { return _disk != nullptr ? _disk->num_sides : 0; }
+    uint32_t size_in_blocks() { return _disk != nullptr ? _disk_size_in_blocks : 0; }
+    // anything loaded in slots 1-4 is an HD20 by construction (see unmount())
+    const MediaTypeDCD *dcd_media() { return (_disk != nullptr && is_dcd_slot()) ? static_cast<MediaTypeDCD *>(_disk) : nullptr; }
+
+    // Activity totals for the web UI (HD20: blocks; floppy: tracks loaded, sectors written)
+    volatile uint32_t act_reads = 0;
+    volatile uint32_t act_writes = 0;
+    volatile uint32_t act_errors = 0;
+    volatile uint32_t act_status = 0;
+    volatile bool act_spinning = false;
 
     void shutdown() override {};
     void process(mac_cmd_t cmd) override;

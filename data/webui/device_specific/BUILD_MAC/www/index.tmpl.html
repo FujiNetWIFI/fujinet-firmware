@@ -1,0 +1,63 @@
+{% extends "www/index.tmpl.html" %}
+{#- Mac 68k: the mount list shows the four HD20s and the floppy; js/mac.js draws it from FN_MAC_SLOTS -#}
+{% block head_extra %}<link rel="stylesheet" href="{{ paths.css_path }}/mac.css">{% endblock %}
+{% block mount_list %}
+			<div class="module macm" id="macm" {% if components.mount_list == "experimental" %}data-experimental{% endif %}>
+				<header class="module-header">MOUNT<span class="logowob"></span>LIST
+					<a class="macm-refresh" href="/" title="Reload to see what the Mac has now">&#8635;</a>
+				</header>
+				<div class="macm-wire" id="macm-wire" aria-label="Live disk activity between the Mac and FujiNet"></div>
+				<div class="macm-lede">
+					<svg class="macm-mac" viewBox="0 0 16 20" aria-hidden="true"><path d="M2 .5h12a1.5 1.5 0 0 1 1.5 1.5v15.5h-15V2A1.5 1.5 0 0 1 2 .5z" fill="#fff" stroke="#000"/><rect x="3" y="3" width="10" height="8" fill="#fff" stroke="#000"/><path d="M9 14h4M.5 17.5h15v2H.5z" stroke="#000" fill="none"/></svg>
+					<p>Your Mac sees FujiNet on its <b>external floppy port</b> as one <b>800K floppy drive</b>
+					plus up to <b>four HD20 hard disks</b>. Pick an image on a host, then choose which slot it goes in.</p>
+				</div>
+				<div class="macm-hosts" id="macm-hosts"></div>
+				<div class="macm-bays" id="macm-bays">
+					<section class="macm-group macm-hd">
+						<h4>Hard disks <span>HD20 &middot; slots 1&ndash;4</span></h4>
+						<p class="macm-accepts">
+							<code>.dsk</code> HFS/MFS volume or drive image &middot; <code>.image</code> DiskCopy 4.2 &middot;
+							<code>.sit .sea .hqx .bin</code> archives &middot; up to <b>32&nbsp;MB</b> (65,535 blocks).
+							Put your startup volume in <b>slot 1</b>.
+						</p>
+						<div class="macm-slots" id="macm-hd"></div>
+					</section>
+					<section class="macm-group macm-fd">
+						<h4>Floppy <span>slot 5</span></h4>
+						<p class="macm-accepts">
+							<code>.moof</code> &middot; 400K/800K <code>.dsk .img</code> &middot; <code>.image</code> &middot;
+							archives holding a floppy. Mount <b>R/W</b> to let the Mac write.
+						</p>
+						<div class="macm-slots" id="macm-fd"></div>
+					</section>
+				</div>
+				<div class="macm-foot">
+					<div class="macm-mountall">
+						<input type="button" id="mountAllButton" value="Mount All" onclick="mountAllButton()">
+						<span>Loads every slot from the saved config. The Mac has no CONFIG program, so after a
+						FujiNet restart nothing is loaded until you press this (or turn off Boot CONFIG).</span>
+					</div>
+					<div class="macm-psram" id="macm-psram"></div>
+				</div>
+				<p class="macm-unused" id="macm-unused">Slots 6&ndash;8 aren't connected to the Mac: the floppy port only addresses four HD20s and one floppy drive.</p>
+				<details class="macm-tips">
+					<summary>Before you swap disks</summary>
+					<ol>
+						<li><b>HD20:</b> shut the Mac down, or drag the volume to the Trash, <em>before</em> you eject or
+						replace it here. The Mac caches the volume header and writes it into whatever image is in the slot
+						next, which then shows up as damaged.</li>
+						<li><b>Floppy:</b> eject on the Mac first (drag it to the Trash), then mount the next image here.
+						Ejecting here while the Mac still shows the disk gets the two sides out of step.</li>
+						<li><b>Booting from a floppy:</b> Restart and Shut Down eject every floppy. Power the Mac off,
+						mount the image, then power it on.</li>
+						<li><b>Archives and floppies share PSRAM.</b> Mount a large archive before the floppy.</li>
+						<li><b>R/W mode</b> lets the Mac write. The file on the host must be writable by the server too.</li>
+						<li>HD20 support is in the 128K ROM (512Ke, Plus, SE, SE/30&hellip;). A 64K-ROM 128K/512K needs the
+						Hard Disk 20 startup file on a floppy.</li>
+					</ol>
+				</details>
+				<script type="application/json" id="macm-data"><%FN_MAC_SLOTS%></script>
+				<script type="text/javascript" src="{{ paths.js_path }}/mac.js"></script>
+			</div>
+{% endblock %}
