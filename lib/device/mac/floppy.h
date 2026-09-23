@@ -2,9 +2,12 @@
 #ifndef MAC_FLOPPY_H
 #define MAC_FLOPPY_H
 
+#include <memory>
+
 #include "../disk.h"
 #include "bus.h"
 #include "../media/media.h"
+#include "../../media/mac/sitMount.h"
 
 /*
 // drive state bits
@@ -36,6 +39,9 @@ class macFloppy : public virtualDevice
 protected:
     MediaType *_disk = nullptr;
 
+    // Set while the mounted image came from an archive; owns its PSRAM copy
+    std::unique_ptr<SitMount> _sit;
+
     char disk_num = '0';
     bool enabled = false;
     int track_pos = 0;
@@ -54,6 +60,9 @@ protected:
     bool _wcap_active = false;
     bool _wcap_overflow = false;
     void reload_track_buffers();
+
+    // The Pico was told a disk is in ('s'/'d'), so unmount() may send 'r'
+    bool _disk_inserted = false;
 
     bool is_dcd_slot() { return disk_num >= '0' && disk_num < '0' + MAC_DCD_SLOTS; }
     bool is_floppy_slot() { return disk_num == '0' + MAC_FLOPPY_SLOT; }
@@ -79,6 +88,15 @@ public:
     void set_disk_number(char c) { disk_num = c; _devnum = c; }
     char get_disk_number() { return disk_num; };
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
+
+    // Archive-backed mount details, for the web UI and /sitdownload
+    bool has_sit_source() { return _sit != nullptr; }
+    const char *sit_inner_filename() { return (_sit != nullptr) ? _sit->inner_filename : ""; }
+    uint32_t sit_image_len() { return (_sit != nullptr) ? _sit->image_len : 0; }
+    const uint8_t *sit_image_data() { return (_sit != nullptr) ? _sit->image_buf : nullptr; }
+    const char *sit_archive_kind() { return (_sit != nullptr) ? _sit->archive_kind : ""; }
+    const char *sit_method_name() { return (_sit != nullptr) ? _sit->method_name : ""; }
+    bool sit_was_ndif() { return (_sit != nullptr) && _sit->was_ndif; }
 
     void shutdown() override {};
     void process(mac_cmd_t cmd) override;

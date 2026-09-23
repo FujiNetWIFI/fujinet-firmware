@@ -23,6 +23,48 @@ mediatype_t macFloppy::mount(FILE *f, const char *filename, uint32_t disksize,
   if (disk_type == MEDIATYPE_UNKNOWN)
     disk_type = MediaType::discover_mediatype(filename);
 
+  if (disk_type == MEDIATYPE_SIT)
+  {
+    // Unpack the archive's disk image into PSRAM, then mount that like a
+    // host file under the inner image's name
+    _sit = std::make_unique<SitMount>();
+    if (_sit->extract(f, filename).is_error())
+    {
+      Debug_printf("\nStuffIt mount: could not extract a disk image from '%s'\n", filename);
+      _sit.reset();
+      fclose(f);
+      device_active = false;
+      return MEDIATYPE_UNKNOWN;
+    }
+
+    bool wants_floppy = is_floppy_slot();
+    bool image_is_floppy = (_sit->kind == sit_image_kind_t::FLOPPY);
+    if (wants_floppy != image_is_floppy)
+    {
+      Debug_printf("\nStuffIt mount: '%s' -> '%s' is a %s image, slot %c is a %s slot - refusing\n",
+                   filename, _sit->inner_filename,
+                   image_is_floppy ? "floppy" : "HD20",
+                   disk_num + 1,
+                   wants_floppy ? "floppy" : "HD20");
+      _sit.reset();
+      fclose(f);
+      device_active = false;
+      return MEDIATYPE_UNKNOWN;
+    }
+
+    Debug_printf("\nStuffIt mount: '%s' -> '%s' (%u bytes, %s)\n",
+                 filename, _sit->inner_filename, _sit->image_len,
+                 image_is_floppy ? "floppy" : "HD20");
+
+    fclose(f); // the image in PSRAM replaces the archive file
+
+    mediatype_t result = mount(_sit->image_fh, _sit->inner_filename, _sit->image_len,
+                                access_mode, _sit->disk_type);
+    if (result == MEDIATYPE_UNKNOWN)
+      _sit.reset();
+    return result;
+  }
+
   _disk_size_in_blocks = disksize / 512;
   readonly = !(access_mode & DISK_ACCESS_MODE_WRITE);
 
@@ -79,10 +121,12 @@ mediatype_t macFloppy::mount(FILE *f, const char *filename, uint32_t disksize,
     case 1:
       SYSTEM_BUS.write((uint8_t)'s');
       SYSTEM_BUS.write((uint8_t)(track_pos | 128));
+      _disk_inserted = true;
       break;
     case 2:
       SYSTEM_BUS.write((uint8_t)'d');
       SYSTEM_BUS.write((uint8_t)(track_pos | 128));
+      _disk_inserted = true;
       break;
     default:
       break;
@@ -188,8 +232,8 @@ DCDDATA       Communication channel from DCD device to Macintosh
 
 void macFloppy::unmount()
 {
-  bool was_dcd = (_disk != nullptr) && is_dcd_slot() &&
-                 (disktype() == MEDIATYPE_DSK || disktype() == MEDIATYPE_DC42 || disktype() == MEDIATYPE_DCD);
+  // anything mounted in slots 1-4 is an HD20, archive-backed or not
+  bool was_dcd = (_disk != nullptr) && is_dcd_slot();
 
   if (_disk != nullptr)
   {
@@ -198,13 +242,20 @@ void macFloppy::unmount()
     _disk = nullptr;
   }
 
+  if (_sit != nullptr)
+  {
+    _sit->image_fh = nullptr; // already closed by _disk->unmount()
+    _sit.reset();
+  }
+
   if (was_dcd)
     SYSTEM_BUS.rem_dcd_mount(id());
-  else if (is_floppy_slot() && device_active)
+  else if (is_floppy_slot() && _disk_inserted)
   {
-    // tell the Pico the floppy is gone so the Mac sees a real eject
+    // only once, and only if the Pico was told a disk was inserted
     floppy_ll.stop();
     SYSTEM_BUS.write((uint8_t)'r');
+    _disk_inserted = false;
   }
   device_active = false;
 }
