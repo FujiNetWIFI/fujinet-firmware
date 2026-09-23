@@ -227,7 +227,11 @@ size_t NetworkProtocolFTP::available()
     switch (streamType)
     {
     case streamType_t::FILE:
-        avail = ftp->data_available();
+        // read_file() serves receiveBuffer (filled by status()) before the socket
+        // and never both at once, so report only what the next READ returns.
+        avail = receiveBuffer->length();
+        if (!avail)
+            avail = ftp->data_available();
         break;
     case DIR:
         avail = receiveBuffer->length();
