@@ -1,12 +1,6 @@
 /**
- * NetworkDeviceBase implementation.
- *
- * Compiled once per firmware target, same as every other .cpp in this tree --
- * add this file to whichever BUILD_xxx target you're building. It resolves
- * "network.h" the same way each xxx/network.cpp already resolves its own
- * "../network.h": via the include path for that target, which is expected to
- * put the relevant subdirectory first so NetworkPacket is defined before this
- * file needs it.
+ * NDevice: the N: network device shared by the SIO, RS-232, IWM, AdamNet,
+ * Lynx, IEC and DriveWire buses.
  */
 
 #include "NDevice.h"
@@ -643,7 +637,11 @@ void NDevice::fujidev_set_parameter(const FUJI_COMMAND_PACKET &packet)
             SYSTEM_BUS.transaction_error();
             return;
         }
-        _parser->setQueryParam(qp);
+        if (_parser->setQueryParam(qp).is_error())
+        {
+            SYSTEM_BUS.transaction_error();
+            return;
+        }
         SYSTEM_BUS.transaction_success();
         break;
     }
@@ -860,8 +858,8 @@ void NDevice::fujidev_udp_set_destination(const FUJI_COMMAND_PACKET &packet)
 }
 
 /**
- * Check to see if PROCEED needs to be asserted, and assert if needed
- * (continue toggling PROCEED).
+ * True when the bus should assert PROCEED; alternates every 2 * timerRate ms
+ * so PROCEED keeps toggling.
  */
 bool NDevice::poll_interrupt()
 {
