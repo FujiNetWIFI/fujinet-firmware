@@ -79,9 +79,7 @@ class drivewirePrinter;   // Printer device
 class drivewireDisk;      // See if you can guess what kind of device it is
 class fujiDevice;
 
-class NDevice;
-using drivewireNetwork = NDevice;
-//class drivewireNetwork;   // declare here so can reference it, but define in network.h
+class drivewireNetwork;
 
 class drivewireDevice
 {
