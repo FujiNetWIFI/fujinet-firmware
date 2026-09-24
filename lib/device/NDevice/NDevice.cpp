@@ -538,6 +538,14 @@ void NDevice::fujidev_set_parser(const FUJI_COMMAND_PACKET &packet)
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     parserMode_t mode = param_cast<parserMode_t>(packet, 1);
+    if (fujicore_set_parser(mode).is_error())
+        SYSTEM_BUS.transaction_error();
+    else
+        SYSTEM_BUS.transaction_success();
+}
+
+error_is_true NDevice::fujicore_set_parser(parserMode_t mode)
+{
     switch (mode)
     {
     case PARSER::NONE:
@@ -558,11 +566,10 @@ void NDevice::fujidev_set_parser(const FUJI_COMMAND_PACKET &packet)
 
     default:
         Debug_printf("INVALID MODE = %02x\r\n", (unsigned) mode);
-        SYSTEM_BUS.transaction_error();
-        return;
+        RETURN_ERROR_AS_TRUE();
     }
 
-    SYSTEM_BUS.transaction_success();
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 void NDevice::fujidev_do_parse(const FUJI_COMMAND_PACKET &packet)
