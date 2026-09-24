@@ -710,7 +710,6 @@ void systemBus::_drivewire_process_queue()
 
 /*
  Primary DRIVEWIRE service loop:
- * If MOTOR line asserted, hand DRIVEWIRE processing over to the TAPE device
  * Give NETWORK devices an opportunity to signal available data
  * If a command byte is waiting, process it
  */
