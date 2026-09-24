@@ -152,6 +152,7 @@ protected:
     error_is_true fujicore_set_query(const std::string &query, uint8_t parseFlags);
     error_is_true fujicore_set_prefix(const std::string &pathSpec);
     error_is_true fujicore_seek(size_t offset);
+    error_is_true fujicore_set_parser(parserMode_t mode);
 
     /**
      * Parse a devicespec into a URL and instantiate the matching protocol.
@@ -165,7 +166,7 @@ protected:
 
     void fujidev_set_login(const FUJI_COMMAND_PACKET &packet);
     void fujidev_set_password(const FUJI_COMMAND_PACKET &packet);
-    void fujidev_set_parser(const FUJI_COMMAND_PACKET &packet);
+    virtual void fujidev_set_parser(const FUJI_COMMAND_PACKET &packet);
     void fujidev_do_parse(const FUJI_COMMAND_PACKET &packet);
     void fujidev_set_parameter(const FUJI_COMMAND_PACKET &packet);
     void fujidev_set_eol(const FUJI_COMMAND_PACKET &packet);
