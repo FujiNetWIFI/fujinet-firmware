@@ -4,7 +4,7 @@
 #include "drivewire/drivewireFuji.h"
 #include "drivewire/drivewireClock.h"
 #include "drivewire/cpm.h"
-#include "NDevice.h"
+#include "drivewire/drivewireNetwork.h"
 #include "fnWiFi.h"
 #include "led.h"
 #include "debug.h"
