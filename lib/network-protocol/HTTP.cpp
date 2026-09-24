@@ -373,7 +373,7 @@ void NetworkProtocolHTTP::fserror_to_error()
         error = NDEV_STATUS::ACCESS_DENIED;
         break;
     case 400: // Bad request
-    case 406: // not acceptible
+    case 406: // not acceptable
     case 409:
     case 411:
     case 412:
@@ -434,7 +434,7 @@ fujiError_t NetworkProtocolHTTP::status_file(NetworkStatus *status)
 #endif
             http_transaction();
         }
-        auto available = client->available();
+        auto available = client->available() + receiveBuffer->size();
         status->connected = client->is_transaction_done() ? 0 : 1;
 
         if (available == 0 && client->is_transaction_done() && error == NDEV_STATUS::SUCCESS)
