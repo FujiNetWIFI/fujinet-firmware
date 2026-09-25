@@ -861,7 +861,6 @@ void rc2014Fuji::rc2014_base64_encode_output()
 
     memcpy(p.data(), base64.base64_buffer.data(), len);
     base64.base64_buffer.erase(0, len);
-    base64.base64_buffer.shrink_to_fit();
 
     rc2014_send_buffer(p.data(), len);
     rc2014_flush();
@@ -956,7 +955,6 @@ void rc2014Fuji::rc2014_base64_decode_output()
     rc2014_send_ack();
     memcpy(p.data(), base64.base64_buffer.data(), len);
     base64.base64_buffer.erase(0, len);
-    base64.base64_buffer.shrink_to_fit();
 
     rc2014_send_buffer(p.data(), len);
     rc2014_flush();

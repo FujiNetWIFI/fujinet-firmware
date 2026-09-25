@@ -934,6 +934,7 @@ fujiError_t fnFTP::open_directory(string path, string pattern)
 
     int tmout_counter = 1 + FTP_TIMEOUT / 50;
     bool got_response = false;
+    fujiError_t resp_res = FUJI_ERROR::NONE;
 
     // Reset buffer
     dirBuffer.str("");
@@ -963,17 +964,37 @@ fujiError_t fnFTP::open_directory(string path, string pattern)
             }
             tmout_counter = 1 + FTP_TIMEOUT / 50; // reset timeout counter
         }
-        if (got_response == false && control->available())
+        if (!got_response && control->available())
         {
-            got_response = parse_response() == FUJI_ERROR::NONE;
+            resp_res = parse_response();
+            got_response = true;
         }
     } while (data->available() > 0 || data->connected());
 
     data->stop();
 
-    if (tmout_counter == 0 || (got_response == false && parse_response() != FUJI_ERROR::NONE))
+    if (!got_response && tmout_counter > 0)
+    {
+        resp_res = parse_response();
+        if (resp_res == FUJI_ERROR::NONE || _statusCode != 0)
+            got_response = true;
+    }
+
+    if (tmout_counter == 0 || !got_response || resp_res != FUJI_ERROR::NONE)
     {
         Debug_printf("fnFTP::open_directory(%s%s) Timed out waiting for 226 response.\r\n", path.c_str(), pattern.c_str());
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+
+    string lower_resp = controlResponse;
+    for (char &c : lower_resp)
+        c = tolower((unsigned char)c);
+    if (lower_resp.find("failed to open directory") != string::npos)
+    {
+        Debug_printf("fnFTP::open_directory(%s%s) - server failed to open directory: %s\r\n", path.c_str(), pattern.c_str(), controlResponse.c_str());
+        _statusCode = 550;
+        dirBuffer.str("");
+        dirBuffer.clear();
         return FUJI_ERROR::UNSPECIFIED;
     }
 
@@ -985,28 +1006,35 @@ fujiError_t fnFTP::read_directory(string &name, long &filesize, bool &is_dir)
     string line;
     struct ftpparse parse;
 
-    getline(dirBuffer, line);
-
-    if (line.empty())
-        return FUJI_ERROR::NONE; // no more entries
-
-    //Debug_printf("fnFTP::read_directory - %s\r\n",line.c_str());
-    line = line.substr(0, line.size() - 1);
-    ftpparse(&parse, (char *)line.c_str(), line.length());
-    name = string(parse.name ? parse.name : "???");
-
-    // Strip symlink target from name (e.g., "transfer -> crossplatform/transfer/" becomes "transfer")
-    size_t arrow_pos = name.find(" -> ");
-    if (arrow_pos != string::npos)
+    while (getline(dirBuffer, line))
     {
-        name = name.substr(0, arrow_pos);
+        // Strip trailing \r if present (CRLF normalization)
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+
+        if (line.empty())
+            continue;
+
+        if (ftpparse(&parse, (char *)line.c_str(), line.length()))
+        {
+            name = string(parse.name ? parse.name : "???");
+
+            // Strip symlink target from name (e.g., "transfer -> crossplatform/transfer/" becomes "transfer")
+            size_t arrow_pos = name.find(" -> ");
+            if (arrow_pos != string::npos)
+            {
+                name = name.substr(0, arrow_pos);
+            }
+
+            filesize = parse.size;
+            is_dir = (parse.flagtrycwd == 1);
+            return FUJI_ERROR::NONE; // Successfully parsed one entry
+        }
     }
 
-    filesize = parse.size;
-    is_dir = (parse.flagtrycwd == 1);
-    //Debug_printf("Name: \"%s\" size: %lu is_dir: %d\r\n", name.c_str(), filesize, is_dir);
-    return dirBuffer.eof() ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
+    return FUJI_ERROR::UNSPECIFIED; // End of directory (EOF)
 }
+
 
 fujiError_t fnFTP::read_file(uint8_t *buf, unsigned short len, unsigned long range_begin, unsigned long range_end)
 {

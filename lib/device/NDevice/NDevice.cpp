@@ -1,12 +1,6 @@
 /**
- * NetworkDeviceBase implementation.
- *
- * Compiled once per firmware target, same as every other .cpp in this tree --
- * add this file to whichever BUILD_xxx target you're building. It resolves
- * "network.h" the same way each xxx/network.cpp already resolves its own
- * "../network.h": via the include path for that target, which is expected to
- * put the relevant subdirectory first so NetworkPacket is defined before this
- * file needs it.
+ * NDevice: the N: network device shared by the SIO, RS-232, IWM, AdamNet,
+ * Lynx, IEC and DriveWire buses.
  */
 
 #include "NDevice.h"
@@ -538,6 +532,14 @@ void NDevice::fujidev_set_parser(const FUJI_COMMAND_PACKET &packet)
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
     parserMode_t mode = param_cast<parserMode_t>(packet, 1);
+    if (fujicore_set_parser(mode).is_error())
+        SYSTEM_BUS.transaction_error();
+    else
+        SYSTEM_BUS.transaction_success();
+}
+
+error_is_true NDevice::fujicore_set_parser(parserMode_t mode)
+{
     switch (mode)
     {
     case PARSER::NONE:
@@ -558,11 +560,10 @@ void NDevice::fujidev_set_parser(const FUJI_COMMAND_PACKET &packet)
 
     default:
         Debug_printf("INVALID MODE = %02x\r\n", (unsigned) mode);
-        SYSTEM_BUS.transaction_error();
-        return;
+        RETURN_ERROR_AS_TRUE();
     }
 
-    SYSTEM_BUS.transaction_success();
+    RETURN_SUCCESS_AS_FALSE();
 }
 
 void NDevice::fujidev_do_parse(const FUJI_COMMAND_PACKET &packet)
@@ -636,7 +637,11 @@ void NDevice::fujidev_set_parameter(const FUJI_COMMAND_PACKET &packet)
             SYSTEM_BUS.transaction_error();
             return;
         }
-        _parser->setQueryParam(qp);
+        if (_parser->setQueryParam(qp).is_error())
+        {
+            SYSTEM_BUS.transaction_error();
+            return;
+        }
         SYSTEM_BUS.transaction_success();
         break;
     }
@@ -853,8 +858,8 @@ void NDevice::fujidev_udp_set_destination(const FUJI_COMMAND_PACKET &packet)
 }
 
 /**
- * Check to see if PROCEED needs to be asserted, and assert if needed
- * (continue toggling PROCEED).
+ * True when the bus should assert PROCEED; alternates every 2 * timerRate ms
+ * so PROCEED keeps toggling.
  */
 bool NDevice::poll_interrupt()
 {

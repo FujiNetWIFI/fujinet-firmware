@@ -74,6 +74,7 @@ set(INCLUDES
     ${CMAKE_SOURCE_DIR}/lib/qrcode
     ${CMAKE_SOURCE_DIR}/lib/runcpm
     ${CMAKE_SOURCE_DIR}/lib/sam
+    ${CMAKE_SOURCE_DIR}/lib/stuffit
     ${CMAKE_SOURCE_DIR}/lib/task
     ${CMAKE_SOURCE_DIR}/lib/tcpip
     ${CMAKE_SOURCE_DIR}/lib/telnet
@@ -156,6 +157,7 @@ FILE(GLOB_RECURSE SOURCES
     ${CMAKE_SOURCE_DIR}/lib/qrcode/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/sam/*.c
     ${CMAKE_SOURCE_DIR}/lib/sam/*.cpp
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/*.c
     ${CMAKE_SOURCE_DIR}/lib/task/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/tcpip/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/telnet/*.c
@@ -170,6 +172,14 @@ idf_component_register(
     SRCS ${SOURCES}
     PRIV_REQUIRES esp_driver_uart esp_netif esp_driver_gpio fatfs vfs json esp_wifi mbedtls console app_update spi_flash mlff esp_driver_ledc expat gumbo gumbo-query http_parser esp-tls tcp_transport esp_driver_gptimer esp_driver_tsens esp_http_client esp_websocket_client libssh
 )
+
+# NOTE: embedding companion-MCU firmware does NOT happen here. PlatformIO's
+# espidf integration uses this CMakeLists.txt only to *discover* the
+# source/include/flags graph -- it links via its own SCons build, which
+# never sees target_link_libraries()/EMBED_FILES calls added here (the
+# generated build.ninja has no firmware.elf link rule at all). Instead
+# build_pico.py generates lib/hardware/fn_pico_blob_data.cpp, picked up by
+# the lib/hardware/*.cpp glob below like any other file.
 
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-unused-value)
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-unused-variable)

@@ -25,6 +25,10 @@
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnPassword.h"
+
+#ifdef CONFIG_USB_PICOBOOT_HOST_ENABLED
+#include "fnPicoUpdater.h"
+#endif
 #include "fnWiFi.h"
 
 #include "fsFlash.h"
@@ -251,6 +255,10 @@ void main_setup(int argc, char *argv[])
 
     // Load the device password (kept in flash, separate from the config file)
     fnPassword.setup();
+
+#ifdef CONFIG_USB_PICOBOOT_HOST_ENABLED
+    fnPicoUpdater.bootCheck();
+#endif
 
     // WiFi/BT auto connect moved to app_main()
 
@@ -654,8 +662,15 @@ extern "C"
 #endif
 #define MAIN_CPUAFFINITY 1
 
-        xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
-                                MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
+        // Without this task there is no bus service at all; app_main deletes itself
+        // next, so a silent failure here would leave a booted-looking brick.
+        if (xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
+                                    MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY) != pdPASS)
+        {
+            Debug_printv("could not create fnLoop task (%u byte stack), free internal/total heap: %lu/%lu",
+                         MAIN_STACKSIZE, esp_get_free_internal_heap_size(), esp_get_free_heap_size());
+            abort();
+        }
 
         // Delete app_main() task since we no longer need it
         vTaskDelete(NULL);

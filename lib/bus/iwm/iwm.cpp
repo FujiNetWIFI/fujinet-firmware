@@ -369,7 +369,6 @@ void systemBus::iwm_process(const iwm_decoded_cmd_t &cmd)
     iwm_send_packet(_activeDev->id(), iwm_packet_type_t::status, SP_ERR::NOERROR,
                     _transaction_response.data(), _transaction_response.size());
     _transaction_response.clear();
-    _transaction_response.shrink_to_fit();
     goto done;
   }
 

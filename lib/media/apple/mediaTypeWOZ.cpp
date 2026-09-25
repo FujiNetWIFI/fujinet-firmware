@@ -165,13 +165,9 @@ error_is_true MediaTypeWOZ::woz1_read_tracks()
 
     Debug_printf("\nStart Block, Block Count, Bit Count");
     
-#ifdef ESP_PLATFORM
-    TRK_bitstream *bitstream = (TRK_bitstream *) heap_caps_malloc(BITSTREAM_ALLOC_SIZE(WOZ1_TRACK_LEN), MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
-#else
-    TRK_bitstream *bitstream = (TRK_bitstream *) malloc(BITSTREAM_ALLOC_SIZE(WOZ1_TRACK_LEN));
-#endif
     uint16_t bytes_used;
     uint16_t bit_count;
+    uint8_t skip[6]; // trailing per-track bytes we read through and discard
     uint8_t data[WOZ1_TRACK_LEN];
 
     for (int i = 0; i < MAX_TRACKS; i++)
@@ -220,9 +216,8 @@ error_is_true MediaTypeWOZ::woz1_read_tracks()
             trk_data[i] = nullptr;
             Debug_printf("\nTrack %d is blank!",i);
         }
-        fnio::fread(bitstream, 1, 6, _media_fileh); // read through rest of bytes in track
+        fnio::fread(skip, 1, sizeof(skip), _media_fileh); // read through rest of bytes in track
     }
-    free(bitstream);
     RETURN_SUCCESS_AS_FALSE();
 }
 
