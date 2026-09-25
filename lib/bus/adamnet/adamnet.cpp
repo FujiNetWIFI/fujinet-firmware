@@ -207,7 +207,7 @@ void systemBus::sendResponsePacket(void)
 
     _port->write(_transaction_reply_encoded->data(), _transaction_reply_encoded->size());
     _port->flushOutput();
-    busPhase.sentData(_transaction_reply_encoded->size());
+    busPhase.sentData();
     _transaction_reply_encoded.reset();
 }
 
