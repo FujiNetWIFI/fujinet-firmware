@@ -50,10 +50,7 @@ void iwmNetwork::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
                  ? (char)pcmd : '.', cmd.unit());
   }
 
-    // Let the base class handle standard commands
-    if (NDevice::processCommand(cmd))
-        return;
-
+    // Before the base class, which answers an error to any command it does not know.
     switch (cmd.command())
     {
     case CMD::NET_SET_UNIT:
@@ -61,11 +58,12 @@ void iwmNetwork::iwm_ctrl(const iwm_decoded_cmd_t &cmd)
       // control command still needs a bus reply or the host times out
       SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
       SYSTEM_BUS.transaction_success();
-      break;
+      return;
     default:
-      SYSTEM_BUS.transaction_error();
       break;
     }
+
+    NDevice::processCommand(cmd);
 }
 
 void iwmNetwork::iwm_write(const iwm_decoded_cmd_t &cmd)
