@@ -74,6 +74,7 @@ set(INCLUDES
     ${CMAKE_SOURCE_DIR}/lib/qrcode
     ${CMAKE_SOURCE_DIR}/lib/runcpm
     ${CMAKE_SOURCE_DIR}/lib/sam
+    ${CMAKE_SOURCE_DIR}/lib/stuffit
     ${CMAKE_SOURCE_DIR}/lib/task
     ${CMAKE_SOURCE_DIR}/lib/tcpip
     ${CMAKE_SOURCE_DIR}/lib/telnet
@@ -156,6 +157,7 @@ FILE(GLOB_RECURSE SOURCES
     ${CMAKE_SOURCE_DIR}/lib/qrcode/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/sam/*.c
     ${CMAKE_SOURCE_DIR}/lib/sam/*.cpp
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/*.c
     ${CMAKE_SOURCE_DIR}/lib/task/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/tcpip/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/telnet/*.c

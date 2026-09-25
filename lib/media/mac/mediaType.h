@@ -20,6 +20,7 @@ enum mediatype_t
     MEDIATYPE_DCD,              // directly connected disk, uses one of the following
     MEDIATYPE_DSK,              // flat binary .dsk file
     MEDIATYPE_DC42,             // diskcopy 4.2 .image file - https://www.discferret.com/wiki/Apple_DiskCopy_4.2
+    MEDIATYPE_SIT,              // StuffIt/BinHex archive (.sit/.sea/.hqx) carrying a disk image
     MEDIATYPE_COUNT
 };
 

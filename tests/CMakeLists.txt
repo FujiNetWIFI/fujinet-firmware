@@ -272,3 +272,82 @@ add_executable(mac_gcr_tests
 )
 target_include_directories(mac_gcr_tests PRIVATE ${CMAKE_SOURCE_DIR}/lib/)
 add_test(NAME mac_gcr_tests COMMAND mac_gcr_tests)
+
+# ------------------------------------------------------------------------------
+# lib/stuffit: unsit is a host CLI over the library. The sample tests compare
+# it against unar and ndif2raw; they need -DSIT_SAMPLES_DIR / -DNDIF2RAW_DIR
+# (or the same environment variables) and are skipped otherwise.
+# ------------------------------------------------------------------------------
+add_executable(unsit
+    unsit.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/stuffit.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/sit_io.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/sit_crc16.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/sit_rle90.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/sit_lzw.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/sit_prefixcode.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/sit_huffman.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/sit_lzh13.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/sit_bwt.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/sit_arsenic.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/binhex.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/ndif.c
+)
+target_include_directories(unsit PRIVATE ${CMAKE_SOURCE_DIR}/lib/)
+
+find_program(UNAR_EXECUTABLE unar)
+if(NOT DEFINED SIT_SAMPLES_DIR)
+  set(SIT_SAMPLES_DIR "$ENV{SIT_SAMPLES_DIR}")
+endif()
+
+if(UNAR_EXECUTABLE AND SIT_SAMPLES_DIR AND EXISTS "${SIT_SAMPLES_DIR}")
+  add_test(NAME stuffit_sample_tests
+    COMMAND ${CMAKE_COMMAND} -E env
+      "UNSIT_BIN=$<TARGET_FILE:unsit>"
+      "UNAR_BIN=${UNAR_EXECUTABLE}"
+      "SIT_SAMPLES_DIR=${SIT_SAMPLES_DIR}"
+      bash ${CMAKE_CURRENT_SOURCE_DIR}/stuffit_test.sh
+  )
+  set_tests_properties(stuffit_sample_tests PROPERTIES DEPENDS unsit)
+else()
+  message(STATUS "unar or SIT_SAMPLES_DIR not found - skipping stuffit_sample_tests")
+endif()
+
+add_executable(ndif_blocks_test
+    ndif_blocks_test.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/stuffit.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/sit_io.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/sit_crc16.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/sit_rle90.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/sit_lzw.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/sit_prefixcode.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/sit_huffman.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/sit_lzh13.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/sit_bwt.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/sit_arsenic.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/binhex.c
+    ${CMAKE_SOURCE_DIR}/lib/stuffit/ndif.c
+)
+target_include_directories(ndif_blocks_test PRIVATE ${CMAKE_SOURCE_DIR}/lib/)
+
+find_program(NDIF2RAW_MAKE make)
+if(NOT DEFINED NDIF2RAW_DIR)
+  set(NDIF2RAW_DIR "$ENV{NDIF2RAW_DIR}")
+endif()
+set(NOW_SOFTWARE_SIT "${SIT_SAMPLES_DIR}/Now_Software.sit")
+
+if(UNAR_EXECUTABLE AND NDIF2RAW_MAKE AND NDIF2RAW_DIR AND EXISTS "${NDIF2RAW_DIR}" AND EXISTS "${NOW_SOFTWARE_SIT}")
+  add_test(NAME ndif_sample_tests
+    COMMAND ${CMAKE_COMMAND} -E env
+      "UNSIT_BIN=$<TARGET_FILE:unsit>"
+      "NDIF_BLOCKS_TEST_BIN=$<TARGET_FILE:ndif_blocks_test>"
+      "UNAR_BIN=${UNAR_EXECUTABLE}"
+      "MAKE_BIN=${NDIF2RAW_MAKE}"
+      "NDIF2RAW_DIR=${NDIF2RAW_DIR}"
+      "NOW_SOFTWARE_SIT=${NOW_SOFTWARE_SIT}"
+      bash ${CMAKE_CURRENT_SOURCE_DIR}/ndif_test.sh
+  )
+  set_tests_properties(ndif_sample_tests PROPERTIES DEPENDS unsit)
+else()
+  message(STATUS "unar, make, NDIF2RAW_DIR or Now_Software.sit not found - skipping ndif_sample_tests")
+endif()

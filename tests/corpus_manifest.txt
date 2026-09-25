@@ -1,0 +1,226 @@
+autoboot.sea.sit
+  source: https://archive.org/download/Macintosh_Garden_Apps_2022-A/AutoBoot_1.2_f.sea_.sit
+  stuffit-version: 5.x
+  lsar-format: StuffIt 5
+  lsar-methods: Arsenic, None
+
+bbs-quoter.sit
+  source: https://archive.org/download/hypercard_bbs-quoter/BBS_Quot.sit
+  stuffit-version: 1.5.x-1.6.x
+  lsar-format: StuffIt
+  lsar-methods: Compress
+
+calendar-stacks.sit
+  source: https://archive.org/download/hypercard_9-screen-calendar-stacks/CalendarStacks.sit
+  stuffit-version: 2.x-4.x
+  lsar-format: StuffIt
+  lsar-methods: LZ+Huffman
+
+canvas-2.0-1989.sit
+  source: https://archive.org/download/Macintosh_Garden_Apps_D_2014/deneba_canvas_2.0_e_198901.sit
+  stuffit-version: 5.x (re-compressed archive; internal file dated 1989)
+  lsar-format: StuffIt 5
+  lsar-methods: LZ+Huffman
+
+changecase-1.0.2.sit
+  source: https://archive.org/download/hypercard_changecase-xfcn-102/ChangeCase%201.0.2.sit
+  stuffit-version: 2.x-4.x
+  lsar-format: StuffIt
+  lsar-methods: LZ+Huffman
+
+christistree.hqx
+  source: https://archive.org/download/Macintosh_Garden_Apps_C_2016/christistree_1.1.hqx
+  stuffit-version: 5.x
+  lsar-format: StuffIt 5 in BinHex
+  lsar-methods: Arsenic
+
+cogito-clippy-1.1.sit
+  source: https://archive.org/download/hypercard_clippy-clipboard-xfcn/Cogito%20CLIPPY.1.1.sit
+  stuffit-version: 2.x-4.x
+  lsar-format: StuffIt
+  lsar-methods: LZ+Huffman
+
+decor.sit.hqx
+  source: https://archive.org/download/Macintosh_Garden_Apps_D_2014/Decor.sit_.hqx
+  stuffit-version: 2.x-4.x
+  lsar-format: StuffIt in BinHex
+  lsar-methods: LZ+Huffman
+
+diary-68k.hqx
+  source: https://archive.org/download/Macintosh_Garden_Apps_D_2014/diary_68k.hqx
+  stuffit-version: 2.x-4.x
+  lsar-format: StuffIt in BinHex
+  lsar-methods: LZ+Huffman, None
+
+digital-darkroom-2.0-1990.sit
+  source: https://archive.org/download/Macintosh_Garden_Apps_D_2014/digital_darkroom_2.0_d_1990.sit
+  stuffit-version: 2.x-4.x
+  lsar-format: StuffIt
+  lsar-methods: LZ+Huffman
+
+dm0404.sea.hqx
+  source: https://archive.org/download/Macintosh_Garden_Apps_D_2014/dm0404.sea_.hqx
+  stuffit-version: 2.x-4.x
+  lsar-format: StuffIt in BinHex
+  lsar-methods: LZ+Huffman
+  note: original filename was a .sea (self-extracting archive); survives only in BinHex-wrapped form
+
+dos-compatibility.sea.sit
+  source: https://archive.org/download/Macintosh_Garden_Apps_D_2014/dos_compatibility_1.0.7.sea_.sit
+  stuffit-version: 5.x
+  lsar-format: StuffIt 5
+  lsar-methods: Arsenic, None
+  note: original filename was a .sea; re-packed as bare .sit
+
+drive7.sea.sit
+  source: https://archive.org/download/Macintosh_Garden_Apps_D_2014/Drive7_v4.18_OEM.image_.sea_.sit
+  stuffit-version: 5.x
+  lsar-format: StuffIt 5
+  lsar-methods: Arsenic
+  note: original filename was a .sea; re-packed as bare .sit
+
+fonter-1.1-installer.sea.hqx
+  source: https://archive.org/download/hypercard_fontshypercardutilities/Fonter1.1%20Installer.sea
+  stuffit-version: 2.x-4.x
+  lsar-format: StuffIt in BinHex
+  lsar-methods: LZ+Huffman
+  note: original filename was .sea but the file's raw bytes are BinHex-encoded ("(This file must be converted with BinHex 4.0)"); genuine BinHex-wrapped SEA sample
+
+getappmenuitems.sit
+  source: https://archive.org/download/hypercard_getapplicationmenuitems/getAppMenuItems.sit
+  stuffit-version: 1.5.x-1.6.x
+  lsar-format: StuffIt
+  lsar-methods: Compress
+
+gnc-tour.sit
+  source: https://archive.org/download/hypercard_gnc-hypertour-v-23/GNC%20Tour.sit
+  stuffit-version: 2.x-4.x
+  lsar-format: StuffIt
+  lsar-methods: LZ+Huffman
+
+graychicago-font-1989.sit
+  source: https://archive.org/download/hypercard_graychicago-11-font-for-hyperca/GrayChicago.SIT
+  stuffit-version: 1.5.x-1.6.x
+  lsar-format: StuffIt
+  lsar-methods: Compress
+  note: internal entries dated 1989-11-28 and 1989-12-08 — one of the oldest items in this corpus
+
+hyperhome-2.0-1990.sit
+  source: https://archive.org/download/hypercard_hyperfindersit/HyperHome.Sit
+  stuffit-version: 1.5.x-1.6.x
+  lsar-format: StuffIt
+  lsar-methods: Compress, Huffman
+  note: classic-era StuffIt with both LZW (Compress) and plain Huffman entries; internal date 1990-02-06
+
+launchfile-xcmd.sit
+  source: https://archive.org/download/hypercard_launchfile-xcmd/LaunchFile.sit
+  stuffit-version: 1.5.x-1.6.x
+  lsar-format: StuffIt
+  lsar-methods: Compress
+
+logwatcher68k.sit.hqx
+  source: https://archive.org/download/Macintosh_Garden_Apps_Collection_L/Log_Watcher_68K.sit_.hqx
+  stuffit-version: 2.x-4.x
+  lsar-format: StuffIt in BinHex
+  lsar-methods: LZ+Huffman
+
+mac-product-stack.sit
+  source: https://archive.org/download/hypercard_mac-product-database-in-hc/Mac%20Product%20Stack.sit
+  stuffit-version: 2.x-4.x
+  lsar-format: StuffIt
+  lsar-methods: LZ+Huffman
+
+mac-secrets-1993.sit
+  source: https://archive.org/download/Macintosh_Garden_Apps_2022-M/Mac_SECRETS_disks_1993_dc42.sit
+  stuffit-version: 5.x (re-compressed archive; content dated 1993)
+  lsar-format: StuffIt 5
+  lsar-methods: Arsenic
+
+mactcp-toolkit-1.0-1989.sit
+  source: https://archive.org/download/hypercard_hypercard-mactcp-toolkit-10/MacTCP%20ToolKit%201.0.sit
+  stuffit-version: 1.5.x-1.6.x
+  lsar-format: StuffIt
+  lsar-methods: Compress
+  note: internal entries dated 1989-06-01
+
+maya-calendar-1.8.sit
+  source: https://archive.org/download/hypercard_maya-calendar/Maya%20Calendar%201.8.sit
+  stuffit-version: 2.x-4.x
+  lsar-format: StuffIt
+  lsar-methods: LZ+Huffman
+
+nstack-2.0.sit
+  source: https://archive.org/download/nstack-20/Nstack%202.0.sit
+  stuffit-version: 2.x-4.x
+  lsar-format: StuffIt
+  lsar-methods: LZ+Huffman
+
+numerology-demo-1993.sit
+  source: https://archive.org/download/hypercard_numerology-10-demo/Numerology.sit
+  stuffit-version: 1.5.x-1.6.x
+  lsar-format: StuffIt
+  lsar-methods: Compress, Huffman
+
+pc-dictionary-4.1.sit.hqx
+  source: https://archive.org/download/hypercard_p/P.C._Dictionary_4.1.sit.hqx
+  stuffit-version: 5.x
+  lsar-format: StuffIt 5 in BinHex
+  lsar-methods: Arsenic
+
+pcsetup.sea.bin
+  source: https://archive.org/download/Macintosh_Garden_Apps_Collection_P/pcSetup217Mac_22Aug2000.sea_.bin
+  stuffit-version: 5.x
+  lsar-format: StuffIt 5 in MacBinary
+  lsar-methods: Arsenic, None
+  note: original filename was a .sea from 2000; also the corpus's MacBinary-wrapped sample
+
+picas-to-points.sit
+  source: https://archive.org/download/hypercard_picas-to-points-to-picas-xfcn/PicasToPoints.sit
+  stuffit-version: 1.5.x-1.6.x
+  lsar-format: StuffIt
+  lsar-methods: Compress
+
+playerpro.sea.hqx
+  source: https://archive.org/download/Macintosh_Garden_Apps_Collection_P/playerpro_4.4_fr.sea_.hqx
+  stuffit-version: 2.x-4.x
+  lsar-format: StuffIt in BinHex
+  lsar-methods: LZ+Huffman
+  note: original filename was a .sea from 1995 (BinHex-wrapped, since bare .sea files rarely survive fork-stripping storage)
+
+powerpoint-3.0-1992.sit
+  source: https://archive.org/download/Macintosh_Garden_Apps_Collection_P/powerpoint_3.0_e_1992.sit
+  stuffit-version: 2.x-4.x
+  lsar-format: StuffIt
+  lsar-methods: LZ+Huffman
+
+prioritize-1.0.sit
+  source: https://archive.org/download/decision-helper-prioritizer/Prioritize1.0.sit
+  stuffit-version: 2.x-4.x
+  lsar-format: StuffIt
+  lsar-methods: LZ+Huffman
+
+serial-port-toolkit-2.6-1988.sit
+  source: https://archive.org/download/hypercard_hypercard-serial-port-toolkit-2/Serial%20Port%20Toolkit%202.6.sit
+  stuffit-version: 1.5.x-1.6.x
+  lsar-format: StuffIt
+  lsar-methods: Compress, Huffman
+  note: oldest internal entry dated 1988-05-10 — earliest-dated file in this corpus
+
+stuffit-xcmds.sit.hqx
+  source: https://archive.org/download/hypercard_stuffit_xcmds/StuffIt_XCMDs.sit.hqx
+  stuffit-version: 5.x
+  lsar-format: StuffIt 5 in BinHex
+  lsar-methods: Arsenic
+
+xrules-1.0.4-demo-1991.sit
+  source: https://archive.org/download/hypercard_xrules-v104-demo/Xrules%201.0.4%20Demo.sit
+  stuffit-version: 1.5.x-1.6.x
+  lsar-format: StuffIt
+  lsar-methods: Compress, RLE
+  note: contains an RLE-compressed entry (ReadMeFirst, 1991-11-10) — the corpus's only confirmed RLE sample
+
+zoompict-1.1.sit
+  source: https://archive.org/download/hypercard_zoompict-11/ZoomPict%201.1.sit
+  stuffit-version: 2.x-4.x
+  lsar-format: StuffIt
+  lsar-methods: LZ+Huffman

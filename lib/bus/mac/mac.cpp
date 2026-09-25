@@ -229,6 +229,10 @@ void systemBus::service(void)
     track_not_copied = false;
     write((uint8_t)'S');
   }
+
+  // only the active HD20 can have cached writes, since 'W' goes to it
+  if (_active_DCD_disk >= 0 && _active_DCD_disk < MAC_DCD_SLOTS)
+    theFuji->get_disk(_active_DCD_disk)->disk_dev.flush_if_idle();
 }
 
 char systemBus::num_dcd_mounts()
