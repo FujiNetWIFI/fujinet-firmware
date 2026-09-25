@@ -336,7 +336,7 @@ int fujiDevice::get_rotate_slot()
 
 // Disk Image Rotate
 /*
-  We rotate disks my changing their disk device ID's. That prevents
+  We rotate disks by changing their disk device ID's. That prevents
   us from having to unmount and re-mount devices.
 */
 void fujiDevice::fujicmd_image_rotate()
@@ -417,7 +417,7 @@ SSIDConfig fujiDevice::fujicore_net_get_ssid()
 
     /*
       We memcpy instead of strcpy because technically the SSID and
-      phasephras aren't std::strings and aren't null terminated,
+      passphrase aren't std::strings and aren't null terminated,
       they're arrays of bytes officially and can contain any byte
       value - including a zero - at any point in the array.  However,
       we're not consistent about how we treat this in the different
@@ -821,8 +821,8 @@ void fujiDevice::fujicmd_close_directory()
  * Read directory entries in block mode
  *
  * Input parameters:
- * aux1: Number of 256-byte pages to return (determines maximum response size)
- * aux2: Lower 6 bits define the number of entries per page group
+ * num_pages: Number of 256-byte pages to return (determines maximum response size)
+ * group_size: Number of entries per page group
  *
  * Response format:
  * Overall response header:
@@ -831,7 +831,7 @@ void fujiDevice::fujicmd_close_directory()
  * Byte  2    : Header size (4)
  * Byte  3    : Number of page groups that follow
  *
- * Followed by one or more complete PageGroups, padded to aux1 * 256 bytes.
+ * Followed by one or more complete PageGroups, padded to num_pages * 256 bytes.
  * Each PageGroup must fit entirely within the response - partial groups are not allowed.
  * If a PageGroup would exceed the remaining space, the directory position is rewound
  * and that group is not included.
@@ -855,9 +855,8 @@ void fujiDevice::fujicmd_close_directory()
  *              - Byte  7  : Media type (0-255, with 0=unknown)
  *              - Bytes 8+ : Null-terminated filename
  *
- * The last PageGroup in the response will have its last_group flag set if:
- * a) There are no more directory entries to process, or
- * b) The next PageGroup would exceed the maximum response size
+ * The last PageGroup in the response has its last_group flag set only when
+ * there are no more directory entries to process.
  */
 void fujiDevice::fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_size)
 {
@@ -910,7 +909,7 @@ void fujiDevice::fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_s
             }
         }
 
-        // If this is the last group, mark its last entry as the last one
+        // If this is the last group, mark it as the last one
         if (is_last_entry) {
             Debug_println("This is the last group in the directory");
             group.is_last_group = true;
@@ -1035,7 +1034,7 @@ void fujiDevice::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
     }
 
     // Block mode (addtl $C0-$FF) is handled entirely by fujicmd_read_directory_block,
-    // which owns the SIO transaction. Must not transaction_accept here first.
+    // which owns the transaction. Must not transaction_accept here first.
     if ((addtl & 0xC0) == 0xC0)
     {
         fujicmd_read_directory_block(maxlen, addtl & 0x3F);
@@ -1151,7 +1150,6 @@ success_is_true fujiDevice::fujicore_copy_file_success(uint8_t sourceSlot, uint8
         fnio::fwrite(dataBuf, 1, count, destFile);
     } while (count > 0);
 
-    // copyEnd:
     fnio::fclose(sourceFile);
     fnio::fclose(destFile);
     free(dataBuf);
@@ -1160,8 +1158,11 @@ success_is_true fujiDevice::fujicore_copy_file_success(uint8_t sourceSlot, uint8
 
 void fujiDevice::fujidev_copy_file(const FUJI_COMMAND_PACKET &packet)
 {
-    fujicmd_copy_file_success(packet.param(0), packet.param(1),
-                              packet.dataAsString().value_or(""));
+    // Params must be read before data(); argument evaluation order is unspecified.
+    uint8_t source = packet.param(0);
+    uint8_t dest = packet.param(1);
+
+    fujicmd_copy_file_success(source, dest, packet.dataAsString().value_or(""));
 }
 
 success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot,
@@ -1213,7 +1214,6 @@ success_is_true fujiDevice::fujicmd_unmount_disk_image_success(uint8_t deviceSlo
 void fujiDevice::fujicmd_get_adapter_config()
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    // also return string versions of the data to save the host some computing
     Debug_printf("Fuji cmd: GET ADAPTER CONFIG\r\n");
 
     // AdapterConfigExtended contains AdapterConfig so just get Extended
