@@ -136,9 +136,16 @@ success_is_true systemBus::transaction_get(void *data, size_t len)
 void systemBus::transaction_send(const void *data, size_t len, bool err)
 {
     assert(_transaction_state == TRANS_STATE::NO_GET);
-    const uint8_t *ptr = static_cast<const uint8_t*>(data);
-    FujiAdamPacket packet(_activeDev->id(), APT::NM_SEND, ByteBuffer(ptr, ptr + len));
-    _transaction_reply_encoded = packet.serialize();
+    // The Adam rejects a zero-length NM_SEND, so queue nothing and let the
+    // default MN_RECEIVE handler NAK.
+    if (len)
+    {
+        const uint8_t *ptr = static_cast<const uint8_t*>(data);
+        FujiAdamPacket packet(_activeDev->id(), APT::NM_SEND, ByteBuffer(ptr, ptr + len));
+        _transaction_reply_encoded = packet.serialize();
+    }
+    else
+        _transaction_reply_encoded.reset();
 
     // FIXME - won't this always ack? Is the if needed?
     if (busPhase.needAck())
@@ -237,9 +244,10 @@ void virtualDevice::adamnet_control_ready()
     SYSTEM_BUS.sendAckPacket();
 }
 
+// Only reached with no reply queued.
 void virtualDevice::adamnet_control_receive()
 {
-    SYSTEM_BUS.sendAckPacket();
+    SYSTEM_BUS.sendNakPacket();
 }
 
 void systemBus::wait_for_idle()
