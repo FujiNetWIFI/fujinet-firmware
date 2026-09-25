@@ -19,8 +19,6 @@
 #include <driver/gpio.h>
 #endif
 
-#define IDLE_TIME 180 // Idle tolerance in microseconds
-
 #ifdef ESP_PLATFORM
 static QueueHandle_t reset_evt_queue = NULL;
 
@@ -138,9 +136,16 @@ success_is_true systemBus::transaction_get(void *data, size_t len)
 void systemBus::transaction_send(const void *data, size_t len, bool err)
 {
     assert(_transaction_state == TRANS_STATE::NO_GET);
-    const uint8_t *ptr = static_cast<const uint8_t*>(data);
-    FujiAdamPacket packet(_activeDev->id(), APT::NM_SEND, ByteBuffer(ptr, ptr + len));
-    _transaction_reply_encoded = packet.serialize();
+    // The Adam rejects a zero-length NM_SEND, so queue nothing and let the
+    // default MN_RECEIVE handler NAK.
+    if (len)
+    {
+        const uint8_t *ptr = static_cast<const uint8_t*>(data);
+        FujiAdamPacket packet(_activeDev->id(), APT::NM_SEND, ByteBuffer(ptr, ptr + len));
+        _transaction_reply_encoded = packet.serialize();
+    }
+    else
+        _transaction_reply_encoded.reset();
 
     // FIXME - won't this always ack? Is the if needed?
     if (busPhase.needAck())
@@ -239,9 +244,10 @@ void virtualDevice::adamnet_control_ready()
     SYSTEM_BUS.sendAckPacket();
 }
 
+// Only reached with no reply queued.
 void virtualDevice::adamnet_control_receive()
 {
-    SYSTEM_BUS.sendAckPacket();
+    SYSTEM_BUS.sendNakPacket();
 }
 
 void systemBus::wait_for_idle()
@@ -370,7 +376,7 @@ void systemBus::_adamnet_dispatch(const FujiAdamPacket &packet)
     switch (packet.type())
     {
     case APT::MN_STATUS:
-        // Get device capablities/check if it is alive
+        // Get device capabilities/check if it is alive
         sendStatusPacket(_activeDev->deviceStatus());
         break;
 
@@ -461,9 +467,9 @@ void systemBus::setup()
         // skip the ISR install entirely without it.
         if (xTaskCreate(adamnet_reset_intr_task, "adamnet_reset_intr_task", 2048, this, 10, nullptr) != pdPASS)
             Debug_printv("could not create adamnet_reset_intr_task, RESET line will be ignored");
-        // Enable interrupt for card detection
+        // Enable interrupt on the RESET line
         fnSystem.set_pin_mode(PIN_ADAMNET_RESET, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP, GPIO_INTR_NEGEDGE);
-        // Add the card detect handler
+        // Add the RESET handler
         gpio_isr_handler_add((gpio_num_t)PIN_ADAMNET_RESET, adamnet_reset_isr_handler, (void *)PIN_CARD_DETECT_FIX);
     }
     else
