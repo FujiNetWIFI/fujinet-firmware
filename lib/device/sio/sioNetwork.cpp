@@ -7,21 +7,22 @@
 
 void sioNetwork::sio_process(const FujiSIOPacket &packet)
 {
-    // Before the base class, which NAKs any command it does not know.
+    // Let the base class handle standard commands
+    if (NDevice::processCommand(packet))
+        return;
+
     switch (packet.command())
     {
     case CMD::NET_GET_DSTATS_VALUE:
         sio_get_dstats_value(packet);
-        return;
+        break;
     case CMD::NET_HSIO_INDEX:
         sio_high_speed();
         SYSTEM_BUS.toggleBaudrate();
-        return;
+        break;
     default:
         break;
     }
-
-    NDevice::processCommand(packet);
 }
 
 /**
