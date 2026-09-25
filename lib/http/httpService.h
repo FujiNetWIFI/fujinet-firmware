@@ -173,6 +173,10 @@ public:
     static esp_err_t post_handler_files_action(httpd_req_t *req);
     static esp_err_t post_handler_files_upload(httpd_req_t *req);
 
+#ifdef BUILD_MAC
+    static esp_err_t get_handler_sitdownload(httpd_req_t *req);
+#endif
+
     // Google Drive OAuth2 relay-based endpoints
     static esp_err_t get_handler_gdrive_auth(httpd_req_t *req);
     static esp_err_t get_handler_gdrive_poll(httpd_req_t *req);
