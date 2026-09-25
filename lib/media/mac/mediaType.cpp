@@ -39,6 +39,9 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
         return MEDIATYPE_DC42;
     if (strcasecmp(ext, "DSK") == 0 || strcasecmp(ext, "IMG") == 0)
         return MEDIATYPE_DSK;
+    if (strcasecmp(ext, "SIT") == 0 || strcasecmp(ext, "SEA") == 0 || strcasecmp(ext, "HQX") == 0 ||
+        strcasecmp(ext, "BIN") == 0)
+        return MEDIATYPE_SIT;
 
     return MEDIATYPE_UNKNOWN;
 }
