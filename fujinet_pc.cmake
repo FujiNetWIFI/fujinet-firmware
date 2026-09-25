@@ -330,6 +330,8 @@ set(SOURCES src/main.cpp
     lib/device/siocpm.h
     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
     lib/media/media.h
+    # Matches the ESP builds, which glob lib/media/*.cpp into every target
+    lib/media/IMDImage.h lib/media/IMDImage.cpp
     lib/encoding/base64.h lib/encoding/base64.cpp
     lib/encoding/hash.h lib/encoding/hash.cpp
     lib/qrcode/qrcode.h lib/qrcode/qrcode.c
@@ -507,6 +509,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
 
     lib/media/rs232/diskType.h lib/media/rs232/diskType.cpp
     lib/media/rs232/diskTypeImg.h lib/media/rs232/diskTypeImg.cpp
+    lib/media/rs232/diskTypeIMD.h lib/media/rs232/diskTypeIMD.cpp
     lib/media/rs232/diskTypeROM.h lib/media/rs232/diskTypeROM.cpp
 
     lib/device/rs232/rs232Clock.cpp lib/device/rs232/rs232Clock.h
