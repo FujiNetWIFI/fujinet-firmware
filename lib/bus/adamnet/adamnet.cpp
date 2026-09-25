@@ -361,7 +361,7 @@ void systemBus::_adamnet_process_cmd()
         wait_for_idle();
 }
 
-// Dispatch an AdamNet packet by type
+// Handle the five stages of AdamNet bus protocol
 void systemBus::_adamnet_dispatch(const FujiAdamPacket &packet)
 {
 #ifdef DEBUG_DISPATCH
