@@ -19,8 +19,6 @@
 #include <driver/gpio.h>
 #endif
 
-#define IDLE_TIME 180 // Idle tolerance in microseconds
-
 #ifdef ESP_PLATFORM
 static QueueHandle_t reset_evt_queue = NULL;
 
@@ -202,7 +200,7 @@ void systemBus::sendResponsePacket(void)
 
     _port->write(_transaction_reply_encoded->data(), _transaction_reply_encoded->size());
     _port->flushOutput();
-    busPhase.sentData();
+    busPhase.sentData(_transaction_reply_encoded->size());
     _transaction_reply_encoded.reset();
 }
 
@@ -355,7 +353,7 @@ void systemBus::_adamnet_process_cmd()
         wait_for_idle();
 }
 
-// Handle the five stages of AdamNet bus protocol
+// Dispatch an AdamNet packet by type
 void systemBus::_adamnet_dispatch(const FujiAdamPacket &packet)
 {
 #ifdef DEBUG_DISPATCH
@@ -370,7 +368,7 @@ void systemBus::_adamnet_dispatch(const FujiAdamPacket &packet)
     switch (packet.type())
     {
     case APT::MN_STATUS:
-        // Get device capablities/check if it is alive
+        // Get device capabilities/check if it is alive
         sendStatusPacket(_activeDev->deviceStatus());
         break;
 
@@ -461,9 +459,9 @@ void systemBus::setup()
         // skip the ISR install entirely without it.
         if (xTaskCreate(adamnet_reset_intr_task, "adamnet_reset_intr_task", 2048, this, 10, nullptr) != pdPASS)
             Debug_printv("could not create adamnet_reset_intr_task, RESET line will be ignored");
-        // Enable interrupt for card detection
+        // Enable interrupt on the RESET line
         fnSystem.set_pin_mode(PIN_ADAMNET_RESET, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP, GPIO_INTR_NEGEDGE);
-        // Add the card detect handler
+        // Add the RESET handler
         gpio_isr_handler_add((gpio_num_t)PIN_ADAMNET_RESET, adamnet_reset_isr_handler, (void *)PIN_CARD_DETECT_FIX);
     }
     else

@@ -1,6 +1,7 @@
 #ifdef BUILD_ADAM
 
 #include "AdamNetPhase.h"
+#include "IOChannel.h"
 #include "debug.h"
 
 inline const char* AdamNetPhase::phase_to_string(PHASE state)
@@ -91,19 +92,58 @@ inline bool AdamNetPhase::bus_expected_state(const FujiAdamPacket &packet, PHASE
         && packet.type() == APT::MN_SEND)
         Debug_printf("Fuji command: 0x%02x\n", packet.command());
 
+    dumpTrace();
     Debug_printf("==================================\n\n");
 
     return false;
 }
 
+void AdamNetPhase::trace(uint8_t event, size_t len)
+{
+    TraceEntry &e = _trace[_traceNext];
+    e.usec = static_cast<uint32_t>(GET_TIMESTAMP());
+    e.len = static_cast<uint16_t>(len);
+    e.device = _packet ? static_cast<uint8_t>(_packet->device()) : 0;
+    e.event = event;
+    e.phase = static_cast<uint8_t>(_busPhase);
+    _traceNext = (_traceNext + 1) % TRACE_LEN;
+    if (_traceCount < TRACE_LEN)
+        _traceCount++;
+}
+
+void AdamNetPhase::dumpTrace()
+{
+    static const char *const responses[] = {
+        "-> ACK", "-> NAK", "-> IGNORE", "-> sent status", "-> sent data", "got payload",
+    };
+    size_t idx = (_traceNext + TRACE_LEN - _traceCount) % TRACE_LEN;
+    uint32_t start = _trace[idx].usec;
+
+    Debug_printf("--- last %u bus events (usec, device, event, phase before) ---\n",
+                 (unsigned) _traceCount);
+    for (size_t n = 0; n < _traceCount; n++, idx = (idx + 1) % TRACE_LEN)
+    {
+        const TraceEntry &e = _trace[idx];
+        const char *what = e.event < TRACE_ACK
+            ? type_to_string(static_cast<adamPacketType_t>(e.event))
+            : responses[e.event - TRACE_ACK];
+        Debug_printf("%9lu  0x%02x  %-14s", (unsigned long) (e.usec - start),
+                     e.device, what);
+        if (e.event == TRACE_SENT_DATA)
+            Debug_printf(" (%u bytes on wire)", (unsigned) e.len);
+        Debug_printf("  [%s]\n", phase_to_string(static_cast<PHASE>(e.phase)));
+    }
+}
+
 void AdamNetPhase::begin(const FujiAdamPacket &packet)
 {
     _packet = &packet;
+    trace(static_cast<uint8_t>(_packet->type()));
 
     switch (_packet->type())
     {
     case APT::MN_STATUS:  // 0x01
-        // No payload, no ACK, expects AdamNetPacket reply
+        // No payload, no ACK, expects an NM_STATUS reply
         _busPhase = PHASE::NEED_STATUS;
         break;
 
@@ -199,6 +239,7 @@ void AdamNetPhase::finish()
 
 void AdamNetPhase::didAck()
 {
+    trace(TRACE_ACK);
     assert(bus_expected_state(*_packet, _busPhase, {PHASE::NEED_ACK, PHASE::GOT_PAYLOAD}));
     _busPhase = PHASE::DID_ACK;
     return;
@@ -206,6 +247,7 @@ void AdamNetPhase::didAck()
 
 void AdamNetPhase::didNak()
 {
+    trace(TRACE_NAK);
     assert(bus_expected_state(*_packet, _busPhase, {PHASE::NEED_ACK, PHASE::GOT_PAYLOAD}));
     _busPhase = PHASE::DID_NAK;
     return;
@@ -213,6 +255,7 @@ void AdamNetPhase::didNak()
 
 void AdamNetPhase::didIgnore()
 {
+    trace(TRACE_IGNORE);
     assert(bus_expected_state(*_packet, _busPhase, {PHASE::NEED_ACK, PHASE::NEED_STATUS}));
     _busPhase = PHASE::DID_IGNORE;
     return;
@@ -220,13 +263,15 @@ void AdamNetPhase::didIgnore()
 
 void AdamNetPhase::sentStatus()
 {
+    trace(TRACE_SENT_STATUS);
     assert(bus_expected_state(*_packet, _busPhase, {PHASE::NEED_STATUS}));
     _busPhase = PHASE::SENT_STATUS;
     return;
 }
 
-void AdamNetPhase::sentData()
+void AdamNetPhase::sentData(size_t len)
 {
+    trace(TRACE_SENT_DATA, len);
     assert(bus_expected_state(*_packet, _busPhase, {PHASE::FEED_ME, PHASE::NEED_STATUS}));
     if (_busPhase == PHASE::FEED_ME)
         _busPhase = PHASE::BEEN_FED;
@@ -235,6 +280,7 @@ void AdamNetPhase::sentData()
 
 void AdamNetPhase::gotPayload()
 {
+    trace(TRACE_GOT_PAYLOAD);
     assert(bus_expected_state(*_packet, _busPhase, {PHASE::HAVE_PAYLOAD}));
     _busPhase = PHASE::GOT_PAYLOAD;
     return;
