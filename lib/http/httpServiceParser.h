@@ -29,6 +29,10 @@ class fnHttpServiceParser
 public:
     static std::string parse_contents(const std::string &contents);
     static bool is_parsable(const char *extension);
+#ifdef BUILD_MAC
+    // FN_MAC_SLOTS, also served as /mac/slots
+    static std::string mac_slots_json();
+#endif
 };
 
 #endif // HTTPSERVICEPARSER_H
