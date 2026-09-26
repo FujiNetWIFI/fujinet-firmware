@@ -104,6 +104,11 @@ typedef struct {
  * names a chunk type this decoder doesn't implement), NDIF_E_NOMEM. */
 int ndif_open(ndif_image *img, FILE *data, const uint8_t *rsrc, size_t rsrc_len, const sit_allocator *a);
 
+/* As ndif_open(), for a data fork that starts data_base bytes into data,
+ * e.g. an uncompressed fork read in place from its archive. */
+int ndif_open_at(ndif_image *img, FILE *data, uint32_t data_base, const uint8_t *rsrc, size_t rsrc_len,
+                 const sit_allocator *a);
+
 /* Decodes the whole image (block_count * 512 bytes) in chunk order,
  * delivering each chunk's decoded span to sink in one call. Returns
  * NDIF_OK, or NDIF_E_IO (short read on `data`, or sink returned

@@ -543,6 +543,12 @@ static int ndif_parse_bcem(ndif_image *img, const uint8_t *bcem, size_t bcem_len
 
 int ndif_open(ndif_image *img, FILE *data, const uint8_t *rsrc, size_t rsrc_len, const sit_allocator *a)
 {
+    return ndif_open_at(img, data, 0, rsrc, rsrc_len, a);
+}
+
+int ndif_open_at(ndif_image *img, FILE *data, uint32_t data_base, const uint8_t *rsrc, size_t rsrc_len,
+                 const sit_allocator *a)
+{
     if (!img || !rsrc || !a || !a->alloc || !a->free) return NDIF_E_INVAL;
 
     memset(img, 0, sizeof(*img));
@@ -554,7 +560,9 @@ int ndif_open(ndif_image *img, FILE *data, const uint8_t *rsrc, size_t rsrc_len,
     if (rc < 0) return rc;
     if (rc == 0) return NDIF_E_FORMAT;
 
-    return ndif_parse_bcem(img, rsrc + bcem_off, bcem_len);
+    rc = ndif_parse_bcem(img, rsrc + bcem_off, bcem_len);
+    if (rc == NDIF_OK) img->priv_backing_offset += data_base;
+    return rc;
 }
 
 /* Decodes chunk `idx` into img->priv_decompbuf; *out_len receives the
