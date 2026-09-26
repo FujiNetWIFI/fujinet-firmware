@@ -169,13 +169,13 @@ mediatype_t MediaTypeFloppyImage::mount(FILE *f, uint32_t disksize)
     return MEDIATYPE_DSK;
 }
 
-bool MediaTypeFloppyImage::write_sector(int cyl, int side, int sec, const uint8_t *in524)
+success_is_true MediaTypeFloppyImage::write_sector(int cyl, int side, int sec, const uint8_t *in524)
 {
     if (_media_fileh == nullptr || cyl < 0 || cyl >= MAC_GCR_CYLINDERS || side < 0 || side >= num_sides)
-        return false;
+        RETURN_ERROR_AS_FALSE();
     int nsec = mac_gcr_sectors_per_track(cyl);
     if (sec < 0 || sec >= nsec)
-        return false;
+        RETURN_ERROR_AS_FALSE();
 
     uint32_t block = (uint32_t)mac_gcr_sectors_before_cyl(cyl) * num_sides + (uint32_t)side * nsec + (uint32_t)sec;
 
@@ -183,7 +183,7 @@ bool MediaTypeFloppyImage::write_sector(int cyl, int side, int sec, const uint8_
         fwrite(in524 + MAC_GCR_TAG_SIZE, 1, MAC_GCR_SECTOR_SIZE, _media_fileh) != MAC_GCR_SECTOR_SIZE)
     {
         Debug_printf("\nFloppy image: write of block %lu failed", (unsigned long)block);
-        return false;
+        RETURN_ERROR_AS_FALSE();
     }
     if (tag_offset)
     {
@@ -196,7 +196,7 @@ bool MediaTypeFloppyImage::write_sector(int cyl, int side, int sec, const uint8_
     if (trk_ptrs[t] && !mac_gcr_patch_sector(trk_ptrs[t], trk_bytes[t], cyl, format_byte, sec, in524))
         Debug_printf("\nFloppy image: could not patch track %d sector %d", t, sec);
     Debug_printf("\nFloppy image: wrote C%d H%d S%d (block %lu)", cyl, side, sec, (unsigned long)block);
-    return true;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 void MediaTypeFloppyImage::unmount()

@@ -2,6 +2,10 @@
 #define _MEDIA_TYPE_
 
 #include <stdio.h>
+#include <stdint.h>
+#include "global_types.h"
+
+class MediaTypeDCD;
 
 #define INVALID_SECTOR_VALUE 65536
 
@@ -85,6 +89,26 @@ public:
     virtual int track_len(int t) { return 0; }             // bytes
     virtual int num_bits(int t) { return 0; }
     uint8_t optimal_bit_timing = 16;                        // x 125 ns
+
+    // Before mount(): a read-only mount never writes to the image
+    virtual void set_readonly(bool ro) {}
+    // HD20 write-behind cache; nothing to do for other media
+    virtual error_is_true flush() { RETURN_SUCCESS_AS_FALSE(); }
+    virtual void flush_if_idle() {}
+    // Floppy media that takes sectors decoded from the Mac's write stream
+    virtual bool accepts_sector_writes() const { return false; }
+    virtual success_is_true write_sector(int cyl, int side, int sec, const uint8_t *in524)
+    {
+        RETURN_ERROR_AS_FALSE();
+    }
+    // The HD20 volume behind this media, if any (for the web UI)
+    virtual const MediaTypeDCD *dcd() const { return nullptr; }
+    // Disk images in the file: more than one only for archives
+    virtual int image_count() const { return 1; }
+
+    // The media for a plain image of this type in a floppy or an HD20 slot,
+    // or nullptr if it cannot go there
+    static MediaType *create(mediatype_t type, bool floppy_slot);
 
     static mediatype_t discover_mediatype(const char *filename);
 

@@ -51,7 +51,8 @@ public:
 
     // store one written sector (12 tag + 512 data) in the file and in the
     // encoded track; the caller decides whether the mount is writable
-    bool write_sector(int cyl, int side, int sec, const uint8_t *in524);
+    success_is_true write_sector(int cyl, int side, int sec, const uint8_t *in524) override;
+    bool accepts_sector_writes() const override { return true; }
     uint8_t format() const { return format_byte; }
 
     uint8_t trackmap(uint8_t t) override { return (t < MAX_TRACKS && trk_ptrs[t]) ? t : 255; }

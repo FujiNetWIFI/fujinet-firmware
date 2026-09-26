@@ -73,15 +73,6 @@ string fnHttpServiceParser::mac_slots_json()
                 cJSON_AddNumberToObject(s, "sides", dd->num_sides());
             }
 
-            if (dd->has_sit_source())
-            {
-                cJSON *a = cJSON_AddObjectToObject(s, "sit");
-                cJSON_AddStringToObject(a, "inner", dd->sit_inner_filename());
-                cJSON_AddStringToObject(a, "format", dd->sit_archive_kind());
-                cJSON_AddStringToObject(a, "method", dd->sit_method_name());
-                cJSON_AddBoolToObject(a, "ndif", dd->sit_was_ndif());
-                cJSON_AddNumberToObject(a, "bytes", dd->sit_image_len());
-            }
         }
         cJSON_AddItemToArray(slots, s);
     }
@@ -648,19 +639,6 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         host_slot = Config.get_mount_host_slot(drive_slot);
         if (host_slot != HOST_SLOT_INVALID) {
             resultstream << Config.get_mount_path(drive_slot);
-#ifdef BUILD_MAC
-            {
-                DISK_DEVICE *dd = theFuji->get_disk_dev(drive_slot);
-                if (dd != nullptr && dd->has_sit_source())
-                {
-                    resultstream << " -> " << dd->sit_inner_filename()
-                                 << " [" << dd->sit_archive_kind() << " / " << dd->sit_method_name()
-                                 << (dd->sit_was_ndif() ? ", NDIF" : "") << "] "
-                                 << dd->sit_image_len() << " bytes in PSRAM, "
-                                 << (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM) << " free";
-                }
-            }
-#endif
             resultstream << " (" << (Config.get_mount_mode(drive_slot) == fnConfig::mount_modes::MOUNTMODE_READ ? "R" : "W") << ")";
         } else {
             resultstream << "(Empty)";

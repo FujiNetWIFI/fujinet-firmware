@@ -1,5 +1,8 @@
 #ifdef BUILD_MAC
 #include "mediaType.h"
+#include "mediaTypeDCD.h"
+#include "mediaTypeFloppyImage.h"
+#include "mediaTypeMOOF.h"
 
 MediaType::~MediaType()
 {
@@ -20,6 +23,23 @@ void MediaType::unmount()
     {
         fclose(_media_fileh);
         _media_fileh = nullptr;
+    }
+}
+
+// A sector image is a GCR floppy in the floppy slot and an HD20 in slots
+// 1-4; a MOOF only fits the floppy slot.
+MediaType *MediaType::create(mediatype_t type, bool floppy_slot)
+{
+    switch (type)
+    {
+    case MEDIATYPE_MOOF:
+        return floppy_slot ? new MediaTypeMOOF() : nullptr;
+    case MEDIATYPE_DSK:
+        return floppy_slot ? static_cast<MediaType *>(new MediaTypeFloppyImage()) : new MediaTypeDCD();
+    case MEDIATYPE_DC42:
+        return floppy_slot ? static_cast<MediaType *>(new MediaTypeFloppyImage()) : new MediaTypeDCD(0x54);
+    default:
+        return nullptr;
     }
 }
 
