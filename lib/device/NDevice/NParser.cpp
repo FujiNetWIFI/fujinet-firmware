@@ -23,6 +23,9 @@ fujiError_t NParser::write(std::string &buffer)
 
 size_t NParser::available()
 {
+    // A parser set before OPEN has no protocol yet.
+    if (_protocol == nullptr)
+        return 0;
     return _protocol->available();
 }
 
@@ -47,6 +50,11 @@ NetworkStatus NParser::status()
 {
     NetworkStatus ns;
 
+    if (_protocol == nullptr)
+    {
+        ns.error = NDEV_STATUS::NOT_CONNECTED;
+        return ns;
+    }
     _protocol->status(&ns);
     if (_parseError != NDEV_STATUS::SUCCESS)
         ns.error = _parseError;

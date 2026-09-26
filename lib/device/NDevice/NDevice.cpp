@@ -120,19 +120,6 @@ std::string NDevice::network_eol() const
     return network_eol_override.empty() ? SYSTEM_BUS.nativeEOL() : network_eol_override;
 }
 
-#ifdef HAVE_LAST_ERROR
-NDeviceStatus NDevice::status_local(uint8_t mode)
-{
-    NDeviceStatus status;
-
-    (void)mode;
-    status.conn = false;
-    status.err = lastError;
-    status.avail = 0;
-    return status;
-}
-#endif /* HAVE_LAST_ERROR */
-
 // ============================ shared operations =============================
 
 void NDevice::fujidev_open(const FUJI_COMMAND_PACKET &packet)
@@ -159,6 +146,9 @@ void NDevice::fujidev_open(const FUJI_COMMAND_PACKET &packet)
 
     if (!parse_and_instantiate_protocol(spec, IS_DIR_MODE(access), urlParser))
     {
+        _parser = std::make_unique<NErrorParser>(urlParser->isValidUrl()
+                                                 ? NDEV_STATUS::GENERAL
+                                                 : NDEV_STATUS::INVALID_DEVICESPEC);
         SYSTEM_BUS.transaction_error();
         return;
     }
@@ -177,13 +167,10 @@ void NDevice::fujidev_open(const FUJI_COMMAND_PACKET &packet)
 
     if (_protocol->open(urlParser.get(), access, trans_mode) != FUJI_ERROR::NONE)
     {
-#ifdef HAVE_LAST_ERROR
-        lastError = protocol->error;
-#endif /* HAVE_LAST_ERROR */
         Debug_printf("Protocol unable to make connection. Error: %d\n",
                      (unsigned) _protocol->error);
+        _parser = std::make_unique<NErrorParser>(_protocol->error);
         _protocol = nullptr;
-        _parser = nullptr;
         SYSTEM_BUS.transaction_error();
         return;
     }
@@ -273,9 +260,6 @@ void NDevice::fujidev_write(const FUJI_COMMAND_PACKET &packet)
 
     if (_protocol == nullptr || transmitBuffer == nullptr)
     {
-#ifdef HAVE_LAST_ERROR
-        lastError = NDEV_STATUS::NOT_CONNECTED;
-#endif /* HAVE_LAST_ERROR */
         SYSTEM_BUS.transaction_error();
         return;
     }
@@ -298,15 +282,11 @@ NDeviceStatus NDevice::current_status()
 {
     NDeviceStatus nstatus;
 
-    if (_protocol == nullptr)
+    if (_parser == nullptr)
     {
-#ifdef HAVE_LAST_ERROR
-        return status_local(mode);
-#else
         nstatus.avail = 0;
         nstatus.conn = 0;
         nstatus.err = NDEV_STATUS::NOT_CONNECTED;
-#endif /* HAVE_LAST_ERROR */
     }
     else
     {
@@ -480,9 +460,6 @@ bool NDevice::parse_and_instantiate_protocol(std::string &deviceSpec, bool is_di
     if (!url_out->isValidUrl())
     {
         Debug_printf("Invalid devicespec: >%s<\n", deviceSpec.c_str());
-#ifdef HAVE_LAST_ERROR
-        lastError = NDEV_STATUS::INVALID_DEVICESPEC;
-#endif /* HAVE_LAST_ERROR */
         _protocol = nullptr;
         _parser = nullptr;
         return false;
@@ -497,9 +474,8 @@ bool NDevice::parse_and_instantiate_protocol(std::string &deviceSpec, bool is_di
     if (_protocol == nullptr)
     {
         Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), url_out->mRawUrl.c_str());
-#ifdef HAVE_LAST_ERROR
-        lastError = NDEV_STATUS::GENERAL;
-#endif /* HAVE_LAST_ERROR */
+        // The old parser, if any, pointed at the protocol just replaced.
+        _parser = nullptr;
         return false;
     }
 
@@ -683,9 +659,6 @@ void NDevice::fujidev_seek(const FUJI_COMMAND_PACKET &packet)
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     if (fujicore_seek(param_as<uint32_t>(packet, 0)).is_error())
     {
-#ifdef HAVE_LAST_ERROR
-        lastError = NDEV_STATUS::INVALID_POINT;
-#endif /* HAVE_LAST_ERROR */
         SYSTEM_BUS.transaction_error();
         return;
     }
@@ -875,17 +848,12 @@ bool NDevice::poll_interrupt()
     bool hasUpdate = _parser->available() > 0;
     if (!hasUpdate)
     {
-        nDevStatus_t err;
-#ifdef HAVE_LAST_ERROR
-        err = lastError;
-#else
         _protocol->fromInterrupt = true;
         auto nstatus = fujicore_status();
         _protocol->fromInterrupt = false;
         if (!nstatus.conn)
             hasUpdate = true;
-        err = nstatus.err;
-#endif /* HAVE_LAST_ERROR */
+        nDevStatus_t err = nstatus.err;
 
         hasUpdate |= err != NDEV_STATUS::SUCCESS && err != NDEV_STATUS::END_OF_FILE;
     }

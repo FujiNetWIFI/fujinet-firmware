@@ -88,14 +88,6 @@ protected:
 
     uint64_t readAck = 0;
 
-#ifdef HAVE_LAST_ERROR
-    /**
-     * The last operation's error code, remembered so a later bare STATUS
-     * command (no open protocol) can report it.
-     */
-    nDevStatus_t lastError = NDEV_STATUS::SUCCESS;
-#endif /* HAVE_LAST_ERROR */
-
     /** Currently set prefix (CWD) for this N: device. */
     std::string prefix;
 
@@ -127,15 +119,6 @@ protected:
         calling protocol->setDirLongWidth() at all. */
     virtual int dir_long_width() const { return 0; }
 
-#ifdef HAVE_LAST_ERROR
-    /**
-     * Populate a STATUS reply when no protocol is bound. Default just
-     * reports lastError. SIO/RS232/DriveWire override to also serve
-     * IP/netmask/gateway/DNS queries via the mode byte.
-     */
-    virtual NDeviceStatus status_local(uint8_t mode);
-#endif /* HAVE_LAST_ERROR */
-
     void fujidev_open(const FUJI_COMMAND_PACKET &packet);
     void fujidev_close(const FUJI_COMMAND_PACKET &packet);
     virtual void fujidev_read(const FUJI_COMMAND_PACKET &packet);
@@ -158,8 +141,8 @@ protected:
      * Parse a devicespec into a URL and instantiate the matching protocol.
      * On success, `protocol` is set and true is returned, with url_out
      * holding the parsed URL (borrow it -- don't let it outlive protocol).
-     * On failure, `protocol` is left null, lastError/the bus error have
-     * already been signaled, and false is returned.
+     * On failure, `protocol` is left null and false is returned; the
+     * caller signals the bus error.
      */
     bool parse_and_instantiate_protocol(std::string &deviceSpec, bool is_dir,
                                         std::unique_ptr<PeoplesUrlParser> &url_out);

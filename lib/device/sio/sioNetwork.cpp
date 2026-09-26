@@ -173,9 +173,6 @@ void sioNetwork::fujidev_seek(const FUJI_COMMAND_PACKET &packet)
 
     if (fujicore_seek(offset).is_error())
     {
-#ifdef HAVE_LAST_ERROR
-        lastError = NDEV_STATUS::INVALID_POINT;
-#endif /* HAVE_LAST_ERROR */
         SYSTEM_BUS.transaction_error();
         return;
     }
