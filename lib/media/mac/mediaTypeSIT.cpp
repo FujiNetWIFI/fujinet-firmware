@@ -107,22 +107,14 @@ success_is_true MediaTypeSIT::classify()
     RETURN_SUCCESS_IF(_image_type != MEDIATYPE_UNKNOWN);
 }
 
-// Replaces the NDIF data fork in *image_buf with the decoded image. The
-// resource fork is freed as soon as ndif_open() has parsed its chunk table,
-// so it is not held while both image buffers are live.
-static success_is_true sit_mount_decode_ndif(uint8_t **image_buf, uint32_t *image_len,
-                                             uint8_t **rsrc_buf, uint32_t *rsrc_len,
-                                             const char *inner_filename)
+// Decodes an NDIF image whose data fork starts base bytes into data into a new
+// PSRAM buffer. The resource fork is freed once ndif_open_at() has parsed its
+// chunk table, before the decoded image is allocated.
+static success_is_true sit_mount_decode_ndif(FILE *data, uint32_t base, uint8_t **rsrc_buf, uint32_t *rsrc_len,
+                                             uint8_t **out_buf, uint32_t *out_len, const char *inner_filename)
 {
-    FILE *ndif_data_fh = fmemopen(*image_buf, *image_len, "rb");
-    if (ndif_data_fh == nullptr)
-    {
-        Debug_printf("\nStuffIt: NDIF fmemopen() failed for '%s'", inner_filename);
-        RETURN_ERROR_AS_FALSE();
-    }
-
     ndif_image nd;
-    int nrc = ndif_open(&nd, ndif_data_fh, *rsrc_buf, *rsrc_len, &sit_mount_allocator);
+    int nrc = ndif_open_at(&nd, data, base, *rsrc_buf, *rsrc_len, &sit_mount_allocator);
 
     heap_caps_free(*rsrc_buf);
     *rsrc_buf = nullptr;
@@ -131,7 +123,6 @@ static success_is_true sit_mount_decode_ndif(uint8_t **image_buf, uint32_t *imag
     if (nrc != NDIF_OK)
     {
         Debug_printf("\nStuffIt: NDIF decode of '%s' failed to open: %s", inner_filename, ndif_strerror(nrc));
-        fclose(ndif_data_fh);
         RETURN_ERROR_AS_FALSE();
     }
 
@@ -141,7 +132,6 @@ static success_is_true sit_mount_decode_ndif(uint8_t **image_buf, uint32_t *imag
         Debug_printf("\nStuffIt: NDIF image '%s' decodes to %u bytes, over the %u byte PSRAM cap",
                      inner_filename, decoded_len, SIT_MOUNT_MAX_IMAGE);
         ndif_close(&nd);
-        fclose(ndif_data_fh);
         RETURN_ERROR_AS_FALSE();
     }
 
@@ -150,16 +140,12 @@ static success_is_true sit_mount_decode_ndif(uint8_t **image_buf, uint32_t *imag
     {
         Debug_printf("\nStuffIt: no PSRAM for a %u byte decoded NDIF image ('%s')", decoded_len, inner_filename);
         ndif_close(&nd);
-        fclose(ndif_data_fh);
         RETURN_ERROR_AS_FALSE();
     }
 
     sit_mount_sink_ctx nctx = { decoded_buf, decoded_len, 0, SIT_MOUNT_PROGRESS_STEP, "NDIF image" };
     int erc = ndif_extract(&nd, sit_mount_sink, &nctx);
-
     ndif_close(&nd);
-    fclose(ndif_data_fh);
-
     if (erc != NDIF_OK)
     {
         Debug_printf("\nStuffIt: NDIF decode of '%s' failed: %s", inner_filename, ndif_strerror(erc));
@@ -167,9 +153,8 @@ static success_is_true sit_mount_decode_ndif(uint8_t **image_buf, uint32_t *imag
         RETURN_ERROR_AS_FALSE();
     }
 
-    heap_caps_free(*image_buf);
-    *image_buf = decoded_buf;
-    *image_len = nctx.pos;
+    *out_buf = decoded_buf;
+    *out_len = nctx.pos;
     RETURN_SUCCESS_AS_TRUE();
 }
 
@@ -368,39 +353,62 @@ success_is_true MediaTypeSIT::extract(FILE *archive_fh)
                      best->path, best->rsrc_len, SIT_MOUNT_MAX_RSRC);
     }
 
-    _image_buf = static_cast<uint8_t *>(heap_caps_malloc(best->data_len, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM));
-    if (_image_buf == nullptr)
+    // A stored NDIF image is decoded straight from the archive, so its data
+    // fork never has to fit in PSRAM next to the decoded image
+    bool ndif_in_place = _rsrc_buf != nullptr && best->data_method == 0 && ndif_probe(_rsrc_buf, _rsrc_len);
+    if (ndif_in_place)
     {
-        Debug_printf("\nStuffIt: no PSRAM for a %u byte image ('%s')", best->data_len, best->path);
-        sit_close(ar);
-        if (hqx_fh != nullptr)
-            fclose(hqx_fh);
-        if (have_hqx)
-            hqx_close(&hqx);
-        sit_mount_free_locals(ar, e, best);
-        release(); // frees _rsrc_buf
-        Debug_printf("\nStuffIt: extract('%s') end (no PSRAM for image), %u bytes free PSRAM",
-                     archive_filename, static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
-        RETURN_ERROR_AS_FALSE();
+        Debug_printf("\nStuffIt: '%s' is a stored NDIF image - decoding in place, %u bytes free PSRAM",
+                     best->path, static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
+        if (sit_mount_decode_ndif(sit_source, static_cast<uint32_t>(best->data_offset), &_rsrc_buf, &_rsrc_len,
+                                  &_image_buf, &_image_len, best->path).is_error())
+        {
+            sit_close(ar);
+            if (hqx_fh != nullptr)
+                fclose(hqx_fh);
+            if (have_hqx)
+                hqx_close(&hqx);
+            sit_mount_free_locals(ar, e, best);
+            release();
+            RETURN_ERROR_AS_FALSE();
+        }
     }
+    else
+    {
+        _image_buf = static_cast<uint8_t *>(heap_caps_malloc(best->data_len, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM));
+        if (_image_buf == nullptr)
+        {
+            Debug_printf("\nStuffIt: no PSRAM for a %u byte image ('%s')", best->data_len, best->path);
+            sit_close(ar);
+            if (hqx_fh != nullptr)
+                fclose(hqx_fh);
+            if (have_hqx)
+                hqx_close(&hqx);
+            sit_mount_free_locals(ar, e, best);
+            release(); // frees _rsrc_buf
+            Debug_printf("\nStuffIt: extract('%s') end (no PSRAM for image), %u bytes free PSRAM",
+                         archive_filename, static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
+            RETURN_ERROR_AS_FALSE();
+        }
 
-    sit_mount_sink_ctx dctx = { _image_buf, best->data_len, 0, SIT_MOUNT_PROGRESS_STEP, "data fork" };
-    rc = sit_extract(ar, best, SIT_FORK_DATA, sit_mount_sink, &dctx, &prog);
-    if (rc != SIT_OK)
-    {
-        Debug_printf("\nStuffIt: extracting '%s' failed: %s", best->path, sit_strerror(rc));
-        sit_close(ar);
-        if (hqx_fh != nullptr)
-            fclose(hqx_fh);
-        if (have_hqx)
-            hqx_close(&hqx);
-        sit_mount_free_locals(ar, e, best);
-        release();
-        Debug_printf("\nStuffIt: extract('%s') end (data fork extract failed), %u bytes free PSRAM",
-                     archive_filename, static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
-        RETURN_ERROR_AS_FALSE();
+        sit_mount_sink_ctx dctx = { _image_buf, best->data_len, 0, SIT_MOUNT_PROGRESS_STEP, "data fork" };
+        rc = sit_extract(ar, best, SIT_FORK_DATA, sit_mount_sink, &dctx, &prog);
+        if (rc != SIT_OK)
+        {
+            Debug_printf("\nStuffIt: extracting '%s' failed: %s", best->path, sit_strerror(rc));
+            sit_close(ar);
+            if (hqx_fh != nullptr)
+                fclose(hqx_fh);
+            if (have_hqx)
+                hqx_close(&hqx);
+            sit_mount_free_locals(ar, e, best);
+            release();
+            Debug_printf("\nStuffIt: extract('%s') end (data fork extract failed), %u bytes free PSRAM",
+                         archive_filename, static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
+            RETURN_ERROR_AS_FALSE();
+        }
+        _image_len = dctx.pos;
     }
-    _image_len = dctx.pos;
 
     sit_close(ar);
     if (hqx_fh != nullptr)
@@ -419,7 +427,22 @@ success_is_true MediaTypeSIT::extract(FILE *archive_fh)
     {
         Debug_printf("\nStuffIt: '%s' is an NDIF (Disk Copy 6) image - decoding, %u bytes free PSRAM",
                      _inner_filename, static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
-        if (sit_mount_decode_ndif(&_image_buf, &_image_len, &_rsrc_buf, &_rsrc_len, _inner_filename).is_error())
+        uint8_t *decoded = nullptr;
+        uint32_t decoded_len = 0;
+        FILE *fork = fmemopen(_image_buf, _image_len, "rb");
+        success_is_true ok = success_is_true(false);
+        if (fork != nullptr)
+        {
+            ok = sit_mount_decode_ndif(fork, 0, &_rsrc_buf, &_rsrc_len, &decoded, &decoded_len, _inner_filename);
+            fclose(fork);
+        }
+        if (ok.is_success())
+        {
+            heap_caps_free(_image_buf);
+            _image_buf = decoded;
+            _image_len = decoded_len;
+        }
+        else
         {
             release();
             Debug_printf("\nStuffIt: extract('%s') end (NDIF decode failed), %u bytes free PSRAM",
