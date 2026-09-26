@@ -15,7 +15,8 @@
 class MediaTypeSIT : public MediaType
 {
 public:
-    explicit MediaTypeSIT(bool floppy_slot) : _floppy_slot(floppy_slot) {}
+    // entry: which disk image of the archive, 1-based; 0 = the first
+    MediaTypeSIT(bool floppy_slot, int entry) : _floppy_slot(floppy_slot), _entry(entry) {}
     ~MediaTypeSIT() override;
 
     mediatype_t mount(FILE *f, uint32_t disksize) override;
@@ -40,9 +41,12 @@ public:
         return _inner->write_sector(cyl, side, sec, in524);
     }
     const MediaTypeDCD *dcd() const override { return _inner ? _inner->dcd() : nullptr; }
+    int image_count() const override { return _image_count; }
 
 private:
     bool _floppy_slot;
+    int _entry;
+    int _image_count = 0;
     bool _readonly = true;
     std::unique_ptr<MediaType> _inner;  // the unpacked image's media
 

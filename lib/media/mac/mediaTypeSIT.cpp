@@ -269,26 +269,38 @@ success_is_true MediaTypeSIT::extract(FILE *archive_fh)
         RETURN_ERROR_AS_FALSE();
     }
 
-    // Best disk image: an image-like name wins, then the largest data fork.
-    // sit_extract() works on a saved entry, so one pass is enough.
+    // The disk images are the entries with an image-like name, in archive
+    // order, and _entry picks one (0 = the first). Without any, the largest
+    // data fork is the image. sit_extract() works on a saved entry.
+    int wanted = _entry > 0 ? _entry : 1;
+    int images = 0;
     bool have_candidate = false;
-    bool best_preferred = false;
+    bool picked_image = false;
 
     while ((rc = sit_next_entry(ar, e)) == 1)
     {
         if (e->data_len == 0)
             continue;
 
-        bool preferred = sit_mount_has_image_ext(e->path);
-        if (!have_candidate ||
-            (preferred && !best_preferred) ||
-            (preferred == best_preferred && e->data_len > best->data_len))
+        if (sit_mount_has_image_ext(e->path))
+        {
+            if (++images == wanted)
+            {
+                *best = *e;
+                picked_image = true;
+            }
+        }
+        else if (images == 0 && (!have_candidate || e->data_len > best->data_len))
         {
             *best = *e;
-            best_preferred = preferred;
             have_candidate = true;
         }
     }
+    if (images > 0)
+        have_candidate = picked_image;
+    else if (wanted > 1)
+        have_candidate = false;
+    _image_count = images > 0 ? images : 1;
 
     if (rc < 0)
     {
