@@ -75,7 +75,7 @@ public:
     mediatype_t mount(FILE *f) { return mount(f, 0); };
 
     // Before mount(): a read-only mount never blesses the volume
-    void set_readonly(bool ro) { readonly = ro; }
+    void set_readonly(bool ro) override { readonly = ro; }
 
     virtual bool status() override {return (_media_fileh != nullptr);}
 
@@ -84,9 +84,10 @@ public:
     void reset_seek_opto() {last_block_num = 0xFFFFFFFF;};
 
     // Write out the cached run; called on unmount, on status requests and when idle
-    error_is_true flush();
+    error_is_true flush() override;
 
-    void flush_if_idle();
+    void flush_if_idle() override;
+    const MediaTypeDCD *dcd() const override { return this; }
 
     // x != 0 forces a fixed data offset (used for DiskCopy 4.2 images)
     MediaTypeDCD(int x = 0) : offset(x) { if (x) image_kind = image_kind_t::DC42; }
