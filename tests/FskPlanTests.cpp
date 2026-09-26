@@ -3591,8 +3591,10 @@ TEST_CASE("Time base (source-level): play_fsk_chunk reuses the resume machinery 
 
     // The compensation sits after the preload-failure handling and before the IRG, and only
     // applies when the dispatch did not resume.
+    // (The progressive path decides its own time base earlier, inside its startup gate; this test is about the
+    // full-preload path, whose compensation is the first one after the preload-failure handling.)
     const size_t preload_fail = play.find("skipping emission");
-    const size_t apply = play.find("fsk_timebase_applies(resumed, timebase_first, _fsk_motor_on_us != 0,");
+    const size_t apply = play.find("fsk_timebase_applies(resumed, timebase_first, _fsk_motor_on_us != 0,", preload_fail);
     const size_t irg = play.find("// Leading IRG (or its remainder after a resume)");
     REQUIRE(preload_fail != std::string::npos);
     REQUIRE(apply != std::string::npos);

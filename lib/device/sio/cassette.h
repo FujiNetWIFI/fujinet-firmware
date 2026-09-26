@@ -10,6 +10,8 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h> // SemaphoreHandle_t for _cassette_lock / _fsk_channel_lock
 #include "fsk_plan.h"      // FSK_RUN_MAX_CHUNKS for the run descriptors below
+#include "fsk_progressive.h" // progressive raw-FSK loading: producer/consumer model shared with the host tests
+#include <freertos/task.h>  // TaskHandle_t for the progressive loader
 #endif
 
 #include "bus.h"
@@ -184,6 +186,10 @@ private:
     // _cassette_lock. Idempotent.
     void stop_and_reset_for_reposition();
 
+    // Same, for a reposition that lands inside the progressive store (fsk_progressive.h): only the
+    // transmission state is reset; the store and its loader are kept.
+    void stop_transmission_keep_store();
+
     // Resolves an absolute target time to the run-relative (R', Q') position
     // (cassette_time_plan.h) over the shared _file, restoring the caller's
     // cursor on return. Caller must hold _cassette_lock.
@@ -279,7 +285,7 @@ private:
     bool fsk_signal_begin(size_t seed_chunk = 0, size_t seed_value = 0,
                           uint64_t seed_skip_ticks = 0); // alloc RMT channel + simple encoder, detach UART TX; false on failure
 
-    enum class FskEmit : uint8_t { NOT_STARTED, NATURAL, FROZEN };
+    enum class FskEmit : uint8_t { NOT_STARTED, NATURAL, FROZEN }; // NATURAL + _fsk_underrun: the encoder caught the loader
     // ONE rmt_transmit using the pointer table as payload, then an event-driven
     // wait: natural completion, or a MOTOR/HTTP claim that freezes the position,
     // routes DATA IN back to the UART (MARK) and leaves the muted RMT draining.
@@ -302,7 +308,7 @@ private:
     static bool IRAM_ATTR fsk_tx_done_cb(rmt_channel_handle_t chan,
                                          const rmt_tx_done_event_data_t *edata, void *arg);
 
-    void fsk_free_blocks();    // free every preloaded block + the pointer table; idempotent
+    void fsk_free_blocks();    // free every preloaded block + the pointer table (stops the loader first); idempotent
 
     // Preloads a contiguous zero-IRG FSK run into ONE PSRAM block table, each
     // chunk block-aligned, filling the run descriptors (_fsk_run_*). On any
@@ -346,6 +352,60 @@ private:
     size_t   _fsk_run_block_base[FSK_RUN_MAX_CHUNKS]   = {}; // per-chunk first block index
     // Encoder-cursor position within the run (ISR-only, set before rmt_transmit):
     size_t   _fsk_run_chunk_index   = 0;       // which run chunk the cursor is in
+
+    // ----------------------------------------------------------------------
+    // Progressive raw-FSK loading (fsk_progressive.h)
+    // ----------------------------------------------------------------------
+    //
+    // A run whose first chunk is large is not preloaded before the first edge: a LOADER TASK reads it
+    // sequentially into the block table while the RMT plays it, publishing what it has loaded with
+    // release stores; the encoder callback reads only what is published (fsk_prog_next_value) and stops
+    // explicitly (_fsk_underrun) if it ever catches the producer. _fsk_prog shares the run descriptor
+    // arrays above (_fsk_run_value_counts / _fsk_run_block_base) and the block table (_fsk_blocks); the
+    // table is allocated once at full capacity, so the transaction payload pointer never changes.
+    //
+    // File ownership: while the loader is alive it is the only task that reads _file, with one
+    // exception: fsk_prog_walk0() (walk-state reads for a rewind), which takes _file_lock like the
+    // loader does. Every other access to _file (header reads outside the store, rewind walks,
+    // mount/umount) first quiesces the loader (fsk_loader_stop).
+    bool              _fsk_prog_on = false;            // the resident block table is a progressive store
+    FskProgRun        _fsk_prog;                       // producer/consumer state of the store
+    FskProgLoader     _fsk_loader;                     // producer cursor (touched only by the loader task)
+    TaskHandle_t      _fsk_loader_task = nullptr;      // non-null from creation until fsk_loader_stop() joins it
+    SemaphoreHandle_t _fsk_loader_done = nullptr;      // given by the loader task as its last act
+    SemaphoreHandle_t _fsk_loader_join = nullptr;      // serialises concurrent fsk_loader_stop() callers
+    SemaphoreHandle_t _file_lock = nullptr;            // one file read at a time between the loader and walk0
+    fnFile           *_fsk_prog_file = nullptr;        // file the store was loaded from
+    size_t            _fsk_prog_filesize = 0;
+    CassetteWalkState _fsk_prog_walk0{};               // walker state at the store's first chunk (lazy)
+    bool              _fsk_prog_walk0_valid = false;
+    volatile bool     _fsk_underrun = false;           // set by the encoder ISR when it caught the producer
+    bool              _fsk_loader_suspect = false;     // the file's position is unknown after a read fault (loader task only)
+    uint32_t          _fsk_loader_restarts = 0;        // times a FAILED loader was resumed from its cursor
+
+    // Starts a progressive run at `offset` (chunk 0 of a new store): allocates the table, publishes chunk
+    // 0 and starts the loader. False (nothing left allocated) when it cannot; the caller then takes the
+    // full-preload path.
+    bool   fsk_prog_begin(size_t offset, uint16_t chunk_length, uint16_t irg_ms, const FskBounds &b);
+    // Stops the loader and waits until it has left every file read. Idempotent; never frees the store.
+    void   fsk_loader_stop();
+    // Resumes a FAILED loader from the exact byte it stopped at (published data and cursor untouched).
+    // False when there is nothing to resume or the restart budget is spent.
+    bool   fsk_loader_restart();
+    static long   fsk_loader_ops_tell(void *ctx);
+    static bool   fsk_loader_ops_seek(void *ctx, size_t off);
+    static size_t fsk_loader_ops_read(void *ctx, uint8_t *dst, size_t n);
+    static bool   fsk_loader_ops_stopping(void *ctx);
+    // Index of the store chunk whose header is at `offset`, or SIZE_MAX (no store / other file / not in it).
+    size_t fsk_prog_store_find(size_t offset) const;
+    // Walker state at the store's first chunk (cached; reads the file under _file_lock on first use).
+    bool   fsk_prog_walk0(CassetteWalkState &out);
+    // Rewind of `back_us` from the current position answered from the store alone (no file reads except
+    // fsk_prog_walk0's). False -> the caller uses the file-based resolution.
+    bool   fsk_prog_resolve_rewind_fast(uint64_t back_us, CassetteTargetResolution &out);
+    static size_t   fsk_loader_read(void *ctx, size_t file_off, uint8_t *dst, size_t n);
+    static uint8_t *fsk_loader_alloc(void *ctx, size_t n);
+    static void     fsk_loader_main(void *arg);
 
     // ----------------------------------------------------------------------
     // MOTOR-aware raw-FSK pause / resume + freeze-first rewind

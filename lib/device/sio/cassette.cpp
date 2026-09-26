@@ -16,6 +16,12 @@
 
 #include "led.h"
 
+// Progressive raw-FSK loading (fsk_progressive.h): a run whose first chunk is large is loaded by a task
+// while the RMT plays it. 0 restores the full-preload path for every run.
+#ifndef FSK_PROGRESSIVE_ENABLED
+#define FSK_PROGRESSIVE_ENABLED 1
+#endif
+
 #ifdef ESP_PLATFORM
 #include <esp_rom_gpio.h>
 #include <driver/gpio.h>
@@ -221,6 +227,14 @@ sioCassette::sioCassette()
     if (_fsk_channel_lock == nullptr)
         Debug_println("sioCassette: FAILED to create _fsk_channel_lock — MOTOR pause / freeze-first rewind disabled for raw FSK");
 
+    // Progressive raw-FSK loading: serialises the loader's file reads with fsk_prog_walk0(), and lets
+    // fsk_loader_stop() join the loader task. Without them the progressive path is simply not used.
+    _file_lock = xSemaphoreCreateMutex();
+    _fsk_loader_done = xSemaphoreCreateBinary();
+    _fsk_loader_join = xSemaphoreCreateMutex();
+    if (_file_lock == nullptr || _fsk_loader_done == nullptr || _fsk_loader_join == nullptr)
+        Debug_println("sioCassette: FAILED to create the loader semaphores — progressive raw FSK disabled");
+
     // Wakes the raw-FSK emit wait (RMT done, MOTOR edge, HTTP claim).
     _fsk_evt_sem = xSemaphoreCreateBinary();
     if (_fsk_evt_sem == nullptr)
@@ -230,6 +244,11 @@ sioCassette::sioCassette()
 
 void sioCassette::close_cassette_file()
 {
+#ifdef ESP_PLATFORM
+    // Record mode replaces the file a progressive loader may still be reading: let it go first.
+    fsk_loader_stop();
+    _fsk_prog_file = nullptr;
+#endif
     // for closing files used for writing
     if (_file != nullptr)
     {
@@ -273,6 +292,11 @@ void sioCassette::umount_cassette_file()
         unmount_turbo_loader();
         Debug_println("CAS file closed.");
 #ifdef ESP_PLATFORM
+        // The progressive loader reads _file: quiesce it BEFORE the caller closes the file. The blocks
+        // and descriptors stay (the RMT may still be playing them and would then stop at an explicit
+        // underrun); the cassette task frees them.
+        fsk_loader_stop();
+        _fsk_prog_file = nullptr; // the store no longer belongs to any mounted file
         // Position state only. A draining RMT transaction keeps its own
         // resources; fsk_background() releases them when the hardware is done.
         // The cached run is invalidated, never freed here: this can be called
@@ -288,6 +312,8 @@ void sioCassette::mount_cassette_file(fnFile *f, size_t fz)
 {
     tape_offset = 0;
 #ifdef ESP_PLATFORM
+    fsk_loader_stop();        // a previous image's producer must not read the new file
+    _fsk_prog_file = nullptr; // ... and its store is never reused
     _fsk_pos_valid = false; // never resume a frozen position of a previous image
     _fsk_resident_valid = false;
     _fsk_keep_resident = false;
@@ -525,22 +551,36 @@ bool sioCassette::rewind_seconds(uint32_t seconds)
     bool ok = false;
     do
     {
-        // Origin: the walker time at R (tape_offset) plus the frozen Q, if any.
-        // Wall-clock time spent paused is never an input.
-        CassetteWalkState current{};
-        if (!walk_tape_time(tape_offset, UINT64_MAX, current))
-            break; // no changes; the frozen position stays as it is
-
-        const uint64_t origin_us =
-            current.time_us + (_fsk_pos_valid ? _fsk_pos_us : 0ULL);
         const uint64_t back_us = static_cast<uint64_t>(seconds) * 1000000ULL;
-        const uint64_t target_us = (origin_us > back_us) ? (origin_us - back_us) : 0;
-
         CassetteTargetResolution res{};
-        if (!resolve_target_time(target_us, res))
-            break; // no changes
 
-        stop_and_reset_for_reposition(); // still under the lock; drain-aware
+        // A target inside the chunks the progressive loader has already published is resolved from the
+        // store's chunk metadata alone: the future of the run is never loaded for a rewind, and the
+        // loader keeps filling behind the new position.
+        const bool in_store = fsk_prog_resolve_rewind_fast(back_us, res);
+        if (!in_store)
+        {
+            // The file-based walk needs the file to itself.
+            fsk_loader_stop();
+
+            // Origin: the walker time at R (tape_offset) plus the frozen Q, if any.
+            // Wall-clock time spent paused is never an input.
+            CassetteWalkState current{};
+            if (!walk_tape_time(tape_offset, UINT64_MAX, current))
+                break; // no changes; the frozen position stays as it is
+
+            const uint64_t origin_us =
+                current.time_us + (_fsk_pos_valid ? _fsk_pos_us : 0ULL);
+            const uint64_t target_us = (origin_us > back_us) ? (origin_us - back_us) : 0;
+
+            if (!resolve_target_time(target_us, res))
+                break; // no changes
+        }
+
+        if (in_store)
+            stop_transmission_keep_store(); // still under the lock; drain-aware
+        else
+            stop_and_reset_for_reposition(); // still under the lock; drain-aware
 
         // Commit under the lock; t2k_boot_sent/qros_boot_sent are session state,
         // not tape-position state (see rewind() above), so left untouched.
@@ -641,12 +681,30 @@ void sioCassette::stop_and_reset_for_reposition()
     // draining transaction's cleanup frees the blocks instead of keeping them.
     _fsk_resident_valid = false;
     _fsk_keep_resident = false;
+    _fsk_prog_file = nullptr; // a progressive store is never found again (while draining it is freed later)
+    _fsk_prog_walk0_valid = false;
     fsk_signal_end();   // synchronous teardown of a completed/never-started run; no-op when draining
     fsk_free_blocks();  // idempotent; no-op when draining
     _fsk_pos_valid = false;
     if (_rmt_active)
         turbo2000_deinit_rmt();
     qros_pilot_off();   // self-guards on _qros_pilot_active internally
+    turbo2000_free_pending_buf();
+#endif
+}
+
+// Reposition inside a progressive store: like stop_and_reset_for_reposition() but the store and its
+// loader stay (the new position is one of its chunks). Only the frozen position is dropped, the
+// caller sets the new one; a muted, draining transmission is left to fsk_background(), which keeps the
+// store because _fsk_keep_resident stays set.
+void sioCassette::stop_transmission_keep_store()
+{
+#ifdef ESP_PLATFORM
+    fsk_signal_end();   // no-op while draining
+    _fsk_pos_valid = false;
+    if (_rmt_active)
+        turbo2000_deinit_rmt();
+    qros_pilot_off();
     turbo2000_free_pending_buf();
 #endif
 }
@@ -871,9 +929,31 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
     {
         // looking for a data header while handling baud changes along the way
         Debug_printf("Offset: %u\r\n", offset);
+        size_t hdr_read = 0;
+#ifdef ESP_PLATFORM
+        // A header inside the progressive store is answered from its chunk descriptors: no file access
+        // (the loader may be using the file). Any other header quiesces the loader and drops the store
+        // first, so nothing else ever reads the file while it runs.
+        const size_t store_chunk = fsk_prog_store_find(offset);
+        if (store_chunk != SIZE_MAX)
+        {
+            std::memcpy(atari_sector_buffer, _fsk_prog.hdr[store_chunk], sizeof(struct tape_FUJI_hdr));
+            hdr_read = sizeof(struct tape_FUJI_hdr);
+        }
+        else
+        {
+            if (_fsk_prog_on)
+            {
+                fsk_loader_stop();
+                fsk_free_blocks(); // no-op while a muted transmission drains; its cleanup frees the store
+            }
+#endif
         fnio::fseek(_file, offset, SEEK_SET);
-        size_t hdr_read =
+        hdr_read =
             fnio::fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
+#ifdef ESP_PLATFORM
+        }
+#endif
         // A complete 8-byte header must be present before any field is used;
         // fewer bytes remaining is end-of-tape.
         if (hdr_read < sizeof(struct tape_FUJI_hdr))
@@ -2313,6 +2393,13 @@ void sioCassette::fsk_free_blocks()
     _fsk_resident_valid = false; // the cached run goes away with its blocks
     _fsk_keep_resident = false;
 
+    // The producer writes into the blocks: it must be gone before they are released.
+    fsk_loader_stop();
+    _fsk_prog_on = false;
+    _fsk_prog_file = nullptr;
+    _fsk_prog_walk0_valid = false;
+    _fsk_underrun = false;
+
     fsk_release_blocks(_fsk_blocks, _fsk_block_size, _fsk_block_count);
 
     _fsk_payload_len = 0;
@@ -2576,6 +2663,14 @@ bool sioCassette::fsk_preload_run(const size_t *run_offsets,
 // odd -> logical 1. Zero-duration values still consume their index (parity)
 // but emit no portion. Long values split into <=32767-tick portions via
 // fsk_next_portion, carried across calls in O(1) cursor state.
+//
+// PROGRESSIVE runs (_fsk_prog_on): the payload is still being loaded by the loader task, so values are
+// fetched only through fsk_prog_next_value(), which reads nothing that has not been published (release
+// store by the producer, acquire load here). If the next value is not published the callback ends the
+// waveform at a clean symbol boundary and sets _fsk_underrun (and _fsk_encoding_complete): it never
+// emits a value it does not have, and the cassette task turns that into an explicit stop.
+// The host tests extract this function verbatim between the FSK_ENCODE_CB_BEGIN / END markers.
+// FSK_ENCODE_CB_BEGIN
 size_t IRAM_ATTR sioCassette::fsk_encode_cb(const void *data, size_t data_size,
                                             size_t symbols_written,
                                             size_t symbols_free,
@@ -2633,6 +2728,7 @@ size_t IRAM_ATTR sioCassette::fsk_encode_cb(const void *data, size_t data_size,
     // The pointed-to blocks are also immutable internal-RAM for the transaction.
     const uint8_t *const *blocks = (const uint8_t *const *)data;
     const size_t blk = self->_fsk_block_size; // bytes per block
+    const bool prog = self->_fsk_prog_on;     // progressive store: values only through fsk_prog_next_value()
     size_t num = 0;
 
     // Physical-progress bookkeeping for the MOTOR pause position (no effect on
@@ -2670,6 +2766,26 @@ size_t IRAM_ATTR sioCassette::fsk_encode_cb(const void *data, size_t data_size,
                 // as one continuous waveform. Each value consumes an index
                 // (parity) but a zero-duration value emits nothing.
                 bool got_value = false;
+                bool underrun = false;
+                if (prog)
+                {
+                    uint16_t pv = 0;
+                    bool plvl = false;
+                    const FskProgNext nx = fsk_prog_next_value(
+                        self->_fsk_prog, blocks, blk, self->_fsk_run_chunk_index, self->_fsk_value_index,
+                        self->_fsk_payload_pos, self->_fsk_value_count, pv, plvl);
+                    if (nx == FskProgNext::VALUE)
+                    {
+                        self->_fsk_remaining_ticks = fsk_ticks_for_value(pv);
+                        self->_fsk_level_high = plvl;
+                        got_value = true;
+                    }
+                    else if (nx == FskProgNext::UNDERRUN)
+                    {
+                        underrun = true;
+                    }
+                }
+                else
                 for (;;)
                 {
                     // Current chunk still has values?
@@ -2710,9 +2826,12 @@ size_t IRAM_ATTR sioCassette::fsk_encode_cb(const void *data, size_t data_size,
                     // No more chunks in the run -> the whole run is complete.
                     break;
                 }
-                if (!got_value) // no more values remain in the entire run
+                if (!got_value) // no more values remain in the entire run (or, progressive: none published)
                 {
-                    // All values consumed -> the whole waveform is complete.
+                    // All values consumed -> the whole waveform is complete. An underrun ends the
+                    // encoded waveform the same way; _fsk_underrun tells the cassette task which it was.
+                    if (underrun)
+                        self->_fsk_underrun = true;
                     if (half == 0)
                     {
                         // Clean symbol boundary: complete.
@@ -2752,7 +2871,9 @@ size_t IRAM_ATTR sioCassette::fsk_encode_cb(const void *data, size_t data_size,
         // chunk's exhaustion is.
         if (self->_fsk_remaining_ticks == 0 &&
             self->_fsk_value_index >= self->_fsk_value_count &&
-            self->_fsk_run_chunk_index + 1 >= self->_fsk_run_chunk_count)
+            (prog ? fsk_prog_at_end(self->_fsk_prog, self->_fsk_run_chunk_index, self->_fsk_value_index,
+                                    self->_fsk_value_count)
+                  : self->_fsk_run_chunk_index + 1 >= self->_fsk_run_chunk_count))
         {
             self->_fsk_encoding_complete = true;
             *done = true; // set true ONLY here on full run completion
@@ -2774,6 +2895,7 @@ size_t IRAM_ATTR sioCassette::fsk_encode_cb(const void *data, size_t data_size,
     (void)data_size;
     return num; // more remains; *done == false; RMT will call again
 }
+// FSK_ENCODE_CB_END
 
 // ---------------------------------------------------------------------
 // MOTOR-aware transmission lifecycle constants.
@@ -2937,6 +3059,7 @@ bool sioCassette::fsk_signal_begin(size_t seed_chunk, size_t seed_value,
     _fsk_stop_flag = false;
     _fsk_hw_done = false;
     _fsk_encoding_complete = false;
+    _fsk_underrun = false;
     _fsk_motor_edge = false;
     if (_fsk_evt_sem != nullptr)
         xSemaphoreTake(_fsk_evt_sem, 0);
@@ -3040,10 +3163,14 @@ bool sioCassette::fsk_signal_begin(size_t seed_chunk, size_t seed_value,
     _fsk_signal_active = true;
     _fsk_tx_state = FskTxState::PLAYING;
 
+    // The host tests extract this block verbatim between the FSK_SEED_BEGIN / END markers.
+    // FSK_SEED_BEGIN
     // Position the ISR cursor. Seed = (chunk, value) of the resident run plus
     // the ticks of that value already consumed, so a resume can land anywhere,
     // including inside a long value, without replaying it.
-    const size_t nchunks = _fsk_run_chunk_count;
+    // Progressive store: the seed chunk is an ABSOLUTE store index, and only published chunks exist.
+    const size_t nchunks = _fsk_prog_on ? static_cast<size_t>(fsk_pub_load(&_fsk_prog.pub_chunks))
+                                        : _fsk_run_chunk_count;
     const size_t c = (nchunks > 0 && seed_chunk < nchunks) ? seed_chunk : 0;
     _fsk_run_chunk_index = c;
     _fsk_value_count = (nchunks > 0) ? _fsk_run_value_counts[c] : 0;
@@ -3071,6 +3198,7 @@ bool sioCassette::fsk_signal_begin(size_t seed_chunk, size_t seed_value,
             _fsk_payload_pos += 2;
         }
     }
+    // FSK_SEED_END
 
     return true;
 }
@@ -3410,6 +3538,223 @@ void sioCassette::fsk_cleanup_drained()
         fsk_free_blocks();
 }
 
+// =====================================================================
+// Progressive raw-FSK loading (ESP-only): the loader task and its lifecycle.
+// The pure producer/consumer logic lives in fsk_progressive.{h,cpp} and is host-tested; this is only
+// the glue that runs it on a task and gives it the file and the PSRAM.
+// =====================================================================
+
+// Core 0 carries the network stack (remote TNFS / HTTP reads); the cassette task and the RMT interrupt
+// are on core 1 (fnLoop, priority 17). The loader stays below every network task.
+// The stack must hold a whole file read on any backing filesystem: a TNFS transaction, or an HTTP(S)
+// window fetch through esp_http_client + mbedtls, which is by far the deepest.
+static constexpr uint32_t FSK_LOADER_STACK_BYTES = 16384;
+static constexpr UBaseType_t FSK_LOADER_PRIORITY = 5;
+static constexpr BaseType_t FSK_LOADER_CORE = 0;
+
+// The file's own operations for the resilient reader (fsk_prog_resilient_read). All called with _file_lock held.
+long sioCassette::fsk_loader_ops_tell(void *ctx)
+{
+    return fnio::ftell(static_cast<sioCassette *>(ctx)->_fsk_prog_file);
+}
+bool sioCassette::fsk_loader_ops_seek(void *ctx, size_t off)
+{
+    return fnio::fseek(static_cast<sioCassette *>(ctx)->_fsk_prog_file, static_cast<long int>(off), SEEK_SET) == 0;
+}
+size_t sioCassette::fsk_loader_ops_read(void *ctx, uint8_t *dst, size_t n)
+{
+    return fnio::fread(dst, 1, n, static_cast<sioCassette *>(ctx)->_fsk_prog_file);
+}
+bool sioCassette::fsk_loader_ops_stopping(void *ctx)
+{
+    return fsk_pub_load(&static_cast<sioCassette *>(ctx)->_fsk_prog.stop_req) != 0;
+}
+
+// Producer read callback: one positional read of the store file. A read that comes back short before the end
+// of the file is a transport fault (the stream position is unknown from then on: a remote READ has no offset,
+// and stdio does not repeat a seek to where it believes it is); it is repaired with a real absolute seek and a
+// re-read of the whole request, or it is reported as 0 so the producer does not publish it.
+size_t sioCassette::fsk_loader_read(void *ctx, size_t file_off, uint8_t *dst, size_t n)
+{
+    sioCassette *self = static_cast<sioCassette *>(ctx);
+    if (self->_fsk_prog_file == nullptr || self->_file_lock == nullptr)
+        return 0;
+    const FskFileOps ops = {self, &sioCassette::fsk_loader_ops_tell, &sioCassette::fsk_loader_ops_seek,
+                            &sioCassette::fsk_loader_ops_read, &sioCassette::fsk_loader_ops_stopping};
+    FskReadStats rs; // fault counts of this call (not kept)
+    xSemaphoreTake(self->_file_lock, portMAX_DELAY);
+    const size_t r = fsk_prog_resilient_read(ops, self->_fsk_prog_filesize, self->_fsk_loader_suspect,
+                                             rs, file_off, dst, n);
+    xSemaphoreGive(self->_file_lock);
+    return r;
+}
+
+// Payload blocks live in PSRAM exactly like the full-preload blocks (the RMT ISR reads them through the cache).
+uint8_t *sioCassette::fsk_loader_alloc(void *, size_t n)
+{
+    return static_cast<uint8_t *>(heap_caps_malloc(n, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+}
+
+void sioCassette::fsk_loader_main(void *arg)
+{
+    sioCassette *self = static_cast<sioCassette *>(arg);
+    FskProgLoader &L = self->_fsk_loader;
+    FskProgStep st;
+    do
+    {
+        const uint32_t faults_before = L.faults;
+        st = fsk_prog_step(L);
+        if (st == FskProgStep::PROGRESS && L.faults != faults_before)
+            vTaskDelay(pdMS_TO_TICKS(250)); // a read fault (already retried and re-synchronised inside): breathe, then again
+        // Nearly every step blocks in a file read; a step served from a partially filled block does
+        // not, so give equal-priority tasks their turn.
+        taskYIELD();
+    } while (st == FskProgStep::PROGRESS);
+    // Last touch of shared state; after the give only the task's own stack is used.
+    xSemaphoreGive(self->_fsk_loader_done);
+    vTaskDelete(nullptr);
+}
+
+void sioCassette::fsk_loader_stop()
+{
+    if (_fsk_loader_join == nullptr)
+        return;
+    xSemaphoreTake(_fsk_loader_join, portMAX_DELAY);
+    if (_fsk_loader_task != nullptr)
+    {
+        fsk_pub_store(&_fsk_prog.stop_req, 1);
+        xSemaphoreTake(_fsk_loader_done, portMAX_DELAY); // the loader has left its last file read
+        _fsk_loader_task = nullptr;
+    }
+    xSemaphoreGive(_fsk_loader_join);
+}
+
+bool sioCassette::fsk_loader_restart()
+{
+    if (!_fsk_prog_on || _fsk_prog_file == nullptr || _file_lock == nullptr || _fsk_loader_done == nullptr ||
+        _fsk_loader_restarts >= 8 || fsk_prog_state(_fsk_prog) != FskProgState::FAILED)
+        return false;
+    fsk_loader_stop(); // joins the dead task (its cursor and the published part stay as they were)
+    fsk_prog_loader_recover(_fsk_loader);
+    _fsk_loader_suspect = true; // the position is unknown until a read completes after a real re-seek
+    ++_fsk_loader_restarts;
+    xSemaphoreTake(_fsk_loader_done, 0);
+    if (xTaskCreatePinnedToCore(&sioCassette::fsk_loader_main, "fskload", FSK_LOADER_STACK_BYTES, this,
+                                FSK_LOADER_PRIORITY, &_fsk_loader_task, FSK_LOADER_CORE) != pdPASS)
+    {
+        _fsk_loader_task = nullptr;
+        fsk_pub_store(&_fsk_prog.state, static_cast<uint32_t>(FskProgState::FAILED));
+        return false;
+    }
+    return true;
+}
+
+bool sioCassette::fsk_prog_begin(size_t offset, uint16_t chunk_length, uint16_t irg_ms, const FskBounds &b)
+{
+    if (_file == nullptr || _file_lock == nullptr || _fsk_loader_done == nullptr || _fsk_loader_join == nullptr)
+        return false;
+
+    fsk_free_blocks(); // any previous store / resident run, and its loader
+    if (_fsk_tx_state != FskTxState::IDLE || _fsk_blocks != nullptr)
+        return false; // a draining transmission still owns the old blocks
+
+    const size_t nb = fsk_prog_table_blocks(filesize, offset);
+    uint8_t **tbl = static_cast<uint8_t **>(
+        heap_caps_calloc(nb, sizeof(uint8_t *), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+    if (tbl == nullptr)
+    {
+        Debug_printf("FSK progressive: table alloc failed (%u entries)\r\n", (unsigned)nb);
+        return false;
+    }
+    _fsk_blocks = tbl;
+    _fsk_block_size = FSK_PROG_BLOCK_BYTES;
+    _fsk_block_count = nb;
+    _fsk_payload_len = 0;
+    _fsk_run_chunk_count = 0; // the encoder takes its chunk count from the published state
+    _fsk_run_chunk_index = 0;
+
+    fsk_prog_bind(_fsk_prog, _fsk_run_value_counts, _fsk_run_block_base, tbl, nb);
+    const uint8_t h[8] = {'f', 's', 'k', ' ',
+                          static_cast<uint8_t>(chunk_length & 0xFF), static_cast<uint8_t>(chunk_length >> 8),
+                          static_cast<uint8_t>(irg_ms & 0xFF), static_cast<uint8_t>(irg_ms >> 8)};
+    if (!fsk_prog_add_first_chunk(_fsk_prog, offset, h, b.data_avail, b.next_offset))
+    {
+        fsk_free_blocks();
+        return false;
+    }
+    fsk_prog_loader_init(_fsk_loader, _fsk_prog, &sioCassette::fsk_loader_read, this,
+                         &sioCassette::fsk_loader_alloc, this, filesize);
+    _fsk_prog_file = _file;
+    _fsk_prog_filesize = filesize;
+    _fsk_prog_walk0_valid = false;
+    _fsk_underrun = false;
+    _fsk_loader_suspect = false;
+    _fsk_loader_restarts = 0;
+    _fsk_prog_on = true;
+
+    xSemaphoreTake(_fsk_loader_done, 0); // drop any stale token
+    if (xTaskCreatePinnedToCore(&sioCassette::fsk_loader_main, "fskload", FSK_LOADER_STACK_BYTES, this,
+                                FSK_LOADER_PRIORITY, &_fsk_loader_task, FSK_LOADER_CORE) != pdPASS)
+    {
+        _fsk_loader_task = nullptr;
+        Debug_printf("FSK progressive: loader task creation failed\r\n");
+        fsk_free_blocks();
+        return false;
+    }
+    return true;
+}
+
+size_t sioCassette::fsk_prog_store_find(size_t offset) const
+{
+    if (!_fsk_prog_on || _fsk_blocks == nullptr || _fsk_prog_file == nullptr || _fsk_prog_file != _file ||
+        _fsk_prog_filesize != filesize)
+        return SIZE_MAX;
+    return fsk_prog_find_chunk(_fsk_prog, offset);
+}
+
+bool sioCassette::fsk_prog_walk0(CassetteWalkState &out)
+{
+    if (_fsk_prog_walk0_valid)
+    {
+        out = _fsk_prog_walk0;
+        return true;
+    }
+    if (!_fsk_prog_on || _fsk_prog_file == nullptr || _file_lock == nullptr)
+        return false;
+
+    // Positional reader over the shared _file. Each read takes _file_lock, so it interleaves with the
+    // loader's reads instead of racing them; the loader re-seeks by itself if the cursor moved.
+    auto reader = [](void *ctx, size_t offset, uint8_t *dst, size_t n) -> size_t
+    {
+        sioCassette *self = static_cast<sioCassette *>(ctx);
+        xSemaphoreTake(self->_file_lock, portMAX_DELAY);
+        size_t r = 0;
+        if (fnio::fseek(self->_file, static_cast<long int>(offset), SEEK_SET) == 0)
+            r = fnio::fread(dst, 1, n, self->_file);
+        xSemaphoreGive(self->_file_lock);
+        return r;
+    };
+
+    CassetteWalkState w{};
+    const size_t first = _fsk_prog.hdr_off[0];
+    if (!cas_walk_tape_time(filesize, reader, this, first, UINT64_MAX, w) || w.offset != first)
+        return false;
+    _fsk_prog_walk0 = w;
+    _fsk_prog_walk0_valid = true;
+    out = w;
+    return true;
+}
+
+bool sioCassette::fsk_prog_resolve_rewind_fast(uint64_t back_us, CassetteTargetResolution &out)
+{
+    if (fsk_prog_store_find(tape_offset) == SIZE_MAX)
+        return false;
+    CassetteWalkState w0{};
+    if (!fsk_prog_walk0(w0))
+        return false;
+    return fsk_prog_resolve_rewind(_fsk_prog, w0, tape_offset, _fsk_pos_valid, _fsk_pos_us, back_us, out);
+}
+
 // fsk_run_value_fn adapter over the resident block table (reads only already
 // loaded PSRAM; no file I/O).
 uint16_t sioCassette::fsk_resident_run_value_reader(void *ctx, size_t chunk_index,
@@ -3541,7 +3886,13 @@ size_t sioCassette::play_fsk_chunk(size_t offset, uint16_t chunk_length,
         // Keep the loaded run resident: the resume of this position then needs
         // neither the header scan nor the SD preload. `result` still holds the
         // structural offset after the run at this point.
-        if (_fsk_blocks != nullptr && _fsk_run_chunk_count > 0)
+        if (_fsk_prog_on && _fsk_blocks != nullptr)
+        {
+            // A progressive store keeps its own identity (_fsk_prog_file, chunk headers) and its loader
+            // keeps filling it while the tape is frozen.
+            _fsk_keep_resident = true;
+        }
+        else if (_fsk_blocks != nullptr && _fsk_run_chunk_count > 0)
         {
             _fsk_resident_valid = true;
             _fsk_keep_resident = true;
@@ -3605,7 +3956,94 @@ size_t sioCassette::play_fsk_chunk(size_t offset, uint16_t chunk_length,
     result = next_offset;             // next after chunk 0 (updated as the run grows)
 
     bool preload_ok = true;
-    if (reuse)
+    FskProgPlan plan;
+
+    // ---- progressive raw-FSK run (loader task + published runway) -----------------------------------
+    // Reused when this dispatch starts at a chunk of the store the loader is (or was) filling: a MOTOR
+    // resume, or a rewind that landed inside it. Started for a run whose first chunk is large. Every other
+    // run (small MARK stubs, tiny images, no PSRAM/task) takes the full-preload path below, which is also
+    // the fallback when no safe runway can be established.
+    bool prog = false;
+    size_t prog_first = 0; // first chunk of the store this dispatch plays from
+#if FSK_PROGRESSIVE_ENABLED
+    {
+        const size_t k = fsk_prog_store_find(starting_offset);
+        if (k != SIZE_MAX)
+        {
+            prog = true;
+            prog_first = k;
+        }
+        else if (!reuse &&
+                 fsk_prog_wanted(true, bounds.header_complete, bounds.structurally_truncated, data_avail))
+        {
+            prog = fsk_prog_begin(starting_offset, chunk_length, irg_ms, bounds);
+        }
+    }
+#endif
+    if (prog && fsk_prog_state(_fsk_prog) == FskProgState::FAILED)
+    {
+        // The loader gave up on a read earlier (network trouble). Its cursor names the last confirmed byte:
+        // resume from there instead of dropping what is loaded.
+        (void)fsk_loader_restart(); // (a failed restart simply leaves the gate to fall back)
+    }
+
+    if (prog)
+    {
+        // Startup gate: the waveform starts only once the PUBLISHED data covers the prefill plus a
+        // minimum of tape time ahead of the start position (fsk_prog_plan_start). The tape has been
+        // running since MOTOR ON, so the time base is re-evaluated every pass with the current elapsed
+        // time and the run starts from the position it has reached.
+        const bool tb = fsk_timebase_applies(resumed, timebase_first, _fsk_motor_on_us != 0, true);
+        uint64_t last_q = q0;
+        for (;;)
+        {
+            FskProgPlanIn in{};
+            in.irg_us = irg_us;
+            in.q0_us = q0;
+            in.elapsed_us = tb ? esp_timer_get_time() - _fsk_motor_on_us : 0;
+            in.timebase = tb;
+            in.min_runway_us = FSK_PROG_MIN_RUNWAY_US;
+            in.first_chunk = prog_first;
+            plan = fsk_prog_plan_start(_fsk_prog, in);
+            if (!plan.inert_unknown)
+                last_q = plan.q_start;
+            if (plan.failed && fsk_prog_state(_fsk_prog) == FskProgState::FAILED && fsk_loader_restart())
+            {
+                vTaskDelay(1); // the loader gave up while we waited: resumed from its cursor, keep waiting
+                continue;
+            }
+            if (plan.ready || plan.failed)
+                break;
+            if (motor_off())
+            {
+                freeze(last_q); // the loader keeps filling the store while the tape is frozen
+                goto done;
+            }
+            vTaskDelay(1); // let the loader run; MOTOR is polled every tick
+        }
+        if (plan.failed)
+        {
+            // The producer died before a safe runway existed and nothing has been played: drop the
+            // store and take the full-preload path for this run.
+            Debug_printf("FSK progressive: loader stopped before the runway, full preload\r\n");
+            fsk_free_blocks();
+            prog = false;
+            if (!_mounted)
+                goto done; // being unmounted: its file is about to be closed, never start a full read on it
+        }
+        else
+        {
+            q_start = plan.q_start;
+            split = cas_run_pos_split(irg_us, q_start);
+            p0 = plan.p0;
+        }
+    }
+
+    if (prog)
+    {
+        // The full-preload scan/preload/time-base steps do not apply: fall through to the IRG hold.
+    }
+    else if (reuse)
     {
         result = _fsk_resident_next;
     }
@@ -3670,8 +4108,12 @@ size_t sioCassette::play_fsk_chunk(size_t offset, uint16_t chunk_length,
     // (q already includes the IRG, so it is not counted twice), using exactly the
     // (q, p0, split) machinery a resume uses. Only across tape that carries no data
     // (cas_fsk_inert_ticks); a resume or rewind keeps its own position untouched.
-    if (fsk_timebase_applies(resumed, timebase_first, _fsk_motor_on_us != 0,
-                             preload_ok && _fsk_run_chunk_count > 0))
+    if (prog)
+    {
+        // Progressive run: the time base was applied by fsk_prog_plan_start().
+    }
+    else if (fsk_timebase_applies(resumed, timebase_first, _fsk_motor_on_us != 0,
+                                  preload_ok && _fsk_run_chunk_count > 0))
     {
         const int64_t tb_elapsed_us = esp_timer_get_time() - _fsk_motor_on_us;
         const uint64_t tb_want = fsk_timebase_wave_want(irg_us, q0, tb_elapsed_us);
@@ -3723,14 +4165,24 @@ size_t sioCassette::play_fsk_chunk(size_t offset, uint16_t chunk_length,
             for (size_t c = 0; c < _fsk_run_chunk_count; ++c)
                 run_total_values += _fsk_run_value_counts[c];
         }
-        if (preload_ok && run_total_values > 0)
+        if (preload_ok && (prog || run_total_values > 0))
         {
             // Where in the resident run the waveform (re)starts.
             size_t seed_chunk = 0;
             size_t seed_value = 0;
             uint64_t seed_skip = 0;
             bool run_finished = false;
-            if (p0 > 0)
+            if (prog)
+            {
+                // From the plan (chunk indexes are absolute in the store).
+                seed_chunk = prog_first + plan.seed_chunk;
+                seed_value = plan.seed_value;
+                seed_skip = plan.seed_skip;
+                run_finished = plan.run_finished;
+                if (run_finished)
+                    result = _fsk_prog.next_offset; // the position is past the end of a complete run
+            }
+            else if (p0 > 0)
             {
                 const FskLocateResult loc = cas_fsk_locate_ticks(
                     _fsk_run_value_counts, _fsk_run_chunk_count,
@@ -3750,10 +4202,18 @@ size_t sioCassette::play_fsk_chunk(size_t offset, uint16_t chunk_length,
                     goto done;
                 }
 
-                const FskRunSummary run_shape = fsk_run_summarize_from(
-                    _fsk_blocks, _fsk_block_size, _fsk_run_block_base,
-                    _fsk_run_value_counts, _fsk_run_chunk_count,
-                    seed_chunk, seed_value, seed_skip);
+                // A progressive run whose PUBLISHED part carries LOW time certainly has LOW time (has_space):
+                // no summary needed. One whose published part is all MARK was only released once FINAL
+                // (fsk_prog_plan_start), so the whole run is loaded and is classified exactly like a
+                // full-preload run (an all-MARK run skips the RMT lifecycle).
+                const FskRunSummary run_shape =
+                    (prog && plan.has_space)
+                        ? FskRunSummary{true, 0}
+                        : fsk_run_summarize_from(_fsk_blocks, _fsk_block_size, _fsk_run_block_base,
+                                                 _fsk_run_value_counts,
+                                                 prog ? static_cast<size_t>(fsk_pub_load(&_fsk_prog.pub_chunks))
+                                                      : _fsk_run_chunk_count,
+                                                 seed_chunk, seed_value, seed_skip);
 
                 if (!run_shape.has_space)
                 {
@@ -3800,6 +4260,23 @@ size_t sioCassette::play_fsk_chunk(size_t offset, uint16_t chunk_length,
                         // that instant is a plain natural end.
                         if (emit == FskEmit::NATURAL && late == FskStopReason::HTTP)
                             freeze(irg_us + _fsk_frozen_wave_ticks);
+                        else if (emit == FskEmit::NATURAL && prog && _fsk_underrun)
+                        {
+                            // The encoder caught the loader: everything published has been played and
+                            // nothing else was emitted (no filler, no gap inside the waveform). Stop
+                            // explicitly, keeping the position. A live producer resumes from it once
+                            // the runway is rebuilt; a dead one ends the run here.
+                            _fsk_underrun = false;
+                            const FskProgState pst = fsk_prog_state(_fsk_prog);
+                            const uint32_t pchunks = fsk_pub_load(&_fsk_prog.pub_chunks);
+                            const bool resumable_failure = (pst == FskProgState::FAILED && _fsk_loader_restarts < 8);
+                            if (pst == FskProgState::STOPPED || (pst == FskProgState::FAILED && !resumable_failure))
+                                result = _fsk_prog.chunk_next[pchunks > 0 ? pchunks - 1 : 0];
+                            else
+                                freeze(irg_us + _fsk_frozen_wave_ticks); // LOADING, or FAILED but resumable
+                        }
+                        else if (emit == FskEmit::NATURAL && prog)
+                            result = _fsk_prog.next_offset; // the whole run played: the loader is FINAL
                         else if (emit == FskEmit::NOT_STARTED)
                             setup_failed(); // rmt_transmit never started: nothing played
                     }
@@ -3821,7 +4298,7 @@ done:
     fsk_signal_end();
 
     if (!_fsk_keep_resident)
-        fsk_free_blocks();
+        fsk_free_blocks(); // joins the loader first
 
     return result;
 

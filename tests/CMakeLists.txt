@@ -241,6 +241,60 @@ if(FUJINET_TARGET STREQUAL "ATARI")
   )
 
   add_test(NAME cassette_time_plan_tests COMMAND cassette_time_plan_tests)
+
+  # ----------------------------------------------------------------------------
+  # Progressive raw-FSK loading (fsk_progressive.{h,cpp}): producer/consumer model, run in the tests
+  # against the PRODUCTION RMT encoder callback and cursor seeding, which are extracted verbatim from
+  # cassette.cpp at configure time (between the FSK_ENCODE_CB_* / FSK_SEED_* markers) and compiled into
+  # the test around a small host stand-in for the sioCassette members they touch. Nothing of the
+  # encoder is re-implemented in the test.
+  # ----------------------------------------------------------------------------
+  set(FSK_CASSETTE_SRC ${CMAKE_SOURCE_DIR}/lib/device/sio/cassette.cpp)
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${FSK_CASSETTE_SRC})
+  file(READ ${FSK_CASSETTE_SRC} FSK_CASSETTE_TEXT)
+  string(REPLACE "\r\n" "\n" FSK_CASSETTE_TEXT "${FSK_CASSETTE_TEXT}")
+
+  function(fsk_extract_marked out_name begin_marker end_marker)
+    string(FIND "${FSK_CASSETTE_TEXT}" "${begin_marker}" _b)
+    string(FIND "${FSK_CASSETTE_TEXT}" "${end_marker}" _e)
+    if(_b EQUAL -1 OR _e EQUAL -1 OR _e LESS _b)
+      message(FATAL_ERROR "cassette.cpp: markers ${begin_marker} / ${end_marker} not found")
+    endif()
+    string(LENGTH "${begin_marker}" _bl)
+    math(EXPR _start "${_b} + ${_bl}")
+    math(EXPR _len "${_e} - ${_start}")
+    string(SUBSTRING "${FSK_CASSETTE_TEXT}" ${_start} ${_len} _body)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/${out_name} "${_body}")
+  endfunction()
+
+  fsk_extract_marked(fsk_encode_cb.inc "// FSK_ENCODE_CB_BEGIN" "// FSK_ENCODE_CB_END")
+  fsk_extract_marked(fsk_seed.inc "// FSK_SEED_BEGIN" "// FSK_SEED_END")
+
+  add_executable(fsk_progressive_tests
+    FskProgressiveTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/sio/fsk_progressive.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/sio/cassette_time_plan.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/sio/fsk_plan.cpp
+  )
+
+  target_include_directories(fsk_progressive_tests PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/device/
+    ${CMAKE_SOURCE_DIR}/lib/device/sio/
+    ${CMAKE_SOURCE_DIR}/components_pc/
+  )
+  target_compile_definitions(fsk_progressive_tests PRIVATE
+    FSK_PROGRESSIVE_TESTS_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+  )
+  find_package(Threads)
+  if(Threads_FOUND)
+    target_link_libraries(fsk_progressive_tests PRIVATE Threads::Threads)
+    target_compile_definitions(fsk_progressive_tests PRIVATE FSK_PROGRESSIVE_TESTS_THREADS=1)
+  endif()
+
+  add_test(NAME fsk_progressive_tests COMMAND fsk_progressive_tests)
 endif()
 
 # ------------------------------------------------------------------------------
