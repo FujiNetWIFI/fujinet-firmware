@@ -363,6 +363,13 @@ void systemBus::service()
     // modes disrupt normal SIO handling - should probably make a separate task for this)
     _sio_process_queue();
 
+    // Release a muted, draining raw-FSK RMT transmission once its hardware has
+    // signalled completion. Serviced on every iteration, ahead of the NetStream /
+    // CPM / cassette early returns, whether or not the cassette is mounted or
+    // active. Non-blocking, and it steps aside while a command frame is asserted.
+    if (_fujiDev != nullptr)
+        _fujiDev->cassette()->fsk_background();
+
     bool is_motor_asserted = false;
     is_motor_asserted = motor_asserted();
 
@@ -404,6 +411,12 @@ void systemBus::service()
     // check if cassette is mounted and enabled first
     if (_fujiDev->cassette()->is_mounted() && Config.get_cassette_enabled())
     { // the test which tape activation mode
+        // A raw-FSK freeze whose muted RMT is still draining (or whose rewind is
+        // still being applied) cannot resume yet. It is always false for the other
+        // cassette formats and on non-ESP builds. Evaluated once per iteration so
+        // the enable, disable and dispatch decisions below agree.
+        const bool resume_blocked = _fujiDev->cassette()->fsk_resume_blocked();
+
         if (_fujiDev->cassette()->has_pulldown())
         {                                                    // motor line mode
 #ifdef ESP_PLATFORM
@@ -412,7 +425,12 @@ void systemBus::service()
             if (is_motor_asserted)
 #endif
             {
-                if (_fujiDev->cassette()->is_active() == false) // keep this logic because motor line mode
+                // While resume is blocked, MOTOR may already be back ON but the
+                // cassette must not be enabled yet: enabling switches the UART to
+                // the cassette baud, and the SIO command path below would then run
+                // at that baud. MOTOR simply stays HIGH; once the block clears the
+                // very next iteration enables the cassette and resumes it.
+                if (_fujiDev->cassette()->is_active() == false && !resume_blocked)
                 {
                     Debug_println("MOTOR ON: activating cassette");
                     _fujiDev->cassette()->sio_enable_cassette();
@@ -428,7 +446,22 @@ void systemBus::service()
             }
         }
 
-        if (_fujiDev->cassette()->is_active() == true) // handle cassette data traffic
+        // An HTTP rewind can freeze the tape while MOTOR is still ON, i.e. with the
+        // cassette already enabled at the cassette baud. Hand the UART back to the
+        // standard SIO baud for as long as resume is blocked; the next iteration
+        // after the block clears re-enables the cassette (MOTOR is still HIGH).
+        // Motor-line mode only: without a motor line nothing would re-enable it.
+        if (resume_blocked && _fujiDev->cassette()->is_active() == true &&
+            _fujiDev->cassette()->has_pulldown())
+        {
+            Debug_println("FSK resume blocked: de-activating cassette until drain/rewind completes");
+            _fujiDev->cassette()->sio_disable_cassette();
+        }
+
+        // Handle cassette data traffic, unless playback cannot (re)start yet. In
+        // that case fall through so unrelated SIO commands keep being serviced at
+        // the standard baud; the cassette resumes by itself once it is safe.
+        if (_fujiDev->cassette()->is_active() == true && !resume_blocked)
         {
             _fujiDev->cassette()->sio_handle_cassette(); //
             return;                                      // break!

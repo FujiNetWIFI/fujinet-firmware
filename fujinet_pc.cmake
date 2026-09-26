@@ -356,6 +356,8 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     lib/device/sio/printer.h lib/device/sio/printer.cpp
     lib/device/sio/printerlist.h lib/device/sio/printerlist.cpp
     lib/device/sio/cassette.h lib/device/sio/cassette.cpp
+    lib/device/sio/cassette_time_plan.h lib/device/sio/cassette_time_plan.cpp
+    lib/device/sio/fsk_plan.h lib/device/sio/fsk_plan.cpp
     lib/device/sio/sioFuji.h lib/device/sio/sioFuji.cpp
     lib/device/sio/sioNetwork.h lib/device/sio/sioNetwork.cpp
     lib/device/sio/netstream.h lib/device/sio/netstream.cpp
