@@ -59,6 +59,7 @@ protected:
 
     // The Pico was told a disk is in ('s'/'d'), so unmount() may send 'r'
     bool _disk_inserted = false;
+    int _archive_entry = 0;
 
     bool is_dcd_slot() { return disk_num >= '0' && disk_num < '0' + MAC_DCD_SLOTS; }
     bool is_floppy_slot() { return disk_num == '0' + MAC_FLOPPY_SLOT; }
@@ -91,6 +92,10 @@ public:
 
     // What is actually loaded, as opposed to what the config names (web UI)
     bool is_loaded() { return _disk != nullptr; }
+    // Which disk image of an archive the next mount takes (1-based, 0 = the
+    // first), and how many the mounted file holds
+    void set_archive_entry(int entry) { _archive_entry = entry; }
+    int image_count() { return _disk != nullptr ? _disk->image_count() : 0; }
     bool is_sector_image() { return _disk != nullptr && _disk->accepts_sector_writes(); }
     int num_sides() { return _disk != nullptr ? _disk->num_sides : 0; }
     uint32_t size_in_blocks() { return _disk != nullptr ? _disk_size_in_blocks : 0; }

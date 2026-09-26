@@ -5,6 +5,7 @@
 #include "fujiDevice.h"
 
 #include <cstdint>
+#include <string>
 
 #include "../../include/debug.h"
 #include "bus.h"
@@ -27,6 +28,7 @@ class macFuji : public fujiDevice
 protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
+    void fan_out_archive(uint8_t deviceSlot, const std::string &path, disk_access_flags_t mode);
 
 public:
     macFuji();
@@ -35,6 +37,10 @@ public:
     void setup() override;
     void process(mac_cmd_t cmd) override {};
 
+    // A slot filename may name one disk image of an archive, "Foo.sit#2". A
+    // plain archive name mounts its first image and fans the others out.
+    success_is_true fujicore_mount_disk_image_success(uint8_t deviceSlot,
+                                                      disk_access_flags_t access_mode) override;
     macFloppy *bootdisk() { return &_fnDisks[MAC_FLOPPY_SLOT].disk_dev; }
 };
 

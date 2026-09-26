@@ -25,7 +25,7 @@ mediatype_t macFloppy::mount(FILE *f, const char *filename, uint32_t disksize,
 
   // Mounted before it is published: the bus task uses _disk while an
   // archive is still being unpacked
-  MediaType *media = (disk_type == MEDIATYPE_SIT) ? new MediaTypeSIT(is_floppy_slot())
+  MediaType *media = (disk_type == MEDIATYPE_SIT) ? new MediaTypeSIT(is_floppy_slot(), _archive_entry)
                                                   : MediaType::create(disk_type, is_floppy_slot());
   if (media == nullptr)
   {
