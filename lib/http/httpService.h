@@ -175,6 +175,8 @@ public:
 
 #ifdef BUILD_MAC
     static esp_err_t get_handler_sitdownload(httpd_req_t *req);
+    static esp_err_t get_handler_mac_activity(httpd_req_t *req);
+    static esp_err_t get_handler_mac_slots(httpd_req_t *req);
 #endif
 
     // Google Drive OAuth2 relay-based endpoints

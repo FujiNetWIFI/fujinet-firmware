@@ -294,6 +294,8 @@ int IRAM_ATTR macFloppy::step()
 
 void macFloppy::update_track_buffers()
 {
+  if (device_active && _disk != nullptr)
+    act_reads++;
   change_track(0);
   change_track(1);
 }
@@ -385,6 +387,8 @@ void macFloppy::write_capture_end()
   }
   if (n == 0)
     Debug_printf("\nFloppy write: no data field found in capture");
+  act_writes += written;
+  act_errors += (n > written) ? n - written : 0;
   if (written)
     reload_track_buffers();
 }
@@ -562,11 +566,17 @@ void macFloppy::process(mac_cmd_t cmd)
     sector_num = ((uint32_t)s[0] << 16) + ((uint32_t)s[1] << 8) + (uint32_t)s[2];
     Debug_printf("\nDCD sector request: %06lx", sector_num);
     if (_disk->read(sector_num, buffer))
+    {
       Debug_printf("\nError Reading Sector %06lx",sector_num);
+      act_errors++;
+    }
+    else
+      act_reads++;
     // todo: error handling
     SYSTEM_BUS.write(buffer, sizeof(buffer));
     break;
   case 'T':
+    act_status++;
     // flush the write cache before the Mac looks at status
     if (_disk != nullptr && is_dcd_slot())
       static_cast<MediaTypeDCD *>(_disk)->flush();
@@ -590,10 +600,12 @@ void macFloppy::process(mac_cmd_t cmd)
     if (_disk == nullptr || readonly || _disk->write(sector_num, buffer))
     {
       Debug_printf("\nError Writing Sector %06lx", sector_num);
+      act_errors++;
       SYSTEM_BUS.write((uint8_t)'e');
     }
     else
     {
+      act_writes++;
       SYSTEM_BUS.write((uint8_t)'w');
     }
     break;

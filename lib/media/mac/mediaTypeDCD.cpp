@@ -271,8 +271,16 @@ void MediaTypeDCD::check_hfs_volume()
     }
 
     uint16_t sig = be16(&mdb[0]);
+    if (sig == MFS_SIGNATURE || sig == HFS_SIGNATURE)
+    {
+        // drVN sits at offset 36 in both the MFS and the HFS header
+        uint8_t vn_len = mdb[36] > 27 ? 27 : mdb[36];
+        memcpy(volume_name, &mdb[37], vn_len);
+        volume_name[vn_len] = 0;
+    }
     if (sig == MFS_SIGNATURE)
     {
+        fs_kind = fs_kind_t::MFS;
         Debug_printf("\r\nDCD: MFS volume");
         return;
     }
@@ -281,6 +289,7 @@ void MediaTypeDCD::check_hfs_volume()
         Debug_printf("\r\nDCD: no HFS/MFS signature in block 2 (%04x); the Mac will probably call this disk damaged", sig);
         return;
     }
+    fs_kind = fs_kind_t::HFS;
 
     uint16_t nm_al_blks = be16(&mdb[18]);   // drNmAlBlks
     uint32_t al_blk_siz = be32(&mdb[20]);   // drAlBlkSiz (bytes)
@@ -295,7 +304,8 @@ void MediaTypeDCD::check_hfs_volume()
     Debug_printf("\r\nDCD: HFS volume \"%s\": %u alloc blocks x %lu bytes, needs %lu blocks, image provides %lu",
                  name, nm_al_blks, (unsigned long)al_blk_siz, (unsigned long)needed, (unsigned long)_media_num_sectors);
 
-    if (needed > _media_num_sectors)
+    truncated = needed > _media_num_sectors;
+    if (truncated)
         Debug_printf("\r\nDCD: WARNING image is truncated (short by %lu blocks); the Mac will report it as damaged",
                      (unsigned long)(needed - _media_num_sectors));
 }
@@ -315,6 +325,7 @@ void MediaTypeDCD::check_blessed()
     uint32_t fndr_info0 = be32(&blk[92]); // drFndrInfo[0], MDB offset 0x5C
     if (fndr_info0 != 0)
     {
+        boot = boot_t::BLESSED;
         Debug_printf("\r\nDCD: HFS volume blessed, System Folder id %lu", (unsigned long)fndr_info0);
         return;
     }
@@ -357,10 +368,12 @@ void MediaTypeDCD::check_blessed()
 
     if (sysfolder_id == 0)
     {
+        boot = boot_t::NO_SYSTEM;
         Debug_printf("\r\nDCD: HFS volume has no System Folder at the root (not bootable)");
         return;
     }
 
+    boot = boot_t::UNBLESSED;
     if (readonly)
     {
         Debug_printf("\r\nDCD: HFS volume is not blessed (System Folder id %lu); mount read/write to fix",
@@ -397,6 +410,7 @@ void MediaTypeDCD::check_blessed()
     }
 
     flush();
+    boot = boot_t::BLESSED_NOW;
     Debug_printf("\r\nDCD: HFS volume was not blessed: blessed System Folder id %lu", (unsigned long)sysfolder_id);
 }
 
