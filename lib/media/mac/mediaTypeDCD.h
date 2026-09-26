@@ -57,6 +57,14 @@ public:
     enum class image_kind_t { UNKNOWN, VOLUME, DRIVE, DC42 };
     image_kind_t image_kind = image_kind_t::UNKNOWN;
 
+    // What mount() found in the volume header, for the web UI
+    enum class fs_kind_t { UNKNOWN, MFS, HFS };
+    enum class boot_t { UNKNOWN, NO_SYSTEM, UNBLESSED, BLESSED, BLESSED_NOW };
+    fs_kind_t fs_kind = fs_kind_t::UNKNOWN;
+    boot_t boot = boot_t::UNKNOWN;
+    char volume_name[28] = "";
+    bool truncated = false;       // the volume claims more blocks than the image holds
+
     virtual bool read(uint32_t blockNum, uint8_t* buffer) override;
     virtual bool write(uint32_t blockNum,  uint8_t* buffer) override;
     virtual void unmount() override;

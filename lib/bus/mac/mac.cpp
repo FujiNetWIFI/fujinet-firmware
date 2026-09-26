@@ -3,6 +3,7 @@
 #include "mac_ll.h"
 #include "macFuji.h"
 #include "fnSystem.h"
+#include "fnConfig.h"
 #include <cstdio>
 
 #include "../../include/debug.h"
@@ -124,6 +125,7 @@ void systemBus::handle_floppy_command(int c)
     // turn motor on
     Debug_printf("\nMotor ON");
     floppy_ll.start();
+    floppy_dev().act_spinning = true;
     write((uint8_t)'M');
     break;
   case 6:
@@ -131,14 +133,20 @@ void systemBus::handle_floppy_command(int c)
     Debug_printf("\nMotor OFF");
     floppy_ll.report_served("motor off");
     floppy_ll.stop();
+    floppy_dev().act_spinning = false;
     write((uint8_t)'F');
     break;
   case 7:
     // eject
     Debug_printf("\neject - unmounting");
     floppy_ll.stop();
+    floppy_dev().act_spinning = false;
     floppy_dev().unmount();
     write((uint8_t)'E');
+    // The Mac ejected it: clear the slot like the web UI's Eject does
+    theFuji->get_disk(MAC_FLOPPY_SLOT)->reset();
+    Config.clear_mount(MAC_FLOPPY_SLOT);
+    Config.save();
     break;
   default:
     write((uint8_t)'X');
