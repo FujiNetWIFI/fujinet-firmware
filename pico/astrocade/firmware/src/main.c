@@ -18,14 +18,31 @@
 
 int main(void)
 {
+#if PICO_RP2350
+    /* RP2350 at its stock core voltage: 200 MHz, the clock Minty ships on
+     * the same RP2354A. Still ~100 ns per bus-loop iteration against the
+     * Z80's ~1 us Enable width. */
+    set_sys_clock_khz(200000, true);
+#else
     /* 250 MHz: ~80 ns per bus-loop iteration against the Z80's ~1 us
      * Enable width. Voltage first, then clock, per the datasheet. */
     vreg_set_voltage(VREG_VOLTAGE_1_15);
     sleep_ms(2);
     set_sys_clock_khz(250000, true);
+#endif
 
     gpio_init_mask(BUS_GPIO_MASK);
     gpio_set_dir_in_masked(BUS_GPIO_MASK);
+#ifdef FUJICADE_BUS_NO_PULLS
+    for (uint pin = 0; pin < 32; pin++)
+        if (BUS_GPIO_MASK & (1u << pin))
+            gpio_disable_pulls(pin);
+#endif
+#ifdef FUJICADE_VSENSE_PIN
+    gpio_init(FUJICADE_VSENSE_PIN);
+    gpio_set_dir(FUJICADE_VSENSE_PIN, false);
+    gpio_disable_pulls(FUJICADE_VSENSE_PIN);
+#endif
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, true);
     gpio_put(PICO_DEFAULT_LED_PIN, true);

@@ -38,7 +38,7 @@ void __not_in_flash_func(astrocade_core1_main)(void)
     for (;;) {
         uint32_t pins = sio_hw->gpio_in;
 
-        if ((pins & EN_MASK) == 0) {
+        if ((pins & SERVE_MASK) == SERVE_WANT) {
             /* Re-read once: we may have caught the very edge of Enable with
              * a straggling address line still settling through its buffer. */
             pins = sio_hw->gpio_in;
@@ -86,8 +86,9 @@ void __not_in_flash_func(astrocade_core1_main)(void)
                 }
             }
 
-            /* One event per assertion. */
-            while ((sio_hw->gpio_in & EN_MASK) == 0)
+            /* One event per assertion. (Also let go if the console loses
+             * power mid-cycle: a dead console's Enable reads low forever.) */
+            while ((sio_hw->gpio_in & SERVE_MASK) == SERVE_WANT)
                 ;
             gpio_set_dir_in_masked(DATA_MASK);
         }
