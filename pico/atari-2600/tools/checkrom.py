@@ -19,7 +19,8 @@ That is what lets a static scan be a real proof here, where on a console with
 an unmaskable vblank interrupt it could only ever be a heuristic.
 
 A client may declare DATA ranges with --data $LO-$HI (repeatable, console
-addresses). The scan skips them rather than disassembling them. That is not a
+addresses), or --data B:$LO-$HI for bank B alone -- every bank is mapped at
+$1000, so an unqualified range applies to all of them. The scan skips them rather than disassembling them. That is not a
 way to silence a finding: it exists because a dispatch table is the one piece
 of data whose bytes are ADDRESSES, so sooner or later one of them is $81 or
 $91 and the linear walk reports a STA (zp,X) that no assembler ever emitted.
@@ -28,7 +29,7 @@ lucky rather than correct. Code stays fully scanned; only the ranges a build
 can name are stepped over, and build.sh derives them from the assembler's own
 listing so they cannot drift from the source.
 
-Usage: checkrom.py [--data $LO-$HI]... image.bin [image2.bin ...]
+Usage: checkrom.py [--data [B:]$LO-$HI]... image.bin [image2.bin ...]
 """
 
 import sys
@@ -131,10 +132,15 @@ def check(path, data=()):
     banks = [(b * BANK, "bank %d" % b) for b in range(fixed // BANK)]
     for start, label in banks + [(fixed, "fixed half")]:
         pc = 0
-        base = BASE if start == 0 else 0x1800
+        # Every bank is mapped at $1000 and the fixed half at $1800. (This
+        # used to be BASE for bank 0 only, which reported bank 1's $1234 as
+        # $1A34 and made a data range for any bank but 0 unwritable.)
+        base = 0x1800 if start == fixed else BASE
+        bank = start // BANK if start != fixed else None
         while pc < BANK - 2:
             addr = base + pc
-            skip = next((hi - addr + 1 for lo, hi in data if lo <= addr <= hi),
+            skip = next((hi - addr + 1 for b, lo, hi in data
+                         if (b is None or b == bank) and lo <= addr <= hi),
                         0)
             if skip:
                 pc += skip
@@ -164,11 +170,16 @@ def check(path, data=()):
 
 
 def parse_data(spec):
-    """$1204-$1219, or 1204-1219. Console addresses, inclusive."""
+    """$1204-$1219, 1204-1219, or 3:$1204-$1219 (bank 3 only). Console
+    addresses, inclusive."""
+    bank = None
+    if ":" in spec:
+        b, _, spec = spec.partition(":")
+        bank = int(b, 0)
     lo, _, hi = spec.partition("-")
     if not hi:
-        raise SystemExit("checkrom: --data wants LO-HI, got %r" % spec)
-    return (int(lo.lstrip("$"), 16), int(hi.lstrip("$"), 16))
+        raise SystemExit("checkrom: --data wants [B:]LO-HI, got %r" % spec)
+    return (bank, int(lo.lstrip("$"), 16), int(hi.lstrip("$"), 16))
 
 
 def main():

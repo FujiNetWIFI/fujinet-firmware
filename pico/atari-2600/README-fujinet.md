@@ -100,6 +100,24 @@ Harnesses that look for text on screen therefore compare **rendered forms**,
 not decoded text: they ask what a name *would* look like rather than what the
 screen decodes to, because decoding is lossy at this size and always will be.
 
+## Hardware
+
+The cartridge PCB is **Fujiversal-Atari2600 Rev0** in fujinet-hardware
+(`ATARI-2600/Fujiversal-Atari2600`): RP2040 + W25Q16 (board `fujivcs`,
+pinout exactly as `include/vcs_pins.h`), ESP32-S3-WROOM-1-N16R8
+(`fujiversal-atari2600`) as the RP's USB host, three 74LVC245A at 3.3V on
+the bus, USB-C + CP2102N for flashing the S3, microSD, and one RESET button
+for both chips — the way back to the browser after booting a game. Its
+`tools/check_nets.py` checks the netlist against `vcs_pins.h`,
+`boards/fujivcs.cmake` and the ESP32 pinmap.
+
+**Open firmware item for bring-up:** nothing drives `DIR_PIN` low yet.
+`main.c` sets it to 1 (console → RP) at boot and `DATA_DRIVE` /
+`DATA_RELEASE` only toggle the RP's output enables, so on the PCB the cart
+never reaches the console, and the RP's data pins would fight the '245's B
+outputs whenever it drives. `DATA_DRIVE` has to clear DIR as it sets the
+OEs, and `DATA_RELEASE` has to set DIR after it clears them.
+
 ## Milestones
 
 | | | |

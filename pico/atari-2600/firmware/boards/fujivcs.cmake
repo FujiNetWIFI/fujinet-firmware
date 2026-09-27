@@ -1,5 +1,6 @@
 # fujivcs: FujiNet Atari 2600 cartridge, first cut -- a stock Raspberry Pi Pico
-# (RP2040) behind level shifters.
+# (RP2040) behind level shifters -- or the Fujiversal-Atari2600 Rev0 PCB
+# (fujinet-hardware), which is the same RP2040 + 2 MB flash on the board.
 #
 # The port needs 22 bus GPIOs: A0-A12, D0-D7 and the data-buffer direction.
 # That fits a stock Pico with room to spare, which PlusCart's pinout does not

@@ -432,6 +432,42 @@
 #define FN_TILE_H        19       /* rows, of the 20 the tables hold         */
 #define FN_TILE_BYTES    48       /* (FN_TILE_W * FN_TILE_H + 7) / 8         */
 
+/* The M.U.L.E. MAP, for fujinet-multiplayer-mule's clients/atari-2600.
+ *
+ * The Atari's map is 9 x 5 plots of 16 colour clocks by 32 scanlines at
+ * clocks 8-151: four playfield pixels by sixteen ENTRIES of two scanlines.
+ * The server's MuleMap is five 45-byte arrays -- terrain, owner, mule,
+ * crystite, prod -- and turning that into playfield bytes is 45 plots x 16
+ * entries x 4 pixels of bit placement, which a 2600 bank has neither the
+ * bytes nor the frame time for. So the cartridge composes it, the same way it
+ * composes Battleship's boards.
+ *
+ * TABLES. Six, one per playfield register -- PF0/PF1/PF2 of the left half,
+ * then of the right -- in the six planes at byte FN_MULE_MAP0 + y, where
+ * y = plot row * 16 + entry (0-79). Bytes 12-91: the text rows 0-1 and 16-20
+ * stay free for the screen around the map. Written whole, from a composed
+ * copy, so the kernel never streams a half-built byte.
+ *
+ * THE PICTURE. The playfield has one colour per scanline, so what an entry
+ * shows is decided by the colour the console's kernel draws that entry in
+ * (a fixed table, one per entry of a plot row):
+ *
+ *   0-3    the owner's bracket, top: seat 0 outermost ... seat 3 innermost
+ *   4-8    the picture: the installed M.U.L.E.'s good as a 4x5 glyph
+ *          (F E S C), the store; or, with FN_MULEMAP_PROD, the units a
+ *          M.U.L.E.'s plot made as bars (4 + 4)
+ *   9-11   the ground: 1-3 mountains (terrain bits 2-3), the river's dots,
+ *          the store's base
+ *   12-15  the owner's bracket, bottom: seat 3 innermost ... seat 0 outermost
+ *
+ * clients/atari-2600/tools/mulemap.py is the model; host_test compares. */
+#define FN_BLIT_MULEMAP  19       /* src = reply offset of MuleMap (225 bytes),
+                                     dst = FN_MULEMAP_* flags                 */
+#define FN_MULEMAP_PROD  0x01     /* the picture is production, not glyphs   */
+#define FN_MULE_MAP0     12       /* plane byte of entry 0                   */
+#define FN_MULE_ENTRIES  80       /* 5 plot rows x 16                        */
+#define FN_MULE_MAPLEN   225      /* sizeof(MuleMap)                         */
+
 /* What FN_BLIT_FIELD paints. A Battleship gamefield is 100 bytes at y*10+x
  * in the reply window, and turning it into ten rows of text is 100 reads,
  * 100 compares and a 16-bit reply cursor -- about 250 bytes of 6502 in a bank

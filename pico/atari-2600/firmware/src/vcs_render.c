@@ -168,6 +168,125 @@ static void pf_tile(uint8_t *win, const uint8_t *bits, unsigned bits_len,
     }
 }
 
+/* ---------------- the M.U.L.E. map ----------------
+ *
+ * fuji_mailbox.h has the picture; clients/atari-2600/tools/mulemap.py in
+ * fujinet-multiplayer-mule is the model this must agree with, byte for byte.
+ * Patterns are four playfield pixels, bit 3 the plot's leftmost. */
+#define MM_ROWS     5u
+#define MM_COLS     9u
+#define MM_PLOTS    45u
+#define MM_ENT      16u
+#define MM_PIC0     4u              /* entries 4-8 */
+#define MM_GND0     9u              /* entries 9-11 */
+
+static const uint8_t mm_glyph[4][5] = {
+    { 0xF, 0x8, 0xE, 0x8, 0x8 },   /* F: food */
+    { 0xF, 0x8, 0xE, 0x8, 0xF },   /* E: energy */
+    { 0x7, 0x8, 0x6, 0x1, 0xE },   /* S: smithore */
+    { 0x7, 0x8, 0x8, 0x8, 0x7 },   /* C: crystite */
+};
+static const uint8_t mm_mount[3][3] = {
+    { 0x0, 0x4, 0xE },             /* one peak */
+    { 0x4, 0xE, 0xF },             /* two */
+    { 0xA, 0xF, 0xF },             /* three */
+};
+static const uint8_t mm_store_pic[5] = { 0xF, 0x9, 0xF, 0x9, 0xF };
+static const uint8_t mm_store_gnd[3] = { 0xF, 0xF, 0xF };
+static const uint8_t mm_river_gnd[3] = { 0x4, 0x2, 0x4 };
+
+/* One plot's sixteen entries. */
+static void mm_plot(uint8_t ent[MM_ENT], uint8_t terrain, int8_t owner,
+                    int8_t mule, uint8_t prod, uint8_t flags)
+{
+    const uint8_t *gnd = NULL, *pic = NULL;
+    uint8_t bars[5];
+    unsigned t = terrain & 3u, i;
+
+    memset(ent, 0, MM_ENT);
+    if (owner >= 0 && owner < 4) {
+        ent[owner] = 0xF;                           /* top, outermost first */
+        ent[MM_ENT - 1u - (unsigned)owner] = 0xF;   /* bottom */
+    }
+    if (t == 1u)
+        gnd = mm_river_gnd;
+    else if (t == 3u)
+        gnd = mm_store_gnd;
+    else if (t == 2u) {
+        unsigned n = (terrain >> 2) & 3u;
+        gnd = mm_mount[(n ? n : 1u) - 1u];
+    }
+    if (gnd)
+        for (i = 0; i < 3u; i++)
+            ent[MM_GND0 + i] = gnd[i];
+
+    if ((flags & FN_MULEMAP_PROD) && mule >= 0 && mule < 4) {
+        unsigned n = prod & 15u, a, b;
+
+        if (n > 8u)
+            n = 8u;
+        a = n < 4u ? n : 4u;
+        b = n > 4u ? n - 4u : 0u;
+        bars[0] = bars[2] = bars[4] = 0;
+        bars[1] = (uint8_t)(0xFu & ~(0xFu >> a));
+        bars[3] = (uint8_t)(0xFu & ~(0xFu >> b));
+        pic = bars;
+    } else if (mule >= 0 && mule < 4) {
+        pic = mm_glyph[mule];
+    } else if (t == 3u) {
+        pic = mm_store_pic;
+    }
+    if (pic)
+        for (i = 0; i < 5u; i++)
+            ent[MM_PIC0 + i] = pic[i];
+}
+
+/* Compose the whole map from `map` (MuleMap, `avail` readable bytes) into
+ * the six tables. Too short a source composes nothing. */
+static void mule_map(uint8_t *win, const uint8_t *map, unsigned avail,
+                     uint8_t flags)
+{
+    uint8_t out[6][FN_MULE_ENTRIES];
+    uint8_t ent[MM_ENT];
+    unsigned p, e, b, r;
+
+    if (avail < (unsigned)FN_MULE_MAPLEN)
+        return;
+    memset(out, 0, sizeof out);
+    for (p = 0; p < MM_PLOTS; p++) {
+        unsigned row = p / MM_COLS, col = p % MM_COLS;
+
+        mm_plot(ent, map[p], (int8_t)map[45u + p], (int8_t)map[90u + p],
+                map[180u + p], flags);
+        for (e = 0; e < MM_ENT; e++) {
+            for (b = 0; b < 4u; b++) {
+                unsigned px, half, q, reg;
+                uint8_t bit;
+
+                if (!(ent[e] & (8u >> b)))
+                    continue;
+                px = 2u + 4u * col + b;         /* playfield pixel 0-39 */
+                half = px / 20u;
+                q = px % 20u;
+                if (q < 4u) {
+                    reg = 0;
+                    bit = (uint8_t)(1u << (4u + q));
+                } else if (q < 12u) {
+                    reg = 1;
+                    bit = (uint8_t)(1u << (7u - (q - 4u)));
+                } else {
+                    reg = 2;
+                    bit = (uint8_t)(1u << (q - 12u));
+                }
+                out[3u * half + reg][row * MM_ENT + e] |= bit;
+            }
+        }
+    }
+    for (r = 0; r < 6u; r++)
+        memcpy(win + (FN_T_PLANE(r) - FN_WINDOW_BASE) + FN_MULE_MAP0,
+               out[r], FN_MULE_ENTRIES);
+}
+
 /* Paint the composed board into ten text rows starting at `row`: the row
  * digit, then the ten cells. */
 static void board_rows(uint8_t *win, const uint8_t *board, uint8_t row)
@@ -606,6 +725,14 @@ bool vcs_blit(uint8_t *win, uint8_t *board, uint16_t src, uint16_t dst,
             pf_tile(win, win + off, FN_WINDOW_SIZE - off,
                     cnt ? cnt : (unsigned)FN_TILE_H,
                     (uint8_t)(dst & FN_PFM_ALL));
+        return true;
+    }
+
+    if (transform == FN_BLIT_MULEMAP) {
+        unsigned off = (FN_R_DATA - FN_WINDOW_BASE) + src;
+
+        if (off < FN_WINDOW_SIZE)
+            mule_map(win, win + off, FN_WINDOW_SIZE - off, (uint8_t)dst);
         return true;
     }
 

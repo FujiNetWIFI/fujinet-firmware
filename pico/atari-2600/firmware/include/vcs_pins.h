@@ -13,8 +13,18 @@
  * all -- and, more seriously, it wires the RP2040 straight to a 5V bus. RP2040
  * GPIOs are not 5V tolerant; that board survives on its clamp diodes and the
  * NMOS bus's weak highs. UnoCart used a 5V-tolerant STM32 and did not have the
- * problem. So D0-D7 move to GP15-GP22, still contiguous, and a 74LVC8T245 with
+ * problem. So D0-D7 move to GP15-GP22, still contiguous, and a 74LVC245A with
  * its direction on GP26 does the level shifting.
+ *
+ * THE BOARD (fujinet-hardware ATARI-2600/Fujiversal-Atari2600, Rev0) buffers
+ * all 21 lines through 74LVC245As at VCC = 3.3V: their inputs are 5V
+ * tolerant and their 3.3V highs clear the NMOS bus's TTL VIH (2.0V), which is
+ * what PlusCart relies on already. Two are wired A->B for A0-A12; the data
+ * one has its A side on the console, so DIR high (the boot value, and a 10k
+ * pull-up while the RP is in reset) is console -> RP and DIR low is RP ->
+ * console. Not the dual-supply 74LVC8T245: its DIR is referenced to VCCA, so
+ * with the 5V port as A a 3.3V GPIO cannot drive it, and with the 3.3V port
+ * as A the polarity inverts.
  *
  * This is a deliberate departure from proven hardware and is the port's main
  * hardware risk: gtortone's existing board will not run this firmware without

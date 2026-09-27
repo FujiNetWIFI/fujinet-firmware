@@ -13,6 +13,7 @@
 #include "vcs_font.h"
 #include "vcs_render.h"
 #include "render_gold.h"
+#include "mule_gold.h"
 
 static int fails;
 
@@ -24,6 +25,7 @@ static void fail(const char *what, ...)
 
 int main(void)
 {
+    static uint8_t before_mm[FN_WINDOW_SIZE];
     static uint8_t win[FN_WINDOW_SIZE];
     static uint8_t board[FN_BOARD_CELLS];
     int i;
@@ -1095,6 +1097,60 @@ int main(void)
         }
     }
 
+    /* ---------------- the M.U.L.E. map, FN_BLIT_MULEMAP ----------------
+     * mule_gold.h is clients/atari-2600/tools/mulemap.py's picture of the
+     * MekkoGX test map, glyphs and production bars. Poisoned around, so a
+     * write outside the six tables' 80 bytes shows. */
+    {
+        static const uint16_t SRC = 132;       /* MuleMap in a MuleState */
+        unsigned fl, r, y;
+
+        if (((FN_T_PLANE(0) & 0xFF) + FN_MULE_MAP0 + FN_MULE_ENTRIES - 1)
+            > 0x7F)
+            fail("the M.U.L.E. map tables cross a plane's half page");
+        for (fl = 0; fl < 2; fl++) {
+            const uint8_t (*want)[80] = fl ? mule_gold_prod : mule_gold_glyph;
+            static uint8_t before[FN_WINDOW_SIZE];
+            unsigned a;
+
+            memset(win, 0xA5, sizeof win);
+            memcpy(win + (FN_R_DATA - FN_WINDOW_BASE) + SRC, mule_gold_src,
+                   sizeof mule_gold_src);
+            memcpy(before, win, sizeof before);
+            vcs_blit(win, board, SRC, fl ? FN_MULEMAP_PROD : 0, 0,
+                     FN_BLIT_MULEMAP);
+            for (r = 0; r < 6; r++)
+                for (y = 0; y < FN_MULE_ENTRIES; y++)
+                    if (win[FN_T_PLANE(r) - FN_WINDOW_BASE + FN_MULE_MAP0 + y]
+                        != want[r][y]) {
+                        fprintf(stderr, "FAIL: MULEMAP flags %u reg %u "
+                                "entry %u: %02X want %02X\n", fl, r, y,
+                                win[FN_T_PLANE(r) - FN_WINDOW_BASE
+                                    + FN_MULE_MAP0 + y], want[r][y]);
+                        fails++;
+                    }
+            for (a = 0; a < FN_WINDOW_SIZE; a++) {
+                unsigned in = 0;
+
+                for (r = 0; r < 6; r++)
+                    if (a >= FN_T_PLANE(r) - FN_WINDOW_BASE + FN_MULE_MAP0
+                        && a < FN_T_PLANE(r) - FN_WINDOW_BASE + FN_MULE_MAP0
+                               + FN_MULE_ENTRIES)
+                        in = 1;
+                if (!in && win[a] != before[a]) {
+                    fail("MULEMAP wrote outside its tables");
+                    break;
+                }
+            }
+        }
+        /* A source too near the window's end composes nothing. */
+        memcpy(before_mm, win, sizeof before_mm);
+        vcs_blit(win, board, FN_WINDOW_SIZE - (FN_R_DATA - FN_WINDOW_BASE) - 10,
+                 0, 0, FN_BLIT_MULEMAP);
+        if (memcmp(before_mm, win, sizeof before_mm))
+            fail("a short MULEMAP source wrote into the window");
+    }
+
     if (fails) {
         printf("test_render: %d failures\n", fails);
         return 1;
@@ -1103,7 +1159,8 @@ int main(void)
            "the blit port, FN_BLIT_PATH, FN_BLIT_TCELL, a composed "
            "Battleship board, its playfield tables, a %d-card bed on a "
            "%d-pixel pitch, FN_BLIT_POKE with its bound, FN_BLIT_PATHPOKE with "
-           "both of its, and a %dx%d maze grid through FN_BLIT_PFTILE)\n",
+           "both of its, a %dx%d maze grid through FN_BLIT_PFTILE, and the "
+           "M.U.L.E. map)\n",
            GOLD_N, FN_T_PLANES, FN_T_ROWS, FN_T_COLS,
            FN_CARD_SLOTS, FN_CARD_PITCH, FN_TILE_W, FN_TILE_H);
     return 0;
