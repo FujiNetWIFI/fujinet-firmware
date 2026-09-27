@@ -26,6 +26,17 @@ set(PICO_BOARD_HEADER_DIRS ${CMAKE_CURRENT_LIST_DIR}/boards)
 # import board build options
 include(${CMAKE_SOURCE_DIR}/boards/${PICO_BOARD}.cmake)
 
+# This fork boots straight into FujiNet CONFIG; Minty's own launcher is gone
+# (see ../PROVENANCE.md), so CONFIG_FUJINET=OFF cannot build. Default it on for
+# every board -- a board .cmake that declares it first still wins.
+option(CONFIG_FUJINET "Enable FujiNet mailbox" ON)
+
+# The mailbox link is USB CDC, so a board that builds with the device stack
+# off has no way to reach the ESP32-S3 -- say so here rather than at tusb.h.
+if(CONFIG_FUJINET AND NOT CONFIG_USB_DEVICE)
+   message(FATAL_ERROR "board ${PICO_BOARD} (${CMAKE_BUILD_TYPE}) sets CONFIG_USB_DEVICE=0, which CONFIG_FUJINET needs")
+endif()
+
 if(DEFINED ENV{PICO_SDK_PATH})
    include($ENV{PICO_SDK_PATH}/pico_sdk_init.cmake)
 else()
@@ -136,6 +147,21 @@ if(CONFIG_USB_DEVICE)
       ${CMAKE_CURRENT_LIST_DIR}/src/usb_tasks.c
       ${CMAKE_CURRENT_LIST_DIR}/src/usb_descriptors.c
    )
+
+   # Let the host reboot us into BOOTSEL by setting the USB serial line to
+   # 1200 baud -- the convention picotool and every other pico tool uses,
+   # and how the ESP32-S3 asks for BOOTSEL before reflashing us (see
+   # lib/hardware/fnPicoUpdater.cpp in the firmware repo). Without it the
+   # only ways in are the mailbox doorbell, which needs working firmware and
+   # a console to poke it, and the hardware RUN/BOOTSEL lines.
+   #
+   # The explicit =1 is load-bearing: pico_usb_reset defaults this OFF for a
+   # project that links tinyusb_device directly, as this one does, so
+   # linking the library alone compiles the callback out. Only the
+   # baud-rate path is enabled; the vendor reset interface would need
+   # descriptor changes and a new interface, and buys nothing here.
+   target_link_libraries(${PROJECT} pico_usb_reset)
+   target_compile_definitions(${PROJECT} PRIVATE PICO_ENABLE_USB_RESET_VIA_BAUD_RATE=1)
 endif()
 
 if(CONFIG_USB_DEVICE AND CONFIG_FLASH_FAT_STORAGE)

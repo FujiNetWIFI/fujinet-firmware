@@ -9,6 +9,7 @@
 #include "rs232Fuji.h"
 #include "fnFS.h"
 #include "fnFsSD.h"
+#include "debug.h"
 
 #include "../runcpm/globals.h"
 #include "../runcpm/abstraction_fujinet.h"
@@ -22,12 +23,6 @@
 # include "../runcpm/ccp.h" // ccp.h - Defines a simple internal CCP
 #endif
 
-
-void rs232CPM::rs232_status(FujiStatusReq reqType)
-{
-    // Nothing to do here
-    return;
-}
 
 void rs232CPM::rs232_handle_cpm()
 {
@@ -52,22 +47,31 @@ void rs232CPM::rs232_handle_cpm()
     {
         cpmActive = false;
         free(RAM);
+        RAM = NULL;
     }
 }
 
-void rs232CPM::init_cpm(int baud)
+success_is_true rs232CPM::init_cpm(int baud)
 {
 #ifdef OBSOLETE
     SYSTEM_BUS.setBaudrate(baud);
 #endif /* OBSOLETE */
     Status = Debug = 0;
     Break = Step = -1;
+    // A repeated CPM_INIT without a BIOS-0 exit would otherwise leak the old 64K.
+    free(RAM);
     RAM = (uint8_t *)malloc(MEMSIZE);
+    if (RAM == NULL)
+    {
+        Debug_printv("could not allocate 64K CP/M RAM, free heap: %lu", fnSystem.get_free_heap_size());
+        RETURN_ERROR_AS_FALSE();
+    }
     memset(RAM, 0, MEMSIZE);
     memset(filename, 0, sizeof(filename));
     memset(newname, 0, sizeof(newname));
     memset(fcbname, 0, sizeof(fcbname));
     memset(pattern, 0, sizeof(pattern));
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 void rs232CPM::rs232_process(const FujiBusPacket &packet)
@@ -79,8 +83,7 @@ void rs232CPM::rs232_process(const FujiBusPacket &packet)
         fnSystem.delay(10);
         SYSTEM_BUS.transaction_success();
         fnSystem.delay(5000);
-        init_cpm(9600);
-        cpmActive = true;
+        cpmActive = init_cpm(9600).is_success();
         break;
     default:
         SYSTEM_BUS.transaction_error();

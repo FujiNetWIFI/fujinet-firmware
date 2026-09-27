@@ -173,6 +173,17 @@ int WiFiManager::connect(const char *ssid, const char *password)
         // Debug_printf("WiFi config double-check: \"%s\", \"%s\"\r\n", (char *)wifi_config.sta.ssid, (char *)wifi_config.sta.password );
 
         wifi_config.sta.pmf_cfg.capable = true;
+
+        // Optional multi-AP mode ([WiFi] multi_ap=1): in a meshed/multi-AP environment
+        // (several APs sharing one SSID) scan all channels and associate to the AP with
+        // the strongest signal. Default (multi_ap=0) keeps ESP-IDF's fast scan, which
+        // connects to the first AP found for the SSID.
+        if (Config.get_wifi_multi_ap())
+        {
+            wifi_config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
+            wifi_config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
+        }
+
         ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     }
 
@@ -254,6 +265,14 @@ int WiFiManager::test_connect(const char *ssid, const char *password)
     // Debug_printf("wifi_config.sta.pass: >%s<\r\n", wifi_config.sta.password);
 
     wifi_config.sta.pmf_cfg.capable = true;
+
+    // Match connect(): in multi-AP mode prefer the strongest AP for the SSID.
+    if (Config.get_wifi_multi_ap())
+    {
+        wifi_config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
+        wifi_config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
+    }
+
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
 
     ESP_ERROR_CHECK(esp_wifi_start());
@@ -672,7 +691,17 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
             Debug_println("WIFI_EVENT_STA_STOP");
             break;
         case WIFI_EVENT_STA_CONNECTED:
-            Debug_println("WIFI_EVENT_STA_CONNECTED");
+        {
+            wifi_event_sta_connected_t *conn = (wifi_event_sta_connected_t *)event_data;
+            wifi_ap_record_t apinfo;
+            int8_t rssi = 0;
+            if (esp_wifi_sta_get_ap_info(&apinfo) == ESP_OK)
+                rssi = apinfo.rssi;
+            Debug_printf("WIFI_EVENT_STA_CONNECTED ssid: %s, bssid: %02x:%02x:%02x:%02x:%02x:%02x, "
+                         "channel: %u, rssi: %hd\r\n",
+                         (char *)conn->ssid, conn->bssid[0], conn->bssid[1], conn->bssid[2],
+                         conn->bssid[3], conn->bssid[4], conn->bssid[5], conn->channel, rssi);
+        }
             pFnWiFi->_reconnect_attempts = 0;
             if (pFnWiFi->_trying_stored)
             {

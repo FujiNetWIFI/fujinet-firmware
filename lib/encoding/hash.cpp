@@ -108,7 +108,6 @@ void Hash::add_data(const std::string& data) {
 
 void Hash::clear() {
     accumulated_data.clear();
-    accumulated_data.shrink_to_fit();
 }
 
 size_t Hash::hash_length(Algorithm algorithm, bool is_hex) {

@@ -146,8 +146,18 @@ static void setup_card_detect(gpio_num_t pin)
 {
     // Create a queue to handle card detect event from ISR
     card_detect_evt_queue = xQueueCreate(10, sizeof(gpio_num_t));
+    if (card_detect_evt_queue == nullptr)
+    {
+        // The ISR would crash sending to a null queue - skip the whole feature.
+        Debug_printv("could not create card detect queue, SD hot-swap disabled");
+        return;
+    }
     // Start card detect task
-    xTaskCreate(card_detect_intr_task, "card_detect_intr_task", 6144, (void *)pin, 10, NULL);
+    if (xTaskCreate(card_detect_intr_task, "card_detect_intr_task", 6144, (void *)pin, 10, nullptr) != pdPASS)
+    {
+        Debug_printv("could not create card detect task, SD hot-swap disabled");
+        return;
+    }
     // Enable interrupt for card detection
     fnSystem.set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_ANYEDGE);
     // Add the card detect handler
@@ -1248,7 +1258,10 @@ void SystemManager::check_hardware_ver()
     Only Rev0
 */
     _hardware_version = 1;
-    safe_reset_gpio = PIN_BUTTON_C;
+    // The Mac board has no safe-reset button. PIN_BUTTON_C (IO14) is a bus
+    // line here and reads as a permanently held button, and a "short press"
+    // reboots the ESP32, so leave it disconnected.
+    safe_reset_gpio = GPIO_NUM_NC;
     setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
 #elif defined(BUILD_IEC)
     /*  Commodore

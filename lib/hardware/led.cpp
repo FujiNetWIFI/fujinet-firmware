@@ -121,8 +121,13 @@ void LedManager::setup()
             .dispatch_method = ESP_TIMER_TASK,
             .name = "led_flicker",
         };
-        esp_timer_create(&flicker_args, &s_flickerTimer);
-        esp_timer_start_periodic(s_flickerTimer, LED_FLICKER_TICK_US);
+        if (esp_timer_create(&flicker_args, &s_flickerTimer) == ESP_OK)
+            esp_timer_start_periodic(s_flickerTimer, LED_FLICKER_TICK_US);
+        else
+        {
+            s_flickerTimer = nullptr;
+            Debug_printv("could not create LED flicker timer");
+        }
     }
 #endif // ESP_PLATFORM
 }

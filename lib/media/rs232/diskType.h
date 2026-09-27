@@ -34,11 +34,17 @@ class fujiHost;
 #define DISK_DRIVE_STATUS_DOUBLE_SIDED 0x40
 #define DISK_DRIVE_STATUS_ENHANCED_DENSITY 0x80
 
+#define DENSITY_FM 0
+#define DENSITY_MFM 4
+
+// Wire-visible: emitted as the mediatype byte of directory entries, so append
+// only.
 enum mediatype_t
 {
     MEDIATYPE_UNKNOWN = 0,
     MEDIATYPE_IMG,
     MEDIATYPE_ROM,
+    MEDIATYPE_IMD,
     MEDIATYPE_COUNT
 };
 
@@ -67,20 +73,18 @@ public:
         uint8_t reserved1;
         uint8_t reserved2;
         uint8_t reserved3;
-    } _percomBlock;
+    } _percomBlock = {};
 
     uint8_t _disk_sectorbuff[DISK_SECTORBUF_SIZE];
 
     mediatype_t _disktype = MEDIATYPE_UNKNOWN;
 
-    // `host` and `filename` are only used by MediaTypeROM: `filename` to
-    // derive a same-named .cfg sibling's path, `host` to open it through
-    // the same fujiHost the ROM itself came from (so it works identically
-    // whether the ROM is on TNFS, SD, etc.). Every other mount() ignores
-    // both; they default so existing callers and overrides don't need to
-    // change.
-    virtual mediatype_t mount(fnFile *f, uint32_t disksize, fujiHost *host = nullptr,
-                              const char *filename = nullptr) = 0;
+    // Set by the device layer before mount(), for media that must reach
+    // sibling files (MediaTypeROM and its .cfg).
+    fujiHost *_media_host = nullptr;
+    char _disk_filename[256] = {0};
+
+    virtual mediatype_t mount(fnFile *f, uint32_t disksize) = 0;
     virtual void unmount();
 
     // Returns TRUE if an error condition occurred

@@ -131,9 +131,9 @@ class FujiDeviceChain : public FujiDeviceMixins...
         // Try each mixin's processCommand() until one returns true
         return (FujiDeviceMixins::processCommand(packet) || ...);
     }
-    bool checkAllMixins(const FUJI_COMMAND_PACKET &packet) {
+    bool checkAllMixins(fujiCommandID_t command) {
         // Try each mixin's processCommand() until one returns true
-        return (FujiDeviceMixins::recognizesCommand(packet) || ...);
+        return (FujiDeviceMixins::recognizesCommand(command) || ...);
     }
 
  public:
@@ -178,9 +178,9 @@ protected:
     // signature, so this stays the only call site that needs a
     // platform-specific override rather than a #ifdef BUILD_* (banned here,
     // see tests/check_no_build_ifdefs.py). rs232Fuji overrides this to pass
-    // `host` through to rs232Disk::mount(), which MediaTypeROM needs to open
-    // a same-named .cfg sibling through the same fujiHost the ROM itself
-    // came from -- see lib/media/rs232/diskTypeROM.cpp.
+    // `host` through to rs232Disk::mount(), which hands it to MediaTypeROM so
+    // the ROM's memory-map sibling is opened through the same fujiHost the ROM
+    // itself came from -- see lib/media/rs232/diskTypeROM.cpp.
     virtual mediatype_t mount_media(DISK_DEVICE *disk_dev, fujiDisk &disk, fujiHost &host,
                                     disk_access_flags_t mode)
     {
@@ -205,6 +205,7 @@ protected:
                                             (disk_access_flags_t) ((uint8_t)
                                                                    packet.param(2)));
     }
+    virtual void fujidev_copy_file(const FUJI_COMMAND_PACKET &packet);
 
 public:
     bool boot_config = true;
@@ -217,14 +218,16 @@ public:
     // Return true if command was handled here
     bool processCommand(const FUJI_COMMAND_PACKET &packet) override;
     // Return true if command is one that can be handled
-    bool recognizesCommand(const FUJI_COMMAND_PACKET &packet);
+    bool recognizesCommand(fujiCommandID_t command);
 
     fujiHost *get_host(int i) { return &_fnHosts[i]; }
     std::string get_host_prefix(int host_slot) { return _fnHosts[host_slot].get_prefix(); }
 
     fujiDisk *get_disk(int i) { return &_fnDisks[i]; }
     virtual DISK_DEVICE *get_disk_dev(int i) { return &_fnDisks[i].disk_dev; }
-    int get_disk_id(int drive_slot) { return _fnDisks[drive_slot].disk_dev.id(); }
+    fujiDeviceID_t get_disk_id(int drive_slot) {
+        return SYSTEM_BUS.fujiIDForDevice(&_fnDisks[drive_slot].disk_dev);
+    }
 
     void populate_slots_from_config();
     void populate_config_from_slots();

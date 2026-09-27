@@ -23,7 +23,6 @@
 
 #include "IECDevice.h"
 
-
 class fujiDevice;
 
 class IECFileDevice : public IECDevice
@@ -136,7 +135,6 @@ class IECFileDevice : public IECDevice
 #endif
 };
 
-
-#endif
+#endif /* IECFILEDEVICE_H */
 
 #endif /* BUILD_IEC */

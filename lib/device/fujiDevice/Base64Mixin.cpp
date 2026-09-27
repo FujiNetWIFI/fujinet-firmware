@@ -88,7 +88,6 @@ void Base64Mixin::encode_output(const FUJI_COMMAND_PACKET &packet)
     result = SYSTEM_BUS.unicodeTextToNative(result);
     SYSTEM_BUS.transaction_send(result);
     base64.base64_buffer.erase(0, len);
-    base64.base64_buffer.shrink_to_fit();
 }
 
 void Base64Mixin::decode_input(const FUJI_COMMAND_PACKET &packet)
@@ -175,6 +174,5 @@ void Base64Mixin::decode_output(const FUJI_COMMAND_PACKET &packet)
     std::vector<unsigned char> p(len);
     memcpy(p.data(), base64.base64_buffer.data(), len);
     base64.base64_buffer.erase(0, len);
-    base64.base64_buffer.shrink_to_fit();
     SYSTEM_BUS.transaction_send(p.data(), len, false);
 }

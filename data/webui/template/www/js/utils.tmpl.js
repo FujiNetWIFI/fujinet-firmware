@@ -41,6 +41,7 @@ function restartButton() {
 			btn.value = "Restart...";
 		}, 2000);
 }
+{% endif %}
 
 function swapButton() {
 	window.location.assign("/swap?redirect=1");
@@ -49,5 +50,4 @@ function swapButton() {
 function mountAllButton() {
 	window.location.assign("/mount?mountall=1&redirect=1");
 }
-{% endif %}
 

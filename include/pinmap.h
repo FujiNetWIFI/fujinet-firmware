@@ -40,6 +40,7 @@
 #include "pinmap/fujiversal-arcadia.h"
 #include "pinmap/fujiversal-coleco.h"
 #include "pinmap/fujiversal-channelf.h"
+#include "pinmap/fujiversal-msx.h"
 
 
 #include "pinmap_defaults.h"

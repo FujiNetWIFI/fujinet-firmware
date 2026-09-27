@@ -1,33 +1,15 @@
 #ifdef BUILD_COCO
 
-#include <queue>
-
 #include "drivewire.h"
 #include "drivewire/drivewireFuji.h"
 #include "drivewire/drivewireClock.h"
-
-#include "../../include/debug.h"
-
-#include "modem.h"
-#include "cassette.h"
-#include "printer.h"
-#include "network.h"
-#include "../../lib/device/drivewire/cpm.h"
-
-#include "fnSystem.h"
-#include "fnConfig.h"
+#include "drivewire/cpm.h"
+#include "drivewire/drivewireNetwork.h"
 #include "fnWiFi.h"
-#include "fnDNS.h"
 #include "led.h"
-#include "utils.h"
+#include "debug.h"
 
-#ifdef ESP_PLATFORM
-#include <freertos/queue.h>
-#include <freertos/task.h>
-#endif
-
-#include "../../include/pinmap.h"
-#include "../../include/debug.h"
+#include <queue>
 
 #ifdef ESP_PLATFORM
 static QueueHandle_t drivewire_evt_queue = NULL;
@@ -104,8 +86,6 @@ static void drivewire_intr_task(void *arg)
 }
 #endif /* ESP_PLATFORM */
 #endif /* ENABLE_DRIVEWIRE_INTR_TASK */
-
-// Helper functions outside the class defintions
 
 void systemBus::op_jeff()
 {
@@ -238,7 +218,6 @@ void systemBus::op_readex()
             }
             else
             {
-                Debug_printf("non-dragon read\n");
                 if (d->read(lsn, use_media_buffer ? nullptr : sector_data))
                 {
                     if (d->get_media_status() == 2)
@@ -362,9 +341,10 @@ bool systemBus::_transaction_handle_command(const FujiDWPacket &packet, virtualD
 
     case CMD::FUJI_SEND_ERROR:
         Debug_printf("drivewire device error = %s\n",
-                     device._errorCode == NDEV_STATUS::SUCCESS
-                     ? "NONE" : std::to_string(static_cast<int>(device._errorCode)).c_str());
-        write(static_cast<uint8_t>(device._errorCode));
+                     device.getErrorCode() == NDEV_STATUS::SUCCESS
+                     ? "NONE"
+                     : std::to_string(static_cast<int>(device.getErrorCode())).c_str());
+        write(static_cast<uint8_t>(device.getErrorCode()));
         return true;
 
     case CMD::FUJI_SEND_RESPONSE:
@@ -378,7 +358,6 @@ bool systemBus::_transaction_handle_command(const FujiDWPacket &packet, virtualD
 
         write(_transaction_response.data(), _transaction_response.size());
         _transaction_response.clear();
-        _transaction_response.shrink_to_fit();
         return true;
 
     default:
@@ -725,18 +704,14 @@ void systemBus::_drivewire_process_cmd()
     fnLedManager.set(eLed::LED_BUS, false);
 }
 
-// Look to see if we have any waiting messages and process them accordingly
 void systemBus::_drivewire_process_queue()
 {
 }
 
 /*
- Primary DRIVEWIRE serivce loop:
- * If MOTOR line asserted, hand DRIVEWIRE processing over to the TAPE device
- * If CMD line asserted, try reading CMD frame and sending it to appropriate device
- * If CMD line not asserted but MODEM is active, give it a chance to read incoming data
- * Throw out stray input on DRIVEWIRE if neither of the above two are true
+ Primary DRIVEWIRE service loop:
  * Give NETWORK devices an opportunity to signal available data
+ * If a command byte is waiting, process it
  */
 void systemBus::service()
 {
@@ -827,7 +802,7 @@ void systemBus::configureGPIO()
 
 #ifdef PIN_EPROM_A14
     // Start in DRIVEWIRE mode
-    // Set the initial buad rate based on which ROM image is selected by the A14/A15 dip switch on Rev000 or newer.
+    // Set the initial baud rate based on which ROM image is selected by the A14/A15 dip switch on Rev000 or newer.
     // If using an older Rev0 or Rev00 board, you will need to pull PIN_EPROM_A14 (IO36) up to 3.3V or 5V via a 10K
     // resistor to have it default to the previous default of 57600 baud otherwise they will both read as low and you
     // will get 38400 baud.
@@ -841,7 +816,12 @@ void systemBus::configureGPIO()
 
 int systemBus::readBaudSwitch()
 {
-#ifdef PIN_EPROM_A14
+#ifdef COCO_HS_UART
+    int baud = 921600; // No A14/A15 switches on this board; fixed high-speed link to the RP2040/RP2350
+    Debug_printv("COCO_HS_UART build, defaulting to %d baud", baud);
+    bDragon = false;
+    return baud;
+#elif defined(PIN_EPROM_A14)
     if (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_LOW
         && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_LOW)
     {
@@ -869,7 +849,7 @@ int systemBus::readBaudSwitch()
     return 57600; // Default or no switch
 #else             /* ! PIN_EPROM_A14 */
     return 921600;
-#endif /* PIN_EPROM_A14 */
+#endif /* COCO_HS_UART / PIN_EPROM_A14 */
 }
 #endif /* ESP_PLATFORM */
 
@@ -924,8 +904,16 @@ void systemBus::setup()
                       .deviceID(DW_UART_DEVICE)
                       .readTimeout(500)
 #ifdef ESP_PLATFORM
-                          .txInverted(DW_UART_DEVICE == UART_NUM_2 && !bDragon)
-                          .rxInverted(DW_UART_DEVICE == UART_NUM_2)
+#ifndef COCO_HS_UART
+                      .txInverted(DW_UART_DEVICE == UART_NUM_2 && !bDragon)
+                      .rxInverted(DW_UART_DEVICE == UART_NUM_2)
+#else
+                      // No line inversion on this board's direct link to the RP2040/RP2350.
+                      // Hardware flow control parked for now - not yet validated on this board.
+                      //.flowControl(UART_HW_FLOWCTRL_CTS_RTS)
+                      //.rtsPin(PIN_UART1_RTS)
+                      //.ctsPin(PIN_UART1_CTS)
+#endif /* COCO_HS_UART */
 #endif /* ESP_PLATFORM */
                       );
 #endif /* FUJINET_OVER_USB */
@@ -1021,17 +1009,20 @@ void systemBus::transaction_accept(transState_t expectMoreData)
 
 void systemBus::transaction_success()
 {
+    virtualDevice *fujiDev = dynamic_cast<virtualDevice *>(_activeDev);
+
     assert(_transaction_state == TRANS_STATE::NO_GET
            || _transaction_state == TRANS_STATE::DID_GET);
-    _activeDev->_errorCode = NDEV_STATUS::SUCCESS;
+    fujiDev->setErrorCode(NDEV_STATUS::SUCCESS);
     _transaction_response.clear();
-    _transaction_response.shrink_to_fit();
     _transaction_state = TRANS_STATE::INVALID;
 }
 
 void systemBus::transaction_error()
 {
-    _activeDev->_errorCode = NDEV_STATUS::GENERAL;
+    virtualDevice *fujiDev = dynamic_cast<virtualDevice *>(_activeDev);
+
+    fujiDev->setErrorCode(NDEV_STATUS::GENERAL);
     _transaction_state = TRANS_STATE::INVALID;
 }
 
@@ -1052,10 +1043,24 @@ void systemBus::transaction_send(const void *data, size_t len, bool is_error)
     assert(_transaction_state == TRANS_STATE::NO_GET);
     if (is_error)
         transaction_error();
+    else
+        dynamic_cast<virtualDevice *>(_activeDev)->setErrorCode(NDEV_STATUS::SUCCESS);
     _transaction_response.insert(_transaction_response.end(),
                                  static_cast<const uint8_t *>(data),
                                  static_cast<const uint8_t *>(data) + len);
     _transaction_state = TRANS_STATE::INVALID;
+}
+
+fujiDeviceID_t systemBus::fujiIDForDevice(drivewireDisk *device)
+{
+    for (uint8_t idx = 0; idx < MAX_DISK_DEVICES; idx++)
+    {
+        auto drv = &theFuji->get_disk(idx)->disk_dev;
+        if (drv == device)
+            return FUJI_DEVICEID::DISK + idx;
+    }
+
+    return (fujiDeviceID_t) 0;
 }
 
 #endif               /* BUILD_COCO */

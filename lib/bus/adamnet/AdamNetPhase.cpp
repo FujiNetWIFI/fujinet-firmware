@@ -103,7 +103,7 @@ void AdamNetPhase::begin(const FujiAdamPacket &packet)
     switch (_packet->type())
     {
     case APT::MN_STATUS:  // 0x01
-        // No payload, no ACK, expects AdamNetPacket reply
+        // No payload, no ACK, expects an NM_STATUS reply
         _busPhase = PHASE::NEED_STATUS;
         break;
 
@@ -138,7 +138,7 @@ void AdamNetPhase::begin(const FujiAdamPacket &packet)
 
     case APT::MN_CANCEL:  // 0x05
         Debug_printf("PACKET device=0x%02x type=0x%02x\n", packet.device(), packet.type());
-        abort();
+        //abort();
         break;
 
     default:

@@ -8,7 +8,7 @@
 #include <string>
 
 #include "bus.h"
-#include "network.h"
+#include "cx16Network.h"
 #include "cassette.h"
 
 #include "fujiHost.h"

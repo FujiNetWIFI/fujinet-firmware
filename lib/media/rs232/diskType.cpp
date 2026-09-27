@@ -2,15 +2,14 @@
 
 #include "diskType.h"
 
+#include "../IMDImage.h"
+
 #include <string.h>
 
 #include "../../include/debug.h"
 
 #include "utils.h"
 
-
-#define DENSITY_FM 0
-#define DENSITY_MFM 4
 
 #define SIDES_SS 0
 #define SIDES_DS 1
@@ -59,6 +58,9 @@ void MediaType::unmount()
 
 mediatype_t MediaType::discover_mediatype(const char *filename)
 {
+    if (IMDImage::looks_like_imd_extension(filename))
+        return MEDIATYPE_IMD;
+
     int l = strlen(filename);
     if (l > 4 && filename[l - 4] == '.')
     {

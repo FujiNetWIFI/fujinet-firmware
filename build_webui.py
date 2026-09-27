@@ -4,6 +4,49 @@ import os, glob, re, shutil, configparser
 from jinja2 import Environment, FileSystemLoader
 from yaml import load, Loader
 
+def deep_merge(base, override):
+    """Recursively merge override dict into base dict, with override taking precedence."""
+    for key, value in override.items():
+        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+            deep_merge(base[key], value)
+        else:
+            base[key] = value
+
+def load_config_overlay(config_path):
+    """Load a yaml to merge over an already-resolved config; its extends is moot."""
+    with open(config_path) as f:
+        config = load(f, Loader=Loader)
+    config.pop('extends', None)
+    return config
+
+def load_board_config(build_board, build_platform):
+    """Load board yaml with fallback to platform default, then base, applying extends/inheritance."""
+    # Try board-specific config first, then platform default, then base
+    board_path = os.path.join('data', 'webui', 'config', f'{build_board}.yaml')
+    platform_path = os.path.join('data', 'webui', 'config', f'{build_platform}.yaml')
+    base_path = os.path.join('data', 'webui', 'config', 'base.yaml')
+
+    if os.path.exists(board_path):
+        config_path = board_path
+    elif os.path.exists(platform_path):
+        config_path = platform_path
+    else:
+        config_path = base_path
+
+    with open(config_path) as f:
+        config = load(f, Loader=Loader)
+
+    # Apply extends/inheritance if present
+    while 'extends' in config:
+        parent_name = config.pop('extends')
+        parent_path = os.path.join('data', 'webui', 'config', f'{parent_name}.yaml')
+        with open(parent_path) as f:
+            parent = load(f, Loader=Loader)
+        deep_merge(parent, config)
+        config = parent
+
+    return config
+
 def prep_dst(fname, build_platform, prefix, data_dir=None):
     rel_path = fname.replace(prefix, '')
     if data_dir is None:
@@ -16,10 +59,12 @@ def prep_dst(fname, build_platform, prefix, data_dir=None):
     return destination
 
 
-def process_template(fname, build_platform, template_env, config, prefix, build_data_dir=None):
+def process_template(fname, build_platform, template_env, config, prefix, build_data_dir=None, loader_prefix=None):
+    if loader_prefix is None:
+        loader_prefix = prefix
     print(f"processing template file {fname}")
     # jinja2 insists on '/' as the path separator even on windows. see https://github.com/pallets/jinja/issues/767
-    template = template_env.get_template(fname.replace(prefix, '').replace('\\', '/'))
+    template = template_env.get_template(fname.replace(loader_prefix, '').replace('\\', '/'))
     r = template.render(config)
     destination = prep_dst(fname, build_platform, prefix, build_data_dir).replace('.tmpl.', '.')
     with open(destination, 'w') as f:
@@ -33,6 +78,7 @@ def copy_file(fname, build_platform, prefix, build_data_dir=None):
 build_board = os.environ.get("FUJINET_BUILD_BOARD")
 build_platform = os.environ.get("FUJINET_BUILD_PLATFORM")
 build_data_dir = os.environ.get("BUILD_DATA_DIR")
+dev_mode = False
 
 # PROJECT_CONFIG is set by pio when passed the -i param to choose a specific ini file, and also build.sh uses same variable name too for consistency
 ini_file = os.environ.get("PROJECT_CONFIG")
@@ -52,8 +98,9 @@ if env is not None:
     if build_board is None:
         build_board = env["PIOENV"]
     # PROGRAM_ARGS is a list of args provided by pio with "-a" switch
+    # dev overlays the board config rather than replacing it, to keep its tweaks
     if 'dev' in env["PROGRAM_ARGS"]:
-        build_board = "dev"
+        dev_mode = True
 
     # this is set by "pio" if it is running the build
     if env["PROJECT_CONFIG"] is not None:
@@ -71,9 +118,19 @@ print(f"Building webUI into {build_data_dir}")
 print(f"  build_platform: {build_platform}")
 print(f"  build_board: {build_board}")
 print(f"  config file: {ini_file}")
+print(f"  dev overlay: {dev_mode}")
 
-template_env = Environment(loader=FileSystemLoader("data/webui/template"))
-config = load(open(os.path.join('data', 'webui', 'config', f'{build_board}.yaml')), Loader=Loader)
+template_env = Environment(loader=FileSystemLoader(["data/webui/template", "data/webui/device_specific"]))
+config = load_board_config(build_board, build_platform)
+
+if dev_mode:
+    deep_merge(config, load_config_overlay(os.path.join('data', 'webui', 'config', 'dev.yaml')))
+
+# Auto-set fujinet_pc flag for PC builds (allows eliminating redundant board files)
+if build_board.startswith('fujinet-pc-'):
+    if 'tweaks' not in config:
+        config['tweaks'] = {}
+    config['tweaks']['fujinet_pc'] = True
 
 if not build_platform.startswith('BUILD_'):
     raise Exception(f"build_platform does not match BUILD_*, aborting")
@@ -102,6 +159,10 @@ for filename in glob.iglob(f'{webui_template_prefix}**', recursive=True):
 # if there are file clashes, these will override the above, so it allows for device specific overrides
 
 dev_specific_prefix = os.path.join('data', 'webui', 'device_specific', build_platform, '')
+dev_specific_loader_prefix = os.path.join('data', 'webui', 'device_specific', '')
 for filename in glob.iglob(f"{dev_specific_prefix}**", recursive=True):
     if os.path.isfile(filename) and filename != '.keep':
-        copy_file(filename, build_platform, dev_specific_prefix, build_data_dir)
+        if (template_matcher.search(filename)):
+            process_template(filename, build_platform, template_env, config, dev_specific_prefix, build_data_dir, dev_specific_loader_prefix)
+        else:
+            copy_file(filename, build_platform, dev_specific_prefix, build_data_dir)

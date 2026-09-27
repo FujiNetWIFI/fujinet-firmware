@@ -86,7 +86,7 @@ bool fujimail_inbound(const fb_reply_t *req)
     if (req->device != FUJI_DEVICEID_DBC)
         return false;
 
-    if (req->command == CMD_NET_OPEN) {
+    if (req->command == NETCMD_OPEN) {
         unsigned stream = (req->data_len > 0) ? req->data[0] : 0;
 
         stage_expect = 0;
@@ -108,28 +108,28 @@ bool fujimail_inbound(const fb_reply_t *req)
             dbc_stream = -1;
             poke(FN_R_BOOT_STATE, FN_BOOT_FAILED);
             poke(FN_R_BOOT_ERR, FN_BOOT_ERR_TOOBIG);
-            port->send_bare(FUJI_DEVICEID_DBC, CMD_FUJI_NAK, NULL, 0);
+            port->send_bare(FUJI_DEVICEID_DBC, FUJICMD_NAK, NULL, 0);
             return true;
         }
         poke(FN_R_BOOT_STATE, FN_BOOT_XFER);
         poke(FN_R_BOOT_PCT, 0);
         poke(FN_R_BOOT_ERR, 0);
-        port->send_bare(FUJI_DEVICEID_DBC, CMD_FUJI_ACK, NULL, 0);
+        port->send_bare(FUJI_DEVICEID_DBC, FUJICMD_ACK, NULL, 0);
         return true;
     }
 
-    if (req->command == CMD_NET_WRITE) {
+    if (req->command == NETCMD_WRITE) {
         if (stage_len + req->data_len <= sizeof stage) {
             memcpy(stage + stage_len, req->data, req->data_len);
             stage_len += req->data_len;
         }
         if (stage_expect)
             poke(FN_R_BOOT_PCT, (uint8_t)((stage_len * 100u) / stage_expect));
-        port->send_bare(FUJI_DEVICEID_DBC, CMD_FUJI_ACK, NULL, 0);
+        port->send_bare(FUJI_DEVICEID_DBC, FUJICMD_ACK, NULL, 0);
         return true;
     }
 
-    if (req->command == CMD_NET_CLOSE) {
+    if (req->command == NETCMD_CLOSE) {
         /* Bare CLOSE commits; payload 0x01 aborts, so partial data is never
          * booted and older peers stay compatible. */
         bool aborted = (req->data_len > 0 && req->data[0] == 0x01);
@@ -151,7 +151,7 @@ bool fujimail_inbound(const fb_reply_t *req)
             poke(FN_R_BOOT_STATE, FN_BOOT_READY);
         }
         stage_len = 0;
-        port->send_bare(FUJI_DEVICEID_DBC, CMD_FUJI_ACK, NULL, 0);
+        port->send_bare(FUJI_DEVICEID_DBC, FUJICMD_ACK, NULL, 0);
         return true;
     }
 
@@ -192,7 +192,7 @@ static void run_transaction(uint8_t seq)
 
         st = port->transact(mb_device, mb_cmd, params, nparam,
                             txbuf + p, (uint16_t)(txptr - p),
-                            (mb_cmd == CMD_FUJI_MOUNT_IMAGE) ? TIMEOUT_MOUNT_MS
+                            (mb_cmd == FUJICMD_MOUNT_IMAGE) ? TIMEOUT_MOUNT_MS
                                                              : TIMEOUT_MS,
                             &reply);
     }

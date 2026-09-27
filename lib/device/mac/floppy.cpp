@@ -1,77 +1,174 @@
 #ifdef BUILD_MAC
 #include "floppy.h"
+#include "../../media/mac/macGCR.h"
+#include "../../media/mac/mediaTypeDCD.h"
+#include <esp_heap_caps.h>
 #include "../bus/mac/mac_ll.h"
+#include "../../include/debug.h"
 #include <cstring>
 
 #define NS_PER_BIT_TIME 125
 #define BLANK_TRACK_LEN 6400
 
-mediatype_t macFloppy::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+mediatype_t macFloppy::mount(FILE *f, const char *filename, uint32_t disksize,
+                             disk_access_flags_t access_mode, mediatype_t disk_type)
 {
-
   mediatype_t mt = MEDIATYPE_UNKNOWN;
-  // mediatype_t disk_type = MEDIATYPE_WOZ;
-
-  // Debug_printf("disk MOUNT %s\n", filename);
 
   // Destroy any existing MediaType
   if (_disk != nullptr)
   {
-    delete _disk;
-    _disk = nullptr;
+    unmount();
   }
 
   if (disk_type == MEDIATYPE_UNKNOWN)
     disk_type = MediaType::discover_mediatype(filename);
 
-  _disk_size_in_blocks = disksize/512;
+  if (disk_type == MEDIATYPE_SIT)
+  {
+    // Unpack the archive's disk image into PSRAM, then mount that like a
+    // host file under the inner image's name
+    _sit = std::make_unique<SitMount>();
+    if (_sit->extract(f, filename).is_error())
+    {
+      Debug_printf("\nStuffIt mount: could not extract a disk image from '%s'\n", filename);
+      _sit.reset();
+      fclose(f);
+      device_active = false;
+      return MEDIATYPE_UNKNOWN;
+    }
+
+    bool wants_floppy = is_floppy_slot();
+    bool image_is_floppy = (_sit->kind == sit_image_kind_t::FLOPPY);
+    if (wants_floppy != image_is_floppy)
+    {
+      Debug_printf("\nStuffIt mount: '%s' -> '%s' is a %s image, slot %c is a %s slot - refusing\n",
+                   filename, _sit->inner_filename,
+                   image_is_floppy ? "floppy" : "HD20",
+                   disk_num + 1,
+                   wants_floppy ? "floppy" : "HD20");
+      _sit.reset();
+      fclose(f);
+      device_active = false;
+      return MEDIATYPE_UNKNOWN;
+    }
+
+    Debug_printf("\nStuffIt mount: '%s' -> '%s' (%u bytes, %s)\n",
+                 filename, _sit->inner_filename, _sit->image_len,
+                 image_is_floppy ? "floppy" : "HD20");
+
+    fclose(f); // the image in PSRAM replaces the archive file
+
+    mediatype_t result = mount(_sit->image_fh, _sit->inner_filename, _sit->image_len,
+                                access_mode, _sit->disk_type);
+    if (result == MEDIATYPE_UNKNOWN)
+      _sit.reset();
+    return result;
+  }
+
+  _disk_size_in_blocks = disksize / 512;
+  readonly = !(access_mode & DISK_ACCESS_MODE_WRITE);
+
+  // Sector images go to the floppy encoder when they land in the floppy
+  // slot; the same file in slots 1-4 is served as an HD20 instead.
+  bool floppy_sector_image = is_floppy_slot() &&
+                             (disk_type == MEDIATYPE_DSK || disk_type == MEDIATYPE_DC42);
 
   switch (disk_type)
   {
   case MEDIATYPE_MOOF:
-    Debug_printf("\nMounting Media Type MOOF");
-    // init();
-    device_active = (id() == '4');
-    _disk = new MediaTypeMOOF();
-    mt = ((MediaTypeMOOF *)_disk)->mount(f);
+  case MEDIATYPE_DSK:
+  case MEDIATYPE_DC42:
+    if (!is_floppy_slot())
+    {
+      if (disk_type == MEDIATYPE_MOOF)
+      {
+        Debug_printf("\nMOOF images can only be mounted in slot %d (floppy), not slot %c\n",
+                     MAC_FLOPPY_SLOT + 1, disk_num + 1);
+        return MEDIATYPE_UNKNOWN;
+      }
+      goto mount_dcd;
+    }
+    if (floppy_sector_image)
+    {
+      Debug_printf("\nMounting sector image as GCR floppy");
+      _disk = new MediaTypeFloppyImage();
+      mt = ((MediaTypeFloppyImage *)_disk)->mount(f, disksize);
+    }
+    else
+    {
+      Debug_printf("\nMounting Media Type MOOF");
+      _disk = new MediaTypeMOOF();
+      mt = ((MediaTypeMOOF *)_disk)->mount(f);
+    }
+    if (mt == MEDIATYPE_UNKNOWN)
+    {
+      Debug_printf("\nFloppy mount failed");
+      delete _disk;
+      _disk = nullptr;
+      device_active = false;
+      return MEDIATYPE_UNKNOWN;
+    }
+    device_active = true;
+    _sector_image = floppy_sector_image;
+    _wcap_active = false;
+    _wcap_len = 0;
     track_pos = 0;
-    old_pos = 2; // makde different to force change_track buffer copy
+    old_pos = 2;     // make different to force change_track buffer copy
     change_track(0); // initialize rmt buffer
     change_track(1); // initialize rmt buffer
     switch (_disk->num_sides)
     {
     case 1:
-      fnUartBUS.write('s');
-      fnUartBUS.write(track_pos | 128);
+      SYSTEM_BUS.write((uint8_t)'s');
+      SYSTEM_BUS.write((uint8_t)(track_pos | 128));
+      _disk_inserted = true;
       break;
     case 2:
-      fnUartBUS.write('d');
-      fnUartBUS.write(track_pos | 128);
+      SYSTEM_BUS.write((uint8_t)'d');
+      SYSTEM_BUS.write((uint8_t)(track_pos | 128));
+      _disk_inserted = true;
+      break;
     default:
       break;
     }
+    // a sector image mounted read/write may be written; MOOFs and read-only
+    // mounts stay write protected on the Pico
+    SYSTEM_BUS.write((uint8_t)((_sector_image && !readonly) ? 'u' : 'l'));
     break;
-  case MEDIATYPE_DSK:
-    Debug_printf("\nMounting Media Type DSK for DCD");
+  mount_dcd:
+    if (!is_dcd_slot())
+    {
+      Debug_printf("\nDCD (HD20) images can only be mounted in slots 1-%d, not slot %c\n",
+                   MAC_DCD_SLOTS, disk_num + 1);
+      return MEDIATYPE_UNKNOWN;
+    }
+    if (disk_type == MEDIATYPE_DC42)
+    {
+      Debug_printf("\nMounting Media Type DC42 for DCD");
+      _disk = new MediaTypeDCD(0x54); // offset of image data in Disk Copy 4.2 file
+    }
+    else
+    {
+      Debug_printf("\nMounting Media Type DSK for DCD");
+      _disk = new MediaTypeDCD();
+    }
+    static_cast<MediaTypeDCD *>(_disk)->set_readonly(readonly);
+    mt = ((MediaTypeDCD *)_disk)->mount(f, disksize);
+    if (mt == MEDIATYPE_UNKNOWN)
+    {
+      Debug_printf("\nDCD mount failed");
+      delete _disk;
+      _disk = nullptr;
+      device_active = false;
+      return MEDIATYPE_UNKNOWN;
+    }
+    // the media decides how many blocks the Mac sees (drive images only
+    // expose their HFS partition, DC42 images strip their header)
+    _disk_size_in_blocks = _disk->num_blocks;
     device_active = true;
-    _disk = new MediaTypeDCD();
-    mt = ((MediaTypeDCD *)_disk)->mount(f);
-    MAC.add_dcd_mount(id());
+    SYSTEM_BUS.add_dcd_mount(id());
     break;
-  case MEDIATYPE_DC42:
-    Debug_printf("\nMounting Media Type DC42 for DCD");
-    device_active = true;
-    _disk = new MediaTypeDCD(0x54); // offset of image data in Disk Copy 4.2 file
-    mt = ((MediaTypeDCD *)_disk)->mount(f);
-    MAC.add_dcd_mount(id());
-    break;
-  // case MEDIATYPE_DSK:
-  //   Debug_printf("\nMounting Media Type DSK");
-  //   device_active = true;
-  //   _disk = new MediaTypeDSK();
-  //   mt = ((MediaTypeDSK *)_disk)->mount(f);
-  //   change_track(0); // initialize spi buffer
-  //   break;
   default:
     Debug_printf("\nMedia Type UNKNOWN - no mount in floppy.cpp");
     device_active = false;
@@ -137,19 +234,38 @@ DCDDATA       Communication channel from DCD device to Macintosh
 
 void macFloppy::unmount()
 {
-  // todo - check device type and call correct unmount()
-  // ((MediaTypeMOOF *)_disk)->unmount();
-  if (disktype() == mediatype_t::MEDIATYPE_MOOF)
-    ((MediaTypeMOOF *)_disk)->unmount();
-  else if (_disk != nullptr)
-    _disk->unmount();
+  // anything mounted in slots 1-4 is an HD20, archive-backed or not
+  bool was_dcd = (_disk != nullptr) && is_dcd_slot();
+
   if (_disk != nullptr)
-    free(_disk);
+  {
+    _disk->unmount();
+    delete _disk; // virtual destructor, handles MOOF track buffers
+    _disk = nullptr;
+  }
 
-  _disk = nullptr;
+  if (_sit != nullptr)
+  {
+    _sit->image_fh = nullptr; // already closed by _disk->unmount()
+    _sit.reset();
+  }
 
-  MAC.rem_dcd_mount(id());
+  if (was_dcd)
+    SYSTEM_BUS.rem_dcd_mount(id());
+  else if (is_floppy_slot() && _disk_inserted)
+  {
+    // only once, and only if the Pico was told a disk was inserted
+    floppy_ll.stop();
+    SYSTEM_BUS.write((uint8_t)'r');
+    _disk_inserted = false;
+  }
   device_active = false;
+}
+
+void macFloppy::flush_if_idle()
+{
+  if (_disk != nullptr && is_dcd_slot())
+    static_cast<MediaTypeDCD *>(_disk)->flush_if_idle();
 }
 
 int IRAM_ATTR macFloppy::step()
@@ -178,41 +294,138 @@ int IRAM_ATTR macFloppy::step()
 
 void macFloppy::update_track_buffers()
 {
+  if (device_active && _disk != nullptr)
+    act_reads++;
   change_track(0);
   change_track(1);
 }
 
+// copy the current cylinder into the RMT buffers unconditionally (after a
+// sector of it was rewritten)
+void macFloppy::reload_track_buffers()
+{
+  if (!device_active || _disk == nullptr)
+    return;
+  for (int side = 0; side < 2; side++)
+  {
+    int tp = track_pos + ((_disk->num_sides == 1) ? 0 : side);
+    if (_disk->trackmap(tp) != 255)
+      floppy_ll.copy_track(_disk->get_track(tp), side, _disk->track_len(tp), _disk->num_bits(tp),
+                           NS_PER_BIT_TIME * _disk->optimal_bit_timing);
+  }
+}
+
+#define WCAP_BYTES 16384 // 131072 bits: more than the longest track (74432 bits)
+
+void macFloppy::write_capture_data(const uint8_t *p, size_t n)
+{
+  if (!_wcap_active)
+  {
+    if (_wcap == nullptr)
+    {
+      _wcap = (uint8_t *)heap_caps_malloc(WCAP_BYTES, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+      if (_wcap == nullptr)
+      {
+        Debug_printf("\nFloppy write: no memory for capture buffer");
+        return;
+      }
+    }
+    _wcap_active = true;
+    _wcap_overflow = false;
+    _wcap_len = 0;
+    _wcap_side = floppy_ll.mac_headsel_val() ? 1 : 0; // SEL is steady through a write
+  }
+  if (_wcap_len + n > WCAP_BYTES)
+  {
+    _wcap_overflow = true;
+    n = WCAP_BYTES - _wcap_len;
+  }
+  memcpy(_wcap + _wcap_len, p, n);
+  _wcap_len += n;
+}
+
+void macFloppy::write_capture_end()
+{
+  if (!_wcap_active)
+    return;
+  _wcap_active = false;
+
+  Debug_printf("\nFloppy write: %u bytes captured at cyl %d side %d%s", (unsigned)_wcap_len,
+               track_pos / 2, _wcap_side, _wcap_overflow ? " (overflow)" : "");
+
+  if (_disk == nullptr || !_sector_image || readonly)
+  {
+    Debug_printf("\nFloppy write: ignored (%s)", _disk == nullptr ? "no disk" : !_sector_image ? "not a sector image" : "read-only mount");
+    return;
+  }
+
+  static mac_gcr_written_sector *ws = nullptr;
+  if (ws == nullptr)
+    ws = (mac_gcr_written_sector *)heap_caps_malloc(sizeof(mac_gcr_written_sector) * MAC_GCR_MAX_SECTORS,
+                                                    MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+  if (ws == nullptr)
+    return;
+
+  int n = mac_gcr_decode_capture(_wcap, _wcap_len * 8, ws, MAC_GCR_MAX_SECTORS);
+  int written = 0;
+  for (int i = 0; i < n; i++)
+  {
+    int cyl = ws[i].cyl >= 0 ? ws[i].cyl : track_pos / 2;
+    int side = ws[i].side >= 0 ? ws[i].side : _wcap_side;
+    if (_disk->num_sides == 1)
+      side = 0; // a 400K disk has one side whatever the head-select line says
+    if (ws[i].cyl >= 0 && (ws[i].cyl != track_pos / 2 || ws[i].side != _wcap_side))
+      Debug_printf("\nFloppy write: header says C%d H%d, head is at C%d H%d", ws[i].cyl, ws[i].side,
+                   track_pos / 2, _wcap_side);
+    if (!ws[i].checksum_ok)
+    {
+      Debug_printf("\nFloppy write: bad checksum for C%d H%d S%d, not stored", cyl, side, ws[i].sector);
+      continue;
+    }
+    if (((MediaTypeFloppyImage *)_disk)->write_sector(cyl, side, ws[i].sector, ws[i].data))
+      written++;
+  }
+  if (n == 0)
+    Debug_printf("\nFloppy write: no data field found in capture");
+  act_writes += written;
+  act_errors += (n > written) ? n - written : 0;
+  if (written)
+    reload_track_buffers();
+}
+
 void IRAM_ATTR macFloppy::change_track(int side)
 {
-  int tp = track_pos + side;
-  int op = old_pos + side;
-
-  if (!device_active)
+  if (!device_active || _disk == nullptr)
     return;
+
+  // a single-sided disk serves its one track whichever head is selected
+  int ds = (_disk->num_sides == 1) ? 0 : side;
+  int tp = track_pos + ds;
+  int op = old_pos + ds;
 
   if (op == tp)
     return;
 
   // should only copy track data over if it's changed
-  if (((MediaTypeMOOF *)_disk)->trackmap(op) == ((MediaTypeMOOF *)_disk)->trackmap(tp))
+  if (_disk->trackmap(op) == _disk->trackmap(tp))
     return;
 
   // need to tell diskii_xface the number of bits in the track
   // and where the track data is located so it can convert it
-  if (((MediaTypeMOOF *)_disk)->trackmap(tp) != 255)
+  if (_disk->trackmap(tp) != 255)
     floppy_ll.copy_track(
-        ((MediaTypeMOOF *)_disk)->get_track(tp),
+        _disk->get_track(tp),
         side,
-        ((MediaTypeMOOF *)_disk)->track_len(tp),
-        ((MediaTypeMOOF *)_disk)->num_bits(tp),
-        NS_PER_BIT_TIME * ((MediaTypeMOOF *)_disk)->optimal_bit_timing);
+        _disk->track_len(tp),
+        _disk->num_bits(tp),
+        NS_PER_BIT_TIME * _disk->optimal_bit_timing);
   else
     floppy_ll.copy_track(
         nullptr,
         side,
         BLANK_TRACK_LEN,
         BLANK_TRACK_LEN * 8,
-        NS_PER_BIT_TIME * ((MediaTypeMOOF *)_disk)->optimal_bit_timing);
+        NS_PER_BIT_TIME * _disk->optimal_bit_timing);
   // Since the empty track has no data, and therefore no length, using a fake length of 51,200 bits (6400 bytes) works very well.
 }
 
@@ -325,7 +538,7 @@ void macFloppy::dcd_status(uint8_t* payload)
   memcpy(&payload[70], icon, sizeof(icon));
   for (int i = 0 ; i < 6 ; i++)
   {
-    payload[70+96+4*i]=~numset[get_disk_number()-'0'][i];
+    payload[70+96+4*i]=~numset[(get_disk_number()-'0') & 3][i];
   }
   memset(&payload[198], 0xff, 128);
   payload[326] = 10; // seems to be limited to 12 chars
@@ -337,24 +550,40 @@ void macFloppy::process(mac_cmd_t cmd)
 {
   uint32_t sector_num;
   uint8_t buffer[512];
-  char s[3];
+  uint8_t s[3];
 
   switch (cmd)
   {
   case 'R':
-    fnUartBUS.readBytes(s, 3);
+    SYSTEM_BUS.read_exact(s, 3);
+    if (_disk == nullptr)
+    {
+      Debug_printf("\nDCD read with no media mounted");
+      memset(buffer, 0, sizeof(buffer));
+      SYSTEM_BUS.write(buffer, sizeof(buffer));
+      break;
+    }
     sector_num = ((uint32_t)s[0] << 16) + ((uint32_t)s[1] << 8) + (uint32_t)s[2];
     Debug_printf("\nDCD sector request: %06lx", sector_num);
     if (_disk->read(sector_num, buffer))
+    {
       Debug_printf("\nError Reading Sector %06lx",sector_num);
+      act_errors++;
+    }
+    else
+      act_reads++;
     // todo: error handling
-    fnUartBUS.write(buffer, sizeof(buffer));
+    SYSTEM_BUS.write(buffer, sizeof(buffer));
     break;
   case 'T':
+    act_status++;
+    // flush the write cache before the Mac looks at status
+    if (_disk != nullptr && is_dcd_slot())
+      static_cast<MediaTypeDCD *>(_disk)->flush();
     memset(buffer,0,sizeof(buffer));
     dcd_status(buffer);
     Debug_printf("\nSending STATUS block");
-    fnUartBUS.write(&buffer[6], 336); // status info block is 336 char's without header and checksum
+    SYSTEM_BUS.write(&buffer[6], 336); // status info block is 336 char's without header and checksum
     break;
   case 'W':
     // code on PICO:
@@ -364,18 +593,20 @@ void macFloppy::process(mac_cmd_t cmd)
     // uart_putc_raw(UART_ID, sector & 0xff);
     // sector++;
     // uart_write_blocking(UART_ID, &payload[26], 512);
-    fnUartBUS.readBytes(s, 3);
-    fnUartBUS.readBytes(buffer, sizeof(buffer));
+    SYSTEM_BUS.read_exact(s, 3);
+    SYSTEM_BUS.read_exact(buffer, sizeof(buffer));
     sector_num = ((uint32_t)s[0] << 16) + ((uint32_t)s[1] << 8) + (uint32_t)s[2];
     Debug_printf("\nDCD sector write: %06lx", sector_num);
-    if (_disk->write(sector_num, buffer))
+    if (_disk == nullptr || readonly || _disk->write(sector_num, buffer))
     {
       Debug_printf("\nError Writing Sector %06lx", sector_num);
-      fnUartBUS.write('e');
+      act_errors++;
+      SYSTEM_BUS.write((uint8_t)'e');
     }
     else
     {
-      fnUartBUS.write('w');
+      act_writes++;
+      SYSTEM_BUS.write((uint8_t)'w');
     }
     break;
   default:

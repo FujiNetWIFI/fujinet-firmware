@@ -1,5 +1,5 @@
 # Gumbo — pure-C HTML5 parser (Codeberg fork, robust on malformed HTML).
-# Backend for the gumbo-query component used by lib/fnsgml (FNSGML).
+# Backend for the gumbo-query component used by lib/fnhtml (FNHTML).
 file(GLOB GUMBO_SRCS ${COMPONENT_DIR}/*.c)
 
 idf_component_register(

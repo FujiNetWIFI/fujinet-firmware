@@ -95,7 +95,19 @@ void fuji_service_init(void)
 void fuji_mailbox_service(void)
 {
     uint16_t offset;
+    bool quiet = true;
 
-    while (fuji_cart_next_read(&offset))
+    while (fuji_cart_next_read(&offset)) {
         fujimail_read_hotspot(offset);
+        quiet = false;
+    }
+
+    /* Nothing from the console this pass, so spend it blanking the flash
+     * store instead of erasing inside a push and stalling that chunk's ACK.
+     * A sector erase deafens core0 for ~45 ms; the hotspot ring holds a whole
+     * transaction (FN_TX_MAX plus its register pairs) and the SEQ/ACKSEQ
+     * interlock stops the client starting another, so the console loses
+     * latency here and never an event. */
+    if (quiet)
+        fuji_store_idle();
 }

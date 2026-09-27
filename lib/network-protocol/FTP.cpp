@@ -70,9 +70,22 @@ fujiError_t NetworkProtocolFTP::open_dir_handle()
 fujiError_t NetworkProtocolFTP::mount(PeoplesUrlParser *url)
 {
     fujiError_t res;
+    std::string user = "anonymous", pass = "fujinet@fujinet.online";
+
+    // Credentials in the URL win over NET_USERNAME/NET_PASSWORD, as in SMB.
+    if (!url->user.empty())
+    {
+        user = url->user;
+        pass = url->password;
+    }
+    else if (login != nullptr)
+    {
+        user = *login;
+        pass = *password;
+    }
 
     // Path isn't used
-    res = ftp->login("anonymous", "fujinet@fujinet.online", url->host);
+    res = ftp->login(user, pass, url->host);
     fserror_to_error();
     return res;
 }
@@ -227,7 +240,11 @@ size_t NetworkProtocolFTP::available()
     switch (streamType)
     {
     case streamType_t::FILE:
-        avail = ftp->data_available();
+        // read_file() serves receiveBuffer (filled by status()) before the socket
+        // and never both at once, so report only what the next READ returns.
+        avail = receiveBuffer->length();
+        if (!avail)
+            avail = ftp->data_available();
         break;
     case DIR:
         avail = receiveBuffer->length();

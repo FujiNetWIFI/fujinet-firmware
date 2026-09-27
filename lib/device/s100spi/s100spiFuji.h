@@ -5,7 +5,7 @@
 
 #include <cstdint>
 
-#include "network.h"
+#include "s100spiNetwork.h"
 #include "disk.h"
 
 #include "fujiHost.h"

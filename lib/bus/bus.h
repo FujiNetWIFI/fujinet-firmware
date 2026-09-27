@@ -6,6 +6,16 @@
 
 #include <string>
 
+#include <type_traits>
+
+// Compile-time check for packet.setDataLength(...)
+template <typename T, typename = void>
+struct has_setDataLength : std::false_type {};
+
+template <typename T>
+struct has_setDataLength<T, std::void_t<decltype(std::declval<T>().setDataLength(std::declval<uint16_t>()))>>
+    : std::true_type {};
+
 typedef enum class TRANS_STATE {
     INVALID,
     NO_GET,
@@ -68,6 +78,50 @@ public:
     // the transaction cannot be completed successfully.
     virtual success_is_true transaction_get(void *data, size_t len) = 0;
 
+    inline success_is_true transaction_get(ByteBuffer &buffer) {
+        return transaction_get(buffer.data(), buffer.size());
+    }
+    inline success_is_true transaction_get(std::string &buffer) {
+        return transaction_get(buffer.data(), buffer.size());
+    }
+
+    // Automatically determines length of data. On systems that don't
+    // support variable length packets the length is pulled from the
+    // aux1/aux2 bytes in native endianness. Returns std::nullopt on
+    // error.
+    //
+    // Automatically handles transaction_accept()
+    template <typename PacketType>
+    std::optional<ByteBuffer> transaction_varlen_data(const PacketType &packet) {
+        ByteBuffer data;
+
+        if constexpr (has_setDataLength<PacketType>::value) {
+            uint16_t len = packet.param(0);
+            data = ByteBuffer(len);
+        }
+        else {
+            data = ByteBuffer(packet.data().value_or(ByteBuffer{}));
+        }
+
+        if (data.size())
+        {
+            transaction_accept(TRANS_STATE::WILL_GET);
+            if (transaction_get(data).is_error())
+                return std::nullopt;
+        }
+        else
+            transaction_accept(TRANS_STATE::NO_GET);
+
+        return data;
+    }
+    template <typename PacketType>
+    std::optional<std::string> transaction_varlen_string(const PacketType &packet)  {
+        auto buf = transaction_varlen_data(packet);
+        if (buf.has_value())
+            return std::string(reinterpret_cast<const char *>(buf->data()), buf->size());
+        return std::nullopt;
+    }
+
     // Send response data and complete the transaction. If is_error is true,
     // the response represents a protocol-defined error.
     virtual void transaction_send(const void *data, size_t len, bool is_error=false) = 0;
@@ -100,6 +154,7 @@ public:
     virtual std::string unicodeTextToNative(const std::string &unicode) {
         return unicode;
     }
+    virtual std::string nativeEOL() { return "\r"; }
 };
 
 #ifdef BUILD_ATARI

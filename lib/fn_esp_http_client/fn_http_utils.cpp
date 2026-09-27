@@ -94,7 +94,9 @@ void http_utils_trim_whitespace(char **str)
 
 char *http_utils_get_string_between(const char *str, const char *begin, const char *end)
 {
-    char *found = strstr(str, begin);
+    // Cast because C++ overloads strstr to return const char * for a const
+    // argument; newlib declares only the C form, so this built on ESP alone.
+    char *found = (char *)strstr(str, begin);
     char *ret = NULL;
     if (found) {
         found += strlen(begin);

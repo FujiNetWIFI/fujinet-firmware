@@ -625,11 +625,6 @@ void iwm_sp_ll::setup_spi()
     esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, spi_periph_signal[HSPI_HOST].spid_out, false, false);
   }
 
-  if (smartport.spiMutex == NULL)
-  {
-    smartport.spiMutex = xSemaphoreCreateMutex();
-  }
-
 }
 
 void iwm_ll::setup_gpio()
@@ -895,6 +890,15 @@ void IRAM_ATTR iwm_diskii_ll::diskii_write_handler()
       item.length = (offset + d2w_buflen - d2w_position) % d2w_buflen;
     }
 
+    // ISR context: an item dropped by a full queue can never be freed, so check
+    // for space before allocating. Race-free - this ISR is the sole producer.
+    if (uxQueueMessagesWaitingFromISR(iwm_write_queue) >= IWM_WRITE_QUEUE_DEPTH)
+    {
+      iwm_write_drops++;
+      d2w_writing = false;
+      return;
+    }
+
     item.buffer = (decltype(item.buffer)) heap_caps_malloc(item.length, MALLOC_CAP_8BIT);
     if (!item.buffer)
     {
@@ -918,7 +922,8 @@ void IRAM_ATTR iwm_diskii_ll::diskii_write_handler()
       {
         memcpy(&item.buffer[end1], d2w_buffer, end2);
       }
-      xQueueSendFromISR(iwm_write_queue, &item, &woken);
+      if (xQueueSendFromISR(iwm_write_queue, &item, &woken) != pdTRUE)
+        iwm_write_drops++; // unreachable after the space pre-check; buffer is lost
     }
     d2w_writing = false;
   }
@@ -941,7 +946,7 @@ void iwm_diskii_ll::start(uint8_t drive, bool write_protect)
       d2w_buflen = cspi_alloc_continuous(IWM_NUMBYTES_FOR_BITS(D2W_MAXBUF, d2w_buffer),
                                          D2W_CHUNK_SIZE, &d2w_buffer, &d2w_desc);
 #endif
-      if (d2w_desc) {
+      if (d2w_desc && iwm_write_queue != nullptr) {
         gpio_isr_handler_add(SP_WREQ, diskii_write_handler_forwarder, (void *) this);
         cspi_begin_continuous(smartport.spirx, d2w_desc);
         d2w_started = true;
@@ -1131,7 +1136,11 @@ void iwm_diskii_ll::setup_rmt()
 #endif
 
   // SPI continuous
-  iwm_write_queue = xQueueCreate(10, sizeof(iwm_write_data));
+  iwm_write_queue = xQueueCreate(IWM_WRITE_QUEUE_DEPTH, sizeof(iwm_write_data));
+  if (iwm_write_queue == nullptr)
+    // start() refuses to install the write ISR without it - Disk II writes disabled.
+    Debug_printv("could not create Disk II write queue, free internal/total heap: %lu/%lu",
+                 esp_get_free_internal_heap_size(), esp_get_free_heap_size());
 
   track_buffer = (uint8_t *)heap_caps_malloc(TRACK_LEN, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   if (track_buffer == NULL)

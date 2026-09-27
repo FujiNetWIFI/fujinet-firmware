@@ -1,20 +1,8 @@
+extends: base
 paths:
   font_path: ./fonts
   css_path: ./css
   js_path: ./js
 components:
-  clipboard: true
-  network: true
-  hardware: true
-  hosts_list: true
-  mount_list: true
-  printer_settings: true
-  modem_settings: true
   hsio_settings: true
-  timezone: true
-  net_stream: false
   program_recorder: true
-  disk_swap: true
-  boot_settings: true
-tweaks:
-  # webui tweaks, if any

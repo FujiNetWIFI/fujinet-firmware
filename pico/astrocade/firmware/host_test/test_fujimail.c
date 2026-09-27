@@ -82,7 +82,7 @@ static fb_status_t stub_transact(uint8_t device, uint8_t command,
     txn.timeout_ms = timeout_ms;
 
     reply->device = device;
-    reply->command = CMD_FUJI_ACK;
+    reply->command = FUJICMD_ACK;
     reply->data = reply_data;
     reply->data_len = reply_len;
     return reply_status;
@@ -193,7 +193,7 @@ static void dbc_open(unsigned stream, uint32_t len)
     open[2] = (uint8_t)(len >> 8);
     open[3] = (uint8_t)(len >> 16);
     open[4] = (uint8_t)(len >> 24);
-    dbc_frame(CMD_NET_OPEN, open, 5);
+    dbc_frame(NETCMD_OPEN, open, 5);
 }
 
 static void dbc_write_all(const uint8_t *image, uint32_t len)
@@ -203,7 +203,7 @@ static void dbc_write_all(const uint8_t *image, uint32_t len)
     for (off = 0; off < len; off += 512) {
         uint32_t n = len - off > 512 ? 512 : len - off;
 
-        dbc_frame(CMD_NET_WRITE, image + off, (uint16_t) n);
+        dbc_frame(NETCMD_WRITE, image + off, (uint16_t) n);
     }
 }
 
@@ -212,7 +212,7 @@ static void dbc_push(const uint8_t *image, uint32_t len)
     dbc_open(0, len);
     assert(window[FN_R_BOOT_STATE] == FN_BOOT_XFER);
     dbc_write_all(image, len);
-    dbc_frame(CMD_NET_CLOSE, NULL, 0);
+    dbc_frame(NETCMD_CLOSE, NULL, 0);
 }
 
 /* ---- tests ---- */
@@ -256,7 +256,7 @@ static void test_transaction(void)
     assert(txn.payload_len == 2 && memcmp(txn.payload, "hi", 2) == 0);
     assert(window[FN_R_ACKSEQ] == 1);
     assert(window[FN_R_ERR] == FN_ERR_OK);
-    assert(window[FN_R_REPLY_CMD] == CMD_FUJI_ACK);
+    assert(window[FN_R_REPLY_CMD] == FUJICMD_ACK);
     assert(window[FN_R_RXLEN_LO] == 4 && window[FN_R_RXLEN_HI] == 0);
     assert(memcmp(&window[FN_R_DATA], "PONG", 4) == 0);
 
@@ -441,8 +441,8 @@ static void test_dbc_abort_and_toobig(void)
 
     fresh();
     dbc_open(0, 100);
-    dbc_frame(CMD_NET_WRITE, junk, 50);
-    dbc_frame(CMD_NET_CLOSE, &abortbyte, 1);
+    dbc_frame(NETCMD_WRITE, junk, 50);
+    dbc_frame(NETCMD_CLOSE, &abortbyte, 1);
     assert(pushed.closes == 1 && pushed.aborted);
     assert(window[FN_R_BOOT_STATE] == FN_BOOT_FAILED);
     assert(window[FN_R_BOOT_ERR] == FN_BOOT_ERR_TRUNCATED);
@@ -483,11 +483,11 @@ static void test_dbc_game_push(void)
 
         for (i = 0; i < sizeof chunk; i++)
             chunk[i] = (uint8_t)((off >> 12) + i);
-        dbc_frame(CMD_NET_WRITE, chunk, sizeof chunk);
+        dbc_frame(NETCMD_WRITE, chunk, sizeof chunk);
         assert(window[FN_R_BOOT_PCT] >= last_pct);
         last_pct = window[FN_R_BOOT_PCT];
     }
-    dbc_frame(CMD_NET_CLOSE, NULL, 0);
+    dbc_frame(NETCMD_CLOSE, NULL, 0);
     assert(pushed.len == ASTROMAP_GAME256_SIZE);
     assert(store[0] == 0 && store[ASTROMAP_GAME256_SIZE - 1]
            == (uint8_t)(((ASTROMAP_GAME256_SIZE - 512) >> 12) + 511));
@@ -525,9 +525,9 @@ static void test_dbc_stream1_isolation(void)
     fresh();
     dbc_open(1, sizeof cfg);
     assert(window[FN_R_BOOT_STATE] == FN_BOOT_IDLE);
-    dbc_frame(CMD_NET_WRITE, cfg, sizeof cfg);
+    dbc_frame(NETCMD_WRITE, cfg, sizeof cfg);
     assert(window[FN_R_BOOT_PCT] == 0);
-    dbc_frame(CMD_NET_CLOSE, NULL, 0);
+    dbc_frame(NETCMD_CLOSE, NULL, 0);
     assert(pushed.stream == 1);
     assert(window[FN_R_BOOT_STATE] == FN_BOOT_IDLE);
 
@@ -537,8 +537,8 @@ static void test_dbc_stream1_isolation(void)
 
     /* Out-of-order sibling after READY: still isolated. */
     dbc_open(1, sizeof cfg);
-    dbc_frame(CMD_NET_WRITE, cfg, sizeof cfg);
-    dbc_frame(CMD_NET_CLOSE, NULL, 0);
+    dbc_frame(NETCMD_WRITE, cfg, sizeof cfg);
+    dbc_frame(NETCMD_CLOSE, NULL, 0);
     assert(window[FN_R_BOOT_STATE] == FN_BOOT_READY);
     assert(window[FN_R_BOOT_PCT] == 100);
     reg_write(FN_REG_BOOTLOCK, FN_BOOTLOCK_MAGIC);

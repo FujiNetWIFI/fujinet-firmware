@@ -3,6 +3,7 @@
 #define RS232CPM_H
 
 #include "bus.h"
+#include "global_types.h"
 
 
 #define FOLDERCHAR '/'
@@ -15,12 +16,11 @@ typedef unsigned int    uint32;
 class rs232CPM : public virtualDevice
 {
 private:
-    void rs232_status(FujiStatusReq reqType) override;
     void rs232_process(const FujiBusPacket &packet) override;
 
 public:
     bool cpmActive = false;
-    void init_cpm(int baud);
+    success_is_true init_cpm(int baud);
     void rs232_handle_cpm();
 
 };

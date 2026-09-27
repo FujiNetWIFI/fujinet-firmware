@@ -35,12 +35,22 @@ jobs:
     runs-on: "ubuntu-latest"
     strategy:
       matrix:
-        target-platform: [ATARI, ATARI-8mb, ADAM, APPLE, IEC-LOLIN-D32, IEC-NUGGET, COCO, MASTERIES-REVAB, MASTERIES-REVA-SPIFIX, RS232]
+        target-platform: [ATARI, ATARI-8mb, ADAM, APPLE, IEC-LOLIN-D32, IEC-NUGGET, COCO, MASTERIES-REVAB, MASTERIES-REVA-SPIFIX, RS232, FUJIVERSAL-INTV, FUJIVERSAL-DRIVEWIRE, FUJIVERSAL-MSX]
+        # Fujiversal boards also build a companion RP2040/RP2350 cartridge
+        # firmware, which needs an ARM toolchain the other boards do not.
+        include:
+          - target-platform: FUJIVERSAL-INTV
+            pico: true
+          - target-platform: FUJIVERSAL-DRIVEWIRE
+            pico: true
+          - target-platform: FUJIVERSAL-MSX
+            pico: true
 
     steps:
     - name: Checkout Source
       uses: actions/checkout@v4
       with:
+        submodules: true
         fetch-depth: 0
 
     - name: Cache pip
@@ -78,6 +88,36 @@ jobs:
 
     - name: Show pio location
       run: pip show platformio
+
+
+    # Fujiversal boards build a companion RP2040/RP2350 cartridge firmware as
+    # part of their ESP32 build, so those jobs need an ARM cross-compiler and
+    # the pico-sdk. Every other board skips both steps.
+    #
+    # Pinned, not master: an SDK that moves under CI turns an unrelated
+    # upstream change into a red build. Same version pico-carts.yml uses.
+    - name: Checkout pico-sdk
+      if: matrix.pico
+      uses: actions/checkout@v4
+      with:
+        repository: raspberrypi/pico-sdk
+        ref: "2.3.0"
+        path: pico-sdk
+        submodules: true
+
+    # build-essential, pkg-config and libusb are for picotool, which the SDK
+    # builds from source when no compatible one is installed -- exactly what
+    # its own BUILDING.md asks for. Without them the failure lands in the
+    # middle of an ExternalProject, a confusing place to learn about a
+    # missing host library.
+    - name: Install companion-MCU toolchain
+      if: matrix.pico
+      run: |
+        sudo apt-get update && sudo apt-get install -y \
+          build-essential cmake ninja-build \
+          gcc-arm-none-eabi libnewlib-arm-none-eabi \
+          pkg-config libusb-1.0-0-dev
+        echo "PICO_SDK_PATH=$GITHUB_WORKSPACE/pico-sdk" >> $GITHUB_ENV
 
     - name: Create PlatformIO INI for Build
       run: cd /home/runner/work/fujinet-firmware/fujinet-firmware && /usr/bin/bash ./build.sh -l /home/runner/work/fujinet-firmware/fujinet-firmware/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i /home/runner/work/fujinet-firmware/fujinet-firmware/platformio-generated.ini

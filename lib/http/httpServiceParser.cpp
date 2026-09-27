@@ -16,20 +16,114 @@
 #ifdef BUILD_ATARI
 #include "sio/sioFuji.h"
 #endif /* BUILD_ATARI */
+#ifdef BUILD_MAC
+#include <esp_heap_caps.h>
+#include <cJSON.h>
+#endif /* BUILD_MAC */
 
 using namespace std;
 
 #define MAX_PRINTER_LIST_BUFFER (2048)
+
+#ifdef BUILD_MAC
+/* Mac mount list data: each slot's config next to what is actually loaded,
+   the hosts, and PSRAM. "</" is escaped since this lands in a <script> block. */
+string fnHttpServiceParser::mac_slots_json()
+{
+    cJSON *root = cJSON_CreateObject();
+    cJSON *slots = cJSON_AddArrayToObject(root, "slots");
+
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    {
+        cJSON *s = cJSON_CreateObject();
+        cJSON_AddNumberToObject(s, "n", i + 1);
+        cJSON_AddStringToObject(s, "role", i < MAC_DCD_SLOTS ? "hd20" : (i == MAC_FLOPPY_SLOT ? "floppy" : "none"));
+
+        int hs = Config.get_mount_host_slot(i);
+        if (hs != HOST_SLOT_INVALID)
+        {
+            cJSON_AddNumberToObject(s, "hs", hs);
+            cJSON_AddStringToObject(s, "host", Config.get_host_name(hs).c_str());
+            cJSON_AddStringToObject(s, "path", Config.get_mount_path(i).c_str());
+            cJSON_AddBoolToObject(s, "rw", Config.get_mount_mode(i) != fnConfig::mount_modes::MOUNTMODE_READ);
+        }
+
+        DISK_DEVICE *dd = theFuji->get_disk_dev(i);
+        if (dd != nullptr && dd->is_loaded())
+        {
+            cJSON_AddBoolToObject(s, "loaded", true);
+            cJSON_AddBoolToObject(s, "ro", dd->readonly);
+            cJSON_AddNumberToObject(s, "blocks", dd->size_in_blocks());
+
+            const MediaTypeDCD *dcd = dd->dcd_media();
+            if (dcd != nullptr)
+            {
+                static const char *kinds[] = {"", "volume", "drive", "dc42"};
+                static const char *fs[] = {"", "MFS", "HFS"};
+                static const char *boot[] = {"", "no-system", "unblessed", "blessed", "blessed-now"};
+                cJSON_AddStringToObject(s, "kind", kinds[static_cast<int>(dcd->image_kind)]);
+                cJSON_AddStringToObject(s, "fs", fs[static_cast<int>(dcd->fs_kind)]);
+                cJSON_AddStringToObject(s, "boot", boot[static_cast<int>(dcd->boot)]);
+                cJSON_AddStringToObject(s, "vol", dcd->volume_name);
+                cJSON_AddBoolToObject(s, "truncated", dcd->truncated);
+            }
+            else
+            {
+                cJSON_AddStringToObject(s, "kind", dd->is_sector_image() ? "sector" : "moof");
+                cJSON_AddNumberToObject(s, "sides", dd->num_sides());
+            }
+
+            if (dd->has_sit_source())
+            {
+                cJSON *a = cJSON_AddObjectToObject(s, "sit");
+                cJSON_AddStringToObject(a, "inner", dd->sit_inner_filename());
+                cJSON_AddStringToObject(a, "format", dd->sit_archive_kind());
+                cJSON_AddStringToObject(a, "method", dd->sit_method_name());
+                cJSON_AddBoolToObject(a, "ndif", dd->sit_was_ndif());
+                cJSON_AddNumberToObject(a, "bytes", dd->sit_image_len());
+            }
+        }
+        cJSON_AddItemToArray(slots, s);
+    }
+
+    cJSON *hosts = cJSON_AddArrayToObject(root, "hosts");
+    for (int h = 0; h < MAX_HOSTS; h++)
+    {
+        if (Config.get_host_type(h) == fnConfig::host_types::HOSTTYPE_INVALID || Config.get_host_name(h).empty())
+            continue;
+        cJSON *o = cJSON_CreateObject();
+        cJSON_AddNumberToObject(o, "hs", h);
+        cJSON_AddStringToObject(o, "name", Config.get_host_name(h).c_str());
+        cJSON_AddItemToArray(hosts, o);
+    }
+
+    cJSON_AddNumberToObject(root, "psram_free", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+    cJSON_AddNumberToObject(root, "psram_total", heap_caps_get_total_size(MALLOC_CAP_SPIRAM));
+
+    string out;
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (json == nullptr)
+        return "{}";
+    for (const char *p = json; *p; p++)
+    {
+        if (p[0] == '<' && p[1] == '/')
+            out += "<\\";
+        else
+            out += *p;
+    }
+    cJSON_free(json);
+    return out;
+}
+#endif /* BUILD_MAC */
 
 const string fnHttpServiceParser::substitute_tag(const string &tag)
 {
     enum tagids
     {
         FN_HOSTNAME = 0,
-#ifndef ESP_PLATFORM
         FN_DEVICE_NAME,
         FN_LABEL,
-#endif
         FN_VERSION,
         FN_IPADDRESS,
         FN_IPMASK,
@@ -92,7 +186,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_DRIVE6HOST,
         FN_DRIVE7HOST,
         FN_DRIVE8HOST,
-#if defined(BUILD_APPLE) && defined(ESP_PLATFORM)
+#ifdef BUILD_APPLE
         FN_DRIVE9HOST,
         FN_DRIVE10HOST,
 #endif
@@ -104,7 +198,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_DRIVE6MOUNT,
         FN_DRIVE7MOUNT,
         FN_DRIVE8MOUNT,
-#if defined(BUILD_APPLE) && defined(ESP_PLATFORM)
+#ifdef BUILD_APPLE
         FN_DRIVE9MOUNT,
         FN_DRIVE10MOUNT,
 #endif
@@ -124,7 +218,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_DRIVE6DEVICE,
         FN_DRIVE7DEVICE,
         FN_DRIVE8DEVICE,
-#if defined(BUILD_APPLE) && defined(ESP_PLATFORM)
+#ifdef BUILD_APPLE
         FN_DRIVE9DEVICE,
         FN_DRIVE10DEVICE,
 #endif
@@ -149,16 +243,17 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_ONEDRIVE_CONNECTED,
         FN_PASSWORD_SET,
         FN_APPKEY_COUNT,
+#ifdef BUILD_MAC
+        FN_MAC_SLOTS,
+#endif
         FN_LASTTAG
     };
 
     const char *tagids[FN_LASTTAG] =
     {
         "FN_HOSTNAME",
-#ifndef ESP_PLATFORM
         "FN_DEVICE_NAME",
         "FN_LABEL",
-#endif
         "FN_VERSION",
         "FN_IPADDRESS",
         "FN_IPMASK",
@@ -221,7 +316,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_DRIVE6HOST",
         "FN_DRIVE7HOST",
         "FN_DRIVE8HOST",
-#if defined(BUILD_APPLE) && defined(ESP_PLATFORM)
+#ifdef BUILD_APPLE
         "FN_DRIVE9HOST",
         "FN_DRIVE10HOST",
 #endif
@@ -233,7 +328,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_DRIVE6MOUNT",
         "FN_DRIVE7MOUNT",
         "FN_DRIVE8MOUNT",
-#if defined(BUILD_APPLE) && defined(ESP_PLATFORM)
+#ifdef BUILD_APPLE
         "FN_DRIVE9MOUNT",
         "FN_DRIVE10MOUNT",
 #endif
@@ -253,7 +348,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_DRIVE6DEVICE",
         "FN_DRIVE7DEVICE",
         "FN_DRIVE8DEVICE",
-#if defined(BUILD_APPLE) && defined(ESP_PLATFORM)
+#ifdef BUILD_APPLE
         "FN_DRIVE9DEVICE",
         "FN_DRIVE10DEVICE",
 #endif
@@ -278,6 +373,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_ONEDRIVE_CONNECTED",
         "FN_PASSWORD_SET",
         "FN_APPKEY_COUNT",
+#ifdef BUILD_MAC
+        "FN_MAC_SLOTS",
+#endif
     };
 
     stringstream resultstream;
@@ -305,7 +403,6 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_HOSTNAME:
         resultstream << fnSystem.Net.get_hostname();
         break;
-#ifndef ESP_PLATFORM
     case FN_DEVICE_NAME:
         resultstream << Config.get_general_devicename();
         break;
@@ -313,7 +410,6 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         // TODO html escape
         resultstream << Config.get_general_label();
         break;
-#endif
     case FN_VERSION:
         resultstream << fnSystem.get_fujinet_version();
         break;
@@ -522,7 +618,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_DRIVE6HOST:
     case FN_DRIVE7HOST:
     case FN_DRIVE8HOST:
-#if defined(BUILD_APPLE) && defined(ESP_PLATFORM)
+#ifdef BUILD_APPLE
     case FN_DRIVE9HOST:
     case FN_DRIVE10HOST:
 #endif
@@ -543,7 +639,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_DRIVE6MOUNT:
     case FN_DRIVE7MOUNT:
     case FN_DRIVE8MOUNT:
-#if defined(BUILD_APPLE) && defined(ESP_PLATFORM)
+#ifdef BUILD_APPLE
     case FN_DRIVE9MOUNT:
     case FN_DRIVE10MOUNT:
 #endif
@@ -552,6 +648,19 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         host_slot = Config.get_mount_host_slot(drive_slot);
         if (host_slot != HOST_SLOT_INVALID) {
             resultstream << Config.get_mount_path(drive_slot);
+#ifdef BUILD_MAC
+            {
+                DISK_DEVICE *dd = theFuji->get_disk_dev(drive_slot);
+                if (dd != nullptr && dd->has_sit_source())
+                {
+                    resultstream << " -> " << dd->sit_inner_filename()
+                                 << " [" << dd->sit_archive_kind() << " / " << dd->sit_method_name()
+                                 << (dd->sit_was_ndif() ? ", NDIF" : "") << "] "
+                                 << dd->sit_image_len() << " bytes in PSRAM, "
+                                 << (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM) << " free";
+                }
+            }
+#endif
             resultstream << " (" << (Config.get_mount_mode(drive_slot) == fnConfig::mount_modes::MOUNTMODE_READ ? "R" : "W") << ")";
         } else {
             resultstream << "(Empty)";
@@ -581,7 +690,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_DRIVE6DEVICE:
     case FN_DRIVE7DEVICE:
     case FN_DRIVE8DEVICE:
-#if defined(BUILD_APPLE) && defined(ESP_PLATFORM)
+#ifdef BUILD_APPLE
     case FN_DRIVE9DEVICE:
     case FN_DRIVE10DEVICE:
 #endif
@@ -661,6 +770,11 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_APPKEY_COUNT:
         resultstream << AppKeyManager::count();
         break;
+#ifdef BUILD_MAC
+    case FN_MAC_SLOTS:
+        resultstream << mac_slots_json();
+        break;
+#endif
     default:
         resultstream << tag;
         break;

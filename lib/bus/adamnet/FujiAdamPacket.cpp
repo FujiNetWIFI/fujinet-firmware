@@ -97,7 +97,8 @@ ByteBuffer FujiAdamPacket::serialize() const
     size_t payloadSize = paramsSize + dataSize;
     if (_command.has_value())
         payloadSize++;
-    bool hasPayload = payloadSize > 0;
+    // NM_SEND always carries length and checksum, even when empty.
+    bool hasPayload = payloadSize > 0 || _type == APT::NM_SEND;
     bool hasLen = hasPayload && (_type != APT::NM_STATUS);
 
     size_t totalSize = 1 /*dest*/
@@ -107,7 +108,8 @@ ByteBuffer FujiAdamPacket::serialize() const
 
     ByteBuffer output;
     output.reserve(totalSize);
-    output.push_back(static_cast<uint8_t>((static_cast<uint8_t>(_type) << 4) | _device));
+    output.push_back(static_cast<uint8_t>((static_cast<uint8_t>(_type) << 4)
+                                          | static_cast<uint8_t>(_device)));
 
     if (hasLen)
     {

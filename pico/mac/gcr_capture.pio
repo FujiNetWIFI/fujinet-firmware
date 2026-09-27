@@ -1,0 +1,52 @@
+;
+; FujiNet Project
+;
+; Vintage Macintosh Microfloppy Controller Interface
+; Capture the IWM write stream on the Mac's WR line as a GCR bitstream.
+;
+; The IWM toggles WR once per 1 bit; a 2 us cell without a transition is a
+; 0 bit. Each cell window is re-aligned on every edge, so the sampler
+; follows the Mac's clock. The bits are shifted in MSB first and pushed
+; every 8 bits; a DMA channel drains them into a ring buffer.
+;
+; Run at 31.25 MHz (clkdiv 4): one poll of the pin costs 3 cycles, 20 polls
+; make a 2 us window; after an edge we wait half a cell so the next window
+; is centred on the next possible transition.
+;
+; y = last pin level, x = poll countdown
+
+.program gcr_capture
+.wrap_target
+cell:
+    set x, 19
+poll:
+    jmp pin high
+    jmp !y nochange     ; low, was low
+    set y, 0            ; falling edge
+    jmp edge
+high:
+    jmp !y rising       ; high, was low
+nochange:
+    jmp x-- poll
+    in null, 1          ; no edge in this cell: 0
+    jmp cell
+rising:
+    set y, 1
+edge:
+    set x, 1
+    in x, 1             ; edge: 1
+    nop [28]            ; half a cell
+.wrap
+
+% c-sdk {
+void gcr_capture_program_init(PIO pio, uint sm, uint offset, uint in_pin)
+{
+    pio_sm_config c = gcr_capture_program_get_default_config(offset);
+    sm_config_set_in_pins(&c, in_pin);
+    sm_config_set_jmp_pin(&c, in_pin);
+    sm_config_set_in_shift(&c, false, true, 8); // shift left, autopush every 8 bits
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
+    sm_config_set_clkdiv(&c, 4.0f);
+    pio_sm_init(pio, sm, offset, &c);
+}
+%}

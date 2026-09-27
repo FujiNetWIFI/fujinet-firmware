@@ -183,9 +183,9 @@ private:
     int count_ReqHandler = 0;
     bool firmware_sent = false;
   
-    QueueHandle_t mrxq;
-    QueueHandle_t mtxq;
-    TaskHandle_t modemTask;
+    QueueHandle_t mrxq = nullptr;
+    QueueHandle_t mtxq = nullptr;
+    TaskHandle_t modemTask = nullptr;
 
     /* Modem Active Variables */
     std::string cmd = "";          // Gather a new AT command to this string from serial

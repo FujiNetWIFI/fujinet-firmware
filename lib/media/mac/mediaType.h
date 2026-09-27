@@ -20,6 +20,7 @@ enum mediatype_t
     MEDIATYPE_DCD,              // directly connected disk, uses one of the following
     MEDIATYPE_DSK,              // flat binary .dsk file
     MEDIATYPE_DC42,             // diskcopy 4.2 .image file - https://www.discferret.com/wiki/Apple_DiskCopy_4.2
+    MEDIATYPE_SIT,              // StuffIt/BinHex archive (.sit/.sea/.hqx) carrying a disk image
     MEDIATYPE_COUNT
 };
 
@@ -75,6 +76,15 @@ public:
     // virtual uint16_t sector_size(uint16_t sectornum);
 
     virtual bool status() = 0;
+
+    // Floppy (MCI) track access, implemented by media that can be served
+    // as a 3.5" GCR floppy (MOOF flux images, sector images run through
+    // the GCR encoder). t is a track index: cylinder * 2 + side.
+    virtual uint8_t trackmap(uint8_t t) { return 255; }   // 255 = no such track
+    virtual uint8_t *get_track(int t) { return nullptr; }
+    virtual int track_len(int t) { return 0; }             // bytes
+    virtual int num_bits(int t) { return 0; }
+    uint8_t optimal_bit_timing = 16;                        // x 125 ns
 
     static mediatype_t discover_mediatype(const char *filename);
 

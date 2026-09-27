@@ -35,6 +35,7 @@ pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/mux.pio)
 pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/dcd_commands.pio)
 pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/dcd_read.pio)
 pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/dcd_write.pio)
+pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/gcr_capture.pio)
 # however, alternatively you can choose to generate it somewhere else (in this case in the source tree for check in)
 #pico_generate_pio_header(pio_and ${CMAKE_CURRENT_LIST_DIR}/blink.pio OUTPUT_DIR ${CMAKE_CURRENT_LIST_DIR})
 
@@ -47,5 +48,10 @@ target_include_directories(commands PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}
   ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts or any other standard includes, if required
 )
+
+# Debug output on the Pico's own USB port as well as UART0, so the Pico
+# can be watched from a host without extra wiring.
+pico_enable_stdio_usb(commands 1)
+pico_enable_stdio_uart(commands 1)
 
 pico_add_extra_outputs(commands)

@@ -97,5 +97,4 @@ void QRMixin::qr_output(const FUJI_COMMAND_PACKET &packet)
 
     SYSTEM_BUS.transaction_send(qrManager.code.data(), len, false);
     qrManager.code.erase(qrManager.code.begin(), qrManager.code.begin() + len);
-    qrManager.code.shrink_to_fit();
 }

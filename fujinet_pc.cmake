@@ -34,7 +34,7 @@ elseif(FUJINET_TARGET STREQUAL "RS232")
     # fujinet.build_platform
     set(FUJINET_BUILD_PLATFORM BUILD_RS232)
     # fujinet.build_board (used by build_webui.py)
-    set(FUJINET_BUILD_BOARD fujinet-lwm-rs232)
+    set(FUJINET_BUILD_BOARD fujinet-pc-rs232)
     # fujinet.build_bus
     set(FUJINET_BUILD_BUS RS232)
 elseif(FUJINET_TARGET STREQUAL "LYNX")
@@ -142,11 +142,13 @@ endif()
 set(INCLUDE_DIRS include
     lib/compat lib/config lib/utils lib/hardware lib/clipboard
     lib/FileSystem
-    lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson lib/fnsgml
+    lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson lib/fnhtml lib/fntext lib/fnxml
+    lib/tinyxml2
     lib/webdav lib/http lib/sam lib/task
     lib/modem-sniffer lib/printer-emulator
     lib/network-protocol
-    lib/fuji lib/bus lib/device lib/device/fujiDevice lib/device/fujiClock lib/media
+    lib/fuji lib/bus lib/device lib/media
+    lib/device/fujiDevice lib/device/fujiClock lib/device/NDevice
     lib/encrypt lib/base64
     lib/devrelay/commands lib/devrelay/service lib/devrelay/slip lib/devrelay/types
     lib/encoding
@@ -227,7 +229,12 @@ set(SOURCES src/main.cpp
     lib/TNFSlib/tnfslib_udp.h lib/TNFSlib/tnfslib_udp_testing.cpp
     lib/telnet/libtelnet.h lib/telnet/libtelnet.c
     lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
-    lib/fnsgml/fnsgml.h lib/fnsgml/fnsgml.cpp
+    lib/fnhtml/fnhtml.h lib/fnhtml/fnhtml.cpp
+    lib/fntext/fn_query_flags.h
+    lib/fntext/fn_sanitize.h lib/fntext/fn_sanitize.cpp
+    lib/fnxml/fnxml.h lib/fnxml/fnxml.cpp
+    lib/fnxml/fnxml_query.h lib/fnxml/fnxml_query.cpp
+    lib/tinyxml2/tinyxml2.h lib/tinyxml2/tinyxml2.cpp
     components/gumbo-query/Document.cpp components/gumbo-query/Node.cpp components/gumbo-query/Object.cpp
     components/gumbo-query/Parser.cpp components/gumbo-query/QueryUtil.cpp components/gumbo-query/Selection.cpp
     components/gumbo-query/Selector.cpp
@@ -265,7 +272,6 @@ set(SOURCES src/main.cpp
     lib/printer-emulator/printer_emulator.h lib/printer-emulator/printer_emulator.cpp
     lib/printer-emulator/svg_plotter.h lib/printer-emulator/svg_plotter.cpp
     lib/network-protocol/NetworkProtocolFactory.h lib/network-protocol/NetworkProtocolFactory.cpp
-    lib/network-protocol/network_data.h
     lib/network-protocol/networkStatus.h lib/network-protocol/status_error_codes.h
     lib/network-protocol/Protocol.h lib/network-protocol/Protocol.cpp
     lib/network-protocol/CLIPBOARD.h lib/network-protocol/CLIPBOARD.cpp
@@ -315,11 +321,17 @@ set(SOURCES src/main.cpp
     lib/device/fujiDevice/HashMixin.h lib/device/fujiDevice/HashMixin.cpp
     lib/device/fujiDevice/QRMixin.h lib/device/fujiDevice/QRMixin.cpp
     lib/device/fujiDevice/AppKeyMixin.h lib/device/fujiDevice/AppKeyMixin.cpp
-    lib/device/network.h
+    lib/device/NDevice/NDevice.h lib/device/NDevice/NDevice.cpp
+    lib/device/NDevice/NParser.h lib/device/NDevice/NParser.cpp
+    lib/device/NDevice/JSONParser.h lib/device/NDevice/JSONParser.cpp
+    lib/device/NDevice/HTMLParser.h lib/device/NDevice/HTMLParser.cpp
+    lib/device/NDevice/XMLParser.h lib/device/NDevice/XMLParser.cpp
     lib/device/netstream.h
     lib/device/siocpm.h
     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
     lib/media/media.h
+    # Matches the ESP builds, which glob lib/media/*.cpp into every target
+    lib/media/IMDImage.h lib/media/IMDImage.cpp
     lib/encoding/base64.h lib/encoding/base64.cpp
     lib/encoding/hash.h lib/encoding/hash.cpp
     lib/qrcode/qrcode.h lib/qrcode/qrcode.c
@@ -345,7 +357,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     lib/device/sio/printerlist.h lib/device/sio/printerlist.cpp
     lib/device/sio/cassette.h lib/device/sio/cassette.cpp
     lib/device/sio/sioFuji.h lib/device/sio/sioFuji.cpp
-    lib/device/sio/network.h lib/device/sio/network.cpp
+    lib/device/sio/sioNetwork.h lib/device/sio/sioNetwork.cpp
     lib/device/sio/netstream.h lib/device/sio/netstream.cpp
     lib/device/sio/voice.h lib/device/sio/voice.cpp
     lib/device/sio/sioClock.h lib/device/sio/sioClock.cpp
@@ -407,7 +419,7 @@ if(FUJINET_TARGET STREQUAL "APPLE")
     lib/device/iwm/printerlist.h lib/device/iwm/printerlist.cpp
     lib/device/iwm/modem.h lib/device/iwm/modem.cpp
     lib/device/iwm/iwmFuji.h lib/device/iwm/iwmFuji.cpp
-    lib/device/iwm/network.h lib/device/iwm/network.cpp
+    lib/device/iwm/iwmNetwork.h lib/device/iwm/iwmNetwork.cpp
     lib/device/iwm/iwmClock.h lib/device/iwm/iwmClock.cpp
     lib/device/iwm/cpm.h lib/device/iwm/cpm.cpp
 
@@ -446,11 +458,11 @@ if(FUJINET_TARGET STREQUAL "COCO")
     lib/media/drivewire/decbLayout.h lib/media/drivewire/decbLayout.cpp
 
     lib/device/drivewire/drivewireFuji.h lib/device/drivewire/drivewireFuji.cpp
-    lib/device/drivewire/network.h lib/device/drivewire/network.cpp
     lib/device/drivewire/disk.h lib/device/drivewire/disk.cpp
     lib/device/drivewire/printer.h lib/device/drivewire/printer.cpp
     lib/device/drivewire/printerlist.h lib/device/drivewire/printerlist.cpp
     lib/device/drivewire/drivewireClock.h lib/device/drivewire/drivewireClock.cpp
+    lib/device/drivewire/drivewireNetwork.h lib/device/drivewire/drivewireNetwork.cpp
 
     )
 endif()
@@ -480,7 +492,7 @@ if(FUJINET_TARGET STREQUAL "ADAM")
     lib/device/adamnet/adamClock.h lib/device/adamnet/adamClock.cpp
     lib/device/adamnet/disk.h lib/device/adamnet/disk.cpp
     lib/device/adamnet/keyboard.h lib/device/adamnet/keyboard.cpp
-    lib/device/adamnet/network.h lib/device/adamnet/network.cpp
+    lib/device/adamnet/adamNetwork.h lib/device/adamnet/adamNetwork.cpp
     lib/device/adamnet/printer.h lib/device/adamnet/printer.cpp
     lib/device/adamnet/printerlist.h lib/device/adamnet/printerlist.cpp
     lib/device/adamnet/serial.h lib/device/adamnet/serial.cpp
@@ -497,12 +509,13 @@ if(FUJINET_TARGET STREQUAL "RS232")
 
     lib/media/rs232/diskType.h lib/media/rs232/diskType.cpp
     lib/media/rs232/diskTypeImg.h lib/media/rs232/diskTypeImg.cpp
+    lib/media/rs232/diskTypeIMD.h lib/media/rs232/diskTypeIMD.cpp
     lib/media/rs232/diskTypeROM.h lib/media/rs232/diskTypeROM.cpp
 
     lib/device/rs232/rs232Clock.cpp lib/device/rs232/rs232Clock.h
     lib/device/rs232/disk.cpp lib/device/rs232/disk.h
     lib/device/rs232/modem.cpp lib/device/rs232/modem.h
-    lib/device/rs232/network.cpp lib/device/rs232/network.h
+    lib/device/rs232/rs232Network.cpp lib/device/rs232/rs232Network.h
     lib/device/rs232/printer.cpp lib/device/rs232/printer.h
     lib/device/rs232/printerlist.cpp lib/device/rs232/printerlist.h
     lib/device/rs232/rs232Fuji.cpp lib/device/rs232/rs232Fuji.h
@@ -528,7 +541,7 @@ if(FUJINET_TARGET STREQUAL "LYNX")
     lib/device/comlynx/disk.cpp lib/device/comlynx/disk.h
     lib/device/comlynx/lynxFuji.cpp lib/device/comlynx/lynxFuji.h
     lib/device/comlynx/netstream.cpp lib/device/comlynx/netstream.h
-    lib/device/comlynx/network.cpp lib/device/comlynx/network.h
+    lib/device/comlynx/lynxNetwork.cpp lib/device/comlynx/lynxNetwork.h
     lib/device/comlynx/printer.cpp lib/device/comlynx/printer.h
     lib/device/comlynx/printerlist.cpp lib/device/comlynx/printerlist.h
     lib/device/comlynx/redeye.cpp lib/device/comlynx/redeye.h
@@ -773,7 +786,7 @@ add_subdirectory(components_pc/libssh)
 # https://github.com/sahlberg/libnfs
 add_subdirectory(components_pc/libnfs)
 
-# Gumbo (pure-C HTML5 parser) backing components/gumbo-query (CSS selectors) for FNSGML.
+# Gumbo (pure-C HTML5 parser) backing components/gumbo-query (CSS selectors) for FNHTML.
 file(GLOB GUMBO_SOURCES ${CMAKE_SOURCE_DIR}/components/gumbo/*.c)
 add_library(gumbo_fn STATIC ${GUMBO_SOURCES})
 target_include_directories(gumbo_fn PUBLIC ${CMAKE_SOURCE_DIR}/components/gumbo)
@@ -809,10 +822,18 @@ file(GLOB_RECURSE WEBUI_SOURCES CONFIGURE_DEPENDS
 # Stamp, not BUILD_DATA_DIR, as OUTPUT: editing a file does not change its
 # directory's timestamp, and the script wipes BUILD_DATA_DIR on every run.
 set(WEBUI_STAMP "${CMAKE_BINARY_DIR}/build_webui.stamp")
+
+# WebUI config dependency: prefer board-specific yaml if it exists, otherwise use platform default
+# FUJINET_BUILD_PLATFORM is already "BUILD_APPLE" etc., not just "APPLE"
+set(WEBUI_CONFIG_DEPENDS "${CMAKE_SOURCE_DIR}/data/webui/config/${FUJINET_BUILD_PLATFORM}.yaml")
+if(EXISTS "${CMAKE_SOURCE_DIR}/data/webui/config/${FUJINET_BUILD_BOARD}.yaml")
+    set(WEBUI_CONFIG_DEPENDS "${CMAKE_SOURCE_DIR}/data/webui/config/${FUJINET_BUILD_BOARD}.yaml")
+endif()
+
 add_custom_command(
     OUTPUT "${WEBUI_STAMP}"
     DEPENDS build_webui.py
-      "${CMAKE_SOURCE_DIR}/data/webui/config/${FUJINET_BUILD_BOARD}.yaml"
+      ${WEBUI_CONFIG_DEPENDS}
       ${WEBUI_SOURCES}
       # Touched by each re-configure, so a deleted file also triggers a rebuild
       "${CMAKE_BINARY_DIR}/CMakeFiles/cmake.verify_globs"

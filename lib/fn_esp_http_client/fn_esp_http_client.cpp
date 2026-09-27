@@ -982,6 +982,62 @@ static esp_err_t esp_http_client_connect(esp_http_client_handle_t client)
     return ESP_OK;
 }
 
+/* Ceiling on the request buffer. OAuth bearer tokens are the reason this is not
+ * 512: a Microsoft Graph token runs 1.2-2.5 KB and can approach 4 KB with many
+ * claims. Past the ceiling we refuse the request instead of emitting a header
+ * block with no terminator. */
+#define MAX_HTTP_BUF_SIZE_TX (8 * 1024)
+/* Room for the Content-Length item http_client_prepare_first_line() appends
+ * after this runs: "Content-Length: " + digits + CRLF. */
+#define HTTP_CONTENT_LENGTH_ITEM_MAX (32)
+
+/* The header serializer never splits a single item, and silently drops the blank
+ * line ending the header block if one will not fit - the body then lands in what
+ * the server still reads as headers. Size the buffer to the longest item so that
+ * cannot happen. Grow only, never shrink: buffer_size_tx and the buffer itself
+ * live for the client's lifetime, so a grown buffer survives redirects, auth
+ * retries and keep-alive reuse. */
+static esp_err_t http_client_fit_tx_buffer(esp_http_client_handle_t client)
+{
+    /* Recomputed on every request because redirects change path and query, and
+     * prepare_first_line may switch the method to POST. */
+    int line_len = strlen(client->connection_info.path)
+                 + (client->connection_info.query ? strlen(client->connection_info.query) + 1 : 0)
+                 + strlen(DEFAULT_HTTP_PROTOCOL)
+                 + 16; /* longest method, the two spaces, CRLF, and slack */
+
+    int item_len = http_header_longest_item_length(client->request->headers);
+    if (item_len < HTTP_CONTENT_LENGTH_ITEM_MAX) {
+        item_len = HTTP_CONTENT_LENGTH_ITEM_MAX;
+    }
+
+    /* http_header_generate_string() reserves 3 bytes, and the caller writes a NUL
+     * at data[wlen], so an item needs item_len + 3 of whatever is left over. */
+    int required = line_len + item_len + 8;
+
+    if (required <= client->buffer_size_tx) {
+        return ESP_OK;
+    }
+
+    if (required > MAX_HTTP_BUF_SIZE_TX) {
+        ESP_LOGE(TAG, "Request headers need a %d byte TX buffer, max is %d; refusing to send a truncated request",
+                 required, MAX_HTTP_BUF_SIZE_TX);
+        return ESP_ERR_INVALID_SIZE;
+    }
+
+    /* Through a temporary: assigning in place would leak the original on failure
+     * and leave a NULL for esp_http_client_cleanup() to free. */
+    char *buf = (char *)realloc(client->request->buffer->data, required);
+    if (buf == NULL) {
+        ESP_LOGE(TAG, "Failed to grow request TX buffer to %d bytes", required);
+        return ESP_ERR_NO_MEM;
+    }
+    ESP_LOGD(TAG, "Grew request TX buffer %d -> %d", client->buffer_size_tx, required);
+    client->request->buffer->data = buf;
+    client->buffer_size_tx = required;
+    return ESP_OK;
+}
+
 static int http_client_prepare_first_line(esp_http_client_handle_t client, int write_len)
 {
     if (write_len >= 0) {
@@ -1024,6 +1080,12 @@ static esp_err_t esp_http_client_request_send(esp_http_client_handle_t client, i
 {
     int first_line_len = 0;
     if (!client->first_line_prepared) {
+        /* Nothing has been transmitted yet, so the buffer can still be resized. */
+        esp_err_t fit_err = http_client_fit_tx_buffer(client);
+        if (fit_err != ESP_OK) {
+            esp_http_client_close(client);
+            return fit_err;
+        }
         if ((first_line_len = http_client_prepare_first_line(client, write_len)) < 0) {
             return first_line_len;
         }
@@ -1049,10 +1111,20 @@ static esp_err_t esp_http_client_request_send(esp_http_client_handle_t client, i
     }
 
     int wlen = client->buffer_size_tx - first_line_len;
-    while ((client->header_index = http_header_generate_string(client->request->headers, client->header_index, client->request->buffer->data + first_line_len, &wlen))) {
-        if (wlen <= 0) {
-            break;
+    int ret_index;
+    /* Kept out of the loop condition so a 0 ("done") and a -1 ("this one item does
+     * not fit") stay distinguishable - the oversized-first-header case returns an
+     * index of 0 and would otherwise leave the loop without writing anything, not
+     * even the request line. */
+    while ((ret_index = http_header_generate_string(client->request->headers, client->header_index,
+                                                    client->request->buffer->data + first_line_len, &wlen)) != 0) {
+        if (ret_index < 0 || wlen <= 0 || ret_index <= client->header_index) {
+            ESP_LOGE(TAG, "Header at index %d does not fit the %d byte TX buffer; aborting rather than sending a request with no header terminator",
+                     client->header_index, client->buffer_size_tx);
+            esp_http_client_close(client);
+            return ESP_ERR_HTTP_WRITE_DATA;
         }
+        client->header_index = ret_index;
         if (first_line_len) {
             wlen += first_line_len;
             first_line_len = 0;

@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-typedef enum FUJI_DEVICEID : uint8_t {
+typedef enum class FUJI_DEVICEID : uint8_t {
 #if defined(BUILD_ADAM)
   FUJINET      = 0x0F,
 
@@ -41,5 +41,14 @@ typedef enum FUJI_DEVICEID : uint8_t {
   DBC          = 0xFF,
 #endif /* BUILD_ADAM */
 } fujiDeviceID_t;
+
+// Convenience methods to allow calculating disk & network IDs
+inline constexpr fujiDeviceID_t operator+(fujiDeviceID_t lhs, uint8_t rhs) {
+  return static_cast<fujiDeviceID_t>(static_cast<uint8_t>(lhs) + rhs);
+}
+
+inline constexpr uint8_t operator-(fujiDeviceID_t lhs, fujiDeviceID_t rhs) {
+  return static_cast<uint8_t>(lhs) - static_cast<uint8_t>(rhs);
+}
 
 #endif /* FUJI_DEVICES_H */

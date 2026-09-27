@@ -71,21 +71,21 @@ fujiError_t NetworkProtocolHTTP::set_channel_mode(netProtoHTTPChannelMode_t newM
 
     switch (newMode)
     {
-    case HTTP_CHANMODE_BODY:
+    case HTTP_CHANMODE::BODY:
         httpChannelMode = DATA;
         fileSize = bodySize;
         break;
-    case HTTP_CHANMODE_COLLECT_HEADERS:
+    case HTTP_CHANMODE::COLLECT_HEADERS:
         httpChannelMode = COLLECT_HEADERS;
         break;
-    case HTTP_CHANMODE_GET_HEADERS:
+    case HTTP_CHANMODE::GET_HEADERS:
         returned_header_cursor = 0;
         httpChannelMode = GET_HEADERS;
         break;
-    case HTTP_CHANMODE_SET_HEADERS:
+    case HTTP_CHANMODE::SET_HEADERS:
         httpChannelMode = SET_HEADERS;
         break;
-    case HTTP_CHANMODE_SET_POST_DATA:
+    case HTTP_CHANMODE::SET_POST_DATA:
         httpChannelMode = SEND_POST_DATA;
         break;
     default:
@@ -373,7 +373,7 @@ void NetworkProtocolHTTP::fserror_to_error()
         error = NDEV_STATUS::ACCESS_DENIED;
         break;
     case 400: // Bad request
-    case 406: // not acceptible
+    case 406: // not acceptable
     case 409:
     case 411:
     case 412:
@@ -434,7 +434,7 @@ fujiError_t NetworkProtocolHTTP::status_file(NetworkStatus *status)
 #endif
             http_transaction();
         }
-        auto available = client->available();
+        auto available = client->available() + receiveBuffer->size();
         status->connected = client->is_transaction_done() ? 0 : 1;
 
         if (available == 0 && client->is_transaction_done() && error == NDEV_STATUS::SUCCESS)
@@ -550,6 +550,15 @@ fujiError_t NetworkProtocolHTTP::close_file_handle()
         if (httpMethod == HTTP_METHOD::PUT)
             http_transaction();
         client->close();
+
+        // resultCode 0 means no transaction ever ran on this channel: the GET is
+        // deferred until the first read, so an opened-but-unread channel is normal.
+        // fserror_to_error() would map 0 to GENERAL and fail a clean close.
+        if (resultCode == 0)
+        {
+            error = NDEV_STATUS::SUCCESS;
+            return FUJI_ERROR::NONE;
+        }
         fserror_to_error();
     }
 

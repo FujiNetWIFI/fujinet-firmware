@@ -20,13 +20,13 @@
 static void translate_to_computer(std::string &buf, netProtoTranslation_t mode,
                                   const std::string &native_eol)
 {
-    if (mode == NETPROTO_TRANS_NONE)
+    if (mode == NETPROTO_TRANS::NONE)
         return;
 
-    if (mode == NETPROTO_TRANS_PETSCII)
+    if (mode == NETPROTO_TRANS::PETSCII)
         netproto_translate_to_computer(buf, mode, native_eol);
 
-    netproto_translate_to_computer(buf, NETPROTO_TRANS_LF, native_eol);
+    netproto_translate_to_computer(buf, NETPROTO_TRANS::LF, native_eol);
 }
 
 /**
@@ -36,12 +36,12 @@ static void translate_to_computer(std::string &buf, netProtoTranslation_t mode,
 static void translate_from_computer(std::string &buf, netProtoTranslation_t mode,
                                     const std::string &native_eol)
 {
-    if (mode == NETPROTO_TRANS_NONE)
+    if (mode == NETPROTO_TRANS::NONE)
         return;
 
-    netproto_translate_from_computer(buf, NETPROTO_TRANS_LF, native_eol);
+    netproto_translate_from_computer(buf, NETPROTO_TRANS::LF, native_eol);
 
-    if (mode == NETPROTO_TRANS_PETSCII)
+    if (mode == NETPROTO_TRANS::PETSCII)
         netproto_translate_from_computer(buf, mode, native_eol);
 }
 
@@ -263,7 +263,6 @@ fujiError_t NetworkProtocolClipboard::write(unsigned short len)
 
     writeBuffer.append(*transmitBuffer, 0, len);
     transmitBuffer->erase(0, len);
-    transmitBuffer->shrink_to_fit();
 
     wrote = true;
     error = NDEV_STATUS::SUCCESS;

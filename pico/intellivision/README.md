@@ -82,6 +82,14 @@ ninja -C build
 # flash the resulting Minty_fujicard.uf2 to the board in BOOTSEL mode
 ```
 
+From the repo root, `./build_pico.py fujiversal-intv` (or `./build.sh -P -e fujiversal-intv`)
+does exactly this -- driven by the `[fujinet] pico_*` keys in
+`build-platforms/platformio-fujiversal-intv.ini` -- and is also what runs automatically as
+a `pre:` extra_script (`build_pico.py`) whenever the `fujiversal-intv` PlatformIO env is
+built, generating `lib/hardware/fn_pico_blob_data.cpp` from the result. The manual steps
+above remain useful for iterating on the RP2040/RP2350 firmware directly without going
+through PlatformIO at all.
+
 `fujibus.c`'s codec, standalone (no RP2040 toolchain needed):
 ```sh
 cd firmware/host_test
