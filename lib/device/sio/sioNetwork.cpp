@@ -160,6 +160,30 @@ void sioNetwork::fujidev_set_query(const FUJI_COMMAND_PACKET &packet)
     SYSTEM_BUS.transaction_success();
 }
 
+void sioNetwork::fujidev_read(const FUJI_COMMAND_PACKET &packet)
+{
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+
+    uint16_t num_bytes = packet.param(0);
+
+    if (!num_bytes)
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
+    ByteBuffer buf;
+    if (fujicore_read(buf, num_bytes).is_error())
+    {
+        SYSTEM_BUS.transaction_error();
+        return;
+    }
+
+    // An SIO data frame carries no length: the Atari takes exactly num_bytes, so pad a short read.
+    buf.resize(num_bytes, 0);
+    SYSTEM_BUS.transaction_send(buf);
+}
+
 void sioNetwork::fujidev_seek(const FUJI_COMMAND_PACKET &packet)
 {
     u24le_t offset;
