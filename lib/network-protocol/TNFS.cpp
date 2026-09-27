@@ -296,20 +296,28 @@ fujiError_t NetworkProtocolTNFS::stat()
 fujiError_t NetworkProtocolTNFS::lock(PeoplesUrlParser *url)
 {
     Debug_printf("lock: %s\r\n", url->path.c_str());
+    mount(url);
+
     tnfs_error = tnfs_chmod(&mountInfo, url->path.c_str(), 0444);
 
     if (tnfs_error != TNFS_RESULT_SUCCESS)
         fserror_to_error();
+
+    umount();
 
     return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
 fujiError_t NetworkProtocolTNFS::unlock(PeoplesUrlParser *url)
 {
+    mount(url);
+
     tnfs_error = tnfs_chmod(&mountInfo, url->path.c_str(), 0644);
 
     if (tnfs_error != TNFS_RESULT_SUCCESS)
         fserror_to_error();
+
+    umount();
 
     return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
