@@ -14,7 +14,7 @@
  *   Touch SDA 16, SCL 15, RST 18, INT 17
  *   SD    CLK 38, CMD 40, D0 39, D1 41, D2 48, D3 47
  *   Audio EN 1 (low = on), MCLK 4, BCLK 5, DOUT 8, LRCK 7, DIN 6
- *   Battery ADC 9, RGB LED 42, console UART0 RX 44 / TX 43
+ *   Battery ADC 9, RGB LED 42 (unused), console UART0 RX 44 / TX 43
  * Free expansion pins: 2, 3, 14, 21
  */
 
@@ -49,15 +49,12 @@
 #define PIN_BUTTON_B            GPIO_NUM_NC
 #define PIN_BUTTON_C            GPIO_NUM_NC
 
-/* LEDs - onboard WS2812 as a combined status light:
- * white = WiFi up, orange flicker = bus activity */
+/* LEDs - the onboard WS2812 (IO42) is left unused: lighting it draws enough
+ * current to disturb USB power on weak hosts. The on-screen UI will show
+ * WiFi and bus status instead. */
 #define PIN_LED_BUS             GPIO_NUM_NC
 #define PIN_LED_WIFI            GPIO_NUM_NC
 #define PIN_LED_BT              GPIO_NUM_NC
-#define PIN_LED_STRIP           GPIO_NUM_42
-#define LED_STRIP_COUNT         1
-#define LED_STRIP_STATUS_LIGHT
-#define LED_BUS_FLICKER_US      30000
 
 /* Audio - ES8311 codec is I2S, not a DAC pin */
 #define PIN_DAC1                GPIO_NUM_NC

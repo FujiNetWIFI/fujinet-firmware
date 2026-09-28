@@ -31,7 +31,24 @@
     #define Serial fnDebugConsole
 #endif // !ENABLE_CONSOLE
 
-#if defined( PINMAP_RS232_S3 ) || defined( PINMAP_LYNX_S3 )
+#if defined( PINMAP_COCO_ES3C28P )
+    // No UART bridge on this board: send debug output through the IDF console
+    // (UART0 + USB Serial/JTAG). Not format-checked, like the UART channel.
+    #include <cstdarg>
+    #include <cstdio>
+    static inline int fn_console_debug_printf(const char *fmt, ...)
+    {
+        va_list ap;
+        va_start(ap, fmt);
+        int n = vprintf(fmt, ap);
+        va_end(ap);
+        return n;
+    }
+    #define Debug_print(...) fn_console_debug_printf( __VA_ARGS__ )
+    #define Debug_printf(...) fn_console_debug_printf( __VA_ARGS__ )
+    #define Debug_println(...) do { fn_console_debug_printf(__VA_ARGS__); fn_console_debug_printf("\r\n"); } while (0)
+    #define Debug_printv(format, ...) {fn_console_debug_printf( ANSI_YELLOW "[%s:%u] %s(): " ANSI_GREEN_BOLD format ANSI_RESET "\r\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);}
+#elif defined( PINMAP_RS232_S3 ) || defined( PINMAP_LYNX_S3 )
     #define Debug_print(...) printf( __VA_ARGS__ )
     #define Debug_printf(...) printf( __VA_ARGS__ )
     #define Debug_println(...) do { printf(__VA_ARGS__); printf("\n"); } while (0)

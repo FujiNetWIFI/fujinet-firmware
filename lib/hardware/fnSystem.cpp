@@ -1319,7 +1319,8 @@ void SystemManager::check_hardware_ver()
     */
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
-    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
+    if (PIN_CARD_DETECT != GPIO_NUM_NC)
+        setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
 #endif /* BUILD_COCO */
 
 #else
