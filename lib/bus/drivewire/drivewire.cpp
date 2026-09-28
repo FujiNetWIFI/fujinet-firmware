@@ -886,9 +886,14 @@ void systemBus::setup()
 
     if (Config.get_boip_enabled())
     {
+        // Over TCP bytes are never lost, only late: a WiFi retransmit can
+        // delay the CoCo's reply ~1 s. The 500 ms default then desyncs the
+        // stream (late checksum parsed as an opcode, retry discarded, CoCo
+        // hangs in DWRead), so wait longer before giving up on a byte.
         _becker.begin(BoIPConfig()
                       .hostName(Config.get_boip_host())
                       .portNum(Config.get_boip_port())
+                      .readTimeout(5000)
                       );
         _port = &_becker;
     }
