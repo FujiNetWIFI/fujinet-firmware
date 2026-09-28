@@ -43,7 +43,7 @@ void MediaTypeIMD::_derive_geometry()
     _spt = 0;
     _mfm = false;
 
-    for (uint32_t i = 0; i < _imd.track_count(); i++)
+    for (uint32_t i = std::min<uint32_t>(1U, _imd.track_count() - 1); i < _imd.track_count(); i++)
     {
         if (_imd.track_info(i, t).is_error())
             continue;
@@ -113,7 +113,7 @@ mediatype_t MediaTypeIMD::mount(fnFile *f, uint32_t disksize)
     _derive_geometry();
 
     _disk_num_sectors = _imd.lba_count();
-    _disk_sector_size = _imd.sector_size(0);
+    _disk_sector_size = _imd.max_sector_size();
     _base_ctrl_status = _writable ? DISK_CTRL_STATUS_CLEAR : DISK_CTRL_STATUS_WRITE_PROTECT_ERROR;
     _disk_controller_status = _base_ctrl_status;
     _disktype = MEDIATYPE_IMD;
