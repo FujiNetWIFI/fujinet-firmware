@@ -45,12 +45,10 @@ void MediaType::derive_percom_block(uint16_t numSectors)
     // Start with 40T/1S 720 sectors, sector size passed in
     _percomBlock.num_tracks = 40;
     _percomBlock.step_rate = 1;
-    _percomBlock.sectors_per_trackH = 0;
-    _percomBlock.sectors_per_trackL = 18;
+    _percomBlock.sectors_per_track = 18;
     _percomBlock.num_sides = SIDES_SS;
     _percomBlock.density = DENSITY_FM;
-    _percomBlock.sector_sizeH = HIBYTE_FROM_UINT16(_disk_sector_size);
-    _percomBlock.sector_sizeL = LOBYTE_FROM_UINT16(_disk_sector_size);
+    _percomBlock.sector_size = _disk_sector_size;
     _percomBlock.drive_present = 255;
     _percomBlock.reserved1 = 0;
     _percomBlock.reserved2 = 0;
@@ -58,7 +56,7 @@ void MediaType::derive_percom_block(uint16_t numSectors)
 
     if (numSectors == 1040) // 5.25" 1050 density
     {
-        _percomBlock.sectors_per_trackL = 26;
+        _percomBlock.sectors_per_track = 26;
         _percomBlock.density = DENSITY_MFM;
     }
     else if (numSectors == 720 && _disk_sector_size == 256) // 5.25" SS/DD
@@ -99,15 +97,14 @@ void MediaType::derive_percom_block(uint16_t numSectors)
     {
         _percomBlock.num_sides = SIDES_DS;
         _percomBlock.num_tracks = 80;
-        _percomBlock.sectors_per_trackL = 36;
+        _percomBlock.sectors_per_track = 36;
         _percomBlock.density = 8; // I think this is right.
     }
     else
     {
         // This is a custom size, one long track.
         _percomBlock.num_tracks = 1;
-        _percomBlock.sectors_per_trackH = HIBYTE_FROM_UINT16(numSectors);
-        _percomBlock.sectors_per_trackL = LOBYTE_FROM_UINT16(numSectors);
+        _percomBlock.sectors_per_track = numSectors;
     }
 
 #ifdef VERBOSE_DISK
