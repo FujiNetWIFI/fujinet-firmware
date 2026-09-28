@@ -63,17 +63,16 @@ public:
     {
         uint8_t num_tracks;
         uint8_t step_rate;
-        uint8_t sectors_per_trackH;
-        uint8_t sectors_per_trackL;
+        u16be_t sectors_per_track;
         uint8_t num_sides;
         uint8_t density;
-        uint8_t sector_sizeH;
-        uint8_t sector_sizeL;
+        u16be_t sector_size;
         uint8_t drive_present;
         uint8_t reserved1;
         uint8_t reserved2;
         uint8_t reserved3;
     } _percomBlock = {};
+    static_assert(sizeof(_percomBlock) == 12, "_percomBlock must be 12 bytes");
 
     uint8_t _disk_sectorbuff[DISK_SECTORBUF_SIZE];
 
