@@ -1,8 +1,8 @@
 # FujiNet for the Fairchild Channel F
 
 Fifth cart-mailbox bring-up, after Intellivision, Odyssey&sup2;, Astrocade,
-Arcadia 2001 and ColecoVision. Branch `channelf-bringup`, based on
-`colecovision-bringup`.
+Arcadia 2001 and ColecoVision. The ESP32-S3 side, the `fujiversal-channelf`
+board, lands separately.
 
 ## Why this console is not the cramped one
 
