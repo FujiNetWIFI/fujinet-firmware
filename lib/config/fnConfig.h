@@ -499,6 +499,9 @@ private:
 #if defined(BUILD_ADAM) && !defined(ESP_PLATFORM)
         // ADAM PC build defaults to ADAMEm over IP (no real AdamNet hardware).
         bool boip_enabled = true;
+#elif defined(FUJINET_CYD)
+        // CYD has no DriveWire hardware; CoCo emulators connect via Becker port.
+        bool boip_enabled = true;
 #else
         bool boip_enabled = false;
 #endif
