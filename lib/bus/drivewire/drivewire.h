@@ -262,6 +262,9 @@ public:
     bool motorActive = false;
     bool isDragon() { return bDragon; }
 
+    // Incremented for every DriveWire command, so status UIs can show activity
+    volatile uint32_t activityCount = 0;
+
     // When true, op_readex()'s named-object fallback opens /DGNLOBBY.DWL
     // instead of /AUTOLOAD.DWL. Set via CMD::FUJI_SET_BOOT_MODE mode 2 on Dragon.
     bool useLobbyDwl = false;
@@ -304,6 +307,7 @@ public:
 
     /* BoIP things */
     bool isBoIP() { return _port == &_becker; }
+    BoIPState boipState() { return _becker.state(); }
     void setHost(const char *host, int port) { _becker.setHost(host, port); }
     void selectSerialPort(bool useSerial) {
         if (useSerial)

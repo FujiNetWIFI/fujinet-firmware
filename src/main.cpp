@@ -48,6 +48,10 @@ Console console;
 #include "display.h"
 #endif
 
+#ifdef FUJINET_CYD
+#include "cyd_ui.h"
+#endif
+
 #ifndef ESP_PLATFORM
 #include "fnTaskManager.h"
 #include "version.h"
@@ -496,6 +500,10 @@ void main_setup(int argc, char *argv[])
 
 #ifdef ENABLE_DISPLAY
     DISPLAY.start();
+#endif
+
+#if defined(FUJINET_CYD) && defined(BUILD_COCO)
+    cyd_ui_start();
 #endif
 
 #ifdef ENABLE_CONSOLE

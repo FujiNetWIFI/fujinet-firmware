@@ -121,6 +121,8 @@ public:
 
     void setHost(std::string host, int port);
     void poll(int ms);
+
+    BoIPState state() const { return _state; }
 };
 
 #endif // BOIPCHANNEL_H

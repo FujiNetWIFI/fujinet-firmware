@@ -600,6 +600,7 @@ void systemBus::_drivewire_process_cmd()
     }
 
     fnLedManager.set(eLed::LED_BUS, true);
+    activityCount++;
 
     dwOpcode_t opcode = static_cast<dwOpcode_t>(val);
     if (opcode >= OP::FASTWRITE_0 && opcode <= OP::FASTWRITE_F) {
