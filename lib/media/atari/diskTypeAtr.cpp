@@ -173,7 +173,7 @@ void MediaTypeATR::status(uint8_t statusbuff[4])
 {
     statusbuff[0] = DISK_DRIVE_STATUS_CLEAR;
 
-    if (_percomBlock.sectors_per_trackL == 26)
+    if (_percomBlock.sectors_per_track == 26)
         statusbuff[0] |= DISK_DRIVE_STATUS_ENHANCED_DENSITY;
     else if (_disk_sector_size > 128)
         statusbuff[0] |= DISK_DRIVE_STATUS_DOUBLE_DENSITY;

@@ -84,11 +84,9 @@ TEST_CASE("mount reports IMD geometry")
     {
         CHECK(m.media._percomBlock.num_tracks == 2);         // cylinders per side
         CHECK(m.media._percomBlock.num_sides == 1);          // 0 = SS, 1 = DS
-        CHECK(m.media._percomBlock.sectors_per_trackH == 0);
-        CHECK(m.media._percomBlock.sectors_per_trackL == 4);
+        CHECK(m.media._percomBlock.sectors_per_track == 4);
         CHECK(m.media._percomBlock.density == DENSITY_MFM);
-        CHECK(m.media._percomBlock.sector_sizeH == 0);
-        CHECK(m.media._percomBlock.sector_sizeL == 128);
+        CHECK(m.media._percomBlock.sector_size == 128);
         CHECK(m.media._percomBlock.drive_present == 0xFF);
     }
 
