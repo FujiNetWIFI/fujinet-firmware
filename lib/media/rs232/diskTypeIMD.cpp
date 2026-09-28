@@ -69,12 +69,10 @@ void MediaTypeIMD::_fill_percom()
 
     _percomBlock.num_tracks = (uint8_t)(_cyls > 255 ? 255 : _cyls);
     _percomBlock.step_rate = 0x01;
-    _percomBlock.sectors_per_trackH = (uint8_t)(_spt >> 8);
-    _percomBlock.sectors_per_trackL = (uint8_t)(_spt & 0xFF);
+    _percomBlock.sectors_per_track = _spt;
     _percomBlock.num_sides = (uint8_t)(_heads - 1); // 0 = SS, 1 = DS
     _percomBlock.density = _mfm ? DENSITY_MFM : DENSITY_FM;
-    _percomBlock.sector_sizeH = (uint8_t)(_disk_sector_size >> 8);
-    _percomBlock.sector_sizeL = (uint8_t)(_disk_sector_size & 0xFF);
+    _percomBlock.sector_size = _disk_sector_size;
     _percomBlock.drive_present = 0xFF;
 }
 

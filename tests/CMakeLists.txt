@@ -115,6 +115,10 @@ target_include_directories(imdimage_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/components_pc/
 )
 
+if(WIN32)
+    target_link_libraries(imdimage_tests PRIVATE ws2_32)
+endif()
+
 add_test(NAME imdimage_tests COMMAND imdimage_tests)
 
 # ------------------------------------------------------------------------------
@@ -140,6 +144,10 @@ target_include_directories(mediatypeimd_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/lib/utils/
     ${CMAKE_SOURCE_DIR}/components_pc/
 )
+
+if(WIN32)
+    target_link_libraries(mediatypeimd_tests PRIVATE ws2_32)
+endif()
 
 add_test(NAME mediatypeimd_tests COMMAND mediatypeimd_tests)
 

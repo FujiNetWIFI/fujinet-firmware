@@ -112,7 +112,7 @@ void MediaTypeImg::status(uint8_t statusbuff[4])
     if (_percomBlock.num_sides == 1)
         statusbuff[0] |= DISK_DRIVE_STATUS_DOUBLE_SIDED;
 
-    if (_percomBlock.sectors_per_trackL == 26)
+    if (_percomBlock.sectors_per_track == 26)
         statusbuff[0] |= DISK_DRIVE_STATUS_ENHANCED_DENSITY;
 
     statusbuff[1] = ~_disk_controller_status; // Negate the controller status
@@ -139,7 +139,7 @@ error_is_true MediaTypeImg::format(uint32_t *responsesize)
     RETURN_SUCCESS_AS_FALSE();
 }
 
-/* 
+/*
  Mount ATR disk
  Header layout:
  00 lobyte 0x96
@@ -149,7 +149,7 @@ error_is_true MediaTypeImg::format(uint32_t *responsesize)
  04 lobyte sector size (0x80, 0x100, etc.)
  05 hibyte
  06   byte paragraphs on disk extension (24-bits total)
- 
+
  07-0F have two possible interpretations but are no critical for our use
 */
 mediatype_t MediaTypeImg::mount(fnFile *f, uint32_t disksize)
