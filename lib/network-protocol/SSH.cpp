@@ -42,7 +42,7 @@ NetworkProtocolSSH::NetworkProtocolSSH(std::string *rx_buf, std::string *tx_buf,
 {
     Debug_printf("NetworkProtocolSSH::NetworkProtocolSSH(%p,%p,%p)\r\n", rx_buf, tx_buf, sp_buf);
 #ifdef ESP_PLATFORM
-    rxbuf = (char *)heap_caps_malloc(RXBUF_SIZE, MALLOC_CAP_SPIRAM);
+    rxbuf = (char *)heap_caps_malloc_prefer(RXBUF_SIZE, 2, MALLOC_CAP_SPIRAM, MALLOC_CAP_8BIT);
 #else
     rxbuf = (char *)malloc(RXBUF_SIZE);
 #endif

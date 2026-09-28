@@ -141,7 +141,7 @@ int FileHandlerMem::grow(long filesize)
             return -1;
         }
 #ifdef ESP_PLATFORM
-        void *new_buf = heap_caps_realloc(_buffer, bufsize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        void *new_buf = heap_caps_realloc_prefer(_buffer, bufsize, 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT, MALLOC_CAP_8BIT);
 #else
         void *new_buf = realloc(_buffer, bufsize);
 #endif

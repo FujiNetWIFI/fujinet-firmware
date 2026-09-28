@@ -181,7 +181,7 @@ FileHandler *FileSystemHTTP::cache_file(const char *path, const char *mode)
 
     // Allocate copy buffer
 #ifdef ESP_PLATFORM
-    uint8_t *buf = (uint8_t *)heap_caps_malloc(COPY_BLK_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    uint8_t *buf = (uint8_t *)heap_caps_malloc_prefer(COPY_BLK_SIZE, 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT, MALLOC_CAP_8BIT);
 #else
     uint8_t *buf = (uint8_t *)malloc(COPY_BLK_SIZE);
 #endif
@@ -348,7 +348,7 @@ success_is_true FileSystemHTTP::dir_open(const char  *path, const char *pattern,
 
         // Allocate copy buffer
 #ifdef ESP_PLATFORM
-        uint8_t *buf = (uint8_t *)heap_caps_malloc(COPY_BLK_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        uint8_t *buf = (uint8_t *)heap_caps_malloc_prefer(COPY_BLK_SIZE, 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT, MALLOC_CAP_8BIT);
 #else
         uint8_t *buf = (uint8_t *)malloc(COPY_BLK_SIZE);
 #endif

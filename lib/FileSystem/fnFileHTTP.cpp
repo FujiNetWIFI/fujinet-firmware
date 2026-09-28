@@ -19,7 +19,7 @@
 static uint8_t *stream_buf_alloc(size_t len)
 {
 #ifdef ESP_PLATFORM
-    return (uint8_t *)heap_caps_malloc(len, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    return (uint8_t *)heap_caps_malloc_prefer(len, 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT, MALLOC_CAP_8BIT);
 #else
     return (uint8_t *)malloc(len);
 #endif
