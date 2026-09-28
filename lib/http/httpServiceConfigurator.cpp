@@ -711,8 +711,9 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         if (i->first.compare("resetfuji") == 0)
         {
         #ifdef ESP_PLATFORM
-            // Start a new task to reboot or we get stuck in endless loop waiting for web service to end
-            if (xTaskCreate(reboot_task, "reboot_task", 2048, nullptr, 15, nullptr) != pdPASS)
+            // Start a new task to reboot or we get stuck in endless loop waiting for web service to end.
+            // reboot() shuts down every device on the bus, which overflows a 2 KB stack.
+            if (xTaskCreate(reboot_task, "reboot_task", 8192, nullptr, 15, nullptr) != pdPASS)
             {
                 // Task creation fails exactly when memory is exhausted - the case the
                 // user is trying to reset out of. Reboot immediately; esp_restart()
