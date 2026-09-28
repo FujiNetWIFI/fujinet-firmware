@@ -197,6 +197,9 @@ void NDevice::fujidev_close(const FUJI_COMMAND_PACKET &packet)
 
 error_is_true NDevice::fujicore_read(ByteBuffer &buf, size_t len)
 {
+    if (_parser == nullptr)
+        RETURN_ERROR_AS_TRUE();
+
     fujiError_t err;
 
     std::string strbuf;
@@ -275,6 +278,8 @@ void NDevice::fujidev_write(const FUJI_COMMAND_PACKET &packet)
 
 size_t NDevice::fujicore_available()
 {
+    if (_parser == nullptr)
+        return 0;
     return _parser->available();
 }
 
