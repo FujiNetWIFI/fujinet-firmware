@@ -1,5 +1,8 @@
 #include "httpServiceConfigurator.h"
 
+#include <cerrno>
+#include <cstdint>
+#include <cstdlib>
 #include <cstring>
 
 #ifdef ESP_PLATFORM
@@ -354,9 +357,29 @@ void fnHttpServiceConfigurator::config_cassette_rewind()
 {
 #ifdef BUILD_ATARI
     Debug_printf("Rewinding cassette.\n");
-    SYSTEM_BUS.getCassette()->rewind();
+    SYSTEM_BUS.getCassette()->request_rewind_to_start();
 
     Config.save();
+#endif /* ATARI */
+}
+
+// Rewind by N seconds of tape time. Anything but a positive integer that fits in 32 bits is ignored.
+void fnHttpServiceConfigurator::config_cassette_rewind_seconds(const std::string &seconds)
+{
+#ifdef BUILD_ATARI
+    errno = 0;
+    char *end = nullptr;
+    const unsigned long value = strtoul(seconds.c_str(), &end, 10);
+
+    if (seconds.empty() || seconds[0] == '-' || end == seconds.c_str() || *end != '\0' || errno == ERANGE ||
+        value == 0 || value > UINT32_MAX)
+    {
+        Debug_printf("rewind_seconds: invalid value '%s', ignored\n", seconds.c_str());
+        return;
+    }
+
+    Debug_printf("Rewinding cassette by %lu second(s).\n", value);
+    SYSTEM_BUS.getCassette()->request_rewind_seconds(static_cast<uint32_t>(value));
 #endif /* ATARI */
 }
 
@@ -766,6 +789,10 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         else if (i->first.compare("rew") == 0)
         {
             config_cassette_rewind();
+        }
+        else if (i->first.compare("rewind_seconds") == 0)
+        {
+            config_cassette_rewind_seconds(i->second);
         }
         else if (i->first.compare("cassette_enabled") == 0)
         {
