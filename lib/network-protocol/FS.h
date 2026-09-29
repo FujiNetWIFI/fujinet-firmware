@@ -306,6 +306,13 @@ protected:
     virtual fujiError_t status_dir(NetworkStatus *status);
 
     /**
+     * @brief Read and translate the next bytes of a file into an empty receiveBuffer,
+     * so available() counts what translation left instead of raw bytes.
+     * @param raw Number of raw bytes waiting to be read.
+     */
+    void translate_ahead(size_t raw);
+
+    /**
      * @brief close file.
      * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
      */
