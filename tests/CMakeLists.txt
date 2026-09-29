@@ -235,9 +235,13 @@ if(FUJINET_TARGET STREQUAL "ATARI")
   #
   # ATARI-only for the same reason as sio_dstats_tests: the bus headers need a
   # concrete systemBus.
+  #
+  # NParserReadTests.cpp shares its stubs: NParser::read() when the protocol
+  # leaves fewer bytes than asked for (#1689).
   # ----------------------------------------------------------------------------
   add_executable(nquery_output_mode_tests
     NQueryOutputModeTests.cpp
+    NParserReadTests.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice/NParser.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice/XMLParser.cpp
     ${CMAKE_SOURCE_DIR}/lib/fntext/fn_sanitize.cpp

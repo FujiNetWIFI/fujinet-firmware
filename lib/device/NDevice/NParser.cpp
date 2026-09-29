@@ -5,9 +5,8 @@ fujiError_t NParser::read(std::string &buffer, size_t length)
     fujiError_t err = _protocol->read(length);
     if (err != FUJI_ERROR::NONE)
         return err;
-    buffer.resize(length);
-    std::copy(_protocol->receiveBuffer->begin(),
-              _protocol->receiveBuffer->begin() + buffer.size(), buffer.begin());
+    // The protocol can leave fewer bytes than asked for (translation folds CR/LF).
+    buffer.assign(*_protocol->receiveBuffer, 0, std::min(length, _protocol->receiveBuffer->size()));
     _protocol->receiveBuffer->erase(0, buffer.size());
     return err;
 }
