@@ -379,7 +379,15 @@ jobs:
         env:
           PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: |
-          ./build.sh fujitest fujiboot fujicfg
+          # A placeholder client, so build-cart.sh has something to bake; this
+          # job does not install AS (the 2650 client job assembles the real ones).
+          mkdir -p build
+          python3 - <<'PY'
+          import pathlib
+          img = bytearray(b'\xff' * 0x2000)
+          img[0x1CFC:0x1D00] = b'FUJI'
+          pathlib.Path('build/fujitest.bin').write_bytes(img)
+          PY
           ./build-cart.sh
           # Same SRAM-residency rule as the Astrocade: the serve loop cannot
           # live in flash, or an XIP stall would freeze the bus.
