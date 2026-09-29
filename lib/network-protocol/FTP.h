@@ -180,7 +180,7 @@ private:
     /**
      * @brief get status of file, filling in filesize. mount() must have already been called.
      */
-    fujiError_t stat() override { return FUJI_ERROR::NONE; }
+    fujiError_t stat() override;
 };
 
 #endif /* NETWORKPROTOCOLFTP_H */
