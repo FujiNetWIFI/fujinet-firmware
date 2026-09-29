@@ -37,6 +37,7 @@
 #include "pinmap/fujiversal-o2.h"
 #include "pinmap/fujiversal-astrocade.h"
 #include "pinmap/fujiversal-msx.h"
+#include "pinmap/fujiversal-channelf.h"
 
 
 #include "pinmap_defaults.h"
