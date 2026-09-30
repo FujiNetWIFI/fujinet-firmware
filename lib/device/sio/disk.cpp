@@ -227,6 +227,13 @@ mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
     //  MediaType::discover_mediatype(filename) can detect CAS and WAV files
     Debug_print("disk MOUNT\n");
 
+    // Replacing a tape image: the cassette must let go of the old file first (see unmount()).
+    if (_is_tape)
+    {
+        _is_tape = false;
+        platformFuji.cassette()->umount_cassette_file();
+    }
+
     // Destroy any existing MediaType
     if (_disk != nullptr)
     {
@@ -244,6 +251,7 @@ mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
     case MEDIATYPE_CAS:
     case MEDIATYPE_WAV:
         // open the cassette file
+        _is_tape = true;
         platformFuji.cassette()->mount_cassette_file(f, disksize);
         return disk_type;
         // TODO left off here for tape cassette
@@ -299,6 +307,15 @@ sioDisk::~sioDisk()
 void sioDisk::unmount()
 {
     Debug_print("disk UNMOUNT\n");
+
+    // A tape image has no MediaType, so nothing below sees it, yet the cassette reads its file (the
+    // progressive raw-FSK loader does so from its own task). Tell the cassette first: the caller closes
+    // the file right after this returns.
+    if (_is_tape)
+    {
+        _is_tape = false;
+        platformFuji.cassette()->umount_cassette_file();
+    }
 
     if (_disk != nullptr)
     {

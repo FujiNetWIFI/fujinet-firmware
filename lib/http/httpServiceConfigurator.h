@@ -21,6 +21,7 @@ class fnHttpServiceConfigurator
     static void config_cassette_play(std::string play_record);
     static void config_cassette_resistor(std::string resistor);
     static void config_cassette_rewind();
+    static void config_cassette_rewind_seconds(std::string seconds);
     static void config_cassette_enabled(std::string cassette_enabled);
     static void config_rotation_sounds(std::string rotation_sounds);
     static void config_enable_config(std::string enable_config);
