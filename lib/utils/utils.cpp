@@ -909,6 +909,21 @@ std::string util_remove_n_prefix(std::string url)
     return url;
 }
 
+// TNFS://host/..., SD:/... - a spec that names its own scheme is a full URL.
+static bool util_has_scheme(const std::string &spec)
+{
+    size_t colon = spec.find(':');
+    if (colon == std::string::npos || colon == 0 || !std::isalpha(static_cast<unsigned char>(spec[0])))
+        return false;
+    for (size_t idx = 1; idx < colon; idx++)
+    {
+        char c = spec[idx];
+        if (!std::isalnum(static_cast<unsigned char>(c)) && c != '+' && c != '-' && c != '.')
+            return false;
+    }
+    return true;
+}
+
 // Non-mutating
 std::string util_devicespec_fix_for_parsing(std::string deviceSpec, std::string prefix, bool is_directory_read, bool process_fs_dot)
 {
@@ -921,9 +936,11 @@ std::string util_devicespec_fix_for_parsing(std::string deviceSpec, std::string 
     // number has already been determined
     deviceSpec = util_remove_n_prefix(deviceSpec);
 
+    // A full URL replaces the prefix, as it does in CHDIR.
     // FIXME - prefix should go between the host part and the path part
     // if prefix is empty, the concatenation is still valid
-    deviceSpec = prefix + deviceSpec;
+    if (!util_has_scheme(deviceSpec))
+        deviceSpec = prefix + deviceSpec;
 
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("util_devicespec_fix_for_parsing, spec: >%s<, prefix: >%s<, dir_read?: %s, fs_dot?: %s)\n", deviceSpec.c_str(), prefix.c_str(), is_directory_read ? "true" : "false", process_fs_dot ? "true" : "false");
