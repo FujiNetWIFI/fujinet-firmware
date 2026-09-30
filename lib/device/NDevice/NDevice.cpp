@@ -20,6 +20,17 @@
     ({fileAccessMode_t _am = static_cast<fileAccessMode_t>(access_mode);    \
         _am == ACCESS_MODE::DIRECTORY || _am == ACCESS_MODE::DIRECTORY_ALT;})
 
+static void resize_spec(std::string &spec)
+{
+    // The computer ends the device spec with its native EOL, e.g. 0x9B for Atari, not NUL.
+    // Resizing on strlen() alone may corrupt the parsed URL by including bytes beyond the EOL.
+    auto eol = spec.find(SYSTEM_BUS.nativeEOL());
+    if (eol != std::string::npos)
+        spec.resize(eol);
+    else
+        spec.resize(strlen(spec.c_str()));
+}
+
 const std::unordered_map<fujiCommandID_t, NDevice::Handler> NDevice::dispatch_table = {
     { CMD::NET_OPEN,            {&NDevice::fujidev_open}                  },
     { CMD::NET_CLOSE,           {&NDevice::fujidev_close}                 },
@@ -135,7 +146,7 @@ void NDevice::fujidev_open(const FUJI_COMMAND_PACKET &packet)
         SYSTEM_BUS.transaction_error();
         return;
     }
-    spec.resize(strlen(spec.c_str()));
+    resize_spec(spec);
     spec = SYSTEM_BUS.nativeTextToUnicode(spec);
 
     // Shut down protocol if we are sending another open before we close.
@@ -705,7 +716,7 @@ void NDevice::fs_op(const FUJI_COMMAND_PACKET &packet, fujiError_t (NetworkProto
     std::string spec(256, 0);
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
     SYSTEM_BUS.transaction_get(spec);
-    spec.resize(strlen(spec.c_str()));
+    resize_spec(spec);
 
     std::unique_ptr<PeoplesUrlParser> url;
     if (parse_and_instantiate_protocol(spec, IS_DIR_MODE(mode), url).is_error())
