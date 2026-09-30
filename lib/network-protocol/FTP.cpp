@@ -90,6 +90,17 @@ fujiError_t NetworkProtocolFTP::mount(PeoplesUrlParser *url)
     return res;
 }
 
+fujiError_t NetworkProtocolFTP::stat()
+{
+    // A failed SIZE lets resolve() look for a crunched name in the listing;
+    // a server without SIZE only costs that extra listing.
+    int32_t size = ftp->get_file_size(opened_url->path);
+    if (size < 0)
+        return FUJI_ERROR::UNSPECIFIED;
+    fileSize = size;
+    return FUJI_ERROR::NONE;
+}
+
 fujiError_t NetworkProtocolFTP::umount()
 {
     return ftp->logout();
