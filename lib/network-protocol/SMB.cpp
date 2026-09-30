@@ -70,7 +70,8 @@ fujiError_t NetworkProtocolSMB::open_file_handle()
         Debug_printf("NetworkProtocolSMB::open_file_handle() - Uncaught aux1 %d", (int) streamMode);
     }
 
-    fh = smb2_open(smb, smb_url->path, flags);
+    // opened_url->path, not smb_url->path: resolve() may have swapped in the real name.
+    fh = smb2_open(smb, share_path(opened_url->path).c_str(), flags);
 
     if (fh == nullptr)
     {
@@ -89,7 +90,12 @@ fujiError_t NetworkProtocolSMB::open_file_handle()
 
 fujiError_t NetworkProtocolSMB::open_dir_handle()
 {
-    if ((smb_dir = smb2_opendir(smb, smb_url->path)) == nullptr)
+    // resolve() lists the directory of the file it opens.
+    std::string path = streamMode == ACCESS_MODE::DIRECTORY || streamMode == ACCESS_MODE::DIRECTORY_ALT
+                           ? smb_url->path
+                           : share_path(dir);
+
+    if ((smb_dir = smb2_opendir(smb, path.c_str())) == nullptr)
     {
         Debug_printf("NetworkProtocolSMB::open_dir_handle() - ERROR: %s\r\n", smb2_get_error(smb));
         smb_error = -nterror_to_errno(smb2_get_nterror(smb));
@@ -328,10 +334,22 @@ fujiError_t NetworkProtocolSMB::stat()
 {
     struct smb2_stat_64 st;
 
-    int ret = smb2_stat(smb, smb_url->path, &st);
+    int ret = smb2_stat(smb, share_path(opened_url->path).c_str(), &st);
 
     fileSize = st.smb2_size;
     return ret != 0 ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
+}
+
+std::string NetworkProtocolSMB::share_path(const std::string &path)
+{
+    size_t slash = path.find('/', path.find_first_not_of('/'));
+    if (slash == std::string::npos)
+        return "";
+
+    std::string rel = path.substr(slash + 1);
+    while (!rel.empty() && rel.back() == '/')
+        rel.pop_back();
+    return rel;
 }
 
 off_t NetworkProtocolSMB::seek(off_t position, int whence)
