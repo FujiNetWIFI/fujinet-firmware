@@ -8,6 +8,7 @@
 #include "global_types.h"
 #include "global_defines.h"
 
+#include <cstdint>
 #include <string>
 
 // FIXME - only used by FS classes and doesn't belong here
@@ -111,6 +112,11 @@ public:
      * Translation mode: 0=NONE, 1=CR, 2=LF, 3=CR/LF, 4=PETSCII
      */
     netProtoTranslation_t translation_mode = NETPROTO_TRANS::NONE;
+
+    /**
+     * Most bytes status() reads ahead while translating, so it can count what translation left.
+     */
+    size_t translate_ahead_max = SIZE_MAX;
 
     /**
      * The target computer's native end-of-line sequence. Each bus's network

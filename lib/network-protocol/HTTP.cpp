@@ -434,7 +434,9 @@ fujiError_t NetworkProtocolHTTP::status_file(NetworkStatus *status)
 #endif
             http_transaction();
         }
-        translate_ahead(client->available());
+        // As in NetworkProtocolFS::status_file().
+        if (translation_mode != NETPROTO_TRANS::NONE)
+            NetworkProtocol::status(status);
         auto available = client->available() + receiveBuffer->size();
         status->connected = client->is_transaction_done() ? 0 : 1;
 

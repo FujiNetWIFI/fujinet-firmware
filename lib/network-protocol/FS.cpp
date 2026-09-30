@@ -26,6 +26,8 @@ NetworkProtocolFS::NetworkProtocolFS(std::string *rx_buf, std::string *tx_buf, s
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {
     fileSize = 0;
+    // One TNFS read, and more than most READs ask for.
+    translate_ahead_max = 512;
 }
 
 NetworkProtocolFS::~NetworkProtocolFS()
@@ -360,18 +362,6 @@ fujiError_t NetworkProtocolFS::status(NetworkStatus *status)
 }
 
 #define WAITING_CAP 65534
-// One TNFS read, and more than most READs ask for.
-#define TRANSLATE_AHEAD 512
-
-void NetworkProtocolFS::translate_ahead(size_t raw)
-{
-    // Translation changes the length (CR/LF folds into one EOL), so only the
-    // translated bytes can be counted. Not from an interrupt: it reads the file.
-    if (translation_mode == NETPROTO_TRANS::NONE || fromInterrupt
-        || !receiveBuffer->empty() || raw == 0)
-        return;
-    read(std::min<size_t>(raw, TRANSLATE_AHEAD));
-}
 
 fujiError_t NetworkProtocolFS::status_file(NetworkStatus *status)
 {
@@ -381,7 +371,10 @@ fujiError_t NetworkProtocolFS::status_file(NetworkStatus *status)
         remaining = fileSize;
     }
     else {
-        translate_ahead(fileSize);
+        // Translation changes the length, so only translated bytes can be
+        // counted. Without it available() is exact and needs no read-ahead.
+        if (translation_mode != NETPROTO_TRANS::NONE)
+            NetworkProtocol::status(status);
         remaining = fileSize + receiveBuffer->length();
     }
 
