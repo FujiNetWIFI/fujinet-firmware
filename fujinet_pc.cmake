@@ -351,9 +351,12 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     lib/media/atari/diskTypeAtr.h lib/media/atari/diskTypeAtr.cpp
     lib/media/atari/diskTypeAtx.h lib/media/atari/diskTypeAtx.cpp
     lib/media/atari/diskTypeXex.h lib/media/atari/diskTypeXex.cpp
+    lib/media/atari/casTape.h
 
     lib/device/sio/disk.h lib/device/sio/disk.cpp
     lib/device/sio/printer.h lib/device/sio/printer.cpp
+    lib/device/sio/cassetteRewindRequest.h
+    lib/device/sio/cassetteTrail.h lib/device/sio/cassetteTrail.cpp
     lib/device/sio/printerlist.h lib/device/sio/printerlist.cpp
     lib/device/sio/cassette.h lib/device/sio/cassette.cpp
     lib/device/sio/sioFuji.h lib/device/sio/sioFuji.cpp
