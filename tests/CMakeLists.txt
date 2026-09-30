@@ -339,6 +339,25 @@ target_include_directories(mac_gcr_tests PRIVATE ${CMAKE_SOURCE_DIR}/lib/)
 add_test(NAME mac_gcr_tests COMMAND mac_gcr_tests)
 
 # ------------------------------------------------------------------------------
+# Atari cassette rewind: record durations (lib/media/atari/casTape.h), and the
+# request and the trail of played boundaries (lib/device/sio/cassette*.h). None
+# of them touches the bus, a file or the RTOS, so they are driven here directly.
+# ------------------------------------------------------------------------------
+add_executable(cassette_tests
+    CasTapeTests.cpp
+    CassetteRewindRequestTests.cpp
+    CassetteTrailTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/sio/cassetteTrail.cpp
+)
+
+target_include_directories(cassette_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+
+add_test(NAME cassette_tests COMMAND cassette_tests)
+
+# ------------------------------------------------------------------------------
 # lib/stuffit: unsit is a host CLI over the library. The sample tests compare
 # it against unar and ndif2raw; they need -DSIT_SAMPLES_DIR / -DNDIF2RAW_DIR
 # (or the same environment variables) and are skipped otherwise.

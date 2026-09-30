@@ -239,6 +239,8 @@ void sioCassette::open_cassette_file(FileSystem *_FS)
 
 void sioCassette::umount_cassette_file()
 {
+        _rewind_request.discard();
+        ++_tape_generation;
         unmount_turbo_loader();
         Debug_println("CAS file closed.");
         _mounted = false;
@@ -246,6 +248,8 @@ void sioCassette::umount_cassette_file()
 
 void sioCassette::mount_cassette_file(fnFile *f, size_t fz)
 {
+    _rewind_request.discard();
+    ++_tape_generation;
     tape_offset = 0;
     if (cassetteMode == cassette_mode_t::playback)
     {
@@ -274,6 +278,9 @@ void sioCassette::mount_cassette_file(fnFile *f, size_t fz)
 
 void sioCassette::sio_enable_cassette()
 {
+    // before anything below decides from the position of the tape
+    apply_pending_rewind();
+
     cassetteActive = true;
 
     if (cassetteMode == cassette_mode_t::playback)
@@ -370,6 +377,14 @@ void sioCassette::sio_handle_cassette()
 {
     if (cassetteMode == cassette_mode_t::playback)
     {
+        apply_pending_rewind();
+
+        // Turbo 2000 plays the whole tape in one call and never leaves the start between calls, so
+        // there is nothing for the trail to follow. For the others a completed record moves the tape on.
+        const size_t before = tape_offset;
+        _trail.sync(_tape_generation, before);
+        _record_ms = CAS_LEGACY_BLOCK_MS; // FUJI and QROS records say how long they took
+
         if (tape_flags.turbo2000)
             tape_offset = send_turbo2000_tape_block(tape_offset);
         else if (tape_flags.qros)
@@ -378,6 +393,9 @@ void sioCassette::sio_handle_cassette()
             tape_offset = send_FUJI_tape_block(tape_offset);
         else
             tape_offset = send_tape_block(tape_offset);
+
+        if (!tape_flags.turbo2000 && tape_offset > before)
+            _trail.played(tape_offset, _record_ms, baud);
 
         // if after trying to send data, still at the start, then turn off tape
         if (tape_offset == 0 || !cassetteActive)
@@ -395,8 +413,41 @@ void sioCassette::rewind()
 {
     // Is this all that's needed? -tschak
     tape_offset = 0;
+    baud = CAS_DEFAULT_BAUD;
     t2k_boot_sent = false;
     qros_boot_sent = false;
+    _trail.restart();
+}
+
+// Runs on the task that plays the tape, where the tape is at rest: when the cassette is enabled and
+// before each record while it plays. A rewind asked for while a Turbo 2000 run is under way waits for
+// the run to end, as that runs the tape to its end without returning.
+void sioCassette::apply_pending_rewind()
+{
+    const CassetteRewind request = _rewind_request.take(cassetteMode == cassette_mode_t::playback);
+    if (request.kind == CassetteRewind::Kind::none)
+        return;
+
+#ifdef ESP_PLATFORM
+    // the waveforms of the old position must not outlive it
+    turbo2000_deinit_rmt();
+    qros_pilot_off();
+#endif
+
+    if (request.kind == CassetteRewind::Kind::to_start)
+    {
+        Debug_println("rewind: to the start");
+        rewind();
+        return;
+    }
+
+    // seconds: a lookup in what has been played, with no access to the file
+    _trail.sync(_tape_generation, tape_offset);
+    const CassetteBoundary target = _trail.rewind_by(request.seconds);
+    tape_offset = target.offset;
+    baud = target.baud;
+    Debug_printf("rewind: %u s back to offset %u\n", static_cast<unsigned>(request.seconds),
+                 static_cast<unsigned>(tape_offset));
 }
 
 void sioCassette::set_buttons(bool play_record)
@@ -640,6 +691,7 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
 
     gap = hdr->irg_length; //save GAP
     len = hdr->chunk_length;
+    _record_ms = cas_data_record_ms(gap, len, baud);
     Debug_printf("Baud: %u Length: %u Gap: %u ", baud, len, gap);
 
     // TO DO : turn on LED
@@ -1078,6 +1130,7 @@ size_t sioCassette::send_QROS_tape_block(size_t offset)
 
     gap = hdr->irg_length;
     len = hdr->chunk_length;
+    _record_ms = cas_data_record_ms(gap, len, baud);
     Debug_printf("QROS block %u: baud=%u len=%u gap=%u turbo=%d\n",
                  block, baud, len, gap, is_turbo);
 
