@@ -328,6 +328,10 @@ void systemBus::setBaudrate(int baud)
 
 std::unique_ptr<FujiBusPacket> systemBus::readBusPacket(int first)
 {
+    // _port is assigned in setup(), which runs after theFuji->setup()
+    if (_port == nullptr)
+        return nullptr;
+
     ByteBuffer packet;
     int count = 0;
 
@@ -359,6 +363,12 @@ std::unique_ptr<FujiBusPacket> systemBus::readBusPacket(int first)
 
 void systemBus::writeBusPacket(FujiBusPacket &packet)
 {
+    if (_port == nullptr)
+    {
+        Debug_printv("no port yet, dropping packet\n");
+        return;
+    }
+
     ByteBuffer encoded = packet.serialize();
     _port->write(encoded.data(), encoded.size());
 #ifdef DEBUG_RAW_PACKET

@@ -343,6 +343,13 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
         if (filename != nullptr)
             strlcpy(rom->_disk_filename, filename, sizeof(rom->_disk_filename));
         rom->mount(f, disksize);
+        // At our own boot (insert_boot_device from theFuji->setup) the adapter may
+        // not exist yet; SET_BOOT_MODE / MOUNT_ALL mount again from inside a transaction.
+        if (!SYSTEM_BUS.in_transaction())
+        {
+            Debug_printv("ROM mount outside a transaction, deferring push\n");
+            return MEDIATYPE_ROM;
+        }
         return push_rom_streams(rom) ? MEDIATYPE_ROM : MEDIATYPE_UNKNOWN;
     }
     case MEDIATYPE_IMD:

@@ -44,6 +44,8 @@ protected:
     DaisyChain _daisyChain;
 
 public:
+    // True while a host command is being serviced.
+    inline bool in_transaction() const { return _transaction_state != TRANS_STATE::INVALID; }
     virtual void addDevice(virtualDevice *device, fujiDeviceID_t deviceType) {
         _daisyChain.addDevice(device, deviceType);
     }
