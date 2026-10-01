@@ -150,8 +150,8 @@ struct ChannelConfig
 class ESP32UARTChannel : public IOChannel, public RS232ChannelProtocol
 {
 private:
-    uart_port_t _uart_num;
-    QueueHandle_t _uart_q;
+    uart_port_t _uart_num = UART_NUM_MAX;
+    QueueHandle_t _uart_q = nullptr;
     RS232ControlPins controlPins;
     bool _halfDuplex;
 
