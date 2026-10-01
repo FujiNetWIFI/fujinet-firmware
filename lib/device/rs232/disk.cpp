@@ -4,12 +4,14 @@
 #include "fujiCommandID.h"
 
 #include <cstring>
+#include <strings.h>
 #include <string>
 
 #include "../../include/debug.h"
 
 #include "compat_string.h"
 #include "fujiDevice.h"
+#include "fujiROMType.h"
 #include "utils.h"
 
 #define ROM_PUSH_STREAM_MAP   1
@@ -18,14 +20,15 @@
 // Relays `source` as NET_WRITE frames on DBC stream `stream_id`, which the
 // RP2040's dbc_inbound_handler() demuxes on.
 //
-// The OPEN header (stream id, then size as 4 LE bytes) travels as payload, not
-// params: the RP2040's fujibus.c skips the descriptor chain and exposes only
-// payload to callers. It uses the size to reject an oversized ROM before we
+// The OPEN header (stream id, size as 4 LE bytes, mapper type) travels as
+// payload, not params: the RP2040's fujibus.c skips the descriptor chain and
+// exposes only payload to callers. It uses the size to reject an oversized ROM before we
 // pull it over TNFS; older builds read data[0] and ignore the rest.
 //
 // CLOSE always goes out or the RP2040's stream state wedges; on failure it
 // carries a 0x01 abort so partial data isn't booted.
-static bool push_stream(MediaTypeROM *rom, RomStream source, uint16_t stream_id)
+static bool push_stream(MediaTypeROM *rom, RomStream source, uint16_t stream_id,
+                        fujiROMType_t rom_type)
 {
     uint8_t buffer[DISK_SECTORBUF_SIZE];
     uint32_t expected_size = rom->stream_size(source);
@@ -36,10 +39,11 @@ static bool push_stream(MediaTypeROM *rom, RomStream source, uint16_t stream_id)
         return false;
     }
 
-    struct { uint8_t id; u32le_t size; } open_hdr;
-    static_assert(sizeof(open_hdr) == 5, "OPEN header must not be padded");
+    struct { uint8_t id; u32le_t size; uint8_t rom_type; } open_hdr;
+    static_assert(sizeof(open_hdr) == 6, "OPEN header must not be padded");
     open_hdr.id = (uint8_t)stream_id;
     open_hdr.size = expected_size;
+    open_hdr.rom_type = rom_type;
 
     auto reply = SYSTEM_BUS.sendCommand(FUJI_DEVICEID::DBC, CMD::NET_OPEN,
                                         std::string((const char *)&open_hdr, sizeof(open_hdr)));
@@ -89,18 +93,47 @@ static bool push_stream(MediaTypeROM *rom, RomStream source, uint16_t stream_id)
     return ok;
 }
 
+static fujiROMType_t rom_type_for(const char *filename)
+{
+#ifdef BUILD_MSX
+    static const struct { const char *suffix; fujiROMType_t type; } suffixes[] = {
+        { "[KonamiSCC].rom", ROM_TYPE_MSX_KONAMI_SCC },
+        { "[Konami].rom",    ROM_TYPE_MSX_KONAMI },
+        { "[ASCII8].rom",    ROM_TYPE_MSX_ASCII8 },
+        { "[ASCII16].rom",   ROM_TYPE_MSX_ASCII16 },
+    };
+
+    if (filename != nullptr)
+    {
+        size_t len = strlen(filename);
+        for (const auto &entry : suffixes)
+        {
+            size_t n = strlen(entry.suffix);
+            if (len >= n && strncasecmp(filename + len - n, entry.suffix, n) == 0)
+                return entry.type;
+        }
+    }
+    return ROM_TYPE_MSX_PLAIN;
+#else
+    (void)filename;
+    return ROM_TYPE_UNKNOWN;
+#endif
+}
+
 // The whole ROM goes over at mount time. The image's CLOSE triggers the boot,
 // so the map has to land first.
 static bool push_rom_streams(MediaTypeROM *rom)
 {
     if (rom->has_memory_map() &&
-        !push_stream(rom, RomStream::MemoryMap, ROM_PUSH_STREAM_MAP))
+        !push_stream(rom, RomStream::MemoryMap, ROM_PUSH_STREAM_MAP,
+                     ROM_TYPE_UNKNOWN))
     {
         Debug_printv("ROM push: memory map push failed\n");
         return false;
     }
 
-    if (!push_stream(rom, RomStream::Image, ROM_PUSH_STREAM_IMAGE))
+    if (!push_stream(rom, RomStream::Image, ROM_PUSH_STREAM_IMAGE,
+                     rom_type_for(rom->_disk_filename)))
     {
         Debug_printv("ROM push: ROM push failed\n");
         return false;

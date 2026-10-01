@@ -187,8 +187,10 @@ mediatype_t MediaTypeROM::mount(fnFile *fileh, uint32_t disksize)
     _map_path[0] = '\0';
     _image_pos = UINT32_MAX;
 
+#ifndef BUILD_MSX
     if (_media_host != nullptr && _disk_filename[0] != '\0')
         resolve_memory_map();
+#endif
 
     return _disktype;
 }
