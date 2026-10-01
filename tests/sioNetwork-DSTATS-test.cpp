@@ -19,6 +19,7 @@ public:
     using sioNetwork::get_dstats_for_command;
     using sioNetwork::fujidev_close;
     using sioNetwork::fujidev_status;
+    using sioNetwork::fujidev_read;
     using sioNetwork::_protocol;
 };
 
@@ -28,6 +29,7 @@ static struct
     int success = 0;
     int error = 0;
     std::string sent;
+    bool sent_error = false;
 } bus;
 
 // --------------------------------------------------------------------------------
@@ -119,6 +121,28 @@ TEST_CASE("a failed CLOSE fails again when SIO repeats it, and STATUS says why")
     CHECK((uint8_t) bus.sent[3] == (uint8_t) NDEV_STATUS::ACCESS_DENIED);
 }
 
+// --------------------------------------------------------------------------------
+// SIOV reads the data frame after ERROR too. A failed READ that sends ERROR
+// alone leaves it waiting out DTIMLO and retrying before it reports the error.
+// --------------------------------------------------------------------------------
+
+TEST_CASE("a failed READ sends ERROR with a data frame of the length asked for")
+{
+    TestableSioNetwork dev; // no channel open, so the READ fails
+
+    FujiSIOPacket packet;
+    packet.frame.comnd = CMD::NET_READ;
+    packet.frame.aux1 = 7;
+    packet.frame.aux2 = 0;
+
+    bus = {};
+    dev.fujidev_read(packet);
+
+    CHECK(bus.error == 0);
+    CHECK(bus.sent.size() == 7);
+    CHECK(bus.sent_error);
+}
+
 #ifdef ITS_A_UNIX_SYSTEM_I_KNOW_THIS
 void TTYChannel::updateFIFO() {}
 size_t TTYChannel::dataOut(const void *buffer, size_t length) { (void)buffer; (void)length; return 0; }
@@ -172,6 +196,7 @@ success_is_true systemBus::transaction_get(void *data, size_t len) { RETURN_ERRO
 void systemBus::transaction_send(const void *data, size_t len, bool is_error)
 {
     bus.sent.assign((const char *)data, len);
+    bus.sent_error = is_error;
 }
 void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id) {}
 
@@ -324,7 +349,12 @@ fnUDP::fnUDP() {}
 fnUDP::~fnUDP() {}
 int fnUDP::available() { return 0; }
 
-uint16_t FujiSIOPacket::getParam(size_t index, size_t psize) const { return 0; }
+uint16_t FujiSIOPacket::getParam(size_t index, size_t psize) const
+{
+    if (psize == 1)
+        return index ? frame.aux2 : frame.aux1;
+    return frame.aux1 | frame.aux2 << 8;
+}
 
 void DaisyChain::addDevice(virtualDevice *newDev, fujiDeviceID_t fujiID) {}
 void DaisyChain::assignFujiIDToDevice(virtualDevice *device, fujiDeviceID_t fujiID) {}
