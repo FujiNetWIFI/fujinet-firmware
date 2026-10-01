@@ -108,9 +108,6 @@ protected:
      */
     fujiError_t read_file_handle(uint8_t *buf, unsigned short len) override;
 
-    // fileSize is not what is left of a body without Content-Length or of the headers.
-    size_t file_bytes_left() override { return 0; }
-
     /**
      * @brief read next directory entry.
      * @param buf the target buffer

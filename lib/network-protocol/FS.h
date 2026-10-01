@@ -278,12 +278,6 @@ protected:
     virtual fujiError_t read_file_handle(uint8_t *buf, unsigned short len) = 0;
 
     /**
-     * @brief Bytes left to read in the open file
-     * @return the count, or 0 if the protocol can't tell
-     */
-    virtual size_t file_bytes_left() { return fileSize > 0 ? fileSize : 0; }
-
-    /**
      * @brief Read from directory
      * @param len the number of bytes requested
      * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
