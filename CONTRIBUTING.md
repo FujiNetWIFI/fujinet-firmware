@@ -79,12 +79,13 @@ automatic clean. Needs `cmake`, a C++20 compiler, MbedTLS 3.x, and `python_modul
 
 ## Validate a change before proposing it
 
-CI for the firmware is **build-only**: `autobuild.yml` compiles 10 ESP32 targets and runs no tests,
-and the ctest suite runs in `build-fujinet-pc.yml` only because `build.sh -p` invokes it. No
+CI for the firmware is **build-only**: `autobuild.yml` compiles only the boards in its
+`target-platform` matrix (not every board `build.sh -S` lists) and runs no tests, and the ctest
+suite runs in `build-fujinet-pc.yml` only because `build.sh -p` invokes it. No
 workflow runs a linter or a formatter. So:
 
 1. `make atari-lwm` (or `./build.sh -p ATARI`) — compiles host code and runs every ctest,
-   including the policy check. Use the target matching the platform you changed.
+   including the two policy checks. Use the target matching the platform you changed.
 2. `./build.sh -b` for at least one board of each platform your change touches.
 3. `./build.sh -a` if you touched shared code under `lib/` or `src/main.cpp`.
 4. `git diff` and re-read the comments in it: each must still be true of the code as changed.
@@ -92,22 +93,28 @@ workflow runs a linter or a formatter. So:
 
 ## Tests
 
-- The live suite is `tests/`, doctest-based, wired in only for the PC build. ctest names:
-  `fujibuspacket_tests`, `calendar_tests`, `mail_tests`, `no_build_ifdefs_in_fujidevice`, and
-  `sio_dstats_tests` (built only when `FUJINET_TARGET=ATARI`).
+- The live suite is `tests/`, doctest-based, wired in only for the PC build. The ctest names are
+  the `add_test` entries in `tests/CMakeLists.txt`. Two are Python policy checks
+  (`no_build_ifdefs_in_fujidevice`, `no_system_bus_in_media`), two build only when
+  `FUJINET_TARGET=ATARI` (`sio_dstats_tests`, `nquery_output_mode_tests`), and the StuffIt and
+  NDIF sample tests register only when their sample corpus and tools are present.
 - Run them with `./build.sh -p ATARI`, or `ctest -V` from `build/` after a PC configure.
 - To add one, add an `add_executable` + `add_test` pair to `tests/CMakeLists.txt`; keep the unit
   under test free of hardware and FujiNet globals so it links alone, as `fn_time.cpp` does.
 - `test/` (singular) is the stale PlatformIO/Unity on-hardware directory; nothing references it.
   Do not extend it and do not add tests there.
 
-## Enforced architecture rule
+## Enforced architecture rules
 
 No `BUILD_*` identifier may appear in a `#if`, `#ifdef`, `#ifndef` or `#elif` anywhere under
 `lib/device/fujiDevice`, `lib/device/fujiClock`, or `lib/device/NDevice`. `tests/check_no_build_ifdefs.py`
 enforces this as the `no_build_ifdefs_in_fujidevice` ctest; it strips comments and string literals
 first, so you cannot dodge it. Customize by overriding a virtual in the per-bus subclass under
 `lib/device/<bus>/`, or by a mixin in `lib/device/fujiDevice/`.
+
+`SYSTEM_BUS` may not appear anywhere under `lib/media`; `tests/check_no_system_bus.py` enforces
+this as the `no_system_bus_in_media` ctest. A media class receives a file handle and knows nothing
+about the bus; the device that mounts it does the talking.
 
 The codebase is actively unifying per-platform code into these shared bases: `fujiDevice` (plus its
 mixins) and `NDevice` replaced the per-bus Fuji and network devices. Extend the shared layer rather
