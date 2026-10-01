@@ -1,0 +1,69 @@
+; nes_tables.pio -- the bank tables and the MMC3 A12 filter.
+;
+; The two table programs are documentation and a cross-check: the firmware
+; builds the same words from nes_pio.h at run time (so that the host tests and
+; the cartridge share one encoder) and asserts at init that pioasm agrees. Slot
+; instructions are patched live; `set pins, 0 side 0` is only the power-on
+; value.
+
+.program nes_chr_table
+.side_set 4 opt
+.origin 0
+; 8 slots of 1K, indexed by PPU A10-A12; each slot is `set` (bank A10-A14 on
+; the set pins, A15-A18 on the side-set pins) then a jump back to the loop.
+    set pins, 0 side 0
+    jmp loop
+    set pins, 0 side 0
+    jmp loop
+    set pins, 0 side 0
+    jmp loop
+    set pins, 0 side 0
+    jmp loop
+    set pins, 0 side 0
+    jmp loop
+    set pins, 0 side 0
+    jmp loop
+    set pins, 0 side 0
+    jmp loop
+    set pins, 0 side 0
+    jmp loop
+loop:
+    mov isr, null
+    in pins, 3          ; ISR = A10-A12 (IN shift direction: left)
+    in null, 1          ; ISR = 2 * index: the slot's address
+    mov pc, isr
+
+.program nes_prg_table
+.side_set 1 opt
+.origin 0
+; 4 slots of 8K, indexed by CPU A13-A14.
+    set pins, 0 side 0
+    jmp loop
+    set pins, 0 side 0
+    jmp loop
+    set pins, 0 side 0
+    jmp loop
+    set pins, 0 side 0
+    jmp loop
+loop:
+    mov isr, null
+    in pins, 2
+    in null, 1
+    mov pc, isr
+
+.program nes_a12_filter
+; The MMC3 scanline counter clocks on a PPU A12 rising edge that follows A12
+; being low for three M2 falling edges (nesdev). A PIO wait cannot be
+; abandoned by a second pin, so this is the same thing as a time filter:
+; poll A12 every 16 cycles for N iterations, restart if it rises early, then
+; wait for the real rise and raise a system interrupt. N is set at init from
+; MMC3_A12_FILTER_NS; JMP_PIN and IN base are both PPU A12.
+top:
+    wait 0 pin 0
+    set x, 12
+lp:
+    jmp pin, top [15]
+    jmp x--, lp [15]
+    wait 1 pin 0
+    irq 0
+    jmp top
