@@ -278,16 +278,19 @@ fujiError_t NetworkProtocolFS::read(unsigned short len)
 
 fujiError_t NetworkProtocolFS::read_file(unsigned short len)
 {
-    std::vector<uint8_t> buf = std::vector<uint8_t>(len);
+    // A read that runs past what is there fails as a whole, so ask only for that.
+    // With nothing counted, ask for len so the adapter waits or reports EOF.
+    size_t avail = available();
+    std::vector<uint8_t> buf = std::vector<uint8_t>(avail ? std::min<size_t>(len, avail) : len);
 
 #ifdef VERBOSE_HTTP
-    Debug_printf("NetworkProtocolFS::read_file(%u)\r\n", len);
+    Debug_printf("NetworkProtocolFS::read_file(%u)\r\n", (unsigned) buf.size());
 #endif
 
     if (receiveBuffer->length() == 0)
     {
         // Do block read.
-        if (read_file_handle(buf.data(), len) != FUJI_ERROR::NONE)
+        if (read_file_handle(buf.data(), buf.size()) != FUJI_ERROR::NONE)
         {
 #ifdef VERBOSE_PROTOCOL
             Debug_printf("Nothing new from adapter, bailing.\n");
@@ -297,10 +300,10 @@ fujiError_t NetworkProtocolFS::read_file(unsigned short len)
 
         // Append to receive buffer.
         receiveBuffer->insert(receiveBuffer->end(), buf.begin(), buf.end());
-        fileSize -= len;
+        fileSize -= buf.size();
 
         // Translate the freshly-read bytes exactly once.
-        return NetworkProtocol::read(len);
+        return NetworkProtocol::read(buf.size());
     }
 
     // receiveBuffer already holds translated data; return without re-translating,
