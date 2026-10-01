@@ -91,6 +91,7 @@ typedef enum class CMD : uint8_t {
     FUJI_HSIO_INDEX                 = 0x3F, // ?
     FUJI_NAK                        = 0x15, // ASCII NAK
     FUJI_ACK                        = 0x06, // ASCII ACK
+    FUJI_RESEND                     = 0x05, // ASCII ENQ: send your last reply again (a polled host lost it)
     FUJI_SEND_ERROR                 = 0x02,
     FUJI_SEND_RESPONSE              = 0x01,
     FUJI_DEVICE_READY               = 0x00,
