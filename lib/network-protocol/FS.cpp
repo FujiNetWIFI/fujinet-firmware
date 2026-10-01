@@ -278,6 +278,11 @@ fujiError_t NetworkProtocolFS::read(unsigned short len)
 
 fujiError_t NetworkProtocolFS::read_file(unsigned short len)
 {
+    // A read that runs past the end fails as a whole, so ask only for what is left.
+    size_t left = file_bytes_left();
+    if (left && len > left)
+        len = left;
+
     std::vector<uint8_t> buf = std::vector<uint8_t>(len);
 
 #ifdef VERBOSE_HTTP
