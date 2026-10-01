@@ -24,11 +24,10 @@ static void resize_spec(std::string &spec)
 {
     // The computer ends the device spec with its native EOL, e.g. 0x9B for Atari, not NUL.
     // Resizing on strlen() alone may corrupt the parsed URL by including bytes beyond the EOL.
+    spec.resize(strlen(spec.c_str()));
     auto eol = spec.find(SYSTEM_BUS.nativeEOL());
     if (eol != std::string::npos)
         spec.resize(eol);
-    else
-        spec.resize(strlen(spec.c_str()));
 }
 
 const std::unordered_map<fujiCommandID_t, NDevice::Handler> NDevice::dispatch_table = {
