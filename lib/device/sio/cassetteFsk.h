@@ -39,7 +39,13 @@ struct CassetteFskPlayResult
 // (e.g. pulldown mode and the line has been low). `ctx` is caller-defined.
 using CassetteFskMotorDroppedFn = bool (*)(void *ctx);
 
-#ifdef ESP_PLATFORM
+// Declared, and implemented, only for the Atari build: the implementation is
+// SIO-bus-specific (SYSTEM_BUS.flushOutput(), the SIO DATA IN pin), and only
+// cassette.cpp (itself entirely #ifdef BUILD_ATARI) ever calls it. Other
+// ESP_PLATFORM targets (e.g. ADAM) must not see this declaration without a
+// matching definition, or a future caller elsewhere would hit a link error
+// instead of a clear compile-time scope error.
+#if defined(ESP_PLATFORM) && defined(BUILD_ATARI)
 
 // Preloads the zero-IRG-joined `fsk ` run starting at `header_offset` (a
 // file offset already known to be an `fsk ` chunk header) into one PSRAM
@@ -50,6 +56,6 @@ using CassetteFskMotorDroppedFn = bool (*)(void *ctx);
 CassetteFskPlayResult cassette_fsk_play_run(fnFile *file, size_t filesize, size_t header_offset,
                                              CassetteFskMotorDroppedFn motor_dropped, void *motor_ctx);
 
-#endif // ESP_PLATFORM
+#endif // ESP_PLATFORM && BUILD_ATARI
 
 #endif // CASSETTE_FSK_H

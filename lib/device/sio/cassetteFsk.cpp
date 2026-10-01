@@ -1,4 +1,4 @@
-#ifdef ESP_PLATFORM
+#if defined(ESP_PLATFORM) && defined(BUILD_ATARI)
 #include "cassetteFsk.h"
 #include "../../media/atari/casFsk.h"
 
@@ -288,4 +288,4 @@ CassetteFskPlayResult cassette_fsk_play_run(fnFile *file, size_t filesize, size_
     return result;
 }
 
-#endif // ESP_PLATFORM
+#endif // ESP_PLATFORM && BUILD_ATARI
