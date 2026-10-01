@@ -360,8 +360,33 @@ built and which you did not, whether you flashed and ran it on hardware and on w
 whether any test covers the change. "Builds for ATARI and COCO, not flashed, no test coverage" is a
 perfectly good answer and far more useful than silence.
 
+## Directory READMEs
+
+Every source directory carries a `README.md` describing what it is for, what each file defines and
+how it fits with its neighbours; `lib/README.md` is the architecture overview and the place to
+start. Keep them in the same terse register as the code comments.
+
+- Fixed shape: a title line that is the repo-relative path (`# lib/bus/sio`), one sentence of
+  purpose, `## Layout` as a file-to-definition table, `## How it fits` (who uses it, what it uses),
+  `## Build` (how it reaches the ESP and PC builds), and `## Notes` only when there is something to
+  say. Omit a section rather than pad it.
+- Links are relative. Point at a directory with a trailing slash (`[lib/fuji/](../fuji/)`), not at
+  its `README.md`, and at a file only when the sentence names that file. A backticked path resolves
+  from the README's own directory or from the repo root; a bare basename from elsewhere is wrong.
+- State status, not history: "legacy, fails to build (#1658)", "not compiled on PC", "generated
+  by `build_pico.py`". No line numbers, counts, dates, change logs or bug lists; a defect gets a
+  GitHub issue, as above.
+- For vendored code give the upstream, the version if known, the licence, whether it is modified
+  locally and what consumes it. Do not add a README inside a vendored upstream tree, a submodule,
+  or a directory that ships verbatim into a build artifact (`distfiles/`, the `data/webui` content
+  trees).
+- A new directory gets a README in the same PR. A change that adds, moves or deletes files updates
+  the Layout table it touches; re-read it before committing, exactly as you re-read comments.
+
 ## Where to look
 
+- Each directory's `README.md`; `lib/README.md` has the layer diagram and how one `BUILD_*`
+  selects the bus, device set and media.
 - `src/` holds only `main.cpp` (per-platform device assembly); nearly all code is in `lib/`.
 - `lib/bus/<bus>/` protocol and `systemBus`; `lib/device/<bus>/` that bus's devices;
   `lib/media/<platform>/` disk-image formats; `lib/device/fujiDevice`, `NDevice`, `fujiClock` the
