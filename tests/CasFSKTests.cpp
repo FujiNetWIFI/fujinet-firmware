@@ -5,10 +5,10 @@
 #include <cstring>
 #include <vector>
 
-#include "media/atari/casFsk.h"
+#include "media/atari/casFSK.h"
 
 // ------------------------------------------------------------------------------------------------
-// A tiny in-memory A8CAS byte buffer + FskReadFn adapter, so fsk_scan_run can be driven directly
+// A tiny in-memory A8CAS byte buffer + FSKReadFn adapter, so fsk_scan_run can be driven directly
 // without a real file. Mirrors the shape of real corpus files inspected during PR-2's design
 // (C:\Temp\TT): an 8-byte chunk header (4-byte type, LE16 length, LE16 irg) followed by `length`
 // bytes of payload.
@@ -123,7 +123,7 @@ TEST_CASE("a single fsk chunk is a one-chunk run")
 {
     FakeCas cas;
     cas.add_chunk("fsk ", 999, {100, 200, 300});
-    FskRunInfo run;
+    FSKRunInfo run;
     CHECK(fsk_scan_run(fake_cas_read, &cas, cas.bytes.size(), 0, run));
     CHECK(run.chunk_count == 1);
     CHECK(run.payload_bytes == 6);
@@ -138,7 +138,7 @@ TEST_CASE("zero-IRG fsk chunks join into one run")
     cas.add_chunk("fsk ", 999, {1, 2, 3});
     cas.add_chunk("fsk ", 0, {4, 5});
     cas.add_chunk("fsk ", 0, {6});
-    FskRunInfo run;
+    FSKRunInfo run;
     CHECK(fsk_scan_run(fake_cas_read, &cas, cas.bytes.size(), 0, run));
     CHECK(run.chunk_count == 3);
     CHECK(run.value_count == 6);
@@ -151,7 +151,7 @@ TEST_CASE("a non-zero IRG on a later fsk chunk starts a fresh run, not a join")
     FakeCas cas;
     cas.add_chunk("fsk ", 0, {1, 2});
     cas.add_chunk("fsk ", 500, {3, 4}); // fresh run: has its own gap
-    FskRunInfo run;
+    FSKRunInfo run;
     CHECK(fsk_scan_run(fake_cas_read, &cas, cas.bytes.size(), 0, run));
     CHECK(run.chunk_count == 1);
     CHECK(run.value_count == 2);
@@ -165,7 +165,7 @@ TEST_CASE("a run stops at the next non-fsk chunk, mixed tape shape")
     FakeCas cas;
     cas.add_chunk("fsk ", 0, {100, 200}); // the tiny tone marker
     cas.add_chunk("data", 254, {0xAAAA, 0xBBBB}); // stand-in payload bytes, contents irrelevant here
-    FskRunInfo run;
+    FSKRunInfo run;
     CHECK(fsk_scan_run(fake_cas_read, &cas, cas.bytes.size(), 0, run));
     CHECK(run.chunk_count == 1);
     CHECK(run.payload_bytes == 4);
@@ -185,7 +185,7 @@ TEST_CASE("Zorro-shaped structural fixture: 8 joined chunks, one giant run")
     for (int i = 0; i < 6; i++)
         cas.add_chunk("fsk ", 0, big_chunk);
     cas.add_chunk("fsk ", 0, {1, 2, 3}); // the shorter final chunk, as in the real file
-    FskRunInfo run;
+    FSKRunInfo run;
     CHECK(fsk_scan_run(fake_cas_read, &cas, cas.bytes.size(), 0, run));
     CHECK(run.chunk_count == 8);
     CHECK(run.value_count == 100 * 7 + 3);
@@ -195,7 +195,7 @@ TEST_CASE("Zorro-shaped structural fixture: 8 joined chunks, one giant run")
 
 TEST_CASE("malformed/truncated headers fail safely, not partially")
 {
-    FskRunInfo run;
+    FSKRunInfo run;
 
     SUBCASE("header_offset is not an fsk chunk at all")
     {
@@ -240,7 +240,7 @@ TEST_CASE("a run longer than FSK_RUN_MAX_CHUNKS stops there, not past it")
     cas.add_chunk("fsk ", 999, {1});
     for (size_t i = 1; i < FSK_RUN_MAX_CHUNKS + 5; i++)
         cas.add_chunk("fsk ", 0, {1});
-    FskRunInfo run;
+    FSKRunInfo run;
     CHECK(fsk_scan_run(fake_cas_read, &cas, cas.bytes.size(), 0, run));
     CHECK(run.chunk_count == FSK_RUN_MAX_CHUNKS);
     CHECK(run.next_offset < cas.bytes.size()); // more joinable chunks remain past the cap

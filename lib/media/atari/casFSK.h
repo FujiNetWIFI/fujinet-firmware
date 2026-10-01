@@ -1,7 +1,7 @@
 #ifndef CAS_FSK_H
 #define CAS_FSK_H
 
-// casFsk.h — pure, host-buildable A8CAS `fsk ` chunk interpretation. No
+// casFSK.h — pure, host-buildable A8CAS `fsk ` chunk interpretation. No
 // ESP-IDF, no RMT, no file ownership, no allocation policy, no logging —
 // same discipline as casTape.h. Basic playback only: this module answers
 // "where does this run end and how long does its waveform take", not
@@ -68,11 +68,11 @@ constexpr uint32_t fsk_next_portion(uint32_t remaining_ticks)
 // on EOF/failure). Positional so this module never depends on a stateful
 // file cursor. `ctx` is caller-defined (e.g. an fnFile*, or a test fixture's
 // in-memory buffer).
-using FskReadFn = size_t (*)(void *ctx, size_t offset, uint8_t *dst, size_t n);
+using FSKReadFn = size_t (*)(void *ctx, size_t offset, uint8_t *dst, size_t n);
 
 // Structural description of one zero-IRG-joined `fsk ` run, as found by
 // fsk_scan_run. Header-only: payload bytes are counted, not read.
-struct FskRunInfo
+struct FSKRunInfo
 {
     size_t   chunk_count    = 0; // number of `fsk ` chunks joined into this run (>= 1)
     size_t   payload_bytes  = 0; // sum of chunk_length over the run
@@ -96,8 +96,8 @@ struct FskRunInfo
 // the run is truncated, malformed, or claims a payload extending past
 // `filesize`, or an odd chunk_length (an `fsk ` chunk's payload must be a
 // whole number of 2-byte values).
-bool fsk_scan_run(FskReadFn read, void *ctx, size_t filesize, size_t header_offset,
-                   FskRunInfo &out);
+bool fsk_scan_run(FSKReadFn read, void *ctx, size_t filesize, size_t header_offset,
+                   FSKRunInfo &out);
 
 // Sums the exact waveform duration, in RMT ticks (1 tick == 1 us), of
 // `value_count` little-endian uint16 values stored back to back in

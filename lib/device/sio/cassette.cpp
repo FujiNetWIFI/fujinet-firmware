@@ -11,8 +11,8 @@
 #include "fsFlash.h"
 #include "fujiDevice.h"
 #include "../../media/atari/diskType.h"
-#include "../../media/atari/casFsk.h"
-#include "cassetteFsk.h"
+#include "../../media/atari/casFSK.h"
+#include "cassetteFSK.h"
 
 #include "led.h"
 
@@ -744,11 +744,11 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
     if (is_fsk)
     {
 #ifdef ESP_PLATFORM
-        const CassetteFskPlayResult fsk_result = cassette_fsk_play_run(
+        const CassetteFSKPlayResult fsk_result = cassette_fsk_play_run(
             _file, filesize, fsk_header_offset, cassette_fsk_motor_dropped, this);
         _record_ms = gap > UINT32_MAX - fsk_result.waveform_ms
             ? UINT32_MAX : gap + fsk_result.waveform_ms;
-        if (fsk_result.status != CassetteFskStatus::ok)
+        if (fsk_result.status != CassetteFSKStatus::ok)
             return starting_offset; // fail safe: replay the same run from the same point next call
         return fsk_result.next_offset;
 #else

@@ -1,9 +1,9 @@
-#include "casFsk.h"
+#include "casFSK.h"
 
 namespace
 {
 
-struct FskChunkHeader
+struct FSKChunkHeader
 {
     uint8_t  type[4];
     uint16_t length;
@@ -12,7 +12,7 @@ struct FskChunkHeader
 
 // Reads one 8-byte A8CAS chunk header at `offset`. Returns false if fewer
 // than 8 bytes are available (truncated header) or the read comes up short.
-bool fsk_read_header(FskReadFn read, void *ctx, size_t filesize, size_t offset, FskChunkHeader &out)
+bool fsk_read_header(FSKReadFn read, void *ctx, size_t filesize, size_t offset, FSKChunkHeader &out)
 {
     if (offset + 8 > filesize)
         return false;
@@ -32,14 +32,14 @@ bool fsk_read_header(FskReadFn read, void *ctx, size_t filesize, size_t offset, 
 
 } // namespace
 
-bool fsk_scan_run(FskReadFn read, void *ctx, size_t filesize, size_t header_offset, FskRunInfo &out)
+bool fsk_scan_run(FSKReadFn read, void *ctx, size_t filesize, size_t header_offset, FSKRunInfo &out)
 {
-    out = FskRunInfo{};
+    out = FSKRunInfo{};
     size_t offset = header_offset;
 
     while (out.chunk_count < FSK_RUN_MAX_CHUNKS)
     {
-        FskChunkHeader hdr;
+        FSKChunkHeader hdr;
         if (!fsk_read_header(read, ctx, filesize, offset, hdr))
         {
             if (out.chunk_count == 0)

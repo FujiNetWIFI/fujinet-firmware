@@ -359,12 +359,12 @@ add_test(NAME cassette_tests COMMAND cassette_tests)
 
 # ------------------------------------------------------------------------------
 # A8CAS `fsk ` chunk interpretation for basic (non-progressive) FSK playback
-# (lib/media/atari/casFsk.h/.cpp). Pure/host-buildable: no ESP-IDF, no RMT, no
-# file ownership -- driven here directly via an in-memory FskReadFn fixture.
+# (lib/media/atari/casFSK.h/.cpp). Pure/host-buildable: no ESP-IDF, no RMT, no
+# file ownership -- driven here directly via an in-memory FSKReadFn fixture.
 # ------------------------------------------------------------------------------
 add_executable(casfsk_tests
-    CasFskTests.cpp
-    ${CMAKE_SOURCE_DIR}/lib/media/atari/casFsk.cpp
+    CasFSKTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/atari/casFSK.cpp
 )
 
 target_include_directories(casfsk_tests PRIVATE

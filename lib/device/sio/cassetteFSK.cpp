@@ -1,6 +1,6 @@
 #if defined(ESP_PLATFORM) && defined(BUILD_ATARI)
-#include "cassetteFsk.h"
-#include "../../media/atari/casFsk.h"
+#include "cassetteFSK.h"
+#include "../../media/atari/casFSK.h"
 
 #include <cstdio>
 #include <memory>
@@ -22,7 +22,7 @@
 namespace
 {
 
-// FskReadFn adapter over an fnFile*, for casFsk.h::fsk_scan_run.
+// FSKReadFn adapter over an fnFile*, for casFSK.h::fsk_scan_run.
 size_t cassette_fsk_file_read(void *ctx, size_t offset, uint8_t *dst, size_t n)
 {
     fnFile *file = static_cast<fnFile *>(ctx);
@@ -44,7 +44,7 @@ using PsramBuffer = std::unique_ptr<uint8_t[], HeapCapsFree>;
 // Per-transmission encoder progress: lives on cassette_fsk_play_run()'s
 // stack for the duration of one rmt_transmit(). Touched only by the ISR
 // refill callback below while the transmission is in flight.
-struct CassetteFskEncodeState
+struct CassetteFSKEncodeState
 {
     size_t   value_index     = 0;
     uint32_t remaining_ticks = 0;
@@ -54,7 +54,7 @@ struct CassetteFskEncodeState
 // Pulls the next RMT duration/level portion from `payload`. Skips
 // zero-duration values (they still advance parity) without emitting a
 // portion for them. Returns false once every value has been consumed.
-bool IRAM_ATTR cassette_fsk_pull_portion(CassetteFskEncodeState &st, const uint8_t *payload,
+bool IRAM_ATTR cassette_fsk_pull_portion(CassetteFSKEncodeState &st, const uint8_t *payload,
                                           size_t value_count, uint32_t &out_ticks, bool &out_level)
 {
     while (st.remaining_ticks == 0)
@@ -80,7 +80,7 @@ size_t IRAM_ATTR cassette_fsk_encode_cb(const void *data, size_t data_size,
                                          size_t /*symbols_written*/, size_t symbols_free,
                                          rmt_symbol_word_t *symbols, bool *done, void *arg)
 {
-    CassetteFskEncodeState *st = static_cast<CassetteFskEncodeState *>(arg);
+    CassetteFSKEncodeState *st = static_cast<CassetteFSKEncodeState *>(arg);
     const uint8_t *payload = static_cast<const uint8_t *>(data);
     const size_t value_count = data_size / 2;
     size_t num = 0;
@@ -135,15 +135,15 @@ void cassette_fsk_release_pin()
 
 } // namespace
 
-CassetteFskPlayResult cassette_fsk_play_run(fnFile *file, size_t filesize, size_t header_offset,
-                                             CassetteFskMotorDroppedFn motor_dropped, void *motor_ctx)
+CassetteFSKPlayResult cassette_fsk_play_run(fnFile *file, size_t filesize, size_t header_offset,
+                                             CassetteFSKMotorDroppedFn motor_dropped, void *motor_ctx)
 {
-    CassetteFskPlayResult result;
+    CassetteFSKPlayResult result;
 
-    FskRunInfo run;
+    FSKRunInfo run;
     if (!fsk_scan_run(cassette_fsk_file_read, file, filesize, header_offset, run))
     {
-        result.status = CassetteFskStatus::malformed;
+        result.status = CassetteFSKStatus::malformed;
         return result;
     }
 
@@ -154,7 +154,7 @@ CassetteFskPlayResult cassette_fsk_play_run(fnFile *file, size_t filesize, size_
         Debug_printf("FSK: PSRAM allocation of %u bytes failed (free SPIRAM: %u bytes)\n",
                      (unsigned)run.payload_bytes,
                      (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
-        result.status = CassetteFskStatus::allocation_failed;
+        result.status = CassetteFSKStatus::allocation_failed;
         return result;
     }
 
@@ -169,7 +169,7 @@ CassetteFskPlayResult cassette_fsk_play_run(fnFile *file, size_t filesize, size_
         if (fnio::fseek(file, static_cast<long>(offset), SEEK_SET) != 0 ||
             fnio::fread(hdr8, 1, sizeof(hdr8), file) != sizeof(hdr8))
         {
-            result.status = CassetteFskStatus::read_failed;
+            result.status = CassetteFSKStatus::read_failed;
             return result;
         }
         const uint16_t chunk_len = fsk_decode_le16(hdr8 + 4);
@@ -179,13 +179,13 @@ CassetteFskPlayResult cassette_fsk_play_run(fnFile *file, size_t filesize, size_
             // these same chunks. This re-read disagreeing with that would
             // mean the backing file changed under us -- refuse to write
             // past the buffer rather than trust it.
-            result.status = CassetteFskStatus::read_failed;
+            result.status = CassetteFSKStatus::read_failed;
             return result;
         }
         if (chunk_len > 0 &&
             fnio::fread(payload.get() + written, 1, chunk_len, file) != chunk_len)
         {
-            result.status = CassetteFskStatus::read_failed;
+            result.status = CassetteFSKStatus::read_failed;
             return result;
         }
         written += chunk_len;
@@ -220,11 +220,11 @@ CassetteFskPlayResult cassette_fsk_play_run(fnFile *file, size_t filesize, size_
     {
         Debug_println("FSK: rmt_new_tx_channel failed");
         cassette_fsk_release_pin();
-        result.status = CassetteFskStatus::allocation_failed;
+        result.status = CassetteFSKStatus::allocation_failed;
         return result;
     }
 
-    CassetteFskEncodeState encode_state;
+    CassetteFSKEncodeState encode_state;
     rmt_simple_encoder_config_t simple_cfg = {};
     simple_cfg.callback = cassette_fsk_encode_cb;
     simple_cfg.arg = &encode_state;
@@ -236,7 +236,7 @@ CassetteFskPlayResult cassette_fsk_play_run(fnFile *file, size_t filesize, size_
         Debug_println("FSK: rmt_new_simple_encoder failed");
         rmt_del_channel(channel);
         cassette_fsk_release_pin();
-        result.status = CassetteFskStatus::allocation_failed;
+        result.status = CassetteFSKStatus::allocation_failed;
         return result;
     }
 
@@ -274,16 +274,16 @@ CassetteFskPlayResult cassette_fsk_play_run(fnFile *file, size_t filesize, size_
 
     if (tx_err != ESP_OK)
     {
-        result.status = CassetteFskStatus::transmit_failed;
+        result.status = CassetteFSKStatus::transmit_failed;
         return result;
     }
     if (dropped)
     {
-        result.status = CassetteFskStatus::motor_dropped;
+        result.status = CassetteFSKStatus::motor_dropped;
         return result;
     }
 
-    result.status = CassetteFskStatus::ok;
+    result.status = CassetteFSKStatus::ok;
     result.next_offset = run.next_offset;
     return result;
 }
