@@ -317,9 +317,11 @@ NDeviceStatus NDevice::fujicore_status()
 
 void NDevice::fujidev_status(const FUJI_COMMAND_PACKET &packet)
 {
+    // Accept first: the first STATUS on HTTP runs the whole request, and SIO
+    // must ACK the command frame long before that is done.
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     auto nstatus = fujicore_status();
     readAck = GET_TIMESTAMP();
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     SYSTEM_BUS.transaction_send(&nstatus, sizeof(nstatus), false);
 }
 
