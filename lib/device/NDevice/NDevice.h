@@ -86,6 +86,9 @@ protected:
     /** Instance of the currently open network protocol, if any. */
     std::unique_ptr<NetworkProtocol> _protocol = nullptr;
 
+    /** The last CLOSE failed; every CLOSE fails until the next OPEN. */
+    bool closeFailed = false;
+
     uint64_t readAck = 0;
 
     /** Currently set prefix (CWD) for this N: device. */
