@@ -8,6 +8,7 @@
 
 #include <fcntl.h>
 
+#include <cerrno>
 #include <cstring>
 #include <algorithm>
 
@@ -74,6 +75,7 @@ fujiError_t NetworkProtocolSMB::open_file_handle()
     if (fh == nullptr)
     {
         Debug_printf("NetworkProtocolSMB::open_file_handle() - SMB Error %s\r\n", smb2_get_error(smb));
+        smb_error = -nterror_to_errno(smb2_get_nterror(smb));
         fserror_to_error();
         return FUJI_ERROR::UNSPECIFIED;
     }
@@ -90,6 +92,7 @@ fujiError_t NetworkProtocolSMB::open_dir_handle()
     if ((smb_dir = smb2_opendir(smb, smb_url->path)) == nullptr)
     {
         Debug_printf("NetworkProtocolSMB::open_dir_handle() - ERROR: %s\r\n", smb2_get_error(smb));
+        smb_error = -nterror_to_errno(smb2_get_nterror(smb));
         fserror_to_error();
         return FUJI_ERROR::UNSPECIFIED;
     }
@@ -204,8 +207,23 @@ fujiError_t NetworkProtocolSMB::umount()
 
 void NetworkProtocolSMB::fserror_to_error()
 {
+    // libsmb2 returns -errno.
     switch (smb_error)
     {
+    case -ENOENT:
+        error = NDEV_STATUS::FILE_NOT_FOUND;
+        break;
+    case -EEXIST:
+        error = NDEV_STATUS::FILE_EXISTS;
+        break;
+    case -EACCES:
+    case -EPERM:
+    case -EROFS:
+        error = NDEV_STATUS::ACCESS_DENIED;
+        break;
+    case -ENOSPC:
+        error = NDEV_STATUS::NO_SPACE_ON_DEVICE;
+        break;
     default:
         error = NDEV_STATUS::GENERAL;
         break;
@@ -218,6 +236,7 @@ fujiError_t NetworkProtocolSMB::read_file_handle(uint8_t *buf, unsigned short le
 
     if ((actual_len = smb2_pread(smb, fh, buf, len, offset)) != len)
     {
+        smb_error = actual_len < 0 ? actual_len : 0;
         fserror_to_error();
         return FUJI_ERROR::UNSPECIFIED;
     }
@@ -265,6 +284,7 @@ fujiError_t NetworkProtocolSMB::write_file_handle(uint8_t *buf, unsigned short l
 
     if ((actual_len = smb2_pwrite(smb, fh, buf, len, offset)) != len)
     {
+        smb_error = actual_len < 0 ? actual_len : 0;
         fserror_to_error();
         return FUJI_ERROR::UNSPECIFIED;
     }
@@ -278,7 +298,7 @@ fujiError_t NetworkProtocolSMB::mkdir(PeoplesUrlParser *url)
 {
     mount(url);
 
-    if (smb2_mkdir(smb, smb_url->path) != 0)
+    if ((smb_error = smb2_mkdir(smb, smb_url->path)) != 0)
     {
         fserror_to_error();
         Debug_printf("NetworkProtocolSMB::mkdir(%s) SMB error: %s\r\n",url->url.c_str(), smb2_get_error(smb));
@@ -293,7 +313,7 @@ fujiError_t NetworkProtocolSMB::rmdir(PeoplesUrlParser *url)
 {
     mount(url);
 
-    if (smb2_rmdir(smb, smb_url->path) != 0)
+    if ((smb_error = smb2_rmdir(smb, smb_url->path)) != 0)
     {
         fserror_to_error();
         Debug_printf("NetworkProtocolSMB::rmdir(%s) SMB error: %s\r\n",url->url.c_str(), smb2_get_error(smb));
