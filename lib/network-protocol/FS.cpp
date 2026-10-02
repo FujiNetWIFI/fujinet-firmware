@@ -26,6 +26,8 @@ NetworkProtocolFS::NetworkProtocolFS(std::string *rx_buf, std::string *tx_buf, s
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {
     fileSize = 0;
+    // One TNFS read, and more than most READs ask for.
+    translate_ahead_max = 512;
 }
 
 NetworkProtocolFS::~NetworkProtocolFS()
@@ -369,6 +371,10 @@ fujiError_t NetworkProtocolFS::status_file(NetworkStatus *status)
         remaining = fileSize;
     }
     else {
+        // Translation changes the length, so only translated bytes can be
+        // counted. Without it available() is exact and needs no read-ahead.
+        if (translation_mode != NETPROTO_TRANS::NONE)
+            NetworkProtocol::status(status);
         remaining = fileSize + receiveBuffer->length();
     }
 
@@ -476,7 +482,11 @@ size_t NetworkProtocolFS::available()
     case streamType_t::FILE:
         if (streamMode == ACCESS_MODE::WRITE)
             return 0;
-        avail = std::min<size_t>(fileSize + receiveBuffer->length(), WAITING_CAP);
+        // read_file() serves receiveBuffer before the file and never both at
+        // once, so count only what the next READ returns.
+        avail = receiveBuffer->length();
+        if (!avail)
+            avail = std::min<size_t>(fileSize, WAITING_CAP);
         break;
     case streamType_t::DIR:
         avail = receiveBuffer->length();

@@ -167,7 +167,12 @@ fujiError_t NetworkProtocol::status(NetworkStatus *status)
         return FUJI_ERROR::NONE;
 
     if (!was_write && receiveBuffer->length() == 0 && available() > 0)
-        read(available());
+    {
+        size_t len = available();
+        if (translation_mode != NETPROTO_TRANS::NONE)
+            len = std::min(len, translate_ahead_max);
+        read(len);
+    }
 
     return FUJI_ERROR::NONE;
 }

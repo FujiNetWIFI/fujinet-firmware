@@ -434,6 +434,9 @@ fujiError_t NetworkProtocolHTTP::status_file(NetworkStatus *status)
 #endif
             http_transaction();
         }
+        // As in NetworkProtocolFS::status_file().
+        if (translation_mode != NETPROTO_TRANS::NONE)
+            NetworkProtocol::status(status);
         auto available = client->available() + receiveBuffer->size();
         status->connected = client->is_transaction_done() ? 0 : 1;
 
@@ -944,7 +947,10 @@ size_t NetworkProtocolHTTP::available()
     switch (httpChannelMode)
     {
     case DATA:
-        avail = client->available() + receiveBuffer->size();
+        // As in NetworkProtocolFS::available(): what the next READ returns.
+        avail = receiveBuffer->size();
+        if (!avail)
+            avail = client->available();
         break;
     case SET_HEADERS:
     case COLLECT_HEADERS:
