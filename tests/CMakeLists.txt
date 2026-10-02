@@ -182,12 +182,14 @@ add_test(
 )
 
 if(FUJINET_TARGET STREQUAL "ATARI")
-  add_executable(sio_dstats_tests
-    sioNetwork-DSTATS-test.cpp
+  # sioNetwork and NDevice with stubs for everything they pull in, shared by
+  # the DSTATS test and the sioNetwork command tests.
+  add_library(sio_network_stubs OBJECT
+    sioNetworkStubs.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice/NDevice.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/sio/sioNetwork.cpp
     )
-  target_include_directories(sio_dstats_tests PRIVATE
+  target_include_directories(sio_network_stubs PUBLIC
     ${CMAKE_SOURCE_DIR}/include/
     ${CMAKE_SOURCE_DIR}/lib/
     ${CMAKE_SOURCE_DIR}/lib/bus/
@@ -224,8 +226,15 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     ${CMAKE_SOURCE_DIR}/components/gumbo-query/
     ${MBEDTLS_INCLUDE_DIR}
     )
-  target_link_libraries(sio_dstats_tests PRIVATE)
+
+  add_executable(sio_dstats_tests sioNetwork-DSTATS-test.cpp)
+  target_link_libraries(sio_dstats_tests PRIVATE sio_network_stubs)
   add_test(NAME sio_dstats_tests COMMAND sio_dstats_tests)
+
+  # What sioNetwork sends back for a command, through the bus stubs.
+  add_executable(sio_network_tests sioNetworkTests.cpp)
+  target_link_libraries(sio_network_tests PRIVATE sio_network_stubs)
+  add_test(NAME sio_network_tests COMMAND sio_network_tests)
 
   # ----------------------------------------------------------------------------
   # The query output mode, end to end through a real parser: NET_SET_PARAMETER
