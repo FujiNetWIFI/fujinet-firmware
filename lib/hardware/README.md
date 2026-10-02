@@ -1,0 +1,41 @@
+# lib/hardware
+
+The hardware and OS abstraction layer: system services, WiFi, LEDs, buttons, Bluetooth, timers,
+the serial I/O channels the buses read from, and reflashing of the companion RP2xxx on
+Fujiversal boards.
+
+## Layout
+| File | Defines |
+|---|---|
+| `fnSystem.*`, `fnSystemNet.cpp` | `SystemManager` and global `fnSystem`: GPIO, reboot, uptime, heap, hardware version, file copy; the nested `_net` class for IP, DNS and SNTP; PC-only deferred reboot and shutdown |
+| `fnWiFi.*`, `fnDummyWiFi.*` | `WiFiManager` (ESP) or `DummyWiFiManager` (PC) under the one global name `fnWiFi`; `fnWiFi.h` includes the dummy header off ESP |
+| `led.*`, `fnLedStrip.*` | `LedManager` and `fnLedManager` (`LED_WIFI`, `LED_BUS`, `LED_BT`, activity flicker); `LedStripManager` and `fnLedStrip` for addressable LEDs |
+| `keys.*` | `KeyManager` and `fnKeyManager`: buttons A, B and C with short, long and double-tap detection (ESP) |
+| `fnBluetooth.*`, `fnBluetoothSPP.*` | `BluetoothManager` and `fnBtManager` for Atari SIO2BT under `BLUETOOTH_SUPPORT`; `fnBluetoothSPP` is based on Arduino-ESP32 BluetoothSerial |
+| `fnHardwareTimer.*` | `HardwareTimer` and `fnTimer`: the ESP general-purpose timer used by the IWM and Mac buses |
+| `Esp.*` | `EspClass`: a port of Arduino-ESP32 `Esp.cpp` (LGPL 2.1), used only by the console |
+| `IOChannel.*`, `RS232ChannelProtocol.h` | `IOChannel`, the abstract byte stream with a FIFO, and the baud-rate and control-line mixin; `IOChannel.h` also defines `HELLO_IM_A_PC` and `ITS_A_UNIX_SYSTEM_I_KNOW_THIS` |
+| `ESP32UARTChannel.*`, `TTYChannel.*`, `COMChannel.*`, `UARTChannel.h` | `IOChannel` over an ESP UART, a POSIX tty or a Windows COM port; `UARTChannel` is an alias for whichever matches the build; `fnDebugConsole` is the ESP debug UART |
+| `BoIPChannel.*` | `BoIPChannel`: bus-over-IP, the TCP transport FujiNet-PC uses in place of a cable |
+| `ACMChannel.*`, `fnUsbHost.*` | `ACMChannel`: a USB CDC-ACM host channel to a Fujiversal cartridge under `CONFIG_USB_CDC_ACM_HOST_ENABLED`; `fnUsbHost` installs the USB host once |
+| `PicobootClient.*`, `fnPicoUpdater.*`, `fn_pico_blob.h` | The PICOBOOT client ported from picotool; `PicoUpdater` and `fnPicoUpdater` reflash the RP2xxx at boot when the embedded image changed, under `CONFIG_USB_PICOBOOT_HOST_ENABLED`; `fn_pico_blob.h` reads the image table that `build_pico.py` generates into the env's build directory as `fn_pico_blob_data.cpp` on every ESP build |
+| `picoboot_protocol/` | Headers copied verbatim from the Raspberry Pi Pico SDK; see its README |
+
+## How it fits
+- The serial buses in [lib/bus/](../bus/) read their wire through an `IOChannel` from here.
+- `fnSystem`, `fnWiFi`, `fnLedManager` and `fnKeyManager` are used by `src/main.cpp`,
+  [lib/config/](../config/), [lib/http/](../http/) and the device directories.
+- Pin numbers come from [include/pinmap/](../../include/pinmap/). The companion update flow is
+  described in [docs/fujiversal-flashing.md](../../docs/fujiversal-flashing.md).
+
+## Build
+ESP: globbed by `src/CMakeLists.txt` into every target; the USB, Bluetooth and LED-strip files
+compile to nothing unless their macro is set. PC: `fujinet_pc.cmake` lists only `fnDummyWiFi`,
+`led`, `IOChannel`, `TTYChannel`, `COMChannel`, `fnSystem` and `fnSystemNet`, plus `BoIPChannel`
+for the COCO, ADAM, RS232 and LYNX targets.
+
+## Notes
+`IOChannel` lives here, not in [lib/FileSystem/](../FileSystem/).
+
+A `fn_pico_blob_data.cpp` left here by an older build makes `build_pico.py` stop until it is
+deleted.
