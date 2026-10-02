@@ -20,9 +20,10 @@ on its floppy port and relays bus traffic to the ESP32 running FujiNet.
 - On a Fujiversal board the ESP32-S3 is the USB host and the cartridge is a CDC device. FujiBus
   packets (`FujiBusPacket`) travel over that link into the RS232 or DriveWire bus; the ESP32 side
   is `ACMChannel` and `fnUsbHost` in [lib/hardware/](../lib/hardware/).
-- The cartridge image is built by `build_pico.py` during the ESP32 build, written into
-  `lib/hardware/fn_pico_blob_data.cpp`, and flashed over PICOBOOT at boot by `fnPicoUpdater` when
-  it differs from the image recorded in NVS. `docs/fujiversal-flashing.md` describes the sequence;
+- The cartridge image is built by `build_pico.py` during the ESP32 build, written as
+  `fn_pico_blob_data.cpp` into the env's build directory (`src/CMakeLists.txt` adds it to the
+  sources), and flashed over PICOBOOT at boot by `fnPicoUpdater` when it differs from the image
+  recorded in NVS. `docs/fujiversal-flashing.md` describes the sequence;
   the `pico_*` keys that drive it are documented in `platformio-ini-files/platformio.common.ini`.
 - `fujiversal/` is a git submodule; run `git submodule update --init` before building a board that
   uses it.
