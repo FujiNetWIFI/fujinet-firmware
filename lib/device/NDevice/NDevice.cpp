@@ -143,6 +143,7 @@ void NDevice::fujidev_open(const FUJI_COMMAND_PACKET &packet)
         _protocol->close();
     _protocol = nullptr;
     _parser = nullptr;
+    closeFailed = false;
 
     if (parse_and_instantiate_protocol(spec, IS_DIR_MODE(access), urlParser).is_error())
     {
@@ -186,13 +187,22 @@ void NDevice::fujidev_close(const FUJI_COMMAND_PACKET &packet)
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
-    if (_protocol != nullptr && _protocol->close() != FUJI_ERROR::NONE)
+    // SIO sends a command that got ERROR once more, and by then the channel is
+    // gone: keep failing until the next OPEN, with the reason for STATUS.
+    if (_protocol != nullptr)
+    {
+        closeFailed = _protocol->close() != FUJI_ERROR::NONE;
+        if (closeFailed)
+            _parser = std::make_unique<NErrorParser>(_protocol->error);
+    }
+    if (!closeFailed)
+        _parser = nullptr;
+    _protocol = nullptr;
+
+    if (closeFailed)
         SYSTEM_BUS.transaction_error();
     else
         SYSTEM_BUS.transaction_success();
-
-    _protocol = nullptr;
-    _parser = nullptr;
 }
 
 error_is_true NDevice::fujicore_read(ByteBuffer &buf, size_t len)

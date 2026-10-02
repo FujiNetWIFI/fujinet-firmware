@@ -17,7 +17,18 @@ class TestableSioNetwork : public sioNetwork
 public:
     using sioNetwork::recognizesCommand;
     using sioNetwork::get_dstats_for_command;
+    using sioNetwork::fujidev_close;
+    using sioNetwork::fujidev_status;
+    using sioNetwork::_protocol;
 };
+
+// What the bus stubs below were told to answer.
+static struct
+{
+    int success = 0;
+    int error = 0;
+    std::string sent;
+} bus;
 
 // --------------------------------------------------------------------------------
 // Every command sioNetwork recognizes (via the shared NDevice dispatch table)
@@ -56,6 +67,56 @@ TEST_CASE("an unrecognized command reports SIO_DIRECTION_INVALID")
     REQUIRE_FALSE(dev.recognizesCommand(unknown_command));
 
     CHECK(dev.get_dstats_for_command(unknown_command) == SIO_DIRECTION::INVALID);
+}
+
+// --------------------------------------------------------------------------------
+// SIOV sends a command that got ERROR once more (DRETRY). CLOSE drops the
+// protocol on the first try, so the repeat must not turn the error into success.
+// --------------------------------------------------------------------------------
+
+// Closes the way an HTTP PUT the server refused does.
+class RefusingProtocol : public NetworkProtocol
+{
+public:
+    RefusingProtocol() : NetworkProtocol(nullptr, nullptr, nullptr) {}
+    fujiError_t close() override
+    {
+        error = NDEV_STATUS::ACCESS_DENIED;
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+    size_t available() override { return 0; }
+};
+
+TEST_CASE("a CLOSE with nothing open succeeds")
+{
+    TestableSioNetwork dev;
+    FujiSIOPacket packet;
+    packet.frame.comnd = CMD::NET_CLOSE;
+
+    bus = {};
+    dev.fujidev_close(packet);
+
+    CHECK(bus.success == 1);
+    CHECK(bus.error == 0);
+}
+
+TEST_CASE("a failed CLOSE fails again when SIO repeats it, and STATUS says why")
+{
+    TestableSioNetwork dev;
+    dev._protocol = std::make_unique<RefusingProtocol>();
+    FujiSIOPacket packet;
+    packet.frame.comnd = CMD::NET_CLOSE;
+
+    bus = {};
+    dev.fujidev_close(packet);
+    dev.fujidev_close(packet); // the repeat
+    CHECK(bus.error == 2);
+    CHECK(bus.success == 0);
+
+    packet.frame.comnd = CMD::NET_STATUS;
+    dev.fujidev_status(packet);
+    REQUIRE(bus.sent.size() == sizeof(NDeviceStatus));
+    CHECK((uint8_t) bus.sent[3] == (uint8_t) NDEV_STATUS::ACCESS_DENIED);
 }
 
 #ifdef ITS_A_UNIX_SYSTEM_I_KNOW_THIS
@@ -104,10 +165,13 @@ void NetSIO::setBaudrate(uint32_t baud) { (void)baud; }
 void virtualDevice::sio_high_speed() {}
 
 void systemBus::transaction_accept(transState_t expectMoreData) {}
-void systemBus::transaction_success() {}
-void systemBus::transaction_error() {}
+void systemBus::transaction_success() { bus.success++; }
+void systemBus::transaction_error() { bus.error++; }
 success_is_true systemBus::transaction_get(void *data, size_t len) { RETURN_ERROR_AS_FALSE(); }
-void systemBus::transaction_send(const void *data, size_t len, bool is_error) {}
+void systemBus::transaction_send(const void *data, size_t len, bool is_error)
+{
+    bus.sent.assign((const char *)data, len);
+}
 void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id) {}
 
 #include "fnjson.h"
