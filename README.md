@@ -24,6 +24,26 @@ To upgrade:
 
 See [build.sh documentation](build-sh.md) for full documentation on using build.sh to configure your platformio ini files.
 
+## Repository map
+
+Each directory below carries a README.md describing its intent, its layout and how it fits with
+the rest; start with [lib/README.md](lib/README.md) for the architecture.
+
+- [src/](src/): `src/main.cpp`, the entry points and per-platform device assembly
+- [lib/](lib/): nearly all code: buses, devices, media, filesystems, protocols, web UI, hardware
+- [include/](include/): shared headers: result and wire types, command and device IDs, pin maps
+- [tests/](tests/): host-side unit tests and policy checks, run by the FujiNet-PC build
+- [build-platforms/](build-platforms/): one PlatformIO ini per supported board
+- [boards/](boards/): PlatformIO board definitions
+- [platformio-ini-files/](platformio-ini-files/): the shared ini layer `build.sh` merges
+- [data/webui/](data/webui/): web UI sources that become the flash filesystem image
+- [mcuconfig/](mcuconfig/): TUI for editing board pin assignments
+- [pico/](pico/): RP2040 and RP2350 companion-MCU firmware
+- [components/](components/), [components_pc/](components_pc/): vendored ESP-IDF and PC libraries
+- [tools/](tools/): OAuth relays and Macintosh image tools
+- [docs/](docs/): design notes and the C++ style guide; [CONTRIBUTING.md](CONTRIBUTING.md) is the
+  working reference
+
 ## ATARI
 
 FujiNet currently provides the following devices for the Atari 8-bit system:
