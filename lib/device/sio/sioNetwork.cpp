@@ -15,6 +15,7 @@ void sioNetwork::sio_process(const FujiSIOPacket &packet)
         return;
     case CMD::NET_HSIO_INDEX:
         sio_high_speed();
+        SYSTEM_BUS.toggleBaudrate();
         return;
     default:
         break;

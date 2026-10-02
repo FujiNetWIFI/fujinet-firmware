@@ -103,6 +103,7 @@ void NetSIO::setBaudrate(uint32_t baud) { (void)baud; }
 
 void virtualDevice::sio_high_speed() {}
 
+void systemBus::toggleBaudrate() {}
 void systemBus::transaction_accept(transState_t expectMoreData) {}
 void systemBus::transaction_success() {}
 void systemBus::transaction_error() {}
