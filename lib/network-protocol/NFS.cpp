@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
+#include <cerrno>
 #include <cstring>
 
 #include "../../include/debug.h"
@@ -66,7 +67,7 @@ fujiError_t NetworkProtocolNFS::open_file_handle()
         Debug_printf("NetworkProtocolNFS::open_file_handle() - Uncaught aux1 %d", (int) streamMode);
     }
 
-    if (nfs_open(nfs, export_relative(opened_url->path).c_str(), flags, &fh) != 0)
+    if ((nfs_error = nfs_open(nfs, export_relative(opened_url->path).c_str(), flags, &fh)) != 0)
     {
         Debug_printf("NetworkProtocolNFS::open_file_handle() - NFS Error %s\r\n", nfs_get_error(nfs));
         fserror_to_error();
@@ -82,7 +83,7 @@ fujiError_t NetworkProtocolNFS::open_file_handle()
 
 fujiError_t NetworkProtocolNFS::open_dir_handle()
 {
-    if (nfs_opendir(nfs, export_relative(dir).c_str(), &nfs_dir) != 0)
+    if ((nfs_error = nfs_opendir(nfs, export_relative(dir).c_str(), &nfs_dir)) != 0)
     {
         Debug_printf("NetworkProtocolNFS::open_dir_handle() - ERROR: %s\r\n", nfs_get_error(nfs));
         fserror_to_error();
@@ -183,8 +184,23 @@ fujiError_t NetworkProtocolNFS::umount()
 
 void NetworkProtocolNFS::fserror_to_error()
 {
+    // libnfs returns -errno.
     switch (nfs_error)
     {
+    case -ENOENT:
+        error = NDEV_STATUS::FILE_NOT_FOUND;
+        break;
+    case -EEXIST:
+        error = NDEV_STATUS::FILE_EXISTS;
+        break;
+    case -EACCES:
+    case -EPERM:
+    case -EROFS:
+        error = NDEV_STATUS::ACCESS_DENIED;
+        break;
+    case -ENOSPC:
+        error = NDEV_STATUS::NO_SPACE_ON_DEVICE;
+        break;
     default:
         error = NDEV_STATUS::GENERAL;
         break;
@@ -197,6 +213,7 @@ fujiError_t NetworkProtocolNFS::read_file_handle(uint8_t *buf, unsigned short le
 
     if ((actual_len = nfs_pread(nfs, fh, buf, len, offset)) != len)
     {
+        nfs_error = actual_len < 0 ? actual_len : 0;
         fserror_to_error();
         return FUJI_ERROR::UNSPECIFIED;
     }
@@ -244,6 +261,7 @@ fujiError_t NetworkProtocolNFS::write_file_handle(uint8_t *buf, unsigned short l
 
     if ((actual_len = nfs_pwrite(nfs, fh, buf, len, offset)) != len)
     {
+        nfs_error = actual_len < 0 ? actual_len : 0;
         fserror_to_error();
         return FUJI_ERROR::UNSPECIFIED;
     }
@@ -272,7 +290,7 @@ fujiError_t NetworkProtocolNFS::mkdir(PeoplesUrlParser *url)
 
     mount_path(url->host, url->port, path);
 
-    if (nfs_mkdir(nfs, export_relative(path).c_str()) != 0)
+    if ((nfs_error = nfs_mkdir(nfs, export_relative(path).c_str())) != 0)
     {
         fserror_to_error();
         Debug_printf("NetworkProtocolNFS::mkdir(%s) NFS error: %s\r\n",url->url.c_str(), nfs_get_error(nfs));
@@ -292,7 +310,7 @@ fujiError_t NetworkProtocolNFS::rmdir(PeoplesUrlParser *url)
 
     mount_path(url->host, url->port, path);
 
-    if (nfs_rmdir(nfs, export_relative(path).c_str()) != 0)
+    if ((nfs_error = nfs_rmdir(nfs, export_relative(path).c_str())) != 0)
     {
         fserror_to_error();
         Debug_printf("NetworkProtocolNFS::rmdir(%s) NFS error: %s\r\n",url->url.c_str(), nfs_get_error(nfs));
