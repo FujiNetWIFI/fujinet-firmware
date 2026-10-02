@@ -85,7 +85,8 @@ fujiError_t NetworkProtocolFTP::mount(PeoplesUrlParser *url)
     }
 
     // Path isn't used
-    res = ftp->login(user, pass, url->host);
+    int port = atoi(url->port.c_str());
+    res = ftp->login(user, pass, url->host, port > 0 ? port : 21);
     fserror_to_error();
     return res;
 }
