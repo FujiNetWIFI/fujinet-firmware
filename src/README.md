@@ -8,7 +8,7 @@ and runs the service loop; everything it assembles comes from [lib/](../lib/).
 | File | Defines |
 |---|---|
 | `main.cpp` | `SYSTEM_BUS` (the one `systemBus` instance), `main_setup()`, `fn_service_loop()`, `app_main()` for ESP-IDF and `main()` for the PC build |
-| `CMakeLists.txt` | the ESP-IDF component: the include path and the per-directory `*.cpp` globs that decide which `lib/` code is compiled, plus the IDF components it requires |
+| `CMakeLists.txt` | the ESP-IDF component: the include path, the per-directory `*.cpp` globs that decide which `lib/` code is compiled, the generated `fn_pico_blob_data.cpp` from the build directory, plus the IDF components it requires |
 | `idf_component.yml` | IDF component-manager dependencies (`led_strip` and `usb_host_cdc_acm` for the ESP32-S3, `esp_websocket_client`), fetched into `managed_components/` |
 
 ## How it works
