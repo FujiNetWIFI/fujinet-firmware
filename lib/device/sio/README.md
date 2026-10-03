@@ -13,6 +13,9 @@ built on the shared bases in [lib/device/](../).
 | `printer.h`, `printer.cpp`, `printerlist.h`, `printerlist.cpp` | `sioPrinter` and `printerlist`; defines `fnPrinters` |
 | `modem.h`, `modem.cpp` | `modem`, the 850-style R: device (Hayes commands, telnet, sniffer) |
 | `cassette.h`, `cassette.cpp`, `cassetteTrail.h`, `cassetteTrail.cpp`, `cassetteRewindRequest.h` | `sioCassette` with its `softUART` bit-banger, plus the `CassetteTrail` rewind history and `CassetteRewindRequest` |
+| `cassetteFSK.h`, `cassetteFSK.cpp` | `cassette_fsk_play_run()`, playing one A8CAS `fsk ` run through the RMT |
+| `cassetteFSKLoader.h`, `cassetteFSKLoader.cpp` | `CassetteFSKLoader`, the task that loads an `fsk ` run progressively into PSRAM |
+| `cassetteFSKRead.h`, `cassetteFSKRead.cpp` | `fsk_resilient_read()`, reading a file that can lose its position |
 | `netstream.h`, `netstream.cpp` | `sioNetStream`, UDP MIDI streaming |
 | `pclink.h`, `pclink.cpp` | `sioPCLink`, the PCLink file server over the SD card |
 | `voice.h`, `voice.cpp` | `sioVoice`, speech through [lib/sam/](../../sam/) |
@@ -32,5 +35,6 @@ built on the shared bases in [lib/device/](../).
 
 ## Build
 ESP: globbed by `src/CMakeLists.txt`; compiled only under `BUILD_ATARI`, except `cassetteTrail.cpp`
-which has no guard. PC: `FUJINET_TARGET=ATARI` lists every file; the cassette trail, rewind request
-and DSTATS logic have tests under [tests/](../../../tests/).
+and `cassetteFSKRead.cpp`, which have no guard; `cassetteFSK.cpp` and `cassetteFSKLoader.cpp` also need
+`ESP_PLATFORM`. PC: `FUJINET_TARGET=ATARI` lists every file; the cassette trail, rewind request, FSK
+read recovery and DSTATS logic have tests under [tests/](../../../tests/).

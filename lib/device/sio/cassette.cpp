@@ -239,8 +239,16 @@ void sioCassette::open_cassette_file(FileSystem *_FS)
 //************************************************************************************************************
 
 
+void sioCassette::stop_fsk_loader()
+{
+#if defined(ESP_PLATFORM) && defined(BUILD_ATARI)
+    _fsk_loader.stop();
+#endif
+}
+
 void sioCassette::umount_cassette_file()
 {
+        stop_fsk_loader();
         _rewind_request.discard();
         ++_tape_generation;
         unmount_turbo_loader();
@@ -250,6 +258,7 @@ void sioCassette::umount_cassette_file()
 
 void sioCassette::mount_cassette_file(fnFile *f, size_t fz)
 {
+    stop_fsk_loader();
     _rewind_request.discard();
     ++_tape_generation;
     tape_offset = 0;
@@ -745,7 +754,7 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
     {
 #ifdef ESP_PLATFORM
         const CassetteFSKPlayResult fsk_result = cassette_fsk_play_run(
-            _file, filesize, fsk_header_offset, cassette_fsk_motor_dropped, this);
+            _file, filesize, fsk_header_offset, len, cassette_fsk_motor_dropped, this, _fsk_loader);
         _record_ms = gap > UINT32_MAX - fsk_result.waveform_ms
             ? UINT32_MAX : gap + fsk_result.waveform_ms;
         if (fsk_result.status != CassetteFSKStatus::ok)
