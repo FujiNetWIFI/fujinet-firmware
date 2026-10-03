@@ -273,12 +273,38 @@ fujiError_t NetworkProtocolNFS::write_file_handle(uint8_t *buf, unsigned short l
 
 fujiError_t NetworkProtocolNFS::rename(PeoplesUrlParser *url)
 {
-    return FUJI_ERROR::NONE;
+    if (NetworkProtocolFS::rename(url) != FUJI_ERROR::NONE)
+        return FUJI_ERROR::UNSPECIFIED;
+
+    // Both names share a directory, so mounting it for one covers the other.
+    if (mount_path(url->host, url->port, filename) != FUJI_ERROR::NONE)
+        return FUJI_ERROR::UNSPECIFIED;
+
+    if ((nfs_error = nfs_rename(nfs, export_relative(filename).c_str(), export_relative(destFilename).c_str())) != 0)
+    {
+        fserror_to_error();
+        Debug_printf("NetworkProtocolNFS::rename(%s) NFS error: %s\r\n", url->url.c_str(), nfs_get_error(nfs));
+    }
+
+    umount();
+
+    return nfs_error != 0 ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
 fujiError_t NetworkProtocolNFS::del(PeoplesUrlParser *url)
 {
-    return FUJI_ERROR::NONE;
+    if (mount_path(url->host, url->port, url->path) != FUJI_ERROR::NONE)
+        return FUJI_ERROR::UNSPECIFIED;
+
+    if ((nfs_error = nfs_unlink(nfs, export_relative(url->path).c_str())) != 0)
+    {
+        fserror_to_error();
+        Debug_printf("NetworkProtocolNFS::del(%s) NFS error: %s\r\n", url->url.c_str(), nfs_get_error(nfs));
+    }
+
+    umount();
+
+    return nfs_error != 0 ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
 fujiError_t NetworkProtocolNFS::mkdir(PeoplesUrlParser *url)
