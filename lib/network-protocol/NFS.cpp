@@ -55,7 +55,7 @@ fujiError_t NetworkProtocolNFS::open_file_handle()
         flags = O_RDONLY;
         break;
     case ACCESS_MODE::WRITE:
-        flags = O_WRONLY | O_CREAT;
+        flags = O_WRONLY | O_CREAT | O_TRUNC;
         break;
     case ACCESS_MODE::APPEND:
         flags = O_APPEND | O_CREAT;
