@@ -11,11 +11,14 @@
 #include <freertos/event_groups.h>
 #include <esp_netif.h>
 #include <esp_wifi.h>
+#include <esp_timer.h>
 
+#include <mutex>
 #include <string>
 #include <vector>
 
 #define FNWIFI_RECONNECT_RETRIES 4
+#define FNWIFI_RECONNECT_DELAY_MS 10000
 #define FNWIFI_SCAN_RESULTS_MAX 20
 
 #define WIFI_CONNECTED_BIT    BIT0
@@ -41,12 +44,17 @@ private:
 
     esp_netif_t *_wifi_sta = nullptr;
 
+    // Scans run from the event handler and from device commands
+    std::recursive_mutex _scan_mutex;
     wifi_ap_record_t * _scan_records = nullptr;
     uint16_t _scan_record_count = 0;
     bool _scan_in_progress = false;
     bool _disconnecting = false;
 
     uint16_t _reconnect_attempts = 0;
+    esp_timer_handle_t _reconnect_timer = nullptr;
+    void reconnect_later();
+    static void _reconnect_timer_cb(void *arg);
 
     char *_mac_to_string(char dest[18], uint8_t mac[6]);
 
