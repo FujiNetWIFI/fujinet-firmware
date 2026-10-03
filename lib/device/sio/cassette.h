@@ -12,6 +12,7 @@
 #include "bus.h"
 #include "fnSystem.h"
 #include "fnio.h"
+#include "cassetteFSKLoader.h"
 #include "cassetteRewindRequest.h"
 #include "cassetteTrail.h"
 
@@ -103,6 +104,9 @@ protected:
 public:
     void umount_cassette_file();
     void mount_cassette_file(fnFile *f, size_t fz);
+    // Joins the progressive FSK loader, which reads the tape's file from its own task. Call before
+    // that file is closed or replaced.
+    void stop_fsk_loader();
 
     void sio_enable_cassette();  // setup cassette
     void sio_disable_cassette(); // stop cassette
@@ -163,6 +167,10 @@ private:
     CassetteTrail _trail;
     std::atomic<uint32_t> _tape_generation{0};
     uint32_t _record_ms = 0; // how long the record just played took, set by the format that played it
+
+#if defined(ESP_PLATFORM) && defined(BUILD_ATARI)
+    CassetteFSKLoader _fsk_loader;
+#endif
 
     size_t send_tape_block(size_t offset);
     void check_for_FUJI_file();

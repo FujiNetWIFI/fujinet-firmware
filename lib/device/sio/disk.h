@@ -9,6 +9,7 @@ class sioDisk : public virtualDevice
 {
 private:
     MediaType *_disk = nullptr;
+    bool _is_tape = false; // this slot holds a CAS/WAV image: it belongs to the cassette, not to a MediaType
 
     void sio_read(const FujiSIOPacket &packet);
     void sio_write(const FujiSIOPacket &packet);

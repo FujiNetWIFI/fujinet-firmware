@@ -247,6 +247,57 @@ TEST_CASE("a run longer than FSK_RUN_MAX_CHUNKS stops there, not past it")
 }
 
 // ------------------------------------------------------------------------------------------------
+// Chunk check and join rule (shared by the preload scan and the progressive loader)
+// ------------------------------------------------------------------------------------------------
+
+TEST_CASE("fsk_check_chunk judges a complete header against the file")
+{
+    const uint8_t good[8] = {'f', 's', 'k', ' ', 4, 0, 0, 0};
+    const FSKChunkHeader h = fsk_parse_header(good);
+    CHECK(h.length == 4);
+    CHECK(h.irg == 0);
+    CHECK(fsk_check_chunk(h, 100, 100 + 8 + 4) == FSKChunkCheck::ok);
+    CHECK(fsk_check_chunk(h, 100, 100 + 8 + 3) == FSKChunkCheck::malformed); // payload past the end
+
+    const uint8_t odd[8] = {'f', 's', 'k', ' ', 3, 0, 0, 0};
+    CHECK(fsk_check_chunk(fsk_parse_header(odd), 0, 1000) == FSKChunkCheck::malformed);
+
+    const uint8_t data[8] = {'d', 'a', 't', 'a', 4, 0, 0, 0};
+    CHECK(fsk_check_chunk(fsk_parse_header(data), 0, 1000) == FSKChunkCheck::not_fsk);
+}
+
+TEST_CASE("only a well-formed chunk without a gap of its own joins the run")
+{
+    const uint8_t gap[8] = {'f', 's', 'k', ' ', 4, 0, 5, 0};
+    const uint8_t nogap[8] = {'f', 's', 'k', ' ', 4, 0, 0, 0};
+    const FSKChunkHeader g = fsk_parse_header(gap);
+    const FSKChunkHeader n = fsk_parse_header(nogap);
+    CHECK(fsk_chunk_joins(FSKChunkCheck::ok, n));
+    CHECK_FALSE(fsk_chunk_joins(FSKChunkCheck::ok, g));
+    CHECK_FALSE(fsk_chunk_joins(FSKChunkCheck::malformed, n));
+    CHECK_FALSE(fsk_chunk_joins(FSKChunkCheck::not_fsk, n));
+}
+
+TEST_CASE("an odd continuation with its own gap just ends the run, without one it invalidates it")
+{
+    FSKRunInfo run;
+
+    FakeCas with_gap;
+    with_gap.add_chunk("fsk ", 999, {1, 2});
+    with_gap.add_truncated_header("fsk ", 3, 7);
+    with_gap.bytes.insert(with_gap.bytes.end(), {1, 2, 3});
+    REQUIRE(fsk_scan_run(fake_cas_read, &with_gap, with_gap.bytes.size(), 0, run));
+    CHECK(run.chunk_count == 1);
+    CHECK(run.next_offset == 8 + 4);
+
+    FakeCas no_gap;
+    no_gap.add_chunk("fsk ", 999, {1, 2});
+    no_gap.add_truncated_header("fsk ", 3, 0);
+    no_gap.bytes.insert(no_gap.bytes.end(), {1, 2, 3});
+    CHECK_FALSE(fsk_scan_run(fake_cas_read, &no_gap, no_gap.bytes.size(), 0, run));
+}
+
+// ------------------------------------------------------------------------------------------------
 // fsk_sum_waveform_ticks: duration
 // ------------------------------------------------------------------------------------------------
 
