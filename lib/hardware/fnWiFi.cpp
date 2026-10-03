@@ -34,6 +34,9 @@ WiFiManager::~WiFiManager()
 // Remove resources and shut down WiFi driver
 void WiFiManager::stop()
 {
+    if (_reconnect_timer != nullptr)
+        esp_timer_stop(_reconnect_timer);
+
     // Stop services
     if (_connected)
         handle_station_stop();
@@ -53,10 +56,13 @@ void WiFiManager::stop()
     ESP_ERROR_CHECK(esp_wifi_stop());
     //ESP_ERROR_CHECK(esp_wifi_deinit());
 
-    if (_scan_records != nullptr)
-        free(_scan_records);
-    _scan_records = nullptr;
-    _scan_record_count = 0;
+    {
+        std::lock_guard<std::recursive_mutex> lock(_scan_mutex);
+        if (_scan_records != nullptr)
+            free(_scan_records);
+        _scan_records = nullptr;
+        _scan_record_count = 0;
+    }
 
     _started = false;
     _connected = false;
@@ -144,6 +150,9 @@ int WiFiManager::connect(const char *ssid, const char *password)
 {
     Debug_printf("WiFi connect attempt to SSID \"%s\"\r\n", ssid == nullptr ? "" : ssid);
 
+    if (_reconnect_timer != nullptr)
+        esp_timer_stop(_reconnect_timer);
+
     // Only set an SSID and password if given
     if (ssid != nullptr)
     {
@@ -192,6 +201,46 @@ int WiFiManager::connect(const char *ssid, const char *password)
     esp_err_t e = esp_wifi_connect();
     Debug_printf("esp_wifi_connect returned %d\r\n", e);
     return e;
+}
+
+// Nothing else would call esp_wifi_connect() again (every network has failed, or a
+// scan swallowed the disconnect): go back to the configured one after a pause.
+void WiFiManager::reconnect_later()
+{
+    if (_reconnect_timer == nullptr)
+    {
+        const esp_timer_create_args_t args = {
+            .callback = &WiFiManager::_reconnect_timer_cb,
+            .arg = this,
+            .dispatch_method = ESP_TIMER_TASK,
+            .name = "wifi_reconnect",
+        };
+        if (esp_timer_create(&args, &_reconnect_timer) != ESP_OK)
+        {
+            _reconnect_timer = nullptr;
+            Debug_println("Could not create WiFi reconnect timer");
+            return;
+        }
+    }
+
+    Debug_printf("Retrying WiFi \"%s\" in %d s\r\n",
+                 Config.get_wifi_ssid().c_str(), FNWIFI_RECONNECT_DELAY_MS / 1000);
+    esp_timer_stop(_reconnect_timer);
+    esp_timer_start_once(_reconnect_timer, FNWIFI_RECONNECT_DELAY_MS * 1000ULL);
+}
+
+void WiFiManager::_reconnect_timer_cb(void *arg)
+{
+    WiFiManager *pFnWiFi = (WiFiManager *)arg;
+
+    if (!pFnWiFi->_started || pFnWiFi->_connected || pFnWiFi->_disconnecting)
+        return;
+    if (pFnWiFi->_scan_in_progress)
+    {
+        pFnWiFi->reconnect_later();
+        return;
+    }
+    pFnWiFi->connect();
 }
 
 static EventGroupHandle_t wifi_event_group;
@@ -320,6 +369,8 @@ bool WiFiManager::connected()
 */
 uint8_t WiFiManager::scan_networks(uint8_t maxresults)
 {
+    std::lock_guard<std::recursive_mutex> lock(_scan_mutex);
+
     // Free any existing scan records
     if (_scan_records != nullptr)
         free(_scan_records);
@@ -447,7 +498,9 @@ int WiFiManager::remove_duplicate_scan_results(wifi_ap_record_t scan_records[], 
 
 int WiFiManager::get_scan_result(uint8_t index, char ssid[32], uint8_t *rssi, uint8_t *channel, char bssid[18], uint8_t *encryption)
 {
-    if (index > _scan_record_count)
+    std::lock_guard<std::recursive_mutex> lock(_scan_mutex);
+
+    if (index >= _scan_record_count)
         return -1;
 
     wifi_ap_record_t *ap = &_scan_records[index];
@@ -745,6 +798,13 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
             // if we are currently attempting to disconnect, don't attempt to reconnect
             if (pFnWiFi->_disconnecting) return;
 
+            // Nothing below runs during a scan, so this event would be lost for good
+            if (pFnWiFi->_scan_in_progress && Config.have_wifi_info())
+            {
+                pFnWiFi->reconnect_later();
+                break;
+            }
+
             // Try to reconnect
             if (pFnWiFi->_scan_in_progress == false &&
                 pFnWiFi->_reconnect_attempts < connection_attempts && Config.have_wifi_info())
@@ -762,15 +822,22 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
                 // as it's pointless trying to connect to anything not seen by network, as it clearly won't connect.
                 // TODO: will this stop us connecting to hidden wifis? is that even possible?
 
+                // Rescan each time: cached results miss a network that has come up since.
+                pFnWiFi->scan_networks();
+                pFnWiFi->_scan_in_progress = false;
                 std::vector<std::string> network_names = pFnWiFi->get_network_names();
                 std::vector<WiFiManager::stored_wifi> stored_wifis = pFnWiFi->get_stored_wifis();
                 std::vector<stored_wifi> common_names = pFnWiFi->match_stored_with_network_wifis(network_names, stored_wifis);
 
                 // copy the common names to our manager to iterate over
-                std::copy(common_names.begin(), common_names.end(), std::back_inserter(pFnWiFi->_matched_wifis));
+                pFnWiFi->_matched_wifis = common_names;
 
                 // no entries in common between stored and seen networks
-                if (common_names.empty()) return;
+                if (common_names.empty())
+                {
+                    pFnWiFi->reconnect_later();
+                    return;
+                }
 
                 pFnWiFi->_trying_stored = true;
                 pFnWiFi->_reconnect_attempts = 0;
@@ -790,6 +857,8 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
                     Debug_printf("Trying wifi stored config %d, SSID: %s\r\n", i, pFnWiFi->_matched_wifis.at(i).ssid);
                     pFnWiFi->connect(pFnWiFi->_matched_wifis.at(i).ssid, Config.get_wifi_stored_passphrase(pFnWiFi->_matched_wifis.at(i).index).c_str());
                 }
+                else
+                    pFnWiFi->reconnect_later();
             }
             break;
         case WIFI_EVENT_STA_AUTHMODE_CHANGE:
@@ -830,6 +899,7 @@ std::vector<std::string> WiFiManager::get_network_names()
         uint8_t rssi;
     } detail;
 
+    std::lock_guard<std::recursive_mutex> lock(_scan_mutex);
     std::vector<std::string> network_names;
     if (_scan_record_count == 0) {
         // get the names of the networks in range, as we haven't done it yet
