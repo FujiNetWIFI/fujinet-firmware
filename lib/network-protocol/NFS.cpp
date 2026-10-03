@@ -298,7 +298,7 @@ fujiError_t NetworkProtocolNFS::mkdir(PeoplesUrlParser *url)
 
     umount();
 
-    return FUJI_ERROR::NONE;
+    return nfs_error != 0 ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
 fujiError_t NetworkProtocolNFS::rmdir(PeoplesUrlParser *url)
@@ -318,7 +318,7 @@ fujiError_t NetworkProtocolNFS::rmdir(PeoplesUrlParser *url)
 
     umount();
 
-    return FUJI_ERROR::NONE;
+    return nfs_error != 0 ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
 fujiError_t NetworkProtocolNFS::stat()

@@ -312,7 +312,7 @@ fujiError_t NetworkProtocolSMB::mkdir(PeoplesUrlParser *url)
 
     umount();
 
-    return FUJI_ERROR::NONE;
+    return smb_error != 0 ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
 fujiError_t NetworkProtocolSMB::rmdir(PeoplesUrlParser *url)
@@ -327,7 +327,7 @@ fujiError_t NetworkProtocolSMB::rmdir(PeoplesUrlParser *url)
 
     umount();
 
-    return FUJI_ERROR::NONE;
+    return smb_error != 0 ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
 
 fujiError_t NetworkProtocolSMB::stat()
