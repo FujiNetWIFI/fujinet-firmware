@@ -115,6 +115,14 @@ void systemBus::transaction_send(const void *data, size_t len, bool is_error)
     else
         _sio_complete();
 
+    // SpartaDOS X's own HSIO driver misses a data frame that follows
+    // COMPLETE straight away; a disk drive always leaves a gap here.
+    if (_sioBaud != SIO_SPEED::STANDARD)
+    {
+        SYSTEM_BUS.flushOutput();
+        fnSystem.delay_microseconds(DELAY_HSIO_DATA);
+    }
+
     // Write data frame
     SYSTEM_BUS.write(data, len);
     // Write checksum
