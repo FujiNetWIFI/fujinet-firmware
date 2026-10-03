@@ -90,7 +90,9 @@ success_is_true CassetteFSKLoader::spawn()
 CassetteFSKLoaderStart CassetteFSKLoader::start(fnFile *file, size_t filesize, size_t header_offset,
                                                 uint16_t first_length)
 {
-    release();
+    std::lock_guard<std::mutex> lock(_life);
+    release_locked();
+    _cancelled = false; // a new run
 
     const size_t blocks = fsk_loader_table_blocks(filesize, header_offset);
     // The refill callback reads this table, so it is internal RAM; the payload blocks are PSRAM.
@@ -113,7 +115,7 @@ CassetteFSKLoaderStart CassetteFSKLoader::start(fnFile *file, size_t filesize, s
 
     if (spawn().is_error())
     {
-        release();
+        release_locked();
         return CassetteFSKLoaderStart::no_task;
     }
     return CassetteFSKLoaderStart::started;
@@ -121,11 +123,20 @@ CassetteFSKLoaderStart CassetteFSKLoader::start(fnFile *file, size_t filesize, s
 
 CassetteFSKLoaderRestart CassetteFSKLoader::restart()
 {
-    if (_table == nullptr || _file == nullptr || _restarts >= MAX_RESTARTS ||
-        fsk_run_state(_run) != FSKLoaderState::failed)
+    std::lock_guard<std::mutex> lock(_life);
+    if (_table == nullptr || _file == nullptr || fsk_run_state(_run) != FSKLoaderState::failed)
         return CassetteFSKLoaderRestart::refused;
 
-    stop(); // the failed task is gone; its cursor and the published part stay as they were
+    join_locked(); // the failed task is gone; its cursor and the published part stay as they were
+    if (_cancelled)
+    {
+        // Let the caller see a stop, not a failure it would answer by reading the file itself.
+        fsk_pub_store(&_run.state, static_cast<uint32_t>(FSKLoaderState::stopped));
+        return CassetteFSKLoaderRestart::refused;
+    }
+    if (_restarts >= MAX_RESTARTS)
+        return CassetteFSKLoaderRestart::refused;
+
     fsk_loader_recover(_loader);
     _suspect = true; // unknown until a read completes after a real re-seek
     ++_restarts;
@@ -137,7 +148,7 @@ CassetteFSKLoaderRestart CassetteFSKLoader::restart()
     return CassetteFSKLoaderRestart::restarted;
 }
 
-void CassetteFSKLoader::stop()
+void CassetteFSKLoader::join_locked()
 {
     if (_running.load())
         fsk_pub_store(&_run.stop_req, 1);
@@ -145,9 +156,22 @@ void CassetteFSKLoader::stop()
         vTaskDelay(1);
 }
 
+void CassetteFSKLoader::stop()
+{
+    std::lock_guard<std::mutex> lock(_life);
+    _cancelled = true;
+    join_locked();
+}
+
 void CassetteFSKLoader::release()
 {
-    stop();
+    std::lock_guard<std::mutex> lock(_life);
+    release_locked();
+}
+
+void CassetteFSKLoader::release_locked()
+{
+    join_locked();
     if (_table != nullptr)
     {
         for (size_t i = 0; i < _table_blocks; i++)

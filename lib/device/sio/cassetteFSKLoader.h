@@ -13,6 +13,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <mutex>
 
 #include "fnio.h"
 #include "global_types.h"
@@ -48,6 +49,8 @@ public:
     CassetteFSKLoaderRestart restart();
 
     // Callable from any task, and more than once: asks the task to stop and waits for it to be gone.
+    // It also cancels the run, even if the task has already exited: restart() refuses until the next
+    // start().
     void stop();
 
     // Frees the store. Only once nothing reads it any more (the RMT transmission has ended).
@@ -59,6 +62,8 @@ private:
     static constexpr uint32_t MAX_RESTARTS = 8;
 
     success_is_true spawn();
+    void join_locked();    // _life held: ask the task to stop and wait for it, without cancelling
+    void release_locked(); // _life held
     static void task_main(void *arg);
     static size_t read_block(void *ctx, size_t off, uint8_t *dst, size_t n);
     static uint8_t *alloc_block(void *ctx, size_t n);
@@ -76,6 +81,11 @@ private:
     bool _suspect = false; // the file's position is unknown after a read fault; loader task only
     uint32_t _restarts = 0;
     std::atomic<bool> _running{false};
+
+    // Serializes start, restart, stop and release, so no task is created once stop() has returned.
+    // The loader task never takes it.
+    std::mutex _life;
+    bool _cancelled = false; // under _life: stop() was called since start()
 };
 
 #endif // ESP_PLATFORM && BUILD_ATARI
