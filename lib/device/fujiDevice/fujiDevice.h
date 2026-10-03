@@ -189,7 +189,7 @@ protected:
 
     // Slot holding the disk that currently answers as drive 1, or -1 when
     // fewer than two disks are mounted and rotation is a no-op.
-    int get_rotate_slot();
+    virtual int get_rotate_slot();
 
     // Platform hook for fujicmd_image_rotate(): announce the newly selected
     // drive 1. Atari speaks it through SAM; everyone else stays quiet.
