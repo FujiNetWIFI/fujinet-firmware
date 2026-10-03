@@ -1671,21 +1671,21 @@ do_pclink(uchar devno, fujiCommandID_t ccom, uchar caux1, uchar caux2)
                                 }
 
                                 if ((device[cunit].parbuf.fmode & 0x0d) == 0x04)
-                                        iodesc[i].fps.file = fopen(newpath, "r");
+                                        iodesc[i].fps.file = fopen(newpath, "rb");
                                 else if ((device[cunit].parbuf.fmode & 0x0d) == 0x08)
                                 {
-                                        iodesc[i].fps.file = fopen(newpath, "w");
+                                        iodesc[i].fps.file = fopen(newpath, "wb");
                                         if (iodesc[i].fps.file)
                                                 sb.st_size = 0;
                                 }
                                 else if ((device[cunit].parbuf.fmode & 0x0d) == 0x09)
                                 {
-                                        iodesc[i].fps.file = fopen(newpath, "r+");
+                                        iodesc[i].fps.file = fopen(newpath, "r+b");
                                         if (iodesc[i].fps.file)
                                                 fseek(iodesc[i].fps.file, sb.st_size, SEEK_SET);
                                 }
                                 else if ((device[cunit].parbuf.fmode & 0x0d) == 0x0c)
-                                        iodesc[i].fps.file = fopen(newpath, "r+");
+                                        iodesc[i].fps.file = fopen(newpath, "r+b");
 
                                 closedir(dh);
                                 dp = NULL;
