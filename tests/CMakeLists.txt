@@ -367,6 +367,23 @@ target_include_directories(cassette_tests PRIVATE
 add_test(NAME cassette_tests COMMAND cassette_tests)
 
 # ------------------------------------------------------------------------------
+# A8CAS `fsk ` chunk interpretation for basic (non-progressive) FSK playback
+# (lib/media/atari/casFSK.h/.cpp). Pure/host-buildable: no ESP-IDF, no RMT, no
+# file ownership -- driven here directly via an in-memory FSKReadFn fixture.
+# ------------------------------------------------------------------------------
+add_executable(casfsk_tests
+    CasFSKTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/atari/casFSK.cpp
+)
+
+target_include_directories(casfsk_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+
+add_test(NAME casfsk_tests COMMAND casfsk_tests)
+
+# ------------------------------------------------------------------------------
 # lib/stuffit: unsit is a host CLI over the library. The sample tests compare
 # it against unar and ndif2raw; they need -DSIT_SAMPLES_DIR / -DNDIF2RAW_DIR
 # (or the same environment variables) and are skipped otherwise.

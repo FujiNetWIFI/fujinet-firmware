@@ -119,6 +119,9 @@ public:
     bool is_mounted() { return _mounted; };
     bool is_active() { return cassetteActive; };
     bool has_pulldown() { return pulldown; };
+    // True once the MOTOR line has genuinely dropped, for a basic abort check
+    // during a blocking wait (e.g. an in-flight FSK run); see cassetteFSK.cpp.
+    bool motor_dropped() { return has_pulldown() && !motor_line(); }
     bool get_buttons();
     void set_buttons(bool play_record);
     void set_pulldown(bool resistor);
