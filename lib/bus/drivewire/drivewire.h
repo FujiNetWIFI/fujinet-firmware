@@ -38,6 +38,7 @@
 #include <freertos/queue.h>
 #endif
 
+#include <atomic>
 #include <forward_list>
 #include <map>
 #include <cassert>
@@ -160,6 +161,8 @@ private:
 
     void _drivewire_process_cmd();
     void _drivewire_process_queue();
+
+    std::atomic<bool> _diskSwapRequested{false};
 
 #ifdef ESP_PLATFORM
     void configureGPIO();
@@ -312,8 +315,10 @@ public:
             _port = &_becker;
     }
 
-    // For compatibility with fujiDevice.cpp
-    void rotateDevices(const std::vector<drivewireDisk *> &disks, int amount) {}
+    // Queues a swap; service() performs it between requests.
+    void rotateDevices(const std::vector<drivewireDisk *> &disks, int amount) {
+        _diskSwapRequested = true;
+    }
     fujiDeviceID_t fujiIDForDevice(drivewireDisk *device);
 };
 

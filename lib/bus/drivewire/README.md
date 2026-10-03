@@ -15,8 +15,8 @@ CDC-ACM or the Becker port (Bus-over-IP), dispatched by opcode rather than by de
   [lib/device/drivewire/](../../device/drivewire/).
 - There is no daisy chain: disks are reached as `theFuji->get_disk(n)->disk_dev`, `op_net` creates
   one `drivewireNetwork` per unit on first use, `op_clock` calls `platformClock` directly and the
-  printer is handed over with `setPrinter()`. `rotateDevices()` is an empty stub kept for
-  `fujiDevice`.
+  printer is handed over with `setPrinter()`. `rotateDevices()` only queues a disk swap, which
+  `service()` hands to `drivewireFuji::rotate_disks()` between requests.
 - Under `PINMAP_FUJIVERSAL_DRIVEWIRE` the bus also exchanges `FujiBusPacket` frames from
   [lib/bus/rs232/](../rs232/) with the RP2350 cartridge over USB.
 

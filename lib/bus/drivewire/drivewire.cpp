@@ -725,6 +725,9 @@ void systemBus::service()
     }
 #endif
 
+    if (_diskSwapRequested.exchange(false))
+        platformFuji.rotate_disks();
+
 #ifdef ESP_PLATFORM
     // Handle cassette play if MOTOR pin active.
     if (_cassetteDev)

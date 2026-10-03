@@ -3,6 +3,7 @@
 #include "drivewireFuji.h"
 #include "NDevice.h"
 #include "compat_string.h"
+#include "led.h"
 
 #define IMAGE_EXTENSION ".dsk"
 #define LOBBY_URL       "tnfs://tnfs.fujinet.online/COCO/lobby.dsk"
@@ -238,6 +239,61 @@ success_is_true drivewireFuji::fujicore_mount_disk_image_success(uint8_t deviceS
     get_disk_dev(deviceSlot)->set_media_host(&host);
 
     RETURN_SUCCESS_AS_TRUE();
+}
+
+struct SlotImage
+{
+    uint8_t host_slot;
+    std::string filename;
+    disk_access_flags_t access_mode;
+};
+
+// Each mounted slot gets the image of the next mounted one; the last gets the first's.
+void drivewireFuji::rotate_disks()
+{
+    Debug_println("DriveWire: rotate disks");
+
+    std::vector<uint8_t> slots;
+    std::vector<SlotImage> before;
+    for (uint8_t slot = 0; slot < MAX_DWDISK_DEVICES; slot++)
+    {
+        const fujiDisk &disk = _fnDisks[slot];
+        if (disk.fileh == nullptr)
+            continue;
+        slots.push_back(slot);
+        before.push_back({disk.host_slot, disk.filename, disk.access_mode});
+    }
+
+    const size_t n = slots.size();
+    if (n < 2)
+        return;
+
+    auto mount_image = [this](uint8_t slot, const SlotImage &img) {
+        fujiDisk &disk = _fnDisks[slot];
+        disk.reset(img.filename.c_str(), img.host_slot, img.access_mode);
+        strlcpy(disk.filename, img.filename.c_str(), sizeof(disk.filename));
+        return fujicore_mount_disk_image_success(slot, img.access_mode);
+    };
+
+    for (uint8_t slot : slots)
+        fujicore_unmount_disk_image_success(slot);
+
+    size_t i = 0;
+    while (i < n && mount_image(slots[i], before[(i + 1) % n]).is_success())
+        i++;
+
+    if (i == n)
+    {
+        _active_rotate_slot = (_active_rotate_slot + 1) % n;
+        fnLedManager.blink(LED_BUS, _active_rotate_slot + 1);
+        return;
+    }
+
+    Debug_printf("DriveWire: rotate failed on slot %u, restoring\n", slots[i]);
+    for (uint8_t slot : slots)
+        fujicore_unmount_disk_image_success(slot);
+    for (i = 0; i < n; i++)
+        mount_image(slots[i], before[i]);
 }
 
 ByteBuffer drivewireFuji::appkey_read()
