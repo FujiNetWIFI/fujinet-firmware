@@ -191,11 +191,7 @@ void fnConfig::_read_section_general(std::stringstream &ss)
             else if (strcasecmp(name.c_str(), "hsioindex") == 0)
             {
                 int index = atoi(value.c_str());
-#ifdef ESP_PLATFORM
-                if (index >= 0 && index < 10)
-#else
-                if (index >= -1 && index <= 10 || index == 16) // accepted values: -1(HSIO disabled),0..10,16
-#endif
+                if ((index >= -1 && index <= 10) || index == 16) // accepted values: -1(HSIO disabled),0..10,16
                     _general.hsio_index = index;
             }
             else if (strcasecmp(name.c_str(), "timezone") == 0)
