@@ -178,6 +178,12 @@ private:
      * @brief get status of file, filling in filesize. mount() must have already been called.
      */
     fujiError_t stat() override;
+
+    /**
+     * @brief path relative to the share, as libsmb2 takes it
+     * @param path a URL path, /share/dir/name
+     */
+    static std::string share_path(const std::string &path);
 };
 
 #endif /* NETWORKPROTOCOLSMB_H */
