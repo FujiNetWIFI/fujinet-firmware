@@ -203,8 +203,8 @@ int WiFiManager::connect(const char *ssid, const char *password)
     return e;
 }
 
-// Every network worth trying has failed: go back to the configured one after a
-// pause, as nothing else would call esp_wifi_connect() again.
+// Nothing else would call esp_wifi_connect() again (every network has failed, or a
+// scan swallowed the disconnect): go back to the configured one after a pause.
 void WiFiManager::reconnect_later()
 {
     if (_reconnect_timer == nullptr)
@@ -223,7 +223,7 @@ void WiFiManager::reconnect_later()
         }
     }
 
-    Debug_printf("No other WiFi to try, retrying \"%s\" in %d s\r\n",
+    Debug_printf("Retrying WiFi \"%s\" in %d s\r\n",
                  Config.get_wifi_ssid().c_str(), FNWIFI_RECONNECT_DELAY_MS / 1000);
     esp_timer_stop(_reconnect_timer);
     esp_timer_start_once(_reconnect_timer, FNWIFI_RECONNECT_DELAY_MS * 1000ULL);
@@ -797,6 +797,13 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
 
             // if we are currently attempting to disconnect, don't attempt to reconnect
             if (pFnWiFi->_disconnecting) return;
+
+            // Nothing below runs during a scan, so this event would be lost for good
+            if (pFnWiFi->_scan_in_progress && Config.have_wifi_info())
+            {
+                pFnWiFi->reconnect_later();
+                break;
+            }
 
             // Try to reconnect
             if (pFnWiFi->_scan_in_progress == false &&
