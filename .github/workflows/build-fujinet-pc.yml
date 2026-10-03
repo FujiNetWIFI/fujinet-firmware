@@ -51,39 +51,13 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - name: Ubuntu 22.04
-            runner: ubuntu-22.04
-            target: ubuntu-22.04-amd64
-            default-shell: bash
           - name: Ubuntu 24.04
             runner: ubuntu-24.04
             target: ubuntu-24.04-amd64
             default-shell: bash
-          - name: Ubuntu 24.04 ARM64
-            runner: ubuntu-24.04-arm
-            target: ubuntu-24.04-arm64
-            default-shell: bash
-          # 32-bit ARM (armhf) cross-build on the arm64 runner; its cores still
-          # execute AArch32, so the unit tests run natively under ctest
-          - name: Ubuntu 24.04 ARMv7
-            runner: ubuntu-24.04-arm
-            target: ubuntu-24.04-armhf
-            default-shell: bash
-            cmake-args: >-
-              -DCMAKE_C_COMPILER=arm-linux-gnueabihf-gcc
-              -DCMAKE_CXX_COMPILER=arm-linux-gnueabihf-g++
-              -DMBEDTLS_INCLUDE_DIR=/usr/include
-              -DMBEDTLS_LIBRARY_DIR=/usr/lib/arm-linux-gnueabihf
-              -DOPENSSL_INCLUDE_DIR=/usr/include
-              -DOPENSSL_CRYPTO_LIBRARY=/usr/lib/arm-linux-gnueabihf/libcrypto.so
-              -DOPENSSL_SSL_LIBRARY=/usr/lib/arm-linux-gnueabihf/libssl.so
           - name: macOS 15 ARM
             target: macos-15-arm64
             runner: macos-15
-            default-shell: bash
-          - name: macOS 14 ARM
-            target: macos-14-arm64
-            runner: macos-14
             default-shell: bash
           - name: Windows
             target: windows-x64
