@@ -13,6 +13,7 @@
 #include <esp_wifi.h>
 #include <esp_timer.h>
 
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -43,6 +44,8 @@ private:
 
     esp_netif_t *_wifi_sta = nullptr;
 
+    // Scans run from the event handler and from device commands
+    std::recursive_mutex _scan_mutex;
     wifi_ap_record_t * _scan_records = nullptr;
     uint16_t _scan_record_count = 0;
     bool _scan_in_progress = false;

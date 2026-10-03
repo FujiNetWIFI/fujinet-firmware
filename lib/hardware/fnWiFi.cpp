@@ -34,6 +34,9 @@ WiFiManager::~WiFiManager()
 // Remove resources and shut down WiFi driver
 void WiFiManager::stop()
 {
+    if (_reconnect_timer != nullptr)
+        esp_timer_stop(_reconnect_timer);
+
     // Stop services
     if (_connected)
         handle_station_stop();
@@ -53,10 +56,13 @@ void WiFiManager::stop()
     ESP_ERROR_CHECK(esp_wifi_stop());
     //ESP_ERROR_CHECK(esp_wifi_deinit());
 
-    if (_scan_records != nullptr)
-        free(_scan_records);
-    _scan_records = nullptr;
-    _scan_record_count = 0;
+    {
+        std::lock_guard<std::recursive_mutex> lock(_scan_mutex);
+        if (_scan_records != nullptr)
+            free(_scan_records);
+        _scan_records = nullptr;
+        _scan_record_count = 0;
+    }
 
     _started = false;
     _connected = false;
@@ -227,7 +233,7 @@ void WiFiManager::_reconnect_timer_cb(void *arg)
 {
     WiFiManager *pFnWiFi = (WiFiManager *)arg;
 
-    if (pFnWiFi->_connected || pFnWiFi->_disconnecting)
+    if (!pFnWiFi->_started || pFnWiFi->_connected || pFnWiFi->_disconnecting)
         return;
     if (pFnWiFi->_scan_in_progress)
     {
@@ -363,6 +369,8 @@ bool WiFiManager::connected()
 */
 uint8_t WiFiManager::scan_networks(uint8_t maxresults)
 {
+    std::lock_guard<std::recursive_mutex> lock(_scan_mutex);
+
     // Free any existing scan records
     if (_scan_records != nullptr)
         free(_scan_records);
@@ -490,7 +498,9 @@ int WiFiManager::remove_duplicate_scan_results(wifi_ap_record_t scan_records[], 
 
 int WiFiManager::get_scan_result(uint8_t index, char ssid[32], uint8_t *rssi, uint8_t *channel, char bssid[18], uint8_t *encryption)
 {
-    if (index > _scan_record_count)
+    std::lock_guard<std::recursive_mutex> lock(_scan_mutex);
+
+    if (index >= _scan_record_count)
         return -1;
 
     wifi_ap_record_t *ap = &_scan_records[index];
@@ -882,6 +892,7 @@ std::vector<std::string> WiFiManager::get_network_names()
         uint8_t rssi;
     } detail;
 
+    std::lock_guard<std::recursive_mutex> lock(_scan_mutex);
     std::vector<std::string> network_names;
     if (_scan_record_count == 0) {
         // get the names of the networks in range, as we haven't done it yet
