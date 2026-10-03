@@ -300,6 +300,52 @@ fujiError_t NetworkProtocolSMB::write_file_handle(uint8_t *buf, unsigned short l
     return FUJI_ERROR::NONE;
 }
 
+fujiError_t NetworkProtocolSMB::rename(PeoplesUrlParser *url)
+{
+    if (mount(url) != FUJI_ERROR::NONE)
+        return FUJI_ERROR::UNSPECIFIED;
+
+    // smb_url->path is relative to the share: dir/OLD,NEW, both in dir.
+    std::string path = smb_url->path ? smb_url->path : "";
+    size_t comma = path.find(',');
+    if (comma == std::string::npos)
+    {
+        error = NDEV_STATUS::INVALID_DEVICESPEC;
+        umount();
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+
+    size_t slash = path.find_last_of('/', comma);
+    std::string from = path.substr(0, comma);
+    std::string to = (slash == std::string::npos ? "" : path.substr(0, slash + 1)) + path.substr(comma + 1);
+
+    if ((smb_error = smb2_rename(smb, from.c_str(), to.c_str())) != 0)
+    {
+        fserror_to_error();
+        Debug_printf("NetworkProtocolSMB::rename(%s) SMB error: %s\r\n", url->url.c_str(), smb2_get_error(smb));
+    }
+
+    umount();
+
+    return smb_error != 0 ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
+}
+
+fujiError_t NetworkProtocolSMB::del(PeoplesUrlParser *url)
+{
+    if (mount(url) != FUJI_ERROR::NONE)
+        return FUJI_ERROR::UNSPECIFIED;
+
+    if ((smb_error = smb2_unlink(smb, smb_url->path)) != 0)
+    {
+        fserror_to_error();
+        Debug_printf("NetworkProtocolSMB::del(%s) SMB error: %s\r\n", url->url.c_str(), smb2_get_error(smb));
+    }
+
+    umount();
+
+    return smb_error != 0 ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
+}
+
 fujiError_t NetworkProtocolSMB::mkdir(PeoplesUrlParser *url)
 {
     mount(url);
