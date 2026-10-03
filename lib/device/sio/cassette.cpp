@@ -11,6 +11,8 @@
 #include "fsFlash.h"
 #include "fujiDevice.h"
 #include "../../media/atari/diskType.h"
+#include "../../media/atari/casFSK.h"
+#include "cassetteFSK.h"
 
 #include "led.h"
 
@@ -647,6 +649,15 @@ void sioCassette::check_for_FUJI_file()
     return;
 }
 
+#ifdef ESP_PLATFORM
+// Polled by cassette_fsk_play_run() while a run's RMT transmission is in
+// flight, so it can abort a run whose MOTOR has genuinely dropped.
+static bool cassette_fsk_motor_dropped(void *ctx)
+{
+    return static_cast<sioCassette *>(ctx)->motor_dropped();
+}
+#endif
+
 size_t sioCassette::send_FUJI_tape_block(size_t offset)
 {
     size_t r;
@@ -674,6 +685,10 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
             block++;
             break;
         }
+        else if (fsk_is_chunk_type(p)) // is an fsk header? delegate below, same as a data header
+        {
+            break;
+        }
         else if (p[0] == 'b' && //is a baud header?
                  p[1] == 'a' &&
                  p[2] == 'u' &&
@@ -689,9 +704,13 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
 
     // TO DO : check that "data" record was actually found - not done by SDrive until after IRG by checking offset<filesize
 
+    const bool is_fsk = fsk_is_chunk_type(p);
+    const size_t fsk_header_offset = offset;
+
     gap = hdr->irg_length; //save GAP
     len = hdr->chunk_length;
-    _record_ms = cas_data_record_ms(gap, len, baud);
+    if (!is_fsk)
+        _record_ms = cas_data_record_ms(gap, len, baud); // fsk sets _record_ms itself, below, from the played run
     Debug_printf("Baud: %u Length: %u Gap: %u ", baud, len, gap);
 
     // TO DO : turn on LED
@@ -721,6 +740,23 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
 
     // wait until after delay for new line so can see it in timestamp
     Debug_printf("\r\n");
+
+    if (is_fsk)
+    {
+#ifdef ESP_PLATFORM
+        const CassetteFSKPlayResult fsk_result = cassette_fsk_play_run(
+            _file, filesize, fsk_header_offset, cassette_fsk_motor_dropped, this);
+        _record_ms = gap > UINT32_MAX - fsk_result.waveform_ms
+            ? UINT32_MAX : gap + fsk_result.waveform_ms;
+        if (fsk_result.status != CassetteFSKStatus::ok)
+            return starting_offset; // fail safe: replay the same run from the same point next call
+        return fsk_result.next_offset;
+#else
+        // No RMT on this platform: skip the chunk, same as any unrecognized
+        // chunk type falls through today.
+        return fsk_header_offset + sizeof(struct tape_FUJI_hdr) + len;
+#endif
+    }
 
     if (offset < filesize)
     {
