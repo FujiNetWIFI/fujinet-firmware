@@ -144,6 +144,9 @@ int WiFiManager::connect(const char *ssid, const char *password)
 {
     Debug_printf("WiFi connect attempt to SSID \"%s\"\r\n", ssid == nullptr ? "" : ssid);
 
+    if (_reconnect_timer != nullptr)
+        esp_timer_stop(_reconnect_timer);
+
     // Only set an SSID and password if given
     if (ssid != nullptr)
     {
@@ -192,6 +195,46 @@ int WiFiManager::connect(const char *ssid, const char *password)
     esp_err_t e = esp_wifi_connect();
     Debug_printf("esp_wifi_connect returned %d\r\n", e);
     return e;
+}
+
+// Every network worth trying has failed: go back to the configured one after a
+// pause, as nothing else would call esp_wifi_connect() again.
+void WiFiManager::reconnect_later()
+{
+    if (_reconnect_timer == nullptr)
+    {
+        const esp_timer_create_args_t args = {
+            .callback = &WiFiManager::_reconnect_timer_cb,
+            .arg = this,
+            .dispatch_method = ESP_TIMER_TASK,
+            .name = "wifi_reconnect",
+        };
+        if (esp_timer_create(&args, &_reconnect_timer) != ESP_OK)
+        {
+            _reconnect_timer = nullptr;
+            Debug_println("Could not create WiFi reconnect timer");
+            return;
+        }
+    }
+
+    Debug_printf("No other WiFi to try, retrying \"%s\" in %d s\r\n",
+                 Config.get_wifi_ssid().c_str(), FNWIFI_RECONNECT_DELAY_MS / 1000);
+    esp_timer_stop(_reconnect_timer);
+    esp_timer_start_once(_reconnect_timer, FNWIFI_RECONNECT_DELAY_MS * 1000ULL);
+}
+
+void WiFiManager::_reconnect_timer_cb(void *arg)
+{
+    WiFiManager *pFnWiFi = (WiFiManager *)arg;
+
+    if (pFnWiFi->_connected || pFnWiFi->_disconnecting)
+        return;
+    if (pFnWiFi->_scan_in_progress)
+    {
+        pFnWiFi->reconnect_later();
+        return;
+    }
+    pFnWiFi->connect();
 }
 
 static EventGroupHandle_t wifi_event_group;
@@ -762,15 +805,22 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
                 // as it's pointless trying to connect to anything not seen by network, as it clearly won't connect.
                 // TODO: will this stop us connecting to hidden wifis? is that even possible?
 
+                // Rescan each time: cached results miss a network that has come up since.
+                pFnWiFi->scan_networks();
+                pFnWiFi->_scan_in_progress = false;
                 std::vector<std::string> network_names = pFnWiFi->get_network_names();
                 std::vector<WiFiManager::stored_wifi> stored_wifis = pFnWiFi->get_stored_wifis();
                 std::vector<stored_wifi> common_names = pFnWiFi->match_stored_with_network_wifis(network_names, stored_wifis);
 
                 // copy the common names to our manager to iterate over
-                std::copy(common_names.begin(), common_names.end(), std::back_inserter(pFnWiFi->_matched_wifis));
+                pFnWiFi->_matched_wifis = common_names;
 
                 // no entries in common between stored and seen networks
-                if (common_names.empty()) return;
+                if (common_names.empty())
+                {
+                    pFnWiFi->reconnect_later();
+                    return;
+                }
 
                 pFnWiFi->_trying_stored = true;
                 pFnWiFi->_reconnect_attempts = 0;
@@ -790,6 +840,8 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
                     Debug_printf("Trying wifi stored config %d, SSID: %s\r\n", i, pFnWiFi->_matched_wifis.at(i).ssid);
                     pFnWiFi->connect(pFnWiFi->_matched_wifis.at(i).ssid, Config.get_wifi_stored_passphrase(pFnWiFi->_matched_wifis.at(i).index).c_str());
                 }
+                else
+                    pFnWiFi->reconnect_later();
             }
             break;
         case WIFI_EVENT_STA_AUTHMODE_CHANGE:
