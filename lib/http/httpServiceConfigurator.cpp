@@ -181,17 +181,6 @@ void netstream_activate()
 void fnHttpServiceConfigurator::config_hsio(std::string hsioindex)
 {
 #ifdef BUILD_ATARI
-#ifdef ESP_PLATFORM
-    int index = -1;
-    char pc = hsioindex[0];
-    if (pc >= '0' && pc <= '9')
-        index = pc - '0';
-    else
-    {
-        Debug_printf("Bad HSIO index value: %s\n", hsioindex.c_str());
-        return;
-    }
-#else
     Debug_printf("New HSIO index value: %s\n", hsioindex.c_str());
 
     int index = atoi(hsioindex.c_str());
@@ -202,7 +191,6 @@ void fnHttpServiceConfigurator::config_hsio(std::string hsioindex)
         Debug_printf("Bad HSIO index value: %s\n", hsioindex.c_str());
         return;
     }
-#endif
 
     SYSTEM_BUS.setHighSpeedIndex(index);
     // Store our change in Config
