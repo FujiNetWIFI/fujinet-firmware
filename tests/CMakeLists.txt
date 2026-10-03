@@ -73,6 +73,22 @@ target_include_directories(calendar_tests PRIVATE
 add_test(NAME calendar_tests COMMAND calendar_tests)
 
 # ------------------------------------------------------------------------------
+# QR code version and ECC selection. qrcode.c is plain C with no FujiNet
+# dependency, so the capacity edges are pinned here rather than by scanning.
+# ------------------------------------------------------------------------------
+add_executable(qrcode_tests
+    QRCodeTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/qrcode/qrcode.c
+)
+
+target_include_directories(qrcode_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+
+add_test(NAME qrcode_tests COMMAND qrcode_tests)
+
+# ------------------------------------------------------------------------------
 # Mail draft parsing and RFC822 assembly (compose / reply). mail_draft depends
 # only on the standard library, so the EOL and threading edge cases are pinned
 # here rather than on hardware.
