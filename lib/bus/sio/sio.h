@@ -14,6 +14,7 @@
 
 #define DELAY_T4 850
 #define DELAY_T5 250
+#define DELAY_HSIO_DATA 1000 // us from COMPLETE to the data frame at high speed
 
 /*
 Examples of values that can be defined in PLATFORMIO.INI
