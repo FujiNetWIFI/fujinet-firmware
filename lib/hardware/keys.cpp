@@ -312,6 +312,11 @@ void KeyManager::_keystate_task(void *param)
                 if (SYSTEM_BUS.qAdamNetMessages != nullptr)
                     xQueueSend(SYSTEM_BUS.qAdamNetMessages, &msg, 0);
 #endif /* BUILD_ADAM*/
+#ifdef BUILD_COCO
+                Debug_println("ACTION: Request image_rotate");
+                if (theFuji != nullptr)
+                    theFuji->fujicmd_image_rotate();
+#endif /* BUILD_COCO */
             }
             break;
 

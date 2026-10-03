@@ -24,6 +24,9 @@ protected:
 
     void shutdown() override;
 
+    // -1 stops the base from blinking before the queued swap runs; rotate_disks() blinks.
+    int get_rotate_slot() override { return -1; }
+
 public:
     drivewireNetwork *network();
 
@@ -46,6 +49,8 @@ public:
     success_is_true fujicore_mount_disk_image_success(uint8_t deviceSlot,
                                                       disk_access_flags_t access_mode) override;
 
+    // Called by the bus between transfers.
+    void rotate_disks();
 };
 
 extern drivewireFuji platformFuji;
