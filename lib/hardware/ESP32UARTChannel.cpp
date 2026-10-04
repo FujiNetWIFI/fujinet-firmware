@@ -179,7 +179,8 @@ void ESP32UARTChannel::setBaudrate(uint32_t baud)
 #endif
     uart_set_baudrate(_uart_num, baud);
 #ifdef DEBUG
-    Debug_printf("set_baudrate change from %d to %d\r\n", before, baud);
+    Debug_printf("set_baudrate change from %lu to %lu\r\n", static_cast<unsigned long>(before),
+                 static_cast<unsigned long>(baud));
 #endif
 }
 
