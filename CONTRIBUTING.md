@@ -167,6 +167,13 @@ firmware build and it shows up dirty in `git status`. Never sweep an incidental 
 into an unrelated commit; `git checkout --` it. A deliberate sdkconfig change (flash size, PSRAM
 mode, socket counts) is normal and correct to commit. Read `git diff --stat` before staging.
 
+## Keep the source tree clean
+
+A build must not leave temporary files in a source directory. Scratch files, logs and intermediate
+outputs go under the build's own output directory (`.pio/`, `build/`) or the system temp directory. This applies to a new build script or CMake/PlatformIO rule and to any change
+to an existing one. Before committing, check `git status` for untracked files and remove any your
+work left behind; never commit them or add them to `.gitignore` to hide them.
+
 ## Scripts that are broken or obsolete
 
 - `verify-webui.sh`, `verify-webui-progress.sh`, `full-verify.sh` — one-off scripts from an
@@ -339,6 +346,7 @@ Write the short version instead, and leave a section out rather than filling it 
 - **Editing generated files** such as `platformio-generated.ini` or `data/BUILD_*/www/`. The web UI
   is authored in `data/webui/{template,common,config}/` plus `lib/http/httpServiceParser.cpp`.
 - **Committing sdkconfig churn** produced by a local build.
+- **A build that leaves temporary files** in a source directory, or committing them.
 - **Bulk reformatting** a file because it does not match `.clang-format`.
 - **Over-commenting.** Long explanatory block comments and edit narration inflate the diff and go
   stale; see Comments above.
