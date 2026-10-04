@@ -19,7 +19,7 @@ class iecPrinter : public IECDevice
 protected:
     printer_emu *_pptr = nullptr;
     FileSystem *_storage = nullptr;
-    time_t _last_ms;
+    time_t _last_ms = 0;
 
     void shutdown();
 

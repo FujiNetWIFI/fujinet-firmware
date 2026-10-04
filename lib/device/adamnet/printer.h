@@ -43,7 +43,7 @@ protected:
     printer_emu *_pptr = nullptr;
     FileSystem *_storage = nullptr;
 
-    time_t _last_ms;
+    time_t _last_ms = 0;
     uint8_t _lastaux1;
     uint8_t _lastaux2;
 
