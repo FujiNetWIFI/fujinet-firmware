@@ -474,7 +474,7 @@ fnHttpApi::response h_printer_status(const request &)
     }
 
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddBoolToObject(root, "enabled", true);
+    cJSON_AddBoolToObject(root, "enabled", Config.get_printer_enabled());
     cJSON_AddStringToObject(root, "model", emu->modelname());
     cJSON_AddBoolToObject(root, "ready", ready);
     cJSON_AddBoolToObject(root, "has_output", sz > 0);
