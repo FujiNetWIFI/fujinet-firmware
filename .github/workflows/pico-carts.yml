@@ -130,6 +130,14 @@ jobs:
         working-directory: pico/channelf/firmware/host_test
         run: make
 
+      # The NES port keeps every hardware-free unit under one Makefile: the
+      # FujiBus codec, the mapper engine against MAME handler transcriptions,
+      # the bus decode and RMW signature, the PIO bank-table model, and the
+      # mailbox service on the 4K arena.
+      - name: NES -- host tests
+        working-directory: pico/nes/firmware/host_test
+        run: make
+
   o2-console-client:
     name: "Odyssey 2 8048 client"
     runs-on: ubuntu-latest
@@ -267,6 +275,21 @@ jobs:
           ASL=$HOME/asl/asl P2BIN=$HOME/asl/p2bin \
             ./build.sh hello romctest fujitest fujiboot fujicfg
 
+  nes-console-client:
+    name: "NES 6502 clients"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # cc65 from the distro is enough for ca65/ld65; the clients are pure
+      # assembly. tools/checkrom.py then enforces the fuji_mailbox.h layout on
+      # every image (header, claim, vectors, no RMW on the hotspot pages) and
+      # the loader ROM's fixed entry points.
+      - run: sudo apt-get update && sudo apt-get install -y cc65
+      - name: Assemble and validate
+        working-directory: pico/nes
+        run: ./build.sh loader hello fujitest fujiboot
+
   cartridge-firmware:
     name: "RP2040 cartridge firmware"
     runs-on: ubuntu-latest
@@ -364,6 +387,18 @@ jobs:
           # session.
           grep -E '0x2000[0-9a-f]+ +channelf_core1_main$' \
               firmware/build-fujichannelf/fujichannelf.elf.map
+
+      # build-cart.sh bakes the loader ROM and a client into the firmware, so
+      # the 6502 side assembles first. The RP2354B build runs entirely from
+      # SRAM (copy_to_ram); tools/checksram.py asserts core1's symbols there.
+      - name: NES cartridge (fujines_rp2354b)
+        working-directory: pico/nes
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: |
+          sudo apt-get install -y cc65
+          ./build.sh loader hello fujitest fujiboot
+          ./build-cart.sh
 
       # Drives the same [fujinet] pico_* keys the ESP32 build uses, so a
       # broken ini key, a missing ROM, or an uninitialized submodule fails
