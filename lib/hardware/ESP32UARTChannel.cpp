@@ -268,6 +268,9 @@ void ESP32UARTChannel::setRI(bool state)
 
 void ESP32UARTChannel::setRXThreshold(uint8_t thresh)
 {
+    if (_uart_num >= UART_NUM_MAX)
+        return;
+
     uint32_t conf1 = READ_PERI_REG(UART_CONF1_REG(_uart_num));
     conf1 &= ~(UART_RXFIFO_FULL_THRHD_V << UART_RXFIFO_FULL_THRHD_S);
     conf1 |= (thresh & UART_RXFIFO_FULL_THRHD_V) << UART_RXFIFO_FULL_THRHD_S;
@@ -276,6 +279,9 @@ void ESP32UARTChannel::setRXThreshold(uint8_t thresh)
 
 uint8_t ESP32UARTChannel::getRXThreshold()
 {
+    if (_uart_num >= UART_NUM_MAX)
+        return 0;
+
     uint32_t conf1 = READ_PERI_REG(UART_CONF1_REG(_uart_num));
     return (conf1 >> UART_RXFIFO_FULL_THRHD_S) & UART_RXFIFO_FULL_THRHD_V;
 }
