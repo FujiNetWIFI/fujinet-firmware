@@ -518,3 +518,30 @@ if(UNAR_EXECUTABLE AND NDIF2RAW_MAKE AND NDIF2RAW_DIR AND EXISTS "${NDIF2RAW_DIR
 else()
   message(STATUS "unar, make, NDIF2RAW_DIR or Now_Software.sit not found - skipping ndif_sample_tests")
 endif()
+
+# ------------------------------------------------------------------------------
+# Palm OS HotSync server. The protocol stack and sync session are free of
+# FujiNet globals, so they are driven here with captured frames and a fake
+# device.
+# ------------------------------------------------------------------------------
+add_executable(hotsync_tests
+    HotSyncTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/hotsync/Slp.cpp
+    ${CMAKE_SOURCE_DIR}/lib/hotsync/PadpTransport.cpp
+    ${CMAKE_SOURCE_DIR}/lib/hotsync/NetSyncTransport.cpp
+    ${CMAKE_SOURCE_DIR}/lib/hotsync/Dlp.cpp
+    ${CMAKE_SOURCE_DIR}/lib/hotsync/DlpClient.cpp
+    ${CMAKE_SOURCE_DIR}/lib/hotsync/PalmDatabase.cpp
+    ${CMAKE_SOURCE_DIR}/lib/hotsync/HotSyncSession.cpp
+)
+
+target_include_directories(hotsync_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/hotsync/
+    ${CMAKE_SOURCE_DIR}/components_pc/
+)
+
+target_compile_definitions(hotsync_tests PRIVATE UNIT_TESTS)
+
+add_test(NAME hotsync_tests COMMAND hotsync_tests)
