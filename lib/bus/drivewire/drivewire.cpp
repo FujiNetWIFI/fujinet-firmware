@@ -907,6 +907,7 @@ void systemBus::setup()
                       .deviceID(DW_UART_DEVICE)
                       .readTimeout(500)
 #ifdef ESP_PLATFORM
+                      .dcdPin(PIN_RS232_DCD)
 #ifndef COCO_HS_UART
                       .txInverted(DW_UART_DEVICE == UART_NUM_2 && !bDragon)
                       .rxInverted(DW_UART_DEVICE == UART_NUM_2)
