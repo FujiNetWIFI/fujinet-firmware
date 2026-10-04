@@ -123,6 +123,13 @@ void printer_emu::closeOutput()
     _output_started = false;
 }
 
+// Closes and deletes the output file on the filesystem the printer writes to (SD or flash)
+bool printer_emu::removeOutput()
+{
+    closeOutput();
+    return _FS->remove(PRINTER_OUTFILE);
+}
+
 void printer_emu::restart_output()
 {
     _output_started = false;
