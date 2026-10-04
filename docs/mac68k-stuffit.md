@@ -4,8 +4,9 @@ A `.sit`, `.sea`, `.hqx` or `.bin` (MacBinary) archive can be mounted in
 any Mac slot. At mount time the ESP32 picks the disk image inside it, unpacks
 it into PSRAM and mounts that: a 400K/800K raw or DiskCopy 4.2 image as the
 floppy (slot 5), anything else that is HFS as an HD20 (slots 1-4). Disk Copy 6
-(NDIF) images are decoded to a raw volume first. The unpacked image can be
-downloaded from `/sitdownload?deviceslot=N`.
+(NDIF) images are decoded to a raw volume first. It is all done by
+`MediaTypeSIT` (`lib/media/mac/mediaTypeSIT.cpp`), which wraps the media the
+unpacked image would get as a plain file in that slot.
 
 Supported: classic `SIT!` and StuffIt 5 archives, methods 0 (store), 1 (RLE),
 2 (LZW), 3 (Huffman), 13 (LZ+Huffman) and 15 (Arsenic), wrapped in BinHex 4.0

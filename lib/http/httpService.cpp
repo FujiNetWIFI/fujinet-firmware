@@ -1450,65 +1450,6 @@ esp_err_t fnHttpService::get_handler_files_download(httpd_req_t *req)
 }
 
 #ifdef BUILD_MAC
-// Serves the disk image unpacked from an archive in the given slot
-esp_err_t fnHttpService::get_handler_sitdownload(httpd_req_t *req)
-{
-    queryparts qp;
-    parse_query(req, &qp);
-    int device_slot = query_int(qp.query_parsed, "deviceslot");
-
-    if (device_slot < 0 || device_slot >= MAX_DISK_DEVICES)
-    {
-        httpd_resp_set_status(req, "404 Not Found");
-        httpd_resp_send(req, "Invalid device slot", HTTPD_RESP_USE_STRLEN);
-        return ESP_FAIL;
-    }
-
-    DISK_DEVICE *dd = theFuji->get_disk_dev(device_slot);
-    if (dd == nullptr || !dd->has_sit_source())
-    {
-        httpd_resp_set_status(req, "404 Not Found");
-        httpd_resp_send(req, "No archive image mounted on this slot", HTTPD_RESP_USE_STRLEN);
-        return ESP_FAIL;
-    }
-
-    const uint8_t *data = dd->sit_image_data();
-    uint32_t len = dd->sit_image_len();
-    if (data == nullptr || len == 0)
-    {
-        httpd_resp_set_status(req, "404 Not Found");
-        httpd_resp_send(req, "No archive image mounted on this slot", HTTPD_RESP_USE_STRLEN);
-        return ESP_FAIL;
-    }
-
-    std::string inner_name = dd->sit_inner_filename();
-    if (inner_name.empty())
-        inner_name = "image.dsk";
-
-    httpd_resp_set_type(req, "application/octet-stream");
-
-    char hdrval[16];
-    snprintf(hdrval, sizeof(hdrval), "%u", (unsigned)len);
-    httpd_resp_set_hdr(req, "Content-Length", hdrval);
-
-    std::string disposition = "attachment; filename=\"" + inner_name + "\"";
-    httpd_resp_set_hdr(req, "Content-Disposition", disposition.c_str());
-
-    uint32_t sent = 0;
-    while (sent < len)
-    {
-        size_t chunk = len - sent;
-        if (chunk > FNWS_SEND_BUFF_SIZE)
-            chunk = FNWS_SEND_BUFF_SIZE;
-        if (httpd_resp_send_chunk(req, (const char *)(data + sent), chunk) != ESP_OK)
-            return ESP_FAIL;
-        sent += chunk;
-    }
-    httpd_resp_send_chunk(req, nullptr, 0);
-
-    return ESP_OK;
-}
-
 // Mac mount list data, refetched by the page when a slot loads or unloads
 esp_err_t fnHttpService::get_handler_mac_slots(httpd_req_t *req)
 {
@@ -2413,13 +2354,6 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
          .handle_ws_control_frames = false,
          .supported_subprotocol = nullptr},
 #ifdef BUILD_MAC
-        {.uri = "/sitdownload",
-         .method = HTTP_GET,
-         .handler = get_handler_sitdownload,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
         {.uri = "/mac/activity",
          .method = HTTP_GET,
          .handler = get_handler_mac_activity,
@@ -2535,7 +2469,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
 #else
     config.stack_size = 12288;
 #endif
-    // Budget: 37 routes registered here + 11 WebDAV = 48 handlers
+    // Budget: 36 routes registered here + 11 WebDAV = 47 handlers
     config.max_uri_handlers = 64;
     config.max_resp_headers = 16;
     config.keep_alive_enable = true;

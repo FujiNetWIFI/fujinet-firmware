@@ -104,11 +104,10 @@
 			return w;
 		}
 
-		var inner = s.sit ? s.sit.inner : "";
-		var name = (s.loaded && s.vol) ? s.vol : (inner || basename(s.path));
+		var name = (s.loaded && s.vol) ? s.vol : basename(s.path);
 		main.appendChild(el("div", "macw-name", name));
 		var file = el("div", "macw-file");
-		file.textContent = s.host + " :: " + s.path + (inner ? " → " + inner : "");
+		file.textContent = s.host + " :: " + s.path;
 		file.title = file.textContent;
 		main.appendChild(file);
 
@@ -124,10 +123,6 @@
 		chips.appendChild(s.ro ? chip("🔒 Read-only", "", "Mounted read-only: the Mac sees a locked disk.")
 			: chip("R/W", "", "Mounted read/write: the Mac can write to this image."));
 		if (hd) hdChips(s, chips); else fdChips(s, chips);
-		if (s.sit) {
-			chips.appendChild(chip("📦 " + s.sit.format + (s.sit.ndif ? " · NDIF" : ""), "arc",
-				"Unpacked from " + basename(s.path) + " (" + s.sit.method + ") into " + size(s.sit.bytes) + " of PSRAM. Writes stay in PSRAM and are lost on eject."));
-		}
 
 		if (hd) {
 			var pct = Math.min(100, 100 * s.blocks / HD20_MAX_BLOCKS);
@@ -142,7 +137,6 @@
 		var acts = el("div", "macw-actions");
 		acts.appendChild(action("Eject", "/unmount?deviceslot=" + (s.n - 1), ejectWarning(hd, title)));
 		acts.appendChild(action("Swap from this folder…", "/hsdir?hostslot=" + s.hs + "&path=" + encodeURIComponent(dirname(s.path))));
-		if (s.sit) acts.appendChild(action("Download image", "/sitdownload?deviceslot=" + (s.n - 1)));
 		w.appendChild(acts);
 		return w;
 	}
@@ -300,7 +294,7 @@
 				svg("rect", { x: x - 1.5, y: iy + 17, width: 3, height: 5, "class": "wire-fill" }, n.hub);
 				n.led = svg("circle", { cx: x - 11, cy: iy + 30, r: 3.2, "class": "wire-led" }, g);
 			}
-			var name = loaded ? (s.vol || (s.sit && s.sit.inner) || (s.path || "").split("/").pop()) : "empty";
+			var name = loaded ? (s.vol || (s.path || "").split("/").pop()) : "empty";
 			text(g, x, iy + 52, hd ? "HD20 #" + s.n : "Floppy", "wire-label wire-strong");
 			var nm = text(g, x, iy + 66, shorten(name, Math.max(8, Math.floor(step / 7))), "wire-label");
 			nm.appendChild(svg("title", {})).textContent = name;
