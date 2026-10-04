@@ -46,7 +46,10 @@ static void _cpm_run(void)
     while (true)
     {
         Status = Debug = 0;
-        Break = Step = Watch = -1;
+        Break = Step = -1;
+#if defined(DEBUG) || defined(iDEBUG)
+        Watch = -1;
+#endif
 
         RAM = (uint8_t *)malloc(MEMSIZE);
         if (!RAM)

@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <sys/syslimits.h>
 #include <esp_rom_crc.h>
+#include <driver/uart.h>
 #include <iostream>
 #include <sstream>
 #include <sys/fcntl.h>

@@ -1,6 +1,9 @@
 
 #include <errno.h>
 #include <string.h>
+#ifdef ESP_PLATFORM
+#include <esp_heap_caps.h>
+#endif
 
 #include "fnFileMem.h"
 #include "../../include/debug.h"

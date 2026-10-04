@@ -65,11 +65,6 @@
 #endif // DEBUG
 
 #ifndef DEBUG
-#ifdef ESP_PLATFORM
-    // Use FujiNet debug serial output
-    #include "../lib/hardware/fnUART.h"
-#endif
-
     #define Debug_print(...)
     #define Debug_printf(...)
     #define Debug_println(...)
