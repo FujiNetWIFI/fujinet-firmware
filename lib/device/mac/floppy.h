@@ -2,12 +2,9 @@
 #ifndef MAC_FLOPPY_H
 #define MAC_FLOPPY_H
 
-#include <memory>
-
 #include "../disk.h"
 #include "bus.h"
 #include "../media/media.h"
-#include "../../media/mac/sitMount.h"
 #include "../../media/mac/mediaTypeDCD.h"
 
 /*
@@ -40,8 +37,6 @@ class macFloppy : public virtualDevice
 protected:
     MediaType *_disk = nullptr;
 
-    // Set while the mounted image came from an archive; owns its PSRAM copy
-    std::unique_ptr<SitMount> _sit;
 
     char disk_num = '0';
     bool enabled = false;
@@ -54,16 +49,17 @@ protected:
     void dcd_status(uint8_t *buffer);
 
     // write capture from the Pico: raw IWM write bits, one frame per write
-    bool _sector_image = false;   // slot 5 holds a sector image (writable kind)
     uint8_t *_wcap = nullptr;
     size_t _wcap_len = 0;
     int _wcap_side = 0;
     bool _wcap_active = false;
     bool _wcap_overflow = false;
     void reload_track_buffers();
+    void insert_floppy();
 
     // The Pico was told a disk is in ('s'/'d'), so unmount() may send 'r'
     bool _disk_inserted = false;
+    int _archive_entry = 0;
 
     bool is_dcd_slot() { return disk_num >= '0' && disk_num < '0' + MAC_DCD_SLOTS; }
     bool is_floppy_slot() { return disk_num == '0' + MAC_FLOPPY_SLOT; }
@@ -93,22 +89,18 @@ public:
     // Called from the bus service loop: flush an idle HD20 write cache
     void flush_if_idle();
 
-    // Archive-backed mount details, for the web UI and /sitdownload
-    bool has_sit_source() { return _sit != nullptr; }
-    const char *sit_inner_filename() { return (_sit != nullptr) ? _sit->inner_filename : ""; }
-    uint32_t sit_image_len() { return (_sit != nullptr) ? _sit->image_len : 0; }
-    const uint8_t *sit_image_data() { return (_sit != nullptr) ? _sit->image_buf : nullptr; }
-    const char *sit_archive_kind() { return (_sit != nullptr) ? _sit->archive_kind : ""; }
-    const char *sit_method_name() { return (_sit != nullptr) ? _sit->method_name : ""; }
-    bool sit_was_ndif() { return (_sit != nullptr) && _sit->was_ndif; }
 
     // What is actually loaded, as opposed to what the config names (web UI)
     bool is_loaded() { return _disk != nullptr; }
-    bool is_sector_image() { return _sector_image; }
+    // Which disk image of an archive the next mount takes (1-based, 0 = the
+    // first), and how many the mounted file holds
+    void set_archive_entry(int entry) { _archive_entry = entry; }
+    int image_count() { return _disk != nullptr ? _disk->image_count() : 0; }
+    bool is_sector_image() { return _disk != nullptr && _disk->accepts_sector_writes(); }
     int num_sides() { return _disk != nullptr ? _disk->num_sides : 0; }
     uint32_t size_in_blocks() { return _disk != nullptr ? _disk_size_in_blocks : 0; }
     // anything loaded in slots 1-4 is an HD20 by construction (see unmount())
-    const MediaTypeDCD *dcd_media() { return (_disk != nullptr && is_dcd_slot()) ? static_cast<MediaTypeDCD *>(_disk) : nullptr; }
+    const MediaTypeDCD *dcd_media() { return _disk != nullptr ? _disk->dcd() : nullptr; }
 
     // Activity totals for the web UI (HD20: blocks; floppy: tracks loaded, sectors written)
     volatile uint32_t act_reads = 0;
