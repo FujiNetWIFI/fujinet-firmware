@@ -1,6 +1,7 @@
 #if defined(ESP_PLATFORM) && defined(BUILD_ATARI)
 #include "cassetteFSK.h"
 #include "../../media/atari/casFSK.h"
+#include "../../media/atari/casFSKLoader.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -12,6 +13,7 @@
 #include <driver/rmt_tx.h>
 #include <driver/rmt_encoder.h>
 #include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <hal/rmt_ll.h>
 #include <soc/soc_caps.h>
 #include <soc/uart_periph.h>
@@ -32,6 +34,9 @@ static_assert(CASSETTE_FSK_RMT_MEM_SYMBOLS == SOC_RMT_CHANNELS_PER_GROUP * SOC_R
 // Linker-provided base of the RMT memory: word 0 of channel 0's block.
 extern "C" volatile uint32_t RMTMEM[];
 #endif
+
+// While the start gate waits, MOTOR is polled every this many RTOS ticks.
+#define CASSETTE_FSK_GATE_MOTOR_POLL_TICKS 10
 
 namespace
 {
@@ -55,86 +60,40 @@ struct HeapCapsFree
 };
 using PsramBuffer = std::unique_ptr<uint8_t[], HeapCapsFree>;
 
-// Per-transmission encoder progress: lives on cassette_fsk_play_run()'s
-// stack for the duration of one rmt_transmit(). Touched only by the ISR
-// refill callback below while the transmission is in flight, except for
-// stop_req, which the playing task sets (release) and the callback reads (acquire).
-struct CassetteFSKEncodeState
+// Per-transmission encoder state: lives on the caller's stack for the duration of one
+// rmt_transmit(). Touched only by the ISR refill callback below while the transmission is in
+// flight, except for stop_req, which the playing task sets (release) and the callback reads
+// (acquire); `underrun` is read once the transmission has ended.
+struct CassetteFSKEncode
 {
-    size_t   value_index     = 0;
-    uint32_t remaining_ticks = 0;
-    bool     level_high      = false;
-    uint32_t stop_req        = 0;
+    FSKEncodeState     state;
+    FSKPreloadedValues preloaded{nullptr, 0};
+    FSKPublishedValues published{nullptr};
+    bool               progressive = false;
+    volatile bool      underrun = false;
+    uint32_t           stop_req = 0;
 };
 
-// Pulls the next RMT duration/level portion from `payload`. Skips
-// zero-duration values (they still advance parity) without emitting a
-// portion for them. Returns false once every value has been consumed.
-bool IRAM_ATTR cassette_fsk_pull_portion(CassetteFSKEncodeState &st, const uint8_t *payload,
-                                          size_t value_count, uint32_t &out_ticks, bool &out_level)
-{
-    while (st.remaining_ticks == 0)
-    {
-        if (st.value_index >= value_count)
-            return false;
-        const uint16_t value = fsk_decode_le16(payload + st.value_index * 2);
-        st.remaining_ticks = fsk_ticks_for_value(value);
-        st.level_high = fsk_level_for_index(st.value_index);
-        st.value_index++;
-    }
-    out_ticks = fsk_next_portion(st.remaining_ticks);
-    st.remaining_ticks -= out_ticks;
-    out_level = st.level_high;
-    return true;
-}
-
-// Simple-encoder callback: generates RMT symbols on the fly from the
-// preloaded payload (`data`/`data_size`, as handed to rmt_transmit()).
-// Runs in ISR context (RMT ping-pong refill) — no file I/O, no malloc/free,
-// no logging, no locks, no virtual dispatch.
-size_t IRAM_ATTR cassette_fsk_encode_cb(const void *data, size_t data_size,
+// Simple-encoder callback: generates RMT symbols on the fly from the run's values (`data`/`data_size`,
+// as handed to rmt_transmit(), are not used). Runs in ISR context (RMT ping-pong refill) — no file
+// I/O, no malloc/free, no logging, no locks, no virtual dispatch.
+size_t IRAM_ATTR cassette_fsk_encode_cb(const void * /*data*/, size_t /*data_size*/,
                                          size_t /*symbols_written*/, size_t symbols_free,
                                          rmt_symbol_word_t *symbols, bool *done, void *arg)
 {
-    CassetteFSKEncodeState *st = static_cast<CassetteFSKEncodeState *>(arg);
-    if (__atomic_load_n(&st->stop_req, __ATOMIC_ACQUIRE))
+    CassetteFSKEncode *enc = static_cast<CassetteFSKEncode *>(arg);
+    if (__atomic_load_n(&enc->stop_req, __ATOMIC_ACQUIRE))
     {
-        *done = true; // no more symbols; leaves the payload untouched
+        *done = true; // no more symbols; leaves the values untouched
         return 0;
     }
-    const uint8_t *payload = static_cast<const uint8_t *>(data);
-    const size_t value_count = data_size / 2;
-    size_t num = 0;
-
-    while (num < symbols_free)
-    {
-        uint32_t d0 = 0, d1 = 0;
-        bool l0 = false, l1 = false;
-
-        if (!cassette_fsk_pull_portion(*st, payload, value_count, d0, l0))
-        {
-            *done = true;
-            break;
-        }
-        if (!cassette_fsk_pull_portion(*st, payload, value_count, d1, l1))
-        {
-            // Odd tail: one portion left. duration1 == 0 ends the symbol
-            // there without adding a spurious extra edge (same level held).
-            symbols[num].duration0 = static_cast<uint16_t>(d0);
-            symbols[num].level0 = l0;
-            symbols[num].duration1 = 0;
-            symbols[num].level1 = l0;
-            num++;
-            *done = true;
-            break;
-        }
-
-        symbols[num].duration0 = static_cast<uint16_t>(d0);
-        symbols[num].level0 = l0;
-        symbols[num].duration1 = static_cast<uint16_t>(d1);
-        symbols[num].level1 = l1;
-        num++;
-    }
+    FSKNext stop = FSKNext::end;
+    const size_t num = enc->progressive
+        ? fsk_fill_symbols(enc->state, enc->published, symbols, symbols_free, stop)
+        : fsk_fill_symbols(enc->state, enc->preloaded, symbols, symbols_free, stop);
+    if (stop == FSKNext::underrun)
+        enc->underrun = true;
+    *done = stop != FSKNext::value;
     return num;
 }
 
@@ -160,9 +119,9 @@ portMUX_TYPE s_fsk_abort_mux = portMUX_INITIALIZER_UNLOCKED;
 
 // MOTOR dropped while the transmission runs: no more refills, DATA IN back to idle MARK, and on the classic
 // ESP32 end the transmission now. The caller then waits for TX_DONE before touching the channel.
-void cassette_fsk_stop_tx(CassetteFSKEncodeState &st)
+void cassette_fsk_stop_tx(CassetteFSKEncode &enc)
 {
-    __atomic_store_n(&st.stop_req, 1u, __ATOMIC_RELEASE);
+    __atomic_store_n(&enc.stop_req, 1u, __ATOMIC_RELEASE);
     cassette_fsk_release_pin();
 
 #if !SOC_RMT_SUPPORT_TX_ASYNC_STOP
@@ -181,10 +140,106 @@ void cassette_fsk_stop_tx(CassetteFSKEncodeState &st)
 #endif
 }
 
-} // namespace
+// One-shot RMT channel for this run only, torn down before return. `data`/`data_bytes` are the
+// opaque payload rmt_transmit() requires; the encoder reads its values through `enc`.
+CassetteFSKStatus cassette_fsk_transmit(CassetteFSKEncode &enc, const void *data, size_t data_bytes,
+                                         CassetteFSKMotorDroppedFn motor_dropped, void *motor_ctx)
+{
+    cassette_fsk_take_pin();
 
-CassetteFSKPlayResult cassette_fsk_play_run(fnFile *file, size_t filesize, size_t header_offset,
-                                             CassetteFSKMotorDroppedFn motor_dropped, void *motor_ctx)
+    rmt_tx_channel_config_t tx_cfg = {};
+    tx_cfg.gpio_num = (gpio_num_t)PIN_UART2_TX;
+    tx_cfg.clk_src = RMT_CLK_SRC_DEFAULT;
+    tx_cfg.resolution_hz = CASSETTE_FSK_RMT_RESOLUTION_HZ;
+    tx_cfg.mem_block_symbols = CASSETTE_FSK_RMT_MEM_SYMBOLS;
+    tx_cfg.trans_queue_depth = 1;
+    tx_cfg.intr_priority = 0;
+    tx_cfg.flags.invert_out = false;
+    tx_cfg.flags.with_dma = false;
+    tx_cfg.flags.io_loop_back = false;
+    tx_cfg.flags.io_od_mode = false;
+    tx_cfg.flags.allow_pd = false;
+
+    rmt_channel_handle_t channel = nullptr;
+    if (rmt_new_tx_channel(&tx_cfg, &channel) != ESP_OK)
+    {
+        Debug_println("FSK: rmt_new_tx_channel failed");
+        cassette_fsk_release_pin();
+        return CassetteFSKStatus::allocation_failed;
+    }
+
+    rmt_simple_encoder_config_t simple_cfg = {};
+    simple_cfg.callback = cassette_fsk_encode_cb;
+    simple_cfg.arg = &enc;
+    simple_cfg.min_chunk_size = 0;
+
+    rmt_encoder_handle_t encoder = nullptr;
+    if (rmt_new_simple_encoder(&simple_cfg, &encoder) != ESP_OK)
+    {
+        Debug_println("FSK: rmt_new_simple_encoder failed");
+        rmt_del_channel(channel);
+        cassette_fsk_release_pin();
+        return CassetteFSKStatus::allocation_failed;
+    }
+
+    ESP_ERROR_CHECK(rmt_enable(channel));
+
+    rmt_transmit_config_t tx_transmit_cfg = {};
+    tx_transmit_cfg.loop_count = 0;
+    tx_transmit_cfg.flags.eot_level = 0;
+    tx_transmit_cfg.flags.queue_nonblocking = false;
+
+    const esp_err_t tx_err = rmt_transmit(channel, encoder, data, data_bytes, &tx_transmit_cfg);
+
+    bool dropped = false;
+    if (tx_err == ESP_OK)
+    {
+        esp_err_t wait_err;
+        while ((wait_err = rmt_tx_wait_all_done(channel, 100)) == ESP_ERR_TIMEOUT)
+        {
+            if (!dropped && motor_dropped(motor_ctx))
+            {
+                dropped = true;
+                cassette_fsk_stop_tx(enc);
+#if SOC_RMT_SUPPORT_TX_ASYNC_STOP
+                break; // rmt_disable() stops a running TX at once on these targets
+#endif
+            }
+        }
+#if !SOC_RMT_SUPPORT_TX_ASYNC_STOP
+        // rmt_disable() below needs TX_DONE to have run. For a valid handle the wait returns ESP_ERR_TIMEOUT while
+        // the transaction runs, ESP_OK once it is done, and ESP_ERR_INVALID_STATE if the finished transaction could
+        // not be recycled. Anything else is a bug: stop here, rather than disable a TX that may still be running
+        // or return with the RMT callback still pointing at this stack.
+        if (wait_err != ESP_OK && wait_err != ESP_ERR_INVALID_STATE)
+        {
+            Debug_printf("FSK: rmt_tx_wait_all_done: %s\n", esp_err_to_name(wait_err));
+            abort();
+        }
+#endif
+    }
+    else
+    {
+        Debug_printf("FSK: rmt_transmit error: %s\n", esp_err_to_name(tx_err));
+    }
+
+    rmt_disable(channel);
+    rmt_del_channel(channel);
+    rmt_del_encoder(encoder);
+    cassette_fsk_release_pin();
+
+    if (tx_err != ESP_OK)
+        return CassetteFSKStatus::transmit_failed;
+    if (dropped)
+        return CassetteFSKStatus::motor_dropped;
+    if (enc.underrun)
+        return CassetteFSKStatus::underrun;
+    return CassetteFSKStatus::ok;
+}
+
+CassetteFSKPlayResult cassette_fsk_play_preloaded(fnFile *file, size_t filesize, size_t header_offset,
+                                                   CassetteFSKMotorDroppedFn motor_dropped,
+                                                   void *motor_ctx)
 {
     CassetteFSKPlayResult result;
 
@@ -247,108 +302,99 @@ CassetteFSKPlayResult cassette_fsk_play_run(fnFile *file, size_t filesize, size_
     const uint64_t waveform_ms64 = waveform_ticks / 1000; // 1 tick == 1 us
     result.waveform_ms = waveform_ms64 > UINT32_MAX ? UINT32_MAX : static_cast<uint32_t>(waveform_ms64);
 
-    // ---- RMT: one-shot channel for this run only, torn down before return ----
-    cassette_fsk_take_pin();
-
-    rmt_tx_channel_config_t tx_cfg = {};
-    tx_cfg.gpio_num = (gpio_num_t)PIN_UART2_TX;
-    tx_cfg.clk_src = RMT_CLK_SRC_DEFAULT;
-    tx_cfg.resolution_hz = CASSETTE_FSK_RMT_RESOLUTION_HZ;
-    tx_cfg.mem_block_symbols = CASSETTE_FSK_RMT_MEM_SYMBOLS;
-    tx_cfg.trans_queue_depth = 1;
-    tx_cfg.intr_priority = 0;
-    tx_cfg.flags.invert_out = false;
-    tx_cfg.flags.with_dma = false;
-    tx_cfg.flags.io_loop_back = false;
-    tx_cfg.flags.io_od_mode = false;
-    tx_cfg.flags.allow_pd = false;
-
-    rmt_channel_handle_t channel = nullptr;
-    if (rmt_new_tx_channel(&tx_cfg, &channel) != ESP_OK)
-    {
-        Debug_println("FSK: rmt_new_tx_channel failed");
-        cassette_fsk_release_pin();
-        result.status = CassetteFSKStatus::allocation_failed;
-        return result;
-    }
-
-    CassetteFSKEncodeState encode_state;
-    rmt_simple_encoder_config_t simple_cfg = {};
-    simple_cfg.callback = cassette_fsk_encode_cb;
-    simple_cfg.arg = &encode_state;
-    simple_cfg.min_chunk_size = 0;
-
-    rmt_encoder_handle_t encoder = nullptr;
-    if (rmt_new_simple_encoder(&simple_cfg, &encoder) != ESP_OK)
-    {
-        Debug_println("FSK: rmt_new_simple_encoder failed");
-        rmt_del_channel(channel);
-        cassette_fsk_release_pin();
-        result.status = CassetteFSKStatus::allocation_failed;
-        return result;
-    }
-
-    ESP_ERROR_CHECK(rmt_enable(channel));
-
-    rmt_transmit_config_t tx_transmit_cfg = {};
-    tx_transmit_cfg.loop_count = 0;
-    tx_transmit_cfg.flags.eot_level = 0;
-    tx_transmit_cfg.flags.queue_nonblocking = false;
-
-    const esp_err_t tx_err = rmt_transmit(channel, encoder, payload.get(), run.payload_bytes,
-                                           &tx_transmit_cfg);
-
-    bool dropped = false;
-    if (tx_err == ESP_OK)
-    {
-        esp_err_t wait_err;
-        while ((wait_err = rmt_tx_wait_all_done(channel, 100)) == ESP_ERR_TIMEOUT)
-        {
-            if (!dropped && motor_dropped(motor_ctx))
-            {
-                dropped = true;
-                cassette_fsk_stop_tx(encode_state);
-#if SOC_RMT_SUPPORT_TX_ASYNC_STOP
-                break; // rmt_disable() stops a running TX at once on these targets
-#endif
-            }
-        }
-#if !SOC_RMT_SUPPORT_TX_ASYNC_STOP
-        // rmt_disable() below needs TX_DONE to have run. For a valid handle the wait returns ESP_ERR_TIMEOUT while
-        // the transaction runs, ESP_OK once it is done, and ESP_ERR_INVALID_STATE if the finished transaction could
-        // not be recycled. Anything else is a bug: stop here, rather than disable a TX that may still be running
-        // or return with the RMT callback still pointing at this stack.
-        if (wait_err != ESP_OK && wait_err != ESP_ERR_INVALID_STATE)
-        {
-            Debug_printf("FSK: rmt_tx_wait_all_done: %s\n", esp_err_to_name(wait_err));
-            abort();
-        }
-#endif
-    }
-    else
-    {
-        Debug_printf("FSK: rmt_transmit error: %s\n", esp_err_to_name(tx_err));
-    }
-
-    rmt_disable(channel);
-    rmt_del_channel(channel);
-    rmt_del_encoder(encoder);
-    cassette_fsk_release_pin();
-
-    if (tx_err != ESP_OK)
-    {
-        result.status = CassetteFSKStatus::transmit_failed;
-        return result;
-    }
-    if (dropped)
-    {
-        result.status = CassetteFSKStatus::motor_dropped;
-        return result;
-    }
-
-    result.status = CassetteFSKStatus::ok;
-    result.next_offset = run.next_offset;
+    CassetteFSKEncode enc;
+    enc.preloaded = FSKPreloadedValues{payload.get(), run.value_count};
+    result.status = cassette_fsk_transmit(enc, payload.get(), run.payload_bytes, motor_dropped, motor_ctx);
+    if (result.status == CassetteFSKStatus::ok)
+        result.next_offset = run.next_offset;
     return result;
+}
+
+enum class ProgressiveOutcome : uint8_t
+{
+    played,    // `result` says how the run went
+    fall_back, // the loader could not serve this run: use the basic path
+};
+
+// Waits for the start gate, then plays the run while the loader keeps filling it.
+ProgressiveOutcome cassette_fsk_stream_run(CassetteFSKLoader &loader,
+                                           CassetteFSKMotorDroppedFn motor_dropped, void *motor_ctx,
+                                           CassetteFSKPlayResult &result)
+{
+    const FSKProgressiveRun &run = loader.run();
+
+    unsigned ticks = 0;
+    for (;;)
+    {
+        const FSKStartGate gate = fsk_run_start_gate(run);
+        if (gate == FSKStartGate::ready)
+            break;
+        if (gate == FSKStartGate::failed)
+        {
+            // The loader gave up while we waited: resume it from its cursor if it may be, keep waiting.
+            if (fsk_run_state(run) == FSKLoaderState::failed &&
+                loader.restart() == CassetteFSKLoaderRestart::restarted)
+            {
+                vTaskDelay(1);
+                continue;
+            }
+            if (fsk_run_state(run) == FSKLoaderState::stopped)
+            {
+                result.status = CassetteFSKStatus::stopped;
+                return ProgressiveOutcome::played;
+            }
+            Debug_println("FSK: loader failed before the runway, preloading");
+            return ProgressiveOutcome::fall_back;
+        }
+        if (++ticks % CASSETTE_FSK_GATE_MOTOR_POLL_TICKS == 0 && motor_dropped(motor_ctx))
+        {
+            result.status = CassetteFSKStatus::motor_dropped;
+            return ProgressiveOutcome::played;
+        }
+        vTaskDelay(1);
+    }
+
+    CassetteFSKEncode enc;
+    enc.progressive = true;
+    enc.published = FSKPublishedValues{&run};
+    result.status = cassette_fsk_transmit(enc, run.blocks, run.block_capacity * sizeof(run.blocks[0]),
+                                           motor_dropped, motor_ctx);
+    if (result.status != CassetteFSKStatus::ok)
+        return ProgressiveOutcome::played;
+
+    // Finished by the encoder, which saw the run final: the producer's results are visible.
+    if (fsk_run_state(run) != FSKLoaderState::final_run)
+    {
+        result.status = CassetteFSKStatus::underrun;
+        return ProgressiveOutcome::played;
+    }
+    const uint64_t waveform_ms64 = run.total_ticks / 1000; // 1 tick == 1 us
+    result.waveform_ms = waveform_ms64 > UINT32_MAX ? UINT32_MAX : static_cast<uint32_t>(waveform_ms64);
+    result.next_offset = run.next_offset;
+    return ProgressiveOutcome::played;
+}
+
+} // namespace
+
+CassetteFSKPlayResult cassette_fsk_play_run(fnFile *file, size_t filesize, size_t header_offset,
+                                             uint16_t chunk_length,
+                                             CassetteFSKMotorDroppedFn motor_dropped, void *motor_ctx,
+                                             CassetteFSKLoader &loader)
+{
+    // The gap is not part of the structural check.
+    const FSKChunkHeader first = {{'f', 's', 'k', ' '}, chunk_length, 0};
+    if (fsk_check_chunk(first, header_offset, filesize) == FSKChunkCheck::ok &&
+        fsk_progressive_wanted(chunk_length) &&
+        loader.start(file, filesize, header_offset, chunk_length) == CassetteFSKLoaderStart::started)
+    {
+        CassetteFSKPlayResult result;
+        const ProgressiveOutcome outcome = cassette_fsk_stream_run(loader, motor_dropped, motor_ctx, result);
+        loader.release();
+        if (outcome == ProgressiveOutcome::played)
+            return result;
+    }
+
+    return cassette_fsk_play_preloaded(file, filesize, header_offset, motor_dropped, motor_ctx);
 }
 
 #endif // ESP_PLATFORM && BUILD_ATARI

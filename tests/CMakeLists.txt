@@ -400,6 +400,47 @@ target_include_directories(casfsk_tests PRIVATE
 add_test(NAME casfsk_tests COMMAND casfsk_tests)
 
 # ------------------------------------------------------------------------------
+# Progressive FSK loading: the value-to-symbol encoder (casFSK.h) and the loader
+# (lib/media/atari/casFSKLoader.h), driven over synthetic images.
+# ------------------------------------------------------------------------------
+find_package(Threads REQUIRED)
+
+add_executable(casfskloader_tests
+    CasFSKLoaderTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/atari/casFSK.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/atari/casFSKLoader.cpp
+)
+
+target_include_directories(casfskloader_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/include/         # global_types.h
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+
+target_link_libraries(casfskloader_tests PRIVATE Threads::Threads)
+
+add_test(NAME casfskloader_tests COMMAND casfskloader_tests)
+
+# ------------------------------------------------------------------------------
+# Reading a file that can lose its position (lib/device/sio/cassetteFSKRead.h),
+# alone and under the loader, over a fake cursor-based remote file.
+# ------------------------------------------------------------------------------
+add_executable(cassettefskread_tests
+    CassetteFSKReadTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/sio/cassetteFSKRead.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/atari/casFSK.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/atari/casFSKLoader.cpp
+)
+
+target_include_directories(cassettefskread_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/include/         # global_types.h
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+
+add_test(NAME cassettefskread_tests COMMAND cassettefskread_tests)
+
+# ------------------------------------------------------------------------------
 # lib/stuffit: unsit is a host CLI over the library. The sample tests compare
 # it against unar and ndif2raw; they need -DSIT_SAMPLES_DIR / -DNDIF2RAW_DIR
 # (or the same environment variables) and are skipped otherwise.
