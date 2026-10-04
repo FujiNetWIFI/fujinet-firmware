@@ -80,7 +80,8 @@ ByteBuffer AppKeyMixin::appkey_read()
     char *filename;
     FILE *fIn;
     size_t count;
-    ByteBuffer keydata(MAX_APPKEY_LEN, 0);
+    // Empty unless a key is read, so a missing one is not mistaken for zeros
+    ByteBuffer keydata;
 
     // Make sure we have an SD card mounted
     if (fnSDFAT.running() == false)
@@ -106,6 +107,7 @@ ByteBuffer AppKeyMixin::appkey_read()
         goto done;
     }
 
+    keydata.resize(MAX_APPKEY_LEN);
     count = fread(keydata.data(), 1, keydata.size(), fIn);
     keydata.resize(count);
     Debug_printf("Read %u bytes from input file\n", (unsigned)count);
