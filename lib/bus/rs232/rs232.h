@@ -13,6 +13,7 @@
 #include <freertos/queue.h>
 #endif /* ESP_PLATFORM */
 
+#include <atomic>
 #include <map>
 
 #define RS232_BAUDRATE 115200
@@ -112,6 +113,8 @@ private:
     size_t _activePacketDataPosition;
 
     int _command_frame_counter = 0;
+    std::atomic<unsigned> _packets_handled{0};
+    std::atomic<unsigned> _stray_bytes{0};
 
     virtualDevice *_activeDev = nullptr;
     rs232Modem *_modemDev = nullptr;
@@ -143,6 +146,12 @@ public:
     void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id) override;
 
     bool isBoIP() { return _port == &_boip; }
+    // For a service that borrows the port between commands.
+    IOChannel &port() { return *_port; }
+    // Well-formed packets dispatched so far, to tell a live host from noise.
+    unsigned packetsHandled() const { return _packets_handled; }
+    // Bytes that arrived outside any packet, e.g. a 9600-baud HotSync start.
+    unsigned strayBytes() const { return _stray_bytes; }
 
     int getBaudrate();                                          // Gets current RS232 baud rate setting
     void setBaudrate(int baud);                                 // Sets RS232 to specific baud rate

@@ -104,7 +104,10 @@ void systemBus::_rs232_process_cmd()
         packet.push_back(val);
     }
     if (packet.size())
+    {
+        _stray_bytes += packet.size();
         _modemDev->tx(packet);
+    }
     if (val < 0)
         return;
 
@@ -114,6 +117,8 @@ void systemBus::_rs232_process_cmd()
         Debug_printv("packet fail");
         return;
     }
+
+    ++_packets_handled;
 
     // Turn on the RS232 indicator LED
     fnLedManager.set(eLed::LED_BUS, true);
