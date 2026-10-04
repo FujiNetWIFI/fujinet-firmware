@@ -63,6 +63,7 @@ public:
 
     void closeOutput();
     FILE * closeOutputAndProvideReadHandle();
+    bool removeOutput();
 
     bool process(uint8_t linelen, uint8_t aux1, uint8_t aux2);
 

@@ -493,11 +493,8 @@ fnHttpApi::response h_printer_clear(const request &)
         return json_error("printer not available", 400);
 
     printer_emu *emu = printer->getPrinterPtr();
-    emu->closeOutput();
+    int remove_result = emu->removeOutput();
     printer->reset_printer();
-
-    // Try to remove the file (may fail on some filesystems)
-    int remove_result = fsFlash.remove("/paper");
     Debug_printf("Attempting to remove /paper, result: %d\n", remove_result);
 
     cJSON *resp = cJSON_CreateObject();
