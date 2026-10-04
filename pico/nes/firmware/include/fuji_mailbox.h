@@ -98,6 +98,8 @@
 #define FN_R_DIAG_RMW    0x413    /* count of RMW dummy writes dropped       */
 #define FN_R_MAPPER      0x414    /* mapper number of the live image, low byte */
 #define FN_R_LINK        0x415    /* 1 once the ESP32 link has been seen      */
+#define FN_R_BOOT_GOT0   0x416    /* image bytes received so far, 24-bit LE   */
+#define FN_R_BOOT_TOT0   0x419    /* image size declared at OPEN, 24-bit LE   */
 
 #define FN_R_PAINT_END   0x4FC    /* paint covers [FN_R_BASE, FN_R_PAINT_END) */
 

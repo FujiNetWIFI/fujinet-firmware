@@ -481,6 +481,12 @@ static void test_dbc_abort_and_toobig(void)
     assert(armed_calls == 0);
 }
 
+static uint32_t count24(unsigned base)
+{
+    return (uint32_t) window[base] | ((uint32_t) window[base + 1] << 8)
+         | ((uint32_t) window[base + 2] << 16);
+}
+
 /* A 128K image -- a UNROM game -- streams through in 512-byte chunks with
  * monotonic progress. */
 static void test_dbc_game_push(void)
@@ -492,6 +498,8 @@ static void test_dbc_game_push(void)
     fresh();
     dbc_open(0, GAME_SIZE);
     assert(window[FN_R_BOOT_STATE] == FN_BOOT_XFER);
+    assert(count24(FN_R_BOOT_TOT0) == GAME_SIZE);
+    assert(count24(FN_R_BOOT_GOT0) == 0);
     for (off = 0; off < GAME_SIZE; off += 512) {
         uint8_t chunk[512];
         unsigned i;
@@ -501,8 +509,10 @@ static void test_dbc_game_push(void)
         dbc_frame(CMD_NET_WRITE, chunk, sizeof chunk);
         assert(window[FN_R_BOOT_PCT] >= last_pct);
         last_pct = window[FN_R_BOOT_PCT];
+        assert(count24(FN_R_BOOT_GOT0) == off + sizeof chunk);
     }
     dbc_frame(CMD_NET_CLOSE, NULL, 0);
+    assert(count24(FN_R_BOOT_GOT0) == GAME_SIZE);
     assert(pushed.len == GAME_SIZE);
     assert(store[0] == 0 && store[GAME_SIZE - 1]
            == (uint8_t)(((GAME_SIZE - 512) >> 12) + 511));
@@ -542,6 +552,7 @@ static void test_dbc_stream1_isolation(void)
     assert(window[FN_R_BOOT_STATE] == FN_BOOT_IDLE);
     dbc_frame(CMD_NET_WRITE, cfg, sizeof cfg);
     assert(window[FN_R_BOOT_PCT] == 0);
+    assert(count24(FN_R_BOOT_GOT0) == 0 && count24(FN_R_BOOT_TOT0) == 0);
     dbc_frame(CMD_NET_CLOSE, NULL, 0);
     assert(pushed.stream == 1);
     assert(window[FN_R_BOOT_STATE] == FN_BOOT_IDLE);
@@ -558,6 +569,29 @@ static void test_dbc_stream1_isolation(void)
     assert(window[FN_R_BOOT_PCT] == 100);
     reg_write(FN_REG_BOOTLOCK, FN_BOOTLOCK_MAGIC);
     assert(armed_calls == 1);
+}
+
+/* A new MOUNT_IMAGE starts the boot registers over, so a verdict left by an
+ * earlier attempt is never mistaken for this one's. */
+static void test_mount_resets_boot(void)
+{
+    static const uint8_t junk[100] = { 1, 2, 3 };
+    uint8_t abortbyte = 0x01;
+
+    fresh();
+    dbc_open(0, 100);
+    dbc_frame(CMD_NET_WRITE, junk, 50);
+    dbc_frame(CMD_NET_CLOSE, &abortbyte, 1);
+    assert(window[FN_R_BOOT_STATE] == FN_BOOT_FAILED);
+    assert(count24(FN_R_BOOT_GOT0) == 50 && count24(FN_R_BOOT_TOT0) == 100);
+
+    run_txn(1, FUJI_DEVICEID_FUJINET, CMD_FUJI_MOUNT_IMAGE);
+    assert(window[FN_R_ACKSEQ] == 1);
+    assert(window[FN_R_BOOT_STATE] == FN_BOOT_IDLE);
+    assert(window[FN_R_BOOT_ERR] == 0 && window[FN_R_BOOT_PCT] == 0);
+    assert(count24(FN_R_BOOT_GOT0) == 0 && count24(FN_R_BOOT_TOT0) == 0);
+    reg_write(FN_REG_BOOTLOCK, FN_BOOTLOCK_MAGIC);
+    assert(armed_calls == 0);
 }
 
 static void test_error_path(void)
@@ -584,6 +618,7 @@ int main(void)
     test_dbc_game_push();
     test_dbc_close_nomap();
     test_dbc_stream1_isolation();
+    test_mount_resets_boot();
     test_error_path();
     printf("test_fujimail: all tests passed\n");
     return 0;

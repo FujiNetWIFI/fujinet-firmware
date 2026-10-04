@@ -34,6 +34,21 @@ static void poke(unsigned offset, uint8_t v)
     port->poke(offset, v);
 }
 
+/* The ROM stream's byte counts, for a client that shows more than a bar.
+ * Low byte first: a reader racing a write can see a torn value, so it reads
+ * twice and keeps a matching pair. */
+static void poke_count(unsigned base, uint32_t v)
+{
+#ifdef FN_R_BOOT_GOT0
+    poke(base, (uint8_t) v);
+    poke(base + 1, (uint8_t) (v >> 8));
+    poke(base + 2, (uint8_t) (v >> 16));
+#else
+    (void) base;
+    (void) v;
+#endif
+}
+
 void fujimail_init(const fujimail_port_t *p)
 {
     port = p;
@@ -128,6 +143,8 @@ bool fujimail_inbound(const fb_reply_t *req)
             poke(FN_R_BOOT_STATE, FN_BOOT_XFER);
             poke(FN_R_BOOT_PCT, 0);
             poke(FN_R_BOOT_ERR, 0);
+            poke_count(FN_R_BOOT_GOT0, 0);
+            poke_count(FN_R_BOOT_TOT0, stage_expect);
         }
         port->send_bare(FUJI_DEVICEID_DBC, CMD_FUJI_ACK, NULL, 0);
         return true;
@@ -137,9 +154,11 @@ bool fujimail_inbound(const fb_reply_t *req)
         if (dbc_stream >= 0) {
             port->stream_write(dbc_stream, req->data, req->data_len);
             stream_got += req->data_len;
-            if (dbc_stream == 0 && stage_expect)
+            if (dbc_stream == 0 && stage_expect) {
                 poke(FN_R_BOOT_PCT,
                      (uint8_t)((stream_got * 100u) / stage_expect));
+                poke_count(FN_R_BOOT_GOT0, stream_got);
+            }
         }
         port->send_bare(FUJI_DEVICEID_DBC, CMD_FUJI_ACK, NULL, 0);
         return true;
@@ -173,6 +192,7 @@ bool fujimail_inbound(const fb_reply_t *req)
             } else {
                 boot_ready = true;
                 poke(FN_R_BOOT_PCT, 100);
+                poke_count(FN_R_BOOT_GOT0, stream_got);
                 poke(FN_R_BOOT_STATE, FN_BOOT_READY);
             }
         }
@@ -215,6 +235,18 @@ static void run_transaction(uint8_t seq)
          * so a single "no link" answer here would be permanent. */
         if (port->wait_link_ms && !port->link_up())
             port->wait_link_ms(LINK_WAIT_MS);
+
+        /* A mount starts the boot registers over: a FAILED or READY left by
+         * an earlier attempt must not be read as this one's verdict, whether
+         * the FujiNet pushes the image before or after it replies. */
+        if (mb_cmd == CMD_FUJI_MOUNT_IMAGE) {
+            boot_ready = false;
+            poke(FN_R_BOOT_STATE, FN_BOOT_IDLE);
+            poke(FN_R_BOOT_PCT, 0);
+            poke(FN_R_BOOT_ERR, 0);
+            poke_count(FN_R_BOOT_GOT0, 0);
+            poke_count(FN_R_BOOT_TOT0, 0);
+        }
 
         /* COPY_FILE gets the mount budget too: its ACK arrives only when the
          * host-side copy finishes, which for a big file over TNFS is far
