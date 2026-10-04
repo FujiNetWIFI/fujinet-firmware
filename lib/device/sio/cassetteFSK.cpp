@@ -3,6 +3,7 @@
 #include "../../media/atari/casFSK.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <memory>
 
 #include <esp_heap_caps.h>
@@ -10,6 +11,9 @@
 #include <driver/gpio.h>
 #include <driver/rmt_tx.h>
 #include <driver/rmt_encoder.h>
+#include <freertos/FreeRTOS.h>
+#include <hal/rmt_ll.h>
+#include <soc/soc_caps.h>
 #include <soc/uart_periph.h>
 
 #include "../../include/debug.h"
@@ -18,6 +22,16 @@
 
 // RMT clock for FSK playback: 1 MHz, so 1 tick == 1 us == fsk_next_portion's unit.
 #define CASSETTE_FSK_RMT_RESOLUTION_HZ 1000000
+
+// Symbols of RMT memory the FSK channel asks for: all of it on the classic ESP32 (8 blocks of 64).
+#define CASSETTE_FSK_RMT_MEM_SYMBOLS (64 * 8)
+
+#if !SOC_RMT_SUPPORT_TX_ASYNC_STOP
+static_assert(CASSETTE_FSK_RMT_MEM_SYMBOLS == SOC_RMT_CHANNELS_PER_GROUP * SOC_RMT_MEM_WORDS_PER_CHANNEL,
+              "the FSK channel must own all RMT memory: the TX abort below assumes it is channel 0");
+// Linker-provided base of the RMT memory: word 0 of channel 0's block.
+extern "C" volatile uint32_t RMTMEM[];
+#endif
 
 namespace
 {
@@ -43,12 +57,14 @@ using PsramBuffer = std::unique_ptr<uint8_t[], HeapCapsFree>;
 
 // Per-transmission encoder progress: lives on cassette_fsk_play_run()'s
 // stack for the duration of one rmt_transmit(). Touched only by the ISR
-// refill callback below while the transmission is in flight.
+// refill callback below while the transmission is in flight, except for
+// stop_req, which the playing task sets (release) and the callback reads (acquire).
 struct CassetteFSKEncodeState
 {
     size_t   value_index     = 0;
     uint32_t remaining_ticks = 0;
     bool     level_high      = false;
+    uint32_t stop_req        = 0;
 };
 
 // Pulls the next RMT duration/level portion from `payload`. Skips
@@ -81,6 +97,11 @@ size_t IRAM_ATTR cassette_fsk_encode_cb(const void *data, size_t data_size,
                                          rmt_symbol_word_t *symbols, bool *done, void *arg)
 {
     CassetteFSKEncodeState *st = static_cast<CassetteFSKEncodeState *>(arg);
+    if (__atomic_load_n(&st->stop_req, __ATOMIC_ACQUIRE))
+    {
+        *done = true; // no more symbols; leaves the payload untouched
+        return 0;
+    }
     const uint8_t *payload = static_cast<const uint8_t *>(data);
     const size_t value_count = data_size / 2;
     size_t num = 0;
@@ -131,6 +152,33 @@ void cassette_fsk_release_pin()
 {
     esp_rom_gpio_connect_out_signal(PIN_UART2_TX,
         uart_periph_signal[2].pins[SOC_UART_TX_PIN_IDX].signal, false, false);
+}
+
+#if !SOC_RMT_SUPPORT_TX_ASYNC_STOP
+portMUX_TYPE s_fsk_abort_mux = portMUX_INITIALIZER_UNLOCKED;
+#endif
+
+// MOTOR dropped while the transmission runs: no more refills, DATA IN back to idle MARK, and on the classic
+// ESP32 end the transmission now. The caller then waits for TX_DONE before touching the channel.
+void cassette_fsk_stop_tx(CassetteFSKEncodeState &st)
+{
+    __atomic_store_n(&st.stop_req, 1u, __ATOMIC_RELEASE);
+    cassette_fsk_release_pin();
+
+#if !SOC_RMT_SUPPORT_TX_ASYNC_STOP
+    // rmt_disable() on a running TX busy-waits inside a critical section on the classic ESP32 (no async stop),
+    // for as long as the queued waveform lasts: past the interrupt watchdog. End the TX the way the legacy
+    // rmt_tx_stop() does instead: EOF into word 0, read pointer back to it. The driver only hands out a channel
+    // with all the blocks as channel 0, and only if no other channel exists, so this touches nothing else; the
+    // register check guards against a changed configuration (then the stop flag lets the TX drain).
+    if (rmt_ll_tx_get_mem_blocks(&RMT, 0) == SOC_RMT_CHANNELS_PER_GROUP)
+    {
+        portENTER_CRITICAL(&s_fsk_abort_mux);
+        RMTMEM[0] = 0;
+        rmt_ll_tx_reset_pointer(&RMT, 0);
+        portEXIT_CRITICAL(&s_fsk_abort_mux);
+    }
+#endif
 }
 
 } // namespace
@@ -206,7 +254,7 @@ CassetteFSKPlayResult cassette_fsk_play_run(fnFile *file, size_t filesize, size_
     tx_cfg.gpio_num = (gpio_num_t)PIN_UART2_TX;
     tx_cfg.clk_src = RMT_CLK_SRC_DEFAULT;
     tx_cfg.resolution_hz = CASSETTE_FSK_RMT_RESOLUTION_HZ;
-    tx_cfg.mem_block_symbols = 64 * 8;
+    tx_cfg.mem_block_symbols = CASSETTE_FSK_RMT_MEM_SYMBOLS;
     tx_cfg.trans_queue_depth = 1;
     tx_cfg.intr_priority = 0;
     tx_cfg.flags.invert_out = false;
@@ -253,14 +301,29 @@ CassetteFSKPlayResult cassette_fsk_play_run(fnFile *file, size_t filesize, size_
     bool dropped = false;
     if (tx_err == ESP_OK)
     {
-        while (rmt_tx_wait_all_done(channel, 100) == ESP_ERR_TIMEOUT)
+        esp_err_t wait_err;
+        while ((wait_err = rmt_tx_wait_all_done(channel, 100)) == ESP_ERR_TIMEOUT)
         {
-            if (motor_dropped(motor_ctx))
+            if (!dropped && motor_dropped(motor_ctx))
             {
                 dropped = true;
-                break;
+                cassette_fsk_stop_tx(encode_state);
+#if SOC_RMT_SUPPORT_TX_ASYNC_STOP
+                break; // rmt_disable() stops a running TX at once on these targets
+#endif
             }
         }
+#if !SOC_RMT_SUPPORT_TX_ASYNC_STOP
+        // rmt_disable() below needs TX_DONE to have run. For a valid handle the wait returns ESP_ERR_TIMEOUT while
+        // the transaction runs, ESP_OK once it is done, and ESP_ERR_INVALID_STATE if the finished transaction could
+        // not be recycled. Anything else is a bug: stop here, rather than disable a TX that may still be running
+        // or return with the RMT callback still pointing at this stack.
+        if (wait_err != ESP_OK && wait_err != ESP_ERR_INVALID_STATE)
+        {
+            Debug_printf("FSK: rmt_tx_wait_all_done: %s\n", esp_err_to_name(wait_err));
+            abort();
+        }
+#endif
     }
     else
     {
