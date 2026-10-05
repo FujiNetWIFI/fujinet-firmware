@@ -235,6 +235,14 @@ void systemBus::setup()
                       .baud(Config.get_serial_baud())
                       .readTimeout(200)
                       .deviceID(SERIAL_DEVICE)
+#ifdef ESP_PLATFORM
+                      .rtsPin(PIN_RS232_RTS)
+                      .ctsPin(PIN_RS232_CTS)
+                      .dtrPin(PIN_RS232_DTR)
+                      .dsrPin(PIN_RS232_DSR)
+                      .dcdPin(PIN_RS232_DCD)
+                      .riPin(PIN_RS232_RI)
+#endif /* ESP_PLATFORM */
                       );
 #endif /* FUJINET_OVER_USB */
         _port = &_serial;

@@ -45,38 +45,7 @@ struct ChannelConfig
     double discard_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
     unsigned rx_threshold = 0;
     unsigned tx_buffer_size = 0; // 0 = blocking TX; >FIFO enables ISR-fed ring (no underrun under task starvation)
-    RS232ControlPins pins = {
-#ifdef PIN_RS232_RTS
-        .rts = PIN_RS232_RTS,
-#else /* ! PIN_RS232_RTS */
-        .rts = -1,
-#endif /* PIN_RS232_RTS */
-#ifdef PIN_RS232_CTS
-        .cts = PIN_RS232_CTS,
-#else /* ! PIN_RS232_CTS */
-        .cts = -1,
-#endif /* PIN_RS232_CTS */
-#ifdef PIN_RS232_DTR
-        .dtr = PIN_RS232_DTR,
-#else /* ! PIN_RS232_DTR */
-        .dtr = -1,
-#endif /* PIN_RS232_DTR */
-#ifdef PIN_RS232_DSR
-        .dsr = PIN_RS232_DSR,
-#else /* ! PIN_RS232_DSR */
-        .dsr = -1,
-#endif /* PIN_RS232_DSR */
-#ifdef PIN_RS232_DCD
-        .dcd = PIN_RS232_DCD,
-#else /* ! PIN_RS232_DCD */
-        .dcd = -1,
-#endif /* PIN_RS232_DCD */
-#ifdef PIN_RS232_RI
-        .ri = PIN_RS232_RI,
-#else /* ! PIN_RS232_RI */
-        .ri = -1,
-#endif /* PIN_RS232_RI */
-    };
+    RS232ControlPins pins = {-1, -1, -1, -1, -1, -1, -1, -1};
 
     ChannelConfig& baud(int baud) {
         uart_config.baud_rate = baud; return *this;
@@ -142,7 +111,7 @@ struct ChannelConfig
     ChannelConfig& dcdPin(int num) {
         pins.dcd = num; return *this;
     }
-    ChannelConfig& ri(int num) {
+    ChannelConfig& riPin(int num) {
         pins.ri = num; return *this;
     }
 };
