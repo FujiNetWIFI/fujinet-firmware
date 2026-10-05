@@ -14,6 +14,7 @@
 
 #include "status_error_codes.h"
 #include "fnDNS.h"
+#include "utils.h"
 
 #include <vector>
 
