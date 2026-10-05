@@ -343,6 +343,8 @@ fujiError_t NetworkProtocolFS::write_file(unsigned short len)
         return FUJI_ERROR::UNSPECIFIED;
 
     transmitBuffer->erase(0, len);
+    // resolve() can leave the error of a failed lookup, e.g. for a new file.
+    error = NDEV_STATUS::SUCCESS;
     return FUJI_ERROR::NONE;
 }
 
@@ -380,7 +382,7 @@ fujiError_t NetworkProtocolFS::status_file(NetworkStatus *status)
 
     status->connected = remaining > 0 ? 1 : 0;
     if (was_write)
-        status->error = NDEV_STATUS::SUCCESS;
+        status->error = error;
     else
         status->error = remaining > 0 ? error : NDEV_STATUS::END_OF_FILE;
 
