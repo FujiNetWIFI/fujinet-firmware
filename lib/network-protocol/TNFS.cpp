@@ -210,7 +210,9 @@ fujiError_t NetworkProtocolTNFS::write_file_handle(uint8_t *buf, unsigned short 
 
         if ((tnfs_error = tnfs_write(&mountInfo, fd, buf, block_len, &actual_len)) != 0)
         {
+            // The transaction has already retried; sending the block again never ends.
             fserror_to_error();
+            return FUJI_ERROR::UNSPECIFIED;
         }
         else
         {
