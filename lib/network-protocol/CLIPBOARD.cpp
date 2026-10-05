@@ -276,8 +276,9 @@ fujiError_t NetworkProtocolClipboard::status(NetworkStatus *status)
 
     status->connected = remaining > 0 ? 1 : 0;
 
+    // open(), read() and write() all set error, so it is SUCCESS unless the last one was refused
     if (was_write || !readable)
-        status->error = NDEV_STATUS::SUCCESS;
+        status->error = error;
     else
         status->error = remaining > 0 ? error : NDEV_STATUS::END_OF_FILE;
 
