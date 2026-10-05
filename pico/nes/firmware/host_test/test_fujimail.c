@@ -594,6 +594,28 @@ static void test_mount_resets_boot(void)
     assert(armed_calls == 0);
 }
 
+/* A network OPEN or CLOSE may run as long as the protocol's connect or
+ * commit (GCAL:// fetches every calendar before it acknowledges an open);
+ * everything else keeps the ordinary window. */
+static void test_timeouts(void)
+{
+    fresh();
+    run_txn(1, 0x71, CMD_NET_OPEN);
+    assert(txn.timeout_ms == 90000);
+    run_txn(2, 0x78, CMD_NET_CLOSE);
+    assert(txn.timeout_ms == 90000);
+    run_txn(3, 0x71, 0x52);                     /* READ */
+    assert(txn.timeout_ms == 5000);
+    run_txn(4, 0x71, 0x53);                     /* STATUS */
+    assert(txn.timeout_ms == 5000);
+    run_txn(5, FUJI_DEVICEID_FUJINET, CMD_NET_CLOSE);  /* not a net device */
+    assert(txn.timeout_ms == 5000);
+    run_txn(6, FUJI_DEVICEID_FUJINET, CMD_FUJI_MOUNT_IMAGE);
+    assert(txn.timeout_ms == 60000);
+    run_txn(7, FUJI_DEVICEID_FUJINET, CMD_FUJI_COPY_FILE);
+    assert(txn.timeout_ms == 60000);
+}
+
 static void test_error_path(void)
 {
     fresh();
@@ -620,6 +642,7 @@ int main(void)
     test_dbc_stream1_isolation();
     test_mount_resets_boot();
     test_error_path();
+    test_timeouts();
     printf("test_fujimail: all tests passed\n");
     return 0;
 }

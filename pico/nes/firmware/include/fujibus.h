@@ -14,6 +14,11 @@
 
 #define FUJI_DEVICEID_FUJINET 0x70
 
+// The network devices N1..N8 (FUJI_DEVICEID_NETWORK..NETWORK_LAST in the main
+// tree's include/fujiDeviceID.h).
+#define FUJI_DEVICEID_NET_FIRST 0x71
+#define FUJI_DEVICEID_NET_LAST  0x78
+
 // FUJI_DEVICEID_DBC: the ESP32-S3 addresses this device, not us, when it
 // pushes a ROM (and an optional .cfg sibling) to the RP2040 mid-
 // MOUNT_IMAGE-transaction -- see the inbound-frame demux in

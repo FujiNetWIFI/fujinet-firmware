@@ -5,6 +5,7 @@
 
 #define TIMEOUT_MS        5000
 #define TIMEOUT_MOUNT_MS 60000
+#define TIMEOUT_NET_MS   90000
 #define LINK_WAIT_MS      3000
 
 static const fujimail_port_t *port;
@@ -206,6 +207,25 @@ bool fujimail_inbound(const fb_reply_t *req)
 
 /* ---- the transaction ---- */
 
+/* How long the FujiNet may take to answer this request. A network device's
+ * OPEN does the protocol's whole connect before it acknowledges -- for
+ * GCAL:// that is an OAuth refresh, the calendar list and an HTTPS fetch per
+ * calendar -- and a write channel's CLOSE is the commit (a POST or PATCH).
+ * Both routinely outlast the ordinary window, and a reply that arrives after
+ * the window has closed would be taken as the answer to the next request.
+ * COPY_FILE gets the mount budget: its ACK arrives only when the host-side
+ * copy finishes, which for a big file over TNFS is far past the ordinary
+ * window. */
+static uint32_t txn_timeout(uint8_t device, uint8_t cmd)
+{
+    if (cmd == CMD_FUJI_MOUNT_IMAGE || cmd == CMD_FUJI_COPY_FILE)
+        return TIMEOUT_MOUNT_MS;
+    if (device >= FUJI_DEVICEID_NET_FIRST && device <= FUJI_DEVICEID_NET_LAST
+        && (cmd == CMD_NET_OPEN || cmd == CMD_NET_CLOSE))
+        return TIMEOUT_NET_MS;
+    return TIMEOUT_MS;
+}
+
 static void run_transaction(uint8_t seq)
 {
     fb_param_t params[8];
@@ -248,15 +268,9 @@ static void run_transaction(uint8_t seq)
             poke_count(FN_R_BOOT_TOT0, 0);
         }
 
-        /* COPY_FILE gets the mount budget too: its ACK arrives only when the
-         * host-side copy finishes, which for a big file over TNFS is far
-         * past the ordinary window. */
         st = port->transact(mb_device, mb_cmd, params, nparam,
                             txbuf + p, (uint16_t)(txptr - p),
-                            (mb_cmd == CMD_FUJI_MOUNT_IMAGE
-                             || mb_cmd == CMD_FUJI_COPY_FILE) ? TIMEOUT_MOUNT_MS
-                                                              : TIMEOUT_MS,
-                            &reply);
+                            txn_timeout(mb_device, mb_cmd), &reply);
     }
 
     rxlen = 0;
