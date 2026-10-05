@@ -49,7 +49,12 @@ fujiError_t NetworkProtocolFS::open(PeoplesUrlParser *urlParser,
         return FUJI_ERROR::UNSPECIFIED;
 
     if (access == ACCESS_MODE::DIRECTORY || access == ACCESS_MODE::DIRECTORY_ALT)
-        return open_dir((dirFormat_t) translate);
+    {
+        fujiError_t err = open_dir((dirFormat_t) translate);
+        // dir listing already has native EOLs, don't translate
+        translation_mode = NETPROTO_TRANS::NONE;
+        return err;
+    }
 
     return open_file();
 }
