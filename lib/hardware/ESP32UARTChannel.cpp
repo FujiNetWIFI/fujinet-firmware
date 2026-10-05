@@ -68,47 +68,42 @@ void ESP32UARTChannel::begin(const ChannelConfig& conf)
     int uart_queue_size = 20;
     int intr_alloc_flags = ESP_INTR_FLAG_IRAM;
 
-    uart_driver_install(_uart_num, uart_buffer_size, conf.tx_buffer_size, uart_queue_size, &_uart_q,
-                        intr_alloc_flags);
+    uart_driver_install(_uart_num, uart_buffer_size, conf.tx_buffer_size,
+                        uart_queue_size, &_uart_q, intr_alloc_flags);
 
     _halfDuplex = conf.isHalfDuplex;
 
+    if (conf.rx_threshold)
+        setRXThreshold(conf.rx_threshold);
+
     // set RTS pin mode
-    if (controlPins.rts >= 0)
+    if (controlPins.rts != GPIO_NUM_NC)
         fnSystem.set_pin_mode(controlPins.rts, gpio_mode_t::GPIO_MODE_INPUT);
-    if (controlPins.cts >= 0)
+    if (controlPins.cts != GPIO_NUM_NC)
     {
         fnSystem.set_pin_mode(controlPins.cts, gpio_mode_t::GPIO_MODE_OUTPUT);
-        fnSystem.digital_write(controlPins.cts, DIGI_LOW);
-    }
-    if (controlPins.rts >= 0 && controlPins.cts >= 0)
-    {
-        uart_set_hw_flow_ctrl(_uart_num, UART_HW_FLOWCTRL_CTS_RTS, 0);
-        Debug_printv("RTS/CTS flow control enabled");
+        fnSystem.digital_write(controlPins.cts, DIGI_HIGH);
     }
 
-    if (controlPins.dtr >= 0)
+    if (controlPins.dtr != GPIO_NUM_NC)
         fnSystem.set_pin_mode(controlPins.dtr, gpio_mode_t::GPIO_MODE_INPUT);
-    if (controlPins.dsr >= 0)
+    if (controlPins.dsr != GPIO_NUM_NC)
     {
         fnSystem.set_pin_mode(controlPins.dsr, gpio_mode_t::GPIO_MODE_OUTPUT);
-        fnSystem.digital_write(controlPins.dsr, DIGI_LOW);
+        fnSystem.digital_write(controlPins.dsr, DIGI_HIGH);
     }
 
-    if (controlPins.dcd >= 0)
+    if (controlPins.dcd != GPIO_NUM_NC)
     {
         fnSystem.set_pin_mode(controlPins.dcd, gpio_mode_t::GPIO_MODE_OUTPUT);
         fnSystem.digital_write(controlPins.dcd, DIGI_HIGH);
     }
 
-    if (controlPins.ri >= 0)
+    if (controlPins.ri != GPIO_NUM_NC)
     {
         fnSystem.set_pin_mode(controlPins.ri, gpio_mode_t::GPIO_MODE_OUTPUT);
         fnSystem.digital_write(controlPins.ri, DIGI_HIGH);
     }
-
-    if (conf.rx_threshold)
-        setRXThreshold(conf.rx_threshold);
 
     return;
 }
@@ -231,7 +226,7 @@ bool ESP32UARTChannel::getPin(int pin)
 
 void ESP32UARTChannel::setPin(int pin, bool state)
 {
-    if (pin >= 0)
+    if (pin != GPIO_NUM_NC)
         fnSystem.digital_write(pin, !state);
     return;
 }
