@@ -373,7 +373,7 @@ fujiError_t NetworkProtocolFS::status_file(NetworkStatus *status)
     else {
         // Translation changes the length, so only translated bytes can be
         // counted. Without it available() is exact and needs no read-ahead.
-        if (translation_mode != NETPROTO_TRANS::NONE)
+        if (netproto_is_translation_enabled(translation_mode))
             NetworkProtocol::status(status);
         remaining = fileSize + receiveBuffer->length();
     }
