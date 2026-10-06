@@ -138,6 +138,13 @@ jobs:
         working-directory: pico/nes/firmware/host_test
         run: make
 
+      # The mapper engine against MAME's own sega8 handlers, the bus decode and
+      # 74HCT glue (no two drivers on D in any mode), the load sequence on a
+      # model of the board, the mailbox service and the FujiBus codec.
+      - name: Master System -- host tests
+        working-directory: pico/sms/firmware/host_test
+        run: make
+
   o2-console-client:
     name: "Odyssey 2 8048 client"
     runs-on: ubuntu-latest
@@ -399,6 +406,15 @@ jobs:
           sudo apt-get install -y cc65
           ./build.sh loader hello fujitest fujiboot
           ./build-cart.sh
+
+      # The resident CONFIG and the loader page come from firmware/baked/
+      # (z88dk is not on the runners); tools/checksram.py asserts core1's
+      # symbols are in SRAM.
+      - name: Master System cartridge (fujisms_rp2354b)
+        working-directory: pico/sms
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: ./build-cart.sh --baked
 
       # Drives the same [fujinet] pico_* keys the ESP32 build uses, so a
       # broken ini key, a missing ROM, or an uninitialized submodule fails
