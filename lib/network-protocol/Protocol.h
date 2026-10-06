@@ -28,7 +28,13 @@ typedef enum class NETPROTO_TRANS : uint8_t {
     LF       = 2,
     CRLF     = 3,
     PETSCII  = 4,
+    // Update netproto_is_translation_enabled() when adding a new mode
 } netProtoTranslation_t;
+
+inline bool netproto_is_translation_enabled(netProtoTranslation_t mode)
+{
+    return mode >= NETPROTO_TRANS::CR && mode <= NETPROTO_TRANS::PETSCII;
+}
 
 /**
  * @brief Translate a buffer coming from FujiNet towards the computer.

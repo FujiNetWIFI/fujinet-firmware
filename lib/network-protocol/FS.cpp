@@ -49,12 +49,7 @@ fujiError_t NetworkProtocolFS::open(PeoplesUrlParser *urlParser,
         return FUJI_ERROR::UNSPECIFIED;
 
     if (access == ACCESS_MODE::DIRECTORY || access == ACCESS_MODE::DIRECTORY_ALT)
-    {
-        fujiError_t err = open_dir((dirFormat_t) translate);
-        // dir listing already has native EOLs, don't translate
-        translation_mode = NETPROTO_TRANS::NONE;
-        return err;
-    }
+        return open_dir((dirFormat_t) translate);
 
     return open_file();
 }
@@ -378,7 +373,7 @@ fujiError_t NetworkProtocolFS::status_file(NetworkStatus *status)
     else {
         // Translation changes the length, so only translated bytes can be
         // counted. Without it available() is exact and needs no read-ahead.
-        if (translation_mode != NETPROTO_TRANS::NONE)
+        if (netproto_is_translation_enabled(translation_mode))
             NetworkProtocol::status(status);
         remaining = fileSize + receiveBuffer->length();
     }
