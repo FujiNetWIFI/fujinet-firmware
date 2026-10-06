@@ -161,6 +161,8 @@ bool NetworkProtocolSFTP::sshConnectAndAuth(PeoplesUrlParser *url)
     ssh_options_set(session, SSH_OPTIONS_PORT, &port);
 #ifdef ESP_PLATFORM // apc: access to private member!
     session->opts.config_processed = true;
+    // There is no home directory to derive ~/.ssh from, and ssh_connect() fails without one.
+    ssh_options_set(session, SSH_OPTIONS_SSH_DIR, SD_BASE_PATH "/.ssh");
 #endif
 
     if (ssh_connect(session) != SSH_OK)
