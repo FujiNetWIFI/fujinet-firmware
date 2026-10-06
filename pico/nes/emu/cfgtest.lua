@@ -1,6 +1,7 @@
 -- cfgtest.lua -- drive CONFIG with the joypad: open host slot 1, move the
 -- bar to CFG_FILE, boot it, and PASS once CFG_EXPECT is on screen (i.e. the
--- booted image is running out of the SRAM). FAIL on an E-status or timeout.
+-- booted image is running out of the SRAM). FAIL on a "?..." status (the
+-- Family BASIC-style "?MOUNT ERROR 8A") or timeout.
 --   CFG_FILE     entry to boot, paged to with Right if not on page 1 (default hello.bin)
 --   CFG_EXPECT   text the booted image shows (default "FUJINET NES"), or
 --                "image:<local path>" to byte-compare the PRG and CHR SRAMs
@@ -33,7 +34,13 @@ local function image_in_place()
   return true
 end
 -- cc65's conio hides the top overscan row: conio row N is nametable row N+1.
-local LIST_TOP, STATUS_ROW = 5 + 1, 23 + 1
+local LIST_TOP, STATUS_ROW = 5 + 1, 22 + 1
+
+-- Is row r the selection bar? CONFIG draws its menus in a frame (cols 1 and
+-- 30) and inverts only the text area inside, so look at col 3, not col 1.
+local function inverted(r)
+  return T.ppu_space():readv_u8(0x2000 + r * 32 + 3) >= 0x80
+end
 
 local pad = manager.machine.ioport.ports[":ctrl1:joypad:JOYPAD"]
 local function btn(name) return pad.fields["P1 " .. name] end
@@ -61,16 +68,16 @@ T.every_frame(function()
   if done then return end
   if T.now() > timeout then return fail("timeout at step " .. step) end
   local st = T.row(STATUS_ROW)
-  if st:match("^ E%u+%s+%x%x$") then return fail("CONFIG reported " .. st) end
+  if st:match("^%s*%?") then return fail("CONFIG reported " .. st) end
   if pump() then return end
 
   if step == 1 then
-    if T.find("SELECT A HOST") and T.inverted(LIST_TOP) then
+    if T.find("HOST SLOTS") and inverted(LIST_TOP) then
       print(string.format("%.2fs hosts up", T.now())); press("A"); step = 2
     end
   elseif step == 2 then
     -- a fresh page: the bar is back on the top row and that row changed
-    if T.row(3 + 1) == " /" and T.inverted(LIST_TOP) and T.row(LIST_TOP) ~= first then
+    if T.row(3 + 1):match("^%s*/$") and inverted(LIST_TOP) and T.row(LIST_TOP) ~= first then
       first = T.row(LIST_TOP)
       target = T.find(file)
       if target then
@@ -84,7 +91,7 @@ T.every_frame(function()
       end
     end
   elseif step == 3 then
-    if not T.inverted(target) then return fail("bar did not reach row " .. target) end
+    if not inverted(target) then return fail("bar did not reach row " .. target) end
     print(string.format("%.2fs bar on %s", T.now(), T.row(target)))
     press("A"); step = 4
   elseif step == 4 then
