@@ -169,7 +169,7 @@ fujiError_t NetworkProtocol::status(NetworkStatus *status)
     if (!was_write && receiveBuffer->length() == 0 && available() > 0)
     {
         size_t len = available();
-        if (translation_mode != NETPROTO_TRANS::NONE)
+        if (netproto_is_translation_enabled(translation_mode))
             len = std::min(len, translate_ahead_max);
         read(len);
     }
@@ -184,7 +184,7 @@ fujiError_t NetworkProtocol::status(NetworkStatus *status)
 void netproto_translate_to_computer(std::string &buf, netProtoTranslation_t mode,
                                     const std::string &native_eol)
 {
-    if (mode == NETPROTO_TRANS::NONE)
+    if (!netproto_is_translation_enabled(mode))
         return;
 
     if (mode == NETPROTO_TRANS::PETSCII)
@@ -211,7 +211,7 @@ void netproto_translate_to_computer(std::string &buf, netProtoTranslation_t mode
 void netproto_translate_from_computer(std::string &buf, netProtoTranslation_t mode,
                                       const std::string &native_eol)
 {
-    if (mode == NETPROTO_TRANS::NONE)
+    if (!netproto_is_translation_enabled(mode))
         return;
 
     if (mode == NETPROTO_TRANS::PETSCII)
