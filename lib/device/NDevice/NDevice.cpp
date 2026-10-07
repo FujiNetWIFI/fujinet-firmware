@@ -823,7 +823,6 @@ void NDevice::fujidev_http_set_channel_mode(const FUJI_COMMAND_PACKET &packet)
 
 void NDevice::fujidev_udp_get_remote(const FUJI_COMMAND_PACKET &packet)
 {
-#ifndef ESP_PLATFORM
     NetworkProtocolUDP *udp = dynamic_cast<NetworkProtocolUDP *>(_protocol.get());
     if (!udp)
     {
@@ -834,9 +833,6 @@ void NDevice::fujidev_udp_get_remote(const FUJI_COMMAND_PACKET &packet)
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     fujiError_t err = udp->get_remote(receiveBuffer->data(), SPECIAL_BUFFER_SIZE);
     SYSTEM_BUS.transaction_send((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, err != FUJI_ERROR::NONE);
-#else
-    SYSTEM_BUS.transaction_error();
-#endif
 }
 
 void NDevice::fujidev_udp_set_destination(const FUJI_COMMAND_PACKET &packet)

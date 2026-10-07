@@ -223,7 +223,6 @@ fujiError_t NetworkProtocolUDP::set_destination(const uint8_t *sp_buf, unsigned 
     return FUJI_ERROR::NONE; // no error.
 }
 
-#ifndef ESP_PLATFORM
 fujiError_t NetworkProtocolUDP::get_remote(void *sp_buf, unsigned short len)
 {
     char port_part[8];
@@ -235,7 +234,6 @@ fujiError_t NetworkProtocolUDP::get_remote(void *sp_buf, unsigned short len)
 
     return FUJI_ERROR::NONE; // no error.
 }
-#endif
 
 bool NetworkProtocolUDP::is_multicast()
 {

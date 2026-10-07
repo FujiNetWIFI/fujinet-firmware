@@ -55,14 +55,12 @@ public:
      */
     fujiError_t status(NetworkStatus *status) override;
 
-#ifndef ESP_PLATFORM
     /**
      * @brief Get remote address
      * @param sp_buf pointer to transmit special buffer.
      * @param len of special transmit buffer
      */
     fujiError_t get_remote(void *sp_buf, unsigned short len);
-#endif
 
     /**
      * @brief Set destination address
