@@ -68,6 +68,36 @@
 #define SFX_MAX_ADDR	0x60000
 #define SFX_MAX_OFFSET	(SFX_MAX_ADDR - SFX_MIN_ADDR)
 
+#if defined(ESP_PLATFORM) && defined(HAVE_LZMA_H)
+/*
+ * ESP32: the 7z handler decodes LZMA/LZMA2 via lzma_raw_decoder(), which
+ * allocates the (multi-MB) dictionary through the stream's allocator. The
+ * default malloc draws from internal RAM and can't satisfy it -> LZMA_MEM_ERROR.
+ * Route liblzma allocations to PSRAM, mirroring the .xz filter fix so 7z behaves
+ * the same. (Self-contained here to keep the per-file libarchive patch local.)
+ */
+#include <esp_heap_caps.h>
+static void *
+esp32_7z_lzma_alloc(void *opaque, size_t nmemb, size_t size)
+{
+	(void)opaque;
+	size_t total = nmemb * size;
+	void *p = heap_caps_malloc(total, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+	if (p == NULL)
+		p = malloc(total);
+	return p;
+}
+static void
+esp32_7z_lzma_free(void *opaque, void *ptr)
+{
+	(void)opaque;
+	free(ptr);
+}
+static lzma_allocator esp32_7z_lzma_allocator = {
+	esp32_7z_lzma_alloc, esp32_7z_lzma_free, NULL
+};
+#endif
+
 /*
  * PE format
  */
@@ -1499,6 +1529,10 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 
 		filters[fi].id = LZMA_VLI_UNKNOWN;
 		filters[fi].options = NULL;
+#if defined(ESP_PLATFORM)
+		/* Allocate the (multi-MB) dictionary from PSRAM, not internal RAM. */
+		zip->lzstream.allocator = &esp32_7z_lzma_allocator;
+#endif
 		r = lzma_raw_decoder(&(zip->lzstream), filters);
 		free(ff->options);
 		if (r != LZMA_OK) {

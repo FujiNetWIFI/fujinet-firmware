@@ -357,10 +357,20 @@ int ll_read(struct afp_volume * volume,
 		goto error;
 	}
 
+	/* Ask for bufsize, NOT size: buffer.maxsize is already clamped to the
+	 * server's rx_quantum just above, so requesting the caller's full size
+	 * tells the server to send more than the reply buffer can hold. The
+	 * reply then cannot be assembled and comes back as kFPMiscErr/kFPParamErr,
+	 * which this function reports as -EIO -- after the DSI wait times out, so
+	 * it presents as a read failing every ~10 s rather than immediately.
+	 * Reads at or below the quantum are unaffected, which is why 32-byte
+	 * directory entries and small files always worked and an 8 KB G64 track
+	 * read did not. A short read is correct here: callers loop
+	 * (MMediaStream::readContainer() among them). */
 	if (volume->server->using_version->av_number < 30)
-		rc=afp_read(volume, fp->forkid,offset,size,&buffer);
+		rc=afp_read(volume, fp->forkid,offset,bufsize,&buffer);
 	else
-		rc=afp_readext(volume, fp->forkid,offset,size,&buffer);
+		rc=afp_readext(volume, fp->forkid,offset,bufsize,&buffer);
 
 	if (ll_handle_unlocking(volume, fp->forkid,offset,size)) {
 		/* Somehow, we couldn't unlock the range. */

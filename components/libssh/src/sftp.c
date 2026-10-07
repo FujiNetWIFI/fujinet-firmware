@@ -54,19 +54,7 @@
 #include "libssh/misc.h"
 #include "libssh/bytearray.h"
 
-/* Vendored unmodified from upstream libssh 0.9.4. On ESP (newlib) uint32_t is
- * 'long unsigned int', so the log format strings below trip -Werror=format,
- * and isspace() is called with plain char (-Werror=char-subscripts). Suppress
- * just these two for this one file; the rest of the port keeps -Werror. */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat"
-#pragma GCC diagnostic ignored "-Wchar-subscripts"
-
 #ifdef WITH_SFTP
-
-/* Buffer size maximum is 256M */
-#define SFTP_PACKET_SIZE_MAX 0x10000000
-#define SFTP_BUFFER_SIZE_MAX 16384
 
 struct sftp_ext_struct {
   uint32_t count;

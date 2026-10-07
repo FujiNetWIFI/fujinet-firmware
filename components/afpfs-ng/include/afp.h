@@ -390,6 +390,19 @@ int server_still_valid(struct afp_server * server);
 struct afp_server * get_server_base(void);
 int afp_server_remove(struct afp_server * server);
 
+/* Serialises the global server list against the DSI event-loop thread.
+ * NOT recursive.  Never hold it across an operation that waits for that
+ * thread (afp_logout() with DSI_DO_WAIT, or any waiting dsi_send()), and
+ * never across dsi_recv() -- the socket is blocking. */
+void afp_server_list_lock(void);
+void afp_server_list_unlock(void);
+
+/* The event loop publishes the server it is about to read from so that
+ * afp_server_remove() waits instead of freeing it underneath.
+ * _set() requires the list lock held; _clear() takes it itself. */
+void afp_server_loop_set(struct afp_server * server);
+void afp_server_loop_clear(void);
+
 int afp_unmount_volume(struct afp_volume * volume);
 int afp_unmount_all_volumes(struct afp_server * server);
 

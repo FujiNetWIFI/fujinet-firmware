@@ -178,19 +178,85 @@ int afp_reply(unsigned short subcommand, struct afp_server * server, void * othe
 
 static struct afp_server * server_base=NULL;
 
-int server_still_valid(struct afp_server * server) 
-{
-	struct afp_server * s = server_base;
+/* The DSI event-loop thread walks this list while other threads connect and
+ * disconnect servers, so every traversal and every mutation is serialised by
+ * server_list_mutex.
+ *
+ * The lock alone is not enough, because the loop then goes on to use the
+ * server it found: dsi_recv() reads into server->incoming_buffer, which
+ * afp_server_remove() frees.  The loop therefore publishes the server it is
+ * about to use in server_in_loop (under the lock) and clears it when done,
+ * and afp_server_remove() waits for that to clear before unlinking.
+ *
+ * The loop must NOT simply hold the lock across dsi_recv().  The AFP socket
+ * is blocking -- nothing in this library sets O_NONBLOCK -- so a server that
+ * stops mid-message parks the loop inside read() indefinitely, and with the
+ * lock held that stalls every other AFP caller, including the console.  That
+ * was observed as a completely dead device.
+ *
+ * Two more rules:
+ *   - the mutex is NOT recursive, because pthread_cond_wait() only drops one
+ *     level of a recursive mutex;
+ *   - never hold it across anything that waits for the loop thread
+ *     (afp_logout() with DSI_DO_WAIT, or any waiting dsi_send()), or the loop
+ *     can never run to deliver the reply. */
+static pthread_mutex_t server_list_mutex;
+static pthread_cond_t  server_loop_cond;
+static pthread_once_t  server_list_once = PTHREAD_ONCE_INIT;
+static struct afp_server * server_in_loop = NULL;
 
-	for (;s;s=s->next)
-		if (s==server) return 1;
-	return 0;
+static void server_list_init(void)
+{
+	pthread_mutex_init(&server_list_mutex,NULL);
+	pthread_cond_init(&server_loop_cond,NULL);
+}
+
+void afp_server_list_lock(void)
+{
+	pthread_once(&server_list_once,server_list_init);
+	pthread_mutex_lock(&server_list_mutex);
+}
+
+void afp_server_list_unlock(void)
+{
+	pthread_mutex_unlock(&server_list_mutex);
+}
+
+/* Caller must already hold the list lock.  Marks the server the event loop is
+ * about to read from, so afp_server_remove() cannot free it underneath. */
+void afp_server_loop_set(struct afp_server * s)
+{
+	server_in_loop=s;
+}
+
+/* Called by the event loop with no lock held, once it has finished with the
+ * server it marked. */
+void afp_server_loop_clear(void)
+{
+	afp_server_list_lock();
+	server_in_loop=NULL;
+	pthread_cond_broadcast(&server_loop_cond);
+	afp_server_list_unlock();
+}
+
+int server_still_valid(struct afp_server * server)
+{
+	struct afp_server * s;
+	int valid=0;
+
+	afp_server_list_lock();
+	for (s=server_base;s;s=s->next)
+		if (s==server) { valid=1; break; }
+	afp_server_list_unlock();
+	return valid;
 }
 
 static void add_server(struct afp_server *newserver)
 {
+	afp_server_list_lock();
         newserver->next=server_base;
         server_base=newserver;
+	afp_server_list_unlock();
 }
 
 struct afp_server * get_server_base(void) 
@@ -198,42 +264,50 @@ struct afp_server * get_server_base(void)
 	return server_base;
 }
 
-struct afp_server * find_server_by_signature(char * signature) 
+struct afp_server * find_server_by_signature(char * signature)
 {
-	struct afp_server * s;
+	struct afp_server * s, * found=NULL;
 
-	for (s=get_server_base();s;s=s->next) {
+	afp_server_list_lock();
+	for (s=server_base;s;s=s->next) {
 		if (memcmp(s->signature,signature,AFP_SIGNATURE_LEN)==0) {
-			return s;
+			found=s;
+			break;
 		}
 	}
-	return NULL;
+	afp_server_list_unlock();
+	return found;
 }
 
-struct afp_server * find_server_by_name(char * name) 
+struct afp_server * find_server_by_name(char * name)
 {
-	struct afp_server * s;
-	for (s=get_server_base(); s; s=s->next) {
-		if (strcmp(s->server_name_utf8,name)==0) return s;
-		if (strcmp(s->server_name,name)==0) return s;
-	}
+	struct afp_server * s, * found=NULL;
 
-	return NULL;
+	afp_server_list_lock();
+	for (s=server_base; s; s=s->next) {
+		if (strcmp(s->server_name_utf8,name)==0) { found=s; break; }
+		if (strcmp(s->server_name,name)==0) { found=s; break; }
+	}
+	afp_server_list_unlock();
+	return found;
 }
 
 struct afp_server * find_server_by_address(struct addrinfo *address)
 {
-    struct afp_server *s;
+    struct afp_server *s, *found=NULL;
 
+	afp_server_list_lock();
 	for (s=server_base;s;s=s->next) {
         if (s->used_address != NULL && s->used_address->ai_addr != NULL &&
 			address != NULL && address->ai_addr != NULL &&
-			bcmp(&s->used_address->ai_addr, &address->ai_addr, 
+			bcmp(&s->used_address->ai_addr, &address->ai_addr,
 				sizeof(struct sockaddr))==0) {
-			return s;
+			found=s;
+			break;
 		}
 	}
-    return NULL;
+	afp_server_list_unlock();
+    return found;
 }
 
 int something_is_mounted(struct afp_server * server)
@@ -320,6 +394,11 @@ void afp_free_server(struct afp_server ** sp)
 	for (p=server->command_requests;p;) {
 		log_for_client(NULL,AFPFSD,LOG_NOTICE,"FSLeft in queue: %p, id: %d command: %d\n",                p,p->requestid,p->subcommand);
 		next=p->next;
+		/* Same rule as dsi_remove_from_request_queue(): on ESP-IDF these
+		 * two are heap objects in internal DRAM, and freeing the struct
+		 * alone leaks them. */
+		pthread_cond_destroy(&p->waiting_cond);
+		pthread_mutex_destroy(&p->waiting_mutex);
 		free(p);
 		p=next;
 	}
@@ -344,7 +423,7 @@ int afp_server_remove(struct afp_server *s)
 	struct afp_server *s2;
 
 
-	if (s==NULL) 
+	if (s==NULL)
 		goto out;
 
 	for (p=s->command_requests;p;p=p->next) {
@@ -354,9 +433,23 @@ int afp_server_remove(struct afp_server *s)
 		pthread_mutex_unlock(&p->waiting_mutex);
 	}
 
+	/* Unlink and free as one atomic step, so the event-loop thread can
+	 * never be walking the list while this server is being freed. */
+	afp_server_list_lock();
+
+	/* ...and wait out the loop if it is currently reading from this server.
+	 * shutdown() is what makes that bounded: the loop may be parked in a
+	 * blocking read() on a server that went quiet, and shutting the socket
+	 * down forces that read() to return so the loop can let go. */
+	while (server_in_loop==s) {
+		if (s->fd>=0) shutdown(s->fd,SHUT_RDWR);
+		pthread_cond_wait(&server_loop_cond,&server_list_mutex);
+	}
+
 	if (s==server_base) {
 		server_base=s->next;
 		afp_free_server(&s);
+		afp_server_list_unlock();
 		goto out;
 	}
 
@@ -364,9 +457,11 @@ int afp_server_remove(struct afp_server *s)
 		if (s==s2->next) {
 			s2->next=s->next;
 			afp_free_server(&s);
+			afp_server_list_unlock();
 			goto out;
 		}
 	}
+	afp_server_list_unlock();
 	return -1;
 out:
 	return 0;
@@ -618,6 +713,14 @@ int afp_connect_volume(struct afp_volume * volume, struct afp_server * server,
 
 	}
 	
+	/* Decide how the server's uid/gid map onto ours.  Upstream afpfs-ng
+	 * does this from its fuse mount path, which this library-only build
+	 * does not have, so volume->mapping stayed AFP_MAPPING_UNKNOWN and
+	 * translate_uidgid_to_client() failed for every path -- ll_getattr()
+	 * then returned -EIO, so isDirectory()/exists() failed on everything
+	 * while directory listing (which never translates) worked fine. */
+	afp_detect_mapping(volume);
+
 	volume->mounted=AFP_VOLUME_MOUNTED;
 
 	return 0;
