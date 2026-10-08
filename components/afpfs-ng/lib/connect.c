@@ -150,6 +150,7 @@ struct afp_server * afp_server_full_connect (void * priv, struct afp_connection_
 		memcpy(s->machine_type,machine_type,AFP_MACHINETYPE_LEN);
 		memcpy(s->icon,icon,AFP_SERVER_ICON_LEN);
 		s->rx_quantum=rx_quantum;
+		s->logged_in=1;
 	} else {
 		/* The probe is gone and s keeps its own list. */
 		freeaddrinfo(address);

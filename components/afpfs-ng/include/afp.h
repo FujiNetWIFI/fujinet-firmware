@@ -213,6 +213,8 @@ struct afp_server {
 	char signature[16];
 	unsigned short flags;
 	int connect_state;
+	/* Set once login has completed; only then may the login be shared. */
+	unsigned char logged_in;
 	enum server_type server_type;
 
 	/* This is the time we connected */

@@ -47,3 +47,9 @@ int afp_same_user(const char * a, const char * b)
 	if (b==NULL) b="";
 	return strcmp(a,b)==0;
 }
+
+int afp_login_reusable(int logged_in, const char * have_user,
+	const char * want_user)
+{
+	return logged_in && afp_same_user(have_user,want_user);
+}

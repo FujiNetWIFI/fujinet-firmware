@@ -265,11 +265,11 @@ struct afp_server * get_server_base(void)
 	return server_base;
 }
 
-/* A login serves only the user it was made for.  using_version is set at
- * login, so the status probe in afp_server_full_connect() never matches. */
+/* The status probe in afp_server_full_connect() never logs in, so it is
+ * never handed out. */
 static int server_reusable(struct afp_server * s, const char * username)
 {
-	return (s->using_version!=NULL) && afp_same_user(s->username,username);
+	return afp_login_reusable(s->logged_in,s->username,username);
 }
 
 struct afp_server * find_server_by_signature(char * signature,
@@ -305,7 +305,7 @@ struct afp_server * find_server_by_name(char * name)
 struct afp_server * find_server_by_address(struct addrinfo * address,
 	const char * username)
 {
-	struct afp_server * s, * found=NULL;
+    struct afp_server *s, *found=NULL;
 
 	afp_server_list_lock();
 	for (s=server_base;s;s=s->next) {
@@ -317,7 +317,7 @@ struct afp_server * find_server_by_address(struct addrinfo * address,
 		}
 	}
 	afp_server_list_unlock();
-	return found;
+    return found;
 }
 
 int something_is_mounted(struct afp_server * server)

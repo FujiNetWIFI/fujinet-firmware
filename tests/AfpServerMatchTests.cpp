@@ -147,3 +147,17 @@ TEST_CASE("user: NULL is the guest user")
     CHECK(afp_same_user("", "alice") == 0);
     CHECK(afp_same_user(nullptr, "alice") == 0);
 }
+
+TEST_CASE("login: shared only once it has completed, and only with its user")
+{
+    CHECK(afp_login_reusable(1, "alice", "alice") == 1);
+    CHECK(afp_login_reusable(0, "alice", "alice") == 0);
+    CHECK(afp_login_reusable(1, "alice", "bob") == 0);
+    CHECK(afp_login_reusable(1, "", nullptr) == 1);
+}
+
+TEST_CASE("login: a guest is never handed a server that has not logged in")
+{
+    CHECK(afp_login_reusable(0, "", "") == 0);
+    CHECK(afp_login_reusable(0, nullptr, nullptr) == 0);
+}
