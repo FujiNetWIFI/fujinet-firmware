@@ -48,10 +48,21 @@ fujiError_t NetworkProtocolFS::open(PeoplesUrlParser *urlParser,
     if (mount(urlParser) != FUJI_ERROR::NONE)
         return FUJI_ERROR::UNSPECIFIED;
 
+    fujiError_t err;
     if (access == ACCESS_MODE::DIRECTORY || access == ACCESS_MODE::DIRECTORY_ALT)
-        return open_dir((dirFormat_t) translate);
+        err = open_dir((dirFormat_t) translate);
+    else
+        err = open_file();
 
-    return open_file();
+    // A failed open is never closed: the caller just deletes the protocol.
+    if (err != FUJI_ERROR::NONE)
+    {
+        auto open_error = error;
+        umount();
+        error = open_error;
+    }
+
+    return err;
 }
 
 fujiError_t NetworkProtocolFS::open_file()
