@@ -65,7 +65,11 @@ struct afp_server * afp_server_full_connect (void * priv, struct afp_connection_
 	if ((address = afp_get_address(priv,req->url.servername, req->url.port)) == NULL)
 		goto error;
 
-	if ((s=find_server_by_address(address))) goto have_server;
+	if ((s=find_server_by_address(address,req->url.username))) {
+		/* s keeps its own list; this one was only for the lookup. */
+		freeaddrinfo(address);
+		goto have_server;
+	}
 
 	if ((tmpserver=afp_server_init(address))==NULL) goto error;
 
@@ -109,7 +113,7 @@ struct afp_server * afp_server_full_connect (void * priv, struct afp_connection_
 
 	afp_server_remove(tmpserver);
 
-	s=find_server_by_signature(signature);
+	s=find_server_by_signature(signature,req->url.username);
 
 	if (!s) {
 		s = afp_server_init(address);
@@ -146,7 +150,10 @@ struct afp_server * afp_server_full_connect (void * priv, struct afp_connection_
 		memcpy(s->machine_type,machine_type,AFP_MACHINETYPE_LEN);
 		memcpy(s->icon,icon,AFP_SERVER_ICON_LEN);
 		s->rx_quantum=rx_quantum;
-	} 
+	} else {
+		/* The probe is gone and s keeps its own list. */
+		freeaddrinfo(address);
+	}
 have_server:
 
 	/* Figure out if we're using netatalk */
