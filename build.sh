@@ -85,7 +85,7 @@ function show_help {
   echo "fujinet-firmware board setup options:"
   echo "   -s NAME  # Setup a new board from name, writes a new file 'platformio.local.ini'"
   echo "   -i FILE  # use FILE as INI instead of platformio-generated.ini"
-  echo "   -l FILE  # use FILE to use instead of 'platform.local.ini'"
+  echo "   -l FILE  # use FILE to use instead of 'platformio.local.ini'"
   echo ""
   echo "fujinet-pc (cmake) options:"
   echo "   -c       # run clean before build"
@@ -153,6 +153,7 @@ shift $((OPTIND - 1))
 #   - python3 can create venv - PlatformIO also needs this to install penv
 #   - if doing ESP32 build:
 #     - PlatformIO
+#     - for a companion-MCU board, what `build_pico.py --check` reports
 #   - not ESP32 build:
 #     - cmake
 
@@ -410,7 +411,7 @@ if [ -z "$SETUP_NEW_BOARD" ] ; then
   fi
   create_result=$?
 else
-  # this will create a clean platformio INI file, but honours the command line args
+  # this will create a clean platformio INI file, but honors the command line args
   if [ -e ${LOCAL_INI_VALUES_FILE} -a $ANSWER_YES -eq 0 ] ; then
     echo "WARNING! This will potentially overwrite any local changes in $LOCAL_INI_VALUES_FILE"
     echo -n "Do you want to proceed? (y|N) "
@@ -439,7 +440,7 @@ BUILD_BOARD=$(grep '^build_board = ' $INI_FILE | cut -d" " -f 3)
 if [ ${PICO_ONLY} -eq 1 ] ; then
   # Companion firmware only -- fast iteration without a full ESP-IDF build.
   # Placed after BUILD_BOARD/INI_FILE are settled so -s/-l/-i apply, and
-  # honours -e (build_pico.py falls back to build-platforms/ when the
+  # honors -e (build_pico.py falls back to build-platforms/ when the
   # generated ini names a different board). No-ops for a board with no
   # [fujinet] pico_src.
   PICO_ENV="${ENV_NAME:-$BUILD_BOARD}"
@@ -447,6 +448,11 @@ if [ ${PICO_ONLY} -eq 1 ] ; then
   echo "Building companion (pico) firmware only for board: $PICO_ENV"
   python3 "$SCRIPT_DIR/build_pico.py" "$PICO_ENV" --ini "$INI_FILE"
   exit $?
+fi
+
+# Companion-MCU prerequisites, checked before pio starts.
+if ! python3 "$SCRIPT_DIR/build_pico.py" "${ENV_NAME:-$BUILD_BOARD}" --ini "$INI_FILE" --check ; then
+  exit 1
 fi
 
 # $INI_FILE can have more than one section defining the same key (e.g. a

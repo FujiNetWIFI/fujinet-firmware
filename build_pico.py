@@ -1226,7 +1226,8 @@ def main(argv=None) -> int:
             return 0
 
         if args.check:
-            if cfg is not None:
+            skip = os.environ.get("FUJINET_SKIP_PICO", "").strip().lower() in TRUE_WORDS
+            if cfg is not None and not skip:
                 # A pico_repo source is cloned by the build, not by a check.
                 if not cfg.repo:
                     ensure_source(cfg)
