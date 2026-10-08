@@ -84,7 +84,7 @@ index 0000000..4095752
 +
 +#define FUJI_DEVICEID_DBC 0xFF
 +
-+#define RX_RAW_MAX 1088   /* must hold a SLIP-encoded 512-byte DBC push frame */
++#define RX_RAW_MAX (2 * (6 + 1024) + 2)   /* a SLIP-encoded 1K reply */
 +
 +static int fd = -1;
 +static int dbg = 0;

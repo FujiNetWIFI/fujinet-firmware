@@ -13,10 +13,9 @@
 #include "fujimail.h"
 #include "fuji_mailbox.h"
 
-/* Must hold a SLIP-encoded 512-byte DBC push frame; undersizing this
- * silently truncates every ROM push (the 1088 trap, paid for once on the
- * Intellivision). */
-#define RX_RAW_MAX 1088
+/* Must hold the largest SLIP-encoded frame: a 6-byte header plus a 1K reply
+ * (FUJIMAIL_RX_MAX), doubled for SLIP's worst case, plus two delimiters. */
+#define RX_RAW_MAX (2 * (6 + 1024) + 2)
 
 static int fd = -1;
 

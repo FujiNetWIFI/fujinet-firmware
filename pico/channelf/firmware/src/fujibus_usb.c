@@ -11,11 +11,11 @@
 
 #include "fujibus_usb.h"
 
-/* Sized for a SLIP-encoded DBC push frame, not for the mailbox: a 6-byte header
- * plus a 512-byte chunk is 518 decoded, and SLIP worst-case doubles that plus
- * two delimiters. Undersizing this truncates every ROM push, and both ends see
- * a timeout pointing nowhere near the cause. */
-#define FUJIBUS_RAW_RX_MAX 1088
+/* Sized for the largest SLIP-encoded frame: a 6-byte header plus a 1K reply
+ * (FUJIMAIL_RX_MAX), doubled for SLIP's worst case, plus two delimiters.
+ * Undersizing this fails replies and ROM pushes with a cause nowhere near
+ * where either end looks. */
+#define FUJIBUS_RAW_RX_MAX (2 * (6 + 1024) + 2)
 #define FUJIBUS_TX_MAX     640
 
 static fujibus_inbound_fn inbound_handler;
