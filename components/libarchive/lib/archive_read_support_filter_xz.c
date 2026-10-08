@@ -465,6 +465,37 @@ xz_lzma_reader_vtable = {
 	.close = xz_filter_close,
 };
 
+#if defined(ESP_PLATFORM)
+/*
+ * ESP32: liblzma allocates its LZMA2 dictionary (up to 64 MB; xz's default
+ * preset is an 8 MB dictionary) through the stream's allocator. The default
+ * malloc draws from internal RAM, which cannot satisfy a multi-MB dictionary
+ * -> lzma_*_decoder() returns LZMA_MEM_ERROR ("Cannot allocate memory") at
+ * open. Route liblzma allocations to PSRAM (falling back to internal RAM for
+ * small ones) so xz/lzma streams decode on ESP32.
+ */
+#include <esp_heap_caps.h>
+static void *
+esp32_lzma_alloc(void *opaque, size_t nmemb, size_t size)
+{
+	(void)opaque;
+	size_t total = nmemb * size;
+	void *p = heap_caps_malloc(total, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+	if (p == NULL)
+		p = malloc(total);
+	return p;
+}
+static void
+esp32_lzma_free(void *opaque, void *ptr)
+{
+	(void)opaque;
+	free(ptr);
+}
+static lzma_allocator esp32_lzma_allocator = {
+	esp32_lzma_alloc, esp32_lzma_free, NULL
+};
+#endif
+
 /*
  * Setup the callbacks.
  */
@@ -495,6 +526,11 @@ xz_lzma_bidder_init(struct archive_read_filter *self)
 
 	state->stream.next_out = state->out_block;
 	state->stream.avail_out = state->out_block_size;
+
+#if defined(ESP_PLATFORM)
+	/* Allocate the (multi-MB) dictionary from PSRAM, not internal RAM. */
+	state->stream.allocator = &esp32_lzma_allocator;
+#endif
 
 	state->crc32 = 0;
 	if (self->code == ARCHIVE_FILTER_LZIP) {
