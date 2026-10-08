@@ -42,6 +42,7 @@
 
 import argparse
 import configparser
+import glob
 import hashlib
 import json
 import os
@@ -153,6 +154,10 @@ PICOBOOT_DEFINE = "CONFIG_USB_PICOBOOT_HOST_ENABLED"
 # GENERATED_CPP.
 BLOB_SIDECAR_JSON = "fn_pico_blobs.json"
 
+# Searched in order when PICO_SDK_PATH is unset.
+PICO_SDK_SEARCH = ("~/.pico-sdk/sdk/*", "~/pico/pico-sdk", "/usr/share/pico-sdk",
+                   "/usr/local/share/pico-sdk", "/opt/pico-sdk")
+
 TRUE_WORDS = {"yes", "true", "1", "on"}
 FALSE_WORDS = {"no", "false", "0", "off"}
 
@@ -258,6 +263,22 @@ def parse_artifacts(raw: str, board: str) -> "Dict[str, str]":
     return result
 
 
+def _version_key(path: str) -> List[int]:
+    return [int(p) for p in re.findall(r"\d+", os.path.basename(path))]
+
+
+def _find_pico_sdk() -> str:
+    """The first PICO_SDK_SEARCH entry holding an SDK, newest version first
+    within a glob; "" if none does."""
+    for pattern in PICO_SDK_SEARCH:
+        for path in sorted(glob.glob(os.path.expanduser(pattern)),
+                           key=_version_key, reverse=True):
+            if os.path.isfile(os.path.join(path, "pico_sdk_init.cmake")):
+                log(f"PICO_SDK_PATH not set -- using {path}")
+                return path
+    return ""
+
+
 def read_config(ini_path: str, board: str) -> Optional[PicoConfig]:
     """Reads [fujinet] from ini_path and returns a PicoConfig, or None if
     this ini simply doesn't describe a pico build for `board` (missing
@@ -358,10 +379,12 @@ def read_config(ini_path: str, board: str) -> Optional[PicoConfig]:
              f"0x{pico_flash_limit:08x} is not above pico_flash_base "
              f"0x{pico_flash_base:08x}")
 
-    pico_sdk_path = section.get("pico_sdk_path", "").strip()
-    if not pico_sdk_path:
-        pico_sdk_path = os.environ.get("PICO_SDK_PATH", "").strip() or "/usr/share/pico-sdk"
-    pico_sdk_path = os.path.expanduser(os.path.expandvars(pico_sdk_path))
+    pico_sdk_path = (section.get("pico_sdk_path", "").strip()
+                     or os.environ.get("PICO_SDK_PATH", "").strip())
+    if pico_sdk_path:
+        pico_sdk_path = os.path.expanduser(os.path.expandvars(pico_sdk_path))
+    else:
+        pico_sdk_path = _find_pico_sdk()
 
     # cmake-* modes need PICO_SDK_PATH by construction (pico_sdk_init.cmake);
     # make/command modes might not (e.g. a Makefile that vendors everything
@@ -667,11 +690,16 @@ def preflight(cfg: PicoConfig) -> None:
         fail(cfg.board, "pico_toolchain",
              f"required tool(s) not found on PATH: {', '.join(missing)}")
 
-    if cfg.sdk_required and not os.path.isdir(cfg.sdk_path):
+    if cfg.sdk_required and not cfg.sdk_path:
         fail(cfg.board, "pico_sdk_path",
-             f"PICO_SDK_PATH does not exist: {cfg.sdk_path} (set the "
-             f"PICO_SDK_PATH env var, or the pico_sdk_path ini key, to "
-             f"override the default)")
+             f"PICO_SDK_PATH is not set and no pico-sdk was found in "
+             f"{', '.join(PICO_SDK_SEARCH)} (install one, or set the "
+             f"PICO_SDK_PATH env var or the pico_sdk_path ini key)")
+    if cfg.sdk_required and not os.path.isfile(os.path.join(cfg.sdk_path, "pico_sdk_init.cmake")):
+        fail(cfg.board, "pico_sdk_path",
+             f"PICO_SDK_PATH is not a pico-sdk (no pico_sdk_init.cmake): "
+             f"{cfg.sdk_path} (set the PICO_SDK_PATH env var, or the "
+             f"pico_sdk_path ini key)")
 
     # Debian/Ubuntu package the ARM C and C++ libraries apart from the compiler.
     for compiler, lib, pkg in (("arm-none-eabi-gcc", "libc.a", "libnewlib-arm-none-eabi"),
@@ -1122,7 +1150,7 @@ def _print_config(board: str, ini_path: str, cfg: Optional[PicoConfig]) -> None:
     print(f"  pico_make_args   = {cfg.make_args}")
     print(f"  pico_command     = {cfg.command_lines}")
     print(f"  pico_toolchain   = {cfg.toolchain}")
-    print(f"  pico_sdk_path    = {cfg.sdk_path}  (required: {cfg.sdk_required})")
+    print(f"  pico_sdk_path    = {cfg.sdk_path or '(not found)'}  (required: {cfg.sdk_required})")
     if cfg.repo:
         print(f"  pico_repo        = {cfg.repo}")
         print(f"  pico_repo_ref    = {cfg.repo_ref}")
