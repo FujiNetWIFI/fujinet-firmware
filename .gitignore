@@ -77,3 +77,6 @@ pico/*/*/build/
 
 # scratch dir cmake drops in the cwd when it runs `cmake --system-information`
 __cmake_systeminformation/
+
+# ai tools / plugins
+.serena

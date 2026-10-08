@@ -157,6 +157,16 @@ static int dsi_remove_from_request_queue(struct afp_server *server,
 			else
 				prev->next = p->next;
 			server->stats.requests_pending--;
+			/* On ESP-IDF pthread_cond_init()/pthread_mutex_init()
+			 * each malloc from INTERNAL DRAM, which is ~27 KB free
+			 * on this board. dsi_send() creates a pair per request
+			 * and nothing destroyed them, so every AFP request
+			 * leaked them permanently: one login cost ~11 KB and
+			 * the first directory enumerate then aborted inside
+			 * newlib's lock_init_generic(). Harmless on glibc,
+			 * which is why upstream never noticed. */
+			pthread_cond_destroy(&p->waiting_cond);
+			pthread_mutex_destroy(&p->waiting_mutex);
 			free(p);
 			pthread_mutex_unlock(&server->request_queue_mutex);
 			return 0;
@@ -238,10 +248,14 @@ int dsi_send(struct afp_server *server, char * msg, int size,int wait,unsigned c
 	#endif
 	if (write(server->fd,msg,size)<0) {
 		if ((errno==EPIPE) || (errno==EBADF)) {
-			/* The server has closed the connection */
+			/* The server has closed the connection.  Fall through
+			 * to the shared exit: returning here left send_mutex
+			 * held (deadlocking every later request) and leaked
+			 * the queued request with its cond/mutex pair. */
 			server->connect_state=SERVER_STATE_DISCONNECTED;
-			return -1;
-
+			rc=-1;
+			pthread_mutex_unlock(&server->send_mutex);
+			goto out;
 		}
 		perror("writing to server");
 		rc=-1;
@@ -819,6 +833,14 @@ process_packet:
 			pthread_attr_t attr;
 			pthread_attr_init(&attr);
 			pthread_attr_setstacksize(&attr, 8192);
+			/* DETACHED, or this leaks ~9 KB of internal DRAM per
+			 * attention packet: a joinable pthread keeps its stack
+			 * and TCB until someone joins it, and nothing here ever
+			 * does.  dsi_incoming_attention() only ever returns
+			 * NULL, so there is no result to collect. */
+			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+			log_for_client(NULL,AFPFSD,LOG_NOTICE,
+				"DSI attention packet, spawning handler\n");
 			memcpy( server->attention_buffer,
 				server->incoming_buffer,
 				server->data_read);
