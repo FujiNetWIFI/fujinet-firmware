@@ -513,7 +513,7 @@ error_is_true NDevice::parse_and_instantiate_protocol(std::string &deviceSpec, b
 
 void NDevice::fujidev_set_login(const FUJI_COMMAND_PACKET &packet)
 {
-    login.resize(256, 0);
+    login.assign(256, 0);
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
     SYSTEM_BUS.transaction_get(login);
     login.resize(strlen(login.c_str()));
@@ -522,7 +522,7 @@ void NDevice::fujidev_set_login(const FUJI_COMMAND_PACKET &packet)
 
 void NDevice::fujidev_set_password(const FUJI_COMMAND_PACKET &packet)
 {
-    password.resize(256);
+    password.assign(256, 0);
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
     SYSTEM_BUS.transaction_get(password);
     password.resize(strlen(password.c_str()));
