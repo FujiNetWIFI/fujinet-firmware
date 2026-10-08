@@ -36,12 +36,23 @@ void IWMBusIDMap::resetAllBusIDs()
 
 void IWMBusIDMap::assignBusIDToFujiID(busDeviceID_t busID, fujiDeviceID_t fujiID)
 {
-  auto it = _entries.find(fujiID);
+  fujiDeviceID_t first, last;
 
-  if (it == _entries.end())
-    return;
+  first = last = fujiID;
+  if (fujiID >= FUJI_DEVICEID::NETWORK && fujiID <= FUJI_DEVICEID::NETWORK_LAST)
+  {
+    first = FUJI_DEVICEID::NETWORK;
+    last = FUJI_DEVICEID::NETWORK_LAST;
+  }
 
-  it->second.busID = busID;
+  for (int idx = static_cast<int>(first); idx <= static_cast<int>(last); idx++)
+  {
+    fujiID = static_cast<fujiDeviceID_t>(idx);
+    auto it = _entries.find(fujiID);
+    if (it != _entries.end())
+      it->second.busID = busID;
+  }
+
   return;
 }
 
