@@ -135,20 +135,41 @@ static int process_server_fds(fd_set * set, int max_fd, int ** onfd)
 
 	struct afp_server * s;
 	int ret;
-	s  = get_server_base();
+	int rc=0;
+
+	/* Pick the server under the list lock and publish it, then let go of the
+	 * lock before touching the network.  Another thread tearing a session
+	 * down calls afp_server_remove(), which frees the server AND the
+	 * incoming_buffer dsi_recv() reads into; the published mark makes it
+	 * wait rather than free underneath us.
+	 *
+	 * The lock is deliberately NOT held across dsi_recv(): the AFP socket is
+	 * blocking, so a server that goes quiet mid-message parks this thread in
+	 * read() for as long as it likes, and holding the lock there stalls every
+	 * other AFP caller (observed as a completely unresponsive device). */
+	afp_server_list_lock();
+	s = get_server_base();
 	for (;s;s=s->next) {
 		if (s->next==s) printf("Danger, recursive loop\n");
-		if (FD_ISSET(s->fd,set)) {
-			ret=dsi_recv(s);
-			*onfd=&s->fd;
-			if (ret==-1) {
-				loop_disconnect(s);
-				return -1;
-			}
-			return 1;
-		}
+		if (FD_ISSET(s->fd,set)) break;
 	}
-	return 0;
+	if (s) afp_server_loop_set(s);
+	afp_server_list_unlock();
+
+	if (!s) return 0;
+
+	ret=dsi_recv(s);
+	*onfd=&s->fd;
+	if (ret==-1) {
+		loop_disconnect(s);
+		rc=-1;
+	} else {
+		rc=1;
+	}
+
+	/* Only now may the server be freed. */
+	afp_server_loop_clear();
+	return rc;
 }
 
 static void deal_with_server_signals(fd_set *set, int * max_fd) 
@@ -224,8 +245,28 @@ int afp_main_loop(int command_fd) {
 		ords=rds;
 		oeds=rds;
 		if (loop_started) {
+#ifdef ESP_PLATFORM
+			/* Upstream waits 30 s here and relies on
+			 * signal_main_thread() -> pthread_kill() to cut the wait
+			 * short when a new fd is added.  ESP32 has no POSIX
+			 * signals, so that call is a no-op stub and the wait runs
+			 * to completion: a connect adds its socket AFTER this
+			 * copy of rds was taken, so the reply to DSIOpenSession
+			 * could not be read for a full 30 s.  Two of those -- the
+			 * first attempt and the retry -- is what made an AFP
+			 * connect take about a minute.
+			 *
+			 * Poll instead.  This only affects fds added while the
+			 * select is already running; traffic on an fd already in
+			 * the set still wakes it immediately.  So the cost is one
+			 * cheap select per interval and the benefit is bounded
+			 * connect latency. */
+			tv.tv_sec=0;
+			tv.tv_nsec=100L*1000L*1000L;	/* 100 ms */
+#else
 			tv.tv_sec=30;
 			tv.tv_nsec=0;
+#endif
 		} else {
 			tv.tv_sec=0;
 			tv.tv_nsec=0;

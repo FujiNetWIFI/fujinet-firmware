@@ -39,6 +39,11 @@ int free_entire_did_cache(struct afp_volume * volume)
 		p=d->next;
 		free(p2);
 	}
+	/* The head was left pointing at freed memory.  Harmless while the
+	 * volume is being torn down with its server, but afp_unmount_volume()
+	 * can be followed by afp_connect_volume() on the same struct, and the
+	 * next cache add or lookup then walks a dangling list. */
+	volume->did_cache_base=NULL;
 	pthread_mutex_unlock(&volume->did_cache_mutex);
 
 	return 0;

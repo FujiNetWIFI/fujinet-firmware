@@ -57,7 +57,10 @@ int sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
  * pthread_kill() — signal_main_thread() sends SIGUSR2 to wake up the *
  * main loop from pselect.  On ESP32 we can't send signals, so this  *
  * is a no-op.  The consequence is that pselect() is not interrupted  *
- * early; the main loop processes events on its 30 s timeout instead. *
+ * early, so afp_main_loop() cannot use upstream's 30 s wait: it      *
+ * polls on a short timeout instead (see the ESP_PLATFORM branch in   *
+ * loop.c).  Leaving the 30 s wait in place made every AFP connect    *
+ * stall for exactly that long, twice.                                *
  * ------------------------------------------------------------------ */
 __attribute__((weak))
 int pthread_kill(pthread_t thread, int sig)
