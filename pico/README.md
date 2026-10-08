@@ -25,12 +25,12 @@ on its floppy port and relays bus traffic to the ESP32 running FujiNet.
   sources), and flashed over PICOBOOT at boot by `fnPicoUpdater` when it differs from the image
   recorded in NVS. `docs/fujiversal-flashing.md` describes the sequence;
   the `pico_*` keys that drive it are documented in `platformio-ini-files/platformio.common.ini`.
-- `fujiversal/` is a git submodule; run `git submodule update --init` before building a board that
-  uses it.
+- `fujiversal/` is a git submodule; `build_pico.py` checks it out if it is missing.
 
 ## Build
-A board ini with `pico_src` set needs an ARM GCC toolchain, Ninja and a pico-sdk checkout
-(`PICO_SDK_PATH`), or `FUJINET_SKIP_PICO=1` to build the ESP32 side alone. The other directories
+A board ini with `pico_src` set needs an ARM GCC toolchain with newlib and libstdc++, CMake, Ninja
+and a pico-sdk checkout with its tinyusb submodule (`PICO_SDK_PATH`), or `FUJINET_SKIP_PICO=1` to
+build the ESP32 side alone. `build.sh` checks for them before it starts the build. The other directories
 build standalone with their own scripts and are exercised by the pico cartridges workflow.
 `make pico-de-coco` at the repository root runs the CoCo cart's already-configured build directory.
 

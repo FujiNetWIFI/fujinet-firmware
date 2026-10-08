@@ -41,25 +41,6 @@ fi
 
 LOCAL_INI="$SCRIPT_DIR/local.ini"
 
-# Some boards build a companion RP2040/RP2350 firmware as part of their ESP32
-# build (see the [fujinet] pico_* keys). That needs an ARM cross-compiler, the
-# pico-sdk, and any submodule holding the companion source -- none of which a
-# machine doing a quick "does every board still compile?" sweep necessarily
-# has. Skip it unless everything needed is present; the ESP32 side still
-# builds, just with an empty companion image.
-#
-# Set FUJINET_SKIP_PICO yourself to force either answer.
-if [ -z "${FUJINET_SKIP_PICO}" ] ; then
-  PICO_SDK="${PICO_SDK_PATH:-/usr/share/pico-sdk}"
-  if ! command -v arm-none-eabi-gcc > /dev/null || [ ! -d "${PICO_SDK}" ] ; then
-    echo "Note: no ARM toolchain or pico-sdk found -- companion-MCU firmware"
-    echo "      will be skipped (FUJINET_SKIP_PICO=1). The ESP32 side of every"
-    echo "      board still gets built."
-    echo ""
-    export FUJINET_SKIP_PICO=1
-  fi
-fi
-
 # prevent realpath from erroring on some systems if file doesn't exist
 if [ ! -f "${RESULTS_OUTPUT_FILE}" ]; then
   touch "${RESULTS_OUTPUT_FILE}"
@@ -96,7 +77,15 @@ while IFS= read -r piofile; do
      # 2. - echo a line in results file, find firmware.bin
      # 3. - now call build but just to clean
 
-    if ! ./build.sh -y -s ${BOARD_NAME} -l $LOCAL_INI -i $SCRIPT_DIR/test.ini -b > /dev/null 2>&1 ; then
+    # Skip a board's companion firmware if build_pico.py finds a prerequisite
+    # missing. FUJINET_SKIP_PICO set by hand forces either answer.
+    SKIP_PICO="${FUJINET_SKIP_PICO}"
+    if [ -z "${SKIP_PICO}" ] && ! python3 build_pico.py ${BOARD_NAME} --ini $piofile --check > /dev/null ; then
+      echo "Note: companion-MCU firmware skipped for ${BOARD_NAME} (FUJINET_SKIP_PICO=1)"
+      SKIP_PICO=1
+    fi
+
+    if ! FUJINET_SKIP_PICO=${SKIP_PICO} ./build.sh -y -s ${BOARD_NAME} -l $LOCAL_INI -i $SCRIPT_DIR/test.ini -b > /dev/null 2>&1 ; then
 	echo ${BOARD_NAME} failed
 	FAILED="${BOARD_NAME} ${FAILED}"
     fi
@@ -111,7 +100,7 @@ while IFS= read -r piofile; do
     if [ -n "$FOUND" ]; then
       printf "File '$FIRMWARE_OUTPUT_FILE' found" >> "$RESULTS_OUTPUT_FILE"
     else
-      printf "File '$FIRMWARE_OUTPUT_FILE' not found - this platfrom has issues \n" >> "$RESULTS_OUTPUT_FILE"
+      printf "File '$FIRMWARE_OUTPUT_FILE' not found - this platform has issues \n" >> "$RESULTS_OUTPUT_FILE"
     fi
     echo "" >> "$RESULTS_OUTPUT_FILE"
 

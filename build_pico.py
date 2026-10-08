@@ -296,7 +296,7 @@ def read_config(ini_path: str, board: str) -> Optional[PicoConfig]:
             return True
         if low in FALSE_WORDS:
             return False
-        fail(board, key, f"unrecognised boolean value '{raw}' -- expected "
+        fail(board, key, f"unrecognized boolean value '{raw}' -- expected "
              f"one of {sorted(TRUE_WORDS | FALSE_WORDS)}")
         raise AssertionError("unreachable")  # fail() always raises
 
@@ -408,7 +408,8 @@ def read_config(ini_path: str, board: str) -> Optional[PicoConfig]:
         # Only cmake-* modes get an implicit default -- make/command modes
         # are free-form and shouldn't be forced to depend on an ARM
         # cross-compiler that a given companion project might not even use.
-        toolchain = ["arm-none-eabi-gcc"] if pico_build in CMAKE_MODES else []
+        toolchain = (["arm-none-eabi-gcc", "arm-none-eabi-g++", "arm-none-eabi-objcopy"]
+                     if pico_build in CMAKE_MODES else [])
 
     cmake_args = parse_multiline_args("pico_cmake_args")
     make_args = parse_multiline_args("pico_make_args")
@@ -573,7 +574,7 @@ def _ensure_remote_source(cfg: PicoConfig, force_external: bool, dry_run: bool) 
 
 
 def _submodule_paths() -> List[str]:
-    """Paths listed in .gitmodules, normalised. Parsed directly rather than
+    """Paths listed in .gitmodules, normalized. Parsed directly rather than
     shelled out to `git config -f`, so this works from a tarball export with
     no git available."""
     paths: List[str] = []
@@ -593,13 +594,22 @@ def _submodule_paths() -> List[str]:
     return paths
 
 
-def _check_submodule_initialised(cfg: PicoConfig) -> None:
-    """An uninitialised submodule is an empty directory, so the CMakeLists.txt
+def _check_submodule_initialized(cfg: PicoConfig) -> None:
+    """An uninitialized submodule is an empty directory, so the CMakeLists.txt
     check below would report 'no CMakeLists.txt found', which is true but
     sends the reader looking for a broken ini key instead of a one-line fix."""
     src = os.path.normpath(cfg.src)
     for sub in _submodule_paths():
         if src == sub or src.startswith(sub + os.sep):
+            # No .git: a tarball export, nothing to fetch from.
+            if (not os.path.isdir(sub) or not os.listdir(sub)) and os.path.exists(".git"):
+                log(f"[{cfg.board}] {sub} not checked out -- running "
+                    f"git submodule update --init --recursive {sub}")
+                try:
+                    subprocess.run(["git", "submodule", "update", "--init",
+                                    "--recursive", sub])
+                except OSError:
+                    pass
             if not os.path.isdir(sub) or not os.listdir(sub):
                 fail(cfg.board, "pico_src",
                      f"{sub} is a git submodule that has not been checked "
@@ -611,7 +621,7 @@ def ensure_source(cfg: PicoConfig, force_external: bool = False, dry_run: bool =
     if cfg.repo:
         _ensure_remote_source(cfg, force_external=force_external, dry_run=dry_run)
     else:
-        _check_submodule_initialised(cfg)
+        _check_submodule_initialized(cfg)
 
     if not os.path.isdir(cfg.src):
         fail(cfg.board, "pico_src", f"directory does not exist: {cfg.src}")
@@ -663,6 +673,25 @@ def preflight(cfg: PicoConfig) -> None:
              f"PICO_SDK_PATH env var, or the pico_sdk_path ini key, to "
              f"override the default)")
 
+    # Debian/Ubuntu package the ARM C and C++ libraries apart from the compiler.
+    for compiler, lib, pkg in (("arm-none-eabi-gcc", "libc.a", "libnewlib-arm-none-eabi"),
+                               ("arm-none-eabi-g++", "libstdc++.a",
+                                "libstdc++-arm-none-eabi-newlib")):
+        if compiler not in tools:
+            continue
+        found = subprocess.run([compiler, f"-print-file-name={lib}"],
+                               stdout=subprocess.PIPE, text=True).stdout.strip()
+        if not os.path.isabs(found):
+            fail(cfg.board, "pico_toolchain",
+                 f"{compiler} has no {lib} (Debian/Ubuntu package: {pkg})")
+
+    # Without it the SDK configure only warns; the compile then fails on tusb.h.
+    tinyusb = os.path.join(cfg.sdk_path, "lib", "tinyusb")
+    if cfg.sdk_required and (not os.path.isdir(tinyusb) or not os.listdir(tinyusb)):
+        fail(cfg.board, "pico_sdk_path",
+             f"{tinyusb} is empty -- run: git -C {cfg.sdk_path} submodule "
+             f"update --init lib/tinyusb")
+
 
 def build(cfg: PicoConfig, reconfigure: bool = False, dry_run: bool = False) -> None:
     build_dir_abs = cfg.build_dir_abs
@@ -692,7 +721,7 @@ def build(cfg: PicoConfig, reconfigure: bool = False, dry_run: bool = False) -> 
             run(cmd, cwd=cfg.src, board=cfg.board, key="pico_cmake_args",
                 extra_env=extra_env, dry_run=dry_run)
         else:
-            # Not just an optimisation: Minty's CMakeLists.txt does
+            # Not just an optimization: Minty's CMakeLists.txt does
             # FetchContent at configure time, so reconfiguring would put a
             # network fetch inside every ESP32 build. --reconfigure forces it.
             log(f"[{cfg.board}] {marker} already exists -- skipping cmake "
@@ -1133,6 +1162,9 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--print-config", action="store_true",
                     help="print the resolved pico config and exit -- does "
                          "not touch the filesystem or build anything")
+    p.add_argument("--check", action="store_true",
+                    help="run the source and prerequisite checks a build "
+                         "would (fetching a missing submodule), then exit")
     p.add_argument("--dry-run", action="store_true",
                     help="print the commands that would run, without "
                          "running them (still clones/updates a pico_repo "
@@ -1191,6 +1223,15 @@ def main(argv=None) -> int:
             # -- printing the config should never require a toolchain,
             # network access, or a writable tree.
             _print_config(board, resolved_ini, cfg)
+            return 0
+
+        if args.check:
+            skip = os.environ.get("FUJINET_SKIP_PICO", "").strip().lower() in TRUE_WORDS
+            if cfg is not None and not skip:
+                # A pico_repo source is cloned by the build, not by a check.
+                if not cfg.repo:
+                    ensure_source(cfg)
+                preflight(cfg)
             return 0
 
         skip_pico = _skip_pico_requested(args.skip_pico)
