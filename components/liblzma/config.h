@@ -394,7 +394,10 @@
 #undef PTHREAD_CREATE_JOINABLE
 
 /* The size of 'size_t', as computed by sizeof. */
-#define SIZEOF_SIZE_T 1
+/* ESP32 (xtensa, 32-bit): size_t is 4 bytes. The stock template value of 1
+   here is catastrophically wrong — liblzma uses SIZEOF_SIZE_T for its
+   word-at-a-time integer/CRC operations, so a value of 1 corrupts decoding. */
+#define SIZEOF_SIZE_T 4
 
 /* Define to 1 if all of the C89 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
@@ -564,7 +567,11 @@
 #  undef WORDS_BIGENDIAN
 # endif
 #endif
-#define WORDS_BIGENDIAN 1
+/* ESP32 (xtensa) is LITTLE-endian. The stock template hardcoded
+   `#define WORDS_BIGENDIAN 1` here (after the autoconf block above), which made
+   liblzma read every multi-byte header/length/CRC field byte-reversed — a valid
+   .xz then fails immediately with "Corrupted input data". Leave it undefined so
+   liblzma uses little-endian access. */
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS

@@ -64,6 +64,88 @@
  * Note: this used for both position table and pre literal table.*/
 #define PT_BITLEN_SIZE		(3 + 16)
 
+/*
+ * -lh1- parameters.
+ *
+ * -lh1- is LHarc 1.x's method: a 4KiB LZSS window whose literal/length
+ * alphabet is coded with an ADAPTIVE ("dynamic") Huffman tree that both
+ * sides update after every symbol, and whose match positions come from a
+ * FIXED Huffman table rather than one stored in the stream. It therefore
+ * shares nothing with -lh5-/-lh6-/-lh7- above the LZSS layer: there are no
+ * blocks, no transmitted code lengths, and no end marker - the uncompressed
+ * size recorded in the header is the only terminator.
+ *
+ * The tree is the one described in dhuf.c of 'LHa for UNIX' (start_c_dyn,
+ * swap_inc, reconst, update_c), reimplemented here as a resumable decoder.
+ */
+#define LZH1_MAXMATCH	60
+/* Literal/length alphabet size: 256 literals + lengths MINMATCH..60. */
+#define LZH1_NC		(UCHAR_MAX + 1 + LZH1_MAXMATCH - MINMATCH + 1)	/* 314 */
+/* Node indices run 0 .. LZH1_NC*2-2; the root is 0. */
+#define LZH1_TREESIZE	(LZH1_NC * 2)					/* 628 */
+#define LZH1_ROOT	0
+/* Position symbols: the high 6 bits of a 12-bit distance. */
+#define LZH1_NP		(1 << (12 - 6))					/* 64 */
+/*
+ * Block ids are handed out from stock[] and used as edge[] indices. Every
+ * node can end up in a block of its own, so up to LZH1_TREESIZE-1 ids are
+ * live at once on top of the two the initial tree reserves: size both
+ * arrays with that slack rather than bounding avail at run time.
+ */
+#define LZH1_STOCK_SIZE	(LZH1_TREESIZE + 2)
+
+/*
+ * Decoding status; ds->state holds one of these. ST_GET_LITERAL is the
+ * boundary lzh_decode() dispatches on: below it a block header is being
+ * read, at or above it compressed data is being decoded.
+ */
+#define ST_RD_BLOCK		0
+#define ST_RD_PT_1		1
+#define ST_RD_PT_2		2
+#define ST_RD_PT_3		3
+#define ST_RD_PT_4		4
+#define ST_RD_LITERAL_1		5
+#define ST_RD_LITERAL_2		6
+#define ST_RD_LITERAL_3		7
+#define ST_RD_POS_DATA_1	8
+#define ST_GET_LITERAL		9
+#define ST_GET_POS_1		10
+#define ST_GET_POS_2		11
+#define ST_COPY_DATA		12
+/* -lh1- only. */
+#define ST_LH1_GET_LITERAL	13
+#define ST_LH1_TREE		14
+#define ST_LH1_GET_POS_1	15
+#define ST_LH1_GET_POS_2	16
+
+/*
+ * -lh1- adaptive Huffman tree over the literal/length alphabet.
+ *
+ * Allocated only for -lh1- entries; it is ~8KiB and every other method
+ * leaves it NULL. Note there are deliberately no position-tree arrays:
+ * -lh1- positions use the fixed table below, and only -lh2- (unsupported)
+ * codes positions adaptively.
+ *
+ * child[] holds an internal node index when positive and ~symbol when
+ * negative; node[] is the reverse map from symbol to leaf index.
+ */
+struct lzh_dyn {
+	int16_t		 child[LZH1_TREESIZE];
+	uint16_t	 parent[LZH1_TREESIZE];
+	uint16_t	 freq[LZH1_TREESIZE];
+	uint16_t	 block[LZH1_TREESIZE];
+	uint16_t	 edge[LZH1_STOCK_SIZE];
+	uint16_t	 stock[LZH1_STOCK_SIZE];
+	uint16_t	 node[LZH1_NC];
+	int		 avail;
+	/* Node reached so far by a tree walk suspended for want of input. */
+	int		 walk;
+	/* Fixed position table: 8 bits of lookahead resolve a symbol
+	 * outright, since no code in it is longer than 8 bits. */
+	unsigned char	 pt_tbl[1 << 8];
+	unsigned char	 pt_len[LZH1_NP];
+};
+
 struct lzh_dec {
 	/* Decoding status. */
 	int     		 state;
@@ -134,6 +216,15 @@ struct lzh_dec {
 	int			 reading_position;
 	int			 loop;
 	int			 error;
+
+	/* The state a finished match returns to: ST_GET_LITERAL, or
+	 * ST_LH1_GET_LITERAL when decoding -lh1-. */
+	int			 literal_state;
+	/* -lh1- only: NULL for every other method. */
+	struct lzh_dyn		*dyn;
+	/* -lh1- only: bytes of this entry still to emit. -lh1- has no end
+	 * marker, so this is what ends the entry. */
+	int64_t			 out_left;
 };
 
 struct lzh_stream {
@@ -180,6 +271,16 @@ struct lha {
 	struct archive_string_conv *sconv_dir;
 	struct archive_string_conv *sconv_fname;
 	struct archive_string_conv *opt_sconv;
+	/*
+	 * "lha:sfx" option. The SFX scan is otherwise only entered for a
+	 * DOS/PE executable ("MZ"), which no Commodore self-extracting
+	 * archive is - a .sfx from a CBM archive is a PRG, so it begins with
+	 * a two-byte load address and its LHA header sits a few KB in, behind
+	 * the extractor stub. The scan is opt-in rather than unconditional
+	 * because it reads up to 20 KB ahead, and lha is registered
+	 * speculatively for every unknown extension.
+	 */
+	char			 opt_sfx;
 
 	struct archive_string 	 dirname;
 	struct archive_string 	 filename;
@@ -230,6 +331,7 @@ static int	lha_read_file_header_3(struct archive_read *, struct lha *);
 static int	lha_read_file_extended_header(struct archive_read *,
 		    struct lha *, uint16_t *, int, uint64_t, size_t *);
 static size_t	lha_check_header_format(const void *);
+static int	lha_level1_header_is_plausible(const unsigned char *);
 static int	lha_skip_sfx(struct archive_read *);
 static unsigned char	lha_calcsum(unsigned char, const void *,
 		    int, size_t);
@@ -241,8 +343,13 @@ static int	lha_read_data_lzh(struct archive_read *, const void **,
 		    size_t *, int64_t *);
 static void	lha_crc16_init(void);
 static uint16_t lha_crc16(uint16_t, const void *, size_t);
-static int	lzh_decode_init(struct lzh_stream *, const char *);
+static int	lzh_decode_init(struct lzh_stream *, const char *, int64_t);
 static void	lzh_decode_free(struct lzh_stream *);
+static void	lzh_dyn_init_pt(struct lzh_dyn *);
+static void	lzh_dyn_start(struct lzh_dyn *);
+static void	lzh_dyn_reconst(struct lzh_dyn *, int, int);
+static int	lzh_dyn_swap_inc(struct lzh_dyn *, int);
+static void	lzh_dyn_update(struct lzh_dyn *, int);
 static int	lzh_decode(struct lzh_stream *, int);
 static int	lzh_br_fillup(struct lzh_stream *, struct lzh_br *);
 static int	lzh_huffman_init(struct huffman *, size_t, int);
@@ -322,6 +429,25 @@ lha_check_header_format(const void *h)
 				return (0);
 			if (p[H_LEVEL_OFFSET] <= 3 && p[H_ATTR_OFFSET] == 0x20)
 				return (0);
+			/*
+			 * The attribute byte is only MS-DOS's. Amiga LhA puts
+			 * AmigaOS protection bits there instead, so a real
+			 * Amiga level-1 archive is rejected by the test above
+			 * before a single entry is read. Accept a level-1
+			 * header that is self-consistent instead of one that
+			 * merely looks like DOS wrote it — see
+			 * lha_level1_header_is_plausible(). Nothing downstream
+			 * reads the attribute byte: lha->dos_attr comes from
+			 * extended headers only.
+			 *
+			 * Level 0 is already accepted with no such check at
+			 * all, and levels 2 and 3 have no name length in the
+			 * first 22 bytes to check against, so they keep the
+			 * 0x20 requirement.
+			 */
+			if (p[H_LEVEL_OFFSET] == 1
+			    && lha_level1_header_is_plausible(p))
+				return (0);
 		}
 		if (p[H_METHOD_OFFSET+2] == 'z') {
 			/* LArc extensions: -lzs-,-lz4- and -lz5- */
@@ -350,6 +476,7 @@ archive_read_format_lha_bid(struct archive_read *a, int best_bid)
 	const void *buff;
 	ssize_t bytes_avail, offset, window;
 	size_t next;
+	struct lha *lha;
 
 	/* If there's already a better bid than we can ever
 	   make, don't bother testing. */
@@ -362,8 +489,12 @@ archive_read_format_lha_bid(struct archive_read *a, int best_bid)
 	if (lha_check_header_format(p) == 0)
 		return (30);
 
-	if (p[0] == 'M' && p[1] == 'Z') {
-		/* PE file */
+	/* choose_format() points a->format at the slot being bid, so the
+	 * format's own data is reachable here. */
+	lha = (struct lha *)(a->format->data);
+
+	if ((p[0] == 'M' && p[1] == 'Z') || (lha != NULL && lha->opt_sfx)) {
+		/* PE file, or a caller-declared self-extracting archive */
 		offset = 0;
 		window = 4096;
 		while (offset < (1024 * 20)) {
@@ -410,6 +541,11 @@ archive_read_format_lha_options(struct archive_read *a,
 				ret = ARCHIVE_FATAL;
 		}
 		return (ret);
+	}
+	if (strcmp(key, "sfx") == 0) {
+		/* A bare "lha:sfx" arrives here with val == "1". */
+		lha->opt_sfx = (val != NULL && val[0] != 0);
+		return (ARCHIVE_OK);
 	}
 
 	/* Note: The "warn" return is just to inform the options
@@ -508,7 +644,7 @@ archive_read_format_lha_read_header(struct archive_read *a,
 
 	signature = (const char *)p;
 	if (lha->found_first_header == 0 &&
-	    signature[0] == 'M' && signature[1] == 'Z') {
+	    ((signature[0] == 'M' && signature[1] == 'Z') || lha->opt_sfx)) {
                 /* This is an executable?  Must be self-extracting... 	*/
 		err = lha_skip_sfx(a);
 		if (err < ARCHIVE_WARN)
@@ -899,6 +1035,31 @@ lha_read_file_header_0(struct archive_read *a, struct lha *lha)
 #define H1_NAME_LEN_OFFSET	21
 #define H1_FILE_NAME_OFFSET	22
 #define H1_FIXED_SIZE		27
+
+/*
+ * Is this a level-1 header, judged on its own structure rather than on the
+ * MS-DOS attribute byte? Used to bid on archives whose writer put something
+ * else in that byte, which is what Amiga LhA does.
+ *
+ * Only the first H_SIZE bytes may be read here — that is all the bidder and
+ * the SFX scan guarantee — so this checks exactly what those bytes can prove:
+ * the header must be long enough to hold its own fixed part plus the name,
+ * and the name length must be one lha_read_file_header_1() would accept.
+ * Note `header size' is measured from offset 2, hence the +2.
+ *
+ * A false positive costs nothing: lha_read_file_header_1() verifies the
+ * header checksum and fails the read.
+ */
+static int
+lha_level1_header_is_plausible(const unsigned char *p)
+{
+
+	if (p[H1_NAME_LEN_OFFSET] > 230)
+		return (0);
+	return ((size_t)p[H1_HEADER_SIZE_OFFSET] + 2
+	    >= H1_FIXED_SIZE + (size_t)p[H1_NAME_LEN_OFFSET]);
+}
+
 static int
 lha_read_file_header_1(struct archive_read *a, struct lha *lha)
 {
@@ -1563,7 +1724,7 @@ lha_read_data_lzh(struct archive_read *a, const void **buff,
 
 	/* If we haven't yet read any data, initialize the decompressor. */
 	if (!lha->decompress_init) {
-		r = lzh_decode_init(&(lha->strm), lha->method);
+		r = lzh_decode_init(&(lha->strm), lha->method, lha->origsize);
 		switch (r) {
 		case ARCHIVE_OK:
 			break;
@@ -1624,6 +1785,28 @@ lha_read_data_lzh(struct archive_read *a, const void **buff,
 	}
 	lha->entry_unconsumed = lha->strm.total_in;
 	lha->entry_bytes_remaining -= lha->strm.total_in;
+
+	if (lha->end_of_entry && lha->entry_bytes_remaining > 0) {
+		/*
+		 * -lh1- ends when it has emitted `origsize' bytes rather than
+		 * when its input runs out, so compressed bytes can be left
+		 * over. Nothing else would ever consume them:
+		 * read_data_skip() consumes entry_unconsumed and then returns
+		 * early because the entry is finished, so the NEXT header
+		 * would be read from the wrong offset.
+		 *
+		 * Usually there is nothing to do here - the bit reader fills a
+		 * 64-bit cache greedily, so it has already taken the encoder's
+		 * few trailing flush bytes. It matters when the two sizes
+		 * genuinely disagree: an entry whose origsize is 0, or a
+		 * header that under-reports it.
+		 *
+		 * Not reachable for -lh5-/-lh6-/-lh7-, whose end of entry IS
+		 * input exhaustion.
+		 */
+		lha->entry_unconsumed += lha->entry_bytes_remaining;
+		lha->entry_bytes_remaining = 0;
+	}
 
 	if (lha->strm.avail_out) {
 		*offset = lha->entry_offset;
@@ -1823,6 +2006,207 @@ lha_crc16(uint16_t crc, const void *pp, size_t len)
 }
 
 /*
+ * Build -lh1-'s fixed position table.
+ *
+ * The distances a -lh1- match can name are 12 bits wide; the top 6 bits are
+ * Huffman coded with a table both sides agree on in advance, and the low 6
+ * bits follow raw. The table is canonical over the code lengths below, whose
+ * Kraft sum is exactly 1 - so no code is longer than 8 bits and one 8-bit
+ * lookahead always resolves a symbol. (This is ready_made(0) of shuf.c,
+ * expanded here into the lookahead table it is only ever used through.)
+ */
+static void
+lzh_dyn_init_pt(struct lzh_dyn *d)
+{
+	/* Symbol counts for code lengths 3, 4, 5, 6, 7 and 8. */
+	static const unsigned char runs[] = { 1, 3, 8, 12, 24, 16 };
+	unsigned int i, n, e, len, sym, idx;
+
+	sym = idx = 0;
+	for (i = 0; i < sizeof(runs); i++) {
+		len = i + 3;
+		for (n = runs[i]; n > 0; n--) {
+			d->pt_len[sym] = (unsigned char)len;
+			for (e = 1U << (8 - len); e > 0; e--)
+				d->pt_tbl[idx++] = (unsigned char)sym;
+			sym++;
+		}
+	}
+}
+
+/*
+ * Build -lh1-'s initial literal/length tree: every symbol has frequency 1,
+ * leaves fill the high half of the node array and internal nodes are folded
+ * down to the root at index 0. Nodes of equal frequency are grouped into
+ * "blocks" so that a frequency increment only has to swap a node with its
+ * block leader; edge[] names each block's leader and stock[] hands out block
+ * ids. Called per entry - the tree is not carried between entries.
+ */
+static void
+lzh_dyn_start(struct lzh_dyn *d)
+{
+	int i, j;
+	unsigned int f;
+
+	for (i = 0; i < LZH1_STOCK_SIZE; i++)
+		d->stock[i] = (uint16_t)i;
+	for (i = 0; i < LZH1_TREESIZE; i++)
+		d->block[i] = 0;
+	for (i = 0, j = LZH1_NC * 2 - 2; i < LZH1_NC; i++, j--) {
+		d->freq[j] = 1;
+		d->child[j] = (int16_t)~i;
+		d->node[i] = (uint16_t)j;
+		d->block[j] = 1;
+	}
+	d->avail = 2;
+	d->edge[1] = LZH1_NC - 1;
+	d->walk = 0;
+	i = LZH1_NC * 2 - 2;
+	while (j >= 0) {
+		f = (unsigned int)d->freq[i] + d->freq[i - 1];
+		d->freq[j] = (uint16_t)f;
+		d->child[j] = (int16_t)i;
+		d->parent[i] = d->parent[i - 1] = (uint16_t)j;
+		if (f == d->freq[j + 1])
+			d->edge[d->block[j] = d->block[j + 1]] = (uint16_t)j;
+		else
+			d->edge[d->block[j] = d->stock[d->avail++]] =
+			    (uint16_t)j;
+		i -= 2;
+		j--;
+	}
+}
+
+/*
+ * Halve every frequency and rebuild the tree, which -lh1- does whenever the
+ * root's frequency would overflow 15 bits. Both sides do it at the same
+ * symbol count, so it is part of the bit stream's meaning, not an
+ * optimisation. (reconst() of dhuf.c.)
+ */
+static void
+lzh_dyn_reconst(struct lzh_dyn *d, int start, int end)
+{
+	int i, j, k, l, b = 0;
+	unsigned int f, g;
+
+	/* Collect the leaves, halving their frequencies, and release the
+	 * blocks they were grouped into. */
+	for (i = j = start; i < end; i++) {
+		if ((k = d->child[i]) < 0) {
+			d->freq[j] = (uint16_t)((d->freq[i] + 1) / 2);
+			d->child[j] = (int16_t)k;
+			j++;
+		}
+		if (d->edge[b = d->block[i]] == i)
+			d->stock[--d->avail] = (uint16_t)b;
+	}
+	/* Rebuild the internal nodes over them, keeping frequency order. */
+	j--;
+	i = end - 1;
+	l = end - 2;
+	while (i >= start) {
+		while (i >= l) {
+			d->freq[i] = d->freq[j];
+			d->child[i] = d->child[j];
+			i--, j--;
+		}
+		f = (unsigned int)d->freq[l] + d->freq[l + 1];
+		for (k = start; f < d->freq[k]; k++)
+			;
+		while (j >= k) {
+			d->freq[i] = d->freq[j];
+			d->child[i] = d->child[j];
+			i--, j--;
+		}
+		d->freq[i] = (uint16_t)f;
+		d->child[i] = (int16_t)(l + 1);
+		i--;
+		l -= 2;
+	}
+	/* Re-derive the parent/leaf maps and regroup equal frequencies. */
+	f = 0;
+	for (i = start; i < end; i++) {
+		if ((j = d->child[i]) < 0)
+			d->node[~j] = (uint16_t)i;
+		else
+			d->parent[j] = d->parent[j - 1] = (uint16_t)i;
+		if ((g = d->freq[i]) == f)
+			d->block[i] = (uint16_t)b;
+		else {
+			d->edge[b = d->stock[d->avail++]] = (uint16_t)i;
+			d->block[i] = (uint16_t)b;
+			f = g;
+		}
+	}
+}
+
+/*
+ * Increment node p's frequency, moving it ahead of its equal-frequency
+ * block first so the node array stays sorted, and return its parent.
+ * (swap_inc() of dhuf.c.)
+ */
+static int
+lzh_dyn_swap_inc(struct lzh_dyn *d, int p)
+{
+	int b, q, r, s;
+
+	b = d->block[p];
+	q = d->edge[b];
+	if (q != p) {
+		/* Swap p with its block leader; only the leader may leave
+		 * the block. */
+		r = d->child[p];
+		s = d->child[q];
+		d->child[p] = (int16_t)s;
+		d->child[q] = (int16_t)r;
+		if (r >= 0)
+			d->parent[r] = d->parent[r - 1] = (uint16_t)q;
+		else
+			d->node[~r] = (uint16_t)q;
+		if (s >= 0)
+			d->parent[s] = d->parent[s - 1] = (uint16_t)p;
+		else
+			d->node[~s] = (uint16_t)p;
+		p = q;
+	} else if (b != d->block[p + 1]) {
+		/* p is alone in its block: it can be incremented in place,
+		 * and merged into the block above if it catches up. */
+		if (++d->freq[p] == d->freq[p - 1]) {
+			d->stock[--d->avail] = (uint16_t)b;
+			d->block[p] = d->block[p - 1];
+		}
+		return (d->parent[p]);
+	}
+	/* p is the block leader now: move the block's edge past it, then
+	 * either join the block above or start a block of its own. */
+	d->edge[b]++;
+	if (++d->freq[p] == d->freq[p - 1])
+		d->block[p] = d->block[p - 1];
+	else
+		d->edge[d->block[p] = d->stock[d->avail++]] = (uint16_t)p;
+	return (d->parent[p]);
+}
+
+/*
+ * Account for one decoded symbol: walk from its leaf to the root
+ * incrementing frequencies, rebuilding the tree first if the root is about
+ * to overflow. (update_c() of dhuf.c.)
+ */
+static void
+lzh_dyn_update(struct lzh_dyn *d, int c)
+{
+	int q;
+
+	if (d->freq[LZH1_ROOT] == 0x8000)
+		lzh_dyn_reconst(d, 0, LZH1_NC * 2 - 1);
+	d->freq[LZH1_ROOT]++;
+	q = d->node[c];
+	do {
+		q = lzh_dyn_swap_inc(d, q);
+	} while (q != LZH1_ROOT);
+}
+
+/*
  * Initialize LZHUF decoder.
  *
  * Returns ARCHIVE_OK if initialization was successful.
@@ -1831,7 +2215,7 @@ lha_crc16(uint16_t crc, const void *pp, size_t len)
  * error occurred.
  */
 static int
-lzh_decode_init(struct lzh_stream *strm, const char *method)
+lzh_decode_init(struct lzh_stream *strm, const char *method, int64_t origsize)
 {
 	struct lzh_dec *ds;
 	int w_bits, w_size;
@@ -1846,6 +2230,9 @@ lzh_decode_init(struct lzh_stream *strm, const char *method)
 	if (method == NULL || method[0] != 'l' || method[1] != 'h')
 		return (ARCHIVE_FAILED);
 	switch (method[2]) {
+	case '1':
+		w_bits = 12;/* 4KiB for window */
+		break;
 	case '5':
 		w_bits = 13;/* 8KiB for window */
 		break;
@@ -1869,15 +2256,42 @@ lzh_decode_init(struct lzh_stream *strm, const char *method)
 			return (ARCHIVE_FATAL);
 	}
 	w_size = 1U << w_bits;
-	memset(ds->w_buff + ds->w_size - w_size, 0x20, w_size);
+	/*
+	 * A match may reach a full window back, and at w_pos == 0 a distance
+	 * of w_size selects ds->w_size - w_size - 1: one byte BELOW the fill.
+	 * The original decoders answer 0x20 there (their window is a circular
+	 * buffer of exactly w_size bytes, pre-filled with spaces), so fill
+	 * that byte too.
+	 */
+	memset(ds->w_buff + ds->w_size - w_size - 1, 0x20, w_size + 1);
 	ds->w_pos = 0;
 	ds->state = 0;
+	ds->br.cache_buffer = 0;
+	ds->br.cache_avail = 0;
+	if (method[2] == '1') {
+		/*
+		 * -lh1- decodes straight from the first bit: no block header,
+		 * no transmitted tables. The tree and the fixed position table
+		 * are all the state it needs, and `origsize' is what ends it.
+		 */
+		if (ds->dyn == NULL) {
+			ds->dyn = calloc(1, sizeof(*ds->dyn));
+			if (ds->dyn == NULL)
+				return (ARCHIVE_FATAL);
+			lzh_dyn_init_pt(ds->dyn);
+		}
+		lzh_dyn_start(ds->dyn);
+		ds->out_left = origsize;
+		ds->literal_state = ST_LH1_GET_LITERAL;
+		ds->state = ST_LH1_GET_LITERAL;
+		ds->error = 0;
+		return (ARCHIVE_OK);
+	}
+	ds->literal_state = ST_GET_LITERAL;
 	ds->pos_pt_len_size = w_bits + 1;
 	ds->pos_pt_len_bits = (w_bits == 15 || w_bits == 16)? 5: 4;
 	ds->literal_pt_len_size = PT_BITLEN_SIZE;
 	ds->literal_pt_len_bits = 5;
-	ds->br.cache_buffer = 0;
-	ds->br.cache_avail = 0;
 
 	if (lzh_huffman_init(&(ds->lt), LT_BITLEN_SIZE, 16)
 	    != ARCHIVE_OK)
@@ -1901,6 +2315,7 @@ lzh_decode_free(struct lzh_stream *strm)
 	if (strm->ds == NULL)
 		return;
 	free(strm->ds->w_buff);
+	free(strm->ds->dyn);
 	lzh_huffman_free(&(strm->ds->lt));
 	lzh_huffman_free(&(strm->ds->pt));
 	free(strm->ds);
@@ -2044,19 +2459,6 @@ lzh_br_fillup(struct lzh_stream *strm, struct lzh_br *br)
  */
 static int	lzh_read_blocks(struct lzh_stream *, int);
 static int	lzh_decode_blocks(struct lzh_stream *, int);
-#define ST_RD_BLOCK		0
-#define ST_RD_PT_1		1
-#define ST_RD_PT_2		2
-#define ST_RD_PT_3		3
-#define ST_RD_PT_4		4
-#define ST_RD_LITERAL_1		5
-#define ST_RD_LITERAL_2		6
-#define ST_RD_LITERAL_3		7
-#define ST_RD_POS_DATA_1	8
-#define ST_GET_LITERAL		9
-#define ST_GET_POS_1		10
-#define ST_GET_POS_2		11
-#define ST_COPY_DATA		12
 
 static int
 lzh_decode(struct lzh_stream *strm, int last)
@@ -2337,6 +2739,7 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 	int w_pos = ds->w_pos, w_mask = ds->w_mask, w_size = ds->w_size;
 	int lt_max_bits = lt->max_bits, pt_max_bits = pt->max_bits;
 	int state = ds->state;
+	int literal_state = ds->literal_state;
 
 	for (;;) {
 		switch (state) {
@@ -2483,7 +2886,7 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 					w_pos = 0;
 					lzh_emit_window(strm, w_size);
 					if (copy_len <= l)
-						state = ST_GET_LITERAL;
+						state = literal_state;
 					else {
 						state = ST_COPY_DATA;
 						ds->copy_len = copy_len - l;
@@ -2498,7 +2901,108 @@ lzh_decode_blocks(struct lzh_stream *strm, int last)
 				copy_len -= l;
 				copy_pos = (copy_pos + l) & w_mask;
 			}
-			state = ST_GET_LITERAL;
+			state = literal_state;
+			break;
+
+		/*
+		 * -lh1- decoding. It joins the shared LZSS machinery at
+		 * ST_COPY_DATA above; everything before that differs.
+		 */
+		case ST_LH1_GET_LITERAL:
+			if (ds->out_left <= 0) {
+				/* The whole entry is decoded. -lh1- has no end
+				 * marker, so the byte count is the terminator
+				 * and whatever bits follow are the encoder's
+				 * flush. */
+				ds->br = bre;
+				ds->state = state;
+				ds->w_pos = 0;
+				if (w_pos > 0)
+					lzh_emit_window(strm, w_pos);
+				return (ARCHIVE_EOF);
+			}
+			ds->dyn->walk = ds->dyn->child[LZH1_ROOT];
+			state = ST_LH1_TREE;
+			/* FALL THROUGH */
+		case ST_LH1_TREE:
+			/*
+			 * Walk the adaptive tree a bit at a time. A code has
+			 * no length bound the way a table-driven one does, so
+			 * the walk suspends on the node it reached rather than
+			 * asking for a fixed number of bits up front.
+			 */
+			while (ds->dyn->walk > 0) {
+				if (!lzh_br_read_ahead(strm, &bre, 1)) {
+					if (last)
+						goto failed;/* Truncated data. */
+					state = ST_LH1_TREE;
+					goto next_data;
+				}
+				ds->dyn->walk = ds->dyn->child[ds->dyn->walk
+				    - lzh_br_bits(&bre, 1)];
+				lzh_br_consume(&bre, 1);
+			}
+			c = ~ds->dyn->walk;
+			if ((unsigned int)c >= LZH1_NC)
+				goto failed;/* Invalid data. */
+			lzh_dyn_update(ds->dyn, c);
+			if (c <= UCHAR_MAX) {
+				/* A literal. */
+				w_buff[w_pos] = (unsigned char)c;
+				ds->out_left--;
+				state = ST_LH1_GET_LITERAL;
+				if (++w_pos >= w_size) {
+					w_pos = 0;
+					lzh_emit_window(strm, w_size);
+					goto next_data;
+				}
+				break;
+			}
+			copy_len = c - (UCHAR_MAX + 1) + MINMATCH;
+			if (copy_len > ds->out_left)
+				/* Only reachable on damaged data: a well
+				 * formed entry's last match ends exactly on
+				 * origsize. Clamping keeps the emitted size
+				 * equal to the size the header promised. */
+				copy_len = (int)ds->out_left;
+			ds->out_left -= copy_len;
+			/* FALL THROUGH */
+		case ST_LH1_GET_POS_1:
+			/* High 6 bits of the distance, Huffman coded with the
+			 * fixed table. */
+			if (!lzh_br_read_ahead(strm, &bre, 8)) {
+				if (!last) {
+					state = ST_LH1_GET_POS_1;
+					ds->copy_len = copy_len;
+					goto next_data;
+				}
+				c = ds->dyn->pt_tbl[
+				    lzh_br_bits_forced(&bre, 8)];
+				lzh_br_consume(&bre, ds->dyn->pt_len[c]);
+				if (!lzh_br_has(&bre, 0))
+					goto failed;/* Over read. */
+			} else {
+				c = ds->dyn->pt_tbl[lzh_br_bits(&bre, 8)];
+				lzh_br_consume(&bre, ds->dyn->pt_len[c]);
+			}
+			copy_pos = c << 6;
+			/* FALL THROUGH */
+		case ST_LH1_GET_POS_2:
+			/* Low 6 bits, raw. */
+			if (!lzh_br_read_ahead(strm, &bre, 6)) {
+				if (last)
+					goto failed;/* Truncated data. */
+				state = ST_LH1_GET_POS_2;
+				ds->copy_len = copy_len;
+				ds->copy_pos = copy_pos;
+				goto next_data;
+			}
+			copy_pos |= lzh_br_bits(&bre, 6);
+			lzh_br_consume(&bre, 6);
+			/* Same conversion from distance to window position the
+			 * shared path makes. */
+			copy_pos = (w_pos - copy_pos - 1) & w_mask;
+			state = ST_COPY_DATA;
 			break;
 		}
 	}

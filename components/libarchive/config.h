@@ -26,6 +26,27 @@
  */
 #define __LIBARCHIVE_CONFIG_H_INCLUDED 1
 
+/* Size-optimize this ~520 KB vendored library regardless of the app build
+   type. The app's flash text must stay inside the ESP32's ~3.3 MB
+   instruction window, and `build_type = debug` in platformio.ini compiles
+   everything at -Og, which left fujiloaf-rev0 with about 220 bytes of
+   headroom - any feature work overflowed it. libarchive is decode- and
+   I/O-bound, so trading its speed for space costs nothing measurable.
+
+   It has to be a pragma rather than a per-component -O compile option:
+   the PlatformIO ESP-IDF builder silently strips those (build.ninja shows
+   the flag, the compile does not use it). Same reason and same mechanism
+   as components/sqlite3/private_include/config_ext.h and
+   components/tapclean/src/mydefs.h.
+
+   Every libarchive source includes archive_platform.h, which includes this
+   file first, so this reaches all of them. ESP_PLATFORM-guarded so the
+   native archive test suite (test/native/test_archive_extract) still
+   builds at the host's chosen optimization level. */
+#if defined(ESP_PLATFORM) && defined(__GNUC__)
+#pragma GCC optimize("Os")
+#endif
+
 // #include <osreldate.h>
 
 // /* FreeBSD 5.0 and later has ACL and extattr support. */
