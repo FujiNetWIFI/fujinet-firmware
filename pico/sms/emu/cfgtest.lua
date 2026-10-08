@@ -21,7 +21,7 @@ end
 local function bar_to(text)
   local y = T.find(text)
   if not y then return false end
-  for r = 5, 20 do
+  for r = 1, 17 do
     if T.hi(r) then
       if r == y then return true end
       press(r < y and "P1 Down" or "P1 Up", 4)
