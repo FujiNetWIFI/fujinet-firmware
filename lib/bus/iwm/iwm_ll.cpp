@@ -894,7 +894,7 @@ void IRAM_ATTR iwm_diskii_ll::diskii_write_handler()
     // for space before allocating. Race-free - this ISR is the sole producer.
     if (uxQueueMessagesWaitingFromISR(iwm_write_queue) >= IWM_WRITE_QUEUE_DEPTH)
     {
-      iwm_write_drops++;
+      iwm_write_drops += 1;
       d2w_writing = false;
       return;
     }
@@ -923,7 +923,7 @@ void IRAM_ATTR iwm_diskii_ll::diskii_write_handler()
         memcpy(&item.buffer[end1], d2w_buffer, end2);
       }
       if (xQueueSendFromISR(iwm_write_queue, &item, &woken) != pdTRUE)
-        iwm_write_drops++; // unreachable after the space pre-check; buffer is lost
+        iwm_write_drops += 1; // unreachable after the space pre-check; buffer is lost
     }
     d2w_writing = false;
   }
