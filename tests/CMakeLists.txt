@@ -1329,6 +1329,20 @@ target_include_directories(mac_gcr_tests PRIVATE ${CMAKE_SOURCE_DIR}/lib/)
 add_test(NAME mac_gcr_tests COMMAND mac_gcr_tests)
 
 # ------------------------------------------------------------------------------
+# afpfs-ng server-reuse matching. server_match.c has no dependency on the rest
+# of the library, which does not build on the host.
+# ------------------------------------------------------------------------------
+add_executable(afp_server_match_tests
+    AfpServerMatchTests.cpp
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/lib/server_match.c
+)
+target_include_directories(afp_server_match_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/lib/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+add_test(NAME afp_server_match_tests COMMAND afp_server_match_tests)
+
+# ------------------------------------------------------------------------------
 # Atari cassette rewind: record durations (lib/media/atari/casTape.h), and the
 # request and the trail of played boundaries (lib/device/sio/cassette*.h). None
 # of them touches the bus, a file or the RTOS, so they are driven here directly.
