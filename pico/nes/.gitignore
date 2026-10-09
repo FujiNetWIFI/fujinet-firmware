@@ -1,0 +1,11 @@
+build/
+firmware/build-*/
+firmware/host_test/test_fujibus
+firmware/host_test/test_nesmap
+firmware/host_test/test_busio
+firmware/host_test/test_pio
+firmware/host_test/test_fujimail
+testrom/font.inc
+testrom/bootcfg.inc
+firmware/include/fujiconfigrom.h
+firmware/include/nesloaderrom.h

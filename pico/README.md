@@ -11,6 +11,7 @@ on its floppy port and relays bus traffic to the ESP32 running FujiNet.
 | `fujiversal-roms/msx/` | Prebuilt MSX CONFIG ROM that the `fujiversal-msx` cartridge serves | not built here (needs z88dk) | input to the `fujiversal-msx` prebuild step | | yes |
 | `astrocade/` | Bally Astrocade cartridge on an RP2040 `fujicade` board | `astrocade/build.sh` (Z80 clients) and `astrocade/build-cart.sh` (pico-sdk) | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
 | `o2/` | Odyssey 2 and Videopac cartridge, RP2040; a fork of PicoPAC | `o2/build.sh` (8048 clients) and `o2/build-cart.sh` (pico-sdk) | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
+| `nes/` | NES cartridge on an RP2354B with two 512K SRAMs for PRG and CHR | `nes/build.sh` (6502 clients, cc65) and `nes/build-cart.sh` (pico-sdk) | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
 | `atari-2600/` | Atari 2600 PlusCart-Pico port, RP2040 | PlatformIO per its README; no project ini is tracked | no | none wired in | upstream README |
 | `coco/` | Early CoCo cartridge, RP2040 | pico-sdk CMake | no | [lib/bus/drivewire/](../lib/bus/drivewire/) over a PIO UART | [coco/](coco/) |
 | `mac/` | Macintosh 68k floppy-port emulation on the `fujimac-rev0` board, RP2040 | pico-sdk CMake | no | [lib/bus/mac/](../lib/bus/mac/) over a 2 Mbaud UART | [mac/](mac/) |
