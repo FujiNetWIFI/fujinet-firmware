@@ -252,10 +252,11 @@ shift $((OPTIND - 1))
 # Requirements:
 #   - python_min from platformio.common.ini, offered from the system package
 #     manager; PlatformIO is installed into the venv
-#   - what build_prereqs.py checks (PlatformIO's version, the Python modules,
-#     a companion-MCU board's tools), offered together in one prompt
+#   - what build_prereqs.py checks (a host C/C++ compiler, PlatformIO's
+#     version, the Python modules, a companion-MCU board's tools), offered
+#     together in one prompt
 #   - not ESP32 build:
-#     - cmake
+#     - make and cmake
 
 PYTHON_MIN=$(common_value python_min)
 PYTHON_MIN=${PYTHON_MIN:-3}
@@ -292,14 +293,11 @@ if [ -z "${PC_TARGET}" ] ; then
     fi
 fi
 
-# Let the user know about any required packages they need to install
+# Let the user know about any required packages they need to install; the
+# host C/C++ compiler is checked and offered by build_prereqs.py.
 MISSING=""
 if [ -n "${PC_TARGET}" ] ; then
-    COMPILER=g++
-    if [ "$MSYSTEM" = "CLANG64" ]; then
-        COMPILER=clang++
-    fi
-    for REQUIRED in ${COMPILER} make cmake ; do
+    for REQUIRED in make cmake ; do
         if ! command -v ${REQUIRED} > /dev/null ; then
             MISSING="${REQUIRED} ${MISSING}"
         fi
@@ -324,9 +322,10 @@ normalize_path() {
 
 same_dir() {
     [ -d "$1" ] && [ -d "$2" ] || return 1
-    stat1=$(stat -c "%d:%i" "$1")
-    stat2=$(stat -c "%d:%i" "$2")
-    [ "$stat1" = "$stat2" ]
+    # GNU stat takes -c, BSD/macOS stat -f.
+    stat1=$(stat -c "%d:%i" "$1" 2>/dev/null || stat -f "%d:%i" "$1")
+    stat2=$(stat -c "%d:%i" "$2" 2>/dev/null || stat -f "%d:%i" "$2")
+    [ -n "$stat1" ] && [ "$stat1" = "$stat2" ]
 }
 
 if [[ "$VIRTUAL_ENV" != "$VENV_ROOT" ]] ; then
@@ -360,7 +359,7 @@ fi
 # If pio is the one installed by the system it runs the system
 # python instead of the penv python, blocking pip from installing
 # packages
-if [ -z "${PC_BUILD}" ] ; then
+if [ -z "${PC_TARGET}" ] ; then
     PIO=$(command -v pio)
     if [ "${PIO}" != "${VENV_ROOT}/bin/pio" ] ; then
         pip install platformio || exit 1
@@ -446,15 +445,6 @@ if [ ! -z "$PC_TARGET" ] ; then
   if [ $? -ne 0 ] ; then
     echo "Error running initial cmake. Aborting"
     exit 1
-  fi
-
-  # python_modules.txt contains pairs of module name and installable package names, separated by pipe symbol
-  MOD_LIST=$(sed '/^#/d' < "${SCRIPT_DIR}/python_modules.txt" | cut -d\| -f1 | tr '\n' ' ' | sed 's# *$##;s# \{1,\}# #g')
-  echo "Checking python modules installed: $MOD_LIST"
-  ${PYTHON} -c "import importlib.util, sys; sys.exit(0 if all(importlib.util.find_spec(mod.strip()) for mod in '''$MOD_LIST'''.split()) else 1)"
-  if [ $? -eq 1 ] ; then
-    echo "At least one of the required python modules is missing"
-    bash ${SCRIPT_DIR}/install_python_modules.sh
   fi
 
   cmake --build .
@@ -543,6 +533,7 @@ if [ ${PICO_ONLY} -eq 1 ] ; then
   PICO_ENV="${ENV_NAME:-$BUILD_BOARD}"
   echo "=============================================================="
   echo "Building companion (pico) firmware only for board: $PICO_ENV"
+  python "$SCRIPT_DIR/build_prereqs.py" --board "$PICO_ENV" --ini "$INI_FILE" ${PREREQ_YES} || exit 1
   python3 "$SCRIPT_DIR/build_pico.py" "$PICO_ENV" --ini "$INI_FILE"
   exit $?
 fi

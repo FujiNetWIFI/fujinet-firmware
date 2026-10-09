@@ -97,9 +97,10 @@ def run(cmd: List[str], cwd: str, board: str, key: Optional[str],
         return result.stdout.strip()
 
     if quiet:
-        # Its output is only shown when it fails.
-        result = subprocess.run(cmd, cwd=cwd, env=build_env, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, text=True)
+        # Its output is only shown when it fails. No stdin: a command that reads
+        # the terminal while its output is captured gets suspended.
+        result = subprocess.run(cmd, cwd=cwd, env=build_env, stdin=subprocess.DEVNULL,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         if result.returncode != 0:
             print(result.stdout, file=sys.stderr)
     else:
@@ -810,8 +811,12 @@ class Problem:
 
 
 def _pip_problem(cfg: PicoConfig, key: str, package: str, version: str,
-                 message: str) -> Problem:
-    spec = f"{package}=={version}"
+                 message: str, need: str = "") -> Problem:
+    """Installs exactly version, or need when that is higher."""
+    if need and version and _parse_version(need) > _parse_version(version):
+        spec = f"{package}>={need}"
+    else:
+        spec = f"{package}=={version}"
     command = f"{sys.executable} -m pip install {spec}"
     if not version or not _in_venv():
         # Outside a venv pip would write into the system Python.
@@ -933,13 +938,13 @@ def problems(cfg: PicoConfig) -> List[Problem]:
         if not found[tool]:
             result.append(_pip_problem(cfg, key, tool, version,
                                        f"not found (need {need} or newer)" if need
-                                       else "not found"))
+                                       else "not found", need))
             continue
         have = re.search(r"\d+\.\d+(\.\d+)?", _output([found[tool], "--version"]))
         if need and have and _parse_version(have.group(0)) < _parse_version(need):
             result.append(_pip_problem(cfg, key, tool, version,
                                        f"{found[tool]} is {have.group(0)}; need "
-                                       f"{need} or newer"))
+                                       f"{need} or newer", need))
     other = [t for t in tools if not found[t] and t not in arm and t not in ("cmake", "ninja")]
     if other:
         result.append(Problem("pico_toolchain", ", ".join(other), "not found"))
@@ -983,12 +988,12 @@ def install_commands(auto: List[Problem]) -> str:
 
 def install(found: List[Problem]) -> None:
     """Runs installable(found), once per command."""
-    done = set()
+    by_command: Dict[str, List[Problem]] = {}
     for p in installable(found):
-        if p.command not in done:
-            done.add(p.command)
-            print(f"Installing {p.name}...", flush=True)
-            p.install()
+        by_command.setdefault(p.command, []).append(p)
+    for group in by_command.values():
+        print(f"Installing {join_names([p.name for p in group])}...", flush=True)
+        group[0].install()
     print("Done.", flush=True)
 
 
@@ -1003,8 +1008,32 @@ def preflight(cfg: PicoConfig) -> None:
                              + format_problems(_title(cfg), found))
 
 
+def _stale_cmake_cache(cfg: PicoConfig) -> bool:
+    """True when the build dir was configured against a different pico-sdk or
+    compiler than this build would use, which the skip-configure shortcut in
+    build() would otherwise reuse."""
+    try:
+        with open(os.path.join(cfg.build_dir_abs, "CMakeCache.txt")) as f:
+            cache = dict(re.match(r"([^:=]+)(?::[^=]*)?=(.*)", line).groups()
+                         for line in f if re.match(r"[A-Za-z_]+[:=]", line))
+    except OSError:
+        return False
+    current = {}
+    if cfg.sdk_required:
+        current["PICO_SDK_PATH"] = cfg.sdk_path
+    gcc = shutil.which("arm-none-eabi-gcc", path=tool_path(cfg))
+    if gcc and "arm-none-eabi-gcc" in cfg.toolchain:
+        current["CMAKE_C_COMPILER"] = gcc
+    return any(key in cache and os.path.realpath(cache[key].strip()) != os.path.realpath(value)
+               for key, value in current.items())
+
+
 def build(cfg: PicoConfig, reconfigure: bool = False, dry_run: bool = False) -> None:
     build_dir_abs = cfg.build_dir_abs
+    if cfg.build_mode in CMAKE_MODES and not dry_run and _stale_cmake_cache(cfg):
+        log(f"[{cfg.board}] {build_dir_abs} was configured with a different pico-sdk or "
+            f"compiler -- removing it")
+        shutil.rmtree(build_dir_abs)
     if not dry_run:
         os.makedirs(build_dir_abs, exist_ok=True)
 
