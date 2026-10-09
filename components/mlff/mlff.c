@@ -220,7 +220,11 @@ static esp_err_t flash_write_file(const char *sd_file_path, const char *partitio
     {
         // Set bootloader partition
         partition = *existing_part;
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+        partition.address = 0x0000;
+#else
         partition.address = 0x1000;
+#endif
         partition.size = 0x7000;
         partition.erase_size = 0x1000;
         partition.type = ESP_PARTITION_TYPE_BOOTLOADER;
