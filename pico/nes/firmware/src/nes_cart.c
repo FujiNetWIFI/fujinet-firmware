@@ -45,7 +45,8 @@ static inline void data_release(void)
 
 /* A mapper write, applied inline. The PRG and CHR tables are patched here;
  * the slow consequences are flagged for core0. MMC3's interrupt registers go
- * to core0 too, so that every touch of the IRQ state happens on one core. */
+ * to core0 too, so that every touch of the IRQ state happens on one core and
+ * only this core writes m->dirty. */
 static inline void mapper_write(uint16_t a, uint8_t d, uint32_t cycle)
 {
     nesmap_t *m = &fuji_map;
@@ -64,8 +65,6 @@ static inline void mapper_write(uint16_t a, uint8_t d, uint32_t cycle)
             nes_pio_patch_chr(i, m->out.chr[i]);
     if (m->dirty & NESMAP_DIRTY_SLOW)
         fuji_slow_dirty = 1;
-    if (m->dirty & NESMAP_DIRTY_IRQ)
-        fuji_irq_dirty = 1;
     m->dirty = 0;
 }
 

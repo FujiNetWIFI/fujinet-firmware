@@ -22,9 +22,8 @@ static void a12_isr(void)
     pio_interrupt_clear(A12_PIO, 0);
     if (!enabled || fuji_serve.loading)
         return;
-    /* nesmap's IRQ fields are shared with core1's register writes; a write
-     * landing inside this handler can lose one reload or ack. Rare, and one
-     * scanline's worth of damage; noted in the README. */
+    /* The IRQ registers are written on this core with interrupts off
+     * (fuji_mailbox_service), so no register write lands inside this. */
     fuji_cart_set_irq(nesmap_a12_clock(&fuji_map));
 }
 

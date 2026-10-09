@@ -120,10 +120,11 @@ void fuji_mailbox_service(void)
     while (fuji_cart_next_event(&ev)) {
         if (ev.kind == NES_EV_MAPPER) {
             uint32_t irq = save_and_disable_interrupts();
+            bool line = fuji_map.irq_line;
+
             nesmap_write(&fuji_map, ev.offset, ev.data, ev.cycle);
-            if (fuji_map.dirty & NESMAP_DIRTY_IRQ)
+            if (fuji_map.irq_line != line)
                 fuji_cart_set_irq(fuji_map.irq_line);
-            fuji_map.dirty &= (uint8_t)~NESMAP_DIRTY_IRQ;
             restore_interrupts(irq);
         } else {
             mailbox_event(ev.offset, ev.data);

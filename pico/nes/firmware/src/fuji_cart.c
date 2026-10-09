@@ -25,7 +25,6 @@ volatile uint32_t fuji_bus_cycle;
 volatile bool fuji_boot_armed;
 volatile bool fuji_have_staged;
 volatile uint8_t fuji_slow_dirty;
-volatile uint8_t fuji_irq_dirty;
 
 static const uint8_t *resident_base;
 static nesmap_plan_t resident_plan;
@@ -362,7 +361,6 @@ void fuji_cart_init(const uint8_t *loader_rom, unsigned loader_len)
     fuji_boot_armed = false;
     fuji_have_staged = false;
     fuji_slow_dirty = 0;
-    fuji_irq_dirty = 0;
     ls_state = LS_IDLE;
     ls_autoload = true;
     console_alive = false;
@@ -390,9 +388,5 @@ void fuji_cart_service(void)
     if (fuji_slow_dirty) {
         fuji_slow_dirty = 0;                   /* clear first, then apply the latest */
         apply_gates();
-    }
-    if (fuji_irq_dirty) {
-        fuji_irq_dirty = 0;
-        fuji_cart_set_irq(fuji_map.irq_line);
     }
 }

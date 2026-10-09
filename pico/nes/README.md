@@ -205,9 +205,6 @@ In-band diagnostics first (`FN_R_ERR`, `FN_R_DIAG_RMW` on screen), scope last.
 
 - A console Reset during a load restarts the 6502 through half-written
   vectors; power-cycle to recover (the M2 watchdog then reloads CONFIG).
-- MMC3 IRQ state is touched by core1 (register writes) and core0's PIO
-  interrupt (the counter); a write landing inside the handler can lose one
-  reload or ack. One scanline's damage, rarely.
 - Four-screen mirroring is a '595 bit, not yet wired to a CHR A18 mux.
 - Battery saves live in the cart's WRAM and are not persisted yet.
 

@@ -305,10 +305,7 @@ static void mmc3_write(nesmap_t *m, uint16_t a, uint8_t d)
         break;
     case 0xE000:
         m->irq_enable = false;
-        if (m->irq_line) {
-            m->irq_line = false;
-            m->dirty |= NESMAP_DIRTY_IRQ;
-        }
+        m->irq_line = false;
         break;
     case 0xE001:
         m->irq_enable = true;

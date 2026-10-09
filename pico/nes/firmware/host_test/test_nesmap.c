@@ -539,11 +539,13 @@ static void test_mmc3_irq(void)
     memcpy(image, h, 16);
     assert(nesmap_plan(image, 16 + 8 * 16384 + 8 * 8192, &p) == NESMAP_OK);
     assert(nesmap_init(&m, &p) == NESMAP_OK);
+    m.dirty = 0;
 
+    /* core0 applies these while core1 owns dirty, so none may touch it */
     nesmap_write(&m, 0xC000, 3, 10);     /* latch = 3 */
     nesmap_write(&m, 0xC001, 0, 20);     /* reload   */
     nesmap_write(&m, 0xE001, 0, 30);     /* enable   */
-    m.dirty = 0;
+    assert(m.dirty == 0);
     /* first clock reloads to 3, then 2, 1, 0 -> IRQ on the 4th */
     for (i = 0; i < 3; i++)
         assert(!nesmap_a12_clock(&m));
@@ -551,9 +553,8 @@ static void test_mmc3_irq(void)
     assert(m.irq_line);
     /* stays asserted until acked */
     assert(nesmap_a12_clock(&m));
-    m.dirty = 0;
     nesmap_write(&m, 0xE000, 0, 40);
-    assert(!m.irq_line && (m.dirty & NESMAP_DIRTY_IRQ));
+    assert(!m.irq_line && m.dirty == 0);
     /* disabled: counter still runs, line stays low */
     for (i = 0; i < 10; i++)
         assert(!nesmap_a12_clock(&m));

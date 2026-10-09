@@ -44,7 +44,6 @@ extern volatile uint32_t fuji_bus_cycle;       /* M2 rising edges, core1     */
 extern volatile bool fuji_boot_armed;
 extern volatile bool fuji_have_staged;
 extern volatile uint8_t fuji_slow_dirty;       /* core1 -> core0: mirror/gates changed */
-extern volatile uint8_t fuji_irq_dirty;        /* core1 -> core0: irq_line changed     */
 
 /* core1: record one event. Inlined into the bus loop, so it stays a compare
  * and a few stores. */

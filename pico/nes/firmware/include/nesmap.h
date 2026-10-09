@@ -93,7 +93,6 @@ typedef struct nesmap {
 #define NESMAP_DIRTY_PRG  0x01
 #define NESMAP_DIRTY_CHR  0x02
 #define NESMAP_DIRTY_SLOW 0x04    /* mirror, wram gates, chr_wp           */
-#define NESMAP_DIRTY_IRQ  0x08    /* irq_line changed by a write          */
 
 typedef enum {
     NESMAP_IRQ_NONE = 0,
@@ -125,7 +124,8 @@ void nesmap_reset(nesmap_t *m);
 
 /* One console write. `cycle` counts M2 rising edges; it exists for MMC1's
  * consecutive-write rule, which needs the cart's clock rather than the
- * emulator's. Sets m->dirty for whatever changed. */
+ * emulator's. Sets m->dirty for a bank or gate change; an IRQ register write
+ * leaves dirty alone, so the caller compares irq_line before and after. */
 void nesmap_write(nesmap_t *m, uint16_t addr, uint8_t data, uint32_t cycle);
 
 /* MMC3-style scanline counter: one filtered PPU A12 rising edge. Returns the

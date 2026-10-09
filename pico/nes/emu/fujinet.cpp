@@ -242,8 +242,6 @@ void nes_fujinet_device::apply_map()
 		m_mirror = m_map.out.mirror;
 		apply_mirroring();
 	}
-	if (m_map.dirty & NESMAP_DIRTY_IRQ)
-		set_irq_line(m_map.irq_line ? ASSERT_LINE : CLEAR_LINE);
 	m_map.dirty = 0;
 }
 
@@ -251,7 +249,11 @@ void nes_fujinet_device::mapper_write(uint16_t addr, uint8_t data)
 {
 	if (!m_map_live || m_serve.loading)
 		return;
+	bool irq = m_map.irq_line;
+
 	nesmap_write(&m_map, addr, data, cycles());
+	if (m_map.irq_line != irq)
+		set_irq_line(m_map.irq_line ? ASSERT_LINE : CLEAR_LINE);
 	if (m_map.dirty)
 		apply_map();
 }
