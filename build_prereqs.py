@@ -160,8 +160,13 @@ def python_problems(pc_build: bool) -> list:
 def _module_problem(name: str, message: str):
     """install_python_modules.sh installs every module, so all of them share one
     command, which install() runs once."""
+    # Found through PATH: on Windows a bare "bash" resolves to System32's WSL
+    # launcher before MSYS2's.
+    bash = bp.shutil.which("bash") or "bash"
+    script = MODULES_SH.replace(os.sep, "/")
+
     def install():
-        bp.run(["bash", MODULES_SH], cwd=ROOT, board="build", key=None,
+        bp.run([bash, script], cwd=ROOT, board="build", key=None,
                extra_env={"PYTHON": sys.executable}, quiet=True)
 
     return bp.Problem(None, name, message, f"PYTHON={sys.executable} bash {MODULES_SH}",
