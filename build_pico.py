@@ -799,8 +799,10 @@ class Problem:
     """A missing or unsuitable prerequisite. command is the fix for a person
     to run; install, when set, is what --install runs for it."""
 
-    def __init__(self, key: str, name: str, message: str, command: str = "", install=None):
+    def __init__(self, key: str, name: str, message: str, command: str = "", install=None,
+                 pip: bool = False):
         self.key = key
+        self.pip = pip          # a pip install into the build venv, allowed on Windows too
         self.name = name        # what is missing, e.g. "cmake"
         self.message = message
         self.command = command
@@ -819,7 +821,7 @@ def _pip_problem(cfg: PicoConfig, key: str, package: str, version: str,
         run([sys.executable, "-m", "pip", "install", spec], cwd=".", board=cfg.board, key=key,
             quiet=True)
 
-    return Problem(key, package, message, command, install)
+    return Problem(key, package, message, command, install, pip=True)
 
 
 def _package_problem(cfg: PicoConfig, key: str, name: str, spec: str,
@@ -955,7 +957,8 @@ def join_names(names: List[str]) -> str:
 
 
 def installable(found: List[Problem]) -> List[Problem]:
-    return [] if _is_windows() else [p for p in found if p.install]
+    """What install() may run here: on Windows only pip installs into the venv."""
+    return [p for p in found if p.install and (p.pip or not _is_windows())]
 
 
 def format_problems(title: str, found: List[Problem], commands: bool = True) -> str:
@@ -979,13 +982,10 @@ def install_commands(auto: List[Problem]) -> str:
 
 
 def install(found: List[Problem]) -> None:
-    """Runs the install for each problem that has one, once per command."""
-    if _is_windows():
-        log("automatic install is not available on Windows -- run the commands above")
-        return
+    """Runs installable(found), once per command."""
     done = set()
-    for p in found:
-        if p.install and p.command not in done:
+    for p in installable(found):
+        if p.command not in done:
             done.add(p.command)
             print(f"Installing {p.name}...", flush=True)
             p.install()

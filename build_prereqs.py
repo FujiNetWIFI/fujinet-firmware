@@ -50,7 +50,7 @@ def _pip_problem(name: str, requirement: str, message: str):
                board="build", key=None, quiet=True)
 
     return bp.Problem(None, name, message,
-                      f'{sys.executable} -m pip install "{requirement}"', install)
+                      f'{sys.executable} -m pip install "{requirement}"', install, pip=True)
 
 
 def python_problems(pc_build: bool) -> list:
