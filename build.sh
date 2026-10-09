@@ -31,23 +31,111 @@ CMAKE_GENERATOR=""
 INI_FILE="${SCRIPT_DIR}/platformio-generated.ini"
 LOCAL_INI_VALUES_FILE="${SCRIPT_DIR}/platformio.local.ini"
 
-# Function to check if the specified Python version is 3
+# A [fujinet] value from platformio.common.ini, where the build's minimum
+# versions live. Read with awk because Python may not be available yet.
+common_value() {
+  awk -v key="$1" '
+    /^\[/ { in_section = ($0 == "[fujinet]"); next }
+    in_section && $0 ~ "^"key"[ \t]*=" {
+      sub("^"key"[ \t]*=[ \t]*", ""); sub(/[ \t]*;.*$/, ""); print; exit
+    }
+  ' "${SCRIPT_DIR}/platformio-ini-files/platformio.common.ini"
+}
+
+# Succeeds when version $1 is at least $2, compared numerically part by part.
+version_ge() {
+  local IFS=. i x y
+  local -a a=($1) b=($2)
+  for ((i = 0; i < ${#b[@]}; i++)); do
+    x=${a[i]//[^0-9]/}; y=${b[i]//[^0-9]/}
+    (( 10#${x:-0} > 10#${y:-0} )) && return 0
+    (( 10#${x:-0} < 10#${y:-0} )) && return 1
+  done
+  return 0
+}
+
+# Succeeds when $1 is a Python of at least PYTHON_MIN.
 check_python_version() {
   local python_bin=$1
 
   if ! command -v "${python_bin}" &> /dev/null; then
     return 1
   fi
+  version_ge "$(${python_bin} --version 2>&1 | cut -d' ' -f2)" "${PYTHON_MIN}"
+}
 
-  # Extract the major version number
-  local major_version="$(${python_bin} --version 2>&1 | cut -d' ' -f2 | cut -d'.' -f1)"
-
-  # Verify if it's Python 3
-  if [ "${major_version}" -eq 3 ]; then
+# Succeeds with -y, or when the person at the terminal answers yes.
+confirm() {
+  if [ ${ANSWER_YES} -eq 1 ] ; then
+    echo "$1 [y/N] y (-y)"
     return 0
-  else
+  fi
+  [ -t 0 ] || return 1
+  local answer
+  read -r -p "$1 [y/N] " answer
+  [[ "$answer" =~ ^[Yy] ]]
+}
+
+# The package-manager command that installs Python 3 with venv here, or nothing.
+python_install_command() {
+  case "$(uname -s)" in
+    Darwin) echo "brew install python3" ; return ;;
+    MINGW*|MSYS*|CYGWIN*) echo "pacman -S --noconfirm python" ; return ;;
+  esac
+  [ -r /etc/os-release ] || return
+  case " $(. /etc/os-release; echo "$ID $ID_LIKE") " in
+    *" debian "*|*" ubuntu "*) echo "apt-get update && apt-get install -y python3 python3-venv" ;;
+    *" fedora "*|*" rhel "*|*" centos "*) echo "dnf install -y python3" ;;
+    *" arch "*) echo "pacman -S --noconfirm python" ;;
+    *" suse "*|*" opensuse "*) echo "zypper install -y python3" ;;
+    *" alpine "*) echo "apk add python3" ;;
+  esac
+}
+
+# Offers to install Python with venv. Root on Linux comes from sudo, which
+# prompts for its own password; with -y it runs as sudo -n, which fails rather
+# than waiting for one.
+install_python() {
+  local cmd runner="" shown
+  cmd=$(python_install_command)
+  if [ -z "$cmd" ] ; then
+    echo "Install Python ${PYTHON_MIN} or newer with its venv module, then run this again."
     return 1
   fi
+  case "$(uname -s)" in
+    Darwin) ;;
+    MINGW*|MSYS*|CYGWIN*)
+      echo "To install it, run:"
+      echo "  $cmd"
+      return 1 ;;
+    *)
+      if [ "$(id -u)" -ne 0 ] ; then
+        if ! command -v sudo > /dev/null ; then
+          echo "To install it, run as root:"
+          echo "  $cmd"
+          return 1
+        fi
+        runner="sudo"
+        [ ${ANSWER_YES} -eq 1 ] && runner="sudo -n"
+      fi ;;
+  esac
+  shown="${runner:+sudo }sh -c '$cmd'"
+  if confirm "Install it now with: $shown ?" && ${runner} sh -c "$cmd" ; then
+    return 0
+  fi
+  echo "To install it, run:"
+  echo "  $shown"
+  return 1
+}
+
+# Sets PYTHON to a Python of at least PYTHON_MIN that can create venvs.
+find_python() {
+  for PYTHON in python python3 python3.14 python3.13 python3.12 python3.11 python3.10 ; do
+    if check_python_version "${PYTHON}" && ${PYTHON} -c "import venv, ensurepip" 2>/dev/null ; then
+      return 0
+    fi
+  done
+  return 1
 }
 
 function display_board_names {
@@ -94,7 +182,8 @@ function show_help {
   echo "   -G GEN   # Use GEN as the Generator for cmake (e.g. -G \"Unix Makefiles\" )"
   echo ""
   echo "other options:"
-  echo "   -y       # answers any questions with Y automatically, for unattended builds"
+  echo "   -y       # answers any questions with Y automatically, for unattended builds,"
+  echo "            # including installing missing build prerequisites"
   echo "   -h       # this help"
   echo "   -V       # Override default Python virtual environment location (e.g. \"-V ~/.platformio/penv\")"
   echo "            # Alternatively, this can be set with the shell env var VENV_ROOT"
@@ -149,27 +238,24 @@ done
 shift $((OPTIND - 1))
 
 # Requirements:
-#   - python3
-#   - python3 can create venv - PlatformIO also needs this to install penv
+#   - python_min and platformio_min from platformio.common.ini, and the module
+#     minimums in python_modules.txt; Python is offered from the system package
+#     manager, the rest from pip into the venv
 #   - if doing ESP32 build:
-#     - PlatformIO
 #     - for a companion-MCU board, what `build_pico.py --check` reports
+#       (offered via `build_pico.py --install`)
 #   - not ESP32 build:
 #     - cmake
 
-# Make sure we have python3 and it has the ability to create venvs
-PYTHON=python
-if ! check_python_version "${PYTHON}" ; then
-    PYTHON=python3
-    if ! check_python_version "${PYTHON}" ; then
-        echo "Python 3 is not installed"
+PYTHON_MIN=$(common_value python_min)
+PYTHON_MIN=${PYTHON_MIN:-3}
+if ! find_python ; then
+    echo "Python ${PYTHON_MIN} or newer with the venv module is required."
+    install_python || exit 1
+    if ! find_python ; then
+        echo "Python ${PYTHON_MIN} or newer with the venv module is still not available."
         exit 1
     fi
-fi
-
-if ! ${PYTHON} -c "import venv, ensurepip" 2>/dev/null ; then
-    echo "Error: Python venv module is not installed."
-    exit 1
 fi
 
 # if ! "$PYTHON" -m pip --version >/dev/null 2>&1; then
@@ -189,16 +275,10 @@ ACTIVATE="${VENV_ROOT}/bin/activate"
 # For Windows/MSYS2
 ALT_ACTIVATE="${VENV_ROOT}/Scripts/activate"
 if [ -z "${PC_TARGET}" ] ; then
-    # Doing a PlatformIO build, locate PlatformIO. It may or may not
-    # already be in the users' path.
+    # PlatformIO build: activate now in case pio is only in the venv. A
+    # missing pio is installed into the venv below.
     if [ -f "${ACTIVATE}" ] ; then
-        # Activate now in case pio isn't already in PATH
         source "${ACTIVATE}"
-    fi
-    PIO=$(command -v pio)
-    if [ -z "${PIO}" ] ; then
-        echo Please install platformio
-        exit 1
     fi
 fi
 
@@ -275,6 +355,45 @@ if [ -z "${PC_BUILD}" ] ; then
     if [ "${PIO}" != "${VENV_ROOT}/bin/pio" ] ; then
         pip install platformio || exit 1
     fi
+fi
+
+# Offers to pip-install $@ into the venv; prints the command if declined.
+pip_install_offer() {
+  if confirm "Install into ${VIRTUAL_ENV} now?" && python -m pip install "$@" ; then
+    return 0
+  fi
+  echo "To install, run:"
+  echo "  ${VIRTUAL_ENV}/bin/python -m pip install$(printf ' "%s"' "$@")"
+  return 1
+}
+
+PIO_MIN=$(common_value platformio_min)
+if [ -z "${PC_TARGET}" ] && [ -n "${PIO_MIN}" ] ; then
+    PIO_VERSION=$(pio --version 2>/dev/null | grep -oE '[0-9]+(\.[0-9]+)+' | head -n 1)
+    if ! version_ge "${PIO_VERSION:-0}" "${PIO_MIN}" ; then
+        echo "PlatformIO ${PIO_MIN} or newer is required; found ${PIO_VERSION:-none}."
+        pip_install_offer "platformio>=${PIO_MIN}" || exit 1
+    fi
+fi
+
+# python_modules.txt: "module|pip requirement", the requirement carrying its minimum.
+MISSING_MODULES=$(sed '/^#/d;/^[[:space:]]*$/d' "${SCRIPT_DIR}/python_modules.txt" | cut -d\| -f2 | python -c '
+import re, sys
+from importlib import metadata
+def ver(s):
+    return tuple(int(x) for x in re.findall(r"\d+", s))
+for spec in sys.stdin.read().split():
+    name, _, need = spec.partition(">=")
+    try:
+        ok = not need or ver(metadata.version(name)) >= ver(need)
+    except metadata.PackageNotFoundError:
+        ok = False
+    if not ok:
+        print(spec)
+')
+if [ -n "${MISSING_MODULES}" ] ; then
+    echo "Python modules missing or too old:" ${MISSING_MODULES}
+    pip_install_offer ${MISSING_MODULES} || exit 1
 fi
 
 echo Virtual env: "${VIRTUAL_ENV}"
@@ -450,8 +569,13 @@ if [ ${PICO_ONLY} -eq 1 ] ; then
   exit $?
 fi
 
-# Companion-MCU prerequisites, checked before pio starts.
-if ! python3 "$SCRIPT_DIR/build_pico.py" "${ENV_NAME:-$BUILD_BOARD}" --ini "$INI_FILE" --check ; then
+# Companion-MCU prerequisites, checked before pio starts. Exit 2 means
+# --install can fix at least some of what is reported.
+python3 "$SCRIPT_DIR/build_pico.py" "${ENV_NAME:-$BUILD_BOARD}" --ini "$INI_FILE" --check
+PICO_CHECK=$?
+if [ ${PICO_CHECK} -eq 2 ] && confirm "Install the missing companion-MCU components listed above?" ; then
+  python3 "$SCRIPT_DIR/build_pico.py" "${ENV_NAME:-$BUILD_BOARD}" --ini "$INI_FILE" --install || exit 1
+elif [ ${PICO_CHECK} -ne 0 ] ; then
   exit 1
 fi
 

@@ -67,7 +67,7 @@ class PicoBuildError(Exception):
 
 
 def log(msg: str) -> None:
-    print(f"build_pico.py: {msg}")
+    print(f"build_pico.py: {msg}", flush=True)
 
 
 def fail(board: str, key: Optional[str], msg: str):
@@ -154,9 +154,15 @@ PICOBOOT_DEFINE = "CONFIG_USB_PICOBOOT_HOST_ENABLED"
 # GENERATED_CPP.
 BLOB_SIDECAR_JSON = "fn_pico_blobs.json"
 
-# Searched in order when PICO_SDK_PATH is unset.
+# Searched in order when PICO_SDK_PATH is unset, after the --install location.
 PICO_SDK_SEARCH = ("~/.pico-sdk/sdk/*", "~/pico/pico-sdk", "/usr/share/pico-sdk",
                    "/usr/local/share/pico-sdk", "/opt/pico-sdk")
+# --install clones pico_sdk_version here, one directory per version.
+PICO_SDK_INSTALL_ROOT = "~/.fujinet/pico-sdk"
+PICO_SDK_REPO = "https://github.com/raspberrypi/pico-sdk.git"
+
+# Read under every ini, so a bare board ini still gets the shared pico_* versions.
+COMMON_INI = os.path.join("platformio-ini-files", "platformio.common.ini")
 
 TRUE_WORDS = {"yes", "true", "1", "on"}
 FALSE_WORDS = {"no", "false", "0", "off"}
@@ -171,8 +177,9 @@ class PicoConfig:
 
     def __init__(self, board, ini_path, src, build_mode, build_dir, build_type,
                  pico_board, cmake_args, make_args, command_lines, prebuild_lines,
-                 toolchain, sdk_path, sdk_required, artifacts, repo, repo_ref,
-                 repo_dir, chip, flash_base, flash_limit):
+                 toolchain, toolchain_package, toolchain_min, cmake_version,
+                 ninja_version, sdk_path, sdk_required, sdk_version, sdk_explicit,
+                 artifacts, repo, repo_ref, repo_dir, chip, flash_base, flash_limit):
         self.board = board
         self.ini_path = ini_path
         self.src = src
@@ -185,8 +192,14 @@ class PicoConfig:
         self.command_lines = command_lines
         self.prebuild_lines = prebuild_lines
         self.toolchain = toolchain
+        self.toolchain_package = toolchain_package  # PlatformIO spec, "" = none
+        self.toolchain_min = toolchain_min          # oldest gcc accepted, "" = any
+        self.cmake_version = cmake_version          # oldest cmake accepted, "" = any
+        self.ninja_version = ninja_version          # oldest ninja accepted, "" = any
         self.sdk_path = sdk_path
         self.sdk_required = sdk_required
+        self.sdk_version = sdk_version              # exact SDK version, "" = any
+        self.sdk_explicit = sdk_explicit            # from PICO_SDK_PATH/pico_sdk_path, not searched
         self.artifacts = artifacts  # dict: name -> path (relative to build dir)
         self.repo = repo
         self.repo_ref = repo_ref
@@ -267,16 +280,42 @@ def _version_key(path: str) -> List[int]:
     return [int(p) for p in re.findall(r"\d+", os.path.basename(path))]
 
 
-def _find_pico_sdk() -> str:
-    """The first PICO_SDK_SEARCH entry holding an SDK, newest version first
-    within a glob; "" if none does."""
+def _parse_version(text: str) -> Tuple[int, ...]:
+    return tuple(int(p) for p in re.findall(r"\d+", text))
+
+
+def sdk_version(path: str) -> Optional[str]:
+    """The version an SDK reports in pico_sdk_version.cmake, or None."""
+    try:
+        with open(os.path.join(path, "pico_sdk_version.cmake")) as f:
+            text = f.read()
+    except OSError:
+        return None
+    parts = [re.search(rf"PICO_SDK_VERSION_{p}\s+(\d+)", text)
+             for p in ("MAJOR", "MINOR", "REVISION")]
+    if not all(parts):
+        return None
+    return ".".join(m.group(1) for m in parts)
+
+
+def sdk_install_dir(version: str) -> str:
+    return os.path.join(os.path.expanduser(PICO_SDK_INSTALL_ROOT), version)
+
+
+def _find_pico_sdk(version: str) -> str:
+    """The first SDK at version, trying the --install location and then
+    PICO_SDK_SEARCH (newest first within a glob). Failing that, the first SDK
+    of any version, so preflight() can name the mismatch; "" if none."""
+    candidates = [sdk_install_dir(version)] if version else []
     for pattern in PICO_SDK_SEARCH:
-        for path in sorted(glob.glob(os.path.expanduser(pattern)),
-                           key=_version_key, reverse=True):
-            if os.path.isfile(os.path.join(path, "pico_sdk_init.cmake")):
-                log(f"PICO_SDK_PATH not set -- using {path}")
-                return path
-    return ""
+        candidates += sorted(glob.glob(os.path.expanduser(pattern)),
+                             key=_version_key, reverse=True)
+    sdks = [p for p in candidates if os.path.isfile(os.path.join(p, "pico_sdk_init.cmake"))]
+    for path in sdks:
+        if not version or sdk_version(path) == version:
+            log(f"PICO_SDK_PATH not set -- using {path}")
+            return path
+    return sdks[0] if sdks else ""
 
 
 def read_config(ini_path: str, board: str) -> Optional[PicoConfig]:
@@ -287,8 +326,9 @@ def read_config(ini_path: str, board: str) -> Optional[PicoConfig]:
     configuration *problem* (bad pico_build value, missing pico_repo_ref,
     etc.) is a hard fail via fail(), never a silent None."""
     parser = configparser.ConfigParser(inline_comment_prefixes=(";", "#"))
-    if not parser.read(ini_path):
+    if not os.path.isfile(ini_path):
         return None
+    parser.read([COMMON_INI, ini_path])
     if not parser.has_section("fujinet"):
         return None
     section = parser["fujinet"]
@@ -379,12 +419,14 @@ def read_config(ini_path: str, board: str) -> Optional[PicoConfig]:
              f"0x{pico_flash_limit:08x} is not above pico_flash_base "
              f"0x{pico_flash_base:08x}")
 
+    pico_sdk_version = section.get("pico_sdk_version", "").strip()
     pico_sdk_path = (section.get("pico_sdk_path", "").strip()
                      or os.environ.get("PICO_SDK_PATH", "").strip())
+    pico_sdk_explicit = bool(pico_sdk_path)
     if pico_sdk_path:
         pico_sdk_path = os.path.expanduser(os.path.expandvars(pico_sdk_path))
     else:
-        pico_sdk_path = _find_pico_sdk()
+        pico_sdk_path = _find_pico_sdk(pico_sdk_version)
 
     # cmake-* modes need PICO_SDK_PATH by construction (pico_sdk_init.cmake);
     # make/command modes might not (e.g. a Makefile that vendors everything
@@ -466,7 +508,12 @@ def read_config(ini_path: str, board: str) -> Optional[PicoConfig]:
         pico_board=pico_board, cmake_args=cmake_args, make_args=make_args,
         command_lines=command_lines, prebuild_lines=prebuild_lines,
         toolchain=toolchain,
+        toolchain_package=section.get("pico_toolchain_package", "").strip(),
+        toolchain_min=section.get("pico_toolchain_min", "").strip(),
+        cmake_version=section.get("pico_cmake_version", "").strip(),
+        ninja_version=section.get("pico_ninja_version", "").strip(),
         sdk_path=pico_sdk_path, sdk_required=pico_sdk_required,
+        sdk_version=pico_sdk_version, sdk_explicit=pico_sdk_explicit,
         artifacts=artifacts, repo=pico_repo, repo_ref=pico_repo_ref,
         repo_dir=pico_repo_dir, chip=pico_chip, flash_base=pico_flash_base,
         flash_limit=pico_flash_limit,
@@ -676,7 +723,157 @@ def source_revision(cfg: PicoConfig) -> str:
 # Preflight + build
 # ---------------------------------------------------------------------------
 
-def preflight(cfg: PicoConfig) -> None:
+def _pio_core_dir() -> str:
+    return os.environ.get("PLATFORMIO_CORE_DIR") or os.path.expanduser("~/.platformio")
+
+
+def _split_spec(spec: str) -> Tuple[str, str]:
+    """("toolchain-gccarmnoneeabi", "1.140201.0") from
+    "platformio/toolchain-gccarmnoneeabi@1.140201.0"."""
+    name, _, version = spec.partition("@")
+    return name.split("/")[-1], version
+
+
+def _package_bin(spec: str) -> Optional[str]:
+    """Executable dir of the installed PlatformIO package matching spec."""
+    if not spec:
+        return None
+    name, version = _split_spec(spec)
+    for pkg in sorted(glob.glob(os.path.join(_pio_core_dir(), "packages", name + "*"))):
+        try:
+            with open(os.path.join(pkg, "package.json")) as f:
+                meta = json.load(f)
+        except (OSError, ValueError):
+            continue
+        if meta.get("name") == name and (not version or meta.get("version") == version):
+            bin_dir = os.path.join(pkg, "bin")
+            return bin_dir if os.path.isdir(bin_dir) else pkg
+    return None
+
+
+def _in_venv() -> bool:
+    return sys.prefix != sys.base_prefix
+
+
+def tool_path(cfg: PicoConfig) -> str:
+    """PATH with the installed toolchain package, then the venv's pip-installed
+    cmake and ninja, ahead of the system's."""
+    dirs = [_package_bin(cfg.toolchain_package)]
+    if _in_venv():
+        dirs.append(os.path.dirname(sys.executable))
+    return os.pathsep.join([d for d in dirs if d] + [os.environ.get("PATH", "")])
+
+
+def _is_windows() -> bool:
+    return os.name == "nt" or sys.platform.startswith(("msys", "cygwin"))
+
+
+def _output(cmd: List[str]) -> str:
+    try:
+        return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                              text=True).stdout.strip()
+    except OSError:
+        return ""
+
+
+def _cmake_minimum(src: str) -> str:
+    try:
+        with open(os.path.join(src, "CMakeLists.txt")) as f:
+            m = re.search(r"cmake_minimum_required\s*\(\s*VERSION\s+([\d.]+)", f.read(), re.I)
+    except OSError:
+        return ""
+    return m.group(1) if m else ""
+
+
+class Problem:
+    """A missing or unsuitable prerequisite. command is the fix for a person
+    to run; install, when set, is what --install runs for it."""
+
+    def __init__(self, key: str, message: str, command: str = "", install=None):
+        self.key = key
+        self.message = message
+        self.command = command
+        self.install = install
+
+
+def _pip_problem(cfg: PicoConfig, key: str, package: str, version: str,
+                 message: str) -> Problem:
+    spec = f"{package}=={version}"
+    command = f"{sys.executable} -m pip install {spec}"
+    if not version or not _in_venv():
+        # Outside a venv pip would write into the system Python.
+        return Problem(key, message, command if version else "")
+
+    def install():
+        run([sys.executable, "-m", "pip", "install", spec], cwd=".", board=cfg.board, key=key)
+
+    return Problem(key, message, command, install)
+
+
+def _package_problem(cfg: PicoConfig, key: str, spec: str, message: str) -> Problem:
+    if not spec:
+        return Problem(key, message)
+
+    def install():
+        pio = shutil.which("pio")
+        cmd = [pio] if pio else [sys.executable, "-m", "platformio"]
+        run(cmd + ["pkg", "install", "-g", "-t", spec], cwd=".", board=cfg.board, key=key)
+
+    return Problem(key, message, f"pio pkg install -g -t {spec}", install)
+
+
+def _sdk_problem(cfg: PicoConfig, message: str) -> Problem:
+    if not cfg.sdk_version:
+        return Problem("pico_sdk_path", message)
+    dest = sdk_install_dir(cfg.sdk_version)
+    command = (f"git clone --depth 1 --branch {cfg.sdk_version} {PICO_SDK_REPO} {dest} && "
+               f"git -C {dest} submodule update --init --depth 1 lib/tinyusb")
+    if cfg.sdk_explicit:
+        # The search never overrides a path that was set, so point it at the clone.
+        if sdk_version(dest) == cfg.sdk_version:
+            command = ""
+        return Problem("pico_sdk_path", message,
+                       " && ".join(filter(None, [command, f"export PICO_SDK_PATH={dest}"])))
+
+    def install():
+        partial = dest + ".partial"
+        shutil.rmtree(partial, ignore_errors=True)
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        run(["git", "-c", "advice.detachedHead=false", "clone", "--depth", "1", "--branch",
+             cfg.sdk_version, PICO_SDK_REPO, partial], cwd=".", board=cfg.board,
+            key="pico_sdk_version")
+        run(["git", "-C", partial, "submodule", "update", "--init", "--depth", "1",
+             "lib/tinyusb"], cwd=".", board=cfg.board, key="pico_sdk_version")
+        shutil.rmtree(dest, ignore_errors=True)
+        os.replace(partial, dest)
+
+    return Problem("pico_sdk_version", message, command, install)
+
+
+def _sdk_problems(cfg: PicoConfig) -> List[Problem]:
+    path = cfg.sdk_path
+    if not path:
+        where = ", ".join(([PICO_SDK_INSTALL_ROOT + "/" + cfg.sdk_version] if cfg.sdk_version
+                           else []) + list(PICO_SDK_SEARCH))
+        return [_sdk_problem(cfg, f"PICO_SDK_PATH is not set and no pico-sdk "
+                                  f"{cfg.sdk_version} was found in {where}")]
+    if not os.path.isfile(os.path.join(path, "pico_sdk_init.cmake")):
+        return [_sdk_problem(cfg, f"PICO_SDK_PATH is not a pico-sdk (no "
+                                  f"pico_sdk_init.cmake): {path}")]
+    found = sdk_version(path)
+    if cfg.sdk_version and found != cfg.sdk_version:
+        return [_sdk_problem(cfg, f"pico-sdk at {path} is {found or 'an unknown version'}; "
+                                  f"this build needs {cfg.sdk_version}")]
+    # Without it the SDK configure only warns; the compile then fails on tusb.h.
+    tinyusb = os.path.join(path, "lib", "tinyusb")
+    if not os.path.isdir(tinyusb) or not os.listdir(tinyusb):
+        return [Problem("pico_sdk_path", f"{tinyusb} is empty",
+                        f"git -C {path} submodule update --init lib/tinyusb")]
+    return []
+
+
+def problems(cfg: PicoConfig) -> List[Problem]:
+    """Every missing or unsuitable prerequisite, each with its fix."""
     tools: List[str] = list(cfg.toolchain)
     if cfg.build_mode == "cmake-ninja":
         tools += ["cmake", "ninja"]
@@ -684,41 +881,80 @@ def preflight(cfg: PicoConfig) -> None:
         tools += ["cmake", "make"]
     elif cfg.build_mode == "make":
         tools += ["make"]
+    tools = list(dict.fromkeys(tools))
+    path = tool_path(cfg)
+    found = {t: shutil.which(t, path=path) for t in tools}
+    result: List[Problem] = []
 
-    missing = [t for t in dict.fromkeys(tools) if shutil.which(t) is None]
-    if missing:
-        fail(cfg.board, "pico_toolchain",
-             f"required tool(s) not found on PATH: {', '.join(missing)}")
+    arm = [t for t in tools if t.startswith("arm-none-eabi-")]
+    missing_arm = [t for t in arm if not found[t]]
+    if missing_arm:
+        result.append(_package_problem(cfg, "pico_toolchain_package", cfg.toolchain_package,
+                                       f"not found: {', '.join(missing_arm)}"))
+    elif "arm-none-eabi-gcc" in arm:
+        gcc = found["arm-none-eabi-gcc"]
+        version = _output([gcc, "-dumpversion"])
+        libs = [("arm-none-eabi-gcc", "libc.a"), ("arm-none-eabi-g++", "libstdc++.a")]
+        no_lib = [lib for compiler, lib in libs if found.get(compiler)
+                  and not os.path.isabs(_output([found[compiler], f"-print-file-name={lib}"]))]
+        if cfg.toolchain_min and _parse_version(version) < _parse_version(cfg.toolchain_min):
+            result.append(_package_problem(cfg, "pico_toolchain_min", cfg.toolchain_package,
+                                           f"{gcc} is {version}; at least "
+                                           f"{cfg.toolchain_min} is needed"))
+        elif no_lib:
+            result.append(_package_problem(cfg, "pico_toolchain_package", cfg.toolchain_package,
+                                           f"{gcc} has no {' or '.join(no_lib)}"))
 
-    if cfg.sdk_required and not cfg.sdk_path:
-        fail(cfg.board, "pico_sdk_path",
-             f"PICO_SDK_PATH is not set and no pico-sdk was found in "
-             f"{', '.join(PICO_SDK_SEARCH)} (install one, or set the "
-             f"PICO_SDK_PATH env var or the pico_sdk_path ini key)")
-    if cfg.sdk_required and not os.path.isfile(os.path.join(cfg.sdk_path, "pico_sdk_init.cmake")):
-        fail(cfg.board, "pico_sdk_path",
-             f"PICO_SDK_PATH is not a pico-sdk (no pico_sdk_init.cmake): "
-             f"{cfg.sdk_path} (set the PICO_SDK_PATH env var, or the "
-             f"pico_sdk_path ini key)")
-
-    # Debian/Ubuntu package the ARM C and C++ libraries apart from the compiler.
-    for compiler, lib, pkg in (("arm-none-eabi-gcc", "libc.a", "libnewlib-arm-none-eabi"),
-                               ("arm-none-eabi-g++", "libstdc++.a",
-                                "libstdc++-arm-none-eabi-newlib")):
-        if compiler not in tools:
+    cmake_need = max([v for v in (cfg.cmake_version, _cmake_minimum(cfg.src)) if v],
+                     key=_parse_version, default="")
+    for tool, need, key in (("cmake", cmake_need, "pico_cmake_version"),
+                            ("ninja", cfg.ninja_version, "pico_ninja_version")):
+        if tool not in tools:
             continue
-        found = subprocess.run([compiler, f"-print-file-name={lib}"],
-                               stdout=subprocess.PIPE, text=True).stdout.strip()
-        if not os.path.isabs(found):
-            fail(cfg.board, "pico_toolchain",
-                 f"{compiler} has no {lib} (Debian/Ubuntu package: {pkg})")
+        version = getattr(cfg, f"{tool}_version")
+        if not found[tool]:
+            result.append(_pip_problem(cfg, key, tool, version, f"{tool} not found"))
+            continue
+        have = re.search(r"\d+\.\d+(\.\d+)?", _output([found[tool], "--version"]))
+        if need and have and _parse_version(have.group(0)) < _parse_version(need):
+            result.append(_pip_problem(cfg, key, tool, version,
+                                       f"{found[tool]} is {have.group(0)}; at least "
+                                       f"{need} is needed"))
+    other = [t for t in tools if not found[t] and t not in arm and t not in ("cmake", "ninja")]
+    if other:
+        result.append(Problem("pico_toolchain", f"not found: {', '.join(other)}"))
 
-    # Without it the SDK configure only warns; the compile then fails on tusb.h.
-    tinyusb = os.path.join(cfg.sdk_path, "lib", "tinyusb")
-    if cfg.sdk_required and (not os.path.isdir(tinyusb) or not os.listdir(tinyusb)):
-        fail(cfg.board, "pico_sdk_path",
-             f"{tinyusb} is empty -- run: git -C {cfg.sdk_path} submodule "
-             f"update --init lib/tinyusb")
+    if cfg.sdk_required:
+        result += _sdk_problems(cfg)
+    return result
+
+
+def format_problems(cfg: PicoConfig, found: List[Problem], prefix: str = "") -> str:
+    lines = [f"{prefix}build_pico.py: board '{cfg.board}': {p.message} [ini key: {p.key}]"
+             for p in found]
+    commands = list(dict.fromkeys(p.command for p in found if p.command))
+    if commands:
+        lines.append("To fix, run:")
+        lines += [f"  {c}" for c in commands]
+    return "\n".join(lines)
+
+
+def install(found: List[Problem]) -> None:
+    """Runs the install for each problem that has one, once per command."""
+    if _is_windows():
+        log("automatic install is not available on Windows -- run the commands above")
+        return
+    done = set()
+    for p in found:
+        if p.install and p.command not in done:
+            done.add(p.command)
+            p.install()
+
+
+def preflight(cfg: PicoConfig) -> None:
+    found = problems(cfg)
+    if found:
+        raise PicoBuildError(format_problems(cfg, found))
 
 
 def build(cfg: PicoConfig, reconfigure: bool = False, dry_run: bool = False) -> None:
@@ -726,7 +962,9 @@ def build(cfg: PicoConfig, reconfigure: bool = False, dry_run: bool = False) -> 
     if not dry_run:
         os.makedirs(build_dir_abs, exist_ok=True)
 
-    extra_env = {"PICO_SDK_PATH": cfg.sdk_path} if cfg.sdk_required else None
+    extra_env = {"PATH": tool_path(cfg)}
+    if cfg.sdk_required:
+        extra_env["PICO_SDK_PATH"] = cfg.sdk_path
 
     # Generated inputs the companion build expects to already exist (e.g. a
     # ROM rendered as a C header). After the build dir exists, since that is
@@ -1150,6 +1388,11 @@ def _print_config(board: str, ini_path: str, cfg: Optional[PicoConfig]) -> None:
     print(f"  pico_make_args   = {cfg.make_args}")
     print(f"  pico_command     = {cfg.command_lines}")
     print(f"  pico_toolchain   = {cfg.toolchain}")
+    print(f"  pico_toolchain_package = {cfg.toolchain_package or '(none)'}  "
+          f"(min: {cfg.toolchain_min or 'any'})")
+    print(f"  pico_cmake_version     = {cfg.cmake_version or 'any'}")
+    print(f"  pico_ninja_version     = {cfg.ninja_version or 'any'}")
+    print(f"  pico_sdk_version = {cfg.sdk_version or 'any'}")
     print(f"  pico_sdk_path    = {cfg.sdk_path or '(not found)'}  (required: {cfg.sdk_required})")
     if cfg.repo:
         print(f"  pico_repo        = {cfg.repo}")
@@ -1192,7 +1435,13 @@ def _build_arg_parser() -> argparse.ArgumentParser:
                          "not touch the filesystem or build anything")
     p.add_argument("--check", action="store_true",
                     help="run the source and prerequisite checks a build "
-                         "would (fetching a missing submodule), then exit")
+                         "would (fetching a missing submodule), print a fix "
+                         "for each problem, then exit: 0 ok, 1 problems, 2 "
+                         "problems --install can fix at least some of")
+    p.add_argument("--install", action="store_true",
+                    help="as --check, but first install what can be installed "
+                         "without root (the toolchain package, cmake and ninja "
+                         "into the venv, the pico-sdk)")
     p.add_argument("--dry-run", action="store_true",
                     help="print the commands that would run, without "
                          "running them (still clones/updates a pico_repo "
@@ -1253,14 +1502,23 @@ def main(argv=None) -> int:
             _print_config(board, resolved_ini, cfg)
             return 0
 
-        if args.check:
+        if args.check or args.install:
             skip = os.environ.get("FUJINET_SKIP_PICO", "").strip().lower() in TRUE_WORDS
-            if cfg is not None and not skip:
-                # A pico_repo source is cloned by the build, not by a check.
-                if not cfg.repo:
-                    ensure_source(cfg)
-                preflight(cfg)
-            return 0
+            if cfg is None or skip:
+                return 0
+            # A pico_repo source is cloned by the build, not by a check.
+            if not cfg.repo:
+                ensure_source(cfg)
+            found = problems(cfg)
+            if found and args.install:
+                install(found)
+                cfg, resolved_ini = resolve_config(ini_path, board)
+                found = problems(cfg)
+            if not found:
+                return 0
+            print(format_problems(cfg, found, prefix="error: "), file=sys.stderr)
+            installable = any(p.install for p in found) and not _is_windows()
+            return 2 if installable and not args.install else 1
 
         skip_pico = _skip_pico_requested(args.skip_pico)
         targets = args.pio_target or []
