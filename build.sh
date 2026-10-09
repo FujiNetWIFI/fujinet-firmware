@@ -64,6 +64,18 @@ check_python_version() {
   version_ge "$(${python_bin} --version 2>&1 | cut -d' ' -f2)" "${PYTHON_MIN}"
 }
 
+RULE="========================================================================"
+
+# A boxed list of missing prerequisites, one argument per item, set apart from
+# the output around it.
+report_missing() {
+  echo
+  echo "${RULE}"
+  echo "Missing build prerequisites:"
+  printf '  - %s\n' "$@"
+  echo "${RULE}"
+}
+
 # Succeeds with -y, or when the person at the terminal answers yes.
 confirm() {
   if [ ${ANSWER_YES} -eq 1 ] ; then
@@ -120,10 +132,10 @@ install_python() {
       fi ;;
   esac
   shown="${runner:+sudo }sh -c '$cmd'"
-  if confirm "Install it now with: $shown ?" && ${runner} sh -c "$cmd" ; then
+  if confirm "Install Python now (runs: $shown)?" && ${runner} sh -c "$cmd" ; then
     return 0
   fi
-  echo "To install it, run:"
+  echo "To install it yourself, run:"
   echo "  $shown"
   return 1
 }
@@ -238,19 +250,17 @@ done
 shift $((OPTIND - 1))
 
 # Requirements:
-#   - python_min and platformio_min from platformio.common.ini, and the module
-#     minimums in python_modules.txt; Python is offered from the system package
-#     manager, the rest from pip into the venv
-#   - if doing ESP32 build:
-#     - for a companion-MCU board, what `build_pico.py --check` reports
-#       (offered via `build_pico.py --install`)
+#   - python_min from platformio.common.ini, offered from the system package
+#     manager; PlatformIO is installed into the venv
+#   - what build_prereqs.py checks (PlatformIO's version, the Python modules,
+#     a companion-MCU board's tools), offered together in one prompt
 #   - not ESP32 build:
 #     - cmake
 
 PYTHON_MIN=$(common_value python_min)
 PYTHON_MIN=${PYTHON_MIN:-3}
 if ! find_python ; then
-    echo "Python ${PYTHON_MIN} or newer with the venv module is required."
+    report_missing "Python ${PYTHON_MIN} or newer, with its venv module: not found"
     install_python || exit 1
     if ! find_python ; then
         echo "Python ${PYTHON_MIN} or newer with the venv module is still not available."
@@ -357,44 +367,10 @@ if [ -z "${PC_BUILD}" ] ; then
     fi
 fi
 
-# Offers to pip-install $@ into the venv; prints the command if declined.
-pip_install_offer() {
-  if confirm "Install into ${VIRTUAL_ENV} now?" && python -m pip install "$@" ; then
-    return 0
-  fi
-  echo "To install, run:"
-  echo "  ${VIRTUAL_ENV}/bin/python -m pip install$(printf ' "%s"' "$@")"
-  return 1
-}
-
-PIO_MIN=$(common_value platformio_min)
-if [ -z "${PC_TARGET}" ] && [ -n "${PIO_MIN}" ] ; then
-    PIO_VERSION=$(pio --version 2>/dev/null | grep -oE '[0-9]+(\.[0-9]+)+' | head -n 1)
-    if ! version_ge "${PIO_VERSION:-0}" "${PIO_MIN}" ; then
-        echo "PlatformIO ${PIO_MIN} or newer is required; found ${PIO_VERSION:-none}."
-        pip_install_offer "platformio>=${PIO_MIN}" || exit 1
-    fi
-fi
-
-# python_modules.txt: "module|pip requirement", the requirement carrying its minimum.
-MISSING_MODULES=$(sed '/^#/d;/^[[:space:]]*$/d' "${SCRIPT_DIR}/python_modules.txt" | cut -d\| -f2 | python -c '
-import re, sys
-from importlib import metadata
-def ver(s):
-    return tuple(int(x) for x in re.findall(r"\d+", s))
-for spec in sys.stdin.read().split():
-    name, _, need = spec.partition(">=")
-    try:
-        ok = not need or ver(metadata.version(name)) >= ver(need)
-    except metadata.PackageNotFoundError:
-        ok = False
-    if not ok:
-        print(spec)
-')
-if [ -n "${MISSING_MODULES}" ] ; then
-    echo "Python modules missing or too old:" ${MISSING_MODULES}
-    pip_install_offer ${MISSING_MODULES} || exit 1
-fi
+# -y passed on to build_prereqs.py, which checks everything after Python and
+# PlatformIO and asks once before installing what is missing.
+PREREQ_YES=""
+[ ${ANSWER_YES} -eq 1 ] && PREREQ_YES="--yes"
 
 echo Virtual env: "${VIRTUAL_ENV}"
 echo venv root: "${VENV_ROOT}"
@@ -441,6 +417,8 @@ if [ ! -z "$PC_TARGET" ] ; then
     rm -rf $SCRIPT_DIR/build/*
     rm -f $SCRIPT_DIR/build/.ninja* 2>/dev/null
   fi
+
+  python "${SCRIPT_DIR}/build_prereqs.py" --pc ${PREREQ_YES} || exit 1
 
   cd $SCRIPT_DIR/build
   # Write out the compile commands for clangd etc to use
@@ -569,15 +547,8 @@ if [ ${PICO_ONLY} -eq 1 ] ; then
   exit $?
 fi
 
-# Companion-MCU prerequisites, checked before pio starts. Exit 2 means
-# --install can fix at least some of what is reported.
-python3 "$SCRIPT_DIR/build_pico.py" "${ENV_NAME:-$BUILD_BOARD}" --ini "$INI_FILE" --check
-PICO_CHECK=$?
-if [ ${PICO_CHECK} -eq 2 ] && confirm "Install the missing companion-MCU components listed above?" ; then
-  python3 "$SCRIPT_DIR/build_pico.py" "${ENV_NAME:-$BUILD_BOARD}" --ini "$INI_FILE" --install || exit 1
-elif [ ${PICO_CHECK} -ne 0 ] ; then
-  exit 1
-fi
+# Every prerequisite after Python and PlatformIO, checked before pio starts.
+python "$SCRIPT_DIR/build_prereqs.py" --board "${ENV_NAME:-$BUILD_BOARD}" --ini "$INI_FILE" ${PREREQ_YES} || exit 1
 
 # $INI_FILE can have more than one section defining the same key (e.g. a
 # generic default [env] alongside a board-specific [env:<board>]) -- a

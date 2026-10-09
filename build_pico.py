@@ -77,9 +77,10 @@ def fail(board: str, key: Optional[str], msg: str):
 
 def run(cmd: List[str], cwd: str, board: str, key: Optional[str],
         extra_env: Optional[Dict[str, str]] = None, dry_run: bool = False,
-        capture: bool = False) -> Optional[str]:
+        capture: bool = False, quiet: bool = False) -> Optional[str]:
     printable = " ".join(shlex.quote(c) for c in cmd)
-    log(f"[{board}] running: {printable}  (in {cwd})")
+    if not quiet:
+        log(f"[{board}] running: {printable}  (in {cwd})")
     if dry_run:
         log(f"[{board}] (--dry-run: not executed)")
         return "" if capture else None
@@ -95,7 +96,14 @@ def run(cmd: List[str], cwd: str, board: str, key: Optional[str],
             fail(board, key, f"'{printable}' exited {result.returncode}")
         return result.stdout.strip()
 
-    result = subprocess.run(cmd, cwd=cwd, env=build_env)
+    if quiet:
+        # Its output is only shown when it fails.
+        result = subprocess.run(cmd, cwd=cwd, env=build_env, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, text=True)
+        if result.returncode != 0:
+            print(result.stdout, file=sys.stderr)
+    else:
+        result = subprocess.run(cmd, cwd=cwd, env=build_env)
     if result.returncode != 0:
         fail(board, key, f"'{printable}' exited {result.returncode}")
     return None
@@ -678,7 +686,7 @@ def _check_submodule_initialized(cfg: PicoConfig) -> None:
                 log(f"[{cfg.board}] {sub} not checked out -- running "
                     f"git submodule update --init --recursive {sub}")
                 try:
-                    subprocess.run(["git", "submodule", "update", "--init",
+                    subprocess.run(["git", "submodule", "--quiet", "update", "--init",
                                     "--recursive", sub])
                 except OSError:
                     pass
@@ -791,8 +799,9 @@ class Problem:
     """A missing or unsuitable prerequisite. command is the fix for a person
     to run; install, when set, is what --install runs for it."""
 
-    def __init__(self, key: str, message: str, command: str = "", install=None):
+    def __init__(self, key: str, name: str, message: str, command: str = "", install=None):
         self.key = key
+        self.name = name        # what is missing, e.g. "cmake"
         self.message = message
         self.command = command
         self.install = install
@@ -804,29 +813,33 @@ def _pip_problem(cfg: PicoConfig, key: str, package: str, version: str,
     command = f"{sys.executable} -m pip install {spec}"
     if not version or not _in_venv():
         # Outside a venv pip would write into the system Python.
-        return Problem(key, message, command if version else "")
+        return Problem(key, package, message, command if version else "")
 
     def install():
-        run([sys.executable, "-m", "pip", "install", spec], cwd=".", board=cfg.board, key=key)
+        run([sys.executable, "-m", "pip", "install", spec], cwd=".", board=cfg.board, key=key,
+            quiet=True)
 
-    return Problem(key, message, command, install)
+    return Problem(key, package, message, command, install)
 
 
-def _package_problem(cfg: PicoConfig, key: str, spec: str, message: str) -> Problem:
+def _package_problem(cfg: PicoConfig, key: str, name: str, spec: str,
+                     message: str) -> Problem:
     if not spec:
-        return Problem(key, message)
+        return Problem(key, name, message)
 
     def install():
         pio = shutil.which("pio")
         cmd = [pio] if pio else [sys.executable, "-m", "platformio"]
-        run(cmd + ["pkg", "install", "-g", "-t", spec], cwd=".", board=cfg.board, key=key)
+        run(cmd + ["pkg", "install", "-g", "-t", spec], cwd=".", board=cfg.board, key=key,
+            quiet=True)
 
-    return Problem(key, message, f"pio pkg install -g -t {spec}", install)
+    return Problem(key, name, message, f"pio pkg install -g -t {spec}", install)
 
 
 def _sdk_problem(cfg: PicoConfig, message: str) -> Problem:
+    name = f"pico-sdk {cfg.sdk_version}".strip()
     if not cfg.sdk_version:
-        return Problem("pico_sdk_path", message)
+        return Problem("pico_sdk_path", name, message)
     dest = sdk_install_dir(cfg.sdk_version)
     command = (f"git clone --depth 1 --branch {cfg.sdk_version} {PICO_SDK_REPO} {dest} && "
                f"git -C {dest} submodule update --init --depth 1 lib/tinyusb")
@@ -834,7 +847,7 @@ def _sdk_problem(cfg: PicoConfig, message: str) -> Problem:
         # The search never overrides a path that was set, so point it at the clone.
         if sdk_version(dest) == cfg.sdk_version:
             command = ""
-        return Problem("pico_sdk_path", message,
+        return Problem("pico_sdk_path", name, message,
                        " && ".join(filter(None, [command, f"export PICO_SDK_PATH={dest}"])))
 
     def install():
@@ -843,33 +856,30 @@ def _sdk_problem(cfg: PicoConfig, message: str) -> Problem:
         os.makedirs(os.path.dirname(dest), exist_ok=True)
         run(["git", "-c", "advice.detachedHead=false", "clone", "--depth", "1", "--branch",
              cfg.sdk_version, PICO_SDK_REPO, partial], cwd=".", board=cfg.board,
-            key="pico_sdk_version")
+            key="pico_sdk_version", quiet=True)
         run(["git", "-C", partial, "submodule", "update", "--init", "--depth", "1",
-             "lib/tinyusb"], cwd=".", board=cfg.board, key="pico_sdk_version")
+             "lib/tinyusb"], cwd=".", board=cfg.board, key="pico_sdk_version", quiet=True)
         shutil.rmtree(dest, ignore_errors=True)
         os.replace(partial, dest)
 
-    return Problem("pico_sdk_version", message, command, install)
+    return Problem("pico_sdk_version", name, message, command, install)
 
 
 def _sdk_problems(cfg: PicoConfig) -> List[Problem]:
     path = cfg.sdk_path
     if not path:
-        where = ", ".join(([PICO_SDK_INSTALL_ROOT + "/" + cfg.sdk_version] if cfg.sdk_version
-                           else []) + list(PICO_SDK_SEARCH))
-        return [_sdk_problem(cfg, f"PICO_SDK_PATH is not set and no pico-sdk "
-                                  f"{cfg.sdk_version} was found in {where}")]
+        return [_sdk_problem(cfg, "not found (PICO_SDK_PATH is not set)")]
     if not os.path.isfile(os.path.join(path, "pico_sdk_init.cmake")):
-        return [_sdk_problem(cfg, f"PICO_SDK_PATH is not a pico-sdk (no "
-                                  f"pico_sdk_init.cmake): {path}")]
+        return [_sdk_problem(cfg, f"PICO_SDK_PATH {path} is not a pico-sdk (no "
+                                  f"pico_sdk_init.cmake)")]
     found = sdk_version(path)
     if cfg.sdk_version and found != cfg.sdk_version:
-        return [_sdk_problem(cfg, f"pico-sdk at {path} is {found or 'an unknown version'}; "
-                                  f"this build needs {cfg.sdk_version}")]
+        return [_sdk_problem(cfg, f"PICO_SDK_PATH {path} is "
+                                  f"{found or 'an unknown version'}")]
     # Without it the SDK configure only warns; the compile then fails on tusb.h.
     tinyusb = os.path.join(path, "lib", "tinyusb")
     if not os.path.isdir(tinyusb) or not os.listdir(tinyusb):
-        return [Problem("pico_sdk_path", f"{tinyusb} is empty",
+        return [Problem("pico_sdk_path", "pico-sdk tinyusb submodule", f"{tinyusb} is empty",
                         f"git -C {path} submodule update --init lib/tinyusb")]
     return []
 
@@ -891,8 +901,10 @@ def problems(cfg: PicoConfig) -> List[Problem]:
     arm = [t for t in tools if t.startswith("arm-none-eabi-")]
     missing_arm = [t for t in arm if not found[t]]
     if missing_arm:
-        result.append(_package_problem(cfg, "pico_toolchain_package", cfg.toolchain_package,
-                                       f"not found: {', '.join(missing_arm)}"))
+        result.append(_package_problem(cfg, "pico_toolchain_package", "ARM compiler",
+                                       cfg.toolchain_package,
+                                       "not found" if missing_arm == arm
+                                       else f"{', '.join(missing_arm)} not found"))
     elif "arm-none-eabi-gcc" in arm:
         gcc = found["arm-none-eabi-gcc"]
         version = _output([gcc, "-dumpversion"])
@@ -900,11 +912,13 @@ def problems(cfg: PicoConfig) -> List[Problem]:
         no_lib = [lib for compiler, lib in libs if found.get(compiler)
                   and not os.path.isabs(_output([found[compiler], f"-print-file-name={lib}"]))]
         if cfg.toolchain_min and _parse_version(version) < _parse_version(cfg.toolchain_min):
-            result.append(_package_problem(cfg, "pico_toolchain_min", cfg.toolchain_package,
-                                           f"{gcc} is {version}; at least "
-                                           f"{cfg.toolchain_min} is needed"))
+            result.append(_package_problem(cfg, "pico_toolchain_min", "ARM compiler",
+                                           cfg.toolchain_package,
+                                           f"{gcc} is {version}; need "
+                                           f"{cfg.toolchain_min} or newer"))
         elif no_lib:
-            result.append(_package_problem(cfg, "pico_toolchain_package", cfg.toolchain_package,
+            result.append(_package_problem(cfg, "pico_toolchain_package", "ARM compiler",
+                                           cfg.toolchain_package,
                                            f"{gcc} has no {' or '.join(no_lib)}"))
 
     cmake_need = max([v for v in (cfg.cmake_version, _cmake_minimum(cfg.src)) if v],
@@ -915,30 +929,53 @@ def problems(cfg: PicoConfig) -> List[Problem]:
             continue
         version = getattr(cfg, f"{tool}_version")
         if not found[tool]:
-            result.append(_pip_problem(cfg, key, tool, version, f"{tool} not found"))
+            result.append(_pip_problem(cfg, key, tool, version,
+                                       f"not found (need {need} or newer)" if need
+                                       else "not found"))
             continue
         have = re.search(r"\d+\.\d+(\.\d+)?", _output([found[tool], "--version"]))
         if need and have and _parse_version(have.group(0)) < _parse_version(need):
             result.append(_pip_problem(cfg, key, tool, version,
-                                       f"{found[tool]} is {have.group(0)}; at least "
-                                       f"{need} is needed"))
+                                       f"{found[tool]} is {have.group(0)}; need "
+                                       f"{need} or newer"))
     other = [t for t in tools if not found[t] and t not in arm and t not in ("cmake", "ninja")]
     if other:
-        result.append(Problem("pico_toolchain", f"not found: {', '.join(other)}"))
+        result.append(Problem("pico_toolchain", ", ".join(other), "not found"))
 
     if cfg.sdk_required:
         result += _sdk_problems(cfg)
     return result
 
 
-def format_problems(cfg: PicoConfig, found: List[Problem], prefix: str = "") -> str:
-    lines = [f"{prefix}build_pico.py: board '{cfg.board}': {p.message} [ini key: {p.key}]"
-             for p in found]
-    commands = list(dict.fromkeys(p.command for p in found if p.command))
-    if commands:
-        lines.append("To fix, run:")
-        lines += [f"  {c}" for c in commands]
+RULE = "=" * 72
+
+
+def join_names(names: List[str]) -> str:
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
+def installable(found: List[Problem]) -> List[Problem]:
+    return [] if _is_windows() else [p for p in found if p.install]
+
+
+def format_problems(title: str, found: List[Problem], commands: bool = True) -> str:
+    """A boxed list of what is missing, set apart from the build output around
+    it. commands adds the ones the build could run; those a person must run
+    are always shown."""
+    auto = installable(found)
+    lines = ["", RULE, title] + [f"  - {p.name}: {p.message}" for p in found]
+    manual = list(dict.fromkeys(p.command for p in found if p.command and p not in auto))
+    if manual:
+        lines += ["", "You need to run:"] + [f"  {c}" for c in manual]
+    lines.append(RULE)
+    if commands and auto:
+        lines.append(install_commands(auto))
     return "\n".join(lines)
+
+
+def install_commands(auto: List[Problem]) -> str:
+    return "\n".join(["To install them yourself, run:"]
+                     + [f"  {c}" for c in dict.fromkeys(p.command for p in auto)])
 
 
 def install(found: List[Problem]) -> None:
@@ -950,13 +987,20 @@ def install(found: List[Problem]) -> None:
     for p in found:
         if p.install and p.command not in done:
             done.add(p.command)
+            print(f"Installing {p.name}...", flush=True)
             p.install()
+    print("Done.", flush=True)
+
+
+def _title(cfg: PicoConfig) -> str:
+    return f"Missing build prerequisites for {cfg.board}'s companion-MCU firmware:"
 
 
 def preflight(cfg: PicoConfig) -> None:
     found = problems(cfg)
     if found:
-        raise PicoBuildError(format_problems(cfg, found))
+        raise PicoBuildError(f"board '{cfg.board}': prerequisites missing"
+                             + format_problems(_title(cfg), found))
 
 
 def build(cfg: PicoConfig, reconfigure: bool = False, dry_run: bool = False) -> None:
@@ -1518,9 +1562,8 @@ def main(argv=None) -> int:
                 found = problems(cfg)
             if not found:
                 return 0
-            print(format_problems(cfg, found, prefix="error: "), file=sys.stderr)
-            installable = any(p.install for p in found) and not _is_windows()
-            return 2 if installable and not args.install else 1
+            print(format_problems(_title(cfg), found), file=sys.stderr)
+            return 2 if installable(found) and args.check else 1
 
         skip_pico = _skip_pico_requested(args.skip_pico)
         targets = args.pio_target or []
