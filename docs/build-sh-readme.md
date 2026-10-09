@@ -19,9 +19,11 @@ This bash script serves as an interface for running PlatformIO builds for the Fu
 ## Prerequisites
 
 - Bash shell environment
-- PlatformIO CLI
-- Python (for some features)
+- Python 3 with its venv module (`build.sh` offers to install it)
 - CMake (for PC builds)
+
+`build.sh` installs PlatformIO into a venv, and offers to install what a companion-MCU board
+needs (see `pico/README.md`).
 
 ## Usage
 
@@ -56,7 +58,7 @@ This bash script serves as an interface for running PlatformIO builds for the Fu
 
 #### Companion MCU (RP2040/RP2350) Options
 
-- `-P`: Build ONLY the companion (pico) firmware for the target board, then exit (does not run the ESP32 build). Resolved right after the target board/INI are settled, so `-s`/`-l`/`-i` are honoured. Equivalent to running `./build_pico.py <board> --ini <ini file>` directly. A board with no `[fujinet] pico_src` key is a no-op that exits 0.
+- `-P`: Build ONLY the companion (pico) firmware for the target board, then exit (does not run the ESP32 build). Resolved right after the target board/INI are settled, so `-s`/`-l`/`-i` are honored. Equivalent to running `./build_pico.py <board> --ini <ini file>` directly. A board with no `[fujinet] pico_src` key is a no-op that exits 0.
 
 See also the "Companion MCU (RP2040/RP2350) firmware" section below for the `[fujinet] pico_*` build keys and the `FUJINET_SKIP_PICO` environment variable.
 
@@ -69,7 +71,7 @@ See also the "Companion MCU (RP2040/RP2350) firmware" section below for the `[fu
 
 #### Other Options
 
-- `-y`: Answer any questions with Y automatically (for unattended builds)
+- `-y`: Answer any questions with Y automatically, including installing missing prerequisites (for unattended builds)
 - `-h`: Display help information
 
 ### Examples

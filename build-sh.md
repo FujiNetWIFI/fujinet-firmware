@@ -42,7 +42,8 @@ Board names can be found in `build-platforms/platformio-*.ini`
 This will overwrite the default file `platformio.local.ini` so use wisely, as you will
 lose any previous local changes you made.
 
-If you add the `-y` parameter to build.sh, it will not ask if you want to create the file.
+If you add the `-y` parameter to build.sh, it will not ask if you want to create the file,
+and it installs any missing build prerequisites without asking.
 This is used in automated builds and when building all platforms using build-all.
 
 ## Template platformio ini file generation

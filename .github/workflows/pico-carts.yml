@@ -16,6 +16,7 @@ on:
       - "pico/**"
       - "build_pico.py"
       - "build-platforms/platformio-fujiversal-*.ini"
+      - "platformio-ini-files/platformio.common.ini"
       - ".github/workflows/pico-carts.yml"
   pull_request:
     branches:
@@ -25,6 +26,7 @@ on:
       - "pico/**"
       - "build_pico.py"
       - "build-platforms/platformio-fujiversal-*.ini"
+      - "platformio-ini-files/platformio.common.ini"
       - ".github/workflows/pico-carts.yml"
   workflow_dispatch:
 
@@ -160,7 +162,7 @@ jobs:
           make -j"$(nproc)"
           mkdir -p ~/asl
           # Just the two binaries build.sh uses. `make install` is not run: it
-          # wants system directories, and the message catalogues are compiled
+          # wants system directories, and the message catalogs are compiled
           # into the binaries, so nothing else has to travel with them.
           cp asl p2bin ~/asl/
 
@@ -273,26 +275,28 @@ jobs:
         with:
           submodules: true
 
-      # Pinned, not master: an SDK that moves under CI turns an unrelated
-      # upstream change into a red build on this branch. 2.3.0 is what these
-      # firmwares are built against locally.
+      - name: Read pico-sdk version
+        id: pico
+        run: >-
+          python3 -c "import configparser;
+          p = configparser.ConfigParser(inline_comment_prefixes=(';', '#'), interpolation=None);
+          p.read('platformio-ini-files/platformio.common.ini');
+          print('sdk=' + p['fujinet']['pico_sdk_version'])" >> "$GITHUB_OUTPUT"
+
+      # Pinned by [fujinet] pico_sdk_version, not master: an SDK that moves
+      # under CI turns an unrelated upstream change into a red build.
       - uses: actions/checkout@v4
         with:
           repository: raspberrypi/pico-sdk
-          ref: "2.3.0"
+          ref: ${{ steps.pico.outputs.sdk }}
           path: pico-sdk
           submodules: true
 
-      # build-essential, pkg-config and libusb are for picotool, not for our
-      # firmware: the SDK generates the .uf2 with it, and when no compatible
-      # picotool is installed the SDK fetches and builds it from source. Those
-      # three are exactly what picotool's own BUILDING.md asks for. Without them
-      # the failure lands in the middle of an ExternalProject, which is a
-      # confusing place to learn about a missing host library.
+      # build-essential builds the SDK's host tools (picotool, pioasm); the SDK
+      # builds picotool without USB support, so it needs no libusb.
       - run: sudo apt-get update && sudo apt-get install -y
                build-essential cmake ninja-build
                gcc-arm-none-eabi libnewlib-arm-none-eabi
-               pkg-config libusb-1.0-0-dev
 
       # Both configurations: the FujiNet build is what ships, and the stock one
       # proves the vendored PicoPAC still builds with our changes applied.
@@ -355,14 +359,14 @@ jobs:
           ./build-cart.sh
           # The serve loop must live in SRAM. Here the reason is not latency --
           # a bus cycle is 2.2 us -- but that the loop may never miss a cycle:
-          # with no address bus, a stalled cart has nothing to resynchronise
+          # with no address bus, a stalled cart has nothing to resynchronize
           # its shadow PC0/DC0 against and stays wrong for the rest of the
           # session.
           grep -E '0x2000[0-9a-f]+ +channelf_core1_main$' \
               firmware/build-fujichannelf/fujichannelf.elf.map
 
       # Drives the same [fujinet] pico_* keys the ESP32 build uses, so a
-      # broken ini key, a missing ROM, or an uninitialised submodule fails
+      # broken ini key, a missing ROM, or an uninitialized submodule fails
       # here rather than halfway through an ESP-IDF build. --no-generate
       # skips writing the embedded-blob source, which nothing here compiles.
       - name: Fujiversal companion firmware (via build_pico.py)
