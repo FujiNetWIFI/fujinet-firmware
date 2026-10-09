@@ -95,11 +95,17 @@ python_install_command() {
     MINGW*|MSYS*|CYGWIN*) echo "pacman -S --noconfirm python" ; return ;;
   esac
   [ -r /etc/os-release ] || return
+  # RHEL 9, Amazon Linux 2023 and SUSE 15 ship a python3 older than PYTHON_MIN.
   case " $(. /etc/os-release; echo "$ID $ID_LIKE") " in
     *" debian "*|*" ubuntu "*) echo "apt-get update && apt-get install -y python3 python3-venv" ;;
-    *" fedora "*|*" rhel "*|*" centos "*) echo "dnf install -y python3" ;;
-    *" arch "*) echo "pacman -S --noconfirm python" ;;
-    *" suse "*|*" opensuse "*) echo "zypper install -y python3" ;;
+    *" rhel "*|*" centos "*|*" amzn "*) echo "dnf install -y python3.12" ;;
+    *" fedora "*) echo "dnf install -y python3" ;;
+    *" arch "*) echo "pacman -Syu --needed --noconfirm python" ;;
+    *" suse "*|*" opensuse "*)
+      case "$(. /etc/os-release; echo "$VERSION_ID")" in
+        15*) echo "zypper install -y python312" ;;
+        *) echo "zypper install -y python3" ;;
+      esac ;;
     *" alpine "*) echo "apk add python3" ;;
   esac
 }
