@@ -1,6 +1,7 @@
 #pragma once
 #if defined(DEV_RELAY_SLIP) && defined(SLIP_PROTOCOL_NET)
 
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <regex>
