@@ -40,6 +40,12 @@ public:
 
     void get_media_buffer(uint8_t **p_buffer, uint16_t *p_blk_size);
     uint8_t get_media_status();
+
+#ifdef DRIVEWIRE_DBC_SUPPORTED
+    // Pushes an already-mounted MEDIATYPE_ROM image to the DBC device. Fails
+    // if this slot isn't holding a ROM image.
+    success_is_true push_rom();
+#endif
 };
 
 #endif

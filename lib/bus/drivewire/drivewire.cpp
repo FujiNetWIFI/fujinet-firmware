@@ -968,7 +968,7 @@ void systemBus::shutdown()
     Debug_printf("All devices shut down.\n");
 }
 
-#ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
+#ifdef DRIVEWIRE_DBC_SUPPORTED
 std::unique_ptr<FujiBusPacket> systemBus::readBusPacket(int first)
 {
     ByteBuffer packet;
@@ -1006,7 +1006,7 @@ void systemBus::writeBusPacket(FujiBusPacket &packet)
     ByteBuffer encoded = packet.serialize();
     _port->write(encoded.data(), encoded.size());
 }
-#endif /* PINMAP_FUJIVERSAL_DRIVEWIRE */
+#endif /* DRIVEWIRE_DBC_SUPPORTED */
 
 void systemBus::transaction_accept(transState_t expectMoreData)
 {
