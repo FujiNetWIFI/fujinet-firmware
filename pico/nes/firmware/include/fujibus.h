@@ -32,6 +32,8 @@
 // lib/media/rs232/diskTypeROM.cpp's push_stream().
 // CMD_* here mirrors the main tree's C++ `enum class CMD`; this tree is plain C.
 #define CMD_NET_OPEN  0x4F
+#define CMD_NET_READ  0x52
+#define CMD_NET_STATUS 0x53
 #define CMD_NET_WRITE 0x57
 #define CMD_NET_CLOSE 0x43
 

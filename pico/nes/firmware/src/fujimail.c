@@ -211,8 +211,9 @@ bool fujimail_inbound(const fb_reply_t *req)
  * OPEN does the protocol's whole connect before it acknowledges -- for
  * GCAL:// that is an OAuth refresh, the calendar list and an HTTPS fetch per
  * calendar -- and a write channel's CLOSE is the commit (a POST or PATCH).
- * Both routinely outlast the ordinary window, and a reply that arrives after
- * the window has closed would be taken as the answer to the next request.
+ * HTTP defers its request to the first STATUS or READ. All of these
+ * routinely outlast the ordinary window, and a reply that arrives after the
+ * window has closed would be taken as the answer to the next request.
  * COPY_FILE gets the mount budget: its ACK arrives only when the host-side
  * copy finishes, which for a big file over TNFS is far past the ordinary
  * window. */
@@ -221,7 +222,8 @@ static uint32_t txn_timeout(uint8_t device, uint8_t cmd)
     if (cmd == CMD_FUJI_MOUNT_IMAGE || cmd == CMD_FUJI_COPY_FILE)
         return TIMEOUT_MOUNT_MS;
     if (device >= FUJI_DEVICEID_NET_FIRST && device <= FUJI_DEVICEID_NET_LAST
-        && (cmd == CMD_NET_OPEN || cmd == CMD_NET_CLOSE))
+        && (cmd == CMD_NET_OPEN || cmd == CMD_NET_CLOSE
+            || cmd == CMD_NET_STATUS || cmd == CMD_NET_READ))
         return TIMEOUT_NET_MS;
     return TIMEOUT_MS;
 }

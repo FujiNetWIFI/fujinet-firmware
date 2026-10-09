@@ -595,8 +595,9 @@ static void test_mount_resets_boot(void)
 }
 
 /* A network OPEN or CLOSE may run as long as the protocol's connect or
- * commit (GCAL:// fetches every calendar before it acknowledges an open);
- * everything else keeps the ordinary window. */
+ * commit (GCAL:// fetches every calendar before it acknowledges an open),
+ * and a STATUS or READ as long as HTTP's deferred request; everything else
+ * keeps the ordinary window. */
 static void test_timeouts(void)
 {
     fresh();
@@ -604,15 +605,17 @@ static void test_timeouts(void)
     assert(txn.timeout_ms == 90000);
     run_txn(2, 0x78, CMD_NET_CLOSE);
     assert(txn.timeout_ms == 90000);
-    run_txn(3, 0x71, 0x52);                     /* READ */
+    run_txn(3, 0x71, CMD_NET_READ);
+    assert(txn.timeout_ms == 90000);
+    run_txn(4, 0x71, CMD_NET_STATUS);
+    assert(txn.timeout_ms == 90000);
+    run_txn(5, 0x71, CMD_NET_WRITE);
     assert(txn.timeout_ms == 5000);
-    run_txn(4, 0x71, 0x53);                     /* STATUS */
+    run_txn(6, FUJI_DEVICEID_FUJINET, CMD_NET_CLOSE);  /* not a net device */
     assert(txn.timeout_ms == 5000);
-    run_txn(5, FUJI_DEVICEID_FUJINET, CMD_NET_CLOSE);  /* not a net device */
-    assert(txn.timeout_ms == 5000);
-    run_txn(6, FUJI_DEVICEID_FUJINET, CMD_FUJI_MOUNT_IMAGE);
+    run_txn(7, FUJI_DEVICEID_FUJINET, CMD_FUJI_MOUNT_IMAGE);
     assert(txn.timeout_ms == 60000);
-    run_txn(7, FUJI_DEVICEID_FUJINET, CMD_FUJI_COPY_FILE);
+    run_txn(8, FUJI_DEVICEID_FUJINET, CMD_FUJI_COPY_FILE);
     assert(txn.timeout_ms == 60000);
 }
 
