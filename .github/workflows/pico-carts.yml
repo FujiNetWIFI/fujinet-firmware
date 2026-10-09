@@ -138,6 +138,26 @@ jobs:
         working-directory: pico/nes/firmware/host_test
         run: make
 
+      # The mapper engine against MAME's own a5200 handlers, the bus observer
+      # (skew, enables, repeats, the swap), the '541 glue, staging and the
+      # hand-over, the mailbox service and the FujiBus codec.
+      - name: Atari 5200 -- host tests
+        working-directory: pico/atari-5200/firmware/host_test
+        run: make
+
+  a5200-console-client:
+    name: "Atari 5200 6502 clients"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cc65
+        run: sudo apt-get update && sudo apt-get install -y cc65
+      # The bring-up clients, each through tools/checkrom.py, and
+      # testrom/fujinet.inc against fuji_mailbox.h.
+      - name: Build the clients
+        working-directory: pico/atari-5200
+        run: ./build.sh
+
   o2-console-client:
     name: "Odyssey 2 8048 client"
     runs-on: ubuntu-latest
@@ -399,6 +419,14 @@ jobs:
           sudo apt-get install -y cc65
           ./build.sh loader hello fujitest fujiboot
           ./build-cart.sh
+
+      # CONFIG comes from firmware/baked/; tools/checksram.py asserts that
+      # core1's loop and every branch it takes stay in SRAM.
+      - name: Atari 5200 cartridge (fuji5200_rp2354b)
+        working-directory: pico/atari-5200
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: ./build-cart.sh --baked
 
       # Drives the same [fujinet] pico_* keys the ESP32 build uses, so a
       # broken ini key, a missing ROM, or an uninitialized submodule fails
