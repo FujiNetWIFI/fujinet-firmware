@@ -1,4 +1,4 @@
-// FujiBus/SLIP client for the RP2040 <-> ESP32-S3 (fujiversal-rs232) link.
+// FujiBus/SLIP client for the cartridge <-> ESP32-S3 (fujiversal-rs232) link.
 //
 // Bit-compatible plain-C port of the wire format implemented in
 // lib/bus/rs232/FujiBusPacket.cpp in the main fujinet-firmware tree. See
@@ -14,28 +14,37 @@
 
 #define FUJI_DEVICEID_FUJINET 0x70
 
+// The network devices N1..N8 (FUJI_DEVICEID_NETWORK..NETWORK_LAST in the main
+// tree's include/fujiDeviceID.h).
+#define FUJI_DEVICEID_NET_FIRST 0x71
+#define FUJI_DEVICEID_NET_LAST  0x78
+
 // FUJI_DEVICEID_DBC: the ESP32-S3 addresses this device, not us, when it
-// pushes a ROM (and an optional .cfg sibling) to the RP2040 mid-
+// pushes a ROM (and an optional .cfg sibling) to the cartridge mid-
 // MOUNT_IMAGE-transaction -- see the inbound-frame demux in
-// fujibus_usb.c and its handler, dbc_inbound_handler(), in inty_cart.c.
+// fujibus_usb.c and its handler, fujimail_inbound(), in fujimail.c.
 // Matches FUJI_DEVICEID_DBC in the main tree's include/fujiDeviceID.h.
 #define FUJI_DEVICEID_DBC 0xFF
 
-// NETCMD_*: matches include/fujiCommandID.h in the main tree. Reused here
-// (rather than FUJICMD_*) because that's what the ESP32-S3 side's
-// MediaTypeROM::mount() actually sends -- see
-// lib/media/rs232/diskTypeROM.cpp's push_stream().
-#define NETCMD_OPEN  0x4F
-#define NETCMD_WRITE 0x57
-#define NETCMD_CLOSE 0x43
+// CMD::NET_*: matches include/fujiCommandID.h in the main tree. Reused here
+// (rather than CMD::FUJI_*) because that's what the ESP32-S3 side's
+// rs232Disk::mount() actually sends -- see push_stream() in
+// lib/device/rs232/disk.cpp.
+// CMD_* here mirrors the main tree's C++ `enum class CMD`; this tree is plain C.
+#define CMD_NET_OPEN   0x4F
+#define CMD_NET_READ   0x52
+#define CMD_NET_STATUS 0x53
+#define CMD_NET_WRITE  0x57
+#define CMD_NET_CLOSE  0x43
 
-#define FUJICMD_GET_ADAPTERCONFIG_EXTENDED 0xC4
-#define FUJICMD_MOUNT_IMAGE 0xF8
-#define FUJICMD_SET_DEVICE_FULLPATH 0xE2
-#define FUJICMD_ACK 0x06
-#define FUJICMD_NAK 0x15
+#define CMD_FUJI_GET_ADAPTERCONFIG_EXTENDED 0xC4
+#define CMD_FUJI_MOUNT_IMAGE 0xF8
+#define CMD_FUJI_COPY_FILE 0xD8
+#define CMD_FUJI_SET_DEVICE_FULLPATH 0xE2
+#define CMD_FUJI_ACK 0x06
+#define CMD_FUJI_NAK 0x15
 
-// AdapterConfigExtended, packed layout matching lib/device/fujiDevice.h.
+// AdapterConfigExtended, packed layout matching lib/device/fujiDevice/fujiDevice.h.
 #define FUJI_ADAPTERCONFIG_EXTENDED_SIZE 240
 
 typedef enum {
@@ -55,7 +64,7 @@ typedef struct {
 
 typedef struct {
     uint8_t device;
-    uint8_t command;   // FUJICMD_ACK or FUJICMD_NAK
+    uint8_t command;   // CMD::FUJI_ACK or CMD::FUJI_NAK
     const uint8_t *data;
     uint16_t data_len;
 } fb_reply_t;

@@ -31,10 +31,8 @@ bool fujibus_link_up(void)
 }
 
 /* core1's bus loop shares the SRAM fabric with core0. Calling tud_task() with
- * no gap turns what would be a brief contention burst into continuous
- * contention for the whole wait. The Odyssey 2's ~1us PSEN window is far
- * roomier than the Intellivision's, where this was a hard failure, but the gap
- * costs nothing against a multi-second budget so it stays. */
+ * no gap turns a brief contention burst into contention for the whole wait;
+ * the gap costs nothing against a multi-second budget. */
 static void pump(void)
 {
     tud_task();

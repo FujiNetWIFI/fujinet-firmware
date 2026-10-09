@@ -41,10 +41,10 @@ jobs:
 
       # The wire codec and the cartridge-image mapper are deliberately free of
       # pico-sdk and TinyUSB so they can be tested here rather than on a console.
-      - name: Odyssey 2 -- FujiBus codec
-        working-directory: pico/o2/firmware/host_test
+      - name: Shared -- FujiBus codec
+        working-directory: pico/common/host_test
         run: |
-          gcc -Wall -Wextra -Werror -I.. -I../include \
+          gcc -Wall -Wextra -Werror -I../include \
               -o test_fujibus test_fujibus.c ../src/fujibus.c
           ./test_fujibus
 
@@ -70,13 +70,6 @@ jobs:
         run: |
           gcc -Wall -Wextra -I../include -o test_bootmap \
               test_bootmap.c ../src/bootmap.c ../src/memory.c ../src/utils.c
-
-      - name: Astrocade -- FujiBus codec
-        working-directory: pico/astrocade/firmware/host_test
-        run: |
-          gcc -Wall -Wextra -Werror -I.. -I../include \
-              -o test_fujibus test_fujibus.c ../src/fujibus.c
-          ./test_fujibus
 
       - name: Astrocade -- cartridge image mapper
         working-directory: pico/astrocade/firmware/host_test
@@ -104,7 +97,7 @@ jobs:
       - name: Astrocade -- hotspot mailbox service
         working-directory: pico/astrocade/firmware/host_test
         run: |
-          gcc -Wall -Wextra -Werror -I../include \
+          gcc -Wall -Wextra -Werror -I../include -I../../../common/include \
               -o test_fujimail test_fujimail.c ../src/fujimail.c ../src/astromap.c
           ./test_fujimail
 
