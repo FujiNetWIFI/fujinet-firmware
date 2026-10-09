@@ -66,7 +66,7 @@ def _compiler_install_command() -> str:
                             "apt-get update && DEBIAN_FRONTEND=noninteractive "
                             "apt-get install -y build-essential"),
                            (("fedora", "rhel", "centos"), "dnf install -y gcc gcc-c++ make"),
-                           (("arch",), "pacman -S --noconfirm base-devel"),
+                           (("arch",), "pacman -Syu --needed --noconfirm base-devel"),
                            (("suse", "opensuse"), "zypper install -y gcc gcc-c++ make"),
                            (("alpine",), "apk add build-base")):
         if any(f" {n} " in ids for n in names):
@@ -74,33 +74,14 @@ def _compiler_install_command() -> str:
     return ""
 
 
-def _compiler_version(cxx: str):
-    """("GCC" | "AppleClang" | "Clang", version) for a C++ compiler, or None."""
-    out = bp._output([cxx, "--version"])
-    version = re.search(r"\d+\.\d+(\.\d+)?", out)
-    if not version:
-        return None
-    family = ("AppleClang" if "Apple clang" in out else
-              "Clang" if "clang" in out.lower() else "GCC")
-    return family, version.group(0)
-
-
 def compiler_problems() -> list:
     """The host C/C++ compiler, which the pico-sdk builds pioasm and picotool
     with and the PC build compiles everything with."""
-    family = ("AppleClang" if sys.platform == "darwin" else
-              "Clang" if bp._is_windows() else "GCC")
-    cc = next((c for c in ("cc", "gcc", "clang") if bp.shutil.which(c)), None)
-    cxx = next((c for c in ("c++", "g++", "clang++") if bp.shutil.which(c)), None)
-    found = _compiler_version(cxx) if cc and cxx else None
-    if found:
-        family = found[0]
-    need = _common(f"host_{family.lower()}_min")
-    if found and (not need or _version(found[1]) >= _version(need)):
+    if (any(bp.shutil.which(c) for c in ("cc", "gcc", "clang")) and
+            any(bp.shutil.which(c) for c in ("c++", "g++", "clang++"))):
         return []
-    detail = f"{found[0]} {found[1]} found" if found else "not found"
     name = "C/C++ compiler"
-    message = f"{detail} (need {family} {need} or newer)" if need else detail
+    message = "not found"
     if sys.platform == "darwin":
         # Opens Apple's installer dialog, so it is left to the person.
         return [bp.Problem(None, name, message, "xcode-select --install")]
