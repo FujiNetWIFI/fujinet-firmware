@@ -1,5 +1,6 @@
 
 #include <errno.h>
+#include <stdlib.h>
 #include <string.h>
 #ifdef ESP_PLATFORM
 #include <esp_heap_caps.h>
