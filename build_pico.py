@@ -157,8 +157,9 @@ BLOB_SIDECAR_JSON = "fn_pico_blobs.json"
 # Searched in order when PICO_SDK_PATH is unset, after the --install location.
 PICO_SDK_SEARCH = ("~/.pico-sdk/sdk/*", "~/pico/pico-sdk", "/usr/share/pico-sdk",
                    "/usr/local/share/pico-sdk", "/opt/pico-sdk")
-# --install clones pico_sdk_version here, one directory per version.
-PICO_SDK_INSTALL_ROOT = "~/.fujinet/pico-sdk"
+# --install clones pico_sdk_version here, one directory per version; relative to
+# the project root, which is the cwd in both modes.
+PICO_SDK_INSTALL_ROOT = os.path.join("build", "pico-sdk")
 PICO_SDK_REPO = "https://github.com/raspberrypi/pico-sdk.git"
 
 # Read under every ini, so a bare board ini still gets the shared pico_* versions.
@@ -299,7 +300,8 @@ def sdk_version(path: str) -> Optional[str]:
 
 
 def sdk_install_dir(version: str) -> str:
-    return os.path.join(os.path.expanduser(PICO_SDK_INSTALL_ROOT), version)
+    # Absolute: the companion build runs with cwd=pico_src.
+    return os.path.abspath(os.path.join(PICO_SDK_INSTALL_ROOT, version))
 
 
 def _find_pico_sdk(version: str) -> str:
