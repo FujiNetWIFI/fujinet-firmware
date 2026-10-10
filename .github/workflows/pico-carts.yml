@@ -138,6 +138,14 @@ jobs:
         working-directory: pico/nes/firmware/host_test
         run: make
 
+      # The Studio II planner against a transcription of MAME's loader, the
+      # per-read bus decision, the text engine and the mailbox. test_cycles
+      # checks its CDP1802 Table 2 transcription here; the MAME trace replays
+      # need traces recorded locally (tools/mktrace.sh).
+      - name: Studio II -- host tests
+        working-directory: pico/studio2/firmware/host_test
+        run: make
+
   o2-console-client:
     name: "Odyssey 2 8048 client"
     runs-on: ubuntu-latest
@@ -275,6 +283,40 @@ jobs:
           ASL=$HOME/asl/asl P2BIN=$HOME/asl/p2bin \
             ./build.sh hello romctest fujitest fujiboot fujicfg
 
+  studio2-console-client:
+    name: "Studio II 1802 clients"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Macro Assembler AS, CDP1802 target; same cache and recipe as the o2
+      # and Channel F jobs.
+      - name: Cache Macro Assembler AS
+        id: cache-asl
+        uses: actions/cache@v4
+        with:
+          path: ~/asl
+          key: asl-upstream-${{ runner.os }}-v1
+
+      - name: Build Macro Assembler AS
+        if: steps.cache-asl.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch upstream \
+            https://github.com/Macroassembler-AS/asl-releases.git /tmp/asl-src
+          cd /tmp/asl-src
+          cp Makefile.def-samples/Makefile.def-i386-unknown-linux2.x.x Makefile.def
+          sed -i 's|^CFLAGS.*|CFLAGS = -O2 -w|' Makefile.def
+          make -j"$(nproc)"
+          mkdir -p ~/asl
+          cp asl p2bin ~/asl/
+
+      # build.sh checks testrom/fujinet.inc against the C headers, rejects any
+      # 3-cycle opcode or IDL in a listing (the display is always on), and
+      # refuses an image with a page the cart may not claim.
+      - name: Assemble and validate
+        working-directory: pico/studio2
+        run: ASL=$HOME/asl/asl ./build.sh hello fujitest fujiboot
+
   nes-console-client:
     name: "NES 6502 clients"
     runs-on: ubuntu-latest
@@ -399,6 +441,14 @@ jobs:
           sudo apt-get install -y cc65
           ./build.sh loader hello fujitest fujiboot
           ./build-cart.sh
+
+      # From firmware/baked/ alone, so the 1802 assembler is not needed here;
+      # checksram.py asserts core1's loop and everything it calls is in SRAM.
+      - name: Studio II cartridge (fujistudio2_rp2354b)
+        working-directory: pico/studio2
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: ./build-cart.sh --baked
 
       # Drives the same [fujinet] pico_* keys the ESP32 build uses, so a
       # broken ini key, a missing ROM, or an uninitialized submodule fails
