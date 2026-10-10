@@ -37,9 +37,9 @@ DRIVER="$MAME/src/mame/fairchild/channelf.cpp"
 cp fujinet.cpp fujinet.h fujitcp.h "$BUSDIR/"
 cp fujitcp.c "$BUSDIR/fujitcp.cpp"
 cp ../firmware/src/fujimail.c "$BUSDIR/fujimail.cpp"
-cp ../firmware/src/fujibus.c "$BUSDIR/fujibus.cpp"
+cp ../../common/src/fujibus.c "$BUSDIR/fujibus.cpp"
 cp ../firmware/src/chfmap.c "$BUSDIR/chfmap.cpp"
-cp ../firmware/include/fujimail.h ../firmware/include/fujibus.h \
+cp ../firmware/include/fujimail.h ../../common/include/fujibus.h \
    ../firmware/include/chfmap.h ../firmware/include/fuji_mailbox.h \
    ../firmware/include/channelf_cart.h \
    "$BUSDIR/"

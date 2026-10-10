@@ -558,7 +558,7 @@ void mgHttpClient::process_response_headers(struct mg_connection *c, struct mg_h
         }
     }
 
-    // Record the declared length so keep-alive knows when the body is complete
+    // Record the declared length so message completion is independent of reuse
     // without waiting for a socket close.
     _declared_len = -1;
     struct mg_str *clh = mg_http_get_header(&hm, "Content-Length");
@@ -567,8 +567,9 @@ void mgHttpClient::process_response_headers(struct mg_connection *c, struct mg_h
         std::string cls(clh->buf, clh->len);
         _declared_len = atol(cls.c_str());
     }
-    // A HEAD (or 204/304) carries no body: it is complete as soon as headers arrive.
-    if (_keep_alive && (_method == HTTP_HEAD || _status_code == 204 || _status_code == 304))
+    // No-body responses on reused connections and empty fixed-length messages complete at headers.
+    if ((_keep_alive && (_method == HTTP_HEAD || _status_code == 204 || _status_code == 304)) ||
+        (!_is_chunked && _declared_len == 0))
         _transaction_done = true;
 
 #ifdef VERBOSE_HTTP
@@ -692,8 +693,8 @@ void mgHttpClient::process_body_data(struct mg_connection *c, char *data, int le
         c->recv.len = 0;   // cleanup mongoose receive buffer
         _processed = true; // stop polling, data is available in _buffer_str
 
-        // Keep-alive: server won't close, so detect end-of-body via Content-Length.
-        if (_keep_alive && _declared_len >= 0 && _body_received >= _declared_len)
+        // A fixed-length message is complete independently of connection reuse.
+        if (_declared_len >= 0 && _body_received >= _declared_len)
             _transaction_done = true;
     }
 }
