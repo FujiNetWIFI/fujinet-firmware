@@ -14,6 +14,7 @@ on its floppy port and relays bus traffic to the ESP32 running FujiNet.
 | `o2/` | Odyssey 2 and Videopac cartridge, RP2040; a fork of PicoPAC | `o2/build.sh` (8048 clients) and `o2/build-cart.sh` (pico-sdk) | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
 | `channelf/` | Fairchild Channel F Videocart on an RP2040 `fujichannelf` board | `channelf/build.sh` (F8 clients, Macro Assembler AS) and `channelf/build-cart.sh` (pico-sdk) | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
 | `nes/` | NES cartridge on an RP2354B with two 512K SRAMs for PRG and CHR | `nes/build.sh` (6502 clients, cc65) and `nes/build-cart.sh` (pico-sdk) | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
+| `sms/` | Sega Master System cartridge on an RP2354B with 1 MB of SRAM | `sms/build.sh` (Z80 clients, z88dk) and `sms/build-cart.sh` (pico-sdk) | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
 | `atari-7800/` | Atari 7800 cartridge on an RP2354B with 512K of SRAM | `atari-7800/build.sh` (6502 clients, cc65) and `atari-7800/build-cart.sh` (pico-sdk) | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
 | `common/` | FujiBus codec, its USB CDC transport and a CDC-only USB device, shared by the cartridges | compiled into each cart's pico-sdk build | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | [common/](common/) |
 | `atari-2600/` | Atari 2600 PlusCart-Pico port, RP2040 | PlatformIO per its README; no project ini is tracked | no | none wired in | upstream README |
