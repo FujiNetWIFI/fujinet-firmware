@@ -32,6 +32,7 @@ int main(int argc, char **argv)
         return 3;
     client.set_keep_alive(std::string(argv[2]) == "reuse");
     const int status = client.GET();
+    std::cout << "GET_RETURNED" << std::endl;
     const int available = client.available();
     uint8_t body[128] = {};
     const int first = client.read(body, 3);

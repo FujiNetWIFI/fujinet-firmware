@@ -657,9 +657,8 @@ void mgHttpClient::process_body_data(struct mg_connection *c, char *data, int le
 #ifdef VERBOSE_HTTP
                 Debug_printf("mgHttpClient: Final chunk received, body=%d bytes\n", _content_length);
 #endif
-                // Keep-alive: socket stays open, so finish here, not on close.
-                if (_keep_alive)
-                    _transaction_done = true;
+                // Message completion does not depend on connection reuse.
+                _transaction_done = true;
             }
             o += cl;
         }
