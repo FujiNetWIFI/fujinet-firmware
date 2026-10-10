@@ -1,0 +1,34 @@
+; a78_tables.pio -- the slot table.
+;
+; Documentation and a cross-check: the firmware builds the same words from
+; a78_pio.h at run time (so that the host tests and the cartridge share one
+; encoder) and asserts at init that pioasm agrees. Slot instructions are
+; patched live; `set pins, 0 side 0` is only the power-on value.
+
+.program a78_slot_table
+.side_set 4 opt
+.origin 0
+; 8 slots of 8K, indexed by CPU A13-A15; each slot is `set` (SRAM A13-A17 on
+; the set pins; A18, ROM_EN, RAM_EN, A8MASK on the side-set pins) then a jump
+; back to the loop.
+    set pins, 0 side 0
+    jmp loop
+    set pins, 0 side 0
+    jmp loop
+    set pins, 0 side 0
+    jmp loop
+    set pins, 0 side 0
+    jmp loop
+    set pins, 0 side 0
+    jmp loop
+    set pins, 0 side 0
+    jmp loop
+    set pins, 0 side 0
+    jmp loop
+    set pins, 0 side 0
+    jmp loop
+loop:
+    mov isr, null
+    in pins, 3          ; ISR = A13-A15 (IN shift direction: left)
+    in null, 1          ; ISR = 2 * index: the slot's address
+    mov pc, isr
