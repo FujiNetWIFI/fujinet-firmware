@@ -79,10 +79,11 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
         // replaces the previous disksize==8192||16384||32768 heuristic
         // (rs232Disk::mount()), which misfired on any file of those exact
         // sizes regardless of extension and missed every other ROM size.
-        // CHF is the Channel F cartridge extension MAME accepts alongside .bin.
+        // CHF is the Channel F cartridge extension MAME accepts alongside .bin;
+        // A52 is an Atari 5200 cartridge image.
         if (strcasecmp(ext, "ROM") == 0 || strcasecmp(ext, "BIN") == 0 ||
             strcasecmp(ext, "INT") == 0 || strcasecmp(ext, "ITV") == 0 ||
-            strcasecmp(ext, "CHF") == 0)
+            strcasecmp(ext, "CHF") == 0 || strcasecmp(ext, "A52") == 0)
         {
             return MEDIATYPE_ROM;
         }
