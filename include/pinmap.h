@@ -39,6 +39,10 @@
 #include "pinmap/fujiversal-msx.h"
 #include "pinmap/fujiversal-channelf.h"
 #include "pinmap/fujiversal-arcadia.h"
+#include "pinmap/fujiversal-nes.h"
+#include "pinmap/fujiversal-sms.h"
+#include "pinmap/fujiversal-atari7800.h"
+#include "pinmap/fujiversal-atari5200.h"
 
 
 #include "pinmap_defaults.h"
