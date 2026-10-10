@@ -15,20 +15,24 @@ project(fujichannelf C CXX ASM)
 
 pico_sdk_init()
 
+# FujiBus and the USB device, shared with the other carts.
+set(FUJI_COMMON ${CMAKE_CURRENT_LIST_DIR}/../../common)
+
 add_executable(${PROJECT_NAME}
     src/main.c
     src/channelf_cart.c
     src/fuji_cart.c
-    src/usb_descriptors.c
+    ${FUJI_COMMON}/usb/usb_descriptors.c
 )
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Os -Wall)
+target_compile_definitions(${PROJECT_NAME} PRIVATE FUJI_USB_PRODUCT="FujiNet Channel F Cart")
 
 if(CONFIG_FUJINET)
     target_compile_definitions(${PROJECT_NAME} PRIVATE CONFIG_FUJINET=1)
     target_sources(${PROJECT_NAME} PRIVATE
-        src/fujibus.c
-        src/fujibus_usb.c
+        ${FUJI_COMMON}/src/fujibus.c
+        ${FUJI_COMMON}/src/fujibus_usb.c
         src/fujimail.c
         src/fujinet.c
         src/fujiboot.c
@@ -39,6 +43,8 @@ endif()
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
     ${CMAKE_CURRENT_LIST_DIR}/include
+    ${FUJI_COMMON}/include
+    ${FUJI_COMMON}/usb
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
