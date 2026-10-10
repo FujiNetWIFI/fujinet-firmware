@@ -23,7 +23,7 @@
 #define HSC_CHUNKS       32
 #define HSC_DEBOUNCE_MS  2000u
 
-/* Provisional AppKey identity; to be registered on the FujiNet wiki. */
+/* AppKey identity, registered on the FujiNet wiki's AppKey Registry Page. */
 #define HSC_CREATOR      0x7800u
 #define HSC_APP          0x01u
 

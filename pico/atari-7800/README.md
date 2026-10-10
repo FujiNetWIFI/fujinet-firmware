@@ -77,8 +77,8 @@ memory-mapped mailbox, a POKEY and a High Score Cart.
 - The firmware image includes `firmware/src/pokey.c`, transcribed from MAME's `pokey.cpp`
   (BSD-3-Clause, copyright Brad Oliver, Eric Smith, Juergen Buchmueller); the full notice and
   conditions are in that file's header.
-- High scores are AppKeys with a provisional creator id (`HSC_CREATOR` in
-  `firmware/include/hsc.h`); the HSC ROM is the user's own file, installed from CONFIG, never baked.
+- High scores are AppKeys under creator `0x7800` (`HSC_CREATOR` in `firmware/include/hsc.h`,
+  registered on the wiki); the HSC ROM is the user's own file, installed from CONFIG, never baked.
 - `tools/7800sign/7800sign.c` is Bruce Tomlin's signer (version 1.0 of 2004-06-20) from
   [7800basic](https://github.com/7800-devtools/7800basic), LGPL-2.1 (`tools/7800sign/COPYING.LGPL`),
   unmodified. `tools/mkbootblk.py` builds it into `build/` to sign and verify the boot block; it
