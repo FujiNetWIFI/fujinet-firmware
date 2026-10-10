@@ -128,6 +128,7 @@ the owning device or bus.
 | [ftp/](ftp/) | `fnFTP` client | in-house | yes | yes |
 | [fuji/](fuji/) | `fujiHost` and `fujiDisk` slots | in-house | yes | yes |
 | [hardware/](hardware/) | system, WiFi, I/O channels, LEDs, keys, companion MCU | in-house plus Arduino ports | yes | subset |
+| [hotsync/](hotsync/) | Palm OS HotSync protocol stack and sync session | palm-sync port, Apache-2.0 | no | tests |
 | [http/](http/) | web UI, REST API, HTTP clients; `webdav/` server | in-house; `webdav/` from Meatloaf | yes | yes, not `webdav/` |
 | libb64/ | vestigial: holds only a LICENSE file | | no | no |
 | [meatloaf/](meatloaf/) | virtual filesystem used by the IEC drive | Meatloaf, GPL-3 | yes | no |
