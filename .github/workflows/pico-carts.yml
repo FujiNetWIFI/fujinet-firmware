@@ -135,6 +135,13 @@ jobs:
         working-directory: pico/nes/firmware/host_test
         run: make
 
+      # The mapper engine against MAME's own sega8 handlers, the bus decode and
+      # 74HCT glue (no two drivers on D in any mode), the load sequence on a
+      # model of the board, the mailbox service and the FujiBus codec.
+      - name: Master System -- host tests
+        working-directory: pico/sms/firmware/host_test
+        run: make
+
       # The mapper engine against MAME's own a5200 handlers, the bus observer
       # (skew, enables, repeats, the swap), the '541 glue, staging and the
       # hand-over, the mailbox service and the FujiBus codec.
@@ -505,6 +512,15 @@ jobs:
           sudo apt-get install -y cc65
           ./build.sh loader hello fujitest fujiboot
           ./build-cart.sh
+
+      # The resident CONFIG and the loader page come from firmware/baked/
+      # (z88dk is not on the runners); tools/checksram.py asserts core1's
+      # symbols are in SRAM.
+      - name: Master System cartridge (fujisms_rp2354b)
+        working-directory: pico/sms
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: ./build-cart.sh --baked
 
       # CONFIG comes from firmware/baked/; tools/checksram.py asserts that
       # core1's loop and every branch it takes stay in SRAM.
