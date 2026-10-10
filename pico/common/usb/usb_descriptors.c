@@ -25,6 +25,11 @@
 
 #include "tusb.h"
 
+/* Each cart names itself in its CMakeLists.txt. */
+#ifndef FUJI_USB_PRODUCT
+#error "FUJI_USB_PRODUCT is not defined"
+#endif
+
 /* A combination of interfaces must have a unique product id, since PC will save device driver after the first plug.
  * Same VID/PID with different interface e.g MSC (first), then CDC (later) will possibly cause system error on PC.
  *
@@ -236,7 +241,7 @@ char const* string_desc_arr [] =
 {
   (const char[]) { 0x09, 0x04 }, // 0: is supported language is English (0x0409)
   "FujiNet",                       // 1: Manufacturer
-  "FujiNet Astrocade Cart",        // 2: Product
+  FUJI_USB_PRODUCT,                // 2: Product
   "123456789012",                  // 3: Serials, should use chip ID
   "FujiNet CDC",                   // 4: CDC Interface
   "SDPicoCart MSC",                // 5: MSC Interface

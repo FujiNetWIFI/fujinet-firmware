@@ -1,4 +1,4 @@
-/* fujibus_usb.h -- FujiBus over the RP2040's USB CDC link to the ESP32-S3. */
+/* fujibus_usb.h -- FujiBus over the cartridge's USB CDC link to the ESP32-S3. */
 #ifndef FUJIBUS_USB_H
 #define FUJIBUS_USB_H
 
