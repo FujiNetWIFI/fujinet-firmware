@@ -81,12 +81,13 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
         // sizes regardless of extension and missed every other ROM size.
         // CHF is the Channel F cartridge extension MAME accepts alongside .bin.
         // NES, SMS, A78 and A52 are NES, Master System, 7800 and 5200 images;
-        // those carts handle any header and pick their mapper themselves.
+        // those carts handle any header and pick their mapper themselves. ST2
+        // is the RCA Studio II's.
         if (strcasecmp(ext, "ROM") == 0 || strcasecmp(ext, "BIN") == 0 ||
             strcasecmp(ext, "INT") == 0 || strcasecmp(ext, "ITV") == 0 ||
             strcasecmp(ext, "CHF") == 0 || strcasecmp(ext, "NES") == 0 ||
             strcasecmp(ext, "SMS") == 0 || strcasecmp(ext, "A78") == 0 ||
-            strcasecmp(ext, "A52") == 0)
+            strcasecmp(ext, "A52") == 0 || strcasecmp(ext, "ST2") == 0)
         {
             return MEDIATYPE_ROM;
         }
