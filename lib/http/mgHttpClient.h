@@ -64,6 +64,7 @@ private:
     // keep-alive: when enabled, send "Connection: keep-alive" and reuse the connection.
     bool _keep_alive = false;
     struct mg_connection *_conn = nullptr; // reused connection when keep-alive
+    struct mg_connection *_active = nullptr; // connection owning the current response
     long _declared_len = -1;               // Content-Length of current response, -1 if unknown
     long _body_received = 0;               // body bytes received so far this transaction
 

@@ -19,7 +19,7 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `sioNetworkTests.cpp` | What `sioNetwork` sends to the bus for a failed CLOSE, its repeat and a failed READ (`sio_network_tests`; ATARI target only) |
 | `sioNetworkStubs.cpp`, `sioNetworkStubs.h` | Link-time stubs shared by `sio_dstats_tests` and `sio_network_tests`; the `systemBus` stubs record into `bus` |
 | `NQueryOutputModeTests.cpp`, `NParserReadTests.cpp` | `NParser` and `XMLParser` query output modes and short reads (`nquery_output_mode_tests`; ATARI target only) |
-| `MgHttpCompletionProbe.cpp`, `mg_http_completion_test.py` | Real PC HTTP fixed-length/chunked completion, body/status/EOF and close-delimited control (`mg_http_completion_tests`; POSIX hosts) |
+| `MgHttpCompletionProbe.cpp`, `mg_http_completion_test.py` | Real PC HTTP fixed-length/chunked completion, redirect connection isolation, two-request reuse and body/status/EOF (`mg_http_completion_tests`; POSIX hosts) |
 | `HttpHeaderTests.cpp` | `lib/fn_esp_http_client/fn_http_header.cpp` header chunking (`http_header_tests`; skipped where the BSD queue header is missing) |
 | `mac_gcr_test.cpp` | `lib/media/mac/macGCR.cpp` encode and decode round trip (`mac_gcr_tests`) |
 | `CasTapeTests.cpp`, `CassetteRewindRequestTests.cpp`, `CassetteTrailTests.cpp` | Atari cassette record timing, rewind request and trail (`cassette_tests`) |

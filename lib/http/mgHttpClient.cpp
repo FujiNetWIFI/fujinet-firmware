@@ -249,11 +249,11 @@ bool mgHttpClient::begin(std::string url)
     _post_data = nullptr;
     _post_datalen = 0;
 
+    _active = nullptr;
+    _conn = nullptr;
     _handle.reset(new mg_mgr());
     if (_handle == nullptr)
         return false;
-
-    _conn = nullptr; // fresh manager, any previous connection is invalid
 
     _url = url;
     // For mongoose, lowercase the first 5 characters of the URL, assuming it starts with http:// or https://
@@ -331,6 +331,7 @@ int mgHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
 void mgHttpClient::close()
 {
     Debug_println("mgHttpClient::close");
+    _active = nullptr;
     _buffer_str.clear();
     _processed = false;
     _progressed = false;
@@ -397,6 +398,8 @@ void mgHttpClient::handle_connect(struct mg_connection *c)
 #endif
         opts.name = host;
         mg_tls_init(c, &opts);
+        if (_active != c)
+            return;
     }
 
     // reset response status code
@@ -414,7 +417,7 @@ void mgHttpClient::handle_connect(struct mg_connection *c)
     send_request(c);
 
     // Remember the connection so a keep-alive session can reuse it next request.
-    if (_keep_alive)
+    if (_keep_alive && _active == c)
         _conn = c;
 }
 
@@ -747,6 +750,11 @@ void mgHttpClient::_httpevent_handler(struct mg_connection *c, int ev, void *ev_
 {
     // // Our user_data should be a pointer to our mgHttpClient object
     mgHttpClient *client = (mgHttpClient *)c->fn_data;
+    // OPEN precedes synchronous CONNECT/ERROR callbacks inside mg_connect().
+    if (ev == MG_EV_OPEN)
+        client->_active = c;
+    if (c != client->_active)
+        return;
     bool progress = true;
 
     switch (ev)
@@ -768,13 +776,17 @@ void mgHttpClient::_httpevent_handler(struct mg_connection *c, int ev, void *ev_
             Debug_println("mgHttpClient: Chunked response ended before final chunk");
             client->_status_code = 902; // Fake HTTP status code to indicate truncated chunked body. Maybe should be 204-"Connection was reset during read/write"
         }
-        client->_conn = nullptr; // connection gone; a keep-alive reuse must reconnect
+        if (client->_conn == c)
+            client->_conn = nullptr;
+        client->_active = nullptr;
         client->_transaction_done = true;
         break;
 
     case MG_EV_ERROR:
         Debug_printf("mgHttpClient: Error - %s\n", (const char*)ev_data);
-        client->_conn = nullptr;
+        if (client->_conn == c)
+            client->_conn = nullptr;
+        client->_active = nullptr;
         client->_transaction_done = true;
         client->_status_code = 901; // Fake HTTP status code to indicate connection error
         break;
@@ -841,6 +853,7 @@ int mgHttpClient::_perform()
  */
 void mgHttpClient::_perform_connect()
 {
+    _active = nullptr;
     _status_code = -1;
     _content_length = 0;
     _is_chunked = false;
@@ -853,6 +866,7 @@ void mgHttpClient::_perform_connect()
 
     if (_handle == nullptr)
     {
+        _conn = nullptr;
         _transaction_done = true;
         _status_code = 900; // Fake HTTP status code to indicate general error
         return;
@@ -862,11 +876,17 @@ void mgHttpClient::_perform_connect()
     {
         // Reuse the keep-alive connection. If the peer dropped it, the poll
         // surfaces MG_EV_CLOSE and the caller retries on a fresh connection.
+        _active = _conn;
         send_request(_conn);
     }
     else
     {
-        mg_connect(_handle.get(), _url.c_str(), _httpevent_handler, this);  // Create client connection
+        _conn = nullptr;
+        if (mg_connect(_handle.get(), _url.c_str(), _httpevent_handler, this) == nullptr)
+        {
+            _transaction_done = true;
+            _status_code = 900;
+        }
     }
 }
 
