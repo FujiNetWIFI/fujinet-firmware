@@ -74,6 +74,9 @@ memory-mapped mailbox, a POKEY and a High Score Cart.
 - POKEY reads in MAME come from MAME's own POKEY; the firmware's synthesiser is checked against
   MAME's recordings of `pokeytest`, Ballblazer and Commando (`pokeycmp.py --game`). MAME's
   output stage is a resistor network, the firmware's a linear sum.
+- The firmware image includes `firmware/src/pokey.c`, transcribed from MAME's `pokey.cpp`
+  (BSD-3-Clause, copyright Brad Oliver, Eric Smith, Juergen Buchmueller); the full notice and
+  conditions are in that file's header.
 - High scores are AppKeys with a provisional creator id (`HSC_CREATOR` in
   `firmware/include/hsc.h`); the HSC ROM is the user's own file, installed from CONFIG, never baked.
 - `tools/7800sign/7800sign.c` is Bruce Tomlin's signer (version 1.0 of 2004-06-20) from
