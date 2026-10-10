@@ -61,8 +61,7 @@ private:
     int _status_code = -1;
     int _content_length = 0;
 
-    // keep-alive: when enabled, send "Connection: keep-alive", detect completion
-    // via Content-Length (not socket close), and reuse the connection.
+    // keep-alive: when enabled, send "Connection: keep-alive" and reuse the connection.
     bool _keep_alive = false;
     struct mg_connection *_conn = nullptr; // reused connection when keep-alive
     long _declared_len = -1;               // Content-Length of current response, -1 if unknown

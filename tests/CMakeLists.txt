@@ -518,3 +518,33 @@ if(UNAR_EXECUTABLE AND NDIF2RAW_MAKE AND NDIF2RAW_DIR AND EXISTS "${NDIF2RAW_DIR
 else()
   message(STATUS "unar, make, NDIF2RAW_DIR or Now_Software.sit not found - skipping ndif_sample_tests")
 endif()
+
+# Real PC client and Mongoose over a bounded loopback TCP fixture.
+# The fixture uses select on subprocess pipes, available on POSIX hosts.
+if(UNIX)
+  add_executable(mg_http_completion_probe
+      MgHttpCompletionProbe.cpp
+      ${CMAKE_SOURCE_DIR}/lib/http/mgHttpClient.cpp
+      ${CMAKE_SOURCE_DIR}/components_pc/mongoose/mongoose.c
+  )
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_sources(mg_http_completion_probe PRIVATE
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+    )
+  endif()
+  target_include_directories(mg_http_completion_probe PRIVATE
+      ${CMAKE_SOURCE_DIR}/include/
+      ${CMAKE_SOURCE_DIR}/lib/http/
+      ${CMAKE_SOURCE_DIR}/lib/hardware/
+      ${CMAKE_SOURCE_DIR}/lib/utils/
+      ${CMAKE_SOURCE_DIR}/lib/compat/
+      ${CMAKE_SOURCE_DIR}/components_pc/mongoose/
+      ${MBEDTLS_INCLUDE_DIR}
+  )
+  target_compile_definitions(mg_http_completion_probe PRIVATE UNIT_TESTS)
+  target_link_libraries(mg_http_completion_probe PRIVATE ${CRYPTO_LIBS})
+  add_test(NAME mg_http_completion_tests COMMAND ${Python3_EXECUTABLE}
+      ${CMAKE_CURRENT_SOURCE_DIR}/mg_http_completion_test.py
+      $<TARGET_FILE:mg_http_completion_probe>)
+  set_tests_properties(mg_http_completion_tests PROPERTIES TIMEOUT 25)
+endif()
