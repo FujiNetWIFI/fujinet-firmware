@@ -29,6 +29,11 @@
 
 #define BUS_GPIO_MASK (ADDR_MASK | DATA_MASK)
 
+/* Gap between the two address samples: 100 ns at 250 MHz, wider than the skew
+ * between address lines through the level shifters, still tiny against the
+ * ~3.35 us 2650 memory cycle. */
+#define ARCADIA_SETTLE_CYCLES 25
+
 /* The bus-loop's serve/de-dup decision, factored out so it can be fuzzed on
  * the desktop (test_busedge.c) against the exact code core1 runs -- there is
  * no Enable line to key events off, so this is where the correctness of the
@@ -42,9 +47,9 @@ static inline void arcadia_edge_init(arcadia_edge_t *e)
     e->prev = 0xFFFFFFFFu;
 }
 
-/* One bus observation from two consecutive GPIO snapshots. Returns the
- * decoded image offset being served (>= 0) whenever the cart is selected
- * and the address is stable, or -1 (chip select off, or an unstable
+/* One bus observation from two GPIO snapshots ARCADIA_SETTLE_CYCLES apart.
+ * Returns the decoded image offset being served (>= 0) whenever the cart is
+ * selected and the address is stable, or -1 (chip select off, or an unstable
  * sample -- in which case `prev` is deliberately left untouched so a
  * mid-cycle glitch cannot double-fire). *is_event is set only when the
  * selected address has CHANGED since the last event, which is exactly when

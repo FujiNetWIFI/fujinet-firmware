@@ -18,8 +18,8 @@
  * detector. On an unstable sample it skips WITHOUT updating the remembered
  * state, so a mid-cycle glitch cannot double-fire a hotspot.
  *
- * A 2650 memory cycle at 0.895 MHz is ~3.35 microseconds; this loop
- * iterates in tens of nanoseconds at 250 MHz, dozens of samples per cycle.
+ * A 2650 memory cycle at 0.895 MHz is ~3.35 microseconds; even with the
+ * gap between samples this loop runs about 30 times per cycle.
  *
  * NOT YET RUN ON HARDWARE -- there is no cartridge board yet. The protocol
  * this loop feeds (fujimail.c) is exercised against a real fujinet-pc
@@ -48,6 +48,7 @@ void __not_in_flash_func(arcadia_core1_main)(void)
 
     for (;;) {
         uint32_t pins = sio_hw->gpio_in;
+        busy_wait_at_least_cycles(ARCADIA_SETTLE_CYCLES);
         uint32_t pins2 = sio_hw->gpio_in;       /* two-sample stability gate */
         bool is_event;
         int img = arcadia_bus_observe(&edge, pins, pins2, &is_event);

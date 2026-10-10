@@ -138,8 +138,9 @@ baked-in client (the real `fujinet-config/arcadia` CONFIG if its
   Enable drops as the Astrocade loop does (A12 stays low across consecutive
   instruction fetches). It serves combinationally and de-duplicates hotspot
   events on a change of the full A0–A13 pin state, with a two-sample
-  stability gate. That decision is `arcadia_bus_observe()` in
-  `arcadia_cart.h`, fuzzed on the desktop by `host_test/test_busedge.c`.
+  stability gate (samples 100 ns apart). That decision is
+  `arcadia_bus_observe()` in `arcadia_cart.h`, fuzzed on the desktop by
+  `host_test/test_busedge.c`.
 
 ## Hardware status
 
