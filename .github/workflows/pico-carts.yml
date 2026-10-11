@@ -141,6 +141,16 @@ jobs:
       - name: Master System -- host tests
         working-directory: pico/sms/firmware/host_test
         run: make
+
+      # The mapper engine against MAME's own a7800 handlers, the bus decode,
+      # the INPTCTRL model and the 74HCT glue (no two drivers on D in any
+      # state), the PIO slot table, the POKEY against MAME's polynomials, the
+      # load sequence and hand-over rule, the HSC's AppKeys, the mailbox
+      # service, the FujiBus codec, and the signed boot block.
+      - name: Atari 7800 -- host tests
+        working-directory: pico/atari-7800/firmware/host_test
+        run: make
+
       - name: Arcadia -- FujiBus codec
         working-directory: pico/arcadia/firmware/host_test
         run: |
@@ -179,6 +189,19 @@ jobs:
           gcc -Wall -Wextra -Werror -I../include \
               -o test_busedge test_busedge.c
           ./test_busedge
+
+  a7800-console-client:
+    name: "Atari 7800 6502 clients"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cc65
+        run: sudo apt-get update && sudo apt-get install -y cc65
+      # The boot block, signed and verified with the vendored 7800sign, and the
+      # loader and bring-up clients, each through tools/checkrom.py.
+      - name: Build the boot block, the loader and the clients
+        working-directory: pico/atari-7800
+        run: ./build.sh
 
   o2-console-client:
     name: "Odyssey 2 8048 client"
@@ -500,6 +523,15 @@ jobs:
         env:
           PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: ./build-cart.sh --baked
+
+      # CONFIG, the loader and the signed boot block come from
+      # firmware/baked/; tools/checksram.py asserts core1's symbols are in SRAM.
+      - name: Atari 7800 cartridge (fuji7800_rp2354b)
+        working-directory: pico/atari-7800
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: ./build-cart.sh --baked
+
       - name: Arcadia cartridge (fujiarcadia)
         working-directory: pico/arcadia
         env:
