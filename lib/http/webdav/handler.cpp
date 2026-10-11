@@ -24,6 +24,7 @@
 #include "../../../include/debug.h"
 
 #include "webdav_server.h"
+#include "webdav_methods.h"
 #include "request.h"
 #include "response.h"
 
@@ -182,23 +183,9 @@ void webdav_register(httpd_handle_t server, const char *root_uri, const char *ro
         .is_websocket = false
     };
 
-    http_method methods[] = {
-        HTTP_COPY,
-        HTTP_DELETE,
-        HTTP_HEAD,
-        HTTP_LOCK,
-        HTTP_MKCOL,
-        HTTP_MOVE,
-        HTTP_OPTIONS,
-        HTTP_PROPFIND,
-        HTTP_PROPPATCH,
-        HTTP_PUT,
-        HTTP_UNLOCK,
-    };
-
-    for (int i = 0; i < (int)(sizeof(methods) / sizeof(methods[0])); i++)
+    for (http_method method : WEBDAV_METHODS)
     {
-        uri_dav.method = methods[i];
+        uri_dav.method = method;
         httpd_register_uri_handler(server, &uri_dav);
     }
 }

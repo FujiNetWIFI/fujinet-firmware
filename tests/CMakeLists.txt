@@ -351,6 +351,19 @@ else()
   message(STATUS "sys/queue.h not available - skipping http_header_tests")
 endif()
 
+# The ESP-only WebDAV server's registered methods, against a stub http_parser.h.
+add_executable(webdav_methods_tests
+    WebDavMethodsTests.cpp
+)
+
+target_include_directories(webdav_methods_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/tests/esp_stubs/           # http_parser.h
+    ${CMAKE_SOURCE_DIR}/lib/http/webdav/
+    ${CMAKE_SOURCE_DIR}/components_pc/             # doctest
+)
+
+add_test(NAME webdav_methods_tests COMMAND webdav_methods_tests)
+
 # ------------------------------------------------------------------------------
 # Macintosh GCR floppy encoder. Pure C++, no platform dependencies. Encodes a
 # synthetic 800K disk and decodes every sector back with an independent
