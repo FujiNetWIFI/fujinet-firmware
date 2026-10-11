@@ -155,10 +155,6 @@ toolchain. The firmware still builds and runs; it simply carries no cartridge im
 logs `SKIP`. `build-platforms/build-all.sh` sets this for itself when no toolchain is
 present.
 
-After a fresh clone, the CoCo and MSX cartridge source needs fetching once:
-
-```sh
-git submodule update --init pico/fujiversal
-```
-
-`build_pico.py` says exactly this if you forget.
+`build_pico.py` checks out the pinned commit of the CoCo and MSX cartridge source
+(`pico/fujiversal`) if it is missing or on another commit. `build.sh -k` skips that and
+builds the local checkout as is.

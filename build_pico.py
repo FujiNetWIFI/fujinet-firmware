@@ -675,7 +675,42 @@ def _submodule_paths() -> List[str]:
     return paths
 
 
-def _check_submodule_initialized(cfg: PicoConfig) -> None:
+def _sync_submodule_to_pin(cfg: PicoConfig, sub: str, dry_run: bool) -> None:
+    """Check out the commit the firmware pins the submodule to, unless the
+    checkout has local changes or FUJINET_PICO_KEEP is set (build.sh -k)."""
+    if os.environ.get("FUJINET_PICO_KEEP", "").strip().lower() in TRUE_WORDS:
+        log(f"[{cfg.board}] FUJINET_PICO_KEEP is set -- building {sub} as checked out")
+        return
+    if not os.path.exists(os.path.join(sub, ".git")):
+        return
+
+    # The index, not HEAD, so a staged pin bump builds before it's committed.
+    staged = subprocess.run(["git", "ls-files", "--stage", "--", sub],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    fields = staged.stdout.split()
+    if staged.returncode != 0 or len(fields) < 2 or fields[0] != "160000":
+        return
+    pinned = fields[1]
+    head = subprocess.run(["git", "-C", sub, "rev-parse", "HEAD"],
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True).stdout.strip()
+    if head == pinned:
+        return
+    status = subprocess.run(["git", "-C", sub, "status", "--porcelain"],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if status.stdout.strip():
+        log(f"[{cfg.board}] {sub} has local changes -- not checking out its "
+            f"pinned commit {pinned[:7]}")
+        return
+    if dry_run:
+        log(f"[{cfg.board}] (--dry-run) would check out pinned {pinned[:7]} in {sub} "
+            f"(now {head[:7]})")
+        return
+    if subprocess.run(["git", "submodule", "--quiet", "update", "--", sub]).returncode != 0:
+        fail(cfg.board, "pico_src", f"could not check out pinned commit {pinned[:7]} in {sub}")
+    log(f"[{cfg.board}] checked out pinned {pinned[:7]} in {sub} (was {head[:7]})")
+
+
+def _check_submodule_initialized(cfg: PicoConfig, dry_run: bool = False) -> None:
     """An uninitialized submodule is an empty directory, so the CMakeLists.txt
     check below would report 'no CMakeLists.txt found', which is true but
     sends the reader looking for a broken ini key instead of a one-line fix."""
@@ -695,6 +730,7 @@ def _check_submodule_initialized(cfg: PicoConfig) -> None:
                 fail(cfg.board, "pico_src",
                      f"{sub} is a git submodule that has not been checked "
                      f"out -- run: git submodule update --init {sub}")
+            _sync_submodule_to_pin(cfg, sub, dry_run)
             return
 
 
@@ -702,7 +738,7 @@ def ensure_source(cfg: PicoConfig, force_external: bool = False, dry_run: bool =
     if cfg.repo:
         _ensure_remote_source(cfg, force_external=force_external, dry_run=dry_run)
     else:
-        _check_submodule_initialized(cfg)
+        _check_submodule_initialized(cfg, dry_run)
 
     if not os.path.isdir(cfg.src):
         fail(cfg.board, "pico_src", f"directory does not exist: {cfg.src}")
@@ -1510,7 +1546,8 @@ def _build_arg_parser() -> argparse.ArgumentParser:
                          "not touch the filesystem or build anything")
     p.add_argument("--check", action="store_true",
                     help="run the source and prerequisite checks a build "
-                         "would (fetching a missing submodule), print a fix "
+                         "would (fetching a missing submodule or checking "
+                         "out its pinned commit), print a fix "
                          "for each problem, then exit: 0 ok, 1 problems, 2 "
                          "problems --install can fix at least some of")
     p.add_argument("--install", action="store_true",

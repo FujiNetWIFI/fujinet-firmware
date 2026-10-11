@@ -183,6 +183,8 @@ function show_help {
   echo "            # env var FUJINET_SKIP_PICO=1 skips the companion firmware build entirely"
   echo "            # during a normal -b build and emits a stub instead (used by -a/build-all.sh"
   echo "            # on boards/runners that don't have the companion toolchain installed)"
+  echo "   -k       # don't check out the companion submodule's pinned commit; build the"
+  echo "            # local checkout as is"
   echo ""
   echo "one-off firmware options"
   echo "   -a       # build ALL target platforms to test changes work on all platforms"
@@ -225,7 +227,7 @@ if [ $# -eq 0 ] ; then
   show_help
 fi
 
-while getopts "abcde:fgG:hi:l:mnPp:s:St:uyzV:" flag
+while getopts "abcde:fgG:hi:kl:mnPp:s:St:uyzV:" flag
 do
   case "$flag" in
     a) BUILD_ALL=1 ;;
@@ -236,6 +238,7 @@ do
     f) UPLOAD_FS=1 ;;
     g) DEBUG_PC_BUILD=1 ;;
     i) INI_FILE=${OPTARG} ;;
+    k) export FUJINET_PICO_KEEP=1 ;;
     l) LOCAL_INI_VALUES_FILE=${OPTARG} ;;
     m) SHOW_MONITOR=1 ;;
     n) AUTOCLEAN=0 ;;

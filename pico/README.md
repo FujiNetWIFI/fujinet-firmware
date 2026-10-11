@@ -33,7 +33,8 @@ on its floppy port and relays bus traffic to the ESP32 running FujiNet.
   sources), and flashed over PICOBOOT at boot by `fnPicoUpdater` when it differs from the image
   recorded in NVS. `docs/fujiversal-flashing.md` describes the sequence;
   the `pico_*` keys that drive it are documented in `platformio-ini-files/platformio.common.ini`.
-- `fujiversal/` is a git submodule; `build_pico.py` checks it out if it is missing.
+- `fujiversal/` is a git submodule; `build_pico.py` checks out its pinned commit if needed.
+  `build.sh -k` skips that and builds the local checkout as is.
 
 ## Build
 A board ini with `pico_src` set needs an ARM GCC toolchain with newlib and libstdc++, CMake, Ninja
