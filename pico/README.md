@@ -16,6 +16,7 @@ on its floppy port and relays bus traffic to the ESP32 running FujiNet.
 | `nes/` | NES cartridge on an RP2354B with two 512K SRAMs for PRG and CHR | `nes/build.sh` (6502 clients, cc65) and `nes/build-cart.sh` (pico-sdk) | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
 | `sms/` | Sega Master System cartridge on an RP2354B with 1 MB of SRAM | `sms/build.sh` (Z80 clients, z88dk) and `sms/build-cart.sh` (pico-sdk) | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
 | `atari-7800/` | Atari 7800 cartridge on an RP2354B with 512K of SRAM | `atari-7800/build.sh` (6502 clients, cc65) and `atari-7800/build-cart.sh` (pico-sdk) | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
+| `atari-5200/` | Atari 5200 cartridge on an RP2354B serving the window itself, behind a 74HCT541 | `atari-5200/build.sh` (6502 clients, cc65) and `atari-5200/build-cart.sh` (pico-sdk) | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | yes |
 | `common/` | FujiBus codec, its USB CDC transport and a CDC-only USB device, shared by the cartridges | compiled into each cart's pico-sdk build | no | [lib/bus/rs232/](../lib/bus/rs232/) over USB CDC | [common/](common/) |
 | `atari-2600/` | Atari 2600 PlusCart-Pico port, RP2040 | PlatformIO per its README; no project ini is tracked | no | none wired in | upstream README |
 | `coco/` | Early CoCo cartridge, RP2040 | pico-sdk CMake | no | [lib/bus/drivewire/](../lib/bus/drivewire/) over a PIO UART | [coco/](coco/) |
