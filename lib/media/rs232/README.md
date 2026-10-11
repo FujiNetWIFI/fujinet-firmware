@@ -12,7 +12,7 @@ Disk and ROM image formats for `BUILD_RS232`, shared by the RS-232 and `fujivers
 
 ## How it fits
 - `discover_mediatype()` checks for an IMD extension first, then maps XEX to `MEDIATYPE_IMG` and
-  ROM, BIN, INT, ITV, CHF, NES, SMS, A78 and A52 to `MEDIATYPE_ROM`; `rs232Disk::mount()` in
+  ROM, BIN, INT, ITV, CHF, NES, SMS, A78, A52 and ST2 to `MEDIATYPE_ROM`; `rs232Disk::mount()` in
   [lib/device/rs232/](../../device/rs232/) picks the subclass and passes the host.
 - Included by [lib/media/media.h](../media.h) under `BUILD_RS232`.
 
