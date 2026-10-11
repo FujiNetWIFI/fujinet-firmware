@@ -2469,7 +2469,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
 #else
     config.stack_size = 12288;
 #endif
-    // Budget: 36 routes registered here + 11 WebDAV = 47 handlers
+    // Budget: up to 37 routes registered here (Mac) + 12 WebDAV = 49 handlers
     config.max_uri_handlers = 64;
     config.max_resp_headers = 16;
     config.keep_alive_enable = true;

@@ -9,6 +9,7 @@ to the SD card.
 | `webdav_server.*` | `WebDav::Server`: the method handlers over a root URI and root path |
 | `request.*`, `response.*` | `WebDav` request and response wrappers around `httpd_req_t` |
 | `handler.*` | `webdav_register()`: binds the server into `esp_http_server`; requires a web session or Basic auth when a device password is set |
+| `webdav_methods.h` | `WEBDAV_METHODS`, the methods `webdav_register()` binds; host-tested by `tests/WebDavMethodsTests.cpp` |
 | `file-utils.h` | Path and file helpers |
 
 ## How it fits
