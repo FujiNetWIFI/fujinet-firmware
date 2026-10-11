@@ -12,8 +12,9 @@ ESP32-S3, and a CDC-only USB device.
 | `host_test/test_fujibus.c` | runs the codec self-test on the host |
 
 ## How it fits
-- [astrocade/](../astrocade/) and [channelf/](../channelf/) build all of it from their
-  `firmware/CMakeLists.txt` through `FUJI_COMMON`, and each defines `FUJI_USB_PRODUCT` there.
+- [astrocade/](../astrocade/), [channelf/](../channelf/) and [studio2/](../studio2/) build all
+  of it from their `firmware/CMakeLists.txt` through `FUJI_COMMON`, and each defines
+  `FUJI_USB_PRODUCT` there.
 - [o2/](../o2/) uses `include/` and `src/` only; its USB device stays in `o2/firmware` because it
   adds a mass-storage interface.
 - Each cart's own `fujimail.c` sits on top of `fujibus_usb.h`. The `emu/apply.sh` scripts copy
