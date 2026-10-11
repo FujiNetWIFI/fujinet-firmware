@@ -4,11 +4,11 @@ SHELL := /bin/bash
 # the MAME traces in ../../build/traces if tools/mktrace.sh recorded any.
 CC ?= cc
 CFLAGS ?= -Wall -Wextra -Werror -O1 -g -std=c11 -D_DEFAULT_SOURCE
-INC = -I.. -I../include
+INC = -I.. -I../include -I../../../common/include
 SRC = ../src
 OUT = ../../build/host_test
 
-TESTS = test_fujibus test_s2map test_busio test_glue test_text test_load test_fujimail test_cycles
+TESTS = test_s2map test_busio test_glue test_text test_load test_fujimail test_cycles
 
 all: $(addprefix $(OUT)/,$(TESTS))
 	@for t in $(TESTS); do echo "== $$t"; $(OUT)/$$t || exit 1; done
@@ -18,9 +18,6 @@ $(OUT):
 
 MAP = $(SRC)/s2map.c
 MAPH = ../include/s2map.h ../include/s2_cart.h ../include/fuji_mailbox.h
-
-$(OUT)/test_fujibus: test_fujibus.c $(SRC)/fujibus.c ../include/fujibus.h | $(OUT)
-	$(CC) $(CFLAGS) $(INC) -o $@ test_fujibus.c $(SRC)/fujibus.c
 
 $(OUT)/test_s2map: test_s2map.c $(MAP) $(MAPH) | $(OUT)
 	$(CC) $(CFLAGS) $(INC) -o $@ test_s2map.c $(MAP)

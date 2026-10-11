@@ -23,6 +23,7 @@ MAME=${1:?usage: apply.sh /path/to/mame}
 DIR="$MAME/src/mame/rca"
 DRV="$DIR/studio2.cpp"
 FW=../firmware
+COMMON=../../common
 GEN=../build/gen
 [ -f "$GEN/fujiconfigrom.h" ] || GEN=$FW/baked      # no fresh build: the baked one
 
@@ -35,11 +36,12 @@ GEN=../build/gen
 # font has no header of its own, so it rides along in s2_text.cpp.
 cp studio2_fujinet.cpp studio2_fujinet.h fujitcp.h "$DIR/"
 cp fujitcp.c "$DIR/fujitcp.cpp"
-for f in fujimail fujibus s2map fuji_load; do
+for f in fujimail s2map fuji_load; do
     cp "$FW/src/$f.c" "$DIR/$f.cpp"
 done
+cp "$COMMON/src/fujibus.c" "$DIR/fujibus.cpp"
 cat "$FW/src/s2_text.c" "$FW/src/s2_font.c" > "$DIR/s2_text.cpp"
-cp "$FW/include/fujimail.h" "$FW/include/fujibus.h" "$FW/include/fuji_mailbox.h" \
+cp "$FW/include/fujimail.h" "$COMMON/include/fujibus.h" "$FW/include/fuji_mailbox.h" \
    "$FW/include/s2map.h" "$FW/include/s2_cart.h" "$FW/include/s2_text.h" \
    "$FW/include/fuji_load.h" "$GEN/fujiconfigrom.h" "$DIR/"
 
