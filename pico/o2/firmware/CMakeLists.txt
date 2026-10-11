@@ -12,6 +12,9 @@ set(PICO_BOARD myboard)
 # initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
+# FujiBus, shared with the other carts. The USB device stays here: it adds MSC.
+set(FUJI_COMMON ${CMAKE_CURRENT_LIST_DIR}/../../common)
+
 add_executable(PicoPAC_cart)
 
 # 16megs of flash on purple pico clones
@@ -46,8 +49,8 @@ target_sources(PicoPAC_cart PUBLIC
 # in with the vendored files, so an upstream merge stays a readable diff.
 if(CONFIG_FUJINET)
 target_sources(PicoPAC_cart PUBLIC
-    ${CMAKE_CURRENT_LIST_DIR}/src/fujibus.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/fujibus_usb.c
+    ${FUJI_COMMON}/src/fujibus.c
+    ${FUJI_COMMON}/src/fujibus_usb.c
     ${CMAKE_CURRENT_LIST_DIR}/src/fuji_cart.c
     ${CMAKE_CURRENT_LIST_DIR}/src/fujimail.c
     ${CMAKE_CURRENT_LIST_DIR}/src/fujinet.c
@@ -60,6 +63,7 @@ target_include_directories(PicoPAC_cart PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
     ${CMAKE_CURRENT_LIST_DIR}/fatfs
     ${CMAKE_CURRENT_LIST_DIR}/include
+    ${FUJI_COMMON}/include
 )
 
 # Enable usb output, disable uart output
