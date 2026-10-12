@@ -869,6 +869,7 @@ add_library(afpfs_fn STATIC
     ${AFPFS_SOURCES}
     ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/gcrypt.c
     ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/cast5.c
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/des.c
     ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/afp_random.c
 )
 target_include_directories(afpfs_fn

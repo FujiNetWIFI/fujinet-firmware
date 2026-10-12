@@ -23,7 +23,7 @@ every ESP32 target.
 | `lzma` | LZMA SDK, Igor Pavlov | public domain | required by the `libarchive` wrapper | dependency only |
 | `zstd` | Zstandard 1.5.7 | BSD-3-Clause or GPL-2.0 | required by the `libarchive` wrapper | dependency only |
 | `libarchive` | libarchive 3.9.0dev with an `esp32` compatibility layer | BSD-2-Clause | none in `lib/`, `src/` or `include/` | no consumer |
-| `afpfs-ng` | afpfs-ng 0.8.2, Apple Filing Protocol client, modified locally; `esp32/` holds the ESP32 layer and the portable gcrypt shim, `win32/` the Windows layer | GPL-2.0 | none | no consumer; `fujinet_pc.cmake` also builds it for the host as `afpfs_fn` |
+| `afpfs-ng` | afpfs-ng 0.8.2, Apple Filing Protocol client, modified locally; `esp32/` holds the ESP32 layer and the portable gcrypt shim, whose `des.c` is adapted from wpa_supplicant and LibTomCrypt, `win32/` the Windows layer | GPL-2.0; `esp32/des.c` BSD-3-Clause | none | no consumer; `fujinet_pc.cmake` also builds it for the host as `afpfs_fn` |
 | `fsplib` | FSP v2 protocol client | permissive, see its `COPYING` | none | no consumer |
 | `nlohmann` | nlohmann/json 3.12.0, header-only | MIT | none | no consumer |
 | `sqlite3` | SQLite 3.50.4 with an `esp32` VFS | public domain | none | no consumer |

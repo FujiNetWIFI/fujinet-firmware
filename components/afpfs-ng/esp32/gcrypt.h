@@ -4,8 +4,9 @@
  * Implements exactly the subset of the gcrypt API used by uams.c:
  *   - MPI (big-number) operations  → mbedTLS mbedtls_mpi
  *   - CAST5-CBC cipher             → cast5.h + CBC wrapper
+ *   - DES-ECB cipher               → des.h
  *   - MD5 one-shot hash            → mbedTLS mbedtls_md5
- *   - Random / nonce generation    → esp_random()
+ *   - Random / nonce generation    → afp_random.h
  */
 
 #pragma once
@@ -54,18 +55,21 @@ void gcry_mpi_add_ui(gcry_mpi_t x, gcry_mpi_t a, unsigned long b);
  *  Cipher types and constants
  * ------------------------------------------------------------------ */
 #include "cast5.h"
+#include "des.h"
 
-#define GCRY_CIPHER_CAST5     1
-#define GCRY_CIPHER_DES       2   /* unused on ESP32 — stub only */
+#define GCRY_CIPHER_CAST5     1   /* with GCRY_CIPHER_MODE_CBC only */
+#define GCRY_CIPHER_DES       2   /* with GCRY_CIPHER_MODE_ECB only */
 #define GCRY_CIPHER_MODE_CBC  1
-#define GCRY_CIPHER_MODE_ECB  2   /* unused on ESP32 — stub only */
+#define GCRY_CIPHER_MODE_ECB  2
 
 typedef struct gcry_cipher_context *gcry_cipher_hd_t;
 
 struct gcry_cipher_context {
     CAST5_KEY  ks;
     uint8_t    iv[CAST5_BLOCK_SIZE];   /* current CBC IV / state */
-    int        mode;                   /* always CBC for us */
+    int        algo;                   /* GCRY_CIPHER_CAST5 or GCRY_CIPHER_DES */
+    uint32_t   des_ek[AFP_DES_KEY_WORDS];
+    uint32_t   des_dk[AFP_DES_KEY_WORDS];
 };
 
 gcry_error_t gcry_cipher_open(gcry_cipher_hd_t *handle, int algo,

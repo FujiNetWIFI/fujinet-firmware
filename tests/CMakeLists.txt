@@ -1350,6 +1350,7 @@ add_executable(afp_gcrypt_tests
     AfpGcryptTests.cpp
     ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/gcrypt.c
     ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/cast5.c
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/des.c
     ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/afp_random.c
 )
 target_include_directories(afp_gcrypt_tests PRIVATE

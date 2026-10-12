@@ -11,6 +11,11 @@ extern "C" {
 #include "afp_random.h"
 }
 
+#include "mbedtls/build_info.h"
+#if defined(MBEDTLS_DES_C)
+#include "mbedtls/des.h"
+#endif
+
 static bool all_zero(const uint8_t *p, size_t n)
 {
     for (size_t i = 0; i < n; i++)
@@ -85,6 +90,108 @@ TEST_CASE("cast5: a length that is not a whole number of blocks is refused")
     gcry_cipher_hd_t h = cast_open();
     CHECK(gcry_cipher_encrypt(h, out, 7, cast_plain, 7) != GPG_ERR_NO_ERROR);
     gcry_cipher_close(h);
+}
+
+// The classic "Now is t" single-DES vector; checked against OpenSSL.
+static const uint8_t des_key[8] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};
+static const uint8_t des_plain[8] = {'N', 'o', 'w', ' ', 'i', 's', ' ', 't'};
+static const uint8_t des_cipher[8] = {0x3F, 0xA4, 0x0E, 0x8A, 0x98, 0x4D, 0x48, 0x15};
+
+static gcry_cipher_hd_t des_open(const uint8_t *key)
+{
+    gcry_cipher_hd_t h = nullptr;
+    REQUIRE(gcry_cipher_open(&h, GCRY_CIPHER_DES, GCRY_CIPHER_MODE_ECB, 0) == GPG_ERR_NO_ERROR);
+    REQUIRE(h != nullptr);
+    REQUIRE(gcry_cipher_setkey(h, key, 8) == GPG_ERR_NO_ERROR);
+    return h;
+}
+
+TEST_CASE("des: published vector encrypts and decrypts")
+{
+    uint8_t out[8] = {0};
+    gcry_cipher_hd_t h = des_open(des_key);
+    CHECK(gcry_cipher_encrypt(h, out, sizeof(out), des_plain, sizeof(des_plain)) == GPG_ERR_NO_ERROR);
+    CHECK(std::memcmp(out, des_cipher, 8) == 0);
+
+    uint8_t back[8] = {0};
+    CHECK(gcry_cipher_decrypt(h, back, sizeof(back), des_cipher, sizeof(des_cipher)) == GPG_ERR_NO_ERROR);
+    CHECK(std::memcmp(back, des_plain, 8) == 0);
+    gcry_cipher_close(h);
+}
+
+TEST_CASE("des: a second published vector, encrypted in place as the login code does")
+{
+    const uint8_t key[8] = {0x13, 0x34, 0x57, 0x79, 0x9B, 0xBC, 0xDF, 0xF1};
+    const uint8_t expected[8] = {0x85, 0xE8, 0x13, 0x54, 0x0F, 0x0A, 0xB4, 0x05};
+    uint8_t buf[8] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};
+
+    gcry_cipher_hd_t h = des_open(key);
+    CHECK(gcry_cipher_encrypt(h, buf, sizeof(buf), nullptr, 0) == GPG_ERR_NO_ERROR);
+    CHECK(std::memcmp(buf, expected, 8) == 0);
+    gcry_cipher_close(h);
+}
+
+TEST_CASE("des: ECB does not chain blocks")
+{
+    uint8_t buf[16];
+    std::memcpy(buf, des_plain, 8);
+    std::memcpy(buf + 8, des_plain, 8);
+
+    gcry_cipher_hd_t h = des_open(des_key);
+    CHECK(gcry_cipher_encrypt(h, buf, sizeof(buf), nullptr, 0) == GPG_ERR_NO_ERROR);
+    gcry_cipher_close(h);
+    CHECK(std::memcmp(buf, des_cipher, 8) == 0);
+    CHECK(std::memcmp(buf + 8, des_cipher, 8) == 0);
+}
+
+TEST_CASE("des: a key that is not eight bytes is refused")
+{
+    gcry_cipher_hd_t h = nullptr;
+    REQUIRE(gcry_cipher_open(&h, GCRY_CIPHER_DES, GCRY_CIPHER_MODE_ECB, 0) == GPG_ERR_NO_ERROR);
+    CHECK(gcry_cipher_setkey(h, des_key, 7) != GPG_ERR_NO_ERROR);
+    gcry_cipher_close(h);
+}
+
+#if defined(MBEDTLS_DES_C)
+TEST_CASE("des: agrees with MbedTLS over many keys and blocks")
+{
+    uint32_t state = 0x1234abcd;
+    auto next = [&state]() {
+        state = state * 1664525u + 1013904223u;
+        return static_cast<uint8_t>(state >> 24);
+    };
+
+    for (int round = 0; round < 500; round++)
+    {
+        uint8_t key[8], plain[8], ours[8] = {0}, theirs[8] = {0};
+        for (auto &b : key) b = next();
+        for (auto &b : plain) b = next();
+
+        gcry_cipher_hd_t h = des_open(key);
+        REQUIRE(gcry_cipher_encrypt(h, ours, sizeof(ours), plain, sizeof(plain)) == GPG_ERR_NO_ERROR);
+        gcry_cipher_close(h);
+
+        mbedtls_des_context ctx;
+        mbedtls_des_init(&ctx);
+        REQUIRE(mbedtls_des_setkey_enc(&ctx, key) == 0);
+        REQUIRE(mbedtls_des_crypt_ecb(&ctx, plain, theirs) == 0);
+        mbedtls_des_free(&ctx);
+
+        CAPTURE(round);
+        REQUIRE(std::memcmp(ours, theirs, 8) == 0);
+    }
+}
+#endif
+
+TEST_CASE("cipher: a combination the shim does not implement is refused")
+{
+    gcry_cipher_hd_t h = nullptr;
+    CHECK(gcry_cipher_open(&h, GCRY_CIPHER_DES, GCRY_CIPHER_MODE_CBC, 0) != GPG_ERR_NO_ERROR);
+    CHECK(h == nullptr);
+    CHECK(gcry_cipher_open(&h, GCRY_CIPHER_CAST5, GCRY_CIPHER_MODE_ECB, 0) != GPG_ERR_NO_ERROR);
+    CHECK(h == nullptr);
+    CHECK(gcry_cipher_open(&h, 99, GCRY_CIPHER_MODE_CBC, 0) != GPG_ERR_NO_ERROR);
+    CHECK(h == nullptr);
 }
 
 TEST_CASE("mpi: 4^13 mod 497 is 445")
