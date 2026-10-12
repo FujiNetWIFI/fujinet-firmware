@@ -38,5 +38,4 @@ and runs the service loop; everything it assembles comes from [lib/](../lib/).
 
 ESP: `src/CMakeLists.txt` is read by PlatformIO's ESP-IDF integration only to discover sources,
 includes and flags; linking is done by PlatformIO's own build. PC: `fujinet_pc.cmake` compiles
-`main.cpp` with its explicit source lists. The `lib/gpiox/*.cpp` entry in the glob list names a
-directory that does not exist.
+`main.cpp` with its explicit source lists.

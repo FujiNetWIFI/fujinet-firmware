@@ -144,7 +144,6 @@ FILE(GLOB_RECURSE SOURCES
     ${CMAKE_SOURCE_DIR}/lib/fnxml/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/ftp/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/fuji/*.cpp
-    ${CMAKE_SOURCE_DIR}/lib/gpiox/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/hardware/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/http/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/meatloaf/*.cpp

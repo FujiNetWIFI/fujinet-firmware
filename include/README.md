@@ -13,14 +13,13 @@ device ID enums, the debug macros and the per-board pin maps.
 | `fuji_endian.h` | portable `htobe16` and friends over Linux, ESP-IDF, macOS, BSD and Windows (public domain); used by `global_types.h` |
 | `global_defines.h` | product constants and EOL strings (from Meatloaf) |
 | `debug.h` | `DEBUG`, set by `__PLATFORMIO_BUILD_DEBUG__`, `__PC_BUILD_DEBUG__` or `DBUG2`; `Debug_print`, `Debug_printf`, `Debug_println`, `Debug_printv`, `Debug_memory` and `HEAP_CHECK`, all no-ops without `DEBUG`, so never put a side effect in their arguments |
-| `ansi_codes.h` | ANSI colour escapes used by `Debug_printv` |
+| `ansi_codes.h` | ANSI color escapes used by `Debug_printv` |
 | `pinmap.h` | ESP only: includes every [pinmap/](pinmap/) board header, then `pinmap_defaults.h` |
 | `pinmap_defaults.h` | last-resort pin defaults (`PIN_DEBUG`, `LEDS_INVERTED`, the RGB LED strip) |
 | `PSRAMAllocator.h` | ESP only: an STL allocator that tries `MALLOC_CAP_SPIRAM` first and `PSRAMDeleter` (Apache-2.0, Mike Dunston); use it for bulk buffers |
 | `version.h` | `FN_VERSION_*`; listed in `.gitignore` but tracked, and bumped by hand at release time only |
 | `atascii.h`, `petscii.h`, `cbm_defines.h` | Atari and Commodore character-set constants |
 | `Log.h` | `LogFileOutput` shim for the AppleWin-derived SLIP code in `lib/devrelay` |
-| `esp-idf-arduino.h` | Arduino compatibility shims; not included by any file |
 
 ## How it fits
 

@@ -14,7 +14,7 @@ host computer (Atari, Apple II, CoCo, ADAM, Lynx, C64, Mac, RS232 and the fujive
         |
 lib/bus/<bus>            wire protocol and timing: systemBus, FUJI_COMMAND_PACKET, DaisyChain
         |
-lib/device/<bus>         device behaviour for that bus (disk, printer, modem, network, clock ...)
+lib/device/<bus>         device behavior for that bus (disk, printer, modem, network, clock ...)
 lib/device/fujiDevice    shared bases the per-bus devices derive from: fujiDevice (CONFIG
 lib/device/NDevice       commands plus mixins), NDevice (the N: network device), fujiClock
 lib/device/fujiClock
@@ -101,7 +101,7 @@ the owning device or bus.
   (`lib_ldf_mode = off`), so that glob list is the only thing that decides what is built.
 - FujiNet-PC: `fujinet_pc.cmake` lists sources explicitly, with a common set plus one block per
   `FUJINET_TARGET` (`ATARI`, `APPLE`, `COCO`, `RS232`, `LYNX`, `ADAM`). Never compiled on PC:
-  `console`, `display`, `meatloaf`, `http/webdav`, `libb64`, the `iec`, `mac`, `cx16_i2c`, `h89`,
+  `console`, `display`, `meatloaf`, `http/webdav`, the `iec`, `mac`, `cx16_i2c`, `h89`,
   `rc2014bus`, `rc2014sio` and `s100spi` buses with their device and media directories, and
   `stuffit` and `fn_esp_http_client` except in unit tests.
 - `FileSystem/fnio.h` decides the file API: `fnFile` is the `FileHandler` abstraction for
@@ -117,7 +117,7 @@ the owning device or bus.
 | [compat/](compat/) | `strlcpy`, `dirent`, `uname`, `termios2` shims | OpenBSD, MIT | guarded | yes |
 | [config/](config/) | `fnConfig`, the fnconfig.ini model, device password | in-house | yes | yes |
 | [console/](console/) | serial shell behind `ENABLE_CONSOLE` | ESP32Console fork plus cxxopts, improv, uTE | yes | no |
-| [device/](device/) | device behaviour per bus and the shared bases | in-house | all | six buses |
+| [device/](device/) | device behavior per bus and the shared bases | in-house | all | six buses |
 | [devrelay/](devrelay/) | SmartPort-over-SLIP request and response types | in-house | empty | APPLE |
 | [display/](display/) | LED-strip animation behind `ENABLE_DISPLAY` | Meatloaf | yes | no |
 | [encoding/](encoding/) | `Base64`, `Hash` | in-house | yes | yes |
@@ -129,7 +129,6 @@ the owning device or bus.
 | [fuji/](fuji/) | `fujiHost` and `fujiDisk` slots | in-house | yes | yes |
 | [hardware/](hardware/) | system, WiFi, I/O channels, LEDs, keys, companion MCU | in-house plus Arduino ports | yes | subset |
 | [http/](http/) | web UI, REST API, HTTP clients; `webdav/` server | in-house; `webdav/` from Meatloaf | yes | yes, not `webdav/` |
-| libb64/ | vestigial: holds only a LICENSE file | | no | no |
 | [meatloaf/](meatloaf/) | virtual filesystem used by the IEC drive | Meatloaf, GPL-3 | yes | no |
 | [media/](media/) | disk image formats | in-house | all | six platforms |
 | [modem-sniffer/](modem-sniffer/) | modem traffic dump for the web UI | in-house | yes | yes |
