@@ -616,8 +616,10 @@ int ll_getattr(struct afp_volume * volume, const char *path, struct stat *stbuf,
 	} else {
 		stbuf->st_nlink = 1;
 		stbuf->st_size = (resource ? fp.resourcesize : fp.size);
+#ifndef _WIN32
 		stbuf->st_blksize = 4096;
 		stbuf->st_blocks = (stbuf->st_size) / 4096;
+#endif
 	}
 
         if ((volume->server->using_version->av_number<30) && 

@@ -16,6 +16,7 @@ typedef unsigned int uid_t;
 typedef unsigned int gid_t;
 
 #define SHUT_RDWR SD_BOTH
+#define O_SYNC 0
 #define bzero(p,n) memset((p),0,(n))
 #define bcmp(a,b,n) memcmp((a),(b),(n))
 
