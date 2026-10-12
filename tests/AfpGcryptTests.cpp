@@ -11,7 +11,7 @@ extern "C" {
 #include "afp_random.h"
 }
 
-#include "mbedtls/build_info.h"
+#include "mbedtls/version.h"   // pulls in the configuration on MbedTLS 2 and 3
 #if defined(MBEDTLS_DES_C)
 #include "mbedtls/des.h"
 #endif
