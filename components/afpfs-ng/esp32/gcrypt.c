@@ -4,7 +4,7 @@
  * Maps the gcrypt subset used by afpfs-ng/uams.c onto:
  *   mbedTLS bignum  (MPI ops, MD5)
  *   cast5.h         (CAST5-CBC cipher)
- *   esp_random()    (random / nonce)
+ *   afp_random.h    (random / nonce)
  */
 
 #include "gcrypt.h"
@@ -15,7 +15,7 @@
 
 #include "mbedtls/bignum.h"
 #include "mbedtls/md5.h"
-#include "esp_random.h"   /* esp_fill_random() */
+#include "afp_random.h"
 
 /* ------------------------------------------------------------------ *
  *  MPI (big-number) operations
@@ -206,10 +206,10 @@ void gcry_md_hash_buffer(int algo, void *digest,
 void gcry_randomize(void *buffer, size_t length, int level)
 {
     (void)level;
-    esp_fill_random(buffer, length);
+    afp_fill_random(buffer, length);
 }
 
 void gcry_create_nonce(void *buffer, size_t length)
 {
-    esp_fill_random(buffer, length);
+    afp_fill_random(buffer, length);
 }

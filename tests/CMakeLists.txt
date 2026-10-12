@@ -1343,6 +1343,27 @@ target_include_directories(afp_server_match_tests PRIVATE
 add_test(NAME afp_server_match_tests COMMAND afp_server_match_tests)
 
 # ------------------------------------------------------------------------------
+# afpfs-ng's gcrypt shim (MbedTLS bignum and MD5, CAST5, random) against
+# published vectors.
+# ------------------------------------------------------------------------------
+add_executable(afp_gcrypt_tests
+    AfpGcryptTests.cpp
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/gcrypt.c
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/cast5.c
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/afp_random.c
+)
+target_include_directories(afp_gcrypt_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/
+    ${MBEDTLS_INCLUDE_DIR}
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+target_link_libraries(afp_gcrypt_tests PRIVATE ${MBEDCRYPTO_STATIC_LIB} pthread)
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_link_libraries(afp_gcrypt_tests PRIVATE bcrypt)
+endif()
+add_test(NAME afp_gcrypt_tests COMMAND afp_gcrypt_tests)
+
+# ------------------------------------------------------------------------------
 # Atari cassette rewind: record durations (lib/media/atari/casTape.h), and the
 # request and the trail of played boundaries (lib/device/sio/cassette*.h). None
 # of them touches the bus, a file or the RTOS, so they are driven here directly.
