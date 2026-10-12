@@ -1330,7 +1330,7 @@ add_test(NAME mac_gcr_tests COMMAND mac_gcr_tests)
 
 # ------------------------------------------------------------------------------
 # afpfs-ng server-reuse matching. server_match.c has no dependency on the rest
-# of the library, which does not build on the host.
+# of the library.
 # ------------------------------------------------------------------------------
 add_executable(afp_server_match_tests
     AfpServerMatchTests.cpp
