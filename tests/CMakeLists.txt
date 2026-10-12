@@ -1416,6 +1416,21 @@ target_include_directories(afp_path_tests PRIVATE
 )
 add_test(NAME afp_path_tests COMMAND afp_path_tests)
 
+# AfpSession's use counting, against a fake bridge defined in the test.
+# UNIT_TESTS keeps debug.h from pulling in utils.h, which is not linked here.
+add_executable(afp_session_tests
+    AfpSessionTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpSession.cpp
+)
+target_compile_definitions(afp_session_tests PRIVATE UNIT_TESTS)
+target_include_directories(afp_session_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/afp/
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+target_link_libraries(afp_session_tests PRIVATE pthread)
+add_test(NAME afp_session_tests COMMAND afp_session_tests)
+
 # The server list itself, over loopback sockets. POSIX only.
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
   add_executable(afp_server_list_tests
