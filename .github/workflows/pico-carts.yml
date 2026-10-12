@@ -166,6 +166,14 @@ jobs:
         working-directory: pico/atari-5200/firmware/host_test
         run: make
 
+      # The FDC+ engine driven the way Altair code drives it, the link mux
+      # against a fake ESP32, the pipe, 2SIO and boot page registers, and the
+      # decode, wait-state and timing glue. test_pio needs pioasm, which only
+      # the cartridge build below has; it reports SKIP here.
+      - name: S-100 -- host tests
+        working-directory: pico/s100/firmware/host_test
+        run: make
+
       - name: Arcadia -- FujiBus codec
         working-directory: pico/arcadia/firmware/host_test
         run: |
@@ -609,6 +617,17 @@ jobs:
         env:
           PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: ./build-cart.sh --baked
+
+      # The boot page, CONFIG and the loader come from firmware/baked/ (z88dk
+      # is not on the runners); tools/checksram.py asserts core1's loop is in
+      # SRAM. The PIO model test needs this build's pioasm, so it runs here.
+      - name: S-100 card (fujis100_rp2354b)
+        working-directory: pico/s100
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: |
+          ./build-cart.sh --baked
+          make -C firmware/host_test
 
       - name: Arcadia cartridge (fujiarcadia)
         working-directory: pico/arcadia

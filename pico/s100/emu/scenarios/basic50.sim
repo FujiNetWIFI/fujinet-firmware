@@ -1,0 +1,16 @@
+; MITS Disk BASIC 5.0 boots through the card's FDC+, mounts drive 0 and lists it.
+; mount 0 mits-basic50.dsk
+; timeout 120
+; must ALTAIR BASIC 5.0
+; must PIP
+; must 42
+expect "MEMORY SIZE?" send "\r"; continue
+expect "LINEPRINTER?" send "C\r"; continue
+expect "HIGHEST DISK NUMBER?" send "0\r"; continue
+expect "HOW MANY FILES?" send "3\r"; continue
+expect "HOW MANY RANDOM FILES?" send "2\r"; continue
+expect "OK" send "MOUNT 0\r"; continue
+expect "OK" send "FILES\r"; continue
+expect "OK" send "PRINT 6*7\r"; continue
+expect " 42" echo; echo "*** PASS ***"; exit
+go ff00

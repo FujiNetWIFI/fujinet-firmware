@@ -1,0 +1,12 @@
+; FNTEST: adapter config, host slots, and an N1: HTTP read from a local
+; server, from CP/M through the card's pipe.
+; mount 0 mits-cpm22-burcon-56k.dsk rw
+; http
+; timeout 180
+; must Read:    FUJINET S-100 FNTEST OK
+; must FNTEST PASS
+expect "A>" load %CLIENT%/FNTEST.COM 100; send "SAVE %PAGES:%CLIENT%/FNTEST.COM% FNTEST.COM\r"; continue
+expect "A>" send "FNTEST %HTTP%\r"; continue
+expect "FNTEST PASS" echo; echo "*** PASS ***"; exit
+expect "FNTEST FAIL" echo; echo "*** FAIL ***"; exit
+go ff00

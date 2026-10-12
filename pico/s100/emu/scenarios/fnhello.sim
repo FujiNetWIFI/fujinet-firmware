@@ -1,0 +1,10 @@
+; FNHELLO finds the card's pipe and makes one FujiBus round trip, from CP/M.
+; The program is put on drive A with SIMH load and the CCP's SAVE.
+; mount 0 mits-cpm22-burcon-56k.dsk rw
+; timeout 120
+; must FNHELLO PASS
+expect "A>" load %CLIENT%/FNHELLO.COM 100; send "SAVE %PAGES:%CLIENT%/FNHELLO.COM% FNHELLO.COM\r"; continue
+expect "A>" send "FNHELLO\r"; continue
+expect "FNHELLO PASS" echo; echo "*** PASS ***"; exit
+expect "FNHELLO FAIL" echo; echo "*** FAIL ***"; exit
+go ff00

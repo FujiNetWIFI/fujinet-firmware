@@ -1,0 +1,9 @@
+; Burcon CP/M 2.2 boots from drive A through the card's FDC+ and lists it.
+; mount 0 mits-cpm22-burcon-56k.dsk
+; timeout 120
+; must Burcon Inc.
+; must PIP      COM
+expect "A>" send "DIR\r"; continue
+expect "PIP      COM" continue
+expect "A>" echo; echo "*** PASS ***"; exit
+go ff00

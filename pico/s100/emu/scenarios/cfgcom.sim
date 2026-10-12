@@ -1,0 +1,12 @@
+; CONFIG.COM (fujinet-config's s100-cpm build) under CP/M: put on drive A
+; with SIMH load and the CCP's SAVE, run, hosts list, [Q]uit back to the CCP.
+; mount 0 mits-cpm22-burcon-56k.dsk rw
+; timeout 180
+; must CONFIG   COM
+expect "A>" load %CONFIGCOM% 100; send "SAVE %PAGES:%CONFIGCOM%% CONFIG.COM\r"; continue
+expect "A>" send "CONFIG\r"; continue
+expect "tnfs.abbuc.social" continue
+expect "[Q]uit" send after=100000,"Q"; continue
+expect "A>" send "DIR CONFIG.COM\r"; continue
+expect "CONFIG   COM" expect "A>" echo "*** PASS ***"; continue
+go ff00

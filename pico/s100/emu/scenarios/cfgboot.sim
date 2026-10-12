@@ -1,0 +1,13 @@
+; CONFIG.COM's Boot under CP/M: the card info it reads back names the page
+; (FE00 behind the MITS DBL), and Boot jumps to page+3 for a cold boot of
+; drive 0, so the CP/M banner comes round a second time.
+; mount 0 mits-cpm22-burcon-56k.dsk rw
+; timeout 180
+; must boot page at FE00h
+expect "A>" load %CONFIGCOM% 100; send "SAVE %PAGES:%CONFIGCOM%% CONFIG.COM\r"; continue
+expect "A>" send "CONFIG\r"; continue
+expect "[Q]uit" send after=100000,"C"; continue
+expect "boot page at FE00h" send after=100000,"x"; continue
+expect "[Q]uit" send after=100000,"\033"; continue
+expect [1] "56K CP/M" expect "A>" echo "*** PASS ***"; continue
+go ff00

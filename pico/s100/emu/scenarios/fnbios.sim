@@ -1,0 +1,31 @@
+; FNBIOS under Burcon CP/M: E: is FujiNet slot 5 (a blank 8 MB image) and
+; survives a warm boot, LST: lands on the FujiNet printer, and PUN:/RDR:
+; round-trip through N1: to a TCP echo server.
+; mount 0 mits-cpm22-burcon-56k.dsk rw
+; mount 4 blank8m.img rw
+; echo
+; printed FUJINET S-100 FNBIOS LST TEST
+; timeout 600
+; must FNBIOS installed at E800h
+; must No file
+; must Bytes Remaining On E:
+; must E: STAT     COM
+; must FUJINET S-100 FNBIOS LST TEST
+expect "A>" load %CLIENT%/FNBIOS.COM 100; send "SAVE %PAGES:%CLIENT%/FNBIOS.COM% FNBIOS.COM\r"; continue
+expect "A>" load %CLIENT%/HELLO.TXT 100; send "SAVE 1 HELLO.TXT\r"; continue
+expect "A>" send "FNBIOS E5 N=TCP://%ECHO%/\r"; continue
+expect "FNBIOS installed" continue
+expect "A>" send "DIR E:\r"; continue
+expect "A>" send "PIP E:=A:STAT.COM[V]\r"; continue
+expect "A>" send "E:STAT E:\r"; continue
+expect "A>" send "\003"; continue
+expect "A>" send "DIR E:\r"; continue
+expect "STAT     COM" continue
+expect "A>" send "PIP LST:=HELLO.TXT\r"; continue
+expect "A>" send "PIP PUN:=HELLO.TXT[O]\r"; continue
+expect "A>" send "PIP ECHO.TXT=RDR:\r"; continue
+expect "A>" send "TYPE ECHO.TXT\r"; continue
+expect "FNBIOS LST TEST" continue
+expect "A>" echo; echo "*** PASS ***"; exit
+expect "FNBIOS:" echo; echo "*** FAIL ***"; exit
+go ff00
