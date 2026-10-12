@@ -364,6 +364,22 @@ target_include_directories(webdav_methods_tests PRIVATE
 
 add_test(NAME webdav_methods_tests COMMAND webdav_methods_tests)
 
+# Files moving through the ESP-only WebDAV server (#1839), over the real
+# lib/http/webdav and Meatloaf FlashMFile code. Meatloaf does not compile on
+# a host, so webdav_transfer_test.py mirrors the needed sources into the
+# build directory, trims meatloaf.cpp to the Flash filesystem, and compiles
+# them with the stand-ins in tests/webdav/ and a fake esp_http_server.
+if(UNIX)
+  add_test(NAME webdav_transfer_tests COMMAND ${Python3_EXECUTABLE}
+      ${CMAKE_CURRENT_SOURCE_DIR}/webdav_transfer_test.py
+      --compiler ${CMAKE_CXX_COMPILER}
+      --source ${CMAKE_SOURCE_DIR}
+      --work ${CMAKE_CURRENT_BINARY_DIR}/webdav_transfer
+      --mbedtls-include "${MBEDTLS_INCLUDE_DIR}"
+      --mbedtls-lib "${MBEDTLS_LIBRARY_DIR}")
+  set_tests_properties(webdav_transfer_tests PROPERTIES TIMEOUT 300)
+endif()
+
 # ------------------------------------------------------------------------------
 # Macintosh GCR floppy encoder. Pure C++, no platform dependencies. Encodes a
 # synthetic 800K disk and decodes every sector back with an independent
