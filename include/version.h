@@ -1,6 +1,6 @@
 /*
- Updated by hand at release time. nightly.yml overwrites FN_VERSION_FULL
- and FN_VERSION_DATE for nightly builds.
+ Updated by hand at release time; nightly.yml rewrites the version and date.
+ Workflows grep this file for the macro names, so keep them out of comments.
 */
 
 #ifndef _VERSION_H
