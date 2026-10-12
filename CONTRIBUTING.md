@@ -26,8 +26,7 @@ several `*-bringup` branches), so the area you are about to change may already b
 ## Build the firmware (ESP32)
 
 There are two entry points: the `Makefile` for the common cases and `./build.sh` for the full flag
-set. The `Makefile` wraps `build.sh` and strips ANSI colour codes from the output, so prefer it when
-you need to read a build log.
+set. The `Makefile` wraps `build.sh`.
 
 ```sh
 make build        # == ./build.sh -b
@@ -63,7 +62,7 @@ Every `build.sh` run regenerates `platformio-generated.ini` by merging
 ## Build and test on the host (FujiNet-PC)
 
 ```sh
-make coco-lwm             # == ./build.sh -p COCO -g : host debug build, colour codes stripped
+make coco-lwm             # == ./build.sh -p COCO -g : host debug build
 ./build.sh -p ATARI       # configure, build, build dist/, then run ctest -V --progress
 ./build.sh -p ATARI -g    # same, debug build
 (cd build/dist && ./run-fujinet)
@@ -125,12 +124,12 @@ than copying an existing device implementation into a new platform directory.
 Reviewers hold changes to the direction below. A change that works but cuts against it will be sent
 back, so raise the design first when yours does not fit.
 
-- One implementation, many platforms. Behaviour common to two or more platforms belongs in the
+- One implementation, many platforms. Behavior common to two or more platforms belongs in the
   shared base; platform difference is expressed by overriding a virtual in the per-bus subclass, not
   by branching inside shared code. Duplicating a device into a new platform directory is the single
   most common rejection.
 - Keep the layers apart: `lib/bus/<bus>/` owns wire protocol and timing, `lib/device/<bus>/` owns
-  device behaviour, `lib/media/<platform>/` owns image formats. Do not reach across them, and do not
+  device behavior, `lib/media/<platform>/` owns image formats. Do not reach across them, and do not
   put protocol details in a device or filesystem knowledge in a bus.
 - Go through the existing abstractions — `fnConfig`, `FileSystem`/`fnFS`, `IOChannel`, the
   `network-protocol` adapters, `include/pinmap/` — rather than calling ESP-IDF or touching GPIO
@@ -215,7 +214,7 @@ before writing device-side code or anything non-trivial. The rules broken most o
   read or write. No bit shifts over `uint8_t` arrays, no `htole*()`/`htobe*()`.
 - **One capability per class; dispatch through a table, not a switch.** `Base64Mixin`, `HashMixin`,
   `QRMixin` and `AppKeyMixin` each own one feature and register their own commands. A new feature is
-  a new mixin; a new command is one table entry plus one short handler. Vary behaviour by overriding
+  a new mixin; a new command is one table entry plus one short handler. Vary behavior by overriding
   a virtual, never by branching in shared code.
 - **Own every resource and check every allocation**, including on error and teardown paths. Prefer
   `std::unique_ptr` or a container to a bare `new`/`delete` pair. Heap leaks on error paths are a
@@ -241,7 +240,7 @@ block comment is almost always wrong here.
 Before every commit, re-read each comment that appears in `git diff` — including ones you did not
 write but whose code you changed. For each, confirm it is still **accurate** for the code as it now
 stands, then that it is still brief and still says something the code does not. Fix or delete any
-comment the change has falsified or made redundant. A comment that describes the old behaviour is
+comment the change has falsified or made redundant. A comment that describes the old behavior is
 worse than no comment, and this is the easiest defect to leave behind.
 
 ## Logging
@@ -274,7 +273,7 @@ walks the whole heap and is a temporary diagnostic only.
 
 One concern per pull request. Large mixed diffs are the most common reason a change is sent back.
 
-- Do not combine a refactor with a behaviour change, a bug fix with a feature, or a rename with
+- Do not combine a refactor with a behavior change, a bug fix with a feature, or a rename with
   either. Land the refactor first, then the change that needed it.
 - Keep formatting, whitespace and comment edits out of a functional diff entirely.
 - A change that touches a shared base and then rolls the result out to several platforms is at least
@@ -391,7 +390,7 @@ start. Keep them in the same terse register as the code comments.
 - State status, not history: "legacy, fails to build (#1658)", "not compiled on PC", "generated
   by `build_pico.py`". No line numbers, counts, dates, change logs or bug lists; a defect gets a
   GitHub issue, as above.
-- For vendored code give the upstream, the version if known, the licence, whether it is modified
+- For vendored code give the upstream, the version if known, the license, whether it is modified
   locally and what consumes it. Do not add a README inside a vendored upstream tree, a submodule,
   or a directory that ships verbatim into a build artifact (`distfiles/`, the `data/webui` content
   trees).
