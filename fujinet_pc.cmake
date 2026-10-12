@@ -149,7 +149,7 @@ set(INCLUDE_DIRS include
     lib/network-protocol
     lib/fuji lib/bus lib/device lib/media
     lib/device/fujiDevice lib/device/fujiClock lib/device/NDevice
-    lib/encrypt lib/base64
+    lib/encrypt
     lib/devrelay/commands lib/devrelay/service lib/devrelay/slip lib/devrelay/types
     lib/encoding
     components_pc/mongoose
