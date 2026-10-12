@@ -323,10 +323,13 @@ success_is_true systemBus::transaction_get(void *data, size_t len)
 {
     assert(_transaction_state == TRANS_STATE::WILL_GET);
     _transaction_state = TRANS_STATE::DID_GET;
-    auto to_copy = std::min<size_t>(len, _activePacket->data()->size());
-    std::copy(_activePacket->data()->begin(), _activePacket->data()->begin() + to_copy,
-              static_cast<uint8_t *>(data));
-    RETURN_SUCCESS_IF(to_copy != 0);
+    // An empty payload (a cleared login, for one) copies nothing and is not a failure.
+    const auto &payload = _activePacket->data();
+    if (!payload.has_value())
+        RETURN_SUCCESS_AS_TRUE();
+    auto to_copy = std::min<size_t>(len, payload->size());
+    std::copy(payload->begin(), payload->begin() + to_copy, static_cast<uint8_t *>(data));
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 void systemBus::transaction_send(const void *data, size_t len, bool err)

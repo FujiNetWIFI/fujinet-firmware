@@ -74,8 +74,9 @@ public:
     // Terminate the transaction without sending response data due to an error.
     virtual void transaction_error() = 0;
 
-    // Receive exactly len bytes from the current transaction. Returns false if
-    // the transaction cannot be completed successfully.
+    // Receive up to len bytes of the current transaction's payload into data.
+    // An empty or absent payload copies nothing and is success; only a transport
+    // failure (timeout, bad checksum, short fixed-length frame) is an error.
     virtual success_is_true transaction_get(void *data, size_t len) = 0;
 
     inline success_is_true transaction_get(ByteBuffer &buffer) {
