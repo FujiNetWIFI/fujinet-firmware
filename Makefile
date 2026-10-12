@@ -1,7 +1,8 @@
 SHELL = /bin/bash -o pipefail
 
+# make <target> YES=1 passes -y: install missing prerequisites without asking.
 define builder
-  ./build.sh $1
+  ./build.sh $(if $(YES),-y) $1
 endef
 
 .PHONY: upload uploadfs build all
