@@ -81,7 +81,6 @@ struct afp_server * afp_bridge_login(const char * host, int port,
 	struct afp_connection_request req;
 	struct addrinfo * resolved=NULL;
 	struct afp_server * server;
-	int failure;
 
 	memset(&req,0,sizeof(req));
 	afp_default_url(&req.url);
@@ -106,18 +105,21 @@ struct afp_server * afp_bridge_login(const char * host, int port,
 	}
 	freeaddrinfo(resolved);
 
-	errno=0;
 	server=afp_server_full_connect(NULL,&req);
-	if (server!=NULL) return server;
-
-	/* errno is only meaningful when the connection itself failed. */
-	failure=errno;
-	if ((failure==ETIMEDOUT) || (failure==ECONNREFUSED) ||
-		(failure==EHOSTUNREACH) || (failure==ENETUNREACH))
-		*error=-failure;
-	else
+	if (server==NULL) {
+		/* The library does not say why: a refused login and a server
+		 * that never answers look the same from here. */
 		*error=-EACCES;
-	return NULL;
+		return NULL;
+	}
+
+	/* An existing login is found by server and user alone, so the
+	 * password has to be checked against the one it was made with. */
+	if (strcmp(server->password,password)!=0) {
+		*error=-EACCES;
+		return NULL;
+	}
+	return server;
 }
 
 int afp_bridge_volume_count(struct afp_server * server)

@@ -88,6 +88,16 @@ TEST_CASE("a wrong password is reported as access denied")
     CHECK(s.error() == -EACCES);
 }
 
+TEST_CASE("a wrong password is refused even while that user's login is in use")
+{
+    AfpSession holder, intruder;
+    REQUIRE(holder.open(host, 0, user, password, volume).is_success());
+    CHECK(intruder.open(host, 0, user, password + "-wrong", volume).is_error());
+    CHECK(intruder.error() == -EACCES);
+    CHECK(intruder.volume() == nullptr);
+    CHECK(holder.volume() != nullptr);
+}
+
 TEST_CASE("a host that does not resolve is reported as unreachable")
 {
     AfpSession s;

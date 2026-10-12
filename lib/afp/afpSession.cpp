@@ -78,12 +78,20 @@ success_is_true AfpSession::open(const std::string &host, int port, const std::s
         RETURN_ERROR_AS_FALSE();
     }
 
-    bool first;
+    // Joining an existing attachment is one step, so an unmount cannot slip in.
     {
         std::lock_guard<std::mutex> table(attached_lock);
-        first = attached.find(found) == attached.end();
+        auto it = attached.find(found);
+        if (it != attached.end())
+        {
+            it->second.holders++;
+            _attachment = it->second.id;
+            _volume = found;
+            RETURN_SUCCESS_AS_TRUE();
+        }
     }
-    if (first && afp_bridge_attach(found) != 0)
+
+    if (afp_bridge_attach(found) != 0)
     {
         afp_bridge_release(server);
         _error = -EACCES;
@@ -92,11 +100,8 @@ success_is_true AfpSession::open(const std::string &host, int port, const std::s
 
     {
         std::lock_guard<std::mutex> table(attached_lock);
-        auto it = attached.find(found);
-        if (it == attached.end())
-            it = attached.emplace(found, Attachment{0, next_attachment++}).first;
-        it->second.holders++;
-        _attachment = it->second.id;
+        _attachment = next_attachment++;
+        attached[found] = Attachment{1, _attachment};
     }
     _volume = found;
     RETURN_SUCCESS_AS_TRUE();

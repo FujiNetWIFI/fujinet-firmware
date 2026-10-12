@@ -20,7 +20,9 @@ typedef void (*afp_bridge_gone_fn)(struct afp_volume * volume);
 int afp_bridge_start(afp_bridge_log_fn log, afp_bridge_gone_fn gone);
 
 /* The login for this server and user, made if there is not one yet.
- * NULL on failure, with *error a negative errno. */
+ * NULL on failure, with *error -EHOSTUNREACH when the name does not resolve
+ * and -EACCES otherwise: the library does not tell a refused login from a
+ * server that never answers. */
 struct afp_server * afp_bridge_login(const char * host, int port,
 	const char * user, const char * password, int * error);
 

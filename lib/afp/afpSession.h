@@ -10,6 +10,9 @@ struct afp_volume;
 
 // One user's hold on one AFP volume.  Logins and attachments are shared
 // between sessions and last until the final holder closes.
+//
+// open() and close() take one process-wide lock for their whole duration, so
+// a slow login makes every other session's open and close wait.
 class AfpSession
 {
 public:
@@ -26,6 +29,7 @@ public:
     void close();
 
     // nullptr when nothing is attached, or once the library has unmounted it.
+    // Nothing protects a call already using the pointer when that happens.
     struct afp_volume *volume() const;
 
     const std::vector<std::string> &volume_names() const { return _volume_names; }
