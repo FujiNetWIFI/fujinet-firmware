@@ -30,7 +30,7 @@
 #define RS232_USB_RUN_PRIORITY  20
 #endif
 
-// Helper functions outside the class defintions
+// Helper functions outside the class definitions
 
 // Calculate 8-bit checksum
 uint8_t rs232_checksum(uint8_t *buf, unsigned short len)
@@ -136,12 +136,11 @@ void systemBus::_rs232_process_cmd()
 }
 
 /*
- Primary RS232 serivce loop:
- * If MOTOR line asserted, hand RS232 processing over to the TAPE device
- * If CMD line asserted, try reading CMD frame and sending it to appropriate device
- * If CMD line not asserted but MODEM is active, give it a chance to read incoming data
- * Throw out stray input on RS232 if neither of the above two are true
- * Give NETWORK devices an opportunity to signal available data
+ Primary RS232 service loop:
+ * If CP/M is active, hand the port to it
+ * If input is waiting, read a command frame and dispatch it
+ * Otherwise give the modem a chance to read incoming data
+ * Signal pending network data on RI (ESP) or the configured proceed line (PC)
  */
 void systemBus::service()
 {
@@ -153,10 +152,6 @@ void systemBus::service()
         _usb_boot_priority = false;
     }
 #endif
-
-    // Check for any messages in our queue (this should always happen, even if any other special
-    // modes disrupt normal RS232 handling - should probably make a separate task for this)
-    /*_rs232_process_queue();*/
 
     if (_cpmDev != nullptr && _cpmDev->cpmActive)
     {
@@ -331,7 +326,8 @@ void systemBus::setBaudrate(int baud)
 
     Debug_printf("Changing baudrate from %d to %d\n", _rs232Baud, baud);
     _rs232Baud = baud;
-    _serial.setBaudrate(baud);
+    if (!isBoIP())
+        _serial.setBaudrate(baud);
 }
 
 std::unique_ptr<FujiBusPacket> systemBus::readBusPacket(int first)
