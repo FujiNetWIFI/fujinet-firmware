@@ -2,6 +2,7 @@ build/
 firmware/build-*/
 firmware/host_test/test_romc
 firmware/host_test/test_busio
+firmware/host_test/test_chfmap
 testrom/*.p
 testrom/*.lst
 testrom/font.inc
