@@ -12,6 +12,9 @@
 #include <string.h>
 #include <time.h>
 
+/* windef.h makes this a calling-convention macro; utils.c uses it as a name. */
+#undef pascal
+
 typedef unsigned int uid_t;
 typedef unsigned int gid_t;
 
