@@ -1,7 +1,7 @@
 SHELL = /bin/bash -o pipefail
 
 define builder
-  ./build.sh $1 2>&1 | sed -e 's/'$$'\033''[[][0-9][0-9]*m//g'
+  ./build.sh $1
 endef
 
 .PHONY: upload uploadfs build all
