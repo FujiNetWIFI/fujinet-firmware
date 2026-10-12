@@ -134,6 +134,8 @@ bool FlashMFile::exists()
 
     struct stat st;
     int i = stat(std::string(basepath + path).c_str(), &st);
+    if (i == 0 && !S_ISDIR(st.st_mode))
+        size = st.st_size;
 
     return (i == 0);
 }
