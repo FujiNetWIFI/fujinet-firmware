@@ -32,7 +32,8 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `check_no_system_bus.py` | Policy: `SYSTEM_BUS` must not appear in any source under `lib/media` (`no_system_bus_in_media`) |
 | `unsit.c`, `stuffit_test.sh` | Host CLI over `lib/stuffit` and a comparison against `unar` (`stuffit_sample_tests`; registered only with `SIT_SAMPLES_DIR`) |
 | `ndif_blocks_test.c`, `ndif_test.sh` | NDIF decoding compared with ndif2raw (`ndif_sample_tests`; registered only with `NDIF2RAW_DIR`) |
-| `esp_stubs/` | Stand-ins for ESP-IDF headers so ESP-only code compiles on a host: no-op `esp_err.h` and `esp_log.h` for `http_header_tests`, and the `http_method` names in `http_parser.h` for `webdav_methods_tests` |
+| `webdav_transfer_test.py`, `webdav/` | Files moving through the ESP-only WebDAV server over the real `lib/http/webdav` and Meatloaf `FlashMFile` code (`webdav_transfer_tests`; POSIX hosts). The script mirrors the sources into the build directory with `meatloaf.cpp` trimmed to the Flash filesystem; `webdav/` holds the fake `esp_http_server`, the stand-in headers and the doctest cases |
+| `esp_stubs/` | Stand-ins for ESP-IDF headers so ESP-only code compiles on a host: no-op `esp_err.h` and `esp_log.h` for `http_header_tests`, and the `http_method` names and `http_method_str()` in `http_parser.h` for the WebDAV tests |
 | `corpus_manifest.txt` | Provenance of the StuffIt sample archives; data only, read by nothing |
 
 ## How it fits
