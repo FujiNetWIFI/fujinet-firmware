@@ -30,6 +30,23 @@ struct afp_server * helper_connect(int port)
 	return s;
 }
 
+/* What afp_server_reconnect() does to a server that is already listed. */
+int helper_connect_again(struct afp_server * s)
+{
+	return afp_server_connect(s,0);
+}
+
+/* Number of servers in the list, or -1 if the walk does not end. */
+int helper_list_length(int limit)
+{
+	struct afp_server * s;
+	int n=0;
+
+	for (s=get_server_base();s;s=s->next)
+		if (++n>limit) return -1;
+	return n;
+}
+
 void helper_log_in(struct afp_server * s, const char * user, const char * signature)
 {
 	strncpy(s->username,user,sizeof(s->username)-1);

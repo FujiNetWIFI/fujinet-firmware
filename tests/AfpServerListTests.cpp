@@ -17,6 +17,8 @@ extern "C" {
 struct afp_server;
 struct afp_server *helper_connect(int port);
 void helper_log_in(struct afp_server *s, const char *user, const char *signature);
+int helper_connect_again(struct afp_server *s);
+int helper_list_length(int limit);
 struct afp_server *helper_find_by_address(int port, const char *user);
 struct afp_server *helper_find_by_signature(const char *signature, const char *user);
 void helper_start_loop(void);
@@ -90,6 +92,21 @@ TEST_CASE("two users on one server each get their own login")
     CHECK(helper_find_by_address(port, "dave") == dave);
     CHECK(helper_find_by_signature(sig_b, "carol") == carol);
     CHECK(helper_find_by_signature(sig_b, "dave") == dave);
+    close(listener);
+}
+
+TEST_CASE("reconnecting a listed server does not list it twice")
+{
+    int port = 0;
+    int listener = listen_on_loopback(port);
+    afp_server *frank = helper_connect(port);
+    REQUIRE(frank != nullptr);
+    const int before = helper_list_length(1000);
+    REQUIRE(before > 0);
+
+    REQUIRE(helper_connect_again(frank) == 0);
+
+    CHECK(helper_list_length(1000) == before);
     close(listener);
 }
 

@@ -255,9 +255,16 @@ int server_still_valid(struct afp_server * server)
 
 static void add_server(struct afp_server *newserver)
 {
+	struct afp_server * s;
+
 	afp_server_list_lock();
+	/* A reconnect comes through here with a server that is already listed. */
+	for (s=server_base;s;s=s->next)
+		if (s==newserver) break;
+	if (s==NULL) {
         newserver->next=server_base;
         server_base=newserver;
+	}
 	afp_server_list_unlock();
 }
 
