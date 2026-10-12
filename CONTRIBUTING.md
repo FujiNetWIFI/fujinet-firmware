@@ -36,6 +36,7 @@ make zip          # == ./build.sh -z
 make clean        # == ./build.sh -c
 make all          # == ./build.sh -a    (every board)
 make pico-de-coco # builds pico/coco separately
+make build YES=1  # any target: pass -y, install missing prerequisites without asking
 ```
 
 Every `build.sh` run regenerates `platformio-generated.ini` by merging
