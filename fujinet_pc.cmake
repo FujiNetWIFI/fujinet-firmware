@@ -882,6 +882,15 @@ target_include_directories(afpfs_fn
 target_compile_options(afpfs_fn PRIVATE -w) # vendored third-party; suppress its warnings
 target_compile_definitions(afpfs_fn PRIVATE AFPFS_POLL_LOOP) # the host owns its signal handlers
 target_link_libraries(afpfs_fn PUBLIC ${MBEDCRYPTO_STATIC_LIB} pthread)
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_sources(afpfs_fn PRIVATE ${CMAKE_SOURCE_DIR}/components/afpfs-ng/win32/win32_compat.c)
+    target_include_directories(afpfs_fn BEFORE PRIVATE
+        ${CMAKE_SOURCE_DIR}/components/afpfs-ng/win32
+        ${CMAKE_SOURCE_DIR}/components/afpfs-ng/win32/include)
+    target_compile_options(afpfs_fn PRIVATE
+        -include ${CMAKE_SOURCE_DIR}/components/afpfs-ng/win32/win32_compat.h)
+    target_link_libraries(afpfs_fn PUBLIC ws2_32 bcrypt)
+endif()
 
 target_link_libraries(fujinet pthread expat cjson cjson_utils smb2 ssh nfs gumbo_fn)
 
