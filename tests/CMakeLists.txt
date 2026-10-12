@@ -1405,6 +1405,17 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
 endif()
 add_test(NAME afp_socket_tests COMMAND afp_socket_tests)
 
+# lib/afp path splitting. afpPath.cpp stands alone.
+add_executable(afp_path_tests
+    AfpPathTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpPath.cpp
+)
+target_include_directories(afp_path_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/afp/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+add_test(NAME afp_path_tests COMMAND afp_path_tests)
+
 # The server list itself, over loopback sockets. POSIX only.
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
   add_executable(afp_server_list_tests
