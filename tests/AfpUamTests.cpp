@@ -8,7 +8,7 @@ int init_uams(void);
 char *get_uam_names_list(void);
 }
 
-// Every login method the spec requires must be compiled into the host build.
+// Registration only: whether each login method works needs a server.
 TEST_CASE("all six UAMs are registered")
 {
     REQUIRE(init_uams() == 0);

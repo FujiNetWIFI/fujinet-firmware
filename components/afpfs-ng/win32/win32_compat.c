@@ -4,6 +4,8 @@
 
 #include <windows.h>
 
+#include "../lib/afp_socket.h"
+
 uid_t getuid(void) { return 0; }
 uid_t geteuid(void) { return 0; }
 gid_t getgid(void) { return 0; }
@@ -27,6 +29,7 @@ int pselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
             const struct timespec *timeout, const void *sigmask)
 {
     struct timeval tv, *tvp = NULL;
+    int ret;
     (void)sigmask;
 
     if (timeout) {
@@ -43,7 +46,10 @@ int pselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
         return 0;
     }
 
-    return select(nfds, readfds, writefds, exceptfds, tvp);
+    ret = select(nfds, readfds, writefds, exceptfds, tvp);
+    if (ret < 0)
+        errno = afp_sock_errno();
+    return ret;
 }
 
 #endif /* _WIN32 */

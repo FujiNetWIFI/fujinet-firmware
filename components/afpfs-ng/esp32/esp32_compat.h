@@ -27,7 +27,7 @@
 #include <sys/types.h>
 #include <sys/select.h>
 #include <time.h>
-#include <signal.h>   /* sigset_t, sigemptyset/sigaddset macros, SIG_DFL */
+#include <signal.h>   /* sigset_t */
 
 #ifdef __cplusplus
 extern "C" {

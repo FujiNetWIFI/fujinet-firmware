@@ -39,7 +39,7 @@ int afp_getsessiontoken(struct afp_server * server, int type,
 	switch (type) {
 	case kLoginWithTimeAndID:
 	case kReconnWithTimeAndID: {
-		uint32_t *p = (void *) (((unsigned long) request)+
+		uint32_t *p = (void *) (((char *) request)+
 			sizeof(*request));
 
 		offset=sizeof(timestamp);
@@ -63,7 +63,7 @@ int afp_getsessiontoken(struct afp_server * server, int type,
 		goto error;
 	}
 
-	data=(void *) (((unsigned long) request)+sizeof(*request)+offset);
+	data=(void *) (((char *) request)+sizeof(*request)+offset);
 	request->idlength=htonl(datalen);
 	request->pad=0;
 	request->type=htons(type);

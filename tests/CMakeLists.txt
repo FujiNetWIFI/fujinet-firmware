@@ -1393,6 +1393,17 @@ target_include_directories(afp_loop_tests PRIVATE
 target_link_libraries(afp_loop_tests PRIVATE afpfs_fn)
 add_test(NAME afp_loop_tests COMMAND afp_loop_tests)
 
+# afpfs-ng socket wrappers: errors through errno, no SIGPIPE.
+add_executable(afp_socket_tests AfpSocketTests.cpp)
+target_include_directories(afp_socket_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/lib/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_link_libraries(afp_socket_tests PRIVATE ws2_32)
+endif()
+add_test(NAME afp_socket_tests COMMAND afp_socket_tests)
+
 # The server list itself, over loopback sockets. POSIX only.
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
   add_executable(afp_server_list_tests

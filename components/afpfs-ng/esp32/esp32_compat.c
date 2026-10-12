@@ -19,7 +19,6 @@
 #include <sys/time.h>
 #include <time.h>
 #include <signal.h>
-#include <pthread.h>
 #include <pwd.h>
 #include <unistd.h>
 #include <errno.h>
