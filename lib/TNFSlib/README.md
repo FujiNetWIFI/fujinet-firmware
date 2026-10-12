@@ -15,6 +15,7 @@ beginning.
 | `tnfslib_internal.h` | declarations shared by the `tnfslib*.cpp` files; not part of the public API |
 | `tnfslibMountInfo.h`, `tnfslibMountInfo.cpp` | `tnfsMountInfo` (host, session, `TNFS_PROTOCOL_TCP` or `TNFS_PROTOCOL_UDP`, open handles, directory cache) and `tnfsStat` |
 | `tnfslib_udp.h`, `tnfslib_udp_testing.cpp` | the UDP send and receive hooks, with a replacement that simulates packet loss and duplication when `TNFS_UDP_SIMULATE_POOR_CONNECTION` is defined |
+| `tnfslib_framing.h`, `tnfslib_framing.cpp` | `tnfs_frame_reply` and `tnfsReplyAssembler`: finds where each reply ends in a byte stream (TNFS has no length field). Not yet used by the TCP receive path |
 
 ## How it fits
 - `FileSystemTNFS` in [lib/FileSystem/](../FileSystem/) is the main consumer (host slots and the
