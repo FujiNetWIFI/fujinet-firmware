@@ -1364,6 +1364,19 @@ endif()
 add_test(NAME afp_gcrypt_tests COMMAND afp_gcrypt_tests)
 
 # ------------------------------------------------------------------------------
+# afpfs-ng MacRoman to UTF-8. macroman.c stands alone.
+# ------------------------------------------------------------------------------
+add_executable(afp_macroman_tests
+    AfpMacRomanTests.cpp
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/lib/macroman.c
+)
+target_include_directories(afp_macroman_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/lib/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+add_test(NAME afp_macroman_tests COMMAND afp_macroman_tests)
+
+# ------------------------------------------------------------------------------
 # Atari cassette rewind: record durations (lib/media/atari/casTape.h), and the
 # request and the trail of played boundaries (lib/device/sio/cassette*.h). None
 # of them touches the bus, a file or the RTOS, so they are driven here directly.

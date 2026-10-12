@@ -17,7 +17,6 @@
 #include <sys/time.h>
 #include <errno.h>
 #include <signal.h>
-#include <iconv.h>
 
 #include "utils.h"
 #include "dsi.h"
@@ -27,6 +26,7 @@
 #include "libafpclient.h"
 #include "afp_internal.h"
 #include "afp_replies.h"
+#include "macroman.h"
 
 /* define this in order to get reams of DSI debugging information */
 #undef DEBUG_DSI
@@ -556,19 +556,9 @@ void dsi_getstatus_reply(struct afp_server * server)
 			server->server_name_printable, AFP_SERVER_NAME_UTF8_LEN);
 	} else {
 		/* We don't have a UTF8 servername, so let's make one */
-
-		iconv_t cd;
-		size_t inbytesleft = strlen(server->server_name);
-		size_t outbytesleft = AFP_SERVER_NAME_UTF8_LEN;
-		char * inbuf = server->server_name;
-		char * outbuf = server->server_name_printable;
-
-		if ((cd  = iconv_open("MACINTOSH","UTF-8")) == (iconv_t) -1)
-			return;
-
-		iconv(cd,&inbuf,&inbytesleft,
-			&outbuf, &outbytesleft);
-		iconv_close(cd);
+		afp_macroman_to_utf8(server->server_name,
+			server->server_name_printable,
+			AFP_SERVER_NAME_UTF8_LEN);
 
 	}
 }
