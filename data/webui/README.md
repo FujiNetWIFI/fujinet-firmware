@@ -11,43 +11,13 @@ During a build, files will be:
 2. copied from `template` dir applying any template logic to files matching `*.tmpl.*` naming convention
 3. copied from `device_specific` to target unmodified depending on your `target_platform` setting.
 
-## Existing Users - Required Changes
-
-Existing users need to make the following change in `platformio.ini` in order to build. Look for the [env] section in the top middle.
-
-```ini
-[env]
-; Common settings for all enivornments
-framework = espidf
-extra_scripts = pre:build_version.py
-...
-[more configs...]
-```
-
-Change to:
-(you are adding build_packages.py and build_webui.py to the extra_scripts, but also keeping build_version.py in there )
-
-```ini
-[env]
-; Common settings for all enivornments
-framework = espidf
-extra_scripts = 
-    pre:build_packages.py
-    pre:build_version.py
-    pre:build_webui.py
-...
-[more configs...]
-```
-
-This is because the file is not under source control.
-
 ## Creating a new board
 
 Follow these steps when creating config for a new board:
 
-1. Add a new yaml for the target in `data/webui/config/<fujinet-new-board>.yaml` with appropriate switches for the sections to enable in the webUI (you can copy an existing file and change the boolean values to suit)
-2. Create a directory for the device under `data/webui/device_specific/BUILD_XXX` matching the new name, and put any new files for this device only in here, or create a `.keep` file so that git will include the dir.
-3. Edit the `platformio-sample.ini` adding the new board's information, and your own platformio.ini file to use it
+1. Add `data/webui/config/<board>.yaml` only if the board's web UI differs from its platform's. Without one the build uses `BUILD_<PLATFORM>.yaml`, then `base.yaml`; a board yaml can `extends:` another one and override just what differs.
+2. Platform-only files go under `data/webui/device_specific/BUILD_<PLATFORM>/`. There is no per-board directory, so a new board on an existing platform needs nothing here.
+3. Add `build-platforms/platformio-<board>.ini` (see [build-platforms/README.md](../../build-platforms/README.md)) and select it with `./build.sh -s <board>`.
 
 You can now build as normal, and the new device's WebUI will be built from the templates.
 
@@ -78,7 +48,7 @@ data/BUILD_ATARI
   ...
 ```
 
-which can then be used to upload to FujiNet device to replace the WebUI (using `Build Filesystem Image` or `updatefs` with CLI).
+which can then be used to upload to FujiNet device to replace the WebUI (using `Build Filesystem Image` or `uploadfs` with CLI).
 
 ## `common` directory
 
@@ -102,7 +72,7 @@ This is used in (for example) index.tmpl.html:
 
 ```html
 {% if components.network %}
-... html code to include if compontents.network is set to trunm
+... html code to include if components.network is set to true
 {% endif %}
 ```
 
