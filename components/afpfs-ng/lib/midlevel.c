@@ -719,7 +719,6 @@ int ml_write(struct afp_volume * volume, const char * path,
 */
 	if ((volume->server->using_version->av_number < 30) && 
 		((unsigned long long)size > AFP_MAX_AFP2_FILESIZE)) return -EFBIG;
-		return -EINVAL;
 
 	if (volume_is_readonly(volume))
 		return -EACCES;

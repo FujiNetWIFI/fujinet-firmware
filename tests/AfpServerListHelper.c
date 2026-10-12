@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "afp.h"
+#include "midlevel.h"
 
 static struct addrinfo * resolve(int port)
 {
@@ -102,4 +103,22 @@ int helper_still_listed(struct afp_server * s)
 int helper_remove(struct afp_server * s)
 {
 	return afp_server_remove(s);
+}
+
+/* ml_write() on a read-only AFP 3 volume, which it must refuse before it
+ * touches the network. */
+int helper_write_to_readonly_volume(void)
+{
+	static struct afp_versions afp32={"AFP3.2",32};
+	struct afp_server server;
+	struct afp_volume volume;
+	struct afp_file_info fp;
+
+	memset(&server,0,sizeof(server));
+	memset(&volume,0,sizeof(volume));
+	memset(&fp,0,sizeof(fp));
+	server.using_version=&afp32;
+	volume.server=&server;
+	volume.extra_flags=VOLUME_EXTRA_FLAGS_READONLY;
+	return ml_write(&volume,"/file","x",1,0,&fp,0,0);
 }

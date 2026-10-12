@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include <atomic>
+#include <cerrno>
 #include <chrono>
 #include <cstdint>
 #include <cstring>
@@ -25,6 +26,7 @@ void helper_start_loop(void);
 struct afp_server *helper_failed_login(int port);
 int helper_still_listed(struct afp_server *s);
 int helper_remove(struct afp_server *s);
+int helper_write_to_readonly_volume(void);
 }
 
 // A loopback listener that never accepts: connects complete from its backlog.
@@ -108,6 +110,11 @@ TEST_CASE("reconnecting a listed server does not list it twice")
 
     CHECK(helper_list_length(1000) == before);
     close(listener);
+}
+
+TEST_CASE("a write is checked against the volume, not rejected outright")
+{
+    CHECK(helper_write_to_readonly_volume() == -EACCES);
 }
 
 TEST_CASE("the same address on another port is another server")
