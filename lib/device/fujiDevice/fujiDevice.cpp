@@ -1140,6 +1140,7 @@ success_is_true fujiDevice::fujicore_copy_file_success(uint8_t sourceSlot, uint8
     if (dataBuf == nullptr)
     {
         fnio::fclose(sourceFile);
+        fnio::fclose(destFile);
         RETURN_ERROR_AS_FALSE();
     }
 
