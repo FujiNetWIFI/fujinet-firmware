@@ -397,6 +397,56 @@ int afp_unmount_volume(struct afp_volume * volume)
 }
 
 
+/* The server ended the session.  This runs on the event-loop thread, which
+ * afp_server_remove() waits for and which nothing can reply to, so volumes
+ * are dropped without talking to the server and the server itself is left
+ * for afp_server_reap_closed(). */
+void afp_server_closed_by_peer(struct afp_server * server)
+{
+	struct afp_volume * volume;
+	struct afp_file_info * fork, * next;
+	int i;
+
+	for (i=0;i<server->num_volumes;i++) {
+		volume=&server->volumes[i];
+		if (volume->mounted!=AFP_VOLUME_MOUNTED) continue;
+		volume->mounted=AFP_VOLUME_UNMOUNTING;
+
+		free_entire_did_cache(volume);
+		pthread_mutex_lock(&volume->open_forks_mutex);
+		for (fork=volume->open_forks;fork;fork=next) {
+			next=fork->largelist_next;
+			free(fork);
+		}
+		volume->open_forks=NULL;
+		pthread_mutex_unlock(&volume->open_forks_mutex);
+		volume->dtrefnum=0;
+
+		if (libafpclient->unmount_volume)
+			libafpclient->unmount_volume(volume);
+		volume->mounted=AFP_VOLUME_UNMOUNTED;
+	}
+	server->logged_in=0;
+	server->closed_by_peer=1;
+}
+
+/* Frees servers whose session the server ended, once nothing is waiting on
+ * them.  Must not be called from the event-loop thread. */
+void afp_server_reap_closed(void)
+{
+	struct afp_server * s;
+
+	for (;;) {
+		afp_server_list_lock();
+		for (s=server_base;s;s=s->next)
+			if (s->closed_by_peer && (s->command_requests==NULL))
+				break;
+		afp_server_list_unlock();
+		if (s==NULL) return;
+		if (afp_server_remove(s)!=0) return;
+	}
+}
+
 void afp_free_server(struct afp_server ** sp)
 {
 	struct dsi_request * p, *next;

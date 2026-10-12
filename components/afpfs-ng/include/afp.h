@@ -215,6 +215,8 @@ struct afp_server {
 	int connect_state;
 	/* Set once login has completed; only then may the login be shared. */
 	unsigned char logged_in;
+	/* The server ended the session; afp_server_reap_closed() frees it. */
+	unsigned char closed_by_peer;
 	enum server_type server_type;
 
 	/* This is the time we connected */
@@ -408,6 +410,8 @@ void afp_server_loop_set(struct afp_server * server);
 void afp_server_loop_clear(void);
 
 int afp_unmount_volume(struct afp_volume * volume);
+void afp_server_closed_by_peer(struct afp_server * server);
+void afp_server_reap_closed(void);
 int afp_unmount_all_volumes(struct afp_server * server);
 
 #define volume_is_readonly(x) (((x)->attributes&kReadOnly) || \

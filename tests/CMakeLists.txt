@@ -1419,6 +1419,20 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
   set_tests_properties(afp_server_list_tests PROPERTIES TIMEOUT 60)
 endif()
 
+# A server ending the session while a volume is mounted. POSIX only.
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  add_executable(afp_close_session_tests
+      AfpCloseSessionTests.cpp
+      AfpCloseSessionHelper.c
+  )
+  target_include_directories(afp_close_session_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+  )
+  target_link_libraries(afp_close_session_tests PRIVATE afpfs_fn)
+  add_test(NAME afp_close_session_tests COMMAND afp_close_session_tests)
+  set_tests_properties(afp_close_session_tests PROPERTIES TIMEOUT 90)
+endif()
+
 # ------------------------------------------------------------------------------
 # Atari cassette rewind: record durations (lib/media/atari/casTape.h), and the
 # request and the trail of played boundaries (lib/device/sio/cassette*.h). None

@@ -567,7 +567,7 @@ void dsi_getstatus_reply(struct afp_server * server)
 
 void dsi_incoming_closesession(struct afp_server *server)
 {
-	afp_unmount_all_volumes(server);
+	afp_server_closed_by_peer(server);
 	loop_disconnect(server);
 }
 
