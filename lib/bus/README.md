@@ -43,13 +43,13 @@ that the shared device bases are written against.
 | [sio/](sio/) | `BUILD_ATARI` Atari SIO | `FujiSIOPacket` | yes | yes | |
 | [iwm/](iwm/) | `BUILD_APPLE` Apple II SmartPort and Disk II | `FujiIWMPacket` | yes | yes, SmartPort over SLIP only | |
 | [drivewire/](drivewire/) | `BUILD_COCO` CoCo and Dragon DriveWire | `FujiDWPacket` | yes | yes | opcode-dispatched; does not use the `DaisyChain` |
-| [rs232/](rs232/) | `BUILD_RS232` serial FujiBus, also every fujiversal board | `FujiBusPacket` | yes | yes | |
+| [rs232/](rs232/) | `BUILD_RS232` serial FujiBus, also the H89 card and every fujiversal board | `FujiBusPacket` | yes | yes | |
 | [comlynx/](comlynx/) | `BUILD_LYNX` Atari Lynx ComLynx | `FujiLynxPacket` | yes | yes | |
 | [adamnet/](adamnet/) | `BUILD_ADAM` Coleco ADAM AdamNet | `FujiAdamPacket` | yes | yes | runs its own bus task on ESP |
 | [iec/](iec/) | `BUILD_IEC` Commodore serial IEC | `FujiIECPacket` | yes | no | built on the IECDevice library; disk images via `lib/meatloaf` |
 | [mac/](mac/) | `BUILD_MAC` Macintosh floppy port | `FujiBusPacket` | yes | no | the ESP32 drives a Pico in `pico/mac`; no Fuji commands cross this bus |
 | [cx16_i2c/](cx16_i2c/) | `BUILD_CX16` Commander X16 I2C | none | fails | no | legacy, not on `SystemBusBase` (#1658) |
-| [h89/](h89/) | `BUILD_H89` Heathkit H89 | none | fails | no | legacy, not on `SystemBusBase` (#1658) |
+| [h89/](h89/) | `BUILD_H89` Heathkit H89 | none | no board | no | legacy, not on `SystemBusBase` (#1658); the H89 card builds as `BUILD_RS232` |
 | [rc2014bus/](rc2014bus/), [rc2014sio/](rc2014sio/) | `BUILD_RC2014` SPI or serial | none | fails | no | legacy; only `rc2014bus` is reachable from `bus.h` (#1658) |
 | [s100spi/](s100spi/) | `BUILD_S100` S-100 over SPI | none | fails | no | legacy (#1658) |
 

@@ -4,6 +4,7 @@
 #include "bus.h"
 #include "UARTChannel.h"
 #include "ACMChannel.h"
+#include "PPIChannel.h"
 #include "FujiBusPacket.h"
 #include "BoIPChannel.h"
 #include "global_types.h"
@@ -19,7 +20,10 @@
 
 #define FUJI_COMMAND_PACKET FujiBusPacket
 
-#if !defined(ESP_PLATFORM) || \
+#if defined(ESP_PLATFORM) && defined(PIN_PPI_OBF)
+#define FUJINET_OVER_PPI 1
+#undef FUJINET_OVER_USB
+#elif !defined(ESP_PLATFORM) || \
     (FN_UART_BUS == UART_NUM_1 && defined(PIN_UART1_RX)) ||     \
     (FN_UART_BUS == UART_NUM_2 && defined(PIN_UART2_RX))
 #undef FUJINET_OVER_USB
@@ -127,6 +131,8 @@ private:
 #if FUJINET_OVER_USB
     ACMChannel _serial;
     bool _usb_boot_priority = false;  // boosted until WiFi connects
+#elif FUJINET_OVER_PPI
+    PPIChannel _serial;
 #else /* ! FUJINET_OVER_USB */
     UARTChannel _serial;
 #endif /* FUJINET_OVER_USB */

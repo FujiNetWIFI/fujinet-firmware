@@ -1,6 +1,7 @@
 # lib/device/h89
 
-The Heathkit H89 device set for `BUILD_H89`. Legacy: fails to build (#1658).
+The Heathkit H89 device set for `BUILD_H89`. Legacy and built by no board (#1658); the H89 card
+uses [lib/device/rs232/](../rs232/).
 
 ## Layout
 | File | Defines |

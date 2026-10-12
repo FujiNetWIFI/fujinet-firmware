@@ -51,13 +51,13 @@ Every per-bus directory follows one layout:
 | [sio/](sio/) | `BUILD_ATARI` | fuji, disk, network, clock, printer, modem, cassette, CP/M, voice, PCLink, MIDI stream | yes | yes | |
 | [iwm/](iwm/) | `BUILD_APPLE` | fuji, SmartPort disk, Disk II, network, clock, printer, modem, CP/M | yes | yes | |
 | [drivewire/](drivewire/) | `BUILD_COCO` | fuji, disk, network, clock, printer, modem, cassette, CP/M | yes | yes | modem, cassette and CP/M are ESP only |
-| [rs232/](rs232/) | `BUILD_RS232` | fuji, disk, network, clock, printer, modem, CP/M | yes | yes | also every fujiversal board |
+| [rs232/](rs232/) | `BUILD_RS232` | fuji, disk, network, clock, printer, modem, CP/M | yes | yes | also the H89 card and every fujiversal board |
 | [adamnet/](adamnet/) | `BUILD_ADAM` | fuji, disk, network, clock, printer, keyboard | yes | yes | no modem |
 | [comlynx/](comlynx/) | `BUILD_LYNX` | fuji, disk, network, printer, net stream, RedEye | yes | yes | modem disabled |
 | [iec/](iec/) | `BUILD_IEC` | fuji, drive, network, clock, printer, modem | yes | no | drive, clock, printer and modem derive from the IECDevice library directly |
 | [mac/](mac/) | `BUILD_MAC` | fuji, floppy (also HD20), printer, modem | yes | no | |
 | [cx16_i2c/](cx16_i2c/) | `BUILD_CX16` | fuji, disk, printer, modem | fails | no | legacy, not on the shared bases (#1658) |
-| [h89/](h89/) | `BUILD_H89` | fuji, disk, network, printer, modem | fails | no | legacy (#1658) |
+| [h89/](h89/) | `BUILD_H89` | fuji, disk, network, printer, modem | no board | no | legacy (#1658); the H89 card builds as `BUILD_RS232` |
 | [rc2014/](rc2014/) | `BUILD_RC2014` | fuji, disk, network, printer, modem, CP/M | fails | no | legacy (#1658); the bus lives in `lib/bus/rc2014bus/` |
 | [s100spi/](s100spi/) | `BUILD_S100` | fuji, disk, network, printer, modem | fails | no | legacy (#1658) |
 

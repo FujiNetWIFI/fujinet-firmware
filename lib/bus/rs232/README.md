@@ -1,8 +1,8 @@
 # lib/bus/rs232
 
 Generic serial FujiNet bus for `BUILD_RS232`: SLIP-framed `FujiBusPacket` frames at 115200 baud
-over UART, USB CDC-ACM or BoIP. It serves the PC/MS-DOS RS-232 boards and every `fujiversal-*`
-board, where the RP2xxx cartridge is the other end of the link.
+over UART, USB CDC-ACM, an 82C55 or BoIP. It serves the PC/MS-DOS RS-232 boards, the H89 card and
+every `fujiversal-*` board, where the RP2xxx cartridge is the other end of the link.
 
 ## Layout
 | File | Defines |
@@ -17,7 +17,8 @@ board, where the RP2xxx cartridge is the other end of the link.
   [lib/bus/drivewire/](../drivewire/); the cartridge firmware under [pico/](../../../pico/) carries
   its own copy.
 - Ports come from [lib/hardware/](../../hardware/): `UARTChannel`, `ACMChannel` (USB host on
-  fujiversal boards) or `BoIPChannel` (PC).
+  fujiversal boards), `PPIChannel` (the H89 card, chosen when the pinmap defines `PIN_PPI_OBF`) or
+  `BoIPChannel` (PC).
 
 ## Build
 ESP: globbed by `src/CMakeLists.txt`; `rs232.cpp` compiles only under `BUILD_RS232`, while

@@ -17,6 +17,7 @@ Fujiversal boards.
 | `IOChannel.*`, `RS232ChannelProtocol.h` | `IOChannel`, the abstract byte stream with a FIFO, and the baud-rate and control-line mixin; `IOChannel.h` also defines `HELLO_IM_A_PC` and `ITS_A_UNIX_SYSTEM_I_KNOW_THIS` |
 | `ESP32UARTChannel.*`, `TTYChannel.*`, `COMChannel.*`, `UARTChannel.h` | `IOChannel` over an ESP UART, a POSIX tty or a Windows COM port; `UARTChannel` is an alias for whichever matches the build; `fnDebugConsole` is the ESP debug UART |
 | `BoIPChannel.*` | `BoIPChannel`: bus-over-IP, the TCP transport FujiNet-PC uses in place of a cable |
+| `PPIChannel.*` | `PPIChannel`: port A of an 82C55 in Mode 2 behind a 74LVC245, the H89 card's link; compiled only when the pinmap defines `PIN_PPI_OBF` |
 | `ACMChannel.*`, `fnUsbHost.*` | `ACMChannel`: a USB CDC-ACM host channel to a Fujiversal cartridge under `CONFIG_USB_CDC_ACM_HOST_ENABLED`; `fnUsbHost` installs the USB host once |
 | `PicobootClient.*`, `fnPicoUpdater.*`, `fn_pico_blob.h` | The PICOBOOT client ported from picotool; `PicoUpdater` and `fnPicoUpdater` reflash the RP2xxx at boot when the embedded image changed, under `CONFIG_USB_PICOBOOT_HOST_ENABLED`; `fn_pico_blob.h` reads the image table that `build_pico.py` generates into the env's build directory as `fn_pico_blob_data.cpp` on every ESP build |
 | `picoboot_protocol/` | Headers copied verbatim from the Raspberry Pi Pico SDK; see its README |
@@ -29,8 +30,8 @@ Fujiversal boards.
   described in [docs/fujiversal-flashing.md](../../docs/fujiversal-flashing.md).
 
 ## Build
-ESP: globbed by `src/CMakeLists.txt` into every target; the USB, Bluetooth and LED-strip files
-compile to nothing unless their macro is set. PC: `fujinet_pc.cmake` lists only `fnDummyWiFi`,
+ESP: globbed by `src/CMakeLists.txt` into every target; the USB, PPI, Bluetooth and LED-strip
+files compile to nothing unless their macro is set. PC: `fujinet_pc.cmake` lists only `fnDummyWiFi`,
 `led`, `IOChannel`, `TTYChannel`, `COMChannel`, `fnSystem` and `fnSystemNet`, plus `BoIPChannel`
 for the COCO, ADAM, RS232 and LYNX targets.
 
