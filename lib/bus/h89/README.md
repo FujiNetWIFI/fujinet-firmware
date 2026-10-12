@@ -13,4 +13,5 @@ Heathkit H89 bus skeleton for `BUILD_H89`.
 
 ## Build
 ESP only, `BUILD_H89`. Legacy: it defines no `FUJI_COMMAND_PACKET`, which the shared `fujiDevice`
-requires, and the board fails to build (#1658). Not compiled on PC.
+requires, and no board selects it (#1658); `fujinet-heathkit-h89` builds as `BUILD_RS232` over
+`PPIChannel`. Not compiled on PC.

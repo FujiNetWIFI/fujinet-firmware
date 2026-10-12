@@ -223,7 +223,7 @@ void systemBus::setup()
         _port = &_boip;
     }
     else {
-#if FUJINET_OVER_USB
+#if FUJINET_OVER_USB || FUJINET_OVER_PPI
         _serial.begin();
 #else /* ! FUJINET_OVER_USB */
         _serial.begin(ChannelConfig()
@@ -263,8 +263,12 @@ void systemBus::setup()
     _port = &_serial;
 #endif /* FUJINET_OVER_USB */
 
+    // Skipped over the 82C55: no line noise to flush, and its handshake holds
+    // any request the host sent while we booted
+#if !FUJINET_OVER_PPI
     Debug_println("RS232 Setup Flush");
     _port->discardInput();
+#endif /* FUJINET_OVER_PPI */
 }
 
 // Add device to RS232 bus
