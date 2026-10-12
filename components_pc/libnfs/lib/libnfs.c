@@ -1556,7 +1556,7 @@ struct rw_data {
 };
 
 static void r_cb(int status, struct nfs_context *nfs,
-                   void *data, void *private_data)
+                 const void *data, void *private_data)
 {
         struct rw_data *rw_data = private_data;
         size_t cnt;

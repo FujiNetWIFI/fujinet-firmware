@@ -60,6 +60,7 @@ public:
         : _device(dev)
         , _command(cmd)
     {
+        _params.reserve(sizeof...(Args));
         (processArg(std::forward<Args>(args)), ...);  // fold expression
     }
 

@@ -192,7 +192,7 @@ EXTERN char *nfs_get_error(struct nfs_context *nfs);
 /*
  * Callback for all ASYNC nfs functions
  */
-typedef void (*nfs_cb)(int err, struct nfs_context *nfs, void *data,
+typedef void (*nfs_cb)(int err, struct nfs_context *nfs, const void *data,
                        void *private_data);
 
 /*

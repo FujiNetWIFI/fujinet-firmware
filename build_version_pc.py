@@ -33,7 +33,7 @@ class Version:
     def git_date(self):
         """return HEAD commit date"""
         if self._git_date is None:
-            self._git_date = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            self._git_date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             if self.git_sha:
                 try:
                     self._git_date = subprocess.check_output(

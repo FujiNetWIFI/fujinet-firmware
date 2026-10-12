@@ -1272,7 +1272,9 @@ void SystemManager::check_hardware_ver()
     safe_reset_gpio = PIN_BUTTON_C;
     _hardware_version = 1;
 #   elif defined(PINMAP_IEC_NUGGET)
-    #define NO_BUTTONS
+#      ifndef NO_BUTTONS
+#         define NO_BUTTONS
+#      endif
     _hardware_version = 2;
 #   elif defined(PINMAP_IEC_D32PRO)
     #define NO_BUTTONS

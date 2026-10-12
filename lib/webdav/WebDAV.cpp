@@ -8,6 +8,15 @@
 
 #include "../../include/debug.h"
 
+#include <expat.h>
+
+// expat 2.9.0 deprecated XML_GetCurrentLineNumber in favor of the 64-bit variant
+#if XML_MAJOR_VERSION > 2 || (XML_MAJOR_VERSION == 2 && XML_MINOR_VERSION >= 9)
+#define FN_XML_LINE(p) ((unsigned long)XML_GetCurrentLineNumber64(p))
+#else
+#define FN_XML_LINE(p) ((unsigned long)XML_GetCurrentLineNumber(p))
+#endif
+
 // check if element el is matching pattern *:pat (i.e. ends with ":"+pat)
 #define IS_ANYNS_ELEMENT(pat, el, el_len) (el_len >= sizeof(pat) && strcmp(el+el_len-sizeof(pat), ":" pat) == 0)
 
@@ -104,7 +113,7 @@ bool WebDAV::parse(const char *buf, int len, int isFinal)
     if (xs == XML_STATUS_ERROR)
     {
         Debug_printf("DAV response XML Parse Error! msg: %s line: %lu\r\n",
-            XML_ErrorString(XML_GetErrorCode(parser)), XML_GetCurrentLineNumber(parser));
+            XML_ErrorString(XML_GetErrorCode(parser)), FN_XML_LINE(parser));
         return true;
     }
     return false;

@@ -294,7 +294,8 @@ void fnHttpService::send_header_footer(struct mg_connection *c, int headfoot)
     }
     else
     {
-        fread(buf, 1, sz - 1, fInput);
+        size_t rlen = fread(buf, 1, sz - 1, fInput);
+        buf[rlen] = 0;
         string contents = fnHttpServiceParser::parse_contents(string(buf));
         free(buf);
         mg_http_write_chunk(c, contents.data(), contents.length());

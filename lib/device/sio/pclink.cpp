@@ -727,22 +727,25 @@ validate_user_path(char *defwd, char *newpath)
 static int
 validate_user_path(char *defwd, char *newpath)
 {
-        char *d, oldwd[1024], newwd[1024];
+    char *d, oldwd[1024], newwd[1024];
 
-        (void)getcwd(oldwd, sizeof(oldwd));
-        if (chdir(newpath) < 0)
-                return 0;
-        (void)getcwd(newwd, sizeof(newwd));
-        (void)chdir(oldwd);
+    if (!getcwd(oldwd, sizeof(oldwd)))
+        return 0;
+    if (chdir(newpath) < 0)
+        return 0;
+    if (!getcwd(newwd, sizeof(newwd)))
+        return 0;
+    if (chdir(oldwd) < 0)
+        return 0;
 
-        d = strstr(newwd, defwd);
+    d = strstr(newwd, defwd);
 
-        if (d == NULL)
-                return 0;
-        if (d != newwd)
-                return 0;
+    if (d == NULL)
+        return 0;
+    if (d != newwd)
+        return 0;
 
-        return 1;
+    return 1;
 }
 
 static int

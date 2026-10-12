@@ -6,7 +6,7 @@
 class rs232Network : public NDevice
 {
 protected:
-    void rs232_process(const FujiBusPacket &packet) { NDevice::processCommand(packet); }
+    void rs232_process(const FujiBusPacket &packet) override { NDevice::processCommand(packet); }
     void fujidev_set_query(const FUJI_COMMAND_PACKET &packet) override;
 };
 
