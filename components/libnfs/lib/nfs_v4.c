@@ -344,9 +344,6 @@ check_nfs4_error(struct nfs_context *nfs, int status,
         COMPOUND4res *res = command_data;
 
         if (status == RPC_STATUS_ERROR) {
-                /* MEATLOAF-PATCH: nfs4_mount_1_cb (CONNECT) has no COMPOUND
-                 * result and passes NULL; callers read this argument as a
-                 * string, so never hand them a NULL. */
                 data->cb(-EFAULT, nfs, res ? (void *)res : (void *)"Command failed",
                          data->private_data);
                 free_nfs4_cb_data(data);
@@ -364,11 +361,7 @@ check_nfs4_error(struct nfs_context *nfs, int status,
                 free_nfs4_cb_data(data);
                 return 1;
         }
-        /* MEATLOAF-PATCH: status==RPC_STATUS_SUCCESS does NOT imply a valid
-         * pointer -- nfs4_mount_1_cb (CONNECT) succeeds with no COMPOUND
-         * result and passes NULL. Upstream libnfs guards this with "res &&";
-         * without it every NFSv4 mount panics with LoadProhibited at EXCVADDR
-         * 0x00000000 here. */
+        /* status==RPC_STATUS_SUCCESS so res must be a valid pointer */
         if (res && res->status != NFS4_OK) {
                 const char *status_str = nfsstat4_to_str(res->status);
                 nfs_set_error(nfs, "NFS4: %s (path %s) failed with "
