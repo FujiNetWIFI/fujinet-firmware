@@ -16,7 +16,6 @@
 
 #include <smb2/libsmb2.h>
 #include <smb2/smb2.h>
-//#include <smb2/libsmb2-raw.h>
 
 #include "status_error_codes.h"
 #include "utils.h"
@@ -119,7 +118,7 @@ fujiError_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
 {
     std::string openURL = url->url;
 
-    // use mRawURL to bypass our normal URL processing.
+    // smb2_parse_url() only accepts a lowercase "smb://".
     if (openURL.find("SMB:") != std::string::npos)
     {
         openURL[0] = 's';
@@ -146,7 +145,7 @@ fujiError_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
     smb_url = smb2_parse_url(smb, openURL.c_str());
     if (smb_url == nullptr)
     {
-        Debug_printf("aNetworkProtocolSMB::mount(%s) - failed to parse URL, SMB2 error: %s\n", openURL.c_str(), smb2_get_error(smb));
+        Debug_printf("NetworkProtocolSMB::mount(%s) - failed to parse URL, SMB2 error: %s\n", openURL.c_str(), smb2_get_error(smb));
         fserror_to_error();
         return FUJI_ERROR::UNSPECIFIED;
     }
@@ -179,8 +178,10 @@ fujiError_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
 
         if ((smb_error = smb2_connect_share(smb, smb_url->server, smb_url->share, user.c_str())) != 0)
         {
-            Debug_printf("aNetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\r\n", openURL.c_str(), smb2_get_error(smb));
+            Debug_printf("NetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\r\n", openURL.c_str(), smb2_get_error(smb));
             fserror_to_error();
+            smb2_destroy_url(smb_url);
+            smb_url = nullptr;
             return FUJI_ERROR::UNSPECIFIED;
         }
     }
@@ -188,8 +189,10 @@ fujiError_t NetworkProtocolSMB::mount(PeoplesUrlParser *url)
     {
         if ((smb_error = smb2_connect_share(smb, smb_url->server, smb_url->share, smb_url->user)) != 0)
         {
-            Debug_printf("aNetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\r\n", openURL.c_str(), smb2_get_error(smb));
+            Debug_printf("NetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\r\n", openURL.c_str(), smb2_get_error(smb));
             fserror_to_error();
+            smb2_destroy_url(smb_url);
+            smb_url = nullptr;
             return FUJI_ERROR::UNSPECIFIED;
         }
     }
@@ -208,6 +211,7 @@ fujiError_t NetworkProtocolSMB::umount()
         return FUJI_ERROR::UNSPECIFIED;
 
     smb2_destroy_url(smb_url);
+    smb_url = nullptr;
     return FUJI_ERROR::NONE;
 }
 
@@ -338,7 +342,8 @@ fujiError_t NetworkProtocolSMB::del(PeoplesUrlParser *url)
 
 fujiError_t NetworkProtocolSMB::mkdir(PeoplesUrlParser *url)
 {
-    mount(url);
+    if (mount(url) != FUJI_ERROR::NONE)
+        return FUJI_ERROR::UNSPECIFIED;
 
     if ((smb_error = smb2_mkdir(smb, smb_url->path)) != 0)
     {
@@ -353,7 +358,8 @@ fujiError_t NetworkProtocolSMB::mkdir(PeoplesUrlParser *url)
 
 fujiError_t NetworkProtocolSMB::rmdir(PeoplesUrlParser *url)
 {
-    mount(url);
+    if (mount(url) != FUJI_ERROR::NONE)
+        return FUJI_ERROR::UNSPECIFIED;
 
     if ((smb_error = smb2_rmdir(smb, smb_url->path)) != 0)
     {
