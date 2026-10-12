@@ -1474,6 +1474,20 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
   set_tests_properties(afp_close_session_tests PROPERTIES TIMEOUT 90)
 endif()
 
+# Why a login failed, as afp_server_full_connect() reports it. POSIX only.
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  add_executable(afp_login_cause_tests
+      AfpLoginCauseTests.cpp
+      AfpLoginCauseHelper.c
+  )
+  target_include_directories(afp_login_cause_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+  )
+  target_link_libraries(afp_login_cause_tests PRIVATE afpfs_fn)
+  add_test(NAME afp_login_cause_tests COMMAND afp_login_cause_tests)
+  set_tests_properties(afp_login_cause_tests PROPERTIES TIMEOUT 90)
+endif()
+
 # ------------------------------------------------------------------------------
 # Atari cassette rewind: record durations (lib/media/atari/casTape.h), and the
 # request and the trail of played boundaries (lib/device/sio/cassette*.h). None
