@@ -847,9 +847,9 @@ int systemBus::readBaudSwitch()
     }
 
     bDragon = true;
-    Debug_printv("A14 and A15 High, (DRAGON) 38400 baud");
+    Debug_printv("A14 and A15 High, (DRAGON) 57600 baud");
 
-    return 57600; // Default or no switch
+    return 57600; // Dragon ROM image
 #else             /* ! PIN_EPROM_A14 */
     return 921600;
 #endif /* COCO_HS_UART / PIN_EPROM_A14 */
