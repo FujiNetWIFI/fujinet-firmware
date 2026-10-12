@@ -1386,6 +1386,13 @@ target_include_directories(afp_uam_tests PRIVATE
 target_link_libraries(afp_uam_tests PRIVATE afpfs_fn)
 add_test(NAME afp_uam_tests COMMAND afp_uam_tests)
 
+add_executable(afp_loop_tests AfpLoopTests.cpp)
+target_include_directories(afp_loop_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+target_link_libraries(afp_loop_tests PRIVATE afpfs_fn)
+add_test(NAME afp_loop_tests COMMAND afp_loop_tests)
+
 # ------------------------------------------------------------------------------
 # Atari cassette rewind: record durations (lib/media/atari/casTape.h), and the
 # request and the trail of played boundaries (lib/device/sio/cassette*.h). None

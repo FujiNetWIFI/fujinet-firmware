@@ -880,6 +880,7 @@ target_include_directories(afpfs_fn
         ${MBEDTLS_INCLUDE_DIR}
 )
 target_compile_options(afpfs_fn PRIVATE -w) # vendored third-party; suppress its warnings
+target_compile_definitions(afpfs_fn PRIVATE AFPFS_POLL_LOOP) # the host owns its signal handlers
 target_link_libraries(afpfs_fn PUBLIC ${MBEDCRYPTO_STATIC_LIB} pthread)
 
 target_link_libraries(fujinet pthread expat cjson cjson_utils smb2 ssh nfs gumbo_fn)
