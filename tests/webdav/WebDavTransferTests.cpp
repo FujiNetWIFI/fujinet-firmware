@@ -90,3 +90,18 @@ TEST_CASE("GET of a missing file is 404")
     Exchange e;
     CHECK(request(HTTP_GET, "/dav/missing.ini", e) == 404);
 }
+
+TEST_CASE("Depth 0 PROPFIND on a file reports its size")
+{
+    root();
+    std::string body = random_bytes(40000);
+    {
+        Exchange e;
+        e.req_body = body;
+        request(HTTP_PUT, "/dav/sized.bin", e);
+    }
+    Exchange e;
+    e.req_headers["depth"] = "0";
+    CHECK(request(HTTP_PROPFIND, "/dav/sized.bin", e) == 207);
+    CHECK(e.resp_body.find("<D:getcontentlength>40000</D:getcontentlength>") != std::string::npos);
+}
