@@ -893,6 +893,19 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     target_link_libraries(afpfs_fn PUBLIC ws2_32 bcrypt)
 endif()
 
+# lib/afp's C bridge: the only file that sees afpfs-ng's headers. afpfs_fn is
+# linked PRIVATE so those headers stay off everyone else's include path.
+add_library(afp_bridge STATIC ${CMAKE_SOURCE_DIR}/lib/afp/afpBridge.c)
+target_include_directories(afp_bridge PUBLIC ${CMAKE_SOURCE_DIR}/lib/afp)
+target_link_libraries(afp_bridge PRIVATE afpfs_fn)
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_include_directories(afp_bridge BEFORE PRIVATE
+        ${CMAKE_SOURCE_DIR}/components/afpfs-ng/win32
+        ${CMAKE_SOURCE_DIR}/components/afpfs-ng/win32/include)
+    target_compile_options(afp_bridge PRIVATE
+        -include ${CMAKE_SOURCE_DIR}/components/afpfs-ng/win32/win32_compat.h)
+endif()
+
 target_link_libraries(fujinet pthread expat cjson cjson_utils smb2 ssh nfs gumbo_fn)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")

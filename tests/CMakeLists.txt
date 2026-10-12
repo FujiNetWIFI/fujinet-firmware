@@ -1431,6 +1431,21 @@ target_include_directories(afp_session_tests PRIVATE
 target_link_libraries(afp_session_tests PRIVATE pthread)
 add_test(NAME afp_session_tests COMMAND afp_session_tests)
 
+# AfpSession over the real bridge and a real server. Skips unless AFP_TEST_HOST
+# is set in the environment.
+add_executable(afp_session_live_tests
+    AfpSessionLiveTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpSession.cpp
+)
+target_compile_definitions(afp_session_live_tests PRIVATE UNIT_TESTS)
+target_include_directories(afp_session_live_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+target_link_libraries(afp_session_live_tests PRIVATE afp_bridge pthread)
+add_test(NAME afp_session_live_tests COMMAND afp_session_live_tests)
+set_tests_properties(afp_session_live_tests PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+
 # The server list itself, over loopback sockets. POSIX only.
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
   add_executable(afp_server_list_tests
