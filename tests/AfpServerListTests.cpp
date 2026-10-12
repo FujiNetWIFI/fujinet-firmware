@@ -6,7 +6,12 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <atomic>
+#include <chrono>
+#include <cstdint>
 #include <cstring>
+#include <thread>
+#include <vector>
 
 extern "C" {
 struct afp_server;
@@ -14,6 +19,10 @@ struct afp_server *helper_connect(int port);
 void helper_log_in(struct afp_server *s, const char *user, const char *signature);
 struct afp_server *helper_find_by_address(int port, const char *user);
 struct afp_server *helper_find_by_signature(const char *signature, const char *user);
+void helper_start_loop(void);
+struct afp_server *helper_failed_login(int port);
+int helper_still_listed(struct afp_server *s);
+int helper_remove(struct afp_server *s);
 }
 
 // A loopback listener that never accepts: connects complete from its backlog.
@@ -97,4 +106,67 @@ TEST_CASE("the same address on another port is another server")
     CHECK(helper_find_by_address(other_port, "erin") == nullptr);
     close(listener);
     close(other);
+}
+
+static bool read_all(int fd, uint8_t *buf, size_t len)
+{
+    size_t got = 0;
+    while (got < len)
+    {
+        ssize_t n = read(fd, buf + got, len - got);
+        if (n <= 0) return false;
+        got += static_cast<size_t>(n);
+    }
+    return true;
+}
+
+// Accepts one connection and answers its DSIOpenSession, then holds it open.
+static void answer_open_session(int listener, std::atomic<int> &accepted)
+{
+    int fd = accept(listener, nullptr, nullptr);
+    accepted = fd;
+    if (fd < 0) return;
+
+    uint8_t request[16];
+    if (!read_all(fd, request, sizeof(request))) return;
+    uint32_t length = (uint32_t(request[8]) << 24) | (uint32_t(request[9]) << 16) |
+                      (uint32_t(request[10]) << 8) | request[11];
+    std::vector<uint8_t> body(length);
+    if (length && !read_all(fd, body.data(), length)) return;
+
+    // Reply header, then one option: server request quantum, 4 bytes.
+    uint8_t reply[22] = {0};
+    reply[0] = 1;
+    reply[1] = request[1];
+    reply[2] = request[2];
+    reply[3] = request[3];
+    reply[11] = 6;
+    reply[17] = 4;
+    reply[20] = 0x10;
+    (void)!write(fd, reply, sizeof(reply));
+}
+
+TEST_CASE("a server whose login failed is still the caller's to remove")
+{
+    helper_start_loop();
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+
+    int port = 0;
+    int listener = listen_on_loopback(port);
+    std::atomic<int> accepted{-1};
+    std::thread responder(answer_open_session, listener, std::ref(accepted));
+
+    afp_server *s = helper_failed_login(port);
+    REQUIRE(s != nullptr);
+    const bool listed = helper_still_listed(s) == 1;
+    CHECK(listed);
+    if (listed)
+    {
+        CHECK(helper_remove(s) == 0);
+        CHECK(helper_still_listed(s) == 0);
+    }
+
+    responder.join();
+    if (accepted >= 0) close(accepted);
+    close(listener);
 }

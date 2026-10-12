@@ -53,3 +53,36 @@ struct afp_server * helper_find_by_signature(const char * signature, const char 
 	memcpy(copy,signature,AFP_SIGNATURE_LEN);
 	return find_server_by_signature(copy,user);
 }
+
+void helper_start_loop(void)
+{
+	libafpclient_register(NULL);
+	afp_main_quick_startup(NULL);
+}
+
+/* A login that fails after the session opens: the server offers no AFP
+ * version this library knows.  Returns the server, still owned by the caller. */
+struct afp_server * helper_failed_login(int port)
+{
+	unsigned char versions[SERVER_MAX_VERSIONS];
+	char user[AFP_MAX_USERNAME_LEN], password[AFP_MAX_PASSWORD_LEN];
+	struct afp_server * s=helper_connect(port);
+
+	if (s==NULL) return NULL;
+	memset(versions,0,sizeof(versions));
+	memset(user,0,sizeof(user));
+	memset(password,0,sizeof(password));
+	if (afp_server_complete_connection(NULL,s,s->address,versions,0,
+		user,password,0,0)!=NULL) return NULL;
+	return s;
+}
+
+int helper_still_listed(struct afp_server * s)
+{
+	return server_still_valid(s);
+}
+
+int helper_remove(struct afp_server * s)
+{
+	return afp_server_remove(s);
+}

@@ -1415,6 +1415,7 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
   )
   target_link_libraries(afp_server_list_tests PRIVATE afpfs_fn)
   add_test(NAME afp_server_list_tests COMMAND afp_server_list_tests)
+  set_tests_properties(afp_server_list_tests PROPERTIES TIMEOUT 60)
 endif()
 
 # ------------------------------------------------------------------------------
