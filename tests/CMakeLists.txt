@@ -1393,6 +1393,19 @@ target_include_directories(afp_loop_tests PRIVATE
 target_link_libraries(afp_loop_tests PRIVATE afpfs_fn)
 add_test(NAME afp_loop_tests COMMAND afp_loop_tests)
 
+# The server list itself, over loopback sockets. POSIX only.
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  add_executable(afp_server_list_tests
+      AfpServerListTests.cpp
+      AfpServerListHelper.c
+  )
+  target_include_directories(afp_server_list_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+  )
+  target_link_libraries(afp_server_list_tests PRIVATE afpfs_fn)
+  add_test(NAME afp_server_list_tests COMMAND afp_server_list_tests)
+endif()
+
 # ------------------------------------------------------------------------------
 # Atari cassette rewind: record durations (lib/media/atari/casTape.h), and the
 # request and the trail of played boundaries (lib/device/sio/cassette*.h). None
