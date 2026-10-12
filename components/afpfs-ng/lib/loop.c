@@ -19,6 +19,7 @@
 #include "afp.h"
 #include "dsi.h"
 #include "utils.h"
+#include "afp_socket.h"
 
 #ifndef AFPFS_POLL_LOOP
 #define SIGNAL_TO_USE SIGUSR2
@@ -130,7 +131,7 @@ void loop_disconnect(struct afp_server *s)
         rm_fd_and_signal(s->fd);
 
 	/* Handle disconnect */
-        close(s->fd);
+        afp_sock_close(s->fd);
 
 	s->connect_state=SERVER_STATE_DISCONNECTED;
 	s->need_resume=1;
