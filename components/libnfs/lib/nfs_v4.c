@@ -344,7 +344,8 @@ check_nfs4_error(struct nfs_context *nfs, int status,
         COMPOUND4res *res = command_data;
 
         if (status == RPC_STATUS_ERROR) {
-                data->cb(-EFAULT, nfs, res, data->private_data);
+                data->cb(-EFAULT, nfs, res ? (void *)res : (void *)"Command failed",
+                         data->private_data);
                 free_nfs4_cb_data(data);
                 return 1;
         }
@@ -361,7 +362,7 @@ check_nfs4_error(struct nfs_context *nfs, int status,
                 return 1;
         }
         /* status==RPC_STATUS_SUCCESS so res must be a valid pointer */
-        if (res->status != NFS4_OK) {
+        if (res && res->status != NFS4_OK) {
                 const char *status_str = nfsstat4_to_str(res->status);
                 nfs_set_error(nfs, "NFS4: %s (path %s) failed with "
                               "%s(%d)", 
@@ -369,7 +370,7 @@ check_nfs4_error(struct nfs_context *nfs, int status,
                               data->path ? data->path : "<null>",
                               status_str ? status_str : "<unknown>",
                               nfsstat4_to_errno(res->status));
-                char *error_msg = nfs_get_error(nfs);
+                const char *error_msg = nfs_get_error(nfs);
                 data->cb(nfsstat4_to_errno(res->status), nfs,
                          error_msg ? error_msg : "Unknown NFS error", 
                          data->private_data);
