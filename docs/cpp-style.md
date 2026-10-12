@@ -43,7 +43,7 @@ write; do not convert surrounding code to match as a side effect of an unrelated
 - Bounds-check all buffer work. Use `snprintf`, never `sprintf`, `strcpy` or `strcat`, and prefer
   the existing `mstr::`/`util_` string helpers to hand-rolled buffer arithmetic.
 - Pass non-trivial parameters by `const&`; return by value. Mark methods `const` when they do not
-  mutate. Initialise every member at declaration or in the constructor's init list.
+  mutate. Initialize every member at declaration or in the constructor's init list.
 - Keep functions short enough to read whole. If a switch on a device command grows a long inline
   body, factor the body into a named method.
 
@@ -60,12 +60,42 @@ the model the rest of the tree is being moved toward, and new code is reviewed a
   command means one table entry plus one small handler; it never means growing a switch.
 - **One handler, one job, named for it.** `qr_input`, `qr_length`, `qr_output` — short methods whose
   name states what they do, so the dispatch table reads as documentation.
-- **Vary behaviour by overriding a virtual.** `QRMixin::qr_encode(const FUJI_COMMAND_PACKET&)` is
+- **Vary behavior by overriding a virtual.** `QRMixin::qr_encode(const FUJI_COMMAND_PACKET&)` is
   virtual precisely so a platform can change how parameters are unpacked without touching shared
   code. That override point is the intended extension mechanism.
-- **Use a strategy object for pluggable behaviour.** `NDevice` holds an `NParser` and
+- **Use a strategy object for pluggable behavior.** `NDevice` holds an `NParser` and
   `JSONParser`/`XMLParser`/`HTMLParser` implement it; supporting another format is a new subclass,
   not a branch in `NDevice`.
+
+The same shape applies in every layer, not only the device bases. The variant differs — a bus, a
+board on a bus, an image format, a transport, a protocol — but the structure does not:
+
+- `lib/media`: `MediaType` is the base; `MediaTypeImg`, `MediaTypeIMD` and `MediaTypeROM` each
+  own one image format. A new format is a new subclass and one line in `discover_mediatype()`.
+- `lib/hardware`: `IOChannel` is the base; `ESP32UARTChannel`, `ACMChannel`, `BoIPChannel`,
+  `PPIChannel`, `TTYChannel` and `COMChannel` each own one transport. The bus picks one; nothing in
+  the bus knows how any of them moves a byte.
+- `lib/network-protocol`: `NetworkProtocol` is the base and `NetworkProtocolFactory` picks the
+  subclass from the URL scheme. A new scheme is a new subclass, never a branch in the N: device.
+- `lib/bus` and `lib/device/<bus>`: `SystemBusBase`, `fujiDevice` and `NDevice` are the bases; a bus
+  or a board customizes by overriding, never by testing which bus or board it is.
+
+Two SOLID principles do most of the work here, and reviewers name them: **single responsibility**
+(one class, one concern; a second concern is a mixin or a strategy object) and **open/closed** (a
+new variant is a new subclass; existing code is not edited to know about it). A `#ifdef` on a
+`BUILD_*` or `PINMAP_*` macro inside a function is the open/closed principle being broken, whatever
+layer it is in, and is sent back. The only conditionals on those macros are the switchboards
+(`bus.h`, `device.h`, `disk.h` and friends, `src/main.cpp`), `include/pinmap/`, and a whole-file
+guard on a file that exists only for one platform.
+
+A board that must behave differently from the others on its bus has two sanctioned mechanisms:
+
+- a capability the pinmap declares and one piece of shared code honors, the way
+  `FN_USB_EXPECTED_VID` selects the USB device filter and `PIN_LED_STRIP` turns on the LED strip;
+- a per-board subclass of the bus's device (`h89Fuji : rs232Fuji`) that overrides the virtual,
+  chosen in the switchboard.
+
+`#ifndef PINMAP_H89` around a call in `rs232Fuji::setup()` is neither.
 
 Readability rules that follow from the above:
 

@@ -116,19 +116,32 @@ first, so you cannot dodge it. Customize by overriding a virtual in the per-bus 
 this as the `no_system_bus_in_media` ctest. A media class receives a file handle and knows nothing
 about the bus; the device that mounts it does the talking.
 
-The codebase is actively unifying per-platform code into these shared bases: `fujiDevice` (plus its
-mixins) and `NDevice` replaced the per-bus Fuji and network devices. Extend the shared layer rather
-than copying an existing device implementation into a new platform directory.
+The codebase is actively unifying per-platform code into shared bases: `fujiDevice` (plus its
+mixins) and `NDevice` replaced the per-bus Fuji and network devices, and `MediaType` with one
+subclass per image format is the same shape in `lib/media`. The ctests above cover only the
+directories they name; the rule they enforce applies to every layer (see Design principles), and a
+reviewer holds the rest of the tree to it by hand. Extend the shared layer rather than copying an
+existing implementation into a new platform, board or format directory.
 
 ## Design principles
 
 Reviewers hold changes to the direction below. A change that works but cuts against it will be sent
 back, so raise the design first when yours does not fit.
 
-- One implementation, many platforms. Behavior common to two or more platforms belongs in the
-  shared base; platform difference is expressed by overriding a virtual in the per-bus subclass, not
-  by branching inside shared code. Duplicating a device into a new platform directory is the single
-  most common rejection.
+- One implementation, many variants, in every layer. Whatever the layer — bus, device, disk,
+  media, file system, network protocol, clock, printer, hardware — behavior common to two or more
+  variants belongs in a shared base, and a variant (a platform, a bus, a board on a bus, an image
+  format, a protocol) is a subclass that overrides a virtual. Never a branch inside shared code,
+  and never a copy. Duplicating an implementation into a new platform directory is the single most
+  common rejection; a `#ifdef` on a platform or board macro inside a function is the second.
+- This is object-oriented code, so the SOLID principles apply and reviewers name them. The two that
+  matter most here: single responsibility (one class, one concern — a mixin or strategy object for
+  a second one) and open/closed (a new board, format or protocol is a new subclass; existing code
+  is not edited to know about it).
+- A board that differs from the others on its bus has two sanctioned mechanisms: a capability the
+  pinmap declares and one piece of shared code honors (`FN_USB_EXPECTED_VID`, `PIN_LED_STRIP`), or
+  a per-board subclass of the bus's device, selected in the switchboards below. Not a `PINMAP_*`
+  test in the device.
 - Keep the layers apart: `lib/bus/<bus>/` owns wire protocol and timing, `lib/device/<bus>/` owns
   device behavior, `lib/media/<platform>/` owns image formats. Do not reach across them, and do not
   put protocol details in a device or filesystem knowledge in a bus.
@@ -149,7 +162,14 @@ back, so raise the design first when yours does not fit.
   macro; `FUJINET_TARGET` is a CMake variable, not a preprocessor symbol. Board/hardware variants
   are a separate `PINMAP_*` family, one per header in `include/pinmap/`.
 - `lib/bus/bus.h`, `lib/device/device.h` and `lib/device/disk.h` are the `#ifdef BUILD_*`
-  switchboards that select the bus, the device set and the `DISK_DEVICE` alias.
+  switchboards that select the bus, the device set and the `DISK_DEVICE` alias (`printer.h`,
+  `modem.h`, `cassette.h`, `netstream.h`, `siocpm.h` and `lib/media/media.h` do the same for their
+  classes), and `src/main.cpp` assembles the platform's devices.
+- Those switchboards, `include/pinmap/` and a whole-file guard (`#ifdef BUILD_X` as the first line
+  of a file that exists only for that platform) are the only places a `BUILD_*` or `PINMAP_*` macro
+  belongs in a preprocessor conditional. Anywhere else under `lib/`, a `#if` on a platform or
+  board macro is a defect: it means a variant was branched in instead of subclassed. Do not add
+  one, and remove the ones you touch.
 
 ## Never hand-edit or commit these
 
