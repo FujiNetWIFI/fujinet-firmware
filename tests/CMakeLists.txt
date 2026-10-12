@@ -1377,6 +1377,16 @@ target_include_directories(afp_macroman_tests PRIVATE
 add_test(NAME afp_macroman_tests COMMAND afp_macroman_tests)
 
 # ------------------------------------------------------------------------------
+# afpfs-ng linked as a whole on the host.
+# ------------------------------------------------------------------------------
+add_executable(afp_uam_tests AfpUamTests.cpp)
+target_include_directories(afp_uam_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+target_link_libraries(afp_uam_tests PRIVATE afpfs_fn)
+add_test(NAME afp_uam_tests COMMAND afp_uam_tests)
+
+# ------------------------------------------------------------------------------
 # Atari cassette rewind: record durations (lib/media/atari/casTape.h), and the
 # request and the trail of played boundaries (lib/device/sio/cassette*.h). None
 # of them touches the bus, a file or the RTOS, so they are driven here directly.

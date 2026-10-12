@@ -862,6 +862,26 @@ add_library(gumbo_fn STATIC ${GUMBO_SOURCES})
 target_include_directories(gumbo_fn PUBLIC ${CMAKE_SOURCE_DIR}/components/gumbo)
 target_compile_options(gumbo_fn PRIVATE -w) # vendored third-party; suppress its warnings
 
+# afpfs-ng (AFP client), built from the ESP component's sources. The gcrypt
+# shim under esp32/ is portable and stands in for libgcrypt here too.
+file(GLOB AFPFS_SOURCES ${CMAKE_SOURCE_DIR}/components/afpfs-ng/lib/*.c)
+add_library(afpfs_fn STATIC
+    ${AFPFS_SOURCES}
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/gcrypt.c
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/cast5.c
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32/afp_random.c
+)
+target_include_directories(afpfs_fn
+    PUBLIC
+        ${CMAKE_SOURCE_DIR}/components/afpfs-ng
+        ${CMAKE_SOURCE_DIR}/components/afpfs-ng/include
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/components/afpfs-ng/esp32
+        ${MBEDTLS_INCLUDE_DIR}
+)
+target_compile_options(afpfs_fn PRIVATE -w) # vendored third-party; suppress its warnings
+target_link_libraries(afpfs_fn PUBLIC ${MBEDCRYPTO_STATIC_LIB} pthread)
+
 target_link_libraries(fujinet pthread expat cjson cjson_utils smb2 ssh nfs gumbo_fn)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
