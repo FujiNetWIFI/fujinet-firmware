@@ -1,8 +1,12 @@
 ## IDF Component Manager Manifest File
 dependencies:
   espressif/led_strip:
-    # 3.1+ needs ESP-IDF 5.4.2; the ESP32-S3 platform ships 5.4.0 (#1869).
-    version: "~3.0.3"
+    version: "^3.1"
+    # 3.1+ calls rmt_tx_switch_gpio(), new in ESP-IDF 5.4.2 (#1869).
+    matches:
+      - if: "idf_version >=5.4.2"
+      - if: "idf_version <5.4.2"
+        version: "~3.0.3"
     rules:
       - if: 'target in ["esp32s3"]'
   espressif/usb_host_cdc_acm:
