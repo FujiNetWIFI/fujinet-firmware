@@ -296,6 +296,8 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
     // Determine MediaType based on filename extenrs232n
     if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
         disk_type = MediaType::discover_mediatype(filename);
+    if (disk_type == MEDIATYPE_UNKNOWN && MediaTypeAltair::looks_like_altair(filename, disksize))
+        disk_type = MEDIATYPE_ALTAIR;
 
     // Now mount based on MediaType
     switch (disk_type)
@@ -322,6 +324,17 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
         if (filename != nullptr)
             strlcpy(imd->_disk_filename, filename, sizeof(imd->_disk_filename));
         return imd->mount(f, disksize);
+    }
+    case MEDIATYPE_ALTAIR:
+    {
+        device_active = true;
+        _mount_time = time(nullptr);
+        MediaTypeAltair *altair = new MediaTypeAltair((access_mode & DISK_ACCESS_MODE_WRITE) != 0);
+        _disk = altair;
+        altair->_media_host = host;
+        if (filename != nullptr)
+            strlcpy(altair->_disk_filename, filename, sizeof(altair->_disk_filename));
+        return altair->mount(f, disksize);
     }
     case MEDIATYPE_IMG:
     case MEDIATYPE_UNKNOWN:

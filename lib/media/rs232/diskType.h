@@ -45,6 +45,7 @@ enum mediatype_t
     MEDIATYPE_IMG,
     MEDIATYPE_ROM,
     MEDIATYPE_IMD,
+    MEDIATYPE_ALTAIR,
     MEDIATYPE_COUNT
 };
 

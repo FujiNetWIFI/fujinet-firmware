@@ -168,6 +168,34 @@ endif()
 add_test(NAME mediatypeimd_tests COMMAND mediatypeimd_tests)
 
 # ------------------------------------------------------------------------------
+# The RS232 MediaTypeAltair adapter, built like mediatypeimd_tests above.
+# ------------------------------------------------------------------------------
+add_executable(mediatypealtair_tests
+    MediaTypeAltairTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/IMDImage.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rs232/diskType.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rs232/diskTypeAltair.cpp
+)
+
+target_compile_definitions(mediatypealtair_tests PRIVATE BUILD_RS232 UNIT_TESTS FNIO_IS_STDIO)
+
+target_include_directories(mediatypealtair_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/      # debug.h, global_types.h
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/
+    ${CMAKE_SOURCE_DIR}/lib/media/
+    ${CMAKE_SOURCE_DIR}/lib/media/rs232/
+    ${CMAKE_SOURCE_DIR}/lib/utils/
+    ${CMAKE_SOURCE_DIR}/components_pc/
+)
+
+if(WIN32)
+    target_link_libraries(mediatypealtair_tests PRIVATE ws2_32)
+endif()
+
+add_test(NAME mediatypealtair_tests COMMAND mediatypealtair_tests)
+
+# ------------------------------------------------------------------------------
 # Policy check: no platform-specific BUILD_* ifdefs in the shared device bases.
 # Customization there must go through a subclass override, never a #ifdef.
 # This is a script, not a compiled test, so it's wired in directly via
