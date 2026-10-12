@@ -27,9 +27,10 @@ error_is_true MediaTypeImg::read(uint32_t sectornum, uint32_t *readcount)
     *readcount = 0;
 
     // Return an error if we're trying to read beyond the end of the disk
-    if (sectornum > _disk_num_sectors)
+    // (or there's no disk: unmount() closes the file)
+    if (_disk_fileh == nullptr || sectornum >= _disk_num_sectors)
     {
-        Debug_printf("::read sector %ld > %lu\r\n", sectornum, _disk_num_sectors);
+        Debug_printf("::read sector %ld >= %lu\r\n", sectornum, _disk_num_sectors);
         RETURN_ERROR_AS_TRUE();
     }
 
@@ -64,9 +65,10 @@ error_is_true MediaTypeImg::write(uint32_t sectornum, bool verify)
     Debug_printf("IMG WRITE\r\n");
 
     // Return an error if we're trying to write beyond the end of the disk
-    if (sectornum > _disk_num_sectors)
+    // (which would grow the file), or there's no disk
+    if (_disk_fileh == nullptr || sectornum >= _disk_num_sectors)
     {
-        Debug_printf("::write sector %ld > %lu\r\n", sectornum, _disk_num_sectors);
+        Debug_printf("::write sector %ld >= %lu\r\n", sectornum, _disk_num_sectors);
         RETURN_ERROR_AS_TRUE();
     }
 
