@@ -5,6 +5,10 @@
 // TNFS has no length field, so where a reply ends is derived from its command, its status
 // and its self-describing payload fields, as laid out in tnfs-protocol.md. Message
 // boundaries of the transport are never trusted.
+//
+// A successful STAT reply is taken to be the fixed 22-byte block that TNFSD sends. The
+// protocol also allows optional uid and gid strings after it. From a server that sends
+// them, those bytes are parsed as the next reply, which then usually frames as MALFORMED.
 
 #include <cstdint>
 
@@ -14,7 +18,8 @@ enum class tnfsFrameStatus
 {
     NEED_MORE, // the reply at the front is incomplete; nothing is consumed
     COMPLETE,  // a whole reply of `length` bytes is at the front
-    MALFORMED, // the front cannot be a valid reply; the stream must be resynchronised
+    MALFORMED, // the front cannot be a valid reply. With no sync marker in the stream,
+               // the only recovery is to drop the connection and reconnect
 };
 
 struct tnfsFrame

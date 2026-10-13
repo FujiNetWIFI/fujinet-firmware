@@ -86,11 +86,13 @@ bool is_known_status(uint8_t status)
 // received, -1 if no NUL can occur within a maximum-sized reply.
 int end_of_string(const uint8_t *buf, int have, int start)
 {
+    // Not strlen(): the terminator may not have arrived yet.
     int limit = std::min(have, TNFS_MAX_REPLY_SIZE);
-    for (int i = start; i < limit; i++)
+    if (start < limit)
     {
-        if (buf[i] == '\0')
-            return i + 1;
+        const void *nul = std::memchr(buf + start, '\0', limit - start);
+        if (nul != nullptr)
+            return static_cast<int>(static_cast<const uint8_t *>(nul) - buf) + 1;
     }
     return have >= TNFS_MAX_REPLY_SIZE ? -1 : 0;
 }
