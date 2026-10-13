@@ -25,7 +25,8 @@ beginning.
   `_tcp.` or `_udp.` forces one; a failed TCP connect falls back to UDP.
 - Over TCP, `tnfsReplyAssembler` cuts the byte stream into replies. A malformed reply, a closed
   connection or a timeout with part of a reply received drops the connection, and the retry
-  reconnects.
+  reconnects. The assembler exists only while TCP is connected; on ESP it is allocated with
+  `PSRAMAllocator` (PSRAM first, then the default heap).
 
 ## Build
 ESP: globbed into every target. PC: every `FUJINET_TARGET`.

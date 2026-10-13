@@ -3,7 +3,6 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <new>
 #include <sys/stat.h>
 #include <errno.h>
 #include <mutex>
@@ -33,7 +32,7 @@ static void _tnfs_tcp_start_replies(tnfsMountInfo *m_info)
     if (m_info->tcp_replies)
         m_info->tcp_replies->reset();
     else
-        m_info->tcp_replies.reset(new (std::nothrow) tnfsReplyAssembler);
+        m_info->tcp_replies = tnfs_new_reply_assembler();
 }
 
 // The reply stream can no longer be trusted; the next send reconnects.

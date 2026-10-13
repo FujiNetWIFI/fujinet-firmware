@@ -42,6 +42,16 @@
 
 class tnfsReplyAssembler;
 
+// Frees what tnfs_new_reply_assembler() made.
+struct tnfsReplyAssemblerDeleter
+{
+    void operator()(tnfsReplyAssembler *replies) const;
+};
+using tnfsReplyAssemblerPtr = std::unique_ptr<tnfsReplyAssembler, tnfsReplyAssemblerDeleter>;
+
+// An empty tnfsReplyAssembler, in PSRAM when there is any; nullptr when out of memory.
+tnfsReplyAssemblerPtr tnfs_new_reply_assembler();
+
 // Some things we need to keep track of for every file we open
 struct tnfsFileHandleInfo
 {
@@ -104,7 +114,7 @@ public:
     uint8_t protocol = TNFS_PROTOCOL_UNKNOWN;
     fnTcpClient tcp_client;
     // Replies read from tcp_client and not yet taken; allocated on connect, freed on drop.
-    std::unique_ptr<tnfsReplyAssembler> tcp_replies;
+    tnfsReplyAssemblerPtr tcp_replies;
 
     // These char[] sizes are abitrary...
     char hostname[64] = { '\0' };
