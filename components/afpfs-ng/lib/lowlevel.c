@@ -323,8 +323,12 @@ try_again:
 
 		/* This is the case where we want to truncate the 
 		   the file and it already exists. */
-		if ((ret=ll_zero_file(volume,fp->forkid,fp->resource)))
+		if ((ret=ll_zero_file(volume,fp->forkid,fp->resource))) {
+			/* The caller frees fp, so it cannot stay open or listed. */
+			afp_closefork(volume,fp->forkid);
+			remove_opened_fork(volume, fp);
 			goto error;
+		}
 	}
 
 	return 0;

@@ -238,12 +238,14 @@ int ml_open(struct afp_volume * volume, const char *path, int flags,
 	memset(fp,0,sizeof(*fp));
 
 	ret=appledouble_open(volume,path,flags,fp);
-	if (ret<0) return ret;
+	if (ret<0) goto error;
 	if (ret==1) goto out;
 	
 
-	if (get_dirid(volume,converted_path,fp->basename,&dirid)<0)
-		return -ENOENT;
+	if (get_dirid(volume,converted_path,fp->basename,&dirid)<0) {
+		ret=-ENOENT;
+		goto error;
+	}
 
 	fp->did=dirid;
 
@@ -257,6 +259,7 @@ out:
 
 error:
 	free(fp);
+	*newfp=NULL;
 	return ret;
 }
 

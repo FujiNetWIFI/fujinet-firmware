@@ -1492,6 +1492,22 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
   set_tests_properties(afp_close_session_tests PROPERTIES TIMEOUT 90)
 endif()
 
+# Opens against a loopback server that refuses the truncate or the directory.
+# POSIX only.
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  add_executable(afp_open_tests
+      AfpOpenTests.cpp
+      AfpOpenHelper.c
+      AfpCloseSessionHelper.c
+  )
+  target_include_directories(afp_open_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+  )
+  target_link_libraries(afp_open_tests PRIVATE afpfs_fn)
+  add_test(NAME afp_open_tests COMMAND afp_open_tests)
+  set_tests_properties(afp_open_tests PROPERTIES TIMEOUT 90)
+endif()
+
 # Why a login failed, as afp_server_full_connect() reports it. POSIX only.
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
   add_executable(afp_login_cause_tests
