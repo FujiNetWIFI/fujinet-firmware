@@ -295,6 +295,25 @@ TEST_CASE("assembler: append never overflows and arguments are checked")
     CHECK(b.buffered() == 0);
 }
 
+TEST_CASE("a full assembler holds a complete or a malformed reply, never a partial one")
+{
+    // So a reader that appends at most space() bytes can never stall on a full buffer.
+    std::mt19937 rng(0x5EED);
+    std::uniform_int_distribution<int> byte(0, 255);
+    std::vector<Bytes> session = sample_session();
+    for (int i = 0; i < 20000; i++)
+    {
+        Bytes b(tnfsReplyAssembler::CAPACITY);
+        for (auto &x : b)
+            x = static_cast<uint8_t>(byte(rng));
+        const Bytes &r = session[i % session.size()];
+        std::copy(r.begin(), r.begin() + std::min(r.size(), b.size()), b.begin());
+        if (i % 3 == 0)
+            b[5] = static_cast<uint8_t>(i); // READ counts and READDIRX entry counts vary
+        REQUIRE(frame(b).status != tnfsFrameStatus::NEED_MORE);
+    }
+}
+
 TEST_CASE("fuzz: framing invariants hold for arbitrary bytes")
 {
     std::mt19937 rng(0x7F5);

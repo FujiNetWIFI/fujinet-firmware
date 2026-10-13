@@ -2,7 +2,9 @@
 #include "tnfslibMountInfo.h"
 
 #include "compat_string.h"
+#include "tnfslib_framing.h"
 
+tnfsMountInfo::tnfsMountInfo() = default;
 
 tnfsMountInfo::tnfsMountInfo(const char *host_name, uint16_t host_port)
 {

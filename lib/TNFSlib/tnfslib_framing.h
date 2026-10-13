@@ -1,10 +1,9 @@
 #ifndef _TNFSLIB_FRAMING_H
 #define _TNFSLIB_FRAMING_H
 
-// TNFS reply framing for byte-stream transports (TCP, and later WSS through a TCP bridge).
-// TNFS has no length field, so where a reply ends is derived from its command, its status
-// and its self-describing payload fields, as laid out in tnfs-protocol.md. Message
-// boundaries of the transport are never trusted.
+// TNFS reply framing for byte-stream transports (TNFS over TCP). TNFS has no length field,
+// so where a reply ends is derived from its command, its status and its self-describing
+// payload fields, as laid out in tnfs-protocol.md. Read boundaries are never trusted.
 //
 // A successful STAT reply is taken to be the fixed 22-byte block that TNFSD sends. The
 // protocol also allows optional uid and gid strings after it. From a server that sends
@@ -35,13 +34,13 @@ constexpr int TNFS_MAX_REPLY_SIZE = TNFS_HEADER_SIZE + TNFS_PAYLOAD_SIZE;
 // beyond `have` bytes and never reports a length above TNFS_MAX_REPLY_SIZE.
 tnfsFrame tnfs_frame_reply(const uint8_t *buf, int have);
 
-// Fixed-capacity reassembly of a reply byte stream: append whatever the transport
-// delivered, then take one complete reply at a time. No heap allocation.
+// Fixed-capacity reassembly of a reply byte stream: append at most space() bytes of what
+// the transport delivered, then take one complete reply at a time. One maximum reply is
+// enough: a full assembler always frames as COMPLETE or MALFORMED, never NEED_MORE.
 class tnfsReplyAssembler
 {
 public:
-    // Two maximum replies, so a coalesced late duplicate can never overflow it.
-    static constexpr int CAPACITY = 2 * TNFS_MAX_REPLY_SIZE;
+    static constexpr int CAPACITY = TNFS_MAX_REPLY_SIZE;
 
     // Copy up to `len` bytes into free space; returns how many were accepted.
     int append(const uint8_t *data, int len);
@@ -50,7 +49,7 @@ public:
     // NEED_MORE: nothing changes. MALFORMED: all buffered bytes are discarded.
     tnfsFrame take(uint8_t (&out)[TNFS_MAX_REPLY_SIZE]);
 
-    // Drop everything, e.g. after a reconnect or a timed-out request.
+    // Drop everything, e.g. when the connection is replaced.
     void reset() { _len = 0; }
 
     int buffered() const { return _len; }

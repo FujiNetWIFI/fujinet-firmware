@@ -2,6 +2,7 @@
 #define _TNFSLIB_MOUNTINFO_H
 
 #include <cstdint>
+#include <memory>
 #include <mutex>
 
 #include "fnDNS.h"
@@ -38,6 +39,8 @@
 #define TNFS_UDP_SIMULATE_RECV_LOSS_PROB 0.1
 #define TNFS_UDP_SIMULATE_SEND_TWICE_PROB 0.05
 #define TNFS_UDP_SIMULATE_RECV_TWICE_PROB 0.05
+
+class tnfsReplyAssembler;
 
 // Some things we need to keep track of for every file we open
 struct tnfsFileHandleInfo
@@ -80,7 +83,7 @@ private:
 public:
     ~tnfsMountInfo();
 
-    tnfsMountInfo(){};
+    tnfsMountInfo();
     tnfsMountInfo(const char *host_name, uint16_t host_port = TNFS_DEFAULT_PORT);
     tnfsMountInfo(in_addr_t host_address, uint16_t host_port = TNFS_DEFAULT_PORT);
 
@@ -100,6 +103,8 @@ public:
 
     uint8_t protocol = TNFS_PROTOCOL_UNKNOWN;
     fnTcpClient tcp_client;
+    // Replies read from tcp_client and not yet taken; allocated on connect, freed on drop.
+    std::unique_ptr<tnfsReplyAssembler> tcp_replies;
 
     // These char[] sizes are abitrary...
     char hostname[64] = { '\0' };
