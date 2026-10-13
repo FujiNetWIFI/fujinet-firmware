@@ -93,9 +93,32 @@ jobs:
       build_date: ${{ steps.version.outputs.build_date }}
 
     steps:
+    - name: '🧰 Checkout'
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        ref: ${{ github.event.inputs.ref != '' && github.event.inputs.ref || github.ref }}
+
+    # - name: Fetch tags
+    #   run: git fetch --prune --unshallow --tags
+
+    # Docs-only changes skip the build; the job still passes, as it is a required check.
+    - name: Check for code changes
+      id: changes
+      shell: bash
+      run: |
+        base="${{ github.event.pull_request.base.sha || github.event.before }}"
+        code=true
+        if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ] \
+           && files=$(git diff --name-only "$base" HEAD) && [ -n "$files" ] \
+           && ! grep -qvE '(\.md$|^docs/)' <<< "$files"; then
+          code=false
+        fi
+        echo "code=$code" >> "$GITHUB_OUTPUT"
+
     # Setup MSYS2 on Windows
     - name: '[Windows] Setup MSYS2'
-      if: ${{ startsWith(matrix.os.target, 'windows') }}
+      if: ${{ steps.changes.outputs.code == 'true' && startsWith(matrix.os.target, 'windows') }}
       uses: msys2/setup-msys2@v2
       with:
         msystem: ${{matrix.os.sys}}
@@ -111,20 +134,20 @@ jobs:
           mbedtls:p
 
     - name: '[macOS] Install MbedTLS'
-      if: ${{ startsWith(matrix.os.target, 'macos') }}
+      if: ${{ steps.changes.outputs.code == 'true' && startsWith(matrix.os.target, 'macos') }}
       run: |
         brew update
         brew install mbedtls@3
         brew link --force --overwrite mbedtls@3
 
     - name: '[Ubuntu] Install MbedTLS'
-      if: ${{ startsWith(matrix.os.target, 'ubuntu') && !endsWith(matrix.os.target, 'armhf') }}
+      if: ${{ steps.changes.outputs.code == 'true' && startsWith(matrix.os.target, 'ubuntu') && !endsWith(matrix.os.target, 'armhf') }}
       run: |
         sudo apt-get update
         sudo apt-get install -y libmbedtls-dev
 
     - name: '[Ubuntu armhf] Install cross toolchain and MbedTLS'
-      if: ${{ endsWith(matrix.os.target, 'armhf') }}
+      if: ${{ steps.changes.outputs.code == 'true' && endsWith(matrix.os.target, 'armhf') }}
       run: |
         sudo dpkg --add-architecture armhf
         sudo apt-get update
@@ -133,20 +156,13 @@ jobs:
           libstdc++6:armhf
 
     - name: About ${{ matrix.os.name }}
+      if: steps.changes.outputs.code == 'true'
       run: |
         echo "Building for ${{ matrix.os.name }} (${{ matrix.os.target }}) on ${{ matrix.os.runner }}"
         uname -a
 
-    - name: '🧰 Checkout'
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        ref: ${{ github.event.inputs.ref != '' && github.event.inputs.ref || github.ref }}
-
-    # - name: Fetch tags
-    #   run: git fetch --prune --unshallow --tags
-
     - name: 'Install Python'
+      if: steps.changes.outputs.code == 'true'
       # if: ${{ !startsWith(matrix.os.target, 'windows') }}
       uses: actions/setup-python@v5
       id: cp310
@@ -154,6 +170,7 @@ jobs:
         python-version: '3.10'
 
     - name: Check Python version (default)
+      if: steps.changes.outputs.code == 'true'
       run: |
         which python
         python --version
@@ -161,23 +178,25 @@ jobs:
         printenv pythonLocation
 
     - name: Check Python version (from setup-python)
+      if: steps.changes.outputs.code == 'true'
       run: |
         echo '${{ steps.cp310.outputs.python-path }}'
         '${{ steps.cp310.outputs.python-path }}' --version
 
     - name: 'Install Python packages'
+      if: steps.changes.outputs.code == 'true'
       run: |
         '${{ steps.cp310.outputs.python-path }}' -m pip install -U Jinja2 pyyaml
 
     - name: '[regular OS] 🚧 Build FujiNet-PC (matrix.fujinet_target)'
-      if: ${{ !startsWith(matrix.os.target, 'windows') }}
+      if: ${{ steps.changes.outputs.code == 'true' && !startsWith(matrix.os.target, 'windows') }}
       run: |
         ./build.sh -y -p ${{ matrix.fujinet_target }} -- ${{ matrix.os.cmake-args }}
 
     # For MSYS tune PATH variable for PYTHON:
     # add 'C:\hostedtoolcache\windows\Python\3.10.11\x64' as '/c/hostedtoolcache/windows/Python/3.10.11/x64'
     - name: '[Windows MSYS2] 🚧 Build FujiNet-PC (matrix.fujinet_target)'
-      if: ${{ startsWith(matrix.os.target, 'windows') }}
+      if: ${{ steps.changes.outputs.code == 'true' && startsWith(matrix.os.target, 'windows') }}
       run: |
         export PATH=$(printenv pythonLocation | sed 's@\\@/@g' | sed 's@^c:/@/c/@i'):$PATH
         printenv PATH
@@ -194,10 +213,12 @@ jobs:
     #   run: cmake --build build --target dist
 
     - name: List dist
+      if: steps.changes.outputs.code == 'true'
       working-directory: build/dist
       run: ls -la
 
     - name: 'Get build version'
+      if: steps.changes.outputs.code == 'true'
       id: version
       run: |
         HEADER_FILE="include/version.h"
@@ -206,12 +227,14 @@ jobs:
         echo "build_date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
     - name: 'Tar dist files'
+      if: steps.changes.outputs.code == 'true'
       working-directory: build
       run: |
         mv dist fujinet-pc-${{ matrix.fujinet_target }}
         tar -cvf fujinet-pc-${{ matrix.fujinet_target }}_${{ steps.version.outputs.fujinet }}_${{ matrix.os.target }}.tar fujinet-pc-${{ matrix.fujinet_target }}
 
     - name: Upload build artifact
+      if: steps.changes.outputs.code == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: fujinet-pc-${{ matrix.fujinet_target }}_${{ steps.version.outputs.fujinet }}_${{ matrix.os.target }}

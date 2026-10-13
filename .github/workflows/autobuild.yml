@@ -55,7 +55,22 @@ jobs:
         submodules: true
         fetch-depth: 0
 
+    # Docs-only changes skip the build; the job still passes, as it is a required check.
+    - name: Check for code changes
+      id: changes
+      shell: bash
+      run: |
+        base="${{ github.event.pull_request.base.sha || github.event.before }}"
+        code=true
+        if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ] \
+           && files=$(git diff --name-only "$base" HEAD) && [ -n "$files" ] \
+           && ! grep -qvE '(\.md$|^docs/)' <<< "$files"; then
+          code=false
+        fi
+        echo "code=$code" >> "$GITHUB_OUTPUT"
+
     - name: Cache pip
+      if: steps.changes.outputs.code == 'true'
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
@@ -64,17 +79,20 @@ jobs:
           ${{ runner.os }}-pip-
 
     - name: Cache PlatformIO
+      if: steps.changes.outputs.code == 'true'
       uses: actions/cache@v4
       with:
         path: ~/.platformio
         key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
 
     - name: Set up Python
+      if: steps.changes.outputs.code == 'true'
       uses: actions/setup-python@v5
       with:
         python-version: '3.12.1'
 
     - name: Install PlatformIO
+      if: steps.changes.outputs.code == 'true'
       run: |
         python -m pip install --upgrade pip
         pip install setuptools
@@ -83,12 +101,15 @@ jobs:
         pip install pyyaml
 
     - name: Show python version
+      if: steps.changes.outputs.code == 'true'
       run: python --version
 
     - name: Show pio system info
+      if: steps.changes.outputs.code == 'true'
       run: pio system info
 
     - name: Show pio location
+      if: steps.changes.outputs.code == 'true'
       run: pip show platformio
 
 
@@ -98,29 +119,35 @@ jobs:
     # pinned pico-sdk. build-essential builds the SDK's host tools (picotool,
     # pioasm). Every other board skips this.
     - name: Install companion-MCU toolchain
-      if: matrix.pico
+      if: ${{ steps.changes.outputs.code == 'true' && matrix.pico }}
       run: |
         sudo apt-get update && sudo apt-get install -y \
           build-essential cmake ninja-build \
           gcc-arm-none-eabi libnewlib-arm-none-eabi
 
     - name: Create PlatformIO INI for Build
+      if: steps.changes.outputs.code == 'true'
       run: cd "$GITHUB_WORKSPACE" && /usr/bin/bash ./build.sh -y -l "$GITHUB_WORKSPACE"/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i "$GITHUB_WORKSPACE"/platformio-generated.ini
 
     - name: Show platformio.ini
+      if: steps.changes.outputs.code == 'true'
       run: cat "$GITHUB_WORKSPACE"/platformio-generated.ini
 
     - name: Get Old Version
+      if: steps.changes.outputs.code == 'true'
       id: version
       run: echo "VERSION=$(grep '#define FN_VERSION_FULL' /home/runner/work/fujinet-firmware/fujinet-firmware/include/version.h | sed 's/^.*"\(.*\)".*$/\1/')" >> $GITHUB_OUTPUT
 
     - name: Create "version.txt" file
+      if: steps.changes.outputs.code == 'true'
       run: echo "${{ steps.version.outputs.VERSION }}.${{ matrix.target-platform }}" > "$GITHUB_WORKSPACE"/version.txt
 
     - name: Build release
+      if: steps.changes.outputs.code == 'true'
       run: cd "$GITHUB_WORKSPACE" && /usr/bin/bash ./build.sh -y -z -l "$GITHUB_WORKSPACE"/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i "$GITHUB_WORKSPACE"/platformio-generated.ini
 
     - name: Upload firmware zip for ${{ matrix.target-platform }}
+      if: steps.changes.outputs.code == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.target-platform }}
