@@ -1488,6 +1488,22 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
   set_tests_properties(afp_login_cause_tests PROPERTIES TIMEOUT 90)
 endif()
 
+# Operations whose parent directory does not exist, against a loopback server
+# on which nothing exists. POSIX only.
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  add_executable(afp_dir_lookup_tests
+      AfpDirLookupTests.cpp
+      AfpDirLookupHelper.c
+      AfpCloseSessionHelper.c
+  )
+  target_include_directories(afp_dir_lookup_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+  )
+  target_link_libraries(afp_dir_lookup_tests PRIVATE afpfs_fn)
+  add_test(NAME afp_dir_lookup_tests COMMAND afp_dir_lookup_tests)
+  set_tests_properties(afp_dir_lookup_tests PROPERTIES TIMEOUT 120)
+endif()
+
 # ------------------------------------------------------------------------------
 # Atari cassette rewind: record durations (lib/media/atari/casTape.h), and the
 # request and the trail of played boundaries (lib/device/sio/cassette*.h). None

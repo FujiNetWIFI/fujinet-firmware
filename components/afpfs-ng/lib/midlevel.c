@@ -285,7 +285,7 @@ int ml_creat(struct afp_volume * volume, const char *path, mode_t mode)
 	if (invalid_filename(volume->server,converted_path)) 
 		return -ENAMETOOLONG;
 
-	get_dirid(volume, converted_path, basename, &dirid);
+	if (get_dirid(volume, converted_path, basename, &dirid)<0) return -ENOENT;
 
 	rc=afp_createfile(volume,kFPSoftCreate, dirid,basename);
 	switch(rc) {
@@ -482,7 +482,7 @@ found with getvolparm or volopen, then to test chmod the first time.
 	if (ret<0) return ret;
 	if (ret==1) return 0;
 
-	get_dirid(vol,converted_path,basename,&dirid );
+	if (get_dirid(vol,converted_path,basename,&dirid)<0) return -ENOENT;
 
 	if ((rc=get_unixprivs(vol,
 		dirid,basename, &fp))) 
@@ -544,7 +544,7 @@ int ml_unlink(struct afp_volume * vol, const char *path)
 	if (ret<0) return ret;
 	if (ret==1) return 0;
 
-	get_dirid(vol, (char * ) converted_path, basename, &dirid);
+	if (get_dirid(vol, (char * ) converted_path, basename, &dirid)<0) return -ENOENT;
 
 	if (is_dir(vol,dirid,basename) ) return -EISDIR;
 
@@ -604,7 +604,7 @@ int ml_mkdir(struct afp_volume * vol, const char * path, mode_t mode)
 	if (ret<0) return ret;
 	if (ret==1) return 0;
 
-	get_dirid(vol,converted_path,basename,&dirid);
+	if (get_dirid(vol,converted_path,basename,&dirid)<0) return -ENOENT;
 
 	rc = afp_createdir(vol,dirid, basename,&result_did);
 
@@ -770,7 +770,7 @@ int ml_readlink(struct afp_volume * vol, const char * path,
 		return -EINVAL;
 	}
 
-	get_dirid(vol, converted_path, basename, &dirid);
+	if (get_dirid(vol, converted_path, basename, &dirid)<0) return -ENOENT;
 
 	/* Open the fork */
 	rc=afp_openfork(vol,0, dirid, 
@@ -875,7 +875,7 @@ int ml_rmdir(struct afp_volume * vol, const char *path)
 	if (ret<0) return ret;
 	if (ret==1) return 0;
 
-	get_dirid(vol, converted_path, basename, &dirid);
+	if (get_dirid(vol, converted_path, basename, &dirid)<0) return -ENOENT;
 
 	if (!is_dir(vol,dirid,basename)) return -ENOTDIR;
 
@@ -947,7 +947,7 @@ int ml_chown(struct afp_volume * vol, const char * path,
 		return -ENOSYS;
 	};
 
-	get_dirid(vol,converted_path,basename,&dirid );
+	if (get_dirid(vol,converted_path,basename,&dirid)<0) return -ENOENT;
 
 	if ((rc=get_unixprivs(vol,
 		dirid,basename, &fp)))
@@ -1056,7 +1056,7 @@ int ml_utime(struct afp_volume * vol, const char * path,
 	if (ret<0) return ret;
 	if (ret==1) return 0;
 
-	get_dirid(vol,converted_path,basename,&dirid );
+	if (get_dirid(vol,converted_path,basename,&dirid)<0) return -ENOENT;
 
 	if (is_dir(vol,dirid,basename)) {
 		rc=afp_setdirparms(vol,
@@ -1120,7 +1120,7 @@ int ml_symlink(struct afp_volume *vol, const char * path1, const char * path2)
 	if (ret<0) return ret;
 	if (ret==1) return 0;
 
-	get_dirid(vol,converted_path2,basename2,&dirid2 );
+	if (get_dirid(vol,converted_path2,basename2,&dirid2)<0) return -ENOENT;
 
 	/* 1. create the file */
 	rc=afp_createfile(vol,kFPHardCreate,dirid2,basename2);
@@ -1266,8 +1266,8 @@ int ml_rename(struct afp_volume * vol,
 	if (volume_is_readonly(vol)) 
 		return -EACCES;
 
-	get_dirid(vol, converted_path_from, basename_from, &dirid_from);
-	get_dirid(vol, converted_path_to, basename_to, &dirid_to);
+	if (get_dirid(vol, converted_path_from, basename_from, &dirid_from)<0) return -ENOENT;
+	if (get_dirid(vol, converted_path_to, basename_to, &dirid_to)<0) return -ENOENT;
 
 	if (is_dir(vol,dirid_to,converted_path_to)) {
 		rc=afp_moveandrename(vol,
