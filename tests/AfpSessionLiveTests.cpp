@@ -250,6 +250,23 @@ TEST_CASE("file: missing files and directories are reported, not invented")
     CHECK(afp_list(t.session, scratch + "/nowhere", entries) == -ENOENT);
 }
 
+TEST_CASE("file: nothing is created, removed or renamed under a missing directory")
+{
+    Scratch t;
+    const std::string gone = scratch + "/nowhere";
+    AfpFile f(t.session);
+    CHECK(f.open(gone + "/new.txt", AfpOpenMode::Write).is_error());
+    CHECK(f.error() == -ENOENT);
+    CHECK(afp_mkdir(t.session, gone + "/sub") == -ENOENT);
+    CHECK(afp_rmdir(t.session, gone + "/sub") == -ENOENT);
+    CHECK(afp_remove(t.session, gone + "/new.txt") == -ENOENT);
+    CHECK(afp_rename(t.session, gone + "/a.txt", gone + "/b.txt") == -ENOENT);
+
+    std::vector<AfpDirEntry> entries;
+    REQUIRE(afp_list(t.session, scratch, entries) == 0);
+    CHECK(entries.empty());
+}
+
 TEST_CASE("directory: list, rename, remove, mkdir and rmdir")
 {
     Scratch t;
