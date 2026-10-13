@@ -114,8 +114,8 @@ fujiError_t NetworkProtocolAFP::open_dir_handle()
     _entries.clear();
     _next_entry = 0;
 
-    // No volume attached: the server's volumes are the listing.
-    if (_session.volume() == nullptr)
+    // Above every volume, the server's volumes are the listing.
+    if (afp_split_path(dir).volume.empty())
     {
         for (const std::string &name : _session.volume_names())
         {
@@ -216,19 +216,23 @@ fujiError_t NetworkProtocolAFP::stat()
 
 off_t NetworkProtocolAFP::seek(off_t position, int whence)
 {
-    // fileSize is bytes remaining; stat() puts the real size back.
-    stat();
+    // Signed, so a position before the start can be seen and held at 0.
+    int64_t size = _file.size();
+    int64_t offset = _file.tell();
 
-    uint64_t offset = _file.tell();
     if (whence == SEEK_SET)
         offset = position;
     else if (whence == SEEK_CUR)
         offset += position;
     else if (whence == SEEK_END)
-        offset = fileSize - position;
+        offset = size - position;
+
+    if (offset < 0)
+        offset = 0;
 
     _file.seek(offset);
-    fileSize -= offset;
+    // fileSize is bytes remaining; past the end there are none.
+    fileSize = offset < size ? size - offset : 0;
     receiveBuffer->clear();
 
     return offset;

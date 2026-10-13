@@ -16,7 +16,7 @@ Logs in to AFP servers, attaches volumes and reads and writes files on them thro
 - Used by `NetworkProtocolAFP` in [lib/network-protocol/](../network-protocol/); the AFP file system is to follow.
 
 ## Build
-ESP: `src/CMakeLists.txt` globs `*.c` and `*.cpp` here into every target. PC: `fujinet_pc.cmake` builds `afpBridge.c` as the `afp_bridge` library; and lists the C++ files among `fujinet`'s sources.
+ESP: `src/CMakeLists.txt` globs `*.c` and `*.cpp` here into every target. PC: `fujinet_pc.cmake` builds `afpBridge.c` as the `afp_bridge` library and lists the C++ files among `fujinet`'s sources.
 
 ## Notes
 - `afpBridge.c` is the only file that may include an afpfs-ng header. On Windows those headers need a compatibility layer that must not reach other code.

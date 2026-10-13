@@ -14,7 +14,7 @@
 
 // The same AFP_TEST_* variables as AfpSessionLiveTests.cpp.  Everything is
 // done inside one directory on the volume, /fujinet-afp-n-<pid>, which the
-// last case removes; nothing else is touched.
+// last case empties and removes; nothing else is touched.
 static std::string env(const char *name)
 {
     const char *v = std::getenv(name);
@@ -125,6 +125,8 @@ TEST_CASE("the server with no volume lists its volumes as directories")
     Unit n;
     CHECK(has_line(n.list("/"), volume + "/"));
     CHECK(has_line(n.list("/*.*"), volume + "/"));
+    // A volume named without a trailing slash is an entry of the server.
+    CHECK(has_line(n.list(vol), volume + "/"));
 }
 
 TEST_CASE("a file cannot be opened where there is no volume")
@@ -198,6 +200,26 @@ TEST_CASE("update seeks and writes in place")
     REQUIRE(n.open(dir + "/grow.txt", ACCESS_MODE::READ) == FUJI_ERROR::NONE);
     CHECK(n.p.seek(6, SEEK_SET) == 6);
     CHECK(n.read_all(256) == "more");
+    n.p.close();
+}
+
+TEST_CASE("seek counts from the end and stays inside the file")
+{
+    Unit n;
+    REQUIRE(n.open(dir + "/grow.txt", ACCESS_MODE::READ) == FUJI_ERROR::NONE);
+    CHECK(n.p.seek(4, SEEK_END) == 6);
+    CHECK(n.read_all(256) == "more");
+
+    CHECK(n.p.seek(-5, SEEK_SET) == 0);
+    CHECK(n.p.available() == 10);
+    CHECK(n.p.seek(3, SEEK_SET) == 3);
+    CHECK(n.p.seek(-9, SEEK_CUR) == 0);
+    CHECK(n.read_all(256) == "shXYt+more");
+
+    CHECK(n.p.seek(100, SEEK_SET) == 100);
+    CHECK(n.p.available() == 0);
+    CHECK(n.p.seek(100, SEEK_END) == 0);
+    CHECK(n.p.available() == 10);
     n.p.close();
 }
 
@@ -279,6 +301,10 @@ TEST_CASE("delete and rmdir leave nothing behind")
 {
     Unit n;
     CHECK(n.p.rmdir(n.parse(dir)) != FUJI_ERROR::NONE);
+
+    // Present only when an earlier case failed part way.
+    n.p.del(n.parse(dir + "/grow.txt"));
+    n.p.del(n.parse(dir + "/A Long File Name.text"));
 
     CHECK(n.p.del(n.parse(dir + "/data.txt")) == FUJI_ERROR::NONE);
     CHECK(n.p.del(n.parse(dir + "/grown.txt")) == FUJI_ERROR::NONE);
