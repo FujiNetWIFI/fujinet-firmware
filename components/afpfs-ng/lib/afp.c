@@ -47,7 +47,8 @@ struct afp_versions      afp_versions[] = {
 
 static int afp_blank_reply(struct afp_server *server, char * buf, unsigned int size, void * ignored);
 
-int (*afp_replies[])(struct afp_server * server,char * buf, unsigned int len, void * other) = {
+/* const, so the table is kept in flash and not in RAM. */
+int (* const afp_replies[])(struct afp_server * server,char * buf, unsigned int len, void * other) = {
 	NULL, afp_byterangelock_reply, afp_blank_reply, NULL,
 	afp_blank_reply, NULL, afp_createdir_reply, afp_blank_reply, /* 0 - 7 */
 	afp_blank_reply, afp_enumerate_reply, afp_blank_reply, afp_blank_reply, 
