@@ -1,6 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest/doctest.h>
 
+#include "afpFile.h"
 #include "afpSession.h"
 
 #include <algorithm>
@@ -8,9 +9,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <vector>
 
 // AFP_TEST_HOST, AFP_TEST_USER, AFP_TEST_PASSWORD and AFP_TEST_VOLUME name a
-// real server.  Nothing is written to it.
+// real server.  The file cases create and remove one directory on that
+// volume, /fujinet-afp-test; nothing else is touched.
 static std::string env(const char *name)
 {
     const char *v = std::getenv(name);
@@ -120,4 +123,149 @@ TEST_CASE("two accounts on one server each get their own login")
     CHECK(a.volume() != b.volume());
     a.close();
     CHECK(b.volume() != nullptr);
+}
+
+// Everything the file cases create lives under this one directory.
+static const std::string scratch = "/fujinet-afp-test";
+
+// Removes the scratch directory and what the cases below put in it.
+static void clear_scratch(AfpSession &s)
+{
+    std::vector<AfpDirEntry> entries;
+    if (afp_list(s, scratch, entries) != 0)
+        return;
+    for (const auto &e : entries)
+        if (!e.is_dir)
+            afp_remove(s, scratch + "/" + e.name);
+    afp_rmdir(s, scratch);
+}
+
+// A session with an empty scratch directory, removed again on the way out
+// even when a case fails.
+struct Scratch
+{
+    AfpSession session;
+    Scratch()
+    {
+        REQUIRE(session.open(host, 0, user, password, volume).is_success());
+        clear_scratch(session);
+        REQUIRE(afp_mkdir(session, scratch) == 0);
+    }
+    ~Scratch() { clear_scratch(session); }
+};
+
+TEST_CASE("file: write, read back in pieces, and stat")
+{
+    Scratch t;
+    const std::string path = scratch + "/data.bin";
+    std::string content;
+    for (int i = 0; i < 1200; i++)
+        content.push_back(static_cast<char>('A' + i % 26));
+
+    {
+        AfpFile f(t.session);
+        REQUIRE(f.open(path, AfpOpenMode::Write).is_success());
+        REQUIRE(f.write(content.data(), content.size()) == 1200);
+        REQUIRE(f.close().is_success());
+    }
+
+    AfpDirEntry e;
+    REQUIRE(afp_stat(t.session, path, e) == 0);
+    CHECK(e.size == 1200);
+    CHECK_FALSE(e.is_dir);
+
+    AfpFile f(t.session);
+    REQUIRE(f.open(path, AfpOpenMode::Read).is_success());
+    CHECK(f.size() == 1200);
+    std::string back;
+    char buf[512];
+    int n;
+    while ((n = f.read(buf, sizeof(buf))) > 0)
+        back.append(buf, static_cast<size_t>(n));
+    CHECK(n == 0);
+    CHECK(back == content);
+}
+
+TEST_CASE("file: write truncates, append continues, update writes in place")
+{
+    Scratch t;
+    const std::string path = scratch + "/modes.txt";
+    auto put = [&](const std::string &data, AfpOpenMode mode) {
+        AfpFile f(t.session);
+        REQUIRE(f.open(path, mode).is_success());
+        REQUIRE(f.write(data.data(), data.size()) == static_cast<int>(data.size()));
+        REQUIRE(f.close().is_success());
+    };
+    auto get = [&]() {
+        AfpFile f(t.session);
+        REQUIRE(f.open(path, AfpOpenMode::Read).is_success());
+        char buf[64];
+        int n = f.read(buf, sizeof(buf));
+        REQUIRE(n >= 0);
+        return std::string(buf, static_cast<size_t>(n));
+    };
+
+    put("a long first version", AfpOpenMode::Write);
+    put("0123456789", AfpOpenMode::Write);
+    CHECK(get() == "0123456789");
+
+    put("abc", AfpOpenMode::Append);
+    CHECK(get() == "0123456789abc");
+
+    {
+        AfpFile f(t.session);
+        REQUIRE(f.open(path, AfpOpenMode::Update).is_success());
+        f.seek(2);
+        REQUIRE(f.write("XY", 2) == 2);
+        REQUIRE(f.close().is_success());
+    }
+    CHECK(get() == "01XY456789abc");
+}
+
+TEST_CASE("file: missing files and directories are reported, not invented")
+{
+    Scratch t;
+    AfpFile f(t.session);
+    CHECK(f.open(scratch + "/nope.txt", AfpOpenMode::Read).is_error());
+    CHECK(f.error() == -ENOENT);
+    CHECK(f.open(scratch + "/nowhere/x.txt", AfpOpenMode::Write).is_error());
+
+    AfpDirEntry e;
+    CHECK(afp_stat(t.session, scratch + "/nope.txt", e) == -ENOENT);
+
+    std::vector<AfpDirEntry> entries;
+    CHECK(afp_list(t.session, scratch + "/nowhere", entries) == -ENOENT);
+}
+
+TEST_CASE("directory: list, rename, remove, mkdir and rmdir")
+{
+    Scratch t;
+    {
+        AfpFile f(t.session);
+        REQUIRE(f.open(scratch + "/one.txt", AfpOpenMode::Write).is_success());
+        REQUIRE(f.write("1", 1) == 1);
+    }
+
+    std::vector<AfpDirEntry> entries;
+    REQUIRE(afp_list(t.session, scratch, entries) == 0);
+    REQUIRE(entries.size() == 1);
+    CHECK(entries[0].name == "one.txt");
+    CHECK(entries[0].size == 1);
+    CHECK_FALSE(entries[0].is_dir);
+
+    CHECK(afp_list(t.session, scratch + "/one.txt", entries) == -ENOTDIR);
+
+    CHECK(afp_rename(t.session, scratch + "/one.txt", scratch + "/two.txt") == 0);
+    REQUIRE(afp_list(t.session, scratch, entries) == 0);
+    REQUIRE(entries.size() == 1);
+    CHECK(entries[0].name == "two.txt");
+
+    CHECK(afp_mkdir(t.session, scratch) == -EEXIST);
+    CHECK(afp_rmdir(t.session, scratch) == -ENOTEMPTY);
+    CHECK(afp_remove(t.session, scratch + "/two.txt") == 0);
+    CHECK(afp_remove(t.session, scratch + "/two.txt") == -ENOENT);
+
+    AfpDirEntry e;
+    REQUIRE(afp_stat(t.session, scratch, e) == 0);
+    CHECK(e.is_dir);
 }

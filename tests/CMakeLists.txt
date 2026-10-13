@@ -1453,6 +1453,7 @@ add_test(NAME afp_file_tests COMMAND afp_file_tests)
 add_executable(afp_session_live_tests
     AfpSessionLiveTests.cpp
     ${CMAKE_SOURCE_DIR}/lib/afp/afpSession.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpFile.cpp
 )
 target_compile_definitions(afp_session_live_tests PRIVATE UNIT_TESTS)
 target_include_directories(afp_session_live_tests PRIVATE
