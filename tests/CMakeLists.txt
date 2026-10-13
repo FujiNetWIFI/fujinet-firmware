@@ -1476,6 +1476,40 @@ target_link_libraries(afp_session_live_tests PRIVATE afp_bridge pthread)
 add_test(NAME afp_session_live_tests COMMAND afp_session_live_tests)
 set_tests_properties(afp_session_live_tests PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
 
+# NetworkProtocolAFP through its public interface, against a real server.
+# Skips unless AFP_TEST_HOST is set. ATARI-only: Protocol.h needs a concrete
+# systemBus, as sio_dstats_tests does. POSIX only.
+if(FUJINET_TARGET STREQUAL "ATARI" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  add_executable(afp_protocol_live_tests
+    AfpProtocolLiveTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/NetworkProtocolAFP.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/FS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/Protocol.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/TCP.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpSession.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpPath.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpStatus.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/punycode.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/U8Char.cpp
+    ${CMAKE_SOURCE_DIR}/lib/tcpip/fnTcpClient.cpp
+    ${CMAKE_SOURCE_DIR}/lib/tcpip/fnTcpServer.cpp
+    ${CMAKE_SOURCE_DIR}/lib/tcpip/fnDNS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_gettimeofday.c
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_inet.c
+    )
+  target_include_directories(afp_protocol_live_tests PRIVATE
+    $<TARGET_PROPERTY:sio_network_stubs,INTERFACE_INCLUDE_DIRECTORIES>)
+  target_compile_definitions(afp_protocol_live_tests PRIVATE
+    $<TARGET_PROPERTY:sio_network_stubs,INTERFACE_COMPILE_DEFINITIONS>)
+  target_link_libraries(afp_protocol_live_tests PRIVATE afp_bridge pthread)
+  add_test(NAME afp_protocol_live_tests COMMAND afp_protocol_live_tests)
+  set_tests_properties(afp_protocol_live_tests PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
+endif()
+
 # The server list itself, over loopback sockets. POSIX only.
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
   add_executable(afp_server_list_tests
