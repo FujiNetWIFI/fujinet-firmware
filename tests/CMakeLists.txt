@@ -1416,6 +1416,18 @@ target_include_directories(afp_path_tests PRIVATE
 )
 add_test(NAME afp_path_tests COMMAND afp_path_tests)
 
+# lib/afp errno-to-status mapping. afpStatus.cpp needs only the status codes.
+add_executable(afp_status_tests
+    AfpStatusTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpStatus.cpp
+)
+target_include_directories(afp_status_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/afp/
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/   # status_error_codes.h
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+add_test(NAME afp_status_tests COMMAND afp_status_tests)
+
 # AfpSession's use counting, against a fake bridge defined in the test.
 # UNIT_TESTS keeps debug.h from pulling in utils.h, which is not linked here.
 add_executable(afp_session_tests

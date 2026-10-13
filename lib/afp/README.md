@@ -9,6 +9,7 @@ Logs in to AFP servers, attaches volumes and reads and writes files on them thro
 | `afpSession.h`, `afpSession.cpp` | `AfpSession`: one holder of one volume; `open`, `close`, `volume`, `volume_names`, `error` |
 | `afpFile.h`, `afpFile.cpp` | `AfpFile`: one open file on a session's volume with its own position; `afp_stat`, `afp_list`, `afp_remove`, `afp_rename`, `afp_mkdir`, `afp_rmdir`; `AfpOpenMode`, `AfpDirEntry` |
 | `afpPath.h`, `afpPath.cpp` | `afp_split_path`: a URL path into volume name and volume-relative path |
+| `afpStatus.h`, `afpStatus.cpp` | `afp_errno_to_status`: a negative errno as the `NDEV_STATUS` an `N:` device reports |
 
 ## How it fits
 - Uses the afpfs-ng library in [components/afpfs-ng/](../../components/afpfs-ng/).
