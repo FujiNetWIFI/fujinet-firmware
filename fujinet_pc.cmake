@@ -310,6 +310,11 @@ set(SOURCES src/main.cpp
     lib/network-protocol/mgWebSocketClient.h lib/network-protocol/mgWebSocketClient.cpp
     lib/network-protocol/SMB.h lib/network-protocol/SMB.cpp
     lib/network-protocol/NFS.h lib/network-protocol/NFS.cpp
+    lib/network-protocol/NetworkProtocolAFP.h lib/network-protocol/NetworkProtocolAFP.cpp
+    lib/afp/afpSession.h lib/afp/afpSession.cpp
+    lib/afp/afpFile.h lib/afp/afpFile.cpp
+    lib/afp/afpPath.h lib/afp/afpPath.cpp
+    lib/afp/afpStatus.h lib/afp/afpStatus.cpp
     lib/network-protocol/S3.h lib/network-protocol/S3.cpp
     lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp
     lib/network-protocol/SFTP.h lib/network-protocol/SFTP.cpp
@@ -906,7 +911,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         -include ${CMAKE_SOURCE_DIR}/components/afpfs-ng/win32/win32_compat.h)
 endif()
 
-target_link_libraries(fujinet pthread expat cjson cjson_utils smb2 ssh nfs gumbo_fn)
+target_link_libraries(fujinet pthread expat cjson cjson_utils smb2 ssh nfs gumbo_fn afp_bridge)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     target_link_libraries(fujinet ws2_32 bcrypt)

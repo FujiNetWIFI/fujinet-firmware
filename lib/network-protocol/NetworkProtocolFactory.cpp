@@ -23,6 +23,7 @@
 #include "SSHCopyId.h"
 #include "SMB.h"
 #include "NFS.h"
+#include "NetworkProtocolAFP.h"
 #include "S3.h"
 #include "SD.h"
 #include "string_utils.h"
@@ -110,6 +111,9 @@ std::unique_ptr<NetworkProtocol> NetworkProtocolFactory::createProtocol(std::str
         break;
     case "NFS"_sh:
         protocol = std::make_unique<NetworkProtocolNFS>(receiveBuffer, transmitBuffer, specialBuffer);
+        break;
+    case "AFP"_sh:
+        protocol = std::make_unique<NetworkProtocolAFP>(receiveBuffer, transmitBuffer, specialBuffer);
         break;
     case "S3"_sh:
         protocol = std::make_unique<NetworkProtocolS3>(receiveBuffer, transmitBuffer, specialBuffer);
