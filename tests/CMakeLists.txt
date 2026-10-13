@@ -1424,12 +1424,29 @@ add_executable(afp_session_tests
 )
 target_compile_definitions(afp_session_tests PRIVATE UNIT_TESTS)
 target_include_directories(afp_session_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/lib/afp/
     ${CMAKE_SOURCE_DIR}/include/
     ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
 )
 target_link_libraries(afp_session_tests PRIVATE pthread)
 add_test(NAME afp_session_tests COMMAND afp_session_tests)
+
+# AfpFile and the directory functions, against the same fake bridge.
+add_executable(afp_file_tests
+    AfpFileTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpSession.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpFile.cpp
+)
+target_compile_definitions(afp_file_tests PRIVATE UNIT_TESTS)
+target_include_directories(afp_file_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/lib/afp/
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+target_link_libraries(afp_file_tests PRIVATE pthread)
+add_test(NAME afp_file_tests COMMAND afp_file_tests)
 
 # AfpSession over the real bridge and a real server. Skips unless AFP_TEST_HOST
 # is set in the environment.

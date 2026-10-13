@@ -1,128 +1,12 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include "afpBridge.h"
+#include "AfpFakeBridge.h"
 #include "afpSession.h"
 
 #include <cerrno>
-#include <map>
 #include <string>
 #include <vector>
-
-// A stand-in for afpBridge.c that behaves like the library: one server per
-// user, and a server is logged out when its last volume is unmounted.
-struct afp_volume
-{
-    std::string name;
-    afp_server *server = nullptr;
-    bool attached = false;
-};
-
-struct afp_server
-{
-    std::string user;
-    std::vector<afp_volume> volumes;
-    bool logged_in = false;
-};
-
-namespace
-{
-struct Fake
-{
-    std::map<std::string, afp_server> servers;
-    afp_bridge_gone_fn gone = nullptr;
-    int starts = 0, logins = 0, attaches = 0, detaches = 0, releases = 0, logouts = 0;
-    bool fail_start = false, fail_attach = false;
-    int login_error = 0;
-
-    void reset()
-    {
-        servers.clear();
-        starts = logins = attaches = detaches = releases = logouts = 0;
-        fail_start = fail_attach = false;
-        login_error = 0;
-    }
-} fake;
-
-bool anything_attached(const afp_server &s)
-{
-    for (const auto &v : s.volumes)
-        if (v.attached) return true;
-    return false;
-}
-} // namespace
-
-extern "C" {
-
-int afp_bridge_start(afp_bridge_log_fn, afp_bridge_gone_fn gone)
-{
-    fake.starts++;
-    fake.gone = gone;
-    return fake.fail_start ? -1 : 0;
-}
-
-afp_server *afp_bridge_login(const char *, int, const char *user, const char *, int *error)
-{
-    fake.logins++;
-    if (fake.login_error)
-    {
-        *error = fake.login_error;
-        return nullptr;
-    }
-    afp_server &s = fake.servers[user];
-    if (s.volumes.empty())
-    {
-        s.user = user;
-        s.volumes.resize(2);
-        s.volumes[0].name = "Alpha";
-        s.volumes[1].name = "Beta";
-        for (auto &v : s.volumes) v.server = &s;
-    }
-    s.logged_in = true;
-    return &s;
-}
-
-int afp_bridge_volume_count(afp_server *server) { return static_cast<int>(server->volumes.size()); }
-const char *afp_bridge_volume_name(afp_server *server, int index) { return server->volumes[index].name.c_str(); }
-
-afp_volume *afp_bridge_find_volume(afp_server *server, const char *name)
-{
-    for (auto &v : server->volumes)
-        if (v.name == name) return &v;
-    return nullptr;
-}
-
-int afp_bridge_attach(afp_volume *volume)
-{
-    fake.attaches++;
-    if (fake.fail_attach) return -1;
-    volume->attached = true;
-    return 0;
-}
-
-void afp_bridge_detach(afp_volume *volume)
-{
-    fake.detaches++;
-    volume->attached = false;
-    if (fake.gone) fake.gone(volume);
-    if (!anything_attached(*volume->server))
-    {
-        volume->server->logged_in = false;
-        fake.logouts++;
-    }
-}
-
-void afp_bridge_release(afp_server *server)
-{
-    fake.releases++;
-    if (!anything_attached(*server))
-    {
-        server->logged_in = false;
-        fake.logouts++;
-    }
-}
-
-} // extern "C"
 
 static bool opens(AfpSession &s, const char *user, const char *volume)
 {

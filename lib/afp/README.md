@@ -5,8 +5,9 @@ Logs in to AFP servers and attaches volumes through afpfs-ng, sharing each login
 ## Layout
 | File | Defines |
 |---|---|
-| `afpBridge.h`, `afpBridge.c` | the C face of afpfs-ng: start the library, log in, find and attach a volume, detach, release; `afp_server` and `afp_volume` stay opaque |
+| `afpBridge.h`, `afpBridge.c` | the C face of afpfs-ng: start the library, log in, find and attach a volume, detach, release; then stat, open, read, write, close, list, remove, rename, mkdir and rmdir on a volume; `afp_server`, `afp_volume` and `afp_file_info` stay opaque |
 | `afpSession.h`, `afpSession.cpp` | `AfpSession`: one holder of one volume; `open`, `close`, `volume`, `volume_names`, `error` |
+| `afpFile.h`, `afpFile.cpp` | `AfpFile`: one open file on a session's volume with its own position; `afp_stat`, `afp_list`, `afp_remove`, `afp_rename`, `afp_mkdir`, `afp_rmdir`; `AfpOpenMode`, `AfpDirEntry` |
 | `afpPath.h`, `afpPath.cpp` | `afp_split_path`: a URL path into volume name and volume-relative path |
 
 ## How it fits
