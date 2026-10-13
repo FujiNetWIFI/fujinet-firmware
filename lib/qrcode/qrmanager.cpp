@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "qrcode.h"
+#include "../../include/debug.h"
 
 std::vector<uint8_t> QRManager::encode(const void* input, uint16_t length, uint8_t version, qr_ecc_t ecc)
 {
@@ -53,8 +54,7 @@ std::vector<uint8_t> QRManager::encode(const void* input, uint16_t length, uint8
         return code;
     }
 
-    auto encoded = to_ansi();
-    printf("%s\n", encoded.data());
+    Debug_printf("%s\n", to_ansi().data());
 
     return render();
 }
