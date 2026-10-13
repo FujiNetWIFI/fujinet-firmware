@@ -47,7 +47,7 @@ void adamNetwork::adamnet_control_receive()
 {
     ByteBuffer buf;
     NDeviceStatus nstatus = fujicore_status();
-    size_t avail = nstatus.avail;
+    size_t avail = std::min<size_t>(nstatus.avail, MAX_ADAM_PACKET_LEN);
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
