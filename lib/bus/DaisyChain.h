@@ -84,10 +84,9 @@ public:
         if (len != devices.size())
             return;
 
-        amount %= len;
-
-        if (amount < 0)
-            amount += len;
+        // Keep the modulo signed: with len a size_t, -1 % 3 is 0, not 2.
+        int n = len;
+        amount = ((amount % n) + n) % n;
 
         std::vector<virtualDevice *> rotated(len);
         for (idx = 0; idx < len; idx++)

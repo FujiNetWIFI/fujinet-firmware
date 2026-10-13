@@ -18,6 +18,23 @@ target_link_libraries(fujibuspacket_tests PRIVATE
 add_test(NAME fujibuspacket_tests COMMAND fujibuspacket_tests)
 
 # ------------------------------------------------------------------------------
+# lib/bus/DaisyChain: device-ID rotation behind the disk swap. Pure code; the
+# test supplies its own empty virtualDevice.
+# ------------------------------------------------------------------------------
+add_executable(daisychain_tests
+    DaisyChainTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/DaisyChain.cpp
+)
+
+target_include_directories(daisychain_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/bus/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+
+add_test(NAME daisychain_tests COMMAND daisychain_tests)
+
+# ------------------------------------------------------------------------------
 # UTF-8 / HTML-entity folding to ASCII. fn_sanitize is deliberately free of any
 # parser or protocol dependency, so the entity tables and the transliteration
 # edge cases are pinned here rather than on hardware.
