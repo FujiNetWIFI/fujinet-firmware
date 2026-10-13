@@ -19,8 +19,6 @@ constexpr int MOUNT_ERROR_DATA = 2; // failed MOUNT still carries the server ver
 constexpr int READ_PREFIX = 2;      // byte count before the data
 constexpr int READDIRX_PREFIX = 4;  // entry count, dir status, dir position (2)
 constexpr int READDIRX_FIXED = 13;  // flags (1), size (4), mtime (4), ctime (4), then name
-constexpr int DATA_UNKNOWN = -1;    // not a command this client sends
-constexpr int DATA_VARIABLE = -2;   // length comes from the payload itself
 
 tnfsFrame need_more() { return {tnfsFrameStatus::NEED_MORE, 0}; }
 
@@ -34,49 +32,6 @@ tnfsFrame expect(int length, int have)
     if (have < length)
         return need_more();
     return {tnfsFrameStatus::COMPLETE, length};
-}
-
-// Data bytes that follow a successful status for each command FujiNet sends.
-int success_data(uint8_t command)
-{
-    switch (command)
-    {
-    case TNFS_CMD_UNMOUNT:
-    case TNFS_CMD_CLOSEDIR:
-    case TNFS_CMD_MKDIR:
-    case TNFS_CMD_RMDIR:
-    case TNFS_CMD_SEEKDIR:
-    case TNFS_CMD_CLOSE:
-    case TNFS_CMD_UNLINK:
-    case TNFS_CMD_CHMOD:
-    case TNFS_CMD_RENAME:
-        return 0;
-    case TNFS_CMD_OPENDIR:
-    case TNFS_CMD_OPEN:
-        return 1; // handle
-    case TNFS_CMD_WRITE:
-        return 2; // bytes written
-    case TNFS_CMD_OPENDIRX:
-        return 3; // handle (1), entry count (2)
-    case TNFS_CMD_MOUNT:
-        return 4;          // version (2), minimum retry time (2)
-    case TNFS_CMD_LSEEK:   // resulting position, protocol > 1.0 (FujiNet requires 1.2)
-    case TNFS_CMD_TELLDIR: // position
-    case TNFS_CMD_SIZE:    // kilobytes
-    case TNFS_CMD_FREE:    // kilobytes
-        return 4;
-    case TNFS_CMD_SIZE_BYTES:
-    case TNFS_CMD_FREE_BYTES:
-        return 8;
-    case TNFS_CMD_STAT:
-        return 22; // fixed stat block; TNFSD sends no optional uid/gid strings
-    case TNFS_CMD_READ:
-    case TNFS_CMD_READDIR:
-    case TNFS_CMD_READDIRX:
-        return DATA_VARIABLE;
-    default:
-        return DATA_UNKNOWN;
-    }
 }
 
 bool is_known_status(uint8_t status)
@@ -138,6 +93,67 @@ tnfsFrame frame_readdirx(const uint8_t *buf, int have)
     }
     return {tnfsFrameStatus::COMPLETE, offset};
 }
+
+// The successful reply to each command FujiNet sends: `data` bytes after the status, or,
+// when the length is in the payload, where `frame` finds its end.
+struct tnfsReplyShape
+{
+    uint8_t command;
+    int data;                                         // bytes after the status byte
+    tnfsFrame (*frame)(const uint8_t *buf, int have); // nullptr: fixed length
+};
+
+constexpr tnfsReplyShape REPLY_SHAPES[] = {
+    {TNFS_CMD_MOUNT, 4, nullptr},    // version (2), minimum retry time (2)
+    {TNFS_CMD_UNMOUNT, 0, nullptr},
+    {TNFS_CMD_OPENDIR, 1, nullptr},  // handle
+    {TNFS_CMD_READDIR, 0, frame_readdir},
+    {TNFS_CMD_CLOSEDIR, 0, nullptr},
+    {TNFS_CMD_MKDIR, 0, nullptr},
+    {TNFS_CMD_RMDIR, 0, nullptr},
+    {TNFS_CMD_TELLDIR, 4, nullptr},  // position
+    {TNFS_CMD_SEEKDIR, 0, nullptr},
+    {TNFS_CMD_OPENDIRX, 3, nullptr}, // handle (1), entry count (2)
+    {TNFS_CMD_READDIRX, 0, frame_readdirx},
+    {TNFS_CMD_READ, 0, frame_read},
+    {TNFS_CMD_WRITE, 2, nullptr},    // bytes written
+    {TNFS_CMD_CLOSE, 0, nullptr},
+    {TNFS_CMD_STAT, 22, nullptr},    // fixed stat block, no uid/gid strings (see the header)
+    {TNFS_CMD_LSEEK, 4, nullptr},    // resulting position; protocol > 1.0 (FujiNet needs 1.2)
+    {TNFS_CMD_UNLINK, 0, nullptr},
+    {TNFS_CMD_CHMOD, 0, nullptr},
+    {TNFS_CMD_RENAME, 0, nullptr},
+    {TNFS_CMD_OPEN, 1, nullptr},     // handle
+    {TNFS_CMD_SIZE, 4, nullptr},     // kilobytes
+    {TNFS_CMD_FREE, 4, nullptr},     // kilobytes
+    {TNFS_CMD_SIZE_BYTES, 8, nullptr},
+    {TNFS_CMD_FREE_BYTES, 8, nullptr},
+};
+
+constexpr bool one_row_per_command()
+{
+    for (const auto &a : REPLY_SHAPES)
+    {
+        int rows = 0;
+        for (const auto &b : REPLY_SHAPES)
+            rows += a.command == b.command;
+        if (rows != 1)
+            return false;
+    }
+    return true;
+}
+static_assert(one_row_per_command(), "REPLY_SHAPES lists a command twice");
+
+// The row for `command`, or nullptr for a command this client never sends.
+const tnfsReplyShape *reply_shape(uint8_t command)
+{
+    for (const auto &row : REPLY_SHAPES)
+    {
+        if (row.command == command)
+            return &row;
+    }
+    return nullptr;
+}
 } // namespace
 
 tnfsFrame tnfs_frame_reply(const uint8_t *buf, int have)
@@ -147,8 +163,8 @@ tnfsFrame tnfs_frame_reply(const uint8_t *buf, int have)
 
     uint8_t command = buf[OFFSET_COMMAND];
     uint8_t status = buf[OFFSET_STATUS];
-    int data = success_data(command);
-    if (data == DATA_UNKNOWN || !is_known_status(status))
+    const tnfsReplyShape *shape = reply_shape(command);
+    if (shape == nullptr || !is_known_status(status))
         return malformed();
 
     if (status == TNFS_RESULT_TRY_AGAIN)
@@ -159,17 +175,9 @@ tnfsFrame tnfs_frame_reply(const uint8_t *buf, int have)
         return expect(REPLY_PREFIX + error_data, have);
     }
 
-    switch (command)
-    {
-    case TNFS_CMD_READ:
-        return frame_read(buf, have);
-    case TNFS_CMD_READDIR:
-        return frame_readdir(buf, have);
-    case TNFS_CMD_READDIRX:
-        return frame_readdirx(buf, have);
-    default:
-        return expect(REPLY_PREFIX + data, have);
-    }
+    if (shape->frame != nullptr)
+        return shape->frame(buf, have);
+    return expect(REPLY_PREFIX + shape->data, have);
 }
 
 int tnfsReplyAssembler::append(const uint8_t *data, int len)

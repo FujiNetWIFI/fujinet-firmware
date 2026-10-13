@@ -1,6 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <random>
 #include <string>
 #include <vector>
@@ -213,6 +214,26 @@ TEST_CASE("unknown commands and status codes are malformed")
     CHECK(frame(reply(TNFS_CMD_SIZE + 0x40, 0x00)).status == tnfsFrameStatus::MALFORMED);
     CHECK(frame(reply(TNFS_CMD_CLOSE, 0x40)).status == tnfsFrameStatus::MALFORMED);
     CHECK(frame(reply(TNFS_CMD_CLOSE, 0xFE)).status == tnfsFrameStatus::MALFORMED);
+}
+
+TEST_CASE("exactly the 24 TNFS commands frame; every other command byte is malformed")
+{
+    const std::vector<uint8_t> known = {
+        TNFS_CMD_MOUNT,    TNFS_CMD_UNMOUNT,  TNFS_CMD_OPENDIR,    TNFS_CMD_READDIR,
+        TNFS_CMD_CLOSEDIR, TNFS_CMD_MKDIR,    TNFS_CMD_RMDIR,      TNFS_CMD_TELLDIR,
+        TNFS_CMD_SEEKDIR,  TNFS_CMD_OPENDIRX, TNFS_CMD_READDIRX,   TNFS_CMD_READ,
+        TNFS_CMD_WRITE,    TNFS_CMD_CLOSE,    TNFS_CMD_STAT,       TNFS_CMD_LSEEK,
+        TNFS_CMD_UNLINK,   TNFS_CMD_CHMOD,    TNFS_CMD_RENAME,     TNFS_CMD_OPEN,
+        TNFS_CMD_SIZE,     TNFS_CMD_FREE,     TNFS_CMD_SIZE_BYTES, TNFS_CMD_FREE_BYTES};
+    for (int command = 0; command < 256; command++)
+    {
+        CAPTURE(command);
+        // An error reply with room for MOUNT's version bytes.
+        Bytes r = reply(static_cast<uint8_t>(command), TNFS_RESULT_FILE_NOT_FOUND, zeros(2));
+        bool is_known = std::find(known.begin(), known.end(), command) != known.end();
+        CHECK((frame(r).status == tnfsFrameStatus::COMPLETE) == is_known);
+        CHECK((frame(r).status == tnfsFrameStatus::MALFORMED) == !is_known);
+    }
 }
 
 TEST_CASE("fragmented stream: every chunk size yields the same replies")
