@@ -83,7 +83,6 @@ struct afp_server * afp_bridge_login(const char * host, int port,
 	const char * user, const char * password, int * error)
 {
 	struct afp_connection_request req;
-	struct addrinfo * resolved=NULL;
 	struct afp_server * server;
 
 	memset(&req,0,sizeof(req));
@@ -101,19 +100,10 @@ struct afp_server * afp_bridge_login(const char * host, int port,
 	strcpy(req.url.username,user);
 	strcpy(req.url.password,password);
 
-	/* The library reports every failure the same way, so find out here
-	 * whether the name resolves at all. */
-	if (getaddrinfo(host,NULL,NULL,&resolved)!=0) {
-		*error=-EHOSTUNREACH;
-		return NULL;
-	}
-	freeaddrinfo(resolved);
-
 	server=afp_server_full_connect(NULL,&req);
 	if (server==NULL) {
-		/* The library does not say why: a refused login and a server
-		 * that never answers look the same from here. */
-		*error=-EACCES;
+		/* The library leaves the cause in errno. */
+		*error=errno ? -errno : -EACCES;
 		return NULL;
 	}
 

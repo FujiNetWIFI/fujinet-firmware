@@ -21,6 +21,6 @@ ESP: `src/CMakeLists.txt` globs `*.c` and `*.cpp` here into every target. PC: `f
 - `afpBridge.c` is the only file that may include an afpfs-ng header. On Windows those headers need a compatibility layer that must not reach other code.
 - afpfs-ng keeps one login per server and user and logs a server out with its last volume. `AfpSession` counts the holders of each volume so that happens only when the last one closes.
 - `AfpSession::volume()` returns `nullptr` once the library has unmounted the volume. That does not make a server ending the session safe: afpfs-ng frees the server from its own event-loop thread while waiting for that thread, and hangs.
-- A login failure is reported as access denied unless the name did not resolve; afpfs-ng does not tell a refused login from a server that never answers.
+- A failed login reports its cause: the name did not resolve, the connection failed, or the server refused the login.
 - An existing login is reused only when the password matches the one it was made with.
 - `AfpSession::open` and `close` hold one process-wide lock for their whole duration, including the login.

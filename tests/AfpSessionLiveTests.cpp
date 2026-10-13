@@ -11,6 +11,13 @@
 #include <string>
 #include <vector>
 
+#ifndef _WIN32
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#endif
+
 // AFP_TEST_HOST, AFP_TEST_USER, AFP_TEST_PASSWORD and AFP_TEST_VOLUME name a
 // real server.  The file cases create and remove one directory on that
 // volume, /fujinet-afp-test; nothing else is touched.
@@ -269,3 +276,22 @@ TEST_CASE("directory: list, rename, remove, mkdir and rmdir")
     REQUIRE(afp_stat(t.session, scratch, e) == 0);
     CHECK(e.is_dir);
 }
+
+#ifndef _WIN32
+TEST_CASE("a port nothing listens on is reported as a refused connection")
+{
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    REQUIRE(fd >= 0);
+    sockaddr_in sa{};
+    sa.sin_family = AF_INET;
+    sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    REQUIRE(bind(fd, reinterpret_cast<sockaddr *>(&sa), sizeof(sa)) == 0);
+    socklen_t len = sizeof(sa);
+    REQUIRE(getsockname(fd, reinterpret_cast<sockaddr *>(&sa), &len) == 0);
+    close(fd);
+
+    AfpSession s;
+    CHECK(s.open("127.0.0.1", ntohs(sa.sin_port), user, password, volume).is_error());
+    CHECK(s.error() == -ECONNREFUSED);
+}
+#endif
