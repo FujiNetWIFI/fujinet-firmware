@@ -1522,6 +1522,22 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
   set_tests_properties(afp_dir_lookup_tests PROPERTIES TIMEOUT 120)
 endif()
 
+# Writes against a loopback server that accepts, refuses or half-accepts them.
+# POSIX only.
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  add_executable(afp_write_tests
+      AfpWriteTests.cpp
+      AfpWriteHelper.c
+      AfpCloseSessionHelper.c
+  )
+  target_include_directories(afp_write_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+  )
+  target_link_libraries(afp_write_tests PRIVATE afpfs_fn)
+  add_test(NAME afp_write_tests COMMAND afp_write_tests)
+  set_tests_properties(afp_write_tests PROPERTIES TIMEOUT 120)
+endif()
+
 # ------------------------------------------------------------------------------
 # Atari cassette rewind: record durations (lib/media/atari/casTape.h), and the
 # request and the trail of played boundaries (lib/device/sio/cassette*.h). None

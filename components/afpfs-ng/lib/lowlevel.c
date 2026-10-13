@@ -662,8 +662,7 @@ int ll_write(struct afp_volume * volume,
 	/* Get a lock */
 	if (ll_handle_locking(volume, fp->forkid,offset,size)) {
 		/* There was an irrecoverable error when locking */
-		ret=EBUSY;
-		goto error;
+		return -EBUSY;
 	}
 
 	ret=0;
@@ -680,9 +679,9 @@ int ll_write(struct afp_volume * volume,
 			ret=afp_writeext(volume, fp->forkid,
 				offset+o,sizetowrite,
 				(char *) data+o,&ignored);
-		ret=0;
-		*totalwritten+=sizetowrite;
 		switch(ret) {
+		case kFPNoErr:
+			break;
 		case kFPAccessDenied:
 			err=EACCES;
 			goto error;
@@ -694,17 +693,21 @@ int ll_write(struct afp_volume * volume,
 		case kFPParamErr:
 			err=EINVAL;
 			goto error;
+		default:
+			err=EIO;
+			goto error;
 		}
+		*totalwritten+=sizetowrite;
 		o+=sizetowrite;
 	}
-	if (ll_handle_unlocking(volume, fp->forkid,offset,size)) {
-		/* Somehow, we couldn't unlock the range. */
-		ret=EIO;
-		goto error;
-	}
+	/* The data is written whether or not the range unlocks. */
+	ll_handle_unlocking(volume, fp->forkid,offset,size);
 	return 0;
 
 error:
+	ll_handle_unlocking(volume, fp->forkid,offset,size);
+	/* A short count now; the caller's next write meets the error. */
+	if (*totalwritten>0) return 0;
 	return -err;
 
 
