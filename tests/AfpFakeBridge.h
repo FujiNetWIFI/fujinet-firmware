@@ -55,6 +55,8 @@ struct Fake
     int opens = 0, closes = 0;
     bool fail_start = false, fail_attach = false;
     bool dirs_open_as_files = false; // some servers let a directory be opened
+    int stat_error = 0;              // make every stat fail with this
+    size_t max_read = 0;             // cap one read, as a server quantum does
     int login_error = 0;
 
     void reset()
@@ -64,6 +66,8 @@ struct Fake
         opens = closes = 0;
         fail_start = fail_attach = false;
         dirs_open_as_files = false;
+        stat_error = 0;
+        max_read = 0;
         login_error = 0;
     }
 } fake;
@@ -166,6 +170,7 @@ void afp_bridge_release(afp_server *server)
 
 int afp_bridge_stat(afp_volume *volume, const char *path, int *dir, unsigned long long *size)
 {
+    if (fake.stat_error) return fake.stat_error;
     if (std::string(path) == "/")
     {
         *dir = 1;
@@ -215,6 +220,7 @@ int afp_bridge_read(afp_volume *volume, const char *path, afp_file_info *, void 
     const std::string &data = volume->nodes[path].data;
     if (offset >= data.size()) return 0;
     size_t n = std::min<size_t>(len, data.size() - offset);
+    if (fake.max_read) n = std::min(n, fake.max_read);
     std::memcpy(buf, data.data() + offset, n);
     return static_cast<int>(n);
 }

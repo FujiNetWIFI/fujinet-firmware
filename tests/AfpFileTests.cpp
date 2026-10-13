@@ -145,16 +145,59 @@ TEST_CASE("a directory cannot be opened as a file")
     CHECK(f.error() == -EISDIR);
 }
 
-TEST_CASE("a directory is refused even by a server that would open it")
+TEST_CASE("a directory is refused in every mode, even by a server that would open it")
 {
     Mounted m;
     REQUIRE(afp_mkdir(m.session, "/docs") == 0);
     fake.dirs_open_as_files = true;
+    for (AfpOpenMode mode : {AfpOpenMode::Read, AfpOpenMode::Write, AfpOpenMode::Append, AfpOpenMode::Update})
+    {
+        CAPTURE(static_cast<int>(mode));
+        AfpFile f(m.session);
+        CHECK(f.open("/docs", mode).is_error());
+        CHECK(f.error() == -EISDIR);
+        CHECK_FALSE(f.is_open());
+        CHECK(fake.closes == fake.opens);
+    }
+}
+
+TEST_CASE("an append whose size cannot be read fails instead of starting at the beginning")
+{
+    Mounted m;
+    write_whole(m.session, "/log.txt", "keep this");
+    fake.stat_error = -EIO;
     AfpFile f(m.session);
-    CHECK(f.open("/docs", AfpOpenMode::Read).is_error());
-    CHECK(f.error() == -EISDIR);
+    CHECK(f.open("/log.txt", AfpOpenMode::Append).is_error());
+    CHECK(f.error() == -EIO);
     CHECK_FALSE(f.is_open());
     CHECK(fake.closes == fake.opens);
+    fake.stat_error = 0;
+    CHECK(read_whole(m.session, "/log.txt") == "keep this");
+}
+
+TEST_CASE("a short read is not the end of the file")
+{
+    Mounted m;
+    write_whole(m.session, "/note.txt", "0123456789");
+    fake.max_read = 3;
+    AfpFile f(m.session);
+    REQUIRE(f.open("/note.txt", AfpOpenMode::Read).is_success());
+    char buf[16];
+    CHECK(f.read(buf, sizeof(buf)) == 3);
+    CHECK(f.tell() == 3);
+    CHECK(read_whole(m.session, "/note.txt") == "0123456789");
+}
+
+TEST_CASE("zero-length reads and writes do nothing")
+{
+    Mounted m;
+    AfpFile f(m.session);
+    REQUIRE(f.open("/note.txt", AfpOpenMode::Write).is_success());
+    char c = 0;
+    CHECK(f.write(&c, 0) == 0);
+    CHECK(f.read(&c, 0) == 0);
+    CHECK(f.tell() == 0);
+    CHECK(f.size() == 0);
 }
 
 TEST_CASE("a file cannot be created in a directory that does not exist")
@@ -228,6 +271,24 @@ TEST_CASE("after the server ends the session an open file fails cleanly and is n
     CHECK(f.write("x", 1) == -ENOTCONN);
     CHECK(f.close().is_success());
     CHECK_FALSE(f.is_open());
+    CHECK(fake.closes == 0);
+}
+
+TEST_CASE("a file opened before the session was reopened is not handed back to the library")
+{
+    Mounted m;
+    AfpFile f(m.session);
+    REQUIRE(f.open("/note.txt", AfpOpenMode::Write).is_success());
+
+    // Closing the session unmounts, which frees the handle; reopening
+    // attaches the same volume again.
+    m.session.close();
+    REQUIRE(m.session.open("server", 0, "alice", "secret", "Alpha").is_success());
+
+    char buf[4];
+    CHECK(f.read(buf, sizeof(buf)) == -ENOTCONN);
+    CHECK(f.write("x", 1) == -ENOTCONN);
+    CHECK(f.close().is_success());
     CHECK(fake.closes == 0);
 }
 

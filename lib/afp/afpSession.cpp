@@ -129,6 +129,11 @@ void AfpSession::close()
     _attachment = 0;
 }
 
+unsigned AfpSession::attachment() const
+{
+    return volume() != nullptr ? _attachment : 0;
+}
+
 struct afp_volume *AfpSession::volume() const
 {
     std::lock_guard<std::mutex> table(attached_lock);

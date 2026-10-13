@@ -19,8 +19,8 @@
 #endif
 
 // AFP_TEST_HOST, AFP_TEST_USER, AFP_TEST_PASSWORD and AFP_TEST_VOLUME name a
-// real server.  The file cases create and remove one directory on that
-// volume, /fujinet-afp-test; nothing else is touched.
+// real server.  The file cases create one directory on that volume, named
+// /fujinet-afp-test-<pid>, and remove it; nothing else is touched.
 static std::string env(const char *name)
 {
     const char *v = std::getenv(name);
@@ -132,33 +132,34 @@ TEST_CASE("two accounts on one server each get their own login")
     CHECK(b.volume() != nullptr);
 }
 
-// Everything the file cases create lives under this one directory.
-static const std::string scratch = "/fujinet-afp-test";
+// Everything the file cases create lives under one directory, new for each
+// run so that nothing already on the volume is ever cleared.
+#ifdef _WIN32
+#include <process.h>
+#define getpid _getpid
+#endif
+static const std::string scratch = "/fujinet-afp-test-" + std::to_string(static_cast<long>(getpid()));
 
-// Removes the scratch directory and what the cases below put in it.
-static void clear_scratch(AfpSession &s)
-{
-    std::vector<AfpDirEntry> entries;
-    if (afp_list(s, scratch, entries) != 0)
-        return;
-    for (const auto &e : entries)
-        if (!e.is_dir)
-            afp_remove(s, scratch + "/" + e.name);
-    afp_rmdir(s, scratch);
-}
-
-// A session with an empty scratch directory, removed again on the way out
-// even when a case fails.
+// A session with a scratch directory this run created.  It refuses to start
+// if the name is taken, and removes only what it made.
 struct Scratch
 {
     AfpSession session;
     Scratch()
     {
         REQUIRE(session.open(host, 0, user, password, volume).is_success());
-        clear_scratch(session);
         REQUIRE(afp_mkdir(session, scratch) == 0);
     }
-    ~Scratch() { clear_scratch(session); }
+    ~Scratch()
+    {
+        std::vector<AfpDirEntry> entries;
+        if (afp_list(session, scratch, entries) != 0)
+            return;
+        for (const auto &e : entries)
+            if (!e.is_dir)
+                afp_remove(session, scratch + "/" + e.name);
+        afp_rmdir(session, scratch);
+    }
 };
 
 TEST_CASE("file: write, read back in pieces, and stat")
@@ -235,7 +236,12 @@ TEST_CASE("file: missing files and directories are reported, not invented")
     AfpFile f(t.session);
     CHECK(f.open(scratch + "/nope.txt", AfpOpenMode::Read).is_error());
     CHECK(f.error() == -ENOENT);
-    CHECK(f.open(scratch + "/nowhere/x.txt", AfpOpenMode::Write).is_error());
+
+    // Refused by the bridge before anything reaches the server.
+    CHECK(f.open("no-leading-slash.txt", AfpOpenMode::Read).is_error());
+    CHECK(f.error() == -EINVAL);
+    CHECK(f.open("/" + std::string(900, 'a'), AfpOpenMode::Read).is_error());
+    CHECK(f.error() == -ENAMETOOLONG);
 
     AfpDirEntry e;
     CHECK(afp_stat(t.session, scratch + "/nope.txt", e) == -ENOENT);
@@ -275,6 +281,15 @@ TEST_CASE("directory: list, rename, remove, mkdir and rmdir")
     AfpDirEntry e;
     REQUIRE(afp_stat(t.session, scratch, e) == 0);
     CHECK(e.is_dir);
+    CHECK(e.size == 0);
+
+    // The volume root, which every listing starts from.
+    REQUIRE(afp_stat(t.session, "/", e) == 0);
+    CHECK(e.is_dir);
+    REQUIRE(afp_list(t.session, "/", entries) == 0);
+    const std::string name = scratch.substr(1);
+    CHECK(std::any_of(entries.begin(), entries.end(),
+                      [&name](const AfpDirEntry &d) { return d.is_dir && d.name == name; }));
 }
 
 #ifndef _WIN32

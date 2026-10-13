@@ -32,6 +32,10 @@ public:
     // Nothing protects a call already using the pointer when that happens.
     struct afp_volume *volume() const;
 
+    // Identifies this attachment while it lasts; 0 when there is none.  A
+    // session that is reopened gets a different one.
+    unsigned attachment() const;
+
     const std::vector<std::string> &volume_names() const { return _volume_names; }
 
     // 0, or the negative errno of the last failed open.

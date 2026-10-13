@@ -61,7 +61,9 @@ int afp_bridge_open(struct afp_volume * volume, const char * path, int mode,
 int afp_bridge_close(struct afp_volume * volume, const char * path,
 	struct afp_file_info * file);
 
-/* Bytes transferred (a read gives 0 at end of file), or a negative errno. */
+/* Bytes transferred, or a negative errno.  A read may be shorter than asked
+ * without being at the end; only 0 is end of file.  afpfs-ng does not yet
+ * report a write the server refused: it returns the full length. */
 int afp_bridge_read(struct afp_volume * volume, const char * path,
 	struct afp_file_info * file, void * buf, unsigned int len,
 	unsigned long long offset);

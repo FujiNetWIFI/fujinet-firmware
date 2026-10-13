@@ -30,7 +30,7 @@ struct AfpDirEntry
 };
 
 // One open file on a session's volume, with its own position.  The session
-// must outlive it.
+// must outlive it, and closing or reopening the session ends the file.
 class AfpFile
 {
 public:
@@ -43,7 +43,8 @@ public:
     success_is_true open(const std::string &path, AfpOpenMode mode);
     success_is_true close();
 
-    // Bytes transferred (a read gives 0 at end of file), or a negative errno.
+    // Bytes transferred, or a negative errno.  A read may return fewer bytes
+    // than asked for without being at the end; only 0 means end of file.
     int read(void *buf, size_t len);
     int write(const void *buf, size_t len);
 
@@ -56,7 +57,11 @@ public:
     int error() const { return _error; }
 
 private:
+    // The volume, as long as the attachment the file was opened on still stands.
+    struct afp_volume *volume() const;
+
     AfpSession &_session;
+    unsigned _attachment = 0;
     struct afp_file_info *_file = nullptr;
     std::string _path;
     uint64_t _offset = 0;

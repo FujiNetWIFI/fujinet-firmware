@@ -164,16 +164,38 @@ static int negative(int ret)
 	return (ret>0) ? -ret : ret;
 }
 
+/* The library copies paths into fixed buffers without checking them. */
+static int check_path(const char * path)
+{
+	if ((path==NULL) || (path[0]!='/')) return -EINVAL;
+	if (strlen(path)>=AFP_MAX_PATH) return -ENAMETOOLONG;
+	return 0;
+}
+
+/* off_t is 32 bits on some targets; a wrapped offset would hit the wrong
+ * part of the file. */
+static int check_range(unsigned long long offset, unsigned int len)
+{
+	off_t start=(off_t) offset;
+	off_t end=(off_t) (offset+len);
+
+	if (((unsigned long long) start!=offset) || (start<0) || (end<start))
+		return -EFBIG;
+	return 0;
+}
+
 int afp_bridge_stat(struct afp_volume * volume, const char * path,
 	int * is_dir, unsigned long long * size)
 {
 	struct stat st;
 	int ret;
 
+	if ((ret=check_path(path))!=0) return ret;
 	memset(&st,0,sizeof(st));
 	if ((ret=ml_getattr(volume,path,&st))!=0) return negative(ret);
-	*is_dir=(st.st_mode & S_IFDIR) ? 1 : 0;
-	*size=(unsigned long long) st.st_size;
+	*is_dir=S_ISDIR(st.st_mode) ? 1 : 0;
+	/* The library invents a size for directories; a listing gives 0. */
+	*size=*is_dir ? 0 : (unsigned long long) st.st_size;
 	return 0;
 }
 
@@ -183,6 +205,7 @@ int afp_bridge_open(struct afp_volume * volume, const char * path, int mode,
 	int flags, ret;
 
 	*file=NULL;
+	if ((ret=check_path(path))!=0) return ret;
 	switch (mode) {
 	case AFP_BRIDGE_READ: flags=O_RDONLY; break;
 	case AFP_BRIDGE_WRITE: flags=O_WRONLY|O_TRUNC; break;
@@ -220,7 +243,10 @@ int afp_bridge_read(struct afp_volume * volume, const char * path,
 	unsigned long long offset)
 {
 	int eof=0;
+	int ret;
 
+	if ((ret=check_path(path))!=0) return ret;
+	if ((ret=check_range(offset,len))!=0) return ret;
 	return ml_read(volume,path,(char *) buf,len,(off_t) offset,file,&eof);
 }
 
@@ -228,6 +254,10 @@ int afp_bridge_write(struct afp_volume * volume, const char * path,
 	struct afp_file_info * file, const void * buf, unsigned int len,
 	unsigned long long offset)
 {
+	int ret;
+
+	if ((ret=check_path(path))!=0) return ret;
+	if ((ret=check_range(offset,len))!=0) return ret;
 	return ml_write(volume,path,(const char *) buf,len,(off_t) offset,
 		file,0,0);
 }
@@ -278,21 +308,30 @@ void afp_bridge_list_free(struct afp_file_info * entries)
 
 int afp_bridge_remove(struct afp_volume * volume, const char * path)
 {
-	return negative(ml_unlink(volume,path));
+	int ret=check_path(path);
+
+	return ret ? ret : negative(ml_unlink(volume,path));
 }
 
 int afp_bridge_rename(struct afp_volume * volume, const char * from,
 	const char * to)
 {
-	return negative(ml_rename(volume,from,to));
+	int ret=check_path(from);
+
+	if (ret==0) ret=check_path(to);
+	return ret ? ret : negative(ml_rename(volume,from,to));
 }
 
 int afp_bridge_mkdir(struct afp_volume * volume, const char * path)
 {
-	return negative(ml_mkdir(volume,path,0755));
+	int ret=check_path(path);
+
+	return ret ? ret : negative(ml_mkdir(volume,path,0755));
 }
 
 int afp_bridge_rmdir(struct afp_volume * volume, const char * path)
 {
-	return negative(ml_rmdir(volume,path));
+	int ret=check_path(path);
+
+	return ret ? ret : negative(ml_rmdir(volume,path));
 }

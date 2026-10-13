@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <climits>
 
 #include "afpBridge.h"
 
@@ -34,6 +35,15 @@ AfpFile::~AfpFile()
     close();
 }
 
+struct afp_volume *AfpFile::volume() const
+{
+    // The library frees every open handle when it unmounts, so a later
+    // attachment of the same volume is not this file's.
+    if (_attachment == 0 || _session.attachment() != _attachment)
+        return nullptr;
+    return _session.volume();
+}
+
 success_is_true AfpFile::open(const std::string &path, AfpOpenMode mode)
 {
     close();
@@ -54,27 +64,27 @@ success_is_true AfpFile::open(const std::string &path, AfpOpenMode mode)
         _file = nullptr;
         RETURN_ERROR_AS_FALSE();
     }
-    _path = path;
 
-    if (mode != AfpOpenMode::Write)
+    // The size decides where an append starts, and not every server refuses
+    // to open a directory as a file, so an open without both is no use.
+    int is_dir = 0;
+    unsigned long long size = 0;
+    int ret = afp_bridge_stat(volume, path.c_str(), &is_dir, &size);
+    if (ret == 0 && is_dir)
+        ret = -EISDIR;
+    if (ret != 0)
     {
-        int is_dir = 0;
-        unsigned long long size = 0;
-        if (afp_bridge_stat(volume, path.c_str(), &is_dir, &size) == 0)
-        {
-            // Not every server refuses to open a directory as a file.
-            if (is_dir)
-            {
-                afp_bridge_close(volume, path.c_str(), _file);
-                _file = nullptr;
-                _error = -EISDIR;
-                RETURN_ERROR_AS_FALSE();
-            }
-            _size = size;
-        }
-        if (mode == AfpOpenMode::Append)
-            _offset = _size;
+        afp_bridge_close(volume, path.c_str(), _file);
+        _file = nullptr;
+        _error = ret;
+        RETURN_ERROR_AS_FALSE();
     }
+
+    _path = path;
+    _attachment = _session.attachment();
+    _size = size;
+    if (mode == AfpOpenMode::Append)
+        _offset = _size;
     RETURN_SUCCESS_AS_TRUE();
 }
 
@@ -84,9 +94,10 @@ success_is_true AfpFile::close()
         RETURN_SUCCESS_AS_TRUE();
 
     // Once the library has unmounted the volume it has freed this handle too.
-    struct afp_volume *volume = _session.volume();
-    _error = volume ? afp_bridge_close(volume, _path.c_str(), _file) : 0;
+    struct afp_volume *vol = volume();
+    _error = vol ? afp_bridge_close(vol, _path.c_str(), _file) : 0;
     _file = nullptr;
+    _attachment = 0;
     RETURN_SUCCESS_IF(_error == 0);
 }
 
@@ -94,11 +105,14 @@ int AfpFile::read(void *buf, size_t len)
 {
     if (_file == nullptr)
         return -EBADF;
-    struct afp_volume *volume = _session.volume();
-    if (volume == nullptr)
+    struct afp_volume *vol = volume();
+    if (vol == nullptr)
         return -ENOTCONN;
+    if (len == 0)
+        return 0;
+    len = std::min<size_t>(len, INT_MAX);
 
-    int n = afp_bridge_read(volume, _path.c_str(), _file, buf, static_cast<unsigned int>(len), _offset);
+    int n = afp_bridge_read(vol, _path.c_str(), _file, buf, static_cast<unsigned int>(len), _offset);
     if (n > 0)
         _offset += static_cast<uint64_t>(n);
     return n;
@@ -108,11 +122,14 @@ int AfpFile::write(const void *buf, size_t len)
 {
     if (_file == nullptr)
         return -EBADF;
-    struct afp_volume *volume = _session.volume();
-    if (volume == nullptr)
+    struct afp_volume *vol = volume();
+    if (vol == nullptr)
         return -ENOTCONN;
+    if (len == 0)
+        return 0;
+    len = std::min<size_t>(len, INT_MAX);
 
-    int n = afp_bridge_write(volume, _path.c_str(), _file, buf, static_cast<unsigned int>(len), _offset);
+    int n = afp_bridge_write(vol, _path.c_str(), _file, buf, static_cast<unsigned int>(len), _offset);
     if (n > 0)
     {
         _offset += static_cast<uint64_t>(n);
