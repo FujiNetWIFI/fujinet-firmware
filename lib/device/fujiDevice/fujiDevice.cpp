@@ -176,6 +176,11 @@ void fujiDevice::populate_slots_from_config()
 
     for (int i = 0; i < _totalDiskDevices; i++)
     {
+        // A mounted slot is already current; resetting it would drop the fileh
+        // that disk swap counts as mounted.
+        if (_fnDisks[i].fileh != nullptr)
+            continue;
+
         _fnDisks[i].reset();
 
         if (Config.get_mount_host_slot(i) != HOST_SLOT_INVALID)
