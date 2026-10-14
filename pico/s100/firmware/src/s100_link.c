@@ -7,8 +7,6 @@
 #include "s100_regs.h"
 
 #define SLIP_END 0xC0
-#define ACK      0x06
-#define NAK      0x15
 
 static inline bool late(uint32_t now, uint32_t at)
 {
@@ -23,14 +21,14 @@ static bool mount_class(uint8_t cmd)
 {
     switch (cmd)
     {
-    case 0xF8: // MOUNT_IMAGE
-    case 0xE9: // UNMOUNT_IMAGE
-    case 0xD7: // MOUNT_ALL
-    case 0xE7: // NEW_DISK
-    case 0xD8: // COPY_FILE
-    case 0xF1: // WRITE_DEVICE_SLOTS
-    case 0xE2: // SET_DEVICE_FULLPATH
-    case 0xE6: // UNMOUNT_HOST
+    case CMD_FUJI_MOUNT_IMAGE:
+    case CMD_FUJI_UNMOUNT_IMAGE:
+    case CMD_FUJI_MOUNT_ALL:
+    case CMD_FUJI_NEW_DISK:
+    case CMD_FUJI_COPY_FILE:
+    case CMD_FUJI_WRITE_DEVICE_SLOTS:
+    case CMD_FUJI_SET_DEVICE_FULLPATH:
+    case CMD_FUJI_UNMOUNT_HOST:
         return true;
     default:
         return false;
@@ -116,7 +114,8 @@ static void request(s100_card_t *c, link_owner_t own, uint8_t dev, uint8_t cmd,
 static void dbc_nak(s100_card_t *c)
 {
     uint8_t frame[16];
-    size_t n = fujibus_build_request(FB_DEV_DBC, NAK, NULL, 0, NULL, 0, frame, sizeof(frame));
+    size_t n = fujibus_build_request(FB_DEV_DBC, CMD_FUJI_NAK, NULL, 0, NULL, 0, frame,
+                                     sizeof(frame));
     send(c, frame, n);
 }
 
@@ -150,7 +149,7 @@ static bool candidate(s100_card_t *c, uint32_t now)
     }
 
     l->st = LS_IDLE;
-    bool ok = r.command == ACK;
+    bool ok = r.command == CMD_FUJI_ACK;
     switch (l->own)
     {
     case LO_HOST:

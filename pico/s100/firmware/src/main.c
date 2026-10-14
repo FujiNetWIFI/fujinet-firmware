@@ -20,9 +20,11 @@
 #define BUS_PIO pio0
 #define BUS_SM  0
 
-// Write data: first sample this long into the wait, then until two agree.
+// Write data: first sample this long into the wait, then until two agree, at
+// most DO_RECHECKS times.
 #define DO_LATE_NS   300
 #define DO_RECHECK_NS 50
+#define DO_RECHECKS   8
 
 static s100_card_t card;
 static uint32_t do_late_cycles, do_recheck_cycles;
@@ -69,18 +71,20 @@ static inline void pulse(uint pin)
 }
 
 // DO is stable while the CPU waits; take it late and only once it holds still.
+// A line that never settles is a bad byte, not a stuck core1.
 static inline uint8_t sample_do(void)
 {
     busy_wait_at_least_cycles(do_late_cycles);
-    uint8_t a = (uint8_t)sio_hw->gpio_in, b;
-    for (;;)
+    uint8_t a = (uint8_t)sio_hw->gpio_in, b = a;
+    for (int i = 0; i < DO_RECHECKS; i++)
     {
         busy_wait_at_least_cycles(do_recheck_cycles);
         b = (uint8_t)sio_hw->gpio_in;
         if (a == b)
-            return b;
+            break;
         a = b;
     }
+    return b;
 }
 
 static void __not_in_flash_func(s100_core1_main)(void)
