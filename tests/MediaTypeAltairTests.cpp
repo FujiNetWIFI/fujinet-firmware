@@ -90,7 +90,11 @@ TEST_CASE("only .DSK files of an FDC+ size are Altair images")
     CHECK_FALSE(MediaTypeAltair::looks_like_altair("dsk", 337568));
     CHECK_FALSE(MediaTypeAltair::looks_like_altair(nullptr, 337568));
 
-    // The extension alone still means a plain image to discover_mediatype().
+    // discover_mediatype() needs both: a .DSK of any other size is a plain image.
+    CHECK(MediaType::discover_mediatype("cpm.dsk", 337568) == MEDIATYPE_ALTAIR);
+    CHECK(MediaType::discover_mediatype("big.DSK", 8978432) == MEDIATYPE_ALTAIR);
+    CHECK(MediaType::discover_mediatype("pc.dsk", 368640) == MEDIATYPE_UNKNOWN);
+    CHECK(MediaType::discover_mediatype("cpm.img", 337568) == MEDIATYPE_UNKNOWN);
     CHECK(MediaType::discover_mediatype("cpm.dsk") == MEDIATYPE_UNKNOWN);
 }
 

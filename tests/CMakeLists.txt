@@ -146,6 +146,7 @@ add_executable(mediatypeimd_tests
     MediaTypeIMDTests.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/IMDImage.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rs232/diskType.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/rs232/diskTypeAltair.cpp
     ${CMAKE_SOURCE_DIR}/lib/media/rs232/diskTypeIMD.cpp
 )
 

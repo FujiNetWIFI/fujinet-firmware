@@ -12,10 +12,11 @@ Disk and ROM image formats for `BUILD_RS232`, shared by the RS-232 and `fujivers
 | `diskTypeROM.h`, `diskTypeROM.cpp` | `MediaTypeROM`, cartridge images read by offset (Intellivision, Atari 2600, Atari 5200, Atari 7800, Channel F, NES, Sega Master System, CoCo), with an optional memory-map sibling opened through the mounting `fujiHost` |
 
 ## How it fits
-- `discover_mediatype()` checks for an IMD extension first, then maps XEX to `MEDIATYPE_IMG` and
-  ROM, BIN, INT, ITV, CHF, NES, SMS, A78, A52 and ST2 to `MEDIATYPE_ROM`; `rs232Disk::mount()` in
-  [lib/device/rs232/](../../device/rs232/) picks the subclass and passes the host, and takes a
-  `.DSK` of an exact FDC+ image size as `MEDIATYPE_ALTAIR`.
+- `discover_mediatype()` checks for an IMD extension first, then a `.DSK` of an exact FDC+ image
+  size (`MEDIATYPE_ALTAIR`), then maps XEX to `MEDIATYPE_IMG` and ROM, BIN, INT, ITV, CHF, NES,
+  SMS, A78, A52 and ST2 to `MEDIATYPE_ROM`; `rs232Disk::mount()` in
+  [lib/device/rs232/](../../device/rs232/) passes it the file size, picks the subclass and passes
+  the host.
 - Included by [lib/media/media.h](../media.h) under `BUILD_RS232`.
 
 ## Build

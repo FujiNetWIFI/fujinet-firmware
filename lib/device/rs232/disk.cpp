@@ -293,11 +293,9 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
         _disk = nullptr;
     }
 
-    // Determine MediaType based on filename extenrs232n
+    // Determine MediaType from the filename extension and, for .DSK, the size
     if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
-        disk_type = MediaType::discover_mediatype(filename);
-    if (disk_type == MEDIATYPE_UNKNOWN && MediaTypeAltair::looks_like_altair(filename, disksize))
-        disk_type = MEDIATYPE_ALTAIR;
+        disk_type = MediaType::discover_mediatype(filename, disksize);
 
     // Now mount based on MediaType
     switch (disk_type)
