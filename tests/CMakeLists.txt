@@ -1466,22 +1466,30 @@ if(FUJINET_TARGET STREQUAL "ATARI")
   add_executable(afp_fs_tests
     AfpFsTests.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFileAFP.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsAFP.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/punycode.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/U8Char.cpp
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_gettimeofday.c
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_inet.c
     ${CMAKE_SOURCE_DIR}/lib/afp/afpSession.cpp
     ${CMAKE_SOURCE_DIR}/lib/afp/afpFile.cpp
     ${CMAKE_SOURCE_DIR}/lib/afp/afpPath.cpp
     )
   target_compile_definitions(afp_fs_tests PRIVATE UNIT_TESTS)
+  # utils.cpp reaches into most of lib/; borrow the include list that
+  # sio_network_stubs already keeps for it.
   target_include_directories(afp_fs_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/include/
     ${CMAKE_SOURCE_DIR}/lib/afp/
-    ${CMAKE_SOURCE_DIR}/lib/FileSystem/
-    ${CMAKE_SOURCE_DIR}/lib/compat/
-    ${CMAKE_SOURCE_DIR}/lib/utils/
-    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+    $<TARGET_PROPERTY:sio_network_stubs,INTERFACE_INCLUDE_DIRECTORIES>
     )
-  target_link_libraries(afp_fs_tests PRIVATE pthread)
+  target_link_libraries(afp_fs_tests PRIVATE ${MBEDCRYPTO_STATIC_LIB} pthread)
   add_test(NAME afp_fs_tests COMMAND afp_fs_tests)
 endif()
 

@@ -58,6 +58,8 @@ struct Fake
     int stat_error = 0;              // make every stat fail with this
     size_t max_read = 0;             // cap one read, as a server quantum does
     int login_error = 0;
+    int lists = 0;
+    std::string last_user, last_password;
 
     void reset()
     {
@@ -69,6 +71,9 @@ struct Fake
         stat_error = 0;
         max_read = 0;
         login_error = 0;
+        lists = 0;
+        last_user.clear();
+        last_password.clear();
     }
 } fake;
 
@@ -107,9 +112,11 @@ int afp_bridge_start(afp_bridge_log_fn, afp_bridge_gone_fn gone)
     return fake.fail_start ? -1 : 0;
 }
 
-afp_server *afp_bridge_login(const char *, int, const char *user, const char *, int *error)
+afp_server *afp_bridge_login(const char *, int, const char *user, const char *password, int *error)
 {
     fake.logins++;
+    fake.last_user = user;
+    fake.last_password = password;
     if (fake.login_error)
     {
         *error = fake.login_error;
@@ -237,6 +244,7 @@ int afp_bridge_write(afp_volume *volume, const char *path, afp_file_info *, cons
 int afp_bridge_list(afp_volume *volume, const char *path, afp_file_info **entries)
 {
     *entries = nullptr;
+    fake.lists++;
     const std::string dir = path;
     if (dir != "/" && volume->nodes.find(dir) == volume->nodes.end()) return -ENOENT;
     if (!is_dir(*volume, dir)) return -ENOTDIR;
