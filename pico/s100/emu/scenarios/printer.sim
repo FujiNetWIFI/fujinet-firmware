@@ -1,0 +1,11 @@
+; A line to the FujiNet printer through the card's 2SIO channel B lands in
+; fujinet-pc's printer output.
+; mount 0 mits-cpm22-burcon-56k.dsk rw
+; printed FUJINET S-100 PRINTER TEST
+; timeout 120
+; must PRNTEST SENT
+expect "A>" load %CLIENT%/PRNTEST.COM 100; send "SAVE %PAGES:%CLIENT%/PRNTEST.COM% PRNTEST.COM\r"; continue
+expect "A>" send "PRNTEST\r"; continue
+expect "PRNTEST SENT" continue
+expect "A>" echo; echo "*** PASS ***"; exit
+go ff00

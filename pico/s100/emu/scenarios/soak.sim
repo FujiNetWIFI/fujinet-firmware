@@ -1,0 +1,24 @@
+; Disk and network traffic interleaved on the one link: verified PIP copies
+; between drives alternate with FNTEST runs; the copied files must run.
+; mount 0 mits-cpm22-burcon-56k.dsk rw
+; mount 1 mits-cpm-tools.dsk rw
+; http
+; timeout 600
+; must Bytes Remaining On B:
+; must FNTEST PASS
+expect "A>" load %CLIENT%/FNTEST.COM 100; send "SAVE %PAGES:%CLIENT%/FNTEST.COM% FNTEST.COM\r"; continue
+expect "A>" send "PIP B:=A:*.COM[V]\r"; continue
+expect "A>" send "FNTEST %HTTP%\r"; continue
+expect "FNTEST PASS" continue
+expect "A>" send "B:\r"; continue
+expect "B>" send "PIP A:=B:FNTEST.COM[V]\r"; continue
+expect "B>" send "FNTEST %HTTP%\r"; continue
+expect "FNTEST PASS" continue
+expect "B>" send "A:FNTEST %HTTP%\r"; continue
+expect "FNTEST PASS" continue
+expect "B>" send "STAT B:*.*\r"; continue
+expect "Bytes Remaining On B:" echo; echo "*** PASS ***"; exit
+expect "FNTEST FAIL" echo; echo "*** FAIL ***"; exit
+expect "Bad Sector" echo; echo "*** FAIL ***"; exit
+expect "VERIFY ERROR" echo; echo "*** FAIL ***"; exit
+go ff00

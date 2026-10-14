@@ -1,0 +1,17 @@
+; CONFIG.BIN on each console type the card info can name, all wired to the
+; SIMH console: info screen and back, then Boot drive 0 and DIR.
+; run.sh cfgcon --set CON=SIO|8251|2SIO
+; mount 0 mits-cpm22-burcon-56k.dsk
+; rom none
+; timeout 180
+; must PIP      COM
+set sio port=0/0/40/1/2/F/0/F
+set sio port=1/0/0/0/0/F/0/T
+set fujinet console=%CON%
+reset fujinet
+expect "[ESC] Boot" send after=200000,"C"; continue
+expect "Any other key: back" send after=200000,"x"; continue
+expect "[ESC] Boot" send after=200000,"\033"; continue
+expect "A>" send "DIR\r"; continue
+expect "PIP      COM" expect "A>" echo "*** PASS ***"; continue
+go ff00

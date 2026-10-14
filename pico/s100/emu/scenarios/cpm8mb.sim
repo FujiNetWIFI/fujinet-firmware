@@ -1,0 +1,14 @@
+; The FDC+ 8 MB CP/M 2.2 boots through the card from a 2048-track image, reports
+; its 8 MB and takes a 64 KB SAVE.
+; mount 0 fdcp-8mb-cpm22-56k.dsk rw
+; timeout 300
+; must A: R/W, Space: 7940k
+; must A: BIG      COM
+expect "A0>" send "DIR\r"; continue
+expect "A0>" send "STAT\r"; continue
+expect "A: R/W, Space:" continue
+expect "A0>" send "SAVE 255 BIG.COM\r"; continue
+expect "A0>" send "DIR BIG.COM\r"; continue
+expect "BIG      COM" continue
+expect "A0>" echo; echo "*** PASS ***"; exit
+go ff00

@@ -1,0 +1,9 @@
+; Minidisk CP/M 2.2 boots through the card's FDC+ at the minidisk geometry and
+; cadence, and lists drive A.
+; mount 0 mini-cpm22-56k.dsk
+; rom mdbl
+; timeout 120
+; must PIP      COM
+expect "A>" send "DIR\r"; continue
+expect "A>" echo; echo "*** PASS ***"; exit
+go ff00

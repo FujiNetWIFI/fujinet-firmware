@@ -1,0 +1,25 @@
+; s100_bus.pio -- the card's side of a held bus cycle.
+;
+; The glue pulls PRDY and raises WAITQ for any decoded cycle. Act only after
+; seeing pSYNC rise and fall, so a decode glitch while the address changes is
+; never taken for a cycle; then hand core1 a snapshot of DO, A0-7, status and
+; the block code, drive its answer onto the DI pins, and pulse /WAIT_CLR.
+; Write data is sampled by core1 itself, late in the wait (see main.c).
+
+.program s100_bus
+.side_set 1 opt                 ; /WAIT_CLR, idle high
+
+.wrap_target
+idle:
+    wait 1 gpio 31              ; pSYNC rises: a cycle starts
+    wait 0 gpio 31              ; and falls: address and status have settled
+    nop [7]
+    jmp pin ours                ; WAITQ: this cycle is held for us
+    jmp idle
+ours:
+    in pins, 22                 ; DO0-7, A0-7, sINP, sOUT, sMEMR, WAITQ, BLK (autopush)
+    pull block                  ; core1's answer, or anything for a write
+    out pins, 8                 ; onto DI0-7; the 541 drives the bus only during pDBIN
+    nop side 0 [7]              ; /WAIT_CLR: ARM clears, PRDY lets go
+    nop side 1
+.wrap

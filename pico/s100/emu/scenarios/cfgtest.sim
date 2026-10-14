@@ -1,0 +1,18 @@
+; CONFIG (fujinet-config's s100-rom build) as image 0, run from the card's
+; page with no OS: info screen and back, SD host, /altair, Burcon CP/M into
+; drive slot 1 read-only, Boot through the page's loader entry, then DIR.
+; Image 0 is the CONFIG build.sh baked (FUJI_CONFIG); FUJI_IMAGE0 overrides it.
+; rom none
+; timeout 180
+; must PIP      COM
+expect "[ESC] Boot" send after=200000,"C"; continue
+expect "Any other key: back" send after=200000,"x"; continue
+expect "[ESC] Boot" send after=200000,"1\r"; continue
+expect "lobby.dsk" send after=200000,"\r"; continue
+expect "scratch.dsk" send after=200000,"\033[B\033[B\033[B\033[B\r"; continue
+expect "[W] Read/Write" send after=200000,"1\r"; continue
+expect "scratch.dsk" send after=200000,"\033"; continue
+expect "[ESC] Boot" send after=200000,"\033"; continue
+expect "A>" send "DIR\r"; continue
+expect "PIP      COM" expect "A>" echo "*** PASS ***"; continue
+go ff00

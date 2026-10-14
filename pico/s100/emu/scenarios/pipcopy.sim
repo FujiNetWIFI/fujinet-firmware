@@ -1,0 +1,20 @@
+; Writes through the card's FDC+: PIP with verify from A: to B:, run the copy
+; from B:, then SAVE onto A:. The images afterwards must match SIMH's own
+; 88-DCDD doing the same (run.sh --native).
+; mount 0 mits-cpm22-burcon-56k.dsk rw
+; mount 1 mits-cpm-tools.dsk rw
+; timeout 240
+; must B: STAT2    COM
+; must B: R/W, Space:
+; must A: Z        COM
+expect "A>" send "PIP B:STAT2.COM=A:STAT.COM[V]\r"; continue
+expect "A>" send "B:\r"; continue
+expect "B>" send "DIR STAT2.COM\r"; continue
+expect "STAT2    COM" continue
+expect "B>" send "STAT2\r"; continue
+expect "B>" send "A:\r"; continue
+expect "A>" send "SAVE 4 Z.COM\r"; continue
+expect "A>" send "DIR Z.COM\r"; continue
+expect "Z        COM" continue
+expect "A>" echo; echo "*** PASS ***"; exit
+go ff00

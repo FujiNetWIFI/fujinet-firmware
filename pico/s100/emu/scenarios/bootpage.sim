@@ -1,0 +1,14 @@
+; The card's boot page at FF00 loads image 0 (BOOTCHECK, standing in for
+; CONFIG), which boots drive 0 through the page's loader entry: the path
+; CONFIG's Boot takes. No MITS ROM involved.
+; mount 0 mits-cpm22-burcon-56k.dsk
+; rom none
+; image0 bootcheck.bin
+; timeout 120
+; must BOOTCHECK: image 0 ran
+; must PIP      COM
+expect "BOOTCHECK: image 0 ran" continue
+expect "A>" send "DIR\r"; continue
+expect "PIP      COM" continue
+expect "A>" echo; echo "*** PASS ***"; exit
+go ff00

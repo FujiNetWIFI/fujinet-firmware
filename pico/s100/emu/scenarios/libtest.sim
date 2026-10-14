@@ -1,0 +1,12 @@
+; One of fujinet-lib's test programs (testing/, built for s100-cpm), run
+; under CP/M through the card's pipe: run.sh libtest --set PROG=FUJIDEV
+; mount 0 mits-cpm22-burcon-56k.dsk rw
+; timeout 600
+; must tests passed
+expect "A>" load %FNLIBTEST%/%PROG%.COM 100; send "SAVE %PAGES:%FNLIBTEST%/%PROG%.COM% %PROG%.COM\r"; continue
+expect "A>" send "%PROG%\r"; continue
+expect "tests passed" continue
+expect "Press any key" send after=500000,"\r"; continue
+expect "A>" echo; echo "*** PASS ***"; exit
+expect "ABORTED" echo; echo "*** FAIL ***"; exit
+go ff00

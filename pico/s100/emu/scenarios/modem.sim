@@ -1,0 +1,13 @@
+; The FujiNet modem through the card's 2SIO channel A: ATNET0, dial a local
+; TCP echo server, 64 bytes with every SLIP special round-trip intact, +++.
+; mount 0 mits-cpm22-burcon-56k.dsk rw
+; echo
+; mode async
+; timeout 180
+; must Echo intact, C0h/DBh included
+; must MDMTEST PASS
+expect "A>" load %CLIENT%/MDMTEST.COM 100; send "SAVE %PAGES:%CLIENT%/MDMTEST.COM% MDMTEST.COM\r"; continue
+expect "A>" send "MDMTEST %ECHO%\r"; continue
+expect "MDMTEST PASS" echo; echo "*** PASS ***"; exit
+expect "MDMTEST FAIL" echo; echo "*** FAIL ***"; exit
+go ff00
