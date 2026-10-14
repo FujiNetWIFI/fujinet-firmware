@@ -654,55 +654,9 @@ def _ensure_remote_source(cfg: PicoConfig, force_external: bool, dry_run: bool) 
         f"-> {resolved} cloned into {repo_dir}")
 
 
-def _submodule_paths() -> List[str]:
-    """Paths listed in .gitmodules, normalized. Parsed directly rather than
-    shelled out to `git config -f`, so this works from a tarball export with
-    no git available."""
-    paths: List[str] = []
-    if not os.path.isfile(".gitmodules"):
-        return paths
-    parser = configparser.ConfigParser()
-    try:
-        # .gitmodules is INI-shaped but its section names are quoted
-        # ([submodule "pico/fujiversal"]), which configparser handles fine.
-        parser.read(".gitmodules")
-    except configparser.Error:
-        return paths
-    for sect in parser.sections():
-        path = parser[sect].get("path", "").strip()
-        if path:
-            paths.append(os.path.normpath(path))
-    return paths
-
-
-def _check_submodule_initialized(cfg: PicoConfig) -> None:
-    """An uninitialized submodule is an empty directory, so the CMakeLists.txt
-    check below would report 'no CMakeLists.txt found', which is true but
-    sends the reader looking for a broken ini key instead of a one-line fix."""
-    src = os.path.normpath(cfg.src)
-    for sub in _submodule_paths():
-        if src == sub or src.startswith(sub + os.sep):
-            # No .git: a tarball export, nothing to fetch from.
-            if (not os.path.isdir(sub) or not os.listdir(sub)) and os.path.exists(".git"):
-                log(f"[{cfg.board}] {sub} not checked out -- running "
-                    f"git submodule update --init --recursive {sub}")
-                try:
-                    subprocess.run(["git", "submodule", "--quiet", "update", "--init",
-                                    "--recursive", sub])
-                except OSError:
-                    pass
-            if not os.path.isdir(sub) or not os.listdir(sub):
-                fail(cfg.board, "pico_src",
-                     f"{sub} is a git submodule that has not been checked "
-                     f"out -- run: git submodule update --init {sub}")
-            return
-
-
 def ensure_source(cfg: PicoConfig, force_external: bool = False, dry_run: bool = False) -> None:
     if cfg.repo:
         _ensure_remote_source(cfg, force_external=force_external, dry_run=dry_run)
-    else:
-        _check_submodule_initialized(cfg)
 
     if not os.path.isdir(cfg.src):
         fail(cfg.board, "pico_src", f"directory does not exist: {cfg.src}")

@@ -146,8 +146,8 @@ Two of these boards build from **`pico/fujiversal`, a git submodule**. After a f
 git submodule update --init pico/fujiversal
 ```
 
-`build_pico.py` says exactly that if the submodule is missing, rather than reporting an
-absent `CMakeLists.txt`.
+`build.sh` runs that itself when a board it builds uses a submodule that is not checked out,
+and stops with the command to fix it if the submodule is not at its pinned commit.
 
 For how the embedded image actually reaches the companion MCU -- the boot sequence, the
 `PICOFW:` log lines, when a reflash happens, the BOOTSEL recovery paths, and what to touch
