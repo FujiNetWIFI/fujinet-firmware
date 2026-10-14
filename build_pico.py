@@ -204,8 +204,8 @@ class PicoConfig:
         self.toolchain = toolchain
         self.toolchain_package = toolchain_package  # PlatformIO spec, "" = none
         self.toolchain_min = toolchain_min          # oldest gcc accepted, "" = any
-        self.cmake_version = cmake_version          # oldest cmake accepted, "" = any
-        self.ninja_version = ninja_version          # oldest ninja accepted, "" = any
+        self.cmake_version = cmake_version          # cmake the installer installs, "" = none
+        self.ninja_version = ninja_version          # ninja the installer installs, "" = none
         self.sdk_path = sdk_path
         self.sdk_required = sdk_required
         self.sdk_version = sdk_version              # exact SDK version, "" = any
@@ -882,10 +882,8 @@ def problems(cfg: PicoConfig) -> List[Problem]:
                                            cfg.toolchain_package,
                                            f"{gcc} has no {' or '.join(no_lib)}"))
 
-    cmake_need = max([v for v in (cfg.cmake_version, _cmake_minimum(cfg.src)) if v],
-                     key=_parse_version, default="")
-    for tool, need, key in (("cmake", cmake_need, "pico_cmake_version"),
-                            ("ninja", cfg.ninja_version, "pico_ninja_version")):
+    for tool, need, key in (("cmake", _cmake_minimum(cfg.src), "pico_cmake_version"),
+                            ("ninja", "", "pico_ninja_version")):
         if tool not in tools:
             continue
         version = getattr(cfg, f"{tool}_version")
@@ -1419,8 +1417,8 @@ def _print_config(board: str, ini_path: str, cfg: Optional[PicoConfig]) -> None:
     print(f"  pico_toolchain   = {cfg.toolchain}")
     print(f"  pico_toolchain_package = {cfg.toolchain_package or '(none)'}  "
           f"(min: {cfg.toolchain_min or 'any'})")
-    print(f"  pico_cmake_version     = {cfg.cmake_version or 'any'}")
-    print(f"  pico_ninja_version     = {cfg.ninja_version or 'any'}")
+    print(f"  pico_cmake_version     = {cfg.cmake_version or '(none)'}")
+    print(f"  pico_ninja_version     = {cfg.ninja_version or '(none)'}")
     print(f"  pico_sdk_version = {cfg.sdk_version or 'any'}")
     print(f"  pico_sdk_path    = {cfg.sdk_path or '(not found)'}  (required: {cfg.sdk_required})")
     if cfg.repo:
