@@ -1493,6 +1493,39 @@ if(FUJINET_TARGET STREQUAL "ATARI")
   add_test(NAME afp_fs_tests COMMAND afp_fs_tests)
 endif()
 
+# The same two classes over the real bridge and a real server. Skips unless
+# AFP_TEST_HOST is set. POSIX only.
+if(FUJINET_TARGET STREQUAL "ATARI" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  add_executable(afp_fs_live_tests
+    AfpFsLiveTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFileAFP.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsAFP.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/punycode.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/U8Char.cpp
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_gettimeofday.c
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_inet.c
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpSession.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpPath.cpp
+    )
+  target_compile_definitions(afp_fs_live_tests PRIVATE UNIT_TESTS)
+  # utils.cpp reaches into most of lib/; borrow the include list that
+  # sio_network_stubs already keeps for it.
+  target_include_directories(afp_fs_live_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/afp/
+    $<TARGET_PROPERTY:sio_network_stubs,INTERFACE_INCLUDE_DIRECTORIES>
+    )
+  target_link_libraries(afp_fs_live_tests PRIVATE afp_bridge pthread)
+  add_test(NAME afp_fs_live_tests COMMAND afp_fs_live_tests)
+  set_tests_properties(afp_fs_live_tests PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
+endif()
+
 # AfpSession over the real bridge and a real server. Skips unless AFP_TEST_HOST
 # is set in the environment.
 add_executable(afp_session_live_tests
