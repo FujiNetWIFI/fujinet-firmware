@@ -62,3 +62,54 @@ TEST_CASE("a zero-length destination is reported and left untouched")
     CHECK(afp_macroman_to_utf8("a", out, 0) == -1);
     CHECK(out[0] == 'x');
 }
+
+static std::string back(const char *src)
+{
+    char out[64];
+    REQUIRE(afp_utf8_to_macroman(src, out, sizeof(out)) == 0);
+    return out;
+}
+
+TEST_CASE("UTF-8 back to MacRoman")
+{
+    CHECK(back("Shared Files 01") == "Shared Files 01");
+    CHECK(back("") == "");
+    CHECK(back("Caf\xc3\xa9") == "Caf\x8e");
+    CHECK(back("\xe2\x80\xa2") == "\xa5");             // bullet
+    CHECK(back("\xe2\x82\xac") == "\xdb");             // euro sign
+    CHECK(back("\xef\xa3\xbf") == "\xf0");             // Apple logo
+    CHECK(back("Andr\xc3\xa9\xe2\x80\x99s Mac") == "Andr\x8e\xd5s Mac");
+}
+
+TEST_CASE("every MacRoman byte survives the round trip")
+{
+    for (int c = 1; c < 256; c++)
+    {
+        const char in[2] = {static_cast<char>(c), 0};
+        char utf8[8], out[4];
+        REQUIRE(afp_macroman_to_utf8(in, utf8, sizeof(utf8)) == 0);
+        REQUIRE(afp_utf8_to_macroman(utf8, out, sizeof(out)) == 0);
+        CHECK(static_cast<unsigned char>(out[0]) == c);
+        CHECK(out[1] == 0);
+    }
+}
+
+TEST_CASE("what MacRoman cannot hold is refused, not guessed")
+{
+    char out[16];
+    CHECK(afp_utf8_to_macroman("\xe6\x97\xa5", out, sizeof(out)) == -1);   // CJK
+    CHECK(afp_utf8_to_macroman("\xf0\x9f\x98\x80", out, sizeof(out)) == -1); // emoji
+    CHECK(afp_utf8_to_macroman("e\xcc\x81", out, sizeof(out)) == -1);      // combining accent
+    CHECK(afp_utf8_to_macroman("\xc3", out, sizeof(out)) == -1);           // cut short
+    CHECK(afp_utf8_to_macroman("\x8e", out, sizeof(out)) == -1);           // not UTF-8
+    CHECK(afp_utf8_to_macroman("\xc0\xae", out, sizeof(out)) == -1);       // overlong '.'
+}
+
+TEST_CASE("a MacRoman destination that is too small is refused")
+{
+    char out[3];
+    CHECK(afp_utf8_to_macroman("abc", out, sizeof(out)) == -1);
+    CHECK(afp_utf8_to_macroman("ab", out, sizeof(out)) == 0);
+    CHECK(std::string(out) == "ab");
+    CHECK(afp_utf8_to_macroman("x", out, 0) == -1);
+}

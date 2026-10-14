@@ -1377,6 +1377,15 @@ target_include_directories(afp_macroman_tests PRIVATE
 )
 add_test(NAME afp_macroman_tests COMMAND afp_macroman_tests)
 
+# afpfs-ng path conversion for UTF-8 and long-name (MacRoman) volumes.
+add_executable(afp_codepage_tests AfpCodepageTests.cpp)
+target_include_directories(afp_codepage_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/components/afpfs-ng/include/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+target_link_libraries(afp_codepage_tests PRIVATE afpfs_fn)
+add_test(NAME afp_codepage_tests COMMAND afp_codepage_tests)
+
 # ------------------------------------------------------------------------------
 # afpfs-ng linked as a whole on the host.
 # ------------------------------------------------------------------------------

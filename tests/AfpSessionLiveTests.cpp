@@ -267,6 +267,24 @@ TEST_CASE("file: nothing is created, removed or renamed under a missing director
     CHECK(entries.empty());
 }
 
+TEST_CASE("directory: a listing gives names back as they were written")
+{
+    Scratch t;
+    // a-diaeresis: the library sends it decomposed to a UTF-8 volume.
+    const std::string name = "\xc3\xa4.txt";
+    {
+        AfpFile f(t.session);
+        REQUIRE(f.open(scratch + "/" + name, AfpOpenMode::Write).is_success());
+    }
+    std::vector<AfpDirEntry> entries;
+    REQUIRE(afp_list(t.session, scratch, entries) == 0);
+    REQUIRE(entries.size() == 1);
+    CHECK(entries[0].name == name);
+
+    AfpDirEntry e;
+    CHECK(afp_stat(t.session, scratch + "/" + entries[0].name, e) == 0);
+}
+
 TEST_CASE("directory: list, rename, remove, mkdir and rmdir")
 {
     Scratch t;

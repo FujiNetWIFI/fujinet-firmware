@@ -11,6 +11,10 @@ extern "C" {
  * cut on a character boundary. */
 int afp_macroman_to_utf8(const char * src, char * dest, size_t dest_len);
 
+/* UTF-8 to MacRoman.  Returns 0, or -1 if dest was too small, src is not
+ * UTF-8, or it holds a character MacRoman does not have. */
+int afp_utf8_to_macroman(const char * src, char * dest, size_t dest_len);
+
 #ifdef __cplusplus
 }
 #endif

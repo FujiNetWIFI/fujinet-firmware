@@ -504,10 +504,12 @@ int ll_readdir(struct afp_volume * volume, const char *path,
 	}
 
 	for (p=filebase; p; p=p->next) {
-		/* Convert all the names back to precomposed */
-		convert_path_to_unix(
+		/* Convert all the names back to precomposed UTF-8; a name that
+		 * will not convert is left as the server sent it. */
+		if (convert_path_to_unix(
 			volume->server->path_encoding, 
-			converted_name,p->name, AFP_MAX_PATH);
+			converted_name,p->name, AFP_MAX_PATH)==0)
+			memcpy(p->name,converted_name,AFP_MAX_PATH);
 		startindex++;
 	}
 

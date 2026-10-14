@@ -57,3 +57,42 @@ int afp_macroman_to_utf8(const char * src, char * dest, size_t dest_len)
 	dest[used]='\0';
 	return 0;
 }
+
+int afp_utf8_to_macroman(const char * src, char * dest, size_t dest_len)
+{
+	const unsigned char * s=(const unsigned char *) src;
+	size_t used=0;
+
+	if (dest_len==0) return -1;
+
+	while (*s) {
+		uint32_t c;
+		int more, i;
+
+		if (*s<0x80) { c=*s; more=0; }
+		else if ((*s&0xE0)==0xC0) { c=*s&0x1F; more=1; }
+		else if ((*s&0xF0)==0xE0) { c=*s&0x0F; more=2; }
+		else goto refuse;	/* four-byte forms are all outside MacRoman */
+		s++;
+		for (i=0;i<more;i++,s++) {
+			if ((*s&0xC0)!=0x80) goto refuse;
+			c=(c<<6)|(*s&0x3F);
+		}
+		/* An overlong form could smuggle in a '/' or a '.'. */
+		if ((more==1 && c<0x80) || (more==2 && c<0x800)) goto refuse;
+
+		if (c>=0x80) {
+			for (i=0;i<128 && macroman_high[i]!=c;i++);
+			if (i==128) goto refuse;
+			c=0x80+i;
+		}
+		if (used+2>dest_len) goto refuse;
+		dest[used++]=(char) c;
+	}
+	dest[used]='\0';
+	return 0;
+
+refuse:
+	dest[0]='\0';
+	return -1;
+}
