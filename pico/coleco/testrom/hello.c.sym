@@ -1,0 +1,5 @@
+_main                           = $0000 ; addr, global, , , code_compiler, hello.c::main::0::1:15
+i_1                             = $0000 ; addr, local, , , rodata_compiler, hello.c::main::0::1:15
+i_2                             = $0039 ; addr, local, , , code_compiler, hello.c::main::0::1:15
+i_3                             = $003C ; addr, local, , , code_compiler, hello.c::main::0::1:15
+i_4                             = $0039 ; addr, local, , , code_compiler, hello.c::main::0::1:15

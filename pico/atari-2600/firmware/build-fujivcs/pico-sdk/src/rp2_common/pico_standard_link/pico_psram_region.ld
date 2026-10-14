@@ -1,0 +1,1 @@
+PSRAM(rwx) : ORIGIN = 0x11000000, LENGTH = 0

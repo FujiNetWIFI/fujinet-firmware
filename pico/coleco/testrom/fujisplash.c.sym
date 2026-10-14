@@ -1,0 +1,11 @@
+_centre                         = $0000 ; addr, local, , , code_compiler, fujisplash.c::centre::0::0:21
+_logo_colors                    = $0000 ; addr, local, , , rodata_compiler, fujisplash.c:11
+_splash_show                    = $0056 ; addr, global, , , code_compiler, fujisplash.c::splash_show::0::1:30
+i_10                            = $00F2 ; addr, local, , , code_compiler, fujisplash.c::splash_show::0::1:30
+i_11                            = $00B7 ; addr, local, , , code_compiler, fujisplash.c::splash_show::0::1:30
+i_1                             = $000C ; addr, local, , , rodata_compiler, fujisplash.c::splash_show::0::1:30
+i_3                             = $0005 ; addr, local, , , code_compiler, fujisplash.c::centre::0::0:21
+i_4                             = $001E ; addr, local, , , code_compiler, fujisplash.c::centre::0::0:21
+i_7                             = $002F ; addr, local, , , code_compiler, fujisplash.c::centre::0::0:21
+i_8                             = $003F ; addr, local, , , code_compiler, fujisplash.c::centre::0::0:21
+i_9                             = $00B2 ; addr, local, , , code_compiler, fujisplash.c::splash_show::0::1:30

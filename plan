@@ -1,0 +1,16 @@
+The new universal bus designs (aka Fujiversal), e.g.
+
+* coco-bus
+* MSX
+* Intellivision
+
+Need a way to flash both the RP2040/2350/2354 and the ESP32S3 devices with a single firmware image, and a single command.
+
+All of these devices will have the UART (CP2102) port on the ESP32S3 exposed to the user to connect to a PC.
+
+A method and sequencing needs to be devised so that the FujiNet flasher at @~/Workspace/fujinet-flasher can be used to send the firmware across, and to flash the appropriate ESP32S3 and pico devices in the correct order. 
+
+Once done, the devices should reset and the ESP32S3 should be visible for monitoring from the same UART port.
+
+The method should be easily extensible to other fujiversal devices that also use this design, and it should not break existing designs that are ESP32 or ESP32S3 only.
+

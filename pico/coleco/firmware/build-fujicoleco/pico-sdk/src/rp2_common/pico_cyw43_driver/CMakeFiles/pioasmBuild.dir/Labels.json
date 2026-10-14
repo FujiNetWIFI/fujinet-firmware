@@ -1,0 +1,43 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/home/thomc/Workspace/fujinet-firmware/pico/coleco/firmware/build-fujicoleco/pico-sdk/src/rp2_common/pico_cyw43_driver/CMakeFiles/pioasmBuild"
+		},
+		{
+			"file" : "/home/thomc/Workspace/fujinet-firmware/pico/coleco/firmware/build-fujicoleco/pico-sdk/src/rp2_common/pico_cyw43_driver/CMakeFiles/pioasmBuild.rule"
+		},
+		{
+			"file" : "/home/thomc/Workspace/fujinet-firmware/pico/coleco/firmware/build-fujicoleco/pico-sdk/src/rp2_common/pico_cyw43_driver/CMakeFiles/pioasmBuild-complete.rule"
+		},
+		{
+			"file" : "/home/thomc/Workspace/fujinet-firmware/pico/coleco/firmware/build-fujicoleco/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/pioasmBuild-stamp/pioasmBuild-build.rule"
+		},
+		{
+			"file" : "/home/thomc/Workspace/fujinet-firmware/pico/coleco/firmware/build-fujicoleco/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/pioasmBuild-stamp/pioasmBuild-configure.rule"
+		},
+		{
+			"file" : "/home/thomc/Workspace/fujinet-firmware/pico/coleco/firmware/build-fujicoleco/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/pioasmBuild-stamp/pioasmBuild-download.rule"
+		},
+		{
+			"file" : "/home/thomc/Workspace/fujinet-firmware/pico/coleco/firmware/build-fujicoleco/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/pioasmBuild-stamp/pioasmBuild-install.rule"
+		},
+		{
+			"file" : "/home/thomc/Workspace/fujinet-firmware/pico/coleco/firmware/build-fujicoleco/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/pioasmBuild-stamp/pioasmBuild-mkdir.rule"
+		},
+		{
+			"file" : "/home/thomc/Workspace/fujinet-firmware/pico/coleco/firmware/build-fujicoleco/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/pioasmBuild-stamp/pioasmBuild-patch.rule"
+		},
+		{
+			"file" : "/home/thomc/Workspace/fujinet-firmware/pico/coleco/firmware/build-fujicoleco/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/pioasmBuild-stamp/pioasmBuild-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"pioasmBuild"
+		],
+		"name" : "pioasmBuild"
+	}
+}

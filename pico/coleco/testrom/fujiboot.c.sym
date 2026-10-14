@@ -1,0 +1,17 @@
+_die                            = $0000 ; addr, local, , , code_compiler, fujiboot.c::die::0::0:33
+_main                           = $0088 ; addr, global, , , code_compiler, fujiboot.c::main::0::4:60
+_need_ack                       = $004C ; addr, local, , , code_compiler, fujiboot.c::need_ack::0::2:50
+_step                           = $0032 ; addr, local, , , code_compiler, fujiboot.c::step::0::1:42
+i_10                            = $018A ; addr, local, , , code_compiler, fujiboot.c::main::0::4:60
+i_11                            = $01A1 ; addr, local, , , code_compiler, fujiboot.c::main::0::4:60
+i_12                            = $01BB ; addr, local, , , code_compiler, fujiboot.c::main::0::4:60
+i_13                            = $01EC ; addr, local, , , code_compiler, fujiboot.c::main::0::4:60
+i_1                             = $0000 ; addr, local, , , rodata_compiler, fujiboot.c::main::0::4:60
+i_2                             = $002E ; addr, local, , , code_compiler, fujiboot.c::die::0::0:33
+i_3                             = $0031 ; addr, local, , , code_compiler, fujiboot.c::die::0::0:33
+i_4                             = $002E ; addr, local, , , code_compiler, fujiboot.c::main::0::4:60
+i_5                             = $006E ; addr, local, , , code_compiler, fujiboot.c::need_ack::0::2:50
+i_6                             = $0086 ; addr, local, , , code_compiler, fujiboot.c::need_ack::0::2:50
+i_7                             = $00BA ; addr, local, , , code_compiler, fujiboot.c::main::0::4:60
+i_8                             = $018A ; addr, local, , , code_compiler, fujiboot.c::main::0::4:60
+i_9                             = $01F0 ; addr, local, , , code_compiler, fujiboot.c::main::0::4:60

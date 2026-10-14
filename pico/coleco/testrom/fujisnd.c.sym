@@ -1,0 +1,7 @@
+_snd_click                      = $002E ; addr, global, , , code_compiler, fujisnd.c::snd_click::0::1:32
+_snd_init                       = $0000 ; addr, global, , , code_compiler, fujisnd.c::snd_init::0::0:23
+_snd_tick                       = $0054 ; addr, global, , , code_compiler, fujisnd.c::snd_tick::0::2:40
+_ticks                          = $0000 ; addr, local, , , bss_compiler, fujisnd.c::snd_tick::0::2:40
+i_2                             = $0073 ; addr, local, , , code_compiler, fujisnd.c::snd_tick::0::2:40
+i_3                             = $0073 ; addr, local, , , code_compiler, fujisnd.c::snd_tick::0::2:40
+i_4_i_3                         = $0069 ; addr, local, , , code_compiler, fujisnd.c::snd_tick::0::2:40

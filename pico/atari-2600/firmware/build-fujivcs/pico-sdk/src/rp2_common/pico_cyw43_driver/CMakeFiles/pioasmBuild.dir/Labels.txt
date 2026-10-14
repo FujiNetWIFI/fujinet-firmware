@@ -1,0 +1,13 @@
+# Target labels
+ pioasmBuild
+# Source files and their labels
+/home/thomc/Workspace/fujinet-firmware/pico/atari-2600/firmware/build-fujivcs/pico-sdk/src/rp2_common/pico_cyw43_driver/CMakeFiles/pioasmBuild
+/home/thomc/Workspace/fujinet-firmware/pico/atari-2600/firmware/build-fujivcs/pico-sdk/src/rp2_common/pico_cyw43_driver/CMakeFiles/pioasmBuild.rule
+/home/thomc/Workspace/fujinet-firmware/pico/atari-2600/firmware/build-fujivcs/pico-sdk/src/rp2_common/pico_cyw43_driver/CMakeFiles/pioasmBuild-complete.rule
+/home/thomc/Workspace/fujinet-firmware/pico/atari-2600/firmware/build-fujivcs/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/pioasmBuild-stamp/pioasmBuild-build.rule
+/home/thomc/Workspace/fujinet-firmware/pico/atari-2600/firmware/build-fujivcs/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/pioasmBuild-stamp/pioasmBuild-configure.rule
+/home/thomc/Workspace/fujinet-firmware/pico/atari-2600/firmware/build-fujivcs/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/pioasmBuild-stamp/pioasmBuild-download.rule
+/home/thomc/Workspace/fujinet-firmware/pico/atari-2600/firmware/build-fujivcs/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/pioasmBuild-stamp/pioasmBuild-install.rule
+/home/thomc/Workspace/fujinet-firmware/pico/atari-2600/firmware/build-fujivcs/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/pioasmBuild-stamp/pioasmBuild-mkdir.rule
+/home/thomc/Workspace/fujinet-firmware/pico/atari-2600/firmware/build-fujivcs/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/pioasmBuild-stamp/pioasmBuild-patch.rule
+/home/thomc/Workspace/fujinet-firmware/pico/atari-2600/firmware/build-fujivcs/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/pioasmBuild-stamp/pioasmBuild-update.rule

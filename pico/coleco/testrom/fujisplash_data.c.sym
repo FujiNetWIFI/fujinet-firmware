@@ -1,0 +1,2 @@
+_splash_nametable               = $0300 ; addr, global, , , rodata_compiler, fujisplash_data.c:118
+_splash_patterns                = $0000 ; addr, global, , , rodata_compiler, fujisplash_data.c:18

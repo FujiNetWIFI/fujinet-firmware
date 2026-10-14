@@ -1,0 +1,10 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/thomc/Workspace/fujinet-firmware/pico/atari-2600/firmware/build-fujivcs/pico-sdk/src/rp2040/boot_stage2/bs2_default_padded_checksummed.S
+
