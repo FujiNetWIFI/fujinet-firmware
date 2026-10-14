@@ -37,7 +37,7 @@ Every per-bus directory follows one layout:
 
 | File | Defines |
 |---|---|
-| `<bus>Fuji.h`, `.cpp` | the `fujiDevice` subclass; its `.cpp` defines `platformFuji` and points the global `theFuji` at it |
+| `<bus>Fuji.h`, `.cpp` | the `fujiDevice` subclass; its `.cpp` defines `platformFuji` and points the global `theFuji` at it, unless `device.h` picks a per-board subclass (rs232) |
 | `disk.h`, `.cpp` | the `DISK_DEVICE` class |
 | `<bus>Network.h`, `.cpp` | the `NDevice` subclass |
 | `<bus>Clock.h`, `.cpp` | the `fujiClock` subclass; defines the global `platformClock` |
