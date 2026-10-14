@@ -1,6 +1,7 @@
 
 #include "tnfslib.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <sys/stat.h>
 #include <errno.h>
@@ -18,11 +19,28 @@
 #include "utils.h"
 
 #include "tnfslib_internal.h"
+#include "tnfslib_framing.h"
 
 using namespace std;
 // ------------------------------------------------
 // INTERNAL UTILITY FUNCTIONS
 // ------------------------------------------------
+
+// A new TCP connection starts a new reply stream.
+static void _tnfs_tcp_start_replies(tnfsMountInfo *m_info)
+{
+    if (m_info->tcp_replies)
+        m_info->tcp_replies->reset();
+    else
+        m_info->tcp_replies = tnfs_new_reply_assembler();
+}
+
+// The reply stream can no longer be trusted; the next send reconnects.
+static void _tnfs_tcp_drop(tnfsMountInfo *m_info)
+{
+    m_info->tcp_client.stop();
+    m_info->tcp_replies.reset();
+}
 
 /*
     Send the packet, using UDP or TCP, depending on the m_info.
@@ -71,6 +89,13 @@ bool _tnfs_tcp_send(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_siz
             Debug_println("Can't connect to the TCP server");
             return false;
         }
+        _tnfs_tcp_start_replies(m_info);
+        if (m_info->tcp_replies == nullptr)
+        {
+            Debug_println("No memory for TNFS TCP replies");
+            tcp->stop();
+            return false;
+        }
     }
     int l = tcp->write(pkt.rawData, payload_size + TNFS_HEADER_SIZE);
     return l == payload_size + TNFS_HEADER_SIZE;
@@ -107,6 +132,7 @@ bool _tnfs_udp_do_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint1
     Receive the packet, using UDP or TCP, depending on the m_info.
     Return the number of received bytes or an negative value if the
     packet is not available or an error occurred.
+    TNFS_RECV_CONNECTION_LOST: the TCP connection was closed.
 */
 int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt)
 {
@@ -120,18 +146,35 @@ int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt)
     }
 }
 
+// One reply per call, however TCP split or merged them. Bytes past the assembler's free
+// space stay queued in tcp_client, and pkt doubles as the read buffer.
 int _tnfs_tcp_recv(tnfsMountInfo *m_info, tnfsPacket &pkt)
 {
+    tnfsReplyAssembler *replies = m_info->tcp_replies.get();
+    if (replies == nullptr)
+        return -1;
+
     fnTcpClient *tcp = &m_info->tcp_client;
-    if (!tcp->connected())
+    size_t want = std::min(tcp->available(), static_cast<size_t>(replies->space()));
+    if (want > 0)
+        replies->append(pkt.rawData, tcp->read(pkt.rawData, want));
+
+    tnfsFrame frame = replies->take(pkt.rawData);
+    if (frame.status == tnfsFrameStatus::COMPLETE)
+        return frame.length;
+    if (frame.status == tnfsFrameStatus::MALFORMED)
     {
-        return -1;
+        Debug_println("Malformed TNFS reply over TCP; dropping the connection");
+        _tnfs_tcp_drop(m_info);
+        return TNFS_RECV_CONNECTION_LOST;
     }
-    if (!tcp->available())
+    if (want == 0 && !tcp->connected())
     {
-        return -1;
+        Debug_println("TNFS TCP connection closed");
+        _tnfs_tcp_drop(m_info);
+        return TNFS_RECV_CONNECTION_LOST;
     }
-    return tcp->read(pkt.rawData, sizeof(pkt.rawData));
+    return -1;
 }
 
 #ifndef TNFS_UDP_SIMULATE_POOR_CONNECTION
@@ -265,8 +308,13 @@ _tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPa
         // in the retry counter.
         Debug_println("No response to TCP mount request; falling back to UDP.");
         m_info->protocol = TNFS_PROTOCOL_UDP;
+        _tnfs_tcp_drop(m_info);
         return RESET;
     }
+
+    // The retry's reply must not complete a reply that was cut off: start a new stream.
+    if (m_info->tcp_replies && m_info->tcp_replies->buffered() > 0)
+        _tnfs_tcp_drop(m_info);
 
     Debug_printf("Timeout after %d milliseconds. Retrying\r\n", m_info->timeout_ms);
     return FAILED;
@@ -278,6 +326,10 @@ _tnfs_recv_result _tnfs_recv_and_validate(fnUDP &udp, tnfsMountInfo *m_info, tnf
     fnSystem.delay_microseconds(2000); // wait short time for (local) data to arrive
 #endif
     int l = _tnfs_recv(&udp, m_info, res_pkt);
+    if (l == TNFS_RECV_CONNECTION_LOST && m_info->protocol == TNFS_PROTOCOL_TCP)
+    {
+        return RESP_INVALID; // retry on a new connection
+    }
     if (l < 0)
     {
         return NO_RESP;

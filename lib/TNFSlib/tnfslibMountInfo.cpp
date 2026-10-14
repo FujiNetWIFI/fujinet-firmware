@@ -1,8 +1,39 @@
 
 #include "tnfslibMountInfo.h"
 
-#include "compat_string.h"
+#include <cstdlib>
+#include <new>
 
+#include "compat_string.h"
+#include "tnfslib_framing.h"
+
+#ifdef ESP_PLATFORM
+#include "PSRAMAllocator.h"
+
+// PSRAM first; the default heap when there is no PSRAM, or none left.
+static void *allocate_replies() { return PSRAMAllocator<tnfsReplyAssembler>().allocate(1); }
+static void free_replies(tnfsReplyAssembler *replies)
+{ PSRAMAllocator<tnfsReplyAssembler>().deallocate(replies, 1); }
+#else
+static void *allocate_replies() { return std::malloc(sizeof(tnfsReplyAssembler)); }
+static void free_replies(tnfsReplyAssembler *replies) { std::free(replies); }
+#endif
+
+tnfsReplyAssemblerPtr tnfs_new_reply_assembler()
+{
+    void *memory = allocate_replies();
+    if (memory == nullptr)
+        return nullptr;
+    return tnfsReplyAssemblerPtr(new (memory) tnfsReplyAssembler);
+}
+
+void tnfsReplyAssemblerDeleter::operator()(tnfsReplyAssembler *replies) const
+{
+    replies->~tnfsReplyAssembler();
+    free_replies(replies);
+}
+
+tnfsMountInfo::tnfsMountInfo() = default;
 
 tnfsMountInfo::tnfsMountInfo(const char *host_name, uint16_t host_port)
 {
