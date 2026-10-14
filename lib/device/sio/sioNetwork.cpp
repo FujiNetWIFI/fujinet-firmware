@@ -70,6 +70,7 @@ AtariSIODirection sioNetwork::get_dstats_for_command(fujiCommandID_t command)
     case CMD::NET_SET_PARAMETER:
     case CMD::NET_SET_HTTP_MODE:
     case CMD::NET_GET_REMOTE:
+    case CMD::NET_SET_SEQUENCE:
         return SIO_DIRECTION::NONE;
 
     // Payload from FujiNet to Atari (0x40)
@@ -165,7 +166,8 @@ void sioNetwork::fujidev_read(const FUJI_COMMAND_PACKET &packet)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
-    uint16_t num_bytes = packet.param(0);
+    uint16_t param = packet.param(0);
+    uint16_t num_bytes = read_length(param);
 
     if (!num_bytes)
     {
@@ -174,7 +176,7 @@ void sioNetwork::fujidev_read(const FUJI_COMMAND_PACKET &packet)
     }
 
     ByteBuffer buf;
-    if (fujicore_read(buf, num_bytes).is_error())
+    if (fujicore_read_seq(buf, param).is_error())
     {
         // The Atari reads a data frame after ERROR too; without one SIOV waits out DTIMLO.
         buf.assign(num_bytes, 0);
