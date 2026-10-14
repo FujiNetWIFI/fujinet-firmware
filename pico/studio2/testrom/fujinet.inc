@@ -92,6 +92,8 @@ TOP_MARQUEE     EQU     20H
 TOP_MQ_OFF      EQU     21H
 TOP_REPEAT      EQU     30H
 TOP_GLYPH       EQU     40H
+TOP_TILE        EQU     41H
+TOP_MOSAIC      EQU     42H
 SYM_SPADE       EQU     01H
 SYM_HEART       EQU     02H
 SYM_DIAMOND     EQU     03H
