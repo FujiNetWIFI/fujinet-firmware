@@ -21,8 +21,6 @@
 #include <libgen.h>
 #endif /* ESP_PLATFORM */
 
-rs232Fuji platformFuji;
-fujiDevice *theFuji = &platformFuji;
 rs232Network rs232NetDevs[MAX_NETWORK_DEVICES];
 
 rs232Fuji::rs232Fuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)

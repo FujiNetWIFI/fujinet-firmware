@@ -44,6 +44,13 @@
 # include "rs232/printerlist.h"
 # include "rs232/rs232cpm.h"
 # include "rs232/rs232Fuji.h"
+# ifdef PINMAP_H89
+#  include "rs232/h89Fuji.h"
+    h89Fuji platformFuji;
+# else
+    rs232Fuji platformFuji;
+# endif
+    fujiDevice *theFuji = &platformFuji;
 
     rs232Modem *sioR;
     rs232CPM sioZ;
