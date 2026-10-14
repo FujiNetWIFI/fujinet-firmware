@@ -15,7 +15,7 @@ mount, file and directory code runs on a host against a scripted server.
 | `utils.h` | `lib/utils/utils.h` | The unused-variable pragma macros only |
 
 ## How it fits
-- Used by `tnfs_tcp_recv_tests` (`tests/TnfsTcpRecvTests.cpp`), which defines the
+- Used by `tnfs_tcp_recv_tests` (`tests/TNFSTcpRecvTests.cpp`), which defines the
   `fnSystem`, `SYSTEM_BUS` and `harness_server` objects and a minimal TNFS server on top of
   `harness_server`.
 - That test links the real `tnfslib.cpp`, `tnfslib_dir.cpp`, `tnfslib_transport.cpp`,

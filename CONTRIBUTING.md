@@ -214,6 +214,9 @@ tree does not conform.
   hard-disabled) and no workflow invokes it. `./coding-standard.py --addhook` installs it locally.
 - Use `std::string`, not Arduino `String`. Prefix new private members with `_`. Use fixed-width
   types and `__attribute__((packed))` structs for wire formats, never `std::string`.
+- Keep acronyms in capitals in new names, file names, comments and docs: `TNFS`, `FTP`, `URL`,
+  `HTTP`, not `Tnfs`, `Ftp`, `Url`, `Http`. All-lowercase names such as `tnfs_open()` are fine.
+  Existing names like `fnHttpService` and `PeoplesUrlParser` change only in a rename PR.
 
 ## C++ and code structure
 

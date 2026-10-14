@@ -35,7 +35,7 @@ void put_le(Bytes &b, uint32_t value, int size)
 }
 
 // Enough of TNFSD for mount, stat, open, read and readdirx of one file and one directory.
-class FakeTnfsd
+class FakeTNFSd
 {
 public:
     // How each reply reaches the client: whole, by default.
@@ -110,7 +110,7 @@ private:
 // A mount of the fake server over a fresh harness and clock.
 struct Session
 {
-    FakeTnfsd server;
+    FakeTNFSd server;
     tnfsMountInfo info{"tnfs.test"};
 
     explicit Session(uint8_t protocol = TNFS_PROTOCOL_TCP)
