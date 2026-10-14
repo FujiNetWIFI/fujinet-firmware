@@ -334,6 +334,35 @@ same_dir() {
     [ -n "$stat1" ] && [ "$stat1" = "$stat2" ]
 }
 
+# Submodules a given config names are initialized if absent and must be at their
+# pinned commit; others only warn when off their pin. Never moves a checkout.
+check_submodules() {
+  [ -e "${SCRIPT_DIR}/.git" ] && [ -f "${SCRIPT_DIR}/.gitmodules" ] || return 0
+  command -v git > /dev/null || return 0
+  local sub pattern config needed status
+  for sub in $(git -C "$SCRIPT_DIR" config -f .gitmodules --get-regexp '\.path$' | cut -d' ' -f2) ; do
+    pattern="(^|[^[:alnum:]_.-])$(printf '%s' "$sub" | sed 's/[.[\*^$()+?{|]/\\&/g')([^[:alnum:]_.-]|\$)"
+    needed=0
+    for config in "$@" ; do
+      if [ -f "$config" ] && grep -v '^[[:space:]]*[;#]' "$config" | grep -Eq "$pattern" ; then
+        needed=1
+      fi
+    done
+    status=$(git -C "$SCRIPT_DIR" submodule status -- "$sub" | cut -c1)
+    if [ "$status" = "-" ] && [ $needed -eq 1 ] ; then
+      echo "Initializing submodule ${sub}"
+      git -C "$SCRIPT_DIR" submodule update --init --recursive -- "$sub" || return 1
+    elif [ "$status" = "+" ] ; then
+      if [ $needed -eq 1 ] ; then
+        echo "ERROR: submodule ${sub} is not at the commit this repository pins. To check out the pinned commit, run:"
+        echo "git submodule update --init --recursive ${sub}"
+        return 1
+      fi
+      echo "WARNING: submodule ${sub} is not at its pinned commit; this build does not use it."
+    fi
+  done
+}
+
 if [[ "$VIRTUAL_ENV" != "$VENV_ROOT" ]] ; then
     if [ ! -f "${ACTIVATE}" ] ; then
         echo Creating venv at "${VENV_ROOT}"
@@ -424,6 +453,7 @@ if [ ! -z "$PC_TARGET" ] ; then
   fi
 
   ${PYTHON} "${SCRIPT_DIR}/build_prereqs.py" --pc ${PREREQ_YES} || exit 1
+  check_submodules || exit 1
 
   cd $SCRIPT_DIR/build
   # Write out the compile commands for clangd etc to use
@@ -539,6 +569,7 @@ if [ ${PICO_ONLY} -eq 1 ] ; then
   PICO_ENV="${ENV_NAME:-$BUILD_BOARD}"
   echo "=============================================================="
   echo "Building companion (pico) firmware only for board: $PICO_ENV"
+  check_submodules "$INI_FILE" "$SCRIPT_DIR/build-platforms/platformio-${PICO_ENV}.ini" || exit 1
   python "$SCRIPT_DIR/build_prereqs.py" --board "$PICO_ENV" --ini "$INI_FILE" ${PREREQ_YES} || exit 1
   python3 "$SCRIPT_DIR/build_pico.py" "$PICO_ENV" --ini "$INI_FILE"
   exit $?
@@ -549,6 +580,7 @@ fi
 if [ ${DO_CLEAN} -eq 0 ] || [ ${RUN_BUILD} -eq 1 ] || [ ${UPLOAD_IMAGE} -eq 1 ] || \
    [ ${UPLOAD_FS} -eq 1 ] || [ ${ZIP_MODE} -eq 1 ] || [ ${SHOW_MONITOR} -eq 1 ] || \
    [ -n "${TARGET_NAME}" ] ; then
+  check_submodules "$INI_FILE" "$SCRIPT_DIR/build-platforms/platformio-${ENV_NAME:-$BUILD_BOARD}.ini" || exit 1
   python "$SCRIPT_DIR/build_prereqs.py" --board "${ENV_NAME:-$BUILD_BOARD}" --ini "$INI_FILE" ${PREREQ_YES} || exit 1
 fi
 
