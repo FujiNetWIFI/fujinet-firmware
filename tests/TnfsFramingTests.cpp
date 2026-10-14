@@ -22,8 +22,10 @@ static Bytes zeros(int n) { return Bytes(n, 0); }
 
 static Bytes read_reply(int count, uint8_t fill = 0xA5)
 {
-    Bytes data = {static_cast<uint8_t>(count & 0xFF), static_cast<uint8_t>(count >> 8)};
-    data.insert(data.end(), count, fill);
+    // insert() after a 2-byte init trips a GCC 15/16 -Wstringop-overflow false positive.
+    Bytes data(2 + count, fill);
+    data[0] = static_cast<uint8_t>(count & 0xFF);
+    data[1] = static_cast<uint8_t>(count >> 8);
     return reply(TNFS_CMD_READ, TNFS_RESULT_SUCCESS, data);
 }
 
