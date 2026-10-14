@@ -1460,6 +1460,31 @@ target_include_directories(afp_file_tests PRIVATE
 target_link_libraries(afp_file_tests PRIVATE pthread)
 add_test(NAME afp_file_tests COMMAND afp_file_tests)
 
+# FileHandlerAFP and FileSystemAFP against the fake bridge. ATARI-only: file
+# handlers are compiled out where fnio.h falls back to stdio.
+if(FUJINET_TARGET STREQUAL "ATARI")
+  add_executable(afp_fs_tests
+    AfpFsTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFileAFP.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpSession.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/afp/afpPath.cpp
+    )
+  target_compile_definitions(afp_fs_tests PRIVATE UNIT_TESTS)
+  target_include_directories(afp_fs_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/afp/
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/
+    ${CMAKE_SOURCE_DIR}/lib/compat/
+    ${CMAKE_SOURCE_DIR}/lib/utils/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+    )
+  target_link_libraries(afp_fs_tests PRIVATE pthread)
+  add_test(NAME afp_fs_tests COMMAND afp_fs_tests)
+endif()
+
 # AfpSession over the real bridge and a real server. Skips unless AFP_TEST_HOST
 # is set in the environment.
 add_executable(afp_session_live_tests
