@@ -69,6 +69,8 @@ public:
      */
     off_t seek(off_t offset, int whence) override;
 
+    bool wants_whole_path() const override { return false; }
+
 protected:
     /**
      * @brief open a file handle to fd

@@ -52,6 +52,47 @@ target_include_directories(fn_sanitize_tests PRIVATE
 add_test(NAME fn_sanitize_tests COMMAND fn_sanitize_tests)
 
 # ------------------------------------------------------------------------------
+# PeoplesUrlParser, including keepWholePath() for file-name paths (#1790).
+# Its utils dependencies need MbedTLS crypto and the same compat sources and
+# libraries as the fujinet executable.
+# ------------------------------------------------------------------------------
+add_executable(url_parser_tests
+    PeoplesUrlParserTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/U8Char.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/punycode.cpp
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_gettimeofday.c
+)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_sources(url_parser_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+    )
+endif()
+
+target_include_directories(url_parser_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/utils/
+    ${CMAKE_SOURCE_DIR}/lib/compat/
+    ${CMAKE_SOURCE_DIR}/lib/sam/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+    ${MBEDTLS_INCLUDE_DIR}
+)
+
+target_link_libraries(url_parser_tests PRIVATE ${MBEDCRYPTO_STATIC_LIB})
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_include_directories(url_parser_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/components_pc/libsmb2/include/   # asprintf.h
+    )
+    target_link_libraries(url_parser_tests PRIVATE bcrypt)
+endif()
+
+add_test(NAME url_parser_tests COMMAND url_parser_tests)
+
+# ------------------------------------------------------------------------------
 # The XPath-subset query engine. Split out of FNXML precisely so it can be
 # driven here with a literal document and no NetworkProtocol behind it.
 # ------------------------------------------------------------------------------

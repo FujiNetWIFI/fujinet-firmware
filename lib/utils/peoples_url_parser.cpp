@@ -101,15 +101,59 @@ void PeoplesUrlParser::cleanPath() {
     path = util_get_canonical_path(path);
 }
 
+static int hexValue(char c)
+{
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    if (c >= 'a' && c <= 'f')
+        return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F')
+        return c - 'A' + 10;
+    return -1;
+}
+
+// A malformed escape is kept as-is, and %00 too, so a path never holds a NUL.
+std::string PeoplesUrlParser::percentDecode(const std::string &s)
+{
+    std::string out;
+    out.reserve(s.size());
+    for (size_t i = 0; i < s.size(); i++)
+    {
+        if (s[i] == '%' && i + 2 < s.size())
+        {
+            int hi = hexValue(s[i + 1]), lo = hexValue(s[i + 2]);
+            if (hi >= 0 && lo >= 0 && (hi | lo) != 0)
+            {
+                out += (char)(hi * 16 + lo);
+                i += 2;
+                continue;
+            }
+        }
+        out += s[i];
+    }
+    return out;
+}
+
+void PeoplesUrlParser::keepWholePath()
+{
+    _wholePath = true;
+    resetURL(mRawUrl);
+}
+
 void PeoplesUrlParser::processPath()
 {
     if(path.size() == 0)
         return;
 
-    // find path end
-    auto pos = path.find('?');
-    if (pos == std::string::npos) {
-        pos = path.find('#');
+    auto pos = std::string::npos;
+    if (_wholePath)
+        path = percentDecode(path);
+    else
+    {
+        // find path end
+        pos = path.find('?');
+        if (pos == std::string::npos)
+            pos = path.find('#');
     }
 
     if (pos != std::string::npos)

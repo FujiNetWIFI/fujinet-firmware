@@ -19,6 +19,8 @@ typedef enum class DIR_FORMAT {
 class NetworkProtocolFS : public NetworkProtocol
 {
 public:
+    bool wants_whole_path() const override { return true; }
+
     /**
      * Is rename implemented?
      */

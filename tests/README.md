@@ -10,6 +10,7 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `FujiBusPacketTests.cpp` | `lib/bus/rs232/FujiBusPacket.cpp` SLIP framing (`fujibuspacket_tests`) |
 | `DaisyChainTests.cpp` | `lib/bus/DaisyChain.cpp` device-ID rotation behind the disk swap (`daisychain_tests`) |
 | `FnSanitizeTests.cpp` | `lib/fntext/fn_sanitize.cpp` entity decoding and UTF-8 folding (`fn_sanitize_tests`) |
+| `PeoplesUrlParserTests.cpp` | `lib/utils/peoples_url_parser.cpp` query and fragment splitting, and `keepWholePath()` (`url_parser_tests`) |
 | `FnxmlQueryTests.cpp` | `lib/fnxml/fnxml_query.cpp` XPath subset over tinyxml2 (`fnxml_query_tests`) |
 | `CalendarTests.cpp` | `lib/utils/fn_time.cpp` and `lib/network-protocol/calendar_draft.cpp` (`calendar_tests`) |
 | `QRCodeTests.cpp` | `lib/qrcode/qrcode.c` version and ECC selection (`qrcode_tests`) |
