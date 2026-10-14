@@ -575,11 +575,10 @@ if [ ${PICO_ONLY} -eq 1 ] ; then
   exit $?
 fi
 
-# Every prerequisite after Python and PlatformIO, checked before pio starts. A
-# clean on its own needs none of them.
-if [ ${DO_CLEAN} -eq 0 ] || [ ${RUN_BUILD} -eq 1 ] || [ ${UPLOAD_IMAGE} -eq 1 ] || \
-   [ ${UPLOAD_FS} -eq 1 ] || [ ${ZIP_MODE} -eq 1 ] || [ ${SHOW_MONITOR} -eq 1 ] || \
-   [ -n "${TARGET_NAME}" ] ; then
+# Every prerequisite after Python and PlatformIO, checked only before a build,
+# upload or monitor. Choosing a board (-s) or cleaning (-c) needs none of them.
+if [ ${RUN_BUILD} -eq 1 ] || [ ${UPLOAD_IMAGE} -eq 1 ] || [ ${UPLOAD_FS} -eq 1 ] || \
+   [ ${ZIP_MODE} -eq 1 ] || [ ${SHOW_MONITOR} -eq 1 ] || [ -n "${TARGET_NAME}" ] ; then
   check_submodules "$INI_FILE" "$SCRIPT_DIR/build-platforms/platformio-${ENV_NAME:-$BUILD_BOARD}.ini" || exit 1
   python "$SCRIPT_DIR/build_prereqs.py" --board "${ENV_NAME:-$BUILD_BOARD}" --ini "$INI_FILE" ${PREREQ_YES} || exit 1
 fi
