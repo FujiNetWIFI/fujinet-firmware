@@ -1,6 +1,7 @@
 #ifndef FN_FSAFP_H
 #define FN_FSAFP_H
 
+#include <memory>
 #include <string>
 
 #include "fnFS.h"
@@ -11,7 +12,8 @@
 class FileSystemAFP : public FileSystem
 {
 private:
-    AfpSession _session;
+    // Shared with every open file, so a file outlives an unmount safely.
+    std::shared_ptr<AfpSession> _session;
     // The mounted directory below the volume: empty, or "/dir" with no trailing slash.
     std::string _root;
 
@@ -23,7 +25,7 @@ private:
     std::string full_path(const char *path) const;
 
 public:
-    FileSystemAFP() = default;
+    FileSystemAFP();
     ~FileSystemAFP();
 
     // afp://[user[:password]@]host[:port]/Volume[/dir]. user and password are

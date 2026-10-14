@@ -1460,9 +1460,10 @@ target_include_directories(afp_file_tests PRIVATE
 target_link_libraries(afp_file_tests PRIVATE pthread)
 add_test(NAME afp_file_tests COMMAND afp_file_tests)
 
-# FileHandlerAFP and FileSystemAFP against the fake bridge. ATARI-only: file
-# handlers are compiled out where fnio.h falls back to stdio.
-if(FUJINET_TARGET STREQUAL "ATARI")
+# FileHandlerAFP and FileSystemAFP against the fake bridge. ATARI-only, for
+# the sio_network_stubs include list. Not built on Windows, where the
+# utilities they link need more of the host build than this target carries.
+if(FUJINET_TARGET STREQUAL "ATARI" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
   add_executable(afp_fs_tests
     AfpFsTests.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFileAFP.cpp
@@ -1489,6 +1490,11 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     ${CMAKE_SOURCE_DIR}/lib/afp/
     $<TARGET_PROPERTY:sio_network_stubs,INTERFACE_INCLUDE_DIRECTORIES>
     )
+  # glibc before 2.38 has no strlcpy; the host build adds these the same way.
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_sources(afp_fs_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c)
+  endif()
   target_link_libraries(afp_fs_tests PRIVATE ${MBEDCRYPTO_STATIC_LIB} pthread)
   add_test(NAME afp_fs_tests COMMAND afp_fs_tests)
 endif()
@@ -1521,6 +1527,10 @@ if(FUJINET_TARGET STREQUAL "ATARI" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
     ${CMAKE_SOURCE_DIR}/lib/afp/
     $<TARGET_PROPERTY:sio_network_stubs,INTERFACE_INCLUDE_DIRECTORIES>
     )
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_sources(afp_fs_live_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c)
+  endif()
   target_link_libraries(afp_fs_live_tests PRIVATE afp_bridge pthread)
   add_test(NAME afp_fs_live_tests COMMAND afp_fs_live_tests)
   set_tests_properties(afp_fs_live_tests PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)

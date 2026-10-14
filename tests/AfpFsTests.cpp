@@ -9,13 +9,15 @@
 #include <algorithm>
 #include <cerrno>
 #include <cstdio>
+#include <memory>
 #include <string>
 #include <vector>
 
 // A session on volume Alpha of a freshly reset fake, to seed it and look inside.
 struct Mounted
 {
-    AfpSession session;
+    std::shared_ptr<AfpSession> owner = std::make_shared<AfpSession>();
+    AfpSession &session = *owner;
     Mounted()
     {
         fake.reset();
@@ -54,14 +56,14 @@ TEST_CASE("handler: w creates, r reads back, and counts are in items")
 {
     Mounted m;
     {
-        FileHandlerAFP f(m.session);
+        FileHandlerAFP f(m.owner);
         REQUIRE(f.open("/a.txt", "w").is_success());
         CHECK(f.write("abcdefgh", 3, 2) == 2); // six bytes
         CHECK(f.tell() == 6);
         CHECK(f.close(false) == 0);
     }
 
-    FileHandlerAFP f(m.session);
+    FileHandlerAFP f(m.owner);
     REQUIRE(f.open("/a.txt", "r").is_success());
     char buf[16] = {0};
     CHECK(f.read(buf, 4, 2) == 1); // six bytes hold one whole item of four
@@ -75,7 +77,7 @@ TEST_CASE("handler: a read is finished even when the server answers in pieces")
     Mounted m;
     m.add_file("/s.txt", "0123456789");
     fake.max_read = 3;
-    FileHandlerAFP f(m.session);
+    FileHandlerAFP f(m.owner);
     REQUIRE(f.open("/s.txt", "r").is_success());
     char buf[16] = {0};
     CHECK(f.read(buf, 1, 10) == 10);
@@ -86,7 +88,7 @@ TEST_CASE("handler: a read is finished even when the server answers in pieces")
 TEST_CASE("handler: r on a missing file fails; r+ needs the file too")
 {
     Mounted m;
-    FileHandlerAFP f(m.session);
+    FileHandlerAFP f(m.owner);
     CHECK(f.open("/nope.txt", "r").is_error());
     CHECK(f.open("/nope.txt", "r+").is_error());
     CHECK(f.open("/nope.txt", "rb+").is_error());
@@ -97,7 +99,7 @@ TEST_CASE("handler: r+ reads and writes in place")
 {
     Mounted m;
     m.add_file("/disk.img", "0123456789");
-    FileHandlerAFP f(m.session);
+    FileHandlerAFP f(m.owner);
     REQUIRE(f.open("/disk.img", "rb+").is_success());
     CHECK(f.seek(4, SEEK_SET) == 0);
     CHECK(f.write("XY", 1, 2) == 2);
@@ -111,14 +113,14 @@ TEST_CASE("handler: w+ truncates and can be read; a+ keeps and appends")
     Mounted m;
     m.add_file("/log.txt", "old contents");
     {
-        FileHandlerAFP f(m.session);
+        FileHandlerAFP f(m.owner);
         REQUIRE(f.open("/log.txt", "w+").is_success());
         CHECK(f.write("new", 1, 3) == 3);
         CHECK(f.seek(0, SEEK_SET) == 0);
         CHECK(slurp(f) == "new");
         f.close(false);
     }
-    FileHandlerAFP f(m.session);
+    FileHandlerAFP f(m.owner);
     REQUIRE(f.open("/log.txt", "a+").is_success());
     CHECK(f.tell() == 3);
     CHECK(f.write("er", 1, 2) == 2);
@@ -131,7 +133,7 @@ TEST_CASE("handler: seek from the current position and the end, and not before t
 {
     Mounted m;
     m.add_file("/s.txt", "0123456789");
-    FileHandlerAFP f(m.session);
+    FileHandlerAFP f(m.owner);
     REQUIRE(f.open("/s.txt", "r").is_success());
     CHECK(f.seek(-3, SEEK_END) == 0);
     CHECK(f.tell() == 7);
@@ -148,7 +150,7 @@ TEST_CASE("handler: after the session closes, calls fail and nothing crashes")
 {
     Mounted m;
     m.add_file("/s.txt", "0123456789");
-    FileHandlerAFP f(m.session);
+    FileHandlerAFP f(m.owner);
     REQUIRE(f.open("/s.txt", "r+").is_success());
     m.session.close();
 
@@ -161,7 +163,7 @@ TEST_CASE("handler: after the session closes, calls fail and nothing crashes")
 TEST_CASE("handler: a bad mode is refused")
 {
     Mounted m;
-    FileHandlerAFP f(m.session);
+    FileHandlerAFP f(m.owner);
     CHECK(f.open("/a.txt", "").is_error());
     CHECK(f.open("/a.txt", "x").is_error());
     CHECK(f.open("/a.txt", nullptr).is_error());
@@ -412,4 +414,28 @@ TEST_CASE("fs: opening a file that is not there gives no handler")
     REQUIRE(f != nullptr);
     CHECK(FileSystem::filesize(f) == 2);
     CHECK(f->close() == 0);
+}
+
+TEST_CASE("fs: a file left open when its mount goes away still works and closes")
+{
+    Mounted m;
+    m.add_file("/disk.atr", "0123456789");
+    m.session.close();
+
+    auto *fs = new FileSystemAFP;
+    REQUIRE(fs->start(mount_url).is_success());
+    FileHandler *f = fs->filehandler_open("/disk.atr", "rb+");
+    REQUIRE(f != nullptr);
+
+    // fujiHost deletes the file system when a slot is renamed or remounted,
+    // while a disk image on it may still be open.
+    delete fs;
+
+    char buf[4] = {0};
+    CHECK(f->read(buf, 1, 4) == 4);
+    CHECK(std::string(buf, 4) == "0123");
+    const int closes = fake.closes;
+    CHECK(f->close() == 0);
+    CHECK(fake.closes == closes + 1);
+    CHECK(fake.logouts > 0); // the last holder let the login go
 }

@@ -12,8 +12,8 @@
 #include <unistd.h>
 
 // The same AFP_TEST_* variables as AfpSessionLiveTests.cpp.  Everything is
-// done inside one directory on the volume, /fujinet-afp-fs-<pid>, which the
-// last case empties and removes; nothing else is touched.
+// done inside one directory on the volume, /fujinet-afp-fs-<pid>, which is
+// removed at the end whatever happened; nothing else is touched.
 static std::string env(const char *name)
 {
     const char *v = std::getenv(name);
@@ -39,7 +39,18 @@ int main(int argc, char **argv)
         return 77;
     }
     doctest::Context context(argc, argv);
-    return context.run();
+    int result = context.run();
+
+    // Whatever a failed or filtered run left behind; nothing if it went well.
+    FileSystemAFP fs;
+    if (fs.start(url.c_str(), user.c_str(), password.c_str()).is_success())
+    {
+        const std::string dir = "/" + scratch;
+        for (const char *name : {"/disk.bin", "/note.txt", "/renamed.txt"})
+            fs.remove((dir + name).c_str());
+        fs.remove(dir.c_str());
+    }
+    return result;
 }
 
 // The volume, mounted the way a host slot would be but with the login passed in.

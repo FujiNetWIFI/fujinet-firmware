@@ -12,15 +12,19 @@
 #include "fnFileAFP.h"
 #include "peoples_url_parser.h"
 
+FileSystemAFP::FileSystemAFP() : _session(new (std::nothrow) AfpSession)
+{
+}
+
+// The session closes when the last open file lets go of it.
 FileSystemAFP::~FileSystemAFP()
 {
     _dircache.clear();
-    _session.close();
 }
 
 success_is_true FileSystemAFP::start(const char *url, const char *user, const char *password)
 {
-    if (_started || url == nullptr || url[0] == '\0')
+    if (_started || _session == nullptr || url == nullptr || url[0] == '\0')
         RETURN_ERROR_AS_FALSE();
 
     auto parsed = PeoplesUrlParser::parseURL(url);
@@ -44,10 +48,10 @@ success_is_true FileSystemAFP::start(const char *url, const char *user, const ch
 
     int port = parsed->port.empty() ? 0 : atoi(parsed->port.c_str());
 
-    if (_session.open(parsed->host, port, login, secret, where.volume).is_error())
+    if (_session->open(parsed->host, port, login, secret, where.volume).is_error())
     {
         Debug_printf("FileSystemAFP::start() - \"%s\" volume \"%s\" failed: %d\n", parsed->host.c_str(),
-                     where.volume.c_str(), _session.error());
+                     where.volume.c_str(), _session->error());
         RETURN_ERROR_AS_FALSE();
     }
 
@@ -73,13 +77,13 @@ std::string FileSystemAFP::full_path(const char *path) const
 bool FileSystemAFP::exists(const char *path)
 {
     AfpDirEntry e;
-    return _started && path != nullptr && afp_stat(_session, full_path(path), e) == 0;
+    return _started && path != nullptr && afp_stat(*_session, full_path(path), e) == 0;
 }
 
 bool FileSystemAFP::is_dir(const char *path)
 {
     AfpDirEntry e;
-    return _started && path != nullptr && afp_stat(_session, full_path(path), e) == 0 && e.is_dir;
+    return _started && path != nullptr && afp_stat(*_session, full_path(path), e) == 0 && e.is_dir;
 }
 
 success_is_true FileSystemAFP::remove(const char *path)
@@ -90,11 +94,11 @@ success_is_true FileSystemAFP::remove(const char *path)
     // The other file systems take a file or a directory here.
     std::string target = full_path(path);
     AfpDirEntry e;
-    if (afp_stat(_session, target, e) != 0)
+    if (afp_stat(*_session, target, e) != 0)
         RETURN_ERROR_AS_FALSE();
 
     _last_dir.clear();
-    RETURN_SUCCESS_IF((e.is_dir ? afp_rmdir(_session, target) : afp_remove(_session, target)) == 0);
+    RETURN_SUCCESS_IF((e.is_dir ? afp_rmdir(*_session, target) : afp_remove(*_session, target)) == 0);
 }
 
 success_is_true FileSystemAFP::rename(const char *pathFrom, const char *pathTo)
@@ -103,7 +107,7 @@ success_is_true FileSystemAFP::rename(const char *pathFrom, const char *pathTo)
         RETURN_ERROR_AS_FALSE();
 
     _last_dir.clear();
-    RETURN_SUCCESS_IF(afp_rename(_session, full_path(pathFrom), full_path(pathTo)) == 0);
+    RETURN_SUCCESS_IF(afp_rename(*_session, full_path(pathFrom), full_path(pathTo)) == 0);
 }
 
 success_is_true FileSystemAFP::mkdir(const char *path)
@@ -112,7 +116,7 @@ success_is_true FileSystemAFP::mkdir(const char *path)
         RETURN_ERROR_AS_FALSE();
 
     _last_dir.clear();
-    RETURN_SUCCESS_IF(afp_mkdir(_session, full_path(path)) == 0);
+    RETURN_SUCCESS_IF(afp_mkdir(*_session, full_path(path)) == 0);
 }
 
 success_is_true FileSystemAFP::rmdir(const char *path)
@@ -121,7 +125,7 @@ success_is_true FileSystemAFP::rmdir(const char *path)
         RETURN_ERROR_AS_FALSE();
 
     _last_dir.clear();
-    RETURN_SUCCESS_IF(afp_rmdir(_session, full_path(path)) == 0);
+    RETURN_SUCCESS_IF(afp_rmdir(*_session, full_path(path)) == 0);
 }
 
 FILE *FileSystemAFP::file_open(const char *path, const char *mode)
@@ -167,7 +171,7 @@ success_is_true FileSystemAFP::dir_open(const char *path, const char *pattern, u
         _last_dir.clear();
 
         std::vector<AfpDirEntry> entries;
-        if (afp_list(_session, target, entries) != 0)
+        if (afp_list(*_session, target, entries) != 0)
             RETURN_ERROR_AS_FALSE();
 
         for (const AfpDirEntry &e : entries)
