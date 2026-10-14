@@ -408,7 +408,6 @@ error_is_true iwmDisk::prodos_write_boot_block(fnFile *f)
   if (!sf)
   {
     Debug_printf("Could not open /prodos_boot_block.bin. Aborting.\n");
-    fclose(sf);
     RETURN_ERROR_AS_TRUE();
   }
 
@@ -626,7 +625,6 @@ error_is_true iwmDisk::write_blank(fnFile *f, uint16_t numBlocks, uint8_t blank_
     if (!sf)
     {
       Debug_printf("Could not open /blank.do. Aborting.\n");
-      fclose(sf);
       RETURN_ERROR_AS_TRUE();
     }
 

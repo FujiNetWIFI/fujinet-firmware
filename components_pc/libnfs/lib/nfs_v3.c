@@ -4142,7 +4142,7 @@ nfs3_stat_async(struct nfs_context *nfs, const char *path,
 }
 
 static void
-nfs3_close_cb(int err, struct nfs_context *nfs, void *ret_data,
+nfs3_close_cb(int err, struct nfs_context *nfs, const void *ret_data,
               void *private_data) {
         struct nfs_cb_data *data = private_data;
         nfs_free_nfsfh(data->nfsfh);
@@ -4845,7 +4845,7 @@ free_open_cb_data(void *ptr)
 
 
 
-static void nfs3_open_create_cb(int err, struct nfs_context *nfs, void *ret_data,
+static void nfs3_open_create_cb(int err, struct nfs_context *nfs, const void *ret_data,
                          void *private_data)
 {
 	struct open_cb_data *cb_data = private_data;
@@ -4959,7 +4959,7 @@ nfs3_create_continue_internal(struct nfs_context *nfs,
 	return 0;
 }
 
-static void nfs3_initial_open_cb(int err, struct nfs_context *nfs, void *ret_data,
+static void nfs3_initial_open_cb(int err, struct nfs_context *nfs, const void *ret_data,
                          void *private_data)
 {
 	struct open_cb_data *cb_data = private_data;

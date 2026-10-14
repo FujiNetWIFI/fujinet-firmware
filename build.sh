@@ -423,7 +423,7 @@ if [ ! -z "$PC_TARGET" ] ; then
     rm -f $SCRIPT_DIR/build/.ninja* 2>/dev/null
   fi
 
-  python "${SCRIPT_DIR}/build_prereqs.py" --pc ${PREREQ_YES} || exit 1
+  ${PYTHON} "${SCRIPT_DIR}/build_prereqs.py" --pc ${PREREQ_YES} || exit 1
 
   cd $SCRIPT_DIR/build
   # Write out the compile commands for clangd etc to use

@@ -261,7 +261,7 @@ int ssh_socket_pollcallback(struct ssh_poll_handle_struct *p,
         return -1;
     }
     SSH_LOG(SSH_LOG_TRACE,
-            "Poll callback on socket %d (%s%s%s), out buffer %" PRIu32, fd,
+            "Poll callback on socket %lld (%s%s%s), out buffer %" PRIu32, (long long) fd,
             (revents & POLLIN) ? "POLLIN ":"",
             (revents & POLLOUT) ? "POLLOUT ":"",
             (revents & POLLERR) ? "POLLERR":"",
@@ -884,7 +884,7 @@ int ssh_socket_connect(ssh_socket s,
         return SSH_ERROR;
     }
     fd = ssh_connect_host_nonblocking(s->session, host, bind_addr, port);
-    SSH_LOG(SSH_LOG_DEBUG, "Nonblocking connection socket: %d", fd);
+    SSH_LOG(SSH_LOG_DEBUG, "Nonblocking connection socket: %lld", (long long) fd);
     if (fd == SSH_INVALID_SOCKET) {
         return SSH_ERROR;
     }

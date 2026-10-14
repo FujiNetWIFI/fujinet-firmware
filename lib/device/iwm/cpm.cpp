@@ -11,6 +11,7 @@
 #include "fnConfig.h"
 #include "compat_string.h"
 
+#ifdef ESP_PLATFORM
 #include "../runcpm/abstraction_fujinet_apple2.h"
 
 #include "../runcpm/globals.h"
@@ -52,6 +53,7 @@ static void cpmTask(void *arg)
         _ccp();
     }
 }
+#endif /* ESP_PLATFORM */
 
 iwmCPM::iwmCPM()
 {

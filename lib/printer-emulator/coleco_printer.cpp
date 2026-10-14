@@ -5,7 +5,7 @@ void colecoprinter::line_output()
 {
     for (int i=0;i<80;i++)
     {
-        char c = bdb.get()[i];
+        uint8_t c = bdb.get()[i];
 
         if (c > 31 && c < 128)
         {

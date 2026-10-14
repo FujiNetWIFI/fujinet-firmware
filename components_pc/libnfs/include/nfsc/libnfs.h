@@ -33,6 +33,10 @@
 #include <sys/time.h>
 #else
 #include <time.h>
+#if !defined(_AMD64_) && !defined(_X86_) && !defined(_ARM64_)
+#    define _AMD64_
+#endif
+#include <sys/stat.h>
 #endif
 
 #ifdef __cplusplus
@@ -185,7 +189,7 @@ EXTERN char *nfs_get_error(struct nfs_context *nfs);
 /*
  * Callback for all ASYNC nfs functions
  */
-typedef void (*nfs_cb)(int err, struct nfs_context *nfs, void *data,
+typedef void (*nfs_cb)(int err, struct nfs_context *nfs, const void *data,
                        void *private_data);
 
 /*

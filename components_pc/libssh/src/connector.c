@@ -239,7 +239,7 @@ static void ssh_connector_fd_in_cb(ssh_connector connector)
     ssize_t total = 0;
     int rc;
 
-    SSH_LOG(SSH_LOG_TRACE, "connector POLLIN event for fd %d", connector->in_fd);
+    SSH_LOG(SSH_LOG_TRACE, "connector POLLIN event for fd %lld", (long long) connector->in_fd);
 
     if (connector->out_wontblock) {
         if (connector->out_channel != NULL) {
@@ -257,7 +257,7 @@ static void ssh_connector_fd_in_cb(ssh_connector connector)
 
         if (connector->out_channel != NULL) {
             if (r == 0) {
-                SSH_LOG(SSH_LOG_TRACE, "input fd %d is EOF", connector->in_fd);
+                SSH_LOG(SSH_LOG_TRACE, "input fd %lld is EOF", (long long) connector->in_fd);
                 if (connector->out_channel->local_eof == 0) {
                     rc = ssh_channel_send_eof(connector->out_channel);
                     (void)rc; /* TODO Handle rc? */
@@ -323,8 +323,8 @@ ssh_connector_fd_out_cb(ssh_connector connector)
     ssize_t r;
     ssize_t w;
     ssize_t total = 0;
-    SSH_LOG(SSH_LOG_TRACE, "connector POLLOUT event for fd %d",
-            connector->out_fd);
+    SSH_LOG(SSH_LOG_TRACE, "connector POLLOUT event for fd %lld",
+            (long long) connector->out_fd);
 
     if (connector->in_available) {
         if (connector->in_channel != NULL) {
@@ -678,7 +678,7 @@ static bool ssh_connector_fd_is_socket(socket_t s)
     }
 
     SSH_LOG(SSH_LOG_TRACE,
-            "Error %i in getsockname() for fd %d",
+            "Error %i in getsockname() for fd %llu",
             WSAGetLastError(),
             s);
 

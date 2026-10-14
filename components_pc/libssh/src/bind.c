@@ -281,8 +281,8 @@ int ssh_bind_listen(ssh_bind sshbind) {
             char err_msg[SSH_ERRNO_MSG_MAX] = {0};
             ssh_set_error(sshbind,
                           SSH_FATAL,
-                          "Listening to socket %d: %s",
-                          fd,
+                          "Listening to socket %lld: %s",
+                          (long long) fd,
                           ssh_strerror(errno, err_msg, SSH_ERRNO_MSG_MAX));
             CLOSE_SOCKET(fd);
             return SSH_ERROR;
