@@ -515,6 +515,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
     lib/hardware/BoIPChannel.h lib/hardware/BoIPChannel.cpp
 
     lib/media/rs232/diskType.h lib/media/rs232/diskType.cpp
+    lib/media/rs232/diskTypeAltair.h lib/media/rs232/diskTypeAltair.cpp
     lib/media/rs232/diskTypeImg.h lib/media/rs232/diskTypeImg.cpp
     lib/media/rs232/diskTypeIMD.h lib/media/rs232/diskTypeIMD.cpp
     lib/media/rs232/diskTypeROM.h lib/media/rs232/diskTypeROM.cpp

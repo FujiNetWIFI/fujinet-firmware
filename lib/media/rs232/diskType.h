@@ -45,6 +45,7 @@ enum mediatype_t
     MEDIATYPE_IMG,
     MEDIATYPE_ROM,
     MEDIATYPE_IMD,
+    MEDIATYPE_ALTAIR,
     MEDIATYPE_COUNT
 };
 
@@ -99,7 +100,7 @@ public:
 
     virtual void status(uint8_t statusbuff[4]) = 0;
 
-    static mediatype_t discover_mediatype(const char *filename);
+    static mediatype_t discover_mediatype(const char *filename, uint32_t disksize = 0);
 
     void dump_percom_block();
     void derive_percom_block(uint32_t numSectors);

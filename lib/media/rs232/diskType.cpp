@@ -1,6 +1,7 @@
 #ifdef BUILD_RS232 // temporary
 
 #include "diskType.h"
+#include "diskTypeAltair.h"
 
 #include "../IMDImage.h"
 
@@ -56,10 +57,12 @@ void MediaType::unmount()
     }
 }
 
-mediatype_t MediaType::discover_mediatype(const char *filename)
+mediatype_t MediaType::discover_mediatype(const char *filename, uint32_t disksize)
 {
     if (IMDImage::looks_like_imd_extension(filename))
         return MEDIATYPE_IMD;
+    if (MediaTypeAltair::looks_like_altair(filename, disksize))
+        return MEDIATYPE_ALTAIR;
 
     int l = strlen(filename);
     if (l > 4 && filename[l - 4] == '.')
