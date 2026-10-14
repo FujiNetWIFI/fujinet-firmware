@@ -26,6 +26,8 @@ end
 
 function T.char(y, x) return item("m_text.chars"):read(y * T.cols + x) end
 function T.inv(y, x) return item("m_text.inv"):read(y * T.cols + x) ~= 0 end
+-- A mosaic cell's tile pair k (0 top, 1 middle, 2 bottom); T.char reads $A0 there.
+function T.mos(y, x, k) return item("m_text.mos"):read((y * T.cols + x) * 3 + k) end
 
 function T.row(y)
   local s = {}

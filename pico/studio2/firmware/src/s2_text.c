@@ -25,6 +25,15 @@ uint8_t s2_text_cell_line(const s2_text_t *t, uint8_t c, unsigned line)
     return (uint8_t)((rows[(line - 1) / 2] & 7u) << 1);
 }
 
+/* Scanline `line` of a mosaic cell: the third's two tiles side by side. */
+static uint8_t mosaic_line(const s2_text_t *t, const uint8_t m[3], unsigned line)
+{
+    uint8_t pair = m[line / S2T_TILE_LINES];
+    unsigned row = line % S2T_TILE_LINES;
+
+    return (uint8_t)(((t->tile[pair >> 4][row] & 3u) << 2) | (t->tile[pair & 0x0F][row] & 3u));
+}
+
 static void draw_cell(s2_text_t *t, unsigned r, unsigned c)
 {
     unsigned line, shift = (c & 1u) ? 0 : 4;
@@ -33,7 +42,8 @@ static void draw_cell(s2_text_t *t, unsigned r, unsigned c)
     uint8_t *p = t->raster + r * S2T_CELL_LINES * 8u + (c >> 1);
 
     for (line = 0; line < S2T_CELL_LINES; line++, p += 8) {
-        uint8_t bits = s2_text_cell_line(t, ch, line);
+        uint8_t bits = ch == S2T_CH_MOSAIC ? mosaic_line(t, t->mos[r][c], line)
+                                           : s2_text_cell_line(t, ch, line);
 
         if (t->inv[r][c])
             bits ^= 0x0F;
@@ -45,7 +55,7 @@ static void put_at(s2_text_t *t, unsigned r, unsigned c, uint8_t ch, bool inv)
 {
     if (r >= S2T_ROWS || c >= S2T_COLS)
         return;
-    t->chars[r][c] = ch;
+    t->chars[r][c] = ch == S2T_CH_MOSAIC ? ' ' : ch;
     t->inv[r][c] = inv;
     draw_cell(t, r, c);
 }
@@ -74,6 +84,24 @@ static void mq_stop(s2_text_t *t, unsigned row)
 {
     if (t->mq_on && t->mq_row == row)
         t->mq_on = false;
+}
+
+/* MOSAIC: each three parameters are a cell, drawn at the cursor as PUTC is. */
+static void put_mosaic(s2_text_t *t)
+{
+    unsigned i;
+
+    mq_stop(t, t->row);
+    for (i = 0; i + 3 <= t->nparam && t->row < S2T_ROWS; i += 3) {
+        memcpy(t->mos[t->row][t->col], &t->param[i], 3);
+        t->chars[t->row][t->col] = S2T_CH_MOSAIC;
+        t->inv[t->row][t->col] = t->inverse;
+        draw_cell(t, t->row, t->col);
+        if (++t->col >= S2T_COLS) {
+            t->col = 0;
+            t->row++;
+        }
+    }
 }
 
 /* The text, three blanks, the text again: scrolled by mq_pos. */
@@ -158,6 +186,7 @@ static void op(s2_text_t *t, uint8_t code)
         t->mq_on = false;
         memmove(t->chars[0], t->chars[1], (S2T_ROWS - 1) * S2T_COLS);
         memmove(t->inv[0], t->inv[1], (S2T_ROWS - 1) * S2T_COLS);
+        memmove(t->mos[0], t->mos[1], sizeof t->mos - sizeof t->mos[0]);
         memmove(t->raster, t->raster + S2T_CELL_LINES * 8u,
                 (S2T_ROWS - 1) * S2T_CELL_LINES * 8u);
         clear_rows(t, S2T_ROWS - 1, S2T_ROWS);
@@ -192,6 +221,29 @@ static void op(s2_text_t *t, uint8_t code)
                     if (t->chars[r][c] == t->param[0])
                         draw_cell(t, r, c);
         }
+        break;
+    case S2T_OP_TILE:
+        if (t->nparam >= 1 && t->param[0] < S2T_NTILES) {
+            uint8_t n = t->param[0], *g = t->tile[n];
+            unsigned r, c, k;
+
+            memset(g, 0, S2T_TILE_LINES);
+            for (i = 0; i < S2T_TILE_LINES && i + 1 < t->nparam; i++)
+                g[i] = t->param[i + 1] & 3u;
+            for (r = 0; r < S2T_ROWS; r++)
+                for (c = 0; c < S2T_COLS; c++) {
+                    if (t->chars[r][c] != S2T_CH_MOSAIC)
+                        continue;
+                    for (k = 0; k < 3; k++)
+                        if ((t->mos[r][c][k] >> 4) == n || (t->mos[r][c][k] & 0x0F) == n)
+                            break;
+                    if (k < 3)
+                        draw_cell(t, r, c);
+                }
+        }
+        break;
+    case S2T_OP_MOSAIC:
+        put_mosaic(t);
         break;
     default:
         break;

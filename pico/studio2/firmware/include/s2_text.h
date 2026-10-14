@@ -12,6 +12,11 @@
  * below. Rows 0-9 take scanlines 0-119; 120-127 are the cart's status strip.
  * Characters: $20-$7F the font, $01-$0F symbols (S2T_SYM_*), $80-$9F glyphs
  * the app defines with S2T_OP_GLYPH, anything else blank.
+ *
+ * Mosaic cells: S2T_OP_MOSAIC splits a cell into 2 x 3 squares of 2 pixels by
+ * 4 scanlines, each one of 16 tiles the app defines with S2T_OP_TILE. A cell
+ * holds any mix of them, so a fine grid (four 10x10 boards on one screen)
+ * needs no glyph per combination. chars[][] reads S2T_CH_MOSAIC there.
  */
 
 #ifndef S2_TEXT_H
@@ -28,6 +33,9 @@
 #define S2T_STRIP_LINE  (S2T_ROWS * S2T_CELL_LINES)
 #define S2T_NPARAM      16u
 #define S2T_NGLYPHS     32u
+#define S2T_NTILES      16u
+#define S2T_TILE_LINES  4u
+#define S2T_CH_MOSAIC   0xA0u     /* chars[][] of a mosaic cell; PUTC draws it blank */
 #define S2T_MARQUEE_MAX 64u
 #define S2T_MARQUEE_MS  250u
 
@@ -52,6 +60,12 @@
 #define S2T_OP_REPEAT    0x30     /* p: char, count                          */
 #define S2T_OP_GLYPH     0x40     /* p: code $80-$9F, then 12 scanline rows,
                                      bit 3 the leftmost pixel                */
+#define S2T_OP_TILE      0x41     /* p: tile 0-15, then 4 scanline rows, bit 1
+                                     the left pixel; redraws its cells       */
+#define S2T_OP_MOSAIC    0x42     /* p: three bytes a cell -- its top, middle
+                                     and bottom thirds, left tile in the high
+                                     nibble -- each drawn at the cursor, which
+                                     advances; five cells fit in one op      */
 
 /* Built-in symbols. */
 #define S2T_SYM_SPADE    0x01
@@ -75,6 +89,8 @@ typedef struct {
     uint8_t param[S2T_NPARAM];
     uint8_t nparam;
     uint8_t glyph[S2T_NGLYPHS][S2T_CELL_LINES];
+    uint8_t tile[S2T_NTILES][S2T_TILE_LINES];
+    uint8_t mos[S2T_ROWS][S2T_COLS][3];     /* a mosaic cell's tile pairs    */
     const uint8_t *reply;                   /* FN_R_SLICE_LEN bytes          */
     /* The marquee: one row whose last PRINT ran long. */
     bool mq_armed;                          /* MARQUEE given for mq_row      */

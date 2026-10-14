@@ -148,6 +148,8 @@ void studio2_fujinet_device::device_start()
 	save_item(NAME(m_text.raster));
 	save_item(NAME(m_text.chars));
 	save_item(NAME(m_text.inv));
+	save_item(NAME(m_text.mos));
+	save_item(NAME(m_text.tile));
 	save_item(NAME(m_text.row));
 	save_item(NAME(m_text.col));
 	save_item(NAME(m_short_lines));

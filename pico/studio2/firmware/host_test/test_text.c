@@ -1,7 +1,7 @@
 /* test_text.c -- the cart's text engine, held to expectations written as
  * pictures rather than derived from the code: where a glyph's pixels land in
  * the 64x128 raster the 1861 shows, inverse, the reply printers, scrolling,
- * app glyphs, the marquee, and the boot progress strip.
+ * app glyphs, mosaic cells, the marquee, and the boot progress strip.
  */
 
 #include <assert.h>
@@ -192,6 +192,134 @@ static void test_glyph(void)
     assert(!s2_font_rows(0x0C) && !s2_font_rows(0x1F) && !s2_font_rows(0xA0));
 }
 
+static void tile(unsigned n, unsigned a, unsigned b, unsigned c, unsigned d)
+{
+    param(n);
+    param(a);
+    param(b);
+    param(c);
+    param(d);
+    op(S2T_OP_TILE);
+}
+
+static void mosaic3(unsigned top, unsigned mid, unsigned bot)
+{
+    param(top);
+    param(mid);
+    param(bot);
+}
+
+static void test_mosaic(void)
+{
+    /* tile 1 a block over a blank line, 2 a dot, 3 a checker; 0 undefined */
+    static const char *const PIC_M[12] = {
+        "##..", "##.#", "##..", "....",         /* 1 | 2 */
+        "..#.", "...#", "..#.", "...#",         /* 0 | 3 */
+        "#.##", ".###", "#.##", ".#..",         /* 3 | 1 */
+    };
+    static const char *const PIC_M2[12] = {     /* tile 2 made solid */
+        "####", "####", "####", "..##",
+        "..#.", "...#", "..#.", "...#",
+        "#.##", ".###", "#.##", ".#..",
+    };
+    static const char *const PIC_M2_INV[12] = {
+        "....", "....", "....", "##..",
+        "##.#", "###.", "##.#", "###.",
+        ".#..", "#...", ".#..", "#.##",
+    };
+    static const char *const PIC_ONES[12] = {
+        "####", "####", "####", "....", "####", "####",
+        "####", "....", "####", "####", "####", "....",
+    };
+    unsigned c;
+
+    s2_text_init(&t, reply);
+    tile(1, 3, 3, 3, 0);
+    tile(2, 0, 1, 0, 0);
+    tile(3, 2, 1, 2, 1);
+    tile(16, 3, 3, 3, 3);                       /* no such tile: ignored */
+    assert(t.nparam == 0);
+
+    /* five cells in one op, wrapping like PUTC */
+    at(2, 14);
+    mosaic3(0x12, 0x03, 0x31);
+    mosaic3(0x11, 0x11, 0x11);
+    mosaic3(0x00, 0x00, 0x00);
+    mosaic3(0x12, 0x03, 0x31);
+    mosaic3(0x11, 0x11, 0x11);
+    op(S2T_OP_MOSAIC);
+    assert(t.nparam == 0 && t.row == 3 && t.col == 3);
+    expect_cell(2, 14, PIC_M);
+    expect_cell(2, 15, PIC_ONES);
+    expect_cell(3, 0, PIC_BLANK);
+    expect_cell(3, 1, PIC_M);
+    expect_cell(3, 2, PIC_ONES);
+    assert(t.chars[2][14] == S2T_CH_MOSAIC && t.chars[3][2] == S2T_CH_MOSAIC);
+    assert(t.mos[3][1][0] == 0x12 && t.mos[3][1][2] == 0x31);
+
+    /* a short group draws nothing and leaves the cursor */
+    param(0x11);
+    param(0x11);
+    op(S2T_OP_MOSAIC);
+    assert(t.row == 3 && t.col == 3 && t.chars[3][3] == ' ');
+
+    /* redefining a tile redraws the cells that use it, and only those: a
+     * cell without it keeps a pixel planted in its raster */
+    t.raster[(3 * 12 + 3) * 8 + 1] |= 0x08;     /* cell 3,2 line 3, x 12 */
+    tile(2, 3, 3, 3, 3);
+    expect_cell(2, 14, PIC_M2);
+    expect_cell(3, 1, PIC_M2);
+    assert(px(12, 3 * 12 + 3) == 1);
+    tile(1, 3, 3, 3, 0);                        /* uses 1: redrawn clean */
+    expect_cell(3, 2, PIC_ONES);
+
+    /* inverse inverts the whole cell */
+    at(5, 5);
+    op(S2T_OP_INV_ON);
+    mosaic3(0x12, 0x03, 0x31);
+    op(S2T_OP_MOSAIC);
+    op(S2T_OP_INV_OFF);
+    expect_cell(5, 5, PIC_M2_INV);
+
+    /* PUTC replaces a mosaic cell; a tile change no longer reaches it */
+    at(2, 14);
+    putc_('A');
+    expect_cell(2, 14, PIC_A);
+    tile(2, 0, 1, 0, 0);
+    expect_cell(2, 14, PIC_A);
+    expect_cell(3, 1, PIC_M);
+
+    /* PUTC and REPEAT of the marker code draw a blank */
+    at(2, 15);
+    putc_((char)S2T_CH_MOSAIC);
+    assert(t.chars[2][15] == ' ');
+    expect_cell(2, 15, PIC_BLANK);
+    at(3, 0);
+    param(S2T_CH_MOSAIC);
+    param(2);
+    op(S2T_OP_REPEAT);
+    assert(t.chars[3][1] == ' ');
+    expect_cell(3, 1, PIC_BLANK);
+
+    /* SCROLL carries mosaic cells, and tiles still reach them after */
+    expect_cell(3, 2, PIC_ONES);
+    op(S2T_OP_SCROLL);
+    expect_cell(2, 2, PIC_ONES);
+    assert(t.chars[2][2] == S2T_CH_MOSAIC && t.mos[2][2][0] == 0x11);
+    tile(1, 0, 0, 0, 0);
+    expect_cell(2, 2, PIC_BLANK);
+    tile(1, 3, 3, 3, 0);
+    expect_cell(2, 2, PIC_ONES);
+
+    /* CLS clears them */
+    op(S2T_OP_CLS);
+    for (c = 0; c < S2T_COLS; c++)
+        assert(t.chars[2][c] == ' ');
+    expect_cell(2, 2, PIC_BLANK);
+    tile(1, 3, 3, 3, 3);
+    expect_cell(2, 2, PIC_BLANK);
+}
+
 static void test_marquee(void)
 {
     const char *name = "A_VERY_LONG_FILE_NAME.ST2";
@@ -290,6 +418,7 @@ int main(void)
     test_placement();
     test_ops();
     test_glyph();
+    test_mosaic();
     test_marquee();
     test_strip();
     printf("test_text: all passed\n");
