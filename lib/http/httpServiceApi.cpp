@@ -152,7 +152,7 @@ fnHttpApi::response h_drives(const request &)
 
         std::string path = Config.get_mount_path(i);
         cJSON_AddStringToObject(slot, "path", path.c_str());
-        cJSON_AddBoolToObject(slot, "mounted", !path.empty());
+        cJSON_AddBoolToObject(slot, "mounted", theFuji->get_disk(i)->fileh != nullptr);
 
         fnConfig::mount_mode_t mode = Config.get_mount_mode(i);
         cJSON_AddStringToObject(slot, "mode", mode == fnConfig::MOUNTMODE_WRITE ? "w" : "r");
@@ -187,7 +187,7 @@ fnHttpApi::response h_drive_slot(const request &r)
 
     std::string path = Config.get_mount_path(slot);
     cJSON_AddStringToObject(root, "path", path.c_str());
-    cJSON_AddBoolToObject(root, "mounted", !path.empty());
+    cJSON_AddBoolToObject(root, "mounted", theFuji->get_disk(slot)->fileh != nullptr);
 
     fnConfig::mount_mode_t mode = Config.get_mount_mode(slot);
     cJSON_AddStringToObject(root, "mode", mode == fnConfig::MOUNTMODE_WRITE ? "w" : "r");

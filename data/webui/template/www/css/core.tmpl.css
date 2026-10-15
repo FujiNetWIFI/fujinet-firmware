@@ -145,6 +145,11 @@ hr {
     background-color: #eeeeee;
 }
 
+.unmounted {
+    color: #c00;
+    font-weight: bold;
+}
+
 .ra {
     text-align: right
 }
