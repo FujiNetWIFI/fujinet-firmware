@@ -22,9 +22,6 @@ typedef enum
     NO_RESP,
 } _tnfs_recv_result;
 
-// _tnfs_recv(): the TCP connection was closed and must be reopened.
-constexpr int TNFS_RECV_CONNECTION_LOST = -2;
-
 bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t datalen);
 bool _tnfs_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size);
 int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt);
