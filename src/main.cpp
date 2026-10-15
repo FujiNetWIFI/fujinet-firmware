@@ -602,18 +602,27 @@ void fn_service_loop(void *param)
 #endif
 
 #if defined(ESP_PLATFORM) && defined(DEBUG)
-        // Internal DRAM every 10s: flat is a fixed cost, falling is a leak. Flat free
-        // with a decaying largest block is fragmentation. The loop has no delay, so
-        // anything per-iteration is unreadable at bus rates.
+        // Internal DRAM checked every 10s and printed only when it changes: falling free
+        // is a leak, flat free with a decaying largest block is fragmentation. The loop
+        // has no delay, so anything per-iteration is unreadable at bus rates.
         {
             static unsigned long last_heap_report = 0;
+            static uint32_t last_low = 0, last_total = 0;
+            static unsigned last_blk = 0;
             unsigned long now = fnSystem.millis();
             if (now - last_heap_report >= 10000)
             {
                 last_heap_report = now;
-                Debug_printv("Low Heap: %lu Heap: %lu MaxIntBlk: %u",
-                             esp_get_free_internal_heap_size(), esp_get_free_heap_size(),
-                             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+                uint32_t low = esp_get_free_internal_heap_size();
+                uint32_t total = esp_get_free_heap_size();
+                unsigned blk = (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+                if (low != last_low || total != last_total || blk != last_blk)
+                {
+                    last_low = low;
+                    last_total = total;
+                    last_blk = blk;
+                    Debug_printv("Low Heap: %lu Heap: %lu MaxIntBlk: %u", low, total, blk);
+                }
             }
         }
 #endif
