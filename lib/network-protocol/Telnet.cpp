@@ -162,9 +162,7 @@ fujiError_t NetworkProtocolTELNET::read(unsigned short len)
         }
 
         // Do the read from client socket.
-        client.read(newData.data(), len);
-
-        telnet_recv(telnet, (char *)newData.data(), len);
+        int actual_len = client.read(newData.data(), len);
 
         // bail if the connection is reset.
         if (errno == ECONNRESET)
@@ -172,6 +170,14 @@ fujiError_t NetworkProtocolTELNET::read(unsigned short len)
             error = NDEV_STATUS::CONNECTION_RESET;
             return FUJI_ERROR::UNSPECIFIED;
         }
+
+        if (actual_len <= 0)
+        {
+            error = NDEV_STATUS::SOCKET_TIMEOUT;
+            return FUJI_ERROR::UNSPECIFIED;
+        }
+
+        telnet_recv(telnet, (char *)newData.data(), actual_len);
 
         // Translate the freshly-read bytes exactly once.
         error = NDEV_STATUS::SUCCESS;
