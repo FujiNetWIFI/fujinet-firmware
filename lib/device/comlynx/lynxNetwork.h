@@ -12,10 +12,6 @@ protected:
         processCommand(packet);
     }
     void fujidev_read(const FUJI_COMMAND_PACKET &packet) override;
-    // READ here sends what is available and has no length to carry the sequence bit.
-    void fujidev_set_sequence(const FUJI_COMMAND_PACKET &packet) override {
-        SYSTEM_BUS.transaction_error();
-    }
 };
 
 #endif /* BUILD_LYNX */

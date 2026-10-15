@@ -231,22 +231,22 @@ error_is_true NDevice::fujicore_read(ByteBuffer &buf, size_t len)
     RETURN_ERROR_IF(err != FUJI_ERROR::NONE);
 }
 
-error_is_true NDevice::fujicore_read_seq(ByteBuffer &buf, uint16_t param)
+error_is_true NDevice::fujicore_read_seq(ByteBuffer &buf, uint16_t length, uint16_t sequence)
 {
-    if (readSeq.is_retry(param))
+    if (readSeq.is_retry(length, sequence))
         return readSeq.replay(buf);
 
-    error_is_true failed = fujicore_read(buf, readSeq.length(param));
-    readSeq.remember(param, buf, failed.is_error());
-    return failed;
+    error_is_true result = fujicore_read(buf, length);
+    readSeq.remember(length, sequence, buf, result);
+    return result;
 }
 
 void NDevice::fujidev_read(const FUJI_COMMAND_PACKET &packet)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
-    uint16_t param = packet.param(0);
-    uint16_t num_bytes = read_length(param);
+    uint16_t lengthField = packet.param(0);
+    uint16_t num_bytes = readSeq.length(lengthField);
 
     if (!num_bytes)
     {
@@ -255,7 +255,7 @@ void NDevice::fujidev_read(const FUJI_COMMAND_PACKET &packet)
     }
 
     ByteBuffer buf;
-    if (fujicore_read_seq(buf, param).is_error())
+    if (fujicore_read_seq(buf, num_bytes, readSeq.sequence(lengthField)).is_error())
     {
         SYSTEM_BUS.transaction_error();
         return;

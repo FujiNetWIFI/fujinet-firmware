@@ -14,11 +14,11 @@ public:
     using sioNetwork::fujidev_status;
     using sioNetwork::fujidev_read;
     using sioNetwork::fujidev_set_sequence;
-    using sioNetwork::read_length;
     using sioNetwork::_protocol;
     using sioNetwork::_parser;
-    // The READ every bus but SIO and Lynx uses.
+    // The READ every bus but SIO uses, and Lynx once the mode is on.
     void shared_read(const FUJI_COMMAND_PACKET &packet) { NDevice::fujidev_read(packet); }
+    uint16_t read_length(uint16_t lengthField) const { return readSeq.length(lengthField); }
 };
 
 // --------------------------------------------------------------------------------

@@ -166,8 +166,8 @@ void sioNetwork::fujidev_read(const FUJI_COMMAND_PACKET &packet)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
-    uint16_t param = packet.param(0);
-    uint16_t num_bytes = read_length(param);
+    uint16_t lengthField = packet.param(0);
+    uint16_t num_bytes = readSeq.length(lengthField);
 
     if (!num_bytes)
     {
@@ -176,7 +176,7 @@ void sioNetwork::fujidev_read(const FUJI_COMMAND_PACKET &packet)
     }
 
     ByteBuffer buf;
-    if (fujicore_read_seq(buf, param).is_error())
+    if (fujicore_read_seq(buf, num_bytes, readSeq.sequence(lengthField)).is_error())
     {
         // The Atari reads a data frame after ERROR too; without one SIOV waits out DTIMLO.
         buf.assign(num_bytes, 0);
