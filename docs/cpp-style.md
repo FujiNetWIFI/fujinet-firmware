@@ -11,10 +11,12 @@ a `throw` aborts the device at runtime: return status/error codes on firmware pa
 `try`/`catch` to them. The tree is long-lived and inconsistent — the rules below govern code you
 write; do not convert surrounding code to match as a side effect of an unrelated change.
 
-- **Never return a bare `bool` for success or failure.** Return `success_is_true` or
-  `error_is_true` from `include/global_types.h`, whichever that file already uses — do not mix the
-  two within a file. Return them with `RETURN_SUCCESS_AS_TRUE()`, `RETURN_ERROR_AS_TRUE()`,
-  `RETURN_SUCCESS_IF(expr)`, `RETURN_ERROR_IF(expr)` and friends.
+- **Never use a bare `bool` for success or failure**, whether returned, stored in a member or
+  local, or passed as an argument. Use `success_is_true` or `error_is_true` from
+  `include/global_types.h`, whichever that file already uses — do not mix the two within a file.
+  Return them with `RETURN_SUCCESS_AS_TRUE()`, `RETURN_ERROR_AS_TRUE()`, `RETURN_SUCCESS_IF(expr)`,
+  `RETURN_ERROR_IF(expr)` and friends. A flag a callback sets for its caller to read is the common
+  way this slips in.
 - **Test those results with `.is_error()` or `.is_success()`, always.** Never compare one against
   `true`, `false`, `0` or `1`, and never rely on its truthiness — the two types carry opposite
   polarity, so `if (result)` is ambiguous at a glance and wrong half the time.
