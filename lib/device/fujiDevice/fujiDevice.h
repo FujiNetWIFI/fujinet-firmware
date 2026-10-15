@@ -150,6 +150,7 @@ private:
     bool hostMounted[MAX_HOSTS];
 
     void fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_size);
+    void unmount_disks_on_host(uint8_t hostSlot);
 
 protected:
     fujiHost _fnHosts[MAX_HOSTS];
