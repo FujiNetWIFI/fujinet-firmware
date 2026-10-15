@@ -37,7 +37,7 @@ public:
     fujiError_t close() override;
 
     /**
-     * @brief Read len bytes into rx_buf, If protocol times out, the buffer should be null padded to length.
+     * @brief Read up to len bytes into rx_buf: fewer if fewer have arrived, an error if none have.
      * @param len Number of bytes to read.
      * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
      */

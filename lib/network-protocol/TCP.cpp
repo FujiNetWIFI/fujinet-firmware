@@ -122,7 +122,7 @@ fujiError_t NetworkProtocolTCP::read(unsigned short len)
 
     if (receiveBuffer->length() == 0)
     {
-        // Do the read from client socket.
+        // Never blocks, so a short count is just what has arrived so far.
         actual_len = client.read(newData.data(), len);
 
         // bail if the connection is reset.
@@ -131,18 +131,17 @@ fujiError_t NetworkProtocolTCP::read(unsigned short len)
             error = NDEV_STATUS::CONNECTION_RESET;
             return FUJI_ERROR::UNSPECIFIED;
         }
-        else if (actual_len != len) // Read was short and timed out.
+        else if (actual_len == 0)
         {
-            Debug_printf("Short receive. We got %u bytes, returning %u bytes and ERROR\r\n", actual_len, len);
             error = NDEV_STATUS::SOCKET_TIMEOUT;
             return FUJI_ERROR::UNSPECIFIED;
         }
 
         // Add new data to buffer.
-        receiveBuffer->insert(receiveBuffer->end(), newData.begin(), newData.end());
+        receiveBuffer->insert(receiveBuffer->end(), newData.begin(), newData.begin() + actual_len);
 
         // Translate the freshly-read bytes exactly once.
-        return NetworkProtocol::read(len);
+        return NetworkProtocol::read(actual_len);
     }
 
     // receiveBuffer already holds translated data (e.g. auto-read during status);
