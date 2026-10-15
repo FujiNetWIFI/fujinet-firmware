@@ -31,6 +31,8 @@ fujiError_t NetworkProtocolTest::open(PeoplesUrlParser *urlParser,
     Debug_printf("port: %s\r\n", urlParser->port.c_str());
     Debug_printf("query: %s\r\n", urlParser->query.c_str());
 
+    _failReads = urlParser->queryParam("fail", "") == "read";
+
     test_data = "This is test data being initialized in the test protocol, a single line of input with line ending.";
 
     switch (translation_mode)
@@ -60,6 +62,12 @@ fujiError_t NetworkProtocolTest::open(PeoplesUrlParser *urlParser,
 
 fujiError_t NetworkProtocolTest::read(unsigned short len)
 {
+    if (_failReads)
+    {
+        error = NDEV_STATUS::GENERAL;
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+
     if (receiveBuffer->length() == 0)
         *receiveBuffer += test_data.substr(0, len);
 

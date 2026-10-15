@@ -39,7 +39,7 @@ public:
     fujiError_t close() override { return FUJI_ERROR::NONE; };
 
     /**
-     * @brief Read len bytes into rx_buf, If protocol times out, the buffer should be null padded to length.
+     * @brief Read len bytes of the test line into rx_buf; every read fails when the URL has ?fail=read.
      * @param len Number of bytes to read.
      * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
      */
@@ -66,6 +66,8 @@ private:
      * String to hold test data
      */
     std::string test_data;
+
+    bool _failReads = false;
 };
 
 #endif /* NETWORKPROTOCOL_TEST */
