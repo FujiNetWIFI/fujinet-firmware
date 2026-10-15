@@ -164,6 +164,7 @@ fujiError_t NetworkProtocolTCP::write(unsigned short len)
     // Check for client connection
     if (!client.connected())
     {
+        transmitBuffer->clear();
         error = NDEV_STATUS::NOT_CONNECTED;
         return FUJI_ERROR::UNSPECIFIED; // error
     }
@@ -173,6 +174,10 @@ fujiError_t NetworkProtocolTCP::write(unsigned short len)
 
     // Do the write to client socket.
     actual_len = client.write((uint8_t *)transmitBuffer->data(), len);
+
+    // Sent or not, the data is gone: kept, a later WRITE would resend it and
+    // translate it a second time.
+    transmitBuffer->clear();
 
     // bail if the connection is reset.
     if (errno == ECONNRESET)
@@ -189,7 +194,6 @@ fujiError_t NetworkProtocolTCP::write(unsigned short len)
 
     // Return success
     error = NDEV_STATUS::SUCCESS;
-    transmitBuffer->erase(0, len);
 
     return FUJI_ERROR::NONE;
 }
