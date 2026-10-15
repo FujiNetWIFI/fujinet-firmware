@@ -2,16 +2,26 @@
 
 #include "chfmap.h"
 
+bool chfmap_app_shaped(uint32_t size)
+{
+    uint32_t extra;
+
+    if (size <= CHFMAP_WINDOW)
+        return false;
+    extra = size - CHFMAP_WINDOW;
+    return extra % FN_APP_PAGE == 0 && extra / FN_APP_PAGE <= FN_APP_MAX_PAGES;
+}
+
 uint8_t chfmap_gate(uint32_t size)
 {
-    if (size > CHFMAP_WINDOW)
+    if (size > CHFMAP_WINDOW && !chfmap_app_shaped(size))
         return FN_BOOT_ERR_TOOBIG;
     return 0;
 }
 
 bool chfmap_claims(const uint8_t *image, uint32_t size)
 {
-    if (size != CHFMAP_WINDOW)
+    if (size != CHFMAP_WINDOW && !chfmap_app_shaped(size))
         return false;
     return memcmp(image + FN_ROM_CLAIM, FN_R_CLAIM_SIG, FN_R_CLAIM_LEN) == 0;
 }
@@ -21,7 +31,7 @@ chfmap_err_t chfmap_plan(const uint8_t *image, uint32_t size,
 {
     if (size == 0)
         return CHFMAP_EEMPTY;
-    if (size > CHFMAP_WINDOW)
+    if (size > CHFMAP_WINDOW && !chfmap_app_shaped(size))
         return CHFMAP_ETOOBIG;
     /* The console BIOS compares the first cart byte against $55 and runs its
      * built-in Hockey if it differs, so an image without it would look like a
@@ -31,13 +41,20 @@ chfmap_err_t chfmap_plan(const uint8_t *image, uint32_t size,
 
     plan->size = size;
     plan->mailbox_ok = chfmap_claims(image, size);
+    plan->npages = (uint8_t)(size > CHFMAP_WINDOW
+                             ? (size - CHFMAP_WINDOW) / FN_APP_PAGE : 0);
+    /* Pages are selected through the mailbox, so a banked image that let the
+     * mailbox die would strand them; refuse it rather than boot it broken. */
+    if (plan->npages && !plan->mailbox_ok)
+        return CHFMAP_ENOCLAIM;
     return CHFMAP_OK;
 }
 
 void chfmap_apply(const uint8_t *image, const chfmap_plan_t *plan,
-                  uint8_t window[CHFMAP_WINDOW])
+                  uint8_t store[CHFMAP_STORE])
 {
-    memcpy(window, image, plan->size);
+    if (image != store)
+        memmove(store, image, plan->size);
     if (plan->size < CHFMAP_WINDOW)
-        memset(window + plan->size, 0xFF, CHFMAP_WINDOW - plan->size);
+        memset(store + plan->size, 0xFF, CHFMAP_WINDOW - plan->size);
 }

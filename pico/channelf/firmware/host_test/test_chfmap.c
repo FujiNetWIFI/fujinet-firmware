@@ -6,6 +6,10 @@
  * the expected window here is built from the rules in prose -- copy the image,
  * fill the rest with $FF, which is what MAME's own stock Videocart device
  * answers past its ROM size -- and never by calling chfmap_apply.
+ *
+ * Banked (APPBANK) images follow the prose in fuji_mailbox.h: 16K plus k whole
+ * 8K pages, 1 <= k <= 6, laid into the slot in order; anything else over 16K
+ * is refused, and a banked image without the claim is refused too.
  */
 #include <stdint.h>
 #include <stdio.h>
@@ -26,27 +30,36 @@ static int fails;
         }                                                                     \
     } while (0)
 
-static uint8_t image[CHFMAP_WINDOW];
-static uint8_t window[CHFMAP_WINDOW];
-static uint8_t expect[CHFMAP_WINDOW];
+#define K16 0x4000u
+#define K8  0x2000u
+#define K64 0x10000u
 
-/* Independent expectation: what a real mask ROM of this size, in a window this
- * size, must look like. */
-static void expected_window(const uint8_t *img, uint32_t size)
+static uint8_t image[K64];
+static uint8_t window[K64];
+static uint8_t expect[K64];
+
+/* What the slot must hold, compared over `span` bytes: a flat image is copied
+ * and padded with $FF to 16K; a banked one is the image, whole. */
+static uint32_t expected_window(const uint8_t *img, uint32_t size)
 {
     memset(expect, 0xFF, sizeof expect);
-    if (size > CHFMAP_WINDOW)
-        size = CHFMAP_WINDOW;
     memcpy(expect, img, size);
+    return size > K16 ? size : K16;
 }
 
-/* Independent claim rule: only an exactly-full-window image can carry it, and
- * the four bytes must be "FUJI" at the very top. */
+/* 16K plus 1 to 6 whole 8K pages. */
+static int banked(uint32_t size)
+{
+    return size > K16 && (size - K16) % K8 == 0 && (size - K16) / K8 <= 6;
+}
+
+/* Independent claim rule: only an exactly-full-window or banked image can
+ * carry it, and the four bytes must be "FUJI" at the top of the first 16K. */
 static int expected_claim(const uint8_t *img, uint32_t size)
 {
-    if (size != CHFMAP_WINDOW)
+    if (size != K16 && !banked(size))
         return 0;
-    return memcmp(img + CHFMAP_WINDOW - 4, "FUJI", 4) == 0;
+    return memcmp(img + K16 - 4, "FUJI", 4) == 0;
 }
 
 static void one(uint32_t size, int expect_err, const char *what)
@@ -66,11 +79,13 @@ static void one(uint32_t size, int expect_err, const char *what)
     CHECK((int)plan.mailbox_ok == expected_claim(image, size),
           "%s: claim %d, expected %d", what,
           (int)plan.mailbox_ok, expected_claim(image, size));
+    CHECK(plan.npages == (size > K16 ? (size - K16) / K8 : 0),
+          "%s: %u pages", what, (unsigned)plan.npages);
 
     memset(window, 0x5A, sizeof window);
     chfmap_apply(image, &plan, window);
-    expected_window(image, size);
-    CHECK(memcmp(window, expect, sizeof window) == 0,
+    uint32_t span = expected_window(image, size);
+    CHECK(memcmp(window, expect, span) == 0,
           "%s: served window differs from the expectation", what);
 }
 
@@ -85,6 +100,15 @@ int main(void)
     CHECK(chfmap_gate(CHFMAP_WINDOW + 1) == FN_BOOT_ERR_TOOBIG,
           "one byte over the window must be refused");
     CHECK(chfmap_gate(0x40000) == FN_BOOT_ERR_TOOBIG, "256K must be refused");
+    CHECK(chfmap_gate(K16 + K8 - 1) == FN_BOOT_ERR_TOOBIG, "16K + 8K - 1 is no page");
+    CHECK(chfmap_gate(K16 + K8) == 0, "16K + one page is banked");
+    CHECK(chfmap_gate(K16 + K8 + 1) == FN_BOOT_ERR_TOOBIG, "16K + 8K + 1 is no page");
+    CHECK(chfmap_gate(K64) == 0, "64K, six pages, is the largest");
+    CHECK(chfmap_gate(K64 + K8) == FN_BOOT_ERR_TOOBIG, "seven pages is too many");
+    CHECK(chfmap_gate(0x14000) == FN_BOOT_ERR_TOOBIG, "80K is too many pages");
+    CHECK(chfmap_gate(0x8000) == 0, "32K is 16K + two pages");
+    CHECK(chfmap_app_shaped(0x8000) && !chfmap_app_shaped(K16),
+          "16K is flat, 32K is banked");
 
     /* --- every real Videocart size, and the boundaries --- */
     for (i = 0; i < sizeof image; i++)
@@ -124,6 +148,27 @@ int main(void)
     CHECK(!chfmap_claims(image, 6144), "a 6K Videocart must not claim");
     one(6144, CHFMAP_OK, "6K with claim bytes beyond its end");
 
+    /* --- APPBANK images --- */
+    one(K16 + K8, CHFMAP_OK, "16K + 1 page, claimed");
+    one(0x8000, CHFMAP_OK, "32K, claimed");
+    one(K64, CHFMAP_OK, "64K, claimed");
+    one(K16 + K8 - 1, CHFMAP_ETOOBIG, "16K + a partial page");
+    one(K16 + K8 + 1, CHFMAP_ETOOBIG, "16K + a page and a byte");
+    one(K64 + K8, CHFMAP_ETOOBIG, "seven pages");
+    CHECK(chfmap_claims(image, K16 + K8), "a banked image claims at $3FFC");
+    CHECK(!chfmap_claims(image, K16 + K8 - 1), "a ragged image does not claim");
+
+    /* Applied in place, as the cart does after pushing into the slot. */
+    {
+        chfmap_plan_t plan;
+        CHECK(chfmap_plan(image, 0x8000, &plan) == CHFMAP_OK, "32K plans");
+        memcpy(window, image, 0x8000);
+        memset(window + 0x8000, 0x5A, sizeof window - 0x8000);
+        chfmap_apply(window, &plan, window);
+        CHECK(memcmp(window, image, 0x8000) == 0, "in-place apply changed the image");
+        CHECK(window[0x8000] == 0x5A, "in-place apply ran past the image");
+    }
+
     memcpy(image + CHFMAP_WINDOW - 4, "FUJj", 4);
     CHECK(!chfmap_claims(image, CHFMAP_WINDOW), "case matters in the claim");
     memcpy(image + CHFMAP_WINDOW - 4, "IJUF", 4);
@@ -131,17 +176,25 @@ int main(void)
     memcpy(image + CHFMAP_WINDOW - 4, "\xff\xff\xff\xff", 4);
     CHECK(!chfmap_claims(image, CHFMAP_WINDOW),
           "an unprogrammed top must not claim");
+    /* Pages are selected through the mailbox: without the claim they could
+     * never be reached, so the image is refused rather than booted broken. */
+    one(K16 + K8, CHFMAP_ENOCLAIM, "banked image without the claim");
+    one(K64, CHFMAP_ENOCLAIM, "64K without the claim");
 
     /* --- fuzz: random contents and sizes, always against the expectation --- */
     srand(1);
     for (i = 0; i < 400; i++) {
-        uint32_t size = (uint32_t)(rand() % (CHFMAP_WINDOW + 1));
+        uint32_t size = (i & 3) == 3
+            ? K16 + K8 * (uint32_t)(1 + rand() % 6)
+            : (uint32_t)(rand() % (CHFMAP_WINDOW + 1));
         unsigned k;
         chfmap_plan_t plan;
 
         for (k = 0; k < sizeof image; k++)
             image[k] = (uint8_t)rand();
         image[0] = 0x55;
+        if (size > K16)
+            memcpy(image + K16 - 4, "FUJI", 4);
         if (size == 0)
             continue;
 
@@ -151,8 +204,8 @@ int main(void)
         }
         memset(window, (uint8_t)rand(), sizeof window);
         chfmap_apply(image, &plan, window);
-        expected_window(image, size);
-        CHECK(memcmp(window, expect, sizeof window) == 0,
+        uint32_t span = expected_window(image, size);
+        CHECK(memcmp(window, expect, span) == 0,
               "fuzz %u: %u-byte image served wrong", i, (unsigned)size);
         CHECK((int)plan.mailbox_ok == expected_claim(image, size),
               "fuzz %u: %u-byte claim wrong", i, (unsigned)size);

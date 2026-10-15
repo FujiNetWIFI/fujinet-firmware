@@ -12,10 +12,11 @@
  *   - there is one arena, not a ping-pong pair: it is separate memory from the
  *     ROM window, so it survives a swap untouched and a staged client boots
  *     into the status pages it was already watching.
- *   - the ROM window IS ping-ponged, for the reason the ColecoVision found: a
- *     client that has itself been swapped in is running out of that window,
+ *   - the ROM image IS ping-ponged, for the reason the ColecoVision found: a
+ *     client that has itself been swapped in is running out of that slot,
  *     and staging the next image into the same buffer would rewrite the code
- *     currently executing.
+ *     currently executing. A slot holds a whole image: the fixed 16K and, for
+ *     a banked client, its APPBANK pages after it.
  *   - the swap is core1's, inline: it must be complete before the next fetch.
  */
 
@@ -44,10 +45,11 @@ typedef struct {
 extern fuji_ring_t fuji_ring;
 extern volatile bool fuji_mailbox_active;
 
-extern uint8_t fuji_win[2][CHFMAP_WINDOW]; /* the 16K ROM window, ping-ponged */
-extern uint8_t fuji_arena[FN_ARENA_SIZE];  /* 32K: RAM + painted mailbox      */
-extern volatile uint8_t fuji_live_win;     /* index core1 serves; core1 owns it */
-uint8_t *fuji_cart_stage_window(void);     /* core0: the one that is NOT live */
+extern uint8_t fuji_store[2][CHFMAP_STORE]; /* whole images, ping-ponged      */
+extern volatile uint8_t fuji_slot_npages[2]; /* APPBANK pages in each slot     */
+extern uint8_t fuji_arena[FN_ARENA_SIZE];    /* 32K: RAM + painted mailbox     */
+extern volatile uint8_t fuji_live_win;       /* slot core1 serves; core1 owns it */
+uint8_t *fuji_cart_stage_window(void);       /* core0: the slot that is NOT live */
 
 extern volatile bool fuji_boot_armed;
 extern volatile bool fuji_staged_claims;
@@ -73,6 +75,5 @@ bool fuji_cart_next_event(uint16_t *offset);
 void fuji_cart_poke(unsigned offset, uint8_t value);
 void fuji_cart_stage(const uint8_t *image, const chfmap_plan_t *plan);
 void fuji_cart_init(void);
-void channelf_cart_refresh(void);
 
 #endif /* FUJI_CART_H */

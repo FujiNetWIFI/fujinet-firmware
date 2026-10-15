@@ -37,6 +37,7 @@ for c in "${clients[@]}"; do
     # that never touch the mailbox, so they stay the size a real cart would be.
     case "$c" in
         hello|romctest) rom_end=0x0fff; claim="" ;;
+        fujibank)       rom_end=0x87ff; claim="--banked" ;;  # 16K + 2 pages
         *)              rom_end=0x47ff; claim="--claim" ;;
     esac
     ( cd testrom && "$ASL" "$c.asm" -L -i . -q )

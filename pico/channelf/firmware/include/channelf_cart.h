@@ -90,6 +90,12 @@ typedef struct {
      * have on a real cart -- which is accurate for THIS cart, and which no
      * commercial Videocart looks for. */
     bool mailbox;
+    /* APPBANK (fuji_mailbox.h): the image's 8K pages, laid end to end, and
+     * the one currently served at FN_APP_WIN. `bank` NULL serves $FF, which
+     * is what a flat image (npages 0) always has. */
+    const uint8_t *pages;
+    uint8_t npages;
+    const uint8_t *bank;
 } chf_mem_t;
 
 /* What a write into the mailbox pages meant. The caller drains this after each
@@ -100,6 +106,7 @@ typedef enum {
     CHF_EV_REG,  /* register ev_reg = ev_val */
     CHF_EV_TX,   /* append ev_val to the TX stream */
     CHF_EV_SWAP, /* the armed ROM-window swap hotspot */
+    CHF_EV_BANK, /* APPBANK page ev_val selected; the decode already did it */
 } chf_ev_t;
 
 CHF_INLINE bool chf_owns(uint16_t a)
@@ -111,6 +118,8 @@ CHF_INLINE uint8_t chf_read(const chf_mem_t *m, uint16_t a)
 {
     if (m->rom && a >= CHF_ROM_BASE && (uint32_t)(a - CHF_ROM_BASE) < m->rom_size)
         return m->rom[a - CHF_ROM_BASE];
+    if (m->bank && (uint16_t)(a - FN_APP_WIN) < FN_APP_PAGE)
+        return m->bank[(uint16_t)(a - FN_APP_WIN)];
     if (m->ram && a >= m->ram_base) {
         uint32_t off = (uint32_t)(a - m->ram_base);
         if (off < m->ram_size) {
@@ -158,6 +167,15 @@ CHF_INLINE chf_ev_t chf_write(chf_mem_t *m, uint16_t a, uint8_t v,
             *ev_reg = n;
             *ev_val = v;
             return CHF_EV_REG;
+        }
+        if (n <= FN_HOT_BANK_LAST) {
+            /* Switched right here, in the shared decode, so the next fetch is
+             * already from the new page -- on core1 and in MAME alike. */
+            uint8_t pg = (uint8_t)(n - FN_HOT_BANK);
+            m->bank = (m->pages && pg < m->npages)
+                ? m->pages + ((uint32_t)pg * FN_APP_PAGE) : NULL;
+            *ev_val = pg;
+            return CHF_EV_BANK;
         }
         if (n == FN_HOT_SWAP)
             return CHF_EV_SWAP;

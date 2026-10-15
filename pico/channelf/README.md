@@ -36,6 +36,7 @@ cycle corrupts its shadow registers permanently.
 | M4 | RP2040 firmware, core1 SRAM-resident | **done** |
 | M6 | soak: 20/20 images pushed, booted, byte-compared | **done** |
 | M7 | full CONFIG + 5 Card Stud | **done** |
+| M8 | protocol 2: APPBANK pages for clients over 16K, and a 60 Hz tick | **done** |
 
 M5 was pulled ahead of the rest deliberately. It is the only genuinely novel
 component and the only one with no template in the sibling ports, so it is the
@@ -70,10 +71,12 @@ nothing to resynchronise its shadow PC0/DC0 against, and is wrong for the rest
 of the session. The loop may never miss a cycle, so it may never fault to
 flash.
 
-Memory: two 16K ROM windows (ping-ponged, so a booted client can push again
-without overwriting the code it is executing from) plus one 32K arena, 16K of
-push buffer and the ring -- 133K of the RP2040's 264K. No image store, no flash
-tier: every Videocart ever made is 6K or less.
+Memory: two image slots of 64K each (ping-ponged, so a booted client can push
+again without overwriting the code it is executing from; a push lands straight
+in the slot that is not live, so there is no separate push buffer), one 32K
+arena and the ring -- about 179K of the RP2040's 264K, measured from the
+linked image. No flash tier: every Videocart ever made is 6K or less, and the
+largest client is 64K.
 
 The bus **timing** is the one thing that is provisional and cannot be settled
 without a board: which edge of WRITE marks a cycle, and when the CPU's write
@@ -81,12 +84,46 @@ data is valid. The ROMC *decode* is proven against MAME's own F8 core; the
 edges are marked PROVISIONAL in `channelf_cart.c` and are the first thing to
 put a scope on.
 
+## Banked application images (APPBANK, protocol 2)
+
+A FujiNet client bigger than 16K -- M.U.L.E. is the first -- ships as the
+usual 16K (signature at `$0800`, claim at `$47FC`) followed by up to six 8K
+pages. The fixed 16K is served at `$0800-$47FF` as always; one page at a time
+appears at `$4800-$67FF`, the hole that read `$FF`, so the client sees
+`$0800-$67FF` as one code space. One store, of any value, to `$FD80+n`
+selects page n, and the very next fetch comes from it: the select is decoded
+inside `chf_write`, in the shared header, so core1, MAME and `test_busio` all
+switch at the same point. The full rules are in `fuji_mailbox.h`.
+
+What resets the page is a swap (to page 0); a console RESET deliberately does
+not, as it does not reset ACKSEQ either, and nothing needs it to: the BIOS
+always enters at `$0802`, in the fixed 16K. A banked image without the claim
+is refused with NOMAP (its pages could never be selected once the mailbox
+died), and anything over 16K that is not whole pages with TOOBIG -- which is
+also what firmware older than this answers, so an old cart refuses a banked
+client cleanly. `tools/checkrom.py --banked` checks a build.
+
+## The tick (protocol 2)
+
+The Channel F has no frame interrupt the cart can see, and a client that
+counts its own loop passes loses time to every transaction. So the cart keeps
+a free-running 60 Hz count at `$FC0E/$FC0F` (little-endian), from a core0
+repeating timer at 240 Hz that stores the whole halfword at once, computed
+from the microsecond clock so it can neither drift nor skip
+(`fuji_tick.h`). core0 sits in transactions with interrupts on, so the tick
+keeps counting through them. The client reads HI, LO, HI and retries if HI
+moved. MAME computes it from emulated time on each read.
+
+Note that the console itself refreshes at 60.53 Hz (4.09 MHz / 256 x 264), so
+600 frames are 595 ticks; `emu/bankprobe.lua` measures against emulated time.
+
 ## Verification
 
 ```
-cd firmware/host_test && make          # test_busio + test_chfmap + test_romc
-./build.sh hello romctest              # console clients
+cd firmware/host_test && make          # busio, chfmap, fujicart, tick, romc
+./build.sh hello romctest fujibank     # console clients
 tools/mktrace.sh ~/Workspace/mame      # regenerate golden ROMC traces
+FUJINET_TCP=127.0.0.1:9 ./run.sh fujibank bankprobe    # APPBANK + tick
 ```
 
 `test_romc` replays traces captured from MAME's own F8 core and checks two
@@ -103,14 +140,27 @@ device asserting `/INTREQ` and the console wires no interrupt source, and
 the observer is caught 30/30.
 
 `test_busio` covers what no trace can: the RAM data path, the mailbox write
-decode and the I/O port latch, none of which exists on the standard Videocart
-MAME runs. `test_chfmap` checks the image mapper against an expectation written
-out separately from the implementation, plus a fuzz over every size.
+decode, the APPBANK page select and the I/O port latch, none of which exists on
+the standard Videocart MAME runs. `test_chfmap` checks the image mapper against
+an expectation written out separately from the implementation, plus a fuzz over
+every size, flat and banked. `test_fujicart` checks the two image slots (the
+live one is never written while staging) and that a paint cannot clobber the
+tick; `test_tick` checks the tick's value against 60 per 10^6 us over a day.
+
+`fujibank.bin` is 16K plus two pages: it selects each page, reads its id
+through `$4800`, calls into it, selects a page it does not have (which reads
+`$FF`) and shows the tick live. `emu/bankprobe.lua` checks every result and
+that the tick advances 60 per emulated second.
 
 `tools/soak.sh` pushes a corpus over the network, boots each image and compares
 the whole served window against the file on disk -- including that everything
 past the image reads `$FF`, which is what MAME's own stock Videocart device
-answers past its ROM size. **20/20**, from a 1-byte image to a full 16K window.
+answers past its ROM size. Banked images are compared page by page, the probe
+selecting each page itself. **25/25**: from a 1-byte image to a full 16K
+window, banked images of 1, 3 and 6 pages, and the two the cart must refuse (a
+banked image without its claim, and one byte past a page). It needs `SD` and
+`FUJINET_TCP` set explicitly: fujinet-pc takes one BoIP client at a time, so
+it should be a private instance.
 There is no Channel F ROM set on this machine (MAME ships only the BIOS), so
 `tools/mkcorpus.py` generates the images; the sizes are every real Videocart
 size plus every boundary, and two full-window images differing only in the

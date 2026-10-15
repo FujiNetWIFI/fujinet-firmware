@@ -374,7 +374,7 @@ jobs:
         working-directory: pico/channelf
         run: |
           ASL=$HOME/asl/asl P2BIN=$HOME/asl/p2bin \
-            ./build.sh hello romctest fujitest fujiboot fujicfg
+            ./build.sh hello romctest fujitest fujiboot fujicfg fujibank
 
   studio2-console-client:
     name: "Studio II 1802 clients"

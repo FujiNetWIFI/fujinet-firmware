@@ -13,8 +13,9 @@
 
 // ======================> channelf_fujinet_cartridge_device
 //
-// Model of the FujiNet RP2040 Videocart: a 16K ROM window at $0800 and a 32K
-// arena at $8000 that is part RAM, part painted mailbox. The protocol itself
+// Model of the FujiNet RP2040 Videocart: a 16K ROM window at $0800, an 8K
+// APPBANK page window at $4800 for clients bigger than 16K, and a 32K arena at
+// $8000 that is part RAM, part painted mailbox. The protocol itself
 // (fujimail.c), the wire codec (fujibus.c) and the image mapper (chfmap.c) are
 // the cartridge firmware's own sources, compiled in verbatim by
 // pico/channelf/emu/apply.sh; this device is only the port -- bytes go into
@@ -66,9 +67,13 @@ protected:
 private:
 	void do_swap();
 	void set_mailbox(bool live);
+	void set_image();
 
-	uint8_t m_window[CHFMAP_WINDOW];   // the 16K ROM window at $0800
-	uint8_t m_staged[CHFMAP_WINDOW];
+	// Whole images, as the cart's two slots: the fixed 16K, then any APPBANK
+	// pages. m_live is served; m_staged takes the next push.
+	std::vector<uint8_t> m_live;
+	std::vector<uint8_t> m_staged;
+	uint8_t m_live_np = 0;
 	uint8_t m_arena[FN_ARENA_SIZE];    // 32K at $8000: RAM + painted mailbox
 	std::vector<uint8_t> m_rx[2];      // per-stream push buffers
 

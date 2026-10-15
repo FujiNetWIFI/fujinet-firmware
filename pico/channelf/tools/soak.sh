@@ -2,8 +2,16 @@
 # soak.sh -- push every image in a corpus over the network, boot it, and
 # byte-compare the served window against the file on disk.
 #
-#   ./tools/soak.sh                     the synthetic corpus (tools/mkcorpus.py)
-#   CORPUS=~/roms ./tools/soak.sh       any directory of .bin/.chf images
+#   SD=... FUJINET_TCP=host:port ./tools/soak.sh      the synthetic corpus
+#   CORPUS=~/roms SD=... FUJINET_TCP=... ./tools/soak.sh   any .bin/.chf images
+#
+# SD (the fujinet-pc SD root the images are copied into) and FUJINET_TCP (that
+# fujinet-pc's BoIP listener) have no defaults on purpose: fujinet-pc takes one
+# BoIP client at a time, and a soak aimed at someone's everyday instance by
+# default would starve it for the length of the run.
+#
+# An image named *_errN.bin must be REFUSED by the cart with FN_BOOT_ERR N
+# (tools/mkcorpus.py makes a banked image without its claim, and a ragged one).
 #
 # Resumable: results land in build/soak.log and an image already recorded is
 # skipped, so an interrupted run picks up where it stopped. Re-run from scratch
@@ -16,7 +24,9 @@ cd "$(dirname "$0")/.."
 HERE="$PWD"
 
 MAME="${MAME:-$HOME/Workspace/mame}"
-SD="${SD:-$HOME/Workspace/fujinet-pc-rs232/build/dist/SD}"
+SD="${SD:?soak.sh: set SD to the fujinet-pc SD root}"
+: "${FUJINET_TCP:?soak.sh: set FUJINET_TCP to the BoIP host:port of that fujinet-pc}"
+export FUJINET_TCP
 CORPUS="${CORPUS:-$HERE/build/soak}"
 LOG="$HERE/build/soak.log"
 SECS="${SECS:-120}"
@@ -51,7 +61,19 @@ for img in "$CORPUS"/*.bin "$CORPUS"/*.chf; do
           -autoboot_script "$HERE/emu/boottest.lua" \
           -video none -sound none -nothrottle -seconds_to_run "$SECS" 2>&1 || true )
 
-    if echo "$out" | grep -q "BOOTTEST: PASS"; then
+    want_err=$(echo "$name" | sed -n 's/.*_err\([0-9]*\)\.[a-z]*$/\1/p')
+    if [ -n "$want_err" ]; then
+        if echo "$out" | grep -q "BOOTTEST: REFUSED err=$want_err\$"; then
+            echo "$name PASS refused err=$want_err" >> "$LOG"
+            pass=$((pass + 1))
+            printf "  %-28s PASS (refused, err %s)\n" "$name" "$want_err"
+        else
+            echo "$name FAIL" >> "$LOG"
+            fail=$((fail + 1))
+            printf "  %-28s FAIL (want refused, err %s)\n" "$name" "$want_err"
+            echo "$out" | grep -E "BOOTTEST|fujinet:" | sed 's/^/      /' | tail -6
+        fi
+    elif echo "$out" | grep -q "BOOTTEST: PASS"; then
         echo "$name PASS $(stat -c%s "$img") bytes" >> "$LOG"
         pass=$((pass + 1))
         printf "  %-28s PASS\n" "$name"

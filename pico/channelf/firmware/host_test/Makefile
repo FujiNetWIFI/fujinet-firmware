@@ -10,11 +10,13 @@ BUILD = ../../build
 # only way to exercise the ROMC 03 -> 1A/1B latch.
 BUSIO_FLAGS = -DCHF_IO_LO=0x20 -DCHF_IO_HI=0x27
 
-TESTS = test_busio test_chfmap test_romc
+TESTS = test_busio test_chfmap test_fujicart test_tick test_romc
 
 all: $(TESTS)
 	@echo "== test_busio"; ./test_busio
 	@echo "== test_chfmap"; ./test_chfmap
+	@echo "== test_fujicart"; ./test_fujicart
+	@echo "== test_tick"; ./test_tick
 	@echo "== test_romc"
 	@if [ ! -f $(BUILD)/trace/hello.trace ] || [ ! -f $(BUILD)/trace/romctest.trace ]; then \
 	    echo "   SKIPPED: no golden traces. Generate them with tools/mktrace.sh <mame-tree>"; \
@@ -35,6 +37,12 @@ test_romc: test_romc.c ../include/channelf_cart.h
 
 test_chfmap: test_chfmap.c $(SRC)/chfmap.c ../include/chfmap.h
 	$(CC) $(CFLAGS) $(INC) -o $@ $< $(SRC)/chfmap.c
+
+test_fujicart: test_fujicart.c $(SRC)/fuji_cart.c $(SRC)/chfmap.c ../include/fuji_cart.h ../include/chfmap.h
+	$(CC) $(CFLAGS) $(INC) -o $@ $< $(SRC)/fuji_cart.c $(SRC)/chfmap.c
+
+test_tick: test_tick.c ../include/fuji_tick.h
+	$(CC) $(CFLAGS) $(INC) -o $@ $<
 
 test_busio: test_busio.c ../include/channelf_cart.h
 	$(CC) $(CFLAGS) $(INC) $(BUSIO_FLAGS) -o $@ $<

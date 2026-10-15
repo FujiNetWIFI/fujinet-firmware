@@ -37,8 +37,9 @@ FNBPCT	EQU 0FC07H		; boot progress, 0-100
 FNBERR	EQU 0FC08H
 FNMAG0	EQU 0FC09H		; 'F'
 FNMAG1	EQU 0FC0AH		; 'N'
-FNPVER	EQU 0FC0BH
+FNPVER	EQU 0FC0BH		; 2 = APPBANK pages and the tick
 FNSECHO	EQU 0FC0CH
+FNTICK	EQU 0FC0EH		; 60 Hz free-running count, LE: read HI, LO, HI
 
 FNREPLY	EQU 0F800H		; the whole 1K reply, read in place
 FNRSIZE	EQU 0400H
@@ -51,6 +52,11 @@ FN_ROM_CLAIM EQU 03FFCH		; image offset of "FUJI"; console $47FC
 ; --- console -> cart ---
 FNREG	EQU 0FD00H		; store V at +n: register n = V
 FNSWAP	EQU 0FDFEH		; store anything: serve the staged image
+FNBANK	EQU 0FD80H		; store anything at +n: APPBANK page n at $4800
+
+; --- APPBANK: 16K fixed + 8K pages, one at a time in the page window ---
+FN_WIN	EQU 04800H		; console address of the selected page
+FN_PGSZ	EQU 02000H		; 8K
 FNTX	EQU 0FF00H		; store anywhere in the page: append
 
 ; --- register numbers ---
