@@ -21,6 +21,7 @@
 #include "channelf_cart.h"
 #include "fujiboot.h"
 #include "fujinet.h"
+#include "fuji_tick.h"
 
 int main(void)
 {
@@ -53,6 +54,7 @@ int main(void)
     gpio_put(PICO_DEFAULT_LED_PIN, true);
 
     fuji_config_boot();
+    fuji_tick_start();
     multicore_launch_core1(channelf_core1_main);
 
     tusb_init();

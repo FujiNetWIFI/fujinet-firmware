@@ -12,9 +12,11 @@
 #include "emu.h"
 #include "fujinet.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <utility>
 
 // The cartridge firmware's own protocol sources, compiled in verbatim (copied
 // next to this file by pico/channelf/emu/apply.sh -- as C++, to live with
@@ -149,12 +151,11 @@ void channelf_fujinet_cartridge_device::device_start()
 	s_fujinet = this;
 	m_debug = getenv("FUJINET_DEBUG") != nullptr;
 	m_bootdump = getenv("FUJINET_BOOTDUMP");
-	std::memset(m_window, 0xff, sizeof m_window);
-	std::memset(m_staged, 0xff, sizeof m_staged);
+	m_live.assign(CHFMAP_STORE, 0xff);
+	m_staged.assign(CHFMAP_STORE, 0xff);
 	std::memset(m_arena, 0x00, sizeof m_arena);
 
-	m_mem.rom = m_window;
-	m_mem.rom_size = sizeof m_window;
+	set_image();
 	m_mem.ram = m_arena;
 	m_mem.ram_base = FN_ARENA_BASE;
 	m_mem.ram_size = sizeof m_arena;
@@ -163,6 +164,17 @@ void channelf_fujinet_cartridge_device::device_start()
 	// No save_item for the mailbox: the protocol state lives in the shared C
 	// service's globals, which a save state cannot capture. Plain-Videocart
 	// mode saves fine; a live mailbox across save/load is not supported.
+}
+
+// Serve m_live: its first 16K at $0800, and APPBANK page 0 at $4800 if it has
+// pages. Called at load and after every swap, so a swap always maps page 0.
+void channelf_fujinet_cartridge_device::set_image()
+{
+	m_mem.rom = m_live.data();
+	m_mem.rom_size = CHFMAP_WINDOW;
+	m_mem.npages = m_live_np;
+	m_mem.pages = m_live_np ? m_live.data() + CHFMAP_WINDOW : nullptr;
+	m_mem.bank = m_mem.pages;
 }
 
 // The arena always answers; only the DECODE comes and goes. See chf_mem_t:
@@ -190,10 +202,16 @@ void channelf_fujinet_cartridge_device::device_reset()
 
 	if (m_rom && chfmap_plan(m_rom, m_rom_size, &plan) == CHFMAP_OK)
 	{
-		chfmap_apply(m_rom, &plan, m_window);
+		chfmap_apply(m_rom, &plan, m_live.data());
+		m_live_np = plan.npages;
+		set_image();
 		set_mailbox(plan.mailbox_ok);
-		fprintf(stderr, "fujinet: %u-byte image loaded, mailbox %s\n",
-				unsigned(m_rom_size), plan.mailbox_ok ? "live" : "dead");
+		if (plan.npages)
+			fprintf(stderr, "fujinet: APPBANK image, %u pages; mailbox kept\n",
+					unsigned(plan.npages));
+		else
+			fprintf(stderr, "fujinet: %u-byte image loaded, mailbox %s\n",
+					unsigned(m_rom_size), plan.mailbox_ok ? "live" : "dead");
 	}
 	else
 	{
@@ -217,7 +235,16 @@ uint8_t channelf_fujinet_cartridge_device::read_rom(offs_t offset)
 	// the cart base. No side_effects_disabled() guard: on this console every
 	// mailbox page is write-only and a read of one is inert, so the debugger
 	// cannot disturb a transaction by looking at it.
-	return chf_read(&m_mem, uint16_t(offset + FN_ROM_BASE));
+	uint16_t const a = uint16_t(offset + FN_ROM_BASE);
+
+	// The tick. The cart paints it from a timer; here it is emulated time,
+	// read on demand, which is the same thing as far as the F8 can tell.
+	if (m_mailbox_live && (a == FN_ARENA_BASE + FN_R_TICK_LO || a == FN_ARENA_BASE + FN_R_TICK_HI))
+	{
+		uint16_t const t = uint16_t(machine().time().as_ticks(60));
+		return (a == FN_ARENA_BASE + FN_R_TICK_LO) ? uint8_t(t) : uint8_t(t >> 8);
+	}
+	return chf_read(&m_mem, a);
 }
 
 void channelf_fujinet_cartridge_device::write_ram(offs_t offset, uint8_t data)
@@ -249,6 +276,12 @@ void channelf_fujinet_cartridge_device::write_ram(offs_t offset, uint8_t data)
 			do_swap();
 		break;
 
+	case CHF_EV_BANK:
+		// chf_write already switched the page.
+		if (m_debug)
+			fprintf(stderr, "fujinet: page %u\n", unsigned(val));
+		break;
+
 	default:
 		break;
 	}
@@ -270,6 +303,8 @@ uint8_t channelf_fujinet_cartridge_device::stream_open(int stream, uint32_t size
 
 	if (err != 0)
 		return err;
+	if (stream == FN_STREAM_ROM)
+		m_have_staged = false;      // its slot is about to be overwritten
 	std::vector<uint8_t> &v = m_rx[stream & 1];
 	v.clear();
 	if (size)
@@ -326,7 +361,8 @@ uint8_t channelf_fujinet_cartridge_device::stream_close(int stream, uint32_t got
 		return FN_BOOT_ERR_NOMAP;
 	}
 
-	chfmap_apply(v.data(), &plan, m_staged);
+	std::fill(m_staged.begin(), m_staged.end(), 0xff);
+	chfmap_apply(v.data(), &plan, m_staged.data());
 	v.clear();
 	m_staged_plan = plan;
 	m_staged_claims = plan.mailbox_ok;
@@ -342,7 +378,9 @@ void channelf_fujinet_cartridge_device::arm_swap()
 
 void channelf_fujinet_cartridge_device::do_swap()
 {
-	std::memcpy(m_window, m_staged, sizeof m_window);
+	std::swap(m_live, m_staged);
+	m_live_np = m_staged_plan.npages;
+	set_image();
 	m_swap_armed = false;
 	m_have_staged = false;
 	set_mailbox(m_staged_claims);

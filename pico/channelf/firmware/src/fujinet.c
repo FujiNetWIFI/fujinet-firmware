@@ -21,12 +21,11 @@
 #include "fuji_mailbox.h"
 #include "chfmap.h"
 
-/* Every Videocart ever made is 6K or less and the window is 16K, so a pushed
- * image is buffered whole with room to spare. There is no image store and no
- * flash tier here -- the ColecoVision needed both, and the reasons (banked
- * 128K+ images, and an XIP miss eating most of a 373 ns budget) apply to
- * neither this console nor this connector. */
-static uint8_t rx_image[CHFMAP_WINDOW];
+/* A pushed image lands straight in the slot that is not being served, which
+ * is big enough for the largest banked client (CHFMAP_STORE), so there is no
+ * separate push buffer. There is no flash tier either -- the ColecoVision
+ * needed one, and the reasons (128K+ game images, and an XIP miss eating most
+ * of a 373 ns budget) apply to neither this console nor this connector. */
 static uint32_t rx_len;
 static bool rx_over;
 
@@ -36,6 +35,9 @@ static uint8_t port_stream_open(int stream, uint32_t size)
         return 0;               /* accepted and dropped: no mappers to hint */
     if (stream != FN_STREAM_ROM)
         return 0;
+    /* The slot is about to be overwritten: whatever was staged there is gone,
+     * so a swap must not be able to serve it half-written. */
+    fuji_have_staged = false;
     rx_len = 0;
     rx_over = false;
     return chfmap_gate(size);
@@ -45,17 +47,18 @@ static void port_stream_write(int stream, const uint8_t *chunk, unsigned len)
 {
     if (stream != FN_STREAM_ROM)
         return;
-    if (rx_len + len > sizeof rx_image) {
+    if (rx_len + len > CHFMAP_STORE) {
         rx_over = true;         /* the gate should have caught this */
-        len = (unsigned)(sizeof rx_image - rx_len);
+        len = (unsigned)(CHFMAP_STORE - rx_len);
     }
-    memcpy(rx_image + rx_len, chunk, len);
+    memcpy(fuji_cart_stage_window() + rx_len, chunk, len);
     rx_len += len;
 }
 
 static uint8_t port_stream_close(int stream, uint32_t got, bool aborted)
 {
     chfmap_plan_t plan;
+    uint8_t *slot = fuji_cart_stage_window();
 
     (void)got;                  /* rx_len is what actually landed */
 
@@ -65,9 +68,9 @@ static uint8_t port_stream_close(int stream, uint32_t got, bool aborted)
         return 0;
     if (rx_over)
         return FN_BOOT_ERR_TOOBIG;
-    if (rx_len == 0 || chfmap_plan(rx_image, rx_len, &plan) != CHFMAP_OK)
+    if (rx_len == 0 || chfmap_plan(slot, rx_len, &plan) != CHFMAP_OK)
         return FN_BOOT_ERR_NOMAP;
-    fuji_cart_stage(rx_image, &plan);
+    fuji_cart_stage(slot, &plan);
     return 0;
 }
 

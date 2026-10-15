@@ -39,11 +39,14 @@
  *
  * MEMORY MAP (console addresses; the BIOS owns $0000-$07FF)
  *
- *   $0800-$47FF  16K ROM window   client image, or a booted Videocart
- *   $4800-$7FFF  unpopulated      reads $FF
+ *   $0800-$47FF  16K ROM window   client image, or a booted Videocart;
+ *                                 a client's "FUJI" claim sits at $47FC
+ *   $4800-$67FF  8K page window   a banked client's selected page (APPBANK);
+ *                                 reads $FF for any other image
+ *   $6800-$7FFF  unpopulated      reads $FF
  *   $8000-$F7FF  30K RAM          the client's own read/write memory
  *   $F800-$FBFF  1K reply window  cart-painted, read in place
- *   $FC00-$FCFF  status page      cart-painted; "FUJI" claim at $FCFC
+ *   $FC00-$FCFF  status page      cart-painted, plus the free-running tick
  *   $FD00-$FDFF  register writes  address picks the register, data is the value
  *   $FE00-$FEFF  raw REGDATA      kept so fujimail.c compiles verbatim
  *   $FF00-$FFFF  TX stream        a write anywhere in the page appends its data
@@ -101,10 +104,27 @@
 #define FN_R_MAGIC0      0x7C09   /* 'F' -- cart presence check              */
 #define FN_R_MAGIC1      0x7C0A   /* 'N'                                     */
 #define FN_R_PROTO_VER   0x7C0B
-#define FN_PROTO_VER     1
+#define FN_PROTO_VER     2        /* 2: APPBANK pages and the tick           */
 #define FN_R_SLICE_ECHO  0x7C0C
+                                  /* 0x7C0D reserved, reads 0                */
+#define FN_R_TICK_LO     0x7C0E   /* free-running 60 Hz count, LE ($FC0E)    */
+#define FN_R_TICK_HI     0x7C0F
 
 #define FN_R_PAINT_END   0x7CFC   /* paint covers [FN_R_BASE, FN_R_PAINT_END) */
+
+/* THE TICK. The Channel F has no frame interrupt the cart can see, the BIOS
+ * PSUs' timers are not something a client can share, and a client that counts
+ * its own loop passes loses time to every transaction. So the cart keeps the
+ * clock: FN_R_TICK_LO/HI count at 60 Hz from cart power-up, wrap at 65536,
+ * and keep counting while the cart is busy with a transaction -- the whole
+ * point is a client that never stops to wait.
+ *
+ * It is painted by the cart, not computed on a read, so reading it is as inert
+ * as reading any other painted byte. The two bytes change together, but the
+ * console reads them one at a time: read HI, LO, HI again, and retry if the
+ * two HI readings differ. Not painted while the mailbox is dead. Under MAME it
+ * is emulated time, which stands still across a transaction because MAME runs
+ * the whole round trip inside one store. */
 
 /* The claim signature is carried by the cartridge IMAGE, at the very top of
  * the 16K ROM window -- console $47FC. An image with "FUJI" there promises it
@@ -116,8 +136,9 @@
  * Putting it at the TOP of the window is what makes it safe. Every commercial
  * Videocart is 2K to 6K, so none of them reaches $47FC at all -- past the end
  * of an image is open bus, not a coincidental "FUJI". Client images are
- * therefore always exactly FN_ROM_SIZE bytes; that is the only layout rule,
- * and tools/checkrom.py enforces it. */
+ * therefore exactly FN_ROM_SIZE bytes, or FN_ROM_SIZE plus whole APPBANK
+ * pages (below); that is the only layout rule, and tools/checkrom.py enforces
+ * it. */
 #define FN_ROM_CLAIM     (FN_ROM_SIZE - 4)   /* image offset; console $47FC   */
 #define FN_R_CLAIM_LEN   4
 #define FN_R_CLAIM_SIG   "FUJI"
@@ -145,7 +166,46 @@
 
 /* FN_H_REGSEL offsets 0x80-0xFF are one-shot special operations rather than
  * register numbers, in the bit7-set half as on the Astrocade and Arcadia. */
+#define FN_HOT_BANK      0x80     /* +n: map APPBANK page n at $4800         */
+#define FN_HOT_BANK_LAST 0xEF
 #define FN_HOT_SWAP      0xFE     /* serve the staged image; armed-only      */
+
+/* APPBANK: a FujiNet client bigger than the 16K window.
+ *
+ * The image is the usual 16K -- $55 at offset 0, the "FUJI" claim at $3FFC --
+ * followed by k 8K pages, 1 <= k <= FN_APP_MAX_PAGES. The first 16K is served
+ * at $0800-$47FF as always, fixed; page n is image bytes
+ * [FN_APP_FIXED + n*FN_APP_PAGE, +FN_APP_PAGE) and appears at $4800-$67FF
+ * when selected. The window sits right after the fixed 16K, so a client sees
+ * $0800-$67FF as one code space.
+ *
+ * Selecting is one store, of any value, to $FD80+n. The cart decodes it on the
+ * bus, inline, so the very next fetch already comes from page n; a client may
+ * select and jump into the window in consecutive instructions. Selecting a
+ * page the image does not have makes the window read $FF. Reads of $FD80-$FDEF
+ * stay as inert as every other read of the register page.
+ *
+ * What resets the page: a swap maps page 0. A console RESET does NOT -- it
+ * arrives as ROMC 08 and the cart keeps all of its state, as it does for
+ * ACKSEQ -- and nothing has to: the BIOS always re-enters at $0802, in the
+ * fixed 16K, so a client's start code selects whatever it needs.
+ *
+ * Banking is only decoded while the mailbox is live. An image with pages but
+ * without the claim is refused (FN_BOOT_ERR_NOMAP): a banked image that let
+ * the mailbox die could never select a page again. A DC0 run of stores that
+ * strays into $FD80-$FDEF switches pages, on top of the register-write hazard
+ * the rule above already covers. Old firmware refuses a banked image cleanly,
+ * with FN_BOOT_ERR_TOOBIG.
+ *
+ * The cap is the cart's SRAM, not the protocol: two slots of the largest image
+ * (the ping-pong above, so a running client can stage another) have to fit
+ * next to the arena, the ring and core0's own memory, and core1 may never
+ * fault out to flash. */
+#define FN_APP_FIXED     0x4000   /* image offset of page 0                  */
+#define FN_APP_WIN       0x4800   /* console address of the page window      */
+#define FN_APP_PAGE      0x2000   /* 8K                                      */
+#define FN_APP_MAX_PAGES 6
+#define FN_APP_MAX_SIZE  (FN_APP_FIXED + FN_APP_MAX_PAGES * FN_APP_PAGE) /* 64K */
 
 /* Registers, reached by writing to FN_H_REGSEL + n.
  * 0x00-0x0F mirrors the O2/Astrocade/Arcadia/Coleco numbering. */

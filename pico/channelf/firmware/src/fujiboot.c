@@ -20,10 +20,11 @@ void fuji_config_boot(void)
     chfmap_plan_t plan;
 
     fuji_cart_init();
-    memset(fuji_win[0], 0xFF, CHFMAP_WINDOW);
-    if (chfmap_plan(_configrom, FUJI_CONFIGROM_SIZE, &plan) == CHFMAP_OK)
-        chfmap_apply(_configrom, &plan, fuji_win[0]);
-    else
+    memset(fuji_store[0], 0xFF, CHFMAP_WINDOW);
+    if (chfmap_plan(_configrom, FUJI_CONFIGROM_SIZE, &plan) == CHFMAP_OK) {
+        chfmap_apply(_configrom, &plan, fuji_store[0]);
+        fuji_slot_npages[0] = plan.npages;
+    } else
         plan.mailbox_ok = false;
 
     /* build.sh stamps the claim into every client it builds, so the paint

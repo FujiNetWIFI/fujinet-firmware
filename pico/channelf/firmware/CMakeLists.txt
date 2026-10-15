@@ -36,6 +36,7 @@ if(CONFIG_FUJINET)
         src/fujimail.c
         src/fujinet.c
         src/fujiboot.c
+        src/fuji_tick.c
         src/chfmap.c
     )
 endif()

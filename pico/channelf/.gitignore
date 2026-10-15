@@ -8,3 +8,5 @@ testrom/*.lst
 testrom/font.inc
 testrom/bootcfg.inc
 firmware/include/fujiconfigrom.h
+firmware/host_test/test_fujicart
+firmware/host_test/test_tick

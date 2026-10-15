@@ -17,7 +17,7 @@ import sys
 
 SRAM_LO, SRAM_HI = 0x20000000, 0x20042000
 ENTRY = "channelf_core1_main"
-DATA = ("fuji_win", "fuji_arena", "fuji_ring",
+DATA = ("fuji_store", "fuji_arena", "fuji_ring", "fuji_slot_npages",
         "fuji_live_win", "fuji_mailbox_active")
 
 

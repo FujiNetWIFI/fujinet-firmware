@@ -9,7 +9,8 @@
  *     dropped;
  *   - that the register and TX pages are INERT on reads, the property that
  *     deletes the stray-read hazard the sibling ports defend against;
- *   - the ROMC 03 -> 1A/1B I/O port latch.
+ *   - the ROMC 03 -> 1A/1B I/O port latch;
+ *   - APPBANK: a store to $FD80+n serving page n at $4800 from the next read.
  * All checked here against hand-computed expectations.
  *
  * Compiled with the cart claiming ports $20-$27, the historic Videocart PSU
@@ -35,6 +36,15 @@ static int fails;
     } while (0)
 
 static uint8_t rom[FN_ROM_SIZE];
+
+/* Three APPBANK pages; byte i of page p is (i ^ p*0x11) | stamp, so a read
+ * from the wrong page, or the wrong offset, cannot match by accident. */
+#define NPG 3
+static uint8_t pages[NPG * 0x2000];
+static uint8_t pgbyte(unsigned p, unsigned i)
+{
+    return (uint8_t)((i * 3u) ^ (p * 0x5Bu) ^ 0xC3u);
+}
 
 /* The arena with guard bands either side: an observer that loses a bounds
  * check writes just past the window, which a plain array would turn into
@@ -191,8 +201,10 @@ int main(void)
     store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + FN_HOT_SWAP), 0x00);
     CHECK(bus.ev == CHF_EV_SWAP, "a store to $FDFE must raise CHF_EV_SWAP");
 
-    store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + 0x80), 0x00);
+    store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + 0xF0), 0x00);
     CHECK(bus.ev == CHF_EV_NONE, "an undefined special op must be a no-op");
+    store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + 0xFD), 0x00);
+    CHECK(bus.ev == CHF_EV_NONE, "$FDFD is undefined too");
     store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + 0x7F), 0x5A);
     CHECK(bus.ev == CHF_EV_REG && bus.ev_reg == 0x7F,
           "register $7F is the last real register, not a special op");
@@ -218,6 +230,91 @@ int main(void)
     CHECK(bus.dc0 == 0x0000, "DC0 wraps past $FFFF");
     run(0x05, 0x99, NULL, NULL);
     CHECK(bus.ev == CHF_EV_NONE, "a store into BIOS space is inert");
+
+    /* --- APPBANK: no pages yet (a flat image), so the window reads $FF and a
+     * select still raises the event but maps nothing --- */
+    dval = load(FN_APP_WIN, &drive);
+    CHECK(drive && dval == 0xFF, "a flat image's page window reads $FF, got $%02X", dval);
+    store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + FN_HOT_BANK), 0x00);
+    CHECK(bus.ev == CHF_EV_BANK && bus.ev_val == 0, "select page 0 raises CHF_EV_BANK");
+    dval = load(FN_APP_WIN, &drive);
+    CHECK(drive && dval == 0xFF, "page 0 of a flat image is $FF, got $%02X", dval);
+
+    /* --- APPBANK with three pages --- */
+    for (unsigned p = 0; p < NPG; p++)
+        for (unsigned i = 0; i < 0x2000; i++)
+            pages[p * 0x2000 + i] = pgbyte(p, i);
+    mem.pages = pages;
+    mem.npages = NPG;
+    mem.bank = pages;           /* what a swap or a load maps: page 0 */
+    dval = load(FN_APP_WIN, &drive);
+    CHECK(drive && dval == pgbyte(0, 0), "page 0 at $4800 after load");
+    for (unsigned p = 0; p < NPG; p++) {
+        store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + FN_HOT_BANK + p), 0xA7);
+        CHECK(bus.ev == CHF_EV_BANK && bus.ev_val == p, "select page %u", p);
+        CHECK(arena[FN_H_REGSEL + FN_HOT_BANK + p] == 0x00,
+              "a page select must not land in the arena");
+        /* the very next fetch is from the new page: no settling cycle */
+        bus.pc0 = FN_APP_WIN;
+        run(0x00, 0xFF, &drive, &dval);
+        CHECK(drive && dval == pgbyte(p, 0), "page %u first fetch $%02X", p, dval);
+        dval = load(0x67FF, &drive);
+        CHECK(drive && dval == pgbyte(p, 0x1FFF), "page %u last byte at $67FF", p);
+        dval = load(0x5234, &drive);
+        CHECK(drive && dval == pgbyte(p, 0x0A34), "page %u at $5234", p);
+    }
+    dval = load(0x47FF, &drive);
+    CHECK(drive && dval == rom[0x3FFF], "$47FF is still the fixed window");
+    dval = load(0x6800, &drive);
+    CHECK(drive && dval == 0xFF, "$6800 is unpopulated, got $%02X", dval);
+    dval = load(0x7FFF, &drive);
+    CHECK(drive && dval == 0xFF, "$7FFF is unpopulated, got $%02X", dval);
+
+    /* a page the image does not have serves $FF; a real one comes back */
+    store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + FN_HOT_BANK + NPG), 0x00);
+    CHECK(bus.ev == CHF_EV_BANK && bus.ev_val == NPG, "select a missing page");
+    dval = load(FN_APP_WIN + 5, &drive);
+    CHECK(drive && dval == 0xFF, "a missing page reads $FF, got $%02X", dval);
+    store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + FN_HOT_BANK_LAST), 0x00);
+    CHECK(bus.ev == CHF_EV_BANK && bus.ev_val == FN_HOT_BANK_LAST - FN_HOT_BANK,
+          "$FDEF is the last select");
+    dval = load(FN_APP_WIN, &drive);
+    CHECK(drive && dval == 0xFF, "the last select maps nothing here");
+    store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + FN_HOT_BANK + 1), 0x00);
+
+    /* reads of the select addresses are inert like the rest of the page */
+    dval = load((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + FN_HOT_BANK + 2), &drive);
+    CHECK(drive && dval == 0xFF && bus.ev == CHF_EV_NONE, "reading $FD82 is inert");
+    dval = load(FN_APP_WIN, &drive);
+    CHECK(dval == pgbyte(1, 0), "a read of $FD82 must not switch pages");
+
+    /* the hazard fuji_mailbox.h documents: a DC0 run of stores into the
+     * register page switches pages as it goes */
+    bus.dc0 = (uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + FN_HOT_BANK);
+    run(0x05, 0x00, NULL, NULL);
+    run(0x05, 0x00, NULL, NULL);
+    CHECK(bus.ev == CHF_EV_BANK && bus.ev_val == 1, "a store run selects as it walks");
+    dval = load(FN_APP_WIN, &drive);
+    CHECK(dval == pgbyte(1, 0), "...and leaves the last page it walked over");
+
+    /* register writes and the swap are untouched by the page decode */
+    store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + 0x7F), 0x11);
+    CHECK(bus.ev == CHF_EV_REG && bus.ev_reg == 0x7F, "$FD7F is still a register");
+    store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + FN_HOT_SWAP), 0x00);
+    CHECK(bus.ev == CHF_EV_SWAP, "$FDFE is still the swap");
+
+    /* with the decode dead, a select is a plain RAM store and maps nothing */
+    mem.mailbox = false;
+    store((uint16_t)(FN_ARENA_BASE + FN_H_REGSEL + FN_HOT_BANK + 2), 0x42);
+    CHECK(bus.ev == CHF_EV_NONE, "a dead mailbox does not bank");
+    CHECK(arena[FN_H_REGSEL + FN_HOT_BANK + 2] == 0x42, "...the store is RAM");
+    dval = load(FN_APP_WIN, &drive);
+    CHECK(dval == pgbyte(1, 0), "...and the page stays where it was");
+    arena[FN_H_REGSEL + FN_HOT_BANK + 2] = 0;
+    mem.mailbox = true;
+    mem.pages = NULL;
+    mem.npages = 0;
+    mem.bank = NULL;
 
     /* --- after booting a Videocart the decode dies but the arena does NOT.
      * The swap stub runs out of the arena and this console has no RAM of its

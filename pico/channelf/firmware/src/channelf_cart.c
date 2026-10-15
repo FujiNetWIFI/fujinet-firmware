@@ -45,11 +45,17 @@ static inline void data_drive(uint8_t v)
     sio_hw->gpio_clr = DIR_MASK;    /* '245 cart -> console */
 }
 
-/* Point the memory model at whichever ROM window is live. */
+/* Point the memory model at whichever slot is live: its first 16K in the
+ * fixed window, and APPBANK page 0 in the page window if it has pages. */
 static inline void serve_live(void)
 {
-    mem.rom = fuji_win[fuji_live_win];
+    uint8_t live = fuji_live_win;
+
+    mem.rom = fuji_store[live];
     mem.rom_size = CHFMAP_WINDOW;
+    mem.npages = fuji_slot_npages[live];
+    mem.pages = mem.npages ? fuji_store[live] + CHFMAP_WINDOW : NULL;
+    mem.bank = mem.pages;
     mem.ram = fuji_arena;
     mem.ram_base = FN_ARENA_BASE;
     mem.ram_size = FN_ARENA_SIZE;
@@ -130,6 +136,11 @@ void __not_in_flash_func(channelf_core1_main)(void)
             }
             break;
 
+        case CHF_EV_BANK:
+            /* Nothing left to do: chf_write switched the page, inline, before
+             * this cycle ended. */
+            break;
+
         default:
             break;
         }
@@ -137,10 +148,3 @@ void __not_in_flash_func(channelf_core1_main)(void)
 }
 
 #pragma GCC pop_options
-
-/* core0 calls this after changing what should be served (a fresh paint, or the
- * mailbox going dead), so core1 picks the change up on its next cycle. */
-void channelf_cart_refresh(void)
-{
-    serve_live();
-}
