@@ -56,6 +56,11 @@ is the one thing emulation cannot settle -- see below.
 `./build-cart.sh` produces `firmware/build-fujichannelf/fujichannelf.uf2`.
 core1 runs the F8 bus loop out of SRAM (`channelf_core1_main` at `0x200000c0`,
 which CI greps the linker map for); core0 does USB and the mailbox service.
+`tools/checksram.py` (run by `build-cart.sh` and CI) disassembles the loop and
+fails on any branch out of SRAM, veneers included: before the shared decode
+was forced inline (`CHF_INLINE`), GCC emitted `chf_read` once into flash and
+reached it through a veneer that itself sat in SRAM, which the map grep could
+not see.
 
 Residency matters here for a different reason than on the ColecoVision. There
 it was latency: 373 ns from address-valid to data-required, and one XIP cache

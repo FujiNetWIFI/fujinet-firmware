@@ -40,4 +40,5 @@ python3 tools/mkromh.py "build/$CLIENT.bin" > firmware/include/fujiconfigrom.h
 cmake -S firmware -B "firmware/build-$BOARD" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD="$BOARD"
 ninja -C "firmware/build-$BOARD"
+python3 tools/checksram.py "firmware/build-$BOARD/fujichannelf.elf"
 echo "build-cart.sh: firmware/build-$BOARD/fujichannelf.uf2"

@@ -572,6 +572,9 @@ jobs:
           # session.
           grep -E '0x2000[0-9a-f]+ +channelf_core1_main$' \
               firmware/build-fujichannelf/fujichannelf.elf.map
+          # ...and so must everything it calls: an un-inlined helper lands in
+          # flash behind an SRAM veneer, which the map grep cannot see.
+          python3 tools/checksram.py firmware/build-fujichannelf/fujichannelf.elf
 
       # From firmware/baked/ alone, so the 1802 assembler is not needed here;
       # checksram.py asserts core1's loop and everything it calls is in SRAM.
