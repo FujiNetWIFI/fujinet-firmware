@@ -563,13 +563,15 @@ target_compile_definitions(tnfs_tcp_recv_tests PRIVATE UNIT_TESTS)
 add_test(NAME tnfs_tcp_recv_tests COMMAND tnfs_tcp_recv_tests)
 
 # ------------------------------------------------------------------------------
-# The N: TCP protocol (lib/network-protocol/TCP.cpp) over the fake socket in
-# tcp_harness/.
+# The N: TCP and TELNET protocols (lib/network-protocol/TCP.cpp, Telnet.cpp) over
+# the fake socket in tcp_harness/.
 # ------------------------------------------------------------------------------
 add_executable(tcp_protocol_tests
     TCPProtocolTests.cpp
     ${CMAKE_SOURCE_DIR}/lib/network-protocol/TCP.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/Telnet.cpp
     ${CMAKE_SOURCE_DIR}/lib/network-protocol/Protocol.cpp
+    ${CMAKE_SOURCE_DIR}/lib/telnet/libtelnet.c
     ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
     ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
     ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp
@@ -588,6 +590,7 @@ endif()
 target_include_directories(tcp_protocol_tests BEFORE PRIVATE
     ${CMAKE_SOURCE_DIR}/tests/tcp_harness/    # first: replaces fnTcpClient.h, fnTcpServer.h, bus.h
     ${CMAKE_SOURCE_DIR}/lib/network-protocol/
+    ${CMAKE_SOURCE_DIR}/lib/telnet/
     ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
     ${CMAKE_SOURCE_DIR}/lib/utils/
     ${CMAKE_SOURCE_DIR}/lib/sam/

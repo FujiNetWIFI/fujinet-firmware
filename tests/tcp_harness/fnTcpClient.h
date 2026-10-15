@@ -16,6 +16,7 @@ struct FakePeer
     std::string inbound;            // sent by the peer and not read yet
     std::string received;           // everything the client wrote
     size_t write_limit = SIZE_MAX;  // most bytes one write() sends
+    bool waiting = false;           // a caller is queued on the listener
 };
 
 extern FakePeer fake_peer;
