@@ -350,14 +350,14 @@ fujiError_t NetworkProtocolTCP::close_client_connection()
     {
         Debug_printf("Attempted close client connection on NULL server socket. Aborting.\r\n");
         error = NDEV_STATUS::SERVER_NOT_RUNNING;
-        return FUJI_ERROR::NONE;
+        return FUJI_ERROR::UNSPECIFIED;
     }
 
     if (!client.connected())
     {
         Debug_printf("Attempted close client with no client connected.\r\n");
         error = NDEV_STATUS::NOT_CONNECTED;
-        return FUJI_ERROR::NONE;
+        return FUJI_ERROR::NONE; // nothing to close is not an error
     }
 
     remoteIP = client.remoteIP();
@@ -373,5 +373,5 @@ fujiError_t NetworkProtocolTCP::close_client_connection()
 
     client.stop();
 
-    return FUJI_ERROR::UNSPECIFIED;
+    return FUJI_ERROR::NONE;
 }
