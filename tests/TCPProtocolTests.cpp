@@ -132,3 +132,17 @@ TEST_CASE("a short TELNET send is an error and is not resent by the next WRITE (
     CHECK(t.telnet.write(3) == FUJI_ERROR::NONE);
     CHECK(fake_peer.received == "BBBBZA\xff\xff" "A");
 }
+
+TEST_CASE("a short write is an error and is not resent by the next WRITE (#1918)")
+{
+    Connection c;
+    fake_peer.write_limit = 4;
+    c.tx = "BBBBBBBBBB";
+    CHECK(c.tcp.write(10) != FUJI_ERROR::NONE);
+    CHECK(fake_peer.received == "BBBB");
+
+    fake_peer.write_limit = SIZE_MAX;
+    c.tx += "Z";
+    CHECK(c.tcp.write(1) == FUJI_ERROR::NONE);
+    CHECK(fake_peer.received == "BBBBZ");
+}
