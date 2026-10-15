@@ -33,6 +33,8 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `TNFSFramingTests.cpp` | `lib/TNFSlib/tnfslib_framing.cpp` reply lengths, split and coalesced streams, malformed input (`tnfs_framing_tests`) |
 | `TNFSTcpRecvTests.cpp` | The real `lib/TNFSlib` client over TCP against a scripted server: split, merged, late, stale, malformed and cut-off replies, closed connections, failed MOUNT and EAGAIN; UDP and the UDP fallback unchanged (`tnfs_tcp_recv_tests`) |
 | `tnfs_harness/` | Stand-ins for `fnSystem.h` (a virtual clock), `bus.h`, `fnDNS.h`, `utils.h`, `fnTcpClient.h` and `fnUDP.h`, the last two backed by the scripted peer in `harness_server.h`; used by `tnfs_tcp_recv_tests` |
+| `TCPProtocolTests.cpp` | `lib/network-protocol/TCP.cpp` reads over a fake socket (`tcp_protocol_tests`) |
+| `tcp_harness/` | Stand-ins for `fnTcpClient.h`, `fnTcpServer.h` and `bus.h`, backed by the fake peer in `fnTcpClient.h`; used by `tcp_protocol_tests` |
 | `check_no_build_ifdefs.py` | Policy: no `BUILD_*` macro in a preprocessor conditional under `lib/device/fujiDevice`, `lib/device/fujiClock` or `lib/device/NDevice` (`no_build_ifdefs_in_fujidevice`) |
 | `check_no_system_bus.py` | Policy: `SYSTEM_BUS` must not appear in any source under `lib/media` (`no_system_bus_in_media`) |
 | `unsit.c`, `stuffit_test.sh` | Host CLI over `lib/stuffit` and a comparison against `unar` (`stuffit_sample_tests`; registered only with `SIT_SAMPLES_DIR`) |
