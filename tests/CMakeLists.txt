@@ -520,7 +520,7 @@ add_test(NAME cassettefskread_tests COMMAND cassettefskread_tests)
 # coalesced byte streams, malformed input. Pure code, so it links alone.
 # ------------------------------------------------------------------------------
 add_executable(tnfs_framing_tests
-    TnfsFramingTests.cpp
+    TNFSFramingTests.cpp
     ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslib_framing.cpp
 )
 
@@ -539,7 +539,7 @@ add_test(NAME tnfs_framing_tests COMMAND tnfs_framing_tests)
 # tnfs_harness/ (split, merged, late, malformed and cut-off replies; UDP unchanged).
 # ------------------------------------------------------------------------------
 add_executable(tnfs_tcp_recv_tests
-    TnfsTcpRecvTests.cpp
+    TNFSTcpRecvTests.cpp
     ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslib.cpp
     ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslib_dir.cpp
     ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslib_transport.cpp
