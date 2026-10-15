@@ -306,7 +306,7 @@
 						<a href="/unmount?deviceslot={{ ds-1 }}">[EJECT]</a>
 					</div>
 					{% endif %}
-					<div class="det detlinecol"><%FN_DRIVE{{ ds }}HOST%> :: <%FN_DRIVE{{ ds }}MOUNT%></div>
+					<div class="det detlinecol"><%FN_DRIVE{{ ds }}HOST%> :: <%FN_DRIVE{{ ds }}MOUNT%> <span class="unmounted"><%FN_DRIVE{{ ds }}STATUS%></span></div>
 				</div>
 				{% endfor %}
 				{% else %}
@@ -316,7 +316,7 @@
 					   Drive Slot {{ ds }}<%FN_DRIVE{{ ds }}DEVICE%>
 					   <a href="/unmount?deviceslot={{ ds-1 }}">[EJECT]</a>
 					</div>
-					<div class="det detlinecol"><%FN_DRIVE{{ ds }}HOST%> :: <%FN_DRIVE{{ ds }}MOUNT%></div>
+					<div class="det detlinecol"><%FN_DRIVE{{ ds }}HOST%> :: <%FN_DRIVE{{ ds }}MOUNT%> <span class="unmounted"><%FN_DRIVE{{ ds }}STATUS%></span></div>
 				</div>
 				{% endfor %}
 				{% endif %}

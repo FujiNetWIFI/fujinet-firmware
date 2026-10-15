@@ -246,6 +246,18 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_DRIVE9DEVICE,
         FN_DRIVE10DEVICE,
 #endif
+        FN_DRIVE1STATUS,
+        FN_DRIVE2STATUS,
+        FN_DRIVE3STATUS,
+        FN_DRIVE4STATUS,
+        FN_DRIVE5STATUS,
+        FN_DRIVE6STATUS,
+        FN_DRIVE7STATUS,
+        FN_DRIVE8STATUS,
+#ifdef BUILD_APPLE
+        FN_DRIVE9STATUS,
+        FN_DRIVE10STATUS,
+#endif
         FN_HOST1PREFIX,
         FN_HOST2PREFIX,
         FN_HOST3PREFIX,
@@ -375,6 +387,18 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 #ifdef BUILD_APPLE
         "FN_DRIVE9DEVICE",
         "FN_DRIVE10DEVICE",
+#endif
+        "FN_DRIVE1STATUS",
+        "FN_DRIVE2STATUS",
+        "FN_DRIVE3STATUS",
+        "FN_DRIVE4STATUS",
+        "FN_DRIVE5STATUS",
+        "FN_DRIVE6STATUS",
+        "FN_DRIVE7STATUS",
+        "FN_DRIVE8STATUS",
+#ifdef BUILD_APPLE
+        "FN_DRIVE9STATUS",
+        "FN_DRIVE10STATUS",
 #endif
         "FN_HOST1PREFIX",
         "FN_HOST2PREFIX",
@@ -710,6 +734,25 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         disk_id = (char) theFuji->get_disk_id(drive_slot);
         if (disk_id > 0 && disk_id != (char) (0x31 + drive_slot)) {
             resultstream << " (D" << disk_id << ":)";
+        }
+        break;
+    case FN_DRIVE1STATUS:
+    case FN_DRIVE2STATUS:
+    case FN_DRIVE3STATUS:
+    case FN_DRIVE4STATUS:
+    case FN_DRIVE5STATUS:
+    case FN_DRIVE6STATUS:
+    case FN_DRIVE7STATUS:
+    case FN_DRIVE8STATUS:
+#ifdef BUILD_APPLE
+    case FN_DRIVE9STATUS:
+    case FN_DRIVE10STATUS:
+#endif
+        /* Is the disk the config names for this Drive Slot actually open? */
+        drive_slot = tagid - FN_DRIVE1STATUS;
+        if (Config.get_mount_host_slot(drive_slot) != HOST_SLOT_INVALID
+            && theFuji->get_disk(drive_slot)->fileh == nullptr) {
+            resultstream << "(not mounted)";
         }
         break;
     case FN_HOST1PREFIX:
