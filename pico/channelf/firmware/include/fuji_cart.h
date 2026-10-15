@@ -55,7 +55,7 @@ extern volatile bool fuji_have_staged;
 
 /* core1: record one mailbox event. Inlined into the bus loop, so it stays a
  * compare and two stores. */
-static inline void fuji_cart_note(uint16_t offset)
+CHF_INLINE void fuji_cart_note(uint16_t offset)
 {
     uint16_t head = fuji_ring.head;
     uint16_t next = (uint16_t)((head + 1u) % FUJI_RING_LEN);

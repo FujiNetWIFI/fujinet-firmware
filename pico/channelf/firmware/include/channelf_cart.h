@@ -27,6 +27,18 @@
 
 #include "fuji_mailbox.h"
 
+/* Everything core1 runs per cycle is forced inline. core1's loop is placed in
+ * SRAM, but a static inline the compiler chooses NOT to inline is emitted once,
+ * at the file's own -Os, into flash -- and reached through a veneer that sits
+ * in SRAM, so a check of core1's own code alone passes. One XIP miss there
+ * stalls a bus cycle, and with no address bus the cart never resynchronises.
+ * tools/checksram.py follows the veneers. */
+#if defined(__GNUC__)
+#define CHF_INLINE static inline __attribute__((always_inline))
+#else
+#define CHF_INLINE static inline
+#endif
+
 /* The console BIOS owns $0000-$07FF; everything at or above this is ours. */
 #define CHF_ROM_BASE 0x0800u
 
@@ -90,12 +102,12 @@ typedef enum {
     CHF_EV_SWAP, /* the armed ROM-window swap hotspot */
 } chf_ev_t;
 
-static inline bool chf_owns(uint16_t a)
+CHF_INLINE bool chf_owns(uint16_t a)
 {
     return a >= CHF_ROM_BASE;
 }
 
-static inline uint8_t chf_read(const chf_mem_t *m, uint16_t a)
+CHF_INLINE uint8_t chf_read(const chf_mem_t *m, uint16_t a)
 {
     if (m->rom && a >= CHF_ROM_BASE && (uint32_t)(a - CHF_ROM_BASE) < m->rom_size)
         return m->rom[a - CHF_ROM_BASE];
@@ -115,7 +127,7 @@ static inline uint8_t chf_read(const chf_mem_t *m, uint16_t a)
 
 /* A store into the cart's space. Returns the mailbox event it meant, if any;
  * plain RAM and ignored writes return CHF_EV_NONE. */
-static inline chf_ev_t chf_write(chf_mem_t *m, uint16_t a, uint8_t v,
+CHF_INLINE chf_ev_t chf_write(chf_mem_t *m, uint16_t a, uint8_t v,
                                  uint8_t *ev_reg, uint8_t *ev_val)
 {
     if (!m->ram || a < m->ram_base)
@@ -169,7 +181,7 @@ static inline chf_ev_t chf_write(chf_mem_t *m, uint16_t a, uint8_t v,
     }
 }
 
-static inline bool chf_owns_io(uint8_t port)
+CHF_INLINE bool chf_owns_io(uint8_t port)
 {
     return CHF_IO_HI >= CHF_IO_LO && port >= CHF_IO_LO && port <= CHF_IO_HI;
 }
@@ -191,7 +203,7 @@ static inline bool chf_owns_io(uint8_t port)
  * drive the buffer, and only then sample what the CPU put there for the cycles
  * it owns. The combined chf_bus_cycle below is what the tests and the MAME
  * device use. */
-static inline bool chf_bus_source(const chf_bus_t *b, const chf_mem_t *m,
+CHF_INLINE bool chf_bus_source(const chf_bus_t *b, const chf_mem_t *m,
                                   uint8_t romc, uint8_t *dval)
 {
     bool dr = false;
@@ -235,7 +247,7 @@ static inline bool chf_bus_source(const chf_bus_t *b, const chf_mem_t *m,
 
 /* Phase 2, on its own: the register updates every device performs, given the
  * value that actually ended up on the bus. */
-static inline void chf_bus_commit(chf_bus_t *b, chf_mem_t *m, uint8_t romc,
+CHF_INLINE void chf_bus_commit(chf_bus_t *b, chf_mem_t *m, uint8_t romc,
                                   uint8_t eff)
 {
     b->ev = CHF_EV_NONE;
@@ -277,7 +289,7 @@ static inline void chf_bus_commit(chf_bus_t *b, chf_mem_t *m, uint8_t romc,
 
 /* The two phases together: what the host tests replay and what the MAME device
  * calls, where reads and writes arrive already separated. */
-static inline uint8_t chf_bus_cycle(chf_bus_t *b, chf_mem_t *m, uint8_t romc,
+CHF_INLINE uint8_t chf_bus_cycle(chf_bus_t *b, chf_mem_t *m, uint8_t romc,
                                     uint8_t dbus_in, bool *drive, uint8_t *dval)
 {
     uint8_t out = 0xFF;
@@ -294,7 +306,7 @@ static inline uint8_t chf_bus_cycle(chf_bus_t *b, chf_mem_t *m, uint8_t romc,
  * issues it before the first fetch. This is the hook the mailbox uses to know
  * the console restarted, which every sibling port needed and had to synthesise
  * some other way. */
-static inline bool chf_is_reset(uint8_t romc)
+CHF_INLINE bool chf_is_reset(uint8_t romc)
 {
     return romc == 0x08;
 }
