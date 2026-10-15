@@ -42,6 +42,7 @@ enum fsType
     FSTYPE_NFS,
     FSTYPE_FTP,
     FSTYPE_HTTP,
+    FSTYPE_CARTSD,
     FSTYPE_COUNT
 };
 
