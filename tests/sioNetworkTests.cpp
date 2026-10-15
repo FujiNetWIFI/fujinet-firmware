@@ -17,6 +17,8 @@ public:
     using sioNetwork::read_length;
     using sioNetwork::_protocol;
     using sioNetwork::_parser;
+    // The READ every bus but SIO and Lynx uses.
+    void shared_read(const FUJI_COMMAND_PACKET &packet) { NDevice::fujidev_read(packet); }
 };
 
 // --------------------------------------------------------------------------------
@@ -186,6 +188,30 @@ TEST_CASE("a retried READ that failed fails again without reading")
     CHECK(p->reads == 1);
 
     CHECK(read_frame(dev, 0x8004) == "ABCD");
+}
+
+TEST_CASE("the shared READ hands a retry the same chunk, unpadded")
+{
+    TestableSioNetwork dev;
+    auto parser = std::make_unique<StreamParser>();
+    StreamParser *p = parser.get();
+    dev._parser = std::move(parser);
+
+    bus = {};
+    set_sequence(dev, 1);
+
+    FujiSIOPacket packet;
+    packet.frame.comnd = CMD::NET_READ;
+    packet.frame.aux1 = 3;
+    packet.frame.aux2 = 0x80;
+    dev.shared_read(packet);
+    CHECK(bus.sent == "ABC");
+    dev.shared_read(packet); // the retry
+    CHECK(bus.sent == "ABC");
+    packet.frame.aux2 = 0;
+    dev.shared_read(packet);
+    CHECK(bus.sent == "DEF");
+    CHECK(p->reads == 2);
 }
 
 TEST_CASE("CLOSE ends sequence mode, so bit 15 is a length again")

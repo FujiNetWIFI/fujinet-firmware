@@ -4,6 +4,7 @@
 #include "bus.h"
 #include "Protocol.h"
 #include "FS.h"
+#include "ReadSequence.h"
 
 #include <unordered_map>
 
@@ -91,14 +92,8 @@ protected:
 
     uint64_t readAck = 0;
 
-    /** NET_SET_SEQUENCE: bit 15 of a READ length flips on every new READ, so a
-        bus retry, which repeats it, gets the last chunk again. Reset by OPEN/CLOSE. */
-    bool seqMode = false;
-    int lastReadSeq = -1;
-    uint16_t lastReadLen = 0;
-    ByteBuffer lastRead;
-    bool lastReadFailed = false;
-    void reset_sequence();
+    /** NET_SET_SEQUENCE state of this channel. */
+    ReadSequence readSeq;
 
     /** Currently set prefix (CWD) for this N: device. */
     std::string prefix;
@@ -142,8 +137,7 @@ protected:
 
     error_is_true fujicore_write(const ByteBuffer &buf);
     error_is_true fujicore_read(ByteBuffer &buf, size_t len);
-    /** The length a READ asks for, without the sequence bit. */
-    uint16_t read_length(uint16_t param) const { return seqMode ? param & 0x7FFF : param; }
+    uint16_t read_length(uint16_t param) const { return readSeq.length(param); }
     /** fujicore_read() that hands out the last chunk again for a retried READ. */
     error_is_true fujicore_read_seq(ByteBuffer &buf, uint16_t param);
     size_t fujicore_available();
@@ -199,7 +193,7 @@ protected:
         SYSTEM_BUS.transaction_success();
     }
     void fujidev_set_timer_rate(const FUJI_COMMAND_PACKET &packet);
-    void fujidev_set_sequence(const FUJI_COMMAND_PACKET &packet);
+    virtual void fujidev_set_sequence(const FUJI_COMMAND_PACKET &packet);
 
 private:
     using Handler = void (NDevice::*)(const FUJI_COMMAND_PACKET &);

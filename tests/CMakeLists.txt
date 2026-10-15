@@ -106,6 +106,22 @@ target_include_directories(qrcode_tests PRIVATE
 add_test(NAME qrcode_tests COMMAND qrcode_tests)
 
 # ------------------------------------------------------------------------------
+# NET_SET_SEQUENCE: which READ is a retry and what it gets back. ReadSequence is
+# header-only and bus-free, so it is pinned here for every target.
+# ------------------------------------------------------------------------------
+add_executable(read_sequence_tests
+    ReadSequenceTests.cpp
+)
+
+target_include_directories(read_sequence_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+
+add_test(NAME read_sequence_tests COMMAND read_sequence_tests)
+
+# ------------------------------------------------------------------------------
 # Mail draft parsing and RFC822 assembly (compose / reply). mail_draft depends
 # only on the standard library, so the EOL and threading edge cases are pinned
 # here rather than on hardware.
