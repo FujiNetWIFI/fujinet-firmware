@@ -6,7 +6,7 @@ Stand-ins for the socket headers the N: TCP and TELNET protocols include, so the
 ## Layout
 | File | Replaces | Defines |
 |---|---|---|
-| `fnTcpClient.h` | `lib/tcpip/fnTcpClient.h` | `FakePeer` (`inbound`, `received`, `write_limit`, `waiting`) and a client connected to the one `fake_peer`: a read returns whatever is in `inbound`, a write sends at most `write_limit` bytes |
+| `fnTcpClient.h` | `lib/tcpip/fnTcpClient.h` | `FakePeer` (`inbound`, `received`, `write_limit`, `waiting`, `reset_on_write`) and a client connected to the one `fake_peer`: a read returns whatever is in `inbound`, a write sends at most `write_limit` bytes or, with `reset_on_write`, nothing and stops the client |
 | `fnTcpServer.h` | `lib/tcpip/fnTcpServer.h` | A server that listens; `hasClient()` is `fake_peer.waiting`, and `client()` takes that caller |
 | `bus.h` | `lib/bus/bus.h` | Nothing; `Protocol.h` includes it |
 

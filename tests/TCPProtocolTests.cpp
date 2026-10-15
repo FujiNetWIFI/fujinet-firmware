@@ -1,6 +1,8 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
+#include <cerrno>
+
 #include "TCP.h"
 #include "Telnet.h"
 #include "samlib.h"
@@ -145,4 +147,33 @@ TEST_CASE("a short write is an error and is not resent by the next WRITE (#1918)
     c.tx += "Z";
     CHECK(c.tcp.write(1) == FUJI_ERROR::NONE);
     CHECK(fake_peer.received == "BBBBZ");
+}
+
+TEST_CASE("a stale ECONNRESET in errno does not fail a good read or write (#1920)")
+{
+    Connection c;
+    fake_peer.inbound = "HELLO";
+    errno = ECONNRESET;
+    CHECK(c.tcp.read(5) == FUJI_ERROR::NONE);
+    CHECK(c.rx == "HELLO");
+
+    c.tx = "Z";
+    errno = ECONNRESET;
+    CHECK(c.tcp.write(1) == FUJI_ERROR::NONE);
+    CHECK(fake_peer.received == "Z");
+}
+
+TEST_CASE("a write cut short by a reset reports CONNECTION_RESET, a stalled one SOCKET_TIMEOUT (#1920)")
+{
+    Connection c;
+    fake_peer.write_limit = 1;
+    c.tx = "BB";
+    CHECK(c.tcp.write(2) != FUJI_ERROR::NONE);
+    CHECK(c.tcp.error == NDEV_STATUS::SOCKET_TIMEOUT);
+
+    fake_peer.write_limit = SIZE_MAX;
+    fake_peer.reset_on_write = true;
+    c.tx = "B";
+    CHECK(c.tcp.write(1) != FUJI_ERROR::NONE);
+    CHECK(c.tcp.error == NDEV_STATUS::CONNECTION_RESET);
 }
