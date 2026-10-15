@@ -300,6 +300,13 @@ fujiError_t NetworkProtocolTCP::accept_connection()
         return FUJI_ERROR::UNSPECIFIED; // Error
     }
 
+    // Accepting now would close the live session; a waiting caller stays queued.
+    if (client.connected())
+    {
+        error = NDEV_STATUS::CONNECTION_ALREADY_IN_PROGRESS;
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+
     if (server->hasClient())
     {
         in_addr_t remoteIP;
