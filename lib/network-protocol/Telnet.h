@@ -53,7 +53,7 @@ public:
     std::string *getTransmitBuffer() { return transmitBuffer; }
 
     /**
-     * Flush output transmitBuffer
+     * Send one fragment libtelnet has encoded
      */
     void flush(const char* buf, unsigned short size);
 
@@ -68,6 +68,9 @@ public:
        do NOT report a size (no NAWS), rather than inventing one. */
     int naws_w = 0;
     int naws_h = 0;
+
+private:
+    bool _sendFailed = false;
 };
 
 #endif /* NETWORKPROTOCOL_TELNET */

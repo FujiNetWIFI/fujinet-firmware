@@ -188,7 +188,7 @@ fujiError_t NetworkProtocolTELNET::read(unsigned short len)
 /**
  * @brief Write len bytes from tx_buf to protocol.
  * @param len The # of bytes to transmit, len should not be larger than buffer.
- * @return Number of bytes written.
+ * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
  */
 fujiError_t NetworkProtocolTELNET::write(unsigned short len)
 {
@@ -197,6 +197,7 @@ fujiError_t NetworkProtocolTELNET::write(unsigned short len)
     // Check for client connection
     if (!client.connected())
     {
+        transmitBuffer->clear();
         error = NDEV_STATUS::NOT_CONNECTED;
         return FUJI_ERROR::UNSPECIFIED; // error
     }
@@ -205,12 +206,19 @@ fujiError_t NetworkProtocolTELNET::write(unsigned short len)
     len = translate_transmit_buffer();
 
     // Do the write to client socket.
+    _sendFailed = false;
     telnet_send(telnet, transmitBuffer->data(), len);
+    transmitBuffer->clear();
 
     // bail if the connection is reset.
     if (errno == ECONNRESET)
     {
         error = NDEV_STATUS::CONNECTION_RESET;
+        return FUJI_ERROR::UNSPECIFIED;
+    }
+    else if (_sendFailed)
+    {
+        error = NDEV_STATUS::SOCKET_TIMEOUT;
         return FUJI_ERROR::UNSPECIFIED;
     }
 
@@ -220,8 +228,9 @@ fujiError_t NetworkProtocolTELNET::write(unsigned short len)
     return FUJI_ERROR::NONE;
 }
 
+// Called once per fragment; after a short one, later fragments would each stall too.
 void NetworkProtocolTELNET::flush(const char *buf, unsigned short size)
 {
-    client.write((uint8_t *)buf, size);
-    transmitBuffer->clear();
+    if (!_sendFailed && client.write((uint8_t *)buf, size) != size)
+        _sendFailed = true;
 }
