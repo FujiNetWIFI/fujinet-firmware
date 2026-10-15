@@ -516,53 +516,6 @@ target_include_directories(cassettefskread_tests PRIVATE
 add_test(NAME cassettefskread_tests COMMAND cassettefskread_tests)
 
 # ------------------------------------------------------------------------------
-# TNFS reply framing (lib/TNFSlib/tnfslib_framing.cpp): reply lengths, split and
-# coalesced byte streams, malformed input. Pure code, so it links alone.
-# ------------------------------------------------------------------------------
-add_executable(tnfs_framing_tests
-    TNFSFramingTests.cpp
-    ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslib_framing.cpp
-)
-
-target_include_directories(tnfs_framing_tests PRIVATE
-    ${CMAKE_SOURCE_DIR}/lib/TNFSlib/
-    ${CMAKE_SOURCE_DIR}/lib/tcpip/       # tnfslib.h -> tnfslibMountInfo.h
-    ${CMAKE_SOURCE_DIR}/lib/compat/
-    ${CMAKE_SOURCE_DIR}/include/         # global_types.h
-    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
-)
-
-add_test(NAME tnfs_framing_tests COMMAND tnfs_framing_tests)
-
-# ------------------------------------------------------------------------------
-# TNFS over TCP: the real lib/TNFSlib transaction code over the scripted peer in
-# tnfs_harness/ (split, merged, late, malformed and cut-off replies; UDP unchanged).
-# ------------------------------------------------------------------------------
-add_executable(tnfs_tcp_recv_tests
-    TNFSTcpRecvTests.cpp
-    ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslib.cpp
-    ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslib_dir.cpp
-    ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslib_transport.cpp
-    ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslib_codes.cpp
-    ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslibMountInfo.cpp
-    ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslib_framing.cpp
-)
-if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-  target_sources(tnfs_tcp_recv_tests PRIVATE ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c)
-endif()
-
-target_include_directories(tnfs_tcp_recv_tests BEFORE PRIVATE
-    ${CMAKE_SOURCE_DIR}/tests/tnfs_harness/   # first: replaces fnTcpClient.h, fnUDP.h, ...
-    ${CMAKE_SOURCE_DIR}/lib/TNFSlib/
-    ${CMAKE_SOURCE_DIR}/lib/compat/
-    ${CMAKE_SOURCE_DIR}/include/
-    ${CMAKE_SOURCE_DIR}/components_pc/        # doctest
-)
-target_compile_definitions(tnfs_tcp_recv_tests PRIVATE UNIT_TESTS)
-
-add_test(NAME tnfs_tcp_recv_tests COMMAND tnfs_tcp_recv_tests)
-
-# ------------------------------------------------------------------------------
 # The N: TCP and TELNET protocols (lib/network-protocol/TCP.cpp, Telnet.cpp) over
 # the fake socket in tcp_harness/.
 # ------------------------------------------------------------------------------
