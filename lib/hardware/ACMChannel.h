@@ -6,8 +6,11 @@
 #include "IOChannel.h"
 #include "RS232ChannelProtocol.h"
 
+#include <atomic>
+
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
+#include <freertos/stream_buffer.h>
 #include <usb/cdc_acm_host.h>
 
 class ACMChannel : public IOChannel, public RS232ChannelProtocol
@@ -18,7 +21,8 @@ private:
     uint16_t found_vid, found_pid, found_interface;
 
     cdc_acm_dev_hdl_t cdc_dev = NULL;
-    QueueHandle_t rxQueue;
+    StreamBufferHandle_t rxStream = nullptr;
+    std::atomic<size_t> _rxDropped{0};    // bytes lost to a full rxStream since last logged
     cdc_acm_uart_state_t _serial_state;
     bool _dsr, _cts;
     cdc_acm_host_device_config_t dev_config = {};
