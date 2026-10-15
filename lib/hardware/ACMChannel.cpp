@@ -16,11 +16,7 @@
 
 #define DEBUG_TAG "ACMChannel"
 
-#define MAX_FIFO_PAYLOAD 32
-typedef struct {
-    size_t length;
-    uint8_t data[MAX_FIFO_PAYLOAD];
-} FIFOPacket;
+#define RX_BUFFER_SIZE      (8 * 1024)
 
 static bool rxForwarder(const uint8_t *data, size_t length, void *arg)
 {
@@ -30,21 +26,13 @@ static bool rxForwarder(const uint8_t *data, size_t length, void *arg)
     return true;
 }
 
+// Never waits for room: the CDC driver task that calls this also completes
+// transmits, so blocking here would stall dataOut().
 void ACMChannel::dataReceived(const uint8_t *data, size_t length)
 {
-    size_t offset;
-    FIFOPacket pkt;
-    BaseType_t woken;
-
-
-    for (offset = 0; length; offset += pkt.length, length -= pkt.length)
-    {
-        pkt.length = std::min(length, (size_t) MAX_FIFO_PAYLOAD);
-        memcpy(pkt.data, data + offset, pkt.length);
-        xQueueSendFromISR(rxQueue, &pkt, &woken);
-    }
-
-    return;
+    size_t sent = xStreamBufferSend(rxStream, data, length, 0);
+    if (sent < length)
+        _rxDropped += length - sent;
 }
 
 static void eventForwarder(const cdc_acm_host_dev_event_data_t *event, void *user_ctx)
@@ -167,12 +155,15 @@ void ACMChannel::begin()
 {
     // The transport underpins the whole bus and begin() must not return without
     // it; explicit checks instead of assert() so NDEBUG builds still stop here.
-    rxQueue = xQueueCreate(1024 / MAX_FIFO_PAYLOAD, sizeof(FIFOPacket));
+    // A bulk buffer: PSRAM when the board has it.
+    rxStream = xStreamBufferCreateWithCaps(RX_BUFFER_SIZE, 1, MALLOC_CAP_SPIRAM);
+    if (rxStream == nullptr)
+        rxStream = xStreamBufferCreate(RX_BUFFER_SIZE, 1);
     device_disconnected_sem = xSemaphoreCreateBinary();
     device_connected_sem = xSemaphoreCreateBinary();  // <-- new
-    if (rxQueue == nullptr || device_disconnected_sem == nullptr || device_connected_sem == nullptr)
+    if (rxStream == nullptr || device_disconnected_sem == nullptr || device_connected_sem == nullptr)
     {
-        Debug_printv("could not create ACM queue/semaphores, free internal/total heap: %lu/%lu",
+        Debug_printv("could not create ACM buffer/semaphores, free internal/total heap: %lu/%lu",
                      esp_get_free_internal_heap_size(), esp_get_free_heap_size());
         abort();
     }
@@ -247,17 +238,18 @@ void ACMChannel::end()
 
 void ACMChannel::updateFIFO()
 {
-    FIFOPacket pkt;
-    size_t old_len;
+    size_t avail;
 
-    while (xQueueReceive(rxQueue, &pkt, 0))
+    while ((avail = xStreamBufferBytesAvailable(rxStream)) > 0)
     {
-        old_len = _fifo.size();
-        _fifo.resize(old_len + pkt.length);
-        memcpy(&_fifo[old_len], pkt.data, pkt.length);
+        size_t old_len = _fifo.size();
+        _fifo.resize(old_len + avail);
+        _fifo.resize(old_len + xStreamBufferReceive(rxStream, &_fifo[old_len], avail, 0));
     }
 
-    return;
+    size_t dropped = _rxDropped.exchange(0);
+    if (dropped)
+        ESP_LOGE(DEBUG_TAG, "receive buffer full, dropped %u bytes", (unsigned) dropped);
 }
 
 size_t ACMChannel::dataOut(const void *buffer, size_t length)
