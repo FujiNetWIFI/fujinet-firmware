@@ -563,6 +563,49 @@ target_compile_definitions(tnfs_tcp_recv_tests PRIVATE UNIT_TESTS)
 add_test(NAME tnfs_tcp_recv_tests COMMAND tnfs_tcp_recv_tests)
 
 # ------------------------------------------------------------------------------
+# The N: TCP protocol (lib/network-protocol/TCP.cpp) over the fake socket in
+# tcp_harness/.
+# ------------------------------------------------------------------------------
+add_executable(tcp_protocol_tests
+    TCPProtocolTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/TCP.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/Protocol.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/U8Char.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/punycode.cpp
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_inet.c
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_gettimeofday.c
+)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  target_sources(tcp_protocol_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
+  )
+endif()
+
+target_include_directories(tcp_protocol_tests BEFORE PRIVATE
+    ${CMAKE_SOURCE_DIR}/tests/tcp_harness/    # first: replaces fnTcpClient.h, fnTcpServer.h, bus.h
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/
+    ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+    ${CMAKE_SOURCE_DIR}/lib/utils/
+    ${CMAKE_SOURCE_DIR}/lib/sam/
+    ${CMAKE_SOURCE_DIR}/lib/compat/
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/components_pc/        # doctest
+    ${CMAKE_SOURCE_DIR}/components_pc/libsmb2/include/   # asprintf.h on Windows
+    ${MBEDTLS_INCLUDE_DIR}
+)
+target_compile_definitions(tcp_protocol_tests PRIVATE UNIT_TESTS)
+target_link_libraries(tcp_protocol_tests PRIVATE ${CRYPTO_LIBS})
+if(WIN32)
+  target_link_libraries(tcp_protocol_tests PRIVATE ws2_32 bcrypt)
+endif()
+
+add_test(NAME tcp_protocol_tests COMMAND tcp_protocol_tests)
+
+# ------------------------------------------------------------------------------
 # lib/stuffit: unsit is a host CLI over the library. The sample tests compare
 # it against unar and ndif2raw; they need -DSIT_SAMPLES_DIR / -DNDIF2RAW_DIR
 # (or the same environment variables) and are skipped otherwise.
