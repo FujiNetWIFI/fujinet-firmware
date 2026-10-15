@@ -1455,6 +1455,9 @@ void fujiDevice::fujicmd_write_host_slots()
 
     for (int i = 0; i < MAX_HOSTS; i++)
     {
+        // A new name releases the host's file system under any disk mounted from it.
+        if (strncasecmp(_fnHosts[i].get_hostname(), hostSlots[i], MAX_HOSTNAME_LEN) != 0)
+            unmount_disks_on_host(i);
         hostMounted[i] = false;
         _fnHosts[i].set_hostname(hostSlots[i]);
     }
@@ -1541,6 +1544,19 @@ void fujiDevice::fujicmd_set_host_prefix(uint8_t hostSlot, const char *prefix)
     SYSTEM_BUS.transaction_success();
 }
 
+void fujiDevice::unmount_disks_on_host(uint8_t hostSlot)
+{
+    for (int i = 0; i < _totalDiskDevices; i++)
+    {
+        if (_fnDisks[i].host_slot == hostSlot)
+        {
+            _fnDisks[i].disk_dev.unmount();
+            _fnDisks[i].disk_dev.device_active = false;
+            _fnDisks[i].reset();
+        }
+    }
+}
+
 // Unmount specified host
 success_is_true fujiDevice::fujicmd_unmount_host_success(uint8_t hostSlot)
 {
@@ -1554,16 +1570,7 @@ success_is_true fujiDevice::fujicmd_unmount_host_success(uint8_t hostSlot)
         RETURN_ERROR_AS_FALSE();
     }
 
-    // Unmount any disks associated with host slot
-    for (int i = 0; i < _totalDiskDevices; i++)
-    {
-        if (_fnDisks[i].host_slot == hostSlot)
-        {
-            _fnDisks[i].disk_dev.unmount();
-            _fnDisks[i].disk_dev.device_active = false;
-            _fnDisks[i].reset();
-        }
-    }
+    unmount_disks_on_host(hostSlot);
 
     // Unmount the host
     if (!_fnHosts[hostSlot].unmount_success())
