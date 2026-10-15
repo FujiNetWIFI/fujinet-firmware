@@ -224,11 +224,12 @@ tree does not conform.
 Full rules, with the worked `fujiDevice` example, are in **`docs/cpp-style.md`**. Read it
 before writing device-side code or anything non-trivial. The rules broken most often:
 
-- **Never return a bare `bool` for success or failure.** Return `success_is_true` or `error_is_true`
-  from `include/global_types.h`, whichever the file already uses, via `RETURN_SUCCESS_AS_TRUE()`,
+- **Never use a bare `bool` for success or failure**, whether returned, stored in a member or local,
+  or passed as an argument. Use `success_is_true` or `error_is_true` from `include/global_types.h`,
+  whichever the file already uses; return them via `RETURN_SUCCESS_AS_TRUE()`,
   `RETURN_ERROR_IF(expr)` and friends. Test the result only with `.is_success()` or `.is_error()` —
   never against `true`/`false`/`0`/`1` and never by truthiness, since the two types carry opposite
-  polarity.
+  polarity. A flag a callback sets for its caller to read is the common way this slips in.
 - **Compare `fujiError_t` against `FUJI_ERROR::NONE`, never `FUJI_ERROR::UNSPECIFIED`.** Use
   `if (err != FUJI_ERROR::NONE)` for failure and `== FUJI_ERROR::NONE` for success. `UNSPECIFIED` is
   a placeholder that is expected to be replaced by a real list of error codes, so any test written
@@ -375,8 +376,8 @@ Write the short version instead, and leave a section out rather than filling it 
 - **Over-commenting.** Long explanatory block comments and edit narration inflate the diff and go
   stale; see Comments above.
 - **One big diff.** Bundling a refactor, a fix and a rollout together; see Scope of a change.
-- **Returning a bare `bool`** for success/failure, or testing a result with `if (result)` or
-  `== true` instead of `.is_success()`/`.is_error()`.
+- **A bare `bool`** for success/failure — returned, kept in a member, or set by a callback — or
+  testing a result with `if (result)` or `== true` instead of `.is_success()`/`.is_error()`.
 - **Testing a `fujiError_t` against `FUJI_ERROR::UNSPECIFIED`** instead of `FUJI_ERROR::NONE`.
 - **Hand-rolling endian conversion** with shifts or `htole*()` instead of the `u*le_t`/`u*be_t` types.
 - **Leaving a comment that the change made untrue.**
