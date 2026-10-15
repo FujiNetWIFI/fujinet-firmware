@@ -310,7 +310,7 @@ fujiError_t NetworkProtocolTCP::accept_connection()
     if (server->hasClient())
     {
         in_addr_t remoteIP;
-        unsigned char remotePort;
+        uint16_t remotePort;
         char *remoteIPString;
 
         client = server->client();
@@ -343,7 +343,7 @@ fujiError_t NetworkProtocolTCP::accept_connection()
 fujiError_t NetworkProtocolTCP::close_client_connection()
 {
     in_addr_t remoteIP;
-    unsigned char remotePort;
+    uint16_t remotePort;
     char *remoteIPString;
 
     if (server == nullptr)
