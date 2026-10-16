@@ -245,7 +245,7 @@ add_test(
 
 if(FUJINET_TARGET STREQUAL "ATARI")
   # sioNetwork and NDevice with stubs for everything they pull in, shared by
-  # the DSTATS test and the sioNetwork command tests.
+  # the DSTATS test, the sioNetwork command tests and the NDevice tests.
   add_library(sio_network_stubs OBJECT
     sioNetworkStubs.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/NDevice/NDevice.cpp
@@ -297,6 +297,11 @@ if(FUJINET_TARGET STREQUAL "ATARI")
   add_executable(sio_network_tests sioNetworkTests.cpp)
   target_link_libraries(sio_network_tests PRIVATE sio_network_stubs)
   add_test(NAME sio_network_tests COMMAND sio_network_tests)
+
+  # The shared NDevice on its own; ATARI-only only because the stubs are.
+  add_executable(ndevice_tests NDeviceTests.cpp)
+  target_link_libraries(ndevice_tests PRIVATE sio_network_stubs)
+  add_test(NAME ndevice_tests COMMAND ndevice_tests)
 
   # ----------------------------------------------------------------------------
   # The query output mode, end to end through a real parser: NET_SET_PARAMETER

@@ -3,8 +3,6 @@
 
 #include "sio/sioNetwork.h"
 #include "sioNetworkStubs.h"
-#include "NDevice/NParser.h"
-#include "fn_query_flags.h"
 
 // Exposes the handlers and the channel's protocol, so a test can drive one
 // command at a time and read back what went to the bus.
@@ -14,9 +12,7 @@ public:
     using sioNetwork::fujidev_close;
     using sioNetwork::fujidev_status;
     using sioNetwork::fujidev_read;
-    using sioNetwork::fujicore_set_query;
     using sioNetwork::_protocol;
-    using sioNetwork::_parser;
 };
 
 // --------------------------------------------------------------------------------
@@ -89,30 +85,4 @@ TEST_CASE("a failed READ sends ERROR with a data frame of the length asked for")
     CHECK(bus.error == 0);
     CHECK(bus.sent.size() == 7);
     CHECK(bus.sent_error);
-}
-
-// --------------------------------------------------------------------------------
-// A QUERY's flags byte goes to the parser, which may refuse it.
-// --------------------------------------------------------------------------------
-
-// Refuses every flags byte but takes the query itself.
-class FlagRefusingParser : public NParser
-{
-public:
-    FlagRefusingParser() : NParser(nullptr) {}
-    error_is_true setQueryParam(uint8_t) override { RETURN_ERROR_AS_TRUE(); }
-    error_is_true setQuery(const std::string &) override { RETURN_SUCCESS_AS_FALSE(); }
-    fujiError_t read(std::string &, size_t) override { return FUJI_ERROR::UNSPECIFIED; }
-    fujiError_t write(std::string &) override { return FUJI_ERROR::UNSPECIFIED; }
-    size_t available() override { return 0; }
-    off_t seek(off_t, int) override { return -1; }
-};
-
-TEST_CASE("a QUERY whose flags byte the parser refuses fails (#1697)")
-{
-    TestableSioNetwork dev;
-    dev._parser = std::make_unique<FlagRefusingParser>();
-
-    CHECK(dev.fujicore_set_query("/a", FN_QUERY_OUTPUT_ASCII).is_error());
-    CHECK(dev.fujicore_set_query("/a", 0).is_success()); // no flags byte: nothing to refuse
 }
