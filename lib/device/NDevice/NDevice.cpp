@@ -506,6 +506,8 @@ error_is_true NDevice::parse_and_instantiate_protocol(std::string &deviceSpec, b
     }
 
     _protocol->native_eol = network_eol();
+    if (_protocol->wants_whole_path())
+        url_out->keepWholePath();
 
     Debug_printf("NDevice::parse_and_instantiate_protocol() - Protocol %s created.\n", url_out->scheme.c_str());
     RETURN_SUCCESS_AS_FALSE();

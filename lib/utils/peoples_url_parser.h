@@ -32,6 +32,9 @@ private:
     void processAuthority(std::string pastTheColon);
     void cleanPath();
     void processPath();
+    static std::string percentDecode(const std::string &s);
+
+    bool _wholePath = false;
 
 protected:
     PeoplesUrlParser() {};
@@ -69,6 +72,9 @@ public:
 
     static std::unique_ptr<PeoplesUrlParser> parseURL(const std::string &u);
     void resetURL(const std::string u);
+    /** Re-parse with '?' and '#' left in the path and %XX escapes decoded,
+        for protocols whose path is a file name. */
+    void keepWholePath();
     std::string rebuildUrl(void);
     bool isValidUrl();
 

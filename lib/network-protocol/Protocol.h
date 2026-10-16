@@ -132,6 +132,12 @@ public:
     std::string native_eol = STR_ASCII_CR;
 
     /**
+     * True when the URL path names a file, so '?' and '#' stay in it and %XX
+     * escapes are decoded.
+     */
+    virtual bool wants_whole_path() const { return false; }
+
+    /**
      * Is this being called from inside an interrupt?
      */
     bool fromInterrupt = false;
