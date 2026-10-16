@@ -45,38 +45,40 @@ void make_sd_root()
     made = true;
 }
 
-std::vector<std::string> names(const std::vector<fsdir_entry> &entries)
+std::vector<std::string> read_all(FileSystemSDFAT &sd)
 {
     std::vector<std::string> out;
-    for (const fsdir_entry &e : entries)
-        out.push_back(e.filename);
+    fsdir_entry *e;
+    while ((e = sd.dir_read()) != nullptr)
+        out.push_back(e->filename);
     return out;
 }
 
 } // namespace
 
-TEST_CASE("dir_list puts directories first, sorted, and hides dotfiles and fnconfig.ini")
+TEST_CASE("dir_open puts directories first, sorted, and hides dotfiles and fnconfig.ini")
 {
     make_sd_root();
 
-    std::vector<fsdir_entry> entries;
-    REQUIRE(fnSDFAT.dir_list("/a", nullptr, 0, entries).is_success());
-
-    CHECK(names(entries) == std::vector<std::string>{"sub", "a.atr", "b.atr"});
-    CHECK(entries[0].isDir);
-    CHECK_FALSE(entries[1].isDir);
+    REQUIRE(fnSDFAT.dir_open("/a", nullptr, 0).is_success());
+    CHECK(read_all(fnSDFAT) == std::vector<std::string>{"sub", "a.atr", "b.atr"});
+    REQUIRE(fnSDFAT.dir_seek(0).is_success());
+    CHECK(fnSDFAT.dir_read()->isDir);
+    CHECK_FALSE(fnSDFAT.dir_read()->isDir);
+    fnSDFAT.dir_close();
 }
 
-TEST_CASE("dir_list on a missing directory fails and leaves the vector empty")
+TEST_CASE("dir_open on a missing directory fails and leaves no listing")
 {
     make_sd_root();
 
-    std::vector<fsdir_entry> entries(1);
-    CHECK(fnSDFAT.dir_list("/missing", nullptr, 0, entries).is_error());
-    CHECK(entries.empty());
+    REQUIRE(fnSDFAT.dir_open("/a", nullptr, 0).is_success());
+    CHECK(fnSDFAT.dir_open("/missing", nullptr, 0).is_error());
+    CHECK(fnSDFAT.dir_read() == nullptr);
+    fnSDFAT.dir_close();
 }
 
-TEST_CASE("dir_list does not disturb an open dir_open listing")
+TEST_CASE("a second handle's listing does not disturb fnSDFAT's")
 {
     make_sd_root();
 
@@ -87,18 +89,13 @@ TEST_CASE("dir_list does not disturb an open dir_open listing")
     uint16_t pos = fnSDFAT.dir_tell();
 
     // What the web UI does between a client's OPEN DIRECTORY and READ DIRECTORY.
-    std::vector<fsdir_entry> other;
-    REQUIRE(fnSDFAT.dir_list("/b", nullptr, 0, other).is_success());
-    CHECK(names(other) == std::vector<std::string>{"c.atr"});
+    FileSystemSDFAT other(fnSDFAT);
+    CHECK(other.running());
+    REQUIRE(other.dir_open("/b", nullptr, 0).is_success());
+    CHECK(read_all(other) == std::vector<std::string>{"c.atr"});
+    other.dir_close();
 
     CHECK(fnSDFAT.dir_tell() == pos);
-    e = fnSDFAT.dir_read();
-    REQUIRE(e != nullptr);
-    CHECK(std::string(e->filename) == "a.atr");
-    e = fnSDFAT.dir_read();
-    REQUIRE(e != nullptr);
-    CHECK(std::string(e->filename) == "b.atr");
-    CHECK(fnSDFAT.dir_read() == nullptr);
-
+    CHECK(read_all(fnSDFAT) == std::vector<std::string>{"a.atr", "b.atr"});
     fnSDFAT.dir_close();
 }

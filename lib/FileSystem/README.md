@@ -8,7 +8,7 @@ filesystems work without a kernel VFS driver.
 | File | Defines |
 |---|---|
 | `fnFS.h`, `fnFS.cpp` | `FileSystem` (abstract): `file_open` or `filehandler_open`, `exists`, `remove`, `rename`, `mkdir`, `dir_open`, `dir_read`, `dir_close`, `is_global()`; `fsType`; `fsdir_entry_t`; `MAX_PATHLEN` |
-| `fnFsSD.*` | `FileSystemSDFAT` and global `fnSDFAT`: the SD card on ESP, a local directory on PC. `dir_list()` fills a vector the caller owns, so the web UI can list the card without disturbing the shared `dir_open()` listing |
+| `fnFsSD.*` | `FileSystemSDFAT` and global `fnSDFAT`: the SD card on ESP, a local directory on PC. Each instance keeps its own `dir_open()` listing; copying `fnSDFAT` gives a second handle on the mounted card |
 | `fnFsLittleFS.*`, `fnFsSPIFFS.*`, `fsFlash.h` | `FileSystemLittleFS` under `FLASH_LITTLEFS` (ESP) or `FileSystemSPIFFS` under `FLASH_SPIFFS` (PC); whichever is active defines the global `fsFlash` |
 | `fnFsTNFS.*`, `fnFsTNFSvfs.*` | `FileSystemTNFS` and global `fnTNFS` over [lib/TNFSlib/](../TNFSlib/); the VFS shim registers each mount with ESP-IDF so stdio works on ESP; a `_tcp.` or `_udp.` hostname prefix picks the transport |
 | `fnFsSMB.*`, `fnFsNFS.*`, `fnFsFTP.*`, `fnFsHTTP.*` | `FileSystemSMB` (libsmb2), `FileSystemNFS` (libnfs), `FileSystemFTP` over [lib/ftp/](../ftp/), `FileSystemHTTP` over index pages parsed by `IndexParser` |

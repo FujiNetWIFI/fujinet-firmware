@@ -13,8 +13,21 @@
 class FileSystemSDFAT : public FileSystem
 {
 private:
+#ifdef ESP_PLATFORM
+    FF_DIR _dir;
+#else
+    DIR * _dir;
+#endif
     uint64_t _card_capacity = 0;
+    // Cached so the listing can be sorted and support dir_tell()/dir_seek()
+    std::vector<fsdir_entry> _dir_entries;
+    uint16_t _dir_entry_current = 0;
 public:
+    FileSystemSDFAT() = default;
+    // Another handle on the mounted card, with its own directory listing
+    FileSystemSDFAT(const FileSystemSDFAT &card)
+        : FileSystem(card), _card_capacity(card._card_capacity) {}
+
 #ifdef ESP_PLATFORM
     success_is_true start();
 #else
@@ -48,10 +61,6 @@ public:
     void dir_close() override;
     uint16_t dir_tell() override;
     success_is_true dir_seek(uint16_t) override;
-
-    // Fills the caller's vector, leaving the dir_open() listing alone
-    success_is_true dir_list(const char *path, const char *pattern, uint16_t diropts,
-                             std::vector<fsdir_entry> &entries);
 
     success_is_true create_path(const char *path);
     

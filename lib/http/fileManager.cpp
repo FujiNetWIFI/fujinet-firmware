@@ -101,22 +101,25 @@ std::vector<FileManagerEntry> FileManager::list(const std::string &dir)
     if (!fnSDFAT.running())
         return entries;
 
-    std::vector<fsdir_entry> listing;
-    if (!fnSDFAT.dir_list(dir.c_str(), nullptr, 0, listing))
+    // Own listing, so a bus client's open directory on fnSDFAT survives
+    FileSystemSDFAT sd(fnSDFAT);
+    if (sd.dir_open(dir.c_str(), nullptr, 0).is_error())
     {
         Debug_printf("FileManager: could not open \"%s\"\n", dir.c_str());
         return entries;
     }
 
-    for (const fsdir_entry &dp : listing)
+    fsdir_entry *dp;
+    while ((dp = sd.dir_read()) != nullptr)
     {
         FileManagerEntry entry;
-        entry.name = dp.filename;
-        entry.isDir = dp.isDir;
+        entry.name = dp->filename;
+        entry.isDir = dp->isDir;
         entries.push_back(entry);
     }
+    sd.dir_close();
 
-    // Ask for the sizes separately: on FujiNet-PC dir_list() stats the bare
+    // Ask for the sizes separately: on FujiNet-PC dir_open() stats the bare
     // filename against the SD root, so its size is wrong inside subdirectories.
     for (FileManagerEntry &entry : entries)
     {
