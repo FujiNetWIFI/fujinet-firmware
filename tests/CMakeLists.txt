@@ -214,6 +214,34 @@ endif()
 add_test(NAME mediatypealtair_tests COMMAND mediatypealtair_tests)
 
 # ------------------------------------------------------------------------------
+# FileSystemSDFAT listings over a local directory, as on FujiNet-PC. See
+# imdimage_tests above for UNIT_TESTS/FNIO_IS_STDIO.
+# ------------------------------------------------------------------------------
+add_executable(fssd_listing_tests
+    FsSDListingTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSD.cpp
+)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  target_sources(fssd_listing_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
+  )
+endif()
+
+target_compile_definitions(fssd_listing_tests PRIVATE UNIT_TESTS FNIO_IS_STDIO)
+
+target_include_directories(fssd_listing_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/      # debug.h, global_types.h
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/
+    ${CMAKE_SOURCE_DIR}/lib/compat/
+    ${CMAKE_SOURCE_DIR}/lib/utils/
+    ${CMAKE_SOURCE_DIR}/components_pc/
+)
+
+add_test(NAME fssd_listing_tests COMMAND fssd_listing_tests)
+
+# ------------------------------------------------------------------------------
 # Policy check: no platform-specific BUILD_* ifdefs in the shared device bases.
 # Customization there must go through a subclass override, never a #ifdef.
 # This is a script, not a compiled test, so it's wired in directly via

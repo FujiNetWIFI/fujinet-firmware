@@ -48,13 +48,6 @@
 // Our global SD interface
 FileSystemSDFAT fnSDFAT;
 
-/*
- We maintain directory information cached to allow
- for sorting and to provide telldir/seekdir
-*/
-std::vector<fsdir_entry> _dir_entries;
-uint16_t _dir_entry_current = 0;
-
 bool _fssd_fsdir_sort_name_ascend(fsdir_entry &left, fsdir_entry &right)
 {
     return strcasecmp(left.filename, right.filename) < 0;

@@ -6,6 +6,7 @@
 #endif
 
 #include <stdio.h>
+#include <vector>
 
 #include "fnFS.h"
 
@@ -18,7 +19,15 @@ private:
     DIR * _dir;
 #endif
     uint64_t _card_capacity = 0;
+    // Cached so the listing can be sorted and support dir_tell()/dir_seek()
+    std::vector<fsdir_entry> _dir_entries;
+    uint16_t _dir_entry_current = 0;
 public:
+    FileSystemSDFAT() = default;
+    // Another handle on the mounted card, with its own directory listing
+    FileSystemSDFAT(const FileSystemSDFAT &card)
+        : FileSystem(card), _card_capacity(card._card_capacity) {}
+
 #ifdef ESP_PLATFORM
     success_is_true start();
 #else

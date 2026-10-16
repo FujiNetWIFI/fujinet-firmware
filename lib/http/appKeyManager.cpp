@@ -181,14 +181,16 @@ std::vector<AppKeyEntry> AppKeyManager::scan()
     if (!fnSDFAT.running())
         return entries;
 
-    if (!fnSDFAT.dir_open(APPKEY_DIR, nullptr, 0))
+    // Own listing, so a bus client's open directory on fnSDFAT survives
+    FileSystemSDFAT sd(fnSDFAT);
+    if (sd.dir_open(APPKEY_DIR, nullptr, 0).is_error())
     {
         Debug_printf("AppKeyManager: could not open %s\n", APPKEY_DIR);
         return entries;
     }
 
     fsdir_entry *dp;
-    while ((dp = fnSDFAT.dir_read()) != nullptr)
+    while ((dp = sd.dir_read()) != nullptr)
     {
         if (dp->isDir)
             continue;
@@ -205,7 +207,7 @@ std::vector<AppKeyEntry> AppKeyManager::scan()
 
         entries.push_back(entry);
     }
-    fnSDFAT.dir_close();
+    sd.dir_close();
 
     std::sort(entries.begin(), entries.end(),
               [](const AppKeyEntry &a, const AppKeyEntry &b) { return a.id < b.id; });
