@@ -181,19 +181,19 @@ std::vector<AppKeyEntry> AppKeyManager::scan()
     if (!fnSDFAT.running())
         return entries;
 
-    if (!fnSDFAT.dir_open(APPKEY_DIR, nullptr, 0))
+    std::vector<fsdir_entry> listing;
+    if (!fnSDFAT.dir_list(APPKEY_DIR, nullptr, 0, listing))
     {
         Debug_printf("AppKeyManager: could not open %s\n", APPKEY_DIR);
         return entries;
     }
 
-    fsdir_entry *dp;
-    while ((dp = fnSDFAT.dir_read()) != nullptr)
+    for (const fsdir_entry &dp : listing)
     {
-        if (dp->isDir)
+        if (dp.isDir)
             continue;
 
-        std::string name = to_lower(dp->filename);
+        std::string name = to_lower(dp.filename);
         if (name.size() != APPKEY_ID_LEN + strlen(APPKEY_EXT))
             continue;
         if (name.compare(APPKEY_ID_LEN, std::string::npos, APPKEY_EXT) != 0)
@@ -205,7 +205,6 @@ std::vector<AppKeyEntry> AppKeyManager::scan()
 
         entries.push_back(entry);
     }
-    fnSDFAT.dir_close();
 
     std::sort(entries.begin(), entries.end(),
               [](const AppKeyEntry &a, const AppKeyEntry &b) { return a.id < b.id; });

@@ -6,17 +6,13 @@
 #endif
 
 #include <stdio.h>
+#include <vector>
 
 #include "fnFS.h"
 
 class FileSystemSDFAT : public FileSystem
 {
 private:
-#ifdef ESP_PLATFORM
-    FF_DIR _dir;
-#else
-    DIR * _dir;
-#endif
     uint64_t _card_capacity = 0;
 public:
 #ifdef ESP_PLATFORM
@@ -52,6 +48,10 @@ public:
     void dir_close() override;
     uint16_t dir_tell() override;
     success_is_true dir_seek(uint16_t) override;
+
+    // Fills the caller's vector, leaving the dir_open() listing alone
+    success_is_true dir_list(const char *path, const char *pattern, uint16_t diropts,
+                             std::vector<fsdir_entry> &entries);
 
     success_is_true create_path(const char *path);
     

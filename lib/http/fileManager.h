@@ -4,7 +4,7 @@ Backs the password-protected /files pages: directory listing, download, upload,
 rename and delete. Paths are always relative to the SD card root and always
 begin with '/'.
 
-Listing goes through FileSystemSDFAT::dir_open(), which hides dotfiles and the
+Listing goes through FileSystemSDFAT::dir_list(), which hides dotfiles and the
 FujiNet's own working files (paper, fnconfig.ini, rs232dump) - those are not
 manageable from here.
 

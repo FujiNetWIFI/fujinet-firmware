@@ -167,26 +167,33 @@ success_is_true FileSystemSDFAT::rmdir(const char* path)
 
 success_is_true FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t diropts)
 {
+    _dir_entry_current = 0;
+    return dir_list(path, pattern, diropts, _dir_entries);
+}
+
+success_is_true FileSystemSDFAT::dir_list(const char *path, const char *pattern, uint16_t diropts,
+                                          std::vector<fsdir_entry> &entries)
+{
     // TODO: Add pattern and sorting options
 
 #ifndef ESP_PLATFORM
-    Debug_printf("FileSystemSDFAT::dir_open \"%s\"\n", path);
+    Debug_printf("FileSystemSDFAT::dir_list \"%s\"\n", path);
 #endif
 
     // Throw out any existing directory entry data
-    _dir_entries.clear();
-    _dir_entry_current = 0;
+    entries.clear();
 
 #ifdef ESP_PLATFORM
-    FRESULT result = f_opendir(&_dir, path);
+    FF_DIR dir;
+    FRESULT result = f_opendir(&dir, path);
     if(result != FR_OK)
         RETURN_ERROR_AS_FALSE();
 #else
     char * fpath = _make_fullpath(path);
-    Debug_printf("FileSystemSDFAT::dir_open - opendir \"%s\"\n", fpath);
-    _dir = opendir(fpath);
+    Debug_printf("FileSystemSDFAT::dir_list - opendir \"%s\"\n", fpath);
+    DIR * dir = opendir(fpath);
     free(fpath);
-    if(_dir == nullptr)
+    if(dir == nullptr)
         RETURN_ERROR_AS_FALSE();
 #endif
 
@@ -194,12 +201,12 @@ success_is_true FileSystemSDFAT::dir_open(const char * path, const char * patter
 	char *thepat = nullptr;
     bool have_pattern = pattern != nullptr && pattern[0] != '\0';
 	Debug_printf (
-		"FileSystemSDFAT::dir_open I%s have a pattern.\n",
+		"FileSystemSDFAT::dir_list I%s have a pattern.\n",
 		have_pattern ? "" : " do not"
 	);
 	bool filter_dirs = have_pattern && pattern[strlen(pattern)-1] == '/';
 	if (filter_dirs) {
-		Debug_printf ("FileSystemSDFAT::dir_open I am filtering directories.\n");
+		Debug_printf ("FileSystemSDFAT::dir_list I am filtering directories.\n");
 		strlcpy (realpat, pattern, sizeof (realpat));
 		realpat[strlen(realpat)-1] = '\0';
 	}
@@ -216,7 +223,7 @@ success_is_true FileSystemSDFAT::dir_open(const char * path, const char * patter
 #ifdef ESP_PLATFORM
     FILINFO finfo;
 
-    while(f_readdir(&_dir, &finfo) == FR_OK)
+    while(f_readdir(&dir, &finfo) == FR_OK)
     {
         // An empty name indicates the end of the directory
         if(finfo.fname[0] == '\0')
@@ -267,7 +274,7 @@ success_is_true FileSystemSDFAT::dir_open(const char * path, const char * patter
     struct dirent *d;
     struct stat s;
 
-    while((d = readdir(_dir)) != nullptr)
+    while((d = readdir(dir)) != nullptr)
     {
         // Ignore items starting with '.'
         if(d->d_name[0] == '.')
@@ -330,15 +337,15 @@ success_is_true FileSystemSDFAT::dir_open(const char * path, const char * patter
     std::sort(store_files.begin(), store_files.end(), sortfn);
 
     // Combine the folder and file entries
-    _dir_entries.reserve( store_directories.size() + store_files.size() );
-    _dir_entries = store_directories; // This copies the contents from one vector to the other
-    _dir_entries.insert( _dir_entries.end(), store_files.begin(), store_files.end() );
+    entries.reserve( store_directories.size() + store_files.size() );
+    entries = store_directories; // This copies the contents from one vector to the other
+    entries.insert( entries.end(), store_files.begin(), store_files.end() );
 
     // Future operations will be performed on the cache
 #ifdef ESP_PLATFORM
-    f_closedir(&_dir);
+    f_closedir(&dir);
 #else
-    closedir(_dir);
+    closedir(dir);
 #endif
 
     RETURN_SUCCESS_AS_TRUE();
