@@ -516,15 +516,13 @@ target_include_directories(cassettefskread_tests PRIVATE
 add_test(NAME cassettefskread_tests COMMAND cassettefskread_tests)
 
 # ------------------------------------------------------------------------------
-# The N: TCP and TELNET protocols (lib/network-protocol/TCP.cpp, Telnet.cpp) over
-# the fake socket in tcp_harness/.
+# The N: TCP protocol (lib/network-protocol/TCP.cpp) over the fake socket in
+# tcp_harness/.
 # ------------------------------------------------------------------------------
 add_executable(tcp_protocol_tests
     TCPProtocolTests.cpp
     ${CMAKE_SOURCE_DIR}/lib/network-protocol/TCP.cpp
-    ${CMAKE_SOURCE_DIR}/lib/network-protocol/Telnet.cpp
     ${CMAKE_SOURCE_DIR}/lib/network-protocol/Protocol.cpp
-    ${CMAKE_SOURCE_DIR}/lib/telnet/libtelnet.c
     ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
     ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
     ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp
@@ -543,7 +541,6 @@ endif()
 target_include_directories(tcp_protocol_tests BEFORE PRIVATE
     ${CMAKE_SOURCE_DIR}/tests/tcp_harness/    # first: replaces fnTcpClient.h, fnTcpServer.h, bus.h
     ${CMAKE_SOURCE_DIR}/lib/network-protocol/
-    ${CMAKE_SOURCE_DIR}/lib/telnet/
     ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
     ${CMAKE_SOURCE_DIR}/lib/utils/
     ${CMAKE_SOURCE_DIR}/lib/sam/
@@ -560,6 +557,52 @@ if(WIN32)
 endif()
 
 add_test(NAME tcp_protocol_tests COMMAND tcp_protocol_tests)
+
+# ------------------------------------------------------------------------------
+# The N: TELNET protocol (lib/network-protocol/Telnet.cpp, on TCP.cpp) over the
+# fake socket in tcp_harness/.
+# ------------------------------------------------------------------------------
+add_executable(telnet_protocol_tests
+    TelnetProtocolTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/TCP.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/Telnet.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/Protocol.cpp
+    ${CMAKE_SOURCE_DIR}/lib/telnet/libtelnet.c
+    ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/U8Char.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/punycode.cpp
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_inet.c
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_gettimeofday.c
+)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  target_sources(telnet_protocol_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
+  )
+endif()
+
+target_include_directories(telnet_protocol_tests BEFORE PRIVATE
+    ${CMAKE_SOURCE_DIR}/tests/tcp_harness/    # first: replaces fnTcpClient.h, fnTcpServer.h, bus.h
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/
+    ${CMAKE_SOURCE_DIR}/lib/telnet/
+    ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+    ${CMAKE_SOURCE_DIR}/lib/utils/
+    ${CMAKE_SOURCE_DIR}/lib/sam/
+    ${CMAKE_SOURCE_DIR}/lib/compat/
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/components_pc/        # doctest
+    ${CMAKE_SOURCE_DIR}/components_pc/libsmb2/include/   # asprintf.h on Windows
+    ${MBEDTLS_INCLUDE_DIR}
+)
+target_compile_definitions(telnet_protocol_tests PRIVATE UNIT_TESTS)
+target_link_libraries(telnet_protocol_tests PRIVATE ${CRYPTO_LIBS})
+if(WIN32)
+  target_link_libraries(telnet_protocol_tests PRIVATE ws2_32 bcrypt)
+endif()
+
+add_test(NAME telnet_protocol_tests COMMAND telnet_protocol_tests)
 
 # ------------------------------------------------------------------------------
 # lib/stuffit: unsit is a host CLI over the library. The sample tests compare

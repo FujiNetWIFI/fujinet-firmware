@@ -6,8 +6,7 @@
 #define NETWORKPROTOCOL_TELNET
 
 #include "TCP.h"
-
-struct telnet_t;
+#include "libtelnet.h"
 
 class NetworkProtocolTELNET : public NetworkProtocolTCP
 {
