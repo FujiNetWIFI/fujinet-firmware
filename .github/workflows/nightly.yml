@@ -35,11 +35,13 @@ jobs:
     runs-on: "ubuntu-latest"
     strategy:
       matrix:
-        target-platform: [ATARI, ATARI-8mb, ADAM, APPLE, IEC-LOLIN-D32, IEC-NUGGET, COCO, MASTERIES-REVAB, MASTERIES-REVA-SPIFIX, RS232, FUJIVERSAL-INTV, FUJIVERSAL-DRIVEWIRE, FUJIVERSAL-MSX]
+        target-platform: [ATARI, ATARI-8mb, ADAM, APPLE, IEC-LOLIN-D32, IEC-NUGGET, COCO, MASTERIES-REVAB, MASTERIES-REVA-SPIFIX, RS232, FUJIVERSAL-INTV, FUJIVERSAL-INTV-PIRTO-II-DUO, FUJIVERSAL-DRIVEWIRE, FUJIVERSAL-MSX]
         # Fujiversal boards also build a companion RP2040/RP2350 cartridge
         # firmware, which needs an ARM toolchain the other boards do not.
         include:
           - target-platform: FUJIVERSAL-INTV
+            pico: true
+          - target-platform: FUJIVERSAL-INTV-PIRTO-II-DUO
             pico: true
           - target-platform: FUJIVERSAL-DRIVEWIRE
             pico: true
