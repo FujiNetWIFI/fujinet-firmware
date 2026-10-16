@@ -439,7 +439,8 @@ error_is_true NDevice::fujicore_set_query(const std::string &query, uint8_t pars
     {
         if (!fn_query_param_is_valid(parseFlags))
             RETURN_ERROR_AS_TRUE();
-        _parser->setQueryParam(parseFlags);
+        if (_parser->setQueryParam(parseFlags).is_error())
+            RETURN_ERROR_AS_TRUE();
     }
 
     err = _parser->setQuery(query);
