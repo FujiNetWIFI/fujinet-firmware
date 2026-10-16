@@ -19,7 +19,8 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `MediaTypeAltairTests.cpp` | `lib/media/rs232/diskTypeAltair.cpp` adapter (`mediatypealtair_tests`; built with `BUILD_RS232`) |
 | `sioNetwork-DSTATS-test.cpp` | `sioNetwork` command recognition and DSTATS (`sio_dstats_tests`; ATARI target only) |
 | `sioNetworkTests.cpp` | What `sioNetwork` sends to the bus for a failed CLOSE, its repeat and a failed READ (`sio_network_tests`; ATARI target only) |
-| `sioNetworkStubs.cpp`, `sioNetworkStubs.h` | Link-time stubs shared by `sio_dstats_tests` and `sio_network_tests`; the `systemBus` stubs record into `bus` |
+| `NDeviceTests.cpp` | The shared `NDevice` without a bus subclass: a QUERY whose flags byte the parser refuses (`ndevice_tests`; ATARI target only) |
+| `sioNetworkStubs.cpp`, `sioNetworkStubs.h` | Link-time stubs shared by `sio_dstats_tests`, `sio_network_tests` and `ndevice_tests`; the `systemBus` stubs record into `bus` |
 | `NQueryOutputModeTests.cpp`, `NParserReadTests.cpp` | `NParser` and `XMLParser` query output modes and short reads (`nquery_output_mode_tests`; ATARI target only) |
 | `MgHttpCompletionProbe.cpp`, `mg_http_completion_test.py` | Real PC HTTP fixed-length/chunked completion, redirect connection isolation, two-request reuse and body/status/EOF (`mg_http_completion_tests`; POSIX hosts) |
 | `HttpHeaderTests.cpp` | `lib/fn_esp_http_client/fn_http_header.cpp` header chunking (`http_header_tests`; skipped where the BSD queue header is missing) |
