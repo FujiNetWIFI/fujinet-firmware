@@ -21,6 +21,17 @@
 // Matches FUJI_DEVICEID_DBC in the main tree's include/fujiDeviceID.h.
 #define FUJI_DEVICEID_DBC 0xFF
 
+// FUJI_DEVICEID_CARTFS: same "extra device the ESP32-S3 addresses mid-
+// transaction" trick as DBC above, used for the opposite direction -- the
+// ESP32 has no SD of its own on this board (see fnFsCartSD.cpp in the main
+// tree), so when a host slot is named "SD" it proxies every directory/file
+// call back to us, nested inside whatever outer FUJINET command CONFIG is
+// running (FUJI_OPEN_DIRECTORY, FUJI_READ_DIR_ENTRY, ...). Serviced by
+// cartfs_inbound_handler() in cartfs_bridge.c against our own local SD via
+// vfs.c. Matches FUJI_DEVICEID::CARTFS in the main tree's
+// include/fujiDeviceID.h.
+#define FUJI_DEVICEID_CARTFS 0xFE
+
 // NETCMD_*: matches include/fujiCommandID.h in the main tree. Reused here
 // (rather than FUJICMD_*) because that's what the ESP32-S3 side's
 // rs232Disk::mount() actually sends -- see push_stream() in
@@ -28,6 +39,27 @@
 #define NETCMD_OPEN  0x4F
 #define NETCMD_WRITE 0x57
 #define NETCMD_CLOSE 0x43
+
+// CARTFS_*: matches the CARTFS_* block in include/fujiCommandID.h in the
+// main tree. One request/reply pair per call -- no streaming, unlike the
+// DBC push above -- since local SD reads are cheap and synchronous.
+// Every request and reply payload starts with a 1-byte sequence tag (the
+// reply echoes the request's); the per-command payloads below follow it.
+#define CARTFS_OPEN_DIRECTORY  0x01 // payload "path\0" or "path\0pattern\0"
+#define CARTFS_READ_DIR_ENTRY  0x02 // no payload; reply payload empty = EOF
+#define CARTFS_CLOSE_DIRECTORY 0x03 // no payload
+#define CARTFS_DIR_TELL        0x04 // no payload; reply payload = 2 bytes LE position
+#define CARTFS_DIR_SEEK        0x05 // payload = 2 bytes LE target position
+#define CARTFS_FILE_EXISTS     0x06 // payload = path
+// FILE_OPEN/READ/CLOSE take/return a 1-byte handle naming one of our 2 file
+// slots, so a ROM's main image and its .cfg memory-map sidecar can stay open
+// at once -- see cartfs_bridge.c for why that's required, not optional. The
+// handle is opaque to the ESP32: bit 0 is the slot, bits 1-7 a per-slot
+// generation, so a handle to a slot that has since been reclaimed and reused
+// is rejected rather than reading someone else's file.
+#define CARTFS_FILE_OPEN       0x07 // payload = path; reply payload = 4 bytes LE size + 1 byte handle
+#define CARTFS_FILE_READ       0x08 // payload = 1 byte handle + 4 bytes LE offset + 4 bytes LE length
+#define CARTFS_FILE_CLOSE      0x09 // payload = 1 byte handle
 
 #define FUJICMD_GET_ADAPTERCONFIG_EXTENDED 0xC4
 #define FUJICMD_MOUNT_IMAGE 0xF8

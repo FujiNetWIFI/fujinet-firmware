@@ -38,6 +38,11 @@ typedef enum class FUJI_DEVICEID : uint8_t {
   NETWORK      = 0x71,
   NETWORK_LAST = 0x78,
   MIDI         = 0x99,
+  // CARTFS: proxies FileSystemCartSD's directory/file calls back to a cart
+  // MCU that has the only SD card actually wired to it (e.g. the
+  // Intellivision PiRTO II DUO board) -- see lib/FileSystem/fnFsCartSD.cpp
+  // and pico/intellivision/firmware/src/cartfs_bridge.c.
+  CARTFS       = 0xFE,
   DBC          = 0xFF,
 #endif /* BUILD_ADAM */
 } fujiDeviceID_t;

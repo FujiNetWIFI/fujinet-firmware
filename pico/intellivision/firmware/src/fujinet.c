@@ -31,6 +31,7 @@
 #include "fujibus_usb.h"
 #include "fujiboot.h"
 #include "fujinet.h"
+#include "cartfs_bridge.h"
 
 extern Cartridge cart;
 extern mm_map_t m;
@@ -260,6 +261,13 @@ static bool apply_boot_mapping(void)
 // but keeps this safe to register unconditionally.
 bool dbc_inbound_handler(const fb_reply_t *req)
 {
+    // FUJI_DEVICEID_CARTFS: the ESP32 asking us to browse/read our own local
+    // SD card, because a "SD" host slot has no card wired to it on this
+    // board -- see cartfs_bridge.h. Same "extra device, checked first"
+    // dispatch this function already does for DBC below.
+    if (cartfs_inbound_handler(req))
+        return true;
+
     if (req->device != FUJI_DEVICEID_DBC)
         return false;
 

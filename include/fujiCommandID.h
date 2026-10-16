@@ -197,6 +197,22 @@ typedef enum class CMD : uint8_t {
     PCLINK_EXEC                     = 0x52, // R
     PCLINK_PARBLK                   = 0x50, // P
     PCLINK_HSI                      = 0x3F, // ?
+
+    // CARTFS_*: addressed to FUJI_DEVICEID::CARTFS, sent from inside an
+    // outer FUJINET directory/file command's handler -- see
+    // fnFsCartSD.cpp. Mirrored by hand in
+    // pico/intellivision/firmware/include/fujibus.h; keep both in sync.
+    // Every payload (both directions) leads with a 1-byte sequence tag.
+    // FILE_OPEN's returned handle byte is opaque here -- just echo it back.
+    CARTFS_OPEN_DIRECTORY           = 0x01,
+    CARTFS_READ_DIR_ENTRY           = 0x02,
+    CARTFS_CLOSE_DIRECTORY          = 0x03,
+    CARTFS_DIR_TELL                 = 0x04,
+    CARTFS_DIR_SEEK                 = 0x05,
+    CARTFS_FILE_EXISTS              = 0x06,
+    CARTFS_FILE_OPEN                = 0x07,
+    CARTFS_FILE_READ                = 0x08,
+    CARTFS_FILE_CLOSE               = 0x09,
 } fujiCommandID_t;
 
 #endif /* FUJI_COMMANDS_H */

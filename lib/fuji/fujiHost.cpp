@@ -6,6 +6,7 @@
 #include "../../include/debug.h"
 
 #include "fnFsSD.h"
+#include "fnFsCartSD.h"
 #include "fnFsTNFS.h"
 #include "fnFsSMB.h"
 #include "fnFsNFS.h"
@@ -331,10 +332,26 @@ int fujiHost::mount_local()
     // Otherwise set the new type
     else
     {
-        Debug_println("Setting type to LOCAL");
-
         set_type(HOSTTYPE_LOCAL);
-        _fs = &fnSDFAT;
+
+#if defined(ESP_PLATFORM) && defined(HAS_CART_SD_BRIDGE)
+        // fnSDFAT.start() (called once at boot) already tried mounting a
+        // card wired to our own SD pins. If that never succeeded -- e.g. no
+        // card is actually wired there, only reachable over USB from the
+        // cart MCU -- fall back to asking the cart for its own local SD
+        // instead. A real card on our own pins still wins if one is ever
+        // added: this only engages when fnSDFAT never came up.
+        if (!fnSDFAT.running())
+        {
+            Debug_println("Setting type to LOCAL (cart-SD bridge, no local SD mounted)");
+            _fs = &fnCartSD;
+        }
+        else
+#endif
+        {
+            Debug_println("Setting type to LOCAL");
+            _fs = &fnSDFAT;
+        }
     }
 
     return 0;

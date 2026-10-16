@@ -219,6 +219,7 @@ if(CONFIG_FUJINET)
       ${CMAKE_CURRENT_LIST_DIR}/src/fujinet.c
       ${CMAKE_CURRENT_LIST_DIR}/src/fujiboot.c
       ${CMAKE_CURRENT_LIST_DIR}/src/bootmap.c
+      ${CMAKE_CURRENT_LIST_DIR}/src/cartfs_bridge.c
    )
 endif()
 

@@ -30,6 +30,17 @@
 #define PIN_SD_HOST_MISO         GPIO_NUM_40
 #define PIN_SD_HOST_MOSI         GPIO_NUM_38
 
+// On the pirto_ii_duo cart variant, the only SD card in the system is wired
+// to the RP2040/RP2350, not to these pins -- the S3 only ever reaches it
+// over the same USB-CDC link the mailbox itself uses. HAS_CART_SD_BRIDGE
+// tells fujiHost::mount_local() (lib/fuji/fujiHost.cpp) to fall back to
+// FileSystemCartSD (lib/FileSystem/fnFsCartSD.cpp) -- which proxies to
+// pico/intellivision/firmware/src/cartfs_bridge.c -- whenever fnSDFAT never
+// actually mounted anything on the pins above (e.g. no card physically
+// wired there, as here; or none inserted). A real card wired to these pins
+// still wins if one is ever added -- this is a fallback, not a replacement.
+#define HAS_CART_SD_BRIDGE
+
 // S3's own flashing/monitor UART, bridged off-board through a CH343P to the
 // board's single USB-C connector -- not the RP2040/RP2350 link (that's native
 // USB, permanently wired to the S3's USB host pins, no GPIO of its own).

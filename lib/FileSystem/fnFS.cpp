@@ -92,6 +92,8 @@ const char * FileSystem::type_to_string(fsType type)
             return "FS_FTP";
         case FSTYPE_HTTP:
             return "FS_HTTP";
+        case FSTYPE_CARTSD:
+            return "FS_CARTSD";
         default:
             return "UNKNOWN FS TYPE";
     }
