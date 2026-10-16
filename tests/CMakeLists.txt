@@ -222,6 +222,12 @@ add_executable(fssd_listing_tests
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSD.cpp
 )
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  target_sources(fssd_listing_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
+  )
+endif()
 
 target_compile_definitions(fssd_listing_tests PRIVATE UNIT_TESTS FNIO_IS_STDIO)
 
