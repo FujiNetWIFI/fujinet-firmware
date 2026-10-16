@@ -85,7 +85,7 @@ void IRAM_ATTR phi_isr_handler(void *arg)
               // Debug_printf("\nhello from ISR - control command!");
               if (smartport.req_wait_for_falling_timeout(5500))
               {
-                Debug_printf("\nWRITE/CTRL received\nREQ timeout in ISR");
+                smartport.isr_req_timeouts += 1;
                 return;
               }
               memset(smartport.packet_buffer, 0, sizeof(smartport.packet_buffer));
@@ -102,7 +102,7 @@ void IRAM_ATTR phi_isr_handler(void *arg)
       }
       else if (error == 2) // checksum error
       {
-        Debug_printf("\r\nISR Cmd Chksum error, calc %02x, pkt %02x", smartport.calc_checksum, smartport.pkt_checksum);
+        smartport.isr_cmd_checksum_errors += 1;
       }
       // initial Req timeout (error==1) and checksum (error==2) just fall through here and we try again next time
       smartport.spi_end();
@@ -116,10 +116,10 @@ void IRAM_ATTR phi_isr_handler(void *arg)
       }
       else if (error == 2) // checksum error
       {
-        Debug_printf("\r\nISR Data Packet Chksum error, calc %02x, pkt %02x command = %02x", smartport.calc_checksum, smartport.pkt_checksum,SYSTEM_BUS.command_packet.command & 0x0f);
+        smartport.isr_data_checksum_errors += 1;
         /*We sometimes get garbage data packets with control code 0 commands, accept them as-is and go on*/
         if((SYSTEM_BUS.command_packet.command == 0x84) && (SYSTEM_BUS.command_packet.data[19] == 0x80)) {
-          Debug_printf("\r\nIgnoring bad data packet");
+          smartport.isr_data_packets_ignored += 1;
           smartport.iwm_ack_clr();
           sp_command_mode = sp_cmd_state_t::command;
         }
@@ -383,10 +383,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int packet_len)
   // setup a timeout counter to wait for REQ response
   if (req_wait_for_rising_timeout(10000))
   { // timeout!
-#ifdef VERBOSE_IWM
-    // timeout
-    Debug_print("t");
-#endif
+    isr_req_timeouts += 1;
     iwm_extra_clr();
     return 1; // timeout waiting for REQ
   }
@@ -902,8 +899,7 @@ void IRAM_ATTR iwm_diskii_ll::diskii_write_handler()
     item.buffer = (decltype(item.buffer)) heap_caps_malloc(item.length, MALLOC_CAP_8BIT);
     if (!item.buffer)
     {
-      Debug_printf("\r\nDisk II unable to allocate buffer! %u %u %u",
-                   item.length, item.track_begin, item.track_end);
+      d2w_alloc_failures += 1;
     }
     else {
       size_t end1, end2;

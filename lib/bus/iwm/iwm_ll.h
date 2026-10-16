@@ -252,6 +252,12 @@ public:
   uint8_t calc_checksum;
   uint8_t pkt_checksum;
 
+  // Counted in phi_isr_handler(), which cannot print; systemBus::service() reports them.
+  volatile uint32_t isr_cmd_checksum_errors = 0;
+  volatile uint32_t isr_data_checksum_errors = 0;
+  volatile uint32_t isr_data_packets_ignored = 0;
+  volatile uint32_t isr_req_timeouts = 0;
+
   // for tracking last checksum received for Liron bug
   uint8_t last_checksum;
 
@@ -294,6 +300,7 @@ public:
   // Write items dropped in the ISR because the queue was full; drained and
   // reported by the consumer in task context.
   volatile uint32_t iwm_write_drops = 0;
+  volatile uint32_t d2w_alloc_failures = 0; // counted in the write ISR; reported by systemBus::service()
   uint8_t d2_enable_seen = 0;
 
   // Phase lines and ACK handshaking

@@ -527,6 +527,23 @@ void virtualDevice::iwm_write(const iwm_decoded_cmd_t &cmd)
 void IRAM_ATTR systemBus::service()
 {
 #ifndef DEV_RELAY_SLIP
+#ifdef DEBUG
+  // phi_isr_handler() cannot print (the console write takes a mutex), so its counts are reported here.
+  static uint32_t cmd_errors, data_errors, ignored, timeouts, alloc_failures;
+  if (smartport.isr_cmd_checksum_errors != cmd_errors || smartport.isr_data_checksum_errors != data_errors
+      || smartport.isr_data_packets_ignored != ignored || smartport.isr_req_timeouts != timeouts
+      || diskii_xface.d2w_alloc_failures != alloc_failures)
+  {
+    cmd_errors = smartport.isr_cmd_checksum_errors;
+    data_errors = smartport.isr_data_checksum_errors;
+    ignored = smartport.isr_data_packets_ignored;
+    timeouts = smartport.isr_req_timeouts;
+    alloc_failures = diskii_xface.d2w_alloc_failures;
+    Debug_printf("\r\nIWM ISRs: %u cmd checksum errors, %u data checksum errors (%u ignored), %u REQ timeouts (last calc %02x pkt %02x), %u Disk II write buffer failures",
+                 (unsigned)cmd_errors, (unsigned)data_errors, (unsigned)ignored, (unsigned)timeouts,
+                 smartport.calc_checksum, smartport.pkt_checksum, (unsigned)alloc_failures);
+  }
+#endif
   // process smartport before diskII
   if (!serviceSmartPort())
     serviceDiskII();
