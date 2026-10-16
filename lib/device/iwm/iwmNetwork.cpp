@@ -86,9 +86,10 @@ void iwmNetwork::iwm_read(const iwm_decoded_cmd_t &cmd)
     Debug_printf("\r\n[NETWORK] Device %02x Read %04x bytes, net_unit %02x\n",
                  id(), cmd.frame.char_rw.length, cmd.unit());
 
+    uint16_t lengthField = cmd.frame.char_rw.length;
     ByteBuffer buffer;
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-    if (NDevice::fujicore_read(buffer, cmd.frame.char_rw.length).is_error())
+    if (fujicore_read_seq(buffer, readSeq.length(lengthField), readSeq.sequence(lengthField)).is_error())
     {
         SYSTEM_BUS.transaction_error();
         return;

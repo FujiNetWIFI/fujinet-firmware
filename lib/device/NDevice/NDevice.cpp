@@ -43,6 +43,7 @@ const std::unordered_map<fujiCommandID_t, NDevice::Handler> NDevice::dispatch_ta
     { CMD::NET_TRANSLATION,     {&NDevice::fujidev_set_translation}       },
     { CMD::NET_SET_EOL,         {&NDevice::fujidev_set_eol}               },
     { CMD::NET_SET_INT_RATE,    {&NDevice::fujidev_set_timer_rate}        },
+    { CMD::NET_SET_SEQUENCE,    {&NDevice::fujidev_set_sequence}          },
     { CMD::NET_SEEK,            {&NDevice::fujidev_seek}                  },
     { CMD::NET_TELL,            {&NDevice::fujidev_tell}                  },
 
@@ -153,6 +154,7 @@ void NDevice::fujidev_open(const FUJI_COMMAND_PACKET &packet)
     _protocol = nullptr;
     _parser = nullptr;
     closeFailed = false;
+    readSeq.set(false);
 
     if (parse_and_instantiate_protocol(spec, IS_DIR_MODE(access), urlParser).is_error())
     {
@@ -207,6 +209,7 @@ void NDevice::fujidev_close(const FUJI_COMMAND_PACKET &packet)
     if (!closeFailed)
         _parser = nullptr;
     _protocol = nullptr;
+    readSeq.set(false);
 
     if (closeFailed)
         SYSTEM_BUS.transaction_error();
@@ -228,11 +231,22 @@ error_is_true NDevice::fujicore_read(ByteBuffer &buf, size_t len)
     RETURN_ERROR_IF(err != FUJI_ERROR::NONE);
 }
 
+error_is_true NDevice::fujicore_read_seq(ByteBuffer &buf, uint16_t length, uint16_t sequence)
+{
+    if (readSeq.is_retry(length, sequence))
+        return readSeq.replay(buf);
+
+    error_is_true result = fujicore_read(buf, length);
+    readSeq.remember(length, sequence, buf, result);
+    return result;
+}
+
 void NDevice::fujidev_read(const FUJI_COMMAND_PACKET &packet)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
 
-    uint16_t num_bytes = packet.param(0);
+    uint16_t lengthField = packet.param(0);
+    uint16_t num_bytes = readSeq.length(lengthField);
 
     if (!num_bytes)
     {
@@ -241,7 +255,7 @@ void NDevice::fujidev_read(const FUJI_COMMAND_PACKET &packet)
     }
 
     ByteBuffer buf;
-    if (fujicore_read(buf, num_bytes).is_error())
+    if (fujicore_read_seq(buf, num_bytes, readSeq.sequence(lengthField)).is_error())
     {
         SYSTEM_BUS.transaction_error();
         return;
@@ -888,5 +902,12 @@ void NDevice::fujidev_set_timer_rate(const FUJI_COMMAND_PACKET &packet)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     timerRate = param_as<uint8_t>(packet, 0);
+    SYSTEM_BUS.transaction_success();
+}
+
+void NDevice::fujidev_set_sequence(const FUJI_COMMAND_PACKET &packet)
+{
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
+    readSeq.set(param_as<uint8_t>(packet, 0) != 0);
     SYSTEM_BUS.transaction_success();
 }
