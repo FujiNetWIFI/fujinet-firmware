@@ -462,6 +462,9 @@ void systemBus::op_serterm()
 
 void systemBus::op_dwinit()
 {
+    // The client's driver version byte follows. Left unread, it is taken for
+    // the next opcode, and op_unhandled() discards the command queued behind it.
+    _port->read();
     Debug_printv("OP_DWINIT - Sending feature byte 0x%02x", DWINIT_FEATURES);
 #define OS9 1
 #ifdef OS9
