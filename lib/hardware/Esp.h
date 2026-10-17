@@ -23,6 +23,7 @@
 #include <esp_partition.h>
 #include <hal/cpu_hal.h>
 #include <soc/rtc.h>
+#include <string>
 
 #include "esp_cpu.h"
 
@@ -70,9 +71,13 @@ class EspClass {
 
     // SPI RAM
     uint32_t getPsramSize();
-    uint32_t getFreePsram();
-    uint32_t getMinFreePsram();
-    uint32_t getMaxAllocPsram();
+    uint32_t getPsramFree();
+    uint32_t getPsramMinFree();
+    uint32_t getPsramMaxAlloc();
+
+    uint32_t getPsramHiMemSize();
+    uint32_t getPsramHiMemFree();
+    uint32_t getPsramHiMemReserved();
 
     uint16_t getChipRevision();
     const char *getChipModel();
@@ -88,6 +93,11 @@ class EspClass {
 
     const char *getSdkVersion();   // version of ESP-IDF
     //const char *getCoreVersion();  // version of this core
+
+    // App version (esp_app_desc_t.version) is "<firmware>.<hardware>" -
+    // firmware is everything before the last '.', hardware is what follows it.
+    std::string getFirmwareVersion();
+    std::string getHardwareVersion();
 
     void deepSleep(uint64_t time_us);
 
@@ -110,9 +120,13 @@ class EspClass {
     bool partitionRead(const esp_partition_t *partition, uint32_t offset,
                        uint32_t *data, size_t size);
 
+    std::string getPartitionInfo();
+
     uint64_t getEfuseMac();
 
     float temperatureRead();
 };
+
+extern EspClass ESP;
 
 #endif  // ESP_H

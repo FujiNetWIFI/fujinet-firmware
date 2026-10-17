@@ -25,7 +25,6 @@
 
 #include "Esp.h"
 
-EspClass ESP;
 
 static std::string mac2String(uint64_t mac)
 {
@@ -149,7 +148,7 @@ static int meminfo(int argc, char **argv)
     printf("Overall Free Memory: %lu KB\r\n\r\n", total_free);
 
     total = ESP.getPsramSize() / 1024;
-    free = ESP.getFreePsram() / 1024;
+    free = ESP.getPsramFree() / 1024;
     used = total - free;    
     printf("PSRAM: %lu KB free, %lu KB used, (%lu KB total)\r\n", free, used, total);
     return EXIT_SUCCESS;
