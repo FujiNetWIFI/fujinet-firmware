@@ -51,8 +51,6 @@ extern "C" {
 #include "esp_chip_info.h"
 #include "esp_partition.h"
 #include "esp_flash.h"
-#include "esp_vfs.h"
-//#include "vfs/private_include/esp_vfs_private.h"
 #include "esp_mac.h"
 #include "esp_system.h"
 #include "soc/spi_reg.h"
@@ -168,8 +166,10 @@ static const char* get_subtype_str(esp_partition_subtype_t subtype)
             return "phy";
         case ESP_PARTITION_SUBTYPE_APP_FACTORY:
             return "factory";
-        case ESP_PARTITION_SUBTYPE_DATA_FAT:
-            return "fat";
+        case ESP_PARTITION_SUBTYPE_APP_OTA_0:
+            return "ota_0";
+        case ESP_PARTITION_SUBTYPE_DATA_LITTLEFS:
+            return "littlefs";
         default:
             return "???";
     }
@@ -605,7 +605,7 @@ std::string EspClass::getPartitionInfo()
         partitions << get_type_str(part->type) << "\t";
         partitions << get_subtype_str(part->subtype) << "\t";
         partitions << "0x" << std::uppercase << std::hex << part->address << "  \t";
-        partitions << part->size << "\n";
+        partitions << std::dec << part->size << "\n";
     }
     // Release the partition iterator to release memory allocated for it
     esp_partition_iterator_release(it);
