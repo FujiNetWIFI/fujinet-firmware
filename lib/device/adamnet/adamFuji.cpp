@@ -121,9 +121,6 @@ void adamFuji::adamnet_new_disk(const FujiAdamPacket &packet)
     memcpy(&numBlocks, ptr, sizeof(numBlocks));
     ptr += sizeof(numBlocks);
 
-    fujiDisk &disk = _fnDisks[ds];
-    fujiHost &host = _fnHosts[hs];
-
     if (new_disk_completed)
     {
         new_disk_completed = false;
@@ -131,20 +128,11 @@ void adamFuji::adamnet_new_disk(const FujiAdamPacket &packet)
         return;
     }
 
-    disk.host_slot = hs;
-    disk.access_mode = DISK_ACCESS_MODE_WRITE;
-    strlcpy(disk.filename, (const char *) ptr, sizeof(disk.filename));
-
-    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
-
-    Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, numBlocks);
-
-    disk.disk_dev.write_blank(disk.fileh, numBlocks);
-
-    fnio::fclose(disk.fileh);
-
-    new_disk_completed = true;
-    SYSTEM_BUS.transaction_success();
+    Debug_printf("adamnet_new_disk numblocks: %lu\n", (unsigned long) numBlocks);
+    NEW_DISK_RESULT result = fujicmd_new_disk(hs, ds, ptr, [&](fnFile *f) {
+        RETURN_SUCCESS_IF(_fnDisks[ds].disk_dev.write_blank(f, numBlocks).is_success());
+    });
+    new_disk_completed = result == NEW_DISK_RESULT::CREATED;
 }
 
 void adamFuji::adamnet_enable_device(const FujiAdamPacket &packet)

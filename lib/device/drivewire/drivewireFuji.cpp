@@ -118,7 +118,7 @@ void drivewireFuji::new_disk()
         unsigned char numDisks;
         unsigned char hostSlot;
         unsigned char deviceSlot;
-        char filename[MAX_FILENAME_LEN]; // WIll set this to MAX_FILENAME_LEN, later.
+        char filename[MAX_FILENAME_LEN];
     } newDisk;
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
@@ -129,37 +129,9 @@ void drivewireFuji::new_disk()
     Debug_printf("deviceSl: %u\n",newDisk.deviceSlot);
     Debug_printf("filename: %s\n",newDisk.filename);
 
-    // A couple of reference variables to make things much easier to read...
-    fujiDisk &disk = _fnDisks[newDisk.deviceSlot];
-    fujiHost &host = _fnHosts[newDisk.hostSlot];
-
-    disk.host_slot = newDisk.hostSlot;
-    disk.access_mode = DISK_ACCESS_MODE_WRITE;
-    strlcpy(disk.filename, newDisk.filename, sizeof(disk.filename));
-
-    if (host.file_exists(disk.filename))
-    {
-        Debug_printf("drivewire_new_disk File exists: \"%s\"\n", disk.filename);
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-
-    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
-    if (disk.fileh == nullptr)
-    {
-        Debug_printf("drivewire_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-
-    bool ok = disk.disk_dev.write_blank(disk.fileh, newDisk.numDisks);
-
-    if (ok)
-        SYSTEM_BUS.transaction_success();
-    else
-        SYSTEM_BUS.transaction_error();
-
-    fnio::fclose(disk.fileh);
+    fujicmd_new_disk(newDisk.hostSlot, newDisk.deviceSlot, newDisk.filename, [&](fnFile *f) {
+        return _fnDisks[newDisk.deviceSlot].disk_dev.write_blank(f, newDisk.numDisks);
+    });
 }
 
 // Initializes base settings and adds our devices to the DRIVEWIRE bus

@@ -121,6 +121,16 @@ using FujiCommandHandlers = std::unordered_map<
     std::function<void(const FUJI_COMMAND_PACKET &)>
     >;
 
+enum class NEW_DISK_RESULT {
+    CREATED,
+    EXISTS,
+    OPEN_FAILED,
+    WRITE_FAILED,
+};
+
+// Writes the blank image with the bus's own disk device and geometry.
+using BlankImageWriter = std::function<success_is_true(fnFile *f)>;
+
 // This class inherits from all the mixins you list and tries each one in order
 template<typename... FujiDeviceMixins>
 requires FujiPacketLike<FUJI_COMMAND_PACKET>
@@ -257,6 +267,8 @@ public:
     void fujicmd_set_directory_position(uint16_t pos);
     success_is_true fujicore_copy_file_success(uint8_t sourceSlot, uint8_t destSlot, std::string copySpec);
     success_is_true fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot, std::string copySpec);
+    NEW_DISK_RESULT fujicmd_new_disk(uint8_t hostSlot, uint8_t deviceSlot, const char *filename,
+                                     const BlankImageWriter &write_blank);
     virtual void fujicmd_get_adapter_config();
     virtual void fujicmd_get_adapter_config_extended();
     void fujicmd_get_device_filename(uint8_t slot);
@@ -299,6 +311,8 @@ public:
     success_is_true fujicore_mount_host_success(uint8_t hostSlot);
     success_is_true fujicore_mount_all_success();
     success_is_true fujicore_mount_all_at_startup();
+    NEW_DISK_RESULT fujicore_new_disk(uint8_t hostSlot, uint8_t deviceSlot, const char *filename,
+                                      const BlankImageWriter &write_blank);
     void fujicore_net_scan_networks();
     success_is_true fujicore_net_set_ssid_success(const char *ssid, const char *password, bool save);
 

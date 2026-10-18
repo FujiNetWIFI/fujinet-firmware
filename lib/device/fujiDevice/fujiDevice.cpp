@@ -1171,6 +1171,57 @@ void fujiDevice::fujidev_copy_file(const FUJI_COMMAND_PACKET &packet)
     fujicmd_copy_file_success(source, dest, packet.dataAsString().value_or(""));
 }
 
+NEW_DISK_RESULT fujiDevice::fujicore_new_disk(uint8_t hostSlot, uint8_t deviceSlot,
+                                              const char *filename,
+                                              const BlankImageWriter &write_blank)
+{
+    fujiDisk &disk = _fnDisks[deviceSlot];
+    fujiHost &host = _fnHosts[hostSlot];
+
+    disk.host_slot = hostSlot;
+    disk.access_mode = DISK_ACCESS_MODE_WRITE;
+    strlcpy(disk.filename, filename, sizeof(disk.filename));
+
+    if (host.file_exists(disk.filename))
+    {
+        Debug_printf("fujicore_new_disk File exists: \"%s\"\n", disk.filename);
+        return NEW_DISK_RESULT::EXISTS;
+    }
+
+    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), FILE_WRITE);
+    if (disk.fileh == nullptr)
+    {
+        Debug_printf("fujicore_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
+        return NEW_DISK_RESULT::OPEN_FAILED;
+    }
+
+    Debug_printf("Creating file %s on host slot %u for disk slot %u\n", disk.filename, hostSlot,
+                 deviceSlot);
+    success_is_true written = write_blank(disk.fileh);
+    fnio::fclose(disk.fileh);
+
+    if (written.is_error())
+    {
+        Debug_print("fujicore_new_disk Data write failed\n");
+        return NEW_DISK_RESULT::WRITE_FAILED;
+    }
+
+    Debug_print("fujicore_new_disk succeeded\n");
+    return NEW_DISK_RESULT::CREATED;
+}
+
+NEW_DISK_RESULT fujiDevice::fujicmd_new_disk(uint8_t hostSlot, uint8_t deviceSlot,
+                                             const char *filename,
+                                             const BlankImageWriter &write_blank)
+{
+    NEW_DISK_RESULT result = fujicore_new_disk(hostSlot, deviceSlot, filename, write_blank);
+    if (result == NEW_DISK_RESULT::CREATED)
+        SYSTEM_BUS.transaction_success();
+    else
+        SYSTEM_BUS.transaction_error();
+    return result;
+}
+
 success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot,
                                                       std::string copySpec)
 {

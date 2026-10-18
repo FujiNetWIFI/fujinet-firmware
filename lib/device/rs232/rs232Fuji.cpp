@@ -109,7 +109,7 @@ void rs232Fuji::rs232_new_disk()
         unsigned short sectorSize;
         unsigned char hostSlot;
         unsigned char deviceSlot;
-        char filename[MAX_FILENAME_LEN]; // WIll set this to MAX_FILENAME_LEN, later.
+        char filename[MAX_FILENAME_LEN];
     } newDisk;
 
     // Ask for details on the new disk to create
@@ -125,41 +125,10 @@ void rs232Fuji::rs232_new_disk()
         SYSTEM_BUS.transaction_error();
         return;
     }
-    // A couple of reference variables to make things much easier to read...
-    fujiDisk &disk = _fnDisks[newDisk.deviceSlot];
-    fujiHost &host = _fnHosts[newDisk.hostSlot];
-
-    disk.host_slot = newDisk.hostSlot;
-    disk.access_mode = DISK_ACCESS_MODE_WRITE;
-    strlcpy(disk.filename, newDisk.filename, sizeof(disk.filename));
-
-    if (host.file_exists(disk.filename))
-    {
-        Debug_printf("rs232_new_disk File exists: \"%s\"\n", disk.filename);
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-
-    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
-    if (disk.fileh == nullptr)
-    {
-        Debug_printf("rs232_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-
-    bool ok = disk.disk_dev.write_blank(disk.fileh, newDisk.sectorSize, newDisk.numSectors);
-    fnio::fclose(disk.fileh);
-
-    if (ok == false)
-    {
-        Debug_print("rs232_new_disk Data write failed\n");
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-
-    Debug_print("rs232_new_disk succeeded\n");
-    SYSTEM_BUS.transaction_success();
+    fujicmd_new_disk(newDisk.hostSlot, newDisk.deviceSlot, newDisk.filename, [&](fnFile *f) {
+        return _fnDisks[newDisk.deviceSlot].disk_dev.write_blank(f, newDisk.sectorSize,
+                                                                 newDisk.numSectors);
+    });
 }
 
 void rs232Fuji::rs232_test()

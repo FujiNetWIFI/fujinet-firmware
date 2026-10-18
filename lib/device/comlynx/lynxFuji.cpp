@@ -146,27 +146,16 @@ void lynxFuji::comlynx_new_disk(const FujiLynxPacket &packet)
     memcpy(&numBlocks, ptr, sizeof(numBlocks));
     ptr += sizeof(numBlocks);
 
-    fujiDisk &disk = _fnDisks[ds];
-    fujiHost &host = _fnHosts[hs];
+    Debug_printf("comlynx_new_disk numblocks: %lu\n", (unsigned long) numBlocks);
+    NEW_DISK_RESULT result = fujicore_new_disk(hs, ds, ptr, [&](fnFile *f) {
+        RETURN_SUCCESS_IF(_fnDisks[ds].disk_dev.write_blank(f, numBlocks).is_success());
+    });
 
-    if (host.file_exists((const char *)ptr))
-    {
+    // An existing image counts as created.
+    if (result == NEW_DISK_RESULT::CREATED || result == NEW_DISK_RESULT::EXISTS)
         SYSTEM_BUS.transaction_success();
-        return;
-    }
-
-    disk.host_slot = hs;
-    disk.access_mode = DISK_ACCESS_MODE_WRITE;
-    strlcpy(disk.filename, (const char *)ptr, sizeof(disk.filename));
-
-    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
-
-    Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, (long unsigned) numBlocks);
-
-    disk.disk_dev.write_blank(disk.fileh, numBlocks);
-    fclose(disk.fileh);
-
-    SYSTEM_BUS.transaction_success();
+    else
+        SYSTEM_BUS.transaction_error();
 }
 
 // Initializes base settings and adds our devices to the SIO bus
