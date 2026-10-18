@@ -81,10 +81,29 @@ success_is_true FileSystemHTTP::start(const char *url, const char *user, const c
     RETURN_SUCCESS_IF(_started = true);
 }
 
+// A HEAD request for the file: 2xx means it is there (3xx too, as FileHandlerHTTP::create()
+// accepts it when it opens the same URL). This is what lets a ROM's same-named .cfg be found on
+// an http(s):// host slot: MediaTypeROM::resolve_memory_map() asks file_exists() for it, and a
+// .bin that boots without its .cfg gets a guessed memory map.
 bool FileSystemHTTP::exists(const char *path)
 {
-    // TODO
-    return false;
+    if (!_started || _url == nullptr || path == nullptr || path[0] == '\0')
+        return false;
+
+    std::string url = make_file_url(path);
+    HTTP_CLIENT_CLASS *client = new HTTP_CLIENT_CLASS();
+    if (client == nullptr)
+        return false;
+
+    bool found = false;
+    if (client->begin(url))
+    {
+        int rc = client->HEAD();
+        found = rc >= 200 && rc < 400;
+        Debug_printf("FileSystemHTTP::exists(\"%s\") HEAD %d\n", url.c_str(), rc);
+    }
+    delete client;
+    return found;
 }
 
 success_is_true FileSystemHTTP::remove(const char *path)
