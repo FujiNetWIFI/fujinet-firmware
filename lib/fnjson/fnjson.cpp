@@ -135,12 +135,12 @@ std::string FNJSON::processString(std::string in)
         while (in.find("<") != std::string::npos)
         {
             auto startpos = in.find("<");
-            auto endpos = in.find(">");
+            auto endpos = in.find(">", startpos);
 
-            if (endpos != std::string::npos)
-            {
-                in.erase(startpos, (endpos + 1) - startpos);
-            }
+            if (endpos == std::string::npos)
+                break;
+
+            in.erase(startpos, (endpos + 1) - startpos);
         }
     }
 
