@@ -19,8 +19,8 @@ struct Connection
     Connection(const char *spec = "TCP://peer:6502/")
     {
         fake_peer = FakePeer();
-        auto url = std::make_unique<PeoplesUrlParser>(spec);
-        REQUIRE(tcp.open(url.get(), ACCESS_MODE::READWRITE, NETPROTO_TRANS::NONE)
+        PeoplesUrlParser url(spec);
+        REQUIRE(tcp.open(&url, ACCESS_MODE::READWRITE, NETPROTO_TRANS::NONE)
                 == FUJI_ERROR::NONE);
     }
 };

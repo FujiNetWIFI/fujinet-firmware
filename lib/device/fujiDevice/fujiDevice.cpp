@@ -678,15 +678,15 @@ void fujiDevice::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
         {
             if (_lobbyDiskURL)
             {
-                auto parsed = std::make_unique<PeoplesUrlParser>(*_lobbyDiskURL);
+                PeoplesUrlParser parsed(*_lobbyDiskURL);
                 Debug_printf("Starting TNFS connection\n");
-                if (!fnTNFS.start(parsed->host.c_str()))
+                if (!fnTNFS.start(parsed.host.c_str()))
                 {
                     Debug_printf("TNFS failed to start.\n");
                     fBoot = NULL;
                     return;
                 }
-                boot_img = parsed->path;
+                boot_img = parsed.path;
                 fBoot = fnTNFS.fnfile_open(boot_img.c_str());
             }
         }
