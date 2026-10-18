@@ -109,7 +109,7 @@ fujiError_t NetworkProtocolTCP::close()
 }
 
 /**
- * @brief Read len bytes into rx_buf, If protocol times out, the buffer should be null padded to length.
+ * @brief Read up to len bytes into rx_buf: fewer if fewer have arrived, an error if none have.
  * @param len number of bytes to read.
  * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
  */
@@ -125,13 +125,7 @@ fujiError_t NetworkProtocolTCP::read(unsigned short len)
         // Never blocks, so a short count is just what has arrived so far.
         actual_len = client.read(newData.data(), len);
 
-        // bail if the connection is reset.
-        if (errno == ECONNRESET)
-        {
-            error = NDEV_STATUS::CONNECTION_RESET;
-            return FUJI_ERROR::UNSPECIFIED;
-        }
-        else if (actual_len == 0)
+        if (actual_len == 0)
         {
             error = NDEV_STATUS::SOCKET_TIMEOUT;
             return FUJI_ERROR::UNSPECIFIED;
@@ -153,7 +147,7 @@ fujiError_t NetworkProtocolTCP::read(unsigned short len)
 /**
  * @brief Write len bytes from tx_buf to protocol.
  * @param len The # of bytes to transmit, len should not be larger than buffer.
- * @return Number of bytes written.
+ * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
  */
 fujiError_t NetworkProtocolTCP::write(unsigned short len)
 {
@@ -179,16 +173,11 @@ fujiError_t NetworkProtocolTCP::write(unsigned short len)
     // translate it a second time.
     transmitBuffer->clear();
 
-    // bail if the connection is reset.
-    if (errno == ECONNRESET)
-    {
-        error = NDEV_STATUS::CONNECTION_RESET;
-        return FUJI_ERROR::UNSPECIFIED;
-    }
-    else if (actual_len != len) // write was short.
+    if (actual_len != len) // write was short.
     {
         Debug_printf("Short send. We sent %u bytes, but asked to send %u bytes.\r\n", actual_len, len);
-        error = NDEV_STATUS::SOCKET_TIMEOUT;
+        // The client stops itself on a send error, so a dead one was reset, not stalled.
+        error = client.connected() ? NDEV_STATUS::SOCKET_TIMEOUT : NDEV_STATUS::CONNECTION_RESET;
         return FUJI_ERROR::UNSPECIFIED;
     }
 

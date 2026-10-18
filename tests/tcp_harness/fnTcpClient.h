@@ -4,7 +4,6 @@
 // Test stand-in for lib/tcpip/fnTcpClient.h: one connection to fake_peer.
 
 #include <algorithm>
-#include <cerrno>
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -17,6 +16,7 @@ struct FakePeer
     std::string received;           // everything the client wrote
     size_t write_limit = SIZE_MAX;  // most bytes one write() sends
     bool waiting = false;           // a caller is queued on the listener
+    bool reset_on_write = false;    // the next write() hits a RST: nothing sent, client stopped
 };
 
 extern FakePeer fake_peer;
@@ -30,10 +30,8 @@ public:
     uint8_t connected() { return _connected; }
     size_t available() { return _connected ? fake_peer.inbound.size() : 0; }
 
-    // TCP.cpp reads errno after these.
     int read(uint8_t *buf, size_t size)
     {
-        errno = 0;
         size_t n = std::min(available(), size);
         memcpy(buf, fake_peer.inbound.data(), n);
         fake_peer.inbound.erase(0, n);
@@ -42,7 +40,8 @@ public:
 
     size_t write(const uint8_t *buf, size_t size)
     {
-        errno = 0;
+        if (fake_peer.reset_on_write)
+            stop();
         if (!_connected)
             return 0;
         size_t n = std::min(size, fake_peer.write_limit);

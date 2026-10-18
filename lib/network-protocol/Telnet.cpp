@@ -7,7 +7,6 @@
 #include "Telnet.h"
 
 #include <stdlib.h>
-#include <errno.h>
 #include <string.h>
 #include "compat_inet.h"
 
@@ -142,7 +141,7 @@ fujiError_t NetworkProtocolTELNET::open(PeoplesUrlParser *urlParser,
 
 
 /**
- * @brief Read len bytes into rx_buf, If protocol times out, the buffer should be null padded to length.
+ * @brief Read up to len bytes into rx_buf: fewer if fewer have arrived, an error if none have.
  * @param len number of bytes to read.
  * @return FUJI_ERROR::NONE on success, FUJI_ERROR::UNSPECIFIED on error
  */
@@ -163,13 +162,6 @@ fujiError_t NetworkProtocolTELNET::read(unsigned short len)
 
         // Do the read from client socket.
         int actual_len = client.read(newData.data(), len);
-
-        // bail if the connection is reset.
-        if (errno == ECONNRESET)
-        {
-            error = NDEV_STATUS::CONNECTION_RESET;
-            return FUJI_ERROR::UNSPECIFIED;
-        }
 
         if (actual_len <= 0)
         {
@@ -216,15 +208,10 @@ fujiError_t NetworkProtocolTELNET::write(unsigned short len)
     telnet_send(telnet, transmitBuffer->data(), len);
     transmitBuffer->clear();
 
-    // bail if the connection is reset.
-    if (errno == ECONNRESET)
+    if (_sendFailed)
     {
-        error = NDEV_STATUS::CONNECTION_RESET;
-        return FUJI_ERROR::UNSPECIFIED;
-    }
-    else if (_sendFailed)
-    {
-        error = NDEV_STATUS::SOCKET_TIMEOUT;
+        // The client stops itself on a send error, so a dead one was reset, not stalled.
+        error = client.connected() ? NDEV_STATUS::SOCKET_TIMEOUT : NDEV_STATUS::CONNECTION_RESET;
         return FUJI_ERROR::UNSPECIFIED;
     }
 
