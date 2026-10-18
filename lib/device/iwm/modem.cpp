@@ -1450,7 +1450,6 @@ void iwmModem::iwm_read(const iwm_decoded_cmd_t &cmd)
     }
 
     Debug_printf("\r\nsending Modem read data packet ...");
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     SYSTEM_BUS.transaction_send(buffer);
 }
 
@@ -1471,6 +1470,7 @@ void iwmModem::iwm_write(const iwm_decoded_cmd_t &cmd)
 #endif
     }
 
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     SYSTEM_BUS.transaction_success();
 }
 
