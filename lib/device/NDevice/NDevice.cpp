@@ -482,7 +482,7 @@ error_is_true NDevice::parse_and_instantiate_protocol(std::string &deviceSpec, b
                                                       std::unique_ptr<PeoplesUrlParser> &url_out)
 {
     deviceSpec = util_devicespec_fix_for_parsing(deviceSpec, prefix, is_dir, true);
-    url_out = PeoplesUrlParser::parseURL(deviceSpec);
+    url_out = std::make_unique<PeoplesUrlParser>(deviceSpec);
 
     if (!url_out->isValidUrl())
     {
@@ -493,14 +493,14 @@ error_is_true NDevice::parse_and_instantiate_protocol(std::string &deviceSpec, b
     }
 
 #ifdef VERBOSE_PROTOCOL
-    Debug_printf("::parse_and_instantiate_protocol -> spec: >%s<, url: >%s<\r\n", deviceSpec.c_str(), url_out->mRawUrl.c_str());
+    Debug_printf("::parse_and_instantiate_protocol -> spec: >%s<, url: >%s<\r\n", deviceSpec.c_str(), url_out->getFullURL().c_str());
 #endif
 
     _protocol = NetworkProtocolFactory::createProtocol(url_out->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (_protocol == nullptr)
     {
-        Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), url_out->mRawUrl.c_str());
+        Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), url_out->getFullURL().c_str());
         // The old parser, if any, pointed at the protocol just replaced.
         _parser = nullptr;
         RETURN_ERROR_AS_TRUE();

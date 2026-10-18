@@ -17,7 +17,7 @@ struct TelnetConnection
     TelnetConnection()
     {
         fake_peer = FakePeer();
-        auto url = PeoplesUrlParser::parseURL("TELNET://peer:23/");
+        auto url = std::make_unique<PeoplesUrlParser>("TELNET://peer:23/");
         REQUIRE(telnet.open(url.get(), ACCESS_MODE::READWRITE, NETPROTO_TRANS::NONE)
                 == FUJI_ERROR::NONE);
     }
@@ -41,7 +41,7 @@ TEST_CASE("two TELNET channels keep separate libtelnet parsers (#1915)")
     TelnetConnection a;
     std::string rx2, tx2, sp2;
     NetworkProtocolTELNET second{&rx2, &tx2, &sp2};
-    auto url = PeoplesUrlParser::parseURL("TELNET://peer:23/");
+    auto url = std::make_unique<PeoplesUrlParser>("TELNET://peer:23/");
     REQUIRE(second.open(url.get(), ACCESS_MODE::READWRITE, NETPROTO_TRANS::NONE) == FUJI_ERROR::NONE);
 
     fake_peer.inbound = "HELLO";

@@ -682,7 +682,7 @@ void rc2014Network::create_devicespec(string d)
 void rc2014Network::create_url_parser()
 {
     std::string url = deviceSpec;
-    urlParser = PeoplesUrlParser::parseURL(url);
+    urlParser = std::make_unique<PeoplesUrlParser>(url);
 }
 
 void rc2014Network::parse_and_instantiate_protocol(string d)
@@ -701,13 +701,13 @@ void rc2014Network::parse_and_instantiate_protocol(string d)
     }
 
 #ifdef VERBOSE_PROTOCOL
-    Debug_printf("::parse_and_instantiate_protocol -> spec: >%s<, url: >%s<\r\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
+    Debug_printf("::parse_and_instantiate_protocol -> spec: >%s<, url: >%s<\r\n", deviceSpec.c_str(), urlParser->getFullURL().c_str());
 #endif
 
     // Instantiate protocol object.
     if (!instantiate_protocol())
     {
-        Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
+        Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->getFullURL().c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
         err = (uint8_t)NDEV_STATUS::GENERAL;

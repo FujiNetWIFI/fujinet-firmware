@@ -101,7 +101,7 @@ std::string util_get_canonical_path(std::string path) { return ""; }
 std::string util_devicespec_fix_for_parsing(std::string deviceSpec, std::string prefix, bool is_directory_read, bool process_fs_dot) { return ""; }
 void util_devicespec_fix_9b(uint8_t* buf, unsigned short len) {}
 
-std::unique_ptr<PeoplesUrlParser> PeoplesUrlParser::parseURL(const std::string &u) { return nullptr; }
+void PeoplesUrlParser::resetURL(const std::string u) {}
 bool PeoplesUrlParser::isValidUrl() { return false; }
 
 #include "NetworkProtocolFactory.h"

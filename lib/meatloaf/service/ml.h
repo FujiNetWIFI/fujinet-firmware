@@ -21,7 +21,7 @@ class MLMFileSystem: public MFileSystem
             return nullptr;
 
         //Debug_printv("MLFileSystem::getFile(%s)", path.c_str());
-        auto urlParser = PeoplesUrlParser::parseURL( path );
+        auto urlParser = std::make_unique<PeoplesUrlParser>( path );
         //std::string code = mstr::toUTF8(urlParser->name);
 
         //Debug_printv("url[%s]", urlParser.name.c_str());

@@ -540,7 +540,7 @@ esp_err_t MeatHttpClient::_http_event_handler(esp_http_client_event_t *evt)
                     if ( mstr::startsWith(evt->header_value, (char *)"/") )
                     {
                         // Absolute path redirect
-                        auto u = PeoplesUrlParser::parseURL( meatClient->url );
+                        auto u = std::make_unique<PeoplesUrlParser>( meatClient->url );
                         meatClient->url = u->root() + evt->header_value;
                     }
                     else

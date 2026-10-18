@@ -244,7 +244,7 @@ public:
     }
 
     bool open(std::ios_base::openmode mode) override {
-        auto p = PeoplesUrlParser::parseURL( url );
+        auto p = std::make_unique<PeoplesUrlParser>( url );
         return socket.open(p->host.c_str(), p->getPort());
     }
 

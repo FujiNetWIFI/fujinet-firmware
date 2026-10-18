@@ -56,7 +56,7 @@ success_is_true FileSystemFTP::start(const char *url, const char *user, const ch
         RETURN_ERROR_AS_FALSE();
     }
 
-    _url = PeoplesUrlParser::parseURL(url);
+    _url = std::make_unique<PeoplesUrlParser>(url);
     if (!_url->isValidUrl())
     {
         Debug_printf("FileSystemFTP::start() - failed to parse URL \"%s\"\n", url);
@@ -173,12 +173,12 @@ FileHandler *FileSystemFTP::cache_file(const char *path, const char *mode)
     Debug_printf("FileSystemFTP::cache_file(\"%s\", \"%s\")\n", path, mode);
 
     // Try SD cache first
-    FileHandler *fh = FileCache::open(_url->mRawUrl.c_str(), path, mode);
+    FileHandler *fh = FileCache::open(_url->getFullURL().c_str(), path, mode);
     if (fh != nullptr)
         return fh; // cache hit, done
 
     // Create new cache file (starts in memory)
-    fc_handle *fc = FileCache::create(_url->mRawUrl.c_str(), path);
+    fc_handle *fc = FileCache::create(_url->getFullURL().c_str(), path);
     if (fc == nullptr)
         return nullptr;
 
