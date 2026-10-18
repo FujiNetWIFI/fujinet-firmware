@@ -43,12 +43,6 @@
 # define PRINTER_CLASS rc2014Printer
 #endif
 
-#ifdef BUILD_H89
-# include "h89/printer.h"
-# include "h89/printerlist.h"
-# define PRINTER_CLASS H89Printer
-#endif
-
 #ifdef BUILD_COCO
 # include "drivewire/printer.h"
 # include "drivewire/printerlist.h"

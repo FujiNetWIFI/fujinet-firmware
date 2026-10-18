@@ -49,7 +49,6 @@ that the shared device bases are written against.
 | [iec/](iec/) | `BUILD_IEC` Commodore serial IEC | `FujiIECPacket` | yes | no | built on the IECDevice library; disk images via `lib/meatloaf` |
 | [mac/](mac/) | `BUILD_MAC` Macintosh floppy port | `FujiBusPacket` | yes | no | the ESP32 drives a Pico in `pico/mac`; no Fuji commands cross this bus |
 | [cx16_i2c/](cx16_i2c/) | `BUILD_CX16` Commander X16 I2C | none | fails | no | legacy, not on `SystemBusBase` (#1658) |
-| [h89/](h89/) | `BUILD_H89` Heathkit H89 | none | no board | no | legacy, not on `SystemBusBase` (#1658); the H89 card builds as `BUILD_RS232` |
 | [rc2014bus/](rc2014bus/), [rc2014sio/](rc2014sio/) | `BUILD_RC2014` SPI or serial | none | fails | no | legacy; only `rc2014bus` is reachable from `bus.h` (#1658) |
 | [s100spi/](s100spi/) | `BUILD_S100` S-100 over SPI | none | fails | no | legacy (#1658) |
 

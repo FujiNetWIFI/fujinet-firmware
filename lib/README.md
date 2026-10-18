@@ -40,8 +40,8 @@ ESP-IDF + components/ + managed_components/    |    POSIX or Win32 + components_
 ## One platform per build
 
 Exactly one `BUILD_*` macro is defined per build: `BUILD_ADAM`, `BUILD_APPLE`, `BUILD_ATARI`,
-`BUILD_COCO`, `BUILD_CX16`, `BUILD_H89`, `BUILD_IEC`, `BUILD_LYNX`, `BUILD_MAC`, `BUILD_RC2014`,
-`BUILD_RS232` or `BUILD_S100`. It comes from `build_platform` in the board's
+`BUILD_COCO`, `BUILD_CX16`, `BUILD_IEC`, `BUILD_LYNX`, `BUILD_MAC`, `BUILD_RC2014`, `BUILD_RS232`
+or `BUILD_S100`. It comes from `build_platform` in the board's
 `build-platforms/platformio-<board>.ini` on ESP32, or from `FUJINET_TARGET` in `fujinet_pc.cmake`
 on the host. A few "switchboard" headers turn that macro into a concrete bus, device set and
 media set; everything else is selected by `#ifdef` inside the per-platform files.
@@ -101,7 +101,7 @@ the owning device or bus.
   (`lib_ldf_mode = off`), so that glob list is the only thing that decides what is built.
 - FujiNet-PC: `fujinet_pc.cmake` lists sources explicitly, with a common set plus one block per
   `FUJINET_TARGET` (`ATARI`, `APPLE`, `COCO`, `RS232`, `LYNX`, `ADAM`). Never compiled on PC:
-  `console`, `display`, `meatloaf`, `http/webdav`, the `iec`, `mac`, `cx16_i2c`, `h89`,
+  `console`, `display`, `meatloaf`, `http/webdav`, the `iec`, `mac`, `cx16_i2c`,
   `rc2014bus`, `rc2014sio` and `s100spi` buses with their device and media directories, and
   `stuffit` and `fn_esp_http_client` except in unit tests.
 - `FileSystem/fnio.h` decides the file API: `fnFile` is the `FileHandler` abstraction for

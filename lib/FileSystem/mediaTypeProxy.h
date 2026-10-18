@@ -21,8 +21,6 @@
 #include "../media/cx16/mediaType.h"
 #elif BUILD_RC2014
 #include "../media/rc2014/mediaType.h"
-#elif BUILD_H89
-#include "../media/h89/mediaType.h"
 #elif BUILD_COCO
 #include "../media/drivewire/mediaType.h"
 #endif

@@ -141,14 +141,4 @@ lynxNetStream streamDev;
     rc2014Modem *sioR;
 #endif
 
-#ifdef BUILD_H89
-# include "h89/disk.h"
-# include "h89/H89Network.h"
-# include "h89/modem.h"
-# include "h89/printer.h"
-# include "h89/printerlist.h"
-# include "h89/H89Fuji.h"
-    H89Modem *sioR;
-#endif
-
 #endif // DEVICE_H

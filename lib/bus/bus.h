@@ -202,10 +202,6 @@ public:
 #include "rc2014bus/rc2014bus.h"
 #endif
 
-#ifdef BUILD_H89
-#include "h89/h89.h"
-#endif
-
 #ifdef BUILD_COCO
 #include "drivewire/drivewire.h"
 #endif

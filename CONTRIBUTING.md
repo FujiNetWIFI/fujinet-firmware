@@ -155,7 +155,7 @@ back, so raise the design first when yours does not fit.
 ## Platform conditional compilation
 
 - Platform macros are `BUILD_ADAM`, `BUILD_APPLE`, `BUILD_ATARI`, `BUILD_COCO`, `BUILD_CX16`,
-  `BUILD_H89`, `BUILD_IEC`, `BUILD_LYNX`, `BUILD_MAC`, `BUILD_RC2014`, `BUILD_RS232`, `BUILD_S100`
+  `BUILD_IEC`, `BUILD_LYNX`, `BUILD_MAC`, `BUILD_RC2014`, `BUILD_RS232`, `BUILD_S100`
   (plus `NEW_TARGET`, the skeleton port). Exactly one is defined per build. They come from
   `build_platform` in `build-platforms/platformio-<board>.ini`, or from `fujinet_pc.cmake`.
 - Firmware vs host is `#ifdef ESP_PLATFORM` / `#ifndef ESP_PLATFORM`. There is **no** `FUJINET_PC`

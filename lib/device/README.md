@@ -57,7 +57,6 @@ Every per-bus directory follows one layout:
 | [iec/](iec/) | `BUILD_IEC` | fuji, drive, network, clock, printer, modem | yes | no | drive, clock, printer and modem derive from the IECDevice library directly |
 | [mac/](mac/) | `BUILD_MAC` | fuji, floppy (also HD20), printer, modem | yes | no | |
 | [cx16_i2c/](cx16_i2c/) | `BUILD_CX16` | fuji, disk, printer, modem | fails | no | legacy, not on the shared bases (#1658) |
-| [h89/](h89/) | `BUILD_H89` | fuji, disk, network, printer, modem | no board | no | legacy (#1658); the H89 card builds as `BUILD_RS232` |
 | [rc2014/](rc2014/) | `BUILD_RC2014` | fuji, disk, network, printer, modem, CP/M | fails | no | legacy (#1658); the bus lives in `lib/bus/rc2014bus/` |
 | [s100spi/](s100spi/) | `BUILD_S100` | fuji, disk, network, printer, modem | fails | no | legacy (#1658) |
 

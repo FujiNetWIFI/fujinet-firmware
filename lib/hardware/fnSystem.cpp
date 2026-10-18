@@ -86,8 +86,6 @@
     #define TARGET_PLATFORM_NAME "CX16"
 #elif defined(BUILD_RC2014)
     #define TARGET_PLATFORM_NAME "RC2014"
-#elif defined(BUILD_H89)
-    #define TARGET_PLATFORM_NAME "H89"
 #elif defined(BUILD_COCO)
     #define TARGET_PLATFORM_NAME "COCO"
 #else

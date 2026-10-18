@@ -29,7 +29,7 @@ file extension to the enum.
 | [mac/](mac/) | `BUILD_MAC` | `mac/mediaType.h` | MOOF, DCD (HD20), DiskCopy and raw floppy images, StuffIt archives | yes | no |
 | [cbm/](cbm/) | `BUILD_IEC` | `cbm/mediaType.h` | type detection only; images are handled by `lib/meatloaf` | yes | no |
 | [cx16/](cx16/) | `BUILD_CX16` | `cx16/mediaType.h` | none | legacy | no |
-| [h89/](h89/), [rc2014/](rc2014/) | `BUILD_H89`, `BUILD_RC2014` | `h89/mediaType.h`, `rc2014/mediaType.h` | IMG (RomWBW geometries) | legacy | no |
+| [rc2014/](rc2014/) | `BUILD_RC2014` | `rc2014/mediaType.h` | IMG (RomWBW geometries) | legacy | no |
 | [s100spi/](s100spi/) | none | `s100spi/mediaType.h` | DSK | unreachable: `media.h` gives `BUILD_S100` the `adam/` headers | no |
 
 ## How it fits
