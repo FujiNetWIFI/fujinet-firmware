@@ -288,38 +288,44 @@ size_t sioFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
     return sizeof(custom_details);
 }
 
-//  Make new disk and shove into device slot
-void sioFuji::sio_new_disk()
+success_is_true sioFuji::fujicore_read_new_disk_success(const FUJI_COMMAND_PACKET &packet,
+                                                        NewDiskRequest &req)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
     Debug_println("Fuji cmd: NEW DISK");
 
     struct
     {
-        unsigned short numSectors;
-        unsigned short sectorSize;
-        unsigned char hostSlot;
-        unsigned char deviceSlot;
+        u16le_t numSectors;
+        u16le_t sectorSize;
+        uint8_t hostSlot;
+        uint8_t deviceSlot;
         char filename[MAX_FILENAME_LEN];
-    } newDisk;
+    } __attribute__((packed)) newDisk;
 
     // Ask for details on the new disk to create
     if (!SYSTEM_BUS.transaction_get(&newDisk, sizeof(newDisk)))
     {
         Debug_print("sio_new_disk Bad checksum\n");
-        SYSTEM_BUS.transaction_error();
-        return;
+        RETURN_ERROR_AS_FALSE();
     }
     if (newDisk.deviceSlot >= MAX_DISK_DEVICES || newDisk.hostSlot >= MAX_HOSTS)
     {
         Debug_print("sio_new_disk Bad disk or host slot parameter\n");
-        SYSTEM_BUS.transaction_error();
-        return;
+        RETURN_ERROR_AS_FALSE();
     }
-    fujicmd_new_disk(newDisk.hostSlot, newDisk.deviceSlot, newDisk.filename, [&](fnFile *f) {
-        return _fnDisks[newDisk.deviceSlot].disk_dev.write_blank(f, newDisk.sectorSize,
-                                                                 newDisk.numSectors);
-    });
+
+    req.hostSlot = newDisk.hostSlot;
+    req.deviceSlot = newDisk.deviceSlot;
+    strlcpy(req.filename, newDisk.filename, sizeof(req.filename));
+    _newDiskSectorSize = newDisk.sectorSize;
+    _newDiskNumSectors = newDisk.numSectors;
+    RETURN_SUCCESS_AS_TRUE();
+}
+
+success_is_true sioFuji::fujicore_write_blank_success(uint8_t deviceSlot, fnFile *f)
+{
+    return _fnDisks[deviceSlot].disk_dev.write_blank(f, _newDiskSectorSize, _newDiskNumSectors);
 }
 
 // AUX1 is our index value (from 0 to SIO_HISPEED_LOWEST_INDEX, for FN-PC 0 .. 10, 16)
@@ -554,9 +560,6 @@ void sioFuji::sio_process(const FujiSIOPacket &packet)
         break;
     case CMD::FUJI_SET_BAUDRATE:
         sio_set_baudrate(packet);
-        break;
-    case CMD::FUJI_NEW_DISK:
-        sio_new_disk();
         break;
     case CMD::FUJI_ENABLE_UDPSTREAM:
         sio_enable_netstream(packet);

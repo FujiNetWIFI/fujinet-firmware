@@ -132,32 +132,6 @@ size_t lynxFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest
     return sizeof(custom_details);
 }
 
-//  Make new disk and shove into device slot
-void lynxFuji::comlynx_new_disk(const FujiLynxPacket &packet)
-{
-    uint8_t hs = packet.param(0);
-    uint8_t ds = packet.param(1);
-    u32le_t numBlocks;
-    const char *ptr;
-
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-
-    ptr = packet.dataAsString()->c_str();
-    memcpy(&numBlocks, ptr, sizeof(numBlocks));
-    ptr += sizeof(numBlocks);
-
-    Debug_printf("comlynx_new_disk numblocks: %lu\n", (unsigned long) numBlocks);
-    NEW_DISK_RESULT result = fujicore_new_disk(hs, ds, ptr, [&](fnFile *f) {
-        RETURN_SUCCESS_IF(_fnDisks[ds].disk_dev.write_blank(f, numBlocks).is_success());
-    });
-
-    // An existing image counts as created.
-    if (result == NEW_DISK_RESULT::CREATED || result == NEW_DISK_RESULT::EXISTS)
-        SYSTEM_BUS.transaction_success();
-    else
-        SYSTEM_BUS.transaction_error();
-}
-
 // Initializes base settings and adds our devices to the SIO bus
 void lynxFuji::setup()
 {

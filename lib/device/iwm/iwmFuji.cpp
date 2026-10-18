@@ -28,8 +28,6 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
         { CMD::FUJI_DISABLE_DEVICE, [this](const iwm_decoded_cmd_t &cmd)             { this->iwm_ctrl_disable_device(cmd); }},
         { CMD::FUJI_ENABLE_DEVICE, [this](const iwm_decoded_cmd_t &cmd)              { this->iwm_ctrl_enable_device(cmd); }},
 
-        { CMD::FUJI_NEW_DISK, [this](const iwm_decoded_cmd_t &cmd)                   { this->iwm_ctrl_new_disk(cmd); }},
-
 #ifdef DEV_RELAY_SLIP
         { (fujiCommandID_t) SP_CTRL_CLEAR_DISKII_SEEN, [this](const iwm_decoded_cmd_t &cmd)              { SYSTEM_BUS.transaction_error(SP_ERR::NODRIVE); }},
 #else
@@ -103,23 +101,38 @@ void iwmFuji::iwm_stat_get_heap()
     return;
 }
 
-//  Make new disk and shove into device slot
-void iwmFuji::iwm_ctrl_new_disk(const iwm_decoded_cmd_t &cmd)
+success_is_true iwmFuji::fujicore_read_new_disk_success(const FUJI_COMMAND_PACKET &packet,
+                                                        NewDiskRequest &req)
 {
-    uint8_t hs = cmd.param(0);
-    uint8_t ds = cmd.param(1);
-    uint8_t t = cmd.param(2);
-    u32le_t numBlocks;
-    const char *ptr;
+    req.hostSlot = packet.param(0);
+    req.deviceSlot = packet.param(1);
+    _newDiskHeaderType = packet.param(2);
 
-    ptr = cmd.dataAsString()->c_str();
-    memcpy(&numBlocks, ptr, sizeof(numBlocks));
-    ptr += sizeof(numBlocks);
+    struct
+    {
+        u32le_t numBlocks;
+        char filename[MAX_FILENAME_LEN];
+    } __attribute__((packed)) newDisk = {};
 
-    Debug_printf("iwm_ctrl_new_disk numblocks: %lu\n", (unsigned long) numBlocks);
-    NEW_DISK_RESULT result = fujicore_new_disk(hs, ds, ptr, [&](fnFile *f) {
-        RETURN_SUCCESS_IF(get_disk_dev(ds)->write_blank(f, numBlocks, t).is_success());
-    });
+    const std::optional<ByteBuffer> &data = packet.data();
+    if (data)
+        memcpy(&newDisk, data->data(), std::min(data->size(), sizeof(newDisk)));
+    newDisk.filename[sizeof(newDisk.filename) - 1] = '\0';
+
+    Debug_printf("iwm_ctrl_new_disk numblocks: %lu\n", (unsigned long) newDisk.numBlocks);
+    strlcpy(req.filename, newDisk.filename, sizeof(req.filename));
+    _newDiskNumBlocks = newDisk.numBlocks;
+    RETURN_SUCCESS_AS_TRUE();
+}
+
+success_is_true iwmFuji::fujicore_write_blank_success(uint8_t deviceSlot, fnFile *f)
+{
+    RETURN_SUCCESS_IF(get_disk_dev(deviceSlot)->write_blank(f, _newDiskNumBlocks,
+                                                            _newDiskHeaderType).is_success());
+}
+
+void iwmFuji::fujicore_new_disk_reply(NEW_DISK_RESULT result)
+{
     if (result != NEW_DISK_RESULT::CREATED)
         return;
 

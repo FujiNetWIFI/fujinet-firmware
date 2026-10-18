@@ -13,13 +13,16 @@ private:
 #ifdef ESP_PLATFORM
     drivewireCassette _cassetteDev;
 #endif
+    uint8_t _newDiskNumDisks = 0;
 
 protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
     void fujidev_copy_file(const FUJI_COMMAND_PACKET &packet) override;
+    success_is_true fujicore_read_new_disk_success(const FUJI_COMMAND_PACKET &packet,
+                                                   NewDiskRequest &req) override;
+    success_is_true fujicore_write_blank_success(uint8_t deviceSlot, fnFile *f) override;
 
-    void new_disk();
     void random();
 
     void shutdown() override;

@@ -108,18 +108,18 @@ void drivewireFuji::shutdown()
         _fnDisks[i].disk_dev.unmount();
 }
 
-//  Make new disk and shove into device slot
-void drivewireFuji::new_disk()
+success_is_true drivewireFuji::fujicore_read_new_disk_success(const FUJI_COMMAND_PACKET &packet,
+                                                              NewDiskRequest &req)
 {
     Debug_println("Fuji cmd: NEW DISK");
 
     struct
     {
-        unsigned char numDisks;
-        unsigned char hostSlot;
-        unsigned char deviceSlot;
+        uint8_t numDisks;
+        uint8_t hostSlot;
+        uint8_t deviceSlot;
         char filename[MAX_FILENAME_LEN];
-    } newDisk;
+    } __attribute__((packed)) newDisk;
 
     SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
     SYSTEM_BUS.transaction_get(&newDisk, sizeof(newDisk));
@@ -129,9 +129,16 @@ void drivewireFuji::new_disk()
     Debug_printf("deviceSl: %u\n",newDisk.deviceSlot);
     Debug_printf("filename: %s\n",newDisk.filename);
 
-    fujicmd_new_disk(newDisk.hostSlot, newDisk.deviceSlot, newDisk.filename, [&](fnFile *f) {
-        return _fnDisks[newDisk.deviceSlot].disk_dev.write_blank(f, newDisk.numDisks);
-    });
+    req.hostSlot = newDisk.hostSlot;
+    req.deviceSlot = newDisk.deviceSlot;
+    strlcpy(req.filename, newDisk.filename, sizeof(req.filename));
+    _newDiskNumDisks = newDisk.numDisks;
+    RETURN_SUCCESS_AS_TRUE();
+}
+
+success_is_true drivewireFuji::fujicore_write_blank_success(uint8_t deviceSlot, fnFile *f)
+{
+    return _fnDisks[deviceSlot].disk_dev.write_blank(f, _newDiskNumDisks);
 }
 
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
@@ -190,9 +197,6 @@ bool drivewireFuji::processCommand(const FujiDWPacket &packet)
 
     switch (packet.command())
     {
-    case CMD::FUJI_NEW_DISK:
-        new_disk();
-        break;
     default:
         return false;
     }

@@ -16,18 +16,23 @@ class adamFuji : public fujiDevice
 {
 private:
     bool new_disk_completed = false;
+    uint32_t _newDiskNumBlocks = 0;
 
 protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
 
-    void adamnet_new_disk(const FujiAdamPacket &packet);               // 0xE7
     void adamnet_enable_device(const FujiAdamPacket &packet);          // 0xD5
     void adamnet_disable_device(const FujiAdamPacket &packet);         // 0xD4
     void adamnet_get_time();               // 0xD2
     void adamnet_device_enable_status(const FujiAdamPacket &packet);   // 0xD1
 
     void adamnet_test_command();
+
+    success_is_true fujicore_read_new_disk_success(const FUJI_COMMAND_PACKET &packet,
+                                                   NewDiskRequest &req) override;
+    success_is_true fujicore_write_blank_success(uint8_t deviceSlot, fnFile *f) override;
+    void fujicore_new_disk_reply(NEW_DISK_RESULT result) override;
 
     void adamnet_control_send(const FujiAdamPacket &packet) override;
 

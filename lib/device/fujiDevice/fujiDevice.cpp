@@ -140,6 +140,9 @@ fujiDevice::fujiDevice(unsigned int numDisk, std::string extension,
         { CMD::FUJI_COPY_FILE, [this](const FUJI_COMMAND_PACKET &packet) {
             fujidev_copy_file(packet);
         } },
+        { CMD::FUJI_NEW_DISK, [this](const FUJI_COMMAND_PACKET &packet) {
+            fujidev_new_disk(packet);
+        } },
         { CMD::FUJI_GENERATE_GUID, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_generate_guid();
         } },
@@ -1171,16 +1174,14 @@ void fujiDevice::fujidev_copy_file(const FUJI_COMMAND_PACKET &packet)
     fujicmd_copy_file_success(source, dest, packet.dataAsString().value_or(""));
 }
 
-NEW_DISK_RESULT fujiDevice::fujicore_new_disk(uint8_t hostSlot, uint8_t deviceSlot,
-                                              const char *filename,
-                                              const BlankImageWriter &write_blank)
+NEW_DISK_RESULT fujiDevice::fujicore_new_disk(const NewDiskRequest &req)
 {
-    fujiDisk &disk = _fnDisks[deviceSlot];
-    fujiHost &host = _fnHosts[hostSlot];
+    fujiDisk &disk = _fnDisks[req.deviceSlot];
+    fujiHost &host = _fnHosts[req.hostSlot];
 
-    disk.host_slot = hostSlot;
+    disk.host_slot = req.hostSlot;
     disk.access_mode = DISK_ACCESS_MODE_WRITE;
-    strlcpy(disk.filename, filename, sizeof(disk.filename));
+    strlcpy(disk.filename, req.filename, sizeof(disk.filename));
 
     if (host.file_exists(disk.filename))
     {
@@ -1195,9 +1196,9 @@ NEW_DISK_RESULT fujiDevice::fujicore_new_disk(uint8_t hostSlot, uint8_t deviceSl
         return NEW_DISK_RESULT::OPEN_FAILED;
     }
 
-    Debug_printf("Creating file %s on host slot %u for disk slot %u\n", disk.filename, hostSlot,
-                 deviceSlot);
-    success_is_true written = write_blank(disk.fileh);
+    Debug_printf("Creating file %s on host slot %u for disk slot %u\n", disk.filename,
+                 req.hostSlot, req.deviceSlot);
+    success_is_true written = fujicore_write_blank_success(req.deviceSlot, disk.fileh);
     fnio::fclose(disk.fileh);
 
     if (written.is_error())
@@ -1210,16 +1211,33 @@ NEW_DISK_RESULT fujiDevice::fujicore_new_disk(uint8_t hostSlot, uint8_t deviceSl
     return NEW_DISK_RESULT::CREATED;
 }
 
-NEW_DISK_RESULT fujiDevice::fujicmd_new_disk(uint8_t hostSlot, uint8_t deviceSlot,
-                                             const char *filename,
-                                             const BlankImageWriter &write_blank)
+void fujiDevice::fujidev_new_disk(const FUJI_COMMAND_PACKET &packet)
 {
-    NEW_DISK_RESULT result = fujicore_new_disk(hostSlot, deviceSlot, filename, write_blank);
+    NewDiskRequest req;
+    NEW_DISK_RESULT result = NEW_DISK_RESULT::REJECTED;
+
+    if (fujicore_read_new_disk_success(packet, req).is_success())
+        result = fujicore_new_disk(req);
+    fujicore_new_disk_reply(result);
+}
+
+success_is_true fujiDevice::fujicore_read_new_disk_success(const FUJI_COMMAND_PACKET &packet,
+                                                           NewDiskRequest &req)
+{
+    RETURN_ERROR_AS_FALSE();
+}
+
+success_is_true fujiDevice::fujicore_write_blank_success(uint8_t deviceSlot, fnFile *f)
+{
+    RETURN_ERROR_AS_FALSE();
+}
+
+void fujiDevice::fujicore_new_disk_reply(NEW_DISK_RESULT result)
+{
     if (result == NEW_DISK_RESULT::CREATED)
         SYSTEM_BUS.transaction_success();
     else
         SYSTEM_BUS.transaction_error();
-    return result;
 }
 
 success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot,

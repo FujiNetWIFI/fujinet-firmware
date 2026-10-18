@@ -9,6 +9,8 @@
 class rs232Fuji : public fujiDevice
 {
 private:
+    uint16_t _newDiskSectorSize = 0;
+    uint16_t _newDiskNumSectors = 0;
 
 protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
@@ -24,8 +26,11 @@ protected:
     }
 
     void rs232_net_set_ssid(bool save);    // 0xFB
-    void rs232_new_disk();                 // 0xE7
     void rs232_test();                     // 0x00
+
+    success_is_true fujicore_read_new_disk_success(const FUJI_COMMAND_PACKET &packet,
+                                                   NewDiskRequest &req) override;
+    success_is_true fujicore_write_blank_success(uint8_t deviceSlot, fnFile *f) override;
 
 public:
     rs232Fuji();
