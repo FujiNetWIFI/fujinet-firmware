@@ -850,7 +850,7 @@ void s100spiNetwork::create_devicespec(string d)
 void s100spiNetwork::create_url_parser()
 {
     std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
-    urlParser = PeoplesUrlParser::parseURL(url);
+    urlParser = std::make_unique<PeoplesUrlParser>(url);
 }
 
 void s100spiNetwork::parse_and_instantiate_protocol(string d)
@@ -869,13 +869,13 @@ void s100spiNetwork::parse_and_instantiate_protocol(string d)
     }
 
 #ifdef VERBOSE_PROTOCOL
-    Debug_printf("::parse_and_instantiate_protocol -> spec: >%s<, url: >%s<\r\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
+    Debug_printf("::parse_and_instantiate_protocol -> spec: >%s<, url: >%s<\r\n", deviceSpec.c_str(), urlParser->getFullURL().c_str());
 #endif
 
     // Instantiate protocol object.
     if (!instantiate_protocol())
     {
-        Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
+        Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->getFullURL().c_str());
         statusByte.byte = 0x00;
         statusByte.bits.client_error = true;
         err = DEVICE_STATUS_GENERAL;

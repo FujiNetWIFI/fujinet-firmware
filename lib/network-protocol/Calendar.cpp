@@ -157,9 +157,9 @@ bool NetworkProtocolCalendar::parse_devicespec(const std::string &rawUrl)
 {
     // PeoplesUrlParser cannot be used for the path here. processAuthority()
     // splits on the first '@', which silently destroys a Google calendar id like
-    // "abc@group.calendar.google.com", and cleanPath() canonicalises away parts
-    // of an opaque provider selector. mRawUrl is preserved verbatim by
-    // resetURL(), so parse that instead.
+    // "abc@group.calendar.google.com", and cleanPath() canonicalizes away parts
+    // of an opaque provider selector. getFullURL() is the URL verbatim, so parse
+    // that instead.
     std::string rest = rawUrl;
     size_t p = rest.find("://");
     if (p != std::string::npos) rest = rest.substr(p + 3);
@@ -365,7 +365,7 @@ fujiError_t NetworkProtocolCalendar::open(PeoplesUrlParser *urlParser, fileAcces
     if (access == ACCESS_MODE::READWRITE)
         Debug_printf("Calendar: aux1=READWRITE treated as READ\r\n");
 
-    if (!parse_devicespec(urlParser->mRawUrl))
+    if (!parse_devicespec(urlParser->getFullURL()))
     {
         error = NDEV_STATUS::INVALID_DEVICESPEC;
         return FUJI_ERROR::UNSPECIFIED;

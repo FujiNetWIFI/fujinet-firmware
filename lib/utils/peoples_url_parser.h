@@ -35,8 +35,10 @@ private:
 
 protected:
     PeoplesUrlParser() {};
+    void resetURL(const std::string u);
 
 public:
+    explicit PeoplesUrlParser(const std::string &u) { resetURL(u); }
     ~PeoplesUrlParser() {};
 
     std::string mRawUrl;
@@ -58,6 +60,7 @@ public:
     std::string base(void);
 
     uint16_t getPort();
+    const std::string &getFullURL() const { return mRawUrl; }
 
     /**
      * @brief Look up a key in the URL query string ("a=1&b=2&...").
@@ -67,8 +70,6 @@ public:
      */
     std::string queryParam(const std::string &key, const std::string &def = "");
 
-    static std::unique_ptr<PeoplesUrlParser> parseURL(const std::string &u);
-    void resetURL(const std::string u);
     std::string rebuildUrl(void);
     bool isValidUrl();
 

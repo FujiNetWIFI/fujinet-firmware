@@ -226,14 +226,6 @@ std::string PeoplesUrlParser::queryParam(const std::string &key, const std::stri
 }
 
 
-std::unique_ptr<PeoplesUrlParser> PeoplesUrlParser::parseURL(const std::string &u) {
-    // Directly creating a unique_ptr using a private constructor workaround. If direct constructor was available, this wouldn't be needed
-    struct MakeUniqueEnabler : public PeoplesUrlParser {};
-    auto parser = std::make_unique<MakeUniqueEnabler>();
-    parser->resetURL(u);
-    return parser;
-}
-
 void PeoplesUrlParser::resetURL(const std::string u) {
 
     if ( u.empty() )
