@@ -57,11 +57,6 @@
 # include "rc2014/mediaTypeIMG.h"
 #endif
 
-#ifdef BUILD_H89
-# include "h89/mediaType.h"
-# include "h89/mediaTypeIMG.h"
-#endif
-
 #ifdef BUILD_COCO
 # include "drivewire/mediaType.h"
 # include "drivewire/mediaTypeDSK.h"

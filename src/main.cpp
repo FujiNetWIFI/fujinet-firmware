@@ -386,27 +386,6 @@ void main_setup(int argc, char *argv[])
 
 #endif
 
-#ifdef BUILD_H89
-    theFuji->setup();
-    SYSTEM_BUS.setup();
-
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
-    H89Printer::printer_type ptype = Config.get_printer_type(0);
-    if (ptype == H89Printer::printer_type::PRINTER_INVALID)
-        ptype = H89Printer::printer_type::PRINTER_FILE_TRIM;
-
-    Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
-
-    H89Printer *ptr = new H89Printer(ptrfs, ptype);
-    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
-
-    // SYSTEM_BUS.addDevice(ptr, H89_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
-
-    // H89R = new H89Modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
-    // SYSTEM_BUS.addDevice(H89R, H89_DEVICEID_MODEM); // R:
-
-#endif
-
 #ifdef BUILD_ADAM
     theFuji->setup();
     SYSTEM_BUS.setup();

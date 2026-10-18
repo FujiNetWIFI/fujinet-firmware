@@ -63,11 +63,6 @@ enum disk_access_flags_t {
 #define DISK_DEVICE rc2014Disk
 #endif
 
-#ifdef BUILD_H89
-#include "h89/disk.h"
-#define DISK_DEVICE H89Disk
-#endif
-
 #ifdef BUILD_COCO
 #include "drivewire/disk.h"
 #define DISK_DEVICE drivewireDisk

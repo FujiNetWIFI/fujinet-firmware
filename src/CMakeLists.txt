@@ -9,7 +9,6 @@ set(INCLUDES
     ${CMAKE_SOURCE_DIR}/lib/bus/comlynx
     ${CMAKE_SOURCE_DIR}/lib/bus/cx16_i2c
     ${CMAKE_SOURCE_DIR}/lib/bus/drivewire
-    ${CMAKE_SOURCE_DIR}/lib/bus/h89
     ${CMAKE_SOURCE_DIR}/lib/bus/iec
     ${CMAKE_SOURCE_DIR}/lib/bus/iwm
     ${CMAKE_SOURCE_DIR}/lib/bus/mac
@@ -35,7 +34,6 @@ set(INCLUDES
     ${CMAKE_SOURCE_DIR}/lib/device/comlynx
     ${CMAKE_SOURCE_DIR}/lib/device/cx16_i2c
     ${CMAKE_SOURCE_DIR}/lib/device/drivewire
-    ${CMAKE_SOURCE_DIR}/lib/device/h89
     ${CMAKE_SOURCE_DIR}/lib/device/iec
     ${CMAKE_SOURCE_DIR}/lib/device/iwm
     ${CMAKE_SOURCE_DIR}/lib/device/mac
@@ -92,7 +90,6 @@ FILE(GLOB_RECURSE SOURCES
     ${CMAKE_SOURCE_DIR}/lib/bus/comlynx/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/cx16_i2c/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/drivewire/*.cpp
-    ${CMAKE_SOURCE_DIR}/lib/bus/h89/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/iec/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/iwm/*.c
     ${CMAKE_SOURCE_DIR}/lib/bus/iwm/*.cpp
@@ -118,7 +115,6 @@ FILE(GLOB_RECURSE SOURCES
     ${CMAKE_SOURCE_DIR}/lib/device/comlynx/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/cx16_i2c/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/drivewire/*.cpp
-    ${CMAKE_SOURCE_DIR}/lib/device/h89/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/iec/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/iwm/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/device/mac/*.cpp
