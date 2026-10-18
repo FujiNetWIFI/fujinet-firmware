@@ -21,15 +21,15 @@ class MLMFileSystem: public MFileSystem
             return nullptr;
 
         //Debug_printv("MLFileSystem::getFile(%s)", path.c_str());
-        auto urlParser = std::make_unique<PeoplesUrlParser>( path );
+        PeoplesUrlParser urlParser( path );
         //std::string code = mstr::toUTF8(urlParser->name);
 
         //Debug_printv("url[%s]", urlParser.name.c_str());
-        std::string ml_url = "https://api.meatloaf.cc/?" + urlParser->name;
-        if ( urlParser->query.size() > 0)
-            ml_url += "&" + urlParser->query;
-        if ( urlParser->fragment.size() > 0)
-            ml_url += "#" + urlParser->fragment;
+        std::string ml_url = "https://api.meatloaf.cc/?" + urlParser.name;
+        if ( urlParser.query.size() > 0)
+            ml_url += "&" + urlParser.query;
+        if ( urlParser.fragment.size() > 0)
+            ml_url += "#" + urlParser.fragment;
         //Debug_printv("ml_url[%s]", ml_url.c_str());
         
         //Debug_printv("url[%s]", ml_url.c_str());
