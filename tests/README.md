@@ -32,8 +32,9 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `CasFSKLoaderTests.cpp` | The value-to-symbol encoder in `casFSK.h` and the progressive loader in `lib/media/atari/casFSKLoader.cpp` (`casfskloader_tests`) |
 | `CassetteFSKReadTests.cpp` | `lib/device/sio/cassetteFSKRead.cpp` over a fake remote file that loses its position (`cassettefskread_tests`) |
 | `FSKTestImages.h` | Synthetic A8CAS images, a fake file and an encoder oracle shared by the two FSK test files above |
-| `TCPProtocolTests.cpp` | `lib/network-protocol/TCP.cpp` and `Telnet.cpp` reads, writes, ACCEPT and CLOSE CLIENT over a fake socket (`tcp_protocol_tests`) |
-| `tcp_harness/` | Stand-ins for `fnTcpClient.h`, `fnTcpServer.h` and `bus.h`, backed by the fake peer in `fnTcpClient.h`; used by `tcp_protocol_tests` |
+| `TCPProtocolTests.cpp` | `lib/network-protocol/TCP.cpp` reads, writes, ACCEPT and CLOSE CLIENT over a fake socket (`tcp_protocol_tests`) |
+| `TelnetProtocolTests.cpp` | `lib/network-protocol/Telnet.cpp` reads, writes and separate channels over the same fake socket (`telnet_protocol_tests`) |
+| `tcp_harness/` | Stand-ins for `fnTcpClient.h`, `fnTcpServer.h` and `bus.h`, backed by the fake peer in `fnTcpClient.h`; used by `tcp_protocol_tests` and `telnet_protocol_tests` |
 | `check_no_build_ifdefs.py` | Policy: no `BUILD_*` macro in a preprocessor conditional under `lib/device/fujiDevice`, `lib/device/fujiClock` or `lib/device/NDevice` (`no_build_ifdefs_in_fujidevice`) |
 | `check_no_system_bus.py` | Policy: `SYSTEM_BUS` must not appear in any source under `lib/media` (`no_system_bus_in_media`) |
 | `unsit.c`, `stuffit_test.sh` | Host CLI over `lib/stuffit` and a comparison against `unar` (`stuffit_sample_tests`; registered only with `SIT_SAMPLES_DIR`) |

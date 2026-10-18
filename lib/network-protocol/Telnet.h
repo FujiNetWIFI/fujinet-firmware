@@ -6,7 +6,7 @@
 #define NETWORKPROTOCOL_TELNET
 
 #include "TCP.h"
-
+#include "libtelnet.h"
 
 class NetworkProtocolTELNET : public NetworkProtocolTCP
 {
@@ -70,6 +70,7 @@ public:
     int naws_h = 0;
 
 private:
+    telnet_t *_telnet = nullptr;
     bool _sendFailed = false;
 };
 

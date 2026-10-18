@@ -11,14 +11,15 @@ Stand-ins for the socket headers the N: TCP and TELNET protocols include, so the
 | `bus.h` | `lib/bus/bus.h` | Nothing; `Protocol.h` includes it |
 
 ## How it fits
-- Used by `tcp_protocol_tests` (`tests/TCPProtocolTests.cpp`), which defines `fake_peer` and
-  links the real `TCP.cpp`, `Telnet.cpp` and `Protocol.cpp` from
-  [lib/network-protocol/](../../lib/network-protocol/) and libtelnet from [lib/telnet/](../../lib/telnet/).
+- Used by `tcp_protocol_tests` (`tests/TCPProtocolTests.cpp`) and `telnet_protocol_tests`
+  (`tests/TelnetProtocolTests.cpp`); each defines `fake_peer` and links the real `TCP.cpp` and
+  `Protocol.cpp` from [lib/network-protocol/](../../lib/network-protocol/), and the TELNET one
+  `Telnet.cpp` and libtelnet from [lib/telnet/](../../lib/telnet/).
 
 ## Build
 PC only. `tests/CMakeLists.txt` puts this directory first on the include path of
-`tcp_protocol_tests`, so these headers win over the real ones. Do not add `lib/tcpip` or
-`lib/bus` to that target.
+`tcp_protocol_tests` and `telnet_protocol_tests`, so these headers win over the real ones. Do
+not add `lib/tcpip` or `lib/bus` to either target.
 
 ## Notes
 What it does not verify: real sockets, lwIP or ESP-IDF behavior, timeouts, or the bus side of a

@@ -25,8 +25,6 @@ static const telnet_telopt_t telopts[] = {
     {TELNET_TELOPT_MSSP, TELNET_WONT, TELNET_DO},
     {-1, 0, 0}};
 
-static telnet_t *telnet;
-
 static void _event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data)
 {
     NetworkProtocolTELNET *protocol = (NetworkProtocolTELNET *)user_data;
@@ -90,7 +88,7 @@ NetworkProtocolTELNET::NetworkProtocolTELNET(std::string *rx_buf, std::string *t
 {
     Debug_printf("NetworkProtocolTELNET::ctor\r\n");
     server = nullptr;
-    telnet = telnet_init(telopts, _event_handler, 0, this);
+    _telnet = telnet_init(telopts, _event_handler, 0, this);
     newRxLen = 0;
 }
 
@@ -101,9 +99,10 @@ NetworkProtocolTELNET::~NetworkProtocolTELNET()
 {
     Debug_printf("NetworkProtocolTELNET::dtor\r\n");
 
-    if (telnet != nullptr)
+    if (_telnet != nullptr)
     {
-        telnet_free(telnet);
+        telnet_free(_telnet);
+        _telnet = nullptr;
     }
     newRxLen = 0;
 }
@@ -134,7 +133,7 @@ fujiError_t NetworkProtocolTELNET::open(PeoplesUrlParser *urlParser,
     // Only offer NAWS when the app actually gave a window size. With no size we
     // never mention NAWS, so negotiation is byte-for-byte the old behavior.
     if (err == FUJI_ERROR::NONE && naws_w > 0 && naws_h > 0)
-        telnet_negotiate(telnet, TELNET_WILL, TELNET_TELOPT_NAWS);
+        telnet_negotiate(_telnet, TELNET_WILL, TELNET_TELOPT_NAWS);
 
     return err;
 }
@@ -169,7 +168,7 @@ fujiError_t NetworkProtocolTELNET::read(unsigned short len)
             return FUJI_ERROR::UNSPECIFIED;
         }
 
-        telnet_recv(telnet, (char *)newData.data(), actual_len);
+        telnet_recv(_telnet, (char *)newData.data(), actual_len);
 
         // Translate the freshly-read bytes exactly once.
         error = NDEV_STATUS::SUCCESS;
@@ -205,7 +204,7 @@ fujiError_t NetworkProtocolTELNET::write(unsigned short len)
 
     // Do the write to client socket.
     _sendFailed = false;
-    telnet_send(telnet, transmitBuffer->data(), len);
+    telnet_send(_telnet, transmitBuffer->data(), len);
     transmitBuffer->clear();
 
     if (_sendFailed)
