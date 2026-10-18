@@ -1,10 +1,10 @@
 /* FujiNet Hardware Pin Mapping */
 #ifdef PINMAP_H89
 
-// H89-ESP32 card, schematic v1.28: an 82C55 in Mode 2 at H89 port 0xD0, port A
+// H89-ESP32 card: an 82C55 in Mode 2 at H89 port 0xD0, port A
 // through a 74LVC245 to the ESP32. Builds as BUILD_RS232; PIN_PPI_OBF selects
-// PPIChannel in lib/bus/rs232/rs232.h. Self-contained: common.h would put a
-// button on IO0, card detect on IO15 and the DAC on IO25, all bus lines here.
+// PPIChannel in lib/bus/rs232/rs232.h. Self-contained: common.h would put
+// card detect on IO15 and the DAC on IO25, both bus lines here.
 
 /* SD Card - fnFsSD.cpp */
 #define PIN_CARD_DETECT         GPIO_NUM_NC
@@ -20,8 +20,7 @@
 
 /* Buttons - none; left undefined so keys.cpp and fnSystem treat them as NC */
 
-/* LEDs - leds.cpp. IO22's LED is active high but leds.cpp drives these active
-   low, so it stays unused */
+/* LEDs - none on the card */
 #define PIN_LED_WIFI            GPIO_NUM_NC
 #define PIN_LED_BUS             GPIO_NUM_NC
 #define PIN_LED_BT              GPIO_NUM_NC
@@ -39,7 +38,7 @@
 #define PIN_PPI_ACK             GPIO_NUM_15 // (OUT) PC6 /ACK
 #define PIN_PPI_IBF             GPIO_NUM_34 // (IN) PC5 IBF
 #define PIN_PPI_OBF             GPIO_NUM_35 // (IN) PC7 /OBF
-#define PIN_PPI_DIR             GPIO_NUM_2  // (IN) PC0, 245 DIR, 1 = H89->ESP32
-#define PIN_PPI_OE              GPIO_NUM_0  // (IN) PC1, 245 /OE, also the boot strap
+#define PIN_PPI_DIR             GPIO_NUM_22 // (IN) PC0, 245 DIR, 1 = H89->ESP32
+#define PIN_PPI_OE              GPIO_NUM_21 // (IN) PC1, 245 /OE
 
 #endif /* PINMAP_H89 */
