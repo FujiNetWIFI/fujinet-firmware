@@ -145,7 +145,7 @@ success_is_true systemBus::transaction_get(void *data, size_t len)
   _transaction_state = TRANS_STATE::DID_GET;
   auto spanData = command.data().value();
   len = std::min(len, spanData.size());
-  std::copy(spanData.begin(), spanData.end(), static_cast<uint8_t *>(data));
+  std::copy(spanData.begin(), spanData.begin() + len, static_cast<uint8_t *>(data));
   RETURN_SUCCESS_AS_TRUE();
 }
 
