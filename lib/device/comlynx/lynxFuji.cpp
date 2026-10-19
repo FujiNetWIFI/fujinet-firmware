@@ -132,6 +132,12 @@ size_t lynxFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest
     return sizeof(custom_details);
 }
 
+// Lynx can't create disks.
+void lynxFuji::fujicmd_new_disk()
+{
+    SYSTEM_BUS.transaction_error();
+}
+
 // Initializes base settings and adds our devices to the SIO bus
 void lynxFuji::setup()
 {

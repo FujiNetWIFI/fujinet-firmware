@@ -142,6 +142,12 @@ void logResponse(const void* data, size_t length)
 }
 
 
+// IEC can't create disks.
+void iecFuji::fujicmd_new_disk()
+{
+    SYSTEM_BUS.transaction_error();
+}
+
 bool iecFuji::processCommand(const FUJI_COMMAND_PACKET &packet)
 {
   bool handled = false;

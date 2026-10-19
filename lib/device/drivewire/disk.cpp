@@ -223,10 +223,10 @@ uint8_t drivewireDisk::get_media_status()
     return _media->status();
 }
 
-success_is_true drivewireDisk::write_blank(fnFile *f, uint8_t numDisks)
+success_is_true drivewireDisk::write_blank(fnFile *f, const NewDiskRequest &req)
 {
     uint8_t b[512];
-    size_t n = numDisks * 315;
+    size_t n = req.numDisks * 315;
 
     Debug_printf("write_blank num_disks: %u\n", n);
 

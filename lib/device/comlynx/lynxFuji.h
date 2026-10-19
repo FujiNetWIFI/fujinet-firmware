@@ -26,6 +26,7 @@ protected:
                                            uint8_t maxlen) override;
 
     void fujicmd_get_time();                             // 0xD2
+    void fujicmd_new_disk() override;
     void fujicmd_enable_netstream(int port, size_t host_payload_len);
 
     void comlynx_process(const FujiLynxPacket &packet) override;

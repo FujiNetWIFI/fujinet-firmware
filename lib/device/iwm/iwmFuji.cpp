@@ -101,47 +101,6 @@ void iwmFuji::iwm_stat_get_heap()
     return;
 }
 
-success_is_true iwmFuji::fujicore_read_new_disk_success(const FUJI_COMMAND_PACKET &packet,
-                                                        NewDiskRequest &req)
-{
-    req.hostSlot = packet.param(0);
-    req.deviceSlot = packet.param(1);
-    _newDiskHeaderType = packet.param(2);
-
-    struct
-    {
-        u32le_t numBlocks;
-        char filename[MAX_FILENAME_LEN];
-    } __attribute__((packed)) newDisk = {};
-
-    const std::optional<ByteBuffer> &data = packet.data();
-    if (data)
-        memcpy(&newDisk, data->data(), std::min(data->size(), sizeof(newDisk)));
-    newDisk.filename[sizeof(newDisk.filename) - 1] = '\0';
-
-    Debug_printf("iwm_ctrl_new_disk numblocks: %lu\n", (unsigned long) newDisk.numBlocks);
-    strlcpy(req.filename, newDisk.filename, sizeof(req.filename));
-    _newDiskNumBlocks = newDisk.numBlocks;
-    RETURN_SUCCESS_AS_TRUE();
-}
-
-success_is_true iwmFuji::fujicore_write_blank_success(uint8_t deviceSlot, fnFile *f)
-{
-    RETURN_SUCCESS_IF(get_disk_dev(deviceSlot)->write_blank(f, _newDiskNumBlocks,
-                                                            _newDiskHeaderType).is_success());
-}
-
-void iwmFuji::fujicore_new_disk_reply(NEW_DISK_RESULT result)
-{
-    if (result != NEW_DISK_RESULT::CREATED)
-        return;
-
-    // Persist slots
-    populate_config_from_slots();
-    Config.mark_dirty();
-    Config.save();
-}
-
 void iwmFuji::iwm_ctrl_enable_device(const iwm_decoded_cmd_t &cmd)
 {
   fujiDeviceID_t d = (fujiDeviceID_t) cmd.param8(0);

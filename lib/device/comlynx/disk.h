@@ -33,7 +33,13 @@ public:
                       disk_access_flags_t access_mode,
                       mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
-    error_is_true write_blank(FILE *f, uint32_t numBlocks);
+    struct NewDiskRequest {
+        uint8_t hostSlot;
+        uint8_t deviceSlot;
+        u32le_t numBlocks;
+        char filename[MAX_FILENAME_LEN];
+    } __attribute__((packed));
+    error_is_true write_blank(FILE *f, const NewDiskRequest &req);
     virtual void reset() override;
 
     mediatype_t mediatype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_mediatype; };

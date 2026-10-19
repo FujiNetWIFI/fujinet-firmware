@@ -141,7 +141,7 @@ fujiDevice::fujiDevice(unsigned int numDisk, std::string extension,
             fujidev_copy_file(packet);
         } },
         { CMD::FUJI_NEW_DISK, [this](const FUJI_COMMAND_PACKET &packet) {
-            fujidev_new_disk(packet);
+            fujicmd_new_disk();
         } },
         { CMD::FUJI_GENERATE_GUID, [this](const FUJI_COMMAND_PACKET &packet) {
             fujicmd_generate_guid();
@@ -1174,8 +1174,18 @@ void fujiDevice::fujidev_copy_file(const FUJI_COMMAND_PACKET &packet)
     fujicmd_copy_file_success(source, dest, packet.dataAsString().value_or(""));
 }
 
-NEW_DISK_RESULT fujiDevice::fujicore_new_disk(const NewDiskRequest &req)
+success_is_true fujiDevice::fujicore_new_disk_success(const DISK_DEVICE::NewDiskRequest &req)
 {
+    if (validate_host_slot(req.hostSlot, "new disk").is_error()
+        || validate_device_slot(req.deviceSlot, "new disk").is_error())
+        RETURN_ERROR_AS_FALSE();
+
+    if (req.filename[0] == '\0')
+    {
+        Debug_print("fujicore_new_disk No filename\n");
+        RETURN_ERROR_AS_FALSE();
+    }
+
     fujiDisk &disk = _fnDisks[req.deviceSlot];
     fujiHost &host = _fnHosts[req.hostSlot];
 
@@ -1186,58 +1196,48 @@ NEW_DISK_RESULT fujiDevice::fujicore_new_disk(const NewDiskRequest &req)
     if (host.file_exists(disk.filename))
     {
         Debug_printf("fujicore_new_disk File exists: \"%s\"\n", disk.filename);
-        return NEW_DISK_RESULT::EXISTS;
+        RETURN_ERROR_AS_FALSE();
     }
 
     disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), FILE_WRITE);
     if (disk.fileh == nullptr)
     {
         Debug_printf("fujicore_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
-        return NEW_DISK_RESULT::OPEN_FAILED;
+        RETURN_ERROR_AS_FALSE();
     }
 
     Debug_printf("Creating file %s on host slot %u for disk slot %u\n", disk.filename,
                  req.hostSlot, req.deviceSlot);
-    success_is_true written = fujicore_write_blank_success(req.deviceSlot, disk.fileh);
+    auto written = get_disk_dev(req.deviceSlot)->write_blank(disk.fileh, req);
     fnio::fclose(disk.fileh);
 
     if (written.is_error())
     {
         Debug_print("fujicore_new_disk Data write failed\n");
-        return NEW_DISK_RESULT::WRITE_FAILED;
+        RETURN_ERROR_AS_FALSE();
     }
 
     Debug_print("fujicore_new_disk succeeded\n");
-    return NEW_DISK_RESULT::CREATED;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
-void fujiDevice::fujidev_new_disk(const FUJI_COMMAND_PACKET &packet)
+void fujiDevice::fujicmd_new_disk()
 {
-    NewDiskRequest req;
-    NEW_DISK_RESULT result = NEW_DISK_RESULT::REJECTED;
+    DISK_DEVICE::NewDiskRequest req = {};
 
-    if (fujicore_read_new_disk_success(packet, req).is_success())
-        result = fujicore_new_disk(req);
-    fujicore_new_disk_reply(result);
-}
-
-success_is_true fujiDevice::fujicore_read_new_disk_success(const FUJI_COMMAND_PACKET &packet,
-                                                           NewDiskRequest &req)
-{
-    RETURN_ERROR_AS_FALSE();
-}
-
-success_is_true fujiDevice::fujicore_write_blank_success(uint8_t deviceSlot, fnFile *f)
-{
-    RETURN_ERROR_AS_FALSE();
-}
-
-void fujiDevice::fujicore_new_disk_reply(NEW_DISK_RESULT result)
-{
-    if (result == NEW_DISK_RESULT::CREATED)
-        SYSTEM_BUS.transaction_success();
-    else
+    Debug_println("Fuji cmd: NEW DISK");
+    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
+    if (SYSTEM_BUS.transaction_get(&req, sizeof(req)).is_error())
+    {
         SYSTEM_BUS.transaction_error();
+        return;
+    }
+    req.filename[sizeof(req.filename) - 1] = '\0';
+
+    if (fujicore_new_disk_success(req).is_error())
+        SYSTEM_BUS.transaction_error();
+    else
+        SYSTEM_BUS.transaction_success();
 }
 
 success_is_true fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot,

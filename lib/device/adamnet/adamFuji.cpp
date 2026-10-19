@@ -107,45 +107,6 @@ size_t adamFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest
     return sizeof(custom_details);
 }
 
-success_is_true adamFuji::fujicore_read_new_disk_success(const FUJI_COMMAND_PACKET &packet,
-                                                         NewDiskRequest &req)
-{
-    req.hostSlot = packet.param(0);
-    req.deviceSlot = packet.param(1);
-
-    struct
-    {
-        u32le_t numBlocks;
-        char filename[MAX_FILENAME_LEN];
-    } __attribute__((packed)) newDisk = {};
-
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-
-    const std::optional<ByteBuffer> &data = packet.data();
-    if (data)
-        memcpy(&newDisk, data->data(), std::min(data->size(), sizeof(newDisk)));
-    newDisk.filename[sizeof(newDisk.filename) - 1] = '\0';
-
-    if (new_disk_completed)
-        RETURN_ERROR_AS_FALSE();
-
-    Debug_printf("adamnet_new_disk numblocks: %lu\n", (unsigned long) newDisk.numBlocks);
-    strlcpy(req.filename, newDisk.filename, sizeof(req.filename));
-    _newDiskNumBlocks = newDisk.numBlocks;
-    RETURN_SUCCESS_AS_TRUE();
-}
-
-success_is_true adamFuji::fujicore_write_blank_success(uint8_t deviceSlot, fnFile *f)
-{
-    RETURN_SUCCESS_IF(_fnDisks[deviceSlot].disk_dev.write_blank(f, _newDiskNumBlocks).is_success());
-}
-
-void adamFuji::fujicore_new_disk_reply(NEW_DISK_RESULT result)
-{
-    new_disk_completed = result == NEW_DISK_RESULT::CREATED;
-    fujiDevice::fujicore_new_disk_reply(result);
-}
-
 void adamFuji::adamnet_enable_device(const FujiAdamPacket &packet)
 {
     fujiDeviceID_t d = static_cast<fujiDeviceID_t>(packet.param8(0));

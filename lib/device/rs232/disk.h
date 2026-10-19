@@ -35,7 +35,14 @@ public:
     mediatype_t mount_disk_media(fnFile *f, const char *filename, uint32_t disksize,
                                  mediatype_t disk_type);
     void unmount();
-    success_is_true write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors);
+    struct NewDiskRequest {
+        u16le_t numSectors;
+        u16le_t sectorSize;
+        uint8_t hostSlot;
+        uint8_t deviceSlot;
+        char filename[MAX_FILENAME_LEN];
+    } __attribute__((packed));
+    success_is_true write_blank(fnFile *f, const NewDiskRequest &req);
 
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_disktype; };
     time_t mount_time() { return _mount_time; }

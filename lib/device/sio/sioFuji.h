@@ -13,8 +13,6 @@ class sioFuji : public fujiDevice
 private:
     sioCassette _cassetteDev;
     sioNetStream _streamDev;
-    uint16_t _newDiskSectorSize = 0;
-    uint16_t _newDiskNumSectors = 0;
 
 protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
@@ -23,9 +21,6 @@ protected:
     void sio_set_baudrate(const FujiSIOPacket &packet);
     void sio_set_hsio_index(const FujiSIOPacket &packet);
     void fujidev_copy_file(const FUJI_COMMAND_PACKET &packet) override;
-    success_is_true fujicore_read_new_disk_success(const FUJI_COMMAND_PACKET &packet,
-                                                   NewDiskRequest &req) override;
-    success_is_true fujicore_write_blank_success(uint8_t deviceSlot, fnFile *f) override;
     void sio_enable_netstream(const FujiSIOPacket &packet);
 
     void sio_status(const FujiSIOPacket &packet) override { fujicmd_status(); }

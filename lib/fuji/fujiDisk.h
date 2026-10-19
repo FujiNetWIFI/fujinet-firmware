@@ -5,7 +5,6 @@
 #include "fujiHost.h"
 
 #define MAX_DISPLAY_FILENAME_LEN 36
-#define MAX_FILENAME_LEN 256
 
 #define INVALID_HOST_SLOT 0xFF
 

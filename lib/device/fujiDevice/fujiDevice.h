@@ -121,20 +121,6 @@ using FujiCommandHandlers = std::unordered_map<
     std::function<void(const FUJI_COMMAND_PACKET &)>
     >;
 
-enum class NEW_DISK_RESULT {
-    CREATED,
-    EXISTS,
-    OPEN_FAILED,
-    WRITE_FAILED,
-    REJECTED,
-};
-
-struct NewDiskRequest {
-    uint8_t hostSlot;
-    uint8_t deviceSlot;
-    char filename[MAX_FILENAME_LEN];
-};
-
 // This class inherits from all the mixins you list and tries each one in order
 template<typename... FujiDeviceMixins>
 requires FujiPacketLike<FUJI_COMMAND_PACKET>
@@ -222,13 +208,6 @@ protected:
     }
     virtual void fujidev_copy_file(const FUJI_COMMAND_PACKET &packet);
 
-    // NEW DISK: each bus reads its own request and keeps its own geometry for the write.
-    void fujidev_new_disk(const FUJI_COMMAND_PACKET &packet);
-    virtual success_is_true fujicore_read_new_disk_success(const FUJI_COMMAND_PACKET &packet,
-                                                           NewDiskRequest &req);
-    virtual success_is_true fujicore_write_blank_success(uint8_t deviceSlot, fnFile *f);
-    virtual void fujicore_new_disk_reply(NEW_DISK_RESULT result);
-
 public:
     bool boot_config = true;
 
@@ -278,6 +257,7 @@ public:
     void fujicmd_set_directory_position(uint16_t pos);
     success_is_true fujicore_copy_file_success(uint8_t sourceSlot, uint8_t destSlot, std::string copySpec);
     success_is_true fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot, std::string copySpec);
+    virtual void fujicmd_new_disk();
     virtual void fujicmd_get_adapter_config();
     virtual void fujicmd_get_adapter_config_extended();
     void fujicmd_get_device_filename(uint8_t slot);
@@ -320,7 +300,7 @@ public:
     success_is_true fujicore_mount_host_success(uint8_t hostSlot);
     success_is_true fujicore_mount_all_success();
     success_is_true fujicore_mount_all_at_startup();
-    NEW_DISK_RESULT fujicore_new_disk(const NewDiskRequest &req);
+    success_is_true fujicore_new_disk_success(const DISK_DEVICE::NewDiskRequest &req);
     void fujicore_net_scan_networks();
     success_is_true fujicore_net_set_ssid_success(const char *ssid, const char *password, bool save);
 

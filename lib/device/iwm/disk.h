@@ -44,7 +44,14 @@ public:
                       mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     virtual mediatype_t mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_type);
     void unmount();
-    error_is_true write_blank(fnFile *f, uint16_t numBlocks, uint8_t blank_header_type);
+    struct NewDiskRequest {
+        uint8_t hostSlot;
+        uint8_t deviceSlot;
+        uint8_t headerType;
+        u32le_t numBlocks;
+        char filename[MAX_FILENAME_LEN];
+    } __attribute__((packed));
+    error_is_true write_blank(fnFile *f, const NewDiskRequest &req);
 
     void set_disk_number(char c) { disk_num = c; }
     char get_disk_number() { return disk_num; };

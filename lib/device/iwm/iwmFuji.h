@@ -21,8 +21,6 @@ using IWMStatusHandlers = std::function<void(const iwm_decoded_cmd_t &cmd)>;
 class iwmFuji : public fujiDevice
 {
 private:
-    uint32_t _newDiskNumBlocks = 0;
-    uint8_t _newDiskHeaderType = 0;
 
     void prodos_write_boot_sector(fnFile *f);
     void prodos_write_sos_sector(fnFile *f);
@@ -62,11 +60,6 @@ protected:
     void iwm_ctrl_disable_device(const iwm_decoded_cmd_t &cmd);               // 0xD4
 
     void iwm_stat_get_heap();                     // 0xC1
-
-    success_is_true fujicore_read_new_disk_success(const FUJI_COMMAND_PACKET &packet,
-                                                   NewDiskRequest &req) override;
-    success_is_true fujicore_write_blank_success(uint8_t deviceSlot, fnFile *f) override;
-    void fujicore_new_disk_reply(NEW_DISK_RESULT result) override;
 
     void iwm_ctrl(const iwm_decoded_cmd_t &cmd) override;
     void iwm_status(const iwm_decoded_cmd_t &cmd) override;

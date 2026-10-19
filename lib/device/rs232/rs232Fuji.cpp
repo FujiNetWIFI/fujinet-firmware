@@ -97,46 +97,6 @@ void rs232Fuji::rs232_net_set_ssid(bool save) // was aux1
     SYSTEM_BUS.transaction_success();
 }
 
-success_is_true rs232Fuji::fujicore_read_new_disk_success(const FUJI_COMMAND_PACKET &packet,
-                                                          NewDiskRequest &req)
-{
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    Debug_println("Fuji cmd: NEW DISK");
-
-    struct
-    {
-        u16le_t numSectors;
-        u16le_t sectorSize;
-        uint8_t hostSlot;
-        uint8_t deviceSlot;
-        char filename[MAX_FILENAME_LEN];
-    } __attribute__((packed)) newDisk;
-
-    // Ask for details on the new disk to create
-    if (!SYSTEM_BUS.transaction_get((uint8_t *)&newDisk, sizeof(newDisk)))
-    {
-        Debug_print("rs232_new_disk Bad checksum\n");
-        RETURN_ERROR_AS_FALSE();
-    }
-    if (newDisk.deviceSlot >= MAX_DISK_DEVICES || newDisk.hostSlot >= MAX_HOSTS)
-    {
-        Debug_print("rs232_new_disk Bad disk or host slot parameter\n");
-        RETURN_ERROR_AS_FALSE();
-    }
-
-    req.hostSlot = newDisk.hostSlot;
-    req.deviceSlot = newDisk.deviceSlot;
-    strlcpy(req.filename, newDisk.filename, sizeof(req.filename));
-    _newDiskSectorSize = newDisk.sectorSize;
-    _newDiskNumSectors = newDisk.numSectors;
-    RETURN_SUCCESS_AS_TRUE();
-}
-
-success_is_true rs232Fuji::fujicore_write_blank_success(uint8_t deviceSlot, fnFile *f)
-{
-    return _fnDisks[deviceSlot].disk_dev.write_blank(f, _newDiskSectorSize, _newDiskNumSectors);
-}
-
 void rs232Fuji::rs232_test()
 {
     uint8_t buf[512];
