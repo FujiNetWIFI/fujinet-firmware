@@ -20,6 +20,8 @@
 #ifndef FUJI_MAILBOX_H
 #define FUJI_MAILBOX_H
 
+#include "fuji_mailbox_proto.h"
+
 /* ---------------- address map ---------------- */
 
 #define FN_ARENA_BASE    0xB000   /* mailbox + loader; offsets below are from here */
@@ -83,11 +85,6 @@
 /* "FUJI" at image offset $7FDC (below the SDSC header, inside the BIOS
  * checksum range) keeps the mailbox live after the image boots. */
 #define FN_CLAIM_OFFSET  0x7FDC
-#define FN_R_CLAIM_LEN   4
-#define FN_R_CLAIM_SIG   "FUJI"
-
-#define FN_R_STATUS_LINK 0x01
-#define FN_R_STATUS_BUSY 0x02
 
 /* The reply is repainted only by a SEQ commit or an RXSLICE select, so a
  * client may stream bytes from it straight into the TX page. */
@@ -114,48 +111,8 @@
 #define FN_HOT_GO        0xFD     /* flip to the loaded image on the next fetch of $0000 */
 #define FN_HOT_CONFIG    0xFC     /* hand the console back to CONFIG         */
 
-/* Registers; the numbering matches every sibling. */
-#define FN_REG_DEVICE    0x00     /* FujiBus device id, e.g. 0x70            */
-#define FN_REG_CMD       0x01     /* FujiBus command id                      */
-#define FN_REG_NPARAM    0x02     /* number of parameters in the TX stream   */
-#define FN_REG_DATA_RST  0x05     /* any value: rewind the TX write pointer  */
-#define FN_REG_RXSLICE   0x06     /* which reply slice FN_R_DATA shows       */
-#define FN_REG_SEQ       0x10     /* nonzero, != ACKSEQ: launch transaction  */
-#define FN_REG_BOOTLOCK  0x11     /* FN_BOOTLOCK_MAGIC: arm the image load   */
-#define FN_REG_BOOTSEL_1 0x12     /* FN_BOOTSEL_MAGIC1, then...              */
-#define FN_REG_BOOTSEL_2 0x13     /* ...FN_BOOTSEL_MAGIC2: reboot to BOOTSEL */
+/* Platform registers, 0x14 up; the protocol's are in fuji_mailbox_proto.h. */
 #define FN_REG_SLICE_ACK 0x14     /* loader: window LOAD_SEQ has been read   */
-
-#define FN_BOOTLOCK_MAGIC 0xB5
-#define FN_BOOTSEL_MAGIC1 0xB5
-#define FN_BOOTSEL_MAGIC2 0x4A
-
-/* TX stream: NPARAM x {size 1|2|4, value LE}, then the payload. */
-#define FN_TX_MAX        320
-
-/* DBC push streams (lib/device/rs232/disk.cpp); a .cfg `mapper=` line
- * overrides the cart's mapper choice. */
-#define FN_STREAM_ROM    0
-#define FN_STREAM_CFG    1
-
-/* FN_R_BOOT_STATE values. */
-#define FN_BOOT_IDLE     0
-#define FN_BOOT_XFER     1
-#define FN_BOOT_READY    2        /* image staged; arm BOOTLOCK, then JP $B800 */
-#define FN_BOOT_FAILED   0x80
-
-/* FN_R_BOOT_ERR values. */
-#define FN_BOOT_ERR_TOOBIG    1
-#define FN_BOOT_ERR_TRUNCATED 2
-#define FN_BOOT_ERR_NOMAP     3
-#define FN_BOOT_ERR_STOREBUSY 4
-
-/* FN_R_ERR values; mirrors fb_status_t in fujibus.h. */
-#define FN_ERR_OK        0
-#define FN_ERR_NOLINK    1
-#define FN_ERR_TIMEOUT   2
-#define FN_ERR_BADFRAME  3
-#define FN_ERR_TOOBIG    4
 
 /* FN_R_LOAD_STATE values. */
 #define FN_LOAD_IDLE     0
@@ -172,5 +129,7 @@
  * FN_BOOTLOCK_MAGIC, then DI and JP FN_LOADER_BOOT. The client's next SEQ is
  * always FN_R_ACKSEQ + 1 (255 wraps to 1), never a local counter: the SMS1
  * Reset button restarts the client but not the cart. */
+
+#include "fuji_mailbox_check.h"
 
 #endif /* FUJI_MAILBOX_H */

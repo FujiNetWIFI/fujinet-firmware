@@ -28,7 +28,8 @@ top of the image (`0x1B00–0x1FFF`, i.e. CPU `$2B00–$2FFF`), the same
 offsets the Astrocade uses — which is why `fujimail.c`, `fujibus.c` and the
 whole wire protocol are shared verbatim and only `fuji_mailbox.h` forks.
 
-`firmware/include/fuji_mailbox.h` is the single source of truth (the RP2040
+`firmware/include/fuji_mailbox.h`, with the register numbers and values it takes from
+`pico/common/include/fuji_mailbox_proto.h`, is the single source of truth (the RP2040
 firmware, the MAME device, and the hand-mirrored `testrom/fujilib.inc` all
 follow it). Three gates keep stray reads harmless: a REGDATA read disarms
 after one use, a transaction launches only on a fresh nonzero sequence
