@@ -6,5 +6,6 @@ test_bankserve_SRCS = $(SRC)/astromap.c
 test_fujimail_SRCS = $(SRC)/fujimail.c $(SRC)/astromap.c
 test_fujistore_SRCS = $(SRC)/fuji_store.c
 test_fujistore_CFLAGS = -Istub -DFUJI_STORE_BINARY_END=0x1000u
+C_ONLY_SRCS = $(SRC)/fuji_store.c
 
 include ../../../common/host_test/cart.mk

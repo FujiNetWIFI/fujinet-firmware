@@ -1,7 +1,7 @@
 # cart.mk -- rules shared by every cart's host_test/Makefile: no hardware, no pico-sdk.
 #
 # Set TESTS, and <test>_SRCS / <test>_CFLAGS / <test>_DEPS where a test needs them, then
-# include this. Binaries go to $(OUT), outside the source tree. A cart adds checks of its
+# include this. C_ONLY_SRCS lists sources no emulator graft builds as C++. Binaries go to $(OUT), outside the source tree. A cart adds checks of its
 # own with another `all::` rule after the include.
 
 SHELL := /bin/bash
@@ -19,6 +19,12 @@ HDRS = $(wildcard *.h ../include/*.h $(COMMON)/include/*.h)
 
 all:: $(addprefix $(OUT)/,$(TESTS))
 	@$(foreach t,$(TESTS),echo "== $(t)"; $(OUT)/$(t) || exit 1;)
+
+# The emulator grafts build these sources as C++ (MAME forces it), so they must compile both ways.
+all::
+	@echo "== C++"
+	@$(foreach t,$(TESTS),$(foreach s,$(filter-out $(C_ONLY_SRCS),$($(t)_SRCS)),\
+	    $(CXX) -x c++ -std=c++17 -fsyntax-only -w $(EXTRA_CFLAGS) $($(t)_CFLAGS) $(INC) $(s) || exit 1;))
 
 $(OUT):
 	mkdir -p $@
