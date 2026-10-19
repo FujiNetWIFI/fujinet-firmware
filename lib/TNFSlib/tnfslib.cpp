@@ -102,7 +102,13 @@ int tnfs_umount(tnfsMountInfo *m_info)
     tnfsPacket packet;
     packet.command = TNFS_CMD_UNMOUNT;
 
-    if (_tnfs_transaction(m_info, packet, 0))
+    bool answered = _tnfs_transaction(m_info, packet, 0);
+    // The reply format belongs to the server: a later mount of this object may be another one,
+    // so it is learned again (or configured again by the caller) then.
+    m_info->tcp_reply_format = tnfsReplyFormat();
+    m_info->tcp_format_verified = 0;
+    m_info->tcp_fence_failed = false;
+    if (answered)
     {
         if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
