@@ -24,6 +24,7 @@ on its floppy port and relays bus traffic to the ESP32 running FujiNet.
 | `coco/` | Early CoCo cartridge, RP2040 | pico-sdk CMake | no | [lib/bus/drivewire/](../lib/bus/drivewire/) over a PIO UART | [coco/](coco/) |
 | `mac/` | Macintosh 68k floppy-port emulation on the `fujimac-rev0` board, RP2040 | pico-sdk CMake | no | [lib/bus/mac/](../lib/bus/mac/) over a 2 Mbaud UART | [mac/](mac/) |
 | `tools/rom2h.py` | Renders a ROM image as a C header, replacing `xxd -i` | | run by `pico_prebuild` for the fujiversal boards | | |
+| `tools/cmpfw.py` | Builds the cartridge firmwares at two git refs into `build/cmpfw/` and names the functions whose code differs, so a refactor can show its binaries did not change | | no | | |
 
 ## How it fits
 - On a Fujiversal board the ESP32-S3 is the USB host and the cartridge is a CDC device. FujiBus
