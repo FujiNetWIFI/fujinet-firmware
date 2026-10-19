@@ -323,6 +323,39 @@ target_include_directories(fssd_listing_tests PRIVATE
 add_test(NAME fssd_listing_tests COMMAND fssd_listing_tests)
 
 # ------------------------------------------------------------------------------
+# pdfPrinter page breaks for buffers that hold more than one line. Not on APPLE:
+# there pdf_new_line() does not feed a line, the printer does it on LF.
+# ------------------------------------------------------------------------------
+if(NOT FUJINET_TARGET STREQUAL "APPLE")
+  add_executable(pdf_printer_tests
+      PDFPrinterTests.cpp
+      ${CMAKE_SOURCE_DIR}/lib/printer-emulator/pdf_printer.cpp
+      ${CMAKE_SOURCE_DIR}/lib/printer-emulator/printer_emulator.cpp
+      ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
+      ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSPIFFS.cpp
+  )
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_sources(pdf_printer_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
+    )
+  endif()
+
+  target_compile_definitions(pdf_printer_tests PRIVATE UNIT_TESTS FNIO_IS_STDIO)
+
+  target_include_directories(pdf_printer_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/include/      # debug.h, global_types.h, atascii.h
+      ${CMAKE_SOURCE_DIR}/lib/printer-emulator/
+      ${CMAKE_SOURCE_DIR}/lib/FileSystem/
+      ${CMAKE_SOURCE_DIR}/lib/compat/
+      ${CMAKE_SOURCE_DIR}/lib/utils/
+      ${CMAKE_SOURCE_DIR}/components_pc/
+  )
+
+  add_test(NAME pdf_printer_tests COMMAND pdf_printer_tests)
+endif()
+
+# ------------------------------------------------------------------------------
 # Policy check: no platform-specific BUILD_* ifdefs in the shared device bases.
 # Customization there must go through a subclass override, never a #ifdef.
 # This is a script, not a compiled test, so it's wired in directly via
