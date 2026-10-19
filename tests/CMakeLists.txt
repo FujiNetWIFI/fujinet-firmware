@@ -294,6 +294,12 @@ if(NOT FUJINET_TARGET STREQUAL "APPLE")
       ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
       ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSPIFFS.cpp
   )
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_sources(pdf_printer_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
+    )
+  endif()
 
   target_compile_definitions(pdf_printer_tests PRIVATE UNIT_TESTS FNIO_IS_STDIO)
 
