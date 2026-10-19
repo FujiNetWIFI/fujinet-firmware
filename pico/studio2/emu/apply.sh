@@ -36,12 +36,13 @@ GEN=../build/gen
 # font has no header of its own, so it rides along in s2_text.cpp.
 cp studio2_fujinet.cpp studio2_fujinet.h fujitcp.h "$DIR/"
 cp fujitcp.c "$DIR/fujitcp.cpp"
-for f in fujimail s2map fuji_load; do
+for f in s2map fuji_load; do
     cp "$FW/src/$f.c" "$DIR/$f.cpp"
 done
 cp "$COMMON/src/fujibus.c" "$DIR/fujibus.cpp"
+cp "$COMMON/src/fujimail.c" "$DIR/fujimail.cpp"
 cat "$FW/src/s2_text.c" "$FW/src/s2_font.c" > "$DIR/s2_text.cpp"
-cp "$FW/include/fujimail.h" "$COMMON/include/fujibus.h" "$FW/include/fuji_mailbox.h" \
+cp "$COMMON/include/fujimail.h" "$COMMON/include/fujibus.h" "$FW/include/fuji_mailbox.h" \
    "$FW/include/s2map.h" "$FW/include/s2_cart.h" "$FW/include/s2_text.h" \
    "$FW/include/fuji_load.h" "$GEN/fujiconfigrom.h" "$DIR/"
 

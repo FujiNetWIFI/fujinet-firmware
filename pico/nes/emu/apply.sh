@@ -37,10 +37,10 @@ done
 # names and compiled as C++ (they are written to build both ways).
 cp fujinet.cpp fujinet.h fujitcp.h "$BUSDIR/"
 cp fujitcp.c "$BUSDIR/fujitcp.cpp"
-cp ../firmware/src/fujimail.c "$BUSDIR/fujimail.cpp"
+cp ../../common/src/fujimail.c "$BUSDIR/fujimail.cpp"
 cp ../../common/src/fujibus.c "$BUSDIR/fujibus.cpp"
 cp ../firmware/src/nesmap.c "$BUSDIR/nesmap.cpp"
-cp ../firmware/include/fujimail.h ../../common/include/fujibus.h \
+cp ../../common/include/fujimail.h ../../common/include/fujibus.h \
    ../firmware/include/nesmap.h ../firmware/include/fuji_mailbox.h \
    ../firmware/include/nes_cart.h ../firmware/include/fujiconfigrom.h \
    ../firmware/include/nesloaderrom.h \

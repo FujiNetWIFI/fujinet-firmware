@@ -12,7 +12,7 @@ test_glue_SRCS = $(MAP)
 test_pokey_SRCS = $(SRC)/pokey.c
 test_load_SRCS = $(SRC)/fuji_load.c $(MAP)
 test_hsc_SRCS = $(SRC)/hsc.c
-test_fujimail_SRCS = $(SRC)/fujimail.c $(MAP)
+test_fujimail_SRCS = $(COMMON)/src/fujimail.c $(MAP)
 test_bootblock_DEPS = $(GEN)
 test_bootblock_CFLAGS = -I$(dir $(GEN))
 
