@@ -334,20 +334,9 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
     // textMode is set inside of pdf_handle_char at first character, so...
     // need to test for textMode inside the loop
 
-#ifndef BUILD_APPLE
-    if (TOPflag)
-        pdf_new_page();
-#endif // BUILD_APPLE
-
     // loop through string
     do
     {
-// 
-#ifdef BUILD_APPLE // move this inside the loop incase the buffer has more than one line (SP packet buffering)
-        if (TOPflag)
-        pdf_new_page();
-#endif // BUILD_APPLE
-
         c = buffer[i++];
 #ifdef BUILD_APPLE
         if (textMode == true)
@@ -359,8 +348,11 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
 
         // Debug_print(c, HEX);
 
+        // the page checks run for each byte: one buffer can hold more than one line
         if (!textMode || static_cast<bool>(colorMode))
         {
+            if (TOPflag)
+                pdf_new_page();
             pdf_handle_char(c, aux1, aux2);
         }
         else
@@ -369,6 +361,10 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
             if (c == '\n')
                 continue;
 #endif
+            // open the next page only for a byte that is not skipped
+            if (TOPflag)
+                pdf_new_page();
+
             // Temporarily bypass eol handling if required.
             // The real fix is to split CR/LF handling.
             if (_eol_bypass == false)
@@ -382,7 +378,17 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
 
                 // start a new line if we need to
                 if (BOLflag)
+                {
                     pdf_new_line();
+                    // an automatic CR can open a line below the bottom margin:
+                    // move it to the next page before the character is drawn
+                    if (c != _eol && pdf_Y < bottomMargin)
+                    {
+                        pdf_end_page();
+                        pdf_new_page();
+                        pdf_new_line();
+                    }
+                }
             }
 
             // disposition the current byte
@@ -391,19 +397,11 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
             // Debug_printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y + pdf_dY);
             // Debug_printf("\r\n");
         }
-#ifdef BUILD_APPLE // move this inside the loop incase the buffer has more than one line (SP packet buffering)
-    // if wrote last line, then close the page
-    if (pdf_Y < bottomMargin) // lineHeight + bottomMargin
-        pdf_end_page();
-#endif // BUILD_APPLE
+        // if wrote last line, then close the page
+        if (pdf_Y < bottomMargin) // lineHeight + bottomMargin
+            pdf_end_page();
 
     } while (i < n && (cc != ATASCII_EOL));
-
-#ifndef BUILD_APPLE
-    // if wrote last line, then close the page
-    if (pdf_Y < bottomMargin) // lineHeight + bottomMargin
-        pdf_end_page();
-#endif // BUILD_APPLE
 
     return true;
 }

@@ -19,6 +19,7 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `MediaTypeIMDTests.cpp` | `lib/media/rs232/diskTypeIMD.cpp` adapter (`mediatypeimd_tests`; built with `BUILD_RS232`) |
 | `MediaTypeAltairTests.cpp` | `lib/media/rs232/diskTypeAltair.cpp` adapter (`mediatypealtair_tests`; built with `BUILD_RS232`) |
 | `FsSDListingTests.cpp` | `lib/FileSystem/fnFsSD.cpp` listings over a local directory: a second handle's `dir_open()` leaves `fnSDFAT`'s listing alone (`fssd_listing_tests`) |
+| `PdfPrinterTests.cpp` | `lib/printer-emulator/pdf_printer.cpp` page breaks when one buffer holds more than one line (`pdf_printer_tests`; not on the APPLE target) |
 | `sioNetwork-DSTATS-test.cpp` | `sioNetwork` command recognition and DSTATS (`sio_dstats_tests`; ATARI target only) |
 | `sioNetworkTests.cpp` | What `sioNetwork` sends to the bus for a failed CLOSE, its repeat and a failed READ (`sio_network_tests`; ATARI target only) |
 | `NDeviceTests.cpp` | The shared `NDevice` without a bus subclass: a QUERY whose flags byte the parser refuses (`ndevice_tests`; ATARI target only) |
