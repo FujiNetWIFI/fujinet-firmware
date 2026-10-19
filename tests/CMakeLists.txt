@@ -288,7 +288,7 @@ add_test(NAME fssd_listing_tests COMMAND fssd_listing_tests)
 # ------------------------------------------------------------------------------
 if(NOT FUJINET_TARGET STREQUAL "APPLE")
   add_executable(pdf_printer_tests
-      PdfPrinterTests.cpp
+      PDFPrinterTests.cpp
       ${CMAKE_SOURCE_DIR}/lib/printer-emulator/pdf_printer.cpp
       ${CMAKE_SOURCE_DIR}/lib/printer-emulator/printer_emulator.cpp
       ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
