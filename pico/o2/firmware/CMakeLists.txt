@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.13)
 
 # initialize the SDK based on PICO_SDK_PATH
 # note: this must happen before project()
-include(pico_sdk_import.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../../common/cmake/pico_sdk_import.cmake)
 
 project(PicoPAC_cart)
 
