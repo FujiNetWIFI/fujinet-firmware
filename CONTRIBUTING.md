@@ -218,6 +218,8 @@ tree does not conform.
   starts lower (`tnfs_open()`, `httpClient`), all upper if it starts upper (`TNFS`,
   `fnHTTPClient`), never mixed (`Tnfs`, `Http`). Existing names like `fnHttpService` and
   `PeoplesUrlParser` change only in a rename PR.
+- Give the values of one parameter (modes, types, command codes) an `enum class`, not a list of
+  `#define`s. A lone constant can stay a named `constexpr` or `#define`.
 
 ## C++ and code structure
 
@@ -380,6 +382,7 @@ Write the short version instead, and leave a section out rather than filling it 
   testing a result with `if (result)` or `== true` instead of `.is_success()`/`.is_error()`.
 - **Testing a `fujiError_t` against `FUJI_ERROR::UNSPECIFIED`** instead of `FUJI_ERROR::NONE`.
 - **Hand-rolling endian conversion** with shifts or `htole*()` instead of the `u*le_t`/`u*be_t` types.
+- **A list of `#define`s** for the values of one parameter instead of an `enum class`.
 - **Leaving a comment that the change made untrue.**
 - **Opening a PR that fixes a tracked issue without `Fixes #NNNN` in the description**, leaving the
   issue to be closed by hand.

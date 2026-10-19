@@ -41,7 +41,8 @@ write; do not convert surrounding code to match as a side effect of an unrelated
 - Give a base class a `virtual` destructor; mark every derived function `override`; do not repeat
   `virtual` on an override.
 - Use `nullptr`, not `NULL`. Use `static_cast`/`reinterpret_cast`, not C-style casts. Use
-  `enum class` for new enumerations.
+  `enum class` for new enumerations, and use one instead of a list of `#define`s for the values of
+  a single parameter (modes, types, command codes).
 - Bounds-check all buffer work. Use `snprintf`, never `sprintf`, `strcpy` or `strcat`, and prefer
   the existing `mstr::`/`util_` string helpers to hand-rolled buffer arithmetic.
 - Pass non-trivial parameters by `const&`; return by value. Mark methods `const` when they do not
