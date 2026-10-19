@@ -124,13 +124,7 @@ stay identical by construction, not by discipline.
 
 ```sh
 # 1. Protocol tests, no hardware, no SDK
-cd firmware/host_test
-gcc -Wall -Wextra -Werror -I../include      -o test_astromap test_astromap.c ../src/astromap.c && ./test_astromap
-gcc -Wall -Wextra -Werror -I../include      -o test_bankserve test_bankserve.c ../src/astromap.c && ./test_bankserve
-gcc -Wall -Wextra -Werror -I../include -I../../../common/include \
-    -o test_fujimail test_fujimail.c ../src/fujimail.c ../src/astromap.c && ./test_fujimail
-gcc -Wall -Wextra -Werror -Istub -I../include -DFUJI_STORE_BINARY_END=0x1000u \
-    -o test_fujistore test_fujistore.c ../src/fuji_store.c && ./test_fujistore
+make -C firmware/host_test
 
 # 2. Clients (fujibank/gamebank also run the packers' self-verification)
 ./build.sh                      # fujitest fujiboot fujicfg -> build/*.bin

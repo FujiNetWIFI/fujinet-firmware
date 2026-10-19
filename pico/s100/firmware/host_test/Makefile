@@ -1,40 +1,25 @@
-SHELL := /bin/bash
-# Host tests: no hardware, no pico-sdk. Binaries go to ../../build/host_test.
-CC ?= cc
-CFLAGS ?= -Wall -Wextra -Werror -O1 -g -std=c11 -D_DEFAULT_SOURCE
-INC = -I. -I../include -I../../../common/include
-SRC = ../src
-OUT = ../../build/host_test
+# The FDC+ driven the way Altair code drives it, the link mux against fake_esp.h, the pipe,
+# 2SIO and boot page registers, and the decode, wait-state and timing glue.
+EXTRA_CFLAGS = -D_DEFAULT_SOURCE
 
 CORE = $(SRC)/s100_regs.c $(SRC)/s100_fdc.c $(SRC)/s100_2sio.c $(SRC)/s100_link.c \
-       ../../../common/src/fujibus.c
-HDRS = $(wildcard ../include/*.h) check.h fake_esp.h
-
-TESTS = test_regs test_2sio test_fdc test_link test_glue test_timing
+       $(COMMON)/src/fujibus.c
+CORE_TESTS = test_regs test_2sio test_fdc test_link test_glue test_timing
+TESTS = $(CORE_TESTS)
+$(foreach t,$(CORE_TESTS),$(eval $(t)_SRCS = $$(CORE)))
 
 # test_pio needs pioasm: on PATH, or the one build-cart.sh built.
 PIOASM ?= $(shell command -v pioasm || ls ../../build/fw-*/pioasm-install/pioasm/pioasm 2>/dev/null | head -1)
 ifneq ($(PIOASM),)
 TESTS += test_pio
 endif
+test_pio_DEPS = $(OUT)/s100_bus.pio.h
+test_pio_CFLAGS = -I$(OUT)
 
-all: $(addprefix $(OUT)/,$(TESTS))
-	@for t in $(TESTS); do $(OUT)/$$t || exit 1; done
-	@[ -n "$(PIOASM)" ] || echo "test_pio: SKIP (no pioasm; run ../../build-cart.sh once)"
+include ../../../common/host_test/cart.mk
 
-$(OUT):
-	mkdir -p $@
-
-$(OUT)/s100_bus.pio.h: ../src/s100_bus.pio | $(OUT)
+$(OUT)/s100_bus.pio.h: $(SRC)/s100_bus.pio | $(OUT)
 	$(PIOASM) -o c-sdk $< $@
 
-$(OUT)/test_pio: test_pio.c $(OUT)/s100_bus.pio.h check.h ../include/s100_card.h | $(OUT)
-	$(CC) $(CFLAGS) $(INC) -I$(OUT) -o $@ test_pio.c
-
-$(OUT)/test_%: test_%.c $(CORE) $(HDRS) | $(OUT)
-	$(CC) $(CFLAGS) $(INC) -o $@ $< $(CORE)
-
-clean:
-	rm -rf $(OUT)
-
-.PHONY: all clean
+all::
+	@[ -n "$(PIOASM)" ] || echo "test_pio: SKIP (no pioasm; run ../../build-cart.sh once)"
