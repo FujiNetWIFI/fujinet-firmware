@@ -49,7 +49,7 @@ Every `build.sh` run regenerates `platformio-generated.ini` by merging
 ./build.sh -cb                      # clean + build
 ./build.sh -cbum                    # clean, build, upload firmware, monitor
 ./build.sh -S                       # list every supported board name
-./build.sh -a                       # build all 29 boards; results in build-results.txt
+./build.sh -a                       # build every board; results in build-results.txt
 ```
 
 - `platformio.local.ini` is git-ignored and absent on a fresh clone. Without it every build exits
