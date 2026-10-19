@@ -567,7 +567,7 @@ fujiError_t NetworkProtocolONEDRIVE::umount()
 
 fujiError_t NetworkProtocolONEDRIVE::stat()
 {
-    std::string resp = api_get(item_url(opened_url->path, "") + "?$select=size");
+    std::string resp = api_get(item_url(opened_path, "") + "?$select=size");
     if (resp.empty())
     {
         error = NDEV_STATUS::FILE_NOT_FOUND;
@@ -591,7 +591,7 @@ fujiError_t NetworkProtocolONEDRIVE::open_file_handle()
     if (streamMode == ACCESS_MODE::WRITE || streamMode == ACCESS_MODE::APPEND)
     {
         // For writes we buffer everything and upload on close.
-        _item_path = opened_url->path;
+        _item_path = opened_path;
 
         if (streamMode == ACCESS_MODE::APPEND)
         {
@@ -607,7 +607,7 @@ fujiError_t NetworkProtocolONEDRIVE::open_file_handle()
     }
 
     // READ / READWRITE: fetch size, then open a streaming download.
-    _item_path = opened_url->path;
+    _item_path = opened_path;
 
     {
         std::string resp = api_get(item_url(_item_path, "") + "?$select=size");
@@ -714,10 +714,10 @@ fujiError_t NetworkProtocolONEDRIVE::close_file_handle()
 fujiError_t NetworkProtocolONEDRIVE::open_dir_handle()
 {
     Debug_printf("NetworkProtocolONEDRIVE::open_dir_handle() path=%s\r\n",
-                 opened_url->path.c_str());
+                 opened_path.c_str());
 
     // Strip a trailing wildcard so "ONEDRIVE:///folder/*.*" lists that folder.
-    std::string dir_path = opened_url->path;
+    std::string dir_path = opened_path;
     _dir_filter.clear();
     {
         size_t slash = dir_path.rfind('/');
@@ -850,7 +850,7 @@ fujiError_t NetworkProtocolONEDRIVE::del(PeoplesUrlParser *url)
     if (mount(url) != FUJI_ERROR::NONE)
         return FUJI_ERROR::UNSPECIFIED;
 
-    bool ok = api_delete(item_url(url->path, ""));
+    bool ok = api_delete(item_url(file_path(url), ""));
     umount();
     return ok ? FUJI_ERROR::NONE : FUJI_ERROR::UNSPECIFIED;
 }
@@ -861,7 +861,7 @@ fujiError_t NetworkProtocolONEDRIVE::mkdir(PeoplesUrlParser *url)
         return FUJI_ERROR::UNSPECIFIED;
 
     // parent = everything before the last '/'; new folder name = the leaf.
-    std::string path = url->path;
+    std::string path = file_path(url);
     size_t slash = path.find_last_of('/');
     std::string parent_path = (slash != std::string::npos) ? path.substr(0, slash) : "";
     std::string new_name    = (slash != std::string::npos) ? path.substr(slash + 1) : path;

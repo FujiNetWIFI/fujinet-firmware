@@ -118,7 +118,7 @@ bool NetworkProtocolS3::parse_url(PeoplesUrlParser *url)
     _secret_key = (password != nullptr && !password->empty()) ? *password : Config.get_s3_secret_key();
 
     // Bucket = first path segment.
-    std::string p = url->path;
+    std::string p = file_path(url);
     size_t s = p.find_first_not_of('/');
     if (s == std::string::npos)
     {
@@ -411,7 +411,7 @@ fujiError_t NetworkProtocolS3::umount()
 
 fujiError_t NetworkProtocolS3::stat()
 {
-    std::string key = key_from_path(opened_url->path);
+    std::string key = key_from_path(opened_path);
     if (key.empty())
     {
         error = NDEV_STATUS::FILE_NOT_FOUND;
@@ -448,7 +448,7 @@ fujiError_t NetworkProtocolS3::open_file_handle()
         // S3 has no append; emulate by downloading the current object first.
         if (streamMode == ACCESS_MODE::APPEND)
         {
-            std::string key = key_from_path(opened_url->path);
+            std::string key = key_from_path(opened_path);
             if (!key.empty())
             {
                 std::string body;
@@ -461,7 +461,7 @@ fujiError_t NetworkProtocolS3::open_file_handle()
     }
 
     // READ / READWRITE: signed streaming GET; keep _http open for read_file_handle.
-    std::string key = key_from_path(opened_url->path);
+    std::string key = key_from_path(opened_path);
     if (key.empty())
     {
         error = NDEV_STATUS::FILE_NOT_FOUND;
@@ -528,7 +528,7 @@ fujiError_t NetworkProtocolS3::close_file_handle()
 {
     if (streamMode == ACCESS_MODE::WRITE || streamMode == ACCESS_MODE::APPEND)
     {
-        std::string key = key_from_path(opened_url->path);
+        std::string key = key_from_path(opened_path);
         if (key.empty())
         {
             error = NDEV_STATUS::INVALID_DEVICESPEC;
@@ -626,7 +626,7 @@ fujiError_t NetworkProtocolS3::del(PeoplesUrlParser *url)
     if (mount(url) != FUJI_ERROR::NONE)
         return FUJI_ERROR::UNSPECIFIED;
 
-    std::string key = key_from_path(url->path);
+    std::string key = key_from_path(file_path(url));
     if (key.empty())
     {
         error = NDEV_STATUS::FILE_NOT_FOUND;
@@ -645,7 +645,7 @@ fujiError_t NetworkProtocolS3::mkdir(PeoplesUrlParser *url)
         return FUJI_ERROR::UNSPECIFIED;
 
     // S3 folders are zero-byte marker objects whose key ends in '/'.
-    std::string key = key_from_path(url->path);
+    std::string key = key_from_path(file_path(url));
     if (!key.empty() && key.back() != '/')
         key += "/";
 
@@ -659,7 +659,7 @@ fujiError_t NetworkProtocolS3::rmdir(PeoplesUrlParser *url)
     if (mount(url) != FUJI_ERROR::NONE)
         return FUJI_ERROR::UNSPECIFIED;
 
-    std::string key = key_from_path(url->path);
+    std::string key = key_from_path(file_path(url));
     if (!key.empty() && key.back() != '/')
         key += "/";
 

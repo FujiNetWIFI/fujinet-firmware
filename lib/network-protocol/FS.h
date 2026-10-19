@@ -163,6 +163,11 @@ protected:
     std::string filename;
 
     /**
+     * Path of the open file or directory, from file_path()
+     */
+    std::string opened_path;
+
+    /**
      * Filename for destination (e.g. rename)
      */
     std::string destFilename;
@@ -260,7 +265,12 @@ protected:
      * Update dir and filename
      * @param url the URL to update dir and filename with.
      */
-    void update_dir_filename(PeoplesUrlParser *url);
+    void update_dir_filename(const std::string &path);
+
+    /**
+     * @brief The path in url as this protocol uses it: a file name, by default.
+     */
+    virtual std::string file_path(PeoplesUrlParser *url) { return url->getFilePath(); }
 
     /**
      * @brief Read from file

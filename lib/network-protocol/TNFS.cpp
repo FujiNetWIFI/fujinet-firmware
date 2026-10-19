@@ -57,7 +57,7 @@ fujiError_t NetworkProtocolTNFS::open_file_handle()
     }
 
     // Do the open.
-    tnfs_error = tnfs_open(&mountInfo, opened_url->path.c_str(), mode, perms, &fd);
+    tnfs_error = tnfs_open(&mountInfo, opened_path.c_str(), mode, perms, &fd);
     fserror_to_error();
 
     Debug_printf("NetworkProtocolTNFS::open_file_handle(mode: %d perms %d) - %d\r\n", mode, perms, tnfs_error);
@@ -83,7 +83,7 @@ fujiError_t NetworkProtocolTNFS::mount(PeoplesUrlParser *url)
     tnfs_error = tnfs_mount(&mountInfo);
     fserror_to_error();
 
-    Debug_printf("NetworkProtocolTNFS::mount(%s,%s) - %d\r\n", url->host.c_str(), url->path.c_str(), tnfs_error);
+    Debug_printf("NetworkProtocolTNFS::mount(%s,%s) - %d\r\n", url->host.c_str(), file_path(url).c_str(), tnfs_error);
 
     return tnfs_error != TNFS_RESULT_SUCCESS ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;
 }
@@ -247,7 +247,7 @@ fujiError_t NetworkProtocolTNFS::del(PeoplesUrlParser *url)
 {
     mount(url);
 
-    tnfs_error = tnfs_unlink(&mountInfo, url->path.c_str());
+    tnfs_error = tnfs_unlink(&mountInfo, file_path(url).c_str());
 
     if (tnfs_error != TNFS_RESULT_SUCCESS)
         fserror_to_error();
@@ -259,11 +259,11 @@ fujiError_t NetworkProtocolTNFS::del(PeoplesUrlParser *url)
 
 fujiError_t NetworkProtocolTNFS::mkdir(PeoplesUrlParser *url)
 {
-    Debug_printf("NetworkProtocolTNFS::mkdir(%s,%s)", url->host.c_str(), url->path.c_str());
+    Debug_printf("NetworkProtocolTNFS::mkdir(%s,%s)", url->host.c_str(), file_path(url).c_str());
 
     mount(url);
 
-    tnfs_error = tnfs_mkdir(&mountInfo, url->path.c_str());
+    tnfs_error = tnfs_mkdir(&mountInfo, file_path(url).c_str());
 
     if (tnfs_error != TNFS_RESULT_SUCCESS)
         fserror_to_error();
@@ -275,7 +275,7 @@ fujiError_t NetworkProtocolTNFS::rmdir(PeoplesUrlParser *url)
 {
     mount(url);
 
-    tnfs_error = tnfs_rmdir(&mountInfo, url->path.c_str());
+    tnfs_error = tnfs_rmdir(&mountInfo, file_path(url).c_str());
 
     if (tnfs_error != TNFS_RESULT_SUCCESS)
         fserror_to_error();
@@ -285,7 +285,7 @@ fujiError_t NetworkProtocolTNFS::rmdir(PeoplesUrlParser *url)
 
 fujiError_t NetworkProtocolTNFS::stat()
 {
-    tnfs_error = tnfs_stat(&mountInfo, &fileStat, opened_url->path.c_str());
+    tnfs_error = tnfs_stat(&mountInfo, &fileStat, opened_path.c_str());
     fileSize = fileStat.filesize;
     mode = fileStat.mode;
     is_locked = (mode & 0200);
@@ -297,10 +297,10 @@ fujiError_t NetworkProtocolTNFS::stat()
 
 fujiError_t NetworkProtocolTNFS::lock(PeoplesUrlParser *url)
 {
-    Debug_printf("lock: %s\r\n", url->path.c_str());
+    Debug_printf("lock: %s\r\n", file_path(url).c_str());
     mount(url);
 
-    tnfs_error = tnfs_chmod(&mountInfo, url->path.c_str(), 0444);
+    tnfs_error = tnfs_chmod(&mountInfo, file_path(url).c_str(), 0444);
 
     if (tnfs_error != TNFS_RESULT_SUCCESS)
         fserror_to_error();
@@ -314,7 +314,7 @@ fujiError_t NetworkProtocolTNFS::unlock(PeoplesUrlParser *url)
 {
     mount(url);
 
-    tnfs_error = tnfs_chmod(&mountInfo, url->path.c_str(), 0644);
+    tnfs_error = tnfs_chmod(&mountInfo, file_path(url).c_str(), 0644);
 
     if (tnfs_error != TNFS_RESULT_SUCCESS)
         fserror_to_error();

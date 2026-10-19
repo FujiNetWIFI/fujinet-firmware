@@ -69,8 +69,8 @@ fujiError_t NetworkProtocolSMB::open_file_handle()
         Debug_printf("NetworkProtocolSMB::open_file_handle() - Uncaught aux1 %d", (int) streamMode);
     }
 
-    // opened_url->path, not smb_url->path: resolve() may have swapped in the real name.
-    fh = smb2_open(smb, share_path(opened_url->path).c_str(), flags);
+    // opened_path, not smb_url->path: resolve() may have swapped in the real name.
+    fh = smb2_open(smb, share_path(opened_path).c_str(), flags);
 
     if (fh == nullptr)
     {
@@ -329,7 +329,7 @@ fujiError_t NetworkProtocolSMB::del(PeoplesUrlParser *url)
     if (mount(url) != FUJI_ERROR::NONE)
         return FUJI_ERROR::UNSPECIFIED;
 
-    if ((smb_error = smb2_unlink(smb, smb_url->path)) != 0)
+    if ((smb_error = smb2_unlink(smb, share_path(file_path(url)).c_str())) != 0)
     {
         fserror_to_error();
         Debug_printf("NetworkProtocolSMB::del(%s) SMB error: %s\r\n", url->url.c_str(), smb2_get_error(smb));
@@ -345,7 +345,7 @@ fujiError_t NetworkProtocolSMB::mkdir(PeoplesUrlParser *url)
     if (mount(url) != FUJI_ERROR::NONE)
         return FUJI_ERROR::UNSPECIFIED;
 
-    if ((smb_error = smb2_mkdir(smb, smb_url->path)) != 0)
+    if ((smb_error = smb2_mkdir(smb, share_path(file_path(url)).c_str())) != 0)
     {
         fserror_to_error();
         Debug_printf("NetworkProtocolSMB::mkdir(%s) SMB error: %s\r\n",url->url.c_str(), smb2_get_error(smb));
@@ -361,7 +361,7 @@ fujiError_t NetworkProtocolSMB::rmdir(PeoplesUrlParser *url)
     if (mount(url) != FUJI_ERROR::NONE)
         return FUJI_ERROR::UNSPECIFIED;
 
-    if ((smb_error = smb2_rmdir(smb, smb_url->path)) != 0)
+    if ((smb_error = smb2_rmdir(smb, share_path(file_path(url)).c_str())) != 0)
     {
         fserror_to_error();
         Debug_printf("NetworkProtocolSMB::rmdir(%s) SMB error: %s\r\n",url->url.c_str(), smb2_get_error(smb));
@@ -376,7 +376,7 @@ fujiError_t NetworkProtocolSMB::stat()
 {
     struct smb2_stat_64 st;
 
-    int ret = smb2_stat(smb, share_path(opened_url->path).c_str(), &st);
+    int ret = smb2_stat(smb, share_path(opened_path).c_str(), &st);
 
     fileSize = st.smb2_size;
     return ret != 0 ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;

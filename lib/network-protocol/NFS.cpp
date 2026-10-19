@@ -67,7 +67,7 @@ fujiError_t NetworkProtocolNFS::open_file_handle()
         Debug_printf("NetworkProtocolNFS::open_file_handle() - Uncaught aux1 %d", (int) streamMode);
     }
 
-    if ((nfs_error = nfs_open(nfs, export_relative(opened_url->path).c_str(), flags, &fh)) != 0)
+    if ((nfs_error = nfs_open(nfs, export_relative(opened_path).c_str(), flags, &fh)) != 0)
     {
         Debug_printf("NetworkProtocolNFS::open_file_handle() - NFS Error %s\r\n", nfs_get_error(nfs));
         fserror_to_error();
@@ -170,7 +170,7 @@ fujiError_t NetworkProtocolNFS::mount_path(const std::string &host, const std::s
 
 fujiError_t NetworkProtocolNFS::mount(PeoplesUrlParser *url)
 {
-    return mount_path(url->host, url->port, url->path);
+    return mount_path(url->host, url->port, file_path(url));
 }
 
 fujiError_t NetworkProtocolNFS::umount()
@@ -293,10 +293,10 @@ fujiError_t NetworkProtocolNFS::rename(PeoplesUrlParser *url)
 
 fujiError_t NetworkProtocolNFS::del(PeoplesUrlParser *url)
 {
-    if (mount_path(url->host, url->port, url->path) != FUJI_ERROR::NONE)
+    if (mount_path(url->host, url->port, file_path(url)) != FUJI_ERROR::NONE)
         return FUJI_ERROR::UNSPECIFIED;
 
-    if ((nfs_error = nfs_unlink(nfs, export_relative(url->path).c_str())) != 0)
+    if ((nfs_error = nfs_unlink(nfs, export_relative(file_path(url)).c_str())) != 0)
     {
         fserror_to_error();
         Debug_printf("NetworkProtocolNFS::del(%s) NFS error: %s\r\n", url->url.c_str(), nfs_get_error(nfs));
@@ -310,7 +310,7 @@ fujiError_t NetworkProtocolNFS::del(PeoplesUrlParser *url)
 fujiError_t NetworkProtocolNFS::mkdir(PeoplesUrlParser *url)
 {
     // Strip trailing slash so the last component is the directory to create.
-    std::string path = url->path;
+    std::string path = file_path(url);
     while (path.size() > 1 && path.back() == '/')
         path.pop_back();
 
@@ -330,7 +330,7 @@ fujiError_t NetworkProtocolNFS::mkdir(PeoplesUrlParser *url)
 fujiError_t NetworkProtocolNFS::rmdir(PeoplesUrlParser *url)
 {
     // Strip trailing slash so the last component is the directory to remove.
-    std::string path = url->path;
+    std::string path = file_path(url);
     while (path.size() > 1 && path.back() == '/')
         path.pop_back();
 
@@ -351,7 +351,7 @@ fujiError_t NetworkProtocolNFS::stat()
 {
     struct nfs_stat_64 st;
 
-    int ret = nfs_stat64(nfs, export_relative(opened_url->path).c_str(), &st);
+    int ret = nfs_stat64(nfs, export_relative(opened_path).c_str(), &st);
 
     fileSize = st.nfs_size;
     return ret != 0 ? FUJI_ERROR::UNSPECIFIED : FUJI_ERROR::NONE;

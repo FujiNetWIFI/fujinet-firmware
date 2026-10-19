@@ -53,7 +53,7 @@ fujiError_t NetworkProtocolFTP::open_file_handle()
         break;
     }
 
-    res = ftp->open_file(opened_url->path, stor);
+    res = ftp->open_file(opened_path, stor);
     fserror_to_error();
     return res;
 }
@@ -95,7 +95,7 @@ fujiError_t NetworkProtocolFTP::stat()
 {
     // A failed SIZE lets resolve() look for a crunched name in the listing;
     // a server without SIZE only costs that extra listing.
-    int32_t size = ftp->get_file_size(opened_url->path);
+    int32_t size = ftp->get_file_size(opened_path);
     if (size < 0)
         return FUJI_ERROR::UNSPECIFIED;
     fileSize = size;
