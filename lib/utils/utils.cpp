@@ -2,6 +2,8 @@
 #include "utils.h"
 
 #include <algorithm>
+#include <cerrno>
+#include <climits>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -73,6 +75,18 @@ void util_string_trim(std::string &s)
 {
     util_string_ltrim(s);
     util_string_rtrim(s);
+}
+
+std::optional<int> util_stoi(const std::string &s)
+{
+    const char *start = s.c_str();
+    char *end;
+
+    errno = 0;
+    long v = strtol(start, &end, 10);
+    if (end == start || errno == ERANGE || v < INT_MIN || v > INT_MAX)
+        return std::nullopt;
+    return static_cast<int>(v);
 }
 
 int _util_peek(FILE *f)

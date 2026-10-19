@@ -93,6 +93,46 @@ endif()
 add_test(NAME url_parser_tests COMMAND url_parser_tests)
 
 # ------------------------------------------------------------------------------
+# util_stoi(), the non-throwing std::stoi the modems parse ports with (#2040).
+# Same sources as url_parser_tests: utils.cpp needs them to link.
+# ------------------------------------------------------------------------------
+add_executable(utils_tests
+    UtilsTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/U8Char.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/punycode.cpp
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_gettimeofday.c
+)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_sources(utils_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+    )
+endif()
+
+target_include_directories(utils_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/utils/
+    ${CMAKE_SOURCE_DIR}/lib/compat/
+    ${CMAKE_SOURCE_DIR}/lib/sam/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+    ${MBEDTLS_INCLUDE_DIR}
+)
+
+target_link_libraries(utils_tests PRIVATE ${MBEDCRYPTO_STATIC_LIB})
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_include_directories(utils_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/components_pc/libsmb2/include/   # asprintf.h
+    )
+    target_link_libraries(utils_tests PRIVATE bcrypt)
+endif()
+
+add_test(NAME utils_tests COMMAND utils_tests)
+
+# ------------------------------------------------------------------------------
 # The XPath-subset query engine. Split out of FNXML precisely so it can be
 # driven here with a literal document and no NetworkProtocol behind it.
 # ------------------------------------------------------------------------------

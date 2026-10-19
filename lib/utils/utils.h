@@ -2,6 +2,7 @@
 #define _FN_UTILS_H
 
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -46,6 +47,9 @@
 void util_string_ltrim(std::string &s);
 void util_string_rtrim(std::string &s);
 void util_string_trim(std::string &s);
+
+// std::stoi without the throw: nullopt where std::stoi would throw.
+std::optional<int> util_stoi(const std::string &s);
 
 std::string util_tolower(const std::string& str);
 void util_string_tolower(std::string &s);
