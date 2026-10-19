@@ -1,18 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 
-# -DPICO_BOARD=x pulls in boards/x.cmake; the SDK finds boards/x.h through
-# PICO_BOARD_HEADER_DIRS. The CONFIG header comes from FUJI_GEN
-# (build-cart.sh's fresh one) if there, else from baked/.
-set(PICO_BOARD_HEADER_DIRS ${CMAKE_CURRENT_LIST_DIR}/boards)
-if(NOT PICO_BOARD)
-    set(PICO_BOARD fuji5200_rp2354b)
-endif()
-include(${CMAKE_CURRENT_LIST_DIR}/boards/${PICO_BOARD}.cmake)
-if(NOT FUJI_GEN)
-    set(FUJI_GEN ${CMAKE_CURRENT_LIST_DIR}/../build/gen)
-endif()
-
-include(pico_sdk_import.cmake)
+set(FUJI_DEFAULT_BOARD fuji5200_rp2354b)
+include(${CMAKE_CURRENT_LIST_DIR}/../../common/cmake/fujicart_pre.cmake)
 
 project(fuji5200 C CXX ASM)
 

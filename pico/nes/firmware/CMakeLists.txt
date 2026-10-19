@@ -1,15 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 
-# Board selection, as in the sibling ports: -DPICO_BOARD=x pulls in
-# boards/x.cmake (platform, flash size, feature options) and the SDK finds
-# boards/x.h through PICO_BOARD_HEADER_DIRS.
-set(PICO_BOARD_HEADER_DIRS ${CMAKE_CURRENT_LIST_DIR}/boards)
-if(NOT PICO_BOARD)
-    set(PICO_BOARD fujines_rp2354b)
-endif()
-include(${CMAKE_CURRENT_LIST_DIR}/boards/${PICO_BOARD}.cmake)
-
-include(pico_sdk_import.cmake)
+set(FUJI_DEFAULT_BOARD fujines_rp2354b)
+include(${CMAKE_CURRENT_LIST_DIR}/../../common/cmake/fujicart_pre.cmake)
 
 project(fujines C CXX ASM)
 
