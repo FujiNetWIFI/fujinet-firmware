@@ -81,10 +81,20 @@ success_is_true FileSystemHTTP::start(const char *url, const char *user, const c
     RETURN_SUCCESS_IF(_started = true);
 }
 
+// HEAD the file: 2xx/3xx means present, as FileHandlerHTTP::create() accepts.
 bool FileSystemHTTP::exists(const char *path)
 {
-    // TODO
-    return false;
+    if (!_started || _url == nullptr || path == nullptr || path[0] == '\0')
+        return false;
+
+    std::string url = make_file_url(path);
+    auto client = std::make_unique<HTTP_CLIENT_CLASS>();
+    if (!client->begin(url))
+        return false;
+
+    int rc = client->HEAD();
+    Debug_printf("FileSystemHTTP::exists(\"%s\") HEAD %d\n", url.c_str(), rc);
+    return rc >= 200 && rc < 400;
 }
 
 success_is_true FileSystemHTTP::remove(const char *path)
