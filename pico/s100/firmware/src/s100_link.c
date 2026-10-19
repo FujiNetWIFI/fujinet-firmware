@@ -114,7 +114,7 @@ static void request(s100_card_t *c, link_owner_t own, uint8_t dev, uint8_t cmd,
 static void dbc_nak(s100_card_t *c)
 {
     uint8_t frame[16];
-    size_t n = fujibus_build_request(FB_DEV_DBC, CMD_FUJI_NAK, NULL, 0, NULL, 0, frame,
+    size_t n = fujibus_build_request(FUJI_DEVICEID_DBC, CMD_FUJI_NAK, NULL, 0, NULL, 0, frame,
                                      sizeof(frame));
     send(c, frame, n);
 }
@@ -135,7 +135,7 @@ static bool candidate(s100_card_t *c, uint32_t now)
         return false;
     TRACE(c, "RX", r.device, (uint32_t)l->st << 8 | l->dev);
 
-    if (r.device == FB_DEV_DBC)
+    if (r.device == FUJI_DEVICEID_DBC)
     {
         dbc_nak(c);
         return true;
@@ -381,7 +381,7 @@ static bool start_fdc(s100_card_t *c, bool probes, uint32_t now)
     if (!fdc_next_op(&c->fdc, &l->fop, probes, now))
         return false;
     fdc_op_t *op = &l->fop;
-    uint8_t dev = (uint8_t)(FB_DEV_DISK + op->drive);
+    uint8_t dev = (uint8_t)(FUJI_DEVICEID_DISK + op->drive);
     fb_param_t p = {op->lba, 4};
     switch (op->kind)
     {
@@ -406,20 +406,20 @@ static bool start_host(s100_card_t *c, uint32_t now)
     if (l->hrep_len)
         return false; // the last reply hasn't been read yet
     parse(l->hraw, l->hlen, copy, &r);
-    if (mount_class(r.command) && r.device == FB_DEV_FUJI && fdc_dirty(&c->fdc))
+    if (mount_class(r.command) && r.device == FUJI_DEVICEID_FUJINET && fdc_dirty(&c->fdc))
         return false;
     send(c, l->hraw, l->hlen);
     TRACE(c, "TXHOST", r.device, r.command);
     l->hready = false;
     l->host_last = true;
-    if (r.device == FB_DEV_MODEM)
+    if (r.device == FUJI_DEVICEID_SERIAL)
         return true; // the modem answers raw, never with a frame
     l->st = LS_WAIT;
     l->own = LO_HOST;
     l->dev = r.device;
     l->deadline = now + LINK_HOST_US;
     l->host_orphaned = false;
-    l->invalidate_after = r.device == FB_DEV_FUJI && mount_class(r.command);
+    l->invalidate_after = r.device == FUJI_DEVICEID_FUJINET && mount_class(r.command);
     return true;
 }
 
@@ -467,13 +467,14 @@ void s100_link_poll(s100_card_t *c, uint32_t now)
     if (l->plen && (l->plen == LINK_PRN_MAX || l->ptx[l->plen - 1] == '\n' ||
                     now - l->plast >= LINK_PRN_US))
     {
-        request(c, LO_PRN, FB_DEV_PRINTER, 'W', NULL, 0, l->ptx, l->plen, LINK_OWN_US, now);
+        request(c, LO_PRN, FUJI_DEVICEID_PRINTER, 'W', NULL, 0, l->ptx, l->plen, LINK_OWN_US,
+                now);
         l->plen = 0;
         return;
     }
     if (l->mlen && (l->mlen == LINK_MDM_MAX || now - l->mlast >= LINK_MDM_US))
     {
-        request(c, LO_HOST, FB_DEV_MODEM, 'W', NULL, 0, l->mtx, l->mlen, 0, now);
+        request(c, LO_HOST, FUJI_DEVICEID_SERIAL, 'W', NULL, 0, l->mtx, l->mlen, 0, now);
         l->mlen = 0;
         return;
     }

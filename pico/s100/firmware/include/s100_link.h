@@ -25,12 +25,6 @@
 #define LINK_MDM_US    5000
 #define LINK_HOLD_US   50000 /* modem bytes after a lone END wait this long for a frame */
 
-#define FB_DEV_FUJI    0x70
-#define FB_DEV_DISK    0x31
-#define FB_DEV_PRINTER 0x40
-#define FB_DEV_MODEM   0x50
-#define FB_DEV_DBC     0xFF
-
 typedef size_t (*s100_tx_fn)(void *ctx, const uint8_t *buf, size_t n);
 /* Optional: link events for an emulator's trace (TX, RX, MODEM, TIMEOUT). */
 typedef void (*s100_trace_fn)(const char *ev, uint32_t a, uint32_t b);

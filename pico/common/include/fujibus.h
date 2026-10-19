@@ -19,6 +19,11 @@
 #define FUJI_DEVICEID_NET_FIRST 0x71
 #define FUJI_DEVICEID_NET_LAST  0x78
 
+// The first disk and printer, and the serial device a modem answers as.
+#define FUJI_DEVICEID_DISK    0x31
+#define FUJI_DEVICEID_PRINTER 0x40
+#define FUJI_DEVICEID_SERIAL  0x50
+
 // FUJI_DEVICEID_DBC: the ESP32-S3 addresses this device, not us, when it
 // pushes a ROM (and an optional .cfg sibling) to the cartridge mid-
 // MOUNT_IMAGE-transaction -- see the inbound-frame demux in
