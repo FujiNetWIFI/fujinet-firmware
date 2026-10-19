@@ -43,21 +43,17 @@ jobs:
         with:
           submodules: true
 
-      # The wire codec and the cartridge-image mapper are deliberately free of
-      # pico-sdk and TinyUSB so they can be tested here rather than on a console.
-      - name: Shared -- FujiBus codec
-        working-directory: pico/common/host_test
+      # The codecs, mappers and bus models are free of pico-sdk and TinyUSB so they
+      # can be tested here. Every pico/*/firmware/host_test/Makefile is run, so a
+      # new cart needs no step of its own.
+      - name: Cartridge host tests
         run: |
-          gcc -Wall -Wextra -Werror -I../include \
-              -o test_fujibus test_fujibus.c ../src/fujibus.c
-          ./test_fujibus
-
-      - name: Odyssey 2 -- cartridge image mapper
-        working-directory: pico/o2/firmware/host_test
-        run: |
-          gcc -Wall -Wextra -Werror -I../include \
-              -o test_o2map test_o2map.c ../src/o2map.c
-          ./test_o2map
+          for t in pico/common/host_test pico/*/firmware/host_test; do
+            [ -f "$t/Makefile" ] || continue
+            echo "::group::$t"
+            make -C "$t"
+            echo "::endgroup::"
+          done
 
       - name: Intellivision -- FujiBus codec
         working-directory: pico/intellivision/firmware/host_test
@@ -74,144 +70,6 @@ jobs:
         run: |
           gcc -Wall -Wextra -I../include -o test_bootmap \
               test_bootmap.c ../src/bootmap.c ../src/memory.c ../src/utils.c
-
-      - name: Astrocade -- cartridge image mapper
-        working-directory: pico/astrocade/firmware/host_test
-        run: |
-          gcc -Wall -Wextra -Werror -I../include \
-              -o test_astromap test_astromap.c ../src/astromap.c
-          ./test_astromap
-
-      # The v2 banking serve model vs MAME's rom_256k/rom_512k handlers,
-      # transcribed verbatim as the reference: 2M fuzzed reads must match
-      # byte-for-byte, bank state included, plus the exact hotspot
-      # boundaries and the debugger's no-commit read.
-      - name: Astrocade -- banked serve model
-        working-directory: pico/astrocade/firmware/host_test
-        run: |
-          gcc -Wall -Wextra -Werror -I../include \
-              -o test_bankserve test_bankserve.c ../src/astromap.c
-          ./test_bankserve
-
-      # The hotspot mailbox: read-pair register decode, the SEQ/ACKSEQ and
-      # SLICE_ECHO interlocks, the DBC push receiver (through the port-owned
-      # store, astromap-gated), and the refresh-sweep fuzz. MAME cannot
-      # model Z80 refresh and its socket transport is synchronous, so this
-      # is the only place those cases run.
-      - name: Astrocade -- hotspot mailbox service
-        working-directory: pico/astrocade/firmware/host_test
-        run: |
-          gcc -Wall -Wextra -Werror -I../include -I../../../common/include \
-              -o test_fujimail test_fujimail.c ../src/fujimail.c ../src/astromap.c
-          ./test_fujimail
-
-      # The push store's flash bookkeeping: the idle erase sweep and its
-      # guards, and whether a chunk pays for an erase or only a program.
-      # stub/ models the part rather than faking it -- a program only clears
-      # bits -- so a wrongly skipped erase corrupts the image here instead of
-      # waiting for a cartridge that does not exist yet.
-      - name: Astrocade -- push store flash bookkeeping
-        working-directory: pico/astrocade/firmware/host_test
-        run: |
-          gcc -Wall -Wextra -Werror -Istub -I../include \
-              -DFUJI_STORE_BINARY_END=0x1000u \
-              -o test_fujistore test_fujistore.c ../src/fuji_store.c
-          ./test_fujistore
-
-      # The Channel F tests are the only ones in the family that cover a BUS
-      # PROTOCOL rather than an address decode: the F8 has no address bus, so
-      # the cart has to run a 32-state ROMC machine and track PC0/PC1/DC0/DC1
-      # itself. test_romc replays golden traces captured from MAME's own F8
-      # core; without traces present it skips, and test_busio still runs.
-      - name: Channel F -- ROMC conformance and bus decode
-        working-directory: pico/channelf/firmware/host_test
-        run: make
-
-      # The Studio II planner against a transcription of MAME's loader, the
-      # per-read bus decision, the text engine and the mailbox. test_cycles
-      # checks its CDP1802 Table 2 transcription here; the MAME trace replays
-      # need traces recorded locally (tools/mktrace.sh).
-      - name: Studio II -- host tests
-        working-directory: pico/studio2/firmware/host_test
-        run: make
-
-      # The NES port keeps every hardware-free unit under one Makefile: the
-      # FujiBus codec, the mapper engine against MAME handler transcriptions,
-      # the bus decode and RMW signature, the PIO bank-table model, and the
-      # mailbox service on the 4K arena.
-      - name: NES -- host tests
-        working-directory: pico/nes/firmware/host_test
-        run: make
-
-      # The mapper engine against MAME's own sega8 handlers, the bus decode and
-      # 74HCT glue (no two drivers on D in any mode), the load sequence on a
-      # model of the board, the mailbox service and the FujiBus codec.
-      - name: Master System -- host tests
-        working-directory: pico/sms/firmware/host_test
-        run: make
-
-      # The mapper engine against MAME's own a7800 handlers, the bus decode,
-      # the INPTCTRL model and the 74HCT glue (no two drivers on D in any
-      # state), the PIO slot table, the POKEY against MAME's polynomials, the
-      # load sequence and hand-over rule, the HSC's AppKeys, the mailbox
-      # service, the FujiBus codec, and the signed boot block.
-      - name: Atari 7800 -- host tests
-        working-directory: pico/atari-7800/firmware/host_test
-        run: make
-
-      # The mapper engine against MAME's own a5200 handlers, the bus observer
-      # (skew, enables, repeats, the swap), the '541 glue, staging and the
-      # hand-over, the mailbox service and the FujiBus codec.
-      - name: Atari 5200 -- host tests
-        working-directory: pico/atari-5200/firmware/host_test
-        run: make
-
-      # The FDC+ engine driven the way Altair code drives it, the link mux
-      # against a fake ESP32, the pipe, 2SIO and boot page registers, and the
-      # decode, wait-state and timing glue. test_pio needs pioasm, which only
-      # the cartridge build below has; it reports SKIP here.
-      - name: S-100 -- host tests
-        working-directory: pico/s100/firmware/host_test
-        run: make
-
-      - name: Arcadia -- FujiBus codec
-        working-directory: pico/arcadia/firmware/host_test
-        run: |
-          gcc -Wall -Wextra -Werror -I.. -I../include \
-              -o test_fujibus test_fujibus.c ../src/fujibus.c
-          ./test_fujibus
-
-      # The connector decode is the one thing the RP2040 serve loop and the
-      # MAME device MUST agree on byte-for-byte (A12 = chip select, A13 =
-      # block, A14 not wired -> $6000 aliases the hotspots): swept exhaustively.
-      - name: Arcadia -- cartridge image mapper
-        working-directory: pico/arcadia/firmware/host_test
-        run: |
-          gcc -Wall -Wextra -Werror -I../include \
-              -o test_arcmap test_arcmap.c ../src/arcmap.c
-          ./test_arcmap
-
-      # The hotspot mailbox: read-pair register decode, the SEQ/ACKSEQ and
-      # SLICE_ECHO interlocks, the DBC push receiver, and the stray-read
-      # fuzz. MAME cannot model bus strays and its socket transport is
-      # synchronous, so this is the only place those cases run.
-      - name: Arcadia -- hotspot mailbox service
-        working-directory: pico/arcadia/firmware/host_test
-        run: |
-          gcc -Wall -Wextra -Werror -I../include \
-              -o test_fujimail test_fujimail.c ../src/fujimail.c ../src/arcmap.c
-          ./test_fujimail
-
-      # The Emerson connector has no read strobe, so core1 de-duplicates
-      # hotspot events on a pin-state change rather than an Enable edge. That
-      # decision (arcadia_bus_observe) is fuzzed here with synthetic 2650 bus
-      # traces -- the one thing MAME's edge-free access model cannot exercise.
-      - name: Arcadia -- bus edge dedupe
-        working-directory: pico/arcadia/firmware/host_test
-        run: |
-          gcc -Wall -Wextra -Werror -I../include \
-              -o test_busedge test_busedge.c
-          ./test_busedge
 
   a7800-console-client:
     name: "Atari 7800 6502 clients"
@@ -311,10 +169,9 @@ jobs:
       - name: Decode every built cart with the image mapper
         working-directory: pico/o2
         run: |
-          gcc -Wall -Wextra -Werror -Ifirmware/include -o /tmp/test_o2map \
-              firmware/host_test/test_o2map.c firmware/src/o2map.c
-          /tmp/test_o2map build/hello.bin build/fujitest.bin \
-                          build/fujiboot.bin build/fujicfg.bin
+          make -C firmware/host_test
+          build/host_test/test_o2map build/hello.bin build/fujitest.bin \
+                                     build/fujiboot.bin build/fujicfg.bin
 
   astrocade-console-client:
     name: "Astrocade Z80 clients"

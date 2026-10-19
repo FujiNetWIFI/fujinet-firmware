@@ -1,22 +1,16 @@
-SHELL := /bin/bash
-# Host tests: no hardware, no pico-sdk. CI runs this as a single `make` step.
-CC ?= cc
-CFLAGS ?= -Wall -Wextra -Werror -O1 -g
-INC = -I.. -I../include
-SRC = ../src
+# The F8 has no address bus, so these cover a bus protocol: test_romc replays golden MAME
+# traces through the ROMC observer, and skips without them.
 BUILD = ../../build
 
-# test_busio compiles the observer with cart I/O ports claimed, which is the
-# only way to exercise the ROMC 03 -> 1A/1B latch.
-BUSIO_FLAGS = -DCHF_IO_LO=0x20 -DCHF_IO_HI=0x27
+TESTS = test_busio test_chfmap test_fujicart test_tick
+test_chfmap_SRCS = $(SRC)/chfmap.c
+test_fujicart_SRCS = $(SRC)/fuji_cart.c $(SRC)/chfmap.c
+# with cart I/O ports claimed, the only way to exercise the ROMC 03 -> 1A/1B latch
+test_busio_CFLAGS = -DCHF_IO_LO=0x20 -DCHF_IO_HI=0x27
 
-TESTS = test_busio test_chfmap test_fujicart test_tick test_romc
+include ../../../common/host_test/cart.mk
 
-all: $(TESTS)
-	@echo "== test_busio"; ./test_busio
-	@echo "== test_chfmap"; ./test_chfmap
-	@echo "== test_fujicart"; ./test_fujicart
-	@echo "== test_tick"; ./test_tick
+all:: $(OUT)/test_romc
 	@echo "== test_romc"
 	@if [ ! -f $(BUILD)/trace/hello.trace ] || [ ! -f $(BUILD)/trace/romctest.trace ]; then \
 	    echo "   SKIPPED: no golden traces. Generate them with tools/mktrace.sh <mame-tree>"; \
@@ -28,26 +22,6 @@ all: $(TESTS)
 	    echo "   divergence that looks exactly like an observer bug."; \
 	    exit 1; \
 	else \
-	    ./test_romc $(BUILD)/trace/hello.trace   $(BUILD)/hello.bin \
-	                $(BUILD)/trace/romctest.trace $(BUILD)/romctest.bin; \
+	    $(OUT)/test_romc $(BUILD)/trace/hello.trace   $(BUILD)/hello.bin \
+	                     $(BUILD)/trace/romctest.trace $(BUILD)/romctest.bin; \
 	fi
-
-test_romc: test_romc.c ../include/channelf_cart.h
-	$(CC) $(CFLAGS) $(INC) -o $@ $<
-
-test_chfmap: test_chfmap.c $(SRC)/chfmap.c ../include/chfmap.h
-	$(CC) $(CFLAGS) $(INC) -o $@ $< $(SRC)/chfmap.c
-
-test_fujicart: test_fujicart.c $(SRC)/fuji_cart.c $(SRC)/chfmap.c ../include/fuji_cart.h ../include/chfmap.h
-	$(CC) $(CFLAGS) $(INC) -o $@ $< $(SRC)/fuji_cart.c $(SRC)/chfmap.c
-
-test_tick: test_tick.c ../include/fuji_tick.h
-	$(CC) $(CFLAGS) $(INC) -o $@ $<
-
-test_busio: test_busio.c ../include/channelf_cart.h
-	$(CC) $(CFLAGS) $(INC) $(BUSIO_FLAGS) -o $@ $<
-
-clean:
-	rm -f $(TESTS)
-
-.PHONY: all clean

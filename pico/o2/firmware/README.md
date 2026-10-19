@@ -45,10 +45,9 @@ on the restart the player initiates, and it has to be atomic against a running
 console.
 
 ```sh
-cd host_test
-gcc -Wall -Wextra -I../include     -o /tmp/test_o2map   test_o2map.c   ../src/o2map.c   && /tmp/test_o2map
+make -C host_test
 # and against real images:
-/tmp/test_o2map ../../build/*.bin
+../build/host_test/test_o2map ../build/*.bin
 ```
 
 ## Still to come
