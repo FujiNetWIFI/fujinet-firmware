@@ -7,6 +7,8 @@ CORE = $(SRC)/s100_regs.c $(SRC)/s100_fdc.c $(SRC)/s100_2sio.c $(SRC)/s100_link.
 CORE_TESTS = test_regs test_2sio test_fdc test_link test_glue test_timing
 TESTS = $(CORE_TESTS)
 $(foreach t,$(CORE_TESTS),$(eval $(t)_SRCS = $$(CORE)))
+# the SIMH graft builds these as C
+C_ONLY_SRCS = $(CORE)
 
 # test_pio needs pioasm: on PATH, or the one build-cart.sh built.
 PIOASM ?= $(shell command -v pioasm || ls ../../build/fw-*/pioasm-install/pioasm/pioasm 2>/dev/null | head -1)
