@@ -29,9 +29,9 @@ DRIVER="$MAME/src/mame/arcadia/arcadia.cpp"
 cp fujinet.cpp fujinet.h fujitcp.h "$BUSDIR/"
 cp fujitcp.c "$BUSDIR/fujitcp.cpp"
 cp ../firmware/src/fujimail.c "$BUSDIR/fujimail.cpp"
-cp ../firmware/src/fujibus.c "$BUSDIR/fujibus.cpp"
+cp ../../common/src/fujibus.c "$BUSDIR/fujibus.cpp"
 cp ../firmware/src/arcmap.c "$BUSDIR/arcmap.cpp"
-cp ../firmware/include/fujimail.h ../firmware/include/fujibus.h \
+cp ../firmware/include/fujimail.h ../../common/include/fujibus.h \
    ../firmware/include/arcmap.h ../firmware/include/fuji_mailbox.h \
    "$BUSDIR/"
 rm -f "$BUSDIR/fujitcp.c" "$BUSDIR/fujimail.c" "$BUSDIR/fujibus.c" \

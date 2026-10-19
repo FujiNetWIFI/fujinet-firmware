@@ -19,11 +19,11 @@ memory-mapped mailbox, a POKEY and a High Score Cart.
 | `firmware/include/hsc.h`, `firmware/src/hsc.c` | the High Score Cart's RAM as 32 AppKeys on the FujiNet's SD card |
 | `firmware/include/fuji_store.h`, `firmware/src/fuji_store.c` | pushed images: 160K RAM tier, 512K flash tier; the HSC's ROM and settings in flash |
 | `firmware/include/fujinet.h`, `firmware/include/fujiboot.h`, `firmware/src/fujinet.c`, `firmware/src/fujiboot.c`, `firmware/src/main.c` | the fujimail port and the cart's own registers, power-on, the core0 loop |
-| `firmware/src/fujimail.c`, `firmware/src/fujibus.c`, `firmware/src/fujibus_usb.c`, `firmware/src/usb_descriptors.c`, their headers and `firmware/include/tusb_config.h` | shared with the other cartridges; this `fujimail.c` also gives network STATUS and READ the network budget, and `fujibus_usb.c` sizes its receive buffer for a whole SLIP-escaped 1K reply |
+| `firmware/src/fujimail.c` and its header | shared with the other cartridges; this copy also gives network STATUS and READ the network budget. The FujiBus codec and USB device come from [common/](../common/) |
 | `firmware/CMakeLists.txt` | the pico-sdk build; the preamble comes from [common/](../common/) |
 | `firmware/baked/` | the CONFIG, loader and signed boot block headers the firmware uses when there is no fresh `build/gen` (CI, the ESP32 build) |
 | `firmware/boards/fuji7800_rp2354b.*` | the board |
-| `firmware/host_test/` | `test_a78map` (against MAME's a7800 handlers), `test_busio`, `test_glue`, `test_pio`, `test_pokey` (against MAME's polynomials), `test_load`, `test_hsc`, `test_bootblock`, `test_fujimail`, `test_fujibus` |
+| `firmware/host_test/` | `test_a78map` (against MAME's a7800 handlers), `test_busio`, `test_glue`, `test_pio`, `test_pokey` (against MAME's polynomials), `test_load`, `test_hsc`, `test_bootblock`, `test_fujimail` |
 | `testrom/bootblk.s` | the 4K block the BIOS checks at power-on |
 | `testrom/loader.s` | the 512-byte loader at `$0600` |
 | `testrom/*.s` | ca65 clients: `hello`, `fujitest`, `fujiboot`, `fujibank` (a 64K banked app), `pokeytest`, and their start-up, 320A text and mailbox library |
