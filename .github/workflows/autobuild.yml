@@ -34,6 +34,7 @@ jobs:
           - IEC-NUGGET
           - LYNX
           - LYNX-S3
+          - MAC
           - RS232
           - FUJIVERSAL-INTV
           - FUJIVERSAL-DRIVEWIRE

@@ -231,14 +231,15 @@ bool IRAM_ATTR mac_floppy_ll::nextbit() // TO UPDATE TO REV 5
   }
   // choose side based on HDSEL!
   bool side = mac_headsel_val();
-  bits_served[(int)side]++;
+  bits_served[(int)side] = bits_served[(int)side] + 1;
   return outbit[(int)side];
 }
 
 void mac_floppy_ll::report_served(const char *why)
 {
   uint32_t s0 = bits_served[0], s1 = bits_served[1];
-  bits_served[0] = bits_served[1] = 0;
+  bits_served[0] = 0;
+  bits_served[1] = 0;
   if (s0 || s1)
     Debug_printf("\n[%s] streamed side0 %lu bits (%lu revs) side1 %lu bits (%lu revs)", why,
                  (unsigned long)s0, (unsigned long)(track_numbits[0] ? s0 / track_numbits[0] : 0),
