@@ -1214,6 +1214,7 @@ success_is_true fujiDevice::fujicore_new_disk_success(const DISK_DEVICE::NewDisk
     if (written.is_error())
     {
         Debug_print("fujicore_new_disk Data write failed\n");
+        host.file_remove(disk.filename);
         RETURN_ERROR_AS_FALSE();
     }
 

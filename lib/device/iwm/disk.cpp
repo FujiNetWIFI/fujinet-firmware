@@ -651,6 +651,10 @@ error_is_true iwmDisk::write_blank(fnFile *f, const NewDiskRequest &req)
     RETURN_SUCCESS_AS_FALSE();
   }
 
+  // A ProDOS volume holds at most 65535 blocks.
+  if (req.numBlocks == 0 || req.numBlocks > UINT16_MAX)
+    RETURN_ERROR_AS_TRUE();
+
   if (blank_header_type == 1) // 2MG
   {
     // Quickly construct and write 2MG header

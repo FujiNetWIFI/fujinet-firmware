@@ -96,6 +96,10 @@ error_is_true adamDisk::write_blank(fnFile *fileh, const NewDiskRequest &req)
 {
     uint8_t buf[256];
 
+    // mount() takes the image size in 32 bits.
+    if (req.numBlocks == 0 || req.numBlocks > UINT32_MAX / 1024)
+        RETURN_ERROR_AS_TRUE();
+
     for (uint32_t b = 0; b < req.numBlocks; b++)
     {
         memset(buf, 0xE5, 256);
