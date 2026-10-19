@@ -269,6 +269,7 @@ void NetworkProtocol::errno_to_error()
     case WSAEWOULDBLOCK:
         error = NDEV_STATUS::SUCCESS; // This is okay.
         compat_setsockerr(0); // Short circuit and say it's okay.
+        break;
     case WSAEADDRINUSE:
         error = NDEV_STATUS::ADDRESS_IN_USE;
         break;
