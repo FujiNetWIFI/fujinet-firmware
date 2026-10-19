@@ -134,7 +134,7 @@ the dummy write and counts it in `FN_R_DIAG_RMW`.
 ## Loading
 
 Images are staged on the cart (`fuji_store`: 256K of RAM, or 1.5 MB of flash
-above the firmware) exactly as on every sibling, and `fujimail.c` is verbatim.
+above the firmware) exactly as on every sibling, and `fujimail.c` is [pico/common/](../common/)'s.
 The SRAMs are volatile and only the console can address them, so the copy is
 the 6502's: the client sets `FN_REG_BOOTLOCK` and jumps to the loader ROM at
 `$5800`, which asks for the load (`FN_H_REGSEL + FN_HOT_SWAP`) and then, per

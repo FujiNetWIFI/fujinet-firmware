@@ -9,7 +9,7 @@ test_s2map_SRCS = $(MAP)
 test_busio_SRCS = $(SRC)/fuji_load.c $(MAP)
 test_text_SRCS = $(TEXT)
 test_load_SRCS = $(SRC)/fuji_load.c $(MAP)
-test_fujimail_SRCS = $(SRC)/fujimail.c $(MAP)
-test_cycles_SRCS = $(SRC)/fuji_load.c $(SRC)/fujimail.c $(TEXT) $(MAP)
+test_fujimail_SRCS = $(COMMON)/src/fujimail.c $(MAP)
+test_cycles_SRCS = $(SRC)/fuji_load.c $(COMMON)/src/fujimail.c $(TEXT) $(MAP)
 
 include ../../../common/host_test/cart.mk

@@ -18,8 +18,7 @@ memory-mapped mailbox, a POKEY and a High Score Cart.
 | `firmware/include/pokey.h`, `firmware/include/fuji_audio.h`, `firmware/src/pokey.c`, `firmware/src/fuji_audio.c` | the POKEY: registers, event-driven sound, the PWM to the edge's audio pin |
 | `firmware/include/hsc.h`, `firmware/src/hsc.c` | the High Score Cart's RAM as 32 AppKeys on the FujiNet's SD card |
 | `firmware/include/fuji_store.h`, `firmware/src/fuji_store.c` | pushed images: 160K RAM tier, 512K flash tier; the HSC's ROM and settings in flash |
-| `firmware/include/fujinet.h`, `firmware/include/fujiboot.h`, `firmware/src/fujinet.c`, `firmware/src/fujiboot.c`, `firmware/src/main.c` | the fujimail port and the cart's own registers, power-on, the core0 loop |
-| `firmware/src/fujimail.c` and its header | shared with the other cartridges; this copy also gives network STATUS and READ the network budget. The FujiBus codec and USB device come from [common/](../common/) |
+| `firmware/include/fujinet.h`, `firmware/include/fujiboot.h`, `firmware/src/fujinet.c`, `firmware/src/fujiboot.c`, `firmware/src/main.c` | the port for [common/](../common/)'s `fujimail.c` and the cart's own registers, power-on, the core0 loop; the FujiBus codec and USB device come from common too |
 | `firmware/CMakeLists.txt` | the pico-sdk build; the preamble comes from [common/](../common/) |
 | `firmware/baked/` | the CONFIG, loader and signed boot block headers the firmware uses when there is no fresh `build/gen` (CI, the ESP32 build) |
 | `firmware/boards/fuji7800_rp2354b.*` | the board |

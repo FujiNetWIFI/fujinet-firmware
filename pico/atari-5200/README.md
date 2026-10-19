@@ -14,8 +14,7 @@ and serves a mailbox the console reaches by reads alone.
 | `firmware/include/fuji_load.h`, `firmware/src/fuji_load.c` | the two view buffers: staging a push, CONFIG, the armed swap |
 | `firmware/src/a52_cart.c` | core1: follow the address, serve, commit side effects, swap |
 | `firmware/include/fuji_cart.h`, `firmware/src/fuji_cart.c` | the ring between the cores; core0: the ring drain, the arena, console power |
-| `firmware/include/fujinet.h`, `firmware/src/fujinet.c`, `firmware/src/main.c` | the fujimail port and `FN_REG_CONFIG`, power-on, the core0 loop |
-| `firmware/src/fujimail.c` and its header | shared with the other cartridges (the Atari 7800's copy); the FujiBus codec and USB device come from [common/](../common/) |
+| `firmware/include/fujinet.h`, `firmware/src/fujinet.c`, `firmware/src/main.c` | the port for [common/](../common/)'s `fujimail.c` and `FN_REG_CONFIG`, power-on, the core0 loop; the FujiBus codec and USB device come from common too |
 | `firmware/CMakeLists.txt` | the pico-sdk build; the preamble comes from [common/](../common/) |
 | `firmware/baked/` | the CONFIG header the firmware uses when there is no fresh `build/gen` (CI, the ESP32 build) |
 | `firmware/boards/fuji5200_rp2354b.*` | the board |

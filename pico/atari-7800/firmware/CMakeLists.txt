@@ -24,7 +24,7 @@ add_executable(${PROJECT_NAME}
     ${FUJI_COMMON}/usb/usb_descriptors.c
     ${FUJI_COMMON}/src/fujibus.c
     ${FUJI_COMMON}/src/fujibus_usb.c
-    src/fujimail.c
+    ${FUJI_COMMON}/src/fujimail.c
     src/fujinet.c
     src/fujiboot.c
 )

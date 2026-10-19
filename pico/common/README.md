@@ -10,6 +10,7 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 | `cmake/pico_sdk_import.cmake` | the pico-sdk's import script, one copy for every cart |
 | `include/fujibus.h`, `src/fujibus.c` | SLIP + FujiBus codec, a plain-C client of `lib/bus/rs232/FujiBusPacket.cpp`; device and command IDs |
 | `include/fujibus_usb.h`, `src/fujibus_usb.c` | one request/reply round trip over USB CDC, and the hook for frames the ESP32 pushes mid-transaction |
+| `include/fujimail.h`, `src/fujimail.c` | the mailbox service: hotspot and register decode, the SEQ/ACKSEQ interlock, the DBC push receiver; the cart or MAME device supplies a `fujimail_port_t` and its own `fuji_mailbox.h` |
 | `usb/usb_descriptors.c`, `usb/tusb_config.h` | the CDC-only TinyUSB device; the product string is the cart's `FUJI_USB_PRODUCT` |
 | `host_test/test_fujibus.c` | runs the codec self-test on the host |
 | `host_test/cart.mk` | the rules every cart's `host_test/Makefile` includes: one compile rule, the runner, binaries in the cart's `build/host_test`, and a C++ compile of the tested sources, which the MAME grafts build as C++ |
@@ -23,10 +24,12 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
   [atari-7800/](../atari-7800/) build all of it from their `firmware/CMakeLists.txt` through
   `FUJI_COMMON`, and each defines `FUJI_USB_PRODUCT` there. [s100/](../s100/) takes the codec and
   the USB device but has its own link in place of `fujibus_usb.c`.
-- [o2/](../o2/) uses `include/` and `src/` only; its USB device stays in `o2/firmware` because it
-  adds a mass-storage interface.
-- Each cart's own `fujimail.c` sits on top of `fujibus_usb.h`. The `emu/apply.sh` scripts copy
-  `fujibus.[ch]` from here into MAME or o2em, so the emulators run the same codec.
+- [o2/](../o2/) takes only the codec and transport; its USB device stays in `o2/firmware` because
+  it adds a mass-storage interface, and its `fujimail.c` is an older design.
+- nes, studio2, atari-5200 and atari-7800 build `src/fujimail.c`, which sits on top of
+  `fujibus_usb.h`; arcadia, astrocade, channelf and sms still carry older copies of their own.
+- The `emu/apply.sh` scripts copy `fujibus.[ch]`, and `fujimail.[ch]` where the cart uses this
+  one, from here into MAME or o2em, so the emulators run the same code.
 - [intellivision/](../intellivision/) keeps its own copy; its transport has a different API.
 - Each cart's `firmware/host_test/Makefile` lists its tests and includes `host_test/cart.mk`; the
   pico cartridges workflow runs every one of them.

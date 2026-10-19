@@ -5,6 +5,6 @@ MAP = $(SRC)/a52map.c $(SRC)/a52map_db.c
 test_a52map_SRCS = $(MAP)
 test_busio_SRCS = $(SRC)/fuji_load.c $(MAP)
 test_load_SRCS = $(SRC)/fuji_load.c $(MAP)
-test_fujimail_SRCS = $(SRC)/fujimail.c $(MAP)
+test_fujimail_SRCS = $(COMMON)/src/fujimail.c $(MAP)
 
 include ../../../common/host_test/cart.mk

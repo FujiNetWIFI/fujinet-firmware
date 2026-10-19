@@ -39,11 +39,12 @@ done
 # sources go in under .cpp names (they build both ways).
 cp fujinet.cpp fujinet.h fujitcp.h "$BUSDIR/"
 cp fujitcp.c "$BUSDIR/fujitcp.cpp"
-for f in fujimail a78map a78map_db fuji_load hsc; do
+for f in a78map a78map_db fuji_load hsc; do
     cp "$FW/src/$f.c" "$BUSDIR/$f.cpp"
 done
 cp "$COMMON/src/fujibus.c" "$BUSDIR/fujibus.cpp"
-cp "$FW/include/fujimail.h" "$COMMON/include/fujibus.h" "$FW/include/fuji_mailbox.h" \
+cp "$COMMON/src/fujimail.c" "$BUSDIR/fujimail.cpp"
+cp "$COMMON/include/fujimail.h" "$COMMON/include/fujibus.h" "$FW/include/fuji_mailbox.h" \
    "$FW/include/a78_cart.h" "$FW/include/a78map.h" "$FW/include/a78map_db.h" \
    "$FW/include/fuji_load.h" "$FW/include/hsc.h" \
    "$GEN/fujiconfigrom.h" "$GEN/a78loaderrom.h" "$GEN/a78bootblk.h" "$BUSDIR/"
