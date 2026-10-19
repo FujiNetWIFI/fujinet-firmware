@@ -10,6 +10,7 @@
 #include "../fntext/fn_sanitize.h"
 
 #include <string.h>
+#include <cctype>
 #include <sstream>
 #include <algorithm>
 #include <math.h>
@@ -132,15 +133,23 @@ std::string FNJSON::processString(std::string in)
 {
     if (_queryParam & JSON_DELETE_SGML_TAGS)
     {
-        while (in.find("<") != std::string::npos)
+        size_t startpos = 0;
+        while ((startpos = in.find("<", startpos)) != std::string::npos)
         {
-            auto startpos = in.find("<");
-            auto endpos = in.find(">");
+            char next = startpos + 1 < in.size() ? in[startpos + 1] : '\0';
 
-            if (endpos != std::string::npos)
+            if (!std::isalpha(static_cast<unsigned char>(next)) && next != '/' && next != '!')
             {
-                in.erase(startpos, (endpos + 1) - startpos);
+                startpos++;
+                continue;
             }
+
+            auto endpos = in.find(">", startpos);
+
+            if (endpos == std::string::npos)
+                break;
+
+            in.erase(startpos, (endpos + 1) - startpos);
         }
     }
 
