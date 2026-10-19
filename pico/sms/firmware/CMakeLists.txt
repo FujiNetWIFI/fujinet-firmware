@@ -7,6 +7,8 @@ project(fujisms C CXX ASM)
 
 pico_sdk_init()
 
+set(FUJI_COMMON ${CMAKE_CURRENT_LIST_DIR}/../../common)
+
 add_executable(${PROJECT_NAME}
     src/main.c
     src/sms_cart.c
@@ -15,15 +17,16 @@ add_executable(${PROJECT_NAME}
     src/fuji_cart.c
     src/fuji_load.c
     src/fuji_store.c
-    src/usb_descriptors.c
-    src/fujibus.c
-    src/fujibus_usb.c
+    ${FUJI_COMMON}/usb/usb_descriptors.c
+    ${FUJI_COMMON}/src/fujibus.c
+    ${FUJI_COMMON}/src/fujibus_usb.c
     src/fujimail.c
     src/fujinet.c
     src/fujiboot.c
 )
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Os -Wall)
+target_compile_definitions(${PROJECT_NAME} PRIVATE FUJI_USB_PRODUCT="FujiNet Master System Cart")
 target_compile_definitions(${PROJECT_NAME} PRIVATE CONFIG_FUJINET=1)
 
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -31,6 +34,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
     ${CMAKE_CURRENT_LIST_DIR}/include
     ${CMAKE_CURRENT_LIST_DIR}/baked
+    ${FUJI_COMMON}/include
+    ${FUJI_COMMON}/usb
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE

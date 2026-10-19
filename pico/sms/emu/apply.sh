@@ -27,6 +27,7 @@ BUSLUA="$MAME/scripts/src/bus.lua"
 SLOT="$BUSDIR/sega8_slot.cpp"
 DRIVER="$MAME/src/mame/sega/sms.cpp"
 FW=../firmware
+COMMON=../../common
 GEN=../build/gen
 [ -f "$GEN/fujiconfigrom.h" ] || GEN=$FW/baked      # no fresh build: the baked pair
 
@@ -39,10 +40,11 @@ done
 # sources go in under .cpp names (they build both ways).
 cp fujinet.cpp fujinet.h fujitcp.h "$BUSDIR/"
 cp fujitcp.c "$BUSDIR/fujitcp.cpp"
-for f in fujimail fujibus smsmap smsmap_db fuji_load; do
+for f in fujimail smsmap smsmap_db fuji_load; do
     cp "$FW/src/$f.c" "$BUSDIR/$f.cpp"
 done
-cp "$FW/include/fujimail.h" "$FW/include/fujibus.h" "$FW/include/fuji_mailbox.h" \
+cp "$COMMON/src/fujibus.c" "$BUSDIR/fujibus.cpp"
+cp "$FW/include/fujimail.h" "$COMMON/include/fujibus.h" "$FW/include/fuji_mailbox.h" \
    "$FW/include/sms_cart.h" "$FW/include/smsmap.h" "$FW/include/smsmap_db.h" \
    "$FW/include/fuji_load.h" "$GEN/fujiconfigrom.h" "$GEN/smsloaderrom.h" "$BUSDIR/"
 

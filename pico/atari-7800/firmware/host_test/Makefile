@@ -4,10 +4,9 @@
 # the boot block: build-cart.sh's fresh one if there, else the baked one
 GEN = $(firstword $(wildcard ../../build/gen/a78bootblk.h) ../baked/a78bootblk.h)
 
-TESTS = test_fujibus test_a78map test_busio test_glue test_pio test_pokey \
+TESTS = test_a78map test_busio test_glue test_pio test_pokey \
         test_load test_hsc test_fujimail test_bootblock
 MAP = $(SRC)/a78map.c $(SRC)/a78map_db.c
-test_fujibus_SRCS = $(SRC)/fujibus.c
 test_a78map_SRCS = $(MAP) $(SRC)/fuji_load.c
 test_glue_SRCS = $(MAP)
 test_pokey_SRCS = $(SRC)/pokey.c

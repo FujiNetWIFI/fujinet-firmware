@@ -15,10 +15,10 @@ a memory-mapped mailbox, loads any image the ESP32-S3 pushes into the SRAM, and 
 | `firmware/src/fuji_cart.c` | core0: the ring drain, the load sequence's port, the console watchdog |
 | `firmware/src/fuji_store.c`, `fuji_store.h` | pushed images: 256K RAM tier, 1 MB flash tier with erases kept out of the push |
 | `firmware/src/fujinet.c`, `fujiboot.c`, `main.c` | the fujimail port, power-on, the core0 loop |
-| `firmware/src/fujimail.c`, `fujibus.c`, `fujibus_usb.c`, `usb_descriptors.c` and their headers | shared with the other cartridges, verbatim |
+| `firmware/src/fujimail.c` and its header | shared with the other cartridges, verbatim; the FujiBus codec and USB device come from [common/](../common/) |
 | `firmware/baked/` | the CONFIG and loader headers the firmware uses when there is no fresh `build/gen` (CI, the ESP32 build) |
 | `firmware/boards/fujisms_rp2354b.*` | the board |
-| `firmware/host_test/` | `test_smsmap` (against MAME's sega8 handlers), `test_busio`, `test_load`, `test_fujimail`, `test_fujibus` |
+| `firmware/host_test/` | `test_smsmap` (against MAME's sega8 handlers), `test_busio`, `test_load`, `test_fujimail` |
 | `testrom/loader.asm` | the 2K loader page at `$B800` |
 | `testrom/*.c` | z88dk clients: `hello`, `fujitest`, `fujiboot`, `fujibank` (a banked app over 32K), and their display, input and mailbox library |
 | `emu/` | the MAME cart device (`apply.sh` grafts it) and the Lua harnesses |

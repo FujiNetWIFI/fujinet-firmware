@@ -7,6 +7,8 @@ project(fuji7800 C CXX ASM)
 
 pico_sdk_init()
 
+set(FUJI_COMMON ${CMAKE_CURRENT_LIST_DIR}/../../common)
+
 add_executable(${PROJECT_NAME}
     src/main.c
     src/a78_cart.c
@@ -19,9 +21,9 @@ add_executable(${PROJECT_NAME}
     src/fuji_audio.c
     src/pokey.c
     src/hsc.c
-    src/usb_descriptors.c
-    src/fujibus.c
-    src/fujibus_usb.c
+    ${FUJI_COMMON}/usb/usb_descriptors.c
+    ${FUJI_COMMON}/src/fujibus.c
+    ${FUJI_COMMON}/src/fujibus_usb.c
     src/fujimail.c
     src/fujinet.c
     src/fujiboot.c
@@ -30,12 +32,15 @@ add_executable(${PROJECT_NAME}
 pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/src/a78_tables.pio)
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Os -Wall)
+target_compile_definitions(${PROJECT_NAME} PRIVATE FUJI_USB_PRODUCT="FujiNet Atari 7800 Cart")
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${FUJI_GEN}
     ${CMAKE_CURRENT_LIST_DIR}
     ${CMAKE_CURRENT_LIST_DIR}/include
     ${CMAKE_CURRENT_LIST_DIR}/baked
+    ${FUJI_COMMON}/include
+    ${FUJI_COMMON}/usb
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE

@@ -15,11 +15,11 @@ and serves a mailbox the console reaches by reads alone.
 | `firmware/src/a52_cart.c` | core1: follow the address, serve, commit side effects, swap |
 | `firmware/include/fuji_cart.h`, `firmware/src/fuji_cart.c` | the ring between the cores; core0: the ring drain, the arena, console power |
 | `firmware/include/fujinet.h`, `firmware/src/fujinet.c`, `firmware/src/main.c` | the fujimail port and `FN_REG_CONFIG`, power-on, the core0 loop |
-| `firmware/src/fujimail.c`, `firmware/src/fujibus.c`, `firmware/src/fujibus_usb.c`, `firmware/src/usb_descriptors.c`, their headers and `firmware/include/tusb_config.h` | shared with the other cartridges (the Atari 7800's copies) |
+| `firmware/src/fujimail.c` and its header | shared with the other cartridges (the Atari 7800's copy); the FujiBus codec and USB device come from [common/](../common/) |
 | `firmware/CMakeLists.txt` | the pico-sdk build; the preamble comes from [common/](../common/) |
 | `firmware/baked/` | the CONFIG header the firmware uses when there is no fresh `build/gen` (CI, the ESP32 build) |
 | `firmware/boards/fuji5200_rp2354b.*` | the board |
-| `firmware/host_test/` | `test_a52map` (against MAME's a5200 handlers), `test_busio`, `test_glue`, `test_load`, `test_fujimail`, `test_fujibus` |
+| `firmware/host_test/` | `test_a52map` (against MAME's a5200 handlers), `test_busio`, `test_glue`, `test_load`, `test_fujimail` |
 | `testrom/*.s` | ca65 clients: `hello`, `fujitest`, `fujiboot`, `fujibank` (a 64K Super Cart app; `bank0.s` is its bank 0), and their start-up, mode 2 text and mailbox library |
 | `testrom/*.cfg`, `testrom/*.inc` | the ld65 layouts, the claim and header, and the mailbox for ca65, mirrored from `firmware/include/fuji_mailbox.h` |
 | `emu/` | the MAME cart device (`a5200_fujinet.cpp`, with `fujitcp.c` its FujiBus link to fujinet-pc; `apply.sh` grafts it) and the Lua harnesses |

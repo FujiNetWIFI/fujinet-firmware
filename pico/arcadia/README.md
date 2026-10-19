@@ -65,7 +65,7 @@ firmware/            RP2040 cartridge firmware (pico-sdk)
   src/arcadia_cart.c       core1: serve the bus (the one hardware-specific bit)
   src/fuji_cart.c          serve state + the boot swap (one pointer store)
   src/arcmap.c             image gate/plan/apply + the connector decode
-  src/{fujimail,fujibus,fujibus_usb}.c   shared verbatim across platforms
+  src/fujimail.c           shared verbatim across platforms; the codec and USB are pico/common's
   host_test/               desktop tests (no hardware, no SDK)
 emu/                 MAME cart device + graft script + lua harnesses
 testrom/             fujitest / fujiboot / fujicfg + fujilib.inc + fujidisp.inc
