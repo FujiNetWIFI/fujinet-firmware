@@ -13,6 +13,9 @@ public:
     void iwm_status(const iwm_decoded_cmd_t &cmd) override;
     void iwm_read(const iwm_decoded_cmd_t &cmd) override;
     void iwm_write(const iwm_decoded_cmd_t &cmd) override;
+
+protected:
+    void fujidev_set_parser(const FUJI_COMMAND_PACKET &packet) override;
 };
 
 #endif /* IWMNETWORK_H */
