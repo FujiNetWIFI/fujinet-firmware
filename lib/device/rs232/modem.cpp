@@ -598,7 +598,7 @@ void rs232Modem::at_handle_wificonnect()
 void rs232Modem::at_handle_port()
 {
     //int port = cmd.substring(6).toInt();
-    int port = std::stoi(cmd.substr(6));
+    int port = util_stoi(cmd.substr(6)).value_or(-1);
     if (port > 65535 || port < 0)
     {
         if (numericResultCode == true)
@@ -644,7 +644,7 @@ void rs232Modem::at_handle_get()
     else
     {
         //port = cmd.substring(portIndex + 1, pathIndex).toInt();
-        port = std::stoi(cmd.substr(portIndex + 1, pathIndex - (portIndex + 1) + 1));
+        port = util_stoi(cmd.substr(portIndex + 1, pathIndex - (portIndex + 1) + 1)).value_or(-1);
     }
     //host = cmd.substring(12, portIndex);
     host = cmd.substr(12, portIndex - 12 + 1);
@@ -654,7 +654,7 @@ void rs232Modem::at_handle_get()
         path = "/";
 
     // Establish connection
-    if (!tcpClient.connect(host.c_str(), port))
+    if (port < 0 || !tcpClient.connect(host.c_str(), port))
     {
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
@@ -858,9 +858,9 @@ void rs232Modem::at_handle_dial()
         at_cmd_println(":", false);
         at_cmd_println(port);
 
-        int portInt = std::stoi(port);
+        int portInt = util_stoi(port).value_or(-1);
 
-        if (tcpClient.connect(host.c_str(), portInt))
+        if (portInt >= 0 && tcpClient.connect(host.c_str(), portInt))
         {
             tcpClient.setNoDelay(true); // Try to disable naggle
             answered = false;

@@ -6,7 +6,7 @@ arithmetic, and a few small vendored pieces.
 ## Layout
 | File | Defines |
 |---|---|
-| `utils.h`, `utils.cpp` | free `util_*` functions: trimming and case, `util_crunch` and the directory-entry formatters (`util_long_entry`, the Apple II CAT/CATALOG and ProDOS variants), wildcard matching, `util_tokenize`, devicespec fix-ups, PETSCII and ASCII conversion, `util_url_encode`, `util_html_escape`, `util_hexdump`, `util_sam_say` over [lib/sam/](../sam/), and `util_debug_printf` for PC logging |
+| `utils.h`, `utils.cpp` | free `util_*` functions: trimming and case, the non-throwing `util_stoi`, `util_crunch` and the directory-entry formatters (`util_long_entry`, the Apple II CAT/CATALOG and ProDOS variants), wildcard matching, `util_tokenize`, devicespec fix-ups, PETSCII and ASCII conversion, `util_url_encode`, `util_html_escape`, `util_hexdump`, `util_sam_say` over [lib/sam/](../sam/), and `util_debug_printf` for PC logging |
 | `string_utils.h`, `string_utils.cpp` | `namespace mstr` (starts/ends-with, trim, case, URL encode/decode, PETSCII/UTF-8, `format`) and the `hash_djb2a` / `_sh` string hash; from Meatloaf (GPL-3.0) |
 | `peoples_url_parser.h`, `peoples_url_parser.cpp` | `PeoplesUrlParser`: scheme, user, password, host, port, path, name, extension, query, fragment; the type every protocol `open()` receives and the base of Meatloaf's `MFile`; from Meatloaf (GPL-3.0) |
 | `fn_time.h`, `fn_time.cpp` | `namespace fn_time`: civil-date arithmetic, `fn_timegm`, a POSIX TZ string evaluator (`PosixTz`) and `parse_datetime`; written because MSVC's TZ handling is wrong |
