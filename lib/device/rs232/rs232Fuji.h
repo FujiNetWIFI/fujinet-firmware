@@ -24,7 +24,6 @@ protected:
     }
 
     void rs232_net_set_ssid(bool save);    // 0xFB
-    void rs232_new_disk();                 // 0xE7
     void rs232_test();                     // 0x00
 
 public:

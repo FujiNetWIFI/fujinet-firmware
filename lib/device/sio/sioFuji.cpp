@@ -288,71 +288,6 @@ size_t sioFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
     return sizeof(custom_details);
 }
 
-//  Make new disk and shove into device slot
-void sioFuji::sio_new_disk()
-{
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    Debug_println("Fuji cmd: NEW DISK");
-
-    struct
-    {
-        unsigned short numSectors;
-        unsigned short sectorSize;
-        unsigned char hostSlot;
-        unsigned char deviceSlot;
-        char filename[MAX_FILENAME_LEN]; // WIll set this to MAX_FILENAME_LEN, later.
-    } newDisk;
-
-    // Ask for details on the new disk to create
-    if (!SYSTEM_BUS.transaction_get(&newDisk, sizeof(newDisk)))
-    {
-        Debug_print("sio_new_disk Bad checksum\n");
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-    if (newDisk.deviceSlot >= MAX_DISK_DEVICES || newDisk.hostSlot >= MAX_HOSTS)
-    {
-        Debug_print("sio_new_disk Bad disk or host slot parameter\n");
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-    // A couple of reference variables to make things much easier to read...
-    fujiDisk &disk = _fnDisks[newDisk.deviceSlot];
-    fujiHost &host = _fnHosts[newDisk.hostSlot];
-
-    disk.host_slot = newDisk.hostSlot;
-    disk.access_mode = DISK_ACCESS_MODE_WRITE;
-    strlcpy(disk.filename, newDisk.filename, sizeof(disk.filename));
-
-    if (host.file_exists(disk.filename))
-    {
-        Debug_printf("sio_new_disk File exists: \"%s\"\n", disk.filename);
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-
-    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), FILE_WRITE);
-    if (disk.fileh == nullptr)
-    {
-        Debug_printf("sio_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-
-    bool ok = disk.disk_dev.write_blank(disk.fileh, newDisk.sectorSize, newDisk.numSectors);
-    fnio::fclose(disk.fileh);
-
-    if (ok == false)
-    {
-        Debug_print("sio_new_disk Data write failed\n");
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-
-    Debug_print("sio_new_disk succeeded\n");
-    SYSTEM_BUS.transaction_success();
-}
-
 // AUX1 is our index value (from 0 to SIO_HISPEED_LOWEST_INDEX, for FN-PC 0 .. 10, 16)
 // AUX2 requests a save of the change if set to 1
 void sioFuji::sio_set_hsio_index(const FujiSIOPacket &packet)
@@ -585,9 +520,6 @@ void sioFuji::sio_process(const FujiSIOPacket &packet)
         break;
     case CMD::FUJI_SET_BAUDRATE:
         sio_set_baudrate(packet);
-        break;
-    case CMD::FUJI_NEW_DISK:
-        sio_new_disk();
         break;
     case CMD::FUJI_ENABLE_UDPSTREAM:
         sio_enable_netstream(packet);

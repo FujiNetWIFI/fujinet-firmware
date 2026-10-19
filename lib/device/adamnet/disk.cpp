@@ -92,11 +92,11 @@ void adamDisk::unmount()
     }
 }
 
-error_is_true adamDisk::write_blank(fnFile *fileh, uint32_t numBlocks)
+error_is_true adamDisk::write_blank(fnFile *fileh, const NewDiskRequest &req)
 {
     uint8_t buf[256];
 
-    for (uint32_t b = 0; b < numBlocks; b++)
+    for (uint32_t b = 0; b < req.numBlocks; b++)
     {
         memset(buf, 0xE5, 256);
 

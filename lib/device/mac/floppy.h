@@ -74,7 +74,12 @@ public:
                       disk_access_flags_t access_mode,
                       mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
-    bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors) { return false; };
+    struct NewDiskRequest {
+        uint8_t hostSlot;
+        uint8_t deviceSlot;
+        char filename[MAX_FILENAME_LEN];
+    };
+    success_is_true write_blank(FILE *f, const NewDiskRequest &req) { RETURN_ERROR_AS_FALSE(); };
     int get_track_pos() { return track_pos; };
     void set_dir(int d) { head_dir = d; }
     int step();

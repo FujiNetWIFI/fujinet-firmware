@@ -132,41 +132,10 @@ size_t lynxFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest
     return sizeof(custom_details);
 }
 
-//  Make new disk and shove into device slot
-void lynxFuji::comlynx_new_disk(const FujiLynxPacket &packet)
+// Lynx can't create disks.
+void lynxFuji::fujicmd_new_disk()
 {
-    uint8_t hs = packet.param(0);
-    uint8_t ds = packet.param(1);
-    u32le_t numBlocks;
-    const char *ptr;
-
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-
-    ptr = packet.dataAsString()->c_str();
-    memcpy(&numBlocks, ptr, sizeof(numBlocks));
-    ptr += sizeof(numBlocks);
-
-    fujiDisk &disk = _fnDisks[ds];
-    fujiHost &host = _fnHosts[hs];
-
-    if (host.file_exists((const char *)ptr))
-    {
-        SYSTEM_BUS.transaction_success();
-        return;
-    }
-
-    disk.host_slot = hs;
-    disk.access_mode = DISK_ACCESS_MODE_WRITE;
-    strlcpy(disk.filename, (const char *)ptr, sizeof(disk.filename));
-
-    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
-
-    Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, (long unsigned) numBlocks);
-
-    disk.disk_dev.write_blank(disk.fileh, numBlocks);
-    fclose(disk.fileh);
-
-    SYSTEM_BUS.transaction_success();
+    SYSTEM_BUS.transaction_error();
 }
 
 // Initializes base settings and adds our devices to the SIO bus

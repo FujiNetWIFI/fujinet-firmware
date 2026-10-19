@@ -108,60 +108,6 @@ void drivewireFuji::shutdown()
         _fnDisks[i].disk_dev.unmount();
 }
 
-//  Make new disk and shove into device slot
-void drivewireFuji::new_disk()
-{
-    Debug_println("Fuji cmd: NEW DISK");
-
-    struct
-    {
-        unsigned char numDisks;
-        unsigned char hostSlot;
-        unsigned char deviceSlot;
-        char filename[MAX_FILENAME_LEN]; // WIll set this to MAX_FILENAME_LEN, later.
-    } newDisk;
-
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    SYSTEM_BUS.transaction_get(&newDisk, sizeof(newDisk));
-
-    Debug_printf("numDisks: %u\n",newDisk.numDisks);
-    Debug_printf("hostSlot: %u\n",newDisk.hostSlot);
-    Debug_printf("deviceSl: %u\n",newDisk.deviceSlot);
-    Debug_printf("filename: %s\n",newDisk.filename);
-
-    // A couple of reference variables to make things much easier to read...
-    fujiDisk &disk = _fnDisks[newDisk.deviceSlot];
-    fujiHost &host = _fnHosts[newDisk.hostSlot];
-
-    disk.host_slot = newDisk.hostSlot;
-    disk.access_mode = DISK_ACCESS_MODE_WRITE;
-    strlcpy(disk.filename, newDisk.filename, sizeof(disk.filename));
-
-    if (host.file_exists(disk.filename))
-    {
-        Debug_printf("drivewire_new_disk File exists: \"%s\"\n", disk.filename);
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-
-    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
-    if (disk.fileh == nullptr)
-    {
-        Debug_printf("drivewire_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-
-    bool ok = disk.disk_dev.write_blank(disk.fileh, newDisk.numDisks);
-
-    if (ok)
-        SYSTEM_BUS.transaction_success();
-    else
-        SYSTEM_BUS.transaction_error();
-
-    fnio::fclose(disk.fileh);
-}
-
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
 void drivewireFuji::setup()
 {
@@ -218,9 +164,6 @@ bool drivewireFuji::processCommand(const FujiDWPacket &packet)
 
     switch (packet.command())
     {
-    case CMD::FUJI_NEW_DISK:
-        new_disk();
-        break;
     default:
         return false;
     }

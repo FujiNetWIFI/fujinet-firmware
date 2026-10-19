@@ -83,14 +83,14 @@ void lynxDisk::unmount()
     }
 }
 
-error_is_true lynxDisk::write_blank(FILE *fileh, uint32_t numBlocks)
+error_is_true lynxDisk::write_blank(FILE *fileh, const NewDiskRequest &req)
 {
     uint8_t buf[MEDIA_BLOCK_SIZE];
 
     // clear the temporary buffer
     memset(buf, 0x00, MEDIA_BLOCK_SIZE);
 
-    for (uint32_t b = 0; b < numBlocks; b++)
+    for (uint32_t b = 0; b < req.numBlocks; b++)
     {
         fwrite(buf, 1, MEDIA_BLOCK_SIZE, fileh);
     }

@@ -14,14 +14,10 @@
 
 class adamFuji : public fujiDevice
 {
-private:
-    bool new_disk_completed = false;
-
 protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
 
-    void adamnet_new_disk(const FujiAdamPacket &packet);               // 0xE7
     void adamnet_enable_device(const FujiAdamPacket &packet);          // 0xD5
     void adamnet_disable_device(const FujiAdamPacket &packet);         // 0xD4
     void adamnet_get_time();               // 0xD2

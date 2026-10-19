@@ -107,46 +107,6 @@ size_t adamFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest
     return sizeof(custom_details);
 }
 
-//  Make new disk and shove into device slot
-void adamFuji::adamnet_new_disk(const FujiAdamPacket &packet)
-{
-    uint8_t hs = packet.param(0);
-    uint8_t ds = packet.param(1);
-    u32le_t numBlocks;
-    const char *ptr;
-
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
-
-    ptr = packet.dataAsString()->c_str();
-    memcpy(&numBlocks, ptr, sizeof(numBlocks));
-    ptr += sizeof(numBlocks);
-
-    fujiDisk &disk = _fnDisks[ds];
-    fujiHost &host = _fnHosts[hs];
-
-    if (new_disk_completed)
-    {
-        new_disk_completed = false;
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-
-    disk.host_slot = hs;
-    disk.access_mode = DISK_ACCESS_MODE_WRITE;
-    strlcpy(disk.filename, (const char *) ptr, sizeof(disk.filename));
-
-    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
-
-    Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, numBlocks);
-
-    disk.disk_dev.write_blank(disk.fileh, numBlocks);
-
-    fnio::fclose(disk.fileh);
-
-    new_disk_completed = true;
-    SYSTEM_BUS.transaction_success();
-}
-
 void adamFuji::adamnet_enable_device(const FujiAdamPacket &packet)
 {
     fujiDeviceID_t d = static_cast<fujiDeviceID_t>(packet.param8(0));
@@ -311,9 +271,6 @@ void adamFuji::adamnet_control_send(const FujiAdamPacket &packet)
 
     switch (packet.command())
     {
-    case CMD::FUJI_NEW_DISK:
-        adamnet_new_disk(packet);
-        break;
     case CMD::FUJI_ENABLE_DEVICE:
         adamnet_enable_device(packet);
         break;

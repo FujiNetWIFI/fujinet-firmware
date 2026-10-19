@@ -97,71 +97,6 @@ void rs232Fuji::rs232_net_set_ssid(bool save) // was aux1
     SYSTEM_BUS.transaction_success();
 }
 
-//  Make new disk and shove into device slot
-void rs232Fuji::rs232_new_disk()
-{
-    SYSTEM_BUS.transaction_accept(TRANS_STATE::WILL_GET);
-    Debug_println("Fuji cmd: NEW DISK");
-
-    struct
-    {
-        unsigned short numSectors;
-        unsigned short sectorSize;
-        unsigned char hostSlot;
-        unsigned char deviceSlot;
-        char filename[MAX_FILENAME_LEN]; // WIll set this to MAX_FILENAME_LEN, later.
-    } newDisk;
-
-    // Ask for details on the new disk to create
-    if (!SYSTEM_BUS.transaction_get((uint8_t *)&newDisk, sizeof(newDisk)))
-    {
-        Debug_print("rs232_new_disk Bad checksum\n");
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-    if (newDisk.deviceSlot >= MAX_DISK_DEVICES || newDisk.hostSlot >= MAX_HOSTS)
-    {
-        Debug_print("rs232_new_disk Bad disk or host slot parameter\n");
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-    // A couple of reference variables to make things much easier to read...
-    fujiDisk &disk = _fnDisks[newDisk.deviceSlot];
-    fujiHost &host = _fnHosts[newDisk.hostSlot];
-
-    disk.host_slot = newDisk.hostSlot;
-    disk.access_mode = DISK_ACCESS_MODE_WRITE;
-    strlcpy(disk.filename, newDisk.filename, sizeof(disk.filename));
-
-    if (host.file_exists(disk.filename))
-    {
-        Debug_printf("rs232_new_disk File exists: \"%s\"\n", disk.filename);
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-
-    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
-    if (disk.fileh == nullptr)
-    {
-        Debug_printf("rs232_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-
-    bool ok = disk.disk_dev.write_blank(disk.fileh, newDisk.sectorSize, newDisk.numSectors);
-    fnio::fclose(disk.fileh);
-
-    if (ok == false)
-    {
-        Debug_print("rs232_new_disk Data write failed\n");
-        SYSTEM_BUS.transaction_error();
-        return;
-    }
-
-    Debug_print("rs232_new_disk succeeded\n");
-    SYSTEM_BUS.transaction_success();
-}
-
 void rs232Fuji::rs232_test()
 {
     uint8_t buf[512];
@@ -320,9 +255,6 @@ void rs232Fuji::rs232_process(const FujiBusPacket &packet)
         break;
     case CMD::FUJI_GET_ADAPTERCONFIG_EXTENDED:
         fujicmd_get_adapter_config_extended();
-        break;
-    case CMD::FUJI_NEW_DISK:
-        rs232_new_disk();
         break;
     case CMD::FUJI_SET_DEVICE_FULLPATH:
         if (packet.paramCount() < 3) {

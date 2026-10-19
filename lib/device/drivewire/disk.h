@@ -27,7 +27,13 @@ public:
 
     void set_media_host(fujiHost *host);
 
-    success_is_true write_blank(fnFile *f, uint8_t numDisks);
+    struct NewDiskRequest {
+        uint8_t numDisks;
+        uint8_t hostSlot;
+        uint8_t deviceSlot;
+        char filename[MAX_FILENAME_LEN];
+    } __attribute__((packed));
+    success_is_true write_blank(fnFile *f, const NewDiskRequest &req);
 
     error_is_true read(uint32_t sector, uint8_t *buf);
     error_is_true write(uint32_t sector, uint8_t *buf);

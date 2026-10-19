@@ -56,7 +56,6 @@ protected:
 
     void iwm_dummy_command(const iwm_decoded_cmd_t &cmd);                     // control 0xAA
     void iwm_hello_world();                       // status 0xAA
-    void iwm_ctrl_new_disk(const iwm_decoded_cmd_t &cmd);                     // 0xE7
     void iwm_ctrl_enable_device(const iwm_decoded_cmd_t &cmd);                // 0xD5
     void iwm_ctrl_disable_device(const iwm_decoded_cmd_t &cmd);               // 0xD4
 

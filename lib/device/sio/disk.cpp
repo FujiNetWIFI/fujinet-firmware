@@ -328,11 +328,11 @@ void sioDisk::unmount()
 }
 
 // Create blank disk
-success_is_true sioDisk::write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
+success_is_true sioDisk::write_blank(fnFile *f, const NewDiskRequest &req)
 {
     Debug_print("disk CREATE NEW IMAGE\n");
 
-    return MediaTypeATR::create(f, sectorSize, numSectors);
+    return MediaTypeATR::create(f, req.sectorSize, req.numSectors);
 }
 
 // Process command

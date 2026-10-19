@@ -257,6 +257,7 @@ public:
     void fujicmd_set_directory_position(uint16_t pos);
     success_is_true fujicore_copy_file_success(uint8_t sourceSlot, uint8_t destSlot, std::string copySpec);
     success_is_true fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot, std::string copySpec);
+    virtual void fujicmd_new_disk();
     virtual void fujicmd_get_adapter_config();
     virtual void fujicmd_get_adapter_config_extended();
     void fujicmd_get_device_filename(uint8_t slot);
@@ -299,6 +300,7 @@ public:
     success_is_true fujicore_mount_host_success(uint8_t hostSlot);
     success_is_true fujicore_mount_all_success();
     success_is_true fujicore_mount_all_at_startup();
+    success_is_true fujicore_new_disk_success(const DISK_DEVICE::NewDiskRequest &req);
     void fujicore_net_scan_networks();
     success_is_true fujicore_net_set_ssid_success(const char *ssid, const char *password, bool save);
 

@@ -28,8 +28,6 @@ iwmFuji::iwmFuji() : fujiDevice(MAX_A2DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
         { CMD::FUJI_DISABLE_DEVICE, [this](const iwm_decoded_cmd_t &cmd)             { this->iwm_ctrl_disable_device(cmd); }},
         { CMD::FUJI_ENABLE_DEVICE, [this](const iwm_decoded_cmd_t &cmd)              { this->iwm_ctrl_enable_device(cmd); }},
 
-        { CMD::FUJI_NEW_DISK, [this](const iwm_decoded_cmd_t &cmd)                   { this->iwm_ctrl_new_disk(cmd); }},
-
 #ifdef DEV_RELAY_SLIP
         { (fujiCommandID_t) SP_CTRL_CLEAR_DISKII_SEEN, [this](const iwm_decoded_cmd_t &cmd)              { SYSTEM_BUS.transaction_error(SP_ERR::NODRIVE); }},
 #else
@@ -101,44 +99,6 @@ void iwmFuji::iwm_stat_get_heap()
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
     SYSTEM_BUS.transaction_send(&avail, sizeof(avail));
     return;
-}
-
-//  Make new disk and shove into device slot
-void iwmFuji::iwm_ctrl_new_disk(const iwm_decoded_cmd_t &cmd)
-{
-    uint8_t hs = cmd.param(0);
-    uint8_t ds = cmd.param(1);
-    uint8_t t = cmd.param(2);
-    u32le_t numBlocks;
-    const char *ptr;
-
-    ptr = cmd.dataAsString()->c_str();
-    memcpy(&numBlocks, ptr, sizeof(numBlocks));
-    ptr += sizeof(numBlocks);
-
-    fujiDisk &disk = _fnDisks[ds];
-    fujiHost &host = _fnHosts[hs];
-
-    if (host.file_exists((const char *) ptr))
-        return;
-
-    disk.host_slot = hs;
-    disk.access_mode = DISK_ACCESS_MODE_WRITE;
-    strlcpy(disk.filename, (const char *) ptr, sizeof(disk.filename));
-
-    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), "wb");
-
-    Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, numBlocks);
-
-    DISK_DEVICE *disk_dev = get_disk_dev(ds);
-    disk_dev->write_blank(disk.fileh, numBlocks, t);
-
-    fnio::fclose(disk.fileh);
-
-    // Persist slots
-    populate_config_from_slots();
-    Config.mark_dirty();
-    Config.save();
 }
 
 void iwmFuji::iwm_ctrl_enable_device(const iwm_decoded_cmd_t &cmd)
