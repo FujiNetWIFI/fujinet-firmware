@@ -101,6 +101,47 @@ void PeoplesUrlParser::cleanPath() {
     path = util_get_canonical_path(path);
 }
 
+static int hexValue(char c)
+{
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    if (c >= 'a' && c <= 'f')
+        return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F')
+        return c - 'A' + 10;
+    return -1;
+}
+
+// A malformed escape is kept as-is, and %00 too, so a path never holds a NUL.
+std::string PeoplesUrlParser::percentDecode(const std::string &s)
+{
+    std::string out;
+    out.reserve(s.size());
+    for (size_t i = 0; i < s.size(); i++)
+    {
+        if (s[i] == '%' && i + 2 < s.size())
+        {
+            int hi = hexValue(s[i + 1]), lo = hexValue(s[i + 2]);
+            if (hi >= 0 && lo >= 0 && (hi | lo) != 0)
+            {
+                out += (char)(hi * 16 + lo);
+                i += 2;
+                continue;
+            }
+        }
+        out += s[i];
+    }
+    return out;
+}
+
+std::string PeoplesUrlParser::getFilePath(bool decode) const
+{
+    std::string p = decode ? percentDecode(_filePath) : _filePath;
+    if (!mstr::startsWith(p, "/"))
+        p = "/" + p;
+    return util_get_canonical_path(p);
+}
+
 void PeoplesUrlParser::processPath()
 {
     if(path.size() == 0)
@@ -278,6 +319,7 @@ void PeoplesUrlParser::resetURL(const std::string u) {
         path = pastTheScheme;
     }
 
+    _filePath = path;
     processPath();
 
     // Clean things up before exiting

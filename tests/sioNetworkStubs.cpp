@@ -103,6 +103,7 @@ void util_devicespec_fix_9b(uint8_t* buf, unsigned short len) {}
 
 void PeoplesUrlParser::resetURL(const std::string u) {}
 bool PeoplesUrlParser::isValidUrl() { return false; }
+std::string PeoplesUrlParser::getFilePath(bool decode) const { return ""; }
 
 #include "NetworkProtocolFactory.h"
 

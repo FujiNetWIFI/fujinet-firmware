@@ -43,10 +43,11 @@ fujiError_t NetworkProtocolFS::open(PeoplesUrlParser *urlParser,
     fileSize = 0;
     streamMode = access;
 
-    update_dir_filename(opened_url);
+    update_dir_filename(file_path(urlParser));
 
     if (mount(urlParser) != FUJI_ERROR::NONE)
         return FUJI_ERROR::UNSPECIFIED;
+    opened_path = file_path(urlParser);
 
     fujiError_t err;
     if (access == ACCESS_MODE::DIRECTORY || access == ACCESS_MODE::DIRECTORY_ALT)
@@ -67,18 +68,18 @@ fujiError_t NetworkProtocolFS::open(PeoplesUrlParser *urlParser,
 
 fujiError_t NetworkProtocolFS::open_file()
 {
-    update_dir_filename(opened_url);
+    update_dir_filename(opened_path);
 
     if (streamMode == ACCESS_MODE::READ || streamMode == ACCESS_MODE::WRITE)
         resolve();
     else
         stat();
 
-    update_dir_filename(opened_url);
+    update_dir_filename(opened_path);
 
     streamType = streamType_t::FILE;
 
-    if (opened_url->path.empty())
+    if (opened_path.empty())
         return FUJI_ERROR::UNSPECIFIED;
 
     return open_file_handle();
@@ -92,7 +93,7 @@ fujiError_t NetworkProtocolFS::open_dir(dirFormat_t fmt)
 #endif /* BUILD_RS232 */
     dirBuffer.clear();
     dirBuffer.shrink_to_fit();
-    update_dir_filename(opened_url);
+    update_dir_filename(opened_path);
 
     // assume everything if no filename.
     if (filename.empty())
@@ -102,7 +103,7 @@ fujiError_t NetworkProtocolFS::open_dir(dirFormat_t fmt)
     Debug_printf("NetworkProtocolFS::open_dir(%s)\r\n", opened_url->url.c_str());
 #endif
 
-    if (opened_url->path.empty())
+    if (opened_path.empty())
     {
         return FUJI_ERROR::UNSPECIFIED;
     }
@@ -123,7 +124,7 @@ fujiError_t NetworkProtocolFS::open_dir(dirFormat_t fmt)
     if (fmt == DIR_FORMAT::A2CAT || fmt == DIR_FORMAT::A2CATALOG)
     {
         char hdr[96];
-        dirBuffer += opened_url->path + lineEnding + lineEnding;
+        dirBuffer += opened_path + lineEnding + lineEnding;
         if (fmt == DIR_FORMAT::A2CAT)
             snprintf(hdr, sizeof(hdr), " %-15s %-4s %6s  %-9s",
                      "NAME", "TYPE", "BLOCKS", "MODIFIED");
@@ -206,12 +207,12 @@ fujiError_t NetworkProtocolFS::open_dir(dirFormat_t fmt)
     return error == NDEV_STATUS::SUCCESS ? FUJI_ERROR::NONE : FUJI_ERROR::UNSPECIFIED;
 }
 
-void NetworkProtocolFS::update_dir_filename(PeoplesUrlParser *url)
+void NetworkProtocolFS::update_dir_filename(const std::string &path)
 {
-    size_t found = url->path.find_last_of("/");
+    size_t found = path.find_last_of("/");
 
-    dir = util_get_canonical_path(url->path.substr(0, found + 1));
-    filename = url->path.substr(found + 1);
+    dir = util_get_canonical_path(path.substr(0, found + 1));
+    filename = path.substr(found + 1);
 
     // transform the possible everything wildcards
     if (filename == "*.*" || filename == "-" || filename == "**" || filename == "*")
@@ -413,7 +414,7 @@ fujiError_t NetworkProtocolFS::status_dir(NetworkStatus *status)
 void NetworkProtocolFS::resolve()
 {
 #ifdef VERBOSE_PROTOCOL
-    Debug_printf("NetworkProtocolFS::resolve(%s,%s,%s)\r\n", opened_url->path.c_str(), dir.c_str(), filename.c_str());
+    Debug_printf("NetworkProtocolFS::resolve(%s,%s,%s)\r\n", opened_path.c_str(), dir.c_str(), filename.c_str());
 #endif
 
     if (stat() != FUJI_ERROR::NONE)
@@ -442,7 +443,7 @@ void NetworkProtocolFS::resolve()
 
             if (crunched_filename == crunched_entry)
             {
-                opened_url->path = dir + current_entry;
+                opened_path = dir + current_entry;
                 stat(); // TODO: see if this assumption of success holds true in all cases?
                 break;
             }
@@ -462,7 +463,7 @@ void NetworkProtocolFS::resolve()
 
 fujiError_t NetworkProtocolFS::rename(PeoplesUrlParser *url)
 {
-    update_dir_filename(url);
+    update_dir_filename(file_path(url));
 
     // Preprocessing routine to parse out comma position.
 

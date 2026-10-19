@@ -419,7 +419,7 @@ fujiError_t NetworkProtocolGDRIVE::umount()
 
 fujiError_t NetworkProtocolGDRIVE::stat()
 {
-    std::string id = resolve_path(opened_url->path);
+    std::string id = resolve_path(opened_path);
     if (id.empty())
     {
         error = NDEV_STATUS::FILE_NOT_FOUND;
@@ -473,7 +473,7 @@ fujiError_t NetworkProtocolGDRIVE::open_file_handle()
     }
 
     // READ / READWRITE: resolve the file ID and open a streaming GET
-    _file_id = resolve_path(opened_url->path);
+    _file_id = resolve_path(opened_path);
     if (_file_id.empty())
     {
         error = NDEV_STATUS::FILE_NOT_FOUND;
@@ -608,10 +608,10 @@ fujiError_t NetworkProtocolGDRIVE::close_file_handle()
 fujiError_t NetworkProtocolGDRIVE::open_dir_handle()
 {
     Debug_printf("NetworkProtocolGDRIVE::open_dir_handle() path=%s\r\n",
-                 opened_url->path.c_str());
+                 opened_path.c_str());
 
     // Strip trailing wildcard so "GDRIVE:///folder/*.*" lists that folder.
-    std::string dir_path = opened_url->path;
+    std::string dir_path = opened_path;
     _dir_filter.clear();
     {
         size_t slash = dir_path.rfind('/');
@@ -773,7 +773,7 @@ fujiError_t NetworkProtocolGDRIVE::del(PeoplesUrlParser *url)
     if (mount(url) != FUJI_ERROR::NONE)
         return FUJI_ERROR::UNSPECIFIED;
 
-    std::string id = resolve_path(url->path);
+    std::string id = resolve_path(file_path(url));
     if (id.empty())
     {
         error = NDEV_STATUS::FILE_NOT_FOUND;
@@ -791,7 +791,7 @@ fujiError_t NetworkProtocolGDRIVE::mkdir(PeoplesUrlParser *url)
         return FUJI_ERROR::UNSPECIFIED;
 
     // parent = everything before the last '/'
-    std::string path = url->path;
+    std::string path = file_path(url);
     size_t slash = path.find_last_of('/');
     std::string parent_path = (slash != std::string::npos)
                                   ? path.substr(0, slash)

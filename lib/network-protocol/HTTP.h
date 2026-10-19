@@ -69,6 +69,11 @@ public:
      */
     off_t seek(off_t offset, int whence) override;
 
+    /**
+     * @brief HTTP keeps '?' and '#' as the query and fragment.
+     */
+    std::string file_path(PeoplesUrlParser *url) override { return url->path; }
+
 protected:
     /**
      * @brief open a file handle to fd

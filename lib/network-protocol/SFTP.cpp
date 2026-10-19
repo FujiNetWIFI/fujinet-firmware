@@ -291,12 +291,12 @@ fujiError_t NetworkProtocolSFTP::open_file_handle()
         return FUJI_ERROR::UNSPECIFIED;
     }
 
-    fh = sftp_open(sftp, opened_url->path.c_str(), flags, 0644);
+    fh = sftp_open(sftp, opened_path.c_str(), flags, 0644);
     if (fh == nullptr)
     {
         sftp_err = sftp_get_error(sftp);
         fserror_to_error();
-        Debug_printf("NetworkProtocolSFTP::open_file_handle(%s) - error %d\r\n", opened_url->path.c_str(), sftp_err);
+        Debug_printf("NetworkProtocolSFTP::open_file_handle(%s) - error %d\r\n", opened_path.c_str(), sftp_err);
         return FUJI_ERROR::UNSPECIFIED;
     }
 
@@ -415,7 +415,7 @@ fujiError_t NetworkProtocolSFTP::close_dir_handle()
 
 fujiError_t NetworkProtocolSFTP::stat()
 {
-    sftp_attributes attr = sftp_stat(sftp, opened_url->path.c_str());
+    sftp_attributes attr = sftp_stat(sftp, opened_path.c_str());
 
     if (attr == nullptr)
     {
@@ -459,7 +459,7 @@ fujiError_t NetworkProtocolSFTP::del(PeoplesUrlParser *url)
     if (mount(url) != FUJI_ERROR::NONE)
         return FUJI_ERROR::UNSPECIFIED;
 
-    int rc = sftp_unlink(sftp, url->path.c_str());
+    int rc = sftp_unlink(sftp, file_path(url).c_str());
     if (rc != SSH_OK)
     {
         sftp_err = sftp_get_error(sftp);
@@ -476,7 +476,7 @@ fujiError_t NetworkProtocolSFTP::mkdir(PeoplesUrlParser *url)
     if (mount(url) != FUJI_ERROR::NONE)
         return FUJI_ERROR::UNSPECIFIED;
 
-    int rc = sftp_mkdir(sftp, url->path.c_str(), 0755);
+    int rc = sftp_mkdir(sftp, file_path(url).c_str(), 0755);
     if (rc != SSH_OK)
     {
         sftp_err = sftp_get_error(sftp);
@@ -493,7 +493,7 @@ fujiError_t NetworkProtocolSFTP::rmdir(PeoplesUrlParser *url)
     if (mount(url) != FUJI_ERROR::NONE)
         return FUJI_ERROR::UNSPECIFIED;
 
-    int rc = sftp_rmdir(sftp, url->path.c_str());
+    int rc = sftp_rmdir(sftp, file_path(url).c_str());
     if (rc != SSH_OK)
     {
         sftp_err = sftp_get_error(sftp);
@@ -507,7 +507,7 @@ fujiError_t NetworkProtocolSFTP::rmdir(PeoplesUrlParser *url)
 
 fujiError_t NetworkProtocolSFTP::lock(PeoplesUrlParser *url)
 {
-    if (sftp_chmod(sftp, url->path.c_str(), 0444) != SSH_OK)
+    if (sftp_chmod(sftp, file_path(url).c_str(), 0444) != SSH_OK)
     {
         sftp_err = sftp_get_error(sftp);
         fserror_to_error();
@@ -519,7 +519,7 @@ fujiError_t NetworkProtocolSFTP::lock(PeoplesUrlParser *url)
 
 fujiError_t NetworkProtocolSFTP::unlock(PeoplesUrlParser *url)
 {
-    if (sftp_chmod(sftp, url->path.c_str(), 0644) != SSH_OK)
+    if (sftp_chmod(sftp, file_path(url).c_str(), 0644) != SSH_OK)
     {
         sftp_err = sftp_get_error(sftp);
         fserror_to_error();
