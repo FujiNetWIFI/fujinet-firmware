@@ -45,6 +45,7 @@ cp ../../common/include/fujimail.h ../../common/include/fujibus.h \
    ../firmware/include/nes_cart.h ../firmware/include/fujiconfigrom.h \
    ../firmware/include/nesloaderrom.h \
    "$BUSDIR/"
+cp ../../common/include/fuji_mailbox_proto.h ../../common/include/fuji_mailbox_check.h "$BUSDIR/"
 rm -f "$BUSDIR/fujitcp.c" "$BUSDIR/fujimail.c" "$BUSDIR/fujibus.c" "$BUSDIR/nesmap.c"
 
 # Rename every shared symbol: fujimail.c, fujibus.c and fujitcp.c are
@@ -86,7 +87,8 @@ addition = anchor + "".join(
     f'\t\tMAME_DIR .. "src/devices/bus/nes/{f}",\n'
     for f in ("fujinet.cpp", "fujinet.h", "fujitcp.cpp", "fujitcp.h",
               "fujimail.cpp", "fujimail.h", "fujibus.cpp", "fujibus.h",
-              "nesmap.cpp", "nesmap.h", "fuji_mailbox.h", "nes_cart.h",
+              "nesmap.cpp", "nesmap.h", "fuji_mailbox.h",
+              "fuji_mailbox_proto.h", "fuji_mailbox_check.h", "nes_cart.h",
               "fujiconfigrom.h", "nesloaderrom.h", "fujins.h"))
 open(path, "w").write(text.replace(anchor, addition, 1))
 EOF2

@@ -5,6 +5,7 @@ magics) and s2_text.h (hotspot pages, operations, symbols).
 
 Usage: tools/checkdefs.py   (from pico/studio2)
 """
+import os
 import re
 import sys
 
@@ -12,6 +13,12 @@ import sys
 def c_defs(path):
     defs = {}
     for line in open(path):
+        inc = re.match(r'#include\s+"(\w+\.h)"', line)
+        if inc:
+            for d in (os.path.dirname(path), "../common/include"):
+                if os.path.exists(os.path.join(d, inc.group(1))):
+                    defs.update(c_defs(os.path.join(d, inc.group(1))))
+                    break
         m = re.match(r"#define\s+(\w+)\s+(0x[0-9A-Fa-f]+|\d+)u?\b", line)
         if m:
             defs[m.group(1)] = int(m.group(2), 0)

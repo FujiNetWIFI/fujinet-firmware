@@ -48,6 +48,7 @@ cp "$COMMON/include/fujimail.h" "$COMMON/include/fujibus.h" "$FW/include/fuji_ma
    "$FW/include/a78_cart.h" "$FW/include/a78map.h" "$FW/include/a78map_db.h" \
    "$FW/include/fuji_load.h" "$FW/include/hsc.h" \
    "$GEN/fujiconfigrom.h" "$GEN/a78loaderrom.h" "$GEN/a78bootblk.h" "$BUSDIR/"
+cp "$COMMON/include/fuji_mailbox_proto.h" "$COMMON/include/fuji_mailbox_check.h" "$BUSDIR/"
 
 # fujimail.c, fujibus.c and fujitcp.c carry the same symbols in every FujiNet
 # port, and several ports share this tree: give this copy its own.
@@ -86,8 +87,8 @@ if anchor not in text:
 files = ("fujinet.cpp", "fujinet.h", "fujitcp.cpp", "fujitcp.h", "fujimail.cpp",
          "fujimail.h", "fujibus.cpp", "fujibus.h", "a78map.cpp", "a78map.h",
          "a78map_db.cpp", "a78map_db.h", "fuji_load.cpp", "fuji_load.h", "hsc.cpp",
-         "hsc.h", "fuji_mailbox.h", "a78_cart.h", "fujiconfigrom.h", "a78loaderrom.h",
-         "a78bootblk.h", "fujins.h")
+         "hsc.h", "fuji_mailbox.h", "fuji_mailbox_proto.h", "fuji_mailbox_check.h",
+         "a78_cart.h", "fujiconfigrom.h", "a78loaderrom.h", "a78bootblk.h", "fujins.h")
 addition = anchor + "".join('\t\tMAME_DIR .. "src/devices/bus/a7800/%s",\n' % f for f in files)
 open(path, "w").write(text.replace(anchor, addition, 1))
 EOF2

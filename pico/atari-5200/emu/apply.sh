@@ -45,6 +45,7 @@ cp "$COMMON/src/fujimail.c" "$BUSDIR/fujimail.cpp"
 cp "$COMMON/include/fujimail.h" "$COMMON/include/fujibus.h" "$FW/include/fuji_mailbox.h" \
    "$FW/include/a52map.h" "$FW/include/a52map_db.h" "$FW/include/fuji_load.h" \
    "$GEN/fujiconfigrom.h" "$BUSDIR/"
+cp "$COMMON/include/fuji_mailbox_proto.h" "$COMMON/include/fuji_mailbox_check.h" "$BUSDIR/"
 
 # fujimail.c, fujibus.c, fujitcp.c and fuji_load.c carry the same symbols in
 # several FujiNet ports, and a tree may hold more than one: give this copy
@@ -82,7 +83,8 @@ if anchor not in text:
 files = ("a5200_fujinet.cpp", "a5200_fujinet.h", "fujitcp.cpp", "fujitcp.h",
          "fujimail.cpp", "fujimail.h", "fujibus.cpp", "fujibus.h", "a52map.cpp",
          "a52map.h", "a52map_db.cpp", "a52map_db.h", "fuji_load.cpp", "fuji_load.h",
-         "fuji_mailbox.h", "fujiconfigrom.h", "fujins.h")
+         "fuji_mailbox.h", "fuji_mailbox_proto.h", "fuji_mailbox_check.h", "fujiconfigrom.h",
+         "fujins.h")
 addition = anchor + "".join('\t\tMAME_DIR .. "src/devices/bus/a800/%s",\n' % f for f in files)
 open(path, "w").write(text.replace(anchor, addition, 1))
 EOF2

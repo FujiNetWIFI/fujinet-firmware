@@ -38,6 +38,8 @@
 #ifndef FUJI_MAILBOX_H
 #define FUJI_MAILBOX_H
 
+#include "fuji_mailbox_proto.h"
+
 /* Everything below is a CART IMAGE OFFSET (0x0000-0x1FFF). The console
  * address split is NOT linear: image 0x0000-0x0FFF is CPU $0000-$0FFF
  * (block 1, A13=0) and image 0x1000-0x1FFF is CPU $2000-$2FFF (block 2,
@@ -91,11 +93,6 @@
  * boots. An ordinary game uses that space for its own bytes, which is why
  * booting one disables the mailbox for the session. */
 #define FN_R_CLAIM       0x1CFC
-#define FN_R_CLAIM_LEN   4
-#define FN_R_CLAIM_SIG   "FUJI"
-
-#define FN_R_STATUS_LINK 0x01
-#define FN_R_STATUS_BUSY 0x02
 
 /* Reply-window stability invariant: the reply slice and RXLEN are repainted
  * ONLY by a SEQ commit or an RXSLICE select. Between those, a client may
@@ -116,49 +113,6 @@
  * register numbers, kept in the bit7-set half of the page as on the
  * Astrocade. */
 #define FN_HOT_SWAP      0xFE     /* serve the staged image; armed-only      */
-
-/* Registers reached through an FN_H_REGSEL / FN_H_REGDATA read pair.
- * 0x00-0x0F mirrors the O2/Astrocade numbering where the meaning matches. */
-#define FN_REG_DEVICE    0x00     /* FujiBus device id, e.g. 0x70            */
-#define FN_REG_CMD       0x01     /* FujiBus command id                      */
-#define FN_REG_NPARAM    0x02     /* number of parameters in the TX stream   */
-#define FN_REG_DATA_RST  0x05     /* any value: rewind the TX write pointer  */
-#define FN_REG_RXSLICE   0x06     /* which reply slice FN_R_DATA shows       */
-/* 0x10 up matches the Astrocade numbering. */
-#define FN_REG_SEQ       0x10     /* nonzero, != ACKSEQ: launch transaction  */
-#define FN_REG_BOOTLOCK  0x11     /* FN_BOOTLOCK_MAGIC: arm the ROM swap     */
-#define FN_REG_BOOTSEL_1 0x12     /* FN_BOOTSEL_MAGIC1, then...              */
-#define FN_REG_BOOTSEL_2 0x13     /* ...FN_BOOTSEL_MAGIC2: reboot to BOOTSEL */
-
-#define FN_BOOTLOCK_MAGIC 0xB5
-/* Two consecutive register writes, each with its own REGSEL pair, are needed
- * to reboot the cart into UF2 mode; one stray read can never do it. */
-#define FN_BOOTSEL_MAGIC1 0xB5
-#define FN_BOOTSEL_MAGIC2 0x4A
-
-/* The FN_H_DATA stream is, in order:
- *     NPARAM x { size byte (1|2|4), then that many value bytes, little-endian }
- *     then the raw payload
- * (Identical to the O2/Astrocade stream; the payload length is whatever
- * remains.) */
-#define FN_TX_MAX        320
-
-/* FN_R_BOOT_STATE values. */
-#define FN_BOOT_IDLE     0
-#define FN_BOOT_XFER     1
-#define FN_BOOT_READY    2        /* image staged; arm BOOTLOCK, then swap   */
-#define FN_BOOT_FAILED   0x80
-
-/* FN_R_BOOT_ERR values. */
-#define FN_BOOT_ERR_TOOBIG    1   /* image over 8K: not mappable here        */
-#define FN_BOOT_ERR_TRUNCATED 2
-
-/* FN_R_ERR values; mirrors fb_status_t in fujibus.h. */
-#define FN_ERR_OK        0
-#define FN_ERR_NOLINK    1
-#define FN_ERR_TIMEOUT   2
-#define FN_ERR_BADFRAME  3
-#define FN_ERR_TOOBIG    4
 
 /* Booting a staged image, from the client's side:
  *   1. poll FN_R_BOOT_STATE until FN_BOOT_READY;
@@ -183,5 +137,7 @@
  * FN_R_ACKSEQ + 1 (wrapping 255 -> 1; 0 is reserved as "never used"), never
  * from a program-local counter. A console RESET restarts the client and
  * re-zeroes its variables but does NOT reset the cart. */
+
+#include "fuji_mailbox_check.h"
 
 #endif /* FUJI_MAILBOX_H */

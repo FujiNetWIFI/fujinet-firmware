@@ -47,6 +47,7 @@ cp "$COMMON/src/fujibus.c" "$BUSDIR/fujibus.cpp"
 cp "$FW/include/fujimail.h" "$COMMON/include/fujibus.h" "$FW/include/fuji_mailbox.h" \
    "$FW/include/sms_cart.h" "$FW/include/smsmap.h" "$FW/include/smsmap_db.h" \
    "$FW/include/fuji_load.h" "$GEN/fujiconfigrom.h" "$GEN/smsloaderrom.h" "$BUSDIR/"
+cp "$COMMON/include/fuji_mailbox_proto.h" "$COMMON/include/fuji_mailbox_check.h" "$BUSDIR/"
 
 # fujimail.c, fujibus.c and fujitcp.c are identical across the FujiNet ports
 # but compiled against each port's own fuji_mailbox.h, and several ports share
@@ -82,7 +83,8 @@ if anchor not in text:
 files = ("fujinet.cpp", "fujinet.h", "fujitcp.cpp", "fujitcp.h", "fujimail.cpp",
          "fujimail.h", "fujibus.cpp", "fujibus.h", "smsmap.cpp", "smsmap.h",
          "smsmap_db.cpp", "smsmap_db.h", "fuji_load.cpp", "fuji_load.h",
-         "fuji_mailbox.h", "sms_cart.h", "fujiconfigrom.h", "smsloaderrom.h", "fujins.h")
+         "fuji_mailbox.h", "fuji_mailbox_proto.h", "fuji_mailbox_check.h", "sms_cart.h",
+         "fujiconfigrom.h", "smsloaderrom.h", "fujins.h")
 addition = anchor + "".join('\t\tMAME_DIR .. "src/devices/bus/sega8/%s",\n' % f for f in files)
 open(path, "w").write(text.replace(anchor, addition, 1))
 EOF2

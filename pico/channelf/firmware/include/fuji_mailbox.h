@@ -70,6 +70,8 @@
 #ifndef FUJI_MAILBOX_H
 #define FUJI_MAILBOX_H
 
+#include "fuji_mailbox_proto.h"
+
 /* ---------------- address map ---------------- */
 
 #define FN_ROM_BASE      0x0800   /* where the BIOS enters a cartridge       */
@@ -140,11 +142,6 @@
  * pages (below); that is the only layout rule, and tools/checkrom.py enforces
  * it. */
 #define FN_ROM_CLAIM     (FN_ROM_SIZE - 4)   /* image offset; console $47FC   */
-#define FN_R_CLAIM_LEN   4
-#define FN_R_CLAIM_SIG   "FUJI"
-
-#define FN_R_STATUS_LINK 0x01
-#define FN_R_STATUS_BUSY 0x02
 
 /* Reply-window stability invariant: the reply and RXLEN are repainted ONLY by
  * a SEQ commit or an RXSLICE select. Between those, a client may stream bytes
@@ -169,6 +166,8 @@
 #define FN_HOT_BANK      0x80     /* +n: map APPBANK page n at $4800         */
 #define FN_HOT_BANK_LAST 0xEF
 #define FN_HOT_SWAP      0xFE     /* serve the staged image; armed-only      */
+
+/* A .cfg sibling (FN_STREAM_CFG) is accepted and discarded: there are no mapper variants. */
 
 /* APPBANK: a FujiNet client bigger than the 16K window.
  *
@@ -207,53 +206,6 @@
 #define FN_APP_MAX_PAGES 6
 #define FN_APP_MAX_SIZE  (FN_APP_FIXED + FN_APP_MAX_PAGES * FN_APP_PAGE) /* 64K */
 
-/* Registers, reached by writing to FN_H_REGSEL + n.
- * 0x00-0x0F mirrors the O2/Astrocade/Arcadia/Coleco numbering. */
-#define FN_REG_DEVICE    0x00     /* FujiBus device id, e.g. 0x70            */
-#define FN_REG_CMD       0x01     /* FujiBus command id                      */
-#define FN_REG_NPARAM    0x02     /* number of parameters in the TX stream   */
-#define FN_REG_DATA_RST  0x05     /* any value: rewind the TX write pointer  */
-#define FN_REG_RXSLICE   0x06     /* which reply slice FN_R_DATA shows       */
-#define FN_REG_SEQ       0x10     /* nonzero, != ACKSEQ: launch transaction  */
-#define FN_REG_BOOTLOCK  0x11     /* FN_BOOTLOCK_MAGIC: arm the ROM swap     */
-#define FN_REG_BOOTSEL_1 0x12     /* FN_BOOTSEL_MAGIC1, then...              */
-#define FN_REG_BOOTSEL_2 0x13     /* ...FN_BOOTSEL_MAGIC2: reboot to BOOTSEL */
-
-#define FN_BOOTLOCK_MAGIC 0xB5
-#define FN_BOOTSEL_MAGIC1 0xB5
-#define FN_BOOTSEL_MAGIC2 0x4A
-
-/* The FN_H_DATA stream is, in order:
- *     NPARAM x { size byte (1|2|4), then that many value bytes, little-endian }
- *     then the raw payload
- * Identical to the O2/Astrocade/Arcadia/Coleco stream. */
-#define FN_TX_MAX        320
-
-/* DBC push stream ids, matching lib/media/rs232/diskTypeROM.cpp. Stream 1 is
- * the optional .cfg sibling; the Channel F has no mapper variants to configure
- * so it is accepted and discarded, as on every port but the ColecoVision. */
-#define FN_STREAM_ROM    0
-#define FN_STREAM_CFG    1
-
-/* FN_R_BOOT_STATE values. */
-#define FN_BOOT_IDLE     0
-#define FN_BOOT_XFER     1
-#define FN_BOOT_READY    2        /* image staged; arm BOOTLOCK, then swap   */
-#define FN_BOOT_FAILED   0x80
-
-/* FN_R_BOOT_ERR values. */
-#define FN_BOOT_ERR_TOOBIG    1
-#define FN_BOOT_ERR_TRUNCATED 2
-#define FN_BOOT_ERR_NOMAP     3
-#define FN_BOOT_ERR_STOREBUSY 4
-
-/* FN_R_ERR values; mirrors fb_status_t in fujibus.h. */
-#define FN_ERR_OK        0
-#define FN_ERR_NOLINK    1
-#define FN_ERR_TIMEOUT   2
-#define FN_ERR_BADFRAME  3
-#define FN_ERR_TOOBIG    4
-
 /* Booting a staged image, from the client's side:
  *   1. poll FN_R_BOOT_STATE until FN_BOOT_READY;
  *   2. write FN_REG_BOOTLOCK = FN_BOOTLOCK_MAGIC (one store to $FD11);
@@ -277,5 +229,7 @@
  * console the cart can actually SEE that reset -- it arrives as ROMC 08 -- but
  * the rule stands regardless, because a client can also be restarted by a jump
  * to $0000 that the bus never distinguishes. */
+
+#include "fuji_mailbox_check.h"
 
 #endif /* FUJI_MAILBOX_H */

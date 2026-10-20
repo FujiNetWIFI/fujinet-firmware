@@ -25,7 +25,8 @@ path:
   O2 "reads are free" rule, used in both directions here).
 
 The window map, register file, interlocks and boot protocol live in
-**`firmware/include/fuji_mailbox.h`** -- the single source of truth for the
+**`firmware/include/fuji_mailbox.h`**, with the register numbers and values it takes from
+[pico/common/](../common/)'s `fuji_mailbox_proto.h` -- the single source of truth for the
 RP2040 firmware, the MAME device, and (hand-mirrored in
 `testrom/fujilib.inc`) the Z80 clients. In one line each:
 

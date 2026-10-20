@@ -45,6 +45,7 @@ cat "$FW/src/s2_text.c" "$FW/src/s2_font.c" > "$DIR/s2_text.cpp"
 cp "$COMMON/include/fujimail.h" "$COMMON/include/fujibus.h" "$FW/include/fuji_mailbox.h" \
    "$FW/include/s2map.h" "$FW/include/s2_cart.h" "$FW/include/s2_text.h" \
    "$FW/include/fuji_load.h" "$GEN/fujiconfigrom.h" "$DIR/"
+cp "$COMMON/include/fuji_mailbox_proto.h" "$COMMON/include/fuji_mailbox_check.h" "$DIR/"
 
 # fujimail.c, fujibus.c, fujitcp.c and fuji_load.c carry the same symbols in
 # several FujiNet ports, and a tree may hold more than one: give this copy

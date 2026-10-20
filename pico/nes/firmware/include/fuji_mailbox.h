@@ -38,7 +38,7 @@
  * Everything the cart serves out of its own memory in $5000-$5FFF is a 4K
  * "arena" at FN_ARENA_BASE whose OFFSETS below keep the sibling ports' page
  * shape -- reply, status, REGSEL, REGDATA, DATA, one 256-byte page each --
- * so that fujimail.c is copied across unchanged. Console address =
+ * so that the shared fujimail.c serves it unchanged. Console address =
  * FN_ARENA_BASE + offset.
  *
  * THE TX PAGE. A write ANYWHERE in $5700-$57FF appends its data byte, so a
@@ -48,6 +48,8 @@
 
 #ifndef FUJI_MAILBOX_H
 #define FUJI_MAILBOX_H
+
+#include "fuji_mailbox_proto.h"
 
 /* ---------------- address map ---------------- */
 
@@ -111,11 +113,6 @@
  * the END of PRG so it is the same for every PRG size and every mapper whose
  * last bank is fixed, which is all of them. */
 #define FN_PRG_CLAIM_FROM_END 16
-#define FN_R_CLAIM_LEN   4
-#define FN_R_CLAIM_SIG   "FUJI"
-
-#define FN_R_STATUS_LINK 0x01
-#define FN_R_STATUS_BUSY 0x02
 
 /* Reply-window stability invariant: the reply and RXLEN are repainted ONLY by
  * a SEQ commit, an RXSLICE select, or -- while the loader runs -- a LOAD_SEQ
@@ -127,7 +124,7 @@
 /* A write of value V to FN_H_REGSEL + n (n < 0x80) is one complete register
  * write: the cart synthesises the REGSEL/REGDATA pair that fujimail.c decodes.
  * The pair survives in the protocol because keeping it is free and it lets
- * fujimail.c stay byte-identical to the sibling ports. */
+ * this cart use the shared fujimail.c. */
 #define FN_H_REGSEL      0x500    /* write V to +n: register n = V ($5500)   */
 #define FN_H_REGDATA     0x600    /* raw REGDATA half, for the shared decoder */
 #define FN_H_DATA        0x700    /* write anywhere in page: append data byte */
@@ -141,53 +138,11 @@
  * register numbers, in the bit7-set half as on every sibling. */
 #define FN_HOT_SWAP      0xFE     /* begin loading the staged image; armed-only */
 
-/* Registers, reached by writing to FN_H_REGSEL + n.
- * 0x00-0x13 mirrors the O2/Astrocade/Arcadia/Coleco/Channel F numbering. */
-#define FN_REG_DEVICE    0x00     /* FujiBus device id, e.g. 0x70            */
-#define FN_REG_CMD       0x01     /* FujiBus command id                      */
-#define FN_REG_NPARAM    0x02     /* number of parameters in the TX stream   */
-#define FN_REG_DATA_RST  0x05     /* any value: rewind the TX write pointer  */
-#define FN_REG_RXSLICE   0x06     /* which reply slice FN_R_DATA shows       */
-#define FN_REG_SEQ       0x10     /* nonzero, != ACKSEQ: launch transaction  */
-#define FN_REG_BOOTLOCK  0x11     /* FN_BOOTLOCK_MAGIC: arm the image load   */
-#define FN_REG_BOOTSEL_1 0x12     /* FN_BOOTSEL_MAGIC1, then...              */
-#define FN_REG_BOOTSEL_2 0x13     /* ...FN_BOOTSEL_MAGIC2: reboot to BOOTSEL */
+/* Platform registers, 0x14 up; the protocol's are in fuji_mailbox_proto.h. */
 #define FN_REG_SLICE_ACK 0x14     /* loader: slice LOAD_SEQ has been copied  */
 
-#define FN_BOOTLOCK_MAGIC 0xB5
-#define FN_BOOTSEL_MAGIC1 0xB5
-#define FN_BOOTSEL_MAGIC2 0x4A
-
-/* The FN_H_DATA stream is, in order:
- *     NPARAM x { size byte (1|2|4), then that many value bytes, little-endian }
- *     then the raw payload
- * Identical to every sibling port. */
-#define FN_TX_MAX        320
-
-/* DBC push stream ids, matching lib/media/rs232/diskTypeROM.cpp. Stream 1 is
- * the optional .cfg sibling; a .nes file carries its own header, so it is
- * accepted and discarded. */
-#define FN_STREAM_ROM    0
-#define FN_STREAM_CFG    1
-
-/* FN_R_BOOT_STATE values. */
-#define FN_BOOT_IDLE     0
-#define FN_BOOT_XFER     1
-#define FN_BOOT_READY    2        /* image staged; arm BOOTLOCK, then JMP $5800 */
-#define FN_BOOT_FAILED   0x80
-
-/* FN_R_BOOT_ERR values. */
-#define FN_BOOT_ERR_TOOBIG    1
-#define FN_BOOT_ERR_TRUNCATED 2
-#define FN_BOOT_ERR_NOMAP     3
-#define FN_BOOT_ERR_STOREBUSY 4
-
-/* FN_R_ERR values; mirrors fb_status_t in fujibus.h. */
-#define FN_ERR_OK        0
-#define FN_ERR_NOLINK    1
-#define FN_ERR_TIMEOUT   2
-#define FN_ERR_BADFRAME  3
-#define FN_ERR_TOOBIG    4
+/* A .cfg sibling (FN_STREAM_CFG) is accepted and discarded: a .nes file carries its own
+ * header. */
 
 /* FN_R_LOAD_STATE values. */
 #define FN_LOAD_IDLE     0
@@ -217,5 +172,7 @@
  * 255 -> 1; 0 is reserved as "never used"), never from a program-local
  * counter. A console RESET restarts the client and re-zeroes its variables
  * but does NOT reset the cart: there is no reset line on this edge. */
+
+#include "fuji_mailbox_check.h"
 
 #endif /* FUJI_MAILBOX_H */

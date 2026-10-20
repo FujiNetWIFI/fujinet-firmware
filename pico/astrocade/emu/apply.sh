@@ -34,6 +34,7 @@ cp ../firmware/src/astromap.c "$BUSDIR/astromap.cpp"
 cp ../firmware/include/fujimail.h ../../common/include/fujibus.h \
    ../firmware/include/astromap.h ../firmware/include/fuji_mailbox.h \
    "$BUSDIR/"
+cp ../../common/include/fuji_mailbox_proto.h ../../common/include/fuji_mailbox_check.h "$BUSDIR/"
 rm -f "$BUSDIR/fujitcp.c" "$BUSDIR/fujimail.c" "$BUSDIR/fujibus.c" \
       "$BUSDIR/astromap.c"
 
@@ -51,7 +52,8 @@ addition = anchor + "".join(
     f'\t\tMAME_DIR .. "src/devices/bus/astrocde/{f}",\n'
     for f in ("fujinet.cpp", "fujinet.h", "fujitcp.cpp", "fujitcp.h",
               "fujimail.cpp", "fujimail.h", "fujibus.cpp", "fujibus.h",
-              "astromap.cpp", "astromap.h", "fuji_mailbox.h"))
+              "astromap.cpp", "astromap.h", "fuji_mailbox.h",
+              "fuji_mailbox_proto.h", "fuji_mailbox_check.h"))
 open(path, "w").write(text.replace(anchor, addition, 1))
 EOF
     echo "apply.sh: bus.lua updated (build with REGENIE=1)"
