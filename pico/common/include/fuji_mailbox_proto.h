@@ -26,6 +26,7 @@
 #define FN_REG_BOOTLOCK  0x11     /* FN_BOOTLOCK_MAGIC: arm the staged image */
 #define FN_REG_BOOTSEL_1 0x12     /* FN_BOOTSEL_MAGIC1, then...              */
 #define FN_REG_BOOTSEL_2 0x13     /* ...FN_BOOTSEL_MAGIC2: reboot to BOOTSEL */
+#define FN_REG_PLATFORM  0x14     /* the first register a platform may own   */
 
 #define FN_BOOTLOCK_MAGIC 0xB5
 /* BOOTSEL takes two register writes, so no single stray access can trigger it. */

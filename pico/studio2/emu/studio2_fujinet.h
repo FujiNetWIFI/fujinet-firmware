@@ -55,6 +55,7 @@ public:
 	void stream_write(int stream, const uint8_t *chunk, unsigned len);
 	uint8_t stream_close(int stream, uint32_t got, bool aborted);
 	void arm_swap();
+	void own_reg(uint8_t reg, uint8_t value);
 
 protected:
 	virtual void device_start() override ATTR_COLD;
@@ -87,7 +88,6 @@ private:
 	std::vector<uint8_t> m_direct;          // an image served alone, no mailbox
 	uint8_t *m_push = nullptr;
 	uint32_t m_push_len = 0;
-	uint8_t m_own_sel = 0xFF;
 
 	const uint8_t *m_bios = nullptr;        // the console's $0000-$03FF
 	uint8_t *m_ram = nullptr;               // the console's 512 bytes

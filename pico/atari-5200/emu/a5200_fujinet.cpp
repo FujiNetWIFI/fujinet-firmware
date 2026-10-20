@@ -47,6 +47,7 @@ static uint8_t c_stream_open(int stream, uint32_t size) { return s_fujinet->stre
 static void c_stream_write(int stream, const uint8_t *chunk, unsigned len) { s_fujinet->stream_write(stream, chunk, len); }
 static uint8_t c_stream_close(int stream, uint32_t got, bool aborted) { return s_fujinet->stream_close(stream, got, aborted); }
 static void c_arm_swap() { s_fujinet->arm_swap(); }
+static void c_own_reg(uint8_t reg, uint8_t value) { s_fujinet->own_reg(reg, value); }
 
 static void c_on_txn(const fujimail_txn_t *t)
 {
@@ -82,12 +83,14 @@ static const fujimail_port_t mame_port = {
 	c_poke, c_link_up, fujitcp_transact, fujitcp_send_bare,
 	c_stream_open, c_stream_write, c_stream_close, c_arm_swap,
 	nullptr, nullptr, c_on_txn, c_on_dbc,
+	c_own_reg,
 };
 
 static const fujimail_port_t mame_port_quiet = {
 	c_poke, c_link_up, fujitcp_transact, fujitcp_send_bare,
 	c_stream_open, c_stream_write, c_stream_close, c_arm_swap,
 	nullptr, nullptr, nullptr, nullptr,
+	c_own_reg,
 };
 
 /*-------------------------------------------------
@@ -180,7 +183,6 @@ void a5200_fujinet_device::device_reset()
 	fuji_load_init(&m_load, m_buf[0].data(), m_buf[1].data(), m_arena,
 			m_boot.data(), uint32_t(m_boot.size()));
 	m_last_off = ~offs_t(0);
-	m_own_sel = 0xFF;
 	m_dumps = 0;
 
 	if (!m_direct.empty())
@@ -298,7 +300,7 @@ void a5200_fujinet_device::service(uint16_t a)
 {
 	if (a != EV_SWAPPED)
 	{
-		mailbox_read(a);
+		fujimail_read_hotspot(a);
 		return;
 	}
 	uint8_t swaps, kind;
@@ -309,7 +311,6 @@ void a5200_fujinet_device::service(uint16_t a)
 		kind = m_load.plan[m_load.live].kind;
 		mailbox = m_load.view[m_load.live].mailbox;
 	}
-	m_own_sel = 0xFF;
 	if (mailbox)
 		fujimail_paint();
 	publish_staged();
@@ -367,26 +368,18 @@ void a5200_fujinet_device::drain_pokes()
 	m_poked.store(false, std::memory_order_relaxed);
 }
 
-void a5200_fujinet_device::mailbox_read(uint16_t a)
+// The cart's own register, handed over by fujimail.
+void a5200_fujinet_device::own_reg(uint8_t reg, uint8_t value)
 {
-	unsigned page = a & FN_H_PAGE_MASK;
-
-	if (page == FN_H_REGSEL)
-		m_own_sel = (a & 0xFF) < 0x80 ? uint8_t(a & 0xFF) : m_own_sel;
-	else if (page == FN_H_REGDATA && m_own_sel != 0xFF)
+	if (reg == FN_REG_CONFIG && value == FN_CONFIG_MAGIC)
 	{
-		if (m_own_sel == FN_REG_CONFIG && (a & 0xFF) == FN_CONFIG_MAGIC)
 		{
-			{
-				std::lock_guard<std::mutex> g(m_loadlock);
-				fuji_load_stage_config(&m_load, m_boot.data(), uint32_t(m_boot.size()));
-				fuji_load_arm(&m_load);
-			}
-			publish_staged();
+			std::lock_guard<std::mutex> g(m_loadlock);
+			fuji_load_stage_config(&m_load, m_boot.data(), uint32_t(m_boot.size()));
+			fuji_load_arm(&m_load);
 		}
-		m_own_sel = 0xFF;
+		publish_staged();
 	}
-	fujimail_read_hotspot(a);
 }
 
 // The CPU thread's half of a swap; the status page is repainted by service().

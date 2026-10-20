@@ -366,6 +366,8 @@ static void reg_write(uint8_t reg, uint8_t data)
         break;
 
     default:
+        if (reg >= FN_REG_PLATFORM && port->own_reg)
+            port->own_reg(reg, data);
         break;
     }
     prev_regnum = reg;

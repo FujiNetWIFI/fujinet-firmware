@@ -99,6 +99,15 @@ static void port_bootsel(void)
     reset_usb_boot(0, 0);
 }
 
+static void own_register(uint8_t reg, uint8_t data)
+{
+    if (reg == FN_REG_CONFIG && data == FN_CONFIG_MAGIC) {
+        fuji_load_stage_config(&fuji_loader, config_rom, config_size);
+        fuji_load_arm(&fuji_loader);
+        publish_staged();
+    }
+}
+
 static const fujimail_port_t cart_port = {
     .poke         = fuji_cart_poke,
     .link_up      = fujibus_link_up,
@@ -112,6 +121,7 @@ static const fujimail_port_t cart_port = {
     .bootsel      = port_bootsel,
     .on_txn       = NULL,
     .on_dbc       = NULL,
+    .own_reg      = own_register,
 };
 
 void fuji_service_init(const uint8_t *config, uint32_t config_len)
@@ -122,38 +132,14 @@ void fuji_service_init(const uint8_t *config, uint32_t config_len)
     fujibus_set_inbound_handler(fujimail_inbound);
 }
 
-/* The cart's own registers; fujimail ignores the numbers it does not know. */
-#define REGSEL_INERT 0xFF
-static uint8_t own_sel = REGSEL_INERT;
-
-static void own_register(uint8_t reg, uint8_t data)
-{
-    if (reg == FN_REG_CONFIG && data == FN_CONFIG_MAGIC) {
-        fuji_load_stage_config(&fuji_loader, config_rom, config_size);
-        fuji_load_arm(&fuji_loader);
-        publish_staged();
-    }
-}
-
 /* One hotspot read, by console address. */
 static void hotspot(uint16_t a)
 {
-    uint16_t off;
-    unsigned page;
-
     if (a >= FN_TEXT_BASE) {
         s2_text_event(&fuji_text, a);
         return;
     }
-    off = (uint16_t)(a - FN_ARENA_BASE);
-    page = off & FN_H_PAGE_MASK;
-    if (page == FN_H_REGSEL)
-        own_sel = (off & 0xFF) < 0x80 ? (uint8_t)(off & 0xFF) : own_sel;
-    else if (page == FN_H_REGDATA && own_sel != REGSEL_INERT) {
-        own_register(own_sel, (uint8_t)(off & 0xFF));
-        own_sel = REGSEL_INERT;
-    }
-    fujimail_read_hotspot(off);
+    fujimail_read_hotspot((uint16_t)(a - FN_ARENA_BASE));
 }
 
 /* A swap: the new image is running. If it claims the mailbox it finds the
@@ -161,7 +147,6 @@ static void hotspot(uint16_t a)
  * power-on. */
 static void swapped(void)
 {
-    own_sel = REGSEL_INERT;
     if (fuji_load_live(&fuji_loader)->mailbox) {
         s2_text_init(&fuji_text, fuji_arena + FN_R_DATA);
         fujimail_paint();

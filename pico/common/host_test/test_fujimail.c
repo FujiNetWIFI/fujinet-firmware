@@ -44,6 +44,7 @@ static fb_status_t reply_status = FB_OK;
 
 static unsigned armed_calls;
 static unsigned bootsel_calls;
+static struct { unsigned calls; uint8_t reg, value; } own;
 
 /* Port-owned stream storage with scriptable failures, as big as the largest image pushed. */
 static uint8_t store[FUJIMAIL_TEST_GAME];
@@ -125,6 +126,7 @@ static uint8_t stub_stream_close(int stream, uint32_t got, bool aborted)
 
 static void stub_arm_swap(void) { armed_calls++; }
 static void stub_bootsel(void) { bootsel_calls++; }
+static void stub_own_reg(uint8_t reg, uint8_t value) { own.calls++; own.reg = reg; own.value = value; }
 
 static const fujimail_port_t stub_port = {
     .poke         = stub_poke,
@@ -139,6 +141,7 @@ static const fujimail_port_t stub_port = {
     .bootsel      = stub_bootsel,
     .on_txn       = NULL,
     .on_dbc       = NULL,
+    .own_reg      = stub_own_reg,
 };
 
 /* ---- driving helpers: the hotspot events a cart's port makes of a client's accesses ---- */
@@ -163,6 +166,7 @@ static void fresh(void)
     memset(&pushed, 0, sizeof pushed);
     armed_calls = 0;
     bootsel_calls = 0;
+    memset(&own, 0, sizeof own);
     reply_len = 0;
     reply_status = FB_OK;
     link_state = 1;
@@ -440,6 +444,24 @@ static void test_bootsel_pairing(void)
     assert(bootsel_calls == 1);
 }
 
+/* Registers from FN_REG_PLATFORM up are the cart's: a pair hands them over once,
+ * and nothing else reaches the port -- not the protocol's unused numbers, not a
+ * stray REGDATA, not a special op. */
+static void test_own_reg(void)
+{
+    fresh();
+    reg_write(FN_REG_PLATFORM, 0xC5);
+    assert(own.calls == 1 && own.reg == FN_REG_PLATFORM && own.value == 0xC5);
+    reg_write(0x7F, 0x01);
+    assert(own.calls == 2 && own.reg == 0x7F && own.value == 0x01);
+
+    reg_write(0x03, 0x44);                              /* unused, but the protocol's */
+    fujimail_read_hotspot(FN_H_REGDATA + 0x55);         /* no REGSEL before it */
+    fujimail_read_hotspot(FN_H_REGSEL + 0x80);          /* a special op */
+    fujimail_read_hotspot(FN_H_REGDATA + 0x66);
+    assert(own.calls == 2);
+}
+
 /* A repaint means a new client: half a pair left by the one before must not
  * complete with the new client's first access. */
 static void test_paint_restarts_pairing(void)
@@ -690,6 +712,7 @@ int main(void)
     test_refresh_sweeps();
     test_bootsel_pairing();
     test_paint_restarts_pairing();
+    test_own_reg();
     test_dbc_push_and_bootlock();
     test_dbc_abort_and_toobig();
     test_dbc_game_push();

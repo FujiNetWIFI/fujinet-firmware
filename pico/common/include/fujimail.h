@@ -74,6 +74,9 @@ typedef struct {
     void (*on_txn)(const fujimail_txn_t *txn);
     void (*on_dbc)(fujimail_dbc_ev_t ev, int stream, uint32_t expect,
                    unsigned got, bool aborted);
+    /* Optional: a pair that writes one of the platform's registers (FN_REG_PLATFORM up).
+     * Keep new members last: the MAME devices fill this struct in order. */
+    void (*own_reg)(uint8_t reg, uint8_t value);
 } fujimail_port_t;
 
 void fujimail_init(const fujimail_port_t *port);
