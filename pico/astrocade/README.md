@@ -45,9 +45,9 @@ MAME debugger, the OS walking the menu chain). Three independent gates keep
 them harmless: REGDATA disarms after one use, a transaction launches only
 on a fresh nonzero SEQ, and booting an unclaiming image kills hotspot
 decode for the session. Our own clients also run `DI`/polled, so I stays 0
-and refresh never lands in cart space at all. `host_test/test_fujimail.c`
-fuzzes exactly these cases -- MAME cannot model refresh, so the host test
-is where they run.
+and refresh never lands in cart space at all. `test_fujimail`, from
+[pico/common/](../common/), fuzzes exactly these cases -- MAME cannot model
+refresh, so the host test is where they run.
 
 **Booting** (the part every multicart gets wrong once): the client arms the
 swap (`BOOTLOCK` = 0xB5), copies a 6-byte stub to the top of screen RAM --

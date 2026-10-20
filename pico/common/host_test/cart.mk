@@ -1,8 +1,9 @@
 # cart.mk -- rules shared by every cart's host_test/Makefile: no hardware, no pico-sdk.
 #
 # Set TESTS, and <test>_SRCS / <test>_CFLAGS / <test>_DEPS where a test needs them, then
-# include this. C_ONLY_SRCS lists sources no emulator graft builds as C++. Binaries go to $(OUT), outside the source tree. A cart adds checks of its
-# own with another `all::` rule after the include.
+# include this. C_ONLY_SRCS lists sources no emulator graft builds as C++. Binaries go to
+# $(OUT), outside the source tree. A cart adds checks of its own with another `all::` rule
+# after the include.
 
 SHELL := /bin/bash
 .DEFAULT_GOAL := all
@@ -16,6 +17,9 @@ SRC ?= ../src
 OUT ?= ../../build/host_test
 
 HDRS = $(wildcard *.h ../include/*.h $(COMMON)/include/*.h)
+
+# A test a cart lists but does not have, such as test_fujimail, is the shared one.
+vpath %.c $(COMMON)/host_test
 
 all:: $(addprefix $(OUT)/,$(TESTS))
 	@$(foreach t,$(TESTS),echo "== $(t)"; $(OUT)/$(t) || exit 1;)

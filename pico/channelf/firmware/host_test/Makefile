@@ -2,9 +2,10 @@
 # traces through the ROMC observer, and skips without them.
 BUILD = ../../build
 
-TESTS = test_busio test_chfmap test_fujicart test_tick
+TESTS = test_busio test_chfmap test_fujicart test_tick test_fujimail
 test_chfmap_SRCS = $(SRC)/chfmap.c
 test_fujicart_SRCS = $(SRC)/fuji_cart.c $(SRC)/chfmap.c
+test_fujimail_SRCS = $(COMMON)/src/fujimail.c $(SRC)/chfmap.c
 # with cart I/O ports claimed, the only way to exercise the ROMC 03 -> 1A/1B latch
 test_busio_CFLAGS = -DCHF_IO_LO=0x20 -DCHF_IO_HI=0x27
 

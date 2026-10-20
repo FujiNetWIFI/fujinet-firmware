@@ -16,6 +16,7 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 | `emu/fujitcp.c`, `emu/fujitcp.h` | the MAME grafts' FujiBus link to fujinet-pc over TCP, in place of `fujibus_usb.c` |
 | `usb/usb_descriptors.c`, `usb/tusb_config.h` | the CDC-only TinyUSB device; the product string is the cart's `FUJI_USB_PRODUCT` |
 | `host_test/test_fujibus.c` | runs the codec self-test on the host |
+| `host_test/test_fujimail.c` | the mailbox service's tests, which every cart runs against its own `fuji_mailbox.h`; the cart's `host_test/fujimail_test.h` names its mapper's gate and image sizes |
 | `host_test/cart.mk` | the rules every cart's `host_test/Makefile` includes: one compile rule, the runner, binaries in the cart's `build/host_test`, and a C++ compile of the tested sources, which the MAME grafts build as C++ |
 
 ## How it fits
@@ -36,8 +37,9 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
   `emu/fujitcp.[ch]` from here into MAME (o2's takes only the codec, into o2em), so the emulators
   run the same code.
 - [intellivision/](../intellivision/) keeps its own copy; its transport has a different API.
-- Each cart's `firmware/host_test/Makefile` lists its tests and includes `host_test/cart.mk`; the
-  pico cartridges workflow runs every one of them.
+- Each cart's `firmware/host_test/Makefile` lists its tests and includes `host_test/cart.mk`; a
+  listed test the cart does not have, such as `test_fujimail`, comes from here. The pico
+  cartridges workflow runs every one of them.
 
 ## Build
 Not part of the ESP32 or FujiNet-PC builds. pico-sdk compiles it inside each cart's firmware;
