@@ -40,11 +40,12 @@ done
 # sources go in under .cpp names (they build both ways).
 cp fujinet.cpp fujinet.h "$COMMON/emu/fujitcp.h" "$BUSDIR/"
 cp "$COMMON/emu/fujitcp.c" "$BUSDIR/fujitcp.cpp"
-for f in fujimail smsmap smsmap_db fuji_load; do
+for f in smsmap smsmap_db fuji_load; do
     cp "$FW/src/$f.c" "$BUSDIR/$f.cpp"
 done
 cp "$COMMON/src/fujibus.c" "$BUSDIR/fujibus.cpp"
-cp "$FW/include/fujimail.h" "$COMMON/include/fujibus.h" "$FW/include/fuji_mailbox.h" \
+cp "$COMMON/src/fujimail.c" "$BUSDIR/fujimail.cpp"
+cp "$COMMON/include/fujimail.h" "$COMMON/include/fujibus.h" "$FW/include/fuji_mailbox.h" \
    "$FW/include/sms_cart.h" "$FW/include/smsmap.h" "$FW/include/smsmap_db.h" \
    "$FW/include/fuji_load.h" "$GEN/fujiconfigrom.h" "$GEN/smsloaderrom.h" "$BUSDIR/"
 cp "$COMMON/include/fuji_mailbox_proto.h" "$COMMON/include/fuji_mailbox_check.h" "$BUSDIR/"

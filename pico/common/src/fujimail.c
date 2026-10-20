@@ -35,9 +35,17 @@ static void poke(unsigned offset, uint8_t v)
     port->poke(offset, v);
 }
 
-/* The ROM stream's byte counts, for a client that shows more than a bar.
- * Low byte first: a reader racing a write can see a torn value, so it reads
- * twice and keeps a matching pair. */
+/* The ROM stream's byte counts, for a client that shows more than a bar, on carts whose
+ * status page has them. Low byte first: a reader racing a write can see a torn value, so it
+ * reads twice and keeps a matching pair. */
+#ifdef FN_R_BOOT_GOT0
+#define BOOT_GOT FN_R_BOOT_GOT0
+#define BOOT_TOT FN_R_BOOT_TOT0
+#else
+#define BOOT_GOT 0
+#define BOOT_TOT 0
+#endif
+
 static void poke_count(unsigned base, uint32_t v)
 {
 #ifdef FN_R_BOOT_GOT0
@@ -144,8 +152,8 @@ bool fujimail_inbound(const fb_reply_t *req)
             poke(FN_R_BOOT_STATE, FN_BOOT_XFER);
             poke(FN_R_BOOT_PCT, 0);
             poke(FN_R_BOOT_ERR, 0);
-            poke_count(FN_R_BOOT_GOT0, 0);
-            poke_count(FN_R_BOOT_TOT0, stage_expect);
+            poke_count(BOOT_GOT, 0);
+            poke_count(BOOT_TOT, stage_expect);
         }
         port->send_bare(FUJI_DEVICEID_DBC, CMD_FUJI_ACK, NULL, 0);
         return true;
@@ -158,7 +166,7 @@ bool fujimail_inbound(const fb_reply_t *req)
             if (dbc_stream == 0 && stage_expect) {
                 poke(FN_R_BOOT_PCT,
                      (uint8_t)((stream_got * 100u) / stage_expect));
-                poke_count(FN_R_BOOT_GOT0, stream_got);
+                poke_count(BOOT_GOT, stream_got);
             }
         }
         port->send_bare(FUJI_DEVICEID_DBC, CMD_FUJI_ACK, NULL, 0);
@@ -193,7 +201,7 @@ bool fujimail_inbound(const fb_reply_t *req)
             } else {
                 boot_ready = true;
                 poke(FN_R_BOOT_PCT, 100);
-                poke_count(FN_R_BOOT_GOT0, stream_got);
+                poke_count(BOOT_GOT, stream_got);
                 poke(FN_R_BOOT_STATE, FN_BOOT_READY);
             }
         }
@@ -266,8 +274,8 @@ static void run_transaction(uint8_t seq)
             poke(FN_R_BOOT_STATE, FN_BOOT_IDLE);
             poke(FN_R_BOOT_PCT, 0);
             poke(FN_R_BOOT_ERR, 0);
-            poke_count(FN_R_BOOT_GOT0, 0);
-            poke_count(FN_R_BOOT_TOT0, 0);
+            poke_count(BOOT_GOT, 0);
+            poke_count(BOOT_TOT, 0);
         }
 
         st = port->transact(mb_device, mb_cmd, params, nparam,

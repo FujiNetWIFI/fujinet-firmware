@@ -29,12 +29,11 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
   the USB device but has its own link in place of `fujibus_usb.c`.
 - [o2/](../o2/) takes only the codec and transport; its USB device stays in `o2/firmware` because
   it adds a mass-storage interface, and its `fujimail.c` is an older design.
-- nes, studio2, atari-5200 and atari-7800 build `src/fujimail.c`, which sits on top of
-  `fujibus_usb.h`; arcadia, astrocade, channelf and sms still carry older copies of their own.
+- Every cart but o2 builds `src/fujimail.c`, which sits on top of `fujibus_usb.h`.
 - Each cart's `fuji_mailbox.h` but o2's holds its address map and its own registers, and
   includes `fuji_mailbox_proto.h` first and `fuji_mailbox_check.h` last.
-- The `emu/apply.sh` scripts copy `fujibus.[ch]`, the two mailbox headers, `emu/fujitcp.[ch]`,
-  and `fujimail.[ch]` where the cart uses this one, from here into MAME or o2em, so the emulators
+- The `emu/apply.sh` scripts copy `fujibus.[ch]`, `fujimail.[ch]`, the two mailbox headers and
+  `emu/fujitcp.[ch]` from here into MAME (o2's takes only the codec, into o2em), so the emulators
   run the same code.
 - [intellivision/](../intellivision/) keeps its own copy; its transport has a different API.
 - Each cart's `firmware/host_test/Makefile` lists its tests and includes `host_test/cart.mk`; the

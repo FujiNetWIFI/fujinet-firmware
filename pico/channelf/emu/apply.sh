@@ -36,10 +36,10 @@ DRIVER="$MAME/src/mame/fairchild/channelf.cpp"
 # names and compiled as C++ (they are written to build both ways).
 cp fujinet.cpp fujinet.h ../../common/emu/fujitcp.h "$BUSDIR/"
 cp ../../common/emu/fujitcp.c "$BUSDIR/fujitcp.cpp"
-cp ../firmware/src/fujimail.c "$BUSDIR/fujimail.cpp"
+cp ../../common/src/fujimail.c "$BUSDIR/fujimail.cpp"
 cp ../../common/src/fujibus.c "$BUSDIR/fujibus.cpp"
 cp ../firmware/src/chfmap.c "$BUSDIR/chfmap.cpp"
-cp ../firmware/include/fujimail.h ../../common/include/fujibus.h \
+cp ../../common/include/fujimail.h ../../common/include/fujibus.h \
    ../firmware/include/chfmap.h ../firmware/include/fuji_mailbox.h \
    ../firmware/include/channelf_cart.h \
    "$BUSDIR/"

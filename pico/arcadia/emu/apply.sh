@@ -28,10 +28,10 @@ DRIVER="$MAME/src/mame/arcadia/arcadia.cpp"
 # names and compiled as C++ (they are written to build both ways).
 cp fujinet.cpp fujinet.h ../../common/emu/fujitcp.h "$BUSDIR/"
 cp ../../common/emu/fujitcp.c "$BUSDIR/fujitcp.cpp"
-cp ../firmware/src/fujimail.c "$BUSDIR/fujimail.cpp"
+cp ../../common/src/fujimail.c "$BUSDIR/fujimail.cpp"
 cp ../../common/src/fujibus.c "$BUSDIR/fujibus.cpp"
 cp ../firmware/src/arcmap.c "$BUSDIR/arcmap.cpp"
-cp ../firmware/include/fujimail.h ../../common/include/fujibus.h \
+cp ../../common/include/fujimail.h ../../common/include/fujibus.h \
    ../firmware/include/arcmap.h ../firmware/include/fuji_mailbox.h \
    "$BUSDIR/"
 cp ../../common/include/fuji_mailbox_proto.h ../../common/include/fuji_mailbox_check.h "$BUSDIR/"
