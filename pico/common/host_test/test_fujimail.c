@@ -440,6 +440,24 @@ static void test_bootsel_pairing(void)
     assert(bootsel_calls == 1);
 }
 
+/* A repaint means a new client: half a pair left by the one before must not
+ * complete with the new client's first access. */
+static void test_paint_restarts_pairing(void)
+{
+    fresh();
+    fujimail_read_hotspot(FN_H_REGSEL + FN_REG_DEVICE);
+    fujimail_paint();
+    fujimail_read_hotspot(FN_H_REGDATA + 0x99);
+    reg_write(FN_REG_CMD, 0x01);
+    reg_write(FN_REG_SEQ, 1);
+    assert(txn.calls == 1 && txn.device == 0);
+
+    reg_write(FN_REG_BOOTSEL_1, FN_BOOTSEL_MAGIC1);
+    fujimail_paint();
+    reg_write(FN_REG_BOOTSEL_2, FN_BOOTSEL_MAGIC2);
+    assert(bootsel_calls == 0);
+}
+
 static void test_dbc_push_and_bootlock(void)
 {
     static uint8_t image[4096];
@@ -671,6 +689,7 @@ int main(void)
     test_unpaired_regdata();
     test_refresh_sweeps();
     test_bootsel_pairing();
+    test_paint_restarts_pairing();
     test_dbc_push_and_bootlock();
     test_dbc_abort_and_toobig();
     test_dbc_game_push();

@@ -94,8 +94,11 @@ void fujimail_paint(void)
      * over with it. Leaving lastseq behind would make the client's first
      * request -- ACKSEQ + 1, per the rule in fuji_mailbox.h -- collide with a
      * sequence already answered, and run_transaction would drop it in
-     * silence. */
+     * silence. The register pairing starts over too, so half a pair from the
+     * client before cannot complete with the next one's first access. */
     lastseq = 0;
+    regsel = REGSEL_INERT;
+    prev_regnum = REGSEL_INERT;
     for (a = FN_R_DATA; a < FN_R_PAINT_END; a++)
         poke(a, 0);
     poke(FN_R_MAGIC0, 'F');
