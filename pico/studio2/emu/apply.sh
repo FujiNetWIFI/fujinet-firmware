@@ -3,7 +3,7 @@
 #
 # Usage: ./apply.sh /path/to/mame
 #
-# Copies the device model (studio2_fujinet.cpp/h, fujitcp.c/h) and the
+# Copies the device model (studio2_fujinet.cpp/h, common's fujitcp.c/h) and the
 # cartridge firmware's own sources (fujimail, fujibus, s2map, fuji_load,
 # s2_text with its font, the baked CONFIG) into src/mame/rca/, and edits
 # src/mame/rca/studio2.cpp: the include, a name for the console RAM share,
@@ -34,8 +34,8 @@ GEN=../build/gen
 # sources go in under .cpp names (they build both ways). A single-driver
 # build finds them as the siblings of the headers studio2.cpp pulls in; the
 # font has no header of its own, so it rides along in s2_text.cpp.
-cp studio2_fujinet.cpp studio2_fujinet.h fujitcp.h "$DIR/"
-cp fujitcp.c "$DIR/fujitcp.cpp"
+cp studio2_fujinet.cpp studio2_fujinet.h "$COMMON/emu/fujitcp.h" "$DIR/"
+cp "$COMMON/emu/fujitcp.c" "$DIR/fujitcp.cpp"
 for f in s2map fuji_load; do
     cp "$FW/src/$f.c" "$DIR/$f.cpp"
 done

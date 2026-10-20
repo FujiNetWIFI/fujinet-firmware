@@ -3,7 +3,7 @@
 #
 # Usage: ./apply.sh /path/to/mame
 #
-# Copies the device model (fujinet.cpp/h, fujitcp.c/h) and the cartridge
+# Copies the device model (fujinet.cpp/h, common's fujitcp.c/h) and the cartridge
 # firmware's own sources (fujimail, fujibus, a78map, fuji_load, hsc, the bus
 # decode, the baked CONFIG, loader and boot block) into
 # src/devices/bus/a7800/, and edits:
@@ -37,8 +37,8 @@ done
 
 # MAME forces a C++ precompiled header on every device file, so the shared C
 # sources go in under .cpp names (they build both ways).
-cp fujinet.cpp fujinet.h fujitcp.h "$BUSDIR/"
-cp fujitcp.c "$BUSDIR/fujitcp.cpp"
+cp fujinet.cpp fujinet.h "$COMMON/emu/fujitcp.h" "$BUSDIR/"
+cp "$COMMON/emu/fujitcp.c" "$BUSDIR/fujitcp.cpp"
 for f in a78map a78map_db fuji_load hsc; do
     cp "$FW/src/$f.c" "$BUSDIR/$f.cpp"
 done
@@ -58,7 +58,7 @@ cp "$COMMON/include/fuji_mailbox_proto.h" "$COMMON/include/fuji_mailbox_check.h"
     echo "#define A78_FUJINS_H"
     for sym in fujimail_init fujimail_paint fujimail_read_hotspot fujimail_inbound \
                fujibus_build_request fujibus_parse_reply fujibus_selftest \
-               fujitcp_init fujitcp_active fujitcp_close fujitcp_transact \
+               fujitcp_init fujitcp_active fujitcp_close fujitcp_abort fujitcp_transact \
                fujitcp_send_bare fuji_load_init fuji_load_stage fuji_load_unstage \
                fuji_load_arm fuji_load_busy fuji_load_event fuji_load_ack \
                fuji_load_abort fuji_load_handover fuji_load_slices fuji_load_slice \

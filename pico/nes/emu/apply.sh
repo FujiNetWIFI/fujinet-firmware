@@ -3,7 +3,7 @@
 #
 # Usage: ./apply.sh /path/to/mame
 #
-# Copies the device model (fujinet.cpp/h, fujitcp.c/h) and the cartridge
+# Copies the device model (fujinet.cpp/h, common's fujitcp.c/h) and the cartridge
 # firmware's own protocol sources (fujimail, fujibus, nesmap, the bus decode,
 # the baked CONFIG and loader ROMs -- MAME then runs the code the cartridge
 # actually ships) into src/devices/bus/nes/, and makes the shared-file edits:
@@ -35,8 +35,8 @@ done
 # The shared protocol sources are C, but MAME's device project forces a C++
 # precompiled header on every file it owns, so they are copied in under .cpp
 # names and compiled as C++ (they are written to build both ways).
-cp fujinet.cpp fujinet.h fujitcp.h "$BUSDIR/"
-cp fujitcp.c "$BUSDIR/fujitcp.cpp"
+cp fujinet.cpp fujinet.h ../../common/emu/fujitcp.h "$BUSDIR/"
+cp ../../common/emu/fujitcp.c "$BUSDIR/fujitcp.cpp"
 cp ../../common/src/fujimail.c "$BUSDIR/fujimail.cpp"
 cp ../../common/src/fujibus.c "$BUSDIR/fujibus.cpp"
 cp ../firmware/src/nesmap.c "$BUSDIR/nesmap.cpp"
@@ -61,7 +61,7 @@ cat > "$BUSDIR/fujins.h" <<'NSEOF'
 NSEOF
 for sym in fujimail_init fujimail_paint fujimail_read_hotspot fujimail_inbound \
            fujibus_build_request fujibus_parse_reply fujibus_selftest \
-           fujitcp_init fujitcp_active fujitcp_close fujitcp_transact \
+           fujitcp_init fujitcp_active fujitcp_close fujitcp_abort fujitcp_transact \
            fujitcp_send_bare; do
     echo "#define $sym nes_$sym" >> "$BUSDIR/fujins.h"
 done
