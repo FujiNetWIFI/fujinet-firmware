@@ -120,7 +120,7 @@ Note that the console itself refreshes at 60.53 Hz (4.09 MHz / 256 x 264), so
 ## Verification
 
 ```
-cd firmware/host_test && make          # busio, chfmap, fujicart, tick, romc
+cd firmware/host_test && make          # busio, chfmap, fujicart, tick, fujimail, romc
 ./build.sh hello romctest fujibank     # console clients
 tools/mktrace.sh ~/Workspace/mame      # regenerate golden ROMC traces
 FUJINET_TCP=127.0.0.1:9 ./run.sh fujibank bankprobe    # APPBANK + tick

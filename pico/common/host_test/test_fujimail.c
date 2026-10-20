@@ -1,13 +1,11 @@
-/* test_fujimail.c -- desktop regression tests for the mailbox service on
- * the SMS arena: register decode through the synthesised REGSEL/REGDATA
- * pair, the SEQ/ACKSEQ interlock, the SLICE_ECHO repaint handshake, the DBC
- * push receiver, and proof that a stray sequence of hotspot events (on this
- * console a crashed program's stores, since reads are inert) can never
- * launch a transaction, arm a swap or reboot the cart on its own. Forked
- * from the NES test; the arena offsets are the same.
+/* test_fujimail.c -- desktop regression tests for the shared mailbox service, which every
+ * cart runs against its own fuji_mailbox.h: register decode through the REGSEL/REGDATA
+ * pair, the SEQ/ACKSEQ interlock, the SLICE_ECHO repaint handshake, the DBC push receiver,
+ * and proof that a stray run of hotspot events (a crashed program's reads or stores) can
+ * never launch a transaction, arm a swap or reboot the cart on its own.
  *
- * Build: gcc -Wall -Wextra -Werror -I../include -o test_fujimail \
- *            test_fujimail.c ../src/fujimail.c ../src/smsmap.c ../src/smsmap_db.c
+ * The cart's host_test/fujimail_test.h names its mapper's gate, a large image the gate
+ * accepts (FUJIMAIL_TEST_GAME) and one it refuses (FUJIMAIL_TEST_TOOBIG).
  */
 
 #include <assert.h>
@@ -17,13 +15,16 @@
 
 #include "fujimail.h"
 #include "fuji_mailbox.h"
-#include "smsmap.h"
+#include "fujimail_test.h"
 
 /* ---- the stub port ---- */
 
-static uint8_t window[FN_ARENA_SIZE];
+/* Everything from the reply window up to the end of the TX page. */
+#define WINDOW_SIZE (FN_H_DATA + 0x100)
+
+static uint8_t window[WINDOW_SIZE];
 static unsigned long poke_clock;
-static unsigned long poke_when[FN_ARENA_SIZE];
+static unsigned long poke_when[WINDOW_SIZE];
 
 static int link_state = 1;
 
@@ -44,11 +45,8 @@ static fb_status_t reply_status = FB_OK;
 static unsigned armed_calls;
 static unsigned bootsel_calls;
 
-/* Port-owned stream storage, big enough for a 128K game image, with
- * scriptable failures: this is the fixture the hardware store and the MAME
- * device both mirror. */
-/* The largest image this port can stage: the RAM store cap. */
-static uint8_t store[128u * 1024];
+/* Port-owned stream storage with scriptable failures, as big as the largest image pushed. */
+static uint8_t store[FUJIMAIL_TEST_GAME];
 static struct {
     unsigned opens, writes, closes;
     int stream;
@@ -61,7 +59,7 @@ static struct {
 
 static void stub_poke(unsigned offset, uint8_t v)
 {
-    assert(offset < FN_R_PAINT_END);
+    assert(offset - FN_R_DATA < FN_R_PAINT_END - FN_R_DATA);    /* only the painted pages */
     window[offset] = v;
     poke_when[offset] = ++poke_clock;
 }
@@ -103,7 +101,7 @@ static uint8_t stub_stream_open(int stream, uint32_t size)
     pushed.len = 0;
     if (pushed.open_err)
         return pushed.open_err;
-    return (stream == 0) ? smsmap_gate(size) : 0;
+    return (stream == 0) ? FUJIMAIL_TEST_GATE(size) : 0;
 }
 
 static void stub_stream_write(int stream, const uint8_t *chunk, unsigned len)
@@ -143,7 +141,7 @@ static const fujimail_port_t stub_port = {
     .on_dbc       = NULL,
 };
 
-/* ---- driving helpers, written the way the Z80 client reads ---- */
+/* ---- driving helpers: the hotspot events a cart's port makes of a client's accesses ---- */
 
 static void reg_write(uint8_t reg, uint8_t val)
 {
@@ -285,13 +283,10 @@ static void test_seq_gates(void)
     assert(txn.calls == 2);
 }
 
-/* This port publishes the whole 1K reply in one piece (FN_R_NSLICES == 1)
- * because the ColecoVision has about 700 usable bytes of RAM and the cartridge
- * window has 32K to spare -- a client reads a directory entry straight out of
- * cartridge ROM instead of copying it. FN_REG_RXSLICE and FN_R_SLICE_ECHO stay
- * in the register file so fujimail.c compiles verbatim across the family; here
- * they are simply always 0, and the echo-last ordering still has to hold
- * because the repaint is asynchronous on real hardware. */
+#if FN_R_NSLICES == 1
+/* A cart with one 1K slice (FN_R_NSLICES == 1) publishes the whole reply at once.
+ * FN_REG_RXSLICE and FN_R_SLICE_ECHO stay; here they are always 0, and the echo-last
+ * ordering still has to hold because the repaint is asynchronous on real hardware. */
 static void test_whole_reply_window(void)
 {
     unsigned i;
@@ -319,18 +314,44 @@ static void test_whole_reply_window(void)
     for (i = 0; i < FN_R_SLICE_LEN; i++)
         assert(poke_when[FN_R_DATA + i] < poke_when[FN_R_SLICE_ECHO]);
 }
+#else
+/* Several slices: the client selects one and waits for its echo. */
+static void test_slice_echo(void)
+{
+    unsigned i;
+
+    fresh();
+    for (i = 0; i < sizeof reply_data; i++)
+        reply_data[i] = (uint8_t) i;
+    reply_len = 700;                    /* spans 3 slices */
+
+    run_txn(1, 0x70, 0xC4);
+    assert(window[FN_R_SLICE_ECHO] == 0);
+    assert(window[FN_R_DATA + 5] == 5);
+
+    reg_write(FN_REG_RXSLICE, 2);
+    assert(window[FN_R_SLICE_ECHO] == 2);
+    assert(window[FN_R_DATA + 0] == (uint8_t)(2 * FN_R_SLICE_LEN));
+    /* Bytes past rxlen in the last occupied slice read zero. */
+    assert(window[FN_R_DATA + (700 - 2 * FN_R_SLICE_LEN)] == 0);
+
+    /* The handshake: the echo must be the LAST publish of the repaint. */
+    for (i = 0; i < FN_R_SLICE_LEN; i++)
+        assert(poke_when[FN_R_DATA + i] < poke_when[FN_R_SLICE_ECHO]);
+}
+#endif
 
 static void test_unpaired_regdata(void)
 {
     fresh();
     run_txn(1, 0x70, 0xC4);
 
-    /* No REGSEL arm: REGDATA reads fall on deaf ears, even SEQ-shaped ones. */
+    /* No REGSEL arm: REGDATA events fall on deaf ears, even SEQ-shaped ones. */
     fujimail_read_hotspot(FN_H_REGDATA + 2);
     fujimail_read_hotspot(FN_H_REGDATA + 3);
     assert(txn.calls == 1);
 
-    /* A special-op read must not disturb an armed regsel... */
+    /* A special-op event must not disturb an armed regsel... */
     fujimail_read_hotspot(FN_H_REGSEL + FN_REG_DEVICE);
     fujimail_read_hotspot(FN_H_REGSEL + 0xE0);
     fujimail_read_hotspot(FN_H_REGDATA + 0x99);
@@ -341,22 +362,23 @@ static void test_unpaired_regdata(void)
 
     /* Special ops belong to the bus-serving layer; reaching this decoder (as
      * a stray, or a port that forwards them anyway) they are no-ops and leave
-     * an armed regsel alone. On this port the whole bit7-set half of the
-     * REGSEL page is special ops -- there is no APPBANK page-select range,
-     * because a ColecoVision client is always a flat 32K. */
+     * an armed regsel alone. The whole bit7-set half of the REGSEL page is
+     * special ops. */
     fujimail_read_hotspot(FN_H_REGSEL + FN_REG_DEVICE);
     fujimail_read_hotspot(FN_H_REGSEL + 0x80);
     fujimail_read_hotspot(FN_H_REGSEL + 0xEF);
+#ifdef FN_HOT_SWAP
+    fujimail_read_hotspot(FN_H_REGSEL + FN_HOT_SWAP);
+#endif
     fujimail_read_hotspot(FN_H_REGDATA + 0x33);
     reg_write(FN_REG_CMD, 0x01);
     reg_write(FN_REG_SEQ, 3);
     assert(txn.calls == 3 && txn.device == 0x33);
 }
 
-/* A refresh sweep: the R register walks 0x00-0x7F (bit 7 never counts) over
- * whatever page the I register selects. The sweep must not mutate anything
- * observable: no transaction, no swap arm, no reboot, no register change.
- * The bank-select ops live at 0x80+ precisely so no sweep can reach them. */
+/* A stray sweep, such as a crashed program's store loop through a page: it
+ * must not mutate anything observable -- no transaction, no swap arm, no
+ * reboot, no register change. */
 static void sweep(uint16_t page_base)
 {
     unsigned r, lap;
@@ -379,7 +401,7 @@ static void test_refresh_sweeps(void)
     sweep(FN_H_REGSEL);
     sweep(FN_H_REGDATA);
     sweep(FN_H_DATA);
-    /* Interleaved, as consecutive refresh cycles with a perverse I would be. */
+    /* Interleaved, as a runaway loop storing to two pages would. */
     for (i = 0; i < 0x80; i++) {
         fujimail_read_hotspot((uint16_t)(FN_H_REGSEL + (i * 37 % 0x80)));
         fujimail_read_hotspot((uint16_t)(FN_H_DATA + (i * 53 % 0x80)));
@@ -466,7 +488,7 @@ static void test_dbc_abort_and_toobig(void)
     /* An image no scheme could hold is refused at OPEN, before the ESP32
      * drags the whole file over TNFS. */
     fresh();
-    dbc_open(0, SMSMAP_IMAGE_MAX + 0x4000);
+    dbc_open(0, FUJIMAIL_TEST_TOOBIG);
     assert(pushed.opens == 1 && pushed.closes == 0);
     assert(window[FN_R_BOOT_STATE] == FN_BOOT_FAILED);
     assert(window[FN_R_BOOT_ERR] == FN_BOOT_ERR_TOOBIG);
@@ -481,25 +503,29 @@ static void test_dbc_abort_and_toobig(void)
     assert(armed_calls == 0);
 }
 
+#ifdef FN_R_BOOT_GOT0
 static uint32_t count24(unsigned base)
 {
     return (uint32_t) window[base] | ((uint32_t) window[base + 1] << 8)
          | ((uint32_t) window[base + 2] << 16);
 }
+#define COUNT_IS(base, v) assert(count24(base) == (v))
+#else
+#define COUNT_IS(base, v) ((void) (v))
+#endif
 
-/* A 128K image -- a UNROM game -- streams through in 512-byte chunks with
- * monotonic progress. */
+/* A large image streams through in 512-byte chunks with monotonic progress. */
 static void test_dbc_game_push(void)
 {
-    const uint32_t GAME_SIZE = 128u * 1024;
+    const uint32_t GAME_SIZE = FUJIMAIL_TEST_GAME;
     uint32_t off;
     uint8_t last_pct = 0;
 
     fresh();
     dbc_open(0, GAME_SIZE);
     assert(window[FN_R_BOOT_STATE] == FN_BOOT_XFER);
-    assert(count24(FN_R_BOOT_TOT0) == GAME_SIZE);
-    assert(count24(FN_R_BOOT_GOT0) == 0);
+    COUNT_IS(FN_R_BOOT_TOT0, GAME_SIZE);
+    COUNT_IS(FN_R_BOOT_GOT0, 0);
     for (off = 0; off < GAME_SIZE; off += 512) {
         uint8_t chunk[512];
         unsigned i;
@@ -509,10 +535,10 @@ static void test_dbc_game_push(void)
         dbc_frame(CMD_NET_WRITE, chunk, sizeof chunk);
         assert(window[FN_R_BOOT_PCT] >= last_pct);
         last_pct = window[FN_R_BOOT_PCT];
-        assert(count24(FN_R_BOOT_GOT0) == off + sizeof chunk);
+        COUNT_IS(FN_R_BOOT_GOT0, off + sizeof chunk);
     }
     dbc_frame(CMD_NET_CLOSE, NULL, 0);
-    assert(count24(FN_R_BOOT_GOT0) == GAME_SIZE);
+    COUNT_IS(FN_R_BOOT_GOT0, GAME_SIZE);
     assert(pushed.len == GAME_SIZE);
     assert(store[0] == 0 && store[GAME_SIZE - 1]
            == (uint8_t)(((GAME_SIZE - 512) >> 12) + 511));
@@ -522,12 +548,12 @@ static void test_dbc_game_push(void)
     assert(armed_calls == 1);
 }
 
-/* F2: a commit-time mapping failure must never read as READY, and BOOTLOCK
- * must stay refused. (An app-shaped size passes the OPEN gate; only the
- * claim check at close can fail it.) */
+/* A commit-time mapping failure must never read as READY, and BOOTLOCK must
+ * stay refused. (A size that passes the OPEN gate can still fail at close,
+ * when the cart's mapper finds no layout.) */
 static void test_dbc_close_nomap(void)
 {
-    static uint8_t image[0x8000];
+    static uint8_t image[4096];
 
     fresh();
     pushed.close_err = FN_BOOT_ERR_NOMAP;
@@ -544,7 +570,7 @@ static void test_dbc_close_nomap(void)
  * boot state -- neither before the ROM push nor after READY. */
 static void test_dbc_stream1_isolation(void)
 {
-    static uint8_t image[0x4000];
+    static uint8_t image[4096];
     static const uint8_t cfg[64] = { 'c', 'f', 'g' };
 
     fresh();
@@ -552,7 +578,8 @@ static void test_dbc_stream1_isolation(void)
     assert(window[FN_R_BOOT_STATE] == FN_BOOT_IDLE);
     dbc_frame(CMD_NET_WRITE, cfg, sizeof cfg);
     assert(window[FN_R_BOOT_PCT] == 0);
-    assert(count24(FN_R_BOOT_GOT0) == 0 && count24(FN_R_BOOT_TOT0) == 0);
+    COUNT_IS(FN_R_BOOT_GOT0, 0);
+    COUNT_IS(FN_R_BOOT_TOT0, 0);
     dbc_frame(CMD_NET_CLOSE, NULL, 0);
     assert(pushed.stream == 1);
     assert(window[FN_R_BOOT_STATE] == FN_BOOT_IDLE);
@@ -583,13 +610,15 @@ static void test_mount_resets_boot(void)
     dbc_frame(CMD_NET_WRITE, junk, 50);
     dbc_frame(CMD_NET_CLOSE, &abortbyte, 1);
     assert(window[FN_R_BOOT_STATE] == FN_BOOT_FAILED);
-    assert(count24(FN_R_BOOT_GOT0) == 50 && count24(FN_R_BOOT_TOT0) == 100);
+    COUNT_IS(FN_R_BOOT_GOT0, 50);
+    COUNT_IS(FN_R_BOOT_TOT0, 100);
 
     run_txn(1, FUJI_DEVICEID_FUJINET, CMD_FUJI_MOUNT_IMAGE);
     assert(window[FN_R_ACKSEQ] == 1);
     assert(window[FN_R_BOOT_STATE] == FN_BOOT_IDLE);
     assert(window[FN_R_BOOT_ERR] == 0 && window[FN_R_BOOT_PCT] == 0);
-    assert(count24(FN_R_BOOT_GOT0) == 0 && count24(FN_R_BOOT_TOT0) == 0);
+    COUNT_IS(FN_R_BOOT_GOT0, 0);
+    COUNT_IS(FN_R_BOOT_TOT0, 0);
     reg_write(FN_REG_BOOTLOCK, FN_BOOTLOCK_MAGIC);
     assert(armed_calls == 0);
 }
@@ -609,11 +638,13 @@ static void test_timeouts(void)
     assert(txn.timeout_ms == 90000);
     run_txn(4, 0x71, CMD_NET_STATUS);
     assert(txn.timeout_ms == 90000);
-    run_txn(5, FUJI_DEVICEID_FUJINET, CMD_NET_CLOSE);  /* not a net device */
+    run_txn(5, 0x71, CMD_NET_WRITE);
     assert(txn.timeout_ms == 5000);
-    run_txn(6, FUJI_DEVICEID_FUJINET, CMD_FUJI_MOUNT_IMAGE);
+    run_txn(6, FUJI_DEVICEID_FUJINET, CMD_NET_CLOSE);  /* not a net device */
+    assert(txn.timeout_ms == 5000);
+    run_txn(7, FUJI_DEVICEID_FUJINET, CMD_FUJI_MOUNT_IMAGE);
     assert(txn.timeout_ms == 60000);
-    run_txn(7, FUJI_DEVICEID_FUJINET, CMD_FUJI_COPY_FILE);
+    run_txn(8, FUJI_DEVICEID_FUJINET, CMD_FUJI_COPY_FILE);
     assert(txn.timeout_ms == 60000);
 }
 
@@ -632,7 +663,11 @@ int main(void)
     test_paint();
     test_transaction();
     test_seq_gates();
+#if FN_R_NSLICES == 1
     test_whole_reply_window();
+#else
+    test_slice_echo();
+#endif
     test_unpaired_regdata();
     test_refresh_sweeps();
     test_bootsel_pairing();
