@@ -24,7 +24,7 @@ if(CONFIG_FUJINET)
     target_sources(${PROJECT_NAME} PRIVATE
         ${FUJI_COMMON}/src/fujibus.c
         ${FUJI_COMMON}/src/fujibus_usb.c
-        src/fujimail.c
+        ${FUJI_COMMON}/src/fujimail.c
         src/fujinet.c
         src/fujiboot.c
         src/arcmap.c

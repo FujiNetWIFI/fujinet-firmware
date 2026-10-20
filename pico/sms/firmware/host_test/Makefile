@@ -3,7 +3,7 @@
 TESTS = test_smsmap test_busio test_fujimail test_load
 MAP = $(SRC)/smsmap.c $(SRC)/smsmap_db.c
 test_smsmap_SRCS = $(MAP)
-test_fujimail_SRCS = $(SRC)/fujimail.c $(MAP)
+test_fujimail_SRCS = $(COMMON)/src/fujimail.c $(MAP)
 test_load_SRCS = $(SRC)/fuji_load.c $(MAP)
 
 include ../../../common/host_test/cart.mk

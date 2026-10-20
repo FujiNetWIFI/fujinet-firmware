@@ -55,7 +55,7 @@
  * ($55 at $0800, jump to $0802); it cannot be moved. Everything else lives in
  * a 32K "arena" at $8000, whose OFFSETS below are deliberately identical to
  * the ColecoVision port's cart-image offsets -- FN_R_DATA 0x7800, FN_R_BASE
- * 0x7C00, and so on -- so that fujimail.c is copied across unchanged.
+ * 0x7C00, and so on -- so that the shared fujimail.c serves it unchanged.
  * Console address = FN_ARENA_BASE + offset.
  *
  * THE TX PAGE AND DC0. A write ANYWHERE in $FF00-$FFFF appends its data byte,
@@ -153,8 +153,8 @@
 /* A write of value V to FN_H_REGSEL + n (n < 0x80) is one complete register
  * write: the cart synthesises the REGSEL/REGDATA pair that fujimail.c decodes.
  * The pair survives in the protocol because keeping it is free and it lets
- * fujimail.c stay byte-identical to the sibling ports; on this console it is
- * shape, not defence. */
+ * this cart use the shared fujimail.c; on this console it is shape, not
+ * defence. */
 #define FN_H_REGSEL      0x7D00   /* write V to +n: register n = V ($FD00)   */
 #define FN_H_REGDATA     0x7E00   /* raw REGDATA half, for the shared decoder */
 #define FN_H_DATA        0x7F00   /* write anywhere in page: append data byte */

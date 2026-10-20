@@ -115,8 +115,8 @@ tools/                  vendored zmac (PD, see PROVENANCE.md), mkromh, checkrom,
 ```
 
 The shared protocol sources -- `fujimail.c` (hotspot decode, SEQ/ACKSEQ and
-SLICE_ECHO interlocks, DBC push receiver), `fujibus.c` (SLIP + FujiBus
-codec, from [pico/common/](../common/)), `astromap.c`
+SLICE_ECHO interlocks, DBC push receiver) and `fujibus.c` (SLIP + FujiBus
+codec), both from [pico/common/](../common/), and `astromap.c`
 (image -> window) -- are hardware-free, tested with plain gcc, and compiled
 verbatim into both the firmware and the MAME device. Emulator and cartridge
 stay identical by construction, not by discipline.
