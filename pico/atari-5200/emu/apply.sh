@@ -3,7 +3,7 @@
 #
 # Usage: ./apply.sh /path/to/mame
 #
-# Copies the device model (a5200_fujinet.cpp/h, fujitcp.c/h) and the
+# Copies the device model (a5200_fujinet.cpp/h, common's fujitcp.c/h) and the
 # cartridge firmware's own sources (fujimail, fujibus, a52map, fuji_load, the
 # baked CONFIG) into src/devices/bus/a800/, and edits:
 #
@@ -35,8 +35,8 @@ GEN=../build/gen
 
 # MAME forces a C++ precompiled header on every device file, so the shared C
 # sources go in under .cpp names (they build both ways).
-cp a5200_fujinet.cpp a5200_fujinet.h fujitcp.h "$BUSDIR/"
-cp fujitcp.c "$BUSDIR/fujitcp.cpp"
+cp a5200_fujinet.cpp a5200_fujinet.h "$COMMON/emu/fujitcp.h" "$BUSDIR/"
+cp "$COMMON/emu/fujitcp.c" "$BUSDIR/fujitcp.cpp"
 for f in a52map a52map_db fuji_load; do
     cp "$FW/src/$f.c" "$BUSDIR/$f.cpp"
 done

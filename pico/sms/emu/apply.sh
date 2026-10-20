@@ -3,7 +3,7 @@
 #
 # Usage: ./apply.sh /path/to/mame
 #
-# Copies the device model (fujinet.cpp/h, fujitcp.c/h) and the cartridge
+# Copies the device model (fujinet.cpp/h, common's fujitcp.c/h) and the cartridge
 # firmware's own sources (fujimail, fujibus, smsmap, fuji_load, the bus decode,
 # the baked CONFIG and loader page) into src/devices/bus/sega8/, and edits:
 #
@@ -38,8 +38,8 @@ done
 
 # MAME forces a C++ precompiled header on every device file, so the shared C
 # sources go in under .cpp names (they build both ways).
-cp fujinet.cpp fujinet.h fujitcp.h "$BUSDIR/"
-cp fujitcp.c "$BUSDIR/fujitcp.cpp"
+cp fujinet.cpp fujinet.h "$COMMON/emu/fujitcp.h" "$BUSDIR/"
+cp "$COMMON/emu/fujitcp.c" "$BUSDIR/fujitcp.cpp"
 for f in fujimail smsmap smsmap_db fuji_load; do
     cp "$FW/src/$f.c" "$BUSDIR/$f.cpp"
 done
@@ -58,7 +58,7 @@ cp "$COMMON/include/fuji_mailbox_proto.h" "$COMMON/include/fuji_mailbox_check.h"
     echo "#define SMS_FUJINS_H"
     for sym in fujimail_init fujimail_paint fujimail_read_hotspot fujimail_inbound \
                fujibus_build_request fujibus_parse_reply fujibus_selftest \
-               fujitcp_init fujitcp_active fujitcp_close fujitcp_transact \
+               fujitcp_init fujitcp_active fujitcp_close fujitcp_abort fujitcp_transact \
                fujitcp_send_bare; do
         echo "#define $sym sms_$sym"
     done

@@ -3,7 +3,7 @@
 #
 # Usage: ./apply.sh /path/to/mame
 #
-# Copies the device model (fujinet.cpp/h, fujitcp.c/h) and the cartridge
+# Copies the device model (fujinet.cpp/h, common's fujitcp.c/h) and the cartridge
 # firmware's own protocol sources (fujimail, fujibus, arcmap, and their
 # headers -- MAME then runs the code the cartridge actually ships) into
 # src/devices/bus/arcadia/, and makes the only two shared-file edits:
@@ -26,8 +26,8 @@ DRIVER="$MAME/src/mame/arcadia/arcadia.cpp"
 # The shared protocol sources are C, but MAME's device project forces a C++
 # precompiled header on every file it owns, so they are copied in under .cpp
 # names and compiled as C++ (they are written to build both ways).
-cp fujinet.cpp fujinet.h fujitcp.h "$BUSDIR/"
-cp fujitcp.c "$BUSDIR/fujitcp.cpp"
+cp fujinet.cpp fujinet.h ../../common/emu/fujitcp.h "$BUSDIR/"
+cp ../../common/emu/fujitcp.c "$BUSDIR/fujitcp.cpp"
 cp ../firmware/src/fujimail.c "$BUSDIR/fujimail.cpp"
 cp ../../common/src/fujibus.c "$BUSDIR/fujibus.cpp"
 cp ../firmware/src/arcmap.c "$BUSDIR/arcmap.cpp"
