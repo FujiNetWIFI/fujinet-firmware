@@ -54,7 +54,7 @@ is the one thing emulation cannot settle -- see below.
 
 ## The cartridge firmware
 
-`./build-cart.sh` produces `firmware/build-fujichannelf/fujichannelf.uf2`, serving
+`./build-cart.sh` produces `build/fw-fujichannelf/fujichannelf.uf2`, serving
 `build/config.bin` (the real CONFIG from fujinet-config/channelf) when there is one.
 `--baked` builds from `firmware/baked/` alone, which holds the `fujicfg` stand-in until that
 CONFIG is published; `--bake` refreshes it.

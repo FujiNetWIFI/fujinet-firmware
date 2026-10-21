@@ -1,30 +1,15 @@
 #!/usr/bin/env bash
-# build-cart.sh -- build the RP2040 Videocart firmware.
-#
-#   ./build-cart.sh [board]           bake build/<client>.bin into build/gen and build
-#                                     (default board: fujichannelf)
-#   ./build-cart.sh --baked [board]   build from firmware/baked/ alone: no assembler
-#                                     needed (CI, the ESP32 build)
-#   ./build-cart.sh --bake [board]    as the first form, then refresh firmware/baked/
-#                                     from build/gen
+# build-cart.sh -- build the RP2040 Videocart firmware: [--baked | --bake] [board], as
+# pico/common/scripts/build-cart.lib.sh describes.
 #
 # Client: $FUJI_CLIENT if set; else build/config.bin -- the REAL CONFIG from
-# fujinet-config/channelf; else the fujicfg testrom stand-in; else fujitest. The stand-ins
-# exist for bring-up only; a release cart bakes real CONFIG.
-set -euo pipefail
-cd "$(dirname "$0")"
+# fujinet-config/channelf; else the fujicfg testrom stand-in; else fujitest; else hello. The
+# stand-ins exist for bring-up only; a release cart bakes real CONFIG.
+CART_BOARD=fujichannelf
+CART_ELF=fujichannelf
+CART_BAKE="fujiconfigrom.h"
 
-MODE=gen
-case "${1:-}" in
-    --baked) MODE=baked; shift ;;
-    --bake)  MODE=bake; shift ;;
-esac
-BOARD=${1:-fujichannelf}
-GEN=$PWD/build/gen
-
-if [ "$MODE" = baked ]; then
-    GEN=$PWD/build/none                 # firmware/baked/ is next on the path
-else
+cart_gen() {
     if [ -n "${FUJI_CLIENT:-}" ]; then
         CLIENT=$FUJI_CLIENT
     elif [ -f build/config.bin ]; then
@@ -32,7 +17,6 @@ else
     else
         CLIENT=fujicfg
     fi
-
     if [ ! -f "build/$CLIENT.bin" ] && [ "$CLIENT" = fujicfg ]; then
         for fallback in fujitest hello; do
             if [ -f "build/$fallback.bin" ]; then
@@ -42,24 +26,9 @@ else
             fi
         done
     fi
-    if [ ! -f "build/$CLIENT.bin" ]; then
-        echo "build-cart.sh: build/$CLIENT.bin missing; run ./build.sh first" >&2
-        exit 1
-    fi
-
-    mkdir -p build/gen
+    [ -f "build/$CLIENT.bin" ] || { echo "build-cart.sh: build/$CLIENT.bin missing; run ./build.sh first" >&2; exit 1; }
     echo "build-cart.sh: baking build/$CLIENT.bin"
     python3 tools/mkromh.py "build/$CLIENT.bin" > build/gen/fujiconfigrom.h
-fi
+}
 
-cmake -S firmware -B "firmware/build-$BOARD" -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD="$BOARD" -DFUJI_GEN="$GEN"
-ninja -C "firmware/build-$BOARD"
-python3 tools/checksram.py "firmware/build-$BOARD/fujichannelf.elf"
-
-if [ "$MODE" = bake ]; then
-    mkdir -p firmware/baked
-    cp build/gen/fujiconfigrom.h firmware/baked/
-    echo "build-cart.sh: firmware/baked/ refreshed from build/$CLIENT.bin"
-fi
-echo "build-cart.sh: firmware/build-$BOARD/fujichannelf.uf2"
+. "$(dirname "$0")/../common/scripts/build-cart.lib.sh"

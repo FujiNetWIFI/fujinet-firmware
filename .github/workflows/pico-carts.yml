@@ -399,7 +399,7 @@ jobs:
           # while core1 keeps serving the bus, so any flash-resident code on
           # that path is a live-lock on real hardware.
           grep -E '0x2000[0-9a-f]+\s+astrocade_core1_main$' \
-              firmware/build-fujicade/fujicade.elf.map
+              build/fw-fujicade/fujicade.elf.map
 
       - name: Channel F Videocart (fujichannelf)
         working-directory: pico/channelf
@@ -414,10 +414,10 @@ jobs:
           # its shadow PC0/DC0 against and stays wrong for the rest of the
           # session.
           grep -E '0x2000[0-9a-f]+ +channelf_core1_main$' \
-              firmware/build-fujichannelf/fujichannelf.elf.map
+              build/fw-fujichannelf/fujichannelf.elf.map
           # ...and so must everything it calls: an un-inlined helper lands in
           # flash behind an SRAM veneer, which the map grep cannot see.
-          python3 tools/checksram.py firmware/build-fujichannelf/fujichannelf.elf
+          python3 tools/checksram.py build/fw-fujichannelf/fujichannelf.elf
 
       # From firmware/baked/ alone, so the 1802 assembler is not needed here;
       # checksram.py asserts core1's loop and everything it calls is in SRAM.
@@ -485,7 +485,7 @@ jobs:
           # Same SRAM-residency rule as the Astrocade: the serve loop cannot
           # live in flash, or an XIP stall would freeze the bus.
           grep -E '0x2000[0-9a-f]+\s+arcadia_core1_main$' \
-              firmware/build-fujiarcadia/fujiarcadia.elf.map
+              build/fw-fujiarcadia/fujiarcadia.elf.map
 
       # Drives the same [fujinet] pico_* keys the ESP32 build uses, so a
       # broken ini key, a missing ROM, or an uninitialized submodule fails
