@@ -49,6 +49,7 @@ public:
 	void stream_write(int stream, const uint8_t *chunk, unsigned len);
 	uint8_t stream_close(int stream, uint32_t got, bool aborted);
 	void arm_swap();
+	void own_reg(uint8_t reg, uint8_t value);
 
 protected:
 	virtual void device_start() override ATTR_COLD;
@@ -63,7 +64,6 @@ private:
 	void to_load();
 	void flip();
 	void mailbox_event(uint16_t offset, uint8_t data);
-	bool own_register(unsigned reg, uint8_t data);
 	void load_file(std::vector<uint8_t> &out, const char *path);
 	void direct_boot(const std::vector<uint8_t> &img);
 	void dump_sram();

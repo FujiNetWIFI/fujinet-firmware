@@ -66,6 +66,13 @@ static void port_bootsel(void)
     reset_usb_boot(0, 0);
 }
 
+static void own_register(uint8_t reg, uint8_t data)
+{
+    (void) data;
+    if (reg == FN_REG_SLICE_ACK)
+        fuji_cart_slice_acked();
+}
+
 static const fujimail_port_t cart_port = {
     .poke         = fuji_cart_poke,
     .link_up      = fujibus_link_up,
@@ -79,6 +86,7 @@ static const fujimail_port_t cart_port = {
     .bootsel      = port_bootsel,
     .on_txn       = NULL,
     .on_dbc       = NULL,
+    .own_reg      = own_register,
 };
 
 void fuji_service_init(void)
@@ -98,10 +106,6 @@ static void mailbox_event(uint16_t offset, uint8_t data)
     if (page == FN_H_REGSEL || page == FN_H_REGDATA) {
         if (low == FN_HOT_SWAP) {
             fuji_cart_request_load();
-            return;
-        }
-        if (low == FN_REG_SLICE_ACK) {
-            fuji_cart_slice_acked();
             return;
         }
         if (low >= 0x80)

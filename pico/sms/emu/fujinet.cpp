@@ -44,6 +44,7 @@ static uint8_t c_stream_open(int stream, uint32_t size) { return s_fujinet->stre
 static void c_stream_write(int stream, const uint8_t *chunk, unsigned len) { s_fujinet->stream_write(stream, chunk, len); }
 static uint8_t c_stream_close(int stream, uint32_t got, bool aborted) { return s_fujinet->stream_close(stream, got, aborted); }
 static void c_arm_swap() { s_fujinet->arm_swap(); }
+static void c_own_reg(uint8_t reg, uint8_t value) { s_fujinet->own_reg(reg, value); }
 
 static void c_on_txn(const fujimail_txn_t *t)
 {
@@ -79,12 +80,14 @@ static const fujimail_port_t mame_port = {
 	c_poke, c_link_up, fujitcp_transact, fujitcp_send_bare,
 	c_stream_open, c_stream_write, c_stream_close, c_arm_swap,
 	nullptr, nullptr, c_on_txn, c_on_dbc,
+	c_own_reg,
 };
 
 static const fujimail_port_t mame_port_quiet = {
 	c_poke, c_link_up, fujitcp_transact, fujitcp_send_bare,
 	c_stream_open, c_stream_write, c_stream_close, c_arm_swap,
 	nullptr, nullptr, nullptr, nullptr,
+	c_own_reg,
 };
 
 /*-------------------------------------------------
@@ -399,6 +402,14 @@ void sega8_fujinet_device::poke(unsigned offset, uint8_t value)
 	}
 }
 
+// The cart's own register, handed over by fujimail.
+void sega8_fujinet_device::own_reg(uint8_t reg, uint8_t value)
+{
+	(void)value;
+	if (reg == FN_REG_SLICE_ACK)
+		fuji_load_ack(&m_loader);
+}
+
 // One hotspot write, decoded as fujinet.c does on the cart.
 void sega8_fujinet_device::mailbox_event(uint16_t offset, uint8_t data)
 {
@@ -407,11 +418,6 @@ void sega8_fujinet_device::mailbox_event(uint16_t offset, uint8_t data)
 
 	if (page == FN_H_REGSEL || page == FN_H_REGDATA)
 	{
-		if (low == FN_REG_SLICE_ACK)
-		{
-			fuji_load_ack(&m_loader);
-			return;
-		}
 		if (low >= 0x80)
 			return;
 		fujimail_read_hotspot(uint16_t(FN_H_REGSEL + low));

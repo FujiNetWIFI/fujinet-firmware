@@ -44,6 +44,7 @@ public:
 	void stream_write(int stream, const uint8_t *chunk, unsigned len);
 	uint8_t stream_close(int stream, uint32_t got, bool aborted);
 	void arm_swap();
+	void own_reg(uint8_t reg, uint8_t value);
 
 protected:
 	virtual void device_start() override ATTR_COLD;

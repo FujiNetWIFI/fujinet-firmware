@@ -207,6 +207,8 @@ static void port_bootsel(void)
     reset_usb_boot(0, 0);
 }
 
+static void own_register(uint8_t reg, uint8_t data);
+
 static const fujimail_port_t cart_port = {
     .poke         = fuji_cart_poke,
     .link_up      = fujibus_link_up,
@@ -220,6 +222,7 @@ static const fujimail_port_t cart_port = {
     .bootsel      = port_bootsel,
     .on_txn       = NULL,
     .on_dbc       = NULL,
+    .own_reg      = own_register,
 };
 
 static uint32_t now_ms(void)
@@ -237,23 +240,23 @@ void fuji_service_init(void)
     hsc_flash_init();
 }
 
-/* The cart's own registers; false if fujimail should have it. */
-static bool own_register(unsigned reg, uint8_t data)
+/* The cart's own registers, handed over by fujimail. */
+static void own_register(uint8_t reg, uint8_t data)
 {
     switch (reg) {
     case FN_REG_SLICE_ACK:
         fuji_load_ack(&fuji_loader);
-        return true;
+        break;
     case FN_REG_TV:
         fuji_loader.tv = data ? FN_TV_PAL : FN_TV_NTSC;
-        return true;
+        break;
     case FN_REG_HSC:
         if (data == FN_HSCOP_INSTALL) {
             const a78map_plan_t *p = &fuji_loader.staged_plan;
 
             if (!fuji_loader.have_staged || p->kind != A78MAP_HSC
                 || p->size != A78MAP_HSC_ROM_SIZE)
-                return true;
+                break;
             flash_put(FUJI_HSC_ROM_OFF, fuji_loader.staged_base + p->offset,
                       A78MAP_HSC_ROM_SIZE);
             fuji_load_unstage(&fuji_loader);
@@ -266,9 +269,9 @@ static bool own_register(unsigned reg, uint8_t data)
         }
         hsc_save_settings();
         hsc_publish();
-        return true;
+        break;
     default:
-        return false;
+        break;
     }
 }
 
@@ -280,8 +283,6 @@ static void mailbox_event(uint16_t offset, uint8_t data)
     unsigned low = offset & 0xFF;
 
     if (page == FN_H_REGSEL) {
-        if (own_register(low, data))
-            return;
         if (low >= 0x80)
             return;
         fujimail_read_hotspot((uint16_t)(FN_H_REGSEL + low));
