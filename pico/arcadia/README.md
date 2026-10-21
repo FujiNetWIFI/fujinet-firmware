@@ -67,6 +67,7 @@ firmware/            RP2040 cartridge firmware (pico-sdk)
   src/fuji_cart.c          serve state + the boot swap (one pointer store)
   src/arcmap.c             image gate/plan/apply + the connector decode
                            (fujimail.c, the FujiBus codec and USB are pico/common's)
+  baked/fujiconfigrom.h    the client served at power-on when there is no fresh build/gen
   host_test/               desktop tests (no hardware, no SDK)
 emu/                 MAME cart device + graft script + lua harnesses
 testrom/             fujitest / fujiboot / fujicfg + fujilib.inc + fujidisp.inc
@@ -94,10 +95,11 @@ BOOT_HOST=0 BOOT_PATH=/jungler.bin ./build.sh fujiboot
 tools/soak.sh                            # the whole ROM library
 ```
 
-The firmware: `./build-cart.sh` regenerates `fujiconfigrom.h` from the
-baked-in client (the real `fujinet-config/arcadia` CONFIG if its
-`build/config.bin` is copied here, else the `fujicfg` stand-in) and builds
-`firmware/build-fujiarcadia/fujiarcadia.uf2`.
+The firmware: `./build-cart.sh` writes `build/gen/fujiconfigrom.h` from the
+client (the real `fujinet-config/arcadia` CONFIG if its `build/config.bin` is
+copied here, else the `fujicfg` stand-in) and builds
+`firmware/build-fujiarcadia/fujiarcadia.uf2`. `--baked` builds from
+`firmware/baked/` alone, and `--bake` refreshes it.
 
 ## Notes and gotchas (2650, AS, the 2637)
 

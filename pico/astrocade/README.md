@@ -101,11 +101,13 @@ build.sh                assemble the Z80 clients (vendored zmac; checkrom.py
                         fujibank/gamebank build banked images via the packers)
 build-cart.sh           RP2040 firmware (pico-sdk; bakes the CONFIG client in --
                         the real fujinet-config build when build/config.bin
-                        is present, testrom stand-ins otherwise)
+                        is present, testrom stand-ins otherwise; --baked builds
+                        from firmware/baked/, --bake refreshes it)
 run.sh                  run a client in MAME against a live fujinet-pc
 emu/                    MAME cart device + apply.sh + SLIP-over-TCP transport;
                         drive.lua/abcheck.lua/soak.lua headless helpers
-firmware/               RP2040 firmware; include/fuji_mailbox.h is the spec
+firmware/               RP2040 firmware; include/fuji_mailbox.h is the spec,
+                        baked/fujiconfigrom.h the client served at power-on
 testrom/                Z80 clients: fujitest, fujiboot, fujicfg, and the
                         banked self-tests fujibank (APPBANK) and gamebank
                         (256K/512K mapper, FujiNet-free) + HVGLIB.H
@@ -197,8 +199,8 @@ Banking (protocol v2), verified the same way (2026-09):
 - **The soak**: all 133 images in the MAME astrocde ROM corpus (2K-8K,
   mirrored and odd sizes included) stream, boot, and serve a byte-exact
   window (`tools/soak.sh`: 133/133, stream dumps byte-identical).
-- The baked-in client is the real fujinet-config CONFIG (5501 bytes), no
-  longer the fujicfg testrom stand-in.
+- `firmware/baked/` holds the real fujinet-config CONFIG (5501 bytes), not
+  the fujicfg testrom stand-in.
 
 NOT YET RUN ON HARDWARE: there is no cartridge board. The EPROM check runs
 first: `build/fujitest.bin` is exactly 8192 bytes -- burn it to a 27C64 in
