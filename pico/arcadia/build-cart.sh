@@ -27,7 +27,7 @@ cart_gen() {
         fi
     fi
     echo "build-cart.sh: baking build/$CLIENT.bin"
-    python3 tools/mkromh.py "build/$CLIENT.bin" > build/gen/fujiconfigrom.h
+    python3 ../common/tools/mkromh.py --blocks 1024 "build/$CLIENT.bin" > build/gen/fujiconfigrom.h
 }
 
 . "$(dirname "$0")/../common/scripts/build-cart.lib.sh"

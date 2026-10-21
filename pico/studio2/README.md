@@ -20,7 +20,7 @@ serves the CDP1861's display itself.
 | `firmware/host_test/` | `test_s2map` (vs a transcription of MAME's loader), `test_busio`, `test_glue`, `test_text`, `test_load`, `test_fujimail`, `test_cycles` (MAME traces vs CDP1802 Table 2) |
 | `testrom/` | 1802 clients (Macroassembler AS): `hello`, `fujitest`, `fujiboot`, the synthetic-corpus probe `corpus`, and the includes every client uses |
 | `emu/` | The MAME device (`studio2_fujinet.*`, `apply.sh`) and Lua harnesses |
-| `tools/` | `mkst2.py` (AS `.p` to ST2) and `st2.py` (the format and page rules), `checkrom.py`, `checkdefs.py`, `mkromh.py`, `mkfont.py`, `mkcorpus.py`, `abrun.py` (Tier A), `tierb.py` (Tier B), `soak.py` and `s2plan.c` (Tier C), `mktrace.sh` (`test_cycles`' traces) |
+| `tools/` | `mkst2.py` (AS `.p` to ST2) and `st2.py` (the format and page rules), `checkrom.py`, `checkdefs.py`, `checkcfg.py` (the client `build-cart.sh` bakes), `mkfont.py`, `mkcorpus.py`, `abrun.py` (Tier A), `tierb.py` (Tier B), `soak.py` and `s2plan.c` (Tier C), `mktrace.sh` (`test_cycles`' traces) |
 
 ## How it fits
 

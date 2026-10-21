@@ -23,7 +23,8 @@ cart_gen() {
         [ -f "build/gen/$f" ] || { echo "build-cart.sh: build/gen/$f missing; run ./build.sh" >&2; exit 1; }
     done
     echo "build-cart.sh: baking build/$CLIENT.bin"
-    python3 tools/mkromh.py "build/$CLIENT.bin" > build/gen/fujiconfigrom.h
+    python3 ../common/tools/mkromh.py --strip-a78 --claim=-0x90 \
+        "build/$CLIENT.bin" > build/gen/fujiconfigrom.h
 }
 
 . "$(dirname "$0")/../common/scripts/build-cart.lib.sh"

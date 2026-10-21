@@ -111,7 +111,7 @@ firmware/               RP2040 firmware; include/fuji_mailbox.h is the spec,
 testrom/                Z80 clients: fujitest, fujiboot, fujicfg, and the
                         banked self-tests fujibank (APPBANK) and gamebank
                         (256K/512K mapper, FujiNet-free) + HVGLIB.H
-tools/                  vendored zmac (PD, see PROVENANCE.md), mkromh, checkrom,
+tools/                  vendored zmac (PD, see PROVENANCE.md), checkrom,
                         mkbanked/mkgame (banked-image packers, self-verifying),
                         soak.sh (stream-and-boot an entire ROM corpus)
 ```

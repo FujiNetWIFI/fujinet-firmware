@@ -71,7 +71,7 @@ firmware/            RP2040 cartridge firmware (pico-sdk)
   host_test/               desktop tests (no hardware, no SDK)
 emu/                 MAME cart device + graft script + lua harnesses
 testrom/             fujitest / fujiboot / fujicfg + fujilib.inc + fujidisp.inc
-tools/               checkrom, mkimage, mkromh, checkdepth, soak.sh
+tools/               checkrom, mkimage, checkdepth, soak.sh
 build.sh             assemble a client (Macroassembler AS)
 build-cart.sh        build the RP2040 firmware, baking the client in
 run.sh               run a client in MAME against a live fujinet-pc

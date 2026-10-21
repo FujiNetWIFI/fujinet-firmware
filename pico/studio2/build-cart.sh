@@ -19,7 +19,8 @@ cart_gen() {
     fi
     [ -f "build/$CLIENT.st2" ] || { echo "build-cart.sh: build/$CLIENT.st2 missing; run ./build.sh first" >&2; exit 1; }
     echo "build-cart.sh: baking build/$CLIENT.st2"
-    python3 tools/mkromh.py "build/$CLIENT.st2" > build/gen/fujiconfigrom.h
+    python3 tools/checkcfg.py "build/$CLIENT.st2"
+    python3 ../common/tools/mkromh.py "build/$CLIENT.st2" > build/gen/fujiconfigrom.h
 }
 
 . "$(dirname "$0")/../common/scripts/build-cart.lib.sh"
