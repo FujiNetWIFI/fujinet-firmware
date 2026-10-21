@@ -13,7 +13,7 @@
  *
  * Budget: PHI2 is high for about 280 ns and the console wants read data
  * before it falls; this loop is a few dozen instructions at 200 MHz.
- * Everything runs from SRAM (copy_to_ram; tools/checksram.py checks).
+ * Everything runs from SRAM (copy_to_ram; fujicart_checksram checks).
  */
 
 #include "pico/stdlib.h"

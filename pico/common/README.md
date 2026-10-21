@@ -8,7 +8,8 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 |---|---|
 | `cmake/fujicart_pre.cmake` | what a cart's `CMakeLists.txt` runs before `project()`: board selection from `FUJI_DEFAULT_BOARD` or `-DPICO_BOARD`, the `FUJI_GEN` default, the SDK import |
 | `cmake/pico_sdk_import.cmake` | the pico-sdk's import script, one copy for every cart |
-| `scripts/build-cart.lib.sh` | the shared body of every cart's `build-cart.sh`: the default, `--baked` and `--bake` modes, the build into `build/fw-<board>`, checksram |
+| `cmake/fujicart_checksram.cmake`, `tools/checksram.py` | `fujicart_checksram()`, run after every link: core1's loop, everything it branches to and the named state must be in SRAM, with no branch through a register |
+| `scripts/build-cart.lib.sh` | the shared body of every cart's `build-cart.sh`: the default, `--baked` and `--bake` modes, the build into `build/fw-<board>` |
 | `include/fujibus.h`, `src/fujibus.c` | SLIP + FujiBus codec, a plain-C client of `lib/bus/rs232/FujiBusPacket.cpp`; device and command IDs |
 | `include/fujibus_usb.h`, `src/fujibus_usb.c` | one request/reply round trip over USB CDC, and the hook for frames the ESP32 pushes mid-transaction |
 | `include/fujimail.h`, `src/fujimail.c` | the mailbox service: hotspot and register decode, the SEQ/ACKSEQ interlock, the DBC push receiver; the cart or MAME device supplies a `fujimail_port_t` and its own `fuji_mailbox.h`; registers from `FN_REG_PLATFORM` up go to the port's `own_reg` |
@@ -23,7 +24,8 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 ## How it fits
 - Each cart's `build-cart.sh` sets its board, firmware name, baked headers and `cart_gen`, then
   sources `scripts/build-cart.lib.sh`; nes and o2 keep their own.
-- The carts' `firmware/CMakeLists.txt` include `cmake/fujicart_pre.cmake`. [o2/](../o2/) keeps
+- The carts' `firmware/CMakeLists.txt` include `cmake/fujicart_pre.cmake`, and call
+  `fujicart_checksram()` with core1's entry and the state it shares. [o2/](../o2/) keeps
   PicoPAC's board setup and takes only `cmake/pico_sdk_import.cmake`; intellivision, coco and mac
   have their own.
 - [arcadia/](../arcadia/), [astrocade/](../astrocade/), [channelf/](../channelf/),

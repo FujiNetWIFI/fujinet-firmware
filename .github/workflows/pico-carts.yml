@@ -332,6 +332,8 @@ jobs:
                   testrom/$c.asm testrom/fujilib.inc testrom/fujidisp.inc
           done
 
+  # Each cart's link runs pico/common/tools/checksram.py: core1's loop, and everything
+  # it branches to, must be in SRAM.
   cartridge-firmware:
     name: "RP2040 cartridge firmware"
     runs-on: ubuntu-latest
@@ -395,11 +397,6 @@ jobs:
           PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: |
           ./build-cart.sh --baked
-          # The serve loop must live in SRAM: flash streaming suspends XIP
-          # while core1 keeps serving the bus, so any flash-resident code on
-          # that path is a live-lock on real hardware.
-          grep -E '0x2000[0-9a-f]+\s+astrocade_core1_main$' \
-              build/fw-fujicade/fujicade.elf.map
 
       - name: Channel F Videocart (fujichannelf)
         working-directory: pico/channelf
@@ -408,19 +405,8 @@ jobs:
         run: |
           # CONFIG comes from firmware/baked/, so this job needs no AS.
           ./build-cart.sh --baked
-          # The serve loop must live in SRAM. Here the reason is not latency --
-          # a bus cycle is 2.2 us -- but that the loop may never miss a cycle:
-          # with no address bus, a stalled cart has nothing to resynchronize
-          # its shadow PC0/DC0 against and stays wrong for the rest of the
-          # session.
-          grep -E '0x2000[0-9a-f]+ +channelf_core1_main$' \
-              build/fw-fujichannelf/fujichannelf.elf.map
-          # ...and so must everything it calls: an un-inlined helper lands in
-          # flash behind an SRAM veneer, which the map grep cannot see.
-          python3 tools/checksram.py build/fw-fujichannelf/fujichannelf.elf
 
-      # From firmware/baked/ alone, so the 1802 assembler is not needed here;
-      # checksram.py asserts core1's loop and everything it calls is in SRAM.
+      # From firmware/baked/ alone, so the 1802 assembler is not needed here.
       - name: Studio II cartridge (fujistudio2_rp2354b)
         working-directory: pico/studio2
         env:
@@ -440,8 +426,7 @@ jobs:
           ./build-cart.sh
 
       # The resident CONFIG and the loader page come from firmware/baked/
-      # (z88dk is not on the runners); tools/checksram.py asserts core1's
-      # symbols are in SRAM.
+      # (z88dk is not on the runners).
       - name: Master System cartridge (fujisms_rp2354b)
         working-directory: pico/sms
         env:
@@ -449,15 +434,14 @@ jobs:
         run: ./build-cart.sh --baked
 
       # CONFIG, the loader and the signed boot block come from
-      # firmware/baked/; tools/checksram.py asserts core1's symbols are in SRAM.
+      # firmware/baked/.
       - name: Atari 7800 cartridge (fuji7800_rp2354b)
         working-directory: pico/atari-7800
         env:
           PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: ./build-cart.sh --baked
 
-      # CONFIG comes from firmware/baked/; tools/checksram.py asserts that
-      # core1's loop and every branch it takes stay in SRAM.
+      # CONFIG comes from firmware/baked/.
       - name: Atari 5200 cartridge (fuji5200_rp2354b)
         working-directory: pico/atari-5200
         env:
@@ -465,8 +449,8 @@ jobs:
         run: ./build-cart.sh --baked
 
       # The boot page, CONFIG and the loader come from firmware/baked/ (z88dk
-      # is not on the runners); tools/checksram.py asserts core1's loop is in
-      # SRAM. The PIO model test needs this build's pioasm, so it runs here.
+      # is not on the runners). The PIO model test needs this build's pioasm,
+      # so it runs here.
       - name: S-100 card (fujis100_rp2354b)
         working-directory: pico/s100
         env:
@@ -482,10 +466,6 @@ jobs:
         run: |
           # CONFIG comes from firmware/baked/; the 2650 client job assembles the clients.
           ./build-cart.sh --baked
-          # Same SRAM-residency rule as the Astrocade: the serve loop cannot
-          # live in flash, or an XIP stall would freeze the bus.
-          grep -E '0x2000[0-9a-f]+\s+arcadia_core1_main$' \
-              build/fw-fujiarcadia/fujiarcadia.elf.map
 
       # Drives the same [fujinet] pico_* keys the ESP32 build uses, so a
       # broken ini key, a missing ROM, or an uninitialized submodule fails
