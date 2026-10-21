@@ -7,53 +7,27 @@ project(fujistudio2 C CXX ASM)
 
 pico_sdk_init()
 
-# FujiBus and the USB device, shared with the other carts.
-set(FUJI_COMMON ${CMAKE_CURRENT_LIST_DIR}/../../common)
-
-add_executable(${PROJECT_NAME}
-    src/main.c
-    src/s2_cart.c
-    src/s2map.c
-    src/s2_text.c
-    src/s2_font.c
-    src/fuji_cart.c
-    src/fuji_load.c
-    ${FUJI_COMMON}/usb/usb_descriptors.c
-    ${FUJI_COMMON}/src/fujibus.c
-    ${FUJI_COMMON}/src/fujibus_usb.c
-    ${FUJI_COMMON}/src/fujimail.c
-    src/fujinet.c
+fujicart_firmware(${PROJECT_NAME}
+    USB_PRODUCT "FujiNet Studio II Cart"
+    SOURCES
+        src/main.c
+        src/s2_cart.c
+        src/s2map.c
+        src/s2_text.c
+        src/s2_font.c
+        src/fuji_cart.c
+        src/fuji_load.c
+        ${FUJI_COMMON}/usb/usb_descriptors.c
+        ${FUJI_COMMON}/src/fujibus.c
+        ${FUJI_COMMON}/src/fujibus_usb.c
+        ${FUJI_COMMON}/src/fujimail.c
+        src/fujinet.c
+    LIBRARIES hardware_sync
+    CORE1 s2_core1_main fuji_loader fuji_arena fuji_ring fuji_text fuji_bus
 )
 
-target_compile_options(${PROJECT_NAME} PRIVATE -Os -Wall)
-target_compile_definitions(${PROJECT_NAME} PRIVATE FUJI_USB_PRODUCT="FujiNet Studio II Cart")
-
 # core1's hot path is forced inline into its SRAM-resident loop, so none of
-# it can be left in flash; fujicart_checksram() below checks every call it makes.
+# it can be left in flash; the CORE1 check above follows every call it makes.
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     "S2_HOT=static inline __attribute__((always_inline))"
 )
-
-target_include_directories(${PROJECT_NAME} PRIVATE
-    ${FUJI_GEN}
-    ${CMAKE_CURRENT_LIST_DIR}
-    ${CMAKE_CURRENT_LIST_DIR}/include
-    ${CMAKE_CURRENT_LIST_DIR}/baked
-    ${FUJI_COMMON}/include
-    ${FUJI_COMMON}/usb
-)
-
-target_link_libraries(${PROJECT_NAME} PRIVATE
-    pico_stdlib
-    pico_multicore
-    hardware_sync
-    tinyusb_device
-)
-
-pico_enable_stdio_uart(${PROJECT_NAME} 0)
-pico_enable_stdio_usb(${PROJECT_NAME} 0)
-
-pico_add_extra_outputs(${PROJECT_NAME})
-
-include(${FUJI_COMMON}/cmake/fujicart_checksram.cmake)
-fujicart_checksram(${PROJECT_NAME} s2_core1_main fuji_loader fuji_arena fuji_ring fuji_text fuji_bus)

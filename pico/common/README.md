@@ -6,9 +6,10 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 ## Layout
 | File | Defines |
 |---|---|
-| `cmake/fujicart_pre.cmake` | what a cart's `CMakeLists.txt` runs before `project()`: board selection from `FUJI_DEFAULT_BOARD` or `-DPICO_BOARD`, the `FUJI_GEN` default, the SDK import |
+| `cmake/fujicart_pre.cmake` | what a cart's `CMakeLists.txt` runs before `project()`: board selection from `FUJI_DEFAULT_BOARD` or `-DPICO_BOARD`, the `FUJI_GEN` default, `FUJI_COMMON`, the SDK import |
+| `cmake/fujicart.cmake` | `fujicart_firmware()`: the executable from the cart's sources in link order, `-Os -Wall`, `FUJI_USB_PRODUCT`, the include path (`build/gen` before `baked/`), the SDK libraries, `copy_to_ram`, PIO headers, stdio off, and the `CORE1` SRAM check |
 | `cmake/pico_sdk_import.cmake` | the pico-sdk's import script, one copy for every cart |
-| `cmake/fujicart_checksram.cmake`, `tools/checksram.py` | `fujicart_checksram()`, run after every link: core1's loop, everything it branches to and the named state must be in SRAM, with no branch through a register |
+| `cmake/fujicart_checksram.cmake`, `tools/checksram.py` | `fujicart_checksram()`, run after every link for `fujicart_firmware()`'s `CORE1`: core1's loop, everything it branches to and the named state must be in SRAM, with no branch through a register |
 | `tools/mkromh.py` | packs the client a cart serves at power-on into `fujiconfigrom.h`, after the size, claim and header checks the cart passes it |
 | `scripts/build-cart.lib.sh` | the shared body of every cart's `build-cart.sh`: the default, `--baked` and `--bake` modes, the build into `build/fw-<board>` |
 | `include/fujibus.h`, `src/fujibus.c` | SLIP + FujiBus codec, a plain-C client of `lib/bus/rs232/FujiBusPacket.cpp`; device and command IDs |
@@ -25,14 +26,14 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 ## How it fits
 - Each cart's `build-cart.sh` sets its board, firmware name, baked headers and `cart_gen`, then
   sources `scripts/build-cart.lib.sh`; nes and o2 keep their own.
-- The carts' `firmware/CMakeLists.txt` include `cmake/fujicart_pre.cmake`, and call
-  `fujicart_checksram()` with core1's entry and the state it shares. [o2/](../o2/) keeps
+- The carts' `firmware/CMakeLists.txt` include `cmake/fujicart_pre.cmake` and build with
+  `fujicart_firmware()`; nes still writes its build out by hand. [o2/](../o2/) keeps
   PicoPAC's board setup and takes only `cmake/pico_sdk_import.cmake`; intellivision, coco and mac
   have their own.
 - [arcadia/](../arcadia/), [astrocade/](../astrocade/), [channelf/](../channelf/),
   [nes/](../nes/), [sms/](../sms/), [studio2/](../studio2/), [atari-5200/](../atari-5200/) and
-  [atari-7800/](../atari-7800/) build all of it from their `firmware/CMakeLists.txt` through
-  `FUJI_COMMON`, and each defines `FUJI_USB_PRODUCT` there. [s100/](../s100/) takes the codec and
+  [atari-7800/](../atari-7800/) list all of it among their `fujicart_firmware()` sources, through
+  `FUJI_COMMON`, and each names its `USB_PRODUCT` there. [s100/](../s100/) takes the codec and
   the USB device but has its own link in place of `fujibus_usb.c`.
 - [o2/](../o2/) takes only the codec and transport; its USB device stays in `o2/firmware` because
   it adds a mass-storage interface, and its `fujimail.c` is an older design.

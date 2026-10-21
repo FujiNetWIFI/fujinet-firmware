@@ -1,5 +1,6 @@
 # fujicart_pre.cmake -- what a cart's CMakeLists.txt does before project(): set
-# FUJI_DEFAULT_BOARD, then include this.
+# FUJI_DEFAULT_BOARD, then include this. After pico_sdk_init() the cart builds with
+# fujicart_firmware() (fujicart.cmake); FUJI_COMMON is this directory's parent.
 #
 # -DPICO_BOARD=x pulls in boards/x.cmake (platform, flash size) and the SDK
 # finds boards/x.h through PICO_BOARD_HEADER_DIRS. FUJI_GEN is where build-cart.sh writes
@@ -14,4 +15,7 @@ if(NOT FUJI_GEN)
     set(FUJI_GEN ${CMAKE_CURRENT_SOURCE_DIR}/../build/gen)
 endif()
 
+get_filename_component(FUJI_COMMON ${CMAKE_CURRENT_LIST_DIR}/.. ABSOLUTE)
+
 include(${CMAKE_CURRENT_LIST_DIR}/pico_sdk_import.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/fujicart.cmake)
