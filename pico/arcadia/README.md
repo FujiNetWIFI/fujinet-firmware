@@ -98,7 +98,7 @@ tools/soak.sh                            # the whole ROM library
 The firmware: `./build-cart.sh` writes `build/gen/fujiconfigrom.h` from the
 client (the real `fujinet-config/arcadia` CONFIG if its `build/config.bin` is
 copied here, else the `fujicfg` stand-in) and builds
-`firmware/build-fujiarcadia/fujiarcadia.uf2`. `--baked` builds from
+`build/fw-fujiarcadia/fujiarcadia.uf2`. `--baked` builds from
 `firmware/baked/` alone, and `--bake` refreshes it.
 
 ## Notes and gotchas (2650, AS, the 2637)
