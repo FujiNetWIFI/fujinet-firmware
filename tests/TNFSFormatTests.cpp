@@ -77,9 +77,8 @@ Taken take(tnfsReplyAssembler &a, const tnfsReplyContext &c)
 
 void arrive(tnfsReplyAssembler &a, const Bytes &b) { a.append(b.data(), static_cast<int>(b.size())); }
 
-// The client's side of one connection, one request at a time as the transport does it: the
-// request is marked as sent, then replies are taken until its answer; an FMT_UNKNOWN field left
-// by the answer is settled with a fence before the next request (IDENTIFY).
+// One connection, driven as the transport does: mark the request sent, take replies until its
+// answer, and settle an FMT_UNKNOWN field with a fence (IDENTIFY).
 struct Client
 {
     tnfsReplyAssembler a;

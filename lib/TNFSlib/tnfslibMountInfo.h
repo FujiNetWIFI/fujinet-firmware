@@ -48,23 +48,13 @@ enum class tnfsFieldUse : uint8_t
     PRESENT,
 };
 
-// A server's reply format over TCP, field by field. TNFS over TCP has no length field, so
-// where a reply ends depends on whether the server sends:
-//  - stat_strings: the uid and gid strings after a successful STAT;
-//  - read_count: a 2-byte count of 0 after a failed READ (any status but EAGAIN);
-//  - write_count: a 2-byte count of 0 after a failed WRITE (any status but EAGAIN and INVALID).
-// TNFSD sends none of them (FIXED), paumaed sends all three (EXTENDED).
-// The transport learns it field by field (tnfsFormatPolicy). Set beforehand, PRESENT is
-// taken as is: if the server does not send the field, replies never complete and the caller
-// sees errors. ABSENT is trusted only once a fence has confirmed it
-// (tnfsMountInfo::tcp_format_verified): a field taken as absent but sent after all could be
-// read as the next request's answer. So a preset FIXED is an expectation that the first
-// fence of each field checks, never a shortcut. Nothing in the firmware presets it.
+// Which optional reply fields a server sends over TCP. TNFSD sends none (fixed), paumaed all
+// (extended). ABSENT is trusted only once a fence confirms it (tcp_format_verified).
 struct tnfsReplyFormat
 {
-    tnfsFieldUse stat_strings = tnfsFieldUse::UNKNOWN;
-    tnfsFieldUse read_count = tnfsFieldUse::UNKNOWN;
-    tnfsFieldUse write_count = tnfsFieldUse::UNKNOWN;
+    tnfsFieldUse stat_strings = tnfsFieldUse::UNKNOWN; // uid and gid strings after a STAT
+    tnfsFieldUse read_count = tnfsFieldUse::UNKNOWN;   // 00 00 after a failed READ
+    tnfsFieldUse write_count = tnfsFieldUse::UNKNOWN;  // 00 00 after a failed WRITE
 
     static constexpr tnfsReplyFormat fixed()
     { return {tnfsFieldUse::ABSENT, tnfsFieldUse::ABSENT, tnfsFieldUse::ABSENT}; }
@@ -75,12 +65,10 @@ struct tnfsReplyFormat
 // What the TCP transport does when a reply may be followed by a field whose use is UNKNOWN.
 enum class tnfsFormatPolicy : uint8_t
 {
-    IDENTIFY, // send a fence request whose answer shows whether the field came (see
-              // tnfsReplyAssembler::settle()); if it cannot, reconnect as for RESET
+    IDENTIFY, // settle it with a fence request (settle()), else as RESET
     RESET,    // reconnect before the next request, so the field cannot reach its answer
 #ifdef UNIT_TESTS
-    INFER,    // tests only: the earlier rule (decide from the next reply), which may take a
-              // delayed field for the answer; kept to show that failure, never for use
+    INFER,    // tests only: decide from the next reply, which a delayed field can fool
 #endif
 };
 
@@ -159,8 +147,7 @@ public:
     fnTcpClient tcp_client;
     // Replies read from tcp_client and not yet taken; allocated on connect, freed on drop.
     tnfsReplyAssemblerPtr tcp_replies;
-    // The server's reply format, learned field by field under tcp_format_policy. Kept across
-    // reconnects and session recovery (same server); tnfs_umount() forgets it.
+    // Learned per field; kept across reconnects, forgotten by tnfs_umount().
     tnfsReplyFormat tcp_reply_format;
     tnfsFormatPolicy tcp_format_policy = tnfsFormatPolicy::IDENTIFY;
     uint8_t tcp_format_verified = 0; // bit per field (tnfsOptionalField - 1): ABSENT confirmed by a fence

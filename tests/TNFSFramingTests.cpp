@@ -422,9 +422,8 @@ Taken take(tnfsReplyAssembler &a, const tnfsReplyContext &c)
     return t;
 }
 
-// The client's view: request i expects answers[i]. The stream is fed in `chunks`, and the
-// next request goes out only after the previous answer was taken, as over a real link.
-// Returns the answers taken, in order; stops at the first MALFORMED.
+// Request i expects answers[i]; the stream arrives in `chunks`, one request at a time.
+// Returns the answers taken, stopping at the first MALFORMED.
 struct Exchange
 {
     tnfsReplyContext context;

@@ -434,9 +434,8 @@ tnfsFrame tnfsReplyAssembler::take(uint8_t (&out)[TNFS_MAX_REPLY_SIZE],
 
 bool tnfsReplyAssembler::may_hold_cut_answer(const tnfsReplyContext &context) const
 {
-    // A header of ours with its data still missing, or the start of such a header: the
-    // retry's reply would supply the rest. Other bytes it would only misframe, which
-    // take() then reports as MALFORMED.
+    // A header of ours, or its start, still missing data: the retry's reply would supply it.
+    // Other bytes it would only misframe, and take() reports MALFORMED.
     auto cut = [&](int offset)
     {
         const uint8_t *p = _buf + offset;

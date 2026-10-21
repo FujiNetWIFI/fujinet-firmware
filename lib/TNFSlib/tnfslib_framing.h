@@ -1,18 +1,8 @@
 #ifndef _TNFSLIB_FRAMING_H
 #define _TNFSLIB_FRAMING_H
 
-// TNFS reply framing for byte-stream transports (TNFS over TCP). TNFS has no length field,
-// so where a reply ends is derived from its command, its status and its self-describing
-// payload fields, as laid out in tnfs-protocol.md. Read boundaries are never trusted.
-//
-// tnfs_frame_reply() takes a successful STAT to be the fixed 22-byte block that TNFSD sends.
-// Some servers (paumaed) also send fields the protocol leaves optional: the uid and gid
-// strings after a STAT, and a zero byte count after a READ or WRITE that failed. Whether a
-// server sends them is its reply format (tnfsReplyFormat). Where the format says, a field is
-// framed as part of its reply. Where it is UNKNOWN, the bytes alone cannot always tell: a
-// field delayed past the next request can read as that request's answer. The transport
-// therefore settles it before sending anything else (settle()), or reconnects; only its
-// INFER policy, for tests only, leaves it to the next reply's header.
+// TNFS-over-TCP reply framing. TNFS has no length field, so a reply ends where its command,
+// status and payload say; optional fields are framed as tnfsReplyFormat says.
 
 #include <cstdint>
 
@@ -22,8 +12,7 @@ enum class tnfsFrameStatus
 {
     NEED_MORE, // the reply at the front is incomplete; nothing is consumed
     COMPLETE,  // a whole reply of `length` bytes is at the front
-    MALFORMED, // the front cannot be a valid reply. With no sync marker in the stream,
-               // the only recovery is to drop the connection and reconnect
+    MALFORMED, // the front cannot be a reply; with no sync marker, reconnect
 };
 
 struct tnfsFrame
@@ -52,10 +41,8 @@ struct tnfsReplyContext
 enum class tnfsReplyKind
 {
     ANSWER,      // sequence and command of the request, and its session (or 0 with INVALID)
-    EARLIER,     // this session's reply to an earlier request: another sequence (late, or a
-                 // retry's duplicate), or received before the pending request went out
-    SESSIONLESS, // status-only error with session 0 for no request of ours: TNFSD's answer
-                 // to request bytes it could not tie to a session (a split request)
+    EARLIER,     // an earlier request's reply: late, duplicated, or received before the send
+    SESSIONLESS, // TNFSD's session-0 error for request bytes it could not tie to a session
 };
 
 // What the last reply taken in a request context may still have after it.
@@ -73,7 +60,7 @@ enum class tnfsFenceVerdict
     NEED_MORE,
     ABSENT,  // the fence's answer came right after the reply: the server left the field out
     PRESENT, // the field, then the fence's answer: the server sent it
-    FAILED,  // neither: all buffered bytes are discarded and the connection must be replaced
+    FAILED,  // neither: the buffer is discarded and the connection must be replaced
 };
 
 // Fixed-capacity reassembly of a reply byte stream: append at most space() bytes of what
@@ -87,42 +74,31 @@ public:
     // Copy up to `len` bytes into free space; returns how many were accepted.
     int append(const uint8_t *data, int len);
 
-    // COMPLETE: the reply is copied to `out` and removed; anything after it is kept.
-    // NEED_MORE: nothing changes. MALFORMED: all buffered bytes are discarded.
-    // Frames TNFSD's shapes only, with no request to check against.
+    // COMPLETE moves the reply to `out`; MALFORMED discards the buffer. TNFSD's shapes only,
+    // with no request to check against.
     tnfsFrame take(uint8_t (&out)[TNFS_MAX_REPLY_SIZE]);
 
-    // As above, for the pending request `context`; `kind` says what the reply is. Bytes
-    // that may be the previous reply's optional field are skipped only when a reply fits
-    // after them better than at their start; when both fit alike, the stream is MALFORMED.
+    // As above, checked against `context`; `kind` says what the reply is. A previous optional
+    // field is skipped only when a reply fits better after it; a tie is MALFORMED.
     tnfsFrame take(uint8_t (&out)[TNFS_MAX_REPLY_SIZE], const tnfsReplyContext &context,
                    tnfsReplyKind &kind);
 
-    // Whether a retry's reply could complete a cut-off answer to `context` into a wrong
-    // one: the connection must then be replaced before retrying.
+    // Whether a retry's reply could complete a cut-off answer; if so, reconnect first.
     bool may_hold_cut_answer(const tnfsReplyContext &context) const;
 
-    // The optional field that may follow the last reply taken, when context.format left its
-    // use UNKNOWN; NONE otherwise.
+    // The optional field of UNKNOWN use that may follow the last reply taken, or NONE.
     tnfsOptionalField unsettled() const { return _optional; }
 
-    // Frame the answer to `fence`, a request sent with session 0 right after the reply that
-    // left unsettled(), and with no other reply outstanding. Servers answer a request for no
-    // session with a status-only reply carrying session 0 and the request's sequence and
-    // command (TNFSD and paumaed: INVALID). Such an answer begins with two zero bytes and
-    // then the fence's command, which is not zero; the field ends in a zero byte. So the
-    // bytes match the answer either at the front (ABSENT) or right after the field
-    // (PRESENT), never both, and the first byte that rules one out settles it. No waiting
-    // beyond the fence's own answer, whatever the field holds.
+    // Frame the answer to `fence`, a session-0 request sent right after the unsettled reply.
+    // It starts 00 00 <sequence> <command> and a field ends in a zero byte, so it fits at
+    // the front (ABSENT) or after the field (PRESENT), never both.
     tnfsFenceVerdict settle(const tnfsReplyContext &fence);
 
-    // Whether a reply from this session may still come for a request already answered:
-    // a retry's duplicate. Counts copies sent against replies of ours taken.
+    // Whether a retry's duplicate of an answered request may still arrive.
     bool replies_pending() const { return _outstanding > 0; }
 
-    // Call just before request `sequence` first goes out, with the bytes the connection has
-    // received but not yet appended. A server cannot answer a request it has not received,
-    // so none of the bytes received so far can begin its answer. Retries keep the mark.
+    // Call just before `sequence` first goes out, with the bytes received but not appended:
+    // none of them can start its answer. Retries keep the mark.
     void request_sent(uint8_t sequence, int unread);
 
     // Drop everything, e.g. when the connection is replaced.

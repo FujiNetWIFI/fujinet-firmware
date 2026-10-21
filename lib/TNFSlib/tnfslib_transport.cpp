@@ -204,19 +204,16 @@ static void _tnfs_set_field_use(tnfsMountInfo *m_info, tnfsOptionalField field, 
         m_info->tcp_format_verified |= _tnfs_field_bit(field);
 }
 
-// The answer just taken may be followed by a field whose use is unknown. Settle it before
-// anything else is sent, so it can never be read as the next request's answer: with a
-// fence request (IDENTIFY), or by starting a new reply stream (RESET, and whenever the
-// fence cannot be used).
+// Settle a field of unknown use after the answer before anything else is sent, so it cannot
+// be read as the next answer: with a fence (IDENTIFY), or else on a new connection.
 static void _tnfs_tcp_settle(tnfsMountInfo *m_info)
 {
     tnfsReplyAssembler *replies = m_info->tcp_replies.get();
     tnfsOptionalField field = replies->unsettled();
     if (field == tnfsOptionalField::NONE || _tnfs_infers(m_info))
         return;
-    // A retry's duplicate could sit between the reply and the fence's answer. On a connection
-    // that is already gone the field is lost with it: nothing to settle, and no verdict on
-    // the server either.
+    // No fence while a retry's duplicate may still arrive, nor on a closed connection (the
+    // field went with it).
     fnTcpClient *tcp = &m_info->tcp_client;
     if (m_info->tcp_format_policy == tnfsFormatPolicy::IDENTIFY && !m_info->tcp_fence_failed &&
         !replies->replies_pending() && tcp->connected())
@@ -254,9 +251,8 @@ static void _tnfs_tcp_settle(tnfsMountInfo *m_info)
 #endif
             }
         }
-        // Sent, and not answered as a fence is (silence, another answer, or the server hanging
-        // up on it): this server cannot settle fields with a fence. A write that failed says
-        // nothing about the server.
+        // Sent but not answered as a fence: stop using fences with this server. A failed
+        // write says nothing about the server.
         if (sent.is_success())
         {
             Debug_printf("TNFS fence for the %s failed; reconnecting after such replies\r\n",
@@ -269,8 +265,7 @@ static void _tnfs_tcp_settle(tnfsMountInfo *m_info)
 }
 
 // One reply per call, however TCP split or merged them, framed for the request in req_pkt.
-// Bytes past the assembler's free space stay queued in tcp_client, and pkt doubles as the
-// read buffer.
+// pkt doubles as the read buffer.
 int _tnfs_tcp_recv(tnfsMountInfo *m_info, tnfsPacket &pkt, const tnfsPacket &req_pkt)
 {
     tnfsReplyAssembler *replies = m_info->tcp_replies.get();

@@ -26,9 +26,8 @@ using Bytes = HarnessServer::Bytes;
 
 namespace
 {
-// Settle every unknown field right after MOUNT: a STAT of the root, and a READ and a WRITE
-// that servers refuse without touching a file (no such handle; the WRITE announces a byte it
-// does not send). Not part of the library: the firmware leaves fields to their first use.
+// Settle every unknown field after MOUNT (STAT, plus a READ and a WRITE the server refuses).
+// Test helper only: the firmware settles fields at their first use.
 bool probe_format(tnfsMountInfo *m)
 {
     auto known = [m]()
@@ -84,9 +83,8 @@ public:
     uint8_t close_status = TNFS_RESULT_SUCCESS;
     uint8_t write_status = TNFS_RESULT_SUCCESS;
 
-    // A request for a session the server does not have (the client's fence): TNFSD and
-    // paumaed answer INVALID with the request's session, sequence and command; paumaed's
-    // READ adds its count. Others might stay silent or answer as if it were theirs.
+    // The client's fence: TNFSD and paumaed answer INVALID with its session, sequence and
+    // command (paumaed's READ adds its count).
     enum class Foreign
     {
         ECHO,
@@ -391,9 +389,8 @@ TEST_CASE("TCP: several replies in one read")
                 harness_server.deliver(slice(both, first));
         };
         run_session(s);
-        // IDENTIFY: replies no request accounts for (not a retry's) sit between an answer and
-        // its fence, so the fence cannot settle the field and the client reconnects instead
-        // (RESET). The earlier rule kept the connection by inference.
+        // IDENTIFY: an unaccounted reply between the answer and its fence means the field
+        // cannot be settled, so the client reconnects (RESET).
         CHECK(harness_server.tcp_connects == 4);
     }
 }
@@ -656,9 +653,8 @@ TEST_CASE("TCP: paumaed's replies coalesced, and a retry's duplicate STAT with s
     Session late;
     paumaed_shapes(late);
     REQUIRE(tnfs_mount(&late.info) == TNFS_RESULT_SUCCESS);
-    // settle the format before a retry can leave a duplicate behind. Without the probe,
-    // the late STAT's strings meet that duplicate, the client reconnects, and paumaed's
-    // session (and its open handles) is gone.
+    // Settle the format before a retry can leave a duplicate behind; otherwise the late
+    // STAT's strings meet it and the reconnect loses paumaed's session and handles.
     REQUIRE(probe_format(&late.info));
     first_of(late, TNFS_CMD_STAT, [](const Bytes &r) { harness_server.deliver(r, 2500); });
     CHECK(stat_size(late.info) == FILE_SIZE);
@@ -898,10 +894,8 @@ enum class Outcome
 const char *outcome_name(Outcome o)
 { return o == Outcome::RIGHT ? "RIGHT" : o == Outcome::WRONG ? "WRONG" : "FAILURE"; }
 
-// A delayed STAT field on the wire. The STAT with sequence `stat_seq` is answered in two segments: the block at
-// once, its strings 10 ms later, after the client has sent its next request. The strings
-// are shaped like the answer to the request with sequence 'x' (uid = session id, gid starts
-// with 'x' and the command). The next request's answer comes a round trip (30 ms) later.
+// STAT `stat_seq` answered in two segments: the block, then 10 ms later (after the next
+// request) strings shaped like the answer to request 'x', whose real answer comes at 30 ms.
 struct WireCase
 {
     const char *what;
@@ -1114,9 +1108,8 @@ TEST_CASE("TCP formats: a server that does not answer the fence falls back to re
             CHECK(st.filesize == FILE_SIZE);
             CHECK(s.info.tcp_fence_failed);
             CHECK(s.info.tcp_reply_format.stat_strings == tnfsFieldUse::UNKNOWN);
-            // Never a wrong answer: the next request goes out on a new stream. A server that
-            // forgets a closed connection's session (paumaed) then costs a remount, and file
-            // handles opened before it are gone.
+            // Never a wrong answer: the next request uses a new stream, which costs paumaed a
+            // remount and its open handles.
             int16_t handle = -1;
             r = tnfs_open(&s.info, "/game.atr", TNFS_OPENMODE_READ, 0, &handle);
             CHECK(r == TNFS_RESULT_SUCCESS);
