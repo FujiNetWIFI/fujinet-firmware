@@ -388,16 +388,13 @@ jobs:
           cmake -B build -DPICO_BOARD=fujicard -DCMAKE_BUILD_TYPE=Release -G Ninja
           ninja -C build
 
-      # build-cart.sh regenerates fujiconfigrom.h from the baked-in client,
-      # so the Z80 side has to assemble first (the vendored zmac needs no
-      # cross-tools beyond gcc).
+      # CONFIG comes from firmware/baked/; the Z80 clients have their own job.
       - name: Astrocade cartridge (fujicade)
         working-directory: pico/astrocade
         env:
           PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: |
-          ./build.sh fujitest fujiboot fujicfg
-          ./build-cart.sh
+          ./build-cart.sh --baked
           # The serve loop must live in SRAM: flash streaming suspends XIP
           # while core1 keeps serving the bus, so any flash-resident code on
           # that path is a live-lock on real hardware.
@@ -409,19 +406,8 @@ jobs:
         env:
           PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: |
-          # A placeholder client, so build-cart.sh has something to bake. The
-          # real one comes from ./build.sh with Macro Assembler AS; this job
-          # deliberately does not install it, so the firmware build stays
-          # independent of the cross-assembler.
-          mkdir -p build
-          python3 - <<'PY'
-          import pathlib
-          img = bytearray(b'\xff' * 0x4000)
-          img[0:2] = b'\x55\x00'
-          img[0x3FFC:0x4000] = b'FUJI'
-          pathlib.Path('build/fujitest.bin').write_bytes(img)
-          PY
-          ./build-cart.sh
+          # CONFIG comes from firmware/baked/, so this job needs no AS.
+          ./build-cart.sh --baked
           # The serve loop must live in SRAM. Here the reason is not latency --
           # a bus cycle is 2.2 us -- but that the loop may never miss a cycle:
           # with no address bus, a stalled cart has nothing to resynchronize
@@ -494,16 +480,8 @@ jobs:
         env:
           PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: |
-          # A placeholder client, so build-cart.sh has something to bake; this
-          # job does not install AS (the 2650 client job assembles the real ones).
-          mkdir -p build
-          python3 - <<'PY'
-          import pathlib
-          img = bytearray(b'\xff' * 0x2000)
-          img[0x1CFC:0x1D00] = b'FUJI'
-          pathlib.Path('build/fujitest.bin').write_bytes(img)
-          PY
-          ./build-cart.sh
+          # CONFIG comes from firmware/baked/; the 2650 client job assembles the clients.
+          ./build-cart.sh --baked
           # Same SRAM-residency rule as the Astrocade: the serve loop cannot
           # live in flash, or an XIP stall would freeze the bus.
           grep -E '0x2000[0-9a-f]+\s+arcadia_core1_main$' \

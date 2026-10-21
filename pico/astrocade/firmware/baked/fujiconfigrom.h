@@ -2,9 +2,8 @@
  *
  * The console client, baked into the cartridge firmware so it is there
  * the moment the console powers up -- there is no filesystem to load it
- * from and no network yet at that point. Rebuild with:
- *   ./build.sh fujicfg && ./tools/mkromh.py build/fujicfg.bin \
- *       > firmware/include/fujiconfigrom.h
+ * from and no network yet at that point. ./build-cart.sh writes it to
+ * build/gen; ./build-cart.sh --bake also refreshes firmware/baked/.
  */
 
 #ifndef FUJICONFIGROM_H

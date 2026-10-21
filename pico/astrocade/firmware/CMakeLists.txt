@@ -34,8 +34,10 @@ if(CONFIG_FUJINET)
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE
+    ${FUJI_GEN}
     ${CMAKE_CURRENT_LIST_DIR}
     ${CMAKE_CURRENT_LIST_DIR}/include
+    ${CMAKE_CURRENT_LIST_DIR}/baked
     ${FUJI_COMMON}/include
     ${FUJI_COMMON}/usb
 )
