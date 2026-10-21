@@ -50,3 +50,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 pico_add_extra_outputs(${PROJECT_NAME})
+
+include(${FUJI_COMMON}/cmake/fujicart_checksram.cmake)
+fujicart_checksram(${PROJECT_NAME} channelf_core1_main
+    fuji_store fuji_arena fuji_ring fuji_slot_npages fuji_live_win fuji_mailbox_active
+    NO_CALLS)

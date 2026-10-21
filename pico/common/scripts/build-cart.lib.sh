@@ -31,9 +31,6 @@ export PICO_SDK_PATH="${PICO_SDK_PATH:-/usr/share/pico-sdk}"
 cmake -S firmware -B "$OUT" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD="$BOARD" -DFUJI_GEN="$GEN"
 ninja -C "$OUT"
-if [ -f tools/checksram.py ]; then
-    python3 tools/checksram.py "$OUT/$CART_ELF.elf"
-fi
 
 if [ "$MODE" = bake ]; then
     mkdir -p firmware/baked

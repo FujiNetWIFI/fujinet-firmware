@@ -55,9 +55,13 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 # Everything runs from SRAM: core1 can never take an XIP miss, and the flash
-# is free for the image store. tools/checksram.py checks the symbols.
+# is free for the image store. fujicart_checksram() below checks it.
 pico_set_binary_type(${PROJECT_NAME} copy_to_ram)
 pico_enable_stdio_uart(${PROJECT_NAME} 0)
 pico_enable_stdio_usb(${PROJECT_NAME} 0)
 
 pico_add_extra_outputs(${PROJECT_NAME})
+
+include(${FUJI_COMMON}/cmake/fujicart_checksram.cmake)
+fujicart_checksram(${PROJECT_NAME} a78_core1_main fuji_live fuji_bus fuji_arena fuji_loader
+    fuji_pokey_rd fuji_hsc_shadow a78_pio_patch a78_pio_load)

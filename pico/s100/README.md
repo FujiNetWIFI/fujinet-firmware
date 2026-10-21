@@ -21,7 +21,7 @@ them over USB CDC to an ESP32-S3 `fujiversal-s100` on the same card.
 | `firmware/host_test/` | `test_regs`, `test_2sio`, `test_fdc` (Altair-style read and write sequences), `test_link` (against `fake_esp.h`), `test_glue`, `test_timing` (IEEE-696 budgets), `test_pio` (the PIO program on a model) |
 | `client/` | 8080 sources (z88dk-z80asm `-m8080`): `bootpage` (the 256-byte page), `loader` (a DBL-compatible boot loader), `fnhello`, `fntest`, `mdmtest`, `prntest`, `fnbios` with `fnbres` (CP/M devices and drives), `bootcheck` (a stand-in image 0), and their includes |
 | `emu/` | The SIMH AltairZ80 device (`s100_fujinet.c`), `apply.sh`, and the scenarios `run.sh` drives |
-| `tools/` | `mkpage.py` (the boot page's patch sites, the image headers), `checksram.py`, `fujibus.py` with `dskcheck.py` and `fnmount.py` (BoIP clients), `fetch-disks.sh` (deramp images, MDBL, a blank 8 MB image) |
+| `tools/` | `mkpage.py` (the boot page's patch sites, the image headers), `fujibus.py` with `dskcheck.py` and `fnmount.py` (BoIP clients), `fetch-disks.sh` (deramp images, MDBL, a blank 8 MB image) |
 | `build.sh`, `build-cart.sh`, `run.sh` | The clients and generated headers; the RP2354B firmware; a scenario in SIMH against fujinet-pc |
 
 ## How it fits

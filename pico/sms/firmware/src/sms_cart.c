@@ -8,7 +8,7 @@
  * Budget at 3.58 MHz: an M1 fetch needs data ~289 ns after /RD falls and the
  * SRAM needs its bank bits ~300 ns before then; this loop is a few dozen
  * instructions at 200 MHz. Everything here runs from SRAM (copy_to_ram;
- * tools/checksram.py checks).
+ * fujicart_checksram checks).
  *
  * PROVISIONAL until a scope says otherwise: how long write data holds after
  * /WR rises (the last sample before it rises is taken), and the 150 ns the

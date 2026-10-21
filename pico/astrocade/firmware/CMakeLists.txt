@@ -52,3 +52,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 pico_add_extra_outputs(${PROJECT_NAME})
+
+include(${FUJI_COMMON}/cmake/fujicart_checksram.cmake)
+fujicart_checksram(${PROJECT_NAME} astrocade_core1_main)

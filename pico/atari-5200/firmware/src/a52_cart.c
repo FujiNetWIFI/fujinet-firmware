@@ -7,7 +7,7 @@
  * enables alone, so nothing in software is timed against the enable.
  *
  * Interrupts stay off on this core and every byte of it lives in SRAM
- * (tools/checksram.py), so no XIP miss can stall a read.
+ * (fujicart_checksram), so no XIP miss can stall a read.
  */
 
 #include "pico/stdlib.h"

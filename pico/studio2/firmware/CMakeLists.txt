@@ -29,7 +29,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE -Os -Wall)
 target_compile_definitions(${PROJECT_NAME} PRIVATE FUJI_USB_PRODUCT="FujiNet Studio II Cart")
 
 # core1's hot path is forced inline into its SRAM-resident loop, so none of
-# it can be left in flash; tools/checksram.py checks every call it makes.
+# it can be left in flash; fujicart_checksram() below checks every call it makes.
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     "S2_HOT=static inline __attribute__((always_inline))"
 )
@@ -54,3 +54,6 @@ pico_enable_stdio_uart(${PROJECT_NAME} 0)
 pico_enable_stdio_usb(${PROJECT_NAME} 0)
 
 pico_add_extra_outputs(${PROJECT_NAME})
+
+include(${FUJI_COMMON}/cmake/fujicart_checksram.cmake)
+fujicart_checksram(${PROJECT_NAME} s2_core1_main fuji_loader fuji_arena fuji_ring fuji_text fuji_bus)

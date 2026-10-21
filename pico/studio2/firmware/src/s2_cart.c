@@ -8,7 +8,7 @@
  * ~2.4 µs between TPA and the CPU latching data.
  *
  * Interrupts stay off on this core and every byte of it lives in SRAM
- * (tools/checksram.py), so no XIP miss can stall a read.
+ * (fujicart_checksram), so no XIP miss can stall a read.
  */
 
 #include "pico/stdlib.h"

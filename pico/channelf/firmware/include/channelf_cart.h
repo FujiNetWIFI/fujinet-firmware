@@ -32,7 +32,7 @@
  * at the file's own -Os, into flash -- and reached through a veneer that sits
  * in SRAM, so a check of core1's own code alone passes. One XIP miss there
  * stalls a bus cycle, and with no address bus the cart never resynchronises.
- * tools/checksram.py follows the veneers. */
+ * fujicart_checksram follows the veneers. */
 #if defined(__GNUC__)
 #define CHF_INLINE static inline __attribute__((always_inline))
 #else
