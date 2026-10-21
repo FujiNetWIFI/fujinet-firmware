@@ -31,6 +31,10 @@ both the bus's `virtualDevice` and the shared base. The subclass implements the 
 (`sio_process`, `iwm_ctrl`, `processCommand`, ...) and normally calls the base's
 `processCommand()` first, then handles anything platform-specific.
 
+[Cartridge/](Cartridge/) is shared the same way but is not a bus device: `Cartridge` pushes ROMs to
+a companion MCU over the bus's `DBCLink` (see [lib/bus/](../bus/)), with one subclass per companion
+firmware, and the bus's Fuji owns one.
+
 ## Naming
 
 Every per-bus directory follows one layout:

@@ -10,6 +10,8 @@
 #include "compat_string.h"
 #include "fuji_endian.h"
 
+#include <optional>
+
 #define IMAGE_EXTENSION ".img"
 #define LOBBY_URL       "tnfs://tnfs.fujinet.online/MSDOS/lobby.img"
 
@@ -56,6 +58,31 @@ void rs232Fuji::setup()
 }
 
 // Status
+mediatype_t rs232Fuji::mount_media(DISK_DEVICE *disk_dev, fujiDisk &disk, fujiHost &host,
+                                   disk_access_flags_t mode)
+{
+    mediatype_t type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size, mode,
+                                       MEDIATYPE_UNKNOWN, &host);
+    if (type != MEDIATYPE_ROM)
+        return type;
+
+    MediaTypeROM *rom = disk_dev->rom();
+    auto stream = [rom](RomStream source) {
+        return Cartridge::Source{
+            rom->stream_size(source),
+            [rom, source](uint32_t offset, uint8_t *buffer, size_t length) {
+                return rom->stream_read(source, offset, buffer, length);
+            }};
+    };
+
+    std::optional<Cartridge::Source> map;
+    if (rom->has_memory_map())
+        map = stream(RomStream::MemoryMap);
+    if (_cartridge.load(stream(RomStream::Image), map ? &*map : nullptr).is_error())
+        return MEDIATYPE_UNKNOWN;
+    return type;
+}
+
 void rs232Fuji::rs232_status(FujiStatusReq reqType)
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);

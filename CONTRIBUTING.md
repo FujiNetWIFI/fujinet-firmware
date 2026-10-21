@@ -107,7 +107,7 @@ workflow runs a linter or a formatter. So:
 ## Enforced architecture rules
 
 No `BUILD_*` identifier may appear in a `#if`, `#ifdef`, `#ifndef` or `#elif` anywhere under
-`lib/device/fujiDevice`, `lib/device/fujiClock`, or `lib/device/NDevice`. `tests/check_no_build_ifdefs.py`
+`lib/device/fujiDevice`, `lib/device/fujiClock`, `lib/device/NDevice`, or `lib/device/Cartridge`. `tests/check_no_build_ifdefs.py`
 enforces this as the `no_build_ifdefs_in_fujidevice` ctest; it strips comments and string literals
 first, so you cannot dodge it. Customize by overriding a virtual in the per-bus subclass under
 `lib/device/<bus>/`, or by a mixin in `lib/device/fujiDevice/`.

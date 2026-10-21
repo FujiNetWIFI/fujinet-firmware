@@ -19,7 +19,9 @@ cartridge board.
 - Every class derives the `virtualDevice` of [lib/bus/rs232/](../../bus/rs232/) and implements
   `rs232_process()`. Images come from [lib/media/rs232/](../../media/rs232/).
 - `rs232Fuji` overrides `setup()`, `set_additional_direntry_details()`, `mount_media()` (to pass the
-  host to the disk) and `appkey_read()`. `rs232Network` overrides `fujidev_set_query()`.
+  host to the disk and hand a mounted ROM to its `StreamCartridge`, see
+  [lib/device/Cartridge/](../Cartridge/)) and `appkey_read()`. `rs232Network`
+  overrides `fujidev_set_query()`.
   `rs232Clock` overrides `fujidev_read_tz()` and `fujidev_alt_requested()`.
 - [lib/device/device.h](../device.h) defines `platformFuji`, an `h89Fuji` under `PINMAP_H89` and
   an `rs232Fuji` otherwise, and points `theFuji` at it.

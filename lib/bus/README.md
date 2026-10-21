@@ -35,6 +35,7 @@ that the shared device bases are written against.
 | `DaisyChain.h`, `DaisyChain.cpp` | `DaisyChain`: the device list. `addDevice` pushes to the front, so the newest registration wins a duplicate ID |
 | `PacketParam.h`, `PacketParamProxy.h` | typed access to packet parameters, used by the packet classes |
 | `cmdFrame.h` | the legacy fixed command frame, still used by the buses that predate `FUJI_COMMAND_PACKET` |
+| `DBCLink.h` | `DBCLink`: request/reply to a companion MCU (`FUJI_DEVICEID::DBC`); each bus with one implements `exchange()` |
 
 ## Buses
 

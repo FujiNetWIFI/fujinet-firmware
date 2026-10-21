@@ -9,6 +9,7 @@ CDC-ACM or the Becker port (Bus-over-IP), dispatched by opcode rather than by de
 | `drivewire.h`, `drivewire.cpp` | `drivewireDevice` (base of every CoCo device), `virtualDevice` (Fuji-style devices implement `processCommand()`), and `systemBus` with one `op_*` handler per DriveWire opcode: `op_readex`, `op_write`, `op_fuji`, `op_net`, `op_cpm`, `op_clock`, `op_print`, the `op_ser*` serial family, `op_dwinit`, `op_namedobj_mnt` and the rest |
 | `FujiDWPacket.h`, `FujiDWPacket.cpp` | `FujiDWPacket`, this bus's `FUJI_COMMAND_PACKET` |
 | `opcode.h` | the DriveWire opcode numbers |
+| `drivewireDBCLink.h`, `drivewireDBCLink.cpp` | `drivewireDBCLink : DBCLink`; sends nothing over BoIP or unless the pinmap declares `FN_DBC_COMPANION` |
 
 ## How it fits
 - Selected by `BUILD_COCO` in [lib/bus/bus.h](../bus.h); devices live in
@@ -22,7 +23,7 @@ CDC-ACM or the Becker port (Bus-over-IP), dispatched by opcode rather than by de
 
 ## Build
 ESP: globbed by `src/CMakeLists.txt`, compiled only under `BUILD_COCO`; `FUJINET_OVER_USB` is
-derived from the pinmap's UART assignment. PC: `FUJINET_TARGET=COCO` lists both source files and
+derived from the pinmap's UART assignment. PC: `FUJINET_TARGET=COCO` lists these source files and
 uses `BoIPChannel`.
 
 ## Notes

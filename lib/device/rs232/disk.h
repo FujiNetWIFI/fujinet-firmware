@@ -45,6 +45,10 @@ public:
     success_is_true write_blank(fnFile *f, const NewDiskRequest &req);
 
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_disktype; };
+    MediaTypeROM *rom()
+    {
+        return disktype() == MEDIATYPE_ROM ? static_cast<MediaTypeROM *>(_disk) : nullptr;
+    }
     time_t mount_time() { return _mount_time; }
 
     ~rs232Disk();

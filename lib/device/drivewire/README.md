@@ -21,7 +21,9 @@ The CoCo and Dragon device set for `BUILD_COCO`.
   [lib/media/drivewire/](../../media/drivewire/).
 - `drivewireFuji` overrides `setup()`, `shutdown()`, `set_additional_direntry_details()`,
   `processCommand()`, `insert_boot_device()`, `fujicore_mount_disk_image_success()`,
-  `fujidev_copy_file()`, `appkey_read()` and `appkey_write()`. `drivewireNetwork` overrides
+  `mount_media()` (to hand a mounted ROM to its `SegmentCartridge`, see
+  [lib/device/Cartridge/](../Cartridge/)), `fujidev_copy_file()`, `appkey_read()` and
+  `appkey_write()`. `drivewireNetwork` overrides
   `fujidev_set_parser()`. `drivewireClock` overrides `fujidev_read_tz()`.
 - `src/main.cpp` hands the printer to the bus with `setPrinter()`; the bus keeps no daisy chain.
 

@@ -35,6 +35,30 @@ target_include_directories(daisychain_tests PRIVATE
 add_test(NAME daisychain_tests COMMAND daisychain_tests)
 
 # ------------------------------------------------------------------------------
+# lib/device/Cartridge: the frames each ROM-push dialect puts on a DBCLink,
+# checked byte for byte against a fake link.
+# ------------------------------------------------------------------------------
+add_executable(cartridge_tests
+    CartridgeTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/Cartridge/Cartridge.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/Cartridge/StreamCartridge.cpp
+    ${CMAKE_SOURCE_DIR}/lib/device/Cartridge/SegmentCartridge.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/rs232/FujiBusPacket.cpp
+)
+
+# UNIT_TESTS: keeps debug.h off <utils.h> (see imdimage_tests)
+target_compile_definitions(cartridge_tests PRIVATE UNIT_TESTS)
+
+target_include_directories(cartridge_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/bus/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+
+add_test(NAME cartridge_tests COMMAND cartridge_tests)
+
+# ------------------------------------------------------------------------------
 # UTF-8 / HTML-entity folding to ASCII. fn_sanitize is deliberately free of any
 # parser or protocol dependency, so the entity tables and the transliteration
 # edge cases are pinned here rather than on hardware.
@@ -370,6 +394,7 @@ add_test(
             ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice
             ${CMAKE_SOURCE_DIR}/lib/device/fujiClock
             ${CMAKE_SOURCE_DIR}/lib/device/NDevice
+            ${CMAKE_SOURCE_DIR}/lib/device/Cartridge
 )
 
 # ------------------------------------------------------------------------------

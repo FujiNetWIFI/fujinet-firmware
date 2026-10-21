@@ -25,4 +25,7 @@
 #define PIN_UART0_RX            GPIO_NUM_44
 #define PIN_UART0_TX            GPIO_NUM_43
 
+// The RP2350 cartridge answers DBC frames on the bus link.
+#define FN_DBC_COMPANION
+
 #endif /* PINMAP_FUJIVERSAL_DRIVEWIRE */

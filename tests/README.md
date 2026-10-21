@@ -9,6 +9,7 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `CMakeLists.txt` | One `add_executable` and `add_test` pair per test; each links only the unit under test, never the `fujinet` executable |
 | `FujiBusPacketTests.cpp` | `lib/bus/rs232/FujiBusPacket.cpp` SLIP framing (`fujibuspacket_tests`) |
 | `DaisyChainTests.cpp` | `lib/bus/DaisyChain.cpp` device-ID rotation behind the disk swap (`daisychain_tests`) |
+| `CartridgeTests.cpp` | `lib/device/Cartridge/` ROM-push frames per dialect, byte for byte (`cartridge_tests`) |
 | `FnSanitizeTests.cpp` | `lib/fntext/fn_sanitize.cpp` entity decoding and UTF-8 folding (`fn_sanitize_tests`) |
 | `PeoplesUrlParserTests.cpp` | `lib/utils/peoples_url_parser.cpp` query and fragment splitting, and `getFilePath()` (`url_parser_tests`) |
 | `UtilsTests.cpp` | `lib/utils/utils.cpp` `util_stoi()` (`utils_tests`) |
@@ -39,7 +40,7 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `ProtocolFSTests.cpp` | `lib/network-protocol/FS.cpp` unmounting when an open fails, keeping its error (`fs_protocol_tests`) |
 | `TelnetProtocolTests.cpp` | `lib/network-protocol/Telnet.cpp` reads, writes and separate channels over the same fake socket (`telnet_protocol_tests`) |
 | `tcp_harness/` | Stand-ins for `fnTcpClient.h`, `fnTcpServer.h` and `bus.h`, backed by the fake peer in `fnTcpClient.h`; used by `tcp_protocol_tests` and `telnet_protocol_tests` |
-| `check_no_build_ifdefs.py` | Policy: no `BUILD_*` macro in a preprocessor conditional under `lib/device/fujiDevice`, `lib/device/fujiClock` or `lib/device/NDevice` (`no_build_ifdefs_in_fujidevice`) |
+| `check_no_build_ifdefs.py` | Policy: no `BUILD_*` macro in a preprocessor conditional under `lib/device/fujiDevice`, `lib/device/fujiClock`, `lib/device/NDevice` or `lib/device/Cartridge` (`no_build_ifdefs_in_fujidevice`) |
 | `check_no_system_bus.py` | Policy: `SYSTEM_BUS` must not appear in any source under `lib/media` (`no_system_bus_in_media`) |
 | `unsit.c`, `stuffit_test.sh` | Host CLI over `lib/stuffit` and a comparison against `unar` (`stuffit_sample_tests`; registered only with `SIT_SAMPLES_DIR`) |
 | `ndif_blocks_test.c`, `ndif_test.sh` | NDIF decoding compared with ndif2raw (`ndif_sample_tests`; registered only with `NDIF2RAW_DIR`) |

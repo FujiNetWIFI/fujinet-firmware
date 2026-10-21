@@ -149,7 +149,7 @@ set(INCLUDE_DIRS include
     lib/modem-sniffer lib/printer-emulator
     lib/network-protocol
     lib/fuji lib/bus lib/device lib/media
-    lib/device/fujiDevice lib/device/fujiClock lib/device/NDevice
+    lib/device/fujiDevice lib/device/fujiClock lib/device/NDevice lib/device/Cartridge
     lib/encrypt
     lib/devrelay/commands lib/devrelay/service lib/devrelay/slip lib/devrelay/types
     lib/encoding
@@ -450,6 +450,7 @@ if(FUJINET_TARGET STREQUAL "COCO")
 
     lib/bus/drivewire/drivewire.h lib/bus/drivewire/drivewire.cpp
     lib/bus/drivewire/FujiDWPacket.h lib/bus/drivewire/FujiDWPacket.cpp
+    lib/bus/DBCLink.h lib/bus/drivewire/drivewireDBCLink.h lib/bus/drivewire/drivewireDBCLink.cpp
     lib/hardware/BoIPChannel.h lib/hardware/BoIPChannel.cpp
 
     lib/media/drivewire/mediaType.h lib/media/drivewire/mediaType.cpp
@@ -463,6 +464,8 @@ if(FUJINET_TARGET STREQUAL "COCO")
     lib/media/drivewire/casIndex.h lib/media/drivewire/casIndex.cpp
     lib/media/drivewire/decbLayout.h lib/media/drivewire/decbLayout.cpp
 
+    lib/device/Cartridge/Cartridge.h lib/device/Cartridge/Cartridge.cpp
+    lib/device/Cartridge/SegmentCartridge.h lib/device/Cartridge/SegmentCartridge.cpp
     lib/device/drivewire/drivewireFuji.h lib/device/drivewire/drivewireFuji.cpp
     lib/device/drivewire/disk.h lib/device/drivewire/disk.cpp
     lib/device/drivewire/printer.h lib/device/drivewire/printer.cpp
@@ -511,6 +514,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
 
     lib/bus/rs232/rs232.h lib/bus/rs232/rs232.cpp
     lib/bus/rs232/FujiBusPacket.h lib/bus/rs232/FujiBusPacket.cpp
+    lib/bus/DBCLink.h lib/bus/rs232/rs232DBCLink.h lib/bus/rs232/rs232DBCLink.cpp
     lib/hardware/BoIPChannel.h lib/hardware/BoIPChannel.cpp
 
     lib/media/rs232/diskType.h lib/media/rs232/diskType.cpp
@@ -520,6 +524,8 @@ if(FUJINET_TARGET STREQUAL "RS232")
     lib/media/rs232/diskTypeROM.h lib/media/rs232/diskTypeROM.cpp
 
     lib/device/rs232/rs232Clock.cpp lib/device/rs232/rs232Clock.h
+    lib/device/Cartridge/Cartridge.h lib/device/Cartridge/Cartridge.cpp
+    lib/device/Cartridge/StreamCartridge.h lib/device/Cartridge/StreamCartridge.cpp
     lib/device/rs232/disk.cpp lib/device/rs232/disk.h
     lib/device/rs232/modem.cpp lib/device/rs232/modem.h
     lib/device/rs232/rs232Network.cpp lib/device/rs232/rs232Network.h

@@ -2,6 +2,8 @@
 #define DRIVEWIREFUJI_H
 
 #include "fujiDevice.h"
+#include "SegmentCartridge.h"
+#include "drivewire/drivewireDBCLink.h"
 
 #include "cassette.h"
 
@@ -13,8 +15,14 @@ private:
 #ifdef ESP_PLATFORM
     drivewireCassette _cassetteDev;
 #endif
+    drivewireDBCLink _dbc;
+    SegmentCartridge _cartridge{_dbc};
 
 protected:
+    // A ROM goes to the cartridge once mounted.
+    mediatype_t mount_media(DISK_DEVICE *disk_dev, fujiDisk &disk, fujiHost &host,
+                            disk_access_flags_t mode) override;
+
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
                                            uint8_t maxlen) override;
     void fujidev_copy_file(const FUJI_COMMAND_PACKET &packet) override;

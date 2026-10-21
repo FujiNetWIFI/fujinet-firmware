@@ -138,6 +138,27 @@ void drivewireFuji::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
     fujiDevice::insert_boot_device(image_id, disk_type, disk_dev);
 }
 
+mediatype_t drivewireFuji::mount_media(DISK_DEVICE *disk_dev, fujiDisk &disk, fujiHost &host,
+                                       disk_access_flags_t mode)
+{
+    mediatype_t type = fujiDevice::mount_media(disk_dev, disk, host, mode);
+    if (type != MEDIATYPE_ROM)
+        return type;
+
+    MediaTypeROM *rom = disk_dev->rom();
+    Cartridge::Source image{
+        rom->stream_size(),
+        [rom](uint32_t offset, uint8_t *buffer, size_t length) {
+            return rom->stream_read(offset, buffer, length);
+        }};
+    if (_cartridge.load(image).is_error())
+    {
+        disk_dev->unmount();
+        return MEDIATYPE_UNKNOWN;
+    }
+    return type;
+}
+
 void drivewireFuji::random()
 {
     int r = rand();
