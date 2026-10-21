@@ -28,7 +28,7 @@ memory-mapped mailbox, a POKEY and a High Score Cart.
 | `testrom/*.s` | ca65 clients: `hello`, `fujitest`, `fujiboot`, `fujibank` (a 64K banked app), `pokeytest`, and their start-up, 320A text and mailbox library |
 | `testrom/*.cfg`, `testrom/fujinet.inc` | the ld65 layouts, and the mailbox for ca65, mirrored from `firmware/include/fuji_mailbox.h` |
 | `emu/` | the MAME cart device (`fujinet.cpp`, with [common/](../common/)'s `fujitcp.c` its FujiBus link to fujinet-pc; `apply.sh` grafts it) and the Lua harnesses |
-| `tools/` | `checkrom.py` (claim, RMW and TIA-store scans), `mkromh.py`, `mkloaderh.py`, `mkbootblk.py`, `mka78.py`, `mkfont.py`, `mkmapdb.py`, `biosok.py` (writes `biosok.tsv` for `mkmapdb.py`), `a78plan.c`, `abprep.py`/`abrun.py` (stock MAME against the cart, image by image), `soak.py` (every image booted over the network), `contact.py`, `pokeyrender.c`/`pokeycmp.py` |
+| `tools/` | `checkrom.py` (claim, RMW and TIA-store scans), `mkloaderh.py`, `mkbootblk.py`, `mka78.py`, `mkfont.py`, `mkmapdb.py`, `biosok.py` (writes `biosok.tsv` for `mkmapdb.py`), `a78plan.c`, `abprep.py`/`abrun.py` (stock MAME against the cart, image by image), `soak.py` (every image booted over the network), `contact.py`, `pokeyrender.c`/`pokeycmp.py` |
 | `tools/7800sign/` | Bruce Tomlin's signer, vendored (see Notes) |
 | `build.sh`, `build-cart.sh`, `run.sh` | the 6502 build, the firmware build and a client in MAME (see Build) |
 

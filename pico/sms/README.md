@@ -21,7 +21,7 @@ a memory-mapped mailbox, loads any image the ESP32-S3 pushes into the SRAM, and 
 | `testrom/loader.asm` | the 2K loader page at `$B800` |
 | `testrom/*.c` | z88dk clients: `hello`, `fujitest`, `fujiboot`, `fujibank` (a banked app over 32K), and their display, input and mailbox library |
 | `emu/` | the MAME cart device (`apply.sh` grafts it) and the Lua harnesses |
-| `tools/` | `checkrom.py` (claim, header checksum, fences), `mkromh.py`, `mkloaderh.py`, `mkmapdb.py`, `abprep.py`/`abrun.py` (Tier A), `soak.py` (Tier C), `contact.py`, `smsplan.c` |
+| `tools/` | `checkrom.py` (claim, header checksum, fences), `mkloaderh.py`, `mkmapdb.py`, `abprep.py`/`abrun.py` (Tier A), `soak.py` (Tier C), `contact.py`, `smsplan.c` |
 
 ## How it fits
 - The console addresses the SRAM itself: A0-A12 and D0-D7 go straight to it. core1 supplies

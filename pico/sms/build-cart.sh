@@ -20,7 +20,8 @@ cart_gen() {
     [ -f "build/$CLIENT.sms" ] || { echo "build-cart.sh: build/$CLIENT.sms missing; run ./build.sh first" >&2; exit 1; }
     [ -f build/loader.bin ] || { echo "build-cart.sh: build/loader.bin missing; run ./build.sh loader" >&2; exit 1; }
     echo "build-cart.sh: baking build/$CLIENT.sms"
-    python3 tools/mkromh.py "build/$CLIENT.sms" > build/gen/fujiconfigrom.h
+    python3 ../common/tools/mkromh.py --size 0x8000 --expect "0x7FF0:TMR SEGA" --claim 0x7FDC \
+        "build/$CLIENT.sms" > build/gen/fujiconfigrom.h
     python3 tools/mkloaderh.py build/loader.bin > build/gen/smsloaderrom.h
 }
 

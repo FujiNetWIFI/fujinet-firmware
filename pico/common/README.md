@@ -9,6 +9,7 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 | `cmake/fujicart_pre.cmake` | what a cart's `CMakeLists.txt` runs before `project()`: board selection from `FUJI_DEFAULT_BOARD` or `-DPICO_BOARD`, the `FUJI_GEN` default, the SDK import |
 | `cmake/pico_sdk_import.cmake` | the pico-sdk's import script, one copy for every cart |
 | `cmake/fujicart_checksram.cmake`, `tools/checksram.py` | `fujicart_checksram()`, run after every link: core1's loop, everything it branches to and the named state must be in SRAM, with no branch through a register |
+| `tools/mkromh.py` | packs the client a cart serves at power-on into `fujiconfigrom.h`, after the size, claim and header checks the cart passes it |
 | `scripts/build-cart.lib.sh` | the shared body of every cart's `build-cart.sh`: the default, `--baked` and `--bake` modes, the build into `build/fw-<board>` |
 | `include/fujibus.h`, `src/fujibus.c` | SLIP + FujiBus codec, a plain-C client of `lib/bus/rs232/FujiBusPacket.cpp`; device and command IDs |
 | `include/fujibus_usb.h`, `src/fujibus_usb.c` | one request/reply round trip over USB CDC, and the hook for frames the ESP32 pushes mid-transaction |
