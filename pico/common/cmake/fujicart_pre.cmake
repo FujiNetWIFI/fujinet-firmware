@@ -1,7 +1,7 @@
 # fujicart_pre.cmake -- what a cart's CMakeLists.txt does before project(): set
 # FUJI_DEFAULT_BOARD, then include this.
 #
-# -DPICO_BOARD=x pulls in boards/x.cmake (platform, flash size, feature options) and the SDK
+# -DPICO_BOARD=x pulls in boards/x.cmake (platform, flash size) and the SDK
 # finds boards/x.h through PICO_BOARD_HEADER_DIRS. FUJI_GEN is where build-cart.sh writes
 # fresh generated headers; carts that bake them put it ahead of baked/ on the include path.
 

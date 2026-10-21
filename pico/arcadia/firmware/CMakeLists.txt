@@ -19,17 +19,14 @@ add_executable(${PROJECT_NAME}
 target_compile_options(${PROJECT_NAME} PRIVATE -Os -Wall)
 target_compile_definitions(${PROJECT_NAME} PRIVATE FUJI_USB_PRODUCT="FujiNet Arcadia 2001 Cart")
 
-if(CONFIG_FUJINET)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE CONFIG_FUJINET=1)
-    target_sources(${PROJECT_NAME} PRIVATE
-        ${FUJI_COMMON}/src/fujibus.c
-        ${FUJI_COMMON}/src/fujibus_usb.c
-        ${FUJI_COMMON}/src/fujimail.c
-        src/fujinet.c
-        src/fujiboot.c
-        src/arcmap.c
-    )
-endif()
+target_sources(${PROJECT_NAME} PRIVATE
+    ${FUJI_COMMON}/src/fujibus.c
+    ${FUJI_COMMON}/src/fujibus_usb.c
+    ${FUJI_COMMON}/src/fujimail.c
+    src/fujinet.c
+    src/fujiboot.c
+    src/arcmap.c
+)
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${FUJI_GEN}

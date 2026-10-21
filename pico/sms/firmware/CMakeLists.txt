@@ -27,7 +27,6 @@ add_executable(${PROJECT_NAME}
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Os -Wall)
 target_compile_definitions(${PROJECT_NAME} PRIVATE FUJI_USB_PRODUCT="FujiNet Master System Cart")
-target_compile_definitions(${PROJECT_NAME} PRIVATE CONFIG_FUJINET=1)
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${FUJI_GEN}

@@ -25,16 +25,13 @@ pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/src/nes_table
 target_compile_options(${PROJECT_NAME} PRIVATE -Os -Wall)
 target_compile_definitions(${PROJECT_NAME} PRIVATE FUJI_USB_PRODUCT="FujiNet NES Cart")
 
-if(CONFIG_FUJINET)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE CONFIG_FUJINET=1)
-    target_sources(${PROJECT_NAME} PRIVATE
-        ${FUJI_COMMON}/src/fujibus.c
-        ${FUJI_COMMON}/src/fujibus_usb.c
-        ${FUJI_COMMON}/src/fujimail.c
-        src/fujinet.c
-        src/fujiboot.c
-    )
-endif()
+target_sources(${PROJECT_NAME} PRIVATE
+    ${FUJI_COMMON}/src/fujibus.c
+    ${FUJI_COMMON}/src/fujibus_usb.c
+    ${FUJI_COMMON}/src/fujimail.c
+    src/fujinet.c
+    src/fujiboot.c
+)
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
