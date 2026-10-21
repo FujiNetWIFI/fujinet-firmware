@@ -60,6 +60,7 @@ public:
 	void stream_write(int stream, const uint8_t *chunk, unsigned len);
 	uint8_t stream_close(int stream, uint32_t got, bool aborted);
 	void arm_swap();
+	void own_reg(uint8_t reg, uint8_t value);
 
 protected:
 	virtual void device_start() override ATTR_COLD;
@@ -72,7 +73,6 @@ private:
 	void access(offs_t offset);
 	void hotspot(uint16_t a);
 	void service(uint16_t a);
-	void mailbox_read(uint16_t a);
 	void swapped();
 	void worker_main();
 	void worker_stop();
@@ -92,7 +92,6 @@ private:
 	uint8_t *m_push = nullptr;
 	uint32_t m_push_len = 0;
 	std::string m_cfg_mapper;
-	uint8_t m_own_sel = 0xFF;
 
 	output_finder<> m_swaps_out;            // fujinet_swaps, for the harnesses
 	cpu_device *m_cpu = nullptr;

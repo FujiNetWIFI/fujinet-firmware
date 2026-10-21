@@ -114,7 +114,7 @@ static void p_arm(void) { }
 
 static const fujimail_port_t port = {
     p_poke, p_link, p_transact, p_bare, p_open, p_write, p_close, p_arm,
-    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL,
 };
 
 /* ---- one trace ---- */
