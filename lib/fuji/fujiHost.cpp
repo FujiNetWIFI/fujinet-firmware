@@ -59,8 +59,7 @@ void fujiHost::set_type(fujiHostType type)
     _type = type;
 }
 
-/* Sets the hostname. TODO: If we're initialized and this is a different name
- from what we had, unmount the previous host
+/* Sets the hostname; a different name drops the previous host's filesystem
  */
 void fujiHost::set_hostname(const char *hostname)
 {
@@ -247,7 +246,7 @@ fnFile * fujiHost::fnfile_open(const char *path, char *fullpath, int fullpathlen
     if( false == util_concat_paths(realpath, _prefix, path, realpathlen) )
         return nullptr;
 
-    // If we're given a destination buffer, copy th full path there
+    // If we're given a destination buffer, copy the full path there
     if( fullpath != nullptr )
     {
         if(strlcpy(fullpath, realpath, fullpathlen) != strlen(realpath))
@@ -266,7 +265,7 @@ error_is_true fujiHost::file_remove(char *fullpath)
     if (_type == HOSTTYPE_UNINITIALIZED || _fs == nullptr)
         RETURN_ERROR_AS_TRUE();
 
-    RETURN_ERROR_IF(_fs->remove(fullpath));
+    RETURN_ERROR_IF(_fs->remove(fullpath).is_error());
 }
 
 /* Returns pointer to current hostname and, if provided, fills buffer with that string
@@ -295,7 +294,7 @@ const char *fujiHost::get_basepath()
     return _fs->basepath();
 }
 
-/* Returns pointer to current hostname and, if provided, fills buffer with that string
+/* Returns pointer to current prefix and, if provided, fills buffer with that string
 */
 const char *fujiHost::get_prefix(char *buffer, size_t buffersize)
 {
@@ -305,7 +304,7 @@ const char *fujiHost::get_prefix(char *buffer, size_t buffersize)
     return _prefix;
 }
 
-/* Returns pointer to current hostname
+/* Returns pointer to current prefix
 */
 const char *fujiHost::get_prefix()
 {
@@ -579,6 +578,7 @@ int fujiHost::unmount_fs()
 *  We expect a valid devicename, currently:
 *  "SD" = local
 *  "smb://" = SMB share
+*  "nfs://" = NFS export
 *  "ftp://" = FTP server
 *  "http://" or "https://" = Web server with file/dir-like access
 *  anything else = TNFS
