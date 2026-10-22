@@ -231,7 +231,9 @@ before writing device-side code or anything non-trivial. The rules broken most o
   whichever the file already uses; return them via `RETURN_SUCCESS_AS_TRUE()`,
   `RETURN_ERROR_IF(expr)` and friends. Test the result only with `.is_success()` or `.is_error()` —
   never against `true`/`false`/`0`/`1` and never by truthiness, since the two types carry opposite
-  polarity. A flag a callback sets for its caller to read is the common way this slips in.
+  polarity. A flag a callback sets for its caller to read is the common way this slips in. Do not
+  add a comment saying what the result means, such as `// Returns FALSE on error`; the type
+  already says it, and the comment encourages treating it as a `bool`.
 - **Compare `fujiError_t` against `FUJI_ERROR::NONE`, never `FUJI_ERROR::UNSPECIFIED`.** Use
   `if (err != FUJI_ERROR::NONE)` for failure and `== FUJI_ERROR::NONE` for success. `UNSPECIFIED` is
   a placeholder that is expected to be replaced by a real list of error codes, so any test written
@@ -380,6 +382,8 @@ Write the short version instead, and leave a section out rather than filling it 
 - **One big diff.** Bundling a refactor, a fix and a rollout together; see Scope of a change.
 - **A bare `bool`** for success/failure — returned, kept in a member, or set by a callback — or
   testing a result with `if (result)` or `== true` instead of `.is_success()`/`.is_error()`.
+- **A comment that spells out a `success_is_true`/`error_is_true` result** (`// Returns true on
+  error`) instead of letting the type say it.
 - **Testing a `fujiError_t` against `FUJI_ERROR::UNSPECIFIED`** instead of `FUJI_ERROR::NONE`.
 - **Hand-rolling endian conversion** with shifts or `htole*()` instead of the `u*le_t`/`u*be_t` types.
 - **A list of `#define`s** for the values of one parameter instead of an `enum class`.

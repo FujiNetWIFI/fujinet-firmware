@@ -16,7 +16,8 @@ most damage when missed.
 - `sdkconfig.*` and `include/version.h` are listed in `.gitignore` but tracked, and builds rewrite
   `sdkconfig.<env>`. Check `git diff --stat` and never commit incidental sdkconfig churn.
 - Never use a bare `bool` for success or failure, returned or stored — use `success_is_true` /
-  `error_is_true` from `include/global_types.h` and test with `.is_success()` / `.is_error()`.
+  `error_is_true` from `include/global_types.h` and test with `.is_success()` / `.is_error()`,
+  with no comment restating what the result means.
   Compare a `fujiError_t` against `FUJI_ERROR::NONE`, never `FUJI_ERROR::UNSPECIFIED`.
 - Use the `u16le_t` / `u24be_t` family for wire data instead of bit shifts or `htole*()`.
 - Extend the shared `fujiDevice` / `NDevice` bases by overriding a virtual. A `BUILD_*` macro in a

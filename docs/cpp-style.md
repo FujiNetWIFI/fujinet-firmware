@@ -19,7 +19,9 @@ write; do not convert surrounding code to match as a side effect of an unrelated
   way this slips in.
 - **Test those results with `.is_error()` or `.is_success()`, always.** Never compare one against
   `true`, `false`, `0` or `1`, and never rely on its truthiness — the two types carry opposite
-  polarity, so `if (result)` is ambiguous at a glance and wrong half the time.
+  polarity, so `if (result)` is ambiguous at a glance and wrong half the time. Do not restate a
+  result's meaning in a comment (`// Returns FALSE on error`); the type already says it, and the
+  comment invites the `bool` reading this rule exists to stop.
 - **Compare a `fujiError_t` against `FUJI_ERROR::NONE` and nothing else.** `if (err != FUJI_ERROR::NONE)`
   is the failure test; `if (err == FUJI_ERROR::NONE)` is the success test. Never test for
   `FUJI_ERROR::UNSPECIFIED`. The enum in `include/global_types.h` currently holds only `NONE = 0` and
