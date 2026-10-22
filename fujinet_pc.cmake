@@ -313,6 +313,7 @@ set(SOURCES src/main.cpp
     lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
     lib/bus/bus.h lib/bus/bus.cpp
     lib/bus/DaisyChain.h lib/bus/DaisyChain.cpp
+    lib/bus/FujiBusPacket.h lib/bus/FujiBusPacket.cpp
     lib/device/device.h
     lib/device/disk.h
     lib/device/printer.h
@@ -510,7 +511,6 @@ if(FUJINET_TARGET STREQUAL "RS232")
     list(APPEND SOURCES
 
     lib/bus/rs232/rs232.h lib/bus/rs232/rs232.cpp
-    lib/bus/rs232/FujiBusPacket.h lib/bus/rs232/FujiBusPacket.cpp
     lib/hardware/BoIPChannel.h lib/hardware/BoIPChannel.cpp
 
     lib/media/rs232/diskType.h lib/media/rs232/diskType.cpp

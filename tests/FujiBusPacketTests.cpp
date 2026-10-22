@@ -1,7 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
-#include "bus/rs232/FujiBusPacket.h"
+#include "bus/FujiBusPacket.h"
 
 static ByteBuffer corrupt_one_byte(ByteBuffer buf)
 {

@@ -12,7 +12,7 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 | `cmake/fujicart_checksram.cmake`, `tools/checksram.py` | `fujicart_checksram()`, run after every link for `fujicart_firmware()`'s `CORE1`: core1's loop, everything it branches to and the named state must be in SRAM, with no branch through a register |
 | `tools/mkromh.py` | packs the client a cart serves at power-on into `fujiconfigrom.h`, after the size, claim and header checks the cart passes it |
 | `scripts/build-cart.lib.sh` | the shared body of every cart's `build-cart.sh`: the default, `--baked` and `--bake` modes, the build into `build/fw-<board>` |
-| `include/fujibus.h`, `src/fujibus.c` | SLIP + FujiBus codec, a plain-C client of `lib/bus/rs232/FujiBusPacket.cpp`; device and command IDs |
+| `include/fujibus.h`, `src/fujibus.c` | SLIP + FujiBus codec, a plain-C client of `lib/bus/FujiBusPacket.cpp`; device and command IDs |
 | `include/fujibus_usb.h`, `src/fujibus_usb.c` | one request/reply round trip over USB CDC, and the hook for frames the ESP32 pushes mid-transaction |
 | `include/fujimail.h`, `src/fujimail.c` | the mailbox service: hotspot and register decode, the SEQ/ACKSEQ interlock, the DBC push receiver; the cart or MAME device supplies a `fujimail_port_t` and its own `fuji_mailbox.h`; registers from `FN_REG_PLATFORM` up go to the port's `own_reg` |
 | `include/fuji_mailbox_proto.h` | the mailbox protocol: register numbers 0x00-0x13, magics, status and error values, `FN_TX_MAX` |

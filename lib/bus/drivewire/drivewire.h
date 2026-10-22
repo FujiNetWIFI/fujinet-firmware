@@ -29,7 +29,7 @@
 #include "fujiCommandID.h"
 #include "status_error_codes.h"
 #ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
-#include "../rs232/FujiBusPacket.h"
+#include "FujiBusPacket.h"
 #include <deque>
 #endif
 

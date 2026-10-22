@@ -1,5 +1,5 @@
 // See fujibus.h. Ported line-for-line against
-// lib/bus/rs232/FujiBusPacket.cpp in the main fujinet-firmware tree -- that
+// lib/bus/FujiBusPacket.cpp in the main fujinet-firmware tree -- that
 // file is the source of truth; comments below cite it by function name.
 #include "fujibus.h"
 #include <string.h>
@@ -225,7 +225,7 @@ bool fujibus_selftest(void)
     uint8_t buf[512];
 
     // GET_ADAPTERCONFIG_EXTENDED to Fuji, no params. Verified against
-    // lib/bus/rs232/FujiBusPacket.cpp by hand:
+    // lib/bus/FujiBusPacket.cpp by hand:
     //   decoded: 70 C4 06 00 3B 00  (device, cmd, len=6 LE, checksum, descr=0)
     //   on wire: C0 70 C4 06 00 3B 00 C0
     static const uint8_t want_getcfg[] = {

@@ -18,7 +18,7 @@ CDC-ACM or the Becker port (Bus-over-IP), dispatched by opcode rather than by de
   printer is handed over with `setPrinter()`. `rotateDevices()` only queues a disk swap, which
   `service()` hands to `drivewireFuji::rotate_disks()` between requests.
 - Under `PINMAP_FUJIVERSAL_DRIVEWIRE` the bus also exchanges `FujiBusPacket` frames from
-  [lib/bus/rs232/](../rs232/) with the RP2350 cartridge over USB.
+  [lib/bus/](../FujiBusPacket.h) with the RP2350 cartridge over USB.
 
 ## Build
 ESP: globbed by `src/CMakeLists.txt`, compiled only under `BUILD_COCO`; `FUJINET_OVER_USB` is
