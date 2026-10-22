@@ -2,6 +2,7 @@
 #define _TNFSLIB_MOUNTINFO_H
 
 #include <cstdint>
+#include <memory>
 #include <mutex>
 
 #include "fnDNS.h"
@@ -38,6 +39,50 @@
 #define TNFS_UDP_SIMULATE_RECV_LOSS_PROB 0.1
 #define TNFS_UDP_SIMULATE_SEND_TWICE_PROB 0.05
 #define TNFS_UDP_SIMULATE_RECV_TWICE_PROB 0.05
+
+// Whether a server sends a reply field that the protocol leaves optional.
+enum class tnfsFieldUse : uint8_t
+{
+    UNKNOWN,
+    ABSENT,
+    PRESENT,
+};
+
+// Which optional reply fields a server sends over TCP. TNFSD sends none (fixed), paumaed all
+// (extended). ABSENT is trusted only once a fence confirms it (tcp_format_verified).
+struct tnfsReplyFormat
+{
+    tnfsFieldUse stat_strings = tnfsFieldUse::UNKNOWN; // uid and gid strings after a STAT
+    tnfsFieldUse read_count = tnfsFieldUse::UNKNOWN;   // 00 00 after a failed READ
+    tnfsFieldUse write_count = tnfsFieldUse::UNKNOWN;  // 00 00 after a failed WRITE
+
+    static constexpr tnfsReplyFormat fixed()
+    { return {tnfsFieldUse::ABSENT, tnfsFieldUse::ABSENT, tnfsFieldUse::ABSENT}; }
+    static constexpr tnfsReplyFormat extended()
+    { return {tnfsFieldUse::PRESENT, tnfsFieldUse::PRESENT, tnfsFieldUse::PRESENT}; }
+};
+
+// What the TCP transport does when a reply may be followed by a field whose use is UNKNOWN.
+enum class tnfsFormatPolicy : uint8_t
+{
+    IDENTIFY, // settle it with a fence request (settle()), else as RESET
+    RESET,    // reconnect before the next request, so the field cannot reach its answer
+#ifdef UNIT_TESTS
+    INFER,    // tests only: decide from the next reply, which a delayed field can fool
+#endif
+};
+
+class tnfsReplyAssembler;
+
+// Frees what tnfs_new_reply_assembler() made.
+struct tnfsReplyAssemblerDeleter
+{
+    void operator()(tnfsReplyAssembler *replies) const;
+};
+using tnfsReplyAssemblerPtr = std::unique_ptr<tnfsReplyAssembler, tnfsReplyAssemblerDeleter>;
+
+// An empty tnfsReplyAssembler, in PSRAM when there is any; nullptr when out of memory.
+tnfsReplyAssemblerPtr tnfs_new_reply_assembler();
 
 // Some things we need to keep track of for every file we open
 struct tnfsFileHandleInfo
@@ -80,7 +125,7 @@ private:
 public:
     ~tnfsMountInfo();
 
-    tnfsMountInfo(){};
+    tnfsMountInfo();
     tnfsMountInfo(const char *host_name, uint16_t host_port = TNFS_DEFAULT_PORT);
     tnfsMountInfo(in_addr_t host_address, uint16_t host_port = TNFS_DEFAULT_PORT);
 
@@ -100,6 +145,13 @@ public:
 
     uint8_t protocol = TNFS_PROTOCOL_UNKNOWN;
     fnTcpClient tcp_client;
+    // Replies read from tcp_client and not yet taken; allocated on connect, freed on drop.
+    tnfsReplyAssemblerPtr tcp_replies;
+    // Learned per field; kept across reconnects, forgotten by tnfs_umount().
+    tnfsReplyFormat tcp_reply_format;
+    tnfsFormatPolicy tcp_format_policy = tnfsFormatPolicy::IDENTIFY;
+    uint8_t tcp_format_verified = 0; // bit per field (tnfsOptionalField - 1): ABSENT confirmed by a fence
+    bool tcp_fence_failed = false; // a fence went unanswered or was not understood: RESET from then on
 
     // These char[] sizes are abitrary...
     char hostname[64] = { '\0' };
