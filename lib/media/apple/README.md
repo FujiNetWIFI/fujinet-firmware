@@ -6,7 +6,7 @@ Apple II disk image formats for `BUILD_APPLE`.
 | File | Defines |
 |---|---|
 | `mediaType.h`, `mediaType.cpp` | this platform's `MediaType` base: block `read()` and `write()`, `write_sector()`, `discover_mediatype()` and `discover_dsk_mediatype()` |
-| `mediaTypePO.h`, `mediaTypePO.cpp` | `MediaTypePO`, ProDOS-order block images (also HDV and 2MG) |
+| `mediaTypePO.h`, `mediaTypePO.cpp` | `MediaTypePO`, ProDOS-order block images (also HDV and 2MG), and the 2MG header NEW DISK writes |
 | `mediaTypeDO.h`, `mediaTypeDO.cpp` | `MediaTypeDO`, DOS-order images |
 | `mediaTypeWOZ.h`, `mediaTypeWOZ.cpp` | `MediaTypeWOZ`, bit-level floppy images served to the Disk II emulation |
 | `mediaTypeDSK.h`, `mediaTypeDSK.cpp` | `MediaTypeDSK : MediaTypeWOZ`, a sector DSK presented as WOZ tracks |
@@ -19,4 +19,4 @@ Apple II disk image formats for `BUILD_APPLE`.
 
 ## Build
 ESP: globbed by `src/CMakeLists.txt`, compiled only under `BUILD_APPLE`. PC: `FUJINET_TARGET=APPLE`
-lists every file.
+lists every file; `tests/MediaTypePOTests.cpp` covers the 2MG header.

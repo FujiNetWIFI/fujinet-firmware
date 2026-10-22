@@ -15,7 +15,7 @@ private:
     error_is_true prodos_write_sos_block(fnFile *f);
     error_is_true prodos_write_directory_sectors(fnFile *f, uint16_t numBlocks, const char *label = nullptr);
     error_is_true prodos_write_bitmap(fnFile *f, uint16_t numBlocks);
-    error_is_true prodos_write_data_blocks(fnFile *f, uint16_t numBlocks);
+    error_is_true prodos_write_data_blocks(fnFile *f, uint16_t numBlocks, long volume_start);
 
 protected:
     iwm_device_info_block_t create_dib_reply_packet() override;
@@ -56,9 +56,7 @@ public:
     void set_disk_number(char c) { disk_num = c; }
     char get_disk_number() { return disk_num; };
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
-    // void init();
     ~iwmDisk();
-    // virtual void startup_hack();
 };
 
 #endif /* DISK_H */

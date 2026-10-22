@@ -6,6 +6,25 @@
 #include "utils.h"
 #include "../../include/debug.h"
 
+struct TwoMGHeader
+{
+    char    id[4];
+    char    creator[4];
+    u16le_t header_size;
+    u16le_t version;
+    u32le_t format;
+    u32le_t flags;
+    u32le_t blocks;
+    u32le_t data_offset;
+    u32le_t data_len;
+    u32le_t comment_offset;
+    u32le_t comment_len;
+    u32le_t creator_offset;
+    u32le_t creator_len;
+    uint8_t reserved[16];
+} __attribute__((packed));
+static_assert(sizeof(TwoMGHeader) == 64, "2MG header is 64 bytes");
+
 error_is_true MediaTypePO::read(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
 {
     size_t readsize = *count;
@@ -23,7 +42,7 @@ if (blockNum == 0 || blockNum != last_block_num + 1) // example optimization, on
   else
     last_block_num = blockNum;
 
-  readsize = fnio::fread((unsigned char *)buffer, 1, readsize, _media_fileh); // Reading block from SD Card
+  readsize = fnio::fread((unsigned char *)buffer, 1, readsize, _media_fileh);
   RETURN_ERROR_IF(readsize != *count);
 }
 
@@ -87,7 +106,7 @@ mediatype_t MediaTypePO::mount(fnFile *f, uint32_t disksize)
     if (hdr[0] == '2' && hdr[1] == 'I' && hdr[2] == 'M' && hdr[3] == 'G')
     {
         // check for 'high score enabled'
-        // expected format at offset 0x48 of 2mg hdr: H,I,<blk_lb_lo>,<blk_lb_hi>,<blk_ub_lo>,<blk_ub_hi>
+        // expected format at offset 48 (0x30) of 2mg hdr: H,I,<blk_lb_lo>,<blk_lb_hi>,<blk_ub_lo>,<blk_ub_hi>
         // where blk is block range containing high score table, lb = lower bound, ub = upper bound
         // if upper bound is undefined (0x0000), then lower bound defines range
         if (hdr[48] == 'H' && hdr[49] == 'I')
@@ -112,10 +131,19 @@ mediatype_t MediaTypePO::mount(fnFile *f, uint32_t disksize)
   return MEDIATYPE_PO;
 }
 
+success_is_true MediaTypePO::write_2mg_header(fnFile *f, uint16_t numBlocks)
+{
+    TwoMGHeader h = {};
 
-// static success_is_true create(FILE *f, uint32_t numBlock)
-// {
-//     RETURN_ERROR_AS_FALSE();
-// }
+    memcpy(h.id, "2IMG", sizeof(h.id));
+    memcpy(h.creator, "FUJI", sizeof(h.creator));
+    h.header_size = sizeof(h);
+    h.version = 1;
+    h.format = 1; // ProDOS order
+    h.blocks = numBlocks;
+    h.data_offset = sizeof(h);
+    h.data_len = (uint32_t)numBlocks * 512;
+    RETURN_SUCCESS_IF(fnio::fwrite(&h, sizeof(h), 1, f) == 1);
+}
 
 #endif // BUILD_APPLE

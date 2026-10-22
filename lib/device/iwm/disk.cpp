@@ -6,8 +6,6 @@
 #include "disk.h"
 
 #include "fnSystem.h"
-// #include "fnFsTNFS.h"
-// #include "fnFsSD.h"
 #include "fsFlash.h"
 #include "iwm/iwmFuji.h"
 
@@ -169,7 +167,6 @@ void iwmDisk::iwm_readblock(const iwm_decoded_cmd_t &cmd)
     return; // todo - true or false?
   }
 
-  // send_data_packet();
   Debug_printf("\r\nsending block packet ...");
   SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
   SYSTEM_BUS.transaction_send(buffer);
@@ -233,7 +230,6 @@ void iwmDisk::iwm_format(const iwm_decoded_cmd_t &cmd)
 iwmDisk::iwmDisk()
 {
   Debug_printf("iwmDisk::iwmDisk()\n");
-  // init();
 }
 
 mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
@@ -574,13 +570,14 @@ error_is_true iwmDisk::prodos_write_bitmap(fnFile *f, uint16_t numBlocks)
  * @brief write data blocks for a ProDOS volume
  * @param f file to write to
  * @param numBlocks total number of blocks on the volume
+ * @param volume_start file offset of block 0, past any 2MG header
  * @verbose Uses a sparse write.
  * @return true if error, false if success
  */
-error_is_true iwmDisk::prodos_write_data_blocks(fnFile *f, uint16_t numBlocks)
+error_is_true iwmDisk::prodos_write_data_blocks(fnFile *f, uint16_t numBlocks, long volume_start)
 {
   unsigned char buf[PRODOS_BLOCK_SIZE];
-  unsigned long offset = (numBlocks - 1) * PRODOS_BLOCK_SIZE;
+  unsigned long offset = volume_start + (numBlocks - 1) * PRODOS_BLOCK_SIZE;
   
   memset(&buf,0,sizeof(buf));
 
@@ -610,8 +607,7 @@ static const char *prodos_generate_temp_name()
 }
 
 /**
- * Used for writing ProDOS images which exist in multiples of
- * 512 byte blocks.
+ * Writes a blank DOS 3.3 image, or a ProDOS one of numBlocks 512-byte blocks.
  */
 error_is_true iwmDisk::write_blank(fnFile *f, const NewDiskRequest &req)
 {
@@ -657,33 +653,12 @@ error_is_true iwmDisk::write_blank(fnFile *f, const NewDiskRequest &req)
 
   if (blank_header_type == 1) // 2MG
   {
-    // Quickly construct and write 2MG header
-
-    struct _2mg_header
-    {
-      unsigned char id[4] = {'2','I','M','G'};
-      unsigned char creator[4] = {'F','U','J','I'};
-      unsigned short header_size = 0x40; // 64 bytes
-      unsigned short version = 0x01;
-      unsigned long format = 0x01; // Prodos order
-      unsigned long flags = 0x00;
-      unsigned long numBlocks = 0;
-      unsigned long offset = 0x40UL; // Offset to disk data
-      unsigned long len = (numBlocks * 512);
-      unsigned long commentOffset = 0UL; // no comment.
-      unsigned long commentLen = 0UL; // no comment.
-      unsigned long creatorDataOffset = 0UL; // No creator data
-      unsigned long creatorDataLen = 0UL; // No creator data
-      unsigned char reserved[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-    } header;
-
     Debug_printf("Writing 2MG Header\n");
-
-    header.numBlocks = numBlocks;
-    
-    fnio::fwrite(&header,sizeof(header),1,f);
+    if (MediaTypePO::write_2mg_header(f, numBlocks).is_error())
+      RETURN_ERROR_AS_TRUE();
   }
 
+  long volume_start = fnio::ftell(f); // past any 2MG header
   if (prodos_write_boot_block(f))
     RETURN_ERROR_AS_TRUE();
   if (prodos_write_sos_block(f))
@@ -692,7 +667,7 @@ error_is_true iwmDisk::write_blank(fnFile *f, const NewDiskRequest &req)
     RETURN_ERROR_AS_TRUE();
   if (prodos_write_bitmap(f, numBlocks))
     RETURN_ERROR_AS_TRUE();
-  if (prodos_write_data_blocks(f, numBlocks))
+  if (prodos_write_data_blocks(f, numBlocks, volume_start))
     RETURN_ERROR_AS_TRUE();
 
   Debug_printf("Creation of new ProDOS disk successful.\n");
@@ -702,12 +677,6 @@ error_is_true iwmDisk::write_blank(fnFile *f, const NewDiskRequest &req)
 
 // End of ProDOS image creation functions.
 
-/* void iwmDisk::startup_hack()
-{
-  // Debug_printf("\r\n Disk startup hack");
-  // init();
-}
- */
 #endif /* BUILD_APPLE */
 
 /*
