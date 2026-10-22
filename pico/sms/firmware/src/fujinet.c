@@ -7,13 +7,12 @@
  * NOT YET RUN ON HARDWARE -- there is no board yet.
  */
 
-#include <string.h>
-
 #include "pico/stdlib.h"
 #include "pico/bootrom.h"
 
 #include "fujinet.h"
 #include "fujimail.h"
+#include "fuji_cfg.h"
 #include "fujibus_usb.h"
 #include "fuji_cart.h"
 #include "fuji_store.h"
@@ -21,38 +20,14 @@
 #include "smsmap.h"
 
 /* The .cfg sibling arrives first; its `mapper=` applies to the next image. */
-static char cfg_text[256];
-static unsigned cfg_len;
-static char cfg_mapper[16];
-
-static void parse_cfg(void)
-{
-    const char *p = cfg_text;
-
-    cfg_mapper[0] = '\0';
-    while (p && *p) {
-        while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')
-            p++;
-        if (strncmp(p, "mapper=", 7) == 0) {
-            unsigned n = 0;
-
-            p += 7;
-            while (*p && *p != '\r' && *p != '\n' && *p != ' ' && n < sizeof cfg_mapper - 1)
-                cfg_mapper[n++] = *p++;
-            cfg_mapper[n] = '\0';
-            return;
-        }
-        p = strchr(p, '\n');
-    }
-}
+static fuji_cfg_t cfg;
 
 static uint8_t port_stream_open(int stream, uint32_t size)
 {
     uint8_t err;
 
     if (stream != FN_STREAM_ROM) {
-        cfg_len = 0;
-        cfg_text[0] = '\0';
+        fuji_cfg_open(&cfg);
         return 0;
     }
     err = smsmap_gate(size);
@@ -68,11 +43,7 @@ static void port_stream_write(int stream, const uint8_t *chunk, unsigned len)
         fuji_store_write(chunk, len);
         return;
     }
-    if (cfg_len + len >= sizeof cfg_text)
-        len = sizeof cfg_text - 1 - cfg_len;
-    memcpy(cfg_text + cfg_len, chunk, len);
-    cfg_len += len;
-    cfg_text[cfg_len] = '\0';
+    fuji_cfg_write(&cfg, chunk, len);
 }
 
 static uint8_t port_stream_close(int stream, uint32_t got, bool aborted)
@@ -82,17 +53,16 @@ static uint8_t port_stream_close(int stream, uint32_t got, bool aborted)
     int err;
 
     if (stream != FN_STREAM_ROM) {
-        if (!aborted)
-            parse_cfg();
+        fuji_cfg_close(&cfg, aborted);
         return 0;
     }
     base = fuji_store_close(aborted);
     if (aborted || base == NULL) {
-        cfg_mapper[0] = '\0';
+        fuji_cfg_clear(&cfg);
         return 0;
     }
-    err = smsmap_plan(base, got, cfg_mapper[0] ? cfg_mapper : NULL, &plan);
-    cfg_mapper[0] = '\0';
+    err = smsmap_plan(base, got, fuji_cfg_mapper(&cfg), &plan);
+    fuji_cfg_clear(&cfg);
     if (err == SMSMAP_ETOOBIG)
         return FN_BOOT_ERR_TOOBIG;
     if (err != SMSMAP_OK)

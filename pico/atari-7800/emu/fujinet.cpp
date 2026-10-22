@@ -592,7 +592,7 @@ uint8_t a78_fujinet_device::stream_open(int stream, uint32_t size)
 {
 	if (stream != FN_STREAM_ROM)
 	{
-		m_cfg.clear();
+		fuji_cfg_open(&m_cfg);
 		return 0;
 	}
 	uint8_t err = a78map_gate(size);
@@ -615,7 +615,7 @@ void a78_fujinet_device::stream_write(int stream, const uint8_t *chunk, unsigned
 {
 	if (stream != FN_STREAM_ROM)
 	{
-		m_cfg.insert(m_cfg.end(), chunk, chunk + len);
+		fuji_cfg_write(&m_cfg, chunk, len);
 		return;
 	}
 	if (m_open_tier >= 0 && m_store[m_open_tier].size() + len <= STORE_MAX)
@@ -646,24 +646,17 @@ uint8_t a78_fujinet_device::stream_close(int stream, uint32_t got, bool aborted)
 
 	if (stream != FN_STREAM_ROM)
 	{
-		m_cfg_mapper.clear();
-		std::string text(m_cfg.begin(), m_cfg.end());
-		size_t at = text.find("mapper=");
-		if (!aborted && at != std::string::npos)
-		{
-			size_t end = text.find_first_of(" \r\n", at + 7);
-			m_cfg_mapper = text.substr(at + 7, end == std::string::npos ? std::string::npos : end - at - 7);
-		}
+		fuji_cfg_close(&m_cfg, aborted);
 		return 0;
 	}
 	m_open_tier = -1;
 	if (aborted || tier < 0 || m_store[tier].empty())
 	{
-		m_cfg_mapper.clear();
+		fuji_cfg_clear(&m_cfg);
 		return 0;
 	}
-	int err = a78map_plan(m_store[tier].data(), got, m_cfg_mapper.empty() ? nullptr : m_cfg_mapper.c_str(), &plan);
-	m_cfg_mapper.clear();
+	int err = a78map_plan(m_store[tier].data(), got, fuji_cfg_mapper(&m_cfg), &plan);
+	fuji_cfg_clear(&m_cfg);
 	if (err == A78MAP_ETOOBIG)
 		return FN_BOOT_ERR_TOOBIG;
 	if (err != A78MAP_OK)

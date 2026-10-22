@@ -9,6 +9,7 @@
 #include "sms_cart.h"
 #include "smsmap.h"
 #include "fuji_load.h"
+#include "fuji_cfg.h"
 
 #include <vector>
 
@@ -67,9 +68,8 @@ private:
 	std::vector<uint8_t> m_resident;          // 32K served RESIDENT
 	std::vector<uint8_t> m_file;              // the -cart image as on disk
 	std::vector<uint8_t> m_store[2];          // the cart's RAM and flash tiers
-	std::vector<uint8_t> m_cfg;
+	fuji_cfg_t m_cfg{};
 	int m_open_tier = -1;
-	std::string m_cfg_mapper;
 
 	const uint8_t *m_ptab_res[SMS_PAGES]{};
 	const uint8_t *m_ptab_app[SMS_PAGES]{};
