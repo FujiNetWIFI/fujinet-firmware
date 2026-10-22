@@ -48,6 +48,19 @@ public:
     success_is_true fujicore_mount_disk_image_success(uint8_t deviceSlot,
                                                       disk_access_flags_t access_mode) override;
 
+#ifdef COCO_HS_UART
+    // Pushes any newly-mounted ROM image to the One ROM companion before
+    // replying, so the CoCo - which these two calls leave blocked waiting for
+    // that reply - never asks for a cartridge the push hasn't finished
+    // delivering yet. Mounts triggered outside this command path (the front
+    // panel button, the web config app) go through fujicore_* directly and
+    // don't push - see disk.cpp's push_rom_image() for why that's unsafe for
+    // this board, unlike fujiversal.
+    success_is_true fujicmd_mount_disk_image_success(uint8_t deviceSlot,
+                                                     disk_access_flags_t access_mode) override;
+    success_is_true fujicmd_mount_all_success() override;
+#endif
+
     // Called by the bus between transfers.
     void rotate_disks();
 };
