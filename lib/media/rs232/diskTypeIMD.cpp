@@ -268,7 +268,6 @@ void MediaTypeIMD::status(uint8_t statusbuff[4])
     statusbuff[1] = ~_disk_controller_status; // Negate the controller status
 }
 
-// Returns FALSE on error
 success_is_true MediaTypeIMD::create(fnFile *f, uint16_t sectorSize, uint32_t numSectors)
 {
     const uint8_t cyls = 77, spt = 26;
