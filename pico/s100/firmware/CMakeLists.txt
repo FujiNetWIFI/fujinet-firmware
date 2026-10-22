@@ -7,47 +7,20 @@ project(fujis100 C CXX ASM)
 
 pico_sdk_init()
 
-# FujiBus codec and the USB device, shared with the carts.
-set(FUJI_COMMON ${CMAKE_CURRENT_LIST_DIR}/../../common)
-
-add_executable(${PROJECT_NAME}
-    src/main.c
-    src/s100_regs.c
-    src/s100_fdc.c
-    src/s100_2sio.c
-    src/s100_link.c
-    ${FUJI_COMMON}/usb/usb_descriptors.c
-    ${FUJI_COMMON}/src/fujibus.c
-)
-
-pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/src/s100_bus.pio)
-
-target_compile_options(${PROJECT_NAME} PRIVATE -O2 -Wall)
-target_compile_definitions(${PROJECT_NAME} PRIVATE FUJI_USB_PRODUCT="FujiNet S-100")
-
-target_include_directories(${PROJECT_NAME} PRIVATE
-    ${FUJI_GEN}
-    ${CMAKE_CURRENT_LIST_DIR}
-    ${CMAKE_CURRENT_LIST_DIR}/include
-    ${CMAKE_CURRENT_LIST_DIR}/baked
-    ${FUJI_COMMON}/include
-    ${FUJI_COMMON}/usb
-)
-
-target_link_libraries(${PROJECT_NAME} PRIVATE
-    pico_stdlib
-    pico_multicore
-    hardware_pio
-    tinyusb_device
-)
-
 # Everything runs from SRAM, so core1 never waits on a flash cache miss.
-pico_set_binary_type(${PROJECT_NAME} copy_to_ram)
-
-pico_enable_stdio_uart(${PROJECT_NAME} 0)
-pico_enable_stdio_usb(${PROJECT_NAME} 0)
-
-pico_add_extra_outputs(${PROJECT_NAME})
-
-include(${FUJI_COMMON}/cmake/fujicart_checksram.cmake)
-fujicart_checksram(${PROJECT_NAME} s100_core1_main card)
+fujicart_firmware(${PROJECT_NAME}
+    USB_PRODUCT "FujiNet S-100"
+    SOURCES
+        src/main.c
+        src/s100_regs.c
+        src/s100_fdc.c
+        src/s100_2sio.c
+        src/s100_link.c
+        ${FUJI_COMMON}/usb/usb_descriptors.c
+        ${FUJI_COMMON}/src/fujibus.c
+    LIBRARIES hardware_pio
+    PIO src/s100_bus.pio
+    COPY_TO_RAM
+    OPTIMIZE -O2
+    CORE1 s100_core1_main card
+)

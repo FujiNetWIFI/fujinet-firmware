@@ -7,48 +7,20 @@ project(fujicade C CXX ASM)
 
 pico_sdk_init()
 
-# FujiBus and the USB device, shared with the other carts.
-set(FUJI_COMMON ${CMAKE_CURRENT_LIST_DIR}/../../common)
-
-add_executable(${PROJECT_NAME}
-    src/main.c
-    src/astrocade_cart.c
-    src/fuji_cart.c
-    ${FUJI_COMMON}/usb/usb_descriptors.c
+fujicart_firmware(${PROJECT_NAME}
+    USB_PRODUCT "FujiNet Astrocade Cart"
+    SOURCES
+        src/main.c
+        src/astrocade_cart.c
+        src/fuji_cart.c
+        ${FUJI_COMMON}/usb/usb_descriptors.c
+        ${FUJI_COMMON}/src/fujibus.c
+        ${FUJI_COMMON}/src/fujibus_usb.c
+        ${FUJI_COMMON}/src/fujimail.c
+        src/fujinet.c
+        src/fujiboot.c
+        src/fuji_store.c
+        src/astromap.c
+    LIBRARIES hardware_vreg hardware_flash hardware_sync
+    CORE1 astrocade_core1_main
 )
-
-target_compile_options(${PROJECT_NAME} PRIVATE -Os -Wall)
-target_compile_definitions(${PROJECT_NAME} PRIVATE FUJI_USB_PRODUCT="FujiNet Astrocade Cart")
-
-target_sources(${PROJECT_NAME} PRIVATE
-    ${FUJI_COMMON}/src/fujibus.c
-    ${FUJI_COMMON}/src/fujibus_usb.c
-    ${FUJI_COMMON}/src/fujimail.c
-    src/fujinet.c
-    src/fujiboot.c
-    src/fuji_store.c
-    src/astromap.c
-)
-
-target_include_directories(${PROJECT_NAME} PRIVATE
-    ${FUJI_GEN}
-    ${CMAKE_CURRENT_LIST_DIR}
-    ${CMAKE_CURRENT_LIST_DIR}/include
-    ${CMAKE_CURRENT_LIST_DIR}/baked
-    ${FUJI_COMMON}/include
-    ${FUJI_COMMON}/usb
-)
-
-target_link_libraries(${PROJECT_NAME} PRIVATE
-    pico_stdlib
-    pico_multicore
-    hardware_vreg
-    hardware_flash
-    hardware_sync
-    tinyusb_device
-)
-
-pico_add_extra_outputs(${PROJECT_NAME})
-
-include(${FUJI_COMMON}/cmake/fujicart_checksram.cmake)
-fujicart_checksram(${PROJECT_NAME} astrocade_core1_main)
