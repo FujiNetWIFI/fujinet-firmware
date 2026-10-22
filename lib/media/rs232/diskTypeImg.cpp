@@ -7,13 +7,10 @@
 
 #include "../../include/debug.h"
 
-#include "disk.h"
-#include "fnSystem.h"
-
 #include "utils.h"
 
 
-// Returns byte offset of given sector number (1-based)
+// Returns byte offset of given sector number
 uint32_t MediaTypeImg::_sector_to_offset(uint32_t sectorNum)
 {
     return (uint32_t )sectorNum * 512;
@@ -77,7 +74,7 @@ error_is_true MediaTypeImg::write(uint32_t sectornum, bool verify)
 
     _disk_last_sector = INVALID_SECTOR_VALUE;
 
-    // Perform a seek if we're writing to the sector after the last one
+    // Perform a seek if we're not writing the sector after the last one we wrote
     int e;
     if (sectornum != _disk_last_sector + 1)
     {
@@ -120,12 +117,6 @@ void MediaTypeImg::status(uint8_t statusbuff[4])
     statusbuff[1] = ~_disk_controller_status; // Negate the controller status
 }
 
-/*
-    From Altirra manual:
-    The format command formats a disk, writing 40 tracks and then verifying all sectors.
-    All sectors are filleded with the data byte $00. On completion, the drive returns
-    a sector-sized buffer containing a list of 16-bit bad sector numbers terminated by $FFFF.
-*/
 // Returns TRUE if an error condition occurred
 error_is_true MediaTypeImg::format(uint32_t *responsesize)
 {
@@ -141,19 +132,6 @@ error_is_true MediaTypeImg::format(uint32_t *responsesize)
     RETURN_SUCCESS_AS_FALSE();
 }
 
-/*
- Mount ATR disk
- Header layout:
- 00 lobyte 0x96
- 01 hibyte 0x02
- 02 lobyte paragraphs (16-byte blocks) on disk
- 03 hibyte
- 04 lobyte sector size (0x80, 0x100, etc.)
- 05 hibyte
- 06   byte paragraphs on disk extension (24-bits total)
-
- 07-0F have two possible interpretations but are no critical for our use
-*/
 mediatype_t MediaTypeImg::mount(fnFile *f, uint32_t disksize)
 {
     Debug_print("IMG MOUNT\r\n");
@@ -168,6 +146,20 @@ mediatype_t MediaTypeImg::mount(fnFile *f, uint32_t disksize)
 // Returns FALSE on error
 success_is_true MediaTypeImg::create(fnFile *f, uint16_t sectorSize, uint32_t numSectors)
 {
-    RETURN_ERROR_AS_FALSE();
+    uint8_t blank[512] = {0};
+    uint64_t remaining = (uint64_t) sectorSize * numSectors;
+
+    Debug_print("IMG CREATE\r\n");
+    if (remaining == 0)
+        RETURN_ERROR_AS_FALSE();
+
+    while (remaining)
+    {
+        size_t n = remaining < sizeof(blank) ? remaining : sizeof(blank);
+        if (fnio::fwrite(blank, 1, n, f) != n)
+            RETURN_ERROR_AS_FALSE();
+        remaining -= n;
+    }
+    RETURN_SUCCESS_AS_TRUE();
 }
-#endif /* BUILD_ATARI */
+#endif /* BUILD_RS232 */
