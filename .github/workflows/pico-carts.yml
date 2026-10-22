@@ -459,6 +459,12 @@ jobs:
           ./build-cart.sh --baked
           make -C firmware/host_test
 
+      - name: Template cartridge (fujitemplate)
+        working-directory: pico/template
+        env:
+          PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
+        run: ./build-cart.sh --baked
+
       - name: Arcadia cartridge (fujiarcadia)
         working-directory: pico/arcadia
         env:

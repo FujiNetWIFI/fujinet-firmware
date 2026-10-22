@@ -19,7 +19,7 @@ import sys
 import tarfile
 
 CARTS = ["arcadia", "astrocade", "channelf", "nes", "sms", "studio2",
-         "atari-5200", "atari-7800", "s100", "o2"]
+         "atari-5200", "atari-7800", "s100", "o2", "template"]
 
 ROOT = subprocess.run(["git", "rev-parse", "--show-toplevel"], check=True,
                       capture_output=True, text=True).stdout.strip()

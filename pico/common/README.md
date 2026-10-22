@@ -47,8 +47,8 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
   PicoPAC's board setup and takes only `cmake/pico_sdk_import.cmake`; intellivision, coco and mac
   have their own.
 - [arcadia/](../arcadia/), [astrocade/](../astrocade/), [channelf/](../channelf/),
-  [nes/](../nes/), [sms/](../sms/), [studio2/](../studio2/), [atari-5200/](../atari-5200/) and
-  [atari-7800/](../atari-7800/) list all of it among their `fujicart_firmware()` sources, through
+  [nes/](../nes/), [sms/](../sms/), [studio2/](../studio2/), [atari-5200/](../atari-5200/),
+  [atari-7800/](../atari-7800/) and [template/](../template/) list all of it among their `fujicart_firmware()` sources, through
   `FUJI_COMMON`, and each names its `USB_PRODUCT` there. [s100/](../s100/) takes the codec and
   the USB device but has its own link in place of `fujibus_usb.c`.
 - [o2/](../o2/) takes only the codec and transport; its USB device stays in `o2/firmware` because
@@ -57,8 +57,8 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 - Every cart but nes and o2 starts fujimail through `src/fuji_port.c`, and so builds
   `src/fuji_cfg.c` too. nes fills in a `fujimail_port_t` itself, as the MAME devices do with
   `emu/fujitcp.c` as the link.
-- arcadia, astrocade, channelf, studio2, atari-5200, sms and atari-7800 set their clock in the
-  board header and start with `fuji_clock_init()`. None defines TinyUSB's mount or CDC
+- arcadia, astrocade, channelf, studio2, atari-5200, sms, atari-7800 and template set their clock
+  in the board header and start with `fuji_clock_init()`. None defines TinyUSB's mount or CDC
   callbacks; the stack's weak defaults do.
 - sms, studio2, atari-5200 and atari-7800 take an image's CRC with `src/fuji_crc.c`, and all but
   studio2 look it up in their `*map_db.c`; their `emu/apply.sh` copy it into MAME too. sms
