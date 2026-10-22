@@ -4,6 +4,7 @@
 
 #include "a78map.h"
 #include "a78map_db.h"
+#include "fuji_crc.h"
 #include "fuji_mailbox.h"
 
 static const char *const kind_names[A78MAP_KINDS] = {
@@ -27,34 +28,10 @@ const char *a78map_kind_name(uint8_t kind)
     return kind < A78MAP_KINDS ? kind_names[kind] : "unsupported";
 }
 
-uint32_t a78map_crc32(uint32_t crc, const uint8_t *p, uint32_t n)
-{
-    crc = ~crc;
-    while (n--) {
-        unsigned k;
-
-        crc ^= *p++;
-        for (k = 0; k < 8; k++)
-            crc = (crc >> 1) ^ (0xEDB88320u & (0u - (crc & 1u)));
-    }
-    return ~crc;
-}
-
 static const a78map_db_t *db_lookup(uint32_t crc)
 {
-    unsigned lo = 0, hi = a78map_db_count;
-
-    while (lo < hi) {
-        unsigned mid = (lo + hi) / 2;
-
-        if (a78map_db[mid].crc == crc)
-            return &a78map_db[mid];
-        if (a78map_db[mid].crc < crc)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
+    return (const a78map_db_t *)fuji_crc_find(a78map_db, a78map_db_count,
+                                              sizeof a78map_db[0], crc);
 }
 
 uint8_t a78map_gate(uint32_t size)
@@ -214,7 +191,7 @@ int a78map_plan(const uint8_t *img, uint32_t len, const char *cfg_mapper,
         return A78MAP_EEMPTY;
     if (p.size > A78MAP_IMAGE_MAX)
         return A78MAP_ETOOBIG;
-    p.crc = a78map_crc32(0, img + p.offset, p.size);
+    p.crc = fuji_crc32(0, img + p.offset, p.size);
 
     row = db_lookup(p.crc);
     if (row) {

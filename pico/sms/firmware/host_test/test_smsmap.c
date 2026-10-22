@@ -46,6 +46,7 @@
 
 #include "smsmap.h"
 #include "smsmap_db.h"
+#include "fuji_crc.h"
 #include "fuji_mailbox.h"
 
 /* ---------------- MAME, transcribed ---------------- */
@@ -484,10 +485,10 @@ static void forge_crc(uint8_t *img, uint32_t len, uint32_t want)
     int r = 0;
 
     memset(tail, 0, 4);
-    base = smsmap_crc32(0, img, len);
+    base = fuji_crc32(0, img, len);
     for (int b = 0; b < 32; b++) {
         tail[b / 8] = (uint8_t)(1 << (b % 8));
-        col[b] = smsmap_crc32(0, img, len) ^ base;
+        col[b] = fuji_crc32(0, img, len) ^ base;
         tail[b / 8] = 0;
     }
     rhs = want ^ base;
@@ -516,7 +517,7 @@ static void forge_crc(uint8_t *img, uint32_t len, uint32_t want)
     for (int b = 0; b < 32; b++)
         if (pick >> b & 1)
             tail[b / 8] |= (uint8_t)(1 << (b % 8));
-    assert(smsmap_crc32(0, img, len) == want);
+    assert(fuji_crc32(0, img, len) == want);
 }
 
 /* A known image takes its software-list board, even against the heuristic. */

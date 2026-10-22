@@ -4,8 +4,9 @@
 # Usage: ./apply.sh /path/to/mame
 #
 # Copies the device model (fujinet.cpp/h, common's fujitcp.c/h) and the cartridge
-# firmware's own sources (fujimail, fuji_cfg, fujibus, smsmap, fuji_load, the bus
-# decode, the baked CONFIG and loader page) into src/devices/bus/sega8/, and edits:
+# firmware's own sources (fujimail, fuji_cfg, fuji_crc, fujibus, smsmap, fuji_load,
+# the bus decode, the baked CONFIG and loader page) into src/devices/bus/sega8/, and
+# edits:
 #
 #   scripts/src/bus.lua              the sega8 file list
 #   src/devices/bus/sega8/sega8_slot.cpp  a selectable "fujinet" slot option
@@ -45,12 +46,13 @@ for f in smsmap smsmap_db fuji_load; do
 done
 cp "$COMMON/src/fujibus.c" "$BUSDIR/fujibus.cpp"
 cp "$COMMON/src/fujimail.c" "$BUSDIR/fujimail.cpp"
+cp "$COMMON/src/fuji_crc.c" "$BUSDIR/fuji_crc.cpp"
 cp "$COMMON/src/fuji_cfg.c" "$BUSDIR/fuji_cfg.cpp"
 cp "$COMMON/include/fujimail.h" "$COMMON/include/fujibus.h" "$FW/include/fuji_mailbox.h" \
    "$FW/include/sms_cart.h" "$FW/include/smsmap.h" "$FW/include/smsmap_db.h" \
    "$FW/include/fuji_load.h" "$GEN/fujiconfigrom.h" "$GEN/smsloaderrom.h" "$BUSDIR/"
 cp "$COMMON/include/fuji_mailbox_proto.h" "$COMMON/include/fuji_mailbox_check.h" \
-   "$COMMON/include/fuji_cfg.h" "$BUSDIR/"
+   "$COMMON/include/fuji_cfg.h" "$COMMON/include/fuji_crc.h" "$BUSDIR/"
 
 # fujimail.c, fujibus.c and fujitcp.c are identical across the FujiNet ports
 # but compiled against each port's own fuji_mailbox.h, and several ports share
@@ -60,6 +62,7 @@ cp "$COMMON/include/fuji_mailbox_proto.h" "$COMMON/include/fuji_mailbox_check.h"
     echo "#ifndef SMS_FUJINS_H"
     echo "#define SMS_FUJINS_H"
     for sym in fujimail_init fujimail_paint fujimail_read_hotspot fujimail_inbound \
+               fuji_crc32 fuji_crc_find \
                fuji_cfg_open fuji_cfg_write fuji_cfg_close fuji_cfg_mapper fuji_cfg_clear \
                fujibus_build_request fujibus_parse_reply fujibus_selftest \
                fujitcp_init fujitcp_active fujitcp_close fujitcp_abort fujitcp_transact \
@@ -69,7 +72,7 @@ cp "$COMMON/include/fuji_mailbox_proto.h" "$COMMON/include/fuji_mailbox_check.h"
     echo "#endif"
 } > "$BUSDIR/fujins.h"
 
-for f in fujimail.cpp fujimail.h fuji_cfg.cpp fuji_cfg.h fujibus.cpp fujibus.h \
+for f in fujimail.cpp fujimail.h fuji_cfg.cpp fuji_cfg.h fuji_crc.cpp fuji_crc.h fujibus.cpp fujibus.h \
          fujitcp.cpp fujitcp.h; do
     if ! head -1 "$BUSDIR/$f" | grep -q fujins.h; then
         printf '#include "fujins.h"\n%s\n' "$(cat "$BUSDIR/$f")" > "$BUSDIR/$f.tmp"
@@ -90,7 +93,8 @@ files = ("fujinet.cpp", "fujinet.h", "fujitcp.cpp", "fujitcp.h", "fujimail.cpp",
          "smsmap_db.cpp", "smsmap_db.h", "fuji_load.cpp", "fuji_load.h",
          "fuji_mailbox.h", "fuji_mailbox_proto.h", "fuji_mailbox_check.h", "sms_cart.h",
          "fujiconfigrom.h", "smsloaderrom.h", "fujins.h",
-         "fuji_cfg.cpp", "fuji_cfg.h")
+         "fuji_cfg.cpp", "fuji_cfg.h",
+         "fuji_crc.cpp", "fuji_crc.h")
 line = '\t\tMAME_DIR .. "src/devices/bus/sega8/%s",\n'
 missing = "".join(line % f for f in files if line % f not in text)
 if missing:

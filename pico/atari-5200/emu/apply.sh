@@ -4,7 +4,7 @@
 # Usage: ./apply.sh /path/to/mame
 #
 # Copies the device model (a5200_fujinet.cpp/h, common's fujitcp.c/h) and the
-# cartridge firmware's own sources (fujimail, fuji_cfg, fujibus, a52map,
+# cartridge firmware's own sources (fujimail, fuji_cfg, fuji_crc, fujibus, a52map,
 # fuji_load, the baked CONFIG) into src/devices/bus/a800/, and edits:
 #
 #   scripts/src/bus.lua                    the a800 file list
@@ -42,12 +42,13 @@ for f in a52map a52map_db fuji_load; do
 done
 cp "$COMMON/src/fujibus.c" "$BUSDIR/fujibus.cpp"
 cp "$COMMON/src/fujimail.c" "$BUSDIR/fujimail.cpp"
+cp "$COMMON/src/fuji_crc.c" "$BUSDIR/fuji_crc.cpp"
 cp "$COMMON/src/fuji_cfg.c" "$BUSDIR/fuji_cfg.cpp"
 cp "$COMMON/include/fujimail.h" "$COMMON/include/fujibus.h" "$FW/include/fuji_mailbox.h" \
    "$FW/include/a52map.h" "$FW/include/a52map_db.h" "$FW/include/fuji_load.h" \
    "$GEN/fujiconfigrom.h" "$BUSDIR/"
 cp "$COMMON/include/fuji_mailbox_proto.h" "$COMMON/include/fuji_mailbox_check.h" \
-   "$COMMON/include/fuji_cfg.h" "$BUSDIR/"
+   "$COMMON/include/fuji_cfg.h" "$COMMON/include/fuji_crc.h" "$BUSDIR/"
 
 # fujimail.c, fuji_cfg.c, fujibus.c, fujitcp.c and fuji_load.c carry the same
 # symbols in several FujiNet ports, and a tree may hold more than one: give this
@@ -57,6 +58,7 @@ cp "$COMMON/include/fuji_mailbox_proto.h" "$COMMON/include/fuji_mailbox_check.h"
     echo "#ifndef A52_FUJINS_H"
     echo "#define A52_FUJINS_H"
     for sym in fujimail_init fujimail_paint fujimail_read_hotspot fujimail_inbound \
+               fuji_crc32 fuji_crc_find \
                fuji_cfg_open fuji_cfg_write fuji_cfg_close fuji_cfg_mapper fuji_cfg_clear \
                fujibus_build_request fujibus_parse_reply fujibus_selftest \
                fujitcp_init fujitcp_active fujitcp_close fujitcp_abort fujitcp_transact \
@@ -68,7 +70,7 @@ cp "$COMMON/include/fuji_mailbox_proto.h" "$COMMON/include/fuji_mailbox_check.h"
 } > "$BUSDIR/fujins.h"
 
 for f in fujimail.cpp fujimail.h fujibus.cpp fujibus.h fujitcp.cpp fujitcp.h \
-         fuji_cfg.cpp fuji_cfg.h fuji_load.cpp fuji_load.h; do
+         fuji_cfg.cpp fuji_cfg.h fuji_crc.cpp fuji_crc.h fuji_load.cpp fuji_load.h; do
     if ! head -1 "$BUSDIR/$f" | grep -q fujins.h; then
         printf '#include "fujins.h"\n%s\n' "$(cat "$BUSDIR/$f")" > "$BUSDIR/$f.tmp"
         mv "$BUSDIR/$f.tmp" "$BUSDIR/$f"
@@ -88,7 +90,8 @@ files = ("a5200_fujinet.cpp", "a5200_fujinet.h", "fujitcp.cpp", "fujitcp.h",
          "a52map.h", "a52map_db.cpp", "a52map_db.h", "fuji_load.cpp", "fuji_load.h",
          "fuji_mailbox.h", "fuji_mailbox_proto.h", "fuji_mailbox_check.h", "fujiconfigrom.h",
          "fujins.h",
-         "fuji_cfg.cpp", "fuji_cfg.h")
+         "fuji_cfg.cpp", "fuji_cfg.h",
+         "fuji_crc.cpp", "fuji_crc.h")
 line = '\t\tMAME_DIR .. "src/devices/bus/a800/%s",\n'
 missing = "".join(line % f for f in files if line % f not in text)
 if missing:

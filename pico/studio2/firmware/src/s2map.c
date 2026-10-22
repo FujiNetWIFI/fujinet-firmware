@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "s2map.h"
+#include "fuji_crc.h"
 
 static const uint8_t zero_page[S2MAP_PAGE] = { 0 };
 static const uint8_t ff_page[S2MAP_PAGE] = {
@@ -10,19 +11,6 @@ static const uint8_t ff_page[S2MAP_PAGE] = {
     F16, F16, F16, F16, F16, F16, F16, F16, F16, F16, F16, F16, F16, F16, F16, F16
 #undef F16
 };
-
-uint32_t s2map_crc32(uint32_t crc, const uint8_t *p, uint32_t n)
-{
-    crc = ~crc;
-    while (n--) {
-        unsigned k;
-
-        crc ^= *p++;
-        for (k = 0; k < 8; k++)
-            crc = (crc >> 1) ^ (0xEDB88320u & (0u - (crc & 1u)));
-    }
-    return ~crc;
-}
 
 uint8_t s2map_gate(uint32_t size)
 {
@@ -58,7 +46,7 @@ int s2map_plan(const uint8_t *buf, uint32_t len, bool force_claim, s2map_plan_t 
         return S2MAP_EEMPTY;
     if (len > S2MAP_IMAGE_MAX)
         return S2MAP_ETOOBIG;
-    out->crc = s2map_crc32(0, buf, len);
+    out->crc = fuji_crc32(0, buf, len);
 
     /* Every cart serves $0400-$07FF; MAME's buffer reads zero past the file. */
     for (pg = 0x04; pg <= 0x07; pg++)

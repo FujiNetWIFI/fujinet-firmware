@@ -86,8 +86,6 @@ const char *smsmap_kind_name(uint8_t kind);
 /* MAME's by-path heuristic (sega8_slot.cpp get_cart_type), transcribed. */
 uint8_t smsmap_heuristic(const uint8_t *img, uint32_t len);
 
-uint32_t smsmap_crc32(uint32_t crc, const uint8_t *p, uint32_t n);
-
 /* The database row for an image CRC, or NULL. */
 struct smsmap_db;
 const struct smsmap_db *smsmap_db_lookup(uint32_t crc);

@@ -26,6 +26,7 @@ fujicart_firmware(${PROJECT_NAME}
         ${FUJI_COMMON}/src/fuji_cfg.c
         ${FUJI_COMMON}/src/fuji_port.c
         ${FUJI_COMMON}/src/fuji_watchdog.c
+        ${FUJI_COMMON}/src/fuji_crc.c
         src/fujinet.c
         src/fujiboot.c
     LIBRARIES hardware_pwm hardware_flash hardware_sync

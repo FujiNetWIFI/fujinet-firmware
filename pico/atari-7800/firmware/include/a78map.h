@@ -108,7 +108,6 @@ uint8_t a78map_gate(uint32_t size);
 
 uint8_t a78map_kind_from_name(const char *name);
 const char *a78map_kind_name(uint8_t kind);
-uint32_t a78map_crc32(uint32_t crc, const uint8_t *p, uint32_t n);
 
 /* Where image byte `off` lives in the SRAM. The file goes in as it is, after
  * `front` bytes of $FF; swap8k is applied by the slot mapping, not here. */

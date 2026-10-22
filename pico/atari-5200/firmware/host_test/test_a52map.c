@@ -16,6 +16,7 @@
 
 #include "a52map.h"
 #include "a52map_db.h"
+#include "fuji_crc.h"
 
 static unsigned long rng = 12345;
 
@@ -243,7 +244,7 @@ static void test_plan_order(void)
     /* the database wins over the size; .cfg wins over the database */
     assert(a52map_db_count > 0);
     fill(buf, 0x4000);
-    crc = a52map_crc32(0, buf, 0x4000);
+    crc = fuji_crc32(0, buf, 0x4000);
     (void)crc;
     assert(a52map_plan(buf, 0x4000, "a5200_2chips", &p) == A52MAP_OK);
     assert(p.kind == A52MAP_2CHIPS && p.src == A52SRC_CFG);

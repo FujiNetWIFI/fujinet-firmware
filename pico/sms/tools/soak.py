@@ -30,9 +30,12 @@ SD = os.environ.get("SOAK_SD", os.path.expanduser("~/Workspace/fujinet-pc-rs232/
 def planner():
     exe = os.path.join(B, "smsplan")
     fw = os.path.join(HERE, "firmware")
-    subprocess.run(["cc", "-O1", "-I" + os.path.join(fw, "include"), "-o", exe,
+    common = os.path.join(HERE, "..", "common")
+    subprocess.run(["cc", "-O1", "-I" + os.path.join(fw, "include"),
+                    "-I" + os.path.join(common, "include"), "-o", exe,
                     os.path.join(HERE, "tools", "smsplan.c"), os.path.join(fw, "src", "smsmap.c"),
-                    os.path.join(fw, "src", "smsmap_db.c")], check=True)
+                    os.path.join(fw, "src", "smsmap_db.c"),
+                    os.path.join(common, "src", "fuji_crc.c")], check=True)
     return exe
 
 
