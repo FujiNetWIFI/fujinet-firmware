@@ -29,6 +29,7 @@ fujicart_firmware(${PROJECT_NAME}
         ${FUJI_COMMON}/src/fujimail.c
         ${FUJI_COMMON}/src/fuji_cfg.c
         ${FUJI_COMMON}/src/fuji_port.c
+        ${FUJI_COMMON}/src/fuji_watchdog.c
         src/fujinet.c
         src/fujiboot.c
     LIBRARIES hardware_pio hardware_pwm hardware_dma hardware_flash hardware_sync

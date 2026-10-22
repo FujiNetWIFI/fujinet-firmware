@@ -7,11 +7,11 @@
 
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
-#include "hardware/pwm.h"
 #include "hardware/structs/sio.h"
 
 #include "fuji_cart.h"
 #include "fuji_mailbox.h"
+#include "fuji_watchdog.h"
 #include "a78_pio.h"
 
 fuji_ring_t fuji_ring;
@@ -29,9 +29,7 @@ volatile bool fuji_pal_seen;
 volatile uint32_t fuji_bus_cycle;
 
 /* console watchdog: CPU cycles counted by PWM 4 on GPIO25 */
-static uint16_t wd_last;
-static absolute_time_t wd_change;
-static bool console_alive;
+static fuji_watchdog_t watchdog;
 
 void fuji_cart_poke(unsigned offset, uint8_t value)
 {
@@ -91,27 +89,14 @@ void fuji_cart_init(const uint8_t *loader, const uint8_t *bootblk,
     fuji_loader.hsc_ram = fuji_hsc_shadow;
     fuji_load_init(&fuji_loader, config, &plan);
 
-    /* PWM 4 counts rising edges of PHI2 on GPIO25 (channel B). */
-    pwm_config c = pwm_get_default_config();
-    pwm_config_set_clkdiv_mode(&c, PWM_DIV_B_RISING);
-    pwm_init(pwm_gpio_to_slice_num(PHI2_PIN), &c, true);
-    gpio_set_function(PHI2_PIN, GPIO_FUNC_PWM);
-    wd_change = get_absolute_time();
+    fuji_watchdog_init(&watchdog, PHI2_PIN, PWROK_PIN, 50000u);
 }
 
 void fuji_cart_service(void)
 {
-    uint16_t cnt = (uint16_t)pwm_get_counter(pwm_gpio_to_slice_num(PHI2_PIN));
-    absolute_time_t now = get_absolute_time();
-
     /* No CPU clock for 50 ms, or no console power: the boot block when it
      * is back. A power cycle is the 7800's only reset. */
-    if (cnt != wd_last && gpio_get(PWROK_PIN)) {
-        wd_last = cnt;
-        wd_change = now;
-        console_alive = true;
-    } else if (console_alive && absolute_time_diff_us(wd_change, now) > 50000) {
-        console_alive = false;
+    if (fuji_watchdog_gone(&watchdog)) {
         fuji_load_abort(&fuji_loader);
         fuji_pal_seen = false;
         fuji_req = FUJI_REQ_BOOT;

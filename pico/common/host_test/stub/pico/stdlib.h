@@ -1,6 +1,7 @@
-/* stub/pico/stdlib.h -- enough of the SDK for the desktop build of
- * fuji_store.c. The real header is a platform grab-bag; this is only what
- * that file actually needs, plus the flash geometry it asserts against.
+/* stub/pico/stdlib.h -- enough of the SDK for the desktop builds of
+ * fuji_store.c and fuji_watchdog.c. The real header is a platform grab-bag;
+ * this is only what those files need, plus the flash geometry the store
+ * asserts against. The test defines what is declared here.
  */
 #ifndef STUB_PICO_STDLIB_H
 #define STUB_PICO_STDLIB_H
@@ -15,5 +16,7 @@
  * is an array, so the store's XIP alias is a pointer into it. */
 extern uint8_t fake_flash[PICO_FLASH_SIZE_BYTES];
 #define XIP_BASE ((uintptr_t)fake_flash)
+
+uint64_t time_us_64(void);
 
 #endif /* STUB_PICO_STDLIB_H */
