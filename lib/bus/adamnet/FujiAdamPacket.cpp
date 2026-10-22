@@ -120,7 +120,6 @@ ByteBuffer FujiAdamPacket::serialize() const
     }
 
     ByteBuffer payload;
-    payload.reserve(payloadSize);
 
     if (_command.has_value())
         payload.push_back(static_cast<uint8_t>(*_command));
