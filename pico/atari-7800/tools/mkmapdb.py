@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """mkmapdb.py -- the cart's mapper database, from MAME's 7800 software list.
 
-Every a7800.xml entry becomes {CRC-32 of its whole image, mapper}. Multi-chip
-entries are keyed by the CRC of their chips concatenated, which is what a
-single-file dump of the same cart hashes to.
+Every a7800.xml entry becomes {CRC-32 of its whole image, mapper}, read by
+pico/common/tools/softlist.py.
 
 Cart RAM sizes come along: the 8K SuperGame boards mirror theirs.
 
@@ -20,8 +19,12 @@ Usage: mkmapdb.py ~/Workspace/mame/hash/a7800.xml [--corpus DIR]
 import argparse
 import os
 import sys
-import xml.etree.ElementTree as ET
 import zlib
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.dont_write_bytecode = True       # no __pycache__ in common/tools
+sys.path.insert(0, os.path.join(HERE, "..", "..", "common", "tools"))
+from softlist import carts  # noqa: E402
 
 KINDS = {"a78_rom": "A78MAP_ROM", "a78_pokey": "A78MAP_POKEY",
          "a78_sg": "A78MAP_SG", "a78_sg_pokey": "A78MAP_SG_POKEY",
@@ -30,75 +33,11 @@ KINDS = {"a78_rom": "A78MAP_ROM", "a78_pokey": "A78MAP_POKEY",
          "a78_act": "A78MAP_ACT", "a78_hsc": "A78MAP_HSC"}
 
 
-def gf2_times(mat, vec):
-    s = 0
-    i = 0
-    while vec:
-        if vec & 1:
-            s ^= mat[i]
-        vec >>= 1
-        i += 1
-    return s
-
-
-def gf2_square(mat):
-    return [gf2_times(mat, mat[n]) for n in range(32)]
-
-
-def crc32_combine(crc1, crc2, len2):
-    """zlib's crc32_combine: the CRC of A+B from crc(A), crc(B), len(B)."""
-    if len2 == 0:
-        return crc1
-    odd = [0xEDB88320] + [1 << n for n in range(31)]
-    even = gf2_square(odd)
-    odd = gf2_square(even)
-    while True:
-        even = gf2_square(odd)
-        if len2 & 1:
-            crc1 = gf2_times(even, crc1)
-        len2 >>= 1
-        if not len2:
-            break
-        odd = gf2_square(even)
-        if len2 & 1:
-            crc1 = gf2_times(odd, crc1)
-        len2 >>= 1
-        if not len2:
-            break
-    return crc1 ^ crc2
-
-
-def num(s):
-    return int(s, 0)
-
-
 def softlist(path):
     """{crc: (slot, name, ram KiB)} for every a7800 cart entry."""
     rows = {}
-    for sw in ET.parse(path).getroot().iter("software"):
-        for part in sw.iter("part"):
-            if part.get("interface") != "a7800_cart":
-                continue
-            slot = "a78_rom"
-            for f in part.iter("feature"):
-                if f.get("name") == "slot":
-                    slot = f.get("value")
-            roms, ram = [], 0
-            for da in part.iter("dataarea"):
-                if da.get("name") == "ram":
-                    ram = num(da.get("size")) // 1024
-                if da.get("name") == "rom":
-                    for r in da.iter("rom"):
-                        if r.get("crc") and r.get("size"):
-                            roms.append((num(r.get("offset", "0")), num(r.get("size")),
-                                         int(r.get("crc"), 16)))
-            if not roms:
-                continue
-            roms.sort()
-            crc = roms[0][2]
-            for _, size, c in roms[1:]:
-                crc = crc32_combine(crc, c, size)
-            rows.setdefault(crc, (slot, sw.get("name"), ram))
+    for name, slot, ram, crc in carts(path, "a7800_cart"):
+        rows.setdefault(crc, (slot or "a78_rom", name, ram // 1024))
     return rows
 
 

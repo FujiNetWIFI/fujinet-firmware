@@ -11,6 +11,7 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 | `cmake/pico_sdk_import.cmake` | the pico-sdk's import script, one copy for every cart |
 | `cmake/fujicart_checksram.cmake`, `tools/checksram.py` | `fujicart_checksram()`, run after every link for `fujicart_firmware()`'s `CORE1`: core1's loop, everything it branches to and the named state must be in SRAM, with no branch through a register |
 | `tools/mkromh.py` | packs the client a cart serves at power-on into `fujiconfigrom.h`, after the size, claim and header checks the cart passes it |
+| `tools/softlist.py` | what a cart's `tools/mkmapdb.py` reads from a MAME software list: each cart's slot, cart RAM and whole-image CRC-32, its chips joined |
 | `scripts/build-cart.lib.sh` | the shared body of every cart's `build-cart.sh`: the default, `--baked` and `--bake` modes, the build into `build/fw-<board>` |
 | `include/fujibus.h`, `src/fujibus.c` | SLIP + FujiBus codec, a plain-C client of `lib/bus/FujiBusPacket.cpp`; device and command IDs |
 | `include/fujibus_usb.h`, `src/fujibus_usb.c` | one request/reply round trip over USB CDC, and the hook for frames the ESP32 pushes mid-transaction |
@@ -57,7 +58,8 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
   board header and start with `fuji_clock_init()`. None defines TinyUSB's mount or CDC
   callbacks; the stack's weak defaults do.
 - sms, studio2, atari-5200 and atari-7800 take an image's CRC with `src/fuji_crc.c`, and all but
-  studio2 look it up in their `*map_db.c`; their `emu/apply.sh` copy it into MAME too.
+  studio2 look it up in their `*map_db.c`; their `emu/apply.sh` copy it into MAME too. sms
+  and atari-7800 generate that table with a `tools/mkmapdb.py` built on `tools/softlist.py`.
 - studio2, atari-5200, sms and atari-7800 build `src/fuji_watchdog.c`: the first two watch power
   alone, sms and atari-7800 the console's clock too.
 - sms and atari-7800 build `src/fuji_store.c`, each with a `fuji_store_cfg.h` of its own.
