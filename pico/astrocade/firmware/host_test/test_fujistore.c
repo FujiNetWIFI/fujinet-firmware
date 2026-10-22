@@ -2,13 +2,13 @@
  * bookkeeping: the idle erase sweep, its guards, and the erase-vs-program
  * decision a chunk pays for.
  *
- * Build: gcc -Wall -Wextra -Werror -Istub -I../include \
- *            -DFUJI_STORE_BINARY_END=0x1000u \
+ * Build: gcc -Wall -Wextra -Werror -I../../../common/host_test/stub -I../include \
+ *            -I../../../common/include -DFUJI_STORE_BINARY_END=0x1000u \
  *            -o test_fujistore test_fujistore.c ../src/fuji_store.c
  *
- * stub/ models the flash part rather than faking it -- a program only clears
- * bits -- so an erase this code wrongly skips shows up as a corrupt image,
- * not as a test that happens to pass.
+ * common's stub/ models the flash part rather than faking it -- a program only
+ * clears bits -- so an erase this code wrongly skips shows up as a corrupt
+ * image, not as a test that happens to pass.
  */
 
 #include <assert.h>

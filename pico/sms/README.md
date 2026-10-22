@@ -13,7 +13,7 @@ a memory-mapped mailbox, loads any image the ESP32-S3 pushes into the SRAM, and 
 | `firmware/include/fuji_load.h`, `firmware/src/fuji_load.c` | the load sequence: staged image into the SRAM one 8K window at a time, then the hand-over |
 | `firmware/src/sms_cart.c` | core1: bank bits on every address change, cart-served reads, write dispatch |
 | `firmware/src/fuji_cart.c` | core0: the ring drain, the load sequence's port, the console watchdog |
-| `firmware/src/fuji_store.c`, `fuji_store.h` | pushed images: 256K RAM tier, 1 MB flash tier with erases kept out of the push |
+| `firmware/include/fuji_store_cfg.h` | the sizes of [common/](../common/)'s push store: 256K RAM tier, 1 MB flash tier |
 | `firmware/src/fujinet.c`, `fujiboot.c`, `main.c` | the port for [common/](../common/)'s `fujimail.c`, power-on, the core0 loop; the FujiBus codec, the USB device, the `.cfg` parser and `fuji_port.c`, which binds fujimail to them, come from common too |
 | `firmware/baked/` | the CONFIG and loader headers the firmware uses when there is no fresh `build/gen` (CI, the ESP32 build) |
 | `firmware/boards/fujisms_rp2354b.*` | the board |

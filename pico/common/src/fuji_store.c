@@ -1,3 +1,5 @@
+/* fuji_store.c -- the two-tier push store; see fuji_store.h. */
+
 #include <string.h>
 
 #include "pico/stdlib.h"
@@ -5,9 +7,7 @@
 #include "hardware/sync.h"
 
 #include "fuji_store.h"
-#include "fuji_cart.h"
-#include "fuji_mailbox.h"
-#include "smsmap.h"
+#include "fuji_mailbox_proto.h"
 
 extern char __flash_binary_end;
 
@@ -21,7 +21,7 @@ extern char __flash_binary_end;
 
 _Static_assert(FUJI_STORE_FLASH_OFF + FUJI_STORE_FLASH_SIZE
                <= PICO_FLASH_SIZE_BYTES, "flash store past the end of the part");
-_Static_assert(FUJI_STORE_FLASH_SIZE >= SMSMAP_IMAGE_MAX + 512,
+_Static_assert(FUJI_STORE_FLASH_SIZE >= FUJI_STORE_IMAGE_MAX,
                "the largest image must fit the flash store");
 
 enum tier { TIER_NONE, TIER_RAM, TIER_FLASH };
@@ -30,6 +30,7 @@ static uint8_t ram_store[FUJI_STORE_RAM_SIZE];
 static uint8_t secbuf[FLASH_SECTOR_SIZE];
 static uint8_t erased[NSECTORS / 8];       /* bit set: sector is all 0xFF */
 
+static bool (*busy)(const uint8_t *base);
 static enum tier open_tier;
 static uint32_t written;
 static uint32_t sec_fill;
@@ -46,10 +47,11 @@ static void set_erased(unsigned s, bool e)
         erased[s / 8] &= (uint8_t)~(1u << (s % 8));
 }
 
-void fuji_store_init(void)
+void fuji_store_init(bool (*busy_fn)(const uint8_t *base))
 {
     unsigned s, i;
 
+    busy = busy_fn;
     for (s = 0; s < NSECTORS; s++) {
         const uint32_t *p = (const uint32_t *)(FLASH_XIP_BASE + s * FLASH_SECTOR_SIZE);
         bool blank = true;
@@ -65,11 +67,11 @@ uint8_t fuji_store_open(uint32_t size)
     written = 0;
     sec_fill = 0;
     flash_off = 0;
-    if (size <= FUJI_STORE_RAM_SIZE && !fuji_load_busy(&fuji_loader, ram_store)) {
+    if (size <= FUJI_STORE_RAM_SIZE && !busy(ram_store)) {
         open_tier = TIER_RAM;
         return 0;
     }
-    if (size <= FUJI_STORE_FLASH_SIZE && !fuji_load_busy(&fuji_loader, FLASH_XIP_BASE)) {
+    if (size <= FUJI_STORE_FLASH_SIZE && !busy(FLASH_XIP_BASE)) {
         if (FUJI_STORE_BINARY_END > FUJI_STORE_FLASH_OFF) {
             open_tier = TIER_NONE;
             return FN_BOOT_ERR_TOOBIG;
@@ -101,7 +103,7 @@ void fuji_store_idle(void)
 {
     unsigned b, s;
 
-    if (open_tier != TIER_NONE || fuji_load_busy(&fuji_loader, FLASH_XIP_BASE))
+    if (open_tier != TIER_NONE || busy(FLASH_XIP_BASE))
         return;
     for (b = 0; b < NSECTORS / SEC_PER_BLK; b++) {
         for (s = b * SEC_PER_BLK; s < (b + 1) * SEC_PER_BLK; s++)

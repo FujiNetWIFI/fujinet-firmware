@@ -19,7 +19,7 @@ pico_board_cmake_set(PICO_PLATFORM, rp2350)
 // No default UART, LED, I2C or SPI pins: the bus owns the GPIOs.
 
 // --- FLASH ---
-// 2 MB stacked in the package; fuji_store.h keeps the image store at
+// 2 MB stacked in the package; fuji_store_cfg.h keeps the image store at
 // 0x0F0000-0x1FFFFF.
 #define PICO_BOOT_STAGE2_CHOOSE_W25Q080 1
 #ifndef PICO_FLASH_SPI_CLKDIV
