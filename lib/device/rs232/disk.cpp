@@ -380,6 +380,9 @@ success_is_true rs232Disk::write_blank(fnFile *f, const NewDiskRequest &req)
 {
     Debug_print("disk CREATE NEW IMAGE\n");
 
+    if (MediaType::discover_mediatype(req.filename, (uint32_t)req.sectorSize * req.numSectors)
+        == MEDIATYPE_IMD)
+        return MediaTypeIMD::create(f, req.sectorSize, req.numSectors);
     return MediaTypeImg::create(f, req.sectorSize, req.numSectors);
 }
 

@@ -1,6 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <vector>
@@ -364,4 +365,112 @@ TEST_CASE("discover_mediatype routes .imd to the adapter")
     CHECK(MediaType::discover_mediatype("disk.img") == MEDIATYPE_UNKNOWN);
     CHECK(MediaType::discover_mediatype("game.rom") == MEDIATYPE_ROM);
     CHECK(MediaType::discover_mediatype("load.xex") == MEDIATYPE_IMG);
+}
+
+// The sectors mkfs.cpm -f ibm-3740 leaves, each as a full record
+TEST_CASE("create writes a blank IBM-3740 image")
+{
+    fnFile *fp = fopen(IMD_TEST_FILE, "w+b");
+    REQUIRE(fp != nullptr);
+    REQUIRE(MediaTypeIMD::create(fp, 128, 77 * 26).is_success());
+    fseek(fp, 0, SEEK_END);
+    std::vector<uint8_t> got(ftell(fp));
+    rewind(fp);
+    REQUIRE(fread(got.data(), 1, got.size(), fp) == got.size());
+    fclose(fp);
+    remove(IMD_TEST_FILE);
+
+    // "IMD 1.18: dd/mm/yyyy hh:mm:ss\r\n" then the terminator
+    const size_t hdr = 31;
+    REQUIRE(got.size() > hdr);
+    CHECK(memcmp(got.data(), "IMD 1.18: ", 10) == 0);
+    CHECK(got[12] == '/');
+    CHECK(got[15] == '/');
+    CHECK(got[23] == ':');
+    CHECK(got[26] == ':');
+    CHECK(memcmp(&got[29], "\r\n\x1A", 3) == 0);
+
+    std::vector<uint8_t> want;
+    for (uint8_t cyl = 0; cyl < 77; cyl++)
+    {
+        want.insert(want.end(), {0x00, cyl, 0x00, 26, 0x00});
+        for (uint8_t id = 1; id <= 26; id++)
+            want.push_back(id);
+        for (int i = 0; i < 26; i++)
+        {
+            want.push_back(0x01);
+            want.insert(want.end(), 128, (uint8_t)(cyl < 3 ? 0xE5 : 0x00));
+        }
+    }
+    CHECK(got.size() == hdr + 1 + want.size());
+    CHECK(std::equal(want.begin(), want.end(), got.begin() + hdr + 1));
+}
+
+TEST_CASE("an image create() made mounts with E5 through the directory track")
+{
+    fnFile *fp = fopen(IMD_TEST_FILE, "w+b");
+    REQUIRE(fp != nullptr);
+    REQUIRE(MediaTypeIMD::create(fp, 128, 77 * 26).is_success());
+    uint32_t size = (uint32_t)ftell(fp);
+    rewind(fp);
+
+    MediaTypeIMD media(false);
+    REQUIRE(media.mount(fp, size) == MEDIATYPE_IMD);
+    uint32_t n = 0;
+    CHECK(media.sector_size(0) == 128);
+    REQUIRE(media.read(0, &n).is_success());
+    CHECK(all_equal(media._disk_sectorbuff, n, 0xE5));
+    REQUIRE(media.read(3 * 26 - 1, &n).is_success());
+    CHECK(all_equal(media._disk_sectorbuff, n, 0xE5));
+    REQUIRE(media.read(3 * 26, &n).is_success());
+    CHECK(all_equal(media._disk_sectorbuff, n, 0x00));
+    REQUIRE(media.read(77 * 26 - 1, &n).is_success());
+    CHECK(media.read(77 * 26, &n).is_error());
+    media.unmount(); // closes fp
+    remove(IMD_TEST_FILE);
+}
+
+TEST_CASE("an image create() made takes real data in any sector")
+{
+    fnFile *fp = fopen(IMD_TEST_FILE, "w+b");
+    REQUIRE(fp != nullptr);
+    REQUIRE(MediaTypeIMD::create(fp, 128, 77 * 26).is_success());
+    uint32_t size = (uint32_t)ftell(fp);
+    rewind(fp);
+
+    MediaTypeIMD media(true);
+    REQUIRE(media.mount(fp, size) == MEDIATYPE_IMD);
+    for (uint32_t lba : {0u, 3u * 26, 77u * 26 - 1})
+    {
+        CAPTURE(lba);
+        for (int i = 0; i < 128; i++)
+            media._disk_sectorbuff[i] = (uint8_t)(lba + i);
+        CHECK(media.write(lba, false).is_success());
+        memset(media._disk_sectorbuff, 0, 128);
+        uint32_t n = 0;
+        REQUIRE(media.read(lba, &n).is_success());
+        CHECK(media._disk_sectorbuff[0] == (uint8_t)lba);
+        CHECK(media._disk_sectorbuff[127] == (uint8_t)(lba + 127));
+    }
+    media.unmount(); // closes fp
+    remove(IMD_TEST_FILE);
+}
+
+TEST_CASE("create refuses any geometry but IBM-3740")
+{
+    struct { uint16_t sectorSize; uint32_t numSectors; } sizes[] = {
+        {128, 720}, {256, 77 * 26}, {512, 77 * 26}, {128, 0}, {0, 77 * 26},
+    };
+    for (auto s : sizes)
+    {
+        CAPTURE(s.sectorSize);
+        CAPTURE(s.numSectors);
+        fnFile *fp = fopen(IMD_TEST_FILE, "w+b");
+        REQUIRE(fp != nullptr);
+        CHECK(MediaTypeIMD::create(fp, s.sectorSize, s.numSectors).is_error());
+        fseek(fp, 0, SEEK_END);
+        CHECK(ftell(fp) == 0);
+        fclose(fp);
+        remove(IMD_TEST_FILE);
+    }
 }

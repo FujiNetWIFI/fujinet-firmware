@@ -27,6 +27,9 @@ public:
 
     void status(uint8_t statusbuff[4]) override;
 
+    // Only IBM-3740 (8" single density, 77 x 26 x 128), the Model II's format.
+    static success_is_true create(fnFile *f, uint16_t sectorSize, uint32_t numSectors);
+
 private:
     void _derive_geometry();
     void _fill_percom();
