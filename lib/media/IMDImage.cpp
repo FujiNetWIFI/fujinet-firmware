@@ -156,6 +156,31 @@ bool IMDImage::looks_like_imd_extension(const char *filename)
     return l > 4 && filename[l - 4] == '.' && strcasecmp(filename + l - 3, "IMD") == 0;
 }
 
+IMDStatus IMDImage::write_header(fnFile *f, time_t when)
+{
+    char hdr[48];
+    size_t len = strftime(hdr, sizeof(hdr), "IMD 1.18: %d/%m/%Y %H:%M:%S\r\n", localtime(&when));
+
+    hdr[len++] = IMD_EOF_MARKER;
+    return fnio::fwrite(hdr, 1, len, f) == len ? IMDStatus::Ok : IMDStatus::IoError;
+}
+
+IMDStatus IMDImage::write_blank_track(fnFile *f, uint8_t mode, uint8_t cyl, uint8_t head,
+                                      uint8_t nsec, uint8_t size_code, uint8_t fill)
+{
+    std::vector<uint8_t> track = {mode, cyl, head, nsec, size_code};
+
+    for (uint8_t id = 1; id <= nsec; id++)
+        track.push_back(id);
+    for (uint8_t i = 0; i < nsec; i++)
+    {
+        track.push_back(1); // a full sector of data follows
+        track.insert(track.end(), 128u << size_code, fill);
+    }
+    return fnio::fwrite(track.data(), 1, track.size(), f) == track.size() ? IMDStatus::Ok
+                                                                           : IMDStatus::IoError;
+}
+
 IMDStatus IMDImage::open(fnFile *f, uint32_t disksize, bool writable)
 {
     close();

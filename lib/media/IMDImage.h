@@ -17,6 +17,7 @@
 // forwards here.
 
 #include <cstdint>
+#include <ctime>
 #include <string>
 #include <vector>
 
@@ -157,6 +158,13 @@ public:
     const char *comment() const { return _comment.c_str(); }
 
     static bool looks_like_imd_extension(const char *filename);
+
+    // A new image: the signature line stamped with `when`, then its tracks.
+    static IMDStatus write_header(fnFile *f, time_t when);
+    // One track of sectors 1..nsec filled with `fill`, stored as full records so
+    // write_sector() can later take any data in place.
+    static IMDStatus write_blank_track(fnFile *f, uint8_t mode, uint8_t cyl, uint8_t head,
+                                       uint8_t nsec, uint8_t size_code, uint8_t fill);
 
 private:
     // Kept small: one of these exists per sector for the life of the mount.

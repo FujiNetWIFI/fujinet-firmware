@@ -268,4 +268,27 @@ void MediaTypeIMD::status(uint8_t statusbuff[4])
     statusbuff[1] = ~_disk_controller_status; // Negate the controller status
 }
 
+// Returns FALSE on error
+success_is_true MediaTypeIMD::create(fnFile *f, uint16_t sectorSize, uint32_t numSectors)
+{
+    const uint8_t cyls = 77, spt = 26;
+    // As mkfs.cpm -f ibm-3740 leaves it: E5 through the directory on track 2
+    const uint8_t blank_cyls = 3;
+
+    Debug_print("IMD CREATE\r\n");
+    if (sectorSize != 128 || numSectors != cyls * spt)
+        RETURN_ERROR_AS_FALSE();
+
+    if (IMDImage::write_header(f, time(nullptr)) != IMDStatus::Ok)
+        RETURN_ERROR_AS_FALSE();
+    for (uint8_t cyl = 0; cyl < cyls; cyl++)
+    {
+        // Mode 0 is 500 kbps FM; size code 0 is 128 bytes
+        if (IMDImage::write_blank_track(f, 0, cyl, 0, spt, 0, cyl < blank_cyls ? 0xE5 : 0x00)
+            != IMDStatus::Ok)
+            RETURN_ERROR_AS_FALSE();
+    }
+    RETURN_SUCCESS_AS_TRUE();
+}
+
 #endif /* BUILD_RS232 */
