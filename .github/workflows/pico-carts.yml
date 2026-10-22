@@ -475,7 +475,7 @@ jobs:
         env:
           PICO_SDK_PATH: ${{ github.workspace }}/pico-sdk
         run: |
-          for board in fujiversal-intv fujiversal-drivewire fujiversal-msx; do
+          for board in fujiversal-intv fujiversal-intv-pirto-ii-duo fujiversal-drivewire fujiversal-msx; do
             echo "::group::$board"
             python3 build_pico.py "$board" --no-generate
             echo "::endgroup::"
