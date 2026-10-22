@@ -18,7 +18,7 @@ fujicart_firmware(${PROJECT_NAME}
         src/smsmap_db.c
         src/fuji_cart.c
         src/fuji_load.c
-        src/fuji_store.c
+        ${FUJI_COMMON}/src/fuji_store.c
         ${FUJI_COMMON}/usb/usb_descriptors.c
         ${FUJI_COMMON}/src/fujibus.c
         ${FUJI_COMMON}/src/fujibus_usb.c

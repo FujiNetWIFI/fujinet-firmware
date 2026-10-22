@@ -14,10 +14,15 @@
 #include "a78loaderrom.h"
 #include "a78bootblk.h"
 
+static bool store_busy(const uint8_t *base)
+{
+    return fuji_load_busy(&fuji_loader, base);
+}
+
 void fuji_config_boot(void)
 {
     fuji_cart_init(_loaderrom, _bootblk, _configrom, FUJI_CONFIGROM_SIZE);
-    fuji_store_init();
+    fuji_store_init(store_busy);
     fuji_service_init();
     fujimail_paint();
 }

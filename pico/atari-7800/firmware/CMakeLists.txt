@@ -19,7 +19,7 @@ fujicart_firmware(${PROJECT_NAME}
         src/a78map_db.c
         src/fuji_cart.c
         src/fuji_load.c
-        src/fuji_store.c
+        ${FUJI_COMMON}/src/fuji_store.c
         src/fuji_audio.c
         src/pokey.c
         src/hsc.c
