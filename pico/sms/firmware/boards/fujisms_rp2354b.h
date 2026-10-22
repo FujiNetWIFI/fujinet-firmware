@@ -39,4 +39,8 @@ pico_board_cmake_set_default(PICO_RP2350_A2_SUPPORTED, 1)
 // and erratum RP2350-E9 makes a pulled-down input latch near 2 V.
 #define FUJISMS_BUS_NO_PULLS 1
 
+// --- CLOCK ---
+// The astrocade and NES RP2354 boards' clock, at the stock core voltage.
+#define FUJI_SYS_CLOCK_KHZ 200000
+
 #endif

@@ -11,10 +11,10 @@
 
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
-#include "hardware/clocks.h"
 #include "hardware/gpio.h"
 #include "tusb.h"
 
+#include "fuji_clock.h"
 #include "a78_cart.h"
 #include "a78_pio.h"
 #include "fujiboot.h"
@@ -27,9 +27,7 @@ int main(void)
 {
     unsigned pin;
 
-    /* 200 MHz at the stock core voltage; a78_pio.h's latency and fuji_audio.c's
-     * SAMPLE_DIV assume it. */
-    set_sys_clock_khz(200000, true);
+    fuji_clock_init();
 
     for (pin = 0; pin <= PWROK_PIN; pin++) {
         gpio_init(pin);
@@ -64,14 +62,3 @@ int main(void)
     }
     return 0;
 }
-
-/* TinyUSB device callbacks; nothing to do, the CDC link is polled. */
-void tud_mount_cb(void) { }
-void tud_umount_cb(void) { }
-void tud_suspend_cb(bool remote_wakeup_en) { (void)remote_wakeup_en; }
-void tud_resume_cb(void) { }
-void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts)
-{
-    (void)itf; (void)dtr; (void)rts;
-}
-void tud_cdc_rx_cb(uint8_t itf) { (void)itf; }

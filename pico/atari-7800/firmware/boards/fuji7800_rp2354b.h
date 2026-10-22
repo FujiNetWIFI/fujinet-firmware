@@ -38,4 +38,9 @@ pico_board_cmake_set_default(PICO_RP2350_A2_SUPPORTED, 1)
 // Pad pulls stay OFF on every bus pin (main.c): RP2350 pads reset with
 // pull-downs on, and erratum RP2350-E9 makes a pulled-down input latch near 2 V.
 
+// --- CLOCK ---
+// 200 MHz at the stock core voltage; a78_pio.h's latency and fuji_audio.c's
+// SAMPLE_DIV assume it.
+#define FUJI_SYS_CLOCK_KHZ 200000
+
 #endif
