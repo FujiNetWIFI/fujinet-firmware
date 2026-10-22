@@ -25,6 +25,8 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 | `include/fuji_clock.h` | `fuji_clock_init()`: the system clock the board header sets in `FUJI_SYS_CLOCK_KHZ`, at its `FUJI_VREG_VOLTAGE` if it sets one |
 | `include/fuji_watchdog.h`, `src/fuji_watchdog.c` | notices the console going away: PWR_OK low, or its clock (counted on a PWM slice) stopped, for longer than the cart's timeout; the cart decides what that means |
 | `emu/fujitcp.c`, `emu/fujitcp.h` | the MAME grafts' FujiBus link to fujinet-pc over TCP, in place of `fujibus_usb.c` |
+| `emu/graft.lib.sh` | what every MAME cart's `emu/apply.sh` sources: copy sources in (a `.c` as `.cpp`), give the shared ones the cart's own symbols in `fujins.h`, and list every grafted file in `bus.lua` |
+| `emu/fujins.syms` | the functions each common module exports, which a graft renames |
 | `usb/usb_descriptors.c`, `usb/tusb_config.h` | the CDC-only TinyUSB device; the product string is the cart's `FUJI_USB_PRODUCT` |
 | `host_test/test_fujibus.c` | runs the codec self-test on the host |
 | `host_test/test_fuji_cfg.c` | the `mapper=` parser's tests |
@@ -32,6 +34,7 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 | `host_test/test_fuji_store.c`, `host_test/fuji_store_cfg.h` | the push store, under ASan, on a small store of its own |
 | `host_test/test_fuji_crc.c` | the CRC against zlib's check values, and the table lookup |
 | `host_test/test_fuji_watchdog.c` | the watchdog, with power, clock and time in the test's hands |
+| `host_test/check_fujins.py` | fails when `emu/fujins.syms` and what the modules export disagree |
 | `host_test/stub/` | stand-ins for the SDK headers these tests need; `hardware/flash.h` models NOR flash, where a program only clears bits. astrocade's store test uses them too |
 | `host_test/test_fujimail.c` | the mailbox service's tests, which every cart runs against its own `fuji_mailbox.h`; the cart's `host_test/fujimail_test.h` names its mapper's gate and image sizes |
 | `host_test/cart.mk` | the rules every cart's `host_test/Makefile` includes: one compile rule, the runner, binaries in the cart's `build/host_test`, and a C++ compile of the tested sources, which the MAME grafts build as C++ |
@@ -69,9 +72,9 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
   the device reads a .cfg as the cart does.
 - Each cart's `fuji_mailbox.h` but o2's holds its address map and its own registers, and
   includes `fuji_mailbox_proto.h` first and `fuji_mailbox_check.h` last.
-- The `emu/apply.sh` scripts copy `fujibus.[ch]`, `fujimail.[ch]`, the two mailbox headers and
-  `emu/fujitcp.[ch]` from here into MAME (o2's takes only the codec, into o2em), so the emulators
-  run the same code.
+- Every MAME cart's `emu/apply.sh` grafts this code into MAME through `emu/graft.lib.sh`, so the
+  emulators run the same code; it keeps only its own driver and slot edits. A function added to a
+  module goes in `emu/fujins.syms` too. o2's (o2em) and s100's (SIMH) copy what they need by hand.
 - [intellivision/](../intellivision/) keeps its own copy; its transport has a different API.
 - Each cart's `firmware/host_test/Makefile` lists its tests and includes `host_test/cart.mk`; a
   listed test the cart does not have, such as `test_fujimail`, comes from here. The pico

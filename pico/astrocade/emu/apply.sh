@@ -11,53 +11,23 @@
 # Idempotent: run it again after editing any source here.
 #
 # Afterwards: make -C /path/to/mame -j$(nproc) REGENIE=1 SUBTARGET=... as
-# usual (REGENIE=1 is required the first time because bus.lua changed).
+# usual (REGENIE=1 whenever apply.sh says bus.lua changed).
 
 set -euo pipefail
 cd "$(dirname "$0")"
 
 MAME=${1:?usage: apply.sh /path/to/mame}
 BUSDIR="$MAME/src/devices/bus/astrocde"
-BUSLUA="$MAME/scripts/src/bus.lua"
 DRIVER="$MAME/src/mame/midway/astrohome.cpp"
 
 [ -d "$BUSDIR" ] || { echo "apply.sh: $BUSDIR missing" >&2; exit 1; }
 
-# The shared protocol sources are C, but MAME's device project forces a C++
-# precompiled header on every file it owns, so they are copied in under .cpp
-# names and compiled as C++ (they are written to build both ways).
-cp fujinet.cpp fujinet.h ../../common/emu/fujitcp.h "$BUSDIR/"
-cp ../../common/emu/fujitcp.c "$BUSDIR/fujitcp.cpp"
-cp ../../common/src/fujimail.c "$BUSDIR/fujimail.cpp"
-cp ../../common/src/fujibus.c "$BUSDIR/fujibus.cpp"
-cp ../firmware/src/astromap.c "$BUSDIR/astromap.cpp"
-cp ../../common/include/fujimail.h ../../common/include/fujibus.h \
-   ../firmware/include/astromap.h ../firmware/include/fuji_mailbox.h \
-   "$BUSDIR/"
-cp ../../common/include/fuji_mailbox_proto.h ../../common/include/fuji_mailbox_check.h "$BUSDIR/"
-rm -f "$BUSDIR/fujitcp.c" "$BUSDIR/fujimail.c" "$BUSDIR/fujibus.c" \
-      "$BUSDIR/astromap.c"
+. ../../common/emu/graft.lib.sh
 
-# bus.lua: add our files to the ASTROCADE block, once.
-if ! grep -q "astrocde/fujinet.cpp" "$BUSLUA"; then
-    python3 - "$BUSLUA" <<'EOF'
-import sys
-
-path = sys.argv[1]
-text = open(path).read()
-anchor = '\t\tMAME_DIR .. "src/devices/bus/astrocde/lightpen.h",\n'
-if anchor not in text:
-    sys.exit("apply.sh: bus.lua anchor line not found")
-addition = anchor + "".join(
-    f'\t\tMAME_DIR .. "src/devices/bus/astrocde/{f}",\n'
-    for f in ("fujinet.cpp", "fujinet.h", "fujitcp.cpp", "fujitcp.h",
-              "fujimail.cpp", "fujimail.h", "fujibus.cpp", "fujibus.h",
-              "astromap.cpp", "astromap.h", "fuji_mailbox.h",
-              "fuji_mailbox_proto.h", "fuji_mailbox_check.h"))
-open(path, "w").write(text.replace(anchor, addition, 1))
-EOF
-    echo "apply.sh: bus.lua updated (build with REGENIE=1)"
-fi
+graft "$BUSDIR" fujinet.cpp fujinet.h
+graft_common "$BUSDIR" fujitcp fujimail fujibus fuji_mailbox_proto fuji_mailbox_check
+graft "$BUSDIR" ../firmware/src/astromap.c ../firmware/include/{astromap,fuji_mailbox}.h
+graft_lua astrocde lightpen.h
 
 # astrohome.cpp: include + selectable slot option, once. Plain option_add,
 # unlike the internal ROM types, so -cartslot fujinet works from the CLI.
