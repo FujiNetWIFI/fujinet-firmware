@@ -1,7 +1,7 @@
 /* fujinet.c -- the cartridge's side of the mailbox.
  *
  * The protocol lives in fujimail.c, which the MAME model drives too; this is
- * the port: where a published byte goes, how a frame reaches the ESP32-S3,
+ * the port (fuji_port.c binds it to the USB link): where a published byte goes,
  * where a pushed image is kept, the loader's acks, the 7800's own registers
  * (TV, HSC), POKEY writes and the HSC's saves.
  */
@@ -9,13 +9,12 @@
 #include <string.h>
 
 #include "pico/stdlib.h"
-#include "pico/bootrom.h"
 #include "hardware/flash.h"
 #include "hardware/sync.h"
 
 #include "fujinet.h"
 #include "fujimail.h"
-#include "fuji_cfg.h"
+#include "fuji_port.h"
 #include "fujibus_usb.h"
 #include "fuji_cart.h"
 #include "fuji_store.h"
@@ -23,9 +22,6 @@
 #include "fuji_audio.h"
 #include "a78map.h"
 #include "hsc.h"
-
-/* The .cfg sibling arrives first; its `mapper=` applies to the next image. */
-static fuji_cfg_t cfg;
 
 static hsc_t hsc;
 static bool hsc_rom_ok, hsc_enabled;
@@ -100,29 +96,15 @@ static void hsc_flash_fallback(void)
 
 /* ---- the fujimail port ---- */
 
-static uint8_t port_stream_open(int stream, uint32_t size)
+static uint8_t port_rom_open(uint32_t size)
 {
-    uint8_t err;
+    uint8_t err = a78map_gate(size);
 
-    if (stream != FN_STREAM_ROM) {
-        fuji_cfg_open(&cfg);
-        return 0;
-    }
-    err = a78map_gate(size);
     if (err)
         return err;
     fuji_load_unstage(&fuji_loader);       /* free its store for this one */
     fuji_cart_poke(FN_R_STAGED, 0);
     return fuji_store_open(size);
-}
-
-static void port_stream_write(int stream, const uint8_t *chunk, unsigned len)
-{
-    if (stream == FN_STREAM_ROM) {
-        fuji_store_write(chunk, len);
-        return;
-    }
-    fuji_cfg_write(&cfg, chunk, len);
 }
 
 static void publish_staged(const a78map_plan_t *p)
@@ -143,23 +125,16 @@ static void publish_staged(const a78map_plan_t *p)
     fuji_cart_poke(FN_R_STAGED, v);
 }
 
-static uint8_t port_stream_close(int stream, uint32_t got, bool aborted)
+static uint8_t port_rom_close(uint32_t got, bool aborted, const char *mapper)
 {
     const uint8_t *base;
     a78map_plan_t plan;
     int err;
 
-    if (stream != FN_STREAM_ROM) {
-        fuji_cfg_close(&cfg, aborted);
-        return 0;
-    }
     base = fuji_store_close(aborted);
-    if (aborted || base == NULL) {
-        fuji_cfg_clear(&cfg);
+    if (aborted || base == NULL)
         return 0;
-    }
-    err = a78map_plan(base, got, fuji_cfg_mapper(&cfg), &plan);
-    fuji_cfg_clear(&cfg);
+    err = a78map_plan(base, got, mapper, &plan);
     if (err == A78MAP_ETOOBIG)
         return FN_BOOT_ERR_TOOBIG;
     if (err != A78MAP_OK)
@@ -174,27 +149,15 @@ static void port_arm_swap(void)
     fuji_load_arm(&fuji_loader);
 }
 
-static void port_bootsel(void)
-{
-    reset_usb_boot(0, 0);
-}
-
 static void own_register(uint8_t reg, uint8_t data);
 
-static const fujimail_port_t cart_port = {
-    .poke         = fuji_cart_poke,
-    .link_up      = fujibus_link_up,
-    .transact     = fujibus_transact,
-    .send_bare    = fujibus_send_bare,
-    .stream_open  = port_stream_open,
-    .stream_write = port_stream_write,
-    .stream_close = port_stream_close,
-    .arm_swap     = port_arm_swap,
-    .wait_link_ms = fuji_wait_ms_pumped,
-    .bootsel      = port_bootsel,
-    .on_txn       = NULL,
-    .on_dbc       = NULL,
-    .own_reg      = own_register,
+static const fuji_port_ops_t cart_port = {
+    .poke      = fuji_cart_poke,
+    .rom_open  = port_rom_open,
+    .rom_write = fuji_store_write,
+    .rom_close = port_rom_close,
+    .arm_swap  = port_arm_swap,
+    .own_reg   = own_register,
 };
 
 static uint32_t now_ms(void)
@@ -206,8 +169,7 @@ static const hsc_port_t hsc_port = { fujibus_transact, fujibus_link_up, now_ms }
 
 void fuji_service_init(void)
 {
-    fujimail_init(&cart_port);
-    fujibus_set_inbound_handler(fujimail_inbound);
+    fuji_port_init(&cart_port);
     hsc_init(&hsc, &hsc_port, fuji_hsc_shadow, &fuji_hsc_dirty);
     hsc_flash_init();
 }

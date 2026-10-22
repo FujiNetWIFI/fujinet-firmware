@@ -42,11 +42,11 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 - [o2/](../o2/) takes only the codec and transport; its USB device stays in `o2/firmware` because
   it adds a mass-storage interface, and its `fujimail.c` is an older design.
 - Every cart but o2 builds `src/fujimail.c`, which sits on top of `fujibus_usb.h`.
-- studio2 and atari-5200 start fujimail through `src/fuji_port.c`; the other carts still fill in
-  a `fujimail_port_t` themselves, as the MAME devices do with `emu/fujitcp.c` as the link.
-- sms, studio2, atari-5200 and atari-7800 build `src/fuji_cfg.c`. sms, atari-5200 and
-  atari-7800 also copy it into MAME through `emu/apply.sh`, so the device reads a .cfg as the
-  cart does.
+- Every cart but nes and o2 starts fujimail through `src/fuji_port.c`, and so builds
+  `src/fuji_cfg.c` too. nes fills in a `fujimail_port_t` itself, as the MAME devices do with
+  `emu/fujitcp.c` as the link.
+- sms, atari-5200 and atari-7800 also copy `src/fuji_cfg.c` into MAME through `emu/apply.sh`, so
+  the device reads a .cfg as the cart does.
 - Each cart's `fuji_mailbox.h` but o2's holds its address map and its own registers, and
   includes `fuji_mailbox_proto.h` first and `fuji_mailbox_check.h` last.
 - The `emu/apply.sh` scripts copy `fujibus.[ch]`, `fujimail.[ch]`, the two mailbox headers and
