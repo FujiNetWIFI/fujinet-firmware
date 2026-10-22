@@ -19,7 +19,6 @@ uint32_t MediaTypeDDP::_block_to_offset(uint32_t blockNum)
     return blockNum * 1024;
 }
 
-// Returns TRUE if an error condition occurred
 error_is_true MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
 {
     if (blockNum == _media_last_block)
@@ -34,9 +33,9 @@ error_is_true MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
     }
 
     // Return an error if we're trying to read beyond the end of the disk
-    if (blockNum > _media_num_blocks-1)
+    if (blockNum >= _media_num_blocks)
     {
-        Debug_printf("::read block %lu > %lu\r\n", blockNum, _media_num_blocks);
+        Debug_printf("::read block %lu >= %lu\r\n", blockNum, _media_num_blocks);
         _media_controller_status=2;
         RETURN_ERROR_AS_TRUE();
     }
@@ -44,13 +43,9 @@ error_is_true MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
     memset(_media_blockbuff, 0, sizeof(_media_blockbuff));
 
     bool err = false;
-    // // Perform a seek if we're not reading the sector after the last one we read
-    // if (blockNum != _media_last_block + 1)
-    // {
-        uint32_t offset = _block_to_offset(blockNum);
-        err = fnio::fseek(_media_fileh, offset, SEEK_SET) != 0;
-        _media_last_block = INVALID_SECTOR_VALUE;
-    // }
+    uint32_t offset = _block_to_offset(blockNum);
+    err = fnio::fseek(_media_fileh, offset, SEEK_SET) != 0;
+    _media_last_block = INVALID_SECTOR_VALUE;
 
     if (err == false)
         err = fnio::fread(_media_blockbuff, 1, 1024, _media_fileh) != 1024;
@@ -71,10 +66,15 @@ error_is_true MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
     RETURN_ERROR_IF(err);
 }
 
-// Returns TRUE if an error condition occurred
 error_is_true MediaTypeDDP::write(uint32_t blockNum, bool verify)
 {
     Debug_printf("DDP WRITE [%lu/%lu]\r\n", blockNum, _media_num_blocks);
+
+    if (blockNum >= _media_num_blocks)
+    {
+        _media_controller_status = 2;
+        RETURN_ERROR_AS_TRUE();
+    }
 
     uint32_t offset = _block_to_offset(blockNum);
 
@@ -101,19 +101,15 @@ error_is_true MediaTypeDDP::write(uint32_t blockNum, bool verify)
         _media_fileh = hsFileh;
     }
 
-    // Perform a seek if we're writing to the sector after the last one
     int e;
-//    if (blockNum != _media_last_block + 1)
-//    {
-        e = fnio::fseek(_media_fileh, offset, SEEK_SET);
-        if (e != 0)
-        {
-            Debug_printf("::write seek error %d\r\n", e);
-            _media_controller_status=2;
-            if (hs_mode) { fnio::fclose(hsFileh); _media_fileh = oldFileh; }
-            RETURN_ERROR_AS_TRUE();
-        }
-//    }
+    e = fnio::fseek(_media_fileh, offset, SEEK_SET);
+    if (e != 0)
+    {
+        Debug_printf("::write seek error %d\r\n", e);
+        _media_controller_status=2;
+        if (hs_mode) { fnio::fclose(hsFileh); _media_fileh = oldFileh; }
+        RETURN_ERROR_AS_TRUE();
+    }
     // Write the data
     e = fnio::fwrite(&_media_blockbuff[0], 1, 256, _media_fileh);
     e += fnio::fwrite(&_media_blockbuff[256], 1, 256, _media_fileh);
@@ -156,7 +152,6 @@ uint8_t MediaTypeDDP::status()
     return _media_controller_status;
 }
 
-// Returns TRUE if an error condition occurred
 error_is_true MediaTypeDDP::format(uint16_t *responsesize)
 {
     RETURN_ERROR_AS_TRUE();
@@ -177,11 +172,15 @@ mediatype_t MediaTypeDDP::mount(fnFile *f, uint32_t disksize)
     _media_fileh = f;
     _mediatype = MEDIATYPE_DDP;
     _media_num_blocks = disksize / 1024;
+    if (_media_num_blocks == 0)
+    {
+        Debug_printf("DDP MOUNT refused: %lu bytes is under one block\r\n", disksize);
+        return MEDIATYPE_UNKNOWN;
+    }
 
     return _mediatype;
 }
 
-// Returns FALSE on error
 success_is_true MediaTypeDDP::create(fnFile *f, uint32_t numBlocks)
 {
     Debug_print("DDP CREATE\r\n");

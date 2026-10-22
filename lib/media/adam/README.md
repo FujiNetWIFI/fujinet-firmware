@@ -18,4 +18,4 @@ Coleco ADAM tape and disk image formats for `BUILD_ADAM`, also handed to `BUILD_
 
 ## Build
 ESP: globbed by `src/CMakeLists.txt`, compiled only under `BUILD_ADAM`. PC: `FUJINET_TARGET=ADAM`
-lists every file.
+lists every file. `tests/MediaTypeAdamTests.cpp` covers the 0-block mounts and block bounds.
