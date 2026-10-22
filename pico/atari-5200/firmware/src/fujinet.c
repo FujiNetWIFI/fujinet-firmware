@@ -1,26 +1,22 @@
 /* fujinet.c -- the cartridge's side of the mailbox.
  *
- * The protocol lives in fujimail.c, which the MAME model drives too; this is
- * the port: where a published byte goes, how a frame reaches the ESP32-S3,
- * where a pushed image is kept (straight into the view buffer core1 is not
- * serving), and the 5200's own register, FN_REG_CONFIG.
+ * The protocol lives in fujimail.c, which the MAME model drives too, and
+ * fuji_port.c binds it to the USB link; this is the rest of the port: where a
+ * published byte goes, where a pushed image is kept (straight into the view
+ * buffer core1 is not serving), and the 5200's own register, FN_REG_CONFIG.
  */
 
 #include <string.h>
 
 #include "pico/stdlib.h"
-#include "pico/bootrom.h"
 
 #include "fujinet.h"
 #include "fujimail.h"
-#include "fuji_cfg.h"
+#include "fuji_port.h"
 #include "fujibus_usb.h"
 #include "fuji_cart.h"
 #include "fuji_mailbox.h"
 #include "a52map.h"
-
-/* The .cfg sibling arrives first; its `mapper=` applies to the next image. */
-static fuji_cfg_t cfg;
 
 static uint8_t *push_buf;
 static uint32_t push_len;
@@ -50,15 +46,10 @@ static void publish_staged(void)
 
 /* ---- the fujimail port ---- */
 
-static uint8_t port_stream_open(int stream, uint32_t size)
+static uint8_t port_rom_open(uint32_t size)
 {
-    uint8_t err;
+    uint8_t err = a52map_gate(size);
 
-    if (stream != FN_STREAM_ROM) {
-        fuji_cfg_open(&cfg);
-        return 0;
-    }
-    err = a52map_gate(size);
     if (err)
         return err;
     push_buf = fuji_load_target(&fuji_loader);
@@ -67,34 +58,24 @@ static uint8_t port_stream_open(int stream, uint32_t size)
     return 0;
 }
 
-static void port_stream_write(int stream, const uint8_t *chunk, unsigned len)
+static void port_rom_write(const uint8_t *chunk, unsigned len)
 {
-    if (stream == FN_STREAM_ROM) {
-        if (push_buf && push_len + len <= A52MAP_IMAGE_MAX + A52MAP_CAR_HEADER) {
-            memcpy(push_buf + push_len, chunk, len);
-            push_len += len;
-        }
-        return;
+    if (push_buf && push_len + len <= A52MAP_IMAGE_MAX + A52MAP_CAR_HEADER) {
+        memcpy(push_buf + push_len, chunk, len);
+        push_len += len;
     }
-    fuji_cfg_write(&cfg, chunk, len);
 }
 
-static uint8_t port_stream_close(int stream, uint32_t got, bool aborted)
+static uint8_t port_rom_close(uint32_t got, bool aborted, const char *mapper)
 {
     uint8_t err;
 
     (void)got;                          /* push_len is what actually landed */
-    if (stream != FN_STREAM_ROM) {
-        fuji_cfg_close(&cfg, aborted);
-        return 0;
-    }
     if (aborted || !push_buf || push_len == 0) {
-        fuji_cfg_clear(&cfg);
         push_buf = NULL;
         return 0;
     }
-    err = fuji_load_commit(&fuji_loader, push_len, fuji_cfg_mapper(&cfg));
-    fuji_cfg_clear(&cfg);
+    err = fuji_load_commit(&fuji_loader, push_len, mapper);
     push_buf = NULL;
     publish_staged();
     return err;
@@ -106,11 +87,6 @@ static void port_arm_swap(void)
     publish_staged();
 }
 
-static void port_bootsel(void)
-{
-    reset_usb_boot(0, 0);
-}
-
 static void own_register(uint8_t reg, uint8_t data)
 {
     if (reg == FN_REG_CONFIG && data == FN_CONFIG_MAGIC) {
@@ -120,28 +96,20 @@ static void own_register(uint8_t reg, uint8_t data)
     }
 }
 
-static const fujimail_port_t cart_port = {
-    .poke         = fuji_cart_poke,
-    .link_up      = fujibus_link_up,
-    .transact     = fujibus_transact,
-    .send_bare    = fujibus_send_bare,
-    .stream_open  = port_stream_open,
-    .stream_write = port_stream_write,
-    .stream_close = port_stream_close,
-    .arm_swap     = port_arm_swap,
-    .wait_link_ms = fuji_wait_ms_pumped,
-    .bootsel      = port_bootsel,
-    .on_txn       = NULL,
-    .on_dbc       = NULL,
-    .own_reg      = own_register,
+static const fuji_port_ops_t cart_port = {
+    .poke      = fuji_cart_poke,
+    .rom_open  = port_rom_open,
+    .rom_write = port_rom_write,
+    .rom_close = port_rom_close,
+    .arm_swap  = port_arm_swap,
+    .own_reg   = own_register,
 };
 
 void fuji_service_init(const uint8_t *config, uint32_t config_len)
 {
     config_rom = config;
     config_size = config_len;
-    fujimail_init(&cart_port);
-    fujibus_set_inbound_handler(fujimail_inbound);
+    fuji_port_init(&cart_port);
 }
 
 /* A swap: the new image is running. If it claims the mailbox it finds the
