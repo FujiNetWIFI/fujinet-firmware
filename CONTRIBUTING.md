@@ -233,7 +233,7 @@ before writing device-side code or anything non-trivial. The rules broken most o
   never against `true`/`false`/`0`/`1` and never by truthiness, since the two types carry opposite
   polarity. A flag a callback sets for its caller to read is the common way this slips in. Do not
   add a comment saying what the result means, such as `// Returns FALSE on error`; the type
-  already says it, and the comment reads it as a `bool`.
+  already says it, and the comment encourages treating it as a `bool`.
 - **Compare `fujiError_t` against `FUJI_ERROR::NONE`, never `FUJI_ERROR::UNSPECIFIED`.** Use
   `if (err != FUJI_ERROR::NONE)` for failure and `== FUJI_ERROR::NONE` for success. `UNSPECIFIED` is
   a placeholder that is expected to be replaced by a real list of error codes, so any test written
