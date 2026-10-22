@@ -342,7 +342,7 @@ int fujiDevice::get_rotate_slot()
 
 // Disk Image Rotate
 /*
-  We rotate disks by changing their disk device ID's. That prevents
+  We rotate disks by changing their disk device IDs. That prevents
   us from having to unmount and re-mount devices.
 */
 void fujiDevice::fujicmd_image_rotate()
@@ -626,7 +626,16 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
     boot_config = false;
 
     // We need the file size for loading XEX files and for CASSETTE, so get that too
-    disk.disk_size = host.file_size(disk.fileh);
+    long size = host.file_size(disk.fileh);
+    // disk_size and every mount() take it in 32 bits; on ESP32 a failed ftell() is -1
+    if (size < 0 || static_cast<int64_t>(size) > UINT32_MAX)
+    {
+        Debug_printf("Refusing '%s': size %ld doesn't fit in 32 bits\r\n", disk.filename, size);
+        fnio::fclose(disk.fileh);
+        disk.fileh = nullptr;
+        RETURN_ERROR_AS_FALSE();
+    }
+    disk.disk_size = size;
     DISK_DEVICE *disk_dev = get_disk_dev(deviceSlot);
     disk.disk_type = mount_media(disk_dev, disk, host, access_mode);
     disk_dev->is_config_device = false;
@@ -869,14 +878,10 @@ void fujiDevice::fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_s
 
     size_t max_block_size = num_pages * DIR_BLOCK_SIZE;
 
-    // Debug_printf("Parameters: aux1=$%02X (pages=%d), aux2=$%02X (group_size=%d), max_block_size=%d\n",
-    //              cmdFrame.aux1, num_pages, cmdFrame.aux2, group_size, max_block_size);
-
 #ifdef WE_NEED_TO_REWIND
     // Save current directory position in case we need to rewind
     uint16_t starting_pos = _fnHosts[_current_open_directory_slot].dir_tell();
 #endif /* WE_NEED_TO_REWIND */
-    // Debug_printf("Starting directory position: %d\n", starting_pos);
 
     std::vector<DirectoryPageGroup> page_groups;
     size_t total_size = 0;
@@ -890,25 +895,17 @@ void fujiDevice::fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_s
         // Calculate group index (0-based)
         group.index = group_start_pos / group_size;
 
-        // Debug_printf("Starting new group at directory position: %d (index=%d)\n",
-        //              group_start_pos, group.index);
-
         // Fill the group with entries
         for (int i = 0; i < group_size && !is_last_entry; i++) {
             fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
 
             if (f == nullptr) {
-                // Debug_println("Reached end of directory");
                 is_last_entry = true;
                 group.is_last_group = true;
                 break;
             }
 
-            // Debug_printf("Adding entry %d: \"%s\" (size=%lu)\n",
-            //             i, f->filename, f->size);
-
             if (!group.add_entry(f)) {
-                // Debug_println("Failed to add entry to group");
                 break;
             }
         }
@@ -924,12 +921,8 @@ void fujiDevice::fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_s
 
         // Check if adding this group would exceed max_block_size
         size_t new_total = total_size + group.data.size();
-        // Debug_printf("Group stats: entries=%d, size=%d, new_total=%d/%d\n",
-        //             group.entry_count, group.data.size(), new_total, max_block_size);
 
         if (new_total > max_block_size) {
-            // Debug_printf("Group would exceed max_block_size (%d > %d), rewinding to pos %d\n",
-            //            new_total, max_block_size, group_start_pos);
             // Rewind to start of this group and break
             _fnHosts[_current_open_directory_slot].dir_seek(group_start_pos);
             break;
@@ -938,8 +931,6 @@ void fujiDevice::fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_s
         // Add group to our collection
         total_size = new_total;
         page_groups.push_back(std::move(group));
-        // Debug_printf("Added group %d, total_size now %d\n",
-        //             page_groups.size(), total_size);
     }
 
     // If we couldn't fit any groups, return error
@@ -968,12 +959,6 @@ void fujiDevice::fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_s
             current_pos += group.data.size();
         }
     }
-
-    // Debug_printf("Directory block stats:\n");
-    // Debug_printf("  Number of groups: %d\n", page_groups.size());
-    // Debug_printf("  Total data size: %d bytes\n", total_size);
-    // Debug_printf("  Last group: %s\n", (page_groups.back().is_last_group ? "Yes" : "No"));
-    // Debug_printf("Full response block:\n%s\n", util_hexdump(response.data(), response.size()).c_str());
 
     SYSTEM_BUS.transaction_send(response.data(), response.size());
 }
