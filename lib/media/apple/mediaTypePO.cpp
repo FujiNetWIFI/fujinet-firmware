@@ -6,25 +6,6 @@
 #include "utils.h"
 #include "../../include/debug.h"
 
-struct TwoMGHeader
-{
-    char    id[4];
-    char    creator[4];
-    u16le_t header_size;
-    u16le_t version;
-    u32le_t format;
-    u32le_t flags;
-    u32le_t blocks;
-    u32le_t data_offset;
-    u32le_t data_len;
-    u32le_t comment_offset;
-    u32le_t comment_len;
-    u32le_t creator_offset;
-    u32le_t creator_len;
-    uint8_t reserved[16];
-} __attribute__((packed));
-static_assert(sizeof(TwoMGHeader) == 64, "2MG header is 64 bytes");
-
 error_is_true MediaTypePO::read(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
 {
     size_t readsize = *count;
@@ -104,21 +85,6 @@ mediatype_t MediaTypePO::mount(fnFile *f, uint32_t disksize)
     _media_fileh = f;
     num_blocks = disksize / 512;
     return MEDIATYPE_PO;
-}
-
-success_is_true MediaTypePO::write_2mg_header(fnFile *f, uint16_t numBlocks)
-{
-    TwoMGHeader h = {};
-
-    memcpy(h.id, "2IMG", sizeof(h.id));
-    memcpy(h.creator, "FUJI", sizeof(h.creator));
-    h.header_size = sizeof(h);
-    h.version = 1;
-    h.format = 1; // ProDOS order
-    h.blocks = numBlocks;
-    h.data_offset = sizeof(h);
-    h.data_len = (uint32_t)numBlocks * 512;
-    RETURN_SUCCESS_IF(fnio::fwrite(&h, sizeof(h), 1, f) == 1);
 }
 
 #endif // BUILD_APPLE

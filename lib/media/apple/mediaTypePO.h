@@ -22,8 +22,6 @@ public:
 
     success_is_true status() override {RETURN_SUCCESS_IF(_media_fileh != nullptr);}
 
-    // A 64-byte 2MG header for numBlocks ProDOS-order blocks starting right after it
-    static success_is_true write_2mg_header(fnFile *f, uint16_t numBlocks);
 
     size_t size() {return _media_num_sectors;}
     void reset_seek_opto() {last_block_num = 0xFFFFFFFF;};

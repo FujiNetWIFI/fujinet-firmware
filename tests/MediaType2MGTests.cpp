@@ -3,6 +3,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <vector>
 
 #include "mediaType2MG.h"
 
@@ -50,6 +51,14 @@ bool block_is(MediaType &m, uint16_t b)
     uint16_t count = sizeof(blk);
     return m.read(b, &count, blk).is_success() && blk[0] == (uint8_t)(0xA0 + b)
         && blk[511] == (uint8_t)(0xA0 + b);
+}
+
+uint32_t le(const std::vector<uint8_t> &b, size_t off, size_t n)
+{
+    uint32_t v = 0;
+    for (size_t i = 0; i < n; i++)
+        v |= (uint32_t)b[off + i] << (8 * i);
+    return v;
 }
 
 struct HighScore : MediaType2MG
@@ -117,4 +126,47 @@ TEST_CASE("a 2MG high-score marker gives the writable block range")
         media.unmount();
         remove(TWOMG_TEST_FILE);
     }
+}
+
+TEST_CASE("write_2mg_header lays out the 64-byte 2MG header")
+{
+    fnFile *fp = fopen(TWOMG_TEST_FILE, "w+b");
+    REQUIRE(fp != nullptr);
+    REQUIRE(MediaType2MG::write_2mg_header(fp, 280).is_success());
+    fseek(fp, 0, SEEK_END);
+    std::vector<uint8_t> h(ftell(fp));
+    rewind(fp);
+    REQUIRE(fread(h.data(), 1, h.size(), fp) == h.size());
+    fclose(fp);
+    remove(TWOMG_TEST_FILE);
+
+    REQUIRE(h.size() == 64);
+    CHECK(memcmp(&h[0x00], "2IMG", 4) == 0);
+    CHECK(memcmp(&h[0x04], "FUJI", 4) == 0);
+    CHECK(le(h, 0x08, 2) == 64);        // header size
+    CHECK(le(h, 0x0A, 2) == 1);         // version
+    CHECK(le(h, 0x0C, 4) == 1);         // ProDOS order
+    CHECK(le(h, 0x10, 4) == 0);         // flags
+    CHECK(le(h, 0x14, 4) == 280);       // blocks
+    CHECK(le(h, 0x18, 4) == 64);        // data offset
+    CHECK(le(h, 0x1C, 4) == 280 * 512); // data length
+    for (size_t i = 0x20; i < 0x40; i++)
+        CHECK(h[i] == 0);               // no comment or creator data, reserved
+}
+
+TEST_CASE("an image behind write_2mg_header's header mounts as 2MG")
+{
+    fnFile *fp = fopen(TWOMG_TEST_FILE, "w+b");
+    REQUIRE(fp != nullptr);
+    REQUIRE(MediaType2MG::write_2mg_header(fp, BLOCKS).is_success());
+    uint32_t size = make_image(fp, false);
+
+    CHECK(MediaType::discover_po_mediatype(fp) == MEDIATYPE_2MG);
+    MediaType2MG media;
+    CHECK(media.mount(fp, size) == MEDIATYPE_2MG);
+    CHECK(media.num_blocks == BLOCKS);
+    CHECK(block_is(media, 0));
+    CHECK(block_is(media, BLOCKS - 1));
+    media.unmount();
+    remove(TWOMG_TEST_FILE);
 }

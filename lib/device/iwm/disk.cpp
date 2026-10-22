@@ -661,7 +661,7 @@ error_is_true iwmDisk::write_blank(fnFile *f, const NewDiskRequest &req)
   if (blank_header_type == 1) // 2MG
   {
     Debug_printf("Writing 2MG Header\n");
-    if (MediaTypePO::write_2mg_header(f, numBlocks).is_error())
+    if (MediaType2MG::write_2mg_header(f, numBlocks).is_error())
       RETURN_ERROR_AS_TRUE();
   }
 

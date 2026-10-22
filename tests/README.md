@@ -20,8 +20,7 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `MediaTypeIMDTests.cpp` | `lib/media/rs232/diskTypeIMD.cpp` adapter (`mediatypeimd_tests`; built with `BUILD_RS232`) |
 | `MediaTypeAltairTests.cpp` | `lib/media/rs232/diskTypeAltair.cpp` adapter (`mediatypealtair_tests`; built with `BUILD_RS232`) |
 | `MediaTypeImgTests.cpp` | `lib/media/rs232/diskTypeImg.cpp` blank image from `create()` (`mediatypeimg_tests`; built with `BUILD_RS232`) |
-| `MediaTypePOTests.cpp` | `lib/media/apple/mediaTypePO.cpp` 2MG header and mount (`mediatypepo_tests`; built with `BUILD_APPLE`) |
-| `MediaType2MGTests.cpp` | `lib/media/apple/mediaType2MG.cpp` and `mediaTypePO.cpp` mounts, 2MG detection and the high-score marker (`mediatype2mg_tests`; built with `BUILD_APPLE`) |
+| `MediaType2MGTests.cpp` | `lib/media/apple/mediaType2MG.cpp` and `mediaTypePO.cpp` mounts, 2MG detection, the high-score marker and the 2MG header NEW DISK writes (`mediatype2mg_tests`; built with `BUILD_APPLE`) |
 | `FsSDListingTests.cpp` | `lib/FileSystem/fnFsSD.cpp` listings over a local directory: a second handle's `dir_open()` leaves `fnSDFAT`'s listing alone (`fssd_listing_tests`) |
 | `PDFPrinterTests.cpp` | `lib/printer-emulator/pdf_printer.cpp` page breaks when one buffer holds more than one line (`pdf_printer_tests`; not on the APPLE target) |
 | `sioNetwork-DSTATS-test.cpp` | `sioNetwork` command recognition and DSTATS (`sio_dstats_tests`; ATARI target only) |
