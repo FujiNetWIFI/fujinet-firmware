@@ -10,6 +10,7 @@
 #include "a78_cart.h"
 #include "a78map.h"
 #include "fuji_load.h"
+#include "fuji_cfg.h"
 #include "hsc.h"
 
 #include <vector>
@@ -77,10 +78,9 @@ private:
 	std::vector<uint8_t> m_config;            // CONFIG, or the -cart client
 	std::vector<uint8_t> m_file;
 	std::vector<uint8_t> m_store[2];          // the cart's RAM and flash tiers
-	std::vector<uint8_t> m_cfg;
+	fuji_cfg_t m_cfg{};
 	std::vector<uint8_t> m_hsc_rom;
 	int m_open_tier = -1;
-	std::string m_cfg_mapper;
 
 	a78_bus_t m_bus{};
 	a78map_t *m_live = nullptr;

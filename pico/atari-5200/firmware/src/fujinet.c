@@ -13,42 +13,20 @@
 
 #include "fujinet.h"
 #include "fujimail.h"
+#include "fuji_cfg.h"
 #include "fujibus_usb.h"
 #include "fuji_cart.h"
 #include "fuji_mailbox.h"
 #include "a52map.h"
 
 /* The .cfg sibling arrives first; its `mapper=` applies to the next image. */
-static char cfg_text[256];
-static unsigned cfg_len;
-static char cfg_mapper[24];
+static fuji_cfg_t cfg;
 
 static uint8_t *push_buf;
 static uint32_t push_len;
 
 static const uint8_t *config_rom;
 static uint32_t config_size;
-
-static void parse_cfg(void)
-{
-    const char *p = cfg_text;
-
-    cfg_mapper[0] = '\0';
-    while (p && *p) {
-        while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')
-            p++;
-        if (strncmp(p, "mapper=", 7) == 0) {
-            unsigned n = 0;
-
-            p += 7;
-            while (*p && *p != '\r' && *p != '\n' && *p != ' ' && n < sizeof cfg_mapper - 1)
-                cfg_mapper[n++] = *p++;
-            cfg_mapper[n] = '\0';
-            return;
-        }
-        p = strchr(p, '\n');
-    }
-}
 
 static void publish_staged(void)
 {
@@ -77,8 +55,7 @@ static uint8_t port_stream_open(int stream, uint32_t size)
     uint8_t err;
 
     if (stream != FN_STREAM_ROM) {
-        cfg_len = 0;
-        cfg_text[0] = '\0';
+        fuji_cfg_open(&cfg);
         return 0;
     }
     err = a52map_gate(size);
@@ -99,11 +76,7 @@ static void port_stream_write(int stream, const uint8_t *chunk, unsigned len)
         }
         return;
     }
-    if (cfg_len + len >= sizeof cfg_text)
-        len = sizeof cfg_text - 1 - cfg_len;
-    memcpy(cfg_text + cfg_len, chunk, len);
-    cfg_len += len;
-    cfg_text[cfg_len] = '\0';
+    fuji_cfg_write(&cfg, chunk, len);
 }
 
 static uint8_t port_stream_close(int stream, uint32_t got, bool aborted)
@@ -112,17 +85,16 @@ static uint8_t port_stream_close(int stream, uint32_t got, bool aborted)
 
     (void)got;                          /* push_len is what actually landed */
     if (stream != FN_STREAM_ROM) {
-        if (!aborted)
-            parse_cfg();
+        fuji_cfg_close(&cfg, aborted);
         return 0;
     }
     if (aborted || !push_buf || push_len == 0) {
-        cfg_mapper[0] = '\0';
+        fuji_cfg_clear(&cfg);
         push_buf = NULL;
         return 0;
     }
-    err = fuji_load_commit(&fuji_loader, push_len, cfg_mapper[0] ? cfg_mapper : NULL);
-    cfg_mapper[0] = '\0';
+    err = fuji_load_commit(&fuji_loader, push_len, fuji_cfg_mapper(&cfg));
+    fuji_cfg_clear(&cfg);
     push_buf = NULL;
     publish_staged();
     return err;

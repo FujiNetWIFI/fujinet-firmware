@@ -14,7 +14,7 @@ and serves a mailbox the console reaches by reads alone.
 | `firmware/include/fuji_load.h`, `firmware/src/fuji_load.c` | the two view buffers: staging a push, CONFIG, the armed swap |
 | `firmware/src/a52_cart.c` | core1: follow the address, serve, commit side effects, swap |
 | `firmware/include/fuji_cart.h`, `firmware/src/fuji_cart.c` | the ring between the cores; core0: the ring drain, the arena, console power |
-| `firmware/include/fujinet.h`, `firmware/src/fujinet.c`, `firmware/src/main.c` | the port for [common/](../common/)'s `fujimail.c` and `FN_REG_CONFIG`, power-on, the core0 loop; the FujiBus codec and USB device come from common too |
+| `firmware/include/fujinet.h`, `firmware/src/fujinet.c`, `firmware/src/main.c` | the port for [common/](../common/)'s `fujimail.c` and `FN_REG_CONFIG`, power-on, the core0 loop; the FujiBus codec, the USB device and the `.cfg` parser come from common too |
 | `firmware/CMakeLists.txt` | the pico-sdk build, through [common/](../common/)'s `fujicart_firmware()` |
 | `firmware/baked/` | the CONFIG header the firmware uses when there is no fresh `build/gen` (CI, the ESP32 build) |
 | `firmware/boards/fuji5200_rp2354b.*` | the board |
@@ -48,7 +48,8 @@ and serves a mailbox the console reaches by reads alone.
   builds the firmware; `--baked` builds from `firmware/baked/` alone, `--bake` refreshes it.
 - `make -C firmware/host_test` runs the host tests; `A52_CORPUS=<dir>` also plans a corpus.
 - `emu/apply.sh <mame>` grafts the device (`-cartslot fujinet`); a single-driver build is enough:
-  `make SUBTARGET=a5200 SOURCES=src/mame/atari/atari400.cpp`, with `REGENIE=1` the first time.
+  `make SUBTARGET=a5200 SOURCES=src/mame/atari/atari400.cpp`, with `REGENIE=1` whenever
+  `apply.sh` says it changed `bus.lua`.
   `./run.sh` runs a client; `IMAGE=` serves any image from power-on. Run throttled, the device
   takes transactions off the emulated CPU's thread, as core0 does, so a push shows its progress;
   the harnesses run `-nothrottle` and get them inside the read.

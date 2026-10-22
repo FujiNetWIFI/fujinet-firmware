@@ -464,7 +464,7 @@ uint8_t a5200_fujinet_device::stream_open(int stream, uint32_t size)
 {
 	if (stream != FN_STREAM_ROM)
 	{
-		m_cfg.clear();
+		fuji_cfg_open(&m_cfg);
 		return 0;
 	}
 	uint8_t err = a52map_gate(size);
@@ -483,8 +483,7 @@ void a5200_fujinet_device::stream_write(int stream, const uint8_t *chunk, unsign
 {
 	if (stream != FN_STREAM_ROM)
 	{
-		if (m_cfg.size() + len < 256)
-			m_cfg.insert(m_cfg.end(), chunk, chunk + len);
+		fuji_cfg_write(&m_cfg, chunk, len);
 		return;
 	}
 	if (m_push && m_push_len + len <= A52MAP_IMAGE_MAX + A52MAP_CAR_HEADER)
@@ -500,20 +499,12 @@ uint8_t a5200_fujinet_device::stream_close(int stream, uint32_t got, bool aborte
 	if (stream != FN_STREAM_ROM)
 	{
 		// the .cfg sibling: its mapper= applies to the next image
-		std::string text(m_cfg.begin(), m_cfg.end());
-		size_t at = text.find("mapper=");
-
-		m_cfg_mapper.clear();
-		if (!aborted && at != std::string::npos)
-		{
-			at += 7;
-			while (at < text.size() && !strchr(" \t\r\n", text[at]))
-				m_cfg_mapper += text[at++];
-		}
+		fuji_cfg_close(&m_cfg, aborted);
 		return 0;
 	}
-	std::string mapper = m_cfg_mapper;
-	m_cfg_mapper.clear();
+	const char *cfg = fuji_cfg_mapper(&m_cfg);
+	std::string mapper = cfg ? cfg : "";
+	fuji_cfg_clear(&m_cfg);
 	if (aborted || !m_push || m_push_len == 0)
 	{
 		m_push = nullptr;

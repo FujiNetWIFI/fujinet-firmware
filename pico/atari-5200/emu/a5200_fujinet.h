@@ -9,6 +9,7 @@
 
 #include "a52map.h"
 #include "fuji_load.h"
+#include "fuji_cfg.h"
 
 #include <atomic>
 #include <condition_variable>
@@ -88,10 +89,9 @@ private:
 
 	std::vector<uint8_t> m_boot;            // what power-on serves with the mailbox
 	std::vector<uint8_t> m_direct;          // an image served alone, no mailbox
-	std::vector<uint8_t> m_cfg;             // the .cfg sibling
+	fuji_cfg_t m_cfg{};                     // the .cfg sibling
 	uint8_t *m_push = nullptr;
 	uint32_t m_push_len = 0;
-	std::string m_cfg_mapper;
 
 	output_finder<> m_swaps_out;            // fujinet_swaps, for the harnesses
 	cpu_device *m_cpu = nullptr;
