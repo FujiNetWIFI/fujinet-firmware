@@ -628,7 +628,7 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
     // We need the file size for loading XEX files and for CASSETTE, so get that too
     long size = host.file_size(disk.fileh);
     // disk_size and every mount() take it in 32 bits; on ESP32 a failed ftell() is -1
-    if (size < 0 || static_cast<int64_t>(size) > UINT32_MAX)
+    if (size < 0 || (static_cast<uint64_t>(size) >> 32) != 0)
     {
         Debug_printf("Refusing '%s': size %ld doesn't fit in 32 bits\r\n", disk.filename, size);
         fnio::fclose(disk.fileh);
