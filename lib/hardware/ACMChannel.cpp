@@ -101,7 +101,7 @@ void ACMChannel::newDevice(usb_device_handle_t usb_dev)
     }
 }
 
-// FIXME - apparently it later ESP-DIF versions there's a `void *user_arg`
+// FIXME - newer ESP-IDF reportedly passes a `void *user_arg`; use it instead of this static.
 static ACMChannel *ndc_instance = nullptr;
 static void newDevForwarder(usb_device_handle_t usb_dev)
 {
@@ -117,12 +117,9 @@ bool ACMChannel::openDevice()
     if (err != ESP_OK)
         return false;
 
-    //cdc_acm_host_desc_print(cdc_dev);
     vTaskDelay(pdMS_TO_TICKS(100));
 
-    // Test Line Coding commands: Get current line coding, change
-    // it 9600 7N1 and read again
-
+    // 9600 baud, 7 data bits, odd parity, 1.5 stop bits
     cdc_acm_line_coding_t line_coding;
     ESP_ERROR_CHECK(cdc_acm_host_line_coding_get(cdc_dev, &line_coding));
 
@@ -160,7 +157,7 @@ void ACMChannel::begin()
     if (rxStream == nullptr)
         rxStream = xStreamBufferCreate(RX_BUFFER_SIZE, 1);
     device_disconnected_sem = xSemaphoreCreateBinary();
-    device_connected_sem = xSemaphoreCreateBinary();  // <-- new
+    device_connected_sem = xSemaphoreCreateBinary();
     if (rxStream == nullptr || device_disconnected_sem == nullptr || device_connected_sem == nullptr)
     {
         Debug_printv("could not create ACM buffer/semaphores, free internal/total heap: %lu/%lu",
@@ -175,8 +172,8 @@ void ACMChannel::begin()
 
     ndc_instance = this;
 
-    // Register the new-device callback before installing, so we don't miss
-    // devices that were already connected at boot
+    // Registered at install, so devices connected at boot are reported (unless the host was
+    // already up; see below).
     cdc_acm_host_driver_config_t driver_config = {};
     driver_config.driver_task_stack_size = 4096;
     driver_config.driver_task_priority = _service_priority;
@@ -194,14 +191,8 @@ void ACMChannel::begin()
 
     if (host_was_already_up)
     {
-        // The comment above ("so we don't miss devices that were already
-        // connected at boot") only holds when we are the ones who started
-        // the host. NEW_DEV is sent at the instant a device enumerates and
-        // is never replayed, and the CDC-ACM driver raises new_dev_cb from
-        // that event alone -- so a companion that enumerated while
-        // PicoUpdater had the port (including the reboot right after a
-        // reflash) has already announced itself to nobody, and the wait
-        // below would never end. Make it announce itself again.
+        // NEW_DEV is never replayed, so a companion that enumerated under PicoUpdater has
+        // announced itself to nobody and the wait below would never end.
         Debug_printv("USB host was already running -- recycling the root port "
                      "so already-enumerated devices are re-announced");
         usbHostRecycleRootPort();
@@ -216,14 +207,8 @@ void ACMChannel::begin()
         break;
     }
 
-    // begin() only blocks for this first connection -- callers
-    // (systemBus::setup()) depend on it not returning until a device is
-    // actually up. From here on, keep watching for (re)connect events on a
-    // background task so a disconnect/replug (e.g. the RP2040 resetting)
-    // can recover without a full ESP32 reboot. Previously nothing ever
-    // consumed device_connected_sem again after this point, so a
-    // reattach was silently never noticed.
-    // Survivable: the bus is up, only replug recovery is lost.
+    // systemBus::setup() needs begin() to block for the first device only; this task
+    // handles later replugs (e.g. the RP2040 resetting). Without it the bus still works.
     BaseType_t reconnect_task_created = xTaskCreate(reconnectTaskForwarder, "ACM-reconnect", 4096,
                                                      this, _service_priority, NULL);
     if (reconnect_task_created != pdTRUE)
@@ -256,10 +241,11 @@ size_t ACMChannel::dataOut(const void *buffer, size_t length)
 {
     if (!cdc_dev)
         return 0; // link down
-    cdc_acm_host_data_tx_blocking(cdc_dev,
-                                  (const uint8_t *) buffer,
-                                  length,
-                                  TX_TIMEOUT_MS);
+    if (cdc_acm_host_data_tx_blocking(cdc_dev,
+                                      (const uint8_t *) buffer,
+                                      length,
+                                      TX_TIMEOUT_MS) != ESP_OK)
+        return 0;
     return length;
 }
 
