@@ -324,6 +324,34 @@ endif()
 add_test(NAME mediatypeimg_tests COMMAND mediatypeimg_tests)
 
 # ------------------------------------------------------------------------------
+# The Apple MediaTypePO 2MG header and mount, built like mediatypeimg_tests above.
+# ------------------------------------------------------------------------------
+add_executable(mediatypepo_tests
+    MediaTypePOTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/apple/mediaType.cpp
+    ${CMAKE_SOURCE_DIR}/lib/media/apple/mediaTypePO.cpp
+)
+
+target_compile_definitions(mediatypepo_tests PRIVATE BUILD_APPLE UNIT_TESTS FNIO_IS_STDIO)
+
+target_include_directories(mediatypepo_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/      # debug.h, global_types.h
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/compat/
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/
+    ${CMAKE_SOURCE_DIR}/lib/media/
+    ${CMAKE_SOURCE_DIR}/lib/media/apple/
+    ${CMAKE_SOURCE_DIR}/lib/utils/
+    ${CMAKE_SOURCE_DIR}/components_pc/
+)
+
+if(WIN32)
+    target_link_libraries(mediatypepo_tests PRIVATE ws2_32)
+endif()
+
+add_test(NAME mediatypepo_tests COMMAND mediatypepo_tests)
+
+# ------------------------------------------------------------------------------
 # FileSystemSDFAT listings over a local directory, as on FujiNet-PC. See
 # imdimage_tests above for UNIT_TESTS/FNIO_IS_STDIO.
 # ------------------------------------------------------------------------------
