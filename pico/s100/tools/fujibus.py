@@ -1,6 +1,6 @@
 """fujibus.py -- a FujiBus (FEP-004) client over fujinet-pc's BoIP socket.
 
-The wire format follows lib/bus/rs232/FujiBusPacket.cpp: SLIP frames of
+The wire format follows lib/bus/FujiBusPacket.cpp: SLIP frames of
 {device, command, u16 length, checksum, descriptor} plus params and payload.
 """
 import os

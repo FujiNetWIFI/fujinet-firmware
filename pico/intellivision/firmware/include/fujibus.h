@@ -1,7 +1,7 @@
 // FujiBus/SLIP client for the RP2040 <-> ESP32-S3 (fujiversal-rs232) link.
 //
 // Bit-compatible plain-C port of the wire format implemented in
-// lib/bus/rs232/FujiBusPacket.cpp in the main fujinet-firmware tree. See
+// lib/bus/FujiBusPacket.cpp in the main fujinet-firmware tree. See
 // that file for the authoritative protocol definition; this is a client,
 // not a reimplementation of the bus service, and only needs to build and
 // parse single request/reply packets.

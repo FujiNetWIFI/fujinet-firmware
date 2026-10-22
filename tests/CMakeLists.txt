@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 add_executable(fujibuspacket_tests
     FujiBusPacketTests.cpp
-    ${CMAKE_SOURCE_DIR}/lib/bus/rs232/FujiBusPacket.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/FujiBusPacket.cpp
 )
 
 target_include_directories(fujibuspacket_tests PRIVATE

@@ -44,7 +44,7 @@ extra cost in the timing-critical path.
     is the only boot ROM.
   - `include/fujiconfigrom.h` — the compiled CONFIG program, baked in as a byte array (see
     "Building" below for how to regenerate it).
-  - `src/fujibus.c`/`include/fujibus.h` — plain-C port of `lib/bus/rs232/FujiBusPacket.cpp`'s
+  - `src/fujibus.c`/`include/fujibus.h` — plain-C port of `lib/bus/FujiBusPacket.cpp`'s
     wire format. No hardware dependency; builds and unit-tests on a desktop (see
     `firmware/host_test/`).
   - `src/fujibus_usb.c`/`include/fujibus_usb.h` — TinyUSB CDC transport on top of the codec

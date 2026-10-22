@@ -14,7 +14,7 @@ single-character command protocol. ESP32 only.
 ## How it fits
 - Selected by `BUILD_MAC` in [lib/bus/bus.h](../bus.h); devices live in
   [lib/device/mac/](../../device/mac/) and images in [lib/media/mac/](../../media/mac/).
-- `FUJI_COMMAND_PACKET` is `FujiBusPacket` from [lib/bus/rs232/](../rs232/) only so that
+- `FUJI_COMMAND_PACKET` is `FujiBusPacket` from [lib/bus/](../FujiBusPacket.h) only so that
   `fujiDevice` compiles; no Fuji commands travel over this bus and the `transaction_*` methods do
   nothing. The Mac has no CONFIG program; everything is driven from the web UI.
 
