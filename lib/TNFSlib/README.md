@@ -16,6 +16,9 @@ beginning.
 | `tnfslibMountInfo.h`, `tnfslibMountInfo.cpp` | `tnfsMountInfo` (host, session, `TNFS_PROTOCOL_TCP` or `TNFS_PROTOCOL_UDP`, open handles, directory cache) and `tnfsStat` |
 | `tnfslib_udp.h`, `tnfslib_udp_testing.cpp` | the UDP send and receive hooks, with a replacement that simulates packet loss and duplication when `TNFS_UDP_SIMULATE_POOR_CONNECTION` is defined |
 | `tnfslib_framing.h`, `tnfslib_framing.cpp` | `tnfs_frame_reply` and `tnfsReplyAssembler`: finds where each reply ends in a byte stream (TNFS has no length field); used by the TCP receive path |
+| `tnfslib_stream_transport.h` | `tnfsStreamTransport`, the byte-stream connection a mount talks through |
+| `tnfslib_stream_link.h`, `tnfslib_stream_link.cpp` | `tnfsStreamLink`: requests and replies over any `tnfsStreamTransport`; the framing, format, drop and reconnect rules |
+| `tnfslib_tcp_stream.h`, `tnfslib_tcp_stream.cpp` | `tnfsTcpStream`: `tnfsStreamTransport` on `fnTcpClient` |
 
 ## How it fits
 - `FileSystemTNFS` in [lib/FileSystem/](../FileSystem/) is the main consumer (host slots and the
@@ -23,7 +26,8 @@ beginning.
   in [lib/network-protocol/](../network-protocol/) and the Meatloaf `tnfs` filesystem use it too.
 - Transport is `fnUDP` or `fnTcpClient` from [lib/tcpip/](../tcpip/). A host name prefixed
   `_tcp.` or `_udp.` forces one; a failed TCP connect falls back to UDP.
-- Over TCP, `tnfsReplyAssembler` cuts the byte stream into replies for the pending request: it
+- Over TCP, `tnfsStreamLink` runs the mount's `tnfsTcpStream`, and `tnfsReplyAssembler` cuts the
+  byte stream into replies for the pending request: it
   checks session, sequence and command, settles a previous reply's optional fields (STAT uid
   and gid strings, a failed READ's or WRITE's count) by the header that follows them, skips
   earlier replies and TNFSD's sessionless ones, and never takes bytes received before the

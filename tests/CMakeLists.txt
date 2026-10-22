@@ -805,6 +805,8 @@ add_executable(tnfs_tcp_recv_tests
     ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslib_codes.cpp
     ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslibMountInfo.cpp
     ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslib_framing.cpp
+    ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslib_stream_link.cpp
+    ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslib_tcp_stream.cpp
 )
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   target_sources(tnfs_tcp_recv_tests PRIVATE ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c)
@@ -820,6 +822,34 @@ target_include_directories(tnfs_tcp_recv_tests BEFORE PRIVATE
 target_compile_definitions(tnfs_tcp_recv_tests PRIVATE UNIT_TESTS)
 
 add_test(NAME tnfs_tcp_recv_tests COMMAND tnfs_tcp_recv_tests)
+
+# ------------------------------------------------------------------------------
+# TNFS stream rules (lib/TNFSlib/tnfslib_stream_link.cpp) over a scripted
+# tnfsStreamTransport: connect, reply framing for the pending request, the fence,
+# drops, reconnects, expiry. tnfs_harness/ only stands in for what
+# tnfslibMountInfo.cpp and the link include.
+# ------------------------------------------------------------------------------
+add_executable(tnfs_stream_link_tests
+    TNFSStreamLinkTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslib_stream_link.cpp
+    ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslib_framing.cpp
+    ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslibMountInfo.cpp
+    ${CMAKE_SOURCE_DIR}/lib/TNFSlib/tnfslib_tcp_stream.cpp
+)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  target_sources(tnfs_stream_link_tests PRIVATE ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c)
+endif()
+
+target_include_directories(tnfs_stream_link_tests BEFORE PRIVATE
+    ${CMAKE_SOURCE_DIR}/tests/tnfs_harness/
+    ${CMAKE_SOURCE_DIR}/lib/TNFSlib/
+    ${CMAKE_SOURCE_DIR}/lib/compat/
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/components_pc/        # doctest
+)
+target_compile_definitions(tnfs_stream_link_tests PRIVATE UNIT_TESTS)
+
+add_test(NAME tnfs_stream_link_tests COMMAND tnfs_stream_link_tests)
 
 # ------------------------------------------------------------------------------
 # TNFS reply formats: optional fields framed with their reply when the server's

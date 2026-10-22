@@ -6,7 +6,7 @@
 #include <mutex>
 
 #include "fnDNS.h"
-#include "fnTcpClient.h"
+#include "tnfslib_tcp_stream.h"
 
 
 #define TNFS_DEFAULT_PORT 16384
@@ -144,8 +144,8 @@ public:
     bool get_dircache_eof() { return _dir_cache_eof; };
 
     uint8_t protocol = TNFS_PROTOCOL_UNKNOWN;
-    fnTcpClient tcp_client;
-    // Replies read from tcp_client and not yet taken; allocated on connect, freed on drop.
+    tnfsTcpStream tcp_stream;
+    // Replies read from tcp_stream and not yet taken; allocated on connect, freed on drop.
     tnfsReplyAssemblerPtr tcp_replies;
     // Learned per field; kept across reconnects, forgotten by tnfs_umount().
     tnfsReplyFormat tcp_reply_format;
