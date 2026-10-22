@@ -20,6 +20,7 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 | `include/fuji_cfg.h`, `src/fuji_cfg.c` | the .cfg sibling a push sends before an image: a line starting `mapper=` names the next image's mapper |
 | `include/fuji_port.h`, `src/fuji_port.c` | fujimail on a cartridge: binds it to `fujibus_usb.c`, BOOTSEL and the .cfg sibling, leaving the cart a `fuji_port_ops_t` of its own hooks |
 | `include/fuji_store.h`, `src/fuji_store.c` | where a pushed image waits for the console: a RAM tier, and a flash tier kept blank ahead of time so erases stay out of the push; the cart's `fuji_store_cfg.h` sizes both |
+| `include/fuji_clock.h` | `fuji_clock_init()`: the system clock the board header sets in `FUJI_SYS_CLOCK_KHZ`, at its `FUJI_VREG_VOLTAGE` if it sets one |
 | `include/fuji_watchdog.h`, `src/fuji_watchdog.c` | notices the console going away: PWR_OK low, or its clock (counted on a PWM slice) stopped, for longer than the cart's timeout; the cart decides what that means |
 | `emu/fujitcp.c`, `emu/fujitcp.h` | the MAME grafts' FujiBus link to fujinet-pc over TCP, in place of `fujibus_usb.c` |
 | `usb/usb_descriptors.c`, `usb/tusb_config.h` | the CDC-only TinyUSB device; the product string is the cart's `FUJI_USB_PRODUCT` |
@@ -50,6 +51,9 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 - Every cart but nes and o2 starts fujimail through `src/fuji_port.c`, and so builds
   `src/fuji_cfg.c` too. nes fills in a `fujimail_port_t` itself, as the MAME devices do with
   `emu/fujitcp.c` as the link.
+- arcadia, astrocade, channelf, studio2, atari-5200, sms and atari-7800 set their clock in the
+  board header and start with `fuji_clock_init()`. None defines TinyUSB's mount or CDC
+  callbacks; the stack's weak defaults do.
 - studio2, atari-5200, sms and atari-7800 build `src/fuji_watchdog.c`: the first two watch power
   alone, sms and atari-7800 the console's clock too.
 - sms and atari-7800 build `src/fuji_store.c`, each with a `fuji_store_cfg.h` of its own.

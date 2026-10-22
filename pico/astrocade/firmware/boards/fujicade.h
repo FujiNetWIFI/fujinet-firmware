@@ -10,4 +10,10 @@
 // console-5V power sense, and debug UART TX.
 #include "boards/pico.h"
 
+// --- CLOCK ---
+// 250 MHz, at a raised core voltage: ~80 ns per bus-loop iteration against
+// the Z80's ~1 us Enable width.
+#define FUJI_SYS_CLOCK_KHZ 250000
+#define FUJI_VREG_VOLTAGE  VREG_VOLTAGE_1_15
+
 #endif
