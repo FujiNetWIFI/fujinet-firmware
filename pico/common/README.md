@@ -20,6 +20,7 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 | `include/fuji_cfg.h`, `src/fuji_cfg.c` | the .cfg sibling a push sends before an image: a line starting `mapper=` names the next image's mapper |
 | `include/fuji_port.h`, `src/fuji_port.c` | fujimail on a cartridge: binds it to `fujibus_usb.c`, BOOTSEL and the .cfg sibling, leaving the cart a `fuji_port_ops_t` of its own hooks |
 | `include/fuji_store.h`, `src/fuji_store.c` | where a pushed image waits for the console: a RAM tier, and a flash tier kept blank ahead of time so erases stay out of the push; the cart's `fuji_store_cfg.h` sizes both |
+| `include/fuji_crc.h`, `src/fuji_crc.c` | CRC-32 (zlib's), and the lookup in a cart's table of known images, rows keyed by it and sorted |
 | `include/fuji_clock.h` | `fuji_clock_init()`: the system clock the board header sets in `FUJI_SYS_CLOCK_KHZ`, at its `FUJI_VREG_VOLTAGE` if it sets one |
 | `include/fuji_watchdog.h`, `src/fuji_watchdog.c` | notices the console going away: PWR_OK low, or its clock (counted on a PWM slice) stopped, for longer than the cart's timeout; the cart decides what that means |
 | `emu/fujitcp.c`, `emu/fujitcp.h` | the MAME grafts' FujiBus link to fujinet-pc over TCP, in place of `fujibus_usb.c` |
@@ -28,6 +29,7 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 | `host_test/test_fuji_cfg.c` | the `mapper=` parser's tests |
 | `host_test/test_fuji_port.c` | what `fuji_port.c` hands fujimail, against stand-ins for the USB link |
 | `host_test/test_fuji_store.c`, `host_test/fuji_store_cfg.h` | the push store, under ASan, on a small store of its own |
+| `host_test/test_fuji_crc.c` | the CRC against zlib's check values, and the table lookup |
 | `host_test/test_fuji_watchdog.c` | the watchdog, with power, clock and time in the test's hands |
 | `host_test/stub/` | stand-ins for the SDK headers these tests need; `hardware/flash.h` models NOR flash, where a program only clears bits. astrocade's store test uses them too |
 | `host_test/test_fujimail.c` | the mailbox service's tests, which every cart runs against its own `fuji_mailbox.h`; the cart's `host_test/fujimail_test.h` names its mapper's gate and image sizes |
@@ -54,6 +56,8 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 - arcadia, astrocade, channelf, studio2, atari-5200, sms and atari-7800 set their clock in the
   board header and start with `fuji_clock_init()`. None defines TinyUSB's mount or CDC
   callbacks; the stack's weak defaults do.
+- sms, studio2, atari-5200 and atari-7800 take an image's CRC with `src/fuji_crc.c`, and all but
+  studio2 look it up in their `*map_db.c`; their `emu/apply.sh` copy it into MAME too.
 - studio2, atari-5200, sms and atari-7800 build `src/fuji_watchdog.c`: the first two watch power
   alone, sms and atari-7800 the console's clock too.
 - sms and atari-7800 build `src/fuji_store.c`, each with a `fuji_store_cfg.h` of its own.
@@ -73,4 +77,4 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 
 ## Build
 Not part of the ESP32 or FujiNet-PC builds. pico-sdk compiles it inside each cart's firmware;
-`make -C host_test` runs the codec, .cfg, `fuji_port`, store and watchdog tests.
+`make -C host_test` runs the codec, .cfg, `fuji_port`, store, watchdog and CRC tests.

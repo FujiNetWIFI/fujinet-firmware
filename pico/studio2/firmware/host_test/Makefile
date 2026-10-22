@@ -3,7 +3,7 @@
 EXTRA_CFLAGS = -D_DEFAULT_SOURCE
 
 TESTS = test_s2map test_busio test_glue test_text test_load test_fujimail test_cycles
-MAP = $(SRC)/s2map.c
+MAP = $(SRC)/s2map.c $(COMMON)/src/fuji_crc.c
 TEXT = $(SRC)/s2_text.c $(SRC)/s2_font.c
 test_s2map_SRCS = $(MAP)
 test_busio_SRCS = $(SRC)/fuji_load.c $(MAP)

@@ -102,6 +102,4 @@ uint8_t s2map_gate(uint32_t size);
 /* The byte a view serves at `a`, ignoring the raster's position (a peek). */
 uint8_t s2map_peek(const s2_view_t *v, uint16_t a);
 
-uint32_t s2map_crc32(uint32_t crc, const uint8_t *p, uint32_t n);
-
 #endif /* S2MAP_H */

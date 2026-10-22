@@ -42,9 +42,12 @@ def lit(png):
 def build_plan():
     os.makedirs(os.path.dirname(PLAN), exist_ok=True)
     fw = os.path.join(HERE, "firmware")
+    common = os.path.join(HERE, "..", "common")
     subprocess.run(["cc", "-O1", "-Wall", "-I" + fw, "-I" + os.path.join(fw, "include"),
+                    "-I" + os.path.join(common, "include"),
                     "-o", PLAN, os.path.join(HERE, "tools", "s2plan.c"),
-                    os.path.join(fw, "src", "s2map.c")], check=True)
+                    os.path.join(fw, "src", "s2map.c"),
+                    os.path.join(common, "src", "fuji_crc.c")], check=True)
 
 
 def one(path, name):

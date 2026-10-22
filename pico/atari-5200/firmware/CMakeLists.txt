@@ -23,6 +23,7 @@ fujicart_firmware(${PROJECT_NAME}
         ${FUJI_COMMON}/src/fuji_cfg.c
         ${FUJI_COMMON}/src/fuji_port.c
         ${FUJI_COMMON}/src/fuji_watchdog.c
+        ${FUJI_COMMON}/src/fuji_crc.c
         src/fujinet.c
     LIBRARIES hardware_pwm hardware_flash hardware_sync
     CORE1 a52_core1_main fuji_loader fuji_arena fuji_ring

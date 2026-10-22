@@ -132,9 +132,11 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     os.makedirs(os.path.dirname(A52PLAN), exist_ok=True)
     subprocess.run(["cc", "-O1", "-I", os.path.join(HERE, "firmware", "include"),
+                    "-I", os.path.join(HERE, "..", "common", "include"),
                     "-o", A52PLAN, os.path.join(HERE, "tools", "a52plan.c"),
                     os.path.join(HERE, "firmware", "src", "a52map.c"),
-                    os.path.join(HERE, "firmware", "src", "a52map_db.c")], check=True)
+                    os.path.join(HERE, "firmware", "src", "a52map_db.c"),
+                    os.path.join(HERE, "..", "common", "src", "fuji_crc.c")], check=True)
     rows = [l.rstrip("\n").split("\t") for l in open(os.path.join(HERE, "build", "ab", "table.tsv"))]
     res = os.path.join(OUT, "results-merge.tsv" if a.merge else "results.tsv")
     done = set()

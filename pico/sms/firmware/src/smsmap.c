@@ -8,6 +8,7 @@
 
 #include "smsmap.h"
 #include "smsmap_db.h"
+#include "fuji_crc.h"
 #include "fuji_mailbox.h"
 
 static const char *const kind_names[SMSMAP_KINDS] = {
@@ -32,29 +33,6 @@ uint8_t smsmap_kind_from_name(const char *name)
 const char *smsmap_kind_name(uint8_t kind)
 {
     return kind < SMSMAP_KINDS ? kind_names[kind] : "unsupported";
-}
-
-uint32_t smsmap_crc32(uint32_t crc, const uint8_t *p, uint32_t n)
-{
-    static uint32_t table[256];
-    static bool ready;
-    uint32_t i;
-
-    if (!ready) {
-        for (i = 0; i < 256; i++) {
-            uint32_t c = i;
-            int k;
-
-            for (k = 0; k < 8; k++)
-                c = (c & 1) ? 0xEDB88320u ^ (c >> 1) : c >> 1;
-            table[i] = c;
-        }
-        ready = true;
-    }
-    crc = ~crc;
-    for (i = 0; i < n; i++)
-        crc = table[(crc ^ p[i]) & 0xFF] ^ (crc >> 8);
-    return ~crc;
 }
 
 static uint16_t le16(const uint8_t *img, uint32_t len, uint32_t i)
@@ -113,19 +91,8 @@ uint8_t smsmap_heuristic(const uint8_t *img, uint32_t len)
 
 const smsmap_db_t *smsmap_db_lookup(uint32_t crc)
 {
-    unsigned lo = 0, hi = smsmap_db_count;
-
-    while (lo < hi) {
-        unsigned mid = (lo + hi) / 2;
-
-        if (smsmap_db[mid].crc == crc)
-            return &smsmap_db[mid];
-        if (smsmap_db[mid].crc < crc)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return NULL;
+    return (const smsmap_db_t *)fuji_crc_find(smsmap_db, smsmap_db_count,
+                                              sizeof smsmap_db[0], crc);
 }
 
 uint8_t smsmap_gate(uint32_t size)
@@ -154,7 +121,7 @@ int smsmap_plan(const uint8_t *img, uint32_t len, const char *cfg_mapper,
     if (out->padded > SMSMAP_IMAGE_MAX)
         return SMSMAP_ETOOBIG;
     img += out->offset;
-    out->crc = smsmap_crc32(0, img, out->size);
+    out->crc = fuji_crc32(0, img, out->size);
     out->claim = out->size >= FN_CLAIM_OFFSET + FN_R_CLAIM_LEN
         && memcmp(img + FN_CLAIM_OFFSET, FN_R_CLAIM_SIG, FN_R_CLAIM_LEN) == 0;
     for (i = 0x2000; i <= 0x8000 && !out->header; i <<= 1)

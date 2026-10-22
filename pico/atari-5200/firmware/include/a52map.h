@@ -122,7 +122,6 @@ uint8_t a52map_guess16k(const uint8_t *img);
 
 uint8_t a52map_kind_from_name(const char *name);
 const char *a52map_kind_name(uint8_t kind);
-uint32_t a52map_crc32(uint32_t crc, const uint8_t *p, uint32_t n);
 
 /* Super Cart: the bank a read at window offset `off` (>= $7FC0) selects. */
 A52_HOT uint8_t a52map_sc_bank(uint8_t cur, uint32_t off, uint8_t mask)
