@@ -36,6 +36,7 @@
 # include "apple/mediaType.h"
 # include "apple/mediaTypeDO.h"
 # include "apple/mediaTypePO.h"
+# include "apple/mediaType2MG.h"
 # include "apple/mediaTypeWOZ.h"
 # include "apple/mediaTypeDSK.h"
 #endif

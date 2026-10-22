@@ -255,6 +255,9 @@ mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
       disk_type = MediaType::discover_dsk_mediatype(f, disksize);
   }
 
+  if (disk_type == MEDIATYPE_PO)
+      disk_type = MediaType::discover_po_mediatype(f);
+
   mount_file(f, disksize, disk_type);
 
   if (disk_type == MEDIATYPE_UNKNOWN) {
@@ -285,6 +288,10 @@ mediatype_t iwmDisk::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_t
     case MEDIATYPE_PO:
       Debug_printf("\r\nMedia Type PO");
       _disk = new MediaTypePO();
+      break;
+    case MEDIATYPE_2MG:
+      Debug_printf("\r\nMedia Type 2MG");
+      _disk = new MediaType2MG();
       break;
     default:
       Debug_printf("\r\nUnsupported Media Type for SmartPort");

@@ -42,8 +42,6 @@ mediatype_t iwmDisk2::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_
 {
   mediatype_t mt = MEDIATYPE_UNKNOWN;
 
-  // Debug_printf("disk MOUNT %s\n", filename);
-
   // Destroy any existing MediaType
   if (_disk != nullptr)
   {
@@ -59,6 +57,9 @@ mediatype_t iwmDisk2::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_
         _disk = new MediaTypeWOZ();
         mt = ((MediaTypeWOZ *)_disk)->mount(f, disksize);
         break;
+    case MEDIATYPE_2MG:
+        disk_type = MEDIATYPE_PO; // Disk II serves a 2MG as PO, as it always has
+        [[fallthrough]];
     case MEDIATYPE_DO:
     case MEDIATYPE_PO:
         Debug_printf("\nMounting Media Type DSK");
@@ -107,7 +108,6 @@ success_is_true IRAM_ATTR iwmDisk2::move_head()
     int idx = (phase2seq[newphases] - phase2seq[oldphases] + 8) % 8;
     delta = seq2steps[idx];
 
-    //phases_lut[oldphases][newphases];
     old_pos = track_pos;
     track_pos += delta;
     if (track_pos < 0)
@@ -149,8 +149,6 @@ void IRAM_ATTR iwmDisk2::change_track(int indicator)
         bitstream->len_bytes,
         bitstream->len_bits,
         NS_PER_BIT_TIME * ((MediaTypeWOZ *)_disk)->optimal_bit_timing);
-    // This printf nudges timing too much.
-    // Debug_printf("\nCopy track: %d", track_pos);
   }
   else
     diskii_xface.copy_track(

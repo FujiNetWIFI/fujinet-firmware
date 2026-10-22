@@ -101,34 +101,9 @@ error_is_true MediaTypePO::format(uint16_t *responsesize)
 mediatype_t MediaTypePO::mount(fnFile *f, uint32_t disksize)
 {
     diskiiemulation = false;
-    char hdr[64];
-    fnio::fread(&hdr,sizeof(char),64,f);
-    if (hdr[0] == '2' && hdr[1] == 'I' && hdr[2] == 'M' && hdr[3] == 'G')
-    {
-        // check for 'high score enabled'
-        // expected format at offset 48 (0x30) of 2mg hdr: H,I,<blk_lb_lo>,<blk_lb_hi>,<blk_ub_lo>,<blk_ub_hi>
-        // where blk is block range containing high score table, lb = lower bound, ub = upper bound
-        // if upper bound is undefined (0x0000), then lower bound defines range
-        if (hdr[48] == 'H' && hdr[49] == 'I')
-        {
-            // read range of blocks from the 2mg header that qualify to be written (little endian)
-            _high_score_block_lb = UINT16_FROM_HILOBYTES(hdr[51], hdr[50]);
-            _high_score_block_ub = UINT16_FROM_HILOBYTES(hdr[53], hdr[52]);
-            if (_high_score_block_lb > 0)
-            {
-                if (_high_score_block_ub == 0)
-                    _high_score_block_ub = _high_score_block_lb;
-
-                high_score_enabled = true;
-                Debug_printf("\r\nhigh score: block range: %04x..%04x\r\n", _high_score_block_lb, _high_score_block_ub);
-            }
-        }
-        offset = 64;
-    }
-  _media_fileh = f;
-  disksize -= offset;
-  num_blocks = disksize/512;
-  return MEDIATYPE_PO;
+    _media_fileh = f;
+    num_blocks = disksize / 512;
+    return MEDIATYPE_PO;
 }
 
 success_is_true MediaTypePO::write_2mg_header(fnFile *f, uint16_t numBlocks)

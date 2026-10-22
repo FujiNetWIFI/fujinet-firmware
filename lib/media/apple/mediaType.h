@@ -22,6 +22,7 @@ enum mediatype_t
     MEDIATYPE_DSK,
     MEDIATYPE_PO,
     MEDIATYPE_WOZ,
+    MEDIATYPE_2MG, // chosen at mount by content; directory entries still say PO
     MEDIATYPE_COUNT
 };
 
@@ -41,57 +42,30 @@ protected:
     uint16_t _high_score_block_ub = 0; /* High score block (upper bound) to allow write. 1-65535 */
 
 public:
-    // struct
-    // {
-    //     uint8_t num_tracks;
-    //     uint8_t step_rate;
-    //     uint8_t sectors_per_trackH;
-    //     uint8_t sectors_per_trackL;
-    //     uint8_t num_sides;
-    //     uint8_t density;
-    //     uint8_t sector_sizeH;
-    //     uint8_t sector_sizeL;
-    //     uint8_t drive_present;
-    //     uint8_t reserved1;
-    //     uint8_t reserved2;
-    //     uint8_t reserved3;
-    // } _percomBlock;
-
     uint32_t num_blocks;
-    // FILE* fileptr() {return _media_fileh;}
 
     char _disk_filename[256];
     fujiHost *_media_host = nullptr;
     fnFile *_media_hsfileh = nullptr;
     bool high_score_enabled = false;
 
-    // uint8_t _media_sectorbuff[DISK_SECTORBUF_SIZE];
-
     mediatype_t _mediatype = MEDIATYPE_UNKNOWN;
-    // bool _allow_hsio = true;
     bool diskiiemulation;
 
     virtual mediatype_t mount(fnFile *f, uint32_t disksize) = 0;
     virtual void unmount();
 
-    // Returns TRUE if an error condition occurred
     virtual error_is_true format(uint16_t *responsesize);
 
-    // Returns TRUE if an error condition occurred
     virtual error_is_true read(uint32_t blockNum, uint16_t *count, uint8_t* buffer) = 0;
-    // Returns TRUE if an error condition occurred
     virtual error_is_true write(uint32_t blockNum, uint16_t *count, uint8_t* buffer) = 0;
     virtual error_is_true write_sector(int track, int sector, uint8_t *buffer) = 0;
 
-    // virtual uint16_t sector_size(uint16_t sectornum);
-    
     virtual success_is_true status() = 0;
 
     static mediatype_t discover_mediatype(const char *filename);
     static mediatype_t discover_dsk_mediatype(fnFile* f, uint32_t disksize);
-
-    // void dump_percom_block();
-    // void derive_percom_block(uint16_t numSectors);
+    static mediatype_t discover_po_mediatype(fnFile* f);
 
     virtual ~MediaType();
 };

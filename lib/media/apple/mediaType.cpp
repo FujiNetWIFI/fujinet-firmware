@@ -17,16 +17,6 @@ error_is_true MediaType::format(uint16_t *responsesize)
     RETURN_ERROR_AS_TRUE();
 }
 
-// error_is_true MediaType::read(uint32_t blockNum, uint16_t *readcount)
-// {
-//     RETURN_ERROR_AS_TRUE();
-// }
-
-// error_is_true MediaType::write(uint32_t blockNum, bool verify)
-// {
-//     RETURN_ERROR_AS_TRUE();
-// }
-
 void MediaType::unmount()
 {
     if (_media_fileh != nullptr)
@@ -55,7 +45,7 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
     }
     else if (l > 3 && filename[l - 3] == '.')
     {
-        // Check the last 3 characters of the string
+        // Check the last 2 characters of the string
         const char *ext = filename + l - 2;
         if (strcasecmp(ext, "PO") == 0)
             return MEDIATYPE_PO;
@@ -90,6 +80,18 @@ mediatype_t MediaType::discover_dsk_mediatype(fnFile *f, uint32_t disksize)
     }
 
     return default_mt;
+}
+
+mediatype_t MediaType::discover_po_mediatype(fnFile *f)
+{
+    char sig[4];
+    mediatype_t mt = MEDIATYPE_PO;
+
+    if (fnio::fseek(f, 0, SEEK_SET) == 0 && fnio::fread(sig, 1, sizeof(sig), f) == sizeof(sig)
+        && memcmp(sig, "2IMG", sizeof(sig)) == 0)
+        mt = MEDIATYPE_2MG;
+    fnio::fseek(f, 0, SEEK_SET);
+    return mt;
 }
 
 #endif // BUILD_APPLE
