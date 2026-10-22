@@ -6,11 +6,11 @@
 
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
-#include "hardware/pwm.h"
 #include "hardware/structs/sio.h"
 
 #include "fuji_cart.h"
 #include "fuji_mailbox.h"
+#include "fuji_watchdog.h"
 
 fuji_ring_t fuji_ring;
 uint8_t fuji_arena[FN_ARENA_SIZE];
@@ -28,9 +28,7 @@ volatile bool fuji_reset_seen;
 fuji_load_t fuji_loader;
 
 /* console watchdog: Z80 clocks counted by PWM 7 on GPIO31 */
-static uint16_t wd_last;
-static absolute_time_t wd_change;
-static bool console_alive;
+static fuji_watchdog_t watchdog;
 
 void fuji_cart_poke(unsigned offset, uint8_t value)
 {
@@ -97,31 +95,18 @@ void fuji_cart_init(const uint8_t *loader, unsigned loader_len,
     fuji_loader.bus = &fuji_bus;
     fuji_load_init(&fuji_loader);
 
-    /* PWM 7 counts rising edges of the Z80 clock on GPIO31 (channel B). */
-    pwm_config c = pwm_get_default_config();
-    pwm_config_set_clkdiv_mode(&c, PWM_DIV_B_RISING);
-    pwm_init(pwm_gpio_to_slice_num(CLK_PIN), &c, true);
-    gpio_set_function(CLK_PIN, GPIO_FUNC_PWM);
-    wd_change = get_absolute_time();
+    fuji_watchdog_init(&watchdog, CLK_PIN, PWROK_PIN, 250000u);
 }
 
 void fuji_cart_service(void)
 {
-    uint16_t cnt = (uint16_t)pwm_get_counter(pwm_gpio_to_slice_num(CLK_PIN));
-    absolute_time_t now = get_absolute_time();
-
     if (fuji_reset_seen) {
         fuji_reset_seen = false;
         fuji_load_abort(&fuji_loader);
     }
 
     /* No Z80 clock for 250 ms, or no console power: CONFIG when it is back. */
-    if (cnt != wd_last && gpio_get(PWROK_PIN)) {
-        wd_last = cnt;
-        wd_change = now;
-        console_alive = true;
-    } else if (console_alive && absolute_time_diff_us(wd_change, now) > 250000) {
-        console_alive = false;
+    if (fuji_watchdog_gone(&watchdog)) {
         fuji_load_abort(&fuji_loader);
         fuji_req = FUJI_REQ_RESIDENT;
     }
