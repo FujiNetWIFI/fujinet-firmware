@@ -21,6 +21,8 @@ fujicart_firmware(${PROJECT_NAME}
         ${FUJI_COMMON}/src/fujibus.c
         ${FUJI_COMMON}/src/fujibus_usb.c
         ${FUJI_COMMON}/src/fujimail.c
+        ${FUJI_COMMON}/src/fuji_cfg.c
+        ${FUJI_COMMON}/src/fuji_port.c
         src/fujinet.c
     LIBRARIES hardware_sync
     CORE1 s2_core1_main fuji_loader fuji_arena fuji_ring fuji_text fuji_bus
