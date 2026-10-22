@@ -27,6 +27,7 @@ DRIVER="$MAME/src/mame/midway/astrohome.cpp"
 graft "$BUSDIR" fujinet.cpp fujinet.h
 graft_common "$BUSDIR" fujitcp fujimail fujibus fuji_mailbox_proto fuji_mailbox_check
 graft "$BUSDIR" ../firmware/src/astromap.c ../firmware/include/{astromap,fuji_mailbox}.h
+graft_fujins "$BUSDIR" astrocade
 graft_lua astrocde lightpen.h
 
 # astrohome.cpp: include + selectable slot option, once. Plain option_add,
