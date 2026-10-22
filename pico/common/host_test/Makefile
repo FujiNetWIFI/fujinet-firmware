@@ -17,3 +17,7 @@ C_ONLY_SRCS = $(SRC)/fuji_port.c $(SRC)/fuji_store.c $(SRC)/fuji_watchdog.c
 OUT = ../build/host_test
 
 include cart.mk
+
+# emu/fujins.syms against what the modules export; fujimail.c needs some cart's mailbox map.
+all:: | $(OUT)
+	@echo "== fujins.syms"; python3 check_fujins.py $(OUT) ../../studio2/firmware/include

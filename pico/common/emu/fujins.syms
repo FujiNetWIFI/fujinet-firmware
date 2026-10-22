@@ -1,0 +1,8 @@
+# fujins.syms -- the functions each pico/common module exports, one module per line.
+# graft.lib.sh's graft_fujins renames them in each MAME graft; host_test checks the list
+# against the compiled modules.
+fujimail fujimail_init fujimail_paint fujimail_read_hotspot fujimail_inbound
+fujibus fujibus_build_request fujibus_parse_reply fujibus_selftest
+fujitcp fujitcp_init fujitcp_active fujitcp_close fujitcp_abort fujitcp_transact fujitcp_send_bare
+fuji_cfg fuji_cfg_open fuji_cfg_write fuji_cfg_close fuji_cfg_mapper fuji_cfg_clear
+fuji_crc fuji_crc32 fuji_crc_find
