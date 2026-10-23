@@ -614,12 +614,7 @@ void sioCassette::check_for_FUJI_file()
         Debug_println("Not a FUJI File");
     }
 
-    if (tape_flags.turbo2000)
-        baud = 600; // nominal, not used for UART — RMT bypasses UART
-    else if (tape_flags.turbo)
-        baud = 1000;
-    else
-        baud = 600;
+    baud = 600; // nominal for Turbo 2000, whose RMT bypasses the UART
 
     block = 0;
     return;
@@ -670,8 +665,6 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
                  p[2] == 'u' &&
                  p[3] == 'd')
         {
-            if (tape_flags.turbo) //ignore baud hdr
-                continue;
             baud = hdr->irg_length;
             SYSTEM_BUS.setBaudrate(baud);
         }

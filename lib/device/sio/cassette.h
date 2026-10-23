@@ -73,7 +73,6 @@ public:
 class sioCassette : public virtualDevice
 {
 protected:
-    // FileSystem *_FS = nullptr;
     fnFile *_file = nullptr;
     size_t filesize = 0;
 
@@ -144,7 +143,6 @@ private:
     struct t_flags
     {
         unsigned char FUJI : 1;
-        unsigned char turbo : 1;
         unsigned char turbo2000 : 1;
         unsigned char qros : 1;
     } tape_flags;
