@@ -18,7 +18,8 @@ cd "$(dirname "$0")"
 
 MAME=${1:?usage: apply.sh /path/to/mame}
 BUSDIR="$MAME/src/devices/bus/astrocde"
-DRIVER="$MAME/src/mame/midway/astrohome.cpp"
+DRIVER="$MAME/src/mame/bally/astrohome.cpp"      # midway/ before MAME moved it
+[ -f "$DRIVER" ] || DRIVER="$MAME/src/mame/midway/astrohome.cpp"
 
 [ -d "$BUSDIR" ] || { echo "apply.sh: $BUSDIR missing" >&2; exit 1; }
 
