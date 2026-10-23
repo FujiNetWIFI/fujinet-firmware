@@ -685,7 +685,7 @@ void fujiDevice::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
             {
                 PeoplesUrlParser parsed(*_lobbyDiskURL);
                 Debug_printf("Starting TNFS connection\n");
-                if (!fnTNFS.start(parsed.host.c_str()))
+                if (fnTNFS.start(parsed.host.c_str()).is_error())
                 {
                     Debug_printf("TNFS failed to start.\n");
                     fBoot = NULL;
