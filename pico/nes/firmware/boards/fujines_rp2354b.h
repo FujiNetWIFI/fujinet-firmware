@@ -41,4 +41,9 @@ pico_board_cmake_set_default(PICO_RP2350_A2_SUPPORTED, 1)
 // RP2350-E9 makes a pulled-down input latch near 2 V once driven high.
 #define FUJINES_BUS_NO_PULLS 1
 
+// --- CLOCK ---
+// 200 MHz at the stock core voltage, the clock the astrocade RP2354 board ships on.
+// The bus loop needs well under 100 ns of the 350 ns M2-high window at this rate.
+#define FUJI_SYS_CLOCK_KHZ 200000
+
 #endif

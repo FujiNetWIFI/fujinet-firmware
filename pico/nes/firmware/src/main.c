@@ -12,10 +12,10 @@
 
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
-#include "hardware/clocks.h"
 #include "hardware/gpio.h"
 #include "tusb.h"
 
+#include "fuji_clock.h"
 #include "nes_cart.h"
 #include "nes_pio.h"
 #include "nes_irq.h"
@@ -26,10 +26,7 @@
 
 int main(void)
 {
-    /* 200 MHz at the stock core voltage, the clock the astrocade RP2354
-     * board ships on. The bus loop needs well under 100 ns of the 350 ns
-     * M2-high window at this rate. */
-    set_sys_clock_khz(200000, true);
+    fuji_clock_init();
 
     gpio_init_mask(BUS_IN_MASK | SR_MASK);
     gpio_set_dir_in_masked(BUS_IN_MASK);
@@ -60,14 +57,3 @@ int main(void)
     }
     return 0;
 }
-
-/* TinyUSB device callbacks; nothing to do, the CDC link is polled. */
-void tud_mount_cb(void) { }
-void tud_umount_cb(void) { }
-void tud_suspend_cb(bool remote_wakeup_en) { (void)remote_wakeup_en; }
-void tud_resume_cb(void) { }
-void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts)
-{
-    (void)itf; (void)dtr; (void)rts;
-}
-void tud_cdc_rx_cb(uint8_t itf) { (void)itf; }
