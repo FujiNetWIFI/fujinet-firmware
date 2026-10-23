@@ -236,7 +236,6 @@ void fujiDevice::populate_config_from_slots()
     }
 }
 
-// Mount all - returns true on success and false on error
 success_is_true fujiDevice::fujicore_mount_all_success()
 {
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
@@ -275,7 +274,6 @@ success_is_true fujiDevice::fujicore_mount_all_success()
     RETURN_SUCCESS_AS_TRUE();
 }
 
-// Mount all - returns true on success and false on error
 success_is_true fujiDevice::fujicmd_mount_all_success()
 {
     SYSTEM_BUS.transaction_accept(TRANS_STATE::NO_GET);
@@ -633,9 +631,7 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
     disk.disk_type = mount_media(disk_dev, disk, host, access_mode);
     disk_dev->is_config_device = false;
 
-    // mount() returns MEDIATYPE_UNKNOWN on failure -- without this check that
-    // failure was silently swallowed and MOUNT_IMAGE ACKed as if it had
-    // succeeded.
+    // mount() returns MEDIATYPE_UNKNOWN on failure
     if (disk.disk_type == MEDIATYPE_UNKNOWN)
         RETURN_ERROR_AS_FALSE();
 
@@ -1188,35 +1184,38 @@ success_is_true fujiDevice::fujicore_new_disk_success(const DISK_DEVICE::NewDisk
 
     fujiDisk &disk = _fnDisks[req.deviceSlot];
     fujiHost &host = _fnHosts[req.hostSlot];
+    char path[sizeof(disk.filename)];
 
-    disk.host_slot = req.hostSlot;
-    disk.access_mode = DISK_ACCESS_MODE_WRITE;
-    strlcpy(disk.filename, req.filename, sizeof(disk.filename));
+    strlcpy(path, req.filename, sizeof(path));
 
-    if (host.file_exists(disk.filename))
+    if (host.file_exists(path))
     {
-        Debug_printf("fujicore_new_disk File exists: \"%s\"\n", disk.filename);
+        Debug_printf("fujicore_new_disk File exists: \"%s\"\n", path);
         RETURN_ERROR_AS_FALSE();
     }
 
-    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), FILE_WRITE);
-    if (disk.fileh == nullptr)
+    fnFile *f = host.fnfile_open(path, path, sizeof(path), FILE_WRITE);
+    if (f == nullptr)
     {
-        Debug_printf("fujicore_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
+        Debug_printf("fujicore_new_disk Couldn't open file for writing: \"%s\"\n", path);
         RETURN_ERROR_AS_FALSE();
     }
 
-    Debug_printf("Creating file %s on host slot %u for disk slot %u\n", disk.filename,
+    Debug_printf("Creating file %s on host slot %u for disk slot %u\n", path,
                  req.hostSlot, req.deviceSlot);
-    auto written = get_disk_dev(req.deviceSlot)->write_blank(disk.fileh, req);
-    fnio::fclose(disk.fileh);
+    auto written = get_disk_dev(req.deviceSlot)->write_blank(f, req);
+    fnio::fclose(f);
 
     if (written.is_error())
     {
         Debug_print("fujicore_new_disk Data write failed\n");
-        host.file_remove(disk.filename);
+        host.file_remove(path);
         RETURN_ERROR_AS_FALSE();
     }
+
+    disk.host_slot = req.hostSlot;
+    disk.access_mode = DISK_ACCESS_MODE_WRITE;
+    strlcpy(disk.filename, path, sizeof(disk.filename));
 
     Debug_print("fujicore_new_disk succeeded\n");
     RETURN_SUCCESS_AS_TRUE();
