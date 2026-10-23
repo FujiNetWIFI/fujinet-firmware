@@ -1721,7 +1721,7 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
         }
         else if (mg_match(hm->uri, mg_str("/printer/clear"), NULL))
         {
-            if (mg_casecmp(hm->method.buf, "POST") == 0)
+            if (http_method_is(hm, "POST"))
                 post_handler_printer_clear(c);
             else
                 mg_http_reply(c, 405, "", "Method Not Allowed\n");
