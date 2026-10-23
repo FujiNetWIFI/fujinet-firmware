@@ -57,8 +57,8 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 - Every cart but nes and o2 starts fujimail through `src/fuji_port.c`, and so builds
   `src/fuji_cfg.c` too. nes fills in a `fujimail_port_t` itself, as the MAME devices do with
   `emu/fujitcp.c` as the link.
-- arcadia, astrocade, channelf, studio2, atari-5200, sms, atari-7800 and template set their clock
-  in the board header and start with `fuji_clock_init()`. None defines TinyUSB's mount or CDC
+- arcadia, astrocade, channelf, nes, studio2, atari-5200, sms, atari-7800 and template set their
+  clock in the board header and start with `fuji_clock_init()`. None defines TinyUSB's mount or CDC
   callbacks; the stack's weak defaults do.
 - sms, studio2, atari-5200 and atari-7800 take an image's CRC with `src/fuji_crc.c`, and all but
   studio2 look it up in their `*map_db.c`; their `emu/apply.sh` copy it into MAME too. sms
