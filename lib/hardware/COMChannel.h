@@ -8,6 +8,8 @@
 
 #include <winsock2.h>
 #include <windows.h>
+// winspool.h's macro; bus.h may already have read fujiCommandID.h's #undef
+#undef PRINTER_WRITE
 
 struct ChannelConfig
 {

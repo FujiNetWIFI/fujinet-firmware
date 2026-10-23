@@ -172,27 +172,9 @@ public:
     using SystemBusBase::transaction_send;
     void transaction_send(const void *data, size_t len, bool is_error=false) override;
 
-    std::unique_ptr<FujiBusPacket> readBusPacket(int first=-1);
-    void writeBusPacket(FujiBusPacket &packet);
+    std::unique_ptr<FujiBusPacket> readFujiBusPacket(int first = -1) override;
+    success_is_true writeFujiBusPacket(FujiBusPacket &packet) override;
     void sendReplyPacket(fujiDeviceID_t source, bool ack, const void *data, size_t length);
-    template<typename... Args>
-    std::unique_ptr<FujiBusPacket> sendCommand(fujiDeviceID_t device,
-                                               fujiCommandID_t command,
-                                               Args&&... args)
-    {
-        FujiBusPacket packet(device, command, std::forward<Args>(args)...);
-        writeBusPacket(packet);
-        return readBusPacket();
-    }
-
-    // Convenience wrapper: raw buffer
-    std::unique_ptr<FujiBusPacket> sendCommand(fujiDeviceID_t device,
-                                               fujiCommandID_t command,
-                                               void *buf, size_t len)
-    {
-        std::string data(reinterpret_cast<const char*>(buf), static_cast<size_t>(len));
-        return sendCommand(device, command, std::move(data));
-    }
 };
 
 extern systemBus SYSTEM_BUS;

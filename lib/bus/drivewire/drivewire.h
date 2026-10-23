@@ -279,26 +279,8 @@ public:
     drivewireModem *get_modem() { return _modemDev; }
 
 #ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
-    std::unique_ptr<FujiBusPacket> readBusPacket(int first = -1);
-    void writeBusPacket(FujiBusPacket &packet);
-
-    template<typename... Args>
-    std::unique_ptr<FujiBusPacket> sendCommand(fujiDeviceID_t device,
-                                               fujiCommandID_t command,
-                                               Args&&... args)
-    {
-        FujiBusPacket packet(device, command, std::forward<Args>(args)...);
-        writeBusPacket(packet);
-        return readBusPacket();
-    }
-
-    std::unique_ptr<FujiBusPacket> sendCommand(fujiDeviceID_t device,
-                                               fujiCommandID_t command,
-                                               void *buf, size_t len)
-    {
-        std::string data(reinterpret_cast<const char *>(buf), static_cast<size_t>(len));
-        return sendCommand(device, command, std::move(data));
-    }
+    std::unique_ptr<FujiBusPacket> readFujiBusPacket(int first = -1) override;
+    success_is_true writeFujiBusPacket(FujiBusPacket &packet) override;
 #endif /* PINMAP_FUJIVERSAL_DRIVEWIRE */
 
 #ifdef ESP32_PLATFORM

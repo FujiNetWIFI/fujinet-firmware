@@ -969,8 +969,14 @@ void systemBus::shutdown()
 }
 
 #ifdef PINMAP_FUJIVERSAL_DRIVEWIRE
-std::unique_ptr<FujiBusPacket> systemBus::readBusPacket(int first)
+std::unique_ptr<FujiBusPacket> systemBus::readFujiBusPacket(int first)
 {
+    if (isBoIP())
+    {
+        Debug_printv("DBC needs a real pico; not supported over BoIP");
+        return nullptr;
+    }
+
     ByteBuffer packet;
     int count = 0;
 
@@ -1001,10 +1007,17 @@ std::unique_ptr<FujiBusPacket> systemBus::readBusPacket(int first)
     return FujiBusPacket::fromSerialized(packet);
 }
 
-void systemBus::writeBusPacket(FujiBusPacket &packet)
+success_is_true systemBus::writeFujiBusPacket(FujiBusPacket &packet)
 {
+    if (isBoIP())
+    {
+        Debug_printv("DBC needs a real pico; not supported over BoIP");
+        RETURN_ERROR_AS_FALSE();
+    }
+
     ByteBuffer encoded = packet.serialize();
     _port->write(encoded.data(), encoded.size());
+    RETURN_SUCCESS_AS_TRUE();
 }
 #endif /* PINMAP_FUJIVERSAL_DRIVEWIRE */
 

@@ -110,7 +110,7 @@ void systemBus::_rs232_process_cmd()
     if (val < 0)
         return;
 
-    auto tempFrame = readBusPacket(val);
+    auto tempFrame = readFujiBusPacket(val);
     if (!tempFrame)
     {
         Debug_printv("packet fail");
@@ -336,7 +336,7 @@ void systemBus::setBaudrate(int baud)
         _serial.setBaudrate(baud);
 }
 
-std::unique_ptr<FujiBusPacket> systemBus::readBusPacket(int first)
+std::unique_ptr<FujiBusPacket> systemBus::readFujiBusPacket(int first)
 {
     ByteBuffer packet;
     int count = 0;
@@ -367,7 +367,7 @@ std::unique_ptr<FujiBusPacket> systemBus::readBusPacket(int first)
     return FujiBusPacket::fromSerialized(packet);
 }
 
-void systemBus::writeBusPacket(FujiBusPacket &packet)
+success_is_true systemBus::writeFujiBusPacket(FujiBusPacket &packet)
 {
     ByteBuffer encoded = packet.serialize();
     _port->write(encoded.data(), encoded.size());
@@ -375,7 +375,7 @@ void systemBus::writeBusPacket(FujiBusPacket &packet)
     Debug_printv("Sent %d:\n%s", encoded.size(),
                  util_hexdump(encoded.data(), encoded.size()).c_str());
 #endif // DEBUG_RAW_PACKET
-    return;
+    RETURN_SUCCESS_AS_TRUE();
 }
 
 void systemBus::sendReplyPacket(fujiDeviceID_t source, bool ack, const void *data, size_t length)
@@ -396,7 +396,7 @@ void systemBus::sendReplyPacket(fujiDeviceID_t source, bool ack, const void *dat
     }
 
     FujiBusPacket packet(source, ack ? CMD::FUJI_ACK : CMD::FUJI_NAK, bb);
-    writeBusPacket(packet);
+    writeFujiBusPacket(packet);
     return;
 }
 
