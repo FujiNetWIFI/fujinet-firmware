@@ -432,6 +432,48 @@ target_include_directories(fssd_listing_tests PRIVATE
 add_test(NAME fssd_listing_tests COMMAND fssd_listing_tests)
 
 # ------------------------------------------------------------------------------
+# DirCache sorting (lib/FileSystem/fnDirCache.cpp). Same utils sources as
+# url_parser_tests: utils.cpp needs them to link.
+# ------------------------------------------------------------------------------
+add_executable(dircache_tests
+    DirCacheTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/U8Char.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/punycode.cpp
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_gettimeofday.c
+)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_sources(dircache_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+    )
+endif()
+
+target_include_directories(dircache_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/lib/
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/
+    ${CMAKE_SOURCE_DIR}/lib/utils/
+    ${CMAKE_SOURCE_DIR}/lib/compat/
+    ${CMAKE_SOURCE_DIR}/lib/sam/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+    ${MBEDTLS_INCLUDE_DIR}
+)
+
+target_link_libraries(dircache_tests PRIVATE ${MBEDCRYPTO_STATIC_LIB})
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_include_directories(dircache_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/components_pc/libsmb2/include/   # asprintf.h
+    )
+    target_link_libraries(dircache_tests PRIVATE bcrypt)
+endif()
+
+add_test(NAME dircache_tests COMMAND dircache_tests)
+
+# ------------------------------------------------------------------------------
 # pdfPrinter page breaks for buffers that hold more than one line. Not on APPLE:
 # there pdf_new_line() does not feed a line, the printer does it on LF.
 # ------------------------------------------------------------------------------
