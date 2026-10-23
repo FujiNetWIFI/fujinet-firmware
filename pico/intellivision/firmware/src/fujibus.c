@@ -199,10 +199,10 @@ bool fujibus_parse_reply(const uint8_t *in_const, size_t in_len, fb_reply_t *rep
             if (offset + size > decoded_len)
                 return false;
             if (reply->nparams < FB_MAX_PARAMS) {
-                uint32_t v = 0;
-                for (unsigned b = 0; b < size; b++)
-                    v |= (uint32_t)in[offset + b] << (8 * b);
-                reply->params[reply->nparams++] = v;
+                uint32_t value = 0;
+                for (unsigned byte_idx = 0; byte_idx < size; byte_idx++)
+                    value |= (uint32_t)in[offset + byte_idx] << (8 * byte_idx);
+                reply->params[reply->nparams++] = value;
             }
             offset += size;
         }
@@ -328,8 +328,8 @@ bool fujibus_selftest(void)
         static const uint32_t want_params[] = {1, 2, 3, 4, 5, 0xABCD};
         if (reply.nparams != 6)
             return false;
-        for (unsigned i = 0; i < 6; i++)
-            if (reply.params[i] != want_params[i])
+        for (unsigned idx = 0; idx < 6; idx++)
+            if (reply.params[idx] != want_params[idx])
                 return false;
     }
 
