@@ -563,19 +563,78 @@ TEST_CASE("in-place writes")
         CHECK(m.file_size() == (long)b.out.size());
     }
 
-    SUBCASE("a compressed record refuses a non-uniform buffer")
+    SUBCASE("a non-uniform buffer expands every compressed record")
     {
-        IMD b;
-        b.header().thdr(5, 0, 0, 1, 0).map({1}).comp(0x02, 0xE5);
-        Mounted m(b, true);
-        REQUIRE(m.st == IMDStatus::Ok);
+        IMD image;
+        image.header();
+        image.thdr(5, 0, 0, 2, 0).map({2, 1});
+        image.full(0x01, 128, 0xAA);  // id 2
+        image.comp(0x04, 0xBB);       // id 1: compressed, deleted
+        image.thdr(5, 1, 0, 3, 0).map({1, 2, 3});
+        image.comp(0x02, 0xCC);
+        image.unavailable();
+        image.comp(0x06, 0xDD);       // compressed, data error
+        Mounted mounted(image, true);
+        REQUIRE(mounted.st == IMDStatus::Ok);
 
-        std::vector<uint8_t> d(128, 0x5A);
-        d[64] = 0x01;
-        CHECK(m.img.write_sector(0, d.data(), 128) == IMDStatus::WriteRefused);
+        std::vector<uint8_t> data(128, 0x5A);
+        data[64] = 0x01;
+        REQUIRE(mounted.img.write_sector(4, data.data(), 128) == IMDStatus::Ok);
 
-        IMDStatus st;
-        CHECK(all_equal(read_lba(m.img, 0, st), 0xE5)); // untouched
+        // Three one-byte fills became 128-byte sectors
+        CHECK(mounted.file_size() == (long)image.out.size() + 3 * 127);
+
+        auto check = [&](IMDImage<std::fstream> &img) {
+            const uint8_t types[] = {0x03, 0x01, 0x01, 0x00, 0x01};
+            for (uint32_t lba = 0; lba < 5; lba++)
+            {
+                IMDSectorInfo info;
+                REQUIRE(img.sector_info(lba, info) == IMDStatus::Ok);
+                CHECK(info.rec_type == types[lba]);
+            }
+            IMDStatus status;
+            CHECK(all_equal(read_lba(img, 0, status), 0xBB));
+            CHECK(all_equal(read_lba(img, 1, status), 0xAA));
+            CHECK(all_equal(read_lba(img, 2, status), 0xCC));
+            read_lba(img, 3, status);
+            CHECK(status == IMDStatus::Unavailable);
+            CHECK(read_lba(img, 4, status) == data);
+        };
+        check(mounted.img);
+
+        // The file on disk parses to the same image
+        uint32_t               size = (uint32_t)mounted.file_size();
+        std::fstream           again_file(IMD_TEST_FILE, std::ios::in | std::ios::binary);
+        IMDImage<std::fstream> again;
+        REQUIRE(again.open(&again_file, size, false) == IMDStatus::Ok);
+        CHECK(again.lba_count() == 5);
+        CHECK(again.trailing_garbage() == 0);
+        check(again);
+    }
+
+    SUBCASE("expansion carries trailing padding along")
+    {
+        IMD image;
+        image.header().thdr(5, 0, 0, 2, 0).map({1, 2});
+        image.comp(0x02, 0xAA).comp(0x02, 0xBB);
+        image.pad(100, 0x1A);
+        Mounted mounted(image, true);
+        REQUIRE(mounted.st == IMDStatus::Ok);
+        REQUIRE(mounted.img.trailing_garbage() == 100);
+
+        std::vector<uint8_t> data(128, 0x5A);
+        data[0] = 0x01;
+        REQUIRE(mounted.img.write_sector(0, data.data(), 128) == IMDStatus::Ok);
+        CHECK(mounted.file_size() == (long)image.out.size() + 2 * 127);
+
+        uint32_t               size = (uint32_t)mounted.file_size();
+        std::fstream           again_file(IMD_TEST_FILE, std::ios::in | std::ios::binary);
+        IMDImage<std::fstream> again;
+        REQUIRE(again.open(&again_file, size, false) == IMDStatus::Ok);
+        CHECK(again.trailing_garbage() == 100);
+        IMDStatus status;
+        CHECK(read_lba(again, 0, status) == data);
+        CHECK(all_equal(read_lba(again, 1, status), 0xBB));
     }
 
     SUBCASE("an unavailable record cannot absorb a write")
@@ -660,22 +719,43 @@ TEST_CASE("linear byte view")
         IMD b;
         b.header().thdr(5, 0, 0, 2, 0).map({1, 2});
         b.full(0x01, 128, 0xAA);  // would accept anything
-        b.comp(0x02, 0xBB);       // can only take a uniform buffer
+        b.unavailable();          // can take nothing
 
         Mounted m(b, true);
         REQUIRE(m.st == IMDStatus::Ok);
 
-        // Overwrites the tail of sector 0 and the head of sector 1; sector 1
-        // would end up non-uniform, so the whole operation must be rejected.
+        // Overwrites the tail of sector 0 and the head of sector 1
         std::vector<uint8_t> d(64, 0x5A);
         CHECK(m.img.write_linear(96, d.data(), (uint32_t)d.size()) == IMDStatus::WriteRefused);
 
+        std::vector<uint8_t> back(128);
+        REQUIRE(m.img.read_linear(0, back.data(), 128) == IMDStatus::Ok);
+        for (int idx = 0; idx < 128; idx++)
+            CHECK(back[idx] == 0xAA);
+    }
+
+    SUBCASE("a span into a compressed sector expands it")
+    {
+        IMD image;
+        image.header().thdr(5, 0, 0, 2, 0).map({1, 2});
+        image.full(0x01, 128, 0xAA);
+        image.comp(0x02, 0xBB);
+
+        Mounted mounted(image, true);
+        REQUIRE(mounted.st == IMDStatus::Ok);
+
+        std::vector<uint8_t> data(64, 0x5A);
+        REQUIRE(mounted.img.write_linear(96, data.data(), (uint32_t)data.size()) == IMDStatus::Ok);
+        CHECK(mounted.file_size() == (long)image.out.size() + 127);
+
         std::vector<uint8_t> back(256);
-        REQUIRE(m.img.read_linear(0, back.data(), 256) == IMDStatus::Ok);
-        for (int i = 0; i < 128; i++)
-            CHECK(back[i] == 0xAA);
-        for (int i = 128; i < 256; i++)
-            CHECK(back[i] == 0xBB);
+        REQUIRE(mounted.img.read_linear(0, back.data(), 256) == IMDStatus::Ok);
+        for (int idx = 0; idx < 96; idx++)
+            CHECK(back[idx] == 0xAA);
+        for (int idx = 96; idx < 160; idx++)
+            CHECK(back[idx] == 0x5A);
+        for (int idx = 160; idx < 256; idx++)
+            CHECK(back[idx] == 0xBB);
     }
 
     SUBCASE("a uniform overwrite of a compressed sector is allowed")

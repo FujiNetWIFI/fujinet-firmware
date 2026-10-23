@@ -25,7 +25,7 @@ static uint8_t imd_ctrl_bits(IMDStatus st)
     case IMDStatus::Unavailable: // never readable on the physical disk
         return DISK_CTRL_STATUS_SECTOR_MISSING;
     case IMDStatus::ReadOnly:
-    case IMDStatus::WriteRefused: // record cannot absorb the data in place
+    case IMDStatus::WriteRefused:
         return DISK_CTRL_STATUS_WRITE_PROTECT_ERROR;
     default:
         return DISK_CTRL_STATUS_DATA_LOST;

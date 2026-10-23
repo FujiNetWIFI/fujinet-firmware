@@ -66,7 +66,7 @@ enum class IMDStatus : uint8_t
     NoSuchSector,
     Unavailable,     // record type 0x00: the sector was never readable
     BufferTooSmall,
-    WriteRefused,    // would change the record's on-disk length
+    WriteRefused,    // an unavailable record, or not the sector's length
     ReadOnly,
     IoError,
     TooLarge,        // more than IMD_MAX_SECTORS sectors
@@ -150,9 +150,9 @@ public:
     // sector_info().had_error. out_len may be null.
     IMDStatus read_sector(uint32_t lba, uint8_t *buf, uint32_t buflen, uint16_t *out_len);
 
-    // len must equal sector_size(lba). Writes are in place only: a compressed
-    // record can only absorb a uniform buffer, and an unavailable record cannot
-    // absorb anything. Expand the image first (IMDU /E) if that is a problem.
+    // len must equal sector_size(lba). A compressed record takes a uniform buffer
+    // in place; anything else first grows every compressed record in the image
+    // into a full one, rewriting the file once. An unavailable record takes nothing.
     IMDStatus write_sector(uint32_t lba, const uint8_t *buf, uint16_t len);
 
     // Flat byte view over the sectors in LBA order, for fixed-block hosts.
@@ -220,6 +220,8 @@ private:
     IMDStatus _locate_linear(uint32_t byte_off, uint32_t &lba, uint32_t &sec_off) const;
     IMDStatus _materialize(uint32_t lba, uint32_t sec_off, const uint8_t *src,
                            uint32_t n, uint8_t *out);
+    IMDStatus _shift_up(uint32_t from, uint32_t end, uint32_t shift);
+    IMDStatus _expand();
 };
 
 // Bounds-checked absolute-offset access, so the range checks live in one place.
@@ -735,12 +737,17 @@ IMDStatus IMDImage<File>::write_sector(uint32_t lba, const uint8_t *buf, uint16_
     }
     else
     {
-        // A compressed record is one byte on disk, so it can only take a
-        // uniform buffer; anything else would change the record's length.
+        // A compressed record is one fill byte on disk, so only a uniform
+        // buffer fits in place
         uint8_t fill = (s.size > 0) ? buf[0] : 0;
         for (uint16_t i = 1; i < s.size; i++)
             if (buf[i] != fill)
-                return IMDStatus::WriteRefused;
+            {
+                IMDStatus status = _expand();
+                if (status != IMDStatus::Ok)
+                    return status;
+                return write_sector(lba, buf, len);
+            }
         if (!imd_write_bounded(_file, _size, s.data_off, &fill, 1))
             return IMDStatus::IoError;
         new_type = (uint8_t)(2 + (deleted ? IMD_REC_DELETED : 0));
@@ -874,37 +881,121 @@ IMDStatus IMDImage<File>::write_linear(uint32_t byte_off, const uint8_t *buf, ui
             if (_locate_linear(byte_off + done, lba, sec_off) != IMDStatus::Ok)
                 return IMDStatus::NoSuchSector;
 
-            uint16_t ss = _sectors[lba].size;
-            uint32_t n = ss - sec_off;
-            if (n > len - done)
-                n = len - done;
+            uint16_t sec_size = _sectors[lba].size;
+            uint32_t chunk = sec_size - sec_off;
+            if (chunk > len - done)
+                chunk = len - done;
 
             if (_sectors[lba].rec_type == IMD_REC_UNAVAILABLE)
                 return IMDStatus::WriteRefused;
 
-            IMDStatus st = _materialize(lba, sec_off, buf + done, n, _scratch.data());
-            if (st != IMDStatus::Ok)
-                return st;
-
-            if (pass == 0)
+            if (pass == 1)
             {
-                if ((_sectors[lba].rec_type & 1) == 0)
-                {
-                    for (uint16_t i = 1; i < ss; i++)
-                        if (_scratch[i] != _scratch[0])
-                            return IMDStatus::WriteRefused;
-                }
+                IMDStatus status = _materialize(lba, sec_off, buf + done, chunk, _scratch.data());
+                if (status != IMDStatus::Ok)
+                    return status;
+                status = write_sector(lba, _scratch.data(), sec_size);
+                if (status != IMDStatus::Ok)
+                    return status;
             }
-            else
-            {
-                st = write_sector(lba, _scratch.data(), ss);
-                if (st != IMDStatus::Ok)
-                    return st;
-            }
-            done += n;
+            done += chunk;
         }
     }
     return IMDStatus::Ok;
+}
+
+// Moves [from, end) up by shift, last chunk first so nothing is overwritten
+// before it has been read.
+template <typename File>
+IMDStatus IMDImage<File>::_shift_up(uint32_t from, uint32_t end, uint32_t shift)
+{
+    uint8_t buf[512];
+
+    if (shift == 0)
+        return IMDStatus::Ok;
+    while (end > from)
+    {
+        uint32_t chunk = end - from < sizeof(buf) ? end - from : (uint32_t)sizeof(buf);
+        end -= chunk;
+        if (imd_read_at(*_file, end, buf, chunk) != IMDStatus::Ok
+            || imd_write_at(*_file, end + shift, buf, chunk) != IMDStatus::Ok)
+            return IMDStatus::IoError;
+    }
+    return IMDStatus::Ok;
+}
+
+// Records are packed with no offsets, so growing one moves everything after
+// it. Growing them all in one pass, from the end of the file back, costs one
+// rewrite instead of one per sector, and every later write is in place.
+template <typename File>
+IMDStatus IMDImage<File>::_expand()
+{
+    std::vector<uint32_t> grow;   // LBAs of the compressed records, in file order
+    for (uint32_t lba = 0; lba < _sectors.size(); lba++)
+        if (_sectors[lba].rec_type != IMD_REC_UNAVAILABLE && (_sectors[lba].rec_type & 1) == 0
+            && _sectors[lba].size > 1)
+            grow.push_back(lba);
+    std::sort(grow.begin(), grow.end(), [this](uint32_t lhs, uint32_t rhs) {
+        return _sectors[lhs].data_off < _sectors[rhs].data_off;
+    });
+
+    // before[idx]: how far record grow[idx] and everything up to the next one move
+    std::vector<uint32_t> before(grow.size());
+    uint32_t total = 0;
+    for (size_t idx = 0; idx < grow.size(); idx++)
+    {
+        before[idx] = total;
+        total += _sectors[grow[idx]].size - 1u;
+    }
+    if (total == 0)
+        return IMDStatus::Ok;
+    if (_size > UINT32_MAX - total)
+        return IMDStatus::TooLarge;
+
+    uint8_t  buf[512];
+    uint32_t end = _size;
+    for (size_t idx = grow.size(); idx-- > 0;)
+    {
+        const SectorRef &sector = _sectors[grow[idx]];
+        uint32_t shift = before[idx] + sector.size - 1u;
+        uint8_t  fill;
+
+        if (_shift_up(sector.data_off + 1, end, shift) != IMDStatus::Ok
+            || imd_read_at(*_file, sector.data_off, &fill, 1) != IMDStatus::Ok)
+            return IMDStatus::IoError;
+        memset(buf, fill, sizeof(buf));
+        for (uint32_t off = 0; off < sector.size; off += sizeof(buf))
+        {
+            uint32_t chunk = sector.size - off < sizeof(buf) ? sector.size - off
+                                                              : (uint32_t)sizeof(buf);
+            if (imd_write_at(*_file, sector.data_off + before[idx] + off, buf, chunk)
+                != IMDStatus::Ok)
+                return IMDStatus::IoError;
+        }
+        end = sector.data_off;
+    }
+
+    // Every record moves by the growth of the compressed records ahead of it
+    std::vector<uint32_t> old_off(grow.size());
+    for (size_t idx = 0; idx < grow.size(); idx++)
+        old_off[idx] = _sectors[grow[idx]].data_off;
+    for (SectorRef &sector : _sectors)
+    {
+        size_t idx = std::lower_bound(old_off.begin(), old_off.end(), sector.data_off)
+                     - old_off.begin();
+        sector.data_off += idx < grow.size() ? before[idx] : total;
+    }
+    _size += total;
+
+    for (uint32_t lba : grow)
+    {
+        SectorRef &sector = _sectors[lba];
+        uint8_t    full = (uint8_t)(sector.rec_type - 1);
+        if (imd_write_at(*_file, sector.data_off - 1, &full, 1) != IMDStatus::Ok)
+            return IMDStatus::IoError;
+        sector.rec_type = full;
+    }
+    return imd_flush(*_file);
 }
 
 #endif // IMD_IMAGE_H
