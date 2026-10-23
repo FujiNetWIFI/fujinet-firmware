@@ -23,8 +23,8 @@
 
 // NETCMD_*: matches include/fujiCommandID.h in the main tree. Reused here
 // (rather than FUJICMD_*) because that's what the ESP32-S3 side's
-// rs232Disk::mount() actually sends -- see push_stream() in
-// lib/device/rs232/disk.cpp.
+// Cartridge::load() actually sends -- see push_stream() in
+// lib/device/Cartridge/Cartridge.cpp.
 #define NETCMD_OPEN  0x4F
 #define NETCMD_WRITE 0x57
 #define NETCMD_CLOSE 0x43

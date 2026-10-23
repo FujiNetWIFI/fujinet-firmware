@@ -109,7 +109,7 @@ void fujimail_paint(void)
 
 /* ---- the DBC ROM push ----
  *
- * rs232Disk::mount() (lib/device/rs232/disk.cpp) streams the cartridge image
+ * Cartridge::load() (lib/device/Cartridge/) streams the cartridge image
  * to device $FF while our MOUNT_IMAGE is still outstanding, so these frames
  * arrive unsolicited in the middle of a transaction and each needs its own ACK.
  */

@@ -2,6 +2,7 @@
 #define DRIVEWIREFUJI_H
 
 #include "fujiDevice.h"
+#include "Cartridge.h"
 
 #include "cassette.h"
 
@@ -13,6 +14,7 @@ private:
 #ifdef ESP_PLATFORM
     drivewireCassette _cassetteDev;
 #endif
+    Cartridge _cartridge{SYSTEM_BUS, Cartridge::FUJIVERSAL};
 
 protected:
     size_t set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,
@@ -22,6 +24,11 @@ protected:
     void random();
 
     void shutdown() override;
+
+    // A ROM is pushed to our Cartridge and closed; anything else mounts as
+    // usual.
+    mediatype_t mount_media(DISK_DEVICE *disk_dev, fujiDisk &disk, fujiHost &host,
+                            disk_access_flags_t mode) override;
 
     // -1 stops the base from blinking before the queued swap runs; rotate_disks() blinks.
     int get_rotate_slot() override { return -1; }

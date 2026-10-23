@@ -149,7 +149,7 @@ set(INCLUDE_DIRS include
     lib/modem-sniffer lib/printer-emulator
     lib/network-protocol
     lib/fuji lib/bus lib/device lib/media
-    lib/device/fujiDevice lib/device/fujiClock lib/device/NDevice
+    lib/device/fujiDevice lib/device/fujiClock lib/device/NDevice lib/device/Cartridge
     lib/encrypt
     lib/devrelay/commands lib/devrelay/service lib/devrelay/slip lib/devrelay/types
     lib/encoding
@@ -318,6 +318,7 @@ set(SOURCES src/main.cpp
     lib/device/modem.h
     lib/device/cassette.h
     lib/device/fujiDevice/fujiDevice.h lib/device/fujiDevice/fujiDevice.cpp
+    lib/device/Cartridge/Cartridge.h lib/device/Cartridge/Cartridge.cpp
     lib/device/fujiDevice/FujiDeviceMixin.h
     lib/device/fujiDevice/Base64Mixin.h lib/device/fujiDevice/Base64Mixin.cpp
     lib/device/fujiDevice/HashMixin.h lib/device/fujiDevice/HashMixin.cpp

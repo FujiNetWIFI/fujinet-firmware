@@ -1,6 +1,6 @@
 // Host-buildable test driver for bootmap.c -- no RP2040/pico-sdk involved.
 // Feeds real cartridge files through the same calls dbc_inbound_handler()
-// makes, in the same 512-byte chunks MediaTypeROM::push_stream() sends, then
+// makes, in the same 512-byte chunks Cartridge::push_stream() sends, then
 // commits the resulting plan into an mm_map_t and dumps what the bus would
 // actually see. This is the regression gate for the network boot path: the
 // cart itself only needs flashing once the output here is right.

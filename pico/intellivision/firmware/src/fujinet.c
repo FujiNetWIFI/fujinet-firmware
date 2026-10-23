@@ -53,7 +53,7 @@ void fuji_wait_ms_pumped(uint32_t ms)
 //                     ROM boot receiver (FUJI_DEVICEID_DBC)
 ////////////////////////////////////////////////////////////////////////////
 //
-// The ESP32-S3's MediaTypeROM::mount() pushes a ROM -- and, if one exists, a
+// The ESP32-S3's Cartridge::load() pushes a ROM -- and, if one exists, a
 // same-named .cfg sibling -- to us over the same USB-CDC link ordinary
 // mailbox transactions use, addressed to FUJI_DEVICEID_DBC, WHILE the
 // Intellivision's own MOUNT_IMAGE mailbox transaction is still outstanding
@@ -361,7 +361,7 @@ bool dbc_inbound_handler(const fb_reply_t *req)
             }
             // apply_boot_mapping() already set FUJI_MB_BOOT_ERR to a
             // specific reason code. NAK (not ACK) so push_stream() on the
-            // ESP32 side sees the CLOSE fail and MediaTypeROM::mount()
+            // ESP32 side sees the CLOSE fail and Cartridge::load()
             // reports failure, instead of believing the push succeeded.
             cart.RAM[FUJI_MB_BOOT_STATE] = FUJI_BOOT_FAILED;
             dbc_send_frame(FUJICMD_NAK);
