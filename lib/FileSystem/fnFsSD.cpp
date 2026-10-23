@@ -151,8 +151,6 @@ success_is_true FileSystemSDFAT::rmdir(const char* path)
 
 success_is_true FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t diropts)
 {
-    // TODO: Add pattern and sorting options
-
 #ifndef ESP_PLATFORM
     Debug_printf("FileSystemSDFAT::dir_open \"%s\"\n", path);
 #endif
@@ -263,7 +261,7 @@ success_is_true FileSystemSDFAT::dir_open(const char * path, const char * patter
             continue;
 
         // Determine which list to put this in
-        if(d->d_type == DT_DIR || d->d_type == DT_LNK) // well, assume symlinks points to directories only
+        if(d->d_type == DT_DIR || d->d_type == DT_LNK) // well, assume symlinks point to directories only
         {
 			// Skip this entry if we're filtering directories and it doesn't match
 			if (filter_dirs && util_wildcard_match(d->d_name, thepat) == false)
@@ -432,7 +430,7 @@ long FileSystemSDFAT::mtime(const char *path)
     return res;
 }
 
-/* Checks that path exists and creates if it doesn't including any parent directories.
+/* Checks that path exists and creates it if it doesn't, including any parent directories.
    cumulativePath holds the path prefix built up to the current segment (for mkdir),
    so it can be as long as the full path.
    An initial "/" is optional, but you should not include an ending "/".

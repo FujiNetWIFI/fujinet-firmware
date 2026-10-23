@@ -65,7 +65,7 @@ public:
     bool file_exists(const char *path);
     fnFile * fnfile_open(const char *path, char *fullpath, int fullpathlen, const char *mode);
 #ifdef FNIO_IS_STDIO
-    // allow compilation of FILE* based fujiHost (all platforms except ATARI and APPLE)
+    // allow compilation of FILE* based fujiHost (platforms where fnio is stdio)
     FILE * file_open(const char *path, char *fullpath, int fullpathlen, const char *mode) {
         return fnfile_open(path, fullpath, fullpathlen, mode);
     }

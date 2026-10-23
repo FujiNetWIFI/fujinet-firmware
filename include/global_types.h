@@ -152,7 +152,7 @@ struct u32be_t {
 } __attribute__((packed));
 static_assert(sizeof(u32be_t) == 4, "u32be_t must be 4 bytes");
 
-// unsigned types in "native ending"
+// unsigned types in native endianness
 #ifdef BUILD_COCO
 using u16ne_t = u16be_t;
 using u24ne_t = u24be_t;

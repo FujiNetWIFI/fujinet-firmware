@@ -135,7 +135,7 @@ const char *fnHttpService::get_basename(const char *filepath)
 
 /* Set the response content type based on the file being sent.
 *  Just using the file extension
-*  If nothing is set here, the default is 'text/html'
+*  If the extension is unknown, no Content-Type is sent
 */
 void fnHttpService::set_file_content_type(struct mg_connection *c, const char *filepath)
 {
@@ -149,7 +149,7 @@ void fnHttpService::set_file_content_type(struct mg_connection *c, const char *f
     }
 }
 
-/* Send content of given file out to client
+/* Send file content after parsing for replaceable strings
 */
 void fnHttpService::send_file_parsed(struct mg_connection *c, const char *filename)
 {
@@ -158,7 +158,7 @@ void fnHttpService::send_file_parsed(struct mg_connection *c, const char *filena
     _fnwserr err = fnwserr_noerrr;
 
     // Retrieve server state
-    serverstate *pState = &fnHTTPD.state; // ops TODO
+    serverstate *pState = &fnHTTPD.state;
     FILE *fInput = pState->_FS->file_open(filename);
 
     if (fInput == nullptr)
@@ -206,7 +206,7 @@ void fnHttpService::send_file_parsed(struct mg_connection *c, const char *filena
         return_http_error(c, err);
 }
 
-/* Send file content after parsing for replaceable strings
+/* Send content of given file out to client
 */
 void fnHttpService::send_file(struct mg_connection *c, const char *filename)
 {
@@ -225,7 +225,7 @@ void fnHttpService::send_file(struct mg_connection *c, const char *filename)
     }
 
     // Retrieve server state
-    serverstate *pState = &fnHTTPD.state; // ops TODO
+    serverstate *pState = &fnHTTPD.state;
 
     FILE *fInput = pState->_FS->file_open(fpath.c_str());
     if (fInput == nullptr)
@@ -366,7 +366,6 @@ int fnHttpService::get_handler_print(struct mg_connection *c)
         return_http_error(c, err);
         return -1;
     }
-    // Get printer emulator pointer from sioP (which is now extern)
     printer_emu *currentPrinter = printer->getPrinterPtr();
 
     // Build a print output name
@@ -425,7 +424,7 @@ int fnHttpService::get_handler_print(struct mg_connection *c)
 
     if (sendAsAttachment)
     {
-        // Add a couple of attchment-specific details
+        // Add a couple of attachment-specific details
         mg_printf(c, "Content-Disposition: attachment; filename=\"%s\"\r\n", filename.c_str());
     }
     mg_printf(c, "Content-Length: %lld\r\n\r\n", (long long)FileSystem::filesize(poutput));
@@ -1849,7 +1848,7 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
             api_handler(c, hm);
         }
         else
-        // default handler, serve static content of www firectory
+        // default handler, serve static content of www directory
         {
             struct mg_http_serve_opts opts = {s_root_dir, NULL};
             mg_http_serve_dir(c, (mg_http_message*)ev_data, &opts);

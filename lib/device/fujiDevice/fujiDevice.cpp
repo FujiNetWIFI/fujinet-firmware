@@ -603,7 +603,7 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
     if (access_mode & DISK_ACCESS_MODE_WRITE)
         mode[2] = '+';
 
-    // Make sure we weren't given a bad hostSlot
+    // Make sure we weren't given a bad device or host slot
     if (!validate_device_slot(deviceSlot))
         RETURN_ERROR_AS_FALSE();
 

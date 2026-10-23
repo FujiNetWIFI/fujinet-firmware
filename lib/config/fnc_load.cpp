@@ -13,8 +13,8 @@
 
 #include "../../include/debug.h"
 
-/* Load configuration data from FLASH. If no config file exists in FLASH,
-   copy it from SD if a copy exists there.
+/* Load the config from SD if present, else from FLASH (the config file path on PC);
+   then copy SD to FLASH if FLASH lacks it or differs.
 */
 void fnConfig::load()
 {
@@ -42,9 +42,9 @@ void fnConfig::load()
         return;
     }
 
-#endif /* BUILD_ATARI */
+#endif /* BUILD_ATARI || BUILD_ADAM */
 
-    // See if we have a copy on SD load it to check if we should write to flash (only copy from SD if we don't have a local copy)
+    // Prefer the SD copy; it is copied to FLASH below if FLASH lacks it or differs
     FILE *fin = NULL; //declare fin
     if (fnSDFAT.running() && fnSDFAT.exists(CONFIG_FILENAME))
     {
@@ -235,7 +235,7 @@ void fnConfig::load()
                 }
             }
             ss_ffs.str("");
-            ss_ffs.clear(); // freeup some memory ;)
+            ss_ffs.clear(); // free up some memory ;)
         }
         else
         {

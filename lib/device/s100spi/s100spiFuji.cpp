@@ -153,7 +153,7 @@ void s100spiFuji::s100spi_net_get_ssid()
     memset(&cfg, 0, sizeof(cfg));
 
     /*
-     We memcpy instead of strcpy because technically the SSID and phasephras aren't strings and aren't null terminated,
+     We memcpy instead of strcpy because technically the SSID and passphrase aren't strings and aren't null terminated,
      they're arrays of bytes officially and can contain any byte value - including a zero - at any point in the array.
      However, we're not consistent about how we treat this in the different parts of the code.
     */
@@ -202,7 +202,6 @@ void s100spiFuji::s100spi_net_set_ssid(uint16_t s)
 
         fnWiFi.connect(cfg.ssid, cfg.password);
         setSSIDStarted = true;
-        // Only save these if we're asked to, otherwise assume it was a test for connectivity
         if (save)
         {
             Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
@@ -291,7 +290,7 @@ void s100spiFuji::s100spi_set_boot_config()
     s100spi_response_ack();
 }
 
-// Do SIO copy
+// Copy a file between hosts
 void s100spiFuji::s100spi_copy_file()
 {
 }
@@ -309,21 +308,10 @@ char *_generate_appkey_filename(appkey *info)
     return filenamebuf;
 }
 
-/*
- Opens an "app key".  This just sets the needed app key parameters (creator, app, key, mode)
- for the subsequent expected read/write command. We could've added this information as part
- of the payload in a WRITE_APPKEY command, but there was no way to do this for READ_APPKEY.
- Requiring a separate OPEN command makes both the read and write commands behave similarly
- and leaves the possibity for a more robust/general file read/write function later.
-*/
 void s100spiFuji::s100spi_open_app_key()
 {
 }
 
-/*
-  The app key close operation is a placeholder in case we want to provide more robust file
-  read/write operations. Currently, the file is closed immediately after the read or write operation.
-*/
 void s100spiFuji::s100spi_close_app_key()
 {
 }
@@ -362,7 +350,7 @@ void s100spiFuji::s100spi_disk_image_umount()
 
 // Disk Image Rotate
 /*
-  We rotate disks my changing their disk device ID's. That prevents
+  We rotate disks by changing their disk device IDs. That prevents
   us from having to unmount and re-mount devices.
 */
 void s100spiFuji::image_rotate()
@@ -571,7 +559,7 @@ void s100spiFuji::s100spi_set_directory_position()
 {
     Debug_println("Fuji cmd: SET DIRECTORY POSITION");
 
-    // DAUX1 and DAUX2 hold the position to seek to in low/high order
+    // Position arrives as two bytes, low byte first
     uint16_t pos = 0;
 
     s100spi_recv_buffer((uint8_t *)&pos, sizeof(uint16_t));
@@ -949,7 +937,7 @@ void s100spiFuji::s100spi_disable_device()
     s100Bus.disableDevice(d);
 }
 
-// Initializes base settings and adds our devices to the SIO bus
+// Initializes base settings and adds our devices to the S100 bus
 void s100spiFuji::setup(systemBus *siobus)
 {
     // set up Fuji device
@@ -957,10 +945,8 @@ void s100spiFuji::setup(systemBus *siobus)
 
     _populate_slots_from_config();
 
-    // Disable booting from CONFIG if our settings say to turn it off
     boot_config = false;
 
-    // Disable status_wait if our settings say to turn it off
     status_wait_enabled = false;
 
     _s100spi_bus->addDevice(&_fnDisks[0].disk_dev, s100spi_DEVICEID_DISK);
@@ -1142,4 +1128,4 @@ std::string s100spiFuji::get_host_prefix(int host_slot)
     return _fnHosts[host_slot].get_prefix();
 }
 
-#endif /* NEW_TARGET */
+#endif /* BUILD_S100 */
