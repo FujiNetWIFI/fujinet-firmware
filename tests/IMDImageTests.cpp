@@ -3,6 +3,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <fstream>
 #include <vector>
 
 #include "IMDImage.h"
@@ -18,37 +19,36 @@ namespace
 // Keeps file and image together; IMDImage does not own the file.
 struct Mounted
 {
-    FILE          *fp = nullptr;
-    IMDStdioStream stream{nullptr, 0};
-    IMDImage       img;
-    IMDStatus      st = IMDStatus::IoError;
+    std::fstream           file;
+    IMDImage<std::fstream> img;
+    IMDStatus              st = IMDStatus::IoError;
 
     Mounted(const IMD &b, bool writable = false)
     {
-        fp = fopen(IMD_TEST_FILE, "w+b");
-        REQUIRE(fp != nullptr);
-        REQUIRE(fwrite(b.out.data(), 1, b.out.size(), fp) == b.out.size());
-        rewind(fp);
-        stream = IMDStdioStream(fp, (uint32_t)b.out.size());
-        st = img.open(&stream, writable);
+        {
+            std::ofstream out(IMD_TEST_FILE, std::ios::binary | std::ios::trunc);
+            REQUIRE(out.write((const char *)b.out.data(), (std::streamsize)b.out.size()));
+        }
+        file.open(IMD_TEST_FILE, std::ios::in | std::ios::out | std::ios::binary);
+        REQUIRE(file.is_open());
+        st = img.open(&file, (uint32_t)b.out.size(), writable);
     }
 
     ~Mounted()
     {
         img.close();
-        fclose(fp);
+        file.close();
         remove(IMD_TEST_FILE);
     }
 
     long file_size()
     {
-        fflush(fp);
-        fseek(fp, 0, SEEK_END);
-        return ftell(fp);
+        file.flush();
+        return (long)imd_size(file);
     }
 };
 
-std::vector<uint8_t> read_lba(IMDImage &img, uint32_t lba, IMDStatus &st)
+std::vector<uint8_t> read_lba(IMDImage<std::fstream> &img, uint32_t lba, IMDStatus &st)
 {
     std::vector<uint8_t> buf(img.sector_size(lba));
     uint16_t             got = 0;
@@ -748,13 +748,13 @@ TEST_CASE("sector count is capped")
 
 TEST_CASE("extension sniffing")
 {
-    CHECK(IMDImage::looks_like_imd_extension("disk.imd"));
-    CHECK(IMDImage::looks_like_imd_extension("DISK.IMD"));
-    CHECK(IMDImage::looks_like_imd_extension("/path/to/cpm.IMD"));
-    CHECK_FALSE(IMDImage::looks_like_imd_extension("disk.img"));
-    CHECK_FALSE(IMDImage::looks_like_imd_extension("imd"));
-    CHECK_FALSE(IMDImage::looks_like_imd_extension(".imd"));
-    CHECK_FALSE(IMDImage::looks_like_imd_extension(nullptr));
+    CHECK(imd_looks_like_extension("disk.imd"));
+    CHECK(imd_looks_like_extension("DISK.IMD"));
+    CHECK(imd_looks_like_extension("/path/to/cpm.IMD"));
+    CHECK_FALSE(imd_looks_like_extension("disk.img"));
+    CHECK_FALSE(imd_looks_like_extension("imd"));
+    CHECK_FALSE(imd_looks_like_extension(".imd"));
+    CHECK_FALSE(imd_looks_like_extension(nullptr));
 }
 
 TEST_CASE("close resets the image")

@@ -86,8 +86,7 @@ mediatype_t MediaTypeIMD::mount(fnFile *f, uint32_t disksize)
     _disk_fileh = f;
     _disk_image_size = disksize;
 
-    _stream = IMDFnioStream(f, disksize);
-    IMDStatus st = _imd.open(&_stream, _writable);
+    IMDStatus st = _imd.open(f, disksize, _writable);
     if (st != IMDStatus::Ok)
     {
         Debug_printf("IMD MOUNT failed: %s\r\n", imd_status_str(st));
@@ -279,13 +278,12 @@ success_is_true MediaTypeIMD::create(fnFile *f, uint16_t sectorSize, uint32_t nu
     if (sectorSize != 128 || numSectors != cyls * spt)
         RETURN_ERROR_AS_FALSE();
 
-    IMDFnioStream out(f, 0);
-    if (IMDImage::write_header(out, time(nullptr)) != IMDStatus::Ok)
+    if (IMDImage<fnFile>::write_header(*f, time(nullptr)) != IMDStatus::Ok)
         RETURN_ERROR_AS_FALSE();
     for (uint8_t cyl = 0; cyl < cyls; cyl++)
     {
         // Mode 0 is 500 kbps FM; size code 0 is 128 bytes
-        if (IMDImage::write_blank_track(out, 0, cyl, 0, spt, 0, cyl < blank_cyls ? 0xE5 : 0x00)
+        if (IMDImage<fnFile>::write_blank_track(*f, 0, cyl, 0, spt, 0, cyl < blank_cyls ? 0xE5 : 0x00)
             != IMDStatus::Ok)
             RETURN_ERROR_AS_FALSE();
     }

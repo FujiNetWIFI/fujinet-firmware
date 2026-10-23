@@ -3,7 +3,7 @@
 
 #include "diskType.h"
 
-#include "../IMDFnioStream.h"
+#include "../IMDFnio.h"
 #include "PSRAMMemoryResource.h"
 
 // Serves an ImageDisk (.imd) image using its native geometry: drive sector N is
@@ -35,8 +35,7 @@ private:
     void _derive_geometry();
     void _fill_percom();
 
-    IMDFnioStream _stream;   // declared first so it outlives _imd
-    IMDImage _imd{psram_memory_resource()};
+    IMDImage<fnFile> _imd{psram_memory_resource()};
     bool _writable = false;
     uint8_t _base_ctrl_status = DISK_CTRL_STATUS_CLEAR;
 

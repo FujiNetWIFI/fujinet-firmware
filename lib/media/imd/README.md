@@ -8,13 +8,15 @@ be included here.
 
 | File | Defines |
 |---|---|
-| `IMDImage.h`, `IMDImage.cpp` | `IMDImage`; `IMDStream`, the byte storage it reads and writes through; `IMDStdioStream`, an `IMDStream` over a `FILE`; `IMDStatus` and the format constants |
+| `IMDImage.h`, `IMDImage.ipp` | `IMDImage<File>`, a class template over the file type it reads and writes, with `IMDStatus` and the format constants |
+| `IMDImage.cpp` | the non-template helpers, and the `std::fstream` overloads of `imd_read_at`, `imd_write_at`, `imd_size` and `imd_flush` |
 
 ## How it fits
 
-- FujiNet's adapter, `MediaTypeIMD` in [rs232/](../rs232/), gives `IMDImage` an
-  `IMDFnioStream` (`lib/media/IMDFnioStream.h`) and a PSRAM memory resource for its sector tables.
-- A host tool gives it an `IMDStdioStream`, or its own `IMDStream`.
+- FujiNet's adapter, `MediaTypeIMD` in [rs232/](../rs232/), uses `IMDImage<fnFile>`, with the
+  `fnFile` overloads in `lib/media/IMDFnio.h` and a PSRAM memory resource for its sector tables.
+- A host tool uses `IMDImage<std::fstream>`. Any other file type needs the same four overloads,
+  declared before `IMDImage<File>` is used.
 
 ## Build
 

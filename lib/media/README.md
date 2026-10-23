@@ -10,7 +10,7 @@ write sectors or blocks of one file format; it knows nothing about the bus (a ct
 |---|---|
 | `media.h` | the `BUILD_*` switchboard that includes the active platform's media headers |
 | [imd/](imd/) | `IMDImage`, an ImageDisk reader and writer that depends on the C++ standard library only. It is deliberately not a `MediaType`; a platform wraps it in an adapter (`rs232/diskTypeIMD.h`) |
-| `IMDFnioStream.h` | `IMDFnioStream`, the `IMDStream` over an `fnFile` that an adapter gives `IMDImage` |
+| `IMDFnio.h` | the `fnFile` overloads that `IMDImage<fnFile>` reads and writes through |
 
 ## Platforms
 

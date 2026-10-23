@@ -15,8 +15,8 @@
 // own and forwards here.
 
 #include <cstdint>
-#include <cstdio>
 #include <ctime>
+#include <fstream>
 #include <memory_resource>
 #include <string>
 #include <vector>
@@ -72,32 +72,14 @@ enum class IMDStatus : uint8_t
 
 const char *imd_status_str(IMDStatus s);
 
-// The bytes of an image. A write may extend it.
-class IMDStream
-{
-public:
-    virtual ~IMDStream() = default;
-    virtual uint32_t  size() const = 0;
-    virtual IMDStatus read_at(uint32_t off, void *dst, uint32_t len) = 0;
-    virtual IMDStatus write_at(uint32_t off, const void *src, uint32_t len) = 0;
-    virtual IMDStatus flush() = 0;
-};
+// What IMDImage<File> calls on its file. Another file type supplies the same
+// four overloads, declared before IMDImage<File> is used.
+IMDStatus imd_read_at(std::fstream &file, uint32_t off, void *dst, uint32_t len);
+IMDStatus imd_write_at(std::fstream &file, uint32_t off, const void *src, uint32_t len);
+uint32_t  imd_size(std::fstream &file);
+IMDStatus imd_flush(std::fstream &file);
 
-// An IMDStream over a FILE, which it borrows and never closes.
-class IMDStdioStream : public IMDStream
-{
-public:
-    IMDStdioStream(std::FILE *f, uint32_t size) : _f(f), _size(size) {}
-
-    uint32_t  size() const override { return _size; }
-    IMDStatus read_at(uint32_t off, void *dst, uint32_t len) override;
-    IMDStatus write_at(uint32_t off, const void *src, uint32_t len) override;
-    IMDStatus flush() override;
-
-private:
-    std::FILE *_f;
-    uint32_t   _size;
-};
+bool imd_looks_like_extension(const char *filename);
 
 // Track recording mode (IMD.TXT 6.1). The rate is the controller transfer rate;
 // FM carries half that as data. 6 and 9 are a libdsk extension for 1Mbps that we
@@ -131,22 +113,24 @@ struct IMDTrackInfo
     bool     has_head_map;
 };
 
+template <typename File>
 class IMDCursor;
 
+template <typename File>
 class IMDImage
 {
 public:
-    // The sector tables come from mr, e.g. PSRAM on the ESP32.
-    explicit IMDImage(std::pmr::memory_resource *mr = std::pmr::get_default_resource())
-        : _sectors(mr), _tracks(mr) {}
+    // The sector tables come from memory, e.g. PSRAM on the ESP32.
+    explicit IMDImage(std::pmr::memory_resource *memory = std::pmr::get_default_resource())
+        : _sectors(memory), _tracks(memory) {}
     ~IMDImage();
     IMDImage(const IMDImage &) = delete;
     IMDImage &operator=(const IMDImage &) = delete;
 
-    // Indexes the whole image; s must outlive the IMDImage.
-    IMDStatus open(IMDStream *s, bool writable);
+    // Indexes the whole image; file must outlive the IMDImage, which never closes it.
+    IMDStatus open(File *file, uint32_t size, bool writable);
     void      close();
-    bool      is_open() const { return _s != nullptr; }
+    bool      is_open() const { return _file != nullptr; }
 
     uint32_t lba_count() const { return (uint32_t)_sectors.size(); }
     uint32_t track_count() const { return (uint32_t)_tracks.size(); }
@@ -178,14 +162,12 @@ public:
     uint32_t    trailing_garbage() const { return _trailing; }
     const char *comment() const { return _comment.c_str(); }
 
-    static bool looks_like_imd_extension(const char *filename);
-
-    // A new image, each appended to s: the signature line stamped with `when`,
+    // A new image, each appended to file: the signature line stamped with `when`,
     // then its tracks.
-    static IMDStatus write_header(IMDStream &s, time_t when);
+    static IMDStatus write_header(File &file, time_t when);
     // One track of sectors 1..nsec filled with `fill`, stored as full records so
     // write_sector() can later take any data in place.
-    static IMDStatus write_blank_track(IMDStream &s, uint8_t mode, uint8_t cyl, uint8_t head,
+    static IMDStatus write_blank_track(File &file, uint8_t mode, uint8_t cyl, uint8_t head,
                                        uint8_t nsec, uint8_t size_code, uint8_t fill);
 
 private:
@@ -215,7 +197,7 @@ private:
     std::pmr::vector<SectorRef> _sectors;
     std::pmr::vector<TrackRef>  _tracks;
 
-    IMDStream  *_s = nullptr;
+    File       *_file = nullptr;
     uint32_t    _size = 0;
     bool        _writable = false;
     uint32_t    _trailing = 0;
@@ -231,11 +213,13 @@ private:
     IMDStatus _read_comment(uint32_t &data_start);
     // header_ok distinguishes a bad track header (likely transport padding)
     // from a failure inside an otherwise valid track (a real error).
-    IMDStatus _parse_track(IMDCursor &cur, bool &header_ok);
+    IMDStatus _parse_track(IMDCursor<File> &cur, bool &header_ok);
     bool      _tail_is_padding(uint32_t from);
     IMDStatus _locate_linear(uint32_t byte_off, uint32_t &lba, uint32_t &sec_off) const;
     IMDStatus _materialize(uint32_t lba, uint32_t sec_off, const uint8_t *src,
                            uint32_t n, uint8_t *out);
 };
+
+#include "IMDImage.ipp"
 
 #endif // IMD_IMAGE_H

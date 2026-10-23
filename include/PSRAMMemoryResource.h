@@ -13,17 +13,17 @@ class PSRAMMemoryResource : public std::pmr::memory_resource
     void *do_allocate(std::size_t bytes, std::size_t align) override
     {
 #if CONFIG_SPIRAM
-        if (void *p = heap_caps_aligned_alloc(align, bytes, MALLOC_CAP_SPIRAM))
-            return p;
+        if (void *block = heap_caps_aligned_alloc(align, bytes, MALLOC_CAP_SPIRAM))
+            return block;
 #endif
         return heap_caps_aligned_alloc(align, bytes, MALLOC_CAP_DEFAULT);
     }
 
-    void do_deallocate(void *p, std::size_t, std::size_t) override { heap_caps_free(p); }
+    void do_deallocate(void *block, std::size_t, std::size_t) override { heap_caps_free(block); }
 
-    bool do_is_equal(const std::pmr::memory_resource &o) const noexcept override
+    bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override
     {
-        return this == &o;
+        return this == &other;
     }
 };
 #endif
