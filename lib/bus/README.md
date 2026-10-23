@@ -18,6 +18,7 @@ payload and ends the transaction exactly once.
 | `transaction_varlen_data`, `transaction_varlen_string` | send a length-prefixed payload when the packet type supports `setDataLength()` |
 | `nativeTextToUnicode`, `unicodeTextToNative`, `nativeEOL` | character-set hooks a bus overrides (PETSCII, CRLF) |
 | `addDevice`, `fujiIDForDevice`, `assignFujiIDToDevice`, `setDeviceEnabled`, `rotateDevices` | the device registry, backed by a `DaisyChain` |
+| `writeFujiBusPacket`, `readFujiBusPacket`, `sendCommand` | `FujiBusPacket` frames: rs232 and fujiversal drivewire (to its companion MCU at `FUJI_DEVICEID::DBC`) override the first two, every other bus fails them; `sendCommand()` writes one and returns the reply |
 
 Command flow: hardware or a bus-over-IP socket → `systemBus::service()` → look the device ID up
 in the `DaisyChain` → the per-bus `virtualDevice` entry point (`sio_process`, `iwm_ctrl`,

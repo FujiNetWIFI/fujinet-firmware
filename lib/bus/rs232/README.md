@@ -7,7 +7,7 @@ every `fujiversal-*` board, where the RP2xxx cartridge is the other end of the l
 ## Layout
 | File | Defines |
 |---|---|
-| `rs232.h`, `rs232.cpp` | `virtualDevice` (devices implement `rs232_process()`) and `systemBus` (`readBusPacket()`, `writeBusPacket()`, `sendReplyPacket()`, `sendCommand()`, a per-unit network map; `nativeEOL()` is CR LF) |
+| `rs232.h`, `rs232.cpp` | `virtualDevice` (devices implement `rs232_process()`) and `systemBus` (the `readFujiBusPacket()`/`writeFujiBusPacket()` overrides, `sendReplyPacket()`, a per-unit network map; `nativeEOL()` is CR LF) |
 
 ## How it fits
 - Selected by `BUILD_RS232` in [lib/bus/bus.h](../bus.h); devices live in

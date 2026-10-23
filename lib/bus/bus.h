@@ -2,9 +2,12 @@
 #define BUS_H
 
 #include "DaisyChain.h"
+#include "FujiBusPacket.h"
 #include "global_types.h"
 
+#include <memory>
 #include <string>
+#include <utility>
 
 #include <type_traits>
 
@@ -156,6 +159,38 @@ public:
         return unicode;
     }
     virtual std::string nativeEOL() { return "\r"; }
+
+    // FujiBus framing, on buses that carry it (rs232, and DriveWire's link to
+    // its companion MCU at FUJI_DEVICEID::DBC). Other buses keep these defaults.
+    virtual success_is_true writeFujiBusPacket(FujiBusPacket &packet) {
+        (void)packet;
+        RETURN_ERROR_AS_FALSE();
+    }
+    // `first` is a byte the caller already read off the wire, or -1.
+    // nullptr when no packet came back.
+    virtual std::unique_ptr<FujiBusPacket> readFujiBusPacket(int first = -1) {
+        (void)first;
+        return nullptr;
+    }
+
+    // The reply, ACK or not; nullptr if the send failed or nothing came back.
+    template <typename... Args>
+    std::unique_ptr<FujiBusPacket> sendCommand(fujiDeviceID_t device,
+                                               fujiCommandID_t command,
+                                               Args &&...args) {
+        FujiBusPacket packet(device, command, std::forward<Args>(args)...);
+        if (writeFujiBusPacket(packet).is_error())
+            return nullptr;
+        return readFujiBusPacket();
+    }
+
+    // Convenience wrapper: raw buffer
+    std::unique_ptr<FujiBusPacket> sendCommand(fujiDeviceID_t device,
+                                               fujiCommandID_t command,
+                                               void *buf, size_t len) {
+        std::string data(reinterpret_cast<const char *>(buf), len);
+        return sendCommand(device, command, std::move(data));
+    }
 };
 
 #ifdef BUILD_ATARI

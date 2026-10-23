@@ -42,8 +42,6 @@ public:
 
     void debug_tape();
 
-    void insert_boot_device(uint8_t d);
-
     void setup() override;
 
     adamFuji();
