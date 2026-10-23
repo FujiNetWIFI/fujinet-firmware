@@ -332,16 +332,21 @@ void sioFuji::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
 
     std::string altconfigfile = Config.get_config_filename();
     fnFile *fBoot = nullptr;
-    size_t image_size = 0;
+    uint32_t image_size = 0;
     std::string boot_img;
 
     if (!altconfigfile.empty() && fnSDFAT.running())
     {
         fBoot = fnSDFAT.fnfile_open(altconfigfile.c_str());
+        if (fBoot != nullptr && FileSystem::filesize(fBoot).to(&image_size).is_error())
+        {
+            Debug_printf("Alternate CONFIG has no usable size: %s\n", altconfigfile.c_str());
+            fnio::fclose(fBoot);
+            fBoot = nullptr;
+        }
         if (fBoot != nullptr)
         {
             boot_img = altconfigfile;
-            image_size = FileSystem::filesize(fBoot);
             Debug_printf("Mounted Alternate CONFIG %s\n", boot_img.c_str());
             disk_dev->mount(fBoot, boot_img.c_str(), image_size, DISK_ACCESS_MODE_READ, disk_type);
             disk_dev->is_config_device = true;
@@ -366,7 +371,12 @@ void sioFuji::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
         return;
     }
 
-    image_size = fsFlash.filesize(fBoot);
+    if (fsFlash.filesize(fBoot).to(&image_size).is_error())
+    {
+        Debug_printf("Boot disk image has no usable size: %s\n", boot_img.c_str());
+        fnio::fclose(fBoot);
+        return;
+    }
     disk_dev->mount(fBoot, boot_img.c_str(), image_size, DISK_ACCESS_MODE_READ, disk_type);
     disk_dev->is_config_device = true;
 }

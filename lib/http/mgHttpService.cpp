@@ -78,7 +78,6 @@ void fnHttpService::return_http_error(struct mg_connection *c, _fnwserr errnum)
         message = MSG_ERR_UNEXPECTED_HTTPD;
         break;
     }
-    // httpd_resp_send(req, message, strlen(message));
     mg_http_reply(c, 400, "", "%s\n", message);
 }
 
@@ -170,8 +169,10 @@ void fnHttpService::send_file_parsed(struct mg_connection *c, const char *filena
     else
     {
         // We're going to load the whole thing into memory, so watch out for big files!
-        size_t sz = FileSystem::filesize(fInput) + 1;
-        char *buf = (char *)calloc(sz, 1);
+        size_t sz = 0;
+        char *buf = nullptr;
+        if (FileSystem::filesize(fInput).to(&sz).is_success())
+            buf = (char *)calloc(++sz, 1);
         if (buf == NULL)
         {
             Debug_printf("Couldn't allocate %u bytes to load file contents!\n", (unsigned)sz);
@@ -209,8 +210,6 @@ void fnHttpService::send_file_parsed(struct mg_connection *c, const char *filena
 */
 void fnHttpService::send_file(struct mg_connection *c, const char *filename)
 {
-    // Debug_printf("send_file '%s'\r\n", filename);
-
     // Build the full file path
     string fpath = FNWS_FILE_ROOT;
     // Trim any '/' prefix before adding it to the base directory
@@ -240,7 +239,7 @@ void fnHttpService::send_file(struct mg_connection *c, const char *filename)
         // Set the response content type
         set_file_content_type(c, fpath.c_str());
         // Set the expected length of the content
-        mg_printf(c, "Content-Length: %lu\r\n\r\n", (unsigned long)FileSystem::filesize(fInput));
+        mg_printf(c, "Content-Length: %lld\r\n\r\n", (long long)FileSystem::filesize(fInput));
 
         // Send the file content out in chunks
         char *buf = (char *)malloc(FNWS_SEND_BUFF_SIZE);
@@ -286,8 +285,10 @@ void fnHttpService::send_header_footer(struct mg_connection *c, int headfoot)
         return;
     }
 
-    size_t sz = FileSystem::filesize(fInput) + 1;
-    char *buf = (char *)calloc(sz, 1);
+    size_t sz = 0;
+    char *buf = nullptr;
+    if (FileSystem::filesize(fInput).to(&sz).is_success())
+        buf = (char *)calloc(++sz, 1);
     if (buf == NULL)
     {
         Debug_printf("Couldn't allocate %u bytes to load file contents!\n", (unsigned)sz);
@@ -363,7 +364,7 @@ int fnHttpService::get_handler_print(struct mg_connection *c)
     {
         _fnwserr err = fnwserr_post_fail;
         return_http_error(c, err);
-        return -1; //ESP_FAIL;
+        return -1;
     }
     // Get printer emulator pointer from sioP (which is now extern)
     printer_emu *currentPrinter = printer->getPrinterPtr();
@@ -415,20 +416,19 @@ int fnHttpService::get_handler_print(struct mg_connection *c)
     {
         Debug_printf("Unable to open printer output\n");
         return_http_error(c, fnwserr_fileopen);
-        return -1; //ESP_FAIL;
+        return -1;
     }
 
     // Set the expected content type based on the filename/extension
     mg_printf(c, "HTTP/1.1 200 OK\r\n");
     set_file_content_type(c, filename.c_str());
 
-    // char hdrval1[60];
     if (sendAsAttachment)
     {
         // Add a couple of attchment-specific details
         mg_printf(c, "Content-Disposition: attachment; filename=\"%s\"\r\n", filename.c_str());
     }
-    mg_printf(c, "Content-Length: %lu\r\n\r\n", (unsigned long)FileSystem::filesize(poutput));
+    mg_printf(c, "Content-Length: %lld\r\n\r\n", (long long)FileSystem::filesize(poutput));
 
     // Finally, write the data
     // Send the file content out in chunks
@@ -437,10 +437,7 @@ int fnHttpService::get_handler_print(struct mg_connection *c)
     do
     {
         count = fread((uint8_t *)buf, 1, FNWS_SEND_BUFF_SIZE, poutput);
-        // count = currentPrinter->readFromOutput((uint8_t *)buf, FNWS_SEND_BUFF_SIZE);
         total += count;
-
-        // Debug_printf("Read %u bytes from print file\n", count);
 
         mg_send(c, buf, count);
     } while (count > 0);
@@ -455,7 +452,7 @@ int fnHttpService::get_handler_print(struct mg_connection *c)
 
     Debug_println("Print request completed");
 
-    return 0; //ESP_OK;
+    return 0;
 }
 
 int fnHttpService::get_handler_printer_status(struct mg_connection *c)
@@ -590,13 +587,13 @@ int fnHttpService::post_handler_config(struct mg_connection *c, struct mg_http_m
     if (fnHttpServiceConfigurator::process_config_post(hm->body.buf, hm->body.len) < 0)
     {
         return_http_error(c, fnwserr_post_fail);
-        return -1; //ESP_FAIL;
+        return -1;
     }
 
     // Redirect back to the main page
     mg_printf(c, "HTTP/1.1 303 See Other\r\nLocation: /\r\nContent-Length: 0\r\n\r\n");
 
-    return 0; //ESP_OK;
+    return 0;
 }
 
 // ─── Device password ─────────────────────────────────────────────────────────
@@ -870,7 +867,8 @@ fnHttpSendFileTask::fnHttpSendFileTask(fnFile *fh, mg_connection *c)
 
 int fnHttpSendFileTask::start()
 {
-    _filesize = FileSystem::filesize(_fh);
+    if (FileSystem::filesize(_fh).to(&_filesize).is_error())
+        _filesize = 0;
     Debug_printf("fnHttpSendFileTask started #%d\n", _id);
     return 0;
 }
@@ -1025,7 +1023,7 @@ int fnHttpService::get_handler_download(mg_connection *c, mg_http_message *hm)
 
     mg_printf(c, "HTTP/1.1 200 OK\r\n");
     set_file_content_type(c, filename.c_str());
-    mg_printf(c, "Content-Length: %lu\r\n\r\n", (unsigned long)FileSystem::filesize(fh));
+    mg_printf(c, "Content-Length: %lld\r\n\r\n", (long long)FileSystem::filesize(fh));
 
     // Hand the transfer off so mongoose isn't blocked while it runs
     fnTask *task = new fnHttpSendFileTask(fh, c);
@@ -1883,7 +1881,6 @@ struct mg_mgr * fnHttpService::start_server(serverstate &srvstate)
 
     Debug_printf("Starting web server %s\n", s_listening_address.c_str());
 
-    // mg_log_set(MG_LL_DEBUG);
     mg_mgr_init(&s_mgr);
 
     if ((c = mg_http_listen(&s_mgr, s_listening_address.c_str(), cb, &s_mgr)) != nullptr)
@@ -1909,11 +1906,6 @@ void fnHttpService::start()
         return;
     }
 
-    // Register event notifications to let us know when WiFi is up/down
-    // Missing the constants used here.  Need to find that...
-    // esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &connect_handler, &(state.hServer));
-    // esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &disconnect_handler, &(state.hServer));
-
     // Go ahead and attempt starting the server for the first time
     start_server(state);
 }
@@ -1923,7 +1915,6 @@ void fnHttpService::stop()
     if (state.hServer != nullptr)
     {
         Debug_println("Stopping web service");
-        // httpd_stop(state.hServer);
         mg_mgr_free(state.hServer);
         state._FS = nullptr;
         state.hServer = nullptr;

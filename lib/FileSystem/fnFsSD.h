@@ -38,7 +38,7 @@ public:
     fsType type() override { return FSTYPE_SDFAT; };
     const char * typestring() override { return type_to_string(FSTYPE_SDFAT); };
 
-    long filesize(const char *filepath) override;
+    file_size_t filesize(const char *filepath) override;
 
     FILE * file_open(const char* path, const char* mode = FILE_READ) override;
 #ifndef FNIO_IS_STDIO

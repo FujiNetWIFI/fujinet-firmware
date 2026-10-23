@@ -191,8 +191,10 @@ void fnHttpService::send_header_footer(httpd_req_t *req, int headfoot)
     }
     else
     {
-        size_t sz = FileSystem::filesize(fInput) + 1;
-        char *buf = (char *)calloc(sz, 1);
+        size_t sz = 0;
+        char *buf = nullptr;
+        if (FileSystem::filesize(fInput).to(&sz).is_success())
+            buf = (char *)calloc(++sz, 1);
         if (buf == NULL)
         {
             Debug_printf("Couldn't allocate %u bytes to load file contents!\n", sz);
@@ -237,8 +239,10 @@ void fnHttpService::send_file_parsed(httpd_req_t *req, const char *filename)
         // Set the response content type
         set_file_content_type(req, filename);
         // We're going to load the whole thing into memory, so watch out for big files!
-        size_t sz = FileSystem::filesize(fInput) + 1;
-        char *buf = (char *)calloc(sz, 1);
+        size_t sz = 0;
+        char *buf = nullptr;
+        if (FileSystem::filesize(fInput).to(&sz).is_success())
+            buf = (char *)calloc(++sz, 1);
         if (buf == NULL)
         {
             Debug_printf("Couldn't allocate %u bytes to load file contents!\n", sz);
@@ -291,8 +295,8 @@ void fnHttpService::send_file(httpd_req_t *req, const char *filename)
         // Set the response content type
         set_file_content_type(req, fpath.c_str());
         // Set the expected length of the content
-        char hdrval[10];
-        snprintf(hdrval, 10, "%ld", FileSystem::filesize(fInput));
+        char hdrval[16];
+        snprintf(hdrval, sizeof(hdrval), "%lld", (long long)FileSystem::filesize(fInput));
         httpd_resp_set_hdr(req, "Content-Length", hdrval);
 
         // Send the file content out in chunks
@@ -391,9 +395,6 @@ esp_err_t fnHttpService::get_handler_test(httpd_req_t *req)
     Debug_printf("Test request handler %p\n", task);
 #endif
 
-    // Debug_printf("WiFI handle %p\n", handle_WiFi);
-    // vTaskPrioritySet(handle_WiFi, 5);
-
     // Send the file content out in chunks
     char testln[100];
     for (int i = 0; i < 2000; i++)
@@ -404,16 +405,12 @@ esp_err_t fnHttpService::get_handler_test(httpd_req_t *req)
     }
     httpd_resp_send_chunk(req, nullptr, 0);
 
-    // vTaskPrioritySet(handle_WiFi, 23);
-
     Debug_println("Test completed");
     return ESP_OK;
 }
 
 esp_err_t fnHttpService::get_handler_file_in_query(httpd_req_t *req)
 {
-    // Debug_printf("File_in_query request handler '%s'\n", req->uri);
-
     // Get the file to send from the query
     queryparts qp;
     parse_query(req, &qp);
@@ -424,8 +421,6 @@ esp_err_t fnHttpService::get_handler_file_in_query(httpd_req_t *req)
 
 esp_err_t fnHttpService::get_handler_file_in_path(httpd_req_t *req)
 {
-    // Debug_printf("File_in_path request handler '%s'\n", req->uri);
-
     // Get the file to send from the query
     queryparts qp;
     parse_query(req, &qp);
@@ -534,10 +529,7 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     do
     {
         count = fread((uint8_t *)buf, 1, FNWS_SEND_BUFF_SIZE, poutput);
-        // count = currentPrinter->readFromOutput((uint8_t *)buf, FNWS_SEND_BUFF_SIZE);
         total += count;
-
-        // Debug_printf("Read %u bytes from print file\n", count);
 
         httpd_resp_send_chunk(req, buf, count);
     } while (count > 0);
@@ -600,7 +592,6 @@ esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
     do
     {
         count = fread((uint8_t *)buf, 1, FNWS_SEND_BUFF_SIZE, sOutput);
-        // Debug_printf("fread %d, %d\n", count, errno);
         total += count;
 
         httpd_resp_send_chunk(req, buf, count);
@@ -1423,7 +1414,7 @@ esp_err_t fnHttpService::get_handler_files_download(httpd_req_t *req)
     set_file_content_type(req, path.c_str());
 
     char hdrval[16];
-    snprintf(hdrval, sizeof(hdrval), "%ld", FileSystem::filesize(fin));
+    snprintf(hdrval, sizeof(hdrval), "%lld", (long long)FileSystem::filesize(fin));
     httpd_resp_set_hdr(req, "Content-Length", hdrval);
 
     std::string disposition =
@@ -2168,8 +2159,6 @@ esp_err_t fnHttpService::api_handler(httpd_req_t *req)
  */
 void fnHttpService::custom_global_ctx_free(void *ctx)
 {
-    // keep this commented for the moment to avoid warning.
-    // serverstate * ctx_state = (serverstate *)ctx;
     // We could do something fancy here, but we don't need to do anything
 }
 
@@ -2481,7 +2470,6 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
     config.global_user_ctx_free_fn = (httpd_free_ctx_fn_t)custom_global_ctx_free;
 
     Debug_printf("Starting web server on port %d\n", config.server_port);
-    //Debug_printf("Starting web server on port %d, CPU Core %d\n", config.server_port, config.core_id);
 
     if (httpd_start(&(state.hServer), &config) == ESP_OK)
     {
@@ -2524,11 +2512,6 @@ void fnHttpService::start()
         Debug_println("httpServiceInit: We already have a web server handle - aborting");
         return;
     }
-
-    // Register event notifications to let us know when WiFi is up/down
-    // Missing the constants used here.  Need to find that...
-    // esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &connect_handler, &(state.hServer));
-    // esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &disconnect_handler, &(state.hServer));
 
     // Go ahead and attempt starting the server for the first time
     start_server(state);

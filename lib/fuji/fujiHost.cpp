@@ -222,11 +222,11 @@ bool fujiHost::file_exists(const char *path)
     return found;
 }
 
-long fujiHost::file_size(fnFile *filehandle)
+file_size_t fujiHost::file_size(fnFile *filehandle)
 {
     Debug_print("::get_filesize\n");
     if (_type == HOSTTYPE_UNINITIALIZED || _fs == nullptr)
-        return -1;
+        return file_size_t(-1);
     return _fs->FileSystem::filesize(filehandle);
 }
 

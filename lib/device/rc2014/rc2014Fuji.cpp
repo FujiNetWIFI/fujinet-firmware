@@ -225,7 +225,8 @@ void rc2014Fuji::rc2014_disk_image_mount()
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
     boot_config = false;
-    disk.disk_size = host.file_size(disk.fileh);
+    if (host.file_size(disk.fileh).to(&disk.disk_size).is_error())
+        disk.disk_size = 0;
     disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size, disk.access_mode);
 }
 

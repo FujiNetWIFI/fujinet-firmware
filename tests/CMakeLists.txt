@@ -324,6 +324,16 @@ endif()
 add_test(NAME mediatypeimg_tests COMMAND mediatypeimg_tests)
 
 # ------------------------------------------------------------------------------
+# file_size_t in include/global_types.h: what it converts to, and to().
+# ------------------------------------------------------------------------------
+add_executable(file_size_tests FileSizeTests.cpp)
+target_include_directories(file_size_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/components_pc/   # doctest
+)
+add_test(NAME file_size_tests COMMAND file_size_tests)
+
+# ------------------------------------------------------------------------------
 # The Apple MediaType2MG and MediaTypePO mounts, built like mediatypeimg_tests above.
 # ------------------------------------------------------------------------------
 add_executable(mediatype2mg_tests

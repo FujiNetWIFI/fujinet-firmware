@@ -19,9 +19,6 @@ s100spiFuji *theFuji = &platformFuji;        // global fuji device object
 s100spiNetwork *theNetwork; // global network device object (temporary)
 s100spiPrinter *thePrinter; // global printer
 
-// sioDisk sioDiskDevs[MAX_HOSTS];
-// sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
-
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
 bool _validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
 
@@ -201,10 +198,6 @@ void s100spiFuji::s100spi_net_set_ssid(uint16_t s)
 
         bool save = true;
 
-        // URL Decode SSID/PASSWORD to handle special chars
-        //mstr::urlDecode(cfg.ssid, sizeof(cfg.ssid));
-        //mstr::urlDecode(cfg.password, sizeof(cfg.password));
-
         Debug_printf("Connecting to net: %s password: %s\n", cfg.ssid, cfg.password);
 
         fnWiFi.connect(cfg.ssid, cfg.password);
@@ -281,8 +274,8 @@ void s100spiFuji::s100spi_disk_image_mount()
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
     boot_config = false;
 
-    // We need the file size for loading XEX files and for CASSETTE, so get that too
-    disk.disk_size = host.file_size(disk.fileh);
+    if (host.file_size(disk.fileh).to(&disk.disk_size).is_error())
+        disk.disk_size = 0;
 
     // And now mount it
     disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
@@ -503,7 +496,6 @@ void s100spiFuji::s100spi_read_directory_entry()
             }
 
             int filelen;
-            // int filelen = strlcpy(filenamedest, f->filename, bufsize);
             if (maxlen < 128)
             {
                 filelen = util_ellipsize(f->filename, filenamedest, bufsize - 1);
@@ -982,13 +974,6 @@ void s100spiFuji::setup(systemBus *siobus)
     theNetwork = new s100spiNetwork();
     _s100spi_bus->addDevice(theNetwork, 0x09); // temporary.
     _s100spi_bus->addDevice(theFuji, 0x0F);   // Fuji becomes the gateway device.
-
-    // Add our devices to the s100spi bus
-    // for (int i = 0; i < 4; i++)
-    //    _s100spi_bus->addDevice(&_fnDisks[i].disk_dev, s100spi_DEVICEID_DISK + i);
-
-    // for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-    //     _s100spi_bus->addDevice(&sioNetDevs[i], s100spi_DEVICEID_FN_NETWORK + i);
 }
 
 // Mount all
@@ -1027,8 +1012,8 @@ void s100spiFuji::mount_all()
             // We've gotten this far, so make sure our bootable CONFIG disk is disabled
             boot_config = false;
 
-            // We need the file size for loading XEX files and for CASSETTE, so get that too
-            disk.disk_size = host.file_size(disk.fileh);
+            if (host.file_size(disk.fileh).to(&disk.disk_size).is_error())
+                disk.disk_size = 0;
 
             // And now mount it
             disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
