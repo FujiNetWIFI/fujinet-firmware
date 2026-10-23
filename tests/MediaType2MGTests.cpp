@@ -69,13 +69,15 @@ struct HighScore : MediaType2MG
 
 } // namespace
 
-TEST_CASE("an image starting with a 2MG header mounts as 2MG with its data after it")
+TEST_CASE("an image starting with a 2MG header is 2MG by any name and mounts with its data after it")
 {
     fnFile *fp = fopen(TWOMG_TEST_FILE, "w+b");
     REQUIRE(fp != nullptr);
     uint32_t size = make_image(fp, true);
 
-    CHECK(MediaType::discover_po_mediatype(fp) == MEDIATYPE_2MG);
+    CHECK(MediaType::discover_mediatype(fp, "GAME.2MG", size, MEDIATYPE_UNKNOWN) == MEDIATYPE_2MG);
+    CHECK(MediaType::discover_mediatype(fp, "game.po", size, MEDIATYPE_UNKNOWN) == MEDIATYPE_2MG);
+    CHECK(MediaType::discover_mediatype(fp, "config", size, MEDIATYPE_PO) == MEDIATYPE_2MG);
     MediaType2MG media;
     CHECK(media.mount(fp, size) == MEDIATYPE_2MG);
     CHECK(media.num_blocks == BLOCKS);
@@ -92,7 +94,8 @@ TEST_CASE("a plain ProDOS-order image stays PO and mounts from offset 0")
     REQUIRE(fp != nullptr);
     uint32_t size = make_image(fp, false);
 
-    CHECK(MediaType::discover_po_mediatype(fp) == MEDIATYPE_PO);
+    CHECK(MediaType::discover_mediatype(fp, "game.po", size, MEDIATYPE_UNKNOWN) == MEDIATYPE_PO);
+    CHECK(MediaType::discover_mediatype(fp, "config", size, MEDIATYPE_PO) == MEDIATYPE_PO);
     MediaTypePO media;
     CHECK(media.mount(fp, size) == MEDIATYPE_PO);
     CHECK(media.num_blocks == BLOCKS);
@@ -102,9 +105,9 @@ TEST_CASE("a plain ProDOS-order image stays PO and mounts from offset 0")
     remove(TWOMG_TEST_FILE);
 }
 
-TEST_CASE("directory entries still call a .2mg name PO")
+TEST_CASE("directory entries call a .2mg name 2MG")
 {
-    CHECK(MediaType::discover_mediatype("GAME.2MG") == MEDIATYPE_PO);
+    CHECK(MediaType::discover_mediatype("GAME.2MG") == MEDIATYPE_2MG);
     CHECK(MediaType::discover_mediatype("game.po") == MEDIATYPE_PO);
 }
 
@@ -161,7 +164,7 @@ TEST_CASE("an image behind write_2mg_header's header mounts as 2MG")
     REQUIRE(MediaType2MG::write_2mg_header(fp, BLOCKS).is_success());
     uint32_t size = make_image(fp, false);
 
-    CHECK(MediaType::discover_po_mediatype(fp) == MEDIATYPE_2MG);
+    CHECK(MediaType::discover_mediatype(fp, "NEW.2MG", size, MEDIATYPE_UNKNOWN) == MEDIATYPE_2MG);
     MediaType2MG media;
     CHECK(media.mount(fp, size) == MEDIATYPE_2MG);
     CHECK(media.num_blocks == BLOCKS);

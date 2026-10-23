@@ -22,7 +22,7 @@ enum mediatype_t
     MEDIATYPE_DSK,
     MEDIATYPE_PO,
     MEDIATYPE_WOZ,
-    MEDIATYPE_2MG, // chosen at mount by content; directory entries still say PO
+    MEDIATYPE_2MG,
     MEDIATYPE_COUNT
 };
 
@@ -65,7 +65,8 @@ public:
 
     static mediatype_t discover_mediatype(const char *filename);
     static mediatype_t discover_dsk_mediatype(fnFile* f, uint32_t disksize);
-    static mediatype_t discover_po_mediatype(fnFile* f);
+    static mediatype_t discover_mediatype(fnFile *f, const char *filename, uint32_t disksize,
+                                          mediatype_t disk_type);
 
     virtual ~MediaType();
 };

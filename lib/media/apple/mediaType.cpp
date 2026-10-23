@@ -28,7 +28,6 @@ void MediaType::unmount()
 
 mediatype_t MediaType::discover_mediatype(const char *filename)
 {
-    //should probably look inside the file to help figure it out
     int l = strlen(filename);
     if (l > 4 && filename[l - 4] == '.')
     {
@@ -36,8 +35,8 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
         const char *ext = filename + l - 3;
         if (strcasecmp(ext, "HDV") == 0)
             return MEDIATYPE_PO;
-        else if (strcasecmp(ext,"2MG") == 0)
-            return MEDIATYPE_PO;
+        else if (strcasecmp(ext, "2MG") == 0)
+            return MEDIATYPE_2MG;
         else if (strcasecmp(ext, "WOZ") == 0)
             return MEDIATYPE_WOZ;
         else if (strcasecmp(ext, "DSK") == 0)
@@ -82,16 +81,23 @@ mediatype_t MediaType::discover_dsk_mediatype(fnFile *f, uint32_t disksize)
     return default_mt;
 }
 
-mediatype_t MediaType::discover_po_mediatype(fnFile *f)
+// The 2IMG signature wins; otherwise the given type, or the extension when there is none
+mediatype_t MediaType::discover_mediatype(fnFile *f, const char *filename, uint32_t disksize,
+                                          mediatype_t disk_type)
 {
     char sig[4];
-    mediatype_t mt = MEDIATYPE_PO;
-
-    if (fnio::fseek(f, 0, SEEK_SET) == 0 && fnio::fread(sig, 1, sizeof(sig), f) == sizeof(sig)
-        && memcmp(sig, "2IMG", sizeof(sig)) == 0)
-        mt = MEDIATYPE_2MG;
+    bool is_2mg = fnio::fseek(f, 0, SEEK_SET) == 0
+        && fnio::fread(sig, 1, sizeof(sig), f) == sizeof(sig)
+        && memcmp(sig, "2IMG", sizeof(sig)) == 0;
     fnio::fseek(f, 0, SEEK_SET);
-    return mt;
+    if (is_2mg)
+        return MEDIATYPE_2MG;
+
+    if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
+        disk_type = discover_mediatype(filename);
+    if (disk_type == MEDIATYPE_DSK)
+        disk_type = discover_dsk_mediatype(f, disksize);
+    return disk_type;
 }
 
 #endif // BUILD_APPLE

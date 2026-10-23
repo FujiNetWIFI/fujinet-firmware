@@ -240,23 +240,11 @@ mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize,
   // Destroy any existing MediaType
   if (_disk != nullptr)
   {
-    /* We need  first eject the current disk image */
     unmount();
     switched = true; //set disk switched only if we are mounting over an existing image.
   }
 
-  // Determine MediaType based on filename extension
-  if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr) {
-      disk_type = MediaType::discover_mediatype(filename);
-  }
-
-  if (disk_type == MEDIATYPE_DSK) {
-      // determine DO or PO based on file contents
-      disk_type = MediaType::discover_dsk_mediatype(f, disksize);
-  }
-
-  if (disk_type == MEDIATYPE_PO)
-      disk_type = MediaType::discover_po_mediatype(f);
+  disk_type = MediaType::discover_mediatype(f, filename, disksize, disk_type);
 
   mount_file(f, disksize, disk_type);
 

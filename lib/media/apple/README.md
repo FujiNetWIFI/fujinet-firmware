@@ -13,10 +13,11 @@ Apple II disk image formats for `BUILD_APPLE`.
 | `mediaTypeDSK.h`, `mediaTypeDSK.cpp` | `MediaTypeDSK : MediaTypeWOZ`, a sector DSK presented as WOZ tracks |
 
 ## How it fits
-- `discover_mediatype()` maps HDV, 2MG and PO to `MEDIATYPE_PO`, DO to `MEDIATYPE_DO`, and WOZ and
-  DSK to their own types; `iwmDisk` and `iwmDisk2` in [lib/device/iwm/](../../device/iwm/) choose
-  the subclass. At mount, `discover_po_mediatype()` turns a PO image that starts with `2IMG` into
-  `MEDIATYPE_2MG`; directory entries keep reporting it as PO.
+- `discover_mediatype()` by name maps HDV and PO to `MEDIATYPE_PO`, DO to `MEDIATYPE_DO`, and 2MG,
+  WOZ and DSK to their own types; directory entries use it. At mount, the overload taking the file
+  picks `MEDIATYPE_2MG` for any image that starts with `2IMG`, and otherwise the given type or the
+  name's, with `discover_dsk_mediatype()` settling DSK. `iwmDisk` and `iwmDisk2` in
+  [lib/device/iwm/](../../device/iwm/) choose the subclass.
 - Included by [lib/media/media.h](../media.h) under `BUILD_APPLE`.
 
 ## Build
