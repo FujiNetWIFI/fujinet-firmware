@@ -9,7 +9,8 @@ class MediaTypePO : public MediaType
 {
 private:
     uint32_t last_block_num = 0xFFFFFFFF;
-    uint32_t offset = 0;
+protected:
+    uint32_t offset = 0; // where block 0 starts in the file
 public:
     error_is_true read(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override;
     error_is_true write(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override;
@@ -21,8 +22,6 @@ public:
 
     success_is_true status() override {RETURN_SUCCESS_IF(_media_fileh != nullptr);}
 
-    // A 64-byte 2MG header for numBlocks ProDOS-order blocks starting right after it
-    static success_is_true write_2mg_header(fnFile *f, uint16_t numBlocks);
 
     size_t size() {return _media_num_sectors;}
     void reset_seek_opto() {last_block_num = 0xFFFFFFFF;};

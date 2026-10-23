@@ -419,6 +419,7 @@ if(FUJINET_TARGET STREQUAL "APPLE")
     lib/media/apple/mediaTypeDO.h lib/media/apple/mediaTypeDO.cpp
     lib/media/apple/mediaTypeDSK.h lib/media/apple/mediaTypeDSK.cpp
     lib/media/apple/mediaTypePO.h lib/media/apple/mediaTypePO.cpp
+    lib/media/apple/mediaType2MG.h lib/media/apple/mediaType2MG.cpp
     lib/media/apple/mediaTypeWOZ.h lib/media/apple/mediaTypeWOZ.cpp
 
     lib/device/iwm/disk.h lib/device/iwm/disk.cpp
