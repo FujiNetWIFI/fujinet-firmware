@@ -70,10 +70,13 @@ static uint8_t port_rom_close(uint32_t got, bool aborted, const char *mapper)
 {
     uint8_t err;
 
-    (void)got;                          /* push_len is what actually landed */
     if (aborted || !push_buf || push_len == 0) {
         push_buf = NULL;
         return 0;
+    }
+    if (got > push_len) {               /* an OPEN with no size let it outgrow the buffer */
+        push_buf = NULL;
+        return FN_BOOT_ERR_TOOBIG;
     }
     err = fuji_load_commit(&fuji_loader, push_len, mapper);
     push_buf = NULL;

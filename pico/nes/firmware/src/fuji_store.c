@@ -123,11 +123,14 @@ void fuji_store_write(const uint8_t *chunk, unsigned len)
     }
 }
 
-const uint8_t *fuji_store_close(bool aborted)
+const uint8_t *fuji_store_close(bool aborted, uint32_t *kept)
 {
     enum tier t = open_tier;
 
     open_tier = TIER_NONE;
+    if (kept)                                  /* the RAM tier counts only what it copied */
+        *kept = (t == TIER_FLASH && written > FUJI_STORE_FLASH_SIZE)
+            ? FUJI_STORE_FLASH_SIZE : written;
     if (t == TIER_FLASH) {
         if (!aborted && written > 0 && sec_fill > 0)
             flush_sector(sec_fill);

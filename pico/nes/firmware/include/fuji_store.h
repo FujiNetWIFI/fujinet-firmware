@@ -33,8 +33,10 @@
 uint8_t fuji_store_open(uint32_t size);
 void fuji_store_write(const uint8_t *chunk, unsigned len);
 /* Commit (or abort). Returns the base of the stored image -- RAM, or the
- * XIP alias for the flash tier -- or NULL on abort/nothing. */
-const uint8_t *fuji_store_close(bool aborted);
+ * XIP alias for the flash tier -- or NULL on abort/nothing. *kept, when
+ * given, is how much of the image the store holds: less than was written
+ * when it outgrew its tier, as one an OPEN gave no size for can. */
+const uint8_t *fuji_store_close(bool aborted, uint32_t *kept);
 
 /* Erase one sector of the flash store, or nothing if there is none to do.
  * Call only where a 45 ms stall is free: no push open, no reply owed. */

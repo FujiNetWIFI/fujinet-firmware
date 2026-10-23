@@ -495,7 +495,6 @@ void a5200_fujinet_device::stream_write(int stream, const uint8_t *chunk, unsign
 
 uint8_t a5200_fujinet_device::stream_close(int stream, uint32_t got, bool aborted)
 {
-	(void)got;
 	if (stream != FN_STREAM_ROM)
 	{
 		// the .cfg sibling: its mapper= applies to the next image
@@ -509,6 +508,11 @@ uint8_t a5200_fujinet_device::stream_close(int stream, uint32_t got, bool aborte
 	{
 		m_push = nullptr;
 		return 0;
+	}
+	if (got > m_push_len)               // an OPEN with no size let it outgrow the buffer
+	{
+		m_push = nullptr;
+		return FN_BOOT_ERR_TOOBIG;
 	}
 	if (!mapper.empty())
 		fprintf(stderr, "fujinet: .cfg mapper=%s\n", mapper.c_str());

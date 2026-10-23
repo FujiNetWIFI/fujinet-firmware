@@ -532,13 +532,17 @@ void studio2_fujinet_device::stream_write(int stream, const uint8_t *chunk, unsi
 
 uint8_t studio2_fujinet_device::stream_close(int stream, uint32_t got, bool aborted)
 {
-	(void)got;
 	if (stream != FN_STREAM_ROM)
 		return 0;
 	if (aborted || !m_push || m_push_len == 0)
 	{
 		m_push = nullptr;
 		return 0;
+	}
+	if (got > m_push_len)               // an OPEN with no size let it outgrow the buffer
+	{
+		m_push = nullptr;
+		return FN_BOOT_ERR_TOOBIG;
 	}
 	uint8_t err;
 	s2map_plan_t p;

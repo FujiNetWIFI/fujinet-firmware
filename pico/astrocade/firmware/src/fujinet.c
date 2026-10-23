@@ -39,11 +39,14 @@ static uint8_t port_rom_close(uint32_t got, bool aborted, const char *mapper)
 {
     const uint8_t *image;
     astromap_plan_t plan;
+    uint32_t kept;
 
     (void)mapper;       /* the .cfg sibling means nothing to this cartridge */
-    image = fuji_store_close(aborted);
+    image = fuji_store_close(aborted, &kept);
     if (aborted)
         return 0;
+    if (got > kept)
+        return FN_BOOT_ERR_TOOBIG;  /* outgrew the tier a size-0 OPEN chose */
     if (image == NULL || got == 0
         || astromap_plan(image, got, &plan) != ASTROMAP_OK)
         return FN_BOOT_ERR_NOMAP;

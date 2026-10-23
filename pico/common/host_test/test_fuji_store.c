@@ -99,7 +99,7 @@ static const uint8_t *push(unsigned len)
     assert(fuji_store_open(len) == 0);
     for (off = 0; off < len; off += 512)
         fuji_store_write(img + off, (len - off < 512) ? len - off : 512);
-    return fuji_store_close(false);
+    return fuji_store_close(false, NULL);
 }
 
 /* ---- tests ---- */
@@ -139,7 +139,7 @@ static void test_sweep_waits(void)
     assert(fuji_store_open(IMG_SIZE) == 0);
     fuji_store_idle();
     assert(fake_flash_erases == 0);                 /* a push is open */
-    assert(fuji_store_close(true) == NULL);
+    assert(fuji_store_close(true, NULL) == NULL);
 
     held[0] = flash_tier();
     fuji_store_idle();
@@ -232,14 +232,14 @@ static void test_tiers_and_refusals(void)
     held[0] = held[1] = NULL;
 
     assert(fuji_store_open(FUJI_STORE_FLASH_SIZE + 1) == FN_BOOT_ERR_TOOBIG);
-    assert(fuji_store_close(false) == NULL);
+    assert(fuji_store_close(false, NULL) == NULL);
 
     /* size 0, from an older peer, is the RAM tier */
     fill(8, 100);
     assert(push(0) == NULL);                        /* nothing written */
     assert(fuji_store_open(0) == 0);
     fuji_store_write(img, 100);
-    assert(fuji_store_close(false) == ram);
+    assert(fuji_store_close(false, NULL) == ram);
 }
 
 static void test_abort_and_overrun(void)
@@ -251,14 +251,41 @@ static void test_abort_and_overrun(void)
     fill(9, IMG_SIZE);
     assert(fuji_store_open(IMG_SIZE) == 0);
     fuji_store_write(img, 512);
-    assert(fuji_store_close(true) == NULL);
+    assert(fuji_store_close(true, NULL) == NULL);
 
     /* a peer that sends past the size it gave RAM: the excess is dropped */
     assert(fuji_store_open(100) == 0);
     for (i = 0; i <= FUJI_STORE_RAM_SIZE / 512; i++)
         fuji_store_write(img, 512);
-    ram = fuji_store_close(false);
+    ram = fuji_store_close(false, NULL);
     assert(ram != NULL && memcmp(ram, img, 512) == 0);
+}
+
+/* An OPEN with no size picks the RAM tier, and a push that outgrows it says so. */
+static void test_kept_tells_an_outgrown_push(void)
+{
+    uint32_t kept, off, len;
+
+    boot_dirty();
+    fill(10, FUJI_STORE_RAM_SIZE);
+    assert(fuji_store_open(0) == 0);
+    for (off = 0; off < FUJI_STORE_RAM_SIZE + 1024; off += 512)
+        fuji_store_write(img, 512);
+    assert(fuji_store_close(false, &kept) != NULL);
+    assert(kept == FUJI_STORE_RAM_SIZE);
+
+    assert(fuji_store_open(1000) == 0);             /* within the tier: all of it */
+    fuji_store_write(img, 1000);
+    assert(fuji_store_close(false, &kept) != NULL && kept == 1000);
+
+    /* the flash tier drops what runs past its end */
+    sweep_all();
+    len = FUJI_STORE_FLASH_SIZE + 2 * FLASH_SECTOR_SIZE;
+    assert(fuji_store_open(FUJI_STORE_FLASH_SIZE) == 0);
+    for (off = 0; off < len; off += 512)
+        fuji_store_write(img, 512);
+    assert(fuji_store_close(false, &kept) == flash_tier());
+    assert(kept == FUJI_STORE_FLASH_SIZE);
 }
 
 int main(void)
@@ -272,6 +299,7 @@ int main(void)
     test_partial_tail_sector();
     test_tiers_and_refusals();
     test_abort_and_overrun();
+    test_kept_tells_an_outgrown_push();
     printf("test_fuji_store: all passed\n");
     return 0;
 }
