@@ -9,7 +9,7 @@ from [components/](../components/) and ESP-IDF.
 | `cJSON` | cJSON 1.7.18 | MIT | `add_subdirectory`; links `cjson` and `cjson_utils` | `lib/fnjson`, `lib/http` |
 | `doctest` | doctest 2.4.12, single header | MIT | include path only | [tests/](../tests/) |
 | `libnfs` | libnfs 16.2.0 | LGPL-2.1 | `add_subdirectory` | `lib/FileSystem/fnFsNFS.cpp` |
-| `libsmb2` | libsmb2 | LGPL-2.1 | `add_subdirectory` | `lib/FileSystem/fnFsSMB.cpp` |
+| `libsmb2` | libsmb2, modified locally: `smb2_connect_async()` clears what a failed connect left behind | LGPL-2.1 | `add_subdirectory` | `lib/FileSystem/fnFsSMB.cpp`, `lib/network-protocol/SMB.cpp` |
 | `libssh` | libssh 0.11.3, full upstream tree | LGPL-2.1 | `add_subdirectory` | `lib/network-protocol/SSH.h`, `lib/network-protocol/SFTP.h`, `lib/network-protocol/SSHCopyId.cpp` |
 | `miniaudio` | miniaudio 0.11.22 | public domain or MIT-0 | included directly by `lib/sam/samlib.cpp` | SAM speech output |
 | `mongoose` | Mongoose 7.20 | GPL-2.0 (dual-licensed upstream) | `mongoose/mongoose.c` compiled into the executable with `MG_TLS` set to mbedTLS | `lib/http/mgHttpService.cpp`, `lib/http/mgHttpClient.cpp`, `lib/network-protocol/mgWebSocketClient.cpp`, `lib/tcpip/fnTcpClientSecure.cpp` |
