@@ -197,6 +197,9 @@ protected:
     //
     virtual void announce_rotation(int drive_slot) {}
 
+    // The CONFIG disk that boot mode 0 mounts from flash
+    virtual std::string config_image() { return "/autorun" + _diskImageExtension; }
+
     // ============ Validation of inputs ============
     success_is_true validate_host_slot(uint8_t slot, const char *dmsg=nullptr);
     success_is_true validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
