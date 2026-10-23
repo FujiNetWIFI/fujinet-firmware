@@ -118,6 +118,7 @@ private:
     int _command_frame_counter = 0;
 
     virtualDevice *_activeDev = nullptr;
+    ByteBuffer _lastReply;      // the last packet written, for CMD::FUJI_RESEND
     rs232Modem *_modemDev = nullptr;
     rs232Fuji *_fujiDev = nullptr;
     std::map<uint8_t,rs232Network *> _netDev;
