@@ -334,6 +334,47 @@ target_include_directories(file_size_tests PRIVATE
 add_test(NAME file_size_tests COMMAND file_size_tests)
 
 # ------------------------------------------------------------------------------
+# The ADAM DDP, DSK and ROM media bounds, built like mediatypeimg_tests above.
+# FLASH_SPIFFS and fnFsSPIFFS.cpp provide the fsFlash the high-score writes name.
+# Not on Windows: the FNIO_IS_STDIO paths use FILE::_flags and fsync().
+# ------------------------------------------------------------------------------
+if(NOT WIN32)
+  add_executable(mediatypeadam_tests
+      MediaTypeAdamTests.cpp
+      ${CMAKE_SOURCE_DIR}/lib/media/adam/mediaType.cpp
+      ${CMAKE_SOURCE_DIR}/lib/media/adam/mediaTypeDDP.cpp
+      ${CMAKE_SOURCE_DIR}/lib/media/adam/mediaTypeDSK.cpp
+      ${CMAKE_SOURCE_DIR}/lib/media/adam/mediaTypeROM.cpp
+      ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
+      ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSPIFFS.cpp
+  )
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_sources(mediatypeadam_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+        ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
+    )
+  endif()
+
+  target_compile_definitions(mediatypeadam_tests PRIVATE BUILD_ADAM FLASH_SPIFFS UNIT_TESTS FNIO_IS_STDIO)
+
+  target_include_directories(mediatypeadam_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/include/      # debug.h, global_types.h
+      ${CMAKE_SOURCE_DIR}/lib/
+      ${CMAKE_SOURCE_DIR}/lib/compat/
+      ${CMAKE_SOURCE_DIR}/lib/fuji/
+      ${CMAKE_SOURCE_DIR}/lib/FileSystem/
+      ${CMAKE_SOURCE_DIR}/lib/media/
+      ${CMAKE_SOURCE_DIR}/lib/media/adam/
+      ${CMAKE_SOURCE_DIR}/lib/utils/
+      ${CMAKE_SOURCE_DIR}/lib/hardware/
+      ${CMAKE_SOURCE_DIR}/lib/config/
+      ${CMAKE_SOURCE_DIR}/components_pc/
+  )
+
+  add_test(NAME mediatypeadam_tests COMMAND mediatypeadam_tests)
+endif()
+
+# ------------------------------------------------------------------------------
 # The Apple MediaType2MG and MediaTypePO mounts, built like mediatypeimg_tests above.
 # ------------------------------------------------------------------------------
 add_executable(mediatype2mg_tests

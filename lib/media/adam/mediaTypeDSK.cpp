@@ -28,7 +28,6 @@ std::pair<uint32_t, uint32_t> MediaTypeDSK::_block_to_offsets(uint32_t blockNum)
     return std::make_pair(o1, o2);
 }
 
-// Returns TRUE if an error condition occurred
 error_is_true MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
 {
     if (blockNum == _media_last_block)
@@ -37,9 +36,9 @@ error_is_true MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
     Debug_print("DSK READ\r\n");
 
     // Return an error if we're trying to read beyond the end of the disk
-    if (blockNum > _media_num_blocks - 1)
+    if (blockNum >= _media_num_blocks)
     {
-        Debug_printf("::read block %lu > %lu\r\n", blockNum, _media_num_blocks);
+        Debug_printf("::read block %lu >= %lu\r\n", blockNum, _media_num_blocks);
         _media_controller_status = 2;
         RETURN_ERROR_AS_TRUE();
     }
@@ -72,16 +71,15 @@ error_is_true MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
     RETURN_ERROR_IF(err);
 }
 
-// Returns TRUE if an error condition occurred
 error_is_true MediaTypeDSK::write(uint32_t blockNum, bool verify)
 {
     bool err = false;
     Debug_println("DSK WRITE");
 
     // Return an error if we're trying to write beyond the end of the disk
-    if (blockNum > _media_num_blocks)
+    if (blockNum >= _media_num_blocks)
     {
-        Debug_printf("::write block BEYOND END %lu > %lu\r\n", blockNum, _media_num_blocks);
+        Debug_printf("::write block BEYOND END %lu >= %lu\r\n", blockNum, _media_num_blocks);
         _media_controller_status = 2;
         RETURN_ERROR_AS_TRUE();
     }
@@ -90,8 +88,7 @@ error_is_true MediaTypeDSK::write(uint32_t blockNum, bool verify)
 
     // The boot/config image is mounted read-only; to persist a write (e.g. a
     // game saving a high score) reopen it read/write on the flash filesystem
-    // where those images live. (_media_host was never wired up, so the old
-    // reopen via it dereferenced null.)
+    // where those images live.
 #ifdef FNIO_IS_STDIO
     bool hs_mode = (_media_fileh->_flags == 0x1484);
 #else
@@ -153,7 +150,6 @@ uint8_t MediaTypeDSK::status()
     return _media_controller_status;
 }
 
-// Returns TRUE if an error condition occurred
 error_is_true MediaTypeDSK::format(uint16_t *responsesize)
 {
     memset(_media_blockbuff,0xE5,1024);
@@ -174,12 +170,13 @@ mediatype_t MediaTypeDSK::mount(fnFile *f, uint32_t disksize)
     _mediatype = MEDIATYPE_DSK;
     _media_num_blocks = disksize / 1024;
     Debug_printf("_media_num_blocks %lu\r\n", _media_num_blocks);
+    if (_media_num_blocks == 0)
+        return MEDIATYPE_UNKNOWN;
     _media_last_block = 0xFFFFFFFE;
 
     return _mediatype;
 }
 
-// Returns FALSE on error
 success_is_true MediaTypeDSK::create(fnFile *f, uint32_t numBlocks)
 {
     Debug_print("DSK CREATE\r\n");
