@@ -53,11 +53,15 @@ typedef struct {
     uint8_t size;
 } fb_param_t;
 
+#define FB_MAX_PARAMS 8
+
 typedef struct {
     uint8_t device;
     uint8_t command;   // FUJICMD_ACK or FUJICMD_NAK
     const uint8_t *data;
     uint16_t data_len;
+    uint8_t nparams;   // params past FB_MAX_PARAMS are skipped
+    uint32_t params[FB_MAX_PARAMS];
 } fb_reply_t;
 
 // Builds a SLIP-framed FujiBus request for `device`/`command` with the given
