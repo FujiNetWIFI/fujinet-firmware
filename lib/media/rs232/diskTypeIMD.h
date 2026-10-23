@@ -1,9 +1,18 @@
 #ifndef _MEDIATYPE_IMD
 #define _MEDIATYPE_IMD
 
+#include <memory>
+
 #include "diskType.h"
 
 #include "../IMDImage.h"
+
+#ifdef ESP_PLATFORM
+#include "../../include/PSRAMAllocator.h"
+template <typename T> using IMDAllocator = PSRAMAllocator<T>;
+#else
+template <typename T> using IMDAllocator = std::allocator<T>;
+#endif
 
 // Serves an ImageDisk (.imd) image using its native geometry: drive sector N is
 // IMD LBA N and sector_size() reports the real per-sector size, so a mixed
@@ -31,10 +40,13 @@ public:
     static success_is_true create(fnFile *f, uint16_t sectorSize, uint32_t numSectors);
 
 private:
+    using Image = IMDImage<fnFile, IMDAllocator>;
+
     void _derive_geometry();
     void _fill_percom();
+    uint32_t _lba_count() const;   // 0 when nothing is mounted
 
-    IMDImage _imd;
+    std::unique_ptr<Image> _imd;   // made at mount, around the mounted handle
     bool _writable = false;
     uint8_t _base_ctrl_status = DISK_CTRL_STATUS_CLEAR;
 

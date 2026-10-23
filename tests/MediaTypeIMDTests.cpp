@@ -224,7 +224,7 @@ TEST_CASE("writable mounts round-trip a sector in place")
     Mounted m(two_by_two(), true);
     REQUIRE(m.type == MEDIATYPE_IMD);
 
-    // A compressed record can only absorb a uniform buffer
+    // A uniform buffer fits a compressed record in place
     memset(m.media._disk_sectorbuff, 0x5A, 128);
     REQUIRE(m.media.write(6, false).is_success());
 
@@ -233,21 +233,23 @@ TEST_CASE("writable mounts round-trip a sector in place")
     CHECK(readcount == 128);
     CHECK(all_equal(m.media._disk_sectorbuff, 128, 0x5A));
 
-    SUBCASE("a neighbouring sector is untouched")
+    SUBCASE("a neighboring sector is untouched")
     {
         REQUIRE(m.media.read(5, &readcount).is_success());
         CHECK(all_equal(m.media._disk_sectorbuff, 128, 0xA1));
     }
 
-    SUBCASE("a non-uniform buffer a compressed record cannot hold is refused")
+    SUBCASE("a non-uniform buffer is stored")
     {
         memset(m.media._disk_sectorbuff, 0x11, 128);
         m.media._disk_sectorbuff[64] = 0x22;
-        CHECK(m.media.write(6, false).is_error());
+        REQUIRE(m.media.write(6, false).is_success());
 
-        uint8_t st[4] = {};
-        m.media.status(st);
-        CHECK(has(ctrl(st), DISK_CTRL_STATUS_WRITE_PROTECT_ERROR));
+        REQUIRE(m.media.read(6, &readcount).is_success());
+        CHECK(m.media._disk_sectorbuff[0] == 0x11);
+        CHECK(m.media._disk_sectorbuff[64] == 0x22);
+        REQUIRE(m.media.read(5, &readcount).is_success());
+        CHECK(all_equal(m.media._disk_sectorbuff, 128, 0xA1));
     }
 
     SUBCASE("past the end is refused")

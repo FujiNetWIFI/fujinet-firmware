@@ -16,7 +16,7 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `CalendarTests.cpp` | `lib/utils/fn_time.cpp` and `lib/network-protocol/calendar_draft.cpp` (`calendar_tests`) |
 | `QRCodeTests.cpp` | `lib/qrcode/qrcode.c` version and ECC selection (`qrcode_tests`) |
 | `MailDraftTests.cpp` | `lib/network-protocol/mail_draft.cpp` RFC822 compose and reply (`mail_tests`) |
-| `IMDImageTests.cpp`, `IMDFixture.h` | `lib/media/IMDImage.cpp` (`imdimage_tests`; built with `UNIT_TESTS` and `FNIO_IS_STDIO`) |
+| `IMDImageTests.cpp`, `IMDFixture.h` | `lib/media/IMDImage.cpp` through a `std::fstream`, a `std::FILE` and a handle with `fnFile`'s methods (`imdimage_tests`; no FujiNet include paths) |
 | `MediaTypeIMDTests.cpp` | `lib/media/rs232/diskTypeIMD.cpp` adapter (`mediatypeimd_tests`; built with `BUILD_RS232`) |
 | `MediaTypeAltairTests.cpp` | `lib/media/rs232/diskTypeAltair.cpp` adapter (`mediatypealtair_tests`; built with `BUILD_RS232`) |
 | `MediaTypeImgTests.cpp` | `lib/media/rs232/diskTypeImg.cpp` blank image from `create()` (`mediatypeimg_tests`; built with `BUILD_RS232`) |
