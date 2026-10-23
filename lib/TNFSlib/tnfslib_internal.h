@@ -22,14 +22,11 @@ typedef enum
     NO_RESP,
 } _tnfs_recv_result;
 
-// _tnfs_recv(): the TCP connection was closed and must be reopened.
-constexpr int TNFS_RECV_CONNECTION_LOST = -2;
-
 bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t datalen);
 bool _tnfs_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size);
-int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, const tnfsPacket &req_pkt);
+int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt);
 bool _tnfs_tcp_send(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size);
-int _tnfs_tcp_recv(tnfsMountInfo *m_info, tnfsPacket &pkt, const tnfsPacket &req_pkt);
+int _tnfs_tcp_recv(tnfsMountInfo *m_info, tnfsPacket &pkt);
 _tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt);
 _tnfs_recv_result _tnfs_recv_and_validate(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt);
 uint8_t _tnfs_session_recovery(tnfsMountInfo *m_info, uint8_t command);

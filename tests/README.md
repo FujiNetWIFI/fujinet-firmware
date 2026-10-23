@@ -38,10 +38,6 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `CasFSKLoaderTests.cpp` | The value-to-symbol encoder in `casFSK.h` and the progressive loader in `lib/media/atari/casFSKLoader.cpp` (`casfskloader_tests`) |
 | `CassetteFSKReadTests.cpp` | `lib/device/sio/cassetteFSKRead.cpp` over a fake remote file that loses its position (`cassettefskread_tests`) |
 | `FSKTestImages.h` | Synthetic A8CAS images, a fake file and an encoder oracle shared by the two FSK test files above |
-| `TNFSFramingTests.cpp` | `lib/TNFSlib/tnfslib_framing.cpp` reply lengths, split and coalesced streams, malformed input (`tnfs_framing_tests`) |
-| `TNFSTcpRecvTests.cpp` | The real `lib/TNFSlib` client over TCP against a scripted server: split, merged, late, stale, malformed and cut-off replies, closed connections, failed MOUNT and EAGAIN; UDP and the UDP fallback unchanged (`tnfs_tcp_recv_tests`) |
-| `TNFSFormatTests.cpp` | TNFS reply formats in `lib/TNFSlib/tnfslib_framing.cpp`: TNFSD's and paumaed's optional fields framed with their reply, a delayed optional field read as the next answer, and the fence that settles an unknown field (`tnfs_format_tests`) |
-| `tnfs_harness/` | Stand-ins for `fnSystem.h` (a virtual clock), `bus.h`, `fnDNS.h`, `utils.h`, `fnTcpClient.h` and `fnUDP.h`, the last two backed by the scripted peer in `harness_server.h`; used by `tnfs_tcp_recv_tests` |
 | `TCPProtocolTests.cpp` | `lib/network-protocol/TCP.cpp` reads, writes, ACCEPT and CLOSE CLIENT over a fake socket (`tcp_protocol_tests`) |
 | `ProtocolFSTests.cpp` | `lib/network-protocol/FS.cpp` unmounting when an open fails, keeping its error (`fs_protocol_tests`) |
 | `SMBProtocolTests.cpp` | `lib/network-protocol/SMB.cpp` MKDIR and RMDIR failing on a URL with no share and on an unreachable server (`smb_protocol_tests`) |
