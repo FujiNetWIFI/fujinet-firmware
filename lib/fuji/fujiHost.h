@@ -70,7 +70,7 @@ public:
         return fnfile_open(path, fullpath, fullpathlen, mode);
     }
 #endif
-    long file_size(fnFile *filehandle);
+    file_size_t file_size(fnFile *filehandle);
 
     error_is_true file_remove(char *fullpath);
 

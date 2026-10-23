@@ -101,15 +101,13 @@ bool MediaTypeROM::open_memory_map()
         return false;
     }
 
-    long map_size = _media_host->file_size(_map_fileh);
-    if (map_size < 0)
+    if (_media_host->file_size(_map_fileh).to(&_map_size).is_error())
     {
         Debug_printv("MediaTypeROM: memory map has no usable size: %s\n", _map_path);
         close_memory_map();
         return false;
     }
 
-    _map_size = (uint32_t)map_size;
     _map_pos = 0;
     return true;
 }

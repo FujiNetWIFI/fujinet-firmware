@@ -128,8 +128,8 @@ std::vector<FileManagerEntry> FileManager::list(const std::string &dir)
         std::string full;
         if (join(dir, entry.name, full))
         {
-            long size = fnSDFAT.filesize(full.c_str());
-            entry.size = (size > 0) ? size : 0;
+            if (fnSDFAT.filesize(full.c_str()).to(&entry.size).is_error())
+                entry.size = 0;
         }
     }
 

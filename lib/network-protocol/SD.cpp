@@ -289,13 +289,12 @@ fujiError_t NetworkProtocolSD::stat()
     // return error if SD is not mounted
     if (check_fs() != FUJI_ERROR::NONE) return FUJI_ERROR::UNSPECIFIED;
 
-    if (fh != nullptr)
-        fileSize = FileSystem::filesize(fh);
-    else
-        fileSize = fnSDFAT.filesize(opened_path.c_str());
-
-    if (fileSize < 0)
+    file_size_t size = fh != nullptr ? FileSystem::filesize(fh) : fnSDFAT.filesize(opened_path.c_str());
+    if (size.to(&fileSize).is_error())
+    {
+        fileSize = -1;
         errno_to_error();
+    }
     else
         error = NDEV_STATUS::SUCCESS;
 

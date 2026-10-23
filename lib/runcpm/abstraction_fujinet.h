@@ -200,7 +200,7 @@ bool _sys_extendfile(char *fn, unsigned long fpos)
     if (!fp)
         return false;
 
-    long origSize = fnSDFAT.filesize(full_path(fn));
+    ssize_t origSize = fnSDFAT.filesize(full_path(fn));
 
     // This was patterned after the arduino abstraction, and I do not like how this works.
 

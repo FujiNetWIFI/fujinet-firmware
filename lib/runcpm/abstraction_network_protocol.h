@@ -179,7 +179,7 @@ static bool _sys_extendfile(char *fn, unsigned long fpos)
     FILE *fp = fnSDFAT.file_open(full_path(fn), "a");
     if (!fp) return false;
 
-    long origSize = fnSDFAT.filesize(full_path(fn));
+    ssize_t origSize = fnSDFAT.filesize(full_path(fn));
     if (fpos > (unsigned long)origSize)
     {
         for (long i = 0; i < (long)(fpos - origSize); ++i)

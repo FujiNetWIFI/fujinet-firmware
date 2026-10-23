@@ -86,15 +86,11 @@ public:
 
     static const char *type_to_string(fsType type);
 
-    static long filesize(FILE *);
+    static file_size_t filesize(FILE *);
 #ifndef FNIO_IS_STDIO
-    static long filesize(FileHandler *);
+    static file_size_t filesize(FileHandler *);
 #endif
-    virtual long filesize(const char *path);
-
-    // Different FS implemenations may require different startup parameters,
-    // so each should define its own version of start()
-    //virtual bool start()=0;
+    virtual file_size_t filesize(const char *path);
 
     virtual FILE * file_open(const char* path, const char* mode = FILE_READ) = 0;
 #ifdef FNIO_IS_STDIO

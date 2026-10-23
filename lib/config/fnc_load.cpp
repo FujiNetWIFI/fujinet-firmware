@@ -44,32 +44,6 @@ void fnConfig::load()
 
 #endif /* BUILD_ATARI */
 
-    /*
-Original behavior: read from FLASH first and only read from SD if nothing found on FLASH.
-
-    // See if we have a file in FLASH
-    if(false == fsFlash.exists(CONFIG_FILENAME))
-    {
-        // See if we have a copy on SD (only copy from SD if we don't have a local copy)
-        if(fnSDFAT.running() && fnSDFAT.exists(CONFIG_FILENAME))
-        {
-            Debug_println("Found copy of config file on SD - copying that to FLASH");
-            if(0 == fnSystem.copy_file(&fnSDFAT, CONFIG_FILENAME, &fsFlash, CONFIG_FILENAME))
-            {
-                Debug_println("Failed to copy config from SD");
-                return; // No local copy and couldn't copy from SD - ABORT
-            }
-        }
-        else
-        {
-            _dirty = true; // We have a new (blank) config, so we treat it as needing to be saved
-            return; // No local copy and no copy on SD - ABORT
-        }
-    }
-*/
-    /*
-New behavior: copy from SD first if available, then read FLASH.
-*/
     // See if we have a copy on SD load it to check if we should write to flash (only copy from SD if we don't have a local copy)
     FILE *fin = NULL; //declare fin
     if (fnSDFAT.running() && fnSDFAT.exists(CONFIG_FILENAME))
@@ -113,8 +87,9 @@ New behavior: copy from SD first if available, then read FLASH.
     // Read INI file into buffer (for speed)
     // Then look for sections and handle each
     // Size to the real file - long OAuth tokens can exceed CONFIG_FILEBUFFSIZE
-    long insize = FileSystem::filesize(fin);
-    size_t inbufsize = (insize > 0) ? (size_t)insize + 1 : CONFIG_FILEBUFFSIZE;
+    size_t insize = 0;
+    size_t inbufsize = FileSystem::filesize(fin).to(&insize).is_success() && insize > 0
+        ? insize + 1 : CONFIG_FILEBUFFSIZE;
     if (inbufsize < CONFIG_FILEBUFFSIZE)
         inbufsize = CONFIG_FILEBUFFSIZE;
     char *inibuffer = (char *)malloc(inbufsize);
@@ -226,8 +201,9 @@ New behavior: copy from SD first if available, then read FLASH.
                 Debug_println("Failed to open FLASH config file");
                 return;
             }
-            long ffs_insize = FileSystem::filesize(fin);
-            size_t ffs_inbufsize = (ffs_insize > 0) ? (size_t)ffs_insize + 1 : CONFIG_FILEBUFFSIZE;
+            size_t ffs_insize = 0;
+            size_t ffs_inbufsize = FileSystem::filesize(fin).to(&ffs_insize).is_success() && ffs_insize > 0
+                ? ffs_insize + 1 : CONFIG_FILEBUFFSIZE;
             if (ffs_inbufsize < CONFIG_FILEBUFFSIZE)
                 ffs_inbufsize = CONFIG_FILEBUFFSIZE;
             char *inibuffer = (char *)malloc(ffs_inbufsize);

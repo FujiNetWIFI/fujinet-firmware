@@ -10,8 +10,6 @@
 #include <driver/gpio.h>
 #if CONFIG_IDF_TARGET_ESP32S3
 # include <hal/gpio_ll.h>
-#else
-//# include <driver/dac.h>
 #endif
 #include <esp_idf_version.h>
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
@@ -102,7 +100,6 @@ static void IRAM_ATTR card_detect_isr_handler(void *arg)
     // Generic default interrupt handler
     gpio_num_t gpio_num = (gpio_num_t)(int)arg;
     xQueueSendFromISR(card_detect_evt_queue, &gpio_num, NULL);
-    //Debug_printf("INTERRUPT ON GPIO: %d", gpio_num);
 }
 
 static void card_detect_intr_task(void *arg)
@@ -347,25 +344,6 @@ void SystemManager::delay_microseconds(uint32_t us)
 #if defined(_WIN32)
 void SystemManager::delay_microseconds(uint32_t us)
 {
-    // a)
-    // HANDLE timer;
-    // LARGE_INTEGER ft;
-
-    // ft.QuadPart = -(10*us); // Convert to 100 nanosecond interval, negative value indicates relative time
-
-    // timer = CreateWaitableTimer(NULL, TRUE, NULL);
-    // SetWaitableTimer(timer, &ft, 0, NULL, NULL, 0);
-    // WaitForSingleObject(timer, INFINITE);
-
-    // CloseHandle(timer);
-
-    // b)
-    // usleep(us);
-
-    // c)
-    // std::this_thread::sleep_for(std::chrono::microseconds(us));
-
-    // d) combination of Sleep and busy-looping
     if (us > 1000000)
     {
         // At least one second. Millisecond resolution is sufficient.
@@ -840,55 +818,6 @@ size_t SystemManager::copy_file(FileSystem *source_fs, const char *source_filena
     return result;
 }
 
-// From esp32-hal-dac.c
-/*
-void IRAM_ATTR SystemManager::dac_write(uint8_t pin, uint8_t value)
-{
-    if(pin != DAC_CHANNEL_1_GPIO_NUM && pin != DAC_CHANNEL_2_GPIO_NUM)
-        return; // Not a DAC pin
-
-    dac_channel_t dac_chan = pin == DAC_CHANNEL_1_GPIO_NUM ? DAC_CHANNEL_1 : DAC_CHANNEL_2;
-
-    ESP_ERROR_CHECK(dac_output_enable(dac_chan));
-
-    // Disable tone
-    CLEAR_PERI_REG_MASK(SENS_SAR_DAC_CTRL1_REG, SENS_SW_TONE_EN);
-
-    if (dac_chan == DAC_CHANNEL_2)
-    {
-        // Disable channel tone
-        CLEAR_PERI_REG_MASK(SENS_SAR_DAC_CTRL2_REG, SENS_DAC_CW_EN2_M);
-        // Set the DAC value
-        SET_PERI_REG_BITS(RTC_IO_PAD_DAC2_REG, RTC_IO_PDAC2_DAC, value, RTC_IO_PDAC2_DAC_S);   //dac_output
-        // Channel output enable
-        SET_PERI_REG_MASK(RTC_IO_PAD_DAC2_REG, RTC_IO_PDAC2_XPD_DAC | RTC_IO_PDAC2_DAC_XPD_FORCE);
-    }
-    else
-    {
-        // Disable Channel tone
-        CLEAR_PERI_REG_MASK(SENS_SAR_DAC_CTRL2_REG, SENS_DAC_CW_EN1_M);
-        // Set the DAC value
-        SET_PERI_REG_BITS(RTC_IO_PAD_DAC1_REG, RTC_IO_PDAC1_DAC, value, RTC_IO_PDAC1_DAC_S);   //dac_output
-        // Channel output enable
-        SET_PERI_REG_MASK(RTC_IO_PAD_DAC1_REG, RTC_IO_PDAC1_XPD_DAC | RTC_IO_PDAC1_DAC_XPD_FORCE);
-    }
-}
-*/
-/*
-esp_err_t SystemManager::dac_output_disable(dac_channel_t channel)
-{
-    return ::dac_output_disable((::dac_channel_t)channel);
-}
-esp_err_t SystemManager::dac_output_enable(dac_channel_t channel)
-{
-    return ::dac_output_enable((::dac_channel_t)channel);
-}
-esp_err_t SystemManager::dac_output_voltage(dac_channel_t channel, uint8_t dac_value)
-{
-    return ::dac_output_voltage((::dac_channel_t)channel, dac_value);
-}
-*/
-
 uint32_t SystemManager::get_psram_size()
 {
 #ifdef ESP_PLATFORM
@@ -901,8 +830,8 @@ uint32_t SystemManager::get_psram_size()
 }
 
 /*
-    If buffer is NULL, simply returns size of file. Otherwise
-    allocates buffer for reading file contents. Buffer must be managed by caller.
+    If buffer is NULL, returns the file size. Otherwise reads the whole file into buffer,
+    which the caller must size. Returns -1 on error.
 */
 int SystemManager::load_firmware(const char *filename, uint8_t *buffer)
 {
@@ -915,9 +844,16 @@ int SystemManager::load_firmware(const char *filename, uint8_t *buffer)
     }
 
     FILE *f = fsFlash.file_open(filename);
-    size_t file_size = FileSystem::filesize(f);
+    int file_size = 0;
+    if (FileSystem::filesize(f).to(&file_size).is_error())
+    {
+        Debug_println("load_firmware has no usable size");
+        if (f != nullptr)
+            fclose(f);
+        return -1;
+    }
 
-    Debug_printf("load_firmware file size = %u\r\n", (unsigned)file_size);
+    Debug_printf("load_firmware file size = %d\r\n", file_size);
 
     if (buffer == NULL)
     {
@@ -1342,11 +1278,9 @@ void SystemManager::debug_print_tasks()
 
     for (int i = 0; i < n; i++)
     {
-        // Debug_printf("T%02d %p c%c (%2d,%2d) %4dh %10dr %8s: %s\r\n",
         Debug_printf("T%02d %p (%2d,%2d) %4luh %10lur %8s: %s\r\n",
                      i + 1,
                      pTasks[i].xHandle,
-                     //pTasks[i].xCoreID == tskNO_AFFINITY ? '_' : ('0' + pTasks[i].xCoreID),
                      pTasks[i].uxBasePriority, pTasks[i].uxCurrentPriority,
                      pTasks[i].usStackHighWaterMark,
                      pTasks[i].ulRunTimeCounter,

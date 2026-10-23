@@ -16,15 +16,12 @@ void printer_emu::initPrinter(FileSystem *fs)
 // destructor must be specified for the base class even though it's virtual
 printer_emu::~printer_emu()
 {
-    //Debug_println("~printer_emu");
     if(_file != nullptr)
     {
         fclose(_file);
         _file = nullptr;
     }
 }
-
-// virtual void flushOutput(); // do this in pageEject
 
 // Copy contents of given file to the current printer output file
 // Assumes source file is in FLASH
@@ -58,12 +55,10 @@ size_t printer_emu::copy_file_to_output(const char *filename)
 
 size_t printer_emu::getOutputSize()
 {
-    if(_file != nullptr)
-        return FileSystem::filesize(_file);
+    file_size_t size = _file != nullptr ? FileSystem::filesize(_file) : _FS->filesize(PRINTER_OUTFILE);
+    size_t out = 0;
 
-    long result = _FS->filesize(PRINTER_OUTFILE);
-
-    return result == -1 ? 0 : result;
+    return size.to(&out).is_success() ? out : 0;
 }
 
 // All the work is done here in the derived classes. Open and close the output file before proceeding

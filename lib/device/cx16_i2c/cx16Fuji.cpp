@@ -24,8 +24,6 @@ cx16Fuji *theFuji = &platformFuji; // global fuji device object
 
 using namespace std;
 
-//sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
-
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
 bool _validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
 
@@ -178,10 +176,6 @@ void cx16Fuji::net_set_ssid()
     {
         bool save = cmdFrame.aux1 != 0;
 
-        // URL Decode SSID/PASSWORD to handle special chars (FIXME)
-        //mstr::urlDecode(cfg.ssid, sizeof(cfg.ssid));
-        //mstr::urlDecode(cfg.password, sizeof(cfg.password));
-
         Debug_printf("Connecting to net: %s password: %s\n", cfg.ssid, cfg.password);
 
         fnWiFi.connect(cfg.ssid, cfg.password);
@@ -289,8 +283,8 @@ void cx16Fuji::disk_image_mount()
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
     boot_config = false;
 
-    // We need the file size for loading XEX files and for CASSETTE, so get that too
-    disk.disk_size = host.file_size(disk.fileh);
+    if (host.file_size(disk.fileh).to(&disk.disk_size).is_error())
+        disk.disk_size = 0;
 
     // And now mount it
     disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
@@ -414,7 +408,6 @@ void cx16Fuji::copy_file()
 
     cx16_complete();
 
-    // copyEnd:
     fclose(sourceFile);
     fclose(destFile);
     free(dataBuf);
@@ -458,8 +451,8 @@ void cx16Fuji::mount_all()
             // We've gotten this far, so make sure our bootable CONFIG disk is disabled
             boot_config = false;
 
-            // We need the file size for loading XEX files and for CASSETTE, so get that too
-            disk.disk_size = host.file_size(disk.fileh);
+            if (host.file_size(disk.fileh).to(&disk.disk_size).is_error())
+                disk.disk_size = 0;
 
             // Set the host slot for high score mode
             // TODO: Refactor along with mount disk image.
@@ -683,10 +676,6 @@ void cx16Fuji::disk_image_umount()
         _fnDisks[deviceSlot].disk_dev.unmount();
         _fnDisks[deviceSlot].reset();
     }
-    // Handle tape
-    // else if (deviceSlot == BASE_TAPE_SLOT)
-    // {
-    // }
     // Invalid slot
     else
     {
@@ -850,7 +839,6 @@ void cx16Fuji::read_directory_entry()
             bufsize = maxlen;
         }
 
-        //int filelen = strlcpy(filenamedest, f->filename, bufsize);
         int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
 
         // Add a slash at the end of directory entries
@@ -1146,18 +1134,6 @@ void cx16Fuji::read_device_slots()
 
         returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
     }
-    // Handle tape slot
-    // else if (cmdFrame.aux1 == READ_DEVICE_SLOTS_TAPE)
-    // {
-    //     // TODO: Populate this with real values
-    //     // TODO: allow read and write
-    //     // TODO: why [0] and not [8] (device 9)?
-    //     diskSlots[0].mode = 0; // Always READ
-    //     diskSlots[0].hostSlot = 0;
-    //     strlcpy(diskSlots[0].filename, "TAPETEST.CAS", MAX_DISPLAY_FILENAME_LEN);
-
-    //     returnsize = sizeof(disk_slot);
-    // }
     // Bad AUX1 value
     else
     {
@@ -1293,13 +1269,6 @@ void cx16Fuji::set_device_filename()
         _fnDisks[cmdFrame.aux1].access_mode = mode;
         _populate_config_from_slots();
     }
-    // Handle TAPE slots
-    // else if (slot == BASE_TAPE_SLOT) // TODO? currently do not use this option for CAS image filenames
-    // {
-    //     // Just save the filename until we need it mount the tape
-    //     // TODO: allow read and write options
-    //     Config.store_mount(0, host, tmp, fnConfig::mount_mode_t::MOUNTMODE_READ, fnConfig::MOUNTTYPE_TAPE);
-    // }
     // Bad slot
     else
     {

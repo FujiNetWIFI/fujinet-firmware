@@ -105,15 +105,6 @@ time_t _fssd_fatdatetime_to_epoch(WORD ftime, WORD fdate)
 
     tmtime.tm_isdst = 0;
 
-    /*
-        Debug_printf("FileSystemSDFAT direntry: \"%s\"\r\n", _direntry.filename);
-        Debug_printf("FileSystemSDFAT date (0x%04x): yr=%d, mn=%d, da=%d; time (0x%04x) hr=%d, mi=%d, se=%d\r\n", 
-            finfo.fdate,
-            tmtime.tm_year, tmtime.tm_mon, tmtime.tm_mday,
-            finfo.ftime,
-            tmtime.tm_hour, tmtime.tm_min, tmtime.tm_sec);
-    */
-
     return mktime(&tmtime);
 }
 #endif
@@ -270,7 +261,6 @@ success_is_true FileSystemSDFAT::dir_open(const char * path, const char * patter
         || strcmp(d->d_name, "fnconfig.ini") == 0
         || strcmp(d->d_name, "rs232dump") == 0)
             continue;
-        // Debug_printf("Entry %s (%d)\n", d->d_name, d->d_type);
 
         // Determine which list to put this in
         if(d->d_type == DT_DIR || d->d_type == DT_LNK) // well, assume symlinks points to directories only
@@ -349,7 +339,6 @@ fsdir_entry * FileSystemSDFAT::dir_read()
 {
     if(_dir_entry_current < _dir_entries.size())
     {
-        //Debug_printf("#%d = \"%s\"\r\n", _dir_entry_current, _dir_entries[_dir_entry_current].filename);
         return &_dir_entries[_dir_entry_current++];
     }
     else
@@ -378,11 +367,9 @@ success_is_true FileSystemSDFAT::dir_seek(uint16_t pos)
 
 FILE * FileSystemSDFAT::file_open(const char* path, const char* mode)
 {
-    //Debug_printf("sdfileopen1: task hwm %u, %p\r\n", uxTaskGetStackHighWaterMark(NULL), pxTaskGetStackStart(NULL));
     char * fpath = _make_fullpath(path);
     FILE * result = fopen(fpath, mode);
     free(fpath);
-    //Debug_printf("sdfileopen2: task hwm %u, %p\r\n", uxTaskGetStackHighWaterMark(NULL), pxTaskGetStackStart(NULL));
     Debug_printf("fopen = %s %s : %s\r\n", path, mode, result == nullptr ? "err" : "ok");
     return result;
 }
@@ -390,7 +377,6 @@ FILE * FileSystemSDFAT::file_open(const char* path, const char* mode)
 #ifndef FNIO_IS_STDIO
 FileHandler * FileSystemSDFAT::filehandler_open(const char* path, const char* mode)
 {
-    //Debug_printf("FileSystemSDFAT::filehandler_open %s %s\r\n", path, mode);
     FILE * fh = file_open(path, mode);
     return (fh == nullptr) ? nullptr : new FileHandlerLocal(fh);
 }
@@ -400,26 +386,24 @@ bool FileSystemSDFAT::exists(const char* path)
 {
 #ifdef ESP_PLATFORM
     FRESULT result = f_stat(path, NULL);
-    //Debug_printf("sdFileSystem::exists returned %d on \"%s\"\r\n", result, path);
     return (result == FR_OK);
 #else
     char * fpath = _make_fullpath(path);
     struct stat st;
     int i = stat(fpath, &st);
-    //Debug_printf("sdFileSystem::exists returned %d on \"%s\"\r\n", result, path);
     free(fpath);
     return (i == 0);
 #endif
 }
 
-long FileSystemSDFAT::filesize(const char *path)
+file_size_t FileSystemSDFAT::filesize(const char *path)
 {
     char * fpath = _make_fullpath(path);
     struct stat st;
     int i = stat(fpath, &st);
-    long res = (0 == i) ? st.st_size : -1;
+    file_size_t res((0 == i) ? st.st_size : -1);
 #ifdef DEBUG
-    Debug_printf("FileSystemSDFAT::filesize returned %ld on \"%s\" (\"%s\")\r\n", res, path, fpath);
+    Debug_printf("FileSystemSDFAT::filesize returned %lld on \"%s\" (\"%s\")\r\n", (long long)res, path, fpath);
 #endif
     free(fpath);
     return res;
@@ -429,12 +413,10 @@ success_is_true FileSystemSDFAT::remove(const char* path)
 {
 #ifdef ESP_PLATFORM
     FRESULT result = f_unlink(path);
-    //Debug_printf("sdFileSystem::remove returned %d on \"%s\"\r\n", result, path);
     RETURN_SUCCESS_IF(result == FR_OK);
 #else
     char * fpath = _make_fullpath(path);
     int result = ::remove(fpath);
-    //Debug_printf("sdFileSystem::remove returned %d on \"%s\"\r\n", result, path);
     free(fpath);
     RETURN_SUCCESS_IF(0 == result);
 #endif
@@ -446,7 +428,6 @@ long FileSystemSDFAT::mtime(const char *path)
     struct stat st;
     int i = stat(fpath, &st);
     long res = (0 == i) ? st.st_mtime : -1;
-    //Debug_printf("FileSystemSDFAT::mtime returned %ld on \"%s\" (\"%s\")\r\n", res, path, fpath);
     free(fpath);
     return res;
 }
@@ -726,17 +707,6 @@ success_is_true FileSystemSDFAT::start()
         _started = true;
         _card_capacity = (uint64_t)sdcard_info->csd.capacity * sdcard_info->csd.sector_size;
         Debug_println("SD mounted.");
-
-    /*
-        Debug_printf("  manufacturer: %d, oem: 0x%x \"%c%c\"\r\n", sdcard_info->cid.mfg_id, sdcard_info->cid.oem_id,
-            (char)(sdcard_info->cid.oem_id >> 8 & 0xFF),(char)(sdcard_info->cid.oem_id & 0xFF));
-        Debug_printf("  product: %s\r\n", sdcard_info->cid.name);
-        Debug_printf("  sector size: %d, sectors: %d, capacity: %llu\r\n", sdcard_info->csd.sector_size, sdcard_info->csd.capacity, _card_capacity);
-        Debug_printf("  transfer speed: %d\r\n", sdcard_info->csd.tr_speed);
-        Debug_printf("  max frequency: %ukHz\r\n", sdcard_info->max_freq_khz);
-        Debug_printf("  partition type: %s\r\n", partition_type());
-        Debug_printf("  partition size: %llu, used: %llu\r\n", total_bytes(), used_bytes());
-    */
     }
     else 
     {

@@ -96,7 +96,6 @@ size_t IRAM_ATTR t2k_encode_cb(const void *data, size_t data_size,
  *      file position (offset)
  * */
 
-//#define CASSETTE_FILE "/test.cas" // zaxxon
 #define CASSETTE_FILE "/csave" // basic program
 
 // copied from fuUART.cpp - figure out better way
@@ -158,7 +157,6 @@ int8_t softUART::service(uint8_t b)
             state_counter++;
             received_byte = 0; // clear data
             baud_clock = t;    // approx beginning of start bit
-//            Debug_println("Start bit received!");
         }
     }
     else if (t > baud_clock + period * state_counter + period / 4)
@@ -169,7 +167,6 @@ int8_t softUART::service(uint8_t b)
             {
                 buffer[index_in++] = received_byte;
                 state_counter = STARTBIT;
-//                Debug_printf("received %02X\n", received_byte);
                 if (b != 0)
                 {
                     Debug_println("Stop bit invalid!");
@@ -181,8 +178,6 @@ int8_t softUART::service(uint8_t b)
                 uint8_t bb = (b == 1) ? 0 : 1;
                 received_byte |= (bb << (state_counter - 1));
                 state_counter++;
-//                Debug_printf("bit %u ", state_counter - 1);
-//                Debug_printf("%u\n ", b);
             }
         }
         else
@@ -328,27 +323,12 @@ void sioCassette::sio_enable_cassette()
 #endif
         Debug_printf("set pin to input. Value is %d\n", a);
         Debug_println("Writing FUJI File HEADERS");
-    #if 0
-        fprintf(_file, "FUJI");
-        fputc(16, _file);
-        fputc(0, _file);
-        fputc(0, _file);
-        fputc(0, _file);
-        fprintf(_file, "FujiNet CAS File");
-
-        fprintf(_file, "baud");
-        fputc(0, _file);
-        fputc(0, _file);
-        fputc(0x58, _file);
-        fputc(0x02, _file);
-    #else
         unsigned char headers[] = {
             'F', 'U', 'J', 'I', 16, 0, 0, 0,
             'F', 'u', 'j', 'i', 'N', 'e', 't', ' ', 'C', 'A', 'S', ' ', 'F', 'i', 'l', 'e',
             'b', 'a', 'u', 'd', 0, 0, 0x58, 0x02
         };
         fnio::fwrite(headers, sizeof(headers), 1, _file);
-    #endif
         fnio::fflush(_file);
         tape_offset = fnio::ftell(_file);
         block++;
@@ -496,16 +476,10 @@ size_t sioCassette::send_tape_block(size_t offset)
     unsigned char *p = atari_sector_buffer + BLOCK_LEN - 1;
     unsigned char i, r;
 
-    // if (offset < FileInfo.vDisk->size) {     //data record
     if (offset < filesize)
     { //data record
-#ifdef DEBUG
-        //print_str(35,132,2,Yellow,window_bg, (char*) atari_sector_buffer);
-        //sprintf_P((char*)atari_sector_buffer,PSTR("Block %u / %u "),offset/BLOCK_LEN+1,(FileInfo.vDisk->size-1)/BLOCK_LEN+1);
-#endif
         Debug_printf("Block %u of %u \r\n", offset / BLOCK_LEN + 1, filesize / BLOCK_LEN + 1);
         //read block
-        //r = faccess_offset(FILE_ACCESS_READ, offset, BLOCK_LEN);
         fnio::fseek(_file, offset, SEEK_SET);
         r = fnio::fread(atari_sector_buffer, 1, BLOCK_LEN, _file);
 
@@ -527,9 +501,6 @@ size_t sioCassette::send_tape_block(size_t offset)
     }
     else
     { //this is the last/end record
-#ifdef DEBUG
-        //print_str_P(35, 132, 2, Yellow, window_bg, PSTR("End  "));
-#endif
         Debug_println("CASSETTE END");
         Clear_atari_sector_buffer(BLOCK_LEN + 3);
         atari_sector_buffer[2] = 0xfe; //mark end record
@@ -537,12 +508,10 @@ size_t sioCassette::send_tape_block(size_t offset)
     }
     atari_sector_buffer[0] = 0x55; //sync marker
     atari_sector_buffer[1] = 0x55;
-    // USART_Send_Buffer(atari_sector_buffer, BLOCK_LEN + 3);
     SYSTEM_BUS.write(atari_sector_buffer, BLOCK_LEN + 3);
-    //USART_Transmit_Byte(get_checksum(atari_sector_buffer, BLOCK_LEN + 3));
     SYSTEM_BUS.write(sio_checksum(atari_sector_buffer, BLOCK_LEN + 3));
     SYSTEM_BUS.flushOutput(); // wait for all data to be sent just like a tape
-    // _delay_ms(300); //PRG(0-N) + PRWT(0.25s) delay
+    // PRG(0-N) + PRWT(0.25s) delay
     fnSystem.delay(300);
     return (offset);
 }
@@ -678,7 +647,7 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
 
     size_t starting_offset = offset;
 
-    while (offset < filesize) // FileInfo.vDisk->size)
+    while (offset < filesize)
     {
         // looking for a data header while handling baud changes along the way
         Debug_printf("Offset: %u\r\n", offset);
@@ -804,16 +773,9 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
             }
             first = 0;
         }
-        /*         if (block == 0)
-        {
-            // TO DO : why does Sdrive do this?
-            //_delay_ms(200); //add an end gap to be sure
-            fnSystem.delay(200);
-        } */
     }
     else
     {
-        //block = 0;
         offset = 0;
     }
     return (offset);
@@ -830,18 +792,12 @@ size_t sioCassette::receive_FUJI_tape_block(size_t offset)
     uint64_t tic = fnSystem.millis();
 
     // write out data here to file
-    #if 0
-    offset += fprintf(_file, "data");
-    offset += fputc(BLOCK_LEN + 4, _file); // 132 bytes
-    offset += fputc(0, _file);
-    #else
     unsigned char data_head[] = {
         'd', 'a' ,'t', 'a', BLOCK_LEN + 4, 0
     };
     offset += fnio::fwrite(data_head, sizeof(data_head), 1, _file);
-    #endif
 
-    while (!casUART.available()) // && motor_line()
+    while (!casUART.available())
         casUART.service(decode_fsk());
     uint16_t irg = fnSystem.millis() - tic - 10000 / casUART.get_baud(); // adjust for first byte
     Debug_printf("irg %u\n", irg);
@@ -850,13 +806,13 @@ size_t sioCassette::receive_FUJI_tape_block(size_t offset)
     atari_sector_buffer[idx++] = b;
     Debug_printf("marker 1: %02x\n", b);
 
-    while (!casUART.available()) // && motor_line()
+    while (!casUART.available())
         casUART.service(decode_fsk());
     b = casUART.read(); // should be 0x55
     atari_sector_buffer[idx++] = b;
     Debug_printf("marker 2: %02x\n", b);
 
-    while (!casUART.available()) // && motor_line()
+    while (!casUART.available())
         casUART.service(decode_fsk());
     b = casUART.read(); // control byte
     atari_sector_buffer[idx++] = b;
@@ -865,16 +821,14 @@ size_t sioCassette::receive_FUJI_tape_block(size_t offset)
     int i = 0;
     while (i < BLOCK_LEN)
     {
-        while (!casUART.available()) // && motor_line()
+        while (!casUART.available())
             casUART.service(decode_fsk());
         b = casUART.read(); // data
         atari_sector_buffer[idx++] = b;
-//        Debug_printf(" %02x", b);
         i++;
     }
-//    Debug_printf("\n");
 
-    while (!casUART.available()) // && motor_line()
+    while (!casUART.available())
         casUART.service(decode_fsk());
     b = casUART.read(); // checksum
     atari_sector_buffer[idx++] = b;
@@ -909,8 +863,6 @@ uint8_t sioCassette::decode_fsk()
             out = 1;
         last_output = out;
     }
-    // Debug_printf("%lu, ", fnSystem.micros());
-    // Debug_printf("%u\n", out);
     return out;
 }
 
@@ -1304,7 +1256,13 @@ void sioCassette::mount_turbo_loader()
         return;
     }
 
-    size_t fsize = fsFlash.filesize(f);
+    uint32_t fsize = 0;
+    if (fsFlash.filesize(f).to(&fsize).is_error())
+    {
+        Debug_printf("%s: %s has no usable size\n", label, xex_path);
+        fnio::fclose(f);
+        return;
+    }
 
     // Mount on free slot as XEX (PicoBoot + AUTORUN)
     // Use mount_disk_media() instead of mount() to avoid recursive call —

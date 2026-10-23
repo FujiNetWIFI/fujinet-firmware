@@ -26,7 +26,6 @@ char * FileSystem::_make_fullpath(const char *path)
             fullpath[l+1] = '\0';
         }
         strlcat(fullpath, path, MAX_PATHLEN);
-        //Debug_printf("_make_fullpath \"%s\" -> \"%s\"\r\n", path, fullpath);
 
         return fullpath;
     }
@@ -35,41 +34,41 @@ char * FileSystem::_make_fullpath(const char *path)
 
 
 // Returns size of open file
-long FileSystem::filesize(FILE *f)
+file_size_t FileSystem::filesize(FILE *f)
 {
     if (f == nullptr)
-        return -1;
+        return file_size_t(-1);
     long curr = ftell(f);
     fseek(f, 0, SEEK_END);
     long end = ftell(f);
     fseek(f, curr, SEEK_SET);
-    return end;
+    return file_size_t(end);
 }
 
 
 #ifndef FNIO_IS_STDIO
-long FileSystem::filesize(FileHandler *fh)
+file_size_t FileSystem::filesize(FileHandler *fh)
 {
     long curr = fh->tell();
     fh->seek(0, SEEK_END);
     long end = fh->tell();
     fh->seek(curr, SEEK_SET);
     Debug_printf("FileSystem::filesize from FileHandler returned %ld\r\n", end);
-    return end;
+    return file_size_t(end);
 }
 #endif
 
 // TODO: implement per filesystem
 // Returns size of file given path
-long FileSystem::filesize(const char *path)
+file_size_t FileSystem::filesize(const char *path)
 {
 #ifndef ESP_PLATFORM
     Debug_println("!!! TODO !!! FileSystem::filesize from path");
 #endif
     struct stat fstat;
     if( 0 == stat(path, &fstat))
-        return fstat.st_size;
-    return -1;
+        return file_size_t(fstat.st_size);
+    return file_size_t(-1);
 }
 
 const char * FileSystem::type_to_string(fsType type)

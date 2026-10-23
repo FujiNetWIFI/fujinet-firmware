@@ -626,16 +626,13 @@ success_is_true fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot
     boot_config = false;
 
     // We need the file size for loading XEX files and for CASSETTE, so get that too
-    long size = host.file_size(disk.fileh);
-    // disk_size and every mount() take it in 32 bits; on ESP32 a failed ftell() is -1
-    if (size < 0 || (static_cast<uint64_t>(size) >> 32) != 0)
+    if (host.file_size(disk.fileh).to(&disk.disk_size).is_error())
     {
-        Debug_printf("Refusing '%s': size %ld doesn't fit in 32 bits\r\n", disk.filename, size);
+        Debug_printf("Refusing '%s': no size, or one too big for 32 bits\r\n", disk.filename);
         fnio::fclose(disk.fileh);
         disk.fileh = nullptr;
         RETURN_ERROR_AS_FALSE();
     }
-    disk.disk_size = size;
     DISK_DEVICE *disk_dev = get_disk_dev(deviceSlot);
     disk.disk_type = mount_media(disk_dev, disk, host, access_mode);
     disk_dev->is_config_device = false;
@@ -669,7 +666,7 @@ void fujiDevice::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
 {
     std::string boot_img;
     fnFile *fBoot = nullptr;
-    size_t image_size;
+    uint32_t image_size = 0;
 
     switch (image_id)
     {
@@ -714,7 +711,12 @@ void fujiDevice::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
         return;
     }
 
-    image_size = fsFlash.filesize(fBoot);
+    if (fsFlash.filesize(fBoot).to(&image_size).is_error())
+    {
+        Debug_printf("Boot disk image has no usable size: %s\n", boot_img.c_str());
+        fnio::fclose(fBoot);
+        return;
+    }
     disk_dev->mount(fBoot, boot_img.c_str(), image_size, DISK_ACCESS_MODE_READ, disk_type);
     disk_dev->is_config_device = true;
 }
@@ -724,7 +726,7 @@ void fujiDevice::insert_boot_device(std::string boot_img, mediatype_t disk_type,
                                     DISK_DEVICE *disk_dev)
 {
     fnFile *fBoot = nullptr;
-    size_t image_size;
+    uint32_t image_size = 0;
 
     fBoot = fnSDFAT.fnfile_open(boot_img.c_str());
 
@@ -734,7 +736,12 @@ void fujiDevice::insert_boot_device(std::string boot_img, mediatype_t disk_type,
         return;
     }
 
-    image_size = FileSystem::filesize(fBoot);
+    if (FileSystem::filesize(fBoot).to(&image_size).is_error())
+    {
+        Debug_printf("Boot disk image has no usable size: %s\n", boot_img.c_str());
+        fnio::fclose(fBoot);
+        return;
+    }
     disk_dev->mount(fBoot, boot_img.c_str(), image_size, DISK_ACCESS_MODE_READ, disk_type);
     disk_dev->is_config_device = true;
 }

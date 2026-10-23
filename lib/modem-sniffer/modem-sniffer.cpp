@@ -12,11 +12,6 @@
 
 ModemSniffer::ModemSniffer(FileSystem *_fs, bool _enable)
 {
-    // if (_fs == nullptr)
-    //     Debug_printf("_fs is NULL!\n");
-    // else
-    //     Debug_printf("ModemSniffer::ModemSniffer(%s)\n", _fs->typestring());
-
     activeFS = _fs;
     direction = INIT;
     enable = _enable;
@@ -36,12 +31,10 @@ ModemSniffer::~ModemSniffer()
 
 size_t ModemSniffer::getOutputSize()
 {
-    if (_file != nullptr)
-        return FileSystem::filesize(_file);
+    file_size_t size = _file != nullptr ? FileSystem::filesize(_file) : activeFS->filesize(SNIFFER_OUTPUT_FILE);
+    size_t out = 0;
 
-    long result = activeFS->filesize(SNIFFER_OUTPUT_FILE);
-
-    return result == -1 ? 0 : result;
+    return size.to(&out).is_success() ? out : 0;
 }
 
 void ModemSniffer::closeOutput()
