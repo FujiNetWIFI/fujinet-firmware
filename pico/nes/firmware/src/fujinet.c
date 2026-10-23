@@ -44,11 +44,16 @@ static uint8_t port_stream_close(int stream, uint32_t got, bool aborted)
 {
     const uint8_t *base;
     nesmap_plan_t plan;
+    uint32_t kept;
 
     if (stream != FN_STREAM_ROM)
         return 0;
-    base = fuji_store_close(aborted);
-    if (aborted || base == NULL)
+    base = fuji_store_close(aborted, &kept);
+    if (aborted)
+        return 0;
+    if (got > kept)
+        return FN_BOOT_ERR_TOOBIG;      /* outgrew the tier a size-0 OPEN chose */
+    if (base == NULL)
         return 0;
     if (nesmap_plan(base, got, &plan) != NESMAP_OK)
         return FN_BOOT_ERR_NOMAP;
