@@ -984,6 +984,9 @@ smb2_connect_async(struct smb2_context *smb2, const char *server,
                 return -EINVAL;
         }
 
+        /* A failed or timed-out connect leaves its fds and count behind */
+        smb2_close_connecting_fds(smb2);
+
         addr = strdup(server);
         if (addr == NULL) {
                 smb2_set_error(smb2, "Out-of-memory: "
