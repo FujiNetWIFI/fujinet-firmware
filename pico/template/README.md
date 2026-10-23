@@ -16,7 +16,7 @@ doing the FujiBus link, the mailbox protocol and the build. No console runs it.
 | `firmware/include/fujinet.h`, `firmware/src/fujinet.c` | the cart's `fuji_port_ops_t`: publishing a byte, and receiving, planning and staging a pushed image |
 | `firmware/include/fujiboot.h`, `firmware/src/fujiboot.c`, `firmware/src/main.c` | power-on: pins, clock, the baked client, core1, the USB loop |
 | `firmware/baked/fujiconfigrom.h` | the stand-in client, so the firmware builds with no console toolchain |
-| `firmware/host_test/` | `test_tmplmap`, and [common/](../common/)'s `test_fujimail` against this mailbox map |
+| `firmware/host_test/` | `test_tmplmap`; `test_port`, the port hooks as fujimail drives them, including an oversize image after an OPEN with no size; and [common/](../common/)'s `test_fujimail` against this mailbox map |
 
 ## How it fits
 - Every protocol, link and build piece comes from [common/](../common/); what is here is what
