@@ -622,7 +622,7 @@ if(FUJINET_TARGET STREQUAL "ADAM")
 endif()
 
 # ------------------------------------------------------------------------------
-# Request header serialisation in the vendored HTTP client. A single header is
+# Request header serialization in the vendored HTTP client. A single header is
 # never split across buffers, and getting that boundary wrong drops the blank
 # line that ends the header block - the server then reads the body as headers
 # (issue #1554, OneDrive's 2 KB bearer token vs the 512-byte default buffer).
@@ -924,6 +924,51 @@ if(WIN32)
 endif()
 
 add_test(NAME fs_protocol_tests COMMAND fs_protocol_tests)
+
+# ------------------------------------------------------------------------------
+# The N: SMB protocol (lib/network-protocol/SMB.cpp) against a URL with no
+# share and an unreachable server.
+# ------------------------------------------------------------------------------
+add_executable(smb_protocol_tests
+    SMBProtocolTests.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/SMB.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/FS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/Protocol.cpp
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/TCP.cpp      # Protocol.cpp casts to it
+    ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/U8Char.cpp
+    ${CMAKE_SOURCE_DIR}/lib/utils/punycode.cpp
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_inet.c
+    ${CMAKE_SOURCE_DIR}/lib/compat/compat_gettimeofday.c
+)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  target_sources(smb_protocol_tests PRIVATE
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcpy.c
+      ${CMAKE_SOURCE_DIR}/lib/compat/strlcat.c
+  )
+endif()
+
+target_include_directories(smb_protocol_tests BEFORE PRIVATE
+    ${CMAKE_SOURCE_DIR}/tests/tcp_harness/    # first: replaces fnTcpClient.h, fnTcpServer.h, bus.h
+    ${CMAKE_SOURCE_DIR}/lib/network-protocol/
+    ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
+    ${CMAKE_SOURCE_DIR}/lib/utils/
+    ${CMAKE_SOURCE_DIR}/lib/sam/
+    ${CMAKE_SOURCE_DIR}/lib/compat/
+    ${CMAKE_SOURCE_DIR}/include/
+    ${CMAKE_SOURCE_DIR}/components_pc/        # doctest
+    ${CMAKE_SOURCE_DIR}/components_pc/libsmb2/include/
+    ${MBEDTLS_INCLUDE_DIR}
+)
+target_compile_definitions(smb_protocol_tests PRIVATE UNIT_TESTS)
+target_link_libraries(smb_protocol_tests PRIVATE smb2 ${CRYPTO_LIBS})
+if(WIN32)
+  target_link_libraries(smb_protocol_tests PRIVATE ws2_32 bcrypt)
+endif()
+
+add_test(NAME smb_protocol_tests COMMAND smb_protocol_tests)
 
 # ------------------------------------------------------------------------------
 # The N: TELNET protocol (lib/network-protocol/Telnet.cpp, on TCP.cpp) over the
