@@ -1,8 +1,6 @@
 #ifndef PRINTER_EMU_H
 #define PRINTER_EMU_H
 
-//#include "../../include/atascii.h"
-
 #include "fnFsSD.h"
 
 // TODO: Combine html_printer.cpp/h and file_printer.cpp/h
@@ -63,7 +61,7 @@ public:
 
     void closeOutput();
     FILE * closeOutputAndProvideReadHandle();
-    bool removeOutput();
+    success_is_true removeOutput();
 
     bool process(uint8_t linelen, uint8_t aux1, uint8_t aux2);
 

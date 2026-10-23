@@ -493,9 +493,9 @@ fnHttpApi::response h_printer_clear(const request &)
         return json_error("printer not available", 400);
 
     printer_emu *emu = printer->getPrinterPtr();
-    int remove_result = emu->removeOutput();
+    success_is_true removed = emu->removeOutput();
     printer->reset_printer();
-    Debug_printf("Attempting to remove /paper, result: %d\n", remove_result);
+    Debug_printf("Attempting to remove /paper, result: %d\n", removed.is_success());
 
     cJSON *resp = cJSON_CreateObject();
     cJSON_AddStringToObject(resp, "status", "success");
