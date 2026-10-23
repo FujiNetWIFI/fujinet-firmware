@@ -45,7 +45,7 @@ void MediaTypeIMD::_derive_geometry()
 
     for (uint32_t i = std::min<uint32_t>(1U, _imd.track_count() - 1); i < _imd.track_count(); i++)
     {
-        if (_imd.track_info(i, t).is_error())
+        if (_imd.track_info(i, t) != IMDStatus::Ok)
             continue;
         if (t.cyl > maxcyl)
             maxcyl = t.cyl;
@@ -86,7 +86,8 @@ mediatype_t MediaTypeIMD::mount(fnFile *f, uint32_t disksize)
     _disk_fileh = f;
     _disk_image_size = disksize;
 
-    IMDStatus st = _imd.open(f, disksize, _writable);
+    _stream = IMDFnioStream(f, disksize);
+    IMDStatus st = _imd.open(&_stream, _writable);
     if (st != IMDStatus::Ok)
     {
         Debug_printf("IMD MOUNT failed: %s\r\n", imd_status_str(st));
@@ -174,7 +175,7 @@ error_is_true MediaTypeIMD::read(uint32_t sectornum, uint32_t *readcount)
     // address mark is ordinary CP/M data. Deliver both and flag them in the
     // controller status: an error reply carries no payload at all.
     IMDSectorInfo si;
-    if (_imd.sector_info(sector_to_lba(sectornum), si).is_success())
+    if (_imd.sector_info(sector_to_lba(sectornum), si) == IMDStatus::Ok)
     {
         if (si.had_error)
             _disk_controller_status |= DISK_CTRL_STATUS_CRC_ERROR;
@@ -210,7 +211,7 @@ error_is_true MediaTypeIMD::write(uint32_t sectornum, bool verify)
 
     // Separate an unreadable sector from a record that cannot take the data
     IMDSectorInfo si;
-    if (_imd.sector_info(sector_to_lba(sectornum), si).is_success() && si.unavailable)
+    if (_imd.sector_info(sector_to_lba(sectornum), si) == IMDStatus::Ok && si.unavailable)
     {
         Debug_printf("IMD::write lba %lu is unavailable\r\n", (unsigned long)sectornum);
         _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_MISSING;
@@ -278,12 +279,13 @@ success_is_true MediaTypeIMD::create(fnFile *f, uint16_t sectorSize, uint32_t nu
     if (sectorSize != 128 || numSectors != cyls * spt)
         RETURN_ERROR_AS_FALSE();
 
-    if (IMDImage::write_header(f, time(nullptr)) != IMDStatus::Ok)
+    IMDFnioStream out(f, 0);
+    if (IMDImage::write_header(out, time(nullptr)) != IMDStatus::Ok)
         RETURN_ERROR_AS_FALSE();
     for (uint8_t cyl = 0; cyl < cyls; cyl++)
     {
         // Mode 0 is 500 kbps FM; size code 0 is 128 bytes
-        if (IMDImage::write_blank_track(f, 0, cyl, 0, spt, 0, cyl < blank_cyls ? 0xE5 : 0x00)
+        if (IMDImage::write_blank_track(out, 0, cyl, 0, spt, 0, cyl < blank_cyls ? 0xE5 : 0x00)
             != IMDStatus::Ok)
             RETURN_ERROR_AS_FALSE();
     }

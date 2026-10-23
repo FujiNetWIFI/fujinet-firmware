@@ -3,7 +3,7 @@
 #include "diskType.h"
 #include "diskTypeAltair.h"
 
-#include "../IMDImage.h"
+#include "../imd/IMDImage.h"
 
 #include <string.h>
 

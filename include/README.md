@@ -17,6 +17,7 @@ device ID enums, the debug macros and the per-board pin maps.
 | `pinmap.h` | ESP only: includes every [pinmap/](pinmap/) board header, then `pinmap_defaults.h` |
 | `pinmap_defaults.h` | last-resort pin defaults (`PIN_DEBUG`, `LEDS_INVERTED`, the RGB LED strip) |
 | `PSRAMAllocator.h` | ESP only: an STL allocator that tries `MALLOC_CAP_SPIRAM` first and `PSRAMDeleter` (Apache-2.0, Mike Dunston); use it for bulk buffers |
+| `PSRAMMemoryResource.h` | `psram_memory_resource()`: a `std::pmr` memory resource with `PSRAMAllocator`'s policy on the ESP32, the default heap elsewhere |
 | `version.h` | `FN_VERSION_*`; listed in `.gitignore` but tracked, and bumped by hand at release time only |
 | `atascii.h`, `petscii.h`, `cbm_defines.h` | Atari and Commodore character-set constants |
 | `Log.h` | `LogFileOutput` shim for the AppleWin-derived SLIP code in `lib/devrelay` |

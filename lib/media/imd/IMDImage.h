@@ -7,27 +7,19 @@
 // its author. Implemented from the specification only; the ImageDisk program
 // source is separately licensed and was not consulted.
 //
-// Platform independent on purpose: this lives at the root of lib/media and must
-// never include a platform mediaType.h, so any target can adapt it. The ESP
-// build globs lib/media/*.cpp, so this compiles into every target.
+// Depends on the C++ standard library only, so host tools such as MekkoGX can
+// build it too. Nothing from FujiNet or the ESP32 may be included here.
 //
 // Deliberately not a MediaType: every platform declares its own incompatible
-// MediaType (divergent read/write/mount signatures, clashing header guards), so
-// each platform's adapter (e.g. rs232/diskTypeIMD) subclasses its own and
-// forwards here.
+// MediaType, so each platform's adapter (e.g. rs232/diskTypeIMD) subclasses its
+// own and forwards here.
 
 #include <cstdint>
+#include <cstdio>
 #include <ctime>
+#include <memory_resource>
 #include <string>
 #include <vector>
-
-#include "global_types.h"
-
-#include "fnio.h"
-
-#ifdef ESP_PLATFORM
-#include "PSRAMAllocator.h"
-#endif
 
 // ASCII SUB, terminates the header/comment block
 #define IMD_EOF_MARKER 0x1A
@@ -80,6 +72,33 @@ enum class IMDStatus : uint8_t
 
 const char *imd_status_str(IMDStatus s);
 
+// The bytes of an image. A write may extend it.
+class IMDStream
+{
+public:
+    virtual ~IMDStream() = default;
+    virtual uint32_t  size() const = 0;
+    virtual IMDStatus read_at(uint32_t off, void *dst, uint32_t len) = 0;
+    virtual IMDStatus write_at(uint32_t off, const void *src, uint32_t len) = 0;
+    virtual IMDStatus flush() = 0;
+};
+
+// An IMDStream over a FILE, which it borrows and never closes.
+class IMDStdioStream : public IMDStream
+{
+public:
+    IMDStdioStream(std::FILE *f, uint32_t size) : _f(f), _size(size) {}
+
+    uint32_t  size() const override { return _size; }
+    IMDStatus read_at(uint32_t off, void *dst, uint32_t len) override;
+    IMDStatus write_at(uint32_t off, const void *src, uint32_t len) override;
+    IMDStatus flush() override;
+
+private:
+    std::FILE *_f;
+    uint32_t   _size;
+};
+
 // Track recording mode (IMD.TXT 6.1). The rate is the controller transfer rate;
 // FM carries half that as data. 6 and 9 are a libdsk extension for 1Mbps that we
 // accept on read but never write.
@@ -117,15 +136,17 @@ class IMDCursor;
 class IMDImage
 {
 public:
-    IMDImage() = default;
+    // The sector tables come from mr, e.g. PSRAM on the ESP32.
+    explicit IMDImage(std::pmr::memory_resource *mr = std::pmr::get_default_resource())
+        : _sectors(mr), _tracks(mr) {}
     ~IMDImage();
     IMDImage(const IMDImage &) = delete;
     IMDImage &operator=(const IMDImage &) = delete;
 
-    // Indexes the whole image; f must outlive the IMDImage, which never closes it.
-    IMDStatus open(fnFile *f, uint32_t disksize, bool writable);
+    // Indexes the whole image; s must outlive the IMDImage.
+    IMDStatus open(IMDStream *s, bool writable);
     void      close();
-    bool      is_open() const { return _f != nullptr; }
+    bool      is_open() const { return _s != nullptr; }
 
     uint32_t lba_count() const { return (uint32_t)_sectors.size(); }
     uint32_t track_count() const { return (uint32_t)_tracks.size(); }
@@ -133,11 +154,11 @@ public:
     uint16_t max_sector_size() const { return _max_sector_size; }
     bool     uniform_sector_size() const { return _uniform_size; }
 
-    success_is_true track_info(uint32_t track, IMDTrackInfo &out) const;
-    success_is_true sector_info(uint32_t lba, IMDSectorInfo &out) const;
+    IMDStatus track_info(uint32_t track, IMDTrackInfo &out) const;
+    IMDStatus sector_info(uint32_t lba, IMDSectorInfo &out) const;
 
     // Matches the track's *physical* cyl/head and the sector's physical ID.
-    success_is_true find_lba(uint8_t cyl, uint8_t head, uint8_t id, uint32_t &lba) const;
+    IMDStatus find_lba(uint8_t cyl, uint8_t head, uint8_t id, uint32_t &lba) const;
 
     // Data-error records still return Ok with their recovered contents; check
     // sector_info().had_error. out_len may be null.
@@ -159,11 +180,12 @@ public:
 
     static bool looks_like_imd_extension(const char *filename);
 
-    // A new image: the signature line stamped with `when`, then its tracks.
-    static IMDStatus write_header(fnFile *f, time_t when);
+    // A new image, each appended to s: the signature line stamped with `when`,
+    // then its tracks.
+    static IMDStatus write_header(IMDStream &s, time_t when);
     // One track of sectors 1..nsec filled with `fill`, stored as full records so
     // write_sector() can later take any data in place.
-    static IMDStatus write_blank_track(fnFile *f, uint8_t mode, uint8_t cyl, uint8_t head,
+    static IMDStatus write_blank_track(IMDStream &s, uint8_t mode, uint8_t cyl, uint8_t head,
                                        uint8_t nsec, uint8_t size_code, uint8_t fill);
 
 private:
@@ -190,15 +212,10 @@ private:
         uint8_t  map_flags;   // IMD_HEAD_CYL_MAP / IMD_HEAD_HEAD_MAP as stored
     };
 
-#ifdef ESP_PLATFORM
-    std::vector<SectorRef, PSRAMAllocator<SectorRef>> _sectors;
-    std::vector<TrackRef, PSRAMAllocator<TrackRef>> _tracks;
-#else
-    std::vector<SectorRef> _sectors;
-    std::vector<TrackRef> _tracks;
-#endif
+    std::pmr::vector<SectorRef> _sectors;
+    std::pmr::vector<TrackRef>  _tracks;
 
-    fnFile     *_f = nullptr;
+    IMDStream  *_s = nullptr;
     uint32_t    _size = 0;
     bool        _writable = false;
     uint32_t    _trailing = 0;
@@ -216,7 +233,7 @@ private:
     // from a failure inside an otherwise valid track (a real error).
     IMDStatus _parse_track(IMDCursor &cur, bool &header_ok);
     bool      _tail_is_padding(uint32_t from);
-    success_is_true _locate_linear(uint32_t byte_off, uint32_t &lba, uint32_t &sec_off) const;
+    IMDStatus _locate_linear(uint32_t byte_off, uint32_t &lba, uint32_t &sec_off) const;
     IMDStatus _materialize(uint32_t lba, uint32_t sec_off, const uint8_t *src,
                            uint32_t n, uint8_t *out);
 };

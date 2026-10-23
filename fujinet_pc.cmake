@@ -334,8 +334,8 @@ set(SOURCES src/main.cpp
     lib/device/siocpm.h
     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
     lib/media/media.h
-    # Matches the ESP builds, which glob lib/media/*.cpp into every target
-    lib/media/IMDImage.h lib/media/IMDImage.cpp
+    # Matches the ESP builds, which compile it into every target
+    lib/media/imd/IMDImage.h lib/media/imd/IMDImage.cpp lib/media/IMDFnioStream.h
     lib/encoding/base64.h lib/encoding/base64.cpp
     lib/encoding/hash.h lib/encoding/hash.cpp
     lib/qrcode/qrcode.h lib/qrcode/qrcode.c

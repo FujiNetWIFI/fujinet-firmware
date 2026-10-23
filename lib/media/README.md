@@ -9,7 +9,8 @@ write sectors or blocks of one file format; it knows nothing about the bus (a ct
 | File | Defines |
 |---|---|
 | `media.h` | the `BUILD_*` switchboard that includes the active platform's media headers |
-| `IMDImage.h`, `IMDImage.cpp` | `IMDImage`, a platform-independent ImageDisk reader and writer. It is deliberately not a `MediaType`; a platform wraps it in an adapter (`rs232/diskTypeIMD.h`) |
+| [imd/](imd/) | `IMDImage`, an ImageDisk reader and writer that depends on the C++ standard library only. It is deliberately not a `MediaType`; a platform wraps it in an adapter (`rs232/diskTypeIMD.h`) |
+| `IMDFnioStream.h` | `IMDFnioStream`, the `IMDStream` over an `fnFile` that an adapter gives `IMDImage` |
 
 ## Platforms
 
@@ -39,13 +40,13 @@ file extension to the enum.
   [lib/device/fujiDevice/](../device/fujiDevice/) drives that from a `fujiDisk` slot.
 - The file handle comes from `fujiHost::fnfile_open()` in [lib/fuji/](../fuji/), so a media
   class works the same over SD, TNFS, SMB, NFS, FTP or HTTP.
-- Big buffers (ATX tracks, directory caches, IMD images) use `PSRAMAllocator` from
-  [include/](../../include/) on the ESP32.
+- Big buffers (ATX tracks, directory caches) use `PSRAMAllocator`, and IMD's sector tables
+  `psram_memory_resource()`, from [include/](../../include/) on the ESP32.
 
 ## Build
 
 ESP: `src/CMakeLists.txt` globs `lib/media/*.cpp` and `lib/media/**/*.cpp` into every target;
-each platform file guards itself with `#ifdef BUILD_*`. `IMDImage.cpp` and `mac/macGCR.cpp` are
+each platform file guards itself with `#ifdef BUILD_*`. `imd/IMDImage.cpp` and `mac/macGCR.cpp` are
 unguarded. PC: `fujinet_pc.cmake` compiles `IMDImage` for every target and one platform
 directory per `FUJINET_TARGET`. `tests/` covers `IMDImage`, the rs232 IMD adapter, `macGCR` and
 the Atari cassette helpers.
