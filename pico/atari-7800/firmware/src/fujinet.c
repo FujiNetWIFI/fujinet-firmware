@@ -129,10 +129,15 @@ static uint8_t port_rom_close(uint32_t got, bool aborted, const char *mapper)
 {
     const uint8_t *base;
     a78map_plan_t plan;
+    uint32_t kept;
     int err;
 
-    base = fuji_store_close(aborted);
-    if (aborted || base == NULL)
+    base = fuji_store_close(aborted, &kept);
+    if (aborted)
+        return 0;
+    if (got > kept)
+        return FN_BOOT_ERR_TOOBIG;     /* outgrew the tier a size-0 OPEN chose */
+    if (base == NULL)
         return 0;
     err = a78map_plan(base, got, mapper, &plan);
     if (err == A78MAP_ETOOBIG)

@@ -482,6 +482,11 @@ uint8_t sega8_fujinet_device::stream_close(int stream, uint32_t got, bool aborte
 		fuji_cfg_clear(&m_cfg);
 		return 0;
 	}
+	if (got > m_store[tier].size())     // writes past STORE_MAX were dropped
+	{
+		fuji_cfg_clear(&m_cfg);
+		return FN_BOOT_ERR_TOOBIG;
+	}
 	int err = smsmap_plan(m_store[tier].data(), got, fuji_cfg_mapper(&m_cfg), &plan);
 	fuji_cfg_clear(&m_cfg);
 	if (err == SMSMAP_ETOOBIG)

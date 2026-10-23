@@ -82,7 +82,7 @@ byte pushed, not on what fitted. Known images with a non-default board go in a C
 USB link, BOOTSEL and the `.cfg` sibling. Take what else applies from common:
 
 - `fuji_store.c` when an image can be larger than RAM: a RAM tier and a flash tier, sized by the
-  cart's `fuji_store_cfg.h`.
+  cart's `fuji_store_cfg.h`. Its close reports how much it kept; refuse when `got` is more.
 - `fuji_watchdog.c` when the console's power or clock should send the cart back to CONFIG.
 
 ## 7. The client

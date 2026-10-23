@@ -86,7 +86,7 @@ static void store_reset(void)
     assert(fuji_store_open(FUJI_STORE_FLASH_SIZE) == 0);
     fuji_store_write(img, FLASH_SECTOR_SIZE);
     assert(fuji_store_open(FUJI_STORE_FLASH_SIZE) == 0);   /* dropped close */
-    assert(fuji_store_close(true) == NULL);
+    assert(fuji_store_close(true, NULL) == NULL);
     memset(fake_flash + FUJI_STORE_FLASH_OFF, 0x00, FUJI_STORE_FLASH_SIZE);
     fake_flash_erases = fake_flash_programs = 0;
 }
@@ -107,7 +107,7 @@ static const uint8_t *push(unsigned len)
     assert(fuji_store_open(len) == 0);
     for (off = 0; off < len; off += 512)
         fuji_store_write(img + off, (len - off < 512) ? len - off : 512);
-    return fuji_store_close(false);
+    return fuji_store_close(false, NULL);
 }
 
 /* ---- tests ---- */
@@ -132,7 +132,7 @@ static void test_sweep_waits_for_a_push(void)
     assert(fuji_store_open(FUJI_STORE_FLASH_SIZE) == 0);
     fuji_store_idle();
     assert(fake_flash_erases == 0);     /* the push would pay for it */
-    assert(fuji_store_close(true) == NULL);
+    assert(fuji_store_close(true, NULL) == NULL);
     fuji_store_idle();
     assert(fake_flash_erases == 1);
 }
@@ -277,7 +277,7 @@ static void test_busy_rules(void)
     assert(ram != NULL && ram != store_base());
     fuji_next.app_store = ram;
     assert(fuji_store_open(FUJI_STORE_RAM_SIZE) == 0);
-    assert(fuji_store_close(true) == NULL);
+    assert(fuji_store_close(true, NULL) == NULL);
     assert(memcmp(ram, img, FUJI_STORE_RAM_SIZE) == 0);
 
     /* Both spoken for and nothing else fits. */
@@ -296,7 +296,7 @@ static void test_abort_yields_nothing(void)
     fill(7, IMG_SIZE);
     assert(fuji_store_open(IMG_SIZE) == 0);
     fuji_store_write(img, 512);
-    assert(fuji_store_close(true) == NULL);
+    assert(fuji_store_close(true, NULL) == NULL);
 }
 
 int main(void)

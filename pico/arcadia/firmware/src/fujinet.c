@@ -51,8 +51,9 @@ static uint8_t port_rom_close(uint32_t got, bool aborted, const char *mapper)
     (void) mapper;              /* the .cfg sibling means nothing here */
     if (aborted)
         return 0;
-    (void) got;                 /* rxlen is what actually landed */
-    switch (arcmap_plan(rxbuf, rxlen, &plan)) {
+    /* got counts every byte pushed, rxlen only what fit: planned on got, an image OPEN
+     * gave no size for is refused here rather than staged cut short */
+    switch (arcmap_plan(rxbuf, got, &plan)) {
     case ARCMAP_OK:
         break;
     case ARCMAP_ETOOBIG:
