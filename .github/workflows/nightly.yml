@@ -99,10 +99,18 @@ jobs:
     # pioasm). Every other board skips this.
     - name: Install companion-MCU toolchain
       if: matrix.pico
+      # A stalled Ubuntu mirror otherwise holds the job until someone cancels it
+      timeout-minutes: 15
       run: |
-        sudo apt-get update && sudo apt-get install -y \
-          build-essential cmake ninja-build \
-          gcc-arm-none-eabi libnewlib-arm-none-eabi
+        for attempt in 1 2 3; do
+          timeout 240 sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update &&
+          timeout 240 sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y \
+            build-essential cmake ninja-build \
+            gcc-arm-none-eabi libnewlib-arm-none-eabi && exit 0
+          echo "apt attempt $attempt failed, retrying"
+          sleep 10
+        done
+        exit 1
 
     - name: Create PlatformIO INI for Build
       run: cd /home/runner/work/fujinet-firmware/fujinet-firmware && /usr/bin/bash ./build.sh -y -l /home/runner/work/fujinet-firmware/fujinet-firmware/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i /home/runner/work/fujinet-firmware/fujinet-firmware/platformio-generated.ini
@@ -147,7 +155,6 @@ jobs:
       id: create-release
       uses: softprops/action-gh-release@v2.2.2
       with:
-#        body_path: ${{ github.workspace }}/.github/nightly-release.txt
         body: |
           Nightly builds of the following firmware:
 
