@@ -7,6 +7,7 @@ repository root in `CONTRIBUTING.md` and `AGENTS.md`.
 | File | Subject |
 |---|---|
 | `cpp-style.md` | C++ and code-structure rules; the companion to `CONTRIBUTING.md` that new device code is reviewed against |
+| `pico-cart-bringup.md` | Adding a cartridge under `pico/`: what to copy from `pico/template/`, what to write, and what `pico/common` already does |
 | `fujiversal-flashing.md` | How one ESP32 firmware image carries and flashes the companion RP2040/RP2350 cartridge firmware over PICOBOOT |
 | `mac68k.md` | The Macintosh 68k board: ESP32 plus Pico on the floppy port, disk slots and image types |
 | `mac68k-floppy-write.md` | The writable-floppy (GCR capture) path on that board, with its test plan |
