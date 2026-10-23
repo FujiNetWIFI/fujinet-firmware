@@ -7,12 +7,7 @@ beginning.
 | File | Defines |
 |---|---|
 | `tnfs-protocol.md` | the protocol specification |
-| `tnfslib.h` | the C-style API used by every consumer |
-| `tnfslib.cpp` | `tnfs_mount`/`tnfs_umount`, `tnfs_open`/`tnfs_close`/`tnfs_read`/`tnfs_write`/`tnfs_lseek`; read caching |
-| `tnfslib_dir.cpp` | `tnfs_opendirx`/`tnfs_readdirx` and the directory cache, `tnfs_mkdir`/`tnfs_rmdir`, `tnfs_stat`, `tnfs_unlink`, `tnfs_rename`, `tnfs_chmod`, `tnfs_size`/`tnfs_free`, `tnfs_chdir`/`tnfs_getcwd` |
-| `tnfslib_transport.cpp` | the UDP and TCP transport code, the request/response transaction with retries, and session recovery |
-| `tnfslib_codes.cpp` | packet debug dumps, command and result-code names, `tnfs_code_to_errno` |
-| `tnfslib_internal.h` | declarations shared by the `tnfslib*.cpp` files; not part of the public API |
+| `tnfslib.h`, `tnfslib.cpp` | the C-style API: `tnfs_mount`, `tnfs_opendirx`/`tnfs_readdirx`, `tnfs_open`/`tnfs_read`/`tnfs_write`/`tnfs_lseek`, `tnfs_stat`, `tnfs_rename`, `tnfs_unlink`, `tnfs_mkdir`, `tnfs_chdir`, `tnfs_size`, `tnfs_free`; read caching; the UDP and TCP transport code |
 | `tnfslibMountInfo.h`, `tnfslibMountInfo.cpp` | `tnfsMountInfo` (host, session, `TNFS_PROTOCOL_TCP` or `TNFS_PROTOCOL_UDP`, open handles, directory cache) and `tnfsStat` |
 | `tnfslib_udp.h`, `tnfslib_udp_testing.cpp` | the UDP send and receive hooks, with a replacement that simulates packet loss and duplication when `TNFS_UDP_SIMULATE_POOR_CONNECTION` is defined |
 
