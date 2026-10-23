@@ -8,7 +8,7 @@ be included here.
 
 | File | Defines |
 |---|---|
-| `IMDImage.h`, `IMDImage.ipp` | `IMDImage<File>`, a class template over the file type it reads and writes, with `IMDStatus` and the format constants |
+| `IMDImage.h` | `IMDImage<File>`, a class template over the file type it reads and writes, with its member definitions, `IMDStatus` and the format constants |
 | `IMDImage.cpp` | the non-template helpers, and the `std::fstream` overloads of `imd_read_at`, `imd_write_at`, `imd_size` and `imd_flush` |
 
 ## How it fits

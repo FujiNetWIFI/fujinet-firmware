@@ -335,7 +335,7 @@ set(SOURCES src/main.cpp
     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
     lib/media/media.h
     # Matches the ESP builds, which compile it into every target
-    lib/media/imd/IMDImage.h lib/media/imd/IMDImage.ipp lib/media/imd/IMDImage.cpp
+    lib/media/imd/IMDImage.h lib/media/imd/IMDImage.cpp
     lib/media/IMDFnio.h
     lib/encoding/base64.h lib/encoding/base64.cpp
     lib/encoding/hash.h lib/encoding/hash.cpp
