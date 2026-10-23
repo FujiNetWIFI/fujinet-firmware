@@ -27,9 +27,18 @@ FileSystemSMB::~FileSystemSMB()
     {
         _dircache.clear();
         smb2_disconnect_share(_smb);
-        smb2_destroy_url(_url);
-        smb2_destroy_context(_smb);
     }
+    _release();
+}
+
+void FileSystemSMB::_release()
+{
+    if (_url != nullptr)
+        smb2_destroy_url(_url);
+    if (_smb != nullptr)
+        smb2_destroy_context(_smb);
+    _url = nullptr;
+    _smb = nullptr;
 }
 
 success_is_true FileSystemSMB::start(const char *url, const char *user, const char *password)
@@ -53,6 +62,7 @@ success_is_true FileSystemSMB::start(const char *url, const char *user, const ch
     if (_url == nullptr) 
     {
         Debug_printf("FileSystemSMB::start() - failed to parse URL \"%s\", SMB2 error: %s\n", url, smb2_get_error(_smb));
+        _release();
         RETURN_ERROR_AS_FALSE();
     }
 
@@ -72,6 +82,7 @@ success_is_true FileSystemSMB::start(const char *url, const char *user, const ch
 	if (smb_error != 0) 
     {
         Debug_printf("FileSystemSMB::start() - failed to connect share \"//%s/%s\", SMB2 error: %s\n", _url->server, _url->share, smb2_get_error(_smb));
+        _release();
         RETURN_ERROR_AS_FALSE();
 	}
 
@@ -267,7 +278,6 @@ fsdir_entry *FileSystemSMB::dir_read()
 
 void FileSystemSMB::dir_close()
 {
-    // _dircache.clear();
 }
 
 uint16_t FileSystemSMB::dir_tell()

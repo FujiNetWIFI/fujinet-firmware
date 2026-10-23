@@ -4,6 +4,7 @@
 #include <string>
 
 #include "SMB.h"
+#include "fnFsSMB.h"
 #include "samlib.h"
 #include "fnTcpClient.h"
 #include "compat_inet.h"
@@ -13,6 +14,9 @@ FakePeer fake_peer;
 
 // utils.cpp's speech helper is never called here; the stub keeps SAM out of the link.
 int sam(int argc, char **argv) { return 0; }
+
+// libsmb2 leaks its wait state on a failed connect (#2154)
+extern "C" const char *__lsan_default_suppressions() { return "leak:smb2_connect_share\n"; }
 
 namespace
 {
@@ -61,4 +65,21 @@ TEST_CASE("mkdir and rmdir fail when the server can't be reached")
     PeoplesUrlParser url(where);
     CHECK(smb.proto.mkdir(&url) != FUJI_ERROR::NONE);
     CHECK(smb.proto.rmdir(&url) != FUJI_ERROR::NONE);
+}
+
+// #2135: a failed start() leaked its context; only LeakSanitizer (Linux) sees it
+TEST_CASE("FileSystemSMB frees what a failed start() made")
+{
+    SUBCASE("a URL that isn't smb://")
+    {
+        FileSystemSMB host;
+        CHECK(host.start("ftp://127.0.0.1/share").is_error());
+    }
+
+    SUBCASE("a server that can't be reached")
+    {
+        FileSystemSMB host;
+        std::string where = "smb://127.0.0.1:" + std::to_string(closed_port()) + "/share";
+        CHECK(host.start(where.c_str()).is_error());
+    }
 }
