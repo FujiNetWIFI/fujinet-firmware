@@ -108,7 +108,7 @@ uint32 _HardwareIn(const uint32 Port) {
         return 0;
 }
 
-/* filesystem (disk) abstraction fuctions */
+/* filesystem (disk) abstraction functions */
 /*===============================================================================*/
 FILE *rootdir;
 FILE *userdir;
@@ -206,7 +206,7 @@ bool _sys_extendfile(char *fn, unsigned long fpos)
 
         ssize_t origSize = fnSDFAT.filesize(full_path(fn));
 
-        // This was patterned after the arduino abstraction, and I do not like how this works.
+        // This was patterned after the Arduino abstraction, and I do not like how this works.
 
         if (fpos > origSize)
         {
@@ -700,4 +700,4 @@ uint8_t bios_tcpDrop(void)
         return true;
 }
 
-#endif /* ABSTRACTION_FUJINET_H */
+#endif /* ABSTRACTION_FUJINET_APPLE2_H */

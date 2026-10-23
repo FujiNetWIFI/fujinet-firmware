@@ -141,7 +141,7 @@ void cx16Fuji::net_get_ssid()
     memset(&cfg, 0, sizeof(cfg));
 
     /*
-     We memcpy instead of strcpy because technically the SSID and phasephras aren't strings and aren't null terminated,
+     We memcpy instead of strcpy because technically the SSID and passphrase aren't strings and aren't null terminated,
      they're arrays of bytes officially and can contain any byte value - including a zero - at any point in the array.
      However, we're not consistent about how we treat this in the different parts of the code.
     */
@@ -233,12 +233,6 @@ void cx16Fuji::mount_host()
 // Disk Image Mount
 void cx16Fuji::disk_image_mount()
 {
-    // TAPE or CASSETTE handling: this function can also mount CAS and WAV files
-    // to the C: device. Everything stays the same here and the mounting
-    // where all the magic happens is done in the sioDisk::mount() function.
-    // This function opens the file, so cassette does not need to open the file.
-    // Cassette needs the file pointer and file size.
-
     Debug_println("Fuji cmd: MOUNT IMAGE");
 
     uint8_t deviceSlot = cmdFrame.aux1;
@@ -249,7 +243,7 @@ void cx16Fuji::disk_image_mount()
     if (options == DISK_ACCESS_MODE_WRITE)
         flag[1] = '+';
 
-    // Make sure we weren't given a bad hostSlot
+    // Make sure we weren't given a bad device or host slot
     if (!_validate_device_slot(deviceSlot))
     {
         cx16_error();
@@ -299,7 +293,7 @@ void cx16Fuji::set_boot_config()
     cx16_complete();
 }
 
-// Do SIO copy
+// Copy a file between hosts
 void cx16Fuji::copy_file()
 {
     uint8_t csBuf[256];
@@ -492,7 +486,7 @@ char *_generate_appkey_filename(appkey *info)
  for the subsequent expected read/write command. We could've added this information as part
  of the payload in a WRITE_APPKEY command, but there was no way to do this for READ_APPKEY.
  Requiring a separate OPEN command makes both the read and write commands behave similarly
- and leaves the possibity for a more robust/general file read/write function later.
+ and leaves the possibility for a more robust/general file read/write function later.
 */
 void cx16Fuji::open_app_key()
 {
@@ -688,7 +682,7 @@ void cx16Fuji::disk_image_umount()
 
 // Disk Image Rotate
 /*
-  We rotate disks my changing their disk device ID's. That prevents
+  We rotate disks by changing their disk device IDs. That prevents
   us from having to unmount and re-mount devices.
 */
 void cx16Fuji::image_rotate()
@@ -717,7 +711,6 @@ void cx16Fuji::image_rotate()
         // The first slot gets the device ID of the last slot
         _sio_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
 
-        // Say whatever disk is in D1:
         if (Config.get_general_rotation_sounds())
         {
             for (int i = 0; i <= count; i++)
@@ -950,7 +943,7 @@ void cx16Fuji::new_disk()
         unsigned short sectorSize;
         unsigned char hostSlot;
         unsigned char deviceSlot;
-        char filename[MAX_FILENAME_LEN]; // WIll set this to MAX_FILENAME_LEN, later.
+        char filename[MAX_FILENAME_LEN];
     } newDisk;
 
     // Ask for details on the new disk to create
@@ -1124,7 +1117,7 @@ void cx16Fuji::read_device_slots()
             else
             {
                 // Just use the basename of the image, no path. The full path+filename is
-                // usually too long for the Atari to show anyway, so the image name is more important.
+                // usually too long for the computer to show anyway, so the image name is more important.
                 // Note: Basename can modify the input, so use a copy of the filename
                 filename = strdup(_fnDisks[i].filename);
                 strlcpy ( diskSlots[i].filename, basename(filename), MAX_DISPLAY_FILENAME_LEN );
@@ -1314,7 +1307,7 @@ void cx16Fuji::enable_netstream()
 {
 }
 
-// Initializes base settings and adds our devices to the SIO bus
+// Initializes base settings
 void cx16Fuji::setup(systemBus *siobus)
 {
     // set up Fuji device

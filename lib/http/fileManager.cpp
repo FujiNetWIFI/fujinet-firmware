@@ -555,7 +555,7 @@ std::string FileManager::render_page(const std::string &dir, const std::string &
         return page;
     }
 
-    // Breadcrumbs: "/" followed by one link per path component
+    // Breadcrumbs: an "SD" root link followed by one link per path component
     page += "<div class=\"fmcrumbs\"><a href=\"/files?path=%2F\">SD</a>";
     {
         std::string walk;

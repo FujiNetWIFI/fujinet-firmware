@@ -231,7 +231,7 @@ void SystemManager::set_pin_mode(uint8_t pin, gpio_mode_t mode, pull_updown_t pu
 }
 #endif
 
-// from esp32-hal-misc.
+// from esp32-hal-misc.c
 // Set DIGI_LOW or DIGI_HIGH
 void IRAM_ATTR SystemManager::digital_write(uint8_t pin, uint8_t val)
 {
@@ -242,7 +242,7 @@ void IRAM_ATTR SystemManager::digital_write(uint8_t pin, uint8_t val)
 #endif
 }
 
-// from esp32-hal-misc.
+// from esp32-hal-misc.c
 // Returns DIGI_LOW or DIGI_HIGH
 int IRAM_ATTR SystemManager::digital_read(uint8_t pin)
 {
@@ -272,7 +272,7 @@ unsigned long IRAM_ATTR SystemManager::millis()
     return (unsigned long)(esp_timer_get_time() / 1000ULL);
 }
 
-// from esp32-hal-misc.
+// from esp32-hal-misc.c
 void SystemManager::delay(uint32_t ms)
 {
     vTaskDelay(ms / portTICK_PERIOD_MS);
@@ -313,7 +313,7 @@ void SystemManager::delay(uint32_t ms)
 #endif
 
 #ifdef ESP_PLATFORM
-// from esp32-hal-misc.
+// from esp32-hal-misc.c
 void IRAM_ATTR SystemManager::delay_microseconds(uint32_t us)
 {
     uint32_t start = (uint32_t)esp_timer_get_time();
@@ -385,7 +385,7 @@ void SystemManager::delay_microseconds(uint32_t us)
 
 
 #ifdef ESP_PLATFORM
-// from esp32-hal-misc.
+// from esp32-hal-misc.c
 void SystemManager::yield()
 {
     vPortYield();
@@ -1125,7 +1125,7 @@ void SystemManager::check_hardware_ver()
         a2hasbuffer = true;
         a2no3state = true;
         safe_reset_gpio = GPIO_NUM_4; /* Change Safe Reset GPIO for Rev 1 */
-        /* Enabled the buffer */
+        /* Enable the buffer */
         fnSystem.set_pin_mode(GPIO_NUM_25, gpio_mode_t::GPIO_MODE_OUTPUT, SystemManager::pull_updown_t::PULL_NONE);
         fnSystem.digital_write(GPIO_NUM_25, DIGI_HIGH);
         _hardware_version = 3;

@@ -98,7 +98,6 @@ size_t IRAM_ATTR t2k_encode_cb(const void *data, size_t data_size,
 
 #define CASSETTE_FILE "/csave" // basic program
 
-// copied from fuUART.cpp - figure out better way
 #define UART2_RX 33
 #define ESP_INTR_FLAG_DEFAULT 0
 #define BOXLEN 5
@@ -121,7 +120,7 @@ static void IRAM_ATTR cas_isr_handler(void *arg)
         delta = 0; // accumulator for boxcar filter
         for (uint8_t i = 0; i < BOXLEN; i++)
         {
-            delta += boxcar[i]; // accumulate internvals for averaging
+            delta += boxcar[i]; // accumulate intervals for averaging
         }
         delta /= BOXLEN; // normalize accumulator to make mean
         last = now; // remember when this was (maybe move up to right before if statement?)
@@ -271,11 +270,11 @@ void sioCassette::mount_cassette_file(fnFile *f, size_t fz)
     else
     {
         // CONFIG does not mount a CAS file for writing - only read only.
-        // disk mount (mediatype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type))
+        // disk mount (mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize, disk_access_flags_t access_mode, mediatype_t disk_type))
         // mounts a CAS file by calling this function.
         // There is no facility to specify an output file for writing to C: or CSAVE
         // so instead of using the file mounted in slot 8 by CONFIG, create an output file with some serial number
-        // files are created with the cassette is enabled.
+        // files are created when the cassette is enabled.
 
     }
 
@@ -315,7 +314,7 @@ void sioCassette::sio_enable_cassette()
                 Debug_println("error attaching cassette data reading interrupt");
                 return;
             }
-        // TODO: do i need to unhook isr handler when cassette is disabled?
+        // TODO: do I need to unhook the ISR handler when the cassette is disabled?
 
         Debug_println("stopped hardware UART");
 #ifdef DEBUG
@@ -461,7 +460,6 @@ void sioCassette::set_pulldown(bool resistor)
 
 void sioCassette::Clear_atari_sector_buffer(uint16_t len)
 {
-    //Maze atari_sector_buffer
     unsigned char *ptr;
     ptr = atari_sector_buffer;
     do
@@ -691,7 +689,6 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
         _record_ms = cas_data_record_ms(gap, len, baud); // fsk sets _record_ms itself, below, from the played run
     Debug_printf("Baud: %u Length: %u Gap: %u ", baud, len, gap);
 
-    // TO DO : turn on LED
     fnLedManager.set(eLed::LED_BUS, true);
     while (gap)
     {
@@ -1048,7 +1045,7 @@ void sioCassette::qros_pilot_on()
     // Flush pending UART output before detaching
     SYSTEM_BUS.flushOutput();
 
-    // Detach UART2 TX from GPIO — same pattern as T2K init_rmt
+    // Detach UART2 TX from GPIO — same pattern as turbo2000_init_rmt()
     esp_rom_gpio_connect_out_signal(PIN_UART2_TX, SIG_GPIO_OUT_IDX, false, false);
 
     // Set GPIO HIGH = pilot tone (sustained mark level on SIO DATA IN)
@@ -1064,7 +1061,7 @@ void sioCassette::qros_pilot_off()
     if (!_qros_pilot_active)
         return;
 
-    // Reattach UART2 TX to GPIO — same pattern as T2K deinit_rmt
+    // Reattach UART2 TX to GPIO — same pattern as turbo2000_deinit_rmt()
     esp_rom_gpio_connect_out_signal(PIN_UART2_TX,
         uart_periph_signal[2].pins[SOC_UART_TX_PIN_IDX].signal, false, false);
 
@@ -1082,7 +1079,7 @@ size_t sioCassette::send_QROS_tape_block(size_t offset)
     uint8_t *p = hdr->chunk_type;
     bool is_turbo = (baud > 3000);
 
-    // Send embedded boot loader on first call (if CAS has no own 600 Bd boot)
+    // Send embedded boot loader on first call (if the CAS has no 600 baud boot of its own)
     if (!qros_boot_sent)
     {
         send_QROS_boot_loader();
@@ -1265,8 +1262,7 @@ void sioCassette::mount_turbo_loader()
     }
 
     // Mount on free slot as XEX (PicoBoot + AUTORUN)
-    // Use mount_disk_media() instead of mount() to avoid recursive call —
-    // we are already inside sioDisk::mount() which routed CAS here.
+    // mount_disk_media(), not mount(): this can run inside sioDisk::mount(), which routed the CAS here.
     DISK_DEVICE *disk = theFuji->get_disk_dev(slot);
     disk->mount_disk_media(f, xex_path, fsize, MEDIATYPE_XEX);
 
@@ -1410,7 +1406,7 @@ void sioCassette::turbo2000_send_pulses(uint16_t half_period_us, int count)
     tx_cfg.flags.queue_nonblocking = false;
 
     // Send in batches of up to 64 symbols.
-    // With queue_depth=2, rmt_transmit blocks when queue is full,
+    // With queue_depth=4, rmt_transmit blocks when queue is full,
     // providing natural backpressure with gapless output.
     // Copy encoder copies data to RMT memory before returning,
     // so reusing the same buffer is safe.
@@ -1506,7 +1502,7 @@ void sioCassette::turbo2000_send_bytes(const uint8_t *data, size_t length)
 
     // Build symbols for multiple bytes at once.
     // Max batch = 64 symbols = 8 bytes (RMT memory block size).
-    // With queue_depth=2, rmt_transmit blocks when queue is full,
+    // With queue_depth=4, rmt_transmit blocks when queue is full,
     // so the next batch is queued while the current one is still
     // transmitting — gapless output with no explicit wait needed.
     rmt_symbol_word_t items[64];
@@ -1660,7 +1656,6 @@ size_t sioCassette::send_turbo2000_tape_block(size_t offset)
             // After silence, wait for motor ON. The T2K loader shows the
             // program name and waits for the user to press a key before
             // requesting the data block (motor OFF during this wait).
-            // Use a long timeout — user may take a while to press a key.
             if (has_pulldown() && !motor_line())
             {
                 Debug_println("T2K pwmc: waiting for motor ON (user key press)");
@@ -1669,7 +1664,7 @@ size_t sioCassette::send_turbo2000_tape_block(size_t offset)
                     fnSystem.delay(10);
                     // No timeout — wait indefinitely for user to press key.
                     // The cassette service loop won't be called during motor OFF
-                    // because we haven't returned. Check BREAK via RESET only.
+                    // because we haven't returned.
                 }
                 Debug_println("T2K pwmc: motor back ON, continuing");
             }

@@ -38,7 +38,7 @@ fujiError_t NetworkProtocolSD::open_file_handle()
     // return error if SD is not mounted
     if (check_fs() != FUJI_ERROR::NONE) return FUJI_ERROR::UNSPECIFIED;
 
-    // Map aux1 to mode
+    // Map streamMode to an fopen() mode
     switch (streamMode)
     {
     case ACCESS_MODE::READ:

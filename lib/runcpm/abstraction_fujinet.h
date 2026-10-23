@@ -104,7 +104,7 @@ bool _RamLoad(char *fn, uint16_t address)
     return (result);
 }
 
-/* filesystem (disk) abstraction fuctions */
+/* filesystem (disk) abstraction functions */
 /*===============================================================================*/
 FILE *rootdir;
 FILE *userdir;
@@ -202,7 +202,7 @@ bool _sys_extendfile(char *fn, unsigned long fpos)
 
     ssize_t origSize = fnSDFAT.filesize(full_path(fn));
 
-    // This was patterned after the arduino abstraction, and I do not like how this works.
+    // This was patterned after the Arduino abstraction, and I do not like how this works.
 
     if (fpos > origSize)
     {

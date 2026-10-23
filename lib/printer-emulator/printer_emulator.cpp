@@ -6,7 +6,6 @@
 
 #define PRINTER_OUTFILE "/paper"
 
-// initialzie printer by creating an output file
 void printer_emu::initPrinter(FileSystem *fs)
 {
     _FS = fs;
@@ -75,8 +74,8 @@ bool printer_emu::process(uint8_t linelen, uint8_t aux1, uint8_t aux2)
     }
 
     // Open output file for appending
-    _file = _FS->file_open(PRINTER_OUTFILE, "rb+"); // This is supposed to open the file for writing at the end, but reading at the beginnig
-    fseek(_file, 0, SEEK_END); // Make sure we're at the end of the file for reading in case the emaulator code expects that
+    _file = _FS->file_open(PRINTER_OUTFILE, "rb+"); // "rb+", not append mode, so seeks work
+    fseek(_file, 0, SEEK_END); // Make sure we're at the end of the file in case the emulator code expects that
 
     bool result = process_buffer(linelen, aux1, aux2);
 

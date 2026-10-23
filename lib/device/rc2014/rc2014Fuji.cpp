@@ -239,7 +239,7 @@ void rc2014Fuji::rc2014_set_boot_config()
     rc2014_send_complete();
 }
 
-// Do SIO copy
+// Copy a file between hosts
 void rc2014Fuji::rc2014_copy_file()
 {
 }
@@ -249,21 +249,10 @@ void rc2014Fuji::rc2014_set_boot_mode()
 {
 }
 
-/*
- Opens an "app key".  This just sets the needed app key parameters (creator, app, key, mode)
- for the subsequent expected read/write command. We could've added this information as part
- of the payload in a WRITE_APPKEY command, but there was no way to do this for READ_APPKEY.
- Requiring a separate OPEN command makes both the read and write commands behave similarly
- and leaves the possibity for a more robust/general file read/write function later.
-*/
 void rc2014Fuji::rc2014_open_app_key()
 {
 }
 
-/*
-  The app key close operation is a placeholder in case we want to provide more robust file
-  read/write operations. Currently, the file is closed immediately after the read or write operation.
-*/
 void rc2014Fuji::rc2014_close_app_key()
 {
 }
@@ -303,7 +292,7 @@ void rc2014Fuji::rc2014_disk_image_umount()
 
 // Disk Image Rotate
 /*
-  We rotate disks my changing their disk device ID's. That prevents
+  We rotate disks by changing their disk device IDs. That prevents
   us from having to unmount and re-mount devices.
 */
 void rc2014Fuji::image_rotate()

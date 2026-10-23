@@ -210,7 +210,7 @@ bool fujiHost::file_exists(const char *path)
     if (_type == HOSTTYPE_UNINITIALIZED || _fs == nullptr)
         return false;
 
-    // Add our prefix before opening
+    // Add our prefix
     char realpath[MAX_PATHLEN];
     if( false == util_concat_paths(realpath, _prefix, path, sizeof(realpath)) )
         return false;
@@ -257,9 +257,7 @@ fnFile * fujiHost::fnfile_open(const char *path, char *fullpath, int fullpathlen
     return _fs->fnfile_open(fullpath, mode);
 }
 
-/* Remove a file from the host
- * Returns true on error, false on success
-*/
+/* Remove a file from the host */
 error_is_true fujiHost::file_remove(char *fullpath)
 {
     if (_type == HOSTTYPE_UNINITIALIZED || _fs == nullptr)
@@ -574,8 +572,7 @@ int fujiHost::unmount_fs()
     return 0;
 }
 
-/* Returns true if successful
-*  We expect a valid devicename, currently:
+/* We expect a valid devicename, currently:
 *  "SD" = local
 *  "smb://" = SMB share
 *  "nfs://" = NFS export
@@ -612,8 +609,6 @@ success_is_true fujiHost::mount()
     RETURN_SUCCESS_IF(0 == mount_tnfs());
 }
 
-/* Returns true if successful
-*/
 success_is_true fujiHost::unmount_success()
 {
     Debug_printf("::unmount {%d} \"%s\"\n", slotid+1, _hostname);

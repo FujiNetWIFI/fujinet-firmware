@@ -162,7 +162,7 @@ void fnHttpService::set_file_content_type(httpd_req_t *req, const char *filepath
     }
 }
 
-/* Sends header.html or footer.html from SPIFFS. 0 for header, 1 for footer */
+/* Sends header.html or footer.html from flash. 0 for header, 1 for footer */
 void fnHttpService::send_header_footer(httpd_req_t *req, int headfoot)
 {
     // Build the full file path
@@ -395,7 +395,7 @@ esp_err_t fnHttpService::get_handler_test(httpd_req_t *req)
     Debug_printf("Test request handler %p\n", task);
 #endif
 
-    // Send the file content out in chunks
+    // Send 2000 test lines in chunks
     char testln[100];
     for (int i = 0; i < 2000; i++)
     {
@@ -421,7 +421,7 @@ esp_err_t fnHttpService::get_handler_file_in_query(httpd_req_t *req)
 
 esp_err_t fnHttpService::get_handler_file_in_path(httpd_req_t *req)
 {
-    // Get the file to send from the query
+    // Get the file to send from the path
     queryparts qp;
     parse_query(req, &qp);
     send_file(req, qp.path.c_str());
@@ -449,7 +449,6 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
         send_file(req, "error_page.html");
         return ESP_OK;
     }
-    // Get printer emulator pointer from sioP (which is now extern)
     printer_emu *currentPrinter = printer->getPrinterPtr();
 
     if (currentPrinter == nullptr)
@@ -516,7 +515,7 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     char hdrval1[60];
     if (sendAsAttachment)
     {
-        // Add a couple of attchment-specific details
+        // Add a couple of attachment-specific details
         snprintf(hdrval1, sizeof(hdrval1), "attachment; filename=\"%s\"", filename.c_str());
         httpd_resp_set_hdr(req, "Content-Disposition", hdrval1);
     }
@@ -1717,15 +1716,7 @@ esp_err_t fnHttpService::post_handler_clipboard_restore(httpd_req_t *req)
 
 // ─── Google Drive OAuth2 relay-based authorization-code-flow handlers ────────
 //
-// The FujiNet project registers ONE Google OAuth2 "Desktop application" client.
-// Its client_id is public and baked in here.  PKCE (RFC 7636) is used so no
-// client_secret is ever needed on the device.
-//
-// Every FujiNet user registers the same relay redirect URI in their copy of
-// the shared OAuth client:
-//   https://auth.fujinet.online/gdrive-callback
-//
-// FujiNet project's Web application OAuth2 client ID.
+// The FujiNet project's one Google OAuth2 client; its client_id is public.
 // The client_secret lives on the relay server — never in firmware.
 #define GDRIVE_CLIENT_ID          "197927610161-me037pnh65lh9g8cad6fg62ifni9fik0.apps.googleusercontent.com"
 #define GDRIVE_RELAY_REDIRECT_URI "https://auth.fujinet.online/gdrive-callback"
@@ -1821,8 +1812,8 @@ static std::string gdrive_pct_encode(const std::string &s) { return s; }
  *
  * Generates a CSRF state token, stores it, and returns JSON with the full
  * Google authorization URL pointing to the shared FujiNet relay redirect URI.
- * The browser opens that URL in a new tab; FujiNet polls /gdrive-poll until
- * the relay delivers the authorization code.
+ * The browser opens that URL in a new tab, then polls /gdrive-poll until
+ * the relay has the tokens.
  *
  *   { "auth_url": "https://accounts.google.com/o/oauth2/auth?...", "state": "XXXXXXXX" }
  */
@@ -1858,9 +1849,8 @@ esp_err_t fnHttpService::get_handler_gdrive_auth(httpd_req_t *req)
  * GET /gdrive-poll?state=STATE
  *
  * Called by the web UI JS every few seconds while the user is approving
- * access on Google's consent page.  Queries the FujiNet relay service for
- * the authorization code keyed by STATE.  If found, exchanges it for tokens
- * directly with Google and stores them.
+ * access on Google's consent page.  Asks the FujiNet relay for the tokens
+ * keyed by STATE (the relay exchanges the code with Google) and stores them.
  *
  * Response JSON:
  *   { "status": "pending"    }  — relay hasn't received the code yet
@@ -2154,7 +2144,7 @@ esp_err_t fnHttpService::api_handler(httpd_req_t *req)
 
 
 /* We're pointing global_ctx to a member of our fnHttpService object,
- *  so we don't want the libarary freeing it for us. It'll be freed when
+ *  so we don't want the library freeing it for us. It'll be freed when
  *  our fnHttpService object is freed.
  */
 void fnHttpService::custom_global_ctx_free(void *ctx)

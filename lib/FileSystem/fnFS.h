@@ -75,7 +75,7 @@ protected:
 public:
     virtual ~FileSystem() {};
 
-    // The global (fnSDFAT and fsFlash) will return true so we can check before attempting to free/delete
+    // The globals (fnSDFAT and fsFlash) will return true so we can check before attempting to free/delete
     virtual bool is_global() { return false; };
 
     virtual bool running() { return _started; };
@@ -121,7 +121,7 @@ public:
     virtual void dir_close() = 0;
     // Returns current position in directory stream or FNFS_INVALID_DIRPOS on error
     virtual uint16_t dir_tell() = 0;
-    // Sets current position in directory stream. Returns false on error.
+    // Sets current position in directory stream.
     virtual success_is_true dir_seek(uint16_t position) = 0;
 };
 

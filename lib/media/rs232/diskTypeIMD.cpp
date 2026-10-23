@@ -142,7 +142,6 @@ void MediaTypeIMD::unmount()
     MediaType::unmount();
 }
 
-// Returns TRUE if an error condition occurred
 error_is_true MediaTypeIMD::read(uint32_t sectornum, uint32_t *readcount)
 {
     // No _disk_last_sector bookkeeping: that only exists to skip an fseek for
@@ -187,7 +186,6 @@ error_is_true MediaTypeIMD::read(uint32_t sectornum, uint32_t *readcount)
     RETURN_SUCCESS_AS_FALSE();
 }
 
-// Returns TRUE if an error condition occurred
 error_is_true MediaTypeIMD::write(uint32_t sectornum, bool verify)
 {
     // `verify` is ignored, as it is by every other media type here.
@@ -230,7 +228,6 @@ error_is_true MediaTypeIMD::write(uint32_t sectornum, bool verify)
     RETURN_SUCCESS_AS_FALSE();
 }
 
-// Returns TRUE if an error condition occurred
 error_is_true MediaTypeIMD::format(uint32_t *responsesize)
 {
     // IMD records are variable length and written in place, so there is no
