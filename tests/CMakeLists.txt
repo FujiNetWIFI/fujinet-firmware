@@ -914,8 +914,8 @@ endif()
 add_test(NAME fs_protocol_tests COMMAND fs_protocol_tests)
 
 # ------------------------------------------------------------------------------
-# The N: SMB protocol (lib/network-protocol/SMB.cpp) against a URL with no
-# share and an unreachable server.
+# The N: SMB protocol (lib/network-protocol/SMB.cpp) and FileSystemSMB
+# (lib/FileSystem/fnFsSMB.cpp) against bad URLs and an unreachable server.
 # ------------------------------------------------------------------------------
 add_executable(smb_protocol_tests
     SMBProtocolTests.cpp
@@ -923,6 +923,11 @@ add_executable(smb_protocol_tests
     ${CMAKE_SOURCE_DIR}/lib/network-protocol/FS.cpp
     ${CMAKE_SOURCE_DIR}/lib/network-protocol/Protocol.cpp
     ${CMAKE_SOURCE_DIR}/lib/network-protocol/TCP.cpp      # Protocol.cpp casts to it
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSMB.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFileSMB.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFile.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
     ${CMAKE_SOURCE_DIR}/lib/utils/peoples_url_parser.cpp
     ${CMAKE_SOURCE_DIR}/lib/utils/string_utils.cpp
     ${CMAKE_SOURCE_DIR}/lib/utils/utils.cpp
@@ -941,6 +946,7 @@ endif()
 target_include_directories(smb_protocol_tests BEFORE PRIVATE
     ${CMAKE_SOURCE_DIR}/tests/tcp_harness/    # first: replaces fnTcpClient.h, fnTcpServer.h, bus.h
     ${CMAKE_SOURCE_DIR}/lib/network-protocol/
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/
     ${CMAKE_SOURCE_DIR}/lib/device/fujiDevice/
     ${CMAKE_SOURCE_DIR}/lib/utils/
     ${CMAKE_SOURCE_DIR}/lib/sam/
@@ -952,6 +958,11 @@ target_include_directories(smb_protocol_tests BEFORE PRIVATE
 )
 target_compile_definitions(smb_protocol_tests PRIVATE UNIT_TESTS)
 target_link_libraries(smb_protocol_tests PRIVATE smb2 ${CRYPTO_LIBS})
+# LeakSanitizer, for the FileSystemSMB leak test
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_compile_options(smb_protocol_tests PRIVATE -fsanitize=address)
+  target_link_options(smb_protocol_tests PRIVATE -fsanitize=address)
+endif()
 if(WIN32)
   target_link_libraries(smb_protocol_tests PRIVATE ws2_32 bcrypt)
 endif()

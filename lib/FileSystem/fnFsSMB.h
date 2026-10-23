@@ -19,6 +19,8 @@ private:
     char _last_dir[MAX_PATHLEN];
     DirCache _dircache;
 
+    void _release();
+
 public:
     FileSystemSMB();
     ~FileSystemSMB();
