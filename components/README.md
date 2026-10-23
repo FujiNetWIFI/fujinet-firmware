@@ -12,7 +12,7 @@ every ESP32 target.
 | `gumbo` | Gumbo HTML5 parser, the Codeberg fork of google/gumbo-parser | Apache-2.0 | backend of `gumbo-query` | used |
 | `gumbo-query` | CSS selectors over Gumbo, patched to build without exceptions and to allocate in PSRAM | MIT | `lib/fnhtml` | used |
 | `libnfs` | libnfs with an `esp32` compatibility layer | LGPL-2.1 | `lib/FileSystem/fnFsNFS.cpp` | used |
-| `libsmb2` | libsmb2 3.0.1 | LGPL-2.1 | `lib/FileSystem/fnFsSMB.cpp` | used |
+| `libsmb2` | libsmb2 3.0.1, with upstream's fixes for the `smb2_parse_url()` and `smb2_connect_share()` leaks | LGPL-2.1 | `lib/FileSystem/fnFsSMB.cpp`, `lib/network-protocol/SMB.cpp` | used |
 | `libssh` | libssh 0.11.3, pared down to the mbedTLS backend with local `libssh/stubs.h` and `libssh/config.h` | LGPL-2.1 | `lib/network-protocol/SSH.h`, `lib/network-protocol/SSHCopyId.cpp` | used |
 | `lz4` | LZ4 1.10.0 | BSD-2-Clause | `lib/device/comlynx/disk.cpp` | used |
 | `mdns` | Espressif mDNS 1.8.2 | Apache-2.0 | `lib/hardware/fnWiFi.cpp` | used |
