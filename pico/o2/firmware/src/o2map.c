@@ -6,12 +6,12 @@
 bool o2map_is_appbank(const uint8_t *image, uint32_t size)
 {
     const uint8_t *hdr, *claim;
-    unsigned n;
+    unsigned npages;
 
     if (size < O2_APP_FIXED_BYTES + 2u * O2_APP_PAGE_BYTES
         || (size - O2_APP_FIXED_BYTES) % O2_APP_PAGE_BYTES != 0)
         return false;
-    n = (size - O2_APP_FIXED_BYTES) / O2_APP_PAGE_BYTES;
+    npages = (size - O2_APP_FIXED_BYTES) / O2_APP_PAGE_BYTES;
 
     /* Page 0's console addresses $800-$FFF are file offsets 1024-3071. */
     hdr = image + O2_APP_FIXED_BYTES + (O2_APP_HDR - O2_APP_PAGE_BASE);
@@ -21,7 +21,7 @@ bool o2map_is_appbank(const uint8_t *image, uint32_t size)
      * padded image is refused rather than booted with pages missing. */
     return memcmp(hdr, O2_APP_HDR_SIG, 4) == 0
         && hdr[4] == O2_APP_VERSION
-        && hdr[5] == n
+        && hdr[5] == npages
         && memcmp(claim, FN_R_CLAIM_SIG, FN_R_CLAIM_LEN) == 0;
 }
 
@@ -38,13 +38,13 @@ o2map_err_t o2map_plan(const uint8_t *image, uint32_t size, o2map_plan_t *out)
      * that happens to match (9K is also three 3K banks) can be mistaken for
      * one, nor one for a legacy cart. */
     if (image != NULL && o2map_is_appbank(image, size)) {
-        unsigned n = (size - O2_APP_FIXED_BYTES) / O2_APP_PAGE_BYTES;
+        unsigned npages = (size - O2_APP_FIXED_BYTES) / O2_APP_PAGE_BYTES;
 
-        if (n > O2_APP_MAXPAGES)
+        if (npages > O2_APP_MAXPAGES)
             return O2MAP_ETOOBIG;
         out->size = size;
         out->appbank = true;
-        out->npages = n;
+        out->npages = npages;
         out->mailbox_ok = true;     /* the header requires the claim */
         return O2MAP_OK;
     }

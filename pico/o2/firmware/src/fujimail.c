@@ -213,11 +213,11 @@ static void run_transaction(uint8_t seq)
 
     fujimail_rxn = 0;
     if (st == FB_OK) {
-        unsigned n = reply.data_len > FUJIMAIL_RX_MAX ? FUJIMAIL_RX_MAX
-                                                      : reply.data_len;
+        unsigned copied = reply.data_len > FUJIMAIL_RX_MAX ? FUJIMAIL_RX_MAX
+                                                           : reply.data_len;
 
-        memcpy(fujimail_rx, reply.data, n);
-        fujimail_rxn = n;   /* after the copy: an APPBANK cart serves from here */
+        memcpy(fujimail_rx, reply.data, copied);
+        fujimail_rxn = copied;  /* after the copy: an APPBANK cart serves from here */
         reply_cmd = reply.command;
     }
 

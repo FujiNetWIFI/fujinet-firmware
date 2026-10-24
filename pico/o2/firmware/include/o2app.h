@@ -31,23 +31,23 @@ typedef struct {
     uint16_t win;            /* reply byte shown at FN_R_DATA                  */
 } o2app_t;
 
-static inline void o2app_select(o2app_t *a, unsigned n)
+static inline void o2app_select(o2app_t *app, unsigned page)
 {
-    if (n >= a->npages)
-        n = 0;              /* a page that is not there reads as the boot page */
-    a->pagenum = n;
-    a->pagebase = (uint32_t) O2_APP_FIXED_BYTES + (uint32_t) n * O2_APP_PAGE_BYTES
+    if (page >= app->npages)
+        page = 0;           /* a page that is not there reads as the boot page */
+    app->pagenum = page;
+    app->pagebase = (uint32_t) O2_APP_FIXED_BYTES + (uint32_t) page * O2_APP_PAGE_BYTES
                   - (uint32_t) O2_APP_PAGE_BASE;
 }
 
-static inline void o2app_init(o2app_t *a, uint8_t *image, unsigned npages)
+static inline void o2app_init(o2app_t *app, uint8_t *image, unsigned npages)
 {
-    a->image = image;
-    a->npages = npages;
-    a->regsel = 0;
-    a->poke = 0;
-    a->win = 0;
-    o2app_select(a, 0);
+    app->image = image;
+    app->npages = npages;
+    app->regsel = 0;
+    app->poke = 0;
+    app->win = 0;
+    o2app_select(app, 0);
 }
 
 /* One console write to the mailbox register file. Returns true when the write
@@ -55,34 +55,34 @@ static inline void o2app_init(o2app_t *a, uint8_t *image, unsigned npages)
  * POKE burst through the service's ring would overflow it, and none of these
  * registers mean anything to the service anyway. REGSEL is copied here and
  * still passed on, so both sides agree on what the next REGDATA is for. */
-static inline bool o2app_write(o2app_t *a, uint8_t addr, uint8_t data)
+static inline bool o2app_write(o2app_t *app, uint8_t addr, uint8_t data)
 {
     if (addr == FN_W_REGSEL) {
-        a->regsel = data;
+        app->regsel = data;
         return false;
     }
     if (addr != FN_W_REGDATA)
         return false;
 
-    switch (a->regsel) {
+    switch (app->regsel) {
     case FN_REG_CODEBANK:
-        o2app_select(a, data);
+        o2app_select(app, data);
         return true;
     case FN_REG_POKE_LO:
-        a->poke = (uint16_t)((a->poke & 0x300) | data);
+        app->poke = (uint16_t)((app->poke & 0x300) | data);
         return true;
     case FN_REG_POKE_HI:
-        a->poke = (uint16_t)(((data & 3u) << 8) | (a->poke & 0xFF));
+        app->poke = (uint16_t)(((data & 3u) << 8) | (app->poke & 0xFF));
         return true;
     case FN_REG_POKE:
-        a->image[a->poke] = data;
-        a->poke = (uint16_t)((a->poke + 1u) & (O2_APP_FIXED_BYTES - 1));
+        app->image[app->poke] = data;
+        app->poke = (uint16_t)((app->poke + 1u) & (O2_APP_FIXED_BYTES - 1));
         return true;
     case FN_REG_RXWIN:
-        a->win = (uint16_t)(data * O2_APP_RXWIN_UNIT);
+        app->win = (uint16_t)(data * O2_APP_RXWIN_UNIT);
         return true;
     case FN_REG_RXSLICE:
-        a->win = (uint16_t)(data * FN_R_SLICE_LEN);
+        app->win = (uint16_t)(data * FN_R_SLICE_LEN);
         return true;
     default:
         return false;
@@ -90,22 +90,22 @@ static inline bool o2app_write(o2app_t *a, uint8_t addr, uint8_t data)
 }
 
 /* One console fetch, $400-$FFF. `mbox` is the published mailbox page indexed by
- * console address ($F20-$F2F is all that is read from it); `rx`/`rxlen` the
+ * console address ($F20-$F2F is all that is read from it); `reply`/`rxlen` the
  * reply. */
-static inline uint8_t o2app_read(const o2app_t *a, unsigned addr,
+static inline uint8_t o2app_read(const o2app_t *app, unsigned addr,
                                  const uint8_t *mbox,
-                                 const uint8_t *rx, unsigned rxlen)
+                                 const uint8_t *reply, unsigned rxlen)
 {
-    unsigned i;
+    unsigned idx;
 
     if (addr < O2_APP_PAGE_BASE)
-        return a->image[addr & (O2_APP_FIXED_BYTES - 1)];
+        return app->image[addr & (O2_APP_FIXED_BYTES - 1)];
     if (addr < O2_APP_PAGE_END)
-        return a->image[a->pagebase + addr];
+        return app->image[app->pagebase + addr];
     if (addr < FN_R_DATA)
         return mbox[addr];
-    i = a->win + (addr - FN_R_DATA);
-    return (i < rxlen) ? rx[i] : 0;
+    idx = app->win + (addr - FN_R_DATA);
+    return (idx < rxlen) ? reply[idx] : 0;
 }
 
 #endif /* O2APP_H */

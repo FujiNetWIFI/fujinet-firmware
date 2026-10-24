@@ -46,30 +46,30 @@ static void c_stream_end(int stream, const uint8_t *data, unsigned len, bool abo
 	s_fujinet->stream_end(stream, data, len, aborted);
 }
 
-static void c_on_txn(const fujimail_txn_t *t)
+static void c_on_txn(const fujimail_txn_t *txn)
 {
 	char txt[40];
-	unsigned k, m = 0;
+	unsigned idx, len = 0;
 
-	for (k = 0; k < t->rxlen && m < sizeof txt - 1; k++)
+	for (idx = 0; idx < txn->rxlen && len < sizeof txt - 1; idx++)
 	{
-		uint8_t c = t->rx[k];
-		if (c == 0)
+		uint8_t chr = txn->rx[idx];
+		if (chr == 0)
 			break;
-		txt[m++] = (c >= 0x20 && c < 0x7f) ? char(c) : '.';
+		txt[len++] = (chr >= 0x20 && chr < 0x7f) ? char(chr) : '.';
 	}
-	txt[m] = '\0';
+	txt[len] = '\0';
 	fprintf(stderr,
 			"fujinet: dev=%02X cmd=%02X nparam=%u txlen=%u seq=%u"
 			" -> err=%d reply=%02X rxlen=%u%s%s%s\n",
-			t->device, t->command, t->nparam, t->txlen, t->seq,
-			t->status, t->reply_cmd, t->rxlen,
-			m ? " \"" : "", txt, m ? "\"" : "");
+			txn->device, txn->command, txn->nparam, txn->txlen, txn->seq,
+			txn->status, txn->reply_cmd, txn->rxlen,
+			len ? " \"" : "", txt, len ? "\"" : "");
 }
 
-static void c_on_dbc(fujimail_dbc_ev_t ev, int stream, uint32_t expect, unsigned got, bool aborted)
+static void c_on_dbc(fujimail_dbc_ev_t event, int stream, uint32_t expect, unsigned got, bool aborted)
 {
-	if (ev == FUJIMAIL_DBC_OPEN)
+	if (event == FUJIMAIL_DBC_OPEN)
 		fprintf(stderr, "fujinet: DBC open stream=%d size=%u\n", stream, expect);
 	else
 		fprintf(stderr, "fujinet: DBC close stream=%d got=%u%s\n",

@@ -77,9 +77,9 @@ index 9d36f46..242c7dd 100644
 +			 * is, and the top of the screen tears. Count from master_clk
 +			 * instead, which draw_region then shares. */
 +			static long cnt_line = 0;
-+			long ln = master_clk * 4 / 91;
-+			if (ln < cnt_line) cnt_line = ln;	/* a new frame */
-+			while (cnt_line < ln) {
++			long line = master_clk * 4 / 91;
++			if (line < cnt_line) cnt_line = line;	/* a new frame */
++			while (cnt_line < line) {
 +				cnt_line++;
 +				if (count_on && mstate == 0) {
 +					itimer++;
@@ -643,11 +643,11 @@ index ddd3c5a..c891b2f 100644
 +     * line, link or no link -- its header says what it is. */
 +    {
 +        static Byte img[FUJIMAIL_STAGE_MAX];
-+        int np;
++        int npages;
 +
 +        if (l <= (long) sizeof img && fread(img, (size_t) l, 1, fn) == 1
-+            && (np = fujinet_load_app(img, (unsigned) l)) > 0) {
-+            printf("APPBANK, %d pages  CRC: %08lX\n", np, app_data.crc);
++            && (npages = fujinet_load_app(img, (unsigned) l)) > 0) {
++            printf("APPBANK, %d pages  CRC: %08lX\n", npages, app_data.crc);
 +            rom = rom_table[0];
 +            app_data.bank = 1;
 +            fclose(fn);
