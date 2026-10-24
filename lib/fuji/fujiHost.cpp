@@ -252,9 +252,9 @@ fnFile * fujiHost::fnfile_open(const char *path, char *fullpath, int fullpathlen
         if(strlcpy(fullpath, realpath, fullpathlen) != strlen(realpath))
             return nullptr;
     }
-    Debug_printf("fujiHost #%d:%s opening file path \"%s\"\n", slotid, _hostname, fullpath);
+    Debug_printf("fujiHost #%d:%s opening file path \"%s\"\n", slotid, _hostname, realpath);
 
-    return _fs->fnfile_open(fullpath, mode);
+    return _fs->fnfile_open(realpath, mode);
 }
 
 /* Remove a file from the host */
