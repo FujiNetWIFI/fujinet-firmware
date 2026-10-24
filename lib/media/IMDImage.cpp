@@ -186,6 +186,48 @@ void IMDImage::close()
     _uniform_size = true;
 }
 
+IMDStatus IMDImage::probe()
+{
+    if (_file.file == nullptr)
+        return IMDStatus::IoError;
+    IMDStatus status = _probeHeader();
+    return _file.seek(0) ? status : IMDStatus::IoError;
+}
+
+IMDStatus IMDImage::_probeHeader()
+{
+    uint32_t size = _file.end();
+    uint32_t limit = std::min<uint32_t>(size, IMD_MAX_HEADER_SCAN);
+    uint8_t  buf[128];
+
+    for (uint32_t off = 0; off < limit;)
+    {
+        uint32_t chunk = std::min<uint32_t>(limit - off, sizeof(buf));
+        if (!_file.seek(off) || !_file.read(buf, chunk))
+            return IMDStatus::IoError;
+        if (off == 0 && (chunk < 4 || memcmp(buf, "IMD ", 4) != 0))
+            return IMDStatus::NotIMD;
+
+        for (uint32_t idx = 0; idx < chunk; idx++)
+        {
+            if (buf[idx] != IMD_EOF_MARKER)
+                continue;
+            uint8_t  header[5];
+            uint32_t track = off + idx + 1;
+            if (size - track < sizeof(header))
+                return IMDStatus::NotIMD;
+            if (!_file.seek(track) || !_file.read(header, sizeof(header)))
+                return IMDStatus::IoError;
+            bool valid = modeIsValid(header[0]) && (header[2] & IMD_HEAD_MASK) <= 1
+                         && header[3] != 0
+                         && (header[4] <= 6 || header[4] == IMD_SIZE_CODE_VARIABLE);
+            return valid ? IMDStatus::Ok : IMDStatus::NotIMD;
+        }
+        off += chunk;
+    }
+    return IMDStatus::NotIMD;
+}
+
 // Everything before IMD_EOF_MARKER is the signature and comment. The "IMD v.vv:" line
 // is optional (SIMH omits it), so only the terminator is required.
 IMDStatus IMDImage::_readComment(uint32_t &data_start)

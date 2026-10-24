@@ -370,6 +370,32 @@ TEST_CASE("discover_mediatype routes .imd to the adapter")
 }
 
 // The sectors mkfs.cpm -f ibm-3740 leaves, each as a full record
+TEST_CASE("discover_mediatype reads an unrecognized name")
+{
+    auto discover = [](const std::vector<uint8_t> &bytes, const char *name) {
+        fnFile *file = fopen(IMD_TEST_FILE, "w+b");
+        REQUIRE(file != nullptr);
+        REQUIRE(fwrite(bytes.data(), 1, bytes.size(), file) == bytes.size());
+        rewind(file); // as a freshly opened mount
+        mediatype_t type = MediaType::discover_mediatype(file, name, (uint32_t)bytes.size());
+        CHECK(ftell(file) == 0);
+        fclose(file);
+        remove(IMD_TEST_FILE);
+        return type;
+    };
+    std::vector<uint8_t> imd = two_by_two().out;
+    std::vector<uint8_t> raw(16 * 128, 0xE5);
+
+    CHECK(discover(imd, "DISK1") == MEDIATYPE_IMD);
+    CHECK(discover(imd, "cpm.xyz") == MEDIATYPE_IMD);
+    CHECK(discover(imd, "cpm.imd") == MEDIATYPE_IMD);
+    CHECK(discover(raw, "DISK1") == MEDIATYPE_UNKNOWN);
+
+    // Raw by name, so never read
+    CHECK(discover(imd, "cpm.img") == MEDIATYPE_UNKNOWN);
+    CHECK(discover(imd, "cpm.dsk") == MEDIATYPE_UNKNOWN);
+}
+
 TEST_CASE("create writes a blank IBM-3740 image")
 {
     fnFile *fp = fopen(IMD_TEST_FILE, "w+b");

@@ -98,6 +98,25 @@ mediatype_t MediaType::discover_mediatype(const char *filename, uint32_t disksiz
     return MEDIATYPE_UNKNOWN;
 }
 
+// .img and .dsk are raw sector images already, so only other names are worth a read
+static bool is_raw_extension(const char *filename)
+{
+    size_t len = strlen(filename);
+    return len > 4 && filename[len - 4] == '.'
+           && (strcasecmp(filename + len - 3, "IMG") == 0
+               || strcasecmp(filename + len - 3, "DSK") == 0);
+}
+
+mediatype_t MediaType::discover_mediatype(fnFile *f, const char *filename, uint32_t disksize)
+{
+    mediatype_t type = discover_mediatype(filename, disksize);
+    if (type != MEDIATYPE_UNKNOWN || f == nullptr || is_raw_extension(filename))
+        return type;
+    if (IMDImage(f).probe() == IMDStatus::Ok)
+        return MEDIATYPE_IMD;
+    return MEDIATYPE_UNKNOWN;
+}
+
 MediaType::~MediaType()
 {
     unmount();

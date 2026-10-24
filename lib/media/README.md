@@ -9,7 +9,7 @@ write sectors or blocks of one file format; it knows nothing about the bus (a ct
 | File | Defines |
 |---|---|
 | `media.h` | the `BUILD_*` switchboard that includes the active platform's media headers |
-| `IMDImage.h`, `IMDImage.cpp` | `IMDImage`, an ImageDisk reader, writer and builder that uses only the standard library, so a host tool can copy it. It takes a `std::fstream`, a `std::FILE` or any handle with `fnFile`'s methods, and an optional `std::pmr::memory_resource` for its tables. It is deliberately not a `MediaType`; a platform wraps it in an adapter (`rs232/diskTypeIMD.h`) |
+| `IMDImage.h`, `IMDImage.cpp` | `IMDImage`, an ImageDisk reader, writer and builder that uses only the standard library, so a host tool can copy it. It takes a `std::fstream`, a `std::FILE` or any handle with `fnFile`'s methods, and an optional `std::pmr::memory_resource` for its tables. `probe()` recognizes an image by its contents. It is deliberately not a `MediaType`; a platform wraps it in an adapter (`rs232/diskTypeIMD.h`) |
 
 ## Platforms
 

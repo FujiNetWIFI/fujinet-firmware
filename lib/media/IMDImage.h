@@ -120,6 +120,11 @@ public:
     IMDImage(const IMDImage &) = delete;
     IMDImage &operator=(const IMDImage &) = delete;
 
+    // Ok when the file starts with the "IMD " signature line and a valid first track
+    // header follows the comment; stricter than open(), which also takes images
+    // without the signature. Needs no open(), and leaves the file at offset 0.
+    IMDStatus probe();
+
     // Indexes the whole image
     IMDStatus open(bool writable);
     void   close();
@@ -243,6 +248,7 @@ private:
     bool   _readAt(uint32_t off, void *dst, uint32_t len);
     bool   _writeAt(uint32_t off, const void *src, uint32_t len);
     bool   _append(const void *src, uint32_t len);
+    IMDStatus _probeHeader();
 
     IMDStatus _readComment(uint32_t &data_start);
     bool   _tailIsPadding(uint32_t from);
