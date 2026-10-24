@@ -43,10 +43,10 @@ void MediaTypeIMD::_derive_geometry()
     _spt = 0;
     _mfm = false;
 
-    uint32_t tracks = _imd->track_count();
+    uint32_t tracks = _imd->trackCount();
     for (uint32_t idx = std::min<uint32_t>(1U, tracks - 1); idx < tracks; idx++)
     {
-        if (_imd->track_info(idx, info) != IMDStatus::Ok)
+        if (_imd->trackInfo(idx, info) != IMDStatus::Ok)
             continue;
         if (info.cyl > maxcyl)
             maxcyl = info.cyl;
@@ -54,7 +54,7 @@ void MediaTypeIMD::_derive_geometry()
             maxhead = info.head;
         if (info.nsec > _spt)
             _spt = info.nsec;
-        if (imd_mode_is_mfm(info.mode))
+        if (IMDImage::modeIsMFM(info.mode))
             _mfm = true;
     }
 
@@ -87,28 +87,28 @@ mediatype_t MediaTypeIMD::mount(fnFile *f, uint32_t disksize)
     _disk_fileh = f;
     _disk_image_size = disksize;
 
-    _imd.reset(new (std::nothrow) Image(f));
+    _imd.reset(new (std::nothrow) IMDImage(f, &_psram));
     if (!_imd)
         return MEDIATYPE_UNKNOWN;
 
     IMDStatus status = _imd->open(_writable);
     if (status != IMDStatus::Ok)
     {
-        Debug_printf("IMD MOUNT failed: %s\r\n", imd_status_str(status));
+        Debug_printf("IMD MOUNT failed: %s\r\n", IMDImage::statusString(status));
         return MEDIATYPE_UNKNOWN;
     }
 
     // rs232_write() reads sector_size() bytes into the 512-byte _disk_sectorbuff,
     // so a larger sector would overrun it -- and read() could not fill it either.
-    if (_imd->max_sector_size() > DISK_SECTORBUF_SIZE)
+    if (_imd->maxSectorSize() > DISK_SECTORBUF_SIZE)
     {
         Debug_printf("IMD MOUNT refused: %u-byte sectors exceed the %u-byte sector buffer\r\n",
-                     _imd->max_sector_size(), (unsigned)DISK_SECTORBUF_SIZE);
+                     _imd->maxSectorSize(), (unsigned)DISK_SECTORBUF_SIZE);
         _imd->close();
         return MEDIATYPE_UNKNOWN;
     }
 
-    if (_imd->lba_count() == 0)
+    if (_imd->lbaCount() == 0)
     {
         Debug_print("IMD MOUNT refused: no sectors\r\n");
         _imd->close();
@@ -117,8 +117,8 @@ mediatype_t MediaTypeIMD::mount(fnFile *f, uint32_t disksize)
 
     _derive_geometry();
 
-    _disk_num_sectors = _imd->lba_count();
-    _disk_sector_size = _imd->max_sector_size();
+    _disk_num_sectors = _imd->lbaCount();
+    _disk_sector_size = _imd->maxSectorSize();
     _base_ctrl_status = _writable ? DISK_CTRL_STATUS_CLEAR : DISK_CTRL_STATUS_WRITE_PROTECT_ERROR;
     _disk_controller_status = _base_ctrl_status;
     _disktype = MEDIATYPE_IMD;
@@ -126,12 +126,12 @@ mediatype_t MediaTypeIMD::mount(fnFile *f, uint32_t disksize)
     _fill_percom();
 
     Debug_printf("IMD: %lu sectors, %u cyl x %u head, %u spt, %s, %s sector size (max %u)\r\n",
-                 (unsigned long)_imd->lba_count(), _cyls, _heads, _spt, _mfm ? "MFM" : "FM",
-                 _imd->uniform_sector_size() ? "uniform" : "mixed", _imd->max_sector_size());
+                 (unsigned long)_imd->lbaCount(), _cyls, _heads, _spt, _mfm ? "MFM" : "FM",
+                 _imd->uniformSectorSize() ? "uniform" : "mixed", _imd->maxSectorSize());
 
-    if (_imd->trailing_garbage() != 0)
+    if (_imd->trailingGarbage() != 0)
         Debug_printf("IMD: %lu trailing bytes ignored\r\n",
-                     (unsigned long)_imd->trailing_garbage());
+                     (unsigned long)_imd->trailingGarbage());
 
     if (_imd->comment()[0] != '\0')
         Debug_printf("IMD comment: %s\r\n", _imd->comment());
@@ -150,7 +150,7 @@ void MediaTypeIMD::unmount()
 
 uint32_t MediaTypeIMD::_lba_count() const
 {
-    return _imd ? _imd->lba_count() : 0;
+    return _imd ? _imd->lbaCount() : 0;
 }
 
 error_is_true MediaTypeIMD::read(uint32_t sectornum, uint32_t *readcount)
@@ -171,12 +171,12 @@ error_is_true MediaTypeIMD::read(uint32_t sectornum, uint32_t *readcount)
     memset(_disk_sectorbuff, 0, sizeof(_disk_sectorbuff));
 
     uint16_t len = 0;
-    IMDStatus status = _imd->read_sector(sector_to_lba(sectornum), _disk_sectorbuff,
+    IMDStatus status = _imd->readSector(sector_to_lba(sectornum), _disk_sectorbuff,
                                          sizeof(_disk_sectorbuff), &len);
     if (status != IMDStatus::Ok)
     {
         Debug_printf("IMD::read lba %lu: %s\r\n", (unsigned long)sectornum,
-                     imd_status_str(status));
+                     IMDImage::statusString(status));
         _disk_controller_status |= imd_ctrl_bits(status);
         RETURN_ERROR_AS_TRUE();
     }
@@ -185,7 +185,7 @@ error_is_true MediaTypeIMD::read(uint32_t sectornum, uint32_t *readcount)
     // address mark is ordinary CP/M data. Deliver both and flag them in the
     // controller status: an error reply carries no payload at all.
     IMDSectorInfo info;
-    if (_imd->sector_info(sector_to_lba(sectornum), info) == IMDStatus::Ok)
+    if (_imd->sectorInfo(sector_to_lba(sectornum), info) == IMDStatus::Ok)
     {
         if (info.had_error)
             _disk_controller_status |= DISK_CTRL_STATUS_CRC_ERROR;
@@ -220,24 +220,24 @@ error_is_true MediaTypeIMD::write(uint32_t sectornum, bool verify)
 
     // Separate an unreadable sector from a record that cannot take the data
     IMDSectorInfo info;
-    if (_imd->sector_info(sector_to_lba(sectornum), info) == IMDStatus::Ok && info.unavailable)
+    if (_imd->sectorInfo(sector_to_lba(sectornum), info) == IMDStatus::Ok && info.unavailable)
     {
         Debug_printf("IMD::write lba %lu is unavailable\r\n", (unsigned long)sectornum);
         _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_MISSING;
         RETURN_ERROR_AS_TRUE();
     }
 
-    IMDStatus status = _imd->write_sector(sector_to_lba(sectornum), _disk_sectorbuff,
-                                          _imd->sector_size(sector_to_lba(sectornum)));
+    IMDStatus status = _imd->writeSector(sector_to_lba(sectornum), _disk_sectorbuff,
+                                          _imd->sectorSize(sector_to_lba(sectornum)));
     if (status != IMDStatus::Ok)
     {
         Debug_printf("IMD::write lba %lu: %s\r\n", (unsigned long)sectornum,
-                     imd_status_str(status));
+                     IMDImage::statusString(status));
         _disk_controller_status |= imd_ctrl_bits(status);
         RETURN_ERROR_AS_TRUE();
     }
 
-    // IMDImage::write_sector() already flushed
+    // IMDImage::writeSector() already flushed
     RETURN_SUCCESS_AS_FALSE();
 }
 
@@ -256,7 +256,7 @@ error_is_true MediaTypeIMD::format(uint32_t *responsesize)
 // write() then rejects
 uint16_t MediaTypeIMD::sector_size(uint32_t sectornum)
 {
-    return _imd ? _imd->sector_size(sector_to_lba(sectornum)) : 0;
+    return _imd ? _imd->sectorSize(sector_to_lba(sectornum)) : 0;
 }
 
 void MediaTypeIMD::status(uint8_t statusbuff[4])
@@ -288,12 +288,12 @@ success_is_true MediaTypeIMD::create(fnFile *f, uint16_t sectorSize, uint32_t nu
     if (sectorSize != 128 || numSectors != cyls * spt)
         RETURN_ERROR_AS_FALSE();
 
-    if (Image::write_header(f, time(nullptr)) != IMDStatus::Ok)
+    if (IMDImage::writeHeader(f, time(nullptr)) != IMDStatus::Ok)
         RETURN_ERROR_AS_FALSE();
     for (uint8_t cyl = 0; cyl < cyls; cyl++)
     {
         // Mode 0 is 500 kbps FM; size code 0 is 128 bytes
-        if (Image::write_blank_track(f, 0, cyl, 0, spt, 0, cyl < blank_cyls ? 0xE5 : 0x00)
+        if (IMDImage::writeBlankTrack(f, 0, cyl, 0, spt, 0, cyl < blank_cyls ? 0xE5 : 0x00)
             != IMDStatus::Ok)
             RETURN_ERROR_AS_FALSE();
     }

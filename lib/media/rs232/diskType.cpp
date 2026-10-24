@@ -59,7 +59,7 @@ void MediaType::unmount()
 
 mediatype_t MediaType::discover_mediatype(const char *filename, uint32_t disksize)
 {
-    if (imd_looks_like_extension(filename))
+    if (IMDImage::looksLikeExtension(filename))
         return MEDIATYPE_IMD;
     if (MediaTypeAltair::looks_like_altair(filename, disksize))
         return MEDIATYPE_ALTAIR;
