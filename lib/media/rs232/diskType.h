@@ -101,6 +101,8 @@ public:
     virtual void status(uint8_t statusbuff[4]) = 0;
 
     static mediatype_t discover_mediatype(const char *filename, uint32_t disksize = 0);
+    // Also recognizes an IMD image whose name doesn't say so
+    static mediatype_t discover_mediatype(fnFile *f, const char *filename, uint32_t disksize);
 
     void dump_percom_block();
     void derive_percom_block(uint32_t numSectors);

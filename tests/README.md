@@ -16,8 +16,8 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `CalendarTests.cpp` | `lib/utils/fn_time.cpp` and `lib/network-protocol/calendar_draft.cpp` (`calendar_tests`) |
 | `QRCodeTests.cpp` | `lib/qrcode/qrcode.c` version and ECC selection (`qrcode_tests`) |
 | `MailDraftTests.cpp` | `lib/network-protocol/mail_draft.cpp` RFC822 compose and reply (`mail_tests`) |
-| `IMDImageTests.cpp`, `IMDFixture.h` | `lib/media/IMDImage.cpp` through a `std::fstream`, a `std::FILE` and a handle with `fnFile`'s methods (`imdimage_tests`; no FujiNet include paths) |
-| `MediaTypeIMDTests.cpp` | `lib/media/rs232/diskTypeIMD.cpp` adapter (`mediatypeimd_tests`; built with `BUILD_RS232`) |
+| `IMDImageTests.cpp`, `IMDFixture.h` | `lib/media/IMDImage.cpp`, including `probe()`, through a `std::fstream`, a `std::FILE` and a handle with `fnFile`'s methods (`imdimage_tests`; no FujiNet include paths) |
+| `MediaTypeIMDTests.cpp` | `lib/media/rs232/diskTypeIMD.cpp` adapter, and `diskType.cpp` finding an IMD by its contents (`mediatypeimd_tests`; built with `BUILD_RS232`) |
 | `MediaTypeAltairTests.cpp` | `lib/media/rs232/diskTypeAltair.cpp` adapter (`mediatypealtair_tests`; built with `BUILD_RS232`) |
 | `MediaTypeImgTests.cpp` | `lib/media/rs232/diskTypeImg.cpp` blank image from `create()` (`mediatypeimg_tests`; built with `BUILD_RS232`) |
 | `FileSizeTests.cpp` | `file_size_t` in `include/global_types.h`: the types it converts to without a cast, and `to()` refusing -1 and a size that doesn't fit (`file_size_tests`) |

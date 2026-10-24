@@ -274,18 +274,15 @@ void rs232Disk::rs232_write_percom_block()
 }
 
 /* Mount Disk
-   We determine the type of image based on the filename extenrs232n.
-   If the disk_type value passed is not MEDIATYPE_UNKNOWN then that's used instead.
-   If filename has no extenrs232n or is NULL and disk_type is MEDIATYPE_UNKOWN,
-   then we assume it's MEDIATYPE_ATR.
+   A disk_type other than MEDIATYPE_UNKNOWN is used as given. Otherwise the type
+   comes from the filename, or from the contents when the name says nothing, and
+   an image of unknown type mounts raw.
    Return value is MEDIATYPE_UNKNOWN in case of failure.
 */
 mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
                              disk_access_flags_t access_mode, mediatype_t disk_type,
                              fujiHost *host)
 {
-    // TAPE or CASSETTE: use this function to send file info to cassette device
-    //  MediaType::discover_mediatype(filename) can detect CAS and WAV files
     Debug_print("disk MOUNT\n");
 
     // Destroy any existing MediaType
@@ -295,9 +292,8 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
         _disk = nullptr;
     }
 
-    // Determine MediaType from the filename extension and, for .DSK, the size
     if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
-        disk_type = MediaType::discover_mediatype(filename, disksize);
+        disk_type = MediaType::discover_mediatype(f, filename, disksize);
 
     // Now mount based on MediaType
     switch (disk_type)

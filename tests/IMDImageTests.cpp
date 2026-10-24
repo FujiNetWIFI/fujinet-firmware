@@ -1012,3 +1012,104 @@ TEST_CASE("building an image")
     CHECK(file.bytes.size() == before);
     CHECK(read_lba(img, 5, status) == data);
 }
+
+namespace
+{
+
+// Probes the same bytes through all three handle types, checking each is left at 0
+IMDStatus probe_all(const std::vector<uint8_t> &bytes)
+{
+    MemFile mem;
+    mem.bytes = bytes;
+    mem.pos = 5;
+    IMDStatus from_mem = IMDImage(&mem).probe();
+    CHECK(mem.pos == 0);
+
+    FILE *file = fopen(IMD_TEST_FILE, "w+b");
+    REQUIRE(file != nullptr);
+    REQUIRE(fwrite(bytes.data(), 1, bytes.size(), file) == bytes.size());
+    IMDStatus from_file = IMDImage(file).probe();
+    CHECK(ftell(file) == 0);
+    fclose(file);
+
+    std::fstream stream(IMD_TEST_FILE, std::ios::in | std::ios::binary);
+    IMDStatus from_stream = IMDImage(&stream).probe();
+    CHECK(stream.tellg() == 0);
+    stream.close();
+    remove(IMD_TEST_FILE);
+
+    CHECK(from_file == from_mem);
+    CHECK(from_stream == from_mem);
+    return from_mem;
+}
+
+} // namespace
+
+TEST_CASE("probe recognizes an IMD by its contents")
+{
+    SUBCASE("a valid image")
+    {
+        CHECK(probe_all(IMD().header().simple_track(0, 0, 0, 26, 0xE5).out) == IMDStatus::Ok);
+    }
+
+    SUBCASE("a valid image with a long comment")
+    {
+        std::string comment(300, 'x');
+        comment += "\r\n";
+        IMD image;
+        image.header("IMD 1.18: 01/01/2024 12:00:00\r\n", comment.c_str());
+        image.simple_track(3, 0, 0, 9, 0xE5);
+        CHECK(probe_all(image.out) == IMDStatus::Ok);
+    }
+
+    SUBCASE("no signature line, as SIMH writes them")
+    {
+        CHECK(probe_all(IMD().header(nullptr, "cpm\r\n").simple_track(0, 0, 0, 2, 0x11).out)
+              == IMDStatus::NotIMD);
+    }
+
+    SUBCASE("a CP/M text file padded with 0x1A")
+    {
+        std::vector<uint8_t> text = {'H', 'E', 'L', 'L', 'O', '\r', '\n'};
+        text.resize(128, 0x1A);
+        CHECK(probe_all(text) == IMDStatus::NotIMD);
+    }
+
+    SUBCASE("a FAT boot sector")
+    {
+        std::vector<uint8_t> boot(512, 0x00);
+        const uint8_t start[] = {0xEB, 0x3C, 0x90, 'M', 'S', 'D', 'O', 'S', '5', '.', '0', 0x1A};
+        std::copy(std::begin(start), std::end(start), boot.begin());
+        boot[510] = 0x55;
+        boot[511] = 0xAA;
+        CHECK(probe_all(boot) == IMDStatus::NotIMD);
+    }
+
+    SUBCASE("an empty file")
+    {
+        CHECK(probe_all({}) == IMDStatus::NotIMD);
+    }
+
+    SUBCASE("the signature but nothing after the comment")
+    {
+        CHECK(probe_all(IMD().header().out) == IMDStatus::NotIMD);
+    }
+
+    SUBCASE("a track header that can't be one")
+    {
+        IMD bad_mode, bad_size, no_sectors, bad_head;
+        bad_mode.header().thdr(7, 0, 0, 1, 0);
+        bad_size.header().thdr(0, 0, 0, 1, 7);
+        no_sectors.header().thdr(0, 0, 0, 0, 0);
+        bad_head.header().thdr(0, 0, 2, 1, 0);
+        CHECK(probe_all(bad_mode.out) == IMDStatus::NotIMD);
+        CHECK(probe_all(bad_size.out) == IMDStatus::NotIMD);
+        CHECK(probe_all(no_sectors.out) == IMDStatus::NotIMD);
+        CHECK(probe_all(bad_head.out) == IMDStatus::NotIMD);
+    }
+
+    SUBCASE("a null handle")
+    {
+        CHECK(IMDImage((MemFile *)nullptr).probe() == IMDStatus::IoError);
+    }
+}
