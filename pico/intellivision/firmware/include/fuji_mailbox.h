@@ -108,8 +108,8 @@
 // bounds the mailbox's cart.RAM-resident reply window (a real address-space
 // budget), but the same buffer also has to hold every complete SLIP-encoded
 // frame the ESP32 pushes to FUJI_DEVICEID_DBC mid-MOUNT_IMAGE --
-// push_stream() (lib/device/rs232/disk.cpp) streams ROM/.cfg data
-// in DISK_SECTORBUF_SIZE (512) byte NETCMD_WRITE chunks. Decoded that's a
+// push_stream() (lib/device/Cartridge/Cartridge.cpp) streams ROM/.cfg data
+// in 512-byte NETCMD_WRITE chunks. Decoded that's a
 // 6-byte header + 512 bytes of payload = 518, and SLIP escaping can double
 // that worst-case plus the two frame-delimiter bytes -- 1038 minimum.
 // Undersizing this silently truncates every ROM push's WRITE frames, which

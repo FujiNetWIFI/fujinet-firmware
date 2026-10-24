@@ -25,6 +25,7 @@ subclass, never by branching here.
 | [fujiDevice/](fujiDevice/) | `fujiDevice` | the FujiNet CONFIG device: host and disk slots, WiFi, directories, mounting. Built from `FujiDeviceChain<Base64Mixin, HashMixin, QRMixin, AppKeyMixin>`, each mixin owning one command family, plus a table of `FUJI_*` handlers |
 | [NDevice/](NDevice/) | `NDevice` | the N: network device: `NET_*` commands dispatched through a table, a `NetworkProtocol` chosen from the URL scheme by `NetworkProtocolFactory`, and an `NParser` strategy (`JSONParser`, `XMLParser`, `HTMLParser`) for queries |
 | [fujiClock/](fujiClock/) | `fujiClock` | the APETime-compatible clock: `APETIME_*` commands and the time formatters |
+| [Cartridge/](Cartridge/) | `Cartridge` | not a bus device: a mounted ROM pushed to the companion MCU through `SystemBusBase::sendCommand()`; a Fuji owns one and pushes each mounted ROM to it |
 
 Each base inherits `virtualDevice` virtually, so a subclass such as `sioFuji` is one object that is
 both the bus's `virtualDevice` and the shared base. The subclass implements the bus entry point

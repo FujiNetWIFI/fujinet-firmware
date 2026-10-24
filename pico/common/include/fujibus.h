@@ -33,8 +33,8 @@
 
 // CMD::NET_*: matches include/fujiCommandID.h in the main tree. Reused here
 // (rather than CMD::FUJI_*) because that's what the ESP32-S3 side's
-// rs232Disk::mount() actually sends -- see push_stream() in
-// lib/device/rs232/disk.cpp.
+// Cartridge::load() actually sends -- see push_stream() in
+// lib/device/Cartridge/Cartridge.cpp.
 // CMD_* here mirrors the main tree's C++ `enum class CMD`; this tree is plain C.
 #define CMD_NET_OPEN   0x4F
 #define CMD_NET_READ   0x52

@@ -4,6 +4,7 @@
 #include "NDevice.h"
 #include "compat_string.h"
 #include "led.h"
+#include "media.h"
 
 #define IMAGE_EXTENSION ".dsk"
 #define LOBBY_URL       "tnfs://tnfs.fujinet.online/COCO/lobby.dsk"
@@ -69,6 +70,28 @@ drivewireFuji::drivewireFuji() : fujiDevice(MAX_DWDISK_DEVICES, IMAGE_EXTENSION,
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].slotid = i;
+}
+
+mediatype_t drivewireFuji::mount_media(DISK_DEVICE *disk_dev, fujiDisk &disk, fujiHost &host,
+                                       disk_access_flags_t mode)
+{
+    if (MediaType::discover_mediatype(disk.filename) != MEDIATYPE_ROM)
+        return disk_dev->mount(disk.fileh, disk.filename, disk.disk_size, mode);
+
+    // A ROM goes to the cartridge whole and is closed after, leaving the slot
+    // empty; drop whatever the disk had mounted. The fujiversal dialect has no
+    // memory map.
+    disk_dev->unmount();
+    MediaTypeROM rom; // closes the ROM when it goes out of scope
+    strlcpy(rom._disk_filename, disk.filename, sizeof(rom._disk_filename));
+    rom.mount(disk.fileh, disk.disk_size);
+    disk.fileh = nullptr;
+
+    Cartridge::Source image{rom.stream_size(),
+                            [&rom](uint32_t offset, uint8_t *buffer, size_t length) {
+                                return rom.stream_read(offset, buffer, length);
+                            }};
+    return _cartridge.load(image, nullptr).is_success() ? MEDIATYPE_ROM : MEDIATYPE_UNKNOWN;
 }
 
 size_t drivewireFuji::set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest,

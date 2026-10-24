@@ -79,7 +79,7 @@ static void publish_slice(void)
 
 /* ---- the DBC ROM push ----
  *
- * MediaTypeROM::mount() streams the cartridge image to device $FF while our
+ * Cartridge::load() streams the cartridge image to device $FF while our
  * MOUNT_IMAGE is still outstanding, so these frames arrive unsolicited in the
  * middle of a transaction and each needs its own ACK.
  */

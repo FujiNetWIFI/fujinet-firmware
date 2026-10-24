@@ -178,10 +178,11 @@ protected:
     // implementation calls DISK_DEVICE::mount() with its original 5-arg
     // signature, so this stays the only call site that needs a
     // platform-specific override rather than a #ifdef BUILD_* (banned here,
-    // see tests/check_no_build_ifdefs.py). rs232Fuji overrides this to pass
-    // `host` through to rs232Disk::mount(), which hands it to MediaTypeROM so
-    // the ROM's memory-map sibling is opened through the same fujiHost the ROM
-    // itself came from -- see lib/media/rs232/diskTypeROM.cpp.
+    // see tests/check_no_build_ifdefs.py). rs232Fuji and drivewireFuji
+    // override this to push a ROM to their Cartridge instead, then close it.
+    // rs232Fuji also passes `host` through to rs232Disk::mount(), and to its
+    // MediaTypeROM so the ROM's memory-map sibling is opened through the same
+    // fujiHost the ROM came from -- see lib/media/rs232/diskTypeROM.cpp.
     virtual mediatype_t mount_media(DISK_DEVICE *disk_dev, fujiDisk &disk, fujiHost &host,
                                     disk_access_flags_t mode)
     {

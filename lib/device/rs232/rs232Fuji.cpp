@@ -9,6 +9,7 @@
 #include "utils.h"
 #include "compat_string.h"
 #include "fuji_endian.h"
+#include "media.h"
 
 #define IMAGE_EXTENSION ".img"
 #define LOBBY_URL       "tnfs://tnfs.fujinet.online/MSDOS/lobby.img"
@@ -25,6 +26,45 @@ rs232Network rs232NetDevs[MAX_NETWORK_DEVICES];
 
 rs232Fuji::rs232Fuji() : fujiDevice(MAX_DISK_DEVICES, IMAGE_EXTENSION, LOBBY_URL)
 {}
+
+mediatype_t rs232Fuji::mount_media(DISK_DEVICE *disk_dev, fujiDisk &disk, fujiHost &host,
+                                   disk_access_flags_t mode)
+{
+    if (MediaType::discover_mediatype(disk.filename, disk.disk_size) != MEDIATYPE_ROM)
+        return disk_dev->mount(disk.fileh, disk.filename, disk.disk_size, mode,
+                               MEDIATYPE_UNKNOWN, &host);
+
+    // A ROM goes to the cartridge whole and is closed after, leaving the slot
+    // empty; drop whatever the disk had mounted.
+    disk_dev->unmount();
+    success_is_true pushed = push_rom(disk, host);
+    disk.fileh = nullptr; // closed along with the ROM
+    return pushed.is_success() ? MEDIATYPE_ROM : MEDIATYPE_UNKNOWN;
+}
+
+// MediaTypeROM finds the ROM's .cfg memory map, which goes first if there is
+// one. Both files close when `rom` goes out of scope.
+success_is_true rs232Fuji::push_rom(fujiDisk &disk, fujiHost &host)
+{
+    MediaTypeROM rom;
+    rom._media_host = &host;
+    strlcpy(rom._disk_filename, disk.filename, sizeof(rom._disk_filename));
+    rom.mount(disk.fileh, disk.disk_size);
+
+    auto source = [&rom](RomStream stream) {
+        return Cartridge::Source{rom.stream_size(stream),
+                                 [&rom, stream](uint32_t offset, uint8_t *buffer, size_t length) {
+                                     return rom.stream_read(stream, offset, buffer, length);
+                                 }};
+    };
+
+    Cartridge::Source image = source(RomStream::Image);
+    if (!rom.has_memory_map())
+        return _cartridge.load(image, nullptr);
+
+    Cartridge::Source map = source(RomStream::MemoryMap);
+    return _cartridge.load(image, &map);
+}
 
 // Initializes base settings and adds our devices to the RS232 bus
 void rs232Fuji::setup()
