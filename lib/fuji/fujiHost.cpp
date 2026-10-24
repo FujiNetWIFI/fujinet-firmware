@@ -378,7 +378,7 @@ int fujiHost::mount_tnfs()
     else
     {
         Debug_printf("Starting FileSystemTNFS(\"%s\")\n", _hostname);
-        if (((FileSystemTNFS *)_fs)->start(_hostname))
+        if (((FileSystemTNFS *)_fs)->start(_hostname).is_success())
         {
             return 0;
         }
@@ -424,7 +424,7 @@ int fujiHost::mount_smb()
         url[1] = 'm';
         url[2] = 'b';
 
-        if (((FileSystemSMB *)_fs)->start(url))
+        if (((FileSystemSMB *)_fs)->start(url).is_success())
         {
             return 0;
         }
@@ -470,7 +470,7 @@ int fujiHost::mount_nfs()
         url[1] = 'f';
         url[2] = 's';
 
-        if (((FileSystemNFS *)_fs)->start(url))
+        if (((FileSystemNFS *)_fs)->start(url).is_success())
         {
             return 0;
         }
@@ -510,7 +510,7 @@ int fujiHost::mount_ftp()
     {
         Debug_printf("Starting FileSystemFTP(\"%s\")\n", _hostname);
 
-        if (((FileSystemFTP *)_fs)->start(_hostname))
+        if (((FileSystemFTP *)_fs)->start(_hostname).is_success())
         {
             return 0;
         }
@@ -550,7 +550,7 @@ int fujiHost::mount_http()
     {
         Debug_printf("Starting FileSystemHTTP(\"%s\")\n", _hostname);
 
-        if (((FileSystemHTTP *)_fs)->start(_hostname))
+        if (((FileSystemHTTP *)_fs)->start(_hostname).is_success())
         {
             return 0;
         }
