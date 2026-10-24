@@ -1,8 +1,11 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <fstream>
+#include <string>
 #include <vector>
 
 #include "IMDImage.h"
@@ -11,47 +14,49 @@
 namespace
 {
 
-// The build forces FNIO_IS_STDIO for this target, so fnFile is std::FILE.
 // Not tmpfile(): under MSYS2 that inherits msvcrt's create-in-the-drive-root
-// behaviour, and Windows is in the PC CI matrix.
+// behavior, and Windows is in the PC CI matrix.
 #define IMD_TEST_FILE "imdimage_test.tmp"
 
 // Keeps file and image together; IMDImage does not own the file.
 struct Mounted
 {
-    fnFile   *fp = nullptr;
-    IMDImage  img;
-    IMDStatus st = IMDStatus::IoError;
+    std::fstream           file;
+    IMDImage img{&file};
+    IMDStatus              st = IMDStatus::IoError;
 
     Mounted(const IMD &b, bool writable = false)
     {
-        fp = fopen(IMD_TEST_FILE, "w+b");
-        REQUIRE(fp != nullptr);
-        REQUIRE(fwrite(b.out.data(), 1, b.out.size(), fp) == b.out.size());
-        rewind(fp);
-        st = img.open(fp, (uint32_t)b.out.size(), writable);
+        {
+            std::ofstream out(IMD_TEST_FILE, std::ios::binary | std::ios::trunc);
+            REQUIRE(out.write((const char *)b.out.data(), (std::streamsize)b.out.size()));
+        }
+        file.open(IMD_TEST_FILE, std::ios::in | std::ios::out | std::ios::binary);
+        REQUIRE(file.is_open());
+        st = img.open(writable);
     }
 
     ~Mounted()
     {
         img.close();
-        fclose(fp);
+        file.close();
         remove(IMD_TEST_FILE);
     }
 
     long file_size()
     {
-        fflush(fp);
-        fseek(fp, 0, SEEK_END);
-        return ftell(fp);
+        file.flush();
+        file.clear();
+        file.seekg(0, std::ios::end);
+        return (long)file.tellg();
     }
 };
 
 std::vector<uint8_t> read_lba(IMDImage &img, uint32_t lba, IMDStatus &st)
 {
-    std::vector<uint8_t> buf(img.sector_size(lba));
+    std::vector<uint8_t> buf(img.sectorSize(lba));
     uint16_t             got = 0;
-    st = img.read_sector(lba, buf.data(), (uint32_t)buf.size(), &got);
+    st = img.readSector(lba, buf.data(), (uint32_t)buf.size(), &got);
     buf.resize(got);
     return buf;
 }
@@ -79,7 +84,7 @@ TEST_CASE("header and comment handling")
     {
         Mounted m(IMD().header(nullptr, "just a comment\r\n").simple_track(0, 0, 0, 2, 0x11));
         REQUIRE(m.st == IMDStatus::Ok);
-        CHECK(m.img.lba_count() == 2);
+        CHECK(m.img.lbaCount() == 2);
         CHECK(std::string(m.img.comment()) == "just a comment\r\n");
     }
 
@@ -98,7 +103,7 @@ TEST_CASE("header and comment handling")
             b.out.push_back((uint8_t)*p);
         Mounted m(b);
         CHECK(m.st == IMDStatus::NotIMD);
-        CHECK_FALSE(m.img.is_open());
+        CHECK_FALSE(m.img.isOpen());
     }
 
     SUBCASE("terminator with no tracks is not a usable image")
@@ -126,13 +131,13 @@ TEST_CASE("all nine sector record types")
 
     Mounted m(b);
     REQUIRE(m.st == IMDStatus::Ok);
-    REQUIRE(m.img.lba_count() == 9);
+    REQUIRE(m.img.lbaCount() == 9);
 
     IMDSectorInfo si;
 
     SUBCASE("unavailable sectors are never fabricated")
     {
-        REQUIRE(m.img.sector_info(0, si).is_success());
+        REQUIRE(m.img.sectorInfo(0, si) == IMDStatus::Ok);
         CHECK(si.unavailable);
         IMDStatus st;
         read_lba(m.img, 0, st);
@@ -149,7 +154,7 @@ TEST_CASE("all nine sector record types")
         };
         for (auto &e : expect)
         {
-            REQUIRE(m.img.sector_info(e.lba, si).is_success());
+            REQUIRE(m.img.sectorInfo(e.lba, si) == IMDStatus::Ok);
             CHECK(si.compressed == e.comp);
             CHECK(si.deleted == e.del);
             CHECK(si.had_error == e.err);
@@ -175,7 +180,7 @@ TEST_CASE("all nine sector record types")
         IMDStatus st;
         auto d = read_lba(m.img, 5, st);
         CHECK(st == IMDStatus::Ok);
-        REQUIRE(m.img.sector_info(5, si).is_success());
+        REQUIRE(m.img.sectorInfo(5, si) == IMDStatus::Ok);
         CHECK(si.had_error);
         CHECK(all_equal(d, 0x55));
     }
@@ -230,8 +235,8 @@ TEST_CASE("trailing transport padding is tolerated")
         b.pad(100, 0x00);
         Mounted m(b);
         REQUIRE(m.st == IMDStatus::Ok);
-        CHECK(m.img.lba_count() == 26);
-        CHECK(m.img.trailing_garbage() == 100);
+        CHECK(m.img.lbaCount() == 26);
+        CHECK(m.img.trailingGarbage() == 100);
     }
 
     SUBCASE("CP/M 0x1A padding")
@@ -241,15 +246,15 @@ TEST_CASE("trailing transport padding is tolerated")
         b.pad(37, 0x1A);
         Mounted m(b);
         REQUIRE(m.st == IMDStatus::Ok);
-        CHECK(m.img.lba_count() == 8);
-        CHECK(m.img.trailing_garbage() == 37);
+        CHECK(m.img.lbaCount() == 8);
+        CHECK(m.img.trailingGarbage() == 37);
     }
 
     SUBCASE("a clean image reports no trailing bytes")
     {
         Mounted m(IMD().header().simple_track(0, 0, 0, 4, 0xE5));
         REQUIRE(m.st == IMDStatus::Ok);
-        CHECK(m.img.trailing_garbage() == 0);
+        CHECK(m.img.trailingGarbage() == 0);
     }
 }
 
@@ -260,12 +265,12 @@ TEST_CASE("cylinder and head maps")
         Mounted m(IMD().header().simple_track(5, 3, 1, 2, 0xE5));
         REQUIRE(m.st == IMDStatus::Ok);
         IMDSectorInfo si;
-        REQUIRE(m.img.sector_info(0, si).is_success());
+        REQUIRE(m.img.sectorInfo(0, si) == IMDStatus::Ok);
         CHECK(si.cyl == 3);
         CHECK(si.head == 1);
 
         IMDTrackInfo ti;
-        REQUIRE(m.img.track_info(0, ti).is_success());
+        REQUIRE(m.img.trackInfo(0, ti) == IMDStatus::Ok);
         CHECK_FALSE(ti.has_cyl_map);
         CHECK_FALSE(ti.has_head_map);
     }
@@ -278,7 +283,7 @@ TEST_CASE("cylinder and head maps")
         Mounted m(b);
         REQUIRE(m.st == IMDStatus::Ok);
         IMDSectorInfo si;
-        REQUIRE(m.img.sector_info(0, si).is_success());
+        REQUIRE(m.img.sectorInfo(0, si) == IMDStatus::Ok);
         CHECK(si.cyl == 77);
         CHECK(si.head == 0);
     }
@@ -291,7 +296,7 @@ TEST_CASE("cylinder and head maps")
         Mounted m(b);
         REQUIRE(m.st == IMDStatus::Ok);
         IMDSectorInfo si;
-        REQUIRE(m.img.sector_info(0, si).is_success());
+        REQUIRE(m.img.sectorInfo(0, si) == IMDStatus::Ok);
         CHECK(si.cyl == 2);
         CHECK(si.head == 1);
     }
@@ -308,18 +313,18 @@ TEST_CASE("cylinder and head maps")
 
         Mounted m(b);
         REQUIRE(m.st == IMDStatus::Ok);
-        REQUIRE(m.img.lba_count() == 2);
+        REQUIRE(m.img.lbaCount() == 2);
 
         IMDSectorInfo si;
-        REQUIRE(m.img.sector_info(0, si).is_success());
+        REQUIRE(m.img.sectorInfo(0, si) == IMDStatus::Ok);
         CHECK(si.cyl == 77);
         CHECK(si.head == 1);
         CHECK(si.size == 512);
-        REQUIRE(m.img.sector_info(1, si).is_success());
+        REQUIRE(m.img.sectorInfo(1, si) == IMDStatus::Ok);
         CHECK(si.unavailable);
 
         IMDTrackInfo ti;
-        REQUIRE(m.img.track_info(0, ti).is_success());
+        REQUIRE(m.img.trackInfo(0, ti) == IMDStatus::Ok);
         CHECK(ti.cyl == 0); // physical stays 0
         CHECK(ti.head == 0);
         CHECK(ti.has_cyl_map);
@@ -335,7 +340,7 @@ TEST_CASE("cylinder and head maps")
         Mounted m(b);
         REQUIRE(m.st == IMDStatus::Ok);
         IMDTrackInfo ti;
-        REQUIRE(m.img.track_info(0, ti).is_success());
+        REQUIRE(m.img.trackInfo(0, ti) == IMDStatus::Ok);
         CHECK(ti.head == 1);
     }
 }
@@ -350,7 +355,7 @@ TEST_CASE("sector sizes")
             b.header().thdr(5, 0, 0, 1, code).map({1}).comp(0x02, 0xE5);
             Mounted m(b);
             REQUIRE(m.st == IMDStatus::Ok);
-            CHECK(m.img.sector_size(0) == (uint16_t)(128 << code));
+            CHECK(m.img.sectorSize(0) == (uint16_t)(128 << code));
         }
     }
 
@@ -364,11 +369,11 @@ TEST_CASE("sector sizes")
 
         Mounted m(b);
         REQUIRE(m.st == IMDStatus::Ok);
-        CHECK(m.img.sector_size(0) == 128);
-        CHECK(m.img.sector_size(1) == 256);
-        CHECK(m.img.max_sector_size() == 256);
-        CHECK_FALSE(m.img.uniform_sector_size());
-        CHECK(m.img.linear_size() == 384);
+        CHECK(m.img.sectorSize(0) == 128);
+        CHECK(m.img.sectorSize(1) == 256);
+        CHECK(m.img.maxSectorSize() == 256);
+        CHECK_FALSE(m.img.uniformSectorSize());
+        CHECK(m.img.linearSize() == 384);
 
         IMDStatus st;
         CHECK(all_equal(read_lba(m.img, 1, st), 0xBB));
@@ -379,8 +384,8 @@ TEST_CASE("sector sizes")
     {
         Mounted m(IMD().header().simple_track(0, 0, 0, 26, 0xE5));
         REQUIRE(m.st == IMDStatus::Ok);
-        CHECK(m.img.uniform_sector_size());
-        CHECK(m.img.max_sector_size() == 128);
+        CHECK(m.img.uniformSectorSize());
+        CHECK(m.img.maxSectorSize() == 128);
     }
 
     SUBCASE("a buffer smaller than the sector is refused")
@@ -388,7 +393,7 @@ TEST_CASE("sector sizes")
         Mounted m(IMD().header().simple_track(0, 0, 0, 1, 0xE5));
         REQUIRE(m.st == IMDStatus::Ok);
         uint8_t small[64];
-        CHECK(m.img.read_sector(0, small, sizeof(small), nullptr) == IMDStatus::BufferTooSmall);
+        CHECK(m.img.readSector(0, small, sizeof(small), nullptr) == IMDStatus::BufferTooSmall);
     }
 
     SUBCASE("out_len may be null")
@@ -396,7 +401,7 @@ TEST_CASE("sector sizes")
         Mounted m(IMD().header().simple_track(0, 0, 0, 1, 0xE5));
         REQUIRE(m.st == IMDStatus::Ok);
         uint8_t buf[128];
-        CHECK(m.img.read_sector(0, buf, sizeof(buf), nullptr) == IMDStatus::Ok);
+        CHECK(m.img.readSector(0, buf, sizeof(buf), nullptr) == IMDStatus::Ok);
     }
 }
 
@@ -412,12 +417,12 @@ TEST_CASE("sector ordering")
 
         Mounted m(b);
         REQUIRE(m.st == IMDStatus::Ok);
-        REQUIRE(m.img.lba_count() == 5);
+        REQUIRE(m.img.lbaCount() == 5);
 
         for (uint32_t i = 0; i < 5; i++)
         {
             IMDSectorInfo si;
-            REQUIRE(m.img.sector_info(i, si).is_success());
+            REQUIRE(m.img.sectorInfo(i, si) == IMDStatus::Ok);
             CHECK(si.id == i + 1);
             IMDStatus st;
             CHECK(all_equal(read_lba(m.img, i, st), (uint8_t)((i + 1) * 0x10)));
@@ -432,9 +437,9 @@ TEST_CASE("sector ordering")
         Mounted m(b);
         REQUIRE(m.st == IMDStatus::Ok);
         IMDSectorInfo si;
-        REQUIRE(m.img.sector_info(0, si).is_success());
+        REQUIRE(m.img.sectorInfo(0, si) == IMDStatus::Ok);
         CHECK(si.id == 0);
-        REQUIRE(m.img.sector_info(1, si).is_success());
+        REQUIRE(m.img.sectorInfo(1, si) == IMDStatus::Ok);
         CHECK(si.id == 1);
     }
 
@@ -459,11 +464,11 @@ TEST_CASE("sector ordering")
         REQUIRE(m.st == IMDStatus::Ok);
 
         uint32_t lba = 0;
-        REQUIRE(m.img.find_lba(1, 0, 3, lba).is_success());
+        REQUIRE(m.img.findLBA(1, 0, 3, lba) == IMDStatus::Ok);
         CHECK(lba == 6);
         IMDStatus st;
         CHECK(all_equal(read_lba(m.img, lba, st), 0x22));
-        CHECK(m.img.find_lba(9, 0, 1, lba).is_error());
+        CHECK(m.img.findLBA(9, 0, 1, lba) != IMDStatus::Ok);
     }
 }
 
@@ -475,34 +480,34 @@ TEST_CASE("mixed recording modes in one image")
 
     Mounted m(b);
     REQUIRE(m.st == IMDStatus::Ok);
-    REQUIRE(m.img.track_count() == 2);
+    REQUIRE(m.img.trackCount() == 2);
 
     IMDTrackInfo t0, t1;
-    REQUIRE(m.img.track_info(0, t0).is_success());
-    REQUIRE(m.img.track_info(1, t1).is_success());
+    REQUIRE(m.img.trackInfo(0, t0) == IMDStatus::Ok);
+    REQUIRE(m.img.trackInfo(1, t1) == IMDStatus::Ok);
 
     CHECK(t0.mode == 0);
-    CHECK_FALSE(imd_mode_is_mfm(t0.mode));
-    CHECK(imd_mode_rate_kbps(t0.mode) == 500);
+    CHECK_FALSE(IMDImage::modeIsMFM(t0.mode));
+    CHECK(IMDImage::modeRateKBPS(t0.mode) == 500);
 
     CHECK(t1.mode == 5);
-    CHECK(imd_mode_is_mfm(t1.mode));
-    CHECK(imd_mode_rate_kbps(t1.mode) == 250);
+    CHECK(IMDImage::modeIsMFM(t1.mode));
+    CHECK(IMDImage::modeRateKBPS(t1.mode) == 250);
 }
 
 TEST_CASE("mode helpers")
 {
-    CHECK(imd_mode_rate_kbps(1) == 300);
-    CHECK(imd_mode_rate_kbps(4) == 300);
-    CHECK(imd_mode_is_mfm(3));
-    CHECK_FALSE(imd_mode_is_mfm(2));
-    CHECK(imd_mode_is_valid(5));
-    CHECK_FALSE(imd_mode_is_valid(7));
+    CHECK(IMDImage::modeRateKBPS(1) == 300);
+    CHECK(IMDImage::modeRateKBPS(4) == 300);
+    CHECK(IMDImage::modeIsMFM(3));
+    CHECK_FALSE(IMDImage::modeIsMFM(2));
+    CHECK(IMDImage::modeIsValid(5));
+    CHECK_FALSE(IMDImage::modeIsValid(7));
     // libdsk 1Mbps extension: read-tolerated
-    CHECK(imd_mode_is_valid(6));
-    CHECK(imd_mode_is_valid(9));
-    CHECK(imd_mode_is_mfm(9));
-    CHECK_FALSE(imd_mode_is_mfm(6));
+    CHECK(IMDImage::modeIsValid(6));
+    CHECK(IMDImage::modeIsValid(9));
+    CHECK(IMDImage::modeIsMFM(9));
+    CHECK_FALSE(IMDImage::modeIsMFM(6));
 }
 
 TEST_CASE("in-place writes")
@@ -512,7 +517,7 @@ TEST_CASE("in-place writes")
         Mounted m(IMD().header().simple_track(0, 0, 0, 1, 0xE5), false);
         REQUIRE(m.st == IMDStatus::Ok);
         std::vector<uint8_t> d(128, 0x5A);
-        CHECK(m.img.write_sector(0, d.data(), 128) == IMDStatus::ReadOnly);
+        CHECK(m.img.writeSector(0, d.data(), 128) == IMDStatus::ReadOnly);
     }
 
     SUBCASE("a full record takes any data and clears the error flag")
@@ -525,10 +530,10 @@ TEST_CASE("in-place writes")
         std::vector<uint8_t> d(128);
         for (size_t i = 0; i < d.size(); i++)
             d[i] = (uint8_t)i;
-        REQUIRE(m.img.write_sector(0, d.data(), 128) == IMDStatus::Ok);
+        REQUIRE(m.img.writeSector(0, d.data(), 128) == IMDStatus::Ok);
 
         IMDSectorInfo si;
-        REQUIRE(m.img.sector_info(0, si).is_success());
+        REQUIRE(m.img.sectorInfo(0, si) == IMDStatus::Ok);
         CHECK(si.rec_type == 0x03); // error cleared, deleted mark kept
         CHECK(si.deleted);
         CHECK_FALSE(si.had_error);
@@ -546,10 +551,10 @@ TEST_CASE("in-place writes")
         REQUIRE(m.st == IMDStatus::Ok);
 
         std::vector<uint8_t> d(128, 0x5A);
-        REQUIRE(m.img.write_sector(0, d.data(), 128) == IMDStatus::Ok);
+        REQUIRE(m.img.writeSector(0, d.data(), 128) == IMDStatus::Ok);
 
         IMDSectorInfo si;
-        REQUIRE(m.img.sector_info(0, si).is_success());
+        REQUIRE(m.img.sectorInfo(0, si) == IMDStatus::Ok);
         CHECK(si.rec_type == 0x04); // still compressed, still deleted, no error
         CHECK(si.compressed);
         CHECK(si.deleted);
@@ -562,19 +567,76 @@ TEST_CASE("in-place writes")
         CHECK(m.file_size() == (long)b.out.size());
     }
 
-    SUBCASE("a compressed record refuses a non-uniform buffer")
+    SUBCASE("a non-uniform buffer expands every compressed record")
     {
-        IMD b;
-        b.header().thdr(5, 0, 0, 1, 0).map({1}).comp(0x02, 0xE5);
-        Mounted m(b, true);
-        REQUIRE(m.st == IMDStatus::Ok);
+        IMD image;
+        image.header();
+        image.thdr(5, 0, 0, 2, 0).map({2, 1});
+        image.full(0x01, 128, 0xAA);  // id 2
+        image.comp(0x04, 0xBB);       // id 1: compressed, deleted
+        image.thdr(5, 1, 0, 3, 0).map({1, 2, 3});
+        image.comp(0x02, 0xCC);
+        image.unavailable();
+        image.comp(0x06, 0xDD);       // compressed, data error
+        Mounted mounted(image, true);
+        REQUIRE(mounted.st == IMDStatus::Ok);
 
-        std::vector<uint8_t> d(128, 0x5A);
-        d[64] = 0x01;
-        CHECK(m.img.write_sector(0, d.data(), 128) == IMDStatus::WriteRefused);
+        std::vector<uint8_t> data(128, 0x5A);
+        data[64] = 0x01;
+        REQUIRE(mounted.img.writeSector(4, data.data(), 128) == IMDStatus::Ok);
 
-        IMDStatus st;
-        CHECK(all_equal(read_lba(m.img, 0, st), 0xE5)); // untouched
+        // Three one-byte fills became 128-byte sectors
+        CHECK(mounted.file_size() == (long)image.out.size() + 3 * 127);
+
+        auto check = [&](IMDImage &img) {
+            const uint8_t types[] = {0x03, 0x01, 0x01, 0x00, 0x01};
+            for (uint32_t lba = 0; lba < 5; lba++)
+            {
+                IMDSectorInfo info;
+                REQUIRE(img.sectorInfo(lba, info) == IMDStatus::Ok);
+                CHECK(info.rec_type == types[lba]);
+            }
+            IMDStatus status;
+            CHECK(all_equal(read_lba(img, 0, status), 0xBB));
+            CHECK(all_equal(read_lba(img, 1, status), 0xAA));
+            CHECK(all_equal(read_lba(img, 2, status), 0xCC));
+            read_lba(img, 3, status);
+            CHECK(status == IMDStatus::Unavailable);
+            CHECK(read_lba(img, 4, status) == data);
+        };
+        check(mounted.img);
+
+        // The file on disk parses to the same image
+        std::fstream           again_file(IMD_TEST_FILE, std::ios::in | std::ios::binary);
+        IMDImage again(&again_file);
+        REQUIRE(again.open(false) == IMDStatus::Ok);
+        CHECK(again.lbaCount() == 5);
+        CHECK(again.trailingGarbage() == 0);
+        check(again);
+    }
+
+    SUBCASE("expansion carries trailing padding along")
+    {
+        IMD image;
+        image.header().thdr(5, 0, 0, 2, 0).map({1, 2});
+        image.comp(0x02, 0xAA).comp(0x02, 0xBB);
+        image.pad(100, 0x1A);
+        Mounted mounted(image, true);
+        REQUIRE(mounted.st == IMDStatus::Ok);
+        REQUIRE(mounted.img.trailingGarbage() == 100);
+
+        std::vector<uint8_t> data(128, 0x5A);
+        data[0] = 0x01;
+        REQUIRE(mounted.img.writeSector(0, data.data(), 128) == IMDStatus::Ok);
+        CHECK(mounted.file_size() == (long)image.out.size() + 2 * 127);
+
+        std::fstream           again_file(IMD_TEST_FILE, std::ios::in | std::ios::binary);
+        IMDImage again(&again_file);
+        REQUIRE(again.open(false) == IMDStatus::Ok);
+        CHECK(again.trailingGarbage() == 100);
+        IMDStatus status;
+        CHECK(read_lba(again, 0, status) == data);
+        CHECK(all_equal(read_lba(again, 1, status), 0xBB));
     }
 
     SUBCASE("an unavailable record cannot absorb a write")
@@ -584,7 +646,7 @@ TEST_CASE("in-place writes")
         Mounted m(b, true);
         REQUIRE(m.st == IMDStatus::Ok);
         std::vector<uint8_t> d(128, 0x5A);
-        CHECK(m.img.write_sector(0, d.data(), 128) == IMDStatus::WriteRefused);
+        CHECK(m.img.writeSector(0, d.data(), 128) == IMDStatus::WriteRefused);
     }
 
     SUBCASE("the write length must match the sector exactly")
@@ -592,7 +654,7 @@ TEST_CASE("in-place writes")
         Mounted m(IMD().header().simple_track(0, 0, 0, 1, 0xE5), true);
         REQUIRE(m.st == IMDStatus::Ok);
         std::vector<uint8_t> d(64, 0x5A);
-        CHECK(m.img.write_sector(0, d.data(), 64) == IMDStatus::WriteRefused);
+        CHECK(m.img.writeSector(0, d.data(), 64) == IMDStatus::WriteRefused);
     }
 
     SUBCASE("writing past the end is refused")
@@ -600,7 +662,7 @@ TEST_CASE("in-place writes")
         Mounted m(IMD().header().simple_track(0, 0, 0, 1, 0xE5), true);
         REQUIRE(m.st == IMDStatus::Ok);
         std::vector<uint8_t> d(128, 0x5A);
-        CHECK(m.img.write_sector(99, d.data(), 128) == IMDStatus::NoSuchSector);
+        CHECK(m.img.writeSector(99, d.data(), 128) == IMDStatus::NoSuchSector);
     }
 }
 
@@ -614,10 +676,10 @@ TEST_CASE("linear byte view")
 
         Mounted m(b);
         REQUIRE(m.st == IMDStatus::Ok);
-        CHECK(m.img.linear_size() == 256);
+        CHECK(m.img.linearSize() == 256);
 
         uint8_t buf[64];
-        REQUIRE(m.img.read_linear(96, buf, sizeof(buf)) == IMDStatus::Ok);
+        REQUIRE(m.img.readLinear(96, buf, sizeof(buf)) == IMDStatus::Ok);
         for (int i = 0; i < 32; i++)
             CHECK(buf[i] == 0xAA);
         for (int i = 32; i < 64; i++)
@@ -629,7 +691,7 @@ TEST_CASE("linear byte view")
         Mounted m(IMD().header().simple_track(0, 0, 0, 2, 0xE5));
         REQUIRE(m.st == IMDStatus::Ok);
         uint8_t buf[64];
-        CHECK(m.img.read_linear(250, buf, sizeof(buf)) == IMDStatus::NoSuchSector);
+        CHECK(m.img.readLinear(250, buf, sizeof(buf)) == IMDStatus::NoSuchSector);
     }
 
     SUBCASE("writes span a sector boundary")
@@ -642,10 +704,10 @@ TEST_CASE("linear byte view")
         REQUIRE(m.st == IMDStatus::Ok);
 
         std::vector<uint8_t> d(64, 0x5A);
-        REQUIRE(m.img.write_linear(96, d.data(), (uint32_t)d.size()) == IMDStatus::Ok);
+        REQUIRE(m.img.writeLinear(96, d.data(), (uint32_t)d.size()) == IMDStatus::Ok);
 
         std::vector<uint8_t> back(256);
-        REQUIRE(m.img.read_linear(0, back.data(), 256) == IMDStatus::Ok);
+        REQUIRE(m.img.readLinear(0, back.data(), 256) == IMDStatus::Ok);
         for (int i = 0; i < 96; i++)
             CHECK(back[i] == 0xAA);
         for (int i = 96; i < 160; i++)
@@ -659,22 +721,43 @@ TEST_CASE("linear byte view")
         IMD b;
         b.header().thdr(5, 0, 0, 2, 0).map({1, 2});
         b.full(0x01, 128, 0xAA);  // would accept anything
-        b.comp(0x02, 0xBB);       // can only take a uniform buffer
+        b.unavailable();          // can take nothing
 
         Mounted m(b, true);
         REQUIRE(m.st == IMDStatus::Ok);
 
-        // Overwrites the tail of sector 0 and the head of sector 1; sector 1
-        // would end up non-uniform, so the whole operation must be rejected.
+        // Overwrites the tail of sector 0 and the head of sector 1
         std::vector<uint8_t> d(64, 0x5A);
-        CHECK(m.img.write_linear(96, d.data(), (uint32_t)d.size()) == IMDStatus::WriteRefused);
+        CHECK(m.img.writeLinear(96, d.data(), (uint32_t)d.size()) == IMDStatus::WriteRefused);
+
+        std::vector<uint8_t> back(128);
+        REQUIRE(m.img.readLinear(0, back.data(), 128) == IMDStatus::Ok);
+        for (int idx = 0; idx < 128; idx++)
+            CHECK(back[idx] == 0xAA);
+    }
+
+    SUBCASE("a span into a compressed sector expands it")
+    {
+        IMD image;
+        image.header().thdr(5, 0, 0, 2, 0).map({1, 2});
+        image.full(0x01, 128, 0xAA);
+        image.comp(0x02, 0xBB);
+
+        Mounted mounted(image, true);
+        REQUIRE(mounted.st == IMDStatus::Ok);
+
+        std::vector<uint8_t> data(64, 0x5A);
+        REQUIRE(mounted.img.writeLinear(96, data.data(), (uint32_t)data.size()) == IMDStatus::Ok);
+        CHECK(mounted.file_size() == (long)image.out.size() + 127);
 
         std::vector<uint8_t> back(256);
-        REQUIRE(m.img.read_linear(0, back.data(), 256) == IMDStatus::Ok);
-        for (int i = 0; i < 128; i++)
-            CHECK(back[i] == 0xAA);
-        for (int i = 128; i < 256; i++)
-            CHECK(back[i] == 0xBB);
+        REQUIRE(mounted.img.readLinear(0, back.data(), 256) == IMDStatus::Ok);
+        for (int idx = 0; idx < 96; idx++)
+            CHECK(back[idx] == 0xAA);
+        for (int idx = 96; idx < 160; idx++)
+            CHECK(back[idx] == 0x5A);
+        for (int idx = 160; idx < 256; idx++)
+            CHECK(back[idx] == 0xBB);
     }
 
     SUBCASE("a uniform overwrite of a compressed sector is allowed")
@@ -685,7 +768,7 @@ TEST_CASE("linear byte view")
         REQUIRE(m.st == IMDStatus::Ok);
 
         std::vector<uint8_t> d(128, 0xBB);
-        CHECK(m.img.write_linear(0, d.data(), 128) == IMDStatus::Ok);
+        CHECK(m.img.writeLinear(0, d.data(), 128) == IMDStatus::Ok);
     }
 
     SUBCASE("read-only mounts refuse linear writes")
@@ -693,7 +776,7 @@ TEST_CASE("linear byte view")
         Mounted m(IMD().header().simple_track(0, 0, 0, 2, 0xE5), false);
         REQUIRE(m.st == IMDStatus::Ok);
         uint8_t d[16] = {0};
-        CHECK(m.img.write_linear(0, d, sizeof(d)) == IMDStatus::ReadOnly);
+        CHECK(m.img.writeLinear(0, d, sizeof(d)) == IMDStatus::ReadOnly);
     }
 }
 
@@ -707,14 +790,14 @@ TEST_CASE("8 inch SSSD CP/M image - the most common IMD in existence")
 
     Mounted m(b);
     REQUIRE(m.st == IMDStatus::Ok);
-    CHECK(m.img.track_count() == 77);
-    CHECK(m.img.lba_count() == 2002);
-    CHECK(m.img.linear_size() == 2002 * 128); // 256,256 bytes
-    CHECK(m.img.uniform_sector_size());
-    CHECK(m.img.trailing_garbage() == 0);
+    CHECK(m.img.trackCount() == 77);
+    CHECK(m.img.lbaCount() == 2002);
+    CHECK(m.img.linearSize() == 2002 * 128); // 256,256 bytes
+    CHECK(m.img.uniformSectorSize());
+    CHECK(m.img.trailingGarbage() == 0);
 
     IMDTrackInfo ti;
-    REQUIRE(m.img.track_info(76, ti).is_success());
+    REQUIRE(m.img.trackInfo(76, ti) == IMDStatus::Ok);
     CHECK(ti.cyl == 76);
     CHECK(ti.first_lba == 76 * 26);
 
@@ -742,39 +825,190 @@ TEST_CASE("sector count is capped")
 
     Mounted m(b);
     CHECK(m.st == IMDStatus::TooLarge);
-    CHECK_FALSE(m.img.is_open());
+    CHECK_FALSE(m.img.isOpen());
 }
 
 TEST_CASE("extension sniffing")
 {
-    CHECK(IMDImage::looks_like_imd_extension("disk.imd"));
-    CHECK(IMDImage::looks_like_imd_extension("DISK.IMD"));
-    CHECK(IMDImage::looks_like_imd_extension("/path/to/cpm.IMD"));
-    CHECK_FALSE(IMDImage::looks_like_imd_extension("disk.img"));
-    CHECK_FALSE(IMDImage::looks_like_imd_extension("imd"));
-    CHECK_FALSE(IMDImage::looks_like_imd_extension(".imd"));
-    CHECK_FALSE(IMDImage::looks_like_imd_extension(nullptr));
+    CHECK(IMDImage::looksLikeExtension("disk.imd"));
+    CHECK(IMDImage::looksLikeExtension("DISK.IMD"));
+    CHECK(IMDImage::looksLikeExtension("/path/to/cpm.IMD"));
+    CHECK_FALSE(IMDImage::looksLikeExtension("disk.img"));
+    CHECK_FALSE(IMDImage::looksLikeExtension("imd"));
+    CHECK_FALSE(IMDImage::looksLikeExtension(".imd"));
+    CHECK_FALSE(IMDImage::looksLikeExtension(nullptr));
 }
 
 TEST_CASE("close resets the image")
 {
     Mounted m(IMD().header().simple_track(0, 0, 0, 26, 0xE5));
     REQUIRE(m.st == IMDStatus::Ok);
-    REQUIRE(m.img.lba_count() == 26);
+    REQUIRE(m.img.lbaCount() == 26);
 
     m.img.close();
-    CHECK_FALSE(m.img.is_open());
-    CHECK(m.img.lba_count() == 0);
-    CHECK(m.img.track_count() == 0);
-    CHECK(m.img.linear_size() == 0);
+    CHECK_FALSE(m.img.isOpen());
+    CHECK(m.img.lbaCount() == 0);
+    CHECK(m.img.trackCount() == 0);
+    CHECK(m.img.linearSize() == 0);
 
     uint8_t buf[128];
-    CHECK(m.img.read_sector(0, buf, sizeof(buf), nullptr) == IMDStatus::IoError);
+    CHECK(m.img.readSector(0, buf, sizeof(buf), nullptr) == IMDStatus::IoError);
 }
 
 TEST_CASE("status strings are available for every code")
 {
-    CHECK(std::string(imd_status_str(IMDStatus::Ok)) == "Ok");
-    CHECK(std::string(imd_status_str(IMDStatus::WriteRefused)) == "WriteRefused");
-    CHECK(std::string(imd_status_str(IMDStatus::BadRecordType)) == "BadRecordType");
+    CHECK(std::string(IMDImage::statusString(IMDStatus::Ok)) == "Ok");
+    CHECK(std::string(IMDImage::statusString(IMDStatus::WriteRefused)) == "WriteRefused");
+    CHECK(std::string(IMDImage::statusString(IMDStatus::BadRecordType)) == "BadRecordType");
+}
+
+namespace
+{
+
+// Neither a stream nor a FILE: anything with fnFile's methods is accepted
+struct MemFile
+{
+    std::vector<uint8_t> bytes;
+    long                 pos = 0;
+
+    int seek(long off, int whence)
+    {
+        long base = whence == SEEK_SET ? 0 : whence == SEEK_CUR ? pos : (long)bytes.size();
+        if (base + off < 0)
+            return -1;
+        pos = base + off;
+        return 0;
+    }
+    long tell() { return pos; }
+    size_t read(void *dst, size_t size, size_t count)
+    {
+        size_t want = size * count;
+        size_t left = pos < (long)bytes.size() ? bytes.size() - (size_t)pos : 0;
+        size_t have = std::min(want, left);
+        memcpy(dst, bytes.data() + pos, have);
+        pos += (long)have;
+        return have / size;
+    }
+    size_t write(const void *src, size_t size, size_t count)
+    {
+        size_t len = size * count;
+        if (bytes.size() < (size_t)pos + len)
+            bytes.resize((size_t)pos + len);
+        memcpy(bytes.data() + pos, src, len);
+        pos += (long)len;
+        return count;
+    }
+    int flush() { return 0; }
+};
+
+// One compressed and one full sector; a non-uniform write grows the compressed one
+IMD two_sectors()
+{
+    IMD image;
+    image.header().thdr(5, 0, 0, 2, 0).map({1, 2});
+    image.comp(0x02, 0xAA).full(0x01, 128, 0xBB);
+    return image;
+}
+
+template <typename File> void read_and_grow(File *file, long (*size_of)(File *))
+{
+    IMDImage img(file);
+    REQUIRE(img.open(true) == IMDStatus::Ok);
+    REQUIRE(img.lbaCount() == 2);
+
+    std::vector<uint8_t> buf(128);
+    uint16_t             got = 0;
+    REQUIRE(img.readSector(0, buf.data(), (uint32_t)buf.size(), &got) == IMDStatus::Ok);
+    CHECK(all_equal(buf, 0xAA));
+
+    std::vector<uint8_t> data(128, 0x5A);
+    data[7] = 0x01;
+    REQUIRE(img.writeSector(0, data.data(), 128) == IMDStatus::Ok);
+    CHECK(size_of(file) == (long)two_sectors().out.size() + 127);
+
+    IMDImage again(file);
+    REQUIRE(again.open(false) == IMDStatus::Ok);
+    REQUIRE(again.readSector(0, buf.data(), (uint32_t)buf.size(), &got) == IMDStatus::Ok);
+    CHECK(buf == data);
+    REQUIRE(again.readSector(1, buf.data(), (uint32_t)buf.size(), &got) == IMDStatus::Ok);
+    CHECK(all_equal(buf, 0xBB));
+}
+
+} // namespace
+
+TEST_CASE("a std::FILE handle")
+{
+    IMD   image = two_sectors();
+    FILE *file = fopen(IMD_TEST_FILE, "w+b");
+    REQUIRE(file != nullptr);
+    REQUIRE(fwrite(image.out.data(), 1, image.out.size(), file) == image.out.size());
+
+    read_and_grow<std::FILE>(file, [](std::FILE *handle) {
+        fflush(handle);
+        fseek(handle, 0, SEEK_END);
+        return ftell(handle);
+    });
+
+    fclose(file);
+    remove(IMD_TEST_FILE);
+}
+
+TEST_CASE("a handle with fnFile's methods")
+{
+    MemFile file;
+    file.bytes = two_sectors().out;
+    read_and_grow<MemFile>(&file, [](MemFile *handle) { return (long)handle->bytes.size(); });
+}
+
+TEST_CASE("building an image")
+{
+    MemFile file;
+    std::vector<uint8_t> small(128, 0x11), mid(256, 0x22), large(512, 0x33);
+
+    IMDImage img(&file);
+    REQUIRE(img.writeHeader(0, "built by a test\r\n") == IMDStatus::Ok);
+    // An FM track of 128-byte sectors, one never readable, then a 256/512 MFM track
+    REQUIRE(img.writeTrack(0, 0, 0, {{1, 128, small.data()}, {2, 128, nullptr}})
+            == IMDStatus::Ok);
+    REQUIRE(img.writeTrack(3, 1, 0, {{1, 256, mid.data()}, {2, 512, large.data()}})
+            == IMDStatus::Ok);
+    REQUIRE(img.writeBlankTrack(3, 2, 0, 3, 2, 0xE5) == IMDStatus::Ok);
+
+    // A second header would land after the tracks
+    CHECK(img.writeHeader(0) == IMDStatus::WriteRefused);
+
+    REQUIRE(img.open(true) == IMDStatus::Ok);
+    CHECK(std::string(img.comment()) == "built by a test\r\n");
+    REQUIRE(img.trackCount() == 3);
+    REQUIRE(img.lbaCount() == 7);
+    CHECK_FALSE(img.uniformSectorSize());
+
+    IMDTrackInfo track;
+    REQUIRE(img.trackInfo(0, track) == IMDStatus::Ok);
+    CHECK(track.size_code == 0);
+    REQUIRE(img.trackInfo(1, track) == IMDStatus::Ok);
+    CHECK(track.size_code == IMD_SIZE_CODE_VARIABLE);
+    CHECK(IMDImage::modeIsMFM(track.mode));
+
+    IMDSectorInfo info;
+    REQUIRE(img.sectorInfo(1, info) == IMDStatus::Ok);
+    CHECK(info.unavailable);
+
+    IMDStatus status;
+    CHECK(read_lba(img, 0, status) == small);
+    CHECK(read_lba(img, 2, status) == mid);
+    CHECK(read_lba(img, 3, status) == large);
+    for (uint32_t lba = 4; lba < 7; lba++)
+    {
+        CHECK(img.sectorSize(lba) == 512);
+        CHECK(all_equal(read_lba(img, lba, status), 0xE5));
+    }
+
+    // Blank sectors are full records, so any data goes in without growing the file
+    size_t before = file.bytes.size();
+    std::vector<uint8_t> data(512, 0x44);
+    data[0] = 0x01;
+    REQUIRE(img.writeSector(5, data.data(), 512) == IMDStatus::Ok);
+    CHECK(file.bytes.size() == before);
+    CHECK(read_lba(img, 5, status) == data);
 }

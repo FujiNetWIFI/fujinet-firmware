@@ -1,9 +1,12 @@
 #ifndef _MEDIATYPE_IMD
 #define _MEDIATYPE_IMD
 
+#include <memory>
+
 #include "diskType.h"
 
 #include "../IMDImage.h"
+#include "../../include/PSRAMMemoryResource.h"
 
 // Serves an ImageDisk (.imd) image using its native geometry: drive sector N is
 // IMD LBA N and sector_size() reports the real per-sector size, so a mixed
@@ -33,8 +36,10 @@ public:
 private:
     void _derive_geometry();
     void _fill_percom();
+    uint32_t _lba_count() const;   // 0 when nothing is mounted
 
-    IMDImage _imd;
+    PSRAMMemoryResource _psram;     // the sector tables; declared first so it outlives _imd
+    std::unique_ptr<IMDImage> _imd; // made at mount, around the mounted handle
     bool _writable = false;
     uint8_t _base_ctrl_status = DISK_CTRL_STATUS_CLEAR;
 

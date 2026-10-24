@@ -1,109 +1,15 @@
-// IMD (ImageDisk) disk image reader/writer. See IMDImage.h.
-//
-// No BUILD_* guard: the ESP build globs lib/media/*.cpp, so this is compiled
-// into every target and must stay free of platform dependencies.
+// IMD (ImageDisk) image: everything that doesn't need the file handle's type. See
+// IMDImage.h.
 
 #include "IMDImage.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 
-#include "debug.h"
-
-// Bounds-checked absolute-offset access, so the range checks live in one place.
-static bool imd_read_at(fnFile *f, uint32_t size, uint32_t off, void *dst, uint32_t len)
+const char *IMDImage::statusString(IMDStatus status)
 {
-    if (len == 0)
-        return true;
-    if (off > size || len > size - off)
-        return false;
-    if (fnio::fseek(f, (long)off, SEEK_SET) != 0)
-        return false;
-    return fnio::fread(dst, 1, len, f) == len;
-}
-
-static bool imd_write_at(fnFile *f, uint32_t size, uint32_t off, const void *src, uint32_t len)
-{
-    if (len == 0)
-        return true;
-    if (off > size || len > size - off)
-        return false;
-    if (fnio::fseek(f, (long)off, SEEK_SET) != 0)
-        return false;
-    return fnio::fwrite(src, 1, len, f) == len;
-}
-
-// Buffered forward reader. Indexing an 8" image walks ~2000 sector records; one
-// read per record would make mounting crawl on SD/TNFS.
-class IMDCursor
-{
-public:
-    IMDCursor(fnFile *f, uint32_t size) : _f(f), _size(size) {}
-
-    uint32_t pos() const { return _pos; }
-    uint32_t remaining() const { return _pos < _size ? _size - _pos : 0; }
-    bool     at_end() const { return _pos >= _size; }
-    void     seek(uint32_t off) { _pos = off; }
-
-    bool read(void *dst, uint32_t len)
-    {
-        uint8_t *out = static_cast<uint8_t *>(dst);
-        while (len > 0)
-        {
-            if (!_fill())
-                return false;
-            uint32_t used = _pos - _buf_off;
-            uint32_t avail = _buf_len - used;
-            uint32_t n = len < avail ? len : avail;
-            memcpy(out, _buf + used, n);
-            out += n;
-            _pos += n;
-            len -= n;
-        }
-        return true;
-    }
-
-    bool byte(uint8_t &b) { return read(&b, 1); }
-
-    bool skip(uint32_t len)
-    {
-        if (len > remaining())
-            return false;
-        _pos += len;
-        return true;
-    }
-
-private:
-    bool _fill()
-    {
-        if (_pos >= _size)
-            return false;
-        if (_buf_len > 0 && _pos >= _buf_off && _pos < _buf_off + _buf_len)
-            return true;
-        uint32_t n = _size - _pos;
-        if (n > sizeof(_buf))
-            n = sizeof(_buf);
-        if (!imd_read_at(_f, _size, _pos, _buf, n))
-        {
-            _buf_len = 0;
-            return false;
-        }
-        _buf_off = _pos;
-        _buf_len = n;
-        return true;
-    }
-
-    fnFile  *_f;
-    uint32_t _size;
-    uint32_t _pos = 0;
-    uint32_t _buf_off = 0;
-    uint32_t _buf_len = 0;
-    uint8_t  _buf[512];
-};
-
-const char *imd_status_str(IMDStatus s)
-{
-    switch (s)
+    switch (status)
     {
     case IMDStatus::Ok:             return "Ok";
     case IMDStatus::NotIMD:         return "NotIMD";
@@ -121,7 +27,7 @@ const char *imd_status_str(IMDStatus s)
     return "?";
 }
 
-uint16_t imd_mode_rate_kbps(uint8_t mode)
+uint16_t IMDImage::modeRateKBPS(uint8_t mode)
 {
     switch (mode)
     {
@@ -133,68 +39,133 @@ uint16_t imd_mode_rate_kbps(uint8_t mode)
     }
 }
 
-bool imd_mode_is_mfm(uint8_t mode)
+bool IMDImage::modeIsMFM(uint8_t mode)
 {
     return (mode >= 3 && mode <= 5) || mode == 9;
 }
 
-bool imd_mode_is_valid(uint8_t mode)
+bool IMDImage::modeIsValid(uint8_t mode)
 {
     return mode <= 6 || mode == 9;
 }
 
-IMDImage::~IMDImage()
-{
-    close();
-}
-
-bool IMDImage::looks_like_imd_extension(const char *filename)
+bool IMDImage::looksLikeExtension(const char *filename)
 {
     if (filename == nullptr)
         return false;
-    size_t l = strlen(filename);
-    return l > 4 && filename[l - 4] == '.' && strcasecmp(filename + l - 3, "IMD") == 0;
+    size_t len = strlen(filename);
+    if (len <= 4 || filename[len - 4] != '.')
+        return false;
+    for (size_t idx = 0; idx < 3; idx++)
+        if (std::toupper((unsigned char)filename[len - 3 + idx]) != "IMD"[idx])
+            return false;
+    return true;
 }
 
-IMDStatus IMDImage::write_header(fnFile *f, time_t when)
-{
-    char hdr[48];
-    size_t len = strftime(hdr, sizeof(hdr), "IMD 1.18: %d/%m/%Y %H:%M:%S\r\n", localtime(&when));
+// ---------------------------------------------------------------------------
+// File access
 
-    hdr[len++] = IMD_EOF_MARKER;
-    return fnio::fwrite(hdr, 1, len, f) == len ? IMDStatus::Ok : IMDStatus::IoError;
+bool IMDImage::_readAt(uint32_t off, void *dst, uint32_t len)
+{
+    if (len == 0)
+        return true;
+    if (off > _size || len > _size - off)
+        return false;
+    return _file.seek(off) && _file.read(dst, len);
 }
 
-IMDStatus IMDImage::write_blank_track(fnFile *f, uint8_t mode, uint8_t cyl, uint8_t head,
-                                      uint8_t nsec, uint8_t size_code, uint8_t fill)
+bool IMDImage::_writeAt(uint32_t off, const void *src, uint32_t len)
 {
-    std::vector<uint8_t> track = {mode, cyl, head, nsec, size_code};
+    if (len == 0)
+        return true;
+    return _file.seek(off) && _file.write(src, len);
+}
 
-    for (uint8_t id = 1; id <= nsec; id++)
-        track.push_back(id);
-    for (uint8_t i = 0; i < nsec; i++)
+bool IMDImage::_append(const void *src, uint32_t len)
+{
+    return _file.file != nullptr && _file.seek(_file.end()) && _file.write(src, len);
+}
+
+// ---------------------------------------------------------------------------
+// Parsing
+
+// Buffered forward reader: indexing an 8" disk walks about 2000 records, and one
+// read per record would make a mount over the network crawl.
+class IMDImage::Cursor
+{
+public:
+    explicit Cursor(IMDImage &image) : _image(image) {}
+
+    uint32_t pos() const { return _pos; }
+    bool     atEnd() const { return _pos >= _image._size; }
+    void     seek(uint32_t off) { _pos = off; }
+
+    bool read(void *dst, uint32_t len)
     {
-        track.push_back(1); // a full sector of data follows
-        track.insert(track.end(), 128u << size_code, fill);
+        uint8_t *out = static_cast<uint8_t *>(dst);
+        while (len > 0)
+        {
+            if (!_fill())
+                return false;
+            uint32_t used = _pos - _buf_off;
+            uint32_t chunk = std::min(len, _buf_len - used);
+            memcpy(out, _buf + used, chunk);
+            out += chunk;
+            _pos += chunk;
+            len -= chunk;
+        }
+        return true;
     }
-    return fnio::fwrite(track.data(), 1, track.size(), f) == track.size() ? IMDStatus::Ok
-                                                                           : IMDStatus::IoError;
-}
 
-IMDStatus IMDImage::open(fnFile *f, uint32_t disksize, bool writable)
+    bool skip(uint32_t len)
+    {
+        if (len > _image._size - std::min(_pos, _image._size))
+            return false;
+        _pos += len;
+        return true;
+    }
+
+private:
+    bool _fill()
+    {
+        if (_pos >= _image._size)
+            return false;
+        if (_buf_len > 0 && _pos >= _buf_off && _pos < _buf_off + _buf_len)
+            return true;
+        uint32_t chunk = std::min<uint32_t>(_image._size - _pos, sizeof(_buf));
+        if (!_image._readAt(_pos, _buf, chunk))
+        {
+            _buf_len = 0;
+            return false;
+        }
+        _buf_off = _pos;
+        _buf_len = chunk;
+        return true;
+    }
+
+    IMDImage   &_image;
+    uint32_t _pos = 0;
+    uint32_t _buf_off = 0;
+    uint32_t _buf_len = 0;
+    uint8_t  _buf[512];
+};
+
+IMDStatus IMDImage::open(bool writable)
 {
     close();
-    if (f == nullptr)
+    if (_file.file == nullptr)
         return IMDStatus::IoError;
 
-    _f = f;
-    _size = disksize;
+    _size = _file.end();
     _writable = writable;
-
-    IMDStatus st = _parse();
-    if (st != IMDStatus::Ok)
+    IMDStatus status = _parse();
+    if (status != IMDStatus::Ok)
+    {
         close();
-    return st;
+        return status;
+    }
+    _open = true;
+    return IMDStatus::Ok;
 }
 
 void IMDImage::close()
@@ -203,87 +174,74 @@ void IMDImage::close()
     _sectors.shrink_to_fit();
     _tracks.clear();
     _tracks.shrink_to_fit();
+    _comment.clear();
     _scratch.clear();
     _scratch.shrink_to_fit();
-    _comment.clear();
-    _f = nullptr;   // borrowed, never ours to close
-    _size = 0;
+    _open = false;
     _writable = false;
+    _size = 0;
     _trailing = 0;
     _linear_size = 0;
     _max_sector_size = 0;
     _uniform_size = true;
 }
 
-// Everything before the 0x1A is header+comment. The "IMD v.vv:" signature line
-// is optional - SIMH omits it entirely - so only the terminator is required.
-IMDStatus IMDImage::_read_comment(uint32_t &data_start)
+// Everything before IMD_EOF_MARKER is the signature and comment. The "IMD v.vv:" line
+// is optional (SIMH omits it), so only the terminator is required.
+IMDStatus IMDImage::_readComment(uint32_t &data_start)
 {
-    uint32_t total = _size;
-    uint32_t limit = total < IMD_MAX_HEADER_SCAN ? total : IMD_MAX_HEADER_SCAN;
+    uint32_t limit = std::min<uint32_t>(_size, IMD_MAX_HEADER_SCAN);
     uint8_t  buf[128];
-    uint32_t off = 0;
 
-    while (off < limit)
+    for (uint32_t off = 0; off < limit;)
     {
-        uint32_t n = limit - off;
-        if (n > sizeof(buf))
-            n = sizeof(buf);
-        if (!imd_read_at(_f, _size, off, buf, n))
+        uint32_t chunk = std::min<uint32_t>(limit - off, sizeof(buf));
+        if (!_readAt(off, buf, chunk))
             return IMDStatus::IoError;
-
-        for (uint32_t i = 0; i < n; i++)
+        for (uint32_t idx = 0; idx < chunk; idx++)
         {
-            if (buf[i] == IMD_EOF_MARKER)
+            if (buf[idx] == IMD_EOF_MARKER)
             {
-                data_start = off + i + 1;
+                data_start = off + idx + 1;
                 if (_comment.compare(0, 4, "IMD ") == 0)
                 {
-                    size_t nl = _comment.find('\n');
-                    _comment.erase(0, nl == std::string::npos ? _comment.size() : nl + 1);
+                    size_t newline = _comment.find('\n');
+                    _comment.erase(0, newline == std::string::npos ? _comment.size()
+                                                                   : newline + 1);
                 }
                 return IMDStatus::Ok;
             }
             if (_comment.size() < IMD_MAX_COMMENT)
-                _comment.push_back((char)buf[i]);
+                _comment.push_back((char)buf[idx]);
         }
-        off += n;
+        off += chunk;
     }
     return IMDStatus::NotIMD;
 }
 
-// True if everything from `from` to EOF is one repeated byte, the signature of
-// transport padding (XMODEM rounds up to a packet boundary).
-bool IMDImage::_tail_is_padding(uint32_t from)
+// True if everything from `from` to the end is one repeated byte: transport padding
+bool IMDImage::_tailIsPadding(uint32_t from)
 {
-    uint32_t total = _size;
-    if (from >= total)
-        return true;
+    uint8_t buf[128];
+    uint8_t first = 0;
+    bool    have_first = false;
 
-    uint8_t  buf[128];
-    uint8_t  first = 0;
-    bool     have_first = false;
-    uint32_t off = from;
-
-    while (off < total)
+    for (uint32_t off = from; off < _size;)
     {
-        uint32_t n = total - off;
-        if (n > sizeof(buf))
-            n = sizeof(buf);
-        if (!imd_read_at(_f, _size, off, buf, n))
+        uint32_t chunk = std::min<uint32_t>(_size - off, sizeof(buf));
+        if (!_readAt(off, buf, chunk))
             return false;
-        for (uint32_t i = 0; i < n; i++)
+        for (uint32_t idx = 0; idx < chunk; idx++)
         {
             if (!have_first)
             {
-                first = buf[i];
+                first = buf[idx];
                 have_first = true;
-                continue;
             }
-            if (buf[i] != first)
+            else if (buf[idx] != first)
                 return false;
         }
-        off += n;
+        off += chunk;
     }
     return true;
 }
@@ -291,92 +249,77 @@ bool IMDImage::_tail_is_padding(uint32_t from)
 IMDStatus IMDImage::_parse()
 {
     uint32_t data_start = 0;
-    IMDStatus st = _read_comment(data_start);
-    if (st != IMDStatus::Ok)
-        return st;
+    IMDStatus   status = _readComment(data_start);
+    if (status != IMDStatus::Ok)
+        return status;
 
-    IMDCursor cur(_f, _size);
-    cur.seek(data_start);
-
-    while (!cur.at_end())
+    Cursor cursor(*this);
+    cursor.seek(data_start);
+    while (!cursor.atEnd())
     {
-        uint32_t track_start = cur.pos();
+        uint32_t track_start = cursor.pos();
         bool     header_ok = false;
 
-        st = _parse_track(cur, header_ok);
-        if (st == IMDStatus::Ok)
+        status = _parseTrack(cursor, header_ok);
+        if (status == IMDStatus::Ok)
             continue;
-
-        if (!header_ok && _tail_is_padding(track_start))
+        if (!header_ok && _tailIsPadding(track_start))
         {
             _trailing = _size - track_start;
-            Debug_printf("IMD: ignoring %lu trailing bytes\n", (unsigned long)_trailing);
             break;
         }
-        return st;
+        return status;
     }
 
     if (_tracks.empty())
         return IMDStatus::NotIMD;
 
-    for (size_t i = 0; i < _sectors.size(); i++)
+    for (const SectorRef &sector : _sectors)
     {
-        uint16_t sz = _sectors[i].size;
-        if (sz > _max_sector_size)
-            _max_sector_size = sz;
-        if (i > 0 && sz != _sectors[0].size)
+        _max_sector_size = std::max(_max_sector_size, sector.size);
+        if (sector.size != _sectors[0].size)
             _uniform_size = false;
     }
     _scratch.assign(_max_sector_size, 0);
-
-    Debug_printf("IMD: %u tracks, %u sectors, %lu linear bytes\n",
-                 (unsigned)_tracks.size(), (unsigned)_sectors.size(),
-                 (unsigned long)_linear_size);
     return IMDStatus::Ok;
 }
 
-IMDStatus IMDImage::_parse_track(IMDCursor &cur, bool &header_ok)
+IMDStatus IMDImage::_parseTrack(Cursor &cursor, bool &header_ok)
 {
     header_ok = false;
 
-    uint8_t hdr[5];
-    if (!cur.read(hdr, sizeof(hdr)))
+    uint8_t header[5];
+    if (!cursor.read(header, sizeof(header)))
         return IMDStatus::Truncated;
 
-    uint8_t  mode = hdr[0];
-    uint8_t  cyl = hdr[1];
-    uint8_t  head_raw = hdr[2];
-    uint16_t nsec = hdr[3];
-    uint8_t  size_code = hdr[4];
+    uint8_t  mode = header[0];
+    uint8_t  cyl = header[1];
+    uint8_t  head_byte = header[2];
+    uint16_t nsec = header[3];
+    uint8_t  size_code = header[4];
 
-    if (!imd_mode_is_valid(mode) || nsec == 0)
+    if (!modeIsValid(mode) || nsec == 0)
         return IMDStatus::NotIMD;
     if (size_code > 6 && size_code != IMD_SIZE_CODE_VARIABLE)
         return IMDStatus::BadSizeCode;
-
     header_ok = true;
 
-    uint8_t head = head_raw & IMD_HEAD_MASK;
-    if (head > 1)
-    {
-        Debug_printf("IMD: cyl %u head %u is out of spec\n", (unsigned)cyl, (unsigned)head);
-    }
+    uint8_t head = head_byte & IMD_HEAD_MASK;
 
-    std::vector<uint8_t> smap(nsec), cmap, hmap;
-    if (!cur.read(smap.data(), nsec))
+    std::vector<uint8_t> id_map(nsec), cyl_map, head_map;
+    if (!cursor.read(id_map.data(), nsec))
         return IMDStatus::Truncated;
-
-    // Cylinder map before head map, per IMD.TXT 6.5/6.6 (SIMH has these swapped)
-    if (head_raw & IMD_HEAD_CYL_MAP)
+    // Cylinder map before head map, per IMD.TXT 6.5/6.6 (SIMH has them swapped)
+    if (head_byte & IMD_HEAD_CYL_MAP)
     {
-        cmap.resize(nsec);
-        if (!cur.read(cmap.data(), nsec))
+        cyl_map.resize(nsec);
+        if (!cursor.read(cyl_map.data(), nsec))
             return IMDStatus::Truncated;
     }
-    if (head_raw & IMD_HEAD_HEAD_MAP)
+    if (head_byte & IMD_HEAD_HEAD_MAP)
     {
-        hmap.resize(nsec);
-        if (!cur.read(hmap.data(), nsec))
+        head_map.resize(nsec);
+        if (!cursor.read(head_map.data(), nsec))
             return IMDStatus::Truncated;
     }
 
@@ -384,355 +327,494 @@ IMDStatus IMDImage::_parse_track(IMDCursor &cur, bool &header_ok)
     if (size_code == IMD_SIZE_CODE_VARIABLE)
     {
         std::vector<uint8_t> raw((size_t)nsec * 2);
-        if (!cur.read(raw.data(), (uint32_t)nsec * 2))
+        if (!cursor.read(raw.data(), (uint32_t)raw.size()))
             return IMDStatus::Truncated;
         sizes.resize(nsec);
-        for (uint16_t i = 0; i < nsec; i++)
-            sizes[i] = (uint16_t)(raw[i * 2] | (raw[i * 2 + 1] << 8));
+        for (uint16_t idx = 0; idx < nsec; idx++)
+            sizes[idx] = (uint16_t)(raw[idx * 2] | (raw[idx * 2 + 1] << 8));
     }
 
     if (_sectors.size() + nsec > IMD_MAX_SECTORS)
         return IMDStatus::TooLarge;
 
-    TrackRef tr;
-    tr.first_lba = (uint32_t)_sectors.size();
-    tr.first_byte = _linear_size;
-    tr.nsec = nsec;
-    tr.mode = mode;
-    tr.cyl = cyl;
-    tr.head = head;
-    tr.size_code = size_code;
-    tr.map_flags = head_raw & (IMD_HEAD_CYL_MAP | IMD_HEAD_HEAD_MAP);
+    TrackRef track;
+    track.first_lba = (uint32_t)_sectors.size();
+    track.first_byte = _linear_size;
+    track.nsec = nsec;
+    track.mode = mode;
+    track.cyl = cyl;
+    track.head = head;
+    track.size_code = size_code;
+    track.map_flags = head_byte & (IMD_HEAD_CYL_MAP | IMD_HEAD_HEAD_MAP);
 
-    size_t base = _sectors.size();
-
-    for (uint16_t i = 0; i < nsec; i++)
+    for (uint16_t idx = 0; idx < nsec; idx++)
     {
-        uint8_t type;
-        if (!cur.byte(type))
+        uint8_t rec_type;
+        if (!cursor.read(&rec_type, 1))
             return IMDStatus::Truncated;
-        // Record length is derived from the type, so an unknown type is
-        // unrecoverable - there is no way to find the next record.
-        if (type > IMD_REC_MAX)
+        // A record's length comes from its type, so an unknown type loses the place
+        if (rec_type > IMD_REC_MAX)
             return IMDStatus::BadRecordType;
 
-        SectorRef s;
-        s.size = (size_code == IMD_SIZE_CODE_VARIABLE) ? sizes[i] : (uint16_t)(128 << size_code);
-        s.id = smap[i];
-        s.id_cyl = cmap.empty() ? cyl : cmap[i];
-        s.id_head = hmap.empty() ? head : hmap[i];
-        s.rec_type = type;
-        s.data_off = cur.pos();
+        SectorRef sector;
+        sector.size = size_code == IMD_SIZE_CODE_VARIABLE ? sizes[idx]
+                                                          : (uint16_t)(128 << size_code);
+        sector.sector_id = id_map[idx];
+        sector.id_cyl = cyl_map.empty() ? cyl : cyl_map[idx];
+        sector.id_head = head_map.empty() ? head : head_map[idx];
+        sector.rec_type = rec_type;
+        sector.data_off = cursor.pos();
 
-        // Odd types carry a full sector, even types a single fill byte
         uint32_t payload = 0;
-        if (type != IMD_REC_UNAVAILABLE)
-            payload = (type & 1) ? s.size : 1;
-        if (!cur.skip(payload))
+        if (rec_type != IMD_REC_UNAVAILABLE)
+            payload = (rec_type & 1) ? sector.size : 1;
+        if (!cursor.skip(payload))
             return IMDStatus::Truncated;
-
-        _sectors.push_back(s);
-        _linear_size += s.size;
+        _sectors.push_back(sector);
+        _linear_size += sector.size;
     }
 
-    // Sectors are stored in physical order; sorting by ID and indexing by
-    // position deinterleaves the track and works for 0- and 1-based IDs alike.
-    // Stable so duplicate IDs keep their on-disk order.
-    std::stable_sort(_sectors.begin() + (long)base, _sectors.end(),
-                     [](const SectorRef &a, const SectorRef &b) { return a.id < b.id; });
-
-    _tracks.push_back(tr);
+    // Stored in physical order; sorting by ID deinterleaves the track for 0- and
+    // 1-based IDs alike. Stable so duplicate IDs keep their order.
+    std::stable_sort(_sectors.begin() + track.first_lba, _sectors.end(),
+                     [](const SectorRef &lhs, const SectorRef &rhs) {
+                         return lhs.sector_id < rhs.sector_id;
+                     });
+    _tracks.push_back(track);
     return IMDStatus::Ok;
 }
 
-uint16_t IMDImage::sector_size(uint32_t lba) const
+// ---------------------------------------------------------------------------
+// Queries
+
+uint16_t IMDImage::sectorSize(uint32_t lba) const
 {
-    if (lba >= _sectors.size())
-        return 0;
-    return _sectors[lba].size;
+    return lba < _sectors.size() ? _sectors[lba].size : 0;
 }
 
-success_is_true IMDImage::track_info(uint32_t track, IMDTrackInfo &out) const
+IMDStatus IMDImage::trackInfo(uint32_t track, IMDTrackInfo &info) const
 {
     if (track >= _tracks.size())
-        RETURN_ERROR_AS_FALSE();
-    const TrackRef &t = _tracks[track];
-    out.first_lba = t.first_lba;
-    out.nsec = t.nsec;
-    out.mode = t.mode;
-    out.cyl = t.cyl;
-    out.head = t.head;
-    out.size_code = t.size_code;
-    out.has_cyl_map = (t.map_flags & IMD_HEAD_CYL_MAP) != 0;
-    out.has_head_map = (t.map_flags & IMD_HEAD_HEAD_MAP) != 0;
-    RETURN_SUCCESS_AS_TRUE();
+        return IMDStatus::NoSuchSector;
+    const TrackRef &ref = _tracks[track];
+    info.first_lba = ref.first_lba;
+    info.nsec = ref.nsec;
+    info.mode = ref.mode;
+    info.cyl = ref.cyl;
+    info.head = ref.head;
+    info.size_code = ref.size_code;
+    info.has_cyl_map = (ref.map_flags & IMD_HEAD_CYL_MAP) != 0;
+    info.has_head_map = (ref.map_flags & IMD_HEAD_HEAD_MAP) != 0;
+    return IMDStatus::Ok;
 }
 
-success_is_true IMDImage::sector_info(uint32_t lba, IMDSectorInfo &out) const
+IMDStatus IMDImage::sectorInfo(uint32_t lba, IMDSectorInfo &info) const
 {
     if (lba >= _sectors.size())
-        RETURN_ERROR_AS_FALSE();
-    const SectorRef &s = _sectors[lba];
-    out.size = s.size;
-    out.id = s.id;
-    out.cyl = s.id_cyl;
-    out.head = s.id_head;
-    out.rec_type = s.rec_type;
-    out.unavailable = (s.rec_type == IMD_REC_UNAVAILABLE);
+        return IMDStatus::NoSuchSector;
+    const SectorRef &ref = _sectors[lba];
+    info.size = ref.size;
+    info.id = ref.sector_id;
+    info.cyl = ref.id_cyl;
+    info.head = ref.id_head;
+    info.rec_type = ref.rec_type;
+    info.unavailable = ref.rec_type == IMD_REC_UNAVAILABLE;
 
-    uint8_t f = out.unavailable ? 0 : (uint8_t)(s.rec_type - 1);
-    out.compressed = (f & IMD_REC_COMPRESSED) != 0;
-    out.deleted = (f & IMD_REC_DELETED) != 0;
-    out.had_error = (f & IMD_REC_ERROR) != 0;
-    RETURN_SUCCESS_AS_TRUE();
+    uint8_t flags = info.unavailable ? 0 : (uint8_t)(ref.rec_type - 1);
+    info.compressed = (flags & IMD_REC_COMPRESSED) != 0;
+    info.deleted = (flags & IMD_REC_DELETED) != 0;
+    info.had_error = (flags & IMD_REC_ERROR) != 0;
+    return IMDStatus::Ok;
 }
 
-success_is_true IMDImage::find_lba(uint8_t cyl, uint8_t head, uint8_t id, uint32_t &lba) const
+IMDStatus IMDImage::findLBA(uint8_t cyl, uint8_t head, uint8_t sector_id,
+                            uint32_t &lba) const
 {
-    for (size_t t = 0; t < _tracks.size(); t++)
+    for (const TrackRef &track : _tracks)
     {
-        const TrackRef &tr = _tracks[t];
-        if (tr.cyl != cyl || tr.head != head)
+        if (track.cyl != cyl || track.head != head)
             continue;
-        for (uint16_t i = 0; i < tr.nsec; i++)
+        for (uint16_t idx = 0; idx < track.nsec; idx++)
         {
-            if (_sectors[tr.first_lba + i].id == id)
+            if (_sectors[track.first_lba + idx].sector_id == sector_id)
             {
-                lba = tr.first_lba + i;
-                RETURN_SUCCESS_AS_TRUE();
+                lba = track.first_lba + idx;
+                return IMDStatus::Ok;
             }
         }
     }
-    RETURN_ERROR_AS_FALSE();
+    return IMDStatus::NoSuchSector;
 }
 
-IMDStatus IMDImage::read_sector(uint32_t lba, uint8_t *buf, uint32_t buflen, uint16_t *out_len)
+// ---------------------------------------------------------------------------
+// Sector I/O
+
+IMDStatus IMDImage::readSector(uint32_t lba, uint8_t *buf, uint32_t buf_len,
+                               uint16_t *out_len)
 {
     if (out_len != nullptr)
         *out_len = 0;
-    if (!is_open())
+    if (!_open)
         return IMDStatus::IoError;
     if (lba >= _sectors.size())
         return IMDStatus::NoSuchSector;
 
-    const SectorRef &s = _sectors[lba];
-    // Never fabricate contents for a sector that was never readable
-    if (s.rec_type == IMD_REC_UNAVAILABLE)
+    const SectorRef &sector = _sectors[lba];
+    // Never invent contents for a sector that was never readable
+    if (sector.rec_type == IMD_REC_UNAVAILABLE)
         return IMDStatus::Unavailable;
-    if (buflen < s.size)
+    if (buf_len < sector.size)
         return IMDStatus::BufferTooSmall;
 
-    if (s.size > 0)
+    if (sector.rec_type & 1)
     {
-        if (s.rec_type & 1)
-        {
-            if (!imd_read_at(_f, _size, s.data_off, buf, s.size))
-                return IMDStatus::IoError;
-        }
-        else
-        {
-            uint8_t fill;
-            if (!imd_read_at(_f, _size, s.data_off, &fill, 1))
-                return IMDStatus::IoError;
-            memset(buf, fill, s.size);
-        }
+        if (!_readAt(sector.data_off, buf, sector.size))
+            return IMDStatus::IoError;
+    }
+    else
+    {
+        uint8_t fill;
+        if (!_readAt(sector.data_off, &fill, 1))
+            return IMDStatus::IoError;
+        memset(buf, fill, sector.size);
     }
 
     if (out_len != nullptr)
-        *out_len = s.size;
+        *out_len = sector.size;
     return IMDStatus::Ok;
 }
 
-IMDStatus IMDImage::write_sector(uint32_t lba, const uint8_t *buf, uint16_t len)
+IMDStatus IMDImage::writeSector(uint32_t lba, const uint8_t *buf, uint16_t len)
 {
-    if (!is_open())
+    if (!_open)
         return IMDStatus::IoError;
     if (!_writable)
         return IMDStatus::ReadOnly;
     if (lba >= _sectors.size())
         return IMDStatus::NoSuchSector;
 
-    SectorRef &s = _sectors[lba];
-    if (s.rec_type == IMD_REC_UNAVAILABLE)
-        return IMDStatus::WriteRefused;
-    if (len != s.size)
+    SectorRef &sector = _sectors[lba];
+    if (sector.rec_type == IMD_REC_UNAVAILABLE || len != sector.size)
         return IMDStatus::WriteRefused;
 
-    bool    deleted = ((s.rec_type - 1) & IMD_REC_DELETED) != 0;
+    bool deleted = ((sector.rec_type - 1) & IMD_REC_DELETED) != 0;
     uint8_t new_type;
 
-    if (s.rec_type & 1)
+    if (sector.rec_type & 1)
     {
-        if (s.size > 0 && !imd_write_at(_f, _size, s.data_off, buf, s.size))
+        if (!_writeAt(sector.data_off, buf, sector.size))
             return IMDStatus::IoError;
         new_type = (uint8_t)(1 + (deleted ? IMD_REC_DELETED : 0));
     }
     else
     {
-        // A compressed record is one byte on disk, so it can only take a
-        // uniform buffer; anything else would change the record's length.
-        uint8_t fill = (s.size > 0) ? buf[0] : 0;
-        for (uint16_t i = 1; i < s.size; i++)
-            if (buf[i] != fill)
-                return IMDStatus::WriteRefused;
-        if (!imd_write_at(_f, _size, s.data_off, &fill, 1))
+        // A compressed record is one fill byte, so only a uniform buffer fits in place
+        uint8_t fill = len > 0 ? buf[0] : 0;
+        for (uint16_t idx = 1; idx < len; idx++)
+        {
+            if (buf[idx] != fill)
+            {
+                IMDStatus status = _expand();
+                if (status != IMDStatus::Ok)
+                    return status;
+                return writeSector(lba, buf, len);
+            }
+        }
+        if (!_writeAt(sector.data_off, &fill, 1))
             return IMDStatus::IoError;
         new_type = (uint8_t)(2 + (deleted ? IMD_REC_DELETED : 0));
     }
 
-    // Fresh data clears any recorded error, but keeps the deleted address mark
-    if (new_type != s.rec_type)
+    // Fresh data clears a recorded error but keeps the deleted address mark
+    if (new_type != sector.rec_type)
     {
-        if (!imd_write_at(_f, _size, s.data_off - 1, &new_type, 1))
+        if (!_writeAt(sector.data_off - 1, &new_type, 1))
             return IMDStatus::IoError;
-        s.rec_type = new_type;
+        sector.rec_type = new_type;
     }
+    return _file.flush() ? IMDStatus::Ok : IMDStatus::IoError;
+}
 
-    fnio::fflush(_f);
+// Moves [from, end) up by shift, last chunk first so nothing is overwritten before
+// it has been read
+IMDStatus IMDImage::_shiftUp(uint32_t from, uint32_t end, uint32_t shift)
+{
+    uint8_t buf[512];
+
+    if (shift == 0)
+        return IMDStatus::Ok;
+    while (end > from)
+    {
+        uint32_t chunk = std::min<uint32_t>(end - from, sizeof(buf));
+        end -= chunk;
+        if (!_readAt(end, buf, chunk) || !_writeAt(end + shift, buf, chunk))
+            return IMDStatus::IoError;
+    }
     return IMDStatus::Ok;
 }
 
-success_is_true IMDImage::_locate_linear(uint32_t byte_off, uint32_t &lba, uint32_t &sec_off) const
+// Records are packed with no offsets, so growing one moves everything after it.
+// Growing them all in one pass, from the end back, costs one rewrite instead of one
+// per sector, and every later write is in place.
+IMDStatus IMDImage::_expand()
 {
-    if (byte_off >= _linear_size || _tracks.empty())
-        RETURN_ERROR_AS_FALSE();
-
-    size_t lo = 0, hi = _tracks.size() - 1;
-    while (lo < hi)
+    std::vector<uint32_t> grow;   // LBAs of the compressed records, in file order
+    for (uint32_t lba = 0; lba < _sectors.size(); lba++)
     {
-        size_t mid = (lo + hi + 1) / 2;
-        if (_tracks[mid].first_byte <= byte_off)
-            lo = mid;
-        else
-            hi = mid - 1;
+        const SectorRef &sector = _sectors[lba];
+        if (sector.rec_type != IMD_REC_UNAVAILABLE && (sector.rec_type & 1) == 0
+            && sector.size > 1)
+            grow.push_back(lba);
     }
+    std::sort(grow.begin(), grow.end(), [this](uint32_t lhs, uint32_t rhs) {
+        return _sectors[lhs].data_off < _sectors[rhs].data_off;
+    });
 
-    const TrackRef &t = _tracks[lo];
-    uint32_t rel = byte_off - t.first_byte;
-
-    if (t.size_code != IMD_SIZE_CODE_VARIABLE)
+    // before[idx]: how far record grow[idx], and everything up to the next one, moves
+    std::vector<uint32_t> before(grow.size());
+    uint32_t total = 0;
+    for (size_t idx = 0; idx < grow.size(); idx++)
     {
-        uint32_t ss = (uint32_t)(128 << t.size_code);
-        lba = t.first_lba + rel / ss;
-        sec_off = rel % ss;
-        RETURN_SUCCESS_IF(lba < _sectors.size());
+        before[idx] = total;
+        total += _sectors[grow[idx]].size - 1u;
     }
+    if (total == 0)
+        return IMDStatus::Ok;
+    if (_size > UINT32_MAX - total)
+        return IMDStatus::TooLarge;
 
-    // Variable-size track: nsec is at most 255, so a scan is cheap enough
-    for (uint16_t i = 0; i < t.nsec; i++)
+    uint8_t  buf[512];
+    uint32_t end = _size;
+    for (size_t idx = grow.size(); idx-- > 0;)
     {
-        uint32_t sz = _sectors[t.first_lba + i].size;
-        if (rel < sz)
+        const SectorRef &sector = _sectors[grow[idx]];
+        uint8_t fill;
+
+        if (_shiftUp(sector.data_off + 1, end, before[idx] + sector.size - 1u) != IMDStatus::Ok
+            || !_readAt(sector.data_off, &fill, 1))
+            return IMDStatus::IoError;
+        memset(buf, fill, sizeof(buf));
+        for (uint32_t off = 0; off < sector.size; off += sizeof(buf))
         {
-            lba = t.first_lba + i;
-            sec_off = rel;
-            RETURN_SUCCESS_AS_TRUE();
+            uint32_t chunk = std::min<uint32_t>(sector.size - off, sizeof(buf));
+            if (!_writeAt(sector.data_off + before[idx] + off, buf, chunk))
+                return IMDStatus::IoError;
         }
-        rel -= sz;
+        end = sector.data_off;
     }
-    RETURN_ERROR_AS_FALSE();
+
+    // Every record moves by the growth of the compressed records ahead of it
+    std::vector<uint32_t> old_off(grow.size());
+    for (size_t idx = 0; idx < grow.size(); idx++)
+        old_off[idx] = _sectors[grow[idx]].data_off;
+    for (SectorRef &sector : _sectors)
+    {
+        size_t idx = std::lower_bound(old_off.begin(), old_off.end(), sector.data_off)
+                     - old_off.begin();
+        sector.data_off += idx < grow.size() ? before[idx] : total;
+    }
+    _size += total;
+
+    for (uint32_t lba : grow)
+    {
+        SectorRef &sector = _sectors[lba];
+        uint8_t    full = (uint8_t)(sector.rec_type - 1);
+        if (!_writeAt(sector.data_off - 1, &full, 1))
+            return IMDStatus::IoError;
+        sector.rec_type = full;
+    }
+    return _file.flush() ? IMDStatus::Ok : IMDStatus::IoError;
 }
 
-IMDStatus IMDImage::read_linear(uint32_t byte_off, uint8_t *buf, uint32_t len)
+// ---------------------------------------------------------------------------
+// Building a new image
+
+IMDStatus IMDImage::writeHeader(time_t when, const char *comment)
 {
-    if (!is_open())
+    // A signature after existing tracks would stop the image parsing
+    if (_file.file == nullptr || _file.end() != 0)
+        return IMDStatus::WriteRefused;
+
+    char header[48];
+    size_t len = strftime(header, sizeof(header), "IMD 1.18: %d/%m/%Y %H:%M:%S\r\n",
+                          localtime(&when));
+    std::vector<uint8_t> out(header, header + len);
+    if (comment != nullptr)
+        out.insert(out.end(), comment, comment + strlen(comment));
+    out.push_back(IMD_EOF_MARKER);
+    if (!_append(out.data(), (uint32_t)out.size()))
         return IMDStatus::IoError;
-    if (len == 0)
-        return IMDStatus::Ok;
+    return IMDStatus::Ok;
+}
+
+IMDStatus IMDImage::writeTrack(uint8_t mode, uint8_t cyl, uint8_t head,
+                               const std::vector<IMDSectorSpec> &sectors)
+{
+    if (sectors.empty() || sectors.size() > 255 || !modeIsValid(mode))
+        return IMDStatus::WriteRefused;
+
+    uint8_t size_code = IMD_SIZE_CODE_VARIABLE;
+    for (uint8_t code = 0; code <= 6; code++)
+    {
+        if (std::all_of(sectors.begin(), sectors.end(),
+                        [code](const IMDSectorSpec &spec) {
+                            return spec.size == (128u << code);
+                        }))
+            size_code = code;
+    }
+
+    std::vector<uint8_t> out = {mode, cyl, (uint8_t)(head & IMD_HEAD_MASK),
+                                (uint8_t)sectors.size(),
+                                size_code};
+    for (const IMDSectorSpec &spec : sectors)
+        out.push_back(spec.sector_id);
+    if (size_code == IMD_SIZE_CODE_VARIABLE)
+    {
+        for (const IMDSectorSpec &spec : sectors)
+        {
+            out.push_back((uint8_t)(spec.size & 0xFF));
+            out.push_back((uint8_t)(spec.size >> 8));
+        }
+    }
+    for (const IMDSectorSpec &spec : sectors)
+    {
+        if (spec.data == nullptr)
+        {
+            out.push_back(IMD_REC_UNAVAILABLE);
+            continue;
+        }
+        out.push_back(1);   // a full sector of data follows
+        out.insert(out.end(), spec.data, spec.data + spec.size);
+    }
+    if (!_append(out.data(), (uint32_t)out.size()))
+        return IMDStatus::IoError;
+    return IMDStatus::Ok;
+}
+
+IMDStatus IMDImage::writeBlankTrack(uint8_t mode, uint8_t cyl, uint8_t head, uint8_t nsec,
+                                    uint8_t size_code, uint8_t fill)
+{
+    if (size_code > 6)
+        return IMDStatus::BadSizeCode;
+    std::vector<uint8_t> data(128u << size_code, fill);
+    std::vector<IMDSectorSpec> sectors;
+    for (uint8_t sector_id = 1; sector_id <= nsec; sector_id++)
+        sectors.push_back({sector_id, (uint16_t)data.size(), data.data()});
+    return writeTrack(mode, cyl, head, sectors);
+}
+
+// ---------------------------------------------------------------------------
+// Linear byte view
+
+IMDStatus IMDImage::_locateLinear(uint32_t byte_off, uint32_t &lba,
+                                  uint32_t &sec_off) const
+{
+    if (byte_off >= _linear_size || _tracks.empty())
+        return IMDStatus::NoSuchSector;
+
+    // The last track starting at or before byte_off
+    auto after = std::upper_bound(_tracks.begin(), _tracks.end(), byte_off,
+                                  [](uint32_t off, const TrackRef &track) {
+                                      return off < track.first_byte;
+                                  });
+    const TrackRef &track = *(after - 1);
+    uint32_t rel = byte_off - track.first_byte;
+
+    if (track.size_code != IMD_SIZE_CODE_VARIABLE)
+    {
+        uint32_t sec_size = 128u << track.size_code;
+        lba = track.first_lba + rel / sec_size;
+        sec_off = rel % sec_size;
+        return lba < _sectors.size() ? IMDStatus::Ok : IMDStatus::NoSuchSector;
+    }
+
+    // A variable-size track has at most 255 sectors, so a scan is cheap
+    for (uint16_t idx = 0; idx < track.nsec; idx++)
+    {
+        uint32_t sec_size = _sectors[track.first_lba + idx].size;
+        if (rel < sec_size)
+        {
+            lba = track.first_lba + idx;
+            sec_off = rel;
+            return IMDStatus::Ok;
+        }
+        rel -= sec_size;
+    }
+    return IMDStatus::NoSuchSector;
+}
+
+IMDStatus IMDImage::readLinear(uint32_t byte_off, uint8_t *buf, uint32_t len)
+{
+    if (!_open)
+        return IMDStatus::IoError;
     if (byte_off > _linear_size || len > _linear_size - byte_off)
         return IMDStatus::NoSuchSector;
 
-    uint32_t done = 0;
-
-    while (done < len)
+    for (uint32_t done = 0; done < len;)
     {
         uint32_t lba, sec_off;
-        if (_locate_linear(byte_off + done, lba, sec_off).is_error())
+        if (_locateLinear(byte_off + done, lba, sec_off) != IMDStatus::Ok)
             return IMDStatus::NoSuchSector;
-
-        uint16_t  ss = _sectors[lba].size;
-        uint16_t  got = 0;
-        IMDStatus st = read_sector(lba, _scratch.data(), ss, &got);
-        if (st != IMDStatus::Ok)
-            return st;
-
-        uint32_t n = ss - sec_off;
-        if (n > len - done)
-            n = len - done;
-        memcpy(buf + done, _scratch.data() + sec_off, n);
-        done += n;
+        uint16_t  sec_size = _sectors[lba].size;
+        IMDStatus status = readSector(lba, _scratch.data(), sec_size, nullptr);
+        if (status != IMDStatus::Ok)
+            return status;
+        uint32_t chunk = std::min(sec_size - sec_off, len - done);
+        memcpy(buf + done, _scratch.data() + sec_off, chunk);
+        done += chunk;
     }
     return IMDStatus::Ok;
 }
 
-IMDStatus IMDImage::_materialize(uint32_t lba, uint32_t sec_off, const uint8_t *src,
-                                 uint32_t n, uint8_t *out)
+// The whole sector a partial write lands in, with the new bytes in place
+IMDStatus IMDImage::_materialize(uint32_t lba, uint32_t sec_off,
+                                 const uint8_t *src, uint32_t len, uint8_t *out)
 {
-    uint16_t ss = _sectors[lba].size;
-    if (sec_off == 0 && n == ss)
+    uint16_t sec_size = _sectors[lba].size;
+    if (sec_off != 0 || len != sec_size)
     {
-        memcpy(out, src, n);
-        return IMDStatus::Ok;
+        IMDStatus status = readSector(lba, out, sec_size, nullptr);
+        if (status != IMDStatus::Ok)
+            return status;
     }
-
-    // Partial overwrite needs the rest of the sector to decide what it becomes
-    uint16_t  got = 0;
-    IMDStatus st = read_sector(lba, out, ss, &got);
-    if (st != IMDStatus::Ok)
-        return st;
-    memcpy(out + sec_off, src, n);
+    memcpy(out + sec_off, src, len);
     return IMDStatus::Ok;
 }
 
-IMDStatus IMDImage::write_linear(uint32_t byte_off, const uint8_t *buf, uint32_t len)
+IMDStatus IMDImage::writeLinear(uint32_t byte_off, const uint8_t *buf,
+                                uint32_t len)
 {
-    if (!is_open())
+    if (!_open)
         return IMDStatus::IoError;
     if (!_writable)
         return IMDStatus::ReadOnly;
-    if (len == 0)
-        return IMDStatus::Ok;
     if (byte_off > _linear_size || len > _linear_size - byte_off)
         return IMDStatus::NoSuchSector;
 
-    // Pass 0 validates every touched record so a refusal leaves the image intact
+    // Pass 0 checks every touched record, so a refusal leaves the image untouched
     for (int pass = 0; pass < 2; pass++)
     {
-        uint32_t done = 0;
-        while (done < len)
+        for (uint32_t done = 0; done < len;)
         {
             uint32_t lba, sec_off;
-            if (_locate_linear(byte_off + done, lba, sec_off).is_error())
+            if (_locateLinear(byte_off + done, lba, sec_off) != IMDStatus::Ok)
                 return IMDStatus::NoSuchSector;
-
-            uint16_t ss = _sectors[lba].size;
-            uint32_t n = ss - sec_off;
-            if (n > len - done)
-                n = len - done;
+            uint16_t sec_size = _sectors[lba].size;
+            uint32_t chunk = std::min(sec_size - sec_off, len - done);
 
             if (_sectors[lba].rec_type == IMD_REC_UNAVAILABLE)
                 return IMDStatus::WriteRefused;
-
-            IMDStatus st = _materialize(lba, sec_off, buf + done, n, _scratch.data());
-            if (st != IMDStatus::Ok)
-                return st;
-
-            if (pass == 0)
+            if (pass == 1)
             {
-                if ((_sectors[lba].rec_type & 1) == 0)
-                {
-                    for (uint16_t i = 1; i < ss; i++)
-                        if (_scratch[i] != _scratch[0])
-                            return IMDStatus::WriteRefused;
-                }
+                IMDStatus status = _materialize(lba, sec_off, buf + done, chunk,
+                                                _scratch.data());
+                if (status != IMDStatus::Ok)
+                    return status;
+                status = writeSector(lba, _scratch.data(), sec_size);
+                if (status != IMDStatus::Ok)
+                    return status;
             }
-            else
-            {
-                st = write_sector(lba, _scratch.data(), ss);
-                if (st != IMDStatus::Ok)
-                    return st;
-            }
-            done += n;
+            done += chunk;
         }
     }
     return IMDStatus::Ok;
