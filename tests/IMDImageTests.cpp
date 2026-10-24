@@ -965,17 +965,18 @@ TEST_CASE("building an image")
     MemFile file;
     std::vector<uint8_t> small(128, 0x11), mid(256, 0x22), large(512, 0x33);
 
-    REQUIRE(IMDImage::writeHeader(&file, 0, "built by a test\r\n") == IMDStatus::Ok);
-    // An FM track of 128-byte sectors, one never readable, then a 256/512 MFM track
-    REQUIRE(IMDImage::writeTrack(&file, 0, 0, 0,
-                                           {{1, 128, small.data()}, {2, 128, nullptr}})
-            == IMDStatus::Ok);
-    REQUIRE(IMDImage::writeTrack(&file, 3, 1, 0,
-                                           {{1, 256, mid.data()}, {2, 512, large.data()}})
-            == IMDStatus::Ok);
-    REQUIRE(IMDImage::writeBlankTrack(&file, 3, 2, 0, 3, 2, 0xE5) == IMDStatus::Ok);
-
     IMDImage img(&file);
+    REQUIRE(img.writeHeader(0, "built by a test\r\n") == IMDStatus::Ok);
+    // An FM track of 128-byte sectors, one never readable, then a 256/512 MFM track
+    REQUIRE(img.writeTrack(0, 0, 0, {{1, 128, small.data()}, {2, 128, nullptr}})
+            == IMDStatus::Ok);
+    REQUIRE(img.writeTrack(3, 1, 0, {{1, 256, mid.data()}, {2, 512, large.data()}})
+            == IMDStatus::Ok);
+    REQUIRE(img.writeBlankTrack(3, 2, 0, 3, 2, 0xE5) == IMDStatus::Ok);
+
+    // A second header would land after the tracks
+    CHECK(img.writeHeader(0) == IMDStatus::WriteRefused);
+
     REQUIRE(img.open(true) == IMDStatus::Ok);
     CHECK(std::string(img.comment()) == "built by a test\r\n");
     REQUIRE(img.trackCount() == 3);

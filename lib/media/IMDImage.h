@@ -152,27 +152,15 @@ public:
     IMDStatus readLinear(uint32_t byte_off, uint8_t *buf, uint32_t len);
     IMDStatus writeLinear(uint32_t byte_off, const uint8_t *buf, uint32_t len);
 
-    // A new image: the signature line stamped with `when`, an optional comment, then
-    // one writeTrack() per track, appended in order.
-    template <typename File>
-    static IMDStatus writeHeader(File *file, time_t when, const char *comment = nullptr)
-    {
-        return _writeHeader(_wrap(file), when, comment);
-    }
+    // A new image in an empty file: the signature line stamped with `when`, an optional
+    // comment, then one writeTrack() per track, appended in order.
+    IMDStatus writeHeader(time_t when, const char *comment = nullptr);
     // Sizes that are all 128 << n use a size code; anything else gets the size table.
-    template <typename File>
-    static IMDStatus writeTrack(File *file, uint8_t mode, uint8_t cyl, uint8_t head,
-                                const std::vector<IMDSectorSpec> &sectors)
-    {
-        return _writeTrack(_wrap(file), mode, cyl, head, sectors);
-    }
+    IMDStatus writeTrack(uint8_t mode, uint8_t cyl, uint8_t head,
+                         const std::vector<IMDSectorSpec> &sectors);
     // Sectors 1..nsec filled with `fill`, as full records so writes stay in place
-    template <typename File>
-    static IMDStatus writeBlankTrack(File *file, uint8_t mode, uint8_t cyl, uint8_t head,
-                                     uint8_t nsec, uint8_t size_code, uint8_t fill)
-    {
-        return _writeBlankTrack(_wrap(file), mode, cyl, head, nsec, size_code, fill);
-    }
+    IMDStatus writeBlankTrack(uint8_t mode, uint8_t cyl, uint8_t head, uint8_t nsec,
+                              uint8_t size_code, uint8_t fill);
 
     static const char *statusString(IMDStatus status);
 
@@ -254,14 +242,7 @@ private:
 
     bool   _readAt(uint32_t off, void *dst, uint32_t len);
     bool   _writeAt(uint32_t off, const void *src, uint32_t len);
-    static bool _append(const Handle &file, const void *src, uint32_t len);
-
-    static IMDStatus _writeHeader(const Handle &file, time_t when, const char *comment);
-    static IMDStatus _writeTrack(const Handle &file, uint8_t mode, uint8_t cyl, uint8_t head,
-                                 const std::vector<IMDSectorSpec> &sectors);
-    static IMDStatus _writeBlankTrack(const Handle &file, uint8_t mode, uint8_t cyl,
-                                      uint8_t head, uint8_t nsec, uint8_t size_code,
-                                      uint8_t fill);
+    bool   _append(const void *src, uint32_t len);
 
     IMDStatus _readComment(uint32_t &data_start);
     bool   _tailIsPadding(uint32_t from);

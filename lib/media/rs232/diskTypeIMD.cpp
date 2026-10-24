@@ -288,12 +288,13 @@ success_is_true MediaTypeIMD::create(fnFile *f, uint16_t sectorSize, uint32_t nu
     if (sectorSize != 128 || numSectors != cyls * spt)
         RETURN_ERROR_AS_FALSE();
 
-    if (IMDImage::writeHeader(f, time(nullptr)) != IMDStatus::Ok)
+    IMDImage image(f);
+    if (image.writeHeader(time(nullptr)) != IMDStatus::Ok)
         RETURN_ERROR_AS_FALSE();
     for (uint8_t cyl = 0; cyl < cyls; cyl++)
     {
         // Mode 0 is 500 kbps FM; size code 0 is 128 bytes
-        if (IMDImage::writeBlankTrack(f, 0, cyl, 0, spt, 0, cyl < blank_cyls ? 0xE5 : 0x00)
+        if (image.writeBlankTrack(0, cyl, 0, spt, 0, cyl < blank_cyls ? 0xE5 : 0x00)
             != IMDStatus::Ok)
             RETURN_ERROR_AS_FALSE();
     }

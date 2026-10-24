@@ -81,9 +81,9 @@ bool IMDImage::_writeAt(uint32_t off, const void *src, uint32_t len)
     return _file.seek(off) && _file.write(src, len);
 }
 
-bool IMDImage::_append(const Handle &file, const void *src, uint32_t len)
+bool IMDImage::_append(const void *src, uint32_t len)
 {
-    return file.seek(file.end()) && file.write(src, len);
+    return _file.file != nullptr && _file.seek(_file.end()) && _file.write(src, len);
 }
 
 // ---------------------------------------------------------------------------
@@ -629,8 +629,12 @@ IMDStatus IMDImage::_expand()
 // ---------------------------------------------------------------------------
 // Building a new image
 
-IMDStatus IMDImage::_writeHeader(const Handle &file, time_t when, const char *comment)
+IMDStatus IMDImage::writeHeader(time_t when, const char *comment)
 {
+    // A signature after existing tracks would stop the image parsing
+    if (_file.file == nullptr || _file.end() != 0)
+        return IMDStatus::WriteRefused;
+
     char header[48];
     size_t len = strftime(header, sizeof(header), "IMD 1.18: %d/%m/%Y %H:%M:%S\r\n",
                           localtime(&when));
@@ -638,13 +642,13 @@ IMDStatus IMDImage::_writeHeader(const Handle &file, time_t when, const char *co
     if (comment != nullptr)
         out.insert(out.end(), comment, comment + strlen(comment));
     out.push_back(IMD_EOF_MARKER);
-    if (!_append(file, out.data(), (uint32_t)out.size()))
+    if (!_append(out.data(), (uint32_t)out.size()))
         return IMDStatus::IoError;
     return IMDStatus::Ok;
 }
 
-IMDStatus IMDImage::_writeTrack(const Handle &file, uint8_t mode, uint8_t cyl, uint8_t head,
-                                const std::vector<IMDSectorSpec> &sectors)
+IMDStatus IMDImage::writeTrack(uint8_t mode, uint8_t cyl, uint8_t head,
+                               const std::vector<IMDSectorSpec> &sectors)
 {
     if (sectors.empty() || sectors.size() > 255 || !modeIsValid(mode))
         return IMDStatus::WriteRefused;
@@ -682,14 +686,13 @@ IMDStatus IMDImage::_writeTrack(const Handle &file, uint8_t mode, uint8_t cyl, u
         out.push_back(1);   // a full sector of data follows
         out.insert(out.end(), spec.data, spec.data + spec.size);
     }
-    if (!_append(file, out.data(), (uint32_t)out.size()))
+    if (!_append(out.data(), (uint32_t)out.size()))
         return IMDStatus::IoError;
     return IMDStatus::Ok;
 }
 
-IMDStatus IMDImage::_writeBlankTrack(const Handle &file, uint8_t mode, uint8_t cyl,
-                                     uint8_t head, uint8_t nsec,
-                                     uint8_t size_code, uint8_t fill)
+IMDStatus IMDImage::writeBlankTrack(uint8_t mode, uint8_t cyl, uint8_t head, uint8_t nsec,
+                                    uint8_t size_code, uint8_t fill)
 {
     if (size_code > 6)
         return IMDStatus::BadSizeCode;
@@ -697,7 +700,7 @@ IMDStatus IMDImage::_writeBlankTrack(const Handle &file, uint8_t mode, uint8_t c
     std::vector<IMDSectorSpec> sectors;
     for (uint8_t sector_id = 1; sector_id <= nsec; sector_id++)
         sectors.push_back({sector_id, (uint16_t)data.size(), data.data()});
-    return _writeTrack(file, mode, cyl, head, sectors);
+    return writeTrack(mode, cyl, head, sectors);
 }
 
 // ---------------------------------------------------------------------------
