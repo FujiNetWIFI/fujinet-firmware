@@ -45,10 +45,52 @@
 #define FN_REG_DATA_RST 0x05  /* any value: rewind the FN_W_DATA write pointer   */
 #define FN_REG_RXSLICE  0x06  /* which slice of the reply the read window shows  */
 #define FN_REG_BOOTSEL  0x07  /* magic FN_BOOTSEL_MAGIC: reboot cart into BOOTSEL*/
-#define FN_REG_CODEBANK 0x08  /* MegaCart-compatible code bank                   */
-#define FN_REG_DATABANK 0x09  /* MegaCart-compatible data bank                   */
+#define FN_REG_CODEBANK 0x08  /* APPBANK: the image page mapped at $800-$F1F     */
+#define FN_REG_DATABANK 0x09  /* reserved                                        */
+#define FN_REG_POKE_LO  0x0A  /* APPBANK: write pointer into $400-$7FF, low byte */
+#define FN_REG_POKE_HI  0x0B  /*          ... and its high bits (offset 0-$3FF)  */
+#define FN_REG_POKE     0x0C  /* APPBANK: store at the pointer, then advance it  */
+#define FN_REG_RXWIN    0x0D  /* APPBANK: the read window starts at reply byte
+                               *          value * 16                              */
 
 #define FN_BOOTSEL_MAGIC 0xB5 /* exact value required, so a stray write is inert */
+
+/* ---------- protocol 2: APPBANK images ----------
+ *
+ * Four 3K banks behind P10/P11 is the classic ceiling, and a FujiNet client
+ * that wants to be a whole game needs more. An APPBANK image is
+ *
+ *     file offset 0      $400-$7FF   the fixed half: always mapped
+ *     1024 + 2048*n      $800-$FFF   page n, mapped at $800-$F1F when selected
+ *
+ * with N = 2..O2_APP_MAXPAGES pages. The fixed half is the 8048's lower memory
+ * bank, and it has to be fixed: an interrupt holds A11 at 0 for its whole
+ * service routine, so everything an interrupt runs lives there. It is served
+ * from cartridge RAM, and FN_REG_POKE writes into it -- that is how a client
+ * keeps tables its interrupt reads with MOVP, which only reaches the current
+ * page.
+ *
+ * $F00-$F1F is the selected page's own (each page can carry its own MOVP stub)
+ * and $F20-$FFF is the mailbox, as in protocol 1, except that $F30-$FFF shows
+ * the reply from byte FN_REG_RXWIN*16 (or FN_REG_RXSLICE*208) and switching it
+ * is immediate: the cartridge serves the reply buffer directly rather than
+ * publishing a copy, so there is nothing to wait for after selecting one.
+ * CODEBANK, POKE, RXWIN and RXSLICE all take effect before the console's next
+ * fetch.
+ *
+ * Page 0 carries the FUJI claim at $F2C, as every mailbox-keeping image does,
+ * and this header at $F30 -- bytes the mailbox covers at run time anyway:
+ *     'A' 'P' 'P' 'B', version (1), N
+ * The cartridge publishes FN_R_PROTO_VER = 2. */
+#define O2_APP_FIXED_BYTES 1024
+#define O2_APP_PAGE_BYTES  2048
+#define O2_APP_PAGE_BASE   0x800      /* console address of a page's first byte */
+#define O2_APP_PAGE_END    0xF20      /* first console address that is not      */
+#define O2_APP_MAXPAGES    31         /* 1K + 31 x 2K = 63K of cartridge RAM    */
+#define O2_APP_HDR         0xF30      /* in page 0                              */
+#define O2_APP_HDR_SIG     "APPB"
+#define O2_APP_VERSION     1
+#define O2_APP_RXWIN_UNIT  16
 
 /* The FN_W_DATA stream is, in order:
  *     NPARAM x { size byte (1|2|4), then that many value bytes, little-endian }
@@ -73,7 +115,8 @@
 #define FN_R_BOOT_ERR   0xF28
 #define FN_R_MAGIC0     0xF29 /* 'F' -- cart presence check                      */
 #define FN_R_MAGIC1     0xF2A /* 'N'                                             */
-#define FN_R_PROTO_VER  0xF2B
+#define FN_R_PROTO_VER  0xF2B /* FN_PROTO_VER                                    */
+#define FN_PROTO_VER    2     /* 2: APPBANK images (above)                       */
 
 /* $F2C-$F2F is the only part of the page the cart never publishes over, so it
  * is where a cartridge image declares itself. An image carrying FN_R_CLAIM_SIG
@@ -85,7 +128,7 @@
 #define FN_R_CLAIM_LEN  4
 #define FN_R_CLAIM_SIG  "FUJI"
 
-#define FN_R_DATA       0xF30 /* reply slice selected by FN_REG_RXSLICE          */
+#define FN_R_DATA       0xF30 /* reply slice selected by FN_REG_RXSLICE (RXWIN)   */
 #define FN_R_SLICE_LEN  0xD0  /* 208 bytes: $F30..$FFF                           */
 
 #define FN_R_STATUS_LINK 0x01
@@ -102,6 +145,7 @@
 #define FN_BOOT_ERR_TOOBIG    1
 #define FN_BOOT_ERR_TRUNCATED 2
 #define FN_BOOT_ERR_NOMAP     3
+#define FN_BOOT_ERR_BUSY      4   /* an APPBANK image is live: power-cycle first */
 
 #define FN_ERR_OK        0
 #define FN_ERR_NOLINK    1

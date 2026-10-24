@@ -13,6 +13,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "o2app.h"
+
 /* One transaction is ~6 register writes plus at most a 256-byte payload, and
  * the console cannot start another until it sees ACKSEQ, so the ring only ever
  * has to hold one. */
@@ -27,6 +29,14 @@ typedef struct {
 
 extern fuji_ring_t fuji_ring;
 extern volatile bool fuji_mailbox_active;
+
+/* Protocol 2. core0 fills fuji_app and sets fuji_app_armed before it arms the
+ * boot swap; core1 turns it live at the same $400 fetch that swaps the tables,
+ * and from then on owns it: o2app_read for every fetch, o2app_write for every
+ * register write, all inlined into the bus loop. */
+extern o2app_t fuji_app;
+extern volatile bool fuji_app_armed;
+extern volatile bool fuji_app_live;
 
 /* core1: record one external-data-window write. Inlined into the bus loop, so
  * it must stay a compare and two stores. */

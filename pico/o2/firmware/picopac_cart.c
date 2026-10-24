@@ -41,6 +41,7 @@
 #include "fuji_mailbox.h"
 #include "fujiboot.h"
 #include "fujinet.h"
+#include "fujimail.h"
 #include "fujibus_usb.h"
 #endif
 
@@ -218,11 +219,23 @@ void __not_in_flash_func(core1_main()) {
 				 * from its very first fetch rather than a torn mixture. */
 				if (fuji_boot_armed && addr == 0x400) {
 					fuji_rom = new_rom_table;
+					fuji_app_live = fuji_app_armed;
 					fuji_boot_armed = false;
+					/* core0 filled fuji_app before arming: nothing read
+					 * from it may be hoisted above this point. */
+					__compiler_memory_barrier();
 				}
-#endif
+				SET_DATA_MODE_OUT;
+				if (fuji_app_live)
+					gpio_put_masked(DATA_PIN_MASK,
+						o2app_read(&fuji_app, addr, fuji_rom[0],
+						           fujimail_rx, fujimail_rxn) << D0_PIN);
+				else
+					gpio_put_masked(DATA_PIN_MASK,(fuji_rom[bank][addr])<<D0_PIN);
+#else
 				SET_DATA_MODE_OUT;
     			gpio_put_masked(DATA_PIN_MASK,(fuji_rom[bank][addr])<<D0_PIN);
+#endif
 			} 
 		  	if((gpio_get(CS_PIN)==0) && (gpio_get(WR_PIN)==0)) {
 				   uint8_t wa = addr & 0xff;
@@ -234,7 +247,11 @@ void __not_in_flash_func(core1_main()) {
 				    * That range is the only part of this window The Voice does
 				    * not decode as a sound trigger or a bank select. */
 				   if (wa >= FN_W_REGSEL && wa <= FN_W_SEQ) {
-					   fuji_cart_note_write(wa, wd);
+					   /* APPBANK's registers are decoded right here, so a
+					    * page switch or a POKE is in force by the console's
+					    * next fetch; only the rest go to core0. */
+					   if (!(fuji_app_live && o2app_write(&fuji_app, wa, wd)))
+						   fuji_cart_note_write(wa, wd);
 				   }
 #endif
 				   if (extram[0xff]==0xaa) {

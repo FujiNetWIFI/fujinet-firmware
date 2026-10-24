@@ -18,8 +18,11 @@ static unsigned txptr;
 static uint8_t lastseq;
 
 /* Read-side state. */
-static uint8_t rxbuf[FUJIMAIL_RX_MAX];
-static unsigned rxlen;
+/* The reply. Not static: an APPBANK cartridge serves the console's read window
+ * straight out of it (o2app_read) instead of publishing a copy. */
+uint8_t fujimail_rx[FUJIMAIL_RX_MAX];
+volatile unsigned fujimail_rxn;
+volatile bool fujimail_stage_live;
 static uint8_t rxslice;
 
 /* DBC push state. */
@@ -41,7 +44,7 @@ void fujimail_init(const fujimail_port_t *p)
     mb_txlen = 0;
     txptr = 0;
     lastseq = 0;
-    rxlen = 0;
+    fujimail_rxn = 0;
     rxslice = 0;
     dbc_stream = -1;
     stage_len = 0;
@@ -61,7 +64,7 @@ void fujimail_paint(void)
         poke(a, 0);
     poke(FN_R_MAGIC0, 'F');
     poke(FN_R_MAGIC1, 'N');
-    poke(FN_R_PROTO_VER, 1);
+    poke(FN_R_PROTO_VER, FN_PROTO_VER);
     poke(FN_R_STATUS, port->link_up() ? FN_R_STATUS_LINK : 0);
 }
 
@@ -71,7 +74,7 @@ static void publish_slice(void)
     unsigned i;
 
     for (i = 0; i < FN_R_SLICE_LEN; i++)
-        poke(FN_R_DATA + i, (base + i < rxlen) ? rxbuf[base + i] : 0);
+        poke(FN_R_DATA + i, (base + i < fujimail_rxn) ? fujimail_rx[base + i] : 0);
 }
 
 /* ---- the DBC ROM push ----
@@ -101,6 +104,17 @@ bool fujimail_inbound(const fb_reply_t *req)
         if (port->on_dbc)
             port->on_dbc(FUJIMAIL_DBC_OPEN, dbc_stream, stage_expect, 0, false);
 
+        if (dbc_stream == 0 && fujimail_stage_live) {
+            /* An APPBANK image is being served straight out of the stage
+             * buffer, so a second image has nowhere to land until the
+             * cartridge is power-cycled. Say so before the ESP32 drags the
+             * file over the network. */
+            dbc_stream = -1;
+            poke(FN_R_BOOT_STATE, FN_BOOT_FAILED);
+            poke(FN_R_BOOT_ERR, FN_BOOT_ERR_BUSY);
+            port->send_bare(FUJI_DEVICEID_DBC, CMD_FUJI_NAK, NULL, 0);
+            return true;
+        }
         if (dbc_stream == 0 && stage_expect > FUJIMAIL_STAGE_MAX) {
             /* Say so now rather than after the ESP32 has dragged the whole file
              * over TNFS -- and refusing is the only way to avoid silently
@@ -197,18 +211,20 @@ static void run_transaction(uint8_t seq)
                             &reply);
     }
 
-    rxlen = 0;
+    fujimail_rxn = 0;
     if (st == FB_OK) {
-        rxlen = reply.data_len > FUJIMAIL_RX_MAX ? FUJIMAIL_RX_MAX
-                                                 : reply.data_len;
-        memcpy(rxbuf, reply.data, rxlen);
+        unsigned n = reply.data_len > FUJIMAIL_RX_MAX ? FUJIMAIL_RX_MAX
+                                                      : reply.data_len;
+
+        memcpy(fujimail_rx, reply.data, n);
+        fujimail_rxn = n;   /* after the copy: an APPBANK cart serves from here */
         reply_cmd = reply.command;
     }
 
     poke(FN_R_REPLY_CMD, reply_cmd);
     poke(FN_R_ERR, (uint8_t) st);
-    poke(FN_R_RXLEN_LO, (uint8_t)(rxlen & 0xFF));
-    poke(FN_R_RXLEN_HI, (uint8_t)(rxlen >> 8));
+    poke(FN_R_RXLEN_LO, (uint8_t)(fujimail_rxn & 0xFF));
+    poke(FN_R_RXLEN_HI, (uint8_t)(fujimail_rxn >> 8));
     poke(FN_R_STATUS, port->link_up() ? FN_R_STATUS_LINK : 0);
     rxslice = 0;
     publish_slice();
@@ -225,9 +241,9 @@ static void run_transaction(uint8_t seq)
         t.seq = seq;
         t.reply_cmd = reply_cmd;
         t.txlen = (uint16_t)(txptr - p);
-        t.rxlen = (uint16_t) rxlen;
+        t.rxlen = (uint16_t) fujimail_rxn;
         t.status = (int) st;
-        t.rx = rxbuf;
+        t.rx = fujimail_rx;
         port->on_txn(&t);
     }
 }

@@ -6,6 +6,10 @@
 fuji_ring_t fuji_ring;
 volatile bool fuji_mailbox_active = true;
 
+o2app_t fuji_app;
+volatile bool fuji_app_armed;
+volatile bool fuji_app_live;
+
 extern unsigned char rom_table[8][4096];
 extern unsigned char new_rom_table[8][4096];
 
@@ -67,7 +71,7 @@ void fuji_cart_paint(void)
         fuji_cart_poke(a, 0);
     fuji_cart_poke(FN_R_MAGIC0, 'F');
     fuji_cart_poke(FN_R_MAGIC1, 'N');
-    fuji_cart_poke(FN_R_PROTO_VER, 1);
+    fuji_cart_poke(FN_R_PROTO_VER, FN_PROTO_VER);
 }
 
 void fuji_cart_init(void)

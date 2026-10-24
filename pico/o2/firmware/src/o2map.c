@@ -3,6 +3,28 @@
 #include "o2map.h"
 #include "fuji_mailbox.h"
 
+bool o2map_is_appbank(const uint8_t *image, uint32_t size)
+{
+    const uint8_t *hdr, *claim;
+    unsigned n;
+
+    if (size < O2_APP_FIXED_BYTES + 2u * O2_APP_PAGE_BYTES
+        || (size - O2_APP_FIXED_BYTES) % O2_APP_PAGE_BYTES != 0)
+        return false;
+    n = (size - O2_APP_FIXED_BYTES) / O2_APP_PAGE_BYTES;
+
+    /* Page 0's console addresses $800-$FFF are file offsets 1024-3071. */
+    hdr = image + O2_APP_FIXED_BYTES + (O2_APP_HDR - O2_APP_PAGE_BASE);
+    claim = image + O2_APP_FIXED_BYTES + (FN_R_CLAIM - O2_APP_PAGE_BASE);
+
+    /* The header's page count has to agree with the file: a truncated or
+     * padded image is refused rather than booted with pages missing. */
+    return memcmp(hdr, O2_APP_HDR_SIG, 4) == 0
+        && hdr[4] == O2_APP_VERSION
+        && hdr[5] == n
+        && memcmp(claim, FN_R_CLAIM_SIG, FN_R_CLAIM_LEN) == 0;
+}
+
 o2map_err_t o2map_plan(const uint8_t *image, uint32_t size, o2map_plan_t *out)
 {
     unsigned nbanks, bank_bytes;
@@ -11,6 +33,21 @@ o2map_err_t o2map_plan(const uint8_t *image, uint32_t size, o2map_plan_t *out)
 
     if (size == 0 || (size % 1024) != 0)
         return O2MAP_ENOTCART;
+
+    /* Protocol 2 first: an APPBANK image says so in page 0, so no legacy size
+     * that happens to match (9K is also three 3K banks) can be mistaken for
+     * one, nor one for a legacy cart. */
+    if (image != NULL && o2map_is_appbank(image, size)) {
+        unsigned n = (size - O2_APP_FIXED_BYTES) / O2_APP_PAGE_BYTES;
+
+        if (n > O2_APP_MAXPAGES)
+            return O2MAP_ETOOBIG;
+        out->size = size;
+        out->appbank = true;
+        out->npages = n;
+        out->mailbox_ok = true;     /* the header requires the claim */
+        return O2MAP_OK;
+    }
 
     /* 3K banks use A10, which IS on the connector (pin 10); the classic 2K
      * carts simply leave it unconnected. Test for 3K first: 6144 is divisible
@@ -75,6 +112,8 @@ void o2map_apply(const uint8_t *image, const o2map_plan_t *plan,
 {
     unsigned b;
 
+    if (plan->appbank)
+        return;             /* served in place; see o2app.h */
     for (b = 0; b < O2MAP_BANKS; b++) {
         unsigned chunk = o2map_file_chunk(plan, b);
         uint8_t *dst = &banks[b][O2MAP_CART_BASE];

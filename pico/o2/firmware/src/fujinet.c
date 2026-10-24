@@ -41,6 +41,24 @@ static void port_stream_end(int stream, const uint8_t *data, unsigned len,
         fuji_cart_poke(FN_R_BOOT_ERR, FN_BOOT_ERR_NOMAP);
         return;
     }
+
+    if (plan.appbank) {
+        /* Protocol 2: up to 63K, served where it already lies. There is not
+         * RAM for a second copy, which is why fujimail refuses any further
+         * push while this one is live -- `data` is the stage buffer, and from
+         * the boot fetch on it is also the console's program memory (the
+         * fixed half is written through FN_REG_POKE). */
+        o2app_init(&fuji_app, (uint8_t *) data, plan.npages);
+        fujimail_stage_live = true;
+        fuji_app_armed = true;
+        fuji_mailbox_active = true;
+        fuji_cart_stage_boot();
+        __sync_synchronize();   /* fuji_app is whole before core1 can see armed */
+        fuji_boot_armed = true;
+        fujimail_paint();
+        return;
+    }
+
     o2map_apply(data, &plan, new_rom_table);
     /* The mailbox lives in the program window a real game needs for its own
      * code. Keep the game, drop the mailbox for the session -- the same call
