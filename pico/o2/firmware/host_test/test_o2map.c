@@ -165,6 +165,16 @@ int main(int argc, char **argv)
             free(img);
             continue;
         }
+        if (p.appbank) {
+            /* Protocol 2: the fixed half is the first 1K of the file. */
+            printf("  %-40s APPBANK, %u pages  reset $400 = %02X %02X  %s\n",
+                   argv[i], p.npages, img[0], img[1],
+                   ((img[0] & 0x1F) == 0x04) ? "JMP ok" : "NOT A JMP");
+            if ((img[0] & 0x1F) != 0x04)
+                failures++;
+            free(img);
+            continue;
+        }
         o2map_apply(img, &p, banks);
         /* $400 is the cartridge reset vector: the BIOS jumps here on power-up,
          * so bank 0 must start with a JMP (opcode 0x04 | page<<5). */

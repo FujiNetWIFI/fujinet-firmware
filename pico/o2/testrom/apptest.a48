@@ -1,0 +1,244 @@
+; apptest.a48 -- protocol 2 (APPBANK) smoke test.
+;
+; Four 2K pages behind a fixed 1K, and everything protocol 2 adds, on one row:
+;
+;     1 2 3       each page's own $800 routine, reached through FN_REG_CODEBANK
+;     O K         two bytes stored into the fixed half with FN_REG_POKE, read
+;                 back out of it with MOVP
+;     S S S       the SSID from an adapter-config reply, read window 0
+;     H H H H     the hostname behind it: reply bytes 33-36, read window 2
+;
+; build.sh assembles this once per page (PAGE=0..3). Every page carries the
+; same tail -- strings, the character map and the mailbox stub, so text works
+; whichever page is mapped -- and its own page_id at $800. The fixed half is
+; taken from the PAGE=0 assembly; it is the same in all of them.
+
+    cpu 8048
+    org 400h
+    include "g7000.h"
+    include "vdctext.inc"
+    include "o2fuji.inc"
+
+NPAGES  equ 4
+XP      equ 32                  ; left edge of the text row
+
+; ---------------------------------------------------------------- vectors
+    jmp start                   ; $400 reset
+    jmp irqret                  ; $402 external IRQ
+    jmp irqret                  ; $404 timer IRQ
+    jmp irqret                  ; $406 vblank
+    jmp start                   ; $408 after BIOS "select game"
+    jmp irqret                  ; $40A vblank continuation
+irqret:
+    retr
+
+    include "fujilib.inc"   ; self-pinned to $4D0, ends at $63A
+
+; ---------------------------------------------------------------- main
+    org 640h
+start:
+    dis i
+    dis tcnti
+    call vdc_init
+
+    mov a,#FN_R_MAGIC0&0FFh     ; is a FujiNet cartridge actually answering?
+    call fn_read
+    xrl a,#'F'
+    jz is_cart
+    jmp nocart
+is_cart:
+    mov a,#FN_R_PROTO_VER&0FFh  ; ...one that speaks protocol 2?
+    call fn_read
+    xrl a,#FN_PROTO_VER
+    jz is_p2
+    jmp oldcart
+is_p2:
+
+    mov a,#P1_SEL_XRAM          ; external-data window on the bus
+    outl p1,a
+    mov r1,#V_NAME              ; the row is assembled here
+
+; ---- pages 1-3: map each, call its page_id ----
+    mov r2,#1
+pg_loop:
+    mov a,r2
+    mov r7,#FN_REG_CODEBANK
+    call fn_reg
+    sel mb1
+    call page_id                ; same address in every page; the cart decides
+    sel mb0
+    mov @r1,a
+    inc r1
+    inc r2
+    mov a,r2
+    xrl a,#NPAGES
+    jnz pg_loop
+    clr a                       ; and back to the boot page
+    mov r7,#FN_REG_CODEBANK
+    call fn_reg
+
+; ---- POKE: "OK" into $7F0-$7F1, which the image has as "??" ----
+    mov a,#0F0h
+    mov r7,#FN_REG_POKE_LO
+    call fn_reg
+    mov a,#3
+    mov r7,#FN_REG_POKE_HI
+    call fn_reg
+    mov a,#'O'
+    mov r7,#FN_REG_POKE
+    call fn_reg
+    mov a,#'K'
+    call fn_reg                 ; same register: the pointer has advanced
+    mov a,#0F0h
+    call fix_get
+    mov @r1,a
+    inc r1
+    mov a,#0F1h
+    call fix_get
+    mov @r1,a
+    inc r1
+
+; ---- one transaction, read through two windows ----
+    mov a,#FN_R_ACKSEQ&0FFh     ; next sequence from the cart's own ACKSEQ
+    call fn_read
+    inc a
+    jnz seqok
+    inc a
+seqok:
+    mov r5,a
+    clr a
+    mov r7,#FN_REG_DATA_RST
+    call fn_reg
+    mov a,#FUJI_DEVICEID
+    mov r7,#FN_REG_DEVICE
+    call fn_reg
+    mov a,#FUJICMD_GET_ADAPTERCONFIG_EXTENDED
+    mov r7,#FN_REG_CMD
+    call fn_reg
+    clr a
+    mov r7,#FN_REG_NPARAM
+    call fn_reg
+    clr a
+    mov r7,#FN_REG_TXLEN_LO
+    call fn_reg
+    clr a
+    mov r7,#FN_REG_TXLEN_HI
+    call fn_reg
+    mov r0,#FN_W_SEQ
+    mov a,r5
+    movx @r0,a
+    mov r2,#0
+poll:
+    mov a,#FN_R_ACKSEQ&0FFh
+    call fn_read
+    xrl a,r5
+    jz gotreply
+    djnz r2,poll
+    mov a,#msg_to&0FFh
+    jmp fail
+gotreply:
+    mov a,#FN_R_REPLY_CMD&0FFh
+    call fn_read
+    xrl a,#FUJICMD_ACK
+    jz replyok
+    mov a,#msg_nak&0FFh
+    jmp fail
+replyok:
+    clr a                       ; window 0: the SSID
+    mov r7,#FN_REG_RXWIN
+    call fn_reg
+    mov r3,#FN_R_DATA&0FFh
+    mov r2,#3
+    call grab
+    mov a,#2                    ; window 2: reply byte 32 is at $F30, so the
+    mov r7,#FN_REG_RXWIN        ; hostname (byte 33 on) starts at $F31
+    call fn_reg
+    mov r3,#(FN_R_DATA+1)&0FFh
+    mov r2,#4
+    call grab
+    jmp show
+
+    org 700h                    ; the helpers: page-relative jumps stay inside
+; grab: copy r2 bytes from the mailbox page at offset r3 to @r1, NUL -> space
+grab:
+    mov a,r3
+    call fn_read
+    jnz gr_ok
+    mov a,#' '
+gr_ok:
+    mov @r1,a
+    inc r1
+    inc r3
+    djnz r2,grab
+    ret
+
+nocart:
+    mov a,#msg_nc&0FFh
+    jmp fail
+oldcart:
+    mov a,#msg_old&0FFh
+    jmp fail
+
+; ---- the row ----
+show:
+    mov a,#P1_SEL_VDC
+    outl p1,a
+    mov r0,#vdc_char0
+    mov r3,#XP
+    mov r1,#V_NAME
+    mov r2,#12
+sh_l:
+    mov a,@r1
+    call show_char
+    inc r1
+    djnz r2,sh_l
+    jmp done
+
+fail:
+    mov r4,a
+    mov a,#P1_SEL_VDC
+    outl p1,a
+    mov r0,#vdc_char0
+    mov r3,#XP
+    mov a,r4
+    call puts_e
+    mov a,#FN_R_ERR&0FFh
+    call fn_read
+    add a,#'0'
+    call show_char
+
+done:
+    mov r0,#vdc_control
+    mov a,#vdc_ctrl_fore
+    movx @r0,a
+spin:
+    jmp spin
+
+; fix_get: A = offset in page $700 -> A = the byte there. The POKE target has
+; to be read from its own page, which is the point: this is how an interrupt
+; routine reads tables the console keeps in the fixed half.
+    org 7E0h
+fix_get:
+    movp a,@a
+    ret
+    org 7F0h
+    db "??"                     ; what the POKE overwrites
+
+; ---------------------------------------------------------------- the page
+    org 800h
+page_id:                        ; A = this page's number as a digit
+    mov a,#'0'+PAGE
+    ret
+
+    org 0D02h
+msg_nc:  db "NO CART E",0
+msg_to:  db "TIMEOUT E",0
+msg_nak: db "NAK E",0
+msg_old: db "PROTO 1 E",0
+
+    include "fujistub.inc"
+
+    if PAGE=0
+    org O2_APP_HDR              ; covered by the mailbox at run time
+    db "APPB",O2_APP_VERSION,NPAGES
+    endif

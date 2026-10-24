@@ -20,12 +20,23 @@
 #include <stdint.h>
 
 #include "fujibus.h"
+#include "fuji_mailbox.h"
 #include "o2map.h"
 
-/* The largest layout o2map will accept: 8 banks of 3K. Sizing this by guess
- * would silently truncate a maximum-size image and boot the remains. */
-#define FUJIMAIL_STAGE_MAX (O2MAP_BANKS * 3072)
+/* The largest image o2map will accept: a full APPBANK image (fuji_mailbox.h),
+ * which is bigger than 8 legacy banks of 3K. Sizing this by guess would
+ * silently truncate a maximum-size image and boot the remains. */
+#define FUJIMAIL_STAGE_MAX (O2_APP_FIXED_BYTES + O2_APP_MAXPAGES * O2_APP_PAGE_BYTES)
 #define FUJIMAIL_RX_MAX    1024
+
+/* The reply, for a cartridge that serves the read window out of it directly
+ * (APPBANK; o2app_read). fujimail_rxn is stored after the bytes are copied. */
+extern uint8_t fujimail_rx[FUJIMAIL_RX_MAX];
+extern volatile unsigned fujimail_rxn;
+
+/* Set by the port while an APPBANK image is served out of the stage buffer:
+ * a further push is then refused with FN_BOOT_ERR_BUSY. */
+extern volatile bool fujimail_stage_live;
 
 /* Reported to the port purely so it can log; nothing depends on it. */
 typedef struct {

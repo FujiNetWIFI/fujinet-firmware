@@ -143,7 +143,7 @@ jobs:
       # the 8048 are page-relative.
       - name: Assemble
         working-directory: pico/o2
-        run: ./build.sh hello fujitest fujiboot fujicfg
+        run: ./build.sh hello fujitest fujiboot fujicfg apptest
 
       # No code may live above $7FF. CALL and JMP carry 11 address bits and the
       # twelfth comes from the MB flag, which the assembler sets on the
@@ -166,12 +166,16 @@ jobs:
           sys.exit(1 if bad else 0)
           PY
 
+      # apptest is protocol 2 (APPBANK): its pages live at $800-$F1F by design,
+      # so it is not in the high-bank check above, and the mapper decodes it
+      # as APPBANK from its page-0 header.
       - name: Decode every built cart with the image mapper
         working-directory: pico/o2
         run: |
           make -C firmware/host_test
           build/host_test/test_o2map build/hello.bin build/fujitest.bin \
-                                     build/fujiboot.bin build/fujicfg.bin
+                                     build/fujiboot.bin build/fujicfg.bin \
+                                     build/apptest.bin
 
   astrocade-console-client:
     name: "Astrocade Z80 clients"

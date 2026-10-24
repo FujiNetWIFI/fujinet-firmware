@@ -36,12 +36,75 @@ index 2314944..0cd8344 100644
  score.o: score.c score.h vmachine.h types.h
  	$(CC) $(CFLAGS) -c score.c -o score.o
  
+diff --git a/cpu.c b/cpu.c
+index 9d36f46..242c7dd 100644
+--- a/cpu.c
++++ b/cpu.c
+@@ -23,13 +23,22 @@
+ #include "vdc.h"
+ #include "vpp.h"
+ #include "cpu.h"
++#include "fujinet.h"
+ 
+ #define push(d) {intRAM[sp++] = (d); if (sp > 23) sp = 8;}
+ #define pull() (sp--, (sp < 8)?(sp=23):0, intRAM[sp])
+ #define make_psw() {psw = (cy << 7) | ac | f0 | bs | 0x08; psw = psw | ((sp - 8) >> 1);}
+ #define illegal(o) {}
+ #define undef(i) {printf("** unimplemented instruction %x, %x**\n",i,pc);}
+-#define ROM(adr) (rom[(adr) & 0xfff])
++/* FUJINET: a protocol 2 (APPBANK) image is served by the cartridge's own
++ * decode, o2app.h, for every fetch above the BIOS -- fixed half, page, mailbox
++ * and reply window -- rather than out of a 4K bank. */
++static inline Byte rom_fetch(unsigned adr)
++{
++    adr &= 0xfff;
++    return (fujinet_app_live && adr >= 0x400) ? fujinet_app_read(adr) : rom[adr];
++}
++#define ROM(adr) rom_fetch(adr)   /* a function: callers pass pc++ */
+ 
+ 
+ void init_cpu(void){
+@@ -1530,10 +1539,33 @@ void cpu_exec(void) {
+ 		if (xirq_pend) ext_IRQ();
+ 		if (tirq_pend) tim_IRQ();
+ 
++		if (app_data.exactlines) {
++			/* EXACTLINES: the counter's T1 is the VDC's hblank, and a
++			 * scanline is 455 dots at 7.16 MHz = 22.75 machine cycles
++			 * (MAME odyssey2/i8244). LINECNT's 21 runs the counter 8%
++			 * fast, so a program timing mid-frame writes off the counter
++			 * lands lines away from where draw_region thinks the beam
++			 * is, and the top of the screen tears. Count from master_clk
++			 * instead, which draw_region then shares. */
++			static long cnt_line = 0;
++			long line = master_clk * 4 / 91;
++			if (line < cnt_line) cnt_line = line;	/* a new frame */
++			while (cnt_line < line) {
++				cnt_line++;
++				if (count_on && mstate == 0) {
++					itimer++;
++					if (itimer == 0) {
++						t_flag=1;
++						tim_IRQ();
++						draw_region();
++					}
++				}
++			}
++		}
+ 		if (h_clk > LINECNT-1) {
+ 			h_clk-=LINECNT;
+ 			if (enahirq && (VDCwrite[0xA0] & 0x01)) ext_IRQ();
+-			if (count_on && mstate == 0) {
++			if (count_on && mstate == 0 && !app_data.exactlines) {
+ 				itimer++;
+ 				if (itimer == 0) {
+ 					t_flag=1;
 diff --git a/fujinet.c b/fujinet.c
 new file mode 100644
-index 0000000..4095752
+index 0000000..66d4a78
 --- /dev/null
 +++ b/fujinet.c
-@@ -0,0 +1,350 @@
+@@ -0,0 +1,392 @@
 +/* fujinet.c -- o2em model of the FujiNet RP2040 cartridge.
 + *
 + * Stands in for the cartridge so the 8048 client can be developed and
@@ -81,6 +144,7 @@ index 0000000..4095752
 +#include "fujimail.h"
 +#include "fuji_mailbox.h"
 +#include "o2map.h"
++#include "o2app.h"
 +
 +#define FUJI_DEVICEID_DBC 0xFF
 +
@@ -94,6 +158,28 @@ index 0000000..4095752
 +static int mailbox_active = 1;
 +
 +extern Byte rom_table[8][4096];
++
++/* Protocol 2: the image the console is running, served through o2app.h. Its own
++ * buffer rather than `pending`, which the next push would land on. */
++int fujinet_app_live;
++static o2app_t app;
++static Byte app_image[FUJIMAIL_STAGE_MAX];
++
++Byte fujinet_app_read(unsigned addr)
++{
++    /* rom_table[0] carries the published mailbox page, as on the cart. */
++    return o2app_read(&app, addr, rom_table[0], fujimail_rx, fujimail_rxn);
++}
++
++static void app_install(const Byte *data, unsigned len, unsigned npages)
++{
++    memcpy(app_image, data, len);
++    o2app_init(&app, app_image, npages);
++    fujinet_app_live = 1;
++    fujimail_stage_live = true;
++    mailbox_active = 1;
++    fujimail_paint();
++}
 +
 +int fujinet_active(void) { return fd >= 0; }
 +
@@ -352,9 +438,11 @@ index 0000000..4095752
 +     * decodes, so ordinary games do write there, and a stray write would
 +     * otherwise fire a transaction with whatever command was left in the
 +     * registers -- and publish its reply over the running game's code. */
++    if (fujinet_app_live && o2app_write(&app, adr, dat))
++        return;         /* APPBANK's own: page, POKE, read window */
 +    if (!mailbox_active)
 +        return;
-+    fujimail_write(adr, dat);
++    fujimail_write(adr, dat);   /* offline, transactions answer FB_ENOLINK */
 +}
 +
 +/* Called when the console is reset: this is where a staged image takes over. */
@@ -364,7 +452,12 @@ index 0000000..4095752
 +
 +    if (pending_len == 0)
 +        return;
-+    if (o2map_plan(pending, pending_len, &plan) == O2MAP_OK) {
++    if (o2map_plan(pending, pending_len, &plan) == O2MAP_OK && plan.appbank) {
++        ensure_port();
++        app_install(pending, pending_len, plan.npages);
++        fprintf(stderr, "fujinet: booted %u bytes as APPBANK, %u pages\n",
++                pending_len, plan.npages);
++    } else if (o2map_plan(pending, pending_len, &plan) == O2MAP_OK) {
 +        o2map_apply(pending, &plan, rom_table);
 +        mailbox_active = plan.mailbox_ok;
 +        /* The image has just been laid over the mailbox page, so a mailbox that
@@ -383,6 +476,18 @@ index 0000000..4095752
 +    pending_len = 0;
 +}
 +
++int fujinet_load_app(const Byte *data, unsigned len)
++{
++    o2map_plan_t plan;
++
++    if (len > sizeof app_image || o2map_plan(data, len, &plan) != O2MAP_OK
++        || !plan.appbank)
++        return 0;
++    ensure_port();
++    app_install(data, len, plan.npages);
++    return (int) plan.npages;
++}
++
 +static void ensure_port(void)
 +{
 +    static int done;
@@ -394,10 +499,10 @@ index 0000000..4095752
 +}
 diff --git a/fujinet.h b/fujinet.h
 new file mode 100644
-index 0000000..51922e3
+index 0000000..fd487ed
 --- /dev/null
 +++ b/fujinet.h
-@@ -0,0 +1,29 @@
+@@ -0,0 +1,39 @@
 +/* fujinet.h -- o2em model of the FujiNet RP2040 cartridge. */
 +#ifndef FUJINET_H
 +#define FUJINET_H
@@ -425,6 +530,16 @@ index 0000000..51922e3
 +/* Install a staged cart image. Called when the console is reset -- the cart
 + * cannot reset the O2 itself, so a booted game takes over on the next $400. */
 +void fujinet_on_reset(void);
++
++/* Protocol 2 (APPBANK). Set while an APPBANK image is the console's program
++ * memory; cpu.c's ROM() then fetches through fujinet_app_read, which is the
++ * cartridge's own decode (o2app.h). */
++extern int fujinet_app_live;
++Byte fujinet_app_read(unsigned addr);
++
++/* An APPBANK image given on the command line: install it at once, with or
++ * without a link. Returns 0, changing nothing, if it is not one. */
++int fujinet_load_app(const Byte *data, unsigned len);
 +
 +#endif /* FUJINET_H */
 diff --git a/keyboard.c b/keyboard.c
@@ -454,18 +569,19 @@ index 4ded317..9a383b7 100644
          init_roms();
          init_vpp();
 diff --git a/main.c b/main.c
-index ddd3c5a..3bcb6c3 100644
+index ddd3c5a..c891b2f 100644
 --- a/main.c
 +++ b/main.c
-@@ -18,6 +18,7 @@
+@@ -18,6 +18,8 @@
  #include "crc32.h"
  #include "audio.h"
  #include "vmachine.h"
 +#include "fujinet.h"
++#include "fujimail.h"
  #include "config.h"
  #include "vdc.h"
  #include "cpu.h"
-@@ -116,6 +117,14 @@ int main(int argc, char *argv[])
+@@ -116,6 +118,15 @@ int main(int argc, char *argv[])
      app_data.default_highscore = 0;
      app_data.breakpoint = 65535;
      app_data.megaxrom = 0;
@@ -474,13 +590,14 @@ index ddd3c5a..3bcb6c3 100644
 +    app_data.fujinet_debug = 0;
 +    app_data.fujinet_bootdump = NULL;
 +    app_data.reset_at = 0;
++    app_data.exactlines = 0;
 +    app_data.input = NULL;
 +    app_data.dumpscr = NULL;
 +    app_data.dumptxt = 0;
      strcpy(file, "");
      strcpy(file_l, "");
      strcpy(bios_l, "");
-@@ -298,6 +307,10 @@ int main(int argc, char *argv[])
+@@ -298,6 +309,10 @@ int main(int argc, char *argv[])
          load_cart(file);
          if (app_data.voice)
              load_voice_samples(path);
@@ -491,7 +608,7 @@ index ddd3c5a..3bcb6c3 100644
          init_display();
          init_cpu();
          init_system();
-@@ -507,6 +520,24 @@ int parse_option(char *attr, char *val)
+@@ -507,6 +522,26 @@ int parse_option(char *attr, char *val)
          app_data.fullscreen = (val[0] != '0');
      } else if (!strcmp(attr, "scanlines")) {
          app_data.scanlines = (val[0] != '0');
@@ -507,6 +624,8 @@ index ddd3c5a..3bcb6c3 100644
 +        app_data.input = strdup(val);
 +    } else if (!strcmp(attr, "resetat")) {
 +        app_data.reset_at = atoi(val);
++    } else if (!strcmp(attr, "exactlines")) {
++        app_data.exactlines = (val[0] != '0');
 +    } else if (!strcmp(attr, "frames")) {
 +        app_data.run_frames = atoi(val);
 +    } else if (!strcmp(attr, "dumpscr")) {
@@ -516,11 +635,48 @@ index ddd3c5a..3bcb6c3 100644
      } else if (!strcmp(attr, "scshot")) {
          strcpy(scshot, val);
      } else if (!strcmp(attr, "savefile")) {
+@@ -744,6 +779,23 @@ static void load_cart(char *file)
+         exit(EXIT_FAILURE);
+     }
+ 
++    /* FUJINET: a protocol 2 (APPBANK) image runs straight from the command
++     * line, link or no link -- its header says what it is. */
++    {
++        static Byte img[FUJIMAIL_STAGE_MAX];
++        int npages;
++
++        if (l <= (long) sizeof img && fread(img, (size_t) l, 1, fn) == 1
++            && (npages = fujinet_load_app(img, (unsigned) l)) > 0) {
++            printf("APPBANK, %d pages  CRC: %08lX\n", npages, app_data.crc);
++            rom = rom_table[0];
++            app_data.bank = 1;
++            fclose(fn);
++            return;
++        }
++        rewind(fn);
++    }
++
+     /* special MegaCART design by Soeren Gust */
+     if ((l == 32768) || (l == 65536) || (l == 131072) || (l == 262144)
+             || (l == 524288) || (l == 1048576)) {
 diff --git a/vdc.c b/vdc.c
-index 57d7a99..c39c54d 100644
+index 57d7a99..1b65f96 100644
 --- a/vdc.c
 +++ b/vdc.c
-@@ -828,3 +828,90 @@ void help(void)
+@@ -82,7 +82,11 @@ INLINE void mputvid(unsigned int ad, unsigned int len, Byte d, Byte c);
+ void draw_region(void)
+ {
+     int i;
+-    if (regionoff == 0xffff) {
++    if (app_data.exactlines) {
++        /* EXACTLINES: the beam's own line, on the clock the counter runs on
++         * (cpu.c). */
++        i = (int) (master_clk * 4 / 91);
++    } else if (regionoff == 0xffff) {
+         i = (master_clk / (LINECNT - 1) - 5);
+     } else {
+         i = (master_clk / 22 + regionoff);
+@@ -828,3 +832,90 @@ void help(void)
      return;
  }
  
@@ -625,7 +781,7 @@ index d94460d..2dade56 100644
  #define BMPH 250
  #define WNDW 320
 diff --git a/vmachine.c b/vmachine.c
-index 39f0dad..2134ba7 100644
+index 39f0dad..3890efd 100644
 --- a/vmachine.c
 +++ b/vmachine.c
 @@ -22,10 +22,15 @@
@@ -760,12 +916,13 @@ index 39f0dad..2134ba7 100644
      }
      return d;
  }
-@@ -514,7 +604,12 @@ void ext_write(Byte dat, ADDRESS adr)
+@@ -514,7 +604,13 @@ void ext_write(Byte dat, ADDRESS adr)
      } else if (!(p1 & 0x10) && !(p1 & 0x40)) {
          adr = adr & 0xFF;
  
 -        if (adr < 0x80) {
-+        if (adr >= FN_W_REGSEL && adr <= FN_W_SEQ && fujinet_active()) {
++        if (adr >= FN_W_REGSEL && adr <= FN_W_SEQ
++                && (fujinet_active() || fujinet_app_live)) {
 +            /* FujiNet mailbox register file. Deliberately $E0-$E3: the only
 +             * addresses in this window The Voice does not decode. */
 +            fujinet_ext_write(adr, dat);
@@ -775,10 +932,10 @@ index 39f0dad..2134ba7 100644
              extRAM[adr] = dat;
  
 diff --git a/vmachine.h b/vmachine.h
-index 50ce8a3..ccb8ab9 100644
+index 50ce8a3..05297e8 100644
 --- a/vmachine.h
 +++ b/vmachine.h
-@@ -94,6 +94,15 @@ extern struct resource {
+@@ -94,6 +94,17 @@ extern struct resource {
  	int default_highscore;
  	int breakpoint;
  	char *statefile;
@@ -791,6 +948,8 @@ index 50ce8a3..ccb8ab9 100644
 +	char *fujinet_bootdump; /* write each pushed stream to PREFIX.rom/.cfg */
 +	int reset_at;        /* pulse the console RESET button at this frame */
 +	char *input;         /* scripted controller input, FRAME:CODE[,...] */
++	int exactlines;      /* one scanline = 22.75 cycles for the counter and the
++	                        region renderer alike (see draw_region) */
  } app_data;
  
  

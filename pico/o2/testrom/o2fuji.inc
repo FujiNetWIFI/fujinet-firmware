@@ -15,8 +15,12 @@ FN_REG_TXLEN_HI equ 004h
 FN_REG_DATA_RST equ 005h
 FN_REG_RXSLICE  equ 006h
 FN_REG_BOOTSEL  equ 007h
-FN_REG_CODEBANK equ 008h
+FN_REG_CODEBANK equ 008h       ; protocol 2 (APPBANK): page at $800-$F1F
 FN_REG_DATABANK equ 009h
+FN_REG_POKE_LO  equ 00Ah        ; protocol 2: write pointer into $400-$7FF
+FN_REG_POKE_HI  equ 00Bh
+FN_REG_POKE     equ 00Ch        ; protocol 2: store, then advance the pointer
+FN_REG_RXWIN    equ 00Dh        ; protocol 2: reply byte value*16 at $F30
 
 ; cart -> console: MOVP reads out of program page $F00
 FN_R_ACKSEQ     equ 0F20h
@@ -32,6 +36,11 @@ FN_R_MAGIC0     equ 0F29h
 FN_R_MAGIC1     equ 0F2Ah
 FN_R_PROTO_VER  equ 0F2Bh
 FN_R_DATA       equ 0F30h
+FN_PROTO_VER    equ 2           ; what FN_R_PROTO_VER reads on a protocol 2 cart
+
+; Protocol 2 APPBANK image layout (fuji_mailbox.h)
+O2_APP_HDR      equ 0F30h       ; in page 0: "APPB", version, page count
+O2_APP_VERSION  equ 1
 
 FUJI_DEVICEID   equ 070h
 FUJICMD_GET_ADAPTERCONFIG_EXTENDED equ 0C4h
