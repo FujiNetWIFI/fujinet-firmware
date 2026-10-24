@@ -208,9 +208,9 @@ bool _sys_extendfile(char *fn, unsigned long fpos)
 
         // This was patterned after the Arduino abstraction, and I do not like how this works.
 
-        if (fpos > origSize)
+        if (fpos > (unsigned long)origSize)
         {
-                for (long i = 0; i < (origSize - fpos); ++i)
+                for (long idx = 0; idx < (long)(fpos - origSize); ++idx)
                 {
                         if (fwrite("\0", sizeof(uint8_t), 1, fp) != 1)
                         {
