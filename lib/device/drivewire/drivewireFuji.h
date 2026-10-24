@@ -26,6 +26,8 @@ protected:
     // -1 stops the base from blinking before the queued swap runs; rotate_disks() blinks.
     int get_rotate_slot() override { return -1; }
 
+    std::string config_image() override;
+
 public:
     drivewireNetwork *network();
 

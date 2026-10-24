@@ -671,7 +671,7 @@ void fujiDevice::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
     switch (image_id)
     {
     case 0:
-        boot_img = "/autorun" + _diskImageExtension;
+        boot_img = config_image();
         fBoot = fsFlash.fnfile_open(boot_img.c_str());
         break;
     case 1:

@@ -11,7 +11,6 @@
 drivewireFuji platformFuji;
 fujiDevice *theFuji = &platformFuji; // Global fuji object.
 
-// drivewireDisk drivewireDiskDevs[MAX_HOSTS];
 NDevice drivewireNetDevs[MAX_NETWORK_DEVICES];
 
 /**
@@ -136,6 +135,11 @@ void drivewireFuji::insert_boot_device(uint8_t image_id, mediatype_t disk_type,
     }
 
     fujiDevice::insert_boot_device(image_id, disk_type, disk_dev);
+}
+
+std::string drivewireFuji::config_image()
+{
+    return SYSTEM_BUS.isDragon() ? "/autorund.vdk" : fujiDevice::config_image();
 }
 
 void drivewireFuji::random()
