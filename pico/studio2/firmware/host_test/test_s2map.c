@@ -43,6 +43,7 @@
 #include <string.h>
 
 #include "s2map.h"
+#include "s2_text.h"
 
 /* ---- MAME, transcribed ----
  *
@@ -107,7 +108,7 @@ static int mame_read(const mame_cart_t *m, uint16_t a)
 
 static uint8_t buf[S2MAP_BUF_MAX];
 static uint8_t arena[FN_ARENA_SIZE];
-static uint8_t raster[FN_RASTER_SIZE];
+static s2_disp_t disp;
 
 static int plan_view(const uint8_t *img, uint32_t len, s2map_plan_t *p, s2_view_t *v)
 {
@@ -118,7 +119,7 @@ static int plan_view(const uint8_t *img, uint32_t len, s2map_plan_t *p, s2_view_
     if (err != S2MAP_OK)
         return err;
     s2map_layout(buf, p);
-    s2map_view_init(v, buf, p, arena, raster, p->claim);
+    s2map_view_init(v, buf, p, arena, &disp, p->claim);
     return S2MAP_OK;
 }
 
@@ -235,7 +236,6 @@ static void test_refusals(void)
 {
     s2map_plan_t p;
     uint32_t n;
-    unsigned i;
 
     assert(s2map_plan(img, 0, false, &p) == S2MAP_EEMPTY);
     memset(img, 0x11, 2048);
@@ -244,16 +244,31 @@ static void test_refusals(void)
     assert(s2map_gate(S2MAP_IMAGE_MAX) == 0);
     assert(s2map_gate(S2MAP_IMAGE_MAX + 1) == FN_BOOT_ERR_TOOBIG);
 
-    /* 64 data blocks is the ST2 limit (the page map is 64 bytes) */
+    /* 192 data blocks is the ST2 limit (the page map's 192 bytes): every app
+     * page once, then the window again as banks 1-3 */
     {
         uint8_t pages[S2MAP_ST2_BLOCKS];
+        unsigned pg, k = 0;
 
-        for (i = 0; i < S2MAP_ST2_BLOCKS; i++)
-            pages[i] = (uint8_t)(0x14 + (i / 12) * 0x10 + i % 12);
+        for (pg = 0x04; pg < 0xE4; pg++)
+            if (s2map_page_ok(pg, true))
+                pages[k++] = (uint8_t)pg;
+        assert(k == 165);
+        for (; k < S2MAP_ST2_BLOCKS; k++)
+            pages[k] = (uint8_t)(S2MAP_WIN_PAGE + (k - 165) % S2MAP_WIN_PAGES);
         n = mk_st2(img, pages, S2MAP_ST2_BLOCKS, 0);
         assert(s2map_plan(img, n, false, &p) == S2MAP_OK);
-        assert(p.blocks == S2MAP_ST2_BLOCKS);
+        assert(p.blocks == S2MAP_ST2_BLOCKS && p.nbanks == 4);
         img[4] = S2MAP_ST2_BLOCKS + 2;
+        assert(s2map_plan(img, n, false, &p) == S2MAP_ETOOBIG);
+    }
+
+    /* more banks than the window has */
+    {
+        uint8_t pages[S2MAP_NBANKS + 1];
+
+        memset(pages, S2MAP_WIN_PAGE, sizeof pages);
+        n = mk_st2(img, pages, sizeof pages, 0);
         assert(s2map_plan(img, n, false, &p) == S2MAP_ETOOBIG);
     }
 
@@ -261,6 +276,61 @@ static void test_refusals(void)
     n = mk_st2(img, (const uint8_t *)"\x04", 1, 0);
     img[4] = 1;
     assert(s2map_plan(img, n, false, &p) == S2MAP_EEMPTY);
+}
+
+/* The bank window, the writable pages and COPY (protocol 2). */
+static void test_banks(void)
+{
+    /* $C4 three times, $C5 once, $C6 in bank 1 only; "FUJI" at $07FC */
+    static const uint8_t pages[] = { 0x07, 0xC4, 0xC5, 0xC4, 0xC6, 0xC4, 0x14 };
+    uint32_t n = mk_st2(img, pages, sizeof pages, 0x10);
+    s2map_plan_t p;
+    s2_view_t v;
+    s2_copy_t c = { 0 };
+    unsigned w;
+
+    memcpy(img + 256 + 252, "FUJI", 4);
+    assert(plan_view(img, n, &p, &v) == S2MAP_OK);
+    assert(p.claim && p.nbanks == 3 && p.blocks == 7 && v.nbanks == 3 && v.bank == 0);
+    /* bank 0: blocks 1 and 2; $C6 and the rest of the window read $FF */
+    assert(v.page[0xC4][0] == img[512] && v.page[0xC5][0] == img[768]);
+    assert(v.type[0xC6] == S2PG_ROM && v.page[0xC6][9] == 0xFF && v.type[0xCF] == S2PG_ROM);
+    s2map_bank(&v, 1);
+    assert(v.page[0xC4][3] == img[1024 + 3] && v.page[0xC6][0] == img[1280]);
+    assert(v.page[0xC5][0] == 0xFF && !v.wpage[0xC5]);
+    s2map_bank(&v, 2);
+    assert(v.page[0xC4][0] == img[1536] && v.page[0xC6][0] == 0xFF);
+    s2map_bank(&v, 3);                          /* never planned */
+    for (w = 0; w < S2MAP_WIN_PAGES; w++)
+        assert(v.page[S2MAP_WIN_PAGE + w][0] == 0xFF);
+    s2map_bank(&v, 200);
+    assert(v.page[0xC4][0] == 0xFF);
+    s2map_bank(&v, 1);
+
+    /* pokes land in the block's bytes, in whichever bank is in */
+    assert(s2map_poke(&v, 0xC412, 0x5A) && buf[4 * 256 + 0x12] == 0x5A);   /* block 3 */
+    assert(s2map_poke(&v, 0x1400, 0xA5) && v.page[0x14][0] == 0xA5);
+    assert(!s2map_poke(&v, 0x0500, 1));         /* zero-filled, no block */
+    assert(!s2map_poke(&v, 0xE400, 1));         /* the reply window */
+    assert(!s2map_poke(&v, 0x0900, 1));         /* console RAM */
+
+    /* COPY: the reply window into a block, run by the last register */
+    memcpy(arena, "STATE!", 6);
+    assert(!s2map_copy_reg(&c, &v, FN_REG_CPSRCLO, 0x00));
+    assert(!s2map_copy_reg(&c, &v, FN_REG_CPSRCHI, 0xE4));
+    assert(!s2map_copy_reg(&c, &v, FN_REG_CPDSTLO, 0x10));
+    assert(!s2map_copy_reg(&c, &v, FN_REG_CPDSTHI, 0x14));
+    assert(!s2map_copy_reg(&c, &v, FN_REG_CPLENLO, 6));
+    assert(s2map_copy_reg(&c, &v, FN_REG_CPLENHI, 0));
+    assert(c.done == 1 && memcmp(v.page[0x14] + 0x10, "STATE!", 6) == 0);
+    /* image to image, across a page; a source past the image reads as served */
+    c.src = 0x14FE;
+    c.dst = 0xC4FE;
+    assert(s2map_copy_reg(&c, &v, FN_REG_CPLENLO, 4) == false);
+    assert(s2map_copy_reg(&c, &v, FN_REG_CPLENHI, 0) && c.done == 2);
+    assert(v.page[0xC4][0xFE] == v.page[0x14][0xFE] && v.page[0xC4][0xFF] == v.page[0x14][0xFF]);
+    assert(v.page[0xC5][0] == 0xFF);            /* bank 1 has no $C5: nothing written */
+    assert(!s2map_copy_reg(&c, &v, FN_REG_CONFIG, 0));
 }
 
 static void test_claim(void)
@@ -385,7 +455,7 @@ static void corpus_dir(const char *dir)
                 continue;
             memcpy(bufa, img, n);
             s2map_layout(bufa, &pa);
-            s2map_view_init(&va, bufa, &pa, arena, raster, false);
+            s2map_view_init(&va, bufa, &pa, arena, &disp, false);
             assert(plan_view(b2, n2, &pb, &vb) == S2MAP_OK);
             for (a = 0x400; a < 0x800; a++)
                 assert(our_read(&va, (uint16_t)a) == our_read(&vb, (uint16_t)a));
@@ -403,6 +473,7 @@ int main(void)
     test_layouts();
     test_sub04_block();
     test_refusals();
+    test_banks();
     test_claim();
     if (corpus) {
         printf("  corpus %s:\n", corpus);

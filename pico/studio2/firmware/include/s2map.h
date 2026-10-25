@@ -13,12 +13,20 @@
  * The cart never claims page $00-$03 of any 4K (the BIOS ROMs may decode
  * only A10-A11), nor $08-$09 (console RAM), nor $0B in an app (inert page the
  * client parks its hotspot pointer on).
+ *
+ * Protocol 2: an ST2 may have up to 192 blocks (its header's whole page map).
+ * $C400-$CFFF is a bank window: in file order, each block naming $C4 after
+ * the first opens the next bank, and window blocks belong to the bank open
+ * when they come (bank 0 before any). A read of
+ * FN_STUB's page + FN_HOT_BANK + n shows bank n there (s2map_bank); a page a
+ * bank lacks reads $FF. Every page a block backs is writable (s2map_poke).
  */
 
 #ifndef S2MAP_H
 #define S2MAP_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "fuji_mailbox.h"
@@ -32,10 +40,15 @@
 #define S2MAP_PAGE       256u
 #define S2MAP_PAGES      256u
 #define S2MAP_ST2_HDR    256u
-#define S2MAP_ST2_BLOCKS 64u                    /* page-map entries          */
+#define S2MAP_ST2_BLOCKS 192u                   /* page-map entries          */
 #define S2MAP_IMAGE_MAX  (S2MAP_ST2_HDR + S2MAP_ST2_BLOCKS * S2MAP_PAGE)
 #define S2MAP_RAW_MAX    0x400u                 /* MAME: raw images <= 1K    */
 #define S2MAP_BUF_MAX    S2MAP_IMAGE_MAX
+
+/* The bank window. */
+#define S2MAP_WIN_PAGE   0xC4u
+#define S2MAP_WIN_PAGES  12u                    /* $C400-$CFFF               */
+#define S2MAP_NBANKS     16u
 
 /* plan.src[page]: where a page's bytes come from. */
 #define S2SRC_NONE       0u                     /* not claimed               */
@@ -57,6 +70,8 @@ typedef struct {
     uint32_t size;           /* bytes pushed                                 */
     uint32_t crc;            /* CRC-32 of the pushed bytes                   */
     uint8_t  src[S2MAP_PAGES];
+    uint8_t  nbanks;         /* banks in the window: most blocks one page has */
+    uint8_t  bank_src[S2MAP_NBANKS][S2MAP_WIN_PAGES];   /* S2SRC_*           */
 } s2map_plan_t;
 
 /* Page types core1 acts on. */
@@ -67,11 +82,17 @@ enum {
     S2PG_RASTER,             /* serve the raster by DMA position             */
 };
 
+typedef struct s2_disp s2_disp_t;  /* s2_text.h: what the raster pages show */
+
 typedef struct {
     const uint8_t *page[S2MAP_PAGES];
+    uint8_t *wpage[S2MAP_PAGES];        /* the same page where it is writable */
     uint8_t type[S2MAP_PAGES];
     bool mailbox;
-    const uint8_t *raster;   /* FN_RASTER_SIZE bytes, 8 per line             */
+    s2_disp_t *disp;
+    uint8_t nbanks, bank;
+    const uint8_t *bank_page[S2MAP_NBANKS][S2MAP_WIN_PAGES];
+    uint8_t *bank_wpage[S2MAP_NBANKS][S2MAP_WIN_PAGES];
 } s2_view_t;
 
 /* True when the cart may claim page `pg` at all, and for an app. */
@@ -91,15 +112,54 @@ int s2map_plan(const uint8_t *buf, uint32_t len, bool force_claim, s2map_plan_t 
 /* Zero the buffer past the image, so ZERO-backed reads of short blocks are 0. */
 void s2map_layout(uint8_t *buf, const s2map_plan_t *p);
 
-/* Build the view: the image's pages, and with `mailbox` the arena (FN_ARENA_SIZE
- * bytes), the text hotspot pages (served $FF) and the raster. */
-void s2map_view_init(s2_view_t *v, const uint8_t *buf, const s2map_plan_t *p,
-                     const uint8_t *arena, const uint8_t *raster, bool mailbox);
+/* Build the view: the image's pages (bank 0 in the window), and with
+ * `mailbox` the arena (FN_ARENA_SIZE bytes), the text hotspot pages (served
+ * $FF) and the raster. */
+void s2map_view_init(s2_view_t *v, uint8_t *buf, const s2map_plan_t *p,
+                     const uint8_t *arena, s2_disp_t *disp, bool mailbox);
 
 /* Refuse an oversized image before it is pushed: 0 or FN_BOOT_ERR_TOOBIG. */
 uint8_t s2map_gate(uint32_t size);
 
 /* The byte a view serves at `a`, ignoring the raster's position (a peek). */
 uint8_t s2map_peek(const s2_view_t *v, uint16_t a);
+
+extern const uint8_t s2map_ff_page[S2MAP_PAGE];
+
+/* COPY's registers (fuji_mailbox.h), latched on core0 as the ring brings them. */
+typedef struct {
+    uint16_t src, dst, len;
+    uint8_t done;           /* COPYs finished, mod 256: FN_R_COPYDONE        */
+} s2_copy_t;
+
+/* One COPY register write; true when it ran a COPY (publish c->done). */
+bool s2map_copy_reg(s2_copy_t *c, s2_view_t *v, uint8_t reg, uint8_t data);
+
+/* Bank n into the window; core1 calls it between two reads. */
+S2_HOT void s2map_bank(s2_view_t *v, unsigned n)
+{
+    unsigned w;
+
+    if (!v->nbanks)
+        return;
+    v->bank = (uint8_t)n;
+    for (w = 0; w < S2MAP_WIN_PAGES; w++) {
+        bool have = n < S2MAP_NBANKS;
+
+        v->page[S2MAP_WIN_PAGE + w] = have ? v->bank_page[n][w] : s2map_ff_page;
+        v->wpage[S2MAP_WIN_PAGE + w] = have ? v->bank_wpage[n][w] : NULL;
+    }
+}
+
+/* Store `d` at `a` if a block backs that page; false where it does not. */
+S2_HOT bool s2map_poke(s2_view_t *v, uint16_t a, uint8_t d)
+{
+    uint8_t *pg = v->wpage[a >> 8];
+
+    if (!pg)
+        return false;
+    pg[a & 0xFFu] = d;
+    return true;
+}
 
 #endif /* S2MAP_H */

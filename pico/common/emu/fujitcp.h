@@ -25,6 +25,10 @@
 extern "C" {
 #endif
 
+/* Called every few ms while a transaction waits for its reply: the work a
+ * cart's core0 keeps doing meanwhile (fujibus_usb.h's idle hook). */
+void fujitcp_set_idle(void (*fn)(void));
+
 /* Connect to "host:port" (NULL: $FUJINET_TCP, else 127.0.0.1:9995).
  * Returns 0 on success. */
 int fujitcp_init(const char *hostport);

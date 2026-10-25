@@ -148,7 +148,7 @@ static int replay(const char *dir, const char *name)
     static rec_t r[2500000];
     unsigned nr = 0, i, extra = 0, matched = 0, mame_only = 0, pessimistic = 0;
     unsigned want_dev[64], want_cmd[64], want_np[64], want_len[64], nwant = 0;
-    const s2_view_t *v;
+    s2_view_t *v;
     s2_bus_t bus;
     uint32_t t = 0;
     FILE *f;
@@ -190,7 +190,7 @@ static int replay(const char *dir, const char *name)
     memset(arena, 0, sizeof arena);
     memset(arena + FN_H_REGSEL, 0xFF, FN_ARENA_SIZE - FN_H_REGSEL);
     s2_text_init(&text, arena + FN_R_DATA);
-    fuji_load_init(&ld, buf0, buf1, arena, text.raster, img, len);
+    fuji_load_init(&ld, buf0, buf1, arena, &text.disp, img, len);
     v = fuji_load_live(&ld);
     fujimail_init(&port);
     fujimail_paint();

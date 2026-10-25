@@ -18,6 +18,7 @@
 
 #include "fuji_mailbox.h"
 #include "s2map.h"
+#include "s2_text.h"
 
 /* --------------------------------------------------------------------------
  * GPIO map (RP2354B). GPIO0-31 are read in one word and are 5 V-tolerant;
@@ -90,7 +91,11 @@ typedef struct {
     bool     r_seen;
     uint16_t r_line, r_col;
     uint8_t  frames;        /* raster frames served, mod 256                */
+    uint8_t  rs;            /* the register core1 decodes, or S2_RS_NONE    */
+    uint16_t ptr;           /* the poke pointer                             */
 } s2_bus_t;
+
+#define S2_RS_NONE 0xFFu
 
 static inline void s2_bus_reset(s2_bus_t *b)
 {
@@ -102,6 +107,8 @@ static inline void s2_bus_reset(s2_bus_t *b)
     b->r_line = 0;
     b->r_col = 0;
     b->frames = 0;
+    b->rs = S2_RS_NONE;
+    b->ptr = 0;
 }
 
 /* What one read asks of the caller. */
@@ -109,8 +116,9 @@ static inline void s2_bus_reset(s2_bus_t *b)
 #define S2_HOT_EV 0x02      /* a hotspot: queue the address for core0       */
 #define S2_RESET  0x04      /* a qualified read of $0000: swap if armed     */
 
-/* The raster byte at the next DMA position. */
-S2_HOT uint8_t s2_raster_next(s2_bus_t *b, const uint8_t *raster, uint32_t t)
+/* The raster byte at the next DMA position. A frame starts on the buffer
+ * core0 left pending, if any. */
+S2_HOT uint8_t s2_raster_next(s2_bus_t *b, s2_disp_t *d, uint32_t t)
 {
     uint32_t dt = t - b->r_t;
 
@@ -118,6 +126,7 @@ S2_HOT uint8_t s2_raster_next(s2_bus_t *b, const uint8_t *raster, uint32_t t)
         b->r_line = 0;
         b->r_col = 0;
         b->frames++;
+        s2_disp_flip(d);
     } else if (dt > S2_LINEGAP_US) {
         b->r_line++;
         b->r_col = 0;
@@ -128,11 +137,49 @@ S2_HOT uint8_t s2_raster_next(s2_bus_t *b, const uint8_t *raster, uint32_t t)
     b->r_t = t;
     if (b->r_line >= S2_LINES || b->r_col >= S2_LINE_BYTES)
         return 0;
-    return raster[b->r_line * S2_LINE_BYTES + b->r_col];
+    return d->buf[d->front][b->r_line * S2_LINE_BYTES + b->r_col];
+}
+
+/* Registers core1 decodes itself, never queued (fuji_mailbox.h): bank
+ * selects, and the poke pointer and stream. True when `a` was one of them. */
+S2_HOT bool s2_bus_cartreg(s2_bus_t *b, s2_view_t *v, uint16_t a)
+{
+    unsigned lo = a & 0xFFu;
+
+    if ((a >> 8) == ((FN_ARENA_BASE + FN_H_REGSEL) >> 8)) {
+        if (lo >= FN_HOT_BANK && lo < FN_HOT_STUB) {
+            s2map_bank(v, lo - FN_HOT_BANK);
+            return true;
+        }
+        if (lo == FN_REG_PTRLO || lo == FN_REG_PTRHI || lo == FN_REG_POKE) {
+            b->rs = (uint8_t)lo;
+            return true;
+        }
+        if (lo < FN_HOT_BANK)
+            b->rs = S2_RS_NONE;
+        return false;
+    }
+    if ((a >> 8) != ((FN_ARENA_BASE + FN_H_REGDATA) >> 8) || b->rs == S2_RS_NONE)
+        return false;
+    switch (b->rs) {
+    case FN_REG_PTRLO:
+        b->ptr = (uint16_t)((b->ptr & 0xFF00u) | lo);
+        b->rs = S2_RS_NONE;
+        break;
+    case FN_REG_PTRHI:
+        b->ptr = (uint16_t)((b->ptr & 0x00FFu) | (lo << 8));
+        b->rs = S2_RS_NONE;
+        break;
+    default:
+        (void)s2map_poke(v, b->ptr, (uint8_t)lo);
+        b->ptr++;
+        break;
+    }
+    return true;
 }
 
 /* One read at `a`, time `t`. */
-S2_HOT unsigned s2_bus_read(s2_bus_t *b, const s2_view_t *v, uint16_t a, uint32_t t,
+S2_HOT unsigned s2_bus_read(s2_bus_t *b, s2_view_t *v, uint16_t a, uint32_t t,
                             uint8_t *data)
 {
     unsigned hi = a >> 8, r = 0;
@@ -144,10 +191,12 @@ S2_HOT unsigned s2_bus_read(s2_bus_t *b, const s2_view_t *v, uint16_t a, uint32_
         break;
     case S2PG_HOT:
         *data = v->page[hi][a & 0xFFu];
-        r = S2_DRIVE | S2_HOT_EV;
+        r = S2_DRIVE;
+        if (!v->mailbox || !s2_bus_cartreg(b, v, a))
+            r |= S2_HOT_EV;
         break;
     case S2PG_RASTER:
-        *data = s2_raster_next(b, v->raster, t);
+        *data = s2_raster_next(b, v->disp, t);
         r = S2_DRIVE;
         break;
     default:

@@ -56,6 +56,7 @@ public:
 	uint8_t stream_close(int stream, uint32_t got, bool aborted);
 	void arm_swap();
 	void own_reg(uint8_t reg, uint8_t value);
+	void idle();
 
 protected:
 	virtual void device_start() override ATTR_COLD;
@@ -74,6 +75,7 @@ private:
 	void worker_stop();
 	void drain_pokes();
 	void publish_staged();
+	void compose();
 	void dump_view();
 	static void load_file(std::vector<uint8_t> &out, const char *path);
 
@@ -83,6 +85,9 @@ private:
 	fuji_load_t m_load{};
 	s2_view_t *m_view = nullptr;
 	s2_bus_t m_bus;
+	s2_copy_t m_copy{};
+	uint8_t m_front = 0;                    // the display buffer shown, for Lua
+	uint8_t m_spr[S2T_NSPRITES][5]{};       // id, x, y, mode, on: for Lua
 
 	std::vector<uint8_t> m_boot;            // what power-on serves with the mailbox
 	std::vector<uint8_t> m_direct;          // an image served alone, no mailbox

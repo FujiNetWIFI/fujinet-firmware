@@ -49,6 +49,7 @@ static void c_stream_write(int stream, const uint8_t *chunk, unsigned len) { s_f
 static uint8_t c_stream_close(int stream, uint32_t got, bool aborted) { return s_fujinet->stream_close(stream, got, aborted); }
 static void c_arm_swap() { s_fujinet->arm_swap(); }
 static void c_own_reg(uint8_t reg, uint8_t value) { s_fujinet->own_reg(reg, value); }
+static void c_idle() { s_fujinet->idle(); }
 
 static void c_on_txn(const fujimail_txn_t *t)
 {
@@ -149,6 +150,9 @@ void studio2_fujinet_device::device_start()
 	// For the harnesses' eyes only (Lua reads these, not the address space).
 	save_item(NAME(m_arena));
 	save_item(NAME(m_text.raster));
+	save_item(NAME(m_text.disp.buf));
+	save_item(NAME(m_front));
+	save_item(NAME(m_spr));
 	save_item(NAME(m_text.chars));
 	save_item(NAME(m_text.inv));
 	save_item(NAME(m_text.mos));
@@ -192,8 +196,9 @@ void studio2_fujinet_device::device_reset()
 	m_arena[FN_H_REGSEL + FN_HOT_STUB + 1] = 0x70;
 	m_arena[FN_H_REGSEL + FN_HOT_T] = 0x23;
 	s2_text_init(&m_text, m_arena + FN_R_DATA);
-	fuji_load_init(&m_load, m_buf[0].data(), m_buf[1].data(), m_arena, m_text.raster,
+	fuji_load_init(&m_load, m_buf[0].data(), m_buf[1].data(), m_arena, &m_text.disp,
 			m_boot.data(), uint32_t(m_boot.size()));
+	m_copy = s2_copy_t{};
 	s2_bus_reset(&m_bus);
 	m_dumps = 0;
 	m_short_lines = 0;
@@ -229,6 +234,7 @@ void studio2_fujinet_device::device_reset()
 	}
 	const char *async = getenv("FUJINET_ASYNC");
 	m_async = m_mailbox_mode && (async ? atoi(async) != 0 : machine().video().throttled());
+	fujitcp_set_idle(m_async ? c_idle : nullptr);
 	if (m_async)
 		m_worker = std::thread(&studio2_fujinet_device::worker_main, this);
 	if (m_viewdump && !m_direct.empty())
@@ -273,6 +279,12 @@ uint8_t studio2_fujinet_device::read(offs_t offset)
 	}
 
 	uint32_t t = now_us();
+
+	// core0 composes all the time; here, just before the frame that shows it
+	if (!m_async && m_mailbox_mode && m_view->type[a >> 8] == S2PG_RASTER &&
+			(!m_bus.r_seen || t - m_bus.r_t > S2_VBLANK_US))
+		compose();
+
 	unsigned r = s2_bus_read(&m_bus, m_view, a, t, &data);
 
 	if (!(r & S2_DRIVE))
@@ -287,6 +299,7 @@ uint8_t studio2_fujinet_device::read(offs_t offset)
 		}
 		m_rline = m_bus.r_line;
 		m_rcol = m_bus.r_col;
+		m_front = m_text.disp.front;
 	}
 	if (r & S2_HOT_EV)
 		hotspot(a);
@@ -341,7 +354,7 @@ void studio2_fujinet_device::dispatch(uint16_t a)
 	fujimail_read_hotspot(uint16_t(a - FN_ARENA_BASE));
 }
 
-// The cart's own register, handed over by fujimail.
+// The cart's own registers, handed over by fujimail.
 void studio2_fujinet_device::own_reg(uint8_t reg, uint8_t value)
 {
 	if (reg == FN_REG_CONFIG && value == FN_CONFIG_MAGIC)
@@ -352,7 +365,53 @@ void studio2_fujinet_device::own_reg(uint8_t reg, uint8_t value)
 			fuji_load_arm(&m_load);
 		}
 		publish_staged();
+		return;
 	}
+	bool ran;
+	{
+		std::lock_guard<std::mutex> g(m_loadlock);
+		ran = s2map_copy_reg(&m_copy, fuji_load_live(&m_load), reg, value);
+	}
+	if (ran)
+		poke(FN_R_COPYDONE, m_copy.done);
+}
+
+// The picture for the next frame, and the sprites where Lua can see them.
+void studio2_fujinet_device::compose()
+{
+	if (!s2_text_compose(&m_text))
+		return;
+	for (unsigned n = 0; n < S2T_NSPRITES; n++)
+	{
+		const s2t_sprite_t &sp = m_text.spr[n];
+		m_spr[n][0] = sp.id;
+		m_spr[n][1] = uint8_t(sp.x);
+		m_spr[n][2] = uint8_t(sp.y);
+		m_spr[n][3] = sp.mode;
+		m_spr[n][4] = sp.on ? 1 : 0;
+	}
+}
+
+// The worker, while a transaction waits for its reply: as core0 does in
+// fujibus_usb.c's pump, draw what the console sent since, up to the first
+// mailbox read.
+void studio2_fujinet_device::idle()
+{
+	for (;;)
+	{
+		uint16_t a;
+		{
+			std::lock_guard<std::mutex> g(m_qlock);
+			if (m_events.empty())
+				break;
+			a = m_events.front();
+			if (a < FN_TEXT_BASE || a == EV_SWAPPED)
+				break;
+			m_events.pop_front();
+		}
+		s2_text_event(&m_text, a);
+	}
+	compose();
 }
 
 void studio2_fujinet_device::service(uint16_t a)
@@ -394,7 +453,7 @@ void studio2_fujinet_device::worker_main()
 		uint16_t a;
 		{
 			std::unique_lock<std::mutex> g(m_qlock);
-			m_qcv.wait_for(g, std::chrono::milliseconds(50), [this] { return m_stop || !m_events.empty(); });
+			m_qcv.wait_for(g, std::chrono::milliseconds(4), [this] { return m_stop || !m_events.empty(); });
 			if (m_stop)
 				return;
 			if (m_events.empty())
@@ -403,12 +462,14 @@ void studio2_fujinet_device::worker_main()
 				auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
 						std::chrono::steady_clock::now().time_since_epoch()).count();
 				s2_text_tick(&m_text, uint32_t(ms));
+				compose();
 				continue;
 			}
 			a = m_events.front();
 			m_events.pop_front();
 		}
 		service(a);
+		compose();
 	}
 }
 

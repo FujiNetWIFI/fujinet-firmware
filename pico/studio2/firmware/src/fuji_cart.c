@@ -42,6 +42,16 @@ bool fuji_cart_next(uint16_t *entry)
     return true;
 }
 
+bool fuji_cart_peek(uint16_t *entry)
+{
+    uint16_t tail = fuji_ring.tail;
+
+    if (tail == fuji_ring.head)
+        return false;
+    *entry = fuji_ring.buf[tail];
+    return true;
+}
+
 /* The hotspot pages read $FF, except the hand-over stub: SEX RC; RET; $23. */
 static void arena_init(void)
 {
@@ -58,7 +68,7 @@ static void serve_config(void)
     arena_init();
     s2_text_init(&fuji_text, fuji_arena + FN_R_DATA);
     fuji_load_init(&fuji_loader, image_buf[0], image_buf[1], fuji_arena,
-                   fuji_text.raster, config_rom, config_size);
+                   &fuji_text.disp, config_rom, config_size);
 }
 
 void fuji_cart_init(const uint8_t *config, uint32_t config_len)
@@ -82,6 +92,7 @@ void fuji_cart_service(void)
         multicore_launch_core1(s2_core1_main);
     }
     s2_text_tick(&fuji_text, to_ms_since_boot(get_absolute_time()));
+    s2_text_compose(&fuji_text);
     fuji_cart_poke(FN_R_MODE, !fuji_loader.swaps ? FN_MODE_BOOT
                    : fuji_load_live(&fuji_loader)->mailbox ? FN_MODE_APP : FN_MODE_GAME);
     fuji_cart_poke(FN_R_SWAPS, fuji_loader.swaps);

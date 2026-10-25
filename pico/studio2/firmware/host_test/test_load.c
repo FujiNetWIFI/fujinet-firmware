@@ -8,10 +8,11 @@
 #include <string.h>
 
 #include "fuji_load.h"
+#include "s2_text.h"
 
 static uint8_t buf0[S2MAP_BUF_MAX], buf1[S2MAP_BUF_MAX];
 static uint8_t arena[FN_ARENA_SIZE];
-static uint8_t raster[FN_RASTER_SIZE];
+static s2_disp_t disp;
 static uint8_t config[768];
 static fuji_load_t ld;
 
@@ -35,9 +36,9 @@ int main(void)
 
     /* CONFIG has the mailbox even without the claim in its bytes */
     mk_st2(config, 0x07, 0xC0, false);
-    fuji_load_init(&ld, buf0, buf1, arena, raster, config, sizeof config);
+    fuji_load_init(&ld, buf0, buf1, arena, &disp, config, sizeof config);
     v = fuji_load_live(&ld);
-    assert(v->mailbox && v->page[0x04][0] == 0xC0 && v->raster == raster);
+    assert(v->mailbox && v->page[0x04][0] == 0xC0 && v->disp == &disp);
     assert(!ld.staged && !ld.armed);
 
     /* nothing staged: arming and swapping change nothing */

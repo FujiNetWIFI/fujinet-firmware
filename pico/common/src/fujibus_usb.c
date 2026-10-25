@@ -33,9 +33,18 @@ bool fujibus_link_up(void)
 /* core1's bus loop shares the SRAM fabric with core0. Calling tud_task() with
  * no gap turns a brief contention burst into contention for the whole wait;
  * the gap costs nothing against a multi-second budget. */
+static fujibus_idle_fn idle_fn;
+
+void fujibus_set_idle(fujibus_idle_fn fn)
+{
+    idle_fn = fn;
+}
+
 static void pump(void)
 {
     tud_task();
+    if (idle_fn)
+        idle_fn();
     busy_wait_us(500);
 }
 

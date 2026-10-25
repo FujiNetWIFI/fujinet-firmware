@@ -55,8 +55,27 @@ function T.bar(r0, r1, col)
   end
 end
 
--- Byte i of the raster: line i // 8, bit 7 the leftmost pixel.
+-- Byte i of the raster: line i // 8, bit 7 the leftmost pixel. The
+-- background: cells, stamps and rectangles, without the sprites or the VIEW.
 function T.raster(i) return item("m_text.raster"):read(i) end
+
+-- Byte i of what the 1861 shows (protocol 2): the composed picture.
+function T.display(i)
+  return item("m_text.disp.buf"):read(item("m_front"):read(0) * 1024 + i)
+end
+
+-- Pixel (x, y) of the shown picture.
+function T.pixel(x, y)
+  return (T.display(y * 8 + x // 8) >> (7 - x % 8)) & 1
+end
+
+-- Sprite n (0-15) as the cart last composed it: id, x, y, mode, on.
+function T.spr(n)
+  local m = item("m_spr")
+  local function s8(v) return v >= 128 and v - 256 or v end
+  return { id = m:read(n * 5), x = s8(m:read(n * 5 + 1)), y = s8(m:read(n * 5 + 2)),
+           mode = m:read(n * 5 + 3), on = m:read(n * 5 + 4) ~= 0 }
+end
 
 -- The status page: FN_R_* - $400.
 function T.status(off) return item("m_arena"):read(0x400 + off) end
