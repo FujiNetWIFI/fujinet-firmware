@@ -162,4 +162,59 @@ After a fresh clone, the CoCo and MSX cartridge source needs fetching once:
 git submodule update --init pico/fujiversal
 ```
 
-`build_pico.py` says exactly this if you forget.
+`build.sh` runs this itself when it builds one of these boards.
+
+## Updating the pinned `pico/fujiversal` commit
+
+`pico/fujiversal` is a submodule: a checkout of
+[fujinet-bus-controller-firmware](https://github.com/FujiNetWIFI/fujinet-bus-controller-firmware)
+at one specific commit, the pin. Git records the pin itself; no file holds the hash, so updating
+it means checking out the new commit in `pico/fujiversal` and staging that.
+
+Run everything from the top of your fujinet-firmware clone, where `upstream` is
+FujiNetWIFI/fujinet-firmware and `origin` is your fork. Inside `pico/fujiversal`, `origin` is
+fujinet-bus-controller-firmware.
+
+1. Branch from the latest firmware:
+   ```sh
+   git fetch upstream
+   git switch -c update-fujiversal upstream/master
+   git submodule update --init pico/fujiversal
+   ```
+2. Find the current pin and the commit to move to:
+   ```sh
+   git submodule status pico/fujiversal                  # current pin
+   git -C pico/fujiversal fetch origin main
+   git -C pico/fujiversal log --oneline HEAD..origin/main # commits newer than the pin
+   ```
+   The log lists the commits on `main` that are newer than the current pin, newest first.
+   The hash at the start of the top line is the commit to pin; call it `<new-commit>`. For
+   example, if the top line is `64fd06b CoCo 32K/64K/128K carts on the Mapper (#36)`, then
+   `<new-commit>` is `64fd06b`, but use whatever hash your log shows, not this one. Pick
+   a line further down only if you need an earlier commit. Only pin commits on `main`; a
+   commit on someone's fork can't be fetched by anyone else. The same list is on the repo's
+   GitHub commits page.
+3. Check out the new commit, replacing `<new-commit>` with the hash from step 2:
+   ```sh
+   git -C pico/fujiversal checkout --detach <new-commit>
+   ```
+4. Stage it. This is what sets the pin:
+   ```sh
+   git add pico/fujiversal
+   git status --short                         # must show only: M  pico/fujiversal
+   git diff --cached --submodule=log          # old and new hash, and the commits between them
+   ```
+5. Commit and push:
+   ```sh
+   git commit -m "Update fujiversal submodule"
+   git push -u origin update-fujiversal
+   ```
+6. Open the PR against FujiNetWIFI/fujinet-firmware, from the link `git push` prints or with
+   `gh pr create --repo FujiNetWIFI/fujinet-firmware --base master`. In the description, give
+   `<new-commit>` and link the fujinet-bus-controller-firmware PRs from step 4's list.
+7. After it's merged:
+   ```sh
+   git switch master
+   git pull upstream master
+   git branch -D update-fujiversal
+   ```
