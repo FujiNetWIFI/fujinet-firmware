@@ -114,7 +114,7 @@ RAML3:  LODA,R0 *FRAMHP         ; RAM-H through a pointer (page 1)
 ; ---- 4. strays after the close store nothing ----------------------------
 RAMH1:  LODI,R1 $55             ; moves the pointer only
         LODA,R0 *FDATP,R1
-        LODI,R1 $66             ; goes on to fujimail: a no-op there
+        LODI,R1 $66             ; goes on to fujimail: nothing is armed there
         LODA,R0 *FDATP,R1
         LODA,R0 $0655
         BCFR,EQ STR1

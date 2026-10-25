@@ -85,10 +85,13 @@ static inline bool arcapp_hotspot(arcapp_t *a, unsigned img)
             arcapp_select(a, lo - FN_HOT_BANK);
             return true;
         }
+        if (lo >= FN_REG_RAMPTR0 && lo <= FN_REG_RAMPOKE) {
+            a->own = (uint8_t) lo;
+            return true;
+        }
         if (lo < 0x80)
-            a->own = (lo >= FN_REG_RAMPTR0 && lo <= FN_REG_RAMPOKE)
-                         ? (uint8_t) lo : 0;
-        return false;           /* fujimail still sees the REGSEL */
+            a->own = 0;         /* any other register ends a burst */
+        return false;
     case FN_H_REGDATA:
         if (a->own == 0)
             return false;

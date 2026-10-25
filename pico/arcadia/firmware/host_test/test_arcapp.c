@@ -78,32 +78,31 @@ static void test_ram(void)
 
     arcapp_reset(&a, slot, plan.npages, ffpage);
 
-    /* Pointer then a stream into RAM-L: the REGSELs go on to fujimail, the
-     * REGDATAs never do. */
-    assert(!regsel(&a, FN_REG_RAMPTR0));
+    /* Pointer then a stream into RAM-L: none of it reaches fujimail. */
+    assert(regsel(&a, FN_REG_RAMPTR0));
     assert(regdata(&a, 0x10));
-    assert(!regsel(&a, FN_REG_RAMPOKE));
+    assert(regsel(&a, FN_REG_RAMPOKE));
     for (unsigned v = 0; v < 5; v++)
         assert(regdata(&a, 0x11 * (v + 1)));
     for (unsigned v = 0; v < 5; v++)
         assert(slot[FN_RAM_L + 0x10 + v] == 0x11 * (v + 1));
 
     /* RAM-H through pointer 3, and the wrap from 0x3FF to 0x000. */
-    assert(!regsel(&a, FN_REG_RAMPTR3));
+    assert(regsel(&a, FN_REG_RAMPTR3));
     assert(regdata(&a, 0xFF));
-    assert(!regsel(&a, FN_REG_RAMPOKE));
+    assert(regsel(&a, FN_REG_RAMPOKE));
     assert(regdata(&a, 0xC1));
     assert(regdata(&a, 0xC2));
     assert(slot[FN_RAM_H + FN_RAM_HALF - 1] == 0xC1);
     assert(slot[FN_RAM_L] == 0xC2);
-    assert(!regsel(&a, FN_REG_RAMPTR0 + 2));
+    assert(regsel(&a, FN_REG_RAMPTR0 + 2));
     assert(regdata(&a, 0x00));
-    assert(!regsel(&a, FN_REG_RAMPOKE));
+    assert(regsel(&a, FN_REG_RAMPOKE));
     assert(regdata(&a, 0x77));
     assert(slot[FN_RAM_H] == 0x77);
-    assert(!regsel(&a, FN_REG_RAMPTR0 + 1));
+    assert(regsel(&a, FN_REG_RAMPTR0 + 1));
     assert(regdata(&a, 0x01));
-    assert(!regsel(&a, FN_REG_RAMPOKE));
+    assert(regsel(&a, FN_REG_RAMPOKE));
     assert(regdata(&a, 0x66));
     assert(slot[FN_RAM_L + 0x101] == 0x66);
 
@@ -120,11 +119,10 @@ static void test_ram(void)
     assert(memcmp(before, slot, sizeof before) == 0);
 
     /* The client's closing read: a stray REGDATA after it only moves the
-     * pointer, a second one is fujimail's (which pairs it with the RAM
-     * register nothing writes). */
-    assert(!regsel(&a, FN_REG_RAMPOKE));
+     * pointer; a second one is fujimail's, where nothing is armed. */
+    assert(regsel(&a, FN_REG_RAMPOKE));
     assert(regdata(&a, 0x99));
-    assert(!regsel(&a, FN_REG_RAMPTR0));        /* close */
+    assert(regsel(&a, FN_REG_RAMPTR0));         /* close */
     memcpy(before, slot, sizeof before);
     assert(regdata(&a, 0x33));                  /* moves the pointer */
     assert(!regdata(&a, 0x34));                 /* forwarded */

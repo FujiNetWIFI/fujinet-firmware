@@ -78,7 +78,7 @@ Cart RAM is 1K: `$0600-$07FF` (page 0 code reaches it directly) and
 `$2900-$2AFF`, the image's own bytes there made writable. Writes are reads,
 of course: a pointer pair (`REGSEL $14-$17`, then `REGDATA` v sets the pointer
 to 0x000/0x100/0x200/0x300 + v), then `REGSEL $18` and one `REGDATA` per byte.
-Those REGDATAs are taken on core1 and never reach `fujimail.c`; a client ends
+These reads are taken on core1 and never reach `fujimail.c`; a client ends
 each burst with a bare `REGSEL $14` read, so a stray after it can only move
 the pointer. On a flat image all of this is inert.
 

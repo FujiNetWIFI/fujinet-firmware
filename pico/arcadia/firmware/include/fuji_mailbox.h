@@ -164,14 +164,14 @@
  *                                         next byte, ... (wrapping at 0x400)
  *                                         until any REGSEL below 0x80
  *
- * so n bytes cost n + 4 reads. These REGDATAs are taken by the bus layer and
+ * so n bytes cost n + 4 reads. All of these are taken by the bus layer and
  * never reach fujimail.c (whose pairing disarms after one REGDATA, and
- * whose queue a burst would overflow while core0 is busy); the REGSELs still
- * go through, and arm only a platform register nothing writes. A client ends
- * every burst with a bare REGSEL FN_REG_RAMPTR0 read, so a stray REGDATA
- * after it can move the pointer but never store. Bank selects neither end a
- * burst nor go through. On a flat image all of this is inert: those reads
- * are forwarded exactly as protocol 1 forwarded them. */
+ * whose queue they would fill while core0 sits in a transaction). Any
+ * other REGSEL below 0x80 ends a burst and goes on to fujimail as before. A
+ * client ends every burst with a bare REGSEL FN_REG_RAMPTR0 read, so a
+ * stray REGDATA after it can move the pointer but never store. Bank selects
+ * neither end a burst nor go through. On a flat image all of this is inert:
+ * those reads are forwarded exactly as protocol 1 forwarded them. */
 #define FN_APP_WIN       0x0800   /* image offset (= console address) of the window */
 #define FN_APP_PAGE      0x0800   /* 2K pages                                */
 #define FN_APP_NPAGES    32       /* page 0 + up to 31 more                  */
