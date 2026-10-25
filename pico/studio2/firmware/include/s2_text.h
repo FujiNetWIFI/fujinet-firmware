@@ -89,6 +89,8 @@
 #define S2T_OP_VIEW      0x56     /* p: dx, dy, flags (S2T_VIEW_*)           */
 #define S2T_OP_PTEXT     0x57     /* p: x, y, mode, characters -- 4 pixels a
                                      character, 12 lines (5 with S2T_SHORT)  */
+#define S2T_OP_HOLD      0x58     /* p: 1 holds the picture as it is until a
+                                     HOLD 0 (or CLS): a redraw shows whole   */
 
 /* Modes: how an image, rectangle or character meets what is under it. */
 #define S2T_SET          0        /* its box cleared, then its pixels set    */
@@ -178,6 +180,7 @@ typedef struct {
     s2t_sprite_t spr[S2T_NSPRITES];
     int8_t view_dx, view_dy;
     uint8_t view_flags;
+    bool hold;                              /* HOLD 1: no composing          */
     bool dirty;                             /* changed since the last compose */
     struct s2_disp disp;
 } s2_text_t;

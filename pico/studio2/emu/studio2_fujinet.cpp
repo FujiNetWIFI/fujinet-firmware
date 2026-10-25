@@ -153,6 +153,10 @@ void studio2_fujinet_device::device_start()
 	save_item(NAME(m_text.disp.buf));
 	save_item(NAME(m_front));
 	save_item(NAME(m_spr));
+	save_item(NAME(m_buf[0]));
+	save_item(NAME(m_buf[1]));
+	save_item(NAME(m_dbg_live));
+	save_item(NAME(m_dbg_pg));
 	save_item(NAME(m_text.chars));
 	save_item(NAME(m_text.inv));
 	save_item(NAME(m_text.mos));
@@ -223,6 +227,7 @@ void studio2_fujinet_device::device_reset()
 		}
 	}
 	m_view = fuji_load_live(&m_load);
+	dbg_map();
 	m_mailbox_mode = m_view->mailbox;
 	m_swaps_out = m_load.swaps;
 	fujitcp_close();                    // fujinet-pc's BoIP port takes one client
@@ -313,6 +318,7 @@ uint8_t studio2_fujinet_device::read(offs_t offset)
 		if (nv != m_view)
 		{
 			m_view = nv;
+			dbg_map();
 			m_swaps_out = m_load.swaps;
 			if (m_debug)
 				fprintf(stderr, "fujinet: swap %u -> %s\n", m_load.swaps, nv->mailbox ? "app" : "game");
@@ -374,6 +380,16 @@ void studio2_fujinet_device::own_reg(uint8_t reg, uint8_t value)
 	}
 	if (ran)
 		poke(FN_R_COPYDONE, m_copy.done);
+}
+
+// Where Lua finds the image's bytes: the buffer served, and each page's
+// place in it (the window as its bank was at the swap).
+void studio2_fujinet_device::dbg_map()
+{
+	m_dbg_live = m_load.live;
+	const uint8_t *base = m_buf[m_load.live].data();
+	for (unsigned pg = 0; pg < S2MAP_PAGES; pg++)
+		m_dbg_pg[pg] = m_view->wpage[pg] ? uint8_t((m_view->wpage[pg] - base) / S2MAP_PAGE + 1) : 0;
 }
 
 // The picture for the next frame, and the sprites where Lua can see them.

@@ -58,7 +58,8 @@ claims whole pages anywhere outside the BIOS, including the raster the 1861 fetc
 - **Graphics.** Images up to 8x24 stamped at any pixel, rectangles with patterns, text at any
   pixel, 16 sprites and a whole-picture offset/inversion (`S2T_OP_IMAGE`-`S2T_OP_PTEXT`). The
   1861 is shown the background (cells, stamps, rectangles) with the VIEW and the sprites
-  composed into a second buffer, taken at the start of a frame, so a picture never tears.
+  composed into a second buffer, taken at the start of a frame, so a picture never tears;
+  `S2T_OP_HOLD` keeps the last one up while a redraw is under way.
 
 ## Build
 

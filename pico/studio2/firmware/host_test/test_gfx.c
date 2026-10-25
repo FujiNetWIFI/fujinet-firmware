@@ -228,7 +228,19 @@ static void test_compose(void)
     assert(shown[120 * 8] == 0x81);
     flip();
 
-    /* CLS: background, sprites and VIEW */
+    /* HOLD: nothing composed until it is let go (a redraw shows whole) */
+    OP(S2T_OP_HOLD, 1);
+    OP(S2T_OP_RECT, 0, 100, 64, 1, S2T_SET);
+    assert(!s2_text_compose(&t));
+    OP(S2T_OP_HOLD, 0);
+    assert(s2_text_compose(&t));
+    shown = t.disp.buf[t.disp.pending];
+    assert(shown[100 * 8] == 0x00);             /* (inverted: the VIEW still) */
+    flip();
+    OP(S2T_OP_VIEW, 0, 0, 0);
+    OP(S2T_OP_HOLD, 1);
+
+    /* CLS: background, sprites and VIEW, and lets a HOLD go */
     ev(S2T_H_OP, S2T_OP_CLS);
     assert(s2_text_compose(&t));
     shown = t.disp.buf[t.disp.pending];

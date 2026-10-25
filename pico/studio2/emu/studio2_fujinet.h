@@ -76,6 +76,7 @@ private:
 	void drain_pokes();
 	void publish_staged();
 	void compose();
+	void dbg_map();
 	void dump_view();
 	static void load_file(std::vector<uint8_t> &out, const char *path);
 
@@ -87,6 +88,8 @@ private:
 	s2_bus_t m_bus;
 	s2_copy_t m_copy{};
 	uint8_t m_front = 0;                    // the display buffer shown, for Lua
+	uint8_t m_dbg_live = 0;                 // for Lua: the image buffer served, and
+	uint8_t m_dbg_pg[S2MAP_PAGES]{};        // each page's in it (+1; 0 none)
 	uint8_t m_spr[S2T_NSPRITES][5]{};       // id, x, y, mode, on: for Lua
 
 	std::vector<uint8_t> m_boot;            // what power-on serves with the mailbox

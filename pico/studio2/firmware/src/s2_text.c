@@ -280,7 +280,7 @@ bool s2_text_compose(s2_text_t *t)
     uint8_t k, *o;
     unsigned n;
 
-    if (!t->dirty || d->pending != S2D_NONE)
+    if (!t->dirty || t->hold || d->pending != S2D_NONE)
         return false;
     __atomic_thread_fence(__ATOMIC_ACQUIRE);
     k = (uint8_t)(d->front ^ 1u);
@@ -373,6 +373,9 @@ static void gfx_op(s2_text_t *t, uint8_t code)
         if (n >= 3)
             draw_ptext(t, (int8_t)p[0], (int8_t)p[1], p[2], p + 3, n - 3);
         break;
+    case S2T_OP_HOLD:
+        t->hold = n >= 1 && p[0];
+        break;
     default:
         break;
     }
@@ -393,6 +396,7 @@ static void op(s2_text_t *t, uint8_t code)
             t->spr[i].on = false;
         t->view_dx = t->view_dy = 0;
         t->view_flags = 0;
+        t->hold = false;
         break;
     case S2T_OP_INV_ON:
         t->inverse = true;

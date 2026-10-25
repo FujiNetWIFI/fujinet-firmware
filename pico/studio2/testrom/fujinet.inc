@@ -113,6 +113,7 @@ TOP_SPRMOVE     EQU     54H
 TOP_SPRHIDE     EQU     55H
 TOP_VIEW        EQU     56H
 TOP_PTEXT       EQU     57H
+TOP_HOLD        EQU     58H             ; 1: the picture held, 0: let go
 TM_SET          EQU     0               ; modes
 TM_OR           EQU     1
 TM_XOR          EQU     2
