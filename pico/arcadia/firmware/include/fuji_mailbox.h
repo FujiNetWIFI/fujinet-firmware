@@ -77,15 +77,30 @@
 #define FN_R_MAGIC0      0x1C09   /* 'F' -- cart presence check              */
 #define FN_R_MAGIC1      0x1C0A   /* 'N'                                     */
 #define FN_R_PROTO_VER   0x1C0B
-#define FN_PROTO_VER     1        /* flat images only; nothing >8K exists on
-                                   * this platform (A14 is not on the pins)  */
+#define FN_PROTO_VER     2        /* 2: APPBANK pages, cart RAM, the tick   */
 /* Published LAST after every slice repaint, with the slice number just
  * painted. The repaint is asynchronous on real hardware (core0 does it while
  * the 2650 keeps running), so the client selects a slice and polls this
  * until it echoes; reading the slice before that races the repaint. */
 #define FN_R_SLICE_ECHO  0x1C0C
+                                  /* 0x1C0D reserved, reads 0                */
+#define FN_R_TICK_LO     0x1C0E   /* free-running 60 Hz count, LE ($2C0E)    */
+#define FN_R_TICK_HI     0x1C0F
 
 #define FN_R_PAINT_END   0x1CFC   /* paint covers [FN_R_BASE, FN_R_PAINT_END) */
+
+/* THE TICK. The 2650 takes no interrupt the cart could drive and SENSE only
+ * says "in vblank", so a client that has to know how many frames went by
+ * (a long draw, a busy frame) cannot count them itself. The cart keeps the
+ * clock: FN_R_TICK_LO/HI count at 60 Hz from cart power-up, wrap at 65536,
+ * and keep counting while the cart is busy with a transaction.
+ *
+ * It is painted by the cart, not computed on a read, so reading it is as
+ * inert as reading any other painted byte. The two bytes change together,
+ * but the console reads them one at a time: read HI, LO, HI again, and retry
+ * if the two HI readings differ. Not painted while the mailbox is dead.
+ * Under MAME it is emulated time, which stands still across a transaction
+ * because MAME runs the whole round trip inside one read. */
 
 /* 0x1CFC-0x1CFF is never painted: it is where a cartridge image declares
  * itself. An image carrying "FUJI" here promises that 0x1B00-0x1FFF holds no
@@ -113,6 +128,63 @@
  * register numbers, kept in the bit7-set half of the page as on the
  * Astrocade. */
 #define FN_HOT_SWAP      0xFE     /* serve the staged image; armed-only      */
+#define FN_HOT_BANK      0x80     /* read +n, n < 32: window shows page n    */
+#define FN_HOT_BANK_LAST 0x9F
+
+/* ---------------- protocol 2: APPBANK images ----------------
+ *
+ * A client bigger than 6,912 bytes ships as an APPBANK image: exactly
+ * 8192 + k * 2048 bytes (1 <= k <= 31) that carries the claim. The first 8K
+ * is laid out as a flat image; console $0800-$0FFF is a window that shows
+ * one 2K page at a time:
+ *
+ *   image 0x0000-0x05FF   $0000-$05FF   fixed
+ *   image 0x0600-0x07FF   $0600-$07FF   cart RAM, low half (RAM-L)
+ *   image 0x0800-0x0FFF   $0800-$0FFF   the window; page 0 lives here
+ *   image 0x1000-0x18FF   $2000-$28FF   fixed
+ *   image 0x1900-0x1AFF   $2900-$2AFF   cart RAM, high half (RAM-H)
+ *   image 0x1B00-0x1FFF   $2B00-$2FFF   the mailbox, as on a flat image
+ *   image 0x2000 + (n-1) * 0x800        page n
+ *
+ * One read of FN_H_REGSEL + FN_HOT_BANK + n ($2D80+n) selects page n. It is
+ * decoded inline by whatever serves the bus, so the very next fetch from the
+ * window already comes from page n: the read must be made from fixed code.
+ * A page the image does not have reads 0xFF throughout. The swap maps page
+ * 0; a console RESET changes neither the page nor cart RAM (the cart cannot
+ * see it), so a client's start code selects page 0 itself.
+ *
+ * Cart RAM is the image's own bytes in those two ranges, made writable:
+ * whatever a client never writes keeps its image value, so the split between
+ * code and RAM there is the client's. Its 10-bit address space is
+ * 0x000-0x1FF = RAM-L and 0x200-0x3FF = RAM-H. A write is still a read:
+ *
+ *   REGSEL FN_REG_RAMPTR0..3, REGDATA v   pointer = 0x000/0x100/0x200/0x300 + v
+ *   REGSEL FN_REG_RAMPOKE, then REGDATA v, REGDATA w, ...
+ *                                         stores v at the pointer, w at the
+ *                                         next byte, ... (wrapping at 0x400)
+ *                                         until any REGSEL below 0x80
+ *
+ * so n bytes cost n + 4 reads. These REGDATAs are taken by the bus layer and
+ * never reach fujimail.c (whose pairing disarms after one REGDATA, and
+ * whose queue a burst would overflow while core0 is busy); the REGSELs still
+ * go through, and arm only a platform register nothing writes. A client ends
+ * every burst with a bare REGSEL FN_REG_RAMPTR0 read, so a stray REGDATA
+ * after it can move the pointer but never store. Bank selects neither end a
+ * burst nor go through. On a flat image all of this is inert: those reads
+ * are forwarded exactly as protocol 1 forwarded them. */
+#define FN_APP_WIN       0x0800   /* image offset (= console address) of the window */
+#define FN_APP_PAGE      0x0800   /* 2K pages                                */
+#define FN_APP_NPAGES    32       /* page 0 + up to 31 more                  */
+#define FN_APP_MAX       (0x2000 + (FN_APP_NPAGES - 1) * FN_APP_PAGE)
+
+#define FN_RAM_L         0x0600   /* image offsets; console $0600, $2900     */
+#define FN_RAM_H         0x1900
+#define FN_RAM_HALF      0x0200
+#define FN_RAM_SIZE      0x0400
+
+#define FN_REG_RAMPTR0   0x14     /* pointer = 0x000 + value                 */
+#define FN_REG_RAMPTR3   0x17     /* pointer = 0x300 + value                 */
+#define FN_REG_RAMPOKE   0x18     /* each REGDATA stores and advances        */
 
 /* Booting a staged image, from the client's side:
  *   1. poll FN_R_BOOT_STATE until FN_BOOT_READY;
@@ -127,8 +199,11 @@
  * window, including whatever code triggered it. Canonical bytes (see
  * fujilib.inc): 20 92 93 0C 98 E9 1F 00 00 2D FE at $18E0-$18EA.
  *
- * After the swap: a claiming image keeps the mailbox live; a game image
- * (anything without the claim) kills it for the session. Games of 4K or
+ * After the swap: a claiming image keeps the mailbox live, and finds the
+ * status page exactly as the client before it left it ('F', 'N', the
+ * version, ACKSEQ) -- the cart carries it into the staged image when it
+ * stages one; a game image (anything without the claim) kills it for the
+ * session. Games of 4K or
  * less never even occupy block 2, but they do not claim, so the rule is the
  * same for all of them.
  *

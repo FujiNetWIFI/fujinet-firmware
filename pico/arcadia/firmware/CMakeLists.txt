@@ -22,6 +22,7 @@ fujicart_firmware(${PROJECT_NAME}
         src/fujinet.c
         src/fujiboot.c
         src/arcmap.c
+        src/fuji_tick.c
     LIBRARIES hardware_vreg
     CORE1 arcadia_core1_main
 )

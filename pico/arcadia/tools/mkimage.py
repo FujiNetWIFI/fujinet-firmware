@@ -13,7 +13,11 @@ Two holes must be empty and are enforced here, not left to checkrom:
   - flat $2B00-$2FFF is the mailbox (reply/status/hotspot pages); a client
     that grows into it fails its build, not a debugging session.
 
-Usage: mkimage.py flat.bin image.bin
+An APPBANK image (protocol 2) adds --pages N: the flat then runs on past
+$2FFF, page n (1..N) assembled at flat $3000 + (n-1) * $800 (PHASEd to the
+$0800 window), and the image is the folded 8K plus those N pages.
+
+Usage: mkimage.py [--pages N] flat.bin image.bin
 """
 
 import sys
@@ -23,16 +27,30 @@ WINDOW = 8192
 ROM_TOP2 = 0x0B00          # block-2 client budget: $2000-$2AFF
 
 
+PAGE = 0x800
+MAXPAGES = 31
+
+
 def main() -> int:
-    if len(sys.argv) != 3:
+    args = sys.argv[1:]
+    pages = 0
+    if len(args) == 4 and args[0] == "--pages":
+        pages = int(args[1])
+        args = args[2:]
+        if not 1 <= pages <= MAXPAGES:
+            print(f"mkimage: --pages must be 1-{MAXPAGES}", file=sys.stderr)
+            return 2
+    if len(args) != 2:
         print(__doc__.strip(), file=sys.stderr)
         return 2
-    with open(sys.argv[1], "rb") as f:
+    with open(args[0], "rb") as f:
         flat = f.read()
-    if len(flat) > 0x3000:
-        print(f"mkimage: flat is {len(flat)} bytes, past $2FFF", file=sys.stderr)
+    top = 0x3000 + pages * PAGE
+    if len(flat) > top:
+        print(f"mkimage: flat is {len(flat)} bytes, past ${top - 1:04X}",
+              file=sys.stderr)
         return 1
-    flat = flat.ljust(0x3000, b"\0")
+    flat = flat.ljust(top, b"\0")
 
     hole = flat[0x1000:0x2000]
     if hole.strip(b"\0"):
@@ -48,7 +66,8 @@ def main() -> int:
         return 1
 
     image = (flat[0:BLOCK] + flat[0x2000:0x3000]).ljust(WINDOW, b"\0")
-    with open(sys.argv[2], "wb") as f:
+    image += flat[0x3000:top]
+    with open(args[1], "wb") as f:
         f.write(image)
     return 0
 

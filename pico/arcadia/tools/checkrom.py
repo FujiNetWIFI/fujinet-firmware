@@ -9,6 +9,8 @@ that drifts into the mailbox pages fails its build, not a debugging session:
     some consoles vector a sprite interrupt through $0003);
   - nothing but zeros in 0x1B00-0x1FFF except the "FUJI" claim at 0x1CFC;
   - the claim signature present.
+An APPBANK image (protocol 2) is exactly 8192 + k * 2048 bytes, 1 <= k <= 31,
+and the same rules hold for its first 8K; its pages may hold anything.
 Usage: checkrom.py image.bin [image2.bin ...]
 """
 
@@ -23,8 +25,10 @@ CLAIM_SIG = b"FUJI"
 def check(path: str) -> list[str]:
     with open(path, "rb") as f:
         img = f.read()
-    if len(img) != WINDOW:
-        return [f"size is {len(img)}, must be exactly {WINDOW}"]
+    extra = len(img) - WINDOW
+    if extra < 0 or extra % 2048 or extra > 31 * 2048:
+        return [f"size is {len(img)}, must be exactly {WINDOW} or "
+                f"{WINDOW} + k * 2048 (k = 1..31)"]
     problems = []
     if img[0] != 0x1F:
         problems.append(f"first byte is {img[0]:#04x}, not a BCTA,UN header")

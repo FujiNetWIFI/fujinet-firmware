@@ -51,7 +51,9 @@ local function served(off)
     return off + 0x1000
 end
 
-emu.register_frame(function()
+-- add_machine_frame_notifier, not the removed emu.register_frame; the handle is kept in
+-- a global or it is collected and the callback stops.
+_G.SOAK_SUB = emu.add_machine_frame_notifier(function()
     if finished then return end
     local t = manager.machine.time.seconds
     local mem = manager.machine.devices[":maincpu"].spaces["program"]

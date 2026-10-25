@@ -7,6 +7,7 @@
  */
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -51,8 +52,22 @@ static void test_gate(void)
     assert(arcmap_gate(0) == 0);
     assert(arcmap_gate(4096) == 0);
     assert(arcmap_gate(8192) == 0);
-    assert(arcmap_gate(8193) == FN_BOOT_ERR_TOOBIG);
-    assert(arcmap_gate(65536) == FN_BOOT_ERR_TOOBIG);
+    /* Protocol 2: 8K + k * 2K for k = 1..31, nothing else over 8K. */
+    assert(arcmap_gate(8192 + 2048) == 0);
+    assert(arcmap_gate(8192 + 31 * 2048) == 0);
+    assert(arcmap_gate(ARCMAP_STORE) == 0);
+    assert(arcmap_gate(ARCMAP_STORE + 2048) == FN_BOOT_ERR_TOOBIG);
+    assert(arcmap_gate(ARCMAP_STORE + 1) == FN_BOOT_ERR_TOOBIG);
+    assert(arcmap_gate(8193) == FN_BOOT_ERR_NOMAP);
+    assert(arcmap_gate(8192 + 1024) == FN_BOOT_ERR_NOMAP);
+    assert(arcmap_gate(8192 + 2049) == FN_BOOT_ERR_NOMAP);
+    assert(arcmap_gate(65536) == 0);                    /* 8K + 28 pages */
+    assert(arcmap_gate(65536 + 1024) == FN_BOOT_ERR_NOMAP);
+    assert(arcmap_gate(131072) == FN_BOOT_ERR_TOOBIG);
+    for (uint32_t k = 1; k < 32; k++)
+        assert(arcmap_app_shaped(8192 + k * 2048));
+    assert(!arcmap_app_shaped(8192));
+    assert(!arcmap_app_shaped(8192 + 32 * 2048));
 }
 
 static void test_plan_and_apply(void)
@@ -78,9 +93,60 @@ static void test_plan_and_apply(void)
     assert(arcmap_plan(img, 8192, &plan) == ARCMAP_OK);
     assert(plan.mailbox_ok);
 
+    assert(plan.npages == 0);
+
     /* Edge cases. */
     assert(arcmap_plan(img, 0, &plan) == ARCMAP_EEMPTY);
-    assert(arcmap_plan(img, 8193, &plan) == ARCMAP_ETOOBIG);
+    assert(arcmap_plan(img, 8193, &plan) == ARCMAP_ENOMAP);
+    assert(arcmap_plan(img, ARCMAP_STORE + 2048, &plan) == ARCMAP_ETOOBIG);
+}
+
+static void test_appbank(void)
+{
+    static uint8_t img[ARCMAP_STORE];
+    static uint8_t store[ARCMAP_STORE];
+    arcmap_plan_t plan;
+
+    /* Claimed 8K + 3 pages: 4 pages counting page 0, copied whole. */
+    for (unsigned i = 0; i < sizeof img; i++)
+        img[i] = (uint8_t)(i * 7 + (i >> 11));
+    memcpy(img + FN_R_CLAIM, FN_R_CLAIM_SIG, FN_R_CLAIM_LEN);
+    assert(arcmap_plan(img, 8192 + 3 * 2048, &plan) == ARCMAP_OK);
+    assert(plan.mailbox_ok && plan.npages == 4);
+    memset(store, 0x5A, sizeof store);
+    arcmap_apply(img, &plan, store);
+    assert(memcmp(store, img, 8192 + 3 * 2048) == 0);
+    assert(store[8192 + 3 * 2048] == 0x5A);     /* nothing past the image */
+
+    /* The largest. */
+    assert(arcmap_plan(img, ARCMAP_STORE, &plan) == ARCMAP_OK);
+    assert(plan.npages == 32);
+
+    /* In place, as the push lands: unchanged. */
+    memcpy(store, img, sizeof store);
+    arcmap_apply(store, &plan, store);
+    assert(memcmp(store, img, sizeof store) == 0);
+
+    /* Unclaimed and banked: nothing could ever select a page. */
+    memset(img + FN_R_CLAIM, 0, FN_R_CLAIM_LEN);
+    assert(arcmap_plan(img, 8192 + 2048, &plan) == ARCMAP_ENOCLAIM);
+    /* ...while an unclaimed flat 8K is just a game. */
+    assert(arcmap_plan(img, 8192, &plan) == ARCMAP_OK && !plan.mailbox_ok);
+}
+
+static void test_carry(void)
+{
+    static uint8_t live[ARCMAP_WINDOW], staged[ARCMAP_WINDOW];
+
+    for (unsigned i = 0; i < sizeof live; i++) {
+        live[i] = (uint8_t) i;
+        staged[i] = 0xEE;
+    }
+    arcmap_carry_status(staged, live);
+    for (unsigned i = 0; i < sizeof live; i++) {
+        bool in = i >= FN_R_DATA && i < FN_R_PAINT_END;
+        assert(staged[i] == (in ? live[i] : 0xEE));
+    }
 }
 
 int main(void)
@@ -88,6 +154,8 @@ int main(void)
     test_decode_sweep();
     test_gate();
     test_plan_and_apply();
+    test_appbank();
+    test_carry();
     printf("test_arcmap: all passed\n");
     return 0;
 }

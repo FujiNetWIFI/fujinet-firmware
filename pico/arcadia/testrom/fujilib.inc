@@ -54,14 +54,17 @@ FNBPCT  EQU     $2C07           ; boot progress 0-100
 FNBERR  EQU     $2C08           ; boot error
 FNMAGF  EQU     $2C09           ; 'F'
 FNMAGN  EQU     $2C0A           ; 'N'
-FNPVER  EQU     $2C0B           ; protocol version (1 on this platform)
+FNPVER  EQU     $2C0B           ; protocol version (2 since APPBANK)
 FNSECHO EQU     $2C0C           ; echoes RXSLICE after each repaint
+FNTIKL  EQU     $2C0E           ; 60 Hz tick, low (read HI, LO, HI)
+FNTIKH  EQU     $2C0F           ; 60 Hz tick, high
 
 ; ---- hotspot pages ----------------------------------------------------
 FNRSEL  EQU     $2D00           ; read +reg: arm register
 FNRDAT  EQU     $2E00           ; read +val: armed register = val
 FNDATA  EQU     $2F00           ; read +val: append val to TX stream
 FNSWAP  EQU     $2DFE           ; armed-only: serve the staged image
+FNBANK  EQU     $2D80           ; read +n: APPBANK window shows page n
 
 ; ---- register numbers -------------------------------------------------
 FRDEVIC EQU     $00
@@ -73,6 +76,9 @@ FRSEQ   EQU     $10
 FRBOOTL EQU     $11             ; BOOTLOCK; magic 0B5H arms the swap
 FRBSEL1 EQU     $12             ; BOOTSEL pair: 0B5H then 4AH on FRBSEL2
 FRBSEL2 EQU     $13
+FRRAMP0 EQU     $14             ; cart RAM pointer = 000H + value
+FRRAMP3 EQU     $17             ; cart RAM pointer = 300H + value
+FRRAMPK EQU     $18             ; each REGDATA stores and advances
 
 ; ---- values -----------------------------------------------------------
 FNDFUJI EQU     $70             ; FujiBus device id of the FujiNet itself

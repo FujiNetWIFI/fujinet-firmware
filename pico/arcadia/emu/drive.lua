@@ -18,6 +18,7 @@ local downs = tonumber(os.getenv("DRIVE_DOWN") or "6")
 local timeout = tonumber(os.getenv("DRIVE_TIMEOUT") or "30")
 
 local step = 0
+local frames = 0
 local nextt = 2.5           -- let the host page finish loading first
 local pressed_down = 0
 local finished = false
@@ -28,13 +29,18 @@ local function done(msg)
     manager.machine:exit()
 end
 
-emu.register_frame(function()
+-- add_machine_frame_notifier, not the removed emu.register_frame; the handle is kept in
+-- a global or it is collected and the callback stops.
+_G.DRIVE_SUB = emu.add_machine_frame_notifier(function()
     if finished then return end
     local mem = manager.machine.devices[":maincpu"].spaces["program"]
     local col2 = manager.machine.ioport.ports[":controller1_col2"]
     local col3 = manager.machine.ioport.ports[":controller1_col3"]
     if col2 == nil or col3 == nil then return done("FAIL no keypad ports") end
-    local t = manager.machine.time.seconds
+    -- machine.time.seconds is whole seconds only: a 0.3 s press would vanish
+    -- inside one value. Count frames instead (the Arcadia runs at 60 Hz).
+    frames = frames + 1
+    local t = frames / 60
     if t >= timeout then return done("FAIL timeout at step " .. step) end
     if t < nextt then return end
 
