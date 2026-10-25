@@ -152,19 +152,13 @@ fujiError_t NetworkProtocolTELNET::read(unsigned short len)
 
     if (receiveBuffer->length() == 0)
     {
-        // Check for client connection
-        if (!client.connected())
-        {
-            error = NDEV_STATUS::NOT_CONNECTED;
-            return FUJI_ERROR::UNSPECIFIED; // error
-        }
-
-        // Do the read from client socket.
+        // Do the read from client socket. What the peer sent before it closed
+        // is still there to read, as available() counts it.
         int actual_len = client.read(newData.data(), len);
 
         if (actual_len <= 0)
         {
-            error = NDEV_STATUS::SOCKET_TIMEOUT;
+            error = client.connected() ? NDEV_STATUS::SOCKET_TIMEOUT : NDEV_STATUS::NOT_CONNECTED;
             return FUJI_ERROR::UNSPECIFIED;
         }
 
