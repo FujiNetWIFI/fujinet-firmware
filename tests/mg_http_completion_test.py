@@ -124,14 +124,14 @@ class HttpCompletionTests(unittest.TestCase):
                 process.communicate(timeout=3)
 
     def run_response(self, name, body=BODY, split=False, reuse=False, fixed=True,
-                     chunked=False, terminal="coalesced"):
+                     chunked=False, terminal="coalesced", host="127.0.0.1"):
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
             listener.listen(1)
             listener.settimeout(3)
             port = listener.getsockname()[1]
             process = subprocess.Popen(
-                [ARGS.probe, f"http://127.0.0.1:{port}/fixture", "reuse" if reuse else "close"],
+                [ARGS.probe, f"http://{host}:{port}/fixture", "reuse" if reuse else "close"],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             )
             try:
@@ -144,6 +144,7 @@ class HttpCompletionTests(unittest.TestCase):
                         request += part
                         self.assertLessEqual(len(request), 8192)
                     self.assertIn(b"GET /fixture HTTP/1.1\r\n", request)
+                    self.assertIn(f"Host: {host}\r\n".encode(), request)
                     self.assertIn(b"Connection: " + (b"keep-alive" if reuse else b"close") + b"\r\n", request)
                     headers = b"HTTP/1.1 200 OK\r\nConnection: keep-alive\r\n"
                     if chunked:
@@ -262,6 +263,11 @@ class HttpCompletionTests(unittest.TestCase):
 
     def test_chunked_actual_reuse(self):
         self.run_reuse(chunked=True)
+
+    def test_hostname_system_resolver(self):
+        # Mongoose's own parser rejects 127.1 and 8.8.8.8 answers NXDOMAIN;
+        # the system resolver maps it to 127.0.0.1 without any network.
+        self.run_response("hostname_system_resolver", host="127.1")
 
     def test_connection_creation_failure(self):
         result = subprocess.run([ARGS.probe, "", "close"], capture_output=True, timeout=3)

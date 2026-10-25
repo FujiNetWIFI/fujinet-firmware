@@ -390,6 +390,37 @@ static void mg_sendnsreq(struct mg_connection *c, struct mg_str *name, int ms,
   }
 }
 
+#if MG_ENABLE_SOCKET
+// FujiNet: the system resolver (hosts file, mDNS, the host's DNS), not 8.8.8.8
+static bool mg_system_resolve(struct mg_connection *c, struct mg_str host) {
+  struct addrinfo hints, *res = NULL;
+  char name[256];
+  bool found = false;
+  if (host.len >= sizeof(name)) return false;
+  memcpy(name, host.buf, host.len);
+  name[host.len] = '\0';
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = MG_ENABLE_IPV6 && c->mgr->use_dns6 ? AF_INET6 : AF_INET;
+  hints.ai_socktype = c->is_udp ? SOCK_DGRAM : SOCK_STREAM;
+  if (getaddrinfo(name, NULL, &hints, &res) == 0 && res != NULL) {
+    if (res->ai_family == AF_INET) {
+      memcpy(c->rem.ip, &((struct sockaddr_in *) res->ai_addr)->sin_addr, 4);
+      c->rem.is_ip6 = false;
+      found = true;
+    }
+#if MG_ENABLE_IPV6
+    else if (res->ai_family == AF_INET6) {
+      memcpy(c->rem.ip, &((struct sockaddr_in6 *) res->ai_addr)->sin6_addr, 16);
+      c->rem.is_ip6 = true;
+      found = true;
+    }
+#endif
+    freeaddrinfo(res);
+  }
+  return found;
+}
+#endif
+
 void mg_resolve(struct mg_connection *c, const char *url) {
   struct mg_str host = mg_url_host(url);
   c->rem.port = mg_htons(mg_url_port(url));
@@ -397,9 +428,17 @@ void mg_resolve(struct mg_connection *c, const char *url) {
     // host is an IP address, do not fire name resolution
     mg_connect_resolved(c);
   } else {
+#if MG_ENABLE_SOCKET
+    if (mg_system_resolve(c, host)) {
+      mg_connect_resolved(c);
+    } else {
+      mg_error(c, "Failed to resolve %.*s", (int) host.len, host.buf);
+    }
+#else
     // host is not an IP, send DNS resolution request
     struct mg_dns *dns = c->mgr->use_dns6 ? &c->mgr->dns6 : &c->mgr->dns4;
     mg_sendnsreq(c, &host, c->mgr->dnstimeout, dns, c->mgr->use_dns6);
+#endif
   }
 }
 
