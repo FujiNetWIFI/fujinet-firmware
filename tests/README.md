@@ -32,7 +32,7 @@ Host-side unit tests and policy checks for the FujiNet-PC build. ctest runs them
 | `sioNetworkStubs.cpp`, `sioNetworkStubs.h` | Link-time stubs shared by `sio_dstats_tests`, `sio_network_tests` and `ndevice_tests`; the `systemBus` stubs record into `bus` |
 | `AdamNetworkReceiveTests.cpp`, `adamNetworkReceiveStubs.cpp`, `adamNetworkReceiveStubs.h` | `lib/device/adamnet/adamNetwork.cpp` RECEIVE sending at most 1024 bytes and keeping the rest; the stubs record bus replies (`adam_network_receive_tests`; ADAM target only) |
 | `NQueryOutputModeTests.cpp`, `NParserReadTests.cpp` | `NParser` and `XMLParser` query output modes and short reads (`nquery_output_mode_tests`; ATARI target only) |
-| `MgHttpCompletionProbe.cpp`, `mg_http_completion_test.py` | Real PC HTTP fixed-length/chunked completion, redirect connection isolation, two-request reuse and body/status/EOF (`mg_http_completion_tests`; POSIX hosts) |
+| `MgHttpCompletionProbe.cpp`, `mg_http_completion_test.py` | Real PC HTTP fixed-length/chunked completion, redirect connection isolation, two-request reuse, body/status/EOF and hostname lookup through the system resolver (`mg_http_completion_tests`; POSIX hosts) |
 | `HttpHeaderTests.cpp` | `lib/fn_esp_http_client/fn_http_header.cpp` header chunking (`http_header_tests`; skipped where the BSD queue header is missing) |
 | `WebDavMethodsTests.cpp` | `lib/http/webdav/webdav_methods.h`: every method the WebDAV server handles is registered (`webdav_methods_tests`) |
 | `mac_gcr_test.cpp` | `lib/media/mac/macGCR.cpp` encode and decode round trip (`mac_gcr_tests`) |
