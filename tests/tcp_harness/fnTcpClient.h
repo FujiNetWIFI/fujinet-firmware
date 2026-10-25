@@ -17,6 +17,7 @@ struct FakePeer
     size_t write_limit = SIZE_MAX;  // most bytes one write() sends
     bool waiting = false;           // a caller is queued on the listener
     bool reset_on_write = false;    // the next write() hits a RST: nothing sent, client stopped
+    bool closed = false;            // the peer has closed: not connected(), but inbound is still read
 };
 
 extern FakePeer fake_peer;
@@ -27,7 +28,7 @@ public:
     int connect(const char *, uint16_t, int32_t = -1) { return _connected = true; }
     int connect(in_addr_t, uint16_t, int32_t = -1) { return _connected = true; }
     void stop() { _connected = false; }
-    uint8_t connected() { return _connected; }
+    uint8_t connected() { return _connected && !fake_peer.closed; }
     size_t available() { return _connected ? fake_peer.inbound.size() : 0; }
 
     int read(uint8_t *buf, size_t size)

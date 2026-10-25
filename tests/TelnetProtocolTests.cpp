@@ -36,6 +36,33 @@ TEST_CASE("a TELNET read passes libtelnet only the bytes that arrived (#1916)")
     CHECK(t.rx.empty());
 }
 
+TEST_CASE("a TELNET read still gets what the peer sent before it closed")
+{
+    TelnetConnection conn;
+    fake_peer.inbound = "BYE";
+    fake_peer.closed = true;
+    CHECK(conn.telnet.read(10) == FUJI_ERROR::NONE);
+    CHECK(conn.rx == "BYE");
+
+    conn.rx.clear();
+    CHECK(conn.telnet.read(10) != FUJI_ERROR::NONE);
+    CHECK(conn.telnet.error == NDEV_STATUS::NOT_CONNECTED);
+    CHECK(conn.rx.empty());
+}
+
+TEST_CASE("STATUS after the peer closed takes in what it sent, so nothing stays waiting")
+{
+    TelnetConnection conn;
+    fake_peer.inbound = "BYE";
+    fake_peer.closed = true;
+
+    NetworkStatus status;
+    CHECK(conn.telnet.status(&status) == FUJI_ERROR::NONE);
+    CHECK(status.connected == 0);
+    CHECK(conn.rx == "BYE");
+    CHECK(fake_peer.inbound.empty());
+}
+
 TEST_CASE("two TELNET channels keep separate libtelnet parsers (#1915)")
 {
     TelnetConnection a;
