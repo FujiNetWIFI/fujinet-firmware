@@ -21,6 +21,7 @@ protected:
     } statusByte;
 
     AdamNetStatus deviceStatus() override;
+    bool reportsCommandFailed() override { return true; }
     void adamnet_control_send(const FujiAdamPacket &packet) override {
         NDevice::processCommand(packet);
     }
