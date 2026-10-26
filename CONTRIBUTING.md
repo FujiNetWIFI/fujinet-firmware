@@ -330,6 +330,11 @@ One concern per pull request. Large mixed diffs are the most common reason a cha
   `[sio]`, `[rs232]`, `[atari]`, `[iec]`, `[lynx]`, `[apple2]`, `[drivewire]`, `[adamnet]`,
   `[network-protocol]`, `[fujiDevice]`, `[config]`, `[http]`, `[webui]`, `[all]`.
 - `include/version.h` is bumped by hand at release time only; do not touch it incidentally.
+- Name no AI tool or its vendor in anything that lands in the repo or on GitHub: code, comments,
+  docs, file and directory names, commit messages and PR descriptions. That includes the
+  `Co-Authored-By:` trailer and "Generated with" footer some assistants add by default.
+- Never commit an assistant's own instruction, memory or scratch files. `AGENTS.md` is the one
+  such file the project keeps.
 
 When the change fixes a tracked issue, put `Fixes #NNNN` on its own line in the **pull request
 description**. GitHub links the two straight away and closes the issue automatically when the PR
