@@ -201,6 +201,8 @@ static void parse_cfg_line(char *tmp)
             plan.ecs = v;
         } else if (sscanf(s, " voice = %d", &v) == 1) {
             plan.voice = v;
+        } else if (sscanf(s, " fujinet = %d", &v) == 1) {
+            plan.fujinet = v;
         }
         // Everything else (name, author, year, ecs_compat, ...) is
         // metadata for humans -- ignored, and must stay harmless.
@@ -580,7 +582,7 @@ int bootmap_rom_end(bm_plan_t **out)
         // them simply boots with no RAM.
         plan.nram = 0;
         plan.jlp = plan.jlpflash = 0;
-        plan.ecs = plan.voice = 0;
+        plan.ecs = plan.voice = plan.fujinet = 0;
         if (rh_seg_i != rh_nseg || plan.nseg == 0) {
             err = FUJI_BOOT_ERR_TRUNCATED; // ended mid-segment, or before any
         } else {

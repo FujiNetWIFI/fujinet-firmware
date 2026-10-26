@@ -196,8 +196,9 @@ static int run_one(const char *path)
     if (err)
         return 1;
 
-    printf("  vars     : jlp=%d jlpflash=%d ecs=%d voice=%d paging=%s\n",
-           plan->jlp, plan->jlpflash, plan->ecs, plan->voice, plan->paging ? "yes" : "no");
+    printf("  vars     : jlp=%d jlpflash=%d ecs=%d voice=%d fujinet=%d paging=%s\n",
+           plan->jlp, plan->jlpflash, plan->ecs, plan->voice, plan->fujinet,
+           plan->paging ? "yes" : "no");
 
     // fujinet.c's apply_boot_mapping() does this before committing: the JLP
     // RAM window shadows any cartridge ROM mapped underneath it.

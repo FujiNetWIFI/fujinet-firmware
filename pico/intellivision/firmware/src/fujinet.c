@@ -150,6 +150,11 @@ static bool apply_boot_mapping(void)
     bool disable_mb = false;
 
     if (jlp_pending) {
+        // The mailbox sits in JLP RAM; only a game that asks for it
+        // (fujinet = 1 in [vars]) may have it.
+        if (!boot_plan->fujinet)
+            disable_mb = true;
+
         // JLP claims all of $8000-$9FFF in cartridge.c's RAM-window branch,
         // ahead of mm_lookup(), so cartridge ROM mapped under it can never
         // be read. That's also what happens under jzintv, where the JLP
