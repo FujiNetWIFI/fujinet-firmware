@@ -96,7 +96,6 @@
 /* Banks (protocol 2): a read of FN_STUB's page at FN_HOT_BANK + n puts bank n
  * in the window, from the next fetch on (core1 decodes it; s2map.h). */
 #define FN_HOT_BANK      0x80
-#define FN_BANK_MAX      (FN_HOT_STUB - FN_HOT_BANK)
 
 /* Platform registers, 0x14 up; the protocol's are in fuji_mailbox_proto.h. */
 #define FN_REG_CONFIG    0x14     /* FN_CONFIG_MAGIC: stage and arm CONFIG   */
@@ -109,7 +108,9 @@
 #define FN_REG_POKE      0x1A     /* each REGDATA stores at the pointer, which
                                      advances; armed until the next REGSEL   */
 /* COPY: LEN bytes from SRC (the reply window, or any image byte) to DST,
- * on core0 in ring order. Writing CPLENHI runs it; FN_R_COPYDONE counts. */
+ * on core0. Writing CPLENHI runs it; FN_R_COPYDONE counts. Bank selects and
+ * pokes skip the ring, so wait for FN_R_COPYDONE before the next bank select
+ * or a poke into the COPY's range. */
 #define FN_REG_CPSRCLO   0x1B
 #define FN_REG_CPSRCHI   0x1C
 #define FN_REG_CPDSTLO   0x1D
