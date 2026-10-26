@@ -124,8 +124,8 @@ inline void config_jlp(int jlp_value, int jlpflash_value, char *filename) {
       uint32_t written = 0;
 
       char *dot = strrchr(filename, '.');
-      strncpy(cart.flashfile, filename, (dot - filename));
-      strcat(cart.flashfile, ".save");
+      snprintf(cart.flashfile, sizeof cart.flashfile, "%.*s.save",
+               (int)(dot - filename), filename);
 
       if(vfs_stat(cart.flashfile, &st) == -1) {
 

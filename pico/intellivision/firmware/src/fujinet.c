@@ -104,6 +104,12 @@ static bool need_config_reset = false;
 // Populated in fuji_mailbox_service(), consumed in apply_boot_mapping().
 static char last_boot_path[256];
 
+#if CONFIG_SD_STORAGE
+#define JLP_SAVE_ROOT "/sd"
+#else
+#define JLP_SAVE_ROOT "/fl"
+#endif
+
 // Sends a bare ACK/NAK reply frame for one DBC command.
 static void dbc_send_frame(uint8_t command)
 {
@@ -223,13 +229,16 @@ static bool apply_boot_mapping(void)
 
 #if CONFIG_JLP
     if (jlp_pending) {
-        // config_jlp() derives a JLP flash .save filename from the path
-        // CONFIG most recently staged via SET_DEVICE_FULLPATH -- see
-        // last_boot_path's own comment. Fall back to a fixed name (must
-        // contain a '.': config_jlp() does strrchr(filename,'.') with no
-        // NULL check) if MOUNT_IMAGE somehow arrived without one.
-        config_jlp(boot_plan->jlp, boot_plan->jlpflash,
-                   last_boot_path[0] ? last_boot_path : "network.rom");
+        // The .save lives at the cart storage root under the ROM's basename;
+        // CONFIG's host path has no mount. config_jlp() needs a '.' in the
+        // name, so fall back to a fixed one without it.
+        const char *base = strrchr(last_boot_path, '/');
+        base = base ? base + 1 : last_boot_path;
+        if (!strchr(base, '.'))
+            base = "network.rom";
+        char save_name[sizeof(last_boot_path) + 4];
+        snprintf(save_name, sizeof(save_name), JLP_SAVE_ROOT "/%s", base);
+        config_jlp(boot_plan->jlp, boot_plan->jlpflash, save_name);
     } else {
         cart.JLPSupport = false;
         cart.JLPAccel = false;
