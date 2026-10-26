@@ -175,10 +175,7 @@ bool fujibus_parse_reply(const uint8_t *in_const, size_t in_len, fb_reply_t *rep
 
     // Descriptor chain: first descriptor in the header, additional ones
     // (while bit 7 is set) immediately follow the header, then param value
-    // bytes, then whatever's left is payload. Real ACK/NAK replies always
-    // carry descr==0 (no params) -- this still walks the general case so
-    // the codec is spec-complete and testable against the reference
-    // multi-param vector.
+    // bytes, then whatever's left is payload.
     uint8_t descr[FB_MAX_DESCRIPTORS];
     unsigned ndescr = 0;
     uint8_t dsc = in[5];
@@ -193,6 +190,7 @@ bool fujibus_parse_reply(const uint8_t *in_const, size_t in_len, fb_reply_t *rep
         descr[ndescr++] = dsc;
     }
 
+    reply->nparams = 0;
     for (unsigned i = 0; i < ndescr; i++) {
         unsigned idx = descr[i] & FB_DESCR_COUNT_MASK;
         unsigned count = fb_field_count[idx];
@@ -200,6 +198,12 @@ bool fujibus_parse_reply(const uint8_t *in_const, size_t in_len, fb_reply_t *rep
         for (unsigned f = 0; f < count; f++) {
             if (offset + size > decoded_len)
                 return false;
+            if (reply->nparams < FB_MAX_PARAMS) {
+                uint32_t value = 0;
+                for (unsigned byte_idx = 0; byte_idx < size; byte_idx++)
+                    value |= (uint32_t)in[offset + byte_idx] << (8 * byte_idx);
+                reply->params[reply->nparams++] = value;
+            }
             offset += size;
         }
     }
@@ -303,8 +307,6 @@ bool fujibus_selftest(void)
     // Reference vector (FujiBusPacketTests.cpp): 5xu8 + 1xu16 params, no
     // payload. Groups [4xu8],[1xu8],[1xu16] -> descriptors 0x84,0x81,0x05;
     // decoded: 70 C4 0F 00 <ck> 84 81 05 01 02 03 04 05 CD AB (len=15).
-    // This exercises the multi-descriptor walk in fujibus_parse_reply(),
-    // even though real ACK/NAK replies never carry params.
     {
         uint8_t decoded[] = {
             0x70, 0xC4, 0x0F, 0x00, 0x00, 0x84,
@@ -323,6 +325,12 @@ bool fujibus_selftest(void)
             return false;
         if (reply.data_len != 0) // all 15 bytes were header+descriptors+params
             return false;
+        static const uint32_t want_params[] = {1, 2, 3, 4, 5, 0xABCD};
+        if (reply.nparams != 6)
+            return false;
+        for (unsigned idx = 0; idx < 6; idx++)
+            if (reply.params[idx] != want_params[idx])
+                return false;
     }
 
     // Corrupted checksum must be rejected.

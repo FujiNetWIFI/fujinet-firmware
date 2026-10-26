@@ -104,26 +104,14 @@ static bool need_config_reset = false;
 // Populated in fuji_mailbox_service(), consumed in apply_boot_mapping().
 static char last_boot_path[256];
 
-// Sends a bare ACK/NAK reply frame for one DBC command, over the same
-// tud_cdc link fujibus_transact() itself uses to send requests. This runs
-// from inside fujibus_transact()'s own RX wait (via the inbound-handler
-// callback), not through fujibus_transact() itself, so it duplicates that
-// function's small send loop rather than calling it.
+// Sends a bare ACK/NAK reply frame for one DBC command.
 static void dbc_send_frame(uint8_t command)
 {
     uint8_t buf[16];
     size_t len = fujibus_build_request(FUJI_DEVICEID_DBC, command, NULL, 0, NULL, 0,
                                         buf, sizeof(buf));
-    if (!len)
-        return;
-    size_t sent = 0;
-    while (sent < len) {
-        uint32_t w = tud_cdc_write(&buf[sent], (uint32_t)(len - sent));
-        sent += w;
-        tud_cdc_write_flush();
-        tud_task();
-    }
-    tud_cdc_write_flush();
+    if (len)
+        fujibus_send_frame(buf, len);
 }
 
 // mailbox_overlap: [from, to] (inclusive bus addresses) vs the RAM window
