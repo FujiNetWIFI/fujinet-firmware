@@ -26,6 +26,7 @@ typedef struct {
 } sm_t;
 
 static sm_t sm;
+static uint16_t insn[sizeof(s100_bus_program_instructions) / sizeof(uint16_t)];
 static uint32_t pins; /* what the state machine sees */
 static int arm;       /* the card's ARM flip-flop */
 static int decode;    /* the glue's DECODE for the current cycle */
@@ -44,7 +45,7 @@ static void glue(void)
 
 static void step(void)
 {
-    uint16_t w = s100_bus_program_instructions[sm.pc];
+    uint16_t w = insn[sm.pc];
     unsigned op = w >> 13, next = sm.pc + 1, stall = 0;
     unsigned delay = (w >> 8) & 7;
 
@@ -161,6 +162,11 @@ int main(void)
 {
     memset(&sm, 0, sizeof(sm));
     sm.waitclr = 1;
+
+    // As main.c's loader does: the .pio waits are patched to S100_PIN_PSYNC.
+    memcpy(insn, s100_bus_program_instructions, sizeof(insn));
+    insn[s100_bus_offset_psync_rise] = 0x2000 | 0x80 | S100_PIN_PSYNC;
+    insn[s100_bus_offset_psync_fall] = 0x2000 | S100_PIN_PSYNC;
 
     // A foreign cycle: nothing taken, the wait never touched.
     cycle(0, 0, 0x42, 0);

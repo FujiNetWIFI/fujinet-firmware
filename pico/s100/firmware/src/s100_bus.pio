@@ -11,8 +11,10 @@
 
 .wrap_target
 idle:
-    wait 1 gpio 31              ; pSYNC rises: a cycle starts
-    wait 0 gpio 31              ; and falls: address and status have settled
+public psync_rise:
+    wait 1 gpio 0               ; pSYNC rises: a cycle starts (pin set by the loader)
+public psync_fall:
+    wait 0 gpio 0               ; and falls: address and status have settled
     nop [7]
     jmp pin ours                ; WAITQ: this cycle is held for us
     jmp idle
