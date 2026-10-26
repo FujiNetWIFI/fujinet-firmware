@@ -75,6 +75,9 @@ struct AdamNetStatus
 } __attribute__((packed));
 static_assert(sizeof(AdamNetStatus) == 4, "AdamNetStatus must be 4 bytes");
 
+// Set in a device's status after the MN_SEND it last ACKed failed
+#define ADAMNET_STATUS_COMMAND_FAILED 0x20
+
 class systemBus;
 class adamFuji;     // declare here so can reference it, but define in fuji.h
 class adamPrinter;
@@ -99,10 +102,14 @@ protected:
     virtual void adamnet_control_send(const FujiAdamPacket &packet) = 0; // Send data to device
 
     virtual AdamNetStatus deviceStatus() = 0;
+    // EOS reads the status byte of the other devices
+    virtual bool reportsCommandFailed() { return false; }
 
     // PC/BoIP: bypass the 300us response window (a slow host can blow it). Only
     // for re-polled block devices; single-shot devices keep it.
     bool _pc_no_response_deadline = false;
+
+    error_is_true _last_command{false};
 
     virtual void shutdown() {}
 

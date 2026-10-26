@@ -28,6 +28,7 @@ protected:
     void adamnet_control_send(const FujiAdamPacket &packet) override;
 
     AdamNetStatus deviceStatus() override;
+    bool reportsCommandFailed() override { return true; }
 
     void fujidev_set_device_fullpath(const FUJI_COMMAND_PACKET &packet) override;
 

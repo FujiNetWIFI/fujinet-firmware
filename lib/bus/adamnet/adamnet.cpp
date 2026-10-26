@@ -120,6 +120,8 @@ void systemBus::transaction_error()
         _start_time = GET_TIMESTAMP();
         sendNakPacket();
     }
+    else if (_activePacket->type() == APT::MN_SEND)
+        _activeDev->_last_command = error_is_true(true);
     _transaction_state = TRANS_STATE::INVALID;
 }
 
@@ -376,9 +378,14 @@ void systemBus::_adamnet_dispatch(const FujiAdamPacket &packet)
     switch (packet.type())
     {
     case APT::MN_STATUS:
+    {
         // Get device capabilities/check if it is alive
-        sendStatusPacket(_activeDev->deviceStatus());
+        AdamNetStatus status = _activeDev->deviceStatus();
+        if (_activeDev->reportsCommandFailed() && _activeDev->_last_command.is_error())
+            status.status |= ADAMNET_STATUS_COMMAND_FAILED;
+        sendStatusPacket(status);
         break;
+    }
 
     case APT::MN_CLR:
         // Fetch the data from a previous read()/readBlock() request
@@ -395,6 +402,7 @@ void systemBus::_adamnet_dispatch(const FujiAdamPacket &packet)
 
     case APT::MN_SEND:
         // write() or writeBlock()
+        _activeDev->_last_command = error_is_true(false);
         _activeDev->adamnet_control_send(packet);
         break;
 
