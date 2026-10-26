@@ -38,6 +38,7 @@
 /* FUJINET */
 #if CONFIG_FUJINET
 #include "fuji_cart.h"
+#include "fuji_clock.h"
 #include "fuji_mailbox.h"
 #include "fujiboot.h"
 #include "fujinet.h"
@@ -954,8 +955,12 @@ void picopac_cart_main()
   	// overclocking isn't necessary for most functions - but XEGS carts weren't working without it
 	// I guess we might as well have it on all the time.
     
+#if CONFIG_FUJINET
+	fuji_clock_init();
+#else
 	set_sys_clock_khz(270000, true);
     //set_sys_clock_khz(170000, true);
+#endif
 
 
   memset(extram,0,0xff);
