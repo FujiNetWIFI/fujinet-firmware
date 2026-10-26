@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "fuji_cart.h"
+#include "fuji_tick.h"
 #include "fuji_mailbox.h"
 
 fuji_ring_t fuji_ring;
@@ -46,6 +47,16 @@ void fuji_cart_poke(unsigned offset, uint8_t value)
     fuji_slot[fuji_live][offset & 0x1FFF] = value;
     if (fuji_have_staged && fuji_staged_claims)
         fuji_slot[fuji_live ^ 1u][offset & 0x1FFF] = value;
+}
+
+/* The slot is read before the flag, and fuji_cart_swap() stores the flag
+ * before the slot, so a game's slot is never painted. */
+volatile uint16_t *fuji_tick_target(void)
+{
+    uint8_t slot = fuji_live;
+
+    return fuji_mailbox_active ? (volatile uint16_t *)(fuji_slot[slot] + FN_R_TICK_LO)
+                               : NULL;
 }
 
 /* Take a committed image and lay it into the slot that is not being served.

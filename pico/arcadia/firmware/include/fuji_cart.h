@@ -84,13 +84,14 @@ void fuji_cart_init(void);
 /* core1, on the armed swap read: serve the staged slot from page 0. */
 static inline void fuji_cart_swap(void)
 {
-    uint8_t s = (uint8_t)(fuji_live ^ 1u);
+    uint8_t slot = (uint8_t)(fuji_live ^ 1u);
 
-    arcapp_reset(&fuji_app, fuji_slot[s], fuji_slot_npages[s], fuji_ffpage);
-    fuji_live = s;
+    /* Before fuji_live: the tick timer reads them in the other order. */
+    fuji_mailbox_active = fuji_staged_claims;
+    arcapp_reset(&fuji_app, fuji_slot[slot], fuji_slot_npages[slot], fuji_ffpage);
+    fuji_live = slot;
     fuji_boot_armed = false;
     fuji_have_staged = false;
-    fuji_mailbox_active = fuji_staged_claims;
 }
 
 #endif /* FUJI_CART_H */

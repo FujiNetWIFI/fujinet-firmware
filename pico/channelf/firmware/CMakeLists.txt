@@ -21,7 +21,7 @@ fujicart_firmware(${PROJECT_NAME}
         ${FUJI_COMMON}/src/fuji_port.c
         src/fujinet.c
         src/fujiboot.c
-        src/fuji_tick.c
+        ${FUJI_COMMON}/src/fuji_tick.c
         src/chfmap.c
     LIBRARIES hardware_vreg
     CORE1 channelf_core1_main fuji_store fuji_arena fuji_ring fuji_slot_npages fuji_live_win

@@ -23,6 +23,7 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 | `include/fuji_store.h`, `src/fuji_store.c` | where a pushed image waits for the console: a RAM tier, and a flash tier kept blank ahead of time so erases stay out of the push; the cart's `fuji_store_cfg.h` sizes both |
 | `include/fuji_crc.h`, `src/fuji_crc.c` | CRC-32 (zlib's), and the lookup in a cart's table of known images, rows keyed by it and sorted |
 | `include/fuji_clock.h` | `fuji_clock_init()`: the system clock the board header sets in `FUJI_SYS_CLOCK_KHZ`, at its `FUJI_VREG_VOLTAGE` if it sets one |
+| `include/fuji_tick.h`, `src/fuji_tick.c` | the 60 Hz tick: its value from the microsecond clock, and a core0 timer that paints it where the cart's `fuji_tick_target()` says |
 | `include/fuji_watchdog.h`, `src/fuji_watchdog.c` | notices the console going away: PWR_OK low, or its clock (counted on a PWM slice) stopped, for longer than the cart's timeout; the cart decides what that means |
 | `emu/fujitcp.c`, `emu/fujitcp.h` | the MAME grafts' FujiBus link to fujinet-pc over TCP, in place of `fujibus_usb.c` |
 | `emu/graft.lib.sh` | what every MAME cart's `emu/apply.sh` sources: copy sources in (a `.c` as `.cpp`), give the shared ones the cart's own symbols in `fujins.h`, and list every grafted file in `bus.lua` |
@@ -33,6 +34,7 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 | `host_test/test_fuji_port.c` | what `fuji_port.c` hands fujimail, against stand-ins for the USB link |
 | `host_test/test_fuji_store.c`, `host_test/fuji_store_cfg.h` | the push store, under ASan, on a small store of its own |
 | `host_test/test_fuji_crc.c` | the CRC against zlib's check values, and the table lookup |
+| `host_test/test_tick.c` | the tick's value against 60 per 10^6 us over a day |
 | `host_test/test_fuji_watchdog.c` | the watchdog, with power, clock and time in the test's hands |
 | `host_test/check_fujins.py` | fails when `emu/fujins.syms` and what the modules export disagree |
 | `host_test/stub/` | stand-ins for the SDK headers these tests need; `hardware/flash.h` models NOR flash, where a program only clears bits. astrocade's store test uses them too |
@@ -63,6 +65,8 @@ ESP32-S3, a CDC-only USB device, and the start of the carts' CMake builds.
 - sms, studio2, atari-5200 and atari-7800 take an image's CRC with `src/fuji_crc.c`, and all but
   studio2 look it up in their `*map_db.c`; their `emu/apply.sh` copy it into MAME too. sms
   and atari-7800 generate that table with a `tools/mkmapdb.py` built on `tools/softlist.py`.
+- arcadia and channelf build `src/fuji_tick.c` and each define `fuji_tick_target()`; both list
+  `test_tick`, which comes from here.
 - studio2, atari-5200, sms and atari-7800 build `src/fuji_watchdog.c`: the first two watch power
   alone, sms and atari-7800 the console's clock too.
 - sms and atari-7800 build `src/fuji_store.c`, each with a `fuji_store_cfg.h` of its own.

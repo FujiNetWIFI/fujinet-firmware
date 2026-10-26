@@ -99,8 +99,8 @@ firmware/            RP2040 cartridge firmware (pico-sdk)
   src/fuji_cart.c          the two image slots + the boot swap
   src/arcmap.c             image gate/plan/apply + the connector decode
   include/arcapp.h         protocol 2 serving: the window, bank selects, cart RAM
-  src/fuji_tick.c          the 60 Hz tick (core0 timer)
-                           (fujimail.c, the FujiBus codec and USB are pico/common's)
+  src/fuji_cart.c          also `fuji_tick_target()`, where the common tick paints
+                           (fujimail.c, fuji_tick.c, the FujiBus codec and USB are pico/common's)
   baked/fujiconfigrom.h    the client served at power-on when there is no fresh build/gen
   host_test/               desktop tests (no hardware, no SDK)
 emu/                 MAME cart device + graft script + lua harnesses (bankprobe.lua)

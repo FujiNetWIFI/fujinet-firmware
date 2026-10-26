@@ -111,7 +111,7 @@ counts its own loop passes loses time to every transaction. So the cart keeps
 a free-running 60 Hz count at `$FC0E/$FC0F` (little-endian), from a core0
 repeating timer at 240 Hz that stores the whole halfword at once, computed
 from the microsecond clock so it can neither drift nor skip
-(`fuji_tick.h`). core0 sits in transactions with interrupts on, so the tick
+(`common/include/fuji_tick.h`). core0 sits in transactions with interrupts on, so the tick
 keeps counting through them. The client reads HI, LO, HI and retries if HI
 moved. MAME computes it from emulated time on each read.
 
