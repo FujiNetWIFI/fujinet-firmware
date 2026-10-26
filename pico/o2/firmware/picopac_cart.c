@@ -195,6 +195,10 @@ void __not_in_flash_func(core1_main()) {
     uint32_t pins;
     uint8_t bank=0;
 	uint8_t romlatch=0;
+#if CONFIG_FUJINET
+	bool fuji_wr_pending=false;
+	uint8_t fuji_wr_addr=0, fuji_wr_data=0;
+#endif
 
 	multicore_lockout_victim_init();	
    
@@ -242,22 +246,32 @@ void __not_in_flash_func(core1_main()) {
 				   uint8_t wd = ((pins & DATA_PIN_MASK)>>D0_PIN);
 				   extram[wa]=wd;
 #if CONFIG_FUJINET
-				   /* FUJINET: $E0-$E3 is the mailbox register file. Recorded
-				    * here and handed to core0 -- this loop must stay a poll.
-				    * That range is the only part of this window The Voice does
-				    * not decode as a sound trigger or a bank select. */
+				   /* FUJINET: $E0-$E3 is the mailbox register file. This loop
+				    * passes many times per /WR strobe and the registers
+				    * auto-increment, so keep the latest sample and act on it
+				    * once /WR has released. That range is the only part of
+				    * this window The Voice does not decode as a sound trigger
+				    * or a bank select. */
 				   if (wa >= FN_W_REGSEL && wa <= FN_W_SEQ) {
-					   /* APPBANK's registers are decoded right here, so a
-					    * page switch or a POKE is in force by the console's
-					    * next fetch; only the rest go to core0. */
-					   if (!(fuji_app_live && o2app_write(&fuji_app, wa, wd)))
-						   fuji_cart_note_write(wa, wd);
+					   fuji_wr_addr = wa;
+					   fuji_wr_data = wd;
+					   fuji_wr_pending = true;
 				   }
 #endif
 				   if (extram[0xff]==0xaa) {
 			         gamechoosen=extram[0xfe];
 				   }
-			} 
+			}
+#if CONFIG_FUJINET
+			else if (fuji_wr_pending) {
+				   fuji_wr_pending = false;
+				   /* APPBANK's registers are decoded right here, so a page
+				    * switch or a POKE is in force by the console's next
+				    * fetch; only the rest go to core0. */
+				   if (!(fuji_app_live && o2app_write(&fuji_app, fuji_wr_addr, fuji_wr_data)))
+					   fuji_cart_note_write(fuji_wr_addr, fuji_wr_data);
+			}
+#endif
 			
 		 SET_DATA_MODE_IN;
 		}
