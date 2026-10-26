@@ -428,7 +428,7 @@ success_is_true FileSystemFTP::dir_open(const char  *path, const char *pattern, 
         string filename;
         long filesz;
         bool is_dir;
-        fsdir_entry *fs_de;
+        fsdir_entry fs_de;
 
         // get first directory entry
         res = _ftp->read_directory(filename, filesz, is_dir);
@@ -439,13 +439,14 @@ success_is_true FileSystemFTP::dir_open(const char  *path, const char *pattern, 
                 continue;
                 // new dir entry
 
-            fs_de = &_dircache.new_entry();
+            fs_de = fsdir_entry();
                 // set entry members
             // set entry members
-            strlcpy(fs_de->filename, filename.c_str(), sizeof(fs_de->filename));
-            fs_de->isDir = is_dir;
-            fs_de->size = (uint32_t)filesz;
-            fs_de->modified_time = 0; // TODO
+            strlcpy(fs_de.filename, filename.c_str(), sizeof(fs_de.filename));
+            fs_de.isDir = is_dir;
+            fs_de.size = (uint32_t)filesz;
+            fs_de.modified_time = 0; // TODO
+            _dircache.add_entry(fs_de);
 
             // get next
             res = _ftp->read_directory(filename, filesz, is_dir);
