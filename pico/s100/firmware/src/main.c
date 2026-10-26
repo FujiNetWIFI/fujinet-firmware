@@ -183,7 +183,14 @@ static void bus_pins_init(void)
 
 static void bus_pio_init(void)
 {
-    uint off = pio_add_program(BUS_PIO, &s100_bus_program);
+    // pioasm cannot read s100_card.h: patch the pSYNC waits to S100_PIN_PSYNC
+    uint16_t insn[sizeof(s100_bus_program_instructions) / sizeof(uint16_t)];
+    memcpy(insn, s100_bus_program_instructions, sizeof(insn));
+    insn[s100_bus_offset_psync_rise] = pio_encode_wait_gpio(true, S100_PIN_PSYNC);
+    insn[s100_bus_offset_psync_fall] = pio_encode_wait_gpio(false, S100_PIN_PSYNC);
+    pio_program_t prog = s100_bus_program;
+    prog.instructions = insn;
+    uint off = pio_add_program(BUS_PIO, &prog);
     pio_sm_config c = s100_bus_program_get_default_config(off);
     sm_config_set_in_pins(&c, S100_PIN_DO0);
     sm_config_set_in_shift(&c, false, true, 22);
