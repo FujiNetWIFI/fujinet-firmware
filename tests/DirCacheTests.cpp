@@ -122,3 +122,30 @@ TEST_CASE("clear empties the listing")
     CHECK(cache.read() == nullptr);
     CHECK(cache.tell() == FNFS_INVALID_DIRPOS);
 }
+
+TEST_CASE("a pattern ending in / filters directories as well as files")
+{
+    DirCache cache;
+    const struct { const char *name; bool isDir; } items[] = {
+        {"games", true}, {"docs", true}, {"gamer.atr", false}, {"notes.txt", false},
+    };
+    for (const auto &item : items)
+    {
+        fsdir_entry entry = {};
+        strcpy(entry.filename, item.name);
+        entry.isDir = item.isDir;
+        cache.add_entry(entry);
+    }
+
+    cache.apply_filter("g*/", 0);
+    CHECK(std::string(cache.read()->filename) == "games");
+    CHECK(std::string(cache.read()->filename) == "gamer.atr");
+    CHECK(cache.read() == nullptr);
+
+    // Without the slash only files are filtered
+    cache.apply_filter("*.atr", 0);
+    CHECK(std::string(cache.read()->filename) == "docs");
+    CHECK(std::string(cache.read()->filename) == "games");
+    CHECK(std::string(cache.read()->filename) == "gamer.atr");
+    CHECK(cache.read() == nullptr);
+}
