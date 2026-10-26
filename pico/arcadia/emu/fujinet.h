@@ -7,6 +7,8 @@
 
 #include "slot.h"
 
+#include "arcapp.h"
+
 #include <vector>
 
 // ======================> arcadia_rom_fujinet_device
@@ -15,11 +17,13 @@
 // image (two 4K blocks) served from RAM, with the read-hotspot mailbox of
 // pico/arcadia/firmware/include/fuji_mailbox.h decoded on image offsets
 // 0x1D00-0x1FFF (console $2D00-$2FFF) and replies repainted into the
-// window. The protocol itself (fujimail.c), the wire codec (fujibus.c) and
-// the image mapper (arcmap.c) are the cartridge firmware's own sources,
-// compiled in verbatim; this device is only the port: bytes go into the
-// served window, frames go over a TCP socket to fujinet-pc ($FUJINET_TCP,
-// default 127.0.0.1:9995).
+// window -- or (protocol 2) an APPBANK image of up to 70K, its 2K pages
+// shown one at a time at console $0800, with 1K of cart RAM and a 60 Hz
+// tick. The protocol itself (fujimail.c), the wire codec (fujibus.c), the
+// image mapper (arcmap.c) and the APPBANK serving (arcapp.h) are the
+// cartridge firmware's own sources, compiled in verbatim; this device is
+// only the port: bytes go into the served slot, frames go over a TCP socket
+// to fujinet-pc ($FUJINET_TCP, default 127.0.0.1:9995).
 //
 // The decode is hardware-faithful via arcmap_decode(): the connector
 // carries A0-A13 with A12 as the chip select, so console $3000/$5000/$7000
@@ -59,8 +63,12 @@ private:
 	uint8_t serve(unsigned a14);
 	void do_swap();
 
-	uint8_t m_window[0x2000];
-	uint8_t m_staged[0x2000];
+	// Two slots, as on the cartridge: the push lands in the one not served.
+	std::vector<uint8_t> m_slot[2];
+	uint8_t m_npages[2] = { 0, 0 };
+	unsigned m_live = 0;
+	arcapp_t m_app;
+	uint8_t m_ff[FN_APP_PAGE];
 	std::vector<uint8_t> m_rx[2];           // per-stream push buffers
 
 	bool m_init_done = false;

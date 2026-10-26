@@ -18,6 +18,12 @@
  * detector. On an unstable sample it skips WITHOUT updating the remembered
  * state, so a mid-cycle glitch cannot double-fire a hotspot.
  *
+ * An APPBANK image (protocol 2) adds two things this loop must do itself,
+ * because each changes what the very next read returns: a bank select
+ * repoints the $0800-$0FFF window, and a cart RAM write stores a byte the
+ * client may read back at once. Both are arcapp.h's, shared with MAME and
+ * the host tests; neither reaches the ring.
+ *
  * A 2650 memory cycle at 0.895 MHz is ~3.35 microseconds; even with the
  * gap between samples this loop runs about 30 times per cycle.
  *
@@ -59,21 +65,18 @@ void __not_in_flash_func(arcadia_core1_main)(void)
             continue;
         }
 
-        gpio_put_masked(DATA_MASK, (uint32_t)fuji_serve_base[img] << D0_PIN);
+        gpio_put_masked(DATA_MASK, (uint32_t)arcapp_byte(&fuji_app, (unsigned)img) << D0_PIN);
         gpio_set_dir_out_masked(DATA_MASK);
 
         if (is_event && img >= FN_H_REGSEL) {
             if (img == swap_off) {
-                if (fuji_boot_armed && fuji_have_staged) {
-                    /* One pointer store is the whole swap; the client's stub
-                     * runs from RAM, so nothing fetches from the cart between
-                     * this read and the next. */
-                    fuji_serve_base = fuji_staged;
-                    fuji_boot_armed = false;
-                    fuji_have_staged = false;
-                    fuji_mailbox_active = fuji_staged_claims;
-                }
-            } else if (fuji_mailbox_active) {
+                /* A slot switch is the whole swap; the client's stub runs
+                 * from RAM, so nothing fetches from the cart between this
+                 * read and the next. */
+                if (fuji_boot_armed && fuji_have_staged)
+                    fuji_cart_swap();
+            } else if (fuji_mailbox_active
+                       && !arcapp_hotspot(&fuji_app, (unsigned)img)) {
                 fuji_cart_note_read((uint16_t)img);
             }
         }

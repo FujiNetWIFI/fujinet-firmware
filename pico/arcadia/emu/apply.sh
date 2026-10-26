@@ -26,7 +26,7 @@ DRIVER="$MAME/src/mame/arcadia/arcadia.cpp"
 
 graft "$BUSDIR" fujinet.cpp fujinet.h
 graft_common "$BUSDIR" fujitcp fujimail fujibus fuji_mailbox_proto fuji_mailbox_check
-graft "$BUSDIR" ../firmware/src/arcmap.c ../firmware/include/{arcmap,fuji_mailbox}.h
+graft "$BUSDIR" ../firmware/src/arcmap.c ../firmware/include/{arcmap,arcapp,fuji_mailbox}.h
 graft_fujins "$BUSDIR" arcadia
 graft_lua arcadia rom.h
 

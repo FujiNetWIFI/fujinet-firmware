@@ -323,7 +323,7 @@ jobs:
       # the 0x1AFF ROM top).
       - name: Assemble
         working-directory: pico/arcadia
-        run: ./build.sh fujitest fujiboot fujicfg
+        run: ./build.sh fujitest fujiboot fujicfg fujibank
 
       # The 2650's return stack is 8 entries deep and on chip -- a call graph
       # deeper than that silently corrupts returns. Every client must stay
@@ -331,7 +331,7 @@ jobs:
       - name: Check the 8-deep call stack
         working-directory: pico/arcadia
         run: |
-          for c in fujitest fujiboot fujicfg; do
+          for c in fujitest fujiboot fujicfg fujibank; do
               python3 tools/checkdepth.py \
                   testrom/$c.asm testrom/fujilib.inc testrom/fujidisp.inc
           done

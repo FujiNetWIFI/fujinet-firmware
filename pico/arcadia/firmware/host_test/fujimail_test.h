@@ -2,5 +2,5 @@
 #include "arcmap.h"
 
 #define FUJIMAIL_TEST_GATE   arcmap_gate
-#define FUJIMAIL_TEST_GAME   ARCMAP_WINDOW
-#define FUJIMAIL_TEST_TOOBIG 0x10001u
+#define FUJIMAIL_TEST_GAME   ARCMAP_STORE           /* the largest APPBANK image */
+#define FUJIMAIL_TEST_TOOBIG (ARCMAP_STORE + 0x800u)

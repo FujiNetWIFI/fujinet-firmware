@@ -57,6 +57,38 @@ decode for the session.
   lives in `fujinet-config/arcadia/`.
 - **M5 — soak.** All 48 carts in the ROM library stream through byte-for-byte
   and boot: `tools/soak.sh` → **48/48**.
+- **M6 — protocol 2: APPBANK, cart RAM, the tick.** `fujibank` (an 8K + 3
+  page image) selects every page, calls into one, pokes and reads back both
+  halves of cart RAM, and times the tick; `emu/bankprobe.lua` checks it,
+  booted directly or streamed through `fujiboot`.
+
+## Protocol 2: clients bigger than 8K
+
+The connector never shows the console more than 8K, so a bigger client
+(M.U.L.E. needs about 48K) is an **APPBANK** image: exactly 8192 + k × 2048
+bytes (k = 1..31, at most 70K) that carries the claim. Its first 8K is laid
+out as a flat image, and console `$0800-$0FFF` is a window onto one 2K page
+at a time; page 0 is the base's own `$0800-$0FFF`, page n is image
+`0x2000 + (n−1)·0x800`. One read of `$2D80+n` selects page n, decoded where
+the bus is served so the very next fetch already sees it — so the select
+runs from fixed code. A missing page reads `$FF`; the swap maps page 0; a
+console RESET changes neither the page nor cart RAM.
+
+Cart RAM is 1K: `$0600-$07FF` (page 0 code reaches it directly) and
+`$2900-$2AFF`, the image's own bytes there made writable. Writes are reads,
+of course: a pointer pair (`REGSEL $14-$17`, then `REGDATA` v sets the pointer
+to 0x000/0x100/0x200/0x300 + v), then `REGSEL $18` and one `REGDATA` per byte.
+These reads are taken on core1 and never reach `fujimail.c`; a client ends
+each burst with a bare `REGSEL $14` read, so a stray after it can only move
+the pointer. On a flat image all of this is inert.
+
+The **tick** at `$2C0E/$2C0F` counts 60 Hz from cart power-up and keeps
+counting through transactions (a core0 timer paints it, as on the Channel F
+cart); read HI, LO, HI. Under MAME it is emulated time.
+
+Images live in two slots: a push always lands in the one core1 is not
+serving, and staging a claiming image copies the live status page into it,
+so the client it boots finds `F`, `N`, the version and ACKSEQ in place.
 
 ## Layout
 
@@ -64,13 +96,15 @@ decode for the session.
 firmware/            RP2040 cartridge firmware (pico-sdk)
   include/fuji_mailbox.h   THE SPEC
   src/arcadia_cart.c       core1: serve the bus (the one hardware-specific bit)
-  src/fuji_cart.c          serve state + the boot swap (one pointer store)
+  src/fuji_cart.c          the two image slots + the boot swap
   src/arcmap.c             image gate/plan/apply + the connector decode
-                           (fujimail.c, the FujiBus codec and USB are pico/common's)
+  include/arcapp.h         protocol 2 serving: the window, bank selects, cart RAM
+  src/fuji_cart.c          also `fuji_tick_target()`, where the common tick paints
+                           (fujimail.c, fuji_tick.c, the FujiBus codec and USB are pico/common's)
   baked/fujiconfigrom.h    the client served at power-on when there is no fresh build/gen
   host_test/               desktop tests (no hardware, no SDK)
-emu/                 MAME cart device + graft script + lua harnesses
-testrom/             fujitest / fujiboot / fujicfg + fujilib.inc + fujidisp.inc
+emu/                 MAME cart device + graft script + lua harnesses (bankprobe.lua)
+testrom/             fujitest / fujiboot / fujicfg / fujibank + fujilib.inc + fujidisp.inc
 tools/               checkrom, mkimage, checkdepth, soak.sh
 build.sh             assemble a client (Macroassembler AS)
 build-cart.sh        build the RP2040 firmware, baking the client in
@@ -93,6 +127,10 @@ BOOT_HOST=0 BOOT_PATH=/jungler.bin ./build.sh fujiboot
 ./run.sh fujiboot                        # milestone 2
 ./run.sh fujicfg                         # milestone 3 (the CONFIG)
 tools/soak.sh                            # the whole ROM library
+./build.sh fujibank                      # milestone 6, headless:
+FUJINET_TCP=127.0.0.1:9 $MAME_DIR/mame arcadia -cartslot fujinet \
+    -cart $PWD/build/fujibank.bin -autoboot_script emu/bankprobe.lua \
+    -video none -sound none -nothrottle -seconds_to_run 60
 ```
 
 The firmware: `./build-cart.sh` writes `build/gen/fujiconfigrom.h` from the
@@ -144,6 +182,12 @@ copied here, else the `fujicfg` stand-in) and builds
   stability gate (samples 100 ns apart). That decision is
   `arcadia_bus_observe()` in `arcadia_cart.h`, fuzzed on the desktop by
   `host_test/test_busedge.c`.
+
+- **A store into cart space is a bus fight on hardware.** The connector has
+  no R/W line, so the cart drives D0–D7 whenever A12 is low; a `STRA` into
+  `$0000-$0FFF` or `$2000-$2FFF` (cart RAM included) does nothing under MAME
+  but collides on a real console. Cart RAM is written only through the
+  mailbox.
 
 ## Hardware status
 

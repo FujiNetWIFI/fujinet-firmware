@@ -11,6 +11,9 @@
 # stamped at image 0x1CFC and checkrom.py enforces the final layout (see
 # firmware/include/fuji_mailbox.h).
 #
+# fujibank is an APPBANK image (protocol 2): 8K + 3 pages, its pages
+# assembled past $2FFF and folded on by mkimage.py --pages.
+#
 # fujiboot takes its target from the environment:
 #   BOOT_HOST=0 BOOT_PATH=/game.bin ./build.sh fujiboot
 #
@@ -53,8 +56,15 @@ build_one() {
     (cd testrom && $AS -q -L "$name.asm")
     mv "testrom/$name.p" "build/$name.p"
     mv -f "testrom/$name.lst" "build/$name.lst" 2>/dev/null || true
-    $P2BIN "build/$name.p" "build/$name.flat" -r '$0000-$2FFF' -l 0
-    python3 tools/mkimage.py "build/$name.flat" "build/$name.bin"
+    local pages=0
+    [ "$name" = fujibank ] && pages=3
+    $P2BIN "build/$name.p" "build/$name.flat" \
+        -r "\$0000-\$$(printf '%04X' $((0x3000 + pages * 0x800 - 1)))" -l 0
+    if [ "$pages" -gt 0 ]; then
+        python3 tools/mkimage.py --pages "$pages" "build/$name.flat" "build/$name.bin"
+    else
+        python3 tools/mkimage.py "build/$name.flat" "build/$name.bin"
+    fi
     printf 'FUJI' | dd of="build/$name.bin" bs=1 seek=$CLAIM_OFF \
         conv=notrunc status=none
     rm -f "build/$name.p" "build/$name.flat"

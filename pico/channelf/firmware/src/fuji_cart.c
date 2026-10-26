@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "fuji_cart.h"
+#include "fuji_tick.h"
 #include "fuji_mailbox.h"
 
 fuji_ring_t fuji_ring;
@@ -47,6 +48,11 @@ void fuji_cart_poke(unsigned offset, uint8_t value)
         return;
     if (offset < sizeof fuji_arena)
         fuji_arena[offset] = value;
+}
+
+volatile uint16_t *fuji_tick_target(void)
+{
+    return fuji_mailbox_active ? (volatile uint16_t *)(fuji_arena + FN_R_TICK_LO) : NULL;
 }
 
 /* Take a committed image and lay it into the slot that is NOT being served.

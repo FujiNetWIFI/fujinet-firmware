@@ -16,6 +16,11 @@ static inline uint16_t fuji_tick_value(uint64_t us)
     return (uint16_t)(us * 3u / 50000u);
 }
 
+/* The cart's tick halfword (FN_R_TICK_LO, aligned), or NULL while a booted
+ * game owns the status pages. Called from the timer interrupt on core0, so it
+ * reads each piece of state it needs once and takes the target last. */
+volatile uint16_t *fuji_tick_target(void);
+
 /* core0: start repainting the tick. Call once, after fuji_config_boot(). */
 void fuji_tick_start(void);
 

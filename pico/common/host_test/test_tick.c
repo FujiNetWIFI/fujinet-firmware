@@ -21,9 +21,9 @@ static int fails;
         }                                                                    \
     } while (0)
 
-static uint16_t want(uint64_t us)
+static uint16_t want(uint64_t micros)
 {
-    return (uint16_t)(uint64_t)((long double)us * 60.0L / 1000000.0L);
+    return (uint16_t)(uint64_t)((long double)micros * 60.0L / 1000000.0L);
 }
 
 int main(void)
@@ -42,19 +42,20 @@ int main(void)
     /* monotonic in steps of 0 or 1 (mod 65536), across a day at 4167 us,
      * the repaint period -- and against the long-double expectation */
     uint16_t prev = 0;
-    for (uint64_t us = 0; us < 86400ull * 1000000ull; us += 4167) {
-        uint16_t t = fuji_tick_value(us);
-        uint16_t d = (uint16_t)(t - prev);
-        if (d > 1) {
-            CHECK(0, "skipped from %u to %u at %llu us", prev, t,
-                  (unsigned long long)us);
+    for (uint64_t micros = 0; micros < 86400ull * 1000000ull; micros += 4167) {
+        uint16_t tick = fuji_tick_value(micros);
+        uint16_t step = (uint16_t)(tick - prev);
+        if (step > 1) {
+            CHECK(0, "skipped from %u to %u at %llu us", prev, tick,
+                  (unsigned long long)micros);
             break;
         }
-        if (t != want(us)) {
-            CHECK(0, "%llu us gave %u, want %u", (unsigned long long)us, t, want(us));
+        if (tick != want(micros)) {
+            CHECK(0, "%llu us gave %u, want %u", (unsigned long long)micros, tick,
+                  want(micros));
             break;
         }
-        prev = t;
+        prev = tick;
     }
     /* a week of uptime still multiplies without overflow */
     uint64_t week = 7ull * 86400ull * 1000000ull;
