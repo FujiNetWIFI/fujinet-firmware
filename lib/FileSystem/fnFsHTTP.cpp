@@ -448,7 +448,7 @@ success_is_true FileSystemHTTP::dir_open(const char  *path, const char *pattern,
         _parser.end_parser();
 
         // Parsed entries to dircache
-        fsdir_entry *fs_de;
+        fsdir_entry fs_de;
 #ifdef ESP_PLATFORM
         std::vector<IndexParser::IndexEntry,PSRAMAllocator<IndexParser::IndexEntry>>::iterator dirEntryCursor = _parser.rewind();
 #else
@@ -458,23 +458,23 @@ success_is_true FileSystemHTTP::dir_open(const char  *path, const char *pattern,
         while (dirEntryCursor != _parser.entries.end())
         {
             // new dir entry
-            fs_de = &_dircache.new_entry();
+            fs_de = fsdir_entry();
 
             // Set entry members
 
             // file name
-            strlcpy(fs_de->filename, mstr::urlDecode(dirEntryCursor->filename, false).c_str(), sizeof(fs_de->filename));
-            fs_de->isDir = dirEntryCursor->isDir;
+            strlcpy(fs_de.filename, mstr::urlDecode(dirEntryCursor->filename, false).c_str(), sizeof(fs_de.filename));
+            fs_de.isDir = dirEntryCursor->isDir;
 
             // file size
             std::string fileSize = dirEntryCursor->fileSize;
             fileSize.erase(fileSize.find_last_not_of(" \t") + 1); // trim trailing spaces
             mstr::toUpper(fileSize);
             double sizeValue = std::atof(fileSize.c_str());
-            size_t pos = fileSize.find_last_of("KMGTP"); // fs_de->size is uint32_t, up to 4GB
+            size_t pos = fileSize.find_last_of("KMGTP"); // fs_de.size is uint32_t, up to 4GB
             if (pos == std::string::npos)
             {
-                fs_de->size = static_cast<uint32_t>(sizeValue);
+                fs_de.size = static_cast<uint32_t>(sizeValue);
             }
             else
             {
@@ -482,23 +482,23 @@ success_is_true FileSystemHTTP::dir_open(const char  *path, const char *pattern,
                 switch (fileSize[pos])
                 {
                 case 'K':
-                    fs_de->size = static_cast<uint32_t>(sizeValue * 1024);
+                    fs_de.size = static_cast<uint32_t>(sizeValue * 1024);
                     break;
                 case 'M':
-                    fs_de->size = static_cast<uint32_t>(sizeValue * 1024 * 1024);
+                    fs_de.size = static_cast<uint32_t>(sizeValue * 1024 * 1024);
                     break;
                 case 'G':
-                    fs_de->size = static_cast<uint32_t>(sizeValue * 1024 * 1024 * 1024);
+                    fs_de.size = static_cast<uint32_t>(sizeValue * 1024 * 1024 * 1024);
                     break;
                 case 'T':
                 case 'P':
-                    fs_de->size = ~1; // set to max, regardless of value
+                    fs_de.size = ~1; // set to max, regardless of value
                     break;
                 }
             }
         
             //file modification time
-            fs_de->modified_time = 0;
+            fs_de.modified_time = 0;
             memset(&tm, 0, sizeof(struct tm));
             // strptime is not available on Windows ... 
             // if (strptime(dirEntryCursor->mTime.c_str(), "%d-%b-%Y %H:%M", &tm) != nullptr)
@@ -508,7 +508,7 @@ success_is_true FileSystemHTTP::dir_open(const char  *path, const char *pattern,
             if (!ss.fail()) 
             {
                 tm.tm_isdst = -1;
-                fs_de->modified_time = mktime(&tm);
+                fs_de.modified_time = mktime(&tm);
             }
             else
             {
@@ -519,17 +519,19 @@ success_is_true FileSystemHTTP::dir_open(const char  *path, const char *pattern,
                 if (!ss.fail()) 
                 {
                     tm.tm_isdst = -1;
-                    fs_de->modified_time = mktime(&tm);
+                    fs_de.modified_time = mktime(&tm);
                 }
             }
 
-            if (fs_de->isDir)
+            _dircache.add_entry(fs_de);
+
+            if (fs_de.isDir)
             {
-                Debug_printf(" add entry: \"%s\"\tDIR\n", fs_de->filename);
+                Debug_printf(" add entry: \"%s\"\tDIR\n", fs_de.filename);
             }
             else
             {
-                Debug_printf(" add entry: \"%s\"\t%lu\n", fs_de->filename, fs_de->size);
+                Debug_printf(" add entry: \"%s\"\t%lu\n", fs_de.filename, fs_de.size);
             }
 
             dirEntryCursor++;

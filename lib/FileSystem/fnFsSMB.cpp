@@ -232,7 +232,7 @@ success_is_true FileSystemSMB::dir_open(const char  *path, const char *pattern, 
 
         // Populate directory cache with entries
         smb2dirent *smb_de;
-        fsdir_entry *fs_de;
+        fsdir_entry fs_de;
 
         while ((smb_de = smb2_readdir(_smb, smb_dir)) != nullptr)
         {
@@ -245,21 +245,23 @@ success_is_true FileSystemSMB::dir_open(const char  *path, const char *pattern, 
                 continue;
 
             // new dir entry
-            fs_de = &_dircache.new_entry();
+            fs_de = fsdir_entry();
 
             // set entry members
-            strlcpy(fs_de->filename, smb_de->name, sizeof(fs_de->filename));
-            fs_de->isDir = smb_de->st.smb2_type == SMB2_TYPE_DIRECTORY;
-            fs_de->size = (uint32_t)smb_de->st.smb2_size;
-            fs_de->modified_time = (time_t)smb_de->st.smb2_mtime;
+            strlcpy(fs_de.filename, smb_de->name, sizeof(fs_de.filename));
+            fs_de.isDir = smb_de->st.smb2_type == SMB2_TYPE_DIRECTORY;
+            fs_de.size = (uint32_t)smb_de->st.smb2_size;
+            fs_de.modified_time = (time_t)smb_de->st.smb2_mtime;
 
-            if (fs_de->isDir)
+            _dircache.add_entry(fs_de);
+
+            if (fs_de.isDir)
             {
-                Debug_printf(" add entry: \"%s\"\tDIR\n", fs_de->filename);
+                Debug_printf(" add entry: \"%s\"\tDIR\n", fs_de.filename);
             }
             else
             {
-                Debug_printf(" add entry: \"%s\"\t%lu\n", fs_de->filename, fs_de->size);
+                Debug_printf(" add entry: \"%s\"\t%lu\n", fs_de.filename, fs_de.size);
             }
         }
         smb2_closedir(_smb, smb_dir);

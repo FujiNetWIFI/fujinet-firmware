@@ -8,54 +8,27 @@
 #include "utils.h"
 
 
-bool _fsdir_sort_name_ascend(const fsdir_entry* left, const fsdir_entry* right)
-{
-    if (left->isDir == right->isDir)
-        return strcasecmp(left->filename, right->filename) < 0;
-    else
-        return left->isDir;
-}
-
-bool _fsdir_sort_name_descend(const fsdir_entry* left, const fsdir_entry* right)
-{
-    if (left->isDir == right->isDir)
-        return strcasecmp(left->filename, right->filename) > 0;
-    else
-        return left->isDir;
-}
-
-bool _fsdir_sort_time_ascend(const fsdir_entry* left, const fsdir_entry* right)
-{
-    if (left->isDir == right->isDir)
-        return left->modified_time > right->modified_time;
-    else
-        return left->isDir;
-}
-
-bool _fsdir_sort_time_descend(const fsdir_entry* left, const fsdir_entry* right)
-{
-    if (left->isDir == right->isDir)
-        return left->modified_time < right->modified_time;
-    else
-        return left->isDir;
-}
-
-typedef bool (*sort_fn_t)(const fsdir_entry* left, const fsdir_entry* right);
-
-
 void DirCache::clear()
 {
-    _entries_filtered.clear();
-    _entries_filtered.shrink_to_fit();
-    _entries.clear();
-    _entries.shrink_to_fit();
+    _filtered.clear();
+    _filtered.shrink_to_fit();
+    _records.clear();
+    _records.shrink_to_fit();
+    _names.clear();
+    _names.shrink_to_fit();
     _current = 0;
 }
 
-fsdir_entry &DirCache::new_entry()
+void DirCache::add_entry(const fsdir_entry &entry)
 {
-    _entries.push_back(fsdir_entry());
-    return _entries.back();
+    Record record;
+    record.name_offset = _names.size();
+    record.size = entry.size;
+    record.modified_time = (uint32_t)entry.modified_time;
+    record.isDir = entry.isDir;
+
+    _names.insert(_names.end(), entry.filename, entry.filename + strlen(entry.filename) + 1);
+    _records.push_back(record);
 }
 
 void DirCache::apply_filter(const char *pattern, uint16_t diropts)
@@ -70,53 +43,59 @@ void DirCache::apply_filter(const char *pattern, uint16_t diropts)
 	}
 	//thepat = filter_dirs ? realpat : (char *)pattern;
 
-    _entries_filtered.clear();
-    _entries_filtered.shrink_to_fit();
+    _filtered.clear();
+    _filtered.shrink_to_fit();
 
     // Filter directory entries
-    for (unsigned i=0; i<_entries.size(); ++i)
+    for (uint32_t idx = 0; idx < _records.size(); ++idx)
     {
-        fsdir_entry& entry = _entries[i];
+        const Record &record = _records[idx];
         // Skip this entry if we have a search filter and it doesn't match it
         if (have_pattern && (
-            !entry.isDir || (entry.isDir && filter_dirs)
-            ) && util_wildcard_match(entry.filename, pattern) == false)
+            !record.isDir || (record.isDir && filter_dirs)
+            ) && util_wildcard_match(name_of(idx), pattern) == false)
             continue;
-        _entries_filtered.push_back(&entry);
+        _filtered.push_back(idx);
     }
 
-    // Choose the appropriate sorting function
     _current = 0;
 
     if (diropts & DIR_OPTION_UNSORTED)
         return;
 
-    // Choose the appropriate sorting function
-    sort_fn_t sortfn;
-    if (diropts & DIR_OPTION_FILEDATE)
-    {
-        sortfn = (diropts & DIR_OPTION_DESCENDING) ? _fsdir_sort_time_descend : _fsdir_sort_time_ascend;
-    }
-    else
-    {
-        sortfn = (diropts & DIR_OPTION_DESCENDING) ? _fsdir_sort_name_descend : _fsdir_sort_name_ascend;
-    }
-
-    // Sort directory entries
-    std::sort(_entries_filtered.begin(), _entries_filtered.end(), sortfn);
+    // Directories first, then by name or date
+    bool by_date = diropts & DIR_OPTION_FILEDATE;
+    bool descending = diropts & DIR_OPTION_DESCENDING;
+    std::sort(_filtered.begin(), _filtered.end(), [&](uint32_t left, uint32_t right) {
+        const Record &lrec = _records[left];
+        const Record &rrec = _records[right];
+        if (lrec.isDir != rrec.isDir)
+            return lrec.isDir;
+        if (by_date)
+            return descending ? lrec.modified_time < rrec.modified_time
+                              : lrec.modified_time > rrec.modified_time;
+        int cmp = strcasecmp(name_of(left), name_of(right));
+        return descending ? cmp > 0 : cmp < 0;
+    });
 }
 
 fsdir_entry *DirCache::read()
 {
-    if(_current < _entries_filtered.size())
-        return _entries_filtered[_current++];
-    else
+    if (_current >= _filtered.size())
         return nullptr;
+
+    uint32_t idx = _filtered[_current++];
+    const Record &record = _records[idx];
+    strlcpy(_entry.filename, name_of(idx), sizeof(_entry.filename));
+    _entry.isDir = record.isDir;
+    _entry.size = record.size;
+    _entry.modified_time = record.modified_time;
+    return &_entry;
 }
 
 uint16_t DirCache::tell()
 {
-    if(_entries_filtered.empty())
+    if(_filtered.empty())
         return FNFS_INVALID_DIRPOS;
     else
         return _current;
@@ -124,7 +103,7 @@ uint16_t DirCache::tell()
 
 success_is_true DirCache::seek(uint16_t pos)
 {
-    if(pos <= _entries_filtered.size())
+    if(pos <= _filtered.size())
     {
         _current = pos;
         RETURN_SUCCESS_AS_TRUE();

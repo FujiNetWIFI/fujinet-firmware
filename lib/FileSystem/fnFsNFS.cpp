@@ -220,7 +220,7 @@ success_is_true FileSystemNFS::dir_open(const char  *path, const char *pattern, 
 
         // Populate directory cache with entries
         struct nfsdirent *nfs_de;
-        fsdir_entry *fs_de;
+        fsdir_entry fs_de;
 
         while ((nfs_de = nfs_readdir(_nfs, nfs_dir)) != nullptr)
         {
@@ -229,21 +229,23 @@ success_is_true FileSystemNFS::dir_open(const char  *path, const char *pattern, 
                 continue;
 
             // new dir entry
-            fs_de = &_dircache.new_entry();
+            fs_de = fsdir_entry();
 
             // set entry members
-            strlcpy(fs_de->filename, nfs_de->name, sizeof(fs_de->filename));
-            fs_de->isDir = S_ISDIR(nfs_de->mode);
-            fs_de->size = (uint32_t)nfs_de->size;
-            fs_de->modified_time = (time_t)nfs_de->mtime.tv_sec;
+            strlcpy(fs_de.filename, nfs_de->name, sizeof(fs_de.filename));
+            fs_de.isDir = S_ISDIR(nfs_de->mode);
+            fs_de.size = (uint32_t)nfs_de->size;
+            fs_de.modified_time = (time_t)nfs_de->mtime.tv_sec;
 
-            if (fs_de->isDir)
+            _dircache.add_entry(fs_de);
+
+            if (fs_de.isDir)
             {
-                Debug_printf(" add entry: \"%s\"\tDIR\n", fs_de->filename);
+                Debug_printf(" add entry: \"%s\"\tDIR\n", fs_de.filename);
             }
             else
             {
-                Debug_printf(" add entry: \"%s\"\t%lu\n", fs_de->filename, fs_de->size);
+                Debug_printf(" add entry: \"%s\"\t%lu\n", fs_de.filename, fs_de.size);
             }
         }
         nfs_closedir(_nfs, nfs_dir);
