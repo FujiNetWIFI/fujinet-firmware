@@ -103,3 +103,5 @@ still produces a stock PicoPAC, and it is built as a regression check.
 - `picopac_cart.c`: `picopac_cart_main()` loads the baked-in client and runs the
   mailbox service instead of building a menu and loading `selectgame.bin`.
 - `CMakeLists.txt`: the `CONFIG_FUJINET` option and the sources under `src/`.
+- `picopac_cart.c`: core1 acts on a mailbox write once, when /WR releases, not on
+  every poll pass while it is low, since the registers auto-increment.
