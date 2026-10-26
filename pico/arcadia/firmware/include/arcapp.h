@@ -29,40 +29,40 @@
 typedef struct {
     uint8_t *base;              /* the served image: 8K base, then pages 1.. */
     const uint8_t *win;         /* what $0800-$0FFF shows, biased by -0x0800 */
-    const uint8_t *ff;          /* FN_APP_PAGE bytes of 0xFF                 */
+    const uint8_t *ffpage;      /* FN_APP_PAGE bytes of 0xFF                 */
     uint8_t npages;             /* 0: flat                                   */
     uint8_t own;                /* armed cart RAM register, or 0             */
     uint16_t ptr;               /* cart RAM pointer, 0x000-0x3FF             */
 } arcapp_t;
 
 /* Serve image `base` (npages as arcmap_plan_t has it) from page 0. */
-static inline void arcapp_reset(arcapp_t *a, uint8_t *base, uint8_t npages,
-                                const uint8_t *ff)
+static inline void arcapp_reset(arcapp_t *app, uint8_t *base, uint8_t npages,
+                                const uint8_t *ffpage)
 {
-    a->base = base;
-    a->win = base;
-    a->ff = ff;
-    a->npages = npages;
-    a->own = 0;
-    a->ptr = 0;
+    app->base = base;
+    app->win = base;
+    app->ffpage = ffpage;
+    app->npages = npages;
+    app->own = 0;
+    app->ptr = 0;
 }
 
 /* The byte at image offset img (0x0000-0x1FFF, arcmap_decode's result). */
-static inline uint8_t arcapp_byte(const arcapp_t *a, unsigned img)
+static inline uint8_t arcapp_byte(const arcapp_t *app, unsigned img)
 {
-    const uint8_t *p = ((img & 0x1800) == FN_APP_WIN) ? a->win : a->base;
+    const uint8_t *page = ((img & 0x1800) == FN_APP_WIN) ? app->win : app->base;
 
-    return p[img];
+    return page[img];
 }
 
-static inline void arcapp_select(arcapp_t *a, unsigned n)
+static inline void arcapp_select(arcapp_t *app, unsigned page_num)
 {
-    if (n == 0)
-        a->win = a->base;
-    else if (n < a->npages)
-        a->win = a->base + ARCMAP_WINDOW + (n - 1) * FN_APP_PAGE - FN_APP_WIN;
+    if (page_num == 0)
+        app->win = app->base;
+    else if (page_num < app->npages)
+        app->win = app->base + ARCMAP_WINDOW + (page_num - 1) * FN_APP_PAGE - FN_APP_WIN;
     else
-        a->win = a->ff - FN_APP_WIN;
+        app->win = app->ffpage - FN_APP_WIN;
 }
 
 /* Cart RAM address -> image offset. */
@@ -73,34 +73,34 @@ static inline unsigned arcapp_ram_offset(unsigned ptr)
 
 /* One hotspot read (img >= FN_H_REGSEL) while the mailbox is live. True if
  * it was taken here and must NOT be forwarded to fujimail.c. */
-static inline bool arcapp_hotspot(arcapp_t *a, unsigned img)
+static inline bool arcapp_hotspot(arcapp_t *app, unsigned img)
 {
-    unsigned lo = img & 0xFF;
+    unsigned low = img & 0xFF;
 
-    if (a->npages == 0)
+    if (app->npages == 0)
         return false;
     switch (img & FN_H_PAGE_MASK) {
     case FN_H_REGSEL:
-        if (lo >= FN_HOT_BANK && lo <= FN_HOT_BANK_LAST) {
-            arcapp_select(a, lo - FN_HOT_BANK);
+        if (low >= FN_HOT_BANK && low <= FN_HOT_BANK_LAST) {
+            arcapp_select(app, low - FN_HOT_BANK);
             return true;
         }
-        if (lo >= FN_REG_RAMPTR0 && lo <= FN_REG_RAMPOKE) {
-            a->own = (uint8_t) lo;
+        if (low >= FN_REG_RAMPTR0 && low <= FN_REG_RAMPOKE) {
+            app->own = (uint8_t) low;
             return true;
         }
-        if (lo < 0x80)
-            a->own = 0;         /* any other register ends a burst */
+        if (low < 0x80)
+            app->own = 0;       /* any other register ends a burst */
         return false;
     case FN_H_REGDATA:
-        if (a->own == 0)
+        if (app->own == 0)
             return false;
-        if (a->own == FN_REG_RAMPOKE) {
-            a->base[arcapp_ram_offset(a->ptr)] = (uint8_t) lo;
-            a->ptr = (uint16_t)((a->ptr + 1) & (FN_RAM_SIZE - 1));
+        if (app->own == FN_REG_RAMPOKE) {
+            app->base[arcapp_ram_offset(app->ptr)] = (uint8_t) low;
+            app->ptr = (uint16_t)((app->ptr + 1) & (FN_RAM_SIZE - 1));
         } else {
-            a->ptr = (uint16_t)(((a->own - FN_REG_RAMPTR0) << 8) | lo);
-            a->own = 0;
+            app->ptr = (uint16_t)(((app->own - FN_REG_RAMPTR0) << 8) | low);
+            app->own = 0;
         }
         return true;
     default:

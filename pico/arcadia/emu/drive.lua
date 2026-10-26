@@ -40,23 +40,23 @@ _G.DRIVE_SUB = emu.add_machine_frame_notifier(function()
     -- machine.time.seconds is whole seconds only: a 0.3 s press would vanish
     -- inside one value. Count frames instead (the Arcadia runs at 60 Hz).
     frames = frames + 1
-    local t = frames / 60
-    if t >= timeout then return done("FAIL timeout at step " .. step) end
-    if t < nextt then return end
+    local seconds = frames / 60
+    if seconds >= timeout then return done("FAIL timeout at step " .. step) end
+    if seconds < nextt then return end
 
     -- script: Enter(open host), downs x '8', Enter(boot); each = 0.3s down,
     -- 0.5s up, generous against the redraw bursts between key polls.
-    if step == 0 then col3:field(0x01):set_value(1); nextt = t + 0.3; step = 1
-    elseif step == 1 then col3:field(0x01):set_value(0); nextt = t + 1.2; step = 2
+    if step == 0 then col3:field(0x01):set_value(1); nextt = seconds + 0.3; step = 1
+    elseif step == 1 then col3:field(0x01):set_value(0); nextt = seconds + 1.2; step = 2
     elseif step == 2 then
         if pressed_down < downs then
-            col2:field(0x02):set_value(1); nextt = t + 0.3; step = 3
-        else step = 5; nextt = t + 0.3 end
+            col2:field(0x02):set_value(1); nextt = seconds + 0.3; step = 3
+        else step = 5; nextt = seconds + 0.3 end
     elseif step == 3 then
-        col2:field(0x02):set_value(0); nextt = t + 0.5; pressed_down = pressed_down + 1
+        col2:field(0x02):set_value(0); nextt = seconds + 0.5; pressed_down = pressed_down + 1
         step = 2
-    elseif step == 5 then col3:field(0x01):set_value(1); nextt = t + 0.3; step = 6
-    elseif step == 6 then col3:field(0x01):set_value(0); nextt = t + 3.0; step = 7
+    elseif step == 5 then col3:field(0x01):set_value(1); nextt = seconds + 0.3; step = 6
+    elseif step == 6 then col3:field(0x01):set_value(0); nextt = seconds + 3.0; step = 7
     elseif step == 7 then
         local swapped = mem:read_u8(0x2C09) ~= 0x46 or mem:read_u8(0x2C0A) ~= 0x4E
         if swapped then return done("PASS")

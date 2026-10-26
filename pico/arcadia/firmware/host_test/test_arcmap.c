@@ -64,8 +64,8 @@ static void test_gate(void)
     assert(arcmap_gate(65536) == 0);                    /* 8K + 28 pages */
     assert(arcmap_gate(65536 + 1024) == FN_BOOT_ERR_NOMAP);
     assert(arcmap_gate(131072) == FN_BOOT_ERR_TOOBIG);
-    for (uint32_t k = 1; k < 32; k++)
-        assert(arcmap_app_shaped(8192 + k * 2048));
+    for (uint32_t pages = 1; pages < 32; pages++)
+        assert(arcmap_app_shaped(8192 + pages * 2048));
     assert(!arcmap_app_shaped(8192));
     assert(!arcmap_app_shaped(8192 + 32 * 2048));
 }
@@ -108,8 +108,8 @@ static void test_appbank(void)
     arcmap_plan_t plan;
 
     /* Claimed 8K + 3 pages: 4 pages counting page 0, copied whole. */
-    for (unsigned i = 0; i < sizeof img; i++)
-        img[i] = (uint8_t)(i * 7 + (i >> 11));
+    for (unsigned idx = 0; idx < sizeof img; idx++)
+        img[idx] = (uint8_t)(idx * 7 + (idx >> 11));
     memcpy(img + FN_R_CLAIM, FN_R_CLAIM_SIG, FN_R_CLAIM_LEN);
     assert(arcmap_plan(img, 8192 + 3 * 2048, &plan) == ARCMAP_OK);
     assert(plan.mailbox_ok && plan.npages == 4);
@@ -138,14 +138,14 @@ static void test_carry(void)
 {
     static uint8_t live[ARCMAP_WINDOW], staged[ARCMAP_WINDOW];
 
-    for (unsigned i = 0; i < sizeof live; i++) {
-        live[i] = (uint8_t) i;
-        staged[i] = 0xEE;
+    for (unsigned idx = 0; idx < sizeof live; idx++) {
+        live[idx] = (uint8_t) idx;
+        staged[idx] = 0xEE;
     }
     arcmap_carry_status(staged, live);
-    for (unsigned i = 0; i < sizeof live; i++) {
-        bool in = i >= FN_R_DATA && i < FN_R_PAINT_END;
-        assert(staged[i] == (in ? live[i] : 0xEE));
+    for (unsigned idx = 0; idx < sizeof live; idx++) {
+        bool painted = idx >= FN_R_DATA && idx < FN_R_PAINT_END;
+        assert(staged[idx] == (painted ? live[idx] : 0xEE));
     }
 }
 
