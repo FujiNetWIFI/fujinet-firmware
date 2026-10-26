@@ -70,8 +70,8 @@ typedef struct {
 /* Power-on state for a plan; builds the whole table. */
 void smsmap_init(smsmap_t *m, const smsmap_plan_t *plan);
 
-/* Plan an image: CRC database, then `cfg_mapper` (a MAME slot name, or NULL),
- * then MAME's own heuristic. Returns SMSMAP_OK or an SMSMAP_E*. */
+/* Plan an image: `cfg_mapper` (a MAME slot name, or NULL), then the CRC
+ * database, then MAME's own heuristic. Returns SMSMAP_OK or an SMSMAP_E*. */
 int smsmap_plan(const uint8_t *img, uint32_t len, const char *cfg_mapper,
                 smsmap_plan_t *out);
 
