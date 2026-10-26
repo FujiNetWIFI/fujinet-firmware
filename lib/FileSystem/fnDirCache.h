@@ -39,7 +39,11 @@ private:
 
 public:
     void clear();
-    void add_entry(const fsdir_entry &entry);
+    void add_entry(const char *name, bool isDir, uint32_t size, time_t modified_time);
+    void add_entry(const fsdir_entry &entry)
+    {
+        add_entry(entry.filename, entry.isDir, entry.size, entry.modified_time);
+    }
     void apply_filter(const char *pattern, uint16_t diropts);
 
     bool empty() {return _records.empty();}

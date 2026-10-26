@@ -401,6 +401,7 @@ add_executable(fssd_listing_tests
     FsSDListingTests.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFS.cpp
     ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnFsSD.cpp
+    ${CMAKE_SOURCE_DIR}/lib/FileSystem/fnDirCache.cpp
 )
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   target_sources(fssd_listing_tests PRIVATE

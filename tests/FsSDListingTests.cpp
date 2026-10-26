@@ -8,7 +8,7 @@
 
 #include "fnFsSD.h"
 
-// fnFsSD.cpp only calls this with a pattern, and these tests pass none.
+// DirCache only calls this with a pattern, and these tests pass none.
 bool util_wildcard_match(const char *, const char *) { return true; }
 
 namespace
@@ -97,5 +97,14 @@ TEST_CASE("a second handle's listing does not disturb fnSDFAT's")
 
     CHECK(fnSDFAT.dir_tell() == pos);
     CHECK(read_all(fnSDFAT) == std::vector<std::string>{"a.atr", "b.atr"});
+    fnSDFAT.dir_close();
+}
+
+TEST_CASE("dir_open honors the sort options")
+{
+    make_sd_root();
+
+    REQUIRE(fnSDFAT.dir_open("/a", nullptr, DIR_OPTION_DESCENDING).is_success());
+    CHECK(read_all(fnSDFAT) == std::vector<std::string>{"sub", "b.atr", "a.atr"});
     fnSDFAT.dir_close();
 }
