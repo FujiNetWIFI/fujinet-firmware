@@ -34,14 +34,13 @@ void DirCache::add_entry(const fsdir_entry &entry)
 void DirCache::apply_filter(const char *pattern, uint16_t diropts)
 {
 	char realpat[MAX_PATHLEN];
-	//char *thepat = nullptr;
     bool have_pattern = pattern != nullptr && pattern[0] != '\0';
 	bool filter_dirs = have_pattern && pattern[strlen(pattern)-1] == '/';
 	if (filter_dirs) {
 		strlcpy (realpat, pattern, sizeof (realpat));
 		realpat[strlen(realpat)-1] = '\0';
 	}
-	//thepat = filter_dirs ? realpat : (char *)pattern;
+	const char *thepat = filter_dirs ? realpat : pattern;
 
     _filtered.clear();
     _filtered.shrink_to_fit();
@@ -53,7 +52,7 @@ void DirCache::apply_filter(const char *pattern, uint16_t diropts)
         // Skip this entry if we have a search filter and it doesn't match it
         if (have_pattern && (
             !record.isDir || (record.isDir && filter_dirs)
-            ) && util_wildcard_match(name_of(idx), pattern) == false)
+            ) && util_wildcard_match(name_of(idx), thepat) == false)
             continue;
         _filtered.push_back(idx);
     }
