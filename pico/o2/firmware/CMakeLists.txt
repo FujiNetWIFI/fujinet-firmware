@@ -28,7 +28,9 @@ target_compile_options(PicoPAC_cart PRIVATE "-Os")
 # of it. Build with -DCONFIG_FUJINET=OFF for a stock PicoPAC.
 option(CONFIG_FUJINET "Enable the FujiNet mailbox" ON)
 if(CONFIG_FUJINET)
-    target_compile_definitions(PicoPAC_cart PRIVATE CONFIG_FUJINET=1)
+    # The bus loop needs 270 MHz, which wants the core voltage raised.
+    target_compile_definitions(PicoPAC_cart PRIVATE CONFIG_FUJINET=1
+        FUJI_SYS_CLOCK_KHZ=270000 FUJI_VREG_VOLTAGE=VREG_VOLTAGE_1_20)
 endif()
 
 #pico_set_linker_script(PicoPAC_cart ${CMAKE_CURRENT_SOURCE_DIR}/memmap_custom.ld)
@@ -66,13 +68,17 @@ target_include_directories(PicoPAC_cart PUBLIC
     ${FUJI_COMMON}/include
 )
 
-# Enable usb output, disable uart output
-pico_enable_stdio_usb(PicoPAC_cart 1)
+# stdio_usb would print on the CDC port FujiBus owns, so only a stock build gets it.
+if(CONFIG_FUJINET)
+    pico_enable_stdio_usb(PicoPAC_cart 0)
+else()
+    pico_enable_stdio_usb(PicoPAC_cart 1)
+endif()
 pico_enable_stdio_uart(PicoPAC_cart 0)
 
 # In addition to pico_stdlib required for common PicoSDK functionality, add dependency on tinyusb_device
 # for TinyUSB device support
-target_link_libraries(PicoPAC_cart PUBLIC pico_stdlib hardware_flash tinyusb_device pico_multicore)
+target_link_libraries(PicoPAC_cart PUBLIC pico_stdlib hardware_flash hardware_vreg tinyusb_device pico_multicore)
 #target_link_libraries(PicoPAC_cart PUBLIC pico_stdlib hardware_flash)
 
 # create map/bin/hex/uf2 file in addition to ELF.

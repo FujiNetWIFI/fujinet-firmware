@@ -103,3 +103,7 @@ still produces a stock PicoPAC, and it is built as a regression check.
 - `picopac_cart.c`: `picopac_cart_main()` loads the baked-in client and runs the
   mailbox service instead of building a menu and loading `selectgame.bin`.
 - `CMakeLists.txt`: the `CONFIG_FUJINET` option and the sources under `src/`.
+- `CMakeLists.txt`: `stdio_usb` is off when `CONFIG_FUJINET` is on, since it
+  would print on the CDC port FujiBus uses.
+- `CMakeLists.txt`, `picopac_cart.c`: with `CONFIG_FUJINET` the clock comes from
+  `fuji_clock_init()`, which raises the core voltage before setting 270 MHz.
