@@ -22,7 +22,7 @@ and serves a mailbox the console reaches by reads alone.
 | `testrom/*.s` | ca65 clients: `hello`, `fujitest`, `fujiboot`, `fujibank` (a 64K Super Cart app; `bank0.s` is its bank 0), and their start-up, mode 2 text and mailbox library |
 | `testrom/*.cfg`, `testrom/*.inc` | the ld65 layouts, the claim and header, and the mailbox for ca65, mirrored from `firmware/include/fuji_mailbox.h` |
 | `emu/` | the MAME cart device (`a5200_fujinet.cpp`, with [common/](../common/)'s `fujitcp.c` its FujiBus link to fujinet-pc; `apply.sh` grafts it) and the Lua harnesses |
-| `tools/` | `checkrom.py` (claim, cart-window stores, hotspot reads), `checkdefs.py`, `mkfont.py`, `mkmapdb.py`, `classify16k.py` (MAME's verdict on the traced 16K images), `a52plan.c`, `abprep.py`/`abrun.py` (stock MAME against the cart, image by image), `tierb.py` (the machine at the BIOS's first look), `soak.py` (every image booted over the network), `contact.py` |
+| `tools/` | `checkrom.py` (claim, cart-window stores, hotspot reads), `checkdefs.py`, `mkfont.py`, `mkmapdb.py`, `classify16k.py` (MAME's verdict on the traced 16K images), `a52plan.c` (built into `build/tools/` by the `Makefile`), `abprep.py`/`abrun.py` (stock MAME against the cart, image by image), `tierb.py` (the machine at the BIOS's first look), `soak.py` (every image booted over the network), `contact.py` |
 | `tools/corpus.tsv` | No-Intro images MAME's hash files miss, and how each was decided |
 | `build.sh`, `build-cart.sh`, `run.sh` | the 6502 build, the firmware build and a client in MAME (see Build) |
 

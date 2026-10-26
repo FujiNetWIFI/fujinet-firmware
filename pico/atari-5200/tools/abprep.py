@@ -41,6 +41,7 @@ def slug(name):
 
 def main():
     src = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("A52_ROMS", "/tmp/a5200")
+    subprocess.run(["make", "-s", "-C", os.path.join(HERE, "tools")], check=True)
     os.makedirs(os.path.join(AB, "a"), exist_ok=True)
     rows = []
     seen = set()

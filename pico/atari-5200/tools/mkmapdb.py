@@ -106,8 +106,7 @@ def build(args):
 
 def classify(args, db):
     a52plan = os.path.join(HERE, "..", "build", "tools", "a52plan")
-    if not os.path.exists(a52plan):
-        sys.exit("mkmapdb.py: build %s first (make -C tools)" % a52plan)
+    subprocess.run(["make", "-s", "-C", HERE], check=True)
     old = corpus_tsv(args.classify)
     rows = {}
     for path in corpus_files(args.corpus):
