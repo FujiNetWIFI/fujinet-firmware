@@ -23,7 +23,9 @@
  * wanders into the hotspot pages performs reads by fetching. Defenses, in
  * depth (the Astrocade discipline, unchanged):
  *   - a REGDATA read with no immediately-preceding REGSEL read is a no-op
- *     (regsel disarms after one use), so an isolated stray mutates nothing;
+ *     (regsel disarms after one use), so an isolated stray mutates nothing --
+ *     except that a single unarmed read at $2D80+n selects page n of an
+ *     APPBANK image's window (a flat image ignores it);
  *   - a transaction launches only on the SEQ register with a value that is
  *     nonzero and differs from the last acknowledged sequence;
  *   - the ROM-swap trigger lives at offset 0xFE and fires only after the
@@ -203,9 +205,8 @@
  * status page exactly as the client before it left it ('F', 'N', the
  * version, ACKSEQ) -- the cart carries it into the staged image when it
  * stages one; a game image (anything without the claim) kills it for the
- * session. Games of 4K or
- * less never even occupy block 2, but they do not claim, so the rule is the
- * same for all of them.
+ * session. Games of 4K or less never even occupy block 2, but they do not
+ * claim, so the rule is the same for all of them.
  *
  * CRITICAL, inherited from the Intellivision/O2/Astrocade bring-ups: the
  * client derives its next sequence number from the cart's own persisted
