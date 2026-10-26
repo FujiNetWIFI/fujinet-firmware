@@ -107,3 +107,5 @@ still produces a stock PicoPAC, and it is built as a regression check.
   would print on the CDC port FujiBus uses.
 - `CMakeLists.txt`, `picopac_cart.c`: with `CONFIG_FUJINET` the clock comes from
   `fuji_clock_init()`, which raises the core voltage before setting 270 MHz.
+- `picopac_cart.c`: core1 acts on a mailbox write once, when /WR releases, not on
+  every poll pass while it is low, since the registers auto-increment.

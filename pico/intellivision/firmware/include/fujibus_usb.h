@@ -23,6 +23,10 @@
 typedef bool (*fujibus_inbound_fn)(const fb_reply_t *frame);
 void fujibus_set_inbound_handler(fujibus_inbound_fn handler);
 
+// Sends one frame built by fujibus_build_request(), with no reply expected.
+// For an inbound handler's reply, from inside fujibus_transact()'s RX wait.
+void fujibus_send_frame(const uint8_t *frame, size_t len);
+
 // Sends one request and waits up to `timeout_ms` for the SLIP-framed reply.
 // `rx_buf` (capacity `rx_cap`) is used both as the raw USB read buffer and,
 // via fujibus_parse_reply()'s in-place decode, as the storage backing

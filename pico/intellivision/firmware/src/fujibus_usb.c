@@ -9,6 +9,17 @@ void fujibus_set_inbound_handler(fujibus_inbound_fn handler)
     s_inbound_handler = handler;
 }
 
+void fujibus_send_frame(const uint8_t *frame, size_t len)
+{
+    size_t sent = 0;
+    while (sent < len) {
+        sent += tud_cdc_write(&frame[sent], (uint32_t)(len - sent));
+        tud_cdc_write_flush();
+        tud_task();
+    }
+    tud_cdc_write_flush();
+}
+
 fb_status_t fujibus_transact(uint8_t device, uint8_t command,
                               const fb_param_t *params, unsigned nparams,
                               const uint8_t *payload, uint16_t payload_len,

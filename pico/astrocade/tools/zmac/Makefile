@@ -45,4 +45,4 @@ zip:
 	  file_id.diz
 
 clean:
-	$(RM) *.o y.tab.c zmac.c *~ zmac
+	$(RM) *.o y.tab.c *~ zmac

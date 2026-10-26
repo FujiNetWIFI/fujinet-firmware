@@ -26,4 +26,4 @@ COPYRIGHT before assuming more than that.
 
 ## Changes from upstream
 
-None. Any future patch goes here as a description plus its rationale.
+`make clean` keeps the checked-in `zmac.c`, which is not a build product here. Any future patch goes here as a description plus its rationale.
