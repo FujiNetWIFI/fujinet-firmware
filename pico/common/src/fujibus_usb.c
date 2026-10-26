@@ -35,9 +35,9 @@ bool fujibus_link_up(void)
  * the gap costs nothing against a multi-second budget. */
 static fujibus_idle_fn idle_fn;
 
-void fujibus_set_idle(fujibus_idle_fn fn)
+void fujibus_set_idle(fujibus_idle_fn hook)
 {
-    idle_fn = fn;
+    idle_fn = hook;
 }
 
 static void pump(void)

@@ -150,11 +150,11 @@ static void swapped(void)
  * has sent since, up to the first mailbox read, which waits its turn. */
 static void service_idle(void)
 {
-    uint16_t e;
+    uint16_t event;
 
-    while (fuji_cart_peek(&e) && e >= FN_TEXT_BASE && e != S2_RING_SWAP) {
-        (void)fuji_cart_next(&e);
-        s2_text_event(&fuji_text, e);
+    while (fuji_cart_peek(&event) && event >= FN_TEXT_BASE && event != S2_RING_SWAP) {
+        (void)fuji_cart_next(&event);
+        s2_text_event(&fuji_text, event);
     }
     s2_text_compose(&fuji_text);
     fuji_cart_poke(FN_R_FRAMES, fuji_bus.frames);

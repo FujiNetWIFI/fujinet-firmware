@@ -164,71 +164,73 @@ static void print_reply(s2_text_t *t, bool pad)
 
 /* ---- graphics: the background as rows of 64 bits, pixel 0 the top bit ---- */
 
-static uint64_t row_get(const uint8_t *l)
+static uint64_t row_get(const uint8_t *line)
 {
-    uint64_t v = 0;
-    unsigned i;
+    uint64_t bits = 0;
+    unsigned idx;
 
-    for (i = 0; i < 8; i++)
-        v = (v << 8) | l[i];
-    return v;
+    for (idx = 0; idx < 8; idx++)
+        bits = (bits << 8) | line[idx];
+    return bits;
 }
 
-static void row_put(uint8_t *l, uint64_t v)
+static void row_put(uint8_t *line, uint64_t bits)
 {
-    int i;
+    int idx;
 
-    for (i = 7; i >= 0; i--, v >>= 8)
-        l[i] = (uint8_t)v;
+    for (idx = 7; idx >= 0; idx--, bits >>= 8)
+        line[idx] = (uint8_t)bits;
 }
 
-/* Byte `b` (bit 7 its leftmost pixel) placed at pixel x of a row. */
-static uint64_t at_x(uint8_t b, int x)
+/* Byte `val` (bit 7 its leftmost pixel) placed at pixel xpos of a row. */
+static uint64_t at_x(uint8_t val, int xpos)
 {
-    if (x <= -8 || x >= 64)
+    if (xpos <= -8 || xpos >= 64)
         return 0;
-    if (x < 0)
-        return (uint64_t)(uint8_t)(b << -x) << 56;
-    return ((uint64_t)b << 56) >> x;
+    if (xpos < 0)
+        return (uint64_t)(uint8_t)(val << -xpos) << 56;
+    return ((uint64_t)val << 56) >> xpos;
 }
 
-/* One line of an image, rectangle or character onto line y of `r`. */
-static void line_op(uint8_t *r, int y, uint64_t box, uint64_t bits, uint64_t clr,
-                    unsigned op)
+/* One line of an image, rectangle or character onto line ypos of `ras`. */
+static void line_op(uint8_t *ras, int ypos, uint64_t box, uint64_t bits, uint64_t clr,
+                    unsigned mode)
 {
-    uint64_t v;
+    uint64_t cur;
 
-    if (y < 0 || y >= (int)S2T_LINES)
+    if (ypos < 0 || ypos >= (int)S2T_LINES)
         return;
-    v = row_get(r + y * 8);
-    switch (op) {
-    case S2T_SET:   v = (v & ~box) | bits; break;
-    case S2T_OR:    v |= bits; break;
-    case S2T_XOR:   v ^= bits; break;
-    case S2T_CLEAR: v &= ~bits; break;
-    case S2T_MASK:  v = (v & ~clr) | bits; break;
+    cur = row_get(ras + ypos * 8);
+    switch (mode) {
+    case S2T_SET:   cur = (cur & ~box) | bits; break;
+    case S2T_OR:    cur |= bits; break;
+    case S2T_XOR:   cur ^= bits; break;
+    case S2T_CLEAR: cur &= ~bits; break;
+    case S2T_MASK:  cur = (cur & ~clr) | bits; break;
     default:        return;
     }
-    row_put(r + y * 8, v);
+    row_put(ras + ypos * 8, cur);
 }
 
-static void draw_image(s2_text_t *t, uint8_t *r, unsigned id, int x, int y, unsigned mode)
+static void draw_image(s2_text_t *t, uint8_t *ras, unsigned image, int xpos, int ypos,
+                       unsigned mode)
 {
-    const s2t_image_t *im, *mk;
-    uint8_t wm;
-    unsigned i, n, op = mode & 7u;
+    const s2t_image_t *img, *mask;
+    uint8_t wmask;
+    unsigned idx, count, rop = mode & 7u;
 
-    if (id >= S2T_NIMAGES)
+    if (image >= S2T_NIMAGES)
         return;
-    im = &t->img[id];
-    mk = op == S2T_MASK && id + 1u < S2T_NIMAGES ? &t->img[id + 1u] : im;
-    if (!im->w)
+    img = &t->img[image];
+    mask = rop == S2T_MASK && image + 1u < S2T_NIMAGES ? &t->img[image + 1u] : img;
+    if (!img->width)
         return;
-    wm = (uint8_t)(0xFFu << (8u - im->w));
-    n = op == S2T_MASK && mk->h > im->h ? mk->h : im->h;
-    for (i = 0; i < n; i++)
-        line_op(r, y + (int)i, at_x(wm, x), at_x(i < im->h ? im->rows[i] & wm : 0, x),
-                at_x(i < mk->h ? mk->rows[i] : 0, x), op);
+    wmask = (uint8_t)(0xFFu << (8u - img->width));
+    count = rop == S2T_MASK && mask->height > img->height ? mask->height : img->height;
+    for (idx = 0; idx < count; idx++)
+        line_op(ras, ypos + (int)idx, at_x(wmask, xpos),
+                at_x(idx < img->height ? img->rows[idx] & wmask : 0, xpos),
+                at_x(idx < mask->height ? mask->rows[idx] : 0, xpos), rop);
 }
 
 static const uint8_t pattern[8][4] = {
@@ -242,139 +244,145 @@ static const uint8_t pattern[8][4] = {
     { 0xF, 0xF, 0xF, 0xF },
 };
 
-static void draw_rect(uint8_t *r, int x, int y, unsigned w, unsigned h, unsigned mode)
+static void draw_rect(uint8_t *ras, int xpos, int ypos, unsigned width, unsigned height,
+                      unsigned mode)
 {
-    int x0 = x < 0 ? 0 : x, x1 = x + (int)w > 64 ? 64 : x + (int)w;
-    unsigned i, op = mode & 7u;
+    int left = xpos < 0 ? 0 : xpos, right = xpos + (int)width > 64 ? 64 : xpos + (int)width;
+    unsigned idx, rop = mode & 7u;
     uint64_t box;
 
-    if (x0 >= x1 || op == S2T_MASK)
+    if (left >= right || rop == S2T_MASK)
         return;
-    box = x1 - x0 == 64 ? ~(uint64_t)0 : (((uint64_t)1 << (x1 - x0)) - 1u) << (64 - x1);
-    for (i = 0; i < h; i++) {
-        int yy = y + (int)i;
-        uint64_t pat = pattern[(mode >> 4) & 7u][yy & 3] * 0x1111111111111111ULL;
+    box = right - left == 64 ? ~(uint64_t)0
+                             : (((uint64_t)1 << (right - left)) - 1u) << (64 - right);
+    for (idx = 0; idx < height; idx++) {
+        int rowy = ypos + (int)idx;
+        uint64_t pat = pattern[(mode >> 4) & 7u][rowy & 3] * 0x1111111111111111ULL;
 
-        line_op(r, yy, box, box & pat, 0, op);
+        line_op(ras, rowy, box, box & pat, 0, rop);
     }
 }
 
 /* PTEXT: characters at any pixel, from the cell font or the app glyphs. */
-static void draw_ptext(s2_text_t *t, int x, int y, unsigned mode, const uint8_t *s, unsigned n)
+static void draw_ptext(s2_text_t *t, int xpos, int ypos, unsigned mode, const uint8_t *text,
+                       unsigned len)
 {
     bool shrt = (mode & S2T_SHORT) != 0;
-    unsigned lines = shrt ? 5u : S2T_CELL_LINES, i, k;
+    unsigned lines = shrt ? 5u : S2T_CELL_LINES, idx, chr;
 
-    for (k = 0; k < n; k++, x += 4)
-        for (i = 0; i < lines; i++) {
-            uint8_t bits = (uint8_t)(s2_text_cell_line(t, s[k], shrt ? 1u + 2u * i : i) << 4);
+    for (chr = 0; chr < len; chr++, xpos += 4)
+        for (idx = 0; idx < lines; idx++) {
+            unsigned cell = shrt ? 1u + 2u * idx : idx;
+            uint8_t bits = (uint8_t)(s2_text_cell_line(t, text[chr], cell) << 4);
 
-            line_op(t->raster, y + (int)i, at_x(0xF0, x), at_x(bits, x), 0, mode & 7u);
+            line_op(t->raster, ypos + (int)idx, at_x(0xF0, xpos), at_x(bits, xpos), 0,
+                    mode & 7u);
         }
 }
 
 bool s2_text_compose(s2_text_t *t)
 {
-    struct s2_disp *d = &t->disp;
-    int dx = t->view_dx, dy = t->view_dy, y;
-    uint8_t k, *o;
-    unsigned n;
+    struct s2_disp *disp = &t->disp;
+    int shift_x = t->view_dx, shift_y = t->view_dy, ypos;
+    uint8_t back, *out;
+    unsigned idx;
 
-    if (!t->dirty || t->hold || d->pending != S2D_NONE)
+    if (!t->dirty || t->hold || disp->pending != S2D_NONE)
         return false;
     __atomic_thread_fence(__ATOMIC_ACQUIRE);
-    k = (uint8_t)(d->front ^ 1u);
-    o = d->buf[k];
-    if (dx > 63 || dx < -63)
-        dx = 0;
-    for (y = 0; y < (int)S2T_LINES; y++) {
-        int sy = y - dy;
-        uint64_t v = 0;
+    back = (uint8_t)(disp->front ^ 1u);
+    out = disp->buf[back];
+    if (shift_x > 63 || shift_x < -63)
+        shift_x = 0;
+    for (ypos = 0; ypos < (int)S2T_LINES; ypos++) {
+        int srcy = ypos - shift_y;
+        uint64_t bits = 0;
 
-        if (sy >= 0 && sy < (int)S2T_LINES) {
-            v = row_get(t->raster + sy * 8);
-            v = dx >= 0 ? v >> dx : v << -dx;
+        if (srcy >= 0 && srcy < (int)S2T_LINES) {
+            bits = row_get(t->raster + srcy * 8);
+            bits = shift_x >= 0 ? bits >> shift_x : bits << -shift_x;
         }
-        row_put(o + y * 8, v);
+        row_put(out + ypos * 8, bits);
     }
-    memcpy(o + S2T_LINES * 8u, t->raster + S2T_LINES * 8u, FN_RASTER_SIZE - S2T_LINES * 8u);
-    for (n = 0; n < S2T_NSPRITES; n++) {
-        const s2t_sprite_t *sp = &t->spr[n];
+    memcpy(out + S2T_LINES * 8u, t->raster + S2T_LINES * 8u, FN_RASTER_SIZE - S2T_LINES * 8u);
+    for (idx = 0; idx < S2T_NSPRITES; idx++) {
+        const s2t_sprite_t *sprite = &t->spr[idx];
 
-        if (sp->on && sp->x < 64)
-            draw_image(t, o, sp->id, sp->x + dx, sp->y + dy, sp->mode);
+        if (sprite->shown && sprite->xpos < 64)
+            draw_image(t, out, sprite->image, sprite->xpos + shift_x, sprite->ypos + shift_y,
+                       sprite->mode);
     }
     if (t->view_flags & S2T_VIEW_INVERT)
-        for (n = 0; n < S2T_LINES * 8u; n++)
-            o[n] = (uint8_t)~o[n];
+        for (idx = 0; idx < S2T_LINES * 8u; idx++)
+            out[idx] = (uint8_t)~out[idx];
     __atomic_thread_fence(__ATOMIC_RELEASE);
-    d->pending = k;
+    disp->pending = back;
     t->dirty = false;
     return true;
 }
 
 static void gfx_op(s2_text_t *t, uint8_t code)
 {
-    const uint8_t *p = t->param;
-    unsigned n = t->nparam, i;
+    const uint8_t *par = t->param;
+    unsigned count = t->nparam, idx;
 
     switch (code) {
     case S2T_OP_IMAGE:
-        if (n >= 3 && p[0] < S2T_NIMAGES) {
-            s2t_image_t *im = &t->img[p[0]];
+        if (count >= 3 && par[0] < S2T_NIMAGES) {
+            s2t_image_t *img = &t->img[par[0]];
 
-            memset(im, 0, sizeof *im);
-            im->w = p[1] > 8 ? 8 : p[1];
-            im->h = p[2] > S2T_IMG_LINES ? S2T_IMG_LINES : p[2];
-            for (i = 0; i < im->h && i + 3 < n; i++)
-                im->rows[i] = p[i + 3];
+            memset(img, 0, sizeof *img);
+            img->width = par[1] > 8 ? 8 : par[1];
+            img->height = par[2] > S2T_IMG_LINES ? S2T_IMG_LINES : par[2];
+            for (idx = 0; idx < img->height && idx + 3 < count; idx++)
+                img->rows[idx] = par[idx + 3];
         }
         break;
     case S2T_OP_STAMP:
-        if (n >= 4)
-            draw_image(t, t->raster, p[0], (int8_t)p[1], (int8_t)p[2], p[3]);
+        if (count >= 4)
+            draw_image(t, t->raster, par[0], (int8_t)par[1], (int8_t)par[2], par[3]);
         break;
     case S2T_OP_RECT:
-        if (n >= 5)
-            draw_rect(t->raster, (int8_t)p[0], (int8_t)p[1], p[2], p[3], p[4]);
+        if (count >= 5)
+            draw_rect(t->raster, (int8_t)par[0], (int8_t)par[1], par[2], par[3], par[4]);
         break;
     case S2T_OP_SPRITE:
-        if (n >= 5 && p[0] < S2T_NSPRITES) {
-            s2t_sprite_t *sp = &t->spr[p[0]];
+        if (count >= 5 && par[0] < S2T_NSPRITES) {
+            s2t_sprite_t *sprite = &t->spr[par[0]];
 
-            sp->id = p[1];
-            sp->x = (int8_t)p[2];
-            sp->y = (int8_t)p[3];
-            sp->mode = p[4];
-            sp->on = true;
+            sprite->image = par[1];
+            sprite->xpos = (int8_t)par[2];
+            sprite->ypos = (int8_t)par[3];
+            sprite->mode = par[4];
+            sprite->shown = true;
         }
         break;
     case S2T_OP_SPRMOVE:
-        if (n >= 3 && p[0] < S2T_NSPRITES) {
-            t->spr[p[0]].x = (int8_t)p[1];
-            t->spr[p[0]].y = (int8_t)p[2];
-            t->spr[p[0]].on = true;
+        if (count >= 3 && par[0] < S2T_NSPRITES) {
+            t->spr[par[0]].xpos = (int8_t)par[1];
+            t->spr[par[0]].ypos = (int8_t)par[2];
+            t->spr[par[0]].shown = true;
         }
         break;
     case S2T_OP_SPRHIDE: {
-        unsigned mask = n ? p[0] | (n >= 2 ? (unsigned)p[1] << 8 : 0u) : 0xFFFFu;
+        unsigned mask = count ? par[0] | (count >= 2 ? (unsigned)par[1] << 8 : 0u) : 0xFFFFu;
 
-        for (i = 0; i < S2T_NSPRITES; i++)
-            if (mask & (1u << i))
-                t->spr[i].on = false;
+        for (idx = 0; idx < S2T_NSPRITES; idx++)
+            if (mask & (1u << idx))
+                t->spr[idx].shown = false;
         break;
     }
     case S2T_OP_VIEW:
-        t->view_dx = n >= 1 ? (int8_t)p[0] : 0;
-        t->view_dy = n >= 2 ? (int8_t)p[1] : 0;
-        t->view_flags = n >= 3 ? p[2] : 0;
+        t->view_dx = count >= 1 ? (int8_t)par[0] : 0;
+        t->view_dy = count >= 2 ? (int8_t)par[1] : 0;
+        t->view_flags = count >= 3 ? par[2] : 0;
         break;
     case S2T_OP_PTEXT:
-        if (n >= 3)
-            draw_ptext(t, (int8_t)p[0], (int8_t)p[1], p[2], p + 3, n - 3);
+        if (count >= 3)
+            draw_ptext(t, (int8_t)par[0], (int8_t)par[1], par[2], par + 3, count - 3);
         break;
     case S2T_OP_HOLD:
-        t->hold = n >= 1 && p[0];
+        t->hold = count >= 1 && par[0];
         break;
     default:
         break;
@@ -393,7 +401,7 @@ static void op(s2_text_t *t, uint8_t code)
         clear_rows(t, 0, S2T_ROWS);
         t->row = t->col = 0;
         for (i = 0; i < S2T_NSPRITES; i++)
-            t->spr[i].on = false;
+            t->spr[i].shown = false;
         t->view_dx = t->view_dy = 0;
         t->view_flags = 0;
         t->hold = false;

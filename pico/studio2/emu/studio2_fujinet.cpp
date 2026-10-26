@@ -375,7 +375,7 @@ void studio2_fujinet_device::own_reg(uint8_t reg, uint8_t value)
 	}
 	bool ran;
 	{
-		std::lock_guard<std::mutex> g(m_loadlock);
+		std::lock_guard<std::mutex> guard(m_loadlock);
 		ran = s2map_copy_reg(&m_copy, fuji_load_live(&m_load), reg, value);
 	}
 	if (ran)
@@ -388,8 +388,8 @@ void studio2_fujinet_device::dbg_map()
 {
 	m_dbg_live = m_load.live;
 	const uint8_t *base = m_buf[m_load.live].data();
-	for (unsigned pg = 0; pg < S2MAP_PAGES; pg++)
-		m_dbg_pg[pg] = m_view->wpage[pg] ? uint8_t((m_view->wpage[pg] - base) / S2MAP_PAGE + 1) : 0;
+	for (unsigned page = 0; page < S2MAP_PAGES; page++)
+		m_dbg_pg[page] = m_view->wpage[page] ? uint8_t((m_view->wpage[page] - base) / S2MAP_PAGE + 1) : 0;
 }
 
 // The picture for the next frame, and the sprites where Lua can see them.
@@ -397,14 +397,14 @@ void studio2_fujinet_device::compose()
 {
 	if (!s2_text_compose(&m_text))
 		return;
-	for (unsigned n = 0; n < S2T_NSPRITES; n++)
+	for (unsigned idx = 0; idx < S2T_NSPRITES; idx++)
 	{
-		const s2t_sprite_t &sp = m_text.spr[n];
-		m_spr[n][0] = sp.id;
-		m_spr[n][1] = uint8_t(sp.x);
-		m_spr[n][2] = uint8_t(sp.y);
-		m_spr[n][3] = sp.mode;
-		m_spr[n][4] = sp.on ? 1 : 0;
+		const s2t_sprite_t &sprite = m_text.spr[idx];
+		m_spr[idx][0] = sprite.image;
+		m_spr[idx][1] = uint8_t(sprite.xpos);
+		m_spr[idx][2] = uint8_t(sprite.ypos);
+		m_spr[idx][3] = sprite.mode;
+		m_spr[idx][4] = sprite.shown ? 1 : 0;
 	}
 }
 
@@ -415,17 +415,17 @@ void studio2_fujinet_device::idle()
 {
 	for (;;)
 	{
-		uint16_t a;
+		uint16_t addr;
 		{
-			std::lock_guard<std::mutex> g(m_qlock);
+			std::lock_guard<std::mutex> guard(m_qlock);
 			if (m_events.empty())
 				break;
-			a = m_events.front();
-			if (a < FN_TEXT_BASE || a == EV_SWAPPED)
+			addr = m_events.front();
+			if (addr < FN_TEXT_BASE || addr == EV_SWAPPED)
 				break;
 			m_events.pop_front();
 		}
-		s2_text_event(&m_text, a);
+		s2_text_event(&m_text, addr);
 	}
 	compose();
 }

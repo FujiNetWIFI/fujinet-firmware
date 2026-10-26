@@ -70,7 +70,7 @@ typedef struct {
     uint32_t size;           /* bytes pushed                                 */
     uint32_t crc;            /* CRC-32 of the pushed bytes                   */
     uint8_t  src[S2MAP_PAGES];
-    uint8_t  nbanks;         /* banks in the window: most blocks one page has */
+    uint8_t  nbanks;         /* banks in the window: each $C4 block opens one */
     uint8_t  bank_src[S2MAP_NBANKS][S2MAP_WIN_PAGES];   /* S2SRC_*           */
 } s2map_plan_t;
 
@@ -132,33 +132,33 @@ typedef struct {
     uint8_t done;           /* COPYs finished, mod 256: FN_R_COPYDONE        */
 } s2_copy_t;
 
-/* One COPY register write; true when it ran a COPY (publish c->done). */
-bool s2map_copy_reg(s2_copy_t *c, s2_view_t *v, uint8_t reg, uint8_t data);
+/* One COPY register write; true when it ran a COPY (publish copy->done). */
+bool s2map_copy_reg(s2_copy_t *copy, s2_view_t *view, uint8_t reg, uint8_t data);
 
-/* Bank n into the window; core1 calls it between two reads. */
-S2_HOT void s2map_bank(s2_view_t *v, unsigned n)
+/* Bank `bank` into the window; core1 calls it between two reads. */
+S2_HOT void s2map_bank(s2_view_t *view, unsigned bank)
 {
-    unsigned w;
+    unsigned win;
 
-    if (!v->nbanks)
+    if (!view->nbanks)
         return;
-    v->bank = (uint8_t)n;
-    for (w = 0; w < S2MAP_WIN_PAGES; w++) {
-        bool have = n < S2MAP_NBANKS;
+    view->bank = (uint8_t)bank;
+    for (win = 0; win < S2MAP_WIN_PAGES; win++) {
+        bool have = bank < S2MAP_NBANKS;
 
-        v->page[S2MAP_WIN_PAGE + w] = have ? v->bank_page[n][w] : s2map_ff_page;
-        v->wpage[S2MAP_WIN_PAGE + w] = have ? v->bank_wpage[n][w] : NULL;
+        view->page[S2MAP_WIN_PAGE + win] = have ? view->bank_page[bank][win] : s2map_ff_page;
+        view->wpage[S2MAP_WIN_PAGE + win] = have ? view->bank_wpage[bank][win] : NULL;
     }
 }
 
-/* Store `d` at `a` if a block backs that page; false where it does not. */
-S2_HOT bool s2map_poke(s2_view_t *v, uint16_t a, uint8_t d)
+/* Store `val` at `addr` if a block backs that page; false where it does not. */
+S2_HOT bool s2map_poke(s2_view_t *view, uint16_t addr, uint8_t val)
 {
-    uint8_t *pg = v->wpage[a >> 8];
+    uint8_t *page = view->wpage[addr >> 8];
 
-    if (!pg)
+    if (!page)
         return false;
-    pg[a & 0xFFu] = d;
+    page[addr & 0xFFu] = val;
     return true;
 }
 

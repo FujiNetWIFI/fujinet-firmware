@@ -91,7 +91,7 @@ typedef struct {
     bool     r_seen;
     uint16_t r_line, r_col;
     uint8_t  frames;        /* raster frames served, mod 256                */
-    uint8_t  rs;            /* the register core1 decodes, or S2_RS_NONE    */
+    uint8_t  regsel;        /* the register core1 decodes, or S2_RS_NONE    */
     uint16_t ptr;           /* the poke pointer                             */
 } s2_bus_t;
 
@@ -107,7 +107,7 @@ static inline void s2_bus_reset(s2_bus_t *b)
     b->r_line = 0;
     b->r_col = 0;
     b->frames = 0;
-    b->rs = S2_RS_NONE;
+    b->regsel = S2_RS_NONE;
     b->ptr = 0;
 }
 
@@ -118,7 +118,7 @@ static inline void s2_bus_reset(s2_bus_t *b)
 
 /* The raster byte at the next DMA position. A frame starts on the buffer
  * core0 left pending, if any. */
-S2_HOT uint8_t s2_raster_next(s2_bus_t *b, s2_disp_t *d, uint32_t t)
+S2_HOT uint8_t s2_raster_next(s2_bus_t *b, s2_disp_t *disp, uint32_t t)
 {
     uint32_t dt = t - b->r_t;
 
@@ -126,7 +126,7 @@ S2_HOT uint8_t s2_raster_next(s2_bus_t *b, s2_disp_t *d, uint32_t t)
         b->r_line = 0;
         b->r_col = 0;
         b->frames++;
-        s2_disp_flip(d);
+        s2_disp_flip(disp);
     } else if (dt > S2_LINEGAP_US) {
         b->r_line++;
         b->r_col = 0;
@@ -137,41 +137,41 @@ S2_HOT uint8_t s2_raster_next(s2_bus_t *b, s2_disp_t *d, uint32_t t)
     b->r_t = t;
     if (b->r_line >= S2_LINES || b->r_col >= S2_LINE_BYTES)
         return 0;
-    return d->buf[d->front][b->r_line * S2_LINE_BYTES + b->r_col];
+    return disp->buf[disp->front][b->r_line * S2_LINE_BYTES + b->r_col];
 }
 
 /* Registers core1 decodes itself, never queued (fuji_mailbox.h): bank
- * selects, and the poke pointer and stream. True when `a` was one of them. */
-S2_HOT bool s2_bus_cartreg(s2_bus_t *b, s2_view_t *v, uint16_t a)
+ * selects, and the poke pointer and stream. True when `addr` was one of them. */
+S2_HOT bool s2_bus_cartreg(s2_bus_t *b, s2_view_t *view, uint16_t addr)
 {
-    unsigned lo = a & 0xFFu;
+    unsigned low = addr & 0xFFu;
 
-    if ((a >> 8) == ((FN_ARENA_BASE + FN_H_REGSEL) >> 8)) {
-        if (lo >= FN_HOT_BANK && lo < FN_HOT_STUB) {
-            s2map_bank(v, lo - FN_HOT_BANK);
+    if ((addr >> 8) == ((FN_ARENA_BASE + FN_H_REGSEL) >> 8)) {
+        if (low >= FN_HOT_BANK && low < FN_HOT_STUB) {
+            s2map_bank(view, low - FN_HOT_BANK);
             return true;
         }
-        if (lo == FN_REG_PTRLO || lo == FN_REG_PTRHI || lo == FN_REG_POKE) {
-            b->rs = (uint8_t)lo;
+        if (low == FN_REG_PTRLO || low == FN_REG_PTRHI || low == FN_REG_POKE) {
+            b->regsel = (uint8_t)low;
             return true;
         }
-        if (lo < FN_HOT_BANK)
-            b->rs = S2_RS_NONE;
+        if (low < FN_HOT_BANK)
+            b->regsel = S2_RS_NONE;
         return false;
     }
-    if ((a >> 8) != ((FN_ARENA_BASE + FN_H_REGDATA) >> 8) || b->rs == S2_RS_NONE)
+    if ((addr >> 8) != ((FN_ARENA_BASE + FN_H_REGDATA) >> 8) || b->regsel == S2_RS_NONE)
         return false;
-    switch (b->rs) {
+    switch (b->regsel) {
     case FN_REG_PTRLO:
-        b->ptr = (uint16_t)((b->ptr & 0xFF00u) | lo);
-        b->rs = S2_RS_NONE;
+        b->ptr = (uint16_t)((b->ptr & 0xFF00u) | low);
+        b->regsel = S2_RS_NONE;
         break;
     case FN_REG_PTRHI:
-        b->ptr = (uint16_t)((b->ptr & 0x00FFu) | (lo << 8));
-        b->rs = S2_RS_NONE;
+        b->ptr = (uint16_t)((b->ptr & 0x00FFu) | (low << 8));
+        b->regsel = S2_RS_NONE;
         break;
     default:
-        (void)s2map_poke(v, b->ptr, (uint8_t)lo);
+        (void)s2map_poke(view, b->ptr, (uint8_t)low);
         b->ptr++;
         break;
     }

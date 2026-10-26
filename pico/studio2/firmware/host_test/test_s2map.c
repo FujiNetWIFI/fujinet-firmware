@@ -248,14 +248,14 @@ static void test_refusals(void)
      * page once, then the window again as banks 1-3 */
     {
         uint8_t pages[S2MAP_ST2_BLOCKS];
-        unsigned pg, k = 0;
+        unsigned page, count = 0;
 
-        for (pg = 0x04; pg < 0xE4; pg++)
-            if (s2map_page_ok(pg, true))
-                pages[k++] = (uint8_t)pg;
-        assert(k == 165);
-        for (; k < S2MAP_ST2_BLOCKS; k++)
-            pages[k] = (uint8_t)(S2MAP_WIN_PAGE + (k - 165) % S2MAP_WIN_PAGES);
+        for (page = 0x04; page < 0xE4; page++)
+            if (s2map_page_ok(page, true))
+                pages[count++] = (uint8_t)page;
+        assert(count == 165);
+        for (; count < S2MAP_ST2_BLOCKS; count++)
+            pages[count] = (uint8_t)(S2MAP_WIN_PAGE + (count - 165) % S2MAP_WIN_PAGES);
         n = mk_st2(img, pages, S2MAP_ST2_BLOCKS, 0);
         assert(s2map_plan(img, n, false, &p) == S2MAP_OK);
         assert(p.blocks == S2MAP_ST2_BLOCKS && p.nbanks == 4);
@@ -283,54 +283,57 @@ static void test_banks(void)
 {
     /* $C4 three times, $C5 once, $C6 in bank 1 only; "FUJI" at $07FC */
     static const uint8_t pages[] = { 0x07, 0xC4, 0xC5, 0xC4, 0xC6, 0xC4, 0x14 };
-    uint32_t n = mk_st2(img, pages, sizeof pages, 0x10);
-    s2map_plan_t p;
-    s2_view_t v;
-    s2_copy_t c = { 0 };
-    unsigned w;
+    uint32_t len = mk_st2(img, pages, sizeof pages, 0x10);
+    s2map_plan_t plan;
+    s2_view_t view;
+    s2_copy_t copy = { 0 };
+    unsigned win;
 
     memcpy(img + 256 + 252, "FUJI", 4);
-    assert(plan_view(img, n, &p, &v) == S2MAP_OK);
-    assert(p.claim && p.nbanks == 3 && p.blocks == 7 && v.nbanks == 3 && v.bank == 0);
+    assert(plan_view(img, len, &plan, &view) == S2MAP_OK);
+    assert(plan.claim && plan.nbanks == 3 && plan.blocks == 7);
+    assert(view.nbanks == 3 && view.bank == 0);
     /* bank 0: blocks 1 and 2; $C6 and the rest of the window read $FF */
-    assert(v.page[0xC4][0] == img[512] && v.page[0xC5][0] == img[768]);
-    assert(v.type[0xC6] == S2PG_ROM && v.page[0xC6][9] == 0xFF && v.type[0xCF] == S2PG_ROM);
-    s2map_bank(&v, 1);
-    assert(v.page[0xC4][3] == img[1024 + 3] && v.page[0xC6][0] == img[1280]);
-    assert(v.page[0xC5][0] == 0xFF && !v.wpage[0xC5]);
-    s2map_bank(&v, 2);
-    assert(v.page[0xC4][0] == img[1536] && v.page[0xC6][0] == 0xFF);
-    s2map_bank(&v, 3);                          /* never planned */
-    for (w = 0; w < S2MAP_WIN_PAGES; w++)
-        assert(v.page[S2MAP_WIN_PAGE + w][0] == 0xFF);
-    s2map_bank(&v, 200);
-    assert(v.page[0xC4][0] == 0xFF);
-    s2map_bank(&v, 1);
+    assert(view.page[0xC4][0] == img[512] && view.page[0xC5][0] == img[768]);
+    assert(view.type[0xC6] == S2PG_ROM && view.page[0xC6][9] == 0xFF);
+    assert(view.type[0xCF] == S2PG_ROM);
+    s2map_bank(&view, 1);
+    assert(view.page[0xC4][3] == img[1024 + 3] && view.page[0xC6][0] == img[1280]);
+    assert(view.page[0xC5][0] == 0xFF && !view.wpage[0xC5]);
+    s2map_bank(&view, 2);
+    assert(view.page[0xC4][0] == img[1536] && view.page[0xC6][0] == 0xFF);
+    s2map_bank(&view, 3);                          /* never planned */
+    for (win = 0; win < S2MAP_WIN_PAGES; win++)
+        assert(view.page[S2MAP_WIN_PAGE + win][0] == 0xFF);
+    s2map_bank(&view, 200);
+    assert(view.page[0xC4][0] == 0xFF);
+    s2map_bank(&view, 1);
 
     /* pokes land in the block's bytes, in whichever bank is in */
-    assert(s2map_poke(&v, 0xC412, 0x5A) && buf[4 * 256 + 0x12] == 0x5A);   /* block 3 */
-    assert(s2map_poke(&v, 0x1400, 0xA5) && v.page[0x14][0] == 0xA5);
-    assert(!s2map_poke(&v, 0x0500, 1));         /* zero-filled, no block */
-    assert(!s2map_poke(&v, 0xE400, 1));         /* the reply window */
-    assert(!s2map_poke(&v, 0x0900, 1));         /* console RAM */
+    assert(s2map_poke(&view, 0xC412, 0x5A) && buf[4 * 256 + 0x12] == 0x5A);   /* block 3 */
+    assert(s2map_poke(&view, 0x1400, 0xA5) && view.page[0x14][0] == 0xA5);
+    assert(!s2map_poke(&view, 0x0500, 1));         /* zero-filled, no block */
+    assert(!s2map_poke(&view, 0xE400, 1));         /* the reply window */
+    assert(!s2map_poke(&view, 0x0900, 1));         /* console RAM */
 
     /* COPY: the reply window into a block, run by the last register */
     memcpy(arena, "STATE!", 6);
-    assert(!s2map_copy_reg(&c, &v, FN_REG_CPSRCLO, 0x00));
-    assert(!s2map_copy_reg(&c, &v, FN_REG_CPSRCHI, 0xE4));
-    assert(!s2map_copy_reg(&c, &v, FN_REG_CPDSTLO, 0x10));
-    assert(!s2map_copy_reg(&c, &v, FN_REG_CPDSTHI, 0x14));
-    assert(!s2map_copy_reg(&c, &v, FN_REG_CPLENLO, 6));
-    assert(s2map_copy_reg(&c, &v, FN_REG_CPLENHI, 0));
-    assert(c.done == 1 && memcmp(v.page[0x14] + 0x10, "STATE!", 6) == 0);
+    assert(!s2map_copy_reg(&copy, &view, FN_REG_CPSRCLO, 0x00));
+    assert(!s2map_copy_reg(&copy, &view, FN_REG_CPSRCHI, 0xE4));
+    assert(!s2map_copy_reg(&copy, &view, FN_REG_CPDSTLO, 0x10));
+    assert(!s2map_copy_reg(&copy, &view, FN_REG_CPDSTHI, 0x14));
+    assert(!s2map_copy_reg(&copy, &view, FN_REG_CPLENLO, 6));
+    assert(s2map_copy_reg(&copy, &view, FN_REG_CPLENHI, 0));
+    assert(copy.done == 1 && memcmp(view.page[0x14] + 0x10, "STATE!", 6) == 0);
     /* image to image, across a page; a source past the image reads as served */
-    c.src = 0x14FE;
-    c.dst = 0xC4FE;
-    assert(s2map_copy_reg(&c, &v, FN_REG_CPLENLO, 4) == false);
-    assert(s2map_copy_reg(&c, &v, FN_REG_CPLENHI, 0) && c.done == 2);
-    assert(v.page[0xC4][0xFE] == v.page[0x14][0xFE] && v.page[0xC4][0xFF] == v.page[0x14][0xFF]);
-    assert(v.page[0xC5][0] == 0xFF);            /* bank 1 has no $C5: nothing written */
-    assert(!s2map_copy_reg(&c, &v, FN_REG_CONFIG, 0));
+    copy.src = 0x14FE;
+    copy.dst = 0xC4FE;
+    assert(s2map_copy_reg(&copy, &view, FN_REG_CPLENLO, 4) == false);
+    assert(s2map_copy_reg(&copy, &view, FN_REG_CPLENHI, 0) && copy.done == 2);
+    assert(view.page[0xC4][0xFE] == view.page[0x14][0xFE]);
+    assert(view.page[0xC4][0xFF] == view.page[0x14][0xFF]);
+    assert(view.page[0xC5][0] == 0xFF);            /* bank 1 has no $C5: nothing written */
+    assert(!s2map_copy_reg(&copy, &view, FN_REG_CONFIG, 0));
 }
 
 static void test_claim(void)

@@ -12,49 +12,51 @@
 
 static s2_text_t t;
 
-static void ev(unsigned page, unsigned v)
+static void ev(unsigned page, unsigned val)
 {
-    s2_text_event(&t, (uint16_t)((page << 8) | (v & 0xFF)));
+    s2_text_event(&t, (uint16_t)((page << 8) | (val & 0xFF)));
 }
 
-static void op(unsigned code, const int *p, unsigned n)
+static void op(unsigned code, const int *args, unsigned count)
 {
-    unsigned i;
+    unsigned idx;
 
-    for (i = 0; i < n; i++)
-        ev(S2T_H_PARAM, (unsigned)p[i] & 0xFF);
+    for (idx = 0; idx < count; idx++)
+        ev(S2T_H_PARAM, (unsigned)args[idx] & 0xFF);
     ev(S2T_H_OP, code);
 }
 
-#define OP(code, ...) do { static const int p_[] = { __VA_ARGS__ }; \
-    op(code, p_, sizeof p_ / sizeof p_[0]); } while (0)
+#define OP(code, ...) do { static const int args_[] = { __VA_ARGS__ }; \
+    op(code, args_, sizeof args_ / sizeof args_[0]); } while (0)
 
-static int pxr(const uint8_t *r, int x, int y)
+static int pxr(const uint8_t *ras, int xpos, int ypos)
 {
-    return (r[y * 8 + x / 8] >> (7 - x % 8)) & 1;
+    return (ras[ypos * 8 + xpos / 8] >> (7 - xpos % 8)) & 1;
 }
 
-static int px(int x, int y) { return pxr(t.raster, x, y); }
+static int px(int xpos, int ypos) { return pxr(t.raster, xpos, ypos); }
 
-/* Rows of '#'/'.' at (x, y) of raster r. */
-static void expect(const uint8_t *r, int x, int y, const char *const *pic, unsigned n)
+/* Rows of '#'/'.' at (xpos, ypos) of raster ras. */
+static void expect(const uint8_t *ras, int xpos, int ypos, const char *const *pic,
+                   unsigned count)
 {
-    unsigned i, k;
+    unsigned row, col;
 
-    for (i = 0; i < n; i++)
-        for (k = 0; pic[i][k]; k++) {
-            int want = pic[i][k] == '#', got = pxr(r, x + (int)k, y + (int)i);
+    for (row = 0; row < count; row++)
+        for (col = 0; pic[row][col]; col++) {
+            int want = pic[row][col] == '#', got = pxr(ras, xpos + (int)col, ypos + (int)row);
 
             if (want != got) {
-                fprintf(stderr, "(%d,%d): want %d got %d\n", x + (int)k, y + (int)i, want, got);
+                fprintf(stderr, "(%d,%d): want %d got %d\n", xpos + (int)col,
+                        ypos + (int)row, want, got);
                 assert(0);
             }
         }
 }
 
-static void fill_bg(uint8_t v)
+static void fill_bg(uint8_t val)
 {
-    memset(t.raster, v, S2T_LINES * 8);
+    memset(t.raster, val, S2T_LINES * 8);
 }
 
 /* Image 0: a 3x3 ring; image 1, its mask: the 5x5 box around it, shifted by
@@ -116,12 +118,13 @@ static void test_stamps(void)
 
 static void test_rects(void)
 {
-    unsigned x;
+    unsigned col;
 
     s2_text_init(&t, NULL);
     OP(S2T_OP_RECT, 2, 3, 61, 2, S2T_SET);
-    for (x = 0; x < 64; x++)
-        assert(px((int)x, 3) == (x >= 2 && x < 63) && px((int)x, 4) == px((int)x, 3));
+    for (col = 0; col < 64; col++)
+        assert(px((int)col, 3) == (col >= 2 && col < 63) &&
+               px((int)col, 4) == px((int)col, 3));
     assert(t.raster[2 * 8] == 0 && t.raster[5 * 8] == 0);
     OP(S2T_OP_RECT, -4, 3, 8, 2, S2T_CLEAR);
     assert(!px(3, 3) && px(4, 4));
@@ -132,12 +135,12 @@ static void test_rects(void)
     s2_text_init(&t, NULL);
     OP(S2T_OP_RECT, 0, 10, 6, 1, S2T_OR | S2T_PAT_DASH);
     OP(S2T_OP_RECT, 6, 10, 10, 1, S2T_OR | S2T_PAT_DASH);
-    for (x = 0; x < 16; x++)
-        assert(px((int)x, 10) == ((x & 3) < 2));
+    for (col = 0; col < 16; col++)
+        assert(px((int)col, 10) == ((col & 3) < 2));
     OP(S2T_OP_RECT, 0, 20, 8, 2, S2T_SET | S2T_PAT_CHECK);
-    for (x = 0; x < 8; x++) {
-        assert(px((int)x, 20) == !(x & 1));
-        assert(px((int)x, 21) == (int)(x & 1));
+    for (col = 0; col < 8; col++) {
+        assert(px((int)col, 20) == !(col & 1));
+        assert(px((int)col, 21) == (int)(col & 1));
     }
     OP(S2T_OP_RECT, 0, 28, 4, 4, S2T_OR | S2T_PAT_HATCH);
     assert(px(0, 28) && px(1, 29) && px(2, 30) && px(3, 31) && !px(1, 28));
@@ -147,14 +150,14 @@ static void test_ptext(void)
 {
     static const char *const a_tall[] = { "....", "###.", "###.", "#.#.", "#.#.", "###." };
     static const char *const a_short[] = { "###", "#.#", "###", "#.#", "#.#" };
-    static const int hi[] = { 6, 20, S2T_OR, 'A', 'A' };
-    static const int lo[] = { 1, 50, S2T_OR | S2T_SHORT, 'A' };
+    static const int high[] = { 6, 20, S2T_OR, 'A', 'A' };
+    static const int low[] = { 1, 50, S2T_OR | S2T_SHORT, 'A' };
 
     s2_text_init(&t, NULL);
-    op(S2T_OP_PTEXT, hi, 5);
+    op(S2T_OP_PTEXT, high, 5);
     expect(t.raster, 6, 20, a_tall, 6);
     expect(t.raster, 10, 20, a_tall, 6);
-    op(S2T_OP_PTEXT, lo, 4);
+    op(S2T_OP_PTEXT, low, 4);
     expect(t.raster, 1, 50, a_short, 5);
     assert(!px(1, 55));
     /* the text engine's cells still work beside it */

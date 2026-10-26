@@ -17,7 +17,7 @@ bool fujibus_link_up(void);
  * cart that must keep serving its console (the Studio II's text engine)
  * does it here. NULL, the default, calls nothing. */
 typedef void (*fujibus_idle_fn)(void);
-void fujibus_set_idle(fujibus_idle_fn fn);
+void fujibus_set_idle(fujibus_idle_fn hook);
 
 /* Pump USB for `ms`, never back-to-back. */
 void fuji_wait_ms_pumped(uint32_t ms);

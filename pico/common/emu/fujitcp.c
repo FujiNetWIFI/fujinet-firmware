@@ -92,9 +92,9 @@ void fujitcp_abort(void)
 
 static void (*idle_fn)(void);
 
-void fujitcp_set_idle(void (*fn)(void))
+void fujitcp_set_idle(void (*hook)(void))
 {
-    idle_fn = fn;
+    idle_fn = hook;
 }
 
 /* Read one complete SLIP frame (two 0xC0 delimiters) or time out. */

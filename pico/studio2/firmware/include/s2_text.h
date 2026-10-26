@@ -132,26 +132,26 @@ struct s2_disp {
 };
 
 /* core1, as a frame starts. */
-static inline void s2_disp_flip(struct s2_disp *d)
+static inline void s2_disp_flip(struct s2_disp *disp)
 {
-    uint8_t p = d->pending;
+    uint8_t next = disp->pending;
 
-    if (p != S2D_NONE) {
+    if (next != S2D_NONE) {
         __atomic_thread_fence(__ATOMIC_ACQUIRE);
-        d->front = p;
-        d->pending = S2D_NONE;
+        disp->front = next;
+        disp->pending = S2D_NONE;
     }
 }
 
 typedef struct {
-    uint8_t w, h;
+    uint8_t width, height;
     uint8_t rows[S2T_IMG_LINES];
 } s2t_image_t;
 
 typedef struct {
-    uint8_t id, mode;
-    int8_t x, y;
-    bool on;
+    uint8_t image, mode;
+    int8_t xpos, ypos;
+    bool shown;
 } s2t_sprite_t;
 
 typedef struct {

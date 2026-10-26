@@ -11,8 +11,8 @@ WIN_PAGE, WIN_PAGES = 0xC4, 12     # the bank window, $C400-$CFFF (protocol 2)
 NBANKS = 16
 
 
-def in_window(pg):
-    return WIN_PAGE <= pg < WIN_PAGE + WIN_PAGES
+def in_window(page):
+    return WIN_PAGE <= page < WIN_PAGE + WIN_PAGES
 
 
 def page_ok(pg, app=False):
@@ -79,13 +79,13 @@ def build(pages, title="", catalogue="", banks=()):
     if banks:
         pages.setdefault(WIN_PAGE, bytes(256))  # bank 0 must open with $C4
     blocks = [(pg, pages[pg]) for pg in sorted(pages)]
-    for b in banks:
-        bad = [pg for pg in b if not in_window(pg)]
+    for bank in banks:
+        bad = [page for page in bank if not in_window(page)]
         if bad:
             raise ValueError("a bank holds pages outside the window: %s"
-                             % " ".join("$%02X" % p for p in bad))
-        blocks.append((WIN_PAGE, b.get(WIN_PAGE, bytes(256))))
-        blocks += [(pg, b[pg]) for pg in sorted(b) if pg != WIN_PAGE]
+                             % " ".join("$%02X" % page for page in bad))
+        blocks.append((WIN_PAGE, bank.get(WIN_PAGE, bytes(256))))
+        blocks += [(page, bank[page]) for page in sorted(bank) if page != WIN_PAGE]
     if len(blocks) > MAX_BLOCKS:
         raise ValueError("%d blocks; an ST2 holds %d" % (len(blocks), MAX_BLOCKS))
     if 1 + len(banks) > NBANKS:
@@ -100,5 +100,5 @@ def build(pages, title="", catalogue="", banks=()):
     hdr[32:32 + len(t)] = t
     for i, (pg, _) in enumerate(blocks):
         hdr[64 + i] = pg
-    body = b"".join(bytes(d).ljust(256, b"\0")[:256] for _, d in blocks)
+    body = b"".join(bytes(data).ljust(256, b"\0")[:256] for _, data in blocks)
     return bytes(hdr) + body

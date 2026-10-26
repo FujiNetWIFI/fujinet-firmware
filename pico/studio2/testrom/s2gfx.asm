@@ -17,8 +17,8 @@ PARS    MACRO
         LDI     TX_PARAM
         PHI     RF
         ENDM
-P       MACRO   v
-        LDI     v
+PAR     MACRO   val
+        LDI     val
         PLO     RF
         LDN     RF
         ENDM
@@ -31,10 +31,10 @@ GOP     MACRO   code
         LDI     FN_PARK
         PHI     RF
         ENDM
-REG     MACRO   n, v
-        LDI     n
+REG     MACRO   num, val
+        LDI     num
         HOT     HI(FN_REGSEL)
-        LDI     v
+        LDI     val
         HOT     HI(FN_REGDATA)
         ENDM
 
@@ -123,67 +123,67 @@ cpw1:   PEEK    FN_COPYDONE
 ; The graphics: a ring (image 0) and a ship (image 1); stamps by every mode
 ; between two dashed lines, pixel text, and 16 sprites.
 gfx:    PARS
-        P       0
-        P       3
-        P       3
-        P       0E0H
-        P       0A0H
-        P       0E0H
+        PAR    0
+        PAR    3
+        PAR    3
+        PAR    0E0H
+        PAR    0A0H
+        PAR    0E0H
         GOP     TOP_IMAGE
         PARS
-        P       1
-        P       8
-        P       5
-        P       18H
-        P       3CH
-        P       0FFH
-        P       3CH
-        P       18H
+        PAR    1
+        PAR    8
+        PAR    5
+        PAR    18H
+        PAR    3CH
+        PAR    0FFH
+        PAR    3CH
+        PAR    18H
         GOP     TOP_IMAGE
         PARS
-        P       0
-        P       46
-        P       64
-        P       1
-        P       TM_SET|TP_DASH
+        PAR    0
+        PAR    46
+        PAR    64
+        PAR    1
+        PAR    TM_SET|TP_DASH
         GOP     TOP_RECT
         PARS
-        P       0
-        P       64
-        P       64
-        P       1
-        P       TM_SET|TP_DASH
+        PAR    0
+        PAR    64
+        PAR    64
+        PAR    1
+        PAR    TM_SET|TP_DASH
         GOP     TOP_RECT
         PARS
-        P       2
-        P       50
-        P       TM_SET
+        PAR    2
+        PAR    50
+        PAR    TM_SET
         GOP     TOP_RECT            ; too few: nothing
         PARS
-        P       1
-        P       2
-        P       50
-        P       TM_OR
+        PAR    1
+        PAR    2
+        PAR    50
+        PAR    TM_OR
         GOP     TOP_STAMP
         PARS
-        P       1
-        P       11
-        P       50
-        P       TM_XOR
+        PAR    1
+        PAR    11
+        PAR    50
+        PAR    TM_XOR
         GOP     TOP_STAMP
         PARS
-        P       1
-        P       20
-        P       50
-        P       TM_SET
+        PAR    1
+        PAR    20
+        PAR    50
+        PAR    TM_SET
         GOP     TOP_STAMP
         PARS
-        P       41
-        P       49
-        P       TM_OR
-        P       'G'
-        P       'F'
-        P       'X'
+        PAR    41
+        PAR    49
+        PAR    TM_OR
+        PAR    'G'
+        PAR    'F'
+        PAR    'X'
         GOP     TOP_PTEXT
         LDR     RC, sprtab
         LDI     0
@@ -193,14 +193,14 @@ gfx1:   PARS
         GLO     RA
         PLO     RF
         LDN     RF                  ; n
-        P       0                   ; the ring
+        PAR    0                   ; the ring
         LDA     RC
         PLO     RF
         LDN     RF                  ; x
         LDA     RC
         PLO     RF
         LDN     RF                  ; y
-        P       TM_OR
+        PAR    TM_OR
         GOP     TOP_SPRITE
         INC     RA
         GLO     RA
@@ -252,8 +252,8 @@ run1:   PARS
         ANI     1
         PLO     RF
         LDN     RF                  ; dx
-        P       0
-        P       0
+        PAR    0
+        PAR    0
         GOP     TOP_VIEW
         BR      run
 

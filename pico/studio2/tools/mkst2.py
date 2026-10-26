@@ -55,15 +55,16 @@ def main():
     args = sys.argv[1:]
     bankp = []
     while "--bank" in args:
-        i = args.index("--bank")
-        bankp.append(args[i + 1])
-        del args[i:i + 2]
+        pos = args.index("--bank")
+        bankp.append(args[pos + 1])
+        del args[pos:pos + 2]
     if len(args) < 2:
         raise SystemExit("usage: mkst2.py <in.p> <out.st2> [title] [--bank b.p ...]")
     mem = read_p(args[0])
     title = args[2] if len(args) > 2 else os.path.basename(args[1]).split(".")[0].upper()
     pages = to_pages(mem)
-    banks = [{pg: d for pg, d in to_pages(read_p(b)).items() if st2.in_window(pg)} for b in bankp]
+    banks = [{page: data for page, data in to_pages(read_p(path)).items()
+              if st2.in_window(page)} for path in bankp]
     for pg in range(0x04, 0x08):
         pages.setdefault(pg, bytearray(256))
     claim = bytes(pages[0x07][0xFC:0x100]) == b"FUJI"
@@ -74,9 +75,9 @@ def main():
                             " ".join("$%02X" % p for p in bad)))
     out = st2.build(pages, title, banks=banks)
     open(args[1], "wb").write(out)
-    nb = sum(len(b) for b in banks)
+    extra = sum(len(bank) for bank in banks)
     print("%s: %d bytes in %d pages%s%s" % (args[1], len(mem), len(pages),
-          ", %d banks (+%d pages)" % (1 + len(banks), nb) if banks else "",
+          ", %d banks (+%d pages)" % (1 + len(banks), extra) if banks else "",
           ", claimed" if claim else ""))
 
 
