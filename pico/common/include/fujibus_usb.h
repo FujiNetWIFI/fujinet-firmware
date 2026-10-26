@@ -13,6 +13,12 @@ void fujibus_set_inbound_handler(fujibus_inbound_fn handler);
 
 bool fujibus_link_up(void);
 
+/* Called while a transaction or a pumped wait is out, between USB pumps: a
+ * cart that must keep serving its console (the Studio II's text engine)
+ * does it here. NULL, the default, calls nothing. */
+typedef void (*fujibus_idle_fn)(void);
+void fujibus_set_idle(fujibus_idle_fn hook);
+
 /* Pump USB for `ms`, never back-to-back. */
 void fuji_wait_ms_pumped(uint32_t ms);
 

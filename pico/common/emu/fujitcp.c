@@ -90,6 +90,13 @@ void fujitcp_abort(void)
         shutdown(fd, SHUT_RDWR);
 }
 
+static void (*idle_fn)(void);
+
+void fujitcp_set_idle(void (*hook)(void))
+{
+    idle_fn = hook;
+}
+
 /* Read one complete SLIP frame (two 0xC0 delimiters) or time out. */
 static fb_status_t read_frame(uint8_t *buf, size_t cap, size_t *out_len,
                               int secs)
@@ -111,13 +118,25 @@ static fb_status_t read_frame(uint8_t *buf, size_t cap, size_t *out_len,
                + (deadline.tv_usec - now.tv_usec);
         if (remain <= 0)
             return FB_ETIMEOUT;
+        if (idle_fn && remain > 2000L)
+            remain = 2000L;             /* wake for the idle hook */
         tv.tv_sec = remain / 1000000L;
         tv.tv_usec = remain % 1000000L;
 
         FD_ZERO(&rf);
         FD_SET(fd, &rf);
-        if (select(fd + 1, &rf, NULL, NULL, &tv) <= 0)
+        switch (select(fd + 1, &rf, NULL, NULL, &tv)) {
+        case 0:
+            if (idle_fn) {
+                idle_fn();
+                continue;           /* the deadline decides */
+            }
             return FB_ETIMEOUT;
+        case -1:
+            return FB_ETIMEOUT;
+        default:
+            break;
+        }
 
         while (n < cap) {
             unsigned char c;

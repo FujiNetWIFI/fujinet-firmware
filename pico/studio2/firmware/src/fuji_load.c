@@ -18,7 +18,7 @@
 static void build(fuji_load_t *l, unsigned i, const s2map_plan_t *p)
 {
     l->plan[i] = *p;
-    s2map_view_init(&l->view[i], l->buf[i], p, l->arena, l->raster, p->claim);
+    s2map_view_init(&l->view[i], l->buf[i], p, l->arena, l->disp, p->claim);
 }
 
 static void put_config(fuji_load_t *l, unsigned i, const uint8_t *config, uint32_t len)
@@ -43,12 +43,12 @@ static void put_config(fuji_load_t *l, unsigned i, const uint8_t *config, uint32
 }
 
 void fuji_load_init(fuji_load_t *l, uint8_t *buf0, uint8_t *buf1, uint8_t *arena,
-                    const uint8_t *raster, const uint8_t *config, uint32_t config_len)
+                    s2_disp_t *disp, const uint8_t *config, uint32_t config_len)
 {
     l->buf[0] = buf0;
     l->buf[1] = buf1;
     l->arena = arena;
-    l->raster = raster;
+    l->disp = disp;
     l->live = 0;
     l->armed = false;
     l->staged = false;

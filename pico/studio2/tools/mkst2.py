@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Turn an AS object file (.p) into the ST2 image the cart serves.
 
-    tools/mkst2.py build/obj/hello.p build/hello.st2 [title]
+    tools/mkst2.py build/obj/hello.p build/hello.st2 [title] [--bank b1.p ...]
 
 Every page the code touches becomes a block, plus $04-$07 (every cart has
 them); each must be a page the cart may claim (tools/st2.py). A client with
-"FUJI" at $07FC is an app and is held to the app's rules.
+"FUJI" at $07FC is an app and is held to the app's rules. Each --bank object
+adds a bank (1, 2, ...) of the $C400-$CFFF window: only its window pages are
+taken, so it may be the same program assembled again for that bank.
 """
 import os
 import struct
@@ -42,27 +44,41 @@ def read_p(path):
     return mem
 
 
-def main():
-    if len(sys.argv) < 3:
-        raise SystemExit("usage: mkst2.py <in.p> <out.st2> [title]")
-    mem = read_p(sys.argv[1])
-    title = sys.argv[3] if len(sys.argv) > 3 else os.path.basename(sys.argv[2]).split(".")[0].upper()
+def to_pages(mem):
     pages = {}
     for a, b in mem.items():
-        pg = a >> 8
-        pages.setdefault(pg, bytearray(256))[a & 0xFF] = b
+        pages.setdefault(a >> 8, bytearray(256))[a & 0xFF] = b
+    return pages
+
+
+def main():
+    args = sys.argv[1:]
+    bankp = []
+    while "--bank" in args:
+        pos = args.index("--bank")
+        bankp.append(args[pos + 1])
+        del args[pos:pos + 2]
+    if len(args) < 2:
+        raise SystemExit("usage: mkst2.py <in.p> <out.st2> [title] [--bank b.p ...]")
+    mem = read_p(args[0])
+    title = args[2] if len(args) > 2 else os.path.basename(args[1]).split(".")[0].upper()
+    pages = to_pages(mem)
+    banks = [{page: data for page, data in to_pages(read_p(path)).items()
+              if st2.in_window(page)} for path in bankp]
     for pg in range(0x04, 0x08):
         pages.setdefault(pg, bytearray(256))
     claim = bytes(pages[0x07][0xFC:0x100]) == b"FUJI"
     bad = sorted(p for p in pages if not st2.page_ok(p, app=claim))
     if bad:
         raise SystemExit("%s: code in pages the cart may not claim%s: %s"
-                         % (sys.argv[1], " for an app" if claim else "",
+                         % (args[0], " for an app" if claim else "",
                             " ".join("$%02X" % p for p in bad)))
-    out = st2.build(pages, title)
-    open(sys.argv[2], "wb").write(out)
-    used = len(mem)
-    print("%s: %d bytes in %d pages%s" % (sys.argv[2], used, len(pages), ", claimed" if claim else ""))
+    out = st2.build(pages, title, banks=banks)
+    open(args[1], "wb").write(out)
+    extra = sum(len(bank) for bank in banks)
+    print("%s: %d bytes in %d pages%s%s" % (args[1], len(mem), len(pages),
+          ", %d banks (+%d pages)" % (1 + len(banks), extra) if banks else "",
+          ", claimed" if claim else ""))
 
 
 if __name__ == "__main__":

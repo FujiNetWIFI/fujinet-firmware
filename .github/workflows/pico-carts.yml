@@ -269,7 +269,7 @@ jobs:
       # refuses an image with a page the cart may not claim.
       - name: Assemble and validate
         working-directory: pico/studio2
-        run: ASL=$HOME/asl/asl ./build.sh hello fujitest fujiboot
+        run: ASL=$HOME/asl/asl ./build.sh hello fujitest fujiboot s2gfx
 
   nes-console-client:
     name: "NES 6502 clients"

@@ -10,7 +10,8 @@
  *   $E400-$E7FF  1K reply window cart-painted, read in place
  *   $E800-$E8FF  status page     cart-painted
  *   $E900-$E9FF  REGSEL          a read of $E900+n selects register n;
- *                                $E980-$E9FF are not registers (the stub)
+ *                                $E980-$E9EF select a bank (protocol 2),
+ *                                $E9F0-$E9F2 are the hand-over stub
  *   $EA00-$EAFF  REGDATA         a read of $EA00+v writes v to it
  *   $EB00-$EBFF  TX stream       a read of $EB00+b appends byte b
  *   $EC00-$EFFF  text engine     s2_text.h
@@ -55,7 +56,7 @@
 #define FN_R_MAGIC0      0x409    /* 'F' -- cart presence check              */
 #define FN_R_MAGIC1      0x40A    /* 'N'                                     */
 #define FN_R_PROTO_VER   0x40B
-#define FN_PROTO_VER     1
+#define FN_PROTO_VER     2        /* 2: banks, pokes, COPY, graphics ops    */
 #define FN_R_SLICE_ECHO  0x40C
 #define FN_R_MODE        0x412    /* FN_MODE_*: what the cart is serving     */
 #define FN_R_LINK        0x415    /* 1 once the ESP32 link has been seen     */
@@ -66,6 +67,7 @@
 #define FN_R_STAGED_CRC  0x41F    /* its CRC-32, LE (4 bytes)                */
 #define FN_R_SWAPS       0x423    /* hand-overs taken since power-on, mod 256 */
 #define FN_R_FRAMES      0x424    /* raster frames served, mod 256           */
+#define FN_R_COPYDONE    0x425    /* COPYs finished, mod 256                 */
 
 #define FN_R_PAINT_END   0x4FC    /* paint covers [FN_R_BASE, FN_R_PAINT_END) */
 
@@ -91,8 +93,30 @@
 #define FN_STUB          (FN_ARENA_BASE + FN_H_REGSEL + FN_HOT_STUB)
 #define FN_STUB_T        (FN_ARENA_BASE + FN_H_REGSEL + FN_HOT_T)
 
+/* Banks (protocol 2): a read of FN_STUB's page at FN_HOT_BANK + n puts bank n
+ * in the window, from the next fetch on (core1 decodes it; s2map.h). */
+#define FN_HOT_BANK      0x80
+
 /* Platform registers, 0x14 up; the protocol's are in fuji_mailbox_proto.h. */
 #define FN_REG_CONFIG    0x14     /* FN_CONFIG_MAGIC: stage and arm CONFIG   */
+
+/* Writing the image (protocol 2). Every page an image's blocks back can be
+ * written; which are RAM is the app's business. core1 decodes these three
+ * at once, so a read right after a POKE sees the byte. */
+#define FN_REG_PTRLO     0x18     /* the poke pointer, a console address      */
+#define FN_REG_PTRHI     0x19
+#define FN_REG_POKE      0x1A     /* each REGDATA stores at the pointer, which
+                                     advances; armed until the next REGSEL   */
+/* COPY: LEN bytes from SRC (the reply window, or any image byte) to DST,
+ * on core0. Writing CPLENHI runs it; FN_R_COPYDONE counts. Bank selects and
+ * pokes skip the ring, so wait for FN_R_COPYDONE before the next bank select
+ * or a poke into the COPY's range. */
+#define FN_REG_CPSRCLO   0x1B
+#define FN_REG_CPSRCHI   0x1C
+#define FN_REG_CPDSTLO   0x1D
+#define FN_REG_CPDSTHI   0x1E
+#define FN_REG_CPLENLO   0x1F
+#define FN_REG_CPLENHI   0x20
 
 #define FN_CONFIG_MAGIC   0xC5
 

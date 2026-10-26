@@ -54,6 +54,7 @@ def main():
         "FN_STUB": base + c["FN_H_REGSEL"] + c["FN_HOT_STUB"],
         "FN_RASTER": c["FN_RASTER_BASE"],
         "FN_CLAIM": c["FN_CLAIM_ADDR"],
+        "FN_BANKSEL": base + c["FN_H_REGSEL"] + c["FN_HOT_BANK"],
         "FN_STAT": base + c["FN_R_STATUS"],
         "FN_MAGIC": base + c["FN_R_MAGIC0"],
         "TX_CURSOR": c["S2T_H_CURSOR"], "TX_PUTC": c["S2T_H_PUTC"],
@@ -73,6 +74,12 @@ def main():
             want["TOP_" + name[7:]] = val
         elif name.startswith("S2T_SYM_"):
             want["SYM_" + name[8:]] = val
+        elif name.startswith("S2T_PAT_"):
+            want["TP_" + name[8:]] = val
+        elif name in ("S2T_SET", "S2T_OR", "S2T_XOR", "S2T_CLEAR", "S2T_MASK", "S2T_SHORT"):
+            want["TM_" + name[4:]] = val
+        elif name == "S2T_VIEW_INVERT":
+            want["TV_INVERT"] = val
     bad = []
     for name, val in sorted(want.items()):
         if name not in inc:

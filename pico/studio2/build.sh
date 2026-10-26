@@ -26,17 +26,25 @@ EOC
 python3 tools/checkdefs.py
 
 build_one() {
-    local name=$1
+    local name=$1 banks=() b nb
     [ -f "testrom/$name.asm" ] || { echo "no testrom/$name.asm" >&2; exit 1; }
     (cd testrom && "$ASL" -q -U -L -i . -i ../build/gen -o "../build/obj/$name.p" \
         -olist "../build/obj/$name.lst" "$name.asm")
     python3 tools/checkrom.py "build/obj/$name.lst"
-    python3 tools/mkst2.py "build/obj/$name.p" "build/$name.st2"
+    # a banked client says how many banks it has; each is the same source
+    # assembled again with BANK set, and gives the window its bytes
+    nb=$(sed -n 's/^; BANKS: *\([0-9]*\).*/\1/p' "testrom/$name.asm" | head -1)
+    for b in $(seq 1 $(( ${nb:-1} - 1 ))); do
+        (cd testrom && "$ASL" -q -U -L -D BANK=$b -i . -i ../build/gen -o "../build/obj/$name.b$b.p" \
+            -olist "../build/obj/$name.b$b.lst" "$name.asm")
+        banks+=(--bank "build/obj/$name.b$b.p")
+    done
+    python3 tools/mkst2.py "build/obj/$name.p" "build/$name.st2" "${banks[@]}"
 }
 
 targets=("$@")
 if [ ${#targets[@]} -eq 0 ]; then
-    targets=(hello fujitest)
+    targets=(hello fujitest s2gfx)
     [ -f testrom/fujiboot.asm ] && targets+=(fujiboot)
 fi
 for t in "${targets[@]}"; do

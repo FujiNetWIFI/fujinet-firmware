@@ -9,10 +9,11 @@
 #include <string.h>
 
 #include "s2map.h"
+#include "s2_text.h"
 
 static uint8_t buf[S2MAP_BUF_MAX + 1];
 static uint8_t arena[FN_ARENA_SIZE];
-static uint8_t raster[FN_RASTER_SIZE];
+static s2_disp_t disp;
 
 int main(int argc, char **argv)
 {
@@ -34,7 +35,7 @@ int main(int argc, char **argv)
         return 1;
     }
     s2map_layout(buf, &p);
-    s2map_view_init(&v, buf, &p, arena, raster, p.claim);
+    s2map_view_init(&v, buf, &p, arena, &disp, p.claim);
     for (a = 0; a < 0x10000; a++) {
         uint8_t ty = v.type[a >> 8];
 

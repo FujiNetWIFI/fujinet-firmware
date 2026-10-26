@@ -21,7 +21,7 @@ typedef struct {
     s2_view_t view[2];
     s2map_plan_t plan[2];
     uint8_t *arena;                 /* FN_ARENA_SIZE                         */
-    const uint8_t *raster;          /* FN_RASTER_SIZE                        */
+    s2_disp_t *disp;                /* what the raster pages show            */
     volatile uint8_t live;          /* the buffer core1 serves; core1's      */
     volatile bool armed;            /* core0 sets it, the swap clears it     */
     volatile bool staged;           /* the other buffer holds a staged image */
@@ -32,7 +32,7 @@ typedef struct {
 /* Serve `config` (a claimed image) from buffer 0 with the mailbox live, as
  * at power-on. */
 void fuji_load_init(fuji_load_t *l, uint8_t *buf0, uint8_t *buf1, uint8_t *arena,
-                    const uint8_t *raster, const uint8_t *config, uint32_t config_len);
+                    s2_disp_t *disp, const uint8_t *config, uint32_t config_len);
 
 /* Where the next push goes: the buffer core1 is not serving. Disarms first,
  * so core1 can never swap to a buffer being written. */
@@ -57,6 +57,7 @@ S2_HOT s2_view_t *fuji_load_swap(fuji_load_t *l)
         l->staged = false;
         l->swaps = (uint8_t)(l->swaps + 1u);
     }
+    s2map_bank(&l->view[l->live], 0);   /* CLEAR, or a new image: bank 0 */
     return &l->view[l->live];
 }
 

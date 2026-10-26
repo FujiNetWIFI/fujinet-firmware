@@ -6,7 +6,7 @@
 #include "fuji_crc.h"
 
 static const uint8_t zero_page[S2MAP_PAGE] = { 0 };
-static const uint8_t ff_page[S2MAP_PAGE] = {
+const uint8_t s2map_ff_page[S2MAP_PAGE] = {
 #define F16 0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF
     F16, F16, F16, F16, F16, F16, F16, F16, F16, F16, F16, F16, F16, F16, F16, F16
 #undef F16
@@ -55,6 +55,8 @@ int s2map_plan(const uint8_t *buf, uint32_t len, bool force_claim, s2map_plan_t 
     if (is_st2(buf, len)) {
         unsigned blocks = buf[4];
         bool c00 = false;
+        unsigned bank = 0;
+        bool opened = false;
 
         out->st2 = true;
         if (blocks < 2)
@@ -68,6 +70,23 @@ int s2map_plan(const uint8_t *buf, uint32_t len, bool force_claim, s2map_plan_t 
             if (!s2map_page_ok(pg, false)) {
                 out->skipped++;
                 continue;
+            }
+            if (pg >= S2MAP_WIN_PAGE && pg < S2MAP_WIN_PAGE + S2MAP_WIN_PAGES) {
+                unsigned win = pg - S2MAP_WIN_PAGE, cur;
+
+                if (pg == S2MAP_WIN_PAGE) {     /* $C4 opens the next bank */
+                    bank += opened;
+                    opened = true;
+                }
+                cur = bank;
+                if (cur >= S2MAP_NBANKS)
+                    return S2MAP_ETOOBIG;
+                out->bank_src[cur][win] = (uint8_t)S2SRC_BUF(i + 1);
+                out->nbanks = (uint8_t)(cur + 1u);
+                if (cur) {
+                    out->blocks++;
+                    continue;           /* src[] holds bank 0 */
+                }
             }
             out->src[pg] = (uint8_t)S2SRC_BUF(i + 1);
             out->blocks++;
@@ -107,22 +126,43 @@ void s2map_layout(uint8_t *buf, const s2map_plan_t *p)
         memset(buf + p->size, 0, S2MAP_BUF_MAX - p->size);
 }
 
-void s2map_view_init(s2_view_t *v, const uint8_t *buf, const s2map_plan_t *p,
-                     const uint8_t *arena, const uint8_t *raster, bool mailbox)
+void s2map_view_init(s2_view_t *v, uint8_t *buf, const s2map_plan_t *p,
+                     const uint8_t *arena, s2_disp_t *disp, bool mailbox)
 {
-    unsigned pg;
+    unsigned pg, bank, win;
 
     memset(v, 0, sizeof *v);
     v->mailbox = mailbox;
-    v->raster = raster;
+    v->disp = disp;
     for (pg = 0; pg < S2MAP_PAGES; pg++) {
         unsigned s = p->src[pg];
 
         if (s == S2SRC_NONE)
             continue;
         v->type[pg] = S2PG_ROM;
-        v->page[pg] = s == S2SRC_ZERO ? zero_page : buf + (s - 2u) * S2MAP_PAGE;
+        if (s == S2SRC_ZERO) {
+            v->page[pg] = zero_page;
+        } else {
+            v->wpage[pg] = buf + (s - 2u) * S2MAP_PAGE;
+            v->page[pg] = v->wpage[pg];
+        }
     }
+    v->nbanks = p->nbanks;
+    for (bank = 0; bank < S2MAP_NBANKS; bank++)
+        for (win = 0; win < S2MAP_WIN_PAGES; win++) {
+            unsigned s = p->bank_src[bank][win];
+
+            v->bank_page[bank][win] = s2map_ff_page;
+            if (s >= S2SRC_BUF(0)) {
+                v->bank_wpage[bank][win] = buf + (s - 2u) * S2MAP_PAGE;
+                v->bank_page[bank][win] = v->bank_wpage[bank][win];
+            }
+        }
+    if (v->nbanks > 1)
+        for (win = 0; win < S2MAP_WIN_PAGES; win++)
+            if (v->type[S2MAP_WIN_PAGE + win] == S2PG_NONE)
+                v->type[S2MAP_WIN_PAGE + win] = S2PG_ROM;  /* $FF until a bank has it */
+    s2map_bank(v, 0);
     if (!mailbox)
         return;
     for (pg = FN_ARENA_BASE >> 8; pg < (FN_ARENA_BASE + FN_ARENA_SIZE) >> 8; pg++) {
@@ -132,7 +172,7 @@ void s2map_view_init(s2_view_t *v, const uint8_t *buf, const s2map_plan_t *p,
         v->type[pg] = off >= FN_H_REGSEL ? S2PG_HOT : S2PG_ROM;
     }
     for (pg = FN_TEXT_BASE >> 8; pg < (FN_TEXT_BASE + FN_TEXT_SIZE) >> 8; pg++) {
-        v->page[pg] = ff_page;
+        v->page[pg] = s2map_ff_page;
         v->type[pg] = S2PG_HOT;
     }
     for (pg = FN_RASTER_BASE >> 8; pg < S2MAP_PAGES; pg++) {
@@ -146,4 +186,26 @@ uint8_t s2map_peek(const s2_view_t *v, uint16_t a)
     const uint8_t *pg = v->page[a >> 8];
 
     return pg ? pg[a & 0xFFu] : 0xFF;
+}
+
+bool s2map_copy_reg(s2_copy_t *copy, s2_view_t *view, uint8_t reg, uint8_t data)
+{
+    unsigned idx;
+
+    switch (reg) {
+    case FN_REG_CPSRCLO: copy->src = (uint16_t)((copy->src & 0xFF00u) | data); return false;
+    case FN_REG_CPSRCHI: copy->src = (uint16_t)((copy->src & 0x00FFu) | (data << 8)); return false;
+    case FN_REG_CPDSTLO: copy->dst = (uint16_t)((copy->dst & 0xFF00u) | data); return false;
+    case FN_REG_CPDSTHI: copy->dst = (uint16_t)((copy->dst & 0x00FFu) | (data << 8)); return false;
+    case FN_REG_CPLENLO: copy->len = (uint16_t)((copy->len & 0xFF00u) | data); return false;
+    case FN_REG_CPLENHI:
+        copy->len = (uint16_t)((copy->len & 0x00FFu) | (data << 8));
+        for (idx = 0; idx < copy->len; idx++)
+            (void)s2map_poke(view, (uint16_t)(copy->dst + idx),
+                             s2map_peek(view, (uint16_t)(copy->src + idx)));
+        copy->done++;
+        return true;
+    default:
+        return false;
+    }
 }

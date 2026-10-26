@@ -50,6 +50,7 @@ S2_HOT void fuji_ring_note(uint16_t entry)
 /* core0 */
 void fuji_cart_init(const uint8_t *config, uint32_t config_len);
 bool fuji_cart_next(uint16_t *entry);
+bool fuji_cart_peek(uint16_t *entry);
 void fuji_cart_poke(unsigned offset, uint8_t value);
 void fuji_cart_service(void);              /* console power, the LED, the marquee */
 

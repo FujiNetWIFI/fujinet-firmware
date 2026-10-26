@@ -53,6 +53,7 @@ FN_ARMED        EQU     FN_STATUS+1CH
 FN_STAGED       EQU     FN_STATUS+1DH
 FN_SWAPS        EQU     FN_STATUS+23H
 FN_FRAMES       EQU     FN_STATUS+24H
+FN_COPYDONE     EQU     FN_STATUS+25H   ; protocol 2: COPYs finished, mod 256
 
 FN_REG_DEVICE   EQU     00H
 FN_REG_CMD      EQU     01H
@@ -64,6 +65,16 @@ FN_REG_BOOTLOCK EQU     11H
 FN_REG_BOOTSEL_1 EQU    12H
 FN_REG_BOOTSEL_2 EQU    13H
 FN_REG_CONFIG   EQU     14H
+FN_REG_PTRLO    EQU     18H             ; protocol 2: the poke pointer
+FN_REG_PTRHI    EQU     19H
+FN_REG_POKE     EQU     1AH             ; each REGDATA stores and advances
+FN_REG_CPSRCLO  EQU     1BH             ; COPY: source, destination, length;
+FN_REG_CPSRCHI  EQU     1CH             ; writing CPLENHI runs it
+FN_REG_CPDSTLO  EQU     1DH
+FN_REG_CPDSTHI  EQU     1EH
+FN_REG_CPLENLO  EQU     1FH
+FN_REG_CPLENHI  EQU     20H
+FN_BANKSEL      EQU     FN_REGSEL+80H   ; read +n: bank n in $C400-$CFFF
 FN_BOOTLOCK_MAGIC EQU   0B5H
 FN_CONFIG_MAGIC EQU     0C5H
 
@@ -94,6 +105,29 @@ TOP_REPEAT      EQU     30H
 TOP_GLYPH       EQU     40H
 TOP_TILE        EQU     41H
 TOP_MOSAIC      EQU     42H
+TOP_IMAGE       EQU     50H             ; protocol 2: graphics (s2_text.h)
+TOP_STAMP       EQU     51H
+TOP_RECT        EQU     52H
+TOP_SPRITE      EQU     53H
+TOP_SPRMOVE     EQU     54H
+TOP_SPRHIDE     EQU     55H
+TOP_VIEW        EQU     56H
+TOP_PTEXT       EQU     57H
+TOP_HOLD        EQU     58H             ; 1: the picture held, 0: let go
+TM_SET          EQU     0               ; modes
+TM_OR           EQU     1
+TM_XOR          EQU     2
+TM_CLEAR        EQU     3
+TM_MASK         EQU     4
+TM_SHORT        EQU     08H             ; PTEXT: the 3x5 font unstretched
+TP_SOLID        EQU     00H             ; RECT patterns, ORed into the mode
+TP_CHECK        EQU     10H
+TP_DASH         EQU     20H
+TP_DOT          EQU     30H
+TP_HATCH        EQU     40H
+TP_VDASH        EQU     50H
+TP_SPARSE       EQU     60H
+TV_INVERT       EQU     01H             ; VIEW flags
 SYM_SPADE       EQU     01H
 SYM_HEART       EQU     02H
 SYM_DIAMOND     EQU     03H

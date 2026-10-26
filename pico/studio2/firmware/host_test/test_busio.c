@@ -1,6 +1,7 @@
 /* test_busio.c -- the core1 observer, s2_bus_read, read by read: what the cart
  * drives and where, the hotspot events, the raster served by DMA position,
- * and the qualified swap on $0000.
+ * the qualified swap on $0000, and protocol 2's bank selects, poke stream
+ * and frame-start flip.
  */
 
 #include <assert.h>
@@ -12,7 +13,8 @@
 
 static uint8_t buf0[S2MAP_BUF_MAX], buf1[S2MAP_BUF_MAX];
 static uint8_t arena[FN_ARENA_SIZE];
-static uint8_t raster[FN_RASTER_SIZE];
+static s2_disp_t disp = { .pending = S2D_NONE };
+#define raster disp.buf[0]   /* shown: nothing is ever pending */
 static fuji_load_t ld;
 static s2_bus_t bus;
 static uint32_t now;
@@ -60,7 +62,7 @@ static void fresh(void)
     arena[FN_H_REGSEL + FN_HOT_T] = 0x23;
     for (i = 0; i < FN_RASTER_SIZE; i++)
         raster[i] = (uint8_t)(i * 3 + i / 8);
-    fuji_load_init(&ld, buf0, buf1, arena, raster, app, app_len);
+    fuji_load_init(&ld, buf0, buf1, arena, &disp, app, app_len);
     s2_bus_reset(&bus);
     now = 1000;
 }
@@ -233,12 +235,122 @@ static void test_swap_game(void)
     assert(!(rd(0x0000, &d) & S2_RESET));
 }
 
+/* A banked app: $C4 in two banks. */
+static void fresh_banked(void)
+{
+    static const uint8_t pages[] = { 0x04, 0x07, 0xC4, 0xC4 };
+    unsigned idx, byte;
+
+    fresh();
+    memset(app, 0, sizeof app);
+    memcpy(app, "RCA2", 4);
+    app[4] = 5;
+    for (idx = 0; idx < 4; idx++) {
+        app[64 + idx] = pages[idx];
+        for (byte = 0; byte < 256; byte++)
+            app[256 + idx * 256 + byte] = (uint8_t)(idx * 64 + byte);
+    }
+    memcpy(app + 512 + 252, "FUJI", 4);
+    fuji_load_init(&ld, buf0, buf1, arena, &disp, app, sizeof app);
+}
+
+static void test_cartregs(void)
+{
+    uint8_t data;
+
+    fresh_banked();
+    assert(rd(0xC401, &data) == S2_DRIVE && data == 2 * 64 + 1);
+    /* a bank select is core1's alone: no event, and the next fetch sees it */
+    assert(rd(0xE981, &data) == S2_DRIVE);
+    assert(rd(0xC401, &data) == S2_DRIVE && data == 3 * 64 + 1);
+    assert(rd(0xE982, &data) == S2_DRIVE);
+    assert(rd(0xC401, &data) == S2_DRIVE && data == 0xFF);        /* no bank 2 */
+    assert(rd(0xE980, &data) == S2_DRIVE);
+    assert(rd(0xC401, &data) == S2_DRIVE && data == 2 * 64 + 1);
+
+    /* the pointer, then a stream of three; none of it is an event */
+    assert(rd(0xE900 + FN_REG_PTRLO, &data) == S2_DRIVE);
+    assert(rd(0xEA10, &data) == S2_DRIVE);
+    assert(rd(0xE900 + FN_REG_PTRHI, &data) == S2_DRIVE);
+    assert(rd(0xEAC4, &data) == S2_DRIVE);
+    assert(rd(0xE900 + FN_REG_POKE, &data) == S2_DRIVE);
+    assert(rd(0xEA11, &data) == S2_DRIVE);
+    assert(rd(0xEA22, &data) == S2_DRIVE);
+    assert(rd(0xEA33, &data) == S2_DRIVE);
+    assert(rd(0xC410, &data) == S2_DRIVE && data == 0x11);
+    assert(rd(0xC412, &data) == S2_DRIVE && data == 0x33);
+    /* the stream survives a bank select and lands in the bank now in */
+    assert(rd(0xE981, &data) == S2_DRIVE);
+    assert(rd(0xEA44, &data) == S2_DRIVE);
+    assert(rd(0xC413, &data) == S2_DRIVE && data == 0x44);
+    assert(rd(0xE980, &data) == S2_DRIVE);
+    assert(rd(0xC413, &data) == S2_DRIVE && data == 2 * 64 + 0x13);
+    /* another register disarms it and goes to core0 as before */
+    assert(rd(0xE905, &data) == (S2_DRIVE | S2_HOT_EV));
+    assert(rd(0xEA55, &data) == (S2_DRIVE | S2_HOT_EV));
+    assert(rd(0xC414, &data) == S2_DRIVE && data == 2 * 64 + 0x14);
+    /* a pointer register takes one value */
+    assert(rd(0xE900 + FN_REG_PTRLO, &data) == S2_DRIVE);
+    assert(rd(0xEA00, &data) == S2_DRIVE);
+    assert(rd(0xEA66, &data) == (S2_DRIVE | S2_HOT_EV));
+    /* a stub read neither disarms nor selects */
+    assert(rd(0xE900 + FN_REG_POKE, &data) == S2_DRIVE);
+    assert(rd(0xE9F0, &data) == (S2_DRIVE | S2_HOT_EV) && data == 0xEC);
+    assert(rd(0xEA77, &data) == S2_DRIVE);
+    assert(rd(0xC400, &data) == S2_DRIVE && data == 0x77);
+    /* nothing lands where no block is */
+    bus.ptr = 0x0500;
+    assert(rd(0xEA99, &data) == S2_DRIVE);
+    assert(rd(0x0500, &data) == S2_DRIVE && data == 0);
+
+    /* CLEAR (a qualified read of $0000) puts bank 0 back */
+    assert(rd(0xE981, &data) == S2_DRIVE);
+    now += 100;
+    assert(rd(0x0000, &data) & S2_RESET);
+    (void)fuji_load_swap(&ld);
+    assert(rd(0xC401, &data) == S2_DRIVE && data == 2 * 64 + 1);
+}
+
+/* A picture core0 leaves pending is shown from the next frame on, whole. */
+static void test_flip(void)
+{
+    static uint8_t got[FN_RASTER_SIZE];
+    uint8_t *back = disp.buf[1];
+    unsigned idx;
+
+    fresh();
+    for (idx = 0; idx < FN_RASTER_SIZE; idx++)
+        back[idx] = (uint8_t)~raster[idx];
+    dma_frame(0xF400, 999, got);
+    assert(memcmp(got, raster, FN_RASTER_SIZE) == 0 && disp.front == 0);
+    disp.pending = 1;
+    dma_frame(0xF400, 999, got);
+    assert(memcmp(got, back, FN_RASTER_SIZE) == 0);
+    assert(disp.front == 1 && disp.pending == S2D_NONE);
+    /* pending from mid-frame: that frame finishes on the old one */
+    {
+        uint8_t data = 0;
+
+        now += 3400;
+        s2_bus_read(&bus, fuji_load_live(&ld), 0xF400, now, &data);
+        assert(data == back[0]);
+        disp.pending = 0;
+        now += 4;
+        s2_bus_read(&bus, fuji_load_live(&ld), 0xF401, now, &data);
+        assert(data == back[1] && disp.front == 1);
+    }
+    dma_frame(0xF400, 999, got);
+    assert(memcmp(got, raster, FN_RASTER_SIZE) == 0 && disp.front == 0);
+}
+
 int main(void)
 {
     test_claims();
     test_raster();
     test_qualified_swap();
     test_swap_game();
+    test_cartregs();
+    test_flip();
     printf("test_busio: all passed\n");
     return 0;
 }

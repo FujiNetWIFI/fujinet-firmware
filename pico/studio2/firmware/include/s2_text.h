@@ -17,6 +17,15 @@
  * 4 scanlines, each one of 16 tiles the app defines with S2T_OP_TILE. A cell
  * holds any mix of them, so a fine grid (four 10x10 boards on one screen)
  * needs no glyph per combination. chars[][] reads S2T_CH_MOSAIC there.
+ *
+ * Graphics (protocol 2): images of up to 8x24 pixels stamped anywhere,
+ * rectangles, pixel-placed text, 16 sprites and a whole-picture offset and
+ * inversion. Cells, stamps and rectangles all draw into one background, the
+ * last writer winning (CLS clears it all, and hides the sprites and resets
+ * the VIEW). What the 1861 shows is the background with the VIEW applied and
+ * the sprites on top, composed into the buffer it is not showing and taken
+ * at the start of a frame, so a picture never tears. Coordinates are signed
+ * bytes: x -8..-1 or y -24..-1 clip at the left or top edge.
  */
 
 #ifndef S2_TEXT_H
@@ -31,13 +40,17 @@
 #define S2T_ROWS        10u
 #define S2T_CELL_LINES  12u
 #define S2T_STRIP_LINE  (S2T_ROWS * S2T_CELL_LINES)
-#define S2T_NPARAM      16u
+#define S2T_NPARAM      32u
 #define S2T_NGLYPHS     32u
 #define S2T_NTILES      16u
 #define S2T_TILE_LINES  4u
 #define S2T_CH_MOSAIC   0xA0u     /* chars[][] of a mosaic cell; PUTC draws it blank */
 #define S2T_MARQUEE_MAX 64u
 #define S2T_MARQUEE_MS  250u
+#define S2T_NIMAGES     96u
+#define S2T_IMG_LINES   24u
+#define S2T_NSPRITES    16u
+#define S2T_LINES       S2T_STRIP_LINE   /* graphics stop above the strip */
 
 /* Hotspot pages. */
 #define S2T_H_CURSOR    0xEC
@@ -66,6 +79,34 @@
                                      and bottom thirds, left tile in the high
                                      nibble -- each drawn at the cursor, which
                                      advances; five cells fit in one op      */
+#define S2T_OP_IMAGE     0x50     /* p: id, width 1-8, height 1-24, then a
+                                     byte a line, bit 7 the leftmost pixel  */
+#define S2T_OP_STAMP     0x51     /* p: id, x, y, mode -- into the background */
+#define S2T_OP_RECT      0x52     /* p: x, y, w, h, mode (S2T_PAT_* in 4-6)  */
+#define S2T_OP_SPRITE    0x53     /* p: n, id, x, y, mode -- shown until hidden */
+#define S2T_OP_SPRMOVE   0x54     /* p: n, x, y -- and shown                 */
+#define S2T_OP_SPRHIDE   0x55     /* p: mask lo, mask hi (none: every sprite) */
+#define S2T_OP_VIEW      0x56     /* p: dx, dy, flags (S2T_VIEW_*)           */
+#define S2T_OP_PTEXT     0x57     /* p: x, y, mode, characters -- 4 pixels a
+                                     character, 12 lines (5 with S2T_SHORT)  */
+#define S2T_OP_HOLD      0x58     /* p: 1 holds the picture as it is until a
+                                     HOLD 0 (or CLS): a redraw shows whole   */
+
+/* Modes: how an image, rectangle or character meets what is under it. */
+#define S2T_SET          0        /* its box cleared, then its pixels set    */
+#define S2T_OR           1
+#define S2T_XOR          2
+#define S2T_CLEAR        3        /* its pixels cleared                      */
+#define S2T_MASK         4        /* image id+1's pixels cleared, then OR    */
+#define S2T_SHORT        0x08     /* PTEXT: the 3x5 font unstretched         */
+#define S2T_PAT_SOLID    0x00     /* RECT patterns, bits 4-6, on screen x,y  */
+#define S2T_PAT_CHECK    0x10
+#define S2T_PAT_DASH     0x20     /* two on, two off along a line            */
+#define S2T_PAT_DOT      0x30     /* every other pixel of every other line   */
+#define S2T_PAT_HATCH    0x40     /* a diagonal                              */
+#define S2T_PAT_VDASH    0x50     /* two on, two off down a column           */
+#define S2T_PAT_SPARSE   0x60     /* one pixel in sixteen                    */
+#define S2T_VIEW_INVERT  0x01
 
 /* Built-in symbols. */
 #define S2T_SYM_SPADE    0x01
@@ -80,8 +121,41 @@
 #define S2T_SYM_TEN      0x0A     /* "10" in one cell, for cards              */
 #define S2T_SYM_BACK     0x0B     /* a card back                              */
 
+/* What the raster pages show: core0 composes into the buffer core1 is not
+ * showing and leaves it pending; core1 takes it as a frame starts. */
+#define S2D_NONE 0xFFu
+
+struct s2_disp {
+    uint8_t buf[2][FN_RASTER_SIZE];
+    volatile uint8_t front;                 /* core1's                       */
+    volatile uint8_t pending;               /* S2D_NONE, or the next front   */
+};
+
+/* core1, as a frame starts. */
+static inline void s2_disp_flip(struct s2_disp *disp)
+{
+    uint8_t next = disp->pending;
+
+    if (next != S2D_NONE) {
+        __atomic_thread_fence(__ATOMIC_ACQUIRE);
+        disp->front = next;
+        disp->pending = S2D_NONE;
+    }
+}
+
 typedef struct {
-    uint8_t raster[FN_RASTER_SIZE];         /* 8 bytes a scanline            */
+    uint8_t width, height;
+    uint8_t rows[S2T_IMG_LINES];
+} s2t_image_t;
+
+typedef struct {
+    uint8_t image, mode;
+    int8_t xpos, ypos;
+    bool shown;
+} s2t_sprite_t;
+
+typedef struct {
+    uint8_t raster[FN_RASTER_SIZE];         /* the background, 8 bytes a line */
     uint8_t chars[S2T_ROWS][S2T_COLS];
     uint8_t inv[S2T_ROWS][S2T_COLS];
     uint8_t row, col;
@@ -101,12 +175,24 @@ typedef struct {
     uint32_t mq_t;
     bool mq_fresh;                          /* started since the last tick   */
     bool boot_bar;                          /* a push is under way           */
+    /* Graphics. */
+    s2t_image_t img[S2T_NIMAGES];
+    s2t_sprite_t spr[S2T_NSPRITES];
+    int8_t view_dx, view_dy;
+    uint8_t view_flags;
+    bool hold;                              /* HOLD 1: no composing          */
+    bool dirty;                             /* changed since the last compose */
+    struct s2_disp disp;
 } s2_text_t;
 
 void s2_text_init(s2_text_t *t, const uint8_t *reply);
 
 /* One hotspot read in $EC00-$EFFF. */
 void s2_text_event(s2_text_t *t, uint16_t a);
+
+/* Compose the picture into the buffer core1 is not showing and leave it
+ * pending, if anything changed and core1 took the last one. */
+bool s2_text_compose(s2_text_t *t);
 
 /* Time passing, in ms: scrolls the marquee. */
 void s2_text_tick(s2_text_t *t, uint32_t now_ms);
