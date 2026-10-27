@@ -17,6 +17,7 @@ filesystems work without a kernel VFS driver.
 | `fnio.h`, `fnio.cpp` | `fnFile` and the `fnio` wrappers: `FileHandler` on ATARI, APPLE, COCO, RS232 and PC ADAM, a stdio `FILE` everywhere else (`FNIO_IS_STDIO`) |
 | `fnFileCache.*` | `FileCache`: keeps a downloaded file in memory and spills it to SD past a threshold |
 | `fnDirCache.*` | `DirCache`: a sorted, filtered directory listing, held in PSRAM on ESP |
+| `fnFsDirCache.*` | `FileSystemDirCache`: base of the SD, SMB, NFS, FTP and HTTP filesystems; owns the `DirCache` and implements `dir_open()` and the `dir_*` reads once, over a `fill_dircache()` each subclass supplies |
 | `directoryPageGroup.h` | `DirectoryPageGroup`: the paged directory wire format used by `fujiDevice` |
 | `mediaTypeProxy.h` | Includes the platform's media header selected by `BUILD_*` |
 

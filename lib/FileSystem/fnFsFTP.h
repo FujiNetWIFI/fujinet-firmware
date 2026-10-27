@@ -8,10 +8,10 @@
 #include "peoples_url_parser.h"
 #include "fnFTP.h"
 #include "fnFS.h"
-#include "fnDirCache.h"
+#include "fnFsDirCache.h"
 
 
-class FileSystemFTP : public FileSystem
+class FileSystemFTP : public FileSystemDirCache
 {
 private:
     // parsed FTP URL
@@ -23,10 +23,6 @@ private:
     // directory cache
     std::string _username;
     std::string _password;
-
-    // directory cache
-    char _last_dir[MAX_PATHLEN];
-    DirCache _dircache;
 
 public:
     FileSystemFTP();
@@ -53,11 +49,6 @@ public:
     success_is_true rmdir(const char* path) override;
     bool dir_exists(const char* path) override;
 
-    success_is_true dir_open(const char *path, const char *pattern, uint16_t diropts) override;
-    fsdir_entry *dir_read() override;
-    void dir_close() override;
-    uint16_t dir_tell() override;
-    success_is_true dir_seek(uint16_t pos) override;
 
     success_is_true keep_alive();
 
@@ -69,6 +60,9 @@ public:
     FileHandler *cache_file(const char *path, const char *mode);
 #endif
 
+protected:
+    success_is_true fill_dircache(const char *path) override;
+    success_is_true ready_to_list() override { return ensure_connected(); }
 };
 
 #endif // FN_FSFTP_H

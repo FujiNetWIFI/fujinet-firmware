@@ -20,8 +20,6 @@ FileSystemFTP::FileSystemFTP()
     Debug_printf("FileSystemFTP::ctor\n");
     _ftp = nullptr;
     _url = nullptr;
-    // invalidate _last_dir
-    _last_dir[0] = '\0';
 }
 
 FileSystemFTP::~FileSystemFTP()
@@ -29,7 +27,6 @@ FileSystemFTP::~FileSystemFTP()
     Debug_printf("FileSystemFTP::dtor\n");
     if (_started)
     {
-        _dircache.clear();
         _ftp->logout();
     }
     if (_ftp != nullptr)
@@ -389,104 +386,48 @@ bool FileSystemFTP::dir_exists(const char* path)
     return is_dir(path);
 }
 
-success_is_true FileSystemFTP::dir_open(const char  *path, const char *pattern, uint16_t diropts)
+success_is_true FileSystemFTP::fill_dircache(const char *path)
 {
-    if (!ensure_connected())
-        RETURN_ERROR_AS_FALSE();
+    // List FTP directory
+    fujiError_t res;
+    res = _ftp->open_directory(path, "");
 
-    Debug_printf("FileSystemFTP::dir_open(\"%s\", \"%s\", %u)\n", path ? path : "", pattern ? pattern : "", diropts);
-
-    if (path == nullptr)
-        RETURN_ERROR_AS_FALSE();
-
-    if (strcmp(_last_dir, path) == 0 && !_dircache.empty())
+    if (res != FUJI_ERROR::NONE)
     {
-        Debug_printf("Use directory cache\n");
+        Debug_printf("Failed to open directory\n");
+        RETURN_ERROR_AS_FALSE();
     }
-    else
+
+    // Populate directory cache with entries
+    string filename;
+    long filesz;
+    bool is_dir;
+    fsdir_entry fs_de;
+
+    // get first directory entry
+    res = _ftp->read_directory(filename, filesz, is_dir);
+    while(res == FUJI_ERROR::NONE)
     {
-        Debug_printf("Fill directory cache\n");
+        // skip hidden (must still advance to next entry, else infinite loop)
+        if (filename[0] == '.')
+            continue;
+            // new dir entry
 
-        _dircache.clear();
-        // invalidate _last_dir
-        _last_dir[0] = '\0';
-
-        // List FTP directory
-        fujiError_t res;
-        res = _ftp->open_directory(path, "");
-
-        if (res != FUJI_ERROR::NONE)
-        {
-            Debug_printf("Failed to open directory\n");
-            RETURN_ERROR_AS_FALSE();
-        }
-
-        // Remember last visited directory
-        strlcpy(_last_dir, path, MAX_PATHLEN);
-
-        // Populate directory cache with entries
-        string filename;
-        long filesz;
-        bool is_dir;
-        fsdir_entry fs_de;
-        success_is_true listed = success_is_true(true);
-
-        // get first directory entry
-        res = _ftp->read_directory(filename, filesz, is_dir);
-        while(res == FUJI_ERROR::NONE)
-        {
-            // skip hidden (must still advance to next entry, else infinite loop)
-            if (filename[0] == '.')
-                continue;
-                // new dir entry
-
-            fs_de = fsdir_entry();
-                // set entry members
+        fs_de = fsdir_entry();
             // set entry members
-            strlcpy(fs_de.filename, filename.c_str(), sizeof(fs_de.filename));
-            fs_de.isDir = is_dir;
-            fs_de.size = (uint32_t)filesz;
-            fs_de.modified_time = 0; // TODO
-            listed = _dircache.add_entry(fs_de);
-            if (listed.is_error())
-                break;
-
-            // get next
-            res = _ftp->read_directory(filename, filesz, is_dir);
-        }
-
-        if (listed.is_error())
-        {
-            _dircache.clear();
+        // set entry members
+        strlcpy(fs_de.filename, filename.c_str(), sizeof(fs_de.filename));
+        fs_de.isDir = is_dir;
+        fs_de.size = (uint32_t)filesz;
+        fs_de.modified_time = 0; // TODO
+        if (_dircache.add_entry(fs_de).is_error())
             RETURN_ERROR_AS_FALSE();
-        }
-    }
 
-    // Apply pattern matching filter and sort entries
-    if (_dircache.apply_filter(pattern, diropts).is_error())
-        RETURN_ERROR_AS_FALSE();
+        // get next
+        res = _ftp->read_directory(filename, filesz, is_dir);
+    }
 
     RETURN_SUCCESS_AS_TRUE();
-}
-
-fsdir_entry *FileSystemFTP::dir_read()
-{
-    return _dircache.read();
-}
-
-void FileSystemFTP::dir_close()
-{
-    // _dircache.clear();
-}
-
-uint16_t FileSystemFTP::dir_tell()
-{
-    return _dircache.tell();
-}
-
-success_is_true FileSystemFTP::dir_seek(uint16_t pos)
-{
-    return _dircache.seek(pos);
 }
 
 success_is_true FileSystemFTP::keep_alive()

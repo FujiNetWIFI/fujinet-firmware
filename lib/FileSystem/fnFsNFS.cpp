@@ -16,9 +16,6 @@ FileSystemNFS::FileSystemNFS()
     Debug_printf("FileSystemNFS::ctor\n");
     _nfs = nullptr;
     _url = nullptr;
-    // invalidate _last_dir
-    _last_dir[0] = '/';
-    _last_dir[1] = '\0';
 }
 
 FileSystemNFS::~FileSystemNFS()
@@ -26,7 +23,6 @@ FileSystemNFS::~FileSystemNFS()
     Debug_printf("FileSystemNFS::dtor\n");
     if (_started)
     {
-        _dircache.clear();
         nfs_umount(_nfs);
         nfs_destroy_url(_url);
         nfs_destroy_context(_nfs);
@@ -181,108 +177,57 @@ bool FileSystemNFS::is_dir(const char *path)
     return S_ISDIR(st.nfs_mode);
 }
 
-success_is_true FileSystemNFS::dir_open(const char  *path, const char *pattern, uint16_t diropts)
+success_is_true FileSystemNFS::fill_dircache(const char *path)
 {
-    if(!_started)
-        RETURN_ERROR_AS_FALSE();
-
-    Debug_printf("FileSystemNFS::dir_open(\"%s\", \"%s\", %u)\n", path ? path : "", pattern ? pattern : "", diropts);
-
     // skip '/' at beginning
     const char *nfs_path = path;
-    if (nfs_path != nullptr && nfs_path[0] == '/')
+    if (nfs_path[0] == '/')
         nfs_path += 1;
 
-    if (strcmp(_last_dir, nfs_path) == 0)
+    // Open NFS directory
+    struct nfsdir *nfs_dir;
+
+    if (nfs_opendir(_nfs, nfs_path, &nfs_dir) != 0)
     {
-        Debug_printf("Use directory cache\n");
-    }
-    else
-    {
-        Debug_printf("Fill directory cache\n");
-
-        _dircache.clear();
-        // invalidate _last_dir
-        _last_dir[0] = '/';
-        _last_dir[1] = '\0';
-
-        // Open NFS directory
-        struct nfsdir *nfs_dir;
-
-        if (nfs_opendir(_nfs, nfs_path, &nfs_dir) != 0)
-        {
-            Debug_printf("Failed to open directory: %s\n", nfs_get_error(_nfs));
-            RETURN_ERROR_AS_FALSE();
-        }
-
-        // Populate directory cache with entries
-        struct nfsdirent *nfs_de;
-        fsdir_entry fs_de;
-        success_is_true listed = success_is_true(true);
-
-        while ((nfs_de = nfs_readdir(_nfs, nfs_dir)) != nullptr)
-        {
-            // skip hidden
-            if (nfs_de->name[0] == '.')
-                continue;
-
-            // new dir entry
-            fs_de = fsdir_entry();
-
-            // set entry members
-            strlcpy(fs_de.filename, nfs_de->name, sizeof(fs_de.filename));
-            fs_de.isDir = S_ISDIR(nfs_de->mode);
-            fs_de.size = (uint32_t)nfs_de->size;
-            fs_de.modified_time = (time_t)nfs_de->mtime.tv_sec;
-
-            listed = _dircache.add_entry(fs_de);
-            if (listed.is_error())
-                break;
-
-            if (fs_de.isDir)
-            {
-                Debug_printf(" add entry: \"%s\"\tDIR\n", fs_de.filename);
-            }
-            else
-            {
-                Debug_printf(" add entry: \"%s\"\t%lu\n", fs_de.filename, fs_de.size);
-            }
-        }
-        nfs_closedir(_nfs, nfs_dir);
-
-        if (listed.is_error())
-        {
-            _dircache.clear();
-            RETURN_ERROR_AS_FALSE();
-        }
-
-        // Remember last visited directory
-        strlcpy(_last_dir, nfs_path, MAX_PATHLEN);
-    }
-
-    // Apply pattern matching filter and sort entries
-    if (_dircache.apply_filter(pattern, diropts).is_error())
+        Debug_printf("Failed to open directory: %s\n", nfs_get_error(_nfs));
         RETURN_ERROR_AS_FALSE();
+    }
+
+    // Populate directory cache with entries
+    struct nfsdirent *nfs_de;
+    fsdir_entry fs_de;
+
+    while ((nfs_de = nfs_readdir(_nfs, nfs_dir)) != nullptr)
+    {
+        // skip hidden
+        if (nfs_de->name[0] == '.')
+            continue;
+
+        // new dir entry
+        fs_de = fsdir_entry();
+
+        // set entry members
+        strlcpy(fs_de.filename, nfs_de->name, sizeof(fs_de.filename));
+        fs_de.isDir = S_ISDIR(nfs_de->mode);
+        fs_de.size = (uint32_t)nfs_de->size;
+        fs_de.modified_time = (time_t)nfs_de->mtime.tv_sec;
+
+        if (_dircache.add_entry(fs_de).is_error())
+        {
+            nfs_closedir(_nfs, nfs_dir);
+            RETURN_ERROR_AS_FALSE();
+        }
+
+        if (fs_de.isDir)
+        {
+            Debug_printf(" add entry: \"%s\"\tDIR\n", fs_de.filename);
+        }
+        else
+        {
+            Debug_printf(" add entry: \"%s\"\t%lu\n", fs_de.filename, fs_de.size);
+        }
+    }
+    nfs_closedir(_nfs, nfs_dir);
 
     RETURN_SUCCESS_AS_TRUE();
-}
-
-fsdir_entry *FileSystemNFS::dir_read()
-{
-    return _dircache.read();
-}
-
-void FileSystemNFS::dir_close()
-{
-    // _dircache.clear();
-}
-
-uint16_t FileSystemNFS::dir_tell()
-{
-    return _dircache.tell();
-}
-
-success_is_true FileSystemNFS::dir_seek(uint16_t pos)
-{
-    return _dircache.seek(pos);
 }

@@ -127,14 +127,11 @@ success_is_true FileSystemSDFAT::rmdir(const char* path)
     RETURN_SUCCESS_IF(0 == result);
 }
 
-success_is_true FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t diropts)
+success_is_true FileSystemSDFAT::fill_dircache(const char *path)
 {
 #ifndef ESP_PLATFORM
-    Debug_printf("FileSystemSDFAT::dir_open \"%s\"\n", path);
+    Debug_printf("FileSystemSDFAT::fill_dircache \"%s\"\n", path);
 #endif
-
-    // Throw out any existing directory entry data
-    _dircache.clear();
 
 #ifdef ESP_PLATFORM
     FRESULT result = f_opendir(&_dir, path);
@@ -142,14 +139,12 @@ success_is_true FileSystemSDFAT::dir_open(const char * path, const char * patter
         RETURN_ERROR_AS_FALSE();
 #else
     char * fpath = _make_fullpath(path);
-    Debug_printf("FileSystemSDFAT::dir_open - opendir \"%s\"\n", fpath);
+    Debug_printf("FileSystemSDFAT::fill_dircache - opendir \"%s\"\n", fpath);
     _dir = opendir(fpath);
     free(fpath);
     if(_dir == nullptr)
         RETURN_ERROR_AS_FALSE();
 #endif
-
-    success_is_true listed = success_is_true(true);
 
 #ifdef ESP_PLATFORM
     FILINFO finfo;
@@ -172,10 +167,12 @@ success_is_true FileSystemSDFAT::dir_open(const char * path, const char * patter
         || strcmp(finfo.fname, "rs232dump") == 0)
             continue;
 
-        listed = _dircache.add_entry(finfo.fname, finfo.fattrib & AM_DIR, finfo.fsize,
-                                     _fssd_fatdatetime_to_epoch(finfo.ftime, finfo.fdate));
-        if (listed.is_error())
-            break;
+        if (_dircache.add_entry(finfo.fname, finfo.fattrib & AM_DIR, finfo.fsize,
+                                _fssd_fatdatetime_to_epoch(finfo.ftime, finfo.fdate)).is_error())
+        {
+            f_closedir(&_dir);
+            RETURN_ERROR_AS_FALSE();
+        }
     }
 // ESP_PLATFORM
 #else
@@ -204,9 +201,11 @@ success_is_true FileSystemSDFAT::dir_open(const char * path, const char * patter
         }
         free(fpath);
         // Assume symlinks point to directories only
-        listed = _dircache.add_entry(d->d_name, d->d_type == DT_DIR || d->d_type == DT_LNK, size, modified_time);
-        if (listed.is_error())
-            break;
+        if (_dircache.add_entry(d->d_name, d->d_type == DT_DIR || d->d_type == DT_LNK, size, modified_time).is_error())
+        {
+            closedir(_dir);
+            RETURN_ERROR_AS_FALSE();
+        }
     }
 // !ESP_PLATFORM
 #endif
@@ -218,33 +217,7 @@ success_is_true FileSystemSDFAT::dir_open(const char * path, const char * patter
     closedir(_dir);
 #endif
 
-    if (listed.is_error() || _dircache.apply_filter(pattern, diropts).is_error())
-    {
-        _dircache.clear();
-        RETURN_ERROR_AS_FALSE();
-    }
-
     RETURN_SUCCESS_AS_TRUE();
-}
-
-void FileSystemSDFAT::dir_close()
-{
-    _dircache.clear();
-}
-
-fsdir_entry * FileSystemSDFAT::dir_read()
-{
-    return _dircache.read();
-}
-
-uint16_t FileSystemSDFAT::dir_tell()
-{
-    return _dircache.tell();
-}
-
-success_is_true FileSystemSDFAT::dir_seek(uint16_t pos)
-{
-    return _dircache.seek(pos);
 }
 
 
