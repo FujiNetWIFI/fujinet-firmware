@@ -19,15 +19,15 @@ void DirCache::clear()
     _current = 0;
 }
 
-void DirCache::add_entry(const fsdir_entry &entry)
+void DirCache::add_entry(const char *name, bool isDir, uint32_t size, time_t modified_time)
 {
     Record record;
     record.name_offset = _names.size();
-    record.size = entry.size;
-    record.modified_time = (uint32_t)entry.modified_time;
-    record.isDir = entry.isDir;
+    record.size = size;
+    record.modified_time = (uint32_t)modified_time;
+    record.isDir = isDir;
 
-    _names.insert(_names.end(), entry.filename, entry.filename + strlen(entry.filename) + 1);
+    _names.insert(_names.end(), name, name + strlen(name) + 1);
     _records.push_back(record);
 }
 

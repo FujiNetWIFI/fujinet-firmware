@@ -48,28 +48,6 @@
 // Our global SD interface
 FileSystemSDFAT fnSDFAT;
 
-bool _fssd_fsdir_sort_name_ascend(fsdir_entry &left, fsdir_entry &right)
-{
-    return strcasecmp(left.filename, right.filename) < 0;
-}
-
-bool _fssd_fsdir_sort_name_descend(fsdir_entry &left, fsdir_entry &right)
-{
-    return strcasecmp(left.filename, right.filename) > 0;
-}
-
-bool _fssd_fsdir_sort_time_ascend(fsdir_entry &left, fsdir_entry &right)
-{
-    return left.modified_time > right.modified_time;
-}
-
-bool _fssd_fsdir_sort_time_descend(fsdir_entry &left, fsdir_entry &right)
-{
-    return left.modified_time < right.modified_time;
-}
-
-typedef bool (*sort_fn_t)(fsdir_entry &left, fsdir_entry &right);
-
 
 #ifdef ESP_PLATFORM
 /*
@@ -156,8 +134,7 @@ success_is_true FileSystemSDFAT::dir_open(const char * path, const char * patter
 #endif
 
     // Throw out any existing directory entry data
-    _dir_entries.clear();
-    _dir_entry_current = 0;
+    _dircache.clear();
 
 #ifdef ESP_PLATFORM
     FRESULT result = f_opendir(&_dir, path);
@@ -171,29 +148,6 @@ success_is_true FileSystemSDFAT::dir_open(const char * path, const char * patter
     if(_dir == nullptr)
         RETURN_ERROR_AS_FALSE();
 #endif
-
-	char realpat[MAX_PATHLEN];
-	char *thepat = nullptr;
-    bool have_pattern = pattern != nullptr && pattern[0] != '\0';
-	Debug_printf (
-		"FileSystemSDFAT::dir_open I%s have a pattern.\n",
-		have_pattern ? "" : " do not"
-	);
-	bool filter_dirs = have_pattern && pattern[strlen(pattern)-1] == '/';
-	if (filter_dirs) {
-		Debug_printf ("FileSystemSDFAT::dir_open I am filtering directories.\n");
-		strlcpy (realpat, pattern, sizeof (realpat));
-		realpat[strlen(realpat)-1] = '\0';
-	}
-	thepat = filter_dirs ? realpat : (char *)pattern;
-
-	
-
-    // Read all the directory entries and store them
-    // We temporarily keep separate lists of files and directories so we can sort them separately
-    std::vector<fsdir_entry> store_directories;
-    std::vector<fsdir_entry> store_files;
-    fsdir_entry *entry;
 
 #ifdef ESP_PLATFORM
     FILINFO finfo;
@@ -216,32 +170,8 @@ success_is_true FileSystemSDFAT::dir_open(const char * path, const char * patter
         || strcmp(finfo.fname, "rs232dump") == 0)
             continue;
 
-        // Determine which list to put this in
-        if(finfo.fattrib & AM_DIR)
-        {
-			// Skip this entry if we're filtering directories and it doesn't match
-			if (filter_dirs && util_wildcard_match(finfo.fname, thepat) == false)
-				continue;
-
-            store_directories.push_back(fsdir_entry());
-            entry = &store_directories.back();
-            entry->isDir = true;
-        }
-        else
-        {
-            // Skip this entry if we have a search filter and it doesn't match it
-            if(have_pattern && util_wildcard_match(finfo.fname, thepat) == false)
-                continue;
-
-            store_files.push_back(fsdir_entry());
-            entry = &store_files.back();
-            entry->isDir = false;
-        }
-
-        // Copy the data we want into the record
-        strlcpy(entry->filename, finfo.fname, sizeof(entry->filename));
-        entry->size = finfo.fsize;
-        entry->modified_time = _fssd_fatdatetime_to_epoch(finfo.ftime, finfo.fdate);
+        _dircache.add_entry(finfo.fname, finfo.fattrib & AM_DIR, finfo.fsize,
+                            _fssd_fatdatetime_to_epoch(finfo.ftime, finfo.fdate));
     }
 // ESP_PLATFORM
 #else
@@ -260,60 +190,20 @@ success_is_true FileSystemSDFAT::dir_open(const char * path, const char * patter
         || strcmp(d->d_name, "rs232dump") == 0)
             continue;
 
-        // Determine which list to put this in
-        if(d->d_type == DT_DIR || d->d_type == DT_LNK) // well, assume symlinks point to directories only
-        {
-			// Skip this entry if we're filtering directories and it doesn't match
-			if (filter_dirs && util_wildcard_match(d->d_name, thepat) == false)
-				continue;
-				
-            store_directories.push_back(fsdir_entry());
-            entry = &store_directories.back();
-            entry->isDir = true;
-        }
-        else
-        {
-            // Skip this entry if we have a search filter and it doesn't match it
-            if(have_pattern && util_wildcard_match(d->d_name, thepat) == false)
-                continue;
-
-            store_files.push_back(fsdir_entry());
-            entry = &store_files.back();
-            entry->isDir = false;
-        }
-
-        // Copy the data we want into the record
-        strlcpy(entry->filename, d->d_name, sizeof(entry->filename));
-        fpath = _make_fullpath(entry->filename);
+        uint32_t size = 0;
+        time_t modified_time = 0;
+        fpath = _make_fullpath(d->d_name);
         if(stat(fpath, &s) == 0)
         {
-            entry->size = s.st_size;
-            entry->modified_time = s.st_mtime;
+            size = s.st_size;
+            modified_time = s.st_mtime;
         }
         free(fpath);
+        // Assume symlinks point to directories only
+        _dircache.add_entry(d->d_name, d->d_type == DT_DIR || d->d_type == DT_LNK, size, modified_time);
     }
 // !ESP_PLATFORM
 #endif
-
-    // Choose the appropriate sorting function
-    sort_fn_t sortfn;
-    if (diropts & DIR_OPTION_FILEDATE)
-    {
-        sortfn = (diropts & DIR_OPTION_DESCENDING) ? _fssd_fsdir_sort_time_descend : _fssd_fsdir_sort_time_ascend;
-    }
-    else
-    {
-        sortfn = (diropts & DIR_OPTION_DESCENDING) ? _fssd_fsdir_sort_name_descend : _fssd_fsdir_sort_name_ascend;        
-    }
-
-    // Sort each list
-    std::sort(store_directories.begin(), store_directories.end(), sortfn);
-    std::sort(store_files.begin(), store_files.end(), sortfn);
-
-    // Combine the folder and file entries
-    _dir_entries.reserve( store_directories.size() + store_files.size() );
-    _dir_entries = store_directories; // This copies the contents from one vector to the other
-    _dir_entries.insert( _dir_entries.end(), store_files.begin(), store_files.end() );
 
     // Future operations will be performed on the cache
 #ifdef ESP_PLATFORM
@@ -322,44 +212,29 @@ success_is_true FileSystemSDFAT::dir_open(const char * path, const char * patter
     closedir(_dir);
 #endif
 
+    _dircache.apply_filter(pattern, diropts);
+
     RETURN_SUCCESS_AS_TRUE();
 }
 
 void FileSystemSDFAT::dir_close()
 {
-    // Throw out any existing directory entry data
-    _dir_entries.clear();
-    _dir_entries.shrink_to_fit();
-    _dir_entry_current = 0;
+    _dircache.clear();
 }
 
 fsdir_entry * FileSystemSDFAT::dir_read()
 {
-    if(_dir_entry_current < _dir_entries.size())
-    {
-        return &_dir_entries[_dir_entry_current++];
-    }
-    else
-        return nullptr;
+    return _dircache.read();
 }
 
 uint16_t FileSystemSDFAT::dir_tell()
 {
-    if(_dir_entries.empty())
-        return FNFS_INVALID_DIRPOS;
-    else
-        return _dir_entry_current;
+    return _dircache.tell();
 }
 
 success_is_true FileSystemSDFAT::dir_seek(uint16_t pos)
 {
-    if(pos < _dir_entries.size())
-    {
-        _dir_entry_current = pos;
-        RETURN_SUCCESS_AS_TRUE();
-    }
-    else
-        RETURN_ERROR_AS_FALSE();
+    return _dircache.seek(pos);
 }
 
 

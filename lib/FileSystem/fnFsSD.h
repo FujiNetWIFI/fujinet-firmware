@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "fnFS.h"
+#include "fnDirCache.h"
 
 class FileSystemSDFAT : public FileSystem
 {
@@ -20,8 +21,7 @@ private:
 #endif
     uint64_t _card_capacity = 0;
     // Cached so the listing can be sorted and support dir_tell()/dir_seek()
-    std::vector<fsdir_entry> _dir_entries;
-    uint16_t _dir_entry_current = 0;
+    DirCache _dircache;
 public:
     FileSystemSDFAT() = default;
     // Another handle on the mounted card, with its own directory listing
