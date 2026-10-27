@@ -455,6 +455,7 @@ success_is_true FileSystemHTTP::dir_open(const char  *path, const char *pattern,
         std::vector<IndexParser::IndexEntry>::iterator dirEntryCursor = _parser.rewind();
 #endif
         struct tm tm;
+        success_is_true listed = success_is_true(true);
         while (dirEntryCursor != _parser.entries.end())
         {
             // new dir entry
@@ -523,7 +524,9 @@ success_is_true FileSystemHTTP::dir_open(const char  *path, const char *pattern,
                 }
             }
 
-            _dircache.add_entry(fs_de);
+            listed = _dircache.add_entry(fs_de);
+            if (listed.is_error())
+                break;
 
             if (fs_de.isDir)
             {
@@ -538,10 +541,17 @@ success_is_true FileSystemHTTP::dir_open(const char  *path, const char *pattern,
         }
         // Delete parsed entries
         _parser.clear();
+
+        if (listed.is_error())
+        {
+            _dircache.clear();
+            RETURN_ERROR_AS_FALSE();
+        }
     }
 
     // Apply pattern matching filter and sort entries
-    _dircache.apply_filter(pattern, diropts);
+    if (_dircache.apply_filter(pattern, diropts).is_error())
+        RETURN_ERROR_AS_FALSE();
 
     HEAP_DEBUG();
     RETURN_SUCCESS_AS_TRUE();

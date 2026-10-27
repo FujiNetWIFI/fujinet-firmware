@@ -215,12 +215,10 @@ success_is_true FileSystemNFS::dir_open(const char  *path, const char *pattern, 
             RETURN_ERROR_AS_FALSE();
         }
 
-        // Remember last visited directory
-        strlcpy(_last_dir, nfs_path, MAX_PATHLEN);
-
         // Populate directory cache with entries
         struct nfsdirent *nfs_de;
         fsdir_entry fs_de;
+        success_is_true listed = success_is_true(true);
 
         while ((nfs_de = nfs_readdir(_nfs, nfs_dir)) != nullptr)
         {
@@ -237,7 +235,9 @@ success_is_true FileSystemNFS::dir_open(const char  *path, const char *pattern, 
             fs_de.size = (uint32_t)nfs_de->size;
             fs_de.modified_time = (time_t)nfs_de->mtime.tv_sec;
 
-            _dircache.add_entry(fs_de);
+            listed = _dircache.add_entry(fs_de);
+            if (listed.is_error())
+                break;
 
             if (fs_de.isDir)
             {
@@ -249,10 +249,20 @@ success_is_true FileSystemNFS::dir_open(const char  *path, const char *pattern, 
             }
         }
         nfs_closedir(_nfs, nfs_dir);
+
+        if (listed.is_error())
+        {
+            _dircache.clear();
+            RETURN_ERROR_AS_FALSE();
+        }
+
+        // Remember last visited directory
+        strlcpy(_last_dir, nfs_path, MAX_PATHLEN);
     }
 
     // Apply pattern matching filter and sort entries
-    _dircache.apply_filter(pattern, diropts);
+    if (_dircache.apply_filter(pattern, diropts).is_error())
+        RETURN_ERROR_AS_FALSE();
 
     RETURN_SUCCESS_AS_TRUE();
 }

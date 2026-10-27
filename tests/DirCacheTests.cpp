@@ -149,3 +149,21 @@ TEST_CASE("a pattern ending in / filters directories as well as files")
     CHECK(std::string(cache.read()->filename) == "gamer.atr");
     CHECK(cache.read() == nullptr);
 }
+
+TEST_CASE("add_entry refuses an entry past the 16-bit position limit")
+{
+    DirCache cache;
+    for (size_t idx = 0; idx < DirCache::MAX_ENTRIES; idx++)
+        REQUIRE(cache.add_entry(std::to_string(idx).c_str(), false, 0, 0).is_success());
+
+    CHECK(cache.add_entry("one too many", false, 0, 0).is_error());
+
+    // The entries already added still list, and the end position is a valid one
+    REQUIRE(cache.apply_filter(nullptr, DIR_OPTION_UNSORTED).is_success());
+    size_t count = 0;
+    while (cache.read() != nullptr)
+        count++;
+    CHECK(count == DirCache::MAX_ENTRIES);
+    CHECK(cache.tell() == DirCache::MAX_ENTRIES);
+    CHECK(cache.tell() != FNFS_INVALID_DIRPOS);
+}

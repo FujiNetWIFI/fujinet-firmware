@@ -227,12 +227,10 @@ success_is_true FileSystemSMB::dir_open(const char  *path, const char *pattern, 
             RETURN_ERROR_AS_FALSE();
         }
 
-        // Remember last visited directory
-        strlcpy(_last_dir, smb_path, MAX_PATHLEN);
-
         // Populate directory cache with entries
         smb2dirent *smb_de;
         fsdir_entry fs_de;
+        success_is_true listed = success_is_true(true);
 
         while ((smb_de = smb2_readdir(_smb, smb_dir)) != nullptr)
         {
@@ -253,7 +251,9 @@ success_is_true FileSystemSMB::dir_open(const char  *path, const char *pattern, 
             fs_de.size = (uint32_t)smb_de->st.smb2_size;
             fs_de.modified_time = (time_t)smb_de->st.smb2_mtime;
 
-            _dircache.add_entry(fs_de);
+            listed = _dircache.add_entry(fs_de);
+            if (listed.is_error())
+                break;
 
             if (fs_de.isDir)
             {
@@ -265,10 +265,20 @@ success_is_true FileSystemSMB::dir_open(const char  *path, const char *pattern, 
             }
         }
         smb2_closedir(_smb, smb_dir);
+
+        if (listed.is_error())
+        {
+            _dircache.clear();
+            RETURN_ERROR_AS_FALSE();
+        }
+
+        // Remember last visited directory
+        strlcpy(_last_dir, smb_path, MAX_PATHLEN);
     }
 
     // Apply pattern matching filter and sort entries
-    _dircache.apply_filter(pattern, diropts);
+    if (_dircache.apply_filter(pattern, diropts).is_error())
+        RETURN_ERROR_AS_FALSE();
 
     RETURN_SUCCESS_AS_TRUE();
 }

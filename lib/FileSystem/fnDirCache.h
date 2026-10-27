@@ -39,12 +39,16 @@ private:
 
 public:
     void clear();
-    void add_entry(const char *name, bool isDir, uint32_t size, time_t modified_time);
-    void add_entry(const fsdir_entry &entry)
+    // Listing positions are 16-bit, and FNFS_INVALID_DIRPOS is not one
+    static constexpr size_t MAX_ENTRIES = FNFS_INVALID_DIRPOS - 1;
+
+    // An error leaves the entries already added in place
+    success_is_true add_entry(const char *name, bool isDir, uint32_t size, time_t modified_time);
+    success_is_true add_entry(const fsdir_entry &entry)
     {
-        add_entry(entry.filename, entry.isDir, entry.size, entry.modified_time);
+        return add_entry(entry.filename, entry.isDir, entry.size, entry.modified_time);
     }
-    void apply_filter(const char *pattern, uint16_t diropts);
+    success_is_true apply_filter(const char *pattern, uint16_t diropts);
 
     bool empty() {return _records.empty();}
 

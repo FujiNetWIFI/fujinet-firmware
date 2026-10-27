@@ -429,6 +429,7 @@ success_is_true FileSystemFTP::dir_open(const char  *path, const char *pattern, 
         long filesz;
         bool is_dir;
         fsdir_entry fs_de;
+        success_is_true listed = success_is_true(true);
 
         // get first directory entry
         res = _ftp->read_directory(filename, filesz, is_dir);
@@ -446,15 +447,24 @@ success_is_true FileSystemFTP::dir_open(const char  *path, const char *pattern, 
             fs_de.isDir = is_dir;
             fs_de.size = (uint32_t)filesz;
             fs_de.modified_time = 0; // TODO
-            _dircache.add_entry(fs_de);
+            listed = _dircache.add_entry(fs_de);
+            if (listed.is_error())
+                break;
 
             // get next
             res = _ftp->read_directory(filename, filesz, is_dir);
         }
+
+        if (listed.is_error())
+        {
+            _dircache.clear();
+            RETURN_ERROR_AS_FALSE();
+        }
     }
 
     // Apply pattern matching filter and sort entries
-    _dircache.apply_filter(pattern, diropts);
+    if (_dircache.apply_filter(pattern, diropts).is_error())
+        RETURN_ERROR_AS_FALSE();
 
     RETURN_SUCCESS_AS_TRUE();
 }

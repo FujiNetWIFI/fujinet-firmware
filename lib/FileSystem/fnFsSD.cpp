@@ -149,6 +149,8 @@ success_is_true FileSystemSDFAT::dir_open(const char * path, const char * patter
         RETURN_ERROR_AS_FALSE();
 #endif
 
+    success_is_true listed = success_is_true(true);
+
 #ifdef ESP_PLATFORM
     FILINFO finfo;
 
@@ -170,8 +172,10 @@ success_is_true FileSystemSDFAT::dir_open(const char * path, const char * patter
         || strcmp(finfo.fname, "rs232dump") == 0)
             continue;
 
-        _dircache.add_entry(finfo.fname, finfo.fattrib & AM_DIR, finfo.fsize,
-                            _fssd_fatdatetime_to_epoch(finfo.ftime, finfo.fdate));
+        listed = _dircache.add_entry(finfo.fname, finfo.fattrib & AM_DIR, finfo.fsize,
+                                     _fssd_fatdatetime_to_epoch(finfo.ftime, finfo.fdate));
+        if (listed.is_error())
+            break;
     }
 // ESP_PLATFORM
 #else
@@ -200,7 +204,9 @@ success_is_true FileSystemSDFAT::dir_open(const char * path, const char * patter
         }
         free(fpath);
         // Assume symlinks point to directories only
-        _dircache.add_entry(d->d_name, d->d_type == DT_DIR || d->d_type == DT_LNK, size, modified_time);
+        listed = _dircache.add_entry(d->d_name, d->d_type == DT_DIR || d->d_type == DT_LNK, size, modified_time);
+        if (listed.is_error())
+            break;
     }
 // !ESP_PLATFORM
 #endif
@@ -212,7 +218,11 @@ success_is_true FileSystemSDFAT::dir_open(const char * path, const char * patter
     closedir(_dir);
 #endif
 
-    _dircache.apply_filter(pattern, diropts);
+    if (listed.is_error() || _dircache.apply_filter(pattern, diropts).is_error())
+    {
+        _dircache.clear();
+        RETURN_ERROR_AS_FALSE();
+    }
 
     RETURN_SUCCESS_AS_TRUE();
 }
